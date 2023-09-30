@@ -10,7 +10,7 @@ Functions that exist (or intend to exist in the engine) consider the items betwe
 
 
 #A script will have the following capabilities.
-_______________________________________________________________
+
 -Script system (PATH)
 _______________________________________________________________
  Audio call ( AUDIO INIT , PATH , AUDIO END) (partial implemented)
