@@ -8,14 +8,22 @@ This project aims to map the .ORS calls into a new, more modern engine, targetin
 
 Functions that exist (or intend to exist in the engine) consider the items between paranthesis as accepted parameters.
 
+
 A script will have the following capabilities.
 -Script system (PATH)
+
  Audio call ( AUDIO INIT , PATH , AUDIO END) (partial implemented)
+ 
  Video call ( INITIATE AUDIO , PATH , END AUDIO) (partial implemented)
+ 
  Image call ( INITIATE AUDIO , PATH , END AUDIO)
+ 
  Subtitle call ( INITIATE AUDIO , PATH , END AUDIO)
+ 
  Promtp of choice (A/B)
+ 
  Load a new script (PATH)
+
 
 
 The engine uses SDL2 as the graphics and audio backend, and FFMPEG as the video backend. 
