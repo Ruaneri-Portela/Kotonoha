@@ -46,6 +46,7 @@ namespace audio
     };
     int play(void *import)
     {
+        bool cache = false;
         if (import != NULL)
         {
             soundData *data = static_cast<soundData *>(import);
@@ -53,18 +54,24 @@ namespace audio
             std::cout << "Audio init" << std::endl;
             while (!data->dataDraw->exit)
             {
+                cache = false;
                 if (data != NULL)
                 {
                     search = data;
                     while (search != NULL)
                     {
-                        if (search->timeToPlay <= data->dataDraw->timer0.pushTime() - 15 && !search->played && search->sound != NULL)
+                        if (search->timeToPlay <= data->dataDraw->timer0.pushTime()+5 && !search->played && search->sound != NULL)
                         {
                             Mix_PlayChannel(search->channel, search->sound, 0);
                             search->played = true;
+                            cache = true;
                         }
                         search = search->next;
                     }
+                }
+                if (!cache)
+                {
+                    data->dataDraw->audioE = true;
                 }
             };
         }

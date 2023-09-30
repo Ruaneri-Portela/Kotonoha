@@ -8,7 +8,14 @@ SOURCES += $(IMGUI_DIR)/backends/imgui_impl_sdl2.cpp $(IMGUI_DIR)/backends/imgui
 OBJS = $(addprefix ./Build/, $(addsuffix .o, $(basename $(notdir $(SOURCES)))))
 CXXFLAGS = -I$(IMGUI_DIR) -I$(IMGUI_DIR)/backends
 CXXFLAGS += -g -Wall -Wformat
-LIBS = -lSDL2 -lSDL2_mixer -lSDL2_image -lSDL2_ttf -lavformat -lavcodec -lavutil 
+LIBS = -lSDL2_mixer -lSDL2_image -lSDL2_ttf -lavformat -lavcodec -lavutil
+
+ifeq ($(OS), Windows_NT)
+	ECHO_MESSAGE = "MinGW"
+	LIBS += `pkg-config --static --libs sdl2`
+	CXXFLAGS += `pkg-config --cflags sdl2`
+	CFLAGS = $(CXXFLAGS)
+endif
 
 ./Build/%.o:%.cpp
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
@@ -21,7 +28,7 @@ LIBS = -lSDL2 -lSDL2_mixer -lSDL2_image -lSDL2_ttf -lavformat -lavcodec -lavutil
 
 all: $(EXE)
 	
-	@echo Build complete for $(a)
+	@echo Build complete for $(a) in $(ECHO_MESSAGE)
 
 $(EXE): $(OBJS)
 	$(CXX) -o $(SRC)$@ $^ $(CXXFLAGS) $(LIBS)

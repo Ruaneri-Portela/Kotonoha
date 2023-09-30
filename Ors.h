@@ -62,9 +62,8 @@ int comanderControler(void *array, void *import)
     return 0;
 }
 
-void ors(void *import)
+void ors(void *import, std::string comand)
 {
-    std::string filePath = "Scripts/00/00-00-A00.ENG.ORS";
-    std::vector<std::vector<std::string>> vector = textExtract::readFileLineAndTab(filePath);
+    std::vector<std::vector<std::string>> vector = textExtract::readFileLineAndTab(comand);
     comanderControler(&vector, import);
 }
