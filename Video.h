@@ -102,7 +102,7 @@ namespace video
                                 SDL_RenderCopy((*videoSource)[i].renderer, texture, NULL, &square);
                                 SDL_DestroyTexture(texture);
                                 local->videoD = false;
-                                local->uiD = true;
+                                local->imageD = true;
                             }
                             av_packet_unref(&packet);
                         }

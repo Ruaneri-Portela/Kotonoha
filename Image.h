@@ -1,76 +1,96 @@
-#ifdef _MSC_VER
-#include <SDL.h>
-#include <SDL_image.h>
-#else
-#include <SDL2/SDL.h>
-#include <SDL2/SDL_image.h>
-#endif
-typedef struct image
+namespace image
 {
-    char *filename;
-    double startTime;
-    double endTime;
-    struct image *next;
-    struct image *prev;
-};
-class ImageEngine
-{
-public:
-    image *engine = NULL;
-    image *temp = NULL;
-    void load(char *filename, double startTime, double endTime)
+    class imageObject
     {
-        if (engine == NULL)
+    public:
+        imageData *data = NULL;
+        void push(std::string filenameString, std::string startTime, std::string endTime, drawControl *dataDraw, SDL_Window *window, SDL_Renderer *renderer)
         {
-            engine = new image;
-            engine->endTime = endTime;
-            engine->startTime = startTime;
-            engine->next = NULL;
-            engine->prev = NULL;
-        }
-        else
-        {
-            temp = engine;
-            while (true)
+
+            if (atoi(filenameString.c_str()) != 1)
             {
-                if (temp->next == NULL)
+                std::stringstream ss;
+                ss << "./Midia/";
+                ss << filenameString;
+                ss << ".PNG";
+                std::string filenameStr = ss.str();
+                imageData *imageTemporary;
+                imageTemporary = new imageData;
+                SDL_Texture *texture = NULL;
+                SDL_Surface *surface = IMG_Load(filenameString.c_str());
+                texture = SDL_CreateTextureFromSurface(renderer, surface);
+                SDL_FreeSurface(surface);
+                imageTemporary->filename = filenameStr;
+                imageTemporary->timeToPlay = timeUtils::convertToTime(startTime);
+                imageTemporary->timeToEnd = timeUtils::convertToTime(endTime);
+                imageTemporary->next = NULL;
+                imageTemporary->prev = NULL;
+                imageTemporary->texture = texture;
+                imageTemporary->renderer = renderer;
+                imageTemporary->window = window;
+                imageTemporary->dataDraw = dataDraw;
+                if (data == NULL)
                 {
-                    temp = new image;
-                    temp->endTime = endTime;
-                    temp->next = NULL;
-                    temp->prev = engine;
-                }else{
-                    temp = temp->next;
+                    data = imageTemporary;
+                }
+                else
+                {
+                    imageData *search = data;
+                    while (search->next != NULL)
+                    {
+                        search = search->next;
+                    }
+                    search->next = imageTemporary;
+                    search->next->prev = search;
                 }
             }
+        };
+    };
+    int play(void *import)
+    {
+        int h = 0, w = 0;
+        bool cache = false;
+        if (import != NULL)
+        {
+            imageData *data = static_cast<imageData *>(import);
+            imageData *search = NULL;
+            std::cout << "Image init" << std::endl;
+            while (!data->dataDraw->exit)
+            {
+                cache = false;
+                while (!data->dataDraw->imageD)
+                {
+                }
+                if (data != NULL)
+                {
+                    search = data;
+
+                    while (search != NULL)
+                    {
+
+                        if (search->timeToPlay <= data->dataDraw->timer0.pushTime())
+                        {
+                            SDL_GetWindowSize(data->window, &w, &h);
+                            SDL_Rect square = {0, 0, w, h};
+                            SDL_RenderCopy(data->renderer, data->texture, NULL, &square);
+                            cache = true;
+                        }
+                        else if (search->timeToEnd <= data->dataDraw->timer0.pushTime())
+                        {
+                            SDL_DestroyTexture(data->texture);
+                        }
+                        search = search->next;
+                    }
+                }
+                data->dataDraw->imageD = false;
+                data->dataDraw->uiD = true;
+                if (!cache)
+                {
+                    data->dataDraw->imageE = true;
+                }
+            };
         }
+        std::cout << "Image end" << std::endl;
+        return 0;
     };
-    void run(){
-
-    };
-    void destroy(){
-
-    };
-};
-// Rendenizador dos itens de fundo e GUI
-class RenderImage
-{
-public:
-    SDL_Texture *texture = NULL;
-    SDL_Texture *back = NULL;
-    int scoreGame = 0;
-    void loadImage(SDL_Renderer *renderer, const char *filename)
-    {
-        SDL_Surface *surface = IMG_Load(filename);
-        texture = SDL_CreateTextureFromSurface(renderer, surface);
-        SDL_FreeSurface(surface);
-    };
-    void drawImage(SDL_Renderer *renderer)
-    {
-        SDL_RenderCopy(renderer, texture, NULL, NULL);
-    };
-    void destroyImage()
-    {
-        SDL_DestroyTexture(texture);
-    };
-};
+}

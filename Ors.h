@@ -1,9 +1,13 @@
+#include "Headers.h"
+#include "Utils.h"
 #include "Audio.h"
 #include "Video.h"
+#include "Image.h"
 typedef struct gameData
 {
     audio::audioObject *audio0;
     video::videoObject *video0;
+    image::imageObject *image0;
     SDL_Renderer *renderer = NULL;
     SDL_Window *window = NULL;
     drawControl *dataDraw = NULL;
@@ -28,7 +32,6 @@ int comanderControler(void *array, void *import)
         else if (strstr(comand, "PlayMovie") != NULL)
         {
             local->video0->push((*arrayString)[cont][1], (*arrayString)[cont][0], (*arrayString)[cont][3], local->renderer, local->dataDraw, local->window);
-            // std::cout << "PlayMovie" << std::endl;
         }
         else if (strstr(comand, "BlackFade") != NULL)
         {
@@ -45,6 +48,10 @@ int comanderControler(void *array, void *import)
         else if (strstr(comand, "PrintText") != NULL)
         {
             // std::cout << "PrintText" << std::endl;
+        }
+        else if (strstr(comand, "CreateBG") != NULL)
+        {
+            local->image0->push((*arrayString)[cont][2], (*arrayString)[cont][0], (*arrayString)[cont][3], local->dataDraw, local->window, local->renderer);
         }
         else if (strstr(comand, "Next") != NULL)
         {

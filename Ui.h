@@ -29,6 +29,7 @@ int ui(void *import)
                 ImGui::Text("Time %.3f ms", data->dataDraw->timer0.pushTime());
                 ImGui::Text("Video end %d ", data->dataDraw->videoE);
                 ImGui::Text("Audio end %d ", data->dataDraw->audioE);
+                ImGui::Text("Image end %d ", data->dataDraw->imageE);
                 if (ImGui::Button("End"))
                 {
                     data->dataDraw->exit = true;
