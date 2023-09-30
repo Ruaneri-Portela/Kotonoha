@@ -11,15 +11,15 @@ Functions that exist (or intend to exist in the engine) consider the items betwe
 
 A script will have the following capabilities.
 -Script system (PATH)
-
+_______________________________________________________________
  Audio call ( AUDIO INIT , PATH , AUDIO END) (partial implemented)
- 
+ _______________________________________________________________
  Video call ( INITIATE AUDIO , PATH , END AUDIO) (partial implemented)
- 
+ _______________________________________________________________
  Image call ( INITIATE AUDIO , PATH , END AUDIO)
- 
+ _______________________________________________________________
  Subtitle call ( INITIATE AUDIO , PATH , END AUDIO)
- 
+ _______________________________________________________________
  Promtp of choice (A/B)
  
  Load a new script (PATH)
