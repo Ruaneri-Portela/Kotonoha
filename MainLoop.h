@@ -4,7 +4,7 @@ class gameLoop
 {
 public:
     int windowWidth = 1280, windowHeight = 720;
-    bool game(SDL_Window *windowEntry, SDL_Renderer *rendererEntry)
+    bool game(SDL_Window *windowEntry, SDL_Renderer *rendererEntry, std::string filename)
     {
         bool run = false;
         gameData data;
@@ -17,7 +17,7 @@ public:
         SDL_ShowWindow(data.window);
         std::cout << "Game init" << std::endl;
         std::thread thread1(ui, &data);
-        ors(&data);
+        ors(&data, filename);
         std::thread thread2(video::play, data.video0->data);
         std::thread thread3(audio::play, data.audio0->data);
         std::cout << "Main loop init" << std::endl;
@@ -42,6 +42,11 @@ public:
                         drawing.exit = true;
                     }
                 }
+            }
+            if (drawing.reset)
+            {
+                run = 1;
+                drawing.exit = true;
             }
             if (drawing.sendFrame && !drawing.exit)
             {

@@ -90,7 +90,7 @@ namespace video
                                 while (!local->videoD)
                                 {
                                 }
-                                timeUtils::delay(41);
+                                timeUtils::delay(30);
                                 // Decodifique o quadro
                                 avcodec_send_packet(codecCtx, &packet);
                                 avcodec_receive_frame(codecCtx, frame);

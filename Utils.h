@@ -117,7 +117,9 @@ struct drawControl
     bool uiD = false;
     bool sendFrame = false;
     bool videoE = false;
+    bool audioE = false;
     bool exit = false;
+    bool reset = false;
     timeUtils::timerEngine timer0;
 };
 typedef struct soundData
