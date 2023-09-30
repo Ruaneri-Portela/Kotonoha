@@ -28,10 +28,12 @@ int comanderControler(void *array, void *import)
         else if (strstr(comand, "PlaySe") != NULL)
         {
             local->audio0->push((*arrayString)[cont][2], (*arrayString)[cont][0], (*arrayString)[cont][3], 0, local->dataDraw);
+            local->dataDraw->nonAudio = false;
         }
         else if (strstr(comand, "PlayMovie") != NULL)
         {
             local->video0->push((*arrayString)[cont][1], (*arrayString)[cont][0], (*arrayString)[cont][3], local->renderer, local->dataDraw, local->window);
+            local->dataDraw->nonVideo = false;
         }
         else if (strstr(comand, "BlackFade") != NULL)
         {
@@ -40,10 +42,12 @@ int comanderControler(void *array, void *import)
         else if (strstr(comand, "PlayBgm") != NULL)
         {
             local->audio0->push((*arrayString)[cont][1], (*arrayString)[cont][0], (*arrayString)[cont][2], 1, local->dataDraw);
+            local->dataDraw->nonAudio = false;
         }
         else if (strstr(comand, "PlayVoice") != NULL)
         {
             local->audio0->push((*arrayString)[cont][1], (*arrayString)[cont][0], (*arrayString)[cont][4], 2, local->dataDraw);
+            local->dataDraw->nonAudio = false;
         }
         else if (strstr(comand, "PrintText") != NULL)
         {
@@ -52,6 +56,7 @@ int comanderControler(void *array, void *import)
         else if (strstr(comand, "CreateBG") != NULL)
         {
             local->image0->push((*arrayString)[cont][2], (*arrayString)[cont][0], (*arrayString)[cont][3], local->dataDraw, local->window, local->renderer);
+            local->dataDraw->nonImage = false;
         }
         else if (strstr(comand, "Next") != NULL)
         {
@@ -68,7 +73,6 @@ int comanderControler(void *array, void *import)
     }
     return 0;
 }
-
 void ors(void *import, std::string comand)
 {
     std::vector<std::vector<std::string>> vector = textExtract::readFileLineAndTab(comand);

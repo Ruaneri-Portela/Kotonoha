@@ -55,9 +55,14 @@ public:
                 SDL_RenderPresent(rendererEntry);
                 SDL_RenderClear(data.renderer);
                 drawing.sendFrame = false;
-                drawing.videoD = true;
+                if(drawing.nonVideo){
+                    drawing.imageD = true;
+                }else{
+                    drawing.videoD = true;
+                }
+                
             }
-            if (drawing.videoE && !drawing.sendFrame)
+            if ((drawing.videoE && !drawing.sendFrame)&& drawing.nonImage)
             {
                 drawing.uiD = true;
             }
