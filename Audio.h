@@ -1,14 +1,13 @@
 #include "Utils.h"
-bool runVideo = true;
-bool runAudio = true;
 namespace audio
 {
     class audioObject
     {
     public:
         soundData *data = NULL;
-        void push(std::string filenameString, std::string startTime, std::string endTime, int channel)
+        void push(std::string filenameString, std::string startTime, std::string endTime, int channel, drawControl *dataDraw)
         {
+
             if (atoi(filenameString.c_str()) != 1)
             {
                 std::stringstream ss;
@@ -24,7 +23,9 @@ namespace audio
                 soundTemporary->timeToEnd = timeUtils::convertToTime(endTime);
                 soundTemporary->channel = channel;
                 soundTemporary->next = NULL;
+                soundTemporary->prev = NULL;
                 soundTemporary->sound = Mix_LoadWAV(filenameStr.c_str());
+                soundTemporary->dataDraw = dataDraw;
                 if (data == NULL)
                 {
                     data = soundTemporary;
@@ -49,21 +50,15 @@ namespace audio
         {
             soundData *data = static_cast<soundData *>(import);
             soundData *search = NULL;
-            timeUtils::timerEngine timer;
-            bool clockStarted = false;
-            while (runAudio)
+            std::cout << "Audio init" << std::endl;
+            while (!data->dataDraw->exit)
             {
                 if (data != NULL)
                 {
                     search = data;
                     while (search != NULL)
                     {
-                        if (!clockStarted)
-                        {
-                            timer.initTimeCapture();
-                            clockStarted = true;
-                        }
-                        if (search->timeToPlay <= timer.pushTime() - 15 && !search->played && search->sound != NULL)
+                        if (search->timeToPlay <= data->dataDraw->timer0.pushTime() - 15 && !search->played && search->sound != NULL)
                         {
                             Mix_PlayChannel(search->channel, search->sound, 0);
                             search->played = true;
@@ -73,6 +68,7 @@ namespace audio
                 }
             };
         }
+        std::cout << "Audio end" << std::endl;
         return 0;
     };
 }

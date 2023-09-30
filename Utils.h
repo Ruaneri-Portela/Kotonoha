@@ -116,9 +116,13 @@ struct drawControl
     bool videoD = true;
     bool uiD = false;
     bool sendFrame = false;
+    bool videoE = false;
+    bool exit = false;
+    timeUtils::timerEngine timer0;
 };
 typedef struct soundData
 {
+    drawControl *dataDraw = NULL;
     Mix_Chunk *sound = NULL;
     std::string filename = "";
     double timeToPlay = 0;
@@ -131,7 +135,7 @@ typedef struct soundData
 } soundData;
 typedef struct videoData
 {
-    SDL_Rect *square = NULL;
+    SDL_Window *window = NULL;
     drawControl *dataDraw = NULL;
     timeUtils::timerEngine *timer;
     SDL_Renderer *renderer = NULL;

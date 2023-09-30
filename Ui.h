@@ -41,8 +41,10 @@ int ui(void *import)
     bool show_demo_window = true;
     bool show_another_window = false;
     ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
-
-    while (data->run)
+    timeUtils::delay(2000);
+    data->dataDraw->timer0.initTimeCapture();
+    std::cout << "Ui init" << std::endl;
+    while (!data->dataDraw->exit)
     {
         if (data->dataDraw->uiD)
         {
@@ -107,5 +109,6 @@ int ui(void *import)
     ImGui_ImplSDLRenderer2_Shutdown();
     ImGui_ImplSDL2_Shutdown();
     ImGui::DestroyContext();
+    std::cout << "Ui end" << std::endl;
     return 0;
 };
