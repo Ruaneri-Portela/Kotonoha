@@ -2,10 +2,13 @@
 #include "Video.h"
 typedef struct gameData
 {
+    bool drawUi = false;
     audio::audioObject audio0;
     video::videoObject video0;
     SDL_Renderer *renderer = NULL;
     SDL_Window *window = NULL;
+    drawControl *dataDraw = NULL;
+    SDL_Rect square = {0, 0, 0, 0};
     SDL_Event event;
     bool run = true;
 } gameData;
@@ -27,7 +30,7 @@ int comanderControler(void *array, void *import)
         }
         else if (strstr(comand, "PlayMovie") != NULL)
         {
-            local->video0.push((*arrayString)[cont][1], (*arrayString)[cont][0], (*arrayString)[cont][3], local->renderer);
+            local->video0.push((*arrayString)[cont][1], (*arrayString)[cont][0], (*arrayString)[cont][3], local->renderer,local->dataDraw,&local->square);
             // std::cout << "PlayMovie" << std::endl;
         }
         else if (strstr(comand, "BlackFade") != NULL)

@@ -1,18 +1,4 @@
-#include <SDL2/SDL_ttf.h>
-#include <SDL2/SDL_mixer.h>
-#include <SDL2/SDL.h>
-#include <vector>
-#include <string>
-#include <iostream>
-#include <sstream>
-#include <fstream>
-#include <chrono>
-#include <thread>
-extern "C"
-{
-#include <libavformat/avformat.h>
-#include <libavcodec/avcodec.h>
-}
+#include "Headers.h"
 namespace timeUtils
 {
     class timerEngine
@@ -125,6 +111,12 @@ namespace textExtract
         return vector;
     }
 }
+struct drawControl
+{
+    bool videoD = true;
+    bool uiD = false;
+    bool sendFrame = false;
+};
 typedef struct soundData
 {
     Mix_Chunk *sound = NULL;
@@ -139,6 +131,8 @@ typedef struct soundData
 } soundData;
 typedef struct videoData
 {
+    SDL_Rect *square = NULL;
+    drawControl *dataDraw = NULL;
     timeUtils::timerEngine *timer;
     SDL_Renderer *renderer = NULL;
     std::string filename = "";

@@ -6,7 +6,8 @@ public:
     int laucherGame()
     {
         SDL_Init(SDL_INIT_EVERYTHING);
-        window = SDL_CreateWindow("Kotonoha Project", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 800, 460, SDL_WINDOW_HIDDEN);
+        SDL_WindowFlags windowFlags = (SDL_WindowFlags)(SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
+        window = SDL_CreateWindow("Kotonoha Project",  SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 1280, 720, windowFlags);
         renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
         Mix_Init(MIX_INIT_OGG);
         Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048);
