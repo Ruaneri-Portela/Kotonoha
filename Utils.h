@@ -3,14 +3,14 @@ namespace timeUtils
     class timerEngine
     {
     private:
-        double timePass = 0.0;
         std::chrono::time_point<std::chrono::high_resolution_clock> timeInitial;
+        double timePass = 0.0;
         bool started = false;
 
     public:
         double pushTime()
         {
-            // Retorna o tempo passado
+            // Return clock time
             if (started)
             {
                 clock();
@@ -18,18 +18,16 @@ namespace timeUtils
             }
             return 0.0;
         }
-
         bool initTimeCapture()
         {
-            // Iniciar captura de tempo
+            // Reset or init capture
             started = true;
             timeInitial = std::chrono::high_resolution_clock::now();
             return true;
         }
-
         bool clock()
         {
-            // Registrar o tempo passado apenas se a captura estiver iniciada
+            // Update clock
             if (started)
             {
                 std::chrono::time_point<std::chrono::high_resolution_clock> timeToCompare = std::chrono::high_resolution_clock::now();
@@ -38,14 +36,6 @@ namespace timeUtils
                 return true;
             }
             return false;
-        }
-
-        bool timeReset()
-        {
-            // Resetar o tempo decorrido e parar a contagem
-            timePass = 0.0;
-            started = false;
-            return true;
         }
     };
 
@@ -112,36 +102,45 @@ namespace textExtract
 }
 typedef struct drawControl
 {
+    // To check on load files
+    bool nonVideo = true;
+    bool nonAudio = true;
+    bool nonImage = true;
+    // To chech on runtime (layers of video)
+    bool imageD = false;
     bool videoD = true;
     bool uiD = false;
-    bool imageD = false;
+    // Put image to display
     bool sendFrame = false;
+    // If thread end
     bool videoE = false;
     bool audioE = false;
     bool imageE = false;
+    // To reset and exit signals
     bool exit = false;
     bool reset = false;
+    // Universal timer
     timeUtils::timerEngine timer0;
 } drawControl;
 typedef struct soundData
 {
     drawControl *dataDraw = NULL;
     Mix_Chunk *sound = NULL;
-    std::string filename = "";
-    double timeToPlay = 0;
-    double timeToEnd = 0;
-    int channel = 0;
-    bool played = false;
     soundData *prev = NULL;
     soundData *next = NULL;
+    std::string filename = "";
+    double timeToPlay = 0;
+    bool played = false;
+    double timeToEnd = 0;
+    int channel = 0;
     timeUtils::timerEngine *timer;
 } soundData;
 typedef struct videoData
 {
-    SDL_Window *window = NULL;
-    drawControl *dataDraw = NULL;
-    timeUtils::timerEngine *timer;
     SDL_Renderer *renderer = NULL;
+    drawControl *dataDraw = NULL;
+    SDL_Window *window = NULL;
+    timeUtils::timerEngine *timer;
     std::string filename = "";
     double timeToPlay = 0;
     double timeToEnd = 0;
@@ -149,15 +148,15 @@ typedef struct videoData
 } videoData;
 typedef struct imageData
 {
-    SDL_Window *window = NULL;
     SDL_Renderer *renderer = NULL;
+    drawControl *dataDraw = NULL;
     SDL_Texture *texture = NULL;
+    SDL_Window *window = NULL;
+    imageData *next = NULL;
+    imageData *prev = NULL;
     timeUtils::timerEngine *timer;
     std::string filename = "";
+    bool played = false;
     double timeToPlay;
     double timeToEnd;
-    imageData *next;
-    imageData *prev;
-    drawControl *dataDraw = NULL;
-    bool played = false;
 } imageData;

@@ -26,19 +26,19 @@ namespace video
     };
     int play(void *import)
     {
-        int h = 0, w = 0;
-        timeUtils::delay(1000);
-        drawControl *local = NULL;
-        double timePass = 0.0;
-        int arraySize = -1;
         std::vector<videoData> *videoSource = static_cast<std::vector<videoData> *>(import);
         if (import != NULL && videoSource->size() > 0)
         {
+            drawControl *local = NULL;
+            timeUtils::delay(1000);
+            double timePass = 0.0;
+            int arraySize = -1;
+            int h = 0, w = 0;
             if (local == NULL)
             {
                 local = (*videoSource)[0].dataDraw;
             }
-            std::cout << "Video init, videos to play =" << videoSource->size()  << " " << std::endl;
+            std::cout << "Video init, videos to play =" << videoSource->size() << " " << std::endl;
             while (!local->exit && arraySize != 0)
             {
                 for (std::vector<videoData>::size_type i = 0; i < (*videoSource).size(); i++)
@@ -102,7 +102,14 @@ namespace video
                                 SDL_RenderCopy((*videoSource)[i].renderer, texture, NULL, &square);
                                 SDL_DestroyTexture(texture);
                                 local->videoD = false;
-                                local->imageD = true;
+                                if (local->nonImage)
+                                {
+                                    local->uiD = true;
+                                }
+                                else
+                                {
+                                    local->imageD = true;
+                                }
                             }
                             av_packet_unref(&packet);
                         }

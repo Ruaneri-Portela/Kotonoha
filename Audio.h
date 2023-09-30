@@ -23,7 +23,6 @@ namespace audio
                 soundTemporary->channel = channel;
                 soundTemporary->next = NULL;
                 soundTemporary->prev = NULL;
-                soundTemporary->sound = Mix_LoadWAV(filenameStr.c_str());
                 soundTemporary->dataDraw = dataDraw;
                 if (data == NULL)
                 {
@@ -59,7 +58,11 @@ namespace audio
                     search = data;
                     while (search != NULL)
                     {
-                        if (search->timeToPlay <= data->dataDraw->timer0.pushTime()+5 && !search->played && search->sound != NULL)
+                        if (search->sound == NULL)
+                        {
+                            search->sound = Mix_LoadWAV(search->filename.c_str());
+                        }
+                        else if (search->timeToPlay <= data->dataDraw->timer0.pushTime() + 5 && !search->played && search->sound != NULL)
                         {
                             Mix_PlayChannel(search->channel, search->sound, 0);
                             search->played = true;
@@ -67,10 +70,10 @@ namespace audio
                         }
                         search = search->next;
                     }
-                }
-                if (!cache)
-                {
-                    data->dataDraw->audioE = true;
+                    if (!cache)
+                    {
+                        data->dataDraw->audioE = true;
+                    }
                 }
             };
         }

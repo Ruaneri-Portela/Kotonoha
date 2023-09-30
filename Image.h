@@ -16,16 +16,11 @@ namespace image
                 std::string filenameStr = ss.str();
                 imageData *imageTemporary;
                 imageTemporary = new imageData;
-                SDL_Texture *texture = NULL;
-                SDL_Surface *surface = IMG_Load(filenameString.c_str());
-                texture = SDL_CreateTextureFromSurface(renderer, surface);
-                SDL_FreeSurface(surface);
                 imageTemporary->filename = filenameStr;
                 imageTemporary->timeToPlay = timeUtils::convertToTime(startTime);
                 imageTemporary->timeToEnd = timeUtils::convertToTime(endTime);
                 imageTemporary->next = NULL;
                 imageTemporary->prev = NULL;
-                imageTemporary->texture = texture;
                 imageTemporary->renderer = renderer;
                 imageTemporary->window = window;
                 imageTemporary->dataDraw = dataDraw;
@@ -48,12 +43,12 @@ namespace image
     };
     int play(void *import)
     {
-        int h = 0, w = 0;
-        bool cache = false;
         if (import != NULL)
         {
             imageData *data = static_cast<imageData *>(import);
             imageData *search = NULL;
+            bool cache = false;
+            int h = 0, w = 0;
             std::cout << "Image init" << std::endl;
             while (!data->dataDraw->exit)
             {
@@ -67,7 +62,12 @@ namespace image
 
                     while (search != NULL)
                     {
-
+                        if (search->texture == NULL)
+                        {
+                            SDL_Surface *surface = IMG_Load(search->filename.c_str());
+                            search->texture = SDL_CreateTextureFromSurface(search->renderer, surface);
+                            SDL_FreeSurface(surface);
+                        }
                         if (search->timeToPlay <= data->dataDraw->timer0.pushTime())
                         {
                             SDL_GetWindowSize(data->window, &w, &h);
@@ -89,8 +89,9 @@ namespace image
                     data->dataDraw->imageE = true;
                 }
             };
+            std::cout << "Image end" << std::endl;
         }
-        std::cout << "Image end" << std::endl;
+
         return 0;
     };
 }
