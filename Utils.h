@@ -1,4 +1,3 @@
-#include "Headers.h"
 namespace timeUtils
 {
     class timerEngine
@@ -111,17 +110,19 @@ namespace textExtract
         return vector;
     }
 }
-struct drawControl
+typedef struct drawControl
 {
     bool videoD = true;
     bool uiD = false;
+    bool imageD = false;
     bool sendFrame = false;
     bool videoE = false;
     bool audioE = false;
+    bool imageE = false;
     bool exit = false;
     bool reset = false;
     timeUtils::timerEngine timer0;
-};
+} drawControl;
 typedef struct soundData
 {
     drawControl *dataDraw = NULL;
@@ -146,3 +147,17 @@ typedef struct videoData
     double timeToEnd = 0;
     bool played = false;
 } videoData;
+typedef struct imageData
+{
+    SDL_Window *window = NULL;
+    SDL_Renderer *renderer = NULL;
+    SDL_Texture *texture = NULL;
+    timeUtils::timerEngine *timer;
+    std::string filename = "";
+    double timeToPlay;
+    double timeToEnd;
+    imageData *next;
+    imageData *prev;
+    drawControl *dataDraw = NULL;
+    bool played = false;
+} imageData;

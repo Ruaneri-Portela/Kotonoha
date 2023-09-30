@@ -14,12 +14,14 @@ public:
         data.dataDraw = &drawing;
         data.audio0 = new audio::audioObject;
         data.video0 = new video::videoObject;
+        data.image0 = new image::imageObject;
         SDL_ShowWindow(data.window);
         std::cout << "Game init" << std::endl;
         std::thread thread1(ui, &data);
         ors(&data, filename);
         std::thread thread2(video::play, data.video0->data);
         std::thread thread3(audio::play, data.audio0->data);
+        std::thread thread4(image::play, data.image0->data);
         std::cout << "Main loop init" << std::endl;
         while (!drawing.exit)
         {
@@ -63,6 +65,7 @@ public:
         thread1.join();
         thread2.join();
         thread3.join();
+        thread4.join();
         return run;
     };
 };
