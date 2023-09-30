@@ -1,6 +1,6 @@
 #include "MainLoop.h"
 #include "Game.h"
-int WinMain(int argc, char *argv[])
+int main(int argc, char *argv[])
 {
     gameWindows *gameMain;
     gameLoop *gameBehaviour;

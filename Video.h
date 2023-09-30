@@ -5,7 +5,7 @@ namespace video
     public:
         std::vector<videoData> videoArray;
         void *data;
-        int push(std::string filenameString, std::string timeStart, std::string timeEnd, SDL_Renderer *renderer)
+        int push(std::string filenameString, std::string timeStart, std::string timeEnd, SDL_Renderer *renderer, drawControl *dataDraw,SDL_Rect *square)
         {
             std::stringstream ss;
             ss << "./Midia/";
@@ -17,6 +17,8 @@ namespace video
             videoTemporary.timeToPlay = timeUtils::convertToTime(timeStart);
             videoTemporary.timeToEnd = timeUtils::convertToTime(timeEnd);
             videoTemporary.renderer = renderer;
+            videoTemporary.dataDraw = dataDraw;
+            videoTemporary.square = square;
             videoArray.push_back(videoTemporary);
             data = &videoArray;
             return 0;
@@ -84,16 +86,20 @@ namespace video
                         {
                             if (packet.stream_index == videoStream)
                             {
+                                while (!(*videoSource)[i].dataDraw->videoD)
+                                {
+                                }
                                 timeUtils::delay(41);
                                 // Decodifique o quadro
                                 avcodec_send_packet(codecCtx, &packet);
                                 avcodec_receive_frame(codecCtx, frame);
                                 // Crie uma textura SDL com os dados do quadro+
                                 SDL_Texture *texture = SDL_CreateTexture((*videoSource)[i].renderer, SDL_PIXELFORMAT_YV12, SDL_TEXTUREACCESS_STREAMING, frame->width, frame->height);
-                                SDL_Rect square = {0, 0, 800, 460};
                                 SDL_UpdateYUVTexture(texture, NULL, frame->data[0], frame->linesize[0], frame->data[1], frame->linesize[1], frame->data[2], frame->linesize[2]);
-                                SDL_RenderCopy((*videoSource)[i].renderer, texture, NULL, &square);
+                                SDL_RenderCopy((*videoSource)[i].renderer, texture, NULL, (*videoSource)[i].square);
                                 SDL_DestroyTexture(texture);
+                                (*videoSource)[i].dataDraw->videoD = false;
+                                (*videoSource)[i].dataDraw->uiD = true;
                             }
                             av_packet_unref(&packet);
                         }
@@ -103,6 +109,8 @@ namespace video
                         avcodec_close(codecCtx);
                     }
                 }
+                (*videoSource)[0].dataDraw->videoD = false;
+                (*videoSource)[0].dataDraw->uiD = true;
             }
         }
         return 0;
