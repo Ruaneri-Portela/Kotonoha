@@ -2,21 +2,18 @@
 #include "Video.h"
 typedef struct gameData
 {
-    bool drawUi = false;
-    audio::audioObject audio0;
-    video::videoObject video0;
+    audio::audioObject *audio0;
+    video::videoObject *video0;
     SDL_Renderer *renderer = NULL;
     SDL_Window *window = NULL;
     drawControl *dataDraw = NULL;
-    SDL_Rect square = {0, 0, 0, 0};
     SDL_Event event;
-    bool run = true;
 } gameData;
 int comanderControler(void *array, void *import)
 {
     gameData *local = static_cast<gameData *>(import);
     std::vector<std::vector<std::string>> *arrayString = static_cast<std::vector<std::vector<std::string>> *>(array);
-    for (int cont = 0; cont < arrayString->size(); cont++)
+    for (std::vector<std::vector<std::string>>::size_type cont = 0; cont < arrayString->size(); cont++)
     {
         std::string comandString = (*arrayString)[cont][0];
         const char *comand = comandString.c_str();
@@ -26,11 +23,11 @@ int comanderControler(void *array, void *import)
         }
         else if (strstr(comand, "PlaySe") != NULL)
         {
-            local->audio0.push((*arrayString)[cont][2], (*arrayString)[cont][0], (*arrayString)[cont][3], 0);
+            local->audio0->push((*arrayString)[cont][2], (*arrayString)[cont][0], (*arrayString)[cont][3], 0, local->dataDraw);
         }
         else if (strstr(comand, "PlayMovie") != NULL)
         {
-            local->video0.push((*arrayString)[cont][1], (*arrayString)[cont][0], (*arrayString)[cont][3], local->renderer,local->dataDraw,&local->square);
+            local->video0->push((*arrayString)[cont][1], (*arrayString)[cont][0], (*arrayString)[cont][3], local->renderer, local->dataDraw, local->window);
             // std::cout << "PlayMovie" << std::endl;
         }
         else if (strstr(comand, "BlackFade") != NULL)
@@ -39,11 +36,11 @@ int comanderControler(void *array, void *import)
         }
         else if (strstr(comand, "PlayBgm") != NULL)
         {
-            local->audio0.push((*arrayString)[cont][1], (*arrayString)[cont][0], (*arrayString)[cont][2], 1);
+            local->audio0->push((*arrayString)[cont][1], (*arrayString)[cont][0], (*arrayString)[cont][2], 1, local->dataDraw);
         }
         else if (strstr(comand, "PlayVoice") != NULL)
         {
-            local->audio0.push((*arrayString)[cont][1], (*arrayString)[cont][0], (*arrayString)[cont][4], 2);
+            local->audio0->push((*arrayString)[cont][1], (*arrayString)[cont][0], (*arrayString)[cont][4], 2, local->dataDraw);
         }
         else if (strstr(comand, "PrintText") != NULL)
         {

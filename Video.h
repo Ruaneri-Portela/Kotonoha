@@ -5,7 +5,7 @@ namespace video
     public:
         std::vector<videoData> videoArray;
         void *data;
-        int push(std::string filenameString, std::string timeStart, std::string timeEnd, SDL_Renderer *renderer, drawControl *dataDraw,SDL_Rect *square)
+        int push(std::string filenameString, std::string timeStart, std::string timeEnd, SDL_Renderer *renderer, drawControl *dataDraw, SDL_Window *window)
         {
             std::stringstream ss;
             ss << "./Midia/";
@@ -18,7 +18,7 @@ namespace video
             videoTemporary.timeToEnd = timeUtils::convertToTime(timeEnd);
             videoTemporary.renderer = renderer;
             videoTemporary.dataDraw = dataDraw;
-            videoTemporary.square = square;
+            videoTemporary.window = window;
             videoArray.push_back(videoTemporary);
             data = &videoArray;
             return 0;
@@ -26,24 +26,25 @@ namespace video
     };
     int play(void *import)
     {
+        int h = 0, w = 0;
         timeUtils::delay(1000);
-        ///
+        drawControl *local = NULL;
         double timePass = 0.0;
-        std::chrono::time_point<std::chrono::high_resolution_clock> timeInitial;
-        timeInitial = std::chrono::high_resolution_clock::now();
-        ///
-        if (import != NULL)
+        int arraySize = -1;
+        std::vector<videoData> *videoSource = static_cast<std::vector<videoData> *>(import);
+        if (import != NULL && videoSource->size() > 0)
         {
-            std::vector<videoData> *videoSource = static_cast<std::vector<videoData> *>(import);
-            while (runVideo)
+            if (local == NULL)
             {
-                for (int i = 0; i < (*videoSource).size(); i++)
+                local = (*videoSource)[0].dataDraw;
+            }
+            std::cout << "Video init, videos to play =" << videoSource->size()  << " " << std::endl;
+            while (!local->exit && arraySize != 0)
+            {
+                for (std::vector<videoData>::size_type i = 0; i < (*videoSource).size(); i++)
+
                 {
-                    ///
-                    std::chrono::time_point<std::chrono::high_resolution_clock> timeToCompare = std::chrono::high_resolution_clock::now();
-                    std::chrono::duration<double> duration = timeToCompare - timeInitial;
-                    timePass = duration.count();
-                    ///
+                    timePass = local->timer0.pushTime();
                     if ((*videoSource)[i].timeToPlay < timePass && (*videoSource)[i].played == false)
                     {
                         AVFormatContext *formatCtx = avformat_alloc_context();
@@ -82,11 +83,11 @@ namespace video
                         AVFrame *frame = av_frame_alloc();
                         // Leia os quadros do arquivo de vídeo
                         AVPacket packet;
-                        while (av_read_frame(formatCtx, &packet) >= 0)
+                        while (av_read_frame(formatCtx, &packet) >= 0 && !local->exit)
                         {
                             if (packet.stream_index == videoStream)
                             {
-                                while (!(*videoSource)[i].dataDraw->videoD)
+                                while (!local->videoD)
                                 {
                                 }
                                 timeUtils::delay(41);
@@ -96,10 +97,12 @@ namespace video
                                 // Crie uma textura SDL com os dados do quadro+
                                 SDL_Texture *texture = SDL_CreateTexture((*videoSource)[i].renderer, SDL_PIXELFORMAT_YV12, SDL_TEXTUREACCESS_STREAMING, frame->width, frame->height);
                                 SDL_UpdateYUVTexture(texture, NULL, frame->data[0], frame->linesize[0], frame->data[1], frame->linesize[1], frame->data[2], frame->linesize[2]);
-                                SDL_RenderCopy((*videoSource)[i].renderer, texture, NULL, (*videoSource)[i].square);
+                                SDL_GetWindowSize((*videoSource)[i].window, &w, &h);
+                                SDL_Rect square = {0, 0, w, h};
+                                SDL_RenderCopy((*videoSource)[i].renderer, texture, NULL, &square);
                                 SDL_DestroyTexture(texture);
-                                (*videoSource)[i].dataDraw->videoD = false;
-                                (*videoSource)[i].dataDraw->uiD = true;
+                                local->videoD = false;
+                                local->uiD = true;
                             }
                             av_packet_unref(&packet);
                         }
@@ -107,12 +110,15 @@ namespace video
                         av_frame_free(&frame);
                         avformat_close_input(&formatCtx);
                         avcodec_close(codecCtx);
+                        videoSource->erase(videoSource->begin() + i);
+                        arraySize = videoSource->size();
+                        i = arraySize;
                     }
                 }
-                (*videoSource)[0].dataDraw->videoD = false;
-                (*videoSource)[0].dataDraw->uiD = true;
             }
+            local->videoE = true;
         }
+        std::cout << "Video end" << std::endl;
         return 0;
     };
 }
