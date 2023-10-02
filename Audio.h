@@ -61,6 +61,10 @@ namespace kotonoha
                     {
                         importedTo->root->log0->appendLog("(Audio) - Loading... " + importedTo->audio[i].path);
                         importedTo->audio[i].sound = Mix_LoadWAV(importedTo->audio[i].path.c_str());
+                        if(importedTo->audio[i].sound == NULL ){
+                            importedTo->root->log0->appendLog("(Audio) - Error on load file");
+                            importedTo->audio[i].played = true;
+                        }
                     }
                     else if (importedTo->audio[i].play < timePass && importedTo->audio[i].played == false)
                     {
@@ -68,7 +72,7 @@ namespace kotonoha
                         Mix_PlayChannel(importedTo->audio[i].channel, importedTo->audio[i].sound, 0);
                         importedTo->audio[i].played = true;
                     }
-                    else if (importedTo->audio[i].end < timePass)
+                    else if (importedTo->audio[i].end < timePass && importedTo->audio[i].played == false)
                     {
                         Mix_FreeChunk(importedTo->audio[i].sound);
                         importedTo->root->log0->appendLog("(Audio) - Drop out... " + importedTo->audio[i].path);
