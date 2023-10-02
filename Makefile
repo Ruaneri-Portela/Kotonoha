@@ -23,13 +23,13 @@ CXXFLAGS = -I$(IMGUI_DIR) -I$(IMGUI_DIR)/backends
 CXXFLAGS += -g -Wall -Wformat
 
 # Libraries
-LIBS = -lSDL2_mixer -lSDL2_image -lSDL2_ttf -lavformat -lavcodec -lavutil
+LIBS = -lSDL2 -lSDL2_mixer -lSDL2_image -lSDL2_ttf -lavformat -lavcodec -lavutil
 
 # Check if the OS is Windows
 ifeq ($(OS), Windows_NT)
 	ECHO_MESSAGE = "MinGW"
-	LIBS += `pkg-config --static --libs sdl2`
-	CXXFLAGS += `pkg-config --cflags sdl2`
+	LIBS +=
+	CXXFLAGS +=
 	CFLAGS = $(CXXFLAGS)
 endif
 

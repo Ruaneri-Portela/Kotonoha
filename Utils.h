@@ -1,55 +1,43 @@
-namespace kotonohaTime
-{
-    /**
-     * @brief A class that provides functionality for measuring time intervals.
-     */
-    class timerEngine
-    {
-    private:
-        std::chrono::time_point<std::chrono::high_resolution_clock> timeInitial; /**< The initial time point. */
-        double timePass = 0.0; /**< The time passed since the timer was started. */
-        bool started = false; /**< A flag indicating whether the timer has been started. */
 
-    public:
-        /**
-         * @brief Returns the time passed since the timer was started.
-         * @return The time passed since the timer was started, or -1.0 if the timer has not been started.
-         */
-        double pushTime();
+/**
+ * @brief A class that provides functionality for measuring time intervals.
+ */
 
-        /**
-         * @brief Initializes the timer.
-         * @return true if the timer was successfully initialized, false otherwise.
-         */
-        bool initTimeCapture();
+/**< The initial time point. */
+/**< The time passed since the timer was started. */
+/**< A flag indicating whether the timer has been started. */
 
-        /**
-         * @brief Updates the timer.
-         * @return true if the timer was successfully updated, false otherwise.
-         */
-        bool clock();
-    };
+/**
+ * @brief Returns the time passed since the timer was started.
+ * @return The time passed since the timer was started, or -1.0 if the timer has not been started.
+ */
 
-    /**
-     * @brief Converts a string in the format "MM:SS:DD" to a double representing the time in seconds.
-     * @param str The string to convert.
-     * @return The time in seconds.
-     */
-    double convertToTime(std::string str);
+/**
+ * @brief Initializes the timer.
+ * @return true if the timer was successfully initialized, false otherwise.
+ */
 
-    /**
-     * @brief Converts a time in seconds to milliseconds.
-     * @param seconds The time in seconds.
-     * @return The time in milliseconds.
-     */
-    int convertToMs(double seconds);
+/**
+ * @brief Updates the timer.
+ * @return true if the timer was successfully updated, false otherwise.
+ */
 
-    /**
-     * @brief Delays the execution of the current thread for a specified number of milliseconds.
-     * @param ms The number of milliseconds to delay the execution.
-     */
-    void delay(int ms);
-};
+/**
+ * @brief Converts a string in the format "MM:SS:DD" to a double representing the time in seconds.
+ * @param str The string to convert.
+ * @return The time in seconds.
+ */
+
+/**
+ * @brief Converts a time in seconds to milliseconds.
+ * @param seconds The time in seconds.
+ * @return The time in milliseconds.
+ */
+
+/**
+ * @brief Delays the execution of the current thread for a specified number of milliseconds.
+ * @param ms The number of milliseconds to delay the execution.
+ */
 namespace kotonohaTime
 {
     class timerEngine
@@ -99,6 +87,16 @@ namespace kotonohaTime
         std::string token;
         std::vector<std::string> stringTimeVector;
         std::istringstream stringStream(str);
+        if (strstr(str.c_str(), "="))
+        {
+            std::vector<std::string> stringTimeVectorSplited;
+            while (std::getline(stringStream, token, '='))
+            {
+                stringTimeVectorSplited.push_back(token);
+            }
+            stringStream.str("");
+            stringStream = std::istringstream(stringTimeVectorSplited[1]);
+        }
         while (std::getline(stringStream, token, ':'))
         {
             stringTimeVector.push_back(token);
@@ -127,7 +125,6 @@ namespace kotonoha
         std::ifstream file(path);
         if (!file.is_open())
         {
-
             return vector;
         }
         std::string linha;
@@ -160,6 +157,7 @@ namespace kotonoha
         void appendLog(std::string Log)
         {
             Buf.appendf("\n");
+            std::cout << Log << std::endl;
             Buf.appendf(Log.c_str());
             ScrollToBottom = true;
         }

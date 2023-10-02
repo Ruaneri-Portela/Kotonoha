@@ -21,7 +21,7 @@ namespace kotonohaData
         bool nonAudio = true;
         bool nonImage = true;
         // To chech on runtime (layers of video)
-        bool display[4];
+        bool display[3];
         // Put image to display
         bool sendFrame = false;
         // If thread end
@@ -34,6 +34,8 @@ namespace kotonohaData
         bool menu = false;
         // Universal timer
         kotonohaTime::timerEngine timer0;
+        // Time to end script
+        double endTime = 0;
     } globalControl;
     typedef struct audioData
     {
