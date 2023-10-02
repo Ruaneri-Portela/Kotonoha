@@ -1,5 +1,57 @@
 namespace kotonohaTime
 {
+    /**
+     * @brief A class that provides functionality for measuring time intervals.
+     */
+    class timerEngine
+    {
+    private:
+        std::chrono::time_point<std::chrono::high_resolution_clock> timeInitial; /**< The initial time point. */
+        double timePass = 0.0; /**< The time passed since the timer was started. */
+        bool started = false; /**< A flag indicating whether the timer has been started. */
+
+    public:
+        /**
+         * @brief Returns the time passed since the timer was started.
+         * @return The time passed since the timer was started, or -1.0 if the timer has not been started.
+         */
+        double pushTime();
+
+        /**
+         * @brief Initializes the timer.
+         * @return true if the timer was successfully initialized, false otherwise.
+         */
+        bool initTimeCapture();
+
+        /**
+         * @brief Updates the timer.
+         * @return true if the timer was successfully updated, false otherwise.
+         */
+        bool clock();
+    };
+
+    /**
+     * @brief Converts a string in the format "MM:SS:DD" to a double representing the time in seconds.
+     * @param str The string to convert.
+     * @return The time in seconds.
+     */
+    double convertToTime(std::string str);
+
+    /**
+     * @brief Converts a time in seconds to milliseconds.
+     * @param seconds The time in seconds.
+     * @return The time in milliseconds.
+     */
+    int convertToMs(double seconds);
+
+    /**
+     * @brief Delays the execution of the current thread for a specified number of milliseconds.
+     * @param ms The number of milliseconds to delay the execution.
+     */
+    void delay(int ms);
+};
+namespace kotonohaTime
+{
     class timerEngine
     {
     private:

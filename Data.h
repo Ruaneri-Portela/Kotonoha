@@ -1,3 +1,17 @@
+/**
+ * @file Data.h
+ * @brief Contains the definition of various data structures used in Kotonoha project.
+ * 
+ * This file contains the definition of the following data structures:
+ * - controlData: A structure containing various control flags and a timer.
+ * - soundData: A structure containing information about an audio file.
+ * - videoData: A structure containing information about a video file.
+ * - imageData: A structure containing information about an image file.
+ * - rootData: A structure containing various SDL objects and a logger object.
+ * - acessMapper: A structure containing pointers to various data structures.
+ * 
+ * All the data structures are defined inside the namespace kotonohaData.
+ */
 namespace kotonohaData
 {
     typedef struct controlData

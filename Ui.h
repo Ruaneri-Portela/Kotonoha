@@ -1,3 +1,9 @@
+/**
+ * @brief This function initializes and runs the user interface for the Kotonoha Project Visual Novel Engine.
+ * 
+ * @param import A void pointer to the access mapper for the engine.
+ * @return int Returns 0 upon successful completion of the function.
+ */
 int ui(void *import)
 {
     if (import != NULL)

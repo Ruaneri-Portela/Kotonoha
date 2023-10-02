@@ -1,3 +1,10 @@
+/**
+ * @brief This function controls the execution of commands in a script file.
+ * 
+ * @param array A vector of vectors of strings containing the commands to be executed.
+ * @param import A pointer to an instance of the acessMapper class.
+ * @return int Returns 0 upon successful execution of all commands.
+ */
 int comanderControler(std::vector<std::vector<std::string>> array, kotonohaData::acessMapper *import)
 {
     kotonohaData::rootData *local = import->root;
