@@ -53,11 +53,12 @@ namespace kotonohaData
     } videoData;
     typedef struct imageData
     {
-        SDL_Texture *texture;
+        SDL_Surface *surface = NULL;
         std::string path = "";
         bool played = false;
         double play = 0;
         double end = 0;
+        bool touched = false;
     } imageData;
     typedef struct rootData
     {

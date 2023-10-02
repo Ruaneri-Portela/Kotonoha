@@ -1,6 +1,6 @@
 /**
  * @brief This function initializes and runs the user interface for the Kotonoha Project Visual Novel Engine.
- * 
+ *
  * @param import A void pointer to the access mapper for the engine.
  * @return int Returns 0 upon successful completion of the function.
  */
@@ -62,18 +62,30 @@ int ui(void *import)
                     {
                         mapper->control->exit = true;
                     }
+                    ImGui::SameLine();
                     if (ImGui::Button("Reset"))
                     {
                         mapper->control->reset = true;
                     }
+                    ImGui::SameLine();
                     if (ImGui::Button("Menu"))
                     {
                         mapper->control->menu = true;
                     }
+                    ImGui::SameLine();
                     if (mapper->root->log0->enable)
                     {
                         mapper->root->log0->drawLogger();
                     }
+                    ImGui::SameLine();
+                    if (ImGui::Button("Pause"))
+                    {
+                    }
+                    ImGui::SameLine();
+                    if (ImGui::Button("Mute"))
+                    {
+                    }
+                    ImGui::Checkbox("Enable Log", &mapper->root->log0->enable);
                     ImGui::End();
                 }
                 ImGui::Render();

@@ -32,7 +32,7 @@ namespace kotonoha
         double timePass = 0.0;
         kotonohaTime::delay(1000);
         importedTo->root->log0->appendLog("(Video) - Start");
-        importedTo->root->log0->appendLog("(Video) - "+std::to_string(importedTo->video.size()) + " Videos to play");
+        importedTo->root->log0->appendLog("(Video) - " + std::to_string(importedTo->video.size()) + " Videos to play");
         while (!importedTo->control->exit)
         {
             if (importedTo->control->display[1])
@@ -109,6 +109,8 @@ namespace kotonoha
                             importedTo->video.erase(importedTo->video.begin() + i);
                             break;
                         }
+                        importedTo->control->display[1] = false;
+                        importedTo->control->display[2] = true;
                     }
                 }
                 else

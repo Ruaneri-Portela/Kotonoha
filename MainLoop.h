@@ -32,6 +32,7 @@ namespace kotonoha
             controlData->display[0] = true;
             controlData->display[1] = false;
             controlData->display[2] = false;
+            controlData->display[3] = false;
             int returnCode = 1;
             SDL_ShowWindow(rootData->window);
             rootData->log0->appendLog("(ORS - Pre) - Reading "+path);

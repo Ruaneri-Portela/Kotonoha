@@ -63,8 +63,7 @@ namespace kotonoha
             {
                 ImGui::Begin("Kotonoha Project, A visual novel engine");
                 ImGui::Text("Copy the script path from text box e press start!");
-                // ImGui::Checkbox("Enable Debug Prompt", &object.debugPromptEnabled);
-                ImGui::InputText("Scirpt file path", filepath, 256);
+                ImGui::InputText("Script file path", filepath, 256);
                 ImGui::Checkbox("About", &about);
                 ImGui::Checkbox("Enable logger", &log0->enable);
                 if (ImGui::Button("Start"))
@@ -100,7 +99,7 @@ namespace kotonoha
                 log0->drawLogger();
             }
             /// Windows End Scene
-            if (gameReturn == 3 && returnPrompt)
+            if (gameReturn >= 3 && returnPrompt)
             {
                 ImGui::Begin("Scene End");
                 ImGui::Text("The scene as end, return code %d", gameReturn);
