@@ -22,8 +22,6 @@ namespace kotonohaData
         bool nonImage = true;
         // To chech on runtime (layers of video)
         bool display[3];
-        // Put image to display
-        bool sendFrame = false;
         // If thread end
         bool videoEnd = false;
         bool audioEnd = false;
