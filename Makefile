@@ -32,6 +32,14 @@ ifeq ($(OS), Windows_NT)
 	CXXFLAGS +=
 	CFLAGS = $(CXXFLAGS)
 endif
+UNAME := $(shell uname)
+# Check if the OS is Linux
+ifeq ($(UNAME), Linux)
+    ECHO_MESSAGE = "Linux"
+    LIBS +=
+    CXXFLAGS +=
+    CFLAGS = $(CXXFLAGS)
+endif
 
 # Compile source files
 ./Build/%.o:%.cpp
