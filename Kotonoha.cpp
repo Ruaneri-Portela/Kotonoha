@@ -4,7 +4,7 @@ int WinMain()
     kotonoha::set game;
     kotonoha::menuReturn opts;
     kotonoha::logger log;
-    kotonoha::loop mainBehaviour;
+    kotonoha::loop *mainBehaviour;
     game.laucher();
     bool exit = false;
     while (!exit)
@@ -15,7 +15,9 @@ int WinMain()
             exit = true;
             break;
         case 2:
-            opts.returnCode = mainBehaviour.game(game.window, game.renderer, opts.filenameString, &log);
+            mainBehaviour = new kotonoha::loop();
+            opts.returnCode = mainBehaviour->game(game.window, game.renderer, opts.filenameString, &log);
+            delete mainBehaviour;
             break;
         case 3:
             opts = menu(game.window, game.renderer, opts.returnCode, &log);
