@@ -1,12 +1,11 @@
-namespace image
+namespace kotonoha
 {
     class imageObject
     {
     public:
-        imageData *data = NULL;
-        void push(std::string filenameString, std::string startTime, std::string endTime, drawControl *dataDraw, SDL_Window *window, SDL_Renderer *renderer)
+        kotonohaData::acessMapper *exportTo = NULL;
+        void push(std::string filenameString, std::string startTime, std::string endTime)
         {
-
             if (atoi(filenameString.c_str()) != 1)
             {
                 std::stringstream ss;
@@ -14,84 +13,63 @@ namespace image
                 ss << filenameString;
                 ss << ".PNG";
                 std::string filenameStr = ss.str();
-                imageData *imageTemporary;
-                imageTemporary = new imageData;
-                imageTemporary->filename = filenameStr;
-                imageTemporary->timeToPlay = timeUtils::convertToTime(startTime);
-                imageTemporary->timeToEnd = timeUtils::convertToTime(endTime);
-                imageTemporary->next = NULL;
-                imageTemporary->prev = NULL;
-                imageTemporary->renderer = renderer;
-                imageTemporary->window = window;
-                imageTemporary->dataDraw = dataDraw;
-                if (data == NULL)
-                {
-                    data = imageTemporary;
-                }
-                else
-                {
-                    imageData *search = data;
-                    while (search->next != NULL)
-                    {
-                        search = search->next;
-                    }
-                    search->next = imageTemporary;
-                    search->next->prev = search;
-                }
+                // Create new image object
+                kotonohaData::imageData imageTemporary;
+                imageTemporary.path = filenameStr;
+                imageTemporary.play = kotonohaTime::convertToTime(startTime);
+                imageTemporary.end = kotonohaTime::convertToTime(endTime);
+                exportTo->image.push_back(imageTemporary);
             }
         };
     };
-    int play(void *import)
+    int playImage(void *import)
     {
-        if (import != NULL)
+        kotonohaData::acessMapper *importedTo = static_cast<kotonohaData::acessMapper *>(import);
+        std::vector<kotonohaData::imageData> data = importedTo->image;
+        kotonohaData::rootData *root = importedTo->root;
+        kotonohaData::controlData *control = importedTo->control;
+        int h = 0, w = 0;
+        root->log0->appendLog("(Image) - Start");
+        while (!control->exit)
         {
-            imageData *data = static_cast<imageData *>(import);
-            imageData *search = NULL;
-            bool cache = false;
-            int h = 0, w = 0;
-            std::cout << "Image init" << std::endl;
-            while (!data->dataDraw->exit)
+            if (!control->imageEnd)
             {
-                cache = false;
-                while (!data->dataDraw->imageD)
+                for (std::vector<kotonohaData::imageData>::size_type i = 0; i < data.size(); i++)
                 {
-                }
-                if (data != NULL)
-                {
-                    search = data;
-
-                    while (search != NULL)
+                    double timePass = control->timer0.pushTime();
+                    if (data[i].texture == NULL)
                     {
-                        if (search->texture == NULL)
-                        {
-                            SDL_Surface *surface = IMG_Load(search->filename.c_str());
-                            search->texture = SDL_CreateTextureFromSurface(search->renderer, surface);
-                            SDL_FreeSurface(surface);
-                        }
-                        if (search->timeToPlay <= data->dataDraw->timer0.pushTime())
-                        {
-                            SDL_GetWindowSize(data->window, &w, &h);
-                            SDL_Rect square = {0, 0, w, h};
-                            SDL_RenderCopy(data->renderer, data->texture, NULL, &square);
-                            cache = true;
-                        }
-                        else if (search->timeToEnd <= data->dataDraw->timer0.pushTime())
-                        {
-                            SDL_DestroyTexture(data->texture);
-                        }
-                        search = search->next;
+                        SDL_Surface *surface = IMG_Load(data[i].path.c_str());
+                        data[i].texture = SDL_CreateTextureFromSurface(root->renderer, surface);
+                        root->log0->appendLog("(Image) - Loading "+data[i].path);
+                        SDL_FreeSurface(surface);
+                    }
+                    else if (data[i].play < timePass && data[i].end > timePass)
+                    {
+                        SDL_GetWindowSize(root->window, &w, &h);
+                        SDL_Rect square = {0, 0, w, h};
+                        SDL_RenderCopy(root->renderer, data[i].texture, NULL, &square);
+
+                    }
+                    else if (data[i].end < timePass)
+                    {
+                        //data.erase(data.begin() + i);
+                        //i = 0;
+                        //SDL_DestroyTexture(data[i].texture);
+                    }
+                    if (data.size() == 0)
+                    {
+                        control->imageEnd = true;
+                        goto END;
                     }
                 }
-                data->dataDraw->imageD = false;
-                data->dataDraw->uiD = true;
-                if (!cache)
-                {
-                    data->dataDraw->imageE = true;
-                }
-            };
-            std::cout << "Image end" << std::endl;
+            }
+            END:
+            control->display[0] = false;
+            control->display[1] = true;
         }
-
+        root->log0->appendLog("(Image) - End");
         return 0;
-    };
-}
+    }
+
+};

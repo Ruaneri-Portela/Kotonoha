@@ -1,12 +1,11 @@
-namespace audio
+namespace kotonoha
 {
     class audioObject
     {
     public:
-        soundData *data = NULL;
-        void push(std::string filenameString, std::string startTime, std::string endTime, int channel, drawControl *dataDraw)
+        kotonohaData::acessMapper *exportTo = NULL;
+        void push(std::string filenameString, std::string startTime, std::string endTime, int channel)
         {
-
             if (atoi(filenameString.c_str()) != 1)
             {
                 std::stringstream ss;
@@ -14,70 +13,60 @@ namespace audio
                 ss << filenameString;
                 ss << ".ogg";
                 std::string filenameStr = ss.str();
-                // Criar um novo objeto SoundObject
-                soundData *soundTemporary;
-                soundTemporary = new soundData;
-                soundTemporary->filename = filenameStr;
-                soundTemporary->timeToPlay = timeUtils::convertToTime(startTime);
-                soundTemporary->timeToEnd = timeUtils::convertToTime(endTime);
-                soundTemporary->channel = channel;
-                soundTemporary->next = NULL;
-                soundTemporary->prev = NULL;
-                soundTemporary->dataDraw = dataDraw;
-                if (data == NULL)
-                {
-                    data = soundTemporary;
-                }
-                else
-                {
-                    soundData *search = data;
-                    while (search->next != NULL)
-                    {
-                        search = search->next;
-                    }
-                    search->next = soundTemporary;
-                    search->next->prev = search;
-                }
-                // Adicionar o novo objeto à lista
+                // Ceate new audio object
+                kotonohaData::audioData audioTemporary;
+                audioTemporary.path = filenameStr;
+                audioTemporary.play = kotonohaTime::convertToTime(startTime);
+                audioTemporary.end = kotonohaTime::convertToTime(endTime);
+                audioTemporary.channel = channel;
+                exportTo->audio.push_back(audioTemporary);
             }
         };
     };
-    int play(void *import)
+    int playAudio(void *import)
     {
-        bool cache = false;
-        if (import != NULL)
+        kotonohaData::acessMapper *importedTo = static_cast<kotonohaData::acessMapper *>(import);
+        std::vector<kotonohaData::audioData> audioData = importedTo->audio;
+        kotonohaData::rootData *root = importedTo->root;
+        kotonohaData::controlData *control = importedTo->control;
+        root->log0->appendLog("(Audio) - Start");
+        while (!control->exit)
         {
-            soundData *data = static_cast<soundData *>(import);
-            soundData *search = NULL;
-            std::cout << "Audio init" << std::endl;
-            while (!data->dataDraw->exit)
+            if (!control->audioEnd)
             {
-                cache = false;
-                if (data != NULL)
+                for (std::vector<kotonohaData::imageData>::size_type i = 0; i < audioData.size(); i++)
                 {
-                    search = data;
-                    while (search != NULL)
+                    double timePass = control->timer0.pushTime();
+
+                    if (audioData[i].sound == NULL && audioData[i].play - 10 < timePass)
                     {
-                        if (search->sound == NULL)
-                        {
-                            search->sound = Mix_LoadWAV(search->filename.c_str());
-                        }
-                        else if (search->timeToPlay <= data->dataDraw->timer0.pushTime() + 5 && !search->played && search->sound != NULL)
-                        {
-                            Mix_PlayChannel(search->channel, search->sound, 0);
-                            search->played = true;
-                            cache = true;
-                        }
-                        search = search->next;
+                        root->log0->appendLog("(Audio) - Loading... " + audioData[i].path);
+                        audioData[i].sound = Mix_LoadWAV(audioData[i].path.c_str());
                     }
-                    if (!cache)
+                    else if (audioData[i].play < timePass && audioData[i].played == false)
                     {
-                        data->dataDraw->audioE = true;
+                        root->log0->appendLog("(Audio) - Playing " + audioData[i].path);
+                        Mix_PlayChannel(audioData[i].channel, audioData[i].sound, 0);
+                        audioData[i].played = true;
+                    }
+                    else if (audioData[i].end < timePass)
+                    {
+                        audioData.erase(audioData.begin() + i);
+                        i = 0;
+                    }
+                    if (audioData.size() == 0)
+                    {
+                        control->audioEnd = true;
+                        goto Out;
                     }
                 }
-            };
-        }
-        std::cout << "Audio end" << std::endl;
+            }
+        Out:
+        };
+        root->log0->appendLog("(Audio) - End");
+        Mix_HaltChannel(0);
+        Mix_HaltChannel(1);
+        Mix_HaltChannel(2);
         return 0;
     };
 }
