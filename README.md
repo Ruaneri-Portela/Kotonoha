@@ -18,6 +18,6 @@ Functions that exist (or intend to exist in the engine) consider the items betwe
 - Prompt of choice (A/B)
 - Load a new script (PATH)
 
-The engine uses SDL2 as the graphics and audio backend, and FFMPEG as the video backend. 
+The engine uses SDL2 as the graphics and audio backend, and FFMPEG as the video backend, to game UI IMGui
 
 The engine intends to work with .ass (alpha substation) texts as the subtitle engine. 
