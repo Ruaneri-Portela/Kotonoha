@@ -1,3 +1,10 @@
+/**
+ * @file Menu.h
+ * @brief Contains the definition of the menu function and the menuReturn struct.
+ * 
+ * The menu function creates a graphical user interface using the ImGui library and allows the user to select a script file path.
+ * The menuReturn struct contains the return code, the selected file path and a boolean flag for enabling the debug prompt.
+ */
 namespace kotonoha
 {
     typedef struct menuReturn

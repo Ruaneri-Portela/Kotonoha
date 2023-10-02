@@ -1,9 +1,16 @@
 namespace kotonoha{
+/**
+ * @brief The set class contains functions to initialize and close SDL, Mixer and TTF libraries.
+ */
 class set
 {
 public:
-    SDL_Renderer *renderer = NULL;
-    SDL_Window *window = NULL;
+    SDL_Renderer *renderer = NULL; /**< Pointer to SDL_Renderer object. */
+    SDL_Window *window = NULL; /**< Pointer to SDL_Window object. */
+    /**
+     * @brief Initializes SDL, Mixer and TTF libraries and creates a window and renderer.
+     * @return 0 if successful, -1 otherwise.
+     */
     int laucher()
     {
         SDL_Init(SDL_INIT_EVERYTHING);
@@ -15,6 +22,10 @@ public:
         TTF_Init();
         return 0;
     }
+    /**
+     * @brief Closes the window, renderer, Mixer and TTF libraries.
+     * @return 0 if successful, -1 otherwise.
+     */
     int close()
     {
         SDL_DestroyWindow(window);

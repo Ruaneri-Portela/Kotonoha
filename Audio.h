@@ -1,5 +1,35 @@
 namespace kotonoha
 {
+    /**
+     * @brief The audioObject class represents an audio object that can be played in Kotonoha.
+     * 
+     */
+    class audioObject
+    {
+    public:
+        kotonohaData::acessMapper *exportTo = NULL; /**< Pointer to the access mapper object. */
+        
+        /**
+         * @brief Pushes an audio file to the audio object.
+         * 
+         * @param filenameString The name of the audio file.
+         * @param startTime The start time of the audio file.
+         * @param endTime The end time of the audio file.
+         * @param channel The channel to play the audio file on.
+         */
+        void push(std::string filenameString, std::string startTime, std::string endTime, int channel);
+    };
+    
+    /**
+     * @brief Plays the audio objects in the access mapper.
+     * 
+     * @param import Pointer to the access mapper object.
+     * @return int Returns 0 when the audio playback is complete.
+     */
+    int playAudio(void *import);
+}
+namespace kotonoha
+{
     class audioObject
     {
     public:

@@ -1,3 +1,11 @@
+/**
+ * @file MainLoop.h
+ * @brief Contains the definition of the kotonoha::loop class and its game function.
+ * 
+ * The kotonoha::loop class contains the game loop and threads for the Kotonoha game engine.
+ * The game function initializes the necessary data structures, starts the game loop and threads,
+ * and waits for them to finish before returning a return code.
+ */
 namespace kotonoha
 {
     class loop
