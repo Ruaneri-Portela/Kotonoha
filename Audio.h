@@ -49,6 +49,7 @@ namespace kotonoha
     {
         kotonohaData::acessMapper *importedTo = static_cast<kotonohaData::acessMapper *>(import);
         importedTo->root->log0->appendLog("(Audio) - Start");
+        importedTo->root->log0->appendLog("(Audio) - "+std::to_string(importedTo->audio.size()) + " Audios to play");
         while (!importedTo->control->exit)
         {
             if (!importedTo->control->audioEnd && !importedTo->control->nonAudio && !(importedTo->audio.size() == 0))
@@ -56,7 +57,7 @@ namespace kotonoha
                 for (std::vector<kotonohaData::imageData>::size_type i = 0; i < importedTo->audio.size(); i++)
                 {
                     double timePass = importedTo->control->timer0.pushTime();
-                    if (importedTo->audio[i].sound == NULL && importedTo->audio[i].play - 10 < timePass)
+                    if (importedTo->audio[i].sound == NULL && importedTo->audio[i].play - 20 < timePass && importedTo->audio[i].played == false)
                     {
                         importedTo->root->log0->appendLog("(Audio) - Loading... " + importedTo->audio[i].path);
                         importedTo->audio[i].sound = Mix_LoadWAV(importedTo->audio[i].path.c_str());
@@ -69,6 +70,8 @@ namespace kotonoha
                     }
                     else if (importedTo->audio[i].end < timePass)
                     {
+                        Mix_FreeChunk(importedTo->audio[i].sound);
+                        importedTo->root->log0->appendLog("(Audio) - Drop out... " + importedTo->audio[i].path);
                         importedTo->audio.erase(importedTo->audio.begin() + i);
                         break;
                     }

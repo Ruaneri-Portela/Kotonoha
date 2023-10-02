@@ -26,6 +26,7 @@ namespace kotonoha
     {
         kotonohaData::acessMapper *importedTo = static_cast<kotonohaData::acessMapper *>(import);
         importedTo->root->log0->appendLog("(Image) - Start");
+        importedTo->root->log0->appendLog("(Image) - "+std::to_string(importedTo->image.size()) + " Images to show");
         while (!importedTo->control->exit)
         {
             if (!importedTo->control->imageEnd && !importedTo->control->nonImage && !(importedTo->image.size() == 0))

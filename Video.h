@@ -29,9 +29,10 @@ namespace kotonoha
     int playVideo(void *import)
     {
         kotonohaData::acessMapper *importedTo = static_cast<kotonohaData::acessMapper *>(import);
-        kotonohaTime::delay(1000);
         double timePass = 0.0;
+        kotonohaTime::delay(1000);
         importedTo->root->log0->appendLog("(Video) - Start");
+        importedTo->root->log0->appendLog("(Video) - "+std::to_string(importedTo->video.size()) + " Videos to play");
         while (!importedTo->control->exit)
         {
             if (importedTo->control->display[1])
@@ -84,7 +85,7 @@ namespace kotonoha
                                     {
                                         continue;
                                     }
-                                    kotonohaTime::delay(38);
+                                    kotonohaTime::delay(30);
                                     // Decode frame
                                     avcodec_send_packet(codecCtx, &packet);
                                     avcodec_receive_frame(codecCtx, frame);

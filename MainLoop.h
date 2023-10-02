@@ -34,10 +34,10 @@ namespace kotonoha
             controlData->display[2] = false;
             controlData->display[3] = false;
             int returnCode = 1;
-            std::thread thread1(ui, global);
             SDL_ShowWindow(rootData->window);
             rootData->log0->appendLog("(ORS - Pre) - Reading "+path);
             ors(global,path);
+            std::thread thread1(ui, global);
             std::thread thread2(kotonoha::playImage, global);
             std::thread thread3(kotonoha::playVideo, global);
             std::thread thread4(kotonoha::playAudio, global);
@@ -97,8 +97,13 @@ namespace kotonoha
             thread2.join();
             thread3.join();
             thread4.join();
-            rootData->log0->appendLog("(ML) - Exit");
-
+            rootData->log0->appendLog("(ML) - End");
+            delete static_cast<kotonoha::audioObject *>(rootData->audio0);
+            delete static_cast<kotonoha::videoObject *>(rootData->video0);
+            delete static_cast<kotonoha::imageObject *>(rootData->image0);
+            delete global;
+            delete controlData;
+            delete rootData;
             return returnCode;
         };
     };
