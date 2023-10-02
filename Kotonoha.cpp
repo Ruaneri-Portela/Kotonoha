@@ -1,12 +1,5 @@
 #include "Headers.h"
-/**
- * @brief The main function of the Kotonoha game.
- * 
- * @param argc The number of command-line arguments.
- * @param argv An array of command-line argument strings.
- * @return int The exit status of the program.
- */
-int main(int argc, char **argv)
+int WinMain()
 {
     kotonoha::set game;
     kotonoha::menuReturn opts;

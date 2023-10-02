@@ -15,7 +15,8 @@ namespace kotonoha
     } menuReturn;
     menuReturn menu(SDL_Window *window, SDL_Renderer *renderer, int gameReturn, kotonoha::logger *log0)
     {
-        menuReturn object = {0, ""};
+        log0->appendLog("(Menu) - Entry point to menu");
+        menuReturn object = {0, "", true};
         IMGUI_CHECKVERSION();
         ImGui::CreateContext();
         ImGui_ImplSDL2_InitForSDLRenderer(window, renderer);
@@ -117,6 +118,7 @@ namespace kotonoha
             ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData());
             SDL_RenderPresent(renderer);
         }
+        log0->appendLog("(Menu) - Menu out");
         ImGui_ImplSDLRenderer2_Shutdown();
         ImGui_ImplSDL2_Shutdown();
         ImGui::DestroyContext();

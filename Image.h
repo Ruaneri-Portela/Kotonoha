@@ -25,50 +25,48 @@ namespace kotonoha
     int playImage(void *import)
     {
         kotonohaData::acessMapper *importedTo = static_cast<kotonohaData::acessMapper *>(import);
-        std::vector<kotonohaData::imageData> data = importedTo->image;
-        kotonohaData::rootData *root = importedTo->root;
-        kotonohaData::controlData *control = importedTo->control;
-        int h = 0, w = 0;
-        root->log0->appendLog("(Image) - Start");
-        while (!control->exit)
+        importedTo->root->log0->appendLog("(Image) - Start");
+        while (!importedTo->control->exit)
         {
-            if (!control->imageEnd)
+            if (!importedTo->control->imageEnd && !importedTo->control->nonImage && !(importedTo->image.size() == 0))
             {
-                for (std::vector<kotonohaData::imageData>::size_type i = 0; i < data.size(); i++)
+                for (std::vector<kotonohaData::imageData>::size_type i = 0; i < importedTo->image.size(); i++)
                 {
-                    double timePass = control->timer0.pushTime();
-                    if (data[i].texture == NULL)
+                    double timePass = importedTo->control->timer0.pushTime();
+                    if (importedTo->image[i].texture == NULL)
                     {
-                        SDL_Surface *surface = IMG_Load(data[i].path.c_str());
-                        data[i].texture = SDL_CreateTextureFromSurface(root->renderer, surface);
-                        root->log0->appendLog("(Image) - Loading "+data[i].path);
+                        SDL_Surface *surface = IMG_Load(importedTo->image[i].path.c_str());
+                        importedTo->image[i].texture = SDL_CreateTextureFromSurface(importedTo->root->renderer, surface);
+                        importedTo->root->log0->appendLog("(Image) - Loading " + importedTo->image[i].path);
                         SDL_FreeSurface(surface);
                     }
-                    else if (data[i].play < timePass && data[i].end > timePass)
+                    else if (importedTo->image[i].play < timePass && importedTo->image[i].end > timePass && !importedTo->image[i].played)
                     {
-                        SDL_GetWindowSize(root->window, &w, &h);
+                        int h = 0, w = 0;
+                        SDL_GetWindowSize(importedTo->root->window, &w, &h);
                         SDL_Rect square = {0, 0, w, h};
-                        SDL_RenderCopy(root->renderer, data[i].texture, NULL, &square);
-
+                        SDL_RenderCopy(importedTo->root->renderer, importedTo->image[i].texture, NULL, &square);
                     }
-                    else if (data[i].end < timePass)
+                    else if (importedTo->image[i].end < timePass)
                     {
-                        //data.erase(data.begin() + i);
-                        //i = 0;
-                        //SDL_DestroyTexture(data[i].texture);
-                    }
-                    if (data.size() == 0)
-                    {
-                        control->imageEnd = true;
-                        goto END;
+                        importedTo->image[i].played=true;
+                        importedTo->image.erase(importedTo->image.begin() + i);
+                        SDL_DestroyTexture(importedTo->image[i].texture);
+                        break;
                     }
                 }
             }
-            END:
-            control->display[0] = false;
-            control->display[1] = true;
+            else
+            {
+                importedTo->control->display[0] = false;
+                importedTo->control->display[1] = true;
+            }
+            if (importedTo->image.size() == 0 && !importedTo->control->imageEnd)
+            {
+                importedTo->control->imageEnd = true;
+            }
         }
-        root->log0->appendLog("(Image) - End");
+        importedTo->root->log0->appendLog("(Image) - End");
         return 0;
     }
 

@@ -33,14 +33,15 @@ namespace kotonoha
             controlData->display[1] = false;
             controlData->display[2] = false;
             controlData->display[3] = false;
-            int returnCode = 0;
+            int returnCode = 1;
             std::thread thread1(ui, global);
-            SDL_ShowWindow(windowEntry);
-            ors(global, path);
+            SDL_ShowWindow(rootData->window);
+            rootData->log0->appendLog("(ORS - Pre) - Reading "+path);
+            ors(global,path);
             std::thread thread2(kotonoha::playImage, global);
             std::thread thread3(kotonoha::playVideo, global);
             std::thread thread4(kotonoha::playAudio, global);
-            log0->appendLog("(ML) - Entry point to while");
+            rootData->log0->appendLog("(ML) - Entry point to while");
             while (!controlData->exit)
             {
                 while (SDL_PollEvent(&rootData->event))
@@ -66,30 +67,29 @@ namespace kotonoha
                         if (rootData->event.key.keysym.sym == SDLK_F11)
                         {
                             Uint32 FullscreenFlag = SDL_WINDOW_FULLSCREEN;
-                            bool IsFullscreen = SDL_GetWindowFlags(windowEntry) & FullscreenFlag;
-                            SDL_SetWindowFullscreen(windowEntry, IsFullscreen ? 0 : FullscreenFlag);
+                            bool IsFullscreen = SDL_GetWindowFlags(rootData->window) & FullscreenFlag;
+                            SDL_SetWindowFullscreen(rootData->window, IsFullscreen ? 0 : FullscreenFlag);
                             SDL_ShowCursor(IsFullscreen);
                         }
                     }
                 }
                 if (controlData->reset)
                 {
-                    log0->appendLog("(ML) - Reset");
+                    rootData->log0->appendLog("(ML) - Reset");
                     returnCode = 2;
                     controlData->exit = true;
                 }
                 else if (controlData->menu)
                 {
-                    log0->appendLog("(ML) - Return to menu");
+                    rootData->log0->appendLog("(ML) - Return to menu");
                     returnCode = 3;
                     controlData->exit = true;
                 }
-                else if (controlData->display[3])
+                if (controlData->endTime < controlData->timer0.pushTime())
                 {
-                    SDL_RenderPresent(rendererEntry);
-                    SDL_RenderClear(rendererEntry);
-                    controlData->display[3] = false;
-                    controlData->display[0] = true;
+                    rootData->log0->appendLog("(ML) - End script");
+                    returnCode = 4;
+                    controlData->exit = true;
                 }
             }
             // Wait threads
@@ -97,7 +97,8 @@ namespace kotonoha
             thread2.join();
             thread3.join();
             thread4.join();
-            log0->appendLog("(ML) - Exit");
+            rootData->log0->appendLog("(ML) - Exit");
+
             return returnCode;
         };
     };

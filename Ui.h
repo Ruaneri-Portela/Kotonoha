@@ -9,12 +9,10 @@ int ui(void *import)
     if (import != NULL)
     {
         kotonohaData::acessMapper *mapper = static_cast<kotonohaData::acessMapper *>(import);
-        kotonohaData::rootData *data = mapper->root;
-        kotonohaData::controlData *control = mapper->control;
         IMGUI_CHECKVERSION();
         ImGui::CreateContext();
-        ImGui_ImplSDL2_InitForSDLRenderer(data->window, data->renderer);
-        ImGui_ImplSDLRenderer2_Init(data->renderer);
+        ImGui_ImplSDL2_InitForSDLRenderer(mapper->root->window, mapper->root->renderer);
+        ImGui_ImplSDLRenderer2_Init(mapper->root->renderer);
         ImGui::StyleColorsDark();
         ImGuiIO &io = ImGui::GetIO();
         (void)io;
@@ -22,12 +20,12 @@ int ui(void *import)
         io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
         ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
         kotonohaTime::delay(2000);
-        data->log0->appendLog("(Ui) - Start");
-        control->timer0.initTimeCapture();
-        data->log0->appendLog("(Clock) - Start");
-        while (!control->exit)
+        mapper->root->log0->appendLog("(Ui) - Start");
+        mapper->control->timer0.initTimeCapture();
+        mapper->root->log0->appendLog("(Clock) - Start");
+        while (!mapper->control->exit)
         {
-            if (control->display[2])
+            if (mapper->control->display[2])
             {
                 ImGui_ImplSDLRenderer2_NewFrame();
                 ImGui_ImplSDL2_NewFrame();
@@ -35,26 +33,26 @@ int ui(void *import)
                 {
                     ImGui::Begin("Kotonoha Project Visual Novel Engine");
                     ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
-                    ImGui::Text("Time %.3f s", control->timer0.pushTime());
-                    if (!control->nonVideo)
+                    ImGui::Text("Time %.3f s", mapper->control->timer0.pushTime());
+                    if (!mapper->control->nonVideo)
                     {
-                        ImGui::Text("Video end %d ", control->videoEnd);
+                        ImGui::Text("Video end %d ", mapper->control->videoEnd);
                     }
                     else
                     {
                         ImGui::Text("Video not using in this scene");
                     }
-                    if (!control->nonAudio)
+                    if (!mapper->control->nonAudio)
                     {
-                        ImGui::Text("Audio end %d ", control->audioEnd);
+                        ImGui::Text("Audio end %d ", mapper->control->audioEnd);
                     }
                     else
                     {
                         ImGui::Text("Audio not using in this scene");
                     }
-                    if (!control->nonImage)
+                    if (!mapper->control->nonImage)
                     {
-                        ImGui::Text("Image end %d ", control->imageEnd);
+                        ImGui::Text("Image end %d ", mapper->control->imageEnd);
                     }
                     else
                     {
@@ -62,34 +60,36 @@ int ui(void *import)
                     }
                     if (ImGui::Button("End"))
                     {
-                        control->exit = true;
+                        mapper->control->exit = true;
                     }
                     if (ImGui::Button("Reset"))
                     {
-                        control->reset = true;
+                        mapper->control->reset = true;
                     }
                     if (ImGui::Button("Menu"))
                     {
-                        control->menu = true;
+                        mapper->control->menu = true;
                     }
-                    if (data->log0->enable)
+                    if (mapper->root->log0->enable)
                     {
-                        data->log0->drawLogger();
+                        mapper->root->log0->drawLogger();
                     }
                     ImGui::End();
                 }
                 ImGui::Render();
-                SDL_RenderSetScale(data->renderer, io.DisplayFramebufferScale.x, io.DisplayFramebufferScale.y);
-                SDL_SetRenderDrawColor(data->renderer, (Uint8)(clear_color.x * 255), (Uint8)(clear_color.y * 255), (Uint8)(clear_color.z * 255), (Uint8)(clear_color.w * 255));
+                SDL_RenderSetScale(mapper->root->renderer, io.DisplayFramebufferScale.x, io.DisplayFramebufferScale.y);
+                SDL_SetRenderDrawColor(mapper->root->renderer, (Uint8)(clear_color.x * 255), (Uint8)(clear_color.y * 255), (Uint8)(clear_color.z * 255), (Uint8)(clear_color.w * 255));
                 ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData());
-                control->display[2] = false;
-                control->display[3] = true;
+                SDL_RenderPresent(mapper->root->renderer);
+                SDL_RenderClear(mapper->root->renderer);
+                mapper->control->display[2] = false;
+                mapper->control->display[0] = true;
             }
         }
         ImGui_ImplSDLRenderer2_Shutdown();
         ImGui_ImplSDL2_Shutdown();
         ImGui::DestroyContext();
-        data->log0->appendLog("(Ui) - End");
+        mapper->root->log0->appendLog("(Ui) - End");
     }
     return 0;
 };

@@ -7,12 +7,10 @@
  */
 int comanderControler(std::vector<std::vector<std::string>> array, kotonohaData::acessMapper *import)
 {
-    kotonohaData::rootData *local = import->root;
-    kotonohaData::controlData *control = import->control;
-    kotonoha::audioObject *audio0 = static_cast<kotonoha::audioObject *>(local->audio0);
-    kotonoha::videoObject *video0 = static_cast<kotonoha::videoObject *>(local->video0);
-    kotonoha::imageObject *image0 = static_cast<kotonoha::imageObject *>(local->image0);
-    local->log0->appendLog("(ORS) - Start");
+    kotonoha::audioObject *audio0 = static_cast<kotonoha::audioObject *>(import->root->audio0);
+    kotonoha::videoObject *video0 = static_cast<kotonoha::videoObject *>(import->root->video0);
+    kotonoha::imageObject *image0 = static_cast<kotonoha::imageObject *>(import->root->image0);
+    import->root->log0->appendLog("(ORS) - Start");
     for (std::vector<std::vector<std::string>>::size_type cont = 0; cont < array.size(); cont++)
     {
         std::string comandString = array[cont][0];
@@ -23,14 +21,14 @@ int comanderControler(std::vector<std::vector<std::string>> array, kotonohaData:
         else if (strstr(comand, "PlaySe") != NULL)
         {
             audio0->push(array[cont][2], array[cont][0], array[cont][3], 0);
-            local->log0->appendLog("(ORS) - PlaySe" + array[cont][2]);
-            control->nonAudio = false;
+            import->root->log0->appendLog("(ORS) - PlaySe" + array[cont][2]);
+            import->control->nonAudio = false;
         }
         else if (strstr(comand, "PlayMovie") != NULL)
         {
             video0->push(array[cont][1], array[cont][0], array[cont][3]);
-            local->log0->appendLog("(ORS) - PlayMovie" + array[cont][1]);
-            control->nonVideo = false;
+            import->root->log0->appendLog("(ORS) - PlayMovie" + array[cont][1]);
+            import->control->nonVideo = false;
         }
         else if (strstr(comand, "BlackFade") != NULL)
         {
@@ -38,14 +36,14 @@ int comanderControler(std::vector<std::vector<std::string>> array, kotonohaData:
         else if (strstr(comand, "PlayBgm") != NULL)
         {
             audio0->push(array[cont][1], array[cont][0], array[cont][2], 1);
-            local->log0->appendLog("(ORS) - PlayBgm" + array[cont][2]);
-            control->nonAudio = false;
+            import->root->log0->appendLog("(ORS) - PlayBgm" + array[cont][2]);
+            import->control->nonAudio = false;
         }
         else if (strstr(comand, "PlayVoice") != NULL)
         {
             audio0->push(array[cont][1], array[cont][0], array[cont][4], 2);
-            local->log0->appendLog("(ORS) - PlayVoice" + array[cont][1]);
-            control->nonAudio = false;
+            import->root->log0->appendLog("(ORS) - PlayVoice" + array[cont][1]);
+            import->control->nonAudio = false;
         }
         else if (strstr(comand, "PrintText") != NULL)
         {
@@ -53,23 +51,24 @@ int comanderControler(std::vector<std::vector<std::string>> array, kotonohaData:
         else if (strstr(comand, "CreateBG") != NULL)
         {
             image0->push(array[cont][2], array[cont][0], array[cont][3]);
-            local->log0->appendLog("(ORS) - PlayVoice" + array[cont][2]);
-            control->nonImage = false;
+            import->root->log0->appendLog("(ORS) - PlayVoice" + array[cont][2]);
+            import->control->nonImage = false;
         }
         else if (strstr(comand, "Next") != NULL)
         {
-            local->log0->appendLog("(ORS) - Next in" + array[cont][0]);
+            import->control->endTime = kotonohaTime::convertToTime(array[cont][0]);
+            import->root->log0->appendLog("(ORS) - End script in time " + std::to_string(kotonohaTime::convertToTime(array[cont][0])));
         }
         else if (strstr(comand, " ;") != NULL)
         {
-            local->log0->appendLog("(ORS) - End Script file");
+            import->root->log0->appendLog("(ORS) - End Script file");
         }
         else
         {
-            local->log0->appendLog("(ORS) - Comand Not Found" + array[cont][0]);
+            import->root->log0->appendLog("(ORS) - Comand Not Found" + array[cont][0]);
         }
     }
-    local->log0->appendLog("(ORS) - End");
+    import->root->log0->appendLog("(ORS) - End");
     return 0;
 }
 void ors(kotonohaData::acessMapper *import, std::string comand)
