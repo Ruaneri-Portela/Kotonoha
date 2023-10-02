@@ -48,11 +48,11 @@ namespace kotonoha
                         SDL_Rect square = {0, 0, w, h};
                         SDL_RenderCopy(importedTo->root->renderer, importedTo->image[i].texture, NULL, &square);
                     }
-                    else if (importedTo->image[i].end < timePass)
+                    else if (importedTo->image[i].end < timePass && !importedTo->image[i].played)
                     {
                         importedTo->image[i].played=true;
-                        importedTo->image.erase(importedTo->image.begin() + i);
-                        SDL_DestroyTexture(importedTo->image[i].texture);
+                        //importedTo->image.erase(importedTo->image.begin() + i);
+                        //SDL_DestroyTexture(importedTo->image[i].texture);
                         break;
                     }
                 }
