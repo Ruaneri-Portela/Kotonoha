@@ -1,4 +1,4 @@
-namespace timeUtils
+namespace kotonohaTime
 {
     class timerEngine
     {
@@ -16,7 +16,7 @@ namespace timeUtils
                 clock();
                 return timePass;
             }
-            return 0.0;
+            return -1.0;
         }
         bool initTimeCapture()
         {
@@ -67,15 +67,15 @@ namespace timeUtils
         std::this_thread::sleep_for(std::chrono::milliseconds(ms));
     }
 };
-namespace textExtract
+namespace kotonoha
 {
-    std::vector<std::vector<std::string>> readFileLineAndTab(const std::string path)
+    std::vector<std::vector<std::string>> readScript(const std::string path)
     {
         std::vector<std::vector<std::string>> vector;
         std::ifstream file(path);
         if (!file.is_open())
         {
-            std::cerr << "Fail to open file " << path << std::endl;
+
             return vector;
         }
         std::string linha;
@@ -99,64 +99,30 @@ namespace textExtract
         file.close();
         return vector;
     }
-}
-typedef struct drawControl
-{
-    // To check on load files
-    bool nonVideo = true;
-    bool nonAudio = true;
-    bool nonImage = true;
-    // To chech on runtime (layers of video)
-    bool imageD = false;
-    bool videoD = true;
-    bool uiD = false;
-    // Put image to display
-    bool sendFrame = false;
-    // If thread end
-    bool videoE = false;
-    bool audioE = false;
-    bool imageE = false;
-    // To reset and exit signals
-    bool exit = false;
-    bool reset = false;
-    // Universal timer
-    timeUtils::timerEngine timer0;
-} drawControl;
-typedef struct soundData
-{
-    drawControl *dataDraw = NULL;
-    Mix_Chunk *sound = NULL;
-    soundData *prev = NULL;
-    soundData *next = NULL;
-    std::string filename = "";
-    double timeToPlay = 0;
-    bool played = false;
-    double timeToEnd = 0;
-    int channel = 0;
-    timeUtils::timerEngine *timer;
-} soundData;
-typedef struct videoData
-{
-    SDL_Renderer *renderer = NULL;
-    drawControl *dataDraw = NULL;
-    SDL_Window *window = NULL;
-    timeUtils::timerEngine *timer;
-    std::string filename = "";
-    double timeToPlay = 0;
-    double timeToEnd = 0;
-    bool played = false;
-} videoData;
-typedef struct imageData
-{
-    SDL_Renderer *renderer = NULL;
-    drawControl *dataDraw = NULL;
-    SDL_Texture *texture = NULL;
-    SDL_Window *window = NULL;
-    imageData *next = NULL;
-    imageData *prev = NULL;
-    timeUtils::timerEngine *timer;
-    std::string filename = "";
-    bool played = false;
-    double timeToPlay;
-    double timeToEnd;
-} imageData;
+    typedef struct logger
+    {
+        ImGuiTextBuffer Buf;
+        bool ScrollToBottom;
+        bool clear;
+        bool enable = false;
+        void appendLog(std::string Log)
+        {
+            Buf.appendf("\n");
+            Buf.appendf(Log.c_str());
+            ScrollToBottom = true;
+        }
+        void drawLogger()
+        {
+            ImGui::Begin("Logger");
+            ImGui::TextUnformatted(Buf.begin());
+            if (ScrollToBottom)
+                ImGui::SetScrollHereY(1.0f);
+            ScrollToBottom = false;
+            if (ImGui::Button("Clear"))
+            {
+                Buf.clear();
+            }
+            ImGui::End();
+        }
+    } logger;
+};
