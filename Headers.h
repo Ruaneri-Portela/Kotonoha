@@ -10,6 +10,11 @@
 #include <fstream>
 #include <chrono>
 #include <thread>
+#include <png.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdarg.h>
+#include <string.h>
 extern "C"
 {
 #include <libavformat/avformat.h>
@@ -20,6 +25,7 @@ extern "C"
 #include "imgui/backends/imgui_impl_sdlrenderer2.h"
 #include "Utils.h"
 #include "Data.h"
+#include "Text.h"
 #include "Video.h"
 #include "Audio.h"
 #include "Image.h"

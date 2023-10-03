@@ -34,6 +34,7 @@ namespace kotonoha
             controlData->display[1] = false;
             controlData->display[2] = false;
             controlData->display[3] = false;
+            controlData->display[4] = false;
             SDL_ShowWindow(rootData->window);
             rootData->log0->appendLog("(ORS - Pre) - Reading " + path);
             ors(global, path);
@@ -41,6 +42,7 @@ namespace kotonoha
             std::thread thread2(kotonoha::playImage, global);
             std::thread thread3(kotonoha::playVideo, global);
             std::thread thread4(kotonoha::playAudio, global);
+            std::thread thread5(kotonoha::playText, global);
             kotonohaTime::delay(2000);
             rootData->log0->appendLog("(ML) - Entry point to while");
             while (controlData->outCode == -1)
@@ -71,12 +73,19 @@ namespace kotonoha
                         }
                     }
                 }
+                if(controlData->display[4]){
+                    SDL_RenderPresent(rendererEntry);
+                    SDL_RenderClear(rendererEntry);
+                    controlData->display[4] = false;
+                    controlData->display[0] = true;
+                }
             }
             // Wait threads
             thread1.join();
             thread2.join();
             thread3.join();
             thread4.join();
+            thread5.join();
             switch (controlData->outCode)
             {
             case 1:

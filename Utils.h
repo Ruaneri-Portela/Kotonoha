@@ -107,9 +107,9 @@ namespace kotonohaTime
         time = minutes * 60 + seconds + decimeters * 0.01;
         return time;
     }
-    int convertToMs(double seconds)
+    long convertToMs(double seconds)
     {
-        int milliseconds = static_cast<int>(seconds * 1000);
+        long milliseconds = static_cast<int>(seconds * 1000);
         return milliseconds;
     }
     void delay(int ms)
