@@ -1,7 +1,7 @@
 /**
  * @file MainLoop.h
  * @brief Contains the definition of the kotonoha::loop class and its game function.
- * 
+ *
  * The kotonoha::loop class contains the game loop and threads for the Kotonoha game engine.
  * The game function initializes the necessary data structures, starts the game loop and threads,
  * and waits for them to finish before returning a return code.
@@ -11,13 +11,14 @@ namespace kotonoha
     class loop
     {
     public:
-        int game(SDL_Window *windowEntry, SDL_Renderer *rendererEntry, std::string path, kotonoha::logger *log0)
+        int game(SDL_Window *windowEntry, SDL_Renderer *rendererEntry, std::string path,kotonohaData::configsData fileConfigs,kotonoha::logger *log0)
         {
             // Create data structure
             kotonohaData::rootData *rootData = new kotonohaData::rootData;
             rootData->window = windowEntry;
             rootData->renderer = rendererEntry;
             rootData->log0 = log0;
+            rootData->fileConfigs = &fileConfigs;
             kotonohaData::controlData *controlData = new kotonohaData::controlData;
             kotonohaData::acessMapper *global = new kotonohaData::acessMapper;
             global->control = controlData;
@@ -33,36 +34,33 @@ namespace kotonoha
             controlData->display[1] = false;
             controlData->display[2] = false;
             controlData->display[3] = false;
-            int returnCode = 1;
             SDL_ShowWindow(rootData->window);
-            rootData->log0->appendLog("(ORS - Pre) - Reading "+path);
-            ors(global,path);
+            rootData->log0->appendLog("(ORS - Pre) - Reading " + path);
+            ors(global, path);
             std::thread thread1(ui, global);
             std::thread thread2(kotonoha::playImage, global);
             std::thread thread3(kotonoha::playVideo, global);
             std::thread thread4(kotonoha::playAudio, global);
+            kotonohaTime::delay(2000);
             rootData->log0->appendLog("(ML) - Entry point to while");
-            while (!controlData->exit)
+            while (controlData->outCode == -1)
             {
                 while (SDL_PollEvent(&rootData->event))
                 {
                     ImGui_ImplSDL2_ProcessEvent(&rootData->event);
                     if (rootData->event.type == SDL_QUIT)
                     {
-                        returnCode = 1;
-                        controlData->exit = true;
+                        controlData->outCode = 1;
                     }
                     else if (rootData->event.type == SDL_KEYDOWN)
                     {
                         if (rootData->event.key.keysym.sym == SDLK_ESCAPE)
                         {
-                            returnCode = 2;
-                            controlData->exit = true;
+                            controlData->outCode = 3;
                         }
                         if (rootData->event.key.keysym.sym == SDLK_r)
                         {
-                            returnCode = 2;
-                            controlData->exit = true;
+                            controlData->outCode = 2;
                         }
                         if (rootData->event.key.keysym.sym == SDLK_F11)
                         {
@@ -73,30 +71,31 @@ namespace kotonoha
                         }
                     }
                 }
-                if (controlData->reset)
-                {
-                    rootData->log0->appendLog("(ML) - Reset");
-                    returnCode = 2;
-                    controlData->exit = true;
-                }
-                else if (controlData->menu)
-                {
-                    rootData->log0->appendLog("(ML) - Return to menu");
-                    returnCode = 3;
-                    controlData->exit = true;
-                }
-                if (controlData->endTime < controlData->timer0.pushTime())
-                {
-                    rootData->log0->appendLog("(ML) - End script");
-                    returnCode = 4;
-                    controlData->exit = true;
-                }
             }
             // Wait threads
             thread1.join();
             thread2.join();
             thread3.join();
             thread4.join();
+            switch (controlData->outCode)
+            {
+            case 1:
+                rootData->log0->appendLog("(ML) - Close");
+                break;
+            case 2:
+                rootData->log0->appendLog("(ML) - Reset");
+                break;
+            case 3:
+                rootData->log0->appendLog("(ML) - Return to menu");
+                break;
+            case 4:
+                rootData->log0->appendLog("(ML) - Scene ended");
+                break;
+            default:
+                rootData->log0->appendLog("(ML) - Uknonw return code");
+                break;
+            }
+            int returnCode = controlData->outCode;
             rootData->log0->appendLog("(ML) - End");
             delete static_cast<kotonoha::audioObject *>(rootData->audio0);
             delete static_cast<kotonoha::videoObject *>(rootData->video0);

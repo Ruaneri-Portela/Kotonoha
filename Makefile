@@ -20,25 +20,24 @@ OBJS = $(addprefix ./Build/, $(addsuffix .o, $(basename $(notdir $(SOURCES)))))
 
 # Compiler flags
 CXXFLAGS = -I$(IMGUI_DIR) -I$(IMGUI_DIR)/backends
-CXXFLAGS += -g -Wall -Wformat
+CXXFLAGS += -g -Wall -Wformat 
 
 # Libraries
-LIBS = -lSDL2 -lSDL2_mixer -lSDL2_image -lSDL2_ttf -lavformat -lavcodec -lavutil
+LIBS = -static-libgcc -static-libstdc++ -lSDL2 -lSDL2main -lSDL2_mixer -lSDL2_image -lSDL2_ttf -lavformat -lavcodec -lavutil
 
+UNAME_S := $(shell uname -s)
 # Check if the OS is Windows
-ifeq ($(OS), Windows_NT)
+ifeq ($(UNAME_S), Linux)
 	ECHO_MESSAGE = "MinGW"
-	LIBS +=
-	CXXFLAGS +=
+	LIBS += `sdl2-config --libs`
+	CXXFLAGS += `sdl2-config --cflags`
 	CFLAGS = $(CXXFLAGS)
 endif
-UNAME := $(shell uname)
-# Check if the OS is Linux
-ifeq ($(UNAME), Linux)
-    ECHO_MESSAGE = "Linux"
-    LIBS +=
-    CXXFLAGS +=
-    CFLAGS = $(CXXFLAGS)
+ifeq ($(OS), Windows_NT)
+	ECHO_MESSAGE = "MinGW"
+	LIBS += `pkg-config --static --libs sdl2`
+	CXXFLAGS += `pkg-config --cflags sdl2`
+	CFLAGS = $(CXXFLAGS)
 endif
 
 # Compile source files
