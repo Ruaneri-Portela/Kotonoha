@@ -14,9 +14,9 @@ namespace kotonoha
         int push(std::string filenameString, std::string timeStart, std::string timeEnd)
         {
             std::stringstream ss;
-            ss << "./Midia/";
+            ss << exportTo->root->fileConfigs->mediaPath;
             ss << filenameString;
-            ss << ".WMV";
+            ss << exportTo->root->fileConfigs->videoExtension;
             std::string filenameStr = ss.str();
             kotonohaData::videoData videoTemporary;
             videoTemporary.path = filenameStr;
@@ -29,11 +29,11 @@ namespace kotonoha
     int playVideo(void *import)
     {
         kotonohaData::acessMapper *importedTo = static_cast<kotonohaData::acessMapper *>(import);
-        double timePass = 0.0;
-        kotonohaTime::delay(1000);
         importedTo->root->log0->appendLog("(Video) - Start");
         importedTo->root->log0->appendLog("(Video) - " + std::to_string(importedTo->video.size()) + " Videos to play");
-        while (!importedTo->control->exit)
+        double timePass = 0.0;
+        int h = 0, w = 0;
+        while (importedTo->control->outCode == -1)
         {
             if (importedTo->control->display[1])
             {
@@ -49,7 +49,7 @@ namespace kotonoha
                             importedTo->video[i].played = true;
                             if (avformat_open_input(&formatCtx, importedTo->video[i].path.c_str(), NULL, NULL) != 0)
                             {
-                                importedTo->root->log0->appendLog("(Video) - Error on open file");
+                                importedTo->root->log0->appendLog("(Video) - Error on open file " + importedTo->audio[i].path);
                             }
                             // Find video stream
                             int videoStream = -1;
@@ -58,18 +58,17 @@ namespace kotonoha
                                 if (formatCtx->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO)
                                 {
                                     videoStream = i;
-                                    break;
                                 }
                             }
                             if (videoStream == -1)
                             {
-                                importedTo->root->log0->appendLog("(Video) - No stream found");
+                                importedTo->root->log0->appendLog("(Video) - No stream found " + importedTo->audio[i].path);
                             }
                             // Setup video decoder
                             const auto codec = avcodec_find_decoder(formatCtx->streams[videoStream]->codecpar->codec_id);
                             if (!codec)
                             {
-                                importedTo->root->log0->appendLog("(Video) - No codec support");
+                                importedTo->root->log0->appendLog("(Video) - No codec support " + importedTo->audio[i].path);
                             }
                             AVCodecContext *codecCtx = avcodec_alloc_context3(codec);
                             avcodec_parameters_to_context(codecCtx, formatCtx->streams[videoStream]->codecpar);
@@ -77,22 +76,21 @@ namespace kotonoha
                             AVFrame *frame = av_frame_alloc();
                             // Allocate frame
                             AVPacket packet;
-                            while (av_read_frame(formatCtx, &packet) >= 0 && !importedTo->control->exit)
+                            while (av_read_frame(formatCtx, &packet) >= 0 && importedTo->control->outCode == -1)
                             {
                                 if (packet.stream_index == videoStream)
                                 {
-                                    while (!importedTo->control->display[1] && !importedTo->control->exit)
+                                    while (!importedTo->control->display[1] && importedTo->control->outCode == -1)
                                     {
                                         continue;
                                     }
-                                    kotonohaTime::delay(30);
+                                    kotonohaTime::delay(35);
                                     // Decode frame
                                     avcodec_send_packet(codecCtx, &packet);
                                     avcodec_receive_frame(codecCtx, frame);
                                     // Create SDL texture to render frame
                                     SDL_Texture *texture = SDL_CreateTexture(importedTo->root->renderer, SDL_PIXELFORMAT_YV12, SDL_TEXTUREACCESS_STREAMING, frame->width, frame->height);
                                     SDL_UpdateYUVTexture(texture, NULL, frame->data[0], frame->linesize[0], frame->data[1], frame->linesize[1], frame->data[2], frame->linesize[2]);
-                                    int h = 0, w = 0;
                                     SDL_GetWindowSize(importedTo->root->window, &w, &h);
                                     SDL_Rect square = {0, 0, w, h};
                                     SDL_RenderCopy(importedTo->root->renderer, texture, NULL, &square);

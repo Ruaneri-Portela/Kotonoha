@@ -31,9 +31,9 @@ namespace kotonoha
             if (atoi(filenameString.c_str()) != 1)
             {
                 std::stringstream ss;
-                ss << "./Midia/";
+                ss << exportTo->root->fileConfigs->mediaPath;
                 ss << filenameString;
-                ss << ".ogg";
+                ss << exportTo->root->fileConfigs->audioExtension;
                 std::string filenameStr = ss.str();
                 // Ceate new audio object
                 kotonohaData::audioData audioTemporary;
@@ -49,30 +49,33 @@ namespace kotonoha
     {
         kotonohaData::acessMapper *importedTo = static_cast<kotonohaData::acessMapper *>(import);
         importedTo->root->log0->appendLog("(Audio) - Start");
-        importedTo->root->log0->appendLog("(Audio) - "+std::to_string(importedTo->audio.size()) + " Audios to play");
-        while (!importedTo->control->exit)
+        importedTo->root->log0->appendLog("(Audio) - " + std::to_string(importedTo->audio.size()) + " Audios to play");
+        double timePass = 0.0;
+        while (importedTo->control->outCode == -1)
         {
             if (!importedTo->control->audioEnd && !importedTo->control->nonAudio && !(importedTo->audio.size() == 0))
             {
                 for (std::vector<kotonohaData::imageData>::size_type i = 0; i < importedTo->audio.size(); i++)
                 {
-                    double timePass = importedTo->control->timer0.pushTime();
-                    if (importedTo->audio[i].sound == NULL && importedTo->audio[i].play - 20 < timePass && importedTo->audio[i].played == false)
+                    timePass = importedTo->control->timer0.pushTime();
+                    if (importedTo->audio[i].sound == NULL && importedTo->audio[i].play - 20 < timePass)
                     {
                         importedTo->root->log0->appendLog("(Audio) - Loading... " + importedTo->audio[i].path);
                         importedTo->audio[i].sound = Mix_LoadWAV(importedTo->audio[i].path.c_str());
-                        if(importedTo->audio[i].sound == NULL ){
-                            importedTo->root->log0->appendLog("(Audio) - Error on load file");
-                            importedTo->audio[i].played = true;
+                        if (importedTo->audio[i].sound == NULL)
+                        {
+                            importedTo->root->log0->appendLog("(Audio) - Error on load file" + importedTo->audio[i].path);
+                            importedTo->audio.erase(importedTo->audio.begin() + i);
                         }
                     }
-                    else if (importedTo->audio[i].play < timePass && importedTo->audio[i].played == false)
+                    else if (importedTo->audio[i].play < timePass && !importedTo->audio[i].played)
                     {
+                        kotonohaTime::delay(5);
                         importedTo->root->log0->appendLog("(Audio) - Playing " + importedTo->audio[i].path);
                         Mix_PlayChannel(importedTo->audio[i].channel, importedTo->audio[i].sound, 0);
                         importedTo->audio[i].played = true;
                     }
-                    else if (importedTo->audio[i].end < timePass && importedTo->audio[i].played == false)
+                    if (importedTo->audio[i].end < timePass)
                     {
                         Mix_FreeChunk(importedTo->audio[i].sound);
                         importedTo->root->log0->appendLog("(Audio) - Drop out... " + importedTo->audio[i].path);

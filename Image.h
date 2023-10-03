@@ -9,16 +9,15 @@ namespace kotonoha
             if (atoi(filenameString.c_str()) != 1)
             {
                 std::stringstream ss;
-                ss << "./Midia/";
+                ss << exportTo->root->fileConfigs->mediaPath;
                 ss << filenameString;
-                ss << ".PNG";
+                ss << exportTo->root->fileConfigs->imageExtension;
                 std::string filenameStr = ss.str();
                 // Create new image object
                 kotonohaData::imageData imageTemporary;
                 imageTemporary.path = filenameStr;
                 imageTemporary.play = kotonohaTime::convertToTime(startTime);
                 imageTemporary.end = kotonohaTime::convertToTime(endTime);
-                imageTemporary.surface = IMG_Load(filenameString.c_str());
                 exportTo->image.push_back(imageTemporary);
             }
         };
@@ -28,34 +27,42 @@ namespace kotonoha
         kotonohaData::acessMapper *importedTo = static_cast<kotonohaData::acessMapper *>(import);
         importedTo->root->log0->appendLog("(Image) - Start");
         importedTo->root->log0->appendLog("(Image) - " + std::to_string(importedTo->image.size()) + " Images to show");
-        while (!importedTo->control->exit)
+        double timePass = 0.0;
+        int h = 0, w = 0;
+        while (importedTo->control->outCode == -1)
         {
             if (!importedTo->control->imageEnd && !importedTo->control->nonImage && !(importedTo->image.size() == 0))
             {
                 for (std::vector<kotonohaData::imageData>::size_type i = 0; i < importedTo->image.size(); i++)
                 {
-                    double timePass = importedTo->control->timer0.pushTime();
-                    if (importedTo->image[i].play < timePass && importedTo->image[i].end > timePass && !importedTo->image[i].played)
+                    timePass = importedTo->control->timer0.pushTime();
+                    if (importedTo->image[i].texture == NULL && importedTo->image[i].play < timePass + 20)
                     {
-                        if (!importedTo->image[i].touched)
+                        importedTo->root->log0->appendLog("(Image) - Loading... " + importedTo->image[i].path);
+                        importedTo->image[i].texture = IMG_LoadTexture(importedTo->root->renderer, importedTo->image[i].path.c_str());
+                        if (importedTo->image[i].texture == NULL)
+                        {
+                            importedTo->root->log0->appendLog("(Image) - Error on load file" + importedTo->audio[i].path);
+                            importedTo->image.erase(importedTo->image.begin() + i);
+                        }
+                    }
+                    else if (importedTo->image[i].play < timePass)
+                    {
+                        kotonohaTime::delay(5);
+                        if (!importedTo->image[i].played)
                         {
                             importedTo->root->log0->appendLog("(Image) - Showing " + importedTo->image[i].path);
-                            importedTo->image[i].touched = true;
+                            importedTo->image[i].played = true;
                         }
-                        int h = 0, w = 0;
                         SDL_GetWindowSize(importedTo->root->window, &w, &h);
                         SDL_Rect square = {0, 0, w, h};
-                        SDL_Texture *texture = SDL_CreateTextureFromSurface(importedTo->root->renderer, importedTo->image[i].surface);
-                        SDL_RenderCopy(importedTo->root->renderer, texture, NULL, &square);
-                        SDL_DestroyTexture(texture);
-                        importedTo->control->display[0] = false;
-                        importedTo->control->display[1] = true;
+                        SDL_RenderCopy(importedTo->root->renderer, importedTo->image[i].texture, NULL, &square);
                     }
-                    else if (importedTo->image[i].end < timePass && !importedTo->image[i].played)
+                    if (importedTo->image[i].end < timePass)
                     {
-                        importedTo->image[i].played = true;
-                        SDL_FreeSurface(importedTo->image[i].surface);
+                        SDL_DestroyTexture(importedTo->image[i].texture);
                         importedTo->image.erase(importedTo->image.begin() + i);
+                        importedTo->root->log0->appendLog("(Image) - Drop out... " + importedTo->audio[i].path);
                         break;
                     }
                 }

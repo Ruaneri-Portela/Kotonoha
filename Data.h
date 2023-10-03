@@ -1,7 +1,7 @@
 /**
  * @file Data.h
  * @brief Contains the definition of various data structures used in Kotonoha project.
- * 
+ *
  * This file contains the definition of the following data structures:
  * - controlData: A structure containing various control flags and a timer.
  * - soundData: A structure containing information about an audio file.
@@ -9,7 +9,7 @@
  * - imageData: A structure containing information about an image file.
  * - rootData: A structure containing various SDL objects and a logger object.
  * - acessMapper: A structure containing pointers to various data structures.
- * 
+ *
  * All the data structures are defined inside the namespace kotonohaData.
  */
 namespace kotonohaData
@@ -27,9 +27,7 @@ namespace kotonohaData
         bool audioEnd = false;
         bool imageEnd = false;
         // To reset and exit signals
-        bool exit = false;
-        bool reset = false;
-        bool menu = false;
+        int outCode = -1;
         // Universal timer
         kotonohaTime::timerEngine timer0;
         // Time to end script
@@ -53,21 +51,30 @@ namespace kotonohaData
     } videoData;
     typedef struct imageData
     {
-        SDL_Surface *surface = NULL;
         std::string path = "";
+        SDL_Texture *texture = NULL;
         bool played = false;
         double play = 0;
         double end = 0;
         bool touched = false;
     } imageData;
+    typedef struct configsData
+    {
+        bool configured = false;
+        char mediaPath[256] = "";
+        char audioExtension[32] = "";
+        char videoExtension[32] = "";
+        char imageExtension[32] = "";
+    } configsData;
     typedef struct rootData
     {
         SDL_Renderer *renderer = NULL;
         kotonoha::logger *log0 = NULL;
+        kotonohaData::configsData *fileConfigs = NULL;
         SDL_Window *window = NULL;
         void *audio0 = NULL;
         void *video0 = NULL;
-        void *image0= NULL;
+        void *image0 = NULL;
         SDL_Event event;
     } rootData;
     typedef struct acessMapper
