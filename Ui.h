@@ -23,7 +23,7 @@ int ui(void *import)
     mapper->control->timer0.initTimeCapture();
     while (mapper->control->outCode == -1)
     {
-        if (mapper->control->display[2])
+        if (mapper->control->display[3])
         {
             ImGui_ImplSDLRenderer2_NewFrame();
             ImGui_ImplSDL2_NewFrame();
@@ -94,10 +94,8 @@ int ui(void *import)
             SDL_RenderSetScale(mapper->root->renderer, io.DisplayFramebufferScale.x, io.DisplayFramebufferScale.y);
             SDL_SetRenderDrawColor(mapper->root->renderer, (Uint8)(clear_color.x * 255), (Uint8)(clear_color.y * 255), (Uint8)(clear_color.z * 255), (Uint8)(clear_color.w * 255));
             ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData());
-            SDL_RenderPresent(mapper->root->renderer);
-            SDL_RenderClear(mapper->root->renderer);
-            mapper->control->display[2] = false;
-            mapper->control->display[0] = true;
+            mapper->control->display[3] = false;
+            mapper->control->display[4] = true;
         }
     }
     ImGui_ImplSDLRenderer2_Shutdown();
