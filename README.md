@@ -13,11 +13,9 @@ Functions that exist (or intend to exist in the engine) consider the items betwe
 - Script system (PATH)
 - Audio call (AUDIO INIT, PATH, AUDIO END) (partial implemented)
 - Video call (INITIATE AUDIO, PATH, END AUDIO) (partial implemented)
-- Image call (INITIATE AUDIO, PATH, END AUDIO)
-- Subtitle call (INITIATE AUDIO, PATH, END AUDIO)
+- Image call (INITIATE AUDIO, PATH, END AUDIO) (partial implemented)
+- Subtitle call (INITIATE AUDIO, PATH, END AUDIO) (in implementation)
 - Prompt of choice (A/B)
 - Load a new script (PATH)
 
-The engine uses SDL2 as the graphics and audio backend, and FFMPEG as the video backend, to game UI IMGui
-
-The engine intends to work with .ass (alpha substation) texts as the subtitle engine. 
+The engine uses SDL2 as the graphics and audio backend, and FFMPEG as the video backend, to game UI IMGui and for subtitles libAss
