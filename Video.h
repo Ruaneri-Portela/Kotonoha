@@ -80,11 +80,6 @@ namespace kotonoha
                             {
                                 if (packet.stream_index == videoStream)
                                 {
-                                    while (!importedTo->control->display[1] && importedTo->control->outCode == -1)
-                                    {
-                                        continue;
-                                    }
-                                    kotonohaTime::delay(35);
                                     // Decode frame
                                     avcodec_send_packet(codecCtx, &packet);
                                     avcodec_receive_frame(codecCtx, frame);
@@ -93,6 +88,11 @@ namespace kotonoha
                                     SDL_UpdateYUVTexture(texture, NULL, frame->data[0], frame->linesize[0], frame->data[1], frame->linesize[1], frame->data[2], frame->linesize[2]);
                                     SDL_GetWindowSize(importedTo->root->window, &w, &h);
                                     SDL_Rect square = {0, 0, w, h};
+                                    while (!importedTo->control->display[1] && importedTo->control->outCode == -1)
+                                    {
+                                        continue;
+                                    }
+                                    kotonohaTime::delay(35);
                                     SDL_RenderCopy(importedTo->root->renderer, texture, NULL, &square);
                                     SDL_DestroyTexture(texture);
                                     importedTo->control->display[1] = false;
