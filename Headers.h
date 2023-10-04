@@ -10,11 +10,6 @@
 #include <fstream>
 #include <chrono>
 #include <thread>
-#include <png.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdarg.h>
-#include <string.h>
 extern "C"
 {
 #include <libavformat/avformat.h>
