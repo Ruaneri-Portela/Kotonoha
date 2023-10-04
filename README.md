@@ -1,5 +1,7 @@
 # Kotonoha Novel Engine
 
+![Engine Running](https://github.com/Ruaneri-Portela/Kotonoha/blob/378c55fe9ea7277847b54267e8046a66357c9b21/Kotonoha.gif)
+
 An engine written in C++ based on reading .ORS scripts.
 
 The engine's primary purpose is to be a free implementation of the engine used in games by Japanese developer Overflow, which has produced games such as School Days.
