@@ -50,7 +50,6 @@ namespace kotonoha
                         }
                         else if (importedTo->image[i].play < timePass)
                         {
-                            kotonohaTime::delay(5);
                             if (!importedTo->image[i].played)
                             {
                                 importedTo->root->log0->appendLog("(Image) - Showing " + importedTo->image[i].path);

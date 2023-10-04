@@ -2,7 +2,7 @@ namespace kotonoha
 {
     inline std::pair<size_t, std::uint8_t> x2pos_mask(int x)
     {
-        size_t pos = x / CHAR_BIT;
+        //size_t pos = x / CHAR_BIT;
         size_t r = x % CHAR_BIT;
 
         std::uint8_t mask = 0b10000000;
@@ -24,30 +24,29 @@ namespace kotonoha
         ass_library = ass_library_init();
         ass_set_extract_fonts(ass_library, 1);
         ass_renderer = ass_renderer_init(ass_library);
-
+        ass_set_fonts(ass_renderer, NULL, "sans-serif", ASS_FONTPROVIDER_AUTODETECT, NULL, 1);
+        ass_set_hinting(ass_renderer,ASS_HINTING_NATIVE);
         ASS_Track *track = ass_read_file(ass_library, subfile, NULL);
-        importedTo->root->log0->appendLog("(Text) - End");
+        importedTo->root->log0->appendLog("(Text) - Start");
         while (importedTo->control->outCode == -1)
         {
             if (importedTo->control->display[2])
             {
                 SDL_GetWindowSize(importedTo->root->window, &w, &h);
-                ass_set_storage_size(ass_renderer, w * 4, h * 4);
+                ass_set_storage_size(ass_renderer, w, h);
                 ass_set_frame_size(ass_renderer, w, h);
-                int detect = 0;
-                ASS_Image *img = ass_render_frame(ass_renderer, track, 0, &detect);
-                for (; img != nullptr; img = img->next)
+                ASS_Image *img = ass_render_frame(ass_renderer, track, 1000,NULL);
+                for (; img != NULL; img = img->next)
                 {
                     if (img->w == 0 || img->h == 0)
                     {
                         continue;
                     }
                     SDL_Texture *texture = SDL_CreateTexture(importedTo->root->renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STREAMING, img->w, img->h);
-                    assert(texture);
-                    std::uint32_t *pixels = nullptr;
+                    uint32_t *pixels = NULL;
                     int pitch = 0;
-                    assert(SDL_LockTexture(texture, nullptr, reinterpret_cast<void **>(&pixels), &pitch) == 0);
-                    auto bitmap = img->bitmap;
+                    SDL_LockTexture(texture, NULL, reinterpret_cast<void **>(&pixels), &pitch);
+                    unsigned char *bitmap = img->bitmap;
                     // It's better to unroll this loop.
                     for (int y = 0; y < img->h; y++)
                     {
@@ -67,7 +66,8 @@ namespace kotonoha
                     SDL_UnlockTexture(texture);
 
                     SDL_Rect dst = {img->dst_x, img->dst_y, img->w, img->h};
-                    SDL_RenderCopy(importedTo->root->renderer, texture, nullptr, &dst);
+                    SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_MUL);
+                    SDL_RenderCopy(importedTo->root->renderer, texture, NULL, &dst);
 
                     SDL_DestroyTexture(texture);
                 }
