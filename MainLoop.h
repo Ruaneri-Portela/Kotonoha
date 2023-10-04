@@ -11,7 +11,7 @@ namespace kotonoha
     class loop
     {
     public:
-        int game(SDL_Window *windowEntry, SDL_Renderer *rendererEntry, std::string path,kotonohaData::configsData fileConfigs,kotonoha::logger *log0)
+        int game(SDL_Window *windowEntry, SDL_Renderer *rendererEntry, std::string path, kotonohaData::configsData fileConfigs, kotonoha::logger *log0)
         {
             // Create data structure
             kotonohaData::rootData *rootData = new kotonohaData::rootData;
@@ -73,7 +73,8 @@ namespace kotonoha
                         }
                     }
                 }
-                if(controlData->display[4]){
+                if (controlData->display[4])
+                {
                     SDL_RenderPresent(rendererEntry);
                     SDL_RenderClear(rendererEntry);
                     controlData->display[4] = false;
