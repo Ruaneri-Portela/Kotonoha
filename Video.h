@@ -85,6 +85,7 @@ namespace kotonoha
                                     avcodec_receive_frame(codecCtx, frame);
                                     // Create SDL texture to render frame
                                     SDL_Texture *texture = SDL_CreateTexture(importedTo->root->renderer, SDL_PIXELFORMAT_YV12, SDL_TEXTUREACCESS_STREAMING, frame->width, frame->height);
+                                    SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_NONE);
                                     SDL_UpdateYUVTexture(texture, NULL, frame->data[0], frame->linesize[0], frame->data[1], frame->linesize[1], frame->data[2], frame->linesize[2]);
                                     SDL_GetWindowSize(importedTo->root->window, &w, &h);
                                     SDL_Rect square = {0, 0, w, h};
