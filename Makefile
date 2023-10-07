@@ -23,20 +23,20 @@ CXXFLAGS = -I$(IMGUI_DIR) -I$(IMGUI_DIR)/backends
 CXXFLAGS += -g -Wall -Wformat 
 
 # Libraries
-LIBS = -static-libgcc -static-libstdc++ -lSDL2 -lSDL2main -lSDL2_mixer -lSDL2_image -lSDL2_ttf -lass -lpng -lavformat -lavcodec -lavutil
+LIBS = -static-libgcc -static-libstdc++ -lSDL2_mixer -lSDL2_image -lSDL2_ttf -lass -lpng -lavformat -lavcodec -lavutil
 
 UNAME_S := $(shell uname -s)
 # Check if the OS is Windows
 ifeq ($(UNAME_S), Linux)
-	ECHO_MESSAGE = "MinGW"
+	ECHO_MESSAGE = "Linux"
 	LIBS += `sdl2-config --libs`
 	CXXFLAGS += `sdl2-config --cflags`
 	CFLAGS = $(CXXFLAGS)
 endif
 ifeq ($(OS), Windows_NT)
 	ECHO_MESSAGE = "MinGW"
-#	LIBS += `pkg-config --static --libs sdl2`
-#	CXXFLAGS += `pkg-config --cflags sdl2`
+	LIBS += `pkg-config --static --libs sdl2`
+	CXXFLAGS += `pkg-config --cflags sdl2`
 	CFLAGS = $(CXXFLAGS)
 endif
 
@@ -61,7 +61,7 @@ $(EXE): $(OBJS)
 
 # Clean build files
 clean:
-	rm -f $(SRC)$(EXE) $(SRC)$(OBJS)
+	rm -f ./Build/*
 
 # Documentation
 # This Makefile compiles C++ source files and imgui library files to create an executable.
