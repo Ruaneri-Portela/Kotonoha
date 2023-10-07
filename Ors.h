@@ -10,6 +10,7 @@ int comanderControler(std::vector<std::vector<std::string>> array, kotonohaData:
     kotonoha::audioObject *audio0 = static_cast<kotonoha::audioObject *>(import->root->audio0);
     kotonoha::videoObject *video0 = static_cast<kotonoha::videoObject *>(import->root->video0);
     kotonoha::imageObject *image0 = static_cast<kotonoha::imageObject *>(import->root->image0);
+    kotonoha::textObject *text0 = static_cast<kotonoha::textObject *>(import->root->text0);
     import->root->log0->appendLog("(ORS) - Start");
     for (std::vector<std::vector<std::string>>::size_type cont = 0; cont < array.size(); cont++)
     {
@@ -47,6 +48,8 @@ int comanderControler(std::vector<std::vector<std::string>> array, kotonohaData:
         }
         else if (strstr(comand, "PrintText") != NULL)
         {
+            text0->push(array[cont][2],array[cont][0],array[cont][3],"Dialoge","Subtitle");
+            import->root->log0->appendLog("(ORS) - Loading text to ASS data ");
         }
         else if (strstr(comand, "CreateBG") != NULL)
         {

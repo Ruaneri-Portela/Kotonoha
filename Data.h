@@ -58,6 +58,11 @@ namespace kotonohaData
         double end = 0;
         bool touched = false;
     } imageData;
+    typedef struct textData
+    {
+        std::stringstream stream;
+        bool init = false;
+    } textData;
     typedef struct configsData
     {
         bool configured = false;
@@ -75,6 +80,7 @@ namespace kotonohaData
         void *audio0 = NULL;
         void *video0 = NULL;
         void *image0 = NULL;
+        void *text0 = NULL;
         SDL_Event event;
     } rootData;
     typedef struct acessMapper
@@ -83,6 +89,7 @@ namespace kotonohaData
         std::vector<kotonohaData::videoData> video;
         std::vector<kotonohaData::imageData> image;
         std::vector<kotonohaData::audioData> audio;
+        kotonohaData::textData text;
         kotonohaData::rootData *root = NULL;
     } acessMapper;
 }
