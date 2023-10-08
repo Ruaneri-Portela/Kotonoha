@@ -87,16 +87,6 @@ namespace kotonohaTime
         std::string token;
         std::vector<std::string> stringTimeVector;
         std::istringstream stringStream(str);
-        if (strstr(str.c_str(), "="))
-        {
-            std::vector<std::string> stringTimeVectorSplited;
-            while (std::getline(stringStream, token, '='))
-            {
-                stringTimeVectorSplited.push_back(token);
-            }
-            stringStream.str("");
-            stringStream = std::istringstream(stringTimeVectorSplited[1]);
-        }
         while (std::getline(stringStream, token, ':'))
         {
             stringTimeVector.push_back(token);
@@ -123,26 +113,55 @@ namespace kotonoha
     {
         std::vector<std::vector<std::string>> vector;
         std::ifstream file(path);
+
         if (!file.is_open())
         {
             return vector;
         }
+
         std::string linha;
         while (std::getline(file, linha))
         {
+            std::vector<std::string> line;
             std::istringstream linhaStream(linha);
-            std::string value;
-            std::vector<std::string> text;
-            while (std::getline(linhaStream, value, '\t'))
+            std::string comand, value;
+            // Use std::getline com '=' para dividir a linha em comando e valor
+            if (std::getline(linhaStream, comand, '='))
             {
-                if (!value.empty())
+                if (std::getline(linhaStream, value))
                 {
-                    text.push_back(value);
+                    line.push_back(comand);
+                    // Verifique se o valor contém tabulação '\t'
+                    size_t tabPos = value.find('\t');
+                    if (tabPos != std::string::npos)
+                    {
+                        std::istringstream valueStream(value);
+                        std::string split;
+                        while (std::getline(valueStream, split, '\t'))
+                        {
+                            if (!split.empty())
+                            {
+                                line.push_back(split);
+                            }
+                        }
+                    }
+                    else
+                    { // Se não houver tabulação, divida usando ", "
+                        std::istringstream valueStream(value);
+                        while (std::getline(valueStream, value, ','))
+                        {
+                            if (!value.empty())
+                            {
+                                value.erase(0, 1);
+                                line.push_back(value);
+                            }
+                        }
+                    }
                 }
             }
-            if (!text.empty())
+            if (line.size() > 0)
             {
-                vector.push_back(text);
+                vector.push_back(line);
             }
         }
         file.close();
