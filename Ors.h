@@ -1,6 +1,6 @@
 /**
  * @brief This function controls the execution of commands in a script file.
- * 
+ *
  * @param array A vector of vectors of strings containing the commands to be executed.
  * @param import A pointer to an instance of the acessMapper class.
  * @return int Returns 0 upon successful execution of all commands.
@@ -42,13 +42,22 @@ int comanderControler(std::vector<std::vector<std::string>> array, kotonohaData:
         }
         else if (strstr(comand, "PlayVoice") != NULL)
         {
-            audio0->push(array[cont][2], array[cont][1], array[cont][5], 2);
-            import->root->log0->appendLog("(ORS) - PlayVoice " + array[cont][2]);
-            import->control->nonAudio = false;
+            if (array[cont].size() > 4)
+            {
+                audio0->push(array[cont][2], array[cont][1], array[cont][5], 2);
+                import->root->log0->appendLog("(ORS) - PlayVoice " + array[cont][2]);
+                import->control->nonAudio = false;
+            }
+            else
+            {
+                audio0->push(array[cont][2], array[cont][1], array[cont][3], 2);
+                import->root->log0->appendLog("(ORS) - PlayVoice " + array[cont][2]);
+                import->control->nonAudio = false;
+            }
         }
         else if (strstr(comand, "PrintText") != NULL)
         {
-            text0->push(array[cont][3],array[cont][1],array[cont][4],"Dialoge","Subtitle");
+            text0->push(array[cont][3], array[cont][1], array[cont][4], "Dialoge", "Subtitle");
             import->root->log0->appendLog("(ORS) - Loading text to ASS data ");
         }
         else if (strstr(comand, "CreateBG") != NULL)
