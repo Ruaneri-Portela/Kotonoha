@@ -46,13 +46,6 @@ namespace kotonoha
             exportTo->text.stream << "Dialogue:0,0:" << timeStartMMSSDD[0] << ":" << timeStartMMSSDD[1] << "." << timeStartMMSSDD[2] << ",0:" << timeEndMMSSDD[0] << ":" << timeEndMMSSDD[1] << "." << timeEndMMSSDD[2] << ",Default,,0,0,0,," << text << std::endl;
         };
     };
-    inline std::pair<size_t, std::uint8_t> x2pos_mask(int x)
-    {
-        size_t r = x % CHAR_BIT;
-        std::uint8_t mask = 0b10000000;
-        mask >>= r;
-        return {x, mask};
-    }
     int playText(void *import)
     {
         kotonohaData::acessMapper *importedTo = static_cast<kotonohaData::acessMapper *>(import);
@@ -74,53 +67,55 @@ namespace kotonoha
         // Start
         kotonohaTime::delay(1000);
         importedTo->root->log0->appendLog("(Text) - Start");
+        SDL_Texture *texture = NULL;
+        ASS_Image *img = NULL;
         while (importedTo->control->outCode == -1)
         {
-
             if (importedTo->control->display[2])
             {
                 // Get window size to update
                 SDL_GetWindowSize(importedTo->root->window, &w, &h);
                 ass_set_storage_size(ass_renderer, w, h);
                 ass_set_frame_size(ass_renderer, w, h);
-                ASS_Image *img = ass_render_frame(ass_renderer, track, kotonohaTime::convertToMs(importedTo->control->timer0.pushTime()), NULL);
+                img = ass_render_frame(ass_renderer, track, kotonohaTime::convertToMs(importedTo->control->timer0.pushTime()), NULL);
                 // This for loop send all tracks to display
-                for (; img != NULL; img = img->next)
+                for (; img != nullptr; img = img->next)
                 {
-                    if (img->w == 0 || img->h == 0)
-                    {
-                        continue;
-                    }
-                    // Convert ASS Img to RGBA
-                    SDL_Texture *texture = SDL_CreateTexture(importedTo->root->renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STREAMING, img->w, img->h);
-                    uint32_t *pixels = NULL;
+                    SDL_Rect dst = {img->dst_x, img->dst_y, img->w, img->h};
+                    texture = SDL_CreateTexture(importedTo->root->renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STREAMING, img->w, img->h);
+                    SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
+                    std::uint32_t *pixels = NULL;
                     int pitch = 0;
                     SDL_LockTexture(texture, NULL, reinterpret_cast<void **>(&pixels), &pitch);
-                    unsigned char *bitmap = img->bitmap;
+                    uint32_t cor = (img->color & 0xffffff00) | 0xff;
                     for (int y = 0; y < img->h; y++)
                     {
                         for (int x = 0; x < img->w; x++)
                         {
-                            auto pos_mask = x2pos_mask(x);
-                            auto filled = bitmap[pos_mask.first] & pos_mask.second;
-                            pixels[x] = (filled) ? img->color : 0;
+                            if (img->bitmap[x] != 0)
+                            {
+
+                                pixels[x] = cor;
+                            }
+                            else
+                            {
+                                pixels[x] = 0x00000000;
+                            }
                         }
                         pixels = reinterpret_cast<std::uint32_t *>(reinterpret_cast<std::uintptr_t>(pixels) + pitch);
-                        bitmap += img->stride;
+                        img->bitmap += img->stride;
                     }
-                    // Send texture to display
                     SDL_UnlockTexture(texture);
-                    SDL_Rect dst = {img->dst_x, img->dst_y, img->w, img->h};
-                    SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_MUL);
                     SDL_RenderCopy(importedTo->root->renderer, texture, NULL, &dst);
-                    SDL_DestroyTexture(texture);
                 }
                 // End frame sub draw
+                free(img);
                 importedTo->control->display[2] = false;
                 importedTo->control->display[3] = true;
             }
         };
         // End text engine
+        SDL_DestroyTexture(texture);
         ass_free_track(track);
         ass_renderer_done(ass_renderer);
         ass_library_done(ass_library);

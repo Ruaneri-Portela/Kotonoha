@@ -57,7 +57,6 @@ namespace kotonoha
                             }
                             SDL_GetWindowSize(importedTo->root->window, &w, &h);
                             SDL_Rect square = {0, 0, w, h};
-                            SDL_SetTextureBlendMode(importedTo->image[i].texture, SDL_BLENDMODE_NONE);
                             SDL_RenderCopy(importedTo->root->renderer, importedTo->image[i].texture, NULL, &square);
                         }
                         if (importedTo->image[i].end < timePass)

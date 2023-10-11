@@ -31,6 +31,7 @@ namespace kotonoha
         kotonohaData::acessMapper *importedTo = static_cast<kotonohaData::acessMapper *>(import);
         importedTo->root->log0->appendLog("(Video) - Start");
         importedTo->root->log0->appendLog("(Video) - " + std::to_string(importedTo->video.size()) + " Videos to play");
+        SDL_Texture *texture = NULL;
         double timePass = 0.0;
         int h = 0, w = 0;
         while (importedTo->control->outCode == -1)
@@ -84,8 +85,7 @@ namespace kotonoha
                                     avcodec_send_packet(codecCtx, &packet);
                                     avcodec_receive_frame(codecCtx, frame);
                                     // Create SDL texture to render frame
-                                    SDL_Texture *texture = SDL_CreateTexture(importedTo->root->renderer, SDL_PIXELFORMAT_YV12, SDL_TEXTUREACCESS_STREAMING, frame->width, frame->height);
-                                    SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_NONE);
+                                    texture = SDL_CreateTexture(importedTo->root->renderer, SDL_PIXELFORMAT_YV12, SDL_TEXTUREACCESS_STREAMING, frame->width, frame->height);
                                     SDL_UpdateYUVTexture(texture, NULL, frame->data[0], frame->linesize[0], frame->data[1], frame->linesize[1], frame->data[2], frame->linesize[2]);
                                     SDL_GetWindowSize(importedTo->root->window, &w, &h);
                                     SDL_Rect square = {0, 0, w, h};
@@ -93,7 +93,7 @@ namespace kotonoha
                                     {
                                         continue;
                                     }
-                                    kotonohaTime::delay(35);
+                                    kotonohaTime::delay(32);
                                     SDL_RenderCopy(importedTo->root->renderer, texture, NULL, &square);
                                     SDL_DestroyTexture(texture);
                                     importedTo->control->display[1] = false;
