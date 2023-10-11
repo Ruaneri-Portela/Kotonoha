@@ -108,6 +108,7 @@ namespace kotonoha
                     }
                     SDL_UnlockTexture(texture);
                     SDL_RenderCopy(importedTo->root->renderer, texture, NULL, &dst);
+                    SDL_DestroyTexture(texture);
                 }
                 // End frame sub draw
                 free(img);
@@ -116,7 +117,6 @@ namespace kotonoha
             }
         };
         // End text engine
-        SDL_DestroyTexture(texture);
         ass_free_track(track);
         ass_renderer_done(ass_renderer);
         ass_library_done(ass_library);
