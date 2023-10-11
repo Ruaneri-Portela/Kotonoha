@@ -31,6 +31,12 @@ int comanderControler(std::vector<std::vector<std::string>> array, kotonohaData:
             import->root->log0->appendLog("(ORS) - PlayMovie " + array[cont][2]);
             import->control->nonVideo = false;
         }
+        else if (strstr(comand, "EndRoll") != NULL)
+        {
+            video0->push(array[cont][2], array[cont][1], array[cont][3]);
+            import->root->log0->appendLog("(ORS) - EndRoll " + array[cont][2]);
+            import->control->nonVideo = false;
+        }
         else if (strstr(comand, "BlackFade") != NULL)
         {
         }
@@ -38,6 +44,12 @@ int comanderControler(std::vector<std::vector<std::string>> array, kotonohaData:
         {
             audio0->push(array[cont][2], array[cont][1], array[cont][3], 1);
             import->root->log0->appendLog("(ORS) - PlayBgm " + array[cont][2]);
+            import->control->nonAudio = false;
+        }
+        else if (strstr(comand, "EndBGM") != NULL)
+        {
+            audio0->push(array[cont][2], array[cont][1], array[cont][3], 1);
+            import->root->log0->appendLog("(ORS) - EndBGM " + array[cont][2]);
             import->control->nonAudio = false;
         }
         else if (strstr(comand, "PlayVoice") != NULL)
