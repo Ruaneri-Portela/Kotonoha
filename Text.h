@@ -16,7 +16,7 @@ namespace kotonoha
             // Start ASS Header
             if (!exportTo->text.init)
             {
-                exportTo->text.stream << "[Script Info]\nTitle:" << sceneName << "\nScriptType: v4.00+\nWrapStyle: 0\nScaledBorderAndShadow: yes\nYCbCr Matrix: None\n\n[V4+ Styles]\nFormat: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\nStyle: Default, Arial, 24, &H00FFFFFF, &H000000FF, &H00000000, &H80000000, -1, 0, 0, 0, 100, 100, 0, 0.00, 1, 2, 2, 2, 10, 10, 10, 1\n\n[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n";
+                exportTo->text.stream << "[Script Info]\nTitle:" << sceneName << "\nScriptType: v4.00+\nWrapStyle: 0\nScaledBorderAndShadow: yes\nYCbCr Matrix: None\n\n[V4+ Styles]\nFormat: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\nStyle: Default,Arial,20,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,2,2,2,10,10,10,1\n\n[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n";
                 exportTo->text.init = true;
             }
             // Convert ([comand]=MM:SS:DD) and (MM:SS:DD;) to ASS format
@@ -57,7 +57,8 @@ namespace kotonoha
         ass_renderer = ass_renderer_init(ass_library);
         ass_set_extract_fonts(ass_library, 1);
         ass_set_fonts(ass_renderer, NULL, "sans-serif", ASS_FONTPROVIDER_AUTODETECT, NULL, 1);
-        ass_set_hinting(ass_renderer, ASS_HINTING_NATIVE);
+        ass_set_shaper(ass_renderer, ASS_SHAPING_COMPLEX);
+        ass_set_hinting(ass_renderer, ASS_HINTING_NORMAL);
         // Create new ASS Track
         ASS_Track *track = ass_new_track(ass_library);
         std::string subSs = importedTo->text.stream.str();
