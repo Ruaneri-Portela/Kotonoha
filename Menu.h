@@ -1,10 +1,3 @@
-/**
- * @file Menu.h
- * @brief Contains the definition of the menu function and the menuReturn struct.
- *
- * The menu function creates a graphical user interface using the ImGui library and allows the user to select a script file path.
- * The menuReturn struct contains the return code, the selected file path and a boolean flag for enabling the debug prompt.
- */
 namespace kotonoha
 {
     typedef struct menuReturn
@@ -24,7 +17,7 @@ namespace kotonoha
             fclose(dataW);
         }
         else
-        {   
+        {
             fread(&configs, sizeof(kotonohaData::configsData), 1, dataR);
         }
         fclose(dataR);
@@ -70,19 +63,16 @@ namespace kotonoha
                 if (event.type == SDL_QUIT)
                 {
                     object.returnCode = 1;
-                    break;
                 }
                 if (event.type == SDL_KEYDOWN)
                 {
                     if (event.key.keysym.sym == SDLK_ESCAPE)
                     {
                         object.returnCode = 1;
-                        break;
                     }
                     if (event.key.keysym.sym == SDLK_RETURN)
                     {
                         object.returnCode = 1;
-                        break;
                     }
                 }
             }
@@ -133,7 +123,7 @@ namespace kotonoha
                 }
                 ImGui::End();
             }
-            //Windows set config
+            // Windows set config
             {
                 if (config or !object.configs.configured)
                 {
@@ -164,7 +154,7 @@ namespace kotonoha
                     ImGui::End();
                 }
             }
-            //Windows Alert Need Config
+            // Windows Alert Need Config
             {
                 if (!object.configs.configured)
                 {
@@ -173,18 +163,20 @@ namespace kotonoha
                     ImGui::End();
                 }
             }
-            //Windows Config saved
+            // Windows Config saved
             {
-                if(configSaved){
+                if (configSaved)
+                {
                     ImGui::Begin("Alert");
                     ImGui::Text("Config saved");
-                    if(ImGui::Button("Close")){
+                    if (ImGui::Button("Close"))
+                    {
                         configSaved = false;
                     }
                     ImGui::End();
                 }
             }
-            //Windows Log
+            // Windows Log
             if (log0->enable)
             {
                 log0->drawLogger();

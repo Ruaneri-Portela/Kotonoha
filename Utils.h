@@ -1,43 +1,3 @@
-
-/**
- * @brief A class that provides functionality for measuring time intervals.
- */
-
-/**< The initial time point. */
-/**< The time passed since the timer was started. */
-/**< A flag indicating whether the timer has been started. */
-
-/**
- * @brief Returns the time passed since the timer was started.
- * @return The time passed since the timer was started, or -1.0 if the timer has not been started.
- */
-
-/**
- * @brief Initializes the timer.
- * @return true if the timer was successfully initialized, false otherwise.
- */
-
-/**
- * @brief Updates the timer.
- * @return true if the timer was successfully updated, false otherwise.
- */
-
-/**
- * @brief Converts a string in the format "MM:SS:DD" to a double representing the time in seconds.
- * @param str The string to convert.
- * @return The time in seconds.
- */
-
-/**
- * @brief Converts a time in seconds to milliseconds.
- * @param seconds The time in seconds.
- * @return The time in milliseconds.
- */
-
-/**
- * @brief Delays the execution of the current thread for a specified number of milliseconds.
- * @param ms The number of milliseconds to delay the execution.
- */
 namespace kotonohaTime
 {
     class timerEngine
@@ -99,11 +59,13 @@ namespace kotonohaTime
     }
     long convertToMs(double seconds)
     {
+        // convert seconds to milliseconds
         long milliseconds = static_cast<int>(seconds * 1000);
         return milliseconds;
     }
     void delay(int ms)
     {
+        // delay in milliseconds
         std::this_thread::sleep_for(std::chrono::milliseconds(ms));
     }
 };
@@ -125,13 +87,11 @@ namespace kotonoha
             std::vector<std::string> line;
             std::istringstream linhaStream(linha);
             std::string comand, value;
-            // Use std::getline com '=' para dividir a linha em comando e valor
             if (std::getline(linhaStream, comand, '='))
             {
                 if (std::getline(linhaStream, value))
                 {
                     line.push_back(comand);
-                    // Verifique se o valor contém tabulação '\t'
                     size_t tabPos = value.find('\t');
                     if (tabPos != std::string::npos)
                     {
@@ -146,7 +106,7 @@ namespace kotonoha
                         }
                     }
                     else
-                    { // Se não houver tabulação, divida usando ", "
+                    {
                         std::istringstream valueStream(value);
                         while (std::getline(valueStream, value, ','))
                         {
@@ -167,7 +127,7 @@ namespace kotonoha
         file.close();
         return vector;
     }
-    typedef struct logger
+    struct logger
     {
         ImGuiTextBuffer Buf;
         bool ScrollToBottom;
@@ -193,5 +153,5 @@ namespace kotonoha
             }
             ImGui::End();
         }
-    } logger;
+    };
 };

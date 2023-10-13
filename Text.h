@@ -1,10 +1,3 @@
-/**
- * @file Text.h
- * @brief Contains the definition of the textObject class and the playText function.
- *
- * This file defines the textObject class, which is used to create and export text to an ASS file.
- * It also defines the playText function, which is used to render the text on the screen using SDL and ASS.
- */
 namespace kotonoha
 {
     class textObject
@@ -23,14 +16,7 @@ namespace kotonoha
             std::vector<std::string> timeEndMMSSDD;
             std::vector<std::string> timeStartMMSSDD;
             std::string token;
-            if (timeEnd.size() > 9)
-            {
-                timeEnd.erase(timeEnd.size() - 3);
-            }
-            else
-            {
-                timeEnd.erase(timeEnd.size() - 1);
-            }
+            timeEnd.size() > 9 ? timeEnd.erase(timeEnd.size() - 3) : timeEnd.erase(timeEnd.size() - 1);
             std::istringstream stringStream(timeEnd);
             while (std::getline(stringStream, token, ':'))
             {
@@ -88,20 +74,14 @@ namespace kotonoha
                     std::uint32_t *pixels = NULL;
                     int pitch = 0;
                     SDL_LockTexture(texture, NULL, reinterpret_cast<void **>(&pixels), &pitch);
+                    // Push color, in aplha is set to 255 (opacque)
                     uint32_t cor = (img->color & 0xffffff00) | 0xff;
                     for (int y = 0; y < img->h; y++)
                     {
                         for (int x = 0; x < img->w; x++)
                         {
-                            if (img->bitmap[x] != 0)
-                            {
-
-                                pixels[x] = cor;
-                            }
-                            else
-                            {
-                                pixels[x] = 0x00000000;
-                            }
+                            // Put black color with alpha set to 0 (transparent)
+                            img->bitmap[x] != 0 ? pixels[x] = cor : pixels[x] = 0x00000000;
                         }
                         pixels = reinterpret_cast<std::uint32_t *>(reinterpret_cast<std::uintptr_t>(pixels) + pitch);
                         img->bitmap += img->stride;
@@ -111,7 +91,7 @@ namespace kotonoha
                     SDL_DestroyTexture(texture);
                 }
                 // End frame sub draw
-                free(img);
+                delete img;
                 importedTo->control->display[2] = false;
                 importedTo->control->display[3] = true;
             }

@@ -13,6 +13,7 @@ int WinMain(int, char **)
     constexpr auto w = 1280;
     constexpr auto h = 720;
 
+
     SDL_Init(SDL_INIT_VIDEO);
 
     auto window = SDL_CreateWindow("Subtitles", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, w, h, 0);
