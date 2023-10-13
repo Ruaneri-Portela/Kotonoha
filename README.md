@@ -16,7 +16,7 @@ Functions that exist (or intend to exist in the engine) consider the items betwe
 - Audio call (AUDIO INIT, PATH, AUDIO END) (partial implemented)
 - Video call (INITIATE AUDIO, PATH, END AUDIO) (partial implemented)
 - Image call (INITIATE AUDIO, PATH, END AUDIO) (partial implemented)
-- Subtitle call (INITIATE AUDIO, PATH, END AUDIO) (in implementation)
+- Subtitle call (INITIATE AUDIO, PATH, END AUDIO) (implemented)
 - Prompt of choice (A/B)
 - Load a new script (PATH)
 

@@ -1,11 +1,3 @@
-/**
- * @file MainLoop.h
- * @brief Contains the definition of the kotonoha::loop class and its game function.
- *
- * The kotonoha::loop class contains the game loop and threads for the Kotonoha game engine.
- * The game function initializes the necessary data structures, starts the game loop and threads,
- * and waits for them to finish before returning a return code.
- */
 namespace kotonoha
 {
     class loop
@@ -38,17 +30,20 @@ namespace kotonoha
             controlData->display[3] = false;
             controlData->display[4] = false;
             SDL_ShowWindow(rootData->window);
+            // Loading script to create all game objects
             rootData->log0->appendLog("(ORS - Pre) - Reading " + path);
-            ors(global, path);
-            std::thread thread1(ui, global);
+            kotonoha::orsLoader(global, path);
+            std::thread thread1(kotonoha::ui, global);
             std::thread thread2(kotonoha::playImage, global);
             std::thread thread3(kotonoha::playVideo, global);
             std::thread thread4(kotonoha::playAudio, global);
             std::thread thread5(kotonoha::playText, global);
             kotonohaTime::delay(2000);
             rootData->log0->appendLog("(ML) - Entry point to while");
+            SDL_RenderSetVSync(rootData->renderer, 1);
             while (controlData->outCode == -1)
             {
+                // Event reciver
                 while (SDL_PollEvent(&rootData->event))
                 {
                     ImGui_ImplSDL2_ProcessEvent(&rootData->event);
@@ -75,6 +70,7 @@ namespace kotonoha
                         }
                     }
                 }
+                // Render send
                 if (controlData->display[4])
                 {
                     SDL_RenderPresent(rendererEntry);
@@ -89,6 +85,7 @@ namespace kotonoha
             thread3.join();
             thread4.join();
             thread5.join();
+            // Write on log the event that caused the close
             switch (controlData->outCode)
             {
             case 1:
@@ -109,6 +106,7 @@ namespace kotonoha
             }
             int returnCode = controlData->outCode;
             rootData->log0->appendLog("(ML) - End");
+            // Free objects
             delete static_cast<kotonoha::audioObject *>(rootData->audio0);
             delete static_cast<kotonoha::videoObject *>(rootData->video0);
             delete static_cast<kotonoha::imageObject *>(rootData->image0);

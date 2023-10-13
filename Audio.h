@@ -1,25 +1,3 @@
-
-/**
- * @brief The audioObject class represents an audio object that can be played in Kotonoha.
- *
- */
-
-/**
- * @brief Pushes an audio file to the audio object.
- *
- * @param filenameString The name of the audio file.
- * @param startTime The start time of the audio file.
- * @param endTime The end time of the audio file.
- * @param channel The channel to play the audio file on.
- */
-
-/**
- * @brief Plays the audio objects in the access mapper.
- *
- * @param import Pointer to the access mapper object.
- * @return int Returns 0 when the audio playback is complete.
- */
-
 namespace kotonoha
 {
     class audioObject
@@ -30,6 +8,7 @@ namespace kotonoha
         {
             if (atoi(filenameString.c_str()) != 1)
             {
+                // Prepare String for valid file path
                 std::stringstream ss;
                 ss << exportTo->root->fileConfigs->mediaPath;
                 ss << filenameString;
@@ -41,6 +20,7 @@ namespace kotonoha
                 audioTemporary.play = kotonohaTime::convertToTime(startTime);
                 audioTemporary.end = kotonohaTime::convertToTime(endTime);
                 audioTemporary.channel = channel;
+                // Push to audio data array
                 exportTo->audio.push_back(audioTemporary);
             }
         };
@@ -53,11 +33,13 @@ namespace kotonoha
         double timePass = 0.0;
         while (importedTo->control->outCode == -1)
         {
+            // Percurrent the audio array
             if (!importedTo->control->audioEnd && !importedTo->control->nonAudio && !(importedTo->audio.size() == 0))
             {
                 for (std::vector<kotonohaData::imageData>::size_type i = 0; i < importedTo->audio.size(); i++)
                 {
                     timePass = importedTo->control->timer0.pushTime();
+                    // Check if the audio is loaded on RAM
                     if (importedTo->audio[i].sound == NULL && importedTo->audio[i].play - 20 < timePass)
                     {
                         importedTo->root->log0->appendLog("(Audio) - Loading... " + importedTo->audio[i].path);
@@ -68,6 +50,7 @@ namespace kotonoha
                             importedTo->audio.erase(importedTo->audio.begin() + i);
                         }
                     }
+                    // If is time to play, play audio on specific mix channel
                     else if (importedTo->audio[i].play < timePass && !importedTo->audio[i].played)
                     {
                         kotonohaTime::delay(5);
@@ -75,6 +58,7 @@ namespace kotonoha
                         Mix_PlayChannel(importedTo->audio[i].channel, importedTo->audio[i].sound, 0);
                         importedTo->audio[i].played = true;
                     }
+                    // Destroy audio from RAM if time is end
                     if (importedTo->audio[i].end < timePass)
                     {
                         Mix_FreeChunk(importedTo->audio[i].sound);
@@ -84,6 +68,7 @@ namespace kotonoha
                     }
                 }
             }
+            // Check if audio array is ended
             if (importedTo->audio.size() == 0 && !importedTo->control->audioEnd)
             {
                 importedTo->control->audioEnd = true;

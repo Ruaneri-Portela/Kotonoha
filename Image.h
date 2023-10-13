@@ -38,6 +38,7 @@ namespace kotonoha
                     for (std::vector<kotonohaData::imageData>::size_type i = 0; i < importedTo->image.size(); i++)
                     {
                         timePass = importedTo->control->timer0.pushTime();
+                        // Load the image if necessary
                         if (importedTo->image[i].texture == NULL && importedTo->image[i].play < timePass + 20)
                         {
                             importedTo->root->log0->appendLog("(Image) - Loading... " + importedTo->image[i].path);
@@ -48,6 +49,7 @@ namespace kotonoha
                                 importedTo->image.erase(importedTo->image.begin() + i);
                             }
                         }
+                        // Play image on renderer
                         else if (importedTo->image[i].play < timePass)
                         {
                             if (!importedTo->image[i].played)
@@ -59,6 +61,7 @@ namespace kotonoha
                             SDL_Rect square = {0, 0, w, h};
                             SDL_RenderCopy(importedTo->root->renderer, importedTo->image[i].texture, NULL, &square);
                         }
+                        // Delete image texture from ram
                         if (importedTo->image[i].end < timePass)
                         {
                             SDL_DestroyTexture(importedTo->image[i].texture);
@@ -67,14 +70,10 @@ namespace kotonoha
                             break;
                         }
                     }
-                    importedTo->control->display[0] = false;
-                    importedTo->control->display[1] = true;
                 }
-                else
-                {
-                    importedTo->control->display[0] = false;
-                    importedTo->control->display[1] = true;
-                }
+                importedTo->control->display[0] = false;
+                importedTo->control->display[1] = true;
+                // If not have no more images
                 if (importedTo->image.size() == 0 && !importedTo->control->imageEnd)
                 {
                     importedTo->control->imageEnd = true;

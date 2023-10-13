@@ -1,10 +1,3 @@
-/**
- * @file Video.h
- * @brief Contains the definition of the videoObject class and the playVideo function.
- *
- * The videoObject class is used to push video data to the kotonohaData::acessMapper object.
- * The playVideo function is used to play the video data pushed to the kotonohaData::acessMapper object.
- */
 namespace kotonoha
 {
     class videoObject
@@ -108,15 +101,10 @@ namespace kotonoha
                             importedTo->video.erase(importedTo->video.begin() + i);
                             break;
                         }
-                        importedTo->control->display[1] = false;
-                        importedTo->control->display[2] = true;
                     }
                 }
-                else
-                {
-                    importedTo->control->display[1] = false;
-                    importedTo->control->display[2] = true;
-                }
+                importedTo->control->display[1] = false;
+                importedTo->control->display[2] = true;
                 if (importedTo->video.size() == 0 && !importedTo->control->videoEnd)
                 {
                     importedTo->control->videoEnd = true;

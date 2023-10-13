@@ -1,4 +1,5 @@
- #include "Headers.h"
+#include "Headers.h"
+// This function below is a entry point
 int WinMain()
 {
     kotonoha::set game;
@@ -6,6 +7,7 @@ int WinMain()
     kotonoha::logger log;
     kotonoha::loop *behaviour;
     game.laucher();
+    // Select game comportament, if game is end, to menu or play scene
     while (opts.returnCode != 1)
     {
         switch (opts.returnCode)
@@ -18,10 +20,10 @@ int WinMain()
             delete behaviour;
             break;
         case 3:
-            opts = menu(game.window, game.renderer, opts.returnCode, &log);
+            opts = kotonoha::menu(game.window, game.renderer, opts.returnCode, &log);
             break;
         default:
-            opts = menu(game.window, game.renderer, opts.returnCode, &log);
+            opts = kotonoha::menu(game.window, game.renderer, opts.returnCode, &log);
             break;
         };
     };

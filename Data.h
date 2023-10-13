@@ -1,20 +1,8 @@
-/**
- * @file Data.h
- * @brief Contains the definition of various data structures used in Kotonoha project.
- *
- * This file contains the definition of the following data structures:
- * - controlData: A structure containing various control flags and a timer.
- * - soundData: A structure containing information about an audio file.
- * - videoData: A structure containing information about a video file.
- * - imageData: A structure containing information about an image file.
- * - rootData: A structure containing various SDL objects and a logger object.
- * - acessMapper: A structure containing pointers to various data structures.
- *
- * All the data structures are defined inside the namespace kotonohaData.
- */
+// Files file contain the majority of custrom data structs.
 namespace kotonohaData
 {
-    typedef struct controlData
+    // Here is storage shared triggers for control game behaviour
+    struct controlData
     {
         // To check on load files
         bool nonVideo = true;
@@ -32,8 +20,9 @@ namespace kotonohaData
         kotonohaTime::timerEngine timer0;
         // Time to end script
         double endTime = 0;
-    } globalControl;
-    typedef struct audioData
+    };
+    // Auto explicative
+    struct audioData
     {
         std::string path = "";
         Mix_Chunk *sound = NULL;
@@ -41,15 +30,17 @@ namespace kotonohaData
         double end = 0;
         bool played = false;
         int channel = 0;
-    } soundData;
-    typedef struct videoData
+    };
+    // Auto explicative
+    struct videoData
     {
         std::string path = "";
         double play = 0;
         double end = 0;
         bool played = false;
-    } videoData;
-    typedef struct imageData
+    };
+    // Auto explicative
+    struct imageData
     {
         std::string path = "";
         SDL_Texture *texture = NULL;
@@ -57,21 +48,24 @@ namespace kotonohaData
         double play = 0;
         double end = 0;
         bool touched = false;
-    } imageData;
-    typedef struct textData
+    };
+    // This struct contain one String, this string represent one valid .ass file
+    struct textData
     {
         std::stringstream stream;
         bool init = false;
-    } textData;
-    typedef struct configsData
+    };
+    // All file path, in this struct is used to create a valid path to find assets files
+    struct configsData
     {
         bool configured = false;
         char mediaPath[256] = "";
         char audioExtension[32] = "";
         char videoExtension[32] = "";
         char imageExtension[32] = "";
-    } configsData;
-    typedef struct rootData
+    };
+    // rootData manager all the interactive objects
+    struct rootData
     {
         SDL_Renderer *renderer = NULL;
         kotonoha::logger *log0 = NULL;
@@ -82,8 +76,9 @@ namespace kotonohaData
         void *image0 = NULL;
         void *text0 = NULL;
         SDL_Event event;
-    } rootData;
-    typedef struct acessMapper
+    };
+    // AcessMapper is a struct to manager all events that can be happening in the game runtime
+    struct acessMapper
     {
         controlData *control = NULL;
         std::vector<kotonohaData::videoData> video;
@@ -91,5 +86,5 @@ namespace kotonohaData
         std::vector<kotonohaData::audioData> audio;
         kotonohaData::textData text;
         kotonohaData::rootData *root = NULL;
-    } acessMapper;
+    };
 }
