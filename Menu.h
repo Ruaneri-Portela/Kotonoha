@@ -54,12 +54,19 @@ namespace kotonoha
             strcpy(imageExtension, object.configs.imageExtension);
             strcpy(mediaPath, object.configs.mediaPath);
         }
+        kotonoha::prompt prompt0;
+        prompt0.init();
+        SDL_Event event;
         while (true)
         {
-            SDL_Event event;
             while (SDL_PollEvent(&event))
             {
                 ImGui_ImplSDL2_ProcessEvent(&event);
+                int r = prompt0.detectTouch(&event);
+                if (r != 0)
+                {
+                    log0->appendLog("(Menu) - Prompt " + std::to_string(r));
+                }
                 if (event.type == SDL_QUIT)
                 {
                     object.returnCode = 1;
@@ -193,13 +200,16 @@ namespace kotonoha
                 ImGui::End();
             }
             /// End Windows
+
             ImGui::Render();
             SDL_RenderSetScale(renderer, io.DisplayFramebufferScale.x, io.DisplayFramebufferScale.y);
             SDL_SetRenderDrawColor(renderer, (Uint8)(clear_color.x * 255), (Uint8)(clear_color.y * 255), (Uint8)(clear_color.z * 255), (Uint8)(clear_color.w * 255));
             SDL_RenderClear(renderer);
             ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData());
+            prompt0.show(renderer, window);
             SDL_RenderPresent(renderer);
         }
+        prompt0.close();
         log0->appendLog("(Menu) - Menu out");
         ImGui_ImplSDLRenderer2_Shutdown();
         ImGui_ImplSDL2_Shutdown();
