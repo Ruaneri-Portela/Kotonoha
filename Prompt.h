@@ -36,44 +36,47 @@ namespace kotonoha
         };
         int show(SDL_Renderer *renderer, SDL_Window *window)
         {
-            for (std::vector<kotonohaData::questionData>::size_type i = 0; i <= mapper->question.size() - 1; i++)
+            if (!mapper->question.empty())
             {
-                if (mapper->question[i].show < mapper->control->timer0.pushTime())
+                for (std::vector<kotonohaData::questionData>::size_type i = 0; i <= mapper->question.size() - 1; i++)
                 {
-                    questionsSize = mapper->question[i].prompts.size();
-                    SDL_GetWindowSize(window, &w, &h);
-                    switch (questionsSize)
+                    if (mapper->question[i].show < mapper->control->timer0.pushTime())
                     {
-                    case 1:
-                        rect[0] = {w / 2, h / 2, 0, 0};
-                        break;
-                    case 2:
-                        rect[0] = {w / 4, h / 2, 0, 0};
-                        rect[1] = {(w / 4) * 3, h / 2, 0, 0};
-                        break;
-                    case 3:
-                        rect[0] = {w / 4, h / 2, 0, 0};
-                        rect[1] = {w / 4 * 2, h / 2, 0, 0};
-                        rect[2] = {w / 4 * 3, h / 2, 0, 0};
-                        break;
-                    case 4:
-                        rect[0] = {w / 4, h / 4, 0, 0};
-                        rect[1] = {w / 4, (h / 4) * 3, 0, 0};
-                        rect[2] = {(w / 4) * 3, h / 4, 0, 0};
-                        rect[3] = {(w / 4) * 3, (h / 4) * 3, 0, 0};
-                        break;
-                    default:
-                        break;
-                    }
-                    for (std::vector<kotonohaData::questionData>::size_type j = 0; j <= questionsSize - 1; j++)
-                    {
-                        SDL_Surface *surface = TTF_RenderUTF8_Blended(font, mapper->question[i].prompts[j].c_str(), color);
-                        SDL_Texture *texture = SDL_CreateTextureFromSurface(renderer, surface);
-                        SDL_QueryTexture(texture, NULL, NULL, &bW, &bH);
-                        rect[j] = {rect[j].x - bW / 2, rect[j].y - bH / 2, bW, bH};
-                        SDL_RenderCopy(renderer, texture, NULL, &rect[j]);
-                        SDL_FreeSurface(surface);
-                        SDL_DestroyTexture(texture);
+                        questionsSize = mapper->question[i].prompts.size();
+                        SDL_GetWindowSize(window, &w, &h);
+                        switch (questionsSize)
+                        {
+                        case 1:
+                            rect[0] = {w / 2, h / 2, 0, 0};
+                            break;
+                        case 2:
+                            rect[0] = {w / 4, h / 2, 0, 0};
+                            rect[1] = {(w / 4) * 3, h / 2, 0, 0};
+                            break;
+                        case 3:
+                            rect[0] = {w / 4, h / 2, 0, 0};
+                            rect[1] = {w / 4 * 2, h / 2, 0, 0};
+                            rect[2] = {w / 4 * 3, h / 2, 0, 0};
+                            break;
+                        case 4:
+                            rect[0] = {w / 4, h / 4, 0, 0};
+                            rect[1] = {w / 4, (h / 4) * 3, 0, 0};
+                            rect[2] = {(w / 4) * 3, h / 4, 0, 0};
+                            rect[3] = {(w / 4) * 3, (h / 4) * 3, 0, 0};
+                            break;
+                        default:
+                            break;
+                        }
+                        for (std::vector<kotonohaData::questionData>::size_type j = 0; j <= questionsSize - 1; j++)
+                        {
+                            SDL_Surface *surface = TTF_RenderUTF8_Blended(font, mapper->question[i].prompts[j].c_str(), color);
+                            SDL_Texture *texture = SDL_CreateTextureFromSurface(renderer, surface);
+                            SDL_QueryTexture(texture, NULL, NULL, &bW, &bH);
+                            rect[j] = {rect[j].x - bW / 2, rect[j].y - bH / 2, bW, bH};
+                            SDL_RenderCopy(renderer, texture, NULL, &rect[j]);
+                            SDL_FreeSurface(surface);
+                            SDL_DestroyTexture(texture);
+                        }
                     }
                 }
             }
@@ -82,7 +85,7 @@ namespace kotonoha
         int detectTouch(SDL_Event *event)
         {
             int returnValue = 0;
-            if (event->type == SDL_MOUSEBUTTONDOWN)
+            if (event->type == SDL_MOUSEBUTTONDOWN && !mapper->question.empty())
             {
                 if (event->button.button == SDL_BUTTON_LEFT)
                 {

@@ -1,6 +1,10 @@
 #include "Headers.h"
 // This function below is a entry point
+#ifdef _WIN32
 int WinMain()
+#else
+int main()
+#endif
 {
     kotonoha::set game;
     kotonoha::menuReturn opts;
