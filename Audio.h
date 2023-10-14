@@ -69,10 +69,7 @@ namespace kotonoha
                 }
             }
             // Check if audio array is ended
-            if (importedTo->audio.size() == 0 && !importedTo->control->audioEnd)
-            {
-                importedTo->control->audioEnd = true;
-            }
+            importedTo->audio.size() == 0 &&!importedTo->control->audioEnd ? importedTo->control->audioEnd = true : 0;
         };
         importedTo->root->log0->appendLog("(Audio) - End Engine");
         Mix_HaltChannel(0);

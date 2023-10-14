@@ -77,10 +77,7 @@ namespace kotonoha
         std::ifstream file(path);
 
         if (!file.is_open())
-        {
             return vector;
-        }
-
         std::string linha;
         while (std::getline(file, linha))
         {
@@ -99,10 +96,7 @@ namespace kotonoha
                         std::string split;
                         while (std::getline(valueStream, split, '\t'))
                         {
-                            if (!split.empty())
-                            {
-                                line.push_back(split);
-                            }
+                            !split.empty() ? line.push_back(split) : (void)0;
                         }
                     }
                     else
@@ -151,10 +145,7 @@ namespace kotonoha
             if (ScrollToBottom)
                 ImGui::SetScrollHereY(1.0f);
             ScrollToBottom = false;
-            if (ImGui::Button("Clear"))
-            {
-                Buf.clear();
-            }
+            ImGui::Button("Clear") ? Buf.clear() : void(0);
             ImGui::End();
         }
     };

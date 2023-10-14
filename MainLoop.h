@@ -43,26 +43,18 @@ namespace kotonoha
             kotonohaTime::delay(2000);
             rootData->log0->appendLog("(ML) - Entry point to while");
             SDL_RenderSetVSync(rootData->renderer, 1);
+            SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "2");
             while (controlData->outCode == -1)
             {
                 // Event reciver
                 while (SDL_PollEvent(&rootData->event))
                 {
                     ImGui_ImplSDL2_ProcessEvent(&rootData->event);
-                    if (rootData->event.type == SDL_QUIT)
+                    rootData->event.type == SDL_QUIT ? controlData->outCode = 1 : 0;
+                    if (rootData->event.type == SDL_KEYDOWN)
                     {
-                        controlData->outCode = 1;
-                    }
-                    else if (rootData->event.type == SDL_KEYDOWN)
-                    {
-                        if (rootData->event.key.keysym.sym == SDLK_ESCAPE)
-                        {
-                            controlData->outCode = 3;
-                        }
-                        if (rootData->event.key.keysym.sym == SDLK_r)
-                        {
-                            controlData->outCode = 2;
-                        }
+                        rootData->event.key.keysym.sym == SDLK_ESCAPE ? controlData->outCode = 3 : 0;
+                        rootData->event.key.keysym.sym == SDLK_r ? controlData->outCode = 2 : 0;
                         if (rootData->event.key.keysym.sym == SDLK_F11)
                         {
                             Uint32 FullscreenFlag = SDL_WINDOW_FULLSCREEN;

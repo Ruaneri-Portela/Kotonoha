@@ -25,9 +25,7 @@ namespace kotonoha
         while (mapper->control->outCode == -1)
         {
             int var = prompt0.detectTouch(&mapper->root->event);
-            if(var != 0){
-                mapper->root->log0->appendLog("(Ui) - Touch detected "+std::to_string(var));
-            }
+            var != 0 ? mapper->root->log0->appendLog("(Ui) - Touch detected " + std::to_string(var)) : (void)0;
             if (mapper->control->display[3])
             {
                 ImGui_ImplSDLRenderer2_NewFrame();
@@ -37,49 +35,16 @@ namespace kotonoha
                     ImGui::Begin("Kotonoha Project Visual Novel Engine");
                     ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
                     ImGui::Text("Time %.3f s", mapper->control->timer0.pushTime());
-                    if (!mapper->control->nonVideo)
-                    {
-                        ImGui::Text("Video end %d ", mapper->control->videoEnd);
-                    }
-                    else
-                    {
-                        ImGui::Text("Video not using in this scene");
-                    }
-                    if (!mapper->control->nonAudio)
-                    {
-                        ImGui::Text("Audio end %d ", mapper->control->audioEnd);
-                    }
-                    else
-                    {
-                        ImGui::Text("Audio not using in this scene");
-                    }
-                    if (!mapper->control->nonImage)
-                    {
-                        ImGui::Text("Image end %d ", mapper->control->imageEnd);
-                    }
-                    else
-                    {
-                        ImGui::Text("Image not using in this scene");
-                    }
-                    if (ImGui::Button("End"))
-                    {
-                        mapper->control->outCode = 1;
-                    }
+                    !mapper->control->nonVideo ? ImGui::Text("Video end %d ", mapper->control->videoEnd) : ImGui::Text("Video not using in this scene");
+                    !mapper->control->nonAudio ? ImGui::Text("Audio end %d ", mapper->control->audioEnd) : ImGui::Text("Audio not using in this scene");
+                    !mapper->control->nonImage ? ImGui::Text("Image end %d ", mapper->control->imageEnd) : ImGui::Text("Image not using in this scene");
+                    ImGui::Button("End") ? mapper->control->outCode = 1 : 0;
                     ImGui::SameLine();
-                    if (ImGui::Button("Reset"))
-                    {
-                        mapper->control->outCode = 2;
-                    }
+                    ImGui::Button("Reset") ? mapper->control->outCode = 2 : 0;
                     ImGui::SameLine();
-                    if (ImGui::Button("Menu"))
-                    {
-                        mapper->control->outCode = 3;
-                    }
+                    ImGui::Button("Menu") ? mapper->control->outCode = 3 : 0;
                     ImGui::SameLine();
-                    if (mapper->root->log0->enable)
-                    {
-                        mapper->root->log0->drawLogger();
-                    }
+                    mapper->root->log0->enable ? mapper->root->log0->drawLogger() : (void)0;
                     ImGui::SameLine();
                     if (ImGui::Button("Pause"))
                     {
@@ -88,10 +53,7 @@ namespace kotonoha
                     if (ImGui::Button("Mute"))
                     {
                     }
-                    if (mapper->control->endTime < mapper->control->timer0.pushTime())
-                    {
-                        mapper->control->outCode = 4;
-                    }
+                    mapper->control->endTime < mapper->control->timer0.pushTime() ? mapper->control->outCode = 4 : 0;
                     ImGui::Checkbox("Enable Log", &mapper->root->log0->enable);
                     ImGui::End();
                 }

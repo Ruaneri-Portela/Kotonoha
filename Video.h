@@ -59,7 +59,7 @@ namespace kotonoha
                                 importedTo->root->log0->appendLog("(Video) - No stream found " + importedTo->audio[i].path);
                             }
                             // Setup video decoder
-                            const auto codec = avcodec_find_decoder(formatCtx->streams[videoStream]->codecpar->codec_id);
+                            const AVCodec *codec = avcodec_find_decoder(formatCtx->streams[videoStream]->codecpar->codec_id);
                             if (!codec)
                             {
                                 importedTo->root->log0->appendLog("(Video) - No codec support " + importedTo->audio[i].path);
@@ -72,7 +72,7 @@ namespace kotonoha
                             AVPacket packet;
                             double sTime = importedTo->control->timer0.pushTime();
                             double pTime = 0.0;
-                            double fTime = 1.0/24.0;
+                            double fTime = 1.0 / 24.0;
                             while (av_read_frame(formatCtx, &packet) >= 0 && importedTo->control->outCode == -1)
                             {
                                 if (packet.stream_index == videoStream)
@@ -89,7 +89,8 @@ namespace kotonoha
                                     {
                                         continue;
                                     }
-                                    while(fTime > pTime){
+                                    while (fTime > pTime)
+                                    {
                                         pTime = importedTo->control->timer0.pushTime() - sTime;
                                     }
                                     SDL_RenderCopy(importedTo->root->renderer, texture, NULL, &square);
@@ -112,10 +113,7 @@ namespace kotonoha
                 }
                 importedTo->control->display[1] = false;
                 importedTo->control->display[2] = true;
-                if (importedTo->video.size() == 0 && !importedTo->control->videoEnd)
-                {
-                    importedTo->control->videoEnd = true;
-                }
+                importedTo->video.size() == 0 &&!importedTo->control->videoEnd ? importedTo->control->videoEnd = true : 0;
             }
         }
         importedTo->root->log0->appendLog("(Video) - End");
