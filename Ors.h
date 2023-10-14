@@ -6,6 +6,7 @@ namespace kotonoha
         kotonoha::videoObject *video0 = static_cast<kotonoha::videoObject *>(import->root->video0);
         kotonoha::imageObject *image0 = static_cast<kotonoha::imageObject *>(import->root->image0);
         kotonoha::textObject *text0 = static_cast<kotonoha::textObject *>(import->root->text0);
+        kotonoha::questionObject *question0 = static_cast<kotonoha::questionObject *>(import->root->question0);
         import->root->log0->appendLog("(ORS) - Start");
         // Here is convert all line comand in a game object behaviour
         for (std::vector<std::vector<std::string>>::size_type cont = 0; cont < array.size(); cont++)
@@ -35,6 +36,11 @@ namespace kotonoha
             }
             else if (strstr(comand, "BlackFade") != NULL)
             {
+            }
+            else if (strstr(comand, "SetSELECT") != NULL)
+            {
+                question0->push(array[cont]);
+                import->root->log0->appendLog("(ORS) - Loading choice event");
             }
             else if (strstr(comand, "PlayBgm") != NULL)
             {

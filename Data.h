@@ -55,6 +55,13 @@ namespace kotonohaData
         std::stringstream stream;
         bool init = false;
     };
+    
+    struct questionData
+    {
+        std::vector<std::string> prompts;
+        double show = 0;
+        double out = 0;
+    };
     // All file path, in this struct is used to create a valid path to find assets files
     struct configsData
     {
@@ -63,6 +70,7 @@ namespace kotonohaData
         char audioExtension[32] = "";
         char videoExtension[32] = "";
         char imageExtension[32] = "";
+        char soundFe0[256] = "";
     };
     // rootData manager all the interactive objects
     struct rootData
@@ -75,6 +83,8 @@ namespace kotonohaData
         void *video0 = NULL;
         void *image0 = NULL;
         void *text0 = NULL;
+        void *question0 = NULL;
+        Mix_Chunk *soundFe0 = NULL; 
         SDL_Event event;
     };
     // AcessMapper is a struct to manager all events that can be happening in the game runtime
@@ -84,6 +94,7 @@ namespace kotonohaData
         std::vector<kotonohaData::videoData> video;
         std::vector<kotonohaData::imageData> image;
         std::vector<kotonohaData::audioData> audio;
+        std::vector<kotonohaData::questionData> question;
         kotonohaData::textData text;
         kotonohaData::rootData *root = NULL;
     };
