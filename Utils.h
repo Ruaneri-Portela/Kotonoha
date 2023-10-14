@@ -133,12 +133,16 @@ namespace kotonoha
         bool ScrollToBottom;
         bool clear;
         bool enable = false;
+        std::ofstream fileLog;
         void appendLog(std::string Log)
         {
+            fileLog.open("log.txt", std::ios::app);
             Buf.appendf("\n");
             std::cout << Log << std::endl;
+            fileLog << Log << std::endl;
             Buf.appendf(Log.c_str());
             ScrollToBottom = true;
+            fileLog.close();
         }
         void drawLogger()
         {

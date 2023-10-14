@@ -19,10 +19,12 @@ namespace kotonoha
             rootData->audio0 = new kotonohaData::audioData;
             rootData->video0 = new kotonohaData::videoData;
             rootData->text0 = new kotonohaData::textData;
+            rootData->question0 = new kotonohaData::questionData;
             static_cast<kotonoha::audioObject *>(rootData->audio0)->exportTo = global;
             static_cast<kotonoha::videoObject *>(rootData->video0)->exportTo = global;
             static_cast<kotonoha::imageObject *>(rootData->image0)->exportTo = global;
             static_cast<kotonoha::textObject *>(rootData->text0)->exportTo = global;
+            static_cast<kotonoha::questionObject *>(rootData->question0)->exportTo = global;
             // Start game loop and threads
             controlData->display[0] = true;
             controlData->display[1] = false;

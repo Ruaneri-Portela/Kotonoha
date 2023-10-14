@@ -47,30 +47,21 @@ namespace kotonoha
         char audioExtension[32] = "";
         char videoExtension[32] = "";
         char imageExtension[32] = "";
+        char soundFe0[256] = "";
         if (object.configs.configured)
         {
             strcpy(audioExtension, object.configs.audioExtension);
             strcpy(videoExtension, object.configs.videoExtension);
             strcpy(imageExtension, object.configs.imageExtension);
             strcpy(mediaPath, object.configs.mediaPath);
+            strcpy(soundFe0, object.configs.soundFe0);
         }
-        kotonoha::prompt prompt0;
-        prompt0.init();
         SDL_Event event;
         while (true)
         {
             while (SDL_PollEvent(&event))
             {
                 ImGui_ImplSDL2_ProcessEvent(&event);
-                int r = prompt0.detectTouch(&event);
-                if (r != 0)
-                {
-                    log0->appendLog("(Menu) - Prompt " + std::to_string(r));
-                }
-                if (event.type == SDL_QUIT)
-                {
-                    object.returnCode = 1;
-                }
                 if (event.type == SDL_KEYDOWN)
                 {
                     if (event.key.keysym.sym == SDLK_ESCAPE)
@@ -139,6 +130,7 @@ namespace kotonoha
                     ImGui::InputText("Audio extension", audioExtension, 32);
                     ImGui::InputText("Video extension", videoExtension, 32);
                     ImGui::InputText("Image extension", imageExtension, 32);
+                    ImGui::InputText("Sound Effect 1", soundFe0, 256);
                     if (ImGui::Button("Save"))
                     {
                         object.configs.configured = true;
@@ -146,6 +138,7 @@ namespace kotonoha
                         strcpy(object.configs.videoExtension, videoExtension);
                         strcpy(object.configs.imageExtension, imageExtension);
                         strcpy(object.configs.mediaPath, mediaPath);
+                        strcpy(object.configs.soundFe0, soundFe0);
                         object.configs.configured = true;
                         fileConfig(1, object.configs);
                         configSaved = true;
@@ -206,10 +199,8 @@ namespace kotonoha
             SDL_SetRenderDrawColor(renderer, (Uint8)(clear_color.x * 255), (Uint8)(clear_color.y * 255), (Uint8)(clear_color.z * 255), (Uint8)(clear_color.w * 255));
             SDL_RenderClear(renderer);
             ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData());
-            prompt0.show(renderer, window);
             SDL_RenderPresent(renderer);
         }
-        prompt0.close();
         log0->appendLog("(Menu) - Menu out");
         ImGui_ImplSDLRenderer2_Shutdown();
         ImGui_ImplSDL2_Shutdown();
