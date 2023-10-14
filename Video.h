@@ -70,6 +70,9 @@ namespace kotonoha
                             AVFrame *frame = av_frame_alloc();
                             // Allocate frame
                             AVPacket packet;
+                            double sTime = importedTo->control->timer0.pushTime();
+                            double pTime = 0.0;
+                            double fTime = 1.0/24.0;
                             while (av_read_frame(formatCtx, &packet) >= 0 && importedTo->control->outCode == -1)
                             {
                                 if (packet.stream_index == videoStream)
@@ -86,8 +89,12 @@ namespace kotonoha
                                     {
                                         continue;
                                     }
-                                    kotonohaTime::delay(32);
+                                    while(fTime > pTime){
+                                        pTime = importedTo->control->timer0.pushTime() - sTime;
+                                    }
                                     SDL_RenderCopy(importedTo->root->renderer, texture, NULL, &square);
+                                    sTime = importedTo->control->timer0.pushTime();
+                                    pTime = 0.0;
                                     SDL_DestroyTexture(texture);
                                     importedTo->control->display[1] = false;
                                     importedTo->control->display[2] = true;
