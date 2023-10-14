@@ -4,10 +4,13 @@ namespace kotonohaTime
     {
     private:
         std::chrono::time_point<std::chrono::high_resolution_clock> timeInitial;
+        std::chrono::time_point<std::chrono::high_resolution_clock> timeToCompare;
+        std::chrono::time_point<std::chrono::high_resolution_clock> timePaused;
         double timePass = 0.0;
         bool started = false;
 
     public:
+        bool paused = false;
         double pushTime()
         {
             // Return clock time
@@ -28,14 +31,26 @@ namespace kotonohaTime
         bool clock()
         {
             // Update clock
-            if (started)
+            if (paused)
             {
-                std::chrono::time_point<std::chrono::high_resolution_clock> timeToCompare = std::chrono::high_resolution_clock::now();
+                timePaused = std::chrono::high_resolution_clock::now();
+                timeInitial += timeToCompare - timePaused;
+                timeToCompare = std::chrono::high_resolution_clock::now();
+                return true;
+            }
+            else if (started)
+            {
+                timeToCompare = std::chrono::high_resolution_clock::now();
                 std::chrono::duration<double> duration = timeToCompare - timeInitial;
                 timePass = duration.count();
                 return true;
             }
             return false;
+        }
+        // Switch to pause or play state
+        void switchClock()
+        {
+            paused = !paused;
         }
     };
 
