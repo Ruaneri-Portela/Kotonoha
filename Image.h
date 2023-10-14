@@ -74,10 +74,7 @@ namespace kotonoha
                 importedTo->control->display[0] = false;
                 importedTo->control->display[1] = true;
                 // If not have no more images
-                if (importedTo->image.size() == 0 && !importedTo->control->imageEnd)
-                {
-                    importedTo->control->imageEnd = true;
-                }
+                importedTo->image.size() == 0 &&!importedTo->control->imageEnd ? importedTo->control->imageEnd = true : 0;
             }
         }
         importedTo->root->log0->appendLog("(Image) - End");
