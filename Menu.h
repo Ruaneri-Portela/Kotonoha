@@ -9,7 +9,7 @@ namespace kotonoha
     } menuReturn;
     kotonohaData::configsData fileConfig(int parm, kotonohaData::configsData configs = {false, "", "", "", ""})
     {
-        FILE *dataR = fopen("kotonoha.dat", "rb");
+        FILE *dataR = fopen("kotonoha.ckot", "rb");
         if (dataR == NULL or parm == 1)
         {
             FILE *dataW = fopen("kotonoha.dat", "wb");
@@ -48,6 +48,7 @@ namespace kotonoha
         char videoExtension[32] = "";
         char imageExtension[32] = "";
         char soundFe0[256] = "";
+        char stylesPath[256] = "";
         if (object.configs.configured)
         {
             strcpy(audioExtension, object.configs.audioExtension);
@@ -55,6 +56,7 @@ namespace kotonoha
             strcpy(imageExtension, object.configs.imageExtension);
             strcpy(mediaPath, object.configs.mediaPath);
             strcpy(soundFe0, object.configs.soundFe0);
+            strcpy(stylesPath, object.configs.stylesPath);
         }
         SDL_Event event;
         while (true)
@@ -102,7 +104,7 @@ namespace kotonoha
             {
                 ImGui::Begin("About");
                 ImGui::Text("Kotonoha Project, A visual novel engine");
-                ImGui::Text("Version 0.1 alpha");
+                ImGui::Text(kotonoha::version.c_str());
                 ImGui::Text("Developed by: Ruaneri F.Portela");
                 ImGui::Text("Using SDL, FFMPEG, ASSLIB e IMGui");
                 ImGui::Button("Close") ? about = false : 0;
@@ -117,6 +119,7 @@ namespace kotonoha
                 ImGui::InputText("Video extension", videoExtension, 32);
                 ImGui::InputText("Image extension", imageExtension, 32);
                 ImGui::InputText("Sound Effect 1", soundFe0, 256);
+                ImGui::InputText("File with text Styles", stylesPath, 256);
                 if (ImGui::Button("Save"))
                 {
                     object.configs.configured = true;
@@ -125,6 +128,7 @@ namespace kotonoha
                     strcpy(object.configs.imageExtension, imageExtension);
                     strcpy(object.configs.mediaPath, mediaPath);
                     strcpy(object.configs.soundFe0, soundFe0);
+                    strcpy(object.configs.stylesPath, stylesPath);
                     object.configs.configured = true;
                     fileConfig(1, object.configs);
                     configSaved = true;

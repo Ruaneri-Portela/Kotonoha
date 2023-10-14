@@ -33,8 +33,9 @@ namespace kotonoha
             {
                 ImGui_ImplSDLRenderer2_NewFrame();
                 ImGui_ImplSDL2_NewFrame();
-                ImGui::NewFrame();
+
                 {
+                    ImGui::NewFrame();
                     ImGui::Begin("Kotonoha Project Visual Novel Engine");
                     ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
                     ImGui::Text("Time %.3f s", mapper->control->timer0.pushTime());
@@ -91,6 +92,14 @@ namespace kotonoha
                             Mix_MasterVolume(0);
                             volumeTriggers = true;
                         };
+                    }
+                    ImGui::SameLine();
+                    if (ImGui::Button("Dump Sub"))
+                    {
+                        std::ofstream assDump;
+                        assDump.open("dump.ass", std::ios::trunc);
+                        assDump << mapper->text.stream.str() << std::endl;
+                        assDump.close();
                     }
                     mapper->control->endTime < mapper->control->timer0.pushTime() ? mapper->control->outCode = 4 : 0;
                     ImGui::Checkbox("Enable Log", &mapper->root->log0->enable);

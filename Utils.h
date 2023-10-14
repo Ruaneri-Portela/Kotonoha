@@ -145,7 +145,7 @@ namespace kotonoha
         std::ofstream fileLog;
         void appendLog(std::string Log)
         {
-            fileLog.open("log.txt", std::ios::app);
+            fileLog.open("log.lkot", std::ios::app);
             Buf.appendf("\n");
             std::cout << Log << std::endl;
             fileLog << Log << std::endl;

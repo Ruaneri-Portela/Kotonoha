@@ -18,6 +18,9 @@ extern "C"
 #include "imgui/imgui.h"
 #include "imgui/backends/imgui_impl_sdl2.h"
 #include "imgui/backends/imgui_impl_sdlrenderer2.h"
+namespace kotonoha{
+    const std::string version = "0.0.1 Alpha";
+}
 #include "Utils.h"
 #include "Data.h"
 #include "Prompt.h"
