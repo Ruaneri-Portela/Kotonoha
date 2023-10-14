@@ -9,7 +9,20 @@ namespace kotonoha
             // Start ASS Header
             if (!exportTo->text.init)
             {
-                exportTo->text.stream << "[Script Info]\nTitle:" << sceneName << "\nScriptType: v4.00+\nWrapStyle: 0\nScaledBorderAndShadow: yes\nYCbCr Matrix: None\n\n[V4+ Styles]\nFormat: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\nStyle: Default,Arial,20,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,2,2,2,10,10,10,1\n\n[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n";
+                std::stringstream ss;
+                std::ifstream stylesFile(exportTo->root->fileConfigs->stylesPath);
+                if (stylesFile.is_open())
+                {
+                    std::string line;
+                    while (std::getline(stylesFile, line))
+                    {
+                        if (!line.empty())
+                            ss << line << std::endl;
+                    }
+                    exportTo->text.stream << "[Script Info]\nTitle:" << sceneName << "\nScriptType: v4.00+\nWrapStyle: 0\nScaledBorderAndShadow: yes\nYCbCr Matrix: None\n\n[V4+ Styles]\nFormat: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\n"
+                                          << ss.str() << "\n[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n";
+                }
+                stylesFile.close();
                 exportTo->text.init = true;
             }
             // Convert ([comand]=MM:SS:DD) and (MM:SS:DD;) to ASS format
@@ -29,7 +42,7 @@ namespace kotonoha
                 timeStartMMSSDD.push_back(token);
             }
             // Push to ASS File, this line append one track sub to ASS
-            exportTo->text.stream << "Dialogue:0,0:" << timeStartMMSSDD[0] << ":" << timeStartMMSSDD[1] << "." << timeStartMMSSDD[2] << ",0:" << timeEndMMSSDD[0] << ":" << timeEndMMSSDD[1] << "." << timeEndMMSSDD[2] << ",Default,,0,0,0,," << text << std::endl;
+            exportTo->text.stream << "Dialogue: 0,0:" << timeStartMMSSDD[0] << ":" << timeStartMMSSDD[1] << "." << timeStartMMSSDD[2] << ",0:" << timeEndMMSSDD[0] << ":" << timeEndMMSSDD[1] << "." << timeEndMMSSDD[2] << "," << type << ",,0,0,0,," << text << std::endl;
         };
     };
     int playText(void *import)

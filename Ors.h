@@ -71,7 +71,7 @@ namespace kotonoha
             }
             else if (strstr(comand, "PrintText") != NULL)
             {
-                text0->push(array[cont][3], array[cont][1], array[cont][4], "Dialoge", "Subtitle");
+                text0->push(array[cont][3], array[cont][1], array[cont][4], array[cont][2], "Subtitle");
                 import->root->log0->appendLog("(ORS) - Loading text to ASS data ");
             }
             else if (strstr(comand, "CreateBG") != NULL)

@@ -71,6 +71,7 @@ namespace kotonohaData
         char videoExtension[32] = "";
         char imageExtension[32] = "";
         char soundFe0[256] = "";
+        char stylesPath[256] = "";
     };
     // rootData manager all the interactive objects
     struct rootData
