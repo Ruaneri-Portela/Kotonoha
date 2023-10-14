@@ -22,6 +22,9 @@ namespace kotonoha
         kotonoha::prompt prompt0;
         prompt0.init();
         prompt0.mapper = mapper;
+        bool volumeTriggers = false;
+        bool pauseTriggers = false;
+        SDL_Texture *screenTexture = NULL;
         while (mapper->control->outCode == -1)
         {
             int var = prompt0.detectTouch(&mapper->root->event);
@@ -46,12 +49,48 @@ namespace kotonoha
                     ImGui::SameLine();
                     mapper->root->log0->enable ? mapper->root->log0->drawLogger() : (void)0;
                     ImGui::SameLine();
-                    if (ImGui::Button("Pause"))
+                    if (pauseTriggers)
                     {
+                        screenTexture != NULL ? SDL_RenderCopy(mapper->root->renderer, screenTexture, NULL, NULL) : 0;
+                        if (ImGui::Button("Unpause"))
+                        {
+                            Mix_Resume(-1);
+                            mapper->control->timer0.switchClock();
+                            pauseTriggers = false;
+                        }
+                    }
+                    else
+                    {
+                        if (ImGui::Button("Pause"))
+                        {
+                            int h, w;
+                            screenTexture != NULL ? SDL_DestroyTexture(screenTexture) : (void)0;
+                            SDL_GetWindowSize(mapper->root->window, &h, &w);
+                            screenTexture = SDL_CreateTexture(mapper->root->renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, h, w);
+                            SDL_SetRenderTarget(mapper->root->renderer, screenTexture);
+                            SDL_RenderPresent(mapper->root->renderer);
+                            SDL_SetRenderTarget(mapper->root->renderer, NULL);
+                            Mix_Pause(-1);
+                            mapper->control->timer0.switchClock();
+                            pauseTriggers = true;
+                        }
                     }
                     ImGui::SameLine();
-                    if (ImGui::Button("Mute"))
+                    if (volumeTriggers)
                     {
+                        if (ImGui::Button("Unmute"))
+                        {
+                            Mix_MasterVolume(MIX_MAX_VOLUME);
+                            volumeTriggers = false;
+                        };
+                    }
+                    else
+                    {
+                        if (ImGui::Button("Mute"))
+                        {
+                            Mix_MasterVolume(0);
+                            volumeTriggers = true;
+                        };
                     }
                     mapper->control->endTime < mapper->control->timer0.pushTime() ? mapper->control->outCode = 4 : 0;
                     ImGui::Checkbox("Enable Log", &mapper->root->log0->enable);
@@ -66,6 +105,7 @@ namespace kotonoha
                 mapper->control->display[4] = true;
             }
         }
+        screenTexture != NULL ? SDL_DestroyTexture(screenTexture) : (void)0;
         Mix_FreeChunk(mapper->root->soundFe0);
         prompt0.close();
         ImGui_ImplSDLRenderer2_Shutdown();

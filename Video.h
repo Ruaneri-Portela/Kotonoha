@@ -92,6 +92,11 @@ namespace kotonoha
                                     while (fTime > pTime)
                                     {
                                         pTime = importedTo->control->timer0.pushTime() - sTime;
+                                        if (importedTo->control->display[1] == true && importedTo->control->timer0.paused)
+                                        {
+                                            importedTo->control->display[1] = false;
+                                            importedTo->control->display[2] = true;
+                                        }
                                     }
                                     SDL_RenderCopy(importedTo->root->renderer, texture, NULL, &square);
                                     sTime = importedTo->control->timer0.pushTime();

@@ -23,9 +23,6 @@ int main()
             opts.returnCode = behaviour->game(game.window, game.renderer, opts.filenameString, opts.configs, &log);
             delete behaviour;
             break;
-        case 3:
-            opts = kotonoha::menu(game.window, game.renderer, opts.returnCode, &log);
-            break;
         default:
             opts = kotonoha::menu(game.window, game.renderer, opts.returnCode, &log);
             break;
