@@ -71,7 +71,7 @@ namespace kotonoha
         SDL_Texture *texture = NULL;
         ASS_Image *img = NULL;
         kotonohaTime::delay(1000);
-        while (importedTo->control->outCode == -1)
+        while (importedTo->control->outCode == 0)
         {
             if (importedTo->control->display[2])
             {

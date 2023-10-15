@@ -67,11 +67,11 @@ int main(int argc, char *args[])
             break;
         case 2:
             behaviour = new kotonoha::loop();
-            opts.returnCode = behaviour->game(game.window, game.renderer, opts.filenameString, opts.configs, &log);
+            opts.returnCode = behaviour->game(game.window, game.renderer, opts.filenameString, opts.configs, &log,game.io);
             delete behaviour;
             break;
         default:
-            opts = kotonoha::menu(game.window, game.renderer, opts.returnCode, &log);
+            opts = kotonoha::menu(game.window, game.renderer, opts.returnCode, &log,game.io);
             break;
         };
     };

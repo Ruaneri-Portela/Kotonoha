@@ -2,7 +2,7 @@
 CXX = g++
 
 # Executable name
-EXE = $(a)
+EXE = Kotonoha
 
 # Directory for imgui
 IMGUI_DIR = ./Dep/imgui
@@ -11,7 +11,7 @@ IMGUI_DIR = ./Dep/imgui
 SRC = ./MakeBuilds/
 
 # Source files
-SOURCES = $(a).cpp
+SOURCES = Kotonoha.cpp
 SOURCES += $(IMGUI_DIR)/imgui.cpp $(IMGUI_DIR)/imgui_demo.cpp $(IMGUI_DIR)/imgui_draw.cpp $(IMGUI_DIR)/imgui_tables.cpp $(IMGUI_DIR)/imgui_widgets.cpp
 SOURCES += $(IMGUI_DIR)/backends/imgui_impl_sdl2.cpp $(IMGUI_DIR)/backends/imgui_impl_sdlrenderer2.cpp
 
@@ -23,7 +23,7 @@ CXXFLAGS = -I$(IMGUI_DIR) -I$(IMGUI_DIR)/backends
 CXXFLAGS += -g -Wall -Wformat 
 
 # Libraries
-LIBS = -static-libgcc -static-libstdc++ -Wl,-Bstatic -lstdc++ -lpthread -Wl,-Bdynamic -lSDL2_mixer -lSDL2_image -lSDL2_ttf -lass -lavformat -lavcodec -lavutil
+LIBS = -lSDL2_mixer -lSDL2_image -lSDL2_ttf -lass -lavformat -lavcodec -lavutil
 
 UNAME_S := $(shell uname -s)
 # Check if the OS is Windows
