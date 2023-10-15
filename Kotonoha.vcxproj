@@ -146,6 +146,9 @@
     <ClCompile Include="Dep\imgui\imgui_draw.cpp" />
     <ClCompile Include="Dep\imgui\imgui_tables.cpp" />
     <ClCompile Include="Dep\imgui\imgui_widgets.cpp" />
+    <ClInclude Include="Icon.h">
+      <FileType>CppHeader</FileType>
+    </ClInclude>
     <ClCompile Include="Kotonoha.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -162,6 +165,7 @@
     <ClInclude Include="Game.h" />
     <ClInclude Include="Headers.h" />
     <ClInclude Include="Image.h" />
+    <ClInclude Include="MacroHeaders.h" />
     <ClInclude Include="MainLoop.h" />
     <ClInclude Include="Menu.h" />
     <ClInclude Include="Ors.h" />

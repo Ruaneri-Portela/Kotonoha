@@ -1,4 +1,8 @@
 // Files file contain the majority of custrom data structs.
+namespace kotonoha
+{
+    const std::string version = "0.0.10 Alpha";
+}
 namespace kotonohaData
 {
     // Here is storage shared triggers for control game behaviour

@@ -109,6 +109,12 @@
     <ClInclude Include="resource.h">
       <Filter>Kotonoha Headers</Filter>
     </ClInclude>
+    <ClInclude Include="MacroHeaders.h">
+      <Filter>Kotonoha Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="Icon.h">
+      <Filter>Kotonoha Headers</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="Dep\imgui\misc\debuggers\imgui.natstepfilter">
