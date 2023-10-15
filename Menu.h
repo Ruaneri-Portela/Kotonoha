@@ -23,20 +23,11 @@ namespace kotonoha
         }
         return configs;
     }
-    menuReturn menu(SDL_Window *window, SDL_Renderer *renderer, int gameReturn, kotonoha::logger *log0)
+    menuReturn menu(SDL_Window *window, SDL_Renderer *renderer, int gameReturn, kotonoha::logger *log0, ImGuiIO *io)
     {
         log0->appendLog("(Menu) - Entry point to menu");
         menuReturn object = {0, "", true};
         object.configs = fileConfig(0);
-        IMGUI_CHECKVERSION();
-        ImGui::CreateContext();
-        ImGui_ImplSDL2_InitForSDLRenderer(window, renderer);
-        ImGui_ImplSDLRenderer2_Init(renderer);
-        ImGui::StyleColorsDark();
-        ImGuiIO &io = ImGui::GetIO();
-        (void)io;
-        io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
-        io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
         ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
         bool about = false;
         bool config = false;
@@ -58,18 +49,17 @@ namespace kotonoha
             STRCPYFIX(soundFe0, object.configs.soundFe0);
             STRCPYFIX(stylesPath, object.configs.stylesPath);
         }
+        bool vsync = true;
+        int vsyncStatus = vsync;
+        SDL_RenderSetVSync(renderer, vsyncStatus);
+        SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "2");
         SDL_Event event;
-        while (true)
+        while (object.returnCode == 0)
         {
             while (SDL_PollEvent(&event))
             {
                 ImGui_ImplSDL2_ProcessEvent(&event);
-                event.type == SDL_QUIT ? SDL_Quit() : (void)0;
-                if (event.type == SDL_KEYDOWN)
-                {
-                    event.key.keysym.sym == SDLK_ESCAPE ? object.returnCode = 1 : 0;
-                    event.key.keysym.sym == SDLK_RETURN ? object.returnCode = 1 : 0;
-                }
+                object.returnCode = keyBinds0(&event, window, 1, renderer, &vsync, log0);
             }
             ImGui_ImplSDLRenderer2_NewFrame();
             ImGui_ImplSDL2_NewFrame();
@@ -87,7 +77,6 @@ namespace kotonoha
                 {
                     object.filenameString = scriptPath;
                     object.returnCode = 2;
-                    break;
                 }
                 ImGui::SameLine();
                 ImGui::Button("Configs") ? config = true : 0;
@@ -96,7 +85,6 @@ namespace kotonoha
             if (ImGui::Button("Close"))
             {
                 object.returnCode = 1;
-                break;
             }
             ImGui::End();
             // Windows about
@@ -170,16 +158,13 @@ namespace kotonoha
             }
             /// End Windows
             ImGui::Render();
-            SDL_RenderSetScale(renderer, io.DisplayFramebufferScale.x, io.DisplayFramebufferScale.y);
+            SDL_RenderSetScale(renderer, io->DisplayFramebufferScale.x, io->DisplayFramebufferScale.y);
             SDL_SetRenderDrawColor(renderer, (Uint8)(clear_color.x * 255), (Uint8)(clear_color.y * 255), (Uint8)(clear_color.z * 255), (Uint8)(clear_color.w * 255));
             SDL_RenderClear(renderer);
             ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData());
             SDL_RenderPresent(renderer);
         }
         log0->appendLog("(Menu) - Menu out");
-        ImGui_ImplSDLRenderer2_Shutdown();
-        ImGui_ImplSDL2_Shutdown();
-        ImGui::DestroyContext();
         return object;
     }
 }

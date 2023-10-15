@@ -115,6 +115,6 @@ namespace kotonoha
                 comanderControler(vector, import);
             }
         }
-        return -1;
+        return 0;
     }
 }

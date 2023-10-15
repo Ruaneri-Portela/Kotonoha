@@ -5,17 +5,6 @@ namespace kotonoha
     int ui(void *import)
     {
         kotonohaData::acessMapper *mapper = static_cast<kotonohaData::acessMapper *>(import);
-        IMGUI_CHECKVERSION();
-        ImGui::CreateContext();
-        ImGui_ImplSDL2_InitForSDLRenderer(mapper->root->window, mapper->root->renderer);
-        ImGui_ImplSDLRenderer2_Init(mapper->root->renderer);
-        ImGui::StyleColorsDark();
-        ImGuiIO &io = ImGui::GetIO();
-        (void)io;
-        io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
-        io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
-        ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
-        kotonohaTime::delay(2000);
         mapper->root->log0->appendLog("(Ui) - Start");
         mapper->root->log0->appendLog("(Clock) - Start");
         mapper->control->timer0.initTimeCapture();
@@ -26,8 +15,7 @@ namespace kotonoha
         bool volumeTriggers = false;
         bool pauseTriggers = false;
         SDL_Texture *screenTexture = NULL;
-        kotonohaTime::delay(1000);
-        while (mapper->control->outCode == -1)
+        while (mapper->control->outCode == 0)
         {
             // Check is a prompt is pressed
             size_t var = prompt0.detectTouch(&mapper->root->event);
@@ -37,10 +25,10 @@ namespace kotonoha
             {
                 ImGui_ImplSDLRenderer2_NewFrame();
                 ImGui_ImplSDL2_NewFrame();
+                ImGui::NewFrame();
                 {
-                    ImGui::NewFrame();
                     ImGui::Begin("Kotonoha Project Visual Novel Engine");
-                    ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
+                    ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / mapper->root->io->Framerate, mapper->root->io->Framerate);
                     ImGui::Text("Time %.3f s", mapper->control->timer0.pushTime());
                     !mapper->control->nonVideo ? ImGui::Text("Video end %d ", mapper->control->videoEnd) : ImGui::Text("Video not using in this scene");
                     !mapper->control->nonAudio ? ImGui::Text("Audio end %d ", mapper->control->audioEnd) : ImGui::Text("Audio not using in this scene");
@@ -108,15 +96,15 @@ namespace kotonoha
                     ImGui::Checkbox("Hidden Subtitles", &mapper->control->hiddenSub);
                     ImGui::End();
                 }
+                ImGui::EndFrame();
                 // Check if time is end to out for menu
                 mapper->control->endTime < mapper->control->timer0.pushTime() ? mapper->control->outCode = 4 : 0;
-                // Send frame to renderer
-                ImGui::Render();
-                SDL_RenderSetScale(mapper->root->renderer, io.DisplayFramebufferScale.x, io.DisplayFramebufferScale.y);
-                SDL_SetRenderDrawColor(mapper->root->renderer, (Uint8)(clear_color.x * 255), (Uint8)(clear_color.y * 255), (Uint8)(clear_color.z * 255), (Uint8)(clear_color.w * 255));
-                ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData());
                 // Show if exist a prompt
                 prompt0.show(mapper->root->renderer, mapper->root->window);
+                // Send frame to renderer
+                ImGui::Render();
+                SDL_RenderSetScale(mapper->root->renderer, mapper->root->io->DisplayFramebufferScale.x, mapper->root->io->DisplayFramebufferScale.y);
+                ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData());
                 // Pass comand to next trigger
                 mapper->control->display[3] = false;
                 mapper->control->display[4] = true;
@@ -125,9 +113,6 @@ namespace kotonoha
         screenTexture != NULL ? SDL_DestroyTexture(screenTexture) : (void)0;
         Mix_FreeChunk(mapper->root->soundFe0);
         prompt0.close();
-        ImGui_ImplSDLRenderer2_Shutdown();
-        ImGui_ImplSDL2_Shutdown();
-        ImGui::DestroyContext();
         mapper->root->log0->appendLog("(Ui) - End");
         return 0;
     };

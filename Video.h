@@ -29,8 +29,7 @@ namespace kotonoha
         SDL_Texture *texture = NULL;
         double timePass = 0.0;
         int h = 0, w = 0;
-        kotonohaTime::delay(1000);
-        while (importedTo->control->outCode == -1)
+        while (importedTo->control->outCode == 0)
         {
             if (importedTo->control->display[1])
             {
@@ -76,7 +75,7 @@ namespace kotonoha
                             double sTime = importedTo->control->timer0.pushTime();
                             double pTime = 0.0;
                             double fTime = 1.0 / 24.0;
-                            while (av_read_frame(formatCtx, &packet) >= 0 && importedTo->control->outCode == -1)
+                            while (av_read_frame(formatCtx, &packet) >= 0 && importedTo->control->outCode == 0)
                             {
                                 if (packet.stream_index == videoStream)
                                 {
@@ -89,7 +88,7 @@ namespace kotonoha
                                     SDL_GetWindowSize(importedTo->root->window, &w, &h);
                                     SDL_Rect square = {0, 0, w, h};
                                     //Wait other in display
-                                    while (!importedTo->control->display[1] && importedTo->control->outCode == -1)
+                                    while (!importedTo->control->display[1] && importedTo->control->outCode == 0)
                                     {
                                         continue;
                                     }

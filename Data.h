@@ -19,7 +19,7 @@ namespace kotonohaData
         bool audioEnd = false;
         bool imageEnd = false;
         // To reset and exit signals
-        int outCode = -1;
+        int outCode = 0;
         // Universal timer
         kotonohaTime::timerEngine timer0;
         // Time to end script
@@ -95,6 +95,7 @@ namespace kotonohaData
         void *question0 = NULL;
         Mix_Chunk *soundFe0 = NULL;
         SDL_Event event;
+        ImGuiIO *io = NULL;
     };
     // AcessMapper is a struct to manager all events that can be happening in the game runtime
     struct acessMapper

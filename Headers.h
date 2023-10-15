@@ -1,7 +1,4 @@
-#include <SDL.h>
-#include <SDL_ttf.h>
-#include <SDL_mixer.h>
-#include <SDL_image.h>
+#include "MacroHeaders.h"
 #include <ass/ass.h>
 #include <vector>
 #include <string>
@@ -18,7 +15,6 @@ extern "C"
 #include <libavformat/avformat.h>
 #include <libavcodec/avcodec.h>
 }
-#include "MacroHeaders.h"
 #include "Utils.h"
 #include "Data.h"
 #include "Prompt.h"

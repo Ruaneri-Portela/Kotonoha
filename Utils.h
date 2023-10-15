@@ -166,8 +166,34 @@ namespace kotonoha
         {
             fileLog.close();
         }
-        void open(std::string logPath) {
+        void open(std::string logPath)
+        {
             fileLog.open(logPath, std::ios::app);
         }
+    };
+    int keyBinds0(SDL_Event *event, SDL_Window *window, int back = 1, SDL_Renderer *renderer = NULL, bool *vsync = NULL, kotonoha::logger *log = NULL)
+    {
+        int rCode = 0;
+        event->type == SDL_QUIT ? rCode = 1 : 0;
+        if (event->type == SDL_KEYDOWN)
+        {
+            event->key.keysym.sym == SDLK_ESCAPE ? rCode = back : 0;
+            if (event->key.keysym.sym == SDLK_F11)
+            {
+                Uint32 FullscreenFlag = SDL_WINDOW_FULLSCREEN;
+                bool IsFullscreen = SDL_GetWindowFlags(window) & FullscreenFlag;
+                SDL_SetWindowFullscreen(window, IsFullscreen ? 0 : FullscreenFlag);
+                SDL_ShowCursor(IsFullscreen);
+            }
+            if (event->key.keysym.sym == SDLK_F9 && vsync != NULL && renderer != NULL)
+            {
+                *vsync = !(*vsync);
+                int vsyncStatus = *vsync;
+                std::string msg = "(ML) - Vsync set to " + std::to_string(vsyncStatus);
+                log != NULL ? log->appendLog(msg.c_str()) : (void)0;
+                SDL_RenderSetVSync(renderer, vsyncStatus);
+            }
+        }
+        return rCode;
     };
 };
