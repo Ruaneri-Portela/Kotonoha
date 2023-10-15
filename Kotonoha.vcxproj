@@ -162,6 +162,7 @@
     <ClInclude Include="Game.h" />
     <ClInclude Include="Headers.h" />
     <ClInclude Include="Image.h" />
+    <ClInclude Include="Kotonoha.h" />
     <ClInclude Include="MainLoop.h" />
     <ClInclude Include="Menu.h" />
     <ClInclude Include="Ors.h" />

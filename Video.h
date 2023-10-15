@@ -6,11 +6,13 @@ namespace kotonoha
         kotonohaData::acessMapper *exportTo = NULL;
         int push(std::string filenameString, std::string timeStart, std::string timeEnd)
         {
+            // Prepare path
             std::stringstream ss;
             ss << exportTo->root->fileConfigs->mediaPath;
             ss << filenameString;
             ss << exportTo->root->fileConfigs->videoExtension;
             std::string filenameStr = ss.str();
+            // Build object to append on array
             kotonohaData::videoData videoTemporary;
             videoTemporary.path = filenameStr;
             videoTemporary.play = kotonohaTime::convertToTime(timeStart);
@@ -67,8 +69,8 @@ namespace kotonoha
                             AVCodecContext *codecCtx = avcodec_alloc_context3(codec);
                             avcodec_parameters_to_context(codecCtx, formatCtx->streams[videoStream]->codecpar);
                             avcodec_open2(codecCtx, codec, nullptr);
-                            AVFrame *frame = av_frame_alloc();
                             // Allocate frame
+                            AVFrame* frame = av_frame_alloc();
                             AVPacket packet;
                             double sTime = importedTo->control->timer0.pushTime();
                             double pTime = 0.0;
@@ -85,10 +87,12 @@ namespace kotonoha
                                     SDL_UpdateYUVTexture(texture, NULL, frame->data[0], frame->linesize[0], frame->data[1], frame->linesize[1], frame->data[2], frame->linesize[2]);
                                     SDL_GetWindowSize(importedTo->root->window, &w, &h);
                                     SDL_Rect square = {0, 0, w, h};
+                                    //Wait other in display
                                     while (!importedTo->control->display[1] && importedTo->control->outCode == -1)
                                     {
                                         continue;
                                     }
+                                    // Wait frame time
                                     while (fTime > pTime)
                                     {
                                         pTime = importedTo->control->timer0.pushTime() - sTime;
@@ -99,9 +103,9 @@ namespace kotonoha
                                         }
                                     }
                                     SDL_RenderCopy(importedTo->root->renderer, texture, NULL, &square);
+                                    SDL_DestroyTexture(texture);
                                     sTime = importedTo->control->timer0.pushTime();
                                     pTime = 0.0;
-                                    SDL_DestroyTexture(texture);
                                     importedTo->control->display[1] = false;
                                     importedTo->control->display[2] = true;
                                 }
@@ -111,6 +115,7 @@ namespace kotonoha
                             av_frame_free(&frame);
                             avformat_close_input(&formatCtx);
                             avcodec_close(codecCtx);
+                            // Delete video from array
                             importedTo->video.erase(importedTo->video.begin() + i);
                             break;
                         }

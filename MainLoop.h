@@ -20,24 +20,25 @@ namespace kotonoha
             rootData->video0 = new kotonohaData::videoData;
             rootData->text0 = new kotonohaData::textData;
             rootData->question0 = new kotonohaData::questionData;
+            // Export global to inside objects structs, this allow acess in all threads root var
             static_cast<kotonoha::audioObject *>(rootData->audio0)->exportTo = global;
             static_cast<kotonoha::videoObject *>(rootData->video0)->exportTo = global;
             static_cast<kotonoha::imageObject *>(rootData->image0)->exportTo = global;
             static_cast<kotonoha::textObject *>(rootData->text0)->exportTo = global;
             static_cast<kotonoha::questionObject *>(rootData->question0)->exportTo = global;
-            // Start game loop and threads
-            SDL_ShowWindow(rootData->window);
             // Loading script to create all game objects
             rootData->log0->appendLog("(ORS - Pre) - Reading " + path);
-            kotonoha::orsLoader(global, path);
+            controlData->outCode = kotonoha::orsLoader(global, path);
+            // Start game loop and threads
             std::thread thread1(kotonoha::ui, global);
             std::thread thread2(kotonoha::playImage, global);
             std::thread thread3(kotonoha::playVideo, global);
             std::thread thread4(kotonoha::playAudio, global);
             std::thread thread5(kotonoha::playText, global);
-            kotonohaTime::delay(2000);
             rootData->log0->appendLog("(ML) - Entry point to while");
-            SDL_RenderSetVSync(rootData->renderer, 1);
+            bool vsync = true;
+            int vsyncStatus = vsync;
+            SDL_RenderSetVSync(rendererEntry, vsyncStatus);
             SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "2");
             while (controlData->outCode == -1)
             {
@@ -50,12 +51,20 @@ namespace kotonoha
                     {
                         rootData->event.key.keysym.sym == SDLK_ESCAPE ? controlData->outCode = 3 : 0;
                         rootData->event.key.keysym.sym == SDLK_r ? controlData->outCode = 2 : 0;
+                        // F11 to fullscreen
                         if (rootData->event.key.keysym.sym == SDLK_F11)
                         {
                             Uint32 FullscreenFlag = SDL_WINDOW_FULLSCREEN;
                             bool IsFullscreen = SDL_GetWindowFlags(rootData->window) & FullscreenFlag;
                             SDL_SetWindowFullscreen(rootData->window, IsFullscreen ? 0 : FullscreenFlag);
                             SDL_ShowCursor(IsFullscreen);
+                        }
+                        if (rootData->event.key.keysym.sym == SDLK_F9) {
+                            vsync = !vsync;
+                            int vsyncStatus = vsync;
+                            std::string msg = "(ML) - Vsync set to " + std::to_string(vsyncStatus);
+                            rootData->log0->appendLog(msg.c_str());
+                            SDL_RenderSetVSync(rendererEntry,vsyncStatus);
                         }
                     }
                 }
@@ -88,6 +97,9 @@ namespace kotonoha
                 break;
             case 4:
                 rootData->log0->appendLog("(ML) - Scene ended");
+                break;
+            case 5:
+                rootData->log0->appendLog("(ML) - Erro on loading ORS file");
                 break;
             default:
                 rootData->log0->appendLog("(ML) - Uknonw return code");

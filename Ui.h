@@ -1,5 +1,6 @@
 namespace kotonoha
 {
+    // This component is to use to when check box is change, set vsync status conform check box status
     // Here is a setup all show and overlayed events in game screen
     int ui(void *import)
     {
@@ -27,13 +28,14 @@ namespace kotonoha
         SDL_Texture *screenTexture = NULL;
         while (mapper->control->outCode == -1)
         {
+            // Check is a prompt is pressed
             size_t var = prompt0.detectTouch(&mapper->root->event);
             var != 0 ? mapper->root->log0->appendLog("(Ui) - Touch detected " + std::to_string(var)) : (void)0;
+            // Draw UI
             if (mapper->control->display[3])
             {
                 ImGui_ImplSDLRenderer2_NewFrame();
                 ImGui_ImplSDL2_NewFrame();
-
                 {
                     ImGui::NewFrame();
                     ImGui::Begin("Kotonoha Project Visual Novel Engine");
@@ -101,16 +103,20 @@ namespace kotonoha
                         assDump << mapper->text.stream.str() << std::endl;
                         assDump.close();
                     }
-                    mapper->control->endTime < mapper->control->timer0.pushTime() ? mapper->control->outCode = 4 : 0;
                     ImGui::Checkbox("Enable Log", &mapper->root->log0->enable);
                     ImGui::Checkbox("Hidden Subtitles", &mapper->control->hiddenSub);
                     ImGui::End();
                 }
+                // Check if time is end to out for menu
+                mapper->control->endTime < mapper->control->timer0.pushTime() ? mapper->control->outCode = 4 : 0;
+                // Send frame to renderer
                 ImGui::Render();
                 SDL_RenderSetScale(mapper->root->renderer, io.DisplayFramebufferScale.x, io.DisplayFramebufferScale.y);
                 SDL_SetRenderDrawColor(mapper->root->renderer, (Uint8)(clear_color.x * 255), (Uint8)(clear_color.y * 255), (Uint8)(clear_color.z * 255), (Uint8)(clear_color.w * 255));
                 ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData());
+                // Show if exist a prompt
                 prompt0.show(mapper->root->renderer, mapper->root->window);
+                // Pass comand to next trigger
                 mapper->control->display[3] = false;
                 mapper->control->display[4] = true;
             }

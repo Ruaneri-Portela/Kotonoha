@@ -9,7 +9,7 @@ namespace kotonohaData
         bool nonAudio = true;
         bool nonImage = true;
         // To chech on runtime (layers of video)
-        bool display[5] = {true, false, false, false};
+        bool display[5] = {true, false, false, false, false};
         // If thread end
         bool videoEnd = false;
         bool audioEnd = false;
@@ -22,6 +22,8 @@ namespace kotonohaData
         double endTime = 0;
         // To hidden subtitles
         bool hiddenSub = false;
+        // Graph parms
+        size_t parms[10];
     };
     // Auto explicative
     struct audioData

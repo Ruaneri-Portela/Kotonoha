@@ -46,7 +46,7 @@ namespace kotonoha
                         importedTo->audio[i].sound = Mix_LoadWAV(importedTo->audio[i].path.c_str());
                         if (importedTo->audio[i].sound == NULL)
                         {
-                            importedTo->root->log0->appendLog("(Audio) - Error on load file" + importedTo->audio[i].path);
+                            importedTo->root->log0->appendLog("(Audio) - Error on load file " + importedTo->audio[i].path);
                             importedTo->audio.erase(importedTo->audio.begin() + i);
                         }
                     }
