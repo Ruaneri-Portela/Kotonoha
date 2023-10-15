@@ -77,8 +77,6 @@
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>.\Dep\SDL2_image-2.6.3\include;.\Dep\SDL2_mixer-2.6.3\include;.\Dep\SDL2_ttf-2.20.2\include;.\Dep\SDL2-2.28.4\include;.\Dep\imgui;.\Dep\imgui\backends;.\Dep\libass_0.17.1-1_msvc17\include;.\Dep\libffmpeg_6.1.r112164_msvc17_x86\include</AdditionalIncludeDirectories>
-      <AdditionalOptions>/D_CRT_NONSTDC_NO_WARNINGS
-/D_CRT_SECURE_NO_WARNINGS %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -96,8 +94,6 @@
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>.\Dep\SDL2_image-2.6.3\include;.\Dep\SDL2_mixer-2.6.3\include;.\Dep\SDL2_ttf-2.20.2\include;.\Dep\SDL2-2.28.4\include;.\Dep\imgui;.\Dep\imgui\backends;.\Dep\libass_0.17.1-1_msvc17\include;.\Dep\libffmpeg_6.1.r112164_msvc17_x86\include</AdditionalIncludeDirectories>
-      <AdditionalOptions>/D_CRT_NONSTDC_NO_WARNINGS
-/D_CRT_SECURE_NO_WARNINGS %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -115,8 +111,6 @@
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>.\Dep\SDL2_image-2.6.3\include;.\Dep\SDL2_mixer-2.6.3\include;.\Dep\SDL2_ttf-2.20.2\include;.\Dep\SDL2-2.28.4\include;.\Dep\imgui;.\Dep\imgui\backends;.\Dep\libass_0.17.1-1_msvc17\include;.\Dep\libffmpeg_6.1.r112164_msvc17_x64\include</AdditionalIncludeDirectories>
-      <AdditionalOptions>/D_CRT_NONSTDC_NO_WARNINGS
-/D_CRT_SECURE_NO_WARNINGS %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -134,8 +128,6 @@
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>.\Dep\SDL2_image-2.6.3\include;.\Dep\SDL2_mixer-2.6.3\include;.\Dep\SDL2_ttf-2.20.2\include;.\Dep\SDL2-2.28.4\include;.\Dep\imgui;.\Dep\imgui\backends;.\Dep\libass_0.17.1-1_msvc17\include;.\Dep\libffmpeg_6.1.r112164_msvc17_x64\include</AdditionalIncludeDirectories>
-      <AdditionalOptions>/D_CRT_NONSTDC_NO_WARNINGS
-/D_CRT_SECURE_NO_WARNINGS %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>

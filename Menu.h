@@ -51,12 +51,12 @@ namespace kotonoha
         char stylesPath[256] = "";
         if (object.configs.configured)
         {
-            strcpy(audioExtension, object.configs.audioExtension);
-            strcpy(videoExtension, object.configs.videoExtension);
-            strcpy(imageExtension, object.configs.imageExtension);
-            strcpy(mediaPath, object.configs.mediaPath);
-            strcpy(soundFe0, object.configs.soundFe0);
-            strcpy(stylesPath, object.configs.stylesPath);
+            strcpy_s(audioExtension, object.configs.audioExtension);
+            strcpy_s(videoExtension, object.configs.videoExtension);
+            strcpy_s(imageExtension, object.configs.imageExtension);
+            strcpy_s(mediaPath, object.configs.mediaPath);
+            strcpy_s(soundFe0, object.configs.soundFe0);
+            strcpy_s(stylesPath, object.configs.stylesPath);
         }
         SDL_Event event;
         while (true)
@@ -123,12 +123,12 @@ namespace kotonoha
                 if (ImGui::Button("Save"))
                 {
                     object.configs.configured = true;
-                    strcpy(object.configs.audioExtension, audioExtension);
-                    strcpy(object.configs.videoExtension, videoExtension);
-                    strcpy(object.configs.imageExtension, imageExtension);
-                    strcpy(object.configs.mediaPath, mediaPath);
-                    strcpy(object.configs.soundFe0, soundFe0);
-                    strcpy(object.configs.stylesPath, stylesPath);
+                    strcpy_s(object.configs.audioExtension, audioExtension);
+                    strcpy_s(object.configs.videoExtension, videoExtension);
+                    strcpy_s(object.configs.imageExtension, imageExtension);
+                    strcpy_s(object.configs.mediaPath, mediaPath);
+                    strcpy_s(object.configs.soundFe0, soundFe0);
+                    strcpy_s(object.configs.stylesPath, stylesPath);
                     object.configs.configured = true;
                     fileConfig(1, object.configs);
                     configSaved = true;

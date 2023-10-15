@@ -1,3 +1,4 @@
+#define _CRT_SECURE_NO_WARNINGS
 namespace kotonoha
 {
     class textObject
@@ -62,7 +63,7 @@ namespace kotonoha
         ASS_Track *track = ass_new_track(ass_library);
         std::string subSs = importedTo->text.stream.str();
         char *str_c = new char[subSs.length() + 1];
-        strcpy(str_c, subSs.c_str());
+        std::strcpy(str_c, subSs.c_str());
         ass_process_data(track, str_c, (int)subSs.length() + 1);
         // Start
         kotonohaTime::delay(1000);

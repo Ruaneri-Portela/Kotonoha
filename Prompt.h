@@ -20,7 +20,7 @@ namespace kotonoha
     class prompt
     {
     private:
-        TTF_Font *font;
+        TTF_Font *font = NULL;
         SDL_Color color = {0, 0, 0};
         SDL_Rect rect[4] = {{0, 0, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0}};
         int h = 0, w = 0;
