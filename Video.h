@@ -29,6 +29,7 @@ namespace kotonoha
         SDL_Texture *texture = NULL;
         double timePass = 0.0;
         int h = 0, w = 0;
+        kotonohaTime::delay(1000);
         while (importedTo->control->outCode == -1)
         {
             if (importedTo->control->display[1])

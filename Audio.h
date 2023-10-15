@@ -31,6 +31,7 @@ namespace kotonoha
         importedTo->root->log0->appendLog("(Audio) - Start");
         importedTo->root->log0->appendLog("(Audio) - " + std::to_string(importedTo->audio.size()) + " Audios to play");
         double timePass = 0.0;
+        kotonohaTime::delay(1000);
         while (importedTo->control->outCode == -1)
         {
             // Percurrent the audio array
