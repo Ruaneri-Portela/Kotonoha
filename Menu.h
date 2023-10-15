@@ -1,3 +1,4 @@
+
 namespace kotonoha
 {
     typedef struct menuReturn
@@ -51,12 +52,12 @@ namespace kotonoha
         char stylesPath[256] = "";
         if (object.configs.configured)
         {
-            strcpy_s(audioExtension, object.configs.audioExtension);
-            strcpy_s(videoExtension, object.configs.videoExtension);
-            strcpy_s(imageExtension, object.configs.imageExtension);
-            strcpy_s(mediaPath, object.configs.mediaPath);
-            strcpy_s(soundFe0, object.configs.soundFe0);
-            strcpy_s(stylesPath, object.configs.stylesPath);
+            STRCPYFIX(audioExtension, object.configs.audioExtension);
+            STRCPYFIX(videoExtension, object.configs.videoExtension);
+            STRCPYFIX(imageExtension, object.configs.imageExtension);
+            STRCPYFIX(mediaPath, object.configs.mediaPath);
+            STRCPYFIX(soundFe0, object.configs.soundFe0);
+            STRCPYFIX(stylesPath, object.configs.stylesPath);
         }
         SDL_Event event;
         while (true)
@@ -123,12 +124,12 @@ namespace kotonoha
                 if (ImGui::Button("Save"))
                 {
                     object.configs.configured = true;
-                    strcpy_s(object.configs.audioExtension, audioExtension);
-                    strcpy_s(object.configs.videoExtension, videoExtension);
-                    strcpy_s(object.configs.imageExtension, imageExtension);
-                    strcpy_s(object.configs.mediaPath, mediaPath);
-                    strcpy_s(object.configs.soundFe0, soundFe0);
-                    strcpy_s(object.configs.stylesPath, stylesPath);
+                    STRCPYFIX(object.configs.audioExtension, audioExtension);
+                    STRCPYFIX(object.configs.videoExtension, videoExtension);
+                    STRCPYFIX(object.configs.imageExtension, imageExtension);
+                    STRCPYFIX(object.configs.mediaPath, mediaPath);
+                    STRCPYFIX(object.configs.soundFe0, soundFe0);
+                    STRCPYFIX(object.configs.stylesPath, stylesPath);
                     object.configs.configured = true;
                     fileConfig(1, object.configs);
                     configSaved = true;
