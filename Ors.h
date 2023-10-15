@@ -97,11 +97,24 @@ namespace kotonoha
         import->root->log0->appendLog("(ORS) - End");
         return 0;
     }
-    void orsLoader(kotonohaData::acessMapper *import, std::string comand)
+    int orsLoader(kotonohaData::acessMapper *import, std::string comand)
     {
-        // Convert and Split script parameters
-        std::vector<std::vector<std::string>> vector = kotonoha::readScript(comand);
-        // Send to comander Generator
-        comanderControler(vector, import);
+        if (comand.empty()) {
+            SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_WARNING, "Ops...Something is wrong", "The path can be empty", import->root->window);
+            return 5;
+        }
+        else {
+            // Convert and Split script parameters
+            std::vector<std::vector<std::string>> vector = kotonoha::readScript(comand);
+            if (vector.empty()) {
+                SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_WARNING, "Ops...Something is wrong", "The file is not valid", import->root->window);
+                return 5;
+            }
+            else {
+                // Send to comander Generator
+                comanderControler(vector, import);
+            }
+        }
+        return -1;
     }
 }
