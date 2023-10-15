@@ -18,10 +18,7 @@ extern "C"
 #include <libavformat/avformat.h>
 #include <libavcodec/avcodec.h>
 }
-namespace kotonoha
-{
-    const std::string version = "0.0.1 Alpha";
-}
+#include "MacroHeaders.h"
 #include "Utils.h"
 #include "Data.h"
 #include "Prompt.h"
