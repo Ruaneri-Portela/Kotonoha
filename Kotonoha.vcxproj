@@ -162,11 +162,11 @@
     <ClInclude Include="Game.h" />
     <ClInclude Include="Headers.h" />
     <ClInclude Include="Image.h" />
-    <ClInclude Include="Kotonoha.h" />
     <ClInclude Include="MainLoop.h" />
     <ClInclude Include="Menu.h" />
     <ClInclude Include="Ors.h" />
     <ClInclude Include="Prompt.h" />
+    <ClInclude Include="resource.h" />
     <ClInclude Include="Text.h" />
     <ClInclude Include="Ui.h" />
     <ClInclude Include="Utils.h" />
@@ -177,6 +177,12 @@
   </ItemGroup>
   <ItemGroup>
     <Natvis Include="Dep\imgui\misc\debuggers\imgui.natvis" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="Kotonoha1.rc" />
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="icon.ico" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets" />

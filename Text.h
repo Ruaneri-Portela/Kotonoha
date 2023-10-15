@@ -70,6 +70,7 @@ namespace kotonoha
         importedTo->root->log0->appendLog("(Text) - Start");
         SDL_Texture *texture = NULL;
         ASS_Image *img = NULL;
+        kotonohaTime::delay(1000);
         while (importedTo->control->outCode == -1)
         {
             if (importedTo->control->display[2])

@@ -26,6 +26,7 @@ namespace kotonoha
         bool volumeTriggers = false;
         bool pauseTriggers = false;
         SDL_Texture *screenTexture = NULL;
+        kotonohaTime::delay(1000);
         while (mapper->control->outCode == -1)
         {
             // Check is a prompt is pressed

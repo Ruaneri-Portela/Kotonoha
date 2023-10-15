@@ -106,8 +106,8 @@
     <ClInclude Include="Video.h">
       <Filter>Kotonoha Headers</Filter>
     </ClInclude>
-    <ClInclude Include="Kotonoha.h">
-      <Filter>Imgui Blindings</Filter>
+    <ClInclude Include="resource.h">
+      <Filter>Kotonoha Headers</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -119,5 +119,15 @@
     <Natvis Include="Dep\imgui\misc\debuggers\imgui.natvis">
       <Filter>Imgui</Filter>
     </Natvis>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="Kotonoha1.rc">
+      <Filter>Kotonoha Source</Filter>
+    </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="icon.ico">
+      <Filter>Kotonoha Headers</Filter>
+    </Image>
   </ItemGroup>
 </Project>
