@@ -26,11 +26,6 @@ namespace kotonoha
             static_cast<kotonoha::textObject *>(rootData->text0)->exportTo = global;
             static_cast<kotonoha::questionObject *>(rootData->question0)->exportTo = global;
             // Start game loop and threads
-            controlData->display[0] = true;
-            controlData->display[1] = false;
-            controlData->display[2] = false;
-            controlData->display[3] = false;
-            controlData->display[4] = false;
             SDL_ShowWindow(rootData->window);
             // Loading script to create all game objects
             rootData->log0->appendLog("(ORS - Pre) - Reading " + path);

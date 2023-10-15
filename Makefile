@@ -5,10 +5,10 @@ CXX = g++
 EXE = $(a)
 
 # Directory for imgui
-IMGUI_DIR = ./imgui
+IMGUI_DIR = ./Dep/imgui
 
 # Source directory
-SRC = ./Build/
+SRC = ./MakeBuilds/
 
 # Source files
 SOURCES = $(a).cpp
@@ -16,14 +16,14 @@ SOURCES += $(IMGUI_DIR)/imgui.cpp $(IMGUI_DIR)/imgui_demo.cpp $(IMGUI_DIR)/imgui
 SOURCES += $(IMGUI_DIR)/backends/imgui_impl_sdl2.cpp $(IMGUI_DIR)/backends/imgui_impl_sdlrenderer2.cpp
 
 # Object files
-OBJS = $(addprefix ./Build/, $(addsuffix .o, $(basename $(notdir $(SOURCES)))))
+OBJS = $(addprefix ./MakeBuilds/, $(addsuffix .o, $(basename $(notdir $(SOURCES)))))
 
 # Compiler flags
 CXXFLAGS = -I$(IMGUI_DIR) -I$(IMGUI_DIR)/backends
 CXXFLAGS += -g -Wall -Wformat 
 
 # Libraries
-LIBS = -static-libgcc -static-libstdc++ -Wl,-Bstatic -lstdc++ -lpthread -Wl,-Bdynamic -lSDL2main -lSDL2 -lSDL2_mixer -lSDL2_image -lSDL2_ttf -lass -lavformat -lavcodec -lavutil
+LIBS = -static-libgcc -static-libstdc++ -Wl,-Bstatic -lstdc++ -lpthread -Wl,-Bdynamic -lSDL2_mixer -lSDL2_image -lSDL2_ttf -lass -lavformat -lavcodec -lavutil
 
 UNAME_S := $(shell uname -s)
 # Check if the OS is Windows
@@ -34,22 +34,22 @@ ifeq ($(UNAME_S), Linux)
 	CFLAGS = $(CXXFLAGS)
 endif
 ifeq ($(OS), Windows_NT)
-	ECHO_MESSAGE = "MinGW"
-#	LIBS += `pkg-config --static --libs sdl2`
-#	CXXFLAGS += `pkg-config --cflags sdl2`
+	ECHO_MESSAGE = "UCRT64 MSYS2"
+	LIBS += `pkg-config --static --libs sdl2`
+	CXXFLAGS += `pkg-config --cflags sdl2`
 	CFLAGS = $(CXXFLAGS)
 endif
 
 # Compile source files
-./Build/%.o:%.cpp
+./MakeBuilds/%.o:%.cpp
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
 # Compile imgui source files
-./Build/%.o:$(IMGUI_DIR)/%.cpp
+./MakeBuilds/%.o:$(IMGUI_DIR)/%.cpp
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
 # Compile imgui backend source files
-./Build/%.o:$(IMGUI_DIR)/backends/%.cpp
+./MakeBuilds/%.o:$(IMGUI_DIR)/backends/%.cpp
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
 # Build executable
@@ -61,7 +61,7 @@ $(EXE): $(OBJS)
 
 # Clean build files
 clean:
-	rm -f ./Build/*
+	rm -f ./MakeBuilds/*
 
 # Documentation
 # This Makefile compiles C++ source files and imgui library files to create an executable.

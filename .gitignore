@@ -1,6 +1,10 @@
 .vscode/
 GameData/
 imgui.ini
+Dep/
+MakeBuilds/
+x64/
+x86/
 styles.skot
 kotonoha.ckot
 log.lkot

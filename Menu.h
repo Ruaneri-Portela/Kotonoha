@@ -9,18 +9,18 @@ namespace kotonoha
     } menuReturn;
     kotonohaData::configsData fileConfig(int parm, kotonohaData::configsData configs = {false, "", "", "", ""})
     {
-        FILE *dataR = fopen("kotonoha.ckot", "rb");
-        if (dataR == NULL or parm == 1)
+        std::ifstream dataR("kotonoha.ckot");
+        if (!dataR.is_open() or parm == 1)
         {
-            FILE *dataW = fopen("kotonoha.dat", "wb");
-            fwrite(&configs, sizeof(kotonohaData::configsData), 1, dataW);
-            fclose(dataW);
+            std::ofstream dataW("kotonoha.ckot", std::ios::binary);
+            dataW.write(reinterpret_cast<char *>(&configs), sizeof(kotonohaData::configsData));
+            dataW.close();
         }
         else
         {
-            fread(&configs, sizeof(kotonohaData::configsData), 1, dataR);
+            dataR.read(reinterpret_cast<char *>(&configs), sizeof(kotonohaData::configsData));
+            dataR.close();
         }
-        fclose(dataR);
         return configs;
     }
     menuReturn menu(SDL_Window *window, SDL_Renderer *renderer, int gameReturn, kotonoha::logger *log0)

@@ -6,11 +6,11 @@ namespace kotonoha
         kotonohaData::acessMapper *exportTo = NULL;
         void push(std::vector<std::string> comand)
         {
-            int index = comand.size() - 1;
+            size_t index = comand.size() - 1;
             kotonohaData::questionData questionTemporary;
             questionTemporary.show = kotonohaTime::convertToTime(comand[1]);
             questionTemporary.out = kotonohaTime::convertToTime(comand[index]);
-            for (int i = 2; i < index; i++)
+            for (size_t i = 2; i < index; i++)
             {
                 questionTemporary.prompts.push_back(comand[i]);
             }
@@ -23,8 +23,8 @@ namespace kotonoha
         TTF_Font *font;
         SDL_Color color = {0, 0, 0};
         SDL_Rect rect[4] = {{0, 0, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0}};
-        int h, w;
-        int bH, bW;
+        int h = 0, w = 0;
+        int bH = 0, bW = 0;
         std::vector<kotonohaData::questionData>::size_type questionsSize = -1;
 
     public:
@@ -82,9 +82,9 @@ namespace kotonoha
             }
             return 0;
         };
-        int detectTouch(SDL_Event *event)
+        size_t detectTouch(SDL_Event *event)
         {
-            int returnValue = 0;
+            size_t returnValue = 0;
             if (event->type == SDL_MOUSEBUTTONDOWN && !mapper->question.empty())
             {
                 if (event->button.button == SDL_BUTTON_LEFT)
