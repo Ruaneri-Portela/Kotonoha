@@ -35,7 +35,7 @@ namespace kotonoha
         while(importedTo->control->display[4] == false){
             continue;
         }
-        while (importedTo->control->outCode == -1)
+        while (importedTo->control->outCode == 0)
         {
             // Percurrent the audio array
             if (!importedTo->control->audioEnd && !importedTo->control->nonAudio && !(importedTo->audio.size() == 0))
