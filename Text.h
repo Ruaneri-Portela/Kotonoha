@@ -63,7 +63,7 @@ namespace kotonoha
         std::string subSs = importedTo->text.stream.str();
         char *str_c = new char[subSs.length() + 1];
         strcpy(str_c, subSs.c_str());
-        ass_process_data(track, str_c, subSs.length() + 1);
+        ass_process_data(track, str_c, (int)subSs.length() + 1);
         // Start
         kotonohaTime::delay(1000);
         importedTo->root->log0->appendLog("(Text) - Start");
@@ -100,7 +100,7 @@ namespace kotonoha
                         img->bitmap += img->stride;
                     }
                     SDL_UnlockTexture(texture);
-                    SDL_RenderCopy(importedTo->root->renderer, texture, NULL, &dst);
+                    !importedTo->control->hiddenSub ? SDL_RenderCopy(importedTo->root->renderer, texture, NULL, &dst) : 0;
                     SDL_DestroyTexture(texture);
                 }
                 // End frame sub draw

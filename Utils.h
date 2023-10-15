@@ -139,19 +139,18 @@ namespace kotonoha
     struct logger
     {
         ImGuiTextBuffer Buf;
-        bool ScrollToBottom;
-        bool clear;
+        bool ScrollToBottom = false;
+        bool clear = false;
         bool enable = false;
         std::ofstream fileLog;
         void appendLog(std::string Log)
         {
-            fileLog.open("log.lkot", std::ios::app);
-            Buf.appendf("\n");
+
             std::cout << Log << std::endl;
             fileLog << Log << std::endl;
+            Buf.appendf("\n");
             Buf.appendf(Log.c_str());
             ScrollToBottom = true;
-            fileLog.close();
         }
         void drawLogger()
         {
@@ -162,6 +161,13 @@ namespace kotonoha
             ScrollToBottom = false;
             ImGui::Button("Clear") ? Buf.clear() : void(0);
             ImGui::End();
+        }
+        void close()
+        {
+            fileLog.close();
+        }
+        void open(std::string logPath) {
+            fileLog.open(logPath, std::ios::app);
         }
     };
 };

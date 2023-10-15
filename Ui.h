@@ -27,7 +27,7 @@ namespace kotonoha
         SDL_Texture *screenTexture = NULL;
         while (mapper->control->outCode == -1)
         {
-            int var = prompt0.detectTouch(&mapper->root->event);
+            size_t var = prompt0.detectTouch(&mapper->root->event);
             var != 0 ? mapper->root->log0->appendLog("(Ui) - Touch detected " + std::to_string(var)) : (void)0;
             if (mapper->control->display[3])
             {
@@ -103,6 +103,7 @@ namespace kotonoha
                     }
                     mapper->control->endTime < mapper->control->timer0.pushTime() ? mapper->control->outCode = 4 : 0;
                     ImGui::Checkbox("Enable Log", &mapper->root->log0->enable);
+                    ImGui::Checkbox("Hidden Subtitles", &mapper->control->hiddenSub);
                     ImGui::End();
                 }
                 ImGui::Render();

@@ -9,7 +9,7 @@ namespace kotonohaData
         bool nonAudio = true;
         bool nonImage = true;
         // To chech on runtime (layers of video)
-        bool display[4];
+        bool display[5] = {true, false, false, false};
         // If thread end
         bool videoEnd = false;
         bool audioEnd = false;
@@ -20,6 +20,8 @@ namespace kotonohaData
         kotonohaTime::timerEngine timer0;
         // Time to end script
         double endTime = 0;
+        // To hidden subtitles
+        bool hiddenSub = false;
     };
     // Auto explicative
     struct audioData
@@ -55,7 +57,7 @@ namespace kotonohaData
         std::stringstream stream;
         bool init = false;
     };
-    
+
     struct questionData
     {
         std::vector<std::string> prompts;
@@ -85,7 +87,7 @@ namespace kotonohaData
         void *image0 = NULL;
         void *text0 = NULL;
         void *question0 = NULL;
-        Mix_Chunk *soundFe0 = NULL; 
+        Mix_Chunk *soundFe0 = NULL;
         SDL_Event event;
     };
     // AcessMapper is a struct to manager all events that can be happening in the game runtime

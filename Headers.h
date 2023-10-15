@@ -1,7 +1,7 @@
-#include <SDL2/SDL_ttf.h>
-#include <SDL2/SDL_mixer.h>
-#include <SDL2/SDL_image.h>
-#include <SDL2/SDL.h>
+#include <SDL.h>
+#include <SDL_ttf.h>
+#include <SDL_mixer.h>
+#include <SDL_image.h>
 #include <ass/ass.h>
 #include <vector>
 #include <string>
@@ -10,15 +10,16 @@
 #include <fstream>
 #include <chrono>
 #include <thread>
+#include "imgui.h"
+#include "backends/imgui_impl_sdl2.h"
+#include "backends/imgui_impl_sdlrenderer2.h"
 extern "C"
 {
 #include <libavformat/avformat.h>
 #include <libavcodec/avcodec.h>
 }
-#include "imgui/imgui.h"
-#include "imgui/backends/imgui_impl_sdl2.h"
-#include "imgui/backends/imgui_impl_sdlrenderer2.h"
-namespace kotonoha{
+namespace kotonoha
+{
     const std::string version = "0.0.1 Alpha";
 }
 #include "Utils.h"
