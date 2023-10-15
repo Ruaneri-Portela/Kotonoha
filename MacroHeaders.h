@@ -1,8 +1,10 @@
-#define STRCPYFIX strcpy
-#define COMPILE "Unknown"
 #ifdef _MSC_VER
-#define COMPILE "MSVC Compile Build"
-#define STRCPYFIX strcpy_s
+    #define COMPILE "MSVC Compile Build"
+    #define STRCPYFIX strcpy_s
 #elif defined(__GNUG__)
-#define COMPILE "GNU Compile Build"
+    #define COMPILE "GNU Compile Build"
+    #define STRCPYFIX strcpy
+#else
+    #define COMPILE "Unknown"
+    #define STRCPYFIX strcpy
 #endif

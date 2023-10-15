@@ -1,4 +1,3 @@
-
 namespace kotonoha
 {
     typedef struct menuReturn
