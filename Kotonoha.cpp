@@ -2,7 +2,7 @@
 #include "Headers.h"
 static void setIcon(SDL_Window* window)
 {
-#include "icon.h"
+#include "Icon.h"
 // these masks are needed to tell SDL_CreateRGBSurface(From)
 // to assume the data it gets is byte-wise RGB(A) data
     Uint32 rmask, gmask, bmask, amask;
