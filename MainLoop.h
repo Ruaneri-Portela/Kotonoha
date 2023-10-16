@@ -57,7 +57,6 @@ namespace kotonoha
 				if (controlData->display[4])
 				{
 					SDL_RenderPresent(rendererEntry);
-					SDL_RenderClear(rendererEntry);
 					controlData->display[0] = true;
 					controlData->display[4] = false;
 				}
