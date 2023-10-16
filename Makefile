@@ -63,3 +63,15 @@ $(EXE): $(OBJS)
 # Clean build files
 clean:
 	rm -f ./MakeBuilds/*
+
+cleanKot:
+	rm -f ./MakeBuilds/Kotonoha*
+# Run
+run:
+	$(SRC)$(EXE)$(EXT)
+
+# Clean only kotonoha, compile, rim
+ccr:
+	make clean
+	make
+	make run
