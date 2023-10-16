@@ -44,13 +44,14 @@ namespace kotonoha
 			// Import value isCmd to data struct
 			controlData->isCmd = isCmd;
 			rootData->log0->appendLog("(ML) - Entry point to while");
+			rootData->event = new SDL_Event;
 			while (controlData->outCode == 0)
 			{
 				// Event reciver
-				while (SDL_PollEvent(&rootData->event))
+				while (SDL_PollEvent(rootData->event))
 				{
-					ImGui_ImplSDL2_ProcessEvent(&rootData->event);
-					controlData->outCode = keyBinds0(&rootData->event, windowEntry, 3, rendererEntry, &vsync, log0);
+					ImGui_ImplSDL2_ProcessEvent(rootData->event);
+					controlData->outCode = keyBinds0(rootData->event, windowEntry, 3, rendererEntry, &vsync, log0);
 				}
 				// Render send
 				if (controlData->display[4])
