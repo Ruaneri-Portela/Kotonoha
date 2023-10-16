@@ -70,7 +70,7 @@ namespace kotonohaTime
 		minutes = atoi(stringTimeVector[0].c_str());
 		seconds = atoi(stringTimeVector[1].c_str());
 		decimeters = atoi(stringTimeVector[2].c_str());
-		time = minutes * 60 + seconds + decimeters * 0.01;
+		time = ((double)minutes * 60.0) + (double)seconds + ((double)decimeters * 0.01);
 		return time;
 	}
 	long convertToMs(double seconds)

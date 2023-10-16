@@ -18,7 +18,7 @@ namespace kotonoha
 		while (mapper->control->outCode == 0)
 		{
 			// Check is a prompt is pressed
-			size_t var = prompt0.detectTouch(&mapper->root->event);
+			size_t var = prompt0.detectTouch(mapper->root->event);
 			var != 0 ? mapper->root->log0->appendLog("(Ui) - Touch detected " + std::to_string(var)) : (void)0;
 			// Draw UI
 			if (mapper->control->display[3])

@@ -28,8 +28,6 @@ namespace kotonohaData
 		bool hiddenSub = false;
 		bool hiddenVideo = false;
 		bool hiddenImage = false;
-		// Graph parms
-		size_t parms[10];
 		// The below var is use to set if game is init by cmd ( -f ./path/to/file)
 		bool isCmd = false;
 	};
@@ -98,7 +96,7 @@ namespace kotonohaData
 		void* text0 = NULL;
 		void* question0 = NULL;
 		Mix_Chunk* soundFe0 = NULL;
-		SDL_Event event;
+		SDL_Event* event = NULL;
 		ImGuiIO* io = NULL;
 	};
 	// AcessMapper is a struct to manager all events that can be happening in the game runtime
