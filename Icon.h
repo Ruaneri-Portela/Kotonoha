@@ -1,9 +1,9 @@
 /* GIMP RGBA C-Source image dump (Icon.h) */
 static const struct {
-  Uint32  	 width;
-  Uint32  	 height;
-  Uint32  	 bytes_per_pixel; /* 2:RGB16, 3:RGB, 4:RGBA */
-  Uint8 	 pixel_data[64 * 64 * 4 + 1];
+	Uint32  	 width;
+	Uint32  	 height;
+	Uint32  	 bytes_per_pixel; /* 2:RGB16, 3:RGB, 4:RGBA */
+	Uint8 	 pixel_data[64 * 64 * 4 + 1];
 } icon = {
   64, 64, 4,
   "\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000"
