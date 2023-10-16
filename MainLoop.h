@@ -54,8 +54,8 @@ namespace kotonoha
                 {
                     SDL_SetRenderTarget(rendererEntry, NULL);
                     SDL_RenderPresent(rendererEntry);
-                    controlData->display[4] = false;
                     controlData->display[0] = true;
+                    controlData->display[4] = false;
                 }
             }
             // Wait threads

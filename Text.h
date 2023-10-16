@@ -66,11 +66,9 @@ namespace kotonoha
         strcpy(str_c, subSs.c_str());
         ass_process_data(track, str_c, (int)subSs.length() + 1);
         // Start
-        kotonohaTime::delay(1000);
         importedTo->root->log0->appendLog("(Text) - Start");
         SDL_Texture *texture = NULL;
         ASS_Image *img = NULL;
-        kotonohaTime::delay(1000);
         while (importedTo->control->outCode == 0)
         {
             if (importedTo->control->display[2])
@@ -83,6 +81,8 @@ namespace kotonoha
                 // This for loop send all tracks to display
                 for (; img != nullptr; img = img->next)
                 {
+                    if (importedTo->control->hiddenSub)
+                        goto END;
                     SDL_Rect dst = {img->dst_x, img->dst_y, img->w, img->h};
                     texture = SDL_CreateTexture(importedTo->root->renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STREAMING, img->w, img->h);
                     SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
@@ -102,13 +102,14 @@ namespace kotonoha
                         img->bitmap += img->stride;
                     }
                     SDL_UnlockTexture(texture);
-                    !importedTo->control->hiddenSub ? SDL_RenderCopy(importedTo->root->renderer, texture, NULL, &dst) : 0;
+                    SDL_RenderCopy(importedTo->root->renderer, texture, NULL, &dst);
                     SDL_DestroyTexture(texture);
                 }
                 // End frame sub draw
                 delete img;
-                importedTo->control->display[2] = false;
+            END:
                 importedTo->control->display[3] = true;
+                importedTo->control->display[2] = false;
             }
         };
         // End text engine

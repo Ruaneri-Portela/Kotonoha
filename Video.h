@@ -98,16 +98,16 @@ namespace kotonoha
                                         pTime = importedTo->control->timer0.pushTime() - sTime;
                                         if (importedTo->control->display[1] == true && importedTo->control->timer0.paused)
                                         {
-                                            importedTo->control->display[1] = false;
                                             importedTo->control->display[2] = true;
+                                            importedTo->control->display[1] = false;
                                         }
                                     }
                                     SDL_RenderCopy(importedTo->root->renderer, texture, NULL, &square);
                                     SDL_DestroyTexture(texture);
                                     sTime = importedTo->control->timer0.pushTime();
                                     pTime = 0.0;
-                                    importedTo->control->display[1] = false;
                                     importedTo->control->display[2] = true;
+                                    importedTo->control->display[1] = false;
                                 }
                                 av_packet_unref(&packet);
                             }
@@ -121,8 +121,8 @@ namespace kotonoha
                         }
                     }
                 }
-                importedTo->control->display[1] = false;
                 importedTo->control->display[2] = true;
+                importedTo->control->display[1] = false;
                 importedTo->video.size() == 0 &&!importedTo->control->videoEnd ? importedTo->control->videoEnd = true : 0;
             }
         }

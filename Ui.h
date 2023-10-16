@@ -106,8 +106,8 @@ namespace kotonoha
                 SDL_RenderSetScale(mapper->root->renderer, mapper->root->io->DisplayFramebufferScale.x, mapper->root->io->DisplayFramebufferScale.y);
                 ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData());
                 // Pass comand to next trigger
-                mapper->control->display[3] = false;
                 mapper->control->display[4] = true;
+                mapper->control->display[3] = false;
             }
         }
         screenTexture != NULL ? SDL_DestroyTexture(screenTexture) : (void)0;

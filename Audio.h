@@ -57,7 +57,6 @@ namespace kotonoha
                     // If is time to play, play audio on specific mix channel
                     else if (importedTo->audio[i].play < timePass && !importedTo->audio[i].played)
                     {
-                        kotonohaTime::delay(5);
                         importedTo->root->log0->appendLog("(Audio) - Playing " + importedTo->audio[i].path);
                         Mix_PlayChannel(importedTo->audio[i].channel, importedTo->audio[i].sound, 0);
                         importedTo->audio[i].played = true;

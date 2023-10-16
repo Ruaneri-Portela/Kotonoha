@@ -26,7 +26,7 @@ namespace kotonoha
         int h = 0, w = 0;
         int bH = 0, bW = 0;
         std::vector<kotonohaData::questionData>::size_type questionsSize = -1;
-
+        size_t returnValue = 0;
     public:
         kotonohaData::acessMapper *mapper = NULL;
         int init()
@@ -84,7 +84,7 @@ namespace kotonoha
         };
         size_t detectTouch(SDL_Event *event)
         {
-            size_t returnValue = 0;
+            returnValue = 0;
             if (event->type == SDL_MOUSEBUTTONDOWN && !mapper->question.empty())
             {
                 if (event->button.button == SDL_BUTTON_LEFT)

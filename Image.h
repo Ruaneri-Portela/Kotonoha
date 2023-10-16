@@ -71,8 +71,8 @@ namespace kotonoha
                         }
                     }
                 }
-                importedTo->control->display[0] = false;
                 importedTo->control->display[1] = true;
+                importedTo->control->display[0] = false;
                 // If not have no more images
                 importedTo->image.size() == 0 &&!importedTo->control->imageEnd ? importedTo->control->imageEnd = true : 0;
             }
