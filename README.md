@@ -46,11 +46,10 @@ Fist for all, create Dep folder in the root of the project. This folder will be 
 
 In Dep clone IMGui, use comando below:
 
-    ```bash
+    bash
     mkdir Dep
     cd Dep
     git clone https://github.com/ocornut/imgui.git
-    ```
 
 ### Windows MSVC
 
@@ -88,7 +87,3 @@ This project is open-source and is licensed under the [MIT License](LICENSE.md).
 Feel free to contact us if you have any questions or need assistance.
 
 Happy novel creation!
-
-[GitHub Repository](https://github.com/Ruaneri-Portela/Kotonoha)
-
-![Kotonoha Novel Engine](https://github.com/Ruaneri-Portela/Kotonoha/blob/378c55fe9ea7277847b54267e8046a66357c9b21/Kotonoha.gif)
