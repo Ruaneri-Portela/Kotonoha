@@ -112,9 +112,8 @@ namespace kotonoha
             }
             else {
                 // Send to comander Generator
-                comanderControler(vector, import);
+                return comanderControler(vector, import);
             }
         }
-        return 0;
     }
 }
