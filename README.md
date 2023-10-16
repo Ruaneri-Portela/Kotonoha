@@ -256,7 +256,7 @@ Para instalar o MSYS2, baixe-o em:
 
 ### Linux
 
-Eu poderia listar como fazer download no ubuntu, debian mas, não, se você é usuário linux presumo que não seja preguiçoso, baixe g++ e as dependências abaixo! Escusado será dizer que você já deve ter clonado o IMGUI em .Dep? Procure-os no modo dev no seu gerenciador de pacotes favorito!
+Eu poderia listar como fazer download no ubuntu, debian mas, não, se você é usuário linux presumo que não seja preguiçoso, baixe g++ e as dependências abaixo! Nem preciso dizer que você já deve ter clonado o IMGUI em .Dep? Procure-os no modo dev no seu gerenciador de pacotes favorito!
 
 Todo o processo abaixo deve ser feito DENTRO da pasta Kotonoha criada na clonagem
 
