@@ -69,6 +69,7 @@ namespace kotonoha
         importedTo->root->log0->appendLog("(Text) - Start");
         SDL_Texture *texture = NULL;
         ASS_Image *img = NULL;
+        std::uint32_t* pixels = NULL;
         while (importedTo->control->outCode == 0)
         {
             if (importedTo->control->display[2])
@@ -86,7 +87,6 @@ namespace kotonoha
                     SDL_Rect dst = {img->dst_x, img->dst_y, img->w, img->h};
                     texture = SDL_CreateTexture(importedTo->root->renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STREAMING, img->w, img->h);
                     SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
-                    std::uint32_t *pixels = NULL;
                     int pitch = 0;
                     SDL_LockTexture(texture, NULL, reinterpret_cast<void **>(&pixels), &pitch);
                     // Push color, in aplha is set to 255 (opacque)
@@ -106,6 +106,8 @@ namespace kotonoha
                     SDL_DestroyTexture(texture);
                 }
                 // End frame sub draw
+                pixels != NULL ? delete pixels: (void)0;
+                pixels = NULL;
                 delete img;
             END:
                 importedTo->control->display[3] = true;

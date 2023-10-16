@@ -60,6 +60,7 @@ namespace kotonoha
                             SDL_GetWindowSize(importedTo->root->window, &w, &h);
                             SDL_Rect square = {0, 0, w, h};
                             SDL_RenderCopy(importedTo->root->renderer, importedTo->image[i].texture, NULL, &square);
+                            break;
                         }
                         // Delete image texture from ram
                         if (importedTo->image[i].end < timePass)
@@ -67,7 +68,6 @@ namespace kotonoha
                             SDL_DestroyTexture(importedTo->image[i].texture);
                             importedTo->image.erase(importedTo->image.begin() + i);
                             importedTo->root->log0->appendLog("(Image) - Drop out... " + importedTo->audio[i].path);
-                            break;
                         }
                     }
                 }
