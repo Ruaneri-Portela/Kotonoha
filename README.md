@@ -285,6 +285,6 @@ Todo o processo abaixo deve ser feito DENTRO da pasta Kotonoha criada na clonage
 
 ## Licença
 
-Este projeto é de código aberto e licenciado sob a [Licença MIT] (LICENSE.md).
+Este projeto é de código aberto e licenciado sob a [MIT License](LICENSE.md).
 
 Sinta-se à vontade para entrar em contato conosco se tiver alguma dúvida ou precisar de ajuda.
