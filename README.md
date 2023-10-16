@@ -140,6 +140,13 @@ The entire process below must be done INSIDE the Kotonoha folder created when cl
 
            make run
 
+## License
+
+This project is open-source and is licensed under the [MIT License](LICENSE.md).
+
+Feel free to contact us if you have any questions or need assistance.
+
+
 ## Português
 
 Este projeto está em fase alfa, muitas funções ainda estão sendo implementadas ou apresentam defeitos
@@ -270,20 +277,14 @@ Todo o processo abaixo deve ser feito DENTRO da pasta Kotonoha criada na clonage
       
      - Compilar
       
-           make
+            make
       
       - Executar
 
-            make correr
+            make build
 
 ## Licença
 
 Este projeto é de código aberto e licenciado sob a [Licença MIT] (LICENSE.md).
 
 Sinta-se à vontade para entrar em contato conosco se tiver alguma dúvida ou precisar de ajuda.
-
-## License
-
-This project is open-source and is licensed under the [MIT License](LICENSE.md).
-
-Feel free to contact us if you have any questions or need assistance.
