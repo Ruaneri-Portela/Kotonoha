@@ -5,6 +5,14 @@
       <Configuration>Debug</Configuration>
       <Platform>Win32</Platform>
     </ProjectConfiguration>
+    <ProjectConfiguration Include="MSYS2|Win32">
+      <Configuration>MSYS2</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="MSYS2|x64">
+      <Configuration>MSYS2</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
     <ProjectConfiguration Include="Release|Win32">
       <Configuration>Release</Configuration>
       <Platform>Win32</Platform>
@@ -51,6 +59,12 @@
     <PlatformToolset>v143</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='MSYS2|Win32'">
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='MSYS2|x64'">
+    <PlatformToolset>v143</PlatformToolset>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
@@ -137,6 +151,16 @@
       <AdditionalLibraryDirectories>.\Dep\SDL2-2.28.4\lib\x64;.\Dep\SDL2_ttf-2.20.2\lib\x64;.\Dep\SDL2_mixer-2.6.3\lib\x64;.\Dep\SDL2_image-2.6.3\lib\x64;.\Dep\libass_0.17.1-1_msvc17\lib\x64;.\Dep\libffmpeg_6.1.r112164_msvc17_x64\lib\x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>$(CoreLibraryDependencies);%(AdditionalDependencies);SDL2.lib;SDL2main.lib;SDL2_ttf.lib;SDL2_mixer.lib;SDL2_image.lib;ass.lib;libass.lib;avformat.lib;avcodec.lib;avutil.lib</AdditionalDependencies>
     </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='MSYS2|Win32'">
+    <CustomBuildStep>
+      <Command>make build</Command>
+    </CustomBuildStep>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='MSYS2|x64'">
+    <CustomBuildStep>
+      <Command>make build</Command>
+    </CustomBuildStep>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Dep\imgui\backends\imgui_impl_sdl2.cpp" />

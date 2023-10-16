@@ -3,7 +3,7 @@ namespace kotonoha
 	class loop
 	{
 	public:
-		int game(SDL_Window* windowEntry, SDL_Renderer* rendererEntry, std::string path, kotonohaData::configsData fileConfigs, kotonoha::logger* log0, ImGuiIO* io)
+		int game(SDL_Window* windowEntry, SDL_Renderer* rendererEntry, std::string path, kotonohaData::configsData fileConfigs, kotonoha::logger* log0, ImGuiIO* io, bool isCmd)
 		{
 			// Create data structure
 			kotonohaData::rootData* rootData = new kotonohaData::rootData;
@@ -36,11 +36,14 @@ namespace kotonoha
 			std::thread thread3(kotonoha::playVideo, global);
 			std::thread thread4(kotonoha::playAudio, global);
 			std::thread thread5(kotonoha::playText, global);
-			rootData->log0->appendLog("(ML) - Entry point to while");
+			// Set vsync and antroscopic filter
 			bool vsync = true;
 			int vsyncStatus = vsync;
 			SDL_RenderSetVSync(rendererEntry, vsyncStatus);
 			SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "2");
+			// Import value isCmd to data struct
+			controlData->isCmd = isCmd;
+			rootData->log0->appendLog("(ML) - Entry point to while");
 			while (controlData->outCode == 0)
 			{
 				// Event reciver
@@ -96,6 +99,7 @@ namespace kotonoha
 			delete global;
 			delete controlData;
 			delete rootData;
+			isCmd ? returnCode = 1 : 0;
 			return returnCode;
 		};
 	};

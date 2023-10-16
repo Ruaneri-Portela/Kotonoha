@@ -7,7 +7,7 @@ namespace kotonoha
 		bool debugPromptEnabled = false;
 		kotonohaData::configsData configs;
 	} menuReturn;
-	kotonohaData::configsData fileConfig(int parm, kotonohaData::configsData configs = { false, "", "", "", "" })
+	kotonohaData::configsData fileConfig(int parm = 0, kotonohaData::configsData configs = { false, "", "", "", "" })
 	{
 		std::ifstream dataR("kotonoha.ckot");
 		if (!dataR.is_open() or parm == 1)
