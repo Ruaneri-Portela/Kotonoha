@@ -107,7 +107,6 @@ namespace kotonoha
 					SDL_DestroyTexture(texture);
 				}
 				// End frame sub draw
-				pixels = NULL;
 				delete img;
 			END:
 				importedTo->control->display[3] = true;
