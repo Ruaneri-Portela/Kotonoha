@@ -25,6 +25,7 @@ static void setIcon(SDL_Window* window)
 // This function below is a entry point
 int main(int argc, char *args[])
 {
+    
     kotonoha::set game;
     kotonoha::menuReturn opts;
     kotonoha::logger log;
@@ -63,16 +64,13 @@ int main(int argc, char *args[])
         switch (opts.returnCode)
         {
         case 1:
-            // Exit
             break;
         case 2:
-            // Started Game
             behaviour = new kotonoha::loop();
             opts.returnCode = behaviour->game(game.window, game.renderer, opts.filenameString, opts.configs, &log,game.io);
             delete behaviour;
             break;
         default:
-            // Menu
             opts = kotonoha::menu(game.window, game.renderer, opts.returnCode, &log,game.io);
             break;
         };

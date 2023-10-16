@@ -68,7 +68,6 @@ namespace kotonoha
         // Start
         importedTo->root->log0->appendLog("(Text) - Start");
         SDL_Texture *texture = NULL;
-        SDL_Rect dst = {0,0,0,0}
         ASS_Image *img = NULL;
         while (importedTo->control->outCode == 0)
         {
@@ -84,8 +83,7 @@ namespace kotonoha
                 {
                     if (importedTo->control->hiddenSub)
                         goto END;
-                    texture != NULL ? SDL_DestroyTexture(texture): (void)0;
-                    dst = {img->dst_x, img->dst_y, img->w, img->h};
+                    SDL_Rect dst = {img->dst_x, img->dst_y, img->w, img->h};
                     texture = SDL_CreateTexture(importedTo->root->renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STREAMING, img->w, img->h);
                     SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
                     std::uint32_t *pixels = NULL;
@@ -105,6 +103,7 @@ namespace kotonoha
                     }
                     SDL_UnlockTexture(texture);
                     SDL_RenderCopy(importedTo->root->renderer, texture, NULL, &dst);
+                    SDL_DestroyTexture(texture);
                 }
                 // End frame sub draw
                 delete img;
