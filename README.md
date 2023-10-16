@@ -174,7 +174,7 @@ Para usar o Kotonoha Novel Engine, siga estas etapas:
 
 1. Clone o repositório:
 
-         clone do git https://github.com/Ruaneri-Portela/Kotonoha.git
+         git clone https://github.com/Ruaneri-Portela/Kotonoha.git
 
 2. Construa o projeto de acordo com os requisitos da sua plataforma. Veja abaixo para mais informações.
 
@@ -186,9 +186,9 @@ Primeiro de tudo, crie a pasta Dep na raiz do projeto. Esta pasta será usada pa
 
 No Dep clone IMGui, use o comando abaixo:
 
-     mkdir Dep.
-     CD Dep.
-     clone do git https://github.com/ocornut/imgui.git
+     mkdir Dep
+     cd ./Dep
+     git clone https://github.com/ocornut/imgui.git
 
 ### Windows MSVC
 
@@ -221,7 +221,7 @@ Para construção no Windows, o tutorial usará MSYS2 no ambiente UCRT64
 
 Para instalar o MSYS2, baixe-o em:
 
-     winget instalar MSYS2.MSYS2
+     winget install MSYS2.MSYS2
 
 1. Dependências
 
@@ -231,7 +231,7 @@ Para instalar o MSYS2, baixe-o em:
 
      Com a compilação C++ configurada corretamente, baixe as dependências
 
-         pacman -S mingw-w64-x86_64-SDL2 mingw-w64-ucrt-x86_64-SDL_image mingw-w64-ucrt-x86_64-SDL2_ttf mingw-w64-ucrt-x86_64-SDL2_mixer mingw-w64-x86_64-ffmpeg mingw-w64- x86_64- libass
+         pacman -S mingw-w64-x86_64-SDL2 mingw-w64-ucrt-x86_64-SDL_image mingw-w64-ucrt-x86_64-SDL2_ttf mingw-w64-ucrt-x86_64-SDL2_mixer mingw-w64-x86_64-ffmpeg mingw-w64-x86_64-libass 
 
 2. Construir
 
@@ -241,11 +241,11 @@ Para instalar o MSYS2, baixe-o em:
       
      - Compilar
       
-           fazer
+           make
       
       - Executar
 
-            fazer correr
+            make build
 
 ### Linux
 
@@ -255,12 +255,12 @@ Todo o processo abaixo deve ser feito DENTRO da pasta Kotonoha criada na clonage
 
 1. Dependências
 
-     -SDL2
+     - SDL2
      - SDL2_imagem
      - SDL2_mixer
-     -SDL2_ttf
-     -FFMPEG
-     -libAss
+     - SDL2_ttf
+     - FFMPEG
+     - libAss
 
 2. Construir
 
@@ -270,11 +270,11 @@ Todo o processo abaixo deve ser feito DENTRO da pasta Kotonoha criada na clonage
       
      - Compilar
       
-           fazer
+           make
       
       - Executar
 
-            fazer correr
+            make correr
 
 ## Licença
 
