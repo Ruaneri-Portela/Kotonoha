@@ -29,6 +29,7 @@ namespace kotonoha
         SDL_Texture *texture = NULL;
         double timePass = 0.0;
         int h = 0, w = 0;
+        SDL_Rect square = { 0,0,0,0 };
         while (importedTo->control->outCode == 0)
         {
             if (importedTo->control->display[1])
@@ -86,7 +87,7 @@ namespace kotonoha
                                     texture = SDL_CreateTexture(importedTo->root->renderer, SDL_PIXELFORMAT_YV12, SDL_TEXTUREACCESS_STREAMING, frame->width, frame->height);
                                     SDL_UpdateYUVTexture(texture, NULL, frame->data[0], frame->linesize[0], frame->data[1], frame->linesize[1], frame->data[2], frame->linesize[2]);
                                     SDL_GetWindowSize(importedTo->root->window, &w, &h);
-                                    SDL_Rect square = {0, 0, w, h};
+                                    square = {0, 0, w, h};
                                     //Wait other in display
                                     while (!importedTo->control->display[1] && importedTo->control->outCode == 0)
                                     {
