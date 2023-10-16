@@ -104,11 +104,11 @@ namespace kotonoha
 										}
 									}
 									importedTo->control->hiddenVideo ? 0 : SDL_RenderCopy(importedTo->root->renderer, texture, NULL, &square);
+									importedTo->control->display[2] = true;
+									importedTo->control->display[1] = false;
 									SDL_DestroyTexture(texture);
 									sTime = importedTo->control->timer0.pushTime();
 									pTime = 0.0;
-									importedTo->control->display[2] = true;
-									importedTo->control->display[1] = false;
 								}
 								av_packet_unref(&packet);
 							}
