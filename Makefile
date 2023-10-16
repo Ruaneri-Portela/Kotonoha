@@ -1,8 +1,16 @@
 # Compiler
 CXX = g++
 
+# Compiler flags
+CXXFLAGS = -I$(IMGUI_DIR) -I$(IMGUI_DIR)/backends
+CXXFLAGS += -g -Wall -Wformat 
+
+# Libraries
+LIBS = -static-libgcc -static-libstdc++ -Wl,-Bstatic -lstdc++ -lpthread -Wl,-Bdynamic -lSDL2_mixer -lSDL2_image -lSDL2_ttf -lass -lavformat -lavcodec -lavutil
+
 # Executable name
 EXE = Kotonoha
+EXT =
 
 # Directory for imgui
 IMGUI_DIR = ./Dep/imgui
@@ -12,21 +20,13 @@ SRC = ./MakeBuilds/
 
 # Source files
 SOURCES = Kotonoha.cpp
-SOURCES += $(IMGUI_DIR)/imgui.cpp $(IMGUI_DIR)/imgui_demo.cpp $(IMGUI_DIR)/imgui_draw.cpp $(IMGUI_DIR)/imgui_tables.cpp $(IMGUI_DIR)/imgui_widgets.cpp
-SOURCES += $(IMGUI_DIR)/backends/imgui_impl_sdl2.cpp $(IMGUI_DIR)/backends/imgui_impl_sdlrenderer2.cpp
+SOURCES += $(IMGUI_DIR)/imgui.cpp $(IMGUI_DIR)/imgui_demo.cpp $(IMGUI_DIR)/imgui_draw.cpp $(IMGUI_DIR)/imgui_tables.cpp $(IMGUI_DIR)/imgui_widgets.cpp $(IMGUI_DIR)/backends/imgui_impl_sdl2.cpp $(IMGUI_DIR)/backends/imgui_impl_sdlrenderer2.cpp
 
 # Object files
 OBJS = $(addprefix ./MakeBuilds/, $(addsuffix .o, $(basename $(notdir $(SOURCES)))))
 
-# Compiler flags
-CXXFLAGS = -I$(IMGUI_DIR) -I$(IMGUI_DIR)/backends
-CXXFLAGS += -g -Wall -Wformat 
-
-# Libraries
-LIBS = -static-libgcc -static-libstdc++ -Wl,-Bstatic -lstdc++ -lpthread -Wl,-Bdynamic -lSDL2_mixer -lSDL2_image -lSDL2_ttf -lass -lavformat -lavcodec -lavutil
-
-UNAME_S := $(shell uname -s)
 # Check if the OS is Windows
+UNAME_S := $(shell uname -s)
 ifeq ($(UNAME_S), Linux)
 	ECHO_MESSAGE = "Linux"
 	LIBS += `sdl2-config --libs`
@@ -38,6 +38,7 @@ ifeq ($(OS), Windows_NT)
 	LIBS += `pkg-config --static --libs sdl2`
 	CXXFLAGS += `pkg-config --cflags sdl2`
 	CFLAGS = $(CXXFLAGS)
+        EXT += .exe
 endif
 
 # Compile source files
@@ -54,7 +55,7 @@ endif
 
 # Build executable
 all: $(EXE)
-	@echo Build complete for $(a) in $(ECHO_MESSAGE)
+	@echo Build complete for Kotonoha in $(ECHO_MESSAGE)
 
 $(EXE): $(OBJS)
 	$(CXX) -o $(SRC)$@ $^ $(CXXFLAGS) $(LIBS)
@@ -62,10 +63,3 @@ $(EXE): $(OBJS)
 # Clean build files
 clean:
 	rm -f ./MakeBuilds/*
-
-# Documentation
-# This Makefile compiles C++ source files and imgui library files to create an executable.
-# The executable name is specified by the user as a command line argument.
-# The Makefile also includes flags for the SDL2 library and ffmpeg libraries.
-# The Makefile checks if the OS is Windows and includes additional flags for the SDL2 library if it is.
-# The Makefile also includes a clean target to remove build files.

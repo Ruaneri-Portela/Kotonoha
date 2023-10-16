@@ -32,7 +32,7 @@ namespace kotonoha
 		importedTo->root->log0->appendLog("(Audio) - " + std::to_string(importedTo->audio.size()) + " Audios to play");
 		double timePass = 0.0;
 		// Wait fist frame is ready
-		while (importedTo->control->display[4] == false) {
+		while (importedTo->control->display[4] == false && importedTo->control->outCode == 0) {
 			continue;
 		}
 		while (importedTo->control->outCode == 0)

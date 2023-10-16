@@ -30,6 +30,8 @@ namespace kotonohaData
 		bool hiddenImage = false;
 		// Graph parms
 		size_t parms[10];
+		// The below var is use to set if game is init by cmd ( -f ./path/to/file)
+		bool isCmd = false;
 	};
 	// Auto explicative
 	struct audioData
