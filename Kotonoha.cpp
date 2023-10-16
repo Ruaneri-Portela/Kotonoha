@@ -54,7 +54,7 @@ int main(int argc, char* args[])
 	char buffer[80];
 	std::strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", std::localtime(&time));
 	std::string st(buffer);
-	log.appendLog("----------------------------\nStarted application, Kotonoha Project ver." + kotonoha::version + program.str() + "\nDate: " + st + "\n----------------------------\n");
+	log.appendLog("----------------------------\nStarted application, Kotonoha Project ver." + kotonoha::version + program.str() + "Date: " + st + "\n----------------------------");
 	// Laucher Env
 	game.laucher();
 	// Select game comportament, if game is end, to menu or play scene
