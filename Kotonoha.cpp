@@ -25,7 +25,6 @@ static void setIcon(SDL_Window* window)
 // This function below is a entry point
 int main(int argc, char *args[])
 {
-    
     kotonoha::set game;
     kotonoha::menuReturn opts;
     kotonoha::logger log;
