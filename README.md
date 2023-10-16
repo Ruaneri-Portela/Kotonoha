@@ -241,7 +241,7 @@ Para instalar o MSYS2, baixe-o em:
       
      - Compilar
       
-           make
+            make
       
       - Executar
 
