@@ -60,6 +60,7 @@ int main(int argc, char* args[])
 	log.appendLog("----------------------------\nStarted application, Kotonoha Project ver." + kotonoha::version + program.str() + "Date: " + st + "\n----------------------------");
 	// Laucher Env
 	game.laucher();
+	SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "2");
 	// Select game comportament, if game is end, to menu or play scene
 	while (opts.returnCode != 1)
 	{
