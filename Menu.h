@@ -55,6 +55,7 @@ namespace kotonoha
 		SDL_Event event;
 		while (object.returnCode == 0)
 		{
+			kotonohaTime::delay(kotonoha::maxtps);
 			while (SDL_PollEvent(&event))
 			{
 				ImGui_ImplSDL2_ProcessEvent(&event);

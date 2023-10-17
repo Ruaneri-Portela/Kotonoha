@@ -17,6 +17,7 @@ namespace kotonoha
 		SDL_Texture* screenTexture = NULL;
 		while (mapper->control->outCode == 0)
 		{
+			kotonohaTime::delay(kotonoha::maxtps);
 			// Check is a prompt is pressed
 			size_t var = prompt0.detectTouch(mapper->root->event);
 			var != 0 ? mapper->root->log0->appendLog("(Ui) - Touch detected " + std::to_string(var)) : (void)0;

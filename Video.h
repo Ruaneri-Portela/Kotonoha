@@ -35,6 +35,7 @@ namespace kotonoha
 		AVFrame* frame = av_frame_alloc();
 		while (importedTo->control->outCode == 0)
 		{
+			kotonohaTime::delay(kotonoha::maxtps);
 			if (importedTo->control->display[1])
 			{
 				if (!importedTo->control->videoEnd && !importedTo->control->nonVideo && !(importedTo->video.size() == 0))

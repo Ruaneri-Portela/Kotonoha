@@ -14,12 +14,14 @@ namespace kotonoha
 				ss << filenameString;
 				ss << exportTo->root->fileConfigs->audioExtension;
 				std::string filenameStr = ss.str();
+
 				// Ceate new audio object
 				kotonohaData::audioData audioTemporary;
 				audioTemporary.path = filenameStr;
 				audioTemporary.play = kotonohaTime::convertToTime(startTime);
 				audioTemporary.end = kotonohaTime::convertToTime(endTime);
 				audioTemporary.channel = channel;
+
 				// Push to audio data array
 				exportTo->audio.push_back(audioTemporary);
 			}
@@ -37,6 +39,7 @@ namespace kotonoha
 		}
 		while (importedTo->control->outCode == 0)
 		{
+			kotonohaTime::delay(kotonoha::maxtps);
 			// Percurrent the audio array
 			if (!importedTo->control->audioEnd && !importedTo->control->nonAudio && !(importedTo->audio.size() == 0))
 			{

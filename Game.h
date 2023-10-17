@@ -68,10 +68,10 @@ namespace kotonoha
 	};
 	void helpMsg() {
 		std::cout << "Kotonoha Project ver." << kotonoha::version << std::endl;
-		std::cout << "Usage: Kotonoha.exe [options] [file]" << std::endl;
 		std::cout << "Options:" << std::endl;
-		std::cout << "  -v\t\t\tShow version" << std::endl;
-		std::cout << "  -h\t\t\tShow this help" << std::endl;
-		std::cout << "  -f\t\t\tOpen script in direct mode, need config is seted" << std::endl;
+		std::cout << "  -v\tShow version" << std::endl;
+		std::cout << "  -h\tShow this help" << std::endl;
+		std::cout << "  -f\t[file]\tOpen script in direct mode, need config is seted" << std::endl;
+		std::cout << "  -t\t[value]\tSet minimal delay per tick on threads" << std::endl;
 	};
 }
