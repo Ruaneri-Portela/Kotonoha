@@ -38,6 +38,7 @@ namespace kotonohaData
 	{
 		std::string path = "";
 		Mix_Chunk* sound = NULL;
+		Mix_Music* music = NULL;
 		double play = 0;
 		double end = 0;
 		bool played = false;

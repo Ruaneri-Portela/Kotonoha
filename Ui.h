@@ -48,6 +48,7 @@ namespace kotonoha
 						if (ImGui::Button("Unpause"))
 						{
 							Mix_Resume(-1);
+							Mix_ResumeMusic();
 							mapper->control->timer0.switchClock();
 							pauseTriggers = false;
 						}
@@ -65,6 +66,7 @@ namespace kotonoha
 							SDL_RenderPresent(mapper->root->renderer);
 							SDL_SetRenderTarget(mapper->root->renderer, NULL);
 							Mix_Pause(-1);
+							Mix_PauseMusic();
 							mapper->control->timer0.switchClock();
 							pauseTriggers = true;
 						}
@@ -75,6 +77,7 @@ namespace kotonoha
 						if (ImGui::Button("Unmute"))
 						{
 							Mix_MasterVolume(MIX_MAX_VOLUME);
+							Mix_VolumeMusic(MIX_MAX_VOLUME);
 							volumeTriggers = false;
 						};
 					}
@@ -83,6 +86,7 @@ namespace kotonoha
 						if (ImGui::Button("Mute"))
 						{
 							Mix_MasterVolume(0);
+							Mix_VolumeMusic(0);
 							volumeTriggers = true;
 						};
 					}

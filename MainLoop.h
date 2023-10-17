@@ -47,6 +47,7 @@ namespace kotonoha
 			rootData->event = new SDL_Event;
 			while (controlData->outCode == 0)
 			{
+				kotonohaTime::delay(kotonoha::maxtps/2);
 				// Event reciver
 				while (SDL_PollEvent(rootData->event))
 				{
@@ -92,6 +93,7 @@ namespace kotonoha
 			int returnCode = controlData->outCode;
 			rootData->log0->appendLog("(ML) - End");
 			// Free objects
+			delete rootData->event;
 			delete static_cast<kotonoha::audioObject*>(rootData->audio0);
 			delete static_cast<kotonoha::videoObject*>(rootData->video0);
 			delete static_cast<kotonoha::imageObject*>(rootData->image0);

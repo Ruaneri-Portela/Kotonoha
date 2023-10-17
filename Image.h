@@ -82,6 +82,12 @@ namespace kotonoha
 				importedTo->image.size() == 0 && !importedTo->control->imageEnd ? importedTo->control->imageEnd = true : 0;
 			}
 		}
+		// Free memory if have imagens loaders
+		if (importedTo->image.size() > 0) {
+			for (int i = 0; i < importedTo->image.size(); i++) {
+				importedTo->image[i].texture != NULL ? SDL_DestroyTexture(importedTo->image[i].texture) : (void)0;
+			};
+		}
 		importedTo->root->log0->appendLog("(Image) - End");
 		return 0;
 	}
