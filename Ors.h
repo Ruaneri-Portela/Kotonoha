@@ -44,7 +44,7 @@ namespace kotonoha
             }
             else if (strstr(comand, "PlayBgm") != NULL)
             {
-                audio0->push(array[cont][2], array[cont][1], array[cont][3], 2);
+                audio0->push(array[cont][2], array[cont][1], array[cont][3], -10);
                 import->root->log0->appendLog("(ORS) - " + comandString + " " + array[cont][2]);
                 import->control->nonAudio = false;
             }
