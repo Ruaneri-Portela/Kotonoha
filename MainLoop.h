@@ -36,11 +36,6 @@ namespace kotonoha
 			std::thread thread3(kotonoha::playVideo, global);
 			std::thread thread4(kotonoha::playAudio, global);
 			std::thread thread5(kotonoha::playText, global);
-			// Set vsync and antroscopic filter
-			bool vsync = true;
-			int vsyncStatus = vsync;
-			SDL_RenderSetVSync(rendererEntry, vsyncStatus);
-			SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "2");
 			// Import value isCmd to data struct
 			controlData->isCmd = isCmd;
 			rootData->log0->appendLog("(ML) - Entry point to while");
@@ -52,7 +47,7 @@ namespace kotonoha
 				while (SDL_PollEvent(rootData->event))
 				{
 					ImGui_ImplSDL2_ProcessEvent(rootData->event);
-					controlData->outCode = keyBinds0(rootData->event, windowEntry, 3, rendererEntry, &vsync, log0);
+					controlData->outCode = keyBinds0(rootData->event, windowEntry, 3);
 				}
 				// Render send
 				if (controlData->display[4])

@@ -49,17 +49,15 @@ namespace kotonoha
 			STRCPYFIX(soundFe0, object.configs.soundFe0);
 			STRCPYFIX(stylesPath, object.configs.stylesPath);
 		}
-		bool vsync = true;
-		int vsyncStatus = vsync;
-		SDL_RenderSetVSync(renderer, vsyncStatus);
-		SDL_Event event;
+		SDL_Event *event = new SDL_Event;
 		while (object.returnCode == 0)
 		{
+			
 			kotonohaTime::delay(kotonoha::maxtps);
-			while (SDL_PollEvent(&event))
+			while (SDL_PollEvent(event))
 			{
-				ImGui_ImplSDL2_ProcessEvent(&event);
-				object.returnCode = keyBinds0(&event, window, 1, renderer, &vsync, log0);
+				ImGui_ImplSDL2_ProcessEvent(event);
+				object.returnCode = keyBinds0(event, window, 1);
 			}
 			ImGui_ImplSDLRenderer2_NewFrame();
 			ImGui_ImplSDL2_NewFrame();
@@ -164,6 +162,7 @@ namespace kotonoha
 			ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData());
 			SDL_RenderPresent(renderer);
 		}
+		delete event;
 		log0->appendLog("(Menu) - Menu out");
 		return object;
 	}
