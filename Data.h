@@ -2,6 +2,8 @@
 namespace kotonoha
 {
 	const std::string version = "0.0.10 Alpha";
+	// kotonoha::maxtps is the maximum ticks per second per Thread. 0 make the cpu run at max speed, 8 is 120 TICKS per Second, is set FPS max to 120 too
+	int maxtps = 8; 
 }
 namespace kotonohaData
 {

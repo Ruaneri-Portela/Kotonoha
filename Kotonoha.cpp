@@ -23,6 +23,9 @@ int main(int argc, char* args[])
 				opts.filenameString = args[i + 1];
 				opts.configs = kotonoha::fileConfig();
 			}
+			else if (strcmp(args[i], "-t") == 0 && argc > i) {
+				kotonoha::maxtps = std::stoi(args[i + 1]);
+			}
 		}
 	}
 	// Init enviroment
