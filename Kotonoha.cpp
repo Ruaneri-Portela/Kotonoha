@@ -50,7 +50,7 @@ int main(int argc, char* args[])
 	std::string linkedVersion = linkedVersionStream.str();
 	program << std::endl << SDL_GetSystemRAM() << " RAM / " << SDL_GetCPUCount() << " CPU Cores / " << SDL_GetVideoDriver(0) << " / cSDLv:" << compiledVersion;
 	program << " lSDLv:" << linkedVersion << " / " << "Avcodc: " << avcodec_version() << " Avformat:" << avformat_version() << " Avutil:" << avutil_version();
-	program << " Ass: " << ass_library_version() << " ImGui:" << IMGUI_VERSION << std::endl << COMPILE << std::endl;
+	program << " Ass: " << ass_library_version() << " ImGui:" << IMGUI_VERSION << std::endl << COMPILE << std::endl << "TPS Time set to: " << kotonoha::maxtps << std::endl;
 	// Export version to log and time to start execution
 	std::chrono::system_clock::time_point now = std::chrono::system_clock::now();
 	std::time_t time = std::chrono::system_clock::to_time_t(now);
