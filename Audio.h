@@ -65,13 +65,21 @@ namespace kotonoha
 							Mix_PlayMusic(importedTo->audio[i].music, 0);
 						}
 						else {
-							importedTo->root->log0->appendLog("(Audio) - Playing " + importedTo->audio[i].path);
-							Mix_PlayChannel(importedTo->audio[i].channel, importedTo->audio[i].sound, 0);
+							bool isPlaying = false;
+							for (int j = importedTo->audio[i].channel; j < importedTo->audio[i].channel + 5; j++) {
+								if (Mix_Playing(j) == 0) {
+									importedTo->root->log0->appendLog("(Audio) - Playing " + importedTo->audio[i].path + " on channel " + std::to_string(j));
+									Mix_PlayChannel(importedTo->audio[i].channel, importedTo->audio[i].sound, 0);
+									isPlaying = true;
+									break;
+								}
+							}
+							!isPlaying ? importedTo->root->log0->appendLog("(Audio) - No channel avaliable " + importedTo->audio[i].path) : (void)0;
 						}
 						importedTo->audio[i].played = true;
 					}
 					// Destroy audio from RAM if time is end
-					if (importedTo->audio[i].end < timePass)
+					if (importedTo->audio[i].end+0.5 < timePass)
 					{
 						importedTo->audio[i].music == NULL ? Mix_FreeChunk(importedTo->audio[i].sound) : Mix_FreeMusic(importedTo->audio[i].music);
 						importedTo->root->log0->appendLog("(Audio) - Drop out... " + importedTo->audio[i].path);

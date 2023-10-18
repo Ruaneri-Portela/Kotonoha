@@ -39,6 +39,7 @@ namespace kotonoha
 			renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
 			Mix_Init(MIX_INIT_OGG);
 			Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048);
+			Mix_AllocateChannels(11);
 			TTF_Init();
 			SDL_SetHint(SDL_HINT_IME_SHOW_UI, "1");
 			ImGui::SetCurrentContext(NULL);
