@@ -64,7 +64,6 @@ namespace kotonoha
 							SDL_GetWindowSize(importedTo->root->window, &w, &h);
 							square = { 0, 0, w, h };
 							SDL_RenderCopy(importedTo->root->renderer, importedTo->image[i].texture, NULL, &square);
-							break;
 						}
 						// Delete image texture from ram
 						if (importedTo->image[i].end < timePass)
@@ -84,7 +83,7 @@ namespace kotonoha
 		}
 		// Free memory if have imagens loaders
 		if (importedTo->image.size() > 0) {
-			for (int i = 0; i < importedTo->image.size(); i++) {
+			for (size_t i = 0; i < importedTo->image.size(); i++) {
 				importedTo->image[i].texture != NULL ? SDL_DestroyTexture(importedTo->image[i].texture) : (void)0;
 			};
 		}

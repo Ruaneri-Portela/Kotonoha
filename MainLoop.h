@@ -40,12 +40,20 @@ namespace kotonoha
 			controlData->isCmd = isCmd;
 			rootData->log0->appendLog("(ML) - Entry point to while");
 			rootData->event = new SDL_Event;
+			kotonoha::prompt* local = NULL;
 			while (controlData->outCode == 0)
 			{
-				kotonohaTime::delay(kotonoha::maxtps/2);
+				kotonohaTime::delay(kotonoha::maxtps / 2);
 				// Event reciver
 				while (SDL_PollEvent(rootData->event))
 				{
+					if (local != NULL) {
+						size_t var = local->detectTouch(rootData->event);
+						var != 0 ? log0->appendLog("(Ui) - Touch detected " + std::to_string(var)) : (void)0;
+					}
+					else {
+						rootData->prompt0 != NULL ? local = static_cast<kotonoha::prompt*>(rootData->prompt0) : NULL;
+					}
 					ImGui_ImplSDL2_ProcessEvent(rootData->event);
 					controlData->outCode = keyBinds0(rootData->event, windowEntry, 3);
 				}

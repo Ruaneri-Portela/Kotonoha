@@ -79,7 +79,7 @@ namespace kotonoha
 						importedTo->audio[i].played = true;
 					}
 					// Destroy audio from RAM if time is end
-					if (importedTo->audio[i].end+0.5 < timePass)
+					if (importedTo->audio[i].end < timePass)
 					{
 						importedTo->audio[i].music == NULL ? Mix_FreeChunk(importedTo->audio[i].sound) : Mix_FreeMusic(importedTo->audio[i].music);
 						importedTo->root->log0->appendLog("(Audio) - Drop out... " + importedTo->audio[i].path);
@@ -92,7 +92,7 @@ namespace kotonoha
 		};
 		// Free memory if have audio loaders
 		if (importedTo->audio.size() > 0) {
-			for (int i = 0; i < importedTo->audio.size(); i++) {
+			for (size_t i = 0; i < importedTo->audio.size(); i++) {
 				importedTo->audio[i].sound != NULL ? Mix_FreeChunk(importedTo->audio[i].sound) : (void)0;
 				importedTo->audio[i].music != NULL ? Mix_FreeMusic(importedTo->audio[i].music) : (void)0;
 			};
