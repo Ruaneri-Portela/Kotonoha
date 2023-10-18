@@ -44,6 +44,7 @@ namespace kotonoha
 					{
 						questionsSize = mapper->question[i].prompts.size();
 						SDL_GetWindowSize(window, &w, &h);
+						// Detect question to formating on screen
 						switch (questionsSize)
 						{
 						case 1:
@@ -67,6 +68,7 @@ namespace kotonoha
 						default:
 							break;
 						}
+						// Draw text textures
 						for (std::vector<kotonohaData::questionData>::size_type j = 0; j <= questionsSize - 1; j++)
 						{
 							SDL_Surface* surface = TTF_RenderUTF8_Blended(font, mapper->question[i].prompts[j].c_str(), color);
@@ -77,7 +79,10 @@ namespace kotonoha
 							SDL_FreeSurface(surface);
 							SDL_DestroyTexture(texture);
 						}
+						// Create processing system...
+						//????
 					}
+
 				}
 			}
 			return 0;
