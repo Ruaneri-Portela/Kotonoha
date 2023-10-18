@@ -18,7 +18,7 @@ namespace kotonoha
             }
             else if (strstr(comand, "PlaySe") != NULL)
             {
-                audio0->push(array[cont][3], array[cont][1], array[cont][4], 1);
+                audio0->push(array[cont][3], array[cont][1], array[cont][4], 6);
                 import->root->log0->appendLog("(ORS) - " + comandString + " " + array[cont][3]);
                 import->control->nonAudio = false;
             }
@@ -50,7 +50,7 @@ namespace kotonoha
             }
             else if (strstr(comand, "EndBGM") != NULL)
             {
-                audio0->push(array[cont][2], array[cont][1], array[cont][3], 2);
+                audio0->push(array[cont][2], array[cont][1], array[cont][3], -10);
                 import->root->log0->appendLog("(ORS) - " + comandString + " " + array[cont][2]);
                 import->control->nonAudio = false;
             }
@@ -58,13 +58,13 @@ namespace kotonoha
             {
                 if (array[cont].size() > 4)
                 {
-                    audio0->push(array[cont][2], array[cont][1], array[cont][5], 3);
+                    audio0->push(array[cont][2], array[cont][1], array[cont][5], 1);
                     import->root->log0->appendLog("(ORS) - " + comandString + " " + array[cont][2]);
                     import->control->nonAudio = false;
                 }
                 else
                 {
-                    audio0->push(array[cont][2], array[cont][1], array[cont][3], 3);
+                    audio0->push(array[cont][2], array[cont][1], array[cont][3], 1);
                     import->root->log0->appendLog("(ORS) - " + comandString + " " + array[cont][2]);
                     import->control->nonAudio = false;
                 }
