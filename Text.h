@@ -65,7 +65,6 @@ namespace kotonoha
 		char* str_c = new char[subSs.length() + 1];
 		strcpy(str_c, subSs.c_str());
 		ass_process_data(track, str_c, (int)subSs.length() + 1);
-		free(str_c);
 		// Start
 		importedTo->root->log0->appendLog("(Text) - Start");
 		SDL_Texture* texture = NULL;
@@ -92,7 +91,6 @@ namespace kotonoha
 					SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
 					int pitch = 0;
 					SDL_LockTexture(texture, NULL, reinterpret_cast<void**>(&pixels), &pitch);
-					std::uint32_t* copy = pixels;
 					// Push color, in aplha is set to 255 (opacque)
 					uint32_t cor = (img->color & 0xffffff00) | 0xff;
 					for (int y = 0; y < img->h; y++)
@@ -107,7 +105,14 @@ namespace kotonoha
 					}
 					SDL_UnlockTexture(texture);
 					SDL_RenderCopy(importedTo->root->renderer, texture, NULL, &dst);
-					SDL_DestroyTexture(texture);
+					try
+					{
+						SDL_DestroyTexture(texture);
+					}
+					catch (const std::exception&)
+					{
+						std::cerr << "Error on destroy texture" << std::endl;
+					}
 				}
 				// End frame sub draw
 				free(img);

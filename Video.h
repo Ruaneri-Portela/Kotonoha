@@ -105,7 +105,14 @@ namespace kotonoha
 										}
 									}
 									importedTo->control->hiddenVideo ? 0 : SDL_RenderCopy(importedTo->root->renderer, texture, NULL, &square);
-									SDL_DestroyTexture(texture);
+									try
+									{
+										SDL_DestroyTexture(texture);
+									}
+									catch (const std::exception&)
+									{
+										std::cerr << "Error on destroy texture" << std::endl;
+									}
 									importedTo->control->display[2] = true;
 									importedTo->control->display[1] = false;
 									sTime = importedTo->control->timer0.pushTime();

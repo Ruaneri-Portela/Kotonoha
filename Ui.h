@@ -12,18 +12,17 @@ namespace kotonoha
 		kotonoha::prompt prompt0;
 		prompt0.init();
 		prompt0.mapper = mapper;
+		mapper->root->prompt0 = &prompt0;
 		bool volumeTriggers = false;
 		bool pauseTriggers = false;
 		SDL_Texture* screenTexture = NULL;
 		while (mapper->control->outCode == 0)
-		{
+		{	// Check is a prompt is pressed
 			kotonohaTime::delay(kotonoha::maxtps);
-			// Check is a prompt is pressed
-			size_t var = prompt0.detectTouch(mapper->root->event);
-			var != 0 ? mapper->root->log0->appendLog("(Ui) - Touch detected " + std::to_string(var)) : (void)0;
-			// Draw UI
 			if (mapper->control->display[3])
 			{
+
+				// Draw UI
 				ImGui_ImplSDLRenderer2_NewFrame();
 				ImGui_ImplSDL2_NewFrame();
 				ImGui::NewFrame();

@@ -98,6 +98,7 @@ namespace kotonohaData
 		void* image0 = NULL;
 		void* text0 = NULL;
 		void* question0 = NULL;
+		void* prompt0 = NULL;
 		Mix_Chunk* soundFe0 = NULL;
 		SDL_Event* event = NULL;
 		ImGuiIO* io = NULL;

@@ -85,7 +85,7 @@ namespace kotonoha
 		size_t detectTouch(SDL_Event* event)
 		{
 			returnValue = 0;
-			if (event->type == SDL_MOUSEBUTTONDOWN && !mapper->question.empty())
+			if (event->type == SDL_MOUSEBUTTONDOWN && !mapper->question.empty() && questionsSize != -1)
 			{
 				if (event->button.button == SDL_BUTTON_LEFT)
 				{
