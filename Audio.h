@@ -9,9 +9,15 @@ namespace kotonoha
 			if (atoi(filenameString.c_str()) != 1)
 			{
 				// Prepare String for valid file path
+				for (char& c : filenameString) {
+					c = std::toupper(c);
+				}
 				std::stringstream ss;
 				ss << exportTo->root->fileConfigs->mediaPath;
 				ss << filenameString;
+				if (filenameString.find("_INT") == std::string::npos && channel == -10) {
+					ss << "_LOOP";
+				}
 				ss << exportTo->root->fileConfigs->audioExtension;
 				std::string filenameStr = ss.str();
 
@@ -58,7 +64,7 @@ namespace kotonoha
 						}
 					}
 					// If is time to play, play audio on specific mix channel
-					else if (importedTo->audio[i].play+0.3 < timePass && !importedTo->audio[i].played)
+					else if (importedTo->audio[i].play + 0.3 < timePass && !importedTo->audio[i].played)
 					{
 						if (importedTo->audio[i].music != NULL) {
 							importedTo->root->log0->appendLog("(Audio) - Playing Music " + importedTo->audio[i].path);
@@ -79,7 +85,7 @@ namespace kotonoha
 						importedTo->audio[i].played = true;
 					}
 					// Destroy audio from RAM if time is end
-					if (importedTo->audio[i].end+0.8 < timePass)
+					if (importedTo->audio[i].end + 0.8 < timePass)
 					{
 						importedTo->audio[i].music == NULL ? Mix_FreeChunk(importedTo->audio[i].sound) : Mix_FreeMusic(importedTo->audio[i].music);
 						importedTo->root->log0->appendLog("(Audio) - Drop out... " + importedTo->audio[i].path);
