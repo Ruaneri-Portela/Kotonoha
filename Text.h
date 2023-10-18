@@ -105,14 +105,7 @@ namespace kotonoha
 					}
 					SDL_UnlockTexture(texture);
 					SDL_RenderCopy(importedTo->root->renderer, texture, NULL, &dst);
-					try
-					{
-						SDL_DestroyTexture(texture);
-					}
-					catch (const std::exception&)
-					{
-						std::cerr << "Error on destroy texture" << std::endl;
-					}
+					texture != NULL ? SDL_DestroyTexture(texture) : (void)0;
 				}
 				// End frame sub draw
 				free(img);

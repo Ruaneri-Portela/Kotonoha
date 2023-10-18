@@ -15,7 +15,6 @@ namespace kotonoha
 		mapper->root->prompt0 = &prompt0;
 		bool volumeTriggers = false;
 		bool pauseTriggers = false;
-		SDL_Texture* screenTexture = NULL;
 		while (mapper->control->outCode == 0)
 		{	// Check is a prompt is pressed
 			kotonohaTime::delay(kotonoha::maxtps);
@@ -43,7 +42,6 @@ namespace kotonoha
 					ImGui::SameLine();
 					if (pauseTriggers)
 					{
-						screenTexture != NULL ? SDL_RenderCopy(mapper->root->renderer, screenTexture, NULL, NULL) : 0;
 						if (ImGui::Button("Unpause"))
 						{
 							Mix_Resume(-1);
@@ -56,14 +54,6 @@ namespace kotonoha
 					{
 						if (ImGui::Button("Pause"))
 						{
-							int h, w;
-							screenTexture != NULL ? SDL_DestroyTexture(screenTexture) : (void)0;
-							SDL_GetWindowSize(mapper->root->window, &h, &w);
-							SDL_RenderPresent(mapper->root->renderer);
-							screenTexture = SDL_CreateTexture(mapper->root->renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, h, w);
-							SDL_SetRenderTarget(mapper->root->renderer, screenTexture);
-							SDL_RenderPresent(mapper->root->renderer);
-							SDL_SetRenderTarget(mapper->root->renderer, NULL);
 							Mix_Pause(-1);
 							Mix_PauseMusic();
 							mapper->control->timer0.switchClock();
@@ -119,7 +109,6 @@ namespace kotonoha
 				mapper->control->display[3] = false;
 			}
 		}
-		screenTexture != NULL ? SDL_DestroyTexture(screenTexture) : (void)0;
 		Mix_FreeChunk(mapper->root->soundFe0);
 		prompt0.close();
 		mapper->root->log0->appendLog("(Ui) - End");

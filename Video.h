@@ -77,6 +77,7 @@ namespace kotonoha
 							double sTime = importedTo->control->timer0.pushTime();
 							double pTime = 0.0;
 							double fTime = 1.0 / 24.0;
+							bool exit = false;
 							while (av_read_frame(formatCtx, &packet) >= 0 && importedTo->control->outCode == 0)
 							{
 								if (packet.stream_index == videoStream)
@@ -87,37 +88,31 @@ namespace kotonoha
 									// Create SDL texture to render frame
 									texture = SDL_CreateTexture(importedTo->root->renderer, SDL_PIXELFORMAT_YV12, SDL_TEXTUREACCESS_STREAMING, frame->width, frame->height);
 									SDL_UpdateYUVTexture(texture, NULL, frame->data[0], frame->linesize[0], frame->data[1], frame->linesize[1], frame->data[2], frame->linesize[2]);
-									SDL_GetWindowSize(importedTo->root->window, &w, &h);
-									square = { 0, 0, w, h };
 									//Wait other in display
-									while (!importedTo->control->display[1] && importedTo->control->outCode == 0)
-									{
-										continue;
-									}
 									// Wait frame time
-									while (fTime > pTime)
+									while (!exit && importedTo->control->outCode == 0)
 									{
+										kotonohaTime::delay(kotonoha::maxtps);
 										pTime = importedTo->control->timer0.pushTime() - sTime;
-										if (importedTo->control->display[1] == true && importedTo->control->timer0.paused)
+										if (importedTo->control->display[1] == true)
 										{
+											SDL_GetWindowSize(importedTo->root->window, &w, &h);
+											square = { 0, 0, w, h };
+											importedTo->control->hiddenVideo ? 0 : SDL_RenderCopy(importedTo->root->renderer, texture, NULL, &square);
+											if (pTime > fTime)
+											{
+												texture != NULL ? SDL_DestroyTexture(texture) : (void)0;
+												sTime = importedTo->control->timer0.pushTime();
+												pTime = 0.0;
+												exit = true;
+											}
 											importedTo->control->display[2] = true;
 											importedTo->control->display[1] = false;
 										}
 									}
-									importedTo->control->hiddenVideo ? 0 : SDL_RenderCopy(importedTo->root->renderer, texture, NULL, &square);
-									try
-									{
-										SDL_DestroyTexture(texture);
-									}
-									catch (const std::exception&)
-									{
-										std::cerr << "Error on destroy texture" << std::endl;
-									}
-									importedTo->control->display[2] = true;
-									importedTo->control->display[1] = false;
-									sTime = importedTo->control->timer0.pushTime();
-									pTime = 0.0;
+									exit = false;
 								}
+								texture != NULL ? SDL_DestroyTexture(texture) : (void)0;
 								av_packet_unref(&packet);
 							}
 							// Free resorces
