@@ -60,7 +60,7 @@ namespace kotonoha
 				// Render send
 				if (controlData->display[4])
 				{
-					SDL_RenderPresent(rendererEntry);
+					rendererEntry != NULL ? SDL_RenderPresent(rendererEntry) : (void)0;
 					controlData->display[0] = true;
 					controlData->display[4] = false;
 				}

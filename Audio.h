@@ -9,9 +9,6 @@ namespace kotonoha
 			if (atoi(filenameString.c_str()) != 1)
 			{
 				// Prepare String for valid file path
-				for (char& c : filenameString) {
-					c = std::toupper(c);
-				}
 				std::stringstream ss;
 				ss << exportTo->root->fileConfigs->mediaPath;
 				ss << filenameString;
@@ -20,7 +17,6 @@ namespace kotonoha
 				}
 				ss << exportTo->root->fileConfigs->audioExtension;
 				std::string filenameStr = ss.str();
-
 				// Ceate new audio object
 				kotonohaData::audioData audioTemporary;
 				audioTemporary.path = filenameStr;
