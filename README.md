@@ -46,28 +46,26 @@ To use the Kotonoha Novel Engine, follow these steps:
 
 ## How to build
 
-Fist for all, create Dep folder in the root of the project. This folder will be used to store all dependencies.
+Clone IMGui, use comando below:
 
-In Dep clone IMGui, use comando below:
-
-    mkdir Dep
-    cd Dep
     git clone https://github.com/ocornut/imgui.git
 
 ### Windows MSVC
 
 1. Dependencies
 
-    Download the following dependencies and extract them to the Dep folder:
+    Download the following dependencies using VCPKG
 
-    - [SDL2](https://www.libsdl.org/download-2.0.php)
-    - [SDL2_image](https://www.libsdl.org/projects/SDL_image/)
-    - [SDL2_mixer](https://www.libsdl.org/projects/SDL_mixer/)
-    - [SDL2_ttf](https://www.libsdl.org/projects/SDL_ttf/)
-    - [FFMPEG](https://github.com/ShiftMediaProject/FFmpeg/releases)
-    - [libAss](https://github.com/ShiftMediaProject/libass/releases)
+    - SDL2
+    - SDL2_image
+    - SDL2_mixer
+    - SDL2_ttf
+    - FFMPEG
+    - libAss
 
-    Attention, if the extracted file contains a folder, the folder must be pasted into "Dep", and all downlods must be to VC/MSVC!
+    If you no have VCPKG installed install it [here](https://vcpkg.io/en/getting-started), And if your have VCPKG installed by Visual Studio installer, remove and installer de git version.
+
+    Exclame, if your have a CMake error, disable MSYS2 path ou Mingw Path, re-run comand and add VCPKG CMake path in enviroment variables.
 
 
 2. Build

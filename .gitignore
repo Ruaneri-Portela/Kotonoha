@@ -2,7 +2,6 @@
 .vs/
 GameData/
 imgui.ini
-Dep/
 MakeBuilds/
 x64/
 Release/
