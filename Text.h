@@ -106,6 +106,7 @@ namespace kotonoha
 					SDL_UnlockTexture(texture);
 					SDL_RenderCopy(importedTo->root->renderer, texture, NULL, &dst);
 					texture != NULL ? SDL_DestroyTexture(texture) : (void)0;
+					texture = NULL;
 				}
 				// End frame sub draw
 				free(img);

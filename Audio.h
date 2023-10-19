@@ -23,7 +23,7 @@ namespace kotonoha
 				audioTemporary.play = kotonohaTime::convertToTime(startTime);
 				audioTemporary.end = kotonohaTime::convertToTime(endTime);
 				audioTemporary.channel = channel;
-				channel == -10 ? audioTemporary.music = Mix_LoadMUS(filenameStr.c_str()) : 0;
+				channel < 0 ? audioTemporary.music = Mix_LoadMUS(filenameStr.c_str()) : 0;
 				// Push to audio data array
 				exportTo->audio.push_back(audioTemporary);
 			}
