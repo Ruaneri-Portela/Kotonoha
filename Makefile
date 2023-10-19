@@ -13,7 +13,7 @@ EXE = Kotonoha
 EXT =
 
 # Directory for imgui
-IMGUI_DIR = ./Dep/imgui
+IMGUI_DIR = ./imgui
 
 # Source directory
 SRC = ./MakeBuilds/
