@@ -65,12 +65,13 @@ Clone IMGui, use comando below:
 
     If you no have VCPKG installed install it [here](https://vcpkg.io/en/getting-started), And if your have VCPKG installed by Visual Studio installer, remove and installer de git version.
 
-    Exclame, if your have a CMake error, disable MSYS2 path ou Mingw Path, re-run comand and add VCPKG CMake path in enviroment variables.
+    Exclame, if your have a CMake error, disable MSYS2 path ou Mingw Path, re-run comand and add VCPKG CMake path in enviroment variables. VCPK compile from git all dependencies, if your have a slow pc this action can take a long time.
 
 
 2. Build
 
     - Open the Kotonoha.vcxproj
+    - Change in Imgui Backends headers from <SDLx.h> to <SDL2/SDLx.h>
     - Select the configuration you want to build (Debug or Release)
     - Select the platform you want to build (x86 or x64)
     - Build the project
