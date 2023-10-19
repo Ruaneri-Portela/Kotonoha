@@ -25,7 +25,7 @@ namespace kotonoha
 		SDL_Rect rect[4] = { {0, 0, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0} };
 		int h = 0, w = 0;
 		int bH = 0, bW = 0;
-		std::vector<kotonohaData::questionData>::size_type questionsSize = -1;
+		std::vector<kotonohaData::questionData>::size_type questionsSize = 0;
 		size_t returnValue = 0;
 	public:
 		kotonohaData::acessMapper* mapper = NULL;
@@ -38,7 +38,7 @@ namespace kotonoha
 		{
 			if (!mapper->question.empty())
 			{
-				for (std::vector<kotonohaData::questionData>::size_type i = 0; i <= mapper->question.size() - 1; i++)
+				for (std::vector<kotonohaData::questionData>::size_type i = 0; i < mapper->question.size(); i++)
 				{
 					if (mapper->question[i].show < mapper->control->timer0.pushTime())
 					{
@@ -69,7 +69,7 @@ namespace kotonoha
 							break;
 						}
 						// Draw text textures
-						for (std::vector<kotonohaData::questionData>::size_type j = 0; j <= questionsSize - 1; j++)
+						for (std::vector<kotonohaData::questionData>::size_type j = 0; j < questionsSize; j++)
 						{
 							SDL_Surface* surface = TTF_RenderUTF8_Blended(font, mapper->question[i].prompts[j].c_str(), color);
 							SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, surface);
@@ -78,6 +78,7 @@ namespace kotonoha
 							SDL_RenderCopy(renderer, texture, NULL, &rect[j]);
 							SDL_FreeSurface(surface);
 							SDL_DestroyTexture(texture);
+							texture = NULL;
 						}
 						// Create processing system...
 						//????
@@ -90,11 +91,11 @@ namespace kotonoha
 		size_t detectTouch(SDL_Event* event)
 		{
 			returnValue = 0;
-			if (event->type == SDL_MOUSEBUTTONDOWN && !mapper->question.empty() && questionsSize != -1)
+			if (event->type == SDL_MOUSEBUTTONDOWN && !mapper->question.empty() && questionsSize !=  (size_t)0)
 			{
 				if (event->button.button == SDL_BUTTON_LEFT)
 				{
-					for (std::vector<kotonohaData::questionData>::size_type i = 0; i <= questionsSize - 1; i++)
+					for (std::vector<kotonohaData::questionData>::size_type i = 0; i < questionsSize ; i++)
 					{
 						event->button.x > rect[i].x and event->button.x<rect[i].x + rect[i].w and event->button.y> rect[i].y and event->button.y < rect[i].y + rect[i].h ? returnValue = i + 1 : 0;
 					}

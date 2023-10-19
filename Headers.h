@@ -7,9 +7,9 @@
 #include <fstream>
 #include <chrono>
 #include <thread>
-#include "imgui.h"
-#include "backends/imgui_impl_sdl2.h"
-#include "backends/imgui_impl_sdlrenderer2.h"
+#include "Dep\imgui\imgui.h"
+#include "Dep\imgui\backends\imgui_impl_sdl2.h"
+#include "Dep\imgui\backends\imgui_impl_sdlrenderer2.h"
 extern "C"
 {
 #include <libavformat/avformat.h>

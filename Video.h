@@ -85,34 +85,39 @@ namespace kotonoha
 									// Decode frame
 									avcodec_send_packet(codecCtx, &packet);
 									avcodec_receive_frame(codecCtx, frame);
-									// Create SDL texture to render frame
-									texture = SDL_CreateTexture(importedTo->root->renderer, SDL_PIXELFORMAT_YV12, SDL_TEXTUREACCESS_STREAMING, frame->width, frame->height);
-									SDL_UpdateYUVTexture(texture, NULL, frame->data[0], frame->linesize[0], frame->data[1], frame->linesize[1], frame->data[2], frame->linesize[2]);
-									//Wait other in display
-									// Wait frame time
+									// Loop to wait frame time 
 									while (!exit && importedTo->control->outCode == 0)
 									{
 										kotonohaTime::delay(kotonoha::maxtps);
 										pTime = importedTo->control->timer0.pushTime() - sTime;
-										if (importedTo->control->display[1] == true)
+										// Case frame time is a target
+										if (pTime >= fTime - 0.003 or importedTo->control->paused)
 										{
-											SDL_GetWindowSize(importedTo->root->window, &w, &h);
-											square = { 0, 0, w, h };
-											importedTo->control->hiddenVideo ? 0 : SDL_RenderCopy(importedTo->root->renderer, texture, NULL, &square);
-											if (pTime > fTime)
+											// Can display frame
+											if (importedTo->control->display[1] == true)
 											{
-												texture != NULL ? SDL_DestroyTexture(texture) : (void)0;
+												if (importedTo->control->hiddenVideo) goto END;
+												// Render frame
+												texture = SDL_CreateTexture(importedTo->root->renderer, SDL_PIXELFORMAT_YV12, SDL_TEXTUREACCESS_STREAMING, frame->width, frame->height);
+												SDL_UpdateYUVTexture(texture, NULL, frame->data[0], frame->linesize[0], frame->data[1], frame->linesize[1], frame->data[2], frame->linesize[2]);
+												SDL_GetWindowSize(importedTo->root->window, &w, &h);
+												square = { 0, 0, w, h };
+												SDL_RenderCopy(importedTo->root->renderer, texture, NULL, &square);
+												SDL_DestroyTexture(texture);
+
+											END:
+												importedTo->control->display[2] = true;
+												importedTo->control->display[1] = false;
+											}
+											if (!importedTo->control->paused) {
 												sTime = importedTo->control->timer0.pushTime();
 												pTime = 0.0;
 												exit = true;
 											}
-											importedTo->control->display[2] = true;
-											importedTo->control->display[1] = false;
 										}
 									}
 									exit = false;
 								}
-								texture != NULL ? SDL_DestroyTexture(texture) : (void)0;
 								av_packet_unref(&packet);
 							}
 							// Free resorces

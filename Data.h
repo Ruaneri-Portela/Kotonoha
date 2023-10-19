@@ -3,7 +3,7 @@ namespace kotonoha
 {
 	const std::string version = "0.0.10 Alpha";
 	// kotonoha::maxtps is the maximum ticks per second per Thread. 0 make the cpu run at max speed, 8 is 120 TICKS per Second, is set FPS max to 120 too
-	int maxtps = 4; 
+	int maxtps = 4;
 }
 namespace kotonohaData
 {
@@ -15,7 +15,7 @@ namespace kotonohaData
 		bool nonAudio = true;
 		bool nonImage = true;
 		// To chech on runtime (layers of video)
-		bool display[5] = { true, false, false, false};
+		bool display[5] = { true, false, false, false };
 		// If thread end
 		bool videoEnd = false;
 		bool audioEnd = false;
@@ -32,6 +32,8 @@ namespace kotonohaData
 		bool hiddenImage = false;
 		// The below var is use to set if game is init by cmd ( -f ./path/to/file)
 		bool isCmd = false;
+		// Is Paused?
+		bool paused = false;
 	};
 	// Auto explicative
 	struct audioData

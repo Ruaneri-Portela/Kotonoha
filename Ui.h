@@ -14,7 +14,6 @@ namespace kotonoha
 		prompt0.mapper = mapper;
 		mapper->root->prompt0 = &prompt0;
 		bool volumeTriggers = false;
-		bool pauseTriggers = false;
 		while (mapper->control->outCode == 0)
 		{	// Check is a prompt is pressed
 			kotonohaTime::delay(kotonoha::maxtps);
@@ -40,14 +39,14 @@ namespace kotonoha
 					ImGui::SameLine();
 					mapper->root->log0->enable ? mapper->root->log0->drawLogger() : (void)0;
 					ImGui::SameLine();
-					if (pauseTriggers)
+					if (mapper->control->paused)
 					{
 						if (ImGui::Button("Unpause"))
 						{
 							Mix_Resume(-1);
 							Mix_ResumeMusic();
 							mapper->control->timer0.switchClock();
-							pauseTriggers = false;
+							mapper->control->paused = false;
 						}
 					}
 					else
@@ -57,7 +56,7 @@ namespace kotonoha
 							Mix_Pause(-1);
 							Mix_PauseMusic();
 							mapper->control->timer0.switchClock();
-							pauseTriggers = true;
+							mapper->control->paused = true;
 						}
 					}
 					ImGui::SameLine();

@@ -56,7 +56,7 @@ namespace kotonoha
                 for (char& c : array[cont][2]) {
                     c = std::toupper(c);
                 }
-                audio0->push(array[cont][2], array[cont][1], array[cont][3], -10);
+                audio0->push(array[cont][2], array[cont][1], array[cont][3], -5);
                 import->root->log0->appendLog("(ORS) - " + comandString + " " + array[cont][2]);
                 import->control->nonAudio = false;
             }
