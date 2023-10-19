@@ -5,14 +5,6 @@
       <Configuration>Debug</Configuration>
       <Platform>Win32</Platform>
     </ProjectConfiguration>
-    <ProjectConfiguration Include="MSYS2|Win32">
-      <Configuration>MSYS2</Configuration>
-      <Platform>Win32</Platform>
-    </ProjectConfiguration>
-    <ProjectConfiguration Include="MSYS2|x64">
-      <Configuration>MSYS2</Configuration>
-      <Platform>x64</Platform>
-    </ProjectConfiguration>
     <ProjectConfiguration Include="Release|Win32">
       <Configuration>Release</Configuration>
       <Platform>Win32</Platform>
@@ -60,12 +52,6 @@
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
-  <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='MSYS2|Win32'">
-    <PlatformToolset>v143</PlatformToolset>
-  </PropertyGroup>
-  <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='MSYS2|x64'">
-    <PlatformToolset>v143</PlatformToolset>
-  </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
   </ImportGroup>
@@ -90,13 +76,13 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>.\Dep\SDL2_image-2.6.3\include;.\Dep\SDL2_mixer-2.6.3\include;.\Dep\SDL2_ttf-2.20.2\include;.\Dep\SDL2-2.28.4\include;.\Dep\imgui;.\Dep\imgui\backends;.\Dep\libass_0.17.1-1_msvc17\include;.\Dep\libffmpeg_6.1.r112164_msvc17_x86\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>.\imgui;.\imgui\backends</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>.\Dep\SDL2-2.28.4\lib\x86;.\Dep\SDL2_ttf-2.20.2\lib\x86;.\Dep\SDL2_mixer-2.6.3\lib\x86;.\Dep\SDL2_image-2.6.3\lib\x86;.\Dep\libass_0.17.1-1_msvc17\lib\x86;.\Dep\libffmpeg_6.1.r112164_msvc17_x86\lib\x86;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>$(CoreLibraryDependencies);%(AdditionalDependencies);SDL2.lib;SDL2main.lib;SDL2_ttf.lib;SDL2_mixer.lib;SDL2_image.lib;ass.lib;libass.lib;avformat.lib;avcodec.lib;avutil.lib</AdditionalDependencies>
+      <AdditionalDependencies>$(CoreLibraryDependencies);%(AdditionalDependencies);SDL2d.lib;SDL2maind.lib;SDL2_ttf.lib;SDL2_mixer.lib;SDL2_image.lib;ass.lib;avformat.lib;avcodec.lib;avutil.lib</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -107,15 +93,16 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>.\Dep\SDL2_image-2.6.3\include;.\Dep\SDL2_mixer-2.6.3\include;.\Dep\SDL2_ttf-2.20.2\include;.\Dep\SDL2-2.28.4\include;.\Dep\imgui;.\Dep\imgui\backends;.\Dep\libass_0.17.1-1_msvc17\include;.\Dep\libffmpeg_6.1.r112164_msvc17_x86\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>.\imgui;.\imgui\backends</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>.\Dep\SDL2-2.28.4\lib\x86;.\Dep\SDL2_ttf-2.20.2\lib\x86;.\Dep\SDL2_mixer-2.6.3\lib\x86;.\Dep\SDL2_image-2.6.3\lib\x86;.\Dep\libass_0.17.1-1_msvc17\lib\x86;.\Dep\libffmpeg_6.1.r112164_msvc17_x86\lib\x86;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>$(CoreLibraryDependencies);%(AdditionalDependencies);SDL2.lib;SDL2main.lib;SDL2_ttf.lib;SDL2_mixer.lib;SDL2_image.lib;ass.lib;libass.lib;avformat.lib;avcodec.lib;avutil.lib</AdditionalDependencies>
+      <AdditionalLibraryDirectories>
+      </AdditionalLibraryDirectories>
+      <AdditionalDependencies>$(CoreLibraryDependencies);%(AdditionalDependencies);SDL2.lib;SDL2main.lib;SDL2_ttf.lib;SDL2_mixer.lib;SDL2_image.lib;ass.lib;avformat.lib;avcodec.lib;avutil.lib</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -124,13 +111,13 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>.\Dep\SDL2_image-2.6.3\include;.\Dep\SDL2_mixer-2.6.3\include;.\Dep\SDL2_ttf-2.20.2\include;.\Dep\SDL2-2.28.4\include;.\Dep\imgui;.\Dep\imgui\backends;.\Dep\libass_0.17.1-1_msvc17\include;.\Dep\libffmpeg_6.1.r112164_msvc17_x64\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>.\imgui;.\imgui\backends</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>.\Dep\SDL2-2.28.4\lib\x64;.\Dep\SDL2_ttf-2.20.2\lib\x64;.\Dep\SDL2_mixer-2.6.3\lib\x64;.\Dep\SDL2_image-2.6.3\lib\x64;.\Dep\libass_0.17.1-1_msvc17\lib\x64;.\Dep\libffmpeg_6.1.r112164_msvc17_x64\lib\x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>$(CoreLibraryDependencies);%(AdditionalDependencies);SDL2.lib;SDL2main.lib;SDL2_ttf.lib;SDL2_mixer.lib;SDL2_image.lib;ass.lib;libass.lib;avformat.lib;avcodec.lib;avutil.lib</AdditionalDependencies>
+      <AdditionalLibraryDirectories>D:\Data\vcpkg\packages\sdl2_x64-windows\debug\lib\manual-link;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>$(CoreLibraryDependencies);%(AdditionalDependencies);SDL2d.lib;SDL2maind.lib;SDL2_ttf.lib;SDL2_mixerd.lib;SDL2_imaged.lib;ass.lib;avformat.lib;avcodec.lib;avutil.lib</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -141,54 +128,44 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>.\Dep\SDL2_image-2.6.3\include;.\Dep\SDL2_mixer-2.6.3\include;.\Dep\SDL2_ttf-2.20.2\include;.\Dep\SDL2-2.28.4\include;.\Dep\imgui;.\Dep\imgui\backends;.\Dep\libass_0.17.1-1_msvc17\include;.\Dep\libffmpeg_6.1.r112164_msvc17_x64\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>.\imgui;.\imgui\backends</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>.\Dep\SDL2-2.28.4\lib\x64;.\Dep\SDL2_ttf-2.20.2\lib\x64;.\Dep\SDL2_mixer-2.6.3\lib\x64;.\Dep\SDL2_image-2.6.3\lib\x64;.\Dep\libass_0.17.1-1_msvc17\lib\x64;.\Dep\libffmpeg_6.1.r112164_msvc17_x64\lib\x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>$(CoreLibraryDependencies);%(AdditionalDependencies);SDL2.lib;SDL2main.lib;SDL2_ttf.lib;SDL2_mixer.lib;SDL2_image.lib;ass.lib;libass.lib;avformat.lib;avcodec.lib;avutil.lib</AdditionalDependencies>
+      <AdditionalLibraryDirectories>D:\Data\vcpkg\packages\sdl2_x64-windows\lib\manual-link;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>$(CoreLibraryDependencies);%(AdditionalDependencies);SDL2.lib;SDL2main.lib;SDL2_ttf.lib;SDL2_mixer.lib;SDL2_image.lib;ass.lib;avformat.lib;avcodec.lib;avutil.lib</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='MSYS2|Win32'">
-    <CustomBuildStep>
-      <Command>make build</Command>
-    </CustomBuildStep>
-  </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='MSYS2|x64'">
-    <CustomBuildStep>
-      <Command>make build</Command>
-    </CustomBuildStep>
-  </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="Dep\imgui\backends\imgui_impl_sdl2.cpp" />
-    <ClCompile Include="Dep\imgui\backends\imgui_impl_sdlrenderer2.cpp" />
-    <ClCompile Include="Dep\imgui\imgui.cpp" />
-    <ClCompile Include="Dep\imgui\imgui_demo.cpp" />
-    <ClCompile Include="Dep\imgui\imgui_draw.cpp" />
-    <ClCompile Include="Dep\imgui\imgui_tables.cpp" />
-    <ClCompile Include="Dep\imgui\imgui_widgets.cpp" />
     <ClInclude Include="Icon.h">
       <FileType>CppHeader</FileType>
     </ClInclude>
+    <ClCompile Include="imgui\backends\imgui_impl_sdl2.cpp" />
+    <ClCompile Include="imgui\backends\imgui_impl_sdlrenderer2.cpp" />
+    <ClCompile Include="imgui\imgui.cpp" />
+    <ClCompile Include="imgui\imgui_demo.cpp" />
+    <ClCompile Include="imgui\imgui_draw.cpp" />
+    <ClCompile Include="imgui\imgui_tables.cpp" />
+    <ClCompile Include="imgui\imgui_widgets.cpp" />
     <ClCompile Include="Kotonoha.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Audio.h" />
     <ClInclude Include="Data.h" />
-    <ClInclude Include="Dep\imgui\backends\imgui_impl_sdl2.h" />
-    <ClInclude Include="Dep\imgui\backends\imgui_impl_sdlrenderer2.h" />
-    <ClInclude Include="Dep\imgui\imconfig.h" />
-    <ClInclude Include="Dep\imgui\imgui.h" />
-    <ClInclude Include="Dep\imgui\imgui_internal.h" />
-    <ClInclude Include="Dep\imgui\imstb_rectpack.h" />
-    <ClInclude Include="Dep\imgui\imstb_textedit.h" />
-    <ClInclude Include="Dep\imgui\imstb_truetype.h" />
     <ClInclude Include="Game.h" />
     <ClInclude Include="Headers.h" />
     <ClInclude Include="Image.h" />
+    <ClInclude Include="imgui\backends\imgui_impl_sdl2.h" />
+    <ClInclude Include="imgui\backends\imgui_impl_sdlrenderer2.h" />
+    <ClInclude Include="imgui\imconfig.h" />
+    <ClInclude Include="imgui\imgui.h" />
+    <ClInclude Include="imgui\imgui_internal.h" />
+    <ClInclude Include="imgui\imstb_rectpack.h" />
+    <ClInclude Include="imgui\imstb_textedit.h" />
+    <ClInclude Include="imgui\imstb_truetype.h" />
     <ClInclude Include="MacroHeaders.h" />
     <ClInclude Include="MainLoop.h" />
     <ClInclude Include="Menu.h" />
@@ -199,12 +176,6 @@
     <ClInclude Include="Ui.h" />
     <ClInclude Include="Utils.h" />
     <ClInclude Include="Video.h" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="Dep\imgui\misc\debuggers\imgui.natstepfilter" />
-  </ItemGroup>
-  <ItemGroup>
-    <Natvis Include="Dep\imgui\misc\debuggers\imgui.natvis" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="Kotonoha1.rc" />
