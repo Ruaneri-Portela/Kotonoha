@@ -65,6 +65,7 @@ namespace kotonoha
 							{
 								importedTo->root->log0->appendLog("(Video) - No stream found " + importedTo->audio[i].path);
 							}
+							avformat_find_stream_info(formatCtx, nullptr);
 							// Setup video decoder
 							const AVCodec* codec = avcodec_find_decoder(formatCtx->streams[videoStream]->codecpar->codec_id);
 							if (!codec)
@@ -76,7 +77,7 @@ namespace kotonoha
 							avcodec_open2(codecCtx, codec, nullptr);
 							double sTime = importedTo->control->timer0.pushTime();
 							double pTime = 0.0;
-							double fTime = 1.0 / 24.0;
+							double fTime = 1.0 / av_q2d(formatCtx->streams[videoStream]->avg_frame_rate);
 							bool exit = false;
 							while (av_read_frame(formatCtx, &packet) >= 0 && importedTo->control->outCode == 0)
 							{
@@ -104,7 +105,6 @@ namespace kotonoha
 												square = { 0, 0, w, h };
 												SDL_RenderCopy(importedTo->root->renderer, texture, NULL, &square);
 												SDL_DestroyTexture(texture);
-
 											END:
 												importedTo->control->display[2] = true;
 												importedTo->control->display[1] = false;
