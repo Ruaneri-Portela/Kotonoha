@@ -21,20 +21,9 @@ namespace kotonoha
 			return 0;
 		};
 	};
-	////////////////////////////////////////////
-	static AVBufferRef* hw_device_ctx = NULL;
+	// This function bellow has called automaticaly by FFMPEG
 	static enum AVPixelFormat hw_pix_fmt;
-	static int hw_decoder_init(AVCodecContext* ctx, const enum AVHWDeviceType type)
-	{
-		int err = 0;
-		if ((err = av_hwdevice_ctx_create(&hw_device_ctx, type, NULL, NULL, 0)) < 0) {
-			return err;
-		}
-		ctx->hw_device_ctx = av_buffer_ref(hw_device_ctx);
-		return err;
-	}
-	static enum AVPixelFormat get_hw_format(AVCodecContext* ctx,
-		const enum AVPixelFormat* pix_fmts)
+	static enum AVPixelFormat get_hw_format(AVCodecContext* ctx, const enum AVPixelFormat* pix_fmts)
 	{
 		const enum AVPixelFormat* p;
 		for (p = pix_fmts; *p != -1; p++) {
@@ -43,7 +32,6 @@ namespace kotonoha
 		}
 		return AV_PIX_FMT_NONE;
 	}
-	////////////////////////////////////////////
 	int playVideo(void* import)
 	{
 		kotonohaData::acessMapper * importedTo = static_cast<kotonohaData::acessMapper*>(import);
@@ -53,14 +41,15 @@ namespace kotonoha
 		double timePass = 0.0;
 		int h = 0, w = 0;
 		SDL_Rect square = { 0,0,0,0 };
+		Uint32 textureFormat = 0;
 		// Pre Config AV context
 		AVPacket* packet;
 		packet = av_packet_alloc();
 		AVFrame* frame = av_frame_alloc();
+		static AVBufferRef* hw_device_ctx = NULL;
 		//
 		enum AVHWDeviceType type = AV_HWDEVICE_TYPE_NONE;
 		std::vector<std::string>  decoders;
-		fprintf(stderr, "Available device types:");
 		while ((type = av_hwdevice_iterate_types(type)) != AV_HWDEVICE_TYPE_NONE) {
 			decoders.push_back(av_hwdevice_get_type_name(type));
 		}
@@ -72,8 +61,10 @@ namespace kotonoha
 		!decoders.empty() ? type = av_hwdevice_find_type_by_name(decoders[0].c_str()) : 0;
 		if (importedTo->control->hardwareVideo != 0) {
 			importedTo->control->hardwareVideo = av_hwdevice_ctx_create(&hw_device_ctx, type, NULL, NULL, 0);
+			importedTo->root->log0->appendLog("(Video) - Try using " + decoders[0] + " has video decoder");
 		}
 		else {
+			importedTo->root->log0->appendLog("(Video) -  using software decode, by parameters");
 			importedTo->control->hardwareVideo = 1;
 		}
 		while (importedTo->control->outCode == 0)
@@ -119,6 +110,11 @@ namespace kotonoha
 							if (importedTo->control->hardwareVideo == 0) {
 								for (i = 0;; i++) {
 									const AVCodecHWConfig* config = avcodec_get_hw_config(codec, (int)i);
+									if (!config) {
+										importedTo->root->log0->appendLog("(Video) - No hardware decoder support, fallbackt to sw only" + importedTo->audio[i].path);
+										importedTo->control->hardwareVideo = -1;
+										break;
+									}
 									if (config->methods & AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX && config->device_type == type) {
 										hw_pix_fmt = config->pix_fmt;
 										break;
@@ -127,12 +123,15 @@ namespace kotonoha
 							}
 							AVCodecContext* codecCtx = avcodec_alloc_context3(codec);
 							avcodec_parameters_to_context(codecCtx, formatCtx->streams[videoStream]->codecpar);
+							// If hw pass hw decoder to codec context
 							if (importedTo->control->hardwareVideo == 0)
 							{
 								codecCtx->get_format = get_hw_format;
-								hw_decoder_init(codecCtx, type);
+								codecCtx->hw_device_ctx = av_buffer_ref(hw_device_ctx);
 							}
+							// Open codec device
 							avcodec_open2(codecCtx, codec, NULL);
+							// Setup frame rate on video
 							double sTime = importedTo->control->timer0.pushTime();
 							double pTime = 0.0;
 							double fTime = 1.0 / av_q2d(formatCtx->streams[videoStream]->avg_frame_rate);
@@ -146,6 +145,7 @@ namespace kotonoha
 									avcodec_receive_frame(codecCtx, frame);
 									if (importedTo->control->hardwareVideo == 0 && frame->format == hw_pix_fmt)
 									{
+										// Convert hw frame to sw frame
 										AVFrame* frame_sw = av_frame_alloc();
 										frame_sw->width = frame->width;
 										frame_sw->height = frame->height;
@@ -154,14 +154,18 @@ namespace kotonoha
 										av_hwframe_transfer_data(frame_sw, frame, 0);
 										av_frame_free(&frame);
 										frame = frame_sw;
+										textureFormat = SDL_PIXELFORMAT_NV12;
+									}
+									else {
+										textureFormat = SDL_PIXELFORMAT_YV12;
 									}
 									// Loop to wait frame time 
 									while (!exit && importedTo->control->outCode == 0)
 									{
-										kotonohaTime::delay(kotonoha::maxtps/2);
+										kotonohaTime::delay(kotonoha::maxtps);
 										pTime = importedTo->control->timer0.pushTime() - sTime;
 										// Case frame time is a target
-										if (pTime > fTime-0.0020)
+										if (pTime > fTime - 0.0020)
 										{
 											importedTo->control->videoTime = pTime;
 											sTime = importedTo->control->timer0.pushTime();
@@ -173,12 +177,12 @@ namespace kotonoha
 										{
 											if (importedTo->control->hiddenVideo) goto END;
 											// Render frame
+											texture = SDL_CreateTexture(importedTo->root->renderer, textureFormat, SDL_TEXTUREACCESS_STREAMING, frame->width, frame->height);
 											if (importedTo->control->hardwareVideo == 0) {
-												texture = SDL_CreateTexture(importedTo->root->renderer, SDL_PIXELFORMAT_NV12, SDL_TEXTUREACCESS_STREAMING, frame->width, frame->height);
 												SDL_UpdateNVTexture(texture, NULL, frame->data[0], frame->linesize[0], frame->data[1], frame->linesize[1]);
 											}
 											else {
-												texture = SDL_CreateTexture(importedTo->root->renderer, SDL_PIXELFORMAT_YV12, SDL_TEXTUREACCESS_STREAMING, frame->width, frame->height);
+
 												SDL_UpdateYUVTexture(texture, NULL, frame->data[0], frame->linesize[0], frame->data[1], frame->linesize[1], frame->data[2], frame->linesize[2]);
 											}
 											SDL_GetWindowSize(importedTo->root->window, &w, &h);
