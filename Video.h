@@ -142,7 +142,7 @@ namespace kotonoha
 										importedTo->control->hardwareVideo = -1;
 										break;
 									}
-									if (config->methods & AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX && config->device_type == type)
+									if (config->methods & AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX && config->device_type == av_hwdevice_find_type_by_name(decoders[j].c_str()))
 									{
 										hw_pix_fmt = config->pix_fmt;
 										break;
