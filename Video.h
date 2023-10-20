@@ -27,7 +27,7 @@ namespace kotonoha
 	static int hw_decoder_init(AVCodecContext* ctx, const enum AVHWDeviceType type)
 	{
 		int err = 0;
-		if ((err = av_hwdevice_ctx_create(&hw_device_ctx, type,NULL, NULL, 0)) < 0) {
+		if ((err = av_hwdevice_ctx_create(&hw_device_ctx, type, NULL, NULL, 0)) < 0) {
 			return err;
 		}
 		ctx->hw_device_ctx = av_buffer_ref(hw_device_ctx);
@@ -57,11 +57,25 @@ namespace kotonoha
 		AVPacket* packet;
 		packet = av_packet_alloc();
 		AVFrame* frame = av_frame_alloc();
+		//
+		enum AVHWDeviceType type = AV_HWDEVICE_TYPE_NONE;
+		std::vector<std::string>  decoders;
+		fprintf(stderr, "Available device types:");
+		while ((type = av_hwdevice_iterate_types(type)) != AV_HWDEVICE_TYPE_NONE) {
+			decoders.push_back(av_hwdevice_get_type_name(type));
+		}
+		for (std::vector<std::string>::size_type i = 0; i < decoders.size(); i++)
+		{
+			importedTo->root->log0->appendLog("(Video) - Decoder avaliable " + decoders[i]);
+		}
 		// Set HW decoder
-		enum AVHWDeviceType type;
-		type = av_hwdevice_find_type_by_name("dxva2");
-		int hw = av_hwdevice_ctx_create(&hw_device_ctx, type, NULL, NULL, 0);
-		hw = 1;
+		!decoders.empty() ? type = av_hwdevice_find_type_by_name(decoders[0].c_str()) : 0;
+		if (importedTo->control->hardwareVideo != 0) {
+			importedTo->control->hardwareVideo = av_hwdevice_ctx_create(&hw_device_ctx, type, NULL, NULL, 0);
+		}
+		else {
+			importedTo->control->hardwareVideo = 1;
+		}
 		while (importedTo->control->outCode == 0)
 		{
 			kotonohaTime::delay(kotonoha::maxtps);
@@ -101,12 +115,10 @@ namespace kotonoha
 							{
 								importedTo->root->log0->appendLog("(Video) - No codec support " + importedTo->audio[i].path);
 							}
-							if (hw == 0) {
+							// Setup hardware decoder
+							if (importedTo->control->hardwareVideo == 0) {
 								for (i = 0;; i++) {
-									const AVCodecHWConfig* config = avcodec_get_hw_config(codec, i);
-									if (!config) {
-										fprintf(stderr, "Decoder %s does not support device type %s.\n", codec->name, av_hwdevice_get_type_name(type));
-									}
+									const AVCodecHWConfig* config = avcodec_get_hw_config(codec, (int)i);
 									if (config->methods & AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX && config->device_type == type) {
 										hw_pix_fmt = config->pix_fmt;
 										break;
@@ -115,7 +127,7 @@ namespace kotonoha
 							}
 							AVCodecContext* codecCtx = avcodec_alloc_context3(codec);
 							avcodec_parameters_to_context(codecCtx, formatCtx->streams[videoStream]->codecpar);
-							if (hw == 0)
+							if (importedTo->control->hardwareVideo == 0)
 							{
 								codecCtx->get_format = get_hw_format;
 								hw_decoder_init(codecCtx, type);
@@ -132,7 +144,7 @@ namespace kotonoha
 									// Decode frame
 									avcodec_send_packet(codecCtx, packet);
 									avcodec_receive_frame(codecCtx, frame);
-									if (hw == 0 && frame->format == hw_pix_fmt)
+									if (importedTo->control->hardwareVideo == 0 && frame->format == hw_pix_fmt)
 									{
 										AVFrame* frame_sw = av_frame_alloc();
 										frame_sw->width = frame->width;
@@ -146,43 +158,43 @@ namespace kotonoha
 									// Loop to wait frame time 
 									while (!exit && importedTo->control->outCode == 0)
 									{
-										kotonohaTime::delay(kotonoha::maxtps);
+										kotonohaTime::delay(kotonoha::maxtps/2);
 										pTime = importedTo->control->timer0.pushTime() - sTime;
 										// Case frame time is a target
-										if (pTime >= fTime - 0.003 or importedTo->control->paused)
+										if (pTime > fTime-0.0020)
 										{
-											// Can display frame
-											if (importedTo->control->display[1] == true)
-											{
-												if (importedTo->control->hiddenVideo) goto END;
-												// Render frame
-												if (hw == 0) {
-													texture = SDL_CreateTexture(importedTo->root->renderer, SDL_PIXELFORMAT_NV12, SDL_TEXTUREACCESS_STREAMING, frame->width, frame->height);
-													SDL_UpdateNVTexture(texture, NULL, frame->data[0], frame->linesize[0], frame->data[1], frame->linesize[1]);
-												}
-												else {
-													texture = SDL_CreateTexture(importedTo->root->renderer, SDL_PIXELFORMAT_YV12, SDL_TEXTUREACCESS_STREAMING, frame->width, frame->height);
-													SDL_UpdateYUVTexture(texture, NULL, frame->data[0], frame->linesize[0], frame->data[1], frame->linesize[1], frame->data[2], frame->linesize[2]);
-												}
-												SDL_GetWindowSize(importedTo->root->window, &w, &h);
-												square = { 0, 0, w, h };
-												SDL_RenderCopy(importedTo->root->renderer, texture, NULL, &square);
-												SDL_DestroyTexture(texture);
-											END:
-												importedTo->control->display[2] = true;
-												importedTo->control->display[1] = false;
+											importedTo->control->videoTime = pTime;
+											sTime = importedTo->control->timer0.pushTime();
+											pTime = 0.0;
+											exit = true;
+										}
+										// Can display frame
+										if (importedTo->control->display[1] == true)
+										{
+											if (importedTo->control->hiddenVideo) goto END;
+											// Render frame
+											if (importedTo->control->hardwareVideo == 0) {
+												texture = SDL_CreateTexture(importedTo->root->renderer, SDL_PIXELFORMAT_NV12, SDL_TEXTUREACCESS_STREAMING, frame->width, frame->height);
+												SDL_UpdateNVTexture(texture, NULL, frame->data[0], frame->linesize[0], frame->data[1], frame->linesize[1]);
 											}
-											if (!importedTo->control->paused) {
-												sTime = importedTo->control->timer0.pushTime();
-												pTime = 0.0;
-												exit = true;
+											else {
+												texture = SDL_CreateTexture(importedTo->root->renderer, SDL_PIXELFORMAT_YV12, SDL_TEXTUREACCESS_STREAMING, frame->width, frame->height);
+												SDL_UpdateYUVTexture(texture, NULL, frame->data[0], frame->linesize[0], frame->data[1], frame->linesize[1], frame->data[2], frame->linesize[2]);
 											}
+											SDL_GetWindowSize(importedTo->root->window, &w, &h);
+											square = { 0, 0, w, h };
+											SDL_RenderCopy(importedTo->root->renderer, texture, NULL, &square);
+											SDL_DestroyTexture(texture);
+										END:
+											importedTo->control->display[2] = true;
+											importedTo->control->display[1] = false;
 										}
 									}
 									exit = false;
 								}
 								av_packet_unref(packet);
 							}
+							importedTo->control->videoTime = -1;
 							// Free resorces
 							avformat_close_input(&formatCtx);
 							avcodec_close(codecCtx);

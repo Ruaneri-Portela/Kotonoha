@@ -3,7 +3,7 @@ namespace kotonoha
 	class loop
 	{
 	public:
-		int game(SDL_Window* windowEntry, SDL_Renderer* rendererEntry, std::string path, kotonohaData::configsData fileConfigs, kotonoha::logger* log0, ImGuiIO* io, bool isCmd)
+		int game(SDL_Window* windowEntry, SDL_Renderer* rendererEntry, std::string path, kotonohaData::configsData fileConfigs, kotonoha::logger* log0, ImGuiIO* io, bool isCmd, bool HwV)
 		{
 			// Create data structure
 			kotonohaData::rootData* rootData = new kotonohaData::rootData;
@@ -38,6 +38,7 @@ namespace kotonoha
 			std::thread thread5(kotonoha::playText, global);
 			// Import value isCmd to data struct
 			controlData->isCmd = isCmd;
+			controlData->hardwareVideo = HwV;
 			rootData->log0->appendLog("(ML) - Entry point to while");
 			rootData->event = new SDL_Event;
 			kotonoha::prompt* local = NULL;
