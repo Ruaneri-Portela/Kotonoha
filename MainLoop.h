@@ -30,19 +30,18 @@ namespace kotonoha
 			// Loading script to create all game objects
 			log0->appendLog("(ORS - Pre) - Reading " + path);
 			controlData->outCode = kotonoha::orsLoader(global, path);
+			// Import value isCmd to data struct
+			controlData->isCmd = isCmd;
+			controlData->hardwareVideo = HwV;
 			// Start game loop and threads
 			std::thread thread1(kotonoha::ui, global);
 			std::thread thread2(kotonoha::playImage, global);
 			std::thread thread3(kotonoha::playVideo, global);
 			std::thread thread4(kotonoha::playAudio, global);
 			std::thread thread5(kotonoha::playText, global);
-			// Import value isCmd to data struct
-			controlData->isCmd = isCmd;
-			controlData->hardwareVideo = HwV;
 			rootData->log0->appendLog("(ML) - Entry point to while");
 			rootData->event = new SDL_Event;
 			kotonoha::prompt* local = NULL;
-			int mouseX = 0, mouseY = 0;
 			double timeStart = 0;
 			double timeHiddenMouse = 0;
 			while (controlData->outCode == 0)
@@ -60,8 +59,6 @@ namespace kotonoha
 					}
 					if (rootData->event->type == SDL_MOUSEMOTION) {
 						timeStart = controlData->timer0.pushTime();
-						mouseX = rootData->event->motion.x;
-						mouseY = rootData->event->motion.y;
 						SDL_ShowCursor(SDL_ENABLE);
 					}
 					ImGui_ImplSDL2_ProcessEvent(rootData->event);
