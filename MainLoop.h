@@ -3,7 +3,7 @@ namespace kotonoha
 	class loop
 	{
 	public:
-		int game(SDL_Window* windowEntry, SDL_Renderer* rendererEntry, std::string path, kotonohaData::configsData fileConfigs, kotonoha::logger* log0, ImGuiIO* io, bool isCmd, bool HwV)
+		int game(SDL_Window* windowEntry, SDL_Renderer* rendererEntry, std::string path, kotonohaData::configsData fileConfigs, kotonoha::logger* log0, ImGuiIO* io, bool isCmd, int HwV)
 		{
 			// Create data structure
 			kotonohaData::rootData* rootData = new kotonohaData::rootData;

@@ -62,10 +62,10 @@ namespace kotonoha
 		}
 		// Set HW decoder
 		size_t j = 0;
-		if (importedTo->control->hardwareVideo == 1 && decodersList > 0)
+		if (importedTo->control->hardwareVideo != 0 && decodersList > 0)
 		{
 			int hasDecode = -1;
-
+			j += importedTo->control->hardwareVideo-1;
 			for (size_t i = j; i < decodersList; i++)
 			{
 				importedTo->root->log0->appendLog("(Video) - Try init " + decoders[i] + " has video decoder");

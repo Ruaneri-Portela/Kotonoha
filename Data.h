@@ -35,7 +35,7 @@ namespace kotonohaData
 		// Is Paused?
 		bool paused = false;
 		// Hardware video
-		int hardwareVideo = false;
+		int hardwareVideo = 0;
 		//
 		double videoTime = -1;
 	};

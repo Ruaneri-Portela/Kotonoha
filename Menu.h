@@ -6,7 +6,7 @@ namespace kotonoha
 		std::string filenameString = "";
 		bool debugPromptEnabled = false;
 		kotonohaData::configsData configs;
-		bool hwVideo = false;
+		int hwVideo = 0;
 	} menuReturn;
 	kotonohaData::configsData fileConfig(int parm = 0, kotonohaData::configsData configs = { false, "", "", "", "" })
 	{
@@ -32,6 +32,7 @@ namespace kotonoha
 		ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 		bool about = false;
 		bool config = false;
+		bool hw = false;
 		bool configSaved = false;
 		bool returnPrompt = true;
 		char scriptPath[256] = "";
@@ -72,7 +73,7 @@ namespace kotonoha
 			ImGui::SameLine();
 			ImGui::Checkbox("Enable logger", &log0->enable);
 			ImGui::SameLine();
-			ImGui::Checkbox("HW Video", &object.hwVideo);
+			ImGui::Checkbox("HW Video", &hw);
 			if (object.configs.configured)
 			{
 				if (ImGui::Button("Start"))
@@ -167,6 +168,7 @@ namespace kotonoha
 			SDL_RenderPresent(renderer);
 		}
 		delete event;
+		object.hwVideo = hw;
 		log0->appendLog("(Menu) - Menu out");
 		return object;
 	}
