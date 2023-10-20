@@ -21,6 +21,29 @@ namespace kotonoha
 			return 0;
 		};
 	};
+	////////////////////////////////////////////
+	static AVBufferRef* hw_device_ctx = NULL;
+	static enum AVPixelFormat hw_pix_fmt;
+	static int hw_decoder_init(AVCodecContext* ctx, const enum AVHWDeviceType type)
+	{
+		int err = 0;
+		if ((err = av_hwdevice_ctx_create(&hw_device_ctx, type,NULL, NULL, 0)) < 0) {
+			return err;
+		}
+		ctx->hw_device_ctx = av_buffer_ref(hw_device_ctx);
+		return err;
+	}
+	static enum AVPixelFormat get_hw_format(AVCodecContext* ctx,
+		const enum AVPixelFormat* pix_fmts)
+	{
+		const enum AVPixelFormat* p;
+		for (p = pix_fmts; *p != -1; p++) {
+			if (*p == hw_pix_fmt)
+				return *p;
+		}
+		return AV_PIX_FMT_NONE;
+	}
+	////////////////////////////////////////////
 	int playVideo(void* import)
 	{
 		kotonohaData::acessMapper * importedTo = static_cast<kotonohaData::acessMapper*>(import);
@@ -30,9 +53,15 @@ namespace kotonoha
 		double timePass = 0.0;
 		int h = 0, w = 0;
 		SDL_Rect square = { 0,0,0,0 };
-		//Pre Config AV context
-		AVPacket packet;
+		// Pre Config AV context
+		AVPacket* packet;
+		packet = av_packet_alloc();
 		AVFrame* frame = av_frame_alloc();
+		// Set HW decoder
+		enum AVHWDeviceType type;
+		type = av_hwdevice_find_type_by_name("dxva2");
+		int hw = av_hwdevice_ctx_create(&hw_device_ctx, type, NULL, NULL, 0);
+		hw = 1;
 		while (importedTo->control->outCode == 0)
 		{
 			kotonohaTime::delay(kotonoha::maxtps);
@@ -52,6 +81,7 @@ namespace kotonoha
 							{
 								importedTo->root->log0->appendLog("(Video) - Error on open file " + importedTo->audio[i].path);
 							}
+							avformat_find_stream_info(formatCtx, NULL);
 							// Find video stream
 							int videoStream = -1;
 							for (unsigned int i = 0; i < formatCtx->nb_streams; i++)
@@ -65,27 +95,54 @@ namespace kotonoha
 							{
 								importedTo->root->log0->appendLog("(Video) - No stream found " + importedTo->audio[i].path);
 							}
-							avformat_find_stream_info(formatCtx, nullptr);
 							// Setup video decoder
 							const AVCodec* codec = avcodec_find_decoder(formatCtx->streams[videoStream]->codecpar->codec_id);
 							if (!codec)
 							{
 								importedTo->root->log0->appendLog("(Video) - No codec support " + importedTo->audio[i].path);
 							}
+							if (hw == 0) {
+								for (i = 0;; i++) {
+									const AVCodecHWConfig* config = avcodec_get_hw_config(codec, i);
+									if (!config) {
+										fprintf(stderr, "Decoder %s does not support device type %s.\n", codec->name, av_hwdevice_get_type_name(type));
+									}
+									if (config->methods & AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX && config->device_type == type) {
+										hw_pix_fmt = config->pix_fmt;
+										break;
+									}
+								}
+							}
 							AVCodecContext* codecCtx = avcodec_alloc_context3(codec);
 							avcodec_parameters_to_context(codecCtx, formatCtx->streams[videoStream]->codecpar);
-							avcodec_open2(codecCtx, codec, nullptr);
+							if (hw == 0)
+							{
+								codecCtx->get_format = get_hw_format;
+								hw_decoder_init(codecCtx, type);
+							}
+							avcodec_open2(codecCtx, codec, NULL);
 							double sTime = importedTo->control->timer0.pushTime();
 							double pTime = 0.0;
 							double fTime = 1.0 / av_q2d(formatCtx->streams[videoStream]->avg_frame_rate);
 							bool exit = false;
-							while (av_read_frame(formatCtx, &packet) >= 0 && importedTo->control->outCode == 0)
+							while (av_read_frame(formatCtx, packet) >= 0 && importedTo->control->outCode == 0)
 							{
-								if (packet.stream_index == videoStream)
+								if (packet->stream_index == videoStream)
 								{
 									// Decode frame
-									avcodec_send_packet(codecCtx, &packet);
+									avcodec_send_packet(codecCtx, packet);
 									avcodec_receive_frame(codecCtx, frame);
+									if (hw == 0 && frame->format == hw_pix_fmt)
+									{
+										AVFrame* frame_sw = av_frame_alloc();
+										frame_sw->width = frame->width;
+										frame_sw->height = frame->height;
+										frame_sw->format = AV_PIX_FMT_NV12;
+										av_frame_get_buffer(frame_sw, 32);
+										av_hwframe_transfer_data(frame_sw, frame, 0);
+										av_frame_free(&frame);
+										frame = frame_sw;
+									}
 									// Loop to wait frame time 
 									while (!exit && importedTo->control->outCode == 0)
 									{
@@ -99,8 +156,14 @@ namespace kotonoha
 											{
 												if (importedTo->control->hiddenVideo) goto END;
 												// Render frame
-												texture = SDL_CreateTexture(importedTo->root->renderer, SDL_PIXELFORMAT_YV12, SDL_TEXTUREACCESS_STREAMING, frame->width, frame->height);
-												SDL_UpdateYUVTexture(texture, NULL, frame->data[0], frame->linesize[0], frame->data[1], frame->linesize[1], frame->data[2], frame->linesize[2]);
+												if (hw == 0) {
+													texture = SDL_CreateTexture(importedTo->root->renderer, SDL_PIXELFORMAT_NV12, SDL_TEXTUREACCESS_STREAMING, frame->width, frame->height);
+													SDL_UpdateNVTexture(texture, NULL, frame->data[0], frame->linesize[0], frame->data[1], frame->linesize[1]);
+												}
+												else {
+													texture = SDL_CreateTexture(importedTo->root->renderer, SDL_PIXELFORMAT_YV12, SDL_TEXTUREACCESS_STREAMING, frame->width, frame->height);
+													SDL_UpdateYUVTexture(texture, NULL, frame->data[0], frame->linesize[0], frame->data[1], frame->linesize[1], frame->data[2], frame->linesize[2]);
+												}
 												SDL_GetWindowSize(importedTo->root->window, &w, &h);
 												square = { 0, 0, w, h };
 												SDL_RenderCopy(importedTo->root->renderer, texture, NULL, &square);
@@ -118,7 +181,7 @@ namespace kotonoha
 									}
 									exit = false;
 								}
-								av_packet_unref(&packet);
+								av_packet_unref(packet);
 							}
 							// Free resorces
 							avformat_close_input(&formatCtx);
