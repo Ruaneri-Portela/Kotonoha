@@ -61,10 +61,11 @@ namespace kotonoha
 			importedTo->root->log0->appendLog("(Video) - Decoder avaliable " + decoders[i]);
 		}
 		// Set HW decoder
+		size_t j = 0;
 		if (decodersList > 0)
 		{
 			int hasDecode = -1;
-			size_t j = 0;
+			
 			for (size_t i = j; i < decodersList; i++)
 			{
 				importedTo->root->log0->appendLog("(Video) - Try init " + decoders[i] + " has video decoder");
@@ -112,11 +113,11 @@ namespace kotonoha
 							avformat_find_stream_info(formatCtx, NULL);
 							// Find video stream
 							int videoStream = -1;
-							for (unsigned int i = 0; i < formatCtx->nb_streams; i++)
+							for (unsigned int k = 0; k < formatCtx->nb_streams; k++)
 							{
-								if (formatCtx->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO)
+								if (formatCtx->streams[k]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO)
 								{
-									videoStream = i;
+									videoStream = k;
 								}
 							}
 							if (videoStream == -1)
@@ -132,9 +133,9 @@ namespace kotonoha
 							// Setup hardware decoder
 							if (importedTo->control->hardwareVideo == 0)
 							{
-								for (i = 0;; i++)
+								for (int k = 0;; k++)
 								{
-									const AVCodecHWConfig *config = avcodec_get_hw_config(codec, (int)i);
+									const AVCodecHWConfig *config = avcodec_get_hw_config(codec, (int)k);
 									if (!config)
 									{
 										importedTo->root->log0->appendLog("(Video) - No hardware decoder support, fallbackt to sw only" + importedTo->audio[i].path);
