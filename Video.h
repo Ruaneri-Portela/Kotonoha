@@ -62,10 +62,10 @@ namespace kotonoha
 		}
 		// Set HW decoder
 		size_t j = 0;
-		if (decodersList > 0)
+		if (importedTo->control->hardwareVideo == 1 && decodersList > 0)
 		{
 			int hasDecode = -1;
-			
+
 			for (size_t i = j; i < decodersList; i++)
 			{
 				importedTo->root->log0->appendLog("(Video) - Try init " + decoders[i] + " has video decoder");
@@ -83,6 +83,7 @@ namespace kotonoha
 			}
 			else
 			{
+				importedTo->root->log0->appendLog("(Video) - No hw decodes avaliable on this hw");
 				importedTo->control->hardwareVideo = -1;
 			}
 		}
@@ -104,6 +105,7 @@ namespace kotonoha
 						if (importedTo->video[i].play < timePass && importedTo->video[i].played == false)
 						{
 							importedTo->root->log0->appendLog("(Video) - Playing " + importedTo->video[i].path);
+						
 							AVFormatContext *formatCtx = avformat_alloc_context();
 							importedTo->video[i].played = true;
 							if (avformat_open_input(&formatCtx, importedTo->video[i].path.c_str(), NULL, NULL) != 0)
@@ -138,7 +140,7 @@ namespace kotonoha
 									const AVCodecHWConfig *config = avcodec_get_hw_config(codec, (int)k);
 									if (!config)
 									{
-										importedTo->root->log0->appendLog("(Video) - No hardware decoder support, fallbackt to sw only" + importedTo->audio[i].path);
+										importedTo->root->log0->appendLog("(Video) - Erro to get hw configs" + importedTo->audio[i].path);
 										importedTo->control->hardwareVideo = -1;
 										break;
 									}
@@ -149,6 +151,7 @@ namespace kotonoha
 									}
 								}
 							}
+							TRY:
 							AVCodecContext *codecCtx = avcodec_alloc_context3(codec);
 							avcodec_parameters_to_context(codecCtx, formatCtx->streams[videoStream]->codecpar);
 							// If hw pass hw decoder to codec context
@@ -159,6 +162,13 @@ namespace kotonoha
 							}
 							// Open codec device
 							avcodec_open2(codecCtx, codec, NULL);
+							if (codecCtx->pix_fmt == AV_PIX_FMT_NONE)
+							{
+								avcodec_close(codecCtx);
+								importedTo->control->hardwareVideo = -1;
+								importedTo->root->log0->appendLog("(Video) - This hardware no support to decode this video, disable SW to this scene");
+								goto TRY;
+							}
 							// Setup frame rate on video
 							double sTime = importedTo->control->timer0.pushTime();
 							double pTime = 0.0;
