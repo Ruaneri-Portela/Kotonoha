@@ -6,6 +6,7 @@ namespace kotonoha
 		std::string filenameString = "";
 		bool debugPromptEnabled = false;
 		kotonohaData::configsData configs;
+		bool hwVideo = false;
 	} menuReturn;
 	kotonohaData::configsData fileConfig(int parm = 0, kotonohaData::configsData configs = { false, "", "", "", "" })
 	{
@@ -49,10 +50,10 @@ namespace kotonoha
 			STRCPYFIX(soundFe0, object.configs.soundFe0);
 			STRCPYFIX(stylesPath, object.configs.stylesPath);
 		}
-		SDL_Event *event = new SDL_Event;
+		SDL_Event* event = new SDL_Event;
 		while (object.returnCode == 0)
 		{
-			
+
 			kotonohaTime::delay(kotonoha::maxtps);
 			while (SDL_PollEvent(event))
 			{
@@ -68,7 +69,10 @@ namespace kotonoha
 			ImGui::Text("Copy the script path from text box e press start!");
 			ImGui::InputText("Script file path", scriptPath, 256);
 			ImGui::Checkbox("About", &about);
+			ImGui::SameLine();
 			ImGui::Checkbox("Enable logger", &log0->enable);
+			ImGui::SameLine();
+			ImGui::Checkbox("HW Video", &object.hwVideo);
 			if (object.configs.configured)
 			{
 				if (ImGui::Button("Start"))

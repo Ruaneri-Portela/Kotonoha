@@ -34,6 +34,10 @@ namespace kotonohaData
 		bool isCmd = false;
 		// Is Paused?
 		bool paused = false;
+		// Hardware video
+		int hardwareVideo = false;
+		//
+		double videoTime = -1;
 	};
 	// Auto explicative
 	struct audioData

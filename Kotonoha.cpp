@@ -26,6 +26,9 @@ int main(int argc, char* args[])
 			else if (strcmp(args[i], "-t") == 0 && argc > i) {
 				kotonoha::maxtps = std::stoi(args[i + 1]);
 			}
+			else if (strcmp(args[i], "-d") == 0 && argc > i) {
+				opts.hwVideo = std::stoi(args[i + 1]);
+			}
 		}
 	}
 	// Init enviroment
@@ -70,7 +73,7 @@ int main(int argc, char* args[])
 			break;
 		case 2:
 			behaviour = new kotonoha::loop();
-			opts.returnCode = behaviour->game(game.window, game.renderer, opts.filenameString, opts.configs, &log, game.io, fromComandLine);
+			opts.returnCode = behaviour->game(game.window, game.renderer, opts.filenameString, opts.configs, &log, game.io, fromComandLine, opts.hwVideo);
 			delete behaviour;
 			break;
 		default:
