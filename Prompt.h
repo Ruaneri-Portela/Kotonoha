@@ -22,12 +22,12 @@ namespace kotonoha
 	private:
 		TTF_Font* font = NULL;
 		SDL_Color color = { 0, 0, 0 };
-		SDL_Rect rect[4] = { {0, 0, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0} };
 		int h = 0, w = 0;
 		int bH = 0, bW = 0;
-		std::vector<kotonohaData::questionData>::size_type questionsSize = 0;
 		size_t returnValue = 0;
 	public:
+		SDL_Rect rect[4] = { {0, 0, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0} };
+		std::vector<kotonohaData::questionData>::size_type questionsSize = 0;
 		kotonohaData::acessMapper* mapper = NULL;
 		int init()
 		{

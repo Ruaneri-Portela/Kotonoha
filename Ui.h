@@ -19,7 +19,6 @@ namespace kotonoha
 			kotonohaTime::delay(kotonoha::maxtps);
 			if (mapper->control->display[3])
 			{
-
 				// Draw UI
 				ImGui_ImplSDLRenderer2_NewFrame();
 				ImGui_ImplSDL2_NewFrame();

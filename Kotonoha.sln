@@ -5,8 +5,6 @@ VisualStudioVersion = 17.7.34202.233
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Kotonoha", "Kotonoha.vcxproj", "{F90C2EDD-F742-4E72-B902-DDE9B41D5D38}"
 EndProject
-Project("{54435603-DBB4-11D2-8724-00A0C9A8B90C}") = "KotonohaSetup", "KotonohaSetup\KotonohaSetup.vdproj", "{25EAFE55-5A54-42A6-AFDE-10D087258458}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|ARM64 = Debug|ARM64
@@ -29,13 +27,6 @@ Global
 		{F90C2EDD-F742-4E72-B902-DDE9B41D5D38}.Release|x64.Build.0 = Release|x64
 		{F90C2EDD-F742-4E72-B902-DDE9B41D5D38}.Release|x86.ActiveCfg = Release|Win32
 		{F90C2EDD-F742-4E72-B902-DDE9B41D5D38}.Release|x86.Build.0 = Release|Win32
-		{25EAFE55-5A54-42A6-AFDE-10D087258458}.Debug|ARM64.ActiveCfg = Debug
-		{25EAFE55-5A54-42A6-AFDE-10D087258458}.Debug|x64.ActiveCfg = Debug
-		{25EAFE55-5A54-42A6-AFDE-10D087258458}.Debug|x64.Build.0 = Debug
-		{25EAFE55-5A54-42A6-AFDE-10D087258458}.Debug|x86.ActiveCfg = Debug
-		{25EAFE55-5A54-42A6-AFDE-10D087258458}.Release|ARM64.ActiveCfg = Release
-		{25EAFE55-5A54-42A6-AFDE-10D087258458}.Release|x64.ActiveCfg = Release
-		{25EAFE55-5A54-42A6-AFDE-10D087258458}.Release|x86.ActiveCfg = Release
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
