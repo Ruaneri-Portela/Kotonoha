@@ -1,2 +1,10 @@
 Icon.h linguist-generated=true
-Android/app/src/main/java/org/* linguist-generated=true
+HIDDevice.java linguist-generated=true
+HIDDeviceManager.java linguist-generated=true
+SDL.java linguist-generated=true
+SDLAudioManager.java linguist-generated=true
+SDLSurface.java linguist-generated=true
+HIDDeviceBLESteamController.java linguist-generated=true
+HIDDeviceUSB.java linguist-generated=true
+SDLActivity.java linguist-generated=true
+SDLControllerManager.java linguist-generated=true
