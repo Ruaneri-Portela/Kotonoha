@@ -1,0 +1,26 @@
+{
+    "logs": [
+        {
+            "outputFile": "com.Kotonoha_Android.app-merged_res-5:/values_values.arsc.flat",
+            "map": [
+                {
+                    "source": "D:\\Data\\Kotonoha\\Android\\app\\src\\main\\res\\values\\strings.xml",
+                    "from": {
+                        "startLines": "2",
+                        "startColumns": "4",
+                        "startOffsets": "57",
+                        "endColumns": "53",
+                        "endOffsets": "106"
+                    },
+                    "to": {
+                        "startLines": "2",
+                        "startColumns": "4",
+                        "startOffsets": "55",
+                        "endColumns": "53",
+                        "endOffsets": "104"
+                    }
+                }
+            ]
+        }
+    ]
+}
