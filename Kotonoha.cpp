@@ -4,6 +4,14 @@
 // This function below is a entry point
 int main(int argc, char* args[])
 {
+#ifdef ISANDROID
+	SDL_AndroidRequestPermission("android.permission.READ_EXTERNAL_STORAGE");
+	SDL_AndroidRequestPermission("android.permission.WRITE_EXTERNAL_STORAGE");
+	SDL_AndroidRequestPermission("android.permission.MANAGE_EXTERNAL_STORAGE");
+	std::filesystem::path newDir = "/sdcard/Kotonoha";
+	std::filesystem::create_directory(newDir);
+	std::filesystem::current_path(newDir);
+#endif // ISANDROID
 	kotonoha::menuReturn opts;
 	// Comand Line
 	bool fromComandLine = false;
