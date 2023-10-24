@@ -19,4 +19,4 @@ Android/x64
 Android/SDL2/ARM64
 Android/SDL2/ARM
 Android/SDL2/x64
-Android/app/src/main/jniLibs/**
+Android/app/src/main/jniLibs
