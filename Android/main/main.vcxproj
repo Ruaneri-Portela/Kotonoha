@@ -133,82 +133,90 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM'">
     <ClCompile>
-      <AdditionalIncludeDirectories>$(Sysroot)\usr\include;$(StlIncludeDirectories)%(AdditionalIncludeDirectories);..\libsdl\libz;..\libsdl\SDL\include;..\libsdl\SDL_ttf\include;..\libsdl\SDL_image\include;..\..\imgui\;..\..\imgui\backends;..\libsdl;..\libsdl\SDL_ttf;D:\Data\vcpkg\installed\arm64-android\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\libsdl\ffmpeg\armeabi-v7a\include;$(Sysroot)\usr\include;$(StlIncludeDirectories)%(AdditionalIncludeDirectories);..\libsdl\libz;..\libsdl\SDL\include;..\libsdl\SDL_ttf\include;..\libsdl\SDL_image\include;..\..\imgui\;..\..\imgui\backends;..\libsdl;..\libsdl\SDL_ttf;D:\Data\vcpkg\installed\arm64-android\include</AdditionalIncludeDirectories>
       <CppLanguageStandard>c++1z</CppLanguageStandard>
+      <PreprocessorDefinitions>ISANDROID;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <AdditionalLibraryDirectories>D:\Data\vcpkg\installed\arm-neon-android\lib;%(AdditionalLibraryDirectories);$(ToolchainPrebuiltPath)\lib\gcc\$(ToolchainName)\$(ToolchainFullVersionName)\$(PlatformShortName);$(StlLibraryPath);$(SolutionDir)$(Platform)\$(Configuration)</AdditionalLibraryDirectories>
-      <LibraryDependencies>$(StlLibraryName);%(LibraryDependencies);m;dl;GLESv1_CM;GLESv2;log;android;SDL2;SDL2_ttf;SDL2_mixer;SDL2_image;ass;fribidi;harfbuzz;harfbuzz-subset;freetype;png;png16;ogg;vorbis;vorbisenc;vorbisfile;z;bz2;brotlicommon;brotlidec;brotlienc</LibraryDependencies>
+      <LibraryDependencies>$(StlLibraryName);%(LibraryDependencies);m;dl;GLESv1_CM;GLESv2;log;android;SDL2;SDL2_ttf;SDL2_mixer;SDL2_image;ass;fribidi;harfbuzz;harfbuzz-subset;freetype;png;png16;ogg;vorbis;vorbisenc;vorbisfile;z;bz2;brotlicommon;brotlidec;brotlienc;avformat;avcodec;avutil</LibraryDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM'">
     <ClCompile>
-      <AdditionalIncludeDirectories>$(Sysroot)\usr\include;$(StlIncludeDirectories)%(AdditionalIncludeDirectories);..\libsdl\libz;..\libsdl\SDL\include;..\libsdl\SDL_ttf\include;..\libsdl\SDL_image\include;..\..\imgui\;..\..\imgui\backends;..\libsdl;..\libsdl\SDL_ttf;D:\Data\vcpkg\installed\arm64-android\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\libsdl\ffmpeg\armeabi-v7a\include;$(Sysroot)\usr\include;$(StlIncludeDirectories)%(AdditionalIncludeDirectories);..\libsdl\libz;..\libsdl\SDL\include;..\libsdl\SDL_ttf\include;..\libsdl\SDL_image\include;..\..\imgui\;..\..\imgui\backends;..\libsdl;..\libsdl\SDL_ttf;D:\Data\vcpkg\installed\arm64-android\include</AdditionalIncludeDirectories>
       <CppLanguageStandard>c++1z</CppLanguageStandard>
+      <PreprocessorDefinitions>ISANDROID;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <AdditionalLibraryDirectories>D:\Data\vcpkg\installed\arm-neon-android\lib;%(AdditionalLibraryDirectories);$(ToolchainPrebuiltPath)\lib\gcc\$(ToolchainName)\$(ToolchainFullVersionName)\$(PlatformShortName);$(StlLibraryPath);$(SolutionDir)$(Platform)\$(Configuration)</AdditionalLibraryDirectories>
-      <LibraryDependencies>$(StlLibraryName);%(LibraryDependencies);m;dl;GLESv1_CM;GLESv2;log;android;SDL2;SDL2_ttf;SDL2_mixer;SDL2_image;ass;fribidi;harfbuzz;harfbuzz-subset;freetype;png;png16;ogg;vorbis;vorbisenc;vorbisfile;z;bz2;brotlicommon;brotlidec;brotlienc</LibraryDependencies>
+      <LibraryDependencies>$(StlLibraryName);%(LibraryDependencies);m;dl;GLESv1_CM;GLESv2;log;android;SDL2;SDL2_ttf;SDL2_mixer;SDL2_image;ass;fribidi;harfbuzz;harfbuzz-subset;freetype;png;png16;ogg;vorbis;vorbisenc;vorbisfile;z;bz2;brotlicommon;brotlidec;brotlienc;avformat;avcodec;avutil</LibraryDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>$(Sysroot)\usr\include;$(StlIncludeDirectories)%(AdditionalIncludeDirectories);..\libsdl\libz;..\libsdl\SDL\include;..\libsdl\SDL_ttf\include;..\libsdl\SDL_image\include;..\..\imgui\;..\..\imgui\backends;..\libsdl;..\libsdl\SDL_ttf;D:\Data\vcpkg\installed\arm64-android\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\libsdl\ffmpeg\arm64-v8a\include;$(Sysroot)\usr\include;$(StlIncludeDirectories)%(AdditionalIncludeDirectories);..\libsdl\libz;..\libsdl\SDL\include;..\libsdl\SDL_ttf\include;..\libsdl\SDL_image\include;..\..\imgui\;..\..\imgui\backends;..\libsdl;..\libsdl\SDL_ttf;D:\Data\vcpkg\installed\arm64-android\include</AdditionalIncludeDirectories>
       <CppLanguageStandard>c++1z</CppLanguageStandard>
+      <PreprocessorDefinitions>ISANDROID;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories);$(ToolchainPrebuiltPath)\lib\gcc\$(ToolchainName)\$(ToolchainFullVersionName)\$(PlatformShortName);$(StlLibraryPath);$(SolutionDir)$(Platform)\$(Configuration);D:\Data\vcpkg\installed\arm64-android\lib</AdditionalLibraryDirectories>
-      <LibraryDependencies>$(StlLibraryName);%(LibraryDependencies);m;dl;GLESv1_CM;GLESv2;log;android;SDL2;SDL2_ttf;SDL2_mixer;SDL2_image;ass;fribidi;harfbuzz;harfbuzz-subset;freetype;png;png16;ogg;vorbis;vorbisenc;vorbisfile;z;bz2;brotlicommon;brotlidec;brotlienc</LibraryDependencies>
+      <LibraryDependencies>$(StlLibraryName);%(LibraryDependencies);m;dl;GLESv1_CM;GLESv2;log;android;SDL2;SDL2_ttf;SDL2_mixer;SDL2_image;ass;fribidi;harfbuzz;harfbuzz-subset;freetype;png;png16;ogg;vorbis;vorbisenc;vorbisfile;z;bz2;brotlicommon;brotlidec;brotlienc;avformat;avcodec;avutil</LibraryDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>$(Sysroot)\usr\include;$(StlIncludeDirectories)%(AdditionalIncludeDirectories);..\libsdl\libz;..\libsdl\SDL\include;..\libsdl\SDL_ttf\include;..\libsdl\SDL_image\include;..\..\imgui\;..\..\imgui\backends;..\libsdl;..\libsdl\SDL_ttf;D:\Data\vcpkg\installed\arm64-android\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\libsdl\ffmpeg\arm64-v8a\include;$(Sysroot)\usr\include;$(StlIncludeDirectories)%(AdditionalIncludeDirectories);..\libsdl\libz;..\libsdl\SDL\include;..\libsdl\SDL_ttf\include;..\libsdl\SDL_image\include;..\..\imgui\;..\..\imgui\backends;..\libsdl;..\libsdl\SDL_ttf;D:\Data\vcpkg\installed\arm64-android\include</AdditionalIncludeDirectories>
       <CppLanguageStandard>c++1z</CppLanguageStandard>
+      <PreprocessorDefinitions>ISANDROID;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories);$(ToolchainPrebuiltPath)\lib\gcc\$(ToolchainName)\$(ToolchainFullVersionName)\$(PlatformShortName);$(StlLibraryPath);$(SolutionDir)$(Platform)\$(Configuration);D:\Data\vcpkg\installed\arm64-android\lib</AdditionalLibraryDirectories>
-      <LibraryDependencies>$(StlLibraryName);%(LibraryDependencies);m;dl;GLESv1_CM;GLESv2;log;android;SDL2;SDL2_ttf;SDL2_mixer;SDL2_image;ass;fribidi;harfbuzz;harfbuzz-subset;freetype;png;png16;ogg;vorbis;vorbisenc;vorbisfile;z;bz2;brotlicommon;brotlidec;brotlienc</LibraryDependencies>
+      <LibraryDependencies>$(StlLibraryName);%(LibraryDependencies);m;dl;GLESv1_CM;GLESv2;log;android;SDL2;SDL2_ttf;SDL2_mixer;SDL2_image;ass;fribidi;harfbuzz;harfbuzz-subset;freetype;png;png16;ogg;vorbis;vorbisenc;vorbisfile;z;bz2;brotlicommon;brotlidec;brotlienc;avformat;avcodec;avutil</LibraryDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x86'">
     <ClCompile>
       <AdditionalIncludeDirectories>$(Sysroot)\usr\include;$(StlIncludeDirectories)%(AdditionalIncludeDirectories);..\libsdl\libz;..\libsdl\SDL\include;..\libsdl\SDL_ttf\include;..\libsdl\SDL_image\include;..\..\imgui\;..\..\imgui\backends;..\libsdl;..\libsdl\SDL_ttf;D:\Data\vcpkg\installed\arm64-android\include</AdditionalIncludeDirectories>
       <CppLanguageStandard>c++1z</CppLanguageStandard>
+      <PreprocessorDefinitions>ISANDROID;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories);$(ToolchainPrebuiltPath)\lib\gcc\$(ToolchainName)\$(ToolchainFullVersionName)\$(PlatformShortName);$(StlLibraryPath);$(SolutionDir)$(Platform)\$(Configuration)</AdditionalLibraryDirectories>
-      <LibraryDependencies>$(StlLibraryName);%(LibraryDependencies);m;dl;GLESv1_CM;GLESv2;log;android;SDL2;SDL2_ttf;SDL2_mixer;SDL2_image;ass;fribidi;harfbuzz;harfbuzz-subset;freetype;png;png16;ogg;vorbis;vorbisenc;vorbisfile;z;bz2;brotlicommon;brotlidec;brotlienc</LibraryDependencies>
+      <LibraryDependencies>$(StlLibraryName);%(LibraryDependencies);m;dl;GLESv1_CM;GLESv2;log;android;SDL2;SDL2_ttf;SDL2_mixer;SDL2_image;ass;fribidi;harfbuzz;harfbuzz-subset;freetype;png;png16;ogg;vorbis;vorbisenc;vorbisfile;z;bz2;brotlicommon;brotlidec;brotlienc;avformat;avcodec;avutil</LibraryDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x86'">
     <ClCompile>
       <AdditionalIncludeDirectories>$(Sysroot)\usr\include;$(StlIncludeDirectories)%(AdditionalIncludeDirectories);..\libsdl\libz;..\libsdl\SDL\include;..\libsdl\SDL_ttf\include;..\libsdl\SDL_image\include;..\..\imgui\;..\..\imgui\backends;..\libsdl;..\libsdl\SDL_ttf;D:\Data\vcpkg\installed\arm64-android\include</AdditionalIncludeDirectories>
       <CppLanguageStandard>c++1z</CppLanguageStandard>
+      <PreprocessorDefinitions>ISANDROID;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories);$(ToolchainPrebuiltPath)\lib\gcc\$(ToolchainName)\$(ToolchainFullVersionName)\$(PlatformShortName);$(StlLibraryPath);$(SolutionDir)$(Platform)\$(Configuration)</AdditionalLibraryDirectories>
-      <LibraryDependencies>$(StlLibraryName);%(LibraryDependencies);m;dl;GLESv1_CM;GLESv2;log;android;SDL2;SDL2_ttf;SDL2_mixer;SDL2_image;ass;fribidi;harfbuzz;harfbuzz-subset;freetype;png;png16;ogg;vorbis;vorbisenc;vorbisfile;z;bz2;brotlicommon;brotlidec;brotlienc</LibraryDependencies>
+      <LibraryDependencies>$(StlLibraryName);%(LibraryDependencies);m;dl;GLESv1_CM;GLESv2;log;android;SDL2;SDL2_ttf;SDL2_mixer;SDL2_image;ass;fribidi;harfbuzz;harfbuzz-subset;freetype;png;png16;ogg;vorbis;vorbisenc;vorbisfile;z;bz2;brotlicommon;brotlidec;brotlienc;avformat;avcodec;avutil</LibraryDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>$(Sysroot)\usr\include;$(StlIncludeDirectories)%(AdditionalIncludeDirectories);..\libsdl\libz;..\libsdl\SDL\include;..\libsdl\SDL_ttf\include;..\libsdl\SDL_image\include;..\..\imgui\;..\..\imgui\backends;..\libsdl;..\libsdl\SDL_ttf;D:\Data\vcpkg\installed\arm64-android\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\libsdl\ffmpeg\x86_64\include;$(Sysroot)\usr\include;$(StlIncludeDirectories)%(AdditionalIncludeDirectories);..\libsdl\libz;..\libsdl\SDL\include;..\libsdl\SDL_ttf\include;..\libsdl\SDL_image\include;..\..\imgui\;..\..\imgui\backends;..\libsdl;..\libsdl\SDL_ttf;D:\Data\vcpkg\installed\arm64-android\include</AdditionalIncludeDirectories>
       <CppLanguageStandard>c++1z</CppLanguageStandard>
+      <PreprocessorDefinitions>ISANDROID;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <AdditionalLibraryDirectories>D:\Data\vcpkg\installed\x64-android\lib;%(AdditionalLibraryDirectories);$(ToolchainPrebuiltPath)\lib\gcc\$(ToolchainName)\$(ToolchainFullVersionName)\$(PlatformShortName);$(StlLibraryPath);$(SolutionDir)$(Platform)\$(Configuration)</AdditionalLibraryDirectories>
-      <LibraryDependencies>$(StlLibraryName);%(LibraryDependencies);m;dl;GLESv1_CM;GLESv2;log;android;SDL2;SDL2_ttf;SDL2_mixer;SDL2_image;ass;fribidi;harfbuzz;harfbuzz-subset;freetype;png;png16;ogg;vorbis;vorbisenc;vorbisfile;z;bz2;brotlicommon;brotlidec;brotlienc</LibraryDependencies>
+      <LibraryDependencies>$(StlLibraryName);%(LibraryDependencies);m;dl;GLESv1_CM;GLESv2;log;android;SDL2;SDL2_ttf;SDL2_mixer;SDL2_image;ass;fribidi;harfbuzz;harfbuzz-subset;freetype;png;png16;ogg;vorbis;vorbisenc;vorbisfile;z;bz2;brotlicommon;brotlidec;brotlienc;avformat;avcodec;avutil</LibraryDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>$(Sysroot)\usr\include;$(StlIncludeDirectories)%(AdditionalIncludeDirectories);..\libsdl\libz;..\libsdl\SDL\include;..\libsdl\SDL_ttf\include;..\libsdl\SDL_image\include;..\..\imgui\;..\..\imgui\backends;..\libsdl;..\libsdl\SDL_ttf;D:\Data\vcpkg\installed\arm64-android\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\libsdl\ffmpeg\x86_64\include;$(Sysroot)\usr\include;$(StlIncludeDirectories)%(AdditionalIncludeDirectories);..\libsdl\libz;..\libsdl\SDL\include;..\libsdl\SDL_ttf\include;..\libsdl\SDL_image\include;..\..\imgui\;..\..\imgui\backends;..\libsdl;..\libsdl\SDL_ttf;D:\Data\vcpkg\installed\arm64-android\include</AdditionalIncludeDirectories>
       <CppLanguageStandard>c++1z</CppLanguageStandard>
+      <PreprocessorDefinitions>ISANDROID;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <AdditionalLibraryDirectories>D:\Data\vcpkg\installed\x64-android\lib;%(AdditionalLibraryDirectories);$(ToolchainPrebuiltPath)\lib\gcc\$(ToolchainName)\$(ToolchainFullVersionName)\$(PlatformShortName);$(StlLibraryPath);$(SolutionDir)$(Platform)\$(Configuration)</AdditionalLibraryDirectories>
-      <LibraryDependencies>$(StlLibraryName);%(LibraryDependencies);m;dl;GLESv1_CM;GLESv2;log;android;SDL2;SDL2_ttf;SDL2_mixer;SDL2_image;ass;fribidi;harfbuzz;harfbuzz-subset;freetype;png;png16;ogg;vorbis;vorbisenc;vorbisfile;z;bz2;brotlicommon;brotlidec;brotlienc</LibraryDependencies>
+      <LibraryDependencies>$(StlLibraryName);%(LibraryDependencies);m;dl;GLESv1_CM;GLESv2;log;android;SDL2;SDL2_ttf;SDL2_mixer;SDL2_image;ass;fribidi;harfbuzz;harfbuzz-subset;freetype;png;png16;ogg;vorbis;vorbisenc;vorbisfile;z;bz2;brotlicommon;brotlidec;brotlienc;avformat;avcodec;avutil</LibraryDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -219,6 +227,7 @@
     <ClCompile Include="..\..\imgui\imgui_draw.cpp" />
     <ClCompile Include="..\..\imgui\imgui_tables.cpp" />
     <ClCompile Include="..\..\imgui\imgui_widgets.cpp" />
+    <ClCompile Include="..\..\Kotonoha.cpp" />
     <ClCompile Include="..\libsdl\zlib\adler32.c" />
     <ClCompile Include="..\libsdl\zlib\compress.c" />
     <ClCompile Include="..\libsdl\zlib\crc32.c" />
@@ -234,12 +243,29 @@
     <ClCompile Include="..\libsdl\zlib\trees.c" />
     <ClCompile Include="..\libsdl\zlib\uncompr.c" />
     <ClCompile Include="..\libsdl\zlib\zutil.c" />
-    <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\SDL2\SDL2.vcxproj">
       <Project>{b7be417c-b6c5-4a69-a056-e0cb0c6a344c}</Project>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\Audio.h" />
+    <ClInclude Include="..\..\Data.h" />
+    <ClInclude Include="..\..\Game.h" />
+    <ClInclude Include="..\..\Headers.h" />
+    <ClInclude Include="..\..\Icon.h" />
+    <ClInclude Include="..\..\Image.h" />
+    <ClInclude Include="..\..\MacroHeaders.h" />
+    <ClInclude Include="..\..\MainLoop.h" />
+    <ClInclude Include="..\..\Menu.h" />
+    <ClInclude Include="..\..\Ors.h" />
+    <ClInclude Include="..\..\Prompt.h" />
+    <ClInclude Include="..\..\resource.h" />
+    <ClInclude Include="..\..\Text.h" />
+    <ClInclude Include="..\..\Ui.h" />
+    <ClInclude Include="..\..\Utils.h" />
+    <ClInclude Include="..\..\Video.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets" />

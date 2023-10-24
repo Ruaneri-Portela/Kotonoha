@@ -76,9 +76,6 @@
     <Filter Include="src\locale">
       <UniqueIdentifier>{9b9645ad-6fab-4163-a6c3-fac877d7f3af}</UniqueIdentifier>
     </Filter>
-    <Filter Include="src\libm">
-      <UniqueIdentifier>{0432ae4f-5d28-40bc-ba4b-1491fb260500}</UniqueIdentifier>
-    </Filter>
     <Filter Include="src\thread">
       <UniqueIdentifier>{4c62f430-bb9e-4495-99a7-151fefc2748c}</UniqueIdentifier>
     </Filter>
@@ -87,6 +84,9 @@
     </Filter>
     <Filter Include="cpu_features">
       <UniqueIdentifier>{21857610-73ff-43b2-87a0-9ee885d7918b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\libm">
+      <UniqueIdentifier>{2891835e-f739-4c35-b0d9-d0b63366963c}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -534,6 +534,60 @@
     <ClCompile Include="..\libsdl\SDL\src\locale\android\SDL_syslocale.c">
       <Filter>src\locale</Filter>
     </ClCompile>
+    <ClCompile Include="..\libsdl\SDL\src\video\dummy\SDL_nullevents.c">
+      <Filter>src\video</Filter>
+    </ClCompile>
+    <ClCompile Include="..\libsdl\SDL\src\video\dummy\SDL_nullframebuffer.c">
+      <Filter>src\video</Filter>
+    </ClCompile>
+    <ClCompile Include="..\libsdl\SDL\src\video\dummy\SDL_nullvideo.c">
+      <Filter>src\video</Filter>
+    </ClCompile>
+    <ClCompile Include="..\libsdl\SDL\src\thread\SDL_thread.c">
+      <Filter>src\thread</Filter>
+    </ClCompile>
+    <ClCompile Include="..\libsdl\SDL\src\thread\pthread\SDL_syscond.c">
+      <Filter>src\thread\pthread</Filter>
+    </ClCompile>
+    <ClCompile Include="..\libsdl\SDL\src\thread\pthread\SDL_sysmutex.c">
+      <Filter>src\thread\pthread</Filter>
+    </ClCompile>
+    <ClCompile Include="..\libsdl\SDL\src\thread\pthread\SDL_syssem.c">
+      <Filter>src\thread\pthread</Filter>
+    </ClCompile>
+    <ClCompile Include="..\libsdl\SDL\src\thread\pthread\SDL_systhread.c">
+      <Filter>src\thread\pthread</Filter>
+    </ClCompile>
+    <ClCompile Include="..\libsdl\SDL\src\thread\pthread\SDL_systls.c">
+      <Filter>src\thread\pthread</Filter>
+    </ClCompile>
+    <ClCompile Include="..\libsdl\cpu_features\ndk_compat\cpu-features.c">
+      <Filter>cpu_features</Filter>
+    </ClCompile>
+    <ClCompile Include="..\libsdl\cpu_features\ndk_compat\ndk-compat-test.c">
+      <Filter>cpu_features</Filter>
+    </ClCompile>
+    <ClCompile Include="..\libsdl\cpu_features\src\filesystem.c">
+      <Filter>cpu_features</Filter>
+    </ClCompile>
+    <ClCompile Include="..\libsdl\cpu_features\src\hwcaps.c">
+      <Filter>cpu_features</Filter>
+    </ClCompile>
+    <ClCompile Include="..\libsdl\cpu_features\src\impl_aarch64_linux_or_android.c">
+      <Filter>cpu_features</Filter>
+    </ClCompile>
+    <ClCompile Include="..\libsdl\cpu_features\src\impl_arm_linux_or_android.c">
+      <Filter>cpu_features</Filter>
+    </ClCompile>
+    <ClCompile Include="..\libsdl\cpu_features\src\stack_line_reader.c">
+      <Filter>cpu_features</Filter>
+    </ClCompile>
+    <ClCompile Include="..\libsdl\cpu_features\src\string_view.c">
+      <Filter>cpu_features</Filter>
+    </ClCompile>
+    <ClCompile Include="..\libsdl\cpu_features\src\impl_x86_linux_or_android.c">
+      <Filter>cpu_features</Filter>
+    </ClCompile>
     <ClCompile Include="..\libsdl\SDL\src\libm\e_atan2.c">
       <Filter>src\libm</Filter>
     </ClCompile>
@@ -593,60 +647,6 @@
     </ClCompile>
     <ClCompile Include="..\libsdl\SDL\src\libm\s_tan.c">
       <Filter>src\libm</Filter>
-    </ClCompile>
-    <ClCompile Include="..\libsdl\SDL\src\video\dummy\SDL_nullevents.c">
-      <Filter>src\video</Filter>
-    </ClCompile>
-    <ClCompile Include="..\libsdl\SDL\src\video\dummy\SDL_nullframebuffer.c">
-      <Filter>src\video</Filter>
-    </ClCompile>
-    <ClCompile Include="..\libsdl\SDL\src\video\dummy\SDL_nullvideo.c">
-      <Filter>src\video</Filter>
-    </ClCompile>
-    <ClCompile Include="..\libsdl\SDL\src\thread\SDL_thread.c">
-      <Filter>src\thread</Filter>
-    </ClCompile>
-    <ClCompile Include="..\libsdl\SDL\src\thread\pthread\SDL_syscond.c">
-      <Filter>src\thread\pthread</Filter>
-    </ClCompile>
-    <ClCompile Include="..\libsdl\SDL\src\thread\pthread\SDL_sysmutex.c">
-      <Filter>src\thread\pthread</Filter>
-    </ClCompile>
-    <ClCompile Include="..\libsdl\SDL\src\thread\pthread\SDL_syssem.c">
-      <Filter>src\thread\pthread</Filter>
-    </ClCompile>
-    <ClCompile Include="..\libsdl\SDL\src\thread\pthread\SDL_systhread.c">
-      <Filter>src\thread\pthread</Filter>
-    </ClCompile>
-    <ClCompile Include="..\libsdl\SDL\src\thread\pthread\SDL_systls.c">
-      <Filter>src\thread\pthread</Filter>
-    </ClCompile>
-    <ClCompile Include="..\libsdl\cpu_features\ndk_compat\cpu-features.c">
-      <Filter>cpu_features</Filter>
-    </ClCompile>
-    <ClCompile Include="..\libsdl\cpu_features\ndk_compat\ndk-compat-test.c">
-      <Filter>cpu_features</Filter>
-    </ClCompile>
-    <ClCompile Include="..\libsdl\cpu_features\src\filesystem.c">
-      <Filter>cpu_features</Filter>
-    </ClCompile>
-    <ClCompile Include="..\libsdl\cpu_features\src\hwcaps.c">
-      <Filter>cpu_features</Filter>
-    </ClCompile>
-    <ClCompile Include="..\libsdl\cpu_features\src\impl_aarch64_linux_or_android.c">
-      <Filter>cpu_features</Filter>
-    </ClCompile>
-    <ClCompile Include="..\libsdl\cpu_features\src\impl_arm_linux_or_android.c">
-      <Filter>cpu_features</Filter>
-    </ClCompile>
-    <ClCompile Include="..\libsdl\cpu_features\src\stack_line_reader.c">
-      <Filter>cpu_features</Filter>
-    </ClCompile>
-    <ClCompile Include="..\libsdl\cpu_features\src\string_view.c">
-      <Filter>cpu_features</Filter>
-    </ClCompile>
-    <ClCompile Include="..\libsdl\cpu_features\src\impl_x86_linux_or_android.c">
-      <Filter>cpu_features</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

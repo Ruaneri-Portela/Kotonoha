@@ -13,4 +13,3 @@ public class Kotonoha_Android extends SDLActivity
         super.onCreate(savedInstanceState);
     }
 }
-
