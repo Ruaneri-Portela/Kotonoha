@@ -8,8 +8,8 @@ ARM64/
 Release/
 Debug/
 styles.skot
-kotonoha.ckot
-log.lkot
+kotonoha.log
+kotonoha.conf
 dump.ass
 Kotonoha
 Android/libsdl/ffmpeg
