@@ -1,19 +1,11 @@
 namespace kotonoha
 {
-	typedef struct menuReturn
+	kotonohaData::configsData fileConfig(int parm = 0, kotonohaData::configsData configs = { false, "", "", "", "" }, std::string path = "")
 	{
-		int returnCode = 0;
-		std::string filenameString = "";
-		bool debugPromptEnabled = false;
-		kotonohaData::configsData configs;
-		int hwVideo = 0;
-	} menuReturn;
-	kotonohaData::configsData fileConfig(int parm = 0, kotonohaData::configsData configs = { false, "", "", "", "" })
-	{
-		std::ifstream dataR("kotonoha.ckot");
+		std::ifstream dataR(path);
 		if (!dataR.is_open() or parm == 1)
 		{
-			std::ofstream dataW("kotonoha.ckot", std::ios::binary);
+			std::ofstream dataW(path, std::ios::binary);
 			dataW.write(reinterpret_cast<char*>(&configs), sizeof(kotonohaData::configsData));
 			dataW.close();
 		}
@@ -24,15 +16,14 @@ namespace kotonoha
 		}
 		return configs;
 	}
-	menuReturn menu(SDL_Window* window, SDL_Renderer* renderer, int gameReturn, kotonoha::logger* log0, ImGuiIO* io)
+	kotonohaData::envComponets menu(kotonohaData::envComponets data)
 	{
-		log0->appendLog("(Menu) - Entry point to menu");
-		menuReturn object = { 0, "", true };
-		object.configs = fileConfig(0);
+		data.log->appendLog("(Menu) - Entry point to menu");
+		data.config = { 0, true,"" };
 		ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 		bool about = false;
 		bool config = false;
-		bool hw = false;
+		bool hw = data.initData.hwVideo;
 		bool configSaved = false;
 		bool returnPrompt = true;
 		char scriptPath[256] = "";
@@ -42,24 +33,27 @@ namespace kotonoha
 		char imageExtension[32] = "";
 		char soundFe0[256] = "";
 		char stylesPath[256] = "";
-		if (object.configs.configured)
-		{
-			STRCPYFIX(audioExtension, object.configs.audioExtension);
-			STRCPYFIX(videoExtension, object.configs.videoExtension);
-			STRCPYFIX(imageExtension, object.configs.imageExtension);
-			STRCPYFIX(mediaPath, object.configs.mediaPath);
-			STRCPYFIX(soundFe0, object.configs.soundFe0);
-			STRCPYFIX(stylesPath, object.configs.stylesPath);
-		}
+		data.config.parms = fileConfig(0, data.config.parms, data.initData.configLoad);
 		SDL_Event* event = new SDL_Event;
-		while (object.returnCode == 0)
+		if (data.initData.fromComandLine) {
+			goto END;
+		}
+		if (data.config.parms.configured)
 		{
-
-			kotonohaTime::delay(kotonoha::maxtps);
+			STRCPYFIX(audioExtension, data.config.parms.audioExtension);
+			STRCPYFIX(videoExtension, data.config.parms.videoExtension);
+			STRCPYFIX(imageExtension, data.config.parms.imageExtension);
+			STRCPYFIX(mediaPath, data.config.parms.mediaPath);
+			STRCPYFIX(soundFe0, data.config.parms.soundFe0);
+			STRCPYFIX(stylesPath, data.config.parms.stylesPath);
+		}
+		while (data.config.returnCode == 0)
+		{
+			kotonohaTime::delay(data.initData.delayTps);
 			while (SDL_PollEvent(event))
 			{
 				ImGui_ImplSDL2_ProcessEvent(event);
-				object.returnCode = keyBinds0(event, window, 1);
+				data.config.returnCode = keyBinds0(event, data.window, 1);
 			}
 			ImGui_ImplSDLRenderer2_NewFrame();
 			ImGui_ImplSDL2_NewFrame();
@@ -71,15 +65,15 @@ namespace kotonoha
 			ImGui::InputText("Script file path", scriptPath, 256);
 			ImGui::Checkbox("About", &about);
 			ImGui::SameLine();
-			ImGui::Checkbox("Enable logger", &log0->enable);
+			ImGui::Checkbox("Enable logger", &data.log->enable);
 			ImGui::SameLine();
 			ImGui::Checkbox("HW Video", &hw);
-			if (object.configs.configured)
+			if (data.config.parms.configured)
 			{
 				if (ImGui::Button("Start"))
 				{
-					object.filenameString = scriptPath;
-					object.returnCode = 2;
+					data.config.filenameString = scriptPath;
+					data.config.returnCode = 2;
 				}
 				ImGui::SameLine();
 				ImGui::Button("Configs") ? config = true : 0;
@@ -87,7 +81,7 @@ namespace kotonoha
 			ImGui::SameLine();
 			if (ImGui::Button("Close"))
 			{
-				object.returnCode = 1;
+				data.config.returnCode = 1;
 			}
 			ImGui::End();
 			// Windows about
@@ -95,14 +89,14 @@ namespace kotonoha
 			{
 				ImGui::Begin("About");
 				ImGui::Text("Kotonoha Project, A visual novel engine");
-				ImGui::Text(kotonoha::version.c_str());
+				ImGui::Text(KOTONOHA_VERSION);
 				ImGui::Text("Developed by: Ruaneri F.Portela");
 				ImGui::Text("Using SDL, FFMPEG, ASSLIB e IMGui");
 				ImGui::Button("Close") ? about = false : 0;
 				ImGui::End();
 			}
 			// Windows set config
-			if (config or !object.configs.configured)
+			if (config or !data.config.parms.configured)
 			{
 				ImGui::Begin("Config");
 				ImGui::InputText("Media path", mediaPath, 256);
@@ -113,26 +107,25 @@ namespace kotonoha
 				ImGui::InputText("File with text Styles", stylesPath, 256);
 				if (ImGui::Button("Save"))
 				{
-					object.configs.configured = true;
-					STRCPYFIX(object.configs.audioExtension, audioExtension);
-					STRCPYFIX(object.configs.videoExtension, videoExtension);
-					STRCPYFIX(object.configs.imageExtension, imageExtension);
-					STRCPYFIX(object.configs.mediaPath, mediaPath);
-					STRCPYFIX(object.configs.soundFe0, soundFe0);
-					STRCPYFIX(object.configs.stylesPath, stylesPath);
-					object.configs.configured = true;
-					fileConfig(1, object.configs);
+					data.config.parms.configured = true;
+					STRCPYFIX(data.config.parms.audioExtension, audioExtension);
+					STRCPYFIX(data.config.parms.videoExtension, videoExtension);
+					STRCPYFIX(data.config.parms.imageExtension, imageExtension);
+					STRCPYFIX(data.config.parms.mediaPath, mediaPath);
+					STRCPYFIX(data.config.parms.soundFe0, soundFe0);
+					STRCPYFIX(data.config.parms.stylesPath, stylesPath);
+					fileConfig(1, data.config.parms, data.initData.configLoad);
 					configSaved = true;
 				}
 				ImGui::SameLine();
-				if (object.configs.configured)
+				if (data.config.parms.configured)
 				{
 					ImGui::Button("Close") ? config = false : 0;
 				}
 				ImGui::End();
 			}
 			// Windows Alert Need Config
-			if (!object.configs.configured)
+			if (!data.config.parms.configured)
 			{
 				ImGui::Begin("Alert");
 				ImGui::Text("You need set configs before start");
@@ -147,29 +140,30 @@ namespace kotonoha
 				ImGui::End();
 			}
 			// Windows Log
-			if (log0->enable)
+			if (data.log->enable)
 			{
-				log0->drawLogger();
+				data.log->drawLogger();
 			}
 			// Windows End Scene
-			if (gameReturn >= 3 && returnPrompt)
+			if (data.config.returnCode >= 3 && returnPrompt)
 			{
 				ImGui::Begin("Alert");
-				ImGui::Text("The scene end, return code %d", gameReturn);
+				ImGui::Text("The scene end, return code %d", data.config.returnCode);
 				ImGui::Button("Close") ? returnPrompt = false : 0;
 				ImGui::End();
 			}
 			/// End Windows
 			ImGui::Render();
-			SDL_RenderSetScale(renderer, io->DisplayFramebufferScale.x, io->DisplayFramebufferScale.y);
-			SDL_SetRenderDrawColor(renderer, (Uint8)(clear_color.x * 255), (Uint8)(clear_color.y * 255), (Uint8)(clear_color.z * 255), (Uint8)(clear_color.w * 255));
-			SDL_RenderClear(renderer);
+			SDL_RenderSetScale(data.renderer, data.io->DisplayFramebufferScale.x, data.io->DisplayFramebufferScale.y);
+			SDL_SetRenderDrawColor(data.renderer, (Uint8)(clear_color.x * 255), (Uint8)(clear_color.y * 255), (Uint8)(clear_color.z * 255), (Uint8)(clear_color.w * 255));
+			SDL_RenderClear(data.renderer);
 			ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData());
-			SDL_RenderPresent(renderer);
+			SDL_RenderPresent(data.renderer);
 		}
+		END:
 		delete event;
-		object.hwVideo = hw;
-		log0->appendLog("(Menu) - Menu out");
-		return object;
+		data.initData.hwVideo = hw;
+		data.log->appendLog("(Menu) - Menu out");
+		return data;
 	}
 }

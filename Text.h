@@ -73,7 +73,7 @@ namespace kotonoha
 		SDL_Rect dst = { 0,0,0,0 };
 		while (importedTo->control->outCode == 0)
 		{
-			kotonohaTime::delay(kotonoha::maxtps);
+			kotonohaTime::delay(*importedTo->delayTps);
 			if (importedTo->control->display[2])
 			{
 				// Get window size to update

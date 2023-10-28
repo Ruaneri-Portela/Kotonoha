@@ -32,7 +32,7 @@ namespace kotonoha
 		SDL_Rect square = { 0,0,0,0 };
 		while (importedTo->control->outCode == 0)
 		{
-			kotonohaTime::delay(kotonoha::maxtps);
+			kotonohaTime::delay(*importedTo->delayTps);
 			if (importedTo->control->display[0])
 			{
 				if (importedTo->control->hiddenImage)

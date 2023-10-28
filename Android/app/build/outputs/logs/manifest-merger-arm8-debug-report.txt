@@ -1,0 +1,79 @@
+-- Merging decision tree log ---
+manifest
+ADDED from D:\Data\Kotonoha\Android\app\src\main\AndroidManifest.xml:2:1-23:12
+INJECTED from D:\Data\Kotonoha\Android\app\src\main\AndroidManifest.xml:2:1-23:12
+INJECTED from D:\Data\Kotonoha\Android\app\src\main\AndroidManifest.xml:2:1-23:12
+INJECTED from D:\Data\Kotonoha\Android\app\src\main\AndroidManifest.xml:2:1-23:12
+INJECTED from D:\Data\Kotonoha\Android\app\src\main\AndroidManifest.xml:2:1-23:12
+INJECTED from D:\Data\Kotonoha\Android\app\src\main\AndroidManifest.xml:2:1-23:12
+INJECTED from D:\Data\Kotonoha\Android\app\src\main\AndroidManifest.xml:2:1-23:12
+	package
+		ADDED from D:\Data\Kotonoha\Android\app\src\main\AndroidManifest.xml:3:11-41
+		INJECTED from D:\Data\Kotonoha\Android\app\src\main\AndroidManifest.xml
+		INJECTED from D:\Data\Kotonoha\Android\app\src\main\AndroidManifest.xml
+	android:versionName
+		ADDED from D:\Data\Kotonoha\Android\app\src\main\AndroidManifest.xml:5:11-36
+		INJECTED from D:\Data\Kotonoha\Android\app\src\main\AndroidManifest.xml
+		INJECTED from D:\Data\Kotonoha\Android\app\src\main\AndroidManifest.xml
+	android:hardwareAccelerated
+		ADDED from D:\Data\Kotonoha\Android\app\src\main\AndroidManifest.xml:6:11-45
+	xmlns:android
+		ADDED from D:\Data\Kotonoha\Android\app\src\main\AndroidManifest.xml:2:11-69
+	android:versionCode
+		ADDED from D:\Data\Kotonoha\Android\app\src\main\AndroidManifest.xml:4:11-34
+		INJECTED from D:\Data\Kotonoha\Android\app\src\main\AndroidManifest.xml
+		INJECTED from D:\Data\Kotonoha\Android\app\src\main\AndroidManifest.xml
+uses-feature#0x00020000
+ADDED from D:\Data\Kotonoha\Android\app\src\main\AndroidManifest.xml:8:9-58
+	android:glEsVersion
+		ADDED from D:\Data\Kotonoha\Android\app\src\main\AndroidManifest.xml:8:23-55
+uses-permission#android.permission.MANAGE_EXTERNAL_STORAGE
+ADDED from D:\Data\Kotonoha\Android\app\src\main\AndroidManifest.xml:9:9-86
+	android:name
+		ADDED from D:\Data\Kotonoha\Android\app\src\main\AndroidManifest.xml:9:26-83
+uses-permission#android.permission.READ_EXTERNAL_STORAGE
+ADDED from D:\Data\Kotonoha\Android\app\src\main\AndroidManifest.xml:10:9-84
+	android:name
+		ADDED from D:\Data\Kotonoha\Android\app\src\main\AndroidManifest.xml:10:26-81
+uses-permission#android.permission.WRITE_EXTERNAL_STORAGE
+ADDED from D:\Data\Kotonoha\Android\app\src\main\AndroidManifest.xml:11:9-85
+	android:name
+		ADDED from D:\Data\Kotonoha\Android\app\src\main\AndroidManifest.xml:11:26-82
+application
+ADDED from D:\Data\Kotonoha\Android\app\src\main\AndroidManifest.xml:12:3-22:17
+	android:allowBackup
+		ADDED from D:\Data\Kotonoha\Android\app\src\main\AndroidManifest.xml:12:16-43
+activity#com.Kotonoha_Android.Kotonoha_Android
+ADDED from D:\Data\Kotonoha\Android\app\src\main\AndroidManifest.xml:13:5-21:16
+	android:screenOrientation
+		ADDED from D:\Data\Kotonoha\Android\app\src\main\AndroidManifest.xml:14:15-52
+	android:exported
+		ADDED from D:\Data\Kotonoha\Android\app\src\main\AndroidManifest.xml:15:15-38
+	android:theme
+		ADDED from D:\Data\Kotonoha\Android\app\src\main\AndroidManifest.xml:16:15-73
+	android:name
+		ADDED from D:\Data\Kotonoha\Android\app\src\main\AndroidManifest.xml:13:15-47
+intent-filter#action:name:android.intent.action.MAIN+category:name:android.intent.category.LAUNCHER
+ADDED from D:\Data\Kotonoha\Android\app\src\main\AndroidManifest.xml:17:7-20:23
+action#android.intent.action.MAIN
+ADDED from D:\Data\Kotonoha\Android\app\src\main\AndroidManifest.xml:18:9-61
+	android:name
+		ADDED from D:\Data\Kotonoha\Android\app\src\main\AndroidManifest.xml:18:17-58
+category#android.intent.category.LAUNCHER
+ADDED from D:\Data\Kotonoha\Android\app\src\main\AndroidManifest.xml:19:9-69
+	android:name
+		ADDED from D:\Data\Kotonoha\Android\app\src\main\AndroidManifest.xml:19:19-66
+uses-sdk
+INJECTED from D:\Data\Kotonoha\Android\app\src\main\AndroidManifest.xml reason: use-sdk injection requested
+INJECTED from D:\Data\Kotonoha\Android\app\src\main\AndroidManifest.xml
+INJECTED from D:\Data\Kotonoha\Android\app\src\main\AndroidManifest.xml
+INJECTED from D:\Data\Kotonoha\Android\app\src\main\AndroidManifest.xml
+INJECTED from D:\Data\Kotonoha\Android\app\src\main\AndroidManifest.xml
+	android:targetSdkVersion
+		INJECTED from D:\Data\Kotonoha\Android\app\src\main\AndroidManifest.xml
+		ADDED from D:\Data\Kotonoha\Android\app\src\main\AndroidManifest.xml
+		INJECTED from D:\Data\Kotonoha\Android\app\src\main\AndroidManifest.xml
+	android:minSdkVersion
+		INJECTED from D:\Data\Kotonoha\Android\app\src\main\AndroidManifest.xml
+		ADDED from D:\Data\Kotonoha\Android\app\src\main\AndroidManifest.xml
+		INJECTED from D:\Data\Kotonoha\Android\app\src\main\AndroidManifest.xml

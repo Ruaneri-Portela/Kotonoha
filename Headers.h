@@ -7,6 +7,7 @@
 #include <fstream>
 #include <chrono>
 #include <thread>
+#include <filesystem>
 #include "imgui/backends/imgui_impl_sdl2.h"
 #include "imgui/backends/imgui_impl_sdlrenderer2.h"
 extern "C"
@@ -16,6 +17,9 @@ extern "C"
 }
 #include "Utils.h"
 #include "Data.h"
+#include "Game.h"
+#include "Start.h"
+#include "Menu.h"
 #include "Prompt.h"
 #include "Text.h"
 #include "Video.h"
@@ -24,5 +28,3 @@ extern "C"
 #include "Ors.h"
 #include "Ui.h"
 #include "MainLoop.h"
-#include "Menu.h"
-#include "Game.h"

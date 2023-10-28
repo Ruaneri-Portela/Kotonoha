@@ -1,10 +1,4 @@
 // Files file contain the majority of custrom data structs.
-namespace kotonoha
-{
-	const std::string version = "0.0.10 Alpha";
-	// kotonoha::maxtps is the maximum ticks per second per Thread. 0 make the cpu run at max speed, 8 is 120 TICKS per Second, is set FPS max to 120 too
-	int maxtps = 4;
-}
 namespace kotonohaData
 {
 	// Here is storage shared triggers for control game behaviour
@@ -119,5 +113,37 @@ namespace kotonohaData
 		std::vector<kotonohaData::audioData> audio;
 		std::vector<kotonohaData::questionData> question;
 		kotonohaData::textData text;
+		int *delayTps = NULL;
+	};
+	//
+	struct initOpts
+	{
+		bool init = true;
+		bool fromComandLine = false;
+		int hwVideo = 1;
+		int delayTps = TPS_DELAY;
+		char scriptPath[256] = "";
+		char configLoad[256] = "kotonoha.conf";
+		char logPath[256] = "kotonoha.log";
+		char masterPath[256] = "";
+	};
+	//
+	struct configOpts
+	{
+		int returnCode = 0;
+		bool debugPromptEnabled = false;
+		std::string filenameString = "";
+		kotonohaData::configsData parms = { false, "", "", "", "" };
+	};
+	//
+	struct envComponets {
+		SDL_Window* window = NULL;
+		SDL_Renderer* renderer = NULL;
+		ImGuiIO* io = NULL;
+		ImGuiContext* context = NULL;
+		kotonoha::logger* log = NULL;
+		kotonohaData::configOpts config;
+		kotonohaData::initOpts initData;
+		bool started = false;
 	};
 }

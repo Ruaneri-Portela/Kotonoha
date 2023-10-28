@@ -94,7 +94,7 @@ namespace kotonoha
 		}
 		while (importedTo->control->outCode == 0)
 		{
-			kotonohaTime::delay(kotonoha::maxtps);
+			kotonohaTime::delay(*importedTo->delayTps);
 			if (importedTo->control->display[1])
 			{
 				if (!importedTo->control->videoEnd && !importedTo->control->nonVideo && !(importedTo->video.size() == 0))
@@ -201,7 +201,7 @@ namespace kotonoha
 									// Loop to wait frame time
 									while (!exit && importedTo->control->outCode == 0)
 									{
-										kotonohaTime::delay(kotonoha::maxtps);
+										kotonohaTime::delay(*importedTo->delayTps);
 										pTime = importedTo->control->timer0.pushTime() - sTime;
 										// Case frame time is a target
 										if (pTime > fTime - 0.0020)

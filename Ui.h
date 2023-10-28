@@ -16,7 +16,7 @@ namespace kotonoha
 		bool volumeTriggers = false;
 		while (mapper->control->outCode == 0)
 		{	// Check is a prompt is pressed
-			kotonohaTime::delay(kotonoha::maxtps);
+			kotonohaTime::delay(*mapper->delayTps);
 			if (mapper->control->display[3])
 			{
 				// Draw UI

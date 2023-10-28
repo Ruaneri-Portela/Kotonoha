@@ -87,6 +87,9 @@
     <ClInclude Include="Icon.h">
       <Filter>Kotonoha Headers</Filter>
     </ClInclude>
+    <ClInclude Include="Start.h">
+      <Filter>Kotonoha Headers</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="Kotonoha1.rc">

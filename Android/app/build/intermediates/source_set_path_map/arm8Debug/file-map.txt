@@ -1,0 +1,10 @@
+com.Kotonoha_Android.app-arm8-0 D:\Data\Kotonoha\Android\app\build\generated\res\pngs\arm8\debug
+com.Kotonoha_Android.app-arm8-1 D:\Data\Kotonoha\Android\app\build\generated\res\resValues\arm8\debug
+com.Kotonoha_Android.app-arm8-2 D:\Data\Kotonoha\Android\app\build\generated\res\rs\arm8\debug
+com.Kotonoha_Android.app-mergeArm8DebugResources-3 D:\Data\Kotonoha\Android\app\build\intermediates\incremental\arm8Debug\mergeArm8DebugResources\merged.dir
+com.Kotonoha_Android.app-mergeArm8DebugResources-4 D:\Data\Kotonoha\Android\app\build\intermediates\incremental\arm8Debug\mergeArm8DebugResources\stripped.dir
+com.Kotonoha_Android.app-merged_res-5 D:\Data\Kotonoha\Android\app\build\intermediates\merged_res\arm8Debug
+com.Kotonoha_Android.app-arm8-6 D:\Data\Kotonoha\Android\app\src\arm8\res
+com.Kotonoha_Android.app-arm8Debug-7 D:\Data\Kotonoha\Android\app\src\arm8Debug\res
+com.Kotonoha_Android.app-debug-8 D:\Data\Kotonoha\Android\app\src\debug\res
+com.Kotonoha_Android.app-main-9 D:\Data\Kotonoha\Android\app\src\main\res

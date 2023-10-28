@@ -13,3 +13,5 @@
 #define COMPILE "Unknown"
 #define STRCPYFIX strcpy
 #endif
+#define KOTONOHA_VERSION "0.0.1"
+#define TPS_DELAY 4;
