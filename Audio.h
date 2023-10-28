@@ -41,7 +41,7 @@ namespace kotonoha
 		}
 		while (importedTo->control->outCode == 0)
 		{
-			kotonohaTime::delay(kotonoha::maxtps);
+			kotonohaTime::delay(*importedTo->delayTps);
 			// Percurrent the audio array
 			if (!importedTo->control->audioEnd && !importedTo->control->nonAudio && !(importedTo->audio.size() == 0))
 			{

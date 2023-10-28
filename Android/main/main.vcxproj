@@ -262,6 +262,7 @@
     <ClInclude Include="..\..\Ors.h" />
     <ClInclude Include="..\..\Prompt.h" />
     <ClInclude Include="..\..\resource.h" />
+    <ClInclude Include="..\..\Start.h" />
     <ClInclude Include="..\..\Text.h" />
     <ClInclude Include="..\..\Ui.h" />
     <ClInclude Include="..\..\Utils.h" />

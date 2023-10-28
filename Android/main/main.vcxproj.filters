@@ -94,5 +94,6 @@
     <ClInclude Include="..\..\Ui.h" />
     <ClInclude Include="..\..\Utils.h" />
     <ClInclude Include="..\..\Video.h" />
+    <ClInclude Include="..\..\Start.h" />
   </ItemGroup>
 </Project>

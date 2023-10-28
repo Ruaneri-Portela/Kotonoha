@@ -1,0 +1,10 @@
+#Sat Oct 28 12:07:25 BRT 2023
+base.2=D\:\\Data\\Kotonoha\\Android\\app\\build\\intermediates\\dex\\arm8Debug\\mergeProjectDexArm8Debug\\3\\classes.dex
+path.2=3/classes.dex
+base.1=D\:\\Data\\Kotonoha\\Android\\app\\build\\intermediates\\dex\\arm8Debug\\mergeProjectDexArm8Debug\\2\\classes.dex
+path.1=2/classes.dex
+base.0=D\:\\Data\\Kotonoha\\Android\\app\\build\\intermediates\\dex\\arm8Debug\\mergeProjectDexArm8Debug\\0\\classes.dex
+renamed.2=classes3.dex
+renamed.1=classes2.dex
+renamed.0=classes.dex
+path.0=0/classes.dex
