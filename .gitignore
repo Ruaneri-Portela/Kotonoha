@@ -21,3 +21,4 @@ Android/SDL2/ARM
 Android/SDL2/x64
 Android/app/src/main/jniLibs
 Android/app/build
+Android/.gradle
