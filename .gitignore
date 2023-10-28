@@ -2,6 +2,7 @@
 .vs/
 GameData/
 imgui.ini
+imgui
 MakeBuilds/
 x64/
 ARM64/
