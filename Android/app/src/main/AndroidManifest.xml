@@ -9,7 +9,7 @@
         <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
         <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
         <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
-  <application android:allowBackup="false">
+  <application android:label="Kotonoha Project">
     <activity android:name=".Kotonoha_Android"
               android:screenOrientation="landscape"
               android:exported="true"
