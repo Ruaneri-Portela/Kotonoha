@@ -1,2 +1,0 @@
-#- File Locator -
-listingFile=../../../outputs/apk/arm8/debug/output-metadata.json
