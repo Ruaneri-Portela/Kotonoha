@@ -1,6 +1,6 @@
 namespace kotonoha
 {
-	kotonohaData::configsData fileConfig(int parm = 0, kotonohaData::configsData configs = { false, "", "", "", "" }, std::string path = "")
+	static kotonohaData::configsData fileConfig(int parm = 0, kotonohaData::configsData configs = { false, "", "", "", "" }, std::string path = "")
 	{
 		std::ifstream dataR(path);
 		if (!dataR.is_open() or parm == 1)
@@ -36,6 +36,8 @@ namespace kotonoha
 		data.config.parms = fileConfig(0, data.config.parms, data.initData.configLoad);
 		SDL_Event* event = new SDL_Event;
 		if (data.initData.fromComandLine) {
+			data.config.filenameString = data.initData.scriptPath;
+			data.config.returnCode = 2;
 			goto END;
 		}
 		if (data.config.parms.configured)

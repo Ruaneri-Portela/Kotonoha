@@ -23,7 +23,7 @@ namespace kotonoha
 		SDL_SetWindowIcon(window, iconS);
 		SDL_FreeSurface(iconS);
 	};
-	static int start(kotonohaData::envComponets *data) {
+	int start(kotonohaData::envComponets *data) {
 		SDL_Init(SDL_INIT_EVERYTHING);
 		SDL_WindowFlags windowFlags = (SDL_WindowFlags)(SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
 		data->window = SDL_CreateWindow("Kotonoha Project", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 1280, 720, windowFlags);
@@ -40,7 +40,6 @@ namespace kotonoha
 		ImGui_ImplSDLRenderer2_Init(data->renderer);
 		ImGui::StyleColorsDark();
 		data->io = &ImGui::GetIO();
-		(void)data->io;
 		data->io->ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
 		data->io->ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
 #ifdef ISANDROID // This is enable using macro when compile to android on NDK
@@ -61,12 +60,12 @@ namespace kotonoha
 #endif
 		return 0;
 	};
-	static int close(kotonohaData::envComponets *data) {
-		ImGui::DestroyContext(data->context);
+	int close(kotonohaData::envComponets *data) {
 		ImGui_ImplSDLRenderer2_Shutdown();
 		ImGui_ImplSDL2_Shutdown();
-		SDL_DestroyWindow(data->window);
+		ImGui::DestroyContext(data->context);
 		SDL_DestroyRenderer(data->renderer);
+		SDL_DestroyWindow(data->window);
 		Mix_CloseAudio();
 		Mix_Quit();
 		TTF_Quit();
