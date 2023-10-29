@@ -42,6 +42,7 @@ namespace kotonohaData
 		double play = 0;
 		double end = 0;
 		bool played = false;
+		bool loaded = false;
 		int channel = 0;
 	};
 	// Auto explicative

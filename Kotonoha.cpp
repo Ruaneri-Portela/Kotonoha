@@ -1,6 +1,5 @@
 #define _CRT_SECURE_NO_WARNINGS
 #include "Headers.h"
-
 // This function below is a entry point
 int main(int argc, char* args[])
 {

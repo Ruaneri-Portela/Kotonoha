@@ -70,9 +70,11 @@ namespace kotonoha
 							bool isPlaying = false;
 							for (int j = importedTo->audio[i].channel; j < importedTo->audio[i].channel + 5; j++) {
 								if (Mix_Playing(j) == 0) {
-									importedTo->root->log0->appendLog("(Audio) - Playing " + importedTo->audio[i].path + " on channel " + std::to_string(j));
-									Mix_PlayChannel(j, importedTo->audio[i].sound, 0);
 									isPlaying = true;
+									std::thread([j, &importedTo,&isPlaying,i] {
+										importedTo->root->log0->appendLog("(Audio) - Playing " + importedTo->audio[i].path + " on channel " + std::to_string(j));
+										Mix_PlayChannel(j, importedTo->audio[i].sound, 0);
+									}).detach();
 									break;
 								}
 							}

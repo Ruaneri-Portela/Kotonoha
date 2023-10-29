@@ -1,5 +1,5 @@
 namespace kotonoha {
-	std::stringstream help() {
+	static std::stringstream help() {
 		std::stringstream helpMsg;
 		helpMsg << "Kotonoha Project ver." << KOTONOHA_VERSION << std::endl;
 		helpMsg << "========================================" << std::endl;
@@ -16,7 +16,7 @@ namespace kotonoha {
 		helpMsg << "========================================" << std::endl;
 		return helpMsg;
 	}
-	std::stringstream initMsg(kotonohaData::initOpts data) {
+	static std::stringstream initMsg(kotonohaData::initOpts data) {
 		std::stringstream initMsg;
 		std::chrono::system_clock::time_point now = std::chrono::system_clock::now();
 		std::time_t time = std::chrono::system_clock::to_time_t(now);
@@ -47,7 +47,7 @@ namespace kotonoha {
 		initMsg << "========================================" << std::endl;
 		return initMsg;
 	}
-	kotonohaData::initOpts args(int argc, char* args[]) {
+	static kotonohaData::initOpts args(int argc, char* args[]) {
 		kotonohaData::initOpts opts;
 		if (argc > 1) {
 			for (int i = 1; i < argc; i++) {

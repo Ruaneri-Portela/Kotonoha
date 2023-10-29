@@ -1,6 +1,6 @@
 namespace kotonoha
 {
-    int comanderControler(std::vector<std::vector<std::string>> array, kotonohaData::acessMapper *import)
+    static int comanderControler(std::vector<std::vector<std::string>> array, kotonohaData::acessMapper *import)
     {
         kotonoha::audioObject *audio0 = static_cast<kotonoha::audioObject *>(import->root->audio0);
         kotonoha::videoObject *video0 = static_cast<kotonoha::videoObject *>(import->root->video0);
