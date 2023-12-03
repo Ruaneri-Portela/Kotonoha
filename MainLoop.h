@@ -47,7 +47,7 @@ namespace kotonoha
 			double timeHiddenMouse = 0;
 			while (controlData->outCode == 0)
 			{
-				kotonohaTime::delay(data.initData.delayTps / 2);
+				kotonohaTime::delay(data.initData.delayTps / 5);
 				// Event reciver
 				while (SDL_PollEvent(rootData->event))
 				{

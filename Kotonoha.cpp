@@ -22,7 +22,6 @@ int main(int argc, char* args[])
 				break;
 			};
 		};
-		initGame.~game();
 		return initGame.env.config.returnCode;
 	}
 	else {
