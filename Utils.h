@@ -146,7 +146,6 @@ namespace kotonoha
 		std::ofstream fileLog;
 		void appendLog(std::string Log)
 		{
-
 			std::cout << Log << std::endl;
 			fileLog << Log << std::endl;
 			Buf.appendf("\n");

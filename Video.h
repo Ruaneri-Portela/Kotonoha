@@ -201,10 +201,10 @@ namespace kotonoha
 									// Loop to wait frame time
 									while (!exit && importedTo->control->outCode == 0)
 									{
-										kotonohaTime::delay(*importedTo->delayTps);
+										kotonohaTime::delay(*importedTo->delayTps/3);
 										pTime = importedTo->control->timer0.pushTime() - sTime;
 										// Case frame time is a target
-										if (pTime > fTime - 0.0020)
+										if (pTime >= fTime)
 										{
 											importedTo->control->videoTime = pTime;
 											sTime = importedTo->control->timer0.pushTime();
@@ -224,7 +224,6 @@ namespace kotonoha
 											}
 											else
 											{
-
 												SDL_UpdateYUVTexture(texture, NULL, frame->data[0], frame->linesize[0], frame->data[1], frame->linesize[1], frame->data[2], frame->linesize[2]);
 											}
 											SDL_GetWindowSize(importedTo->root->window, &w, &h);

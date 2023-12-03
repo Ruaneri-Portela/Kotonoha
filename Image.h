@@ -43,18 +43,27 @@ namespace kotonoha
 					{
 						timePass = importedTo->control->timer0.pushTime();
 						// Load the image if necessary
-						if (importedTo->image[i].texture == NULL && importedTo->image[i].play < timePass + 20)
+						if (importedTo->image[i].touched == false && importedTo->image[i].play < timePass + 20)
 						{
-							importedTo->root->log0->appendLog("(Image) - Loading... " + importedTo->image[i].path);
-							importedTo->image[i].texture = IMG_LoadTexture(importedTo->root->renderer, importedTo->image[i].path.c_str());
-							if (importedTo->image[i].texture == NULL)
-							{
-								importedTo->root->log0->appendLog("(Image) - Error on load file" + importedTo->audio[i].path);
-								importedTo->image.erase(importedTo->image.begin() + i);
-							}
+							importedTo->image[i].touched = true;
+							std::thread([&importedTo, i] {
+								try {
+									void* ptr = &importedTo->image;
+								}
+								catch (std::exception e) {
+									exit(0);
+								}
+								importedTo->root->log0->appendLog("(Image) - Loading... " + importedTo->image[i].path);
+								importedTo->image[i].texture = IMG_LoadTexture(importedTo->root->renderer, importedTo->image[i].path.c_str());
+								if (importedTo->image[i].texture == NULL)
+								{
+									importedTo->root->log0->appendLog("(Image) - Error on load file" + importedTo->audio[i].path);
+									importedTo->image.erase(importedTo->image.begin() + i);
+								}
+								}).detach();
 						}
 						// Play image on renderer
-						else if (importedTo->image[i].play < timePass)
+						else if (importedTo->image[i].play <= timePass && importedTo->image[i].texture != NULL)
 						{
 							if (!importedTo->image[i].played)
 							{
@@ -66,7 +75,7 @@ namespace kotonoha
 							SDL_RenderCopy(importedTo->root->renderer, importedTo->image[i].texture, NULL, &square);
 						}
 						// Delete image texture from ram
-						if (importedTo->image[i].end < timePass)
+						if (importedTo->image[i].end <= timePass)
 						{
 							SDL_DestroyTexture(importedTo->image[i].texture);
 							importedTo->image.erase(importedTo->image.begin() + i);

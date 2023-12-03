@@ -5,7 +5,7 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
-    <LocalDebuggerCommandArguments>D:\Data\Kotonoha\GameData\SchoolDays\Scripts\00\00-00-A00.ENG.ORS</LocalDebuggerCommandArguments>
+    <LocalDebuggerCommandArguments>D:\Data\Kotonoha\GameData\SchoolDays\Scripts\00\00-00-C00.ENG.ORS</LocalDebuggerCommandArguments>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LocalDebuggerCommandArguments>D:\Data\Kotonoha\GameData\SchoolDays\Scripts\00\00-00-A00.ENG.ORS</LocalDebuggerCommandArguments>

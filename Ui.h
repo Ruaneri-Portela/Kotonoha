@@ -16,7 +16,7 @@ namespace kotonoha
 		bool volumeTriggers = false;
 		while (mapper->control->outCode == 0)
 		{	// Check is a prompt is pressed
-			kotonohaTime::delay(*mapper->delayTps);
+			kotonohaTime::delay(*mapper->delayTps/4);
 			if (mapper->control->display[3])
 			{
 				// Draw UI
@@ -26,7 +26,7 @@ namespace kotonoha
 				{
 					ImGui::Begin("Kotonoha Project Visual Novel Engine");
 					ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / mapper->root->io->Framerate, mapper->root->io->Framerate);
-					mapper->control->videoTime != -1 ? ImGui::Text("Video frametime %.3f ms/frame  (%.1f FPS)", mapper->control->videoTime, 1 / mapper->control->videoTime) : (void)0;
+					mapper->control->videoTime != -1 ? ImGui::Text("Video frametime %.3f ms/frame  (%.1f FPS)", mapper->control->videoTime*1000, 1 / mapper->control->videoTime) : (void)0;
 					ImGui::Text("Time %.3f s", mapper->control->timer0.pushTime());
 					!mapper->control->nonVideo ? ImGui::Text("Video end %d ", mapper->control->videoEnd) : ImGui::Text("Video not using in this scene");
 					!mapper->control->nonAudio ? ImGui::Text("Audio end %d ", mapper->control->audioEnd) : ImGui::Text("Audio not using in this scene");

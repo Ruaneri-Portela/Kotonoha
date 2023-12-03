@@ -41,7 +41,7 @@ namespace kotonoha
 		}
 		while (importedTo->control->outCode == 0)
 		{
-			kotonohaTime::delay(*importedTo->delayTps);
+			kotonohaTime::delay(*importedTo->delayTps*2);
 			// Percurrent the audio array
 			if (!importedTo->control->audioEnd && !importedTo->control->nonAudio && !(importedTo->audio.size() == 0))
 			{
@@ -49,18 +49,27 @@ namespace kotonoha
 				{
 					timePass = importedTo->control->timer0.pushTime();
 					// Check if the audio is loaded on RAM
-					if (importedTo->audio[i].music == NULL && importedTo->audio[i].sound == NULL && importedTo->audio[i].play - 20 < timePass)
+					if (importedTo->audio[i].play - 20 < timePass && importedTo->audio[i].loaded == false)
 					{
-						importedTo->root->log0->appendLog("(Audio) - Loading... " + importedTo->audio[i].path);
-						importedTo->audio[i].sound = Mix_LoadWAV(importedTo->audio[i].path.c_str());
-						if (importedTo->audio[i].sound == NULL)
-						{
-							importedTo->root->log0->appendLog("(Audio) - Error on load file " + importedTo->audio[i].path);
-							importedTo->audio.erase(importedTo->audio.begin() + i);
-						}
+						importedTo->audio[i].loaded = true;
+						std::thread([&importedTo, i] {
+							try {
+								void* ptr = &importedTo->audio;
+							}
+							catch (std::exception e) {
+								exit(0);
+							}
+							importedTo->root->log0->appendLog("(Audio) - Loading... " + importedTo->audio[i].path);
+							importedTo->audio[i].sound = Mix_LoadWAV(importedTo->audio[i].path.c_str());
+							if (importedTo->audio[i].sound == NULL)
+							{
+									importedTo->root->log0->appendLog("(Audio) - Error on load file " + importedTo->audio[i].path);
+									importedTo->audio.erase(importedTo->audio.begin() + i);
+							}
+							}).detach();
 					}
 					// If is time to play, play audio on specific mix channel
-					else if (importedTo->audio[i].play + 0.3 < timePass && !importedTo->audio[i].played)
+					else if (importedTo->audio[i].play <= timePass && !importedTo->audio[i].played)
 					{
 						if (importedTo->audio[i].music != NULL) {
 							importedTo->root->log0->appendLog("(Audio) - Playing Music " + importedTo->audio[i].path);
@@ -83,9 +92,15 @@ namespace kotonoha
 						importedTo->audio[i].played = true;
 					}
 					// Destroy audio from RAM if time is end
-					if (importedTo->audio[i].end + 0.8 < timePass)
+					if (importedTo->audio[i].end <= timePass)
 					{
-						importedTo->audio[i].music == NULL ? Mix_FreeChunk(importedTo->audio[i].sound) : Mix_FreeMusic(importedTo->audio[i].music);
+						if (importedTo->audio[i].music == NULL)
+						{
+							Mix_FreeChunk(importedTo->audio[i].sound);
+						}
+						else {
+							Mix_HaltMusic();
+						}						
 						importedTo->root->log0->appendLog("(Audio) - Drop out... " + importedTo->audio[i].path);
 						importedTo->audio.erase(importedTo->audio.begin() + i);
 					}
