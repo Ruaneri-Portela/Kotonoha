@@ -84,9 +84,6 @@
     <ClInclude Include="MacroHeaders.h">
       <Filter>Kotonoha Headers</Filter>
     </ClInclude>
-    <ClInclude Include="Icon.h">
-      <Filter>Kotonoha Headers</Filter>
-    </ClInclude>
     <ClInclude Include="Start.h">
       <Filter>Kotonoha Headers</Filter>
     </ClInclude>
@@ -100,5 +97,10 @@
     <Image Include="icon.ico">
       <Filter>Kotonoha Headers</Filter>
     </Image>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Icon.hdata">
+      <Filter>Kotonoha Headers</Filter>
+    </None>
   </ItemGroup>
 </Project>
