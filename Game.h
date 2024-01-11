@@ -3,7 +3,7 @@ namespace kotonoha
 {
 	static void setIcon(SDL_Window* window)
 	{
-		#include "Icon.h"
+		#include "Icon.hdata"
 		// these masks are needed to tell SDL_CreateRGBSurface(From)
 		// to assume the data it gets is byte-wise RGB(A) data
 		Uint32 rmask, gmask, bmask, amask;
