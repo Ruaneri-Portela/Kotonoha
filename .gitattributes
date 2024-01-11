@@ -1,4 +1,4 @@
-Icon.hdata linguist-generated=true
+Icon.hdata linguist-vendored
 Android/app/src/main/java/org/libsdl/app/HIDDevice.java linguist-generated=true
 Android/app/src/main/java/org/libsdl/app/HIDDeviceManager.java linguist-generated=true
 Android/app/src/main/java/org/libsdl/app/SDL.java linguist-generated=true
