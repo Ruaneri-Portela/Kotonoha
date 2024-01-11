@@ -1,10 +1,1 @@
 Icon.hdata linguist-vendored
-Android/app/src/main/java/org/libsdl/app/HIDDevice.java linguist-generated=true
-Android/app/src/main/java/org/libsdl/app/HIDDeviceManager.java linguist-generated=true
-Android/app/src/main/java/org/libsdl/app/SDL.java linguist-generated=true
-Android/app/src/main/java/org/libsdl/app/SDLAudioManager.java linguist-generated=true
-Android/app/src/main/java/org/libsdl/app/SDLSurface.java linguist-generated=true
-Android/app/src/main/java/org/libsdl/app/HIDDeviceBLESteamController.java linguist-generated=true
-Android/app/src/main/java/org/libsdl/app/HIDDeviceUSB.java linguist-generated=true
-Android/app/src/main/java/org/libsdl/app/SDLActivity.java linguist-generated=true
-Android/app/src/main/java/org/libsdl/app/SDLControllerManager.java linguist-generated=true
