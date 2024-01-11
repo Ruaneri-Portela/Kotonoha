@@ -9,6 +9,7 @@ kotonoha.conf
 dump.ass
 Kotonoha
 Android/libsdl/ffmpeg
+Android/libsdl/zlib
 Android/ARM64
 Android/ARM
 Android/x64
