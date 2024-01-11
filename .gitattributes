@@ -1,1 +1,10 @@
 Icon.hdata linguist-vendored
+Android/app/src/main/java/org/libsdl/app/HIDDevice.java linguist-vendored
+Android/app/src/main/java/org/libsdl/app/HIDDeviceManager.java linguist-vendored
+Android/app/src/main/java/org/libsdl/app/SDL.java linguist-vendored
+Android/app/src/main/java/org/libsdl/app/SDLAudioManager.java linguist-vendored
+Android/app/src/main/java/org/libsdl/app/SDLSurface.java linguist-vendored
+Android/app/src/main/java/org/libsdl/app/HIDDeviceBLESteamController.java linguist-vendored
+Android/app/src/main/java/org/libsdl/app/HIDDeviceUSB.java linguist-vendored
+Android/app/src/main/java/org/libsdl/app/SDLActivity.java linguist-vendorede
+Android/app/src/main/java/org/libsdl/app/SDLControllerManager.java linguist-vendored
