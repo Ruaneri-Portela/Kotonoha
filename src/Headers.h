@@ -8,8 +8,8 @@
 #include <chrono>
 #include <thread>
 #include <filesystem>
-#include "imgui/backends/imgui_impl_sdl2.h"
-#include "imgui/backends/imgui_impl_sdlrenderer2.h"
+#include "../imgui/backends/imgui_impl_sdl2.h"
+#include "../imgui/backends/imgui_impl_sdlrenderer2.h"
 extern "C"
 {
 #include <libavformat/avformat.h>

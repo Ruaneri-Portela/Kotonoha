@@ -70,6 +70,14 @@
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <OutDir>$(SolutionDir)$(Platform)\$(Configuration)\</OutDir>
+    <IntDir>$(Platform)\$(Configuration)\</IntDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <OutDir>$(SolutionDir)$(Platform)\$(Configuration)\</OutDir>
+    <IntDir>$(Platform)\$(Configuration)\</IntDir>
+  </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
@@ -150,34 +158,22 @@
     <ClCompile Include="imgui\imgui_draw.cpp" />
     <ClCompile Include="imgui\imgui_tables.cpp" />
     <ClCompile Include="imgui\imgui_widgets.cpp" />
-    <ClCompile Include="Kotonoha.cpp" />
+    <ClCompile Include="src\Kotonoha.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Audio.h" />
-    <ClInclude Include="Data.h" />
-    <ClInclude Include="Game.h" />
-    <ClInclude Include="Headers.h" />
-    <ClInclude Include="Image.h" />
-    <ClInclude Include="MacroHeaders.h" />
-    <ClInclude Include="MainLoop.h" />
-    <ClInclude Include="Menu.h" />
-    <ClInclude Include="Ors.h" />
-    <ClInclude Include="Prompt.h" />
-    <ClInclude Include="resource.h" />
-    <ClInclude Include="Start.h" />
-    <ClInclude Include="Text.h" />
-    <ClInclude Include="Ui.h" />
-    <ClInclude Include="Utils.h" />
-    <ClInclude Include="Video.h" />
+    <None Include="Makefile" />
+    <None Include="src\Icon.hdata" />
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="Kotonoha1.rc" />
+    <ClInclude Include="src\Headers.h" />
+    <ClInclude Include="src\MacroHeaders.h" />
+    <ClInclude Include="src\MainLoop.h" />
+    <ClInclude Include="src\Menu.h" />
+    <ClInclude Include="src\Ors.h" />
+    <ClInclude Include="src\Prompt.h" />
   </ItemGroup>
   <ItemGroup>
-    <Image Include="icon.ico" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="Icon.hdata" />
+    <ResourceCompile Include="src\Kotonoha.rc" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets" />
