@@ -1,4 +1,4 @@
-Icon.hdata linguist-vendored
+src/Icon.hdata linguist-vendored
 Android/app/src/main/java/org/libsdl/app/HIDDevice.java linguist-vendored
 Android/app/src/main/java/org/libsdl/app/HIDDeviceManager.java linguist-vendored
 Android/app/src/main/java/org/libsdl/app/SDL.java linguist-vendored

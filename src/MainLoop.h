@@ -45,6 +45,7 @@ namespace kotonoha
 			kotonoha::prompt* local = NULL;
 			double timeStart = 0;
 			double timeHiddenMouse = 0;
+			SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "1");
 			while (controlData->outCode == 0)
 			{
 				kotonohaTime::delay(data.initData.delayTps / 5);

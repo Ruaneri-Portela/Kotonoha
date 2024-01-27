@@ -13,7 +13,7 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Kotonoha.cpp">
+    <ClCompile Include="src\Kotonoha.cpp">
       <Filter>Kotonoha Source</Filter>
     </ClCompile>
     <ClCompile Include="imgui\imgui.cpp">
@@ -39,68 +39,34 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Audio.h">
-      <Filter>Kotonoha Headers</Filter>
-    </ClInclude>
-    <ClInclude Include="Data.h">
-      <Filter>Kotonoha Headers</Filter>
-    </ClInclude>
-    <ClInclude Include="Game.h">
-      <Filter>Kotonoha Headers</Filter>
-    </ClInclude>
-    <ClInclude Include="Headers.h">
-      <Filter>Kotonoha Headers</Filter>
-    </ClInclude>
-    <ClInclude Include="Image.h">
-      <Filter>Kotonoha Headers</Filter>
-    </ClInclude>
-    <ClInclude Include="MainLoop.h">
-      <Filter>Kotonoha Headers</Filter>
-    </ClInclude>
-    <ClInclude Include="Menu.h">
-      <Filter>Kotonoha Headers</Filter>
-    </ClInclude>
-    <ClInclude Include="Ors.h">
-      <Filter>Kotonoha Headers</Filter>
-    </ClInclude>
-    <ClInclude Include="Prompt.h">
-      <Filter>Kotonoha Headers</Filter>
-    </ClInclude>
-    <ClInclude Include="Text.h">
-      <Filter>Kotonoha Headers</Filter>
-    </ClInclude>
-    <ClInclude Include="Ui.h">
-      <Filter>Kotonoha Headers</Filter>
-    </ClInclude>
-    <ClInclude Include="Utils.h">
-      <Filter>Kotonoha Headers</Filter>
-    </ClInclude>
-    <ClInclude Include="Video.h">
-      <Filter>Kotonoha Headers</Filter>
-    </ClInclude>
-    <ClInclude Include="resource.h">
-      <Filter>Kotonoha Headers</Filter>
-    </ClInclude>
-    <ClInclude Include="MacroHeaders.h">
-      <Filter>Kotonoha Headers</Filter>
-    </ClInclude>
-    <ClInclude Include="Start.h">
-      <Filter>Kotonoha Headers</Filter>
-    </ClInclude>
-  </ItemGroup>
-  <ItemGroup>
-    <ResourceCompile Include="Kotonoha1.rc">
-      <Filter>Kotonoha Source</Filter>
-    </ResourceCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <Image Include="icon.ico">
-      <Filter>Kotonoha Headers</Filter>
-    </Image>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="Icon.hdata">
+    <None Include="src\Icon.hdata">
       <Filter>Kotonoha Headers</Filter>
     </None>
+    <None Include="Makefile" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="src\MacroHeaders.h">
+      <Filter>Kotonoha Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="src\MainLoop.h">
+      <Filter>Kotonoha Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Menu.h">
+      <Filter>Kotonoha Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Ors.h">
+      <Filter>Kotonoha Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Prompt.h">
+      <Filter>Kotonoha Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Headers.h">
+      <Filter>Kotonoha Headers</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="src\Kotonoha.rc">
+      <Filter>Kotonoha Source</Filter>
+    </ResourceCompile>
   </ItemGroup>
 </Project>
