@@ -162,6 +162,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="Makefile" />
+    <None Include="README.md" />
     <None Include="src\Icon.hdata" />
   </ItemGroup>
   <ItemGroup>

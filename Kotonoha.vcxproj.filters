@@ -43,6 +43,7 @@
       <Filter>Kotonoha Headers</Filter>
     </None>
     <None Include="Makefile" />
+    <None Include="README.md" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\MacroHeaders.h">
