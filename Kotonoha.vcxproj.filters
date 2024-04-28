@@ -64,6 +64,36 @@
     <ClInclude Include="src\Headers.h">
       <Filter>Kotonoha Headers</Filter>
     </ClInclude>
+    <ClInclude Include="src\Video.h">
+      <Filter>Kotonoha Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Utils.h">
+      <Filter>Kotonoha Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Ui.h">
+      <Filter>Kotonoha Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Text.h">
+      <Filter>Kotonoha Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Start.h">
+      <Filter>Kotonoha Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Image.h">
+      <Filter>Kotonoha Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Game.h">
+      <Filter>Kotonoha Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Data.h">
+      <Filter>Kotonoha Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Audio.h">
+      <Filter>Kotonoha Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="src\resource.h">
+      <Filter>Kotonoha Headers</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="src\Kotonoha.rc">
