@@ -98,7 +98,7 @@ namespace kotonoha
 						for (int x = 0; x < img->w; x++)
 						{
 							// Put black color with alpha set to 0 (transparent)
-							img->bitmap[x] != 0 ? pixels[x] = cor : pixels[x] = 0x00000000;
+							img->bitmap[x] != 0 ? pixels[x] = cor : pixels[x] = 0;
 						}
 						pixels = reinterpret_cast<std::uint32_t*>(reinterpret_cast<std::uintptr_t>(pixels) + pitch);
 						img->bitmap += img->stride;
