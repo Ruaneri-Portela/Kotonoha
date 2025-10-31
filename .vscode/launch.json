@@ -28,7 +28,25 @@
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
             "environment": [],
-            "externalConsole": true,
+            "MIMode": "lldb",
+            "preLaunchTask": "CMake: build"
+        },
+        {
+            "name": "Iniciar Cross Days",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/Kotonoha",
+            "args": [
+                "-p",
+                "assets/CrossDays/",
+                "-s",
+                "assets/stylesJP.skot",
+                "-l",
+                "assets/01/01-00-A00.ORS"
+            ],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
             "MIMode": "lldb",
             "preLaunchTask": "CMake: build"
         }

@@ -2,10 +2,13 @@
   "dependencies": [
     {
       "name": "ffmpeg",
-      "features": [ "zlib" ]
+      "features": [
+        "zlib"
+      ]
     },
     "libass",
     "harfbuzz",
     "freetype"
-  ]
+  ],
+  "builtin-baseline": "83375d1ded4878305df9f5272f360f4f80ee0d83"
 }
