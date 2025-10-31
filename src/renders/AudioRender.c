@@ -116,7 +116,6 @@ void Kotonoha_AudioSeek(struct Kotonoha_audioDecode *ctx, Sint64 time)
 	ctx->start -= time;
 	ctx->end -= time;
 	ctx->executions++;
-	avcodec_flush_buffers(ctx->codecCtx);
 }
 
 // Renderiza o áudio decodificado para o buffer de destino
@@ -135,7 +134,12 @@ int Kotonoha_AudioRender(void *data, Uint8 **target, int *size)
 	}
 
 	AVPacket packet;
-
+	AVFrame *pFrame = av_frame_alloc();
+	if (!pFrame)
+	{
+		SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Error allocating frame\n");
+		return -1;
+	}
 	while (av_read_frame(instance->formatCtx, &packet) >= 0)
 	{
 		returnCode = 1;
@@ -163,19 +167,20 @@ int Kotonoha_AudioRender(void *data, Uint8 **target, int *size)
 			break;
 		}
 
-		AVFrame *pFrame = av_frame_alloc();
-		if (!pFrame)
-		{
-			SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Error allocating frame\n");
-			cleanupAudioResources(&packet, NULL, NULL);
-			break;
-		}
-
 		// Recebe o quadro decodificado
-		if (avcodec_receive_frame(instance->codecCtx, pFrame) < 0)
+		int ret = avcodec_receive_frame(instance->codecCtx, pFrame);
+		if (ret == AVERROR(EAGAIN))
 		{
-			SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Error receiving frame\n");
-			cleanupAudioResources(&packet, NULL, pFrame);
+			// Frame não está pronto ainda, enviar mais pacotes
+			av_frame_free(&pFrame);
+			av_packet_unref(&packet);
+			continue;
+		}
+		else if (ret < 0)
+		{
+			SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Error receiving frame: %s\n", av_err2str(ret));
+			av_frame_free(&pFrame);
+			av_packet_unref(&packet);
 			break;
 		}
 
@@ -191,7 +196,6 @@ int Kotonoha_AudioRender(void *data, Uint8 **target, int *size)
 		// Converter áudio para o formato esperado
 		int chuckSize = swr_convert(instance->swrCtx, (Uint8 **)nonPlanarData, pFrame->nb_samples,
 									(const Uint8 **)pFrame->data, pFrame->nb_samples);
-		av_frame_free(&pFrame);
 
 		if (chuckSize < 0)
 		{
@@ -212,6 +216,7 @@ int Kotonoha_AudioRender(void *data, Uint8 **target, int *size)
 		returnCode = 2;
 		break; // Sai do loop após processar um pacote
 	}
+	av_frame_free(&pFrame);
 	return returnCode;
 }
 
