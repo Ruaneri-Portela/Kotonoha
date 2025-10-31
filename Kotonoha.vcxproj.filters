@@ -1,0 +1,173 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Arquivos de Origem">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;c++;cppm;ixx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Arquivos de Cabeçalho">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;h++;hm;inl;inc;ipp;xsd</Extensions>
+    </Filter>
+    <Filter Include="Arquivos de Recurso">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="Arquivos de Origem\utils">
+      <UniqueIdentifier>{527ee15b-3185-4924-935b-c88719d4a981}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Arquivos de Origem\render">
+      <UniqueIdentifier>{dc69bc51-1249-4004-988a-268dc20cdd66}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Arquivos de Origem\parser">
+      <UniqueIdentifier>{dc2a4f4c-73ed-43b1-9fec-0d10f9b786b8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Arquivos de Origem\components">
+      <UniqueIdentifier>{9c75fbc7-692b-4ff9-841d-93ffd3ec1632}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Arquivos de Cabeçalho\components">
+      <UniqueIdentifier>{4a3572cf-2e65-4f72-a63c-669ee4237e9f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Arquivos de Cabeçalho\parser">
+      <UniqueIdentifier>{523b398c-c7bb-42dd-a7e1-25efefbcaf4b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Arquivos de Cabeçalho\render">
+      <UniqueIdentifier>{f9b2a808-5f2a-49e9-9d62-a073e6b7fb78}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Arquivos de Cabeçalho\utils">
+      <UniqueIdentifier>{7193bfe4-c1a3-4b63-af35-528d150b1c25}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="src\Gameplay.cpp">
+      <Filter>Arquivos de Origem</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Kotonoha.cpp">
+      <Filter>Arquivos de Origem</Filter>
+    </ClCompile>
+    <ClCompile Include="src\components\Audio.cpp">
+      <Filter>Arquivos de Origem\components</Filter>
+    </ClCompile>
+    <ClCompile Include="src\components\Canvas.cpp">
+      <Filter>Arquivos de Origem\components</Filter>
+    </ClCompile>
+    <ClCompile Include="src\components\Events.cpp">
+      <Filter>Arquivos de Origem\components</Filter>
+    </ClCompile>
+    <ClCompile Include="src\components\Image.cpp">
+      <Filter>Arquivos de Origem\components</Filter>
+    </ClCompile>
+    <ClCompile Include="src\components\Prompt.cpp">
+      <Filter>Arquivos de Origem\components</Filter>
+    </ClCompile>
+    <ClCompile Include="src\components\Sound.cpp">
+      <Filter>Arquivos de Origem\components</Filter>
+    </ClCompile>
+    <ClCompile Include="src\components\Video.cpp">
+      <Filter>Arquivos de Origem\components</Filter>
+    </ClCompile>
+    <ClCompile Include="src\parsers\Ors.c">
+      <Filter>Arquivos de Origem\parser</Filter>
+    </ClCompile>
+    <ClCompile Include="src\renders\AudioRender.c">
+      <Filter>Arquivos de Origem\render</Filter>
+    </ClCompile>
+    <ClCompile Include="src\renders\FPSrender.c">
+      <Filter>Arquivos de Origem\render</Filter>
+    </ClCompile>
+    <ClCompile Include="src\renders\ImageRender.c">
+      <Filter>Arquivos de Origem\render</Filter>
+    </ClCompile>
+    <ClCompile Include="src\renders\TextRender.c">
+      <Filter>Arquivos de Origem\render</Filter>
+    </ClCompile>
+    <ClCompile Include="src\renders\VideoRender.c">
+      <Filter>Arquivos de Origem\render</Filter>
+    </ClCompile>
+    <ClCompile Include="src\utils\FFmpeg.c">
+      <Filter>Arquivos de Origem\utils</Filter>
+    </ClCompile>
+    <ClCompile Include="src\utils\Time.c">
+      <Filter>Arquivos de Origem\utils</Filter>
+    </ClCompile>
+    <ClCompile Include="src\utils\UserEvents.c">
+      <Filter>Arquivos de Origem\utils</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="include\Kotonoha\Gameplay.hpp">
+      <Filter>Arquivos de Cabeçalho</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Kotonoha\Kotonoha.h">
+      <Filter>Arquivos de Cabeçalho</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Kotonoha\Kotonoha.hpp">
+      <Filter>Arquivos de Cabeçalho</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Kotonoha\version.h">
+      <Filter>Arquivos de Cabeçalho</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Kotonoha\components\Audio.hpp">
+      <Filter>Arquivos de Cabeçalho\components</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Kotonoha\components\Canvas.hpp">
+      <Filter>Arquivos de Cabeçalho\components</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Kotonoha\components\Events.hpp">
+      <Filter>Arquivos de Cabeçalho\components</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Kotonoha\components\Image.hpp">
+      <Filter>Arquivos de Cabeçalho\components</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Kotonoha\components\Prompt.hpp">
+      <Filter>Arquivos de Cabeçalho\components</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Kotonoha\components\Sound.hpp">
+      <Filter>Arquivos de Cabeçalho\components</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Kotonoha\components\Video.hpp">
+      <Filter>Arquivos de Cabeçalho\components</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Kotonoha\parsers\Ors.h">
+      <Filter>Arquivos de Cabeçalho\parser</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Kotonoha\renders\AudioRender.h">
+      <Filter>Arquivos de Cabeçalho\render</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Kotonoha\renders\FPSrender.h">
+      <Filter>Arquivos de Cabeçalho\render</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Kotonoha\renders\ImageRender.h">
+      <Filter>Arquivos de Cabeçalho\render</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Kotonoha\renders\TextRender.h">
+      <Filter>Arquivos de Cabeçalho\render</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Kotonoha\renders\VideoRender.h">
+      <Filter>Arquivos de Cabeçalho\render</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Kotonoha\utils\FFmpeg.h">
+      <Filter>Arquivos de Cabeçalho\utils</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Kotonoha\utils\Time.h">
+      <Filter>Arquivos de Cabeçalho\utils</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Kotonoha\utils\UserEvents.h">
+      <Filter>Arquivos de Cabeçalho\utils</Filter>
+    </ClInclude>
+    <ClInclude Include="src\resource.h">
+      <Filter>Arquivos de Cabeçalho</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="src\Kotonoha.rc">
+      <Filter>Arquivos de Recurso</Filter>
+    </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="BuildPacket.ps1" />
+    <None Include="LICENSE" />
+    <None Include="README.md" />
+    <None Include="vcpkg.json" />
+  </ItemGroup>
+</Project>

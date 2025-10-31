@@ -2,288 +2,243 @@
 
 Para português brasileiro desça!
 
-## English. 
+## English
 
-This project is in the alpha phase, many functions are still being implemented, or defects
+This project is in the alpha phase; many functions are still being implemented or may contain defects.
 
-![Kotonoha Novel Engine](https://github.com/Ruaneri-Portela/Kotonoha/blob/378c55fe9ea7277847b54267e8046a66357c9b21/Kotonoha.gif)
+**Kotonoha Novel Engine** is a C++ project designed to process `.ORS` scripts. Its main goal is to provide a free, open-source alternative to the engine used in games by Japanese developer Overflow, known for titles like *School Days*. This engine is not only a reconstruction of the original but also a flexible tool for people who want to create interactive novels without prior programming experience.
 
-**Kotonoha Novel Engine** is a C++ project designed for processing .ORS scripts. Its main objective is to provide a free, open-source alternative to the engine used in games by Japanese developer Overflow, known for titles like School Days. This engine is not only a reconstruction of the original, but also a versatile tool for individuals interested in creating interactive novels without prior programming experience.
-
-The project focuses on mapping .ORS script commands to a more modern engine, supporting both Windows and Linux operating systems. It utilizes various multimedia libraries and tools to offer a comprehensive set of features for novel creation.
+The project maps `.ORS` script commands to a modern engine with support for Windows, Linux, and macOS. It uses modern multimedia libraries and tools to deliver a complete experience for novel creation.
 
 ## Features
 
-The Kotonoha Novel Engine includes the following capabilities:
-
-- **Script System**: The engine parses and executes .ORS scripts.
-- **Audio Calls**: Allows for audio playback within the novel.
-- **Video Calls**: Supports video playback for immersive storytelling.
-- **Image Calls**: Enables the display of images within the novel.
-- **Subtitle Calls**: Adds subtitles to the content.
-- **Prompt of Choice (A/B)**: Allows the reader to make choices, shaping the story.
+* **Script System**: Parses and executes `.ORS` scripts.
+* **Audio Calls**: Audio playback support.
+* **Video Calls**: Video playback via FFmpeg.
+* **Image Calls**: Image display support.
+* **Subtitle Calls**: Subtitles via libAss.
+* **Choice Prompt (A/B)**: Reader choices that affect the story.
 
 ## Technology Stack
 
-The engine utilizes the following technologies:
-
-- **SDL2**: Serves as the graphics and audio backend.
-- **FFMPEG**: Provides video processing capabilities.
-- **IMGui**: Used for the game's user interface.
-- **libAss**: Manages subtitle rendering.
+* **SDL3**: Graphics, input, and audio backend.
+* **FFmpeg**: Video and audio decoding.
+* **libAss**: Subtitle rendering.
 
 ## Getting Started
 
-To use the Kotonoha Novel Engine, follow these steps:
+To use **Kotonoha Novel Engine**, follow these steps:
 
 1. Clone the repository:
 
-        git clone https://github.com/Ruaneri-Portela/Kotonoha.git
+   ```
+   git clone --recursive https://github.com/Ruaneri-Portela/Kotonoha.git
+   ```
 
-2. Build the project according to your platform's requirements. See below for more information.
+   *(If you already cloned without submodules, run:)*
 
-3. Start creating interactive novels with ease! Or play your favorite novels.
+   ```
+   git submodule update --init --recursive
+   ```
 
-## How to build
+2. Build the project using **CMake** as shown below for your platform.
 
-Clone IMGui, use comando below:
+3. Start creating or playing `.ORS`-based novels!
 
-    git clone https://github.com/ocornut/imgui.git
+## Build Guide
 
-### Windows MSVC
+Kotonoha now uses **CMake** and integrates dependencies through **git submodules** inside the `external` folder.
 
-1. Dependencies
+Submodules currently included:
 
-    Download the following dependencies using VCPKG
+* `SDL` (SDL3)
+* `SDL_ttf` (SDL3_ttf)
 
-    - SDL2
-    - SDL2_image
-    - SDL2_mixer
-    - SDL2_ttf
-    - FFMPEG
-    - libAss
+Other dependencies must be installed from your package manager or prebuilt binaries:
 
-    If you no have VCPKG installed install it [here](https://vcpkg.io/en/getting-started), And if your have VCPKG installed by Visual Studio installer, remove and installer de git version.
+* FFmpeg
+* libAss
 
-    Exclame, if your have a CMake error, disable MSYS2 path ou Mingw Path, re-run comand and add VCPKG CMake path in enviroment variables. VCPK compile from git all dependencies, if your have a slow pc this action can take a long time.
+### Building on Windows
+
+0. **MSVC Alternative**
+
+   * You can compile using Visual Studio 2022 with the Kotonova.sln file.
+
+1. **Dependencies**
+
+   * Ensure you have CMake and Git installed.
+   * Install or provide paths for:
+
+     * FFmpeg
+     * libAss 
 
 
-2. Build
+2. **Build**
 
-    - Open the Kotonoha.vcxproj
-    - Change in Imgui Backends headers from <SDLx.h> to <SDL2/SDLx.h>
-    - Select the configuration you want to build (Debug or Release)
-    - Select the platform you want to build (x86 or x64)
-    - Build the project
+   ```
+   mkdir build
+   cd build
+   cmake ..
+   cmake --build
+   ```
 
-### Windows UCRT64_MSYS2/Mingw64
 
-The entire process below must be done INSIDE the Kotonoha folder created when cloning
+### Building on Linux
 
-For building on Windows, the tutorial will use MSYS2 in the UCRT64 environment
+1. **Install dependencies**
 
-To install MSYS2, download it from:
+   Example for Debian/Ubuntu:
 
-    winget install MSYS2.MSYS2
+   ```
+   sudo apt install cmake g++ libavcodec-dev libavformat-dev libavutil-dev libswscale-dev libass-dev
+   ```
 
-1. Dependencies
+2. **Build**
 
-    If you've come this far, I assume you know how to compile C++, but if you have any doubts about MSYS2, check out [this tutorial]([https://github.com/ShiftMediaProject/libass/releases])
+   ```
+   mkdir build
+   cd build
+   cmake ..
+   cmake --build
+   ```
 
-    The only thing to note about this tutorial is that it uses mingw64 instead of UCRT64 so change the path from mingw64 to ucrt64 and the toolchain command to mingw-w64-ucrt-x86_64-toolchain.
+### Building on macOS
 
-    With the C++ compilation properly set, download the dependencies
+1. **Install dependencies** using Homebrew:
 
-        pacman -S mingw-w64-x86_64-SDL2 mingw-w64-ucrt-x86_64-SDL_image mingw-w64-ucrt-x86_64-SDL2_ttf mingw-w64-ucrt-x86_64-SDL2_mixer mingw-w64-x86_64-ffmpeg mingw-w64-x86_64-libass 
+   ```
+   brew install cmake ffmpeg libass
+   ```
 
-2. Build
+2. **Build**
 
-    - Create the MakeBuild target directory
-      
-           mkdir MakeBuild
-      
-    - Compile
-      
-          make
-      
-     - Execute
-
-           make run
-
-### Linux
-
-I could list how to download on ubuntu, debian but, no, if you're a linux user I assume you're not lazy, download g++ and the dependencies below! Needless to say, you must have already cloned IMGUI in .Dep? Look for them in dev mode in your favorite package manager!
-
-The entire process below must be done INSIDE the Kotonoha folder created when cloning
-
-1. Dependencies
-
-    - SDL2
-    - SDL2_image
-    - SDL2_mixer
-    - SDL2_ttf
-    - FFMPEG
-    - libAss
-
-2. Build
-
-    - Create the MakeBuild target directory
-      
-           mkdir MakeBuild
-      
-    - Compile
-      
-          make
-      
-     - Execute
-
-           make run
+   ```
+   mkdir build
+   cd build
+   cmake ..
+   cmake --build
+   ```
 
 ## License
 
-This project is open-source and is licensed under the [MIT License](LICENSE.md).
+This project is open-source under the [MIT License](LICENSE.md).
 
-Feel free to contact us if you have any questions or need assistance.
-
+---
 
 ## Português
 
-Este projeto está em fase alfa, muitas funções ainda estão sendo implementadas ou apresentam defeitos
+Este projeto está em fase alfa; muitas funções ainda estão sendo implementadas ou podem conter defeitos.
 
-**Kotonoha Novel Engine** é um projeto C++ projetado para processar scripts .ORS. Seu principal objetivo é fornecer uma alternativa gratuita e de código aberto ao motor usado em jogos da desenvolvedora japonesa Overflow, conhecida por títulos como School Days. Este mecanismo não é apenas uma reconstrução do original, mas também uma ferramenta versátil para indivíduos interessados em criar romances interativos sem experiência prévia em programação.
+**Kotonoha Novel Engine** é um projeto em C++ projetado para processar scripts `.ORS`. Seu principal objetivo é fornecer uma alternativa gratuita e de código aberto ao motor usado em jogos da desenvolvedora japonesa Overflow, conhecida por títulos como *School Days*. Este motor não é apenas uma reconstrução do original, mas também uma ferramenta versátil para quem deseja criar novels interativas sem experiência prévia em programação.
 
-O projeto se concentra no mapeamento de comandos de script .ORS para um mecanismo mais moderno, com suporte aos sistemas operacionais Windows e Linux. Ele utiliza várias bibliotecas e ferramentas multimídia para oferecer um conjunto abrangente de recursos para a criação de romances.
+O projeto mapeia comandos `.ORS` para um mecanismo moderno com suporte a Windows, Linux e macOS. Ele utiliza bibliotecas multimídia modernas para oferecer uma experiência completa de criação de novels.
 
 ## Características
 
-O Kotonoha Novel Engine inclui os seguintes recursos:
+* **Sistema de Script**: Analisa e executa scripts `.ORS`.
+* **Chamadas de Áudio**: Suporte a reprodução de áudio.
+* **Chamadas de Vídeo**: Reprodução de vídeo via FFmpeg.
+* **Chamadas de Imagem**: Exibição de imagens na novel.
+* **Chamadas de Legendas**: Renderização de legendas via libAss.
+* **Prompt de Escolha (A/B)**: Permite escolhas do leitor que alteram a história.
 
-- **Sistema de Script**: O mecanismo analisa e executa scripts .ORS.
-- **Chamadas de áudio**: permite a reprodução de áudio dentro do romance.
-- **Chamadas de vídeo**: suporta reprodução de vídeo para contar histórias envolventes.
-- **Chamadas de Imagens**: Permite a exibição de imagens dentro da novel.
-- **Chamadas de legendas**: Adiciona legendas ao conteúdo.
-- **Prompt de Escolha (A/B)**: Permite ao leitor fazer escolhas, moldando a história.
+## Tecnologias
 
-## Bibliotecas
+* **SDL3**: Backend gráfico, de áudio e entrada.
+* **FFmpeg**: Decodificação de vídeo e áudio.
+* **IMGui**: Interface para depuração e desenvolvimento.
+* **libAss**: Renderização de legendas.
 
-O motor utiliza as seguintes tecnologias:
-
-- **SDL2**: Serve como back-end gráfico e de áudio.
-- **FFMPEG**: Fornece recursos de processamento de vídeo.
-- **IMGui**: Usado para a interface de usuário do jogo.
-- **libAss**: Gerencia a renderização de legendas.
-
-## Começando
-
-Para usar o Kotonoha Novel Engine, siga estas etapas:
+## Como Começar
 
 1. Clone o repositório:
 
-         git clone https://github.com/Ruaneri-Portela/Kotonoha.git
+   ```
+   git clone --recursive https://github.com/Ruaneri-Portela/Kotonoha.git
+   ```
 
-2. Construa o projeto de acordo com os requisitos da sua plataforma. Veja abaixo para mais informações.
+   *(Se já clonou sem submódulos, use:)*
 
-3. Comece a criar romances interativos com facilidade! Ou jogue seus romances favoritos.
+   ```
+   git submodule update --init --recursive
+   ```
 
-## Como construir
+2. Compile o projeto com o **CMake** conforme as instruções da sua plataforma.
 
-Primeiro de tudo, crie a pasta Dep na raiz do projeto. Esta pasta será usada para armazenar todas as dependências.
+3. Comece a criar ou jogar novels baseadas em `.ORS`!
 
-No Dep clone IMGui, use o comando abaixo:
+## Guia de Compilação
 
-     mkdir Dep
-     cd ./Dep
-     git clone https://github.com/ocornut/imgui.git
+O Kotonoha agora usa **CMake** e integra dependências via **submódulos git** dentro da pasta `external`.
 
-### Windows MSVC
+Submódulos incluídos:
 
-1. Dependências
+* `SDL` (SDL3)
+* `SDL_ttf` (SDL3_ttf)
 
-     Baixe as seguintes dependências e extraia-as para a pasta Dep:
+Outras dependências devem ser instaladas via gerenciador de pacotes ou binários prontos:
 
-     - [SDL2](https://www.libsdl.org/download-2.0.php)
-     - [SDL2_image](https://www.libsdl.org/projects/SDL_image/)
-     - [SDL2_mixer](https://www.libsdl.org/projects/SDL_mixer/)
-     - [SDL2_ttf](https://www.libsdl.org/projects/SDL_ttf/)
-     - [FFMPEG](https://github.com/ShiftMediaProject/FFmpeg/releases)
-     - [libAss](https://github.com/ShiftMediaProject/libass/releases)
+* FFmpeg
+* libAss
 
-     Atenção, caso o arquivo extraído contenha uma pasta, a pasta deverá ser colada em "Dep", e todos os downlods deverão ser em VC/MSVC!
+### Windows
 
+0. **MSVC Alternativa**
 
-2. Construir
+   * Pode compilar usando o Visual Studio 2022 com o arquivo Kotonova.sln
 
-     - Abra o Kotonoha.vcxproj
-     - Selecione a configuração que deseja construir (Debug ou Release)
-     - Selecione a plataforma que deseja construir (x86 ou x64)
-     - Construir o projeto
+1. **Dependências**
 
-### Windows UCRT64_MSYS2/Mingw64
+   * Tenha CMake e Git instalados.
+   * Instale ou configure caminhos para:
 
-Todo o processo abaixo deve ser feito DENTRO da pasta Kotonoha criada na clonagem
+     * FFmpeg
+     * libAss
 
-Para construção no Windows, o tutorial usará MSYS2 no ambiente UCRT64
+2. **Compilar**
 
-Para instalar o MSYS2, baixe-o em:
-
-     winget install MSYS2.MSYS2
-
-1. Dependências
-
-     Se você chegou até aqui, presumo que saiba compilar C++, mas se tiver alguma dúvida sobre o MSYS2, confira [este tutorial]([https://github.com/ShiftMediaProject/libass/releases])
-
-     A única coisa a notar sobre este tutorial é que ele usa mingw64 em vez de UCRT64, então mude o caminho de mingw64 para ucrt64 e o comando do conjunto de ferramentas para mingw-w64-ucrt-x86_64-toolchain.
-
-     Com a compilação C++ configurada corretamente, baixe as dependências
-
-         pacman -S mingw-w64-x86_64-SDL2 mingw-w64-ucrt-x86_64-SDL_image mingw-w64-ucrt-x86_64-SDL2_ttf mingw-w64-ucrt-x86_64-SDL2_mixer mingw-w64-x86_64-ffmpeg mingw-w64-x86_64-libass 
-
-2. Construir
-
-     - Crie o diretório de destino do MakeBuild
-      
-            mkdir MakeBuild
-      
-     - Compilar
-      
-            make
-      
-      - Executar
-
-            make build
+   ```
+   mkdir build
+   cd build
+   cmake ..
+   cmake --build .
+   ```
 
 ### Linux
 
-Eu poderia listar como fazer download no ubuntu, debian mas, não, se você é usuário linux presumo que não seja preguiçoso, baixe g++ e as dependências abaixo! Nem preciso dizer que você já deve ter clonado o IMGUI em .Dep? Procure-os no modo dev no seu gerenciador de pacotes favorito!
+1. **Dependências**
 
-Todo o processo abaixo deve ser feito DENTRO da pasta Kotonoha criada na clonagem
+   ```
+   sudo apt install cmake g++ libavcodec-dev libavformat-dev libavutil-dev libswscale-dev libass-dev
+   ```
 
-1. Dependências
+2. **Compilar**
 
-     - SDL2
-     - SDL2_imagem
-     - SDL2_mixer
-     - SDL2_ttf
-     - FFMPEG
-     - libAss
+   ```
+   mkdir build
+   cd build
+   cmake ..
+   cmake --build .
+   ```
 
-2. Construir
+### macOS
 
-     - Crie o diretório de destino do MakeBuild
-      
-            mkdir MakeBuild
-      
-     - Compilar
-      
-            make
-      
-      - Executar
+1. **Dependências**
 
-            make build
+   ```
+   brew install cmake ffmpeg libass
+   ```
+
+2. **Compilar**
+
+   ```
+   mkdir build
+   cd build
+   cmake ..
+   cmake --build .
+   ```
 
 ## Licença
 
 Este projeto é de código aberto e licenciado sob a [MIT License](LICENSE.md).
-
-Sinta-se à vontade para entrar em contato conosco se tiver alguma dúvida ou precisar de ajuda.
