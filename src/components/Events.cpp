@@ -60,7 +60,7 @@ namespace Kotonoha
 		{
 			for (auto *event = classUp->eventsFromScript.data; event != nullptr; event = event->next)
 			{
-				if (Kotonoha_timeGet(gameplay->tm) + 5000 < event->start || event->eventTouched)
+				if (Kotonoha_timeGet(gameplay->tm) + 10000 < event->start || event->eventTouched)
 					continue;
 
 				event->eventTouched = true;
@@ -266,6 +266,7 @@ namespace Kotonoha
 			SDL_UnlockMutex(gameCtx->taskLock);
 			return;
 		}
+		EventManager(parms);
 		tasks->emplace_back(EventManager, parms);
 		SDL_UnlockMutex(gameCtx->taskLock);
 	}

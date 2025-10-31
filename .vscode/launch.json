@@ -10,8 +10,8 @@
             "request": "launch",
             "program": "${workspaceFolder}/build/Kotonoha",
             "args": [
-             //   "-r",
-              //  "direct3d11",
+                //"-r",
+                //"direct3d11",
                 "-p",
                 "assets/SchoolDays/",
                 "-s",
@@ -28,7 +28,7 @@
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
             "environment": [],
-            "MIMode": "lldb",
+            "MIMode": "gdb",
             "preLaunchTask": "CMake: build"
         },
         {
@@ -37,6 +37,8 @@
             "request": "launch",
             "program": "${workspaceFolder}/build/Kotonoha",
             "args": [
+                "-r",
+                "direct3d11",
                 "-p",
                 "assets/CrossDays/",
                 "-s",
@@ -47,7 +49,7 @@
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
             "environment": [],
-            "MIMode": "lldb",
+            "MIMode": "gdb",
             "preLaunchTask": "CMake: build"
         }
     ]

@@ -83,7 +83,7 @@ bool Kotonoha_UtilsFFmpegLoad(const char *path, AVFormatContext **formatCtx, AVC
 	}
 
 	// Configura a decodificação de hardware, se necessário
-	if (hwCtx != NULL)
+	if (false && hwCtx != NULL)
 	{
 		setupHwDecode(hwCtx, &codec);
 	}
