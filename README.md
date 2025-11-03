@@ -80,7 +80,7 @@ Other dependencies must be installed from your package manager or prebuilt binar
    mkdir build
    cd build
    cmake ..
-   cmake --build
+   cmake --build .
    ```
 
 
@@ -100,7 +100,7 @@ Other dependencies must be installed from your package manager or prebuilt binar
    mkdir build
    cd build
    cmake ..
-   cmake --build
+   cmake --build .
    ```
 
 ### Building on macOS
@@ -117,7 +117,7 @@ Other dependencies must be installed from your package manager or prebuilt binar
    mkdir build
    cd build
    cmake ..
-   cmake --build
+   cmake --build .
    ```
 
 ## License
