@@ -2,8 +2,8 @@
 
 namespace Kotonoha
 {
-	Audio::Audio(Sound *soundCtx, struct Kotonoha_time *timeCtx)
-		: soundCtx(soundCtx), timeCtx(timeCtx) {}
+	Audio::Audio(Sound* soundCtx, struct Kotonoha_time* timeCtx)
+		: soundCtx(soundCtx), timeCtx(timeCtx) {};
 
 	struct Kotonoha_audioDecode *Audio::AddMedia(const char *path, Uint64 start, Uint64 end, bool inLoop, const char *channel)
 	{
@@ -25,6 +25,7 @@ namespace Kotonoha
 			}
 		}
 
+
 		// Se o canal não foi encontrado, adiciona uma nova tupla
 		if (audioDecodesPipe == nullptr)
 		{
@@ -45,11 +46,9 @@ namespace Kotonoha
 		newAudioDecode->end = end;
 		newAudioDecode->dataGeneric = static_cast<void *>(this);
 		newAudioDecode->inLoop = inLoop;
-
 		// Adiciona o pipe ao canal
 		Sound::Channel::Pipe *newPipe = gettedCh->AddPipe(RenderMedia, Kotonoha_AudioFree, newAudioDecode);
 		audioDecodesPipe->push_back(std::make_tuple(newAudioDecode, newPipe));
-
 		return newAudioDecode; // Retorna o novo objeto adicionado
 	}
 
@@ -109,7 +108,7 @@ namespace Kotonoha
 			int rt = Kotonoha_AudioRender(data, target, size);
 			if (rt == -1 && instance->inLoop)
 			{
-				Kotonoha_AudioSeek(instance, 0);
+				Kotonoha_AudioSeek(instance, instance->lastTime);
 			}
 			return rt;
 		}

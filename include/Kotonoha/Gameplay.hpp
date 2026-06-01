@@ -6,8 +6,7 @@
 #include <Kotonoha/components/Prompt.hpp>
 #include <Kotonoha/components/Sound.hpp>
 #include <Kotonoha/components/Video.hpp>
-#include <limits>
-#include <vector>
+
 
 extern "C"
 {
@@ -26,9 +25,9 @@ namespace Kotonoha
 		Event* eventManager = nullptr;
 		float aspectRatio = 16.0f / 9.0f;
 		int windowWidth = 0, windowHeight = 0;
-		bool lastPauseStatus = false, playOnlyOnFocus = false;
+		bool lastPauseStatus = false, playOnlyOnFocus = false, firstFocus = true;
 
-		void UpdateCanvasSize(SDL_Window* window);
+		void UpdateCanvasSize(SDL_Renderer* renderer);
 
 	public:
 		struct Kotonoha_textData* sb = nullptr;

@@ -94,6 +94,9 @@ enum Kotonoha_Scene_Status Kotonoha_TextRenderDraw(KOTONOHA_SCENE_CALL)
         return KOTONOHA_SCENE_WAITING;
     }
 
+    if (target == NULL)
+        return KOTONOHA_SCENE_NULL;
+
     // Configura o renderizador
     ass_set_storage_size(environment->ass_renderer, target->w, target->h);
     ass_set_frame_size(environment->ass_renderer, target->w, target->h);

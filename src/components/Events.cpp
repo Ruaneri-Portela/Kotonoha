@@ -1,5 +1,4 @@
 #include <codecvt>
-#include <iomanip>
 #include <Kotonoha/components/Events.hpp>
 #include <Kotonoha/Gameplay.hpp>
 #include <locale>
@@ -10,7 +9,6 @@
 
 namespace Kotonoha
 {
-
 	// Função para converter wchar_t* para string UTF-8 com prefixo e sufixo opcionais
 	static std::string ConvertWCharToChar(const wchar_t *wideStr, const std::string &prefix = "", const std::string &suffix = "")
 	{
@@ -56,11 +54,17 @@ namespace Kotonoha
 			assetsPath = (char *)"";
 		}
 
+		if(gameCtx->softReset){
+			classUp->Reset(data);
+			gameCtx->softReset = false;
+		}
+
 		if (!classUp->inExit)
 		{
 			for (auto *event = classUp->eventsFromScript.data; event != nullptr; event = event->next)
 			{
-				if (Kotonoha_timeGet(gameplay->tm) + 10000 < event->start || event->eventTouched)
+				Uint64 actualTime = Kotonoha_timeGet(gameplay->tm);
+				if (actualTime + 10000 < event->start || event->eventTouched)
 					continue;
 
 				event->eventTouched = true;
@@ -70,6 +74,8 @@ namespace Kotonoha
 					object->clear();
 					prevLastCreateBg = *lastCreateBg;
 				}
+				if (event->end < actualTime)
+					continue;
 
 				switch (event->command)
 				{
@@ -79,9 +85,9 @@ namespace Kotonoha
 					{
 						gameplay->audio->AddMedia(
 							ConvertWCharToChar(event->data.play_voice->path, assetsPath,
-											   useExtension ? ".OPUS" : "")
+											   useExtension ? ".OGG" : "")
 								.c_str(),
-							event->start, event->data.play_voice->end, false, "Voice");
+							event->start, event->end, false, "Voice");
 						if (!lastCreateBg->empty() && event->data.play_voice->character_short != nullptr)
 						{
 							std::wstring character = toUpper(event->data.play_voice->character_short);
@@ -112,7 +118,7 @@ namespace Kotonoha
 							if (file != nullptr)
 							{
 								SDL_CloseIO(file);
-								gameplay->image->Register(path.c_str(), event->start, event->data.play_voice->end, 1);
+								gameplay->image->Register(path.c_str(), event->start, event->end, 1);
 							}
 						}
 					}
@@ -123,9 +129,9 @@ namespace Kotonoha
 					{
 						gameplay->audio->AddMedia(
 							ConvertWCharToChar(event->data.play_se->path, assetsPath,
-											   useExtension ? ".OPUS" : "")
+											   useExtension ? ".OGG" : "")
 								.c_str(),
-							event->start, event->data.play_se->end, true, "Se");
+							event->start, event->end, true, "Se");
 					}
 					break;
 				case PLAY_BGM:
@@ -134,45 +140,44 @@ namespace Kotonoha
 						std::wstring str = toUpper(event->data.path_end->path);
 						gameplay->audio->AddMedia(ConvertWCharToChar(
 													  useExtension ? str.c_str() : event->data.path_end->path, assetsPath,
-													  useExtension ? "_LOOP.OPUS" : "")
+													  useExtension ? "_LOOP.OGG" : "")
 													  .c_str(),
-												  event->start,
-												  event->data.path_end->end, true, "BGM");
+												  event->start,event->end, true, "BGM");
 					}
 					break;
 				case END_BGM:
+
 					if (event->data.path_end->path != nullptr && SDL_wcslen(event->data.path_end->path) > 0)
 					{
 						std::wstring str = toUpper(event->data.path_end->path);
 						gameplay->audio->AddMedia(ConvertWCharToChar(
 													  useExtension ? str.c_str() : event->data.path_end->path, assetsPath,
-													  useExtension ? ".OPUS" : "")
+													  useExtension ? ".OGG" : "")
 													  .c_str(),
-												  event->start,
-												  event->data.path_end->end, true, "BGM");
+												  event->start,event->end, true, "BGM");
 					}
 					break;
 				case END_ROLL:
 					if (event->data.path_end->path != nullptr && SDL_wcslen(event->data.path_end->path) > 0)
 						gameplay->video->Register(
 							ConvertWCharToChar(event->data.path_end->path, assetsPath,
-											   useExtension ? ".MP4" : "")
+											   useExtension ? ".WMV" : "")
 								.c_str(),
-							event->start, event->data.path_end->end);
+							event->start, event->end);
 				case PLAY_MOVIE:
 					if (event->data.play_movie->path != nullptr && SDL_wcslen(event->data.play_movie->path) > 0)
 						gameplay->video->Register(
 							ConvertWCharToChar(event->data.play_movie->path, assetsPath,
-											   useExtension ? ".MP4" : "")
+											   useExtension ? ".WMV" : "")
 								.c_str(),
-							event->start, event->data.play_movie->end);
+							event->start, event->end);
 					break;
 
 				case CREATE_BG:
 					if (event->data.create_bg->path != nullptr && SDL_wcslen(event->data.create_bg->path) > 0)
 					{
 						*lastCreateBg = event->data.create_bg->path;
-						gameplay->image->Register(ConvertWCharToChar(event->data.create_bg->path, assetsPath, useExtension ? ".PNG" : "").c_str(), event->start, event->data.create_bg->end, 0);
+						gameplay->image->Register(ConvertWCharToChar(event->data.create_bg->path, assetsPath, useExtension ? ".PNG" : "").c_str(), event->start, event->end, 0);
 					}
 					break;
 
@@ -187,6 +192,27 @@ namespace Kotonoha
 		delete static_cast<std::wstring *>(parms[4]);
 		classUp->closed = true;
 		return -1;
+	}
+
+	// 
+	void Event::Reset(void *data){
+		void **parms = static_cast<void **>(data);
+		auto *gameplay = static_cast<Gameplay *>(parms[0]);
+		auto *gameCtx = static_cast<struct Kotonoha_Game *>(parms[1]);
+		auto *classUp = static_cast<Event *>(parms[2]);
+		auto *object = static_cast<std::vector<std::tuple<std::wstring, int>> *>(parms[3]);
+		auto *lastCreateBg = static_cast<std::wstring *>(parms[4]);
+
+
+		gameplay->video->Reset();
+		gameplay->image->Reset();
+		gameplay->audio->RemoveMedia(nullptr);
+
+		for (auto *event = classUp->eventsFromScript.data; event != nullptr; event = event->next)
+		{
+			event->eventTouched = false;
+		}
+
 	}
 
 	// Construtor da classe Event
@@ -213,7 +239,7 @@ namespace Kotonoha
 				ASS_Event *subtitleEvent = static_cast<Gameplay *>(gameplay)->sb->track->events;
 				subtitleEvent += static_cast<Gameplay *>(gameplay)->sb->track->n_events - 1;
 				subtitleEvent->Start = event->start;
-				subtitleEvent->Duration = event->data.print_text->end - event->start;
+				subtitleEvent->Duration = event->end - event->start;
 				subtitleEvent->Text = SDL_strdup(ConvertWCharToChar(event->data.print_text->text).c_str());
 				for (int i = 0; i < static_cast<Gameplay *>(gameplay)->sb->track->n_styles; i++)
 				{
@@ -237,7 +263,7 @@ namespace Kotonoha
 				{
 					options.push_back(ConvertWCharToChar(*it));
 				}
-				static_cast<Gameplay *>(gameplay)->prompt = new Prompt(options, &static_cast<Gameplay *>(gameplay)->promptId, event->start, event->data.set_select->end, static_cast<Gameplay *>(gameplay)->tm);
+				static_cast<Gameplay *>(gameplay)->prompt = new Prompt(options, &static_cast<Gameplay *>(gameplay)->promptId, event->start, event->end, static_cast<Gameplay *>(gameplay)->tm);
 				static_cast<Gameplay *>(gameplay)->putPrompt = true;
 				break;
 			}

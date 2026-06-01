@@ -14,11 +14,14 @@ namespace Kotonoha
 	class Image
 	{
 	private:
-		Kotonoha_time *timeManager = NULL;
+		Kotonoha_time *timeManager = nullptr;
 		std::vector<Kotonoha_Picture *> pictures = std::vector<Kotonoha_Picture *>();
-		SDL_Mutex *lockImage = NULL;
+		SDL_Mutex* lock = nullptr;
 
 	public:
+
+		void Reset();
+
 		Image(Kotonoha_time *time);
 
 		void Register(const char *path, Uint64 startTime, Uint64 endTime, Uint8 id);

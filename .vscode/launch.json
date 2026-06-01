@@ -6,34 +6,41 @@
     "configurations": [
         {
             "name": "Iniciar",
-            "type": "cppdbg",
+            "type": "lldb",
             "request": "launch",
             "program": "${workspaceFolder}/build/Kotonoha",
             "args": [
                 //"-r",
                 //"direct3d11",
+                "-z",
+                "-t",
                 "-p",
-                "assets/SchoolDays/",
+                "/Volumes/Server/data2/Games/SCT/assets/Packs/",
                 "-s",
-                "assets/styles.skot",
+                "/Volumes/Server/data2/Games/SCT/assets/styles.skot",
                 "-l",
-                "assets/00/00-00-A00.ENG.ORS",
+                "/Users/nero/Codes/ScriptConverter/ENG/01/01-00-A00.ENG.TXT",
                 "-l",
-                "assets/00/00-00-A01.ENG.ORS",
+                "/Users/nero/Codes/ScriptConverter/ENG/01/01-00-B00.ENG.TXT",
                 "-l",
-                "assets/00/00-00-A02.ENG.ORS",
+                "/Users/nero/Codes/ScriptConverter/ENG/01/01-00-B01.ENG.TXT",
                 "-l",
-                "assets/00/00-00-A03.ENG.ORS"
+                "/Users/nero/Codes/ScriptConverter/ENG/01/01-00-B02.ENG.TXT",
+                "-l",
+                "/Users/nero/Codes/ScriptConverter/ENG/01/01-00-B03.ENG.TXT",
+                "-l",
+                "/Users/nero/Codes/ScriptConverter/ENG/01/01-00-B04.ENG.TXT",
+                "-l",
+                "/Users/nero/Codes/ScriptConverter/ENG/01/01-00-B05.ENG.TXT",
+                "-l",
+                "/Users/nero/Codes/ScriptConverter/ENG/01/01-00-B06.ENG.TXT"
             ],
-            "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
-            "environment": [],
-            "MIMode": "gdb",
             "preLaunchTask": "CMake: build"
         },
         {
             "name": "Iniciar Cross Days",
-            "type": "cppdbg",
+            "type": "lldb",
             "request": "launch",
             "program": "${workspaceFolder}/build/Kotonoha",
             "args": [
@@ -46,10 +53,7 @@
                 "-l",
                 "assets/01/01-00-A00.ORS"
             ],
-            "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
-            "environment": [],
-            "MIMode": "gdb",
             "preLaunchTask": "CMake: build"
         }
     ]

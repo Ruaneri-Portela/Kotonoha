@@ -3,18 +3,8 @@ cmake_minimum_required(VERSION 3.18)
 # Define o projeto
 project(Kotonoha VERSION 0.1.0 LANGUAGES C CXX)
 
-# Diretórios de saída para os binários
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
-
 # Diretório de includes
 set(KOTONOHA_INCLUDE_DIR include/)
-
-# Configurações
-set(SDLTTF_FREETYPE ON)
-set(SDLTTF_HARFBUZZ ON)
-
 # Coleta os arquivos fonte
 file(GLOB SOURCES
         src/*.cpp
@@ -25,9 +15,8 @@ file(GLOB SOURCES
         src/utils/*.c
 )
 
-# Adiciona diretórios de bibliotecas externas
-add_subdirectory(external/SDL)
-add_subdirectory(external/SDL_ttf)
+find_package(SDL3 REQUIRED)
+find_package(SDL3_ttf REQUIRED)
 
 # Configura as bibliotecas a serem usadas
 set(USE_THIS_LIBRARIES SDL3::SDL3 SDL3_ttf::SDL3_ttf)

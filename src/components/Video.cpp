@@ -5,7 +5,7 @@ namespace Kotonoha
 
 	Video::Video(Kotonoha_time *timeManager) : timeManager(timeManager)
 	{
-		videoLock = SDL_CreateMutex();
+		lock = SDL_CreateMutex();
 	}
 
 	bool Video::Register(const char *path, Uint64 startTime, Uint64 endTime)
@@ -16,9 +16,9 @@ namespace Kotonoha
 			return false;
 		}
 
-		SDL_LockMutex(videoLock);
+		SDL_LockMutex(lock);
 		videos.push_back(object);
-		SDL_UnlockMutex(videoLock);
+		SDL_UnlockMutex(lock);
 		return true;
 	}
 
@@ -27,7 +27,7 @@ namespace Kotonoha
 		auto *here = static_cast<Video *>(userData);
 		Kotonoha_Scene_Status returnStatus = KOTONOHA_SCENE_WAITING;
 
-		SDL_LockMutex(here->videoLock); // Bloqueia o mutex antes de acessar os vídeos
+		SDL_LockMutex(here->lock);
 		auto it = here->videos.begin();
 
 		while (it != here->videos.end())
@@ -63,17 +63,22 @@ namespace Kotonoha
 
 		// Define returnStatus com base na lista de vídeos
 		returnStatus = (here->videos.empty() && returnStatus != KOTONOHA_SCENE_DRAW_LAST) ? KOTONOHA_SCENE_COMPLETE : returnStatus;
-		SDL_UnlockMutex(here->videoLock); // Desbloqueia o mutex
+		SDL_UnlockMutex(here->lock);
 		return returnStatus;			  // Retorna o status final
 	}
 
-	Video::~Video()
-	{
+	void Video::Reset(){
+		SDL_LockMutex(lock);
 		for (auto &video : videos)
 		{
 			Kotonoha_VideoRenderShutdown(&video);
 		}
 		videos.clear();
-		SDL_DestroyMutex(videoLock);
+		SDL_UnlockMutex(lock);
+	}
+
+	Video::~Video()
+	{
+		Reset();
 	}
 }

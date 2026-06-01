@@ -22,6 +22,7 @@ namespace Kotonoha
 		static int EventManager(void *data);
 
 	public:
+		void Reset(void *data);
 		Event(const char *orsPath, void *gameplay, struct Kotonoha_Game *gameCtx);
 		bool CheckEnd(void *gameplay);
 		~Event();

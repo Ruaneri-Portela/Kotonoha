@@ -1,4 +1,4 @@
-#include <Kotonoha/renders/FPSrender.h>
+#include <Kotonoha/renders/FPSRender.h>
 
 struct FPS_common
 {
@@ -36,7 +36,7 @@ CreateFPSTexture(SDL_Renderer *render, const char *text, TTF_Font *font, SDL_Col
 	return texture;
 }
 
-enum Kotonoha_Scene_Status Kotonoha_FPSrender(KOTONOHA_SCENE_CALL)
+enum Kotonoha_Scene_Status Kotonoha_FPSRender(KOTONOHA_SCENE_CALL)
 {
 	// Inicializa a estrutura FPS_common na primeira chamada
 	if (fpsCommon == NULL)
@@ -60,7 +60,7 @@ enum Kotonoha_Scene_Status Kotonoha_FPSrender(KOTONOHA_SCENE_CALL)
 
 		// Configuração inicial da estrutura
 		fpsCommon->color = (SDL_Color){255, 0, 255, 255};
-		fpsCommon->lastTime = SDL_GetTicks();
+		fpsCommon->lastTime = 0;
 		fpsCommon->rect = (SDL_FRect){0, 0, 0, 0};
 		fpsCommon->count = 0;
 		fpsCommon->texture = NULL;

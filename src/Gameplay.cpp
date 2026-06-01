@@ -2,39 +2,28 @@
 
 namespace Kotonoha
 {
-	void Gameplay::UpdateCanvasSize(SDL_Window *window)
+	void Gameplay::UpdateCanvasSize(SDL_Renderer *renderer)
 	{
-		int width = 0, height = 0;
-		SDL_GetWindowSizeInPixels(window, &width, &height);
-
-		// Atualiza tamanho da janela apenas se necessário
-		if (width != windowWidth || height != windowHeight)
-		{
-			windowWidth = width;
-			windowHeight = height;
-		}
-		else
-			return;
-
+		SDL_GetCurrentRenderOutputSize(renderer, &windowWidth, &windowHeight);
 		SDL_FRect place = {0, 0, 0, 0};
-		double windowAspectRatio = static_cast<float>(width) / static_cast<float>(height);
+		double windowAspectRatio = static_cast<float>(windowWidth) / static_cast<float>(windowHeight);
 
 		// Ajuste da área de desenho com base na proporção da janela e do conteúdo
 		if (windowAspectRatio < aspectRatio)
 		{
 			// Janela mais alta que o conteúdo: barras horizontais
-			place.w = static_cast<float>(width);
-			place.h = static_cast<float>(width) / aspectRatio;
+			place.w = static_cast<float>(windowWidth);
+			place.h = static_cast<float>(windowWidth) / aspectRatio;
 			place.x = 0.0f;
-			place.y = static_cast<float>(height - place.h) / 2.0f; // Centralização vertical
+			place.y = static_cast<float>(windowHeight - place.h) / 2.0f; // Centralização vertical
 		}
 		else
 		{
 			// Janela mais larga que o conteúdo: barras verticais
-			place.h = static_cast<float>(height);
-			place.w = static_cast<float>(height) * aspectRatio;
+			place.h = static_cast<float>(windowHeight);
+			place.w = static_cast<float>(windowHeight) * aspectRatio;
 			place.y = 0.0f;
-			place.x = static_cast<float>(width - place.w) / 2.0f; // Centralização horizontal
+			place.x = static_cast<float>(windowWidth - place.w) / 2.0f; // Centralização horizontal
 		}
 
 		// Atualiza o canvas para diferentes tipos de renderização
@@ -66,7 +55,12 @@ namespace Kotonoha
 	}
 
 	SDL_AppResult Gameplay::Main(struct Kotonoha_Game *gameContext)
-	{
+	{	
+		if(firstFocus)
+		{
+			UpdateCanvasSize(gameContext->render);
+		}
+
 		// Verifica condição de término
 		if (eventManager->CheckEnd(this))
 		{
@@ -83,8 +77,7 @@ namespace Kotonoha
 			this->putPrompt = false;
 		}
 
-		// Atualiza o tamanho do canvas e controla pausa/resumo do tempo
-		UpdateCanvasSize(gameContext->window);
+		// Controla pausa/resumo do tempo
 		gameContext->paused ? Kotonoha_timePause(this->tm) : Kotonoha_timeResume(this->tm);
 
 		// Processamento de eventos
@@ -92,7 +85,6 @@ namespace Kotonoha
 		do
 		{
 			SDL_Event event = Kotonoha_eventRead(&gameContext->eventQueu, &persistent);
-
 			// Tratamento de eventos de teclado
 			switch (event.type)
 			{
@@ -100,8 +92,10 @@ namespace Kotonoha
 				switch (event.key.key)
 				{
 				case SDLK_P:
+				{
 					gameContext->paused = !this->tm->isPaused;
 					break;
+				}
 				case SDLK_I:
 				{
 					float timeInSeconds = static_cast<float>(Kotonoha_timeGet(this->tm)) / 1000.0f;
@@ -114,8 +108,24 @@ namespace Kotonoha
 					return SDL_APP_SUCCESS;
 				}
 				case SDLK_N:
+				{
 					this->tm->seekTime += 5000;
 					break;
+				}
+				case SDLK_B:
+				{
+					Uint64 time = Kotonoha_timeGet(this->tm);
+					this->tm->seekTime -= time < 5000 ? time : 5000;
+					gameContext->softReset = true;
+					break;
+				}
+				case SDLK_R:
+				{
+					Uint64 time = Kotonoha_timeGet(this->tm);
+					this->tm->seekTime -= time;
+					gameContext->softReset = true;
+					break;
+				}
 				default:
 					break;
 				}
@@ -124,15 +134,20 @@ namespace Kotonoha
 				if (playOnlyOnFocus)
 				{
 					gameContext->paused = lastPauseStatus;
+					break;
 				}
-				break;
 			case SDL_EVENT_WINDOW_FOCUS_LOST:
 				if (playOnlyOnFocus)
 				{
 					lastPauseStatus = gameContext->paused;
 					gameContext->paused = true;
+					break;
 				}
-				break;
+			case SDL_EVENT_WINDOW_RESIZED:
+				{
+					UpdateCanvasSize(gameContext->render);
+					break;
+				}
 			default:
 				break;
 			}
@@ -141,7 +156,6 @@ namespace Kotonoha
 		// Renderiza o canvas e libera a fila de eventos
 		SDL_AppResult result = drawCanvas->RenderCanvas(gameContext->window, gameContext->render, &gameContext->eventQueu);
 		Kotonoha_eventFree(&gameContext->eventQueu);
-
 		return result;
 	}
 

@@ -1,7 +1,6 @@
 #include <fstream>
 #include <iostream>
 #include <Kotonoha/Kotonoha.hpp>
-#include <sstream>
 #include <string>
 
 namespace Kotonoha
@@ -269,8 +268,7 @@ namespace Kotonoha
 					}
 					else
 					{
-						SDL_LogError(0,
-									 "Missing argument for -s option (subtitle styles file)");
+						SDL_LogError(0, "Missing argument for -s option (subtitle styles file)");
 					}
 					break;
 
@@ -320,6 +318,11 @@ namespace Kotonoha
 				case 'z': // Ativa a exibição de FPS
 					*arg = '!';
 					gameContext.showFps = true;
+					break;
+
+				case 't': // Ativa a exibição de timestamp
+					*arg = '!';
+					gameContext.showTimestamp = true;
 					break;
 
 				default:
@@ -403,6 +406,9 @@ namespace Kotonoha
 				SDL_GetRenderVSync(gameContext.render, &gameContext.vsync);
 				gameContext.vsync ? SDL_SetRenderVSync(gameContext.render, 0) : SDL_SetRenderVSync(gameContext.render, 1);
 				break;
+			case SDLK_F8:
+				gameContext.showTimestamp = !gameContext.showTimestamp;
+				break;
 			}
 			break;
 		case SDL_EVENT_MOUSE_MOTION:
@@ -423,30 +429,28 @@ namespace Kotonoha
 		SDL_SetRenderDrawColor(gameContext.render, 0, 0, 0, 0);
 		SDL_RenderClear(gameContext.render);
 
-		if (!gameplays.empty())
-		{
-			while (!gameplays.empty())
-			{
-				if (gameplays[0]->Main(&gameContext) == SDL_APP_CONTINUE)
-					break;
-
-				delete gameplays[0];
-				gameplays.erase(gameplays.begin());
-			}
-		}
-		else
+		if (gameplays.empty())
 		{
 			return SDL_APP_FAILURE;
 		}
-
-		SDL_SetRenderTarget(gameContext.render, nullptr);
-
-		// Renderiza FPS se habilitado
+	
+		SDL_AppResult result = gameplays[0]->Main(&gameContext);
 		if (gameContext.showFps)
 		{
-			Kotonoha_FPSrender(gameContext.window, gameContext.render, &gameContext.eventQueu, nullptr, nullptr);
+			Kotonoha_FPSRender(gameContext.window, gameContext.render, &gameContext.eventQueu, nullptr, nullptr);
 		}
 
+		if (gameContext.showTimestamp)
+		{
+			Kotonoha_TimestampRender(gameContext.window, gameContext.render, &gameContext.eventQueu, static_cast<void*>(gameplays[0]->tm), nullptr);
+		}
+
+		if (result != SDL_APP_CONTINUE) {
+			delete gameplays[0];
+			gameplays.erase(gameplays.begin());
+		}
+
+		SDL_SetRenderTarget(gameContext.render, nullptr);
 		SDL_RenderPresent(gameContext.render);
 		Kotonoha_eventFree(&gameContext.eventQueu);
 
@@ -468,56 +472,21 @@ extern "C"
 #define SDL_MAIN_USE_CALLBACKS 1
 #include <SDL3/SDL_main.h>
 
-#ifdef ANDROID
-#include <unistd.h>
-
-	// Função para configurar o ambiente Android
-	static void Kotonoha_Android_Setup()
-	{
-		std::string appRoot = SDL_GetAndroidInternalStoragePath();
-		std::string dataDir = SDL_GetAndroidExternalStoragePath();
-		std::string stdOutLog = "/info.log";
-		std::string stdErrLog = "/error.log";
-
-		// Configurando a data e hora atuais
-		auto agora = std::chrono::system_clock::now();
-		std::time_t actualTime = std::chrono::system_clock::to_time_t(agora);
-		std::tm *localTime = std::localtime(&actualTime);
-
-		// Redirecionar stdout e stderr para arquivos de log
-		freopen((dataDir + stdOutLog).c_str(), "a", stdout);
-		freopen((dataDir + stdErrLog).c_str(), "a", stderr);
-
-		// Criar uma mensagem em um stringstream
-		std::stringstream ss;
-		ss << std::endl
-		   << "New execution: "
-		   << std::put_time(localTime, "%Y-%m-%d %H:%M:%S")
-		   << "\n-------------------------" << std::endl;
-
-		// Imprimir a mesma mensagem em stdout e stderr
-		std::cout << ss.str() << "This is as target for STDOUT" << std::endl;
-		std::cerr << ss.str() << "This is as target for STDERR" << std::endl;
-
-		// Alterar o diretório de trabalho para o diretório raiz do app
-		if (chdir(appRoot.c_str()) != 0)
-		{
-			std::cerr << "Failed to change directory to " << appRoot << ": ";
-			std::perror(""); // Escreve a mensagem de erro para stderr
-		}
-	}
-#endif
+void Kotonoha_MobileSetup();
 
 	/* Função chamada uma vez na inicialização */
 	SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
 	{
 		SDL_AppResult status;
-
-		// Configurações específicas do Android
-#ifdef ANDROID
-		Kotonoha_Android_Setup();
+		// Configurações específicas do Mobile
+#if defined(__ANDROID__)
+    	Kotonoha_MobileSetup();
+#elif defined(__APPLE__)
+    #include <TargetConditionals.h>
+    #if TARGET_OS_IOS || TARGET_OS_IPHONE
+        Kotonoha_MobileSetup();
+    #endif
 #endif
-
 		// Inicializa o Kotonoha com os argumentos da linha de comando
 		*appstate = new Kotonoha::Kotonoha(argc, argv, &status);
 

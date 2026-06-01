@@ -14,11 +14,14 @@ namespace Kotonoha
 	class Video
 	{
 	private:
-		Kotonoha_time *timeManager = NULL;
+		Kotonoha_time *timeManager = nullptr;
 		std::vector<Kotonoha_videoData *> videos = std::vector<Kotonoha_videoData *>();
-		SDL_Mutex *videoLock = NULL;
+		SDL_Mutex* lock = nullptr;
 
 	public:
+
+		void Reset();
+
 		Video(Kotonoha_time *timeManager);
 
 		bool Register(const char *path, Uint64 startTime, Uint64 endTime);
