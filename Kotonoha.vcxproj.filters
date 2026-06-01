@@ -93,6 +93,9 @@
     <ClCompile Include="src\utils\UserEvents.c">
       <Filter>Arquivos de Origem\utils</Filter>
     </ClCompile>
+    <ClCompile Include="src\renders\TimestampRender.c">
+      <Filter>Arquivos de Origem\render</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\Kotonoha\Gameplay.hpp">
@@ -157,6 +160,9 @@
     </ClInclude>
     <ClInclude Include="src\resource.h">
       <Filter>Arquivos de Cabeçalho</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Kotonoha\renders\TimestampRender.h">
+      <Filter>Arquivos de Cabeçalho\render</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

@@ -44,7 +44,7 @@ struct Kotonoha_Game
 
 	char *assetsPath, *configPath, *styleStr;
 
-	bool showFps, paused;
+	bool showFps, paused, showTimestamp, softReset, hardReset;
 	int vsync;
 
 	struct Kotonoha_eventStack eventQueu;

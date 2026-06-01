@@ -4,8 +4,9 @@
 extern "C"
 {
 #include <SDL3_ttf/SDL_ttf.h>
-#include <Kotonoha/renders/FPSrender.h>
+#include <Kotonoha/renders/FPSRender.h>
 #include <Kotonoha/renders/AudioRender.h>
+#include <Kotonoha/renders/TimestampRender.h>
 }
 
 #include <tuple>

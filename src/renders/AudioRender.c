@@ -1,234 +1,293 @@
 #include <Kotonoha/renders/AudioRender.h>
 
-// Função auxiliar para liberar os recursos de áudio
+
 static void cleanupAudioResources(AVPacket *packet, Uint8 **nonPlanarData, AVFrame *pFrame)
 {
-	if (packet)
-		av_packet_unref(packet);
-	if (nonPlanarData)
-	{
-		av_freep(&nonPlanarData[0]);
-		av_free(nonPlanarData);
-	}
-	if (pFrame)
-		av_frame_free(&pFrame);
+    if (packet)
+        av_packet_unref(packet);
+
+    if (nonPlanarData)
+    {
+        if (nonPlanarData[0])
+            av_freep(&nonPlanarData[0]);
+        av_freep(&nonPlanarData);
+    }
+
+    if (pFrame)
+        av_frame_free(&pFrame);
 }
 
-// Função auxiliar para alocar o buffer de áudio
-static int allocateAudioBuffer(struct Kotonoha_audioDecode *instance, int chuckSize, Uint8 **target,
-							   int *size)
+
+static int allocateAudioBuffer(struct Kotonoha_audioDecode *instance, int sampleCount, Uint8 **target, int *size)
 {
-	*size = chuckSize * sizeof(float) * instance->specification.channels;
-	*target = (Uint8 *)SDL_malloc(*size);
+    const int bytesPerSample = (int)sizeof(float);
+    *size = sampleCount * instance->specification.channels * bytesPerSample;
+    *target = (Uint8 *)SDL_malloc(*size);
 
-	if (!*target)
-	{
-		SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Error allocating target buffer\n");
-		return 0;
-	}
-	return 1;
+    if (!*target)
+    {
+        SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Error allocating target buffer");
+        *size = 0;
+        return 0;
+    }
+
+    return 1;
 }
 
-// Gera ruído branco e armazena nos dados de áudio alvo
+
 void genWhiteNoise(void *parms, Uint8 **target, size_t *size)
 {
-	(void)parms;
-	const size_t bufferSize = 1024;
-	float *data = (float *)SDL_malloc(bufferSize * sizeof(float));
+    (void)parms;
 
-	if (!data)
-	{
-		SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Failed to allocate memory for white noise\n");
-		return;
-	}
+    const size_t sampleCount = 1024;
+    const size_t bufferSize = sampleCount * sizeof(float);
+    float *data = (float *)SDL_malloc(bufferSize);
 
-	// Gera ruído branco
-	for (size_t i = 0; i < bufferSize / sizeof(float); i++)
-	{
-		data[i] = (2.0f * ((float)rand() / (float)RAND_MAX) - 1.0f) * 0.01f;
-	}
+    if (!data)
+    {
+        SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Failed to allocate memory for white noise");
+        *target = NULL;
+        *size = 0;
+        return;
+    }
 
-	*target = (Uint8 *)data;
-	*size = bufferSize / sizeof(float);
+    for (size_t i = 0; i < sampleCount; ++i)
+    {
+        data[i] = (2.0f * ((float)rand() / (float)RAND_MAX) - 1.0f) * 0.01f;
+    }
+
+    *target = (Uint8 *)data;
+    *size = bufferSize;
 }
 
-// Inicializa o contexto de áudio a partir do caminho e especificações dadas
+
 struct Kotonoha_audioDecode *Kotonoha_AudioInit(const char *path, SDL_AudioSpec specification)
 {
-	struct Kotonoha_audioDecode *audioDecode = (struct Kotonoha_audioDecode *)SDL_calloc(1, sizeof(struct Kotonoha_audioDecode));
+    struct Kotonoha_audioDecode *audioDecode =
+        (struct Kotonoha_audioDecode *)SDL_calloc(1, sizeof(struct Kotonoha_audioDecode));
 
-	if (!audioDecode)
-	{
-		SDL_LogError(SDL_LOG_CATEGORY_ERROR, "calloc");
-		return NULL;
-	}
+    if (!audioDecode)
+    {
+        SDL_LogError(SDL_LOG_CATEGORY_ERROR, "calloc");
+        return NULL;
+    }
 
-	// Carregar o contexto do arquivo de áudio com FFmpeg
-	if (!Kotonoha_UtilsFFmpegLoad(path, &audioDecode->formatCtx, &audioDecode->codecCtx,
-								  AVMEDIA_TYPE_AUDIO, &audioDecode->audioStreamIndex, 0, NULL))
-	{
-		SDL_free(audioDecode);
-		return NULL;
-	}
+    if (!Kotonoha_UtilsFFmpegLoad(path, &audioDecode->formatCtx, &audioDecode->codecCtx,
+                                  AVMEDIA_TYPE_AUDIO, &audioDecode->audioStreamIndex, 0, NULL))
+    {
+        SDL_free(audioDecode);
+        return NULL;
+    }
 
-	audioDecode->specification = specification;
-	audioDecode->swrCtx = swr_alloc();
-	audioDecode->executions = 1;
+    audioDecode->specification = specification;
+    audioDecode->executions = 1;
 
-	if (!audioDecode->swrCtx)
-	{
-		SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Failed to allocate SwrContext\n");
-		SDL_free(audioDecode);
-		return NULL;
-	}
+    AVChannelLayout outLayout;
+    av_channel_layout_default(&outLayout, audioDecode->specification.channels);
 
-	// Configurar o contexto de conversão de amostras
-	AVChannelLayout layout = {0, audioDecode->specification.channels, 0, 0};
-	if (swr_alloc_set_opts2(&audioDecode->swrCtx, &layout, AV_SAMPLE_FMT_FLT, audioDecode->specification.freq,
-							&audioDecode->codecCtx->ch_layout, audioDecode->codecCtx->sample_fmt,
-							audioDecode->codecCtx->sample_rate, 0, NULL) < 0)
-	{
-		SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Failed to set SwrContext options\n");
-		swr_free(&audioDecode->swrCtx);
-		SDL_free(audioDecode);
-		return NULL;
-	}
+    if (swr_alloc_set_opts2(&audioDecode->swrCtx,
+                            &outLayout,
+                            AV_SAMPLE_FMT_FLT,
+                            audioDecode->specification.freq,
+                            &audioDecode->codecCtx->ch_layout,
+                            audioDecode->codecCtx->sample_fmt,
+                            audioDecode->codecCtx->sample_rate,
+                            0,
+                            NULL) < 0)
+    {
+        SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Failed to set SwrContext options");
+        av_channel_layout_uninit(&outLayout);
+        avcodec_free_context(&audioDecode->codecCtx);
+        avformat_close_input(&audioDecode->formatCtx);
+        SDL_free(audioDecode);
+        return NULL;
+    }
 
-	if (swr_init(audioDecode->swrCtx) < 0)
-	{
-		SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Failed to initialize SwrContext\n");
-		swr_free(&audioDecode->swrCtx);
-		SDL_free(audioDecode);
-		return NULL;
-	}
+    av_channel_layout_uninit(&outLayout);
 
-	return audioDecode;
+    if (!audioDecode->swrCtx)
+    {
+        SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Failed to allocate SwrContext");
+        avcodec_free_context(&audioDecode->codecCtx);
+        avformat_close_input(&audioDecode->formatCtx);
+        SDL_free(audioDecode);
+        return NULL;
+    }
+
+    if (swr_init(audioDecode->swrCtx) < 0)
+    {
+        SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Failed to initialize SwrContext");
+        swr_free(&audioDecode->swrCtx);
+        avcodec_free_context(&audioDecode->codecCtx);
+        avformat_close_input(&audioDecode->formatCtx);
+        SDL_free(audioDecode);
+        return NULL;
+    }
+
+    return audioDecode;
 }
 
-// Função para buscar um tempo específico no áudio
+
 void Kotonoha_AudioSeek(struct Kotonoha_audioDecode *ctx, Sint64 time)
 {
-	if (av_seek_frame(ctx->formatCtx, ctx->audioStreamIndex, time, AVSEEK_FLAG_BACKWARD) < 0)
-	{
-		SDL_LogError(SDL_LOG_CATEGORY_ERROR, "SeekError time %d\n", (int)time);
-		return;
-	}
-	ctx->start -= time;
-	ctx->end -= time;
-	ctx->executions++;
+    if (!ctx || !ctx->formatCtx || !ctx->codecCtx)
+        return;
+
+    if (ctx->audioTime > 0)
+        time = time % ctx->audioTime;
+
+    if (av_seek_frame(ctx->formatCtx, ctx->audioStreamIndex, time, AVSEEK_FLAG_BACKWARD) < 0)
+    {
+        SDL_LogError(SDL_LOG_CATEGORY_ERROR, "SeekError time %lld", (long long)time);
+        return;
+    }
+
+    avcodec_flush_buffers(ctx->codecCtx);
+    ctx->executions++;
 }
 
-// Renderiza o áudio decodificado para o buffer de destino
+
 int Kotonoha_AudioRender(void *data, Uint8 **target, int *size)
 {
-	struct Kotonoha_audioDecode *instance = (struct Kotonoha_audioDecode *)data;
-	struct Kotonoha_time *time = NULL;
-	int returnCode = -1;
+    struct Kotonoha_audioDecode *instance = (struct Kotonoha_audioDecode *)data;
+    struct Kotonoha_time *time = NULL;
+    AVFrame *pFrame = NULL;
+    AVPacket packet;
+    int ret;
 
-	// Verifica se o tempo está pausado
-	if (instance->tm != NULL && *instance->tm != NULL)
-	{
-		time = *instance->tm;
-		if (time->isPaused)
-			return 0;
-	}
+    if (!instance || !target || !size)
+        return -1;
 
-	AVPacket packet;
-	AVFrame *pFrame = av_frame_alloc();
-	if (!pFrame)
-	{
-		SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Error allocating frame\n");
-		return -1;
-	}
-	while (av_read_frame(instance->formatCtx, &packet) >= 0)
-	{
-		returnCode = 1;
-		if (packet.stream_index != instance->audioStreamIndex)
-		{
-			cleanupAudioResources(&packet, NULL, NULL);
-			continue; // Ignora pacotes que não são de áudio
-		}
+    *target = NULL;
+    *size = 0;
 
-		instance->audioTime = Kotonoha_UtilsFFmpegGetTime(instance->formatCtx->streams[instance->audioStreamIndex], packet.pts, packet.dts);
+    if (instance->tm != NULL && *instance->tm != NULL)
+    {
+        time = *instance->tm;
+        if (time->isPaused)
+            return 0;
+    }
 
-		// Verifica se o tempo atual é maior que o tempo do áudio
-		Sint64 diff = instance->lastTime - (instance->audioTime * instance->executions);
-		if (time != NULL && diff > 0)
-		{
-			cleanupAudioResources(&packet, NULL, NULL);
-			continue;
-		}
+    pFrame = av_frame_alloc();
+    if (!pFrame)
+    {
+        SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Error allocating frame");
+        return -1;
+    }
 
-		// Envia o pacote para o codec
-		if (avcodec_send_packet(instance->codecCtx, &packet) < 0)
-		{
-			SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Error sending packet to codec\n");
-			cleanupAudioResources(&packet, NULL, NULL);
-			break;
-		}
+    packet.data = NULL;
+    packet.size = 0;
 
-		// Recebe o quadro decodificado
-		int ret = avcodec_receive_frame(instance->codecCtx, pFrame);
-		if (ret == AVERROR(EAGAIN))
-		{
-			// Frame não está pronto ainda, enviar mais pacotes
-			av_frame_free(&pFrame);
-			av_packet_unref(&packet);
-			continue;
-		}
-		else if (ret < 0)
-		{
-			SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Error receiving frame: %s\n", av_err2str(ret));
-			av_frame_free(&pFrame);
-			av_packet_unref(&packet);
-			break;
-		}
+    while ((ret = av_read_frame(instance->formatCtx, &packet)) >= 0)
+    {
+        if (packet.stream_index != instance->audioStreamIndex)
+        {
+            av_packet_unref(&packet);
+            continue;
+        }
 
-		// Alocar espaço para áudio convertido
-		Uint8 **nonPlanarData = NULL;
-		if (av_samples_alloc_array_and_samples(&nonPlanarData, NULL, instance->specification.channels, pFrame->nb_samples, AV_SAMPLE_FMT_FLT, 0) < 0)
-		{
-			SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Error allocating audio samples\n");
-			cleanupAudioResources(&packet, nonPlanarData, pFrame);
-			break;
-		}
+        instance->audioTime = Kotonoha_UtilsFFmpegGetTime(
+            instance->formatCtx->streams[instance->audioStreamIndex],
+            packet.pts,
+            packet.dts);
 
-		// Converter áudio para o formato esperado
-		int chuckSize = swr_convert(instance->swrCtx, (Uint8 **)nonPlanarData, pFrame->nb_samples,
-									(const Uint8 **)pFrame->data, pFrame->nb_samples);
+        Sint64 diff = instance->lastTime - (instance->audioTime * instance->executions);
+        if (time != NULL && diff > 0)
+        {
+            av_packet_unref(&packet);
+            continue;
+        }
 
-		if (chuckSize < 0)
-		{
-			SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Error converting audio samples\n");
-			cleanupAudioResources(&packet, nonPlanarData, NULL);
-			break;
-		}
+        ret = avcodec_send_packet(instance->codecCtx, &packet);
+        av_packet_unref(&packet);
 
-		// Copiar dados convertidos para o buffer de destino
-		if (!allocateAudioBuffer(instance, chuckSize, target, size))
-		{
-			cleanupAudioResources(&packet, nonPlanarData, NULL);
-			break;
-		}
+        if (ret < 0)
+        {
+            SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Error sending packet to codec: %s", av_err2str(ret));
+            av_frame_free(&pFrame);
+            return -1;
+        }
 
-		SDL_memcpy(*target, nonPlanarData[0], *size);
-		cleanupAudioResources(&packet, nonPlanarData, NULL);
-		returnCode = 2;
-		break; // Sai do loop após processar um pacote
-	}
-	av_frame_free(&pFrame);
-	return returnCode;
+        while ((ret = avcodec_receive_frame(instance->codecCtx, pFrame)) >= 0)
+        {
+            Uint8 **nonPlanarData = NULL;
+            int outSamples = swr_get_out_samples(instance->swrCtx, pFrame->nb_samples);
+
+            if (outSamples <= 0)
+            {
+                SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Invalid output sample count");
+                av_frame_unref(pFrame);
+                continue;
+            }
+
+            if (av_samples_alloc_array_and_samples(&nonPlanarData,
+                                                   NULL,
+                                                   instance->specification.channels,
+                                                   outSamples,
+                                                   AV_SAMPLE_FMT_FLT,
+                                                   0) < 0)
+            {
+                SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Error allocating audio samples");
+                av_frame_free(&pFrame);
+                return -1;
+            }
+
+            int convertedSamples = swr_convert(instance->swrCtx,
+                                               nonPlanarData,
+                                               outSamples,
+                                               (const uint8_t **)pFrame->extended_data,
+                                               pFrame->nb_samples);
+
+            if (convertedSamples < 0)
+            {
+                SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Error converting audio samples");
+                cleanupAudioResources(NULL, nonPlanarData, NULL);
+                av_frame_free(&pFrame);
+                return -1;
+            }
+
+            if (!allocateAudioBuffer(instance, convertedSamples, target, size))
+            {
+                cleanupAudioResources(NULL, nonPlanarData, NULL);
+                av_frame_free(&pFrame);
+                return -1;
+            }
+
+            SDL_memcpy(*target, nonPlanarData[0], *size);
+
+            cleanupAudioResources(NULL, nonPlanarData, NULL);
+            av_frame_unref(pFrame);
+            av_frame_free(&pFrame);
+            return 2;
+        }
+
+        if (ret == AVERROR(EAGAIN))
+            continue;
+
+        if (ret == AVERROR_EOF)
+            break;
+
+        if (ret < 0)
+        {
+            SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Error receiving frame: %s", av_err2str(ret));
+            av_frame_free(&pFrame);
+            return -1;
+        }
+    }
+
+    av_frame_free(&pFrame);
+    return (ret == AVERROR_EOF) ? 1 : -1;
 }
 
-// Libera a memória associada ao contexto de áudio
+
 void Kotonoha_AudioFree(void *data)
 {
-	if (data != NULL)
-	{
-		struct Kotonoha_audioDecode *audioDecode = data;
-		swr_free(&audioDecode->swrCtx);
-		avformat_close_input(&audioDecode->formatCtx);
-		avcodec_free_context(&audioDecode->codecCtx);
-		SDL_free(audioDecode);
-	}
+    if (data != NULL)
+    {
+        struct Kotonoha_audioDecode *audioDecode = (struct Kotonoha_audioDecode *)data;
+        swr_free(&audioDecode->swrCtx);
+        avformat_close_input(&audioDecode->formatCtx);
+        avcodec_free_context(&audioDecode->codecCtx);
+        SDL_free(audioDecode);
+    }
 }

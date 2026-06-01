@@ -2,7 +2,6 @@
 
 namespace Kotonoha
 {
-
 	// Implementa��o da classe Sound::Channel::Pipe
 	Sound::Channel::Pipe::Pipe(KOTONOHA_AUDIO_COMPONENTS) : function(function), closeFucntion(closeFunction), parms(parms), data(nullptr), lenghtData(0), lastGetData(0)
 	{

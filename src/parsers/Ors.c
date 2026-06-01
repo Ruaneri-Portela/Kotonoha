@@ -268,7 +268,7 @@ static struct Kotonoha_orsEvent* Kotonoha_ORS_parse_line(wchar_t* line)
 		event->data.play_se->path[sizeFind] = L'\0';
 		Kotonoha_ORS_swap_tab_null(line, &transformed);
 		line = Kotonoha_ORS_wchar_jump_tab(line);
-		event->data.play_se->end = Kotonoha_ORS_parse_timestamp(line);
+		event->end = Kotonoha_ORS_parse_timestamp(line);
 		break;
 	}
 	case PLAY_MOVIE:
@@ -294,7 +294,7 @@ static struct Kotonoha_orsEvent* Kotonoha_ORS_parse_line(wchar_t* line)
 		event->data.play_movie->a = wcstoul(line, NULL, 10);
 		Kotonoha_ORS_swap_tab_null(line, &transformed);
 		line = Kotonoha_ORS_wchar_jump_tab(line);
-		event->data.play_movie->end = Kotonoha_ORS_parse_timestamp(line);
+		event->end = Kotonoha_ORS_parse_timestamp(line);
 		break;
 	}
 	case WHITE_FADE:
@@ -316,7 +316,7 @@ static struct Kotonoha_orsEvent* Kotonoha_ORS_parse_line(wchar_t* line)
 			event->data.fade->a = SDL_wcscmp(line, L"IN") == 0 ? true : false;
 			Kotonoha_ORS_swap_tab_null(line, &transformed);
 			line = Kotonoha_ORS_wchar_jump_tab(line);
-			event->data.fade->end = Kotonoha_ORS_parse_timestamp(line);
+			event->end = Kotonoha_ORS_parse_timestamp(line);
 			break;
 		}
 	case PRINT_TEXT:
@@ -349,7 +349,7 @@ static struct Kotonoha_orsEvent* Kotonoha_ORS_parse_line(wchar_t* line)
 		event->data.print_text->text[sizeFind] = L'\0';
 		Kotonoha_ORS_swap_tab_null(line, &transformed);
 		line = Kotonoha_ORS_wchar_jump_tab(line);
-		event->data.print_text->end = Kotonoha_ORS_parse_timestamp(line);
+		event->end = Kotonoha_ORS_parse_timestamp(line);
 		break;
 	}
 	case PLAY_VOICE:
@@ -393,7 +393,7 @@ static struct Kotonoha_orsEvent* Kotonoha_ORS_parse_line(wchar_t* line)
 		}
 		Kotonoha_ORS_swap_tab_null(line, &transformed);
 		line = Kotonoha_ORS_wchar_jump_tab(line);
-		event->data.play_voice->end = Kotonoha_ORS_parse_timestamp(line);
+		event->end = Kotonoha_ORS_parse_timestamp(line);
 		break;
 	}
 	case CREATE_BG:
@@ -426,7 +426,7 @@ static struct Kotonoha_orsEvent* Kotonoha_ORS_parse_line(wchar_t* line)
 		event->data.create_bg->path[sizeFind] = L'\0';
 		Kotonoha_ORS_swap_tab_null(line, &transformed);
 		line = Kotonoha_ORS_wchar_jump_tab(line);
-		event->data.create_bg->end = Kotonoha_ORS_parse_timestamp(line);
+		event->end = Kotonoha_ORS_parse_timestamp(line);
 		break;
 	}
 	case SetSELECT:
@@ -467,7 +467,7 @@ static struct Kotonoha_orsEvent* Kotonoha_ORS_parse_line(wchar_t* line)
 			}
 			event->data.set_select->options[event->data.set_select->size] = NULL;
 		}
-		event->data.set_select->end = Kotonoha_ORS_parse_timestamp(line);
+		event->end = Kotonoha_ORS_parse_timestamp(line);
 		break;
 	}
 	case PLAY_BGM:
@@ -491,7 +491,7 @@ static struct Kotonoha_orsEvent* Kotonoha_ORS_parse_line(wchar_t* line)
 		event->data.path_end->path[sizeFind] = L'\0';
 		Kotonoha_ORS_swap_tab_null(line, &transformed);
 		line = Kotonoha_ORS_wchar_jump_tab(line);
-		event->data.path_end->end = Kotonoha_ORS_parse_timestamp(line);
+		event->end = Kotonoha_ORS_parse_timestamp(line);
 		break;
 	}
 	default:

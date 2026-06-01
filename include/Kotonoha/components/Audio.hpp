@@ -18,7 +18,6 @@ namespace Kotonoha
 		std::vector<std::tuple<Sound::Channel *, std::vector<std::tuple<struct Kotonoha_audioDecode *, Sound::Channel::Pipe *>>>> mediaObjects;
 		Sound *soundCtx = nullptr;
 		struct Kotonoha_time *timeCtx = nullptr;
-
 	public:
 		Audio(Sound *soundCtx, struct Kotonoha_time *timeCtx);
 		struct Kotonoha_audioDecode *AddMedia(const char *path, Uint64 start, Uint64 end, bool inLoop, const char *channel);

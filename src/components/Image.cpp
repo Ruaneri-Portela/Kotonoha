@@ -5,7 +5,7 @@ namespace Kotonoha
 
 	Image::Image(Kotonoha_time *time) : timeManager(time)
 	{
-		lockImage = SDL_CreateMutex();
+		lock = SDL_CreateMutex();
 	}
 
 	void Image::Register(const char *path, Uint64 startTime, Uint64 endTime, Uint8 id)
@@ -21,9 +21,9 @@ namespace Kotonoha
 		object->canRender = true;	   // Definir se pode renderizar
 
 		// Adicionar o objeto � lista de imagens
-		SDL_LockMutex(lockImage);
+		SDL_LockMutex(lock);
 		pictures.push_back(object);
-		SDL_UnlockMutex(lockImage);
+		SDL_UnlockMutex(lock);
 	}
 
 	enum Kotonoha_Scene_Status Image::Render(KOTONOHA_SCENE_CALL)
@@ -34,7 +34,7 @@ namespace Kotonoha
 		bool cleanuped = false;
 		bool drawed = false;
 
-		SDL_LockMutex(here->lockImage);
+		SDL_LockMutex(here->lock);
 		for (auto it = here->pictures.begin(); it != here->pictures.end();)
 		{
 			auto *picture = *it;
@@ -92,12 +92,12 @@ namespace Kotonoha
 			picture->lastTime = currentTime;
 			++it;
 		}
-		SDL_UnlockMutex(here->lockImage);
+		SDL_UnlockMutex(here->lock);
 		return status;
 	}
 
-	Image::~Image()
-	{
+	void Image::Reset(){
+		SDL_LockMutex(lock);
 		for (auto *picture : pictures)
 		{
 			SDL_DestroyTexture(picture->texture);
@@ -105,7 +105,13 @@ namespace Kotonoha
 			delete picture;
 		}
 		pictures.clear();
-		SDL_DestroyMutex(lockImage);
+		SDL_UnlockMutex(lock);
+	}
+
+	Image::~Image()
+	{
+		Reset();
+		SDL_DestroyMutex(lock);
 	}
 
 }

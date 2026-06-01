@@ -35,41 +35,36 @@ struct Kotonoha_orsTypeCreateBg
 {
 	wchar_t *a;
 	wchar_t *path;
-	Uint64 end;
 };
 
 struct Kotonoha_orsTypePlaySe
 {
 	Uint64 a;
 	wchar_t *path;
-	Uint64 end;
 };
 
 struct Kotonoha_orsTypePlayMovie
 {
 	wchar_t *path;
 	Uint64 a;
-	Uint64 end;
+
 };
 
 struct Kotonoha_orsTypeFade
 {
 	enum Kotonoha_orsFadecolor color;
 	bool a;
-	Uint64 end;
 };
 
 struct Kotonoha_orsTypePathEnd
 {
 	wchar_t *path;
-	Uint64 end;
 };
 
 struct Kotonoha_orsTypePrintText
 {
 	wchar_t *character;
 	wchar_t *text;
-	Uint64 end;
 };
 
 struct Kotonoha_orsTypePlayVoice
@@ -77,7 +72,6 @@ struct Kotonoha_orsTypePlayVoice
 	wchar_t *path;
 	Uint64 a;
 	wchar_t *character_short;
-	Uint64 end;
 };
 
 struct Kotonoha_orsTypeUnknown
@@ -89,7 +83,6 @@ struct Kotonoha_orsSetSELECT
 {
 	wchar_t **options;
 	Uint64 size;
-	Uint64 end;
 };
 
 union Kotonoha_orsTypeGeneric
@@ -108,6 +101,7 @@ union Kotonoha_orsTypeGeneric
 struct Kotonoha_orsEvent
 {
 	Uint64 start;
+	Uint64 end;
 	enum Kotonoha_orsType command;
 	union Kotonoha_orsTypeGeneric data;
 	struct Kotonoha_orsEvent *next;

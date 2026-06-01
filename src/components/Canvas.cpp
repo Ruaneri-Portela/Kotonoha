@@ -3,7 +3,6 @@
 
 namespace Kotonoha
 {
-
 	void Canvas::RegisterCanva(Kotonoha_Scene_Status (*drawingPoint)(KOTONOHA_SCENE_CALL), Sint16 zIndex, SDL_FRect place, void *userData)
 	{
 		CanvasItem item;
