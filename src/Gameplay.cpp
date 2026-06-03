@@ -119,10 +119,21 @@ namespace Kotonoha
 					gameContext->softReset = true;
 					break;
 				}
-				case SDLK_R:
+				case SDLK_Q:
+				{
+					this->tm->seekTime += 500;
+					break;
+				}
+				case SDLK_E:
 				{
 					Uint64 time = Kotonoha_timeGet(this->tm);
-					this->tm->seekTime -= time;
+					this->tm->seekTime -= time < 500 ? time : 500;
+					gameContext->softReset = true;
+					break;
+				}
+				case SDLK_R:
+				{
+					this->tm->seekTime -= Kotonoha_timeGet(this->tm);
 					gameContext->softReset = true;
 					break;
 				}

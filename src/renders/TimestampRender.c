@@ -76,26 +76,21 @@ enum Kotonoha_Scene_Status Kotonoha_TimestampRender(KOTONOHA_SCENE_CALL)
 	{
 		Uint64 timestamp = Kotonoha_timeGet(time);
 
-		// Converter milissegundos para segundos
+		// Converter milissegundos para segundos e decisegundos
 		Uint64 totalSeconds = timestamp / 1000;
+		Uint64 milliseconds = timestamp % 1000;
 
-		// Calcular horas, minutos e segundos
-		Uint64 hours = totalSeconds / 3600;
-		Uint64 minutes = (totalSeconds % 3600) / 60;
+		// Calcular minutos, segundos e decisegundos (centésimos)
+		Uint64 minutes = totalSeconds / 60;
 		Uint64 seconds = totalSeconds % 60;
+		Uint64 deciseconds = milliseconds / 10;  // 100ms = 1 decisegundo
 
-			// Formatar o texto de Timestamp no formato 00:00:00
+		// Formatar o texto de Timestamp no formato MM:SS:DS
 		SDL_snprintf(timestampCommon->text, sizeof(timestampCommon->text), 
-					"%02lu:%02lu:%02lu:TS", 
-					(unsigned long)hours, 
+					"%02lu:%02lu:%02lu :TS", 
 					(unsigned long)minutes, 
-					(unsigned long)seconds);
-
-		// Destruir a textura anterior se ela existir
-		if (timestampCommon->texture != NULL)
-		{
-			SDL_DestroyTexture(timestampCommon->texture);
-		}
+					(unsigned long)seconds, 
+					(unsigned long)deciseconds);
 
 		// Destruir a textura anterior se ela existir
 		if (timestampCommon->texture != NULL)

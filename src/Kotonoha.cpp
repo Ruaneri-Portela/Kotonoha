@@ -20,7 +20,7 @@ namespace Kotonoha
 		*initStatus = SDL_APP_CONTINUE;
 
 		// Inicializa SDL
-		if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_EVENTS))
+		if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_EVENTS ))
 		{
 			SDL_LogError(0, "Couldn't initialize SDL: %s", SDL_GetError());
 			*initStatus = SDL_APP_FAILURE;
@@ -28,7 +28,7 @@ namespace Kotonoha
 		}
 
 		gameContext.window = SDL_CreateWindow("Kotonoha Engine", windowsWidth, windowsHeight,
-											  gameContext.flags | SDL_WINDOW_RESIZABLE);
+											  gameContext.flags | SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY);
 		if (!gameContext.window)
 		{
 			SDL_LogError(0, "Couldn't create windowr: %s", SDL_GetError());
@@ -312,7 +312,6 @@ namespace Kotonoha
 						break;
 					*arg = '!';
 					SDL_SetRenderVSync(gameContext.render, 1);
-
 					break;
 
 				case 'z': // Ativa a exibição de FPS
@@ -327,6 +326,7 @@ namespace Kotonoha
 
 				default:
 					SDL_LogError(0, "Unknown option: %s", arg);
+                        break;
 					return false;
 				}
 			}
