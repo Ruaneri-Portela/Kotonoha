@@ -20,6 +20,7 @@ namespace Kotonoha
 		bool inExit = false;
 		bool closed = false;
 		static int EventManager(void *data);
+		SDL_Mutex *eventMutex =  nullptr;
 
 	public:
 		void Reset(void *data);

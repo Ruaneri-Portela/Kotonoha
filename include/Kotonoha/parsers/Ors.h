@@ -3,7 +3,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <wchar.h>
 
 #define MIMUMUM_LINE_SIZE 1024
 
@@ -33,21 +32,20 @@ enum Kotonoha_orsFadecolor
 
 struct Kotonoha_orsTypeCreateBg
 {
-	wchar_t *a;
-	wchar_t *path;
+	char *a;
+	char *path;
 };
 
 struct Kotonoha_orsTypePlaySe
 {
 	Uint64 a;
-	wchar_t *path;
+	char *path;
 };
 
 struct Kotonoha_orsTypePlayMovie
 {
-	wchar_t *path;
+	char *path;
 	Uint64 a;
-
 };
 
 struct Kotonoha_orsTypeFade
@@ -58,30 +56,30 @@ struct Kotonoha_orsTypeFade
 
 struct Kotonoha_orsTypePathEnd
 {
-	wchar_t *path;
+	char *path;
 };
 
 struct Kotonoha_orsTypePrintText
 {
-	wchar_t *character;
-	wchar_t *text;
+	char *character;
+	char *text;
 };
 
 struct Kotonoha_orsTypePlayVoice
 {
-	wchar_t *path;
+	char *path;
 	Uint64 a;
-	wchar_t *character_short;
+	char *character_short;
 };
 
 struct Kotonoha_orsTypeUnknown
 {
-	wchar_t *line;
+	char *line;
 };
 
 struct Kotonoha_orsSetSELECT
 {
-	wchar_t **options;
+	char **options;
 	Uint64 size;
 };
 
