@@ -9,6 +9,17 @@ extern "C"
 #include <Kotonoha/renders/TimestampRender.h>
 }
 
+#if defined(__ANDROID__)
+void Kotonoha_MobileSetup();
+#define KOTONOHA_MOBILE
+#elif defined(__APPLE__)
+#include <TargetConditionals.h>
+#if TARGET_OS_IOS || TARGET_OS_IPHONE
+void Kotonoha_MobileSetup();
+#define KOTONOHA_MOBILE
+#endif
+#endif
+
 #include <tuple>
 
 namespace Kotonoha
@@ -24,25 +35,26 @@ namespace Kotonoha
 		bool processPoolRunning = true;
 		std::vector<std::tuple<SDL_ThreadFunction, void *>> processPoolTasks;
 
-		Sound sound;
-		Sound::Channel *BGM = nullptr;
-		Sound::Channel *Voice = nullptr;
-		Sound::Channel *Se = nullptr;
-
 		char *preferedGPU = nullptr;
 		int windowsWidth = 1280;
 		int windowsHeight = 720;
 
-		bool showCursor;
-		Uint64 lastMouseTime;
+		bool showCursor = true;
+		Uint64 lastMouseTime = 0;
 
 		bool parserArguments(int argc, char *argv[], bool initDependent);
 		void loadSubtitleStylesFile(char *path);
 		void loadWindowIcon(const char *path);
-
 		static int EventsThread(void *data);
 
 	public:
+		Sound sound;
+		Sound::Channel* BGM = nullptr;
+		Sound::Channel* Voice = nullptr;
+		Sound::Channel* Se = nullptr;
+
+		bool loadScriptFile(const char* path);
+
 		Kotonoha(int argc, char *argv[], SDL_AppResult *initStatus);
 
 		SDL_AppResult Event(SDL_Event *event);

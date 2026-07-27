@@ -39,6 +39,8 @@ namespace Kotonoha
 		int promptId = -1;
 		bool putPrompt = false;
 
+		std::string script;
+
 		Gameplay(const char* scriptPath, struct Kotonoha_Game* gameContext);
 		SDL_AppResult Main(struct Kotonoha_Game* gameContext);
 		~Gameplay();

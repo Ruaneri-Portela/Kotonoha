@@ -26,8 +26,10 @@
     <ClCompile Include="src\components\Prompt.cpp" />
     <ClCompile Include="src\components\Sound.cpp" />
     <ClCompile Include="src\components\Video.cpp" />
+    <ClCompile Include="src\BasicGui.cpp" />
     <ClCompile Include="src\Gameplay.cpp" />
     <ClCompile Include="src\Kotonoha.cpp" />
+    <ClCompile Include="src\Main.cpp" />
     <ClCompile Include="src\parsers\Ors.c" />
     <ClCompile Include="src\renders\AudioRender.c" />
     <ClCompile Include="src\renders\FPSrender.c" />

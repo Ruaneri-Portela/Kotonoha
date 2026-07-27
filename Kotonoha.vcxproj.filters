@@ -96,6 +96,12 @@
     <ClCompile Include="src\renders\TimestampRender.c">
       <Filter>Arquivos de Origem\render</Filter>
     </ClCompile>
+    <ClCompile Include="src\BasicGui.cpp">
+      <Filter>Arquivos de Origem</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Main.cpp">
+      <Filter>Arquivos de Origem</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\Kotonoha\Gameplay.hpp">

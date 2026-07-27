@@ -46,6 +46,7 @@ namespace Kotonoha
 		this->drawCanvas->RegisterCanva(this->video->Render, 1, {0, 0, static_cast<float>(windowWidth), static_cast<float>(windowHeight)}, this->video);
 		this->drawCanvas->RegisterCanva(Kotonoha_TextRenderDraw, 3, {0, 0, static_cast<float>(windowWidth), static_cast<float>(windowHeight)}, this->sb);
 
+		script = scriptPath;
 		// Inicializa o gerenciador de eventos
 		this->eventManager = new Event(scriptPath, this, gameContext);
 #ifdef ANDROID
