@@ -42,8 +42,8 @@ namespace Kotonoha
 			SDL_Mutex *lockPipes = NULL;
 			~Channel();
 
-		private:
 			float volume = 1.0f;
+		private:
 			void **parms = nullptr;
 			bool inExit = false;
 			bool close = false;
@@ -66,8 +66,8 @@ namespace Kotonoha
 
 		~Sound();
 
-	private:
 		float volume = 1.0f;
+	private:
 		std::vector<Channel *> channels;
 		SDL_Mutex *lockChannels;
 	};

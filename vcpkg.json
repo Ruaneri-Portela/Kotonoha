@@ -1,6 +1,14 @@
 {
-  "builtin-baseline": "f9ffbaa46ad8e284b2b74919f7e0ba259564d424",
+  "builtin-baseline": "40f3c709db80acf154ac4b17a1f83c564ebd022e",
   "dependencies": [
+    {
+      "name": "fontconfig",
+      "platform": "ios"
+    },
+    {
+      "name": "libunibreak",
+      "platform": "ios"
+    },
     {
       "name": "ffmpeg",
       "features": [
@@ -8,15 +16,20 @@
       ]
     },
     {
-      "name": "libunibreak",
-      "platform": "ios"
+      "name": "imgui",
+      "features": [
+        "freetype",
+        "sdl3-binding",
+        "sdl3-renderer-binding"
+      ]
     },
     {
-      "name": "fontconfig",
-      "platform": "ios"
+      "name": "sdl3-ttf",
+      "features": [
+        "harfbuzz"
+      ]
     },
     "libass",
-    "sdl3",
-    "sdl3-ttf"
+    "sdl3"
   ]
 }

@@ -159,7 +159,6 @@ namespace Kotonoha
                             BuildString(event->data.path_end->path, assetsPath, useExtension ? ".WMV" : "").c_str(),
                             event->start, event->end);
                     }
-                    [[fallthrough]];
 
                 case PLAY_MOVIE:
                     if (event->data.play_movie->path != nullptr && SDL_strlen(event->data.play_movie->path) > 0)
