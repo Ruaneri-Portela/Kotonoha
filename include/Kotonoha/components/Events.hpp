@@ -4,28 +4,26 @@
 #include <Kotonoha/components/Prompt.hpp>
 #include <Kotonoha/components/Video.hpp>
 
-extern "C"
-{
+extern "C" {
 #include <Kotonoha/parsers/Ors.h>
 #include <Kotonoha/renders/TextRender.h>
 }
 
-namespace Kotonoha
-{
-	class Event
-	{
-	private:
-		Kotonoha_orsData eventsFromScript;
-		Uint64 lastTime = 0;
-		bool inExit = false;
-		bool closed = false;
-		static int EventManager(void *data);
-		SDL_Mutex *eventMutex =  nullptr;
+namespace Kotonoha {
+class Event {
+private:
+  Kotonoha_orsData eventsFromScript;
+  bool inExit = false;
+  bool closed = false;
+  static int EventManager(void *data);
+  SDL_Mutex *eventMutex = nullptr;
 
-	public:
-		void Reset(void *data);
-		Event(const char *orsPath, void *gameplay, struct Kotonoha_Game *gameCtx);
-		bool CheckEnd(void *gameplay);
-		~Event();
-	};
-}
+public:
+  Uint64 lastTime = 0;
+
+  void Reset(void *data);
+  Event(const char *orsPath, void *gameplay, struct Kotonoha_Game *gameCtx);
+  bool CheckEnd(void *gameplay);
+  ~Event();
+};
+} // namespace Kotonoha

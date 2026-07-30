@@ -2,73 +2,72 @@
 #include <string>
 #include <vector>
 
-extern "C"
-{
-#include <SDL3/SDL.h>
+extern "C" {
 #include <Kotonoha/Kotonoha.h>
+#include <SDL3/SDL.h>
 }
 
-namespace Kotonoha
-{
-	class Sound
-	{
-	public:
-		class Channel
-		{
-		public:
-			std::string name;
-			class Pipe
-			{
-			private:
-				int (*function)(void *parms, Uint8 **target, int *size) = nullptr;
-				void (*closeFucntion)(void *parms) = nullptr;
-				void *parms = nullptr;
-				Uint8 *data = nullptr;
-				int lenghtData = 0;
-				int lastGetData = 0;
+namespace Kotonoha {
+class Sound {
+public:
+  class Channel {
+  public:
+    std::string name;
+    class Pipe {
+    private:
+      int (*function)(void *parms, Uint8 **target, int *size) = nullptr;
+      void (*closeFucntion)(void *parms) = nullptr;
+      void *parms = nullptr;
+      Uint8 *data = nullptr;
+      int lenghtData = 0;
+      int lastGetData = 0;
 
-			public:
-				Pipe(KOTONOHA_AUDIO_COMPONENTS);
-				Uint8 *GetData(int optimalSize, int *gettedSize);
-				int Render();
-				~Pipe();
-			};
+    public:
+      Pipe(KOTONOHA_AUDIO_COMPONENTS);
+      Uint8 *GetData(int optimalSize, int *gettedSize);
+      int Render();
+      ~Pipe();
+    };
 
-			Channel(Sound *parent, SDL_AudioSpec spec, bool startPaused, bool *status);
-			SDL_AudioSpec GetSpecs();
-			Pipe *AddPipe(KOTONOHA_AUDIO_COMPONENTS);
-			void RemovePipe(Pipe *ptr);
-			static void SDLCALL Render(void *userdata, SDL_AudioStream *astream, int additionalAmount, int totalAmount);
-			SDL_Mutex *lockPipes = NULL;
-			~Channel();
+    Channel(Sound *parent, SDL_AudioSpec spec, bool startPaused, bool *status);
+    SDL_AudioSpec GetSpecs();
+    Pipe *AddPipe(KOTONOHA_AUDIO_COMPONENTS);
+    void RemovePipe(Pipe *ptr);
+    static void SDLCALL Render(void *userdata, SDL_AudioStream *astream,
+                               int additionalAmount, int totalAmount);
+    SDL_Mutex *lockPipes = NULL;
+    ~Channel();
 
-			float volume = 1.0f;
-		private:
-			void **parms = nullptr;
-			bool inExit = false;
-			bool close = false;
-			std::vector<Pipe *> pipes;
-			SDL_AudioStream *stream;
-			SDL_AudioSpec spec;
-		};
+    float volume = 1.0f;
 
-		Sound();
+  private:
+    void **parms = nullptr;
+    bool inExit = false;
+    bool close = false;
+    std::vector<Pipe *> pipes;
+    SDL_AudioStream *stream;
+    SDL_AudioSpec spec;
+  };
 
-		Channel *CreateChannel(SDL_AudioFormat fmt, int channels, int freq, bool startPaused, const char *name, size_t *newIndex);
+  Sound();
 
-		Channel *GetChannelByIndex(size_t index);
+  Channel *CreateChannel(SDL_AudioFormat fmt, int channels, int freq,
+                         bool startPaused, const char *name, size_t *newIndex);
 
-		Channel *GetChannelByName(std::string name);
+  Channel *GetChannelByIndex(size_t index);
 
-		void CleanupPipes(Channel *ch);
+  Channel *GetChannelByName(std::string name);
 
-		void DestroyChannel(Channel *ptr);
+  void CleanupPipes(Channel *ch);
 
-		~Sound();
+  void DestroyChannel(Channel *ptr);
 
-		float volume = 1.0f;
-	private:
-		std::vector<Channel *> channels;
-		SDL_Mutex *lockChannels;
-	};
-}
+  ~Sound();
+
+  float volume = 1.0f;
+
+private:
+  std::vector<Channel *> channels;
+  SDL_Mutex *lockChannels;
+};
+} // namespace Kotonoha

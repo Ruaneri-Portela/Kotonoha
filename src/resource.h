@@ -1,5 +1,5 @@
 //{{NO_DEPENDENCIES}}
-// Arquivo de inclusão gerado pelo Microsoft Visual C++.
+// Arquivo de inclusï¿½o gerado pelo Microsoft Visual C++.
 // Usado por Kotonoha.rc
 //
 #define IDI_ICON1                       102

@@ -1,5 +1,8 @@
 {
     "cmake.configureSettings": {
         "CMAKE_TOOLCHAIN_FILE": "/Users/nero/Codes/vcpkg/scripts/buildsystems/vcpkg.cmake"
+    },
+    "cmake.configureEnvironment": {
+        "PKG_CONFIG_PATH": "/opt/homebrew/lib/pkgconfig"
     }
 }
