@@ -177,9 +177,11 @@
     </ResourceCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="BuildPacket.ps1" />
     <None Include="LICENSE" />
     <None Include="README.md" />
     <None Include="vcpkg.json" />
+    <None Include="BuildPacket.ps1">
+      <Filter>Arquivos de Recurso</Filter>
+    </None>
   </ItemGroup>
 </Project>

@@ -1,33 +1,31 @@
 #pragma once
 #include <vector>
 
-extern "C"
-{
+extern "C" {
 #include <Kotonoha/Kotonoha.h>
+#include <Kotonoha/renders/VideoRender.h>
 #include <Kotonoha/utils/Time.h>
 #include <Kotonoha/utils/UserEvents.h>
-#include <Kotonoha/renders/VideoRender.h>
+
 }
 
-namespace Kotonoha
-{
-	class Video
-	{
-	private:
-		Kotonoha_time *timeManager = nullptr;
-		std::vector<Kotonoha_videoData *> videos = std::vector<Kotonoha_videoData *>();
-		SDL_Mutex* lock = nullptr;
+namespace Kotonoha {
+class Video {
+private:
+  Kotonoha_time *timeManager = nullptr;
+  std::vector<Kotonoha_videoData *> videos =
+      std::vector<Kotonoha_videoData *>();
+  SDL_Mutex *lock = nullptr;
 
-	public:
+public:
+  void Reset();
 
-		void Reset();
+  Video(Kotonoha_time *timeManager);
 
-		Video(Kotonoha_time *timeManager);
+  bool Register(const char *path, Uint64 startTime, Uint64 endTime);
 
-		bool Register(const char *path, Uint64 startTime, Uint64 endTime);
+  static Kotonoha_Scene_Status Render(KOTONOHA_SCENE_CALL);
 
-		static Kotonoha_Scene_Status Render(KOTONOHA_SCENE_CALL);
-
-		~Video();
-	};
-}
+  ~Video();
+};
+} // namespace Kotonoha

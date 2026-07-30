@@ -2,12 +2,12 @@
 $versionPath = ".\include\Kotonoha\version.h"
 $versionDir = Split-Path -Path $versionPath -Parent
 
-# Criar diret�rio do arquivo de vers�o, se necess�rio
+# Criar diret rio do arquivo de vers o, se necess rio
 if (-not (Test-Path -Path $versionDir)) {
     New-Item -ItemType Directory -Path $versionDir -Force
 }
 
-# Verifique se o Git est� instalado
+# Verifique se o Git est  instalado
 if (Get-Command git -ErrorAction SilentlyContinue) {
     # Obtenha o hash e a tag atual do Git
     $GIT_HASH = git rev-parse --short HEAD
@@ -16,13 +16,13 @@ if (Get-Command git -ErrorAction SilentlyContinue) {
         $GIT_TAG = "untagged"
     }
 } else {
-    # Defina valores padr�o se o Git n�o estiver instalado
+    # Defina valores padr o se o Git n o estiver instalado
     $GIT_HASH = "Null"
     $GIT_TAG = "Null"
 }
 
 # Criar arquivo version.h
-Write-Host "Criando arquivo de vers�o..."
+Write-Host "Criando arquivo de vers o..."
 @"
 #pragma once
 #define KOTONOHA_VERSION_HASH "$GIT_HASH"
@@ -30,10 +30,10 @@ Write-Host "Criando arquivo de vers�o..."
 
 "@ | Set-Content -Path $versionPath
 
-# Diret�rio para pacotes
+# Diret rio para pacotes
 $packetDest = ".\zips\"
 $builds = @("Win32", "x64")
-$msbuildPath = "C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\MSBuild.exe"
+$msbuildPath = "C:\Program Files\Microsoft Visual Studio\18\Community\MSBuild\Current\Bin\MSBuild.exe"
 $file = "Kotonoha.sln"
 # Iterar sobre as plataformas
 foreach ($build in $builds) {
@@ -43,7 +43,7 @@ foreach ($build in $builds) {
     Write-Host "Compilando $build (Release)..."
     & $msbuildPath $file -p:Configuration=Release -p:Platform="$msbild"
     if ($LASTEXITCODE -ne 0) {
-        Write-Error "Falha na compila��o para $msbild em configura��o Release."
+        Write-Error "Falha na compila  o para $msbild em configura  o Release."
         exit $LASTEXITCODE
     }
 
@@ -51,13 +51,13 @@ foreach ($build in $builds) {
     Write-Host "Compilando $build (Debug)..."
     & $msbuildPath $file -p:Configuration=Debug -p:Platform="$msbild"
     if ($LASTEXITCODE -ne 0) {
-        Write-Error "Falha na compila��o para $msbild em configura��o Debug."
+        Write-Error "Falha na compila  o para $msbild em configura  o Debug."
         exit $LASTEXITCODE
     }
 
     # Compactar arquivos
     Write-Host "Compactando pacotes para $build..."
-     # Criar o diret�rio para a plataforma
+     # Criar o diret rio para a plataforma
     New-Item -ItemType Directory -Path "$packetDest$build" -Force
 
     # Copiar os arquivos do Release

@@ -17,9 +17,10 @@ file(GLOB SOURCES
 
 find_package(SDL3 REQUIRED)
 find_package(SDL3_ttf REQUIRED)
+find_package(imgui CONFIG REQUIRED)
 
 # Configura as bibliotecas a serem usadas
-set(USE_THIS_LIBRARIES SDL3::SDL3 SDL3_ttf::SDL3_ttf)
+set(USE_THIS_LIBRARIES SDL3::SDL3 SDL3_ttf::SDL3_ttf imgui::imgui)
 
 # Configurações para sistemas não Android
 if(NOT ANDROID)
