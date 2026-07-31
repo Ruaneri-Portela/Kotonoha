@@ -72,7 +72,6 @@ Sound::Channel::Channel(Sound *parent, SDL_AudioSpec spec, bool startPaused,
     *status = false;
     return;
   }
-
   parms[0] = this;
   parms[1] = parent;
 
@@ -86,6 +85,7 @@ Sound::Channel::Channel(Sound *parent, SDL_AudioSpec spec, bool startPaused,
 
 Sound::Channel::~Channel() {
   inExit = true;
+  SDL_DestroyAudioStream(stream);
   SDL_DestroyMutex(lockPipes);
 }
 
@@ -118,9 +118,9 @@ void Sound::Channel::RemovePipe(Pipe *ptr) {
   SDL_UnlockMutex(lockPipes);
 }
 
-static void SDLCALL destroy(void* userdata, const void* buf, int buflen) {
-    if(userdata)
-        SDL_free(userdata);
+static void SDLCALL destroy(void *userdata, const void *buf, int buflen) {
+  if (userdata)
+    SDL_free(userdata);
 }
 
 void Sound::Channel::Render(void *userdata, SDL_AudioStream *astream,
@@ -144,7 +144,6 @@ void Sound::Channel::Render(void *userdata, SDL_AudioStream *astream,
   auto it = thisChannel->pipes.begin();
   int filled = 0;    // Quantidade de dados preenchidos no buffer
   int maxFilled = 0; // Quantidade m�xima de dados preenchidos at� o momento
-  bool firts = true;
   // Loop atrav�s dos pipes para obter dados de �udio
   while (it != thisChannel->pipes.end()) {
     int gettedSize = 0;
@@ -195,10 +194,13 @@ void Sound::Channel::Render(void *userdata, SDL_AudioStream *astream,
 Sound::Sound() { lockChannels = SDL_CreateMutex(); }
 
 Sound::~Sound() {
+  SDL_LockMutex(lockChannels);
+  CleanupPipes(nullptr);
   for (auto *channel : channels) {
     delete channel;
   }
   channels.clear();
+  SDL_UnlockMutex(lockChannels);
   SDL_DestroyMutex(lockChannels);
 }
 

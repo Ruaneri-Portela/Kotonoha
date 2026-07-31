@@ -17,9 +17,9 @@
                 "-p",
                 "/Volumes/Server/data2/Games/SCT/assets/Packs/",
                 "-s",
-                "/Users/nero/Library/CloudStorage/OneDrive-Pessoal/Projetos/Antigos/Kotonoha/assets/styles.skot",
+                "/Users/nero/Codes/ScriptConverter/assets/styles.skot",
                 "-l",
-                "/Users/nero/Codes/ScriptConverter/PT/02/02-2K-Q03.PT.txt"
+                "/Users/nero/Codes/ScriptConverter/PT/00"
             ],
             "cwd": "${workspaceFolder}",
             "preLaunchTask": "CMake: build"

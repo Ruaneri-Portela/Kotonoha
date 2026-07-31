@@ -8,8 +8,7 @@
 #include <vector>
 
 namespace Kotonoha {
-static std::string BuildString(const char *str,
-                               const std::string &prefix = "",
+static std::string BuildString(const char *str, const std::string &prefix = "",
                                const std::string &suffix = "") {
   if (str == nullptr) {
     return "";
@@ -28,8 +27,7 @@ static std::string BuildString(const char *str,
   if (result.size() - lastSlash >= 4 &&
       result.compare(lastSlash, 4, "UNC_") == 0) {
     // mantém tudo até lastSlash + substitui "UNC_" por ""
-    result = result.substr(0, lastSlash) +
-             result.substr(lastSlash + 4);
+    result = result.substr(0, lastSlash) + result.substr(lastSlash + 4);
   }
 
   return result;
@@ -59,15 +57,9 @@ int Event::EventManager(void *data) {
   char *assetsPath = gameCtx->assetsPath;
 
   SDL_LockMutex(classUp->eventMutex);
-
   if (gameCtx->assetsPath == NULL) {
     useExtension = false;
     assetsPath = (char *)"";
-  }
-
-  if (gameplay->reset) {
-    classUp->Reset(data);
-    gameplay->reset = false;
   }
 
   if (!classUp->inExit) {
@@ -191,7 +183,7 @@ int Event::EventManager(void *data) {
                                                 assetsPath,
                                                 useExtension ? ".WMV" : "")
                                         .c_str(),
-                                    event->start, event->end - 50);
+                                    event->start, event->end + 50);
         }
         break;
 
@@ -223,21 +215,16 @@ int Event::EventManager(void *data) {
   return -1;
 }
 
-void Event::Reset(void *data) {
-  void **parms = static_cast<void **>(data);
-  auto *gameplay = static_cast<Gameplay *>(parms[0]);
-  auto *classUp = static_cast<Event *>(parms[2]);
-
-  SDL_LockMutex(classUp->eventMutex);
-  gameplay->video->Reset();
-  gameplay->image->Reset();
-  gameplay->audio->RemoveMedia(nullptr);
-
-  for (auto *event = classUp->eventsFromScript.data; event != nullptr;
+void Event::Reset(void *gameplay) {
+  SDL_LockMutex(eventMutex);
+  static_cast<Gameplay *>(gameplay)->video->Reset();
+  static_cast<Gameplay *>(gameplay)->image->Reset();
+  static_cast<Gameplay *>(gameplay)->audio->RemoveMedia(nullptr);
+  for (auto *event = this->eventsFromScript.data; event != nullptr;
        event = event->next) {
     event->eventTouched = false;
   }
-  SDL_UnlockMutex(classUp->eventMutex);
+  SDL_UnlockMutex(eventMutex);
 }
 
 Event::Event(const char *orsPath, void *gameplay,

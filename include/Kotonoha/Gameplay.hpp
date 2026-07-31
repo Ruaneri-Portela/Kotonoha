@@ -26,7 +26,7 @@ private:
   void UpdateCanvasSize(SDL_Window *window, SDL_Renderer *renderer);
 
 public:
-  struct Kotonoha_textData *sb = nullptr;
+  struct Kotonoha_subtitles *sb = nullptr;
   struct Kotonoha_time *tm = nullptr;
   Video *video = nullptr;
   Image *image = nullptr;
@@ -34,17 +34,19 @@ public:
   Prompt *prompt = nullptr;
   int promptId = -1;
   bool putPrompt = false;
-  bool reset = false;
+  bool reset = false, back = false, hardReset = false, loop = false;
 
-  std::string script;
+  std::string scriptPath;
 
   Gameplay(const char *scriptPath, struct Kotonoha_Game *gameContext);
   SDL_AppResult Main(struct Kotonoha_Game *gameContext);
 
+  void Reset();
+
   void Pause();
   void Resume();
   void TogglePause();
-  void Reset();
+
   void SeekForward(Uint64 ms);
   void SeekBackward(Uint64 ms);
   float GetTime();

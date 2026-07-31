@@ -3,7 +3,6 @@
 #include <Kotonoha/components/Image.hpp>
 #include <Kotonoha/components/Prompt.hpp>
 #include <Kotonoha/components/Video.hpp>
-
 extern "C" {
 #include <Kotonoha/parsers/Ors.h>
 #include <Kotonoha/renders/TextRender.h>
@@ -18,11 +17,14 @@ private:
   static int EventManager(void *data);
   SDL_Mutex *eventMutex = nullptr;
 
+  std::vector<Video*> videoToDelete;
+  std::vector<Image*> imageToDelete;
+  std::vector<Audio*> audioToDeleta;
+
 public:
   Uint64 lastTime = 0;
-
-  void Reset(void *data);
   Event(const char *orsPath, void *gameplay, struct Kotonoha_Game *gameCtx);
+  void Reset(void* gameplay);
   bool CheckEnd(void *gameplay);
   ~Event();
 };

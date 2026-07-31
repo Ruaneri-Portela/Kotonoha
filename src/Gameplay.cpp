@@ -1,5 +1,7 @@
 #include <Kotonoha/Gameplay.hpp>
 
+extern bool Kotonoha_BasicGuiEditorShow;
+
 namespace Kotonoha {
 
 void Gameplay::UpdateCanvasSize(SDL_Window *window, SDL_Renderer *renderer) {
@@ -51,9 +53,8 @@ Gameplay::Gameplay(const char *scriptPath, struct Kotonoha_Game *gameContext) {
       {0, 0, static_cast<float>(windowWidth), static_cast<float>(windowHeight)},
       this->sb);
 
-  script = scriptPath;
+  this->scriptPath = scriptPath;
   this->eventManager = new Event(scriptPath, this, gameContext);
-
 #ifdef ANDROID
   playOnlyOnFocus = true;
   lastPauseStatus = gameContext->paused;
@@ -61,13 +62,90 @@ Gameplay::Gameplay(const char *scriptPath, struct Kotonoha_Game *gameContext) {
 }
 
 SDL_AppResult Gameplay::Main(struct Kotonoha_Game *gameContext) {
-  if (firstFocus) {
-    UpdateCanvasSize(gameContext->window, gameContext->render);
-  }
-
   if (eventManager->CheckEnd(this)) {
-    return SDL_APP_SUCCESS;
+      if(loop)
+          Reset();
+      else
+          return SDL_APP_SUCCESS;
   }
+  void *persistent = nullptr;
+  if (!Kotonoha_BasicGuiEditorShow)
+    do {
+      SDL_Event event =
+          Kotonoha_eventRead(&gameContext->eventQueu, &persistent);
+      switch (event.type) {
+      case SDL_EVENT_KEY_DOWN:
+        switch (event.key.key) {
+        case SDLK_P:
+          TogglePause();
+          gameContext->paused = Kotonoha_timeIsPaused(this->tm);
+          break;
+        case SDLK_I: {
+          float timeInSeconds =
+              static_cast<float>(Kotonoha_timeGet(this->tm)) / 1000.0f;
+          SDL_Log("Time: %.2f, is paused %d\n", timeInSeconds,
+                  Kotonoha_timeIsPaused(this->tm));
+          break;
+        }
+        case SDLK_S:
+          Kotonoha_eventFree(&gameContext->eventQueu);
+          return SDL_APP_SUCCESS;
+
+        case SDLK_N:
+          SeekForward(5000);
+          break;
+
+        case SDLK_B:
+          SeekBackward(5000);
+          break;
+
+        case SDLK_Q:
+          SeekForward(500);
+          break;
+
+        case SDLK_E:
+          SeekBackward(500);
+          break;
+
+        case SDLK_R:
+          Reset();
+          break;
+
+        case SDLK_SPACE:
+          Resume();
+          gameContext->paused = false;
+          break;
+
+        default:
+          break;
+        }
+        break;
+
+      case SDL_EVENT_WINDOW_RESIZED:
+        UpdateCanvasSize(gameContext->window, gameContext->render);
+        break;
+#ifdef Kotonoha_MobileSetup
+      case SDL_EVENT_WINDOW_FOCUS_GAINED:
+        if (playOnlyOnFocus) {
+          gameContext->paused = lastPauseStatus;
+          if (!gameContext->paused) {
+            Resume();
+          }
+        }
+        break;
+
+      case SDL_EVENT_WINDOW_FOCUS_LOST:
+        if (playOnlyOnFocus) {
+          lastPauseStatus = gameContext->paused;
+          gameContext->paused = true;
+          Pause();
+        }
+        break;
+#endif
+      default:
+        break;
+      }
+    } while (persistent != nullptr);
 
   if (this->putPrompt) {
     drawCanvas->RegisterCanva(this->prompt->Render, 2,
@@ -76,98 +154,24 @@ SDL_AppResult Gameplay::Main(struct Kotonoha_Game *gameContext) {
                               this->prompt);
     this->putPrompt = false;
   }
-
   if (!Kotonoha_timeIsStarted(tm))
     Kotonoha_timeStart(tm);
-
   if (gameContext->paused) {
     Pause();
   } else {
     Resume();
   }
-
-  void *persistent = nullptr;
-  do {
-    SDL_Event event = Kotonoha_eventRead(&gameContext->eventQueu, &persistent);
-
-    switch (event.type) {
-    case SDL_EVENT_KEY_DOWN:
-      switch (event.key.key) {
-      case SDLK_P:
-        TogglePause();
-        gameContext->paused = Kotonoha_timeIsPaused(this->tm);
-        break;
-
-      case SDLK_I: {
-        float timeInSeconds =
-            static_cast<float>(Kotonoha_timeGet(this->tm)) / 1000.0f;
-        SDL_Log("Time: %.2f, is paused %d\n", timeInSeconds,
-                Kotonoha_timeIsPaused(this->tm));
-        break;
-      }
-
-      case SDLK_S:
-        Kotonoha_eventFree(&gameContext->eventQueu);
-        return SDL_APP_SUCCESS;
-
-      case SDLK_N:
-        SeekForward(5000);
-        break;
-
-      case SDLK_B:
-        SeekBackward(5000);
-        break;
-
-      case SDLK_Q:
-        SeekForward(500);
-        break;
-
-      case SDLK_E:
-        SeekBackward(500);
-        break;
-
-      case SDLK_R:
-        Reset();
-        break;
-
-      case SDLK_SPACE:
-        Resume();
-        gameContext->paused = false;
-        break;
-
-      default:
-        break;
-      }
-      break;
-
-    case SDL_EVENT_WINDOW_RESIZED:
-      UpdateCanvasSize(gameContext->window, gameContext->render);
-      break;
-
-#ifdef ANDROID
-    case SDL_EVENT_WINDOW_FOCUS_GAINED:
-      if (playOnlyOnFocus) {
-        gameContext->paused = lastPauseStatus;
-        if (!gameContext->paused) {
-          Resume();
-        }
-      }
-      break;
-
-    case SDL_EVENT_WINDOW_FOCUS_LOST:
-      if (playOnlyOnFocus) {
-        lastPauseStatus = gameContext->paused;
-        gameContext->paused = true;
-        Pause();
-      }
-      break;
-#endif
-
-    default:
-      break;
-    }
-
-  } while (persistent != nullptr);
+  if (firstFocus) {
+    UpdateCanvasSize(gameContext->window, gameContext->render);
+  }
+  if (this->reset) {
+    eventManager->Reset(this);
+    if (this->back)
+      Kotonoha_timeReset(tm, true);
+    UpdateCanvasSize(gameContext->window, gameContext->render);
+    this->reset = false;
+    this->back = false;
+  }
 
   SDL_AppResult result = drawCanvas->RenderCanvas(
       gameContext->window, gameContext->render, &gameContext->eventQueu);
@@ -189,8 +193,8 @@ void Gameplay::TogglePause() {
 }
 
 void Gameplay::Reset() {
-  Kotonoha_timeReset(this->tm, true);
   reset = true;
+  back = true;
 }
 
 void Gameplay::SeekForward(Uint64 ms) {
@@ -203,15 +207,17 @@ void Gameplay::SeekBackward(Uint64 ms) {
 }
 
 float Gameplay::GetLastTime() {
-    return (float)this->eventManager->lastTime / 1000;
+  return (float)this->eventManager->lastTime / 1000;
 }
 
-float Gameplay::GetTime() {
-    return (float)Kotonoha_timeGet(this->tm)/ 1000;
-}
+float Gameplay::GetTime() { return (float)Kotonoha_timeGet(this->tm) / 1000; }
 
 void Gameplay::SetTime(float time) {
-    Kotonoha_timeSet(this->tm, (Uint64)(time * 1000));
+  float currentTime = GetTime();
+  Kotonoha_timeSet(this->tm, (Uint64)(time * 1000));
+  if (time < currentTime) {
+    reset = true;
+  }
 }
 
 Gameplay::~Gameplay() {

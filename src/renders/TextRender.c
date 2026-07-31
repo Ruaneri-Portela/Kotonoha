@@ -39,14 +39,14 @@ static SDL_Texture *Kotonoha_TextRenderDrawText(SDL_Renderer *render,
 }
 
 // Função para inicializar os dados de renderização de texto
-struct Kotonoha_textData *
+struct Kotonoha_subtitles *
 Kotonoha_TextRenderInit(struct Kotonoha_time *time,
                         struct Kotonoha_Game *gameCtx) {
-  struct Kotonoha_textData *object =
-      SDL_malloc(sizeof(struct Kotonoha_textData));
+  struct Kotonoha_subtitles *object =
+      SDL_malloc(sizeof(struct Kotonoha_subtitles));
   if (!object) {
     SDL_LogError(SDL_LOG_CATEGORY_ERROR,
-                 "Failed to allocate memory for Kotonoha_textData");
+                 "Failed to allocate memory for Kotonoha_subtitles");
     return NULL;
   }
 
@@ -62,7 +62,7 @@ Kotonoha_TextRenderInit(struct Kotonoha_time *time,
 }
 
 // Função para destruir os dados de renderização de texto e liberar a memória
-void Kotonoha_TextRenderShutdown(struct Kotonoha_textData **object) {
+void Kotonoha_TextRenderShutdown(struct Kotonoha_subtitles **object) {
   if (object && *object) {
     if ((*object)->subTexture) {
       SDL_DestroyTexture((*object)->subTexture);
@@ -81,7 +81,8 @@ enum Kotonoha_Scene_Status Kotonoha_TextRenderDraw(KOTONOHA_SCENE_CALL) {
     return KOTONOHA_SCENE_FATAL_ERROR;
   }
 
-  struct Kotonoha_textData *environment = (struct Kotonoha_textData *)userData;
+  struct Kotonoha_subtitles *environment =
+      (struct Kotonoha_subtitles *)userData;
 
   // Caso o track esteja vazio, espera até que seja preenchido
   if (!environment->track) {
