@@ -3,7 +3,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-
 static char *Kotonoha_ORS_char_jump_tab(char *line) {
   for (; *line != '\t' && *line; line++) {
     if (*line == '\0') {

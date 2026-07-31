@@ -4,7 +4,7 @@
 #include <string.h>
 
 void Kotonoha_BasicGuiInit(Kotonoha_Game &gameContext);
-void Kotonoha_BasicGuiRun(Kotonoha::Kotonoha *game, Kotonoha::Gameplay *play,
+bool Kotonoha_BasicGuiRun(Kotonoha::Kotonoha *game, Kotonoha::Gameplay *play,
                           Kotonoha_Game &context);
 void Kotonoha_BasicGuiEvent(SDL_Event *event);
 
@@ -32,7 +32,8 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
   }
 
   // Inicializa Window
-  global.window = SDL_CreateWindow("Kotonoha Engine", 1280, 720,
+  global.window =
+      SDL_CreateWindow("Kotonoha Engine", 1280, 720,
                        global.flags | SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIDDEN);
   if (!global.window) {
     SDL_LogError(0, "Couldn't create windowr: %s", SDL_GetError());
@@ -98,7 +99,10 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
                              inRunning->tm, nullptr);
   }
 
-  Kotonoha_BasicGuiRun(app, inRunning, global);
+  SDL_SetRenderTarget(global.render, nullptr);
+  if (!Kotonoha_BasicGuiRun(app, inRunning, global))
+      return SDL_APP_SUCCESS;
+
   SDL_RenderPresent(global.render);
   return status;
 }

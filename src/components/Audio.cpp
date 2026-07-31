@@ -92,11 +92,11 @@ int Audio::RenderMedia(void *data, Uint8 **target, int *size) {
   // Cast do ponteiro para o tipo correto
   struct Kotonoha_audioDecode *instance =
       static_cast<struct Kotonoha_audioDecode *>(data);
-  Audio *thisClass = static_cast<Audio *>(instance->dataGeneric);
   // Chama a função de renderização de áudio
   bool inRange;
   Sint64 diff;
-  instance->lastTime = Kotonoha_timeGetFromEvent(*instance->tm, instance->start, instance->end, &inRange, &diff);
+  instance->lastTime = Kotonoha_timeGetFromEvent(
+      *instance->tm, instance->start, instance->end, &inRange, &diff);
   if (inRange) {
     int rt = Kotonoha_AudioRender(data, target, size);
     if (rt == -1 && instance->inLoop) {

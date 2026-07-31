@@ -120,7 +120,7 @@ void Kotonoha_AudioSeek(struct Kotonoha_audioDecode *ctx, Sint64 time) {
     time = time % ctx->audioTime;
 
   if (av_seek_frame(ctx->formatCtx, ctx->audioStreamIndex, time,
-      AVSEEK_FLAG_ANY) < 0) {
+                    AVSEEK_FLAG_BACKWARD) < 0) {
     SDL_LogError(SDL_LOG_CATEGORY_ERROR, "SeekError time %lld",
                  (long long)time);
     return;

@@ -1,10 +1,12 @@
 #include "Kotonoha/components/Sound.hpp"
 #include <Kotonoha/Kotonoha.hpp>
 #include <SDL3/SDL_video.h>
+#include <algorithm>
 #include <cstddef>
 #include <fstream>
 #include <iostream>
 #include <string>
+#include <vector>
 
 extern bool Kotonoha_BasicGuiShow;
 
@@ -212,7 +214,9 @@ bool Kotonoha::parserArguments(int argc, char *argv[], bool initDependent) {
 
       case 'f': // Define o modo de tela cheia
         *arg = '!';
-        gameContext.flags |= SDL_WINDOW_FULLSCREEN;
+        SDL_SetWindowFullscreen(gameContext.window,
+                                !(gameContext.flags & SDL_WINDOW_FULLSCREEN));
+        gameContext.flags = SDL_GetWindowFlags(gameContext.window);
         break;
 
       case 'o': // Habilita contexto OpenGL
@@ -303,13 +307,66 @@ void Kotonoha::loadWindowIcon(const char *path) {
 }
 
 bool Kotonoha::loadScriptFile(const char *path) {
-  try {
-    Gameplay *newObject = new Gameplay(path, &gameContext);
-    gameplays.push_back(newObject);
-    return true;
-  } catch (...) {
-    return false;
+  SDL_PathInfo info;
+  bool r_code = false;
+  if (!SDL_GetPathInfo(path, &info)) {
+    return r_code;
   }
+
+  if (info.type == SDL_PATHTYPE_DIRECTORY) {
+    struct LocalContext {
+      std::vector<std::string> files;
+    };
+
+    LocalContext ctx;
+
+    auto callback = [](void *userdata, const char *dirname,
+                       const char *fname) -> SDL_EnumerationResult {
+      LocalContext *ctx = static_cast<LocalContext *>(userdata);
+
+      char fullPath[4096];
+      SDL_snprintf(fullPath, sizeof(fullPath), "%s%s", dirname, fname);
+
+      SDL_PathInfo entryInfo;
+      if (!SDL_GetPathInfo(fullPath, &entryInfo)) {
+        return SDL_ENUM_CONTINUE;
+      }
+
+      if (entryInfo.type == SDL_PATHTYPE_FILE) {
+        ctx->files.emplace_back(fullPath);
+      }
+
+      return SDL_ENUM_CONTINUE;
+    };
+
+    if (!SDL_EnumerateDirectory(path, callback, &ctx)) {
+      return false;
+    }
+
+    std::sort(ctx.files.begin(), ctx.files.end());
+
+    for (const std::string &file : ctx.files) {
+      try {
+        Gameplay *newObject = new Gameplay(file.c_str(), &gameContext);
+        gameplays.push_back(newObject);
+        r_code = true;
+      } catch (...) {
+        continue;
+      }
+    }
+
+    return !ctx.files.empty();
+  }
+
+  if (info.type == SDL_PATHTYPE_FILE) {
+    try {
+      Gameplay *newObject = new Gameplay(path, &gameContext);
+      gameplays.push_back(newObject);
+      return true;
+    } catch (...) {
+    }
+  }
+  return r_code;
 }
 
 // Função de eventos
@@ -413,9 +470,7 @@ SDL_AppResult Kotonoha::Main(Gameplay **out) {
     break;
   }
 
-  SDL_SetRenderTarget(gameContext.render, nullptr);
   Kotonoha_eventFree(&gameContext.eventQueu);
-
   if (SDL_GetTicks() - lastMouseTime <= 1000) {
     SDL_ShowCursor();
   } else {

@@ -39,6 +39,7 @@
       ignoresPersistentStateOnLaunch = "NO"
       debugDocumentVersioning = "YES"
       debugServiceExtension = "internal"
+      enableGPUValidationMode = "1"
       showGraphicsOverview = "Yes"
       allowLocationSimulation = "YES"
       queueDebuggingEnableBacktraceRecording = "Yes">
@@ -54,10 +55,17 @@
       </BuildableProductRunnable>
       <CommandLineArguments>
          <CommandLineArgument
-            argument = "-f -t -z -r -u metal -p &quot;http://hirameki-server.lan:9090/&quot; -s &quot;./assets/styles.skot&quot; -l ./00/00-00-L00.ENG.TXT"
+            argument = "-f -t -z -r -u metal -p &quot;http://hirameki-server.lan:9090/&quot; -s &quot;assets/styles.skot&quot; -l 00/00-00-A00.PT.txt -l 00/00-00-A01.PT.txt -l 00/00-00-A02.PT.txt"
             isEnabled = "YES">
          </CommandLineArgument>
       </CommandLineArguments>
+      <EnvironmentVariables>
+         <EnvironmentVariable
+            key = "MTL_HUD_ENABLED"
+            value = "0"
+            isEnabled = "YES">
+         </EnvironmentVariable>
+      </EnvironmentVariables>
       <LocationScenarioReference
          identifier = "com.apple.dt.IDEFoundation.CurrentLocationScenarioIdentifier"
          referenceType = "1">
