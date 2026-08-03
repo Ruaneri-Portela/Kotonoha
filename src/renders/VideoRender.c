@@ -229,9 +229,11 @@ struct Kotonoha_videoData* Kotonoha_VideoRenderInit(const char* filename,
 void Kotonoha_VideoRenderShutdown(struct Kotonoha_videoData** instance) {
 	if (!instance || !*instance)
 		return;
-
 	struct Kotonoha_videoData* videoData = *instance;
-
+	if (videoData->hwCtx && videoData->hwCtx->deviceRef) {
+		av_buffer_unref(&videoData->pCodecCtx->hw_device_ctx);
+		av_buffer_unref(&videoData->hwCtx->deviceRef);
+	}
 	if (videoData->hwCtx) {
 		SDL_free(videoData->hwCtx);
 		videoData->hwCtx = NULL;

@@ -109,16 +109,8 @@ bool Kotonoha_UtilsFFmpegLoad(const char* path, AVFormatContext** formatCtx,
 
 	// Configura o contexto do dispositivo de hardware, se aplicável
 	if (hwCtx != NULL && hwCtx->hwPixFmt != AV_PIX_FMT_NONE) {
-		if (av_hwdevice_ctx_create(&hwCtx->deviceRef, hwCtx->type, NULL, NULL, 0) <
-			0) {
-			SDL_LogError(
-				SDL_LOG_CATEGORY_APPLICATION,
-				"Erro: Não foi possível criar o contexto do dispositivo de hardware");
-		}
-		else {
-			(*codecCtx)->hw_device_ctx = av_buffer_ref(hwCtx->deviceRef);
-			(*codecCtx)->pix_fmt = hwCtx->hwPixFmt;
-		}
+		(*codecCtx)->hw_device_ctx = av_buffer_ref(hwCtx->deviceRef);
+		(*codecCtx)->pix_fmt = hwCtx->hwPixFmt;
 	}
 
 	// Abre o codec

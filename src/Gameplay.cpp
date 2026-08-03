@@ -235,6 +235,10 @@ namespace Kotonoha {
 	}
 
 	void Gameplay::Reset(bool resetTime) {
+		if (sb->subTexture) {
+			SDL_DestroyTexture(sb->subTexture);
+			sb->subTexture = nullptr;
+		}
 		if (resetTime) {
 			firstFocus = true;
 			drawCanvas->Reset();
