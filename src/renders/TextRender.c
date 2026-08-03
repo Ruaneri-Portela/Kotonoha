@@ -56,7 +56,6 @@ struct Kotonoha_subtitles*
 	object->ass_renderer = gameCtx->ass_renderer;
 	object->track = NULL;
 	object->time = time;
-	object->lastFrame = NULL;
 	object->subTexture = NULL;
 
 	return object;
@@ -117,14 +116,6 @@ enum Kotonoha_Scene_Status Kotonoha_TextRenderDraw(KOTONOHA_SCENE_CALL) {
 	SDL_RenderClear(render);
 	SDL_SetRenderTarget(render, environment->subTexture);
 
-	// Atualiza o último quadro renderizado
-	environment->lastFrame = frame;
-
-	// Se não houver quadro, continua esperando
-	if (!environment->lastFrame) {
-		return KOTONOHA_SCENE_COMPLETE;
-	}
-
 	// Renderiza cada imagem do quadro
 	for (ASS_Image* img = frame; img; img = img->next) {
 		SDL_Texture* texture = Kotonoha_TextRenderDrawText(render, img);
@@ -149,3 +140,4 @@ enum Kotonoha_Scene_Status Kotonoha_TextRenderDraw(KOTONOHA_SCENE_CALL) {
 	// Caso não haja quadro renderizado, continua esperando
 	return KOTONOHA_SCENE_DRAW_OVERLAYED; // Continua com a aplicação
 }
+

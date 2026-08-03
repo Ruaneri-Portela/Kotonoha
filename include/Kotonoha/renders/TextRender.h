@@ -9,7 +9,6 @@ struct Kotonoha_subtitles {
   ASS_Track *track;
 
   SDL_Texture *subTexture;
-  void *lastFrame;
   struct Kotonoha_time *time;
 };
 
