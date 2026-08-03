@@ -144,7 +144,7 @@ namespace Kotonoha {
 					case SDLK_B: {
 						Uint64 currentTime = Kotonoha_timeGet(this->tm);
 						if (currentTime > kSeekSmallMs) {
-							SeekBackward(currentTime);
+							SeekBackward(kSeekBigMs);
 							break;
 						}
 						gameContext->back = true;
