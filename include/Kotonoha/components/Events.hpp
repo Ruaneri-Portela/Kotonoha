@@ -12,8 +12,6 @@ namespace Kotonoha {
 class Event {
 private:
   Kotonoha_orsData eventsFromScript;
-  bool inExit = false;
-  bool closed = false;
   static int EventManager(void *data);
   SDL_Mutex *eventMutex = nullptr;
 

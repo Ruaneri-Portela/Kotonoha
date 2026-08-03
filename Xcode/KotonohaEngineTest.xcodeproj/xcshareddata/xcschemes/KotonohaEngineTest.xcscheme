@@ -55,7 +55,7 @@
       </BuildableProductRunnable>
       <CommandLineArguments>
          <CommandLineArgument
-            argument = "-f -t -z -r -u metal -p &quot;http://hirameki-server.lan:9090/&quot; -s &quot;assets/styles.skot&quot; -l 00/00-00-A00.PT.txt -l 00/00-00-A01.PT.txt -l 00/00-00-A02.PT.txt"
+            argument = "-f -t -z -u -r metal -p &quot;http://hirameki-server.lan:9090/&quot; -s &quot;assets/styles.skot&quot; -l 00/00-00-A00.PT.txt -l 00/00-00-A01.PT.txt -l 00/00-00-A02.PT.txt"
             isEnabled = "YES">
          </CommandLineArgument>
       </CommandLineArguments>
