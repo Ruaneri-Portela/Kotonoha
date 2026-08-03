@@ -154,28 +154,28 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'">
-    <OutDir>$(SolutionDir)\build\msvc\$(Configuration)\$(Platform)</OutDir>
-    <IntDir>$(SolutionDir)\build\msvc_intermediary\$(Configuration)\$(Platform)</IntDir>
+    <OutDir>$(SolutionDir)\build\msvc\$(Configuration)\$(Platform)\</OutDir>
+    <IntDir>$(SolutionDir)\build\msvc_intermediary\$(Configuration)\$(Platform)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">
-    <OutDir>$(SolutionDir)\build\msvc\$(Configuration)\$(Platform)</OutDir>
-    <IntDir>$(SolutionDir)\build\msvc_intermediary\$(Configuration)\$(Platform)</IntDir>
+    <OutDir>$(SolutionDir)\build\msvc\$(Configuration)\$(Platform)\</OutDir>
+    <IntDir>$(SolutionDir)\build\msvc_intermediary\$(Configuration)\$(Platform)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <OutDir>$(SolutionDir)\build\msvc\$(Configuration)\$(Platform)</OutDir>
-    <IntDir>$(SolutionDir)\build\msvc_intermediary\$(Configuration)\$(Platform)</IntDir>
+    <OutDir>$(SolutionDir)\build\msvc\$(Configuration)\$(Platform)\</OutDir>
+    <IntDir>$(SolutionDir)\build\msvc_intermediary\$(Configuration)\$(Platform)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <OutDir>$(SolutionDir)\build\msvc\$(Configuration)\$(Platform)</OutDir>
-    <IntDir>$(SolutionDir)\build\msvc_intermediary\$(Configuration)\$(Platform)</IntDir>
+    <OutDir>$(SolutionDir)\build\msvc\$(Configuration)\$(Platform)\</OutDir>
+    <IntDir>$(SolutionDir)\build\msvc_intermediary\$(Configuration)\$(Platform)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <OutDir>$(SolutionDir)\build\msvc\$(Configuration)\$(Platform)</OutDir>
-    <IntDir>$(SolutionDir)\build\msvc_intermediary\$(Configuration)\$(Platform)</IntDir>
+    <OutDir>$(SolutionDir)\build\msvc\$(Configuration)\$(Platform)\</OutDir>
+    <IntDir>$(SolutionDir)\build\msvc_intermediary\$(Configuration)\$(Platform)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <OutDir>$(SolutionDir)\build\msvc\$(Configuration)\$(Platform)</OutDir>
-    <IntDir>$(SolutionDir)\build\msvc_intermediary\$(Configuration)\$(Platform)</IntDir>
+    <OutDir>$(SolutionDir)\build\msvc\$(Configuration)\$(Platform)\</OutDir>
+    <IntDir>$(SolutionDir)\build\msvc_intermediary\$(Configuration)\$(Platform)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Label="Vcpkg">
     <VcpkgEnableManifest>true</VcpkgEnableManifest>

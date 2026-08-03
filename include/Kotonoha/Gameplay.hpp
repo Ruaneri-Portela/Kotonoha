@@ -19,7 +19,7 @@ namespace Kotonoha {
 	private:
 		float aspectRatio = 16.0f / 9.0f;
 		int windowWidth = 0, windowHeight = 0;
-		bool lastPauseStatus = false, playOnlyOnFocus = false, firstFocus = true;
+		bool lastPauseStatus = false, playOnlyOnFocus = false;
 
 		void UpdateCanvasSize(SDL_Window* window, SDL_Renderer* renderer);
 
@@ -35,7 +35,7 @@ namespace Kotonoha {
 		int promptId = -1;
 		bool putPrompt = false;
 
-		bool reset = false, back = false, hardReset = false, loop = false;
+		bool reset = false, back = false, hardReset = false, loop = false, firstFocus = true;
 
 		std::string scriptPath;
 
