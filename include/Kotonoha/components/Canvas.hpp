@@ -41,6 +41,7 @@ public:
                              struct Kotonoha_eventStack *eventQueu);
 
   int CanvasCount();
+  void Reset();
 
   ~Canvas();
 };

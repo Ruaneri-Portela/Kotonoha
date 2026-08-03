@@ -14,12 +14,14 @@
                 "-t",
                 "-u",
                 "-v",
+                "-r",
+                "metal",
                 "-p",
                 "/Volumes/Server/data2/Games/SCT/assets/Packs/",
                 "-s",
                 "/Users/nero/Codes/ScriptConverter/assets/styles.skot",
                 "-l",
-                "/Users/nero/Codes/ScriptConverter/PT/00"
+                "/Users/nero/Codes/ScriptConverter/PT/02"
             ],
             "cwd": "${workspaceFolder}",
             "preLaunchTask": "CMake: build"

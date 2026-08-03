@@ -27,7 +27,7 @@ void genWhiteNoise(void *data, Uint8 **target, size_t *size);
 struct Kotonoha_audioDecode *Kotonoha_AudioInit(const char *path,
                                                 SDL_AudioSpec specification);
 
-void Kotonoha_AudioSeek(struct Kotonoha_audioDecode *ctx, Sint64 time);
+void Kotonoha_AudioSeek(struct Kotonoha_audioDecode *ctx, Uint64 time);
 
 int Kotonoha_AudioRender(void *data, Uint8 **target, int *size);
 

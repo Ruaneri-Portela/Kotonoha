@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 18
-VisualStudioVersion = 18.6.11822.322 stable
+VisualStudioVersion = 18.6.11822.322
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{54435603-DBB4-11D2-8724-00A0C9A8B90C}") = "Kotonoha_Setup64", "setup64\Kotonoha_Setup64.vdproj", "{8A51FE2E-95D4-4F6D-81A3-F8A58584ACA5}"
 EndProject
@@ -9,20 +9,28 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Kotonoha", "Kotonoha.vcxpro
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|ARM64 = Debug|ARM64
 		Debug|x64 = Debug|x64
 		Debug|x86 = Debug|x86
+		Release|ARM64 = Release|ARM64
 		Release|x64 = Release|x64
 		Release|x86 = Release|x86
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{8A51FE2E-95D4-4F6D-81A3-F8A58584ACA5}.Debug|ARM64.ActiveCfg = Debug
 		{8A51FE2E-95D4-4F6D-81A3-F8A58584ACA5}.Debug|x64.ActiveCfg = Debug
 		{8A51FE2E-95D4-4F6D-81A3-F8A58584ACA5}.Debug|x86.ActiveCfg = Debug
+		{8A51FE2E-95D4-4F6D-81A3-F8A58584ACA5}.Release|ARM64.ActiveCfg = Release
 		{8A51FE2E-95D4-4F6D-81A3-F8A58584ACA5}.Release|x64.ActiveCfg = Release
 		{8A51FE2E-95D4-4F6D-81A3-F8A58584ACA5}.Release|x86.ActiveCfg = Release
+		{96A445F5-83D5-41B5-8F2B-31342D018970}.Debug|ARM64.ActiveCfg = Debug|ARM64
+		{96A445F5-83D5-41B5-8F2B-31342D018970}.Debug|ARM64.Build.0 = Debug|ARM64
 		{96A445F5-83D5-41B5-8F2B-31342D018970}.Debug|x64.ActiveCfg = Debug|x64
 		{96A445F5-83D5-41B5-8F2B-31342D018970}.Debug|x64.Build.0 = Debug|x64
 		{96A445F5-83D5-41B5-8F2B-31342D018970}.Debug|x86.ActiveCfg = Debug|Win32
 		{96A445F5-83D5-41B5-8F2B-31342D018970}.Debug|x86.Build.0 = Debug|Win32
+		{96A445F5-83D5-41B5-8F2B-31342D018970}.Release|ARM64.ActiveCfg = Release|ARM64
+		{96A445F5-83D5-41B5-8F2B-31342D018970}.Release|ARM64.Build.0 = Release|ARM64
 		{96A445F5-83D5-41B5-8F2B-31342D018970}.Release|x64.ActiveCfg = Release|x64
 		{96A445F5-83D5-41B5-8F2B-31342D018970}.Release|x64.Build.0 = Release|x64
 		{96A445F5-83D5-41B5-8F2B-31342D018970}.Release|x86.ActiveCfg = Release|Win32
