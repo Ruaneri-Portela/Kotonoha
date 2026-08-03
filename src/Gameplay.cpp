@@ -132,14 +132,24 @@ namespace Kotonoha {
 						Kotonoha_eventFree(&gameContext->eventQueu);
 						return SDL_APP_SUCCESS;
 
-					case SDLK_N:
-						SeekForward(kSeekBigMs);
+					case SDLK_N: {
+						Uint64 currentTime = Kotonoha_timeGet(this->tm);
+						if (currentTime < eventManager->lastTime - kSeekSmallMs) {
+							SeekForward(kSeekBigMs);
+							break;
+						}
+						gameContext->next = true;
 						break;
-
-					case SDLK_B:
-						SeekBackward(kSeekBigMs);
+					}
+					case SDLK_B: {
+						Uint64 currentTime = Kotonoha_timeGet(this->tm);
+						if (currentTime > kSeekSmallMs) {
+							SeekBackward(currentTime);
+							break;
+						}
+						gameContext->back = true;
 						break;
-
+					}
 					case SDLK_Q:
 						SeekForward(kSeekSmallMs);
 						break;

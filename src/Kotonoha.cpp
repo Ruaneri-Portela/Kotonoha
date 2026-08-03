@@ -588,19 +588,22 @@ namespace Kotonoha {
 			const size_t currentScene = static_cast<size_t>(gameContext.scene);
 			Gameplay* current = gameplays[currentScene];
 			if (current == nullptr) {
-				current->Reset(true);
+				if (!current->firstFocus)
+					current->Reset(true);
 				lastScene = gameContext.scene++;
 				continue;
 			}
 
 			if (lastScene != currentScene) {
 				lastScene = currentScene;
-				current->Reset(true);
+				if (!current->firstFocus)
+					current->Reset(true);
 				continue;
 			}
 
 			if (gameContext.back && gameContext.scene > 0) {
-				current->Reset(true);
+				if (!current->firstFocus)
+					current->Reset(true);
 				lastScene = gameContext.scene--;
 				gameContext.back = false;
 				continue;
@@ -608,7 +611,8 @@ namespace Kotonoha {
 
 			const SDL_AppResult result = current->Main(&gameContext);
 			if (result != SDL_APP_CONTINUE || gameContext.next) {
-				current->Reset(true);
+				if (!current->firstFocus)
+					current->Reset(true);
 				gameContext.scene++;
 				gameContext.next = false;
 
