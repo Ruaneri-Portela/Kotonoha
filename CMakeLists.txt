@@ -15,8 +15,8 @@ file(GLOB SOURCES CONFIGURE_DEPENDS
     src/utils/*.c
 )
 
-find_package(imgui CONFIG REQUIRED)
 find_package(PkgConfig REQUIRED)
+find_package(imgui CONFIG REQUIRED)
 find_package(SDL3 CONFIG REQUIRED)
 find_package(SDL3_ttf CONFIG REQUIRED)
 
@@ -58,7 +58,6 @@ if(ANDROID)
         SDL3_ttf::SDL3_ttf-static
         "-Wl,--no-whole-archive"
 
-        # SDL_ttf utiliza símbolos do SDL3
         SDL3
 
         android
@@ -84,9 +83,9 @@ if(ANDROID)
         SDL3
         SDL3_ttf
 
-        imgui::imgui
         ${FFMPEG_LIBRARIES}
         PkgConfig::LIBASS
+        imgui::imgui
         expat::expat
 
         android
@@ -100,33 +99,42 @@ else()
 
     message(STATUS "Configuração desktop")
 
-    find_package(SDL3 CONFIG REQUIRED)
-    find_package(SDL3_ttf CONFIG REQUIRED)
-    find_package(FFMPEG REQUIRED)
-
+    pkg_check_modules(FFMPEG REQUIRED libavcodec libavformat libavutil libswscale libswresample)
     pkg_check_modules(LIBASS REQUIRED libass)
 
-    add_executable(Kotonoha
-        ${SOURCES}
+    link_directories( 
+        ${FFMPEG_LIBRARY_DIRS} 
+        ${LIBASS_LIBRARY_DIRS}
+        ${SDL3_LIBRARY_DIRS}
+        ${SDL3_TTF_LIBRARY_DIRS}
+        ${IMGUI_LIBRARY_DIRS}
     )
+
+    if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
+        message("Configuração para Windows")
+        list(APPEND SOURCES src/Kotonoha.rc)
+    endif()
+
+    add_executable(Kotonoha ${SOURCES})
+
+    if(CMAKE_SYSTEM_NAME STREQUAL "Haiku")
+        message("Configuração para Haiku")
+        target_compile_options(Kotonoha PRIVATE -fPIC)
+    endif()
 
     target_include_directories(Kotonoha PRIVATE
-        "${KOTONOHA_INCLUDE_DIR}"
+        ${KOTONOHA_INCLUDE_DIR}
         ${FFMPEG_INCLUDE_DIRS}
         ${LIBASS_INCLUDE_DIRS}
-    )
-
-    target_link_directories(Kotonoha PRIVATE
-        ${FFMPEG_LIBRARY_DIRS}
-        ${LIBASS_LIBRARY_DIRS}
+        ${SDL3_INCLUDE_DIRS}
+        ${SDL3_TTF_INCLUDE_DIRS}
     )
 
     target_link_libraries(Kotonoha PRIVATE
-        SDL3::SDL3
-        SDL3_ttf::SDL3_ttf
-        imgui::imgui
         ${FFMPEG_LIBRARIES}
         ${LIBASS_LIBRARIES}
+        SDL3::SDL3 
+        SDL3_ttf::SDL3_ttf 
+        imgui::imgui
     )
-
 endif()

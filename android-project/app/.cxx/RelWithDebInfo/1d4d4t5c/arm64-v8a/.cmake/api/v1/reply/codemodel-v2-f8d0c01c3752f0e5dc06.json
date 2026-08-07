@@ -1,0 +1,78 @@
+{
+	"configurations" : 
+	[
+		{
+			"directories" : 
+			[
+				{
+					"build" : ".",
+					"jsonFile" : "directory-.-RelWithDebInfo-f5ebdc15457944623624.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.6.0"
+					},
+					"projectIndex" : 0,
+					"source" : ".",
+					"targetIndexes" : 
+					[
+						0,
+						1,
+						2
+					]
+				}
+			],
+			"name" : "RelWithDebInfo",
+			"projects" : 
+			[
+				{
+					"directoryIndexes" : 
+					[
+						0
+					],
+					"name" : "Kotonoha",
+					"targetIndexes" : 
+					[
+						0,
+						1,
+						2
+					]
+				}
+			],
+			"targets" : 
+			[
+				{
+					"directoryIndex" : 0,
+					"id" : "Kotonoha::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-Kotonoha-RelWithDebInfo-81c2e896ceff6493cd84.json",
+					"name" : "Kotonoha",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "SDL3::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-SDL3-RelWithDebInfo-71a02e3488df40ed1a04.json",
+					"name" : "SDL3",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "SDL3_ttf::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-SDL3_ttf-RelWithDebInfo-c7bc0e1d989148c1d8cb.json",
+					"name" : "SDL3_ttf",
+					"projectIndex" : 0
+				}
+			]
+		}
+	],
+	"kind" : "codemodel",
+	"paths" : 
+	{
+		"build" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a",
+		"source" : "/Users/nero/Codes/Kotonoha"
+	},
+	"version" : 
+	{
+		"major" : 2,
+		"minor" : 3
+	}
+}

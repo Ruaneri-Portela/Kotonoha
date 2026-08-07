@@ -1,0 +1,4099 @@
+{
+	"entries" : 
+	[
+		{
+			"name" : "ANDROID_ABI",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "No help, variable specified on the command line."
+				}
+			],
+			"type" : "UNINITIALIZED",
+			"value" : "arm64-v8a"
+		},
+		{
+			"name" : "ANDROID_NDK",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "No help, variable specified on the command line."
+				}
+			],
+			"type" : "UNINITIALIZED",
+			"value" : "/Users/nero/Library/Android/sdk/ndk/25.1.8937393"
+		},
+		{
+			"name" : "ANDROID_PLATFORM",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "No help, variable specified on the command line."
+				}
+			],
+			"type" : "UNINITIALIZED",
+			"value" : "android-28"
+		},
+		{
+			"name" : "ANDROID_STL",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "No help, variable specified on the command line."
+				}
+			],
+			"type" : "UNINITIALIZED",
+			"value" : "c++_shared"
+		},
+		{
+			"name" : "BROTLICOMMON_LIBRARY_DEBUG",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Path to a library."
+				}
+			],
+			"type" : "FILEPATH",
+			"value" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/debug/lib/libbrotlicommon.a"
+		},
+		{
+			"name" : "BROTLICOMMON_LIBRARY_RELEASE",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Path to a library."
+				}
+			],
+			"type" : "FILEPATH",
+			"value" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/libbrotlicommon.a"
+		},
+		{
+			"name" : "BROTLIDEC_LIBRARY_DEBUG",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Path to a library."
+				}
+			],
+			"type" : "FILEPATH",
+			"value" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/debug/lib/libbrotlidec.a"
+		},
+		{
+			"name" : "BROTLIDEC_LIBRARY_RELEASE",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Path to a library."
+				}
+			],
+			"type" : "FILEPATH",
+			"value" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/libbrotlidec.a"
+		},
+		{
+			"name" : "BZIP2_INCLUDE_DIR",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Path to a file."
+				}
+			],
+			"type" : "PATH",
+			"value" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/include"
+		},
+		{
+			"name" : "BZIP2_LIBRARY_DEBUG",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Path to a library."
+				}
+			],
+			"type" : "FILEPATH",
+			"value" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/debug/lib/libbz2d.a"
+		},
+		{
+			"name" : "BZIP2_LIBRARY_RELEASE",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Path to a library."
+				}
+			],
+			"type" : "FILEPATH",
+			"value" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/libbz2.a"
+		},
+		{
+			"name" : "BZIP2_NEED_PREFIX",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "Have symbol BZ2_bzCompressInit"
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : "1"
+		},
+		{
+			"name" : "CMAKE_ADDR2LINE",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Path to a program."
+				}
+			],
+			"type" : "FILEPATH",
+			"value" : "/Users/nero/Library/Android/sdk/ndk/25.1.8937393/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-addr2line"
+		},
+		{
+			"name" : "CMAKE_ANDROID_ARCH_ABI",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "No help, variable specified on the command line."
+				}
+			],
+			"type" : "UNINITIALIZED",
+			"value" : "arm64-v8a"
+		},
+		{
+			"name" : "CMAKE_ANDROID_NDK",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "No help, variable specified on the command line."
+				}
+			],
+			"type" : "UNINITIALIZED",
+			"value" : "/Users/nero/Library/Android/sdk/ndk/25.1.8937393"
+		},
+		{
+			"name" : "CMAKE_AR",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Archiver"
+				}
+			],
+			"type" : "FILEPATH",
+			"value" : "/Users/nero/Library/Android/sdk/ndk/25.1.8937393/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-ar"
+		},
+		{
+			"name" : "CMAKE_ASM_FLAGS",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "Flags used by the compiler during all build types."
+				}
+			],
+			"type" : "STRING",
+			"value" : ""
+		},
+		{
+			"name" : "CMAKE_ASM_FLAGS_DEBUG",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "Flags used by the compiler during debug builds."
+				}
+			],
+			"type" : "STRING",
+			"value" : ""
+		},
+		{
+			"name" : "CMAKE_ASM_FLAGS_RELEASE",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "Flags used by the compiler during release builds."
+				}
+			],
+			"type" : "STRING",
+			"value" : ""
+		},
+		{
+			"name" : "CMAKE_BUILD_TYPE",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "Choose the type of build, options are: None Debug Release RelWithDebInfo MinSizeRel ..."
+				}
+			],
+			"type" : "STRING",
+			"value" : "RelWithDebInfo"
+		},
+		{
+			"name" : "CMAKE_CACHEFILE_DIR",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "This is the directory where this CMakeCache.txt was created"
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a"
+		},
+		{
+			"name" : "CMAKE_CACHE_MAJOR_VERSION",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "Major version of cmake used to create the current loaded cache"
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : "3"
+		},
+		{
+			"name" : "CMAKE_CACHE_MINOR_VERSION",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "Minor version of cmake used to create the current loaded cache"
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : "22"
+		},
+		{
+			"name" : "CMAKE_CACHE_PATCH_VERSION",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "Patch version of cmake used to create the current loaded cache"
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : "1"
+		},
+		{
+			"name" : "CMAKE_COMMAND",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "Path to CMake executable."
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : "/Users/nero/Library/Android/sdk/cmake/3.22.1/bin/cmake"
+		},
+		{
+			"name" : "CMAKE_CPACK_COMMAND",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "Path to cpack program executable."
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : "/Users/nero/Library/Android/sdk/cmake/3.22.1/bin/cpack"
+		},
+		{
+			"name" : "CMAKE_CTEST_COMMAND",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "Path to ctest program executable."
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : "/Users/nero/Library/Android/sdk/cmake/3.22.1/bin/ctest"
+		},
+		{
+			"name" : "CMAKE_CXX_COMPILER_AR",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "LLVM archiver"
+				}
+			],
+			"type" : "FILEPATH",
+			"value" : "CMAKE_CXX_COMPILER_AR-NOTFOUND"
+		},
+		{
+			"name" : "CMAKE_CXX_COMPILER_RANLIB",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Generate index for LLVM archive"
+				}
+			],
+			"type" : "FILEPATH",
+			"value" : "CMAKE_CXX_COMPILER_RANLIB-NOTFOUND"
+		},
+		{
+			"name" : "CMAKE_CXX_FLAGS",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Flags used by the compiler during all build types."
+				}
+			],
+			"type" : "STRING",
+			"value" : ""
+		},
+		{
+			"name" : "CMAKE_CXX_FLAGS_DEBUG",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Flags used by the compiler during debug builds."
+				}
+			],
+			"type" : "STRING",
+			"value" : ""
+		},
+		{
+			"name" : "CMAKE_CXX_FLAGS_MINSIZEREL",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Flags used by the CXX compiler during MINSIZEREL builds."
+				}
+			],
+			"type" : "STRING",
+			"value" : "-Os -DNDEBUG"
+		},
+		{
+			"name" : "CMAKE_CXX_FLAGS_RELEASE",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Flags used by the compiler during release builds."
+				}
+			],
+			"type" : "STRING",
+			"value" : ""
+		},
+		{
+			"name" : "CMAKE_CXX_FLAGS_RELWITHDEBINFO",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Flags used by the CXX compiler during RELWITHDEBINFO builds."
+				}
+			],
+			"type" : "STRING",
+			"value" : "-O2 -g -DNDEBUG"
+		},
+		{
+			"name" : "CMAKE_CXX_STANDARD_LIBRARIES",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Libraries linked by default with all C++ applications."
+				}
+			],
+			"type" : "STRING",
+			"value" : "-latomic -lm"
+		},
+		{
+			"name" : "CMAKE_C_COMPILER_AR",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "LLVM archiver"
+				}
+			],
+			"type" : "FILEPATH",
+			"value" : "CMAKE_C_COMPILER_AR-NOTFOUND"
+		},
+		{
+			"name" : "CMAKE_C_COMPILER_RANLIB",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Generate index for LLVM archive"
+				}
+			],
+			"type" : "FILEPATH",
+			"value" : "CMAKE_C_COMPILER_RANLIB-NOTFOUND"
+		},
+		{
+			"name" : "CMAKE_C_FLAGS",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Flags used by the compiler during all build types."
+				}
+			],
+			"type" : "STRING",
+			"value" : ""
+		},
+		{
+			"name" : "CMAKE_C_FLAGS_DEBUG",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Flags used by the compiler during debug builds."
+				}
+			],
+			"type" : "STRING",
+			"value" : ""
+		},
+		{
+			"name" : "CMAKE_C_FLAGS_MINSIZEREL",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Flags used by the C compiler during MINSIZEREL builds."
+				}
+			],
+			"type" : "STRING",
+			"value" : "-Os -DNDEBUG"
+		},
+		{
+			"name" : "CMAKE_C_FLAGS_RELEASE",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Flags used by the compiler during release builds."
+				}
+			],
+			"type" : "STRING",
+			"value" : ""
+		},
+		{
+			"name" : "CMAKE_C_FLAGS_RELWITHDEBINFO",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Flags used by the C compiler during RELWITHDEBINFO builds."
+				}
+			],
+			"type" : "STRING",
+			"value" : "-O2 -g -DNDEBUG"
+		},
+		{
+			"name" : "CMAKE_C_STANDARD_LIBRARIES",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Libraries linked by default with all C applications."
+				}
+			],
+			"type" : "STRING",
+			"value" : "-latomic -lm"
+		},
+		{
+			"name" : "CMAKE_DLLTOOL",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Path to a program."
+				}
+			],
+			"type" : "FILEPATH",
+			"value" : "CMAKE_DLLTOOL-NOTFOUND"
+		},
+		{
+			"name" : "CMAKE_EDIT_COMMAND",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "Path to cache edit program executable."
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : "/Users/nero/Library/Android/sdk/cmake/3.22.1/bin/ccmake"
+		},
+		{
+			"name" : "CMAKE_EXECUTABLE_FORMAT",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "Executable file format"
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : "ELF"
+		},
+		{
+			"name" : "CMAKE_EXE_LINKER_FLAGS",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Flags used by the linker."
+				}
+			],
+			"type" : "STRING",
+			"value" : ""
+		},
+		{
+			"name" : "CMAKE_EXE_LINKER_FLAGS_DEBUG",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Flags used by the linker during DEBUG builds."
+				}
+			],
+			"type" : "STRING",
+			"value" : ""
+		},
+		{
+			"name" : "CMAKE_EXE_LINKER_FLAGS_MINSIZEREL",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Flags used by the linker during MINSIZEREL builds."
+				}
+			],
+			"type" : "STRING",
+			"value" : ""
+		},
+		{
+			"name" : "CMAKE_EXE_LINKER_FLAGS_RELEASE",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Flags used by the linker during RELEASE builds."
+				}
+			],
+			"type" : "STRING",
+			"value" : ""
+		},
+		{
+			"name" : "CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Flags used by the linker during RELWITHDEBINFO builds."
+				}
+			],
+			"type" : "STRING",
+			"value" : ""
+		},
+		{
+			"name" : "CMAKE_EXPORT_COMPILE_COMMANDS",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "No help, variable specified on the command line."
+				}
+			],
+			"type" : "UNINITIALIZED",
+			"value" : "ON"
+		},
+		{
+			"name" : "CMAKE_EXTRA_GENERATOR",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "Name of external makefile project generator."
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : ""
+		},
+		{
+			"name" : "CMAKE_GENERATOR",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "Name of generator."
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : "Ninja"
+		},
+		{
+			"name" : "CMAKE_GENERATOR_INSTANCE",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "Generator instance identifier."
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : ""
+		},
+		{
+			"name" : "CMAKE_GENERATOR_PLATFORM",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "Name of generator platform."
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : ""
+		},
+		{
+			"name" : "CMAKE_GENERATOR_TOOLSET",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "Name of generator toolset."
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : ""
+		},
+		{
+			"name" : "CMAKE_HOME_DIRECTORY",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "Source directory with the top level CMakeLists.txt file for this project"
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : "/Users/nero/Codes/Kotonoha"
+		},
+		{
+			"name" : "CMAKE_INSTALL_PREFIX",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "Install path prefix, prepended onto install directories."
+				}
+			],
+			"type" : "PATH",
+			"value" : "/usr/local"
+		},
+		{
+			"name" : "CMAKE_INSTALL_SO_NO_EXE",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "Install .so files without execute permission."
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : "0"
+		},
+		{
+			"name" : "CMAKE_LIBRARY_OUTPUT_DIRECTORY",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "No help, variable specified on the command line."
+				}
+			],
+			"type" : "UNINITIALIZED",
+			"value" : "/Users/nero/Codes/Kotonoha/android-project/app/build/intermediates/cxx/RelWithDebInfo/1d4d4t5c/obj/arm64-v8a"
+		},
+		{
+			"name" : "CMAKE_LINKER",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Path to a program."
+				}
+			],
+			"type" : "FILEPATH",
+			"value" : "/Users/nero/Library/Android/sdk/ndk/25.1.8937393/toolchains/llvm/prebuilt/darwin-x86_64/bin/ld.lld"
+		},
+		{
+			"name" : "CMAKE_MAKE_PROGRAM",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "No help, variable specified on the command line."
+				}
+			],
+			"type" : "UNINITIALIZED",
+			"value" : "/Users/nero/Library/Android/sdk/cmake/3.22.1/bin/ninja"
+		},
+		{
+			"name" : "CMAKE_MODULE_LINKER_FLAGS",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Flags used by the linker during the creation of modules."
+				}
+			],
+			"type" : "STRING",
+			"value" : ""
+		},
+		{
+			"name" : "CMAKE_MODULE_LINKER_FLAGS_DEBUG",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Flags used by the linker during the creation of modules during DEBUG builds."
+				}
+			],
+			"type" : "STRING",
+			"value" : ""
+		},
+		{
+			"name" : "CMAKE_MODULE_LINKER_FLAGS_MINSIZEREL",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Flags used by the linker during the creation of modules during MINSIZEREL builds."
+				}
+			],
+			"type" : "STRING",
+			"value" : ""
+		},
+		{
+			"name" : "CMAKE_MODULE_LINKER_FLAGS_RELEASE",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Flags used by the linker during the creation of modules during RELEASE builds."
+				}
+			],
+			"type" : "STRING",
+			"value" : ""
+		},
+		{
+			"name" : "CMAKE_MODULE_LINKER_FLAGS_RELWITHDEBINFO",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Flags used by the linker during the creation of modules during RELWITHDEBINFO builds."
+				}
+			],
+			"type" : "STRING",
+			"value" : ""
+		},
+		{
+			"name" : "CMAKE_NM",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Path to a program."
+				}
+			],
+			"type" : "FILEPATH",
+			"value" : "/Users/nero/Library/Android/sdk/ndk/25.1.8937393/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-nm"
+		},
+		{
+			"name" : "CMAKE_NUMBER_OF_MAKEFILES",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "number of local generators"
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : "1"
+		},
+		{
+			"name" : "CMAKE_OBJCOPY",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Path to a program."
+				}
+			],
+			"type" : "FILEPATH",
+			"value" : "/Users/nero/Library/Android/sdk/ndk/25.1.8937393/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-objcopy"
+		},
+		{
+			"name" : "CMAKE_OBJDUMP",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Path to a program."
+				}
+			],
+			"type" : "FILEPATH",
+			"value" : "/Users/nero/Library/Android/sdk/ndk/25.1.8937393/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-objdump"
+		},
+		{
+			"name" : "CMAKE_PLATFORM_INFO_INITIALIZED",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "Platform information initialized"
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : "1"
+		},
+		{
+			"name" : "CMAKE_PROJECT_DESCRIPTION",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "Value Computed by CMake"
+				}
+			],
+			"type" : "STATIC",
+			"value" : ""
+		},
+		{
+			"name" : "CMAKE_PROJECT_HOMEPAGE_URL",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "Value Computed by CMake"
+				}
+			],
+			"type" : "STATIC",
+			"value" : ""
+		},
+		{
+			"name" : "CMAKE_PROJECT_NAME",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "Value Computed by CMake"
+				}
+			],
+			"type" : "STATIC",
+			"value" : "Kotonoha"
+		},
+		{
+			"name" : "CMAKE_PROJECT_VERSION",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "Value Computed by CMake"
+				}
+			],
+			"type" : "STATIC",
+			"value" : "0.1.0"
+		},
+		{
+			"name" : "CMAKE_PROJECT_VERSION_MAJOR",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "Value Computed by CMake"
+				}
+			],
+			"type" : "STATIC",
+			"value" : "0"
+		},
+		{
+			"name" : "CMAKE_PROJECT_VERSION_MINOR",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "Value Computed by CMake"
+				}
+			],
+			"type" : "STATIC",
+			"value" : "1"
+		},
+		{
+			"name" : "CMAKE_PROJECT_VERSION_PATCH",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "Value Computed by CMake"
+				}
+			],
+			"type" : "STATIC",
+			"value" : "0"
+		},
+		{
+			"name" : "CMAKE_PROJECT_VERSION_TWEAK",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "Value Computed by CMake"
+				}
+			],
+			"type" : "STATIC",
+			"value" : ""
+		},
+		{
+			"name" : "CMAKE_RANLIB",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Ranlib"
+				}
+			],
+			"type" : "FILEPATH",
+			"value" : "/Users/nero/Library/Android/sdk/ndk/25.1.8937393/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-ranlib"
+		},
+		{
+			"name" : "CMAKE_READELF",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Path to a program."
+				}
+			],
+			"type" : "FILEPATH",
+			"value" : "/Users/nero/Library/Android/sdk/ndk/25.1.8937393/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-readelf"
+		},
+		{
+			"name" : "CMAKE_ROOT",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "Path to CMake installation."
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : "/Users/nero/Library/Android/sdk/cmake/3.22.1/share/cmake-3.22"
+		},
+		{
+			"name" : "CMAKE_RUNTIME_OUTPUT_DIRECTORY",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "No help, variable specified on the command line."
+				}
+			],
+			"type" : "UNINITIALIZED",
+			"value" : "/Users/nero/Codes/Kotonoha/android-project/app/build/intermediates/cxx/RelWithDebInfo/1d4d4t5c/obj/arm64-v8a"
+		},
+		{
+			"name" : "CMAKE_SHARED_LINKER_FLAGS",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Flags used by the linker during the creation of dll's."
+				}
+			],
+			"type" : "STRING",
+			"value" : ""
+		},
+		{
+			"name" : "CMAKE_SHARED_LINKER_FLAGS_DEBUG",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Flags used by the linker during the creation of shared libraries during DEBUG builds."
+				}
+			],
+			"type" : "STRING",
+			"value" : ""
+		},
+		{
+			"name" : "CMAKE_SHARED_LINKER_FLAGS_MINSIZEREL",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Flags used by the linker during the creation of shared libraries during MINSIZEREL builds."
+				}
+			],
+			"type" : "STRING",
+			"value" : ""
+		},
+		{
+			"name" : "CMAKE_SHARED_LINKER_FLAGS_RELEASE",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Flags used by the linker during the creation of shared libraries during RELEASE builds."
+				}
+			],
+			"type" : "STRING",
+			"value" : ""
+		},
+		{
+			"name" : "CMAKE_SHARED_LINKER_FLAGS_RELWITHDEBINFO",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Flags used by the linker during the creation of shared libraries during RELWITHDEBINFO builds."
+				}
+			],
+			"type" : "STRING",
+			"value" : ""
+		},
+		{
+			"name" : "CMAKE_SKIP_INSTALL_RPATH",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "If set, runtime paths are not added when installing shared libraries, but are added when building."
+				}
+			],
+			"type" : "BOOL",
+			"value" : "NO"
+		},
+		{
+			"name" : "CMAKE_SKIP_RPATH",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "If set, runtime paths are not added when using shared libraries."
+				}
+			],
+			"type" : "BOOL",
+			"value" : "NO"
+		},
+		{
+			"name" : "CMAKE_STATIC_LINKER_FLAGS",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Flags used by the linker during the creation of static libraries during all build types."
+				}
+			],
+			"type" : "STRING",
+			"value" : ""
+		},
+		{
+			"name" : "CMAKE_STATIC_LINKER_FLAGS_DEBUG",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Flags used by the linker during the creation of static libraries during DEBUG builds."
+				}
+			],
+			"type" : "STRING",
+			"value" : ""
+		},
+		{
+			"name" : "CMAKE_STATIC_LINKER_FLAGS_MINSIZEREL",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Flags used by the linker during the creation of static libraries during MINSIZEREL builds."
+				}
+			],
+			"type" : "STRING",
+			"value" : ""
+		},
+		{
+			"name" : "CMAKE_STATIC_LINKER_FLAGS_RELEASE",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Flags used by the linker during the creation of static libraries during RELEASE builds."
+				}
+			],
+			"type" : "STRING",
+			"value" : ""
+		},
+		{
+			"name" : "CMAKE_STATIC_LINKER_FLAGS_RELWITHDEBINFO",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Flags used by the linker during the creation of static libraries during RELWITHDEBINFO builds."
+				}
+			],
+			"type" : "STRING",
+			"value" : ""
+		},
+		{
+			"name" : "CMAKE_STRIP",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Strip"
+				}
+			],
+			"type" : "FILEPATH",
+			"value" : "/Users/nero/Library/Android/sdk/ndk/25.1.8937393/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-strip"
+		},
+		{
+			"name" : "CMAKE_SYSROOT",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "No help, variable specified on the command line."
+				}
+			],
+			"type" : "UNINITIALIZED",
+			"value" : "/Users/nero/Library/Android/sdk/ndk/25.1.8937393/toolchains/llvm/prebuilt/darwin-x86_64/sysroot"
+		},
+		{
+			"name" : "CMAKE_SYSTEM_NAME",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "No help, variable specified on the command line."
+				}
+			],
+			"type" : "UNINITIALIZED",
+			"value" : "Android"
+		},
+		{
+			"name" : "CMAKE_SYSTEM_VERSION",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "No help, variable specified on the command line."
+				}
+			],
+			"type" : "UNINITIALIZED",
+			"value" : "28"
+		},
+		{
+			"name" : "CMAKE_TOOLCHAIN_FILE",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "The CMake toolchain file"
+				}
+			],
+			"type" : "FILEPATH",
+			"value" : "/Users/nero/Codes/vcpkg/scripts/buildsystems/vcpkg.cmake"
+		},
+		{
+			"name" : "CMAKE_UNAME",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "uname command"
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : "/usr/bin/uname"
+		},
+		{
+			"name" : "CMAKE_VERBOSE_MAKEFILE",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "If this value is on, makefiles will be generated without the .SILENT directive, and all commands will be echoed to the console during the make.  This is useful for debugging only. With Visual Studio IDE projects all commands are done without /nologo."
+				}
+			],
+			"type" : "BOOL",
+			"value" : "FALSE"
+		},
+		{
+			"name" : "EXPAT_LIBRARY",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : ""
+				}
+			],
+			"type" : "STRING",
+			"value" : "optimized;/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/libexpat.a;debug;/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/debug/lib/libexpat.a"
+		},
+		{
+			"name" : "EXPAT_LIBRARY_DEBUG",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Path to a library."
+				}
+			],
+			"type" : "FILEPATH",
+			"value" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/debug/lib/libexpat.a"
+		},
+		{
+			"name" : "EXPAT_LIBRARY_RELEASE",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Path to a library."
+				}
+			],
+			"type" : "FILEPATH",
+			"value" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/libexpat.a"
+		},
+		{
+			"name" : "FFMPEG_DEPENDENCY_android_DEBUG",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "Path to a library."
+				}
+			],
+			"type" : "FILEPATH",
+			"value" : "/Users/nero/Library/Android/sdk/ndk/25.1.8937393/toolchains/llvm/prebuilt/darwin-x86_64/sysroot/usr/lib/aarch64-linux-android/28/libandroid.so"
+		},
+		{
+			"name" : "FFMPEG_DEPENDENCY_android_RELEASE",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "Path to a library."
+				}
+			],
+			"type" : "FILEPATH",
+			"value" : "/Users/nero/Library/Android/sdk/ndk/25.1.8937393/toolchains/llvm/prebuilt/darwin-x86_64/sysroot/usr/lib/aarch64-linux-android/28/libandroid.so"
+		},
+		{
+			"name" : "FFMPEG_DEPENDENCY_camera2ndk_DEBUG",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "Path to a library."
+				}
+			],
+			"type" : "FILEPATH",
+			"value" : "/Users/nero/Library/Android/sdk/ndk/25.1.8937393/toolchains/llvm/prebuilt/darwin-x86_64/sysroot/usr/lib/aarch64-linux-android/28/libcamera2ndk.so"
+		},
+		{
+			"name" : "FFMPEG_DEPENDENCY_camera2ndk_RELEASE",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "Path to a library."
+				}
+			],
+			"type" : "FILEPATH",
+			"value" : "/Users/nero/Library/Android/sdk/ndk/25.1.8937393/toolchains/llvm/prebuilt/darwin-x86_64/sysroot/usr/lib/aarch64-linux-android/28/libcamera2ndk.so"
+		},
+		{
+			"name" : "FFMPEG_DEPENDENCY_mediandk_DEBUG",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "Path to a library."
+				}
+			],
+			"type" : "FILEPATH",
+			"value" : "/Users/nero/Library/Android/sdk/ndk/25.1.8937393/toolchains/llvm/prebuilt/darwin-x86_64/sysroot/usr/lib/aarch64-linux-android/28/libmediandk.so"
+		},
+		{
+			"name" : "FFMPEG_DEPENDENCY_mediandk_RELEASE",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "Path to a library."
+				}
+			],
+			"type" : "FILEPATH",
+			"value" : "/Users/nero/Library/Android/sdk/ndk/25.1.8937393/toolchains/llvm/prebuilt/darwin-x86_64/sysroot/usr/lib/aarch64-linux-android/28/libmediandk.so"
+		},
+		{
+			"name" : "FFMPEG_DEPENDENCY_z_DEBUG",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "Path to a library."
+				}
+			],
+			"type" : "FILEPATH",
+			"value" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/debug/lib/libz.a"
+		},
+		{
+			"name" : "FFMPEG_DEPENDENCY_z_RELEASE",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "Path to a library."
+				}
+			],
+			"type" : "FILEPATH",
+			"value" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/libz.a"
+		},
+		{
+			"name" : "FFMPEG_FOUND",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : ""
+				}
+			],
+			"type" : "BOOL",
+			"value" : "TRUE"
+		},
+		{
+			"name" : "FFMPEG_INCLUDE_DIRS",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : ""
+				}
+			],
+			"type" : "STRING",
+			"value" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/include"
+		},
+		{
+			"name" : "FFMPEG_LIBRARIES",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : ""
+				}
+			],
+			"type" : "STRING",
+			"value" : "optimized;/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/libavdevice.a;debug;/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/debug/lib/libavdevice.a;optimized;/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/libavfilter.a;debug;/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/debug/lib/libavfilter.a;optimized;/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/libavformat.a;debug;/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/debug/lib/libavformat.a;optimized;/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/libavcodec.a;debug;/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/debug/lib/libavcodec.a;optimized;/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/libswresample.a;debug;/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/debug/lib/libswresample.a;optimized;/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/libswscale.a;debug;/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/debug/lib/libswscale.a;optimized;/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/libavutil.a;debug;/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/debug/lib/libavutil.a;optimized;/Users/nero/Library/Android/sdk/ndk/25.1.8937393/toolchains/llvm/prebuilt/darwin-x86_64/sysroot/usr/lib/aarch64-linux-android/28/libcamera2ndk.so;optimized;m;optimized;/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/libz.a;optimized;atomic;optimized;/Users/nero/Library/Android/sdk/ndk/25.1.8937393/toolchains/llvm/prebuilt/darwin-x86_64/sysroot/usr/lib/aarch64-linux-android/28/libandroid.so;optimized;/Users/nero/Library/Android/sdk/ndk/25.1.8937393/toolchains/llvm/prebuilt/darwin-x86_64/sysroot/usr/lib/aarch64-linux-android/28/libmediandk.so;optimized;-pthread;debug;/Users/nero/Library/Android/sdk/ndk/25.1.8937393/toolchains/llvm/prebuilt/darwin-x86_64/sysroot/usr/lib/aarch64-linux-android/28/libcamera2ndk.so;debug;m;debug;/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/debug/lib/libz.a;debug;atomic;debug;/Users/nero/Library/Android/sdk/ndk/25.1.8937393/toolchains/llvm/prebuilt/darwin-x86_64/sysroot/usr/lib/aarch64-linux-android/28/libandroid.so;debug;/Users/nero/Library/Android/sdk/ndk/25.1.8937393/toolchains/llvm/prebuilt/darwin-x86_64/sysroot/usr/lib/aarch64-linux-android/28/libmediandk.so;debug;-pthread"
+		},
+		{
+			"name" : "FFMPEG_LIBRARY_DIRS",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : ""
+				}
+			],
+			"type" : "STRING",
+			"value" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib;/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/debug/lib"
+		},
+		{
+			"name" : "FFMPEG_libavcodec_INCLUDE_DIRS",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "Path to a file."
+				}
+			],
+			"type" : "PATH",
+			"value" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/include"
+		},
+		{
+			"name" : "FFMPEG_libavcodec_LIBRARY",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : ""
+				}
+			],
+			"type" : "STRING",
+			"value" : "optimized;/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/libavcodec.a;debug;/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/debug/lib/libavcodec.a"
+		},
+		{
+			"name" : "FFMPEG_libavcodec_LIBRARY_DEBUG",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Path to a library."
+				}
+			],
+			"type" : "FILEPATH",
+			"value" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/debug/lib/libavcodec.a"
+		},
+		{
+			"name" : "FFMPEG_libavcodec_LIBRARY_RELEASE",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Path to a library."
+				}
+			],
+			"type" : "FILEPATH",
+			"value" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/libavcodec.a"
+		},
+		{
+			"name" : "FFMPEG_libavcodec_VERSION",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : ""
+				}
+			],
+			"type" : "STRING",
+			"value" : "62.28.101"
+		},
+		{
+			"name" : "FFMPEG_libavdevice_INCLUDE_DIRS",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "Path to a file."
+				}
+			],
+			"type" : "PATH",
+			"value" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/include"
+		},
+		{
+			"name" : "FFMPEG_libavdevice_LIBRARY",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : ""
+				}
+			],
+			"type" : "STRING",
+			"value" : "optimized;/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/libavdevice.a;debug;/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/debug/lib/libavdevice.a"
+		},
+		{
+			"name" : "FFMPEG_libavdevice_LIBRARY_DEBUG",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Path to a library."
+				}
+			],
+			"type" : "FILEPATH",
+			"value" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/debug/lib/libavdevice.a"
+		},
+		{
+			"name" : "FFMPEG_libavdevice_LIBRARY_RELEASE",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Path to a library."
+				}
+			],
+			"type" : "FILEPATH",
+			"value" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/libavdevice.a"
+		},
+		{
+			"name" : "FFMPEG_libavdevice_VERSION",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : ""
+				}
+			],
+			"type" : "STRING",
+			"value" : "62.3.101"
+		},
+		{
+			"name" : "FFMPEG_libavfilter_INCLUDE_DIRS",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "Path to a file."
+				}
+			],
+			"type" : "PATH",
+			"value" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/include"
+		},
+		{
+			"name" : "FFMPEG_libavfilter_LIBRARY",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : ""
+				}
+			],
+			"type" : "STRING",
+			"value" : "optimized;/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/libavfilter.a;debug;/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/debug/lib/libavfilter.a"
+		},
+		{
+			"name" : "FFMPEG_libavfilter_LIBRARY_DEBUG",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Path to a library."
+				}
+			],
+			"type" : "FILEPATH",
+			"value" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/debug/lib/libavfilter.a"
+		},
+		{
+			"name" : "FFMPEG_libavfilter_LIBRARY_RELEASE",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Path to a library."
+				}
+			],
+			"type" : "FILEPATH",
+			"value" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/libavfilter.a"
+		},
+		{
+			"name" : "FFMPEG_libavfilter_VERSION",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : ""
+				}
+			],
+			"type" : "STRING",
+			"value" : "11.14.101"
+		},
+		{
+			"name" : "FFMPEG_libavformat_INCLUDE_DIRS",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "Path to a file."
+				}
+			],
+			"type" : "PATH",
+			"value" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/include"
+		},
+		{
+			"name" : "FFMPEG_libavformat_LIBRARY",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : ""
+				}
+			],
+			"type" : "STRING",
+			"value" : "optimized;/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/libavformat.a;debug;/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/debug/lib/libavformat.a"
+		},
+		{
+			"name" : "FFMPEG_libavformat_LIBRARY_DEBUG",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Path to a library."
+				}
+			],
+			"type" : "FILEPATH",
+			"value" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/debug/lib/libavformat.a"
+		},
+		{
+			"name" : "FFMPEG_libavformat_LIBRARY_RELEASE",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Path to a library."
+				}
+			],
+			"type" : "FILEPATH",
+			"value" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/libavformat.a"
+		},
+		{
+			"name" : "FFMPEG_libavformat_VERSION",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : ""
+				}
+			],
+			"type" : "STRING",
+			"value" : "62.12.101"
+		},
+		{
+			"name" : "FFMPEG_libavutil_INCLUDE_DIRS",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "Path to a file."
+				}
+			],
+			"type" : "PATH",
+			"value" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/include"
+		},
+		{
+			"name" : "FFMPEG_libavutil_LIBRARY",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : ""
+				}
+			],
+			"type" : "STRING",
+			"value" : "optimized;/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/libavutil.a;debug;/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/debug/lib/libavutil.a"
+		},
+		{
+			"name" : "FFMPEG_libavutil_LIBRARY_DEBUG",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Path to a library."
+				}
+			],
+			"type" : "FILEPATH",
+			"value" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/debug/lib/libavutil.a"
+		},
+		{
+			"name" : "FFMPEG_libavutil_LIBRARY_RELEASE",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Path to a library."
+				}
+			],
+			"type" : "FILEPATH",
+			"value" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/libavutil.a"
+		},
+		{
+			"name" : "FFMPEG_libavutil_VERSION",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : ""
+				}
+			],
+			"type" : "STRING",
+			"value" : "60.26.101"
+		},
+		{
+			"name" : "FFMPEG_libswresample_INCLUDE_DIRS",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "Path to a file."
+				}
+			],
+			"type" : "PATH",
+			"value" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/include"
+		},
+		{
+			"name" : "FFMPEG_libswresample_LIBRARY",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : ""
+				}
+			],
+			"type" : "STRING",
+			"value" : "optimized;/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/libswresample.a;debug;/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/debug/lib/libswresample.a"
+		},
+		{
+			"name" : "FFMPEG_libswresample_LIBRARY_DEBUG",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Path to a library."
+				}
+			],
+			"type" : "FILEPATH",
+			"value" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/debug/lib/libswresample.a"
+		},
+		{
+			"name" : "FFMPEG_libswresample_LIBRARY_RELEASE",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Path to a library."
+				}
+			],
+			"type" : "FILEPATH",
+			"value" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/libswresample.a"
+		},
+		{
+			"name" : "FFMPEG_libswresample_VERSION",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : ""
+				}
+			],
+			"type" : "STRING",
+			"value" : "6.3.101"
+		},
+		{
+			"name" : "FFMPEG_libswscale_INCLUDE_DIRS",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "Path to a file."
+				}
+			],
+			"type" : "PATH",
+			"value" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/include"
+		},
+		{
+			"name" : "FFMPEG_libswscale_LIBRARY",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : ""
+				}
+			],
+			"type" : "STRING",
+			"value" : "optimized;/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/libswscale.a;debug;/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/debug/lib/libswscale.a"
+		},
+		{
+			"name" : "FFMPEG_libswscale_LIBRARY_DEBUG",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Path to a library."
+				}
+			],
+			"type" : "FILEPATH",
+			"value" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/debug/lib/libswscale.a"
+		},
+		{
+			"name" : "FFMPEG_libswscale_LIBRARY_RELEASE",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Path to a library."
+				}
+			],
+			"type" : "FILEPATH",
+			"value" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/libswscale.a"
+		},
+		{
+			"name" : "FFMPEG_libswscale_VERSION",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : ""
+				}
+			],
+			"type" : "STRING",
+			"value" : "9.5.101"
+		},
+		{
+			"name" : "FIND_PACKAGE_MESSAGE_DETAILS_BZip2",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "Details about finding BZip2"
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : "[optimized;/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/libbz2.a;debug;/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/debug/lib/libbz2d.a][/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/include][v1.0.8()]"
+		},
+		{
+			"name" : "FIND_PACKAGE_MESSAGE_DETAILS_FFMPEG",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "Details about finding FFMPEG"
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : "[optimized;/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/libavdevice.a;debug;/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/debug/lib/libavdevice.a;optimized;/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/libavfilter.a;debug;/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/debug/lib/libavfilter.a;optimized;/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/libavformat.a;debug;/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/debug/lib/libavformat.a;optimized;/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/libavcodec.a;debug;/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/debug/lib/libavcodec.a;optimized;/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/libswresample.a;debug;/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/debug/lib/libswresample.a;optimized;/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/libswscale.a;debug;/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/debug/lib/libswscale.a;optimized;/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/libavutil.a;debug;/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/debug/lib/libavutil.a;optimized;/Users/nero/Library/Android/sdk/ndk/25.1.8937393/toolchains/llvm/prebuilt/darwin-x86_64/sysroot/usr/lib/aarch64-linux-android/28/libcamera2ndk.so;optimized;m;optimized;/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/libz.a;optimized;atomic;optimized;/Users/nero/Library/Android/sdk/ndk/25.1.8937393/toolchains/llvm/prebuilt/darwin-x86_64/sysroot/usr/lib/aarch64-linux-android/28/libandroid.so;optimized;/Users/nero/Library/Android/sdk/ndk/25.1.8937393/toolchains/llvm/prebuilt/darwin-x86_64/sysroot/usr/lib/aarch64-linux-android/28/libmediandk.so;optimized;-pthread;debug;/Users/nero/Library/Android/sdk/ndk/25.1.8937393/toolchains/llvm/prebuilt/darwin-x86_64/sysroot/usr/lib/aarch64-linux-android/28/libcamera2ndk.so;debug;m;debug;/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/debug/lib/libz.a;debug;atomic;debug;/Users/nero/Library/Android/sdk/ndk/25.1.8937393/toolchains/llvm/prebuilt/darwin-x86_64/sysroot/usr/lib/aarch64-linux-android/28/libandroid.so;debug;/Users/nero/Library/Android/sdk/ndk/25.1.8937393/toolchains/llvm/prebuilt/darwin-x86_64/sysroot/usr/lib/aarch64-linux-android/28/libmediandk.so;debug;-pthread][/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib;/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/debug/lib][/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/include][v()]"
+		},
+		{
+			"name" : "FIND_PACKAGE_MESSAGE_DETAILS_PNG",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "Details about finding PNG"
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : "[optimized;/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/libpng16.a;debug;/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/debug/lib/libpng16d.a][/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/include][v1.6.58()]"
+		},
+		{
+			"name" : "FIND_PACKAGE_MESSAGE_DETAILS_PkgConfig",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "Details about finding PkgConfig"
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : "[/opt/homebrew/bin/pkg-config][v3.0.5()]"
+		},
+		{
+			"name" : "FIND_PACKAGE_MESSAGE_DETAILS_ZLIB",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "Details about finding ZLIB"
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : "[optimized;/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/libz.a;debug;/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/debug/lib/libz.a][/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/include][v1.3.2()]"
+		},
+		{
+			"name" : "FIND_PACKAGE_MESSAGE_DETAILS_harfbuzz",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "Details about finding harfbuzz"
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : "[/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/libharfbuzz.a][/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/include/harfbuzz][v14.2.0(2.3.1)]"
+		},
+		{
+			"name" : "FREETYPE_LIBRARY_DEBUG",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "vcpkg"
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/debug/lib/libfreetyped.a"
+		},
+		{
+			"name" : "FREETYPE_LIBRARY_RELEASE",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "vcpkg"
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/libfreetype.a"
+		},
+		{
+			"name" : "Freetype_DIR",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "The directory containing a CMake configuration file for Freetype."
+				}
+			],
+			"type" : "PATH",
+			"value" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/share/freetype"
+		},
+		{
+			"name" : "Kotonoha_BINARY_DIR",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "Value Computed by CMake"
+				}
+			],
+			"type" : "STATIC",
+			"value" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a"
+		},
+		{
+			"name" : "Kotonoha_IS_TOP_LEVEL",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "Value Computed by CMake"
+				}
+			],
+			"type" : "STATIC",
+			"value" : "ON"
+		},
+		{
+			"name" : "Kotonoha_SOURCE_DIR",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "Value Computed by CMake"
+				}
+			],
+			"type" : "STATIC",
+			"value" : "/Users/nero/Codes/Kotonoha"
+		},
+		{
+			"name" : "LIBASS_CFLAGS",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : ""
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : "-I/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/pkgconfig/../../include;-I/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/pkgconfig/../../include/fribidi;-I/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/pkgconfig/../../include/harfbuzz;-I/opt/homebrew/Cellar/libunibreak/7.0/include;-pthread;-I/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/pkgconfig/../../include/libpng16;-DXML_STATIC"
+		},
+		{
+			"name" : "LIBASS_CFLAGS_I",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : ""
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : ""
+		},
+		{
+			"name" : "LIBASS_CFLAGS_OTHER",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : ""
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : "-pthread;-DXML_STATIC"
+		},
+		{
+			"name" : "LIBASS_FOUND",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : ""
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : "1"
+		},
+		{
+			"name" : "LIBASS_INCLUDEDIR",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : ""
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/pkgconfig/../../include"
+		},
+		{
+			"name" : "LIBASS_INCLUDE_DIRS",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : ""
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/pkgconfig/../../include;/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/pkgconfig/../../include/fribidi;/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/pkgconfig/../../include/harfbuzz;/opt/homebrew/Cellar/libunibreak/7.0/include;/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/pkgconfig/../../include/libpng16"
+		},
+		{
+			"name" : "LIBASS_LDFLAGS",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : ""
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : "-L/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/pkgconfig/../../lib;-lass;-lfribidi;-lharfbuzz;-lc++;-L/opt/homebrew/Cellar/libunibreak/7.0/lib;-lunibreak;-lfontconfig;-pthread;-lm;-lfreetype;-lbz2;-lpng16;-lz;-lbrotlidec;-lbrotlicommon;-lm;-lm;-lexpat;-lm"
+		},
+		{
+			"name" : "LIBASS_LDFLAGS_OTHER",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : ""
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : "-pthread"
+		},
+		{
+			"name" : "LIBASS_LIBDIR",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : ""
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/pkgconfig/../../lib"
+		},
+		{
+			"name" : "LIBASS_LIBRARIES",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : ""
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : "ass;fribidi;harfbuzz;c++;unibreak;fontconfig;m;freetype;bz2;png16;z;brotlidec;brotlicommon;m;m;expat;m"
+		},
+		{
+			"name" : "LIBASS_LIBRARY_DIRS",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : ""
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/pkgconfig/../../lib;/opt/homebrew/Cellar/libunibreak/7.0/lib"
+		},
+		{
+			"name" : "LIBASS_LIBS",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : ""
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : ""
+		},
+		{
+			"name" : "LIBASS_LIBS_L",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : ""
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : ""
+		},
+		{
+			"name" : "LIBASS_LIBS_OTHER",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : ""
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : ""
+		},
+		{
+			"name" : "LIBASS_LIBS_PATHS",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : ""
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : ""
+		},
+		{
+			"name" : "LIBASS_MODULE_NAME",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : ""
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : "libass"
+		},
+		{
+			"name" : "LIBASS_PREFIX",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : ""
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/pkgconfig/../.."
+		},
+		{
+			"name" : "LIBASS_STATIC_CFLAGS",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : ""
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : "-I/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/pkgconfig/../../include;-I/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/pkgconfig/../../include/fribidi;-I/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/pkgconfig/../../include/harfbuzz;-I/opt/homebrew/Cellar/libunibreak/7.0/include;-pthread;-I/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/pkgconfig/../../include/libpng16;-DXML_STATIC"
+		},
+		{
+			"name" : "LIBASS_STATIC_CFLAGS_I",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : ""
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : ""
+		},
+		{
+			"name" : "LIBASS_STATIC_CFLAGS_OTHER",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : ""
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : "-pthread;-DXML_STATIC"
+		},
+		{
+			"name" : "LIBASS_STATIC_INCLUDE_DIRS",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : ""
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/pkgconfig/../../include;/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/pkgconfig/../../include/fribidi;/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/pkgconfig/../../include/harfbuzz;/opt/homebrew/Cellar/libunibreak/7.0/include;/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/pkgconfig/../../include/libpng16"
+		},
+		{
+			"name" : "LIBASS_STATIC_LDFLAGS",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : ""
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : "-L/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/pkgconfig/../../lib;-lass;-lfribidi;-lharfbuzz;-lc++;-L/opt/homebrew/Cellar/libunibreak/7.0/lib;-lunibreak;-lfontconfig;-pthread;-lm;-lfreetype;-lbz2;-lpng16;-lz;-lbrotlidec;-lbrotlicommon;-lm;-lm;-lexpat;-lm"
+		},
+		{
+			"name" : "LIBASS_STATIC_LDFLAGS_OTHER",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : ""
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : "-pthread"
+		},
+		{
+			"name" : "LIBASS_STATIC_LIBDIR",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : ""
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : ""
+		},
+		{
+			"name" : "LIBASS_STATIC_LIBRARIES",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : ""
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : "ass;fribidi;harfbuzz;c++;unibreak;fontconfig;m;freetype;bz2;png16;z;brotlidec;brotlicommon;m;m;expat;m"
+		},
+		{
+			"name" : "LIBASS_STATIC_LIBRARY_DIRS",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : ""
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/pkgconfig/../../lib;/opt/homebrew/Cellar/libunibreak/7.0/lib"
+		},
+		{
+			"name" : "LIBASS_STATIC_LIBS",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : ""
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : ""
+		},
+		{
+			"name" : "LIBASS_STATIC_LIBS_L",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : ""
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : ""
+		},
+		{
+			"name" : "LIBASS_STATIC_LIBS_OTHER",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : ""
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : ""
+		},
+		{
+			"name" : "LIBASS_STATIC_LIBS_PATHS",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : ""
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : ""
+		},
+		{
+			"name" : "LIBASS_VERSION",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : ""
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : "0.17.4"
+		},
+		{
+			"name" : "LIBASS_libass_INCLUDEDIR",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : ""
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : ""
+		},
+		{
+			"name" : "LIBASS_libass_LIBDIR",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : ""
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : ""
+		},
+		{
+			"name" : "LIBASS_libass_PREFIX",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : ""
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : ""
+		},
+		{
+			"name" : "LIBASS_libass_VERSION",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : ""
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : ""
+		},
+		{
+			"name" : "PC_HARFBUZZ_CFLAGS",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : ""
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : "-I/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/pkgconfig/../../include/harfbuzz;-pthread;-I/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/pkgconfig/../../include;-I/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/pkgconfig/../../include/libpng16"
+		},
+		{
+			"name" : "PC_HARFBUZZ_CFLAGS_I",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : ""
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : ""
+		},
+		{
+			"name" : "PC_HARFBUZZ_CFLAGS_OTHER",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : ""
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : "-pthread"
+		},
+		{
+			"name" : "PC_HARFBUZZ_FOUND",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : ""
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : "1"
+		},
+		{
+			"name" : "PC_HARFBUZZ_INCLUDEDIR",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : ""
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/pkgconfig/../../include"
+		},
+		{
+			"name" : "PC_HARFBUZZ_INCLUDE_DIRS",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : ""
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/pkgconfig/../../include/harfbuzz;/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/pkgconfig/../../include;/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/pkgconfig/../../include/libpng16"
+		},
+		{
+			"name" : "PC_HARFBUZZ_LDFLAGS",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : ""
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : "-L/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/pkgconfig/../../lib;-lharfbuzz;-pthread;-lm;-lc++;-lm;-lfreetype;-lbz2;-lpng16;-lm;-lz;-lbrotlidec;-lbrotlicommon;-lm;-lm"
+		},
+		{
+			"name" : "PC_HARFBUZZ_LDFLAGS_OTHER",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : ""
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : "-pthread"
+		},
+		{
+			"name" : "PC_HARFBUZZ_LIBDIR",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : ""
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/pkgconfig/../../lib"
+		},
+		{
+			"name" : "PC_HARFBUZZ_LIBRARIES",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : ""
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : "harfbuzz;m;c++;m;freetype;bz2;png16;m;z;brotlidec;brotlicommon;m;m"
+		},
+		{
+			"name" : "PC_HARFBUZZ_LIBRARY_DIRS",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : ""
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/pkgconfig/../../lib"
+		},
+		{
+			"name" : "PC_HARFBUZZ_LIBS",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : ""
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : ""
+		},
+		{
+			"name" : "PC_HARFBUZZ_LIBS_L",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : ""
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : ""
+		},
+		{
+			"name" : "PC_HARFBUZZ_LIBS_OTHER",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : ""
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : ""
+		},
+		{
+			"name" : "PC_HARFBUZZ_LIBS_PATHS",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : ""
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : ""
+		},
+		{
+			"name" : "PC_HARFBUZZ_MODULE_NAME",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : ""
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : "harfbuzz"
+		},
+		{
+			"name" : "PC_HARFBUZZ_PREFIX",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : ""
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/pkgconfig/../.."
+		},
+		{
+			"name" : "PC_HARFBUZZ_STATIC_CFLAGS",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : ""
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : "-I/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/pkgconfig/../../include/harfbuzz;-pthread;-I/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/pkgconfig/../../include;-I/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/pkgconfig/../../include/libpng16"
+		},
+		{
+			"name" : "PC_HARFBUZZ_STATIC_CFLAGS_I",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : ""
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : ""
+		},
+		{
+			"name" : "PC_HARFBUZZ_STATIC_CFLAGS_OTHER",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : ""
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : "-pthread"
+		},
+		{
+			"name" : "PC_HARFBUZZ_STATIC_INCLUDE_DIRS",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : ""
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/pkgconfig/../../include/harfbuzz;/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/pkgconfig/../../include;/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/pkgconfig/../../include/libpng16"
+		},
+		{
+			"name" : "PC_HARFBUZZ_STATIC_LDFLAGS",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : ""
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : "-L/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/pkgconfig/../../lib;-lharfbuzz;-pthread;-lm;-lc++;-lm;-lfreetype;-lbz2;-lpng16;-lm;-lz;-lbrotlidec;-lbrotlicommon;-lm;-lm"
+		},
+		{
+			"name" : "PC_HARFBUZZ_STATIC_LDFLAGS_OTHER",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : ""
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : "-pthread"
+		},
+		{
+			"name" : "PC_HARFBUZZ_STATIC_LIBDIR",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : ""
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : ""
+		},
+		{
+			"name" : "PC_HARFBUZZ_STATIC_LIBRARIES",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : ""
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : "harfbuzz;m;c++;m;freetype;bz2;png16;m;z;brotlidec;brotlicommon;m;m"
+		},
+		{
+			"name" : "PC_HARFBUZZ_STATIC_LIBRARY_DIRS",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : ""
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/pkgconfig/../../lib"
+		},
+		{
+			"name" : "PC_HARFBUZZ_STATIC_LIBS",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : ""
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : ""
+		},
+		{
+			"name" : "PC_HARFBUZZ_STATIC_LIBS_L",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : ""
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : ""
+		},
+		{
+			"name" : "PC_HARFBUZZ_STATIC_LIBS_OTHER",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : ""
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : ""
+		},
+		{
+			"name" : "PC_HARFBUZZ_STATIC_LIBS_PATHS",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : ""
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : ""
+		},
+		{
+			"name" : "PC_HARFBUZZ_VERSION",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : ""
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : "14.2.0"
+		},
+		{
+			"name" : "PC_HARFBUZZ_harfbuzz_INCLUDEDIR",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : ""
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : ""
+		},
+		{
+			"name" : "PC_HARFBUZZ_harfbuzz_LIBDIR",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : ""
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : ""
+		},
+		{
+			"name" : "PC_HARFBUZZ_harfbuzz_PREFIX",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : ""
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : ""
+		},
+		{
+			"name" : "PC_HARFBUZZ_harfbuzz_VERSION",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : ""
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : ""
+		},
+		{
+			"name" : "PKG_CONFIG_ARGN",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Arguments to supply to pkg-config"
+				}
+			],
+			"type" : "STRING",
+			"value" : ""
+		},
+		{
+			"name" : "PKG_CONFIG_EXECUTABLE",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "pkg-config executable"
+				}
+			],
+			"type" : "FILEPATH",
+			"value" : "/opt/homebrew/bin/pkg-config"
+		},
+		{
+			"name" : "PNG_LIBRARY_DEBUG",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Path to a library."
+				}
+			],
+			"type" : "FILEPATH",
+			"value" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/debug/lib/libpng16d.a"
+		},
+		{
+			"name" : "PNG_LIBRARY_RELEASE",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Path to a library."
+				}
+			],
+			"type" : "FILEPATH",
+			"value" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/libpng16.a"
+		},
+		{
+			"name" : "PNG_PNG_INCLUDE_DIR",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Path to a file."
+				}
+			],
+			"type" : "PATH",
+			"value" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/include"
+		},
+		{
+			"name" : "SDL3_DIR",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "The directory containing a CMake configuration file for SDL3."
+				}
+			],
+			"type" : "PATH",
+			"value" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/share/sdl3"
+		},
+		{
+			"name" : "SDL3_ttf_DIR",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "The directory containing a CMake configuration file for SDL3_ttf."
+				}
+			],
+			"type" : "PATH",
+			"value" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/share/sdl3_ttf"
+		},
+		{
+			"name" : "VCPKG_APPLOCAL_DEPS",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "Automatically copy dependencies into the output directory for executables."
+				}
+			],
+			"type" : "BOOL",
+			"value" : "ON"
+		},
+		{
+			"name" : "VCPKG_BOOTSTRAP_OPTIONS",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "Additional options to bootstrap vcpkg"
+				}
+			],
+			"type" : "STRING",
+			"value" : ""
+		},
+		{
+			"name" : "VCPKG_CHAINLOAD_TOOLCHAIN_FILE",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "No help, variable specified on the command line."
+				}
+			],
+			"type" : "UNINITIALIZED",
+			"value" : "/Users/nero/Library/Android/sdk/ndk/25.1.8937393/build/cmake/android.toolchain.cmake"
+		},
+		{
+			"name" : "VCPKG_INSTALLED_DIR",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "The directory which contains the installed libraries for each triplet"
+				}
+			],
+			"type" : "PATH",
+			"value" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed"
+		},
+		{
+			"name" : "VCPKG_INSTALL_OPTIONS",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "Additional install options to pass to vcpkg"
+				}
+			],
+			"type" : "STRING",
+			"value" : ""
+		},
+		{
+			"name" : "VCPKG_MANIFEST_DIR",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "The path to the vcpkg manifest directory."
+				}
+			],
+			"type" : "PATH",
+			"value" : "/Users/nero/Codes/Kotonoha"
+		},
+		{
+			"name" : "VCPKG_MANIFEST_INSTALL",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "Install the dependencies listed in your manifest:\n    If this is off, you will have to manually install your dependencies.\n    See https://github.com/microsoft/vcpkg/tree/master/docs/specifications/manifests.md for more info.\n"
+				}
+			],
+			"type" : "BOOL",
+			"value" : "ON"
+		},
+		{
+			"name" : "VCPKG_MANIFEST_MODE",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "Use manifest mode, as opposed to classic mode."
+				}
+			],
+			"type" : "BOOL",
+			"value" : "ON"
+		},
+		{
+			"name" : "VCPKG_OVERLAY_PORTS",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "Overlay ports to use for vcpkg install in manifest mode"
+				}
+			],
+			"type" : "STRING",
+			"value" : ""
+		},
+		{
+			"name" : "VCPKG_OVERLAY_TRIPLETS",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "Overlay triplets to use for vcpkg install in manifest mode"
+				}
+			],
+			"type" : "STRING",
+			"value" : ""
+		},
+		{
+			"name" : "VCPKG_PREFER_SYSTEM_LIBS",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "Appends the vcpkg paths to CMAKE_PREFIX_PATH, CMAKE_LIBRARY_PATH and CMAKE_FIND_ROOT_PATH so that vcpkg libraries/packages are found after toolchain/system libraries/packages."
+				}
+			],
+			"type" : "BOOL",
+			"value" : "OFF"
+		},
+		{
+			"name" : "VCPKG_SETUP_CMAKE_PROGRAM_PATH",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "Enable the setup of CMAKE_PROGRAM_PATH to vcpkg paths"
+				}
+			],
+			"type" : "BOOL",
+			"value" : "ON"
+		},
+		{
+			"name" : "VCPKG_TARGET_TRIPLET",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "Vcpkg target triplet (ex. x86-windows)"
+				}
+			],
+			"type" : "STRING",
+			"value" : "arm64-android"
+		},
+		{
+			"name" : "VCPKG_TRACE_FIND_PACKAGE",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "Trace calls to find_package()"
+				}
+			],
+			"type" : "BOOL",
+			"value" : "OFF"
+		},
+		{
+			"name" : "VCPKG_USE_LEGACY_APPLOCAL",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "Use applocal.ps1 instead of vcpkg z-applocal."
+				}
+			],
+			"type" : "BOOL",
+			"value" : "OFF"
+		},
+		{
+			"name" : "VCPKG_VERBOSE",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Enables messages from the VCPKG toolchain for debugging purposes."
+				}
+			],
+			"type" : "BOOL",
+			"value" : "OFF"
+		},
+		{
+			"name" : "X_VCPKG_APPLOCAL_DEPS_INSTALL",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "(experimental) Automatically copy dependencies into the install target directory for executables. Requires CMake 3.14."
+				}
+			],
+			"type" : "BOOL",
+			"value" : "OFF"
+		},
+		{
+			"name" : "X_VCPKG_APPLOCAL_DEPS_SERIALIZED",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "(experimental) Add USES_TERMINAL to VCPKG_APPLOCAL_DEPS to force serialization."
+				}
+			],
+			"type" : "BOOL",
+			"value" : "OFF"
+		},
+		{
+			"name" : "ZLIB_INCLUDE_DIR",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Path to a file."
+				}
+			],
+			"type" : "PATH",
+			"value" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/include"
+		},
+		{
+			"name" : "ZLIB_LIBRARY_DEBUG",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Path to a library."
+				}
+			],
+			"type" : "FILEPATH",
+			"value" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/debug/lib/libz.a"
+		},
+		{
+			"name" : "ZLIB_LIBRARY_RELEASE",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Path to a library."
+				}
+			],
+			"type" : "FILEPATH",
+			"value" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/libz.a"
+		},
+		{
+			"name" : "Z_VCPKG_CHECK_MANIFEST_MODE",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "Making sure VCPKG_MANIFEST_MODE doesn't change"
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : "ON"
+		},
+		{
+			"name" : "Z_VCPKG_CL",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "Path to a program."
+				}
+			],
+			"type" : "FILEPATH",
+			"value" : "Z_VCPKG_CL-NOTFOUND"
+		},
+		{
+			"name" : "Z_VCPKG_ROOT_DIR",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "Vcpkg root directory"
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : "/Users/nero/Codes/vcpkg"
+		},
+		{
+			"name" : "_VCPKG_INSTALLED_DIR",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "The directory which contains the installed libraries for each triplet"
+				}
+			],
+			"type" : "PATH",
+			"value" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed"
+		},
+		{
+			"name" : "__pkg_config_arguments_LIBASS",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : ""
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : "REQUIRED;IMPORTED_TARGET;GLOBAL;libass"
+		},
+		{
+			"name" : "__pkg_config_arguments_PC_HARFBUZZ",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : ""
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : "QUIET;harfbuzz"
+		},
+		{
+			"name" : "__pkg_config_checked_LIBASS",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : ""
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : "1"
+		},
+		{
+			"name" : "__pkg_config_checked_PC_HARFBUZZ",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : ""
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : "1"
+		},
+		{
+			"name" : "expat_DIR",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "The directory containing a CMake configuration file for expat."
+				}
+			],
+			"type" : "PATH",
+			"value" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/share/expat"
+		},
+		{
+			"name" : "freetype_DIR",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "The directory containing a CMake configuration file for freetype."
+				}
+			],
+			"type" : "PATH",
+			"value" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/share/freetype"
+		},
+		{
+			"name" : "harfbuzz_COMPILE_OPTIONS",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "Extra compile flags of harfbuzz"
+				}
+			],
+			"type" : "STRING",
+			"value" : "-pthread"
+		},
+		{
+			"name" : "harfbuzz_INCLUDE_PATH",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "Path to a file."
+				}
+			],
+			"type" : "PATH",
+			"value" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/include/harfbuzz"
+		},
+		{
+			"name" : "harfbuzz_LIBRARY",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "Path to a library."
+				}
+			],
+			"type" : "FILEPATH",
+			"value" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/libharfbuzz.a"
+		},
+		{
+			"name" : "harfbuzz_LINK_DIRECTORIES",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "Extra link directories of harfbuzz"
+				}
+			],
+			"type" : "PATH",
+			"value" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/pkgconfig/../../lib"
+		},
+		{
+			"name" : "harfbuzz_LINK_LIBRARIES",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "Extra link libraries of harfbuzz"
+				}
+			],
+			"type" : "STRING",
+			"value" : "m;c++;m;freetype;bz2;png16;m;z;brotlidec;brotlicommon;m;m"
+		},
+		{
+			"name" : "harfbuzz_LINK_OPTIONS",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "Extra link flags of harfbuzz"
+				}
+			],
+			"type" : "STRING",
+			"value" : "-pthread"
+		},
+		{
+			"name" : "imgui_DIR",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "The directory containing a CMake configuration file for imgui."
+				}
+			],
+			"type" : "PATH",
+			"value" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/share/imgui"
+		},
+		{
+			"name" : "pkgcfg_lib_LIBASS_ass",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Path to a library."
+				}
+			],
+			"type" : "FILEPATH",
+			"value" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/libass.a"
+		},
+		{
+			"name" : "pkgcfg_lib_LIBASS_brotlicommon",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Path to a library."
+				}
+			],
+			"type" : "FILEPATH",
+			"value" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/libbrotlicommon.a"
+		},
+		{
+			"name" : "pkgcfg_lib_LIBASS_brotlidec",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Path to a library."
+				}
+			],
+			"type" : "FILEPATH",
+			"value" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/libbrotlidec.a"
+		},
+		{
+			"name" : "pkgcfg_lib_LIBASS_bz2",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Path to a library."
+				}
+			],
+			"type" : "FILEPATH",
+			"value" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/libbz2.a"
+		},
+		{
+			"name" : "pkgcfg_lib_LIBASS_c++",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Path to a library."
+				}
+			],
+			"type" : "FILEPATH",
+			"value" : "/Users/nero/Library/Android/sdk/ndk/25.1.8937393/toolchains/llvm/prebuilt/darwin-x86_64/sysroot/usr/lib/aarch64-linux-android/28/libc++.so"
+		},
+		{
+			"name" : "pkgcfg_lib_LIBASS_expat",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Path to a library."
+				}
+			],
+			"type" : "FILEPATH",
+			"value" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/libexpat.a"
+		},
+		{
+			"name" : "pkgcfg_lib_LIBASS_fontconfig",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Path to a library."
+				}
+			],
+			"type" : "FILEPATH",
+			"value" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/libfontconfig.a"
+		},
+		{
+			"name" : "pkgcfg_lib_LIBASS_freetype",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Path to a library."
+				}
+			],
+			"type" : "FILEPATH",
+			"value" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/libfreetype.a"
+		},
+		{
+			"name" : "pkgcfg_lib_LIBASS_fribidi",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Path to a library."
+				}
+			],
+			"type" : "FILEPATH",
+			"value" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/libfribidi.a"
+		},
+		{
+			"name" : "pkgcfg_lib_LIBASS_harfbuzz",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Path to a library."
+				}
+			],
+			"type" : "FILEPATH",
+			"value" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/libharfbuzz.a"
+		},
+		{
+			"name" : "pkgcfg_lib_LIBASS_m",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Path to a library."
+				}
+			],
+			"type" : "FILEPATH",
+			"value" : "/Users/nero/Library/Android/sdk/ndk/25.1.8937393/toolchains/llvm/prebuilt/darwin-x86_64/sysroot/usr/lib/aarch64-linux-android/28/libm.so"
+		},
+		{
+			"name" : "pkgcfg_lib_LIBASS_png16",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Path to a library."
+				}
+			],
+			"type" : "FILEPATH",
+			"value" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/libpng16.a"
+		},
+		{
+			"name" : "pkgcfg_lib_LIBASS_unibreak",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Path to a library."
+				}
+			],
+			"type" : "FILEPATH",
+			"value" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/libunibreak.a"
+		},
+		{
+			"name" : "pkgcfg_lib_LIBASS_z",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Path to a library."
+				}
+			],
+			"type" : "FILEPATH",
+			"value" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/libz.a"
+		},
+		{
+			"name" : "pkgcfg_lib_PC_HARFBUZZ_brotlicommon",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Path to a library."
+				}
+			],
+			"type" : "FILEPATH",
+			"value" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/libbrotlicommon.a"
+		},
+		{
+			"name" : "pkgcfg_lib_PC_HARFBUZZ_brotlidec",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Path to a library."
+				}
+			],
+			"type" : "FILEPATH",
+			"value" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/libbrotlidec.a"
+		},
+		{
+			"name" : "pkgcfg_lib_PC_HARFBUZZ_bz2",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Path to a library."
+				}
+			],
+			"type" : "FILEPATH",
+			"value" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/libbz2.a"
+		},
+		{
+			"name" : "pkgcfg_lib_PC_HARFBUZZ_c++",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Path to a library."
+				}
+			],
+			"type" : "FILEPATH",
+			"value" : "/Users/nero/Library/Android/sdk/ndk/25.1.8937393/toolchains/llvm/prebuilt/darwin-x86_64/sysroot/usr/lib/aarch64-linux-android/28/libc++.so"
+		},
+		{
+			"name" : "pkgcfg_lib_PC_HARFBUZZ_freetype",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Path to a library."
+				}
+			],
+			"type" : "FILEPATH",
+			"value" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/libfreetype.a"
+		},
+		{
+			"name" : "pkgcfg_lib_PC_HARFBUZZ_harfbuzz",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Path to a library."
+				}
+			],
+			"type" : "FILEPATH",
+			"value" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/libharfbuzz.a"
+		},
+		{
+			"name" : "pkgcfg_lib_PC_HARFBUZZ_m",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Path to a library."
+				}
+			],
+			"type" : "FILEPATH",
+			"value" : "/Users/nero/Library/Android/sdk/ndk/25.1.8937393/toolchains/llvm/prebuilt/darwin-x86_64/sysroot/usr/lib/aarch64-linux-android/28/libm.so"
+		},
+		{
+			"name" : "pkgcfg_lib_PC_HARFBUZZ_png16",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Path to a library."
+				}
+			],
+			"type" : "FILEPATH",
+			"value" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/libpng16.a"
+		},
+		{
+			"name" : "pkgcfg_lib_PC_HARFBUZZ_z",
+			"properties" : 
+			[
+				{
+					"name" : "ADVANCED",
+					"value" : "1"
+				},
+				{
+					"name" : "HELPSTRING",
+					"value" : "Path to a library."
+				}
+			],
+			"type" : "FILEPATH",
+			"value" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/libz.a"
+		},
+		{
+			"name" : "prefix_result",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : ""
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/pkgconfig/../../lib"
+		}
+	],
+	"kind" : "cache",
+	"version" : 
+	{
+		"major" : 2,
+		"minor" : 0
+	}
+}
