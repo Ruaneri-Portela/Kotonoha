@@ -1,0 +1,711 @@
+{
+	"artifacts" : 
+	[
+		{
+			"path" : "/Users/nero/Codes/Kotonoha/android-project/app/build/intermediates/cxx/RelWithDebInfo/1d4d4t5c/obj/arm64-v8a/libKotonoha.so"
+		}
+	],
+	"backtrace" : 2,
+	"backtraceGraph" : 
+	{
+		"commands" : 
+		[
+			"_add_library",
+			"add_library",
+			"target_link_libraries",
+			"target_link_directories",
+			"target_include_directories"
+		],
+		"files" : 
+		[
+			"/Users/nero/Codes/vcpkg/scripts/buildsystems/vcpkg.cmake",
+			"CMakeLists.txt"
+		],
+		"nodes" : 
+		[
+			{
+				"file" : 1
+			},
+			{
+				"command" : 1,
+				"file" : 1,
+				"line" : 70,
+				"parent" : 0
+			},
+			{
+				"command" : 0,
+				"file" : 0,
+				"line" : 666,
+				"parent" : 1
+			},
+			{
+				"command" : 2,
+				"file" : 1,
+				"line" : 83,
+				"parent" : 0
+			},
+			{
+				"command" : 3,
+				"file" : 1,
+				"line" : 79,
+				"parent" : 0
+			},
+			{
+				"command" : 4,
+				"file" : 1,
+				"line" : 74,
+				"parent" : 0
+			}
+		]
+	},
+	"compileGroups" : 
+	[
+		{
+			"compileCommandFragments" : 
+			[
+				{
+					"fragment" : "-g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security   -O2 -g -DNDEBUG -fPIC"
+				},
+				{
+					"backtrace" : 3,
+					"fragment" : "-pthread"
+				},
+				{
+					"backtrace" : 3,
+					"fragment" : "-DXML_STATIC"
+				}
+			],
+			"defines" : 
+			[
+				{
+					"backtrace" : 3,
+					"define" : "IMGUI_ENABLE_FREETYPE"
+				},
+				{
+					"define" : "Kotonoha_EXPORTS"
+				}
+			],
+			"includes" : 
+			[
+				{
+					"backtrace" : 5,
+					"path" : "/Users/nero/Codes/Kotonoha/include"
+				},
+				{
+					"backtrace" : 5,
+					"isSystem" : true,
+					"path" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/include"
+				},
+				{
+					"backtrace" : 3,
+					"isSystem" : true,
+					"path" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/pkgconfig/../../include"
+				},
+				{
+					"backtrace" : 3,
+					"isSystem" : true,
+					"path" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/pkgconfig/../../include/fribidi"
+				},
+				{
+					"backtrace" : 3,
+					"isSystem" : true,
+					"path" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/pkgconfig/../../include/harfbuzz"
+				},
+				{
+					"backtrace" : 3,
+					"isSystem" : true,
+					"path" : "/opt/homebrew/Cellar/libunibreak/7.0/include"
+				},
+				{
+					"backtrace" : 3,
+					"isSystem" : true,
+					"path" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/pkgconfig/../../include/libpng16"
+				}
+			],
+			"language" : "CXX",
+			"sourceIndexes" : 
+			[
+				0,
+				1,
+				2,
+				3,
+				4,
+				5,
+				6,
+				7,
+				8,
+				9,
+				10,
+				11
+			],
+			"sysroot" : 
+			{
+				"path" : "/Users/nero/Library/Android/sdk/ndk/25.1.8937393/toolchains/llvm/prebuilt/darwin-x86_64/sysroot"
+			}
+		},
+		{
+			"compileCommandFragments" : 
+			[
+				{
+					"fragment" : "-g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security  -O2 -g -DNDEBUG -fPIC"
+				},
+				{
+					"backtrace" : 3,
+					"fragment" : "-pthread"
+				},
+				{
+					"backtrace" : 3,
+					"fragment" : "-DXML_STATIC"
+				}
+			],
+			"defines" : 
+			[
+				{
+					"backtrace" : 3,
+					"define" : "IMGUI_ENABLE_FREETYPE"
+				},
+				{
+					"define" : "Kotonoha_EXPORTS"
+				}
+			],
+			"includes" : 
+			[
+				{
+					"backtrace" : 5,
+					"path" : "/Users/nero/Codes/Kotonoha/include"
+				},
+				{
+					"backtrace" : 5,
+					"isSystem" : true,
+					"path" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/include"
+				},
+				{
+					"backtrace" : 3,
+					"isSystem" : true,
+					"path" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/pkgconfig/../../include"
+				},
+				{
+					"backtrace" : 3,
+					"isSystem" : true,
+					"path" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/pkgconfig/../../include/fribidi"
+				},
+				{
+					"backtrace" : 3,
+					"isSystem" : true,
+					"path" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/pkgconfig/../../include/harfbuzz"
+				},
+				{
+					"backtrace" : 3,
+					"isSystem" : true,
+					"path" : "/opt/homebrew/Cellar/libunibreak/7.0/include"
+				},
+				{
+					"backtrace" : 3,
+					"isSystem" : true,
+					"path" : "/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib/pkgconfig/../../include/libpng16"
+				}
+			],
+			"language" : "C",
+			"sourceIndexes" : 
+			[
+				12,
+				13,
+				14,
+				15,
+				16,
+				17,
+				18,
+				19,
+				20,
+				21
+			],
+			"sysroot" : 
+			{
+				"path" : "/Users/nero/Library/Android/sdk/ndk/25.1.8937393/toolchains/llvm/prebuilt/darwin-x86_64/sysroot"
+			}
+		}
+	],
+	"dependencies" : 
+	[
+		{
+			"backtrace" : 3,
+			"id" : "SDL3::@6890427a1f51a3e7e1df"
+		},
+		{
+			"backtrace" : 3,
+			"id" : "SDL3_ttf::@6890427a1f51a3e7e1df"
+		}
+	],
+	"id" : "Kotonoha::@6890427a1f51a3e7e1df",
+	"link" : 
+	{
+		"commandFragments" : 
+		[
+			{
+				"fragment" : "-Wl,--build-id=sha1 -Wl,--no-rosegment -Wl,--fatal-warnings -Wl,--gc-sections -Wl,--no-undefined -Qunused-arguments",
+				"role" : "flags"
+			},
+			{
+				"backtrace" : 3,
+				"fragment" : "-Wl,-u,JNI_OnLoad",
+				"role" : "flags"
+			},
+			{
+				"backtrace" : 3,
+				"fragment" : "-pthread",
+				"role" : "flags"
+			},
+			{
+				"backtrace" : 4,
+				"fragment" : "-L/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/lib",
+				"role" : "libraryPath"
+			},
+			{
+				"backtrace" : 4,
+				"fragment" : "-L/Users/nero/Codes/Kotonoha/android-project/app/.cxx/RelWithDebInfo/1d4d4t5c/arm64-v8a/vcpkg_installed/arm64-android/debug/lib",
+				"role" : "libraryPath"
+			},
+			{
+				"backtrace" : 3,
+				"fragment" : "../../../../build/intermediates/cxx/RelWithDebInfo/1d4d4t5c/obj/arm64-v8a/libSDL3_ttf.so",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 3,
+				"fragment" : "vcpkg_installed/arm64-android/lib/libimgui.a",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 3,
+				"fragment" : "vcpkg_installed/arm64-android/lib/libavdevice.a",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 3,
+				"fragment" : "vcpkg_installed/arm64-android/lib/libavfilter.a",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 3,
+				"fragment" : "vcpkg_installed/arm64-android/lib/libavformat.a",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 3,
+				"fragment" : "vcpkg_installed/arm64-android/lib/libavcodec.a",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 3,
+				"fragment" : "vcpkg_installed/arm64-android/lib/libswresample.a",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 3,
+				"fragment" : "vcpkg_installed/arm64-android/lib/libswscale.a",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 3,
+				"fragment" : "vcpkg_installed/arm64-android/lib/libavutil.a",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 3,
+				"fragment" : "/Users/nero/Library/Android/sdk/ndk/25.1.8937393/toolchains/llvm/prebuilt/darwin-x86_64/sysroot/usr/lib/aarch64-linux-android/28/libcamera2ndk.so",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 3,
+				"fragment" : "-lm",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 3,
+				"fragment" : "vcpkg_installed/arm64-android/lib/libz.a",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 3,
+				"fragment" : "-latomic",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 3,
+				"fragment" : "/Users/nero/Library/Android/sdk/ndk/25.1.8937393/toolchains/llvm/prebuilt/darwin-x86_64/sysroot/usr/lib/aarch64-linux-android/28/libandroid.so",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 3,
+				"fragment" : "/Users/nero/Library/Android/sdk/ndk/25.1.8937393/toolchains/llvm/prebuilt/darwin-x86_64/sysroot/usr/lib/aarch64-linux-android/28/libmediandk.so",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 3,
+				"fragment" : "-pthread",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 3,
+				"fragment" : "vcpkg_installed/arm64-android/lib/libexpat.a",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 3,
+				"fragment" : "-landroid",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 3,
+				"fragment" : "-lmediandk",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 3,
+				"fragment" : "-llog",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 3,
+				"fragment" : "-latomic",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 3,
+				"fragment" : "-lm",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 3,
+				"fragment" : "../../../../build/intermediates/cxx/RelWithDebInfo/1d4d4t5c/obj/arm64-v8a/libSDL3.so",
+				"role" : "libraries"
+			},
+			{
+				"fragment" : "vcpkg_installed/arm64-android/lib/libSDL3.a",
+				"role" : "libraries"
+			},
+			{
+				"fragment" : "-lOpenSLES",
+				"role" : "libraries"
+			},
+			{
+				"fragment" : "-ldl",
+				"role" : "libraries"
+			},
+			{
+				"fragment" : "-lGLESv1_CM",
+				"role" : "libraries"
+			},
+			{
+				"fragment" : "-lGLESv2",
+				"role" : "libraries"
+			},
+			{
+				"fragment" : "vcpkg_installed/arm64-android/lib/libfreetype.a",
+				"role" : "libraries"
+			},
+			{
+				"fragment" : "vcpkg_installed/arm64-android/lib/libbz2.a",
+				"role" : "libraries"
+			},
+			{
+				"fragment" : "vcpkg_installed/arm64-android/lib/libpng16.a",
+				"role" : "libraries"
+			},
+			{
+				"fragment" : "vcpkg_installed/arm64-android/lib/libz.a",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 3,
+				"fragment" : "/Users/nero/Library/Android/sdk/ndk/25.1.8937393/toolchains/llvm/prebuilt/darwin-x86_64/sysroot/usr/lib/aarch64-linux-android/28/libandroid.so",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 3,
+				"fragment" : "/Users/nero/Library/Android/sdk/ndk/25.1.8937393/toolchains/llvm/prebuilt/darwin-x86_64/sysroot/usr/lib/aarch64-linux-android/28/libmediandk.so",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 3,
+				"fragment" : "-lmediandk",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 3,
+				"fragment" : "-landroid",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 3,
+				"fragment" : "-llog",
+				"role" : "libraries"
+			},
+			{
+				"fragment" : "vcpkg_installed/arm64-android/lib/libass.a",
+				"role" : "libraries"
+			},
+			{
+				"fragment" : "vcpkg_installed/arm64-android/lib/libfribidi.a",
+				"role" : "libraries"
+			},
+			{
+				"fragment" : "vcpkg_installed/arm64-android/lib/libharfbuzz.a",
+				"role" : "libraries"
+			},
+			{
+				"fragment" : "-lc++",
+				"role" : "libraries"
+			},
+			{
+				"fragment" : "vcpkg_installed/arm64-android/lib/libunibreak.a",
+				"role" : "libraries"
+			},
+			{
+				"fragment" : "vcpkg_installed/arm64-android/lib/libfontconfig.a",
+				"role" : "libraries"
+			},
+			{
+				"fragment" : "/Users/nero/Library/Android/sdk/ndk/25.1.8937393/toolchains/llvm/prebuilt/darwin-x86_64/sysroot/usr/lib/aarch64-linux-android/28/libm.so",
+				"role" : "libraries"
+			},
+			{
+				"fragment" : "vcpkg_installed/arm64-android/lib/libfreetype.a",
+				"role" : "libraries"
+			},
+			{
+				"fragment" : "vcpkg_installed/arm64-android/lib/libbz2.a",
+				"role" : "libraries"
+			},
+			{
+				"fragment" : "vcpkg_installed/arm64-android/lib/libpng16.a",
+				"role" : "libraries"
+			},
+			{
+				"fragment" : "vcpkg_installed/arm64-android/lib/libexpat.a",
+				"role" : "libraries"
+			},
+			{
+				"fragment" : "/Users/nero/Library/Android/sdk/ndk/25.1.8937393/toolchains/llvm/prebuilt/darwin-x86_64/sysroot/usr/lib/aarch64-linux-android/28/libm.so",
+				"role" : "libraries"
+			},
+			{
+				"fragment" : "vcpkg_installed/arm64-android/lib/libfreetype.a",
+				"role" : "libraries"
+			},
+			{
+				"fragment" : "vcpkg_installed/arm64-android/lib/libbz2.a",
+				"role" : "libraries"
+			},
+			{
+				"fragment" : "vcpkg_installed/arm64-android/lib/libpng16.a",
+				"role" : "libraries"
+			},
+			{
+				"fragment" : "vcpkg_installed/arm64-android/lib/libexpat.a",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 3,
+				"fragment" : "vcpkg_installed/arm64-android/lib/libz.a",
+				"role" : "libraries"
+			},
+			{
+				"fragment" : "vcpkg_installed/arm64-android/lib/libbrotlidec.a",
+				"role" : "libraries"
+			},
+			{
+				"fragment" : "vcpkg_installed/arm64-android/lib/libbrotlicommon.a",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 3,
+				"fragment" : "-lm",
+				"role" : "libraries"
+			},
+			{
+				"fragment" : "-latomic -lm",
+				"role" : "libraries"
+			}
+		],
+		"language" : "CXX",
+		"sysroot" : 
+		{
+			"path" : "/Users/nero/Library/Android/sdk/ndk/25.1.8937393/toolchains/llvm/prebuilt/darwin-x86_64/sysroot"
+		}
+	},
+	"name" : "Kotonoha",
+	"nameOnDisk" : "libKotonoha.so",
+	"paths" : 
+	{
+		"build" : ".",
+		"source" : "."
+	},
+	"sourceGroups" : 
+	[
+		{
+			"name" : "Source Files",
+			"sourceIndexes" : 
+			[
+				0,
+				1,
+				2,
+				3,
+				4,
+				5,
+				6,
+				7,
+				8,
+				9,
+				10,
+				11,
+				12,
+				13,
+				14,
+				15,
+				16,
+				17,
+				18,
+				19,
+				20,
+				21
+			]
+		}
+	],
+	"sources" : 
+	[
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "src/Android.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "src/BasicGui.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "src/Gameplay.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "src/Kotonoha.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "src/Main.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "src/components/Audio.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "src/components/Canvas.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "src/components/Events.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "src/components/Image.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "src/components/Prompt.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "src/components/Sound.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "src/components/Video.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 1,
+			"path" : "src/parsers/Ors.c",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 1,
+			"path" : "src/renders/AudioRender.c",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 1,
+			"path" : "src/renders/FPSrender.c",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 1,
+			"path" : "src/renders/ImageRender.c",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 1,
+			"path" : "src/renders/TextRender.c",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 1,
+			"path" : "src/renders/TimestampRender.c",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 1,
+			"path" : "src/renders/VideoRender.c",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 1,
+			"path" : "src/utils/FFmpeg.c",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 1,
+			"path" : "src/utils/Time.c",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 1,
+			"path" : "src/utils/UserEvents.c",
+			"sourceGroupIndex" : 0
+		}
+	],
+	"type" : "SHARED_LIBRARY"
+}
