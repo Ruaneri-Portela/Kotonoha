@@ -663,3 +663,4 @@ vcpkg_installed/
 zips/
 assets/
 /imgui.ini
+.vscode
