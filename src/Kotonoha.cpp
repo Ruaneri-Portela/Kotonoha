@@ -350,6 +350,11 @@ namespace Kotonoha {
 				gameContext.flags = SDL_GetWindowFlags(gameContext.window);
 				break;
 
+			case 'o':
+				*arg = '!';
+				gameContext.flags |= SDL_WINDOW_OPENGL;
+				break;
+
 			case 'x':
 				*arg = '!';
 				if (i + 2 < argc) {
