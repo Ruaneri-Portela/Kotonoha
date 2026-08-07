@@ -300,6 +300,7 @@ namespace Kotonoha {
 				}
 				else {
 					SDL_LogError(0, "Missing argument for -l option (gameplay file)");
+                    return false;
 				}
 				break;
 
@@ -317,6 +318,7 @@ namespace Kotonoha {
 				}
 				else {
 					SDL_LogError(0, "Missing argument for -p option (assets path)");
+                    return false;
 				}
 				break;
 
@@ -330,6 +332,7 @@ namespace Kotonoha {
 				}
 				else {
 					SDL_LogError(0, "Missing argument for -s option (subtitle styles file)");
+                    return false;
 				}
 				break;
 
@@ -340,6 +343,7 @@ namespace Kotonoha {
 				}
 				else {
 					SDL_LogError(0, "Missing argument for -r option (preferred GPU)");
+                    return false;
 				}
 				break;
 
@@ -348,11 +352,6 @@ namespace Kotonoha {
 				SDL_SetWindowFullscreen(gameContext.window,
 					!(gameContext.flags & SDL_WINDOW_FULLSCREEN));
 				gameContext.flags = SDL_GetWindowFlags(gameContext.window);
-				break;
-
-			case 'o':
-				*arg = '!';
-				gameContext.flags |= SDL_WINDOW_OPENGL;
 				break;
 
 			case 'x':
@@ -364,6 +363,7 @@ namespace Kotonoha {
 				}
 				else {
 					SDL_LogError(0, "Missing arguments for -x option (width and height)");
+                    return false;
 				}
 				break;
 
@@ -374,6 +374,7 @@ namespace Kotonoha {
 				*arg = '!';
 				if (!SDL_SetRenderVSync(gameContext.render, 1)) {
 					SDL_LogError(0, "Failed to enable VSync: %s", SDL_GetError());
+                    return false;
 				}
 				break;
 

@@ -7,7 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		CE3D91B9301AA23C002D7CDF /* libimgui.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CE3D91B8301AA23C002D7CDF /* libimgui.a */; };
 		CE540D2E2FCD0843006FA974 /* Audio.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CE540D0F2FCD0843006FA974 /* Audio.cpp */; };
 		CE540D2F2FCD0843006FA974 /* Time.c in Sources */ = {isa = PBXBuildFile; fileRef = CE540D212FCD0843006FA974 /* Time.c */; };
 		CE540D302FCD0843006FA974 /* Video.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CE540D152FCD0843006FA974 /* Video.cpp */; };
@@ -29,35 +28,6 @@
 		CE540D402FCD0843006FA974 /* TextRender.c in Sources */ = {isa = PBXBuildFile; fileRef = CE540D1C2FCD0843006FA974 /* TextRender.c */; };
 		CE540D412FCD0843006FA974 /* Android.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CE540D242FCD0843006FA974 /* Android.cpp */; };
 		CE540D422FCD0843006FA974 /* Image.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CE540D122FCD0843006FA974 /* Image.cpp */; };
-		CE540E422FCD0CB5006FA974 /* libavcodec.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CE540E2F2FCD0CA9006FA974 /* libavcodec.a */; };
-		CE540E432FCD0CB5006FA974 /* libavformat.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CE540E3E2FCD0CA9006FA974 /* libavformat.a */; };
-		CE540E442FCD0CB5006FA974 /* libavfilter.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CE540E2B2FCD0CA9006FA974 /* libavfilter.a */; };
-		CE540E452FCD0CB5006FA974 /* libswscale.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CE540E282FCD0CA9006FA974 /* libswscale.a */; };
-		CE540E462FCD0CB5006FA974 /* libharfbuzz-subset.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CE540E3F2FCD0CA9006FA974 /* libharfbuzz-subset.a */; };
-		CE540E472FCD0CB5006FA974 /* libSDL3.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CE540E272FCD0CA9006FA974 /* libSDL3.a */; };
-		CE540E482FCD0CB5006FA974 /* libavutil.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CE540E352FCD0CA9006FA974 /* libavutil.a */; };
-		CE540E492FCD0CB5006FA974 /* libharfbuzz.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CE540E3D2FCD0CA9006FA974 /* libharfbuzz.a */; };
-		CE540E4A2FCD0CB5006FA974 /* libiconv.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CE540E302FCD0CA9006FA974 /* libiconv.a */; };
-		CE540E4B2FCD0CB5006FA974 /* libfreetype.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CE540E402FCD0CA9006FA974 /* libfreetype.a */; };
-		CE540E4C2FCD0CB5006FA974 /* libbrotlienc.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CE540E3A2FCD0CA9006FA974 /* libbrotlienc.a */; };
-		CE540E4D2FCD0CB5006FA974 /* libfontconfig.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CE540E372FCD0CA9006FA974 /* libfontconfig.a */; };
-		CE540E4E2FCD0CB5006FA974 /* libswresample.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CE540E412FCD0CA9006FA974 /* libswresample.a */; };
-		CE540E4F2FCD0CB5006FA974 /* libavdevice.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CE540E362FCD0CA9006FA974 /* libavdevice.a */; };
-		CE540E502FCD0CB5006FA974 /* libpng16.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CE540E3C2FCD0CA9006FA974 /* libpng16.a */; };
-		CE540E512FCD0CB5006FA974 /* libass.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CE540E2A2FCD0CA9006FA974 /* libass.a */; };
-		CE540E522FCD0CB5006FA974 /* libharfbuzz-vector.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CE540E392FCD0CA9006FA974 /* libharfbuzz-vector.a */; };
-		CE540E532FCD0CB5006FA974 /* libexpat.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CE540E2E2FCD0CA9006FA974 /* libexpat.a */; };
-		CE540E542FCD0CB5006FA974 /* libharfbuzz-gpu.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CE540E332FCD0CA9006FA974 /* libharfbuzz-gpu.a */; };
-		CE540E552FCD0CB5006FA974 /* libunibreak.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CE540E382FCD0CA9006FA974 /* libunibreak.a */; };
-		CE540E562FCD0CB5006FA974 /* libSDL3_ttf.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CE540E252FCD0CA9006FA974 /* libSDL3_ttf.a */; };
-		CE540E572FCD0CB5006FA974 /* libfribidi.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CE540E2C2FCD0CA9006FA974 /* libfribidi.a */; };
-		CE540E582FCD0CB5006FA974 /* libbrotlicommon.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CE540E322FCD0CA9006FA974 /* libbrotlicommon.a */; };
-		CE540E592FCD0CB5006FA974 /* libz.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CE540E2D2FCD0CA9006FA974 /* libz.a */; };
-		CE540E5A2FCD0CB5006FA974 /* libharfbuzz-raster.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CE540E292FCD0CA9006FA974 /* libharfbuzz-raster.a */; };
-		CE540E5B2FCD0CB5006FA974 /* libbz2.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CE540E3B2FCD0CA9006FA974 /* libbz2.a */; };
-		CE540E5C2FCD0CB5006FA974 /* libbrotlidec.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CE540E342FCD0CA9006FA974 /* libbrotlidec.a */; };
-		CE540E5D2FCD0CB5006FA974 /* libuuid.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CE540E262FCD0CA9006FA974 /* libuuid.a */; };
-		CE540E5E2FCD0CB5006FA974 /* libcharset.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CE540E312FCD0CA9006FA974 /* libcharset.a */; };
 		CEE78CE42FCC3A450002CB9B /* CoreAudio.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CD82FCC3A450002CB9B /* CoreAudio.framework */; };
 		CEE78CE52FCC3A450002CB9B /* CoreBluetooth.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CD92FCC3A450002CB9B /* CoreBluetooth.framework */; };
 		CEE78CE62FCC3A450002CB9B /* CoreGraphics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CDA2FCC3A450002CB9B /* CoreGraphics.framework */; };
@@ -80,10 +50,38 @@
 		CEE78D002FCC3B570002CB9B /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CF62FCC3A850002CB9B /* UIKit.framework */; };
 		CEF780093017505B00B446B1 /* BasicGui.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CEF780083017505B00B446B1 /* BasicGui.cpp */; };
 		CEF7800B3017507D00B446B1 /* Main.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CEF7800A3017507D00B446B1 /* Main.cpp */; };
+		CEFF69B73025EE57000B52C3 /* libass.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CEFF69B13025EE55000B52C3 /* libass.a */; };
+		CEFF69B83025EE57000B52C3 /* libavcodec.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CEFF69B63025EE55000B52C3 /* libavcodec.a */; };
+		CEFF69B93025EE57000B52C3 /* libavdevice.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CEFF69B43025EE55000B52C3 /* libavdevice.a */; };
+		CEFF69BA3025EE57000B52C3 /* libavfilter.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CEFF69B53025EE55000B52C3 /* libavfilter.a */; };
+		CEFF69BB3025EE57000B52C3 /* libavformat.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CEFF69B23025EE55000B52C3 /* libavformat.a */; };
+		CEFF69BC3025EE57000B52C3 /* libavutil.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CEFF69B33025EE55000B52C3 /* libavutil.a */; };
+		CEFF69BF3025EE5F000B52C3 /* libSDL3_ttf.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CEFF69BE3025EE5E000B52C3 /* libSDL3_ttf.a */; };
+		CEFF69C03025EE5F000B52C3 /* libSDL3.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CEFF69BD3025EE5E000B52C3 /* libSDL3.a */; };
+		CEFF69C43025EE88000B52C3 /* libfontconfig.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CEFF69C33025EE87000B52C3 /* libfontconfig.a */; };
+		CEFF69C83025EEE4000B52C3 /* libfreetype.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CEFF69C73025EEE3000B52C3 /* libfreetype.a */; };
+		CEFF69CA3025EEE9000B52C3 /* libfribidi.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CEFF69C93025EEE8000B52C3 /* libfribidi.a */; };
+		CEFF69CB3025EF10000B52C3 /* libz.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = CEFF69C63025EEB4000B52C3 /* libz.tbd */; };
+		CEFF69CF3025EF33000B52C3 /* libcharset.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = CEFF69CE3025EF2C000B52C3 /* libcharset.tbd */; };
+		CEFF69D13025EF4D000B52C3 /* libbz2.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = CEFF69D03025EF48000B52C3 /* libbz2.tbd */; };
+		CEFF69D73025EF84000B52C3 /* libharfbuzz-gpu.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CEFF69D33025EF82000B52C3 /* libharfbuzz-gpu.a */; };
+		CEFF69D83025EF84000B52C3 /* libharfbuzz-raster.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CEFF69D63025EF82000B52C3 /* libharfbuzz-raster.a */; };
+		CEFF69D93025EF84000B52C3 /* libharfbuzz-subset.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CEFF69D23025EF82000B52C3 /* libharfbuzz-subset.a */; };
+		CEFF69DA3025EF84000B52C3 /* libharfbuzz-vector.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CEFF69D43025EF82000B52C3 /* libharfbuzz-vector.a */; };
+		CEFF69DB3025EF84000B52C3 /* libharfbuzz.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CEFF69D53025EF82000B52C3 /* libharfbuzz.a */; };
+		CEFF69DE3025EF94000B52C3 /* libswresample.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CEFF69DC3025EF93000B52C3 /* libswresample.a */; };
+		CEFF69DF3025EF94000B52C3 /* libswscale.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CEFF69DD3025EF93000B52C3 /* libswscale.a */; };
+		CEFF69E13025EFBB000B52C3 /* libbrotlienc.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CEFF69E03025EFB9000B52C3 /* libbrotlienc.a */; };
+		CEFF69E33025EFBE000B52C3 /* libbrotlidec.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CEFF69E23025EFBD000B52C3 /* libbrotlidec.a */; };
+		CEFF69E53025EFC1000B52C3 /* libbrotlicommon.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CEFF69E43025EFBF000B52C3 /* libbrotlicommon.a */; };
+		CEFF69E73025EFCB000B52C3 /* libpng.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CEFF69E63025EFCA000B52C3 /* libpng.a */; };
+		CEFF69E93025F024000B52C3 /* libexpat.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = CEFF69E83025F01F000B52C3 /* libexpat.tbd */; };
+		CEFF69EB3025F032000B52C3 /* libunibreak.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CEFF69EA3025F030000B52C3 /* libunibreak.a */; };
+		CEFF69EF3025F2C9000B52C3 /* LibIconvCompat.c in Sources */ = {isa = PBXBuildFile; fileRef = CEFF69EE3025F2C9000B52C3 /* LibIconvCompat.c */; };
+		CEFF69F53025F3DC000B52C3 /* libimgui.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CEFF69F43025F3DA000B52C3 /* libimgui.a */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		CE3D91B8301AA23C002D7CDF /* libimgui.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libimgui.a; path = "../vcpkg_installed/arm64-ios/lib/libimgui.a"; sourceTree = SOURCE_ROOT; };
 		CE540CF52FCD0736006FA974 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		CE540D0F2FCD0843006FA974 /* Audio.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Audio.cpp; sourceTree = "<group>"; };
 		CE540D102FCD0843006FA974 /* Canvas.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Canvas.cpp; sourceTree = "<group>"; };
@@ -130,35 +128,6 @@
 		CE540DA42FCD0B1C006FA974 /* Kotonoha.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Kotonoha.h; sourceTree = "<group>"; };
 		CE540DA52FCD0B1C006FA974 /* Kotonoha.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Kotonoha.hpp; sourceTree = "<group>"; };
 		CE540DA62FCD0B1C006FA974 /* version.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = version.h; sourceTree = "<group>"; };
-		CE540E252FCD0CA9006FA974 /* libSDL3_ttf.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libSDL3_ttf.a; path = "../vcpkg_installed/arm64-ios/lib/libSDL3_ttf.a"; sourceTree = "<group>"; };
-		CE540E262FCD0CA9006FA974 /* libuuid.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libuuid.a; path = "../vcpkg_installed/arm64-ios/lib/libuuid.a"; sourceTree = "<group>"; };
-		CE540E272FCD0CA9006FA974 /* libSDL3.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libSDL3.a; path = "../vcpkg_installed/arm64-ios/lib/libSDL3.a"; sourceTree = "<group>"; };
-		CE540E282FCD0CA9006FA974 /* libswscale.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libswscale.a; path = "../vcpkg_installed/arm64-ios/lib/libswscale.a"; sourceTree = "<group>"; };
-		CE540E292FCD0CA9006FA974 /* libharfbuzz-raster.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = "libharfbuzz-raster.a"; path = "../vcpkg_installed/arm64-ios/lib/libharfbuzz-raster.a"; sourceTree = "<group>"; };
-		CE540E2A2FCD0CA9006FA974 /* libass.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libass.a; path = "../vcpkg_installed/arm64-ios/lib/libass.a"; sourceTree = "<group>"; };
-		CE540E2B2FCD0CA9006FA974 /* libavfilter.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libavfilter.a; path = "../vcpkg_installed/arm64-ios/lib/libavfilter.a"; sourceTree = "<group>"; };
-		CE540E2C2FCD0CA9006FA974 /* libfribidi.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libfribidi.a; path = "../vcpkg_installed/arm64-ios/lib/libfribidi.a"; sourceTree = "<group>"; };
-		CE540E2D2FCD0CA9006FA974 /* libz.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libz.a; path = "../vcpkg_installed/arm64-ios/lib/libz.a"; sourceTree = "<group>"; };
-		CE540E2E2FCD0CA9006FA974 /* libexpat.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libexpat.a; path = "../vcpkg_installed/arm64-ios/lib/libexpat.a"; sourceTree = "<group>"; };
-		CE540E2F2FCD0CA9006FA974 /* libavcodec.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libavcodec.a; path = "../vcpkg_installed/arm64-ios/lib/libavcodec.a"; sourceTree = "<group>"; };
-		CE540E302FCD0CA9006FA974 /* libiconv.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libiconv.a; path = "../vcpkg_installed/arm64-ios/lib/libiconv.a"; sourceTree = "<group>"; };
-		CE540E312FCD0CA9006FA974 /* libcharset.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libcharset.a; path = "../vcpkg_installed/arm64-ios/lib/libcharset.a"; sourceTree = "<group>"; };
-		CE540E322FCD0CA9006FA974 /* libbrotlicommon.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libbrotlicommon.a; path = "../vcpkg_installed/arm64-ios/lib/libbrotlicommon.a"; sourceTree = "<group>"; };
-		CE540E332FCD0CA9006FA974 /* libharfbuzz-gpu.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = "libharfbuzz-gpu.a"; path = "../vcpkg_installed/arm64-ios/lib/libharfbuzz-gpu.a"; sourceTree = "<group>"; };
-		CE540E342FCD0CA9006FA974 /* libbrotlidec.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libbrotlidec.a; path = "../vcpkg_installed/arm64-ios/lib/libbrotlidec.a"; sourceTree = "<group>"; };
-		CE540E352FCD0CA9006FA974 /* libavutil.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libavutil.a; path = "../vcpkg_installed/arm64-ios/lib/libavutil.a"; sourceTree = "<group>"; };
-		CE540E362FCD0CA9006FA974 /* libavdevice.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libavdevice.a; path = "../vcpkg_installed/arm64-ios/lib/libavdevice.a"; sourceTree = "<group>"; };
-		CE540E372FCD0CA9006FA974 /* libfontconfig.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libfontconfig.a; path = "../vcpkg_installed/arm64-ios/lib/libfontconfig.a"; sourceTree = "<group>"; };
-		CE540E382FCD0CA9006FA974 /* libunibreak.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libunibreak.a; path = "../vcpkg_installed/arm64-ios/lib/libunibreak.a"; sourceTree = "<group>"; };
-		CE540E392FCD0CA9006FA974 /* libharfbuzz-vector.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = "libharfbuzz-vector.a"; path = "../vcpkg_installed/arm64-ios/lib/libharfbuzz-vector.a"; sourceTree = "<group>"; };
-		CE540E3A2FCD0CA9006FA974 /* libbrotlienc.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libbrotlienc.a; path = "../vcpkg_installed/arm64-ios/lib/libbrotlienc.a"; sourceTree = "<group>"; };
-		CE540E3B2FCD0CA9006FA974 /* libbz2.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libbz2.a; path = "../vcpkg_installed/arm64-ios/lib/libbz2.a"; sourceTree = "<group>"; };
-		CE540E3C2FCD0CA9006FA974 /* libpng16.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libpng16.a; path = "../vcpkg_installed/arm64-ios/lib/libpng16.a"; sourceTree = "<group>"; };
-		CE540E3D2FCD0CA9006FA974 /* libharfbuzz.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libharfbuzz.a; path = "../vcpkg_installed/arm64-ios/lib/libharfbuzz.a"; sourceTree = "<group>"; };
-		CE540E3E2FCD0CA9006FA974 /* libavformat.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libavformat.a; path = "../vcpkg_installed/arm64-ios/lib/libavformat.a"; sourceTree = "<group>"; };
-		CE540E3F2FCD0CA9006FA974 /* libharfbuzz-subset.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = "libharfbuzz-subset.a"; path = "../vcpkg_installed/arm64-ios/lib/libharfbuzz-subset.a"; sourceTree = "<group>"; };
-		CE540E402FCD0CA9006FA974 /* libfreetype.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libfreetype.a; path = "../vcpkg_installed/arm64-ios/lib/libfreetype.a"; sourceTree = "<group>"; };
-		CE540E412FCD0CA9006FA974 /* libswresample.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libswresample.a; path = "../vcpkg_installed/arm64-ios/lib/libswresample.a"; sourceTree = "<group>"; };
 		CEE78C312FCC37E10002CB9B /* KotonohaEngineTest.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = KotonohaEngineTest.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		CEE78CD82FCC3A450002CB9B /* CoreAudio.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreAudio.framework; path = System/Library/Frameworks/CoreAudio.framework; sourceTree = SDKROOT; };
 		CEE78CD92FCC3A450002CB9B /* CoreBluetooth.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreBluetooth.framework; path = System/Library/Frameworks/CoreBluetooth.framework; sourceTree = SDKROOT; };
@@ -181,6 +150,35 @@
 		CEE78CFE2FCC3AF40002CB9B /* CoreMotion.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreMotion.framework; path = System/Library/Frameworks/CoreMotion.framework; sourceTree = SDKROOT; };
 		CEF780083017505B00B446B1 /* BasicGui.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = BasicGui.cpp; sourceTree = "<group>"; };
 		CEF7800A3017507D00B446B1 /* Main.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Main.cpp; sourceTree = "<group>"; };
+		CEFF69B13025EE55000B52C3 /* libass.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libass.a; path = "../vcpkg_installed/arm64-ios/lib/libass.a"; sourceTree = "<group>"; };
+		CEFF69B23025EE55000B52C3 /* libavformat.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libavformat.a; path = "../vcpkg_installed/arm64-ios/lib/libavformat.a"; sourceTree = "<group>"; };
+		CEFF69B33025EE55000B52C3 /* libavutil.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libavutil.a; path = "../vcpkg_installed/arm64-ios/lib/libavutil.a"; sourceTree = "<group>"; };
+		CEFF69B43025EE55000B52C3 /* libavdevice.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libavdevice.a; path = "../vcpkg_installed/arm64-ios/lib/libavdevice.a"; sourceTree = "<group>"; };
+		CEFF69B53025EE55000B52C3 /* libavfilter.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libavfilter.a; path = "../vcpkg_installed/arm64-ios/lib/libavfilter.a"; sourceTree = "<group>"; };
+		CEFF69B63025EE55000B52C3 /* libavcodec.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libavcodec.a; path = "../vcpkg_installed/arm64-ios/lib/libavcodec.a"; sourceTree = "<group>"; };
+		CEFF69BD3025EE5E000B52C3 /* libSDL3.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libSDL3.a; path = "../vcpkg_installed/arm64-ios/lib/libSDL3.a"; sourceTree = "<group>"; };
+		CEFF69BE3025EE5E000B52C3 /* libSDL3_ttf.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libSDL3_ttf.a; path = "../vcpkg_installed/arm64-ios/lib/libSDL3_ttf.a"; sourceTree = "<group>"; };
+		CEFF69C33025EE87000B52C3 /* libfontconfig.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libfontconfig.a; path = "../vcpkg_installed/arm64-ios/lib/libfontconfig.a"; sourceTree = "<group>"; };
+		CEFF69C63025EEB4000B52C3 /* libz.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libz.tbd; path = usr/lib/libz.tbd; sourceTree = SDKROOT; };
+		CEFF69C73025EEE3000B52C3 /* libfreetype.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libfreetype.a; path = "../vcpkg_installed/arm64-ios/lib/libfreetype.a"; sourceTree = "<group>"; };
+		CEFF69C93025EEE8000B52C3 /* libfribidi.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libfribidi.a; path = "../vcpkg_installed/arm64-ios/lib/libfribidi.a"; sourceTree = "<group>"; };
+		CEFF69CE3025EF2C000B52C3 /* libcharset.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libcharset.tbd; path = usr/lib/libcharset.tbd; sourceTree = SDKROOT; };
+		CEFF69D03025EF48000B52C3 /* libbz2.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libbz2.tbd; path = usr/lib/libbz2.tbd; sourceTree = SDKROOT; };
+		CEFF69D23025EF82000B52C3 /* libharfbuzz-subset.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = "libharfbuzz-subset.a"; path = "../vcpkg_installed/arm64-ios/lib/libharfbuzz-subset.a"; sourceTree = "<group>"; };
+		CEFF69D33025EF82000B52C3 /* libharfbuzz-gpu.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = "libharfbuzz-gpu.a"; path = "../vcpkg_installed/arm64-ios/lib/libharfbuzz-gpu.a"; sourceTree = "<group>"; };
+		CEFF69D43025EF82000B52C3 /* libharfbuzz-vector.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = "libharfbuzz-vector.a"; path = "../vcpkg_installed/arm64-ios/lib/libharfbuzz-vector.a"; sourceTree = "<group>"; };
+		CEFF69D53025EF82000B52C3 /* libharfbuzz.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libharfbuzz.a; path = "../vcpkg_installed/arm64-ios/lib/libharfbuzz.a"; sourceTree = "<group>"; };
+		CEFF69D63025EF82000B52C3 /* libharfbuzz-raster.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = "libharfbuzz-raster.a"; path = "../vcpkg_installed/arm64-ios/lib/libharfbuzz-raster.a"; sourceTree = "<group>"; };
+		CEFF69DC3025EF93000B52C3 /* libswresample.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libswresample.a; path = "../vcpkg_installed/arm64-ios/lib/libswresample.a"; sourceTree = "<group>"; };
+		CEFF69DD3025EF93000B52C3 /* libswscale.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libswscale.a; path = "../vcpkg_installed/arm64-ios/lib/libswscale.a"; sourceTree = "<group>"; };
+		CEFF69E03025EFB9000B52C3 /* libbrotlienc.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libbrotlienc.a; path = "../vcpkg_installed/arm64-ios/lib/libbrotlienc.a"; sourceTree = "<group>"; };
+		CEFF69E23025EFBD000B52C3 /* libbrotlidec.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libbrotlidec.a; path = "../vcpkg_installed/arm64-ios/lib/libbrotlidec.a"; sourceTree = "<group>"; };
+		CEFF69E43025EFBF000B52C3 /* libbrotlicommon.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libbrotlicommon.a; path = "../vcpkg_installed/arm64-ios/lib/libbrotlicommon.a"; sourceTree = "<group>"; };
+		CEFF69E63025EFCA000B52C3 /* libpng.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libpng.a; path = "../vcpkg_installed/arm64-ios/lib/libpng.a"; sourceTree = "<group>"; };
+		CEFF69E83025F01F000B52C3 /* libexpat.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libexpat.tbd; path = usr/lib/libexpat.tbd; sourceTree = SDKROOT; };
+		CEFF69EA3025F030000B52C3 /* libunibreak.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libunibreak.a; path = "../vcpkg_installed/arm64-ios/lib/libunibreak.a"; sourceTree = "<group>"; };
+		CEFF69EE3025F2C9000B52C3 /* LibIconvCompat.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = LibIconvCompat.c; sourceTree = "<group>"; };
+		CEFF69F43025F3DA000B52C3 /* libimgui.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libimgui.a; path = "../vcpkg_installed/arm64-ios/lib/libimgui.a"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -188,55 +186,53 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				CE540E482FCD0CB5006FA974 /* libavutil.a in Frameworks */,
+				CEFF69BA3025EE57000B52C3 /* libavfilter.a in Frameworks */,
+				CEFF69CB3025EF10000B52C3 /* libz.tbd in Frameworks */,
+				CEFF69D83025EF84000B52C3 /* libharfbuzz-raster.a in Frameworks */,
 				CEE78D002FCC3B570002CB9B /* UIKit.framework in Frameworks */,
-				CE540E4D2FCD0CB5006FA974 /* libfontconfig.a in Frameworks */,
+				CEFF69C43025EE88000B52C3 /* libfontconfig.a in Frameworks */,
+				CEFF69DF3025EF94000B52C3 /* libswscale.a in Frameworks */,
+				CEFF69E13025EFBB000B52C3 /* libbrotlienc.a in Frameworks */,
+				CEFF69B93025EE57000B52C3 /* libavdevice.a in Frameworks */,
 				CEE78CE52FCC3A450002CB9B /* CoreBluetooth.framework in Frameworks */,
-				CE540E462FCD0CB5006FA974 /* libharfbuzz-subset.a in Frameworks */,
 				CEE78CF92FCC3A8E0002CB9B /* OpenGLES.framework in Frameworks */,
-				CE540E502FCD0CB5006FA974 /* libpng16.a in Frameworks */,
 				CEE78CF32FCC3A6E0002CB9B /* GameController.framework in Frameworks */,
 				CEE78CFB2FCC3A9B0002CB9B /* VideoToolbox.framework in Frameworks */,
-				CE540E422FCD0CB5006FA974 /* libavcodec.a in Frameworks */,
 				CEE78CE62FCC3A450002CB9B /* CoreGraphics.framework in Frameworks */,
+				CEFF69E93025F024000B52C3 /* libexpat.tbd in Frameworks */,
+				CEFF69BB3025EE57000B52C3 /* libavformat.a in Frameworks */,
 				CEE78CE82FCC3A450002CB9B /* CoreVideo.framework in Frameworks */,
-				CE540E5C2FCD0CB5006FA974 /* libbrotlidec.a in Frameworks */,
-				CE540E472FCD0CB5006FA974 /* libSDL3.a in Frameworks */,
-				CE540E542FCD0CB5006FA974 /* libharfbuzz-gpu.a in Frameworks */,
-				CE540E512FCD0CB5006FA974 /* libass.a in Frameworks */,
+				CEFF69CA3025EEE9000B52C3 /* libfribidi.a in Frameworks */,
+				CEFF69BC3025EE57000B52C3 /* libavutil.a in Frameworks */,
+				CEFF69B73025EE57000B52C3 /* libass.a in Frameworks */,
+				CEFF69DB3025EF84000B52C3 /* libharfbuzz.a in Frameworks */,
 				CEE78CE72FCC3A450002CB9B /* CoreText.framework in Frameworks */,
-				CE540E4C2FCD0CB5006FA974 /* libbrotlienc.a in Frameworks */,
-				CE540E562FCD0CB5006FA974 /* libSDL3_ttf.a in Frameworks */,
-				CE540E5B2FCD0CB5006FA974 /* libbz2.a in Frameworks */,
-				CE540E522FCD0CB5006FA974 /* libharfbuzz-vector.a in Frameworks */,
 				CEE78CEA2FCC3A450002CB9B /* Foundation.framework in Frameworks */,
-				CE540E582FCD0CB5006FA974 /* libbrotlicommon.a in Frameworks */,
 				CEE78CEE2FCC3A450002CB9B /* CoreHaptics.framework in Frameworks */,
-				CE540E5A2FCD0CB5006FA974 /* libharfbuzz-raster.a in Frameworks */,
-				CE540E4F2FCD0CB5006FA974 /* libavdevice.a in Frameworks */,
 				CEE78CF02FCC3A5E0002CB9B /* CoreGraphics.framework in Frameworks */,
-				CE540E452FCD0CB5006FA974 /* libswscale.a in Frameworks */,
 				CEE78CF12FCC3A670002CB9B /* CoreAudio.framework in Frameworks */,
-				CE540E5E2FCD0CB5006FA974 /* libcharset.a in Frameworks */,
-				CE540E4B2FCD0CB5006FA974 /* libfreetype.a in Frameworks */,
-				CE540E432FCD0CB5006FA974 /* libavformat.a in Frameworks */,
-				CE540E442FCD0CB5006FA974 /* libavfilter.a in Frameworks */,
 				CEE78CE42FCC3A450002CB9B /* CoreAudio.framework in Frameworks */,
-				CE540E552FCD0CB5006FA974 /* libunibreak.a in Frameworks */,
 				CEE78CFD2FCC3AE40002CB9B /* QuartzCore.framework in Frameworks */,
+				CEFF69F53025F3DC000B52C3 /* libimgui.a in Frameworks */,
 				CEE78CED2FCC3A450002CB9B /* Accelerate.framework in Frameworks */,
 				CEE78CEF2FCC3A450002CB9B /* CoreMedia.framework in Frameworks */,
-				CE540E592FCD0CB5006FA974 /* libz.a in Frameworks */,
-				CE540E5D2FCD0CB5006FA974 /* libuuid.a in Frameworks */,
-				CE540E572FCD0CB5006FA974 /* libfribidi.a in Frameworks */,
-				CE3D91B9301AA23C002D7CDF /* libimgui.a in Frameworks */,
-				CE540E532FCD0CB5006FA974 /* libexpat.a in Frameworks */,
-				CE540E4A2FCD0CB5006FA974 /* libiconv.a in Frameworks */,
-				CE540E492FCD0CB5006FA974 /* libharfbuzz.a in Frameworks */,
 				CEE78CEB2FCC3A450002CB9B /* AVFoundation.framework in Frameworks */,
+				CEFF69C83025EEE4000B52C3 /* libfreetype.a in Frameworks */,
+				CEFF69EB3025F032000B52C3 /* libunibreak.a in Frameworks */,
+				CEFF69D13025EF4D000B52C3 /* libbz2.tbd in Frameworks */,
+				CEFF69E53025EFC1000B52C3 /* libbrotlicommon.a in Frameworks */,
+				CEFF69E73025EFCB000B52C3 /* libpng.a in Frameworks */,
 				CEE78CF52FCC3A7D0002CB9B /* Metal.framework in Frameworks */,
+				CEFF69DA3025EF84000B52C3 /* libharfbuzz-vector.a in Frameworks */,
+				CEFF69D73025EF84000B52C3 /* libharfbuzz-gpu.a in Frameworks */,
+				CEFF69BF3025EE5F000B52C3 /* libSDL3_ttf.a in Frameworks */,
+				CEFF69B83025EE57000B52C3 /* libavcodec.a in Frameworks */,
+				CEFF69C03025EE5F000B52C3 /* libSDL3.a in Frameworks */,
+				CEFF69CF3025EF33000B52C3 /* libcharset.tbd in Frameworks */,
+				CEFF69D93025EF84000B52C3 /* libharfbuzz-subset.a in Frameworks */,
+				CEFF69E33025EFBE000B52C3 /* libbrotlidec.a in Frameworks */,
 				CEE78CFF2FCC3AF40002CB9B /* CoreMotion.framework in Frameworks */,
-				CE540E4E2FCD0CB5006FA974 /* libswresample.a in Frameworks */,
+				CEFF69DE3025EF94000B52C3 /* libswresample.a in Frameworks */,
 				CEE78CE92FCC3A450002CB9B /* AudioToolbox.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -285,6 +281,7 @@
 				CE540D202FCD0843006FA974 /* FFmpeg.c */,
 				CE540D212FCD0843006FA974 /* Time.c */,
 				CE540D222FCD0843006FA974 /* UserEvents.c */,
+				CEFF69EE3025F2C9000B52C3 /* LibIconvCompat.c */,
 			);
 			path = utils;
 			sourceTree = "<group>";
@@ -401,35 +398,34 @@
 		CEE78C9C2FCC38DE0002CB9B /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
-				CE540E2A2FCD0CA9006FA974 /* libass.a */,
-				CE540E2F2FCD0CA9006FA974 /* libavcodec.a */,
-				CE540E362FCD0CA9006FA974 /* libavdevice.a */,
-				CE540E2B2FCD0CA9006FA974 /* libavfilter.a */,
-				CE540E3E2FCD0CA9006FA974 /* libavformat.a */,
-				CE540E352FCD0CA9006FA974 /* libavutil.a */,
-				CE540E322FCD0CA9006FA974 /* libbrotlicommon.a */,
-				CE540E342FCD0CA9006FA974 /* libbrotlidec.a */,
-				CE540E3A2FCD0CA9006FA974 /* libbrotlienc.a */,
-				CE540E3B2FCD0CA9006FA974 /* libbz2.a */,
-				CE540E312FCD0CA9006FA974 /* libcharset.a */,
-				CE540E2E2FCD0CA9006FA974 /* libexpat.a */,
-				CE540E372FCD0CA9006FA974 /* libfontconfig.a */,
-				CE540E402FCD0CA9006FA974 /* libfreetype.a */,
-				CE540E2C2FCD0CA9006FA974 /* libfribidi.a */,
-				CE540E3D2FCD0CA9006FA974 /* libharfbuzz.a */,
-				CE540E332FCD0CA9006FA974 /* libharfbuzz-gpu.a */,
-				CE540E292FCD0CA9006FA974 /* libharfbuzz-raster.a */,
-				CE540E3F2FCD0CA9006FA974 /* libharfbuzz-subset.a */,
-				CE540E392FCD0CA9006FA974 /* libharfbuzz-vector.a */,
-				CE540E302FCD0CA9006FA974 /* libiconv.a */,
-				CE540E3C2FCD0CA9006FA974 /* libpng16.a */,
-				CE540E272FCD0CA9006FA974 /* libSDL3.a */,
-				CE540E252FCD0CA9006FA974 /* libSDL3_ttf.a */,
-				CE540E412FCD0CA9006FA974 /* libswresample.a */,
-				CE540E282FCD0CA9006FA974 /* libswscale.a */,
-				CE540E382FCD0CA9006FA974 /* libunibreak.a */,
-				CE540E262FCD0CA9006FA974 /* libuuid.a */,
-				CE540E2D2FCD0CA9006FA974 /* libz.a */,
+				CEFF69F43025F3DA000B52C3 /* libimgui.a */,
+				CEFF69EA3025F030000B52C3 /* libunibreak.a */,
+				CEFF69E83025F01F000B52C3 /* libexpat.tbd */,
+				CEFF69E63025EFCA000B52C3 /* libpng.a */,
+				CEFF69E43025EFBF000B52C3 /* libbrotlicommon.a */,
+				CEFF69E23025EFBD000B52C3 /* libbrotlidec.a */,
+				CEFF69E03025EFB9000B52C3 /* libbrotlienc.a */,
+				CEFF69DC3025EF93000B52C3 /* libswresample.a */,
+				CEFF69DD3025EF93000B52C3 /* libswscale.a */,
+				CEFF69D53025EF82000B52C3 /* libharfbuzz.a */,
+				CEFF69D33025EF82000B52C3 /* libharfbuzz-gpu.a */,
+				CEFF69D63025EF82000B52C3 /* libharfbuzz-raster.a */,
+				CEFF69D23025EF82000B52C3 /* libharfbuzz-subset.a */,
+				CEFF69D43025EF82000B52C3 /* libharfbuzz-vector.a */,
+				CEFF69D03025EF48000B52C3 /* libbz2.tbd */,
+				CEFF69CE3025EF2C000B52C3 /* libcharset.tbd */,
+				CEFF69C93025EEE8000B52C3 /* libfribidi.a */,
+				CEFF69C73025EEE3000B52C3 /* libfreetype.a */,
+				CEFF69C63025EEB4000B52C3 /* libz.tbd */,
+				CEFF69C33025EE87000B52C3 /* libfontconfig.a */,
+				CEFF69BD3025EE5E000B52C3 /* libSDL3.a */,
+				CEFF69BE3025EE5E000B52C3 /* libSDL3_ttf.a */,
+				CEFF69B13025EE55000B52C3 /* libass.a */,
+				CEFF69B63025EE55000B52C3 /* libavcodec.a */,
+				CEFF69B43025EE55000B52C3 /* libavdevice.a */,
+				CEFF69B53025EE55000B52C3 /* libavfilter.a */,
+				CEFF69B23025EE55000B52C3 /* libavformat.a */,
+				CEFF69B33025EE55000B52C3 /* libavutil.a */,
 				CEE78CFE2FCC3AF40002CB9B /* CoreMotion.framework */,
 				CEE78CFC2FCC3AE40002CB9B /* QuartzCore.framework */,
 				CEE78CFA2FCC3A9B0002CB9B /* VideoToolbox.framework */,
@@ -449,7 +445,6 @@
 				CEE78CDC2FCC3A450002CB9B /* CoreVideo.framework */,
 				CEE78CDE2FCC3A450002CB9B /* Foundation.framework */,
 				CEE78CE02FCC3A450002CB9B /* GLKit.framework */,
-				CE3D91B8301AA23C002D7CDF /* libimgui.a */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -527,6 +522,7 @@
 				CEF780093017505B00B446B1 /* BasicGui.cpp in Sources */,
 				CE540D2E2FCD0843006FA974 /* Audio.cpp in Sources */,
 				CE540D2F2FCD0843006FA974 /* Time.c in Sources */,
+				CEFF69EF3025F2C9000B52C3 /* LibIconvCompat.c in Sources */,
 				CEF7800B3017507D00B446B1 /* Main.cpp in Sources */,
 				CE540D302FCD0843006FA974 /* Video.cpp in Sources */,
 				CE540D312FCD0843006FA974 /* FFmpeg.c in Sources */,
@@ -581,9 +577,10 @@
 				);
 				LIBRARY_SEARCH_PATHS = (
 					"$(PROJECT_DIR)/../vcpkg_installed/arm64-ios/include",
-					"$(USER_LIBRARY_DIR)/CloudStorage/OneDrive-Pessoal/Projetos/Antigos/Kotonoha/vcpkg_installed/arm64-ios/lib",
+					"$(PROJECT_DIR)/../vcpkg_installed/arm64-ios/lib",
 				);
 				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = "\"-liconv\"";
 				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.KotonohaEngineTest;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -620,9 +617,10 @@
 				);
 				LIBRARY_SEARCH_PATHS = (
 					"$(PROJECT_DIR)/../vcpkg_installed/arm64-ios/include",
-					"$(USER_LIBRARY_DIR)/CloudStorage/OneDrive-Pessoal/Projetos/Antigos/Kotonoha/vcpkg_installed/arm64-ios/lib",
+					"$(PROJECT_DIR)/../vcpkg_installed/arm64-ios/lib",
 				);
 				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = "\"-liconv\"";
 				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.KotonohaEngineTest;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;

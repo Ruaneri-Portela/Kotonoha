@@ -15,7 +15,7 @@
     },
     {
       "name": "libiconv",
-      "platform": "android"
+      "platform": "ios | android"
     },
     {
       "name": "ffmpeg",
