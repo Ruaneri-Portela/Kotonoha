@@ -7,14 +7,19 @@ android {
     compileSdk 34
 
     defaultConfig {
-        minSdk 19
+        minSdk 28
         versionCode 1
         versionName "1.0"
         externalNativeBuild {
             cmake {
-                arguments "-DANDROID_PLATFORM=android-19", "-DANDROID_STL=c++_shared"
+                arguments(
+                        "-DCMAKE_TOOLCHAIN_FILE=/Users/nero/Codes/vcpkg/scripts/buildsystems/vcpkg.cmake",
+                        "-DVCPKG_CHAINLOAD_TOOLCHAIN_FILE=/Users/nero/Library/Android/sdk/ndk/25.1.8937393/build/cmake/android.toolchain.cmake",
+                        "-DCMAKE_SYSROOT=/Users/nero/Library/Android/sdk/ndk/25.1.8937393/toolchains/llvm/prebuilt/darwin-x86_64/sysroot",
+                        "-DANDROID_STL=c++_shared"
+                )
                 // abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86', 'x86_64' //Outros ABIs
-                abiFilters 'arm64-v8a', 'x86_64'
+                abiFilters 'arm64-v8a'
             }
         }
         targetSdk 34

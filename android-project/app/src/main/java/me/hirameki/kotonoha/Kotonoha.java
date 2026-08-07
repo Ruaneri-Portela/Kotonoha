@@ -18,7 +18,7 @@ public class Kotonoha extends SDLActivity {
     protected String[] getArguments() {
         getScreenResolution();
         String[] defaultArgs = new String[]{
-                "-z", "-o", "-r", "opengles2", "-f", "-x", String.format(Locale.ROOT,"%d", screenWidth), String.format(Locale.ROOT,"%d", screenHeight)
+                "-v", "-u", "-z", "-t", "-r", "opengles2", "-f", "-x", String.format(Locale.ROOT,"%d", screenWidth), String.format(Locale.ROOT,"%d", screenHeight)
         };
         if (customArguments != null) {
             String[] args = new String[defaultArgs.length + customArguments.length];
