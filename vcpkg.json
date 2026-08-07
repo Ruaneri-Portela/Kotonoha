@@ -3,11 +3,19 @@
   "dependencies": [
     {
       "name": "fontconfig",
-      "platform": "ios"
+      "platform": "ios | android"
     },
     {
       "name": "libunibreak",
-      "platform": "ios"
+      "platform": "ios | android"
+    },
+    {
+      "name": "expat",
+      "platform": "android"
+    },
+    {
+      "name": "libiconv",
+      "platform": "android"
     },
     {
       "name": "ffmpeg",

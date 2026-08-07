@@ -20,22 +20,8 @@ public class MainActivity extends Activity {
             public void onClick(View view) {
                 startKotonohaWithArguments(new String[]{
                         "-s", "assets/styles.skot",
-                        "-p", "http://kotonoha.hirameki.me/SchoolDays/",
-                        "-l", "assets/00/00-00-A00.ENG.ORS",
-                        "-l", "assets/00/00-00-A01.ENG.ORS",
-                        "-l", "assets/00/00-00-A02.ENG.ORS",
-                        "-l", "assets/00/00-00-A03.ENG.ORS",
-                });
-            }
-        });
-
-        findViewById(R.id.button_cross_days).setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                startKotonohaWithArguments(new String[]{
-                        "-s", "assets/stylesJP.skot",
-                        "-p", "http://kotonoha.hirameki.me/CrossDays/",
-                        "-l", "assets/01/01-00-A00.ORS"
+                        "-p", "http://hirameki-server.lan:9090/",
+                        "-l", "assets/00"
                 });
             }
         });

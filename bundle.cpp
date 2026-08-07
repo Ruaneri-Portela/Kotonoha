@@ -1,0 +1,1 @@
+extern "C" void bundle_anchor() {}
