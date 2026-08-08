@@ -1,1 +1,0 @@
-/Users/nero/Codes/Kotonoha/CMakeLists.txt

@@ -1,1 +1,0 @@
-/Users/nero/Codes/Kotonoha/android-project/app/build/intermediates/cxx/RelWithDebInfo/3u5x394h/obj/arm64-v8a

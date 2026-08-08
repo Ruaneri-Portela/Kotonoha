@@ -50,7 +50,6 @@ namespace {
 			SDL_LogError(0, "Couldn't create window: %s", SDL_GetError());
 			return false;
 		}
-
 		return true;
 	}
 
