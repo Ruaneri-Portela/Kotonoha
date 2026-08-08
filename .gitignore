@@ -664,3 +664,4 @@ zips/
 assets/
 /imgui.ini
 .vscode
+.cxx
