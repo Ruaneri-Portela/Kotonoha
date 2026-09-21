@@ -20,20 +20,16 @@ find_package(imgui CONFIG REQUIRED)
 find_package(SDL3 CONFIG REQUIRED)
 find_package(SDL3_ttf CONFIG REQUIRED)
 
+pkg_check_modules(FFMPEG REQUIRED IMPORTED_TARGET libavcodec libavformat libavutil libswscale libswresample)
+pkg_check_modules(LIBASS REQUIRED IMPORTED_TARGET libass)
+
 if(ANDROID)
 
     message(STATUS "Configuração Android")
     message(STATUS "ANDROID_ABI=${ANDROID_ABI}")
     message(STATUS "ANDROID_PLATFORM=${ANDROID_PLATFORM}")
 
-    find_package(SDL3 CONFIG REQUIRED)
-    find_package(SDL3_ttf CONFIG REQUIRED)
-    find_package(FFMPEG REQUIRED)
     find_package(expat CONFIG REQUIRED)
-
-    pkg_check_modules(LIBASS REQUIRED
-        IMPORTED_TARGET GLOBAL libass
-    )
 
     add_library(SDL3 SHARED
         bundle.cpp
@@ -71,12 +67,14 @@ if(ANDROID)
     )
 
     target_include_directories(Kotonoha PRIVATE
-        "${KOTONOHA_INCLUDE_DIR}"
+        ${KOTONOHA_INCLUDE_DIR}
         ${FFMPEG_INCLUDE_DIRS}
+        ${LIBASS_INCLUDE_DIRS}
     )
 
     target_link_directories(Kotonoha PRIVATE
-        ${FFMPEG_LIBRARY_DIRS}
+        ${FFMPEG_LIBRARY_DIRS} 
+        ${LIBASS_LIBRARY_DIRS}
     )
 
     target_link_libraries(Kotonoha PRIVATE
@@ -84,7 +82,7 @@ if(ANDROID)
         SDL3_ttf
 
         ${FFMPEG_LIBRARIES}
-        PkgConfig::LIBASS
+        ${LIBASS_LIBRARIES}
         imgui::imgui
         expat::expat
 
@@ -99,23 +97,20 @@ else()
 
     message(STATUS "Configuração desktop")
 
-    pkg_check_modules(FFMPEG REQUIRED libavcodec libavformat libavutil libswscale libswresample)
-    pkg_check_modules(LIBASS REQUIRED libass)
-
-    link_directories( 
-        ${FFMPEG_LIBRARY_DIRS} 
-        ${LIBASS_LIBRARY_DIRS}
-        ${SDL3_LIBRARY_DIRS}
-        ${SDL3_TTF_LIBRARY_DIRS}
-        ${IMGUI_LIBRARY_DIRS}
-    )
-
     if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
         message("Configuração para Windows")
         list(APPEND SOURCES src/Kotonoha.rc)
     endif()
 
     add_executable(Kotonoha ${SOURCES})
+
+    target_link_directories(Kotonoha PRIVATE
+        ${FFMPEG_LIBRARY_DIRS} 
+        ${LIBASS_LIBRARY_DIRS}
+        ${SDL3_LIBRARY_DIRS}
+        ${SDL3_TTF_LIBRARY_DIRS}
+        ${IMGUI_LIBRARY_DIRS}
+    )
 
     if(CMAKE_SYSTEM_NAME STREQUAL "Haiku")
         message("Configuração para Haiku")
@@ -131,8 +126,8 @@ else()
     )
 
     target_link_libraries(Kotonoha PRIVATE
-        ${FFMPEG_LIBRARIES}
-        ${LIBASS_LIBRARIES}
+        PkgConfig::FFMPEG
+        PkgConfig::LIBASS
         SDL3::SDL3 
         SDL3_ttf::SDL3_ttf 
         imgui::imgui
