@@ -115,7 +115,7 @@ namespace Kotonoha {
 
 			if (diff > 0) {
 				SDL_RenderTexture(render, picture->texture, nullptr, nullptr);
-				status = KOTONOHA_SCENE_DRAW_LAST;
+				status = picture->id > 0 ? status : KOTONOHA_SCENE_DRAW_LAST;
 
 				Kotonoha_Picture* toDestroy = picture;
 				it = here->pictures.erase(it);
