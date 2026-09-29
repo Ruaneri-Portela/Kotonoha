@@ -21,12 +21,18 @@ struct Kotonoha_videoData {
   struct Kotonoha_time *time;
   Uint64 startTime, endTime, lastTime, videoTime, frameTime;
   SDL_Texture *texture;
+
+  // PLAY_MOVIE can opt into the original School Days 24-fps ORS timeline.
+  bool useOrsFrameTimeline;
+  Uint64 orsEndFrame;
 };
 
 struct Kotonoha_videoData *Kotonoha_VideoRenderInit(const char *filename,
                                                     struct Kotonoha_time *time,
                                                     Uint64 startTime,
-                                                    Uint64 endTime);
+                                                    Uint64 endTime,
+                                                    bool useOrsFrameTimeline,
+                                                    Uint64 orsEndFrame);
 
 void Kotonoha_VideoRenderShutdown(struct Kotonoha_videoData **instance);
 
