@@ -46,6 +46,50 @@ namespace Kotonoha {
 			return upperStr;
 		}
 
+		static bool DecodeOrs24FpsTimestamp(
+			Uint64 packed,
+			bool allowParserNudge,
+			Uint64* frame1,
+			Uint64* msCeil) {
+			if (frame1 == nullptr || msCeil == nullptr) {
+				return false;
+			}
+
+			auto decodeCandidate = [](Uint64 value,
+				Uint64* outFrame1,
+				Uint64* outMsCeil) -> bool {
+				const Uint64 minutes = value / 60000;
+				const Uint64 rem = value % 60000;
+				const Uint64 seconds = rem / 1000;
+				const Uint64 tail = rem % 1000;
+
+				if (seconds >= 60 || (tail % 10) != 0) {
+					return false;
+				}
+
+				const Uint64 frameField = tail / 10;
+				if (frameField >= 24) {
+					return false;
+				}
+
+				const Uint64 zeroBased =
+					(minutes * 60 + seconds) * 24 + frameField;
+
+				*outFrame1 = zeroBased + 1;
+
+				// First integer millisecond at or after the 24-fps boundary.
+				*outMsCeil = (zeroBased * 1000 + 23) / 24;
+				return true;
+			};
+
+			if (decodeCandidate(packed, frame1, msCeil)) {
+				return true;
+			}
+
+			return allowParserNudge && packed > 0 &&
+				decodeCandidate(packed - 1, frame1, msCeil);
+		}
+
 		static void DestroyEventManagerParams(void** parms) {
 			if (parms == nullptr) {
 				return;
@@ -224,13 +268,35 @@ namespace Kotonoha {
 			case PLAY_MOVIE:
 				if (event->data.play_movie->path != nullptr &&
 					SDL_strlen(event->data.play_movie->path) > 0) {
-					gameplay->video->Register(
+					const std::string moviePath =
 						BuildString(event->data.play_movie->path,
 							assetsPath,
-							useExtension ? ".WMV" : "")
-						.c_str(),
-						event->start,
-						event->end + 50);
+							useExtension ? ".WMV" : "");
+
+					Uint64 startFrame = 0;
+					Uint64 endFrame = 0;
+					Uint64 startMs = 0;
+					Uint64 endMs = 0;
+
+					const bool startMapped = DecodeOrs24FpsTimestamp(
+						event->start, true, &startFrame, &startMs);
+					const bool endMapped = DecodeOrs24FpsTimestamp(
+						event->end, false, &endFrame, &endMs);
+
+					if (startMapped && endMapped && endFrame >= startFrame) {
+						gameplay->video->Register(
+							moviePath.c_str(),
+							startMs,
+							endMs,
+							true,
+							endFrame);
+					}
+					else {
+						gameplay->video->Register(
+							moviePath.c_str(),
+							event->start,
+							event->end + 50);
+					}
 				}
 				break;
 
