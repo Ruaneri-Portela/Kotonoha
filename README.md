@@ -84,6 +84,40 @@ Other dependencies must be installed from your package manager or prebuilt binar
    ```
 
 
+### Android development setup
+
+The repository also contains an Android project in `android-project/`, currently targeting `arm64-v8a`.
+
+Recommended baseline for development:
+
+* JDK 21
+* Android SDK 34
+* Android NDK `27.0.12077973`
+* CMake `3.22.1`
+* Gradle `8.14.5`
+* vcpkg
+
+Set the Android and vcpkg environment variables before configuring the project:
+
+```text
+ANDROID_SDK_ROOT=<path-to-android-sdk>
+ANDROID_HOME=<path-to-android-sdk>
+ANDROID_NDK_HOME=<path-to-android-sdk>/ndk/27.0.12077973
+VCPKG_ROOT=<path-to-vcpkg>
+```
+
+If the Gradle wrapper JAR is not available in your checkout, use a local Gradle 8.14.5 installation or regenerate the wrapper.
+
+> **Windows host note:** the current Android Gradle configuration contains a macOS-specific `darwin-x86_64` sysroot argument. On Windows, remove that explicit `CMAKE_SYSROOT` argument and let the Android NDK toolchain select the host sysroot. Manifest-mode vcpkg builds also need `pkgconf` as a host dependency. If `PkgConfig::LIBASS` resolves host C++ runtime flags while cross-compiling, use the libass include/library variables returned by pkg-config instead of the imported target.
+
+Then build the debug APK from `android-project/`:
+
+```bash
+gradle :app:assembleDebug
+```
+
+The APK is generated under `android-project/app/build/outputs/apk/debug/`.
+
 ### Building on Linux
 
 1. **Install dependencies**
@@ -204,6 +238,40 @@ Outras dependências devem ser instaladas via gerenciador de pacotes ou binário
    cmake ..
    cmake --build .
    ```
+
+### Configuração de desenvolvimento Android
+
+O repositório também contém um projeto Android em `android-project/`, atualmente direcionado para `arm64-v8a`.
+
+Base recomendada para desenvolvimento:
+
+* JDK 21
+* Android SDK 34
+* Android NDK `27.0.12077973`
+* CMake `3.22.1`
+* Gradle `8.14.5`
+* vcpkg
+
+Configure as variáveis de ambiente do Android e do vcpkg antes de configurar o projeto:
+
+```text
+ANDROID_SDK_ROOT=<caminho-do-android-sdk>
+ANDROID_HOME=<caminho-do-android-sdk>
+ANDROID_NDK_HOME=<caminho-do-android-sdk>/ndk/27.0.12077973
+VCPKG_ROOT=<caminho-do-vcpkg>
+```
+
+Se o JAR do Gradle Wrapper não estiver disponível no checkout, use uma instalação local do Gradle 8.14.5 ou regenere o wrapper.
+
+> **Nota para host Windows:** a configuração Android atual contém um argumento de sysroot específico do macOS, `darwin-x86_64`. No Windows, remova o argumento explícito `CMAKE_SYSROOT` e deixe o toolchain do Android NDK selecionar o sysroot do host. Builds do vcpkg em modo manifest também precisam de `pkgconf` como dependência de host. Se `PkgConfig::LIBASS` resolver flags da runtime C++ do host durante cross-compilation, use as variáveis de include/biblioteca retornadas pelo pkg-config em vez do target importado.
+
+Depois, gere o APK de debug a partir de `android-project/`:
+
+```bash
+gradle :app:assembleDebug
+```
+
+O APK é gerado em `android-project/app/build/outputs/apk/debug/`.
 
 ### Linux
 
