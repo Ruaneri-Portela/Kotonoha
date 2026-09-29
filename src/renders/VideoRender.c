@@ -4,6 +4,10 @@ static inline Uint64 u64_abs_diff(Uint64 a, Uint64 b) {
 	return (a > b) ? (a - b) : (b - a);
 }
 
+static inline Uint64 Kotonoha_OrsSceneMsToFrame(Uint64 sceneMs) {
+	return 1 + (sceneMs * 24) / 1000;
+}
+
 // Inicializa o contexto de hardware
 static bool initializeHwContext(struct Kotonoha_videoData* instance) {
 	instance->hwCtx =
@@ -189,7 +193,9 @@ static AVFrame* getCpuReadableFrame(AVFrame* src) {
 struct Kotonoha_videoData* Kotonoha_VideoRenderInit(const char* filename,
 	struct Kotonoha_time* time,
 	Uint64 startTime,
-	Uint64 endTime) {
+	Uint64 endTime,
+	bool useOrsFrameTimeline,
+	Uint64 orsEndFrame) {
 	struct Kotonoha_videoData* videoInstance =
 		(struct Kotonoha_videoData*)SDL_calloc(1, sizeof(struct Kotonoha_videoData));
 	if (!videoInstance) {
@@ -209,6 +215,8 @@ struct Kotonoha_videoData* Kotonoha_VideoRenderInit(const char* filename,
 	videoInstance->endTime = endTime;
 	videoInstance->videoTime = 0;
 	videoInstance->lastTime = 0;
+	videoInstance->useOrsFrameTimeline = useOrsFrameTimeline;
+	videoInstance->orsEndFrame = orsEndFrame;
 
 	bool inRange;
 	Sint64 diff;
@@ -261,6 +269,15 @@ enum Kotonoha_Scene_Status Kotonoha_VideoRenderProcess(void* userData,
 	if (!instance)
 		return KOTONOHA_SCENE_NULL;
 
+	// The original School Days controller checks the scene frame boundary
+	// before promoting the terminal decoded frame.
+	if (instance->useOrsFrameTimeline) {
+		const Uint64 sceneMs = Kotonoha_timeGet(instance->time);
+		if (Kotonoha_OrsSceneMsToFrame(sceneMs) >= instance->orsEndFrame) {
+			return KOTONOHA_SCENE_COMPLETE;
+		}
+	}
+
 	bool inRange;
 	Sint64 diff;
 	Uint64 currentTime = Kotonoha_timeGetFromEvent(
@@ -271,11 +288,17 @@ enum Kotonoha_Scene_Status Kotonoha_VideoRenderProcess(void* userData,
 
 	Kotonoha_VideoEnsureSync(instance, currentTime, false);
 
-	if (instance->pFrame == NULL && !renderVideo(instance, currentTime))
+	if (instance->pFrame == NULL && !renderVideo(instance, currentTime)) {
+		if (instance->texture != NULL)
+			return KOTONOHA_SCENE_DRAW;
 		return KOTONOHA_SCENE_WAITING;
+	}
 
-	if (currentTime < instance->videoTime)
+	if (currentTime < instance->videoTime) {
+		if (instance->texture == NULL)
+			return KOTONOHA_SCENE_WAITING;
 		return KOTONOHA_SCENE_DRAW;
+	}
 
 	if (instance->texture == NULL) {
 		instance->texture = SDL_CreateTexture(
@@ -293,7 +316,9 @@ enum Kotonoha_Scene_Status Kotonoha_VideoRenderProcess(void* userData,
 
 	if (instance->pFrame == NULL ||
 		instance->pFrame->pict_type == AV_PICTURE_TYPE_NONE) {
-		return KOTONOHA_SCENE_NULL;
+		if (instance->texture != NULL)
+			return KOTONOHA_SCENE_DRAW;
+		return KOTONOHA_SCENE_WAITING;
 	}
 
 	AVFrame* cpuFrame = getCpuReadableFrame(instance->pFrame);

@@ -11,7 +11,9 @@ namespace Kotonoha {
 		}
 	}
 
-	bool Video::Register(const char* path, Uint64 startTime, Uint64 endTime) {
+	bool Video::Register(const char* path, Uint64 startTime, Uint64 endTime,
+		bool useOrsFrameTimeline,
+		Uint64 orsEndFrame) {
 		if (timeManager == nullptr) {
 			SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
 				"Video time manager is null.");
@@ -25,7 +27,13 @@ namespace Kotonoha {
 		}
 
 		Kotonoha_videoData* object =
-			Kotonoha_VideoRenderInit(path, timeManager, startTime, endTime);
+			Kotonoha_VideoRenderInit(
+				path,
+				timeManager,
+				startTime,
+				endTime,
+				useOrsFrameTimeline,
+				orsEndFrame);
 		if (object == nullptr) {
 			SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
 				"Failed to initialize video: %s", path);
@@ -84,7 +92,11 @@ namespace Kotonoha {
 				it = here->videos.erase(it);
 				break;
 			case KOTONOHA_SCENE_WAITING:
-				returnStatus = KOTONOHA_SCENE_WAITING;
+				if (returnStatus != KOTONOHA_SCENE_DRAW &&
+					returnStatus != KOTONOHA_SCENE_DRAW_LAST) {
+					returnStatus = KOTONOHA_SCENE_WAITING;
+				}
+				++it;
 				break;
 			default:
 				++it;

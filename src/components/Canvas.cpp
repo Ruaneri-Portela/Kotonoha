@@ -138,7 +138,19 @@ namespace Kotonoha {
 				dirtyTexture = item.target;
 				dirtyPlace = item.place;
 				item.target = nullptr;
+
+				SDL_SetRenderTarget(render, nullptr);
+				if (dirtyTexture != nullptr) {
+					SDL_RenderTexture(render, dirtyTexture, nullptr, &dirtyPlace);
+				}
+				continue;
 			}
+
+			if (result == KOTONOHA_SCENE_WAITING) {
+				SDL_SetRenderTarget(render, nullptr);
+				continue;
+			}
+
 			if (item.target != nullptr) {
 				SDL_SetRenderTarget(render, nullptr);
 				SDL_RenderTexture(render, item.target, nullptr, &item.place);
