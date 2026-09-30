@@ -28,7 +28,6 @@
 		CE540D402FCD0843006FA974 /* TextRender.c in Sources */ = {isa = PBXBuildFile; fileRef = CE540D1C2FCD0843006FA974 /* TextRender.c */; };
 		CE540D412FCD0843006FA974 /* Android.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CE540D242FCD0843006FA974 /* Android.cpp */; };
 		CE540D422FCD0843006FA974 /* Image.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CE540D122FCD0843006FA974 /* Image.cpp */; };
-		CEE78CE42FCC3A450002CB9B /* CoreAudio.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CD82FCC3A450002CB9B /* CoreAudio.framework */; };
 		CEE78CE52FCC3A450002CB9B /* CoreBluetooth.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CD92FCC3A450002CB9B /* CoreBluetooth.framework */; };
 		CEE78CE62FCC3A450002CB9B /* CoreGraphics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CDA2FCC3A450002CB9B /* CoreGraphics.framework */; };
 		CEE78CE72FCC3A450002CB9B /* CoreText.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CDB2FCC3A450002CB9B /* CoreText.framework */; };
@@ -39,7 +38,6 @@
 		CEE78CED2FCC3A450002CB9B /* Accelerate.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CE12FCC3A450002CB9B /* Accelerate.framework */; };
 		CEE78CEE2FCC3A450002CB9B /* CoreHaptics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CE22FCC3A450002CB9B /* CoreHaptics.framework */; };
 		CEE78CEF2FCC3A450002CB9B /* CoreMedia.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CE32FCC3A450002CB9B /* CoreMedia.framework */; };
-		CEE78CF02FCC3A5E0002CB9B /* CoreGraphics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CDA2FCC3A450002CB9B /* CoreGraphics.framework */; };
 		CEE78CF12FCC3A670002CB9B /* CoreAudio.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CD82FCC3A450002CB9B /* CoreAudio.framework */; };
 		CEE78CF32FCC3A6E0002CB9B /* GameController.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CF22FCC3A6E0002CB9B /* GameController.framework */; };
 		CEE78CF52FCC3A7D0002CB9B /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CF42FCC3A7D0002CB9B /* Metal.framework */; };
@@ -209,9 +207,7 @@
 				CEE78CE72FCC3A450002CB9B /* CoreText.framework in Frameworks */,
 				CEE78CEA2FCC3A450002CB9B /* Foundation.framework in Frameworks */,
 				CEE78CEE2FCC3A450002CB9B /* CoreHaptics.framework in Frameworks */,
-				CEE78CF02FCC3A5E0002CB9B /* CoreGraphics.framework in Frameworks */,
 				CEE78CF12FCC3A670002CB9B /* CoreAudio.framework in Frameworks */,
-				CEE78CE42FCC3A450002CB9B /* CoreAudio.framework in Frameworks */,
 				CEE78CFD2FCC3AE40002CB9B /* QuartzCore.framework in Frameworks */,
 				CEFF69F53025F3DC000B52C3 /* libimgui.a in Frameworks */,
 				CEE78CED2FCC3A450002CB9B /* Accelerate.framework in Frameworks */,
@@ -478,7 +474,7 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
-				LastUpgradeCheck = 2650;
+				LastUpgradeCheck = 2700;
 				TargetAttributes = {
 					CEE78C302FCC37E10002CB9B = {
 						CreatedOnToolsVersion = 26.5;
@@ -572,7 +568,7 @@
 				INFOPLIST_KEY_UIStatusBarHidden = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				IPHONEOS_DEPLOYMENT_TARGET = "$(RECOMMENDED_IPHONEOS_DEPLOYMENT_TARGET)";
+				IPHONEOS_DEPLOYMENT_TARGET = 27.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -614,7 +610,7 @@
 				INFOPLIST_KEY_UIStatusBarHidden = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				IPHONEOS_DEPLOYMENT_TARGET = "$(RECOMMENDED_IPHONEOS_DEPLOYMENT_TARGET)";
+				IPHONEOS_DEPLOYMENT_TARGET = 27.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -692,6 +688,7 @@
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 			};
 			name = Debug;
 		};
@@ -747,6 +744,7 @@
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				VALIDATE_PRODUCT = YES;
 			};
 			name = Release;
