@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Scheme
-   LastUpgradeVersion = "2650"
+   LastUpgradeVersion = "2700"
    version = "1.7">
    <BuildAction
       parallelizeBuildables = "YES"
@@ -56,7 +56,7 @@
       </BuildableProductRunnable>
       <CommandLineArguments>
          <CommandLineArgument
-            argument = "-f -t -z -u -r metal -p &quot;http://hirameki-server.lan:9090/&quot; -s &quot;assets/styles.skot&quot; -l 00/00-00-A00.PT.txt -l 00/00-00-A01.PT.txt -l 00/00-00-A02.PT.txt"
+            argument = "-f -t -z -u -r metal -p &quot;http://hirameki-server.lan:9090/&quot; -s &quot;assets/styles.skot&quot; -l assets/00/00-00-A00.PT.txt -l assets/00/00-00-A01.PT.txt -l assets/00/00-00-A02.PT.txt"
             isEnabled = "YES">
          </CommandLineArgument>
       </CommandLineArguments>

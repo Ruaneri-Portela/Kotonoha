@@ -107,18 +107,6 @@
         <PersistentDeviceSelectionData>
           <option name="api" value="34" />
           <option name="brand" value="OnePlus" />
-          <option name="codename" value="OP535DL1" />
-          <option name="id" value="OP535DL1" />
-          <option name="labId" value="google" />
-          <option name="manufacturer" value="OnePlus" />
-          <option name="name" value="Nord CE 2 Lite 5G" />
-          <option name="screenDensity" value="401" />
-          <option name="screenX" value="1080" />
-          <option name="screenY" value="2412" />
-        </PersistentDeviceSelectionData>
-        <PersistentDeviceSelectionData>
-          <option name="api" value="34" />
-          <option name="brand" value="OnePlus" />
           <option name="codename" value="OP5552L1" />
           <option name="id" value="OP5552L1" />
           <option name="labId" value="google" />
@@ -251,30 +239,6 @@
         <PersistentDeviceSelectionData>
           <option name="api" value="31" />
           <option name="brand" value="TECNO" />
-          <option name="codename" value="TECNO-BF7" />
-          <option name="id" value="TECNO-BF7" />
-          <option name="labId" value="google" />
-          <option name="manufacturer" value="TECNO" />
-          <option name="name" value="TECNO" />
-          <option name="screenDensity" value="320" />
-          <option name="screenX" value="720" />
-          <option name="screenY" value="1612" />
-        </PersistentDeviceSelectionData>
-        <PersistentDeviceSelectionData>
-          <option name="api" value="33" />
-          <option name="brand" value="TECNO" />
-          <option name="codename" value="TECNO-BG6" />
-          <option name="id" value="TECNO-BG6" />
-          <option name="labId" value="google" />
-          <option name="manufacturer" value="TECNO MOBILE LIMITED" />
-          <option name="name" value="SPARK Go 2024" />
-          <option name="screenDensity" value="320" />
-          <option name="screenX" value="720" />
-          <option name="screenY" value="1612" />
-        </PersistentDeviceSelectionData>
-        <PersistentDeviceSelectionData>
-          <option name="api" value="31" />
-          <option name="brand" value="TECNO" />
           <option name="codename" value="TECNO-KI5k" />
           <option name="id" value="TECNO-KI5k" />
           <option name="labId" value="google" />
@@ -376,30 +340,6 @@
           <option name="labId" value="google" />
           <option name="manufacturer" value="Samsung" />
           <option name="name" value="Galaxy A14" />
-          <option name="screenDensity" value="450" />
-          <option name="screenX" value="1080" />
-          <option name="screenY" value="2408" />
-        </PersistentDeviceSelectionData>
-        <PersistentDeviceSelectionData>
-          <option name="api" value="35" />
-          <option name="brand" value="samsung" />
-          <option name="codename" value="a14xmsq" />
-          <option name="id" value="a14xmsq" />
-          <option name="labId" value="google" />
-          <option name="manufacturer" value="Samsung" />
-          <option name="name" value="Galaxy A14 5G" />
-          <option name="screenDensity" value="450" />
-          <option name="screenX" value="1080" />
-          <option name="screenY" value="2408" />
-        </PersistentDeviceSelectionData>
-        <PersistentDeviceSelectionData>
-          <option name="api" value="35" />
-          <option name="brand" value="samsung" />
-          <option name="codename" value="a14xmtfn" />
-          <option name="id" value="a14xmtfn" />
-          <option name="labId" value="google" />
-          <option name="manufacturer" value="Samsung" />
-          <option name="name" value="Galaxy A14 5G" />
           <option name="screenDensity" value="450" />
           <option name="screenX" value="1080" />
           <option name="screenY" value="2408" />
@@ -1309,18 +1249,6 @@
           <option name="screenDensity" value="280" />
           <option name="screenX" value="720" />
           <option name="screenY" value="1600" />
-        </PersistentDeviceSelectionData>
-        <PersistentDeviceSelectionData>
-          <option name="api" value="34" />
-          <option name="brand" value="motorola" />
-          <option name="codename" value="fogorow" />
-          <option name="id" value="fogorow" />
-          <option name="labId" value="google" />
-          <option name="manufacturer" value="Motorola" />
-          <option name="name" value="moto g24" />
-          <option name="screenDensity" value="280" />
-          <option name="screenX" value="720" />
-          <option name="screenY" value="1612" />
         </PersistentDeviceSelectionData>
         <PersistentDeviceSelectionData>
           <option name="api" value="34" />
@@ -2334,6 +2262,74 @@
           <option name="screenDensity" value="420" />
           <option name="screenX" value="1080" />
           <option name="screenY" value="2424" />
+        </PersistentDeviceSelectionData>
+        <PersistentDeviceSelectionData>
+          <option name="accessStatus">
+            <list>
+              <option value="EULA_NOT_ACCEPTED" />
+            </list>
+          </option>
+          <option name="api" value="35" />
+          <option name="brand" value="Infinix" />
+          <option name="codename" value="transsion_lab_infinix-x6856" />
+          <option name="id" value="transsion_lab_infinix-x6856" />
+          <option name="labId" value="transsion" />
+          <option name="manufacturer" value="INFINIX" />
+          <option name="name" value="NOTE 50 Pro+" />
+          <option name="screenDensity" value="440" />
+          <option name="screenX" value="1080" />
+          <option name="screenY" value="2436" />
+        </PersistentDeviceSelectionData>
+        <PersistentDeviceSelectionData>
+          <option name="accessStatus">
+            <list>
+              <option value="EULA_NOT_ACCEPTED" />
+            </list>
+          </option>
+          <option name="api" value="35" />
+          <option name="brand" value="TECNO" />
+          <option name="codename" value="transsion_lab_tecno-km4" />
+          <option name="id" value="transsion_lab_tecno-km4" />
+          <option name="labId" value="transsion" />
+          <option name="manufacturer" value="TECNO" />
+          <option name="name" value="Spark Go 2" />
+          <option name="screenDensity" value="280" />
+          <option name="screenX" value="720" />
+          <option name="screenY" value="1600" />
+        </PersistentDeviceSelectionData>
+        <PersistentDeviceSelectionData>
+          <option name="accessStatus">
+            <list>
+              <option value="EULA_NOT_ACCEPTED" />
+            </list>
+          </option>
+          <option name="api" value="35" />
+          <option name="brand" value="TECNO" />
+          <option name="codename" value="transsion_lab_tecno-lj7" />
+          <option name="id" value="transsion_lab_tecno-lj7" />
+          <option name="labId" value="transsion" />
+          <option name="manufacturer" value="TECNO" />
+          <option name="name" value="POVA 7" />
+          <option name="screenDensity" value="440" />
+          <option name="screenX" value="1080" />
+          <option name="screenY" value="2460" />
+        </PersistentDeviceSelectionData>
+        <PersistentDeviceSelectionData>
+          <option name="accessStatus">
+            <list>
+              <option value="EULA_NOT_ACCEPTED" />
+            </list>
+          </option>
+          <option name="api" value="35" />
+          <option name="brand" value="TECNO" />
+          <option name="codename" value="transsion_lab_tecno-lj9" />
+          <option name="id" value="transsion_lab_tecno-lj9" />
+          <option name="labId" value="transsion" />
+          <option name="manufacturer" value="TECNO" />
+          <option name="name" value="POVA 7 Ultra" />
+          <option name="screenDensity" value="440" />
+          <option name="screenX" value="1080" />
+          <option name="screenY" value="2400" />
         </PersistentDeviceSelectionData>
         <PersistentDeviceSelectionData>
           <option name="api" value="34" />
