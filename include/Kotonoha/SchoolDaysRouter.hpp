@@ -45,6 +45,12 @@ public:
     bool AcceptChoice(int result);
     NextResult ResolveNext();
 
+#ifdef KOTONOHA_DEV_CHECKPOINTS
+    SceneKey DevCheckpointScene(const std::string& name) const;
+    bool RestoreDevCheckpoint(const std::string& name);
+    std::string DumpState() const;
+#endif
+
 private:
     SchoolDaysRouteState state;
     std::function<void(const std::string&)> log;
