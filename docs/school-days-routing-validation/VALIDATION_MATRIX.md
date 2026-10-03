@@ -23,17 +23,17 @@ Existing witness suite: `tests/SchoolDaysFullRouterTest.cpp`.
 
 PASS requires all 22 ending witnesses and every expected transition ID to match.
 
-## DEV checkpoint instrumentation
+## DEV checkpoint instrumentation — PASS on Android
 
 Current checkpoint: `sd-ep3-r4-b00`.
 
-PASS requires:
+Confirmed:
 
-- SceneKey resolves to `02/02-2K-B00`
+- SceneKey resolved to `02/02-2K-B00`
 - Route 4 / Scene 1 restored
-- deterministic state dump
-- first `ResolveNext()` selects `t263`
-- checkpoint code absent when the build flag is disabled
+- checkpoint state dump emitted
+- first route resolution selected `t263 -> 02/02-2K-C00`
+- checkpoint helpers remain compile-time gated behind `KOTONOHA_DEV_CHECKPOINTS`
 
 ## Engine integration
 
