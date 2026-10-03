@@ -2,6 +2,11 @@ cmake_minimum_required(VERSION 3.18)
 
 project(Kotonoha VERSION 0.1.0 LANGUAGES C CXX)
 
+option(KOTONOHA_DEV_CHECKPOINTS
+    "Enable non-release School Days routing checkpoints and state dumps"
+    OFF
+)
+
 set(KOTONOHA_INCLUDE_DIR
     "${CMAKE_CURRENT_SOURCE_DIR}/include"
 )
@@ -132,4 +137,9 @@ else()
         SDL3_ttf::SDL3_ttf 
         imgui::imgui
     )
+endif()
+
+if(KOTONOHA_DEV_CHECKPOINTS)
+    target_compile_definitions(Kotonoha PRIVATE KOTONOHA_DEV_CHECKPOINTS=1)
+    message(STATUS "KOTONOHA_DEV_CHECKPOINTS=ON (development-only routing helpers)")
 endif()
