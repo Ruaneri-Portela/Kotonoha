@@ -2,6 +2,7 @@
 
 #include <cctype>
 #include <cstdint>
+#include <sstream>
 #include <utility>
 
 namespace Kotonoha {
@@ -141,6 +142,104 @@ SceneKey SchoolDaysRouter::CurrentScene() const {
     if (node < 0) return {};
     return { kNodes[node].sceneKey };
 }
+
+#ifdef KOTONOHA_DEV_CHECKPOINTS
+SceneKey SchoolDaysRouter::DevCheckpointScene(const std::string& name) const {
+    if (name == "sd-ep3-r4-b00") return { "02/02-2K-B00" };
+    return {};
+}
+
+bool SchoolDaysRouter::RestoreDevCheckpoint(const std::string& name) {
+    if (name != "sd-ep3-r4-b00") return false;
+
+    Reset();
+
+    state.route = 4;
+    state.scene = 1;
+    state.choiceResult = kPendingChoice;
+    state.callback34 = 0;
+    state.feelingApplied = false;
+    state.endingRegistrations.clear();
+
+    state.sessionVariables = {
+        {"ROUTE", 4}, {"SCENE", 1},
+        {"000", 0}, {"001", 10}, {"002", 47}, {"003", 0}, {"004", 0},
+
+        {"BS0000B00", 4},
+        {"BS0000H02", 15},
+
+        {"BS0100B04", 2},
+        {"BS0100B05", 5},
+        {"BS0100D00", 9},
+        {"BS0100E01", 21},
+        {"BS0100E05", 24},
+        {"BS0100F00", 28},
+        {"BS0100G00", 33},
+        {"BS0100I00", 38},
+        {"BS0100K00", 52},
+        {"BS0100N00", 67},
+        {"BS0100N04", 76},
+        {"BS0100Q00", 79},
+        {"BS0100U00", 69},
+
+        {"BS011KD00", 3},
+        {"BS011KE06", 18},
+        {"BS011KF00", 19},
+        {"BS011KK03", 27},
+        {"BS011KK07", 31},
+
+        {"998", 1},
+        {"996", 1},
+        {"994", 1},
+        {"992", 1},
+        {"991", 1},
+    };
+
+    state.globalVariables = {
+        {"dword_3A6F40", 0},
+        {"dword_3A2294", 1},
+    };
+
+    const SceneKey scene = CurrentScene();
+    const bool valid = scene.value == "02/02-2K-B00";
+    if (log) {
+        log(std::string("DEV checkpoint ") + (valid ? "restored: " : "invalid: ") +
+            name + " scene=" + scene.value);
+    }
+    return valid;
+}
+
+std::string SchoolDaysRouter::DumpState() const {
+    std::ostringstream out;
+    out << "scene=" << CurrentScene().value
+        << "\nroute=" << state.route
+        << "\nscene_index=" << state.scene
+        << "\nchoice=" << state.choiceResult
+        << "\ncallback34=" << state.callback34
+        << "\nfeeling_applied=" << (state.feelingApplied ? 1 : 0);
+
+    out << "\nsession:";
+    for (const auto& entry : state.sessionVariables) {
+        out << "\n  " << entry.first << "=" << entry.second;
+    }
+
+    out << "\nglobal:";
+    for (const auto& entry : state.globalVariables) {
+        out << "\n  " << entry.first << "=" << entry.second;
+    }
+
+    out << "\nendings:";
+    if (state.endingRegistrations.empty()) {
+        out << " []";
+    }
+    else {
+        for (int ending : state.endingRegistrations) {
+            out << " " << ending;
+        }
+    }
+    return out.str();
+}
+#endif
 
 int SchoolDaysRouter::ReadSession(const char* name) const {
     if (name == nullptr) return 0;
