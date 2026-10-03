@@ -52,6 +52,34 @@ Added:
 - standalone checkpoint regression test
 - dedicated routing-validation documentation
 
+## 2026-10-03 — DEV checkpoint validated on Android
+
+Real-device checkpoint restoration passed.
+
+Observed:
+
+```text
+[KTN-DEV] checkpoint requested: sd-ep3-r4-b00
+[KTN-ROUTER] DEV checkpoint restored: sd-ep3-r4-b00 scene=02/02-2K-B00
+[KTN-DEV] checkpoint applied: sd-ep3-r4-b00 gameplay_index=195
+```
+
+The restored route then advanced through the expected first transition:
+
+```text
+ROUTE=4
+SCENE=4
+next t263 -> 02/02-2K-C00
+```
+
+Milestone A exit condition is therefore satisfied on the real Android integration.
+
+## 2026-10-03 — Quick verifier runner added
+
+Added `tools/schooldays-routing-verifier/run_quick.ps1`.
+
+The runner compiles the real `SchoolDaysRouter.cpp` and executes the existing 22-ending witness suite through Visual Studio 2022. It requires 22 `PASS` lines before reporting success.
+
 ## Next entry
 
-Build the validation-lab branch locally with the existing Windows/Android compatibility fixes, enable `KOTONOHA_DEV_CHECKPOINTS`, restore `sd-ep3-r4-b00`, and confirm the next device transition matches the uninterrupted path.
+Run the quick verifier locally and record its result. In parallel, continue the Android path toward `02 -> 03 -> 04 -> 05 -> ending`, capturing state dumps at useful boundaries.
