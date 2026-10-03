@@ -1,10 +1,10 @@
 # Routing Closure Roadmap
 
-## A — DEV recovery instrumentation
+## A — DEV recovery instrumentation — COMPLETE
 
 Deliverables: compile-time DEV gate, `-k`, causal checkpoint `sd-ep3-r4-b00`, `DumpState()`, F6 dump, standalone checkpoint test, documentation.
 
-Exit condition: checkpoint build opens at `02/02-2K-B00` and its next transition matches uninterrupted routing.
+Exit condition satisfied on Android: checkpoint restored `02/02-2K-B00` and the router continued through expected transition `t263 -> 02/02-2K-C00`.
 
 ## B — quick regression suite
 
