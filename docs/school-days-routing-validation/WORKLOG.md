@@ -83,3 +83,20 @@ The runner compiles the real `SchoolDaysRouter.cpp` and executes the existing 22
 ## Next entry
 
 Run the quick verifier locally and record its result. In parallel, continue the Android path toward `02 -> 03 -> 04 -> 05 -> ending`, capturing state dumps at useful boundaries.
+
+## 2026-10-03 — Android episode crossing 02 -> 03 confirmed
+
+The resumed DEV-checkpoint session reached the next episode boundary on the real Android runtime.
+
+Observed:
+
+```text
+ROUTE=15
+SCENE=0
+next t322 -> 03/03-KB-A00
+```
+
+This confirms executable integration across the episode-prefix transition `02 -> 03` and entry into Route 15.
+
+A full state dump at this boundary is requested so the state can be preserved as the next causal DEV checkpoint candidate.
+
