@@ -70,3 +70,31 @@ This is evidence that the engine is not merely walking a static scene list.
 `02 -> 03 -> 04 -> 05 -> terminal ending`.
 
 One complete device path is enough for end-to-end integration confidence. Exhaustive combinatorial coverage belongs to the automated verifier.
+
+## Third confirmed episode crossing
+
+Observed after resuming from the validated DEV checkpoint:
+
+```text
+ROUTE=15
+SCENE=0
+next t322 -> 03/03-KB-A00
+```
+
+Interpretation:
+
+- episode prefix changed from `02` to `03`;
+- the router entered Route 15;
+- the engine resolved and opened `03/03-KB-A00` on the real Android runtime.
+
+Device closure progress is now:
+
+```text
+00 -> 01  PASS
+01 -> 02  PASS
+02 -> 03  PASS
+03 -> 04  pending
+04 -> 05  pending
+05 -> ending pending
+```
+
