@@ -39,7 +39,7 @@ Confirmed:
 
 Already observed: delayed routing at `Next`, prompt propagation, feeling updates, route changes, `00 -> 01`, `01 -> 02`, and destination SceneKey lookup.
 
-Still desired for one full end-to-end device path: `02 -> 03`, `03 -> 04`, `04 -> 05`, terminal ending.
+Confirmed on device: `02 -> 03` through `t322 -> 03/03-KB-A00` with `ROUTE=15`, `SCENE=0`. Still desired for one full end-to-end device path: `03 -> 04`, `04 -> 05`, terminal ending.
 
 ## Exhaustive executable verifier target
 
