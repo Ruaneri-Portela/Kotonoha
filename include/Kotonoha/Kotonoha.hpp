@@ -44,6 +44,10 @@ namespace Kotonoha {
 			SDL_Log("[KTN-ROUTER] %s", message.c_str());
 		} };
 		bool schoolDaysRouting = false;
+#ifdef KOTONOHA_DEV_CHECKPOINTS
+		std::string requestedSchoolDaysCheckpoint;
+		bool schoolDaysCheckpointApplied = false;
+#endif
 
 		void RebuildSceneIndex();
 
