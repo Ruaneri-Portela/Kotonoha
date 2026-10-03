@@ -49,12 +49,28 @@ namespace Kotonoha {
 		}
 	}
 
+	void Prompt::Update() {
+		if (promptResult != nullptr && time != nullptr &&
+			*promptResult == -2 && Kotonoha_timeGet(time) >= endTime) {
+			*promptResult = -1;
+		}
+	}
+
+	int Prompt::Result() const {
+		return promptResult == nullptr ? -2 : *promptResult;
+	}
+
+	void Prompt::SetCanvasPlace(SDL_FRect place) {
+		canvasPlace = place;
+	}
+
 	enum Kotonoha_Scene_Status Prompt::Render(KOTONOHA_SCENE_CALL) {
 		if (userData == nullptr || render == nullptr || target == nullptr) {
 			return KOTONOHA_SCENE_NULL;
 		}
 
 		auto* promptObj = static_cast<Prompt*>(userData);
+		promptObj->Update();
 
 		if (promptObj->font == nullptr || promptObj->time == nullptr ||
 			promptObj->promptResult == nullptr) {
@@ -82,9 +98,26 @@ namespace Kotonoha {
 			return KOTONOHA_SCENE_DRAW_OVERLAYED;
 		}
 
-		float mouseX = 0.0f;
-		float mouseY = 0.0f;
-		SDL_GetMouseState(&mouseX, &mouseY);
+		int windowW = 0, windowH = 0, pixelW = 0, pixelH = 0;
+		if (!SDL_GetWindowSize(window, &windowW, &windowH) ||
+			!SDL_GetWindowSizeInPixels(window, &pixelW, &pixelH) ||
+			windowW <= 0 || windowH <= 0) {
+			return KOTONOHA_SCENE_DRAW_OVERLAYED;
+		}
+		SDL_FRect place = promptObj->canvasPlace;
+		if (place.w <= 0.0f || place.h <= 0.0f) {
+			place = { 0.0f, 0.0f, static_cast<float>(pixelW), static_cast<float>(pixelH) };
+		}
+		auto toCanvas = [&](float windowX, float windowY, float& canvasX, float& canvasY) {
+			const float pixelX = windowX * static_cast<float>(pixelW) / windowW;
+			const float pixelY = windowY * static_cast<float>(pixelH) / windowH;
+			canvasX = (pixelX - place.x) * target->w / place.w;
+			canvasY = (pixelY - place.y) * target->h / place.h;
+		};
+		float windowMouseX = 0.0f, windowMouseY = 0.0f;
+		SDL_GetMouseState(&windowMouseX, &windowMouseY);
+		float mouseX = 0.0f, mouseY = 0.0f;
+		toCanvas(windowMouseX, windowMouseY, mouseX, mouseY);
 
 		std::vector<PromptLayoutItem> layout;
 		layout.reserve(visibleIndices.size());
@@ -161,21 +194,20 @@ namespace Kotonoha {
 
 			if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
 				event.button.button == SDL_BUTTON_LEFT) {
+				float clickX = 0.0f, clickY = 0.0f;
+				toCanvas(event.button.x, event.button.y, clickX, clickY);
 				for (const auto& item : layout) {
 					const bool hovered =
-						mouseX >= item.rect.x &&
-						mouseX <= (item.rect.x + item.rect.w) &&
-						mouseY >= item.rect.y &&
-						mouseY <= (item.rect.y + item.rect.h);
+						clickX >= item.rect.x &&
+						clickX <= (item.rect.x + item.rect.w) &&
+						clickY >= item.rect.y &&
+						clickY <= (item.rect.y + item.rect.h);
 
 					if (!hovered) {
 						continue;
 					}
 
-					if (*(promptObj->promptResult) == item.originalIndex) {
-						*(promptObj->promptResult) = -1;
-					}
-					else {
+					if (*(promptObj->promptResult) == -2) {
 						*(promptObj->promptResult) = item.originalIndex;
 					}
 					break;

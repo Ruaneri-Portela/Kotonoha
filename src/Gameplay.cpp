@@ -58,6 +58,7 @@ namespace Kotonoha {
 		}
 
 		drawCanvas->UpdateCanva(nullptr, -1, place);
+		if (prompt != nullptr) prompt->SetCanvasPlace(place);
 	}
 
 	Gameplay::Gameplay(const char* scriptPath, struct Kotonoha_Game* gameContext) {
@@ -97,6 +98,7 @@ namespace Kotonoha {
 		if (gameContext == nullptr || eventManager == nullptr || drawCanvas == nullptr) {
 			return SDL_APP_FAILURE;
 		}
+		if (prompt != nullptr) prompt->Update();
 
 		if (eventManager->CheckEnd(this)) {
 			if (loop) {
@@ -240,6 +242,7 @@ namespace Kotonoha {
 			sb->subTexture = nullptr;
 		}
 		if (resetTime) {
+			promptId = -2;
 			firstFocus = true;
 			drawCanvas->Reset();
 			Kotonoha_timeReset(tm, true);

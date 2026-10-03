@@ -1,6 +1,7 @@
 #pragma once
 #include "Kotonoha/components/Sound.hpp"
 #include <Kotonoha/Gameplay.hpp>
+#include <Kotonoha/SchoolDaysRouter.hpp>
 
 extern "C" {
 #include <Kotonoha/renders/AudioRender.h>
@@ -21,6 +22,7 @@ extern "C" {
 }
 
 #include <tuple>
+#include <map>
 
 namespace Kotonoha {
 	class Kotonoha {
@@ -36,6 +38,14 @@ namespace Kotonoha {
 		int windowsHeight = 720;
 		bool showCursor = true;
 		Uint64 lastMouseTime = 0;
+		size_t lastScene = static_cast<size_t>(-1);
+		std::map<SceneKey, size_t> sceneIndex;
+		SchoolDaysRouter schoolDaysRouter{ [](const std::string& message) {
+			SDL_Log("[KTN-ROUTER] %s", message.c_str());
+		} };
+		bool schoolDaysRouting = false;
+
+		void RebuildSceneIndex();
 
 		bool ParseArguments(int argc, char* argv[], bool initDependent);
 		void LoadSubtitleStylesFile(char* path);

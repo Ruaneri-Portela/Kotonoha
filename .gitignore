@@ -662,6 +662,7 @@ build/
 vcpkg_installed/
 zips/
 assets/
+.research/
 /imgui.ini
 .vscode
 .cxx

@@ -32,7 +32,7 @@ namespace Kotonoha {
 		Image* image = nullptr;
 		Audio* audio = nullptr;
 		Prompt* prompt = nullptr;
-		int promptId = -1;
+		int promptId = -2;
 		bool putPrompt = false;
 
 		bool reset = false, back = false, hardReset = false, loop = false, firstFocus = true;

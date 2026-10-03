@@ -148,6 +148,7 @@ namespace Kotonoha {
 			*status = SDL_APP_SUCCESS;
 			return;
 		}
+		RebuildSceneIndex();
 
 		SDL_ShowWindow(gameContext.window);
 		*status = SDL_APP_CONTINUE;
@@ -487,6 +488,7 @@ namespace Kotonoha {
 				}
 			}
 
+			if (loadedAny) RebuildSceneIndex();
 			return loadedAny;
 		}
 
@@ -500,7 +502,31 @@ namespace Kotonoha {
 			}
 		}
 
+		if (loadedAny) RebuildSceneIndex();
 		return loadedAny;
+	}
+
+	void Kotonoha::RebuildSceneIndex() {
+		sceneIndex.clear();
+		for (size_t i = 0; i < gameplays.size(); ++i) {
+			if (gameplays[i] == nullptr) continue;
+			const SceneKey key = SceneKey::FromScriptPath(gameplays[i]->scriptPath);
+			if (!key.value.empty()) sceneIndex.emplace(key, i);
+		}
+		const bool detected = sceneIndex.count({ "00/00-00-A00" }) &&
+			sceneIndex.count({ "00/00-00-A03" }) &&
+			sceneIndex.count({ "00/00-00-L00" });
+		if (detected && !schoolDaysRouting) {
+			schoolDaysRouting = true;
+			schoolDaysRouter.Reset();
+			gameContext.scene = static_cast<int>(sceneIndex.at(schoolDaysRouter.CurrentScene()));
+			lastScene = static_cast<size_t>(-1);
+			SDL_Log("[KTN-ROUTER] Route 0 enabled; scene=%s choice=pending(-2) gameplay_index=%d",
+				schoolDaysRouter.CurrentScene().value.c_str(), gameContext.scene);
+		}
+		else if (!detected) {
+			schoolDaysRouting = false;
+		}
 	}
 
 	SDL_AppResult Kotonoha::Event(SDL_Event* event) {
@@ -572,14 +598,16 @@ namespace Kotonoha {
 		}
 
 		gameplays.clear();
+		sceneIndex.clear();
+		schoolDaysRouting = false;
+		schoolDaysRouter.Reset();
+		lastScene = static_cast<size_t>(-1);
 		gameContext.scene = 0;
 		gameContext.next = false;
 		gameContext.back = false;
 	}
 
 	SDL_AppResult Kotonoha::Main(Gameplay** out) {
-		static size_t lastScene = static_cast<size_t>(-1);
-
 		if (out != nullptr) {
 			*out = nullptr;
 		}
@@ -589,8 +617,10 @@ namespace Kotonoha {
 			const size_t currentScene = static_cast<size_t>(gameContext.scene);
 			Gameplay* current = gameplays[currentScene];
 			if (current == nullptr) {
-				if (!current->firstFocus)
-					current->Reset(true);
+				if (schoolDaysRouting) {
+					SDL_Log("[KTN-ROUTER] missing loaded gameplay for current scene");
+					return SDL_APP_FAILURE;
+				}
 				lastScene = gameContext.scene++;
 				continue;
 			}
@@ -602,7 +632,11 @@ namespace Kotonoha {
 				continue;
 			}
 
-			if (gameContext.back && gameContext.scene > 0) {
+			if (gameContext.back && schoolDaysRouting) {
+				SDL_Log("[KTN-ROUTER] back routing not implemented");
+				gameContext.back = false;
+			}
+			else if (gameContext.back && gameContext.scene > 0) {
 				if (!current->firstFocus)
 					current->Reset(true);
 				lastScene = gameContext.scene--;
@@ -611,7 +645,51 @@ namespace Kotonoha {
 			}
 
 			const SDL_AppResult result = current->Main(&gameContext);
+			if (schoolDaysRouting && current->prompt != nullptr &&
+				current->prompt->Result() != -2) {
+				schoolDaysRouter.AcceptChoice(current->prompt->Result());
+			}
+			if (schoolDaysRouting && result == SDL_APP_FAILURE) return result;
 			if (result != SDL_APP_CONTINUE || gameContext.next) {
+				if (schoolDaysRouting) {
+					gameContext.next = false;
+					if (!current->eventManager->CheckEnd(current)) {
+						SDL_Log("[KTN-ROUTER] next ignored before Next scene=%s",
+							schoolDaysRouter.CurrentScene().value.c_str());
+						if (out != nullptr) *out = current;
+						break;
+					}
+					const SceneKey actual = SceneKey::FromScriptPath(current->scriptPath);
+					if (!(actual == schoolDaysRouter.CurrentScene())) {
+						SDL_Log("[KTN-ROUTER] current scene mismatch expected=%s actual=%s",
+							schoolDaysRouter.CurrentScene().value.c_str(), actual.value.c_str());
+						return SDL_APP_FAILURE;
+					}
+					const auto next = schoolDaysRouter.ResolveNext();
+					if (next.kind == SchoolDaysRouter::NextKind::Unresolved) {
+						if (out != nullptr) *out = current;
+						break;
+					}
+					if (next.kind == SchoolDaysRouter::NextKind::Route0Exit) {
+						if (sceneIndex.count(next.destination) == 0) {
+							SDL_Log("[KTN-ROUTER] Route 0 finished; Route 1 is not loaded (%s)",
+								next.destination.value.c_str());
+						}
+						else {
+							SDL_Log("[KTN-ROUTER] Route 0 finished; Route 1 routing not implemented (%s)",
+								next.destination.value.c_str());
+						}
+						return SDL_APP_SUCCESS;
+					}
+					const auto found = sceneIndex.find(next.destination);
+					if (found == sceneIndex.end()) {
+						SDL_Log("[KTN-ROUTER] destination not loaded: %s", next.destination.value.c_str());
+						return SDL_APP_FAILURE;
+					}
+					if (!current->firstFocus) current->Reset(true);
+					gameContext.scene = static_cast<int>(found->second);
+					continue;
+				}
 				if (!current->firstFocus)
 					current->Reset(true);
 				gameContext.scene++;

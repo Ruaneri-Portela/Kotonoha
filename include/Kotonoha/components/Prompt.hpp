@@ -20,10 +20,14 @@ private:
   Uint64 startTime = 0;
   Uint64 endTime = 0;
   TTF_Font *font = nullptr;
+  SDL_FRect canvasPlace{ 0.0f, 0.0f, 0.0f, 0.0f };
 
 public:
   Prompt(std::vector<std::string> prompt, int *promptResult, Uint64 start,
          Uint64 end, Kotonoha_time *time);
+  void Update();
+  int Result() const;
+  void SetCanvasPlace(SDL_FRect place);
   static enum Kotonoha_Scene_Status Render(KOTONOHA_SCENE_CALL);
   ~Prompt();
 };
