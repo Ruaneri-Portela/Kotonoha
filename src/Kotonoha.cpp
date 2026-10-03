@@ -274,6 +274,9 @@ namespace Kotonoha {
 			SDL_Log("  -z                   Show FPS");
 			SDL_Log("  -t                   Show Timestamp");
 			SDL_Log("  -u                   Show debug UI");
+#ifdef KOTONOHA_DEV_CHECKPOINTS
+			SDL_Log("  -k <checkpoint>      Restore a School Days DEV checkpoint");
+#endif
 			SDL_Log("  -h                   Show this help message");
 			};
 
@@ -304,6 +307,26 @@ namespace Kotonoha {
                     return false;
 				}
 				break;
+
+#ifdef KOTONOHA_DEV_CHECKPOINTS
+			case 'k':
+				if (!initDependent) {
+					if (i + 1 < argc) {
+						*arg = '!';
+						requestedSchoolDaysCheckpoint = argv[++i];
+						SDL_Log("[KTN-DEV] checkpoint requested: %s",
+							requestedSchoolDaysCheckpoint.c_str());
+					}
+					else {
+						SDL_LogError(0, "Missing argument for -k option (checkpoint)");
+						return false;
+					}
+				}
+				else if (i + 1 < argc) {
+					++i;
+				}
+				break;
+#endif
 
 			case 'g':
 				for (int j = 0; j < SDL_GetNumRenderDrivers(); ++j) {
@@ -513,18 +536,56 @@ namespace Kotonoha {
 			const SceneKey key = SceneKey::FromScriptPath(gameplays[i]->scriptPath);
 			if (!key.value.empty()) sceneIndex.emplace(key, i);
 		}
+
 		const bool detected = sceneIndex.count({ "00/00-00-A00" }) &&
 			sceneIndex.count({ "00/00-00-A03" }) &&
 			sceneIndex.count({ "00/00-00-L00" });
-		if (detected && !schoolDaysRouting) {
-			schoolDaysRouting = true;
-			schoolDaysRouter.Reset();
-			gameContext.scene = static_cast<int>(sceneIndex.at(schoolDaysRouter.CurrentScene()));
-			lastScene = static_cast<size_t>(-1);
-			SDL_Log("[KTN-ROUTER] School Days full routing enabled; scene=%s choice=pending(-2) gameplay_index=%d",
-				schoolDaysRouter.CurrentScene().value.c_str(), gameContext.scene);
+
+		if (detected) {
+			if (!schoolDaysRouting) {
+				schoolDaysRouting = true;
+				schoolDaysRouter.Reset();
+				gameContext.scene = static_cast<int>(sceneIndex.at(schoolDaysRouter.CurrentScene()));
+				lastScene = static_cast<size_t>(-1);
+				SDL_Log("[KTN-ROUTER] School Days full routing enabled; scene=%s choice=pending(-2) gameplay_index=%d",
+					schoolDaysRouter.CurrentScene().value.c_str(), gameContext.scene);
+			}
+
+#ifdef KOTONOHA_DEV_CHECKPOINTS
+			if (!requestedSchoolDaysCheckpoint.empty() && !schoolDaysCheckpointApplied) {
+				const SceneKey checkpointScene =
+					schoolDaysRouter.DevCheckpointScene(requestedSchoolDaysCheckpoint);
+
+				if (checkpointScene.value.empty()) {
+					SDL_Log("[KTN-DEV] unknown checkpoint: %s",
+						requestedSchoolDaysCheckpoint.c_str());
+					schoolDaysCheckpointApplied = true;
+				}
+				else {
+					const auto target = sceneIndex.find(checkpointScene);
+					if (target != sceneIndex.end()) {
+						if (schoolDaysRouter.RestoreDevCheckpoint(requestedSchoolDaysCheckpoint)) {
+							gameContext.scene = static_cast<int>(target->second);
+							lastScene = static_cast<size_t>(-1);
+							gameContext.next = false;
+							gameContext.back = false;
+							schoolDaysCheckpointApplied = true;
+							SDL_Log("[KTN-DEV] checkpoint applied: %s gameplay_index=%d",
+								requestedSchoolDaysCheckpoint.c_str(), gameContext.scene);
+							SDL_Log("[KTN-DEV] state dump\n%s",
+								schoolDaysRouter.DumpState().c_str());
+						}
+						else {
+							SDL_Log("[KTN-DEV] checkpoint restore failed: %s",
+								requestedSchoolDaysCheckpoint.c_str());
+							schoolDaysCheckpointApplied = true;
+						}
+					}
+				}
+			}
+#endif
 		}
-		else if (!detected) {
+		else {
 			schoolDaysRouting = false;
 		}
 	}
@@ -575,6 +636,15 @@ namespace Kotonoha {
 				Kotonoha_BasicGuiShow = !Kotonoha_BasicGuiShow;
 				break;
 
+#ifdef KOTONOHA_DEV_CHECKPOINTS
+			case SDLK_F6:
+				if (schoolDaysRouting) {
+					SDL_Log("[KTN-DEV] manual state dump\n%s",
+						schoolDaysRouter.DumpState().c_str());
+				}
+				break;
+#endif
+
 			default:
 				break;
 			}
@@ -601,6 +671,9 @@ namespace Kotonoha {
 		sceneIndex.clear();
 		schoolDaysRouting = false;
 		schoolDaysRouter.Reset();
+#ifdef KOTONOHA_DEV_CHECKPOINTS
+		schoolDaysCheckpointApplied = false;
+#endif
 		lastScene = static_cast<size_t>(-1);
 		gameContext.scene = 0;
 		gameContext.next = false;
