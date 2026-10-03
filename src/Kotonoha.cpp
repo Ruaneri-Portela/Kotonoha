@@ -521,7 +521,7 @@ namespace Kotonoha {
 			schoolDaysRouter.Reset();
 			gameContext.scene = static_cast<int>(sceneIndex.at(schoolDaysRouter.CurrentScene()));
 			lastScene = static_cast<size_t>(-1);
-			SDL_Log("[KTN-ROUTER] Route 0 enabled; scene=%s choice=pending(-2) gameplay_index=%d",
+			SDL_Log("[KTN-ROUTER] School Days full routing enabled; scene=%s choice=pending(-2) gameplay_index=%d",
 				schoolDaysRouter.CurrentScene().value.c_str(), gameContext.scene);
 		}
 		else if (!detected) {
@@ -670,15 +670,11 @@ namespace Kotonoha {
 						if (out != nullptr) *out = current;
 						break;
 					}
-					if (next.kind == SchoolDaysRouter::NextKind::Route0Exit) {
-						if (sceneIndex.count(next.destination) == 0) {
-							SDL_Log("[KTN-ROUTER] Route 0 finished; Route 1 is not loaded (%s)",
-								next.destination.value.c_str());
-						}
-						else {
-							SDL_Log("[KTN-ROUTER] Route 0 finished; Route 1 routing not implemented (%s)",
-								next.destination.value.c_str());
-						}
+					if (next.kind == SchoolDaysRouter::NextKind::Terminal) {
+						SDL_Log("[KTN-ROUTER] terminal transition t%d ending=%d registrations=%d",
+							next.transitionId,
+							next.endingId,
+							static_cast<int>(schoolDaysRouter.State().endingRegistrations.size()));
 						return SDL_APP_SUCCESS;
 					}
 					const auto found = sceneIndex.find(next.destination);
