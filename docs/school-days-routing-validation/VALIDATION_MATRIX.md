@@ -62,7 +62,7 @@ Recommended semantics: reachable transitions green, dead branches red, structura
 
 ## Routing-only no-ORS nodes
 
-Recovered model contains exactly two known RouteProc nodes with no physical ORS:
+Recovered model currently identifies two RouteProc nodes with no physical ORS; completeness must be proven by the repository-wide scene inventory audit:
 
 - `03/03-B2-A00` — Route 12 / Scene 0
 - `03/03-KB-E00` — Route 15 / Scene 31
