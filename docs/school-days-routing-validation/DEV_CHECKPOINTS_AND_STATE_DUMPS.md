@@ -18,7 +18,10 @@ When disabled, checkpoint restoration, `-k`, and F6 router state dumps are not c
 
 `-k <checkpoint-name>`
 
-Current checkpoint: `-k sd-ep3-r4-b00`.
+Available checkpoints:
+
+- `-k sd-ep3-r4-b00` — causal recovered checkpoint at `02/02-2K-B00`.
+- `-k sd-ep4-r15-e08-routing-only` — targeted integration checkpoint at `03/03-KB-E08` for the no-ORS dispatcher incident.
 
 The engine waits until the checkpoint SceneKey exists in `sceneIndex`, restores the router state, maps the SceneKey to the loaded Gameplay index, and then begins execution there. This matters because the six School Days script directories are loaded incrementally on Android.
 
@@ -77,6 +80,28 @@ A plain scene jump would leave feelings, flags, BS/history variables, globals, c
 
 The engine logs a dump immediately after a checkpoint is applied. F6 emits a manual dump while School Days routing is active.
 
+## Targeted Route 15 routing-only checkpoint
+
+`sd-ep4-r15-e08-routing-only` restores:
+
+- SceneKey `03/03-KB-E08`
+- ROUTE=15
+- SCENE=39
+- `001=10`
+- `002=84`
+
+This checkpoint is intentionally **minimal** and must not be confused with the causal recovered `sd-ep3-r4-b00` snapshot. It exists to reproduce the exact engine-integration edge:
+
+```text
+03/03-KB-E08
+  -> t917
+03/03-KB-E00      (routing-only; no physical ORS)
+  -> t907 because 001 <= 002
+03/03-KB-G00      (physical ORS)
+```
+
+The values `001=10` and `002=84` match the previously observed device path. The standalone DEV test verifies `t917`, routing-only recognition, and `t907`.
+
 ## Future checkpoint protocol
 
 Do not invent future checkpoint values. Reach the desired scene through real routing, trigger `DumpState()`, save the router trace, record the previous transition ID, add the recovered snapshot, add a regression test, and verify that the next transition matches the uninterrupted trace.
@@ -85,7 +110,7 @@ Recommended naming: `sd-ep<episode>-r<route>-<scene>`.
 
 ## Standalone test
 
-`tests/SchoolDaysDevCheckpointTest.cpp` validates the current checkpoint and verifies that the next route resolution is `t263`.
+`tests/SchoolDaysDevCheckpointTest.cpp` validates both the causal B00 checkpoint (`t263`) and the targeted Route 15 integration checkpoint (`t917 -> routing-only E00 -> t907 -> G00`).
 
 Example compile command:
 
