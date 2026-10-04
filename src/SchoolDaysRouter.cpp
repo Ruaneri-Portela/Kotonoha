@@ -157,62 +157,85 @@ bool SchoolDaysRouter::IsCurrentSceneRoutingOnly() const {
 #ifdef KOTONOHA_DEV_CHECKPOINTS
 SceneKey SchoolDaysRouter::DevCheckpointScene(const std::string& name) const {
     if (name == "sd-ep3-r4-b00") return { "02/02-2K-B00" };
+    if (name == "sd-ep4-r15-e08-routing-only") return { "03/03-KB-E08" };
     return {};
 }
 
 bool SchoolDaysRouter::RestoreDevCheckpoint(const std::string& name) {
-    if (name != "sd-ep3-r4-b00") return false;
-
     Reset();
 
-    state.route = 4;
-    state.scene = 1;
-    state.choiceResult = kPendingChoice;
-    state.callback34 = 0;
-    state.feelingApplied = false;
-    state.endingRegistrations.clear();
+    if (name == "sd-ep3-r4-b00") {
+        state.route = 4;
+        state.scene = 1;
+        state.choiceResult = kPendingChoice;
+        state.callback34 = 0;
+        state.feelingApplied = false;
+        state.endingRegistrations.clear();
 
-    state.sessionVariables = {
-        {"ROUTE", 4}, {"SCENE", 1},
-        {"000", 0}, {"001", 10}, {"002", 47}, {"003", 0}, {"004", 0},
+        state.sessionVariables = {
+            {"ROUTE", 4}, {"SCENE", 1},
+            {"000", 0}, {"001", 10}, {"002", 47}, {"003", 0}, {"004", 0},
 
-        {"BS0000B00", 4},
-        {"BS0000H02", 15},
+            {"BS0000B00", 4},
+            {"BS0000H02", 15},
 
-        {"BS0100B04", 2},
-        {"BS0100B05", 5},
-        {"BS0100D00", 9},
-        {"BS0100E01", 21},
-        {"BS0100E05", 24},
-        {"BS0100F00", 28},
-        {"BS0100G00", 33},
-        {"BS0100I00", 38},
-        {"BS0100K00", 52},
-        {"BS0100N00", 67},
-        {"BS0100N04", 76},
-        {"BS0100Q00", 79},
-        {"BS0100U00", 69},
+            {"BS0100B04", 2},
+            {"BS0100B05", 5},
+            {"BS0100D00", 9},
+            {"BS0100E01", 21},
+            {"BS0100E05", 24},
+            {"BS0100F00", 28},
+            {"BS0100G00", 33},
+            {"BS0100I00", 38},
+            {"BS0100K00", 52},
+            {"BS0100N00", 67},
+            {"BS0100N04", 76},
+            {"BS0100Q00", 79},
+            {"BS0100U00", 69},
 
-        {"BS011KD00", 3},
-        {"BS011KE06", 18},
-        {"BS011KF00", 19},
-        {"BS011KK03", 27},
-        {"BS011KK07", 31},
+            {"BS011KD00", 3},
+            {"BS011KE06", 18},
+            {"BS011KF00", 19},
+            {"BS011KK03", 27},
+            {"BS011KK07", 31},
 
-        {"998", 1},
-        {"996", 1},
-        {"994", 1},
-        {"992", 1},
-        {"991", 1},
-    };
+            {"998", 1},
+            {"996", 1},
+            {"994", 1},
+            {"992", 1},
+            {"991", 1},
+        };
+    }
+    else if (name == "sd-ep4-r15-e08-routing-only") {
+        // Targeted integration checkpoint for the exact Route 15 incident
+        // observed on Android: E08 -> t917 -> virtual E00 -> t907/t908.
+        // It is intentionally minimal rather than a full historical snapshot.
+        // The observed path had 001=10 and 002=84, so the virtual dispatcher
+        // must take t907 (001 <= 002) and continue to physical G00.
+        state.route = 15;
+        state.scene = 39;
+        state.choiceResult = kPendingChoice;
+        state.callback34 = 0;
+        state.feelingApplied = false;
+        state.endingRegistrations.clear();
+
+        state.sessionVariables = {
+            {"ROUTE", 15}, {"SCENE", 39},
+            {"000", 0}, {"001", 10}, {"002", 84}, {"003", 0}, {"004", 0},
+        };
+    }
+    else {
+        return false;
+    }
 
     state.globalVariables = {
         {"dword_3A6F40", 0},
         {"dword_3A2294", 1},
     };
 
+    const SceneKey expected = DevCheckpointScene(name);
     const SceneKey scene = CurrentScene();
-    const bool valid = scene.value == "02/02-2K-B00";
+    const bool valid = !expected.value.empty() && scene == expected;
     if (log) {
         log(std::string("DEV checkpoint ") + (valid ? "restored: " : "invalid: ") +
             name + " scene=" + scene.value);
