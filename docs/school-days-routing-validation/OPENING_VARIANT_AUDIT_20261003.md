@@ -82,3 +82,17 @@ Therefore the safe classification is:
 - the special `PV/SETUNA-OP` Route-0 mechanism must not be conflated with this ORS.
 
 For normal-New-Game routing, `01/01-00-OP2` is outside the executable route graph. Global use in replay/trial/other modes remains a separate question.
+
+
+## Installed-game deep audit refinement
+
+The installed binary audit found that the RouteProc selector contains a `2 -> PV/SETUNA-OP` case, but its only direct caller found in this audit reduces the selector with `% 2`, so that caller cannot produce selector value 2.
+
+No installed EXE/RouteProc/SysMenu literal or loader rewrite was found that maps `PV/SETUNA-OP` to physical `01/01-00-OP2.ENG.ORS`.
+
+Therefore:
+
+- the physical OP2 Setsuna-opening identity is confirmed;
+- its absence from the normal RouteProc tables is confirmed;
+- `PV/SETUNA-OP == 01/01-00-OP2` remains unproven;
+- global execution of OP2 remains UNKNOWN until direct-launch name provenance or runtime tracing resolves it.
