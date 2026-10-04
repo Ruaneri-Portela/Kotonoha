@@ -97,3 +97,33 @@ ORS - router:
 ```
 
 Counts also matched the formal baseline: 1,857 router SceneKeys and 1,857 physical ORS SceneKeys, with no duplicate SceneKeys and no malformed ORS paths. The routing-only catalog is therefore complete for the audited script inventory.
+
+
+## Complementary ORS-only closure
+
+The inverse inventory difference is now also semantically closed for the installed edition:
+
+- `01/01-00-OP2` — physical ORS, **NATURAL_EXECUTION = NO**
+- `05/05-9O-B00` — physical ORS, **NATURAL_EXECUTION = NO**
+
+These are not missing router nodes and must not be inserted into the natural 1,857-node graph. The generic loader may be able to open them if a name is externally forced, but no audited natural SceneKey producer selects them.
+
+This distinction is important to the engine fix:
+
+- `03/03-B2-A00` and `03/03-KB-E00` are **virtual RouteProc dispatchers** and must auto-resolve;
+- `01/01-00-OP2` and `05/05-9O-B00` are **physical scripts outside natural selection** and do not participate in auto-resolution.
+
+## Device revalidation acceptance criteria
+
+Rebuild the current validation branch and reproduce the Route 15 path that previously failed.
+
+PASS requires:
+
+1. `t917` advances the router into `03/03-KB-E00`;
+2. the engine recognizes that SceneKey as routing-only before attempting Gameplay lookup;
+3. it immediately resolves either `t907 -> 03/03-KB-G00` or `t908 -> 03/03-KB-F00`, according to the live `001/002` state;
+4. the final physical destination exists in `sceneIndex` and Gameplay continues;
+5. there is no `destination not loaded: 03/03-KB-E00` fatal error;
+6. an unrelated missing physical destination would still fail hard.
+
+After the Route 15 case passes, the Route 12 dispatcher `03/03-B2-A00` should receive a targeted smoke test for the same zero-Gameplay behavior.
