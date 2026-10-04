@@ -95,3 +95,41 @@ Manual comparison also established:
 - `System/OP/SDHQ_SETSUNA`
 
 This is strong direct evidence that `OP2` is a second opening variant (Setsuna), parallel to the RouteProc-visible `OP1` Sekai opening. Its absence from the 55 recovered normal-New-Game route tables therefore points to opening-selection logic outside the ordinary RouteProc scene-node graph, rather than an arbitrary orphan-script hypothesis.
+
+## 2026-10-03 corrected classifier v2 result
+
+The corrected classifier was run locally.
+
+```text
+01/01-00-OP2
+  media-path mentions: 0
+  non-media/control-like mentions: 0
+  literal control-flow reference: NO
+
+05/05-9O-B00
+  media-path mentions: 1
+    05/05-9O-A00:221 [PlayVoice]
+  non-media/control-like mentions: 0
+  literal control-flow reference: NO
+```
+
+This formally removes the earlier false implication that `05/05-9O-A00` script-calls `05/05-9O-B00`.
+
+### Additional voice-overlap test
+
+A direct comparison of the voice asset paths used by `05/05-9O-A00` and `05/05-9O-B00` produced:
+
+```text
+A00 unique voice paths: 37
+B00 unique voice paths: 46
+B00 paths also used by A00: 1
+B00 paths not used by A00: 45
+```
+
+Therefore `05/05-9O-B00` is not a simple duplicate whose voice content was folded into `05/05-9O-A00`. It contains a largely distinct 46-voice sequence and remains a real semantic-mapping problem.
+
+Current status:
+
+- `01/01-00-OP2`: opening variant identified, selector still unresolved;
+- `05/05-9O-B00`: distinct physical scene content, no literal script-control reference found, loader/reachability still unresolved.
+
