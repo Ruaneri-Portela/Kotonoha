@@ -20,9 +20,13 @@ Exit condition: 22 endings, 1,856 reachable SceneKeys, 2,458 expected reachable 
 
 ## D — full Android path
 
-Resume through DEV checkpoint and continue `02 -> 03 -> 04 -> 05 -> ending`.
+**Immediate prerequisite:** rebuild the current validation branch and revalidate the routing-only dispatcher fix that previously failed at `t917 -> 03/03-KB-E00`. The virtual node must auto-resolve through `t907` or `t908` without attempting to load an ORS.
+
+After that PASS, resume through the DEV checkpoint and continue `02 -> 03 -> 04 -> 05 -> ending`.
 
 At every useful boundary save `KTN-ROUTER`, trigger `DumpState()`, record transition ID and SceneKey, and create a new DEV checkpoint when it saves substantial replay time.
+
+Also add one targeted smoke test for the second routing-only dispatcher, `03/03-B2-A00`, after the Route 15 incident is cleared.
 
 ## E — targeted mechanism smoke tests
 
