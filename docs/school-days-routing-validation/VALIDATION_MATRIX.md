@@ -59,3 +59,13 @@ The exact 42,404,396 state count uses a historical projection. A future verifier
 The final graph should be generated from verified executable reachability, not hand-edited.
 
 Recommended semantics: reachable transitions green, dead branches red, structural unreachable nodes gray, choice nodes blue, terminal endings gold.
+
+## Routing-only no-ORS nodes
+
+Recovered model contains exactly two known RouteProc nodes with no physical ORS:
+
+- `03/03-B2-A00` — Route 12 / Scene 0
+- `03/03-KB-E00` — Route 15 / Scene 31
+
+Android exposed the second node through `t917`. The engine integration has been updated to resolve only explicitly identified routing-only nodes immediately. This behavior requires rebuild/device revalidation.
+
