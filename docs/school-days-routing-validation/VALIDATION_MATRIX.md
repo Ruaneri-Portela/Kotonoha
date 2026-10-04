@@ -100,3 +100,21 @@ Acceptance status:
 - `05/05-9O-B00`: **UNKNOWN globally**; Route 36 produces only A00 and terminates, but direct-launch and later callback-state consumers are not exhaustively ruled out.
 
 Next closure step: trace or statically close every name source reaching the EXE direct-launch/ORS-loader path.
+
+
+### Save/SLog direct-launch surface
+
+Status: **PARTIAL, materially narrowed**
+
+- SLog grammar for all 22 current slot saves: **CONFIRMED**
+- Save -> direct launch name transfer: **CONFIRMED**
+- OP2 in existing saves: **NO-IN-EXISTING-SAVES**
+- B00 in existing saves: **NO-IN-EXISTING-SAVES**
+- initial/pending name sources: **PARTIAL**
+
+Open proof obligations are now concentrated on:
+
+1. complete writers/elements of `object+0x154` (initial-name source);
+2. complete writers and restore effects for `ScriptObject+0x114`;
+3. runtime acceptance/behavior only if static closure remains insufficient.
+
