@@ -202,3 +202,35 @@ Classification update:
 - `05/05-9O-B00 via existing saves`: **NO-IN-EXISTING-SAVES**;
 - global execution remains **UNKNOWN**, because `object+0x154` initial-name sources and the full writer domain of `ScriptObject+0x114` pending/current script state are not yet closed.
 
+
+
+## 2026-10-04 — Final natural-execution closure
+
+The remaining direct-launch producer domains were closed after the save/SLog, replay/SysMenu, runtime-trace, restore, and command-object investigations.
+
+Final classification for the installed edition:
+
+| Physical ORS | Natural execution | Externally forced load | Router node |
+|---|---|---|---|
+| `01/01-00-OP2` | **NO** | **POSSIBLE** | **NO** |
+| `05/05-9O-B00` | **NO** | **POSSIBLE** | **NO** |
+
+The distinction is intentional:
+
+- **Natural execution = NO** means no audited producer of SceneKey in the installed game generates either name.
+- **Externally forced load = POSSIBLE** means the generic loader may still open the physical ORS if a name is supplied artificially (for example by edited state, injection, or a manual/direct call). This is outside the natural routing model.
+
+The final natural producer matrix now closes:
+
+- installed `STARTSCRIPT.INI` startup values;
+- RouteProc `Next` / `Back` outputs and the `[Next]` pending-name writer;
+- SysMenu/replay `main+0x154` (166 audited pointers / 122 distinct SceneKeys);
+- installed SLog type-1 save names;
+- SLog type-3 command records (`+0x0C`) produced from the 55 RouteProc tables or restored from the installed saves;
+- restore replacement of `ScriptObject`, where `+0x114` is initialized empty;
+- `[Exit]`, whose `+0x114` domain is the empty string;
+- previously audited direct-launch menu sources.
+
+Consequently the two physical ORS-only scripts remain intentionally absent from the 1,857-node natural router.
+
+See `ORS_ONLY_NATURAL_EXECUTION_CLOSURE_20261004.md` for the consolidated result.
