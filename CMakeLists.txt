@@ -20,6 +20,15 @@ file(GLOB SOURCES CONFIGURE_DEPENDS
     src/utils/*.c
 )
 
+# LibIconvCompat is a mobile compatibility shim. The current Windows
+# dependency set does not provide <iconv.h>, and the desktop target does
+# not need this translation unit.
+if(WIN32)
+    list(REMOVE_ITEM SOURCES
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/utils/LibIconvCompat.c"
+    )
+endif()
+
 find_package(PkgConfig REQUIRED)
 find_package(imgui CONFIG REQUIRED)
 find_package(SDL3 CONFIG REQUIRED)
