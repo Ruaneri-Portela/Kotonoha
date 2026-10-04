@@ -12,14 +12,14 @@ This was initially indistinguishable from a missing or failed-to-parse ORS at th
 
 Cross-checking the recovered route-table mapping shows that `03/03-KB-E00` is intentionally a RouteProc node with no physical ORS file.
 
-## Known no-ORS RouteProc nodes
+## Currently known no-ORS RouteProc nodes
 
 | Route | Scene | SceneKey | Physical ORS | Role |
 |---:|---:|---|---|---|
 | 12 | 0 | `03/03-B2-A00` | no | routing-only dispatcher |
 | 15 | 31 | `03/03-KB-E00` | no | routing-only dispatcher |
 
-These two entries explain the historical count difference between route-model nodes and physical episode-4 ORS files.
+These are the two currently identified entries. Their completeness is not assumed: the scene-inventory audit must prove that no additional router-only SceneKeys exist anywhere in episodes 00..05.
 
 ## Route 15 / Scene 31 semantics
 
@@ -66,3 +66,29 @@ The process closing was therefore not a narrative-routing contradiction. It was 
 `Kotonoha::Main()` now immediately calls `ResolveNext()` again when an advanced destination is absent from `sceneIndex` **and** the current router node is explicitly routing-only.
 
 This preserves strict failure behavior for all ordinary missing destinations.
+
+## Completeness audit requirement
+
+The classification above is provisional until the repository-wide inventory audit passes.
+
+Run:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tools\schooldays-routing-verifier\run_scene_inventory_audit.ps1
+```
+
+The audit computes the exact set differences:
+
+```text
+router SceneKeys - physical ORS SceneKeys
+physical ORS SceneKeys - router SceneKeys
+```
+
+Only if the first set is exactly:
+
+```text
+03/03-B2-A00
+03/03-KB-E00
+```
+
+can this document state that the routing-only catalog is complete.
