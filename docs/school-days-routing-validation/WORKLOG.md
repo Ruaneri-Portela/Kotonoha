@@ -123,3 +123,20 @@ The validation branch now exposes `IsCurrentSceneRoutingOnly()` and auto-resolve
 
 See `ROUTING_ONLY_NODES.md`.
 
+
+## 2026-10-03 — Router-vs-ORS completeness audit added
+
+A repository-wide scene inventory audit was added before claiming that the two currently known no-ORS dispatcher nodes are the complete set.
+
+Tool:
+
+`tools/schooldays-routing-verifier/audit_scene_inventory.py`
+
+Runner:
+
+`tools/schooldays-routing-verifier/run_scene_inventory_audit.ps1`
+
+The audit compares all generated router SceneKeys against every physical `.ENG.ORS` under episodes `00..05`, reports both set differences, duplicates and malformed paths, and emits a JSON report.
+
+No claim that the routing-only catalog is complete is accepted until this audit passes on the working checkout.
+
