@@ -12,14 +12,14 @@ This was initially indistinguishable from a missing or failed-to-parse ORS at th
 
 Cross-checking the recovered route-table mapping shows that `03/03-KB-E00` is intentionally a RouteProc node with no physical ORS file.
 
-## Currently known no-ORS RouteProc nodes
+## Proven no-ORS RouteProc nodes
 
 | Route | Scene | SceneKey | Physical ORS | Role |
 |---:|---:|---|---|---|
 | 12 | 0 | `03/03-B2-A00` | no | routing-only dispatcher |
 | 15 | 31 | `03/03-KB-E00` | no | routing-only dispatcher |
 
-These are the two currently identified entries. Their completeness is not assumed: the scene-inventory audit must prove that no additional router-only SceneKeys exist anywhere in episodes 00..05.
+The repository-wide scene inventory audit passed and proved that these are the complete router-only SceneKeys across episodes 00..05.
 
 ## Route 15 / Scene 31 semantics
 
@@ -67,9 +67,9 @@ The process closing was therefore not a narrative-routing contradiction. It was 
 
 This preserves strict failure behavior for all ordinary missing destinations.
 
-## Completeness audit requirement
+## Completeness audit — PASS
 
-The classification above is provisional until the repository-wide inventory audit passes.
+The repository-wide inventory audit passed on the working checkout.
 
 Run:
 
@@ -84,11 +84,16 @@ router SceneKeys - physical ORS SceneKeys
 physical ORS SceneKeys - router SceneKeys
 ```
 
-Only if the first set is exactly:
+Observed set difference:
 
 ```text
+router - ORS:
 03/03-B2-A00
 03/03-KB-E00
+
+ORS - router:
+01/01-00-OP2
+05/05-9O-B00
 ```
 
-can this document state that the routing-only catalog is complete.
+Counts also matched the formal baseline: 1,857 router SceneKeys and 1,857 physical ORS SceneKeys, with no duplicate SceneKeys and no malformed ORS paths. The routing-only catalog is therefore complete for the audited script inventory.
