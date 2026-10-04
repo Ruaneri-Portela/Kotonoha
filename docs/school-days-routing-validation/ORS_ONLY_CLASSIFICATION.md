@@ -135,9 +135,9 @@ Current status:
 
 
 
-## Normal-New-Game reachability closure
+## Normal-New-Game RouteProc closure
 
-Additional executable-router inspection closes the two ORS-only cases for the current normal-New-Game scope.
+Additional executable-router inspection closes the **RouteProc-table** question for the two ORS-only cases, but the later deep audit showed that this is not enough to prove global non-execution. The EXE has a generic direct-launch path whose complete name provenance has not yet been resolved.
 
 ### `01/01-00-OP2`
 
@@ -145,7 +145,7 @@ The DLL contains a special Route-0 PV selector for `PV/SEKAI-OP`, `PV/KOTONOHA-O
 
 No evidence connects that special `PV/SETUNA-OP` identifier to the physical `01/01-00-OP2.ENG.ORS` during normal New Game.
 
-Classification for this project scope: **physical alternate opening asset, unreachable from the recovered normal-New-Game RouteProc graph**.
+Classification: **physical alternate opening asset, absent from the recovered normal-New-Game RouteProc graph**. Global execution remains **UNKNOWN** because a generic direct-launch path exists outside table-driven `Next` routing.
 
 ### `05/05-9O-B00`
 
@@ -159,6 +159,21 @@ The recovered graph gives a stronger proof:
 
 Its active/backup ORS copies and historical JRS prove that the content was retained, not that it is reachable.
 
-Classification for this project scope: **retained physical script, unreachable from the recovered normal-New-Game RouteProc graph**.
+Classification: **retained physical script, absent from the recovered normal-New-Game RouteProc graph**. Global execution remains **UNKNOWN** because direct-load inputs, replay/extra/save-originated names, and the downstream effects of ending callback state are not yet exhaustively proven.
 
 This does not claim global deadness across every replay/trial/debug/edition-specific loader path.
+
+
+## Deep audit correction — global execution remains UNKNOWN
+
+A later read-only audit against the installed game binaries and all 31 installed GPK indexes verified the table results directly from the installed `RouteProcSDHQ.dll` and traced the executable's generic script-loading path.
+
+The important correction is scope:
+
+- **CONFIRMED:** neither `01/01-00-OP2` nor `05/05-9O-B00` is produced by the 55 normal RouteProc tables.
+- **NOT PROVEN:** that neither file can ever be loaded by any other executable path.
+- The EXE contains a direct-launch surface that can pass a caller-provided script name into the generic ORS loader without obtaining that name from a RouteProc table.
+- Complete dataflow for all such name sources (replay, extras, saves/config/UI, special modes, external/loose-file paths) remains unfinished.
+- Therefore both targets are **UNKNOWN** for global execution.
+
+Do not label either asset globally dead/unreachable until that direct-launch surface and all name origins are closed or a runtime trace provides decisive evidence.
