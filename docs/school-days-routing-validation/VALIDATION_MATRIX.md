@@ -80,11 +80,23 @@ The engine integration has been updated to resolve only the two proven routing-o
 
 
 
-## ORS-only normal-New-Game reachability — CLOSED
+## ORS-only RouteProc-table reachability — CLOSED; global execution — UNKNOWN
 
 For the normal-New-Game routing scope:
 
 - `01/01-00-OP2` is a physical Setsuna opening variant but has no normal-New-Game RouteProc node or control-flow reference. The separate Route-0 `PV/SETUNA-OP` mechanism is callback/mode-gated and outside normal New Game.
 - `05/05-9O-B00` is retained physical content but cannot be reached through the recovered normal-New-Game graph. Route 36 is a one-node ending route containing only `05/05-9O-A00`.
 
-Neither ORS-only asset needs to be inserted into the 1,857-node normal-New-Game router.
+Neither ORS-only asset should be inserted into the 1,857-node table-driven router. However, the installed EXE exposes a generic direct-launch path whose full caller/name provenance is not yet resolved, so global execution of either asset remains UNKNOWN.
+
+
+### Installed-game deep audit
+
+A read-only audit of the installed EXE, RouteProc, SysMenu and all 31 GPK indexes confirmed 55 tables / 1,857 SceneKeys with zero table divergence.
+
+Acceptance status:
+
+- `01/01-00-OP2`: **UNKNOWN globally**; absent from RouteProc tables, no proven alias from `PV/SETUNA-OP`.
+- `05/05-9O-B00`: **UNKNOWN globally**; Route 36 produces only A00 and terminates, but direct-launch and later callback-state consumers are not exhaustively ruled out.
+
+Next closure step: trace or statically close every name source reaching the EXE direct-launch/ORS-loader path.
