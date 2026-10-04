@@ -33,3 +33,31 @@ The exhaustive state-space verifier is the next milestone and is intentionally n
 Its required graph-level baseline is documented under:
 
 `docs/school-days-routing-validation/MODEL_CHECKING_PLAN.md`
+
+## Scene inventory audit
+
+Before treating any missing Gameplay destination as a routing-only node, run:
+
+```powershell
+cd D:\Dev\Kotonoha
+powershell -ExecutionPolicy Bypass -File .\tools\schooldays-routing-verifier\run_scene_inventory_audit.ps1
+```
+
+The audit compares every generated router SceneKey against every physical `.ENG.ORS` under `assets/00` through `assets/05`.
+
+It reports:
+
+- router-only nodes;
+- ORS-only scripts;
+- duplicate SceneKeys;
+- rejected/malformed ORS paths;
+- per-episode counts;
+- RouteProc route/scene coordinates for router-only nodes.
+
+The current formal baseline expects 1,857 router SceneKeys, 1,857 physical ORS SceneKeys, exactly two currently known router-only SceneKeys, and exactly two ORS-only SceneKeys.
+
+A `PASS` is required before we promote the currently known pair into a formally complete routing-only catalog.
+
+JSON output:
+
+`build/routing-verifier/scene-inventory-audit.json`
