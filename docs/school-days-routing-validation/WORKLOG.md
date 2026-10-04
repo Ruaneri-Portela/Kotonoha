@@ -100,3 +100,26 @@ This confirms executable integration across the episode-prefix transition `02 ->
 
 A full state dump at this boundary is requested so the state can be preserved as the next causal DEV checkpoint candidate.
 
+
+## 2026-10-03 — No-ORS dispatcher bug exposed by real device path
+
+The Android path reached:
+
+```text
+BS03KBE00=39
+ROUTE=15
+SCENE=31
+next t917 -> 03/03-KB-E00
+destination not loaded: 03/03-KB-E00
+```
+
+The app closed because the engine returned failure for an unloaded destination.
+
+Cross-check against the recovered scene mapping confirmed that `03/03-KB-E00` is intentionally one of exactly two RouteProc nodes with no physical ORS. The other is `03/03-B2-A00`.
+
+These are routing-only dispatcher nodes and must be resolved immediately by RouteProc logic rather than passed to Gameplay.
+
+The validation branch now exposes `IsCurrentSceneRoutingOnly()` and auto-resolves only these explicitly known virtual nodes. Ordinary missing destinations remain hard failures.
+
+See `ROUTING_ONLY_NODES.md`.
+
