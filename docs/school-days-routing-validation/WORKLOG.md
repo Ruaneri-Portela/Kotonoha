@@ -296,3 +296,28 @@ RUNTIME TRACE STILL REQUIRED = NO
 ```
 
 The 1,857-node natural router remains unchanged. The next engineering task is Android/device revalidation of the two proven routing-only no-ORS dispatchers.
+
+
+## 2026-10-04 — Targeted Android checkpoint added for routing-only incident
+
+To avoid replaying the full EP3/EP4 path merely to re-test the engine integration bug, a DEV-only targeted checkpoint was added:
+
+`sd-ep4-r15-e08-routing-only -> 03/03-KB-E08`
+
+It restores the minimal router state needed to reproduce the observed incident:
+
+`ROUTE=15, SCENE=39, 001=10, 002=84`.
+
+Expected router sequence:
+
+```text
+03/03-KB-E08
+  -> t917
+03/03-KB-E00
+  -> t907
+03/03-KB-G00
+```
+
+The checkpoint is intentionally distinguished from the causal `sd-ep3-r4-b00` snapshot. The standalone DEV checkpoint test now asserts `t917`, `IsCurrentSceneRoutingOnly()`, `t907`, and final physical destination `03/03-KB-G00`.
+
+Next action: build/install Android with `KOTONOHA_DEV_CHECKPOINTS=ON`, launch using this checkpoint, and confirm the engine emits the routing-only auto-resolution log instead of `destination not loaded`.
