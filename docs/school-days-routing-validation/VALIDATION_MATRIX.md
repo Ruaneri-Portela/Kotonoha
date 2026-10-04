@@ -71,3 +71,10 @@ Android exposed the second node through `t917`. The audit also found exactly two
 
 The engine integration has been updated to resolve only the two proven routing-only nodes immediately. This behavior still requires rebuild/device revalidation.
 
+
+## ORS-only semantic closure
+
+`01/01-00-OP2` is now classified as a genuine alternate opening script: it plays the Setsuna opening media while `01/01-00-OP1` plays the Sekai opening. The exact selector/loading mechanism remains unresolved and must be proven before final closure.
+
+`05/05-9O-B00` remains semantically unresolved. The earlier apparent reference from `05/05-9O-A00` was a `PlayVoice` media-path collision and is not control-flow evidence.
+
