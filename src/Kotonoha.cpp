@@ -738,7 +738,20 @@ namespace Kotonoha {
 							schoolDaysRouter.CurrentScene().value.c_str(), actual.value.c_str());
 						return SDL_APP_FAILURE;
 					}
-					const auto next = schoolDaysRouter.ResolveNext();
+					auto next = schoolDaysRouter.ResolveNext();
+
+					// RouteProc has a tiny set of routing-only dispatcher nodes
+					// present in the DLL tables but absent from the physical ORS
+					// script set. Resolve only those explicitly identified nodes
+					// immediately; arbitrary missing assets must still fail.
+					while (next.kind == SchoolDaysRouter::NextKind::Advanced &&
+						sceneIndex.find(next.destination) == sceneIndex.end() &&
+						schoolDaysRouter.IsCurrentSceneRoutingOnly()) {
+						SDL_Log("[KTN-ROUTER] routing-only node %s (no ORS); resolving immediately",
+							schoolDaysRouter.CurrentScene().value.c_str());
+						next = schoolDaysRouter.ResolveNext();
+					}
+
 					if (next.kind == SchoolDaysRouter::NextKind::Unresolved) {
 						if (out != nullptr) *out = current;
 						break;
@@ -750,6 +763,7 @@ namespace Kotonoha {
 							static_cast<int>(schoolDaysRouter.State().endingRegistrations.size()));
 						return SDL_APP_SUCCESS;
 					}
+
 					const auto found = sceneIndex.find(next.destination);
 					if (found == sceneIndex.end()) {
 						SDL_Log("[KTN-ROUTER] destination not loaded: %s", next.destination.value.c_str());
