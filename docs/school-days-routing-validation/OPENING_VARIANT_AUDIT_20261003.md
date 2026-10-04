@@ -96,3 +96,16 @@ Therefore:
 - its absence from the normal RouteProc tables is confirmed;
 - `PV/SETUNA-OP == 01/01-00-OP2` remains unproven;
 - global execution of OP2 remains UNKNOWN until direct-launch name provenance or runtime tracing resolves it.
+
+
+## Final installed-edition natural-execution status
+
+Subsequent producer-domain closure resolved the remaining direct-launch ambiguity for the installed edition.
+
+`01/01-00-OP2` remains a confirmed physical Setsuna-opening ORS, but no audited natural SceneKey producer selects it. Final classification:
+
+- **NATURAL_EXECUTION = NO**
+- **EXTERNALLY_FORCED_LOAD = POSSIBLE**
+- **router node = NO**
+
+The special `PV/SETUNA-OP` identifier remains distinct from the physical OP2 name; no alias is needed to explain the installed natural routing domain because that domain is now closed without OP2.
