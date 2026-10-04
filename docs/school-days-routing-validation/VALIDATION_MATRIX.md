@@ -118,3 +118,56 @@ Open proof obligations are now concentrated on:
 2. complete writers and restore effects for `ScriptObject+0x114`;
 3. runtime acceptance/behavior only if static closure remains insufficient.
 
+
+
+## ORS-only natural execution — CLOSED
+
+Final installed-edition classification:
+
+- `01/01-00-OP2`: **NATURAL_EXECUTION = NO**
+- `05/05-9O-B00`: **NATURAL_EXECUTION = NO**
+- externally forced loading remains **POSSIBLE** for both and is explicitly outside the router model.
+
+All known natural SceneKey producer domains have been closed. The physical ORS-only scripts must **not** be added as router nodes.
+
+This closes the inventory interpretation:
+
+```text
+Router SceneKeys:       1857
+Physical ORS SceneKeys: 1857
+
+Router-only:
+  03/03-B2-A00
+  03/03-KB-E00
+
+ORS-only:
+  01/01-00-OP2
+  05/05-9O-B00
+```
+
+Semantics:
+
+- **router-only** = logical RouteProc dispatcher nodes with no physical ORS;
+- **ORS-only** = retained physical scripts that are not naturally selected by any audited installed-edition producer.
+
+### Immediate Android validation target
+
+The next device step is no longer ORS-only research. Rebuild the validation branch and re-run the path that previously failed at `t917 -> 03/03-KB-E00`.
+
+Expected integration behavior:
+
+```text
+next t917 -> 03/03-KB-E00
+routing-only node 03/03-KB-E00 (no ORS); resolving immediately
+next t907 -> 03/03-KB-G00
+```
+
+or, if the live state has `001 > 002`:
+
+```text
+next t917 -> 03/03-KB-E00
+routing-only node 03/03-KB-E00 (no ORS); resolving immediately
+next t908 -> 03/03-KB-F00
+```
+
+Any ordinary missing destination must still remain a hard failure.
