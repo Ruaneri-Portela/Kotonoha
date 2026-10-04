@@ -236,3 +236,25 @@ Key result:
 - The previous documentation wording that implied full reachability closure was narrowed to RouteProc-table closure only.
 
 The next decisive phase is either full static dataflow over all direct-launch callers/name sources or a non-invasive runtime trace over the loader/direct-launch/RouteProc/callback surfaces.
+
+
+## 2026-10-04 — SLog format and save -> launcher chain confirmed
+
+A focused audit decoded all 22 present `SaveFile*.DAT` SLog slot saves to the final byte under the observed grammar.
+
+The first type-1 name is read as a length-prefixed XOR-transformed UTF-16LE string and flows unchanged through:
+
+`0x00433BA9 -> 0x0042A760 -> 0x0042A7AC -> 0x00430D20`.
+
+Across the current save set:
+
+- 22 type-1 launch names decoded;
+- 490 type-3 and 876 type-4 records decoded;
+- 1,388 structural SceneKey names total;
+- zero OP2/B00 target matches;
+- `GlobalFlag.DAT` parsed completely with zero OP2/B00 matches.
+
+The save surface is therefore closed for the **existing save files**, but not globally for all possible future or restored states. Remaining static closure work is focused on `object+0x154` and `ScriptObject+0x114`.
+
+Validation reported 146/146 PASS with no original file modification.
+
