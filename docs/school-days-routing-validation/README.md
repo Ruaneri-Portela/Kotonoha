@@ -53,3 +53,15 @@ State dump hotkey: `F6`.
 8. Only then use the certified router as the oracle for KTRF / `.ktroute`.
 
 Every routing claim in this directory should identify whether it is model evidence, standalone C++ evidence, engine integration evidence, or real-device evidence.
+
+
+## ORS-only inventory closure
+
+The router/physical-script count mismatch is now fully classified for the installed edition.
+
+- Router-only logical dispatchers: `03/03-B2-A00`, `03/03-KB-E00`.
+- Physical ORS not naturally selected: `01/01-00-OP2`, `05/05-9O-B00`.
+- `NATURAL_EXECUTION = NO` for both ORS-only scripts after closing startup, RouteProc, replay/SysMenu, save/SLog, restore, pending-name, exit, command-record, and direct-launch producer domains.
+- Generic externally forced loading remains possible and is outside the natural routing model.
+
+The next Android task is to rebuild and revalidate the zero-Gameplay handling for the two router-only dispatchers, beginning with the previously observed Route 15 incident at `t917 -> 03/03-KB-E00`.
