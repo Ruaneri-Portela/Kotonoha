@@ -56,3 +56,29 @@ A previous generic literal-reference scan reported `05/05-9O-A00 -> 05/05-9O-B00
 Manual inspection proved that the matching line is a `PlayVoice` event whose **voice asset path** contains `05-9O-B00`. It is not an ORS control-flow reference.
 
 Any future ORS-to-ORS reference audit must classify references by command semantics rather than basename coincidence.
+
+
+## RouteProc special PV names are a different mechanism
+
+Further disassembly inspection resolved an important ambiguity.
+
+`searchRoot_route0()` recognizes the special names:
+
+- `PV/SEKAI-OP`
+- `PV/KOTONOHA-OP`
+- `PV/SETUNA-OP`
+
+and maps all three to Route 0 / Scene 220, but only through the Route-0 special path guarded by the `field_34` callback/mode condition.
+
+A separate selector in the DLL maps selector value 0 -> Sekai, 1 -> Kotonoha, 2 -> Setsuna.
+
+This is **not evidence that `01/01-00-OP2` is selected during normal New Game**. The identifiers are different, and the recovered normal-New-Game assumptions use `callback34 = 0`, excluding this Route-0 special PV path.
+
+Therefore the safe classification is:
+
+- `01/01-00-OP2` is a genuine physical Setsuna opening script;
+- it is not a node in the recovered normal-New-Game RouteProc graph;
+- no literal control-flow reference to it was found;
+- the special `PV/SETUNA-OP` Route-0 mechanism must not be conflated with this ORS.
+
+For normal-New-Game routing, `01/01-00-OP2` is outside the executable route graph. Global use in replay/trial/other modes remains a separate question.
