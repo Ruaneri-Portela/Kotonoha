@@ -62,10 +62,12 @@ Recommended semantics: reachable transitions green, dead branches red, structura
 
 ## Routing-only no-ORS nodes
 
-Recovered model currently identifies two RouteProc nodes with no physical ORS; completeness must be proven by the repository-wide scene inventory audit:
+Repository-wide scene inventory audit: PASS. Exactly two RouteProc nodes have no physical ORS:
 
 - `03/03-B2-A00` — Route 12 / Scene 0
 - `03/03-KB-E00` — Route 15 / Scene 31
 
-Android exposed the second node through `t917`. The engine integration has been updated to resolve only explicitly identified routing-only nodes immediately. This behavior requires rebuild/device revalidation.
+Android exposed the second node through `t917`. The audit also found exactly two physical ORS scripts absent from the normal-New-Game router: `01/01-00-OP2` and `05/05-9O-B00`. Those ORS-only scripts are a separate classification task and are not treated as routing-only nodes.
+
+The engine integration has been updated to resolve only the two proven routing-only nodes immediately. This behavior still requires rebuild/device revalidation.
 
