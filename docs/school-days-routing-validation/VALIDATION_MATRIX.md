@@ -78,3 +78,13 @@ The engine integration has been updated to resolve only the two proven routing-o
 
 `05/05-9O-B00` remains semantically unresolved. The earlier apparent reference from `05/05-9O-A00` was a `PlayVoice` media-path collision and is not control-flow evidence.
 
+
+
+## ORS-only normal-New-Game reachability — CLOSED
+
+For the normal-New-Game routing scope:
+
+- `01/01-00-OP2` is a physical Setsuna opening variant but has no normal-New-Game RouteProc node or control-flow reference. The separate Route-0 `PV/SETUNA-OP` mechanism is callback/mode-gated and outside normal New Game.
+- `05/05-9O-B00` is retained physical content but cannot be reached through the recovered normal-New-Game graph. Route 36 is a one-node ending route containing only `05/05-9O-A00`.
+
+Neither ORS-only asset needs to be inserted into the 1,857-node normal-New-Game router.
