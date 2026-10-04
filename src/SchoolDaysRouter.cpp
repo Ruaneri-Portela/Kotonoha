@@ -143,6 +143,17 @@ SceneKey SchoolDaysRouter::CurrentScene() const {
     return { kNodes[node].sceneKey };
 }
 
+bool SchoolDaysRouter::IsCurrentSceneRoutingOnly() const {
+    const SceneKey scene = CurrentScene();
+
+    // These two RouteProc nodes are present in the recovered DLL route tables
+    // but have no physical ORS script in the School Days HQ script set.
+    // They are dispatcher nodes: RouteProc evaluates them immediately and
+    // forwards to the next real script based on the accumulated state.
+    return scene.value == "03/03-B2-A00" ||
+        scene.value == "03/03-KB-E00";
+}
+
 #ifdef KOTONOHA_DEV_CHECKPOINTS
 SceneKey SchoolDaysRouter::DevCheckpointScene(const std::string& name) const {
     if (name == "sd-ep3-r4-b00") return { "02/02-2K-B00" };
