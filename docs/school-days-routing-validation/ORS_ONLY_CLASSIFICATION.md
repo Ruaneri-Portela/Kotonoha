@@ -64,3 +64,34 @@ Observed structure:
 
 Status: **not orphan**. The direct reference from another physical ORS proves that it participates in some script-level relationship outside the recovered normal-New-Game RouteProc node set. The exact command at `05-9O-A00:221` must be identified and its runtime semantics proven before Android validation resumes.
 
+
+
+## Correction: media-path false positive
+
+The first classifier reported a literal ORS reference from `05/05-9O-A00` to `05/05-9O-B00`.
+
+Manual inspection proved that this was **not** script control flow. The matching line is a `PlayVoice` event whose voice asset path contains the directory name `05-9O-B00`.
+
+Therefore:
+
+- `05/05-9O-B00` is **not proven referenced as a script** by that line;
+- the first classifier's generic "literal-reference-found" label was too broad;
+- media-path mentions must be separated from script/control-flow references.
+
+A corrected classifier, `classify_ors_only_v2.py`, now separates media-path mentions from non-media/control-like references.
+
+### Opening-script evidence
+
+Manual comparison also established:
+
+`01/01-00-OP1`
+
+- `BGM/Vocal/SDV01`
+- `System/OP/SDHQ_SEKAI`
+
+`01/01-00-OP2`
+
+- `BGM/Vocal/SDV03`
+- `System/OP/SDHQ_SETSUNA`
+
+This is strong direct evidence that `OP2` is a second opening variant (Setsuna), parallel to the RouteProc-visible `OP1` Sekai opening. Its absence from the 55 recovered normal-New-Game route tables therefore points to opening-selection logic outside the ordinary RouteProc scene-node graph, rather than an arbitrary orphan-script hypothesis.
