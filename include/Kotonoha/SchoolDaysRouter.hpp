@@ -41,6 +41,7 @@ public:
     void Reset();
     const SchoolDaysRouteState& State() const { return state; }
     SceneKey CurrentScene() const;
+    bool IsCurrentSceneRoutingOnly() const;
     bool HasChoice() const;
     bool AcceptChoice(int result);
     NextResult ResolveNext();
