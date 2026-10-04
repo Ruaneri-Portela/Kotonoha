@@ -1,3 +1,5 @@
+> **Superseded status note (2026-10-04):** this document records the intermediate deep-audit stage when global natural execution was still UNKNOWN. Subsequent save/SLog, replay, runtime, restore, and command-record producer closure resolved the installed-edition natural producer domains. Final status: `NATURAL_EXECUTION = NO` for both targets; see `ORS_ONLY_NATURAL_EXECUTION_CLOSURE_20261004.md`. Externally forced loading remains `POSSIBLE`.
+
 # ORS-only Deep Audit Summary — 2026-10-04
 
 This repository note summarizes the local read-only audit performed against the installed School Days HQ copy.
