@@ -220,3 +220,19 @@ Disassembly and generated-router evidence were combined to resolve the two physi
 
 The ORS-only discrepancy is therefore closed for the normal-New-Game router scope without inventing nodes.
 
+
+
+## 2026-10-04 — Installed-game ORS-only deep audit: 83/83 checks PASS, global status UNKNOWN
+
+A read-only audit was completed against the installed School Days HQ executable, RouteProc, SysMenu and all installed GPK indexes.
+
+Key result:
+
+- 55 RouteProc tables / 1,857 SceneKeys were reconstructed directly from the installed DLL with zero entry divergence.
+- `01/01-00-OP2` and `05/05-9O-B00` are confirmed absent from those tables.
+- The EXE has a generic direct-launch path that can feed caller-provided script names into the ORS loader without a table-driven `Next`.
+- Complete provenance of all names reaching that path is not yet closed.
+- Consequently, the correct acceptance answer for both targets is **UNKNOWN globally**, not NO.
+- The previous documentation wording that implied full reachability closure was narrowed to RouteProc-table closure only.
+
+The next decisive phase is either full static dataflow over all direct-launch callers/name sources or a non-invasive runtime trace over the loader/direct-launch/RouteProc/callback surfaces.
