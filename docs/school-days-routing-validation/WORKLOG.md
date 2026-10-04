@@ -208,3 +208,15 @@ A voice-path overlap test found 46 unique B00 voice paths, of which only 1 is al
 
 Further closure now requires proving the selector/loader mechanisms for the alternate `01-00-OP2` opening and the distinct `05-9O-B00` script.
 
+
+
+## 2026-10-03 — ORS-only normal-New-Game ambiguity closed
+
+Disassembly and generated-router evidence were combined to resolve the two physical ORS scripts absent from the 55 recovered tables.
+
+`01/01-00-OP2` is a real Setsuna opening script, but the DLL's `PV/SETUNA-OP` handling belongs to the special Route-0 callback/mode path and is not the normal-New-Game episode opening graph.
+
+`05/05-9O-B00` is distinct retained content, but Route 36 contains only `05/05-9O-A00`. Its sole incoming transition (`t1850`) registers Ending 4 and enters Route 36 / Scene 0; `05/05-9O-A00` then terminates through `t1936` / callback_38. No normal-New-Game path can enter B00.
+
+The ORS-only discrepancy is therefore closed for the normal-New-Game router scope without inventing nodes.
+
