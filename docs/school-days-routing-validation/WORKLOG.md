@@ -195,3 +195,16 @@ A previous `05-9O-A00 -> 05-9O-B00` reference was also corrected: it was a `Play
 
 See `OPENING_VARIANT_AUDIT_20261003.md`.
 
+
+## 2026-10-03 — ORS-only classifier v2 and 9O-B00 overlap test
+
+The corrected classifier separated media-path basename collisions from control-flow references.
+
+Both ORS-only scripts have zero literal control-flow references.
+
+`05/05-9O-B00` is mentioned once from `05/05-9O-A00`, but only inside a `PlayVoice` media path.
+
+A voice-path overlap test found 46 unique B00 voice paths, of which only 1 is also used by A00. This rejects the hypothesis that B00 is merely a duplicate scene whose content was merged into A00.
+
+Further closure now requires proving the selector/loader mechanisms for the alternate `01-00-OP2` opening and the distinct `05-9O-B00` script.
+
