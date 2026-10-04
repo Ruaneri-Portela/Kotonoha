@@ -140,3 +140,37 @@ The audit compares all generated router SceneKeys against every physical `.ENG.O
 
 No claim that the routing-only catalog is complete is accepted until this audit passes on the working checkout.
 
+
+## 2026-10-03 — Router-vs-ORS completeness audit PASS
+
+The repository-wide scene inventory audit passed on the working checkout.
+
+Observed:
+
+```text
+Router SceneKeys:       1857
+Physical ORS SceneKeys: 1857
+
+Router-only:
+  03/03-B2-A00 (route=12 scene=0 outgoing=2)
+  03/03-KB-E00 (route=15 scene=31 outgoing=2)
+
+ORS-only:
+  01/01-00-OP2
+  05/05-9O-B00
+
+RESULT: PASS
+```
+
+Additional checks also passed:
+
+- router SceneKeys unique;
+- ORS SceneKeys unique;
+- no malformed/rejected ORS paths;
+- the router-only set is exactly the expected pair;
+- both router-only nodes have outgoing transitions.
+
+This closes the completeness question for no-ORS RouteProc nodes: there are exactly two in the audited normal-New-Game routing model.
+
+The two ORS-only scripts are now tracked separately for later classification because they are physical scripts not represented as normal-New-Game router nodes.
+
