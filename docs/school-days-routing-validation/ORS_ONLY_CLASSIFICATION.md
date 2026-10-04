@@ -133,3 +133,32 @@ Current status:
 - `01/01-00-OP2`: opening variant identified, selector still unresolved;
 - `05/05-9O-B00`: distinct physical scene content, no literal script-control reference found, loader/reachability still unresolved.
 
+
+
+## Normal-New-Game reachability closure
+
+Additional executable-router inspection closes the two ORS-only cases for the current normal-New-Game scope.
+
+### `01/01-00-OP2`
+
+The DLL contains a special Route-0 PV selector for `PV/SEKAI-OP`, `PV/KOTONOHA-OP`, and `PV/SETUNA-OP`, but that path is guarded by the Route-0 special callback/mode condition and is excluded by the normal-New-Game `callback34 = 0` assumptions.
+
+No evidence connects that special `PV/SETUNA-OP` identifier to the physical `01/01-00-OP2.ENG.ORS` during normal New Game.
+
+Classification for this project scope: **physical alternate opening asset, unreachable from the recovered normal-New-Game RouteProc graph**.
+
+### `05/05-9O-B00`
+
+The recovered graph gives a stronger proof:
+
+- Route 36 contains exactly one node: `05/05-9O-A00`;
+- the only incoming transition to Route 36 / Scene 0 is `t1850` from `05/05-5O-D10`;
+- `t1850` registers Ending 4 and sets `ROUTE=36, SCENE=0`;
+- `05/05-9O-A00` has one outgoing transition, `t1936`, which is terminal and invokes `callback_38`;
+- `05/05-9O-B00` has no RouteProc node, no incoming generated transition, no literal ORS control-flow reference, and no matching RouteProc DLL scene string in the inspected evidence.
+
+Its active/backup ORS copies and historical JRS prove that the content was retained, not that it is reachable.
+
+Classification for this project scope: **retained physical script, unreachable from the recovered normal-New-Game RouteProc graph**.
+
+This does not claim global deadness across every replay/trial/debug/edition-specific loader path.
