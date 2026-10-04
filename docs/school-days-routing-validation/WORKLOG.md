@@ -174,3 +174,24 @@ This closes the completeness question for no-ORS RouteProc nodes: there are exac
 
 The two ORS-only scripts are now tracked separately for later classification because they are physical scripts not represented as normal-New-Game router nodes.
 
+
+## 2026-10-03 — Opening variant inventory classified
+
+The complete physical `*-OP*.ENG.ORS` inventory was inspected.
+
+Results:
+
+- 33 physical opening ORS files;
+- 32 RouteProc-visible `OP1` nodes;
+- exactly one physical `OP2`: `01/01-00-OP2`;
+- 17 Sekai opening scripts, 14 Kotonoha opening scripts, 2 Setsuna opening scripts.
+
+`01/01-00-OP1` plays `SDHQ_SEKAI` + `SDV01`.
+`01/01-00-OP2` plays `SDHQ_SETSUNA` + `SDV03`.
+
+The Setsuna opening also appears in the ordinary RouteProc-visible node `03/03-KA-OP1`, so `OP2` is not synonymous with the Setsuna media variant. The remaining question is how/if the `01-00` alternate opening script is selected outside the recovered 55-table router.
+
+A previous `05-9O-A00 -> 05-9O-B00` reference was also corrected: it was a `PlayVoice` media-path basename collision, not script control flow.
+
+See `OPENING_VARIANT_AUDIT_20261003.md`.
+
