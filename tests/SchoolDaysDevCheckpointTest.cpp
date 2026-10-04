@@ -56,9 +56,49 @@ int main() {
     Require(next.transitionId == 263,
         "expected next transition is t263");
 
+    Require(router.DevCheckpointScene("sd-ep4-r15-e08-routing-only").value ==
+            "03/03-KB-E08",
+        "routing-only checkpoint SceneKey");
+    Require(router.RestoreDevCheckpoint("sd-ep4-r15-e08-routing-only"),
+        "routing-only checkpoint restore");
+
+    const auto& route15State = router.State();
+    Require(route15State.route == 15, "Route15 checkpoint ROUTE=15");
+    Require(route15State.scene == 39, "Route15 checkpoint SCENE=39");
+    Require(route15State.sessionVariables.at("001") == 10,
+        "Route15 checkpoint 001=10");
+    Require(route15State.sessionVariables.at("002") == 84,
+        "Route15 checkpoint 002=84");
+    Require(router.CurrentScene().value == "03/03-KB-E08",
+        "Route15 checkpoint current SceneKey");
+
+    const auto intoDispatcher = router.ResolveNext();
+    Require(intoDispatcher.kind == SchoolDaysRouter::NextKind::Advanced,
+        "E08 advances into routing-only dispatcher");
+    Require(intoDispatcher.transitionId == 917,
+        "E08 expected transition is t917");
+    Require(intoDispatcher.destination.value == "03/03-KB-E00",
+        "t917 destination is routing-only E00");
+    Require(router.IsCurrentSceneRoutingOnly(),
+        "E00 recognized as routing-only");
+
+    const auto outOfDispatcher = router.ResolveNext();
+    Require(outOfDispatcher.kind == SchoolDaysRouter::NextKind::Advanced,
+        "routing-only E00 resolves immediately");
+    Require(outOfDispatcher.transitionId == 907,
+        "001<=002 selects t907");
+    Require(outOfDispatcher.destination.value == "03/03-KB-G00",
+        "t907 destination is physical G00");
+    Require(!router.IsCurrentSceneRoutingOnly(),
+        "G00 is not routing-only");
+
     std::cout << "School Days DEV checkpoint PASS\n";
     std::cout << "restored=02/02-2K-B00 route=4 scene=1\n";
     std::cout << "next=t" << next.transitionId
               << " -> " << next.destination.value << "\n";
+    std::cout << "routing-only=t" << intoDispatcher.transitionId
+              << " -> " << intoDispatcher.destination.value
+              << " -> t" << outOfDispatcher.transitionId
+              << " -> " << outOfDispatcher.destination.value << "\n";
     return 0;
 }
