@@ -258,3 +258,41 @@ The save surface is therefore closed for the **existing save files**, but not gl
 
 Validation reported 146/146 PASS with no original file modification.
 
+
+
+## 2026-10-04 — ORS-only natural execution fully closed
+
+The final two open SceneKey producer domains were resolved.
+
+### Command record `+0x0C`
+
+The former `command-object+0x0C` ambiguity was identified as the SceneKey field of a 0x48-byte SLog type-3 record.
+
+Natural construction path:
+
+`RouteProc table SceneKey -> EXE interface writer -> SLog type-3 record +0x0C -> collection +0x38 -> 0x004326D4 -> direct launcher`.
+
+Restore reconstructs the same record type from installed SLog type-3 entries. The installed saves contain 490 type-3 names / 118 distinct SceneKeys; all belong to the previously recovered RouteProc table domain. Neither OP2 nor B00 occurs.
+
+### Restore / `ScriptObject+0x114`
+
+Load/restore replaces the old ScriptObject rather than aliasing its pending-name string. The new ScriptObject initializes `+0x114` empty. The later known writers are:
+
+- `[Next]` -> RouteProc output;
+- `[Exit]` -> empty string.
+
+SLog types 3/4 do not feed `+0x114`.
+
+### Final classification
+
+```text
+01/01-00-OP2 NATURAL_EXECUTION = NO
+05/05-9O-B00 NATURAL_EXECUTION = NO
+
+01/01-00-OP2 EXTERNALLY_FORCED_LOAD = POSSIBLE
+05/05-9O-B00 EXTERNALLY_FORCED_LOAD = POSSIBLE
+
+RUNTIME TRACE STILL REQUIRED = NO
+```
+
+The 1,857-node natural router remains unchanged. The next engineering task is Android/device revalidation of the two proven routing-only no-ORS dispatchers.
