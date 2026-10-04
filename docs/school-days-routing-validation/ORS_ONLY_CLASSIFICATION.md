@@ -177,3 +177,28 @@ The important correction is scope:
 - Therefore both targets are **UNKNOWN** for global execution.
 
 Do not label either asset globally dead/unreachable until that direct-launch surface and all name origins are closed or a runtime trace provides decisive evidence.
+
+
+## 2026-10-04 — Save/SLog stage
+
+A focused read-only save audit reconstructed the SLog launch field for all 22 current slot saves.
+
+Confirmed chain:
+
+`SaveFile00%d.DAT -> SLog type 1 first name -> 0x00433BA9 -> 0x0042A760 -> 0x0042A7AC -> 0x00430D20 -> direct ORS loader`.
+
+Results:
+
+- 22/22 slot saves were parsed to the final byte under the observed grammar;
+- the first type-1 SLog name is stored directly as XOR-transformed UTF-16LE and is not reconstructed from ROUTE/SCENE;
+- none of the 22 first launch names is `01/01-00-OP2` or `05/05-9O-B00`;
+- 1,366 additional type-3/type-4 names were structurally decoded, also without either target;
+- `GlobalFlag.DAT` was parsed to the final byte; neither target occurs as a decoded key/value;
+- `SaveFile0014.DAT` resolves to `05/05-9O-A00` as its type-1 launch name, not B00.
+
+Classification update:
+
+- `01/01-00-OP2 via existing saves`: **NO-IN-EXISTING-SAVES**;
+- `05/05-9O-B00 via existing saves`: **NO-IN-EXISTING-SAVES**;
+- global execution remains **UNKNOWN**, because `object+0x154` initial-name sources and the full writer domain of `ScriptObject+0x114` pending/current script state are not yet closed.
+
