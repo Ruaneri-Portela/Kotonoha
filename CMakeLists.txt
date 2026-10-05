@@ -21,6 +21,7 @@ file(GLOB SOURCES CONFIGURE_DEPENDS
     src/*.c
     src/components/*.cpp
     src/parsers/*.c
+    src/routing/*.c
     src/renders/*.c
     src/utils/*.c
 )
