@@ -155,8 +155,23 @@ if (Test-Path $log) {
     Remove-Item $log -Force
 }
 
-& $exe @launchArgs 2>&1 | Tee-Object -FilePath $log
-$exitCode = $LASTEXITCODE
+# Windows PowerShell 5.x wraps native stderr as ErrorRecord objects. With the
+# script-wide ErrorActionPreference=Stop, harmless diagnostics from libass/SDL
+# would abort the smoke runner even when Kotonoha itself is healthy. Keep the
+# native process live, stringify both streams for Tee-Object, and judge success
+# exclusively by the executable's exit code.
+$previousErrorActionPreference = $ErrorActionPreference
+try {
+    $ErrorActionPreference = "Continue"
+    & $exe @launchArgs 2>&1 |
+        ForEach-Object { $_.ToString() } |
+        Tee-Object -FilePath $log
+    $exitCode = $LASTEXITCODE
+}
+finally {
+    $ErrorActionPreference = $previousErrorActionPreference
+}
+
 if ($exitCode -ne 0) {
     throw "Kotonoha KTRF desktop run exited with code $exitCode. Log: $log"
 }
