@@ -57,6 +57,7 @@ KTRF adopts those principles conceptually. It does **not** copy that format, and
 - `SCHOOL_DAYS_EXPORT.md` — deterministic School Days executable oracle → Routing IR lowering.
 - `ORACLE_BOUNDARY_NOTE.md` — clarification separating broader structural-research branches from the frozen executable oracle.
 - `INTERPRETER_AND_DIFFERENTIAL.md` — executable IR semantics and direct C++ witness differential validation.
+- `DIFFERENTIAL_COVERAGE.md` — coverage accounting for the 22-ending differential corpus and the gap to broader branch/state validation.
 - `../../schemas/ktrf-routing-ir.schema.json` — JSON Schema for Routing IR v0.1.
 - `../../examples/ktrf/minimal-routing-ir.json` — minimal valid example.
 
@@ -86,7 +87,7 @@ Reference IR interpreter tests:
 python .\tests\ktrf\test_interpreter.py
 ```
 
-School Days C++ oracle versus KTRF IR witness differential:
+School Days C++ oracle versus KTRF IR witness differential + coverage audit:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\tools\ktrf\run_sdhq_differential.ps1
@@ -98,11 +99,19 @@ Default generated School Days IR:
 build/ktrf/school-days-hq.routing.json
 ```
 
+Default differential coverage report:
+
+```text
+build/ktrf/school-days-hq.differential-coverage.json
+```
+
 The generic validator performs whole-document checks that JSON Schema alone cannot express, including references, expression cycles, type compatibility, namespace/feature rules, terminal invariants and transition priority collisions.
 
 The School Days profile validator additionally checks the frozen executable-oracle inventory, source-index coverage, routing-only nodes, ending/hook catalogs, feeling-resolution coverage, transition lowering order, callback_38 edge counts and the structural-dead exclusion boundary.
 
 The reference interpreter executes the canonical IR directly. `SchoolDaysOracleTrace` drives the compiled frozen `SchoolDaysRouter` public API and emits machine-readable state, allowing the differential verifier to compare both runtimes step-by-step over the 22 certified ending witnesses.
+
+The coverage auditor then measures which of the 2,458 executable Transitions, 1,857 Nodes, 287 Choice Nodes, terminal edges and callback_38 handoffs were actually exercised by that corpus. Coverage accounting is diagnostic: zero divergence and percentage coverage are separate facts.
 
 Reference tests:
 
@@ -135,9 +144,12 @@ reference IR interpreter
         +<---------------- SchoolDaysOracleTrace / compiled C++ oracle
         |
         v
-22-ending witness differential
+22-ending witness differential: zero divergence
         |
-        `--> next: broader/exhaustive differential validation
+        v
+coverage audit
+        |
+        `--> next: targeted/broader state differential validation
 
 future, only after sufficient zero-divergence coverage:
 
