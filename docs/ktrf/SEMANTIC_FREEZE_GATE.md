@@ -8,7 +8,7 @@ The freeze target is:
 
 ```text
 KTRF semantic model              v0.1.0
-School Days HQ profile           v0.1.0
+School Days HQ profile           v1.0.0
 School Days executable oracle    school-days-routing-oracle-v1
 oracle commit                    614461c2b14951ba117b9d2dedb4983cfa8ae8e6
 ```
