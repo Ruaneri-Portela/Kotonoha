@@ -60,6 +60,7 @@ KTRF adopts those principles conceptually. It does **not** copy that format, and
 - `DIFFERENTIAL_COVERAGE.md` — coverage accounting for the 22-ending differential corpus and the gap to broader branch/state validation.
 - `TARGETED_TRANSITION_DIFFERENTIAL.md` — state-injection differential strategy for closing uncovered executable transitions without claiming causal reachability.
 - `CHOICE_FEELING_DIFFERENTIAL.md` — exhaustive Choice outcome / FeelingResolution / FeelingDelta differential validation.
+- `SOURCE_EFFECT_STRESS.md` — non-default pre-state stress differential for all recovered source Effects.
 - `../../schemas/ktrf-routing-ir.schema.json` — JSON Schema for Routing IR v0.1.
 - `../../examples/ktrf/minimal-routing-ir.json` — minimal valid example.
 
@@ -107,6 +108,12 @@ Exhaustive Choice/Feeling differential:
 powershell -ExecutionPolicy Bypass -File .\tools\ktrf\run_sdhq_choice_diff.ps1
 ```
 
+Source Effect stress differential:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tools\ktrf\run_sdhq_effect_stress.ps1
+```
+
 Default generated School Days IR:
 
 ```text
@@ -119,13 +126,14 @@ Default differential reports:
 build/ktrf/school-days-hq.differential-coverage.json
 build/ktrf/school-days-hq.targeted-transition-diff.json
 build/ktrf/school-days-hq.choice-diff.json
+build/ktrf/school-days-hq.effect-stress-diff.json
 ```
 
 The generic validator performs whole-document checks that JSON Schema alone cannot express, including references, expression cycles, type compatibility, namespace/feature rules, terminal invariants and transition priority collisions.
 
 The School Days profile validator additionally checks the frozen executable-oracle inventory, source-index coverage, routing-only nodes, ending/hook catalogs, feeling-resolution coverage, transition lowering order, callback_38 edge counts and the structural-dead exclusion boundary.
 
-The reference interpreter executes the canonical IR directly. `SchoolDaysOracleTrace` drives the compiled frozen `SchoolDaysRouter` routing implementation and emits machine-readable state, allowing causal-witness, targeted-transition and Choice-commit differential comparison without copying the C++ routing logic into Python.
+The reference interpreter executes the canonical IR directly. `SchoolDaysOracleTrace` drives the compiled frozen `SchoolDaysRouter` routing implementation and emits machine-readable state, allowing causal-witness, targeted-transition, Choice-commit and source-Effect stress differential comparison without copying the C++ routing logic into Python.
 
 Current transition-differential status:
 
@@ -137,7 +145,23 @@ combined transition coverage          2458 / 2458 (100%)
 combined transition divergences       0
 ```
 
+Current Choice/Feeling status:
+
+```text
+Choice nodes                           287 / 287
+Choice outcomes / FeelingResolution    772 / 772
+FeelingDelta source rows               302 / 302
+seed modes                             2
+scenarios                              1544
+accepted checks                        1544
+idempotence checks                     1544
+alternate rejection checks             1544
+divergences                            0
+```
+
 The Choice/Feeling layer is independent because the targeted transition fixtures inject post-choice routing state. It executes every exported Choice outcome through the frozen `AcceptChoice` implementation versus KTRF `commit_choice`, requires complete `FeelingResolution` and `FeelingDelta` source-index coverage, and checks both idempotent repeat and alternate-result rejection.
+
+The source-Effect stress layer is also independent. Transition closure already executes all 6,183 recovered source Effects at least once through their owning transitions; the stress layer reruns every effect-bearing transition under deterministic positive and negative non-default seeds while preserving first-match branch selection, then compares the complete C++/KTRF post-state.
 
 Reference tests:
 
@@ -182,9 +206,12 @@ targeted transition differential: 1377 / 1377
 combined transition coverage: 2458 / 2458, zero divergence
         |
         v
-Choice + Feeling differential
+Choice + Feeling differential: 772 / 772 outcomes, zero divergence
         |
-        `--> next: source-Effect stress + broader state differential
+        v
+source-Effect stress differential
+        |
+        `--> next: broader state differential / semantic freeze gate
 
 future, only after semantic conformance freeze:
 
