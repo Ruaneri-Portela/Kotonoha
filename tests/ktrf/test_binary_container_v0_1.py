@@ -113,7 +113,7 @@ class KtrfBinaryContainerTests(unittest.TestCase):
         self.assertEqual(set(["", "Kotonoha", "ação", "学校"]), set(values))
 
     def test_strs_rejects_embedded_nul(self):
-        with self.assertRaisesRegex(ktrf.KtrfBinaryError, "U\+0000"):
+        with self.assertRaisesRegex(ktrf.KtrfBinaryError, r"U\+0000"):
             ktrf.encode_strs(["bad\x00string"])
 
 
