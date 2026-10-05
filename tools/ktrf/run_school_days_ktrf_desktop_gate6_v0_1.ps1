@@ -21,6 +21,12 @@ function Invoke-Checked {
     }
 }
 
+function Test-VcpkgBaseline {
+    param([string]$Root, [string]$Baseline)
+    & git -C $Root cat-file -e "${Baseline}:versions/baseline.json" 2>$null
+    return ($LASTEXITCODE -eq 0)
+}
+
 if ([string]::IsNullOrWhiteSpace($AssetsRoot)) {
     $AssetsRoot = Join-Path $root "assets"
 }
@@ -37,6 +43,7 @@ $BuildDir = [System.IO.Path]::GetFullPath($BuildDir)
 $route = Join-Path $root "build\ktrf\school-days-hq.ktnroute"
 $style = Join-Path $root "assets\styles.skot"
 $log = Join-Path $root "build\ktrf\school-days-desktop-gate6.log"
+$manifestPath = Join-Path $root "vcpkg.json"
 
 Write-Host "=== School Days KTRF Desktop v0.1 / Gate 6 ==="
 Write-Host "assets=$AssetsRoot"
@@ -45,7 +52,7 @@ Write-Host "configuration=$Configuration"
 Write-Host ""
 
 if (-not $SkipGate5) {
-    Write-Host "[1/5] Re-run certified engine cutover gate"
+    Write-Host "[1/6] Re-run certified engine cutover gate"
     Invoke-Checked {
         powershell -ExecutionPolicy Bypass -File `
             .\tools\ktrf\run_school_days_ktrf_adapter_gate5_v0_1.ps1 `
@@ -54,7 +61,7 @@ if (-not $SkipGate5) {
     Write-Host ""
 }
 else {
-    Write-Host "[1/5] Gate 5 skipped by request"
+    Write-Host "[1/6] Gate 5 skipped by request"
     Write-Host ""
 }
 
@@ -81,8 +88,56 @@ if (-not [string]::IsNullOrWhiteSpace($VcpkgRoot)) {
     }
 }
 
-Write-Host "[2/5] Configure full desktop Kotonoha"
+Write-Host "[2/6] Validate pinned vcpkg baseline"
+if ($null -ne $toolchain) {
+    if (-not (Test-Path $manifestPath -PathType Leaf)) {
+        throw "vcpkg manifest is missing: $manifestPath"
+    }
+
+    $manifest = Get-Content $manifestPath -Raw | ConvertFrom-Json
+    $baseline = [string]$manifest.'builtin-baseline'
+    if ([string]::IsNullOrWhiteSpace($baseline)) {
+        throw "vcpkg.json has no builtin-baseline"
+    }
+
+    Write-Host "vcpkg_root=$VcpkgRoot"
+    Write-Host "vcpkg_baseline=$baseline"
+
+    if (-not (Test-Path (Join-Path $VcpkgRoot ".git"))) {
+        throw "VcpkgRoot is not a Git checkout; cannot validate/fetch pinned baseline: $VcpkgRoot"
+    }
+
+    if (-not (Test-VcpkgBaseline -Root $VcpkgRoot -Baseline $baseline)) {
+        Write-Host "Pinned baseline is missing locally; fetching exact commit..."
+        & git -C $VcpkgRoot fetch origin $baseline --depth=1
+        $exactFetchCode = $LASTEXITCODE
+
+        if ($exactFetchCode -ne 0 -or -not (Test-VcpkgBaseline -Root $VcpkgRoot -Baseline $baseline)) {
+            Write-Host "Exact SHA fetch did not expose the baseline; fetching origin/master as fallback..."
+            & git -C $VcpkgRoot fetch origin master --depth=64
+            if ($LASTEXITCODE -ne 0) {
+                throw "Unable to fetch vcpkg origin/master"
+            }
+        }
+    }
+
+    if (-not (Test-VcpkgBaseline -Root $VcpkgRoot -Baseline $baseline)) {
+        throw "Pinned vcpkg baseline $baseline does not contain versions/baseline.json after fetch"
+    }
+
+    Write-Host "vcpkg_baseline_preflight=PASS"
+}
+else {
+    Write-Host "vcpkg_toolchain=<not set; baseline preflight skipped>"
+}
+Write-Host ""
+
+Write-Host "[3/6] Configure full desktop Kotonoha"
 if (-not $SkipConfigure) {
+    if (Test-Path $BuildDir) {
+        Remove-Item $BuildDir -Recurse -Force
+    }
+
     $configureArgs = @("-S", $root, "-B", $BuildDir)
     if ($null -ne $toolchain) {
         $configureArgs += "-DCMAKE_TOOLCHAIN_FILE=$toolchain"
@@ -91,6 +146,7 @@ if (-not $SkipConfigure) {
     else {
         Write-Host "vcpkg_toolchain=<not set; using CMake environment>"
     }
+
     & cmake @configureArgs
     if ($LASTEXITCODE -ne 0) {
         throw "CMake configure failed with exit code $LASTEXITCODE"
@@ -101,7 +157,7 @@ else {
 }
 Write-Host ""
 
-Write-Host "[3/5] Build full desktop Kotonoha"
+Write-Host "[4/6] Build full desktop Kotonoha"
 if (-not $SkipBuild) {
     Invoke-Checked {
         cmake --build $BuildDir --config $Configuration --target Kotonoha
@@ -127,7 +183,7 @@ if (Test-Path $style -PathType Leaf) {
     $launchArgs += @("-s", $style)
 }
 
-Write-Host "[4/5] Launch real engine in KTRF mode"
+Write-Host "[5/6] Launch real engine in KTRF mode"
 Write-Host "exe=$exe"
 Write-Host "route=$route"
 Write-Host "ors_root=$AssetsRoot"
@@ -156,7 +212,7 @@ if ($exitCode -ne 0) {
 }
 
 Write-Host ""
-Write-Host "[5/5] Desktop runtime exit check"
+Write-Host "[6/6] Desktop runtime exit check"
 Write-Host "exit_code=$exitCode"
 Write-Host "log=$log"
 Write-Host ""
