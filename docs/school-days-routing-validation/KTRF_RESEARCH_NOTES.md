@@ -1,41 +1,46 @@
 # KTRF Research Notes
 
+> Historical note: this file records the pre-freeze KTRF planning stage.
+> The active specification now lives under `docs/ktrf/` on the KTRF design branch.
+> The old provisional extension `.ktroute` is superseded by `.ktnroute`.
+
 Provisional name: `KTRF — Kotonoha Routing Format`.
 
-Provisional extension: `.ktroute`.
+Current extension: `.ktnroute`.
 
-Provisional magic: `KTRF`.
+Provisional binary magic: `KTRF`.
 
 ## Rule
 
-KTRF must not replace the current generated C++ router until the current router has been frozen and certified by this validation lab.
+KTRF must not replace the certified generated C++ router until differential verification against the frozen School Days oracle produces zero semantic divergences.
 
 ## Intended pipeline
 
     recovered route model
         |
-        +--> generated C++ router   (current oracle)
+        +--> generated C++ router   (frozen oracle)
         |
-        +--> ktroute compiler
+        +--> canonical Routing IR
                  |
-                 v
-          schooldays.ktroute
+                 +--> semantic validator
+                 |
+                 +--> future KTRF compiler
+                          |
+                          v
+                 school-days-hq.ktnroute
 
-## Planned sections
+## Active specification
 
-- header/version
-- section directory
-- string table
-- nodes / SceneKeys
-- transitions
-- conditions
-- effects
-- choice / feeling handlers
-- ending metadata
-- optional debug/source metadata
-- integrity checks
+See:
 
-## Semantic requirement
+- `docs/ktrf/README.md`
+- `docs/ktrf/SPECIFICATION.md`
+- `docs/ktrf/DATA_MODEL.md`
+- `docs/ktrf/ROUTING_IR.md`
+- `docs/ktrf/VERSIONING_EXTENSIONS.md`
+- `schemas/ktrf-routing-ir.schema.json`
+
+## Semantic requirement retained from research
 
 The format must preserve delayed routing:
 
@@ -53,4 +58,4 @@ A choice handler and a route transition are not the same operation.
 
 KTRF is accepted only after differential verification against the certified generated C++ router produces zero semantic divergences across the chosen exhaustive state space.
 
-Until then, KTRF is research and the generated C++ router remains the executable oracle.
+Until then, the generated C++ router remains the executable School Days oracle.
