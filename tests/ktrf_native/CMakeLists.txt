@@ -88,3 +88,20 @@ else()
     target_compile_options(SchoolDaysOracleTrace PRIVATE -Wall -Wextra -Wpedantic)
     target_compile_options(KtrfNativeRouterTrace PRIVATE -Wall -Wextra -Wpedantic)
 endif()
+
+add_executable(KtrfNativeStateMatrixTrace
+    KtrfNativeStateMatrixTrace.cpp
+    "${KOTONOHA_ROOT}/src/parsers/Ktrf.c"
+    "${KOTONOHA_ROOT}/src/parsers/KtrfTyped.c"
+    "${KOTONOHA_ROOT}/src/routing/KtrfRuntime.c"
+    "${KOTONOHA_ROOT}/src/routing/KtrfRouter.c"
+)
+target_include_directories(KtrfNativeStateMatrixTrace PRIVATE
+    "${KOTONOHA_ROOT}/include"
+)
+
+if(MSVC)
+    target_compile_options(KtrfNativeStateMatrixTrace PRIVATE /W4 /permissive-)
+else()
+    target_compile_options(KtrfNativeStateMatrixTrace PRIVATE -Wall -Wextra -Wpedantic)
+endif()
