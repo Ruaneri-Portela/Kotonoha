@@ -82,23 +82,10 @@ const char* KindName(SchoolDaysRouter::NextKind kind) {
     std::exit(2);
 }
 
-void EmitResult(
-    SchoolDaysRouter& router,
-    const SchoolDaysRouter::NextResult& result,
-    int stepIndex
-) {
+void EmitStateFields(SchoolDaysRouter& router) {
     const auto& state = router.State();
     const std::string currentScene = router.CurrentScene().value;
 
-    std::cout << '{';
-    std::cout << "\"step\":" << stepIndex << ',';
-    std::cout << "\"transition\":" << result.transitionId << ',';
-    std::cout << "\"kind\":";
-    WriteString(std::cout, KindName(result.kind));
-    std::cout << ',';
-    std::cout << "\"destination\":";
-    WriteString(std::cout, result.destination.value);
-    std::cout << ',';
     std::cout << "\"current_scene\":";
     WriteString(std::cout, currentScene);
     std::cout << ',';
@@ -107,18 +94,51 @@ void EmitResult(
     std::cout << "\"choice_result\":" << state.choiceResult << ',';
     std::cout << "\"callback34\":" << state.callback34 << ',';
     std::cout << "\"feeling_applied\":" << (state.feelingApplied ? "true" : "false") << ',';
-    std::cout << "\"ending_id\":" << result.endingId << ',';
     std::cout << "\"endings\":";
     WriteIntArray(std::cout, state.endingRegistrations);
-    std::cout << ',';
-    std::cout << "\"callbacks\":";
-    WriteStringArray(std::cout, result.callbacks);
     std::cout << ',';
     std::cout << "\"session\":";
     WriteIntMap(std::cout, state.sessionVariables);
     std::cout << ',';
     std::cout << "\"global\":";
     WriteIntMap(std::cout, state.globalVariables);
+}
+
+void EmitResult(
+    SchoolDaysRouter& router,
+    const SchoolDaysRouter::NextResult& result,
+    int stepIndex
+) {
+    std::cout << '{';
+    std::cout << "\"event\":\"resolve\",";
+    std::cout << "\"step\":" << stepIndex << ',';
+    std::cout << "\"transition\":" << result.transitionId << ',';
+    std::cout << "\"kind\":";
+    WriteString(std::cout, KindName(result.kind));
+    std::cout << ',';
+    std::cout << "\"destination\":";
+    WriteString(std::cout, result.destination.value);
+    std::cout << ',';
+    std::cout << "\"ending_id\":" << result.endingId << ',';
+    std::cout << "\"callbacks\":";
+    WriteStringArray(std::cout, result.callbacks);
+    std::cout << ',';
+    EmitStateFields(router);
+    std::cout << "}\n";
+}
+
+void EmitChoiceResult(
+    SchoolDaysRouter& router,
+    int choice,
+    bool accepted,
+    int stepIndex
+) {
+    std::cout << '{';
+    std::cout << "\"event\":\"choice\",";
+    std::cout << "\"step\":" << stepIndex << ',';
+    std::cout << "\"choice\":" << choice << ',';
+    std::cout << "\"accepted\":" << (accepted ? "true" : "false") << ',';
+    EmitStateFields(router);
     std::cout << "}\n";
 }
 
@@ -207,6 +227,17 @@ int main() {
 #else
             Fail(stepIndex, "GLOBAL unavailable without KOTONOHA_ROUTER_TEST_ACCESS");
 #endif
+            continue;
+        }
+
+        if (command == "ACCEPT") {
+            int choice = -99;
+            if (!(input >> choice)) {
+                Fail(stepIndex, "malformed ACCEPT line: " + line);
+            }
+            const bool accepted = router.AcceptChoice(choice);
+            EmitChoiceResult(router, choice, accepted, stepIndex);
+            ++stepIndex;
             continue;
         }
 
