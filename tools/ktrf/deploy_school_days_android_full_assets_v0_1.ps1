@@ -39,7 +39,7 @@ function Invoke-AdbChecked {
     param([string[]]$Arguments)
     & $script:Adb @script:AdbPrefix @Arguments
     if ($LASTEXITCODE -ne 0) {
-        throw "adb failed with exit code $LASTEXITCODE: $($Arguments -join ' ')"
+        throw "adb failed with exit code ${LASTEXITCODE}: $($Arguments -join ' ')"
     }
 }
 
