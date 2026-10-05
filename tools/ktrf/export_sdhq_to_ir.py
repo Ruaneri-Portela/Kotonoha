@@ -1,15 +1,14 @@
 #!/usr/bin/env python3
 """Export the frozen School Days HQ routing oracle to KTRF Canonical Routing IR.
 
-The exporter reads only the generated, already-frozen router tables. It does not
-read the original game DLL and it does not infer UI/save semantics.
+The exporter reads only the generated, already-frozen executable oracle tables.
+It does not read the original game DLL and it does not infer UI/save semantics.
 
-Source oracle:
-  tag    school-days-routing-oracle-v1
-  commit 614461c2b14951ba117b9d2dedb4983cfa8ae8e6
-
-The output is intentionally human-readable JSON IR, not the future .ktnroute
-binary representation.
+Important provenance distinction:
+The earlier structural research identified six causally-dead raw branches. Those
+branches were excluded before the 2,458-transition executable oracle was frozen,
+so they are recorded as exclusion provenance, not reintroduced as KTRF
+Transition entities.
 """
 
 from __future__ import annotations
@@ -49,7 +48,10 @@ ROUTING_ONLY_SCENES = {
     "03/03-KB-E00",
 }
 
-KNOWN_DEAD_TRANSITION_IDS = {971, 1243, 1248, 1494, 1824, 1825}
+# These IDs belong to the broader structural-research model, not to the frozen
+# 2,458-transition executable oracle. Keeping them here documents the exact
+# exclusion boundary and prevents an exporter from silently reintroducing them.
+EXCLUDED_STRUCTURAL_DEAD_TRANSITION_IDS = {971, 1243, 1248, 1494, 1824, 1825}
 
 CORE_COMPARE_OP = {
     "Eq": "ktrf:eq",
@@ -224,6 +226,16 @@ def assert_source_counts(model: ParsedModel) -> None:
     if any(a > b for a, b in zip(model.route_offsets, model.route_offsets[1:])):
         raise RuntimeError("route offsets are not monotonic")
 
+    transition_ids = [t["id"] for t in model.transitions]
+    if len(transition_ids) != len(set(transition_ids)):
+        raise RuntimeError("duplicate transition IDs in frozen oracle")
+    unexpected_dead = set(transition_ids) & EXCLUDED_STRUCTURAL_DEAD_TRANSITION_IDS
+    if unexpected_dead:
+        raise RuntimeError(
+            "frozen executable oracle unexpectedly contains structural dead branches: "
+            + str(sorted(unexpected_dead))
+        )
+
     for node in model.nodes:
         if node["transition_start"] + node["transition_count"] > len(model.transitions):
             raise RuntimeError(f"invalid transition slice for node {node['scene_key']}")
@@ -297,17 +309,15 @@ def collect_variables(model: ParsedModel) -> tuple[set[str], set[str]]:
 
     for c in model.conditions:
         kind = c["kind"]
-        if kind == "SessionValue":
-            if c["source_a"] is not None:
-                session.add(c["source_a"])
+        if kind == "SessionValue" and c["source_a"] is not None:
+            session.add(c["source_a"])
         elif kind == "SessionComparison":
             if c["source_a"] is not None:
                 session.add(c["source_a"])
             if c["source_b"] is not None:
                 session.add(c["source_b"])
-        elif kind == "GlobalValue":
-            if c["source_a"] is not None:
-                global_.add(c["source_a"])
+        elif kind == "GlobalValue" and c["source_a"] is not None:
+            global_.add(c["source_a"])
         elif kind == "FlagOr":
             if c["source_a"] is not None:
                 session.add(c["source_a"])
@@ -316,17 +326,15 @@ def collect_variables(model: ParsedModel) -> tuple[set[str], set[str]]:
 
     for e in model.effects:
         kind = e["kind"]
-        if kind == "SetSessionConst":
-            if e["target"] is not None:
-                session.add(e["target"])
+        if kind == "SetSessionConst" and e["target"] is not None:
+            session.add(e["target"])
         elif kind == "SetSessionFromSession":
             if e["target"] is not None:
                 session.add(e["target"])
             if e["source"] is not None:
                 session.add(e["source"])
-        elif kind == "SetGlobalConst":
-            if e["target"] is not None:
-                global_.add(e["target"])
+        elif kind == "SetGlobalConst" and e["target"] is not None:
+            global_.add(e["target"])
 
     for d in model.feeling_deltas:
         session.add(d["variable"])
@@ -347,7 +355,6 @@ def build_condition_expressions(
         final_ids.append(final_id)
         kind = c["kind"]
         op = c["op"]
-
         if op not in CORE_COMPARE_OP:
             raise RuntimeError(f"unsupported CompareOp {op!r} at condition {index}")
 
@@ -369,7 +376,6 @@ def build_condition_expressions(
                 raise RuntimeError(
                     f"FlagOr condition {index} cannot be losslessly lowered with core v0.1: {op} {c['value']}"
                 )
-
             a_id = f"sdhq:expr:condition:{index}:a-nonzero"
             b_id = f"sdhq:expr:condition:{index}:b-nonzero"
             or_id = f"sdhq:expr:condition:{index}:or"
@@ -398,14 +404,7 @@ def build_condition_expressions(
                     },
                 ]
             )
-
-            # Original code converts the OR result to integer 0/1 and then
-            # compares it. For the observed Eq/Ne against 0/1 this boolean
-            # equality is exactly equivalent and avoids inventing casts.
-            if op == "Eq":
-                expected_bool = c["value"] == 1
-            else:
-                expected_bool = c["value"] == 0
+            expected_bool = (c["value"] == 1) if op == "Eq" else (c["value"] == 0)
             expressions.append(
                 {
                     "id": final_id,
@@ -543,7 +542,6 @@ def build_document(model: ParsedModel, generated_path: Path) -> dict[str, Any]:
                     },
                 }
             )
-
         nodes.append(
             {
                 "id": node_id(scene_key),
@@ -581,11 +579,7 @@ def build_document(model: ParsedModel, generated_path: Path) -> dict[str, Any]:
     ]
 
     ending_codes = sorted(
-        {
-            e["value"]
-            for e in model.effects
-            if e["kind"] == "RegisterEnding"
-        }
+        {e["value"] for e in model.effects if e["kind"] == "RegisterEnding"}
     )
     if ending_codes != list(range(EXPECTED["endings"])):
         raise RuntimeError(f"unexpected ending catalog: {ending_codes}")
@@ -785,7 +779,6 @@ def build_document(model: ParsedModel, generated_path: Path) -> dict[str, Any]:
     transitions: list[dict[str, Any]] = []
     callback38_terminal = 0
     callback38_nonterminal = 0
-    dead_found: set[int] = set()
 
     for transition_index, t in enumerate(model.transitions):
         owner = transition_owner.get(transition_index)
@@ -834,8 +827,7 @@ def build_document(model: ParsedModel, generated_path: Path) -> dict[str, Any]:
             else:
                 callback38_nonterminal += 1
 
-        # SchoolDaysRouter resets choiceResult after all source effects, for
-        # both terminal and non-terminal selected transitions.
+        # The executable oracle resets choiceResult after source effects.
         transition_effects.append(reset_choice_effect)
 
         destination: str | None = None
@@ -851,8 +843,6 @@ def build_document(model: ParsedModel, generated_path: Path) -> dict[str, Any]:
             destination_index = model.route_offsets[route] + scene
             destination = node_id(model.nodes[destination_index]["scene_key"])
 
-            # The executable oracle mirrors destinationRoute/destinationScene
-            # into ROUTE/SCENE after source effects and after choice reset.
             route_effect_id = f"sdhq:effect:post-transition:{t['id']}:route"
             scene_effect_id = f"sdhq:effect:post-transition:{t['id']}:scene"
             effects.extend(
@@ -882,9 +872,6 @@ def build_document(model: ParsedModel, generated_path: Path) -> dict[str, Any]:
             synthetic_coordinate_effects = [route_effect_id, scene_effect_id]
             transition_effects.extend(synthetic_coordinate_effects)
 
-        if t["id"] in KNOWN_DEAD_TRANSITION_IDS:
-            dead_found.add(t["id"])
-
         row: dict[str, Any] = {
             "id": f"sdhq:transition:{t['id']}",
             "source": node_id(source_node["scene_key"]),
@@ -901,7 +888,6 @@ def build_document(model: ParsedModel, generated_path: Path) -> dict[str, Any]:
                 "source_condition_count": t["condition_count"],
                 "source_effect_start": t["effect_start"],
                 "source_effect_count": t["effect_count"],
-                "known_dead_normal_new_game": t["id"] in KNOWN_DEAD_TRANSITION_IDS,
                 "profile_synthetic_coordinate_effects": synthetic_coordinate_effects,
             },
         }
@@ -919,8 +905,6 @@ def build_document(model: ParsedModel, generated_path: Path) -> dict[str, Any]:
         raise RuntimeError(
             f"callback_38 terminal mismatch: {callback38_terminal} != {EXPECTED['callback38_terminal']}"
         )
-    if dead_found != KNOWN_DEAD_TRANSITION_IDS:
-        raise RuntimeError(f"dead transition catalog mismatch: {sorted(dead_found)}")
 
     document = {
         "format": "ktrf-routing-ir",
@@ -932,7 +916,7 @@ def build_document(model: ParsedModel, generated_path: Path) -> dict[str, Any]:
             "metadata": {
                 "oracle_tag": ORACLE_TAG,
                 "oracle_commit": ORACLE_COMMIT,
-                "scope": "Normal New Game routing oracle",
+                "scope": "Normal New Game executable routing oracle",
             },
         },
         "features": {
@@ -989,7 +973,12 @@ def build_document(model: ParsedModel, generated_path: Path) -> dict[str, Any]:
                 "callback38_terminal": callback38_terminal,
             },
             "source_route_offsets": model.route_offsets,
-            "known_dead_transition_ids": sorted(KNOWN_DEAD_TRANSITION_IDS),
+            "excluded_structural_dead_transition_ids": sorted(
+                EXCLUDED_STRUCTURAL_DEAD_TRANSITION_IDS
+            ),
+            "excluded_structural_dead_transition_scope": (
+                "pre-freeze structural research branches; absent from the frozen 2458-transition executable oracle"
+            ),
             "lowering_policy": {
                 "choice_routing": "deferred",
                 "flag_or": "lossless core boolean lowering",
@@ -997,6 +986,7 @@ def build_document(model: ParsedModel, generated_path: Path) -> dict[str, Any]:
                 "route_scene_mirror": "explicit synthetic ktrf:set effects appended after choice reset on nonterminal transitions",
                 "callback_arguments": "none; current executable oracle preserves callback symbol only",
                 "resource_resolution": "profile scene-key locator; physical path is adapter-owned",
+                "dead_branch_boundary": "record exclusions as provenance; do not synthesize absent transitions",
             },
         },
         "extensions": [],
@@ -1050,6 +1040,10 @@ def main() -> int:
     print(f"resources={len(document['resource_locators'])}")
     print(f"hooks={len(document['external_hooks'])}")
     print(f"endings={len(document['endings'])}")
+    print(
+        "excluded_structural_dead="
+        + ",".join(str(x) for x in sorted(EXCLUDED_STRUCTURAL_DEAD_TRANSITION_IDS))
+    )
     print(f"output={output}")
     print("EXPORT PASS")
     return 0
