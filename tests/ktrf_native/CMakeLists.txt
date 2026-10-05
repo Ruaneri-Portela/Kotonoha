@@ -58,3 +58,33 @@ else()
     target_compile_options(KtrfRoutingRuntimeTest PRIVATE -Wall -Wextra -Wpedantic)
     target_compile_options(KtrfRoutingRuntimeGate2Test PRIVATE -Wall -Wextra -Wpedantic)
 endif()
+
+add_executable(SchoolDaysOracleTrace
+    "${KOTONOHA_ROOT}/tests/SchoolDaysOracleTrace.cpp"
+    "${KOTONOHA_ROOT}/src/SchoolDaysRouter.cpp"
+)
+target_include_directories(SchoolDaysOracleTrace PRIVATE
+    "${KOTONOHA_ROOT}/include"
+)
+target_compile_definitions(SchoolDaysOracleTrace PRIVATE
+    KOTONOHA_ROUTER_TEST_ACCESS=1
+)
+
+add_executable(KtrfNativeRouterTrace
+    KtrfNativeRouterTrace.cpp
+    "${KOTONOHA_ROOT}/src/parsers/Ktrf.c"
+    "${KOTONOHA_ROOT}/src/parsers/KtrfTyped.c"
+    "${KOTONOHA_ROOT}/src/routing/KtrfRuntime.c"
+    "${KOTONOHA_ROOT}/src/routing/KtrfRouter.c"
+)
+target_include_directories(KtrfNativeRouterTrace PRIVATE
+    "${KOTONOHA_ROOT}/include"
+)
+
+if(MSVC)
+    target_compile_options(SchoolDaysOracleTrace PRIVATE /W4 /permissive-)
+    target_compile_options(KtrfNativeRouterTrace PRIVATE /W4 /permissive-)
+else()
+    target_compile_options(SchoolDaysOracleTrace PRIVATE -Wall -Wextra -Wpedantic)
+    target_compile_options(KtrfNativeRouterTrace PRIVATE -Wall -Wextra -Wpedantic)
+endif()
