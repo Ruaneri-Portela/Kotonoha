@@ -123,3 +123,22 @@ if(MSVC)
 else()
     target_compile_options(KtrfSchoolDaysAdapterTest PRIVATE -Wall -Wextra -Wpedantic)
 endif()
+
+add_executable(KtrfSchoolDaysAssetResolverTest
+    KtrfSchoolDaysAssetResolverTest.cpp
+    "${KOTONOHA_ROOT}/src/parsers/Ktrf.c"
+    "${KOTONOHA_ROOT}/src/parsers/KtrfTyped.c"
+    "${KOTONOHA_ROOT}/src/routing/KtrfRuntime.c"
+    "${KOTONOHA_ROOT}/src/routing/KtrfRouter.c"
+    "${KOTONOHA_ROOT}/src/routing/SchoolDaysKtrfAdapter.c"
+    "${KOTONOHA_ROOT}/src/routing/SchoolDaysKtrfAssetResolver.c"
+)
+target_include_directories(KtrfSchoolDaysAssetResolverTest PRIVATE
+    "${KOTONOHA_ROOT}/include"
+)
+
+if(MSVC)
+    target_compile_options(KtrfSchoolDaysAssetResolverTest PRIVATE /W4 /permissive-)
+else()
+    target_compile_options(KtrfSchoolDaysAssetResolverTest PRIVATE -Wall -Wextra -Wpedantic)
+endif()
