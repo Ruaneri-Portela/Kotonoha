@@ -7,6 +7,11 @@ option(KOTONOHA_DEV_CHECKPOINTS
     OFF
 )
 
+option(KOTONOHA_ROUTER_TESTS
+    "Build standalone School Days routing regression tests"
+    OFF
+)
+
 set(KOTONOHA_INCLUDE_DIR
     "${CMAKE_CURRENT_SOURCE_DIR}/include"
 )
@@ -151,4 +156,39 @@ endif()
 if(KOTONOHA_DEV_CHECKPOINTS)
     target_compile_definitions(Kotonoha PRIVATE KOTONOHA_DEV_CHECKPOINTS=1)
     message(STATUS "KOTONOHA_DEV_CHECKPOINTS=ON (development-only routing helpers)")
+endif()
+
+if(KOTONOHA_ROUTER_TESTS AND NOT ANDROID)
+    include(CTest)
+
+    add_executable(SchoolDaysHandoffRouterTest
+        tests/SchoolDaysHandoffRouterTest.cpp
+        src/SchoolDaysRouter.cpp
+    )
+    target_include_directories(SchoolDaysHandoffRouterTest PRIVATE
+        ${KOTONOHA_INCLUDE_DIR}
+    )
+
+    add_executable(SchoolDaysFullRouterTest
+        tests/SchoolDaysFullRouterTest.cpp
+        src/SchoolDaysRouter.cpp
+    )
+    target_include_directories(SchoolDaysFullRouterTest PRIVATE
+        ${KOTONOHA_INCLUDE_DIR}
+    )
+
+    add_executable(SchoolDaysDevCheckpointTest
+        tests/SchoolDaysDevCheckpointTest.cpp
+        src/SchoolDaysRouter.cpp
+    )
+    target_include_directories(SchoolDaysDevCheckpointTest PRIVATE
+        ${KOTONOHA_INCLUDE_DIR}
+    )
+    target_compile_definitions(SchoolDaysDevCheckpointTest PRIVATE
+        KOTONOHA_DEV_CHECKPOINTS=1
+    )
+
+    add_test(NAME SchoolDaysHandoffRouterTest COMMAND SchoolDaysHandoffRouterTest)
+    add_test(NAME SchoolDaysFullRouterTest COMMAND SchoolDaysFullRouterTest)
+    add_test(NAME SchoolDaysDevCheckpointTest COMMAND SchoolDaysDevCheckpointTest)
 endif()
