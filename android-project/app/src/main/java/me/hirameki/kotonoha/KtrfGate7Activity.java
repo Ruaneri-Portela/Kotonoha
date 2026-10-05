@@ -49,7 +49,10 @@ public class KtrfGate7Activity extends Activity {
                 "-K", routeFile.getAbsolutePath(), root
         };
 
-        Log.i(TAG,
+        // Warning level is intentional for the deterministic Gate 7 marker.
+        // Some Android vendor log configurations suppress application INFO
+        // messages from `adb logcat -d`, while WARN remains visible.
+        Log.w(TAG,
                 "launch route=" + routeFile.getAbsolutePath()
                         + " ors_root=" + root
                         + " first_ors=" + firstOrs.getAbsolutePath());
