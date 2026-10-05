@@ -35,6 +35,14 @@ public:
         SceneKey destination;
         int transitionId = -1;
         int endingId = -1;
+        std::vector<std::string> callbacks;
+
+        bool HasCallback(const std::string& name) const {
+            for (const auto& callback : callbacks) {
+                if (callback == name) return true;
+            }
+            return false;
+        }
     };
 
     explicit SchoolDaysRouter(std::function<void(const std::string&)> logger = {});
