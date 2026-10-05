@@ -60,6 +60,13 @@ public:
     std::string DumpState() const;
 #endif
 
+#ifdef KOTONOHA_ROUTER_TEST_ACCESS
+    // Differential-conformance harness only. This intentionally exposes the
+    // already-existing state object without changing routing behavior so tests
+    // can inject targeted pre-states into the frozen ResolveNext semantics.
+    SchoolDaysRouteState& MutableStateForTest() { return state; }
+#endif
+
 private:
     SchoolDaysRouteState state;
     std::function<void(const std::string&)> log;
