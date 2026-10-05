@@ -6,8 +6,9 @@ Oracle:
 
 - tag: `school-days-routing-oracle-v1`
 - commit: `614461c2b14951ba117b9d2dedb4983cfa8ae8e6`
+- executable table: `src/SchoolDaysRouteData.generated.inc`
 
-This profile explains how School Days HQ maps into generic KTRF concepts. It does not redefine KTRF core semantics.
+This profile explains how the frozen School Days HQ executable routing oracle maps into generic KTRF concepts. It does not redefine KTRF core semantics.
 
 Implementation details and validation procedure are documented in `../SCHOOL_DAYS_EXPORT.md`.
 
@@ -28,6 +29,45 @@ overflow.sdhq:routing-profile@1.0.0
 overflow.sdhq:scene-key-locator@1.0.0
 ```
 
+## Oracle boundary
+
+KTRF v0.1 targets the **frozen executable oracle**, not every intermediate artifact produced during route research.
+
+The executable oracle contains:
+
+```text
+routes                 55
+logical nodes        1857
+transitions          2458
+conditions           1464
+source effects       6183
+feeling deltas        302
+feeling resolutions   772
+choice nodes           287
+endings                 22
+```
+
+Earlier structural research also identified six causally-dead raw branches:
+
+```text
+t971
+t1243
+t1248
+t1494
+t1824
+t1825
+```
+
+Those six IDs are **absent from the frozen 2,458-transition executable table**. They were part of the broader research model before the executable Normal New Game oracle was generated/frozen.
+
+Therefore the KTRF exporter:
+
+1. verifies that none of those six IDs has silently reappeared in the executable source table;
+2. records the six IDs in top-level provenance metadata as `excluded_structural_dead_transition_ids`;
+3. does **not** synthesize KTRF Transition entities for branches that are absent from the executable oracle.
+
+This is a critical conformance rule. Reintroducing those branches would expand the oracle rather than serialize it.
+
 ## Entry point
 
 Normal New Game:
@@ -39,7 +79,7 @@ Normal New Game:
 
 ## Node mapping
 
-Each recovered `(ROUTE, SCENE)` entry becomes one Node.
+Each frozen `(ROUTE, SCENE)` entry becomes one Node.
 
 Node ID:
 
@@ -236,7 +276,7 @@ ORS-only physical scripts are not automatically Nodes in the Normal New Game rou
 
 ## Transition mapping
 
-Each source transition becomes exactly one KTRF Transition:
+Each executable-oracle transition becomes exactly one KTRF Transition:
 
 ```text
 sdhq:transition:<source-transition-id>
@@ -256,7 +296,7 @@ One source condition -> direct final source-condition Expression.
 
 Multiple source conditions -> ordered `ktrf:and` conjunction.
 
-Known dead transitions remain present and are marked only as metadata.
+The six structural dead-branch IDs listed in the oracle-boundary section are provenance-only exclusions and therefore have no KTRF Transition record.
 
 ## Conformance target
 
@@ -264,7 +304,7 @@ A School Days exporter/loader must preserve oracle semantics including:
 
 - 55 source routes as profile grouping/metadata;
 - 1,857 logical Nodes;
-- 2,458 Normal New Game Transitions;
+- 2,458 executable Normal New Game Transitions;
 - first-match Transition order;
 - 1,464 recovered conditions after semantic lowering;
 - 6,183 recovered source Effects;
@@ -275,7 +315,7 @@ A School Days exporter/loader must preserve oracle semantics including:
 - 47 non-terminal `callback_38` handoffs;
 - 23 terminal `callback_38` handoffs;
 - both routing-only dispatchers;
-- all six known dead transitions as structurally preserved model data.
+- explicit provenance for the six structural dead branches excluded before executable-oracle freeze.
 
 Exact total Expression and Effect collection counts after generic lowering are not required to match the raw source-array counts because helper Expressions and explicit profile-synthetic lifecycle Effects are added.
 
