@@ -134,6 +134,7 @@ class Differential:
         }
         self.session_vars: list[tuple[str, str]] = []
         self.global_vars: list[tuple[str, str]] = []
+        self.session_by_symbol: dict[str, str] = {}
         self.internal_choice = "sdhq:var:internal:choice_result"
         self.internal_callback34 = "sdhq:var:internal:callback34"
 
@@ -149,8 +150,13 @@ class Differential:
                 continue
             if storage == "session":
                 self.session_vars.append((row["id"], symbol))
+                self.session_by_symbol[symbol] = row["id"]
             elif storage == "global":
                 self.global_vars.append((row["id"], symbol))
+
+        for required in ("ROUTE", "SCENE"):
+            if required not in self.session_by_symbol:
+                raise ValueError(f"School Days IR lacks required session Variable {required}")
 
     @staticmethod
     def fail(witness: str, step_index: int, field: str, expected: Any, actual: Any) -> None:
@@ -206,6 +212,12 @@ class Differential:
             out.append(int(row["code"]))
         return out
 
+    def profile_coordinate(self, vm) -> tuple[int, int]:
+        return (
+            int(vm.read_variable(self.session_by_symbol["ROUTE"])),
+            int(vm.read_variable(self.session_by_symbol["SCENE"])),
+        )
+
     def compare_witness(self, witness: Witness, cpp_rows: Sequence[Mapping[str, Any]]) -> int:
         vm = self.Interpreter(self.doc)
         vm.reset("sdhq:entry:new-game")
@@ -214,7 +226,15 @@ class Differential:
         for i, (step, cpp) in enumerate(zip(witness.steps, cpp_rows)):
             coord = self.node_coordinate(vm.current_node)
             if coord != (step.route, step.scene):
-                self.fail(witness.name, i, "pre route/scene", (step.route, step.scene), coord)
+                self.fail(witness.name, i, "pre Node route/scene", (step.route, step.scene), coord)
+            if self.profile_coordinate(vm) != (step.route, step.scene):
+                self.fail(
+                    witness.name,
+                    i,
+                    "pre profile ROUTE/SCENE",
+                    (step.route, step.scene),
+                    self.profile_coordinate(vm),
+                )
 
             if step.choice != -99:
                 if not vm.commit_choice(step.choice):
@@ -234,24 +254,22 @@ class Differential:
             if cpp["kind"] != actual_kind:
                 self.fail(witness.name, i, "kind", cpp["kind"], actual_kind)
 
-            ir_coord = self.node_coordinate(vm.current_node)
-            # Terminal KTRF retains the logical source Node. C++ currently does
-            # the same for the frozen Normal New Game oracle; if a future
-            # profile invalidates this assumption the differential will expose it.
-            if ir_coord is None:
-                self.fail(witness.name, i, "post route/scene", (cpp["route"], cpp["scene"]), ir_coord)
-            if (int(cpp["route"]), int(cpp["scene"])) != ir_coord:
-                self.fail(
-                    witness.name,
-                    i,
-                    "post route/scene",
-                    (cpp["route"], cpp["scene"]),
-                    ir_coord,
-                )
+            cpp_coord = (int(cpp["route"]), int(cpp["scene"]))
+            ir_profile_coord = self.profile_coordinate(vm)
+            if cpp_coord != ir_profile_coord:
+                self.fail(witness.name, i, "post profile ROUTE/SCENE", cpp_coord, ir_profile_coord)
 
-            scene_key = self.node_scene_key(vm.current_node)
-            if cpp["current_scene"] != scene_key:
-                self.fail(witness.name, i, "current SceneKey", cpp["current_scene"], scene_key)
+            # For non-terminal routing, Node movement and the School Days
+            # ROUTE/SCENE mirror must describe the same destination. A terminal
+            # Transition has no KTRF destination, so its retained current Node is
+            # not used as a substitute for profile terminal state.
+            if not result.terminal:
+                ir_node_coord = self.node_coordinate(vm.current_node)
+                if ir_node_coord != cpp_coord:
+                    self.fail(witness.name, i, "post Node route/scene", cpp_coord, ir_node_coord)
+                scene_key = self.node_scene_key(vm.current_node)
+                if cpp["current_scene"] != scene_key:
+                    self.fail(witness.name, i, "current SceneKey", cpp["current_scene"], scene_key)
 
             expected_destination = str(cpp["destination"])
             actual_destination = self.node_scene_key(result.destination)
