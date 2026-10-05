@@ -82,6 +82,61 @@ const char* KindName(SchoolDaysRouter::NextKind kind) {
     std::exit(2);
 }
 
+void EmitResult(
+    SchoolDaysRouter& router,
+    const SchoolDaysRouter::NextResult& result,
+    int stepIndex
+) {
+    const auto& state = router.State();
+    const std::string currentScene = router.CurrentScene().value;
+
+    std::cout << '{';
+    std::cout << "\"step\":" << stepIndex << ',';
+    std::cout << "\"transition\":" << result.transitionId << ',';
+    std::cout << "\"kind\":";
+    WriteString(std::cout, KindName(result.kind));
+    std::cout << ',';
+    std::cout << "\"destination\":";
+    WriteString(std::cout, result.destination.value);
+    std::cout << ',';
+    std::cout << "\"current_scene\":";
+    WriteString(std::cout, currentScene);
+    std::cout << ',';
+    std::cout << "\"route\":" << state.route << ',';
+    std::cout << "\"scene\":" << state.scene << ',';
+    std::cout << "\"choice_result\":" << state.choiceResult << ',';
+    std::cout << "\"callback34\":" << state.callback34 << ',';
+    std::cout << "\"feeling_applied\":" << (state.feelingApplied ? "true" : "false") << ',';
+    std::cout << "\"ending_id\":" << result.endingId << ',';
+    std::cout << "\"endings\":";
+    WriteIntArray(std::cout, state.endingRegistrations);
+    std::cout << ',';
+    std::cout << "\"callbacks\":";
+    WriteStringArray(std::cout, result.callbacks);
+    std::cout << ',';
+    std::cout << "\"session\":";
+    WriteIntMap(std::cout, state.sessionVariables);
+    std::cout << ',';
+    std::cout << "\"global\":";
+    WriteIntMap(std::cout, state.globalVariables);
+    std::cout << "}\n";
+}
+
+SchoolDaysRouter::NextResult ResolveExpected(
+    SchoolDaysRouter& router,
+    int expectedTransition,
+    int stepIndex
+) {
+    const auto result = router.ResolveNext();
+    if (result.transitionId != expectedTransition) {
+        std::ostringstream error;
+        error << "transition mismatch expected=t" << expectedTransition
+              << " actual=t" << result.transitionId;
+        Fail(stepIndex, error.str());
+    }
+    return result;
+}
+
 } // namespace
 
 int main() {
@@ -99,6 +154,70 @@ int main() {
         if (command == "RESET") {
             router.Reset();
             stepIndex = 0;
+            continue;
+        }
+
+        if (command == "INJECT") {
+            int route = -1;
+            int scene = -1;
+            int choiceResult = -2;
+            int callback34 = 0;
+            int feelingApplied = 0;
+            if (!(input >> route >> scene >> choiceResult >> callback34 >> feelingApplied)) {
+                Fail(stepIndex, "malformed INJECT line: " + line);
+            }
+#ifdef KOTONOHA_ROUTER_TEST_ACCESS
+            auto& state = router.MutableStateForTest();
+            state.route = route;
+            state.scene = scene;
+            state.choiceResult = choiceResult;
+            state.callback34 = callback34;
+            state.feelingApplied = feelingApplied != 0;
+            state.endingRegistrations.clear();
+            state.sessionVariables["ROUTE"] = route;
+            state.sessionVariables["SCENE"] = scene;
+#else
+            Fail(stepIndex, "INJECT unavailable without KOTONOHA_ROUTER_TEST_ACCESS");
+#endif
+            continue;
+        }
+
+        if (command == "SESSION") {
+            std::string name;
+            int value = 0;
+            if (!(input >> name >> value)) {
+                Fail(stepIndex, "malformed SESSION line: " + line);
+            }
+#ifdef KOTONOHA_ROUTER_TEST_ACCESS
+            router.MutableStateForTest().sessionVariables[name] = value;
+#else
+            Fail(stepIndex, "SESSION unavailable without KOTONOHA_ROUTER_TEST_ACCESS");
+#endif
+            continue;
+        }
+
+        if (command == "GLOBAL") {
+            std::string name;
+            int value = 0;
+            if (!(input >> name >> value)) {
+                Fail(stepIndex, "malformed GLOBAL line: " + line);
+            }
+#ifdef KOTONOHA_ROUTER_TEST_ACCESS
+            router.MutableStateForTest().globalVariables[name] = value;
+#else
+            Fail(stepIndex, "GLOBAL unavailable without KOTONOHA_ROUTER_TEST_ACCESS");
+#endif
+            continue;
+        }
+
+        if (command == "RESOLVE") {
+            int expectedTransition = -1;
+            if (!(input >> expectedTransition)) {
+                Fail(stepIndex, "malformed RESOLVE line: " + line);
+            }
+            const auto result = ResolveExpected(router, expectedTransition, stepIndex);
+            EmitResult(router, result, stepIndex);
+            ++stepIndex;
             continue;
         }
 
@@ -126,48 +245,8 @@ int main() {
             Fail(stepIndex, "AcceptChoice rejected value " + std::to_string(choice));
         }
 
-        const auto result = router.ResolveNext();
-        if (result.transitionId != expectedTransition) {
-            std::ostringstream error;
-            error << "transition mismatch expected=t" << expectedTransition
-                  << " actual=t" << result.transitionId;
-            Fail(stepIndex, error.str());
-        }
-
-        const auto& state = router.State();
-        const std::string currentScene = router.CurrentScene().value;
-
-        std::cout << '{';
-        std::cout << "\"step\":" << stepIndex << ',';
-        std::cout << "\"transition\":" << result.transitionId << ',';
-        std::cout << "\"kind\":";
-        WriteString(std::cout, KindName(result.kind));
-        std::cout << ',';
-        std::cout << "\"destination\":";
-        WriteString(std::cout, result.destination.value);
-        std::cout << ',';
-        std::cout << "\"current_scene\":";
-        WriteString(std::cout, currentScene);
-        std::cout << ',';
-        std::cout << "\"route\":" << state.route << ',';
-        std::cout << "\"scene\":" << state.scene << ',';
-        std::cout << "\"choice_result\":" << state.choiceResult << ',';
-        std::cout << "\"callback34\":" << state.callback34 << ',';
-        std::cout << "\"feeling_applied\":" << (state.feelingApplied ? "true" : "false") << ',';
-        std::cout << "\"ending_id\":" << result.endingId << ',';
-        std::cout << "\"endings\":";
-        WriteIntArray(std::cout, state.endingRegistrations);
-        std::cout << ',';
-        std::cout << "\"callbacks\":";
-        WriteStringArray(std::cout, result.callbacks);
-        std::cout << ',';
-        std::cout << "\"session\":";
-        WriteIntMap(std::cout, state.sessionVariables);
-        std::cout << ',';
-        std::cout << "\"global\":";
-        WriteIntMap(std::cout, state.globalVariables);
-        std::cout << "}\n";
-
+        const auto result = ResolveExpected(router, expectedTransition, stepIndex);
+        EmitResult(router, result, stepIndex);
         ++stepIndex;
     }
 
