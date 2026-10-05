@@ -156,6 +156,8 @@ bool SchoolDaysRouter::IsCurrentSceneRoutingOnly() const {
 
 #ifdef KOTONOHA_DEV_CHECKPOINTS
 SceneKey SchoolDaysRouter::DevCheckpointScene(const std::string& name) const {
+    if (name == "sd-ep1-r0-l00-handoff") return { "00/00-00-L00" };
+    if (name == "sd-ending16-r49-i02-handoff") return { "05/05-SB-I02" };
     if (name == "sd-ep3-r4-b00") return { "02/02-2K-B00" };
     if (name == "sd-ep4-r15-e08-routing-only") return { "03/03-KB-E08" };
     return {};
@@ -164,7 +166,37 @@ SceneKey SchoolDaysRouter::DevCheckpointScene(const std::string& name) const {
 bool SchoolDaysRouter::RestoreDevCheckpoint(const std::string& name) {
     Reset();
 
-    if (name == "sd-ep3-r4-b00") {
+    if (name == "sd-ending16-r49-i02-handoff") {
+        // Targeted DEV checkpoint immediately before terminal t2357.
+        // t2357 has no routing conditions.
+        state.route = 49;
+        state.scene = 28;
+        state.choiceResult = kPendingChoice;
+        state.callback34 = 0;
+        state.feelingApplied = false;
+        state.endingRegistrations.clear();
+
+        state.sessionVariables = {
+            {"ROUTE", 49}, {"SCENE", 28},
+            {"000", 0}, {"001", 0}, {"002", 0}, {"003", 0}, {"004", 0},
+        };
+    }
+    else if (name == "sd-ep1-r0-l00-handoff") {
+        // Targeted DEV checkpoint immediately before the EP1 -> EP2
+        // callback_38 handoff. t25 only requires callback34 == 0.
+        state.route = 0;
+        state.scene = 20;
+        state.choiceResult = kPendingChoice;
+        state.callback34 = 0;
+        state.feelingApplied = false;
+        state.endingRegistrations.clear();
+
+        state.sessionVariables = {
+            {"ROUTE", 0}, {"SCENE", 20},
+            {"000", 0}, {"001", 0}, {"002", 0}, {"003", 0}, {"004", 0},
+        };
+    }
+    else if (name == "sd-ep3-r4-b00") {
         state.route = 4;
         state.scene = 1;
         state.choiceResult = kPendingChoice;

@@ -1,0 +1,258 @@
+{
+  "format": "schooldays-routing-freeze-v1",
+  "status": "PASS",
+  "generated_utc": "2026-10-05T03:44:27.648627+00:00",
+  "scope": "School Days HQ normal New Game routing oracle",
+  "git": {
+    "branch": "research/school-days-handoff-integration-20261004",
+    "source_head_before_oracle_commit": "5cd06ee12f73bc750004f6d6cb3522adb0a0846b"
+  },
+  "counts": {
+    "routes": 55,
+    "nodes": 1857,
+    "transitions": 2458,
+    "conditions": 1464,
+    "effects": 6183,
+    "feeling_deltas": 302,
+    "feeling_resolutions": 772,
+    "terminal_transitions": 23,
+    "callback38_terminal": 23,
+    "callback38_nonterminal": 47
+  },
+  "catalogs": {
+    "condition_kinds": [
+      "Callback34",
+      "Choice",
+      "FlagOr",
+      "GlobalValue",
+      "SessionComparison",
+      "SessionValue"
+    ],
+    "compare_ops": [
+      "Eq",
+      "Gt",
+      "Le",
+      "Ne"
+    ],
+    "effect_kinds": [
+      "Callback",
+      "RegisterEnding",
+      "SetGlobalConst",
+      "SetSessionConst",
+      "SetSessionFromSession"
+    ],
+    "routing_only_scene_keys": [
+      "03/03-B2-A00",
+      "03/03-KB-E00"
+    ]
+  },
+  "checks": [
+    {
+      "name": "route_count",
+      "pass": true,
+      "detail": "55 == 55"
+    },
+    {
+      "name": "node_count",
+      "pass": true,
+      "detail": "1857 == 1857"
+    },
+    {
+      "name": "transition_count",
+      "pass": true,
+      "detail": "2458 == 2458"
+    },
+    {
+      "name": "condition_count",
+      "pass": true,
+      "detail": "1464 == 1464"
+    },
+    {
+      "name": "effect_count",
+      "pass": true,
+      "detail": "6183 == 6183"
+    },
+    {
+      "name": "feeling_resolution_count",
+      "pass": true,
+      "detail": "772 == 772"
+    },
+    {
+      "name": "offset_first_zero",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "offset_last_matches_nodes",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "offsets_monotonic",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "scene_keys_unique",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "routing_only_catalog",
+      "pass": true,
+      "detail": "03/03-B2-A00, 03/03-KB-E00"
+    },
+    {
+      "name": "node_transition_slices",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "transition_ids_unique",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "transition_condition_slices",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "transition_effect_slices",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "nonterminal_destinations_valid",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "condition_kind_catalog",
+      "pass": true,
+      "detail": "['Callback34', 'Choice', 'FlagOr', 'GlobalValue', 'SessionComparison', 'SessionValue']"
+    },
+    {
+      "name": "compare_op_catalog",
+      "pass": true,
+      "detail": "['Eq', 'Gt', 'Le', 'Ne']"
+    },
+    {
+      "name": "effect_kind_catalog",
+      "pass": true,
+      "detail": "['Callback', 'RegisterEnding', 'SetGlobalConst', 'SetSessionConst', 'SetSessionFromSession']"
+    },
+    {
+      "name": "feeling_resolution_slices",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "all_transitions_owned_by_node",
+      "pass": true,
+      "detail": "2458 / 2458"
+    },
+    {
+      "name": "terminal_transition_count",
+      "pass": true,
+      "detail": "23"
+    },
+    {
+      "name": "terminal_callback38_count",
+      "pass": true,
+      "detail": "23"
+    },
+    {
+      "name": "nonterminal_callback38_count",
+      "pass": true,
+      "detail": "47"
+    },
+    {
+      "name": "router_checkpoint_sd-ep1-r0-l00-handoff",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "test_checkpoint_sd-ep1-r0-l00-handoff",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "router_checkpoint_sd-ending16-r49-i02-handoff",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "test_checkpoint_sd-ending16-r49-i02-handoff",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "temporary_ktn_diag_removed",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "canonical_file_exists:CMakeLists.txt",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "canonical_file_exists:include/Kotonoha/SchoolDaysRouter.hpp",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "canonical_file_exists:include/Kotonoha/Kotonoha.hpp",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "canonical_file_exists:src/SchoolDaysRouter.cpp",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "canonical_file_exists:src/SchoolDaysRouteData.generated.inc",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "canonical_file_exists:src/Kotonoha.cpp",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "canonical_file_exists:tests/SchoolDaysFullRouterTest.cpp",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "canonical_file_exists:tests/SchoolDaysHandoffRouterTest.cpp",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "canonical_file_exists:tests/SchoolDaysDevCheckpointTest.cpp",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "canonical_file_exists:tools/schooldays-routing-verifier/audit_terminal_callbacks.py",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "canonical_file_exists:tools/schooldays-routing-verifier/freeze_route_model.py",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "canonical_file_exists:tools/schooldays-routing-verifier/run_freeze_audit.ps1",
+      "pass": true,
+      "detail": ""
+    }
+  ],
+  "hashes_file": "ROUTING_MODEL_HASHES.json",
+  "catalog_file": "ROUTING_MODEL_CATALOG.json"
+}

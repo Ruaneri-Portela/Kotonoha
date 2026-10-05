@@ -1,0 +1,53 @@
+{
+  "format": "schooldays-routing-hashes-v1",
+  "sha256": {
+    "CMakeLists.txt": {
+      "sha256": "9ff93e6be7451dc5a7ee3eb3180e6ea7faa517574d6b4dd3b1ccc5beaca0aa61",
+      "bytes": 4940
+    },
+    "include/Kotonoha/SchoolDaysRouter.hpp": {
+      "sha256": "ebda77a225dc3df832da35e95c778114c1356ebd967640323ea94e24c3531dfd",
+      "bytes": 2195
+    },
+    "include/Kotonoha/Kotonoha.hpp": {
+      "sha256": "a0006a093a3fd7f224c3de55b9478541aa92249f274c85ac298a842557654e41",
+      "bytes": 3069
+    },
+    "src/SchoolDaysRouter.cpp": {
+      "sha256": "f73cbcae79a61ff364cf19f940decbefbeb4e58d4a3304965f08514c442dd7af",
+      "bytes": 15949
+    },
+    "src/SchoolDaysRouteData.generated.inc": {
+      "sha256": "031b53c172bb37e87a41356a8c17d84fd173606c7d0ea509607578a4629f921b",
+      "bytes": 650562
+    },
+    "src/Kotonoha.cpp": {
+      "sha256": "6abf66a9e0081c188307cfdfc2e06de623d63ac72ffed2ca2cca54eedf4875fa",
+      "bytes": 25230
+    },
+    "tests/SchoolDaysFullRouterTest.cpp": {
+      "sha256": "96c0955da507c94ed5d1e86d7778d121abc6ded5b77f55a0d13f225f2be88773",
+      "bytes": 106582
+    },
+    "tests/SchoolDaysHandoffRouterTest.cpp": {
+      "sha256": "054fa8133553b5b692fd5fc97f7a6b8437ed459fa0c8c566b4ae83a2142d0c0d",
+      "bytes": 2123
+    },
+    "tests/SchoolDaysDevCheckpointTest.cpp": {
+      "sha256": "097cdd42104ac0adc28b242b662d0bfea05e8eadd0cd508ca2be64781c36d00a",
+      "bytes": 9614
+    },
+    "tools/schooldays-routing-verifier/audit_terminal_callbacks.py": {
+      "sha256": "b9e13b103f30d5a718e665daf642e2952cbe1b2744ed957c50f55a15cf47bdf5",
+      "bytes": 6638
+    },
+    "tools/schooldays-routing-verifier/freeze_route_model.py": {
+      "sha256": "4e8696ee1d452999f1d6fa5098b5f3f90e60cd600d61ccedc4781eec8a09bf04",
+      "bytes": 17871
+    },
+    "tools/schooldays-routing-verifier/run_freeze_audit.ps1": {
+      "sha256": "4614176fa55fd5679bc8f6288d8bb59b7d98a18470f8bedb9e27fa64a4ab0cd8",
+      "bytes": 3169
+    }
+  }
+}
