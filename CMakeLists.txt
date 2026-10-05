@@ -142,6 +142,7 @@ else()
         ${LIBASS_INCLUDE_DIRS}
         ${SDL3_INCLUDE_DIRS}
         ${SDL3_TTF_INCLUDE_DIRS}
+        ${IMGUI_INCLUDE_DIRS}
     )
 
     target_link_libraries(Kotonoha PRIVATE
@@ -189,14 +190,18 @@ if(KOTONOHA_ROUTER_TESTS AND NOT ANDROID)
     )
 
     # Machine-readable trace adapter used only for KTRF differential
-    # conformance. It drives the frozen public SchoolDaysRouter API; it does
-    # not duplicate or modify the oracle's routing semantics.
+    # conformance. It drives the frozen SchoolDaysRouter routing logic and has
+    # test-only access to the state object so targeted pre-states can be
+    # injected without changing ResolveNext semantics.
     add_executable(SchoolDaysOracleTrace
         tests/SchoolDaysOracleTrace.cpp
         src/SchoolDaysRouter.cpp
     )
     target_include_directories(SchoolDaysOracleTrace PRIVATE
         ${KOTONOHA_INCLUDE_DIR}
+    )
+    target_compile_definitions(SchoolDaysOracleTrace PRIVATE
+        KOTONOHA_ROUTER_TEST_ACCESS=1
     )
 
     add_test(NAME SchoolDaysHandoffRouterTest COMMAND SchoolDaysHandoffRouterTest)
