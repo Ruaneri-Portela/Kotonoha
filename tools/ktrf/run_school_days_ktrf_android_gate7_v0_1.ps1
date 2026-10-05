@@ -208,9 +208,6 @@ gradle.afterProject { project, state ->
     }
 }
 '@
-    # Windows PowerShell 5's `Set-Content -Encoding UTF8` writes an EF BB BF
-    # BOM. Gradle/Groovy can reject that BOM at column 1 in init scripts, so
-    # write explicit UTF-8 without BOM for deterministic behavior on PS5/PS7.
     $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
     [System.IO.File]::WriteAllText($InitScript, $initText, $utf8NoBom)
     Write-Host "init_script_encoding=utf8-nobom"
@@ -268,9 +265,12 @@ gradle.afterProject { project, state ->
         Write-Host "device=$DeviceSerial"
         Invoke-NativeChecked "adb install" $adb ($adbPrefix + @("install", "-r", "-t", $Apk))
 
-        # Deterministic staging: ExtractAssets intentionally does not overwrite
-        # existing files, so clear app-private data before this smoke run.
-        Invoke-NativeChecked "adb clear app data" $adb ($adbPrefix + @("shell", "pm", "clear", $Package))
+        # Never use `pm clear` here: it also erases the reusable full School
+        # Days development installation under the app's external files area.
+        # Refresh only the internal APK-smoke extraction tree.
+        Invoke-NativeChecked "refresh internal Gate 7 staging" $adb ($adbPrefix + @(
+            "shell", "run-as", $Package, "rm", "-rf", "files/assets"
+        ))
     }
 
     Write-Host ""
@@ -315,14 +315,21 @@ gradle.afterProject { project, state ->
 
     Write-Host ""
     Write-Host "[6/6] Verify ARM64 KTRF New Game boot"
-    if ($logText -notmatch "\[KTRF-GATE7\].*launch route=") {
+    if ($logText -notmatch "KTRF-GATE7.*launch source=.*route=") {
         throw "Gate 7 activity launch marker was not found in logcat. See $LogFile"
     }
     if ($logText -notmatch "\[KTRF-APP\] enabled scene=00/00-00-A00") {
         throw "Native KTRF New Game marker was not found in logcat. See $LogFile"
     }
 
+    $assetSource = if ($logText -match "KTRF-GATE7.*launch source=external-full") {
+        "external-full"
+    } else {
+        "internal-smoke"
+    }
+
     Write-Host "android_activity=PASS"
+    Write-Host "asset_source=$assetSource"
     Write-Host "ktrf_document=PASS"
     Write-Host "new_game_scene=00/00-00-A00"
     Write-Host "first_ors=PASS"
