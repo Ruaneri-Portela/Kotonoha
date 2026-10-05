@@ -2,13 +2,13 @@
 
 Status: **Implementation draft v0.1**
 
-This document specifies the deterministic lowering from the frozen School Days HQ Routing Model v1 oracle into KTRF Canonical Routing IR v0.1.
+This document specifies the deterministic lowering from the frozen School Days HQ Routing Model v1 executable oracle into KTRF Canonical Routing IR v0.1.
 
 Oracle:
 
 - tag: `school-days-routing-oracle-v1`
 - commit: `614461c2b14951ba117b9d2dedb4983cfa8ae8e6`
-- generated table: `src/SchoolDaysRouteData.generated.inc`
+- generated executable table: `src/SchoolDaysRouteData.generated.inc`
 
 Exporter:
 
@@ -26,7 +26,7 @@ The generated JSON is written under `build/ktrf/` by default and is not yet a fr
 
 ## 1. Input boundary
 
-The exporter reads the already-frozen generated C++ data tables.
+The exporter reads the already-frozen generated C++ routing tables.
 
 It does **not**:
 
@@ -35,30 +35,32 @@ It does **not**:
 - infer frontend behavior;
 - infer Save/Load behavior;
 - convert `callback_38` into a Save/Continue command;
-- prune known dead transitions;
+- synthesize raw research branches that are absent from the executable oracle;
 - add ORS-only scripts as natural routing Nodes.
 
-This keeps KTRF work downstream from the certified oracle.
+This keeps KTRF work strictly downstream from the certified executable oracle.
 
 ## 2. Frozen input inventory
 
 The exporter refuses to continue when these source counts differ:
 
 ```text
-routes                55
-nodes                 1857
-transitions           2458
-conditions            1464
-effects               6183
-feeling deltas         302
-feeling resolutions    772
-choice nodes            287
-endings                  22
-callback_38 nonterminal  47
-callback_38 terminal     23
+routes                 55
+nodes                  1857
+transitions            2458
+conditions             1464
+effects                6183
+feeling deltas          302
+feeling resolutions     772
+choice nodes             287
+endings                   22
+callback_38 nonterminal   47
+callback_38 terminal      23
 ```
 
-The six known dead transitions remain present:
+### 2.1 Structural dead-branch provenance
+
+Earlier reverse-engineering of the broader structural route model identified six causally-dead raw branches:
 
 ```text
 t971
@@ -69,9 +71,31 @@ t1824
 t1825
 ```
 
+Those IDs are **not present** in the frozen 2,458-transition executable oracle.
+
+This means there are two distinct historical layers:
+
+```text
+broader structural research model
+        ↓ feasibility/oracle generation
+frozen executable Normal New Game oracle
+        ↓
+2458 transitions
+```
+
+KTRF v0.1 serializes the second layer because that is the executable conformance oracle.
+
+The exporter therefore:
+
+1. verifies those six IDs are absent from the executable source table;
+2. records them as `excluded_structural_dead_transition_ids` provenance metadata;
+3. never manufactures KTRF Transitions for absent branches.
+
+Reintroducing them would create a model larger than the frozen oracle and would be a conformance error.
+
 ## 3. Node lowering
 
-Every recovered route-table entry becomes exactly one KTRF Node.
+Every frozen route-table entry becomes exactly one KTRF Node.
 
 ID:
 
@@ -129,8 +153,6 @@ Example:
 
 The School Days runtime adapter owns the mapping from SceneKey to the physical ORS resource.
 
-This avoids baking one installation layout into KTRF.
-
 The two routing-only dispatchers deliberately have no locator.
 
 The ORS-only scripts `01/01-00-OP2` and `05/05-9O-B00` are not synthesized into routing Nodes.
@@ -139,29 +161,26 @@ The ORS-only scripts `01/01-00-OP2` and `05/05-9O-B00` are not synthesized into 
 
 All recovered routing state is represented as typed Variables.
 
-Session symbols use IDs such as:
+Session IDs:
 
 ```text
-sdhq:var:session:ROUTE
-sdhq:var:session:SCENE
-sdhq:var:session:001
-sdhq:var:session:BS05SBI01
+sdhq:var:session:<source-symbol>
 ```
 
-Global symbols use:
+Global IDs:
 
 ```text
 sdhq:var:global:<source-symbol>
 ```
 
-Two router-internal values are made explicit:
+Two router-internal values are explicit:
 
 ```text
 sdhq:var:internal:choice_result
 sdhq:var:internal:callback34
 ```
 
-Current recovered state is integer-valued, so the profile uses `ktrf:int32`.
+Current recovered routing values use `ktrf:int32`.
 
 Defaults preserve the executable oracle reset baseline:
 
@@ -173,21 +192,17 @@ dword_3A2294    1
 other recovered integer state 0
 ```
 
-`ROUTE` and `SCENE` remain Variables because source effects and observable router state use them. They are not used as generic KTRF Node identity.
+`ROUTE` and `SCENE` remain Variables because source effects and observable router state use them. They are not generic KTRF Node identity.
 
 ## 6. Condition lowering
 
 Every source condition gets one final boolean Expression carrying `source_condition_index` metadata.
 
-This permits profile conformance checks to prove coverage of all 1,464 source conditions even when helper Expressions are required.
+This allows profile validation to prove coverage of all 1,464 source conditions even when helper Expressions are required.
 
 ### Choice
 
-```text
-ConditionKind::Choice
-```
-
-becomes a comparison against `sdhq:var:internal:choice_result`.
+`ConditionKind::Choice` becomes a comparison against `sdhq:var:internal:choice_result`.
 
 ### SessionValue
 
@@ -213,9 +228,9 @@ The executable oracle evaluates:
 (sourceA != 0 || sourceB != 0) ? 1 : 0
 ```
 
-and then compares the resulting integer.
+and compares the resulting integer.
 
-The frozen model only uses `Eq`/`Ne` against `0` for this family. The exporter lowers it losslessly into core boolean Expressions:
+The frozen model uses the forms that can be represented losslessly as core boolean Expressions:
 
 ```text
 A != 0
@@ -224,11 +239,9 @@ OR(A_nonzero, B_nonzero)
 boolean equality representing the original Eq/Ne result
 ```
 
-The exporter intentionally fails rather than guessing if a future input uses a FlagOr comparison that cannot be represented by this proven lowering.
+The exporter intentionally fails rather than guessing if future input cannot be represented exactly by this lowering.
 
 ### Compare operators
-
-Recovered operators lower as:
 
 ```text
 Eq -> ktrf:eq
@@ -239,15 +252,13 @@ Le -> ktrf:le
 
 ## 7. Multi-condition transitions
 
-The source router evaluates every condition in a transition with logical AND.
+The source router evaluates each transition's condition slice as logical AND.
 
-When a source transition has:
+- 0 conditions: omit `predicate`;
+- 1 condition: reference that final condition Expression directly;
+- 2+ conditions: create one ordered `ktrf:and` Expression.
 
-- 0 conditions: KTRF omits `predicate`;
-- 1 condition: KTRF references that condition Expression directly;
-- 2+ conditions: KTRF creates one `ktrf:and` Expression preserving source condition order.
-
-## 8. Effect lowering
+## 8. Source Effect lowering
 
 Each of the 6,183 source Effects gets exactly one KTRF Effect with `source_effect_index` metadata.
 
@@ -261,15 +272,13 @@ RegisterEnding        -> ktrf:register-ending
 Callback              -> ktrf:call-hook
 ```
 
-Source effect order is preserved exactly at the beginning of every Transition effect list.
+Source Effect order is preserved exactly at the beginning of every Transition Effect list.
 
-Callback `value` is preserved as metadata but is not invented as a call argument because the frozen executable oracle preserves the callback symbol and does not use the generated `value` as an argument.
+Callback `value` is preserved as source metadata but is not invented as a call argument because the frozen executable oracle preserves the callback symbol for routing behavior.
 
 ## 9. ExternalHook lowering
 
-Recovered callbacks become opaque hooks.
-
-The current frozen catalog is:
+Current hook catalog:
 
 ```text
 overflow.sdhq:callback_00
@@ -283,7 +292,7 @@ Contract:
 overflow.sdhq.callback/1.0.0
 ```
 
-KTRF does not assign frontend meaning to these symbols.
+KTRF core does not assign frontend meaning to these symbols.
 
 ## 10. Ending lowering
 
@@ -297,9 +306,7 @@ sdhq:ending:21
 
 A `RegisterEnding` source Effect references the corresponding Ending entity.
 
-Terminality remains independent from Ending registration.
-
-This preserves the three terminal transitions whose Ending was registered earlier rather than directly by the terminal edge.
+Terminality remains independent from Ending registration. This preserves terminal transitions whose Ending was registered earlier rather than directly by that terminal edge.
 
 ## 11. Choice and feeling lowering
 
@@ -311,9 +318,7 @@ Frozen count:
 287 Choices
 ```
 
-Every set bit in `choiceMask` becomes one Choice option.
-
-Timeout is represented explicitly with value `-1`.
+Every set bit in `choiceMask` becomes one Choice option. Timeout is represented explicitly with value `-1`.
 
 The result Variable is:
 
@@ -329,13 +334,9 @@ ktrf:deferred
 
 All 772 source feeling-resolution rows are mapped to Choice option/timeout metadata.
 
-All 302 source feeling deltas become `ktrf:add` Effects and preserve:
+All 302 source feeling deltas become `ktrf:add` Effects and preserve source delta index, target source variable and delta value.
 
-- source delta index;
-- target source variable;
-- delta value.
-
-This keeps the semantic sequence:
+Semantic sequence remains:
 
 ```text
 choice commit
@@ -346,15 +347,15 @@ choice commit
 -> transition evaluation
 ```
 
-## 12. Profile-synthetic Effects
+## 12. Profile-synthetic lifecycle Effects
 
 The generated source Effect table is not the complete executable lifecycle by itself.
 
-`SchoolDaysRouter::ResolveNext()` performs additional state actions after the selected source effects. To preserve oracle execution semantics in a generic KTRF interpreter, the exporter materializes those actions as explicit KTRF Effects.
+`SchoolDaysRouter::ResolveNext()` performs additional state actions after the selected source Effects. To preserve executable semantics in a generic KTRF interpreter, the exporter materializes those actions as explicit KTRF Effects.
 
 ### 12.1 Choice-result reset
 
-After every selected source transition, including terminal transitions, the executable oracle resets:
+After every selected transition, including terminal transitions:
 
 ```text
 choiceResult = -2
@@ -368,45 +369,34 @@ sdhq:effect:profile:reset-choice-result
 
 Every Transition references it immediately after its recovered source Effects.
 
-This is not counted as one of the original 6,183 source Effects.
-
 ### 12.2 ROUTE/SCENE destination mirror
 
-For every non-terminal selected transition, the executable oracle then mirrors the destination coordinate into:
+For every non-terminal selected Transition, the executable oracle mirrors the destination coordinate into:
 
 ```text
-ROUTE
-after source effects
-SCENE
-after source effects
+ROUTE = destinationRoute
+SCENE = destinationScene
 ```
 
-KTRF Node movement alone would not mutate these profile Variables, so the exporter creates two transition-specific synthetic `ktrf:set` Effects:
+KTRF Node movement alone would not mutate those School Days profile Variables, so two transition-specific synthetic `ktrf:set` Effects are emitted.
 
-```text
-...:route
-...:scene
-```
-
-They execute after the choice-result reset.
-
-Order is therefore:
+Execution order is:
 
 ```text
 recovered source Effects
 -> choice_result reset
--> ROUTE destination mirror   [non-terminal only]
--> SCENE destination mirror   [non-terminal only]
+-> ROUTE destination mirror   [non-terminal]
+-> SCENE destination mirror   [non-terminal]
 -> logical destination Node becomes current
 ```
 
-For terminal transitions the last Effect is the choice-result reset and no destination mirror is emitted.
+Terminal transitions stop after the choice-result reset and have no destination mirror.
 
-This explicit lowering is preferable to hiding School Days-specific lifecycle behavior inside the generic KTRF runtime.
+These profile-synthetic Effects are explicitly distinguishable from the 6,183 recovered source Effects.
 
 ## 13. Transition lowering
 
-Each source transition becomes exactly one KTRF Transition.
+Each **executable-oracle** transition becomes exactly one KTRF Transition.
 
 ID:
 
@@ -416,11 +406,9 @@ sdhq:transition:<source-id>
 
 The recovered transition ID is preserved in metadata.
 
-`priority` is the transition's local order inside its source Node, beginning at zero.
+`priority` is the transition's local order inside its source Node, beginning at zero. This preserves first-match behavior independently from physical array placement.
 
-This preserves first-match routing independently from source-array placement.
-
-All transitions use:
+All current School Days transitions use:
 
 ```text
 triggers = ["ktrf:next"]
@@ -428,34 +416,53 @@ triggers = ["ktrf:next"]
 
 Terminal source transitions:
 
-- set `terminal: true`;
-- have no destination.
+- `terminal: true`;
+- no destination.
 
 Non-terminal source transitions:
 
-- set `terminal: false`;
-- reference the destination Node directly.
+- `terminal: false`;
+- direct destination Node reference.
 
-## 14. Dead branches
+## 14. Exclusion provenance is not executable data
 
-The exporter marks the six certified dead transitions in metadata but does not remove them.
+The six structural dead-branch IDs are carried only as top-level metadata:
 
-This is required because KTRF represents the recovered routing program, not a reachability-pruned walkthrough graph.
+```json
+{
+  "excluded_structural_dead_transition_ids": [
+    971,
+    1243,
+    1248,
+    1494,
+    1824,
+    1825
+  ]
+}
+```
+
+They are **not** KTRF Transitions in this oracle serialization.
+
+This prevents two opposite mistakes:
+
+- silently forgetting that broader structural research found them;
+- silently expanding the frozen executable oracle by reintroducing them.
+
+A future separate archival format may preserve broader raw research topology if desired, but that is not the purpose of the executable KTRF conformance document.
 
 ## 15. Determinism
 
-The exporter is deterministic for a fixed generated source file.
-
-Stable inputs produce stable:
+For a fixed frozen source file, the exporter must produce stable:
 
 - IDs;
-- array order;
+- declaration order;
+- transition priority;
 - metadata;
 - JSON indentation;
 - LF line endings;
-- UTF-8 encoding.
+- UTF-8 text.
 
-The output metadata records SHA-256 of the generated oracle table.
+The output metadata records SHA-256 of the generated executable table.
 
 A later canonical hashing specification will define which IR fields participate in portable content identity.
 
@@ -465,7 +472,7 @@ The runner performs five stages:
 
 ```text
 1. Python syntax
-2. frozen oracle export
+2. frozen executable-oracle export
 3. generic JSON Schema + semantic validation
 4. School Days profile conformance validation
 5. exporter regression tests
@@ -487,12 +494,17 @@ SCHOOL DAYS HQ KTRF IR EXPORT: PASS
 
 A successful export proves:
 
-- every frozen source table can be parsed;
-- every source Node/Transition/Condition/Effect is represented;
-- every feeling resolution/delta is represented;
+- the frozen executable source tables can be parsed;
+- all 1,857 frozen Nodes are represented;
+- all 2,458 executable Transitions are represented exactly once;
+- all 1,464 source Conditions are covered;
+- all 6,183 source Effects are covered;
+- all feeling resolution/delta source rows are represented;
+- all 287 Choice Nodes are represented;
 - generic IR structural rules pass;
 - generic IR semantic rules pass;
-- School Days profile inventory rules pass;
+- School Days profile inventory/lowering rules pass;
+- the six research-only dead-branch IDs remain explicitly documented as exclusions;
 - selected high-value handoff/terminal mappings pass regression tests.
 
 It does **not yet prove executable equivalence**.
