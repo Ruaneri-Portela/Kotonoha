@@ -4,6 +4,7 @@ from __future__ import annotations
 import copy
 import importlib.util
 import json
+import sys
 import unittest
 from pathlib import Path
 
@@ -15,6 +16,7 @@ EXAMPLE_PATH = ROOT / "examples" / "ktrf" / "minimal-routing-ir.json"
 spec = importlib.util.spec_from_file_location("ktrf_validate_ir", VALIDATOR_PATH)
 assert spec is not None and spec.loader is not None
 validator_module = importlib.util.module_from_spec(spec)
+sys.modules[spec.name] = validator_module
 spec.loader.exec_module(validator_module)
 Validator = validator_module.Validator
 
