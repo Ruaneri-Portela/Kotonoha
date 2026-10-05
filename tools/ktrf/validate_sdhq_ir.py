@@ -3,7 +3,8 @@
 
 This validator is deliberately stricter than the generic KTRF semantic
 validator. It checks that the exported IR still carries the complete frozen
-School Days oracle inventory and the profile-specific lowering invariants.
+School Days executable-oracle inventory and the profile-specific lowering
+invariants.
 """
 
 from __future__ import annotations
@@ -29,7 +30,7 @@ EXPECTED = {
     "callback38_terminal": 23,
 }
 ROUTING_ONLY = {"03/03-B2-A00", "03/03-KB-E00"}
-DEAD = {971, 1243, 1248, 1494, 1824, 1825}
+EXCLUDED_STRUCTURAL_DEAD = {971, 1243, 1248, 1494, 1824, 1825}
 EXPECTED_HOOK_SYMBOLS = {
     "overflow.sdhq:callback_00",
     "overflow.sdhq:callback_2C",
@@ -96,18 +97,14 @@ class ProfileValidator:
             "choices": len(self.records("choices")),
             "endings": len(self.records("endings")),
         }
-        for key, expected in (
-            ("nodes", EXPECTED["nodes"]),
-            ("transitions", EXPECTED["transitions"]),
-            ("choices", EXPECTED["choices"]),
-            ("endings", EXPECTED["endings"]),
-        ):
-            if actual[key] != expected:
-                self.error(f"{key} count mismatch: {actual[key]} != {expected}")
+        for key in ("nodes", "transitions", "choices", "endings"):
+            if actual[key] != EXPECTED[key]:
+                self.error(f"{key} count mismatch: {actual[key]} != {EXPECTED[key]}")
 
-        if len(self.records("resource_locators")) != EXPECTED["nodes"] - len(ROUTING_ONLY):
+        expected_resources = EXPECTED["nodes"] - len(ROUTING_ONLY)
+        if len(self.records("resource_locators")) != expected_resources:
             self.error(
-                f"resource locator count mismatch: {len(self.records('resource_locators'))} != {EXPECTED['nodes'] - len(ROUTING_ONLY)}"
+                f"resource locator count mismatch: {len(self.records('resource_locators'))} != {expected_resources}"
             )
 
     def validate_source_metadata(self) -> None:
@@ -115,6 +112,7 @@ class ProfileValidator:
         if not isinstance(metadata, Mapping):
             self.error("top-level metadata missing")
             return
+
         source_oracle = metadata.get("source_oracle", {})
         if not isinstance(source_oracle, Mapping) or source_oracle.get("commit") != ORACLE_COMMIT:
             self.error("metadata.source_oracle.commit mismatch")
@@ -133,11 +131,11 @@ class ProfileValidator:
         elif offsets[0] != 0 or offsets[-1] != EXPECTED["nodes"]:
             self.error("source_route_offsets endpoints are invalid")
 
-        known_dead = metadata.get("known_dead_transition_ids")
-        if set(known_dead or []) != DEAD:
-            self.error(f"known dead transition catalog mismatch: {known_dead!r}")
+        excluded = metadata.get("excluded_structural_dead_transition_ids")
+        if set(excluded or []) != EXCLUDED_STRUCTURAL_DEAD:
+            self.error(f"excluded structural dead transition catalog mismatch: {excluded!r}")
 
-        condition_indices = []
+        condition_indices: list[int] = []
         for row in self.records("expressions"):
             meta = row.get("metadata", {})
             if isinstance(meta, Mapping) and isinstance(meta.get("source_condition_index"), int):
@@ -147,8 +145,8 @@ class ProfileValidator:
                 f"source condition coverage mismatch: {len(set(condition_indices))} unique / {EXPECTED['conditions']}"
             )
 
-        source_effect_indices = []
-        feeling_delta_indices = []
+        source_effect_indices: list[int] = []
+        feeling_delta_indices: list[int] = []
         for row in self.records("effects"):
             meta = row.get("metadata", {})
             if not isinstance(meta, Mapping):
@@ -214,13 +212,19 @@ class ProfileValidator:
                 self.error(f"unexpected School Days locator scheme on {row.get('id')}")
 
     def validate_endings_hooks(self) -> None:
-        codes = sorted(row.get("code") for row in self.records("endings") if isinstance(row.get("code"), int))
+        codes = sorted(
+            row.get("code")
+            for row in self.records("endings")
+            if isinstance(row.get("code"), int)
+        )
         if codes != list(range(EXPECTED["endings"])):
             self.error(f"ending codes mismatch: {codes}")
 
         symbols = {row.get("symbol") for row in self.records("external_hooks")}
         if symbols != EXPECTED_HOOK_SYMBOLS:
-            self.error(f"hook symbol catalog mismatch: {sorted(x for x in symbols if isinstance(x, str))}")
+            self.error(
+                f"hook symbol catalog mismatch: {sorted(x for x in symbols if isinstance(x, str))}"
+            )
 
     def validate_choice_resolution_coverage(self) -> None:
         resolution_indices: list[int] = []
@@ -246,7 +250,6 @@ class ProfileValidator:
         effects = self.by_id("effects")
         expressions = self.by_id("expressions")
         transition_source_ids: set[int] = set()
-        dead_found: set[int] = set()
 
         reset = effects.get(RESET_EFFECT_ID)
         if reset is None:
@@ -264,8 +267,6 @@ class ProfileValidator:
             if source_id in transition_source_ids:
                 self.error(f"duplicate source transition ID {source_id}")
             transition_source_ids.add(source_id)
-            if meta.get("known_dead_normal_new_game") is True:
-                dead_found.add(source_id)
 
             refs = row.get("effects", [])
             if not isinstance(refs, list):
@@ -277,26 +278,38 @@ class ProfileValidator:
             if not isinstance(start, int) or not isinstance(count, int):
                 self.error(f"transition {row.get('id')} missing source effect slice metadata")
                 continue
-            expected_source_refs = [f"sdhq:effect:source:{i}" for i in range(start, start + count)]
+            expected_source_refs = [
+                f"sdhq:effect:source:{i}" for i in range(start, start + count)
+            ]
             if refs[:count] != expected_source_refs:
                 self.error(f"transition {row.get('id')} does not preserve source effect order")
 
             if len(refs) <= count or refs[count] != RESET_EFFECT_ID:
-                self.error(f"transition {row.get('id')} must reset choice result immediately after source effects")
+                self.error(
+                    f"transition {row.get('id')} must reset choice result immediately after source effects"
+                )
 
             synthetic = meta.get("profile_synthetic_coordinate_effects", [])
             if row.get("terminal") is True:
                 if synthetic != []:
-                    self.error(f"terminal transition {row.get('id')} must not mirror a destination coordinate")
+                    self.error(
+                        f"terminal transition {row.get('id')} must not mirror a destination coordinate"
+                    )
                 if refs != expected_source_refs + [RESET_EFFECT_ID]:
-                    self.error(f"terminal transition {row.get('id')} contains unexpected post-source effects")
+                    self.error(
+                        f"terminal transition {row.get('id')} contains unexpected post-source effects"
+                    )
                 if "destination" in row:
                     self.error(f"terminal transition {row.get('id')} has a destination")
             else:
                 if not isinstance(synthetic, list) or len(synthetic) != 2:
-                    self.error(f"nonterminal transition {row.get('id')} must carry route/scene mirror effects")
+                    self.error(
+                        f"nonterminal transition {row.get('id')} must carry route/scene mirror effects"
+                    )
                 elif refs != expected_source_refs + [RESET_EFFECT_ID] + synthetic:
-                    self.error(f"nonterminal transition {row.get('id')} post-source effect order is incorrect")
+                    self.error(
+                        f"nonterminal transition {row.get('id')} post-source effect order is incorrect"
+                    )
                 if "destination" not in row:
                     self.error(f"nonterminal transition {row.get('id')} has no destination")
 
@@ -305,7 +318,9 @@ class ProfileValidator:
             predicate = row.get("predicate")
             if condition_count == 0:
                 if predicate is not None:
-                    self.error(f"unconditional transition {row.get('id')} unexpectedly has a predicate")
+                    self.error(
+                        f"unconditional transition {row.get('id')} unexpectedly has a predicate"
+                    )
             elif condition_count == 1:
                 expected_predicate = f"sdhq:expr:condition:{condition_start}"
                 if predicate != expected_predicate:
@@ -313,24 +328,37 @@ class ProfileValidator:
             elif isinstance(condition_count, int) and condition_count > 1:
                 expr = expressions.get(str(predicate))
                 if expr is None or expr.get("op") != "ktrf:and":
-                    self.error(f"multi-condition transition {row.get('id')} must use ktrf:and conjunction")
+                    self.error(
+                        f"multi-condition transition {row.get('id')} must use ktrf:and conjunction"
+                    )
                 else:
                     expected_args = [
                         {"kind": "expression", "ref": f"sdhq:expr:condition:{i}"}
                         for i in range(condition_start, condition_start + condition_count)
                     ]
                     if expr.get("args") != expected_args:
-                        self.error(f"multi-condition transition {row.get('id')} conjunction order mismatch")
+                        self.error(
+                            f"multi-condition transition {row.get('id')} conjunction order mismatch"
+                        )
 
         if len(transition_source_ids) != EXPECTED["transitions"]:
             self.error(f"source transition coverage mismatch: {len(transition_source_ids)}")
-        if dead_found != DEAD:
-            self.error(f"dead transition flags mismatch: {sorted(dead_found)}")
+
+        # Critical provenance rule: the six known raw structural dead branches
+        # must remain absent from the frozen executable-oracle IR. Reintroducing
+        # them would silently change the 2,458-transition oracle.
+        overlap = transition_source_ids & EXCLUDED_STRUCTURAL_DEAD
+        if overlap:
+            self.error(
+                f"excluded structural dead transitions were reintroduced: {sorted(overlap)}"
+            )
 
     def validate_callback38(self) -> None:
         hooks = self.by_id("external_hooks")
         callback38_hook_ids = {
-            hook_id for hook_id, row in hooks.items() if row.get("symbol") == "overflow.sdhq:callback_38"
+            hook_id
+            for hook_id, row in hooks.items()
+            if row.get("symbol") == "overflow.sdhq:callback_38"
         }
         if len(callback38_hook_ids) != 1:
             self.error("expected exactly one callback_38 ExternalHook")
@@ -349,7 +377,9 @@ class ProfileValidator:
         nonterminal = 0
         for row in self.records("transitions"):
             refs = row.get("effects", [])
-            if not isinstance(refs, list) or not any(ref in callback38_effect_ids for ref in refs):
+            if not isinstance(refs, list) or not any(
+                ref in callback38_effect_ids for ref in refs
+            ):
                 continue
             if row.get("terminal") is True:
                 terminal += 1
@@ -363,7 +393,9 @@ class ProfileValidator:
 
     def validate_entry_and_defaults(self) -> None:
         entries = self.records("entry_points")
-        expected_entry = next((x for x in entries if x.get("id") == "sdhq:entry:new-game"), None)
+        expected_entry = next(
+            (x for x in entries if x.get("id") == "sdhq:entry:new-game"), None
+        )
         if expected_entry is None:
             self.error("New Game entry point is missing")
         elif expected_entry.get("node") != "sdhq:node:00/00-00-A00":
@@ -381,7 +413,9 @@ class ProfileValidator:
             if row is None:
                 self.error(f"required profile variable missing: {var_id}")
             elif row.get("default") != expected:
-                self.error(f"default mismatch for {var_id}: {row.get('default')!r} != {expected}")
+                self.error(
+                    f"default mismatch for {var_id}: {row.get('default')!r} != {expected}"
+                )
 
 
 def validate_profile(document: Mapping[str, Any]) -> list[str]:
@@ -389,7 +423,9 @@ def validate_profile(document: Mapping[str, Any]) -> list[str]:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Validate School Days HQ KTRF profile conformance")
+    parser = argparse.ArgumentParser(
+        description="Validate School Days HQ KTRF profile conformance"
+    )
     parser.add_argument("input", type=Path)
     args = parser.parse_args()
 
