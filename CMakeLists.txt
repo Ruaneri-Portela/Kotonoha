@@ -26,6 +26,16 @@ file(GLOB SOURCES CONFIGURE_DEPENDS
     src/utils/*.c
 )
 
+# Keep the KTRF debug GUI source explicit as well as covered by the glob. Some
+# incremental Visual Studio/CMake regenerations can observe a new glob member
+# without adding that translation unit to the existing target on the same
+# build. The explicit entry makes the dependency deterministic; deduplication
+# keeps fresh configurations identical.
+list(APPEND SOURCES
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/SchoolDaysKtrfDebugGui.cpp"
+)
+list(REMOVE_DUPLICATES SOURCES)
+
 # LibIconvCompat is a mobile compatibility shim. The current Windows
 # dependency set does not provide <iconv.h>, and the desktop target does
 # not need this translation unit.
