@@ -119,6 +119,36 @@ class KtrfInterpreterTests(unittest.TestCase):
         self.assertIsNotNone(result)
         self.assertEqual("example:node:next", vm.current_node)
 
+    def test_uncommitted_deferred_choice_blocks_unconditional_transition(self) -> None:
+        doc = deferred_choice_document()
+        doc["expressions"] = []
+        doc["transitions"][0].pop("predicate", None)
+        vm = Interpreter(doc)
+        vm.reset()
+
+        result = vm.trigger()
+
+        self.assertIsNone(result)
+        self.assertEqual("example:node:start", vm.current_node)
+        self.assertEqual(-2, vm.read_variable("example:var:choice"))
+        self.assertEqual(0, vm.read_variable("example:var:feeling"))
+
+    def test_committed_deferred_choice_releases_unconditional_transition(self) -> None:
+        doc = deferred_choice_document()
+        doc["expressions"] = []
+        doc["transitions"][0].pop("predicate", None)
+        vm = Interpreter(doc)
+        vm.reset()
+
+        self.assertTrue(vm.commit_choice(0))
+        result = vm.trigger()
+
+        self.assertIsNotNone(result)
+        assert result is not None
+        self.assertEqual("example:t0", result.transition_id)
+        self.assertEqual("example:node:next", vm.current_node)
+        self.assertEqual(3, vm.read_variable("example:var:feeling"))
+
     def test_choice_commit_is_idempotent_for_same_result(self) -> None:
         vm = Interpreter(deferred_choice_document())
         vm.reset()
