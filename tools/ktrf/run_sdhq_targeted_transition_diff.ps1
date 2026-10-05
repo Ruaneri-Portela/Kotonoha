@@ -9,7 +9,7 @@ $ErrorActionPreference = "Stop"
 $repo = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
 $baselineRunner = Join-Path $repo "tools\ktrf\run_sdhq_differential.ps1"
 $targeted = Join-Path $repo "tools\ktrf\diff_sdhq_targeted_transitions.py"
-$interpreter = Join-Path $repo "tools\ktrf\interpreter.py"
+$interpreter = Join-Path $repo "tools\ktrf\sdhq_injected_state_interpreter.py"
 $diffModule = Join-Path $repo "tools\ktrf\diff_sdhq_witnesses.py"
 $ir = Join-Path $repo "build\ktrf\school-days-hq.routing.json"
 $coverage = Join-Path $repo "build\ktrf\school-days-hq.differential-coverage.json"
@@ -41,7 +41,7 @@ Write-Host "=== KTRF / School Days targeted transition closure ==="
 Write-Host ""
 
 Write-Host "[1/3] Targeted differential syntax"
-Run-Native $Python -m py_compile $targeted
+Run-Native $Python -m py_compile $targeted $interpreter
 
 Write-Host ""
 Write-Host "[2/3] Reconfirm witness differential + coverage gap"
