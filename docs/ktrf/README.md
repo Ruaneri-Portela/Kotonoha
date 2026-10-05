@@ -52,9 +52,26 @@ KTRF adopts those principles conceptually. It does **not** copy that format, and
 - `DATA_MODEL.md` — exact definitions of Node, Transition, Expression, Effect, Variable, Choice, Ending, ExternalHook and ResourceLocator.
 - `ROUTING_IR.md` — canonical JSON Routing IR.
 - `VERSIONING_EXTENSIONS.md` — versioning, feature negotiation, namespaces and extensions.
+- `VALIDATION.md` — structural, semantic, profile and oracle-validation layers.
 - `profiles/school-days-hq.md` — mapping from the School Days oracle into the generic model.
 - `../../schemas/ktrf-routing-ir.schema.json` — JSON Schema for Routing IR v0.1.
 - `../../examples/ktrf/minimal-routing-ir.json` — minimal valid example.
+
+## Reference tooling
+
+Semantic validation:
+
+```powershell
+python .\tools\ktrf\validate_ir.py .\examples\ktrf\minimal-routing-ir.json
+```
+
+The validator performs whole-document checks that JSON Schema alone cannot express, including references, expression cycles, type compatibility, namespace/feature rules, terminal invariants and transition priority collisions.
+
+Reference tests:
+
+```powershell
+python .\tests\ktrf\test_validate_ir.py
+```
 
 ## Core rule
 
