@@ -61,6 +61,7 @@ KTRF adopts those principles conceptually. It does **not** copy that format, and
 - `TARGETED_TRANSITION_DIFFERENTIAL.md` — state-injection differential strategy for closing uncovered executable transitions without claiming causal reachability.
 - `CHOICE_FEELING_DIFFERENTIAL.md` — exhaustive Choice outcome / FeelingResolution / FeelingDelta differential validation.
 - `SOURCE_EFFECT_STRESS.md` — non-default pre-state stress differential for all recovered source Effects.
+- `BROADER_STATE_DIFFERENTIAL.md` — finite boundary/state matrix covering every Node, every executable Transition and unresolved/pending-Choice cases.
 - `../../schemas/ktrf-routing-ir.schema.json` — JSON Schema for Routing IR v0.1.
 - `../../examples/ktrf/minimal-routing-ir.json` — minimal valid example.
 
@@ -114,6 +115,12 @@ Source Effect stress differential:
 powershell -ExecutionPolicy Bypass -File .\tools\ktrf\run_sdhq_effect_stress.ps1
 ```
 
+Broader finite state-matrix differential:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tools\ktrf\run_sdhq_state_matrix.ps1
+```
+
 Default generated School Days IR:
 
 ```text
@@ -127,41 +134,51 @@ build/ktrf/school-days-hq.differential-coverage.json
 build/ktrf/school-days-hq.targeted-transition-diff.json
 build/ktrf/school-days-hq.choice-diff.json
 build/ktrf/school-days-hq.effect-stress-diff.json
+build/ktrf/school-days-hq.state-matrix-diff.json
 ```
 
 The generic validator performs whole-document checks that JSON Schema alone cannot express, including references, expression cycles, type compatibility, namespace/feature rules, terminal invariants and transition priority collisions.
 
 The School Days profile validator additionally checks the frozen executable-oracle inventory, source-index coverage, routing-only nodes, ending/hook catalogs, feeling-resolution coverage, transition lowering order, callback_38 edge counts and the structural-dead exclusion boundary.
 
-The reference interpreter executes the canonical IR directly. `SchoolDaysOracleTrace` drives the compiled frozen `SchoolDaysRouter` routing implementation and emits machine-readable state, allowing causal-witness, targeted-transition, Choice-commit and source-Effect stress differential comparison without copying the C++ routing logic into Python.
+The reference interpreter executes the canonical IR directly. `SchoolDaysOracleTrace` drives the compiled frozen `SchoolDaysRouter` routing implementation and emits machine-readable state, allowing causal-witness, targeted-transition, Choice-commit, source-Effect stress and broader state-matrix differential comparison without copying the C++ routing logic into Python.
 
-Current transition-differential status:
-
-```text
-22 ending witnesses                   PASS / zero divergence
-witness transition coverage           1081 / 2458
-Targeted transition fixtures          1377 / 1377
-combined transition coverage          2458 / 2458 (100%)
-combined transition divergences       0
-```
-
-Current Choice/Feeling status:
+## Current conformance status
 
 ```text
-Choice nodes                           287 / 287
-Choice outcomes / FeelingResolution    772 / 772
-FeelingDelta source rows               302 / 302
-seed modes                             2
-scenarios                              1544
-accepted checks                        1544
-idempotence checks                     1544
-alternate rejection checks             1544
-divergences                            0
+22 ending witnesses                    PASS / zero divergence
+witness transition coverage            1081 / 2458
+Targeted transition fixtures           1377 / 1377
+combined transition coverage           2458 / 2458 (100%)
+combined transition divergences        0
+
+Choice nodes                            287 / 287
+Choice outcomes / FeelingResolution     772 / 772
+FeelingDelta source rows                302 / 302
+Choice seed modes                       2
+Choice scenarios                        1544
+Choice divergences                      0
+
+source Effects                         6183 / 6183
+transitions with source Effects        2458
+Effect stress seed modes                2
+Effect stress scenarios                 4916
+Effect stress divergences               0
 ```
 
-The Choice/Feeling layer is independent because the targeted transition fixtures inject post-choice routing state. It executes every exported Choice outcome through the frozen `AcceptChoice` implementation versus KTRF `commit_choice`, requires complete `FeelingResolution` and `FeelingDelta` source-index coverage, and checks both idempotent repeat and alternate-result rejection.
+Recovered source-Effect inventory observed by the stress gate:
 
-The source-Effect stress layer is also independent. Transition closure already executes all 6,183 recovered source Effects at least once through their owning transitions; the stress layer reruns every effect-bearing transition under deterministic positive and negative non-default seeds while preserving first-match branch selection, then compares the complete C++/KTRF post-state.
+```text
+SetSessionConst          5911
+SetSessionFromSession      40
+SetGlobalConst             67
+RegisterEnding             25
+Callback                  140
+```
+
+All 40 `SetSessionFromSession` source operands are branch/coordinate constrained in the recovered executable model, so they cannot be independently perturbed without potentially changing branch selection. They are still executed and compared under the stress scenarios; this limitation is kept explicit rather than overstating coverage.
+
+The broader state-matrix gate now extends beyond one satisfying fixture per Transition. It injects coherent default state at every Node, verifies pending Choice blocking, perturbs predicate Variables around recovered comparison boundaries, adds bounded pairwise boundary combinations, includes unresolved states, and requires zero C++/KTRF post-state divergence.
 
 Reference tests:
 
@@ -209,9 +226,12 @@ combined transition coverage: 2458 / 2458, zero divergence
 Choice + Feeling differential: 772 / 772 outcomes, zero divergence
         |
         v
-source-Effect stress differential
+source-Effect stress: 6183 / 6183, 4916 scenarios, zero divergence
         |
-        `--> next: broader state differential / semantic freeze gate
+        v
+broader finite state-matrix differential
+        |
+        `--> next: KTRF IR semantic freeze gate
 
 future, only after semantic conformance freeze:
 
