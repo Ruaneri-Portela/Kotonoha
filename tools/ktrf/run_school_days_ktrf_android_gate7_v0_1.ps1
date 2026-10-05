@@ -196,7 +196,7 @@ try {
     Write-Host "first_ors=00/00-00-A00.ENG.ORS"
 
     New-Item -ItemType Directory -Force -Path (Split-Path $InitScript -Parent) | Out-Null
-    @'
+    $initText = @'
 gradle.afterProject { project, state ->
     if (project.path == ':app') {
         def gateAssets = System.getenv('KOTONOHA_GATE7_ASSETS')
@@ -207,7 +207,13 @@ gradle.afterProject { project, state ->
         println('KTRF_GATE7_ASSETS=' + gateAssets)
     }
 }
-'@ | Set-Content -Encoding UTF8 $InitScript
+'@
+    # Windows PowerShell 5's `Set-Content -Encoding UTF8` writes an EF BB BF
+    # BOM. Gradle/Groovy can reject that BOM at column 1 in init scripts, so
+    # write explicit UTF-8 without BOM for deterministic behavior on PS5/PS7.
+    $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+    [System.IO.File]::WriteAllText($InitScript, $initText, $utf8NoBom)
+    Write-Host "init_script_encoding=utf8-nobom"
 
     Write-Host ""
     Write-Host "[3/6] Build arm64 Android debug APK"
