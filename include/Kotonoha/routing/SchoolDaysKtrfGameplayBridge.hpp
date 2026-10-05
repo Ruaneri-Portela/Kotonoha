@@ -63,6 +63,10 @@ public:
     bool Advance(const char* trigger, StepResult* out, Kotonoha_KtrfError* error);
 
     bool HasPendingHandoff() const { return pendingHandoff; }
+    bool PendingHandoffIsTerminal() const {
+        return pendingHandoff &&
+               pendingStep.kind == SchoolDaysKtrfSession::StepKind::Terminal;
+    }
     bool ContinueHandoff(StepResult* out, Kotonoha_KtrfError* error);
 
 private:

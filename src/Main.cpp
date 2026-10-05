@@ -1,8 +1,52 @@
 #include <cstring>
+#include <memory>
+#include <string>
 #include <Kotonoha/Kotonoha.hpp>
+#include <Kotonoha/routing/SchoolDaysKtrfAppController.hpp>
+
 static struct Kotonoha_Game global = {};
 
 namespace {
+
+	struct KtrfLaunchOptions {
+		bool requested = false;
+		bool valid = true;
+		std::string routePath;
+		std::string orsRoot;
+	};
+
+	static std::unique_ptr<Kotonoha::SchoolDaysKtrfAppController> ktrfController;
+
+	static KtrfLaunchOptions ExtractKtrfLaunchOptions(int argc, char* argv[]) {
+		KtrfLaunchOptions options;
+
+		for (int i = 1; i < argc; ++i) {
+			if (argv[i] == nullptr || std::strcmp(argv[i], "-K") != 0) continue;
+
+			if (options.requested || i + 2 >= argc || argv[i + 1] == nullptr ||
+				argv[i + 2] == nullptr) {
+				options.valid = false;
+				return options;
+			}
+
+			options.requested = true;
+			options.routePath = argv[i + 1];
+			options.orsRoot = argv[i + 2];
+			*argv[i] = '!';
+			i += 2;
+		}
+
+		if (options.requested) {
+			for (int i = 1; i < argc; ++i) {
+				if (argv[i] != nullptr && std::strcmp(argv[i], "-l") == 0) {
+					options.valid = false;
+					return options;
+				}
+			}
+		}
+
+		return options;
+	}
 
 	static void CleanupGlobalResources() {
 		delete static_cast<Kotonoha::Sound*>(global.sound);
@@ -106,6 +150,7 @@ extern "C" {
 		}
 
 		*appstate = nullptr;
+		ktrfController.reset();
 		std::memset(&global, 0, sizeof(global));
 
 #if defined(KOTONOHA_MOBILE)
@@ -136,6 +181,16 @@ extern "C" {
 			return SDL_APP_FAILURE;
 		}
 
+		const KtrfLaunchOptions ktrfOptions = ExtractKtrfLaunchOptions(argc, argv);
+		if (!ktrfOptions.valid) {
+			SDL_LogError(0,
+				"Invalid KTRF launch arguments. Use -K <route.ktnroute> <ors-root> and do not combine it with -l.");
+			CleanupGlobalResources();
+			TTF_Quit();
+			SDL_Quit();
+			return SDL_APP_FAILURE;
+		}
+
 		SDL_AppResult status = SDL_APP_FAILURE;
 		Kotonoha::Kotonoha* engine =
 			new (std::nothrow) Kotonoha::Kotonoha(argc, argv, &status, global);
@@ -148,6 +203,21 @@ extern "C" {
 			return SDL_APP_FAILURE;
 		}
 
+		if (status == SDL_APP_CONTINUE && ktrfOptions.requested) {
+			ktrfController = std::make_unique<Kotonoha::SchoolDaysKtrfAppController>();
+			Kotonoha_KtrfError error{};
+			if (!ktrfController->Open(ktrfOptions.routePath.c_str(),
+					ktrfOptions.orsRoot.c_str(), engine, &global, &error)) {
+				SDL_LogError(0, "Couldn't start School Days KTRF mode: %s", error.message);
+				ktrfController.reset();
+				delete engine;
+				CleanupGlobalResources();
+				TTF_Quit();
+				SDL_Quit();
+				return SDL_APP_FAILURE;
+			}
+		}
+
 		*appstate = engine;
 
 		if (status == SDL_APP_CONTINUE && global.render != nullptr) {
@@ -155,6 +225,7 @@ extern "C" {
 		}
 
 		if (status != SDL_APP_CONTINUE) {
+			ktrfController.reset();
 			delete engine;
 			*appstate = nullptr;
 			CleanupGlobalResources();
@@ -169,6 +240,18 @@ extern "C" {
 		if (event == nullptr) {
 			return SDL_APP_CONTINUE;
 		}
+
+#ifdef KOTONOHA_DEV_CHECKPOINTS
+		if (ktrfController != nullptr &&
+			event->type == SDL_EVENT_KEY_DOWN && event->key.key == SDLK_F5 &&
+			ktrfController->HasPendingHandoff()) {
+			Kotonoha_KtrfError error{};
+			if (!ktrfController->ContinueHandoff(&error) && error.message[0] != '\0') {
+				SDL_LogError(0, "[KTRF-HANDOFF] continue failed: %s", error.message);
+			}
+			return SDL_APP_CONTINUE;
+		}
+#endif
 
 		Kotonoha_BasicGuiEvent(event);
 
@@ -193,7 +276,9 @@ extern "C" {
 		SDL_SetRenderDrawColor(global.render, 0, 0, 0, 0);
 		SDL_RenderClear(global.render);
 
-		const SDL_AppResult status = app->Main(&inRunning);
+		const SDL_AppResult status = ktrfController != nullptr
+			? ktrfController->Main(&inRunning)
+			: app->Main(&inRunning);
 		if (status != SDL_APP_CONTINUE) {
 			return status;
 		}
@@ -215,6 +300,7 @@ extern "C" {
 	void SDL_AppQuit(void* appstate, SDL_AppResult result) {
 		(void)result;
 
+		ktrfController.reset();
 		delete GetApp(appstate);
 		CleanupGlobalResources();
 		TTF_Quit();
