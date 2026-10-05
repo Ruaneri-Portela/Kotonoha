@@ -70,13 +70,18 @@ class SchoolDaysKtrfExporterTests(unittest.TestCase):
         self.assertEqual("sdhq:node:00/00-00-A00", entry["node"])
         self.assertEqual("ktrf:new-game", entry["trigger"])
 
-    def test_dead_transition_catalog_is_preserved(self) -> None:
-        found = {
+    def test_structural_dead_catalog_is_recorded_as_excluded_provenance(self) -> None:
+        excluded = set(
+            self.doc["metadata"]["excluded_structural_dead_transition_ids"]
+        )
+        expected = {971, 1243, 1248, 1494, 1824, 1825}
+        self.assertEqual(expected, excluded)
+
+        source_ids = {
             row["metadata"]["source_transition_id"]
             for row in self.doc["transitions"]
-            if row["metadata"]["known_dead_normal_new_game"]
         }
-        self.assertEqual({971, 1243, 1248, 1494, 1824, 1825}, found)
+        self.assertTrue(expected.isdisjoint(source_ids))
 
     def test_transition_t25_preserves_handoff_hooks(self) -> None:
         effects = {row["id"]: row for row in self.doc["effects"]}
@@ -120,8 +125,18 @@ class SchoolDaysKtrfExporterTests(unittest.TestCase):
 
     def test_build_is_deterministic(self) -> None:
         again = exporter.build_document(self.model, GENERATED_PATH)
-        left = json.dumps(self.doc, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
-        right = json.dumps(again, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+        left = json.dumps(
+            self.doc,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        right = json.dumps(
+            again,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        )
         self.assertEqual(left, right)
 
 
