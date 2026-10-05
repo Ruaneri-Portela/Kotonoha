@@ -23,8 +23,24 @@ extern "C" {
 
 #include <tuple>
 #include <map>
+#include <string>
+#include <vector>
 
 namespace Kotonoha {
+	enum class SchoolDaysHandoffKind {
+		None,
+		Episode,
+		Terminal,
+	};
+
+	struct SchoolDaysPendingHandoff {
+		SchoolDaysHandoffKind kind = SchoolDaysHandoffKind::None;
+		SceneKey destination;
+		int transitionId = -1;
+		int endingId = -1;
+		std::vector<std::string> callbacks;
+	};
+
 	class Kotonoha {
 	private:
 		struct Kotonoha_Game& gameContext;
@@ -44,6 +60,7 @@ namespace Kotonoha {
 			SDL_Log("[KTN-ROUTER] %s", message.c_str());
 		} };
 		bool schoolDaysRouting = false;
+		SchoolDaysPendingHandoff schoolDaysHandoff;
 #ifdef KOTONOHA_DEV_CHECKPOINTS
 		std::string requestedSchoolDaysCheckpoint;
 		bool schoolDaysCheckpointApplied = false;
@@ -65,6 +82,14 @@ namespace Kotonoha {
 		bool LoadScriptFile(const char* path);
 		void DeleteGameplay(Gameplay* gameplay);
 		void ClearGameplays();
+
+		bool HasPendingSchoolDaysHandoff() const {
+			return schoolDaysHandoff.kind != SchoolDaysHandoffKind::None;
+		}
+		const SchoolDaysPendingHandoff& PendingSchoolDaysHandoff() const {
+			return schoolDaysHandoff;
+		}
+		bool ContinueSchoolDaysHandoff();
 
 		Kotonoha(int argc, char* argv[], SDL_AppResult* initStatus,
 			struct Kotonoha_Game& gameContext);
