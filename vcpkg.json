@@ -1,5 +1,4 @@
 {
-  "builtin-baseline": "5508584fd90f2cb4bb441c8c77860a418e50194b",
   "dependencies": [
     {
       "name": "fontconfig",
