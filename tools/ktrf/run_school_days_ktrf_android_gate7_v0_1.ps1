@@ -96,6 +96,58 @@ function Get-AdbPrefix {
     return @("-s", $Serial)
 }
 
+function Resolve-GradleLauncher {
+    $wrapper = Join-Path $AndroidProject "gradlew.bat"
+    $wrapperJar = Join-Path $AndroidProject "gradle\wrapper\gradle-wrapper.jar"
+    if ((Test-Path $wrapper -PathType Leaf) -and (Test-Path $wrapperJar -PathType Leaf)) {
+        Write-Host "gradle_launcher=wrapper"
+        return $wrapper
+    }
+
+    $properties = Join-Path $AndroidProject "gradle\wrapper\gradle-wrapper.properties"
+    if (-not (Test-Path $properties -PathType Leaf)) {
+        throw "Gradle wrapper JAR is missing and gradle-wrapper.properties was not found: $properties"
+    }
+
+    $text = Get-Content -Raw $properties
+    $match = [regex]::Match($text, 'gradle-([0-9]+(?:\.[0-9]+)+)-bin\.zip')
+    if (-not $match.Success) {
+        throw "Could not determine Gradle version from $properties"
+    }
+
+    $version = $match.Groups[1].Value
+    $bootstrapRoot = Join-Path $Root "build\gradle-bootstrap"
+    $gradleHome = Join-Path $bootstrapRoot "gradle-$version"
+    $gradleBat = Join-Path $gradleHome "bin\gradle.bat"
+    if (Test-Path $gradleBat -PathType Leaf) {
+        Write-Host "gradle_launcher=bootstrap-cache"
+        Write-Host "gradle_version=$version"
+        return $gradleBat
+    }
+
+    New-Item -ItemType Directory -Force -Path $bootstrapRoot | Out-Null
+    $zip = Join-Path $bootstrapRoot "gradle-$version-bin.zip"
+    $url = "https://services.gradle.org/distributions/gradle-$version-bin.zip"
+
+    Write-Host "Gradle wrapper JAR is missing; bootstrapping Gradle $version"
+    Write-Host "gradle_download=$url"
+    if (-not (Test-Path $zip -PathType Leaf)) {
+        Invoke-WebRequest -UseBasicParsing -Uri $url -OutFile $zip
+    }
+
+    if (Test-Path $gradleHome) {
+        Remove-Item -Recurse -Force $gradleHome
+    }
+    Expand-Archive -Path $zip -DestinationPath $bootstrapRoot -Force
+    if (-not (Test-Path $gradleBat -PathType Leaf)) {
+        throw "Gradle bootstrap completed but launcher was not found: $gradleBat"
+    }
+
+    Write-Host "gradle_launcher=bootstrap"
+    Write-Host "gradle_version=$version"
+    return $gradleBat
+}
+
 Write-Host "=== School Days KTRF Android v0.1 / Gate 7 ==="
 Write-Host "assets=$AssetsRoot"
 Write-Host "stage=$Stage"
@@ -173,9 +225,10 @@ gradle.afterProject { project, state ->
             throw "ANDROID_NDK_HOME is not set"
         }
         $env:KOTONOHA_GATE7_ASSETS = $Stage
+        $gradleLauncher = Resolve-GradleLauncher
         Push-Location $AndroidProject
         try {
-            Invoke-NativeChecked "Android Gradle build" ".\gradlew.bat" @(
+            Invoke-NativeChecked "Android Gradle build" $gradleLauncher @(
                 "--no-daemon",
                 "-I", $InitScript,
                 ":app:assembleDebug"
