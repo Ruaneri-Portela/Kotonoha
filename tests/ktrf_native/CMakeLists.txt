@@ -26,6 +26,14 @@ add_executable(KtrfRoutingRuntimeTest
     "${KOTONOHA_ROOT}/src/routing/KtrfRuntime.c"
 )
 
+add_executable(KtrfRoutingRuntimeGate2Test
+    KtrfRoutingRuntimeGate2Test.cpp
+    "${KOTONOHA_ROOT}/src/parsers/Ktrf.c"
+    "${KOTONOHA_ROOT}/src/parsers/KtrfTyped.c"
+    "${KOTONOHA_ROOT}/src/routing/KtrfRuntime.c"
+    "${KOTONOHA_ROOT}/src/routing/KtrfRouter.c"
+)
+
 target_include_directories(KtrfNativeReaderTest PRIVATE
     "${KOTONOHA_ROOT}/include"
 )
@@ -35,13 +43,18 @@ target_include_directories(KtrfNativeTypedReaderTest PRIVATE
 target_include_directories(KtrfRoutingRuntimeTest PRIVATE
     "${KOTONOHA_ROOT}/include"
 )
+target_include_directories(KtrfRoutingRuntimeGate2Test PRIVATE
+    "${KOTONOHA_ROOT}/include"
+)
 
 if(MSVC)
     target_compile_options(KtrfNativeReaderTest PRIVATE /W4 /permissive-)
     target_compile_options(KtrfNativeTypedReaderTest PRIVATE /W4 /permissive-)
     target_compile_options(KtrfRoutingRuntimeTest PRIVATE /W4 /permissive-)
+    target_compile_options(KtrfRoutingRuntimeGate2Test PRIVATE /W4 /permissive-)
 else()
     target_compile_options(KtrfNativeReaderTest PRIVATE -Wall -Wextra -Wpedantic)
     target_compile_options(KtrfNativeTypedReaderTest PRIVATE -Wall -Wextra -Wpedantic)
     target_compile_options(KtrfRoutingRuntimeTest PRIVATE -Wall -Wextra -Wpedantic)
+    target_compile_options(KtrfRoutingRuntimeGate2Test PRIVATE -Wall -Wextra -Wpedantic)
 endif()
