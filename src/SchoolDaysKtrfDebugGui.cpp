@@ -1,6 +1,7 @@
 #include <Kotonoha/Kotonoha.hpp>
 #include <Kotonoha/routing/SchoolDaysKtrfAppController.hpp>
 #include <Kotonoha/routing/SchoolDaysKtrfDebugGui.hpp>
+#include <Kotonoha/routing/SchoolDaysKtrfStateInspector.hpp>
 
 #include <imgui.h>
 #include <imgui_impl_sdl3.h>
@@ -14,6 +15,7 @@
 namespace {
 
 bool showKtrfScenes = false;
+bool showKtrfState = false;
 char sceneFilter[128] = {0};
 char debugStatus[512] = {0};
 
@@ -166,6 +168,8 @@ bool Kotonoha_SchoolDaysKtrfDebugGuiRun(
 
     if (ImGui::CollapsingHeader("Script / Routing", ImGuiTreeNodeFlags_DefaultOpen)) {
         ImGui::Checkbox("Show Scenes", &showKtrfScenes);
+        ImGui::SameLine();
+        ImGui::Checkbox("Show State Inspector", &showKtrfState);
         ImGui::TextDisabled("KTRF debug jumps preserve current runtime variables and activate the selected NODE.");
         ImGui::TextDisabled("Text Scene Editor is disabled here because .ENG.ORS is a binary asset.");
     }
@@ -211,6 +215,10 @@ bool Kotonoha_SchoolDaysKtrfDebugGuiRun(
             ImGui::EndListBox();
         }
         ImGui::End();
+    }
+
+    if (showKtrfState) {
+        Kotonoha_SchoolDaysKtrfStateInspectorRun(controller, context, &showKtrfState);
     }
 
     ImGui::Render();
