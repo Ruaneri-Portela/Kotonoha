@@ -1,6 +1,6 @@
 # School Days HQ KTRF Profile v1.0
 
-Status: **Design mapping draft**
+Status: **Design + exporter implementation draft**
 
 Oracle:
 
@@ -8,6 +8,8 @@ Oracle:
 - commit: `614461c2b14951ba117b9d2dedb4983cfa8ae8e6`
 
 This profile explains how School Days HQ maps into generic KTRF concepts. It does not redefine KTRF core semantics.
+
+Implementation details and validation procedure are documented in `../SCHOOL_DAYS_EXPORT.md`.
 
 ## Namespace
 
@@ -18,6 +20,13 @@ Prefix:
 URI:
 
 `urn:kotonoha:profile:overflow:school-days-hq`
+
+Required profile features currently emitted by the exporter:
+
+```text
+overflow.sdhq:routing-profile@1.0.0
+overflow.sdhq:scene-key-locator@1.0.0
+```
 
 ## Entry point
 
@@ -32,7 +41,7 @@ Normal New Game:
 
 Each recovered `(ROUTE, SCENE)` entry becomes one Node.
 
-Recommended Node ID:
+Node ID:
 
 `sdhq:node:<SceneKey>`
 
@@ -47,37 +56,74 @@ These are `ktrf:dispatcher` Nodes without physical ResourceLocators:
 
 They prove that Node identity cannot be physical-file identity.
 
+Every other frozen oracle Node is emitted as `ktrf:scene`.
+
 ## Variables
 
-Recovered session/global/history/flag values become Variables.
+Recovered integer routing state becomes `ktrf:int32` Variables.
+
+Session IDs:
+
+```text
+sdhq:var:session:<source-symbol>
+```
+
+Global IDs:
+
+```text
+sdhq:var:global:<source-symbol>
+```
+
+Router-internal values made explicit by this profile:
+
+```text
+sdhq:var:internal:choice_result
+sdhq:var:internal:callback34
+```
 
 Examples:
 
-- `sdhq:var:ROUTE`
-- `sdhq:var:SCENE`
-- `sdhq:var:001`
-- `sdhq:var:002`
-- `sdhq:var:BS05SBI01`
-- `sdhq:var:REP05_SB_I01`
+```text
+sdhq:var:session:ROUTE
+sdhq:var:session:SCENE
+sdhq:var:session:001
+sdhq:var:session:002
+sdhq:var:session:BS05SBI01
+sdhq:var:global:REP05_SB_I01
+```
 
-Source symbols are retained as metadata.
+Source symbols are retained in metadata.
+
+Reset/default values preserve the executable oracle baseline:
+
+```text
+choice_result  -2
+callback34      0
+dword_3A6F40    0
+dword_3A2294    1
+other recovered routing integers 0
+```
 
 ## Conditions
 
 Recovered condition families lower into generic Expressions where semantics match:
 
-- Choice comparison -> Variable/literal comparison;
+- Choice comparison -> `choice_result` Variable/literal comparison;
 - SessionValue -> Variable/literal comparison;
 - SessionComparison -> Variable/Variable comparison;
 - GlobalValue -> Variable/literal comparison;
-- Callback34 -> profile-declared Variable or exact profile expression;
-- FlagOr -> core boolean composition when exact semantics are preserved.
+- Callback34 -> profile-declared internal Variable comparison;
+- FlagOr -> lossless core boolean composition for the exact frozen Eq/Ne forms.
 
-Transition priority MUST preserve recovered first-match order.
+Every source condition has exactly one final boolean Expression carrying `source_condition_index` metadata. Helper Expressions may also exist.
+
+Transition priority preserves recovered first-match order.
 
 ## Effects
 
-Recovered effects lower approximately as:
+Every one of the frozen 6,183 source Effects is preserved one-to-one with `source_effect_index` metadata.
+
+Mapping:
 
 - `SetSessionConst` -> `ktrf:set`
 - `SetSessionFromSession` -> `ktrf:copy`
@@ -85,26 +131,76 @@ Recovered effects lower approximately as:
 - `RegisterEnding` -> `ktrf:register-ending`
 - `Callback` -> `ktrf:call-hook`
 
-Effect order MUST be preserved.
+Recovered source Effect order is preserved exactly at the beginning of each Transition's Effect list.
+
+## Profile-synthetic lifecycle Effects
+
+The executable oracle performs routing lifecycle mutations after the generated source Effect slice. Those mutations are made explicit in IR instead of being hidden inside KTRF core.
+
+After every selected Transition:
+
+```text
+choice_result = -2
+```
+
+The shared synthetic Effect is:
+
+```text
+sdhq:effect:profile:reset-choice-result
+```
+
+For non-terminal Transitions the executable oracle then mirrors the destination route/scene coordinate into profile Variables. The exporter emits transition-specific `ktrf:set` Effects for:
+
+```text
+ROUTE = destinationRoute
+SCENE = destinationScene
+```
+
+Therefore non-terminal Effect order is:
+
+```text
+source Effects
+-> choice-result reset
+-> destination ROUTE mirror
+-> destination SCENE mirror
+```
+
+Terminal Effect order is:
+
+```text
+source Effects
+-> choice-result reset
+```
+
+These synthetic Effects are not counted among the original 6,183 source Effects.
 
 ## Choices and feelings
 
-`SetSELECT` nodes become Choices.
+`SetSELECT`/choice-mask Nodes become Choices.
+
+Frozen count:
+
+```text
+287
+```
 
 Result convention:
 
 - `-2` pending;
 - `-1` timeout;
 - `0` first option;
-- `1` second option.
+- `1` second option;
+- further option indexes are represented when a higher choice-mask bit exists.
 
-Feeling deltas become Choice outcome Effects.
+Feeling deltas become Choice outcome `ktrf:add` Effects.
+
+All 302 source feeling deltas and all 772 source feeling-resolution rows are preserved with source-index metadata.
 
 Routing remains deferred until `ktrf:next`.
 
 ## Endings
 
-The oracle contains 22 reachable native Endings.
+The oracle contains 22 reachable native Endings with source codes `0..21`.
 
 Ending registration is explicit and distinct from terminality.
 
@@ -122,11 +218,45 @@ The static IR does not rename `callback_38` to a Save/Continue action.
 
 The School Days runtime adapter may interpret it as an episode/terminal handoff based on separately validated runtime behavior.
 
+The frozen generated callback `value` is retained as source metadata but is not promoted to a hook argument because the executable oracle preserves only the callback symbol for routing behavior.
+
 ## Resources
 
-Physical ORS resources use ResourceLocators.
+Physical ORS resolution uses the profile locator scheme:
+
+```text
+overflow.sdhq:scene-key
+```
+
+Locator value is the exact SceneKey. The runtime adapter resolves that key to the installed physical resource.
+
+KTRF therefore does not bake `assets/` or another installation-specific filesystem layout into routing identity.
 
 ORS-only physical scripts are not automatically Nodes in the Normal New Game routing graph.
+
+## Transition mapping
+
+Each source transition becomes exactly one KTRF Transition:
+
+```text
+sdhq:transition:<source-transition-id>
+```
+
+`priority` is the local source order within the source Node and starts at zero.
+
+Every School Days transition currently uses:
+
+```text
+ktrf:next
+```
+
+Zero source conditions -> no predicate.
+
+One source condition -> direct final source-condition Expression.
+
+Multiple source conditions -> ordered `ktrf:and` conjunction.
+
+Known dead transitions remain present and are marked only as metadata.
 
 ## Conformance target
 
@@ -137,15 +267,33 @@ A School Days exporter/loader must preserve oracle semantics including:
 - 2,458 Normal New Game Transitions;
 - first-match Transition order;
 - 1,464 recovered conditions after semantic lowering;
-- 6,183 recovered effects after semantic lowering;
+- 6,183 recovered source Effects;
 - 302 feeling deltas;
 - 772 feeling resolutions;
+- 287 Choice Nodes;
 - 22 reachable Endings;
 - 47 non-terminal `callback_38` handoffs;
 - 23 terminal `callback_38` handoffs;
 - both routing-only dispatchers;
 - all six known dead transitions as structurally preserved model data.
 
-Exact Expression count after generic lowering is not required to match source condition count if semantics remain identical.
+Exact total Expression and Effect collection counts after generic lowering are not required to match the raw source-array counts because helper Expressions and explicit profile-synthetic lifecycle Effects are added.
+
+Every added record must be deterministic and distinguishable from recovered source records through metadata/ID conventions.
 
 Semantic equivalence, not accidental source-array shape, is the conformance requirement.
+
+## Current validation status levels
+
+The implementation distinguishes:
+
+```text
+Schema validity
+Generic semantic validity
+School Days profile validity
+Executable differential equivalence
+```
+
+The first three are implemented by the current KTRF tooling.
+
+Executable differential equivalence is the next stage and remains required before KTRF may replace the frozen generated C++ router.
