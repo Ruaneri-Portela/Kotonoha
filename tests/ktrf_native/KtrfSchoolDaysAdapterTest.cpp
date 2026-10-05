@@ -149,17 +149,21 @@ int main(int argc, char** argv) {
     Check(hook_effect != KOTONOHA_KTRF_NULL_INDEX,
           "no call-hook effect found");
 
+    const int ending_calls_before = callback_state.ending_calls;
     if (!Kotonoha_KtrfRuntimeApplyEffect(
             &adapter.router.runtime, ending_effect, &error))
         Fail(std::string("ending callback effect failed: ") + error.message);
-    Check(callback_state.ending_calls == 1, "ending callback was not forwarded");
+    Check(callback_state.ending_calls == ending_calls_before + 1,
+          "ending callback was not forwarded exactly once");
     Check(callback_state.ending_code >= 0 && callback_state.ending_code < 22,
           "adapter forwarded invalid ending code");
 
+    const int hook_calls_before = callback_state.hook_calls;
     if (!Kotonoha_KtrfRuntimeApplyEffect(
             &adapter.router.runtime, hook_effect, &error))
         Fail(std::string("hook callback effect failed: ") + error.message);
-    Check(callback_state.hook_calls == 1, "hook callback was not forwarded");
+    Check(callback_state.hook_calls == hook_calls_before + 1,
+          "hook callback was not forwarded exactly once");
     Check(callback_state.hook_symbol.rfind("overflow.sdhq:", 0) == 0,
           "adapter forwarded invalid hook symbol");
 
