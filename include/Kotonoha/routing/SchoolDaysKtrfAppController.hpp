@@ -48,6 +48,13 @@ public:
     bool DebugJumpToScene(std::size_t ordinal, Kotonoha_KtrfError* error);
     bool DebugJumpRelative(int delta, Kotonoha_KtrfError* error);
 
+    // Development inspection only. This exposes the already-bound KTRF adapter
+    // so the debug UI can observe typed variable metadata and live runtime
+    // values without changing routing semantics.
+    const Kotonoha_SchoolDaysKtrfAdapter* DebugAdapter() const {
+        return bridge.Session().Adapter();
+    }
+
     bool ContinueHandoff(Kotonoha_KtrfError* error);
     SDL_AppResult Main(Gameplay** out);
 
