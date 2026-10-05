@@ -59,6 +59,7 @@ KTRF adopts those principles conceptually. It does **not** copy that format, and
 - `INTERPRETER_AND_DIFFERENTIAL.md` — executable IR semantics and direct C++ witness differential validation.
 - `DIFFERENTIAL_COVERAGE.md` — coverage accounting for the 22-ending differential corpus and the gap to broader branch/state validation.
 - `TARGETED_TRANSITION_DIFFERENTIAL.md` — state-injection differential strategy for closing uncovered executable transitions without claiming causal reachability.
+- `CHOICE_FEELING_DIFFERENTIAL.md` — exhaustive Choice outcome / FeelingResolution / FeelingDelta differential validation.
 - `../../schemas/ktrf-routing-ir.schema.json` — JSON Schema for Routing IR v0.1.
 - `../../examples/ktrf/minimal-routing-ir.json` — minimal valid example.
 
@@ -100,6 +101,12 @@ Target all witness-uncovered executable transitions:
 powershell -ExecutionPolicy Bypass -File .\tools\ktrf\run_sdhq_targeted_transition_diff.ps1
 ```
 
+Exhaustive Choice/Feeling differential:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tools\ktrf\run_sdhq_choice_diff.ps1
+```
+
 Default generated School Days IR:
 
 ```text
@@ -111,17 +118,26 @@ Default differential reports:
 ```text
 build/ktrf/school-days-hq.differential-coverage.json
 build/ktrf/school-days-hq.targeted-transition-diff.json
+build/ktrf/school-days-hq.choice-diff.json
 ```
 
 The generic validator performs whole-document checks that JSON Schema alone cannot express, including references, expression cycles, type compatibility, namespace/feature rules, terminal invariants and transition priority collisions.
 
 The School Days profile validator additionally checks the frozen executable-oracle inventory, source-index coverage, routing-only nodes, ending/hook catalogs, feeling-resolution coverage, transition lowering order, callback_38 edge counts and the structural-dead exclusion boundary.
 
-The reference interpreter executes the canonical IR directly. `SchoolDaysOracleTrace` drives the compiled frozen `SchoolDaysRouter` routing implementation and emits machine-readable state, allowing both causal-witness and targeted state-injection differential comparison.
+The reference interpreter executes the canonical IR directly. `SchoolDaysOracleTrace` drives the compiled frozen `SchoolDaysRouter` routing implementation and emits machine-readable state, allowing causal-witness, targeted-transition and Choice-commit differential comparison without copying the C++ routing logic into Python.
 
-The coverage auditor measures which of the 2,458 executable Transitions, 1,857 Nodes, 287 Choice Nodes, terminal edges and callback_38 handoffs were exercised by the causal corpus. Coverage accounting is diagnostic: zero divergence and percentage coverage are separate facts.
+Current transition-differential status:
 
-The targeted transition layer then searches for one consistent routing pre-state per uncovered Transition and injects the same state into both runtimes. A targeted PASS proves direct transition-semantic equivalence for those fixtures; it does not convert injected states into claims about historical gameplay reachability.
+```text
+22 ending witnesses                   PASS / zero divergence
+witness transition coverage           1081 / 2458
+Targeted transition fixtures          1377 / 1377
+combined transition coverage          2458 / 2458 (100%)
+combined transition divergences       0
+```
+
+The Choice/Feeling layer is independent because the targeted transition fixtures inject post-choice routing state. It executes every exported Choice outcome through the frozen `AcceptChoice` implementation versus KTRF `commit_choice`, requires complete `FeelingResolution` and `FeelingDelta` source-index coverage, and checks both idempotent repeat and alternate-result rejection.
 
 Reference tests:
 
@@ -157,14 +173,20 @@ reference IR interpreter
 22-ending causal witness differential: zero divergence
         |
         v
-coverage audit
+coverage audit: 1081 / 2458 transitions
         |
         v
-targeted transition state-injection differential
+targeted transition differential: 1377 / 1377
         |
-        `--> next: Choice/FeelingResolution + effect-stress + broader state differential
+        v
+combined transition coverage: 2458 / 2458, zero divergence
+        |
+        v
+Choice + Feeling differential
+        |
+        `--> next: source-Effect stress + broader state differential
 
-future, only after sufficient zero-divergence coverage:
+future, only after semantic conformance freeze:
 
 Canonical Routing IR
         |
@@ -181,4 +203,4 @@ A `.ktnroute` implementation is conformant only if its decoded semantic model ca
 
 The binary format is therefore a serialization of KTRF semantics, not the definition of those semantics.
 
-The generated School Days JSON IR is not the `.ktnroute` binary and is not yet allowed to replace the frozen C++ router. The frozen C++ router remains the executable oracle until differential execution reaches the required zero-divergence coverage.
+The generated School Days JSON IR is not the `.ktnroute` binary and is not yet allowed to replace the frozen C++ router. The frozen C++ router remains authoritative until the semantic conformance gates are closed and frozen.
