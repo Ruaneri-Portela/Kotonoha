@@ -36,6 +36,68 @@ void SchoolDaysKtrfAppController::DestroyGameplay(Gameplay* gameplay,
     delete gameplay;
 }
 
+bool SchoolDaysKtrfAppController::BuildDebugSceneCatalog(
+    Kotonoha_KtrfError* error) {
+    debugScenes.clear();
+
+    const auto* adapter = bridge.Session().Adapter();
+    if (adapter == nullptr || adapter->document == nullptr) {
+        if (error != nullptr) {
+            error->code = KOTONOHA_KTRF_ERROR_ARGUMENT;
+            SDL_snprintf(error->message, sizeof(error->message),
+                         "School Days debug catalog has no bound adapter");
+        }
+        return false;
+    }
+
+    const Kotonoha_KtrfSection* nodes =
+        Kotonoha_KtrfFindSection(adapter->document, "NODE");
+    if (nodes == nullptr) {
+        if (error != nullptr) {
+            error->code = KOTONOHA_KTRF_ERROR_MISSING_SECTION;
+            SDL_snprintf(error->message, sizeof(error->message),
+                         "School Days debug catalog is missing NODE section");
+        }
+        return false;
+    }
+
+    debugScenes.reserve(nodes->item_count);
+    for (uint32_t nodeIndex = 0; nodeIndex < nodes->item_count; ++nodeIndex) {
+        Kotonoha_SchoolDaysKtrfNodeView view{};
+        if (!Kotonoha_SchoolDaysKtrfGetNodeView(adapter, nodeIndex, &view, error)) {
+            debugScenes.clear();
+            return false;
+        }
+        if (view.kind != KOTONOHA_SDHQ_NODE_SCENE) continue;
+        if (view.scene_key == nullptr || view.scene_key_length == 0u) {
+            if (error != nullptr) {
+                error->code = KOTONOHA_KTRF_ERROR_FORMAT;
+                SDL_snprintf(error->message, sizeof(error->message),
+                             "School Days debug scene %u has no scene key",
+                             static_cast<unsigned>(nodeIndex));
+            }
+            debugScenes.clear();
+            return false;
+        }
+
+        DebugSceneEntry entry;
+        entry.nodeIndex = nodeIndex;
+        entry.sceneKey.assign(view.scene_key, view.scene_key_length);
+        debugScenes.push_back(std::move(entry));
+    }
+
+    if (debugScenes.empty()) {
+        if (error != nullptr) {
+            error->code = KOTONOHA_KTRF_ERROR_FORMAT;
+            SDL_snprintf(error->message, sizeof(error->message),
+                         "School Days debug catalog contains no physical scenes");
+        }
+        return false;
+    }
+
+    return true;
+}
+
 bool SchoolDaysKtrfAppController::Open(
     const char* ktrfPath, const char* orsRoot, Kotonoha* requestedEngine,
     Kotonoha_Game* requestedContext, Kotonoha_KtrfError* error) {
@@ -64,22 +126,97 @@ bool SchoolDaysKtrfAppController::Open(
         return false;
     }
 
+    if (!BuildDebugSceneCatalog(error)) {
+        Close();
+        return false;
+    }
+
     gameContext->scene = 0;
     gameContext->next = false;
     gameContext->back = false;
     opened = true;
 
-    SDL_Log("[KTRF-APP] enabled scene=%s ors=%s",
+    SDL_Log("[KTRF-APP] enabled scene=%s ors=%s debug_scenes=%d",
             bridge.CurrentScene().sceneKey.c_str(),
-            bridge.CurrentScene().orsPath.c_str());
+            bridge.CurrentScene().orsPath.c_str(),
+            static_cast<int>(debugScenes.size()));
     return true;
 }
 
 void SchoolDaysKtrfAppController::Close() {
+    debugScenes.clear();
     bridge.Close();
     opened = false;
     engine = nullptr;
     gameContext = nullptr;
+}
+
+const SchoolDaysKtrfAppController::DebugSceneEntry*
+SchoolDaysKtrfAppController::DebugSceneAt(std::size_t ordinal) const {
+    if (ordinal >= debugScenes.size()) return nullptr;
+    return &debugScenes[ordinal];
+}
+
+int SchoolDaysKtrfAppController::DebugCurrentSceneOrdinal() const {
+    if (!opened) return -1;
+    const uint32_t currentNode = bridge.CurrentScene().nodeIndex;
+    for (std::size_t i = 0; i < debugScenes.size(); ++i) {
+        if (debugScenes[i].nodeIndex == currentNode) {
+            return static_cast<int>(i);
+        }
+    }
+    return -1;
+}
+
+bool SchoolDaysKtrfAppController::DebugJumpToScene(
+    std::size_t ordinal, Kotonoha_KtrfError* error) {
+    if (!opened || gameContext == nullptr || ordinal >= debugScenes.size()) {
+        if (error != nullptr) {
+            error->code = KOTONOHA_KTRF_ERROR_RANGE;
+            SDL_snprintf(error->message, sizeof(error->message),
+                         "School Days debug scene ordinal is out of range");
+        }
+        return false;
+    }
+
+    SchoolDaysKtrfGameplayBridge::StepResult step;
+    if (!bridge.DebugJumpToNode(debugScenes[ordinal].nodeIndex, &step, error)) {
+        return false;
+    }
+
+    gameContext->scene = 0;
+    gameContext->next = false;
+    gameContext->back = false;
+    SDL_Log("[KTRF-DEBUG] jump ordinal=%d node=%u scene=%s ors=%s",
+            static_cast<int>(ordinal),
+            static_cast<unsigned>(step.scene.nodeIndex),
+            step.scene.sceneKey.c_str(), step.scene.orsPath.c_str());
+    return true;
+}
+
+bool SchoolDaysKtrfAppController::DebugJumpRelative(
+    int delta, Kotonoha_KtrfError* error) {
+    const int current = DebugCurrentSceneOrdinal();
+    if (current < 0 || debugScenes.empty()) {
+        if (error != nullptr) {
+            error->code = KOTONOHA_KTRF_ERROR_RANGE;
+            SDL_snprintf(error->message, sizeof(error->message),
+                         "School Days current scene is not in debug catalog");
+        }
+        return false;
+    }
+
+    const long long target = static_cast<long long>(current) + delta;
+    if (target < 0 || target >= static_cast<long long>(debugScenes.size())) {
+        if (error != nullptr) {
+            error->code = KOTONOHA_KTRF_ERROR_RANGE;
+            SDL_snprintf(error->message, sizeof(error->message),
+                         "School Days debug relative scene is out of range");
+        }
+        return false;
+    }
+
+    return DebugJumpToScene(static_cast<std::size_t>(target), error);
 }
 
 bool SchoolDaysKtrfAppController::ContinueHandoff(Kotonoha_KtrfError* error) {

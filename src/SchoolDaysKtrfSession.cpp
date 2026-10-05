@@ -137,6 +137,66 @@ bool SchoolDaysKtrfSession::CurrentScene(SchoolDaysKtrfScene* scene,
     return FillScene(asset, scene);
 }
 
+bool SchoolDaysKtrfSession::ResolveSceneNode(uint32_t nodeIndex,
+                                             SchoolDaysKtrfScene* scene,
+                                             Kotonoha_KtrfError* error) const {
+    if (!opened || scene == nullptr) {
+        if (error != nullptr) {
+            error->code = KOTONOHA_KTRF_ERROR_ARGUMENT;
+            std::snprintf(error->message, sizeof(error->message),
+                          "School Days debug scene resolve argument is invalid");
+        }
+        return false;
+    }
+
+    Kotonoha_SchoolDaysKtrfOrsAsset asset{};
+    if (!Kotonoha_SchoolDaysKtrfResolveNodeOrs(
+            &adapter, nodeIndex, assetsRoot.c_str(), &asset, error)) {
+        return false;
+    }
+
+    size_t bytes = 0;
+    if (!Kotonoha_SchoolDaysKtrfProbeOrs(&asset, &bytes, error)) {
+        return false;
+    }
+    (void)bytes;
+    return FillScene(asset, scene);
+}
+
+bool SchoolDaysKtrfSession::DebugActivateNode(uint32_t nodeIndex,
+                                              Kotonoha_KtrfError* error) {
+    if (!opened) {
+        if (error != nullptr) {
+            error->code = KOTONOHA_KTRF_ERROR_ARGUMENT;
+            std::snprintf(error->message, sizeof(error->message),
+                          "School Days debug router session is not open");
+        }
+        return false;
+    }
+
+    Kotonoha_SchoolDaysKtrfNodeView view{};
+    if (!Kotonoha_SchoolDaysKtrfGetNodeView(&adapter, nodeIndex, &view, error)) {
+        return false;
+    }
+    if (view.kind != KOTONOHA_SDHQ_NODE_SCENE) {
+        if (error != nullptr) {
+            error->code = KOTONOHA_KTRF_ERROR_ARGUMENT;
+            std::snprintf(error->message, sizeof(error->message),
+                          "School Days debug jump target %u is not a physical scene",
+                          static_cast<unsigned>(nodeIndex));
+        }
+        return false;
+    }
+
+    if (!Kotonoha_KtrfRouterActivateNode(&adapter.router, nodeIndex, error)) {
+        return false;
+    }
+
+    pendingHooks.clear();
+    pendingEndings.clear();
+    return true;
+}
+
 bool SchoolDaysKtrfSession::CommitChoice(int64_t value, int* accepted,
                                          Kotonoha_KtrfError* error) {
     if (!opened) return false;

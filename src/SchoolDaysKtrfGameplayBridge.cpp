@@ -162,6 +162,50 @@ bool SchoolDaysKtrfGameplayBridge::Advance(
     return false;
 }
 
+bool SchoolDaysKtrfGameplayBridge::DebugJumpToNode(
+    uint32_t nodeIndex, StepResult* out, Kotonoha_KtrfError* error) {
+    if (!opened || out == nullptr) {
+        SetError(error, KOTONOHA_KTRF_ERROR_ARGUMENT,
+                 "School Days debug gameplay bridge is not open or result is null");
+        return false;
+    }
+    if (factory.create == nullptr || factory.destroy == nullptr) {
+        SetError(error, KOTONOHA_KTRF_ERROR_ARGUMENT,
+                 "School Days debug gameplay factory is incomplete");
+        return false;
+    }
+
+    SchoolDaysKtrfScene target;
+    if (!session.ResolveSceneNode(nodeIndex, &target, error)) return false;
+
+    // Create first so a bad/missing ORS cannot strand router state away from the
+    // currently live Gameplay.
+    Gameplay* next = factory.create(target.orsPath.c_str(), gameContext,
+                                    factory.userdata);
+    if (next == nullptr) {
+        SetError(error, KOTONOHA_KTRF_ERROR_IO,
+                 "School Days debug jump failed to create target Gameplay");
+        return false;
+    }
+
+    if (!session.DebugActivateNode(nodeIndex, error)) {
+        factory.destroy(next, factory.userdata);
+        return false;
+    }
+
+    Gameplay* previous = currentGameplay;
+    currentGameplay = next;
+    currentScene = target;
+    pendingStep = {};
+    pendingHandoff = false;
+    if (previous != nullptr) factory.destroy(previous, factory.userdata);
+
+    *out = {};
+    out->kind = StepKind::SwappedScene;
+    out->scene = target;
+    return true;
+}
+
 bool SchoolDaysKtrfGameplayBridge::ContinueHandoff(
     StepResult* out, Kotonoha_KtrfError* error) {
     if (!opened || out == nullptr || !pendingHandoff) {

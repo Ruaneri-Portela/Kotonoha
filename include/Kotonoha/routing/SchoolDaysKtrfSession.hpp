@@ -55,6 +55,13 @@ public:
     bool CommitChoice(int64_t value, int* accepted, Kotonoha_KtrfError* error);
     bool Advance(const char* trigger, StepResult* out, Kotonoha_KtrfError* error);
 
+    // Debug-only scene support. ResolveSceneNode validates and probes the
+    // physical ORS without changing router state. DebugActivateNode then moves
+    // the router to that physical node while preserving runtime variables.
+    bool ResolveSceneNode(uint32_t nodeIndex, SchoolDaysKtrfScene* scene,
+                          Kotonoha_KtrfError* error) const;
+    bool DebugActivateNode(uint32_t nodeIndex, Kotonoha_KtrfError* error);
+
     const std::string& AssetsRoot() const { return assetsRoot; }
     const Kotonoha_SchoolDaysKtrfAdapter* Adapter() const { return &adapter; }
 

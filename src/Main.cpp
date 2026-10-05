@@ -3,6 +3,7 @@
 #include <string>
 #include <Kotonoha/Kotonoha.hpp>
 #include <Kotonoha/routing/SchoolDaysKtrfAppController.hpp>
+#include <Kotonoha/routing/SchoolDaysKtrfDebugGui.hpp>
 
 static struct Kotonoha_Game global = {};
 
@@ -290,9 +291,14 @@ extern "C" {
 		if (global.showTimestamp && inRunning != nullptr) {
 			Kotonoha_TimestampRender(global.window, global.render, nullptr, inRunning->tm, nullptr);
 		}
-		if (!Kotonoha_BasicGuiRun(app, inRunning, global)) {
+
+		const bool guiContinue = ktrfController != nullptr
+			? Kotonoha_SchoolDaysKtrfDebugGuiRun(ktrfController.get(), inRunning, global)
+			: Kotonoha_BasicGuiRun(app, inRunning, global);
+		if (!guiContinue) {
 			return SDL_APP_SUCCESS;
 		}
+
 		SDL_RenderPresent(global.render);
 		return SDL_APP_CONTINUE;
 	}

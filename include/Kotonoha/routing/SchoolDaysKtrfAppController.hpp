@@ -1,6 +1,9 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
+#include <string>
+#include <vector>
 
 #include <SDL3/SDL.h>
 #include <Kotonoha/routing/SchoolDaysKtrfGameplayBridge.hpp>
@@ -14,6 +17,11 @@ class Kotonoha;
 
 class SchoolDaysKtrfAppController {
 public:
+    struct DebugSceneEntry {
+        uint32_t nodeIndex = KOTONOHA_KTRF_NULL_INDEX;
+        std::string sceneKey;
+    };
+
     SchoolDaysKtrfAppController() = default;
     ~SchoolDaysKtrfAppController();
 
@@ -31,6 +39,15 @@ public:
         return bridge.PendingHandoffIsTerminal();
     }
 
+    Gameplay* CurrentGameplay() const { return bridge.CurrentGameplay(); }
+    const SchoolDaysKtrfScene& CurrentScene() const { return bridge.CurrentScene(); }
+
+    std::size_t DebugSceneCount() const { return debugScenes.size(); }
+    const DebugSceneEntry* DebugSceneAt(std::size_t ordinal) const;
+    int DebugCurrentSceneOrdinal() const;
+    bool DebugJumpToScene(std::size_t ordinal, Kotonoha_KtrfError* error);
+    bool DebugJumpRelative(int delta, Kotonoha_KtrfError* error);
+
     bool ContinueHandoff(Kotonoha_KtrfError* error);
     SDL_AppResult Main(Gameplay** out);
 
@@ -40,9 +57,12 @@ private:
                                     void* userdata);
     static void DestroyGameplay(Gameplay* gameplay, void* userdata);
 
+    bool BuildDebugSceneCatalog(Kotonoha_KtrfError* error);
+
     Kotonoha* engine = nullptr;
     Kotonoha_Game* gameContext = nullptr;
     SchoolDaysKtrfGameplayBridge bridge;
+    std::vector<DebugSceneEntry> debugScenes;
     bool opened = false;
 };
 

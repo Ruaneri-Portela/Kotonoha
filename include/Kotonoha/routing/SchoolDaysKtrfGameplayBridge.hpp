@@ -62,6 +62,11 @@ public:
     bool CommitChoice(int64_t value, int* accepted, Kotonoha_KtrfError* error);
     bool Advance(const char* trigger, StepResult* out, Kotonoha_KtrfError* error);
 
+    // Developer navigation: load a physical KTRF scene directly and activate
+    // its NODE in the native router. Runtime variables are preserved.
+    bool DebugJumpToNode(uint32_t nodeIndex, StepResult* out,
+                         Kotonoha_KtrfError* error);
+
     bool HasPendingHandoff() const { return pendingHandoff; }
     bool PendingHandoffIsTerminal() const {
         return pendingHandoff &&
