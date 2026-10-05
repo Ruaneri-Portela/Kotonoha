@@ -393,6 +393,7 @@ SchoolDaysRouter::NextResult SchoolDaysRouter::ResolveNext() {
     }
 
     int newlyRegisteredEnding = -1;
+    std::vector<std::string> callbacks;
     for (uint32_t i = 0; i < selected->effectCount; ++i) {
         const EffectData& effect = kEffects[selected->effectStart + i];
         switch (effect.kind) {
@@ -411,7 +412,10 @@ SchoolDaysRouter::NextResult SchoolDaysRouter::ResolveNext() {
             if (log) log("ending=" + std::to_string(effect.value));
             break;
         case EffectKind::Callback:
-            if (log && effect.target != nullptr) log(std::string("callback ignored in normal-new-game router: ") + effect.target);
+            if (effect.target != nullptr) {
+                callbacks.emplace_back(effect.target);
+                if (log) log(std::string("external callback ") + effect.target);
+            }
             break;
         }
     }
@@ -421,7 +425,12 @@ SchoolDaysRouter::NextResult SchoolDaysRouter::ResolveNext() {
     state.feelingApplied = false;
 
     if (selected->terminal) {
-        return { NextKind::Terminal, {}, transitionId, newlyRegisteredEnding };
+        NextResult result;
+        result.kind = NextKind::Terminal;
+        result.transitionId = transitionId;
+        result.endingId = newlyRegisteredEnding;
+        result.callbacks = std::move(callbacks);
+        return result;
     }
 
     state.route = selected->destinationRoute;
@@ -434,7 +443,14 @@ SchoolDaysRouter::NextResult SchoolDaysRouter::ResolveNext() {
         return {};
     }
     if (log) log("next t" + std::to_string(transitionId) + " -> " + destination.value);
-    return { NextKind::Advanced, destination, transitionId, newlyRegisteredEnding };
+
+    NextResult result;
+    result.kind = NextKind::Advanced;
+    result.destination = destination;
+    result.transitionId = transitionId;
+    result.endingId = newlyRegisteredEnding;
+    result.callbacks = std::move(callbacks);
+    return result;
 }
 
 } // namespace Kotonoha
