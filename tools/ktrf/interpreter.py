@@ -267,6 +267,19 @@ class Interpreter:
             )
         return rows[0]
 
+    def _has_uncommitted_deferred_choice(self) -> bool:
+        if self.current_node is None:
+            return False
+        for row in self.choices_by_node.get(self.current_node, []):
+            if row.get("routing_policy") != "ktrf:deferred":
+                continue
+            choice_id = row.get("id")
+            if not isinstance(choice_id, str):
+                raise KtrfRuntimeError("choice at current node has invalid ID")
+            if choice_id not in self._committed_choices:
+                return True
+        return False
+
     def commit_choice(self, value: Any, choice_id: str | None = None) -> bool:
         if self.terminal:
             raise KtrfRuntimeError("cannot commit choice after terminal transition")
@@ -307,6 +320,12 @@ class Interpreter:
             raise KtrfRuntimeError("interpreter has not been reset")
         if self.terminal:
             raise KtrfRuntimeError("cannot route after terminal transition")
+
+        # A deferred Choice is a routing gate.  Merely having an outgoing
+        # unconditional Transition must not allow the runtime to advance before
+        # the Choice result has been committed and its outcome Effects applied.
+        if self._has_uncommitted_deferred_choice():
+            return None
 
         candidates = []
         for row in self.transitions_by_source.get(self.current_node, []):
@@ -387,7 +406,17 @@ def main(argv: Sequence[str] | None = None) -> int:
     interpreter = Interpreter(document)
     interpreter.reset(args.entry)
     result = interpreter.trigger(args.trigger)
-    print(json.dumps({"result": None if result is None else result.__dict__, "state": interpreter.snapshot()}, ensure_ascii=False, indent=2, default=lambda o: o.__dict__))
+    print(
+        json.dumps(
+            {
+                "result": None if result is None else result.__dict__,
+                "state": interpreter.snapshot(),
+            },
+            ensure_ascii=False,
+            indent=2,
+            default=lambda o: o.__dict__,
+        )
+    )
     return 0
 
 
