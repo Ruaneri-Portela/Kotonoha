@@ -21,7 +21,7 @@ ORACLE_TAG = "school-days-routing-oracle-v1"
 ORACLE_ROUTE_DATA_SHA256 = "031b53c172bb37e87a41356a8c17d84fd173606c7d0ea509607578a4629f921b"
 SEMANTIC_VERSION = "0.1.0"
 PROFILE_ID = "overflow.school-days-hq"
-PROFILE_VERSION = "0.1.0"
+PROFILE_VERSION = "1.0.0"
 
 EXPECTED_IR = {
     "nodes": 1857,
