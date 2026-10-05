@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import sys
 import unittest
 from pathlib import Path
 
@@ -18,7 +19,20 @@ def load_module(name: str, path: Path):
     spec = importlib.util.spec_from_file_location(name, path)
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
+
+    # importlib.util.module_from_spec() does not automatically register the
+    # module in sys.modules. Python's dataclasses implementation resolves some
+    # annotation/type information through sys.modules[cls.__module__] while
+    # executing @dataclass. Register before exec_module() so dynamically loaded
+    # KTRF modules behave exactly like normally imported modules.
+    sys.modules[spec.name] = module
+    try:
+        spec.loader.exec_module(module)
+    except Exception:
+        # Do not leave a partially initialized module cached when test import
+        # fails; a subsequent load should get a clean attempt.
+        sys.modules.pop(spec.name, None)
+        raise
     return module
 
 
