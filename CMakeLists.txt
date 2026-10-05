@@ -142,7 +142,6 @@ else()
         ${LIBASS_INCLUDE_DIRS}
         ${SDL3_INCLUDE_DIRS}
         ${SDL3_TTF_INCLUDE_DIRS}
-        ${IMGUI_INCLUDE_DIRS}
     )
 
     target_link_libraries(Kotonoha PRIVATE
