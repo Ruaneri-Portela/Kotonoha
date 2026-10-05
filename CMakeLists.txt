@@ -188,6 +188,17 @@ if(KOTONOHA_ROUTER_TESTS AND NOT ANDROID)
         KOTONOHA_DEV_CHECKPOINTS=1
     )
 
+    # Machine-readable trace adapter used only for KTRF differential
+    # conformance. It drives the frozen public SchoolDaysRouter API; it does
+    # not duplicate or modify the oracle's routing semantics.
+    add_executable(SchoolDaysOracleTrace
+        tests/SchoolDaysOracleTrace.cpp
+        src/SchoolDaysRouter.cpp
+    )
+    target_include_directories(SchoolDaysOracleTrace PRIVATE
+        ${KOTONOHA_INCLUDE_DIR}
+    )
+
     add_test(NAME SchoolDaysHandoffRouterTest COMMAND SchoolDaysHandoffRouterTest)
     add_test(NAME SchoolDaysFullRouterTest COMMAND SchoolDaysFullRouterTest)
     add_test(NAME SchoolDaysDevCheckpointTest COMMAND SchoolDaysDevCheckpointTest)
