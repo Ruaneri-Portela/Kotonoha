@@ -545,6 +545,7 @@ namespace Kotonoha {
 			if (!schoolDaysRouting) {
 				schoolDaysRouting = true;
 				schoolDaysRouter.Reset();
+				schoolDaysHandoff = {};
 				gameContext.scene = static_cast<int>(sceneIndex.at(schoolDaysRouter.CurrentScene()));
 				lastScene = static_cast<size_t>(-1);
 				SDL_Log("[KTN-ROUTER] School Days full routing enabled; scene=%s choice=pending(-2) gameplay_index=%d",
@@ -569,6 +570,7 @@ namespace Kotonoha {
 							lastScene = static_cast<size_t>(-1);
 							gameContext.next = false;
 							gameContext.back = false;
+							schoolDaysHandoff = {};
 							schoolDaysCheckpointApplied = true;
 							SDL_Log("[KTN-DEV] checkpoint applied: %s gameplay_index=%d",
 								requestedSchoolDaysCheckpoint.c_str(), gameContext.scene);
@@ -587,7 +589,45 @@ namespace Kotonoha {
 		}
 		else {
 			schoolDaysRouting = false;
+			schoolDaysHandoff = {};
 		}
+	}
+
+	bool Kotonoha::ContinueSchoolDaysHandoff() {
+		if (!HasPendingSchoolDaysHandoff()) {
+			return false;
+		}
+
+		if (schoolDaysHandoff.kind == SchoolDaysHandoffKind::Terminal) {
+			SDL_Log("[KTN-HANDOFF] terminal acknowledged t%d ending=%d; title transition pending implementation",
+				schoolDaysHandoff.transitionId, schoolDaysHandoff.endingId);
+			return false;
+		}
+
+		const auto found = sceneIndex.find(schoolDaysHandoff.destination);
+		if (found == sceneIndex.end()) {
+			SDL_Log("[KTN-HANDOFF] pending destination not loaded: %s",
+				schoolDaysHandoff.destination.value.c_str());
+			return false;
+		}
+
+		if (gameContext.scene >= 0 &&
+			static_cast<size_t>(gameContext.scene) < gameplays.size()) {
+			Gameplay* current = gameplays[static_cast<size_t>(gameContext.scene)];
+			if (current != nullptr && !current->firstFocus) current->Reset(true);
+		}
+
+		const SceneKey destination = schoolDaysHandoff.destination;
+		const int transitionId = schoolDaysHandoff.transitionId;
+		gameContext.scene = static_cast<int>(found->second);
+		gameContext.next = false;
+		gameContext.back = false;
+		lastScene = static_cast<size_t>(-1);
+		schoolDaysHandoff = {};
+
+		SDL_Log("[KTN-HANDOFF] episode continue t%d destination=%s gameplay_index=%d",
+			transitionId, destination.value.c_str(), gameContext.scene);
+		return true;
 	}
 
 	SDL_AppResult Kotonoha::Event(SDL_Event* event) {
@@ -643,6 +683,15 @@ namespace Kotonoha {
 						schoolDaysRouter.DumpState().c_str());
 				}
 				break;
+
+			case SDLK_F5:
+				if (HasPendingSchoolDaysHandoff()) {
+					ContinueSchoolDaysHandoff();
+				}
+				else {
+					SDL_Log("[KTN-HANDOFF] no pending School Days handoff");
+				}
+				break;
 #endif
 
 			default:
@@ -671,6 +720,7 @@ namespace Kotonoha {
 		sceneIndex.clear();
 		schoolDaysRouting = false;
 		schoolDaysRouter.Reset();
+		schoolDaysHandoff = {};
 #ifdef KOTONOHA_DEV_CHECKPOINTS
 		schoolDaysCheckpointApplied = false;
 #endif
@@ -683,6 +733,22 @@ namespace Kotonoha {
 	SDL_AppResult Kotonoha::Main(Gameplay** out) {
 		if (out != nullptr) {
 			*out = nullptr;
+		}
+
+		// A callback_38 handoff is external to RouteProc. Hold the completed
+		// timeline here until the outer School Days controller acknowledges it.
+		// This prevents ResolveNext and its effects from running twice on later
+		// frames while Save/Continue or the future Title transition is pending.
+		if (HasPendingSchoolDaysHandoff()) {
+			if (out != nullptr && gameContext.scene >= 0 &&
+				static_cast<size_t>(gameContext.scene) < gameplays.size()) {
+				*out = gameplays[static_cast<size_t>(gameContext.scene)];
+			}
+
+			Kotonoha_eventFree(&gameContext.eventQueu);
+			if (SDL_GetTicks() - lastMouseTime <= 1000) SDL_ShowCursor();
+			else SDL_HideCursor();
+			return SDL_APP_CONTINUE;
 		}
 
 		while (!gameplays.empty() &&
@@ -739,6 +805,7 @@ namespace Kotonoha {
 						return SDL_APP_FAILURE;
 					}
 					auto next = schoolDaysRouter.ResolveNext();
+					std::vector<std::string> callbacks = next.callbacks;
 
 					// RouteProc has a tiny set of routing-only dispatcher nodes
 					// present in the DLL tables but absent from the physical ORS
@@ -750,18 +817,31 @@ namespace Kotonoha {
 						SDL_Log("[KTN-ROUTER] routing-only node %s (no ORS); resolving immediately",
 							schoolDaysRouter.CurrentScene().value.c_str());
 						next = schoolDaysRouter.ResolveNext();
+						callbacks.insert(callbacks.end(), next.callbacks.begin(), next.callbacks.end());
 					}
+					next.callbacks = callbacks;
 
 					if (next.kind == SchoolDaysRouter::NextKind::Unresolved) {
 						if (out != nullptr) *out = current;
 						break;
 					}
+
+					const bool handoffRequested = next.HasCallback("callback_38");
 					if (next.kind == SchoolDaysRouter::NextKind::Terminal) {
 						SDL_Log("[KTN-ROUTER] terminal transition t%d ending=%d registrations=%d",
 							next.transitionId,
 							next.endingId,
 							static_cast<int>(schoolDaysRouter.State().endingRegistrations.size()));
-						return SDL_APP_SUCCESS;
+
+						schoolDaysHandoff.kind = SchoolDaysHandoffKind::Terminal;
+						schoolDaysHandoff.destination = {};
+						schoolDaysHandoff.transitionId = next.transitionId;
+						schoolDaysHandoff.endingId = next.endingId;
+						schoolDaysHandoff.callbacks = next.callbacks;
+						SDL_Log("[KTN-HANDOFF] terminal pending t%d ending=%d callback_38=%d",
+							next.transitionId, next.endingId, handoffRequested ? 1 : 0);
+						if (out != nullptr) *out = current;
+						break;
 					}
 
 					const auto found = sceneIndex.find(next.destination);
@@ -769,6 +849,19 @@ namespace Kotonoha {
 						SDL_Log("[KTN-ROUTER] destination not loaded: %s", next.destination.value.c_str());
 						return SDL_APP_FAILURE;
 					}
+
+					if (handoffRequested) {
+						schoolDaysHandoff.kind = SchoolDaysHandoffKind::Episode;
+						schoolDaysHandoff.destination = next.destination;
+						schoolDaysHandoff.transitionId = next.transitionId;
+						schoolDaysHandoff.endingId = next.endingId;
+						schoolDaysHandoff.callbacks = next.callbacks;
+						SDL_Log("[KTN-HANDOFF] episode pending t%d destination=%s",
+							next.transitionId, next.destination.value.c_str());
+						if (out != nullptr) *out = current;
+						break;
+					}
+
 					if (!current->firstFocus) current->Reset(true);
 					gameContext.scene = static_cast<int>(found->second);
 					continue;
