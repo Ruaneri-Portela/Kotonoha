@@ -56,6 +56,7 @@ KTRF adopts those principles conceptually. It does **not** copy that format, and
 - `profiles/school-days-hq.md` — mapping from the School Days oracle into the generic model.
 - `SCHOOL_DAYS_EXPORT.md` — deterministic School Days executable oracle → Routing IR lowering.
 - `ORACLE_BOUNDARY_NOTE.md` — clarification separating broader structural-research branches from the frozen executable oracle.
+- `INTERPRETER_AND_DIFFERENTIAL.md` — executable IR semantics and direct C++ witness differential validation.
 - `../../schemas/ktrf-routing-ir.schema.json` — JSON Schema for Routing IR v0.1.
 - `../../examples/ktrf/minimal-routing-ir.json` — minimal valid example.
 
@@ -79,6 +80,18 @@ School Days oracle export + all validation layers:
 powershell -ExecutionPolicy Bypass -File .\tools\ktrf\run_sdhq_export.ps1
 ```
 
+Reference IR interpreter tests:
+
+```powershell
+python .\tests\ktrf\test_interpreter.py
+```
+
+School Days C++ oracle versus KTRF IR witness differential:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tools\ktrf\run_sdhq_differential.ps1
+```
+
 Default generated School Days IR:
 
 ```text
@@ -89,11 +102,14 @@ The generic validator performs whole-document checks that JSON Schema alone cann
 
 The School Days profile validator additionally checks the frozen executable-oracle inventory, source-index coverage, routing-only nodes, ending/hook catalogs, feeling-resolution coverage, transition lowering order, callback_38 edge counts and the structural-dead exclusion boundary.
 
+The reference interpreter executes the canonical IR directly. `SchoolDaysOracleTrace` drives the compiled frozen `SchoolDaysRouter` public API and emits machine-readable state, allowing the differential verifier to compare both runtimes step-by-step over the 22 certified ending witnesses.
+
 Reference tests:
 
 ```powershell
 python .\tests\ktrf\test_validate_ir.py
 python .\tests\ktrf\test_export_sdhq_ir.py
+python .\tests\ktrf\test_interpreter.py
 ```
 
 ## Current pipeline
@@ -113,9 +129,17 @@ Canonical Routing IR JSON
         |
         +--> School Days profile validation
         |
-        `--> next: differential IR interpreter validation
+        v
+reference IR interpreter
+        |
+        +<---------------- SchoolDaysOracleTrace / compiled C++ oracle
+        |
+        v
+22-ending witness differential
+        |
+        `--> next: broader/exhaustive differential validation
 
-future, only after zero divergence:
+future, only after sufficient zero-divergence coverage:
 
 Canonical Routing IR
         |
@@ -132,4 +156,4 @@ A `.ktnroute` implementation is conformant only if its decoded semantic model ca
 
 The binary format is therefore a serialization of KTRF semantics, not the definition of those semantics.
 
-The generated School Days JSON IR is not the `.ktnroute` binary and is not yet allowed to replace the frozen C++ router. The frozen C++ router remains the executable oracle until a KTRF IR interpreter achieves zero semantic divergence against it.
+The generated School Days JSON IR is not the `.ktnroute` binary and is not yet allowed to replace the frozen C++ router. The frozen C++ router remains the executable oracle until differential execution reaches the required zero-divergence coverage.
