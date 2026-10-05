@@ -85,12 +85,18 @@ Effect order is semantically significant.
 
 Selecting a Choice MUST NOT implicitly evaluate routing transitions.
 
+A `ktrf:deferred` Choice also acts as a routing gate. While a deferred Choice associated with the current Node has not been committed, a routing trigger MUST NOT evaluate outgoing Transition predicates or select an unconditional Transition. The routing request is unresolved/blocked and the current Node and declared state remain unchanged.
+
+Committing the Choice releases that gate only after the selected option/timeout result has been written and its ordered Choice Effects have completed. The runtime therefore owns explicit current/committed Choice state in addition to the declared result Variable value. A raw Variable write by itself does not constitute a Choice commit.
+
 Core sequence:
 
 ```text
 choice offered
+  -> routing remains blocked while Choice is uncommitted
   -> choice result committed
   -> choice outcome effects applied
+  -> deferred routing gate released
   -> timeline/runtime continues
   -> host emits routing trigger
   -> transition predicates evaluated
@@ -170,16 +176,17 @@ The operator set is extensible and feature-gated.
 
 For current Node and active trigger:
 
-1. collect outgoing Transitions accepting the trigger;
-2. sort by ascending `priority`;
-3. evaluate predicates in that order;
-4. select the first true Transition;
-5. if none match, return `unresolved`;
-6. execute selected Transition Effects in listed order;
-7. if `terminal` is false, set current Node to `destination`;
-8. if `terminal` is true, no destination is required.
+1. if the current Node has any uncommitted `ktrf:deferred` Choice, return `unresolved` without evaluating outgoing Transitions;
+2. collect outgoing Transitions accepting the trigger;
+3. sort by ascending `priority`;
+4. evaluate predicates in that order;
+5. select the first true Transition;
+6. if none match, return `unresolved`;
+7. execute selected Transition Effects in listed order;
+8. if `terminal` is false, set current Node to `destination`;
+9. if `terminal` is true, no destination is required.
 
-A compiler MUST preserve this priority semantics exactly.
+A compiler MUST preserve this priority and deferred-Choice gate semantics exactly.
 
 ## 9. Terminal routing
 
