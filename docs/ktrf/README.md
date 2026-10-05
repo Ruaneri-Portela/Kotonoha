@@ -54,7 +54,8 @@ KTRF adopts those principles conceptually. It does **not** copy that format, and
 - `VERSIONING_EXTENSIONS.md` — versioning, feature negotiation, namespaces and extensions.
 - `VALIDATION.md` — structural, semantic, profile and oracle-validation layers.
 - `profiles/school-days-hq.md` — mapping from the School Days oracle into the generic model.
-- `SCHOOL_DAYS_EXPORT.md` — deterministic School Days oracle → Routing IR lowering.
+- `SCHOOL_DAYS_EXPORT.md` — deterministic School Days executable oracle → Routing IR lowering.
+- `ORACLE_BOUNDARY_NOTE.md` — clarification separating broader structural-research branches from the frozen executable oracle.
 - `../../schemas/ktrf-routing-ir.schema.json` — JSON Schema for Routing IR v0.1.
 - `../../examples/ktrf/minimal-routing-ir.json` — minimal valid example.
 
@@ -86,7 +87,7 @@ build/ktrf/school-days-hq.routing.json
 
 The generic validator performs whole-document checks that JSON Schema alone cannot express, including references, expression cycles, type compatibility, namespace/feature rules, terminal invariants and transition priority collisions.
 
-The School Days profile validator additionally checks the frozen oracle inventory, source-index coverage, routing-only nodes, ending/hook catalogs, feeling-resolution coverage, transition lowering order and callback_38 edge counts.
+The School Days profile validator additionally checks the frozen executable-oracle inventory, source-index coverage, routing-only nodes, ending/hook catalogs, feeling-resolution coverage, transition lowering order, callback_38 edge counts and the structural-dead exclusion boundary.
 
 Reference tests:
 
@@ -98,7 +99,7 @@ python .\tests\ktrf\test_export_sdhq_ir.py
 ## Current pipeline
 
 ```text
-School Days frozen C++ oracle
+School Days frozen C++ executable oracle
         |
         v
 export_sdhq_to_ir.py
