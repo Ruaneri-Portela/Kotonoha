@@ -2,6 +2,7 @@
 #include <Kotonoha/components/Audio.hpp>
 #include <Kotonoha/components/Canvas.hpp>
 #include <Kotonoha/components/Events.hpp>
+#include <Kotonoha/components/Fade.hpp>
 #include <Kotonoha/components/Image.hpp>
 #include <Kotonoha/components/Prompt.hpp>
 #include <Kotonoha/components/Sound.hpp>
@@ -31,6 +32,7 @@ namespace Kotonoha {
 		Video* video = nullptr;
 		Image* image = nullptr;
 		Audio* audio = nullptr;
+		Fade* fade = nullptr;
 		Prompt* prompt = nullptr;
 		int promptId = -2;
 		bool putPrompt = false;

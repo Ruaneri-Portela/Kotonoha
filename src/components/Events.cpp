@@ -315,6 +315,23 @@ namespace Kotonoha {
 				}
 				break;
 
+			case BLACK_FADE:
+			case WHITE_FADE:
+				if (event->data.fade != nullptr && gameplay->fade != nullptr) {
+					const FadeColor color = event->command == WHITE_FADE
+						? FadeColor::White
+						: FadeColor::Black;
+					const FadeDirection direction = event->data.fade->a
+						? FadeDirection::In
+						: FadeDirection::Out;
+					gameplay->fade->Register(
+						event->start,
+						event->end,
+						color,
+						direction);
+				}
+				break;
+
 			default:
 				break;
 			}
@@ -363,7 +380,7 @@ namespace Kotonoha {
 
 		std::stringstream subSs;
 		subSs << "[Script Info]\nTitle:" << orsPath
-			<< "\nScriptType: v4.00+\nWrapStyle: 0\nScaledBorderAndShadow: yes\n"
+			<< "\nScriptType: v4.00+\nWrapStyle: yes\nScaledBorderAndShadow: yes\n"
 			<< "YCbCr Matrix: None\n\n"
 			<< (gameCtx->styleStr == nullptr ? "" : gameCtx->styleStr) << std::endl;
 

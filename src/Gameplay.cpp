@@ -7,6 +7,7 @@ namespace Kotonoha {
 	namespace {
 		constexpr Uint64 kSeekBigMs = 5000;
 		constexpr Uint64 kSeekSmallMs = 500;
+		constexpr Sint16 kSchoolDaysFadeCanvasLayer = 4;
 
 		static float MsToSeconds(Uint64 value) {
 			return static_cast<float>(value) / 1000.0f;
@@ -68,6 +69,7 @@ namespace Kotonoha {
 		this->video = new Video(this->tm);
 		this->image = new Image(this->tm);
 		this->audio = new Audio(static_cast<Sound*>(gameContext->sound), this->tm);
+		this->fade = new Fade(this->tm);
 		this->drawCanvas = new Canvas();
 
 		this->drawCanvas->RegisterCanva(
@@ -84,6 +86,15 @@ namespace Kotonoha {
 			Kotonoha_TextRenderDraw, 3,
 			{ 0, 0, static_cast<float>(windowWidth), static_cast<float>(windowHeight) },
 			this->sb);
+
+		// F1.0: scene fades are script-driven ORS overlays. The final original
+		// ordering relative to persistent System UI is still under research, so
+		// keep the scene fade layer explicit instead of baking it into a scene
+		// transition or into any media renderer.
+		this->drawCanvas->RegisterCanva(
+			this->fade->Render, kSchoolDaysFadeCanvasLayer,
+			{ 0, 0, static_cast<float>(windowWidth), static_cast<float>(windowHeight) },
+			this->fade);
 
 		this->scriptPath = scriptPath ? scriptPath : "";
 		this->eventManager = new Event(this->scriptPath.c_str(), this, gameContext);
@@ -247,6 +258,9 @@ namespace Kotonoha {
 			drawCanvas->Reset();
 			Kotonoha_timeReset(tm, true);
 		}
+		if (fade != nullptr) {
+			fade->Reset();
+		}
 		eventManager->Reset(this);
 	}
 
@@ -281,6 +295,7 @@ namespace Kotonoha {
 		delete this->video;
 		delete this->image;
 		delete this->audio;
+		delete this->fade;
 
 		if (prompt) {
 			delete prompt;
