@@ -26,6 +26,8 @@ private:
   std::vector<CanvasItem> drawingList = std::vector<CanvasItem>();
   SDL_Texture *dirtyTexture = nullptr;
   SDL_FRect dirtyPlace = {0, 0, 0, 0};
+  Sint16 dirtyZIndex = 32767;
+  Sint16 minDrawnZIndex = 32767;
 
 public:
   void RegisterCanva(Kotonoha_Scene_Status (*drawingPoint)(KOTONOHA_SCENE_CALL),
@@ -36,6 +38,9 @@ public:
 
   void UpdateCanva(Kotonoha_Scene_Status (*drawingPoint)(KOTONOHA_SCENE_CALL),
                    Sint16 zIndex, SDL_FRect place);
+
+  void BeginFrame();
+  bool DrewAtOrBelow(Sint16 zIndex) const;
 
   SDL_AppResult RenderCanvas(SDL_Window *window, SDL_Renderer *render,
                              struct Kotonoha_eventStack *eventQueu);
