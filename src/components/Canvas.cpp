@@ -84,15 +84,26 @@ namespace Kotonoha {
 		}
 	}
 
+	void Canvas::BeginFrame() {
+		minDrawnZIndex = 32767;
+	}
+
+	bool Canvas::DrewAtOrBelow(Sint16 zIndex) const {
+		return minDrawnZIndex <= zIndex;
+	}
+
 	SDL_AppResult Canvas::RenderCanvas(SDL_Window* window,
 		SDL_Renderer* render,
 		struct Kotonoha_eventStack* eventQueu) {
 		if (render == nullptr) {
 			return SDL_APP_FAILURE;
 		}
-		
+
+		BeginFrame();
+
 		if (dirtyTexture != nullptr) {
 			SDL_RenderTexture(render, dirtyTexture, nullptr, &dirtyPlace);
+			minDrawnZIndex = std::min(minDrawnZIndex, dirtyZIndex);
 		}
 
 		for (auto& item : drawingList) {
@@ -132,11 +143,13 @@ namespace Kotonoha {
 				continue;
 
 			if (result == KOTONOHA_SCENE_DRAW_LAST) {
+				minDrawnZIndex = std::min(minDrawnZIndex, item.zIndex);
 				if (dirtyTexture != nullptr) {
 					SDL_DestroyTexture(dirtyTexture);
 				}
 				dirtyTexture = item.target;
 				dirtyPlace = item.place;
+				dirtyZIndex = item.zIndex;
 				item.target = nullptr;
 
 				SDL_SetRenderTarget(render, nullptr);
@@ -154,6 +167,10 @@ namespace Kotonoha {
 			if (item.target != nullptr) {
 				SDL_SetRenderTarget(render, nullptr);
 				SDL_RenderTexture(render, item.target, nullptr, &item.place);
+				if (result == KOTONOHA_SCENE_DRAW ||
+					result == KOTONOHA_SCENE_DRAW_OVERLAYED) {
+					minDrawnZIndex = std::min(minDrawnZIndex, item.zIndex);
+				}
 			}
 		}
 		return SDL_APP_CONTINUE;
@@ -175,6 +192,8 @@ namespace Kotonoha {
 			SDL_DestroyTexture(dirtyTexture);
 			dirtyTexture = nullptr;
 		}
+		dirtyZIndex = 32767;
+		minDrawnZIndex = 32767;
 	}
 
 	Canvas::~Canvas() {
