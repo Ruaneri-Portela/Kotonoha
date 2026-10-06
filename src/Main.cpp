@@ -4,7 +4,7 @@
 #include <Kotonoha/Kotonoha.hpp>
 #include <Kotonoha/routing/SchoolDaysKtrfAppController.hpp>
 #include <Kotonoha/routing/SchoolDaysKtrfDebugGui.hpp>
-#include <Kotonoha/routing/SchoolDaysPresentedFrame.hpp>
+#include <Kotonoha/routing/SchoolDaysSceneTransaction.hpp>
 
 static struct Kotonoha_Game global = {};
 
@@ -18,8 +18,7 @@ namespace {
 	};
 
 	static std::unique_ptr<Kotonoha::SchoolDaysKtrfAppController> ktrfController;
-	static std::unique_ptr<Kotonoha::SchoolDaysPresentedFrame> ktrfPresentedFrame;
-	static bool ktrfBoundaryLeaseActive = false;
+	static std::unique_ptr<Kotonoha::SchoolDaysSceneTransaction> ktrfSceneTransaction;
 
 	static KtrfLaunchOptions ExtractKtrfLaunchOptions(int argc, char* argv[]) {
 		KtrfLaunchOptions options;
@@ -154,8 +153,7 @@ extern "C" {
 		}
 
 		*appstate = nullptr;
-		ktrfPresentedFrame.reset();
-		ktrfBoundaryLeaseActive = false;
+		ktrfSceneTransaction.reset();
 		ktrfController.reset();
 		std::memset(&global, 0, sizeof(global));
 
@@ -222,7 +220,8 @@ extern "C" {
 				SDL_Quit();
 				return SDL_APP_FAILURE;
 			}
-			ktrfPresentedFrame = std::make_unique<Kotonoha::SchoolDaysPresentedFrame>();
+			ktrfSceneTransaction =
+				std::make_unique<Kotonoha::SchoolDaysSceneTransaction>();
 		}
 
 		*appstate = engine;
@@ -232,8 +231,7 @@ extern "C" {
 		}
 
 		if (status != SDL_APP_CONTINUE) {
-			ktrfPresentedFrame.reset();
-			ktrfBoundaryLeaseActive = false;
+			ktrfSceneTransaction.reset();
 			ktrfController.reset();
 			delete engine;
 			*appstate = nullptr;
@@ -254,9 +252,26 @@ extern "C" {
 		if (ktrfController != nullptr &&
 			event->type == SDL_EVENT_KEY_DOWN && event->key.key == SDLK_F5 &&
 			ktrfController->HasPendingHandoff()) {
+			Kotonoha::Gameplay* beforeGameplay = ktrfController->CurrentGameplay();
+			if (ktrfSceneTransaction != nullptr && global.render != nullptr &&
+				beforeGameplay != nullptr) {
+				SDL_SetRenderTarget(global.render, nullptr);
+				ktrfSceneTransaction->PrepareExplicit(
+					global.render, beforeGameplay, "episode-handoff");
+			}
+
 			Kotonoha_KtrfError error{};
-			if (!ktrfController->ContinueHandoff(&error) && error.message[0] != '\0') {
-				SDL_LogError(0, "[KTRF-HANDOFF] continue failed: %s", error.message);
+			if (!ktrfController->ContinueHandoff(&error)) {
+				if (error.message[0] != '\0') {
+					SDL_LogError(0, "[KTRF-HANDOFF] continue failed: %s", error.message);
+				}
+			}
+			else if (ktrfSceneTransaction != nullptr) {
+				ktrfSceneTransaction->CommitIfSwapped(
+					global.render,
+					beforeGameplay,
+					ktrfController->CurrentGameplay(),
+					"episode-handoff");
 			}
 			return SDL_APP_CONTINUE;
 		}
@@ -283,37 +298,30 @@ extern "C" {
 
 		Kotonoha::Gameplay* inRunning = nullptr;
 		Kotonoha::Gameplay* beforeGameplay = nullptr;
-		bool capturedBoundaryFrame = false;
 
-		// F1.2 scene-boundary continuity: when the currently presented School
-		// Days scene has reached its ORS terminal point, capture the PREVIOUSLY
-		// presented backbuffer before the normal black clear. Gameplay::Main()
-		// will advance/swap this scene in the same iteration. This keeps the
-		// actual final composition (including a white/black OUT fade) rather
-		// than inventing a video-frame policy.
-		if (ktrfController != nullptr && ktrfPresentedFrame != nullptr &&
-			!ktrfBoundaryLeaseActive && !ktrfController->HasPendingHandoff()) {
+		if (ktrfController != nullptr) {
 			beforeGameplay = ktrfController->CurrentGameplay();
-			if (beforeGameplay != nullptr && beforeGameplay->eventManager != nullptr &&
-				beforeGameplay->eventManager->CheckEnd(beforeGameplay)) {
-				SDL_SetRenderTarget(global.render, nullptr);
-				capturedBoundaryFrame = ktrfPresentedFrame->Capture(global.render);
-			}
 		}
-		else if (ktrfController != nullptr) {
-			beforeGameplay = ktrfController->CurrentGameplay();
+
+		// F1.3: SceneTransaction owns the Current Scene visual handoff. It
+		// captures the previously presented composition only when the outgoing
+		// ORS has reached its terminal point. It never chooses black/white or
+		// creates a fade; those remain exclusively ORS FadeRuntime behavior.
+		if (ktrfController != nullptr && ktrfSceneTransaction != nullptr &&
+			!ktrfSceneTransaction->HasLease() &&
+			!ktrfController->HasPendingHandoff() &&
+			beforeGameplay != nullptr && beforeGameplay->eventManager != nullptr &&
+			beforeGameplay->eventManager->CheckEnd(beforeGameplay)) {
+			SDL_SetRenderTarget(global.render, nullptr);
+			ktrfSceneTransaction->PrepareAutomatic(global.render, beforeGameplay);
 		}
 
 		SDL_SetRenderTarget(global.render, nullptr);
 		SDL_SetRenderDrawColor(global.render, 0, 0, 0, 0);
 		SDL_RenderClear(global.render);
 
-		// Once a boundary lease is active, the outgoing composition is drawn
-		// first. Incoming scene layers then render over it. A fade alone does
-		// not end the lease; only a primary scene visual (image/video layers
-		// 0..1) does.
-		if (ktrfBoundaryLeaseActive && ktrfPresentedFrame != nullptr) {
-			ktrfPresentedFrame->Present(global.render);
+		if (ktrfSceneTransaction != nullptr) {
+			ktrfSceneTransaction->PresentLease(global.render);
 		}
 
 		const SDL_AppResult status = ktrfController != nullptr
@@ -323,28 +331,11 @@ extern "C" {
 			return status;
 		}
 
-		if (ktrfController != nullptr && ktrfPresentedFrame != nullptr) {
+		if (ktrfController != nullptr && ktrfSceneTransaction != nullptr) {
 			Kotonoha::Gameplay* afterGameplay = ktrfController->CurrentGameplay();
-			const bool swappedScene = beforeGameplay != nullptr &&
-				afterGameplay != nullptr && beforeGameplay != afterGameplay;
-
-			if (swappedScene && capturedBoundaryFrame &&
-				ktrfPresentedFrame->HasFrame()) {
-				ktrfBoundaryLeaseActive = true;
-				// The swap happens after the outgoing Gameplay has returned, so this
-				// first retained draw is needed in the SAME frame as the swap.
-				SDL_SetRenderTarget(global.render, nullptr);
-				ktrfPresentedFrame->Present(global.render);
-				SDL_Log("[SD-COMPOSITOR] retain outgoing composition across Current Scene swap");
-			}
-
-			if (ktrfBoundaryLeaseActive && afterGameplay != nullptr &&
-				afterGameplay->drawCanvas != nullptr &&
-				afterGameplay->drawCanvas->DrewAtOrBelow(1)) {
-				ktrfBoundaryLeaseActive = false;
-				ktrfPresentedFrame->Release();
-				SDL_Log("[SD-COMPOSITOR] incoming primary visual ready; release outgoing composition");
-			}
+			ktrfSceneTransaction->CommitIfSwapped(
+				global.render, beforeGameplay, afterGameplay, "current-scene");
+			ktrfSceneTransaction->ReleaseIfIncomingReady(afterGameplay);
 		}
 
 		SDL_SetRenderTarget(global.render, nullptr);
@@ -370,8 +361,7 @@ extern "C" {
 		(void)result;
 
 		// Release renderer-owned retained texture before destroying the window.
-		ktrfPresentedFrame.reset();
-		ktrfBoundaryLeaseActive = false;
+		ktrfSceneTransaction.reset();
 		ktrfController.reset();
 		delete GetApp(appstate);
 		CleanupGlobalResources();
