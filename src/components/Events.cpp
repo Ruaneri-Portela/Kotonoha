@@ -1,8 +1,11 @@
 #include <Kotonoha/components/Events.hpp>
 #include <Kotonoha/SchoolDaysBgmAssetResolver.hpp>
+#include <Kotonoha/SchoolDaysVoicePcm.hpp>
 #include <Kotonoha/Gameplay.hpp>
 #include <SDL3/SDL.h>
 #include <sstream>
+#include <algorithm>
+#include <cctype>
 #include <string>
 #include <vector>
 
@@ -32,6 +35,11 @@ namespace Kotonoha {
 			}
 
 			return result;
+		}
+		static std::string AbcKey(std::string key) {
+			std::transform(key.begin(), key.end(), key.begin(),
+				[](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+			return key;
 		}
 
 
@@ -86,15 +94,21 @@ namespace Kotonoha {
 			case PLAY_VOICE: {
 				if (event->data.play_voice->path != nullptr &&
 					SDL_strlen(event->data.play_voice->path) > 0) {
+					const std::string voicePath = BuildString(
+						event->data.play_voice->path, assetsPath,
+						useExtension ? ".OGG" : "");
 					classUp->voiceMedia[event] = gameplay->audio->AddMedia(
-						BuildString(event->data.play_voice->path,
-							assetsPath,
-							useExtension ? ".OGG" : "")
-						.c_str(),
+						voicePath.c_str(),
 						startMs,
 						endMs + 1000,
 						false,
 						"Voice", false);
+					if (classUp->voiceMedia[event] != nullptr &&
+						*SchoolDaysVoiceAnimationKey(event) != '\0') {
+						std::vector<int16_t> pcm;
+						if (DecodeSchoolDaysVoicePcm(voicePath, pcm))
+							classUp->voiceActivity[event] = AnalyzeSchoolDaysPcm(pcm);
+					}
 				}
 				break;
 			}
@@ -217,6 +231,17 @@ namespace Kotonoha {
 					continue; /* Missing media never blocks the timeline. */
 				if (allowed) {
 					gameplay->audio->SetMediaEnabled(found->second, true);
+					const std::string key = AbcKey(SchoolDaysVoiceAnimationKey(event));
+					if (!key.empty()) {
+						auto* group = gameplay->image->FindAbcGroup(key,
+							Kotonoha_SceneTickToMillisecondsCeil(event->startTick));
+						if (group != nullptr) {
+							auto previous = classUp->abcBindings.find(key);
+							if (previous != classUp->abcBindings.end())
+								gameplay->image->SelectAbcState(previous->second.group, 0);
+							classUp->abcBindings[key] = {event, group, {}, 0, false};
+						}
+					}
 					SDL_LogDebug(SDL_LOG_CATEGORY_AUDIO,
 						"[SD-AUDIO] Voice activate key=%s",
 						SchoolDaysVoiceAnimationKey(event));
@@ -267,6 +292,36 @@ namespace Kotonoha {
 					gameplay->audio->SetMediaEnabled(found->second, true);
 			}
 		}
+		for (auto it = classUp->abcBindings.begin();
+			it != classUp->abcBindings.end();) {
+			auto& binding = it->second;
+			if (currentTick >= binding.voice->endTick) {
+				gameplay->image->SelectAbcState(binding.group, 0);
+				it = classUp->abcBindings.erase(it);
+				continue;
+			}
+			const auto activity = classUp->voiceActivity.find(binding.voice);
+			const std::vector<SchoolDaysActivityRecord> empty;
+			const auto& records = activity == classUp->voiceActivity.end()
+				? empty : activity->second;
+			const Kotonoha_SceneTick first = binding.initialized
+				? binding.lastTick + 1 : binding.voice->startTick;
+			for (Kotonoha_SceneTick tick = first; tick <= currentTick; ++tick) {
+				const Uint8 before = binding.state.activeIndex;
+				AdvanceSchoolDaysAbcState(binding.state, records,
+					binding.voice->startTick, tick);
+				if (before != binding.state.activeIndex)
+					SDL_LogDebug(SDL_LOG_CATEGORY_RENDER,
+						"[SD-ABC] key=%s tick=%llu activity=%d state=%c",
+						it->first.c_str(), static_cast<unsigned long long>(tick),
+						SchoolDaysActivityAt(records, tick - binding.voice->startTick) ? 1 : 0,
+						'A' + binding.state.activeIndex);
+			}
+			binding.lastTick = currentTick;
+			binding.initialized = true;
+			gameplay->image->SelectAbcState(binding.group, binding.state.activeIndex);
+			++it;
+		}
 		const auto ending = classUp->bgmSlots.Ending();
 		if (ending.event != nullptr && currentTick >= ending.event->endTick) {
 			auto found = classUp->endingBgmMedia.find(ending.event);
@@ -298,6 +353,8 @@ namespace Kotonoha {
 
 		SDL_LockMutex(eventMutex);
 
+		abcBindings.clear();
+		voiceActivity.clear();
 		gp->video->Reset();
 		gp->image->Reset();
 		gp->audio->RemoveMedia(nullptr);

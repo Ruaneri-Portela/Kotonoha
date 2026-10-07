@@ -6,6 +6,7 @@
 #include <Kotonoha/SchoolDaysSceneTimeline.hpp>
 #include <Kotonoha/SchoolDaysAudioEventState.hpp>
 #include <Kotonoha/SchoolDaysBgmEventState.hpp>
+#include <Kotonoha/SchoolDaysAbcRuntime.hpp>
 #include <unordered_map>
 extern "C" {
 #include <Kotonoha/parsers/Ors.h>
@@ -20,6 +21,16 @@ private:
   SchoolDaysSeSlots seSlots;
   SchoolDaysBgmSlots bgmSlots;
   std::unordered_map<const Kotonoha_orsEvent*, Kotonoha_audioDecode*> voiceMedia;
+  std::unordered_map<const Kotonoha_orsEvent*,
+                     std::vector<SchoolDaysActivityRecord>> voiceActivity;
+  struct AbcBinding {
+    const Kotonoha_orsEvent* voice = nullptr;
+    Image::AbcGroup* group = nullptr;
+    SchoolDaysAbcState state;
+    Kotonoha_SceneTick lastTick = 0;
+    bool initialized = false;
+  };
+  std::unordered_map<std::string, AbcBinding> abcBindings;
   std::unordered_map<const Kotonoha_orsEvent*, Kotonoha_audioDecode*> seMedia;
   std::unordered_map<const Kotonoha_orsEvent*, Kotonoha_audioDecode*> normalBgmMedia;
   std::unordered_map<const Kotonoha_orsEvent*, Kotonoha_audioDecode*> endingBgmMedia;

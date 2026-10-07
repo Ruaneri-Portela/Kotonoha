@@ -39,6 +39,7 @@ file(GLOB SOURCES CONFIGURE_DEPENDS
 list(APPEND SOURCES
     "${CMAKE_CURRENT_SOURCE_DIR}/src/SchoolDaysKtrfDebugGui.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/SchoolDaysKtrfStateInspector.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/SchoolDaysVoicePcm.cpp"
 )
 list(REMOVE_DUPLICATES SOURCES)
 
@@ -224,6 +225,23 @@ if((KOTONOHA_ROUTER_TESTS OR KOTONOHA_ORS_PARSER_TESTS) AND NOT ANDROID)
     set_target_properties(SchoolDaysBgmEventTest PROPERTIES
         CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
     add_test(NAME SchoolDaysBgmEventTest COMMAND SchoolDaysBgmEventTest)
+
+    add_executable(SchoolDaysAbcRuntimeTest
+        tests/SchoolDaysAbcRuntimeTest.cpp
+        src/SchoolDaysVoicePcm.cpp
+        src/components/Image.cpp
+        src/renders/ImageRender.c
+        src/utils/FFmpeg.c
+        src/utils/Time.c
+    )
+    target_include_directories(SchoolDaysAbcRuntimeTest PRIVATE
+        ${KOTONOHA_INCLUDE_DIR} ${FFMPEG_INCLUDE_DIRS})
+    target_link_libraries(SchoolDaysAbcRuntimeTest PRIVATE
+        SDL3::SDL3 PkgConfig::FFMPEG)
+    set_target_properties(SchoolDaysAbcRuntimeTest PROPERTIES
+        CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
+    add_test(NAME SchoolDaysAbcRuntimeTest COMMAND
+        SchoolDaysAbcRuntimeTest ${CMAKE_CURRENT_SOURCE_DIR}/assets)
 endif()
 
 if(KOTONOHA_ROUTER_TESTS AND NOT ANDROID)
