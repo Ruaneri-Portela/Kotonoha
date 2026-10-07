@@ -26,6 +26,7 @@ private:
   std::vector<Kotonoha_Picture *> pictures = std::vector<Kotonoha_Picture *>();
   SDL_Mutex *lock = nullptr;
   std::vector<std::unique_ptr<AbcGroup>> abcGroups;
+  std::string activeBasePath;
   void DiscoverAbcGroups(const char* basePath, Uint64 startTime, Uint64 endTime);
   void DrawAbcForBase(Kotonoha_Picture* picture, SDL_Renderer* renderer);
 
@@ -35,6 +36,8 @@ public:
   Image(Kotonoha_time *time);
 
   void Register(const char *path, Uint64 startTime, Uint64 endTime, Uint8 id);
+  bool ActivateBase(const std::string& path);
+  bool IsActiveGroup(const AbcGroup* group, Uint64 atMs);
   AbcGroup* FindAbcGroup(const std::string& key, Uint64 atMs);
   void SelectAbcState(AbcGroup* group, Uint8 index);
 

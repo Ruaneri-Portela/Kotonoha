@@ -1,0 +1,31 @@
+﻿{
+  "files": 1857,
+  "event_lines": 86539,
+  "events_accepted": 86536,
+  "valid_standard": 86387,
+  "valid_optional_empty": 149,
+  "malformed_or_noop": 3,
+  "move_som": 281,
+  "play_voice_empty_numeric_key": 149,
+  "reference_v102_match": true,
+  "by_event_type": {
+    "BLACK_FADE": 847,
+    "CREATE_BG": 13024,
+    "END_BGM": 67,
+    "END_ROLL": 67,
+    "MOVE_SOM": 281,
+    "Next": 1857,
+    "PLAY_BGM": 1488,
+    "PLAY_MOVIE": 2041,
+    "PLAY_SE": 3551,
+    "PLAY_VOICE": 30413,
+    "PRINT_TEXT": 30484,
+    "SetSELECT": 287,
+    "SkipFRAME": 1857,
+    "WHITE_FADE": 272
+  },
+  "rejected_by_file": {
+    "03-KB-D10.ENG.ORS": 1,
+    "05-KI-OP1.ENG.ORS": 2
+  }
+}

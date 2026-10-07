@@ -2,6 +2,7 @@
 #include <Kotonoha/SchoolDaysBgmAssetResolver.hpp>
 #include <Kotonoha/SchoolDaysVoicePcm.hpp>
 #include <Kotonoha/SchoolDaysMovieAssetResolver.hpp>
+#include <Kotonoha/SchoolDaysImageAssetResolver.hpp>
 #include <Kotonoha/Gameplay.hpp>
 #include <SDL3/SDL.h>
 #include <sstream>
@@ -42,6 +43,23 @@ namespace Kotonoha {
 			std::transform(key.begin(), key.end(), key.begin(),
 				[](unsigned char c) { return static_cast<char>(std::tolower(c)); });
 			return key;
+		}
+		static void PrepareChoicePrompt(Gameplay* gp,
+			const Kotonoha_orsData& source) {
+			if (gp == nullptr) return;
+			for (auto* event = source.data; event != nullptr; event = event->next) {
+				if (event->command != SetSELECT || event->data.set_select == nullptr)
+					continue;
+				std::vector<std::string> options;
+				for (char** it = event->data.set_select->options;
+					it != nullptr && *it != nullptr; ++it)
+					options.push_back(BuildString(*it));
+				gp->prompt = new Prompt(options, &gp->promptId,
+					Kotonoha_SceneTickToMillisecondsCeil(event->startTick),
+					Kotonoha_SceneTickToMillisecondsCeil(event->endTick), gp->tm);
+			gp->putPrompt = true;
+			return; // Corpus v1.02 has at most one SetSELECT per ORS.
+			}
 		}
 
 
@@ -185,14 +203,18 @@ namespace Kotonoha {
 			case CREATE_BG:
 				if (event->data.create_bg->path != nullptr &&
 					SDL_strlen(event->data.create_bg->path) > 0) {
-					gameplay->image->Register(
-						BuildString(event->data.create_bg->path,
-							assetsPath,
-							useExtension ? ".PNG" : "")
-						.c_str(),
-						startMs,
-						endMs,
-						0);
+					const auto resolved = ResolveSchoolDaysImageAsset(
+						assetsPath, event->data.create_bg->path);
+					if (resolved.present && !resolved.collision) {
+						classUp->bgResources[event] = resolved.physical;
+						gameplay->image->Register(resolved.physical.c_str(),
+							startMs, endMs, 0);
+					} else {
+						SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+							"[SD-IMAGE] %s CreateBG: %s",
+							resolved.collision ? "Ambiguous" : "Missing",
+							resolved.logical.c_str());
+					}
 				}
 				break;
 
@@ -218,7 +240,19 @@ namespace Kotonoha {
 			}
 		}
 		for (auto* event : classUp->timeline.AdvanceTo(currentTick)) {
-			if (event->command == PLAY_VOICE) {
+			if (event->command == CREATE_BG) {
+				auto found = classUp->bgResources.find(event);
+				if (found != classUp->bgResources.end())
+					gameplay->image->ActivateBase(found->second);
+			}
+			else if (event->command == MOVE_SOM) {
+				// SOMCON is an optional original peripheral; no hardware on this port.
+				classUp->moveSom.Start(event);
+			}
+			else if (event->command == SetSELECT) {
+				// Prompt was prepared with the scene; its 24 Hz window gates visibility.
+			}
+			else if (event->command == PLAY_VOICE) {
 				const bool allowed = SchoolDaysVoiceAllowed(
 					event->data.play_voice->a,
 					Kotonoha_IsMenVoiceEnabled(gameCtx));
@@ -294,6 +328,7 @@ namespace Kotonoha {
 					gameplay->video->Activate(event);
 			}
 		}
+		classUp->moveSom.AdvanceTo(currentTick);
 		for (auto& item : classUp->movieStates) {
 			auto& state = item.second;
 			if (!state.eof && gameplay->video->IsEof(item.first))
@@ -306,7 +341,8 @@ namespace Kotonoha {
 		for (auto it = classUp->abcBindings.begin();
 			it != classUp->abcBindings.end();) {
 			auto& binding = it->second;
-			if (currentTick >= binding.voice->endTick) {
+			if (currentTick >= binding.voice->endTick ||
+				!gameplay->image->IsActiveGroup(binding.group, actualTime)) {
 				gameplay->image->SelectAbcState(binding.group, 0);
 				it = classUp->abcBindings.erase(it);
 				continue;
@@ -368,7 +404,18 @@ namespace Kotonoha {
 		voiceActivity.clear();
 		gp->video->Reset();
 		movieStates.clear();
+		bgResources.clear();
+		moveSom.Reset();
 		gp->image->Reset();
+		if (gp->prompt != nullptr) {
+			gp->drawCanvas->UnregisterCanva(Prompt::Render);
+			delete gp->prompt;
+			gp->prompt = nullptr;
+		}
+		gp->promptId = -2;
+		gp->putPrompt = false;
+		gp->choiceCommitSubmitted = false;
+		PrepareChoicePrompt(gp, eventsFromScript);
 		gp->audio->RemoveMedia(nullptr);
 		voiceMedia.clear();
 		seMedia.clear();
@@ -474,24 +521,11 @@ namespace Kotonoha {
 				break;
 			}
 
-			case SetSELECT: {
-				std::vector<std::string> options;
-				for (char** it = event->data.set_select->options; *it != nullptr; ++it) {
-					options.push_back(BuildString(*it));
-				}
-
-				gp->prompt = new Prompt(
-					options, &gp->promptId,
-					Kotonoha_SceneTickToMillisecondsCeil(event->startTick),
-					Kotonoha_SceneTickToMillisecondsCeil(event->endTick), gp->tm);
-				gp->putPrompt = true;
-				break;
-			}
-
 			default:
 				break;
 			}
 		}
+		PrepareChoicePrompt(gp, eventsFromScript);
 
 		eventMutex = SDL_CreateMutex();
 		if (eventMutex == nullptr) {

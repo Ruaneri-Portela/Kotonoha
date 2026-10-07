@@ -95,6 +95,7 @@ void TestDiscovery(const fs::path& assets) {
     {
         Kotonoha::Image image(nullptr);
         image.Register(base.string().c_str(), 0, 1000, 0);
+        Check(image.ActivateBase(base.string()), "activate x01 fixture base");
         auto* x01 = image.FindAbcGroup("x01", 100);
         Check(x01 != nullptr && !x01->resources.Complete(),
               "generic x01 or partial-group discovery");
@@ -117,6 +118,8 @@ void TestDiscovery(const fs::path& assets) {
     }
     Kotonoha::Image image(nullptr);
     image.Register((a01 / "00-00-A01-004.PNG").string().c_str(), 0, 5000, 0);
+    Check(image.ActivateBase((a01 / "00-00-A01-004.PNG").string()),
+          "activate A01 base");
     auto* mak = image.FindAbcGroup("mak", 1000);
     auto* tai = image.FindAbcGroup("tai", 1000);
     Check(mak && tai && mak != tai && mak->resources.Complete() &&
@@ -136,6 +139,8 @@ void TestDiscovery(const fs::path& assets) {
     Check(clock && canvas && renderer, "software overlay render fixture");
     Kotonoha::Image drawn(clock);
     drawn.Register((a01 / "00-00-A01-004.PNG").string().c_str(), 0, 5000, 0);
+    Check(drawn.ActivateBase((a01 / "00-00-A01-004.PNG").string()),
+          "activate A01 render base");
     auto* drawnMak = drawn.FindAbcGroup("mak", 1000);
     Check(drawnMak != nullptr, "render group discovery");
     const auto frameHash = [&]() -> uint64_t {
@@ -169,6 +174,8 @@ void TestDiscovery(const fs::path& assets) {
     if (fs::exists(kc / "05-KC-A02-009.PNG")) {
         Kotonoha::Image other(nullptr);
         other.Register((kc / "05-KC-A02-009.PNG").string().c_str(), 0, 5000, 0);
+        Check(other.ActivateBase((kc / "05-KC-A02-009.PNG").string()),
+              "activate KC base");
         auto* kot = other.FindAbcGroup("kot", 1000);
         Check(kot && kot->resources.paths[0].find("009KOT.A.PNG") !=
               std::string::npos, "009 must bind KOT, not uncoded ABC");

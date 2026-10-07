@@ -36,6 +36,7 @@ namespace Kotonoha {
 		Prompt* prompt = nullptr;
 		int promptId = -2;
 		bool putPrompt = false;
+		bool choiceCommitSubmitted = false;
 
 		bool reset = false, back = false, hardReset = false, loop = false, firstFocus = true;
 

@@ -784,8 +784,10 @@ namespace Kotonoha {
 
 			const SDL_AppResult result = current->Main(&gameContext);
 			if (schoolDaysRouting && current->prompt != nullptr &&
-				current->prompt->Result() != -2) {
+				SchoolDaysChoiceShouldSubmit(current->choiceCommitSubmitted,
+					current->prompt->Result())) {
 				schoolDaysRouter.AcceptChoice(current->prompt->Result());
+				current->choiceCommitSubmitted = true;
 			}
 			if (schoolDaysRouting && result == SDL_APP_FAILURE) return result;
 			if (result != SDL_APP_CONTINUE || gameContext.next) {

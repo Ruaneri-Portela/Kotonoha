@@ -8,6 +8,7 @@
 #include <Kotonoha/SchoolDaysBgmEventState.hpp>
 #include <Kotonoha/SchoolDaysAbcRuntime.hpp>
 #include <Kotonoha/SchoolDaysMovieEventState.hpp>
+#include <Kotonoha/SchoolDaysRemainingOrs.hpp>
 #include <unordered_map>
 extern "C" {
 #include <Kotonoha/parsers/Ors.h>
@@ -36,6 +37,8 @@ private:
   std::unordered_map<const Kotonoha_orsEvent*, Kotonoha_audioDecode*> normalBgmMedia;
   std::unordered_map<const Kotonoha_orsEvent*, Kotonoha_audioDecode*> endingBgmMedia;
   std::unordered_map<const Kotonoha_orsEvent*, SchoolDaysMovieEventState> movieStates;
+  std::unordered_map<const Kotonoha_orsEvent*, std::string> bgResources;
+  SchoolDaysMoveSomNoOp moveSom;
   static int EventManager(void *data);
   SDL_Mutex *eventMutex = nullptr;
 

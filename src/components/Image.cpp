@@ -1,4 +1,5 @@
 #include <Kotonoha/components/Image.hpp>
+#include <Kotonoha/SchoolDaysSceneTime.h>
 #include <SDL3/SDL_render.h>
 #include <algorithm>
 #include <cctype>
@@ -145,12 +146,34 @@ namespace Kotonoha {
 		}
 	}
 
+	bool Image::ActivateBase(const std::string& path) {
+		if (lock == nullptr || path.empty()) return false;
+		SDL_LockMutex(lock);
+		bool found = false;
+		for (const auto* picture : pictures)
+			if (picture != nullptr && picture->path != nullptr &&
+				path == picture->path) { found = true; break; }
+		if (found) activeBasePath = path;
+		SDL_UnlockMutex(lock);
+		return found;
+	}
+
+	bool Image::IsActiveGroup(const AbcGroup* group, Uint64 atMs) {
+		if (lock == nullptr || group == nullptr) return false;
+		SDL_LockMutex(lock);
+		const bool active = group->basePath == activeBasePath &&
+			group->startTime <= atMs && atMs < group->endTime;
+		SDL_UnlockMutex(lock);
+		return active;
+	}
+
 	Image::AbcGroup* Image::FindAbcGroup(const std::string& key, Uint64 atMs) {
 		if (lock == nullptr || key.empty()) return nullptr;
 		SDL_LockMutex(lock);
 		AbcGroup* found = nullptr;
 		for (const auto& group : abcGroups)
-			if (group->resources.key == Lower(key) &&
+			if (group->basePath == activeBasePath &&
+				group->resources.key == Lower(key) &&
 				group->startTime <= atMs && atMs < group->endTime)
 				found = group.get();
 		SDL_UnlockMutex(lock);
@@ -184,6 +207,19 @@ namespace Kotonoha {
 				it = here->pictures.erase(it);
 				continue;
 			}
+			const Kotonoha_SceneTick sceneTick =
+				Kotonoha_MillisecondsToSceneTick(Kotonoha_timeGet(here->timeManager));
+			const Kotonoha_SceneTick endTick =
+				Kotonoha_MillisecondsToSceneTick(picture->endTime);
+			if (picture->path == nullptr || here->activeBasePath != picture->path) {
+				if (sceneTick >= endTick) {
+					it = here->pictures.erase(it);
+					DestroyPicture(picture);
+					continue;
+				}
+				++it;
+				continue;
+			}
 
 			Sint64 diff = 0;
 			bool inRange = false;
@@ -211,7 +247,7 @@ namespace Kotonoha {
 					SDL_BLENDMODE_BLEND_PREMULTIPLIED);
 			}
 
-			if (diff > 0) {
+			if (sceneTick >= endTick) {
 				SDL_RenderTexture(render, picture->texture, nullptr, nullptr);
 				status = picture->id > 0 ? status : KOTONOHA_SCENE_DRAW_LAST;
 
@@ -236,7 +272,11 @@ namespace Kotonoha {
 			}
 
 			if (!cleaned) {
+				Uint8 r = 0, g = 0, b = 0, a = 0;
+				SDL_GetRenderDrawColor(render, &r, &g, &b, &a);
+				SDL_SetRenderDrawColor(render, 0, 0, 0, 0);
 				SDL_RenderClear(render);
+				SDL_SetRenderDrawColor(render, r, g, b, a);
 				cleaned = true;
 			}
 
@@ -254,6 +294,7 @@ namespace Kotonoha {
 
 	void Image::Reset() {
 		const auto clearGroups = [this]() {
+			activeBasePath.clear();
 			for (auto& group : abcGroups)
 				for (auto*& texture : group->textures)
 					if (texture != nullptr) {

@@ -276,7 +276,8 @@ SDL_AppResult SchoolDaysKtrfAppController::Main(Gameplay** out) {
     const SDL_AppResult result = current->Main(gameContext);
     if (result == SDL_APP_FAILURE) return result;
 
-    if (current->prompt != nullptr && current->prompt->Result() != -2) {
+    if (current->prompt != nullptr && SchoolDaysChoiceShouldSubmit(
+            current->choiceCommitSubmitted, current->prompt->Result())) {
         Kotonoha_KtrfError error{};
         int accepted = 0;
         const int64_t value = static_cast<int64_t>(current->prompt->Result());
@@ -285,6 +286,7 @@ SDL_AppResult SchoolDaysKtrfAppController::Main(Gameplay** out) {
                          static_cast<long long>(value), error.message);
             return SDL_APP_FAILURE;
         }
+        current->choiceCommitSubmitted = true;
     }
 
     if (result != SDL_APP_CONTINUE || gameContext->next) {

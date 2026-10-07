@@ -164,6 +164,26 @@ int Audit(const fs::path& root) {
     std::uint64_t files = 0, lines = 0, accepted = 0, unknown = 0;
     std::uint64_t moveSom = 0, emptyVoice = 0;
     std::map<std::string, std::uint64_t> rejectedByFile;
+    std::map<std::string, std::uint64_t> byEventType;
+    const auto typeName = [](Kotonoha_orsType command) -> const char* {
+        switch (command) {
+        case CREATE_BG: return "CREATE_BG";
+        case PLAY_SE: return "PLAY_SE";
+        case PLAY_MOVIE: return "PLAY_MOVIE";
+        case WHITE_FADE: return "WHITE_FADE";
+        case BLACK_FADE: return "BLACK_FADE";
+        case PLAY_BGM: return "PLAY_BGM";
+        case PRINT_TEXT: return "PRINT_TEXT";
+        case PLAY_VOICE: return "PLAY_VOICE";
+        case SkipFRAME: return "SkipFRAME";
+        case SetSELECT: return "SetSELECT";
+        case END_BGM: return "END_BGM";
+        case END_ROLL: return "END_ROLL";
+        case Next: return "Next";
+        case MOVE_SOM: return "MOVE_SOM";
+        default: return "UNKNOWN";
+        }
+    };
     for (const auto& entry : fs::recursive_directory_iterator(root)) {
         if (!entry.is_regular_file() || entry.path().extension() != ".ORS")
             continue;
@@ -178,6 +198,7 @@ int Audit(const fs::path& root) {
         auto parsed = Kotonoha_OrsParser(entry.path().string().c_str());
         accepted += parsed.size;
         for (auto* event = parsed.data; event; event = event->next) {
+            ++byEventType[typeName(event->command)];
             if (event->command == UNKNOWN) ++unknown;
             if (event->command == MOVE_SOM) ++moveSom;
             if (event->command == PLAY_VOICE &&
@@ -207,6 +228,14 @@ int Audit(const fs::path& root) {
               << ",\n  \"play_voice_empty_numeric_key\": " << emptyVoice
               << ",\n  \"reference_v102_match\": "
               << (referenceMatch ? "true" : "false")
+              << ",\n  \"by_event_type\": {";
+    bool firstType = true;
+    for (const auto& [name, count] : byEventType) {
+        std::cout << (firstType ? "\n" : ",\n") << "    \""
+                  << name << "\": " << count;
+        firstType = false;
+    }
+    std::cout << (firstType ? "" : "\n") << "  }"
               << ",\n  \"rejected_by_file\": {";
     bool first = true;
     for (const auto& [file, count] : rejectedByFile) {
