@@ -11,16 +11,14 @@ namespace Kotonoha {
 		}
 	}
 
-	bool Video::Register(const char* path, Uint64 startTime, Uint64 endTime,
-		bool useOrsFrameTimeline,
-		Uint64 orsEndFrame) {
+	bool Video::Prepare(const Kotonoha_orsEvent* event, const char* path) {
 		if (timeManager == nullptr) {
 			SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
 				"Video time manager is null.");
 			return false;
 		}
 
-		if (path == nullptr || *path == '\0') {
+		if (event == nullptr || path == nullptr || *path == '\0') {
 			SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
 				"Video path is invalid.");
 			return false;
@@ -30,10 +28,9 @@ namespace Kotonoha {
 			Kotonoha_VideoRenderInit(
 				path,
 				timeManager,
-				startTime,
-				endTime,
-				useOrsFrameTimeline,
-				orsEndFrame);
+				Kotonoha_SceneTickToMillisecondsCeil(event->startTick),
+				Kotonoha_SceneTickToMillisecondsCeil(event->endTick),
+				event->endTick);
 		if (object == nullptr) {
 			SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
 				"Failed to initialize video: %s", path);
@@ -46,9 +43,52 @@ namespace Kotonoha {
 		}
 
 		SDL_LockMutex(lock);
-		videos.push_back(object);
+		videos.push_back({event, object, false});
 		SDL_UnlockMutex(lock);
 		return true;
+	}
+
+	bool Video::Activate(const Kotonoha_orsEvent* event) {
+		if (lock == nullptr) return false;
+		SDL_LockMutex(lock);
+		for (auto& item : videos) {
+			if (item.event == event) {
+				item.active = true;
+				SDL_UnlockMutex(lock);
+				return true;
+			}
+		}
+		SDL_UnlockMutex(lock);
+		return false;
+	}
+
+	bool Video::IsEof(const Kotonoha_orsEvent* event) {
+		if (lock == nullptr) return false;
+		SDL_LockMutex(lock);
+		for (const auto& item : videos) {
+			if (item.event == event) {
+				const bool eof = item.decoder != nullptr && item.decoder->decoderEof;
+				SDL_UnlockMutex(lock);
+				return eof;
+			}
+		}
+		SDL_UnlockMutex(lock);
+		return false;
+	}
+
+	void Video::Remove(const Kotonoha_orsEvent* event) {
+		if (lock == nullptr || event == nullptr) return;
+		Kotonoha_videoData* removed = nullptr;
+		SDL_LockMutex(lock);
+		for (auto it = videos.begin(); it != videos.end(); ++it) {
+			if (it->event == event) {
+				removed = it->decoder;
+				videos.erase(it);
+				break;
+			}
+		}
+		SDL_UnlockMutex(lock);
+		Kotonoha_VideoRenderShutdown(&removed);
 	}
 
 	Kotonoha_Scene_Status Video::Render(KOTONOHA_SCENE_CALL) {
@@ -67,9 +107,13 @@ namespace Kotonoha {
 		SDL_LockMutex(here->lock);
 
 		for (auto it = here->videos.begin(); it != here->videos.end();) {
-			Kotonoha_videoData* currentVideo = *it;
+			Kotonoha_videoData* currentVideo = it->decoder;
 			if (currentVideo == nullptr) {
 				it = here->videos.erase(it);
+				continue;
+			}
+			if (!it->active) {
+				++it;
 				continue;
 			}
 
@@ -78,13 +122,15 @@ namespace Kotonoha {
 
 			switch (status) {
 			case KOTONOHA_SCENE_DRAW:
-				SDL_RenderTexture(render, currentVideo->texture, nullptr, nullptr);
+				if (currentVideo->texture != nullptr)
+					SDL_RenderTexture(render, currentVideo->texture, nullptr, nullptr);
 				returnStatus = KOTONOHA_SCENE_DRAW;
 				++it;
 				break;
 
 			case KOTONOHA_SCENE_COMPLETE:
-				if (returnStatus != KOTONOHA_SCENE_DRAW) {
+				if (returnStatus != KOTONOHA_SCENE_DRAW &&
+					currentVideo->texture != nullptr) {
 					SDL_RenderTexture(render, currentVideo->texture, nullptr, nullptr);
 					returnStatus = KOTONOHA_SCENE_DRAW_LAST;
 				}
@@ -120,21 +166,21 @@ namespace Kotonoha {
 
 	void Video::Reset() {
 		if (lock == nullptr) {
-			for (auto& video : videos) {
-				Kotonoha_VideoRenderShutdown(&video);
+			for (auto& item : videos) {
+				Kotonoha_VideoRenderShutdown(&item.decoder);
 			}
 			videos.clear();
 			return;
 		}
 
-		std::vector<Kotonoha_videoData*> oldVideos;
+		std::vector<Item> oldVideos;
 
 		SDL_LockMutex(lock);
 		oldVideos.swap(videos);
 		SDL_UnlockMutex(lock);
 
-		for (Kotonoha_videoData* video : oldVideos) {
-			Kotonoha_VideoRenderShutdown(&video);
+		for (auto& item : oldVideos) {
+			Kotonoha_VideoRenderShutdown(&item.decoder);
 		}
 	}
 

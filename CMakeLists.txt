@@ -242,6 +242,22 @@ if((KOTONOHA_ROUTER_TESTS OR KOTONOHA_ORS_PARSER_TESTS) AND NOT ANDROID)
         CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
     add_test(NAME SchoolDaysAbcRuntimeTest COMMAND
         SchoolDaysAbcRuntimeTest ${CMAKE_CURRENT_SOURCE_DIR}/assets)
+
+    add_executable(SchoolDaysMovieEventTest
+        tests/SchoolDaysMovieEventTest.cpp
+        src/components/Video.cpp
+        src/renders/VideoRender.c
+        src/utils/FFmpeg.c
+        src/utils/Time.c
+    )
+    target_include_directories(SchoolDaysMovieEventTest PRIVATE
+        ${KOTONOHA_INCLUDE_DIR} ${FFMPEG_INCLUDE_DIRS})
+    target_link_libraries(SchoolDaysMovieEventTest PRIVATE
+        SDL3::SDL3 PkgConfig::FFMPEG)
+    set_target_properties(SchoolDaysMovieEventTest PROPERTIES
+        CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
+    add_test(NAME SchoolDaysMovieEventTest COMMAND
+        SchoolDaysMovieEventTest ${CMAKE_CURRENT_SOURCE_DIR}/assets)
 endif()
 
 if(KOTONOHA_ROUTER_TESTS AND NOT ANDROID)

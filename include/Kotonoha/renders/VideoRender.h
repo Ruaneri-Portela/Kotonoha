@@ -2,6 +2,7 @@
 #include <Kotonoha/Kotonoha.h>
 #include <Kotonoha/utils/FFmpeg.h>
 #include <Kotonoha/utils/Time.h>
+#include <Kotonoha/SchoolDaysSceneTime.h>
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
 #include <libavutil/hwcontext.h>
@@ -22,17 +23,17 @@ struct Kotonoha_videoData {
   Uint64 startTime, endTime, lastTime, videoTime, frameTime;
   SDL_Texture *texture;
 
-  // PLAY_MOVIE can opt into the original School Days 24-fps ORS timeline.
-  bool useOrsFrameTimeline;
-  Uint64 orsEndFrame;
+  // ORS event window and decoder EOF are distinct from Current Scene Next.
+  Kotonoha_SceneTick endTick;
+  bool demuxEof;
+  bool decoderEof;
 };
 
 struct Kotonoha_videoData *Kotonoha_VideoRenderInit(const char *filename,
                                                     struct Kotonoha_time *time,
                                                     Uint64 startTime,
                                                     Uint64 endTime,
-                                                    bool useOrsFrameTimeline,
-                                                    Uint64 orsEndFrame);
+                                                    Kotonoha_SceneTick endTick);
 
 void Kotonoha_VideoRenderShutdown(struct Kotonoha_videoData **instance);
 

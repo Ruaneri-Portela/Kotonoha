@@ -1,12 +1,14 @@
 #include <Kotonoha/components/Events.hpp>
 #include <Kotonoha/SchoolDaysBgmAssetResolver.hpp>
 #include <Kotonoha/SchoolDaysVoicePcm.hpp>
+#include <Kotonoha/SchoolDaysMovieAssetResolver.hpp>
 #include <Kotonoha/Gameplay.hpp>
 #include <SDL3/SDL.h>
 #include <sstream>
 #include <algorithm>
 #include <cctype>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace Kotonoha {
@@ -157,34 +159,28 @@ namespace Kotonoha {
 				break;
 
 			case END_ROLL:
-				if (event->data.path_end->path != nullptr &&
-					SDL_strlen(event->data.path_end->path) > 0) {
-					gameplay->video->Register(
-						BuildString(event->data.path_end->path,
-							assetsPath,
-							useExtension ? ".WMV" : "")
-						.c_str(),
-						startMs,
-						endMs);
+			case PLAY_MOVIE: {
+				const bool roll = event->command == END_ROLL;
+				const char* logicalPath = roll ? event->data.path_end->path
+					: event->data.play_movie->path;
+				if (logicalPath == nullptr || *logicalPath == '\0') break;
+				auto state = SchoolDaysMovieEventState::Create(
+					roll ? SchoolDaysMovieKind::EndRoll : SchoolDaysMovieKind::PlayMovie,
+					logicalPath, event->startTick, event->endTick,
+					roll ? 0 : event->data.play_movie->a);
+				bool ready = false;
+				if (state.Supported()) {
+					const std::string resolved = ResolveSchoolDaysMovieAsset(
+						assetsPath, state.resource);
+					ready = gameplay->video->Prepare(event, resolved.c_str());
+				} else {
+					SDL_Log("[SD-MOVIE] Unsupported PlayMovie numeric=%llu path=%s",
+						static_cast<unsigned long long>(state.numeric), logicalPath);
 				}
+				state.Prepare(ready);
+				classUp->movieStates[event] = std::move(state);
 				break;
-
-			case PLAY_MOVIE:
-				if (event->data.play_movie->path != nullptr &&
-					SDL_strlen(event->data.play_movie->path) > 0) {
-					const std::string moviePath =
-						BuildString(event->data.play_movie->path,
-							assetsPath,
-							useExtension ? ".WMV" : "");
-
-					gameplay->video->Register(
-						moviePath.c_str(),
-						startMs,
-						endMs,
-						true,
-						event->endTick + 1);
-				}
-				break;
+			}
 
 			case CREATE_BG:
 				if (event->data.create_bg->path != nullptr &&
@@ -291,6 +287,21 @@ namespace Kotonoha {
 				if (found != mediaMap.end() && found->second != nullptr)
 					gameplay->audio->SetMediaEnabled(found->second, true);
 			}
+			else if (event->command == PLAY_MOVIE || event->command == END_ROLL) {
+				auto found = classUp->movieStates.find(event);
+				if (found != classUp->movieStates.end() &&
+					found->second.Activate(currentTick))
+					gameplay->video->Activate(event);
+			}
+		}
+		for (auto& item : classUp->movieStates) {
+			auto& state = item.second;
+			if (!state.eof && gameplay->video->IsEof(item.first))
+				state.MarkEof();
+			if (currentTick >= state.endTick && !state.completed) {
+				gameplay->video->Remove(item.first);
+				state.AdvanceTo(currentTick);
+			}
 		}
 		for (auto it = classUp->abcBindings.begin();
 			it != classUp->abcBindings.end();) {
@@ -356,6 +367,7 @@ namespace Kotonoha {
 		abcBindings.clear();
 		voiceActivity.clear();
 		gp->video->Reset();
+		movieStates.clear();
 		gp->image->Reset();
 		gp->audio->RemoveMedia(nullptr);
 		voiceMedia.clear();

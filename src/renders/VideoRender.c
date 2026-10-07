@@ -4,10 +4,6 @@ static inline Uint64 u64_abs_diff(Uint64 a, Uint64 b) {
 	return (a > b) ? (a - b) : (b - a);
 }
 
-static inline Uint64 Kotonoha_OrsSceneMsToFrame(Uint64 sceneMs) {
-	return 1 + (sceneMs * 24) / 1000;
-}
-
 // Inicializa o contexto de hardware
 static bool initializeHwContext(struct Kotonoha_videoData* instance) {
 	instance->hwCtx =
@@ -49,6 +45,8 @@ static void Kotonoha_VideoSeek(struct Kotonoha_videoData* instance, Uint64 timeM
 
 	instance->videoTime = timeMs;
 	instance->lastTime = timeMs;
+	instance->demuxEof = false;
+	instance->decoderEof = false;
 }
 
 static void Kotonoha_VideoEnsureSync(struct Kotonoha_videoData* instance,
@@ -56,6 +54,8 @@ static void Kotonoha_VideoEnsureSync(struct Kotonoha_videoData* instance,
 	bool forceOnOpen) {
 	if (!instance)
 		return;
+	if (instance->decoderEof && !forceOnOpen)
+		return; // Keep the terminal texture; EOF does not imply a media restart.
 
 	if (forceOnOpen) {
 		Kotonoha_VideoSeek(instance, currentTimeMs);
@@ -69,6 +69,8 @@ static void Kotonoha_VideoEnsureSync(struct Kotonoha_videoData* instance,
 
 // Renderiza/decodifica até obter um frame atual
 static bool renderVideo(struct Kotonoha_videoData* instance, Uint64 currentTime) {
+	if (instance->decoderEof)
+		return false;
 	AVPacket packet = { 0 };
 	int response;
 	bool hasNewFrame = false;
@@ -105,6 +107,7 @@ static bool renderVideo(struct Kotonoha_videoData* instance, Uint64 currentTime)
 			// precisa alimentar mais packets
 		}
 		else if (response == AVERROR_EOF) {
+			instance->decoderEof = true;
 			hasNewFrame = false;
 			break;
 		}
@@ -115,9 +118,14 @@ static bool renderVideo(struct Kotonoha_videoData* instance, Uint64 currentTime)
 			break;
 		}
 
+		if (instance->demuxEof) {
+			instance->decoderEof = true;
+			break;
+		}
 		response = av_read_frame(instance->pFormatCtx, &packet);
 		if (response < 0) {
 			if (response == AVERROR_EOF) {
+				instance->demuxEof = true;
 				avcodec_send_packet(instance->pCodecCtx, NULL);
 			}
 			hasNewFrame = false;
@@ -140,8 +148,10 @@ static bool renderVideo(struct Kotonoha_videoData* instance, Uint64 currentTime)
 		}
 	}
 
-	if (!hasNewFrame)
+	if (!hasNewFrame) {
+		av_frame_free(&instance->pFrame);
 		return false;
+	}
 
 	return true;
 }
@@ -194,8 +204,7 @@ struct Kotonoha_videoData* Kotonoha_VideoRenderInit(const char* filename,
 	struct Kotonoha_time* time,
 	Uint64 startTime,
 	Uint64 endTime,
-	bool useOrsFrameTimeline,
-	Uint64 orsEndFrame) {
+	Kotonoha_SceneTick endTick) {
 	struct Kotonoha_videoData* videoInstance =
 		(struct Kotonoha_videoData*)SDL_calloc(1, sizeof(struct Kotonoha_videoData));
 	if (!videoInstance) {
@@ -215,8 +224,7 @@ struct Kotonoha_videoData* Kotonoha_VideoRenderInit(const char* filename,
 	videoInstance->endTime = endTime;
 	videoInstance->videoTime = 0;
 	videoInstance->lastTime = 0;
-	videoInstance->useOrsFrameTimeline = useOrsFrameTimeline;
-	videoInstance->orsEndFrame = orsEndFrame;
+	videoInstance->endTick = endTick;
 
 	bool inRange;
 	Sint64 diff;
@@ -239,7 +247,8 @@ void Kotonoha_VideoRenderShutdown(struct Kotonoha_videoData** instance) {
 		return;
 	struct Kotonoha_videoData* videoData = *instance;
 	if (videoData->hwCtx && videoData->hwCtx->deviceRef) {
-		av_buffer_unref(&videoData->pCodecCtx->hw_device_ctx);
+		if (videoData->pCodecCtx)
+			av_buffer_unref(&videoData->pCodecCtx->hw_device_ctx);
 		av_buffer_unref(&videoData->hwCtx->deviceRef);
 	}
 	if (videoData->hwCtx) {
@@ -269,14 +278,10 @@ enum Kotonoha_Scene_Status Kotonoha_VideoRenderProcess(void* userData,
 	if (!instance)
 		return KOTONOHA_SCENE_NULL;
 
-	// The original School Days controller checks the scene frame boundary
-	// before promoting the terminal decoded frame.
-	if (instance->useOrsFrameTimeline) {
-		const Uint64 sceneMs = Kotonoha_timeGet(instance->time);
-		if (Kotonoha_OrsSceneMsToFrame(sceneMs) >= instance->orsEndFrame) {
-			return KOTONOHA_SCENE_COMPLETE;
-		}
-	}
+	// Event END governs this decoder, while Next alone governs the scene.
+	if (Kotonoha_MillisecondsToSceneTick(Kotonoha_timeGet(instance->time)) >=
+		instance->endTick)
+		return KOTONOHA_SCENE_COMPLETE;
 
 	bool inRange;
 	Sint64 diff;

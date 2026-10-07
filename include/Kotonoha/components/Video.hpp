@@ -2,6 +2,7 @@
 #include <vector>
 
 extern "C" {
+#include <Kotonoha/parsers/Ors.h>
 #include <Kotonoha/Kotonoha.h>
 #include <Kotonoha/renders/VideoRender.h>
 #include <Kotonoha/utils/Time.h>
@@ -13,8 +14,12 @@ namespace Kotonoha {
 class Video {
 private:
   Kotonoha_time *timeManager = nullptr;
-  std::vector<Kotonoha_videoData *> videos =
-      std::vector<Kotonoha_videoData *>();
+  struct Item {
+    const Kotonoha_orsEvent* event = nullptr;
+    Kotonoha_videoData* decoder = nullptr;
+    bool active = false;
+  };
+  std::vector<Item> videos;
   SDL_Mutex *lock = nullptr;
 
 public:
@@ -22,9 +27,10 @@ public:
 
   Video(Kotonoha_time *timeManager);
 
-  bool Register(const char *path, Uint64 startTime, Uint64 endTime,
-                bool useOrsFrameTimeline = false,
-                Uint64 orsEndFrame = 0);
+  bool Prepare(const Kotonoha_orsEvent* event, const char* path);
+  bool Activate(const Kotonoha_orsEvent* event);
+  bool IsEof(const Kotonoha_orsEvent* event);
+  void Remove(const Kotonoha_orsEvent* event);
 
   static Kotonoha_Scene_Status Render(KOTONOHA_SCENE_CALL);
 
