@@ -208,6 +208,22 @@ if((KOTONOHA_ROUTER_TESTS OR KOTONOHA_ORS_PARSER_TESTS) AND NOT ANDROID)
     target_link_libraries(SchoolDaysAudioEventTest PRIVATE SDL3::SDL3)
     set_target_properties(SchoolDaysAudioEventTest PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
     add_test(NAME SchoolDaysAudioEventTest COMMAND SchoolDaysAudioEventTest)
+
+    add_executable(SchoolDaysBgmEventTest
+        tests/SchoolDaysBgmEventTest.cpp
+        src/components/Audio.cpp
+        src/components/Sound.cpp
+        src/renders/AudioRender.c
+        src/utils/FFmpeg.c
+        src/utils/Time.c
+    )
+    target_include_directories(SchoolDaysBgmEventTest PRIVATE
+        ${KOTONOHA_INCLUDE_DIR} ${FFMPEG_INCLUDE_DIRS})
+    target_link_libraries(SchoolDaysBgmEventTest PRIVATE
+        SDL3::SDL3 PkgConfig::FFMPEG)
+    set_target_properties(SchoolDaysBgmEventTest PROPERTIES
+        CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
+    add_test(NAME SchoolDaysBgmEventTest COMMAND SchoolDaysBgmEventTest)
 endif()
 
 if(KOTONOHA_ROUTER_TESTS AND NOT ANDROID)

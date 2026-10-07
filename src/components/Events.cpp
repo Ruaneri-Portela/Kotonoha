@@ -1,5 +1,5 @@
-#include <cctype>
 #include <Kotonoha/components/Events.hpp>
+#include <Kotonoha/SchoolDaysBgmAssetResolver.hpp>
 #include <Kotonoha/Gameplay.hpp>
 #include <SDL3/SDL.h>
 #include <sstream>
@@ -34,16 +34,6 @@ namespace Kotonoha {
 			return result;
 		}
 
-		static std::string ToUpper(const std::string& str) {
-			std::string upperStr;
-			upperStr.reserve(str.size());
-
-			for (unsigned char c : str) {
-				upperStr += static_cast<char>(std::toupper(c));
-			}
-
-			return upperStr;
-		}
 
 	} // namespace
 
@@ -132,34 +122,23 @@ namespace Kotonoha {
 			case PLAY_BGM:
 				if (event->data.path_end->path != nullptr &&
 					SDL_strlen(event->data.path_end->path) > 0) {
-					std::string str = ToUpper(event->data.path_end->path);
-					gameplay->audio->AddMedia(
-						BuildString(useExtension ? str.c_str()
-							: event->data.path_end->path,
-							assetsPath,
-							useExtension ? "_LOOP.OGG" : "")
-						.c_str(),
-						startMs,
-						endMs,
-						true,
-						"BGM");
+					const auto resources = SchoolDaysBgmResources::Normal(
+						event->data.path_end->path);
+					const std::string intro = ResolveSchoolDaysBgmAsset(assetsPath, resources.intro);
+					const std::string loop = ResolveSchoolDaysBgmAsset(assetsPath, resources.loop);
+					classUp->normalBgmMedia[event] = gameplay->audio->AddIntroLoopMedia(
+						intro.c_str(), loop.c_str(), startMs, endMs);
 				}
 				break;
 
 			case END_BGM:
 				if (event->data.path_end->path != nullptr &&
 					SDL_strlen(event->data.path_end->path) > 0) {
-					std::string str = ToUpper(event->data.path_end->path);
-					gameplay->audio->AddMedia(
-						BuildString(useExtension ? str.c_str()
-							: event->data.path_end->path,
-							assetsPath,
-							useExtension ? ".OGG" : "")
-						.c_str(),
-						startMs,
-						endMs,
-						true,
-						"BGM");
+					const auto resources = SchoolDaysBgmResources::Ending(
+						event->data.path_end->path);
+					const std::string path = ResolveSchoolDaysBgmAsset(assetsPath, resources.oneShot);
+					classUp->endingBgmMedia[event] = gameplay->audio->AddMedia(
+						path.c_str(), startMs, endMs, false, "BGM", false);
 				}
 				break;
 
@@ -267,6 +246,44 @@ namespace Kotonoha {
 				if (media != nullptr)
 					gameplay->audio->SetMediaEnabled(media, true);
 			}
+			else if (event->command == PLAY_BGM || event->command == END_BGM) {
+				const bool normal = event->command == PLAY_BGM;
+				auto& mediaMap = normal ? classUp->normalBgmMedia : classUp->endingBgmMedia;
+				const auto resources = normal
+					? SchoolDaysBgmResources::Normal(event->data.path_end->path)
+					: SchoolDaysBgmResources::Ending(event->data.path_end->path);
+				const auto previous = normal
+					? classUp->bgmSlots.ReplaceNormal(event, resources)
+					: classUp->bgmSlots.ReplaceEnding(event, resources);
+				if (previous.event != nullptr) {
+					auto old = mediaMap.find(previous.event);
+					if (old != mediaMap.end()) {
+						gameplay->audio->RemoveMedia(old->second);
+						mediaMap.erase(old);
+					}
+				}
+				auto found = mediaMap.find(event);
+				if (found != mediaMap.end() && found->second != nullptr)
+					gameplay->audio->SetMediaEnabled(found->second, true);
+			}
+		}
+		const auto ending = classUp->bgmSlots.Ending();
+		if (ending.event != nullptr && currentTick >= ending.event->endTick) {
+			auto found = classUp->endingBgmMedia.find(ending.event);
+			if (found != classUp->endingBgmMedia.end()) {
+				gameplay->audio->RemoveMedia(found->second);
+				classUp->endingBgmMedia.erase(found);
+			}
+			classUp->bgmSlots.ClearEnding();
+		}
+		const auto normal = classUp->bgmSlots.Normal();
+		if (normal.event != nullptr && currentTick >= normal.event->endTick) {
+			auto found = classUp->normalBgmMedia.find(normal.event);
+			if (found != classUp->normalBgmMedia.end()) {
+				gameplay->audio->RemoveMedia(found->second);
+				classUp->normalBgmMedia.erase(found);
+			}
+			classUp->bgmSlots.ClearNormal();
 		}
 
 		SDL_UnlockMutex(classUp->eventMutex);
@@ -287,6 +304,9 @@ namespace Kotonoha {
 		voiceMedia.clear();
 		seMedia.clear();
 		seSlots.Clear();
+		normalBgmMedia.clear();
+		endingBgmMedia.clear();
+		bgmSlots.Clear();
 
 		if (gp->tm != nullptr && Kotonoha_timeIsStarted(gp->tm)) {
 			const Uint64 actualTime = Kotonoha_timeGet(gp->tm);
@@ -295,6 +315,10 @@ namespace Kotonoha {
 			timeline.RebuildActiveAt(target);
 			const auto activeSe = SchoolDaysSeSlots::ActiveEventsAt(
 				&eventsFromScript, actualTime);
+			const auto activeNormal = SchoolDaysBgmSlots::ActiveAt(
+				&eventsFromScript, target, PLAY_BGM);
+			const auto activeEnding = SchoolDaysBgmSlots::ActiveAt(
+				&eventsFromScript, target, END_BGM);
 			for (auto* event = eventsFromScript.data; event != nullptr;
 				event = event->next) {
 				event->eventPrepared =
@@ -303,6 +327,11 @@ namespace Kotonoha {
 					SchoolDaysSeSlots::Valid(event->data.play_se->a) &&
 					event->startTick <= target &&
 					activeSe[static_cast<size_t>(event->data.play_se->a)] != event) {
+					event->eventPrepared = true;
+					event->eventTouched = true;
+				}
+				if ((event->command == PLAY_BGM && event != activeNormal) ||
+					(event->command == END_BGM && event != activeEnding)) {
 					event->eventPrepared = true;
 					event->eventTouched = true;
 				}

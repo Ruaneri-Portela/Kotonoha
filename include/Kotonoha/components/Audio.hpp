@@ -25,6 +25,9 @@ public:
                                         Uint64 end, bool inLoop,
                                         const char *channel,
                                         bool enabledAtRegistration = true);
+  struct Kotonoha_audioDecode *AddIntroLoopMedia(const char *introPath,
+                                                 const char *loopPath,
+                                                 Uint64 start, Uint64 end);
   void SetMediaEnabled(struct Kotonoha_audioDecode *mediaPtr, bool enabled);
   void RemoveMedia(struct Kotonoha_audioDecode *mediaPtr);
   static int RenderMedia(void *data, Uint8 **target, int *size);

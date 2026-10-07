@@ -21,6 +21,9 @@ struct Kotonoha_audioDecode {
   int executions;
   Kotonoha_time **tm;
   void *dataGeneric;
+  /* Owned by this decode only for a School Days intro/loop BGM pipe. */
+  struct Kotonoha_audioDecode *loopMedia;
+  bool playingLoop;
 };
 
 void genWhiteNoise(void *data, Uint8 **target, size_t *size);

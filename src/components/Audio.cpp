@@ -87,6 +87,28 @@ namespace Kotonoha {
 			SDL_SetAtomicInt(&mediaPtr->enabled, enabled ? 1 : 0);
 	}
 
+	Kotonoha_audioDecode* Audio::AddIntroLoopMedia(const char* introPath,
+		const char* loopPath, Uint64 start, Uint64 end) {
+		if (introPath == nullptr || loopPath == nullptr || soundCtx == nullptr)
+			return nullptr;
+		Sound::Channel* channel = soundCtx->GetChannelByName("BGM");
+		if (channel == nullptr) return nullptr;
+		/* The pipe is disabled until the ORS START is dispatched. */
+		Kotonoha_audioDecode* intro = AddMedia(
+			introPath, start, end, false, "BGM", false);
+		if (intro == nullptr) return nullptr;
+		Kotonoha_audioDecode* loop = Kotonoha_AudioInit(loopPath, channel->GetSpecs());
+		if (loop == nullptr) {
+			RemoveMedia(intro); /* No undocumented loop-only fallback. */
+			return nullptr;
+		}
+		loop->tm = &timeCtx;
+		loop->start = start;
+		loop->end = end;
+		intro->loopMedia = loop;
+		return intro;
+	}
+
 	void Audio::RemoveMedia(struct Kotonoha_audioDecode* mediaPtr) {
 		for (auto mediaIt = mediaObjects.begin(); mediaIt != mediaObjects.end();) {
 			Sound::Channel* channel = std::get<0>(*mediaIt);
@@ -145,11 +167,22 @@ namespace Kotonoha {
 			return 0;
 		}
 
-		const int rt = Kotonoha_AudioRender(instance, target, size);
-		if (rt == -1 && instance->inLoop) {
+		Kotonoha_audioDecode* current = instance->playingLoop
+			? instance->loopMedia : instance;
+		int rt = Kotonoha_AudioRender(current, target, size);
+		if (rt == 1 && instance->loopMedia != nullptr) {
+			/* Decoder EOF, not an ORS timer, switches intro to loop. */
+			if (!instance->playingLoop) {
+				instance->playingLoop = true;
+			} else {
+				Kotonoha_AudioSeek(instance->loopMedia, 0);
+			}
+			instance->loopMedia->start = Kotonoha_timeGet(*instance->tm);
+			rt = Kotonoha_AudioRender(instance->loopMedia, target, size);
+		} else if (rt == -1 && instance->inLoop) {
+			/* Preserve existing non-BGM SE behavior in this gate. */
 			Kotonoha_AudioSeek(instance, instance->lastTime);
 		}
-
 		return rt;
 	}
 
