@@ -17,6 +17,7 @@ struct Kotonoha_audioDecode {
 
   Uint64 start, end, audioTime, lastTime;
   bool inLoop;
+  SDL_AtomicInt enabled;
   int executions;
   Kotonoha_time **tm;
   void *dataGeneric;

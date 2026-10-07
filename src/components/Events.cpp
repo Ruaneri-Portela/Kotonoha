@@ -4,7 +4,6 @@
 #include <SDL3/SDL.h>
 #include <sstream>
 #include <string>
-#include <tuple>
 #include <vector>
 
 namespace Kotonoha {
@@ -46,15 +45,6 @@ namespace Kotonoha {
 			return upperStr;
 		}
 
-		static void DestroyEventManagerParams(void** parms) {
-			if (parms == nullptr) {
-				return;
-			}
-
-			delete static_cast<std::vector<std::tuple<std::string, int>>*>(parms[3]);
-			delete static_cast<std::string*>(parms[4]);
-			SDL_free(parms);
-		}
 	} // namespace
 
 	int Event::EventManager(void* data) {
@@ -66,18 +56,11 @@ namespace Kotonoha {
 		auto* gameplay = static_cast<Gameplay*>(parms[0]);
 		auto* gameCtx = static_cast<struct Kotonoha_Game*>(parms[1]);
 		auto* classUp = static_cast<Event*>(parms[2]);
-		auto* object =
-			static_cast<std::vector<std::tuple<std::string, int>>*>(parms[3]);
-		auto* lastCreateBg = static_cast<std::string*>(parms[4]);
-
 		if (gameplay == nullptr || gameCtx == nullptr || classUp == nullptr ||
-			object == nullptr || lastCreateBg == nullptr ||
 			classUp->eventMutex == nullptr) {
-			DestroyEventManagerParams(parms);
 			return -1;
 		}
 
-		std::string prevLastCreateBg = *lastCreateBg;
 		bool useExtension = (gameCtx->assetsPath != nullptr);
 		const char* assetsPath = useExtension ? gameCtx->assetsPath : "";
 
@@ -107,17 +90,13 @@ namespace Kotonoha {
 			const Uint64 endMs =
 				Kotonoha_SceneTickToMillisecondsCeil(event->endTick);
 
-			if (*lastCreateBg != prevLastCreateBg) {
-				object->clear();
-				prevLastCreateBg = *lastCreateBg;
-			}
 			if (endMs < actualTime) continue;
 
 			switch (event->command) {
 			case PLAY_VOICE: {
 				if (event->data.play_voice->path != nullptr &&
 					SDL_strlen(event->data.play_voice->path) > 0) {
-					gameplay->audio->AddMedia(
+					classUp->voiceMedia[event] = gameplay->audio->AddMedia(
 						BuildString(event->data.play_voice->path,
 							assetsPath,
 							useExtension ? ".OGG" : "")
@@ -125,51 +104,20 @@ namespace Kotonoha {
 						startMs,
 						endMs + 1000,
 						false,
-						"Voice");
-
-					if (!lastCreateBg->empty() &&
-						event->data.play_voice->character_short != nullptr) {
-						std::string character =
-							ToUpper(event->data.play_voice->character_short);
-						int searchImgId = 0;
-						bool found = false;
-
-						for (auto& it : *object) {
-							if (std::get<0>(it) == character) {
-								++std::get<1>(it);
-								searchImgId = std::get<1>(it);
-								found = true;
-								break;
-							}
-						}
-
-						if (!found) {
-							object->emplace_back(character, 0);
-						}
-
-						const char suffix = static_cast<char>('A' + searchImgId);
-						const std::string pathImg = *lastCreateBg + character + "." + suffix;
-						const std::string path =
-							BuildString(pathImg.c_str(), assetsPath,
-								useExtension ? ".PNG" : "");
-
-						SDL_IOStream* file = SDL_IOFromFile(path.c_str(), "rb");
-						if (file != nullptr) {
-							SDL_CloseIO(file);
-							gameplay->image->Register(path.c_str(),
-								startMs,
-								endMs,
-								1);
-						}
-					}
+						"Voice", false);
 				}
 				break;
 			}
 
 			case PLAY_SE:
+				if (!SchoolDaysSeSlots::Valid(event->data.play_se->a)) {
+					SDL_Log("[SD-AUDIO] Ignoring out-of-range SE slot %llu",
+						static_cast<unsigned long long>(event->data.play_se->a));
+					break;
+				}
 				if (event->data.play_se->path != nullptr &&
 					SDL_strlen(event->data.play_se->path) > 0) {
-					gameplay->audio->AddMedia(
+					classUp->seMedia[event] = gameplay->audio->AddMedia(
 						BuildString(event->data.play_se->path,
 							assetsPath,
 							useExtension ? ".OGG" : "")
@@ -177,7 +125,7 @@ namespace Kotonoha {
 						startMs,
 						endMs,
 						true,
-						"Se");
+						"Se", false);
 				}
 				break;
 
@@ -248,7 +196,6 @@ namespace Kotonoha {
 			case CREATE_BG:
 				if (event->data.create_bg->path != nullptr &&
 					SDL_strlen(event->data.create_bg->path) > 0) {
-					*lastCreateBg = event->data.create_bg->path;
 					gameplay->image->Register(
 						BuildString(event->data.create_bg->path,
 							assetsPath,
@@ -281,7 +228,46 @@ namespace Kotonoha {
 				break;
 			}
 		}
-		classUp->timeline.AdvanceTo(currentTick);
+		for (auto* event : classUp->timeline.AdvanceTo(currentTick)) {
+			if (event->command == PLAY_VOICE) {
+				const bool allowed = SchoolDaysVoiceAllowed(
+					event->data.play_voice->a,
+					Kotonoha_IsMenVoiceEnabled(gameCtx));
+				auto found = classUp->voiceMedia.find(event);
+				if (found == classUp->voiceMedia.end() || found->second == nullptr)
+					continue; /* Missing media never blocks the timeline. */
+				if (allowed) {
+					gameplay->audio->SetMediaEnabled(found->second, true);
+					SDL_LogDebug(SDL_LOG_CATEGORY_AUDIO,
+						"[SD-AUDIO] Voice activate key=%s",
+						SchoolDaysVoiceAnimationKey(event));
+				}
+				else {
+					gameplay->audio->RemoveMedia(found->second);
+					classUp->voiceMedia.erase(found);
+					SDL_LogDebug(SDL_LOG_CATEGORY_AUDIO,
+						"[SD-AUDIO] Voice blocked MenVoice");
+				}
+			}
+			else if (event->command == PLAY_SE) {
+				const Uint64 slot = event->data.play_se->a;
+				if (!SchoolDaysSeSlots::Valid(slot)) continue;
+				auto found = classUp->seMedia.find(event);
+				Kotonoha_audioDecode* media =
+					found == classUp->seMedia.end() ? nullptr : found->second;
+				SchoolDaysSeSlots::Slot previous;
+				classUp->seSlots.Replace(slot, event, media, &previous);
+				if (previous.media != nullptr) {
+					gameplay->audio->RemoveMedia(previous.media);
+					classUp->seMedia.erase(previous.event);
+					SDL_LogDebug(SDL_LOG_CATEGORY_AUDIO,
+						"[SD-AUDIO] SE slot replace slot=%llu",
+						static_cast<unsigned long long>(slot));
+				}
+				if (media != nullptr)
+					gameplay->audio->SetMediaEnabled(media, true);
+			}
+		}
 
 		SDL_UnlockMutex(classUp->eventMutex);
 		return 0;
@@ -298,16 +284,28 @@ namespace Kotonoha {
 		gp->video->Reset();
 		gp->image->Reset();
 		gp->audio->RemoveMedia(nullptr);
+		voiceMedia.clear();
+		seMedia.clear();
+		seSlots.Clear();
 
 		if (gp->tm != nullptr && Kotonoha_timeIsStarted(gp->tm)) {
 			const Uint64 actualTime = Kotonoha_timeGet(gp->tm);
 			const Kotonoha_SceneTick target =
 				Kotonoha_MillisecondsToSceneTick(actualTime);
 			timeline.RebuildActiveAt(target);
+			const auto activeSe = SchoolDaysSeSlots::ActiveEventsAt(
+				&eventsFromScript, actualTime);
 			for (auto* event = eventsFromScript.data; event != nullptr;
 				event = event->next) {
 				event->eventPrepared =
 					Kotonoha_SceneTickToMillisecondsCeil(event->endTick) <= actualTime;
+				if (event->command == PLAY_SE && event->data.play_se != nullptr &&
+					SchoolDaysSeSlots::Valid(event->data.play_se->a) &&
+					event->startTick <= target &&
+					activeSe[static_cast<size_t>(event->data.play_se->a)] != event) {
+					event->eventPrepared = true;
+					event->eventTouched = true;
+				}
 			}
 		}
 		else {
@@ -403,7 +401,7 @@ namespace Kotonoha {
 			throw std::runtime_error("Failed to create event mutex");
 		}
 
-		void** parms = static_cast<void**>(SDL_malloc(sizeof(void*) * 5));
+		void** parms = static_cast<void**>(SDL_malloc(sizeof(void*) * 3));
 		if (parms == nullptr) {
 			Kotonoha_OrsClean(&eventsFromScript);
 			SDL_DestroyMutex(eventMutex);
@@ -414,16 +412,6 @@ namespace Kotonoha {
 		parms[0] = gameplay;
 		parms[1] = gameCtx;
 		parms[2] = this;
-		parms[3] = new std::vector<std::tuple<std::string, int>>();
-		parms[4] = new std::string();
-
-		if (parms[3] == nullptr || parms[4] == nullptr) {
-			DestroyEventManagerParams(parms);
-			Kotonoha_OrsClean(&eventsFromScript);
-			SDL_DestroyMutex(eventMutex);
-			eventMutex = nullptr;
-			throw std::runtime_error("Failed to allocate EventManager state");
-		}
 
 		SDL_LockMutex(gameCtx->taskLock);
 		auto* tasks =

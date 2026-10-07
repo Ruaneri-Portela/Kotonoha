@@ -23,7 +23,9 @@ public:
   Audio(Sound *soundCtx, struct Kotonoha_time *timeCtx);
   struct Kotonoha_audioDecode *AddMedia(const char *path, Uint64 start,
                                         Uint64 end, bool inLoop,
-                                        const char *channel);
+                                        const char *channel,
+                                        bool enabledAtRegistration = true);
+  void SetMediaEnabled(struct Kotonoha_audioDecode *mediaPtr, bool enabled);
   void RemoveMedia(struct Kotonoha_audioDecode *mediaPtr);
   static int RenderMedia(void *data, Uint8 **target, int *size);
   ~Audio();

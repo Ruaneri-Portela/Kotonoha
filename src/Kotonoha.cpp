@@ -64,6 +64,7 @@ namespace Kotonoha {
 	Kotonoha::Kotonoha(int argc, char* argv[], SDL_AppResult* status,
 		struct Kotonoha_Game& context)
 		: gameContext(context) {
+		Kotonoha_SetMenVoiceEnabled(&gameContext, true);
 		if (status == nullptr) {
 			return;
 		}
@@ -242,8 +243,6 @@ namespace Kotonoha {
 				}
 
 				if (removeTask) {
-					delete static_cast<std::vector<std::tuple<std::string, int>>*>(static_cast<void**>(taskData)[3]);
-					delete static_cast<std::string*>(static_cast<void**>(taskData)[4]);
 					SDL_free(taskData);
 					it = processPoolTasks.erase(it);
 				}

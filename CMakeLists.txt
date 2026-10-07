@@ -199,6 +199,15 @@ if((KOTONOHA_ROUTER_TESTS OR KOTONOHA_ORS_PARSER_TESTS) AND NOT ANDROID)
     target_link_libraries(SchoolDaysSceneTimelineTest PRIVATE SDL3::SDL3)
     set_target_properties(SchoolDaysSceneTimelineTest PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
     add_test(NAME SchoolDaysSceneTimelineTest COMMAND SchoolDaysSceneTimelineTest)
+
+    add_executable(SchoolDaysAudioEventTest
+        tests/SchoolDaysAudioEventTest.cpp
+        src/parsers/Ors.c
+    )
+    target_include_directories(SchoolDaysAudioEventTest PRIVATE ${KOTONOHA_INCLUDE_DIR})
+    target_link_libraries(SchoolDaysAudioEventTest PRIVATE SDL3::SDL3)
+    set_target_properties(SchoolDaysAudioEventTest PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
+    add_test(NAME SchoolDaysAudioEventTest COMMAND SchoolDaysAudioEventTest)
 endif()
 
 if(KOTONOHA_ROUTER_TESTS AND NOT ANDROID)

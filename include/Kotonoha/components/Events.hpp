@@ -4,6 +4,8 @@
 #include <Kotonoha/components/Prompt.hpp>
 #include <Kotonoha/components/Video.hpp>
 #include <Kotonoha/SchoolDaysSceneTimeline.hpp>
+#include <Kotonoha/SchoolDaysAudioEventState.hpp>
+#include <unordered_map>
 extern "C" {
 #include <Kotonoha/parsers/Ors.h>
 #include <Kotonoha/renders/TextRender.h>
@@ -14,6 +16,9 @@ class Event {
 private:
   Kotonoha_orsData eventsFromScript;
   SchoolDaysSceneTimeline timeline;
+  SchoolDaysSeSlots seSlots;
+  std::unordered_map<const Kotonoha_orsEvent*, Kotonoha_audioDecode*> voiceMedia;
+  std::unordered_map<const Kotonoha_orsEvent*, Kotonoha_audioDecode*> seMedia;
   static int EventManager(void *data);
   SDL_Mutex *eventMutex = nullptr;
 

@@ -49,9 +49,23 @@ struct Kotonoha_Game {
   bool showFps, showTimestamp, paused, back, next;
   int vsync, scene;
 
+  /* Persistent School Days runtime setting; UI wiring is a later gate. */
+  SDL_AtomicInt schoolDaysMenVoiceEnabled;
+
   struct Kotonoha_eventStack eventQueu;
   void *processPoolTasks;
 };
+
+static inline bool Kotonoha_IsMenVoiceEnabled(struct Kotonoha_Game *game) {
+  return game != NULL &&
+         SDL_GetAtomicInt(&game->schoolDaysMenVoiceEnabled) != 0;
+}
+
+static inline void Kotonoha_SetMenVoiceEnabled(struct Kotonoha_Game *game,
+                                               bool enabled) {
+  if (game != NULL)
+    SDL_SetAtomicInt(&game->schoolDaysMenVoiceEnabled, enabled ? 1 : 0);
+}
 
 #define KOTONOHA_SCENE_CALL                                                    \
   SDL_Window *window, SDL_Renderer *render,                                    \

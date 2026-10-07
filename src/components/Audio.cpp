@@ -9,7 +9,8 @@ namespace Kotonoha {
 		Uint64 start,
 		Uint64 end,
 		bool inLoop,
-		const char* channel) {
+		const char* channel,
+		bool enabledAtRegistration) {
 		if (soundCtx == nullptr || timeCtx == nullptr) {
 			SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
 				"Invalid audio context.");
@@ -64,6 +65,7 @@ namespace Kotonoha {
 		newAudioDecode->end = end;
 		newAudioDecode->dataGeneric = static_cast<void*>(this);
 		newAudioDecode->inLoop = inLoop;
+		SDL_SetAtomicInt(&newAudioDecode->enabled, enabledAtRegistration ? 1 : 0);
 
 		Sound::Channel::Pipe* newPipe =
 			targetChannel->AddPipe(RenderMedia, Kotonoha_AudioFree, newAudioDecode);
@@ -77,6 +79,12 @@ namespace Kotonoha {
 
 		audioDecodesPipe->emplace_back(newAudioDecode, newPipe);
 		return newAudioDecode;
+	}
+
+	void Audio::SetMediaEnabled(struct Kotonoha_audioDecode* mediaPtr,
+		bool enabled) {
+		if (mediaPtr != nullptr)
+			SDL_SetAtomicInt(&mediaPtr->enabled, enabled ? 1 : 0);
 	}
 
 	void Audio::RemoveMedia(struct Kotonoha_audioDecode* mediaPtr) {
@@ -117,6 +125,7 @@ namespace Kotonoha {
 
 		Kotonoha_audioDecode* instance =
 			static_cast<Kotonoha_audioDecode*>(data);
+		if (SDL_GetAtomicInt(&instance->enabled) == 0) return 0;
 
 		if (instance->tm == nullptr || *instance->tm == nullptr) {
 			return 0;
