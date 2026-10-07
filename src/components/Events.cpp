@@ -46,50 +46,6 @@ namespace Kotonoha {
 			return upperStr;
 		}
 
-		static bool DecodeOrs24FpsTimestamp(
-			Uint64 packed,
-			bool allowParserNudge,
-			Uint64* frame1,
-			Uint64* msCeil) {
-			if (frame1 == nullptr || msCeil == nullptr) {
-				return false;
-			}
-
-			auto decodeCandidate = [](Uint64 value,
-				Uint64* outFrame1,
-				Uint64* outMsCeil) -> bool {
-				const Uint64 minutes = value / 60000;
-				const Uint64 rem = value % 60000;
-				const Uint64 seconds = rem / 1000;
-				const Uint64 tail = rem % 1000;
-
-				if (seconds >= 60 || (tail % 10) != 0) {
-					return false;
-				}
-
-				const Uint64 frameField = tail / 10;
-				if (frameField >= 24) {
-					return false;
-				}
-
-				const Uint64 zeroBased =
-					(minutes * 60 + seconds) * 24 + frameField;
-
-				*outFrame1 = zeroBased + 1;
-
-				// First integer millisecond at or after the 24-fps boundary.
-				*outMsCeil = (zeroBased * 1000 + 23) / 24;
-				return true;
-			};
-
-			if (decodeCandidate(packed, frame1, msCeil)) {
-				return true;
-			}
-
-			return allowParserNudge && packed > 0 &&
-				decodeCandidate(packed - 1, frame1, msCeil);
-		}
-
 		static void DestroyEventManagerParams(void** parms) {
 			if (parms == nullptr) {
 				return;
@@ -131,24 +87,31 @@ namespace Kotonoha {
 			return 0;
 		}
 
-		for (auto* event = classUp->eventsFromScript.data; event != nullptr;
+		const Uint64 actualTime = Kotonoha_timeGet(gameplay->tm);
+		const Kotonoha_SceneTick currentTick =
+			Kotonoha_MillisecondsToSceneTick(actualTime);
+		/* Registration may prepare media early; semantic dispatch stays on the
+		   real scene tick. The old runtime used a 10-second preparation window. */
+		Kotonoha_SceneTick preparationLimit =
+			Kotonoha_MillisecondsToSceneTick(actualTime + 10000);
+		const SchoolDaysOptionalTick nextTick = classUp->timeline.NextTick();
+		if (nextTick && preparationLimit > *nextTick)
+			preparationLimit = *nextTick;
+		for (auto* event = classUp->eventsFromScript.data;
+			event != nullptr && event->startTick <= preparationLimit;
 			event = event->next) {
-			const Uint64 actualTime = Kotonoha_timeGet(gameplay->tm);
-
-			if (actualTime + 10000 < event->start || event->eventTouched) {
-				continue;
-			}
-
-			event->eventTouched = true;
+			if (event->eventPrepared) continue;
+			event->eventPrepared = true;
+			const Uint64 startMs =
+				Kotonoha_SceneTickToMillisecondsCeil(event->startTick);
+			const Uint64 endMs =
+				Kotonoha_SceneTickToMillisecondsCeil(event->endTick);
 
 			if (*lastCreateBg != prevLastCreateBg) {
 				object->clear();
 				prevLastCreateBg = *lastCreateBg;
 			}
-
-			if (event->end < actualTime) {
-				continue;
-			}
+			if (endMs < actualTime) continue;
 
 			switch (event->command) {
 			case PLAY_VOICE: {
@@ -159,8 +122,8 @@ namespace Kotonoha {
 							assetsPath,
 							useExtension ? ".OGG" : "")
 						.c_str(),
-						event->start,
-						event->end + 1000,
+						startMs,
+						endMs + 1000,
 						false,
 						"Voice");
 
@@ -194,8 +157,8 @@ namespace Kotonoha {
 						if (file != nullptr) {
 							SDL_CloseIO(file);
 							gameplay->image->Register(path.c_str(),
-								event->start,
-								event->end,
+								startMs,
+								endMs,
 								1);
 						}
 					}
@@ -211,8 +174,8 @@ namespace Kotonoha {
 							assetsPath,
 							useExtension ? ".OGG" : "")
 						.c_str(),
-						event->start,
-						event->end,
+						startMs,
+						endMs,
 						true,
 						"Se");
 				}
@@ -228,8 +191,8 @@ namespace Kotonoha {
 							assetsPath,
 							useExtension ? "_LOOP.OGG" : "")
 						.c_str(),
-						event->start,
-						event->end,
+						startMs,
+						endMs,
 						true,
 						"BGM");
 				}
@@ -245,8 +208,8 @@ namespace Kotonoha {
 							assetsPath,
 							useExtension ? ".OGG" : "")
 						.c_str(),
-						event->start,
-						event->end,
+						startMs,
+						endMs,
 						true,
 						"BGM");
 				}
@@ -260,8 +223,8 @@ namespace Kotonoha {
 							assetsPath,
 							useExtension ? ".WMV" : "")
 						.c_str(),
-						event->start,
-						event->end);
+						startMs,
+						endMs);
 				}
 				break;
 
@@ -273,30 +236,12 @@ namespace Kotonoha {
 							assetsPath,
 							useExtension ? ".WMV" : "");
 
-					Uint64 startFrame = 0;
-					Uint64 endFrame = 0;
-					Uint64 startMs = 0;
-					Uint64 endMs = 0;
-
-					const bool startMapped = DecodeOrs24FpsTimestamp(
-						event->start, true, &startFrame, &startMs);
-					const bool endMapped = DecodeOrs24FpsTimestamp(
-						event->end, false, &endFrame, &endMs);
-
-					if (startMapped && endMapped && endFrame >= startFrame) {
-						gameplay->video->Register(
-							moviePath.c_str(),
-							startMs,
-							endMs,
-							true,
-							endFrame);
-					}
-					else {
-						gameplay->video->Register(
-							moviePath.c_str(),
-							event->start,
-							event->end + 50);
-					}
+					gameplay->video->Register(
+						moviePath.c_str(),
+						startMs,
+						endMs,
+						true,
+						event->endTick + 1);
 				}
 				break;
 
@@ -309,8 +254,8 @@ namespace Kotonoha {
 							assetsPath,
 							useExtension ? ".PNG" : "")
 						.c_str(),
-						event->start,
-						event->end,
+						startMs,
+						endMs,
 						0);
 				}
 				break;
@@ -336,6 +281,7 @@ namespace Kotonoha {
 				break;
 			}
 		}
+		classUp->timeline.AdvanceTo(currentTick);
 
 		SDL_UnlockMutex(classUp->eventMutex);
 		return 0;
@@ -353,12 +299,21 @@ namespace Kotonoha {
 		gp->image->Reset();
 		gp->audio->RemoveMedia(nullptr);
 
-		Uint64 actualTime = Kotonoha_timeGet(gp->tm);
-
-		for (auto* event = this->eventsFromScript.data; event != nullptr;
-			event = event->next) {
-			if (event->end > actualTime)
-				event->eventTouched = false;
+		if (gp->tm != nullptr && Kotonoha_timeIsStarted(gp->tm)) {
+			const Uint64 actualTime = Kotonoha_timeGet(gp->tm);
+			const Kotonoha_SceneTick target =
+				Kotonoha_MillisecondsToSceneTick(actualTime);
+			timeline.RebuildActiveAt(target);
+			for (auto* event = eventsFromScript.data; event != nullptr;
+				event = event->next) {
+				event->eventPrepared =
+					Kotonoha_SceneTickToMillisecondsCeil(event->endTick) <= actualTime;
+			}
+		}
+		else {
+			timeline.Restart();
+			for (auto* event = eventsFromScript.data; event != nullptr;
+				event = event->next) event->eventPrepared = false;
 		}
 
 		SDL_UnlockMutex(eventMutex);
@@ -370,6 +325,10 @@ namespace Kotonoha {
 
 		if (eventsFromScript.size == 0) {
 			throw std::runtime_error("Ors invalid");
+		}
+		timeline.Bind(&eventsFromScript);
+		if (timeline.NextTick()) {
+			lastTime = Kotonoha_SceneTickToMillisecondsCeil(*timeline.NextTick());
 		}
 
 		auto* gp = static_cast<Gameplay*>(gameplay);
@@ -396,8 +355,10 @@ namespace Kotonoha {
 			case PRINT_TEXT: {
 				ass_alloc_event(gp->sb->track);
 				ASS_Event* subtitleEvent = gp->sb->track->events + (gp->sb->track->n_events - 1);
-				subtitleEvent->Start = event->start;
-				subtitleEvent->Duration = event->end - event->start;
+				const Uint64 startMs = Kotonoha_SceneTickToMillisecondsCeil(event->startTick);
+				const Uint64 endMs = Kotonoha_SceneTickToMillisecondsCeil(event->endTick);
+				subtitleEvent->Start = startMs;
+				subtitleEvent->Duration = endMs - startMs;
 				subtitleEvent->Text =
 					SDL_strdup(BuildString(event->data.print_text->text).c_str());
 
@@ -424,15 +385,12 @@ namespace Kotonoha {
 				}
 
 				gp->prompt = new Prompt(
-					options, &gp->promptId, event->start, event->end, gp->tm);
+					options, &gp->promptId,
+					Kotonoha_SceneTickToMillisecondsCeil(event->startTick),
+					Kotonoha_SceneTickToMillisecondsCeil(event->endTick), gp->tm);
 				gp->putPrompt = true;
 				break;
 			}
-
-			case SkipFRAME:
-			case Next:
-				lastTime = event->start;
-				break;
 
 			default:
 				break;
@@ -480,10 +438,14 @@ namespace Kotonoha {
 	bool Event::CheckEnd(void* gameplay) {
 		auto* gp = static_cast<Gameplay*>(gameplay);
 		if (gp == nullptr || gp->tm == nullptr) {
-			return true;
+			return false;
 		}
-
-		return Kotonoha_timeGet(gp->tm) > lastTime;
+		if (eventMutex == nullptr) return false;
+		SDL_LockMutex(eventMutex);
+		const bool done = timeline.ReadyToEnd(Kotonoha_MillisecondsToSceneTick(
+			Kotonoha_timeGet(gp->tm)));
+		SDL_UnlockMutex(eventMutex);
+		return done;
 	}
 
 	Event::~Event() {

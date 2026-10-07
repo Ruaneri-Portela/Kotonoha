@@ -188,6 +188,17 @@ if((KOTONOHA_ROUTER_TESTS OR KOTONOHA_ORS_PARSER_TESTS) AND NOT ANDROID)
     target_link_libraries(OrsParserFidelityTest PRIVATE SDL3::SDL3)
     set_target_properties(OrsParserFidelityTest PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
     add_test(NAME OrsParserFidelityTest COMMAND OrsParserFidelityTest)
+
+    add_executable(SchoolDaysSceneTimelineTest
+        tests/SchoolDaysSceneTimelineTest.cpp
+        src/parsers/Ors.c
+    )
+    target_include_directories(SchoolDaysSceneTimelineTest PRIVATE
+        ${KOTONOHA_INCLUDE_DIR}
+    )
+    target_link_libraries(SchoolDaysSceneTimelineTest PRIVATE SDL3::SDL3)
+    set_target_properties(SchoolDaysSceneTimelineTest PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
+    add_test(NAME SchoolDaysSceneTimelineTest COMMAND SchoolDaysSceneTimelineTest)
 endif()
 
 if(KOTONOHA_ROUTER_TESTS AND NOT ANDROID)

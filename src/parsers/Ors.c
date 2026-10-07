@@ -57,6 +57,19 @@ static Uint64 Kotonoha_ORS_parse_timestamp(char* line) {
 	return time[0] * 60000 + time[1] * 1000 + time[2] * 10;
 }
 
+static bool Kotonoha_ORS_parse_tick(const char* text,
+	Kotonoha_SceneTick* result) {
+	unsigned long long minutes = 0, seconds = 0, frame = 0;
+	char extra = '\0';
+	const int parsed = sscanf(text, "%llu:%llu:%llu%c",
+		&minutes, &seconds, &frame, &extra);
+	if (result == NULL || (parsed != 3 && !(parsed == 4 && extra == '\t'))) {
+		return false;
+	}
+	*result = ((Kotonoha_SceneTick)minutes * 60 + seconds) * 24 + frame;
+	return true;
+}
+
 static char* Kotonoha_ORS_copy_field(const char* start, size_t length) {
 	char* copy = SDL_malloc(length + 1);
 	if (copy != NULL) {
@@ -271,6 +284,18 @@ static struct Kotonoha_orsEvent* Kotonoha_ORS_parse_line(char* line) {
 	*end = '\0';
 	if (Kotonoha_ORS_field_count(line) !=
 		Kotonoha_ORS_expected_fields(event->command)) {
+		SDL_free(event);
+		return NULL;
+	}
+	if (!Kotonoha_ORS_parse_tick(line, &event->startTick)) {
+		SDL_free(event);
+		return NULL;
+	}
+	char* finalField = strrchr(line, '\t');
+	if (finalField == NULL) {
+		event->endTick = event->startTick;
+	}
+	else if (!Kotonoha_ORS_parse_tick(finalField + 1, &event->endTick)) {
 		SDL_free(event);
 		return NULL;
 	}
@@ -629,7 +654,7 @@ static void Kotonoha_ORS_storage(struct Kotonoha_orsData* target,
 	struct Kotonoha_orsEvent* replaceTarget = target->last;
 
 	/* Insert after earlier lines with the same start tick. */
-	while (replaceTarget != NULL && replaceTarget->start > event->start) {
+	while (replaceTarget != NULL && replaceTarget->startTick > event->startTick) {
 		replaceTarget = replaceTarget->prev;
 	}
 

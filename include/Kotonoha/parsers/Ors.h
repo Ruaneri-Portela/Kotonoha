@@ -1,5 +1,6 @@
 #pragma once
 #include <SDL3/SDL.h>
+#include <Kotonoha/SchoolDaysSceneTime.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -87,13 +88,18 @@ union Kotonoha_orsTypeGeneric {
 };
 
 struct Kotonoha_orsEvent {
+  /* Legacy packed MM*60000 + SS*1000 + FF*10, retained for FadeRuntime. */
   Uint64 start;
   Uint64 end;
+  /* Canonical scene-relative ORS times. */
+  Kotonoha_SceneTick startTick;
+  Kotonoha_SceneTick endTick;
   enum Kotonoha_orsType command;
   union Kotonoha_orsTypeGeneric data;
   struct Kotonoha_orsEvent *next;
   struct Kotonoha_orsEvent *prev;
   bool eventTouched;
+  bool eventPrepared;
 };
 
 struct Kotonoha_orsData {
