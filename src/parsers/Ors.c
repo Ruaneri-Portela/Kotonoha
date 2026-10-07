@@ -57,6 +57,56 @@ static Uint64 Kotonoha_ORS_parse_timestamp(char* line) {
 	return time[0] * 60000 + time[1] * 1000 + time[2] * 10;
 }
 
+static char* Kotonoha_ORS_copy_field(const char* start, size_t length) {
+	char* copy = SDL_malloc(length + 1);
+	if (copy != NULL) {
+		memcpy(copy, start, length);
+		copy[length] = '\0';
+	}
+	return copy;
+}
+
+/* The distributed English ORS reader separates fields only at TABs. */
+static size_t Kotonoha_ORS_field_count(const char* payload) {
+	size_t count = 1;
+	for (const char* p = payload; *p != '\0'; ++p) {
+		if (*p == '\t') {
+			++count;
+		}
+	}
+	return count;
+}
+
+static size_t Kotonoha_ORS_expected_fields(enum Kotonoha_orsType command) {
+	switch (command) {
+	case Next:
+	case SkipFRAME:
+		return 1;
+	case PLAY_VOICE:
+		return 5;
+	case CREATE_BG:
+	case PLAY_SE:
+	case PLAY_MOVIE:
+	case PRINT_TEXT:
+	case SetSELECT:
+		return 4;
+	case BLACK_FADE:
+	case WHITE_FADE:
+	case PLAY_BGM:
+	case END_BGM:
+	case END_ROLL:
+	case MOVE_SOM:
+		return 3;
+	default:
+		return 0;
+	}
+}
+
+static bool Kotonoha_ORS_command_is(const char* start, size_t length,
+	const char* expected) {
+	return strlen(expected) == length && memcmp(start, expected, length) == 0;
+}
+
 static void Kotonoha_ORS_doDelete(struct Kotonoha_orsEvent* target) {
 	switch (target->command) {
 	case CREATE_BG:
@@ -94,6 +144,9 @@ static void Kotonoha_ORS_doDelete(struct Kotonoha_orsEvent* target) {
 		}
 		SDL_free(target->data.play_voice);
 		break;
+	case MOVE_SOM:
+		SDL_free(target->data.move_som);
+		break;
 	case SetSELECT:
 		for (char** it = target->data.set_select->options; *it != NULL; it++) {
 			SDL_free(*it);
@@ -121,7 +174,7 @@ static struct Kotonoha_orsEvent* Kotonoha_ORS_parse_line(char* line) {
 	}
 
 	struct Kotonoha_orsEvent* event =
-		SDL_malloc(sizeof(struct Kotonoha_orsEvent));
+		SDL_calloc(1, sizeof(struct Kotonoha_orsEvent));
 	if (event == NULL) {
 		SDL_LogError(0, "malloc");
 		exit(1);
@@ -142,44 +195,47 @@ static struct Kotonoha_orsEvent* Kotonoha_ORS_parse_line(char* line) {
 
 	size_t commandLength = (size_t)(commandEnd - commandStart);
 
-	if (strncmp(commandStart, "CreateBG", commandLength) == 0) {
+	if (Kotonoha_ORS_command_is(commandStart, commandLength, "CreateBG")) {
 		event->command = CREATE_BG;
 	}
-	else if (strncmp(commandStart, "PlaySe", commandLength) == 0) {
+	else if (Kotonoha_ORS_command_is(commandStart, commandLength, "PlaySe")) {
 		event->command = PLAY_SE;
 	}
-	else if (strncmp(commandStart, "PlayMovie", commandLength) == 0) {
+	else if (Kotonoha_ORS_command_is(commandStart, commandLength, "PlayMovie")) {
 		event->command = PLAY_MOVIE;
 	}
-	else if (strncmp(commandStart, "BlackFade", commandLength) == 0) {
+	else if (Kotonoha_ORS_command_is(commandStart, commandLength, "BlackFade")) {
 		event->command = BLACK_FADE;
 	}
-	else if (strncmp(commandStart, "WhiteFade", commandLength) == 0) {
+	else if (Kotonoha_ORS_command_is(commandStart, commandLength, "WhiteFade")) {
 		event->command = WHITE_FADE;
 	}
-	else if (strncmp(commandStart, "PlayBgm", commandLength) == 0) {
+	else if (Kotonoha_ORS_command_is(commandStart, commandLength, "PlayBgm")) {
 		event->command = PLAY_BGM;
 	}
-	else if (strncmp(commandStart, "PrintText", commandLength) == 0) {
+	else if (Kotonoha_ORS_command_is(commandStart, commandLength, "PrintText")) {
 		event->command = PRINT_TEXT;
 	}
-	else if (strncmp(commandStart, "PlayVoice", commandLength) == 0) {
+	else if (Kotonoha_ORS_command_is(commandStart, commandLength, "PlayVoice")) {
 		event->command = PLAY_VOICE;
 	}
-	else if (strncmp(commandStart, "SkipFRAME", commandLength) == 0) {
+	else if (Kotonoha_ORS_command_is(commandStart, commandLength, "SkipFRAME")) {
 		event->command = SkipFRAME;
 	}
-	else if (strncmp(commandStart, "EndBGM", commandLength) == 0) {
+	else if (Kotonoha_ORS_command_is(commandStart, commandLength, "EndBGM")) {
 		event->command = END_BGM;
 	}
-	else if (strncmp(commandStart, "EndRoll", commandLength) == 0) {
+	else if (Kotonoha_ORS_command_is(commandStart, commandLength, "EndRoll")) {
 		event->command = END_ROLL;
 	}
-	else if (strncmp(commandStart, "Next", commandLength) == 0) {
+	else if (Kotonoha_ORS_command_is(commandStart, commandLength, "Next")) {
 		event->command = Next;
 	}
-	else if (strncmp(commandStart, "SetSELECT", commandLength) == 0) {
+	else if (Kotonoha_ORS_command_is(commandStart, commandLength, "SetSELECT")) {
 		event->command = SetSELECT;
+	}
+	else if (Kotonoha_ORS_command_is(commandStart, commandLength, "MoveSom")) {
+		event->command = MOVE_SOM;
 	}
 	else {
 		event->command = UNKNOWN;
@@ -206,12 +262,18 @@ static struct Kotonoha_orsEvent* Kotonoha_ORS_parse_line(char* line) {
 	}
 	line = eq + 1;
 
-	char* end = strchr(line, ';');
+	/* Dialogue may contain a literal ';'; the final one terminates the line. */
+	char* end = strrchr(line, ';');
 	if (end == NULL) {
 		SDL_free(event);
 		return NULL;
 	}
 	*end = '\0';
+	if (Kotonoha_ORS_field_count(line) !=
+		Kotonoha_ORS_expected_fields(event->command)) {
+		SDL_free(event);
+		return NULL;
+	}
 
 	event->start = Kotonoha_ORS_parse_timestamp(line);
 
@@ -222,7 +284,27 @@ static struct Kotonoha_orsEvent* Kotonoha_ORS_parse_line(char* line) {
 	switch (event->command) {
 	case Next:
 	case SkipFRAME:
+		event->end = event->start;
 		break;
+
+	case MOVE_SOM: {
+		event->data.move_som = SDL_malloc(sizeof(struct Kotonoha_orsTypeMoveSom));
+		if (event->data.move_som == NULL) {
+			SDL_free(event);
+			return NULL;
+		}
+		char* numeric = line;
+		char* end_tick = strchr(numeric, '\t');
+		if (end_tick == NULL) {
+			SDL_free(event->data.move_som);
+			SDL_free(event);
+			return NULL;
+		}
+		*end_tick++ = '\0';
+		event->data.move_som->numeric = strtoull(numeric, NULL, 10);
+		event->end = Kotonoha_ORS_parse_timestamp(end_tick);
+		break;
+	}
 
 	case PLAY_SE: {
 		event->data.play_se = SDL_malloc(sizeof(struct Kotonoha_orsTypePlaySe));
@@ -345,52 +427,37 @@ static struct Kotonoha_orsEvent* Kotonoha_ORS_parse_line(char* line) {
 	}
 
 	case PLAY_VOICE: {
+		/* Keep adjacent TABs: empty NUMERIC and KEY still occupy fields. */
+		char* fields[4];
+		fields[0] = line;
+		for (size_t i = 1; i < 4; ++i) {
+			char* separator = strchr(fields[i - 1], '\t');
+			*separator = '\0'; /* Exact arity was checked above. */
+			fields[i] = separator + 1;
+		}
 		event->data.play_voice =
-			SDL_malloc(sizeof(struct Kotonoha_orsTypePlayVoice));
+			SDL_calloc(1, sizeof(struct Kotonoha_orsTypePlayVoice));
 		if (event->data.play_voice == NULL) {
-			SDL_LogError(0, "malloc");
-			exit(1);
+			SDL_free(event);
+			return NULL;
 		}
-
-		int sizeFind = Kotonoha_ORS_swap_tab_null(line, &transformed);
-		event->data.play_voice->path = SDL_malloc((sizeFind + 1) * sizeof(char));
-		if (event->data.play_voice->path == NULL) {
-			SDL_LogError(0, "malloc");
-			exit(1);
-		}
-
-		memcpy(event->data.play_voice->path, line, sizeFind * sizeof(char));
-		event->data.play_voice->path[sizeFind] = '\0';
-
-		Kotonoha_ORS_swap_tab_null(line, &transformed);
-		line = Kotonoha_ORS_char_jump_tab(line);
-
-		Kotonoha_ORS_swap_tab_null(line, &transformed);
-		event->data.play_voice->a = strtoul(line, NULL, 10);
-		Kotonoha_ORS_swap_tab_null(line, &transformed);
-
-		line = Kotonoha_ORS_char_jump_tab(line);
-		sizeFind = Kotonoha_ORS_swap_tab_null(line, &transformed);
-
-		if (strcmp(line, "xxx") == 0) {
-			event->data.play_voice->character_short = NULL;
-		}
-		else {
+		event->data.play_voice->path =
+			Kotonoha_ORS_copy_field(fields[0], strlen(fields[0]));
+		event->data.play_voice->a = strtoull(fields[1], NULL, 10);
+		if (strcmp(fields[2], "xxx") != 0) {
 			event->data.play_voice->character_short =
-				SDL_malloc((sizeFind + 1) * sizeof(char));
-			if (event->data.play_voice->character_short == NULL) {
-				SDL_LogError(0, "malloc");
-				exit(1);
-			}
-
-			memcpy(event->data.play_voice->character_short, line,
-				sizeFind * sizeof(char));
-			event->data.play_voice->character_short[sizeFind] = '\0';
+				Kotonoha_ORS_copy_field(fields[2], strlen(fields[2]));
 		}
-
-		Kotonoha_ORS_swap_tab_null(line, &transformed);
-		line = Kotonoha_ORS_char_jump_tab(line);
-		event->end = Kotonoha_ORS_parse_timestamp(line);
+		if (event->data.play_voice->path == NULL ||
+			(strcmp(fields[2], "xxx") != 0 &&
+			 event->data.play_voice->character_short == NULL)) {
+			SDL_free(event->data.play_voice->path);
+			SDL_free(event->data.play_voice->character_short);
+			SDL_free(event->data.play_voice);
+			SDL_free(event);
+			return NULL;
+		}
+		event->end = Kotonoha_ORS_parse_timestamp(fields[3]);
 		break;
 	}
 
@@ -452,31 +519,10 @@ static struct Kotonoha_orsEvent* Kotonoha_ORS_parse_line(char* line) {
 				break;
 			}
 
-			bool ignoreOption = false;
-
-			if (sizeStr <= 1) {
-				ignoreOption = true;
-			}
-			else {
-				const char* textStart = line;
-
-				if (textStart[0] == '"' && sizeStr >= 2) {
-					const int contentLen = sizeStr - 2;
-
-					if (contentLen <= 0) {
-						ignoreOption = true;
-					}
-					else if (contentLen == 4 &&
-						SDL_strncasecmp(textStart + 1, "null", 4) == 0) {
-						ignoreOption = true;
-					}
-				}
-				else {
-					if (SDL_strncasecmp(textStart, "null", 4) == 0) {
-						ignoreOption = true;
-					}
-				}
-			}
+			/* null is special only in a SetSELECT option field. */
+			const bool ignoreOption = line[0] == '\0' ||
+				strcmp(line, "null") == 0 || strcmp(line, "NULL") == 0 ||
+				strcmp(line, "\"\"") == 0;
 
 			if (!ignoreOption) {
 				char* optionText = SDL_malloc((size_t)sizeStr * sizeof(char));
@@ -582,6 +628,7 @@ static void Kotonoha_ORS_storage(struct Kotonoha_orsData* target,
 
 	struct Kotonoha_orsEvent* replaceTarget = target->last;
 
+	/* Insert after earlier lines with the same start tick. */
 	while (replaceTarget != NULL && replaceTarget->start > event->start) {
 		replaceTarget = replaceTarget->prev;
 	}
@@ -617,8 +664,6 @@ struct Kotonoha_orsData Kotonoha_OrsParser(const char* input) {
 
 	bool not_end_of_file = true;
 
-	Uint64 lastText = 0;
-
 	while (not_end_of_file) {
 		int c = MIMUMUM_LINE_SIZE;
 		char* line = SDL_malloc(c * sizeof(char));
@@ -650,11 +695,6 @@ struct Kotonoha_orsData Kotonoha_OrsParser(const char* input) {
 
 		struct Kotonoha_orsEvent* parsed_event = Kotonoha_ORS_parse_line(line);
 		if (parsed_event) {
-			if (parsed_event->start == lastText) {
-				parsed_event->start++;
-			}
-
-			lastText = parsed_event->end;
 			Kotonoha_ORS_storage(&result, parsed_event);
 		}
 		SDL_free(line);

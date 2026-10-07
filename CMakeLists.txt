@@ -12,6 +12,11 @@ option(KOTONOHA_ROUTER_TESTS
     OFF
 )
 
+option(KOTONOHA_ORS_PARSER_TESTS
+    "Build standalone School Days ORS parser fidelity tests"
+    OFF
+)
+
 set(KOTONOHA_INCLUDE_DIR
     "${CMAKE_CURRENT_SOURCE_DIR}/include"
 )
@@ -170,9 +175,22 @@ if(KOTONOHA_DEV_CHECKPOINTS)
     message(STATUS "KOTONOHA_DEV_CHECKPOINTS=ON (development-only routing helpers)")
 endif()
 
-if(KOTONOHA_ROUTER_TESTS AND NOT ANDROID)
+if((KOTONOHA_ROUTER_TESTS OR KOTONOHA_ORS_PARSER_TESTS) AND NOT ANDROID)
     include(CTest)
 
+    add_executable(OrsParserFidelityTest
+        tests/OrsParserFidelityTest.cpp
+        src/parsers/Ors.c
+    )
+    target_include_directories(OrsParserFidelityTest PRIVATE
+        ${KOTONOHA_INCLUDE_DIR}
+    )
+    target_link_libraries(OrsParserFidelityTest PRIVATE SDL3::SDL3)
+    set_target_properties(OrsParserFidelityTest PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
+    add_test(NAME OrsParserFidelityTest COMMAND OrsParserFidelityTest)
+endif()
+
+if(KOTONOHA_ROUTER_TESTS AND NOT ANDROID)
     add_executable(SchoolDaysHandoffRouterTest
         tests/SchoolDaysHandoffRouterTest.cpp
         src/SchoolDaysRouter.cpp

@@ -19,6 +19,7 @@ enum Kotonoha_orsType {
   END_BGM,
   END_ROLL,
   Next,
+  MOVE_SOM,
   UNKNOWN
 };
 
@@ -59,6 +60,10 @@ struct Kotonoha_orsTypePlayVoice {
   char *character_short;
 };
 
+struct Kotonoha_orsTypeMoveSom {
+  Uint64 numeric;
+};
+
 struct Kotonoha_orsTypeUnknown {
   char *line;
 };
@@ -75,6 +80,7 @@ union Kotonoha_orsTypeGeneric {
   struct Kotonoha_orsTypeFade *fade;
   struct Kotonoha_orsTypePrintText *print_text;
   struct Kotonoha_orsTypePlayVoice *play_voice;
+  struct Kotonoha_orsTypeMoveSom *move_som;
   struct Kotonoha_orsSetSELECT *set_select;
   struct Kotonoha_orsTypePathEnd *path_end;
   struct Kotonoha_orsTypeUnknown *unknown;
