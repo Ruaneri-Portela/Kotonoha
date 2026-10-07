@@ -38,6 +38,8 @@ if(ANDROID)
     message(STATUS "ANDROID_ABI=${ANDROID_ABI}")
     message(STATUS "ANDROID_PLATFORM=${ANDROID_PLATFORM}")
 
+    add_link_options("-Wl,-z,max-page-size=16384")
+
     find_package(expat CONFIG REQUIRED)
 
     add_library(SDL3 SHARED
