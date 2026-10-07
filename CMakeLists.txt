@@ -1,5 +1,15 @@
 cmake_minimum_required(VERSION 3.18)
 
+if(ANDROID_ABI STREQUAL "arm64-v8a")
+    set(VCPKG_TARGET_TRIPLET "arm64-android" CACHE STRING "" FORCE)
+elseif(ANDROID_ABI STREQUAL "x86_64")
+    set(VCPKG_TARGET_TRIPLET "x64-android" CACHE STRING "" FORCE)
+elseif(ANDROID_ABI STREQUAL "armeabi-v7a")
+    set(VCPKG_TARGET_TRIPLET "arm-android" CACHE STRING "" FORCE)
+elseif(ANDROID_ABI STREQUAL "x86")
+    set(VCPKG_TARGET_TRIPLET "x86-android" CACHE STRING "" FORCE)
+endif()
+
 project(Kotonoha VERSION 0.1.0 LANGUAGES C CXX)
 
 set(KOTONOHA_INCLUDE_DIR
@@ -24,7 +34,6 @@ pkg_check_modules(FFMPEG REQUIRED IMPORTED_TARGET libavcodec libavformat libavut
 pkg_check_modules(LIBASS REQUIRED IMPORTED_TARGET libass)
 
 if(ANDROID)
-
     message(STATUS "Configuração Android")
     message(STATUS "ANDROID_ABI=${ANDROID_ABI}")
     message(STATUS "ANDROID_PLATFORM=${ANDROID_PLATFORM}")

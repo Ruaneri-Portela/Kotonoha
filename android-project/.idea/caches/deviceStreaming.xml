@@ -333,13 +333,13 @@
           <option name="screenY" value="1600" />
         </PersistentDeviceSelectionData>
         <PersistentDeviceSelectionData>
-          <option name="api" value="34" />
+          <option name="api" value="35" />
           <option name="brand" value="samsung" />
-          <option name="codename" value="a14m" />
-          <option name="id" value="a14m" />
+          <option name="codename" value="a14xmsq" />
+          <option name="id" value="a14xmsq" />
           <option name="labId" value="google" />
           <option name="manufacturer" value="Samsung" />
-          <option name="name" value="Galaxy A14" />
+          <option name="name" value="Galaxy A14 5G" />
           <option name="screenDensity" value="450" />
           <option name="screenX" value="1080" />
           <option name="screenY" value="2408" />
@@ -1249,6 +1249,18 @@
           <option name="screenDensity" value="280" />
           <option name="screenX" value="720" />
           <option name="screenY" value="1600" />
+        </PersistentDeviceSelectionData>
+        <PersistentDeviceSelectionData>
+          <option name="api" value="34" />
+          <option name="brand" value="motorola" />
+          <option name="codename" value="fogorow" />
+          <option name="id" value="fogorow" />
+          <option name="labId" value="google" />
+          <option name="manufacturer" value="Motorola" />
+          <option name="name" value="moto g24" />
+          <option name="screenDensity" value="280" />
+          <option name="screenX" value="720" />
+          <option name="screenY" value="1612" />
         </PersistentDeviceSelectionData>
         <PersistentDeviceSelectionData>
           <option name="api" value="34" />
