@@ -114,9 +114,12 @@ namespace Kotonoha {
 			case PLAY_VOICE: {
 				if (event->data.play_voice->path != nullptr &&
 					SDL_strlen(event->data.play_voice->path) > 0) {
-					const std::string voicePath = BuildString(
-						event->data.play_voice->path, assetsPath,
+					const std::string voiceLogical = BuildString(
+						event->data.play_voice->path, "",
 						useExtension ? ".OGG" : "");
+					const std::string voicePath = useExtension
+						? ResolveSchoolDaysBgmAsset(assetsPath, voiceLogical)
+						: voiceLogical;
 					classUp->voiceMedia[event] = gameplay->audio->AddMedia(
 						voicePath.c_str(),
 						startMs,
@@ -141,11 +144,14 @@ namespace Kotonoha {
 				}
 				if (event->data.play_se->path != nullptr &&
 					SDL_strlen(event->data.play_se->path) > 0) {
+					const std::string seLogical = BuildString(
+						event->data.play_se->path, "",
+						useExtension ? ".OGG" : "");
+					const std::string sePath = useExtension
+						? ResolveSchoolDaysBgmAsset(assetsPath, seLogical)
+						: seLogical;
 					classUp->seMedia[event] = gameplay->audio->AddMedia(
-						BuildString(event->data.play_se->path,
-							assetsPath,
-							useExtension ? ".OGG" : "")
-						.c_str(),
+						sePath.c_str(),
 						startMs,
 						endMs,
 						true,

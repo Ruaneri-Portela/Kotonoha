@@ -276,6 +276,30 @@ if((KOTONOHA_ROUTER_TESTS OR KOTONOHA_ORS_PARSER_TESTS) AND NOT ANDROID)
         CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
     add_test(NAME SchoolDaysRemainingOrsTest COMMAND
         SchoolDaysRemainingOrsTest ${CMAKE_CURRENT_SOURCE_DIR}/assets)
+
+    add_executable(SchoolDaysRuntimeCorpusAudit
+        tests/SchoolDaysRuntimeCorpusAudit.cpp
+        src/parsers/Ors.c
+    )
+    target_include_directories(SchoolDaysRuntimeCorpusAudit PRIVATE
+        ${KOTONOHA_INCLUDE_DIR})
+    target_link_libraries(SchoolDaysRuntimeCorpusAudit PRIVATE SDL3::SDL3)
+    set_target_properties(SchoolDaysRuntimeCorpusAudit PROPERTIES
+        CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
+    add_test(NAME SchoolDaysRuntimeCorpusAudit COMMAND
+        SchoolDaysRuntimeCorpusAudit ${CMAKE_CURRENT_SOURCE_DIR}/assets)
+
+    add_executable(SchoolDaysRuntimeParityTest
+        tests/SchoolDaysRuntimeParityTest.cpp
+        src/parsers/Ors.c
+    )
+    target_include_directories(SchoolDaysRuntimeParityTest PRIVATE
+        ${KOTONOHA_INCLUDE_DIR})
+    target_link_libraries(SchoolDaysRuntimeParityTest PRIVATE SDL3::SDL3)
+    set_target_properties(SchoolDaysRuntimeParityTest PROPERTIES
+        CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
+    add_test(NAME SchoolDaysRuntimeParityTest COMMAND
+        SchoolDaysRuntimeParityTest ${CMAKE_CURRENT_SOURCE_DIR}/assets)
 endif()
 
 if(KOTONOHA_ROUTER_TESTS AND NOT ANDROID)
