@@ -212,9 +212,10 @@ namespace Kotonoha {
 					const auto resolved = ResolveSchoolDaysImageAsset(
 						assetsPath, event->data.create_bg->path);
 					if (resolved.present && !resolved.collision) {
-						classUp->bgResources[event] = resolved.physical;
-						gameplay->image->Register(resolved.physical.c_str(),
-							startMs, endMs, 0);
+						const Uint64 baseGeneration = gameplay->image->Register(
+							resolved.physical.c_str(), startMs, endMs, 0);
+						if (baseGeneration != 0)
+							classUp->bgResources[event] = baseGeneration;
 					} else {
 						SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
 							"[SD-IMAGE] %s CreateBG: %s",
@@ -245,11 +246,39 @@ namespace Kotonoha {
 				break;
 			}
 		}
+		classUp->activeVoiceEvents.erase(std::remove_if(
+			classUp->activeVoiceEvents.begin(), classUp->activeVoiceEvents.end(),
+			[currentTick](const Kotonoha_orsEvent* voice) {
+				return currentTick >= voice->endTick;
+			}), classUp->activeVoiceEvents.end());
+		const auto bindVoiceToActiveBase =
+			[&](const Kotonoha_orsEvent* voice) {
+				const std::string key = AbcKey(SchoolDaysVoiceAnimationKey(voice));
+				if (key.empty()) return;
+				auto* group = gameplay->image->FindAbcGroup(key, actualTime);
+				const Uint64 generation = gameplay->image->ActiveBaseGeneration();
+				if (group == nullptr || group->ownerBaseGeneration != generation)
+					return;
+				auto previous = classUp->abcBindings.find(key);
+				if (previous != classUp->abcBindings.end())
+					gameplay->image->UnbindAbcGroup(previous->second.group);
+				if (gameplay->image->BindAbcGroup(group, generation,
+					Kotonoha_SceneTickToMillisecondsCeil(voice->startTick),
+					Kotonoha_SceneTickToMillisecondsCeil(voice->endTick)))
+					classUp->abcBindings[key] =
+						{voice, group, generation, {}, 0, false};
+			};
 		for (auto* event : classUp->timeline.AdvanceTo(currentTick)) {
 			if (event->command == CREATE_BG) {
 				auto found = classUp->bgResources.find(event);
-				if (found != classUp->bgResources.end())
-					gameplay->image->ActivateBase(found->second);
+				if (found != classUp->bgResources.end() &&
+					gameplay->image->ActivateBase(found->second)) {
+					classUp->abcBindings.clear();
+					for (const auto* voice : classUp->activeVoiceEvents)
+						if (voice->startTick <= currentTick &&
+							currentTick < voice->endTick)
+							bindVoiceToActiveBase(voice);
+				}
 			}
 			else if (event->command == MOVE_SOM) {
 				// SOMCON is an optional original peripheral; no hardware on this port.
@@ -269,15 +298,10 @@ namespace Kotonoha {
 					gameplay->audio->SetMediaEnabled(found->second, true);
 					const std::string key = AbcKey(SchoolDaysVoiceAnimationKey(event));
 					if (!key.empty()) {
-						auto* group = gameplay->image->FindAbcGroup(key,
-							Kotonoha_SceneTickToMillisecondsCeil(event->startTick));
-						if (group != nullptr) {
-							auto previous = classUp->abcBindings.find(key);
-							if (previous != classUp->abcBindings.end())
-								gameplay->image->SelectAbcState(previous->second.group, 0);
-							classUp->abcBindings[key] = {event, group, {}, 0, false};
+						classUp->activeVoiceEvents.push_back(event);
+						if (currentTick < event->endTick)
+							bindVoiceToActiveBase(event);
 						}
-					}
 					SDL_LogDebug(SDL_LOG_CATEGORY_AUDIO,
 						"[SD-AUDIO] Voice activate key=%s",
 						SchoolDaysVoiceAnimationKey(event));
@@ -347,9 +371,11 @@ namespace Kotonoha {
 		for (auto it = classUp->abcBindings.begin();
 			it != classUp->abcBindings.end();) {
 			auto& binding = it->second;
-			if (currentTick >= binding.voice->endTick ||
+			if (binding.ownerBaseGeneration !=
+					gameplay->image->ActiveBaseGeneration() ||
+				currentTick >= binding.voice->endTick ||
 				!gameplay->image->IsActiveGroup(binding.group, actualTime)) {
-				gameplay->image->SelectAbcState(binding.group, 0);
+				gameplay->image->UnbindAbcGroup(binding.group);
 				it = classUp->abcBindings.erase(it);
 				continue;
 			}
@@ -407,6 +433,7 @@ namespace Kotonoha {
 		SDL_LockMutex(eventMutex);
 
 		abcBindings.clear();
+		activeVoiceEvents.clear();
 		voiceActivity.clear();
 		gp->video->Reset();
 		movieStates.clear();

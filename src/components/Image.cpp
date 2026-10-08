@@ -1,4 +1,5 @@
 #include <Kotonoha/components/Image.hpp>
+#include <Kotonoha/SchoolDaysAbcTexture.hpp>
 #include <Kotonoha/SchoolDaysSceneTime.h>
 #include <SDL3/SDL_render.h>
 #include <algorithm>
@@ -31,21 +32,50 @@ namespace Kotonoha {
 
 			delete picture;
 		}
+
+		static SDL_Texture* CreateAbcTexture(SDL_Renderer* renderer,
+			const char* path) {
+			SDL_Surface* staging = Kotonoha_imageCreateSurface(path, -1, -1);
+			if (staging == nullptr) return nullptr;
+			SDL_Texture* texture = nullptr;
+			if (staging->format == SDL_PIXELFORMAT_RGBA32 &&
+				SDL_LockSurface(staging)) {
+				PrepareStraightAlphaForLinearFiltering(
+					static_cast<Uint8*>(staging->pixels),
+					staging->w, staging->h, staging->pitch);
+				texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA32,
+					SDL_TEXTUREACCESS_STATIC, staging->w, staging->h);
+				if (texture != nullptr &&
+					(!SDL_UpdateTexture(texture, nullptr,
+						staging->pixels, staging->pitch) ||
+					 !SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND) ||
+					 !SDL_SetTextureScaleMode(texture, SDL_SCALEMODE_LINEAR))) {
+					SDL_DestroyTexture(texture);
+					texture = nullptr;
+				}
+				SDL_UnlockSurface(staging);
+			}
+			SDL_DestroySurface(staging);
+			return texture;
+		}
 	} // namespace
 
 	void Image::DrawAbcForBase(Kotonoha_Picture* picture,
-		SDL_Renderer* renderer) {
+		SDL_Renderer* renderer, Uint64 atMs) {
 		for (const auto& item : abcGroups) {
 			auto* group = item.get();
-			if (group->basePath != picture->path ||
-				group->activeIndex > 2) continue;
+			if (!group->bound || group->ownerBaseGeneration == 0 ||
+				group->ownerBaseGeneration != activeBaseGeneration ||
+				group->ownerBaseGeneration != picture->baseGeneration ||
+				atMs < group->startTime || atMs >= group->endTime ||
+				atMs < group->bindingStartTime ||
+				atMs >= group->bindingEndTime || group->activeIndex > 2)
+				continue;
 			const Uint8 index = group->activeIndex;
 			if (group->resources.paths[index].empty()) continue;
 			if (group->textures[index] == nullptr) {
-				group->textures[index] = Kotonoha_imageCreateTexture(renderer,
-					group->resources.paths[index].c_str(), -1, -1);
-				if (group->textures[index] != nullptr)
-					SDL_SetTextureBlendMode(group->textures[index], SDL_BLENDMODE_BLEND);
+				group->textures[index] = CreateAbcTexture(renderer,
+					group->resources.paths[index].c_str());
 			}
 			if (group->textures[index] != nullptr)
 				SDL_RenderTexture(renderer, group->textures[index], nullptr, nullptr);
@@ -61,12 +91,12 @@ namespace Kotonoha {
 		}
 	}
 
-	void Image::Register(const char* path, Uint64 startTime, Uint64 endTime,
+	Uint64 Image::Register(const char* path, Uint64 startTime, Uint64 endTime,
 		Uint8 id) {
 		if (path == nullptr || *path == '\0') {
 			SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
 				"Invalid image path.");
-			return;
+			return 0;
 		}
 
 		Kotonoha_Picture* object = new Kotonoha_Picture();
@@ -77,27 +107,32 @@ namespace Kotonoha {
 		object->lastTime = 0;
 		object->id = id;
 		object->canRender = true;
+		object->baseGeneration = 0;
 
 		if (object->path == nullptr) {
 			SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
 				"Failed to duplicate image path.");
 			delete object;
-			return;
+			return 0;
 		}
 
 		if (lock == nullptr) {
 			DestroyPicture(object);
-			return;
+			return 0;
 		}
 
 		SDL_LockMutex(lock);
+		object->baseGeneration = nextBaseGeneration++;
+		const Uint64 generation = object->baseGeneration;
 		pictures.push_back(object);
-		if (id == 0) DiscoverAbcGroups(path, startTime, endTime);
+		if (id == 0)
+			DiscoverAbcGroups(path, startTime, endTime, generation);
 		SDL_UnlockMutex(lock);
+		return generation;
 	}
 
 	void Image::DiscoverAbcGroups(const char* basePath, Uint64 startTime,
-		Uint64 endTime) {
+		Uint64 endTime, Uint64 ownerBaseGeneration) {
 		const std::string full = basePath;
 		const size_t separator = full.find_last_of("/\\");
 		const std::string directory = separator == std::string::npos
@@ -139,30 +174,46 @@ namespace Kotonoha {
 		for (auto& pair : scan.groups) {
 			std::unique_ptr<AbcGroup> group(new AbcGroup());
 			group->resources = std::move(pair.second);
-			group->basePath = full;
+			group->ownerBaseGeneration = ownerBaseGeneration;
 			group->startTime = startTime;
 			group->endTime = endTime;
 			abcGroups.push_back(std::move(group));
 		}
 	}
 
-	bool Image::ActivateBase(const std::string& path) {
-		if (lock == nullptr || path.empty()) return false;
+	bool Image::ActivateBase(Uint64 baseGeneration) {
+		if (lock == nullptr || baseGeneration == 0) return false;
 		SDL_LockMutex(lock);
 		bool found = false;
 		for (const auto* picture : pictures)
-			if (picture != nullptr && picture->path != nullptr &&
-				path == picture->path) { found = true; break; }
-		if (found) activeBasePath = path;
+			if (picture != nullptr &&
+				picture->baseGeneration == baseGeneration) { found = true; break; }
+		if (found && activeBaseGeneration != baseGeneration) {
+			for (auto& group : abcGroups) {
+				group->bound = false;
+				group->activeIndex = 0;
+			}
+			activeBaseGeneration = baseGeneration;
+		}
 		SDL_UnlockMutex(lock);
 		return found;
+	}
+
+	Uint64 Image::ActiveBaseGeneration() const {
+		if (lock == nullptr) return 0;
+		SDL_LockMutex(lock);
+		const Uint64 result = activeBaseGeneration;
+		SDL_UnlockMutex(lock);
+		return result;
 	}
 
 	bool Image::IsActiveGroup(const AbcGroup* group, Uint64 atMs) {
 		if (lock == nullptr || group == nullptr) return false;
 		SDL_LockMutex(lock);
-		const bool active = group->basePath == activeBasePath &&
-			group->startTime <= atMs && atMs < group->endTime;
+		const bool active = group->bound &&
+			group->ownerBaseGeneration == activeBaseGeneration &&
+			group->startTime <= atMs && atMs < group->endTime &&
+			group->bindingStartTime <= atMs && atMs < group->bindingEndTime;
 		SDL_UnlockMutex(lock);
 		return active;
 	}
@@ -172,12 +223,38 @@ namespace Kotonoha {
 		SDL_LockMutex(lock);
 		AbcGroup* found = nullptr;
 		for (const auto& group : abcGroups)
-			if (group->basePath == activeBasePath &&
+			if (group->ownerBaseGeneration == activeBaseGeneration &&
 				group->resources.key == Lower(key) &&
 				group->startTime <= atMs && atMs < group->endTime)
 				found = group.get();
 		SDL_UnlockMutex(lock);
 		return found;
+	}
+
+	bool Image::BindAbcGroup(AbcGroup* group, Uint64 ownerBaseGeneration,
+		Uint64 voiceStartMs, Uint64 voiceEndMs) {
+		if (lock == nullptr || group == nullptr || voiceStartMs >= voiceEndMs)
+			return false;
+		SDL_LockMutex(lock);
+		const bool eligible = ownerBaseGeneration != 0 &&
+			ownerBaseGeneration == activeBaseGeneration &&
+			group->ownerBaseGeneration == ownerBaseGeneration;
+		if (eligible) {
+			group->activeIndex = 0;
+			group->bindingStartTime = voiceStartMs;
+			group->bindingEndTime = voiceEndMs;
+			group->bound = true;
+		}
+		SDL_UnlockMutex(lock);
+		return eligible;
+	}
+
+	void Image::UnbindAbcGroup(AbcGroup* group) {
+		if (lock == nullptr || group == nullptr) return;
+		SDL_LockMutex(lock);
+		group->bound = false;
+		group->activeIndex = 0;
+		SDL_UnlockMutex(lock);
 	}
 
 	void Image::SelectAbcState(AbcGroup* group, Uint8 index) {
@@ -211,7 +288,8 @@ namespace Kotonoha {
 				Kotonoha_MillisecondsToSceneTick(Kotonoha_timeGet(here->timeManager));
 			const Kotonoha_SceneTick endTick =
 				Kotonoha_MillisecondsToSceneTick(picture->endTime);
-			if (picture->path == nullptr || here->activeBasePath != picture->path) {
+			if (picture->path == nullptr ||
+				here->activeBaseGeneration != picture->baseGeneration) {
 				if (sceneTick >= endTick) {
 					it = here->pictures.erase(it);
 					DestroyPicture(picture);
@@ -243,11 +321,18 @@ namespace Kotonoha {
 					continue;
 				}
 
-				SDL_SetTextureBlendMode(picture->texture,
-					SDL_BLENDMODE_BLEND_PREMULTIPLIED);
+				// FFmpeg outputs straight RGBA, including semitransparent bases.
+				SDL_SetTextureBlendMode(picture->texture, SDL_BLENDMODE_BLEND);
 			}
 
 			if (sceneTick >= endTick) {
+				// The image canvas can still contain the previous ABC texture.
+				// Clear only this transparent layer before retaining the base.
+				Uint8 r = 0, g = 0, b = 0, a = 0;
+				SDL_GetRenderDrawColor(render, &r, &g, &b, &a);
+				SDL_SetRenderDrawColor(render, 0, 0, 0, 0);
+				SDL_RenderClear(render);
+				SDL_SetRenderDrawColor(render, r, g, b, a);
 				SDL_RenderTexture(render, picture->texture, nullptr, nullptr);
 				status = picture->id > 0 ? status : KOTONOHA_SCENE_DRAW_LAST;
 
@@ -281,7 +366,8 @@ namespace Kotonoha {
 			}
 
 			SDL_RenderTexture(render, picture->texture, nullptr, nullptr);
-			here->DrawAbcForBase(picture, render);
+			here->DrawAbcForBase(picture, render,
+				Kotonoha_timeGet(here->timeManager));
 			if (status != KOTONOHA_SCENE_DRAW_LAST)
 				status = KOTONOHA_SCENE_DRAW;
 			picture->lastTime = current;
@@ -294,7 +380,7 @@ namespace Kotonoha {
 
 	void Image::Reset() {
 		const auto clearGroups = [this]() {
-			activeBasePath.clear();
+			activeBaseGeneration = 0;
 			for (auto& group : abcGroups)
 				for (auto*& texture : group->textures)
 					if (texture != nullptr) {

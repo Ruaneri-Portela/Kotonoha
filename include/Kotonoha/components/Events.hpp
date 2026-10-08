@@ -28,16 +28,18 @@ private:
   struct AbcBinding {
     const Kotonoha_orsEvent* voice = nullptr;
     Image::AbcGroup* group = nullptr;
+    Uint64 ownerBaseGeneration = 0;
     SchoolDaysAbcState state;
     Kotonoha_SceneTick lastTick = 0;
     bool initialized = false;
   };
   std::unordered_map<std::string, AbcBinding> abcBindings;
+  std::vector<const Kotonoha_orsEvent*> activeVoiceEvents;
   std::unordered_map<const Kotonoha_orsEvent*, Kotonoha_audioDecode*> seMedia;
   std::unordered_map<const Kotonoha_orsEvent*, Kotonoha_audioDecode*> normalBgmMedia;
   std::unordered_map<const Kotonoha_orsEvent*, Kotonoha_audioDecode*> endingBgmMedia;
   std::unordered_map<const Kotonoha_orsEvent*, SchoolDaysMovieEventState> movieStates;
-  std::unordered_map<const Kotonoha_orsEvent*, std::string> bgResources;
+  std::unordered_map<const Kotonoha_orsEvent*, Uint64> bgResources;
   SchoolDaysMoveSomNoOp moveSom;
   static int EventManager(void *data);
   SDL_Mutex *eventMutex = nullptr;

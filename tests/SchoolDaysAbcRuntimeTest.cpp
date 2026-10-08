@@ -94,8 +94,8 @@ void TestDiscovery(const fs::path& assets) {
     { std::ofstream file(b); Check(bool(file), "B fixture create"); }
     {
         Kotonoha::Image image(nullptr);
-        image.Register(base.string().c_str(), 0, 1000, 0);
-        Check(image.ActivateBase(base.string()), "activate x01 fixture base");
+        const Uint64 baseId = image.Register(base.string().c_str(), 0, 1000, 0);
+        Check(image.ActivateBase(baseId), "activate x01 fixture base");
         auto* x01 = image.FindAbcGroup("x01", 100);
         Check(x01 != nullptr && !x01->resources.Complete(),
               "generic x01 or partial-group discovery");
@@ -117,8 +117,9 @@ void TestDiscovery(const fs::path& assets) {
         return;
     }
     Kotonoha::Image image(nullptr);
-    image.Register((a01 / "00-00-A01-004.PNG").string().c_str(), 0, 5000, 0);
-    Check(image.ActivateBase((a01 / "00-00-A01-004.PNG").string()),
+    const Uint64 imageBase = image.Register(
+        (a01 / "00-00-A01-004.PNG").string().c_str(), 0, 5000, 0);
+    Check(image.ActivateBase(imageBase),
           "activate A01 base");
     auto* mak = image.FindAbcGroup("mak", 1000);
     auto* tai = image.FindAbcGroup("tai", 1000);
@@ -138,11 +139,14 @@ void TestDiscovery(const fs::path& assets) {
     SDL_Renderer* renderer = canvas ? SDL_CreateSoftwareRenderer(canvas) : nullptr;
     Check(clock && canvas && renderer, "software overlay render fixture");
     Kotonoha::Image drawn(clock);
-    drawn.Register((a01 / "00-00-A01-004.PNG").string().c_str(), 0, 5000, 0);
-    Check(drawn.ActivateBase((a01 / "00-00-A01-004.PNG").string()),
+    const Uint64 drawnBase = drawn.Register(
+        (a01 / "00-00-A01-004.PNG").string().c_str(), 0, 5000, 0);
+    Check(drawn.ActivateBase(drawnBase),
           "activate A01 render base");
     auto* drawnMak = drawn.FindAbcGroup("mak", 1000);
-    Check(drawnMak != nullptr, "render group discovery");
+    Check(drawnMak != nullptr &&
+          drawn.BindAbcGroup(drawnMak, drawnBase, 0, 5000),
+          "render group discovery and voice bind");
     const auto frameHash = [&]() -> uint64_t {
         Check(Kotonoha::Image::Render(nullptr, renderer, nullptr, &drawn, nullptr) ==
               KOTONOHA_SCENE_DRAW, "render base plus ABC");
@@ -173,8 +177,9 @@ void TestDiscovery(const fs::path& assets) {
     const fs::path kc = assets / "Event05" / "05-KC" / "05-KC-A02";
     if (fs::exists(kc / "05-KC-A02-009.PNG")) {
         Kotonoha::Image other(nullptr);
-        other.Register((kc / "05-KC-A02-009.PNG").string().c_str(), 0, 5000, 0);
-        Check(other.ActivateBase((kc / "05-KC-A02-009.PNG").string()),
+        const Uint64 otherBase = other.Register(
+            (kc / "05-KC-A02-009.PNG").string().c_str(), 0, 5000, 0);
+        Check(other.ActivateBase(otherBase),
               "activate KC base");
         auto* kot = other.FindAbcGroup("kot", 1000);
         Check(kot && kot->resources.paths[0].find("009KOT.A.PNG") !=

@@ -185,15 +185,16 @@ void TestImages(const fs::path& assets) {
     const std::string first = resolved.physical;
     const std::string second = (a01 / "00-00-A01-003.PNG").string();
     Image image(nullptr);
-    image.Register(first.c_str(), 100, 1000, 0);
-    image.Register(second.c_str(), 500, 1500, 0);
+    const Uint64 firstId = image.Register(first.c_str(), 100, 1000, 0);
+    const Uint64 secondId = image.Register(second.c_str(), 500, 1500, 0);
     Check(image.FindAbcGroup("mak", 600) == nullptr,
           "prepared base was presented before activation");
-    Check(image.ActivateBase(first), "activate first base");
+    Check(image.ActivateBase(firstId), "activate first base");
     auto* mak = image.FindAbcGroup("mak", 600);
-    Check(mak != nullptr && image.IsActiveGroup(mak, 600),
+    Check(mak != nullptr && image.BindAbcGroup(mak, firstId, 500, 900) &&
+          image.IsActiveGroup(mak, 600),
           "first base ABC discovery");
-    Check(image.ActivateBase(second) && !image.IsActiveGroup(mak, 600) &&
+    Check(image.ActivateBase(secondId) && !image.IsActiveGroup(mak, 600) &&
           image.FindAbcGroup("mak", 600) == nullptr,
           "old base ABC survived replacement");
     image.Reset();
@@ -205,9 +206,9 @@ void TestImages(const fs::path& assets) {
     SDL_Renderer* renderer = canvas ? SDL_CreateSoftwareRenderer(canvas) : nullptr;
     Check(clock && canvas && renderer, "software CreateBG fixture");
     Image drawn(clock);
-    drawn.Register(first.c_str(), 100, 1000, 0);
-    drawn.Register(second.c_str(), 500, 1500, 0);
-    Check(drawn.ActivateBase(first), "activate render base");
+    const Uint64 drawnFirst = drawn.Register(first.c_str(), 100, 1000, 0);
+    const Uint64 drawnSecond = drawn.Register(second.c_str(), 500, 1500, 0);
+    Check(drawn.ActivateBase(drawnFirst), "activate render base");
     SDL_SetRenderDrawColor(renderer, 23, 45, 67, 255);
     SDL_RenderClear(renderer);
     SDL_RenderPresent(renderer);
@@ -239,7 +240,7 @@ void TestImages(const fs::path& assets) {
     SDL_GetRenderDrawColor(renderer, &r, &g, &b, &a);
     Check(r == 23 && g == 45 && b == 67 && a == 255,
           "CreateBG leaked clear color to compositor");
-    Check(drawn.ActivateBase(second), "activate replacement base");
+    Check(drawn.ActivateBase(drawnSecond), "activate replacement base");
     Kotonoha_timeSet(clock, 600);
     Check(Image::Render(nullptr, renderer, nullptr, &drawn, nullptr) ==
           KOTONOHA_SCENE_DRAW, "replacement base did not draw");

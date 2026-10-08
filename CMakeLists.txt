@@ -229,6 +229,7 @@ if((KOTONOHA_ROUTER_TESTS OR KOTONOHA_ORS_PARSER_TESTS) AND NOT ANDROID)
     add_executable(SchoolDaysAbcRuntimeTest
         tests/SchoolDaysAbcRuntimeTest.cpp
         src/SchoolDaysVoicePcm.cpp
+        src/SchoolDaysAbcTexture.cpp
         src/components/Image.cpp
         src/renders/ImageRender.c
         src/utils/FFmpeg.c
@@ -242,6 +243,41 @@ if((KOTONOHA_ROUTER_TESTS OR KOTONOHA_ORS_PARSER_TESTS) AND NOT ANDROID)
         CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
     add_test(NAME SchoolDaysAbcRuntimeTest COMMAND
         SchoolDaysAbcRuntimeTest ${CMAKE_CURRENT_SOURCE_DIR}/assets)
+
+    add_executable(SchoolDaysAbcOverlayHotfixTest
+        tests/SchoolDaysAbcOverlayHotfixTest.cpp
+        src/SchoolDaysAbcTexture.cpp
+        src/components/Image.cpp
+        src/renders/ImageRender.c
+        src/utils/FFmpeg.c
+        src/utils/Time.c
+    )
+    target_include_directories(SchoolDaysAbcOverlayHotfixTest PRIVATE
+        ${KOTONOHA_INCLUDE_DIR} ${FFMPEG_INCLUDE_DIRS})
+    target_link_libraries(SchoolDaysAbcOverlayHotfixTest PRIVATE
+        SDL3::SDL3 PkgConfig::FFMPEG)
+    set_target_properties(SchoolDaysAbcOverlayHotfixTest PROPERTIES
+        CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
+    add_test(NAME SchoolDaysAbcOverlayHotfixTest COMMAND
+        SchoolDaysAbcOverlayHotfixTest ${CMAKE_CURRENT_SOURCE_DIR}/assets)
+
+    add_executable(SchoolDaysAbcEdgeSeamTest
+        tests/SchoolDaysAbcEdgeSeamTest.cpp
+        src/SchoolDaysAbcTexture.cpp
+        src/components/Image.cpp
+        src/renders/ImageRender.c
+        src/utils/FFmpeg.c
+        src/utils/Time.c
+    )
+    target_include_directories(SchoolDaysAbcEdgeSeamTest PRIVATE
+        ${KOTONOHA_INCLUDE_DIR} ${FFMPEG_INCLUDE_DIRS})
+    target_link_libraries(SchoolDaysAbcEdgeSeamTest PRIVATE
+        SDL3::SDL3 PkgConfig::FFMPEG)
+    set_target_properties(SchoolDaysAbcEdgeSeamTest PROPERTIES
+        CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
+    add_test(NAME SchoolDaysAbcEdgeSeamTest COMMAND
+        SchoolDaysAbcEdgeSeamTest ${CMAKE_CURRENT_SOURCE_DIR}/assets
+        ${CMAKE_BINARY_DIR})
 
     add_executable(SchoolDaysMovieEventTest
         tests/SchoolDaysMovieEventTest.cpp
@@ -263,6 +299,7 @@ if((KOTONOHA_ROUTER_TESTS OR KOTONOHA_ORS_PARSER_TESTS) AND NOT ANDROID)
         tests/SchoolDaysRemainingOrsTest.cpp
         src/parsers/Ors.c
         src/components/Fade.cpp
+        src/SchoolDaysAbcTexture.cpp
         src/components/Image.cpp
         src/renders/ImageRender.c
         src/utils/FFmpeg.c
