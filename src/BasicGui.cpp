@@ -70,15 +70,28 @@ static bool Kotonoha_FinishFrameAndReturn(Kotonoha_Game& context, ImGuiIO& io) {
 }
 
 void Kotonoha_BasicGuiInit(Kotonoha_Game& gameContext) {
-	IMGUI_CHECKVERSION();
-	ImGui::CreateContext();
-	ImGuiIO& io = ImGui::GetIO();
-	(void)io;
-	io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
-	io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
-	ImGui::StyleColorsDark();
-	ImGui_ImplSDL3_InitForSDLRenderer(gameContext.window, gameContext.render);
-	ImGui_ImplSDLRenderer3_Init(gameContext.render);
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+
+    ImGuiIO& io = ImGui::GetIO();
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
+
+    ImFont* minhaFonte = io.Fonts->AddFontFromFileTTF(
+        "assets/fonts/NotoSans-Regular.ttf",
+        18.0f
+    );
+
+    IM_ASSERT(minhaFonte != nullptr);
+    io.FontDefault = minhaFonte;
+
+    ImGui::StyleColorsDark();
+
+    ImGui_ImplSDL3_InitForSDLRenderer(
+        gameContext.window,
+        gameContext.render
+    );
+    ImGui_ImplSDLRenderer3_Init(gameContext.render);
 }
 
 static std::string Kotonoha_GetTemporaryScenePath(const std::string& path) {
