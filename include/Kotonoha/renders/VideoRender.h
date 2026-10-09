@@ -25,6 +25,8 @@ struct Kotonoha_videoData {
   // PLAY_MOVIE can opt into the original School Days 24-fps ORS timeline.
   bool useOrsFrameTimeline;
   Uint64 orsEndFrame;
+  bool demuxEof;
+  bool decoderEof;
 };
 
 struct Kotonoha_videoData *Kotonoha_VideoRenderInit(const char *filename,
