@@ -19,6 +19,15 @@ static void cleanupAudioResources(AVPacket* packet, Uint8** nonPlanarData,
 		av_frame_free(&pFrame);
 }
 
+static int readAudioFrame(struct Kotonoha_audioDecode* instance,
+	AVPacket* packet) {
+	const int result = Kotonoha_UtilsFFmpegReadFrame(instance->formatCtx, packet);
+	if (result == AVERROR_EXIT) {
+		Kotonoha_IOMonitorOperationSetStalled(&instance->ioOperation, true);
+	}
+	return result;
+}
+
 static int allocateAudioBuffer(struct Kotonoha_audioDecode* instance,
 	int sampleCount, Uint8** target, int* size) {
 	const int bytesPerSample = (int)sizeof(float);
@@ -58,7 +67,7 @@ void genWhiteNoise(void* parms, Uint8** target, size_t* size) {
 }
 
 struct Kotonoha_audioDecode* Kotonoha_AudioInit(const char* path,
-	SDL_AudioSpec specification) {
+	SDL_AudioSpec specification, Kotonoha_IOMonitor* ioMonitor) {
 	struct Kotonoha_audioDecode* audioDecode =
 		(struct Kotonoha_audioDecode*)SDL_calloc(
 			1, sizeof(struct Kotonoha_audioDecode));
@@ -68,9 +77,12 @@ struct Kotonoha_audioDecode* Kotonoha_AudioInit(const char* path,
 		return NULL;
 	}
 
-	if (!Kotonoha_UtilsFFmpegLoad(path, &audioDecode->formatCtx,
+	Kotonoha_IOMonitorOperationInit(&audioDecode->ioOperation, ioMonitor);
+	if (!Kotonoha_UtilsFFmpegLoadMonitored(path, &audioDecode->formatCtx,
 		&audioDecode->codecCtx, AVMEDIA_TYPE_AUDIO,
-		&audioDecode->audioStreamIndex, 0, NULL)) {
+		&audioDecode->audioStreamIndex, 0, NULL,
+		&audioDecode->ioOperation)) {
+		Kotonoha_IOMonitorOperationReset(&audioDecode->ioOperation);
 		SDL_free(audioDecode);
 		return NULL;
 	}
@@ -91,6 +103,7 @@ struct Kotonoha_audioDecode* Kotonoha_AudioInit(const char* path,
 		SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Failed to set SwrContext options");
 		av_channel_layout_uninit(&outLayout);
 		avcodec_free_context(&audioDecode->codecCtx);
+		Kotonoha_IOMonitorOperationReset(&audioDecode->ioOperation);
 		avformat_close_input(&audioDecode->formatCtx);
 		SDL_free(audioDecode);
 		return NULL;
@@ -101,6 +114,7 @@ struct Kotonoha_audioDecode* Kotonoha_AudioInit(const char* path,
 	if (!audioDecode->swrCtx) {
 		SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Failed to allocate SwrContext");
 		avcodec_free_context(&audioDecode->codecCtx);
+		Kotonoha_IOMonitorOperationReset(&audioDecode->ioOperation);
 		avformat_close_input(&audioDecode->formatCtx);
 		SDL_free(audioDecode);
 		return NULL;
@@ -110,6 +124,7 @@ struct Kotonoha_audioDecode* Kotonoha_AudioInit(const char* path,
 		SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Failed to initialize SwrContext");
 		swr_free(&audioDecode->swrCtx);
 		avcodec_free_context(&audioDecode->codecCtx);
+		Kotonoha_IOMonitorOperationReset(&audioDecode->ioOperation);
 		avformat_close_input(&audioDecode->formatCtx);
 		SDL_free(audioDecode);
 		return NULL;
@@ -130,8 +145,13 @@ void Kotonoha_AudioSeek(struct Kotonoha_audioDecode* ctx, Uint64 timeMs) {
 	},
 		stream->time_base);
 
-	if (av_seek_frame(ctx->formatCtx, ctx->audioStreamIndex, seekTs,
-		AVSEEK_FLAG_BACKWARD) < 0) {
+	const int seekResult = Kotonoha_UtilsFFmpegSeekFrame(
+		ctx->formatCtx, &ctx->ioOperation, ctx->audioStreamIndex, seekTs,
+		AVSEEK_FLAG_BACKWARD);
+	if (seekResult < 0) {
+		if (seekResult == AVERROR_EXIT) {
+			return;
+		}
 		SDL_LogError(SDL_LOG_CATEGORY_ERROR,
 			"Audio SeekError timeMs=%llu seekTs=%lld\n",
 			(unsigned long long)timeMs, (long long)seekTs);
@@ -193,6 +213,7 @@ int Kotonoha_AudioRender(void* data, Uint8** target, int* size) {
 	while (true) {
 		ret = avcodec_receive_frame(instance->codecCtx, pFrame);
 		if (ret == 0) {
+			Kotonoha_IOMonitorOperationSetStalled(&instance->ioOperation, false);
 			Uint64 framePtsMs = Kotonoha_UtilsFFmpegGetTime(
 				stream,
 				pFrame->pts,
@@ -266,7 +287,13 @@ int Kotonoha_AudioRender(void* data, Uint8** target, int* size) {
 			return -1;
 		}
 
-		while ((ret = av_read_frame(instance->formatCtx, &packet)) >= 0) {
+		while ((ret = readAudioFrame(instance, &packet)) >= 0) {
+			if (time != NULL && time->paused) {
+				Kotonoha_IOMonitorOperationSetStalled(&instance->ioOperation, false);
+				av_packet_unref(&packet);
+				av_frame_free(&pFrame);
+				return 0;
+			}
 			if (packet.stream_index != instance->audioStreamIndex) {
 				av_packet_unref(&packet);
 				continue;
@@ -287,6 +314,11 @@ int Kotonoha_AudioRender(void* data, Uint8** target, int* size) {
 		}
 
 		if (ret < 0) {
+			if (ret == AVERROR_EXIT) {
+				Kotonoha_IOMonitorOperationSetStalled(&instance->ioOperation, true);
+				av_frame_free(&pFrame);
+				return 0;
+			}
 			if (ret == AVERROR_EOF) {
 				ret = avcodec_send_packet(instance->codecCtx, NULL);
 				if (ret < 0 && ret != AVERROR_EOF) {
@@ -375,6 +407,7 @@ void Kotonoha_AudioFree(void* data) {
 			audioDecode->loopMedia = NULL;
 		}
 		swr_free(&audioDecode->swrCtx);
+		Kotonoha_IOMonitorOperationReset(&audioDecode->ioOperation);
 		avformat_close_input(&audioDecode->formatCtx);
 		avcodec_free_context(&audioDecode->codecCtx);
 		SDL_free(audioDecode);

@@ -66,15 +66,41 @@ namespace Kotonoha {
 		drawCanvas->UpdateCanva(nullptr, -1, place);
 	}
 
+	void Gameplay::UpdateLoadingPause(struct Kotonoha_Game* gameContext) {
+		if (gameContext == nullptr) {
+			return;
+		}
+
+		const bool loading = Kotonoha_IOMonitorIsLoading(&ioMonitor) ||
+			(drawCanvas != nullptr && drawCanvas->IsWaitingForNetwork());
+		if (loading && !loadingPauseActive) {
+			pausedBeforeLoading = gameContext->paused;
+			loadingPauseActive = true;
+		}
+
+		if (loading) {
+			gameContext->paused = true;
+		}
+		else if (loadingPauseActive) {
+			gameContext->paused = pausedBeforeLoading;
+			loadingPauseActive = false;
+		}
+	}
+
 	Gameplay::Gameplay(const char* scriptPath, struct Kotonoha_Game* gameContext) {
+		Kotonoha_IOMonitorInit(
+			&ioMonitor, Kotonoha_IOMonitorRetryMissingAssetsEnabled());
 		this->tm = Kotonoha_timeNew(true);
 		this->sb = Kotonoha_TextRenderInit(this->tm, gameContext);
 
-		this->video = new Video(this->tm);
-		this->image = new Image(this->tm);
-		this->audio = new Audio(static_cast<Sound*>(gameContext->sound), this->tm);
+		this->video = new Video(this->tm, &ioMonitor);
+		this->image = new Image(this->tm, &ioMonitor);
+		this->audio = new Audio(
+			static_cast<Sound*>(gameContext->sound), this->tm, &ioMonitor);
 		this->fade = new Fade(this->tm);
 		this->drawCanvas = new Canvas();
+		Kotonoha_IOMonitorBindNetworkWaitFlag(
+			&ioMonitor, this->drawCanvas->NetworkWaitFlag());
 
 		this->drawCanvas->RegisterCanva(
 			this->image->Render, 0,
@@ -188,8 +214,13 @@ namespace Kotonoha {
 #ifdef Kotonoha_MobileSetup
 			case SDL_EVENT_WINDOW_FOCUS_GAINED:
 				if (playOnlyOnFocus) {
-					gameContext->paused = lastPauseStatus;
-					if (!gameContext->paused) {
+					if (loadingPauseActive) {
+						pausedBeforeLoading = lastPauseStatus;
+					}
+					else {
+						gameContext->paused = lastPauseStatus;
+					}
+					if (!loadingPauseActive && !gameContext->paused) {
 						Resume();
 					}
 				}
@@ -197,7 +228,9 @@ namespace Kotonoha {
 
 			case SDL_EVENT_WINDOW_FOCUS_LOST:
 				if (playOnlyOnFocus) {
-					lastPauseStatus = gameContext->paused;
+					lastPauseStatus = loadingPauseActive
+						? pausedBeforeLoading
+						: gameContext->paused;
 					gameContext->paused = true;
 					Pause();
 				}
@@ -217,6 +250,8 @@ namespace Kotonoha {
 			this->putPrompt = false;
 		}
 
+		UpdateLoadingPause(gameContext);
+
 		if (!Kotonoha_timeIsStarted(tm)) {
 			Kotonoha_timeStart(tm);
 		}
@@ -235,6 +270,14 @@ namespace Kotonoha {
 
 		const SDL_AppResult result = drawCanvas->RenderCanvas(
 			gameContext->window, gameContext->render, &gameContext->eventQueu);
+
+		UpdateLoadingPause(gameContext);
+		if (gameContext->paused) {
+			Pause();
+		}
+		else {
+			Resume();
+		}
 
 		Kotonoha_eventFree(&gameContext->eventQueu);
 		return result;

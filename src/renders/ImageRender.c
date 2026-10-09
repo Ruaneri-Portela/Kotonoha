@@ -63,23 +63,32 @@ static void cleanupResources(AVFrame* frame, AVPacket* packet,
 		sws_freeContext(swsCtx);
 }
 
+static int readImageFrame(AVFormatContext* format,
+	AVPacket* packet, Kotonoha_IOMonitorOperation* ioOperation) {
+	(void)ioOperation;
+	return Kotonoha_UtilsFFmpegReadFrame(format, packet);
+}
+
 // Função intermediária para carregar e converter o primeiro frame em RGBA
-static AVFrame* renderFrame(const char* path, int h, int w, Uint8** buffer) {
+static AVFrame* renderFrame(const char* path, int h, int w, Uint8** buffer,
+	Kotonoha_IOMonitorOperation* ioOperation) {
 	AVFormatContext* fmtCtx = NULL;
 	AVCodecContext* codecCtx = NULL;
 	struct SwsContext* swsCtx = NULL;
-	AVPacket packet;
+	AVPacket packet = { 0 };
 	int imageStreamIndex, response;
 
 	// Carregar o formato de vídeo e inicializar o codec
-	if (!Kotonoha_UtilsFFmpegLoad(path, &fmtCtx, &codecCtx, AVMEDIA_TYPE_VIDEO,
-		&imageStreamIndex, 0, NULL)) {
-		SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Failed to load video: %s\n", path);
+	if (!Kotonoha_UtilsFFmpegLoadMonitored(path, &fmtCtx, &codecCtx, AVMEDIA_TYPE_VIDEO,
+		&imageStreamIndex, 0, NULL, ioOperation)) {
+		if (!Kotonoha_IOMonitorIsIgnoredMissing(ioOperation)) {
+			SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Failed to load image: %s\n", path);
+		}
 		return NULL;
 	}
 
 	// Ler pacotes de vídeo e decodificar o primeiro frame
-	while (av_read_frame(fmtCtx, &packet) >= 0) {
+	while ((response = readImageFrame(fmtCtx, &packet, ioOperation)) >= 0) {
 		if (packet.stream_index == imageStreamIndex) {
 			// Enviar o pacote para o decodificador
 			response = avcodec_send_packet(codecCtx, &packet);
@@ -152,45 +161,85 @@ static AVFrame* renderFrame(const char* path, int h, int w, Uint8** buffer) {
 	return NULL;
 }
 
-// Função para criar textura SDL a partir de um frame RGBA
-SDL_Texture* Kotonoha_imageCreateTexture(SDL_Renderer* render, const char* path,
-	int h, int w) {
-	Uint8* buffer = NULL;
-	AVFrame* pFrameRGB = renderFrame(path, h, w, &buffer);
-	if (!pFrameRGB) {
-		SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Failed to render frame\n");
+AVFrame* Kotonoha_imageDecodeFrame(const char* path, int h, int w,
+	Uint8** buffer, Kotonoha_IOMonitorOperation* ioOperation) {
+	if (path == NULL || buffer == NULL || ioOperation == NULL) {
+		SDL_LogError(SDL_LOG_CATEGORY_ERROR,
+			"Invalid arguments for image frame decoding");
+		return NULL;
+	}
+	return renderFrame(path, h, w, buffer, ioOperation);
+}
+
+SDL_Texture* Kotonoha_imageCreateTextureFromFrame(SDL_Renderer* render,
+	AVFrame* frame) {
+	if (render == NULL || frame == NULL) {
+		SDL_LogError(SDL_LOG_CATEGORY_RENDER,
+			"Invalid arguments for image texture creation");
 		return NULL;
 	}
 
 	SDL_Texture* texture = SDL_CreateTexture(render, SDL_PIXELFORMAT_RGBA32,
-		SDL_TEXTUREACCESS_STATIC,
-		pFrameRGB->width, pFrameRGB->height);
-	if (texture) {
-		if (!SDL_UpdateTexture(texture, NULL, pFrameRGB->data[0],
-			pFrameRGB->linesize[0])) {
-			SDL_LogError(SDL_LOG_CATEGORY_RENDER,
-				"Failed to update image texture: %s", SDL_GetError());
-			SDL_DestroyTexture(texture);
-			texture = NULL;
-		}
+		SDL_TEXTUREACCESS_STATIC, frame->width, frame->height);
+	if (texture == NULL) {
+		SDL_LogError(SDL_LOG_CATEGORY_ERROR,
+			"Failed to create texture: %s", SDL_GetError());
+		return NULL;
 	}
-	else {
-		SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Failed to create texture: %s\n",
-			SDL_GetError());
+	if (!SDL_UpdateTexture(texture, NULL, frame->data[0], frame->linesize[0])) {
+		SDL_LogError(SDL_LOG_CATEGORY_RENDER,
+			"Failed to update image texture: %s", SDL_GetError());
+		SDL_DestroyTexture(texture);
+		return NULL;
+	}
+	return texture;
+}
+
+void Kotonoha_imageReleaseFrame(AVFrame** frame, Uint8** buffer) {
+	if (buffer != NULL) {
+		av_free(*buffer);
+		*buffer = NULL;
+	}
+	if (frame != NULL) {
+		av_frame_free(frame);
+	}
+}
+
+// Função para criar textura SDL a partir de um frame RGBA
+SDL_Texture* Kotonoha_imageCreateTexture(SDL_Renderer* render, const char* path,
+	int h, int w) {
+	Kotonoha_IOMonitorOperation ioOperation;
+	Kotonoha_IOMonitorOperationInit(&ioOperation, NULL);
+	Uint8* buffer = NULL;
+	AVFrame* pFrameRGB = renderFrame(path, h, w, &buffer, &ioOperation);
+	if (!pFrameRGB) {
+		if (!Kotonoha_IOMonitorIsIgnoredMissing(&ioOperation)) {
+			SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Failed to render image frame\n");
+		}
+		Kotonoha_IOMonitorOperationReset(&ioOperation);
+		return NULL;
 	}
 
+	SDL_Texture* texture =
+		Kotonoha_imageCreateTextureFromFrame(render, pFrameRGB);
+
 	// Liberar recursos
-	av_free(buffer);
-	av_frame_free(&pFrameRGB);
+	Kotonoha_imageReleaseFrame(&pFrameRGB, &buffer);
+	Kotonoha_IOMonitorOperationReset(&ioOperation);
 	return texture;
 }
 
 // Função para criar surface SDL a partir de um frame RGBA
 SDL_Surface* Kotonoha_imageCreateSurface(const char* path, int h, int w) {
 	Uint8* buffer = NULL;
-	AVFrame* pFrameRGB = renderFrame(path, h, w, &buffer);
+	Kotonoha_IOMonitorOperation ioOperation;
+	Kotonoha_IOMonitorOperationInit(&ioOperation, NULL);
+	AVFrame* pFrameRGB = renderFrame(path, h, w, &buffer, &ioOperation);
 	if (!pFrameRGB) {
-		SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Failed to render frame\n");
+		if (!Kotonoha_IOMonitorIsIgnoredMissing(&ioOperation)) {
+			SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Failed to render image frame\n");
+		}
+		Kotonoha_IOMonitorOperationReset(&ioOperation);
 		return NULL;
 	}
 
@@ -214,7 +263,7 @@ SDL_Surface* Kotonoha_imageCreateSurface(const char* path, int h, int w) {
 	}
 
 	// Liberar recursos
-	av_free(buffer);
-	av_frame_free(&pFrameRGB);
+	Kotonoha_imageReleaseFrame(&pFrameRGB, &buffer);
+	Kotonoha_IOMonitorOperationReset(&ioOperation);
 	return surface;
 }

@@ -1,10 +1,15 @@
 #include <cstring>
 #include <Kotonoha/Kotonoha.hpp>
+
 static struct Kotonoha_Game global = {};
 
 namespace {
 
 	static void CleanupGlobalResources() {
+		Kotonoha_FPSRenderShutdown();
+		Kotonoha_TimestampRenderShutdown();
+		Kotonoha_LoadingRenderShutdown();
+
 		delete static_cast<Kotonoha::Sound*>(global.sound);
 		global.sound = nullptr;
 
@@ -43,7 +48,7 @@ namespace {
 		int width = 1280;
 		int height = 720;
 		SDL_WindowFlags windowFlags =
-			global.flags | SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIDDEN;
+			global.flags | SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIDDEN | SDL_WINDOW_HIGH_PIXEL_DENSITY;
 
 		global.window = SDL_CreateWindow(
 			"Kotonoha Engine",
@@ -211,6 +216,12 @@ extern "C" {
 		}
 		if (global.showTimestamp && inRunning != nullptr) {
 			Kotonoha_TimestampRender(global.window, global.render, nullptr, inRunning->tm, nullptr);
+		}
+		if (inRunning != nullptr &&
+			(Kotonoha_IOMonitorIsLoading(&inRunning->ioMonitor) ||
+				inRunning->drawCanvas->IsWaitingForNetwork())) {
+			Kotonoha_LoadingRender(
+				global.window, global.render, nullptr, nullptr, nullptr);
 		}
 		if (!Kotonoha_BasicGuiRun(app, inRunning, global)) {
 			return SDL_APP_SUCCESS;

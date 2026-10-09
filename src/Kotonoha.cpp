@@ -70,6 +70,7 @@ namespace Kotonoha {
 		}
 
 		*status = SDL_APP_FAILURE;
+		Kotonoha_IOMonitorSetRetryMissingAssets(true);
 
 		if (!ParseArguments(argc, argv, false)) {
 			*status = SDL_APP_SUCCESS;
@@ -269,6 +270,7 @@ namespace Kotonoha {
 			SDL_Log("Options:");
 			SDL_Log("  -l <file>            Load a gameplay file");
 			SDL_Log("  -p <path>            Set the path for assets");
+			SDL_Log("  -i                   Skip assets that do not exist");
 			SDL_Log("  -s <file>            Load subtitle styles file");
 			SDL_Log("  -r <gpu>             Set preferred GPU");
 			SDL_Log("  -g                   Show GPU render drivers list");
@@ -285,6 +287,11 @@ namespace Kotonoha {
 		for (int i = 1; i < argc; ++i) {
 			char* arg = argv[i];
 			if (arg == nullptr || *arg != '-') {
+				continue;
+			}
+			if (SDL_strcmp(arg, "--ignore-missing-assets") == 0) {
+				*arg = '!';
+				Kotonoha_IOMonitorSetRetryMissingAssets(false);
 				continue;
 			}
 
@@ -326,6 +333,11 @@ namespace Kotonoha {
 					SDL_LogError(0, "Missing argument for -p option (assets path)");
                     return false;
 				}
+				break;
+
+			case 'i':
+				*arg = '!';
+				Kotonoha_IOMonitorSetRetryMissingAssets(false);
 				break;
 
 			case 's':
@@ -429,7 +441,9 @@ namespace Kotonoha {
 
 		SDL_Surface* iconSurface = Kotonoha_imageCreateSurface(path, 64, 64);
 		if (iconSurface == nullptr) {
-			SDL_LogError(0, "Couldn't load window icon: %s", SDL_GetError());
+			if (Kotonoha_IOMonitorRetryMissingAssetsEnabled()) {
+				SDL_LogError(0, "Couldn't load window icon: %s", SDL_GetError());
+			}
 			return;
 		}
 

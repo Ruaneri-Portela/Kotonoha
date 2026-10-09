@@ -13,6 +13,7 @@ namespace Kotonoha {
 class Video {
 private:
   Kotonoha_time *timeManager = nullptr;
+  Kotonoha_IOMonitor *ioMonitor = nullptr;
   std::vector<Kotonoha_videoData *> videos =
       std::vector<Kotonoha_videoData *>();
   SDL_Mutex *lock = nullptr;
@@ -20,7 +21,7 @@ private:
 public:
   void Reset();
 
-  Video(Kotonoha_time *timeManager);
+  Video(Kotonoha_time *timeManager, Kotonoha_IOMonitor *ioMonitor);
 
   bool Register(const char *path, Uint64 startTime, Uint64 endTime,
                 bool useOrsFrameTimeline = false,

@@ -12,10 +12,101 @@ namespace Kotonoha {
 			return value;
 		}
 
+		static int SDLCALL DecodeImageFrame(void* data) {
+			auto* load = static_cast<Kotonoha_imageLoad*>(data);
+			load->frame = Kotonoha_imageDecodeFrame(
+				load->path, -1, -1, &load->buffer, &load->ioOperation);
+			SDL_SetAtomicInt(&load->state, 2);
+			return 0;
+		}
+
+		static void ReleaseImageLoad(Kotonoha_imageLoad* load) {
+			if (load == nullptr) {
+				return;
+			}
+			if (load->thread != nullptr) {
+				Kotonoha_IOMonitorOperationCancel(&load->ioOperation);
+				SDL_WaitThread(load->thread, nullptr);
+				load->thread = nullptr;
+			}
+			Kotonoha_imageReleaseFrame(&load->frame, &load->buffer);
+			Kotonoha_IOMonitorOperationReset(&load->ioOperation);
+			load->path = nullptr;
+			load->owner = nullptr;
+			load->failed = false;
+			load->missingIgnored = false;
+			SDL_SetAtomicInt(&load->state, 0);
+		}
+
+		static bool PrepareImageTexture(SDL_Renderer* renderer,
+			const char* path, Kotonoha_imageLoad* load,
+			SDL_Texture** texture, Kotonoha_IOMonitor* owner) {
+			if (renderer == nullptr || path == nullptr || load == nullptr ||
+				texture == nullptr) {
+				SDL_LogError(SDL_LOG_CATEGORY_RENDER,
+					"Invalid arguments for asynchronous image loading");
+				return false;
+			}
+			if (*texture != nullptr || load->failed) {
+				return *texture != nullptr;
+			}
+
+			if (load->thread != nullptr &&
+				SDL_GetAtomicInt(&load->state) == 2) {
+				SDL_WaitThread(load->thread, nullptr);
+				load->thread = nullptr;
+
+				if (load->frame != nullptr) {
+					*texture = Kotonoha_imageCreateTextureFromFrame(
+						renderer, load->frame);
+					Kotonoha_imageReleaseFrame(&load->frame, &load->buffer);
+					if (*texture == nullptr) {
+						load->failed = true;
+					}
+				}
+				else {
+					load->failed = true;
+					if (Kotonoha_IOMonitorIsIgnoredMissing(&load->ioOperation)) {
+						load->missingIgnored = true;
+					}
+				}
+
+				Kotonoha_IOMonitorOperationReset(&load->ioOperation);
+				SDL_SetAtomicInt(&load->state, 0);
+			}
+
+			if (*texture != nullptr || load->failed) {
+				return *texture != nullptr;
+			}
+
+			if (load->thread == nullptr) {
+				load->path = path;
+				load->buffer = nullptr;
+				load->owner = owner;
+				load->missingIgnored = false;
+				Kotonoha_IOMonitorOperationInit(
+					&load->ioOperation, owner);
+				SDL_SetAtomicInt(&load->state, 1);
+				load->thread = SDL_CreateThread(
+					DecodeImageFrame, "Image FFmpeg decoder", load);
+				if (load->thread == nullptr) {
+					SDL_SetAtomicInt(&load->state, 0);
+					load->failed = true;
+					Kotonoha_IOMonitorOperationReset(&load->ioOperation);
+					SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
+						"Failed to create image decoding thread: %s",
+						SDL_GetError());
+				}
+			}
+			return false;
+		}
+
 		static void DestroyPicture(Kotonoha_Picture* picture) {
 			if (picture == nullptr) {
 				return;
 			}
+
+			ReleaseImageLoad(&picture->load);
 
 			if (picture->texture != nullptr) {
 				SDL_DestroyTexture(picture->texture);
@@ -31,7 +122,8 @@ namespace Kotonoha {
 		}
 	} // namespace
 
-	Image::Image(Kotonoha_time* time) : timeManager(time), lock(nullptr) {
+	Image::Image(Kotonoha_time* time, Kotonoha_IOMonitor* ioMonitor)
+		: timeManager(time), ioMonitor(ioMonitor), lock(nullptr) {
 		lock = SDL_CreateMutex();
 		if (lock == nullptr) {
 			SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
@@ -132,8 +224,8 @@ namespace Kotonoha {
 				continue;
 			}
 			if (group->textures[index] == nullptr) {
-				group->textures[index] = Kotonoha_imageCreateTexture(
-					renderer, group->paths[index].c_str(), -1, -1);
+				PrepareImageTexture(renderer, group->paths[index].c_str(),
+					&group->loads[index], &group->textures[index], ioMonitor);
 				if (group->textures[index] != nullptr &&
 					(!SDL_SetTextureBlendMode(
 						group->textures[index], SDL_BLENDMODE_BLEND) ||
@@ -172,6 +264,7 @@ namespace Kotonoha {
 		object->id = id;
 		object->canRender = true;
 		object->baseGeneration = 0;
+		object->load.owner = ioMonitor;
 
 		if (object->path == nullptr) {
 			SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
@@ -256,13 +349,22 @@ namespace Kotonoha {
 					&diff);
 
 			if (picture->texture == nullptr) {
-				picture->texture =
-					Kotonoha_imageCreateTexture(render, picture->path, -1, -1);
+				PrepareImageTexture(
+					render, picture->path, &picture->load, &picture->texture,
+					here->ioMonitor);
 
 				if (picture->texture == nullptr) {
-					SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
-						"Failed to create image texture: %s",
-						picture->path ? picture->path : "<null>");
+					if (picture->load.failed &&
+						!picture->load.missingIgnored) {
+						SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
+							"Failed to create image texture: %s",
+							picture->path ? picture->path : "<null>");
+					}
+					if (picture->load.ioOperation.stalled &&
+						status != KOTONOHA_SCENE_DRAW &&
+						status != KOTONOHA_SCENE_DRAW_LAST) {
+						status = KOTONOHA_SCENE_WAITING;
+					}
 					++it;
 					continue;
 				}
@@ -334,7 +436,9 @@ namespace Kotonoha {
 	void Image::Reset() {
 		const auto clearGroups = [this]() {
 			for (auto& group : abcGroups) {
-				for (SDL_Texture*& texture : group->textures) {
+				for (size_t index = 0; index < 3; ++index) {
+					ReleaseImageLoad(&group->loads[index]);
+					SDL_Texture*& texture = group->textures[index];
 					if (texture != nullptr) {
 						SDL_DestroyTexture(texture);
 						texture = nullptr;

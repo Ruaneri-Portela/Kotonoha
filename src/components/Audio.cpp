@@ -2,8 +2,9 @@
 
 namespace Kotonoha {
 
-	Audio::Audio(Sound* soundCtx, struct Kotonoha_time* timeCtx)
-		: soundCtx(soundCtx), timeCtx(timeCtx) {}
+	Audio::Audio(Sound* soundCtx, struct Kotonoha_time* timeCtx,
+		Kotonoha_IOMonitor* ioMonitor)
+		: soundCtx(soundCtx), timeCtx(timeCtx), ioMonitor(ioMonitor) {}
 
 	struct Kotonoha_audioDecode* Audio::AddMedia(const char* path,
 		Uint64 start,
@@ -65,10 +66,8 @@ namespace Kotonoha {
 		}
 
 		Kotonoha_audioDecode* newAudioDecode =
-			Kotonoha_AudioInit(path, targetChannel->GetSpecs());
+			Kotonoha_AudioInit(path, targetChannel->GetSpecs(), ioMonitor);
 		if (newAudioDecode == nullptr) {
-			SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
-				"Error initializing audio decode: %s", path);
 			Kotonoha_AudioFree(loopMedia);
 			return nullptr;
 		}
@@ -117,10 +116,8 @@ namespace Kotonoha {
 		}
 
 		Kotonoha_audioDecode* loop =
-			Kotonoha_AudioInit(loopPath, channel->GetSpecs());
+			Kotonoha_AudioInit(loopPath, channel->GetSpecs(), ioMonitor);
 		if (loop == nullptr) {
-			SDL_LogError(SDL_LOG_CATEGORY_AUDIO,
-				"Failed to initialize loop audio: %s", loopPath);
 			return nullptr;
 		}
 

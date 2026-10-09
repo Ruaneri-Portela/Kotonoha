@@ -45,6 +45,12 @@ To use **Kotonoha Novel Engine**, follow these steps:
 
 3. Start creating or playing `.ORS`-based novels!
 
+### Asset loading
+
+Pass `-i` or `--ignore-missing-assets` at startup to skip missing media assets.
+Assets that are still being fetched are retried; after an FFmpeg read times out,
+playback immediately pauses and displays a loading overlay until the data arrives.
+
 ## Build Guide
 
 Kotonoha now uses **CMake** and integrates dependencies through **git submodules** inside the `external` folder.
@@ -201,6 +207,13 @@ O projeto mapeia comandos `.ORS` para um mecanismo moderno com suporte a Windows
 2. Compile o projeto com o **CMake** conforme as instruções da sua plataforma.
 
 3. Comece a criar ou jogar novels baseadas em `.ORS`!
+
+### Carregamento de assets
+
+Passe `-i` ou `--ignore-missing-assets` na inicialização para ignorar assets de
+mídia ausentes. Assets que ainda estão sendo recebidos são tentados novamente;
+quando uma leitura do FFmpeg aguarda dados, a reprodução pausa imediatamente e
+mostra uma tela de carregamento até os dados chegarem.
 
 ## Guia de Compilação
 

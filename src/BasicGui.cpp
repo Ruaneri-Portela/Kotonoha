@@ -336,12 +336,12 @@ void Kotonoha_BasicGuiInit(Kotonoha_Game& gameContext) {
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
 
-    ImFont* minhaFonte = io.Fonts->AddFontFromFileTTF(
+    ImFont* mainFont = io.Fonts->AddFontFromFileTTF(
         "assets/fonts/NotoSans-Regular.ttf",
-        18.0f);
+        14.0f);
 
-    IM_ASSERT(minhaFonte != nullptr);
-    io.FontDefault = minhaFonte;
+    IM_ASSERT(mainFont != nullptr);
+    io.FontDefault = mainFont;
 
     ImGui::StyleColorsDark();
 
@@ -352,9 +352,9 @@ void Kotonoha_BasicGuiInit(Kotonoha_Game& gameContext) {
     style.PopupRounding = 5.0f;
     style.ScrollbarRounding = 8.0f;
     style.GrabRounding = 5.0f;
-    style.WindowPadding = ImVec2(14.0f, 12.0f);
-    style.FramePadding = ImVec2(8.0f, 6.0f);
-    style.ItemSpacing = ImVec2(9.0f, 8.0f);
+    style.WindowPadding = ImVec2(7.0f, 6.0f);
+    style.FramePadding = ImVec2(4.0f, 3.0f);
+    style.ItemSpacing = ImVec2(4.5f, 4.0f);
     style.Colors[ImGuiCol_WindowBg] =
         ImVec4(0.075f, 0.085f, 0.11f, 0.98f);
     style.Colors[ImGuiCol_Header] =
@@ -902,7 +902,7 @@ static void Kotonoha_DrawPlayback(
     float newTime = play->GetTime();
     const float lastTime = play->GetLastTime();
 
-    ImGui::Text("Tempo: %s / %s",
+    ImGui::Text("Time: %s / %s",
         Kotonoha_FormatTime(
             static_cast<Uint64>(newTime * 1000.0f)).c_str(),
         Kotonoha_FormatTime(
@@ -1547,10 +1547,11 @@ bool Kotonoha_BasicGuiRun(
     }
 
     ImGui::Render();
-    ImGui_ImplSDLRenderer3_RenderDrawData(
-        ImGui::GetDrawData(),
-        context.render);
-
+    float displayScale = SDL_GetWindowDisplayScale(context.window);
+    SDL_SetRenderScale(context.render, displayScale, displayScale);
+    ImGui_ImplSDLRenderer3_RenderDrawData(ImGui::GetDrawData(), context.render);
+    SDL_SetRenderScale(context.render, 1.0f, 1.0f);
+    
     return !shouldExit;
 }
 

@@ -1,8 +1,8 @@
 #include <Kotonoha/utils/VoicePcm.h>
+#include <Kotonoha/utils/FFmpeg.h>
 
 #include <SDL3/SDL.h>
 #include <libavcodec/avcodec.h>
-#include <libavformat/avformat.h>
 #include <libswresample/swresample.h>
 
 #include <stdint.h>
@@ -118,7 +118,7 @@ static bool Kotonoha_FlushVoiceResampler(struct SwrContext* resampler,
 }
 
 bool Kotonoha_DecodeVoicePcm(const char* path, int16_t** samples,
-	size_t* sampleCount) {
+	size_t* sampleCount, Kotonoha_IOMonitor* ioMonitor) {
 	if (samples == NULL || sampleCount == NULL) {
 		SDL_LogError(SDL_LOG_CATEGORY_AUDIO,
 			"Voice PCM decoder received null output pointers");
@@ -138,39 +138,18 @@ bool Kotonoha_DecodeVoicePcm(const char* path, int16_t** samples,
 	AVFrame* frame = NULL;
 	AVPacket* packet = NULL;
 	struct Kotonoha_PcmBuffer pcm = { NULL, 0, 0 };
+	Kotonoha_IOMonitorOperation ioOperation;
+	Kotonoha_IOMonitorOperationInit(&ioOperation, ioMonitor);
 	const char* failure = NULL;
 	int stream = -1;
 	int readResult = 0;
 	bool success = false;
+	bool ignoredMissing = false;
 
-	if (avformat_open_input(&format, path, NULL, NULL) < 0 ||
-		avformat_find_stream_info(format, NULL) < 0) {
+	if (!Kotonoha_UtilsFFmpegLoadMonitored(path, &format, &codec,
+			AVMEDIA_TYPE_AUDIO, &stream, 0, NULL, &ioOperation)) {
 		failure = "open voice file";
 		goto cleanup;
-	}
-
-	stream = av_find_best_stream(
-		format, AVMEDIA_TYPE_AUDIO, -1, -1, NULL, 0);
-	if (stream < 0) {
-		failure = "find voice audio stream";
-		goto cleanup;
-	}
-
-	{
-		const AVCodec* decoder = avcodec_find_decoder(
-			format->streams[stream]->codecpar->codec_id);
-		if (decoder == NULL) {
-			failure = "find voice audio decoder";
-			goto cleanup;
-		}
-		codec = avcodec_alloc_context3(decoder);
-		if (codec == NULL ||
-			avcodec_parameters_to_context(
-				codec, format->streams[stream]->codecpar) < 0 ||
-			avcodec_open2(codec, decoder, NULL) < 0) {
-			failure = "initialize voice audio decoder";
-			goto cleanup;
-		}
 	}
 
 	{
@@ -194,7 +173,15 @@ bool Kotonoha_DecodeVoicePcm(const char* path, int16_t** samples,
 		goto cleanup;
 	}
 
-	while ((readResult = av_read_frame(format, packet)) >= 0) {
+	for (;;) {
+		readResult = Kotonoha_UtilsFFmpegReadFrame(format, packet);
+		if (readResult == AVERROR_EXIT &&
+			SDL_GetAtomicInt(&ioOperation.cancelled) == 0) {
+			continue;
+		}
+		if (readResult < 0) {
+			break;
+		}
 		if (packet->stream_index == stream) {
 			int result = avcodec_send_packet(codec, packet);
 			if (result == AVERROR(EAGAIN)) {
@@ -246,17 +233,21 @@ bool Kotonoha_DecodeVoicePcm(const char* path, int16_t** samples,
 	success = true;
 
 cleanup:
+	ignoredMissing = Kotonoha_IOMonitorIsIgnoredMissing(&ioOperation);
 	av_packet_free(&packet);
 	av_frame_free(&frame);
 	swr_free(&resampler);
 	avcodec_free_context(&codec);
 	avformat_close_input(&format);
+	Kotonoha_IOMonitorOperationReset(&ioOperation);
 
 	if (!success) {
 		SDL_free(pcm.samples);
-		SDL_LogWarn(SDL_LOG_CATEGORY_AUDIO,
-			"Could not %s for '%s'", failure != NULL ? failure : "decode voice PCM",
-			path);
+		if (!ignoredMissing) {
+			SDL_LogWarn(SDL_LOG_CATEGORY_AUDIO,
+				"Could not %s for '%s'",
+				failure != NULL ? failure : "decode voice PCM", path);
+		}
 		return false;
 	}
 

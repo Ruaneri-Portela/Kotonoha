@@ -7,6 +7,7 @@
 #include <Kotonoha/components/Prompt.hpp>
 #include <Kotonoha/components/Sound.hpp>
 #include <Kotonoha/components/Video.hpp>
+#include <Kotonoha/utils/IOMonitor.h>
 
 extern "C" {
 #include <Kotonoha/Kotonoha.h>
@@ -21,12 +22,15 @@ namespace Kotonoha {
 		float aspectRatio = 16.0f / 9.0f;
 		int windowWidth = 0, windowHeight = 0;
 		bool lastPauseStatus = false, playOnlyOnFocus = false;
+		bool loadingPauseActive = false, pausedBeforeLoading = false;
 
 		void UpdateCanvasSize(SDL_Window* window, SDL_Renderer* renderer);
+		void UpdateLoadingPause(struct Kotonoha_Game* gameContext);
 
 	public:
 		struct Kotonoha_subtitles* sb = nullptr;
 		struct Kotonoha_time* tm = nullptr;
+		Kotonoha_IOMonitor ioMonitor{};
 		Canvas* drawCanvas = nullptr;
 		Event* eventManager = nullptr;
 		Video* video = nullptr;

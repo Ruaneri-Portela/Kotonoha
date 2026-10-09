@@ -10,6 +10,7 @@
 extern "C" {
 #include <Kotonoha/parsers/Ors.h>
 #include <Kotonoha/renders/TextRender.h>
+#include <Kotonoha/utils/IOMonitor.h>
 }
 
 namespace Kotonoha {
@@ -28,6 +29,8 @@ private:
     Uint64 startTick = 0;
   };
   std::unordered_map<const Kotonoha_orsEvent*, VoiceAnimation> voiceAnimations;
+  std::unordered_map<const Kotonoha_orsEvent*, Kotonoha_IOMonitorOperation>
+      pendingAssetLoads;
 
 public:
   Uint64 lastTime = 0;
