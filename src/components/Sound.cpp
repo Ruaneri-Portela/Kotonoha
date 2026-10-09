@@ -120,7 +120,30 @@ namespace Kotonoha {
 	Sound::Channel::~Channel() {
 		inExit = true;
 
-		RemovePipe(nullptr);
+		if (stream != nullptr) {
+			if (!SDL_PauseAudioStreamDevice(stream)) {
+				SDL_LogWarn(SDL_LOG_CATEGORY_AUDIO,
+					"Failed to pause audio stream during shutdown: %s",
+					SDL_GetError());
+			}
+
+			const bool streamLocked = SDL_LockAudioStream(stream);
+			if (!streamLocked) {
+				SDL_LogError(SDL_LOG_CATEGORY_AUDIO,
+					"Failed to synchronize audio stream during shutdown: %s",
+					SDL_GetError());
+				SDL_DestroyAudioStream(stream);
+				stream = nullptr;
+				RemovePipe(nullptr);
+			}
+			else {
+				RemovePipe(nullptr);
+				SDL_UnlockAudioStream(stream);
+			}
+		}
+		else {
+			RemovePipe(nullptr);
+		}
 
 		if (stream != nullptr) {
 			SDL_DestroyAudioStream(stream);
