@@ -43,10 +43,13 @@
     <ClCompile Include="src\renders\AudioRender.c" />
     <ClCompile Include="src\renders\FPSrender.c" />
     <ClCompile Include="src\renders\ImageRender.c" />
+    <ClCompile Include="src\renders\LoadingRender.c" />
     <ClCompile Include="src\renders\TextRender.c" />
     <ClCompile Include="src\renders\TimestampRender.c" />
     <ClCompile Include="src\renders\VideoRender.c" />
     <ClCompile Include="src\utils\FFmpeg.c" />
+    <ClCompile Include="src\utils\IOMonitor.c" />
+    <ClCompile Include="src\utils\OverlayRenderUtils.c" />
     <ClCompile Include="src\utils\Time.c" />
     <ClCompile Include="src\utils\UserEvents.c" />
     <ClCompile Include="src\utils\VoicePcm.c" />
@@ -60,6 +63,7 @@
     <ClInclude Include="include\Kotonoha\components\Prompt.hpp" />
     <ClInclude Include="include\Kotonoha\components\Sound.hpp" />
     <ClInclude Include="include\Kotonoha\components\Video.hpp" />
+    <ClInclude Include="include\Kotonoha\components\VoiceActivity.hpp" />
     <ClInclude Include="include\Kotonoha\Gameplay.hpp" />
     <ClInclude Include="include\Kotonoha\Kotonoha.h" />
     <ClInclude Include="include\Kotonoha\Kotonoha.hpp" />
@@ -67,10 +71,13 @@
     <ClInclude Include="include\Kotonoha\renders\AudioRender.h" />
     <ClInclude Include="include\Kotonoha\renders\FPSrender.h" />
     <ClInclude Include="include\Kotonoha\renders\ImageRender.h" />
+    <ClInclude Include="include\Kotonoha\renders\LoadingRender.h" />
     <ClInclude Include="include\Kotonoha\renders\TextRender.h" />
     <ClInclude Include="include\Kotonoha\renders\TimestampRender.h" />
     <ClInclude Include="include\Kotonoha\renders\VideoRender.h" />
     <ClInclude Include="include\Kotonoha\utils\FFmpeg.h" />
+    <ClInclude Include="include\Kotonoha\utils\IOMonitor.h" />
+    <ClInclude Include="include\Kotonoha\utils\OverlayRenderUtils.h" />
     <ClInclude Include="include\Kotonoha\utils\Time.h" />
     <ClInclude Include="include\Kotonoha\utils\VoicePcm.h" />
     <ClInclude Include="include\Kotonoha\utils\UserEvents.h" />
