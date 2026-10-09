@@ -1547,11 +1547,12 @@ bool Kotonoha_BasicGuiRun(
     }
 
     ImGui::Render();
-    float displayScale = SDL_GetWindowDisplayScale(context.window);
-    SDL_SetRenderScale(context.render, displayScale, displayScale);
-    ImGui_ImplSDLRenderer3_RenderDrawData(ImGui::GetDrawData(), context.render);
+    const ImVec2 fbScale = ImGui::GetIO().DisplayFramebufferScale;
+    SDL_SetRenderScale(context.render, fbScale.x, fbScale.y);
+    ImGui_ImplSDLRenderer3_RenderDrawData(
+            ImGui::GetDrawData(),
+            context.render);
     SDL_SetRenderScale(context.render, 1.0f, 1.0f);
-    
     return !shouldExit;
 }
 
