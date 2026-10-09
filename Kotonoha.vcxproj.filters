@@ -108,6 +108,15 @@
     <ClCompile Include="src\Main.cpp">
       <Filter>Arquivos de Origem</Filter>
     </ClCompile>
+    <ClCompile Include="src\renders\LoadingRender.c">
+      <Filter>Arquivos de Origem\render</Filter>
+    </ClCompile>
+    <ClCompile Include="src\utils\IOMonitor.c">
+      <Filter>Arquivos de Origem\utils</Filter>
+    </ClCompile>
+    <ClCompile Include="src\utils\OverlayRenderUtils.c">
+      <Filter>Arquivos de Origem\utils</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\Kotonoha\Gameplay.hpp">
@@ -181,6 +190,18 @@
     </ClInclude>
     <ClInclude Include="include\Kotonoha\renders\TimestampRender.h">
       <Filter>Arquivos de Cabeçalho\render</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Kotonoha\renders\LoadingRender.h">
+      <Filter>Arquivos de Cabeçalho\render</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Kotonoha\utils\OverlayRenderUtils.h">
+      <Filter>Arquivos de Cabeçalho\utils</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Kotonoha\utils\IOMonitor.h">
+      <Filter>Arquivos de Cabeçalho\utils</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Kotonoha\components\VoiceActivity.hpp">
+      <Filter>Arquivos de Cabeçalho\components</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
