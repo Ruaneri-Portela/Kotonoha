@@ -1,4 +1,5 @@
 #include <cstddef>
+#include <cstdio>
 #include <exception>
 #include <imgui.h>
 #include <imgui_impl_sdl3.h>
@@ -9,9 +10,11 @@
 #include <SDL3/SDL_iostream.h>
 #include <sstream>
 #include <string>
+#include <vector>
 
 bool Kotonoha_BasicGuiShow = false;
 bool Kotonoha_BasicGuiEditorShow = false;
+static bool textEditorShow = false;
 bool showError = false;
 
 static char openBuf[4096] = { 0 };
@@ -24,6 +27,24 @@ static bool editorDirty = false;
 
 static std::string sceneEditorText;
 static char editorStatusBuf[512] = { 0 };
+
+struct TextEditorEntry {
+	bool isSelection = false;
+	size_t lineIndex = 0;
+	std::string startTime;
+	std::string endTime;
+	std::string prefix;
+	std::string suffix;
+	std::string character;
+	std::string text;
+	std::vector<std::string> options;
+};
+
+static std::vector<std::string> textEditorLines;
+static std::vector<TextEditorEntry> textEditorEntries;
+static std::string textEditorSyncedScript;
+static bool textEditorFinalNewline = false;
+static bool textEditorDirty = false;
 
 static std::string originalScriptPathForTemporary;
 static std::string temporaryScriptPath;
@@ -68,6 +89,183 @@ static bool Kotonoha_FinishFrameAndReturn(Kotonoha_Game& context) {
 	return true;
 }
 
+static std::vector<std::string> Kotonoha_SplitTabs(const std::string& text) {
+	std::vector<std::string> fields;
+	size_t start = 0;
+	while (true) {
+		const size_t tab = text.find('\t', start);
+		if (tab == std::string::npos) {
+			fields.push_back(text.substr(start));
+			break;
+		}
+		fields.push_back(text.substr(start, tab - start));
+		start = tab + 1;
+	}
+	return fields;
+}
+
+static std::string Kotonoha_JoinLines(const std::vector<std::string>& lines,
+	bool finalNewline) {
+	std::string result;
+	for (size_t i = 0; i < lines.size(); ++i) {
+		if (i != 0) {
+			result.push_back('\n');
+		}
+		result += lines[i];
+	}
+	if (finalNewline) {
+		result.push_back('\n');
+	}
+	return result;
+}
+
+static std::string Kotonoha_FormatTime(Uint64 milliseconds);
+
+static std::string Kotonoha_FormatScriptTime(const std::string& timestamp) {
+	Uint64 parts[3] = { 0, 0, 0 };
+	size_t cursor = 0;
+	for (size_t part = 0; part < SDL_arraysize(parts); ++part) {
+		const size_t start = cursor;
+		while (cursor < timestamp.size() &&
+			timestamp[cursor] >= '0' && timestamp[cursor] <= '9') {
+			const Uint64 digit = static_cast<Uint64>(timestamp[cursor] - '0');
+			if (parts[part] > (SDL_MAX_UINT64 - digit) / 10) {
+				return timestamp;
+			}
+			parts[part] = parts[part] * 10 + digit;
+			++cursor;
+		}
+		if (cursor == start ||
+			(part < 2 && (cursor >= timestamp.size() || timestamp[cursor++] != ':')) ||
+			(part == 2 && cursor != timestamp.size())) {
+			return timestamp;
+		}
+	}
+
+	if (parts[0] > SDL_MAX_UINT64 / 60000) {
+		return timestamp;
+	}
+	Uint64 milliseconds = parts[0] * 60000;
+	if (parts[1] > (SDL_MAX_UINT64 - milliseconds) / 1000) {
+		return timestamp;
+	}
+	milliseconds += parts[1] * 1000;
+	if (parts[2] > (SDL_MAX_UINT64 - milliseconds) / 10) {
+		return timestamp;
+	}
+	return Kotonoha_FormatTime(milliseconds + parts[2] * 10);
+}
+
+static void Kotonoha_LoadTextEditor(const std::string& source) {
+	textEditorSyncedScript = source;
+	textEditorLines.clear();
+	textEditorEntries.clear();
+	textEditorFinalNewline = !source.empty() && source.back() == '\n';
+
+	std::stringstream stream(source);
+	std::string line;
+	while (std::getline(stream, line)) {
+		textEditorLines.push_back(line);
+	}
+
+	for (size_t i = 0; i < textEditorLines.size(); ++i) {
+		const std::string& rawLine = textEditorLines[i];
+		const size_t contentEnd = rawLine.find('\r');
+		std::string content = rawLine.substr(0, contentEnd);
+		const bool hasTerminator = !content.empty() && content.back() == ';';
+		if (hasTerminator) {
+			content.pop_back();
+		}
+		if (!hasTerminator) {
+			continue;
+		}
+		const size_t equals = content.find('=');
+		if (equals == std::string::npos) {
+			continue;
+		}
+
+		const bool isPrintText = content.compare(0, equals, "[PrintText]") == 0;
+		const bool isSelection = content.compare(0, equals, "[SetSELECT]") == 0;
+		if (!isPrintText && !isSelection) {
+			continue;
+		}
+
+		const std::string payload = content.substr(equals + 1);
+		const std::vector<std::string> fields = Kotonoha_SplitTabs(payload);
+		if ((isPrintText && fields.size() != 4) ||
+			(isSelection && fields.size() < 3)) {
+			continue;
+		}
+
+		TextEditorEntry entry;
+		entry.isSelection = isSelection;
+		entry.lineIndex = i;
+		entry.startTime = Kotonoha_FormatScriptTime(fields.front());
+		entry.endTime = Kotonoha_FormatScriptTime(fields.back());
+
+		const size_t firstTab = content.find('\t', equals + 1);
+		const size_t lastTab = content.rfind('\t');
+		if (firstTab == std::string::npos || lastTab == std::string::npos ||
+			lastTab <= firstTab) {
+			continue;
+		}
+		entry.prefix = content.substr(0, firstTab);
+		entry.suffix = content.substr(lastTab) + ";";
+
+		if (isPrintText) {
+			entry.character = fields[1];
+			entry.text = fields[2];
+		}
+		else {
+			for (size_t field = 1; field + 1 < fields.size(); ++field) {
+				entry.options.push_back(fields[field]);
+			}
+		}
+		textEditorEntries.push_back(std::move(entry));
+	}
+}
+
+static void Kotonoha_SyncTextEditorToScript() {
+	for (const TextEditorEntry& entry : textEditorEntries) {
+		std::string replacement = entry.prefix;
+		if (entry.isSelection) {
+			for (const std::string& option : entry.options) {
+				replacement.push_back('\t');
+				replacement += option;
+			}
+		}
+		else {
+			replacement += '\t';
+			replacement += entry.character;
+			replacement += '\t';
+			replacement += entry.text;
+		}
+		replacement += entry.suffix;
+
+		const size_t carriageReturn = textEditorLines[entry.lineIndex].find('\r');
+		if (carriageReturn != std::string::npos) {
+			replacement += textEditorLines[entry.lineIndex].substr(carriageReturn);
+		}
+		textEditorLines[entry.lineIndex] = std::move(replacement);
+	}
+	sceneEditorText = Kotonoha_JoinLines(textEditorLines, textEditorFinalNewline);
+	textEditorSyncedScript = sceneEditorText;
+	textEditorDirty = true;
+}
+
+static std::string Kotonoha_FormatTime(Uint64 milliseconds) {
+	const Uint64 totalCentiseconds = milliseconds / 10;
+	const Uint64 minutes = totalCentiseconds / 6000;
+	const Uint64 seconds = (totalCentiseconds / 100) % 60;
+	const Uint64 centiseconds = totalCentiseconds % 100;
+	char formatted[64];
+	SDL_snprintf(formatted, sizeof(formatted), "%02llu:%02llu:%02llu",
+		static_cast<unsigned long long>(minutes),
+		static_cast<unsigned long long>(seconds),
+		static_cast<unsigned long long>(centiseconds));
+	return formatted;
+}
+
 void Kotonoha_BasicGuiInit(Kotonoha_Game& gameContext) {
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -85,6 +283,24 @@ void Kotonoha_BasicGuiInit(Kotonoha_Game& gameContext) {
     io.FontDefault = minhaFonte;
 
     ImGui::StyleColorsDark();
+	ImGuiStyle& style = ImGui::GetStyle();
+	style.WindowRounding = 8.0f;
+	style.ChildRounding = 6.0f;
+	style.FrameRounding = 5.0f;
+	style.PopupRounding = 5.0f;
+	style.ScrollbarRounding = 8.0f;
+	style.GrabRounding = 5.0f;
+	style.WindowPadding = ImVec2(14.0f, 12.0f);
+	style.FramePadding = ImVec2(8.0f, 6.0f);
+	style.ItemSpacing = ImVec2(9.0f, 8.0f);
+	style.Colors[ImGuiCol_WindowBg] = ImVec4(0.075f, 0.085f, 0.11f, 0.98f);
+	style.Colors[ImGuiCol_Header] = ImVec4(0.20f, 0.30f, 0.43f, 0.75f);
+	style.Colors[ImGuiCol_HeaderHovered] = ImVec4(0.27f, 0.42f, 0.59f, 0.85f);
+	style.Colors[ImGuiCol_Button] = ImVec4(0.18f, 0.30f, 0.44f, 0.90f);
+	style.Colors[ImGuiCol_ButtonHovered] = ImVec4(0.25f, 0.42f, 0.60f, 1.00f);
+	style.Colors[ImGuiCol_FrameBg] = ImVec4(0.12f, 0.15f, 0.20f, 1.00f);
+	style.Colors[ImGuiCol_FrameBgHovered] = ImVec4(0.16f, 0.21f, 0.29f, 1.00f);
+	style.Colors[ImGuiCol_CheckMark] = ImVec4(0.42f, 0.75f, 0.96f, 1.00f);
 
     ImGui_ImplSDL3_InitForSDLRenderer(
         gameContext.window,
@@ -220,7 +436,9 @@ static bool Kotonoha_LoadSceneEditorFromDisk(Kotonoha::Gameplay* play) {
 	}
 
 	sceneEditorText = std::move(loadedText);
+	Kotonoha_LoadTextEditor(sceneEditorText);
 	editorDirty = false;
+	textEditorDirty = false;
 	Kotonoha_SetEditorStatus("Editor loaded from disk.");
 	return true;
 }
@@ -321,7 +539,9 @@ static bool Kotonoha_SelectScene(Kotonoha::Kotonoha* game, int index) {
 	selectedSceneIndex = index;
 	editorSceneIndex = index;
 	sceneEditorText = std::move(loadedText);
+	Kotonoha_LoadTextEditor(sceneEditorText);
 	editorDirty = false;
+	textEditorDirty = false;
 	Kotonoha_SetEditorStatus("Editor loaded from disk.");
 	return true;
 }
@@ -585,7 +805,9 @@ bool Kotonoha_BasicGuiRun(Kotonoha::Kotonoha* game,
 			float newTime = play->GetTime();
 			float lastTime = play->GetLastTime();
 
-			ImGui::Text("Time: %.2f / %.2f", newTime, lastTime);
+			ImGui::Text("Tempo: %s / %s",
+				Kotonoha_FormatTime(static_cast<Uint64>(newTime * 1000.0f)).c_str(),
+				Kotonoha_FormatTime(static_cast<Uint64>(lastTime * 1000.0f)).c_str());
 
 			if (ImGui::SliderFloat("Duration", &newTime, 0.0f, lastTime)) {
 				play->SetTime(newTime);
@@ -640,12 +862,16 @@ bool Kotonoha_BasicGuiRun(Kotonoha::Kotonoha* game,
 		}
 
 		if (ImGui::CollapsingHeader("Script", ImGuiTreeNodeFlags_DefaultOpen)) {
-			ImGui::Checkbox("Show Playlist", &show_playlist);
+			ImGui::Checkbox("Playlist", &show_playlist);
 			ImGui::SameLine();
-			if (ImGui::Checkbox("Show Scene Editor", &Kotonoha_BasicGuiEditorShow)) {
+			if (ImGui::Checkbox("Editor de script", &Kotonoha_BasicGuiEditorShow)) {
 				if (Kotonoha_BasicGuiEditorShow) {
 					Kotonoha_SelectScene(game, (int)context.scene);
 				}
+			}
+			ImGui::SameLine();
+			if (ImGui::Checkbox("Editor de texto", &textEditorShow) && textEditorShow) {
+				Kotonoha_SelectScene(game, (int)context.scene);
 			}
 		}
 
@@ -700,9 +926,11 @@ bool Kotonoha_BasicGuiRun(Kotonoha::Kotonoha* game,
 				}
 
 				ImGui::SameLine();
-				ImGui::Checkbox("Show Playlist", &show_playlist);
+				ImGui::Checkbox("Playlist", &show_playlist);
 				ImGui::SameLine();
-				ImGui::Checkbox("Show Scene Editor", &Kotonoha_BasicGuiEditorShow);
+				ImGui::Checkbox("Editor de script", &Kotonoha_BasicGuiEditorShow);
+				ImGui::SameLine();
+				ImGui::Checkbox("Editor de texto", &textEditorShow);
 			}
 
 			if (ImGui::Button("Exit")) {
@@ -717,7 +945,7 @@ bool Kotonoha_BasicGuiRun(Kotonoha::Kotonoha* game,
 	}
 
 	if (show_playlist) {
-		ImGui::Begin("Scenes", &show_playlist);
+		ImGui::Begin("Playlist", &show_playlist);
 
 		if (context.scene < game->gameplays.size() && game->gameplays[context.scene] != nullptr) {
 			ImGui::TextWrapped("Current File: %s",
@@ -785,7 +1013,7 @@ bool Kotonoha_BasicGuiRun(Kotonoha::Kotonoha* game,
 		if(context.scene != editorSceneIndex)
 			Kotonoha_SelectScene(game, (int)context.scene);;
 
-		ImGui::Begin("Scene Editor", &Kotonoha_BasicGuiEditorShow);
+		ImGui::Begin("Editor de script", &Kotonoha_BasicGuiEditorShow);
 
 		if (editorSceneIndex < 0 && context.scene < game->gameplays.size()) {
 			Kotonoha_SelectScene(game, (int)context.scene);
@@ -825,6 +1053,7 @@ bool Kotonoha_BasicGuiRun(Kotonoha::Kotonoha* game,
 
 				if (ImGui::InputTextMultiline("##scene_editor", &sceneEditorText, avail2)) {
 					editorDirty = true;
+					Kotonoha_LoadTextEditor(sceneEditorText);
 				}
 
 				if (editorStatusBuf[0] != '\0') {
@@ -868,6 +1097,107 @@ bool Kotonoha_BasicGuiRun(Kotonoha::Kotonoha* game,
 			ImGui::TextUnformatted("Trying to load current scene automatically...");
 		}
 
+		ImGui::End();
+	}
+
+	if (textEditorShow) {
+		if (context.scene != editorSceneIndex) {
+			Kotonoha_SelectScene(game, static_cast<int>(context.scene));
+		}
+		else if (sceneEditorText != textEditorSyncedScript) {
+			Kotonoha_LoadTextEditor(sceneEditorText);
+		}
+
+		ImGui::Begin("Editor de texto", &textEditorShow);
+		if (selectedSceneIndex >= 0 &&
+			selectedSceneIndex < static_cast<int>(game->gameplays.size()) &&
+			game->gameplays[selectedSceneIndex] != nullptr) {
+			Kotonoha::Gameplay* selected = game->gameplays[selectedSceneIndex];
+			ImGui::Text("Cena %d", selectedSceneIndex + 1);
+			ImGui::TextWrapped("%s", selected->scriptPath.empty()
+				? "<sem caminho de arquivo>"
+				: selected->scriptPath.c_str());
+			ImGui::Separator();
+			ImGui::TextWrapped("Edite somente os campos de personagem, fala e opções. Os tempos e os demais comandos permanecem inalterados.");
+			ImGui::TextUnformatted((textEditorDirty || editorDirty)
+				? "Alterações não salvas"
+				: "Sincronizado com o script");
+
+			ImVec2 listSize = ImGui::GetContentRegionAvail();
+			listSize.y = SDL_max(listSize.y - 48.0f, 120.0f);
+			if (ImGui::BeginChild("##text_event_list", listSize, ImGuiChildFlags_Borders)) {
+				if (textEditorEntries.empty()) {
+					ImGui::TextDisabled("Nenhum PRINT_TEXT ou SetSELECT nesta cena.");
+				}
+
+				bool changed = false;
+				for (size_t i = 0; i < textEditorEntries.size(); ++i) {
+					TextEditorEntry& entry = textEditorEntries[i];
+					ImGui::PushID(static_cast<int>(i));
+					ImGui::TextColored(ImVec4(0.55f, 0.76f, 0.96f, 1.0f),
+						"%s  %s - %s",
+						entry.isSelection ? "ESCOLHA" : "FALA",
+						entry.startTime.c_str(),
+						entry.endTime.c_str());
+
+					if (entry.isSelection) {
+						for (size_t option = 0; option < entry.options.size(); ++option) {
+							ImGui::SetNextItemWidth(-1.0f);
+							std::string label = "Opção " + std::to_string(option + 1);
+							if (ImGui::InputText(label.c_str(), &entry.options[option])) {
+								changed = true;
+							}
+						}
+					}
+					else {
+						ImGui::SetNextItemWidth(-1.0f);
+						if (ImGui::InputText("Personagem", &entry.character)) {
+							changed = true;
+						}
+						ImGui::SetNextItemWidth(-1.0f);
+						if (ImGui::InputText("Fala", &entry.text)) {
+							changed = true;
+						}
+					}
+					ImGui::Separator();
+					ImGui::PopID();
+				}
+				if (changed) {
+					Kotonoha_SyncTextEditorToScript();
+					editorDirty = true;
+				}
+				ImGui::EndChild();
+			}
+
+			if (ImGui::Button("Salvar e recarregar")) {
+				if (Kotonoha_SaveAndReloadReplace(game, context, selectedSceneIndex)) {
+					ImGui::End();
+					return Kotonoha_FinishFrameAndReturn(context);
+				}
+			}
+			ImGui::SameLine();
+			if (ImGui::Button("Salvar temporariamente")) {
+				if (Kotonoha_LoadTemporaryGameplayAt(game, context, selectedSceneIndex)) {
+					ImGui::End();
+					return Kotonoha_FinishFrameAndReturn(context);
+				}
+			}
+			if (temporaryGameplayActive && temporaryGameplayIndex == selectedSceneIndex) {
+				ImGui::SameLine();
+				if (ImGui::Button("Reverter")) {
+					if (Kotonoha_RestoreOriginalPath(game, context)) {
+						ImGui::End();
+						return Kotonoha_FinishFrameAndReturn(context);
+					}
+				}
+			}
+			if (editorStatusBuf[0] != '\0') {
+				ImGui::TextColored(ImVec4(0.7f, 0.85f, 1.0f, 1.0f), "%s", editorStatusBuf);
+			}
+		}
+		else {
+			ImGui::TextUnformatted("Nenhuma cena selecionada.");
+		}
 		ImGui::End();
 	}
 
