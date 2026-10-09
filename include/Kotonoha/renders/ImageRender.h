@@ -12,6 +12,7 @@ struct Kotonoha_Picture {
 	Uint64 startTime, endTime, lastTime;
 	Uint8 id;
 	bool canRender;
+	Uint64 baseGeneration;
 };
 
 SDL_Texture* Kotonoha_imageCreateTexture(SDL_Renderer* render, const char* path,

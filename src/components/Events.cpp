@@ -1,10 +1,13 @@
 #include <cctype>
 #include <Kotonoha/components/Events.hpp>
 #include <Kotonoha/Gameplay.hpp>
+#include <Kotonoha/utils/OrsTime.h>
+#include <Kotonoha/utils/VoicePcm.h>
 #include <SDL3/SDL.h>
 #include <sstream>
 #include <string>
-#include <tuple>
+#include <memory>
+#include <utility>
 #include <vector>
 
 namespace Kotonoha {
@@ -35,6 +38,25 @@ namespace Kotonoha {
 			return result;
 		}
 
+		static void ReplaceActiveSubtitlesAt(ASS_Track* track, int nextEvent,
+			long long nextStart) {
+			if (track == nullptr) {
+				return;
+			}
+
+			for (int i = 0; i < nextEvent; ++i) {
+				ASS_Event* previous = &track->events[i];
+				if (previous->Start > nextStart) {
+					continue;
+				}
+
+				const long long elapsed = nextStart - previous->Start;
+				if (previous->Duration > elapsed) {
+					previous->Duration = elapsed;
+				}
+			}
+		}
+
 		static std::string ToUpper(const std::string& str) {
 			std::string upperStr;
 			upperStr.reserve(str.size());
@@ -46,57 +68,66 @@ namespace Kotonoha {
 			return upperStr;
 		}
 
-		static bool DecodeOrs24FpsTimestamp(
-			Uint64 packed,
-			bool allowParserNudge,
-			Uint64* frame1,
-			Uint64* msCeil) {
-			if (frame1 == nullptr || msCeil == nullptr) {
+		static bool FileExists(const std::string& path) {
+			SDL_IOStream* file = SDL_IOFromFile(path.c_str(), "rb");
+			if (file == nullptr) {
 				return false;
 			}
 
-			auto decodeCandidate = [](Uint64 value,
-				Uint64* outFrame1,
-				Uint64* outMsCeil) -> bool {
-				const Uint64 minutes = value / 60000;
-				const Uint64 rem = value % 60000;
-				const Uint64 seconds = rem / 1000;
-				const Uint64 tail = rem % 1000;
+			SDL_CloseIO(file);
+			return true;
+		}
 
-				if (seconds >= 60 || (tail % 10) != 0) {
-					return false;
+		static std::string ResolveAssetPath(
+			const char* assetsPath, const std::string& logicalPath) {
+			std::string current =
+				assetsPath != nullptr && *assetsPath != '\0' ? assetsPath : ".";
+			size_t position = 0;
+			while (position < logicalPath.size()) {
+				const size_t separator = logicalPath.find('/', position);
+				const std::string component =
+					logicalPath.substr(position, separator - position);
+				struct Match {
+					const std::string* wanted;
+					std::string exact;
+					std::string folded;
+				} match{ &component, "", "" };
+
+				SDL_EnumerateDirectory(current.c_str(),
+					[](void* opaque, const char*, const char* name) {
+						auto* match = static_cast<Match*>(opaque);
+						if (match->wanted->compare(name) == 0) {
+							match->exact = name;
+							return SDL_ENUM_SUCCESS;
+						}
+						if (match->folded.empty() &&
+							SDL_strcasecmp(name, match->wanted->c_str()) == 0) {
+							match->folded = name;
+						}
+						return SDL_ENUM_CONTINUE;
+					}, &match);
+
+				const std::string& resolved = !match.exact.empty()
+					? match.exact
+					: !match.folded.empty() ? match.folded : component;
+				if (!current.empty() && current.back() != '/' &&
+					current.back() != '\\') {
+					current += '/';
 				}
+				current += resolved;
 
-				const Uint64 frameField = tail / 10;
-				if (frameField >= 24) {
-					return false;
+				if (separator == std::string::npos) {
+					break;
 				}
-
-				const Uint64 zeroBased =
-					(minutes * 60 + seconds) * 24 + frameField;
-
-				*outFrame1 = zeroBased + 1;
-
-				// First integer millisecond at or after the 24-fps boundary.
-				*outMsCeil = (zeroBased * 1000 + 23) / 24;
-				return true;
-			};
-
-			if (decodeCandidate(packed, frame1, msCeil)) {
-				return true;
+				position = separator + 1;
 			}
-
-			return allowParserNudge && packed > 0 &&
-				decodeCandidate(packed - 1, frame1, msCeil);
+			return current;
 		}
 
 		static void DestroyEventManagerParams(void** parms) {
 			if (parms == nullptr) {
 				return;
 			}
-
-			delete static_cast<std::vector<std::tuple<std::string, int>>*>(parms[3]);
-			delete static_cast<std::string*>(parms[4]);
 			SDL_free(parms);
 		}
 	} // namespace
@@ -110,18 +141,13 @@ namespace Kotonoha {
 		auto* gameplay = static_cast<Gameplay*>(parms[0]);
 		auto* gameCtx = static_cast<struct Kotonoha_Game*>(parms[1]);
 		auto* classUp = static_cast<Event*>(parms[2]);
-		auto* object =
-			static_cast<std::vector<std::tuple<std::string, int>>*>(parms[3]);
-		auto* lastCreateBg = static_cast<std::string*>(parms[4]);
 
 		if (gameplay == nullptr || gameCtx == nullptr || classUp == nullptr ||
-			object == nullptr || lastCreateBg == nullptr ||
 			classUp->eventMutex == nullptr) {
 			DestroyEventManagerParams(parms);
 			return -1;
 		}
 
-		std::string prevLastCreateBg = *lastCreateBg;
 		bool useExtension = (gameCtx->assetsPath != nullptr);
 		const char* assetsPath = useExtension ? gameCtx->assetsPath : "";
 
@@ -134,19 +160,33 @@ namespace Kotonoha {
 		for (auto* event = classUp->eventsFromScript.data; event != nullptr;
 			event = event->next) {
 			const Uint64 actualTime = Kotonoha_timeGet(gameplay->tm);
+			Uint64 startMs = 0;
+			Uint64 endMs = 0;
 
-			if (actualTime + 10000 < event->start || event->eventTouched) {
+			if (event->eventTouched) {
+				continue;
+			}
+
+			if (!Kotonoha_OrsTimeToMilliseconds(
+					event->start, true, &startMs) ||
+				!Kotonoha_OrsTimeToMilliseconds(
+					event->end, false, &endMs)) {
+				SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+					"Skipping ORS event with invalid 24-fps timestamp "
+					"start=%llu end=%llu",
+					static_cast<unsigned long long>(event->start),
+					static_cast<unsigned long long>(event->end));
+				event->eventTouched = true;
+				continue;
+			}
+
+			if (startMs > actualTime && startMs - actualTime > 10000) {
 				continue;
 			}
 
 			event->eventTouched = true;
 
-			if (*lastCreateBg != prevLastCreateBg) {
-				object->clear();
-				prevLastCreateBg = *lastCreateBg;
-			}
-
-			if (event->end < actualTime) {
+			if (endMs < actualTime) {
 				continue;
 			}
 
@@ -154,49 +194,38 @@ namespace Kotonoha {
 			case PLAY_VOICE: {
 				if (event->data.play_voice->path != nullptr &&
 					SDL_strlen(event->data.play_voice->path) > 0) {
+					const std::string voiceLogical = BuildString(
+						event->data.play_voice->path, "",
+						useExtension ? ".OGG" : "");
+					const std::string voicePath = useExtension
+						? ResolveAssetPath(assetsPath, voiceLogical)
+						: voiceLogical;
 					gameplay->audio->AddMedia(
-						BuildString(event->data.play_voice->path,
-							assetsPath,
-							useExtension ? ".OGG" : "")
-						.c_str(),
-						event->start,
-						event->end + 1000,
+						voicePath.c_str(),
+						startMs,
+						endMs > SDL_MAX_UINT64 - 1000
+							? SDL_MAX_UINT64 : endMs + 1000,
 						false,
 						"Voice");
 
-					if (!lastCreateBg->empty() &&
-						event->data.play_voice->character_short != nullptr) {
-						std::string character =
-							ToUpper(event->data.play_voice->character_short);
-						int searchImgId = 0;
-						bool found = false;
-
-						for (auto& it : *object) {
-							if (std::get<0>(it) == character) {
-								++std::get<1>(it);
-								searchImgId = std::get<1>(it);
-								found = true;
-								break;
-							}
-						}
-
-						if (!found) {
-							object->emplace_back(character, 0);
-						}
-
-						const char suffix = static_cast<char>('A' + searchImgId);
-						const std::string pathImg = *lastCreateBg + character + "." + suffix;
-						const std::string path =
-							BuildString(pathImg.c_str(), assetsPath,
-								useExtension ? ".PNG" : "");
-
-						SDL_IOStream* file = SDL_IOFromFile(path.c_str(), "rb");
-						if (file != nullptr) {
-							SDL_CloseIO(file);
-							gameplay->image->Register(path.c_str(),
-								event->start,
-								event->end,
-								1);
+					const char* key =
+						event->data.play_voice->character_short;
+					if (key != nullptr && *key != '\0') {
+						int16_t* decodedPcm = nullptr;
+						size_t decodedSampleCount = 0;
+						if (Kotonoha_DecodeVoicePcm(voicePath.c_str(),
+								&decodedPcm, &decodedSampleCount)) {
+							std::unique_ptr<int16_t, decltype(&SDL_free)>
+								pcmOwner(decodedPcm, SDL_free);
+							const std::vector<int16_t> pcm(
+								pcmOwner.get(),
+								pcmOwner.get() + decodedSampleCount);
+							VoiceAnimation animation{};
+							animation.activity = AnalyzeVoiceActivity(pcm);
+							Kotonoha_OrsTimeToZeroBasedFrame(
+								event->start, true, &animation.startTick);
+							classUp->voiceAnimations[event] =
+								std::move(animation);
 						}
 					}
 				}
@@ -211,8 +240,8 @@ namespace Kotonoha {
 							assetsPath,
 							useExtension ? ".OGG" : "")
 						.c_str(),
-						event->start,
-						event->end,
+						startMs,
+						endMs,
 						true,
 						"Se");
 				}
@@ -222,16 +251,38 @@ namespace Kotonoha {
 				if (event->data.path_end->path != nullptr &&
 					SDL_strlen(event->data.path_end->path) > 0) {
 					std::string str = ToUpper(event->data.path_end->path);
-					gameplay->audio->AddMedia(
-						BuildString(useExtension ? str.c_str()
-							: event->data.path_end->path,
-							assetsPath,
-							useExtension ? "_LOOP.OGG" : "")
-						.c_str(),
-						event->start,
-						event->end,
-						true,
-						"BGM");
+					if (useExtension) {
+						const std::string introPath =
+							ResolveAssetPath(assetsPath,
+								BuildString(str.c_str(), "", "_INT.OGG"));
+						const std::string loopPath =
+							ResolveAssetPath(assetsPath,
+								BuildString(str.c_str(), "", "_LOOP.OGG"));
+						if (FileExists(introPath) && FileExists(loopPath)) {
+							gameplay->audio->AddIntroLoopMedia(
+								introPath.c_str(),
+								loopPath.c_str(),
+								startMs,
+								endMs,
+								"BGM");
+						}
+						else {
+							gameplay->audio->AddMedia(
+								loopPath.c_str(),
+								startMs,
+								endMs,
+								true,
+								"BGM");
+						}
+					}
+					else {
+						gameplay->audio->AddMedia(
+							event->data.path_end->path,
+							startMs,
+							endMs,
+							true,
+							"BGM");
+					}
 				}
 				break;
 
@@ -245,8 +296,8 @@ namespace Kotonoha {
 							assetsPath,
 							useExtension ? ".OGG" : "")
 						.c_str(),
-						event->start,
-						event->end,
+						startMs,
+						endMs,
 						true,
 						"BGM");
 				}
@@ -260,8 +311,8 @@ namespace Kotonoha {
 							assetsPath,
 							useExtension ? ".WMV" : "")
 						.c_str(),
-						event->start,
-						event->end);
+						startMs,
+						endMs);
 				}
 				break;
 
@@ -275,13 +326,10 @@ namespace Kotonoha {
 
 					Uint64 startFrame = 0;
 					Uint64 endFrame = 0;
-					Uint64 startMs = 0;
-					Uint64 endMs = 0;
-
-					const bool startMapped = DecodeOrs24FpsTimestamp(
-						event->start, true, &startFrame, &startMs);
-					const bool endMapped = DecodeOrs24FpsTimestamp(
-						event->end, false, &endFrame, &endMs);
+					const bool startMapped = Kotonoha_OrsTimeToTick(
+						event->start, true, &startFrame);
+					const bool endMapped = Kotonoha_OrsTimeToTick(
+						event->end, false, &endFrame);
 
 					if (startMapped && endMapped && endFrame >= startFrame) {
 						gameplay->video->Register(
@@ -294,8 +342,9 @@ namespace Kotonoha {
 					else {
 						gameplay->video->Register(
 							moviePath.c_str(),
-							event->start,
-							event->end + 50);
+							startMs,
+							endMs > SDL_MAX_UINT64 - 50
+								? SDL_MAX_UINT64 : endMs + 50);
 					}
 				}
 				break;
@@ -303,21 +352,83 @@ namespace Kotonoha {
 			case CREATE_BG:
 				if (event->data.create_bg->path != nullptr &&
 					SDL_strlen(event->data.create_bg->path) > 0) {
-					*lastCreateBg = event->data.create_bg->path;
 					gameplay->image->Register(
 						BuildString(event->data.create_bg->path,
 							assetsPath,
 							useExtension ? ".PNG" : "")
 						.c_str(),
+						startMs,
+						endMs,
+						0);
+				}
+				break;
+
+			case BLACK_FADE:
+			case WHITE_FADE:
+				if (event->data.fade != nullptr && gameplay->fade != nullptr) {
+					const FadeColor color = event->command == WHITE_FADE
+						? FadeColor::White
+						: FadeColor::Black;
+					const FadeDirection direction = event->data.fade->a
+						? FadeDirection::In
+						: FadeDirection::Out;
+					gameplay->fade->Register(
 						event->start,
 						event->end,
-						0);
+						color,
+						direction);
 				}
 				break;
 
 			default:
 				break;
 			}
+		}
+
+		const Uint64 currentTime = Kotonoha_timeGet(gameplay->tm);
+		Uint64 currentTick = Kotonoha_MillisecondsToOrsTick(currentTime) - 1;
+		for (auto it = classUp->voiceAnimations.begin();
+			it != classUp->voiceAnimations.end();) {
+			const Kotonoha_orsEvent* event = it->first;
+			Uint64 startMs = 0;
+			Uint64 endMs = 0;
+			if (event == nullptr || event->data.play_voice == nullptr ||
+				!Kotonoha_OrsTimeToMilliseconds(
+					event->start, true, &startMs) ||
+				!Kotonoha_OrsTimeToMilliseconds(
+					event->end, false, &endMs) ||
+				currentTime >= endMs) {
+				it = classUp->voiceAnimations.erase(it);
+				continue;
+			}
+			if (currentTime < startMs) {
+				++it;
+				continue;
+			}
+
+			auto& animation = it->second;
+			if (currentTick < animation.startTick) {
+				++it;
+				continue;
+			}
+			if (animation.state.initialized &&
+				currentTick < animation.state.lastTick) {
+				animation.state = MouthAnimationState{};
+			}
+			const Uint64 firstTick = animation.state.initialized
+				? animation.state.lastTick + 1
+				: animation.startTick;
+			for (Uint64 tick = firstTick; tick <= currentTick; ++tick) {
+				AdvanceMouthAnimation(
+					animation.state, animation.activity,
+					animation.startTick, tick);
+			}
+			animation.state.lastTick = currentTick;
+			animation.state.initialized = true;
+			gameplay->image->SetAbcState(
+				event->data.play_voice->character_short,
+				animation.state.index, startMs, endMs);
+			++it;
 		}
 
 		SDL_UnlockMutex(classUp->eventMutex);
@@ -335,12 +446,22 @@ namespace Kotonoha {
 		gp->video->Reset();
 		gp->image->Reset();
 		gp->audio->RemoveMedia(nullptr);
+		voiceAnimations.clear();
 
 		Uint64 actualTime = Kotonoha_timeGet(gp->tm);
 
 		for (auto* event = this->eventsFromScript.data; event != nullptr;
 			event = event->next) {
-			if (event->end > actualTime)
+			Uint64 endMs = 0;
+			if (!Kotonoha_OrsTimeToMilliseconds(
+					event->end, false, &endMs)) {
+				SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+					"Skipping reset state for invalid ORS end timestamp %llu",
+					static_cast<unsigned long long>(event->end));
+				event->eventTouched = true;
+				continue;
+			}
+			if (endMs > actualTime)
 				event->eventTouched = false;
 		}
 
@@ -377,10 +498,26 @@ namespace Kotonoha {
 			event = event->next) {
 			switch (event->command) {
 			case PRINT_TEXT: {
-				ass_alloc_event(gp->sb->track);
-				ASS_Event* subtitleEvent = gp->sb->track->events + (gp->sb->track->n_events - 1);
-				subtitleEvent->Start = event->start;
-				subtitleEvent->Duration = event->end - event->start;
+				Uint64 startMs = 0;
+				Uint64 endMs = 0;
+				if (!Kotonoha_OrsTimeToMilliseconds(
+						event->start, true, &startMs) ||
+					!Kotonoha_OrsTimeToMilliseconds(
+						event->end, false, &endMs) ||
+					endMs < startMs) {
+					SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
+						"Invalid subtitle timestamp range");
+					throw std::runtime_error("Invalid subtitle timestamp range");
+				}
+				const int eventId = ass_alloc_event(gp->sb->track);
+				if (eventId < 0) {
+					throw std::runtime_error("Failed to allocate subtitle event");
+				}
+				ASS_Event* subtitleEvent = &gp->sb->track->events[eventId];
+				subtitleEvent->Start = static_cast<long long>(startMs);
+				subtitleEvent->Duration =
+					static_cast<long long>(endMs - startMs);
+				ReplaceActiveSubtitlesAt(gp->sb->track, eventId, startMs);
 				subtitleEvent->Text =
 					SDL_strdup(BuildString(event->data.print_text->text).c_str());
 
@@ -401,21 +538,37 @@ namespace Kotonoha {
 			}
 
 			case SetSELECT: {
+				Uint64 startMs = 0;
+				Uint64 endMs = 0;
+				if (!Kotonoha_OrsTimeToMilliseconds(
+						event->start, true, &startMs) ||
+					!Kotonoha_OrsTimeToMilliseconds(
+						event->end, false, &endMs)) {
+					SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
+						"Invalid choice prompt timestamp range");
+					throw std::runtime_error("Invalid choice prompt timestamps");
+				}
 				std::vector<std::string> options;
 				for (char** it = event->data.set_select->options; *it != nullptr; ++it) {
 					options.push_back(BuildString(*it));
 				}
 
 				gp->prompt = new Prompt(
-					options, &gp->promptId, event->start, event->end, gp->tm);
+					options, &gp->promptId, startMs, endMs, gp->tm);
 				gp->putPrompt = true;
 				break;
 			}
 
 			case SkipFRAME:
-			case Next:
-				lastTime = event->start;
+			case Next: {
+				if (!Kotonoha_OrsTimeToMilliseconds(
+						event->start, true, &lastTime)) {
+					SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
+						"Invalid scene end timestamp");
+					throw std::runtime_error("Invalid scene end timestamp");
+				}
 				break;
+			}
 
 			default:
 				break;
@@ -428,7 +581,7 @@ namespace Kotonoha {
 			throw std::runtime_error("Failed to create event mutex");
 		}
 
-		void** parms = static_cast<void**>(SDL_malloc(sizeof(void*) * 5));
+		void** parms = static_cast<void**>(SDL_malloc(sizeof(void*) * 3));
 		if (parms == nullptr) {
 			Kotonoha_OrsClean(&eventsFromScript);
 			SDL_DestroyMutex(eventMutex);
@@ -439,17 +592,6 @@ namespace Kotonoha {
 		parms[0] = gameplay;
 		parms[1] = gameCtx;
 		parms[2] = this;
-		parms[3] = new std::vector<std::tuple<std::string, int>>();
-		parms[4] = new std::string();
-
-		if (parms[3] == nullptr || parms[4] == nullptr) {
-			DestroyEventManagerParams(parms);
-			Kotonoha_OrsClean(&eventsFromScript);
-			SDL_DestroyMutex(eventMutex);
-			eventMutex = nullptr;
-			throw std::runtime_error("Failed to allocate EventManager state");
-		}
-
 		SDL_LockMutex(gameCtx->taskLock);
 		auto* tasks =
 			static_cast<std::vector<std::tuple<SDL_ThreadFunction, void*>>*>(

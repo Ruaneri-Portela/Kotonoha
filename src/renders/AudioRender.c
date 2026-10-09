@@ -370,6 +370,10 @@ void Kotonoha_AudioFree(void* data) {
 	if (data != NULL) {
 		struct Kotonoha_audioDecode* audioDecode =
 			(struct Kotonoha_audioDecode*)data;
+		if (audioDecode->loopMedia != NULL) {
+			Kotonoha_AudioFree(audioDecode->loopMedia);
+			audioDecode->loopMedia = NULL;
+		}
 		swr_free(&audioDecode->swrCtx);
 		avformat_close_input(&audioDecode->formatCtx);
 		avcodec_free_context(&audioDecode->codecCtx);

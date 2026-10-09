@@ -54,6 +54,9 @@
     <ClCompile Include="src\components\Events.cpp">
       <Filter>Arquivos de Origem\components</Filter>
     </ClCompile>
+    <ClCompile Include="src\components\Fade.cpp">
+      <Filter>Arquivos de Origem\components</Filter>
+    </ClCompile>
     <ClCompile Include="src\components\Image.cpp">
       <Filter>Arquivos de Origem\components</Filter>
     </ClCompile>
@@ -93,6 +96,9 @@
     <ClCompile Include="src\utils\UserEvents.c">
       <Filter>Arquivos de Origem\utils</Filter>
     </ClCompile>
+    <ClCompile Include="src\utils\VoicePcm.c">
+      <Filter>Arquivos de Origem\utils</Filter>
+    </ClCompile>
     <ClCompile Include="src\renders\TimestampRender.c">
       <Filter>Arquivos de Origem\render</Filter>
     </ClCompile>
@@ -123,6 +129,9 @@
       <Filter>Arquivos de Cabeçalho\components</Filter>
     </ClInclude>
     <ClInclude Include="include\Kotonoha\components\Events.hpp">
+      <Filter>Arquivos de Cabeçalho\components</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Kotonoha\components\Fade.hpp">
       <Filter>Arquivos de Cabeçalho\components</Filter>
     </ClInclude>
     <ClInclude Include="include\Kotonoha\components\Image.hpp">
@@ -159,6 +168,9 @@
       <Filter>Arquivos de Cabeçalho\utils</Filter>
     </ClInclude>
     <ClInclude Include="include\Kotonoha\utils\Time.h">
+      <Filter>Arquivos de Cabeçalho\utils</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Kotonoha\utils\VoicePcm.h">
       <Filter>Arquivos de Cabeçalho\utils</Filter>
     </ClInclude>
     <ClInclude Include="include\Kotonoha\utils\UserEvents.h">

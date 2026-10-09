@@ -62,23 +62,35 @@ static std::string Kotonoha_JoinPath(const std::string& dir, const std::string& 
 #endif
 }
 
-static bool Kotonoha_FinishFrameAndReturn(Kotonoha_Game& context, ImGuiIO& io) {
+static bool Kotonoha_FinishFrameAndReturn(Kotonoha_Game& context) {
 	ImGui::Render();
-	SDL_SetRenderScale(context.render, io.DisplayFramebufferScale.x, io.DisplayFramebufferScale.y);
 	ImGui_ImplSDLRenderer3_RenderDrawData(ImGui::GetDrawData(), context.render);
 	return true;
 }
 
 void Kotonoha_BasicGuiInit(Kotonoha_Game& gameContext) {
-	IMGUI_CHECKVERSION();
-	ImGui::CreateContext();
-	ImGuiIO& io = ImGui::GetIO();
-	(void)io;
-	io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
-	io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
-	ImGui::StyleColorsDark();
-	ImGui_ImplSDL3_InitForSDLRenderer(gameContext.window, gameContext.render);
-	ImGui_ImplSDLRenderer3_Init(gameContext.render);
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+
+    ImGuiIO& io = ImGui::GetIO();
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
+
+    ImFont* minhaFonte = io.Fonts->AddFontFromFileTTF(
+        "assets/fonts/NotoSans-Regular.ttf",
+        18.0f
+    );
+
+    IM_ASSERT(minhaFonte != nullptr);
+    io.FontDefault = minhaFonte;
+
+    ImGui::StyleColorsDark();
+
+    ImGui_ImplSDL3_InitForSDLRenderer(
+        gameContext.window,
+        gameContext.render
+    );
+    ImGui_ImplSDLRenderer3_Init(gameContext.render);
 }
 
 static std::string Kotonoha_GetTemporaryScenePath(const std::string& path) {
@@ -558,8 +570,6 @@ bool Kotonoha_BasicGuiRun(Kotonoha::Kotonoha* game,
 		play = nullptr;
 	}
 
-	ImGuiIO& io = ImGui::GetIO();
-	(void)io;
 	ImGui_ImplSDLRenderer3_NewFrame();
 	ImGui_ImplSDL3_NewFrame();
 	ImGui::NewFrame();
@@ -698,7 +708,6 @@ bool Kotonoha_BasicGuiRun(Kotonoha::Kotonoha* game,
 			if (ImGui::Button("Exit")) {
 				ImGui::End();
 				ImGui::Render();
-				SDL_SetRenderScale(context.render, io.DisplayFramebufferScale.x, io.DisplayFramebufferScale.y);
 				ImGui_ImplSDLRenderer3_RenderDrawData(ImGui::GetDrawData(), context.render);
 				return false;
 			}
@@ -828,7 +837,7 @@ bool Kotonoha_BasicGuiRun(Kotonoha::Kotonoha* game,
 				if (ImGui::Button("Save")) {
 					if (Kotonoha_SaveAndReloadReplace(game, context, selectedSceneIndex)) {
 						ImGui::End();
-						return Kotonoha_FinishFrameAndReturn(context, io);
+						return Kotonoha_FinishFrameAndReturn(context);
 					}
 				}
 
@@ -836,7 +845,7 @@ bool Kotonoha_BasicGuiRun(Kotonoha::Kotonoha* game,
 				if (ImGui::Button("Save Temporary")) {
 					if (Kotonoha_LoadTemporaryGameplayAt(game, context, selectedSceneIndex)) {
 						ImGui::End();
-						return Kotonoha_FinishFrameAndReturn(context, io);
+						return Kotonoha_FinishFrameAndReturn(context);
 					}
 				}
 
@@ -845,7 +854,7 @@ bool Kotonoha_BasicGuiRun(Kotonoha::Kotonoha* game,
 					if (ImGui::Button("Revert to original")) {
 						if (Kotonoha_RestoreOriginalPath(game, context)) {
 							ImGui::End();
-							return Kotonoha_FinishFrameAndReturn(context, io);
+							return Kotonoha_FinishFrameAndReturn(context);
 						}
 					}
 				}
@@ -863,7 +872,6 @@ bool Kotonoha_BasicGuiRun(Kotonoha::Kotonoha* game,
 	}
 
 	ImGui::Render();
-	SDL_SetRenderScale(context.render, io.DisplayFramebufferScale.x, io.DisplayFramebufferScale.y);
 	ImGui_ImplSDLRenderer3_RenderDrawData(ImGui::GetDrawData(), context.render);
 	return true;
 }
