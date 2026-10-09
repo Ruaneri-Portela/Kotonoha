@@ -49,12 +49,17 @@ static void Kotonoha_VideoSeek(struct Kotonoha_videoData* instance, Uint64 timeM
 
 	instance->videoTime = timeMs;
 	instance->lastTime = timeMs;
+	instance->demuxEof = false;
+	instance->decoderEof = false;
 }
 
 static void Kotonoha_VideoEnsureSync(struct Kotonoha_videoData* instance,
 	Uint64 currentTimeMs,
 	bool forceOnOpen) {
 	if (!instance)
+		return;
+
+	if (instance->decoderEof && !forceOnOpen)
 		return;
 
 	if (forceOnOpen) {
@@ -69,6 +74,9 @@ static void Kotonoha_VideoEnsureSync(struct Kotonoha_videoData* instance,
 
 // Renderiza/decodifica até obter um frame atual
 static bool renderVideo(struct Kotonoha_videoData* instance, Uint64 currentTime) {
+	if (instance->decoderEof)
+		return false;
+
 	AVPacket packet = { 0 };
 	int response;
 	bool hasNewFrame = false;
@@ -105,6 +113,7 @@ static bool renderVideo(struct Kotonoha_videoData* instance, Uint64 currentTime)
 			// precisa alimentar mais packets
 		}
 		else if (response == AVERROR_EOF) {
+			instance->decoderEof = true;
 			hasNewFrame = false;
 			break;
 		}
@@ -115,10 +124,23 @@ static bool renderVideo(struct Kotonoha_videoData* instance, Uint64 currentTime)
 			break;
 		}
 
+		if (instance->demuxEof) {
+			instance->decoderEof = true;
+			break;
+		}
+
 		response = av_read_frame(instance->pFormatCtx, &packet);
 		if (response < 0) {
 			if (response == AVERROR_EOF) {
-				avcodec_send_packet(instance->pCodecCtx, NULL);
+				instance->demuxEof = true;
+				const int flushResponse =
+					avcodec_send_packet(instance->pCodecCtx, NULL);
+				if (flushResponse < 0 && flushResponse != AVERROR_EOF &&
+					flushResponse != AVERROR(EAGAIN)) {
+					SDL_LogError(SDL_LOG_CATEGORY_ERROR,
+						"Cannot flush video decoder: %s\n",
+						av_err2str(flushResponse));
+				}
 			}
 			hasNewFrame = false;
 			break;
@@ -140,8 +162,10 @@ static bool renderVideo(struct Kotonoha_videoData* instance, Uint64 currentTime)
 		}
 	}
 
-	if (!hasNewFrame)
+	if (!hasNewFrame) {
+		av_frame_free(&instance->pFrame);
 		return false;
+	}
 
 	return true;
 }
@@ -239,7 +263,8 @@ void Kotonoha_VideoRenderShutdown(struct Kotonoha_videoData** instance) {
 		return;
 	struct Kotonoha_videoData* videoData = *instance;
 	if (videoData->hwCtx && videoData->hwCtx->deviceRef) {
-		av_buffer_unref(&videoData->pCodecCtx->hw_device_ctx);
+		if (videoData->pCodecCtx)
+			av_buffer_unref(&videoData->pCodecCtx->hw_device_ctx);
 		av_buffer_unref(&videoData->hwCtx->deviceRef);
 	}
 	if (videoData->hwCtx) {
@@ -359,8 +384,16 @@ enum Kotonoha_Scene_Status Kotonoha_VideoRenderProcess(void* userData,
 		return KOTONOHA_SCENE_FATAL_ERROR;
 	}
 
-	SDL_UpdateTexture(instance->texture, NULL,
-		pFrameRGB->data[0], pFrameRGB->linesize[0]);
+	if (!SDL_UpdateTexture(instance->texture, NULL,
+		pFrameRGB->data[0], pFrameRGB->linesize[0])) {
+		SDL_LogError(SDL_LOG_CATEGORY_RENDER,
+			"Failed to update video texture: %s", SDL_GetError());
+		av_free(buffer);
+		av_frame_free(&pFrameRGB);
+		if (cpuFrame != instance->pFrame)
+			av_frame_free(&cpuFrame);
+		return KOTONOHA_SCENE_FATAL_ERROR;
+	}
 
 	av_free(buffer);
 	av_frame_free(&pFrameRGB);

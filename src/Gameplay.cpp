@@ -14,16 +14,22 @@ namespace Kotonoha {
 	} // namespace
 
 	void Gameplay::UpdateCanvasSize(SDL_Window* window, SDL_Renderer* renderer) {
-		(void)renderer;
-
-		if (window == nullptr || drawCanvas == nullptr) {
+		if ((window == nullptr && renderer == nullptr) || drawCanvas == nullptr) {
 			return;
 		}
 
 		int pixelW = 0;
 		int pixelH = 0;
-		if (!SDL_GetWindowSizeInPixels(window, &pixelW, &pixelH)) {
-			SDL_LogError(0, "SDL_GetWindowSizeInPixels failed: %s", SDL_GetError());
+		if (renderer != nullptr) {
+			if (!SDL_GetCurrentRenderOutputSize(renderer, &pixelW, &pixelH)) {
+				SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
+					"SDL_GetCurrentRenderOutputSize failed: %s", SDL_GetError());
+				return;
+			}
+		}
+		else if (!SDL_GetWindowSizeInPixels(window, &pixelW, &pixelH)) {
+			SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
+				"SDL_GetWindowSizeInPixels failed: %s", SDL_GetError());
 			return;
 		}
 
@@ -67,6 +73,7 @@ namespace Kotonoha {
 		this->video = new Video(this->tm);
 		this->image = new Image(this->tm);
 		this->audio = new Audio(static_cast<Sound*>(gameContext->sound), this->tm);
+		this->fade = new Fade(this->tm);
 		this->drawCanvas = new Canvas();
 
 		this->drawCanvas->RegisterCanva(
@@ -83,6 +90,11 @@ namespace Kotonoha {
 			Kotonoha_TextRenderDraw, 3,
 			{ 0, 0, static_cast<float>(windowWidth), static_cast<float>(windowHeight) },
 			this->sb);
+
+		this->drawCanvas->RegisterCanva(
+			this->fade->Render, 4,
+			{ 0, 0, static_cast<float>(windowWidth), static_cast<float>(windowHeight) },
+			this->fade);
 
 		this->scriptPath = scriptPath ? scriptPath : "";
 		this->eventManager = new Event(this->scriptPath.c_str(), this, gameContext);
@@ -168,6 +180,8 @@ namespace Kotonoha {
 					break;
 				}
 			case SDL_EVENT_WINDOW_RESIZED:
+			case SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED:
+			case SDL_EVENT_WINDOW_DISPLAY_CHANGED:
 				UpdateCanvasSize(gameContext->window, gameContext->render);
 				break;
 
@@ -244,6 +258,9 @@ namespace Kotonoha {
 			drawCanvas->Reset();
 			Kotonoha_timeReset(tm, true);
 		}
+		if (fade != nullptr) {
+			fade->Reset();
+		}
 		eventManager->Reset(this);
 	}
 
@@ -278,6 +295,7 @@ namespace Kotonoha {
 		delete this->video;
 		delete this->image;
 		delete this->audio;
+		delete this->fade;
 
 		if (prompt) {
 			delete prompt;

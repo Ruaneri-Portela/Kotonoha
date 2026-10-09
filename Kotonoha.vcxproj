@@ -30,6 +30,7 @@
     <ClCompile Include="src\components\Audio.cpp" />
     <ClCompile Include="src\components\Canvas.cpp" />
     <ClCompile Include="src\components\Events.cpp" />
+    <ClCompile Include="src\components\Fade.cpp" />
     <ClCompile Include="src\components\Image.cpp" />
     <ClCompile Include="src\components\Prompt.cpp" />
     <ClCompile Include="src\components\Sound.cpp" />
@@ -48,11 +49,13 @@
     <ClCompile Include="src\utils\FFmpeg.c" />
     <ClCompile Include="src\utils\Time.c" />
     <ClCompile Include="src\utils\UserEvents.c" />
+    <ClCompile Include="src\utils\VoicePcm.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\Kotonoha\components\Audio.hpp" />
     <ClInclude Include="include\Kotonoha\components\Canvas.hpp" />
     <ClInclude Include="include\Kotonoha\components\Events.hpp" />
+    <ClInclude Include="include\Kotonoha\components\Fade.hpp" />
     <ClInclude Include="include\Kotonoha\components\Image.hpp" />
     <ClInclude Include="include\Kotonoha\components\Prompt.hpp" />
     <ClInclude Include="include\Kotonoha\components\Sound.hpp" />
@@ -69,6 +72,7 @@
     <ClInclude Include="include\Kotonoha\renders\VideoRender.h" />
     <ClInclude Include="include\Kotonoha\utils\FFmpeg.h" />
     <ClInclude Include="include\Kotonoha\utils\Time.h" />
+    <ClInclude Include="include\Kotonoha\utils\VoicePcm.h" />
     <ClInclude Include="include\Kotonoha\utils\UserEvents.h" />
     <ClInclude Include="include\Kotonoha\version.h" />
     <ClInclude Include="src\resource.h" />
