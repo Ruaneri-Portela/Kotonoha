@@ -50,6 +50,9 @@ To use **Kotonoha Novel Engine**, follow these steps:
 Pass `-i` or `--ignore-missing-assets` at startup to skip missing media assets.
 Assets that are still being fetched are retried; after an FFmpeg read times out,
 playback immediately pauses and displays a loading overlay until the data arrives.
+For HTTP image assets, ABC overlays are requested by deterministic name:
+`<image-stem><character_short>.<a|b|c>.png` (for example,
+`facehero.a.png` for `face.png` and the key `hero`).
 
 ## Build Guide
 
@@ -214,6 +217,9 @@ Passe `-i` ou `--ignore-missing-assets` na inicialização para ignorar assets d
 mídia ausentes. Assets que ainda estão sendo recebidos são tentados novamente;
 quando uma leitura do FFmpeg aguarda dados, a reprodução pausa imediatamente e
 mostra uma tela de carregamento até os dados chegarem.
+Para imagens servidas por HTTP, os overlays ABC são solicitados por nomes
+determinísticos: `<nome-base><character_short>.<a|b|c>.png` (por exemplo,
+`facehero.a.png` para `face.png` e a chave `hero`).
 
 ## Guia de Compilação
 

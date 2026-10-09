@@ -12,6 +12,32 @@ namespace Kotonoha {
 			return value;
 		}
 
+		static bool IsHttpPath(const char* path) {
+			return path != nullptr &&
+				(SDL_strncasecmp(path, "http://", 7) == 0 ||
+					SDL_strncasecmp(path, "https://", 8) == 0);
+		}
+
+		static std::string BuildDeterministicAbcPath(
+			const char* basePath, const std::string& key, char state) {
+			if (key.empty() || key.find_first_of("/\\?#") != std::string::npos) {
+				return {};
+			}
+
+			std::string path(basePath);
+			const size_t suffixStart = path.find_first_of("?#");
+			const size_t pathEnd = suffixStart == std::string::npos
+				? path.size() : suffixStart;
+			if (pathEnd < 4 ||
+				Lower(path.substr(pathEnd - 4, 4)) != ".png") {
+				return {};
+			}
+
+			path.insert(pathEnd - 4,
+				"." + key + "." + state);
+			return path;
+		}
+
 		static int SDLCALL DecodeImageFrame(void* data) {
 			auto* load = static_cast<Kotonoha_imageLoad*>(data);
 			load->frame = Kotonoha_imageDecodeFrame(
@@ -140,6 +166,9 @@ namespace Kotonoha {
 			? "." : fullPath.substr(0, separator);
 		const std::string filename = fullPath.substr(
 			separator == std::string::npos ? 0 : separator + 1);
+		if (IsHttpPath(basePath)) {
+			return;
+		}
 		const std::string lowerFilename = Lower(filename);
 		if (lowerFilename.size() <= 4 ||
 			lowerFilename.compare(lowerFilename.size() - 4, 4, ".png") != 0) {
@@ -300,6 +329,41 @@ namespace Kotonoha {
 
 		const std::string normalizedKey = Lower(key);
 		SDL_LockMutex(lock);
+
+		for (const auto* picture : pictures) {
+			if (picture == nullptr || picture->id != 0 ||
+				picture->path == nullptr ||
+				!IsHttpPath(picture->path) ||
+				voiceStartMs < picture->startTime ||
+				voiceStartMs >= picture->endTime) {
+				continue;
+			}
+
+			bool groupExists = false;
+			for (const auto& group : abcGroups) {
+				if (group->ownerBaseGeneration == picture->baseGeneration &&
+					group->key == normalizedKey) {
+					groupExists = true;
+					break;
+				}
+			}
+			if (groupExists) {
+				continue;
+			}
+
+			auto group = std::make_unique<AbcGroup>();
+			group->key = normalizedKey;
+			group->ownerBaseGeneration = picture->baseGeneration;
+			group->startTime = picture->startTime;
+			group->endTime = picture->endTime;
+			for (size_t state = 0; state < 3; ++state) {
+				group->paths[state] = BuildDeterministicAbcPath(
+					picture->path, normalizedKey,
+					static_cast<char>('a' + state));
+			}
+			abcGroups.emplace_back(std::move(group));
+		}
+
 		for (auto& group : abcGroups) {
 			if (group->key != normalizedKey ||
 				voiceStartMs < group->startTime ||
