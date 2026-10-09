@@ -4,7 +4,7 @@
 
 extern "C" {
 #include <Kotonoha/renders/AudioRender.h>
-#include <Kotonoha/renders/FPSrender.h>
+#include <Kotonoha/renders/FpsRender.h>
 #include <Kotonoha/renders/TimestampRender.h>
 #include <Kotonoha/renders/LoadingRender.h>
 #include <SDL3_ttf/SDL_ttf.h>

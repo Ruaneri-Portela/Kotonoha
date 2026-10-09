@@ -1,4 +1,4 @@
-#include <Kotonoha/renders/FPSrender.h>
+#include <Kotonoha/renders/FpsRender.h>
 #include <Kotonoha/utils/OverlayRenderUtils.h>
 
 struct FPS_common {
