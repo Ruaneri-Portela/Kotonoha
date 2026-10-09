@@ -21,9 +21,11 @@ private:
       mediaObjects;
   Sound *soundCtx = nullptr;
   struct Kotonoha_time *timeCtx = nullptr;
+  Kotonoha_IOMonitor *ioMonitor = nullptr;
 
 public:
-  Audio(Sound *soundCtx, struct Kotonoha_time *timeCtx);
+  Audio(Sound *soundCtx, struct Kotonoha_time *timeCtx,
+        Kotonoha_IOMonitor *ioMonitor);
   struct Kotonoha_audioDecode *AddMedia(const char *path, Uint64 start,
                                         Uint64 end, bool inLoop,
                                         const char *channel);

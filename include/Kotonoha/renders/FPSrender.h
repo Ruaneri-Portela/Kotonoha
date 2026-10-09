@@ -3,3 +3,4 @@
 #include <SDL3_ttf/SDL_ttf.h>
 
 enum Kotonoha_Scene_Status Kotonoha_FPSRender(KOTONOHA_SCENE_CALL);
+void Kotonoha_FPSRenderShutdown(void);

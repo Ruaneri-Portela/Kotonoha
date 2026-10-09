@@ -28,6 +28,7 @@ private:
   SDL_FRect dirtyPlace = {0, 0, 0, 0};
   Sint16 dirtyZIndex = 32767;
   Sint16 minDrawnZIndex = 32767;
+  mutable SDL_AtomicInt networkWaitFlag{};
 
 public:
   void RegisterCanva(Kotonoha_Scene_Status (*drawingPoint)(KOTONOHA_SCENE_CALL),
@@ -44,6 +45,8 @@ public:
 
   int CanvasCount();
   void BeginFrame();
+  SDL_AtomicInt *NetworkWaitFlag();
+  bool IsWaitingForNetwork() const;
   bool DrewAtOrBelow(Sint16 zIndex) const;
   void Reset();
 

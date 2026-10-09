@@ -2,7 +2,8 @@
 
 namespace Kotonoha {
 
-	Video::Video(Kotonoha_time* timeManager) : timeManager(timeManager) {
+	Video::Video(Kotonoha_time* timeManager, Kotonoha_IOMonitor* ioMonitor)
+		: timeManager(timeManager), ioMonitor(ioMonitor) {
 		lock = SDL_CreateMutex();
 		if (lock == nullptr) {
 			SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
@@ -33,10 +34,9 @@ namespace Kotonoha {
 				startTime,
 				endTime,
 				useOrsFrameTimeline,
-				orsEndFrame);
+				orsEndFrame,
+				ioMonitor);
 		if (object == nullptr) {
-			SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
-				"Failed to initialize video: %s", path);
 			return false;
 		}
 

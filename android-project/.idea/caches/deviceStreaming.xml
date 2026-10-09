@@ -1499,6 +1499,23 @@
           <option name="screenY" value="1600" />
         </PersistentDeviceSelectionData>
         <PersistentDeviceSelectionData>
+          <option name="accessStatus">
+            <list>
+              <option value="EULA_NOT_ACCEPTED" />
+            </list>
+          </option>
+          <option name="api" value="36" />
+          <option name="brand" value="HONOR" />
+          <option name="codename" value="honor_lab_hnmbhx" />
+          <option name="id" value="honor_lab_hnmbhx" />
+          <option name="labId" value="honor" />
+          <option name="manufacturer" value="HONOR" />
+          <option name="name" value="Magic V5" />
+          <option name="screenDensity" value="480" />
+          <option name="screenX" value="2172" />
+          <option name="screenY" value="2352" />
+        </PersistentDeviceSelectionData>
+        <PersistentDeviceSelectionData>
           <option name="api" value="35" />
           <option name="brand" value="Xiaomi" />
           <option name="codename" value="houji" />

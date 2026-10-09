@@ -4,8 +4,9 @@
 
 extern "C" {
 #include <Kotonoha/renders/AudioRender.h>
-#include <Kotonoha/renders/FPSRender.h>
+#include <Kotonoha/renders/FPSrender.h>
 #include <Kotonoha/renders/TimestampRender.h>
+#include <Kotonoha/renders/LoadingRender.h>
 #include <SDL3_ttf/SDL_ttf.h>
 
 #if defined(__ANDROID__)

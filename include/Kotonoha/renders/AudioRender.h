@@ -11,6 +11,7 @@ struct Kotonoha_audioDecode {
   AVFormatContext *formatCtx;
   AVCodecContext *codecCtx;
   SwrContext *swrCtx;
+  Kotonoha_IOMonitorOperation ioOperation;
 
   int audioStreamIndex;
   SDL_AudioSpec specification;
@@ -27,7 +28,8 @@ struct Kotonoha_audioDecode {
 void genWhiteNoise(void *data, Uint8 **target, size_t *size);
 
 struct Kotonoha_audioDecode *Kotonoha_AudioInit(const char *path,
-                                                SDL_AudioSpec specification);
+                                                SDL_AudioSpec specification,
+                                                Kotonoha_IOMonitor *ioMonitor);
 
 void Kotonoha_AudioSeek(struct Kotonoha_audioDecode *ctx, Uint64 time);
 

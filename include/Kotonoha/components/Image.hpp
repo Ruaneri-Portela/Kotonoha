@@ -22,12 +22,14 @@ public:
     Uint64 bindingStartTime = 0;
     Uint64 bindingEndTime = 0;
     SDL_Texture* textures[3] = { nullptr, nullptr, nullptr };
+    Kotonoha_imageLoad loads[3] = {};
     Uint8 activeIndex = 0;
     bool bound = false;
   };
 
 private:
   Kotonoha_time *timeManager = nullptr;
+  Kotonoha_IOMonitor *ioMonitor = nullptr;
   std::vector<Kotonoha_Picture *> pictures = std::vector<Kotonoha_Picture *>();
   SDL_Mutex *lock = nullptr;
   std::vector<std::unique_ptr<AbcGroup>> abcGroups;
@@ -41,7 +43,7 @@ private:
 public:
   void Reset();
 
-  Image(Kotonoha_time *time);
+  Image(Kotonoha_time *time, Kotonoha_IOMonitor *ioMonitor);
 
   Uint64 Register(const char *path, Uint64 startTime, Uint64 endTime, Uint8 id);
   void SetAbcState(const std::string& key, Uint8 index,

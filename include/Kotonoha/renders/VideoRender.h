@@ -14,6 +14,7 @@ struct Kotonoha_videoData {
   AVCodecContext *pCodecCtx;
   struct SwsContext *swsCtx;
   struct ffmpegHwContext *hwCtx;
+  Kotonoha_IOMonitorOperation ioOperation;
   int videoStreamIndex;
 
   AVFrame *pFrame;
@@ -34,7 +35,8 @@ struct Kotonoha_videoData *Kotonoha_VideoRenderInit(const char *filename,
                                                     Uint64 startTime,
                                                     Uint64 endTime,
                                                     bool useOrsFrameTimeline,
-                                                    Uint64 orsEndFrame);
+                                                    Uint64 orsEndFrame,
+                                                    Kotonoha_IOMonitor *ioMonitor);
 
 void Kotonoha_VideoRenderShutdown(struct Kotonoha_videoData **instance);
 

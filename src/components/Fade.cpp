@@ -185,7 +185,7 @@ Kotonoha_Scene_Status Fade::Render(KOTONOHA_SCENE_CALL) {
 	const Uint8 channel = active->color == FadeColor::White ? 255 : 0;
 
 	if (!active->hasLoggedTick || active->lastLoggedTick != tick) {
-		SDL_Log("[SD-FADE] %s %s tick=%llu start=%llu end=%llu alpha=%u",
+		SDL_Log("[FADE] %s %s tick=%llu start=%llu end=%llu alpha=%u",
 			FadeColorName(active->color),
 			FadeDirectionName(active->direction),
 			static_cast<unsigned long long>(tick),

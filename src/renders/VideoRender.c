@@ -32,8 +32,13 @@ static void Kotonoha_VideoSeek(struct Kotonoha_videoData* instance, Uint64 timeM
 	},
 		stream->time_base);
 
-	if (av_seek_frame(instance->pFormatCtx, instance->videoStreamIndex, seekTs,
-		AVSEEK_FLAG_BACKWARD) < 0) {
+	const int seekResult = Kotonoha_UtilsFFmpegSeekFrame(
+		instance->pFormatCtx, &instance->ioOperation,
+		instance->videoStreamIndex, seekTs, AVSEEK_FLAG_BACKWARD);
+	if (seekResult < 0) {
+		if (seekResult == AVERROR_EXIT) {
+			return;
+		}
 		SDL_LogError(SDL_LOG_CATEGORY_ERROR,
 			"Video SeekError timeMs=%llu seekTs=%lld\n",
 			(unsigned long long)timeMs, (long long)seekTs);
@@ -129,7 +134,8 @@ static bool renderVideo(struct Kotonoha_videoData* instance, Uint64 currentTime)
 			break;
 		}
 
-		response = av_read_frame(instance->pFormatCtx, &packet);
+		response = Kotonoha_UtilsFFmpegReadFrame(
+			instance->pFormatCtx, &packet);
 		if (response < 0) {
 			if (response == AVERROR_EOF) {
 				instance->demuxEof = true;
@@ -173,12 +179,14 @@ static bool renderVideo(struct Kotonoha_videoData* instance, Uint64 currentTime)
 // Inicializa o contexto de vídeo
 static bool initializeVideoContext(struct Kotonoha_videoData* instance,
 	const char* filename) {
-	if (!Kotonoha_UtilsFFmpegLoad(filename, &instance->pFormatCtx,
+	if (!Kotonoha_UtilsFFmpegLoadMonitored(filename, &instance->pFormatCtx,
 		&instance->pCodecCtx, AVMEDIA_TYPE_VIDEO,
 		&instance->videoStreamIndex, 0,
-		instance->hwCtx)) {
-		SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Failed to load video file: %s\n",
-			filename);
+		instance->hwCtx, &instance->ioOperation)) {
+		if (!Kotonoha_IOMonitorIsIgnoredMissing(&instance->ioOperation)) {
+			SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Failed to load video file: %s\n",
+				filename);
+		}
 		return false;
 	}
 	return true;
@@ -219,7 +227,8 @@ struct Kotonoha_videoData* Kotonoha_VideoRenderInit(const char* filename,
 	Uint64 startTime,
 	Uint64 endTime,
 	bool useOrsFrameTimeline,
-	Uint64 orsEndFrame) {
+	Uint64 orsEndFrame,
+	Kotonoha_IOMonitor* ioMonitor) {
 	struct Kotonoha_videoData* videoInstance =
 		(struct Kotonoha_videoData*)SDL_calloc(1, sizeof(struct Kotonoha_videoData));
 	if (!videoInstance) {
@@ -227,6 +236,7 @@ struct Kotonoha_videoData* Kotonoha_VideoRenderInit(const char* filename,
 			"Failed to allocate video instance: %s\n", SDL_GetError());
 		return NULL;
 	}
+	Kotonoha_IOMonitorOperationInit(&videoInstance->ioOperation, ioMonitor);
 
 	if (!initializeHwContext(videoInstance) ||
 		!initializeVideoContext(videoInstance, filename)) {
@@ -248,10 +258,15 @@ struct Kotonoha_videoData* Kotonoha_VideoRenderInit(const char* filename,
 		time, startTime, endTime, &inRange, &diff);
 
 	Kotonoha_VideoEnsureSync(videoInstance, toSeek, true);
+	if (videoInstance->ioOperation.stalled) {
+		return videoInstance;
+	}
 
 	if (!renderVideo(videoInstance, toSeek)) {
-		Kotonoha_VideoRenderShutdown(&videoInstance);
-		return NULL;
+		if (!videoInstance->ioOperation.stalled) {
+			Kotonoha_VideoRenderShutdown(&videoInstance);
+			return NULL;
+		}
 	}
 
 	return videoInstance;
@@ -271,6 +286,7 @@ void Kotonoha_VideoRenderShutdown(struct Kotonoha_videoData** instance) {
 		SDL_free(videoData->hwCtx);
 		videoData->hwCtx = NULL;
 	}
+	Kotonoha_IOMonitorOperationReset(&videoData->ioOperation);
 	if (videoData->pFrame)
 		av_frame_free(&videoData->pFrame);
 	if (videoData->pFormatCtx)
@@ -312,6 +328,10 @@ enum Kotonoha_Scene_Status Kotonoha_VideoRenderProcess(void* userData,
 		return (diff > 0) ? KOTONOHA_SCENE_COMPLETE : KOTONOHA_SCENE_NULL;
 
 	Kotonoha_VideoEnsureSync(instance, currentTime, false);
+	if (instance->ioOperation.stalled) {
+		return instance->texture != NULL
+			? KOTONOHA_SCENE_DRAW : KOTONOHA_SCENE_WAITING;
+	}
 
 	if (instance->pFrame == NULL && !renderVideo(instance, currentTime)) {
 		if (instance->texture != NULL)

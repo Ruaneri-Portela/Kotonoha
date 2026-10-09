@@ -88,6 +88,14 @@ namespace Kotonoha {
 		minDrawnZIndex = 32767;
 	}
 
+	SDL_AtomicInt* Canvas::NetworkWaitFlag() {
+		return &networkWaitFlag;
+	}
+
+	bool Canvas::IsWaitingForNetwork() const {
+		return SDL_GetAtomicInt(&networkWaitFlag) != 0;
+	}
+
 	bool Canvas::DrewAtOrBelow(Sint16 zIndex) const {
 		return minDrawnZIndex <= zIndex;
 	}

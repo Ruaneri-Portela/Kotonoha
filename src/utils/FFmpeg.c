@@ -1,4 +1,7 @@
 #include <Kotonoha/utils/FFmpeg.h>
+#include <errno.h>
+#include <libavutil/error.h>
+
 // Configura a decodificação por hardware, se disponível
 static void setupHwDecode(struct ffmpegHwContext* hwCtx,
 	const AVCodec** codec) {
@@ -25,35 +28,148 @@ static void setupHwDecode(struct ffmpegHwContext* hwCtx,
 		(*codec)->name);
 }
 
+int Kotonoha_UtilsFFmpegReadFrame(AVFormatContext* formatCtx,
+	AVPacket* packet) {
+	if (formatCtx == NULL || packet == NULL) {
+		return AVERROR(EINVAL);
+	}
+
+	Kotonoha_IOMonitorOperation* operation =
+		(Kotonoha_IOMonitorOperation*)formatCtx->interrupt_callback.opaque;
+	if (operation == NULL) {
+		return av_read_frame(formatCtx, packet);
+	}
+	Kotonoha_IOMonitorOperationBegin(operation);
+	const int result = av_read_frame(formatCtx, packet);
+	Kotonoha_IOMonitorOperationEnd(operation);
+	if (result == AVERROR_EXIT) {
+		Kotonoha_IOMonitorOperationSetStalled(operation, true);
+		return result;
+	}
+	if (result >= 0 ||
+		(result < 0 && result != AVERROR(EAGAIN))) {
+		Kotonoha_IOMonitorOperationSetStalled(operation, false);
+	}
+	return result;
+}
+
+int Kotonoha_UtilsFFmpegSeekFrame(AVFormatContext* formatCtx,
+	Kotonoha_IOMonitorOperation* operation, int streamIndex,
+	int64_t timestamp, int flags) {
+	if (formatCtx == NULL) {
+		return AVERROR(EINVAL);
+	}
+
+	Kotonoha_IOMonitorOperationBegin(operation);
+	const int result = av_seek_frame(formatCtx, streamIndex, timestamp, flags);
+	Kotonoha_IOMonitorOperationEnd(operation);
+	if (result == AVERROR_EXIT) {
+		Kotonoha_IOMonitorOperationSetStalled(operation, true);
+		return result;
+	}
+	Kotonoha_IOMonitorOperationSetStalled(operation, false);
+	return result;
+}
+
 // Carrega o contexto FFmpeg e configura o decodificador
-bool Kotonoha_UtilsFFmpegLoad(const char* path, AVFormatContext** formatCtx,
+bool Kotonoha_UtilsFFmpegLoadMonitored(
+	const char* path, AVFormatContext** formatCtx,
 	AVCodecContext** codecCtx,
 	enum AVMediaType mediaType,
 	int* streamIndexExport, int startIndex,
-	struct ffmpegHwContext* hwCtx) {
-	AVDictionary* opts = NULL;
-	bool isHttp = SDL_strstr(path, "http") != NULL;
-	if (isHttp) {
-		av_dict_set(&opts, "user_agent", "KotonohaEngine/0.1", 0);
-	}
-
-	// Abre o arquivo de mídia
-	if (avformat_open_input(formatCtx, path, NULL, &opts) != 0) {
+	struct ffmpegHwContext* hwCtx,
+	Kotonoha_IOMonitorOperation* ioOperation) {
+	if (path == NULL || formatCtx == NULL || codecCtx == NULL ||
+		ioOperation == NULL) {
 		SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
-			"Erro: Não foi possível abrir o arquivo '%s'", path);
+			"Invalid FFmpeg load arguments");
 		return false;
 	}
+	Kotonoha_IOMonitorSetMissing(ioOperation, false);
 
-	// Libera a memória alocada para as opções
-	av_dict_free(&opts);
+	AVDictionary* opts = NULL;
+	bool isHttp = SDL_strstr(path, "http") != NULL;
+	int openResult;
+	do {
+		*formatCtx = avformat_alloc_context();
+		if (*formatCtx == NULL) {
+			SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
+				"Não foi possível alocar o contexto do arquivo '%s'", path);
+			Kotonoha_IOMonitorOperationReset(ioOperation);
+			return false;
+		}
+		(*formatCtx)->interrupt_callback.callback = Kotonoha_IOMonitorInterrupt;
+		(*formatCtx)->interrupt_callback.opaque = ioOperation;
 
+		if (isHttp) {
+			av_dict_set(&opts, "user_agent", "KotonohaEngine/0.1", 0);
+		}
+		Kotonoha_IOMonitorOperationBegin(ioOperation);
+		openResult = avformat_open_input(formatCtx, path, NULL, &opts);
+		Kotonoha_IOMonitorOperationEnd(ioOperation);
+		av_dict_free(&opts);
+		if (openResult == AVERROR_EXIT &&
+			SDL_GetAtomicInt(&ioOperation->cancelled) == 0) {
+			if (*formatCtx != NULL) {
+				avformat_close_input(formatCtx);
+			}
+			SDL_Delay(10);
+			continue;
+		}
+		if (openResult == AVERROR(ENOENT) ||
+			openResult == AVERROR(ENOTDIR)) {
+			Kotonoha_IOMonitorSetMissing(ioOperation, true);
+			if (Kotonoha_IOMonitorShouldRetryMissing(ioOperation) &&
+				SDL_GetAtomicInt(&ioOperation->cancelled) == 0) {
+				if (*formatCtx != NULL) {
+					avformat_close_input(formatCtx);
+				}
+				SDL_Delay(250);
+				continue;
+			}
+		}
+		break;
+	} while (true);
+
+	if (openResult < 0) {
+		Kotonoha_IOMonitorOperationSetStalled(ioOperation, false);
+		if (*formatCtx != NULL) {
+			avformat_close_input(formatCtx);
+		}
+		if (openResult != AVERROR_EXIT &&
+			SDL_GetAtomicInt(&ioOperation->cancelled) == 0 &&
+			!Kotonoha_IOMonitorIsIgnoredMissing(ioOperation)) {
+			SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
+				"Erro: Não foi possível abrir o arquivo '%s': %s",
+				path, av_err2str(openResult));
+		}
+		return false;
+	}
 	// Obtém informações sobre o fluxo
-	if (avformat_find_stream_info(*formatCtx, NULL) < 0) {
-		SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
-			"Erro: Não foi possível encontrar informações do fluxo");
+	int streamInfoResult;
+	do {
+		Kotonoha_IOMonitorOperationBegin(ioOperation);
+		streamInfoResult = avformat_find_stream_info(*formatCtx, NULL);
+		Kotonoha_IOMonitorOperationEnd(ioOperation);
+		if (streamInfoResult == AVERROR_EXIT &&
+			SDL_GetAtomicInt(&ioOperation->cancelled) == 0) {
+			SDL_Delay(10);
+		}
+	} while (streamInfoResult == AVERROR_EXIT &&
+		SDL_GetAtomicInt(&ioOperation->cancelled) == 0);
+
+	if (streamInfoResult < 0) {
+		if (streamInfoResult != AVERROR_EXIT) {
+			Kotonoha_IOMonitorOperationSetStalled(ioOperation, false);
+			SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
+				"Erro: Não foi possível encontrar informações do fluxo: %s",
+				av_err2str(streamInfoResult));
+		}
 		avformat_close_input(formatCtx);
 		return false;
 	}
+	Kotonoha_IOMonitorSetMissing(ioOperation, false);
+	Kotonoha_IOMonitorOperationSetStalled(ioOperation, false);
 
 	// Encontra o índice do fluxo correspondente ao tipo de mídia especificado
 	int streamIndex = -1;
@@ -130,6 +246,23 @@ bool Kotonoha_UtilsFFmpegLoad(const char* path, AVFormatContext** formatCtx,
 	return true;
 }
 
+bool Kotonoha_UtilsFFmpegLoad(const char* path, AVFormatContext** formatCtx,
+	AVCodecContext** codecCtx, enum AVMediaType mediaType,
+	int* streamIndexExport, int startIndex,
+	struct ffmpegHwContext* hwCtx) {
+	Kotonoha_IOMonitorOperation operation;
+	Kotonoha_IOMonitorOperationInit(&operation, NULL);
+	const bool loaded = Kotonoha_UtilsFFmpegLoadMonitored(
+		path, formatCtx, codecCtx, mediaType, streamIndexExport, startIndex,
+		hwCtx, &operation);
+	if (loaded && formatCtx != NULL && *formatCtx != NULL) {
+		(*formatCtx)->interrupt_callback.callback = NULL;
+		(*formatCtx)->interrupt_callback.opaque = NULL;
+	}
+	Kotonoha_IOMonitorOperationReset(&operation);
+	return loaded;
+}
+
 // Calcula o timestamp do pacote de mídia
 Uint64 Kotonoha_UtilsFFmpegGetTime(AVStream* stream, Sint64 pts, Sint64 dts) {
 	if (pts != AV_NOPTS_VALUE) {
@@ -168,7 +301,7 @@ AVFrame* Kotonoha_UtilsFFmpegSwsConvertFrame(struct SwsContext* convertContext,
 	Uint8* frameBuffer = (Uint8*)av_malloc(
 		av_image_get_buffer_size(AV_PIX_FMT_RGBA, targetW, targetH, 1));
 
-	if (buffer == NULL) {
+	if (frameBuffer == NULL) {
 		SDL_LogError(0, "Error to allocate buffer\n");
 		av_frame_free(&pFrameRGB);
 		return NULL;
@@ -178,7 +311,7 @@ AVFrame* Kotonoha_UtilsFFmpegSwsConvertFrame(struct SwsContext* convertContext,
 		AV_PIX_FMT_RGBA, targetW, targetH, 1) < 0) {
 		SDL_LogError(0, "Error to fill frame\n");
 		av_frame_free(&pFrameRGB);
-		av_free(buffer);
+		av_free(frameBuffer);
 		return NULL;
 	}
 

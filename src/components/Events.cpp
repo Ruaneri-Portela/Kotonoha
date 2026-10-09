@@ -157,6 +157,35 @@ namespace Kotonoha {
 			return 0;
 		}
 
+		auto clearPendingAssetLoad = [&](const Kotonoha_orsEvent* event) {
+			auto pending = classUp->pendingAssetLoads.find(event);
+			if (pending != classUp->pendingAssetLoads.end()) {
+				Kotonoha_IOMonitorOperationReset(&pending->second);
+				classUp->pendingAssetLoads.erase(pending);
+			}
+		};
+
+		auto updatePendingAssetLoad = [&](const Kotonoha_orsEvent* event,
+			bool failed) {
+			if (!gameplay->ioMonitor.retryMissingAssets || !failed) {
+				clearPendingAssetLoad(event);
+				return false;
+			}
+
+			auto pendingResult = classUp->pendingAssetLoads.emplace(
+				event, Kotonoha_IOMonitorOperation{});
+				
+			auto pending = pendingResult.first;
+			bool inserted = pendingResult.second;
+				
+			if (inserted) {
+				Kotonoha_IOMonitorOperationInit(
+					&pending->second, &gameplay->ioMonitor);
+			}
+			Kotonoha_IOMonitorOperationSetStalled(&pending->second, true);
+			return true;
+		};
+
 		for (auto* event = classUp->eventsFromScript.data; event != nullptr;
 			event = event->next) {
 			const Uint64 actualTime = Kotonoha_timeGet(gameplay->tm);
@@ -176,6 +205,7 @@ namespace Kotonoha {
 					"start=%llu end=%llu",
 					static_cast<unsigned long long>(event->start),
 					static_cast<unsigned long long>(event->end));
+				clearPendingAssetLoad(event);
 				event->eventTouched = true;
 				continue;
 			}
@@ -184,29 +214,32 @@ namespace Kotonoha {
 				continue;
 			}
 
-			event->eventTouched = true;
-
 			if (endMs < actualTime) {
+				clearPendingAssetLoad(event);
+				event->eventTouched = true;
 				continue;
 			}
 
+			bool hasMediaAttachment = false;
+			bool mediaAttachmentFailed = false;
 			switch (event->command) {
 			case PLAY_VOICE: {
 				if (event->data.play_voice->path != nullptr &&
 					SDL_strlen(event->data.play_voice->path) > 0) {
+					hasMediaAttachment = true;
 					const std::string voiceLogical = BuildString(
 						event->data.play_voice->path, "",
 						useExtension ? ".OGG" : "");
 					const std::string voicePath = useExtension
 						? ResolveAssetPath(assetsPath, voiceLogical)
 						: voiceLogical;
-					gameplay->audio->AddMedia(
+					mediaAttachmentFailed = gameplay->audio->AddMedia(
 						voicePath.c_str(),
 						startMs,
 						endMs > SDL_MAX_UINT64 - 1000
 							? SDL_MAX_UINT64 : endMs + 1000,
 						false,
-						"Voice");
+						"Voice") == nullptr;
 
 					const char* key =
 						event->data.play_voice->character_short;
@@ -214,7 +247,8 @@ namespace Kotonoha {
 						int16_t* decodedPcm = nullptr;
 						size_t decodedSampleCount = 0;
 						if (Kotonoha_DecodeVoicePcm(voicePath.c_str(),
-								&decodedPcm, &decodedSampleCount)) {
+								&decodedPcm, &decodedSampleCount,
+								&gameplay->ioMonitor)) {
 							std::unique_ptr<int16_t, decltype(&SDL_free)>
 								pcmOwner(decodedPcm, SDL_free);
 							const std::vector<int16_t> pcm(
@@ -235,7 +269,8 @@ namespace Kotonoha {
 			case PLAY_SE:
 				if (event->data.play_se->path != nullptr &&
 					SDL_strlen(event->data.play_se->path) > 0) {
-					gameplay->audio->AddMedia(
+					hasMediaAttachment = true;
+					mediaAttachmentFailed = gameplay->audio->AddMedia(
 						BuildString(event->data.play_se->path,
 							assetsPath,
 							useExtension ? ".OGG" : "")
@@ -243,13 +278,14 @@ namespace Kotonoha {
 						startMs,
 						endMs,
 						true,
-						"Se");
+						"Se") == nullptr;
 				}
 				break;
 
 			case PLAY_BGM:
 				if (event->data.path_end->path != nullptr &&
 					SDL_strlen(event->data.path_end->path) > 0) {
+					hasMediaAttachment = true;
 					std::string str = ToUpper(event->data.path_end->path);
 					if (useExtension) {
 						const std::string introPath =
@@ -259,29 +295,30 @@ namespace Kotonoha {
 							ResolveAssetPath(assetsPath,
 								BuildString(str.c_str(), "", "_LOOP.OGG"));
 						if (FileExists(introPath) && FileExists(loopPath)) {
-							gameplay->audio->AddIntroLoopMedia(
+							mediaAttachmentFailed =
+								gameplay->audio->AddIntroLoopMedia(
 								introPath.c_str(),
 								loopPath.c_str(),
 								startMs,
 								endMs,
-								"BGM");
+								"BGM") == nullptr;
 						}
 						else {
-							gameplay->audio->AddMedia(
+							mediaAttachmentFailed = gameplay->audio->AddMedia(
 								loopPath.c_str(),
 								startMs,
 								endMs,
 								true,
-								"BGM");
+								"BGM") == nullptr;
 						}
 					}
 					else {
-						gameplay->audio->AddMedia(
+						mediaAttachmentFailed = gameplay->audio->AddMedia(
 							event->data.path_end->path,
 							startMs,
 							endMs,
 							true,
-							"BGM");
+							"BGM") == nullptr;
 					}
 				}
 				break;
@@ -289,8 +326,9 @@ namespace Kotonoha {
 			case END_BGM:
 				if (event->data.path_end->path != nullptr &&
 					SDL_strlen(event->data.path_end->path) > 0) {
+					hasMediaAttachment = true;
 					std::string str = ToUpper(event->data.path_end->path);
-					gameplay->audio->AddMedia(
+					mediaAttachmentFailed = gameplay->audio->AddMedia(
 						BuildString(useExtension ? str.c_str()
 							: event->data.path_end->path,
 							assetsPath,
@@ -299,26 +337,26 @@ namespace Kotonoha {
 						startMs,
 						endMs,
 						true,
-						"BGM");
+						"BGM") == nullptr;
 				}
 				break;
 
 			case END_ROLL:
 				if (event->data.path_end->path != nullptr &&
 					SDL_strlen(event->data.path_end->path) > 0) {
-					gameplay->video->Register(
+					hasMediaAttachment = true;
+					mediaAttachmentFailed = !gameplay->video->Register(
 						BuildString(event->data.path_end->path,
 							assetsPath,
 							useExtension ? ".WMV" : "")
-						.c_str(),
-						startMs,
-						endMs);
+						.c_str(), startMs, endMs);
 				}
 				break;
 
 			case PLAY_MOVIE:
 				if (event->data.play_movie->path != nullptr &&
 					SDL_strlen(event->data.play_movie->path) > 0) {
+					hasMediaAttachment = true;
 					const std::string moviePath =
 						BuildString(event->data.play_movie->path,
 							assetsPath,
@@ -332,7 +370,7 @@ namespace Kotonoha {
 						event->end, false, &endFrame);
 
 					if (startMapped && endMapped && endFrame >= startFrame) {
-						gameplay->video->Register(
+						mediaAttachmentFailed = !gameplay->video->Register(
 							moviePath.c_str(),
 							startMs,
 							endMs,
@@ -340,7 +378,7 @@ namespace Kotonoha {
 							endFrame);
 					}
 					else {
-						gameplay->video->Register(
+						mediaAttachmentFailed = !gameplay->video->Register(
 							moviePath.c_str(),
 							startMs,
 							endMs > SDL_MAX_UINT64 - 50
@@ -352,14 +390,15 @@ namespace Kotonoha {
 			case CREATE_BG:
 				if (event->data.create_bg->path != nullptr &&
 					SDL_strlen(event->data.create_bg->path) > 0) {
-					gameplay->image->Register(
+					hasMediaAttachment = true;
+					mediaAttachmentFailed = gameplay->image->Register(
 						BuildString(event->data.create_bg->path,
 							assetsPath,
 							useExtension ? ".PNG" : "")
 						.c_str(),
 						startMs,
 						endMs,
-						0);
+						0) == 0;
 				}
 				break;
 
@@ -383,6 +422,9 @@ namespace Kotonoha {
 			default:
 				break;
 			}
+
+			event->eventTouched = !hasMediaAttachment ||
+				!updatePendingAssetLoad(event, mediaAttachmentFailed);
 		}
 
 		const Uint64 currentTime = Kotonoha_timeGet(gameplay->tm);
@@ -442,6 +484,11 @@ namespace Kotonoha {
 		}
 
 		SDL_LockMutex(eventMutex);
+
+		for (auto& pending : pendingAssetLoads) {
+			Kotonoha_IOMonitorOperationReset(&pending.second);
+		}
+		pendingAssetLoads.clear();
 
 		gp->video->Reset();
 		gp->image->Reset();
@@ -612,6 +659,10 @@ namespace Kotonoha {
 	}
 
 	Event::~Event() {
+		for (auto& pending : pendingAssetLoads) {
+			Kotonoha_IOMonitorOperationReset(&pending.second);
+		}
+		pendingAssetLoads.clear();
 		Kotonoha_OrsClean(&eventsFromScript);
 		if (eventMutex != nullptr) {
 			SDL_DestroyMutex(eventMutex);
