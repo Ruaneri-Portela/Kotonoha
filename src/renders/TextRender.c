@@ -140,6 +140,10 @@ enum Kotonoha_Scene_Status Kotonoha_TextRenderDraw(KOTONOHA_SCENE_CALL) {
 		ass_render_frame(environment->ass_renderer, environment->track,
 			Kotonoha_timeGet(environment->time), &asChanged);
 
+	if (asChanged != 0) {
+		return KOTONOHA_SCENE_WAITING;
+	}
+
 	if (environment->subTexture != NULL) {
 		SDL_DestroyTexture(environment->subTexture);
 		environment->subTexture = NULL;
