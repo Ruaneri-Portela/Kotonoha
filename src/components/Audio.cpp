@@ -10,21 +10,33 @@ namespace Kotonoha {
 		Uint64 end,
 		bool inLoop,
 		const char* channel) {
+		return AddMediaInternal(path, start, end, inLoop, channel, nullptr);
+	}
+
+	struct Kotonoha_audioDecode* Audio::AddMediaInternal(const char* path,
+		Uint64 start,
+		Uint64 end,
+		bool inLoop,
+		const char* channel,
+		struct Kotonoha_audioDecode* loopMedia) {
 		if (soundCtx == nullptr || timeCtx == nullptr) {
 			SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
 				"Invalid audio context.");
+			Kotonoha_AudioFree(loopMedia);
 			return nullptr;
 		}
 
 		if (path == nullptr || *path == '\0') {
 			SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
 				"Invalid audio path.");
+			Kotonoha_AudioFree(loopMedia);
 			return nullptr;
 		}
 
 		if (channel == nullptr || *channel == '\0') {
 			SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
 				"Invalid channel name.");
+			Kotonoha_AudioFree(loopMedia);
 			return nullptr;
 		}
 
@@ -32,6 +44,7 @@ namespace Kotonoha {
 		if (targetChannel == nullptr) {
 			SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
 				"Channel not found: %s", channel);
+			Kotonoha_AudioFree(loopMedia);
 			return nullptr;
 		}
 
@@ -56,6 +69,7 @@ namespace Kotonoha {
 		if (newAudioDecode == nullptr) {
 			SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
 				"Error initializing audio decode: %s", path);
+			Kotonoha_AudioFree(loopMedia);
 			return nullptr;
 		}
 
@@ -64,6 +78,7 @@ namespace Kotonoha {
 		newAudioDecode->end = end;
 		newAudioDecode->dataGeneric = static_cast<void*>(this);
 		newAudioDecode->inLoop = inLoop;
+		newAudioDecode->loopMedia = loopMedia;
 
 		Sound::Channel::Pipe* newPipe =
 			targetChannel->AddPipe(RenderMedia, Kotonoha_AudioFree, newAudioDecode);
@@ -77,6 +92,43 @@ namespace Kotonoha {
 
 		audioDecodesPipe->emplace_back(newAudioDecode, newPipe);
 		return newAudioDecode;
+	}
+
+	struct Kotonoha_audioDecode* Audio::AddIntroLoopMedia(
+		const char* introPath,
+		const char* loopPath,
+		Uint64 start,
+		Uint64 end,
+		const char* channelName) {
+		if (introPath == nullptr || *introPath == '\0' ||
+			loopPath == nullptr || *loopPath == '\0' ||
+			channelName == nullptr || *channelName == '\0' ||
+			soundCtx == nullptr || timeCtx == nullptr) {
+			SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
+				"Invalid intro/loop audio configuration.");
+			return nullptr;
+		}
+
+		Sound::Channel* channel = soundCtx->GetChannelByName(channelName);
+		if (channel == nullptr) {
+			SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
+				"Channel not found: %s", channelName);
+			return nullptr;
+		}
+
+		Kotonoha_audioDecode* loop =
+			Kotonoha_AudioInit(loopPath, channel->GetSpecs());
+		if (loop == nullptr) {
+			SDL_LogError(SDL_LOG_CATEGORY_AUDIO,
+				"Failed to initialize loop audio: %s", loopPath);
+			return nullptr;
+		}
+
+		loop->tm = &timeCtx;
+		loop->start = start;
+		loop->end = end;
+		return AddMediaInternal(
+			introPath, start, end, false, channelName, loop);
 	}
 
 	void Audio::RemoveMedia(struct Kotonoha_audioDecode* mediaPtr) {
@@ -136,8 +188,20 @@ namespace Kotonoha {
 			return 0;
 		}
 
-		const int rt = Kotonoha_AudioRender(instance, target, size);
-		if (rt == -1 && instance->inLoop) {
+		Kotonoha_audioDecode* current =
+			instance->playingLoop ? instance->loopMedia : instance;
+		int rt = Kotonoha_AudioRender(current, target, size);
+		if (rt == 1 && instance->loopMedia != nullptr) {
+			if (!instance->playingLoop) {
+				instance->playingLoop = true;
+			}
+			else {
+				Kotonoha_AudioSeek(instance->loopMedia, 0);
+			}
+			instance->loopMedia->start = Kotonoha_timeGet(*instance->tm);
+			rt = Kotonoha_AudioRender(instance->loopMedia, target, size);
+		}
+		else if (rt == -1 && instance->inLoop) {
 			Kotonoha_AudioSeek(instance, instance->lastTime);
 		}
 

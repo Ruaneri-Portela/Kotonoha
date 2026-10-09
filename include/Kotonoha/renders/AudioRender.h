@@ -20,6 +20,8 @@ struct Kotonoha_audioDecode {
   int executions;
   Kotonoha_time **tm;
   void *dataGeneric;
+  struct Kotonoha_audioDecode *loopMedia;
+  bool playingLoop;
 };
 
 void genWhiteNoise(void *data, Uint8 **target, size_t *size);

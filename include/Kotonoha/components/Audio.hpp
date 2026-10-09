@@ -12,6 +12,9 @@ extern "C" {
 namespace Kotonoha {
 class Audio {
 private:
+  struct Kotonoha_audioDecode *AddMediaInternal(
+      const char *path, Uint64 start, Uint64 end, bool inLoop,
+      const char *channel, struct Kotonoha_audioDecode *loopMedia);
   std::vector<std::tuple<Sound::Channel *,
                          std::vector<std::tuple<struct Kotonoha_audioDecode *,
                                                 Sound::Channel::Pipe *>>>>
@@ -24,6 +27,10 @@ public:
   struct Kotonoha_audioDecode *AddMedia(const char *path, Uint64 start,
                                         Uint64 end, bool inLoop,
                                         const char *channel);
+  struct Kotonoha_audioDecode *AddIntroLoopMedia(const char *introPath,
+                                                 const char *loopPath,
+                                                 Uint64 start, Uint64 end,
+                                                 const char *channel);
   void RemoveMedia(struct Kotonoha_audioDecode *mediaPtr);
   static int RenderMedia(void *data, Uint8 **target, int *size);
   ~Audio();

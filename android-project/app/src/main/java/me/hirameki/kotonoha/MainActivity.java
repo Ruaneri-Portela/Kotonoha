@@ -20,7 +20,7 @@ public class MainActivity extends Activity {
             public void onClick(View view) {
                 startKotonohaWithArguments(new String[]{
                         "-s", "assets/styles.skot",
-                        "-p", "http://hirameki-server.lan:9090/",
+                        "-p", "http://192.168.88.251:9090/",
                         "-l", "assets/00"
                 });
             }
