@@ -8,7 +8,6 @@
 
 /* Begin PBXBuildFile section */
 		CE540D2E2FCD0843006FA974 /* Audio.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CE540D0F2FCD0843006FA974 /* Audio.cpp */; };
-		CE540DB12FCD0843006FA974 /* VoicePcm.c in Sources */ = {isa = PBXBuildFile; fileRef = CE540DB22FCD0843006FA974 /* VoicePcm.c */; };
 		CE540D2F2FCD0843006FA974 /* Time.c in Sources */ = {isa = PBXBuildFile; fileRef = CE540D212FCD0843006FA974 /* Time.c */; };
 		CE540D302FCD0843006FA974 /* Video.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CE540D152FCD0843006FA974 /* Video.cpp */; };
 		CE540D312FCD0843006FA974 /* FFmpeg.c in Sources */ = {isa = PBXBuildFile; fileRef = CE540D202FCD0843006FA974 /* FFmpeg.c */; };
@@ -21,7 +20,6 @@
 		CE540D382FCD0843006FA974 /* Prompt.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CE540D132FCD0843006FA974 /* Prompt.cpp */; };
 		CE540D392FCD0843006FA974 /* Canvas.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CE540D102FCD0843006FA974 /* Canvas.cpp */; };
 		CE540D3A2FCD0843006FA974 /* IOS.mm in Sources */ = {isa = PBXBuildFile; fileRef = CE540D262FCD0843006FA974 /* IOS.mm */; };
-		CE540D432FCD0843006FA974 /* mobile.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CE540D442FCD0843006FA974 /* mobile.cpp */; };
 		CE540D3B2FCD0843006FA974 /* VideoRender.c in Sources */ = {isa = PBXBuildFile; fileRef = CE540D1E2FCD0843006FA974 /* VideoRender.c */; };
 		CE540D3C2FCD0843006FA974 /* Gameplay.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CE540D252FCD0843006FA974 /* Gameplay.cpp */; };
 		CE540D3D2FCD0843006FA974 /* FPSRender.c in Sources */ = {isa = PBXBuildFile; fileRef = CE540D1A2FCD0843006FA974 /* FPSRender.c */; };
@@ -30,6 +28,9 @@
 		CE540D402FCD0843006FA974 /* TextRender.c in Sources */ = {isa = PBXBuildFile; fileRef = CE540D1C2FCD0843006FA974 /* TextRender.c */; };
 		CE540D412FCD0843006FA974 /* Android.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CE540D242FCD0843006FA974 /* Android.cpp */; };
 		CE540D422FCD0843006FA974 /* Image.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CE540D122FCD0843006FA974 /* Image.cpp */; };
+		CE540D432FCD0843006FA974 /* mobile.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CE540D442FCD0843006FA974 /* mobile.cpp */; };
+		CE540DB12FCD0843006FA974 /* VoicePcm.c in Sources */ = {isa = PBXBuildFile; fileRef = CE540DB22FCD0843006FA974 /* VoicePcm.c */; };
+		CECA778F3078717F0046ED5E /* Fade.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CECA778E3078717F0046ED5E /* Fade.cpp */; };
 		CEE78CE52FCC3A450002CB9B /* CoreBluetooth.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CD92FCC3A450002CB9B /* CoreBluetooth.framework */; };
 		CEE78CE62FCC3A450002CB9B /* CoreGraphics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CDA2FCC3A450002CB9B /* CoreGraphics.framework */; };
 		CEE78CE72FCC3A450002CB9B /* CoreText.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CDB2FCC3A450002CB9B /* CoreText.framework */; };
@@ -100,16 +101,13 @@
 		CE540D202FCD0843006FA974 /* FFmpeg.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = FFmpeg.c; sourceTree = "<group>"; };
 		CE540D212FCD0843006FA974 /* Time.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = Time.c; sourceTree = "<group>"; };
 		CE540D222FCD0843006FA974 /* UserEvents.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = UserEvents.c; sourceTree = "<group>"; };
-		CE540DB22FCD0843006FA974 /* VoicePcm.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = VoicePcm.c; sourceTree = "<group>"; };
-		CE540DB32FCD0843006FA974 /* VoicePcm.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = VoicePcm.h; sourceTree = "<group>"; };
 		CE540D242FCD0843006FA974 /* Android.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Android.cpp; sourceTree = "<group>"; };
 		CE540D252FCD0843006FA974 /* Gameplay.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Gameplay.cpp; sourceTree = "<group>"; };
 		CE540D262FCD0843006FA974 /* IOS.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = IOS.mm; sourceTree = "<group>"; };
-		CE540D442FCD0843006FA974 /* mobile.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = mobile.cpp; sourceTree = "<group>"; };
-		CE540D272FCD0843006FA974 /* Kotonoha.aps */ = {isa = PBXFileReference; lastKnownFileType = file; path = Kotonoha.aps; sourceTree = "<group>"; };
 		CE540D282FCD0843006FA974 /* Kotonoha.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Kotonoha.cpp; sourceTree = "<group>"; };
 		CE540D292FCD0843006FA974 /* Kotonoha.rc */ = {isa = PBXFileReference; lastKnownFileType = text; path = Kotonoha.rc; sourceTree = "<group>"; };
 		CE540D2A2FCD0843006FA974 /* resource.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = resource.h; sourceTree = "<group>"; };
+		CE540D442FCD0843006FA974 /* mobile.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = mobile.cpp; sourceTree = "<group>"; };
 		CE540D8E2FCD0B1C006FA974 /* Audio.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Audio.hpp; sourceTree = "<group>"; };
 		CE540D8F2FCD0B1C006FA974 /* Canvas.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Canvas.hpp; sourceTree = "<group>"; };
 		CE540D902FCD0B1C006FA974 /* Events.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Events.hpp; sourceTree = "<group>"; };
@@ -131,6 +129,10 @@
 		CE540DA42FCD0B1C006FA974 /* Kotonoha.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Kotonoha.h; sourceTree = "<group>"; };
 		CE540DA52FCD0B1C006FA974 /* Kotonoha.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Kotonoha.hpp; sourceTree = "<group>"; };
 		CE540DA62FCD0B1C006FA974 /* version.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = version.h; sourceTree = "<group>"; };
+		CE540DB22FCD0843006FA974 /* VoicePcm.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = VoicePcm.c; sourceTree = "<group>"; };
+		CECA778E3078717F0046ED5E /* Fade.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Fade.cpp; sourceTree = "<group>"; };
+		CECA7791307871DC0046ED5E /* VoicePcm.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = VoicePcm.h; sourceTree = "<group>"; };
+		CECA7792307871E90046ED5E /* VoiceActivity.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = VoiceActivity.hpp; sourceTree = "<group>"; };
 		CEE78C312FCC37E10002CB9B /* KotonohaEngineTest.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = KotonohaEngineTest.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		CEE78CD82FCC3A450002CB9B /* CoreAudio.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreAudio.framework; path = System/Library/Frameworks/CoreAudio.framework; sourceTree = SDKROOT; };
 		CEE78CD92FCC3A450002CB9B /* CoreBluetooth.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreBluetooth.framework; path = System/Library/Frameworks/CoreBluetooth.framework; sourceTree = SDKROOT; };
@@ -251,6 +253,7 @@
 				CE540D132FCD0843006FA974 /* Prompt.cpp */,
 				CE540D142FCD0843006FA974 /* Sound.cpp */,
 				CE540D152FCD0843006FA974 /* Video.cpp */,
+				CECA778E3078717F0046ED5E /* Fade.cpp */,
 			);
 			path = components;
 			sourceTree = "<group>";
@@ -283,20 +286,9 @@
 				CE540D212FCD0843006FA974 /* Time.c */,
 				CE540D222FCD0843006FA974 /* UserEvents.c */,
 				CE540DB22FCD0843006FA974 /* VoicePcm.c */,
-				CE540DB32FCD0843006FA974 /* VoicePcm.h */,
 				CEFF69EE3025F2C9000B52C3 /* LibIconvCompat.c */,
 			);
 			path = utils;
-			sourceTree = "<group>";
-		};
-		CE540D452FCD0843006FA974 /* mobile */ = {
-			isa = PBXGroup;
-			children = (
-				CE540D242FCD0843006FA974 /* Android.cpp */,
-				CE540D262FCD0843006FA974 /* IOS.mm */,
-				CE540D442FCD0843006FA974 /* mobile.cpp */,
-			);
-			path = mobile;
 			sourceTree = "<group>";
 		};
 		CE540D2B2FCD0843006FA974 /* src */ = {
@@ -308,7 +300,6 @@
 				CE540D232FCD0843006FA974 /* utils */,
 				CE540D452FCD0843006FA974 /* mobile */,
 				CE540D252FCD0843006FA974 /* Gameplay.cpp */,
-				CE540D272FCD0843006FA974 /* Kotonoha.aps */,
 				CE540D282FCD0843006FA974 /* Kotonoha.cpp */,
 				CE540D292FCD0843006FA974 /* Kotonoha.rc */,
 				CE540D2A2FCD0843006FA974 /* resource.h */,
@@ -318,6 +309,16 @@
 			name = src;
 			path = ../src;
 			sourceTree = SOURCE_ROOT;
+		};
+		CE540D452FCD0843006FA974 /* mobile */ = {
+			isa = PBXGroup;
+			children = (
+				CE540D242FCD0843006FA974 /* Android.cpp */,
+				CE540D262FCD0843006FA974 /* IOS.mm */,
+				CE540D442FCD0843006FA974 /* mobile.cpp */,
+			);
+			path = mobile;
+			sourceTree = "<group>";
 		};
 		CE540D952FCD0B1C006FA974 /* components */ = {
 			isa = PBXGroup;
@@ -329,6 +330,7 @@
 				CE540D922FCD0B1C006FA974 /* Prompt.hpp */,
 				CE540D932FCD0B1C006FA974 /* Sound.hpp */,
 				CE540D942FCD0B1C006FA974 /* Video.hpp */,
+				CECA7792307871E90046ED5E /* VoiceActivity.hpp */,
 			);
 			path = components;
 			sourceTree = "<group>";
@@ -360,6 +362,7 @@
 				CE540D9F2FCD0B1C006FA974 /* FFmpeg.h */,
 				CE540DA02FCD0B1C006FA974 /* Time.h */,
 				CE540DA12FCD0B1C006FA974 /* UserEvents.h */,
+				CECA7791307871DC0046ED5E /* VoicePcm.h */,
 			);
 			path = utils;
 			sourceTree = "<group>";
@@ -531,6 +534,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				CECA778F3078717F0046ED5E /* Fade.cpp in Sources */,
 				CEF780093017505B00B446B1 /* BasicGui.cpp in Sources */,
 				CE540D2E2FCD0843006FA974 /* Audio.cpp in Sources */,
 				CE540D2F2FCD0843006FA974 /* Time.c in Sources */,
