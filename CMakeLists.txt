@@ -131,10 +131,6 @@ if(ANDROID)
     # ==============================================================================
 else()
     list(FILTER SOURCES EXCLUDE REGEX "/LibIconvCompat\\.c$")
-<<<<<<< HEAD
-=======
-
->>>>>>> 33bb62b (Fix cmake)
     message(STATUS "Configuração Desktop | Sistema: ${CMAKE_SYSTEM_NAME}")
 
     if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
