@@ -218,15 +218,14 @@ namespace Kotonoha {
 			return;
 		}
 
-		SDL_LockMutex(thisChannel->lockPipes);
-
-		if (thisChannel->pipes.empty()) {
-			SDL_UnlockMutex(thisChannel->lockPipes);
+		// Keep the device queue active while this channel has no media.
+		Uint8* data = static_cast<Uint8*>(SDL_calloc(totalAmount, 1));
+		if (data == nullptr) {
+			SDL_LogError(0, "Failed to alloc audio mix buffer");
 			return;
 		}
 
-		Uint8* data = nullptr;
-		int maxFilled = 0;
+		SDL_LockMutex(thisChannel->lockPipes);
 
 		for (auto* pipe : thisChannel->pipes) {
 			if (pipe == nullptr) {
@@ -243,33 +242,14 @@ namespace Kotonoha {
 					break;
 				}
 
-				if (data == nullptr) {
-					data = static_cast<Uint8*>(SDL_calloc(totalAmount, 1));
-					if (data == nullptr) {
-						SDL_UnlockMutex(thisChannel->lockPipes);
-						SDL_LogError(0, "Failed to alloc audio mix buffer");
-						return;
-					}
-				}
-
 				SDL_MixAudio(data + filled, localData, thisChannel->spec.format,
 					gettedSize, thisChannel->volume * thisSound->volume);
 
 				filled += gettedSize;
-				if (filled > maxFilled) {
-					maxFilled = filled;
-				}
 			}
 		}
 
 		SDL_UnlockMutex(thisChannel->lockPipes);
-
-		if (data == nullptr || maxFilled == 0) {
-			if (data != nullptr) {
-				SDL_free(data);
-			}
-			return;
-		}
 
 		if (!SDL_PutAudioStreamDataNoCopy(astream, data, totalAmount, destroy, data)) {
 			SDL_free(data);
