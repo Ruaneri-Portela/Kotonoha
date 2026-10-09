@@ -3,6 +3,7 @@
 #include <fstream>
 #include <iostream>
 #include <Kotonoha/Kotonoha.hpp>
+#include <SDL3/SDL_render.h>
 #include <SDL3/SDL_video.h>
 #include <string>
 #include <vector>
@@ -154,13 +155,17 @@ namespace Kotonoha {
 	}
 
 	Kotonoha::~Kotonoha() {
-		ClearGameplays();
-
 		processPoolRunning = false;
 		if (processPool != nullptr) {
 			SDL_WaitThread(processPool, nullptr);
 			processPool = nullptr;
 		}
+
+		ClearGameplays();
+		for (auto& task : processPoolTasks) {
+			SDL_free(std::get<1>(task));
+		}
+		processPoolTasks.clear();
 
 		if (cursor != nullptr) {
 			SDL_DestroyCursor(cursor);
@@ -198,6 +203,9 @@ namespace Kotonoha {
 
 			if (elapsed < 50) {
 				SDL_Delay(static_cast<Uint32>(50 - elapsed));
+			}
+			if (!process->processPoolRunning) {
+				break;
 			}
 
 			SDL_LockMutex(process->gameContext.taskLock);
@@ -241,8 +249,6 @@ namespace Kotonoha {
 				}
 
 				if (removeTask) {
-					delete static_cast<std::vector<std::tuple<std::string, int>>*>(static_cast<void**>(taskData)[3]);
-					delete static_cast<std::string*>(static_cast<void**>(taskData)[4]);
 					SDL_free(taskData);
 					it = processPoolTasks.erase(it);
 				}
@@ -575,11 +581,128 @@ namespace Kotonoha {
 		gameContext.scene = 0;
 		gameContext.next = false;
 		gameContext.back = false;
+		lastScene = static_cast<size_t>(-1);
+		sceneTransitionPrepared = false;
+		sceneTransitionActive = false;
+		lastSceneFrameCaptureTime = 0;
+		if (sceneTransitionFrame != nullptr) {
+			SDL_DestroyTexture(sceneTransitionFrame);
+			sceneTransitionFrame = nullptr;
+		}
+	}
+
+	bool Kotonoha::CaptureSceneTransitionFrame(bool activateTransition) {
+		if (gameContext.render == nullptr) {
+			return false;
+		}
+		if (SDL_GetRenderTarget(gameContext.render) != nullptr) {
+			SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+				"Scene transition capture skipped: render target is not the backbuffer");
+			return false;
+		}
+
+		SDL_Surface* surface = SDL_RenderReadPixels(gameContext.render, nullptr);
+		if (surface == nullptr) {
+			SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
+				"Scene transition frame capture failed: %s", SDL_GetError());
+			return false;
+		}
+
+		SDL_Texture* nextFrame = SDL_CreateTextureFromSurface(gameContext.render, surface);
+		if (nextFrame == nullptr) {
+			SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
+				"Scene transition texture creation failed: %s", SDL_GetError());
+			SDL_DestroySurface(surface);
+			return false;
+		}
+		SDL_DestroySurface(surface);
+
+		if (!SDL_SetTextureBlendMode(nextFrame, SDL_BLENDMODE_NONE)) {
+			SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
+				"Scene transition texture blend setup failed: %s", SDL_GetError());
+			SDL_DestroyTexture(nextFrame);
+			return false;
+		}
+
+		if (sceneTransitionFrame != nullptr) {
+			SDL_DestroyTexture(sceneTransitionFrame);
+		}
+		sceneTransitionFrame = nextFrame;
+		if (activateTransition) {
+			sceneTransitionPrepared = true;
+			sceneTransitionActive = true;
+		}
+		return true;
+	}
+
+	void Kotonoha::CacheSceneTransitionFrameIfNeeded(Gameplay* current) {
+		if (sceneTransitionActive || sceneTransitionPrepared ||
+			current == nullptr || current->eventManager == nullptr ||
+			current->drawCanvas == nullptr ||
+			!current->drawCanvas->DrewAtOrBelow(1)) {
+			return;
+		}
+
+		const float remaining = current->GetLastTime() - current->GetTime();
+		if (remaining < -0.1f || remaining > 1.0f) {
+			return;
+		}
+
+		const Uint64 now = SDL_GetTicks();
+		if (now - lastSceneFrameCaptureTime < 100) {
+			return;
+		}
+		if (CaptureSceneTransitionFrame(false)) {
+			lastSceneFrameCaptureTime = now;
+		}
+	}
+
+	void Kotonoha::PresentSceneTransitionFrame(Gameplay* incoming) {
+		if (!sceneTransitionActive || sceneTransitionFrame == nullptr) {
+			return;
+		}
+
+		if (incoming == nullptr &&
+			(gameContext.scene < 0 ||
+				static_cast<size_t>(gameContext.scene) >= gameplays.size())) {
+			SDL_DestroyTexture(sceneTransitionFrame);
+			sceneTransitionFrame = nullptr;
+			sceneTransitionPrepared = false;
+			sceneTransitionActive = false;
+			lastSceneFrameCaptureTime = 0;
+			return;
+		}
+
+		if (incoming != nullptr && incoming->drawCanvas != nullptr &&
+			incoming->drawCanvas->DrewAtOrBelow(1)) {
+			SDL_DestroyTexture(sceneTransitionFrame);
+			sceneTransitionFrame = nullptr;
+			sceneTransitionPrepared = false;
+			sceneTransitionActive = false;
+			lastSceneFrameCaptureTime = 0;
+			return;
+		}
+
+		if (gameContext.render == nullptr) {
+			SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
+				"Cannot present retained scene frame without a renderer");
+			return;
+		}
+		if (SDL_GetRenderTarget(gameContext.render) != nullptr &&
+			!SDL_SetRenderTarget(gameContext.render, nullptr)) {
+			SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
+				"Cannot restore backbuffer for retained scene frame: %s",
+				SDL_GetError());
+			return;
+		}
+		if (!SDL_RenderTexture(gameContext.render, sceneTransitionFrame, nullptr, nullptr)) {
+			SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
+				"Retained scene frame presentation failed: %s", SDL_GetError());
+		}
 	}
 
 	SDL_AppResult Kotonoha::Main(Gameplay** out) {
-		static size_t lastScene = static_cast<size_t>(-1);
-
+		SDL_AppResult status = SDL_APP_CONTINUE;
 		if (out != nullptr) {
 			*out = nullptr;
 		}
@@ -589,13 +712,16 @@ namespace Kotonoha {
 			const size_t currentScene = static_cast<size_t>(gameContext.scene);
 			Gameplay* current = gameplays[currentScene];
 			if (current == nullptr) {
-				if (!current->firstFocus)
-					current->Reset(true);
 				lastScene = gameContext.scene++;
 				continue;
 			}
 
 			if (lastScene != currentScene) {
+				if (lastScene != static_cast<size_t>(-1) &&
+					sceneTransitionFrame != nullptr) {
+					sceneTransitionActive = true;
+					sceneTransitionPrepared = false;
+				}
 				lastScene = currentScene;
 				if (!current->firstFocus)
 					current->Reset(true);
@@ -611,6 +737,14 @@ namespace Kotonoha {
 			}
 
 			const SDL_AppResult result = current->Main(&gameContext);
+			if (result == SDL_APP_FAILURE) {
+				status = result;
+				break;
+			}
+			if ((gameContext.next || gameContext.back) &&
+				result == SDL_APP_CONTINUE && !sceneTransitionPrepared) {
+				CaptureSceneTransitionFrame();
+			}
 			if (result != SDL_APP_CONTINUE || gameContext.next) {
 				if (!current->firstFocus)
 					current->Reset(true);
@@ -631,16 +765,29 @@ namespace Kotonoha {
 			break;
 		}
 
+		const bool sceneChangePending =
+			gameContext.next || (gameContext.back && gameContext.scene > 0);
+		if (sceneTransitionPrepared && !sceneTransitionActive &&
+			!sceneChangePending) {
+			if (sceneTransitionFrame != nullptr) {
+				SDL_DestroyTexture(sceneTransitionFrame);
+				sceneTransitionFrame = nullptr;
+			}
+			sceneTransitionPrepared = false;
+		}
+
 		Kotonoha_eventFree(&gameContext.eventQueu);
 
-		if (SDL_GetTicks() - lastMouseTime <= 1000) {
+		if (Kotonoha_BasicGuiShow ||
+			SDL_GetTicks() - lastMouseTime <= 1000) {
 			SDL_ShowCursor();
 		}
-		else {
+		else if (!Kotonoha_BasicGuiShow &&
+			!SDL_GetWindowMouseGrab(gameContext.window)) {
 			SDL_HideCursor();
 		}
 
-		return SDL_APP_CONTINUE;
+		return status;
 	}
 
 } // namespace Kotonoha

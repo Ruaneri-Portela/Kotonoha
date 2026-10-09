@@ -20,6 +20,7 @@ extern "C" {
 #endif
 }
 
+#include <atomic>
 #include <tuple>
 
 namespace Kotonoha {
@@ -29,17 +30,23 @@ namespace Kotonoha {
 
 		SDL_Thread* processPool = nullptr;
 		SDL_Cursor* cursor = nullptr;
-		bool processPoolRunning = true;
+		std::atomic_bool processPoolRunning{true};
 		std::vector<std::tuple<SDL_ThreadFunction, void*>> processPoolTasks;
 		char* preferedGPU = nullptr;
 		int windowsWidth = 1280;
 		int windowsHeight = 720;
 		bool showCursor = true;
 		Uint64 lastMouseTime = 0;
+		size_t lastScene = static_cast<size_t>(-1);
+		SDL_Texture* sceneTransitionFrame = nullptr;
+		bool sceneTransitionPrepared = false;
+		bool sceneTransitionActive = false;
+		Uint64 lastSceneFrameCaptureTime = 0;
 
 		bool ParseArguments(int argc, char* argv[], bool initDependent);
 		void LoadSubtitleStylesFile(char* path);
 		void LoadWindowIcon(const char* path);
+		bool CaptureSceneTransitionFrame(bool activateTransition = true);
 		static int EventsThread(void* data);
 
 	public:
@@ -58,6 +65,8 @@ namespace Kotonoha {
 		SDL_AppResult Event(SDL_Event* event);
 
 		SDL_AppResult Main(Gameplay** out);
+		void CacheSceneTransitionFrameIfNeeded(Gameplay* current);
+		void PresentSceneTransitionFrame(Gameplay* incoming);
 
 		~Kotonoha();
 	};

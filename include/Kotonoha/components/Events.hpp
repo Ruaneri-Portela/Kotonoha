@@ -3,6 +3,10 @@
 #include <Kotonoha/components/Image.hpp>
 #include <Kotonoha/components/Prompt.hpp>
 #include <Kotonoha/components/Video.hpp>
+#include <Kotonoha/utils/VoiceActivity.hpp>
+
+#include <unordered_map>
+#include <vector>
 extern "C" {
 #include <Kotonoha/parsers/Ors.h>
 #include <Kotonoha/renders/TextRender.h>
@@ -18,6 +22,12 @@ private:
   std::vector<Video*> videoToDelete;
   std::vector<Image*> imageToDelete;
   std::vector<Audio*> audioToDeleta;
+  struct VoiceAnimation {
+    std::vector<VoiceActivityRecord> activity;
+    MouthAnimationState state;
+    Uint64 startTick = 0;
+  };
+  std::unordered_map<const Kotonoha_orsEvent*, VoiceAnimation> voiceAnimations;
 
 public:
   Uint64 lastTime = 0;

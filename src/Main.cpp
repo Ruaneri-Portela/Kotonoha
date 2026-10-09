@@ -40,11 +40,16 @@ namespace {
 	}
 
 	static bool InitWindow() {
+		int width = 1280;
+		int height = 720;
+		SDL_WindowFlags windowFlags =
+			global.flags | SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIDDEN;
+
 		global.window = SDL_CreateWindow(
 			"Kotonoha Engine",
-			1280,
-			720,
-			global.flags | SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIDDEN);
+			width,
+			height,
+			windowFlags);
 
 		if (global.window == nullptr) {
 			SDL_LogError(0, "Couldn't create window: %s", SDL_GetError());
@@ -197,8 +202,10 @@ extern "C" {
 		if (status != SDL_APP_CONTINUE) {
 			return status;
 		}
+		app->CacheSceneTransitionFrameIfNeeded(inRunning);
 
 		SDL_SetRenderTarget(global.render, nullptr);
+		app->PresentSceneTransitionFrame(inRunning);
 		if (global.showFps) {
 			Kotonoha_FPSRender(global.window, global.render, nullptr, nullptr, nullptr);
 		}

@@ -20,6 +20,7 @@ file(GLOB SOURCES CONFIGURE_DEPENDS
     src/*.cpp
     src/*.c
     src/components/*.cpp
+    src/mobile/*.cpp
     src/parsers/*.c
     src/renders/*.c
     src/utils/*.c
@@ -143,4 +144,21 @@ else()
         SDL3_ttf::SDL3_ttf 
         imgui::imgui
     )
+endif()
+
+include(CTest)
+if(BUILD_TESTING AND NOT ANDROID)
+    add_executable(OrsParserFidelityTest
+        tests/OrsParserFidelityTest.cpp
+        src/parsers/Ors.c
+    )
+    target_include_directories(OrsParserFidelityTest PRIVATE
+        ${KOTONOHA_INCLUDE_DIR}
+    )
+    target_link_libraries(OrsParserFidelityTest PRIVATE SDL3::SDL3)
+    set_target_properties(OrsParserFidelityTest PROPERTIES
+        CXX_STANDARD 17
+        CXX_STANDARD_REQUIRED ON
+    )
+    add_test(NAME OrsParserFidelityTest COMMAND OrsParserFidelityTest)
 endif()

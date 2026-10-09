@@ -62,9 +62,8 @@ static std::string Kotonoha_JoinPath(const std::string& dir, const std::string& 
 #endif
 }
 
-static bool Kotonoha_FinishFrameAndReturn(Kotonoha_Game& context, ImGuiIO& io) {
+static bool Kotonoha_FinishFrameAndReturn(Kotonoha_Game& context) {
 	ImGui::Render();
-	SDL_SetRenderScale(context.render, io.DisplayFramebufferScale.x, io.DisplayFramebufferScale.y);
 	ImGui_ImplSDLRenderer3_RenderDrawData(ImGui::GetDrawData(), context.render);
 	return true;
 }
@@ -571,8 +570,6 @@ bool Kotonoha_BasicGuiRun(Kotonoha::Kotonoha* game,
 		play = nullptr;
 	}
 
-	ImGuiIO& io = ImGui::GetIO();
-	(void)io;
 	ImGui_ImplSDLRenderer3_NewFrame();
 	ImGui_ImplSDL3_NewFrame();
 	ImGui::NewFrame();
@@ -711,7 +708,6 @@ bool Kotonoha_BasicGuiRun(Kotonoha::Kotonoha* game,
 			if (ImGui::Button("Exit")) {
 				ImGui::End();
 				ImGui::Render();
-				SDL_SetRenderScale(context.render, io.DisplayFramebufferScale.x, io.DisplayFramebufferScale.y);
 				ImGui_ImplSDLRenderer3_RenderDrawData(ImGui::GetDrawData(), context.render);
 				return false;
 			}
@@ -841,7 +837,7 @@ bool Kotonoha_BasicGuiRun(Kotonoha::Kotonoha* game,
 				if (ImGui::Button("Save")) {
 					if (Kotonoha_SaveAndReloadReplace(game, context, selectedSceneIndex)) {
 						ImGui::End();
-						return Kotonoha_FinishFrameAndReturn(context, io);
+						return Kotonoha_FinishFrameAndReturn(context);
 					}
 				}
 
@@ -849,7 +845,7 @@ bool Kotonoha_BasicGuiRun(Kotonoha::Kotonoha* game,
 				if (ImGui::Button("Save Temporary")) {
 					if (Kotonoha_LoadTemporaryGameplayAt(game, context, selectedSceneIndex)) {
 						ImGui::End();
-						return Kotonoha_FinishFrameAndReturn(context, io);
+						return Kotonoha_FinishFrameAndReturn(context);
 					}
 				}
 
@@ -858,7 +854,7 @@ bool Kotonoha_BasicGuiRun(Kotonoha::Kotonoha* game,
 					if (ImGui::Button("Revert to original")) {
 						if (Kotonoha_RestoreOriginalPath(game, context)) {
 							ImGui::End();
-							return Kotonoha_FinishFrameAndReturn(context, io);
+							return Kotonoha_FinishFrameAndReturn(context);
 						}
 					}
 				}
@@ -876,7 +872,6 @@ bool Kotonoha_BasicGuiRun(Kotonoha::Kotonoha* game,
 	}
 
 	ImGui::Render();
-	SDL_SetRenderScale(context.render, io.DisplayFramebufferScale.x, io.DisplayFramebufferScale.y);
 	ImGui_ImplSDLRenderer3_RenderDrawData(ImGui::GetDrawData(), context.render);
 	return true;
 }
