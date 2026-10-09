@@ -24,7 +24,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # ==============================================================================
-# Source Files & Include Directories
+# Source Files
 # ==============================================================================
 set(KOTONOHA_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
@@ -39,18 +39,26 @@ file(GLOB SOURCES CONFIGURE_DEPENDS
 )
 
 # ==============================================================================
-# Dependencies
+# Dependencies — all via pkg-config
 # ==============================================================================
 find_package(PkgConfig REQUIRED)
-find_package(imgui CONFIG REQUIRED)
-find_package(SDL3 CONFIG REQUIRED)
-find_package(SDL3_ttf CONFIG REQUIRED)
 
-pkg_check_modules(FFMPEG REQUIRED IMPORTED_TARGET libavcodec libavformat libavutil libswscale libswresample)
+pkg_check_modules(FFMPEG REQUIRED IMPORTED_TARGET
+    libavcodec
+    libavformat
+    libavutil
+    libswscale
+    libswresample
+)
+
 pkg_check_modules(LIBASS REQUIRED IMPORTED_TARGET libass)
+pkg_check_modules(SDL3 REQUIRED IMPORTED_TARGET sdl3)
+pkg_check_modules(SDL3_TTF REQUIRED IMPORTED_TARGET sdl3-ttf)
+
+find_package(imgui CONFIG REQUIRED)
 
 if(ANDROID)
-    find_package(expat CONFIG REQUIRED)
+    pkg_check_modules(EXPAT REQUIRED IMPORTED_TARGET expat)
 endif()
 
 # ==============================================================================
@@ -62,46 +70,39 @@ if(ANDROID)
     # Suporte a alinhamento de páginas de 16 KB para Android 15+ (API 35+)
     add_link_options("-Wl,-z,max-page-size=16384")
 
-    # --- Wrapper SDL3 ---
+    # Wrapper SDL3
     add_library(SDL3 SHARED bundle.cpp)
     target_link_libraries(SDL3 PRIVATE
         "-Wl,--whole-archive"
-        SDL3::SDL3-static
+        PkgConfig::SDL3
         "-Wl,--no-whole-archive"
         android log atomic m
     )
 
-    # --- Wrapper SDL3_ttf ---
+    # Wrapper SDL3_ttf
     add_library(SDL3_ttf SHARED bundle.cpp)
     target_link_libraries(SDL3_ttf PRIVATE
         "-Wl,--whole-archive"
-        SDL3_ttf::SDL3_ttf-static
+        PkgConfig::SDL3_TTF
         "-Wl,--no-whole-archive"
         SDL3
         android log atomic m
     )
 
-    # --- Library Principal Kotonoha ---
+    # Library principal
     add_library(Kotonoha SHARED ${SOURCES})
 
     target_include_directories(Kotonoha PRIVATE
         ${KOTONOHA_INCLUDE_DIR}
-        ${FFMPEG_INCLUDE_DIRS}
-        ${LIBASS_INCLUDE_DIRS}
-    )
-
-    target_link_directories(Kotonoha PRIVATE
-        ${FFMPEG_LIBRARY_DIRS}
-        ${LIBASS_LIBRARY_DIRS}
     )
 
     target_link_libraries(Kotonoha PRIVATE
         SDL3
         SDL3_ttf
-        ${FFMPEG_LIBRARIES}
-        ${LIBASS_LIBRARIES}
+        PkgConfig::FFMPEG
+        PkgConfig::LIBASS
+        PkgConfig::EXPAT
         imgui::imgui
-        expat::expat
         android
         mediandk
         log
@@ -110,6 +111,7 @@ if(ANDROID)
     )
 
 else()
+    list(FILTER SOURCES EXCLUDE REGEX "/LibIconvCompat\\.c$")
     message(STATUS "Configuração Desktop | Sistema: ${CMAKE_SYSTEM_NAME}")
 
     if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
@@ -124,25 +126,13 @@ else()
 
     target_include_directories(Kotonoha PRIVATE
         ${KOTONOHA_INCLUDE_DIR}
-        ${FFMPEG_INCLUDE_DIRS}
-        ${LIBASS_INCLUDE_DIRS}
-        ${SDL3_INCLUDE_DIRS}
-        ${SDL3_TTF_INCLUDE_DIRS}
-    )
-
-    target_link_directories(Kotonoha PRIVATE
-        ${FFMPEG_LIBRARY_DIRS}
-        ${LIBASS_LIBRARY_DIRS}
-        ${SDL3_LIBRARY_DIRS}
-        ${SDL3_TTF_LIBRARY_DIRS}
-        ${IMGUI_LIBRARY_DIRS}
     )
 
     target_link_libraries(Kotonoha PRIVATE
         PkgConfig::FFMPEG
         PkgConfig::LIBASS
-        SDL3::SDL3
-        SDL3_ttf::SDL3_ttf
+        PkgConfig::SDL3
+        PkgConfig::SDL3_TTF
         imgui::imgui
     )
 endif()
@@ -151,6 +141,7 @@ endif()
 # Unit Testing
 # ==============================================================================
 include(CTest)
+
 if(BUILD_TESTING AND NOT ANDROID)
     add_executable(OrsParserFidelityTest
         tests/OrsParserFidelityTest.cpp
@@ -162,7 +153,7 @@ if(BUILD_TESTING AND NOT ANDROID)
     )
 
     target_link_libraries(OrsParserFidelityTest PRIVATE
-        SDL3::SDL3
+        PkgConfig::SDL3
     )
 
     add_test(NAME OrsParserFidelityTest COMMAND OrsParserFidelityTest)
