@@ -3,7 +3,7 @@
 #include <Kotonoha/components/Image.hpp>
 #include <Kotonoha/components/Prompt.hpp>
 #include <Kotonoha/components/Video.hpp>
-#include <Kotonoha/utils/VoiceActivity.hpp>
+#include <Kotonoha/components/VoiceActivity.hpp>
 
 #include <unordered_map>
 #include <vector>
