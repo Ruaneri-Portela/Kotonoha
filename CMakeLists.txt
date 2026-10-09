@@ -29,13 +29,13 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(KOTONOHA_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
 file(GLOB SOURCES CONFIGURE_DEPENDS
-    src/*.cpp
-    src/*.c
-    src/components/*.cpp
-    src/mobile/*.cpp
-    src/parsers/*.c
-    src/renders/*.c
-    src/utils/*.c
+        src/*.cpp
+        src/*.c
+        src/components/*.cpp
+        src/mobile/*.cpp
+        src/parsers/*.c
+        src/renders/*.c
+        src/utils/*.c
 )
 
 # ==============================================================================
@@ -44,13 +44,12 @@ file(GLOB SOURCES CONFIGURE_DEPENDS
 find_package(PkgConfig REQUIRED)
 
 pkg_check_modules(FFMPEG REQUIRED IMPORTED_TARGET
-    libavcodec
-    libavformat
-    libavutil
-    libswscale
-    libswresample
+        libavcodec
+        libavformat
+        libavutil
+        libswscale
+        libswresample
 )
-
 pkg_check_modules(LIBASS REQUIRED IMPORTED_TARGET libass)
 pkg_check_modules(SDL3 REQUIRED IMPORTED_TARGET sdl3)
 pkg_check_modules(SDL3_TTF REQUIRED IMPORTED_TARGET sdl3-ttf)
@@ -58,60 +57,84 @@ pkg_check_modules(SDL3_TTF REQUIRED IMPORTED_TARGET sdl3-ttf)
 find_package(imgui CONFIG REQUIRED)
 
 if(ANDROID)
-    pkg_check_modules(EXPAT REQUIRED IMPORTED_TARGET expat)
+    find_package(SDL3 CONFIG REQUIRED)
+    find_package(SDL3_ttf CONFIG REQUIRED)
+    find_package(imgui CONFIG REQUIRED)
+    find_package(expat CONFIG REQUIRED)
+else()
+    pkg_check_modules(LIBASS REQUIRED IMPORTED_TARGET libass)
+    pkg_check_modules(SDL3 REQUIRED IMPORTED_TARGET sdl3)
+    pkg_check_modules(SDL3_TTF REQUIRED IMPORTED_TARGET sdl3-ttf)
+
+    find_package(imgui CONFIG REQUIRED)
 endif()
 
 # ==============================================================================
-# Target Construction: Android (Shared Library) vs Desktop (Executable)
+# Android: Shared wrappers and main library
 # ==============================================================================
 if(ANDROID)
-    message(STATUS "Configuração Android | ABI: ${ANDROID_ABI} | Platform: ${ANDROID_PLATFORM}")
+    message(STATUS
+            "Configuração Android | ABI: ${ANDROID_ABI} | Platform: ${ANDROID_PLATFORM}"
+    )
 
-    # Suporte a alinhamento de páginas de 16 KB para Android 15+ (API 35+)
+    # Alinhamento de páginas de 16 KB
     add_link_options("-Wl,-z,max-page-size=16384")
 
-    # Wrapper SDL3
+    # Wrapper SDL3 estático -> libSDL3.so
     add_library(SDL3 SHARED bundle.cpp)
     target_link_libraries(SDL3 PRIVATE
-        "-Wl,--whole-archive"
-        PkgConfig::SDL3
-        "-Wl,--no-whole-archive"
-        android log atomic m
+            "-Wl,--whole-archive"
+            SDL3::SDL3-static
+            "-Wl,--no-whole-archive"
+            android
+            log
+            atomic
+            m
     )
 
-    # Wrapper SDL3_ttf
+    # Wrapper SDL3_ttf estático -> libSDL3_ttf.so
     add_library(SDL3_ttf SHARED bundle.cpp)
     target_link_libraries(SDL3_ttf PRIVATE
-        "-Wl,--whole-archive"
-        PkgConfig::SDL3_TTF
-        "-Wl,--no-whole-archive"
-        SDL3
-        android log atomic m
+            "-Wl,--whole-archive"
+            SDL3_ttf::SDL3_ttf
+            "-Wl,--no-whole-archive"
+            SDL3
+            android
+            log
+            atomic
+            m
     )
 
-    # Library principal
+    # Biblioteca principal
     add_library(Kotonoha SHARED ${SOURCES})
 
     target_include_directories(Kotonoha PRIVATE
-        ${KOTONOHA_INCLUDE_DIR}
+            "${KOTONOHA_INCLUDE_DIR}"
     )
 
     target_link_libraries(Kotonoha PRIVATE
-        SDL3
-        SDL3_ttf
-        PkgConfig::FFMPEG
-        PkgConfig::LIBASS
-        PkgConfig::EXPAT
-        imgui::imgui
-        android
-        mediandk
-        log
-        atomic
-        m
+            SDL3_ttf
+            SDL3
+            PkgConfig::FFMPEG
+            PkgConfig::LIBASS
+            imgui::imgui
+            expat::expat
+            android
+            mediandk
+            log
+            atomic
+            m
     )
 
+    # ==============================================================================
+    # Desktop: executable
+    # ==============================================================================
 else()
     list(FILTER SOURCES EXCLUDE REGEX "/LibIconvCompat\\.c$")
+<<<<<<< HEAD
+=======
+
+>>>>>>> 33bb62b (Fix cmake)
     message(STATUS "Configuração Desktop | Sistema: ${CMAKE_SYSTEM_NAME}")
 
     if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
@@ -125,15 +148,15 @@ else()
     endif()
 
     target_include_directories(Kotonoha PRIVATE
-        ${KOTONOHA_INCLUDE_DIR}
+            "${KOTONOHA_INCLUDE_DIR}"
     )
 
     target_link_libraries(Kotonoha PRIVATE
-        PkgConfig::FFMPEG
-        PkgConfig::LIBASS
-        PkgConfig::SDL3
-        PkgConfig::SDL3_TTF
-        imgui::imgui
+            PkgConfig::FFMPEG
+            PkgConfig::LIBASS
+            PkgConfig::SDL3
+            PkgConfig::SDL3_TTF
+            imgui::imgui
     )
 endif()
 
@@ -144,16 +167,16 @@ include(CTest)
 
 if(BUILD_TESTING AND NOT ANDROID)
     add_executable(OrsParserFidelityTest
-        tests/OrsParserFidelityTest.cpp
-        src/parsers/Ors.c
+            tests/OrsParserFidelityTest.cpp
+            src/parsers/Ors.c
     )
 
     target_include_directories(OrsParserFidelityTest PRIVATE
-        ${KOTONOHA_INCLUDE_DIR}
+            "${KOTONOHA_INCLUDE_DIR}"
     )
 
     target_link_libraries(OrsParserFidelityTest PRIVATE
-        PkgConfig::SDL3
+            PkgConfig::SDL3
     )
 
     add_test(NAME OrsParserFidelityTest COMMAND OrsParserFidelityTest)
