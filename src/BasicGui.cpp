@@ -338,7 +338,7 @@ void Kotonoha_BasicGuiInit(Kotonoha_Game& gameContext) {
 
     ImFont* mainFont = io.Fonts->AddFontFromFileTTF(
         "assets/fonts/NotoSans-Regular.ttf",
-        14.0f);
+        16.0f);
 
     IM_ASSERT(mainFont != nullptr);
     io.FontDefault = mainFont;
@@ -525,55 +525,6 @@ static bool Kotonoha_LoadSceneEditorFromDisk(
     return true;
 }
 
-static bool Kotonoha_SaveSceneEditorToDisk(
-    Kotonoha::Gameplay* play) {
-    if (play == nullptr) {
-        Kotonoha_SetEditorStatus("Gameplay is null.");
-        return false;
-    }
-
-    if (play->scriptPath.empty()) {
-        Kotonoha_SetEditorStatus("Gameplay has no scriptPath.");
-        return false;
-    }
-
-    if (!Kotonoha_SaveTextFile(play->scriptPath, sceneEditorText)) {
-        return false;
-    }
-
-    editorDirty = false;
-    Kotonoha_SetEditorStatus("Saved to current file.");
-    return true;
-}
-
-static bool Kotonoha_SaveSceneEditorToTemporary(
-    Kotonoha::Gameplay* play,
-    std::string& outTempPath) {
-    if (play == nullptr) {
-        Kotonoha_SetEditorStatus("Gameplay is null.");
-        return false;
-    }
-
-    if (play->scriptPath.empty()) {
-        Kotonoha_SetEditorStatus("Gameplay has no scriptPath.");
-        return false;
-    }
-
-    outTempPath = Kotonoha_GetTemporaryScenePath(play->scriptPath);
-    if (outTempPath.empty()) {
-        Kotonoha_SetEditorStatus("Invalid temporary path.");
-        return false;
-    }
-
-    if (!Kotonoha_SaveTextFile(outTempPath, sceneEditorText)) {
-        return false;
-    }
-
-    editorDirty = false;
-    Kotonoha_SetEditorStatus("Saved to temporary file.");
-    return true;
-}
-
 static bool Kotonoha_OpenPaths(
     Kotonoha::Kotonoha* game,
     const char* buffer,
@@ -674,7 +625,7 @@ static void Kotonoha_GoToScene(
     }
 
     const size_t older = context.scene;
-    context.scene = static_cast<size_t>(index);
+    context.scene = index;
     game->gameplays[context.scene]->Reset(true);
 
     if (older < game->gameplays.size() &&
@@ -727,8 +678,8 @@ static bool Kotonoha_RecreateGameplayAtPath(
     game->gameplays[index] = newPlay;
     game->DeleteGameplay(oldPlay);
 
-    if (context.scene == static_cast<size_t>(index)) {
-        context.scene = static_cast<size_t>(index);
+    if (context.scene == index) {
+        context.scene = index;
     }
 
     if (selectedSceneIndex == index ||
