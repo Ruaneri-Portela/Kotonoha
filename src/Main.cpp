@@ -118,21 +118,39 @@ extern "C" {
 		*appstate = nullptr;
 		std::memset(&global, 0, sizeof(global));
 
+		SDL_AppResult status = SDL_APP_FAILURE;
+		Kotonoha::Kotonoha* engine =
+			new (std::nothrow) Kotonoha::Kotonoha(argc, argv, &status, global);
+
+		if (engine == nullptr) {
+			SDL_LogError(0, "Couldn't create Kotonoha engine instance");
+			return SDL_APP_FAILURE;
+		}
+
+		if (status != SDL_APP_CONTINUE) {
+			delete engine;
+			return status;
+		}
+
 #if defined(KOTONOHA_MOBILE)
 		Kotonoha_MobileSetup();
 #endif
 
 		if (!InitSDLSubsystems()) {
+			delete engine;
 			return SDL_APP_FAILURE;
 		}
 
 		if (!InitWindow()) {
+			delete engine;
 			TTF_Quit();
 			SDL_Quit();
 			return SDL_APP_FAILURE;
 		}
+		engine->ConfigureWindow();
 
 		if (!InitLibAss()) {
+			delete engine;
 			CleanupGlobalResources();
 			TTF_Quit();
 			SDL_Quit();
@@ -140,36 +158,26 @@ extern "C" {
 		}
 
 		if (!InitSound()) {
+			delete engine;
 			CleanupGlobalResources();
 			TTF_Quit();
 			SDL_Quit();
 			return SDL_APP_FAILURE;
 		}
 
-		SDL_AppResult status = SDL_APP_FAILURE;
-		Kotonoha::Kotonoha* engine =
-			new (std::nothrow) Kotonoha::Kotonoha(argc, argv, &status, global);
-
-		if (engine == nullptr) {
-			SDL_LogError(0, "Couldn't create Kotonoha engine instance");
-			CleanupGlobalResources();
-			TTF_Quit();
-			SDL_Quit();
-			return SDL_APP_FAILURE;
-		}
-
-		*appstate = engine;
-
-		if (status == SDL_APP_CONTINUE && global.render != nullptr) {
-			Kotonoha_BasicGuiInit(global);
-		}
+		status = engine->Initialize();
 
 		if (status != SDL_APP_CONTINUE) {
 			delete engine;
-			*appstate = nullptr;
 			CleanupGlobalResources();
 			TTF_Quit();
 			SDL_Quit();
+			return status;
+		}
+
+		*appstate = engine;
+		if (global.render != nullptr) {
+			Kotonoha_BasicGuiInit(global);
 		}
 
 		return status;

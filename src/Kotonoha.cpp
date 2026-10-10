@@ -69,14 +69,36 @@ namespace Kotonoha {
 			return;
 		}
 
-		*status = SDL_APP_FAILURE;
 		Kotonoha_IOMonitorSetRetryMissingAssets(true);
 
-		if (!ParseArguments(argc, argv, false)) {
+		if (!ParseArguments(argc, argv)) {
 			*status = SDL_APP_SUCCESS;
 			return;
 		}
 
+		*status = SDL_APP_CONTINUE;
+	}
+
+	void Kotonoha::ConfigureWindow() {
+		if (fullscreen) {
+			SDL_SetWindowFullscreen(gameContext.window, true);
+			gameContext.flags = SDL_GetWindowFlags(gameContext.window);
+		}
+		if (windowsWidth != 1280 || windowsHeight != 720) {
+			SDL_SetWindowSize(gameContext.window, windowsWidth, windowsHeight);
+		}
+	}
+
+	SDL_AppResult Kotonoha::Initialize() {
+		if (showRenderDrivers) {
+			for (int j = 0; j < SDL_GetNumRenderDrivers(); ++j) {
+				const char* name = SDL_GetRenderDriver(j);
+				SDL_Log("Driver %d: %s", j, name ? name : "<null>");
+			}
+			return SDL_APP_SUCCESS;
+		}
+
+		Kotonoha_IOMonitorSetRetryMissingAssets(!ignoreMissingAssets);
 		LoadWindowIcon("assets/icon.png");
 
 		const char* renderMethods[] = { preferedGPU, "gpu", "software" };
@@ -103,19 +125,27 @@ namespace Kotonoha {
 		if (gameContext.render == nullptr) {
 			SDL_LogError(0, "Couldn't create renderer with any method, giving up: %s",
 				SDL_GetError());
-			*status = SDL_APP_FAILURE;
-			return;
+			return SDL_APP_FAILURE;
 		}
 
 		gameContext.flags |= SDL_GetWindowFlags(gameContext.window);
 		SDL_GetRenderVSync(gameContext.render, &gameContext.vsync);
 		SDL_SetAppMetadata("A visual novel engine", "0.1", "me.hirameki.kotonoha");
 
+		if (enableVsync && !SDL_SetRenderVSync(gameContext.render, 1)) {
+			SDL_LogError(0, "Failed to enable VSync: %s", SDL_GetError());
+			return SDL_APP_FAILURE;
+		}
+		gameContext.showFps = showFps;
+		gameContext.showTimestamp = showTimestamp;
+		if (showDebugUi) {
+			Kotonoha_BasicGuiShow = true;
+		}
+
 		gameContext.taskLock = SDL_CreateMutex();
 		if (gameContext.taskLock == nullptr) {
 			SDL_LogError(0, "Failed to create mutex: %s", SDL_GetError());
-			*status = SDL_APP_FAILURE;
-			return;
+			return SDL_APP_FAILURE;
 		}
 
 		processPoolRunning = true;
@@ -123,8 +153,7 @@ namespace Kotonoha {
 			nullptr, nullptr);
 		if (processPool == nullptr) {
 			SDL_LogError(0, "Failed to create worker thread: %s", SDL_GetError());
-			*status = SDL_APP_FAILURE;
-			return;
+			return SDL_APP_FAILURE;
 		}
 
 		gameContext.processPoolTasks = &processPoolTasks;
@@ -146,13 +175,17 @@ namespace Kotonoha {
 			SDL_DestroySurface(cursorImg);
 		}
 
-		if (!ParseArguments(argc, argv, true)) {
-			*status = SDL_APP_SUCCESS;
-			return;
+		for (const auto& file : deferredFiles) {
+			if (file.isSubtitleStyles) {
+				LoadSubtitleStylesFile(file.path.c_str());
+			}
+			else {
+				LoadScriptFile(file.path.c_str());
+			}
 		}
 
 		SDL_ShowWindow(gameContext.window);
-		*status = SDL_APP_CONTINUE;
+		return SDL_APP_CONTINUE;
 	}
 
 	Kotonoha::~Kotonoha() {
@@ -269,7 +302,7 @@ namespace Kotonoha {
 		delete gameplay;
 	}
 
-	bool Kotonoha::ParseArguments(int argc, char* argv[], bool initDependent) {
+	bool Kotonoha::ParseArguments(int argc, char* argv[]) {
 		auto showHelp = []() {
 			SDL_Log("Usage: Kotonoha [options]");
 			SDL_Log("Options:");
@@ -295,125 +328,93 @@ namespace Kotonoha {
 				continue;
 			}
 			if (SDL_strcmp(arg, "--ignore-missing-assets") == 0) {
-				*arg = '!';
-				Kotonoha_IOMonitorSetRetryMissingAssets(false);
+				ignoreMissingAssets = true;
 				continue;
 			}
 
 			switch (*(arg + 1)) {
-			case '!':
-				break;
-
 			case 'h':
 				showHelp();
 				return false;
 
 			case 'l':
-				if (!initDependent) {
-					break;
-				}
-				if (i + 1 < argc) {
-					*arg = '!';
-					LoadScriptFile(argv[++i]);
+				if (i + 1 < argc && argv[i + 1] != nullptr) {
+					deferredFiles.push_back({ argv[++i], false });
 				}
 				else {
 					SDL_LogError(0, "Missing argument for -l option (gameplay file)");
-                    return false;
+					return false;
 				}
 				break;
 
 			case 'g':
-				for (int j = 0; j < SDL_GetNumRenderDrivers(); ++j) {
-					const char* name = SDL_GetRenderDriver(j);
-					SDL_Log("Driver %d: %s", j, name ? name : "<null>");
-				}
-				return false;
+				showRenderDrivers = true;
+				break;
 
 			case 'p':
-				if (i + 1 < argc) {
-					*arg = '!';
+				if (i + 1 < argc && argv[i + 1] != nullptr) {
 					gameContext.assetsPath = argv[++i];
 				}
 				else {
 					SDL_LogError(0, "Missing argument for -p option (assets path)");
-                    return false;
+					return false;
 				}
 				break;
 
 			case 'i':
-				*arg = '!';
-				Kotonoha_IOMonitorSetRetryMissingAssets(false);
+				ignoreMissingAssets = true;
 				break;
 
 			case 's':
-				if (!initDependent) {
-					break;
-				}
-				if (i + 1 < argc) {
-					*arg = '!';
-					LoadSubtitleStylesFile(argv[++i]);
+				if (i + 1 < argc && argv[i + 1] != nullptr) {
+					deferredFiles.push_back({ argv[++i], true });
 				}
 				else {
 					SDL_LogError(0, "Missing argument for -s option (subtitle styles file)");
-                    return false;
+					return false;
 				}
 				break;
 
 			case 'r':
-				if (i + 1 < argc) {
-					*arg = '!';
+				if (i + 1 < argc && argv[i + 1] != nullptr) {
 					preferedGPU = argv[++i];
 				}
 				else {
 					SDL_LogError(0, "Missing argument for -r option (preferred GPU)");
-                    return false;
+					return false;
 				}
 				break;
 
 			case 'f':
-				*arg = '!';
-				SDL_SetWindowFullscreen(gameContext.window,
-					!(gameContext.flags & SDL_WINDOW_FULLSCREEN));
-				gameContext.flags = SDL_GetWindowFlags(gameContext.window);
+				fullscreen = !fullscreen;
 				break;
 
 			case 'x':
-				*arg = '!';
-				if (i + 2 < argc) {
+				if (i + 2 < argc && argv[i + 1] != nullptr &&
+					argv[i + 2] != nullptr) {
 					windowsWidth = SDL_atoi(argv[++i]);
 					windowsHeight = SDL_atoi(argv[++i]);
-					SDL_SetWindowSize(gameContext.window, windowsWidth, windowsHeight);
 				}
 				else {
 					SDL_LogError(0, "Missing arguments for -x option (width and height)");
-                    return false;
+					return false;
 				}
 				break;
 
 			case 'v':
-				if (!initDependent) {
-					break;
-				}
-				*arg = '!';
-				if (!SDL_SetRenderVSync(gameContext.render, 1)) {
-					SDL_LogError(0, "Failed to enable VSync: %s", SDL_GetError());
-                    return false;
-				}
+				enableVsync = true;
 				break;
 
 			case 'z':
-				*arg = '!';
-				gameContext.showFps = true;
+				showFps = true;
 				break;
 
 			case 't':
-				*arg = '!';
-				gameContext.showTimestamp = true;
+				showTimestamp = true;
 				break;
 
 			case 'u':
-				*arg = '!';
-				Kotonoha_BasicGuiShow = true;
+				showDebugUi = true;
 				break;
 
 			default:
@@ -425,7 +426,7 @@ namespace Kotonoha {
 		return true;
 	}
 
-	void Kotonoha::LoadSubtitleStylesFile(char* path) {
+	void Kotonoha::LoadSubtitleStylesFile(const char* path) {
 		std::string content;
 		if (!ReadWholeFile(path, content)) {
 			SDL_LogError(0, "Erro ao carregar o arquivo de estilo: %s",
