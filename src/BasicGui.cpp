@@ -4,6 +4,7 @@
 #include <imgui.h>
 #include <imgui_impl_sdl3.h>
 #include <imgui_impl_sdlrenderer3.h>
+#include <imgui_internal.h>
 #include <imgui_stdlib.h>
 #include <Kotonoha/Kotonoha.hpp>
 #include <SDL3/SDL.h>
@@ -14,6 +15,8 @@
 
 bool Kotonoha_BasicGuiShow = false;
 bool Kotonoha_BasicGuiEditorShow = false;
+bool Kotonoha_BasicGuiAnyFocus = false;
+
 static bool textEditorShow = false;
 bool showError = false;
 
@@ -1464,6 +1467,15 @@ static bool Kotonoha_DrawTextEditor(
     return !shouldFinishFrame;
 }
 
+static const char* GetFocusedWindowName()
+{
+    ImGuiContext* ctx = ImGui::GetCurrentContext();
+    if (!ctx || !ctx->NavWindow)
+        return nullptr;
+
+    return ctx->NavWindow->Name;
+}
+
 bool Kotonoha_BasicGuiRun(
     Kotonoha::Kotonoha* game,
     Kotonoha::Gameplay* play,
@@ -1484,7 +1496,6 @@ bool Kotonoha_BasicGuiRun(
     ImGui_ImplSDLRenderer3_NewFrame();
     ImGui_ImplSDL3_NewFrame();
     ImGui::NewFrame();
-
     bool shouldExit = false;
 
     if (play != nullptr) {
@@ -1511,6 +1522,9 @@ bool Kotonoha_BasicGuiRun(
             ImGui::GetDrawData(),
             context.render);
     SDL_SetRenderScale(context.render, 1.0f, 1.0f);
+
+    Kotonoha_BasicGuiAnyFocus = (GetFocusedWindowName() != nullptr);
+    
     return !shouldExit;
 }
 

@@ -90,18 +90,10 @@ namespace Kotonoha {
 	}
 
 	SDL_AppResult Kotonoha::Initialize() {
-		if (showRenderDrivers) {
-			for (int j = 0; j < SDL_GetNumRenderDrivers(); ++j) {
-				const char* name = SDL_GetRenderDriver(j);
-				SDL_Log("Driver %d: %s", j, name ? name : "<null>");
-			}
-			return SDL_APP_SUCCESS;
-		}
-
 		Kotonoha_IOMonitorSetRetryMissingAssets(!ignoreMissingAssets);
 		LoadWindowIcon("assets/icon.png");
 
-		const char* renderMethods[] = { preferedGPU, "gpu", "software" };
+		const char* renderMethods[] = { preferredGPU, "gpu", "software" };
 		const size_t numMethods = sizeof(renderMethods) / sizeof(renderMethods[0]);
 
 		for (size_t i = 0; i < numMethods; ++i) {
@@ -183,8 +175,6 @@ namespace Kotonoha {
 				LoadScriptFile(file.path.c_str());
 			}
 		}
-
-		SDL_ShowWindow(gameContext.window);
 		return SDL_APP_CONTINUE;
 	}
 
@@ -312,8 +302,8 @@ namespace Kotonoha {
 			SDL_Log("  -s <file>            Load subtitle styles file");
 			SDL_Log("  -r <gpu>             Set preferred GPU");
 			SDL_Log("  -g                   Show GPU render drivers list");
+			SDL_Log("  -a                   Show Audio render drivers list");
 			SDL_Log("  -f                   Set fullscreen window mode");
-			SDL_Log("  -o                   Enable OpenGL rendering context");
 			SDL_Log("  -x <width> <height>  Set window size");
 			SDL_Log("  -v                   Enable VSync");
 			SDL_Log("  -z                   Show FPS");
@@ -322,21 +312,38 @@ namespace Kotonoha {
 			SDL_Log("  -h                   Show this help message");
 			};
 
+		bool cancellOpen = false;
+
 		for (int i = 1; i < argc; ++i) {
 			char* arg = argv[i];
 			if (arg == nullptr || *arg != '-') {
 				continue;
 			}
-			if (SDL_strcmp(arg, "--ignore-missing-assets") == 0) {
-				ignoreMissingAssets = true;
-				continue;
-			}
 
 			switch (*(arg + 1)) {
+			case 'g':
+				SDL_Log("GPU render drivers:");
+				for (int j = 0; j < SDL_GetNumRenderDrivers(); ++j) {
+					const char* name = SDL_GetRenderDriver(j);
+					SDL_Log("Driver %d: %s", j, name ? name : "<null>");
+				}
+				cancellOpen = true;
+				break;
+
+			case 'a':
+				SDL_Log("Audio render drivers:");
+				for (int j = 0; j < SDL_GetNumAudioDrivers(); ++j) {
+					const char* name = SDL_GetAudioDriver(j);
+					SDL_Log("Driver %d: %s", j, name ? name : "<null>");
+				}
+				cancellOpen = true;
+				break;
+
 			case 'h':
 				showHelp();
-				return false;
-
+				cancellOpen = true;
+				break;
+			
 			case 'l':
 				if (i + 1 < argc && argv[i + 1] != nullptr) {
 					deferredFiles.push_back({ argv[++i], false });
@@ -346,23 +353,20 @@ namespace Kotonoha {
 					return false;
 				}
 				break;
-
-			case 'g':
-				showRenderDrivers = true;
-				break;
-
 			case 'p':
 				if (i + 1 < argc && argv[i + 1] != nullptr) {
-					gameContext.assetsPath = argv[++i];
+					std::string assetsPath = JoinPath(argv[++i], " ");
+
+					if (!assetsPath.empty()) {
+						assetsPath.pop_back();
+					}
+
+					gameContext.assetsPath = SDL_strdup(assetsPath.c_str());
 				}
 				else {
 					SDL_LogError(0, "Missing argument for -p option (assets path)");
 					return false;
 				}
-				break;
-
-			case 'i':
-				ignoreMissingAssets = true;
 				break;
 
 			case 's':
@@ -377,16 +381,12 @@ namespace Kotonoha {
 
 			case 'r':
 				if (i + 1 < argc && argv[i + 1] != nullptr) {
-					preferedGPU = argv[++i];
+					preferredGPU = argv[++i];
 				}
 				else {
 					SDL_LogError(0, "Missing argument for -r option (preferred GPU)");
 					return false;
 				}
-				break;
-
-			case 'f':
-				fullscreen = !fullscreen;
 				break;
 
 			case 'x':
@@ -399,6 +399,14 @@ namespace Kotonoha {
 					SDL_LogError(0, "Missing arguments for -x option (width and height)");
 					return false;
 				}
+				break;
+
+			case 'f':
+				fullscreen = !fullscreen;
+				break;
+			
+			case 'i':
+				ignoreMissingAssets = true;
 				break;
 
 			case 'v':
@@ -423,6 +431,9 @@ namespace Kotonoha {
 			}
 		}
 
+		if(cancellOpen) {
+			return false;
+		}
 		return true;
 	}
 
@@ -535,9 +546,6 @@ namespace Kotonoha {
 		}
 
 		switch (event->type) {
-		case SDL_EVENT_QUIT:
-			return SDL_APP_SUCCESS;
-
 		case SDL_EVENT_KEY_DOWN:
 			switch (event->key.key) {
 			case SDLK_AC_BACK:
@@ -588,6 +596,12 @@ namespace Kotonoha {
 			break;
 		}
 
+		if(gameContext.scene >= 0 && static_cast<size_t>(gameContext.scene) < gameplays.size()) {
+			Gameplay* current = gameplays[static_cast<size_t>(gameContext.scene)];
+			if (current != nullptr) {
+				current->Events(event, &gameContext);
+			}
+		}
 		Kotonoha_eventPush(&gameContext.eventQueu, *event);
 		return SDL_APP_CONTINUE;
 	}
@@ -795,8 +809,6 @@ namespace Kotonoha {
 			}
 			sceneTransitionPrepared = false;
 		}
-
-		Kotonoha_eventFree(&gameContext.eventQueu);
 
 		if (Kotonoha_BasicGuiShow ||
 			SDL_GetTicks() - lastMouseTime <= 1000) {
