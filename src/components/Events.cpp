@@ -13,6 +13,8 @@
 namespace Kotonoha {
 
 	namespace {
+		Event* activeSubtitleTrackOwner = nullptr;
+
 		static std::string BuildString(const char* str,
 			const std::string& prefix = "",
 			const std::string& suffix = "") {
@@ -36,25 +38,6 @@ namespace Kotonoha {
 			}
 
 			return result;
-		}
-
-		static void ReplaceActiveSubtitlesAt(ASS_Track* track, int nextEvent,
-			long long nextStart) {
-			if (track == nullptr) {
-				return;
-			}
-
-			for (int i = 0; i < nextEvent; ++i) {
-				ASS_Event* previous = &track->events[i];
-				if (previous->Start > nextStart) {
-					continue;
-				}
-
-				const long long elapsed = nextStart - previous->Start;
-				if (previous->Duration > elapsed) {
-					previous->Duration = elapsed;
-				}
-			}
 		}
 
 		static std::string ToUpper(const std::string& str) {
@@ -478,6 +461,38 @@ namespace Kotonoha {
 		return 0;
 	}
 
+	void Event::SetSubtitlesActive(bool active) {
+		if (subtitleTrack == nullptr) {
+			return;
+		}
+
+		for (const SubtitleEventState& state : subtitleEvents) {
+			if (state.index < 0 || state.index >= subtitleTrack->n_events) {
+				continue;
+			}
+
+			ASS_Event* event = &subtitleTrack->events[state.index];
+			if (active) {
+				event->Start = state.start;
+				event->Duration = state.duration;
+			}
+			else {
+				event->Duration = 0;
+			}
+		}
+	}
+
+	void Event::ActivateSubtitles() {
+		if (activeSubtitleTrackOwner == this) {
+			return;
+		}
+		if (activeSubtitleTrackOwner != nullptr) {
+			activeSubtitleTrackOwner->SetSubtitlesActive(false);
+		}
+		SetSubtitlesActive(true);
+		activeSubtitleTrackOwner = this;
+	}
+
 	void Event::Reset(void* gameplay) {
 		auto* gp = static_cast<Gameplay*>(gameplay);
 		if (gp == nullptr || eventMutex == nullptr) {
@@ -530,17 +545,25 @@ namespace Kotonoha {
 			throw std::runtime_error("Invalid gameplay context");
 		}
 
-		std::stringstream subSs;
-		subSs << "[Script Info]\nTitle:" << orsPath
-			<< "\nScriptType: v4.00+\nWrapStyle: 0\nScaledBorderAndShadow: yes\n"
-			<< "YCbCr Matrix: None\n\n"
-			<< (gameCtx->styleStr == nullptr ? "" : gameCtx->styleStr) << std::endl;
+		if (gameCtx->ass_track == nullptr) {
+			std::stringstream subSs;
+			subSs << "[Script Info]\nTitle:" << orsPath
+				<< "\nScriptType: v4.00+\nWrapStyle: 0\nScaledBorderAndShadow: yes\n"
+				<< "YCbCr Matrix: None\n\n"
+				<< (gameCtx->styleStr == nullptr ? "" : gameCtx->styleStr)
+				<< std::endl;
+			const std::string subtitleScript = subSs.str();
+			gameCtx->ass_track = ass_new_track(gp->sb->ass_library);
+			if (gameCtx->ass_track == nullptr) {
+				throw std::runtime_error("Failed to create subtitle track");
+			}
 
-		gp->sb->track = ass_new_track(gp->sb->ass_library);
-
-		ass_process_data(gp->sb->track,
-			const_cast<char*>(subSs.str().c_str()),
-			static_cast<int>(subSs.str().size()));
+			ass_process_data(gameCtx->ass_track,
+				const_cast<char*>(subtitleScript.c_str()),
+				static_cast<int>(subtitleScript.size()));
+		}
+		gp->sb->track = gameCtx->ass_track;
+		subtitleTrack = gameCtx->ass_track;
 
 		for (auto* event = eventsFromScript.data; event != nullptr;
 			event = event->next) {
@@ -565,7 +588,25 @@ namespace Kotonoha {
 				subtitleEvent->Start = static_cast<long long>(startMs);
 				subtitleEvent->Duration =
 					static_cast<long long>(endMs - startMs);
-				ReplaceActiveSubtitlesAt(gp->sb->track, eventId, startMs);
+				const long long subtitleStart = subtitleEvent->Start;
+				const long long subtitleDuration = subtitleEvent->Duration;
+				for (SubtitleEventState& previous : subtitleEvents) {
+					if (previous.start > static_cast<long long>(startMs)) {
+						continue;
+					}
+
+					const long long elapsed =
+						static_cast<long long>(startMs) - previous.start;
+					if (previous.duration > elapsed) {
+						previous.duration = elapsed;
+					}
+				}
+				subtitleEvent->Duration = 0;
+				subtitleEvents.push_back({
+					eventId,
+					subtitleStart,
+					subtitleDuration
+				});
 				subtitleEvent->Text =
 					SDL_strdup(BuildString(event->data.print_text->text).c_str());
 
@@ -660,6 +701,11 @@ namespace Kotonoha {
 	}
 
 	Event::~Event() {
+		SetSubtitlesActive(false);
+		if (activeSubtitleTrackOwner == this) {
+			activeSubtitleTrackOwner = nullptr;
+		}
+
 		for (auto& pending : pendingAssetLoads) {
 			Kotonoha_IOMonitorOperationReset(&pending.second);
 		}

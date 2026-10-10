@@ -128,7 +128,7 @@ namespace Kotonoha {
 		if (gameContext == nullptr || eventManager == nullptr || drawCanvas == nullptr) {
 			return SDL_APP_FAILURE;
 		}
-		else if (firstFocus) {
+		if (firstFocus) {
 			UpdateCanvasSize(gameContext->window, gameContext->render);
 			if (!Kotonoha_timeIsStarted(tm)) {
 				Kotonoha_timeStart(tm);
@@ -144,7 +144,8 @@ namespace Kotonoha {
 				return SDL_APP_SUCCESS;
 			}
 		}
-		 
+
+		eventManager->ActivateSubtitles();
 		UpdateDeltaTime();
 
 		if (this->putPrompt && this->prompt != nullptr) {

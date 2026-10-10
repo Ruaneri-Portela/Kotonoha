@@ -13,6 +13,11 @@ namespace {
 		delete static_cast<Kotonoha::Sound*>(global.sound);
 		global.sound = nullptr;
 
+		if (global.ass_track != nullptr) {
+			ass_free_track(global.ass_track);
+			global.ass_track = nullptr;
+		}
+
 		if (global.ass_renderer != nullptr) {
 			ass_renderer_done(global.ass_renderer);
 			global.ass_renderer = nullptr;

@@ -16,9 +16,17 @@ extern "C" {
 namespace Kotonoha {
 class Event {
 private:
+  struct SubtitleEventState {
+    int index;
+    long long start;
+    long long duration;
+  };
+
   Kotonoha_orsData eventsFromScript;
   static int EventManager(void *data);
   SDL_Mutex *eventMutex = nullptr;
+  ASS_Track *subtitleTrack = nullptr;
+  std::vector<SubtitleEventState> subtitleEvents;
 
   std::vector<Video*> videoToDelete;
   std::vector<Image*> imageToDelete;
@@ -32,9 +40,12 @@ private:
   std::unordered_map<const Kotonoha_orsEvent*, Kotonoha_IOMonitorOperation>
       pendingAssetLoads;
 
+  void SetSubtitlesActive(bool active);
+
 public:
   Uint64 lastTime = 0;
   Event(const char *orsPath, void *gameplay, struct Kotonoha_Game *gameCtx);
+  void ActivateSubtitles();
   void Reset(void* gameplay);
   bool CheckEnd(void *gameplay);
   ~Event();

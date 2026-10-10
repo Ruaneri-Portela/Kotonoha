@@ -37,6 +37,7 @@ enum Kotonoha_Scene_Status {
 struct Kotonoha_Game {
   ASS_Library *ass_library;
   ASS_Renderer *ass_renderer;
+  ASS_Track *ass_track;
   void *sound;
 
   SDL_Window *window;
