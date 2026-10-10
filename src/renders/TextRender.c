@@ -70,7 +70,7 @@ struct Kotonoha_subtitles*
 	// Inicializa os dados do objeto de renderização de texto
 	object->ass_library = gameCtx->ass_library;
 	object->ass_renderer = gameCtx->ass_renderer;
-	object->track = NULL;
+	object->track = gameCtx->ass_track;
 	object->time = time;
 	object->subTexture = NULL;
 
@@ -82,9 +82,6 @@ void Kotonoha_TextRenderShutdown(struct Kotonoha_subtitles** object) {
 	if (object && *object) {
 		if ((*object)->subTexture) {
 			SDL_DestroyTexture((*object)->subTexture);
-		}
-		if ((*object)->track) {
-			ass_free_track((*object)->track);
 		}
 		SDL_free(*object);
 		*object = NULL;
