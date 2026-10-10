@@ -1,4 +1,5 @@
 #pragma once
+#include <atomic>
 #include <string>
 #include <vector>
 
@@ -38,7 +39,7 @@ public:
     SDL_Mutex *lockPipes = NULL;
     ~Channel();
 
-    float volume = 1.0f;
+    std::atomic<float> volume{1.0f};
 
   private:
     void **parms = nullptr;
@@ -64,7 +65,7 @@ public:
 
   ~Sound();
 
-  float volume = 1.0f;
+  std::atomic<float> volume{1.0f};
 
 private:
   std::vector<Channel *> channels;

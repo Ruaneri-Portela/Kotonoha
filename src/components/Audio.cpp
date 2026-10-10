@@ -2,6 +2,18 @@
 
 namespace Kotonoha {
 
+	static void CancelDecode(Kotonoha_audioDecode* decode) {
+		if (decode == nullptr) {
+			return;
+		}
+
+		Kotonoha_IOMonitorOperationCancel(&decode->ioOperation);
+		if (decode->loopMedia != nullptr) {
+			Kotonoha_IOMonitorOperationCancel(
+				&decode->loopMedia->ioOperation);
+		}
+	}
+
 	Audio::Audio(Sound* soundCtx, struct Kotonoha_time* timeCtx,
 		Kotonoha_IOMonitor* ioMonitor)
 		: soundCtx(soundCtx), timeCtx(timeCtx), ioMonitor(ioMonitor) {}
@@ -139,6 +151,7 @@ namespace Kotonoha {
 				Sound::Channel::Pipe* pipePtr = std::get<1>(*pipeIt);
 
 				if (mediaPtr == nullptr || decodePtr == mediaPtr) {
+					CancelDecode(decodePtr);
 					if (channel != nullptr && pipePtr != nullptr) {
 						channel->RemovePipe(pipePtr);
 					}

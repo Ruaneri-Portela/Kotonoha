@@ -156,6 +156,11 @@ namespace Kotonoha {
 	}
 
 	Kotonoha::~Kotonoha() {
+		for (auto* gameplay : gameplays) {
+			if (gameplay != nullptr) {
+				Kotonoha_IOMonitorCancel(&gameplay->ioMonitor);
+			}
+		}
 		processPoolRunning = false;
 		if (processPool != nullptr) {
 			SDL_WaitThread(processPool, nullptr);

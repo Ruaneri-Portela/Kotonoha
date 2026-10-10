@@ -176,7 +176,7 @@ bool Kotonoha_DecodeVoicePcm(const char* path, int16_t** samples,
 	for (;;) {
 		readResult = Kotonoha_UtilsFFmpegReadFrame(format, packet);
 		if (readResult == AVERROR_EXIT &&
-			SDL_GetAtomicInt(&ioOperation.cancelled) == 0) {
+			!Kotonoha_IOMonitorOperationIsCancelled(&ioOperation)) {
 			continue;
 		}
 		if (readResult < 0) {
@@ -234,6 +234,8 @@ bool Kotonoha_DecodeVoicePcm(const char* path, int16_t** samples,
 
 cleanup:
 	ignoredMissing = Kotonoha_IOMonitorIsIgnoredMissing(&ioOperation);
+	const bool cancelled =
+		Kotonoha_IOMonitorOperationIsCancelled(&ioOperation);
 	av_packet_free(&packet);
 	av_frame_free(&frame);
 	swr_free(&resampler);
@@ -243,7 +245,7 @@ cleanup:
 
 	if (!success) {
 		SDL_free(pcm.samples);
-		if (!ignoredMissing) {
+		if (!ignoredMissing && !cancelled) {
 			SDL_LogWarn(SDL_LOG_CATEGORY_AUDIO,
 				"Could not %s for '%s'",
 				failure != NULL ? failure : "decode voice PCM", path);

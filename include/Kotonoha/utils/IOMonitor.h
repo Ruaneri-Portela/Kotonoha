@@ -7,6 +7,7 @@ typedef struct Kotonoha_IOMonitor {
   SDL_AtomicInt pendingCount;
   SDL_AtomicInt missingCount;
   SDL_AtomicInt stalledCount;
+  SDL_AtomicInt cancelled;
   SDL_AtomicInt *networkWaitFlag;
   bool retryMissingAssets;
 } Kotonoha_IOMonitor;
@@ -25,6 +26,7 @@ void Kotonoha_IOMonitorInit(Kotonoha_IOMonitor *monitor,
                             bool retryMissingAssets);
 void Kotonoha_IOMonitorBindNetworkWaitFlag(Kotonoha_IOMonitor *monitor,
                                             SDL_AtomicInt *networkWaitFlag);
+void Kotonoha_IOMonitorCancel(Kotonoha_IOMonitor *monitor);
 bool Kotonoha_IOMonitorIsLoading(const Kotonoha_IOMonitor *monitor);
 bool Kotonoha_IOMonitorHasMissingAssets(const Kotonoha_IOMonitor *monitor);
 void Kotonoha_IOMonitorSetRetryMissingAssets(bool retry);
@@ -34,6 +36,8 @@ void Kotonoha_IOMonitorOperationInit(Kotonoha_IOMonitorOperation *operation,
                                      Kotonoha_IOMonitor *owner);
 void Kotonoha_IOMonitorOperationReset(Kotonoha_IOMonitorOperation *operation);
 void Kotonoha_IOMonitorOperationCancel(Kotonoha_IOMonitorOperation *operation);
+bool Kotonoha_IOMonitorOperationIsCancelled(
+    const Kotonoha_IOMonitorOperation *operation);
 void Kotonoha_IOMonitorOperationBegin(Kotonoha_IOMonitorOperation *operation);
 void Kotonoha_IOMonitorOperationEnd(Kotonoha_IOMonitorOperation *operation);
 void Kotonoha_IOMonitorOperationSetStalled(

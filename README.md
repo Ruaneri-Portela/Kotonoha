@@ -48,8 +48,11 @@ To use **Kotonoha Novel Engine**, follow these steps:
 ### Asset loading
 
 Pass `-i` or `--ignore-missing-assets` at startup to skip missing media assets.
-Assets that are still being fetched are retried; after an FFmpeg read times out,
-playback immediately pauses and displays a loading overlay until the data arrives.
+Assets that are still being fetched are retried. Playback pauses and displays the
+loading overlay only while an asset is waiting to open/retry or an FFmpeg read
+remains stalled for at least 500 ms; playback resumes automatically when the read
+continues. On exit, in-flight FFmpeg reads are cancelled before audio resources
+are released.
 For HTTP image assets, ABC overlays are requested by deterministic name:
 `<image-stem><character_short>.<a|b|c>.png` (for example,
 `facehero.a.png` for `face.png` and the key `hero`).
@@ -214,9 +217,11 @@ O projeto mapeia comandos `.ORS` para um mecanismo moderno com suporte a Windows
 ### Carregamento de assets
 
 Passe `-i` ou `--ignore-missing-assets` na inicialização para ignorar assets de
-mídia ausentes. Assets que ainda estão sendo recebidos são tentados novamente;
-quando uma leitura do FFmpeg aguarda dados, a reprodução pausa imediatamente e
-mostra uma tela de carregamento até os dados chegarem.
+mídia ausentes. Assets que ainda estão sendo recebidos são tentados novamente.
+A reprodução pausa e mostra a tela de carregamento somente enquanto um asset
+aguarda abertura/retry ou uma leitura do FFmpeg permanece parada por pelo menos
+500 ms; ao retomar a leitura, o jogo continua automaticamente. Na saída, as
+leituras FFmpeg em andamento são canceladas antes da liberação do áudio.
 Para imagens servidas por HTTP, os overlays ABC são solicitados por nomes
 determinísticos: `<nome-base><character_short>.<a|b|c>.png` (por exemplo,
 `facehero.a.png` para `face.png` e a chave `hero`).

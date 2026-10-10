@@ -31,6 +31,7 @@ void Kotonoha_IOMonitorInit(Kotonoha_IOMonitor* monitor,
 	SDL_SetAtomicInt(&monitor->pendingCount, 0);
 	SDL_SetAtomicInt(&monitor->missingCount, 0);
 	SDL_SetAtomicInt(&monitor->stalledCount, 0);
+	SDL_SetAtomicInt(&monitor->cancelled, 0);
 	monitor->networkWaitFlag = NULL;
 	monitor->retryMissingAssets = shouldRetryMissingAssets;
 }
@@ -44,6 +45,12 @@ void Kotonoha_IOMonitorBindNetworkWaitFlag(Kotonoha_IOMonitor* monitor,
 	if (networkWaitFlag != NULL) {
 		SDL_SetAtomicInt(networkWaitFlag,
 			SDL_GetAtomicInt(&monitor->stalledCount) > 0 ? 1 : 0);
+	}
+}
+
+void Kotonoha_IOMonitorCancel(Kotonoha_IOMonitor* monitor) {
+	if (monitor != NULL) {
+		SDL_SetAtomicInt(&monitor->cancelled, 1);
 	}
 }
 
@@ -110,6 +117,14 @@ void Kotonoha_IOMonitorOperationCancel(Kotonoha_IOMonitorOperation* operation) {
 	}
 }
 
+bool Kotonoha_IOMonitorOperationIsCancelled(
+	const Kotonoha_IOMonitorOperation* operation) {
+	return operation != NULL &&
+		(SDL_GetAtomicInt((SDL_AtomicInt*)&operation->cancelled) != 0 ||
+			(operation->owner != NULL &&
+				SDL_GetAtomicInt(&operation->owner->cancelled) != 0));
+}
+
 void Kotonoha_IOMonitorOperationBegin(Kotonoha_IOMonitorOperation* operation) {
 	if (operation != NULL) {
 		operation->operationStartedAt = SDL_GetTicks();
@@ -147,7 +162,7 @@ int Kotonoha_IOMonitorInterrupt(void* opaque) {
 	if (operation == NULL) {
 		return 0;
 	}
-	if (SDL_GetAtomicInt(&operation->cancelled) != 0) {
+	if (Kotonoha_IOMonitorOperationIsCancelled(operation)) {
 		return 1;
 	}
 	if (!operation->operationActive ||

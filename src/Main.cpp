@@ -218,8 +218,7 @@ extern "C" {
 			Kotonoha_TimestampRender(global.window, global.render, nullptr, inRunning->tm, nullptr);
 		}
 		if (inRunning != nullptr &&
-			(Kotonoha_IOMonitorIsLoading(&inRunning->ioMonitor) ||
-				inRunning->drawCanvas->IsWaitingForNetwork())) {
+			Kotonoha_IOMonitorIsLoading(&inRunning->ioMonitor)) {
 			Kotonoha_LoadingRender(
 				global.window, global.render, nullptr, nullptr, nullptr);
 		}
