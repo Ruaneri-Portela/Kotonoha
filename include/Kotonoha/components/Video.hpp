@@ -6,7 +6,6 @@ extern "C" {
 #include <Kotonoha/renders/VideoRender.h>
 #include <Kotonoha/utils/Time.h>
 #include <Kotonoha/utils/UserEvents.h>
-
 }
 
 namespace Kotonoha {
@@ -24,8 +23,7 @@ public:
   Video(Kotonoha_time *timeManager, Kotonoha_IOMonitor *ioMonitor);
 
   bool Register(const char *path, Uint64 startTime, Uint64 endTime,
-                bool useOrsFrameTimeline = false,
-                Uint64 orsEndFrame = 0);
+                bool useOrsFrameTimeline = false, Uint64 orsEndFrame = 0);
 
   static Kotonoha_Scene_Status Render(KOTONOHA_SCENE_CALL);
 

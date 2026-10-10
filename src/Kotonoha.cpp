@@ -8,6 +8,9 @@
 #include <string>
 #include <vector>
 
+extern bool Kotonoha_BasicGuiShow;
+extern bool Kotonoha_BasicGuiEditorShow;
+
 namespace Kotonoha {
 
 	namespace {
