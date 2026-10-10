@@ -1,18 +1,12 @@
 #include <Kotonoha/Gameplay.hpp>
 
-extern bool Kotonoha_BasicGuiEditorShow;
 
 namespace Kotonoha {
-
 	namespace {
-		constexpr Uint64 kSeekBigMs = 5000;
-		constexpr Uint64 kSeekSmallMs = 500;
-
 		static float MsToSeconds(Uint64 value) {
 			return static_cast<float>(value) / 1000.0f;
 		}
-	} // namespace
-
+	}// namespace
 	void Gameplay::UpdateCanvasSize(SDL_Window* window, SDL_Renderer* renderer) {
 		if ((window == nullptr && renderer == nullptr) || drawCanvas == nullptr) {
 			return;
@@ -134,112 +128,24 @@ namespace Kotonoha {
 		if (gameContext == nullptr || eventManager == nullptr || drawCanvas == nullptr) {
 			return SDL_APP_FAILURE;
 		}
-
-		if (eventManager->CheckEnd(this)) {
+		else if (firstFocus) {
+			UpdateCanvasSize(gameContext->window, gameContext->render);
+			if (!Kotonoha_timeIsStarted(tm)) {
+				Kotonoha_timeStart(tm);
+			}
+			firstFocus = false;
+		}
+		else if (eventManager->CheckEnd(this)) {
 			if (loop) {
 				Reset(true);
 			}
 			else {
+				gameContext->next = true;
 				return SDL_APP_SUCCESS;
 			}
 		}
-
-
-		void* persistent = nullptr;
-
-		do {
-			SDL_Event event = Kotonoha_eventRead(&gameContext->eventQueu, &persistent);
-			switch (event.type) {
-			case SDL_EVENT_KEY_DOWN:
-				if (!Kotonoha_BasicGuiEditorShow) {
-					switch (event.key.key) {
-					case SDLK_P:
-						gameContext->paused = !gameContext->paused;
-						break;
-
-					case SDLK_I: {
-						const float timeInSeconds = GetTime();
-						SDL_Log("Time: %.2f, is paused %d\n",
-							timeInSeconds,
-							Kotonoha_timeIsPaused(this->tm));
-						break;
-					}
-
-					case SDLK_S:
-						Kotonoha_eventFree(&gameContext->eventQueu);
-						return SDL_APP_SUCCESS;
-
-					case SDLK_N: {
-						Uint64 currentTime = Kotonoha_timeGet(this->tm);
-						if (currentTime < eventManager->lastTime - kSeekSmallMs) {
-							SeekForward(kSeekBigMs);
-							break;
-						}
-						gameContext->next = true;
-						break;
-					}
-					case SDLK_B: {
-						Uint64 currentTime = Kotonoha_timeGet(this->tm);
-						if (currentTime > kSeekSmallMs) {
-							SeekBackward(kSeekBigMs);
-							break;
-						}
-						gameContext->back = true;
-						break;
-					}
-					case SDLK_Q:
-						SeekForward(kSeekSmallMs);
-						break;
-
-					case SDLK_E:
-						SeekBackward(kSeekSmallMs);
-						break;
-
-					case SDLK_R:
-						Reset(true);
-						break;
-
-					default:
-						break;
-					}
-					break;
-				}
-			case SDL_EVENT_WINDOW_RESIZED:
-			case SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED:
-			case SDL_EVENT_WINDOW_DISPLAY_CHANGED:
-				UpdateCanvasSize(gameContext->window, gameContext->render);
-				break;
-
-#ifdef Kotonoha_MobileSetup
-			case SDL_EVENT_WINDOW_FOCUS_GAINED:
-				if (playOnlyOnFocus) {
-					if (loadingPauseActive) {
-						pausedBeforeLoading = lastPauseStatus;
-					}
-					else {
-						gameContext->paused = lastPauseStatus;
-					}
-					if (!loadingPauseActive && !gameContext->paused) {
-						Resume();
-					}
-				}
-				break;
-
-			case SDL_EVENT_WINDOW_FOCUS_LOST:
-				if (playOnlyOnFocus) {
-					lastPauseStatus = loadingPauseActive
-						? pausedBeforeLoading
-						: gameContext->paused;
-					gameContext->paused = true;
-					Pause();
-				}
-				break;
-#endif
-
-			default:
-				break;
-			}
-		} while (persistent != nullptr);
+		 
+		UpdateDeltaTime();
 
 		if (this->putPrompt && this->prompt != nullptr) {
 			drawCanvas->RegisterCanva(
@@ -247,24 +153,6 @@ namespace Kotonoha {
 				{ 0, 0, static_cast<float>(windowWidth), static_cast<float>(windowHeight) },
 				this->prompt);
 			this->putPrompt = false;
-		}
-
-		UpdateLoadingPause(gameContext);
-
-		if (!Kotonoha_timeIsStarted(tm)) {
-			Kotonoha_timeStart(tm);
-		}
-
-		if (gameContext->paused) {
-			Pause();
-		}
-		else {
-			Resume();
-		}
-
-		if (firstFocus) {
-			UpdateCanvasSize(gameContext->window, gameContext->render);
-			firstFocus = false;
 		}
 
 		const SDL_AppResult result = drawCanvas->RenderCanvas(
@@ -278,6 +166,7 @@ namespace Kotonoha {
 			Resume();
 		}
 
+		UpdateTriggers(GetDeltaTime());
 		Kotonoha_eventFree(&gameContext->eventQueu);
 		return result;
 	}
@@ -288,6 +177,32 @@ namespace Kotonoha {
 
 	void Gameplay::Resume() {
 		Kotonoha_timeResume(this->tm);
+	}
+
+	void Gameplay::UpdateDeltaTime() {
+		const Uint64 nowNs = SDL_GetTicksNS();
+
+		if (lastFrameNs == 0) {
+			lastFrameNs = nowNs;
+			deltaTime = 0.0f;
+			return;
+		}
+
+		const Uint64 elapsedNs = nowNs - lastFrameNs;
+		lastFrameNs = nowNs;
+
+		deltaTime =
+			static_cast<float>(elapsedNs) / 1e9f;
+
+		// Evita saltos enormes após pausas, breakpoints ou perda de foco.
+		constexpr float kMaxDeltaTime = 0.25f;
+		if (deltaTime > kMaxDeltaTime) {
+			deltaTime = kMaxDeltaTime;
+		}
+	}
+
+	float Gameplay::GetDeltaTime() const {
+		return deltaTime;
 	}
 
 	void Gameplay::Reset(bool resetTime) {

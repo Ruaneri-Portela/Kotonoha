@@ -24,8 +24,44 @@ namespace Kotonoha {
 		bool lastPauseStatus = false, playOnlyOnFocus = false;
 		bool loadingPauseActive = false, pausedBeforeLoading = false;
 
+		float deltaTime = 0.0f;
+		Uint64 lastFrameNs = 0;
+		
+		void UpdateDeltaTime();
+				
 		void UpdateCanvasSize(SDL_Window* window, SDL_Renderer* renderer);
 		void UpdateLoadingPause(struct Kotonoha_Game* gameContext);
+	
+		struct TriggerSeekState {
+			Sint16 value = 0;
+			bool active = false;
+		};
+
+		// dentro da classe Gameplay:
+		TriggerSeekState leftTrigger;
+		TriggerSeekState rightTrigger;
+
+		void SetLeftTrigger(Sint16 value);
+		void SetRightTrigger(Sint16 value);
+
+		void UpdateTriggers(float deltaTimeSeconds);
+
+		void HandleTriggerSeek(
+			TriggerSeekState& state,
+			float deltaTimeSeconds,
+			bool backward
+		);
+
+		void HandleGamepadButton(SDL_Event* event, Kotonoha_Game* gameContext);
+		void HandleGamepadAxis(SDL_Event* event, Kotonoha_Game* gameContext);
+		void HandleKeyboard(SDL_Event* event, Kotonoha_Game* gameContext);
+		void HandleWindowEvent(SDL_Event* event,Kotonoha_Game* gameContext);
+
+		void SeekByKeyboardN(Kotonoha_Game* gameContext);
+		void SeekByKeyboardB(Kotonoha_Game* gameContext);
+#ifdef Kotonoha_MobileSetup
+		void HandleMobileFocus(SDL_Event* event, Kotonoha_Game* gameContext);
+#endif
 
 	public:
 		struct Kotonoha_subtitles* sb = nullptr;
@@ -48,6 +84,7 @@ namespace Kotonoha {
 		Gameplay(const char* scriptPath, struct Kotonoha_Game* gameContext);
 		SDL_AppResult Main(struct Kotonoha_Game* gameContext);
 
+		void Events(SDL_Event* event,struct Kotonoha_Game* gameContext);
 		void Reset(bool resetTime);
 
 		void Pause();
@@ -55,6 +92,8 @@ namespace Kotonoha {
 
 		void SeekForward(Uint64 ms);
 		void SeekBackward(Uint64 ms);
+
+		float GetDeltaTime() const;
 		float GetTime();
 		float GetLastTime();
 		void SetTime(float time);

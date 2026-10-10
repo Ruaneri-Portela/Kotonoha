@@ -30,7 +30,7 @@ namespace {
 	}
 
 	static bool InitSDLSubsystems() {
-		if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_EVENTS)) {
+		if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_EVENTS | SDL_INIT_GAMEPAD)) {
 			SDL_LogError(0, "Couldn't initialize SDL: %s", SDL_GetError());
 			return false;
 		}
@@ -178,6 +178,7 @@ extern "C" {
 		*appstate = engine;
 		if (global.render != nullptr) {
 			Kotonoha_BasicGuiInit(global);
+			SDL_ShowWindow(global.window);
 		}
 
 		return status;
@@ -191,13 +192,13 @@ extern "C" {
 		Kotonoha_BasicGuiEvent(event);
 
 		Kotonoha::Kotonoha* app = GetApp(appstate);
+		if (event->type == SDL_EVENT_QUIT) {
+			return SDL_APP_SUCCESS;
+		}
 		if (app == nullptr) {
-			if (event->type == SDL_EVENT_QUIT) {
-				return SDL_APP_SUCCESS;
-			}
 			return SDL_APP_CONTINUE;
 		}
-
+		
 		return app->Event(event);
 	}
 
@@ -215,9 +216,12 @@ extern "C" {
 		if (status != SDL_APP_CONTINUE) {
 			return status;
 		}
-		app->CacheSceneTransitionFrameIfNeeded(inRunning);
 
-		SDL_SetRenderTarget(global.render, nullptr);
+		if(inRunning == nullptr) {
+			Kotonoha_eventFree(&global.eventQueu);
+		}
+
+		app->CacheSceneTransitionFrameIfNeeded(inRunning);
 		app->PresentSceneTransitionFrame(inRunning);
 		if (global.showFps) {
 			Kotonoha_FPSRender(global.window, global.render, nullptr, nullptr, nullptr);

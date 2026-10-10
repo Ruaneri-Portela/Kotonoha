@@ -35,12 +35,12 @@ namespace Kotonoha {
 		SDL_Cursor* cursor = nullptr;
 		std::atomic_bool processPoolRunning{true};
 		std::vector<std::tuple<SDL_ThreadFunction, void*>> processPoolTasks;
-		char* preferedGPU = nullptr;
+		const char* preferredGPU = nullptr;
+		
 		int windowsWidth = 1280;
 		int windowsHeight = 720;
 		bool fullscreen = false;
 		bool enableVsync = false;
-		bool showRenderDrivers = false;
 		bool ignoreMissingAssets = false;
 		bool showFps = false;
 		bool showTimestamp = false;
