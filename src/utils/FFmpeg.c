@@ -124,8 +124,6 @@ bool Kotonoha_UtilsFFmpegLoadMonitored(
 				if (*formatCtx != NULL) {
 					avformat_close_input(formatCtx);
 				}
-				SDL_Delay(250);
-				continue;
 			}
 		}
 		break;

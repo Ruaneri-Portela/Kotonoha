@@ -16,7 +16,7 @@ Fade::Fade(Kotonoha_time* time)
 	: timeManager(time), lock(SDL_CreateMutex()) {
 	if (lock == nullptr) {
 		SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
-			"[SD-FADE] Failed to create fade mutex: %s",
+			"[FADE] Failed to create fade mutex: %s",
 			SDL_GetError());
 	}
 }
