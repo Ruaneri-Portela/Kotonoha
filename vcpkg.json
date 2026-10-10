@@ -35,14 +35,15 @@
     {
       "name": "sdl3-ttf",
       "features": [
-        "harfbuzz"
-      ],
-      "platform": "!osx & !linux"
+        "harfbuzz",
+        "svg"
+      ]
     },
     {
       "name": "imgui",
       "features": [
         "freetype",
+        "freetype-svg",
         "sdl3-binding",
         "sdl3-renderer-binding"
       ]
