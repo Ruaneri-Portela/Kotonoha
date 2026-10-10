@@ -1,13 +1,12 @@
 #pragma once
-#include <SDL3/SDL.h>
 #include <Kotonoha/utils/IOMonitor.h>
+#include <SDL3/SDL.h>
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
 #include <libavutil/hwcontext.h>
 #include <libavutil/imgutils.h>
 #include <libavutil/opt.h>
 #include <libswscale/swscale.h>
-
 
 struct ffmpegHwContext {
   enum AVHWDeviceType type;
@@ -21,13 +20,11 @@ bool Kotonoha_UtilsFFmpegLoad(const char *path, AVFormatContext **formatCtx,
                               int *streamIndexExport, int startIndex,
                               struct ffmpegHwContext *hwCtx);
 bool Kotonoha_UtilsFFmpegLoadMonitored(
-    const char *path, AVFormatContext **formatCtx,
-    AVCodecContext **codecCtx, enum AVMediaType mediaType,
-    int *streamIndexExport, int startIndex, struct ffmpegHwContext *hwCtx,
-    Kotonoha_IOMonitorOperation *ioOperation);
+    const char *path, AVFormatContext **formatCtx, AVCodecContext **codecCtx,
+    enum AVMediaType mediaType, int *streamIndexExport, int startIndex,
+    struct ffmpegHwContext *hwCtx, Kotonoha_IOMonitorOperation *ioOperation);
 
-int Kotonoha_UtilsFFmpegReadFrame(AVFormatContext *formatCtx,
-                                  AVPacket *packet);
+int Kotonoha_UtilsFFmpegReadFrame(AVFormatContext *formatCtx, AVPacket *packet);
 int Kotonoha_UtilsFFmpegSeekFrame(AVFormatContext *formatCtx,
                                   Kotonoha_IOMonitorOperation *ioOperation,
                                   int streamIndex, int64_t timestamp,

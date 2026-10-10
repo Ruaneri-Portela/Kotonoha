@@ -92,6 +92,3 @@ namespace Kotonoha {
 void Kotonoha_BasicGuiInit(Kotonoha_Game& gameContext);
 bool Kotonoha_BasicGuiRun(Kotonoha::Kotonoha* game, Kotonoha::Gameplay* play, Kotonoha_Game& context);
 void Kotonoha_BasicGuiEvent(SDL_Event* event);
-
-extern bool Kotonoha_BasicGuiShow;
-extern bool Kotonoha_BasicGuiEditorShow;

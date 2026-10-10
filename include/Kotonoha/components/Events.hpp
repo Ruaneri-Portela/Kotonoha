@@ -11,31 +11,34 @@ extern "C" {
 #include <Kotonoha/parsers/Ors.h>
 #include <Kotonoha/renders/TextRender.h>
 #include <Kotonoha/utils/IOMonitor.h>
+#include <Kotonoha/utils/VoicePcm.h>
 }
 
 namespace Kotonoha {
+
+struct VoiceAnimation {
+  std::vector<VoiceActivityRecord> activity;
+  MouthAnimationState state;
+  Uint64 startTick = 0;
+};
+
 class Event {
 private:
   Kotonoha_orsData eventsFromScript;
   static int EventManager(void *data);
   SDL_Mutex *eventMutex = nullptr;
 
-  std::vector<Video*> videoToDelete;
-  std::vector<Image*> imageToDelete;
-  std::vector<Audio*> audioToDeleta;
-  struct VoiceAnimation {
-    std::vector<VoiceActivityRecord> activity;
-    MouthAnimationState state;
-    Uint64 startTick = 0;
-  };
-  std::unordered_map<const Kotonoha_orsEvent*, VoiceAnimation> voiceAnimations;
-  std::unordered_map<const Kotonoha_orsEvent*, Kotonoha_IOMonitorOperation>
+  std::vector<Video *> videoToDelete;
+  std::vector<Image *> imageToDelete;
+  std::vector<Audio *> audioToDeleta;
+  std::unordered_map<const Kotonoha_orsEvent *, VoiceAnimation> voiceAnimations;
+  std::unordered_map<const Kotonoha_orsEvent *, Kotonoha_IOMonitorOperation>
       pendingAssetLoads;
 
 public:
   Uint64 lastTime = 0;
   Event(const char *orsPath, void *gameplay, struct Kotonoha_Game *gameCtx);
-  void Reset(void* gameplay);
+  void Reset(void *gameplay);
   bool CheckEnd(void *gameplay);
   ~Event();
 };
