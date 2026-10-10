@@ -918,7 +918,10 @@ static void Kotonoha_DrawAudio(Kotonoha_Game& context) {
         return;
     }
 
-    ImGui::SliderFloat("Master", &sound->volume, 0.0f, 1.0f);
+    float masterVolume = sound->volume.load(std::memory_order_relaxed);
+    if (ImGui::SliderFloat("Master", &masterVolume, 0.0f, 1.0f)) {
+        sound->volume.store(masterVolume, std::memory_order_relaxed);
+    }
 
     for (size_t i = 0; ; ++i) {
         Kotonoha::Sound::Channel* channel =
@@ -928,11 +931,15 @@ static void Kotonoha_DrawAudio(Kotonoha_Game& context) {
             break;
         }
 
-        ImGui::SliderFloat(
+        float channelVolume =
+            channel->volume.load(std::memory_order_relaxed);
+        if (ImGui::SliderFloat(
             channel->name.c_str(),
-            &channel->volume,
+            &channelVolume,
             0.0f,
-            1.0f);
+            1.0f)) {
+            channel->volume.store(channelVolume, std::memory_order_relaxed);
+        }
     }
 }
 

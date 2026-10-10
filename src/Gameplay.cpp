@@ -71,8 +71,7 @@ namespace Kotonoha {
 			return;
 		}
 
-		const bool loading = Kotonoha_IOMonitorIsLoading(&ioMonitor) ||
-			(drawCanvas != nullptr && drawCanvas->IsWaitingForNetwork());
+		const bool loading = Kotonoha_IOMonitorIsLoading(&ioMonitor);
 		if (loading && !loadingPauseActive) {
 			pausedBeforeLoading = gameContext->paused;
 			loadingPauseActive = true;
@@ -333,11 +332,13 @@ namespace Kotonoha {
 	}
 
 	Gameplay::~Gameplay() {
+		Kotonoha_IOMonitorCancel(&ioMonitor);
 		delete this->eventManager;
-		delete this->drawCanvas;
 		delete this->video;
 		delete this->image;
 		delete this->audio;
+		Kotonoha_IOMonitorBindNetworkWaitFlag(&ioMonitor, nullptr);
+		delete this->drawCanvas;
 		delete this->fade;
 
 		if (prompt) {

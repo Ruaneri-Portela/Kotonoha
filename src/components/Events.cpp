@@ -152,7 +152,8 @@ namespace Kotonoha {
 		const char* assetsPath = useExtension ? gameCtx->assetsPath : "";
 
 		SDL_LockMutex(classUp->eventMutex);
-		if (gameplay->tm == nullptr || !gameplay->tm->started) {
+		if (gameplay->tm == nullptr ||
+			!Kotonoha_timeIsStarted(gameplay->tm)) {
 			SDL_UnlockMutex(classUp->eventMutex);
 			return 0;
 		}

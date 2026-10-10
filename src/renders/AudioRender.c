@@ -23,7 +23,9 @@ static int readAudioFrame(struct Kotonoha_audioDecode* instance,
 	AVPacket* packet) {
 	const int result = Kotonoha_UtilsFFmpegReadFrame(instance->formatCtx, packet);
 	if (result == AVERROR_EXIT) {
-		Kotonoha_IOMonitorOperationSetStalled(&instance->ioOperation, true);
+		Kotonoha_IOMonitorOperationSetStalled(
+			&instance->ioOperation,
+			!Kotonoha_IOMonitorOperationIsCancelled(&instance->ioOperation));
 	}
 	return result;
 }
@@ -160,7 +162,11 @@ void Kotonoha_AudioSeek(struct Kotonoha_audioDecode* ctx, Uint64 timeMs) {
 
 	avcodec_flush_buffers(ctx->codecCtx);
 	swr_close(ctx->swrCtx);
-	swr_init(ctx->swrCtx);
+	if (swr_init(ctx->swrCtx) < 0) {
+		SDL_LogError(SDL_LOG_CATEGORY_ERROR,
+			"Failed to reinitialize audio resampler after seeking");
+		return;
+	}
 
 	ctx->executions++;
 	ctx->audioTime = timeMs;
@@ -187,7 +193,7 @@ int Kotonoha_AudioRender(void* data, Uint8** target, int* size) {
 	struct Kotonoha_audioDecode* instance = (struct Kotonoha_audioDecode*)data;
 	struct Kotonoha_time* time = NULL;
 	AVFrame* pFrame = NULL;
-	AVPacket packet;
+	AVPacket packet = { 0 };
 	int ret;
 
 	if (!instance || !target || !size)
@@ -198,7 +204,7 @@ int Kotonoha_AudioRender(void* data, Uint8** target, int* size) {
 
 	if (instance->tm != NULL && *instance->tm != NULL) {
 		time = *instance->tm;
-		if (time->paused)
+		if (Kotonoha_timeIsPaused(time) && !instance->ioOperation.stalled)
 			return 0;
 	}
 
@@ -214,6 +220,11 @@ int Kotonoha_AudioRender(void* data, Uint8** target, int* size) {
 		ret = avcodec_receive_frame(instance->codecCtx, pFrame);
 		if (ret == 0) {
 			Kotonoha_IOMonitorOperationSetStalled(&instance->ioOperation, false);
+			if (time != NULL && Kotonoha_timeIsPaused(time)) {
+				av_frame_unref(pFrame);
+				av_frame_free(&pFrame);
+				return 0;
+			}
 			Uint64 framePtsMs = Kotonoha_UtilsFFmpegGetTime(
 				stream,
 				pFrame->pts,
@@ -262,6 +273,11 @@ int Kotonoha_AudioRender(void* data, Uint8** target, int* size) {
 				av_frame_free(&pFrame);
 				return -1;
 			}
+			if (convertedSamples == 0) {
+				cleanupAudioResources(NULL, nonPlanarData, NULL);
+				av_frame_unref(pFrame);
+				continue;
+			}
 
 			if (!allocateAudioBuffer(instance, convertedSamples, target, size)) {
 				cleanupAudioResources(NULL, nonPlanarData, NULL);
@@ -281,6 +297,8 @@ int Kotonoha_AudioRender(void* data, Uint8** target, int* size) {
 		}
 
 		if (ret != AVERROR(EAGAIN) && ret != AVERROR_EOF) {
+			Kotonoha_IOMonitorOperationSetStalled(
+				&instance->ioOperation, false);
 			SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Error receiving frame: %s",
 				av_err2str(ret));
 			av_frame_free(&pFrame);
@@ -288,7 +306,7 @@ int Kotonoha_AudioRender(void* data, Uint8** target, int* size) {
 		}
 
 		while ((ret = readAudioFrame(instance, &packet)) >= 0) {
-			if (time != NULL && time->paused) {
+			if (time != NULL && Kotonoha_timeIsPaused(time)) {
 				Kotonoha_IOMonitorOperationSetStalled(&instance->ioOperation, false);
 				av_packet_unref(&packet);
 				av_frame_free(&pFrame);
@@ -303,6 +321,8 @@ int Kotonoha_AudioRender(void* data, Uint8** target, int* size) {
 			av_packet_unref(&packet);
 
 			if (ret < 0) {
+				Kotonoha_IOMonitorOperationSetStalled(
+					&instance->ioOperation, false);
 				SDL_LogError(SDL_LOG_CATEGORY_ERROR,
 					"Error sending packet to codec: %s",
 					av_err2str(ret));
@@ -315,13 +335,23 @@ int Kotonoha_AudioRender(void* data, Uint8** target, int* size) {
 
 		if (ret < 0) {
 			if (ret == AVERROR_EXIT) {
-				Kotonoha_IOMonitorOperationSetStalled(&instance->ioOperation, true);
+				Kotonoha_IOMonitorOperationSetStalled(
+					&instance->ioOperation,
+					!Kotonoha_IOMonitorOperationIsCancelled(
+						&instance->ioOperation));
+				av_frame_free(&pFrame);
+				return 0;
+			}
+			if (ret == AVERROR(EAGAIN)) {
 				av_frame_free(&pFrame);
 				return 0;
 			}
 			if (ret == AVERROR_EOF) {
 				ret = avcodec_send_packet(instance->codecCtx, NULL);
-				if (ret < 0 && ret != AVERROR_EOF) {
+				if (ret < 0 && ret != AVERROR_EOF &&
+					ret != AVERROR(EAGAIN)) {
+					Kotonoha_IOMonitorOperationSetStalled(
+						&instance->ioOperation, false);
 					SDL_LogError(SDL_LOG_CATEGORY_ERROR,
 						"Error flushing decoder: %s",
 						av_err2str(ret));
@@ -336,6 +366,8 @@ int Kotonoha_AudioRender(void* data, Uint8** target, int* size) {
 						swr_get_out_samples(instance->swrCtx, pFrame->nb_samples);
 
 					if (outSamples <= 0) {
+						Kotonoha_IOMonitorOperationSetStalled(
+							&instance->ioOperation, false);
 						SDL_LogError(SDL_LOG_CATEGORY_ERROR,
 							"Invalid output sample count");
 						av_frame_free(&pFrame);
@@ -365,6 +397,11 @@ int Kotonoha_AudioRender(void* data, Uint8** target, int* size) {
 						av_frame_free(&pFrame);
 						return -1;
 					}
+					if (convertedSamples == 0) {
+						cleanupAudioResources(NULL, nonPlanarData, NULL);
+						av_frame_unref(pFrame);
+						continue;
+					}
 
 					if (!allocateAudioBuffer(instance, convertedSamples, target, size)) {
 						cleanupAudioResources(NULL, nonPlanarData, NULL);
@@ -387,9 +424,21 @@ int Kotonoha_AudioRender(void* data, Uint8** target, int* size) {
 				}
 
 				av_frame_free(&pFrame);
-				return 1;
+				if (ret == AVERROR_EOF) {
+					return 1;
+				}
+				if (ret == AVERROR(EAGAIN)) {
+					return 0;
+				}
+				Kotonoha_IOMonitorOperationSetStalled(
+					&instance->ioOperation, false);
+				SDL_LogError(SDL_LOG_CATEGORY_ERROR,
+					"Error draining audio decoder: %s", av_err2str(ret));
+				return -1;
 			}
 
+			Kotonoha_IOMonitorOperationSetStalled(
+				&instance->ioOperation, false);
 			SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Error reading frame: %s",
 				av_err2str(ret));
 			av_frame_free(&pFrame);

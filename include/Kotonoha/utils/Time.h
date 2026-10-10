@@ -10,6 +10,7 @@ typedef struct Kotonoha_time {
   Uint64 seekTicks;
   bool started;
   bool paused;
+  SDL_Mutex *mutex;
 } Kotonoha_time;
 
 Kotonoha_time *Kotonoha_timeNew(bool startStopped);

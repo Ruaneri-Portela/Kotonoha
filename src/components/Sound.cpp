@@ -266,7 +266,9 @@ namespace Kotonoha {
 				}
 
 				SDL_MixAudio(data + filled, localData, thisChannel->spec.format,
-					gettedSize, thisChannel->volume * thisSound->volume);
+					gettedSize,
+					thisChannel->volume.load(std::memory_order_relaxed) *
+						thisSound->volume.load(std::memory_order_relaxed));
 
 				filled += gettedSize;
 			}

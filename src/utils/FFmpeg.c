@@ -43,7 +43,8 @@ int Kotonoha_UtilsFFmpegReadFrame(AVFormatContext* formatCtx,
 	const int result = av_read_frame(formatCtx, packet);
 	Kotonoha_IOMonitorOperationEnd(operation);
 	if (result == AVERROR_EXIT) {
-		Kotonoha_IOMonitorOperationSetStalled(operation, true);
+		Kotonoha_IOMonitorOperationSetStalled(
+			operation, !Kotonoha_IOMonitorOperationIsCancelled(operation));
 		return result;
 	}
 	if (result >= 0 ||
@@ -64,7 +65,8 @@ int Kotonoha_UtilsFFmpegSeekFrame(AVFormatContext* formatCtx,
 	const int result = av_seek_frame(formatCtx, streamIndex, timestamp, flags);
 	Kotonoha_IOMonitorOperationEnd(operation);
 	if (result == AVERROR_EXIT) {
-		Kotonoha_IOMonitorOperationSetStalled(operation, true);
+		Kotonoha_IOMonitorOperationSetStalled(
+			operation, !Kotonoha_IOMonitorOperationIsCancelled(operation));
 		return result;
 	}
 	Kotonoha_IOMonitorOperationSetStalled(operation, false);
@@ -109,7 +111,7 @@ bool Kotonoha_UtilsFFmpegLoadMonitored(
 		Kotonoha_IOMonitorOperationEnd(ioOperation);
 		av_dict_free(&opts);
 		if (openResult == AVERROR_EXIT &&
-			SDL_GetAtomicInt(&ioOperation->cancelled) == 0) {
+			!Kotonoha_IOMonitorOperationIsCancelled(ioOperation)) {
 			if (*formatCtx != NULL) {
 				avformat_close_input(formatCtx);
 			}
@@ -120,7 +122,7 @@ bool Kotonoha_UtilsFFmpegLoadMonitored(
 			openResult == AVERROR(ENOTDIR)) {
 			Kotonoha_IOMonitorSetMissing(ioOperation, true);
 			if (Kotonoha_IOMonitorShouldRetryMissing(ioOperation) &&
-				SDL_GetAtomicInt(&ioOperation->cancelled) == 0) {
+				!Kotonoha_IOMonitorOperationIsCancelled(ioOperation)) {
 				if (*formatCtx != NULL) {
 					avformat_close_input(formatCtx);
 				}
@@ -135,7 +137,7 @@ bool Kotonoha_UtilsFFmpegLoadMonitored(
 			avformat_close_input(formatCtx);
 		}
 		if (openResult != AVERROR_EXIT &&
-			SDL_GetAtomicInt(&ioOperation->cancelled) == 0 &&
+			!Kotonoha_IOMonitorOperationIsCancelled(ioOperation) &&
 			!Kotonoha_IOMonitorIsIgnoredMissing(ioOperation)) {
 			SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
 				"Erro: Não foi possível abrir o arquivo '%s': %s",
@@ -150,11 +152,11 @@ bool Kotonoha_UtilsFFmpegLoadMonitored(
 		streamInfoResult = avformat_find_stream_info(*formatCtx, NULL);
 		Kotonoha_IOMonitorOperationEnd(ioOperation);
 		if (streamInfoResult == AVERROR_EXIT &&
-			SDL_GetAtomicInt(&ioOperation->cancelled) == 0) {
+			!Kotonoha_IOMonitorOperationIsCancelled(ioOperation)) {
 			SDL_Delay(10);
 		}
 	} while (streamInfoResult == AVERROR_EXIT &&
-		SDL_GetAtomicInt(&ioOperation->cancelled) == 0);
+		!Kotonoha_IOMonitorOperationIsCancelled(ioOperation));
 
 	if (streamInfoResult < 0) {
 		if (streamInfoResult != AVERROR_EXIT) {
