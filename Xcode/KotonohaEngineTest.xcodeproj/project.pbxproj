@@ -7,37 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		CEDA2B0E307AF24100027D9C /* Media.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = CEDA2B0D307AF24100027D9C /* Media.xcassets */; };
-		CEDA2B36307AF38900027D9C /* Main.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CEDA2B33307AF38900027D9C /* Main.cpp */; };
-		CEDA2B37307AF38900027D9C /* VideoRender.c in Sources */ = {isa = PBXBuildFile; fileRef = CEDA2B24307AF38900027D9C /* VideoRender.c */; };
-		CEDA2B38307AF38900027D9C /* Image.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CEDA2B13307AF38900027D9C /* Image.cpp */; };
-		CEDA2B39307AF38900027D9C /* Ors.c in Sources */ = {isa = PBXBuildFile; fileRef = CEDA2B1C307AF38900027D9C /* Ors.c */; };
-		CEDA2B3A307AF38900027D9C /* Canvas.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CEDA2B10307AF38900027D9C /* Canvas.cpp */; };
-		CEDA2B3B307AF38900027D9C /* GameplayEvents.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CEDA2B30307AF38900027D9C /* GameplayEvents.cpp */; };
-		CEDA2B3C307AF38900027D9C /* mobile.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CEDA2B1A307AF38900027D9C /* mobile.cpp */; };
-		CEDA2B3D307AF38900027D9C /* BasicGui.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CEDA2B2E307AF38900027D9C /* BasicGui.cpp */; };
-		CEDA2B3F307AF38900027D9C /* FpsRender.c in Sources */ = {isa = PBXBuildFile; fileRef = CEDA2B1F307AF38900027D9C /* FpsRender.c */; };
-		CEDA2B40307AF38900027D9C /* Events.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CEDA2B11307AF38900027D9C /* Events.cpp */; };
-		CEDA2B41307AF38900027D9C /* TextRender.c in Sources */ = {isa = PBXBuildFile; fileRef = CEDA2B22307AF38900027D9C /* TextRender.c */; };
-		CEDA2B42307AF38900027D9C /* Gameplay.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CEDA2B2F307AF38900027D9C /* Gameplay.cpp */; };
-		CEDA2B43307AF38900027D9C /* LibIconvCompat.c in Sources */ = {isa = PBXBuildFile; fileRef = CEDA2B28307AF38900027D9C /* LibIconvCompat.c */; };
-		CEDA2B44307AF38900027D9C /* IOS.mm in Sources */ = {isa = PBXBuildFile; fileRef = CEDA2B19307AF38900027D9C /* IOS.mm */; };
-		CEDA2B45307AF38900027D9C /* Audio.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CEDA2B0F307AF38900027D9C /* Audio.cpp */; };
-		CEDA2B46307AF38900027D9C /* TimestampRender.c in Sources */ = {isa = PBXBuildFile; fileRef = CEDA2B23307AF38900027D9C /* TimestampRender.c */; };
-		CEDA2B47307AF38900027D9C /* Video.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CEDA2B16307AF38900027D9C /* Video.cpp */; };
-		CEDA2B48307AF38900027D9C /* Fade.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CEDA2B12307AF38900027D9C /* Fade.cpp */; };
-		CEDA2B49307AF38900027D9C /* OverlayRenderUtils.c in Sources */ = {isa = PBXBuildFile; fileRef = CEDA2B29307AF38900027D9C /* OverlayRenderUtils.c */; };
-		CEDA2B4A307AF38900027D9C /* Prompt.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CEDA2B14307AF38900027D9C /* Prompt.cpp */; };
-		CEDA2B4B307AF38900027D9C /* IOMonitor.c in Sources */ = {isa = PBXBuildFile; fileRef = CEDA2B27307AF38900027D9C /* IOMonitor.c */; };
-		CEDA2B4C307AF38900027D9C /* FFmpeg.c in Sources */ = {isa = PBXBuildFile; fileRef = CEDA2B26307AF38900027D9C /* FFmpeg.c */; };
-		CEDA2B4D307AF38900027D9C /* LoadingRender.c in Sources */ = {isa = PBXBuildFile; fileRef = CEDA2B21307AF38900027D9C /* LoadingRender.c */; };
-		CEDA2B4E307AF38900027D9C /* UserEvents.c in Sources */ = {isa = PBXBuildFile; fileRef = CEDA2B2B307AF38900027D9C /* UserEvents.c */; };
-		CEDA2B4F307AF38900027D9C /* Time.c in Sources */ = {isa = PBXBuildFile; fileRef = CEDA2B2A307AF38900027D9C /* Time.c */; };
-		CEDA2B50307AF38900027D9C /* Sound.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CEDA2B15307AF38900027D9C /* Sound.cpp */; };
-		CEDA2B51307AF38900027D9C /* VoicePcm.c in Sources */ = {isa = PBXBuildFile; fileRef = CEDA2B2C307AF38900027D9C /* VoicePcm.c */; };
-		CEDA2B52307AF38900027D9C /* ImageRender.c in Sources */ = {isa = PBXBuildFile; fileRef = CEDA2B20307AF38900027D9C /* ImageRender.c */; };
-		CEDA2B53307AF38900027D9C /* Kotonoha.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CEDA2B31307AF38900027D9C /* Kotonoha.cpp */; };
-		CEDA2B54307AF38900027D9C /* AudioRender.c in Sources */ = {isa = PBXBuildFile; fileRef = CEDA2B1E307AF38900027D9C /* AudioRender.c */; };
 		CEE78CE52FCC3A450002CB9B /* CoreBluetooth.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CD92FCC3A450002CB9B /* CoreBluetooth.framework */; };
 		CEE78CE62FCC3A450002CB9B /* CoreGraphics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CDA2FCC3A450002CB9B /* CoreGraphics.framework */; };
 		CEE78CE72FCC3A450002CB9B /* CoreText.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CDB2FCC3A450002CB9B /* CoreText.framework */; };
@@ -45,6 +14,7 @@
 		CEE78CE92FCC3A450002CB9B /* AudioToolbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CDD2FCC3A450002CB9B /* AudioToolbox.framework */; };
 		CEE78CEA2FCC3A450002CB9B /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CDE2FCC3A450002CB9B /* Foundation.framework */; };
 		CEE78CEB2FCC3A450002CB9B /* AVFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CDF2FCC3A450002CB9B /* AVFoundation.framework */; };
+		CEE78CED2FCC3A450002CB9B /* Accelerate.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CE12FCC3A450002CB9B /* Accelerate.framework */; };
 		CEE78CEE2FCC3A450002CB9B /* CoreHaptics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CE22FCC3A450002CB9B /* CoreHaptics.framework */; };
 		CEE78CEF2FCC3A450002CB9B /* CoreMedia.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CE32FCC3A450002CB9B /* CoreMedia.framework */; };
 		CEE78CF12FCC3A670002CB9B /* CoreAudio.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CD82FCC3A450002CB9B /* CoreAudio.framework */; };
@@ -55,9 +25,70 @@
 		CEE78CFD2FCC3AE40002CB9B /* QuartzCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CFC2FCC3AE40002CB9B /* QuartzCore.framework */; };
 		CEE78CFF2FCC3AF40002CB9B /* CoreMotion.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CFE2FCC3AF40002CB9B /* CoreMotion.framework */; };
 		CEE78D002FCC3B570002CB9B /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CF62FCC3A850002CB9B /* UIKit.framework */; };
+		CEFF69B73025EE57000B52C3 /* libass.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CEFF69B13025EE55000B52C3 /* libass.a */; };
+		CEFF69B83025EE57000B52C3 /* libavcodec.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CEFF69B63025EE55000B52C3 /* libavcodec.a */; };
+		CEFF69B93025EE57000B52C3 /* libavdevice.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CEFF69B43025EE55000B52C3 /* libavdevice.a */; };
+		CEFF69BA3025EE57000B52C3 /* libavfilter.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CEFF69B53025EE55000B52C3 /* libavfilter.a */; };
+		CEFF69BB3025EE57000B52C3 /* libavformat.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CEFF69B23025EE55000B52C3 /* libavformat.a */; };
+		CEFF69BC3025EE57000B52C3 /* libavutil.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CEFF69B33025EE55000B52C3 /* libavutil.a */; };
+		CEFF69BF3025EE5F000B52C3 /* libSDL3_ttf.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CEFF69BE3025EE5E000B52C3 /* libSDL3_ttf.a */; };
+		CEFF69C03025EE5F000B52C3 /* libSDL3.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CEFF69BD3025EE5E000B52C3 /* libSDL3.a */; };
+		CEFF69C43025EE88000B52C3 /* libfontconfig.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CEFF69C33025EE87000B52C3 /* libfontconfig.a */; };
+		CEFF69C83025EEE4000B52C3 /* libfreetype.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CEFF69C73025EEE3000B52C3 /* libfreetype.a */; };
+		CEFF69CA3025EEE9000B52C3 /* libfribidi.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CEFF69C93025EEE8000B52C3 /* libfribidi.a */; };
+		CEFF69CB3025EF10000B52C3 /* libz.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = CEFF69C63025EEB4000B52C3 /* libz.tbd */; };
+		CEFF69CF3025EF33000B52C3 /* libcharset.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = CEFF69CE3025EF2C000B52C3 /* libcharset.tbd */; };
+		CEFF69D13025EF4D000B52C3 /* libbz2.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = CEFF69D03025EF48000B52C3 /* libbz2.tbd */; };
+		CEFF69D73025EF84000B52C3 /* libharfbuzz-gpu.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CEFF69D33025EF82000B52C3 /* libharfbuzz-gpu.a */; };
+		CEFF69D83025EF84000B52C3 /* libharfbuzz-raster.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CEFF69D63025EF82000B52C3 /* libharfbuzz-raster.a */; };
+		CEFF69D93025EF84000B52C3 /* libharfbuzz-subset.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CEFF69D23025EF82000B52C3 /* libharfbuzz-subset.a */; };
+		CEFF69DA3025EF84000B52C3 /* libharfbuzz-vector.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CEFF69D43025EF82000B52C3 /* libharfbuzz-vector.a */; };
+		CEFF69DB3025EF84000B52C3 /* libharfbuzz.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CEFF69D53025EF82000B52C3 /* libharfbuzz.a */; };
+		CEFF69DE3025EF94000B52C3 /* libswresample.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CEFF69DC3025EF93000B52C3 /* libswresample.a */; };
+		CEFF69DF3025EF94000B52C3 /* libswscale.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CEFF69DD3025EF93000B52C3 /* libswscale.a */; };
+		CEFF69E13025EFBB000B52C3 /* libbrotlienc.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CEFF69E03025EFB9000B52C3 /* libbrotlienc.a */; };
+		CEFF69E33025EFBE000B52C3 /* libbrotlidec.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CEFF69E23025EFBD000B52C3 /* libbrotlidec.a */; };
+		CEFF69E53025EFC1000B52C3 /* libbrotlicommon.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CEFF69E43025EFBF000B52C3 /* libbrotlicommon.a */; };
+		CEFF69E73025EFCB000B52C3 /* libpng.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CEFF69E63025EFCA000B52C3 /* libpng.a */; };
+		CEFF69E93025F024000B52C3 /* libexpat.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = CEFF69E83025F01F000B52C3 /* libexpat.tbd */; };
+		CEFF69EB3025F032000B52C3 /* libunibreak.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CEFF69EA3025F030000B52C3 /* libunibreak.a */; };
+		CEFF69F53025F3DC000B52C3 /* libimgui.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CEFF69F43025F3DA000B52C3 /* libimgui.a */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		CE325F5C307AEDEC0000E48A /* Audio.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Audio.cpp; sourceTree = "<group>"; };
+		CE325F5D307AEDEC0000E48A /* Canvas.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Canvas.cpp; sourceTree = "<group>"; };
+		CE325F5E307AEDEC0000E48A /* Events.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Events.cpp; sourceTree = "<group>"; };
+		CE325F5F307AEDEC0000E48A /* Fade.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Fade.cpp; sourceTree = "<group>"; };
+		CE325F60307AEDEC0000E48A /* Image.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Image.cpp; sourceTree = "<group>"; };
+		CE325F61307AEDEC0000E48A /* Prompt.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Prompt.cpp; sourceTree = "<group>"; };
+		CE325F62307AEDEC0000E48A /* Sound.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Sound.cpp; sourceTree = "<group>"; };
+		CE325F63307AEDEC0000E48A /* Video.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Video.cpp; sourceTree = "<group>"; };
+		CE325F65307AEDEC0000E48A /* Android.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Android.cpp; sourceTree = "<group>"; };
+		CE325F66307AEDEC0000E48A /* IOS.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = IOS.mm; sourceTree = "<group>"; };
+		CE325F67307AEDEC0000E48A /* mobile.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = mobile.cpp; sourceTree = "<group>"; };
+		CE325F69307AEDEC0000E48A /* Ors.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = Ors.c; sourceTree = "<group>"; };
+		CE325F6B307AEDEC0000E48A /* AudioRender.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = AudioRender.c; sourceTree = "<group>"; };
+		CE325F6C307AEDEC0000E48A /* FpsRender.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = FpsRender.c; sourceTree = "<group>"; };
+		CE325F6D307AEDEC0000E48A /* ImageRender.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = ImageRender.c; sourceTree = "<group>"; };
+		CE325F6E307AEDEC0000E48A /* LoadingRender.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = LoadingRender.c; sourceTree = "<group>"; };
+		CE325F6F307AEDEC0000E48A /* TextRender.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = TextRender.c; sourceTree = "<group>"; };
+		CE325F70307AEDEC0000E48A /* TimestampRender.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = TimestampRender.c; sourceTree = "<group>"; };
+		CE325F71307AEDEC0000E48A /* VideoRender.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = VideoRender.c; sourceTree = "<group>"; };
+		CE325F73307AEDEC0000E48A /* FFmpeg.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = FFmpeg.c; sourceTree = "<group>"; };
+		CE325F74307AEDEC0000E48A /* IOMonitor.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = IOMonitor.c; sourceTree = "<group>"; };
+		CE325F75307AEDEC0000E48A /* LibIconvCompat.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = LibIconvCompat.c; sourceTree = "<group>"; };
+		CE325F76307AEDEC0000E48A /* OverlayRenderUtils.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = OverlayRenderUtils.c; sourceTree = "<group>"; };
+		CE325F77307AEDEC0000E48A /* Time.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = Time.c; sourceTree = "<group>"; };
+		CE325F78307AEDEC0000E48A /* UserEvents.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = UserEvents.c; sourceTree = "<group>"; };
+		CE325F79307AEDEC0000E48A /* VoicePcm.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = VoicePcm.c; sourceTree = "<group>"; };
+		CE325F7B307AEDEC0000E48A /* BasicGui.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = BasicGui.cpp; sourceTree = "<group>"; };
+		CE325F7C307AEDEC0000E48A /* Gameplay.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Gameplay.cpp; sourceTree = "<group>"; };
+		CE325F7D307AEDEC0000E48A /* GameplayEvents.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = GameplayEvents.cpp; sourceTree = "<group>"; };
+		CE325F7E307AEDEC0000E48A /* Kotonoha.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Kotonoha.cpp; sourceTree = "<group>"; };
+		CE325F7F307AEDEC0000E48A /* Kotonoha.rc */ = {isa = PBXFileReference; lastKnownFileType = text; path = Kotonoha.rc; sourceTree = "<group>"; };
+		CE325F80307AEDEC0000E48A /* Main.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Main.cpp; sourceTree = "<group>"; };
+		CE325F81307AEDEC0000E48A /* resource.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = resource.h; sourceTree = "<group>"; };
 		CE325F83307AEDF40000E48A /* Audio.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Audio.hpp; sourceTree = "<group>"; };
 		CE325F84307AEDF40000E48A /* Canvas.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Canvas.hpp; sourceTree = "<group>"; };
 		CE325F85307AEDF40000E48A /* Events.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Events.hpp; sourceTree = "<group>"; };
@@ -87,38 +118,7 @@
 		CE325FA1307AEDF40000E48A /* Kotonoha.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Kotonoha.hpp; sourceTree = "<group>"; };
 		CE325FA2307AEDF40000E48A /* version.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = version.h; sourceTree = "<group>"; };
 		CE540CF52FCD0736006FA974 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		CEDA2B0C307AF19D00027D9C /* KotonohaEngineTest.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = KotonohaEngineTest.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		CEDA2B0D307AF24100027D9C /* Media.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Media.xcassets; sourceTree = "<group>"; };
-		CEDA2B0F307AF38900027D9C /* Audio.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Audio.cpp; sourceTree = "<group>"; };
-		CEDA2B10307AF38900027D9C /* Canvas.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Canvas.cpp; sourceTree = "<group>"; };
-		CEDA2B11307AF38900027D9C /* Events.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Events.cpp; sourceTree = "<group>"; };
-		CEDA2B12307AF38900027D9C /* Fade.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Fade.cpp; sourceTree = "<group>"; };
-		CEDA2B13307AF38900027D9C /* Image.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Image.cpp; sourceTree = "<group>"; };
-		CEDA2B14307AF38900027D9C /* Prompt.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Prompt.cpp; sourceTree = "<group>"; };
-		CEDA2B15307AF38900027D9C /* Sound.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Sound.cpp; sourceTree = "<group>"; };
-		CEDA2B16307AF38900027D9C /* Video.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Video.cpp; sourceTree = "<group>"; };
-		CEDA2B19307AF38900027D9C /* IOS.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = IOS.mm; sourceTree = "<group>"; };
-		CEDA2B1A307AF38900027D9C /* mobile.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = mobile.cpp; sourceTree = "<group>"; };
-		CEDA2B1C307AF38900027D9C /* Ors.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = Ors.c; sourceTree = "<group>"; };
-		CEDA2B1E307AF38900027D9C /* AudioRender.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = AudioRender.c; sourceTree = "<group>"; };
-		CEDA2B1F307AF38900027D9C /* FpsRender.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = FpsRender.c; sourceTree = "<group>"; };
-		CEDA2B20307AF38900027D9C /* ImageRender.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = ImageRender.c; sourceTree = "<group>"; };
-		CEDA2B21307AF38900027D9C /* LoadingRender.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = LoadingRender.c; sourceTree = "<group>"; };
-		CEDA2B22307AF38900027D9C /* TextRender.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = TextRender.c; sourceTree = "<group>"; };
-		CEDA2B23307AF38900027D9C /* TimestampRender.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = TimestampRender.c; sourceTree = "<group>"; };
-		CEDA2B24307AF38900027D9C /* VideoRender.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = VideoRender.c; sourceTree = "<group>"; };
-		CEDA2B26307AF38900027D9C /* FFmpeg.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = FFmpeg.c; sourceTree = "<group>"; };
-		CEDA2B27307AF38900027D9C /* IOMonitor.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = IOMonitor.c; sourceTree = "<group>"; };
-		CEDA2B28307AF38900027D9C /* LibIconvCompat.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = LibIconvCompat.c; sourceTree = "<group>"; };
-		CEDA2B29307AF38900027D9C /* OverlayRenderUtils.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = OverlayRenderUtils.c; sourceTree = "<group>"; };
-		CEDA2B2A307AF38900027D9C /* Time.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = Time.c; sourceTree = "<group>"; };
-		CEDA2B2B307AF38900027D9C /* UserEvents.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = UserEvents.c; sourceTree = "<group>"; };
-		CEDA2B2C307AF38900027D9C /* VoicePcm.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = VoicePcm.c; sourceTree = "<group>"; };
-		CEDA2B2E307AF38900027D9C /* BasicGui.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = BasicGui.cpp; sourceTree = "<group>"; };
-		CEDA2B2F307AF38900027D9C /* Gameplay.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Gameplay.cpp; sourceTree = "<group>"; };
-		CEDA2B30307AF38900027D9C /* GameplayEvents.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = GameplayEvents.cpp; sourceTree = "<group>"; };
-		CEDA2B31307AF38900027D9C /* Kotonoha.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Kotonoha.cpp; sourceTree = "<group>"; };
-		CEDA2B33307AF38900027D9C /* Main.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Main.cpp; sourceTree = "<group>"; };
+		CEE78C312FCC37E10002CB9B /* KotonohaEngineTest.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = KotonohaEngineTest.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		CEE78CD82FCC3A450002CB9B /* CoreAudio.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreAudio.framework; path = System/Library/Frameworks/CoreAudio.framework; sourceTree = SDKROOT; };
 		CEE78CD92FCC3A450002CB9B /* CoreBluetooth.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreBluetooth.framework; path = System/Library/Frameworks/CoreBluetooth.framework; sourceTree = SDKROOT; };
 		CEE78CDA2FCC3A450002CB9B /* CoreGraphics.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreGraphics.framework; path = System/Library/Frameworks/CoreGraphics.framework; sourceTree = SDKROOT; };
@@ -138,6 +138,34 @@
 		CEE78CFA2FCC3A9B0002CB9B /* VideoToolbox.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = VideoToolbox.framework; path = System/Library/Frameworks/VideoToolbox.framework; sourceTree = SDKROOT; };
 		CEE78CFC2FCC3AE40002CB9B /* QuartzCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = QuartzCore.framework; path = System/Library/Frameworks/QuartzCore.framework; sourceTree = SDKROOT; };
 		CEE78CFE2FCC3AF40002CB9B /* CoreMotion.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreMotion.framework; path = System/Library/Frameworks/CoreMotion.framework; sourceTree = SDKROOT; };
+		CEFF69B13025EE55000B52C3 /* libass.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libass.a; path = "../vcpkg_installed/arm64-ios/lib/libass.a"; sourceTree = "<group>"; };
+		CEFF69B23025EE55000B52C3 /* libavformat.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libavformat.a; path = "../vcpkg_installed/arm64-ios/lib/libavformat.a"; sourceTree = "<group>"; };
+		CEFF69B33025EE55000B52C3 /* libavutil.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libavutil.a; path = "../vcpkg_installed/arm64-ios/lib/libavutil.a"; sourceTree = "<group>"; };
+		CEFF69B43025EE55000B52C3 /* libavdevice.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libavdevice.a; path = "../vcpkg_installed/arm64-ios/lib/libavdevice.a"; sourceTree = "<group>"; };
+		CEFF69B53025EE55000B52C3 /* libavfilter.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libavfilter.a; path = "../vcpkg_installed/arm64-ios/lib/libavfilter.a"; sourceTree = "<group>"; };
+		CEFF69B63025EE55000B52C3 /* libavcodec.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libavcodec.a; path = "../vcpkg_installed/arm64-ios/lib/libavcodec.a"; sourceTree = "<group>"; };
+		CEFF69BD3025EE5E000B52C3 /* libSDL3.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libSDL3.a; path = "../vcpkg_installed/arm64-ios/lib/libSDL3.a"; sourceTree = "<group>"; };
+		CEFF69BE3025EE5E000B52C3 /* libSDL3_ttf.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libSDL3_ttf.a; path = "../vcpkg_installed/arm64-ios/lib/libSDL3_ttf.a"; sourceTree = "<group>"; };
+		CEFF69C33025EE87000B52C3 /* libfontconfig.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libfontconfig.a; path = "../vcpkg_installed/arm64-ios/lib/libfontconfig.a"; sourceTree = "<group>"; };
+		CEFF69C63025EEB4000B52C3 /* libz.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libz.tbd; path = usr/lib/libz.tbd; sourceTree = SDKROOT; };
+		CEFF69C73025EEE3000B52C3 /* libfreetype.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libfreetype.a; path = "../vcpkg_installed/arm64-ios/lib/libfreetype.a"; sourceTree = "<group>"; };
+		CEFF69C93025EEE8000B52C3 /* libfribidi.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libfribidi.a; path = "../vcpkg_installed/arm64-ios/lib/libfribidi.a"; sourceTree = "<group>"; };
+		CEFF69CE3025EF2C000B52C3 /* libcharset.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libcharset.tbd; path = usr/lib/libcharset.tbd; sourceTree = SDKROOT; };
+		CEFF69D03025EF48000B52C3 /* libbz2.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libbz2.tbd; path = usr/lib/libbz2.tbd; sourceTree = SDKROOT; };
+		CEFF69D23025EF82000B52C3 /* libharfbuzz-subset.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = "libharfbuzz-subset.a"; path = "../vcpkg_installed/arm64-ios/lib/libharfbuzz-subset.a"; sourceTree = "<group>"; };
+		CEFF69D33025EF82000B52C3 /* libharfbuzz-gpu.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = "libharfbuzz-gpu.a"; path = "../vcpkg_installed/arm64-ios/lib/libharfbuzz-gpu.a"; sourceTree = "<group>"; };
+		CEFF69D43025EF82000B52C3 /* libharfbuzz-vector.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = "libharfbuzz-vector.a"; path = "../vcpkg_installed/arm64-ios/lib/libharfbuzz-vector.a"; sourceTree = "<group>"; };
+		CEFF69D53025EF82000B52C3 /* libharfbuzz.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libharfbuzz.a; path = "../vcpkg_installed/arm64-ios/lib/libharfbuzz.a"; sourceTree = "<group>"; };
+		CEFF69D63025EF82000B52C3 /* libharfbuzz-raster.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = "libharfbuzz-raster.a"; path = "../vcpkg_installed/arm64-ios/lib/libharfbuzz-raster.a"; sourceTree = "<group>"; };
+		CEFF69DC3025EF93000B52C3 /* libswresample.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libswresample.a; path = "../vcpkg_installed/arm64-ios/lib/libswresample.a"; sourceTree = "<group>"; };
+		CEFF69DD3025EF93000B52C3 /* libswscale.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libswscale.a; path = "../vcpkg_installed/arm64-ios/lib/libswscale.a"; sourceTree = "<group>"; };
+		CEFF69E03025EFB9000B52C3 /* libbrotlienc.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libbrotlienc.a; path = "../vcpkg_installed/arm64-ios/lib/libbrotlienc.a"; sourceTree = "<group>"; };
+		CEFF69E23025EFBD000B52C3 /* libbrotlidec.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libbrotlidec.a; path = "../vcpkg_installed/arm64-ios/lib/libbrotlidec.a"; sourceTree = "<group>"; };
+		CEFF69E43025EFBF000B52C3 /* libbrotlicommon.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libbrotlicommon.a; path = "../vcpkg_installed/arm64-ios/lib/libbrotlicommon.a"; sourceTree = "<group>"; };
+		CEFF69E63025EFCA000B52C3 /* libpng.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libpng.a; path = "../vcpkg_installed/arm64-ios/lib/libpng.a"; sourceTree = "<group>"; };
+		CEFF69E83025F01F000B52C3 /* libexpat.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libexpat.tbd; path = usr/lib/libexpat.tbd; sourceTree = SDKROOT; };
+		CEFF69EA3025F030000B52C3 /* libunibreak.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libunibreak.a; path = "../vcpkg_installed/arm64-ios/lib/libunibreak.a"; sourceTree = "<group>"; };
+		CEFF69F43025F3DA000B52C3 /* libimgui.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libimgui.a; path = "../vcpkg_installed/arm64-ios/lib/libimgui.a"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -145,22 +173,51 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				CEFF69BA3025EE57000B52C3 /* libavfilter.a in Frameworks */,
+				CEFF69CB3025EF10000B52C3 /* libz.tbd in Frameworks */,
+				CEFF69D83025EF84000B52C3 /* libharfbuzz-raster.a in Frameworks */,
 				CEE78D002FCC3B570002CB9B /* UIKit.framework in Frameworks */,
+				CEFF69C43025EE88000B52C3 /* libfontconfig.a in Frameworks */,
+				CEFF69DF3025EF94000B52C3 /* libswscale.a in Frameworks */,
+				CEFF69E13025EFBB000B52C3 /* libbrotlienc.a in Frameworks */,
+				CEFF69B93025EE57000B52C3 /* libavdevice.a in Frameworks */,
 				CEE78CE52FCC3A450002CB9B /* CoreBluetooth.framework in Frameworks */,
 				CEE78CF92FCC3A8E0002CB9B /* OpenGLES.framework in Frameworks */,
 				CEE78CF32FCC3A6E0002CB9B /* GameController.framework in Frameworks */,
 				CEE78CFB2FCC3A9B0002CB9B /* VideoToolbox.framework in Frameworks */,
 				CEE78CE62FCC3A450002CB9B /* CoreGraphics.framework in Frameworks */,
+				CEFF69E93025F024000B52C3 /* libexpat.tbd in Frameworks */,
+				CEFF69BB3025EE57000B52C3 /* libavformat.a in Frameworks */,
 				CEE78CE82FCC3A450002CB9B /* CoreVideo.framework in Frameworks */,
+				CEFF69CA3025EEE9000B52C3 /* libfribidi.a in Frameworks */,
+				CEFF69BC3025EE57000B52C3 /* libavutil.a in Frameworks */,
+				CEFF69B73025EE57000B52C3 /* libass.a in Frameworks */,
+				CEFF69DB3025EF84000B52C3 /* libharfbuzz.a in Frameworks */,
 				CEE78CE72FCC3A450002CB9B /* CoreText.framework in Frameworks */,
 				CEE78CEA2FCC3A450002CB9B /* Foundation.framework in Frameworks */,
 				CEE78CEE2FCC3A450002CB9B /* CoreHaptics.framework in Frameworks */,
 				CEE78CF12FCC3A670002CB9B /* CoreAudio.framework in Frameworks */,
 				CEE78CFD2FCC3AE40002CB9B /* QuartzCore.framework in Frameworks */,
+				CEFF69F53025F3DC000B52C3 /* libimgui.a in Frameworks */,
+				CEE78CED2FCC3A450002CB9B /* Accelerate.framework in Frameworks */,
 				CEE78CEF2FCC3A450002CB9B /* CoreMedia.framework in Frameworks */,
 				CEE78CEB2FCC3A450002CB9B /* AVFoundation.framework in Frameworks */,
+				CEFF69C83025EEE4000B52C3 /* libfreetype.a in Frameworks */,
+				CEFF69EB3025F032000B52C3 /* libunibreak.a in Frameworks */,
+				CEFF69D13025EF4D000B52C3 /* libbz2.tbd in Frameworks */,
+				CEFF69E53025EFC1000B52C3 /* libbrotlicommon.a in Frameworks */,
+				CEFF69E73025EFCB000B52C3 /* libpng.a in Frameworks */,
 				CEE78CF52FCC3A7D0002CB9B /* Metal.framework in Frameworks */,
+				CEFF69DA3025EF84000B52C3 /* libharfbuzz-vector.a in Frameworks */,
+				CEFF69D73025EF84000B52C3 /* libharfbuzz-gpu.a in Frameworks */,
+				CEFF69BF3025EE5F000B52C3 /* libSDL3_ttf.a in Frameworks */,
+				CEFF69B83025EE57000B52C3 /* libavcodec.a in Frameworks */,
+				CEFF69C03025EE5F000B52C3 /* libSDL3.a in Frameworks */,
+				CEFF69CF3025EF33000B52C3 /* libcharset.tbd in Frameworks */,
+				CEFF69D93025EF84000B52C3 /* libharfbuzz-subset.a in Frameworks */,
+				CEFF69E33025EFBE000B52C3 /* libbrotlidec.a in Frameworks */,
 				CEE78CFF2FCC3AF40002CB9B /* CoreMotion.framework in Frameworks */,
+				CEFF69DE3025EF94000B52C3 /* libswresample.a in Frameworks */,
 				CEE78CE92FCC3A450002CB9B /* AudioToolbox.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -168,6 +225,87 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		CE325F64307AEDEC0000E48A /* components */ = {
+			isa = PBXGroup;
+			children = (
+				CE325F5C307AEDEC0000E48A /* Audio.cpp */,
+				CE325F5D307AEDEC0000E48A /* Canvas.cpp */,
+				CE325F5E307AEDEC0000E48A /* Events.cpp */,
+				CE325F5F307AEDEC0000E48A /* Fade.cpp */,
+				CE325F60307AEDEC0000E48A /* Image.cpp */,
+				CE325F61307AEDEC0000E48A /* Prompt.cpp */,
+				CE325F62307AEDEC0000E48A /* Sound.cpp */,
+				CE325F63307AEDEC0000E48A /* Video.cpp */,
+			);
+			path = components;
+			sourceTree = "<group>";
+		};
+		CE325F68307AEDEC0000E48A /* mobile */ = {
+			isa = PBXGroup;
+			children = (
+				CE325F65307AEDEC0000E48A /* Android.cpp */,
+				CE325F66307AEDEC0000E48A /* IOS.mm */,
+				CE325F67307AEDEC0000E48A /* mobile.cpp */,
+			);
+			path = mobile;
+			sourceTree = "<group>";
+		};
+		CE325F6A307AEDEC0000E48A /* parsers */ = {
+			isa = PBXGroup;
+			children = (
+				CE325F69307AEDEC0000E48A /* Ors.c */,
+			);
+			path = parsers;
+			sourceTree = "<group>";
+		};
+		CE325F72307AEDEC0000E48A /* renders */ = {
+			isa = PBXGroup;
+			children = (
+				CE325F6B307AEDEC0000E48A /* AudioRender.c */,
+				CE325F6C307AEDEC0000E48A /* FpsRender.c */,
+				CE325F6D307AEDEC0000E48A /* ImageRender.c */,
+				CE325F6E307AEDEC0000E48A /* LoadingRender.c */,
+				CE325F6F307AEDEC0000E48A /* TextRender.c */,
+				CE325F70307AEDEC0000E48A /* TimestampRender.c */,
+				CE325F71307AEDEC0000E48A /* VideoRender.c */,
+			);
+			path = renders;
+			sourceTree = "<group>";
+		};
+		CE325F7A307AEDEC0000E48A /* utils */ = {
+			isa = PBXGroup;
+			children = (
+				CE325F73307AEDEC0000E48A /* FFmpeg.c */,
+				CE325F74307AEDEC0000E48A /* IOMonitor.c */,
+				CE325F75307AEDEC0000E48A /* LibIconvCompat.c */,
+				CE325F76307AEDEC0000E48A /* OverlayRenderUtils.c */,
+				CE325F77307AEDEC0000E48A /* Time.c */,
+				CE325F78307AEDEC0000E48A /* UserEvents.c */,
+				CE325F79307AEDEC0000E48A /* VoicePcm.c */,
+			);
+			path = utils;
+			sourceTree = "<group>";
+		};
+		CE325F82307AEDEC0000E48A /* src */ = {
+			isa = PBXGroup;
+			children = (
+				CE325F64307AEDEC0000E48A /* components */,
+				CE325F68307AEDEC0000E48A /* mobile */,
+				CE325F6A307AEDEC0000E48A /* parsers */,
+				CE325F72307AEDEC0000E48A /* renders */,
+				CE325F7A307AEDEC0000E48A /* utils */,
+				CE325F7B307AEDEC0000E48A /* BasicGui.cpp */,
+				CE325F7C307AEDEC0000E48A /* Gameplay.cpp */,
+				CE325F7D307AEDEC0000E48A /* GameplayEvents.cpp */,
+				CE325F7E307AEDEC0000E48A /* Kotonoha.cpp */,
+				CE325F7F307AEDEC0000E48A /* Kotonoha.rc */,
+				CE325F80307AEDEC0000E48A /* Main.cpp */,
+				CE325F81307AEDEC0000E48A /* resource.h */,
+			);
+			name = src;
+			path = ../src;
+			sourceTree = SOURCE_ROOT;
+		};
 		CE325F8C307AEDF40000E48A /* components */ = {
 			isa = PBXGroup;
 			children = (
@@ -244,99 +382,56 @@
 			path = ../include;
 			sourceTree = SOURCE_ROOT;
 		};
-		CEDA2B17307AF38900027D9C /* components */ = {
-			isa = PBXGroup;
-			children = (
-				CEDA2B0F307AF38900027D9C /* Audio.cpp */,
-				CEDA2B10307AF38900027D9C /* Canvas.cpp */,
-				CEDA2B11307AF38900027D9C /* Events.cpp */,
-				CEDA2B12307AF38900027D9C /* Fade.cpp */,
-				CEDA2B13307AF38900027D9C /* Image.cpp */,
-				CEDA2B14307AF38900027D9C /* Prompt.cpp */,
-				CEDA2B15307AF38900027D9C /* Sound.cpp */,
-				CEDA2B16307AF38900027D9C /* Video.cpp */,
-			);
-			path = components;
-			sourceTree = "<group>";
-		};
-		CEDA2B1B307AF38900027D9C /* mobile */ = {
-			isa = PBXGroup;
-			children = (
-				CEDA2B19307AF38900027D9C /* IOS.mm */,
-				CEDA2B1A307AF38900027D9C /* mobile.cpp */,
-			);
-			path = mobile;
-			sourceTree = "<group>";
-		};
-		CEDA2B1D307AF38900027D9C /* parsers */ = {
-			isa = PBXGroup;
-			children = (
-				CEDA2B1C307AF38900027D9C /* Ors.c */,
-			);
-			path = parsers;
-			sourceTree = "<group>";
-		};
-		CEDA2B25307AF38900027D9C /* renders */ = {
-			isa = PBXGroup;
-			children = (
-				CEDA2B1E307AF38900027D9C /* AudioRender.c */,
-				CEDA2B1F307AF38900027D9C /* FpsRender.c */,
-				CEDA2B20307AF38900027D9C /* ImageRender.c */,
-				CEDA2B21307AF38900027D9C /* LoadingRender.c */,
-				CEDA2B22307AF38900027D9C /* TextRender.c */,
-				CEDA2B23307AF38900027D9C /* TimestampRender.c */,
-				CEDA2B24307AF38900027D9C /* VideoRender.c */,
-			);
-			path = renders;
-			sourceTree = "<group>";
-		};
-		CEDA2B2D307AF38900027D9C /* utils */ = {
-			isa = PBXGroup;
-			children = (
-				CEDA2B26307AF38900027D9C /* FFmpeg.c */,
-				CEDA2B27307AF38900027D9C /* IOMonitor.c */,
-				CEDA2B28307AF38900027D9C /* LibIconvCompat.c */,
-				CEDA2B29307AF38900027D9C /* OverlayRenderUtils.c */,
-				CEDA2B2A307AF38900027D9C /* Time.c */,
-				CEDA2B2B307AF38900027D9C /* UserEvents.c */,
-				CEDA2B2C307AF38900027D9C /* VoicePcm.c */,
-			);
-			path = utils;
-			sourceTree = "<group>";
-		};
-		CEDA2B35307AF38900027D9C /* src */ = {
-			isa = PBXGroup;
-			children = (
-				CEDA2B17307AF38900027D9C /* components */,
-				CEDA2B1B307AF38900027D9C /* mobile */,
-				CEDA2B1D307AF38900027D9C /* parsers */,
-				CEDA2B25307AF38900027D9C /* renders */,
-				CEDA2B2D307AF38900027D9C /* utils */,
-				CEDA2B2E307AF38900027D9C /* BasicGui.cpp */,
-				CEDA2B2F307AF38900027D9C /* Gameplay.cpp */,
-				CEDA2B30307AF38900027D9C /* GameplayEvents.cpp */,
-				CEDA2B31307AF38900027D9C /* Kotonoha.cpp */,
-				CEDA2B33307AF38900027D9C /* Main.cpp */,
-			);
-			name = src;
-			path = ../src;
-			sourceTree = SOURCE_ROOT;
-		};
 		CEE78C282FCC37E10002CB9B = {
 			isa = PBXGroup;
 			children = (
-				CEDA2B0D307AF24100027D9C /* Media.xcassets */,
 				CE540CF52FCD0736006FA974 /* Info.plist */,
 				CEE78C9C2FCC38DE0002CB9B /* Frameworks */,
+				CE325F82307AEDEC0000E48A /* src */,
 				CE325FA4307AEDF40000E48A /* include */,
-				CEDA2B35307AF38900027D9C /* src */,
-				CEDA2B0C307AF19D00027D9C /* KotonohaEngineTest.app */,
+				CEE78C322FCC37E10002CB9B /* Products */,
 			);
+			sourceTree = "<group>";
+		};
+		CEE78C322FCC37E10002CB9B /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				CEE78C312FCC37E10002CB9B /* KotonohaEngineTest.app */,
+			);
+			name = Products;
 			sourceTree = "<group>";
 		};
 		CEE78C9C2FCC38DE0002CB9B /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				CEFF69F43025F3DA000B52C3 /* libimgui.a */,
+				CEFF69EA3025F030000B52C3 /* libunibreak.a */,
+				CEFF69E83025F01F000B52C3 /* libexpat.tbd */,
+				CEFF69E63025EFCA000B52C3 /* libpng.a */,
+				CEFF69E43025EFBF000B52C3 /* libbrotlicommon.a */,
+				CEFF69E23025EFBD000B52C3 /* libbrotlidec.a */,
+				CEFF69E03025EFB9000B52C3 /* libbrotlienc.a */,
+				CEFF69DC3025EF93000B52C3 /* libswresample.a */,
+				CEFF69DD3025EF93000B52C3 /* libswscale.a */,
+				CEFF69D53025EF82000B52C3 /* libharfbuzz.a */,
+				CEFF69D33025EF82000B52C3 /* libharfbuzz-gpu.a */,
+				CEFF69D63025EF82000B52C3 /* libharfbuzz-raster.a */,
+				CEFF69D23025EF82000B52C3 /* libharfbuzz-subset.a */,
+				CEFF69D43025EF82000B52C3 /* libharfbuzz-vector.a */,
+				CEFF69D03025EF48000B52C3 /* libbz2.tbd */,
+				CEFF69CE3025EF2C000B52C3 /* libcharset.tbd */,
+				CEFF69C93025EEE8000B52C3 /* libfribidi.a */,
+				CEFF69C73025EEE3000B52C3 /* libfreetype.a */,
+				CEFF69C63025EEB4000B52C3 /* libz.tbd */,
+				CEFF69C33025EE87000B52C3 /* libfontconfig.a */,
+				CEFF69BD3025EE5E000B52C3 /* libSDL3.a */,
+				CEFF69BE3025EE5E000B52C3 /* libSDL3_ttf.a */,
+				CEFF69B13025EE55000B52C3 /* libass.a */,
+				CEFF69B63025EE55000B52C3 /* libavcodec.a */,
+				CEFF69B43025EE55000B52C3 /* libavdevice.a */,
+				CEFF69B53025EE55000B52C3 /* libavfilter.a */,
+				CEFF69B23025EE55000B52C3 /* libavformat.a */,
+				CEFF69B33025EE55000B52C3 /* libavutil.a */,
 				CEE78CFE2FCC3AF40002CB9B /* CoreMotion.framework */,
 				CEE78CFC2FCC3AE40002CB9B /* QuartzCore.framework */,
 				CEE78CFA2FCC3A9B0002CB9B /* VideoToolbox.framework */,
@@ -379,7 +474,7 @@
 			packageProductDependencies = (
 			);
 			productName = KotonohaEngineTest;
-			productReference = CEDA2B0C307AF19D00027D9C /* KotonohaEngineTest.app */;
+			productReference = CEE78C312FCC37E10002CB9B /* KotonohaEngineTest.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -406,7 +501,7 @@
 			mainGroup = CEE78C282FCC37E10002CB9B;
 			minimizedProjectReferenceProxies = 1;
 			preferredProjectObjectVersion = 77;
-			productRefGroup = CEE78C282FCC37E10002CB9B;
+			productRefGroup = CEE78C322FCC37E10002CB9B /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
@@ -420,7 +515,6 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				CEDA2B0E307AF24100027D9C /* Media.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -431,36 +525,6 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				CEDA2B36307AF38900027D9C /* Main.cpp in Sources */,
-				CEDA2B37307AF38900027D9C /* VideoRender.c in Sources */,
-				CEDA2B38307AF38900027D9C /* Image.cpp in Sources */,
-				CEDA2B39307AF38900027D9C /* Ors.c in Sources */,
-				CEDA2B3A307AF38900027D9C /* Canvas.cpp in Sources */,
-				CEDA2B3B307AF38900027D9C /* GameplayEvents.cpp in Sources */,
-				CEDA2B3C307AF38900027D9C /* mobile.cpp in Sources */,
-				CEDA2B3D307AF38900027D9C /* BasicGui.cpp in Sources */,
-				CEDA2B3F307AF38900027D9C /* FpsRender.c in Sources */,
-				CEDA2B40307AF38900027D9C /* Events.cpp in Sources */,
-				CEDA2B41307AF38900027D9C /* TextRender.c in Sources */,
-				CEDA2B42307AF38900027D9C /* Gameplay.cpp in Sources */,
-				CEDA2B43307AF38900027D9C /* LibIconvCompat.c in Sources */,
-				CEDA2B44307AF38900027D9C /* IOS.mm in Sources */,
-				CEDA2B45307AF38900027D9C /* Audio.cpp in Sources */,
-				CEDA2B46307AF38900027D9C /* TimestampRender.c in Sources */,
-				CEDA2B47307AF38900027D9C /* Video.cpp in Sources */,
-				CEDA2B48307AF38900027D9C /* Fade.cpp in Sources */,
-				CEDA2B49307AF38900027D9C /* OverlayRenderUtils.c in Sources */,
-				CEDA2B4A307AF38900027D9C /* Prompt.cpp in Sources */,
-				CEDA2B4B307AF38900027D9C /* IOMonitor.c in Sources */,
-				CEDA2B4C307AF38900027D9C /* FFmpeg.c in Sources */,
-				CEDA2B4D307AF38900027D9C /* LoadingRender.c in Sources */,
-				CEDA2B4E307AF38900027D9C /* UserEvents.c in Sources */,
-				CEDA2B4F307AF38900027D9C /* Time.c in Sources */,
-				CEDA2B50307AF38900027D9C /* Sound.cpp in Sources */,
-				CEDA2B51307AF38900027D9C /* VoicePcm.c in Sources */,
-				CEDA2B52307AF38900027D9C /* ImageRender.c in Sources */,
-				CEDA2B53307AF38900027D9C /* Kotonoha.cpp in Sources */,
-				CEDA2B54307AF38900027D9C /* AudioRender.c in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -472,22 +536,15 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_ASSET_PATHS = ../assets;
+				DEVELOPMENT_ASSET_PATHS = "";
 				DEVELOPMENT_TEAM = 64T9B5HFFD;
-				ENABLE_APP_SANDBOX = YES;
-				ENABLE_HARDENED_RUNTIME = YES;
-				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				HEADER_SEARCH_PATHS = (
 					"$(PROJECT_DIR)/../include",
 					"$(PROJECT_DIR)/../vcpkg_installed/arm64-ios/include",
-				);
-				"HEADER_SEARCH_PATHS[sdk=iphonesimulator*]" = (
-					"$(PROJECT_DIR)/../include",
-					"$(PROJECT_DIR)/../vcpkg_installed/arm64-ios-simulator/include",
 				);
 				INFOPLIST_FILE = Info.plist;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.games";
@@ -495,57 +552,22 @@
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UIRequiredDeviceCapabilities = metal;
 				INFOPLIST_KEY_UIStatusBarHidden = YES;
-				INFOPLIST_KEY_UIStatusBarStyle = UIStatusBarStyleDarkContent;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				IPHONEOS_DEPLOYMENT_TARGET = 27.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				LIBRARY_SEARCH_PATHS = "$(PROJECT_DIR)/../vcpkg_installed/arm64-ios/debug/lib";
-				"LIBRARY_SEARCH_PATHS[sdk=iphonesimulator*]" = "$(PROJECT_DIR)/../vcpkg_installed/arm64-ios-simulator/debug/lib";
-				MARKETING_VERSION = 1.0;
-				OTHER_LDFLAGS = (
-					"-lass",
-					"-lavcodec",
-					"-lavdevice",
-					"-lavfilter",
-					"-lavformat",
-					"-lavutil",
-					"-lbrotlicommon",
-					"-lbrotlidec",
-					"-lbrotlienc",
-					"-lbz2d",
-					"-lcharset",
-					"-lexpat",
-					"-lfontconfig",
-					"-lfreetyped",
-					"-lfribidi",
-					"-lharfbuzz-gpu",
-					"-lharfbuzz-raster",
-					"-lharfbuzz-subset",
-					"-lharfbuzz-vector",
-					"-lharfbuzz",
-					"-liconv",
-					"-limguid",
-					"-lplutosvg",
-					"-lplutovg",
-					"-lpng",
-					"-lpng16d",
-					"-lSDL3_ttf",
-					"-lSDL3",
-					"-lswresample",
-					"-lswscale",
-					"-lunibreak",
-					"-luuid",
-					"-lz",
+				LIBRARY_SEARCH_PATHS = (
+					"$(PROJECT_DIR)/../vcpkg_installed/arm64-ios/include",
+					"$(PROJECT_DIR)/../vcpkg_installed/arm64-ios/lib",
 				);
+				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = "\"-liconv\"";
 				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.KotonohaEngineTest;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				REGISTER_APP_GROUPS = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
-				SUPPORTS_MACCATALYST = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -556,22 +578,15 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_ASSET_PATHS = ../assets;
+				DEVELOPMENT_ASSET_PATHS = "";
 				DEVELOPMENT_TEAM = 64T9B5HFFD;
-				ENABLE_APP_SANDBOX = YES;
-				ENABLE_HARDENED_RUNTIME = YES;
-				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				HEADER_SEARCH_PATHS = (
 					"$(PROJECT_DIR)/../include",
 					"$(PROJECT_DIR)/../vcpkg_installed/arm64-ios/include",
-				);
-				"HEADER_SEARCH_PATHS[sdk=iphonesimulator*]" = (
-					"$(PROJECT_DIR)/../include",
-					"$(PROJECT_DIR)/../vcpkg_installed/arm64-ios-simulator/include",
 				);
 				INFOPLIST_FILE = Info.plist;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.games";
@@ -579,57 +594,22 @@
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UIRequiredDeviceCapabilities = metal;
 				INFOPLIST_KEY_UIStatusBarHidden = YES;
-				INFOPLIST_KEY_UIStatusBarStyle = UIStatusBarStyleDarkContent;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				IPHONEOS_DEPLOYMENT_TARGET = 27.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				LIBRARY_SEARCH_PATHS = "$(PROJECT_DIR)/../vcpkg_installed/arm64-ios/lib";
-				"LIBRARY_SEARCH_PATHS[sdk=iphonesimulator*]" = "$(PROJECT_DIR)/../vcpkg_installed/arm64-ios-simulator/lib";
-				MARKETING_VERSION = 1.0;
-				OTHER_LDFLAGS = (
-					"-lass",
-					"-lavcodec",
-					"-lavdevice",
-					"-lavfilter",
-					"-lavformat",
-					"-lavutil",
-					"-lbrotlicommon",
-					"-lbrotlidec",
-					"-lbrotlienc",
-					"-lbz2",
-					"-lcharset",
-					"-lexpat",
-					"-lfontconfig",
-					"-lfreetype",
-					"-lfribidi",
-					"-lharfbuzz-gpu",
-					"-lharfbuzz-raster",
-					"-lharfbuzz-subset",
-					"-lharfbuzz-vector",
-					"-lharfbuzz",
-					"-liconv",
-					"-limgui",
-					"-lplutosvg",
-					"-lplutovg",
-					"-lpng",
-					"-lpng16",
-					"-lSDL3_ttf",
-					"-lSDL3",
-					"-lswresample",
-					"-lswscale",
-					"-lunibreak",
-					"-luuid",
-					"-lz",
+				LIBRARY_SEARCH_PATHS = (
+					"$(PROJECT_DIR)/../vcpkg_installed/arm64-ios/include",
+					"$(PROJECT_DIR)/../vcpkg_installed/arm64-ios/lib",
 				);
+				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = "\"-liconv\"";
 				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.KotonohaEngineTest;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				REGISTER_APP_GROUPS = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
-				SUPPORTS_MACCATALYST = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
