@@ -22,22 +22,22 @@
       "features": [
         "zlib"
       ],
-      "platform": "!osx | !linux"
+      "platform": "!osx & !linux"
     },
     {
       "name": "libass",
-      "platform": "!osx | !linux"
+      "platform": "!osx & !linux"
     },
     {
       "name": "sdl3",
-      "platform": "!osx | !linux"
+      "platform": "!osx & !linux"
     },
     {
       "name": "sdl3-ttf",
       "features": [
         "harfbuzz"
       ],
-      "platform": "!osx | !linux"
+      "platform": "!osx & !linux"
     },
     {
       "name": "imgui",
