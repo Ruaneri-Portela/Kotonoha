@@ -10,18 +10,34 @@
       "platform": "ios | android"
     },
     {
-      "name": "expat",
-      "platform": "android"
-    },
-    {
       "name": "libiconv",
       "platform": "ios | android"
+    },
+    {
+      "name": "expat",
+      "platform": "android"
     },
     {
       "name": "ffmpeg",
       "features": [
         "zlib"
-      ]
+      ],
+      "platform": "!osx | !linux"
+    },
+    {
+      "name": "libass",
+      "platform": "!osx | !linux"
+    },
+    {
+      "name": "sdl3",
+      "platform": "!osx | !linux"
+    },
+    {
+      "name": "sdl3-ttf",
+      "features": [
+        "harfbuzz"
+      ],
+      "platform": "!osx | !linux"
     },
     {
       "name": "imgui",
@@ -30,14 +46,6 @@
         "sdl3-binding",
         "sdl3-renderer-binding"
       ]
-    },
-    {
-      "name": "sdl3-ttf",
-      "features": [
-        "harfbuzz"
-      ]
-    },
-    "libass",
-    "sdl3"
+    }
   ]
 }
