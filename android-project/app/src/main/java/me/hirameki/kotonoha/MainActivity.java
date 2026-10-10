@@ -21,7 +21,7 @@ public class MainActivity extends Activity {
                 startKotonohaWithArguments(new String[]{
                         "-s", "assets/styles.skot",
                         "-p", "http://192.168.88.251:9090/",
-                        "-l", "assets/00"
+                        "-l", "assets/05"
                 });
             }
         });

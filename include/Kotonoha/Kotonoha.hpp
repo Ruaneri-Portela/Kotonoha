@@ -22,7 +22,9 @@ extern "C" {
 }
 
 #include <atomic>
+#include <string>
 #include <tuple>
+#include <vector>
 
 namespace Kotonoha {
 	class Kotonoha {
@@ -36,6 +38,18 @@ namespace Kotonoha {
 		char* preferedGPU = nullptr;
 		int windowsWidth = 1280;
 		int windowsHeight = 720;
+		bool fullscreen = false;
+		bool enableVsync = false;
+		bool showRenderDrivers = false;
+		bool ignoreMissingAssets = false;
+		bool showFps = false;
+		bool showTimestamp = false;
+		bool showDebugUi = false;
+		struct DeferredFile {
+			std::string path;
+			bool isSubtitleStyles;
+		};
+		std::vector<DeferredFile> deferredFiles;
 		bool showCursor = true;
 		Uint64 lastMouseTime = 0;
 		size_t lastScene = static_cast<size_t>(-1);
@@ -44,8 +58,8 @@ namespace Kotonoha {
 		bool sceneTransitionActive = false;
 		Uint64 lastSceneFrameCaptureTime = 0;
 
-		bool ParseArguments(int argc, char* argv[], bool initDependent);
-		void LoadSubtitleStylesFile(char* path);
+		bool ParseArguments(int argc, char* argv[]);
+		void LoadSubtitleStylesFile(const char* path);
 		void LoadWindowIcon(const char* path);
 		bool CaptureSceneTransitionFrame(bool activateTransition = true);
 		static int EventsThread(void* data);
@@ -62,6 +76,8 @@ namespace Kotonoha {
 
 		Kotonoha(int argc, char* argv[], SDL_AppResult* initStatus,
 			struct Kotonoha_Game& gameContext);
+		void ConfigureWindow();
+		SDL_AppResult Initialize();
 
 		SDL_AppResult Event(SDL_Event* event);
 
