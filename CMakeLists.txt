@@ -51,9 +51,6 @@ pkg_check_modules(FFMPEG REQUIRED IMPORTED_TARGET
         libswresample
 )
 pkg_check_modules(LIBASS REQUIRED IMPORTED_TARGET libass)
-pkg_check_modules(SDL3 REQUIRED IMPORTED_TARGET sdl3)
-pkg_check_modules(SDL3_TTF REQUIRED IMPORTED_TARGET sdl3-ttf)
-
 find_package(imgui CONFIG REQUIRED)
 
 if(ANDROID)
@@ -62,11 +59,8 @@ if(ANDROID)
     find_package(imgui CONFIG REQUIRED)
     find_package(expat CONFIG REQUIRED)
 else()
-    pkg_check_modules(LIBASS REQUIRED IMPORTED_TARGET libass)
     pkg_check_modules(SDL3 REQUIRED IMPORTED_TARGET sdl3)
     pkg_check_modules(SDL3_TTF REQUIRED IMPORTED_TARGET sdl3-ttf)
-
-    find_package(imgui CONFIG REQUIRED)
 endif()
 
 # ==============================================================================
