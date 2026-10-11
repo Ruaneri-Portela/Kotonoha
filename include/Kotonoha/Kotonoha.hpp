@@ -37,8 +37,6 @@ namespace Kotonoha {
 		std::vector<std::tuple<SDL_ThreadFunction, void*>> processPoolTasks;
 		const char* preferredGPU = nullptr;
 		
-		int windowsWidth = 1280;
-		int windowsHeight = 720;
 		bool fullscreen = false;
 		bool enableVsync = false;
 		bool ignoreMissingAssets = false;

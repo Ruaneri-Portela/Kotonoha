@@ -118,6 +118,9 @@ extern "C" {
 		*appstate = nullptr;
 		std::memset(&global, 0, sizeof(global));
 
+		global.videoWidth = 1280;
+		global.videoHeight = 720;
+
 		SDL_AppResult status = SDL_APP_FAILURE;
 		Kotonoha::Kotonoha* engine =
 			new (std::nothrow) Kotonoha::Kotonoha(argc, argv, &status, global);

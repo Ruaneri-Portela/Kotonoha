@@ -87,8 +87,8 @@ namespace Kotonoha {
 			SDL_SetWindowFullscreen(gameContext.window, true);
 			gameContext.flags = SDL_GetWindowFlags(gameContext.window);
 		}
-		if (windowsWidth != 1280 || windowsHeight != 720) {
-			SDL_SetWindowSize(gameContext.window, windowsWidth, windowsHeight);
+		if (gameContext.videoWidth != 1280 || gameContext.videoHeight != 720) {
+			SDL_SetWindowSize(gameContext.window, gameContext.videoWidth, gameContext.videoHeight);
 		}
 	}
 
@@ -395,8 +395,8 @@ namespace Kotonoha {
 			case 'x':
 				if (i + 2 < argc && argv[i + 1] != nullptr &&
 					argv[i + 2] != nullptr) {
-					windowsWidth = SDL_atoi(argv[++i]);
-					windowsHeight = SDL_atoi(argv[++i]);
+					gameContext.videoWidth = SDL_atoi(argv[++i]);
+					gameContext.videoHeight = SDL_atoi(argv[++i]);
 				}
 				else {
 					SDL_LogError(0, "Missing arguments for -x option (width and height)");
