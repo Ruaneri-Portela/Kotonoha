@@ -531,10 +531,16 @@ namespace Kotonoha {
 		}
 
 		std::stringstream subSs;
-		subSs << "[Script Info]\nTitle:" << orsPath
-			<< "\nScriptType: v4.00+\nWrapStyle: 0\nScaledBorderAndShadow: yes\n"
+		subSs << "[Script Info]\n"
+			<< "Title: " << orsPath << "\n"
+			<< "ScriptType: v4.00+\n"
+			<< "PlayResX: " << gameCtx->videoWidth << "\n"
+			<< "PlayResY: " << gameCtx->videoHeight << "\n"
+			<< "WrapStyle: 0\n"
+			<< "ScaledBorderAndShadow: yes\n"
 			<< "YCbCr Matrix: None\n\n"
-			<< (gameCtx->styleStr == nullptr ? "" : gameCtx->styleStr) << std::endl;
+			<< (gameCtx->styleStr == nullptr ? "" : gameCtx->styleStr)
+			<< std::endl;
 
 		gp->sb->track = ass_new_track(gp->sb->ass_library);
 
