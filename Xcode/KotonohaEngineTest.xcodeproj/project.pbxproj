@@ -7,6 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		CE37165B307B51CD00C1C8A5 /* Upscaling.mm in Sources */ = {isa = PBXBuildFile; fileRef = CE371659307B51CD00C1C8A5 /* Upscaling.mm */; };
+		CE37165C307B51CD00C1C8A5 /* LibIconvCompat.c in Sources */ = {isa = PBXBuildFile; fileRef = CE371658307B51CD00C1C8A5 /* LibIconvCompat.c */; };
+		CE371660307B51EC00C1C8A5 /* MetalFX.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CE37165F307B51EC00C1C8A5 /* MetalFX.framework */; };
 		CEDA2B0E307AF24100027D9C /* Media.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = CEDA2B0D307AF24100027D9C /* Media.xcassets */; };
 		CEDA2B36307AF38900027D9C /* Main.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CEDA2B33307AF38900027D9C /* Main.cpp */; };
 		CEDA2B37307AF38900027D9C /* VideoRender.c in Sources */ = {isa = PBXBuildFile; fileRef = CEDA2B24307AF38900027D9C /* VideoRender.c */; };
@@ -20,7 +23,6 @@
 		CEDA2B40307AF38900027D9C /* Events.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CEDA2B11307AF38900027D9C /* Events.cpp */; };
 		CEDA2B41307AF38900027D9C /* TextRender.c in Sources */ = {isa = PBXBuildFile; fileRef = CEDA2B22307AF38900027D9C /* TextRender.c */; };
 		CEDA2B42307AF38900027D9C /* Gameplay.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CEDA2B2F307AF38900027D9C /* Gameplay.cpp */; };
-		CEDA2B43307AF38900027D9C /* LibIconvCompat.c in Sources */ = {isa = PBXBuildFile; fileRef = CEDA2B28307AF38900027D9C /* LibIconvCompat.c */; };
 		CEDA2B44307AF38900027D9C /* IOS.mm in Sources */ = {isa = PBXBuildFile; fileRef = CEDA2B19307AF38900027D9C /* IOS.mm */; };
 		CEDA2B45307AF38900027D9C /* Audio.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CEDA2B0F307AF38900027D9C /* Audio.cpp */; };
 		CEDA2B46307AF38900027D9C /* TimestampRender.c in Sources */ = {isa = PBXBuildFile; fileRef = CEDA2B23307AF38900027D9C /* TimestampRender.c */; };
@@ -86,6 +88,10 @@
 		CE325FA0307AEDF40000E48A /* Kotonoha.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Kotonoha.h; sourceTree = "<group>"; };
 		CE325FA1307AEDF40000E48A /* Kotonoha.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Kotonoha.hpp; sourceTree = "<group>"; };
 		CE325FA2307AEDF40000E48A /* version.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = version.h; sourceTree = "<group>"; };
+		CE371658307B51CD00C1C8A5 /* LibIconvCompat.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = LibIconvCompat.c; sourceTree = "<group>"; };
+		CE371659307B51CD00C1C8A5 /* Upscaling.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = Upscaling.mm; sourceTree = "<group>"; };
+		CE37165D307B51D700C1C8A5 /* Upscaling.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Upscaling.h; sourceTree = "<group>"; };
+		CE37165F307B51EC00C1C8A5 /* MetalFX.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MetalFX.framework; path = System/Library/Frameworks/MetalFX.framework; sourceTree = SDKROOT; };
 		CE540CF52FCD0736006FA974 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		CEDA2B0C307AF19D00027D9C /* KotonohaEngineTest.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = KotonohaEngineTest.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		CEDA2B0D307AF24100027D9C /* Media.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Media.xcassets; sourceTree = "<group>"; };
@@ -109,7 +115,6 @@
 		CEDA2B24307AF38900027D9C /* VideoRender.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = VideoRender.c; sourceTree = "<group>"; };
 		CEDA2B26307AF38900027D9C /* FFmpeg.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = FFmpeg.c; sourceTree = "<group>"; };
 		CEDA2B27307AF38900027D9C /* IOMonitor.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = IOMonitor.c; sourceTree = "<group>"; };
-		CEDA2B28307AF38900027D9C /* LibIconvCompat.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = LibIconvCompat.c; sourceTree = "<group>"; };
 		CEDA2B29307AF38900027D9C /* OverlayRenderUtils.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = OverlayRenderUtils.c; sourceTree = "<group>"; };
 		CEDA2B2A307AF38900027D9C /* Time.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = Time.c; sourceTree = "<group>"; };
 		CEDA2B2B307AF38900027D9C /* UserEvents.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = UserEvents.c; sourceTree = "<group>"; };
@@ -157,6 +162,7 @@
 				CEE78CEE2FCC3A450002CB9B /* CoreHaptics.framework in Frameworks */,
 				CEE78CF12FCC3A670002CB9B /* CoreAudio.framework in Frameworks */,
 				CEE78CFD2FCC3AE40002CB9B /* QuartzCore.framework in Frameworks */,
+				CE371660307B51EC00C1C8A5 /* MetalFX.framework in Frameworks */,
 				CEE78CEF2FCC3A450002CB9B /* CoreMedia.framework in Frameworks */,
 				CEE78CEB2FCC3A450002CB9B /* AVFoundation.framework in Frameworks */,
 				CEE78CF52FCC3A7D0002CB9B /* Metal.framework in Frameworks */,
@@ -231,6 +237,7 @@
 				CE325FA0307AEDF40000E48A /* Kotonoha.h */,
 				CE325FA1307AEDF40000E48A /* Kotonoha.hpp */,
 				CE325FA2307AEDF40000E48A /* version.h */,
+				CE37165E307B51D700C1C8A5 /* speciais */,
 			);
 			path = Kotonoha;
 			sourceTree = "<group>";
@@ -243,6 +250,23 @@
 			name = include;
 			path = ../include;
 			sourceTree = SOURCE_ROOT;
+		};
+		CE37165A307B51CD00C1C8A5 /* specials */ = {
+			isa = PBXGroup;
+			children = (
+				CE371658307B51CD00C1C8A5 /* LibIconvCompat.c */,
+				CE371659307B51CD00C1C8A5 /* Upscaling.mm */,
+			);
+			path = specials;
+			sourceTree = "<group>";
+		};
+		CE37165E307B51D700C1C8A5 /* speciais */ = {
+			isa = PBXGroup;
+			children = (
+				CE37165D307B51D700C1C8A5 /* Upscaling.h */,
+			);
+			path = speciais;
+			sourceTree = "<group>";
 		};
 		CEDA2B17307AF38900027D9C /* components */ = {
 			isa = PBXGroup;
@@ -295,7 +319,6 @@
 			children = (
 				CEDA2B26307AF38900027D9C /* FFmpeg.c */,
 				CEDA2B27307AF38900027D9C /* IOMonitor.c */,
-				CEDA2B28307AF38900027D9C /* LibIconvCompat.c */,
 				CEDA2B29307AF38900027D9C /* OverlayRenderUtils.c */,
 				CEDA2B2A307AF38900027D9C /* Time.c */,
 				CEDA2B2B307AF38900027D9C /* UserEvents.c */,
@@ -317,6 +340,7 @@
 				CEDA2B30307AF38900027D9C /* GameplayEvents.cpp */,
 				CEDA2B31307AF38900027D9C /* Kotonoha.cpp */,
 				CEDA2B33307AF38900027D9C /* Main.cpp */,
+				CE37165A307B51CD00C1C8A5 /* specials */,
 			);
 			name = src;
 			path = ../src;
@@ -337,6 +361,7 @@
 		CEE78C9C2FCC38DE0002CB9B /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				CE37165F307B51EC00C1C8A5 /* MetalFX.framework */,
 				CEE78CFE2FCC3AF40002CB9B /* CoreMotion.framework */,
 				CEE78CFC2FCC3AE40002CB9B /* QuartzCore.framework */,
 				CEE78CFA2FCC3A9B0002CB9B /* VideoToolbox.framework */,
@@ -443,7 +468,6 @@
 				CEDA2B40307AF38900027D9C /* Events.cpp in Sources */,
 				CEDA2B41307AF38900027D9C /* TextRender.c in Sources */,
 				CEDA2B42307AF38900027D9C /* Gameplay.cpp in Sources */,
-				CEDA2B43307AF38900027D9C /* LibIconvCompat.c in Sources */,
 				CEDA2B44307AF38900027D9C /* IOS.mm in Sources */,
 				CEDA2B45307AF38900027D9C /* Audio.cpp in Sources */,
 				CEDA2B46307AF38900027D9C /* TimestampRender.c in Sources */,
@@ -453,6 +477,8 @@
 				CEDA2B4A307AF38900027D9C /* Prompt.cpp in Sources */,
 				CEDA2B4B307AF38900027D9C /* IOMonitor.c in Sources */,
 				CEDA2B4C307AF38900027D9C /* FFmpeg.c in Sources */,
+				CE37165B307B51CD00C1C8A5 /* Upscaling.mm in Sources */,
+				CE37165C307B51CD00C1C8A5 /* LibIconvCompat.c in Sources */,
 				CEDA2B4D307AF38900027D9C /* LoadingRender.c in Sources */,
 				CEDA2B4E307AF38900027D9C /* UserEvents.c in Sources */,
 				CEDA2B4F307AF38900027D9C /* Time.c in Sources */,
@@ -480,6 +506,11 @@
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"KOTONOHA_HAS_METALFX=1",
+					"DEBUG=1",
+					"$(inherited)",
+				);
 				GENERATE_INFOPLIST_FILE = YES;
 				HEADER_SEARCH_PATHS = (
 					"$(PROJECT_DIR)/../include",
@@ -564,6 +595,7 @@
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
+				GCC_PREPROCESSOR_DEFINITIONS = "KOTONOHA_HAS_METALFX=1";
 				GENERATE_INFOPLIST_FILE = YES;
 				HEADER_SEARCH_PATHS = (
 					"$(PROJECT_DIR)/../include",

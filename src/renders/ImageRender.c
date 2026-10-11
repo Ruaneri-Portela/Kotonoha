@@ -1,5 +1,5 @@
 #include <Kotonoha/renders/ImageRender.h>
-#include <limits.h>
+#include <Kotonoha/speciais/Upscaling.h>
 
 static void prepareStraightAlphaForLinearFiltering(
 	Uint8* rgba, int width, int height, int pitch) {
@@ -117,6 +117,8 @@ static AVFrame* renderFrame(const char* path, int h, int w, Uint8** buffer,
 				SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Error receiving frame: %s\n",
 					av_err2str(response));
 				cleanupResources(frame, &packet, NULL);
+				avcodec_free_context(&codecCtx);
+				avformat_close_input(&fmtCtx);
 				return NULL;
 			}
 
@@ -129,6 +131,8 @@ static AVFrame* renderFrame(const char* path, int h, int w, Uint8** buffer,
 				w, h);
 			if (!swsCtx) {
 				cleanupResources(frame, &packet, swsCtx);
+				avcodec_free_context(&codecCtx);
+				avformat_close_input(&fmtCtx);
 				return NULL;
 			}
 
@@ -139,6 +143,8 @@ static AVFrame* renderFrame(const char* path, int h, int w, Uint8** buffer,
 				SDL_LogError(SDL_LOG_CATEGORY_ERROR,
 					"Error converting frame to RGBA\n");
 				cleanupResources(frame, &packet, swsCtx);
+				avcodec_free_context(&codecCtx);
+				avformat_close_input(&fmtCtx);
 				return NULL;
 			}
 			pFrameRGB->width = w;
@@ -171,28 +177,203 @@ AVFrame* Kotonoha_imageDecodeFrame(const char* path, int h, int w,
 	return renderFrame(path, h, w, buffer, ioOperation);
 }
 
-SDL_Texture* Kotonoha_imageCreateTextureFromFrame(SDL_Renderer* render,
-	AVFrame* frame) {
-	if (render == NULL || frame == NULL) {
-		SDL_LogError(SDL_LOG_CATEGORY_RENDER,
-			"Invalid arguments for image texture creation");
-		return NULL;
-	}
+SDL_Texture* Kotonoha_imageCreateTextureFromFrame(
+    SDL_Renderer* render,
+    AVFrame* frame)
+{
+    if (render == NULL || frame == NULL) {
+        SDL_LogError(
+            SDL_LOG_CATEGORY_RENDER,
+            "Invalid arguments for image texture creation"
+        );
 
-	SDL_Texture* texture = SDL_CreateTexture(render, SDL_PIXELFORMAT_RGBA32,
-		SDL_TEXTUREACCESS_STATIC, frame->width, frame->height);
-	if (texture == NULL) {
-		SDL_LogError(SDL_LOG_CATEGORY_ERROR,
-			"Failed to create texture: %s", SDL_GetError());
-		return NULL;
-	}
-	if (!SDL_UpdateTexture(texture, NULL, frame->data[0], frame->linesize[0])) {
-		SDL_LogError(SDL_LOG_CATEGORY_RENDER,
-			"Failed to update image texture: %s", SDL_GetError());
-		SDL_DestroyTexture(texture);
-		return NULL;
-	}
-	return texture;
+        return NULL;
+    }
+
+#ifdef KOTONOHA_HAS_METALFX
+    const float factor = Kotonoha_UpscalingFactor();
+
+    /*
+     * Sem upscale: caminho normal.
+     * Evita criar textura temporaria e evita chamar MetalFX.
+     */
+    if (factor <= 1.0f) {
+        SDL_Texture* texture = SDL_CreateTexture(
+            render,
+            SDL_PIXELFORMAT_RGBA32,
+            SDL_TEXTUREACCESS_STATIC,
+            frame->width,
+            frame->height
+        );
+
+        if (texture == NULL) {
+            SDL_LogError(
+                SDL_LOG_CATEGORY_ERROR,
+                "Failed to create image texture: %s",
+                SDL_GetError()
+            );
+
+            return NULL;
+        }
+
+        if (!SDL_UpdateTexture(
+                texture,
+                NULL,
+                frame->data[0],
+                frame->linesize[0]
+            )) {
+            SDL_LogError(
+                SDL_LOG_CATEGORY_RENDER,
+                "Failed to update image texture: %s",
+                SDL_GetError()
+            );
+
+            SDL_DestroyTexture(texture);
+            return NULL;
+        }
+
+        return texture;
+    }
+
+    /*
+     * factor > 1.0f:
+     * textura temporaria recebe o RGBA do FFmpeg
+     * no tamanho original.
+     */
+    SDL_Texture* cpuTexture = SDL_CreateTexture(
+        render,
+        SDL_PIXELFORMAT_RGBA32,
+        SDL_TEXTUREACCESS_STREAMING,
+        frame->width,
+        frame->height
+    );
+
+    if (cpuTexture == NULL) {
+        SDL_LogError(
+            SDL_LOG_CATEGORY_ERROR,
+            "Failed to create temporary image texture: %s",
+            SDL_GetError()
+        );
+
+        return NULL;
+    }
+
+    if (!SDL_UpdateTexture(
+            cpuTexture,
+            NULL,
+            frame->data[0],
+            frame->linesize[0]
+        )) {
+        SDL_LogError(
+            SDL_LOG_CATEGORY_RENDER,
+            "Failed to update temporary image texture: %s",
+            SDL_GetError()
+        );
+
+        SDL_DestroyTexture(cpuTexture);
+        return NULL;
+    }
+
+    const int outputWidth = (int)lroundf(
+        (float)frame->width * factor
+    );
+
+    const int outputHeight = (int)lroundf(
+        (float)frame->height * factor
+    );
+
+    if (outputWidth <= frame->width ||
+        outputHeight <= frame->height) {
+        SDL_LogError(
+            SDL_LOG_CATEGORY_RENDER,
+            "Invalid MetalFX output size: %dx%d -> %dx%d",
+            frame->width,
+            frame->height,
+            outputWidth,
+            outputHeight
+        );
+
+        SDL_DestroyTexture(cpuTexture);
+        return NULL;
+    }
+
+    SDL_Texture* texture = SDL_CreateTexture(
+        render,
+        SDL_PIXELFORMAT_BGRA32,
+        SDL_TEXTUREACCESS_TARGET,
+        outputWidth,
+        outputHeight
+    );
+
+    if (texture == NULL) {
+        SDL_LogError(
+            SDL_LOG_CATEGORY_ERROR,
+            "Failed to create MetalFX image texture: %s",
+            SDL_GetError()
+        );
+
+        SDL_DestroyTexture(cpuTexture);
+        return NULL;
+    }
+
+    if (!Kotonoha_MetalFXUpscaleSDLTextureInto(
+            render,
+            cpuTexture,
+            texture
+        )) {
+        SDL_LogError(
+            SDL_LOG_CATEGORY_RENDER,
+            "Failed to upscale image texture using MetalFX: %s",
+            SDL_GetError()
+        );
+
+        SDL_DestroyTexture(cpuTexture);
+        SDL_DestroyTexture(texture);
+
+        return NULL;
+    }
+
+    SDL_DestroyTexture(cpuTexture);
+
+    return texture;
+
+#else
+    SDL_Texture* texture = SDL_CreateTexture(
+        render,
+        SDL_PIXELFORMAT_RGBA32,
+        SDL_TEXTUREACCESS_STATIC,
+        frame->width,
+        frame->height
+    );
+
+    if (texture == NULL) {
+        SDL_LogError(
+            SDL_LOG_CATEGORY_ERROR,
+            "Failed to create texture: %s",
+            SDL_GetError()
+        );
+
+        return NULL;
+    }
+
+    if (!SDL_UpdateTexture(
+            texture,
+            NULL,
+            frame->data[0],
+            frame->linesize[0]
+        )) {
+        SDL_LogError(
+            SDL_LOG_CATEGORY_RENDER,
+            "Failed to update image texture: %s",
+            SDL_GetError()
+        );
+
+        SDL_DestroyTexture(texture);
+        return NULL;
+    }
+
+    return texture;
+#endif
 }
 
 void Kotonoha_imageReleaseFrame(AVFrame** frame, Uint8** buffer) {

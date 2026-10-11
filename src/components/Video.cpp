@@ -1,4 +1,6 @@
 #include <Kotonoha/components/Video.hpp>
+#include <SDL3/SDL_oldnames.h>
+#include <SDL3/SDL_render.h>
 
 namespace Kotonoha {
 
@@ -76,16 +78,18 @@ namespace Kotonoha {
 			const Kotonoha_Scene_Status status =
 				Kotonoha_VideoRenderProcess(currentVideo, render);
 
+			SDL_Texture * texture = currentVideo->extraTexture != nullptr ? currentVideo->extraTexture : currentVideo->texture;
+
 			switch (status) {
 			case KOTONOHA_SCENE_DRAW:
-				SDL_RenderTexture(render, currentVideo->texture, nullptr, nullptr);
+				SDL_RenderTexture(render, texture, nullptr, nullptr);
 				returnStatus = KOTONOHA_SCENE_DRAW;
 				++it;
 				break;
 
 			case KOTONOHA_SCENE_COMPLETE:
 				if (returnStatus != KOTONOHA_SCENE_DRAW) {
-					SDL_RenderTexture(render, currentVideo->texture, nullptr, nullptr);
+					SDL_RenderTexture(render, texture, nullptr, nullptr);
 					returnStatus = KOTONOHA_SCENE_DRAW_LAST;
 				}
 				finishedVideos.push_back(currentVideo);
