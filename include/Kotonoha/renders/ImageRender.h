@@ -36,6 +36,7 @@ AVFrame *Kotonoha_imageDecodeFrame(const char *path, int h, int w,
                                    Kotonoha_IOMonitorOperation *ioOperation);
 SDL_Texture *Kotonoha_imageCreateTextureFromFrame(SDL_Renderer *render,
                                                   AVFrame *frame);
+                                                  
 void Kotonoha_imageReleaseFrame(AVFrame **frame, Uint8 **buffer);
 
 SDL_Surface *Kotonoha_imageCreateSurface(const char *path, int h, int w);

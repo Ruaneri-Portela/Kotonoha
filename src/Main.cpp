@@ -108,8 +108,8 @@ namespace {
 
 extern "C" {
 #define SDL_MAIN_USE_CALLBACKS 1
+#include <Kotonoha/speciais/Upscaling.h>
 #include <SDL3/SDL_main.h>
-
 	SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
 		if (appstate == nullptr) {
 			return SDL_APP_FAILURE;
@@ -184,6 +184,11 @@ extern "C" {
 			SDL_ShowWindow(global.window);
 		}
 
+
+		#ifdef KOTONOHA_HAS_METALFX
+		Kotonoha_MetalFXInit(global.render);
+		#endif
+
 		return status;
 	}
 
@@ -246,6 +251,10 @@ extern "C" {
 
 	void SDL_AppQuit(void* appstate, SDL_AppResult result) {
 		(void)result;
+
+		#ifdef KOTONOHA_HAS_METALFX
+		Kotonoha_MetalFXShutdown();
+		#endif
 
 		delete GetApp(appstate);
 		CleanupGlobalResources();

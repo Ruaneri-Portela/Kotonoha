@@ -1,4 +1,6 @@
 #include <Kotonoha/renders/VideoRender.h>
+#include <Kotonoha/speciais/Upscaling.h>
+#include <math.h>
 
 static inline Uint64 u64_abs_diff(Uint64 a, Uint64 b) {
 	return (a > b) ? (a - b) : (b - a);
@@ -274,155 +276,339 @@ struct Kotonoha_videoData* Kotonoha_VideoRenderInit(const char* filename,
 
 // Shutdown
 void Kotonoha_VideoRenderShutdown(struct Kotonoha_videoData** instance) {
-	if (!instance || !*instance)
-		return;
-	struct Kotonoha_videoData* videoData = *instance;
-	if (videoData->hwCtx && videoData->hwCtx->deviceRef) {
-		if (videoData->pCodecCtx)
-			av_buffer_unref(&videoData->pCodecCtx->hw_device_ctx);
-		av_buffer_unref(&videoData->hwCtx->deviceRef);
-	}
-	if (videoData->hwCtx) {
-		SDL_free(videoData->hwCtx);
-		videoData->hwCtx = NULL;
-	}
-	Kotonoha_IOMonitorOperationReset(&videoData->ioOperation);
-	if (videoData->pFrame)
-		av_frame_free(&videoData->pFrame);
-	if (videoData->pFormatCtx)
-		avformat_close_input(&videoData->pFormatCtx);
-	if (videoData->pCodecCtx)
-		avcodec_free_context(&videoData->pCodecCtx);
-	if (videoData->swsCtx)
-		sws_freeContext(videoData->swsCtx);
-	if (videoData->texture)
-		SDL_DestroyTexture(videoData->texture);
+    if (!instance || !*instance) {
+        return;
+    }
 
-	SDL_free(videoData);
-	*instance = NULL;
+    struct Kotonoha_videoData *videoData = *instance;
+
+    if (videoData->pFrame) {
+        av_frame_free(&videoData->pFrame);
+    }
+
+    if (videoData->pCodecCtx) {
+        avcodec_free_context(&videoData->pCodecCtx);
+    }
+
+    if (videoData->pFormatCtx) {
+        avformat_close_input(&videoData->pFormatCtx);
+    }
+
+    if (videoData->swsCtx) {
+        sws_freeContext(videoData->swsCtx);
+        videoData->swsCtx = NULL;
+    }
+
+    if (videoData->hwCtx) {
+        if (videoData->hwCtx->deviceRef) {
+            av_buffer_unref(&videoData->hwCtx->deviceRef);
+        }
+
+        SDL_free(videoData->hwCtx);
+        videoData->hwCtx = NULL;
+    }
+
+    if (videoData->texture) {
+        SDL_DestroyTexture(videoData->texture);
+        videoData->texture = NULL;
+    }
+
+    if (videoData->extraTexture) {
+        SDL_DestroyTexture(videoData->extraTexture);
+        videoData->extraTexture = NULL;
+    }
+
+    Kotonoha_IOMonitorOperationReset(&videoData->ioOperation);
+
+    SDL_free(videoData);
+    *instance = NULL;
 }
 
 // Processa a renderização do vídeo
-enum Kotonoha_Scene_Status Kotonoha_VideoRenderProcess(void* userData,
-	SDL_Renderer* render) {
-	struct Kotonoha_videoData* instance = (struct Kotonoha_videoData*)userData;
+enum Kotonoha_Scene_Status Kotonoha_VideoRenderProcess(
+    void *userData,
+    SDL_Renderer *render)
+{
+    struct Kotonoha_videoData *instance =
+        (struct Kotonoha_videoData *)userData;
 
-	if (!instance)
-		return KOTONOHA_SCENE_NULL;
+    if (instance == NULL) {
+        return KOTONOHA_SCENE_NULL;
+    }
 
-	// The original School Days controller checks the scene frame boundary
-	// before promoting the terminal decoded frame.
-	if (instance->useOrsFrameTimeline) {
-		const Uint64 sceneMs = Kotonoha_timeGet(instance->time);
-		if (Kotonoha_OrsSceneMsToFrame(sceneMs) >= instance->orsEndFrame) {
-			return KOTONOHA_SCENE_COMPLETE;
-		}
-	}
+    if (instance->useOrsFrameTimeline) {
+        const Uint64 sceneMs =
+            Kotonoha_timeGet(instance->time);
 
-	bool inRange;
-	Sint64 diff;
-	Uint64 currentTime = Kotonoha_timeGetFromEvent(
-		instance->time, instance->startTime, instance->endTime, &inRange, &diff);
+        if (Kotonoha_OrsSceneMsToFrame(sceneMs) >=
+            instance->orsEndFrame) {
+            return KOTONOHA_SCENE_COMPLETE;
+        }
+    }
 
-	if (!inRange)
-		return (diff > 0) ? KOTONOHA_SCENE_COMPLETE : KOTONOHA_SCENE_NULL;
+    bool inRange = false;
+    Sint64 diff = 0;
 
-	Kotonoha_VideoEnsureSync(instance, currentTime, false);
-	if (instance->ioOperation.stalled) {
-		return instance->texture != NULL
-			? KOTONOHA_SCENE_DRAW : KOTONOHA_SCENE_WAITING;
-	}
+    const Uint64 currentTime =
+        Kotonoha_timeGetFromEvent(
+            instance->time,
+            instance->startTime,
+            instance->endTime,
+            &inRange,
+            &diff
+        );
 
-	if (instance->pFrame == NULL && !renderVideo(instance, currentTime)) {
-		if (instance->texture != NULL)
-			return KOTONOHA_SCENE_DRAW;
-		return KOTONOHA_SCENE_WAITING;
-	}
+    if (!inRange) {
+        return (diff > 0)
+            ? KOTONOHA_SCENE_COMPLETE
+            : KOTONOHA_SCENE_NULL;
+    }
 
-	if (currentTime < instance->videoTime) {
-		if (instance->texture == NULL)
-			return KOTONOHA_SCENE_WAITING;
-		return KOTONOHA_SCENE_DRAW;
-	}
+    Kotonoha_VideoEnsureSync(instance, currentTime, false);
 
-	if (instance->texture == NULL) {
-		instance->texture = SDL_CreateTexture(
-			render, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STREAMING,
-			instance->pCodecCtx->width, instance->pCodecCtx->height);
+    if (instance->ioOperation.stalled) {
+        return instance->texture != NULL
+            ? KOTONOHA_SCENE_DRAW
+            : KOTONOHA_SCENE_WAITING;
+    }
 
-		if (instance->texture == NULL) {
-			SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Failed to create texture: %s\n",
-				SDL_GetError());
-			return KOTONOHA_SCENE_FATAL_ERROR;
-		}
+    if (instance->pFrame == NULL &&
+        !renderVideo(instance, currentTime)) {
+        return instance->texture != NULL
+            ? KOTONOHA_SCENE_DRAW
+            : KOTONOHA_SCENE_WAITING;
+    }
 
-		SDL_SetTextureBlendMode(instance->texture, SDL_BLENDMODE_BLEND);
-	}
+    if (currentTime < instance->videoTime) {
+        return instance->texture != NULL
+            ? KOTONOHA_SCENE_DRAW
+            : KOTONOHA_SCENE_WAITING;
+    }
 
-	if (instance->pFrame == NULL ||
-		instance->pFrame->pict_type == AV_PICTURE_TYPE_NONE) {
-		if (instance->texture != NULL)
-			return KOTONOHA_SCENE_DRAW;
-		return KOTONOHA_SCENE_WAITING;
-	}
+#ifdef KOTONOHA_HAS_METALFX
+    const float factor = Kotonoha_UpscalingFactor();
+    const bool useMetalFX = factor > 1.0f;
+#else
+    const bool useMetalFX = false;
+#endif
 
-	AVFrame* cpuFrame = getCpuReadableFrame(instance->pFrame);
-	if (!cpuFrame) {
-		SDL_LogError(SDL_LOG_CATEGORY_ERROR,
-			"Failed to obtain CPU-readable frame from decoder output\n");
-		return KOTONOHA_SCENE_FATAL_ERROR;
-	}
+    /*
+     * Textura de entrada:
+     * sempre recebe o frame RGBA original vindo do FFmpeg.
+     */
+    if (instance->texture == NULL) {
+        instance->texture = SDL_CreateTexture(
+            render,
+            SDL_PIXELFORMAT_RGBA32,
+            SDL_TEXTUREACCESS_STREAMING,
+            instance->pCodecCtx->width,
+            instance->pCodecCtx->height
+        );
 
-	// O swsCtx deve ser criado com base no frame realmente lido pela CPU,
-	// pois um frame HW transferido pode virar NV12/P010/etc em memória normal.
-	if (!instance->swsCtx) {
-		instance->swsCtx = Kotonoha_UtilsFFmpegCreateSwsContext(
-			instance->pCodecCtx,
-			cpuFrame->format,
-			cpuFrame->width,
-			cpuFrame->height);
+        if (instance->texture == NULL) {
+            SDL_LogError(
+                SDL_LOG_CATEGORY_ERROR,
+                "Failed to create video texture: %s",
+                SDL_GetError()
+            );
 
-		if (!instance->swsCtx) {
-			SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Cannot create sws context\n");
-			if (cpuFrame != instance->pFrame)
-				av_frame_free(&cpuFrame);
-			return KOTONOHA_SCENE_FATAL_ERROR;
-		}
-	}
+            return KOTONOHA_SCENE_FATAL_ERROR;
+        }
 
-	Uint8* buffer = NULL;
-	AVFrame* pFrameRGB = Kotonoha_UtilsFFmpegSwsConvertFrame(
-		instance->swsCtx,
-		cpuFrame,
-		&buffer,
-		cpuFrame->height,
-		cpuFrame->width);
+        SDL_SetTextureBlendMode(
+            instance->texture,
+            SDL_BLENDMODE_BLEND
+        );
+    }
 
-	if (pFrameRGB == NULL) {
-		if (cpuFrame != instance->pFrame)
-			av_frame_free(&cpuFrame);
-		return KOTONOHA_SCENE_FATAL_ERROR;
-	}
+#ifdef KOTONOHA_HAS_METALFX
+    if (useMetalFX && instance->extraTexture == NULL) {
+        const int outputWidth = (int)lroundf(
+            (float)instance->pCodecCtx->width * factor
+        );
 
-	if (!SDL_UpdateTexture(instance->texture, NULL,
-		pFrameRGB->data[0], pFrameRGB->linesize[0])) {
-		SDL_LogError(SDL_LOG_CATEGORY_RENDER,
-			"Failed to update video texture: %s", SDL_GetError());
-		av_free(buffer);
-		av_frame_free(&pFrameRGB);
-		if (cpuFrame != instance->pFrame)
-			av_frame_free(&cpuFrame);
-		return KOTONOHA_SCENE_FATAL_ERROR;
-	}
+        const int outputHeight = (int)lroundf(
+            (float)instance->pCodecCtx->height * factor
+        );
 
-	av_free(buffer);
-	av_frame_free(&pFrameRGB);
+        if (outputWidth <= instance->pCodecCtx->width ||
+            outputHeight <= instance->pCodecCtx->height) {
+            SDL_LogError(
+                SDL_LOG_CATEGORY_ERROR,
+                "Invalid MetalFX video size: %dx%d -> %dx%d",
+                instance->pCodecCtx->width,
+                instance->pCodecCtx->height,
+                outputWidth,
+                outputHeight
+            );
 
-	if (cpuFrame != instance->pFrame)
-		av_frame_free(&cpuFrame);
+            return KOTONOHA_SCENE_FATAL_ERROR;
+        }
 
-	av_frame_free(&instance->pFrame);
-	instance->lastTime = currentTime;
+        instance->extraTexture = SDL_CreateTexture(
+            render,
+            SDL_PIXELFORMAT_BGRA32,
+            SDL_TEXTUREACCESS_TARGET,
+            outputWidth,
+            outputHeight
+        );
 
-	return KOTONOHA_SCENE_DRAW;
+        if (instance->extraTexture == NULL) {
+            SDL_LogError(
+                SDL_LOG_CATEGORY_ERROR,
+                "Failed to create MetalFX output texture: %s",
+                SDL_GetError()
+            );
+
+            return KOTONOHA_SCENE_FATAL_ERROR;
+        }
+
+        SDL_SetTextureBlendMode(
+            instance->extraTexture,
+            SDL_BLENDMODE_BLEND
+        );
+    }
+#endif
+
+    if (instance->pFrame == NULL ||
+        instance->pFrame->pict_type == AV_PICTURE_TYPE_NONE) {
+        return instance->texture != NULL
+            ? KOTONOHA_SCENE_DRAW
+            : KOTONOHA_SCENE_WAITING;
+    }
+
+    AVFrame *cpuFrame =
+        getCpuReadableFrame(instance->pFrame);
+
+    if (cpuFrame == NULL) {
+        SDL_LogError(
+            SDL_LOG_CATEGORY_ERROR,
+            "Failed to obtain CPU-readable frame from decoder output"
+        );
+
+        return KOTONOHA_SCENE_FATAL_ERROR;
+    }
+
+    if (instance->swsCtx == NULL) {
+        instance->swsCtx =
+            Kotonoha_UtilsFFmpegCreateSwsContext(
+                instance->pCodecCtx,
+                cpuFrame->format,
+                cpuFrame->width,
+                cpuFrame->height
+            );
+
+        if (instance->swsCtx == NULL) {
+            SDL_LogError(
+                SDL_LOG_CATEGORY_ERROR,
+                "Cannot create sws context"
+            );
+
+            if (cpuFrame != instance->pFrame) {
+                av_frame_free(&cpuFrame);
+            }
+
+            return KOTONOHA_SCENE_FATAL_ERROR;
+        }
+    }
+
+    Uint8 *buffer = NULL;
+
+    AVFrame *pFrameRGB =
+        Kotonoha_UtilsFFmpegSwsConvertFrame(
+            instance->swsCtx,
+            cpuFrame,
+            &buffer,
+            cpuFrame->height,
+            cpuFrame->width
+        );
+
+    if (pFrameRGB == NULL) {
+        if (cpuFrame != instance->pFrame) {
+            av_frame_free(&cpuFrame);
+        }
+
+        return KOTONOHA_SCENE_FATAL_ERROR;
+    }
+
+    if (!SDL_UpdateTexture(
+            instance->texture,
+            NULL,
+            pFrameRGB->data[0],
+            pFrameRGB->linesize[0]
+        )) {
+        SDL_LogError(
+            SDL_LOG_CATEGORY_RENDER,
+            "Failed to update video texture: %s",
+            SDL_GetError()
+        );
+
+        av_free(buffer);
+        av_frame_free(&pFrameRGB);
+
+        if (cpuFrame != instance->pFrame) {
+            av_frame_free(&cpuFrame);
+        }
+
+        return KOTONOHA_SCENE_FATAL_ERROR;
+    }
+
+#ifdef KOTONOHA_HAS_METALFX
+    /*
+     * MetalFX só executa quando factor > 1.0f.
+     * Para factor <= 1.0f, instance->texture permanece como
+     * a textura final usada para desenhar o vídeo.
+     */
+    if (useMetalFX) {
+        if (instance->extraTexture == NULL) {
+            SDL_LogError(
+                SDL_LOG_CATEGORY_ERROR,
+                "MetalFX enabled but output texture is null"
+            );
+
+            av_free(buffer);
+            av_frame_free(&pFrameRGB);
+
+            if (cpuFrame != instance->pFrame) {
+                av_frame_free(&cpuFrame);
+            }
+
+            return KOTONOHA_SCENE_FATAL_ERROR;
+        }
+
+        if (!Kotonoha_MetalFXUpscaleSDLTextureInto(
+                render,
+                instance->texture,
+                instance->extraTexture
+            )) {
+            SDL_LogError(
+                SDL_LOG_CATEGORY_ERROR,
+                "Failed to upscale video texture using MetalFX: %s",
+                SDL_GetError()
+            );
+
+            av_free(buffer);
+            av_frame_free(&pFrameRGB);
+
+            if (cpuFrame != instance->pFrame) {
+                av_frame_free(&cpuFrame);
+            }
+
+            return KOTONOHA_SCENE_FATAL_ERROR;
+        }
+    }
+#endif
+
+    av_free(buffer);
+    av_frame_free(&pFrameRGB);
+
+    if (cpuFrame != instance->pFrame) {
+        av_frame_free(&cpuFrame);
+    }
+
+    av_frame_free(&instance->pFrame);
+
+    instance->lastTime = currentTime;
+
+    return KOTONOHA_SCENE_DRAW;
 }

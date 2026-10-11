@@ -8,6 +8,10 @@
 #include <string>
 #include <vector>
 
+extern "C"{
+	#include <Kotonoha/speciais/Upscaling.h>
+}
+
 extern bool Kotonoha_BasicGuiShow;
 extern bool Kotonoha_BasicGuiEditorShow;
 
@@ -308,6 +312,7 @@ namespace Kotonoha {
 			SDL_Log("  -a                   Show Audio render drivers list");
 			SDL_Log("  -f                   Set fullscreen window mode");
 			SDL_Log("  -x <width> <height>  Set window size");
+			SDL_Log("  -q <factor>         Set upscale factor; 1.0 disables MetalFX");
 			SDL_Log("  -v                   Enable VSync");
 			SDL_Log("  -z                   Show FPS");
 			SDL_Log("  -t                   Show Timestamp");
@@ -403,7 +408,48 @@ namespace Kotonoha {
 					return false;
 				}
 				break;
+			case 'q':
+				if (i + 1 < argc && argv[i + 1] != nullptr) {
+					const char *factorText = argv[++i];
 
+					char *end = nullptr;
+					errno = 0;
+
+					const float factor = std::strtof(factorText, &end);
+
+					if (end == factorText ||
+						*end != '\0' ||
+						errno == ERANGE ||
+						!std::isfinite(factor) ||
+						factor <= 0.0f) {
+						SDL_LogError(
+							0,
+							"Invalid value for -q upscale factor: %s",
+							factorText
+						);
+
+						return false;
+					}
+
+					Kotonoha_UpscalingSetFactor(factor);
+
+					SDL_Log(
+						"Upscaling factor set to %.3f%s",
+						factor,
+						factor > 1.0f
+							? " (MetalFX enabled)"
+							: " (native resolution)"
+					);
+				}
+				else {
+					SDL_LogError(
+						0,
+						"Missing argument for -q option (upscale factor)"
+					);
+
+					return false;
+				}
+				break;
 			case 'f':
 				fullscreen = !fullscreen;
 				break;
@@ -762,6 +808,10 @@ namespace Kotonoha {
 				lastScene = currentScene;
 				if (!current->firstFocus)
 					current->Reset(true);
+
+					#ifdef KOTONOHA_HAS_METALFX
+					Kotonoha_MetalFXClearScalerCache();
+					#endif
 				continue;
 			}
 

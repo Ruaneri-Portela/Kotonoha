@@ -542,6 +542,10 @@ namespace Kotonoha {
 			<< (gameCtx->styleStr == nullptr ? "" : gameCtx->styleStr)
 			<< std::endl;
 
+		if (gp->sb->track != nullptr) {
+			ass_free_track(gp->sb->track);
+			gp->sb->track = nullptr;
+		}
 		gp->sb->track = ass_new_track(gp->sb->ass_library);
 
 		ass_process_data(gp->sb->track,
@@ -605,6 +609,11 @@ namespace Kotonoha {
 				std::vector<std::string> options;
 				for (char** it = event->data.set_select->options; *it != nullptr; ++it) {
 					options.push_back(BuildString(*it));
+				}
+
+				if (gp->prompt != nullptr) {
+					delete gp->prompt;
+					gp->prompt = nullptr;
 				}
 
 				gp->prompt = new Prompt(
