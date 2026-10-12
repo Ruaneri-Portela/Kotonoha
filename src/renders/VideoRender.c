@@ -385,17 +385,6 @@ enum Kotonoha_Scene_Status Kotonoha_VideoRenderProcess(
             : KOTONOHA_SCENE_WAITING;
     }
 
-#ifdef KOTONOHA_HAS_METALFX
-    const float factor = Kotonoha_UpscalingFactor();
-    const bool useMetalFX = factor > 1.0f;
-#else
-    const bool useMetalFX = false;
-#endif
-
-    /*
-     * Textura de entrada:
-     * sempre recebe o frame RGBA original vindo do FFmpeg.
-     */
     if (instance->texture == NULL) {
         instance->texture = SDL_CreateTexture(
             render,
@@ -420,55 +409,6 @@ enum Kotonoha_Scene_Status Kotonoha_VideoRenderProcess(
             SDL_BLENDMODE_BLEND
         );
     }
-
-#ifdef KOTONOHA_HAS_METALFX
-    if (useMetalFX && instance->extraTexture == NULL) {
-        const int outputWidth = (int)lroundf(
-            (float)instance->pCodecCtx->width * factor
-        );
-
-        const int outputHeight = (int)lroundf(
-            (float)instance->pCodecCtx->height * factor
-        );
-
-        if (outputWidth <= instance->pCodecCtx->width ||
-            outputHeight <= instance->pCodecCtx->height) {
-            SDL_LogError(
-                SDL_LOG_CATEGORY_ERROR,
-                "Invalid MetalFX video size: %dx%d -> %dx%d",
-                instance->pCodecCtx->width,
-                instance->pCodecCtx->height,
-                outputWidth,
-                outputHeight
-            );
-
-            return KOTONOHA_SCENE_FATAL_ERROR;
-        }
-
-        instance->extraTexture = SDL_CreateTexture(
-            render,
-            SDL_PIXELFORMAT_BGRA32,
-            SDL_TEXTUREACCESS_TARGET,
-            outputWidth,
-            outputHeight
-        );
-
-        if (instance->extraTexture == NULL) {
-            SDL_LogError(
-                SDL_LOG_CATEGORY_ERROR,
-                "Failed to create MetalFX output texture: %s",
-                SDL_GetError()
-            );
-
-            return KOTONOHA_SCENE_FATAL_ERROR;
-        }
-
-        SDL_SetTextureBlendMode(
-            instance->extraTexture,
-            SDL_BLENDMODE_BLEND
-        );
-    }
-#endif
 
     if (instance->pFrame == NULL ||
         instance->pFrame->pict_type == AV_PICTURE_TYPE_NONE) {
@@ -552,52 +492,6 @@ enum Kotonoha_Scene_Status Kotonoha_VideoRenderProcess(
 
         return KOTONOHA_SCENE_FATAL_ERROR;
     }
-
-#ifdef KOTONOHA_HAS_METALFX
-    /*
-     * MetalFX só executa quando factor > 1.0f.
-     * Para factor <= 1.0f, instance->texture permanece como
-     * a textura final usada para desenhar o vídeo.
-     */
-    if (useMetalFX) {
-        if (instance->extraTexture == NULL) {
-            SDL_LogError(
-                SDL_LOG_CATEGORY_ERROR,
-                "MetalFX enabled but output texture is null"
-            );
-
-            av_free(buffer);
-            av_frame_free(&pFrameRGB);
-
-            if (cpuFrame != instance->pFrame) {
-                av_frame_free(&cpuFrame);
-            }
-
-            return KOTONOHA_SCENE_FATAL_ERROR;
-        }
-
-        if (!Kotonoha_MetalFXUpscaleSDLTextureInto(
-                render,
-                instance->texture,
-                instance->extraTexture
-            )) {
-            SDL_LogError(
-                SDL_LOG_CATEGORY_ERROR,
-                "Failed to upscale video texture using MetalFX: %s",
-                SDL_GetError()
-            );
-
-            av_free(buffer);
-            av_frame_free(&pFrameRGB);
-
-            if (cpuFrame != instance->pFrame) {
-                av_frame_free(&cpuFrame);
-            }
-
-            return KOTONOHA_SCENE_FATAL_ERROR;
-        }
-    }
-#endif
 
     av_free(buffer);
     av_frame_free(&pFrameRGB);

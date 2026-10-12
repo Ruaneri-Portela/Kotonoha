@@ -1,8 +1,10 @@
 #pragma once
 
+#include <SDL3/SDL_render.h>
 #include <memory>
 #include <string>
 #include <vector>
+#include <Kotonoha/components/Upscaling.hpp>
 
 extern "C" {
 #include <Kotonoha/Kotonoha.h>
@@ -33,7 +35,7 @@ struct AbcGroup {
   ~AbcGroup();
 };
 
-class Image {
+class Image : public Upscaling {
 private:
   Kotonoha_time *timeManager = nullptr;
   Kotonoha_IOMonitor *ioMonitor = nullptr;
@@ -51,6 +53,8 @@ private:
                       Uint64 atMs);
 
   void RemoveAbcGroupsForBase(Uint64 baseGeneration);
+
+  void RenderTexture(SDL_Renderer * render, Kotonoha_Picture *picture, bool &cleaned);
 
 public:
   Image(Kotonoha_time *time, Kotonoha_IOMonitor *ioMonitor);

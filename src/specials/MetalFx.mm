@@ -3,6 +3,7 @@
 
 #import <Metal/Metal.h>
 #import <MetalFX/MetalFX.h>
+#import <TargetConditionals.h>
 
 #include <cstddef>
 #include <deque>
@@ -14,96 +15,11 @@ extern "C" {
 }
 
 #ifndef SDL_PROP_TEXTURE_METAL_TEXTURE_POINTER
-#define SDL_PROP_TEXTURE_METAL_TEXTURE_POINTER "SDL.texture.metal.texture"
+#define SDL_PROP_TEXTURE_METAL_TEXTURE_POINTER \
+    "SDL.texture.metal.texture"
 #endif
 
 namespace {
-
-constexpr const char *kAlphaUpscaleShader = R"(
-#include <metal_stdlib>
-using namespace metal;
-
-
-struct AlphaUniforms {
-    float2 inputSize;
-    float2 outputSize;
-};
-
-
-kernel void alphaUpscale(
-    texture2d<float, access::read> input [[texture(0)]],
-    texture2d<float, access::read_write> output [[texture(1)]],
-    constant AlphaUniforms &uniforms [[buffer(0)]],
-    uint2 gid [[thread_position_in_grid]])
-{
-    if (gid.x >= (uint)uniforms.outputSize.x ||
-        gid.y >= (uint)uniforms.outputSize.y) {
-        return;
-    }
-
-
-    const float2 scale =
-        uniforms.inputSize / uniforms.outputSize;
-
-
-    const float2 sourcePosition =
-        (float2(gid) + 0.5f) * scale;
-
-
-    const float2 position =
-        sourcePosition - 0.5f;
-
-
-    const int2 base =
-        int2(floor(position));
-
-
-    const float2 fraction =
-        position - floor(position);
-
-
-    const int2 maximum =
-        int2(uniforms.inputSize) - 1;
-
-
-    const int2 p00 =
-        clamp(base + int2(0, 0), int2(0), maximum);
-
-
-    const int2 p10 =
-        clamp(base + int2(1, 0), int2(0), maximum);
-
-
-    const int2 p01 =
-        clamp(base + int2(0, 1), int2(0), maximum);
-
-
-    const int2 p11 =
-        clamp(base + int2(1, 1), int2(0), maximum);
-
-
-    const float a00 = input.read(uint2(p00)).a;
-    const float a10 = input.read(uint2(p10)).a;
-    const float a01 = input.read(uint2(p01)).a;
-    const float a11 = input.read(uint2(p11)).a;
-
-
-    const float alpha =
-        mix(
-            mix(a00, a10, fraction.x),
-            mix(a01, a11, fraction.x),
-            fraction.y
-        );
-
-
-    float4 color = output.read(gid);
-    color.a = alpha;
-
-
-    output.write(color, gid);
-}
-)";
-
 
 constexpr size_t kMaxCachedScalers = 8;
 
@@ -115,7 +31,8 @@ struct ScalerKey {
     MTLPixelFormat inputFormat;
     MTLPixelFormat outputFormat;
 
-    bool operator==(const ScalerKey &other) const {
+    bool operator==(const ScalerKey &other) const
+    {
         return inputWidth == other.inputWidth &&
                inputHeight == other.inputHeight &&
                outputWidth == other.outputWidth &&
@@ -126,7 +43,8 @@ struct ScalerKey {
 };
 
 struct ScalerKeyHash {
-    size_t operator()(const ScalerKey &key) const {
+    size_t operator()(const ScalerKey &key) const
+    {
         size_t hash = 1469598103934665603ULL;
 
         const auto mix = [&hash](size_t value) {
@@ -158,16 +76,14 @@ std::unordered_map<
     ScalerKeyHash
 > g_scalers;
 
-
 std::deque<ScalerKey> g_scalerOrder;
 
 id<MTLDevice> g_metalDevice = nil;
 id<MTLCommandQueue> g_metalQueue = nil;
-id<MTLComputePipelineState> g_alphaPipeline = nil;
 SDL_Texture *g_probe = nullptr;
-float g_upscalingFactor = 2.0f;
 
-bool IsMetalFXAvailable(id<MTLDevice> device) {
+bool IsMetalFXAvailable(id<MTLDevice> device)
+{
     if (device == nil) {
         return false;
     }
@@ -185,7 +101,8 @@ bool IsMetalFXAvailable(id<MTLDevice> device) {
     return false;
 }
 
-id<MTLTexture> GetMetalTextureFromSDLTexture(SDL_Texture *texture) {
+id<MTLTexture> GetMetalTextureFromSDLTexture(SDL_Texture *texture)
+{
     if (texture == nullptr) {
         return nil;
     }
@@ -197,69 +114,17 @@ id<MTLTexture> GetMetalTextureFromSDLTexture(SDL_Texture *texture) {
         return nil;
     }
 
-    void *opaqueTexture =
-        SDL_GetPointerProperty(
-            properties,
-            SDL_PROP_TEXTURE_METAL_TEXTURE_POINTER,
-            nullptr
-        );
+    void *opaqueTexture = SDL_GetPointerProperty(
+        properties,
+        SDL_PROP_TEXTURE_METAL_TEXTURE_POINTER,
+        nullptr
+    );
 
     if (opaqueTexture == nullptr) {
         return nil;
     }
 
     return (__bridge id<MTLTexture>)opaqueTexture;
-}
-
-bool CreateAlphaUpscalePipeline(id<MTLDevice> device) {
-    if (device == nil) {
-        return false;
-    }
-
-    if (g_alphaPipeline != nil) {
-        return true;
-    }
-
-    NSError *libraryError = nil;
-
-    id<MTLLibrary> library =
-        [device newLibraryWithSource:@(kAlphaUpscaleShader)
-                             options:nil
-                               error:&libraryError];
-
-    if (library == nil) {
-        NSLog(
-            @"MetalFX alpha shader error: %@",
-            libraryError.localizedDescription
-        );
-
-        return false;
-    }
-
-    id<MTLFunction> function =
-        [library newFunctionWithName:@"alphaUpscale"];
-
-    if (function == nil) {
-        NSLog(@"MetalFX: funcao alphaUpscale nao encontrada");
-        return false;
-    }
-
-    NSError *pipelineError = nil;
-
-    g_alphaPipeline =
-        [device newComputePipelineStateWithFunction:function
-                                              error:&pipelineError];
-
-    if (g_alphaPipeline == nil) {
-        NSLog(
-            @"MetalFX alpha pipeline error: %@",
-            pipelineError.localizedDescription
-        );
-
-        return false;
-    }
-
-    return true;
 }
 
 id<MTLTexture> CreateMetalFXWorkingTexture(
@@ -288,22 +153,23 @@ id<MTLTexture> CreateMetalFXWorkingTexture(
     return [device newTextureWithDescriptor:descriptor];
 }
 
-void EvictOldScalerEntriesLocked(void) {
+void EvictOldScalerEntriesLocked()
+{
     while (g_scalers.size() > kMaxCachedScalers) {
         if (g_scalerOrder.empty()) {
             g_scalers.clear();
             return;
         }
 
-        const ScalerKey oldestKey =
-            g_scalerOrder.back();
+        const ScalerKey oldestKey = g_scalerOrder.back();
 
         g_scalerOrder.pop_back();
         g_scalers.erase(oldestKey);
     }
 }
 
-void TouchScalerKeyLocked(const ScalerKey &key) {
+void TouchScalerKeyLocked(const ScalerKey &key)
+{
     for (auto iterator = g_scalerOrder.begin();
          iterator != g_scalerOrder.end();
          ++iterator) {
@@ -344,7 +210,6 @@ bool GetOrCreateScalerEntry(
 
         if (iterator != g_scalers.end()) {
             entry = iterator->second;
-
             TouchScalerKeyLocked(key);
 
             return entry.scaler != nil &&
@@ -359,10 +224,8 @@ bool GetOrCreateScalerEntry(
     descriptor.inputHeight = inputTexture.height;
     descriptor.outputWidth = outputTexture.width;
     descriptor.outputHeight = outputTexture.height;
-
     descriptor.colorTextureFormat = inputTexture.pixelFormat;
     descriptor.outputTextureFormat = outputTexture.pixelFormat;
-
     descriptor.colorProcessingMode =
         MTLFXSpatialScalerColorProcessingModePerceptual;
 
@@ -372,7 +235,7 @@ bool GetOrCreateScalerEntry(
     if (scaler == nil) {
         NSLog(
             @"MetalFX: falha ao criar scaler "
-            @"(input format=%lu, output format=%lu)",
+             "(input format=%lu, output format=%lu)",
             (unsigned long)inputTexture.pixelFormat,
             (unsigned long)outputTexture.pixelFormat
         );
@@ -380,10 +243,7 @@ bool GetOrCreateScalerEntry(
     }
 
     id<MTLTexture> workingTexture =
-        CreateMetalFXWorkingTexture(
-            device,
-            outputTexture
-        );
+        CreateMetalFXWorkingTexture(device, outputTexture);
 
     if (workingTexture == nil) {
         NSLog(@"MetalFX: falha ao criar workingTexture");
@@ -396,11 +256,11 @@ bool GetOrCreateScalerEntry(
 
     {
         std::lock_guard<std::mutex> lock(g_scalerMutex);
+
         const auto iterator = g_scalers.find(key);
 
         if (iterator != g_scalers.end()) {
             entry = iterator->second;
-
             TouchScalerKeyLocked(key);
 
             return entry.scaler != nil &&
@@ -418,78 +278,6 @@ bool GetOrCreateScalerEntry(
     return true;
 }
 
-bool UpscaleAlpha(
-    id<MTLCommandBuffer> commandBuffer,
-    id<MTLTexture> inputTexture,
-    id<MTLTexture> outputTexture)
-{
-    if (commandBuffer == nil ||
-        inputTexture == nil ||
-        outputTexture == nil ||
-        g_alphaPipeline == nil) {
-        return false;
-    }
-
-    id<MTLComputeCommandEncoder> encoder =
-        [commandBuffer computeCommandEncoder];
-
-    if (encoder == nil) {
-        return false;
-    }
-
-    struct AlphaUniforms {
-        float inputWidth;
-        float inputHeight;
-        float outputWidth;
-        float outputHeight;
-    };
-
-    const AlphaUniforms uniforms{
-        static_cast<float>(inputTexture.width),
-        static_cast<float>(inputTexture.height),
-        static_cast<float>(outputTexture.width),
-        static_cast<float>(outputTexture.height)
-    };
-
-    [encoder setComputePipelineState:g_alphaPipeline];
-
-    [encoder setBytes:&uniforms
-               length:sizeof(uniforms)
-              atIndex:0];
-
-    [encoder setTexture:inputTexture atIndex:0];
-    [encoder setTexture:outputTexture atIndex:1];
-
-    constexpr NSUInteger kThreadWidth = 16;
-    constexpr NSUInteger kThreadHeight = 16;
-
-    const MTLSize threadsPerThreadgroup =
-        MTLSizeMake(
-            kThreadWidth,
-            kThreadHeight,
-            1
-        );
-
-    const MTLSize threadgroupsPerGrid =
-        MTLSizeMake(
-            (outputTexture.width + kThreadWidth - 1) /
-                kThreadWidth,
-
-
-            (outputTexture.height + kThreadHeight - 1) /
-                kThreadHeight,
-
-
-            1
-        );
-
-    [encoder dispatchThreadgroups:threadgroupsPerGrid
-            threadsPerThreadgroup:threadsPerThreadgroup];
-
-    [encoder endEncoding];
-    return true;
-}
-
 bool BlitTexture(
     id<MTLCommandBuffer> commandBuffer,
     id<MTLTexture> sourceTexture,
@@ -502,7 +290,8 @@ bool BlitTexture(
     }
 
     if (sourceTexture.width != destinationTexture.width ||
-        sourceTexture.height != destinationTexture.height) {
+        sourceTexture.height != destinationTexture.height ||
+        sourceTexture.pixelFormat != destinationTexture.pixelFormat) {
         return false;
     }
 
@@ -526,6 +315,7 @@ bool BlitTexture(
             destinationSlice:0
             destinationLevel:0
            destinationOrigin:MTLOriginMake(0, 0, 0)];
+
     [encoder endEncoding];
 
     return true;
@@ -566,8 +356,7 @@ id<MTLTexture> MetalFXUpscaleTextureInto(
             device,
             inputTexture,
             outputTexture,
-            entry
-        )) {
+            entry)) {
         return nil;
     }
 
@@ -580,36 +369,28 @@ id<MTLTexture> MetalFXUpscaleTextureInto(
 
     scaler.colorTexture = inputTexture;
     scaler.outputTexture = workingTexture;
-
     scaler.inputContentWidth = inputTexture.width;
     scaler.inputContentHeight = inputTexture.height;
 
     [scaler encodeToCommandBuffer:commandBuffer];
 
-    if (!UpscaleAlpha(
-            commandBuffer,
-            inputTexture,
-            workingTexture
-        )) {
-        NSLog(@"MetalFX: falha ao codificar upscale de alpha");
-        return nil;
-    }
-
     if (!BlitTexture(
             commandBuffer,
             workingTexture,
-            outputTexture
-        )) {
+            outputTexture)) {
         NSLog(@"MetalFX: falha ao copiar para SDL_Texture");
         return nil;
     }
 
     return outputTexture;
 }
+
 } // namespace
 
 extern "C" {
-bool Kotonoha_MetalFXInit(SDL_Renderer *renderer) {
+
+bool Kotonoha_MetalFXInit(SDL_Renderer *renderer)
+{
     if (renderer == nullptr) {
         SDL_SetError("Kotonoha_MetalFXInit: renderer nulo");
         return false;
@@ -633,7 +414,6 @@ bool Kotonoha_MetalFXInit(SDL_Renderer *renderer) {
             "Kotonoha_MetalFXInit: "
             "nao foi possivel criar textura de teste"
         );
-        g_upscalingFactor = 0.0f;
         return false;
     }
 
@@ -645,29 +425,23 @@ bool Kotonoha_MetalFXInit(SDL_Renderer *renderer) {
             "Kotonoha_MetalFXInit: "
             "renderer nao expoe MTLTexture; use backend Metal"
         );
-        g_upscalingFactor = 0.0f;
         return false;
     }
 
-
     g_metalDevice = metalTexture.device;
-
 
     if (g_metalDevice == nil) {
         SDL_SetError(
             "Kotonoha_MetalFXInit: MTLDevice indisponivel"
-        );
-        g_upscalingFactor = 0.0f;
+        );;
         return false;
     }
-
 
     if (!IsMetalFXAvailable(g_metalDevice)) {
         SDL_SetError(
             "Kotonoha_MetalFXInit: "
             "MetalFX nao esta disponivel neste device"
         );
-        g_upscalingFactor = 0.0f;
         g_metalDevice = nil;
         return false;
     }
@@ -679,32 +453,17 @@ bool Kotonoha_MetalFXInit(SDL_Renderer *renderer) {
             "Kotonoha_MetalFXInit: "
             "nao foi possivel criar MTLCommandQueue"
         );
-        g_upscalingFactor = 0.0f;
         g_metalDevice = nil;
         return false;
     }
 
-    if (!CreateAlphaUpscalePipeline(g_metalDevice)) {
-        SDL_SetError(
-            "Kotonoha_MetalFXInit: "
-            "nao foi possivel criar pipeline de alpha"
-        );
-        g_upscalingFactor = 0.0f;
-        g_metalQueue = nil;
-        g_metalDevice = nil;
-        return false;
-    }
     return true;
 }
 
-void Kotonoha_MetalFXShutdown(void) {
+void Kotonoha_MetalFXShutdown(void)
+{
     {
         std::lock_guard<std::mutex> lock(g_scalerMutex);
-        /*
-         * Limpa scalers e workingTextures.
-         * ARC libera os objetos Metal quando as ultimas referencias
-         * saem de escopo.
-         */
         g_scalers.clear();
         g_scalerOrder.clear();
     }
@@ -714,7 +473,6 @@ void Kotonoha_MetalFXShutdown(void) {
         g_probe = nullptr;
     }
 
-    g_alphaPipeline = nil;
     g_metalQueue = nil;
     g_metalDevice = nil;
 }
@@ -731,44 +489,26 @@ bool Kotonoha_MetalFXUpscaleSDLTextureInto(
             "Kotonoha_MetalFXUpscaleSDLTextureInto: "
             "argumentos invalidos"
         );
-
-
         return false;
     }
 
-
-    if (g_metalDevice == nil ||
-        g_metalQueue == nil ||
-        g_alphaPipeline == nil) {
+    if (g_metalDevice == nil || g_metalQueue == nil) {
         SDL_SetError(
             "Kotonoha_MetalFXUpscaleSDLTextureInto: "
             "chame Kotonoha_MetalFXInit antes de usar o upscaler"
         );
-
-
         return false;
     }
-
 
     float inputWidth = 0.0f;
     float inputHeight = 0.0f;
     float outputWidth = 0.0f;
     float outputHeight = 0.0f;
 
-
-    if (!SDL_GetTextureSize(
-            inputTexture,
-            &inputWidth,
-            &inputHeight
-        ) ||
-        !SDL_GetTextureSize(
-            outputTexture,
-            &outputWidth,
-            &outputHeight
-        )) {
+    if (!SDL_GetTextureSize(inputTexture, &inputWidth, &inputHeight) ||
+        !SDL_GetTextureSize(outputTexture, &outputWidth, &outputHeight)) {
         return false;
     }
-
 
     if (outputWidth <= inputWidth ||
         outputHeight <= inputHeight) {
@@ -776,19 +516,14 @@ bool Kotonoha_MetalFXUpscaleSDLTextureInto(
             "Kotonoha_MetalFXUpscaleSDLTextureInto: "
             "textura de saida deve ser maior que entrada"
         );
-
-
         return false;
     }
-
 
     id<MTLTexture> inputMetalTexture =
         GetMetalTextureFromSDLTexture(inputTexture);
 
-
     id<MTLTexture> outputMetalTexture =
         GetMetalTextureFromSDLTexture(outputTexture);
-
 
     if (inputMetalTexture == nil ||
         outputMetalTexture == nil) {
@@ -796,11 +531,8 @@ bool Kotonoha_MetalFXUpscaleSDLTextureInto(
             "Kotonoha_MetalFXUpscaleSDLTextureInto: "
             "SDL_Texture nao expoe MTLTexture nativa"
         );
-
-
         return false;
     }
-
 
     if (inputMetalTexture.device != g_metalDevice ||
         outputMetalTexture.device != g_metalDevice) {
@@ -808,26 +540,19 @@ bool Kotonoha_MetalFXUpscaleSDLTextureInto(
             "Kotonoha_MetalFXUpscaleSDLTextureInto: "
             "textura usa MTLDevice diferente do device inicial"
         );
-
-
         return false;
     }
 
-
     id<MTLCommandBuffer> commandBuffer =
         [g_metalQueue commandBuffer];
-
 
     if (commandBuffer == nil) {
         SDL_SetError(
             "Kotonoha_MetalFXUpscaleSDLTextureInto: "
             "nao foi possivel criar MTLCommandBuffer"
         );
-
-
         return false;
     }
-
 
     id<MTLTexture> result =
         MetalFXUpscaleTextureInto(
@@ -836,47 +561,32 @@ bool Kotonoha_MetalFXUpscaleSDLTextureInto(
             commandBuffer
         );
 
-
     if (result == nil) {
         SDL_SetError(
             "Kotonoha_MetalFXUpscaleSDLTextureInto: "
             "MetalFX falhou ou textura nao suportada"
         );
-
-
         return false;
     }
 
-
     [commandBuffer commit];
     [commandBuffer waitUntilCompleted];
-
 
     if (commandBuffer.error != nil) {
         SDL_SetError(
             "Kotonoha_MetalFXUpscaleSDLTextureInto: erro Metal: %s",
             commandBuffer.error.localizedDescription.UTF8String
         );
-
-
         return false;
     }
-
 
     return true;
 }
 
-void Kotonoha_MetalFXClearScalerCache(void) {
+void Kotonoha_MetalFXClearScalerCache(void)
+{
     std::lock_guard<std::mutex> lock(g_scalerMutex);
     g_scalers.clear();
     g_scalerOrder.clear();
-}
-
-float Kotonoha_UpscalingFactor(void){
-    return g_upscalingFactor;
-}
-
-void Kotonoha_UpscalingSetFactor(float factor){
-    g_upscalingFactor = factor;
 }
 } // extern "C"

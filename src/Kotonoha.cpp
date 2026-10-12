@@ -808,7 +808,6 @@ namespace Kotonoha {
 				lastScene = currentScene;
 				if (!current->firstFocus)
 					current->Reset(true);
-
 					#ifdef KOTONOHA_HAS_METALFX
 					Kotonoha_MetalFXClearScalerCache();
 					#endif

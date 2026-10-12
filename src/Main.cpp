@@ -184,10 +184,7 @@ extern "C" {
 			SDL_ShowWindow(global.window);
 		}
 
-
-		#ifdef KOTONOHA_HAS_METALFX
-		Kotonoha_MetalFXInit(global.render);
-		#endif
+		Kotonoha_UpscalingInit(global.render, "Auto", Kotonoha_UpscalingFactor());
 
 		return status;
 	}
@@ -252,9 +249,7 @@ extern "C" {
 	void SDL_AppQuit(void* appstate, SDL_AppResult result) {
 		(void)result;
 
-		#ifdef KOTONOHA_HAS_METALFX
-		Kotonoha_MetalFXShutdown();
-		#endif
+		Kotonoha_UpscalingShutdown();
 
 		delete GetApp(appstate);
 		CleanupGlobalResources();

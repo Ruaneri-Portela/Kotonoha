@@ -1,58 +1,42 @@
 #pragma once
 #include <SDL3/SDL.h>
 
+#include <Kotonoha/speciais/MetalFX.h>
+#include <Kotonoha/speciais/Anime4K.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#if defined(KOTONOHA_HAS_METALFX)
+typedef enum Kotonoha_UpscalerType {
+    KOTONOHA_UPSCALER_NONE = 0,
+    KOTONOHA_UPSCALER_ANIME4K = 1,
+    KOTONOHA_UPSCALER_METALFX = 2
+} Kotonoha_UpscalerType;
 
-bool Kotonoha_MetalFXInit(SDL_Renderer *renderer);
+// Generic Init & Shutdown
+bool Kotonoha_UpscalingInit(SDL_Renderer *renderer, const char *name, float factor);
+void Kotonoha_UpscalingShutdown(void);
 
-void Kotonoha_MetalFXShutdown(void);
+// Capabilities & Selection
+bool Kotonoha_HasUpscaler(void);
+bool Kotonoha_HasMetalFX(void);
+bool Kotonoha_HasAnime4K(void);
 
-bool Kotonoha_MetalFXUpscaleSDLTextureInto(
+Kotonoha_UpscalerType Kotonoha_GetUpscalerType(void);
+const char* Kotonoha_GetUpscalerName(void);
+void Kotonoha_SetUpscalerType(Kotonoha_UpscalerType type);
+bool Kotonoha_SetUpscalerByName(const char* name);
+
+// Upscale Factor (e.g. 1.0f = disabled, 1.5f, 2.0f)
+float Kotonoha_UpscalingFactor(void);
+void Kotonoha_UpscalingSetFactor(float factor);
+
+// Generic Upscale execution function (routes to MetalFX or Anime4K/OpenGL)
+bool Kotonoha_UpscaleSDLTextureInto(
     SDL_Renderer *renderer,
     SDL_Texture *inputTexture,
     SDL_Texture *outputTexture);
-
-void Kotonoha_MetalFXClearScalerCache(void);
-
-float Kotonoha_UpscalingFactor(void);
-
-void Kotonoha_UpscalingSetFactor(float factor);
-
-#else
-
-static inline bool Kotonoha_MetalFXInit(SDL_Renderer *renderer) {
-    (void)renderer;
-    return false;
-}
-
-static inline void Kotonoha_MetalFXShutdown(void) {}
-
-static inline bool Kotonoha_MetalFXUpscaleSDLTextureInto(
-    SDL_Renderer *renderer,
-    SDL_Texture *inputTexture,
-    SDL_Texture *outputTexture)
-{
-    (void)renderer;
-    (void)inputTexture;
-    (void)outputTexture;
-    return false;
-}
-
-static inline void Kotonoha_MetalFXClearScalerCache(void) {}
-
-static inline float Kotonoha_UpscalingFactor(void) {
-    return 1.0f;
-}
-
-static inline void Kotonoha_UpscalingSetFactor(float factor) {
-    (void)factor;
-}
-
-#endif
 
 #ifdef __cplusplus
 }
