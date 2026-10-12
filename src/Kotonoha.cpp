@@ -8,6 +8,13 @@
 #include <string>
 #include <vector>
 
+extern "C"{
+	#include <Kotonoha/speciais/Upscaling.h>
+}
+
+extern bool Kotonoha_BasicGuiShow;
+extern bool Kotonoha_BasicGuiEditorShow;
+
 namespace Kotonoha {
 
 	namespace {
@@ -84,8 +91,8 @@ namespace Kotonoha {
 			SDL_SetWindowFullscreen(gameContext.window, true);
 			gameContext.flags = SDL_GetWindowFlags(gameContext.window);
 		}
-		if (windowsWidth != 1280 || windowsHeight != 720) {
-			SDL_SetWindowSize(gameContext.window, windowsWidth, windowsHeight);
+		if (gameContext.videoWidth != 1280 || gameContext.videoHeight != 720) {
+			SDL_SetWindowSize(gameContext.window, gameContext.videoWidth, gameContext.videoHeight);
 		}
 	}
 
@@ -305,6 +312,7 @@ namespace Kotonoha {
 			SDL_Log("  -a                   Show Audio render drivers list");
 			SDL_Log("  -f                   Set fullscreen window mode");
 			SDL_Log("  -x <width> <height>  Set window size");
+			SDL_Log("  -q <factor>         Set upscale factor; 1.0 disables MetalFX");
 			SDL_Log("  -v                   Enable VSync");
 			SDL_Log("  -z                   Show FPS");
 			SDL_Log("  -t                   Show Timestamp");
@@ -392,15 +400,56 @@ namespace Kotonoha {
 			case 'x':
 				if (i + 2 < argc && argv[i + 1] != nullptr &&
 					argv[i + 2] != nullptr) {
-					windowsWidth = SDL_atoi(argv[++i]);
-					windowsHeight = SDL_atoi(argv[++i]);
+					gameContext.videoWidth = SDL_atoi(argv[++i]);
+					gameContext.videoHeight = SDL_atoi(argv[++i]);
 				}
 				else {
 					SDL_LogError(0, "Missing arguments for -x option (width and height)");
 					return false;
 				}
 				break;
+			case 'q':
+				if (i + 1 < argc && argv[i + 1] != nullptr) {
+					const char *factorText = argv[++i];
 
+					char *end = nullptr;
+					errno = 0;
+
+					const float factor = std::strtof(factorText, &end);
+
+					if (end == factorText ||
+						*end != '\0' ||
+						errno == ERANGE ||
+						!std::isfinite(factor) ||
+						factor <= 0.0f) {
+						SDL_LogError(
+							0,
+							"Invalid value for -q upscale factor: %s",
+							factorText
+						);
+
+						return false;
+					}
+
+					Kotonoha_UpscalingSetFactor(factor);
+
+					SDL_Log(
+						"Upscaling factor set to %.3f%s",
+						factor,
+						factor > 1.0f
+							? " (MetalFX enabled)"
+							: " (native resolution)"
+					);
+				}
+				else {
+					SDL_LogError(
+						0,
+						"Missing argument for -q option (upscale factor)"
+					);
+
+					return false;
+				}
+				break;
 			case 'f':
 				fullscreen = !fullscreen;
 				break;
@@ -759,6 +808,9 @@ namespace Kotonoha {
 				lastScene = currentScene;
 				if (!current->firstFocus)
 					current->Reset(true);
+					#ifdef KOTONOHA_HAS_METALFX
+					Kotonoha_MetalFXClearScalerCache();
+					#endif
 				continue;
 			}
 

@@ -73,7 +73,6 @@ struct Kotonoha_subtitles*
 	object->track = gameCtx->ass_track;
 	object->time = time;
 	object->subTexture = NULL;
-
 	return object;
 }
 
@@ -131,6 +130,13 @@ enum Kotonoha_Scene_Status Kotonoha_TextRenderDraw(KOTONOHA_SCENE_CALL) {
 
 	ass_set_storage_size(environment->ass_renderer, target->w, target->h);
 	ass_set_frame_size(environment->ass_renderer, target->w, target->h);
+
+	float scale = SDL_GetWindowDisplayScale(window);
+
+	if (environment->track) {
+		environment->track->PlayResX = target->w / scale;
+		environment->track->PlayResY = target->h / scale;
+	}
 
 	int asChanged = 0;
 	ASS_Image* frame =
