@@ -259,7 +259,6 @@ namespace Kotonoha {
 		delete this->video;
 		delete this->image;
 		delete this->audio;
-		Kotonoha_IOMonitorBindNetworkWaitFlag(&ioMonitor, nullptr);
 		delete this->drawCanvas;
 		delete this->fade;
 
@@ -268,6 +267,7 @@ namespace Kotonoha {
 			prompt = nullptr;
 		}
 
+		Kotonoha_IOMonitorBindNetworkWaitFlag(&ioMonitor, nullptr);
 		Kotonoha_TextRenderShutdown(&(this->sb));
 		Kotonoha_timeDestroy(this->tm);
 	}

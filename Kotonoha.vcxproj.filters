@@ -37,6 +37,12 @@
     <Filter Include="Arquivos de Cabeçalho\utils">
       <UniqueIdentifier>{7193bfe4-c1a3-4b63-af35-528d150b1c25}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Arquivos de Origem\specials">
+      <UniqueIdentifier>{f30bf169-2486-475b-a915-ebf1c69d2eae}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Arquivos de Cabeçalho\specials">
+      <UniqueIdentifier>{afc86d37-9d9b-47f0-afea-d4a262edf255}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Gameplay.cpp">
@@ -116,6 +122,21 @@
     </ClCompile>
     <ClCompile Include="src\utils\OverlayRenderUtils.c">
       <Filter>Arquivos de Origem\utils</Filter>
+    </ClCompile>
+    <ClCompile Include="src\components\Upscaling.cpp">
+      <Filter>Arquivos de Origem\components</Filter>
+    </ClCompile>
+    <ClCompile Include="src\specials\UpscalingGeneric.cpp">
+      <Filter>Arquivos de Origem\specials</Filter>
+    </ClCompile>
+    <ClCompile Include="src\GameplayEvents.cpp">
+      <Filter>Arquivos de Origem</Filter>
+    </ClCompile>
+    <ClCompile Include="src\specials\Anime4K.cpp">
+      <Filter>Arquivos de Origem\specials</Filter>
+    </ClCompile>
+    <ClCompile Include="src\specials\OpenGL.c">
+      <Filter>Arquivos de Origem\specials</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -202,6 +223,21 @@
     </ClInclude>
     <ClInclude Include="include\Kotonoha\components\VoiceActivity.hpp">
       <Filter>Arquivos de Cabeçalho\components</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Kotonoha\speciais\Anime4K.h">
+      <Filter>Arquivos de Cabeçalho\specials</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Kotonoha\speciais\MetalFX.h">
+      <Filter>Arquivos de Cabeçalho\specials</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Kotonoha\speciais\Upscaling.h">
+      <Filter>Arquivos de Cabeçalho\specials</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Kotonoha\components\Upscaling.hpp">
+      <Filter>Arquivos de Cabeçalho\components</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Kotonoha\speciais\OpenGL.h">
+      <Filter>Arquivos de Cabeçalho\specials</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

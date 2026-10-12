@@ -74,7 +74,7 @@ if(ANDROID)
     add_link_options("-Wl,-z,max-page-size=16384")
 
     # Wrapper SDL3 estático -> libSDL3.so
-    add_library(SDL3 SHARED bundle.cpp)
+    add_library(SDL3 SHARED src/specials/bundle.cpp)
     target_link_libraries(SDL3 PRIVATE
             "-Wl,--whole-archive"
             $<TARGET_FILE:SDL3::SDL3-static>
@@ -87,7 +87,7 @@ if(ANDROID)
     )
 
     # Wrapper SDL3_ttf estático -> libSDL3_ttf.so
-    add_library(SDL3_ttf SHARED bundle.cpp)
+    add_library(SDL3_ttf SHARED src/specials/bundle.cpp)
     target_link_libraries(SDL3_ttf PRIVATE
             "-Wl,--whole-archive"
             $<TARGET_FILE:SDL3_ttf::SDL3_ttf-static>
@@ -131,7 +131,7 @@ else()
 
     if(APPLE)
         list(APPEND SOURCES
-                src/specials/Upscaling.cpp
+                src/specials/UpscalingGeneric.cpp
                 src/specials/MetalFX.mm
         )
     endif()

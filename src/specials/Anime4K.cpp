@@ -1,17 +1,10 @@
 #include <SDL3/SDL.h>
+
+#include <Kotonoha/speciais/OpenGL.h>
 #include <Kotonoha/speciais/Upscaling.h>
 #include <string>
 #include <sstream>
 #include <vector>
-
-#if defined(__ANDROID__) || defined(ANDROID)
-    #include <GLES2/gl2.h>
-    #include <GLES2/gl2ext.h>
-#elif defined(__APPLE__)
-    #include <OpenGL/gl3.h>
-#else
-    #include <SDL3/SDL_opengl.h>
-#endif
 
 #ifndef SDL_PROP_TEXTURE_OPENGL_TEXTURE_NUMBER
 #define SDL_PROP_TEXTURE_OPENGL_TEXTURE_NUMBER "SDL.texture.opengl.texture"
@@ -19,6 +12,8 @@
 #ifndef SDL_PROP_TEXTURE_OPENGLES2_TEXTURE_NUMBER
 #define SDL_PROP_TEXTURE_OPENGLES2_TEXTURE_NUMBER "SDL.texture.opengles2.texture"
 #endif
+
+#if defined(KOTONOHA_HAS_ANIME4K)
 
 namespace {
 
@@ -127,27 +122,7 @@ static std::string LoadShaderSourceFromAssets(const char* filename) {
     std::string source(static_cast<const char*>(buffer), dataSize);
     SDL_free(buffer);
 
-    std::stringstream ss(source);
-    std::string line;
-    std::string cleanSource;
-    bool hasVersion = false;
-
-    while (std::getline(ss, line)) {
-        if (line.size() >= 3 && line[0] == '/' && line[1] == '/' && line[2] == '!') {
-            cleanSource += "// " + line + "\n";
-            continue;
-        }
-        if (line.find("#version") != std::string::npos) {
-            hasVersion = true;
-        }
-        cleanSource += line + "\n";
-    }
-
-    if (!hasVersion) {
-        cleanSource = "#version 100\nprecision mediump float;\n" + cleanSource;
-    }
-
-    return cleanSource;
+    return source;
 }
 
 static GLuint CompileShader(GLenum type, const char* source) {
@@ -175,9 +150,11 @@ static GLuint CompileShader(GLenum type, const char* source) {
 }
 
 static bool InitGLPipeline() {
+    Kotonoha_OpenGLInit();
+
     if (g_anime4kInitialized) return true;
 
-    std::string fragSource = LoadShaderSourceFromAssets("Anime4K_Upscale_CNN_x2_VL.glsl");
+    std::string fragSource = LoadShaderSourceFromAssets("Anime4K_ModeA_A.glsl");
     if (fragSource.empty()) {
         fragSource = LoadShaderSourceFromAssets("Anime4K_Upscale.glsl");
     }
@@ -376,3 +353,4 @@ bool Kotonoha_Anime4KUpscaleSDLTextureInto(
 }
 
 } // extern "C"
+#endif

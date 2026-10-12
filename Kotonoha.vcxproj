@@ -34,9 +34,11 @@
     <ClCompile Include="src\components\Image.cpp" />
     <ClCompile Include="src\components\Prompt.cpp" />
     <ClCompile Include="src\components\Sound.cpp" />
+    <ClCompile Include="src\components\Upscaling.cpp" />
     <ClCompile Include="src\components\Video.cpp" />
     <ClCompile Include="src\BasicGui.cpp" />
     <ClCompile Include="src\Gameplay.cpp" />
+    <ClCompile Include="src\GameplayEvents.cpp" />
     <ClCompile Include="src\Kotonoha.cpp" />
     <ClCompile Include="src\Main.cpp" />
     <ClCompile Include="src\parsers\Ors.c" />
@@ -47,6 +49,9 @@
     <ClCompile Include="src\renders\TextRender.c" />
     <ClCompile Include="src\renders\TimestampRender.c" />
     <ClCompile Include="src\renders\VideoRender.c" />
+    <ClCompile Include="src\specials\Anime4K.cpp" />
+    <ClCompile Include="src\specials\OpenGL.c" />
+    <ClCompile Include="src\specials\UpscalingGeneric.cpp" />
     <ClCompile Include="src\utils\FFmpeg.c" />
     <ClCompile Include="src\utils\IOMonitor.c" />
     <ClCompile Include="src\utils\OverlayRenderUtils.c" />
@@ -62,6 +67,7 @@
     <ClInclude Include="include\Kotonoha\components\Image.hpp" />
     <ClInclude Include="include\Kotonoha\components\Prompt.hpp" />
     <ClInclude Include="include\Kotonoha\components\Sound.hpp" />
+    <ClInclude Include="include\Kotonoha\components\Upscaling.hpp" />
     <ClInclude Include="include\Kotonoha\components\Video.hpp" />
     <ClInclude Include="include\Kotonoha\components\VoiceActivity.hpp" />
     <ClInclude Include="include\Kotonoha\Gameplay.hpp" />
@@ -75,6 +81,10 @@
     <ClInclude Include="include\Kotonoha\renders\TextRender.h" />
     <ClInclude Include="include\Kotonoha\renders\TimestampRender.h" />
     <ClInclude Include="include\Kotonoha\renders\VideoRender.h" />
+    <ClInclude Include="include\Kotonoha\speciais\Anime4K.h" />
+    <ClInclude Include="include\Kotonoha\speciais\MetalFX.h" />
+    <ClInclude Include="include\Kotonoha\speciais\OpenGL.h" />
+    <ClInclude Include="include\Kotonoha\speciais\Upscaling.h" />
     <ClInclude Include="include\Kotonoha\utils\FFmpeg.h" />
     <ClInclude Include="include\Kotonoha\utils\IOMonitor.h" />
     <ClInclude Include="include\Kotonoha\utils\OverlayRenderUtils.h" />
@@ -202,6 +212,7 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>opengl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -217,6 +228,7 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>opengl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -230,6 +242,7 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>opengl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'">
@@ -243,6 +256,7 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>opengl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -258,6 +272,7 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>opengl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">
@@ -273,6 +288,7 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>opengl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

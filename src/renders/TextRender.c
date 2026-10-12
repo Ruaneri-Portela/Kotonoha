@@ -134,8 +134,8 @@ enum Kotonoha_Scene_Status Kotonoha_TextRenderDraw(KOTONOHA_SCENE_CALL) {
 	float scale = SDL_GetWindowDisplayScale(window);
 
 	if (environment->track) {
-		environment->track->PlayResX = target->w / scale;
-		environment->track->PlayResY = target->h / scale;
+		environment->track->PlayResX = (int)((float)target->w / scale);
+		environment->track->PlayResY = (int)((float)target->h / scale);
 	}
 
 	int asChanged = 0;
