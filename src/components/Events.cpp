@@ -545,25 +545,27 @@ namespace Kotonoha {
 			throw std::runtime_error("Invalid gameplay context");
 		}
 
-		if (gameCtx->ass_track == nullptr) {
-			std::stringstream subSs;
-			subSs << "[Script Info]\nTitle:" << orsPath
-				<< "\nScriptType: v4.00+\nWrapStyle: 0\nScaledBorderAndShadow: yes\n"
-				<< "YCbCr Matrix: None\n\n"
-				<< (gameCtx->styleStr == nullptr ? "" : gameCtx->styleStr)
-				<< std::endl;
-			const std::string subtitleScript = subSs.str();
-			gameCtx->ass_track = ass_new_track(gp->sb->ass_library);
-			if (gameCtx->ass_track == nullptr) {
-				throw std::runtime_error("Failed to create subtitle track");
-			}
+		std::stringstream subSs;
+		subSs << "[Script Info]\n"
+			<< "Title: " << orsPath << "\n"
+			<< "ScriptType: v4.00+\n"
+			<< "PlayResX: " << gameCtx->videoWidth << "\n"
+			<< "PlayResY: " << gameCtx->videoHeight << "\n"
+			<< "WrapStyle: 0\n"
+			<< "ScaledBorderAndShadow: yes\n"
+			<< "YCbCr Matrix: None\n\n"
+			<< (gameCtx->styleStr == nullptr ? "" : gameCtx->styleStr)
+			<< std::endl;
 
-			ass_process_data(gameCtx->ass_track,
-				const_cast<char*>(subtitleScript.c_str()),
-				static_cast<int>(subtitleScript.size()));
+		if (gp->sb->track != nullptr) {
+			ass_free_track(gp->sb->track);
+			gp->sb->track = nullptr;
 		}
-		gp->sb->track = gameCtx->ass_track;
-		subtitleTrack = gameCtx->ass_track;
+		gp->sb->track = ass_new_track(gp->sb->ass_library);
+
+		ass_process_data(gp->sb->track,
+			const_cast<char*>(subSs.str().c_str()),
+			static_cast<int>(subSs.str().size()));
 
 		for (auto* event = eventsFromScript.data; event != nullptr;
 			event = event->next) {
@@ -640,6 +642,11 @@ namespace Kotonoha {
 				std::vector<std::string> options;
 				for (char** it = event->data.set_select->options; *it != nullptr; ++it) {
 					options.push_back(BuildString(*it));
+				}
+
+				if (gp->prompt != nullptr) {
+					delete gp->prompt;
+					gp->prompt = nullptr;
 				}
 
 				gp->prompt = new Prompt(

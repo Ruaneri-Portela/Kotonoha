@@ -5,8 +5,9 @@ extern "C" {
 #include <Kotonoha/Kotonoha.h>
 #include <Kotonoha/utils/UserEvents.h>
 #include <SDL3/SDL.h>
-
 }
+
+namespace Kotonoha {
 
 struct CanvasItem {
   Kotonoha_Scene_Status (*drawingPoint)(KOTONOHA_SCENE_CALL);
@@ -15,12 +16,10 @@ struct CanvasItem {
   Sint16 zIndex;
   SDL_FRect place;
   bool swapTexture;
-  bool holdTexture;
 
   void *userData;
 };
 
-namespace Kotonoha {
 class Canvas {
 private:
   std::vector<CanvasItem> drawingList = std::vector<CanvasItem>();

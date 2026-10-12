@@ -18,6 +18,10 @@ endif()
 # ==============================================================================
 project(Kotonoha VERSION 0.1.0 LANGUAGES C CXX)
 
+if(APPLE AND NOT ANDROID)
+    enable_language(OBJC)
+endif()
+
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_STANDARD 17)
@@ -53,20 +57,15 @@ pkg_check_modules(FFMPEG REQUIRED IMPORTED_TARGET
 pkg_check_modules(LIBASS REQUIRED IMPORTED_TARGET libass)
 find_package(imgui CONFIG REQUIRED)
 
+# ==============================================================================
+# Android: Shared wrappers and main library
+# ==============================================================================
 if(ANDROID)
     find_package(SDL3 CONFIG REQUIRED)
     find_package(SDL3_ttf CONFIG REQUIRED)
     find_package(imgui CONFIG REQUIRED)
     find_package(expat CONFIG REQUIRED)
-else()
-    pkg_check_modules(SDL3 REQUIRED IMPORTED_TARGET sdl3)
-    pkg_check_modules(SDL3_TTF REQUIRED IMPORTED_TARGET sdl3-ttf)
-endif()
 
-# ==============================================================================
-# Android: Shared wrappers and main library
-# ==============================================================================
-if(ANDROID)
     message(STATUS
             "Configuração Android | ABI: ${ANDROID_ABI} | Platform: ${ANDROID_PLATFORM}"
     )
@@ -78,8 +77,9 @@ if(ANDROID)
     add_library(SDL3 SHARED bundle.cpp)
     target_link_libraries(SDL3 PRIVATE
             "-Wl,--whole-archive"
-            SDL3::SDL3-static
+            $<TARGET_FILE:SDL3::SDL3-static>
             "-Wl,--no-whole-archive"
+            SDL3::SDL3-static
             android
             log
             atomic
@@ -90,8 +90,9 @@ if(ANDROID)
     add_library(SDL3_ttf SHARED bundle.cpp)
     target_link_libraries(SDL3_ttf PRIVATE
             "-Wl,--whole-archive"
-            SDL3_ttf::SDL3_ttf
+            $<TARGET_FILE:SDL3_ttf::SDL3_ttf-static>
             "-Wl,--no-whole-archive"
+            SDL3_ttf::SDL3_ttf-static
             SDL3
             android
             log
@@ -124,8 +125,16 @@ if(ANDROID)
     # Desktop: executable
     # ==============================================================================
 else()
-    list(FILTER SOURCES EXCLUDE REGEX "/LibIconvCompat\\.c$")
+    pkg_check_modules(SDL3 REQUIRED IMPORTED_TARGET sdl3)
+    pkg_check_modules(SDL3_TTF REQUIRED IMPORTED_TARGET sdl3-ttf)
     message(STATUS "Configuração Desktop | Sistema: ${CMAKE_SYSTEM_NAME}")
+
+    if(APPLE)
+        list(APPEND SOURCES
+                src/specials/Upscaling.cpp
+                src/specials/MetalFX.mm
+        )
+    endif()
 
     if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
         list(APPEND SOURCES src/Kotonoha.rc)
@@ -148,6 +157,17 @@ else()
             PkgConfig::SDL3_TTF
             imgui::imgui
     )
+
+    if(APPLE)
+        target_compile_definitions(Kotonoha PRIVATE
+                KOTONOHA_HAS_METALFX=1
+        )
+        target_link_libraries(Kotonoha PRIVATE
+                "-framework Foundation"
+                "-framework Metal"
+                "-framework MetalFX"
+        )
+    endif()
 endif()
 
 # ==============================================================================

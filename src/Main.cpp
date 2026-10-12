@@ -113,8 +113,8 @@ namespace {
 
 extern "C" {
 #define SDL_MAIN_USE_CALLBACKS 1
+#include <Kotonoha/speciais/Upscaling.h>
 #include <SDL3/SDL_main.h>
-
 	SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
 		if (appstate == nullptr) {
 			return SDL_APP_FAILURE;
@@ -122,6 +122,9 @@ extern "C" {
 
 		*appstate = nullptr;
 		std::memset(&global, 0, sizeof(global));
+
+		global.videoWidth = 1280;
+		global.videoHeight = 720;
 
 		SDL_AppResult status = SDL_APP_FAILURE;
 		Kotonoha::Kotonoha* engine =
@@ -186,6 +189,8 @@ extern "C" {
 			SDL_ShowWindow(global.window);
 		}
 
+		Kotonoha_UpscalingInit(global.render, "Auto", Kotonoha_UpscalingFactor());
+
 		return status;
 	}
 
@@ -248,6 +253,8 @@ extern "C" {
 
 	void SDL_AppQuit(void* appstate, SDL_AppResult result) {
 		(void)result;
+
+		Kotonoha_UpscalingShutdown();
 
 		delete GetApp(appstate);
 		CleanupGlobalResources();

@@ -25,7 +25,7 @@ typedef struct Kotonoha_IOMonitorOperation {
 void Kotonoha_IOMonitorInit(Kotonoha_IOMonitor *monitor,
                             bool retryMissingAssets);
 void Kotonoha_IOMonitorBindNetworkWaitFlag(Kotonoha_IOMonitor *monitor,
-                                            SDL_AtomicInt *networkWaitFlag);
+                                           SDL_AtomicInt *networkWaitFlag);
 void Kotonoha_IOMonitorCancel(Kotonoha_IOMonitor *monitor);
 bool Kotonoha_IOMonitorIsLoading(const Kotonoha_IOMonitor *monitor);
 bool Kotonoha_IOMonitorHasMissingAssets(const Kotonoha_IOMonitor *monitor);

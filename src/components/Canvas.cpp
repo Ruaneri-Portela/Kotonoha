@@ -44,6 +44,17 @@ namespace Kotonoha {
 			}
 		}
 
+		if (dirtyTexture != nullptr) {
+			for (const auto& item : drawingList) {
+				if (item.drawingPoint == drawingPoint && item.zIndex == dirtyZIndex) {
+					SDL_DestroyTexture(dirtyTexture);
+					dirtyTexture = nullptr;
+					dirtyZIndex = 32767;
+					break;
+				}
+			}
+		}
+
 		drawingList.erase(
 			std::remove_if(drawingList.begin(), drawingList.end(),
 				[drawingPoint](const CanvasItem& item) {

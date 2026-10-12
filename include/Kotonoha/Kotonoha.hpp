@@ -36,9 +36,8 @@ namespace Kotonoha {
 		std::atomic_bool processPoolRunning{true};
 		std::vector<std::tuple<SDL_ThreadFunction, void*>> processPoolTasks;
 		const char* preferredGPU = nullptr;
-		
-		int windowsWidth = 1280;
-		int windowsHeight = 720;
+		std::string preferredUpscaler = "Auto";
+
 		bool fullscreen = false;
 		bool enableVsync = false;
 		bool ignoreMissingAssets = false;
@@ -92,6 +91,3 @@ namespace Kotonoha {
 void Kotonoha_BasicGuiInit(Kotonoha_Game& gameContext);
 bool Kotonoha_BasicGuiRun(Kotonoha::Kotonoha* game, Kotonoha::Gameplay* play, Kotonoha_Game& context);
 void Kotonoha_BasicGuiEvent(SDL_Event* event);
-
-extern bool Kotonoha_BasicGuiShow;
-extern bool Kotonoha_BasicGuiEditorShow;

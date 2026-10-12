@@ -40,6 +40,7 @@
       debugDocumentVersioning = "NO"
       debugServiceExtension = "internal"
       enableGPUValidationMode = "1"
+      showGraphicsOverview = "Yes"
       allowLocationSimulation = "NO"
       queueDebuggingEnableBacktraceRecording = "Yes"
       consoleMode = "0"
@@ -56,7 +57,7 @@
       </BuildableProductRunnable>
       <CommandLineArguments>
          <CommandLineArgument
-            argument = "-f -t -z -u -r metal -p &quot;http://hirameki-server.lan:9090/&quot; -s &quot;assets/styles.skot&quot; -l assets/00/00-00-A00.PT.txt -l assets/00/00-00-A01.PT.txt -l assets/00/00-00-A02.PT.txt"
+            argument = "-f -t -z -u -r metal -q 4.0 -p &quot;http://hirameki-server.lan:9090/&quot; -s &quot;assets/styles.skot&quot; -l assets/00/00-00-A00.PT.txt -l assets/00/00-00-A01.PT.txt -l assets/00/00-00-A02.PT.txt"
             isEnabled = "YES">
          </CommandLineArgument>
       </CommandLineArguments>

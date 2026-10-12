@@ -45,10 +45,11 @@ struct Kotonoha_Game {
   SDL_WindowFlags flags;
   SDL_Mutex *taskLock;
 
-  char *assetsPath, *configPath, *styleStr;
+  int videoWidth, videoHeight, vsync, scene;
 
+  char *styleStr;
+  const char *assetsPath, *configPath;
   bool showFps, showTimestamp, paused, back, next;
-  int vsync, scene;
 
   struct Kotonoha_eventStack eventQueu;
   void *processPoolTasks;
