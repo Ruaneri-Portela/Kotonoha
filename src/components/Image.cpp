@@ -1,7 +1,7 @@
 #include <Kotonoha/components/Image.hpp>
 
 #include <SDL3/SDL_render.h>
-
+#include <Kotonoha/speciais/Upscaling.h>
 #include <algorithm>
 #include <cctype>
 
@@ -223,7 +223,6 @@ Image::Image(Kotonoha_time *time, Kotonoha_IOMonitor *ioMonitor)
 
 Image::~Image() {
     Reset();
-
     if (lock != nullptr) {
         SDL_DestroyMutex(lock);
         lock = nullptr;
@@ -594,6 +593,177 @@ void Image::SetAbcState(const std::string &key,
     SDL_UnlockMutex(lock);
 }
 
+void Image::RenderTexture(
+    SDL_Renderer *render,
+    Kotonoha_Picture *picture,
+    bool &cleaned)
+{
+    if (!render || !picture || !picture->texture) {
+        return;
+    }
+
+    const float factor = Kotonoha_UpscalingFactor();
+
+    if (factor > 1.0f && IsUpscalingActive()) {
+        float pictureWidth = 0.0f;
+        float pictureHeight = 0.0f;
+
+        if (!SDL_GetTextureSize(
+                picture->texture,
+                &pictureWidth,
+                &pictureHeight)) {
+            SDL_LogError(
+                SDL_LOG_CATEGORY_RENDER,
+                "Failed to get picture texture size: %s",
+                SDL_GetError()
+            );
+            return;
+        }
+
+        const int requiredWidth = static_cast<int>(pictureWidth);
+        const int requiredHeight = static_cast<int>(pictureHeight);
+
+        if (requiredWidth <= 0 || requiredHeight <= 0) {
+            SDL_LogError(
+                SDL_LOG_CATEGORY_RENDER,
+                "Invalid picture texture size: %dx%d",
+                requiredWidth,
+                requiredHeight
+            );
+            return;
+        }
+
+        if (!EnsureUpscalingTextures(render, requiredWidth, requiredHeight, factor)) {
+            SDL_LogError(
+                SDL_LOG_CATEGORY_RENDER,
+                "Failed to ensure upscaling textures for picture"
+            );
+            return;
+        }
+
+        // Salva o estado do renderer antes de trocar o target.
+        SDL_Texture *originalTarget = SDL_GetRenderTarget(render);
+
+        SDL_Rect originalViewport{};
+        SDL_Rect originalClip{};
+        float originalScaleX = 1.0f;
+        float originalScaleY = 1.0f;
+
+        const bool viewportEnabled = SDL_RenderViewportSet(render);
+        const bool clipEnabled = SDL_RenderClipEnabled(render);
+
+        SDL_GetRenderViewport(render, &originalViewport);
+        SDL_GetRenderClipRect(render, &originalClip);
+
+        if (!SDL_GetRenderScale(
+                render,
+                &originalScaleX,
+                &originalScaleY)) {
+            SDL_LogError(
+                SDL_LOG_CATEGORY_RENDER,
+                "Failed to get renderer scale: %s",
+                SDL_GetError()
+            );
+            return;
+        }
+
+        if (!SDL_SetRenderTarget(render, extraTexture)) {
+            SDL_LogError(
+                SDL_LOG_CATEGORY_RENDER,
+                "Failed to set upscaling render target: %s",
+                SDL_GetError()
+            );
+            return;
+        }
+
+        // Limpa a textura intermediária para não reutilizar conteúdo antigo.
+        SDL_SetRenderViewport(render, nullptr);
+        SDL_SetRenderClipRect(render, nullptr);
+        SDL_SetRenderScale(render, 1.0f, 1.0f);
+        SDL_SetRenderDrawColor(render, 0, 0, 0, 0);
+        SDL_RenderClear(render);
+
+        // Desenha usando o tamanho original do picture.
+        const SDL_FRect pictureDestination = {
+            0.0f,
+            0.0f,
+            pictureWidth,
+            pictureHeight
+        };
+
+        SDL_RenderTexture(
+            render,
+            picture->texture,
+            nullptr,
+            &pictureDestination
+        );
+
+        if (picture->id == 0) {
+            DrawAbcForBase(
+                picture,
+                render,
+                Kotonoha_timeGet(timeManager)
+            );
+        }
+
+        // Restaura o target e estado que estavam ativos na entrada.
+        if (!SDL_SetRenderTarget(render, originalTarget)) {
+            SDL_LogError(
+                SDL_LOG_CATEGORY_RENDER,
+                "Failed to restore render target: %s",
+                SDL_GetError()
+            );
+            return;
+        }
+
+        if (!SDL_SetRenderViewport(
+                render,
+                viewportEnabled ? &originalViewport : nullptr) ||
+            !SDL_SetRenderClipRect(
+                render,
+                clipEnabled ? &originalClip : nullptr) ||
+            !SDL_SetRenderScale(
+                render,
+                originalScaleX,
+                originalScaleY)) {
+            SDL_LogError(
+                SDL_LOG_CATEGORY_RENDER,
+                "Failed to restore renderer state: %s",
+                SDL_GetError()
+            );
+            return;
+        }
+
+        if (ProcessUpscale(render, extraTexture)) {
+            SDL_RenderTexture(render, upScaledTexture, nullptr, nullptr);
+            return;
+        }
+        SDL_RenderTexture(render, extraTexture, nullptr, nullptr);
+        return;
+    }
+
+    // Caminho normal, sem MetalFX.
+    if (!cleaned) {
+        SDL_RenderClear(render);
+        cleaned = true;
+    }
+
+    SDL_RenderTexture(
+        render,
+        picture->texture,
+        nullptr,
+        nullptr
+    );
+
+    if (picture->id == 0) {
+        DrawAbcForBase(
+            picture,
+            render,
+            Kotonoha_timeGet(timeManager)
+        );
+    }
+}
+
 Kotonoha_Scene_Status Image::Render(KOTONOHA_SCENE_CALL) {
     Kotonoha_Scene_Status status = KOTONOHA_SCENE_NULL;
 
@@ -679,26 +849,9 @@ Kotonoha_Scene_Status Image::Render(KOTONOHA_SCENE_CALL) {
 
         if (diff > 0) {
             if (picture->id == 0) {
-                if (!cleaned) {
-                    SDL_RenderClear(render);
-                    cleaned = true;
-                }
-
-                SDL_RenderTexture(
-                    render,
-                    picture->texture,
-                    nullptr,
-                    nullptr
-                );
-
-                here->DrawAbcForBase(
-                    picture,
-                    render,
-                    Kotonoha_timeGet(here->timeManager)
-                );
-
+                here->RenderTexture(render, picture, cleaned);
                 here->RemoveAbcGroupsForBase(picture->baseGeneration);
-
+                
                 if (status != KOTONOHA_SCENE_DRAW) {
                     status = KOTONOHA_SCENE_DRAW_LAST;
                 }
@@ -732,25 +885,7 @@ Kotonoha_Scene_Status Image::Render(KOTONOHA_SCENE_CALL) {
             continue;
         }
 
-        if (!cleaned) {
-            SDL_RenderClear(render);
-            cleaned = true;
-        }
-
-        SDL_RenderTexture(
-            render,
-            picture->texture,
-            nullptr,
-            nullptr
-        );
-
-        if (picture->id == 0) {
-            here->DrawAbcForBase(
-                picture,
-                render,
-                Kotonoha_timeGet(here->timeManager)
-            );
-        }
+        here->RenderTexture(render, picture, cleaned);
 
         if (status != KOTONOHA_SCENE_DRAW_LAST) {
             status = KOTONOHA_SCENE_DRAW;
@@ -765,6 +900,7 @@ Kotonoha_Scene_Status Image::Render(KOTONOHA_SCENE_CALL) {
 }
 
 void Image::Reset() {
+    ResetUpscaling();
     const auto clearGroups = [this]() {
         abcGroups.clear();
     };

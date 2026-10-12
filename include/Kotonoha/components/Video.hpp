@@ -1,5 +1,7 @@
 #pragma once
+
 #include <vector>
+#include <Kotonoha/components/Upscaling.hpp>
 
 extern "C" {
 #include <Kotonoha/Kotonoha.h>
@@ -9,7 +11,8 @@ extern "C" {
 }
 
 namespace Kotonoha {
-class Video {
+
+class Video : public Upscaling {
 private:
   Kotonoha_time *timeManager = nullptr;
   Kotonoha_IOMonitor *ioMonitor = nullptr;
@@ -17,6 +20,7 @@ private:
       std::vector<Kotonoha_videoData *>();
   SDL_Mutex *lock = nullptr;
 
+	void RenderTexture(SDL_Renderer *render,SDL_Texture *texture);
 public:
   void Reset();
 
@@ -29,4 +33,5 @@ public:
 
   ~Video();
 };
+
 } // namespace Kotonoha

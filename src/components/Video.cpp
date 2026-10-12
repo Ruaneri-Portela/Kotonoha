@@ -53,6 +53,74 @@ namespace Kotonoha {
 		return true;
 	}
 
+	void Video::RenderTexture(
+		SDL_Renderer *render,
+		SDL_Texture *texture)
+	{
+		if (render == nullptr || texture == nullptr) {
+			return;
+		}
+
+		const float factor = Kotonoha_UpscalingFactor();
+
+		if (factor > 1.0f && IsUpscalingActive()) {
+			float videoWidth = 0.0f;
+			float videoHeight = 0.0f;
+
+			if (!SDL_GetTextureSize(texture, &videoWidth, &videoHeight)) {
+				SDL_LogError(
+					SDL_LOG_CATEGORY_RENDER,
+					"Failed to get video texture size: %s",
+					SDL_GetError()
+				);
+				return;
+			}
+
+			const int requiredWidth = static_cast<int>(videoWidth);
+			const int requiredHeight = static_cast<int>(videoHeight);
+
+			if (requiredWidth <= 0 || requiredHeight <= 0) {
+				SDL_LogError(
+					SDL_LOG_CATEGORY_RENDER,
+					"Invalid video texture size: %dx%d",
+					requiredWidth,
+					requiredHeight
+				);
+				return;
+			}
+
+			if (!EnsureUpscalingTextures(
+					render,
+					requiredWidth,
+					requiredHeight,
+					factor)) {
+				SDL_LogError(
+					SDL_LOG_CATEGORY_RENDER,
+					"Failed to ensure upscaling textures for video"
+				);
+				return;
+			}
+			
+			if (ProcessUpscale(render, texture)) {
+				SDL_RenderTexture(
+					render,
+					upScaledTexture,
+					nullptr,
+					nullptr
+				);
+				return;
+			}
+		}
+
+		// Caminho normal, sem upscaling.
+		SDL_RenderTexture(
+			render,
+			texture,
+			nullptr,
+			nullptr
+		);
+	}
+
 	Kotonoha_Scene_Status Video::Render(KOTONOHA_SCENE_CALL) {
 		Video* here = static_cast<Video*>(userData);
 		if (here == nullptr) {
@@ -78,34 +146,37 @@ namespace Kotonoha {
 			const Kotonoha_Scene_Status status =
 				Kotonoha_VideoRenderProcess(currentVideo, render);
 
-			SDL_Texture * texture = currentVideo->extraTexture != nullptr ? currentVideo->extraTexture : currentVideo->texture;
+		if (status == KOTONOHA_SCENE_DRAW ||
+			status == KOTONOHA_SCENE_COMPLETE) {
+			if (currentVideo->texture != nullptr) {
+				here->RenderTexture(render, currentVideo->texture);
+			}
 
-			switch (status) {
-			case KOTONOHA_SCENE_DRAW:
-				SDL_RenderTexture(render, texture, nullptr, nullptr);
+			if (status == KOTONOHA_SCENE_DRAW) {
 				returnStatus = KOTONOHA_SCENE_DRAW;
 				++it;
-				break;
-
-			case KOTONOHA_SCENE_COMPLETE:
+			} else {
 				if (returnStatus != KOTONOHA_SCENE_DRAW) {
-					SDL_RenderTexture(render, texture, nullptr, nullptr);
 					returnStatus = KOTONOHA_SCENE_DRAW_LAST;
 				}
+
 				finishedVideos.push_back(currentVideo);
 				it = here->videos.erase(it);
-				break;
-			case KOTONOHA_SCENE_WAITING:
+			}
+
+			continue;
+		}
+
+			if (status == KOTONOHA_SCENE_WAITING) {
 				if (returnStatus != KOTONOHA_SCENE_DRAW &&
 					returnStatus != KOTONOHA_SCENE_DRAW_LAST) {
 					returnStatus = KOTONOHA_SCENE_WAITING;
 				}
 				++it;
-				break;
-			default:
-				++it;
-				break;
+				continue;
 			}
+
+			++it;
 		}
 
 		const bool isEmpty = here->videos.empty();
@@ -123,6 +194,7 @@ namespace Kotonoha {
 	}
 
 	void Video::Reset() {
+		ResetUpscaling();
 		if (lock == nullptr) {
 			for (auto& video : videos) {
 				Kotonoha_VideoRenderShutdown(&video);
@@ -144,7 +216,6 @@ namespace Kotonoha {
 
 	Video::~Video() {
 		Reset();
-
 		if (lock != nullptr) {
 			SDL_DestroyMutex(lock);
 			lock = nullptr;

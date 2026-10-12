@@ -16,7 +16,6 @@ struct CanvasItem {
   Sint16 zIndex;
   SDL_FRect place;
   bool swapTexture;
-  bool holdTexture;
 
   void *userData;
 };

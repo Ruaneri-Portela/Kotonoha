@@ -36,7 +36,8 @@ namespace Kotonoha {
 		std::atomic_bool processPoolRunning{true};
 		std::vector<std::tuple<SDL_ThreadFunction, void*>> processPoolTasks;
 		const char* preferredGPU = nullptr;
-		
+		std::string preferredUpscaler = "Auto";
+
 		bool fullscreen = false;
 		bool enableVsync = false;
 		bool ignoreMissingAssets = false;

@@ -131,7 +131,8 @@ else()
 
     if(APPLE)
         list(APPEND SOURCES
-                src/specials/Upscaling.mm
+                src/specials/Upscaling.cpp
+                src/specials/MetalFX.mm
         )
     endif()
 
@@ -161,7 +162,6 @@ else()
         target_compile_definitions(Kotonoha PRIVATE
                 KOTONOHA_HAS_METALFX=1
         )
-
         target_link_libraries(Kotonoha PRIVATE
                 "-framework Foundation"
                 "-framework Metal"

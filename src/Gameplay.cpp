@@ -1,3 +1,4 @@
+#include <Kotonoha/speciais/MetalFX.h>
 #include <Kotonoha/Gameplay.hpp>
 
 
@@ -210,13 +211,18 @@ namespace Kotonoha {
 			SDL_DestroyTexture(sb->subTexture);
 			sb->subTexture = nullptr;
 		}
+
+#ifdef KOTONOHA_HAS_METALFX
+		Kotonoha_MetalFXClearScalerCache();
+#endif
+
+		fade->Reset();
 		if (resetTime) {
-			firstFocus = true;
 			drawCanvas->Reset();
+			video->Reset();
+			image->Reset();
+			firstFocus = true;
 			Kotonoha_timeReset(tm, true);
-		}
-		if (fade != nullptr) {
-			fade->Reset();
 		}
 		eventManager->Reset(this);
 	}
