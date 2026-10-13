@@ -84,6 +84,10 @@ bool Kotonoha_UpscalingInit(SDL_Renderer *renderer, const char *name, float fact
         SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Anime4K initialization failed.");
     }
 
+    if (g_upscalerType == KOTONOHA_UPSCALER_ANIME4K) {
+        SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Upscaler initialization failed.");
+    }
+
     // Failure: disable upscaling
     SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Disabling upscaler due to initialization failure.");
     g_upscalerType = KOTONOHA_UPSCALER_NONE;

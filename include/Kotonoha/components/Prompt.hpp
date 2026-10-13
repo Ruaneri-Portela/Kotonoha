@@ -22,7 +22,7 @@ private:
 
 public:
   Prompt(std::vector<std::string> prompt, int *promptResult, Uint64 start,
-         Uint64 end, Kotonoha_time *time);
+         Uint64 end, Kotonoha_time *time, TTF_Font * font);
   static enum Kotonoha_Scene_Status Render(KOTONOHA_SCENE_CALL);
   ~Prompt();
 };

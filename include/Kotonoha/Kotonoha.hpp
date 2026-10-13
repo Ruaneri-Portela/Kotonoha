@@ -29,39 +29,45 @@ namespace Kotonoha {
 	private:
 		struct Kotonoha_Game& gameContext;
 
+		SDL_Texture* sceneTransitionFrame = nullptr;
 		SDL_Thread* processPool = nullptr;
 		SDL_Cursor* cursor = nullptr;
 		std::atomic_bool processPoolRunning{true};
 		std::vector<std::tuple<SDL_ThreadFunction, void*>> processPoolTasks;
+
 		const char* preferredGPU = nullptr;
 		std::string preferredUpscaler = "Auto";
 
+		bool showCursor = true;
 		bool fullscreen = false;
 		bool enableVsync = false;
 		bool ignoreMissingAssets = false;
 		bool showFps = false;
 		bool showTimestamp = false;
 		bool showDebugUi = false;
+		bool sceneTransitionPrepared = false;
+		bool sceneTransitionActive = false;
+
 		struct DeferredFile {
 			std::string path;
 			bool isSubtitleStyles;
 		};
 		std::vector<DeferredFile> deferredFiles;
-		bool showCursor = true;
+
 		Uint64 lastMouseTime = 0;
-		size_t lastScene = static_cast<size_t>(-1);
-		SDL_Texture* sceneTransitionFrame = nullptr;
-		bool sceneTransitionPrepared = false;
-		bool sceneTransitionActive = false;
 		Uint64 lastSceneFrameCaptureTime = 0;
+
+		size_t lastScene = static_cast<size_t>(-1);
 
 		bool ParseArguments(int argc, char* argv[]);
 		void LoadSubtitleStylesFile(const char* path);
 		void LoadWindowIcon(const char* path);
 		bool CaptureSceneTransitionFrame(bool activateTransition = true);
+
 		static int EventsThread(void* data);
 
 	public:
+		std::unordered_map<std::string, TTF_Font*> fonts;
 		std::vector<Gameplay*> gameplays;
 		Sound::Channel* BGM = nullptr;
 		Sound::Channel* Voice = nullptr;
@@ -69,18 +75,20 @@ namespace Kotonoha {
 
 		bool LoadScriptFile(const char* path);
 		void DeleteGameplay(Gameplay* gameplay);
+		void CacheSceneTransitionFrameIfNeeded(Gameplay* current);
+		void PresentSceneTransitionFrame(Gameplay* incoming);
+
 		void ClearGameplays();
+		void ConfigureWindow();
 
 		Kotonoha(int argc, char* argv[], SDL_AppResult* initStatus,
 			struct Kotonoha_Game& gameContext);
-		void ConfigureWindow();
+
 		SDL_AppResult Initialize();
 
 		SDL_AppResult Event(SDL_Event* event);
 
 		SDL_AppResult Main(Gameplay** out);
-		void CacheSceneTransitionFrameIfNeeded(Gameplay* current);
-		void PresentSceneTransitionFrame(Gameplay* incoming);
 
 		~Kotonoha();
 	};

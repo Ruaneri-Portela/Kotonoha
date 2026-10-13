@@ -126,7 +126,6 @@ if (ANDROID)
             "-Wl,--whole-archive"
             SDL3::SDL3
             "-Wl,--no-whole-archive"
-            SDL3::SDL3-static
             android
             log
             atomic
@@ -146,7 +145,6 @@ if (ANDROID)
             "-Wl,--whole-archive"
             SDL3_ttf::SDL3_ttf
             "-Wl,--no-whole-archive"
-            SDL3_ttf::SDL3_ttf-static
             SDL3
             android
             log

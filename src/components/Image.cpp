@@ -594,7 +594,7 @@ void Image::SetAbcState(const std::string &key,
 }
 
 void Image::RenderTexture(
-    SDL_Renderer *render,
+    SDL_Renderer *render, SDL_Texture *target,
     Kotonoha_Picture *picture,
     bool &cleaned)
 {
@@ -642,8 +642,6 @@ void Image::RenderTexture(
         }
 
         // Salva o estado do renderer antes de trocar o target.
-        SDL_Texture *originalTarget = SDL_GetRenderTarget(render);
-
         SDL_Rect originalViewport{};
         SDL_Rect originalClip{};
         float originalScaleX = 1.0f;
@@ -707,7 +705,7 @@ void Image::RenderTexture(
         }
 
         // Restaura o target e estado que estavam ativos na entrada.
-        if (!SDL_SetRenderTarget(render, originalTarget)) {
+        if (!SDL_SetRenderTarget(render, target)) {
             SDL_LogError(
                 SDL_LOG_CATEGORY_RENDER,
                 "Failed to restore render target: %s",
@@ -849,7 +847,7 @@ Kotonoha_Scene_Status Image::Render(KOTONOHA_SCENE_CALL) {
 
         if (diff > 0) {
             if (picture->id == 0) {
-                here->RenderTexture(render, picture, cleaned);
+                here->RenderTexture(render, target, picture, cleaned);
                 here->RemoveAbcGroupsForBase(picture->baseGeneration);
                 
                 if (status != KOTONOHA_SCENE_DRAW) {
@@ -885,7 +883,7 @@ Kotonoha_Scene_Status Image::Render(KOTONOHA_SCENE_CALL) {
             continue;
         }
 
-        here->RenderTexture(render, picture, cleaned);
+        here->RenderTexture(render, target, picture, cleaned);
 
         if (status != KOTONOHA_SCENE_DRAW_LAST) {
             status = KOTONOHA_SCENE_DRAW;
@@ -901,32 +899,25 @@ Kotonoha_Scene_Status Image::Render(KOTONOHA_SCENE_CALL) {
 
 void Image::Reset() {
     ResetUpscaling();
-    const auto clearGroups = [this]() {
-        abcGroups.clear();
-    };
+    abcGroups.clear();
 
-    if (lock == nullptr) {
-        clearGroups();
+    std::vector<Kotonoha_Picture*> oldPictures;
 
-        for (auto *picture : pictures) {
-            DestroyPicture(picture);
-        }
-
-        pictures.clear();
-        return;
+    if (lock != nullptr) {
+        SDL_LockMutex(lock);
     }
 
-    SDL_LockMutex(lock);
+    oldPictures.swap(pictures);
 
-    clearGroups();
+    if (lock != nullptr) {
+        SDL_UnlockMutex(lock);
+    }
 
     for (auto *picture : pictures) {
         DestroyPicture(picture);
     }
 
-    pictures.clear();
-
-    SDL_UnlockMutex(lock);
+    oldPictures.clear();
 }
 
 } // namespace Kotonoha

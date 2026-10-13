@@ -8,6 +8,7 @@
 #include <Kotonoha/components/Sound.hpp>
 #include <Kotonoha/components/Video.hpp>
 #include <Kotonoha/utils/IOMonitor.h>
+#include <SDL3_ttf/SDL_ttf.h>
 
 extern "C" {
 #include <Kotonoha/Kotonoha.h>
@@ -79,7 +80,7 @@ public:
 
   std::string scriptPath;
 
-  Gameplay(const char *scriptPath, struct Kotonoha_Game *gameContext);
+  Gameplay(const char *scriptPath, struct Kotonoha_Game *gameContext, TTF_Font *font);
   SDL_AppResult Main(struct Kotonoha_Game *gameContext);
 
   void Events(SDL_Event *event, struct Kotonoha_Game *gameContext);
