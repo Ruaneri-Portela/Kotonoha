@@ -55,6 +55,7 @@
     <ClCompile Include="src\utils\FFmpeg.c" />
     <ClCompile Include="src\utils\IOMonitor.c" />
     <ClCompile Include="src\utils\OverlayRenderUtils.c" />
+    <ClCompile Include="src\utils\Path.c" />
     <ClCompile Include="src\utils\Time.c" />
     <ClCompile Include="src\utils\UserEvents.c" />
     <ClCompile Include="src\utils\VoicePcm.c" />
@@ -88,6 +89,7 @@
     <ClInclude Include="include\Kotonoha\utils\FFmpeg.h" />
     <ClInclude Include="include\Kotonoha\utils\IOMonitor.h" />
     <ClInclude Include="include\Kotonoha\utils\OverlayRenderUtils.h" />
+    <ClInclude Include="include\Kotonoha\utils\Path.h" />
     <ClInclude Include="include\Kotonoha\utils\Time.h" />
     <ClInclude Include="include\Kotonoha\utils\VoicePcm.h" />
     <ClInclude Include="include\Kotonoha\utils\UserEvents.h" />

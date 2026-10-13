@@ -47,8 +47,8 @@ struct Kotonoha_Game {
 
   int videoWidth, videoHeight, vsync, scene;
 
-  char *styleStr;
-  const char *assetsPath, *configPath;
+  const char *configPath;
+  char *styleStr, *assetsPath; 
   bool showFps, showTimestamp, paused, back, next;
 
   struct Kotonoha_eventStack eventQueu;
