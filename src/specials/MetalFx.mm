@@ -370,6 +370,9 @@ id<MTLTexture> MetalFXUpscaleTextureInto(
 
     [scaler encodeToCommandBuffer:commandBuffer];
 
+    scaler.colorTexture = nil;
+    scaler.outputTexture = nil;
+
     if (!BlitTexture(
             commandBuffer,
             workingTexture,

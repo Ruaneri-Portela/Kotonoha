@@ -208,10 +208,6 @@ namespace Kotonoha {
 	}
 
 	void Gameplay::Reset(bool resetTime) {
-		if (sb->subTexture) {
-			SDL_DestroyTexture(sb->subTexture);
-			sb->subTexture = nullptr;
-		}
 
 #ifdef KOTONOHA_HAS_METALFX
 		Kotonoha_MetalFXClearScalerCache();

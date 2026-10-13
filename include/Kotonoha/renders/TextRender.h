@@ -7,8 +7,7 @@ struct Kotonoha_subtitles {
   ASS_Library *ass_library;
   ASS_Renderer *ass_renderer;
   ASS_Track *track;
-
-  SDL_Texture *subTexture;
+  
   struct Kotonoha_time *time;
 };
 

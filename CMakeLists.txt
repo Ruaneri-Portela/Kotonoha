@@ -1,12 +1,5 @@
 cmake_minimum_required(VERSION 3.18)
 
-
-# ==============================================================================
-# Project
-# ==============================================================================
-project(Kotonoha VERSION 0.1.0 LANGUAGES C CXX)
-
-
 # ==============================================================================
 # Android / vcpkg target triplet
 #
@@ -23,6 +16,10 @@ elseif (ANDROID_ABI STREQUAL "x86")
     set(VCPKG_TARGET_TRIPLET "x86-android" CACHE STRING "" FORCE)
 endif ()
 
+# ==============================================================================
+# Project
+# ==============================================================================
+project(Kotonoha VERSION 0.1.0 LANGUAGES C CXX)
 
 # ==============================================================================
 # Languages and language standards
@@ -64,6 +61,8 @@ file(GLOB KOTONOHA_SOURCES CONFIGURE_DEPENDS
         "${CMAKE_CURRENT_SOURCE_DIR}/src/mobile/*.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/src/parsers/*.c"
         "${CMAKE_CURRENT_SOURCE_DIR}/src/renders/*.c"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/specials/*.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/specials/*.c"
         "${CMAKE_CURRENT_SOURCE_DIR}/src/utils/*.c"
 )
 
@@ -96,6 +95,15 @@ if (ANDROID)
             "Configuração Android | ABI: ${ANDROID_ABI} | Platform: ${ANDROID_PLATFORM}"
     )
 
+    unset(harfbuzz_DIR CACHE)
+    unset(harfbuzz_ROOT CACHE)
+    unset(Freetype_DIR CACHE)
+    unset(plutosvg_DIR CACHE)
+    unset(plutovg_DIR CACHE)
+
+    find_package(ZLIB REQUIRED)
+    find_package(BZip2 REQUIRED)
+    find_package(PNG REQUIRED)
     find_package(SDL3 CONFIG REQUIRED)
     find_package(SDL3_ttf CONFIG REQUIRED)
     find_package(expat CONFIG REQUIRED)
@@ -116,7 +124,7 @@ if (ANDROID)
 
     target_link_libraries(SDL3 PRIVATE
             "-Wl,--whole-archive"
-            $<TARGET_FILE:SDL3::SDL3-static>
+            SDL3::SDL3
             "-Wl,--no-whole-archive"
             SDL3::SDL3-static
             android
@@ -136,7 +144,7 @@ if (ANDROID)
 
     target_link_libraries(SDL3_ttf PRIVATE
             "-Wl,--whole-archive"
-            $<TARGET_FILE:SDL3_ttf::SDL3_ttf-static>
+            SDL3_ttf::SDL3_ttf
             "-Wl,--no-whole-archive"
             SDL3_ttf::SDL3_ttf-static
             SDL3
@@ -171,31 +179,19 @@ if (ANDROID)
             m
     )
 
-
-# ==============================================================================
-# Desktop
-# ==============================================================================
+    # ==============================================================================
+    # Desktop
+    # ==============================================================================
 else ()
-    message(STATUS
-            "Configuração Desktop | Sistema: ${CMAKE_SYSTEM_NAME}"
-    )
+    pkg_check_modules(SDL3 REQUIRED IMPORTED_TARGET sdl3)
+    pkg_check_modules(SDL3_TTF REQUIRED IMPORTED_TARGET sdl3-ttf)
+    message(STATUS "Configuração Desktop | Sistema: ${CMAKE_SYSTEM_NAME}")
 
-    pkg_check_modules(SDL3 REQUIRED IMPORTED_TARGET
-            sdl3
-    )
-
-    pkg_check_modules(SDL3_TTF REQUIRED IMPORTED_TARGET
-            sdl3-ttf
-    )
-
-    # --------------------------------------------------------------------------
-    # Platform-specific source files
-    # --------------------------------------------------------------------------
     if (APPLE)
         list(APPEND KOTONOHA_SOURCES
-                src/specials/UpscalingGeneric.cpp
                 src/specials/MetalFx.mm
-                src/mobile/iOS.mm
+                src/specials/UpscalingGeneric.cpp
+                src/mobile/IOS.mm
         )
     endif ()
 
@@ -261,23 +257,24 @@ else ()
                 MACOSX_BUNDLE TRUE
 
                 MACOSX_BUNDLE_INFO_PLIST
-                        "${CMAKE_CURRENT_SOURCE_DIR}/src/specials/Info.plist.in"
+                "${CMAKE_CURRENT_SOURCE_DIR}/src/specials/Info.plist.in"
 
                 MACOSX_BUNDLE_BUNDLE_NAME
-                        "Kotonoha"
+                "Kotonoha"
 
                 MACOSX_BUNDLE_GUI_IDENTIFIER
-                        "me.hirameki.kotonoha"
+                "me.hirameki.kotonoha"
 
                 MACOSX_BUNDLE_BUNDLE_VERSION
-                        "${PROJECT_VERSION}"
+                "${PROJECT_VERSION}"
 
                 MACOSX_BUNDLE_SHORT_VERSION_STRING
-                        "${PROJECT_VERSION}"
+
+                "${PROJECT_VERSION}"
 
                 # Nome do arquivo que o Info.plist referencia.
                 MACOSX_BUNDLE_ICON_FILE
-                        "icon.icns"
+                "icon.icns"
         )
 
         # ----------------------------------------------------------------------
@@ -327,11 +324,11 @@ else ()
 
             foreach (ASSET_FILE IN LISTS KOTONOHA_ASSET_FILES)
                 if (IS_DIRECTORY "${ASSET_FILE}")
-                    continue()
+                    continue ()
                 endif ()
 
                 if (ASSET_FILE STREQUAL KOTONOHA_ICON_FILE)
-                    continue()
+                    continue ()
                 endif ()
 
                 file(RELATIVE_PATH ASSET_RELATIVE_PATH
@@ -358,7 +355,8 @@ else ()
                         "${ASSET_FILE}"
                         PROPERTIES
                         MACOSX_PACKAGE_LOCATION
-                                "${ASSET_BUNDLE_LOCATION}"
+
+                        "${ASSET_BUNDLE_LOCATION}"
 
                         # Impede que CMake tente compilar assets como fonte.
                         HEADER_FILE_ONLY TRUE
