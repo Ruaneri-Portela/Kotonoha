@@ -14,10 +14,8 @@ extern "C" {
 #define KOTONOHA_MOBILE
 #elif defined(__APPLE__)
 #include <TargetConditionals.h>
-#if TARGET_OS_IOS || TARGET_OS_IPHONE
 	void Kotonoha_MobileSetup(void);
 #define KOTONOHA_MOBILE
-#endif
 #endif
 }
 

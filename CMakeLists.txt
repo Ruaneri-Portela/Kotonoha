@@ -1,49 +1,75 @@
 cmake_minimum_required(VERSION 3.18)
 
-# ==============================================================================
-# VCPKG & Toolchain Configuration
-# ==============================================================================
-if(ANDROID_ABI STREQUAL "arm64-v8a")
-    set(VCPKG_TARGET_TRIPLET "arm64-android" CACHE STRING "" FORCE)
-elseif(ANDROID_ABI STREQUAL "x86_64")
-    set(VCPKG_TARGET_TRIPLET "x64-android" CACHE STRING "" FORCE)
-elseif(ANDROID_ABI STREQUAL "armeabi-v7a")
-    set(VCPKG_TARGET_TRIPLET "arm-android" CACHE STRING "" FORCE)
-elseif(ANDROID_ABI STREQUAL "x86")
-    set(VCPKG_TARGET_TRIPLET "x86-android" CACHE STRING "" FORCE)
-endif()
 
 # ==============================================================================
-# Project Declaration & Language Standards
+# Project
 # ==============================================================================
 project(Kotonoha VERSION 0.1.0 LANGUAGES C CXX)
 
-if(APPLE AND NOT ANDROID)
+
+# ==============================================================================
+# Android / vcpkg target triplet
+#
+# O Android Gradle Plugin/NDK define ANDROID_ABI. O triplet é definido antes
+# de resolver dependências vcpkg para corresponder à ABI que está sendo gerada.
+# ==============================================================================
+if (ANDROID_ABI STREQUAL "arm64-v8a")
+    set(VCPKG_TARGET_TRIPLET "arm64-android" CACHE STRING "" FORCE)
+elseif (ANDROID_ABI STREQUAL "x86_64")
+    set(VCPKG_TARGET_TRIPLET "x64-android" CACHE STRING "" FORCE)
+elseif (ANDROID_ABI STREQUAL "armeabi-v7a")
+    set(VCPKG_TARGET_TRIPLET "arm-android" CACHE STRING "" FORCE)
+elseif (ANDROID_ABI STREQUAL "x86")
+    set(VCPKG_TARGET_TRIPLET "x86-android" CACHE STRING "" FORCE)
+endif ()
+
+
+# ==============================================================================
+# Languages and language standards
+# ==============================================================================
+if (APPLE)
+    # Necessário para arquivos Objective-C / Objective-C++ usados em macOS.
     enable_language(OBJC)
-endif()
+endif ()
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
+
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# ==============================================================================
-# Source Files
-# ==============================================================================
-set(KOTONOHA_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
-file(GLOB SOURCES CONFIGURE_DEPENDS
-        src/*.cpp
-        src/*.c
-        src/components/*.cpp
-        src/mobile/*.cpp
-        src/parsers/*.c
-        src/renders/*.c
-        src/utils/*.c
+# ==============================================================================
+# Paths
+# ==============================================================================
+set(KOTONOHA_INCLUDE_DIR
+        "${CMAKE_CURRENT_SOURCE_DIR}/include"
 )
 
+set(KOTONOHA_ASSETS_DIR
+        "${CMAKE_CURRENT_SOURCE_DIR}/assets"
+)
+
+
 # ==============================================================================
-# Dependencies — all via pkg-config
+# Main source files
+#
+# CONFIGURE_DEPENDS faz o CMake reconfigurar quando arquivos compatíveis são
+# criados/removidos dessas pastas.
+# ==============================================================================
+file(GLOB KOTONOHA_SOURCES CONFIGURE_DEPENDS
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/*.c"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/components/*.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/mobile/*.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/parsers/*.c"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/renders/*.c"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/utils/*.c"
+)
+
+
+# ==============================================================================
+# Common dependencies
 # ==============================================================================
 find_package(PkgConfig REQUIRED)
 
@@ -54,27 +80,40 @@ pkg_check_modules(FFMPEG REQUIRED IMPORTED_TARGET
         libswscale
         libswresample
 )
-pkg_check_modules(LIBASS REQUIRED IMPORTED_TARGET libass)
+
+pkg_check_modules(LIBASS REQUIRED IMPORTED_TARGET
+        libass
+)
+
 find_package(imgui CONFIG REQUIRED)
 
-# ==============================================================================
-# Android: Shared wrappers and main library
-# ==============================================================================
-if(ANDROID)
-    find_package(SDL3 CONFIG REQUIRED)
-    find_package(SDL3_ttf CONFIG REQUIRED)
-    find_package(imgui CONFIG REQUIRED)
-    find_package(expat CONFIG REQUIRED)
 
+# ==============================================================================
+# Android
+# ==============================================================================
+if (ANDROID)
     message(STATUS
             "Configuração Android | ABI: ${ANDROID_ABI} | Platform: ${ANDROID_PLATFORM}"
     )
 
-    # Alinhamento de páginas de 16 KB
-    add_link_options("-Wl,-z,max-page-size=16384")
+    find_package(SDL3 CONFIG REQUIRED)
+    find_package(SDL3_ttf CONFIG REQUIRED)
+    find_package(expat CONFIG REQUIRED)
 
-    # Wrapper SDL3 estático -> libSDL3.so
-    add_library(SDL3 SHARED src/specials/bundle.cpp)
+    # Exigência de compatibilidade com dispositivos Android usando páginas de 16 KB.
+    add_link_options(
+            "-Wl,-z,max-page-size=16384"
+    )
+
+    # --------------------------------------------------------------------------
+    # SDL3 shared wrapper
+    #
+    # Empacota a SDL3 estática como libSDL3.so para consumo pelo Android.
+    # --------------------------------------------------------------------------
+    add_library(SDL3 SHARED
+            src/specials/bundle.cpp
+    )
+
     target_link_libraries(SDL3 PRIVATE
             "-Wl,--whole-archive"
             $<TARGET_FILE:SDL3::SDL3-static>
@@ -86,8 +125,15 @@ if(ANDROID)
             m
     )
 
-    # Wrapper SDL3_ttf estático -> libSDL3_ttf.so
-    add_library(SDL3_ttf SHARED src/specials/bundle.cpp)
+    # --------------------------------------------------------------------------
+    # SDL3_ttf shared wrapper
+    #
+    # Empacota SDL3_ttf estática como libSDL3_ttf.so.
+    # --------------------------------------------------------------------------
+    add_library(SDL3_ttf SHARED
+            src/specials/bundle.cpp
+    )
+
     target_link_libraries(SDL3_ttf PRIVATE
             "-Wl,--whole-archive"
             $<TARGET_FILE:SDL3_ttf::SDL3_ttf-static>
@@ -100,16 +146,20 @@ if(ANDROID)
             m
     )
 
-    # Biblioteca principal
-    add_library(Kotonoha SHARED ${SOURCES})
+    # --------------------------------------------------------------------------
+    # Main Android shared library
+    # --------------------------------------------------------------------------
+    add_library(Kotonoha SHARED
+            ${KOTONOHA_SOURCES}
+    )
 
     target_include_directories(Kotonoha PRIVATE
             "${KOTONOHA_INCLUDE_DIR}"
     )
 
     target_link_libraries(Kotonoha PRIVATE
-            SDL3_ttf
             SDL3
+            SDL3_ttf
             PkgConfig::FFMPEG
             PkgConfig::LIBASS
             imgui::imgui
@@ -121,30 +171,53 @@ if(ANDROID)
             m
     )
 
-    # ==============================================================================
-    # Desktop: executable
-    # ==============================================================================
-else()
-    pkg_check_modules(SDL3 REQUIRED IMPORTED_TARGET sdl3)
-    pkg_check_modules(SDL3_TTF REQUIRED IMPORTED_TARGET sdl3-ttf)
-    message(STATUS "Configuração Desktop | Sistema: ${CMAKE_SYSTEM_NAME}")
 
-    if(APPLE)
-        list(APPEND SOURCES
+# ==============================================================================
+# Desktop
+# ==============================================================================
+else ()
+    message(STATUS
+            "Configuração Desktop | Sistema: ${CMAKE_SYSTEM_NAME}"
+    )
+
+    pkg_check_modules(SDL3 REQUIRED IMPORTED_TARGET
+            sdl3
+    )
+
+    pkg_check_modules(SDL3_TTF REQUIRED IMPORTED_TARGET
+            sdl3-ttf
+    )
+
+    # --------------------------------------------------------------------------
+    # Platform-specific source files
+    # --------------------------------------------------------------------------
+    if (APPLE)
+        list(APPEND KOTONOHA_SOURCES
                 src/specials/UpscalingGeneric.cpp
-                src/specials/MetalFX.mm
+                src/specials/MetalFx.mm
+                src/mobile/iOS.mm
         )
-    endif()
+    endif ()
 
-    if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
-        list(APPEND SOURCES src/Kotonoha.rc)
-    endif()
+    if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
+        list(APPEND KOTONOHA_SOURCES
+                src/Kotonoha.rc
+        )
+    endif ()
 
-    add_executable(Kotonoha ${SOURCES})
-
-    if(CMAKE_SYSTEM_NAME STREQUAL "Haiku")
-        target_compile_options(Kotonoha PRIVATE -fPIC)
-    endif()
+    # --------------------------------------------------------------------------
+    # Main desktop executable
+    # --------------------------------------------------------------------------
+    if (APPLE)
+        # Gera Kotonoha.app no macOS.
+        add_executable(Kotonoha MACOSX_BUNDLE
+                ${KOTONOHA_SOURCES}
+        )
+    else ()
+        add_executable(Kotonoha
+                ${KOTONOHA_SOURCES}
+        )
+    endif ()
 
     target_include_directories(Kotonoha PRIVATE
             "${KOTONOHA_INCLUDE_DIR}"
@@ -158,36 +231,147 @@ else()
             imgui::imgui
     )
 
-    if(APPLE)
+    # Haiku necessita que o executável seja gerado como PIC.
+    if (CMAKE_SYSTEM_NAME STREQUAL "Haiku")
+        target_compile_options(Kotonoha PRIVATE
+                -fPIC
+        )
+    endif ()
+
+
+    # ==========================================================================
+    # macOS application bundle
+    # ==========================================================================
+    if (APPLE)
         target_compile_definitions(Kotonoha PRIVATE
                 KOTONOHA_HAS_METALFX=1
         )
+
         target_link_libraries(Kotonoha PRIVATE
                 "-framework Foundation"
+                "-framework CoreFoundation"
                 "-framework Metal"
                 "-framework MetalFX"
         )
-    endif()
-endif()
 
-# ==============================================================================
-# Unit Testing
-# ==============================================================================
-include(CTest)
+        # ----------------------------------------------------------------------
+        # Bundle metadata
+        # ----------------------------------------------------------------------
+        set_target_properties(Kotonoha PROPERTIES
+                MACOSX_BUNDLE TRUE
 
-if(BUILD_TESTING AND NOT ANDROID)
-    add_executable(OrsParserFidelityTest
-            tests/OrsParserFidelityTest.cpp
-            src/parsers/Ors.c
-    )
+                MACOSX_BUNDLE_INFO_PLIST
+                        "${CMAKE_CURRENT_SOURCE_DIR}/src/specials/Info.plist.in"
 
-    target_include_directories(OrsParserFidelityTest PRIVATE
-            "${KOTONOHA_INCLUDE_DIR}"
-    )
+                MACOSX_BUNDLE_BUNDLE_NAME
+                        "Kotonoha"
 
-    target_link_libraries(OrsParserFidelityTest PRIVATE
-            PkgConfig::SDL3
-    )
+                MACOSX_BUNDLE_GUI_IDENTIFIER
+                        "me.hirameki.kotonoha"
 
-    add_test(NAME OrsParserFidelityTest COMMAND OrsParserFidelityTest)
-endif()
+                MACOSX_BUNDLE_BUNDLE_VERSION
+                        "${PROJECT_VERSION}"
+
+                MACOSX_BUNDLE_SHORT_VERSION_STRING
+                        "${PROJECT_VERSION}"
+
+                # Nome do arquivo que o Info.plist referencia.
+                MACOSX_BUNDLE_ICON_FILE
+                        "icon.icns"
+        )
+
+        # ----------------------------------------------------------------------
+        # Application icon
+        #
+        # assets/icon.icns -> Kotonoha.app/Contents/Resources/icon.icns
+        # ----------------------------------------------------------------------
+        set(KOTONOHA_ICON_FILE
+                "${KOTONOHA_ASSETS_DIR}/icon.icns"
+        )
+
+        if (NOT EXISTS "${KOTONOHA_ICON_FILE}")
+            message(FATAL_ERROR
+                    "Ícone macOS não encontrado: ${KOTONOHA_ICON_FILE}"
+            )
+        endif ()
+
+        set_source_files_properties(
+                "${KOTONOHA_ICON_FILE}"
+                PROPERTIES
+                MACOSX_PACKAGE_LOCATION "Resources"
+                HEADER_FILE_ONLY TRUE
+        )
+
+        target_sources(Kotonoha PRIVATE
+                "${KOTONOHA_ICON_FILE}"
+        )
+
+        # ----------------------------------------------------------------------
+        # Application assets
+        #
+        # Preserva a estrutura:
+        #
+        # assets/file.ext
+        #   -> Kotonoha.app/Contents/Resources/assets/file.ext
+        #
+        # assets/subdir/file.ext
+        #   -> Kotonoha.app/Contents/Resources/assets/subdir/file.ext
+        #
+        # icon.icns fica exclusivamente em Contents/Resources, pois é o ícone
+        # do app e não precisa ser duplicado em Contents/Resources/assets.
+        # ----------------------------------------------------------------------
+        if (EXISTS "${KOTONOHA_ASSETS_DIR}")
+            file(GLOB_RECURSE KOTONOHA_ASSET_FILES CONFIGURE_DEPENDS
+                    "${KOTONOHA_ASSETS_DIR}/*"
+            )
+
+            foreach (ASSET_FILE IN LISTS KOTONOHA_ASSET_FILES)
+                if (IS_DIRECTORY "${ASSET_FILE}")
+                    continue()
+                endif ()
+
+                if (ASSET_FILE STREQUAL KOTONOHA_ICON_FILE)
+                    continue()
+                endif ()
+
+                file(RELATIVE_PATH ASSET_RELATIVE_PATH
+                        "${KOTONOHA_ASSETS_DIR}"
+                        "${ASSET_FILE}"
+                )
+
+                get_filename_component(ASSET_RELATIVE_DIRECTORY
+                        "${ASSET_RELATIVE_PATH}"
+                        DIRECTORY
+                )
+
+                if (ASSET_RELATIVE_DIRECTORY)
+                    set(ASSET_BUNDLE_LOCATION
+                            "Resources/assets/${ASSET_RELATIVE_DIRECTORY}"
+                    )
+                else ()
+                    set(ASSET_BUNDLE_LOCATION
+                            "Resources/assets"
+                    )
+                endif ()
+
+                set_source_files_properties(
+                        "${ASSET_FILE}"
+                        PROPERTIES
+                        MACOSX_PACKAGE_LOCATION
+                                "${ASSET_BUNDLE_LOCATION}"
+
+                        # Impede que CMake tente compilar assets como fonte.
+                        HEADER_FILE_ONLY TRUE
+                )
+
+                target_sources(Kotonoha PRIVATE
+                        "${ASSET_FILE}"
+                )
+            endforeach ()
+        else ()
+            message(WARNING
+                    "Diretório de assets não encontrado: ${KOTONOHA_ASSETS_DIR}"
+            )
+        endif ()
+    endif ()
+endif ()

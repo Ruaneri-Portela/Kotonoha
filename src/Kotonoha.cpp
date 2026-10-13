@@ -98,8 +98,9 @@ namespace Kotonoha {
 
 	SDL_AppResult Kotonoha::Initialize() {
 		Kotonoha_IOMonitorSetRetryMissingAssets(!ignoreMissingAssets);
+#ifndef KOTONOHA_MOBILE
 		LoadWindowIcon("assets/icon.png");
-
+#endif
 		const char* renderMethods[] = { preferredGPU, "gpu", "software" };
 		const size_t numMethods = sizeof(renderMethods) / sizeof(renderMethods[0]);
 
@@ -182,6 +183,11 @@ namespace Kotonoha {
 				LoadScriptFile(file.path.c_str());
 			}
 		}
+
+		if(gameContext.styleStr == nullptr){
+			LoadSubtitleStylesFile("assets/styles.skot");
+		}
+
 		return SDL_APP_CONTINUE;
 	}
 

@@ -5,61 +5,206 @@
 #include <iostream>
 #include <sstream>
 #include <string>
-#ifdef _WIN32
-#include <direct.h>
-#else
-#include <unistd.h>
-#endif
-
-extern "C" void Kotonoha_MobileSetupShared(const char* dataDir,
-	const char* platformName) {
-	const std::string directory =
-		dataDir != nullptr && *dataDir != '\0' ? dataDir : ".";
-	const std::string stdoutPath = directory + "/info.log";
-	const std::string stderrPath = directory + "/error.log";
-
-	const auto now = std::chrono::system_clock::now();
-	const std::time_t actualTime = std::chrono::system_clock::to_time_t(now);
-	std::tm localTime{};
-#ifdef _WIN32
-	const bool hasLocalTime = localtime_s(&localTime, &actualTime) == 0;
-#else
-	const bool hasLocalTime = localtime_r(&actualTime, &localTime) != nullptr;
-#endif
-
-	const bool stdoutRedirected = std::freopen(stdoutPath.c_str(), "a", stdout) != nullptr;
-	const bool stderrRedirected = std::freopen(stderrPath.c_str(), "a", stderr) != nullptr;
-	if (!stdoutRedirected || !stderrRedirected) {
-		std::cerr << "Failed to redirect mobile logs (stdout: "
-			<< (stdoutRedirected ? "ok" : "failed")
-			<< ", stderr: " << (stderrRedirected ? "ok" : "failed")
-			<< ").\n";
-	}
-
-	std::stringstream header;
-	header << '\n' << "New execution: ";
-	if (hasLocalTime) {
-		header << std::put_time(&localTime, "%Y-%m-%d %H:%M:%S");
-	}
-	else {
-		header << "time unavailable";
-		std::cerr << "Failed to determine local time for mobile startup log.\n";
-	}
-	header << "\n-------------------------\n";
-
-	const std::string platform =
-		platformName != nullptr && *platformName != '\0'
-			? platformName : "Mobile";
-	std::cout << header.str() << "STDOUT -> " << stdoutPath << std::endl;
-	std::cerr << header.str() << "STDERR -> " << stderrPath << std::endl;
-	std::cout << platform << " data directory -> " << directory << std::endl;
 
 #ifdef _WIN32
-	if (_chdir(directory.c_str()) != 0) {
+    #include <direct.h>
 #else
-	if (chdir(directory.c_str()) != 0) {
+    #include <unistd.h>
 #endif
-		std::cerr << "Failed to change directory to " << directory << ": ";
-		std::perror("");
-	}
+
+
+static std::string Kotonoha_GetSafeDirectory(const char* directory)
+{
+    return directory != nullptr && *directory != '\0'
+        ? std::string(directory)
+        : std::string(".");
+}
+
+
+static bool Kotonoha_MobileSetWorkingDirectory(const char* resourcesDir)
+{
+    const std::string directory =
+        Kotonoha_GetSafeDirectory(resourcesDir);
+
+#ifdef _WIN32
+    const int result = _chdir(directory.c_str());
+#else
+    const int result = chdir(directory.c_str());
+#endif
+
+    if (result == 0) {
+        return true;
+    }
+
+    std::cerr << "Failed to change working directory to "
+              << directory
+              << ": ";
+
+    std::perror("");
+
+    return false;
+}
+
+
+static bool Kotonoha_MobileRedirectLogs(const char* documentsDir)
+{
+    const std::string directory =
+        Kotonoha_GetSafeDirectory(documentsDir);
+
+    const std::string stdoutPath =
+        directory + "/info.log";
+
+    const std::string stderrPath =
+        directory + "/error.log";
+
+    const bool stdoutRedirected =
+        std::freopen(stdoutPath.c_str(), "a", stdout) != nullptr;
+
+    const bool stderrRedirected =
+        std::freopen(stderrPath.c_str(), "a", stderr) != nullptr;
+
+    if (!stdoutRedirected || !stderrRedirected) {
+        std::cerr << "Failed to redirect logs "
+                  << "(stdout: "
+                  << (stdoutRedirected ? "ok" : "failed")
+                  << ", stderr: "
+                  << (stderrRedirected ? "ok" : "failed")
+                  << ").\n";
+
+        return false;
+    }
+
+    return true;
+}
+
+
+static std::string Kotonoha_MobileCreateLogHeader()
+{
+    const auto now =
+        std::chrono::system_clock::now();
+
+    const std::time_t actualTime =
+        std::chrono::system_clock::to_time_t(now);
+
+    std::tm localTime{};
+
+#ifdef _WIN32
+    const bool hasLocalTime =
+        localtime_s(&localTime, &actualTime) == 0;
+#else
+    const bool hasLocalTime =
+        localtime_r(&actualTime, &localTime) != nullptr;
+#endif
+
+    std::stringstream header;
+
+    header << '\n'
+           << "New execution: ";
+
+    if (hasLocalTime) {
+        header << std::put_time(
+            &localTime,
+            "%Y-%m-%d %H:%M:%S"
+        );
+    } else {
+        header << "time unavailable";
+    }
+
+    header << "\n-------------------------\n";
+
+    return header.str();
+}
+
+
+extern "C" void Kotonoha_MobileSetupShared(
+    const char* resourcesDir,
+    const char* documentsDir,
+    const char* platformName,
+    bool redirect
+)
+{
+    const std::string resourcesDirectory =
+        Kotonoha_GetSafeDirectory(resourcesDir);
+
+    const std::string documentsDirectory =
+        Kotonoha_GetSafeDirectory(documentsDir);
+
+    const std::string platform =
+        platformName != nullptr && *platformName != '\0'
+            ? platformName
+            : "Mobile";
+
+    // Assets são acessados relativamente a Resources:
+    // assets/font.ttf
+    // assets/shaders/upscale.metallib
+    const bool directoryChanged =
+        Kotonoha_MobileSetWorkingDirectory(
+            resourcesDirectory.c_str()
+        );
+
+    // Mantém stdout/stderr no terminal, console do Xcode ou logcat.
+    if (!redirect) {
+        std::cout << platform
+                  << " resources directory -> "
+                  << resourcesDirectory
+                  << '\n';
+
+        std::cout << platform
+                  << " documents directory -> "
+                  << documentsDirectory
+                  << '\n';
+
+        std::cout << platform
+                  << " working directory changed -> "
+                  << (directoryChanged ? "yes" : "no")
+                  << std::endl;
+
+        return;
+    }
+
+    const std::string stdoutPath =
+        documentsDirectory + "/info.log";
+
+    const std::string stderrPath =
+        documentsDirectory + "/error.log";
+
+    const bool logsRedirected =
+        Kotonoha_MobileRedirectLogs(
+            documentsDirectory.c_str()
+        );
+
+    const std::string header =
+        Kotonoha_MobileCreateLogHeader();
+
+    std::cout << header
+              << "STDOUT -> " << stdoutPath << '\n'
+              << platform
+              << " resources directory -> "
+              << resourcesDirectory << '\n'
+              << platform
+              << " documents directory -> "
+              << documentsDirectory << '\n'
+              << platform
+              << " working directory changed -> "
+              << (directoryChanged ? "yes" : "no") << '\n'
+              << platform
+              << " logs redirected -> "
+              << (logsRedirected ? "yes" : "no")
+              << std::endl;
+
+    std::cerr << header
+              << "STDERR -> " << stderrPath << '\n'
+              << platform
+              << " resources directory -> "
+              << resourcesDirectory << '\n'
+              << platform
+              << " documents directory -> "
+              << documentsDirectory << '\n'
+              << platform
+              << " working directory changed -> "
+              << (directoryChanged ? "yes" : "no") << '\n'
+              << platform
+              << " logs redirected -> "
+              << (logsRedirected ? "yes" : "no")
+              << std::endl;
 }
