@@ -547,16 +547,20 @@ namespace Kotonoha {
 		}
 
 		std::stringstream subSs;
-		subSs << "[Script Info]\n"
-			<< "Title: " << orsPath << "\n"
-			<< "ScriptType: v4.00+\n"
-			<< "PlayResX: " << gameCtx->videoWidth << "\n"
-			<< "PlayResY: " << gameCtx->videoHeight << "\n"
-			<< "WrapStyle: 0\n"
-			<< "ScaledBorderAndShadow: yes\n"
-			<< "YCbCr Matrix: None\n\n"
-			<< (gameCtx->styleStr == nullptr ? "" : gameCtx->styleStr)
-			<< std::endl;
+
+		if (gameCtx->styleStr != nullptr && gameCtx->styleStr[0] != '\0') {
+			subSs << gameCtx->styleStr << std::endl;
+		} else {
+			subSs << "[Script Info]\n"
+				<< "Title: " << orsPath << "\n"
+				<< "ScriptType: v4.00+\n"
+				<< "PlayResX: 1280\n"
+				<< "PlayResY: 720\n"
+				<< "WrapStyle: 0\n"
+				<< "ScaledBorderAndShadow: yes\n"
+				<< "YCbCr Matrix: None\n\n"
+				<< std::endl;
+		}
 
 		if (gp->sb->track == nullptr) {
 			gp->sb->track = ass_new_track(gp->sb->ass_library);

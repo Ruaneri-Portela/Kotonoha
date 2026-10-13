@@ -303,21 +303,6 @@ enum Kotonoha_Scene_Status Kotonoha_TextRenderDraw(
         targetHeight
     );
 
-    // SDL_GetWindowDisplayScale pode ser maior que 1 em telas Retina/HiDPI.
-    const float displayScale =
-        SDL_GetWindowDisplayScale(window);
-
-    const float safeScale =
-        displayScale > 0.0f
-            ? displayScale
-            : 1.0f;
-
-    environment->track->PlayResX =
-        (int)((float)targetWidth / safeScale);
-
-    environment->track->PlayResY =
-        (int)((float)targetHeight / safeScale);
-
     int assChanged = 0;
 
 	ASS_Image* frame = ass_render_frame(
