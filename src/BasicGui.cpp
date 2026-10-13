@@ -331,24 +331,48 @@ static std::string Kotonoha_FormatTime(Uint64 milliseconds) {
     return formatted;
 }
 
-void Kotonoha_BasicGuiInit(Kotonoha_Game& gameContext) {
+void Kotonoha_BasicGuiInit(
+    Kotonoha_Game &gameContext,
+    std::vector<Uint8> font) {
+
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
 
-    ImGuiIO& io = ImGui::GetIO();
+    ImGuiIO &io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
 
-    ImFont* mainFont = io.Fonts->AddFontFromFileTTF(
-        "assets/fonts/NotoSans-Regular.ttf",
-        16.0f);
+    ImFont *mainFont = nullptr;
+
+    if (!font.empty()) {
+        const size_t fontDataSize = font.size();
+
+        void *fontData = SDL_malloc(fontDataSize);
+
+        if (fontData != nullptr) {
+            SDL_memcpy(fontData, font.data(), fontDataSize);
+
+            mainFont = io.Fonts->AddFontFromMemoryTTF(
+                fontData,
+                static_cast<int>(fontDataSize),
+                16.0f);
+        }
+    }
+
+    if (mainFont == nullptr) {
+        SDL_LogWarn(
+            SDL_LOG_CATEGORY_APPLICATION,
+            "Failed to load embedded ImGui font; falling back to default font");
+
+        mainFont = io.Fonts->AddFontDefault();
+    }
 
     IM_ASSERT(mainFont != nullptr);
     io.FontDefault = mainFont;
 
     ImGui::StyleColorsDark();
 
-    ImGuiStyle& style = ImGui::GetStyle();
+    ImGuiStyle &style = ImGui::GetStyle();
     style.WindowRounding = 8.0f;
     style.ChildRounding = 6.0f;
     style.FrameRounding = 5.0f;
@@ -358,6 +382,7 @@ void Kotonoha_BasicGuiInit(Kotonoha_Game& gameContext) {
     style.WindowPadding = ImVec2(7.0f, 6.0f);
     style.FramePadding = ImVec2(4.0f, 3.0f);
     style.ItemSpacing = ImVec2(4.5f, 4.0f);
+
     style.Colors[ImGuiCol_WindowBg] =
         ImVec4(0.075f, 0.085f, 0.11f, 0.98f);
     style.Colors[ImGuiCol_Header] =
@@ -378,6 +403,7 @@ void Kotonoha_BasicGuiInit(Kotonoha_Game& gameContext) {
     ImGui_ImplSDL3_InitForSDLRenderer(
         gameContext.window,
         gameContext.render);
+
     ImGui_ImplSDLRenderer3_Init(gameContext.render);
 }
 

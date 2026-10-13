@@ -1,6 +1,8 @@
+#include <SDL3/SDL_stdinc.h>
 #include <cstring>
 #include <Kotonoha/Kotonoha.hpp>
 #include <SDL3_ttf/SDL_ttf.h>
+#include <string>
 
 static struct Kotonoha_Game global = {};
 
@@ -69,167 +71,232 @@ namespace {
 		return true;
 	}
 
-    bool PreloadFontsInto(
-        ASS_Library* library,
-        std::unordered_map<std::string, TTF_Font*>& fonts,
-        const char* fontsDir) {
+	static bool PreloadFontsInto(
+		ASS_Library *library,
+		std::unordered_map<std::string, TTF_Font *> &fonts,
+		const char *fontsDir,
+		const char *imguiFontName,
+		std::vector<Uint8> *imguiFontData) {
 
-        fonts.clear();
+		fonts.clear();
 
-        if (library == nullptr || fontsDir == nullptr || *fontsDir == '\0') {
-            return false;
-        }
+		if (imguiFontData != nullptr) {
+			imguiFontData->clear();
+		}
 
-        std::string baseDir;
+		if (library == nullptr ||
+			fontsDir == nullptr ||
+			*fontsDir == '\0') {
+			return false;
+		}
 
-        if (fontsDir[0] == '/') {
-            // macOS, iOS, Linux
-            baseDir = fontsDir;
-        } else {
-            const char* base = SDL_GetBasePath();
+		char *absPath = Kotonoha_GetAbsolutePath(fontsDir);
 
-            if (base == nullptr) {
-                SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
-                            "Failed to get base path: %s",
-                            SDL_GetError());
-                return false;
-            }
+		if (absPath == nullptr) {
+			return false;
+		}
 
-            baseDir = base;
+		SDL_PathInfo info;
 
-            // Remove a barra final, se existir
-            if (!baseDir.empty() && baseDir.back() == '/') {
-                baseDir.pop_back();
-            }
+		if (!SDL_GetPathInfo(absPath, &info) ||
+			info.type != SDL_PATHTYPE_DIRECTORY) {
+			SDL_LogWarn(
+				SDL_LOG_CATEGORY_APPLICATION,
+				"Fonts directory not found: %s",
+				absPath);
 
-            baseDir += '/';
-            baseDir += fontsDir;
-        }
+			SDL_free(absPath);
+			return false;
+		}
 
-        SDL_PathInfo info;
-        if (!SDL_GetPathInfo(baseDir.c_str(), &info) ||
-            info.type != SDL_PATHTYPE_DIRECTORY) {
-            SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
-                        "Fonts directory not found: %s",
-                        baseDir.c_str());
-            return false;
-        }
+		struct ScanContext {
+			ASS_Library *lib;
+			std::string dir;
+			std::unordered_map<std::string, TTF_Font *> *fonts;
+			const char *imguiFontName;
+			std::vector<Uint8> *imguiFontData;
+		};
 
-        struct ScanContext {
-            ASS_Library* lib;
-            std::string dir;
-            std::unordered_map<std::string, TTF_Font*>* fonts;
-        };
+		ScanContext ctx{
+			library,
+			absPath,
+			&fonts,
+			imguiFontName,
+			imguiFontData
+		};
 
-        ScanContext ctx{library, baseDir, &fonts};
-        if (!SDL_EnumerateDirectory(
-                baseDir.c_str(),
-                [](void* userdata, const char* dirname, const char* entry)
-                    -> SDL_EnumerationResult {
-                    auto* c = static_cast<ScanContext*>(userdata);
+		SDL_free(absPath);
+		absPath = nullptr;
 
-                    if (c == nullptr || c->fonts == nullptr || entry == nullptr) {
-                        return SDL_ENUM_CONTINUE;
-                    }
+		return SDL_EnumerateDirectory(
+			ctx.dir.c_str(),
+			[](void *userdata, const char *dirname, const char *entry)
+				-> SDL_EnumerationResult {
+				auto *c = static_cast<ScanContext *>(userdata);
 
-                    const std::string name(entry);
+				if (c == nullptr ||
+					c->fonts == nullptr ||
+					entry == nullptr) {
+					return SDL_ENUM_CONTINUE;
+				}
 
-                    if (name.length() <= 4) {
-                        return SDL_ENUM_CONTINUE;
-                    }
+				const std::string name(entry);
 
-                    std::string ext = name.substr(name.length() - 4);
-                    std::transform(ext.begin(), ext.end(), ext.begin(),
-                                   [](unsigned char ch) {
-                                       return static_cast<char>(std::tolower(ch));
-                                   });
+				const size_t dot = name.find_last_of('.');
 
-                    if (ext != ".ttf" && ext != ".otf" && ext != ".ttc") {
-                        return SDL_ENUM_CONTINUE;
-                    }
+				if (dot == std::string::npos) {
+					return SDL_ENUM_CONTINUE;
+				}
 
-                    const std::string fullPath = c->dir + "/" + name;
+				std::string ext = name.substr(dot);
 
-                    size_t size = 0;
-                    void* data = SDL_LoadFile(fullPath.c_str(), &size);
+				std::transform(
+					ext.begin(),
+					ext.end(),
+					ext.begin(),
+					[](unsigned char ch) {
+						return static_cast<char>(std::tolower(ch));
+					});
 
-                    if (data == nullptr || size == 0) {
-                        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
-                                    "Failed to load font: %s: %s",
-                                    fullPath.c_str(), SDL_GetError());
-                        return SDL_ENUM_CONTINUE;
-                    }
+				if (ext != ".ttf" &&
+					ext != ".otf" &&
+					ext != ".ttc") {
+					return SDL_ENUM_CONTINUE;
+				}
 
-                    ass_add_font(
-                        c->lib,
-                        const_cast<char*>(name.c_str()),
-                        static_cast<char*>(data),
-                        static_cast<int>(size));
+				char *joinedPath = Kotonoha_JoinPath(
+					c->dir.c_str(),
+					name.c_str());
 
-                    SDL_Log("Preloaded font into LibASS memory: %s (%zu bytes)",
-                            name.c_str(), size);
+				if (joinedPath == nullptr) {
+					return SDL_ENUM_CONTINUE;
+				}
 
-                    SDL_IOStream* io = SDL_IOFromMem(data, size);
+				const std::string fullPath(joinedPath);
 
-                    if (io == nullptr) {
-                        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
-                                    "Failed to create memory IOStream for font: %s: %s",
-                                    fullPath.c_str(), SDL_GetError());
-                        SDL_free(data);
-                        return SDL_ENUM_CONTINUE;
-                    }
+				SDL_free(joinedPath);
+				joinedPath = nullptr;
 
-                    TTF_Font* font = TTF_OpenFontIO(io, true, 48);
+				size_t size = 0;
+				void *data = SDL_LoadFile(fullPath.c_str(), &size);
 
-                    if (font == nullptr) {
-                        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
-                                    "Failed to open font from memory: %s: %s",
-                                    fullPath.c_str(), SDL_GetError());
-                        SDL_free(data);
-                        return SDL_ENUM_CONTINUE;
-                    }
+				if (data == nullptr || size == 0) {
+					SDL_LogWarn(
+						SDL_LOG_CATEGORY_APPLICATION,
+						"Failed to load font: %s: %s",
+						fullPath.c_str(),
+						SDL_GetError());
 
-                    const std::string fontName =
-                        name.substr(0, name.length() - ext.length());
+					if (data != nullptr) {
+						SDL_free(data);
+					}
 
-                    (*c->fonts)[fontName] = font;
+					return SDL_ENUM_CONTINUE;
+				}
 
-                    return SDL_ENUM_CONTINUE;
-                },
-                &ctx)) {
-            return false;
-        }
+				const std::string fontName = name.substr(0, dot);
 
-        return true;
-    }
+				if (c->imguiFontData != nullptr &&
+					c->imguiFontName != nullptr &&
+					c->imguiFontData->empty() &&
+					fontName == c->imguiFontName) {
 
-	static bool InitLibAssAndTTF(
-		std::unordered_map<std::string, TTF_Font*>& fonts) {
+					const Uint8 *bytes = static_cast<const Uint8 *>(data);
+
+					c->imguiFontData->assign(bytes, bytes + size);
+
+					SDL_Log(
+						"Selected font for ImGui: %s (%zu bytes)",
+						fontName.c_str(),
+						size);
+				}
+
+				/*
+				* Registra a fonte na memória do libass.
+				* O libass faz sua própria cópia dos dados.
+				*/
+				ass_add_font(
+					c->lib,
+					const_cast<char *>(name.c_str()),
+					static_cast<char *>(data),
+					static_cast<int>(size));
+
+				SDL_Log(
+					"Preloaded font into LibASS memory: %s (%zu bytes)",
+					name.c_str(),
+					size);
+
+				SDL_IOStream *io = SDL_IOFromMem(data, size);
+
+				if (io == nullptr) {
+					SDL_LogWarn(
+						SDL_LOG_CATEGORY_APPLICATION,
+						"Failed to create memory IOStream for font: %s: %s",
+						fullPath.c_str(),
+						SDL_GetError());
+
+					SDL_free(data);
+					return SDL_ENUM_CONTINUE;
+				}
+
+				TTF_Font *font = TTF_OpenFontIO(io, true, 48);
+
+				if (font == nullptr) {
+					SDL_LogWarn(
+						SDL_LOG_CATEGORY_APPLICATION,
+						"Failed to open font from memory: %s: %s",
+						fullPath.c_str(),
+						SDL_GetError());
+
+					SDL_free(data);
+					return SDL_ENUM_CONTINUE;
+				}
+
+				(*c->fonts)[fontName] = font;
+
+				return SDL_ENUM_CONTINUE;
+			},
+			&ctx);
+	}
+
+	static bool InitLibAssAndTTFs(
+		std::string defaultFront,
+		std::unordered_map<std::string, TTF_Font *> &fonts,
+		std::vector<Uint8> &imguiFontData) {
 
 		global.ass_library = ass_library_init();
+
 		if (global.ass_library == nullptr) {
 			SDL_LogError(0, "Couldn't initialize libAss");
 			return false;
 		}
 
 		global.ass_renderer = ass_renderer_init(global.ass_library);
+
 		if (global.ass_renderer == nullptr) {
 			SDL_LogError(0, "Couldn't initialize libAss Render");
 			return false;
 		}
 
-		if (!PreloadFontsInto(global.ass_library, fonts, "assets/fonts")) {
+		if (!PreloadFontsInto(
+				global.ass_library,
+				fonts,
+				"assets/fonts",
+				defaultFront.c_str(),
+				&imguiFontData)) {
 			return false;
 		}
 
 		ass_set_extract_fonts(global.ass_library, 1);
-		ass_set_fonts_dir(global.ass_library, "assets/fonts");
-		ass_set_fonts(global.ass_renderer,
-			"NotoSans-Regular.ttf",
+
+		ass_set_fonts(
+			global.ass_renderer,
+			defaultFront.c_str(),
 			nullptr,
-			ASS_FONTPROVIDER_AUTODETECT,
+			ASS_FONTPROVIDER_NONE,
 			nullptr,
 			1);
+
 		ass_set_shaper(global.ass_renderer, ASS_SHAPING_COMPLEX);
 		ass_set_hinting(global.ass_renderer, ASS_HINTING_NATIVE);
 
@@ -298,13 +365,16 @@ extern "C" {
 		}
 		engine->ConfigureWindow();
 
-		if (!InitLibAssAndTTF(engine->fonts)) {
+		std::vector<Uint8> imguiFontData;
+
+		if (!InitLibAssAndTTFs("NotoSans-Regular",engine->fonts, imguiFontData)) {
 			delete engine;
 			CleanupGlobalResources();
 			TTF_Quit();
 			SDL_Quit();
 			return SDL_APP_FAILURE;
 		}
+
 
 		if (!InitSound()) {
 			delete engine;
@@ -326,7 +396,7 @@ extern "C" {
 
 		*appstate = engine;
 		if (global.render != nullptr) {
-			Kotonoha_BasicGuiInit(global);
+			Kotonoha_BasicGuiInit(global,imguiFontData);
 			SDL_ShowWindow(global.window);
 		}
 

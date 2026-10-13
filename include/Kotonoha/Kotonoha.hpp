@@ -1,5 +1,4 @@
 #pragma once
-#include "Kotonoha/components/Sound.hpp"
 #include <Kotonoha/Gameplay.hpp>
 
 extern "C" {
@@ -7,6 +6,7 @@ extern "C" {
 #include <Kotonoha/renders/FpsRender.h>
 #include <Kotonoha/renders/TimestampRender.h>
 #include <Kotonoha/renders/LoadingRender.h>
+#include <Kotonoha/utils/Path.h>
 #include <SDL3_ttf/SDL_ttf.h>
 
 #if defined(__ANDROID__)
@@ -94,6 +94,6 @@ namespace Kotonoha {
 	};
 } // namespace Kotonoha
 
-void Kotonoha_BasicGuiInit(Kotonoha_Game& gameContext);
+void Kotonoha_BasicGuiInit(Kotonoha_Game& gameContext, std::vector<Uint8> font);
 bool Kotonoha_BasicGuiRun(Kotonoha::Kotonoha* game, Kotonoha::Gameplay* play, Kotonoha_Game& context);
 void Kotonoha_BasicGuiEvent(SDL_Event* event);

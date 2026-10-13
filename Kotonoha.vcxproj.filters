@@ -138,6 +138,9 @@
     <ClCompile Include="src\specials\OpenGL.c">
       <Filter>Arquivos de Origem\specials</Filter>
     </ClCompile>
+    <ClCompile Include="src\utils\Path.c">
+      <Filter>Arquivos de Origem\utils</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\Kotonoha\Gameplay.hpp">
@@ -238,6 +241,9 @@
     </ClInclude>
     <ClInclude Include="include\Kotonoha\speciais\OpenGL.h">
       <Filter>Arquivos de Cabeçalho\specials</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Kotonoha\utils\Path.h">
+      <Filter>Arquivos de Cabeçalho\utils</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
