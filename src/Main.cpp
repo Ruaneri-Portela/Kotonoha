@@ -116,6 +116,10 @@ extern "C" {
 #include <Kotonoha/speciais/Upscaling.h>
 #include <SDL3/SDL_main.h>
 	SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[]) {
+		#if defined(KOTONOHA_MOBILE)
+			Kotonoha_MobileSetup();
+		#endif
+
 		if (appstate == nullptr) {
 			return SDL_APP_FAILURE;
 		}
@@ -139,10 +143,6 @@ extern "C" {
 			delete engine;
 			return status;
 		}
-
-#if defined(KOTONOHA_MOBILE)
-		Kotonoha_MobileSetup();
-#endif
 
 		if (!InitSDLSubsystems()) {
 			delete engine;
