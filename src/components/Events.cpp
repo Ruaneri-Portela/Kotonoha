@@ -590,25 +590,20 @@ namespace Kotonoha {
 				subtitleEvent->Start = static_cast<long long>(startMs);
 				subtitleEvent->Duration =
 					static_cast<long long>(endMs - startMs);
-				const long long subtitleStart = subtitleEvent->Start;
-				const long long subtitleDuration = subtitleEvent->Duration;
-				for (SubtitleEventState& previous : subtitleEvents) {
-					if (previous.start > static_cast<long long>(startMs)) {
+
+				for (int i = 0; i < eventId; ++i) {
+					ASS_Event* previous = &gp->sb->track->events[i];
+					if (previous->Start > static_cast<long long>(startMs)) {
 						continue;
 					}
 
 					const long long elapsed =
-						static_cast<long long>(startMs) - previous.start;
-					if (previous.duration > elapsed) {
-						previous.duration = elapsed;
+						static_cast<long long>(startMs) - previous->Start;
+					if (previous->Duration > elapsed) {
+						previous->Duration = elapsed;
 					}
 				}
-				subtitleEvent->Duration = 0;
-				subtitleEvents.push_back({
-					eventId,
-					subtitleStart,
-					subtitleDuration
-				});
+
 				subtitleEvent->Text =
 					SDL_strdup(BuildString(event->data.print_text->text).c_str());
 
@@ -619,8 +614,8 @@ namespace Kotonoha {
 						subtitleEvent->Style = i;
 					}
 
-					if (SDL_strcmp(style->Name,
-						BuildString(event->data.print_text->character).c_str()) == 0) {
+					const std::string charName = BuildString(event->data.print_text->character);
+					if (!charName.empty() && SDL_strcmp(style->Name, charName.c_str()) == 0) {
 						subtitleEvent->Style = i;
 						break;
 					}

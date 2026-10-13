@@ -1,242 +1,415 @@
 #include <Kotonoha/renders/TextRender.h>
+
 #include <SDL3/SDL_render.h>
 
-// Função para desenhar a textura a partir de uma imagem ASS
-inline static SDL_Texture* Kotonoha_TextRenderDrawText(SDL_Renderer* render,
-	ASS_Image* img) {
-	if (img == NULL || img->bitmap == NULL || img->w <= 0 || img->h <= 0) {
-		return NULL;
-	}
+// =============================================================================
+// Internal helpers
+// =============================================================================
 
-	SDL_Texture* texture =
-		SDL_CreateTexture(render, SDL_PIXELFORMAT_RGBA32,
-			SDL_TEXTUREACCESS_STREAMING, img->w, img->h);
-	if (texture == NULL) {
-		SDL_LogError(SDL_LOG_CATEGORY_ERROR, "SDL_CreateTexture failed: %s",
-			SDL_GetError());
-		return NULL;
-	}
+static SDL_Texture* Kotonoha_TextRenderCreateGlyphTexture(
+    SDL_Renderer* render,
+    const ASS_Image* image
+)
+{
+    if (render == NULL ||
+        image == NULL ||
+        image->bitmap == NULL ||
+        image->w <= 0 ||
+        image->h <= 0) {
+        return NULL;
+    }
 
-	if (!SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND)) {
-		SDL_LogError(SDL_LOG_CATEGORY_ERROR,
-			"SDL_SetTextureBlendMode failed: %s", SDL_GetError());
-		SDL_DestroyTexture(texture);
-		return NULL;
-	}
+    SDL_Texture* texture = SDL_CreateTexture(
+        render,
+        SDL_PIXELFORMAT_RGBA32,
+        SDL_TEXTUREACCESS_STREAMING,
+        image->w,
+        image->h
+    );
 
-	Uint8* pixels = NULL;
-	int pitch = 0;
-	if (!SDL_LockTexture(texture, NULL, (void**)&pixels, &pitch)) {
-		SDL_LogError(SDL_LOG_CATEGORY_ERROR, "SDL_LockTexture failed: %s",
-			SDL_GetError());
-		SDL_DestroyTexture(texture);
-		return NULL;
-	}
+    if (texture == NULL) {
+        SDL_LogError(
+            SDL_LOG_CATEGORY_ERROR,
+            "SDL_CreateTexture for ASS glyph failed: %s",
+            SDL_GetError()
+        );
 
-	unsigned char* bitmap = img->bitmap;
-	const Uint8 red = (Uint8)((img->color >> 24) & 0xff);
-	const Uint8 green = (Uint8)((img->color >> 16) & 0xff);
-	const Uint8 blue = (Uint8)((img->color >> 8) & 0xff);
-	const Uint8 colorAlpha = (Uint8)(255 - (img->color & 0xff));
-	for (int y = 0; y < img->h; ++y) {
-		Uint8* rowPixels = pixels + (y * pitch);
-		for (int x = 0; x < img->w; ++x) {
-			const Uint8 coverage = bitmap[x];
-			const Uint8 alpha = (Uint8)((coverage * colorAlpha) / 255);
-			rowPixels[x * 4 + 0] = red;
-			rowPixels[x * 4 + 1] = green;
-			rowPixels[x * 4 + 2] = blue;
-			rowPixels[x * 4 + 3] = alpha;
-		}
-		bitmap += img->stride;
-	}
+        return NULL;
+    }
 
-	SDL_UnlockTexture(texture);
-	return texture;
+    if (!SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND)) {
+        SDL_LogError(
+            SDL_LOG_CATEGORY_ERROR,
+            "SDL_SetTextureBlendMode for ASS glyph failed: %s",
+            SDL_GetError()
+        );
+
+        SDL_DestroyTexture(texture);
+        return NULL;
+    }
+
+    Uint8* pixels = NULL;
+    int pitch = 0;
+
+    if (!SDL_LockTexture(
+            texture,
+            NULL,
+            (void**)&pixels,
+            &pitch
+        )) {
+        SDL_LogError(
+            SDL_LOG_CATEGORY_ERROR,
+            "SDL_LockTexture for ASS glyph failed: %s",
+            SDL_GetError()
+        );
+
+        SDL_DestroyTexture(texture);
+        return NULL;
+    }
+
+    // ASS_Image::color tem formato RRGGBBAA, mas AA representa transparência:
+    // 0 = totalmente opaco; 255 = totalmente transparente.
+    const Uint8 red =
+        (Uint8)((image->color >> 24) & 0xFF);
+
+    const Uint8 green =
+        (Uint8)((image->color >> 16) & 0xFF);
+
+    const Uint8 blue =
+        (Uint8)((image->color >> 8) & 0xFF);
+
+    const Uint8 colorAlpha =
+        (Uint8)(255 - (image->color & 0xFF));
+
+    const unsigned char* bitmap =
+        image->bitmap;
+
+    for (int y = 0; y < image->h; ++y) {
+        Uint8* rowPixels =
+            pixels + (y * pitch);
+
+        for (int x = 0; x < image->w; ++x) {
+            const Uint8 coverage =
+                bitmap[x];
+
+            const Uint8 alpha =
+                (Uint8)((coverage * colorAlpha) / 255);
+
+            const int pixelOffset =
+                x * 4;
+
+            rowPixels[pixelOffset + 0] = red;
+            rowPixels[pixelOffset + 1] = green;
+            rowPixels[pixelOffset + 2] = blue;
+            rowPixels[pixelOffset + 3] = alpha;
+        }
+
+        bitmap += image->stride;
+    }
+
+    SDL_UnlockTexture(texture);
+
+    return texture;
 }
 
-// Função para inicializar os dados de renderização de texto
-struct Kotonoha_subtitles*
-	Kotonoha_TextRenderInit(struct Kotonoha_time* time,
-		struct Kotonoha_Game* gameCtx) {
-	struct Kotonoha_subtitles* object =
-		SDL_malloc(sizeof(struct Kotonoha_subtitles));
-	if (!object) {
-		SDL_LogError(SDL_LOG_CATEGORY_ERROR,
-			"Failed to allocate memory for Kotonoha_subtitles");
-		return NULL;
-	}
 
-	// Inicializa os dados do objeto de renderização de texto
-	object->ass_library = gameCtx->ass_library;
-	object->ass_renderer = gameCtx->ass_renderer;
-	object->track = gameCtx->ass_track;
-	object->time = time;
-	object->subTexture = NULL;
-	return object;
+static bool Kotonoha_TextRenderGetTargetSize(
+    SDL_Renderer* render,
+    SDL_Texture* target,
+    int* width,
+    int* height
+)
+{
+    if (render == NULL || width == NULL || height == NULL) {
+        return false;
+    }
+
+    *width = 0;
+    *height = 0;
+
+    // Quando há uma textura target, as dimensões reais da renderização vêm
+    // dela. target normalmente é a textura final da sua pipeline.
+    if (target != NULL) {
+        float textureWidth = 0.0f;
+        float textureHeight = 0.0f;
+
+        if (!SDL_GetTextureSize(
+                target,
+                &textureWidth,
+                &textureHeight
+            )) {
+            SDL_LogError(
+                SDL_LOG_CATEGORY_ERROR,
+                "SDL_GetTextureSize for subtitle target failed: %s",
+                SDL_GetError()
+            );
+
+            return false;
+        }
+
+        *width = (int)textureWidth;
+        *height = (int)textureHeight;
+    } else {
+        // NULL como target significa que a renderização é feita diretamente
+        // para a janela associada ao SDL_Renderer.
+        if (!SDL_GetRenderOutputSize(
+                render,
+                width,
+                height
+            )) {
+            SDL_LogError(
+                SDL_LOG_CATEGORY_ERROR,
+                "SDL_GetRenderOutputSize for subtitles failed: %s",
+                SDL_GetError()
+            );
+
+            return false;
+        }
+    }
+
+    return *width > 0 && *height > 0;
 }
 
-// Função para destruir os dados de renderização de texto e liberar a memória
-void Kotonoha_TextRenderShutdown(struct Kotonoha_subtitles** object) {
-	if (object && *object) {
-		if ((*object)->subTexture) {
-			SDL_DestroyTexture((*object)->subTexture);
-		}
-		SDL_free(*object);
-		*object = NULL;
-	}
+
+// =============================================================================
+// Public API
+// =============================================================================
+
+struct Kotonoha_subtitles* Kotonoha_TextRenderInit(
+    struct Kotonoha_time* time,
+    struct Kotonoha_Game* gameCtx
+)
+{
+    if (time == NULL || gameCtx == NULL) {
+        SDL_LogError(
+            SDL_LOG_CATEGORY_ERROR,
+            "Kotonoha_TextRenderInit received invalid arguments."
+        );
+
+        return NULL;
+    }
+
+    struct Kotonoha_subtitles* object =
+        (struct Kotonoha_subtitles*)SDL_calloc(
+            1,
+            sizeof(struct Kotonoha_subtitles)
+        );
+
+    if (object == NULL) {
+        SDL_LogError(
+            SDL_LOG_CATEGORY_ERROR,
+            "Failed to allocate Kotonoha_subtitles."
+        );
+
+        return NULL;
+    }
+
+    object->ass_library =
+        gameCtx->ass_library;
+
+    object->ass_renderer =
+        gameCtx->ass_renderer;
+
+    object->track =
+        gameCtx->ass_track;
+
+    object->time =
+        time;
+
+    return object;
 }
 
-// Função principal para renderizar o texto
-enum Kotonoha_Scene_Status Kotonoha_TextRenderDraw(KOTONOHA_SCENE_CALL) {
-	(void)window;
-	(void)eventQueu;
 
-	if (!userData) {
-		return KOTONOHA_SCENE_FATAL_ERROR;
-	}
+void Kotonoha_TextRenderShutdown(
+    struct Kotonoha_subtitles** object
+)
+{
+    if (object == NULL || *object == NULL) {
+        return;
+    }
 
-	struct Kotonoha_subtitles* environment =
-		(struct Kotonoha_subtitles*)userData;
+    // Não há mais subTexture persistente para destruir.
+    //
+    // As texturas temporárias de glyph são criadas e destruídas no mesmo
+    // frame, dentro de Kotonoha_TextRenderDraw().
+    SDL_free(*object);
+    *object = NULL;
+}
 
-	if (target == NULL || !environment->track) {
-		return KOTONOHA_SCENE_NULL;
-	}
 
-	Uint8 targetR = 0;
-	Uint8 targetG = 0;
-	Uint8 targetB = 0;
-	Uint8 targetA = 0;
-	SDL_BlendMode targetBlendMode = SDL_BLENDMODE_NONE;
-	if (!SDL_GetRenderDrawColor(render, &targetR, &targetG, &targetB,
-			&targetA) ||
-		!SDL_GetRenderDrawBlendMode(render, &targetBlendMode) ||
-		!SDL_SetRenderDrawBlendMode(render, SDL_BLENDMODE_NONE) ||
-		!SDL_SetRenderDrawColor(render, 0, 0, 0, 0) ||
-		!SDL_RenderClear(render)) {
-		SDL_LogError(SDL_LOG_CATEGORY_ERROR,
-			"Failed to clear persistent subtitle canvas: %s", SDL_GetError());
-		SDL_SetRenderDrawColor(render, targetR, targetG, targetB, targetA);
-		SDL_SetRenderDrawBlendMode(render, targetBlendMode);
-		return KOTONOHA_SCENE_FATAL_ERROR;
-	}
-	if (!SDL_SetRenderDrawColor(render, targetR, targetG, targetB, targetA) ||
-		!SDL_SetRenderDrawBlendMode(render, targetBlendMode)) {
-		SDL_LogError(SDL_LOG_CATEGORY_ERROR,
-			"Failed to restore renderer state after clearing subtitle canvas: %s",
-			SDL_GetError());
-		return KOTONOHA_SCENE_FATAL_ERROR;
-	}
+enum Kotonoha_Scene_Status Kotonoha_TextRenderDraw(
+    KOTONOHA_SCENE_CALL
+)
+{
+    (void)eventQueu;
 
-	ass_set_storage_size(environment->ass_renderer, target->w, target->h);
-	ass_set_frame_size(environment->ass_renderer, target->w, target->h);
+    if (render == NULL ||
+        window == NULL ||
+        userData == NULL) {
+        return KOTONOHA_SCENE_FATAL_ERROR;
+    }
 
-	float scale = SDL_GetWindowDisplayScale(window);
+    struct Kotonoha_subtitles* environment =
+        (struct Kotonoha_subtitles*)userData;
 
-	if (environment->track) {
-		environment->track->PlayResX = (int)((float)target->w / scale);
-		environment->track->PlayResY = (int)((float)target->h / scale);
-	}
+    if (environment->ass_renderer == NULL ||
+        environment->track == NULL ||
+        environment->time == NULL) {
+        return KOTONOHA_SCENE_NULL;
+    }
 
-	int asChanged = 0;
-	ASS_Image* frame =
-		ass_render_frame(environment->ass_renderer, environment->track,
-			Kotonoha_timeGet(environment->time), &asChanged);
+    int targetWidth = 0;
+    int targetHeight = 0;
 
-	if (asChanged != 0) {
-		return KOTONOHA_SCENE_WAITING;
-	}
+    if (!Kotonoha_TextRenderGetTargetSize(
+            render,
+            target,
+            &targetWidth,
+            &targetHeight
+        )) {
+        return KOTONOHA_SCENE_WAITING;
+    }
 
-	if (environment->subTexture != NULL) {
-		SDL_DestroyTexture(environment->subTexture);
-		environment->subTexture = NULL;
-	}
+    // Salva o target ativo para não quebrar a pipeline caso o chamador tenha
+    // outro render target selecionado.
+    SDL_Texture* previousTarget =
+        SDL_GetRenderTarget(render);
 
-	environment->subTexture =
-		SDL_CreateTexture(render, SDL_PIXELFORMAT_RGBA32,
-			SDL_TEXTUREACCESS_TARGET, target->w, target->h);
-	if (environment->subTexture == NULL) {
-		SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Failed to create subTexture: %s",
-			SDL_GetError());
-		return KOTONOHA_SCENE_FATAL_ERROR;
-	}
-	if (!SDL_SetTextureBlendMode(environment->subTexture, SDL_BLENDMODE_BLEND)) {
-		SDL_LogError(SDL_LOG_CATEGORY_ERROR,
-			"Failed to set subtitle texture blend mode: %s", SDL_GetError());
-		SDL_DestroyTexture(environment->subTexture);
-		environment->subTexture = NULL;
-		return KOTONOHA_SCENE_FATAL_ERROR;
-	}
+    // Ativa a textura de frame onde a legenda deve ser desenhada.
+    //
+    // target == NULL é válido: nesse caso a renderização vai para a janela.
+    if (previousTarget != target) {
+        if (!SDL_SetRenderTarget(render, target)) {
+            SDL_LogError(
+                SDL_LOG_CATEGORY_ERROR,
+                "Failed to activate subtitle target: %s",
+                SDL_GetError()
+            );
 
-	if (!SDL_SetRenderTarget(render, environment->subTexture)) {
-		SDL_LogError(SDL_LOG_CATEGORY_ERROR,
-			"Failed to set render target for subtitles: %s", SDL_GetError());
-		SDL_DestroyTexture(environment->subTexture);
-		environment->subTexture = NULL;
-		return KOTONOHA_SCENE_FATAL_ERROR;
-	}
+            return KOTONOHA_SCENE_FATAL_ERROR;
+        }
+    }
 
-	Uint8 oldR = 0, oldG = 0, oldB = 0, oldA = 0;
-	if (!SDL_GetRenderDrawColor(render, &oldR, &oldG, &oldB, &oldA) ||
-		!SDL_SetRenderDrawBlendMode(render, SDL_BLENDMODE_NONE) ||
-		!SDL_SetRenderDrawColor(render, 0, 0, 0, 0) ||
-		!SDL_RenderClear(render)) {
-		SDL_LogError(SDL_LOG_CATEGORY_ERROR,
-			"Failed to clear subtitle target: %s", SDL_GetError());
-		SDL_SetRenderTarget(render, target);
-		SDL_SetRenderDrawColor(render, oldR, oldG, oldB, oldA);
-		SDL_SetRenderDrawBlendMode(render, targetBlendMode);
-		SDL_DestroyTexture(environment->subTexture);
-		environment->subTexture = NULL;
-		return KOTONOHA_SCENE_FATAL_ERROR;
-	}
-	if (!SDL_SetRenderDrawColor(render, oldR, oldG, oldB, oldA) ||
-		!SDL_SetRenderDrawBlendMode(render, targetBlendMode)) {
-		SDL_LogError(SDL_LOG_CATEGORY_ERROR,
-			"Failed to restore renderer state after subtitle clear: %s",
-			SDL_GetError());
-		SDL_SetRenderTarget(render, target);
-		SDL_DestroyTexture(environment->subTexture);
-		environment->subTexture = NULL;
-		return KOTONOHA_SCENE_FATAL_ERROR;
-	}
+    // Configura libass usando as dimensões físicas do render target.
+    ass_set_storage_size(
+        environment->ass_renderer,
+        targetWidth,
+        targetHeight
+    );
 
-	bool renderedAny = false;
-	for (ASS_Image* img = frame; img != NULL; img = img->next) {
-		SDL_Texture* texture = Kotonoha_TextRenderDrawText(render, img);
-		if (texture == NULL) {
-			continue;
+    ass_set_frame_size(
+        environment->ass_renderer,
+        targetWidth,
+        targetHeight
+    );
+
+    // SDL_GetWindowDisplayScale pode ser maior que 1 em telas Retina/HiDPI.
+    const float displayScale =
+        SDL_GetWindowDisplayScale(window);
+
+    const float safeScale =
+        displayScale > 0.0f
+            ? displayScale
+            : 1.0f;
+
+    environment->track->PlayResX =
+        (int)((float)targetWidth / safeScale);
+
+    environment->track->PlayResY =
+        (int)((float)targetHeight / safeScale);
+
+    int assChanged = 0;
+
+	ASS_Image* frame = ass_render_frame(
+		environment->ass_renderer,
+		environment->track,
+		Kotonoha_timeGet(environment->time),
+		&assChanged
+	);
+
+	if (assChanged == 0) {
+		if (previousTarget != target) {
+			SDL_SetRenderTarget(render, previousTarget);
 		}
 
-		SDL_FRect dst = { (float)img->dst_x, (float)img->dst_y,
-			(float)img->w, (float)img->h };
-		if (SDL_RenderTexture(render, texture, NULL, &dst)) {
-			renderedAny = true;
-		}
-		SDL_DestroyTexture(texture);
+		return frame != NULL
+			? KOTONOHA_SCENE_DRAW_OVERLAYED
+			: KOTONOHA_SCENE_WAITING;
 	}
 
-	if (!SDL_SetRenderTarget(render, target)) {
-		SDL_LogError(SDL_LOG_CATEGORY_ERROR,
-			"Failed to restore render target after subtitle draw: %s",
-			SDL_GetError());
-		SDL_DestroyTexture(environment->subTexture);
-		environment->subTexture = NULL;
-		return KOTONOHA_SCENE_FATAL_ERROR;
-	}
+    // Não há glyphs ativos neste timestamp.
+    if (frame == NULL) {
+        if (previousTarget != target) {
+            SDL_SetRenderTarget(render, previousTarget);
+        }
 
-	if (renderedAny) {
-		if (!SDL_RenderTexture(render, environment->subTexture, NULL, NULL)) {
-			SDL_LogError(SDL_LOG_CATEGORY_ERROR,
-				"Failed to composite subtitle texture: %s", SDL_GetError());
-			return KOTONOHA_SCENE_FATAL_ERROR;
-		}
-	}
-	else {
-		SDL_DestroyTexture(environment->subTexture);
-		environment->subTexture = NULL;
-		return KOTONOHA_SCENE_WAITING;
-	}
+        return KOTONOHA_SCENE_WAITING;
+    }
+	
+	SDL_RenderClear(render);
 
-	return KOTONOHA_SCENE_DRAW_OVERLAYED;
+    bool renderedAny = false;
+
+    for (ASS_Image* image = frame;
+         image != NULL;
+         image = image->next) {
+        SDL_Texture* glyphTexture =
+            Kotonoha_TextRenderCreateGlyphTexture(
+                render,
+                image
+            );
+
+        if (glyphTexture == NULL) {
+            continue;
+        }
+
+        const SDL_FRect destination = {
+            (float)image->dst_x,
+            (float)image->dst_y,
+            (float)image->w,
+            (float)image->h
+        };
+
+        if (!SDL_RenderTexture(
+                render,
+                glyphTexture,
+                NULL,
+                &destination
+            )) {
+            SDL_LogError(
+                SDL_LOG_CATEGORY_ERROR,
+                "Failed to draw ASS glyph: %s",
+                SDL_GetError()
+            );
+
+            SDL_DestroyTexture(glyphTexture);
+
+            if (previousTarget != target) {
+                SDL_SetRenderTarget(render, previousTarget);
+            }
+
+            return KOTONOHA_SCENE_FATAL_ERROR;
+        }
+
+        renderedAny = true;
+
+        SDL_DestroyTexture(glyphTexture);
+    }
+
+    // Restaura o target que estava ativo antes de entrar na scene.
+    if (previousTarget != target) {
+        if (!SDL_SetRenderTarget(render, previousTarget)) {
+            SDL_LogError(
+                SDL_LOG_CATEGORY_ERROR,
+                "Failed to restore render target after subtitles: %s",
+                SDL_GetError()
+            );
+
+            return KOTONOHA_SCENE_FATAL_ERROR;
+        }
+    }
+
+    return renderedAny
+        ? KOTONOHA_SCENE_DRAW_OVERLAYED
+        : KOTONOHA_SCENE_WAITING;
 }

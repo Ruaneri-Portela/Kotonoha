@@ -1,20 +1,18 @@
 #include <SDL3/SDL.h>
-
-#include <Kotonoha/speciais/OpenGL.h>
 #include <Kotonoha/speciais/Upscaling.h>
-#include <string>
-#include <sstream>
-#include <vector>
-
-#ifndef SDL_PROP_TEXTURE_OPENGL_TEXTURE_NUMBER
-#define SDL_PROP_TEXTURE_OPENGL_TEXTURE_NUMBER "SDL.texture.opengl.texture"
-#endif
-#ifndef SDL_PROP_TEXTURE_OPENGLES2_TEXTURE_NUMBER
-#define SDL_PROP_TEXTURE_OPENGLES2_TEXTURE_NUMBER "SDL.texture.opengles2.texture"
-#endif
 
 #if defined(KOTONOHA_HAS_ANIME4K)
+#if defined(__ANDROID__) || defined(ANDROID)
+    #include <GLES2/gl2.h>
+    #include <GLES2/gl2ext.h>
+#elif defined(__APPLE__)
+    #include <OpenGL/gl3.h>
+#else
+    #include <SDL3/SDL_opengl.h>
+#endif
 
+#include <string>
+#include <sstream>
 namespace {
 
 static bool g_anime4kInitialized = false;

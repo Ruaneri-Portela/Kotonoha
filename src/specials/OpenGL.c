@@ -1,4 +1,3 @@
-#pragma once
 #include <Kotonoha/speciais/OpenGL.h>
 
 #define GL_LOAD_FUNC(type, name) name = (type)SDL_GL_GetProcAddress(#name)
