@@ -1,12 +1,11 @@
 #include <algorithm>
 #include <cstddef>
-#include <fstream>
-#include <iostream>
 #include <Kotonoha/Kotonoha.hpp>
 #include <SDL3/SDL_render.h>
 #include <SDL3/SDL_video.h>
 #include <string>
 #include <vector>
+#include <cstring>
 
 extern "C"{
 	#include <Kotonoha/speciais/Upscaling.h>
@@ -41,32 +40,6 @@ namespace Kotonoha {
 			result += fname;
 			return result;
 		}
-
-		static bool ReadWholeFile(const char* path, std::string& content) {
-			if (path == nullptr || *path == '\0') {
-				return false;
-			}
-
-			std::ifstream file(path, std::ios::binary | std::ios::ate);
-			if (!file.is_open()) {
-				return false;
-			}
-
-			const std::streamsize size = file.tellg();
-			if (size < 0) {
-				return false;
-			}
-
-			file.seekg(0, std::ios::beg);
-			content.resize(static_cast<size_t>(size));
-
-			if (size > 0 && !file.read(&content[0], size)) {
-				return false;
-			}
-
-			return true;
-		}
-
 	} // namespace
 
 	Kotonoha::Kotonoha(int argc, char* argv[], SDL_AppResult* status,
@@ -98,6 +71,7 @@ namespace Kotonoha {
 
 	SDL_AppResult Kotonoha::Initialize() {
 		Kotonoha_IOMonitorSetRetryMissingAssets(!ignoreMissingAssets);
+
 #ifndef KOTONOHA_MOBILE
 		LoadWindowIcon("assets/icon.png");
 #endif
@@ -197,17 +171,25 @@ namespace Kotonoha {
 				Kotonoha_IOMonitorCancel(&gameplay->ioMonitor);
 			}
 		}
+
 		processPoolRunning = false;
+
 		if (processPool != nullptr) {
 			SDL_WaitThread(processPool, nullptr);
 			processPool = nullptr;
 		}
 
 		ClearGameplays();
+
 		for (auto& task : processPoolTasks) {
 			SDL_free(std::get<1>(task));
 		}
 		processPoolTasks.clear();
+
+		if (gameContext.styleStr != nullptr) {
+			delete[] gameContext.styleStr;
+			gameContext.styleStr = nullptr;
+		}
 
 		if (cursor != nullptr) {
 			SDL_DestroyCursor(cursor);
@@ -228,7 +210,17 @@ namespace Kotonoha {
 			SDL_DestroyWindow(gameContext.window);
 			gameContext.window = nullptr;
 		}
-	}
+
+		for (std::unordered_map<std::string, TTF_Font*>::iterator it = fonts.begin();
+			it != fonts.end();
+			++it) {
+			if (it->second != nullptr) {
+				TTF_CloseFont(it->second);
+			}
+		}
+
+		fonts.clear();
+}
 
 	int Kotonoha::EventsThread(void* data) {
 		Kotonoha* process = static_cast<Kotonoha*>(data);
@@ -443,7 +435,7 @@ namespace Kotonoha {
 						"Upscaling factor set to %.3f%s",
 						factor,
 						factor > 1.0f
-							? " (MetalFX enabled)"
+							? " (Upscale requestedc)"
 							: " (native resolution)"
 					);
 				}
@@ -493,17 +485,18 @@ namespace Kotonoha {
 	}
 
 	void Kotonoha::LoadSubtitleStylesFile(const char* path) {
-		std::string content;
-		if (!ReadWholeFile(path, content)) {
-			SDL_LogError(0, "Erro ao carregar o arquivo de estilo: %s",
-				path ? path : "<null>");
-			return;
+		size_t size = 0;
+		void* data = SDL_LoadFile(path, &size);
+
+		if (data != nullptr && size > 0) {
+			delete[] gameContext.styleStr;
+
+			gameContext.styleStr = new char[size + 1];
+			std::memcpy(gameContext.styleStr, data, size);
+			gameContext.styleStr[size] = '\0';
 		}
 
-		delete[] gameContext.styleStr;
-		gameContext.styleStr = new char[content.size() + 1];
-		std::copy(content.begin(), content.end(), gameContext.styleStr);
-		gameContext.styleStr[content.size()] = '\0';
+		SDL_free(data);
 	}
 
 	void Kotonoha::LoadWindowIcon(const char* path) {
@@ -535,47 +528,52 @@ namespace Kotonoha {
 			return false;
 		}
 
+		TTF_Font* preferredFont = nullptr;
+
+		std::unordered_map<std::string, TTF_Font*>::iterator it =
+			fonts.find("ConcertOne-Regular");
+
+		if (it != fonts.end()) {
+			preferredFont = it->second;
+		}
+
 		if (info.type == SDL_PATHTYPE_DIRECTORY) {
-			struct LocalContext {
-				std::vector<std::string> files;
-			};
+			std::vector<std::string> files;
 
-			LocalContext ctx;
+			if (!SDL_EnumerateDirectory(
+					path,
+					[](void* userdata, const char* dirname, const char* fname) -> SDL_EnumerationResult {
+						auto* files = static_cast<std::vector<std::string>*>(userdata);
 
-			auto callback = [](void* userdata, const char* dirname,
-				const char* fname) -> SDL_EnumerationResult {
-					LocalContext* ctx = static_cast<LocalContext*>(userdata);
-					if (ctx == nullptr || fname == nullptr) {
+						if (files == nullptr || fname == nullptr) {
+							return SDL_ENUM_CONTINUE;
+						}
+
+						const std::string fullPath = JoinPath(dirname, fname);
+
+						SDL_PathInfo entryInfo;
+						if (!SDL_GetPathInfo(fullPath.c_str(), &entryInfo)) {
+							return SDL_ENUM_CONTINUE;
+						}
+
+						if (entryInfo.type == SDL_PATHTYPE_FILE) {
+							files->emplace_back(fullPath);
+						}
+
 						return SDL_ENUM_CONTINUE;
-					}
-
-					const std::string fullPath = JoinPath(dirname, fname);
-
-					SDL_PathInfo entryInfo;
-					if (!SDL_GetPathInfo(fullPath.c_str(), &entryInfo)) {
-						return SDL_ENUM_CONTINUE;
-					}
-
-					if (entryInfo.type == SDL_PATHTYPE_FILE) {
-						ctx->files.emplace_back(fullPath);
-					}
-
-					return SDL_ENUM_CONTINUE;
-				};
-
-			if (!SDL_EnumerateDirectory(path, callback, &ctx)) {
+					},
+					&files)) {
 				return false;
 			}
 
-			std::sort(ctx.files.begin(), ctx.files.end());
+			std::sort(files.begin(), files.end());
 
-			for (const std::string& file : ctx.files) {
+			for (const std::string& file : files) {
 				try {
-					Gameplay* newObject = new Gameplay(file.c_str(), &gameContext);
+					Gameplay* newObject = new Gameplay(file.c_str(), &gameContext, preferredFont);
 					gameplays.push_back(newObject);
 					loadedAny = true;
-				}
-				catch (...) {
+				} catch (...) {
 				}
 			}
 
@@ -584,11 +582,10 @@ namespace Kotonoha {
 
 		if (info.type == SDL_PATHTYPE_FILE) {
 			try {
-				Gameplay* newObject = new Gameplay(path, &gameContext);
+				Gameplay* newObject = new Gameplay(path, &gameContext, preferredFont);
 				gameplays.push_back(newObject);
 				loadedAny = true;
-			}
-			catch (...) {
+			} catch (...) {
 			}
 		}
 

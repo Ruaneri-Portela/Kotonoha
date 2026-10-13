@@ -54,7 +54,7 @@ private:
 
   void RemoveAbcGroupsForBase(Uint64 baseGeneration);
 
-  void RenderTexture(SDL_Renderer * render, Kotonoha_Picture *picture, bool &cleaned);
+  void RenderTexture(SDL_Renderer * render, SDL_Texture *target, Kotonoha_Picture *picture, bool &cleaned);
 
 public:
   Image(Kotonoha_time *time, Kotonoha_IOMonitor *ioMonitor);

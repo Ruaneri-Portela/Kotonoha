@@ -1,5 +1,6 @@
 #include <Kotonoha/components/Prompt.hpp>
 #include <SDL3/SDL_stdinc.h>
+#include <SDL3_ttf/SDL_ttf.h>
 #include <string>
 #include <vector>
 
@@ -34,19 +35,14 @@ namespace Kotonoha {
 		int* promptResult,
 		Uint64 start,
 		Uint64 end,
-		Kotonoha_time* time)
+		Kotonoha_time* time,
+		TTF_Font * font)
 		: prompt(std::move(prompt)),
 		promptResult(promptResult),
 		time(time),
 		startTime(start),
 		endTime(end),
-		font(nullptr) {
-		font = TTF_OpenFont("assets/fonts/ConcertOne-Regular.ttf", 36);
-		if (font == nullptr) {
-			SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
-				"Failed to open prompt font: %s",
-				SDL_GetError());
-		}
+		font(font) {
 	}
 
 	enum Kotonoha_Scene_Status Prompt::Render(KOTONOHA_SCENE_CALL) {
@@ -277,10 +273,6 @@ namespace Kotonoha {
 	}
 
 	Prompt::~Prompt() {
-		if (font != nullptr) {
-			TTF_CloseFont(font);
-			font = nullptr;
-		}
 	}
 
 } // namespace Kotonoha

@@ -1,5 +1,6 @@
 #include <cstring>
 #include <Kotonoha/Kotonoha.hpp>
+#include <SDL3_ttf/SDL_ttf.h>
 
 static struct Kotonoha_Game global = {};
 
@@ -68,41 +69,113 @@ namespace {
 		return true;
 	}
 
-	void PreloadFontsIntoAssLibrary(ASS_Library *library, const char *fontsDir) {
-		if (library == nullptr || fontsDir == nullptr) return;
+	bool PreloadFontsInto(
+		ASS_Library* library,
+		std::unordered_map<std::string, TTF_Font*>& fonts,
+		const char* fontsDir) {
+
+		fonts.clear();
+
+		if (library == nullptr || fontsDir == nullptr || *fontsDir == '\0') {
+			return false;
+		}
 
 		SDL_PathInfo info;
 		if (!SDL_GetPathInfo(fontsDir, &info) || info.type != SDL_PATHTYPE_DIRECTORY) {
-			return;
+			return false;
 		}
 
 		struct ScanContext {
-			ASS_Library *lib;
+			ASS_Library* lib;
 			std::string dir;
-		} ctx{ library, fontsDir };
+			std::unordered_map<std::string, TTF_Font*>* fonts;
+		};
 
-		SDL_EnumerateDirectory(fontsDir, [](void *userdata, const char *, const char *entry) {
-			auto *c = static_cast<ScanContext*>(userdata);
-			std::string name(entry);
-			if (name.length() > 4) {
-				std::string ext = name.substr(name.length() - 4);
-				std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
-				if (ext == ".ttf" || ext == ".otf" || ext == ".ttc") {
-					std::string fullPath = c->dir + "/" + name;
-					size_t size = 0;
-					void *data = SDL_LoadFile(fullPath.c_str(), &size);
-					if (data != nullptr && size > 0) {
-						ass_add_font(c->lib, const_cast<char*>(name.c_str()), static_cast<char*>(data), static_cast<int>(size));
-						SDL_free(data);
-						SDL_Log("Preloaded font into LibASS memory: %s (%zu bytes)", name.c_str(), size);
+		ScanContext ctx{ library, fontsDir, &fonts };
+
+		if (!SDL_EnumerateDirectory(
+				fontsDir,
+				[](void* userdata, const char* dirname, const char* entry) -> SDL_EnumerationResult {
+					auto* c = static_cast<ScanContext*>(userdata);
+
+					if (c == nullptr || c->fonts == nullptr || entry == nullptr) {
+						return SDL_ENUM_CONTINUE;
 					}
-				}
-			}
-			return SDL_ENUM_CONTINUE;
-		}, &ctx);
+
+					const std::string name(entry);
+
+					if (name.length() <= 4) {
+						return SDL_ENUM_CONTINUE;
+					}
+
+					std::string ext = name.substr(name.length() - 4);
+					std::transform(ext.begin(), ext.end(), ext.begin(),
+						[](unsigned char ch) {
+							return static_cast<char>(std::tolower(ch));
+						});
+
+					if (ext != ".ttf" && ext != ".otf" && ext != ".ttc") {
+						return SDL_ENUM_CONTINUE;
+					}
+
+					const std::string fullPath = c->dir + "/" + name;
+
+					size_t size = 0;
+					void* data = SDL_LoadFile(fullPath.c_str(), &size);
+
+					if (data == nullptr || size == 0) {
+						SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+							"Failed to load font: %s: %s",
+							fullPath.c_str(), SDL_GetError());
+						return SDL_ENUM_CONTINUE;
+					}
+
+					ass_add_font(
+						c->lib,
+						const_cast<char*>(name.c_str()),
+						static_cast<char*>(data),
+						static_cast<int>(size));
+
+					SDL_Log("Preloaded font into LibASS memory: %s (%zu bytes)",
+						name.c_str(), size);
+
+					SDL_IOStream* io = SDL_IOFromMem(data, size);
+
+					if (io == nullptr) {
+						SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+							"Failed to create memory IOStream for font: %s: %s",
+							fullPath.c_str(), SDL_GetError());
+						SDL_free(data);
+						return SDL_ENUM_CONTINUE;
+					}
+
+					TTF_Font* font = TTF_OpenFontIO(io, true, 32);
+
+					if (font == nullptr) {
+						SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+							"Failed to open font from memory: %s: %s",
+							fullPath.c_str(), SDL_GetError());
+						SDL_free(data);
+						return SDL_ENUM_CONTINUE;
+					}
+
+					const std::string fontName =
+						name.substr(0, name.length() - ext.length());
+
+					(*c->fonts)[fontName] = font;
+
+					return SDL_ENUM_CONTINUE;
+				},
+				&ctx)) {
+			return false;
+		}
+
+		return true;
 	}
 
-	static bool InitLibAss() {
+	static bool InitLibAssAndTTF(
+		std::unordered_map<std::string, TTF_Font*>& fonts) {
+
 		global.ass_library = ass_library_init();
 		if (global.ass_library == nullptr) {
 			SDL_LogError(0, "Couldn't initialize libAss");
@@ -115,8 +188,9 @@ namespace {
 			return false;
 		}
 
-		// Precarrega todas as fontes de assets/fonts na memória do LibASS para evitar acessos repetidos de disco
-		PreloadFontsIntoAssLibrary(global.ass_library, "assets/fonts");
+		if (!PreloadFontsInto(global.ass_library, fonts, "assets/fonts")) {
+			return false;
+		}
 
 		ass_set_extract_fonts(global.ass_library, 1);
 		ass_set_fonts_dir(global.ass_library, "assets/fonts");
@@ -194,7 +268,7 @@ extern "C" {
 		}
 		engine->ConfigureWindow();
 
-		if (!InitLibAss()) {
+		if (!InitLibAssAndTTF(engine->fonts)) {
 			delete engine;
 			CleanupGlobalResources();
 			TTF_Quit();
@@ -270,16 +344,43 @@ extern "C" {
 
 		app->CacheSceneTransitionFrameIfNeeded(inRunning);
 		app->PresentSceneTransitionFrame(inRunning);
+
+		TTF_Font* preferredFont = nullptr;
+
+		std::unordered_map<std::string, TTF_Font*>::iterator it =
+			app->fonts.find("ConcertOne-Regular");
+
+		if (it != app->fonts.end()) {
+			preferredFont = it->second;
+		}
+
 		if (global.showFps) {
-			Kotonoha_FPSRender(global.window, global.render, nullptr, nullptr, nullptr);
+			Kotonoha_FPSRender(
+				global.window,
+				global.render,
+				nullptr,
+				preferredFont,
+				nullptr);
 		}
+
 		if (global.showTimestamp && inRunning != nullptr) {
-			Kotonoha_TimestampRender(global.window, global.render, nullptr, inRunning->tm, nullptr);
+			void* timestampArgs[2] = {
+				inRunning->tm,
+				preferredFont
+			};
+
+			Kotonoha_TimestampRender(
+				global.window,
+				global.render,
+				nullptr,
+				timestampArgs,
+				nullptr);
 		}
+
 		if (inRunning != nullptr &&
 			Kotonoha_IOMonitorIsLoading(&inRunning->ioMonitor)) {
 			Kotonoha_LoadingRender(
-				global.window, global.render, nullptr, nullptr, nullptr);
+				global.window, global.render, nullptr, preferredFont, nullptr);
 		}
 		if (!Kotonoha_BasicGuiRun(app, inRunning, global)) {
 			return SDL_APP_SUCCESS;
@@ -290,10 +391,9 @@ extern "C" {
 
 	void SDL_AppQuit(void* appstate, SDL_AppResult result) {
 		(void)result;
+		delete GetApp(appstate);
 
 		Kotonoha_UpscalingShutdown();
-
-		delete GetApp(appstate);
 		CleanupGlobalResources();
 		TTF_Quit();
 		SDL_Quit();

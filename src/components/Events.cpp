@@ -1,3 +1,4 @@
+#include <SDL3_ttf/SDL_ttf.h>
 #include <cctype>
 #include <Kotonoha/components/Events.hpp>
 #include <Kotonoha/Gameplay.hpp>
@@ -499,18 +500,18 @@ namespace Kotonoha {
 			return;
 		}
 
-		SDL_LockMutex(eventMutex);
-
 		for (auto& pending : pendingAssetLoads) {
 			Kotonoha_IOMonitorOperationReset(&pending.second);
 		}
-		pendingAssetLoads.clear();
 
 		gp->video->Reset();
 		gp->image->Reset();
-		gp->audio->RemoveMedia(nullptr);
-		voiceAnimations.clear();
 
+		SDL_LockMutex(eventMutex);
+		gp->audio->RemoveMedia(nullptr);
+
+		pendingAssetLoads.clear();
+		voiceAnimations.clear();
 		Uint64 actualTime = Kotonoha_timeGet(gp->tm);
 
 		for (auto* event = this->eventsFromScript.data; event != nullptr;
@@ -531,7 +532,7 @@ namespace Kotonoha {
 		SDL_UnlockMutex(eventMutex);
 	}
 
-	Event::Event(const char* orsPath, void* gameplay, struct Kotonoha_Game* gameCtx)
+	Event::Event(const char* orsPath, void* gameplay, struct Kotonoha_Game* gameCtx, TTF_Font *font)
 		: eventMutex(nullptr), lastTime(0) {
 		eventsFromScript = Kotonoha_OrsParser(orsPath);
 
@@ -651,8 +652,7 @@ namespace Kotonoha {
 					gp->prompt = nullptr;
 				}
 
-				gp->prompt = new Prompt(
-					options, &gp->promptId, startMs, endMs, gp->tm);
+				gp->prompt = new Prompt(options, &gp->promptId, startMs, endMs, gp->tm, font);
 				gp->putPrompt = true;
 				break;
 			}

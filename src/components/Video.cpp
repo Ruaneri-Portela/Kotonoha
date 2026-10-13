@@ -195,23 +195,24 @@ namespace Kotonoha {
 
 	void Video::Reset() {
 		ResetUpscaling();
-		if (lock == nullptr) {
-			for (auto& video : videos) {
-				Kotonoha_VideoRenderShutdown(&video);
-			}
-			videos.clear();
-			return;
-		}
-
 		std::vector<Kotonoha_videoData*> oldVideos;
 
-		SDL_LockMutex(lock);
+		if (lock != nullptr) {
+			SDL_LockMutex(lock);
+		}
+
 		oldVideos.swap(videos);
-		SDL_UnlockMutex(lock);
+
+		if (lock != nullptr) {
+			SDL_UnlockMutex(lock);
+		}
+
 
 		for (Kotonoha_videoData* video : oldVideos) {
 			Kotonoha_VideoRenderShutdown(&video);
 		}
+
+		oldVideos.clear();
 	}
 
 	Video::~Video() {

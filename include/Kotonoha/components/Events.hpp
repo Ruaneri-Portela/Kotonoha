@@ -47,7 +47,7 @@ private:
 
 public:
   Uint64 lastTime = 0;
-  Event(const char *orsPath, void *gameplay, struct Kotonoha_Game *gameCtx);
+  Event(const char *orsPath, void *gameplay, struct Kotonoha_Game *gameCtx, TTF_Font *font);
   void ActivateSubtitles();
   void Reset(void* gameplay);
   bool CheckEnd(void *gameplay);

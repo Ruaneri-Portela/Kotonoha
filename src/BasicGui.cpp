@@ -666,7 +666,16 @@ static bool Kotonoha_RecreateGameplayAtPath(
     Kotonoha::Gameplay* newPlay = nullptr;
 
     try {
-        newPlay = new Kotonoha::Gameplay(newPath.c_str(), &context);
+		TTF_Font* preferredFont = nullptr;
+
+        std::unordered_map<std::string, TTF_Font*>::iterator it =
+            game->fonts.find("ConcertOne-Regular");
+
+        if (it != game->fonts.end()) {
+            preferredFont = it->second;
+        }
+
+        newPlay = new Kotonoha::Gameplay(newPath.c_str(), &context,preferredFont);
     }
     catch (const std::exception& e) {
         Kotonoha_SetEditorStatus(e.what());
@@ -1011,14 +1020,19 @@ static void Kotonoha_DrawOpenWindow(
         ImGui::CollapsingHeader(
             "Load Scenes",
             ImGuiTreeNodeFlags_DefaultOpen)) {
-        ImGui::InputTextWithHint(
+            
+        const bool enterPressed = ImGui::InputTextWithHint(
             "##open_script_path",
-            "file1.ks;file2.ks;folder/",
+            "file1.ks;file2.ks;folder",
             openBuf,
-            IM_ARRAYSIZE(openBuf));
+            IM_ARRAYSIZE(openBuf),
+            ImGuiInputTextFlags_EnterReturnsTrue);
 
         ImGui::SameLine();
-        if (ImGui::Button("Open")) {
+
+        const bool openClicked = ImGui::Button("Open");
+
+        if (enterPressed || openClicked)  {
             showError = !Kotonoha_OpenPaths(game, openBuf, false);
 
             selectedSceneIndex = -1;

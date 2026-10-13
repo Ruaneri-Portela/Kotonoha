@@ -1,5 +1,6 @@
 #include <Kotonoha/speciais/MetalFX.h>
 #include <Kotonoha/Gameplay.hpp>
+#include <SDL3_ttf/SDL_ttf.h>
 
 
 namespace Kotonoha {
@@ -81,7 +82,7 @@ namespace Kotonoha {
 		}
 	}
 
-	Gameplay::Gameplay(const char* scriptPath, struct Kotonoha_Game* gameContext) {
+	Gameplay::Gameplay(const char* scriptPath, struct Kotonoha_Game* gameContext, TTF_Font *font) {
 		Kotonoha_IOMonitorInit(
 			&ioMonitor, Kotonoha_IOMonitorRetryMissingAssetsEnabled());
 		this->tm = Kotonoha_timeNew(true);
@@ -117,7 +118,7 @@ namespace Kotonoha {
 			this->fade);
 
 		this->scriptPath = scriptPath ? scriptPath : "";
-		this->eventManager = new Event(this->scriptPath.c_str(), this, gameContext);
+		this->eventManager = new Event(this->scriptPath.c_str(), this, gameContext, font);
 
 #ifdef ANDROID
 		playOnlyOnFocus = true;
