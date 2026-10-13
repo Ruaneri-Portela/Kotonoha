@@ -68,6 +68,40 @@ namespace {
 		return true;
 	}
 
+	void PreloadFontsIntoAssLibrary(ASS_Library *library, const char *fontsDir) {
+		if (library == nullptr || fontsDir == nullptr) return;
+
+		SDL_PathInfo info;
+		if (!SDL_GetPathInfo(fontsDir, &info) || info.type != SDL_PATHTYPE_DIRECTORY) {
+			return;
+		}
+
+		struct ScanContext {
+			ASS_Library *lib;
+			std::string dir;
+		} ctx{ library, fontsDir };
+
+		SDL_EnumerateDirectory(fontsDir, [](void *userdata, const char *, const char *entry) {
+			auto *c = static_cast<ScanContext*>(userdata);
+			std::string name(entry);
+			if (name.length() > 4) {
+				std::string ext = name.substr(name.length() - 4);
+				std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+				if (ext == ".ttf" || ext == ".otf" || ext == ".ttc") {
+					std::string fullPath = c->dir + "/" + name;
+					size_t size = 0;
+					void *data = SDL_LoadFile(fullPath.c_str(), &size);
+					if (data != nullptr && size > 0) {
+						ass_add_font(c->lib, const_cast<char*>(name.c_str()), static_cast<char*>(data), static_cast<int>(size));
+						SDL_free(data);
+						SDL_Log("Preloaded font into LibASS memory: %s (%zu bytes)", name.c_str(), size);
+					}
+				}
+			}
+			return SDL_ENUM_CONTINUE;
+		}, &ctx);
+	}
+
 	static bool InitLibAss() {
 		global.ass_library = ass_library_init();
 		if (global.ass_library == nullptr) {
@@ -81,10 +115,13 @@ namespace {
 			return false;
 		}
 
+		// Precarrega todas as fontes de assets/fonts na memória do LibASS para evitar acessos repetidos de disco
+		PreloadFontsIntoAssLibrary(global.ass_library, "assets/fonts");
+
 		ass_set_extract_fonts(global.ass_library, 1);
 		ass_set_fonts_dir(global.ass_library, "assets/fonts");
 		ass_set_fonts(global.ass_renderer,
-			"assets/fonts/NotoSans-Regular.ttf",
+			"NotoSans-Regular.ttf",
 			nullptr,
 			ASS_FONTPROVIDER_AUTODETECT,
 			nullptr,

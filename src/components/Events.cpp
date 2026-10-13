@@ -557,11 +557,18 @@ namespace Kotonoha {
 			<< (gameCtx->styleStr == nullptr ? "" : gameCtx->styleStr)
 			<< std::endl;
 
-		if (gp->sb->track != nullptr) {
-			ass_free_track(gp->sb->track);
-			gp->sb->track = nullptr;
+		if (gp->sb->track == nullptr) {
+			gp->sb->track = ass_new_track(gp->sb->ass_library);
+		} else {
+			for (int i = 0; i < gp->sb->track->n_events; ++i) {
+				if (gp->sb->track->events[i].Text != nullptr) {
+					SDL_free(gp->sb->track->events[i].Text);
+					gp->sb->track->events[i].Text = nullptr;
+				}
+			}
+			gp->sb->track->n_events = 0;
+			gp->sb->track->n_styles = 0;
 		}
-		gp->sb->track = ass_new_track(gp->sb->ass_library);
 
 		ass_process_data(gp->sb->track,
 			const_cast<char*>(subSs.str().c_str()),

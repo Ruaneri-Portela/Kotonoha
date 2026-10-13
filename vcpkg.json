@@ -1,37 +1,8 @@
 {
-  "builtin-baseline": "4cb050be2cfa7a947cdd2dd1a70e24b17774c979",
+  "builtin-baseline": "e456309491fd875487bf02b8a0dca76c1b1b00cc",
   "dependencies": [
-    {
-      "name": "fontconfig",
-      "platform": "ios | android"
-    },
-    {
-      "name": "libunibreak",
-      "platform": "ios | android"
-    },
-    {
-      "name": "libiconv",
-      "platform": "ios | android"
-    },
-    {
-      "name": "expat",
-      "platform": "android"
-    },
-    {
-      "name": "ffmpeg",
-      "features": [
-        "zlib"
-      ],
-      "platform": "!osx & !linux"
-    },
-    {
-      "name": "libass",
-      "platform": "!osx & !linux"
-    },
-    {
-      "name": "sdl3",
-      "platform": "!osx & !linux"
-    },
+    "libass",
+    "sdl3",
     {
       "name": "sdl3-ttf",
       "features": [
@@ -47,6 +18,25 @@
         "sdl3-binding",
         "sdl3-renderer-binding"
       ]
+    },
+    {
+      "name": "ffmpeg",
+      "features": [
+        "zlib"
+      ],
+      "platform": "!linux"
+    },
+    {
+      "name": "expat",
+      "platform": "android"
+    },
+    {
+      "name": "fontconfig",
+      "platform": "android | ios"
+    },
+    {
+      "name": "libunibreak",
+      "platform": "android | ios"
     }
   ]
 }
