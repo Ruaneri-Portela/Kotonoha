@@ -69,109 +69,139 @@ namespace {
 		return true;
 	}
 
-	bool PreloadFontsInto(
-		ASS_Library* library,
-		std::unordered_map<std::string, TTF_Font*>& fonts,
-		const char* fontsDir) {
+    bool PreloadFontsInto(
+        ASS_Library* library,
+        std::unordered_map<std::string, TTF_Font*>& fonts,
+        const char* fontsDir) {
 
-		fonts.clear();
+        fonts.clear();
 
-		if (library == nullptr || fontsDir == nullptr || *fontsDir == '\0') {
-			return false;
-		}
+        if (library == nullptr || fontsDir == nullptr || *fontsDir == '\0') {
+            return false;
+        }
 
-		SDL_PathInfo info;
-		if (!SDL_GetPathInfo(fontsDir, &info) || info.type != SDL_PATHTYPE_DIRECTORY) {
-			return false;
-		}
+        std::string baseDir;
 
-		struct ScanContext {
-			ASS_Library* lib;
-			std::string dir;
-			std::unordered_map<std::string, TTF_Font*>* fonts;
-		};
+        if (fontsDir[0] == '/') {
+            // macOS, iOS, Linux
+            baseDir = fontsDir;
+        } else {
+            const char* base = SDL_GetBasePath();
 
-		ScanContext ctx{ library, fontsDir, &fonts };
+            if (base == nullptr) {
+                SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                            "Failed to get base path: %s",
+                            SDL_GetError());
+                return false;
+            }
 
-		if (!SDL_EnumerateDirectory(
-				fontsDir,
-				[](void* userdata, const char* dirname, const char* entry) -> SDL_EnumerationResult {
-					auto* c = static_cast<ScanContext*>(userdata);
+            baseDir = base;
 
-					if (c == nullptr || c->fonts == nullptr || entry == nullptr) {
-						return SDL_ENUM_CONTINUE;
-					}
+            // Remove a barra final, se existir
+            if (!baseDir.empty() && baseDir.back() == '/') {
+                baseDir.pop_back();
+            }
 
-					const std::string name(entry);
+            baseDir += '/';
+            baseDir += fontsDir;
+        }
 
-					if (name.length() <= 4) {
-						return SDL_ENUM_CONTINUE;
-					}
+        SDL_PathInfo info;
+        if (!SDL_GetPathInfo(baseDir.c_str(), &info) ||
+            info.type != SDL_PATHTYPE_DIRECTORY) {
+            SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                        "Fonts directory not found: %s",
+                        baseDir.c_str());
+            return false;
+        }
 
-					std::string ext = name.substr(name.length() - 4);
-					std::transform(ext.begin(), ext.end(), ext.begin(),
-						[](unsigned char ch) {
-							return static_cast<char>(std::tolower(ch));
-						});
+        struct ScanContext {
+            ASS_Library* lib;
+            std::string dir;
+            std::unordered_map<std::string, TTF_Font*>* fonts;
+        };
 
-					if (ext != ".ttf" && ext != ".otf" && ext != ".ttc") {
-						return SDL_ENUM_CONTINUE;
-					}
+        ScanContext ctx{library, baseDir, &fonts};
+        if (!SDL_EnumerateDirectory(
+                baseDir.c_str(),
+                [](void* userdata, const char* dirname, const char* entry)
+                    -> SDL_EnumerationResult {
+                    auto* c = static_cast<ScanContext*>(userdata);
 
-					const std::string fullPath = c->dir + "/" + name;
+                    if (c == nullptr || c->fonts == nullptr || entry == nullptr) {
+                        return SDL_ENUM_CONTINUE;
+                    }
 
-					size_t size = 0;
-					void* data = SDL_LoadFile(fullPath.c_str(), &size);
+                    const std::string name(entry);
 
-					if (data == nullptr || size == 0) {
-						SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
-							"Failed to load font: %s: %s",
-							fullPath.c_str(), SDL_GetError());
-						return SDL_ENUM_CONTINUE;
-					}
+                    if (name.length() <= 4) {
+                        return SDL_ENUM_CONTINUE;
+                    }
 
-					ass_add_font(
-						c->lib,
-						const_cast<char*>(name.c_str()),
-						static_cast<char*>(data),
-						static_cast<int>(size));
+                    std::string ext = name.substr(name.length() - 4);
+                    std::transform(ext.begin(), ext.end(), ext.begin(),
+                                   [](unsigned char ch) {
+                                       return static_cast<char>(std::tolower(ch));
+                                   });
 
-					SDL_Log("Preloaded font into LibASS memory: %s (%zu bytes)",
-						name.c_str(), size);
+                    if (ext != ".ttf" && ext != ".otf" && ext != ".ttc") {
+                        return SDL_ENUM_CONTINUE;
+                    }
 
-					SDL_IOStream* io = SDL_IOFromMem(data, size);
+                    const std::string fullPath = c->dir + "/" + name;
 
-					if (io == nullptr) {
-						SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
-							"Failed to create memory IOStream for font: %s: %s",
-							fullPath.c_str(), SDL_GetError());
-						SDL_free(data);
-						return SDL_ENUM_CONTINUE;
-					}
+                    size_t size = 0;
+                    void* data = SDL_LoadFile(fullPath.c_str(), &size);
 
-					TTF_Font* font = TTF_OpenFontIO(io, true, 48);
+                    if (data == nullptr || size == 0) {
+                        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                                    "Failed to load font: %s: %s",
+                                    fullPath.c_str(), SDL_GetError());
+                        return SDL_ENUM_CONTINUE;
+                    }
 
-					if (font == nullptr) {
-						SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
-							"Failed to open font from memory: %s: %s",
-							fullPath.c_str(), SDL_GetError());
-						SDL_free(data);
-						return SDL_ENUM_CONTINUE;
-					}
+                    ass_add_font(
+                        c->lib,
+                        const_cast<char*>(name.c_str()),
+                        static_cast<char*>(data),
+                        static_cast<int>(size));
 
-					const std::string fontName =
-						name.substr(0, name.length() - ext.length());
+                    SDL_Log("Preloaded font into LibASS memory: %s (%zu bytes)",
+                            name.c_str(), size);
 
-					(*c->fonts)[fontName] = font;
+                    SDL_IOStream* io = SDL_IOFromMem(data, size);
 
-					return SDL_ENUM_CONTINUE;
-				},
-				&ctx)) {
-			return false;
-		}
+                    if (io == nullptr) {
+                        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                                    "Failed to create memory IOStream for font: %s: %s",
+                                    fullPath.c_str(), SDL_GetError());
+                        SDL_free(data);
+                        return SDL_ENUM_CONTINUE;
+                    }
 
-		return true;
-	}
+                    TTF_Font* font = TTF_OpenFontIO(io, true, 48);
+
+                    if (font == nullptr) {
+                        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                                    "Failed to open font from memory: %s: %s",
+                                    fullPath.c_str(), SDL_GetError());
+                        SDL_free(data);
+                        return SDL_ENUM_CONTINUE;
+                    }
+
+                    const std::string fontName =
+                        name.substr(0, name.length() - ext.length());
+
+                    (*c->fonts)[fontName] = font;
+
+                    return SDL_ENUM_CONTINUE;
+                },
+                &ctx)) {
+            return false;
+        }
+
+        return true;
+    }
 
 	static bool InitLibAssAndTTF(
 		std::unordered_map<std::string, TTF_Font*>& fonts) {
