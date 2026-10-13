@@ -32,11 +32,11 @@
     },
     {
       "name": "fontconfig",
-      "platform": "android | ios"
+      "platform": "android | ios | osx"
     },
     {
       "name": "libunibreak",
-      "platform": "android | ios"
+      "platform": "android | ios | osx"
     }
   ]
 }
