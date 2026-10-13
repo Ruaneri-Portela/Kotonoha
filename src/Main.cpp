@@ -149,7 +149,7 @@ namespace {
 						return SDL_ENUM_CONTINUE;
 					}
 
-					TTF_Font* font = TTF_OpenFontIO(io, true, 32);
+					TTF_Font* font = TTF_OpenFontIO(io, true, 48);
 
 					if (font == nullptr) {
 						SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
