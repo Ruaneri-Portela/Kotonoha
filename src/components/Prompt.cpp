@@ -2,6 +2,7 @@
 #include <Kotonoha/components/Prompt.hpp>
 #include <Kotonoha/utils/OverlayRender.h>
 #include <SDL3_ttf/SDL_ttf.h>
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -69,7 +70,9 @@ void Prompt::HandleEvent(SDL_Event *event, struct Kotonoha_Game *gameContext,
   } else if (event->type == SDL_EVENT_FINGER_DOWN && gameContext != nullptr &&
              gameContext->window != nullptr) {
     int w = 0, h = 0;
-    SDL_GetWindowSize(gameContext->window, &w, &h);
+    // No SDL3, SDL_GetWindowSizeInPixels lida melhor com telas de alta
+    // densidade (Retina/DPI)
+    SDL_GetWindowSizeInPixels(gameContext->window, &w, &h);
     rawX = event->tfinger.x * static_cast<float>(w);
     rawY = event->tfinger.y * static_cast<float>(h);
     isClick = true;
@@ -79,13 +82,22 @@ void Prompt::HandleEvent(SDL_Event *event, struct Kotonoha_Game *gameContext,
     return;
   }
 
+  // Se usamos SDL_GetWindowSizeInPixels, as coordenadas já estão em pixels
+  // reais de renderização. Caso contrário, aplicamos a escala se necessário.
   float windowScale = 1.0f;
-  if (gameContext != nullptr && gameContext->window != nullptr) {
+  if (gameContext != nullptr && gameContext->window != nullptr &&
+      event->type == SDL_EVENT_MOUSE_BUTTON_DOWN) {
     windowScale = SDL_GetWindowDisplayScale(gameContext->window);
   }
 
-  const float clickX = (windowScale > 0.0f) ? (rawX * windowScale) : rawX;
-  const float clickY = (windowScale > 0.0f) ? (rawY * windowScale) : rawY;
+  const float clickX =
+      (event->type == SDL_EVENT_MOUSE_BUTTON_DOWN && windowScale > 0.0f)
+          ? (rawX * windowScale)
+          : rawX;
+  const float clickY =
+      (event->type == SDL_EVENT_MOUSE_BUTTON_DOWN && windowScale > 0.0f)
+          ? (rawY * windowScale)
+          : rawY;
 
   for (const auto &item : lastLayout) {
     const bool hit =
@@ -97,7 +109,7 @@ void Prompt::HandleEvent(SDL_Event *event, struct Kotonoha_Game *gameContext,
 
       if (audioManager != nullptr && !audioPath.empty() && time != nullptr) {
         const Uint64 nowMs = KotonohaTimeGet(time);
-        audioManager->AddMedia(audioPath.c_str(), nowMs, nowMs + 3000, false,
+        audioManager->AddMedia(audioPath.c_str(), nowMs, UINT64_MAX, false,
                                "Se");
       }
       break;
@@ -290,6 +302,13 @@ enum Kotonoha_Scene_Status Prompt::Render(KOTONOHA_SCENE_CALL) {
   }
 
   return KOTONOHA_SCENE_DRAW_OVERLAYED;
+}
+
+void Prompt::Reset() {
+  if (promptResult != nullptr) {
+    *promptResult = -1;
+  }
+  ClearLayoutTextures();
 }
 
 } // namespace Kotonoha
