@@ -3,8 +3,8 @@
 namespace Kotonoha {
 
 Video::Video(Kotonoha_Time *timeManager, Kotonoha_IOMonitor *ioMonitor,
-             float cacheDurationSeconds)
-    : timeManager(timeManager), ioMonitor(ioMonitor),
+             Kotonoha_Demuxer *demuxer, float cacheDurationSeconds)
+    : timeManager(timeManager), ioMonitor(ioMonitor), demuxer(demuxer),
       cacheDurationSeconds(cacheDurationSeconds) {
   lock = SDL_CreateMutex();
   if (lock == nullptr) {
@@ -27,7 +27,7 @@ bool Video::Register(const char *path, Uint64 startTime, Uint64 endTime,
 
   Kotonoha_VideoData *object = KotonohaVideoRenderInit(
       path, timeManager, startTime, endTime, useOrsFrameTimeline, orsEndFrame,
-      ioMonitor, cacheDurationSeconds);
+      ioMonitor, cacheDurationSeconds, demuxer);
   if (object == nullptr) {
     return false;
   }

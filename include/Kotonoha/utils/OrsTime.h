@@ -2,6 +2,10 @@
 
 #include <SDL3/SDL.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 static inline bool KotonohaOrsTimeToTick(Uint64 packed, bool allowParserNudge,
                                          Uint64 *tick) {
   if (tick == NULL) {
@@ -80,3 +84,7 @@ static inline bool KotonohaOrsTimeToZeroBasedFrame(Uint64 packed,
   *frame = tick - 1;
   return true;
 }
+
+#ifdef __cplusplus
+}
+#endif

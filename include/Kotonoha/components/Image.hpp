@@ -6,11 +6,9 @@
 #include <string>
 #include <vector>
 
-extern "C" {
 #include <Kotonoha/Kotonoha.h>
 #include <Kotonoha/renders/ImageRender.h>
 #include <Kotonoha/utils/Time.h>
-}
 
 namespace Kotonoha {
 
@@ -26,7 +24,7 @@ struct AbcGroup {
   Uint64 bindingEndTime = 0;
 
   SDL_Texture *textures[3] = {nullptr, nullptr, nullptr};
-  KotonohaImageLoad loads[3] = {};
+  Kotonoha_ImageLoad loads[3] = {};
 
   Uint8 activeIndex = 0;
   bool bound = false;

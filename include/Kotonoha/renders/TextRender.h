@@ -3,6 +3,10 @@
 #include <Kotonoha/utils/Time.h>
 #include <ass/ass.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct Kotonoha_Subtitles {
   ASS_Library *ass_library;
   ASS_Renderer *ass_renderer;
@@ -11,10 +15,13 @@ typedef struct Kotonoha_Subtitles {
   Kotonoha_Time *time;
 } Kotonoha_Subtitles;
 
-struct Kotonoha_Subtitles *
-KotonohaTextRenderInit(struct Kotonoha_Time *time,
-                       struct Kotonoha_Game *gameCtx);
+Kotonoha_Subtitles *KotonohaTextRenderInit(Kotonoha_Time *time,
+                                           Kotonoha_Game *gameCtx);
 
-void KotonohaTextRenderShutdown(struct Kotonoha_Subtitles **object);
+void KotonohaTextRenderShutdown(Kotonoha_Subtitles **object);
 
 enum Kotonoha_Scene_Status KotonohaTextRenderDraw(KOTONOHA_SCENE_CALL);
+
+#ifdef __cplusplus
+}
+#endif

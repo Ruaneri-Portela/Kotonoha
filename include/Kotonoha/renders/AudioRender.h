@@ -1,22 +1,30 @@
 #pragma once
-#include <Kotonoha/utils/FFmpeg.h>
-#include <Kotonoha/utils/Time.h>
+
 #include <SDL3/SDL.h>
-#include <libavcodec/avcodec.h>
-#include <libavformat/avformat.h>
-#include <libavutil/frame.h>
-#include <libswresample/swresample.h>
+
+#include <Kotonoha/utils/Demuxer.h>
+#include <Kotonoha/utils/FFmpeg.h>
+#include <Kotonoha/utils/IOMonitor.h>
+#include <Kotonoha/utils/Time.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef struct Kotonoha_AudioDecode {
   AVFormatContext *formatCtx;
   AVCodecContext *codecCtx;
   SwrContext *swrCtx;
   Kotonoha_IOMonitorOperation ioOperation;
+  Kotonoha_Demuxer *demuxer;
+  Kotonoha_DemuxStream *stream;
 
   int audioStreamIndex;
   SDL_AudioSpec specification;
 
   Uint64 start, end, audioTime, lastTime;
+  float cacheDurationSeconds;
+
   bool inLoop;
   int executions;
   Kotonoha_Time **tm;
@@ -29,10 +37,15 @@ void genWhiteNoise(void *data, Uint8 **target, size_t *size);
 
 struct Kotonoha_AudioDecode *KotonohaAudioInit(const char *path,
                                                SDL_AudioSpec specification,
-                                               Kotonoha_IOMonitor *ioMonitor);
+                                               Kotonoha_IOMonitor *ioMonitor,
+                                               Kotonoha_Demuxer *demuxer);
 
 void KotonohaAudioSeek(struct Kotonoha_AudioDecode *ctx, Uint64 time);
 
 int KotonohaAudioRender(void *data, Uint8 **target, int *size);
 
 void KotonohaAudioFree(void *data);
+
+#ifdef __cplusplus
+}
+#endif

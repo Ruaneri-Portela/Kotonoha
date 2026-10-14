@@ -43,7 +43,7 @@ std::string BuildDeterministicAbcPath(const char *basePath,
 }
 
 int SDLCALL DecodeImageFrame(void *data) {
-  auto *load = static_cast<KotonohaImageLoad *>(data);
+  auto *load = static_cast<Kotonoha_ImageLoad *>(data);
 
   load->frame = KotonohaImageDecodeFrame(load->path, -1, -1, &load->buffer,
                                          &load->ioOperation);
@@ -53,7 +53,7 @@ int SDLCALL DecodeImageFrame(void *data) {
   return 0;
 }
 
-void ReleaseImageLoad(KotonohaImageLoad *load) {
+void ReleaseImageLoad(Kotonoha_ImageLoad *load) {
   if (load == nullptr) {
     return;
   }
@@ -76,7 +76,7 @@ void ReleaseImageLoad(KotonohaImageLoad *load) {
 }
 
 bool PrepareImageTexture(SDL_Renderer *renderer, const char *path,
-                         KotonohaImageLoad *load, SDL_Texture **texture,
+                         Kotonoha_ImageLoad *load, SDL_Texture **texture,
                          Kotonoha_IOMonitor *owner) {
   if (renderer == nullptr || path == nullptr || load == nullptr ||
       texture == nullptr) {

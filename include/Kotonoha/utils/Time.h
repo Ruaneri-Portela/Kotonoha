@@ -1,7 +1,10 @@
 #pragma once
 
 #include <SDL3/SDL.h>
-#include <stdbool.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef struct Kotonoha_Time {
   Uint64 startTicks;
@@ -31,3 +34,7 @@ void KotonohaTimeSeekBackward(Kotonoha_Time *instance, Uint64 delta);
 
 Uint64 KotonohaTimeGetFromEvent(const Kotonoha_Time *instance, Uint64 start,
                                 Uint64 end, bool *inRange, Sint64 *diff);
+
+#ifdef __cplusplus
+}
+#endif

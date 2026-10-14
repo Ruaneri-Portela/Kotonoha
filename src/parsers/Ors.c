@@ -102,7 +102,7 @@ static size_t KotonohaOrsFieldCount(const char *payload) {
   return count;
 }
 
-static bool KotonohaOrsHasValidFieldCount(enum KotonohaOrsType command,
+static bool KotonohaOrsHasValidFieldCount(enum Kotonoha_OrsType command,
                                           size_t count) {
   switch (command) {
   case Next:
@@ -240,7 +240,7 @@ static Kotonoha_OrsEvent *KotonohaOrsParseLine(char *line) {
     event->command = SetSELECT;
   } else {
     event->command = UNKNOWN;
-    event->data.unknown = SDL_malloc(sizeof(struct KotonohaOrsTypeUnknown));
+    event->data.unknown = SDL_malloc(sizeof(struct Kotonoha_OrsTypeUnknown));
     if (event->data.unknown == NULL) {
       SDL_LogError(0, "malloc");
       exit(1);
@@ -302,7 +302,7 @@ static Kotonoha_OrsEvent *KotonohaOrsParseLine(char *line) {
     break;
 
   case PLAY_SE: {
-    event->data.play_se = SDL_malloc(sizeof(struct KotonohaOrsTypePlaySe));
+    event->data.play_se = SDL_malloc(sizeof(struct Kotonoha_OrsTypePlaySe));
     if (event->data.play_se == NULL) {
       SDL_LogError(0, "malloc");
       exit(1);
@@ -331,7 +331,7 @@ static Kotonoha_OrsEvent *KotonohaOrsParseLine(char *line) {
 
   case PLAY_MOVIE: {
     event->data.play_movie =
-        SDL_malloc(sizeof(struct KotonohaOrsTypePlayMovie));
+        SDL_malloc(sizeof(struct Kotonoha_OrsTypePlayMovie));
     if (event->data.play_movie == NULL) {
       SDL_LogError(0, "malloc");
       exit(1);
@@ -366,7 +366,7 @@ static Kotonoha_OrsEvent *KotonohaOrsParseLine(char *line) {
     goto fade;
   fade:
     {
-      event->data.fade = SDL_malloc(sizeof(struct KotonohaOrsTypeFade));
+      event->data.fade = SDL_malloc(sizeof(struct Kotonoha_OrsTypeFade));
       if (event->data.fade == NULL) {
         SDL_LogError(0, "malloc");
         exit(1);
@@ -383,7 +383,7 @@ static Kotonoha_OrsEvent *KotonohaOrsParseLine(char *line) {
 
   case PRINT_TEXT: {
     event->data.print_text =
-        SDL_malloc(sizeof(struct KotonohaOrsTypePrintText));
+        SDL_malloc(sizeof(struct Kotonoha_OrsTypePrintText));
     if (event->data.print_text == NULL) {
       SDL_LogError(0, "malloc");
       exit(1);
@@ -431,7 +431,7 @@ static Kotonoha_OrsEvent *KotonohaOrsParseLine(char *line) {
     }
 
     event->data.play_voice =
-        SDL_calloc(1, sizeof(struct KotonohaOrsTypePlayVoice));
+        SDL_calloc(1, sizeof(struct Kotonoha_OrsTypePlayVoice));
     if (event->data.play_voice == NULL) {
       SDL_LogError(0, "malloc");
       exit(1);
@@ -457,7 +457,7 @@ static Kotonoha_OrsEvent *KotonohaOrsParseLine(char *line) {
   }
 
   case CREATE_BG: {
-    event->data.create_bg = SDL_malloc(sizeof(struct KotonohaOrsTypeCreateBg));
+    event->data.create_bg = SDL_malloc(sizeof(struct Kotonoha_OrsTypeCreateBg));
     if (event->data.create_bg == NULL) {
       SDL_LogError(0, "malloc");
       exit(1);
@@ -554,7 +554,7 @@ static Kotonoha_OrsEvent *KotonohaOrsParseLine(char *line) {
   case PLAY_BGM:
   case END_BGM:
   case END_ROLL: {
-    event->data.path_end = SDL_malloc(sizeof(struct KotonohaOrsTypePathEnd));
+    event->data.path_end = SDL_malloc(sizeof(struct Kotonoha_OrsTypePathEnd));
     if (event->data.path_end == NULL) {
       SDL_LogError(0, "malloc");
       exit(1);
@@ -578,7 +578,7 @@ static Kotonoha_OrsEvent *KotonohaOrsParseLine(char *line) {
   default:
     event->command = UNKNOWN;
     if (line != NULL) {
-      event->data.unknown = SDL_malloc(sizeof(struct KotonohaOrsTypeUnknown));
+      event->data.unknown = SDL_malloc(sizeof(struct Kotonoha_OrsTypeUnknown));
       if (event->data.unknown == NULL) {
         SDL_LogError(0, "malloc");
         exit(1);

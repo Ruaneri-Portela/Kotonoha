@@ -10,11 +10,15 @@
 #define KOTONOHA_MOBILE
 #endif
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #if defined(KOTONOHA_MOBILE)
 void KotonohaMobileSetup(void);
 #endif
 
-struct KotonohaConfig {
+typedef struct KotonohaConfig {
   char *assetsPath;
   char *assStyles;
   char *assStylesData;
@@ -45,10 +49,12 @@ struct KotonohaConfig {
   bool cancelOpen;
 
   int scene;
-};
+} KotonohaConfig;
 
-void KotonohaConfigFree(struct KotonohaConfig *config);
-void KotonohaConfigSave(struct KotonohaConfig *config);
+void KotonohaConfigFree(KotonohaConfig *config);
+void KotonohaConfigSave(KotonohaConfig *config);
 
-struct KotonohaConfig KotonohaConfigLoad(const char *path, int argc,
-                                         char *argv[]);
+KotonohaConfig KotonohaConfigLoad(const char *path, int argc, char *argv[]);
+#ifdef __cplusplus
+}
+#endif

@@ -2,14 +2,12 @@
 #include <Kotonoha/Gameplay.hpp>
 #include <SDL3_ttf/SDL_ttf.h>
 
-extern "C" {
 #include <Kotonoha/renders/AudioRender.h>
 #include <Kotonoha/renders/FpsRender.h>
 #include <Kotonoha/renders/LoadingRender.h>
 #include <Kotonoha/renders/TimestampRender.h>
 #include <Kotonoha/utils/Config.h>
 #include <Kotonoha/utils/Path.h>
-}
 
 #include <atomic>
 #include <string>
@@ -38,7 +36,7 @@ private:
   void LoadSubtitleStylesFile(const char *path);
   bool CaptureSceneTransitionFrame(bool activateTransition = true);
 
-  static int EventsThread(void *data);
+  static int SDLCALL EventsThread(void *data);
 
 public:
   std::unordered_map<std::string, TTF_Font *> fonts;
