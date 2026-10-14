@@ -14,6 +14,12 @@ class Audio;
 struct PromptLayoutItem {
   int originalIndex;
   SDL_FRect rect;
+  SDL_Texture *textTexture = nullptr;
+  SDL_Texture *shadowTexture = nullptr;
+  int textW = 0;
+  int textH = 0;
+  int shadowW = 0;
+  int shadowH = 0;
 };
 
 class Prompt {
@@ -27,6 +33,8 @@ private:
   std::string audioPath{};
   std::vector<PromptLayoutItem> lastLayout{};
 
+  void ClearLayoutTextures();
+
 public:
   Prompt(std::vector<std::string> prompt, int *promptResult, Uint64 start,
          Uint64 end, Kotonoha_Time *time, TTF_Font *font,
@@ -36,7 +44,7 @@ public:
                    Audio *audioManager);
 
   static enum Kotonoha_Scene_Status Render(KOTONOHA_SCENE_CALL);
-  ~Prompt() = default;
+  ~Prompt();
 };
 
 } // namespace Kotonoha

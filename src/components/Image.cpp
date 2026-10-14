@@ -42,26 +42,9 @@ std::string BuildDeterministicAbcPath(const char *basePath,
   return path;
 }
 
-int SDLCALL DecodeImageFrame(void *data) {
-  auto *load = static_cast<Kotonoha_ImageLoad *>(data);
-
-  load->frame = KotonohaImageDecodeFrame(load->path, -1, -1, &load->buffer,
-                                         &load->ioOperation);
-
-  SDL_SetAtomicInt(&load->state, 2);
-
-  return 0;
-}
-
 void ReleaseImageLoad(Kotonoha_ImageLoad *load) {
   if (load == nullptr) {
     return;
-  }
-
-  if (load->thread != nullptr) {
-    KotonohaIOMonitorOperationCancel(&load->ioOperation);
-    SDL_WaitThread(load->thread, nullptr);
-    load->thread = nullptr;
   }
 
   KotonohaImageReleaseFrame(&load->frame, &load->buffer);
@@ -81,8 +64,7 @@ bool PrepareImageTexture(SDL_Renderer *renderer, const char *path,
   if (renderer == nullptr || path == nullptr || load == nullptr ||
       texture == nullptr) {
     SDL_LogError(SDL_LOG_CATEGORY_RENDER,
-                 "Invalid arguments for asynchronous image loading");
-
+                 "Invalid arguments for image loading");
     return false;
   }
 
@@ -90,58 +72,33 @@ bool PrepareImageTexture(SDL_Renderer *renderer, const char *path,
     return *texture != nullptr;
   }
 
-  if (load->thread != nullptr && SDL_GetAtomicInt(&load->state) == 2) {
-    SDL_WaitThread(load->thread, nullptr);
-    load->thread = nullptr;
+  // Decodificação síncrona direta sem threads
+  KotonohaIOMonitorOperationInit(&load->ioOperation, owner);
+  load->path = path;
+  load->owner = owner;
+  SDL_SetAtomicInt(&load->state, 1);
 
-    if (load->frame != nullptr) {
-      *texture = KotonohaImageCreateTextureFromFrame(renderer, load->frame);
+  load->frame = KotonohaImageDecodeFrame(load->path, -1, -1, &load->buffer,
+                                         &load->ioOperation);
 
-      KotonohaImageReleaseFrame(&load->frame, &load->buffer);
+  if (load->frame != nullptr) {
+    *texture = KotonohaImageCreateTextureFromFrame(renderer, load->frame);
+    KotonohaImageReleaseFrame(&load->frame, &load->buffer);
 
-      if (*texture == nullptr) {
-        load->failed = true;
-      }
-    } else {
+    if (*texture == nullptr) {
       load->failed = true;
-
-      if (KotonohaIOMonitorIsIgnoredMissing(&load->ioOperation)) {
-        load->missingIgnored = true;
-      }
     }
-
-    KotonohaIOMonitorOperationReset(&load->ioOperation);
-    SDL_SetAtomicInt(&load->state, 0);
-  }
-
-  if (*texture != nullptr || load->failed) {
-    return *texture != nullptr;
-  }
-
-  if (load->thread == nullptr) {
-    load->path = path;
-    load->buffer = nullptr;
-    load->owner = owner;
-    load->missingIgnored = false;
-
-    KotonohaIOMonitorOperationInit(&load->ioOperation, owner);
-    SDL_SetAtomicInt(&load->state, 1);
-
-    load->thread =
-        SDL_CreateThread(DecodeImageFrame, "Image FFmpeg decoder", load);
-
-    if (load->thread == nullptr) {
-      SDL_SetAtomicInt(&load->state, 0);
-      load->failed = true;
-      KotonohaIOMonitorOperationReset(&load->ioOperation);
-
-      SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
-                   "Failed to create image decoding thread: %s",
-                   SDL_GetError());
+  } else {
+    load->failed = true;
+    if (KotonohaIOMonitorIsIgnoredMissing(&load->ioOperation)) {
+      load->missingIgnored = true;
     }
   }
 
-  return false;
+  KotonohaIOMonitorOperationReset(&load->ioOperation);
+  SDL_SetAtomicInt(&load->state, 0);
+
+  return *texture != nullptr;
 }
 
 void DestroyPicture(Kotonoha_Picture *picture) {
@@ -377,7 +334,6 @@ Uint64 Image::Register(const char *path, Uint64 startTime, Uint64 endTime,
                        Uint8 id) {
   if (path == nullptr || *path == '\0') {
     SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Invalid image path.");
-
     return 0;
   }
 
@@ -396,7 +352,6 @@ Uint64 Image::Register(const char *path, Uint64 startTime, Uint64 endTime,
   if (object->path == nullptr) {
     SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
                  "Failed to duplicate image path.");
-
     delete object;
     return 0;
   }
@@ -524,7 +479,6 @@ void Image::RenderTexture(SDL_Renderer *render, SDL_Texture *target,
       return;
     }
 
-    // Salva o estado do renderer antes de trocar o target.
     SDL_Rect originalViewport{};
     SDL_Rect originalClip{};
     float originalScaleX = 1.0f;
@@ -548,14 +502,12 @@ void Image::RenderTexture(SDL_Renderer *render, SDL_Texture *target,
       return;
     }
 
-    // Limpa a textura intermediária para não reutilizar conteúdo antigo.
     SDL_SetRenderViewport(render, nullptr);
     SDL_SetRenderClipRect(render, nullptr);
     SDL_SetRenderScale(render, 1.0f, 1.0f);
     SDL_SetRenderDrawColor(render, 0, 0, 0, 0);
     SDL_RenderClear(render);
 
-    // Desenha usando o tamanho original do picture.
     const SDL_FRect pictureDestination = {0.0f, 0.0f, pictureWidth,
                                           pictureHeight};
 
@@ -565,7 +517,6 @@ void Image::RenderTexture(SDL_Renderer *render, SDL_Texture *target,
       DrawAbcForBase(picture, render, KotonohaTimeGet(timeManager));
     }
 
-    // Restaura o target e estado que estavam ativos na entrada.
     if (!SDL_SetRenderTarget(render, target)) {
       SDL_LogError(SDL_LOG_CATEGORY_RENDER,
                    "Failed to restore render target: %s", SDL_GetError());
@@ -589,7 +540,6 @@ void Image::RenderTexture(SDL_Renderer *render, SDL_Texture *target,
     return;
   }
 
-  // Caminho normal, sem MetalFX.
   if (!cleaned) {
     SDL_RenderClear(render);
     cleaned = true;
@@ -648,7 +598,7 @@ Kotonoha_Scene_Status Image::Render(KOTONOHA_SCENE_CALL) {
         if (picture->load.ioOperation.stalled &&
             status != KOTONOHA_SCENE_DRAW &&
             status != KOTONOHA_SCENE_DRAW_LAST) {
-          status = KOTONOHA_SCENE_WAITING;
+          status = Kotonoha_Scene_Status::KOTONOHA_SCENE_WAITING;
         }
 
         ++it;

@@ -6,24 +6,42 @@ void KotonohaPacketQueueInit(Kotonoha_PacketQueue *q) {
   q->cond = SDL_CreateCondition();
 }
 
-void KotonohaPacketQueueFlush(Kotonoha_PacketQueue *q) {
+void KotonohaPacketQueueFlush(Kotonoha_PacketQueue *q, bool preserveKeyFrame) {
   if (!q || !q->mutex)
     return;
 
   SDL_LockMutex(q->mutex);
   Kotonoha_PacketNode *curr = q->head;
+  Kotonoha_PacketNode *savedKeyFrameNode = NULL;
+
   while (curr != NULL) {
     Kotonoha_PacketNode *next = curr->next;
-    if (curr->packet != NULL) {
-      av_packet_free(&curr->packet);
+
+    if (preserveKeyFrame && savedKeyFrameNode == NULL && curr->packet != NULL &&
+        (curr->packet->flags & AV_PKT_FLAG_KEY) != 0) {
+      savedKeyFrameNode = curr;
+      savedKeyFrameNode->next = NULL;
+    } else {
+      if (curr->packet != NULL) {
+        av_packet_free(&curr->packet);
+      }
+      SDL_free(curr);
     }
-    SDL_free(curr);
     curr = next;
   }
-  q->head = NULL;
-  q->tail = NULL;
-  q->count = 0;
-  q->durationMs = 0;
+
+  if (savedKeyFrameNode != NULL) {
+    q->head = savedKeyFrameNode;
+    q->tail = savedKeyFrameNode;
+    q->count = 1;
+    q->durationMs = 0;
+  } else {
+    q->head = NULL;
+    q->tail = NULL;
+    q->count = 0;
+    q->durationMs = 0;
+  }
+
   q->eof = false;
   SDL_UnlockMutex(q->mutex);
 }
@@ -31,7 +49,7 @@ void KotonohaPacketQueueFlush(Kotonoha_PacketQueue *q) {
 void KotonohaPacketQueueDestroy(Kotonoha_PacketQueue *q) {
   if (!q)
     return;
-  KotonohaPacketQueueFlush(q);
+  KotonohaPacketQueueFlush(q, false);
   if (q->mutex != NULL)
     SDL_DestroyMutex(q->mutex);
   if (q->cond != NULL)
@@ -46,6 +64,10 @@ bool KotonohaPacketQueuePush(Kotonoha_PacketQueue *q, AVPacket *pkt,
     return false;
 
   node->packet = av_packet_clone(pkt);
+  if (!node->packet) {
+    SDL_free(node);
+    return false;
+  }
   node->ptsMs = KotonohaFFmpegGetTime(stream, pkt->pts, pkt->dts);
   node->next = NULL;
 
@@ -53,6 +75,13 @@ bool KotonohaPacketQueuePush(Kotonoha_PacketQueue *q, AVPacket *pkt,
 
   while (q->durationMs >= maxSpanMs && !q->eof) {
     SDL_WaitConditionTimeout(q->cond, q->mutex, 10);
+  }
+
+  if (q->eof) {
+    av_packet_free(&node->packet);
+    SDL_free(node);
+    SDL_UnlockMutex(q->mutex);
+    return false;
   }
 
   if (q->tail == NULL) {
@@ -110,19 +139,20 @@ AVPacket *KotonohaPacketQueuePop(Kotonoha_PacketQueue *q, Uint64 *outPtsMs) {
   return pkt;
 }
 
-void KotonohaDemuxStreamFlushBuffers(Kotonoha_DemuxStream *stream) {
+void KotonohaDemuxStreamFlushBuffers(Kotonoha_DemuxStream *stream,
+                                     bool preserveKeyFrame) {
   if (!stream)
     return;
 
-  KotonohaPacketQueueFlush(&stream->videoQueue);
-  KotonohaPacketQueueFlush(&stream->audioQueue);
+  KotonohaPacketQueueFlush(&stream->videoQueue, preserveKeyFrame);
+  KotonohaPacketQueueFlush(&stream->audioQueue, false);
 }
 
 void KotonohaDemuxStreamSeek(Kotonoha_DemuxStream *stream, Uint64 targetMs) {
   if (stream == NULL)
     return;
 
-  KotonohaDemuxStreamFlushBuffers(stream);
+  KotonohaDemuxStreamFlushBuffers(stream, true);
   stream->seekTargetMs = targetMs;
   SDL_SetAtomicInt(&stream->seekRequested, 1);
 }
@@ -136,18 +166,21 @@ static int SDLCALL KotonohaDemuxerWorker(void *opaque) {
 
     SDL_LockMutex(demuxer->mutex);
 
-    for (Kotonoha_DemuxStream *s = demuxer->streamsHead; s != NULL; s = s->next) {
+    for (Kotonoha_DemuxStream *s = demuxer->streamsHead; s != NULL;
+         s = s->next) {
       if (SDL_GetAtomicInt(&s->seekRequested) != 0) {
         const Uint64 target = s->seekTargetMs;
-        KotonohaDemuxStreamFlushBuffers(s);
+        KotonohaDemuxStreamFlushBuffers(s, true);
 
-        const int activeStream = (s->videoStreamIdx >= 0)
-                                     ? s->videoStreamIdx
-                                     : s->audioStreamIdx;
+        const int activeStream =
+            (s->videoStreamIdx >= 0) ? s->videoStreamIdx : s->audioStreamIdx;
         if (activeStream >= 0 && s->formatCtx != NULL) {
           AVStream *st = s->formatCtx->streams[activeStream];
-          const int64_t seekTs = av_rescale_q((int64_t)target, (AVRational){1, 1000}, st->time_base);
-          KotonohaFFmpegSeekFrame(s->formatCtx, &s->ioOperation, activeStream, seekTs, AVSEEK_FLAG_BACKWARD);
+          const int64_t seekTs = av_rescale_q(
+              (int64_t)target, (AVRational){1, 1000}, st->time_base);
+
+          KotonohaFFmpegSeekFrame(s->formatCtx, &s->ioOperation, activeStream,
+                                  seekTs, AVSEEK_FLAG_BACKWARD);
         }
 
         SDL_SetAtomicInt(&s->seekRequested, 0);
@@ -155,8 +188,10 @@ static int SDLCALL KotonohaDemuxerWorker(void *opaque) {
         continue;
       }
 
-      const bool videoFull = (s->videoStreamIdx < 0) || (s->videoQueue.durationMs >= s->targetCacheMs);
-      const bool audioFull = (s->audioStreamIdx < 0) || (s->audioQueue.durationMs >= s->targetCacheMs);
+      const bool videoFull = (s->videoStreamIdx < 0) ||
+                             (s->videoQueue.durationMs >= s->targetCacheMs);
+      const bool audioFull = (s->audioStreamIdx < 0) ||
+                             (s->audioQueue.durationMs >= s->targetCacheMs);
 
       if (!videoFull || !audioFull) {
         allFullOrEmpty = false;
@@ -164,10 +199,24 @@ static int SDLCALL KotonohaDemuxerWorker(void *opaque) {
         if (s->formatCtx != NULL) {
           const int ret = KotonohaFFmpegReadFrame(s->formatCtx, pkt);
           if (ret >= 0) {
+            AVStream *st = s->formatCtx->streams[pkt->stream_index];
+            Uint64 pktPtsMs = KotonohaFFmpegGetTime(st, pkt->pts, pkt->dts);
+            bool isKeyFrame = (pkt->flags & AV_PKT_FLAG_KEY) != 0;
+
+            if (s->seekTargetMs > 0 && pktPtsMs + 500 < s->seekTargetMs &&
+                !isKeyFrame) {
+              av_packet_unref(pkt);
+              continue;
+            }
+
             if (pkt->stream_index == s->videoStreamIdx) {
-              KotonohaPacketQueuePush(&s->videoQueue, pkt, s->formatCtx->streams[s->videoStreamIdx], s->targetCacheMs);
+              KotonohaPacketQueuePush(&s->videoQueue, pkt,
+                                      s->formatCtx->streams[s->videoStreamIdx],
+                                      s->targetCacheMs);
             } else if (pkt->stream_index == s->audioStreamIdx) {
-              KotonohaPacketQueuePush(&s->audioQueue, pkt, s->formatCtx->streams[s->audioStreamIdx], s->targetCacheMs);
+              KotonohaPacketQueuePush(&s->audioQueue, pkt,
+                                      s->formatCtx->streams[s->audioStreamIdx],
+                                      s->targetCacheMs);
             }
             av_packet_unref(pkt);
           } else if (ret == AVERROR_EOF) {
@@ -195,7 +244,8 @@ static int SDLCALL KotonohaDemuxerWorker(void *opaque) {
 }
 
 Kotonoha_Demuxer *KotonohaDemuxerCreate(Kotonoha_IOMonitor *ioMonitor) {
-  Kotonoha_Demuxer *demuxer = (Kotonoha_Demuxer *)SDL_calloc(1, sizeof(Kotonoha_Demuxer));
+  Kotonoha_Demuxer *demuxer =
+      (Kotonoha_Demuxer *)SDL_calloc(1, sizeof(Kotonoha_Demuxer));
   if (demuxer == NULL)
     return NULL;
 
@@ -212,9 +262,11 @@ void KotonohaDemuxerStart(Kotonoha_Demuxer *demuxer) {
   if (demuxer == NULL)
     return;
 
-  if (SDL_GetAtomicInt(&demuxer->running) == 0 && demuxer->demuxThread == NULL) {
+  if (SDL_GetAtomicInt(&demuxer->running) == 0 &&
+      demuxer->demuxThread == NULL) {
     SDL_SetAtomicInt(&demuxer->running, 1);
-    demuxer->demuxThread = SDL_CreateThread(KotonohaDemuxerWorker, "KotonohaGameplayDemuxer", demuxer);
+    demuxer->demuxThread = SDL_CreateThread(KotonohaDemuxerWorker,
+                                            "KotonohaGameplayDemuxer", demuxer);
   }
 }
 
@@ -231,8 +283,9 @@ void KotonohaDemuxerStop(Kotonoha_Demuxer *demuxer) {
     }
 
     SDL_LockMutex(demuxer->mutex);
-    for (Kotonoha_DemuxStream *s = demuxer->streamsHead; s != NULL; s = s->next) {
-      KotonohaDemuxStreamFlushBuffers(s);
+    for (Kotonoha_DemuxStream *s = demuxer->streamsHead; s != NULL;
+         s = s->next) {
+      KotonohaDemuxStreamFlushBuffers(s, false);
     }
     SDL_UnlockMutex(demuxer->mutex);
   }
@@ -245,19 +298,22 @@ bool KotonohaDemuxerIsStarted(Kotonoha_Demuxer *demuxer) {
 }
 
 Kotonoha_DemuxStream *KotonohaDemuxerAddStream(Kotonoha_Demuxer *demuxer,
-                                              const char *filename,
-                                              float cacheDurationSeconds,
-                                              void *owner) {
+                                               const char *filename,
+                                               float cacheDurationSeconds,
+                                               void *owner) {
   if (demuxer == NULL || filename == NULL || *filename == '\0') {
     return NULL;
   }
 
-  Kotonoha_DemuxStream *stream = (Kotonoha_DemuxStream *)SDL_calloc(1, sizeof(Kotonoha_DemuxStream));
+  Kotonoha_DemuxStream *stream =
+      (Kotonoha_DemuxStream *)SDL_calloc(1, sizeof(Kotonoha_DemuxStream));
   if (stream == NULL)
     return NULL;
 
   stream->filename = SDL_strdup(filename);
-  stream->targetCacheMs = (Uint64)((cacheDurationSeconds > 0.1f ? cacheDurationSeconds : 2.0f) * 1000.0f);
+  stream->targetCacheMs =
+      (Uint64)((cacheDurationSeconds > 0.1f ? cacheDurationSeconds : 2.0f) *
+               1000.0f);
   stream->videoStreamIdx = -1;
   stream->audioStreamIdx = -1;
   stream->owner = owner;
@@ -267,10 +323,12 @@ Kotonoha_DemuxStream *KotonohaDemuxerAddStream(Kotonoha_Demuxer *demuxer,
   KotonohaPacketQueueInit(&stream->audioQueue);
 
   AVCodecContext *dummyCodecCtx = NULL;
-  if (!KotonohaFFmpegLoadMonitored(filename, &stream->formatCtx, &dummyCodecCtx, AVMEDIA_TYPE_VIDEO,
-                                   &stream->videoStreamIdx, 0, NULL, &stream->ioOperation)) {
-    if (!KotonohaFFmpegLoadMonitored(filename, &stream->formatCtx, &dummyCodecCtx, AVMEDIA_TYPE_AUDIO,
-                                     &stream->audioStreamIdx, 0, NULL, &stream->ioOperation)) {
+  if (!KotonohaFFmpegLoadMonitored(filename, &stream->formatCtx, &dummyCodecCtx,
+                                   AVMEDIA_TYPE_VIDEO, &stream->videoStreamIdx,
+                                   0, NULL, &stream->ioOperation)) {
+    if (!KotonohaFFmpegLoadMonitored(
+            filename, &stream->formatCtx, &dummyCodecCtx, AVMEDIA_TYPE_AUDIO,
+            &stream->audioStreamIdx, 0, NULL, &stream->ioOperation)) {
       KotonohaPacketQueueDestroy(&stream->videoQueue);
       KotonohaPacketQueueDestroy(&stream->audioQueue);
       KotonohaIOMonitorOperationReset(&stream->ioOperation);
@@ -281,7 +339,8 @@ Kotonoha_DemuxStream *KotonohaDemuxerAddStream(Kotonoha_Demuxer *demuxer,
   } else {
     avcodec_free_context(&dummyCodecCtx);
     for (unsigned int i = 0; i < stream->formatCtx->nb_streams; i++) {
-      if (stream->formatCtx->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_AUDIO) {
+      if (stream->formatCtx->streams[i]->codecpar->codec_type ==
+          AVMEDIA_TYPE_AUDIO) {
         stream->audioStreamIdx = (int)i;
         break;
       }
@@ -296,7 +355,8 @@ Kotonoha_DemuxStream *KotonohaDemuxerAddStream(Kotonoha_Demuxer *demuxer,
   return stream;
 }
 
-void KotonohaDemuxerRemoveStream(Kotonoha_Demuxer *demuxer, Kotonoha_DemuxStream **streamPtr) {
+void KotonohaDemuxerRemoveStream(Kotonoha_Demuxer *demuxer,
+                                 Kotonoha_DemuxStream **streamPtr) {
   if (demuxer == NULL || streamPtr == NULL || *streamPtr == NULL)
     return;
 

@@ -37,6 +37,7 @@ typedef struct Kotonoha_VideoData {
 
   bool useOrsFrameTimeline;
   Uint64 orsEndFrame;
+  bool firstSeek;
 } Kotonoha_VideoData;
 
 Kotonoha_VideoData *KotonohaVideoRenderInit(

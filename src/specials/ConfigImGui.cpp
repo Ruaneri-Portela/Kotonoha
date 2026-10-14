@@ -13,7 +13,8 @@ static void *KotonohaSettings_ReadOpen(ImGuiContext *ctx,
   return (void *)1;
 }
 
-// Função totalmente segura que evita dar free em ponteiros estáticos ou inválidos
+// Função totalmente segura que evita dar free em ponteiros estáticos ou
+// inválidos
 static void ConfigImGui_SetString(char **target, const char *source) {
   if (source == NULL)
     return;
@@ -28,14 +29,15 @@ static void ConfigImGui_SetString(char **target, const char *source) {
     return;
   }
 
-  // ATENÇÃO: Se o target atual aponta para o valor padrão de style estático, 
+  // ATENÇÃO: Se o target atual aponta para o valor padrão de style estático,
   // não chamamos SDL_free nele para evitar o crash de malloc.
   // Apenas sobrescrevemos com uma nova string alocada via SDL_strdup.
   char *newStr = SDL_strdup(source);
   if (newStr != NULL) {
     if (*target != NULL) {
-      // Opcional: só libera se tiver certeza que foi alocado, ou deixe a engine gerenciar no Free
-      // Para segurança máxima no SDL, se veio de SDL_strdup, podemos liberar:
+      // Opcional: só libera se tiver certeza que foi alocado, ou deixe a engine
+      // gerenciar no Free Para segurança máxima no SDL, se veio de SDL_strdup,
+      // podemos liberar:
       SDL_free(*target);
     }
     *target = newStr;

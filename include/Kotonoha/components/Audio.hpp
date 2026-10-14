@@ -24,7 +24,8 @@ private:
   Kotonoha_Demuxer *demuxer = nullptr;
 
 public:
-  Audio(Sound *soundCtx, Kotonoha_Time *timeCtx, Kotonoha_IOMonitor *ioMonitor, Kotonoha_Demuxer *demuxer);
+  Audio(Sound *soundCtx, Kotonoha_Time *timeCtx, Kotonoha_IOMonitor *ioMonitor,
+        Kotonoha_Demuxer *demuxer);
   Kotonoha_AudioDecode *AddMedia(const char *path, Uint64 start, Uint64 end,
                                  bool inLoop, const char *channel);
   Kotonoha_AudioDecode *AddIntroLoopMedia(const char *introPath,
