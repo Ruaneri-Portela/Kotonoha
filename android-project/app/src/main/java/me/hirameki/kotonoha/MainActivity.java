@@ -19,7 +19,6 @@ public class MainActivity extends Activity {
             @Override
             public void onClick(View view) {
                 startKotonohaWithArguments(new String[]{
-                        "-s", "assets/styles.skot",
                         "-p", "http://192.168.88.251:9090/",
                         "-l", "assets/05"
                 });

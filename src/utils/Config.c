@@ -99,8 +99,7 @@ static bool Config_SetStr(char **target, const char *source) {
   return true;
 }
 
-static bool Config_AddScript(struct KotonohaConfig *config,
-                             const char *scriptPath) {
+static bool Config_AddScript(Kotonoha_Config *config, const char *scriptPath) {
   if (config->scriptCount == config->scriptCapacity) {
     int newCapacity =
         config->scriptCapacity == 0 ? 4 : config->scriptCapacity * 2;
@@ -150,8 +149,7 @@ static bool Config_ParseInt(const char *text, int *output) {
   return true;
 }
 
-static bool Config_SetWindowSize(struct KotonohaConfig *config,
-                                 const char *widthText,
+static bool Config_SetWindowSize(Kotonoha_Config *config, const char *widthText,
                                  const char *heightText) {
   int width = 0;
   int height = 0;
@@ -170,7 +168,7 @@ static bool Config_SetWindowSize(struct KotonohaConfig *config,
   return true;
 }
 
-static bool Config_SetWindowSizeText(struct KotonohaConfig *config,
+static bool Config_SetWindowSizeText(Kotonoha_Config *config,
                                      const char *sizeText) {
   if (sizeText == NULL) {
     return false;
@@ -219,7 +217,7 @@ static bool Config_SetWindowSizeText(struct KotonohaConfig *config,
   return Config_SetWindowSize(config, widthText, heightText);
 }
 
-static bool Config_SetUpscaleFactor(struct KotonohaConfig *config,
+static bool Config_SetUpscaleFactor(Kotonoha_Config *config,
                                     const char *factorText) {
   char *end = NULL;
   errno = 0;
@@ -242,8 +240,7 @@ static bool Config_SetUpscaleFactor(struct KotonohaConfig *config,
   return true;
 }
 
-static bool ParseArguments(struct KotonohaConfig *config, int argc,
-                           char *argv[]) {
+static bool ParseArguments(Kotonoha_Config *config, int argc, char *argv[]) {
   bool cancelOpen = false;
 
   for (int i = 1; i < argc; ++i) {
@@ -292,10 +289,10 @@ static bool ParseArguments(struct KotonohaConfig *config, int argc,
       if (i + 1 < argc && argv[i + 1] != NULL) {
         if (!Config_AddScript(config, argv[++i])) {
           cancelOpen = true;
-        }
+        } else
+          config->dirtyConfig = true;
       } else {
         fprintf(stderr, "Missing argument for -l option (gameplay script)\n");
-
         cancelOpen = true;
       }
       break;
@@ -305,12 +302,10 @@ static bool ParseArguments(struct KotonohaConfig *config, int argc,
         if (!Config_SetStr(&config->assetsPath, argv[++i])) {
           fprintf(stderr, "Failed to set assets directory\n");
           cancelOpen = true;
-        } else {
+        } else
           config->dirtyConfig = true;
-        }
       } else {
         fprintf(stderr, "Missing argument for -p option (assets directory)\n");
-
         cancelOpen = true;
       }
       break;
@@ -319,11 +314,9 @@ static bool ParseArguments(struct KotonohaConfig *config, int argc,
       if (i + 1 < argc && argv[i + 1] != NULL) {
         if (!Config_SetStr(&config->assStyles, argv[++i])) {
           fprintf(stderr, "Failed to set ASS subtitle styles file\n");
-
           cancelOpen = true;
-        } else {
+        } else
           config->dirtyConfig = true;
-        }
       } else {
         fprintf(stderr,
                 "Missing argument for -s option (ASS subtitle styles file)\n");
@@ -337,11 +330,11 @@ static bool ParseArguments(struct KotonohaConfig *config, int argc,
         if (!Config_SetStr(&config->preferredRenderer, argv[++i])) {
           fprintf(stderr, "Failed to set preferred renderer\n");
           cancelOpen = true;
-        }
+        } else
+          config->dirtyConfig = true;
       } else {
         fprintf(stderr,
                 "Missing argument for -r option (preferred renderer)\n");
-
         cancelOpen = true;
       }
       break;
@@ -350,10 +343,10 @@ static bool ParseArguments(struct KotonohaConfig *config, int argc,
       if (i + 1 < argc && argv[i + 1] != NULL) {
         if (!Config_SetWindowSizeText(config, argv[++i])) {
           cancelOpen = true;
-        }
+        } else
+          config->dirtyConfig = true;
       } else {
         fprintf(stderr, "Missing argument for -x option (window size)\n");
-
         cancelOpen = true;
       }
       break;
@@ -362,10 +355,10 @@ static bool ParseArguments(struct KotonohaConfig *config, int argc,
       if (i + 1 < argc && argv[i + 1] != NULL) {
         if (!Config_SetUpscaleFactor(config, argv[++i])) {
           cancelOpen = true;
-        }
+        } else
+          config->dirtyConfig = true;
       } else {
         fprintf(stderr, "Missing argument for -q option (upscale factor)\n");
-
         cancelOpen = true;
       }
       break;
@@ -377,6 +370,7 @@ static bool ParseArguments(struct KotonohaConfig *config, int argc,
         if (end != argv[i] && *end == '\0' && isfinite(cacheSec) &&
             cacheSec >= 0.1f && cacheSec <= 60.0f) {
           config->videoCacheSeconds = cacheSec;
+          config->dirtyConfig = true;
         } else {
           fprintf(stderr,
                   "Invalid cache duration for -C option: %s (must be 0.1 to "
@@ -426,7 +420,6 @@ static bool ParseArguments(struct KotonohaConfig *config, int argc,
       cancelOpen = true;
       break;
     }
-
     if (cancelOpen) {
       break;
     }
@@ -435,15 +428,23 @@ static bool ParseArguments(struct KotonohaConfig *config, int argc,
   return cancelOpen;
 }
 
-static bool LoadConfigFile(struct KotonohaConfig *config, const char *path) {
-  (void)config;
-  (void)path;
+static bool LoadConfigFile(Kotonoha_Config *config, const char *path) {
+  KotonohaConfigRegisterImGuiHandler(config);
+  if (path != NULL) {
+    // Se um caminho customizado foi passado, configura o arquivo no ImGui
+    KotonohaConfigSetIniFilename(path);
+    // Força o carregamento imediato do arquivo customizado
+    KotonohaConfigLoadFromDisk(path);
+  } else {
+    // Carrega do arquivo padrão (ex: kotonoha.ini configurado no
+    // io.IniFilename)
+    KotonohaConfigLoadFromDisk(NULL);
+  }
 
-  // TODO: implementar leitura de arquivo.
   return true;
 }
 
-static bool Config_LoadStylesFile(struct KotonohaConfig *config) {
+static bool Config_LoadStylesFile(Kotonoha_Config *config) {
   if (config->assStyles == NULL) {
     return true;
   }
@@ -469,51 +470,57 @@ static bool Config_LoadStylesFile(struct KotonohaConfig *config) {
   return true;
 }
 
-struct KotonohaConfig KotonohaConfigLoad(const char *path, int argc,
-                                         char *argv[]) {
-  struct KotonohaConfig config;
+bool KotonohaConfigLoad(Kotonoha_Config *config, const char *path, int argc,
+                        char *argv[]) {
+#if defined(KOTONOHA_MOBILE)
+  KotonohaMobileSetup();
+#endif
 
-  memset(&config, 0, sizeof(config));
+  if (config == NULL) {
+    return false;
+  }
 
-  config.windowSize[0] = 1280;
-  config.windowSize[1] = 720;
-  config.scalerFactor = 1.0f;
-  config.videoCacheSeconds = 2.0f;
-  config.enableVsync = true;
+  // Define os valores padrão
+  config->windowSize[0] = 1280;
+  config->windowSize[1] = 720;
+  config->scalerFactor = 1.0f;
+  config->videoCacheSeconds = 2.0f;
+  config->enableVsync = true;
 
   if (path != NULL) {
-    config.configFilePath = Config_CopyString(path);
+    config->configFilePath = Config_CopyString(path);
 
-    if (config.configFilePath == NULL) {
-      config.cancelOpen = true;
-      return config;
-    }
-
-    if (!LoadConfigFile(&config, path)) {
-      config.cancelOpen = true;
-      return config;
+    if (config->configFilePath == NULL) {
+      config->cancelOpen = true;
+      return false;
     }
   }
 
-  config.cancelOpen = ParseArguments(&config, argc, argv);
-
-  if (config.assStyles == NULL) {
-    config.assStyles = SDL_strdup("assets/styles.skot");
+  // Carrega as configurações do arquivo INI / ImGui
+  if (!LoadConfigFile(config, path)) {
+    config->cancelOpen = true;
+    return false;
   }
 
-  if (!config.cancelOpen) {
-#if defined(KOTONOHA_MOBILE)
-    KotonohaMobileSetup();
-#endif
-    if (!Config_LoadStylesFile(&config)) {
-      config.cancelOpen = true;
+  // Processa argumentos de linha de comando (argumentos sobrepõem o arquivo e
+  // marcam dirty se necessário)
+  config->cancelOpen = ParseArguments(config, argc, argv);
+
+  if (config->assStyles == NULL) {
+    config->assStyles = SDL_strdup("assets/styles.skot");
+  }
+
+  if (!config->cancelOpen) {
+    if (!Config_LoadStylesFile(config)) {
+      config->cancelOpen = true;
+      return false;
     }
   }
 
-  return config;
+  return !config->cancelOpen;
 }
 
-void KotonohaConfigFree(struct KotonohaConfig *config) {
+void KotonohaConfigFree(Kotonoha_Config *config) {
   if (config == NULL) {
     return;
   }
@@ -558,10 +565,18 @@ void KotonohaConfigFree(struct KotonohaConfig *config) {
   config->scriptCapacity = 0;
 }
 
-void KotonohaConfigSave(struct KotonohaConfig *config) {
+void KotonohaConfigSave(Kotonoha_Config *config) {
   if (config == NULL) {
     return;
   }
 
-  // TODO: implementar salvamento em arquivo.
+  // Se a struct possui um caminho customizado salvo, atualiza o IniFilename do
+  // ImGui
+  if (config->configFilePath != NULL) {
+    KotonohaConfigSetIniFilename(config->configFilePath);
+  }
+
+  // Passa as novas settings atualizadas e força a gravação imediata no arquivo
+  // .ini
+  KotonohaConfigApplyAndSave(config);
 }

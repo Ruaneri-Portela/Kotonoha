@@ -685,7 +685,7 @@ static void Kotonoha_DrawAboutWindow() {
   ImGui::End();
 }
 
-static void Kotonoha_DrawSettingsFields(KotonohaConfig *cfg,
+static void Kotonoha_DrawSettingsFields(Kotonoha_Config *cfg,
                                         Kotonoha_Game &context) {
   if (cfg == nullptr)
     return;
@@ -1462,9 +1462,6 @@ static void Kotonoha_ApplyPurpleTheme() {
 }
 
 void KotonohaBasicGuiInit(Kotonoha_Game &gameContext, std::vector<Uint8> font) {
-  IMGUI_CHECKVERSION();
-  ImGui::CreateContext();
-
   ImGuiIO &io = ImGui::GetIO();
   io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
   io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;

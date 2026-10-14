@@ -30,7 +30,7 @@ typedef struct Kotonoha_Game {
   SDL_WindowFlags flags;
   SDL_Mutex *taskLock;
 
-  struct KotonohaConfig config;
+  Kotonoha_Config config;
   void *processPoolTasks;
   void *sound;
 } Kotonoha_Game;

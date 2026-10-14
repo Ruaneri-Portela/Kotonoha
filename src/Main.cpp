@@ -1,9 +1,10 @@
-#include <Kotonoha/Init.hpp>
-extern "C" {
 #define SDL_MAIN_USE_CALLBACKS 1
+#include <Kotonoha/Init.hpp>
 #include <Kotonoha/speciais/Upscaling.h>
 #include <SDL3/SDL_main.h>
+#include <imgui.h>
 
+extern "C" {
 SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
   SDL_AppResult status = SDL_APP_FAILURE;
 
@@ -12,10 +13,12 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
   }
   *appstate = nullptr;
 
-  std::memset(&global, 0, sizeof(global));
-  global.config = KotonohaConfigLoad(NULL, argc, argv);
+  IMGUI_CHECKVERSION();
+  ImGui::CreateContext();
 
-  if (global.config.cancelOpen) {
+  std::memset(&global, 0, sizeof(global));
+
+  if (!KotonohaConfigLoad(&global.config, "Kotonoha.ini", argc, argv) || global.config.cancelOpen) {
     return SDL_APP_SUCCESS;
   }
 
