@@ -11,14 +11,11 @@ import java.util.Locale;
 public class Kotonoha extends SDLActivity {
 
     private static String[] customArguments = null;
-    private static int screenWidth;
-    private static int screenHeight;
 
     @Override
     protected String[] getArguments() {
-        getScreenResolution();
         String[] defaultArgs = new String[]{
-                "-v", "-u", "-z", "-t", "-r", "opengles2", "-f", "-x", String.format(Locale.ROOT,"%d", screenWidth), String.format(Locale.ROOT,"%d", screenHeight)
+                "-v", "-u", "-z", "-t", "-r", "opengles2", "-f", "-i"
         };
         if (customArguments != null) {
             String[] args = new String[defaultArgs.length + customArguments.length];
@@ -45,22 +42,5 @@ public class Kotonoha extends SDLActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        getScreenResolution();
-    }
-
-
-    private void getScreenResolution() {
-        WindowManager wm = (WindowManager) getSystemService(Context.WINDOW_SERVICE);
-
-        DisplayMetrics displayMetrics = new DisplayMetrics();
-        wm.getDefaultDisplay().getMetrics(displayMetrics);
-
-        screenWidth = displayMetrics.widthPixels;
-        screenHeight = displayMetrics.heightPixels;
-    }
-
-    private void closeKotonoha() {
-        setResult(RESULT_OK);
-        finish();
     }
 }

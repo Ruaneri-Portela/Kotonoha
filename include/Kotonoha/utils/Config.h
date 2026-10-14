@@ -18,7 +18,7 @@ extern "C" {
 void KotonohaMobileSetup(void);
 #endif
 
-typedef struct KotonohaConfig {
+typedef struct Kotonoha_Config {
   char *assetsPath;
   char *assStyles;
   char *assStylesData;
@@ -49,12 +49,20 @@ typedef struct KotonohaConfig {
   bool cancelOpen;
 
   int scene;
-} KotonohaConfig;
+} Kotonoha_Config;
 
-void KotonohaConfigFree(KotonohaConfig *config);
-void KotonohaConfigSave(KotonohaConfig *config);
+void KotonohaConfigFree(Kotonoha_Config *config);
+void KotonohaConfigSave(Kotonoha_Config *config);
 
-KotonohaConfig KotonohaConfigLoad(const char *path, int argc, char *argv[]);
+void KotonohaConfigRegisterImGuiHandler(Kotonoha_Config *config);
+void KotonohaConfigSetIniFilename(const char *path);
+
+void KotonohaConfigApplyAndSave(Kotonoha_Config *config);
+
+void KotonohaConfigLoadFromDisk(const char *path);
+
+bool KotonohaConfigLoad(Kotonoha_Config *config, const char *path, int argc,
+                        char *argv[]);
 #ifdef __cplusplus
 }
 #endif

@@ -18,7 +18,7 @@ Kotonoha::Kotonoha(SDL_AppResult *status, struct Kotonoha_Game &context)
 
   *status = SDL_APP_CONTINUE;
 
-  struct KotonohaConfig &config = context.config;
+  Kotonoha_Config &config = context.config;
 
   // -i means the user explicitly chose to ignore missing assets.
   KotonohaIOMonitorSetRetryMissingAssets(!config.skipFiles);
@@ -181,7 +181,7 @@ SDL_AppResult Kotonoha::Event(SDL_Event *event) {
     return SDL_APP_CONTINUE;
   }
 
-  KotonohaConfig *config = &gameContext.config;
+  Kotonoha_Config *config = &gameContext.config;
 
   switch (event->type) {
   case SDL_EVENT_KEY_DOWN:
@@ -246,7 +246,7 @@ SDL_AppResult Kotonoha::Event(SDL_Event *event) {
 }
 
 void Kotonoha::ClearGameplays() {
-  KotonohaConfig *config = &gameContext.config;
+  Kotonoha_Config *config = &gameContext.config;
 
   for (auto *gameplay : gameplays) {
     DeleteGameplay(gameplay);
@@ -504,7 +504,7 @@ SDL_AppResult Kotonoha::Main(Gameplay **out) {
     *out = nullptr;
   }
 
-  KotonohaConfig *config = &gameContext.config;
+  Kotonoha_Config *config = &gameContext.config;
 
   while (!gameplays.empty() &&
          static_cast<size_t>(config->scene) < gameplays.size()) {
