@@ -1,272 +1,288 @@
-#include <Kotonoha/speciais/MetalFX.h>
 #include <Kotonoha/Gameplay.hpp>
+
+#include <Kotonoha/speciais/MetalFX.h>
+
 #include <SDL3_ttf/SDL_ttf.h>
 
-
 namespace Kotonoha {
-	namespace {
-		static float MsToSeconds(Uint64 value) {
-			return static_cast<float>(value) / 1000.0f;
-		}
-	}// namespace
-	void Gameplay::UpdateCanvasSize(SDL_Window* window, SDL_Renderer* renderer) {
-		if ((window == nullptr && renderer == nullptr) || drawCanvas == nullptr) {
-			return;
-		}
+namespace {
+static float MsToSeconds(Uint64 value) {
+  return static_cast<float>(value) / 1000.0f;
+}
+} // namespace
+void Gameplay::UpdateCanvasSize(SDL_Window *window, SDL_Renderer *renderer) {
+  if ((window == nullptr && renderer == nullptr) || drawCanvas == nullptr) {
+    return;
+  }
+  int pixelW = 0;
+  int pixelH = 0;
+  if (renderer != nullptr) {
+    if (!SDL_GetCurrentRenderOutputSize(renderer, &pixelW, &pixelH)) {
+      SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
+                   "SDL_GetCurrentRenderOutputSize failed: %s", SDL_GetError());
+      return;
+    }
+  } else if (!SDL_GetWindowSizeInPixels(window, &pixelW, &pixelH)) {
+    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
+                 "SDL_GetWindowSizeInPixels failed: %s", SDL_GetError());
+    return;
+  }
 
-		int pixelW = 0;
-		int pixelH = 0;
-		if (renderer != nullptr) {
-			if (!SDL_GetCurrentRenderOutputSize(renderer, &pixelW, &pixelH)) {
-				SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
-					"SDL_GetCurrentRenderOutputSize failed: %s", SDL_GetError());
-				return;
-			}
-		}
-		else if (!SDL_GetWindowSizeInPixels(window, &pixelW, &pixelH)) {
-			SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
-				"SDL_GetWindowSizeInPixels failed: %s", SDL_GetError());
-			return;
-		}
+  if (pixelW <= 0 || pixelH <= 0) {
+    return;
+  }
 
-		if (pixelW <= 0 || pixelH <= 0) {
-			return;
-		}
+  windowWidth = pixelW;
+  windowHeight = pixelH;
 
-		windowWidth = pixelW;
-		windowHeight = pixelH;
+  const float renderWidth = static_cast<float>(windowWidth);
+  const float renderHeight = static_cast<float>(windowHeight);
+  if (renderHeight <= 0.0f || aspectRatio <= 0.0) {
+    return;
+  }
 
-		const float renderWidth = static_cast<float>(windowWidth);
-		const float renderHeight = static_cast<float>(windowHeight);
-		if (renderHeight <= 0.0f || aspectRatio <= 0.0) {
-			return;
-		}
+  SDL_FRect place{0.0f, 0.0f, 0.0f, 0.0f};
+  const double windowAspectRatio =
+      static_cast<double>(renderWidth) / static_cast<double>(renderHeight);
 
-		SDL_FRect place{ 0.0f, 0.0f, 0.0f, 0.0f };
-		const double windowAspectRatio =
-			static_cast<double>(renderWidth) / static_cast<double>(renderHeight);
+  if (windowAspectRatio < aspectRatio) {
+    place.w = renderWidth;
+    place.h = renderWidth / static_cast<float>(aspectRatio);
+    place.x = 0.0f;
+    place.y = (renderHeight - place.h) * 0.5f;
+  } else {
+    place.h = renderHeight;
+    place.w = renderHeight * static_cast<float>(aspectRatio);
+    place.y = 0.0f;
+    place.x = (renderWidth - place.w) * 0.5f;
+  }
 
-		if (windowAspectRatio < aspectRatio) {
-			place.w = renderWidth;
-			place.h = renderWidth / static_cast<float>(aspectRatio);
-			place.x = 0.0f;
-			place.y = (renderHeight - place.h) * 0.5f;
-		}
-		else {
-			place.h = renderHeight;
-			place.w = renderHeight * static_cast<float>(aspectRatio);
-			place.y = 0.0f;
-			place.x = (renderWidth - place.w) * 0.5f;
-		}
+  drawCanvas->UpdateCanva(nullptr, -1, place);
+}
 
-		drawCanvas->UpdateCanva(nullptr, -1, place);
-	}
+void Gameplay::UpdateLoadingPause(struct Kotonoha_Game *gameContext) {
+  if (gameContext == nullptr) {
+    return;
+  }
 
-	void Gameplay::UpdateLoadingPause(struct Kotonoha_Game* gameContext) {
-		if (gameContext == nullptr) {
-			return;
-		}
+  const bool loading = KotonohaIOMonitorIsLoading(&ioMonitor);
+  const Uint64 now = SDL_GetTicks();
+  constexpr Uint64 kMinimumLoadingPauseMs = 1000;
 
-		const bool loading = Kotonoha_IOMonitorIsLoading(&ioMonitor);
-		if (loading && !loadingPauseActive) {
-			pausedBeforeLoading = gameContext->paused;
-			loadingPauseActive = true;
-		}
+  if (loading && !loadingPauseActive) {
+    pausedBeforeLoading = gameContext->config.paused;
+    loadingPauseActive = true;
+    loadingPauseStartedAt = now;
+  }
 
-		if (loading) {
-			gameContext->paused = true;
-		}
-		else if (loadingPauseActive) {
-			gameContext->paused = pausedBeforeLoading;
-			loadingPauseActive = false;
-		}
-	}
+  if (loading) {
+    // Keep pause and overlay stable while the decoder refills its cache.
+    loadingOverlayVisibleUntil = now + kMinimumLoadingPauseMs;
+    gameContext->config.paused = true;
+  } else if (loadingPauseActive && now >= loadingOverlayVisibleUntil &&
+             now - loadingPauseStartedAt >= kMinimumLoadingPauseMs) {
+    gameContext->config.paused = pausedBeforeLoading;
+    loadingPauseActive = false;
+    loadingPauseStartedAt = 0;
+  }
+}
 
-	Gameplay::Gameplay(const char* scriptPath, struct Kotonoha_Game* gameContext, TTF_Font *font) {
-		Kotonoha_IOMonitorInit(
-			&ioMonitor, Kotonoha_IOMonitorRetryMissingAssetsEnabled());
-		this->tm = Kotonoha_timeNew(true);
-		this->sb = Kotonoha_TextRenderInit(this->tm, gameContext);
+Gameplay::Gameplay(const char *scriptPath, Kotonoha_Game *gameContext,
+                   TTF_Font *font) {
+  KotonohaIOMonitorInit(&ioMonitor,
+                        KotonohaIOMonitorRetryMissingAssetsEnabled());
 
-		this->video = new Video(this->tm, &ioMonitor);
-		this->image = new Image(this->tm, &ioMonitor);
-		this->audio = new Audio(
-			static_cast<Sound*>(gameContext->sound), this->tm, &ioMonitor);
-		this->fade = new Fade(this->tm);
-		this->drawCanvas = new Canvas();
-		Kotonoha_IOMonitorBindNetworkWaitFlag(
-			&ioMonitor, this->drawCanvas->NetworkWaitFlag());
+  this->tm = KotonohaTimeNew(true);
+  this->sb = KotonohaTextRenderInit(this->tm, gameContext);
+  this->video =
+      new Video(this->tm, &ioMonitor, gameContext->config.videoCacheSeconds);
+  this->image = new Image(this->tm, &ioMonitor);
+  this->audio =
+      new Audio(static_cast<Sound *>(gameContext->sound), this->tm, &ioMonitor);
+  this->fade = new Fade(this->tm);
+  this->drawCanvas = new Canvas();
 
-		this->drawCanvas->RegisterCanva(
-			this->image->Render, 0,
-			{ 0, 0, static_cast<float>(windowWidth), static_cast<float>(windowHeight) },
-			this->image);
+  KotonohaIOMonitorBindNetworkWaitFlag(&ioMonitor,
+                                       this->drawCanvas->NetworkWaitFlag());
 
-		this->drawCanvas->RegisterCanva(
-			this->video->Render, 1,
-			{ 0, 0, static_cast<float>(windowWidth), static_cast<float>(windowHeight) },
-			this->video);
+  this->drawCanvas->RegisterCanva(
+      this->image->Render, 0,
+      {0, 0, static_cast<float>(windowWidth), static_cast<float>(windowHeight)},
+      this->image);
 
-		this->drawCanvas->RegisterCanva(
-			Kotonoha_TextRenderDraw, 3,
-			{ 0, 0, static_cast<float>(windowWidth), static_cast<float>(windowHeight) },
-			this->sb);
+  this->drawCanvas->RegisterCanva(
+      this->video->Render, 1,
+      {0, 0, static_cast<float>(windowWidth), static_cast<float>(windowHeight)},
+      this->video);
 
-		this->drawCanvas->RegisterCanva(
-			this->fade->Render, 4,
-			{ 0, 0, static_cast<float>(windowWidth), static_cast<float>(windowHeight) },
-			this->fade);
+  this->drawCanvas->RegisterCanva(
+      KotonohaTextRenderDraw, 3,
+      {0, 0, static_cast<float>(windowWidth), static_cast<float>(windowHeight)},
+      this->sb);
 
-		this->scriptPath = scriptPath ? scriptPath : "";
-		this->eventManager = new Event(this->scriptPath.c_str(), this, gameContext, font);
+  this->drawCanvas->RegisterCanva(
+      this->fade->Render, 4,
+      {0, 0, static_cast<float>(windowWidth), static_cast<float>(windowHeight)},
+      this->fade);
 
-#ifdef ANDROID
-		playOnlyOnFocus = true;
-		lastPauseStatus = gameContext->paused;
+  this->scriptPath = scriptPath ? scriptPath : "";
+  this->eventManager =
+      new Event(this->scriptPath.c_str(), this, gameContext, font);
+#if defined(__ANDROID__) || defined(ANDROID)
+  playOnlyOnFocus = true;
+  lastPauseStatus = gameContext->config.paused;
 #endif
-	}
+}
 
-	SDL_AppResult Gameplay::Main(struct Kotonoha_Game* gameContext) {
-		if (gameContext == nullptr || eventManager == nullptr || drawCanvas == nullptr) {
-			return SDL_APP_FAILURE;
-		}
-		if (firstFocus) {
-			UpdateCanvasSize(gameContext->window, gameContext->render);
-			if (!Kotonoha_timeIsStarted(tm)) {
-				Kotonoha_timeStart(tm);
-			}
-			firstFocus = false;
-		}
-		else if (eventManager->CheckEnd(this)) {
-			if (loop) {
-				Reset(true);
-			}
-			else {
-				gameContext->next = true;
-				return SDL_APP_SUCCESS;
-			}
-		}
+SDL_AppResult Gameplay::Main(Kotonoha_Game *gameContext) {
+  if (gameContext == nullptr || eventManager == nullptr ||
+      drawCanvas == nullptr) {
+    return SDL_APP_FAILURE;
+  }
+  if (firstFocus) {
+    UpdateCanvasSize(gameContext->window, gameContext->render);
+    if (!KotonohaTimeIsStarted(tm)) {
+      KotonohaTimeStart(tm);
+    }
+    firstFocus = false;
+  } else if (eventManager->CheckEnd(this)) {
+    if (loop) {
+      Reset(true);
+    } else {
+      gameContext->config.next = true;
+      return SDL_APP_SUCCESS;
+    }
+  }
 
-		eventManager->ActivateSubtitles();
-		UpdateDeltaTime();
+  eventManager->ActivateSubtitles();
+  UpdateDeltaTime();
 
-		if (this->putPrompt && this->prompt != nullptr) {
-			drawCanvas->RegisterCanva(
-				this->prompt->Render, 2,
-				{ 0, 0, static_cast<float>(windowWidth), static_cast<float>(windowHeight) },
-				this->prompt);
-			this->putPrompt = false;
-		}
+  if (this->putPrompt && this->prompt != nullptr) {
 
-		const SDL_AppResult result = drawCanvas->RenderCanvas(
-			gameContext->window, gameContext->render, &gameContext->eventQueu);
+    drawCanvas->RegisterCanva(this->prompt->Render, 2,
 
-		UpdateLoadingPause(gameContext);
-		if (gameContext->paused) {
-			Pause();
-		}
-		else {
-			Resume();
-		}
+                              {0, 0, static_cast<float>(windowWidth),
 
-		UpdateTriggers(GetDeltaTime());
-		Kotonoha_eventFree(&gameContext->eventQueu);
-		return result;
-	}
+                               static_cast<float>(windowHeight)},
 
-	void Gameplay::Pause() {
-		Kotonoha_timePause(this->tm);
-	}
+                              this->prompt);
 
-	void Gameplay::Resume() {
-		Kotonoha_timeResume(this->tm);
-	}
+    this->putPrompt = false;
+  }
 
-	void Gameplay::UpdateDeltaTime() {
-		const Uint64 nowNs = SDL_GetTicksNS();
+  const SDL_AppResult result =
 
-		if (lastFrameNs == 0) {
-			lastFrameNs = nowNs;
-			deltaTime = 0.0f;
-			return;
-		}
+      drawCanvas->RenderCanvas(gameContext->window, gameContext->render);
 
-		const Uint64 elapsedNs = nowNs - lastFrameNs;
-		lastFrameNs = nowNs;
+  UpdateLoadingPause(gameContext);
 
-		deltaTime =
-			static_cast<float>(elapsedNs) / 1e9f;
+  if (gameContext->config.paused) {
+    Pause();
+  } else {
+    Resume();
+  }
 
-		// Evita saltos enormes após pausas, breakpoints ou perda de foco.
-		constexpr float kMaxDeltaTime = 0.25f;
-		if (deltaTime > kMaxDeltaTime) {
-			deltaTime = kMaxDeltaTime;
-		}
-	}
+  UpdateTriggers(GetDeltaTime());
+  return result;
+}
 
-	float Gameplay::GetDeltaTime() const {
-		return deltaTime;
-	}
+void Gameplay::Pause() { KotonohaTimePause(this->tm); }
 
-	void Gameplay::Reset(bool resetTime) {
+void Gameplay::Resume() { KotonohaTimeResume(this->tm); }
+
+void Gameplay::UpdateDeltaTime() {
+  const Uint64 nowNs = SDL_GetTicksNS();
+
+  if (lastFrameNs == 0) {
+    lastFrameNs = nowNs;
+    deltaTime = 0.0f;
+    return;
+  }
+
+  const Uint64 elapsedNs = nowNs - lastFrameNs;
+  lastFrameNs = nowNs;
+  deltaTime = static_cast<float>(elapsedNs) / 1e9f;
+
+  // Evita saltos enormes após pausas, breakpoints ou perda de foco.
+  constexpr float kMaxDeltaTime = 0.25f;
+
+  if (deltaTime > kMaxDeltaTime) {
+    deltaTime = kMaxDeltaTime;
+  }
+}
+
+float Gameplay::GetDeltaTime() const { return deltaTime; }
+
+bool Gameplay::ShouldShowLoadingOverlay() const {
+  return KotonohaIOMonitorIsLoading(&ioMonitor) ||
+         SDL_GetTicks() < loadingOverlayVisibleUntil;
+}
+
+void Gameplay::Reset(bool resetTime) {
 
 #ifdef KOTONOHA_HAS_METALFX
-		Kotonoha_MetalFXClearScalerCache();
+  KotonohaMetalFXClearScalerCache();
 #endif
 
-		fade->Reset();
-		if (resetTime) {
-			drawCanvas->Reset();
-			video->Reset();
-			image->Reset();
-			firstFocus = true;
-			Kotonoha_timeReset(tm, true);
-		}
-		eventManager->Reset(this);
-	}
+  fade->Reset();
+  if (resetTime) {
+    drawCanvas->Reset();
+    video->Reset();
+    image->Reset();
+    firstFocus = true;
+    KotonohaTimeReset(tm, true);
+  }
+  eventManager->Reset(this);
+}
 
-	void Gameplay::SeekForward(Uint64 ms) {
-		Kotonoha_timeSeekForward(this->tm, ms);
-	}
+void Gameplay::SeekForward(Uint64 ms) { KotonohaTimeSeekForward(this->tm, ms); }
 
-	void Gameplay::SeekBackward(Uint64 ms) {
-		Kotonoha_timeSeekBackward(this->tm, ms);
-		Reset(false);
-	}
+void Gameplay::SeekBackward(Uint64 ms) {
+  KotonohaTimeSeekBackward(this->tm, ms);
+  Reset(false);
+}
 
-	float Gameplay::GetLastTime() {
-		return MsToSeconds(static_cast<Uint64>(this->eventManager->lastTime));
-	}
+float Gameplay::GetLastTime() {
+  return MsToSeconds(static_cast<Uint64>(this->eventManager->lastTime));
+}
 
-	float Gameplay::GetTime() {
-		return MsToSeconds(Kotonoha_timeGet(this->tm));
-	}
+float Gameplay::GetTime() { return MsToSeconds(KotonohaTimeGet(this->tm)); }
 
-	void Gameplay::SetTime(float time) {
-		const float currentTime = GetTime();
-		Kotonoha_timeSet(this->tm, static_cast<Uint64>(time * 1000.0f));
-		if (time < currentTime) {
-			Reset(false);
-		}
-	}
+void Gameplay::SetTime(float time) {
+  const float currentTime = GetTime();
+  KotonohaTimeSet(this->tm, static_cast<Uint64>(time * 1000.0f));
+  if (time < currentTime) {
+    Reset(false);
+  }
+}
 
-	Gameplay::~Gameplay() {
-		Kotonoha_IOMonitorCancel(&ioMonitor);
-		delete this->eventManager;
-		delete this->video;
-		delete this->image;
-		delete this->audio;
-		delete this->drawCanvas;
-		delete this->fade;
+void Gameplay::SetMediaActive(bool active) {
+  mediaActive.store(active, std::memory_order_release);
+}
 
-		if (prompt) {
-			delete prompt;
-			prompt = nullptr;
-		}
+bool Gameplay::IsMediaActive() const {
+  return mediaActive.load(std::memory_order_acquire);
+}
 
-		Kotonoha_IOMonitorBindNetworkWaitFlag(&ioMonitor, nullptr);
-		Kotonoha_TextRenderShutdown(&(this->sb));
-		Kotonoha_timeDestroy(this->tm);
-	}
+Gameplay::~Gameplay() {
+  SetMediaActive(false);
+  KotonohaIOMonitorCancel(&ioMonitor);
+
+  delete this->eventManager;
+  delete this->video;
+  delete this->image;
+  delete this->audio;
+  delete this->drawCanvas;
+  delete this->fade;
+
+  if (prompt) {
+    delete prompt;
+    prompt = nullptr;
+  }
+
+  KotonohaIOMonitorBindNetworkWaitFlag(&ioMonitor, nullptr);
+  KotonohaTextRenderShutdown(&(this->sb));
+  KotonohaTimeDestroy(this->tm);
+}
 
 } // namespace Kotonoha

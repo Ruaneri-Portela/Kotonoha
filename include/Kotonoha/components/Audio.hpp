@@ -12,28 +12,26 @@ extern "C" {
 namespace Kotonoha {
 class Audio {
 private:
-  struct Kotonoha_audioDecode *AddMediaInternal(
-      const char *path, Uint64 start, Uint64 end, bool inLoop,
-      const char *channel, struct Kotonoha_audioDecode *loopMedia);
-  std::vector<std::tuple<Sound::Channel *,
-                         std::vector<std::tuple<struct Kotonoha_audioDecode *,
-                                                Sound::Channel::Pipe *>>>>
+  Kotonoha_AudioDecode *AddMediaInternal(const char *path, Uint64 start,
+                                         Uint64 end, bool inLoop,
+                                         const char *channel,
+                                         Kotonoha_AudioDecode *loopMedia);
+  std::vector<std::tuple<
+      Sound::Channel *,
+      std::vector<std::tuple<Kotonoha_AudioDecode *, Sound::Channel::Pipe *>>>>
       mediaObjects;
   Sound *soundCtx = nullptr;
-  struct Kotonoha_time *timeCtx = nullptr;
+  Kotonoha_Time *timeCtx = nullptr;
   Kotonoha_IOMonitor *ioMonitor = nullptr;
 
 public:
-  Audio(Sound *soundCtx, struct Kotonoha_time *timeCtx,
-        Kotonoha_IOMonitor *ioMonitor);
-  struct Kotonoha_audioDecode *AddMedia(const char *path, Uint64 start,
-                                        Uint64 end, bool inLoop,
-                                        const char *channel);
-  struct Kotonoha_audioDecode *AddIntroLoopMedia(const char *introPath,
-                                                 const char *loopPath,
-                                                 Uint64 start, Uint64 end,
-                                                 const char *channel);
-  void RemoveMedia(struct Kotonoha_audioDecode *mediaPtr);
+  Audio(Sound *soundCtx, Kotonoha_Time *timeCtx, Kotonoha_IOMonitor *ioMonitor);
+  Kotonoha_AudioDecode *AddMedia(const char *path, Uint64 start, Uint64 end,
+                                 bool inLoop, const char *channel);
+  Kotonoha_AudioDecode *AddIntroLoopMedia(const char *introPath,
+                                          const char *loopPath, Uint64 start,
+                                          Uint64 end, const char *channel);
+  void RemoveMedia(Kotonoha_AudioDecode *mediaPtr);
   static int RenderMedia(void *data, Uint8 **target, int *size);
   ~Audio();
 };

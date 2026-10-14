@@ -30,7 +30,7 @@ private:
     long long duration;
   };
 
-  Kotonoha_orsData eventsFromScript;
+  Kotonoha_OrsData eventsFromScript;
   static int EventManager(void *data);
   SDL_Mutex *eventMutex = nullptr;
   ASS_Track *subtitleTrack = nullptr;
@@ -39,17 +39,18 @@ private:
   std::vector<Video *> videoToDelete;
   std::vector<Image *> imageToDelete;
   std::vector<Audio *> audioToDeleta;
-  std::unordered_map<const Kotonoha_orsEvent *, VoiceAnimation> voiceAnimations;
-  std::unordered_map<const Kotonoha_orsEvent *, Kotonoha_IOMonitorOperation>
+  std::unordered_map<const Kotonoha_OrsEvent *, VoiceAnimation> voiceAnimations;
+  std::unordered_map<const Kotonoha_OrsEvent *, Kotonoha_IOMonitorOperation>
       pendingAssetLoads;
 
   void SetSubtitlesActive(bool active);
 
 public:
   Uint64 lastTime = 0;
-  Event(const char *orsPath, void *gameplay, struct Kotonoha_Game *gameCtx, TTF_Font *font);
+  Event(const char *orsPath, void *gameplay, Kotonoha_Game *gameCtx,
+        TTF_Font *font);
   void ActivateSubtitles();
-  void Reset(void* gameplay);
+  void Reset(void *gameplay);
   bool CheckEnd(void *gameplay);
   ~Event();
 };

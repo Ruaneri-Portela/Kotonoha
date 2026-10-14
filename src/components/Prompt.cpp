@@ -1,278 +1,260 @@
+#include <Kotonoha/components/Audio.hpp>
 #include <Kotonoha/components/Prompt.hpp>
-#include <SDL3/SDL_stdinc.h>
 #include <SDL3_ttf/SDL_ttf.h>
 #include <string>
 #include <vector>
 
 namespace Kotonoha {
 
-	namespace {
-		struct PromptLayoutItem {
-			int originalIndex;
-			SDL_Rect rect;
-		};
+namespace {
 
-		static bool PromptTextValid(const std::string& text) {
-			return !text.empty();
-		}
+bool PromptTextValid(const std::string &text) { return !text.empty(); }
 
-		static std::vector<int> BuildVisiblePromptIndices(
-			const std::vector<std::string>& items) {
-			std::vector<int> indices;
-			indices.reserve(items.size());
+std::vector<int>
+BuildVisiblePromptIndices(const std::vector<std::string> &items) {
+  std::vector<int> indices;
+  indices.reserve(items.size());
 
-			for (int i = 0; i < static_cast<int>(items.size()); ++i) {
-				if (PromptTextValid(items[i])) {
-					indices.push_back(i);
-				}
-			}
+  for (int i = 0; i < static_cast<int>(items.size()); ++i) {
+    if (PromptTextValid(items[i])) {
+      indices.push_back(i);
+    }
+  }
 
-			return indices;
-		}
-	} // namespace
+  return indices;
+}
 
-	Prompt::Prompt(std::vector<std::string> prompt,
-		int* promptResult,
-		Uint64 start,
-		Uint64 end,
-		Kotonoha_time* time,
-		TTF_Font * font)
-		: prompt(std::move(prompt)),
-		promptResult(promptResult),
-		time(time),
-		startTime(start),
-		endTime(end),
-		font(font) {
-	}
+} // namespace
 
-	enum Kotonoha_Scene_Status Prompt::Render(KOTONOHA_SCENE_CALL) {
-		if (userData == nullptr || render == nullptr || target == nullptr) {
-			return KOTONOHA_SCENE_NULL;
-		}
+Prompt::Prompt(std::vector<std::string> prompt, int *promptResult, Uint64 start,
+               Uint64 end, Kotonoha_Time *time, TTF_Font *font,
+               const char *clickAudioPath)
+    : prompt(std::move(prompt)), promptResult(promptResult), time(time),
+      startTime(start), endTime(end), font(font),
+      audioPath(clickAudioPath ? clickAudioPath : "assets/Se/click.ogg") {}
 
-		auto* promptObj = static_cast<Prompt*>(userData);
+void Prompt::HandleEvent(SDL_Event *event, struct Kotonoha_Game *gameContext,
+                         Audio *audioManager) {
+  if (event == nullptr || promptResult == nullptr || lastLayout.empty()) {
+    return;
+  }
 
-		if (promptObj->font == nullptr || promptObj->time == nullptr ||
-			promptObj->promptResult == nullptr) {
-			return KOTONOHA_SCENE_NULL;
-		}
+  float clickX = -1.0f;
+  float clickY = -1.0f;
+  bool isClick = false;
 
-		bool inRange = false;
-		Sint64 diff = 0;
-		(void)diff;
+  if (event->type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
+      event->button.button == SDL_BUTTON_LEFT) {
+    clickX = event->button.x;
+    clickY = event->button.y;
+    isClick = true;
+  } else if (event->type == SDL_EVENT_FINGER_DOWN && gameContext != nullptr &&
+             gameContext->window != nullptr) {
+    int w = 0, h = 0;
+    SDL_GetWindowSize(gameContext->window, &w, &h);
+    clickX = event->tfinger.x * static_cast<float>(w);
+    clickY = event->tfinger.y * static_cast<float>(h);
+    isClick = true;
+  }
 
-		Kotonoha_timeGetFromEvent(promptObj->time,
-			promptObj->startTime,
-			promptObj->endTime,
-			&inRange,
-			&diff);
+  if (!isClick) {
+    return;
+  }
 
-		if (!inRange) {
-			return KOTONOHA_SCENE_NULL;
-		}
+  for (const auto &item : lastLayout) {
+    const bool hit =
+        clickX >= item.rect.x && clickX <= (item.rect.x + item.rect.w) &&
+        clickY >= item.rect.y && clickY <= (item.rect.y + item.rect.h);
 
-		const std::vector<int> visibleIndices =
-			BuildVisiblePromptIndices(promptObj->prompt);
+    if (hit) {
+      if (*promptResult == item.originalIndex) {
+        *promptResult = -1;
+      } else {
+        *promptResult = item.originalIndex;
+      }
 
-		if (visibleIndices.empty()) {
-			return KOTONOHA_SCENE_DRAW_OVERLAYED;
-		}
+      // Toca o áudio de seleção imediatamente
+      if (audioManager != nullptr && !audioPath.empty() && time != nullptr) {
+        const Uint64 nowMs = KotonohaTimeGet(time);
+        audioManager->AddMedia(audioPath.c_str(), nowMs, nowMs + 3000, false,
+                               "Se");
+      }
+      break;
+    }
+  }
+}
 
-		float mouseX = 0.0f;
-		float mouseY = 0.0f;
-		SDL_GetMouseState(&mouseX, &mouseY);
+enum Kotonoha_Scene_Status Prompt::Render(KOTONOHA_SCENE_CALL) {
+  if (userData == nullptr || render == nullptr || target == nullptr) {
+    return KOTONOHA_SCENE_NULL;
+  }
 
-		std::vector<PromptLayoutItem> layout;
-		layout.reserve(visibleIndices.size());
+  auto *promptObj = static_cast<Prompt *>(userData);
 
-		const int targetW = static_cast<int>(target->w);
-		const int targetH = static_cast<int>(target->h);
-		const int centerY = targetH / 2;
-		const int halfW = targetW / 2;
-		const int paddingX = 24;
-		const int paddingY = 16;
+  if (promptObj->font == nullptr || promptObj->time == nullptr ||
+      promptObj->promptResult == nullptr) {
+    return KOTONOHA_SCENE_NULL;
+  }
 
-		if (visibleIndices.size() == 1) {
-			const int idx = visibleIndices[0];
+  bool inRange = false;
+  Sint64 diff = 0;
+  KotonohaTimeGetFromEvent(promptObj->time, promptObj->startTime,
+                           promptObj->endTime, &inRange, &diff);
 
-			int textW = 0;
-			int textH = 0;
-			if (!TTF_GetStringSize(promptObj->font,
-				promptObj->prompt[idx].c_str(),
-				promptObj->prompt[idx].size(),
-				&textW,
-				&textH)) {
-				SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
-					"Failed to measure prompt text: %s",
-					SDL_GetError());
-				return KOTONOHA_SCENE_DRAW_OVERLAYED;
-			}
+  if (!inRange) {
+    promptObj->lastLayout.clear();
+    return KOTONOHA_SCENE_NULL;
+  }
 
-			SDL_Rect rect{};
-			rect.w = textW + paddingX * 2;
-			rect.h = textH + paddingY * 2;
-			rect.x = (targetW - rect.w) / 2;
-			rect.y = (targetH - rect.h) / 2;
+  const std::vector<int> visibleIndices =
+      BuildVisiblePromptIndices(promptObj->prompt);
 
-			layout.push_back({ idx, rect });
-		}
-		else {
-			const size_t count = visibleIndices.size() > 2 ? 2 : visibleIndices.size();
+  if (visibleIndices.empty()) {
+    promptObj->lastLayout.clear();
+    return KOTONOHA_SCENE_DRAW_OVERLAYED;
+  }
 
-			for (size_t slot = 0; slot < count; ++slot) {
-				const int idx = visibleIndices[slot];
+  float mouseX = 0.0f;
+  float mouseY = 0.0f;
+  SDL_GetMouseState(&mouseX, &mouseY);
 
-				int textW = 0;
-				int textH = 0;
-				if (!TTF_GetStringSize(promptObj->font,
-					promptObj->prompt[idx].c_str(),
-					promptObj->prompt[idx].size(),
-					&textW,
-					&textH)) {
-					SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
-						"Failed to measure prompt text: %s",
-						SDL_GetError());
-					continue;
-				}
+  std::vector<PromptLayoutItem> layout;
+  layout.reserve(visibleIndices.size());
 
-				SDL_Rect rect{};
-				rect.w = textW + paddingX * 2;
-				rect.h = textH + paddingY * 2;
+  const int targetW = static_cast<int>(target->w);
+  const int targetH = static_cast<int>(target->h);
+  const int centerY = targetH / 2;
+  const int halfW = targetW / 2;
+  const int paddingX = 24;
+  const int paddingY = 16;
 
-				const int regionX = (slot == 0) ? 0 : halfW;
-				const int regionW = halfW;
+  if (visibleIndices.size() == 1) {
+    const int idx = visibleIndices[0];
 
-				rect.x = regionX + (regionW - rect.w) / 2;
-				rect.y = centerY - (rect.h / 2);
+    int textW = 0;
+    int textH = 0;
+    if (!TTF_GetStringSize(promptObj->font, promptObj->prompt[idx].c_str(),
+                           promptObj->prompt[idx].size(), &textW, &textH)) {
+      SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
+                   "Failed to measure prompt text: %s", SDL_GetError());
+      return KOTONOHA_SCENE_DRAW_OVERLAYED;
+    }
 
-				layout.push_back({ idx, rect });
-			}
-		}
+    SDL_FRect rect{};
+    rect.w = static_cast<float>(textW + paddingX * 2);
+    rect.h = static_cast<float>(textH + paddingY * 2);
+    rect.x = static_cast<float>(targetW - rect.w) / 2.0f;
+    rect.y = static_cast<float>(targetH - rect.h) / 2.0f;
 
-		void* persistent = nullptr;
-		SDL_Event event{};
+    layout.push_back({idx, rect});
+  } else {
+    const size_t count = visibleIndices.size() > 2 ? 2 : visibleIndices.size();
 
-		do {
-			event = Kotonoha_eventRead(eventQueu, &persistent);
+    for (size_t slot = 0; slot < count; ++slot) {
+      const int idx = visibleIndices[slot];
 
-			if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
-				event.button.button == SDL_BUTTON_LEFT) {
-				for (const auto& item : layout) {
-					const bool hovered =
-						mouseX >= item.rect.x &&
-						mouseX <= (item.rect.x + item.rect.w) &&
-						mouseY >= item.rect.y &&
-						mouseY <= (item.rect.y + item.rect.h);
+      int textW = 0;
+      int textH = 0;
+      if (!TTF_GetStringSize(promptObj->font, promptObj->prompt[idx].c_str(),
+                             promptObj->prompt[idx].size(), &textW, &textH)) {
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
+                     "Failed to measure prompt text: %s", SDL_GetError());
+        continue;
+      }
 
-					if (!hovered) {
-						continue;
-					}
+      SDL_FRect rect{};
+      rect.w = static_cast<float>(textW + paddingX * 2);
+      rect.h = static_cast<float>(textH + paddingY * 2);
 
-					if (*(promptObj->promptResult) == item.originalIndex) {
-						*(promptObj->promptResult) = -1;
-					}
-					else {
-						*(promptObj->promptResult) = item.originalIndex;
-					}
-					break;
-				}
-			}
-		} while (persistent != nullptr);
+      const float regionX = (slot == 0) ? 0.0f : static_cast<float>(halfW);
+      const float regionW = static_cast<float>(halfW);
 
-		for (const auto& item : layout) {
-			const bool hovered =
-				mouseX >= item.rect.x &&
-				mouseX <= (item.rect.x + item.rect.w) &&
-				mouseY >= item.rect.y &&
-				mouseY <= (item.rect.y + item.rect.h);
+      rect.x = regionX + (regionW - rect.w) / 2.0f;
+      rect.y = static_cast<float>(centerY) - (rect.h / 2.0f);
 
-			const bool selected = (*(promptObj->promptResult) == item.originalIndex);
+      layout.push_back({idx, rect});
+    }
+  }
 
-			SDL_Color fg = selected
-				? SDL_Color{ 255, 230, 120, 255 }
-				: hovered
-				? SDL_Color{ 180, 220, 255, 255 }
-			: SDL_Color{ 255, 255, 255, 255 };
+  promptObj->lastLayout = layout;
 
-			SDL_Color shadow = { 0, 0, 0,static_cast<Uint8>(hovered ? 200 : 160) };
+  for (const auto &item : layout) {
+    const bool hovered =
+        mouseX >= item.rect.x && mouseX <= (item.rect.x + item.rect.w) &&
+        mouseY >= item.rect.y && mouseY <= (item.rect.y + item.rect.h);
 
-			SDL_Surface* shadowSurface =
-				TTF_RenderText_Blended(promptObj->font,
-					promptObj->prompt[item.originalIndex].c_str(),
-					promptObj->prompt[item.originalIndex].size(),
-					shadow);
-			if (shadowSurface == nullptr) {
-				SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
-					"Failed to render prompt shadow surface: %s",
-					SDL_GetError());
-				continue;
-			}
+    const bool selected = (*(promptObj->promptResult) == item.originalIndex);
 
-			SDL_Texture* shadowTexture =
-				SDL_CreateTextureFromSurface(render, shadowSurface);
-			if (shadowTexture == nullptr) {
-				SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
-					"Failed to create prompt shadow texture: %s",
-					SDL_GetError());
-				SDL_DestroySurface(shadowSurface);
-				continue;
-			}
+    SDL_Color fg = selected  ? SDL_Color{255, 230, 120, 255}
+                   : hovered ? SDL_Color{180, 220, 255, 255}
+                             : SDL_Color{255, 255, 255, 255};
 
-			SDL_Surface* textSurface =
-				TTF_RenderText_Blended(promptObj->font,
-					promptObj->prompt[item.originalIndex].c_str(),
-					promptObj->prompt[item.originalIndex].size(),
-					fg);
-			if (textSurface == nullptr) {
-				SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
-					"Failed to render prompt text surface: %s",
-					SDL_GetError());
-				SDL_DestroyTexture(shadowTexture);
-				SDL_DestroySurface(shadowSurface);
-				continue;
-			}
+    SDL_Color shadow = {0, 0, 0, static_cast<Uint8>(hovered ? 200 : 160)};
 
-			SDL_Texture* textTexture =
-				SDL_CreateTextureFromSurface(render, textSurface);
-			if (textTexture == nullptr) {
-				SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
-					"Failed to create prompt text texture: %s",
-					SDL_GetError());
-				SDL_DestroySurface(textSurface);
-				SDL_DestroyTexture(shadowTexture);
-				SDL_DestroySurface(shadowSurface);
-				continue;
-			}
+    SDL_Surface *shadowSurface = TTF_RenderText_Blended(
+        promptObj->font, promptObj->prompt[item.originalIndex].c_str(),
+        promptObj->prompt[item.originalIndex].size(), shadow);
+    if (shadowSurface == nullptr) {
+      SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
+                   "Failed to render prompt shadow surface: %s",
+                   SDL_GetError());
+      continue;
+    }
 
-			SDL_SetTextureBlendMode(shadowTexture, SDL_BLENDMODE_BLEND);
+    SDL_Texture *shadowTexture =
+        SDL_CreateTextureFromSurface(render, shadowSurface);
+    if (shadowTexture == nullptr) {
+      SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
+                   "Failed to create prompt shadow texture: %s",
+                   SDL_GetError());
+      SDL_DestroySurface(shadowSurface);
+      continue;
+    }
 
-			SDL_FRect shadowRect = {
-				static_cast<float>(item.rect.x + paddingX + 3),
-				static_cast<float>(item.rect.y + paddingY + 3),
-				static_cast<float>(shadowSurface->w),
-				static_cast<float>(shadowSurface->h)
-			};
+    SDL_Surface *textSurface = TTF_RenderText_Blended(
+        promptObj->font, promptObj->prompt[item.originalIndex].c_str(),
+        promptObj->prompt[item.originalIndex].size(), fg);
+    if (textSurface == nullptr) {
+      SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
+                   "Failed to render prompt text surface: %s", SDL_GetError());
+      SDL_DestroyTexture(shadowTexture);
+      SDL_DestroySurface(shadowSurface);
+      continue;
+    }
 
-			SDL_FRect textRect = {
-				static_cast<float>(item.rect.x + paddingX),
-				static_cast<float>(item.rect.y + paddingY),
-				static_cast<float>(textSurface->w),
-				static_cast<float>(textSurface->h)
-			};
+    SDL_Texture *textTexture =
+        SDL_CreateTextureFromSurface(render, textSurface);
+    if (textTexture == nullptr) {
+      SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
+                   "Failed to create prompt text texture: %s", SDL_GetError());
+      SDL_DestroySurface(textSurface);
+      SDL_DestroyTexture(shadowTexture);
+      SDL_DestroySurface(shadowSurface);
+      continue;
+    }
 
-			SDL_RenderTexture(render, shadowTexture, nullptr, &shadowRect);
-			SDL_RenderTexture(render, textTexture, nullptr, &textRect);
+    SDL_SetTextureBlendMode(shadowTexture, SDL_BLENDMODE_BLEND);
 
-			SDL_DestroyTexture(textTexture);
-			SDL_DestroySurface(textSurface);
-			SDL_DestroyTexture(shadowTexture);
-			SDL_DestroySurface(shadowSurface);
-		}
+    SDL_FRect shadowRect = {item.rect.x + static_cast<float>(paddingX) + 3.0f,
+                            item.rect.y + static_cast<float>(paddingY) + 3.0f,
+                            static_cast<float>(shadowSurface->w),
+                            static_cast<float>(shadowSurface->h)};
 
-		return KOTONOHA_SCENE_DRAW_OVERLAYED;
-	}
+    SDL_FRect textRect = {item.rect.x + static_cast<float>(paddingX),
+                          item.rect.y + static_cast<float>(paddingY),
+                          static_cast<float>(textSurface->w),
+                          static_cast<float>(textSurface->h)};
 
-	Prompt::~Prompt() {
-	}
+    SDL_RenderTexture(render, shadowTexture, nullptr, &shadowRect);
+    SDL_RenderTexture(render, textTexture, nullptr, &textRect);
+
+    SDL_DestroyTexture(textTexture);
+    SDL_DestroySurface(textSurface);
+    SDL_DestroyTexture(shadowTexture);
+    SDL_DestroySurface(shadowSurface);
+  }
+
+  return KOTONOHA_SCENE_DRAW_OVERLAYED;
+}
 
 } // namespace Kotonoha

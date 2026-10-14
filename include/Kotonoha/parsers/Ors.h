@@ -5,7 +5,7 @@
 
 #define MIMUMUM_LINE_SIZE 1024
 
-enum Kotonoha_orsType {
+enum KotonohaOrsType {
   CREATE_BG,
   PLAY_SE,
   PLAY_MOVIE,
@@ -22,83 +22,82 @@ enum Kotonoha_orsType {
   UNKNOWN
 };
 
-enum Kotonoha_orsFadecolor { BLACK, WHITE };
+enum KotonohaOrsFadecolor { BLACK, WHITE };
 
-struct Kotonoha_orsTypeCreateBg {
+struct KotonohaOrsTypeCreateBg {
   char *a;
   char *path;
 };
 
-struct Kotonoha_orsTypePlaySe {
+struct KotonohaOrsTypePlaySe {
   Uint64 a;
   char *path;
 };
 
-struct Kotonoha_orsTypePlayMovie {
+struct KotonohaOrsTypePlayMovie {
   char *path;
   Uint64 a;
 };
 
-struct Kotonoha_orsTypeFade {
-  enum Kotonoha_orsFadecolor color;
+struct KotonohaOrsTypeFade {
+  enum KotonohaOrsFadecolor color;
   bool a;
 };
 
-struct Kotonoha_orsTypePathEnd {
+struct KotonohaOrsTypePathEnd {
   char *path;
 };
 
-struct Kotonoha_orsTypePrintText {
+struct KotonohaOrsTypePrintText {
   char *character;
   char *text;
 };
 
-struct Kotonoha_orsTypePlayVoice {
+struct KotonohaOrsTypePlayVoice {
   char *path;
   Uint64 a;
   char *character_short;
 };
 
-struct Kotonoha_orsTypeUnknown {
+struct KotonohaOrsTypeUnknown {
   char *line;
 };
 
-struct Kotonoha_orsSetSELECT {
+struct KotonohaOrsSetSELECT {
   char **options;
   Uint64 size;
 };
 
-union Kotonoha_orsTypeGeneric {
-  struct Kotonoha_orsTypeCreateBg *create_bg;
-  struct Kotonoha_orsTypePlaySe *play_se;
-  struct Kotonoha_orsTypePlayMovie *play_movie;
-  struct Kotonoha_orsTypeFade *fade;
-  struct Kotonoha_orsTypePrintText *print_text;
-  struct Kotonoha_orsTypePlayVoice *play_voice;
-  struct Kotonoha_orsSetSELECT *set_select;
-  struct Kotonoha_orsTypePathEnd *path_end;
-  struct Kotonoha_orsTypeUnknown *unknown;
-};
+typedef union Kotonoha_OrsTypeGeneric {
+  struct KotonohaOrsTypeCreateBg *create_bg;
+  struct KotonohaOrsTypePlaySe *play_se;
+  struct KotonohaOrsTypePlayMovie *play_movie;
+  struct KotonohaOrsTypeFade *fade;
+  struct KotonohaOrsTypePrintText *print_text;
+  struct KotonohaOrsTypePlayVoice *play_voice;
+  struct KotonohaOrsSetSELECT *set_select;
+  struct KotonohaOrsTypePathEnd *path_end;
+  struct KotonohaOrsTypeUnknown *unknown;
+} Kotonoha_OrsTypeGeneric;
 
-struct Kotonoha_orsEvent {
+typedef struct Kotonoha_OrsEvent {
   Uint64 start;
   Uint64 end;
-  enum Kotonoha_orsType command;
-  union Kotonoha_orsTypeGeneric data;
-  struct Kotonoha_orsEvent *next;
-  struct Kotonoha_orsEvent *prev;
+  enum KotonohaOrsType command;
+  union Kotonoha_OrsTypeGeneric data;
+  struct Kotonoha_OrsEvent *next;
+  struct Kotonoha_OrsEvent *prev;
   bool eventTouched;
-};
+} Kotonoha_OrsEvent;
 
-struct Kotonoha_orsData {
-  struct Kotonoha_orsEvent *data;
-  struct Kotonoha_orsEvent *last;
+typedef struct Kotonoha_OrsData {
+  struct Kotonoha_OrsEvent *data;
+  struct Kotonoha_OrsEvent *last;
   Uint64 size;
-};
+} Kotonoha_OrsData;
 
-struct Kotonoha_orsData Kotonoha_OrsParser(const char *input);
+Kotonoha_OrsData KotonohaOrsParser(const char *input);
 
-void Kotonoha_OrsClean(struct Kotonoha_orsData *events);
+void KotonohaOrsClean(Kotonoha_OrsData *events);
 
-void Kotonoka_OrsDelete(struct Kotonoha_orsData *events,
-                        struct Kotonoha_orsEvent *target);
+void KotonohaOrsDelete(Kotonoha_OrsData *events, Kotonoha_OrsEvent *target);

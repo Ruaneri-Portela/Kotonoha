@@ -7,7 +7,7 @@
 #include <libavutil/frame.h>
 #include <libswresample/swresample.h>
 
-struct Kotonoha_audioDecode {
+typedef struct Kotonoha_AudioDecode {
   AVFormatContext *formatCtx;
   AVCodecContext *codecCtx;
   SwrContext *swrCtx;
@@ -19,20 +19,20 @@ struct Kotonoha_audioDecode {
   Uint64 start, end, audioTime, lastTime;
   bool inLoop;
   int executions;
-  Kotonoha_time **tm;
+  Kotonoha_Time **tm;
   void *dataGeneric;
-  struct Kotonoha_audioDecode *loopMedia;
+  struct Kotonoha_AudioDecode *loopMedia;
   bool playingLoop;
-};
+} Kotonoha_AudioDecode;
 
 void genWhiteNoise(void *data, Uint8 **target, size_t *size);
 
-struct Kotonoha_audioDecode *Kotonoha_AudioInit(const char *path,
-                                                SDL_AudioSpec specification,
-                                                Kotonoha_IOMonitor *ioMonitor);
+struct Kotonoha_AudioDecode *KotonohaAudioInit(const char *path,
+                                               SDL_AudioSpec specification,
+                                               Kotonoha_IOMonitor *ioMonitor);
 
-void Kotonoha_AudioSeek(struct Kotonoha_audioDecode *ctx, Uint64 time);
+void KotonohaAudioSeek(struct Kotonoha_AudioDecode *ctx, Uint64 time);
 
-int Kotonoha_AudioRender(void *data, Uint8 **target, int *size);
+int KotonohaAudioRender(void *data, Uint8 **target, int *size);
 
-void Kotonoha_AudioFree(void *data);
+void KotonohaAudioFree(void *data);

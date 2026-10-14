@@ -388,11 +388,11 @@ id<MTLTexture> MetalFXUpscaleTextureInto(
 
 extern "C" {
 
-bool Kotonoha_MetalFXInit(SDL_Renderer *renderer)
+bool KotonohaMetalFXInit(SDL_Renderer *renderer)
 {
     @autoreleasepool {
         if (renderer == nullptr) {
-            SDL_SetError("Kotonoha_MetalFXInit: renderer nulo");
+            SDL_SetError("KotonohaMetalFXInit: renderer nulo");
             return false;
         }
 
@@ -405,7 +405,7 @@ bool Kotonoha_MetalFXInit(SDL_Renderer *renderer)
 
         if (probe == nullptr) {
             SDL_SetError(
-                "Kotonoha_MetalFXInit: "
+                "KotonohaMetalFXInit: "
                 "nao foi possivel criar textura de teste");
             return false;
         }
@@ -415,7 +415,7 @@ bool Kotonoha_MetalFXInit(SDL_Renderer *renderer)
 
         if (metalTexture == nil) {
             SDL_SetError(
-                "Kotonoha_MetalFXInit: "
+                "KotonohaMetalFXInit: "
                 "renderer nao expoe MTLTexture; use backend Metal");
             SDL_DestroyTexture(probe);
             return false;
@@ -425,7 +425,7 @@ bool Kotonoha_MetalFXInit(SDL_Renderer *renderer)
 
         if (g_metalDevice == nil) {
             SDL_SetError(
-                "Kotonoha_MetalFXInit: MTLDevice indisponivel");
+                "KotonohaMetalFXInit: MTLDevice indisponivel");
             SDL_DestroyTexture(probe);
             return false;
         }
@@ -434,7 +434,7 @@ bool Kotonoha_MetalFXInit(SDL_Renderer *renderer)
 
         if (!IsMetalFXAvailable(g_metalDevice)) {
             SDL_SetError(
-                "Kotonoha_MetalFXInit: "
+                "KotonohaMetalFXInit: "
                 "MetalFX nao esta disponivel neste device");
             g_metalDevice = nil;
             return false;
@@ -444,7 +444,7 @@ bool Kotonoha_MetalFXInit(SDL_Renderer *renderer)
 
         if (g_metalQueue == nil) {
             SDL_SetError(
-                "Kotonoha_MetalFXInit: "
+                "KotonohaMetalFXInit: "
                 "nao foi possivel criar MTLCommandQueue");
             g_metalDevice = nil;
             return false;
@@ -454,7 +454,7 @@ bool Kotonoha_MetalFXInit(SDL_Renderer *renderer)
     }
 }
 
-void Kotonoha_MetalFXShutdown(void)
+void KotonohaMetalFXShutdown(void)
 {
     @autoreleasepool {
         {
@@ -468,7 +468,7 @@ void Kotonoha_MetalFXShutdown(void)
     }
 }
 
-bool Kotonoha_MetalFXUpscaleSDLTextureInto(
+bool KotonohaMetalFXUpscaleSDLTextureInto(
     SDL_Renderer *renderer,
     SDL_Texture *inputTexture,
     SDL_Texture *outputTexture)
@@ -478,15 +478,15 @@ bool Kotonoha_MetalFXUpscaleSDLTextureInto(
             inputTexture == nullptr ||
             outputTexture == nullptr) {
             SDL_SetError(
-                "Kotonoha_MetalFXUpscaleSDLTextureInto: "
+                "KotonohaMetalFXUpscaleSDLTextureInto: "
                 "argumentos invalidos");
             return false;
         }
 
         if (g_metalDevice == nil || g_metalQueue == nil) {
             SDL_SetError(
-                "Kotonoha_MetalFXUpscaleSDLTextureInto: "
-                "chame Kotonoha_MetalFXInit antes de usar o upscaler");
+                "KotonohaMetalFXUpscaleSDLTextureInto: "
+                "chame KotonohaMetalFXInit antes de usar o upscaler");
             return false;
         }
 
@@ -503,7 +503,7 @@ bool Kotonoha_MetalFXUpscaleSDLTextureInto(
         if (outputWidth <= inputWidth ||
             outputHeight <= inputHeight) {
             SDL_SetError(
-                "Kotonoha_MetalFXUpscaleSDLTextureInto: "
+                "KotonohaMetalFXUpscaleSDLTextureInto: "
                 "textura de saida deve ser maior que entrada");
             return false;
         }
@@ -517,7 +517,7 @@ bool Kotonoha_MetalFXUpscaleSDLTextureInto(
         if (inputMetalTexture == nil ||
             outputMetalTexture == nil) {
             SDL_SetError(
-                "Kotonoha_MetalFXUpscaleSDLTextureInto: "
+                "KotonohaMetalFXUpscaleSDLTextureInto: "
                 "SDL_Texture nao expoe MTLTexture nativa");
             return false;
         }
@@ -525,7 +525,7 @@ bool Kotonoha_MetalFXUpscaleSDLTextureInto(
         if (inputMetalTexture.device != g_metalDevice ||
             outputMetalTexture.device != g_metalDevice) {
             SDL_SetError(
-                "Kotonoha_MetalFXUpscaleSDLTextureInto: "
+                "KotonohaMetalFXUpscaleSDLTextureInto: "
                 "textura usa MTLDevice diferente do device inicial");
             return false;
         }
@@ -535,7 +535,7 @@ bool Kotonoha_MetalFXUpscaleSDLTextureInto(
 
         if (commandBuffer == nil) {
             SDL_SetError(
-                "Kotonoha_MetalFXUpscaleSDLTextureInto: "
+                "KotonohaMetalFXUpscaleSDLTextureInto: "
                 "nao foi possivel criar MTLCommandBuffer");
             return false;
         }
@@ -548,7 +548,7 @@ bool Kotonoha_MetalFXUpscaleSDLTextureInto(
 
         if (result == nil) {
             SDL_SetError(
-                "Kotonoha_MetalFXUpscaleSDLTextureInto: "
+                "KotonohaMetalFXUpscaleSDLTextureInto: "
                 "MetalFX falhou ou textura nao suportada");
             return false;
         }
@@ -558,7 +558,7 @@ bool Kotonoha_MetalFXUpscaleSDLTextureInto(
 
         if (commandBuffer.error != nil) {
             SDL_SetError(
-                "Kotonoha_MetalFXUpscaleSDLTextureInto: erro Metal: %s",
+                "KotonohaMetalFXUpscaleSDLTextureInto: erro Metal: %s",
                 commandBuffer.error.localizedDescription.UTF8String);
             return false;
         }
@@ -567,7 +567,7 @@ bool Kotonoha_MetalFXUpscaleSDLTextureInto(
     }
 }
 
-void Kotonoha_MetalFXClearScalerCache(void)
+void KotonohaMetalFXClearScalerCache(void)
 {
     @autoreleasepool {
         std::lock_guard<std::mutex> lock(g_scalerMutex);
