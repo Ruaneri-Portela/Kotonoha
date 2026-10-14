@@ -601,7 +601,7 @@ Event::Event(const char *orsPath, void *gameplay, struct Kotonoha_Game *gameCtx,
       }
 
       gp->prompt =
-          new Prompt(options, &gp->promptId, startMs, endMs, gp->tm, font);
+          new Prompt(options, &gp->promptId, startMs, endMs, gp->tm, font,"assets/SESELECT.OGG");
       gp->putPrompt = true;
       break;
     }

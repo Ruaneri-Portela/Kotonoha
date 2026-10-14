@@ -226,12 +226,15 @@ void Gameplay::Reset(bool resetTime) {
   KotonohaMetalFXClearScalerCache();
 #endif
 
-  fade->Reset();
   if (resetTime) {
     if (this->demuxer != nullptr) {
       KotonohaDemuxerStop(this->demuxer);
     }
+    if (prompt != nullptr) {
+      prompt->Reset();
+    }
     drawCanvas->Reset();
+    fade->Reset();
     video->Reset();
     image->Reset();
     firstFocus = true;

@@ -44,6 +44,9 @@ public:
                    Audio *audioManager);
 
   static enum Kotonoha_Scene_Status Render(KOTONOHA_SCENE_CALL);
+
+  void Reset();
+
   ~Prompt();
 };
 
