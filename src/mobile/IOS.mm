@@ -1,11 +1,12 @@
 #if defined(__APPLE__)
 
 #import <Foundation/Foundation.h>
+#import <TargetConditionals.h>
 
 #include <string>
 
 
-extern "C" void Kotonoha_MobileSetupShared(
+extern "C" void KotonohaMobileSetupShared(
     const char* resourcesDir,
     const char* documentsDir,
     const char* platformName,
@@ -13,7 +14,7 @@ extern "C" void Kotonoha_MobileSetupShared(
 );
 
 
-static std::string Kotonoha_Apple_GetBundleResourcesPath()
+static std::string KotonohaAppleGetBundleResourcesPath()
 {
     @autoreleasepool {
         NSBundle* bundle = [NSBundle mainBundle];
@@ -26,7 +27,7 @@ static std::string Kotonoha_Apple_GetBundleResourcesPath()
 }
 
 
-static std::string Kotonoha_Apple_GetDocumentsPath()
+static std::string KotonohaAppleGetDocumentsPath()
 {
     @autoreleasepool {
         NSFileManager* fileManager =
@@ -45,23 +46,23 @@ static std::string Kotonoha_Apple_GetDocumentsPath()
 }
 
 
-extern "C" void Kotonoha_MobileSetup(void)
+extern "C" void KotonohaMobileSetup(void)
 {
     const std::string resourcesPath =
-        Kotonoha_Apple_GetBundleResourcesPath();
+        KotonohaAppleGetBundleResourcesPath();
 
     const std::string documentsPath =
-        Kotonoha_Apple_GetDocumentsPath();
+        KotonohaAppleGetDocumentsPath();
 
 #if TARGET_OS_OSX
-    Kotonoha_MobileSetupShared(
+    KotonohaMobileSetupShared(
         resourcesPath.c_str(),
         documentsPath.c_str(),
         "macOS",
         false
     );
 #else
-    Kotonoha_MobileSetupShared(
+    KotonohaMobileSetupShared(
         resourcesPath.c_str(),
         documentsPath.c_str(),
         "iOS",

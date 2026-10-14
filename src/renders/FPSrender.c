@@ -1,188 +1,172 @@
 #include <Kotonoha/renders/FpsRender.h>
 #include <Kotonoha/utils/OverlayRenderUtils.h>
 
-
 struct FPS_common {
-    SDL_Texture* texture;
-    SDL_Texture* shadow;
-    SDL_FRect rect;
-    SDL_Color color;
-    SDL_Color shadowColor;
-    char text[32];
-    Uint64 lastTime;
-    size_t count;
-    float windowScale;
+  SDL_Texture *texture;
+  SDL_Texture *shadow;
+  SDL_FRect rect;
+  SDL_Color color;
+  SDL_Color shadowColor;
+  char text[32];
+  Uint64 lastTime;
+  size_t count;
+  float windowScale;
 };
 
-static struct FPS_common* fpsCommon = NULL;
+static struct FPS_common *fpsCommon = NULL;
 
 static void DestroyFPSTextures(void) {
-    if (fpsCommon->shadow != NULL) {
-        SDL_DestroyTexture(fpsCommon->shadow);
-        fpsCommon->shadow = NULL;
-    }
+  if (fpsCommon->shadow != NULL) {
+    SDL_DestroyTexture(fpsCommon->shadow);
+    fpsCommon->shadow = NULL;
+  }
 
-    if (fpsCommon->texture != NULL) {
-        SDL_DestroyTexture(fpsCommon->texture);
-        fpsCommon->texture = NULL;
-    }
+  if (fpsCommon->texture != NULL) {
+    SDL_DestroyTexture(fpsCommon->texture);
+    fpsCommon->texture = NULL;
+  }
 }
 
-void Kotonoha_FPSRenderShutdown(void) {
-    if (fpsCommon == NULL) {
-        return;
-    }
+void KotonohaFPSRenderShutdown(void) {
+  if (fpsCommon == NULL) {
+    return;
+  }
 
-    DestroyFPSTextures();
-    SDL_free(fpsCommon);
-    fpsCommon = NULL;
+  DestroyFPSTextures();
+  SDL_free(fpsCommon);
+  fpsCommon = NULL;
 }
 
-static bool UpdateFPSTexture(SDL_Renderer* render, TTF_Font* font) {
-    if (render == NULL || font == NULL || fpsCommon == NULL) {
-        return false;
-    }
+static bool UpdateFPSTexture(SDL_Renderer *render, TTF_Font *font) {
+  if (render == NULL || font == NULL || fpsCommon == NULL) {
+    return false;
+  }
 
-    SDL_Texture* newShadow = NULL;
-    SDL_Texture* newTexture = NULL;
-    float textWidth = 0.0f;
-    float textHeight = 0.0f;
+  SDL_Texture *newShadow = NULL;
+  SDL_Texture *newTexture = NULL;
+  float textWidth = 0.0f;
+  float textHeight = 0.0f;
 
-    if (!Kotonoha_OverlayCreateTextTexture(
-            render,
-            font,
-            fpsCommon->text,
-            fpsCommon->shadowColor,
-            &newShadow,
-            &textWidth,
-            &textHeight)) {
-        return false;
-    }
+  if (!KotonohaOverlayCreateTextTexture(render, font, fpsCommon->text,
+                                        fpsCommon->shadowColor, &newShadow,
+                                        &textWidth, &textHeight)) {
+    return false;
+  }
 
-    if (!Kotonoha_OverlayCreateTextTexture(
-            render,
-            font,
-            fpsCommon->text,
-            fpsCommon->color,
-            &newTexture,
-            &textWidth,
-            &textHeight)) {
-        SDL_DestroyTexture(newShadow);
-        return false;
-    }
+  if (!KotonohaOverlayCreateTextTexture(render, font, fpsCommon->text,
+                                        fpsCommon->color, &newTexture,
+                                        &textWidth, &textHeight)) {
+    SDL_DestroyTexture(newShadow);
+    return false;
+  }
 
-    DestroyFPSTextures();
+  DestroyFPSTextures();
 
-    fpsCommon->shadow = newShadow;
-    fpsCommon->texture = newTexture;
-    fpsCommon->rect.w = textWidth;
-    fpsCommon->rect.h = textHeight;
+  fpsCommon->shadow = newShadow;
+  fpsCommon->texture = newTexture;
+  fpsCommon->rect.w = textWidth;
+  fpsCommon->rect.h = textHeight;
 
-    return true;
+  return true;
 }
 
-enum Kotonoha_Scene_Status Kotonoha_FPSRender(KOTONOHA_SCENE_CALL) {
-    (void)eventQueu;
-    (void)target;
+enum Kotonoha_Scene_Status KotonohaFPSRender(KOTONOHA_SCENE_CALL) {
+  (void)target;
 
-    TTF_Font* font = (TTF_Font*)userData;
+  TTF_Font *font = (TTF_Font *)userData;
 
-    if (font == NULL) {
-        return KOTONOHA_SCENE_NULL;
-    }
+  if (font == NULL) {
+    return KOTONOHA_SCENE_NULL;
+  }
 
-    int outputWidth = 0;
-    int outputHeight = 0;
-    float windowScale = 1.0f;
+  int outputWidth = 0;
+  int outputHeight = 0;
+  float windowScale = 1.0f;
 
-    if (!Kotonoha_OverlayGetMetrics(
-            window, render, &outputWidth, &outputHeight, &windowScale)) {
-        return KOTONOHA_SCENE_NULL;
-    }
+  if (!KotonohaOverlayGetMetrics(window, render, &outputWidth, &outputHeight,
+                                 &windowScale)) {
+    return KOTONOHA_SCENE_NULL;
+  }
+
+  if (fpsCommon == NULL) {
+    fpsCommon = (struct FPS_common *)SDL_calloc(1, sizeof(struct FPS_common));
 
     if (fpsCommon == NULL) {
-        fpsCommon = (struct FPS_common*)SDL_calloc(
-            1, sizeof(struct FPS_common));
-
-        if (fpsCommon == NULL) {
-            SDL_LogError(SDL_LOG_CATEGORY_ERROR,
-                "Failed to allocate FPS renderer state");
-            return KOTONOHA_SCENE_NULL;
-        }
-
-        fpsCommon->color = (SDL_Color){ 255, 0, 255, 255 };
-        fpsCommon->shadowColor = (SDL_Color){ 0, 0, 0, 160 };
-        fpsCommon->lastTime = SDL_GetTicks();
-        SDL_snprintf(fpsCommon->text, sizeof(fpsCommon->text),
-            "FPS: 0 - 0.00ms");
-
-        if (!UpdateFPSTexture(render, font)) {
-            SDL_free(fpsCommon);
-            fpsCommon = NULL;
-            return KOTONOHA_SCENE_NULL;
-        }
-    } else if (fpsCommon->windowScale != windowScale) {
-        fpsCommon->windowScale = windowScale;
-
-        if (!UpdateFPSTexture(render, font)) {
-            return KOTONOHA_SCENE_NULL;
-        }
+      SDL_LogError(SDL_LOG_CATEGORY_ERROR,
+                   "Failed to allocate FPS renderer state");
+      return KOTONOHA_SCENE_NULL;
     }
 
-    if (SDL_GetTicks() - fpsCommon->lastTime >= 1000) {
-        const float milliseconds =
-            fpsCommon->count > 0
-                ? 1000.0f / (float)fpsCommon->count
-                : 0.0f;
+    fpsCommon->color = (SDL_Color){255, 0, 255, 255};
+    fpsCommon->shadowColor = (SDL_Color){0, 0, 0, 160};
+    fpsCommon->lastTime = SDL_GetTicks();
+    SDL_snprintf(fpsCommon->text, sizeof(fpsCommon->text), "FPS: 0 - 0.00ms");
 
-        SDL_snprintf(fpsCommon->text, sizeof(fpsCommon->text),
-            "FPS: %zu - %.2fms", fpsCommon->count, milliseconds);
+    if (!UpdateFPSTexture(render, font)) {
+      SDL_free(fpsCommon);
+      fpsCommon = NULL;
+      return KOTONOHA_SCENE_NULL;
+    }
+  } else if (fpsCommon->windowScale != windowScale) {
+    fpsCommon->windowScale = windowScale;
 
-        if (!UpdateFPSTexture(render, font)) {
-            return KOTONOHA_SCENE_NULL;
-        }
+    if (!UpdateFPSTexture(render, font)) {
+      return KOTONOHA_SCENE_NULL;
+    }
+  }
 
-        fpsCommon->count = 0;
-        fpsCommon->lastTime = SDL_GetTicks();
+  if (SDL_GetTicks() - fpsCommon->lastTime >= 1000) {
+    const float milliseconds =
+        fpsCommon->count > 0 ? 1000.0f / (float)fpsCommon->count : 0.0f;
+
+    SDL_snprintf(fpsCommon->text, sizeof(fpsCommon->text), "FPS: %zu - %.2fms",
+                 fpsCommon->count, milliseconds);
+
+    if (!UpdateFPSTexture(render, font)) {
+      return KOTONOHA_SCENE_NULL;
     }
 
-    fpsCommon->count++;
+    fpsCommon->count = 0;
+    fpsCommon->lastTime = SDL_GetTicks();
+  }
 
-    fpsCommon->rect.x = 8.0f * windowScale;
-    fpsCommon->rect.y = 8.0f * windowScale;
+  fpsCommon->count++;
 
-    if (fpsCommon->rect.x + fpsCommon->rect.w > (float)outputWidth) {
-        fpsCommon->rect.x = (float)outputWidth - fpsCommon->rect.w;
+  fpsCommon->rect.x = 8.0f * windowScale;
+  fpsCommon->rect.y = 8.0f * windowScale;
 
-        if (fpsCommon->rect.x < 0.0f) {
-            fpsCommon->rect.x = 0.0f;
-        }
+  if (fpsCommon->rect.x + fpsCommon->rect.w > (float)outputWidth) {
+    fpsCommon->rect.x = (float)outputWidth - fpsCommon->rect.w;
+
+    if (fpsCommon->rect.x < 0.0f) {
+      fpsCommon->rect.x = 0.0f;
     }
+  }
 
-    if (fpsCommon->rect.y + fpsCommon->rect.h > (float)outputHeight) {
-        fpsCommon->rect.y = (float)outputHeight - fpsCommon->rect.h;
+  if (fpsCommon->rect.y + fpsCommon->rect.h > (float)outputHeight) {
+    fpsCommon->rect.y = (float)outputHeight - fpsCommon->rect.h;
 
-        if (fpsCommon->rect.y < 0.0f) {
-            fpsCommon->rect.y = 0.0f;
-        }
+    if (fpsCommon->rect.y < 0.0f) {
+      fpsCommon->rect.y = 0.0f;
     }
+  }
 
-    if (fpsCommon->shadow != NULL) {
-        SDL_FRect shadowRect = fpsCommon->rect;
-        shadowRect.x += 2.0f * windowScale;
-        shadowRect.y += 2.0f * windowScale;
+  if (fpsCommon->shadow != NULL) {
+    SDL_FRect shadowRect = fpsCommon->rect;
+    shadowRect.x += 2.0f * windowScale;
+    shadowRect.y += 2.0f * windowScale;
 
-        if (!SDL_RenderTexture(render, fpsCommon->shadow, NULL, &shadowRect)) {
-            SDL_LogError(SDL_LOG_CATEGORY_RENDER,
-                "Failed to draw FPS shadow: %s", SDL_GetError());
-        }
+    if (!SDL_RenderTexture(render, fpsCommon->shadow, NULL, &shadowRect)) {
+      SDL_LogError(SDL_LOG_CATEGORY_RENDER, "Failed to draw FPS shadow: %s",
+                   SDL_GetError());
     }
+  }
 
-    if (fpsCommon->texture != NULL &&
-        !SDL_RenderTexture(render, fpsCommon->texture, NULL, &fpsCommon->rect)) {
-        SDL_LogError(SDL_LOG_CATEGORY_RENDER,
-            "Failed to draw FPS text: %s", SDL_GetError());
-    }
+  if (fpsCommon->texture != NULL &&
+      !SDL_RenderTexture(render, fpsCommon->texture, NULL, &fpsCommon->rect)) {
+    SDL_LogError(SDL_LOG_CATEGORY_RENDER, "Failed to draw FPS text: %s",
+                 SDL_GetError());
+  }
 
-    return KOTONOHA_SCENE_DRAW_OVERLAYED;
+  return KOTONOHA_SCENE_DRAW_OVERLAYED;
 }

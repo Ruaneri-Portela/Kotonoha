@@ -1,11 +1,17 @@
 cmake_minimum_required(VERSION 3.18)
 
+if(APPLE)
+    set(CMAKE_OSX_DEPLOYMENT_TARGET "15.0" CACHE STRING
+        "Minimum macOS version (Sequoia)" FORCE)
+endif()
+
 # ==============================================================================
 # Android / vcpkg target triplet
 #
 # O Android Gradle Plugin/NDK define ANDROID_ABI. O triplet é definido antes
 # de resolver dependências vcpkg para corresponder à ABI que está sendo gerada.
 # ==============================================================================
+
 if (ANDROID_ABI STREQUAL "arm64-v8a")
     set(VCPKG_TARGET_TRIPLET "arm64-android" CACHE STRING "" FORCE)
 elseif (ANDROID_ABI STREQUAL "x86_64")

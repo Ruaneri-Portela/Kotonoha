@@ -1,30 +1,35 @@
 #pragma once
 
-#include <vector>
 #include <Kotonoha/components/Upscaling.hpp>
+#include <vector>
 
 extern "C" {
 #include <Kotonoha/Kotonoha.h>
 #include <Kotonoha/renders/VideoRender.h>
 #include <Kotonoha/utils/Time.h>
-#include <Kotonoha/utils/UserEvents.h>
 }
 
 namespace Kotonoha {
 
 class Video : public Upscaling {
 private:
-  Kotonoha_time *timeManager = nullptr;
+  float cacheDurationSeconds = 2.0f;
+  Kotonoha_Time *timeManager = nullptr;
   Kotonoha_IOMonitor *ioMonitor = nullptr;
-  std::vector<Kotonoha_videoData *> videos =
-      std::vector<Kotonoha_videoData *>();
+
+  SDL_Texture *heldTexture = nullptr;
   SDL_Mutex *lock = nullptr;
 
-	void RenderTexture(SDL_Renderer *render,SDL_Texture *texture);
+  std::vector<Kotonoha_VideoData *> videos =
+      std::vector<Kotonoha_VideoData *>();
+
+  void RenderTexture(SDL_Renderer *render, SDL_Texture *texture);
+
 public:
   void Reset();
 
-  Video(Kotonoha_time *timeManager, Kotonoha_IOMonitor *ioMonitor);
+  Video(Kotonoha_Time *timeManager, Kotonoha_IOMonitor *ioMonitor,
+        float cacheDurationSeconds = 2.0f);
 
   bool Register(const char *path, Uint64 startTime, Uint64 endTime,
                 bool useOrsFrameTimeline = false, Uint64 orsEndFrame = 0);

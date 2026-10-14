@@ -1,22 +1,14 @@
 #pragma once
 #include <Kotonoha/Gameplay.hpp>
+#include <SDL3_ttf/SDL_ttf.h>
 
 extern "C" {
 #include <Kotonoha/renders/AudioRender.h>
 #include <Kotonoha/renders/FpsRender.h>
-#include <Kotonoha/renders/TimestampRender.h>
 #include <Kotonoha/renders/LoadingRender.h>
+#include <Kotonoha/renders/TimestampRender.h>
+#include <Kotonoha/utils/Config.h>
 #include <Kotonoha/utils/Path.h>
-#include <SDL3_ttf/SDL_ttf.h>
-
-#if defined(__ANDROID__)
-	void Kotonoha_MobileSetup();
-#define KOTONOHA_MOBILE
-#elif defined(__APPLE__)
-#include <TargetConditionals.h>
-	void Kotonoha_MobileSetup(void);
-#define KOTONOHA_MOBILE
-#endif
 }
 
 #include <atomic>
@@ -25,75 +17,49 @@ extern "C" {
 #include <vector>
 
 namespace Kotonoha {
-	class Kotonoha {
-	private:
-		struct Kotonoha_Game& gameContext;
+class Kotonoha {
+private:
+  Kotonoha_Game &gameContext;
 
-		SDL_Texture* sceneTransitionFrame = nullptr;
-		SDL_Thread* processPool = nullptr;
-		SDL_Cursor* cursor = nullptr;
-		std::atomic_bool processPoolRunning{true};
-		std::vector<std::tuple<SDL_ThreadFunction, void*>> processPoolTasks;
+  SDL_Texture *sceneTransitionFrame = nullptr;
+  SDL_Thread *processPool = nullptr;
+  std::atomic_bool processPoolRunning{true};
+  std::vector<std::tuple<SDL_ThreadFunction, void *>> processPoolTasks;
 
-		const char* preferredGPU = nullptr;
-		std::string preferredUpscaler = "Auto";
+  std::string preferredUpscaler = "Auto";
+  bool sceneTransitionPrepared = false;
+  bool sceneTransitionActive = false;
 
-		bool showCursor = true;
-		bool fullscreen = false;
-		bool enableVsync = false;
-		bool ignoreMissingAssets = false;
-		bool showFps = false;
-		bool showTimestamp = false;
-		bool showDebugUi = false;
-		bool sceneTransitionPrepared = false;
-		bool sceneTransitionActive = false;
+  Uint64 lastMouseTime = 0;
+  Uint64 lastSceneFrameCaptureTime = 0;
+  size_t lastScene = static_cast<size_t>(-1);
 
-		struct DeferredFile {
-			std::string path;
-			bool isSubtitleStyles;
-		};
-		std::vector<DeferredFile> deferredFiles;
+  bool ParseArguments(int argc, char *argv[]);
+  void LoadSubtitleStylesFile(const char *path);
+  bool CaptureSceneTransitionFrame(bool activateTransition = true);
 
-		Uint64 lastMouseTime = 0;
-		Uint64 lastSceneFrameCaptureTime = 0;
+  static int EventsThread(void *data);
 
-		size_t lastScene = static_cast<size_t>(-1);
+public:
+  std::unordered_map<std::string, TTF_Font *> fonts;
+  std::vector<Gameplay *> gameplays;
 
-		bool ParseArguments(int argc, char* argv[]);
-		void LoadSubtitleStylesFile(const char* path);
-		void LoadWindowIcon(const char* path);
-		bool CaptureSceneTransitionFrame(bool activateTransition = true);
+  Sound::Channel *BGM = nullptr;
+  Sound::Channel *Voice = nullptr;
+  Sound::Channel *Se = nullptr;
 
-		static int EventsThread(void* data);
+  bool LoadScriptFile(const char *path);
+  void DeleteGameplay(Gameplay *gameplay);
+  void CacheSceneTransitionFrameIfNeeded(Gameplay *current);
+  void PresentSceneTransitionFrame(Gameplay *incoming);
 
-	public:
-		std::unordered_map<std::string, TTF_Font*> fonts;
-		std::vector<Gameplay*> gameplays;
-		Sound::Channel* BGM = nullptr;
-		Sound::Channel* Voice = nullptr;
-		Sound::Channel* Se = nullptr;
+  void ClearGameplays();
+  Kotonoha(SDL_AppResult *initStatus, struct Kotonoha_Game &gameContext);
 
-		bool LoadScriptFile(const char* path);
-		void DeleteGameplay(Gameplay* gameplay);
-		void CacheSceneTransitionFrameIfNeeded(Gameplay* current);
-		void PresentSceneTransitionFrame(Gameplay* incoming);
+  SDL_AppResult Event(SDL_Event *event);
 
-		void ClearGameplays();
-		void ConfigureWindow();
+  SDL_AppResult Main(Gameplay **out);
 
-		Kotonoha(int argc, char* argv[], SDL_AppResult* initStatus,
-			struct Kotonoha_Game& gameContext);
-
-		SDL_AppResult Initialize();
-
-		SDL_AppResult Event(SDL_Event* event);
-
-		SDL_AppResult Main(Gameplay** out);
-
-		~Kotonoha();
-	};
+  ~Kotonoha();
+};
 } // namespace Kotonoha
-
-void Kotonoha_BasicGuiInit(Kotonoha_Game& gameContext, std::vector<Uint8> font);
-bool Kotonoha_BasicGuiRun(Kotonoha::Kotonoha* game, Kotonoha::Gameplay* play, Kotonoha_Game& context);
-void Kotonoha_BasicGuiEvent(SDL_Event* event);

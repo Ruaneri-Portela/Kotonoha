@@ -6,8 +6,7 @@
 #include <libavutil/imgutils.h>
 #include <libswscale/swscale.h>
 
-
-struct Kotonoha_imageLoad {
+struct KotonohaImageLoad {
   SDL_Thread *thread;
   AVFrame *frame;
   Uint8 *buffer;
@@ -22,21 +21,21 @@ struct Kotonoha_imageLoad {
 struct Kotonoha_Picture {
   char *path;
   SDL_Texture *texture;
-  struct Kotonoha_imageLoad load;
+  struct KotonohaImageLoad load;
   Uint64 startTime, endTime, lastTime;
   Uint8 id;
   bool canRender;
   Uint64 baseGeneration;
 };
 
-SDL_Texture *Kotonoha_imageCreateTexture(SDL_Renderer *render, const char *path,
-                                         int h, int w);
-AVFrame *Kotonoha_imageDecodeFrame(const char *path, int h, int w,
-                                   Uint8 **buffer,
-                                   Kotonoha_IOMonitorOperation *ioOperation);
-SDL_Texture *Kotonoha_imageCreateTextureFromFrame(SDL_Renderer *render,
-                                                  AVFrame *frame);
-                                                  
-void Kotonoha_imageReleaseFrame(AVFrame **frame, Uint8 **buffer);
+SDL_Texture *KotonohaImageCreateTexture(SDL_Renderer *render, const char *path,
+                                        int h, int w);
+AVFrame *KotonohaImageDecodeFrame(const char *path, int h, int w,
+                                  Uint8 **buffer,
+                                  Kotonoha_IOMonitorOperation *ioOperation);
+SDL_Texture *KotonohaImageCreateTextureFromFrame(SDL_Renderer *render,
+                                                 AVFrame *frame);
 
-SDL_Surface *Kotonoha_imageCreateSurface(const char *path, int h, int w);
+void KotonohaImageReleaseFrame(AVFrame **frame, Uint8 **buffer);
+
+SDL_Surface *KotonohaImageCreateSurface(const char *path, int h, int w);

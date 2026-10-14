@@ -30,7 +30,7 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "82"
             endingLineNumber = "82"
-            landmarkName = "Video::Render()"
+            landmarkName = "Video::RenderTexture(render, texture)"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
@@ -46,7 +46,7 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "578"
             endingLineNumber = "578"
-            landmarkName = "Kotonoha::LoadScriptFile(path)"
+            landmarkName = "Kotonoha::Main(out)"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
@@ -78,7 +78,7 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "486"
             endingLineNumber = "486"
-            landmarkName = "Kotonoha::LoadSubtitleStylesFile(path)"
+            landmarkName = "Kotonoha::PresentSceneTransitionFrame(incoming)"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
@@ -94,7 +94,7 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "152"
             endingLineNumber = "152"
-            landmarkName = "Kotonoha::Initialize()"
+            landmarkName = "Kotonoha::DeleteGameplay(gameplay)"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
@@ -110,7 +110,7 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "153"
             endingLineNumber = "153"
-            landmarkName = "Kotonoha::Initialize()"
+            landmarkName = "Kotonoha::DeleteGameplay(gameplay)"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>

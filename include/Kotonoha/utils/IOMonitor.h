@@ -22,30 +22,30 @@ typedef struct Kotonoha_IOMonitorOperation {
   bool retainedMissingAsset;
 } Kotonoha_IOMonitorOperation;
 
-void Kotonoha_IOMonitorInit(Kotonoha_IOMonitor *monitor,
-                            bool retryMissingAssets);
-void Kotonoha_IOMonitorBindNetworkWaitFlag(Kotonoha_IOMonitor *monitor,
-                                           SDL_AtomicInt *networkWaitFlag);
-void Kotonoha_IOMonitorCancel(Kotonoha_IOMonitor *monitor);
-bool Kotonoha_IOMonitorIsLoading(const Kotonoha_IOMonitor *monitor);
-bool Kotonoha_IOMonitorHasMissingAssets(const Kotonoha_IOMonitor *monitor);
-void Kotonoha_IOMonitorSetRetryMissingAssets(bool retry);
-bool Kotonoha_IOMonitorRetryMissingAssetsEnabled(void);
+void KotonohaIOMonitorInit(Kotonoha_IOMonitor *monitor,
+                           bool retryMissingAssets);
+void KotonohaIOMonitorBindNetworkWaitFlag(Kotonoha_IOMonitor *monitor,
+                                          SDL_AtomicInt *networkWaitFlag);
+void KotonohaIOMonitorCancel(Kotonoha_IOMonitor *monitor);
+bool KotonohaIOMonitorIsLoading(const Kotonoha_IOMonitor *monitor);
+bool KotonohaIOMonitorHasMissingAssets(const Kotonoha_IOMonitor *monitor);
+void KotonohaIOMonitorSetRetryMissingAssets(bool retry);
+bool KotonohaIOMonitorRetryMissingAssetsEnabled(void);
 
-void Kotonoha_IOMonitorOperationInit(Kotonoha_IOMonitorOperation *operation,
-                                     Kotonoha_IOMonitor *owner);
-void Kotonoha_IOMonitorOperationReset(Kotonoha_IOMonitorOperation *operation);
-void Kotonoha_IOMonitorOperationCancel(Kotonoha_IOMonitorOperation *operation);
-bool Kotonoha_IOMonitorOperationIsCancelled(
+void KotonohaIOMonitorOperationInit(Kotonoha_IOMonitorOperation *operation,
+                                    Kotonoha_IOMonitor *owner);
+void KotonohaIOMonitorOperationReset(Kotonoha_IOMonitorOperation *operation);
+void KotonohaIOMonitorOperationCancel(Kotonoha_IOMonitorOperation *operation);
+bool KotonohaIOMonitorOperationIsCancelled(
     const Kotonoha_IOMonitorOperation *operation);
-void Kotonoha_IOMonitorOperationBegin(Kotonoha_IOMonitorOperation *operation);
-void Kotonoha_IOMonitorOperationEnd(Kotonoha_IOMonitorOperation *operation);
-void Kotonoha_IOMonitorOperationSetStalled(
+void KotonohaIOMonitorOperationBegin(Kotonoha_IOMonitorOperation *operation);
+void KotonohaIOMonitorOperationEnd(Kotonoha_IOMonitorOperation *operation);
+void KotonohaIOMonitorOperationSetStalled(
     Kotonoha_IOMonitorOperation *operation, bool stalled);
-int Kotonoha_IOMonitorInterrupt(void *opaque);
-void Kotonoha_IOMonitorSetMissing(Kotonoha_IOMonitorOperation *operation,
-                                  bool missing);
-bool Kotonoha_IOMonitorShouldRetryMissing(
+int KotonohaIOMonitorInterrupt(void *opaque);
+void KotonohaIOMonitorSetMissing(Kotonoha_IOMonitorOperation *operation,
+                                 bool missing);
+bool KotonohaIOMonitorShouldRetryMissing(
     const Kotonoha_IOMonitorOperation *operation);
-bool Kotonoha_IOMonitorIsIgnoredMissing(
+bool KotonohaIOMonitorIsIgnoredMissing(
     const Kotonoha_IOMonitorOperation *operation);

@@ -57,7 +57,7 @@
       </BuildableProductRunnable>
       <CommandLineArguments>
          <CommandLineArgument
-            argument = "-f -t -z -u -p &quot;http://hirameki-server.lan:9090/&quot; -l assets/00"
+            argument = "-t -z -r metal -p &quot;http://hirameki-server.lan:9090/&quot; -l assets/00"
             isEnabled = "YES">
          </CommandLineArgument>
       </CommandLineArguments>

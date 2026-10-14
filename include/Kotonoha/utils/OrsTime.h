@@ -2,8 +2,8 @@
 
 #include <SDL3/SDL.h>
 
-static inline bool Kotonoha_OrsTimeToTick(Uint64 packed, bool allowParserNudge,
-                                          Uint64 *tick) {
+static inline bool KotonohaOrsTimeToTick(Uint64 packed, bool allowParserNudge,
+                                         Uint64 *tick) {
   if (tick == NULL) {
     return false;
   }
@@ -38,15 +38,15 @@ static inline bool Kotonoha_OrsTimeToTick(Uint64 packed, bool allowParserNudge,
   return false;
 }
 
-static inline bool Kotonoha_OrsTimeToMilliseconds(Uint64 packed,
-                                                  bool allowParserNudge,
-                                                  Uint64 *milliseconds) {
+static inline bool KotonohaOrsTimeToMilliseconds(Uint64 packed,
+                                                 bool allowParserNudge,
+                                                 Uint64 *milliseconds) {
   if (milliseconds == NULL) {
     return false;
   }
 
   Uint64 tick = 0;
-  if (!Kotonoha_OrsTimeToTick(packed, allowParserNudge, &tick)) {
+  if (!KotonohaOrsTimeToTick(packed, allowParserNudge, &tick)) {
     return false;
   }
 
@@ -69,12 +69,12 @@ static inline Uint64 Kotonoha_MillisecondsToOrsTick(Uint64 milliseconds) {
   return wholeSeconds * 24 + (remainingMs * 24) / 1000 + 1;
 }
 
-static inline bool Kotonoha_OrsTimeToZeroBasedFrame(Uint64 packed,
-                                                    bool allowParserNudge,
-                                                    Uint64 *frame) {
+static inline bool KotonohaOrsTimeToZeroBasedFrame(Uint64 packed,
+                                                   bool allowParserNudge,
+                                                   Uint64 *frame) {
   Uint64 tick = 0;
   if (frame == NULL ||
-      !Kotonoha_OrsTimeToTick(packed, allowParserNudge, &tick)) {
+      !KotonohaOrsTimeToTick(packed, allowParserNudge, &tick)) {
     return false;
   }
   *frame = tick - 1;

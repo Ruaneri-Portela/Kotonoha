@@ -3,18 +3,18 @@
 #include <Kotonoha/utils/Time.h>
 #include <ass/ass.h>
 
-struct Kotonoha_subtitles {
+typedef struct Kotonoha_Subtitles {
   ASS_Library *ass_library;
   ASS_Renderer *ass_renderer;
   ASS_Track *track;
-  
-  struct Kotonoha_time *time;
-};
 
-struct Kotonoha_subtitles *
-Kotonoha_TextRenderInit(struct Kotonoha_time *time,
-                        struct Kotonoha_Game *gameCtx);
+  Kotonoha_Time *time;
+} Kotonoha_Subtitles;
 
-void Kotonoha_TextRenderShutdown(struct Kotonoha_subtitles **object);
+struct Kotonoha_Subtitles *
+KotonohaTextRenderInit(struct Kotonoha_Time *time,
+                       struct Kotonoha_Game *gameCtx);
 
-enum Kotonoha_Scene_Status Kotonoha_TextRenderDraw(KOTONOHA_SCENE_CALL);
+void KotonohaTextRenderShutdown(struct Kotonoha_Subtitles **object);
+
+enum Kotonoha_Scene_Status KotonohaTextRenderDraw(KOTONOHA_SCENE_CALL);

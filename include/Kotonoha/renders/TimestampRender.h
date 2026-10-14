@@ -2,5 +2,5 @@
 #include <Kotonoha/Kotonoha.h>
 #include <SDL3_ttf/SDL_ttf.h>
 
-enum Kotonoha_Scene_Status Kotonoha_TimestampRender(KOTONOHA_SCENE_CALL);
-void Kotonoha_TimestampRenderShutdown(void);
+enum Kotonoha_Scene_Status KotonohaTimestampRender(KOTONOHA_SCENE_CALL);
+void KotonohaTimestampRenderShutdown(void);

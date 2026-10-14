@@ -1,7 +1,7 @@
 #pragma once
 
-#include <SDL3/SDL_render.h>
 #include <Kotonoha/speciais/Upscaling.h>
+#include <SDL3/SDL_render.h>
 
 namespace Kotonoha {
 
@@ -13,7 +13,8 @@ protected:
   int baseHeight = 0;
   float currentFactor = 1.0f;
 
-  bool EnsureUpscalingTextures(SDL_Renderer *render, int width, int height, float factor);
+  bool EnsureUpscalingTextures(SDL_Renderer *render, int width, int height,
+                               float factor);
 
 public:
   Upscaling() = default;

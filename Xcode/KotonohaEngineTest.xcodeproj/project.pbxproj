@@ -8,39 +8,6 @@
 
 /* Begin PBXBuildFile section */
 		CE371660307B51EC00C1C8A5 /* MetalFX.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CE37165F307B51EC00C1C8A5 /* MetalFX.framework */; };
-		CE3D669D307DB18500B299A2 /* FFmpeg.c in Sources */ = {isa = PBXBuildFile; fileRef = CE3D668D307DB18500B299A2 /* FFmpeg.c */; };
-		CE3D669E307DB18500B299A2 /* IOMonitor.c in Sources */ = {isa = PBXBuildFile; fileRef = CE3D668E307DB18500B299A2 /* IOMonitor.c */; };
-		CE3D669F307DB18500B299A2 /* Ors.c in Sources */ = {isa = PBXBuildFile; fileRef = CE3D667C307DB18500B299A2 /* Ors.c */; };
-		CE3D66A0307DB18500B299A2 /* VoicePcm.c in Sources */ = {isa = PBXBuildFile; fileRef = CE3D6692307DB18500B299A2 /* VoicePcm.c */; };
-		CE3D66A1307DB18500B299A2 /* VideoRender.c in Sources */ = {isa = PBXBuildFile; fileRef = CE3D6684307DB18500B299A2 /* VideoRender.c */; };
-		CE3D66A3307DB18500B299A2 /* UserEvents.c in Sources */ = {isa = PBXBuildFile; fileRef = CE3D6691307DB18500B299A2 /* UserEvents.c */; };
-		CE3D66A4307DB18500B299A2 /* LoadingRender.c in Sources */ = {isa = PBXBuildFile; fileRef = CE3D6681307DB18500B299A2 /* LoadingRender.c */; };
-		CE3D66A5307DB18500B299A2 /* BasicGui.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CE3D6694307DB18500B299A2 /* BasicGui.cpp */; };
-		CE3D66A6307DB18500B299A2 /* Kotonoha.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CE3D6697307DB18500B299A2 /* Kotonoha.cpp */; };
-		CE3D66A7307DB18500B299A2 /* Gameplay.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CE3D6695307DB18500B299A2 /* Gameplay.cpp */; };
-		CE3D66A8307DB18500B299A2 /* Android.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CE3D6678307DB18500B299A2 /* Android.cpp */; };
-		CE3D66A9307DB18500B299A2 /* ImageRender.c in Sources */ = {isa = PBXBuildFile; fileRef = CE3D6680307DB18500B299A2 /* ImageRender.c */; };
-		CE3D66AA307DB18500B299A2 /* FpsRender.c in Sources */ = {isa = PBXBuildFile; fileRef = CE3D667F307DB18500B299A2 /* FpsRender.c */; };
-		CE3D66AB307DB18500B299A2 /* Time.c in Sources */ = {isa = PBXBuildFile; fileRef = CE3D6690307DB18500B299A2 /* Time.c */; };
-		CE3D66AC307DB18500B299A2 /* TimestampRender.c in Sources */ = {isa = PBXBuildFile; fileRef = CE3D6683307DB18500B299A2 /* TimestampRender.c */; };
-		CE3D66AD307DB18500B299A2 /* Video.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CE3D6676307DB18500B299A2 /* Video.cpp */; };
-		CE3D66AE307DB18500B299A2 /* Image.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CE3D6672307DB18500B299A2 /* Image.cpp */; };
-		CE3D66AF307DB18500B299A2 /* TextRender.c in Sources */ = {isa = PBXBuildFile; fileRef = CE3D6682307DB18500B299A2 /* TextRender.c */; };
-		CE3D66B0307DB18500B299A2 /* GameplayEvents.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CE3D6696307DB18500B299A2 /* GameplayEvents.cpp */; };
-		CE3D66B1307DB18500B299A2 /* Fade.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CE3D6671307DB18500B299A2 /* Fade.cpp */; };
-		CE3D66B2307DB18500B299A2 /* Canvas.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CE3D666F307DB18500B299A2 /* Canvas.cpp */; };
-		CE3D66B3307DB18500B299A2 /* MetalFx.mm in Sources */ = {isa = PBXBuildFile; fileRef = CE3D6689307DB18500B299A2 /* MetalFx.mm */; };
-		CE3D66B4307DB18500B299A2 /* Prompt.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CE3D6673307DB18500B299A2 /* Prompt.cpp */; };
-		CE3D66B5307DB18500B299A2 /* OverlayRenderUtils.c in Sources */ = {isa = PBXBuildFile; fileRef = CE3D668F307DB18500B299A2 /* OverlayRenderUtils.c */; };
-		CE3D66B6307DB18500B299A2 /* UpscalingGeneric.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CE3D668B307DB18500B299A2 /* UpscalingGeneric.cpp */; };
-		CE3D66B7307DB18500B299A2 /* AudioRender.c in Sources */ = {isa = PBXBuildFile; fileRef = CE3D667E307DB18500B299A2 /* AudioRender.c */; };
-		CE3D66B8307DB18500B299A2 /* Upscaling.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CE3D6675307DB18500B299A2 /* Upscaling.cpp */; };
-		CE3D66B9307DB18500B299A2 /* IOS.mm in Sources */ = {isa = PBXBuildFile; fileRef = CE3D6679307DB18500B299A2 /* IOS.mm */; };
-		CE3D66BA307DB18500B299A2 /* Sound.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CE3D6674307DB18500B299A2 /* Sound.cpp */; };
-		CE3D66BB307DB18500B299A2 /* Audio.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CE3D666E307DB18500B299A2 /* Audio.cpp */; };
-		CE3D66BC307DB18500B299A2 /* Events.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CE3D6670307DB18500B299A2 /* Events.cpp */; };
-		CE3D66BD307DB18500B299A2 /* Main.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CE3D6699307DB18500B299A2 /* Main.cpp */; };
-		CE3D66BE307DB18500B299A2 /* mobile.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CE3D667A307DB18500B299A2 /* mobile.cpp */; };
 		CE3D8665307DB4A100B299A2 /* assets in CopyFiles */ = {isa = PBXBuildFile; fileRef = CE3D8664307DB4A100B299A2 /* assets */; };
 		CE8CB981307E6E1000FF3167 /* libiconv.2.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = CE8CB980307E6E0C00FF3167 /* libiconv.2.tbd */; };
 		CE8CB983307E6E6E00FF3167 /* libexpat.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = CE8CB982307E6E6800FF3167 /* libexpat.tbd */; };
@@ -79,39 +46,6 @@
 
 /* Begin PBXFileReference section */
 		CE37165F307B51EC00C1C8A5 /* MetalFX.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MetalFX.framework; path = System/Library/Frameworks/MetalFX.framework; sourceTree = SDKROOT; };
-		CE3D666E307DB18500B299A2 /* Audio.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Audio.cpp; sourceTree = "<group>"; };
-		CE3D666F307DB18500B299A2 /* Canvas.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Canvas.cpp; sourceTree = "<group>"; };
-		CE3D6670307DB18500B299A2 /* Events.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Events.cpp; sourceTree = "<group>"; };
-		CE3D6671307DB18500B299A2 /* Fade.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Fade.cpp; sourceTree = "<group>"; };
-		CE3D6672307DB18500B299A2 /* Image.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Image.cpp; sourceTree = "<group>"; };
-		CE3D6673307DB18500B299A2 /* Prompt.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Prompt.cpp; sourceTree = "<group>"; };
-		CE3D6674307DB18500B299A2 /* Sound.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Sound.cpp; sourceTree = "<group>"; };
-		CE3D6675307DB18500B299A2 /* Upscaling.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Upscaling.cpp; sourceTree = "<group>"; };
-		CE3D6676307DB18500B299A2 /* Video.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Video.cpp; sourceTree = "<group>"; };
-		CE3D6678307DB18500B299A2 /* Android.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Android.cpp; sourceTree = "<group>"; };
-		CE3D6679307DB18500B299A2 /* IOS.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = IOS.mm; sourceTree = "<group>"; };
-		CE3D667A307DB18500B299A2 /* mobile.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = mobile.cpp; sourceTree = "<group>"; };
-		CE3D667C307DB18500B299A2 /* Ors.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = Ors.c; sourceTree = "<group>"; };
-		CE3D667E307DB18500B299A2 /* AudioRender.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = AudioRender.c; sourceTree = "<group>"; };
-		CE3D667F307DB18500B299A2 /* FpsRender.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = FpsRender.c; sourceTree = "<group>"; };
-		CE3D6680307DB18500B299A2 /* ImageRender.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = ImageRender.c; sourceTree = "<group>"; };
-		CE3D6681307DB18500B299A2 /* LoadingRender.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = LoadingRender.c; sourceTree = "<group>"; };
-		CE3D6682307DB18500B299A2 /* TextRender.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = TextRender.c; sourceTree = "<group>"; };
-		CE3D6683307DB18500B299A2 /* TimestampRender.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = TimestampRender.c; sourceTree = "<group>"; };
-		CE3D6684307DB18500B299A2 /* VideoRender.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = VideoRender.c; sourceTree = "<group>"; };
-		CE3D6689307DB18500B299A2 /* MetalFx.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = MetalFx.mm; sourceTree = "<group>"; };
-		CE3D668B307DB18500B299A2 /* UpscalingGeneric.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = UpscalingGeneric.cpp; sourceTree = "<group>"; };
-		CE3D668D307DB18500B299A2 /* FFmpeg.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = FFmpeg.c; sourceTree = "<group>"; };
-		CE3D668E307DB18500B299A2 /* IOMonitor.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = IOMonitor.c; sourceTree = "<group>"; };
-		CE3D668F307DB18500B299A2 /* OverlayRenderUtils.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = OverlayRenderUtils.c; sourceTree = "<group>"; };
-		CE3D6690307DB18500B299A2 /* Time.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = Time.c; sourceTree = "<group>"; };
-		CE3D6691307DB18500B299A2 /* UserEvents.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = UserEvents.c; sourceTree = "<group>"; };
-		CE3D6692307DB18500B299A2 /* VoicePcm.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = VoicePcm.c; sourceTree = "<group>"; };
-		CE3D6694307DB18500B299A2 /* BasicGui.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = BasicGui.cpp; sourceTree = "<group>"; };
-		CE3D6695307DB18500B299A2 /* Gameplay.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Gameplay.cpp; sourceTree = "<group>"; };
-		CE3D6696307DB18500B299A2 /* GameplayEvents.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = GameplayEvents.cpp; sourceTree = "<group>"; };
-		CE3D6697307DB18500B299A2 /* Kotonoha.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Kotonoha.cpp; sourceTree = "<group>"; };
-		CE3D6699307DB18500B299A2 /* Main.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Main.cpp; sourceTree = "<group>"; };
 		CE3D8664307DB4A100B299A2 /* assets */ = {isa = PBXFileReference; lastKnownFileType = folder; name = assets; path = ../assets; sourceTree = "<group>"; };
 		CE540CF52FCD0736006FA974 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		CE8CB97E307E6DFB00FF3167 /* libiconv.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libiconv.tbd; path = usr/lib/libiconv.tbd; sourceTree = SDKROOT; };
@@ -140,11 +74,33 @@
 		CEE78CFE2FCC3AF40002CB9B /* CoreMotion.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreMotion.framework; path = System/Library/Frameworks/CoreMotion.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		CEBBA499307F5CDB0015C15E /* Exceptions for "src" folder in "KotonohaEngineTest" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				mobile/Android.cpp,
+				specials/Anime4K.cpp,
+				specials/bundle.cpp,
+				specials/OpenGL.c,
+			);
+			target = CEE78C302FCC37E10002CB9B /* KotonohaEngineTest */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		CE3D666D307DB16F00B299A2 /* include */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			name = include;
 			path = ../include;
+			sourceTree = SOURCE_ROOT;
+		};
+		CEBBA470307F5CA60015C15E /* src */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				CEBBA499307F5CDB0015C15E /* Exceptions for "src" folder in "KotonohaEngineTest" target */,
+			);
+			name = src;
+			path = ../src;
 			sourceTree = SOURCE_ROOT;
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -180,95 +136,6 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		CE3D6677307DB18500B299A2 /* components */ = {
-			isa = PBXGroup;
-			children = (
-				CE3D666E307DB18500B299A2 /* Audio.cpp */,
-				CE3D666F307DB18500B299A2 /* Canvas.cpp */,
-				CE3D6670307DB18500B299A2 /* Events.cpp */,
-				CE3D6671307DB18500B299A2 /* Fade.cpp */,
-				CE3D6672307DB18500B299A2 /* Image.cpp */,
-				CE3D6673307DB18500B299A2 /* Prompt.cpp */,
-				CE3D6674307DB18500B299A2 /* Sound.cpp */,
-				CE3D6675307DB18500B299A2 /* Upscaling.cpp */,
-				CE3D6676307DB18500B299A2 /* Video.cpp */,
-			);
-			path = components;
-			sourceTree = "<group>";
-		};
-		CE3D667B307DB18500B299A2 /* mobile */ = {
-			isa = PBXGroup;
-			children = (
-				CE3D6678307DB18500B299A2 /* Android.cpp */,
-				CE3D6679307DB18500B299A2 /* IOS.mm */,
-				CE3D667A307DB18500B299A2 /* mobile.cpp */,
-			);
-			path = mobile;
-			sourceTree = "<group>";
-		};
-		CE3D667D307DB18500B299A2 /* parsers */ = {
-			isa = PBXGroup;
-			children = (
-				CE3D667C307DB18500B299A2 /* Ors.c */,
-			);
-			path = parsers;
-			sourceTree = "<group>";
-		};
-		CE3D6685307DB18500B299A2 /* renders */ = {
-			isa = PBXGroup;
-			children = (
-				CE3D667E307DB18500B299A2 /* AudioRender.c */,
-				CE3D667F307DB18500B299A2 /* FpsRender.c */,
-				CE3D6680307DB18500B299A2 /* ImageRender.c */,
-				CE3D6681307DB18500B299A2 /* LoadingRender.c */,
-				CE3D6682307DB18500B299A2 /* TextRender.c */,
-				CE3D6683307DB18500B299A2 /* TimestampRender.c */,
-				CE3D6684307DB18500B299A2 /* VideoRender.c */,
-			);
-			path = renders;
-			sourceTree = "<group>";
-		};
-		CE3D668C307DB18500B299A2 /* specials */ = {
-			isa = PBXGroup;
-			children = (
-				CE3D6689307DB18500B299A2 /* MetalFx.mm */,
-				CE3D668B307DB18500B299A2 /* UpscalingGeneric.cpp */,
-			);
-			path = specials;
-			sourceTree = "<group>";
-		};
-		CE3D6693307DB18500B299A2 /* utils */ = {
-			isa = PBXGroup;
-			children = (
-				CE3D668D307DB18500B299A2 /* FFmpeg.c */,
-				CE3D668E307DB18500B299A2 /* IOMonitor.c */,
-				CE3D668F307DB18500B299A2 /* OverlayRenderUtils.c */,
-				CE3D6690307DB18500B299A2 /* Time.c */,
-				CE3D6691307DB18500B299A2 /* UserEvents.c */,
-				CE3D6692307DB18500B299A2 /* VoicePcm.c */,
-			);
-			path = utils;
-			sourceTree = "<group>";
-		};
-		CE3D669B307DB18500B299A2 /* src */ = {
-			isa = PBXGroup;
-			children = (
-				CE3D6677307DB18500B299A2 /* components */,
-				CE3D667B307DB18500B299A2 /* mobile */,
-				CE3D667D307DB18500B299A2 /* parsers */,
-				CE3D6685307DB18500B299A2 /* renders */,
-				CE3D668C307DB18500B299A2 /* specials */,
-				CE3D6693307DB18500B299A2 /* utils */,
-				CE3D6694307DB18500B299A2 /* BasicGui.cpp */,
-				CE3D6695307DB18500B299A2 /* Gameplay.cpp */,
-				CE3D6696307DB18500B299A2 /* GameplayEvents.cpp */,
-				CE3D6697307DB18500B299A2 /* Kotonoha.cpp */,
-				CE3D6699307DB18500B299A2 /* Main.cpp */,
-			);
-			name = src;
-			path = ../src;
-			sourceTree = SOURCE_ROOT;
-		};
 		CEE78C282FCC37E10002CB9B = {
 			isa = PBXGroup;
 			children = (
@@ -277,8 +144,8 @@
 				CE540CF52FCD0736006FA974 /* Info.plist */,
 				CEE78C9C2FCC38DE0002CB9B /* Frameworks */,
 				CE3D666D307DB16F00B299A2 /* include */,
-				CE3D669B307DB18500B299A2 /* src */,
 				CEDA2B0C307AF19D00027D9C /* KotonohaEngineTest.app */,
+				CEBBA470307F5CA60015C15E /* src */,
 			);
 			sourceTree = "<group>";
 		};
@@ -330,6 +197,7 @@
 			);
 			fileSystemSynchronizedGroups = (
 				CE3D666D307DB16F00B299A2 /* include */,
+				CEBBA470307F5CA60015C15E /* src */,
 			);
 			name = KotonohaEngineTest;
 			packageProductDependencies = (
@@ -387,39 +255,6 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				CE3D669D307DB18500B299A2 /* FFmpeg.c in Sources */,
-				CE3D669E307DB18500B299A2 /* IOMonitor.c in Sources */,
-				CE3D669F307DB18500B299A2 /* Ors.c in Sources */,
-				CE3D66A0307DB18500B299A2 /* VoicePcm.c in Sources */,
-				CE3D66A1307DB18500B299A2 /* VideoRender.c in Sources */,
-				CE3D66A3307DB18500B299A2 /* UserEvents.c in Sources */,
-				CE3D66A4307DB18500B299A2 /* LoadingRender.c in Sources */,
-				CE3D66A5307DB18500B299A2 /* BasicGui.cpp in Sources */,
-				CE3D66A6307DB18500B299A2 /* Kotonoha.cpp in Sources */,
-				CE3D66A7307DB18500B299A2 /* Gameplay.cpp in Sources */,
-				CE3D66A8307DB18500B299A2 /* Android.cpp in Sources */,
-				CE3D66A9307DB18500B299A2 /* ImageRender.c in Sources */,
-				CE3D66AA307DB18500B299A2 /* FpsRender.c in Sources */,
-				CE3D66AB307DB18500B299A2 /* Time.c in Sources */,
-				CE3D66AC307DB18500B299A2 /* TimestampRender.c in Sources */,
-				CE3D66AD307DB18500B299A2 /* Video.cpp in Sources */,
-				CE3D66AE307DB18500B299A2 /* Image.cpp in Sources */,
-				CE3D66AF307DB18500B299A2 /* TextRender.c in Sources */,
-				CE3D66B0307DB18500B299A2 /* GameplayEvents.cpp in Sources */,
-				CE3D66B1307DB18500B299A2 /* Fade.cpp in Sources */,
-				CE3D66B2307DB18500B299A2 /* Canvas.cpp in Sources */,
-				CE3D66B3307DB18500B299A2 /* MetalFx.mm in Sources */,
-				CE3D66B4307DB18500B299A2 /* Prompt.cpp in Sources */,
-				CE3D66B5307DB18500B299A2 /* OverlayRenderUtils.c in Sources */,
-				CE3D66B6307DB18500B299A2 /* UpscalingGeneric.cpp in Sources */,
-				CE3D66B7307DB18500B299A2 /* AudioRender.c in Sources */,
-				CE3D66B8307DB18500B299A2 /* Upscaling.cpp in Sources */,
-				CE3D66B9307DB18500B299A2 /* IOS.mm in Sources */,
-				CE3D66BA307DB18500B299A2 /* Sound.cpp in Sources */,
-				CE3D66BB307DB18500B299A2 /* Audio.cpp in Sources */,
-				CE3D66BC307DB18500B299A2 /* Events.cpp in Sources */,
-				CE3D66BD307DB18500B299A2 /* Main.cpp in Sources */,
-				CE3D66BE307DB18500B299A2 /* mobile.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -1,16 +1,15 @@
 #pragma once
 
+#include <Kotonoha/components/Upscaling.hpp>
 #include <SDL3/SDL_render.h>
 #include <memory>
 #include <string>
 #include <vector>
-#include <Kotonoha/components/Upscaling.hpp>
 
 extern "C" {
 #include <Kotonoha/Kotonoha.h>
 #include <Kotonoha/renders/ImageRender.h>
 #include <Kotonoha/utils/Time.h>
-#include <Kotonoha/utils/UserEvents.h>
 }
 
 namespace Kotonoha {
@@ -27,7 +26,7 @@ struct AbcGroup {
   Uint64 bindingEndTime = 0;
 
   SDL_Texture *textures[3] = {nullptr, nullptr, nullptr};
-  Kotonoha_imageLoad loads[3] = {};
+  KotonohaImageLoad loads[3] = {};
 
   Uint8 activeIndex = 0;
   bool bound = false;
@@ -37,7 +36,7 @@ struct AbcGroup {
 
 class Image : public Upscaling {
 private:
-  Kotonoha_time *timeManager = nullptr;
+  Kotonoha_Time *timeManager = nullptr;
   Kotonoha_IOMonitor *ioMonitor = nullptr;
 
   std::vector<Kotonoha_Picture *> pictures;
@@ -54,10 +53,11 @@ private:
 
   void RemoveAbcGroupsForBase(Uint64 baseGeneration);
 
-  void RenderTexture(SDL_Renderer * render, SDL_Texture *target, Kotonoha_Picture *picture, bool &cleaned);
+  void RenderTexture(SDL_Renderer *render, SDL_Texture *target,
+                     Kotonoha_Picture *picture, bool &cleaned);
 
 public:
-  Image(Kotonoha_time *time, Kotonoha_IOMonitor *ioMonitor);
+  Image(Kotonoha_Time *time, Kotonoha_IOMonitor *ioMonitor);
   ~Image();
 
   void Reset();
