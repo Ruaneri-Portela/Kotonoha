@@ -31,14 +31,16 @@ typedef struct Kotonoha_AudioDecode {
   void *dataGeneric;
   struct Kotonoha_AudioDecode *loopMedia;
   bool playingLoop;
+  bool cannotSeek;
+  bool firstSeek;
 } Kotonoha_AudioDecode;
 
 void genWhiteNoise(void *data, Uint8 **target, size_t *size);
 
-struct Kotonoha_AudioDecode *KotonohaAudioInit(const char *path,
-                                               SDL_AudioSpec specification,
-                                               Kotonoha_IOMonitor *ioMonitor,
-                                               Kotonoha_Demuxer *demuxer);
+Kotonoha_AudioDecode *KotonohaAudioInit(const char *path,
+                                        SDL_AudioSpec specification,
+                                        Kotonoha_IOMonitor *ioMonitor,
+                                        Kotonoha_Demuxer *demuxer);
 
 void KotonohaAudioSeek(struct Kotonoha_AudioDecode *ctx, Uint64 time);
 

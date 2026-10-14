@@ -95,12 +95,10 @@ Kotonoha_Scene_Status Video::Render(KOTONOHA_SCENE_CALL) {
   std::vector<Kotonoha_VideoData *> activeVideosCopy;
   std::vector<Kotonoha_VideoData *> finishedVideos;
 
-  // 1. Cópia rápida da lista de ponteiros de vídeo ativos para liberar o mutex
   SDL_LockMutex(here->lock);
   activeVideosCopy = here->videos;
   SDL_UnlockMutex(here->lock);
 
-  // 2. Processamento desacoplado do lock principal
   for (Kotonoha_VideoData *currentVideo : activeVideosCopy) {
     if (currentVideo == nullptr) {
       continue;
@@ -134,7 +132,6 @@ Kotonoha_Scene_Status Video::Render(KOTONOHA_SCENE_CALL) {
     }
   }
 
-  // 3. Atualização segura dos vídeos finalizados
   SDL_LockMutex(here->lock);
 
   if (!finishedVideos.empty()) {
@@ -150,7 +147,6 @@ Kotonoha_Scene_Status Video::Render(KOTONOHA_SCENE_CALL) {
 
   const bool isEmpty = here->videos.empty();
 
-  // Limpa ou reutiliza a textura mantida para evitar cintilação/tela preta
   if (returnStatus == KOTONOHA_SCENE_DRAW && here->heldTexture != nullptr) {
     SDL_DestroyTexture(here->heldTexture);
     here->heldTexture = nullptr;

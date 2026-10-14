@@ -40,7 +40,8 @@ struct Kotonoha_AudioDecode *KotonohaAudioInit(const char *path,
 
   audioDecode->demuxer = demuxer;
   if (demuxer != NULL) {
-    audioDecode->stream = KotonohaDemuxerAddStream(demuxer, path, cacheSecs, audioDecode);
+    audioDecode->stream =
+        KotonohaDemuxerAddStream(demuxer, path, cacheSecs, audioDecode);
   }
 
   if (!audioDecode->stream || audioDecode->stream->audioStreamIdx < 0) {
@@ -89,6 +90,7 @@ void KotonohaAudioSeek(Kotonoha_AudioDecode *ctx, Uint64 timeMs) {
   ctx->executions++;
   ctx->audioTime = timeMs;
   ctx->lastTime = timeMs;
+  ctx->cannotSeek = false;
 }
 
 void KotonohaAudioEnsureSync(Kotonoha_AudioDecode *ctx, Uint64 currentTimeMs,
@@ -113,6 +115,16 @@ int KotonohaAudioRender(void *data, Uint8 **target, int *size) {
       return 0;
   }
 
+  if (!instance->firstSeek) {
+    if (instance->lastTime >= instance->start) {
+      Uint64 initialSeekMs = instance->lastTime - instance->start;
+      KotonohaAudioSeek(instance, initialSeekMs);
+    } else {
+      KotonohaAudioSeek(instance, 0);
+    }
+    instance->firstSeek = true; // Marca como inicializado para não repetir
+  }
+
   AVFrame *pFrame = av_frame_alloc();
   if (!pFrame)
     return -1;
@@ -124,19 +136,6 @@ int KotonohaAudioRender(void *data, Uint8 **target, int *size) {
     if (ret == 0) {
       Uint64 framePtsMs =
           KotonohaFFmpegGetTime(stream, pFrame->pts, pFrame->pkt_dts);
-
-      if (instance->tm != NULL && *instance->tm != NULL) {
-        bool inRange;
-        Sint64 diff;
-        Uint64 currentTimeMs = KotonohaTimeGetFromEvent(
-            *instance->tm, instance->start, instance->end, &inRange, &diff);
-
-        if (framePtsMs + 300 < currentTimeMs &&
-            instance->stream->audioQueue.count > 0) {
-          av_frame_unref(pFrame);
-          continue;
-        }
-      }
 
       int converted = KotonohaFFmpegConvertAudioFrame(
           instance->swrCtx, pFrame, instance->specification.channels,

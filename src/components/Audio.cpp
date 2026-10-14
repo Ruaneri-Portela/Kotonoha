@@ -15,15 +15,16 @@ static void CancelDecode(Kotonoha_AudioDecode *decode) {
 
 Audio::Audio(Sound *soundCtx, struct Kotonoha_Time *timeCtx,
              Kotonoha_IOMonitor *ioMonitor, Kotonoha_Demuxer *demuxer)
-    : soundCtx(soundCtx), timeCtx(timeCtx), ioMonitor(ioMonitor), demuxer(demuxer) {}
+    : soundCtx(soundCtx), timeCtx(timeCtx), ioMonitor(ioMonitor),
+      demuxer(demuxer) {}
 
-struct Kotonoha_AudioDecode *Audio::AddMedia(const char *path, Uint64 start,
-                                             Uint64 end, bool inLoop,
-                                             const char *channel) {
+Kotonoha_AudioDecode *Audio::AddMedia(const char *path, Uint64 start,
+                                      Uint64 end, bool inLoop,
+                                      const char *channel) {
   return AddMediaInternal(path, start, end, inLoop, channel, nullptr);
 }
 
-struct Kotonoha_AudioDecode *
+Kotonoha_AudioDecode *
 Audio::AddMediaInternal(const char *path, Uint64 start, Uint64 end, bool inLoop,
                         const char *channel,
                         struct Kotonoha_AudioDecode *loopMedia) {
@@ -127,6 +128,8 @@ struct Kotonoha_AudioDecode *Audio::AddIntroLoopMedia(const char *introPath,
   loop->tm = &timeCtx;
   loop->start = start;
   loop->end = end;
+  KotonohaAudioSeek(loop, 0);
+
   return AddMediaInternal(introPath, start, end, false, channelName, loop);
 }
 
@@ -174,9 +177,9 @@ int Audio::RenderMedia(void *data, Uint8 **target, int *size) {
   bool inRange = false;
   Sint64 diff = 0;
 
+  // Obtém o tempo atual na timeline para este evento de áudio
   instance->lastTime = KotonohaTimeGetFromEvent(*instance->tm, instance->start,
                                                 instance->end, &inRange, &diff);
-
   if (!inRange) {
     return 0;
   }
@@ -188,15 +191,14 @@ int Audio::RenderMedia(void *data, Uint8 **target, int *size) {
   if (rt == 1 && instance->loopMedia != nullptr) {
     if (!instance->playingLoop) {
       instance->playingLoop = true;
-      KotonohaAudioSeek(instance->loopMedia, 0);
-    } else {
-      KotonohaAudioSeek(instance->loopMedia, 0);
     }
-    instance->loopMedia->start = KotonohaTimeGet(*instance->tm);
+    KotonohaAudioSeek(instance->loopMedia, 0);
+    instance->loopMedia->cannotSeek = false;
     rt = KotonohaAudioRender(instance->loopMedia, target, size);
   } else if ((rt == -1 || rt == 1) && instance->inLoop &&
              instance->loopMedia == nullptr) {
     KotonohaAudioSeek(instance, 0);
+    instance->cannotSeek = false;
     rt = KotonohaAudioRender(instance, target, size);
   }
 

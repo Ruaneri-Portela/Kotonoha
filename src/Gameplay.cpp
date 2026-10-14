@@ -95,11 +95,11 @@ Gameplay::Gameplay(const char *scriptPath, Kotonoha_Game *gameContext,
   this->demuxer = KotonohaDemuxerCreate(&ioMonitor);
   this->tm = KotonohaTimeNew(true);
   this->sb = KotonohaTextRenderInit(this->tm, gameContext);
-  this->video =
-      new Video(this->tm, &ioMonitor, this->demuxer, gameContext->config.videoCacheSeconds);
+  this->video = new Video(this->tm, &ioMonitor, this->demuxer,
+                          gameContext->config.videoCacheSeconds);
   this->image = new Image(this->tm, &ioMonitor);
-  this->audio =
-      new Audio(static_cast<Sound *>(gameContext->sound), this->tm, &ioMonitor, this->demuxer);
+  this->audio = new Audio(static_cast<Sound *>(gameContext->sound), this->tm,
+                          &ioMonitor, this->demuxer);
   this->fade = new Fade(this->tm);
   this->drawCanvas = new Canvas();
 

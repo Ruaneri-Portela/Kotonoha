@@ -62,107 +62,121 @@ static void cleanupResources(AVFrame *frame, AVPacket *packet,
     sws_freeContext(swsCtx);
 }
 
-static int readImageFrame(AVFormatContext *format, AVPacket *packet,
-                          Kotonoha_IOMonitorOperation *ioOperation) {
-  (void)ioOperation;
-  return KotonohaFFmpegReadFrame(format, packet);
-}
-
-// Função intermediária para carregar e converter o primeiro frame em RGBA
+// Função corrigida para carregar, decodificar e converter o frame de imagem
+// estática
 static AVFrame *renderFrame(const char *path, int h, int w, Uint8 **buffer,
                             Kotonoha_IOMonitorOperation *ioOperation) {
   AVFormatContext *fmtCtx = NULL;
   AVCodecContext *codecCtx = NULL;
   struct SwsContext *swsCtx = NULL;
-  AVPacket packet = {0};
-  int imageStreamIndex, response;
+  AVPacket *packet = av_packet_alloc();
+  int imageStreamIndex = -1;
+  AVFrame *frame = NULL;
+  AVFrame *pFrameRGB = NULL;
 
-  // Carregar o formato de vídeo e inicializar o codec
+  if (!packet)
+    return NULL;
+
+  // Carregar o formato de imagem/vídeo e inicializar o codec
   if (!KotonohaFFmpegLoadMonitored(path, &fmtCtx, &codecCtx, AVMEDIA_TYPE_VIDEO,
                                    &imageStreamIndex, 0, NULL, ioOperation)) {
     if (!KotonohaIOMonitorIsIgnoredMissing(ioOperation)) {
       SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Failed to load image: %s\n", path);
     }
+    av_packet_free(&packet);
     return NULL;
   }
 
-  // Ler pacotes de vídeo e decodificar o primeiro frame
-  while ((response = readImageFrame(fmtCtx, &packet, ioOperation)) >= 0) {
-    if (packet.stream_index == imageStreamIndex) {
-      // Enviar o pacote para o decodificador
-      response = avcodec_send_packet(codecCtx, &packet);
-      if (response < 0) {
-        SDL_LogError(SDL_LOG_CATEGORY_ERROR,
-                     "Error sending packet to codec: %s\n",
-                     av_err2str(response));
-        av_packet_unref(&packet);
-        continue;
+  bool frameDecoded = false;
+
+  // Loop de leitura de pacotes robusto para imagens e vídeos estáticos
+  while (KotonohaFFmpegReadFrame(fmtCtx, packet) >= 0) {
+    if (packet->stream_index == imageStreamIndex) {
+      int ret = avcodec_send_packet(codecCtx, packet);
+      if (ret < 0 && ret != AVERROR(EAGAIN)) {
+        av_packet_unref(packet);
+        break;
       }
 
-      // Alocar frame e receber o frame decodificado
-      AVFrame *frame = av_frame_alloc();
+      frame = av_frame_alloc();
       if (!frame) {
-        SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Error allocating frame\n");
-        cleanupResources(frame, &packet, NULL);
-        return NULL;
+        av_packet_unref(packet);
+        break;
       }
 
-      response = avcodec_receive_frame(codecCtx, frame);
-      if (response == AVERROR(EAGAIN) || response == AVERROR_EOF) {
-        cleanupResources(frame, &packet, NULL);
-        continue;
-      } else if (response < 0) {
-        SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Error receiving frame: %s\n",
-                     av_err2str(response));
-        cleanupResources(frame, &packet, NULL);
-        avcodec_free_context(&codecCtx);
-        avformat_close_input(&fmtCtx);
-        return NULL;
+      ret = avcodec_receive_frame(codecCtx, frame);
+      if (ret == 0) {
+        frameDecoded = true;
+        av_packet_unref(packet);
+        break;
+      } else {
+        av_frame_free(&frame);
       }
-
-      // Definir altura e largura padrão se não fornecidos
-      h = (h == -1) ? codecCtx->height : h;
-      w = (w == -1) ? codecCtx->width : w;
-
-      // Criar contexto de conversão de pixel para RGBA
-      swsCtx =
-          KotonohaFFmpegCreateSwsContext(codecCtx, codecCtx->pix_fmt, w, h);
-      if (!swsCtx) {
-        cleanupResources(frame, &packet, swsCtx);
-        avcodec_free_context(&codecCtx);
-        avformat_close_input(&fmtCtx);
-        return NULL;
-      }
-
-      // Alocar frame para dados em formato RGBA
-      AVFrame *pFrameRGB =
-          KotonohaFFmpegSwsConvertFrame(swsCtx, frame, buffer, h, w);
-      if (!pFrameRGB) {
-        SDL_LogError(SDL_LOG_CATEGORY_ERROR,
-                     "Error converting frame to RGBA\n");
-        cleanupResources(frame, &packet, swsCtx);
-        avcodec_free_context(&codecCtx);
-        avformat_close_input(&fmtCtx);
-        return NULL;
-      }
-      pFrameRGB->width = w;
-      pFrameRGB->height = h;
-      prepareStraightAlphaForLinearFiltering(pFrameRGB->data[0], w, h,
-                                             pFrameRGB->linesize[0]);
-
-      // Liberar recursos intermediários e retornar o frame convertido
-      cleanupResources(frame, &packet, swsCtx);
-      avcodec_free_context(&codecCtx);
-      avformat_close_input(&fmtCtx);
-      return pFrameRGB;
     }
-    av_packet_unref(&packet);
+    av_packet_unref(packet);
   }
 
-  // Liberar recursos do FFmpeg
+  // Se o loop principal esgotou sem decodificar (comum em alguns
+  // decodificadores de imagem), envia EOF para drenar
+  if (!frameDecoded) {
+    avcodec_send_packet(codecCtx, NULL);
+    frame = av_frame_alloc();
+    if (frame && avcodec_receive_frame(codecCtx, frame) == 0) {
+      frameDecoded = true;
+    } else {
+      av_frame_free(&frame);
+    }
+  }
+
+  if (!frameDecoded || !frame) {
+    SDL_LogError(SDL_LOG_CATEGORY_ERROR,
+                 "Failed to decode image frame from codec: %s\n", path);
+    av_packet_free(&packet);
+    avcodec_free_context(&codecCtx);
+    avformat_close_input(&fmtCtx);
+    return NULL;
+  }
+
+  // Definir altura e largura padrão se não fornecidos
+  h = (h == -1) ? codecCtx->height : h;
+  w = (w == -1) ? codecCtx->width : w;
+
+  // Criar contexto de conversão de pixel para RGBA
+  swsCtx = KotonohaFFmpegCreateSwsContext(codecCtx, codecCtx->pix_fmt, w, h);
+  if (!swsCtx) {
+    cleanupResources(frame, packet, NULL);
+    avcodec_free_context(&codecCtx);
+    avformat_close_input(&fmtCtx);
+    av_packet_free(&packet);
+    return NULL;
+  }
+
+  // Converter para RGBA utilizando o buffer fornecido
+  pFrameRGB = KotonohaFFmpegSwsConvertFrame(swsCtx, frame, buffer, h, w);
+  if (!pFrameRGB) {
+    SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Error converting frame to RGBA\n");
+    cleanupResources(frame, packet, swsCtx);
+    avcodec_free_context(&codecCtx);
+    avformat_close_input(&fmtCtx);
+    av_packet_free(&packet);
+    return NULL;
+  }
+
+  pFrameRGB->width = w;
+  pFrameRGB->height = h;
+  prepareStraightAlphaForLinearFiltering(pFrameRGB->data[0], w, h,
+                                         pFrameRGB->linesize[0]);
+
+  // Limpeza de recursos intermediários (mantendo o pFrameRGB e o buffer
+  // alocados)
+  av_frame_free(&frame);
+  if (swsCtx)
+    sws_freeContext(swsCtx);
+  av_packet_free(&packet);
   avcodec_free_context(&codecCtx);
   avformat_close_input(&fmtCtx);
-  return NULL;
+
+  return pFrameRGB;
 }
 
 AVFrame *KotonohaImageDecodeFrame(const char *path, int h, int w,
@@ -181,7 +195,6 @@ SDL_Texture *KotonohaImageCreateTextureFromFrame(SDL_Renderer *render,
   if (render == NULL || frame == NULL) {
     SDL_LogError(SDL_LOG_CATEGORY_RENDER,
                  "Invalid arguments for image texture creation");
-
     return NULL;
   }
 
@@ -192,14 +205,12 @@ SDL_Texture *KotonohaImageCreateTextureFromFrame(SDL_Renderer *render,
   if (texture == NULL) {
     SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Failed to create texture: %s",
                  SDL_GetError());
-
     return NULL;
   }
 
   if (!SDL_UpdateTexture(texture, NULL, frame->data[0], frame->linesize[0])) {
     SDL_LogError(SDL_LOG_CATEGORY_RENDER, "Failed to update image texture: %s",
                  SDL_GetError());
-
     SDL_DestroyTexture(texture);
     return NULL;
   }
@@ -208,16 +219,15 @@ SDL_Texture *KotonohaImageCreateTextureFromFrame(SDL_Renderer *render,
 }
 
 void KotonohaImageReleaseFrame(AVFrame **frame, Uint8 **buffer) {
-  if (buffer != NULL) {
+  if (buffer != NULL && *buffer != NULL) {
     av_free(*buffer);
     *buffer = NULL;
   }
-  if (frame != NULL) {
+  if (frame != NULL && *frame != NULL) {
     av_frame_free(frame);
   }
 }
 
-// Função para criar textura SDL a partir de um frame RGBA
 SDL_Texture *KotonohaImageCreateTexture(SDL_Renderer *render, const char *path,
                                         int h, int w) {
   Kotonoha_IOMonitorOperation ioOperation;
@@ -234,13 +244,11 @@ SDL_Texture *KotonohaImageCreateTexture(SDL_Renderer *render, const char *path,
 
   SDL_Texture *texture = KotonohaImageCreateTextureFromFrame(render, pFrameRGB);
 
-  // Liberar recursos
   KotonohaImageReleaseFrame(&pFrameRGB, &buffer);
   KotonohaIOMonitorOperationReset(&ioOperation);
   return texture;
 }
 
-// Função para criar surface SDL a partir de um frame RGBA
 SDL_Surface *KotonohaImageCreateSurface(const char *path, int h, int w) {
   Uint8 *buffer = NULL;
   Kotonoha_IOMonitorOperation ioOperation;
@@ -271,7 +279,6 @@ SDL_Surface *KotonohaImageCreateSurface(const char *path, int h, int w) {
     surface = NULL;
   }
 
-  // Liberar recursos
   KotonohaImageReleaseFrame(&pFrameRGB, &buffer);
   KotonohaIOMonitorOperationReset(&ioOperation);
   return surface;

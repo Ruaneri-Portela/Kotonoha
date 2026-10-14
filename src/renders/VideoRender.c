@@ -94,7 +94,8 @@ Kotonoha_VideoData *KotonohaVideoRenderInit(
 
   videoInstance->demuxer = demuxer;
   if (demuxer != NULL) {
-    videoInstance->stream = KotonohaDemuxerAddStream(demuxer, filename, cacheDurationSeconds, videoInstance);
+    videoInstance->stream = KotonohaDemuxerAddStream(
+        demuxer, filename, cacheDurationSeconds, videoInstance);
   }
 
   if (!videoInstance->stream || videoInstance->stream->videoStreamIdx < 0) {
@@ -173,15 +174,25 @@ enum Kotonoha_Scene_Status KotonohaVideoRenderProcess(void *userData,
 
   bool inRange = false;
   Sint64 diff = 0;
-  const Uint64 currentTime = KotonohaTimeGetFromEvent(
+  Uint64 currentTime = KotonohaTimeGetFromEvent(
       instance->time, instance->startTime, instance->endTime, &inRange, &diff);
 
   if (!inRange)
     return (diff > 0) ? KOTONOHA_SCENE_COMPLETE : KOTONOHA_SCENE_NULL;
 
-  instance->lastTime = currentTime;
+  if (!instance->firstSeek) {
+    if (currentTime >= instance->startTime) {
+      Uint64 initialSeekMs = currentTime - instance->startTime;
+      instance->videoTime = initialSeekMs;
+      KotonohaDemuxStreamSeek(instance->stream, initialSeekMs);
+      avcodec_flush_buffers(instance->pCodecCtx);
+      if (instance->currentFrame) {
+        av_frame_free(&instance->currentFrame);
+      }
+    }
+    instance->firstSeek = true; // Marca como inicializado para não repetir
+  }
 
-  /* Resincronização no Seek */
   if (u64_abs_diff(currentTime, instance->videoTime) > 1500) {
     KotonohaDemuxStreamSeek(instance->stream, currentTime);
     avcodec_flush_buffers(instance->pCodecCtx);
@@ -194,7 +205,6 @@ enum Kotonoha_Scene_Status KotonohaVideoRenderProcess(void *userData,
 
   AVStream *stream = instance->pFormatCtx->streams[instance->videoStreamIndex];
 
-  /* 1. Se já temos um quadro decodificado aguardando o tempo do relógio */
   if (instance->currentFrame != NULL) {
     if (instance->currentPtsMs <= currentTime) {
       updateTextureFromFrame(instance, render, instance->currentFrame);
@@ -202,14 +212,11 @@ enum Kotonoha_Scene_Status KotonohaVideoRenderProcess(void *userData,
       instance->videoTime = instance->currentPtsMs;
       return KOTONOHA_SCENE_DRAW;
     } else {
-      /* O próximo quadro está no futuro em relação ao relógio: desenha o quadro
-       * atual da textura */
       return (instance->texture != NULL) ? KOTONOHA_SCENE_DRAW
                                          : KOTONOHA_SCENE_WAITING;
     }
   }
 
-  /* 2. Tenta extrair novos quadros do decodificador */
   AVFrame *recvFrame = av_frame_alloc();
   while (recvFrame != NULL) {
     int ret = avcodec_receive_frame(instance->pCodecCtx, recvFrame);
@@ -217,13 +224,11 @@ enum Kotonoha_Scene_Status KotonohaVideoRenderProcess(void *userData,
       Uint64 ptsMs =
           KotonohaFFmpegGetTime(stream, recvFrame->pts, recvFrame->pkt_dts);
 
-      /* Descarta quadros defasados acumulados no decodificador */
       if (ptsMs < currentTime && instance->stream->videoQueue.count > 0) {
         av_frame_unref(recvFrame);
         continue;
       }
 
-      /* Guarda o quadro decodificado e seu timestamp */
       instance->currentFrame = recvFrame;
       instance->currentPtsMs = ptsMs;
 
@@ -233,12 +238,9 @@ enum Kotonoha_Scene_Status KotonohaVideoRenderProcess(void *userData,
         instance->videoTime = ptsMs;
         return KOTONOHA_SCENE_DRAW;
       }
-      /* Se o PTS do novo quadro for maior que currentTime, ele fica retido no
-       * instance->currentFrame para o próximo frame */
       break;
     }
 
-    /* Puxa mais pacotes da fila se o decodificador pedir */
     if (ret == AVERROR(EAGAIN)) {
       Uint64 pktPts = 0;
       AVPacket *pkt =
