@@ -3,11 +3,9 @@
 #include <tuple>
 #include <vector>
 
-extern "C" {
 #include <Kotonoha/renders/AudioRender.h>
 #include <Kotonoha/utils/Time.h>
 #include <SDL3/SDL.h>
-}
 
 namespace Kotonoha {
 class Audio {
@@ -23,9 +21,10 @@ private:
   Sound *soundCtx = nullptr;
   Kotonoha_Time *timeCtx = nullptr;
   Kotonoha_IOMonitor *ioMonitor = nullptr;
+  Kotonoha_Demuxer *demuxer = nullptr;
 
 public:
-  Audio(Sound *soundCtx, Kotonoha_Time *timeCtx, Kotonoha_IOMonitor *ioMonitor);
+  Audio(Sound *soundCtx, Kotonoha_Time *timeCtx, Kotonoha_IOMonitor *ioMonitor, Kotonoha_Demuxer *demuxer);
   Kotonoha_AudioDecode *AddMedia(const char *path, Uint64 start, Uint64 end,
                                  bool inLoop, const char *channel);
   Kotonoha_AudioDecode *AddIntroLoopMedia(const char *introPath,

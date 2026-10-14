@@ -14,8 +14,8 @@ static void CancelDecode(Kotonoha_AudioDecode *decode) {
 }
 
 Audio::Audio(Sound *soundCtx, struct Kotonoha_Time *timeCtx,
-             Kotonoha_IOMonitor *ioMonitor)
-    : soundCtx(soundCtx), timeCtx(timeCtx), ioMonitor(ioMonitor) {}
+             Kotonoha_IOMonitor *ioMonitor, Kotonoha_Demuxer *demuxer)
+    : soundCtx(soundCtx), timeCtx(timeCtx), ioMonitor(ioMonitor), demuxer(demuxer) {}
 
 struct Kotonoha_AudioDecode *Audio::AddMedia(const char *path, Uint64 start,
                                              Uint64 end, bool inLoop,
@@ -72,7 +72,7 @@ Audio::AddMediaInternal(const char *path, Uint64 start, Uint64 end, bool inLoop,
   }
 
   Kotonoha_AudioDecode *newAudioDecode =
-      KotonohaAudioInit(path, targetChannel->GetSpecs(), ioMonitor);
+      KotonohaAudioInit(path, targetChannel->GetSpecs(), ioMonitor, demuxer);
   if (newAudioDecode == nullptr) {
     KotonohaAudioFree(loopMedia);
     return nullptr;
@@ -119,7 +119,7 @@ struct Kotonoha_AudioDecode *Audio::AddIntroLoopMedia(const char *introPath,
   }
 
   Kotonoha_AudioDecode *loop =
-      KotonohaAudioInit(loopPath, channel->GetSpecs(), ioMonitor);
+      KotonohaAudioInit(loopPath, channel->GetSpecs(), ioMonitor, demuxer);
   if (loop == nullptr) {
     return nullptr;
   }
@@ -184,16 +184,20 @@ int Audio::RenderMedia(void *data, Uint8 **target, int *size) {
   Kotonoha_AudioDecode *current =
       instance->playingLoop ? instance->loopMedia : instance;
   int rt = KotonohaAudioRender(current, target, size);
+
   if (rt == 1 && instance->loopMedia != nullptr) {
     if (!instance->playingLoop) {
       instance->playingLoop = true;
+      KotonohaAudioSeek(instance->loopMedia, 0);
     } else {
       KotonohaAudioSeek(instance->loopMedia, 0);
     }
     instance->loopMedia->start = KotonohaTimeGet(*instance->tm);
     rt = KotonohaAudioRender(instance->loopMedia, target, size);
-  } else if (rt == -1 && instance->inLoop) {
-    KotonohaAudioSeek(instance, instance->lastTime);
+  } else if ((rt == -1 || rt == 1) && instance->inLoop &&
+             instance->loopMedia == nullptr) {
+    KotonohaAudioSeek(instance, 0);
+    rt = KotonohaAudioRender(instance, target, size);
   }
 
   return rt;

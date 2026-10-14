@@ -1,7 +1,10 @@
 #pragma once
 
 #include <SDL3/SDL.h>
-#include <stdbool.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef struct Kotonoha_IOMonitor {
   SDL_AtomicInt pendingCount;
@@ -49,3 +52,7 @@ bool KotonohaIOMonitorShouldRetryMissing(
     const Kotonoha_IOMonitorOperation *operation);
 bool KotonohaIOMonitorIsIgnoredMissing(
     const Kotonoha_IOMonitorOperation *operation);
+
+#ifdef __cplusplus
+}
+#endif

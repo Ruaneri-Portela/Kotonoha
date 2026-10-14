@@ -6,7 +6,11 @@
 #include <libavutil/imgutils.h>
 #include <libswscale/swscale.h>
 
-struct KotonohaImageLoad {
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+typedef struct Kotonoha_ImageLoad {
   SDL_Thread *thread;
   AVFrame *frame;
   Uint8 *buffer;
@@ -16,17 +20,17 @@ struct KotonohaImageLoad {
   SDL_AtomicInt state;
   bool failed;
   bool missingIgnored;
-};
+} Kotonoha_ImageLoad;
 
-struct Kotonoha_Picture {
+typedef struct Kotonoha_Picture {
   char *path;
   SDL_Texture *texture;
-  struct KotonohaImageLoad load;
+  Kotonoha_ImageLoad load;
   Uint64 startTime, endTime, lastTime;
   Uint8 id;
   bool canRender;
   Uint64 baseGeneration;
-};
+} Kotonoha_Picture;
 
 SDL_Texture *KotonohaImageCreateTexture(SDL_Renderer *render, const char *path,
                                         int h, int w);
@@ -39,3 +43,7 @@ SDL_Texture *KotonohaImageCreateTextureFromFrame(SDL_Renderer *render,
 void KotonohaImageReleaseFrame(AVFrame **frame, Uint8 **buffer);
 
 SDL_Surface *KotonohaImageCreateSurface(const char *path, int h, int w);
+
+#ifdef __cplusplus
+}
+#endif

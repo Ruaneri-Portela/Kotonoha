@@ -3,11 +3,10 @@
 #include <Kotonoha/components/Upscaling.hpp>
 #include <vector>
 
-extern "C" {
 #include <Kotonoha/Kotonoha.h>
 #include <Kotonoha/renders/VideoRender.h>
+#include <Kotonoha/utils/Demuxer.h>
 #include <Kotonoha/utils/Time.h>
-}
 
 namespace Kotonoha {
 
@@ -16,6 +15,7 @@ private:
   float cacheDurationSeconds = 2.0f;
   Kotonoha_Time *timeManager = nullptr;
   Kotonoha_IOMonitor *ioMonitor = nullptr;
+  Kotonoha_Demuxer *demuxer = nullptr;
 
   SDL_Texture *heldTexture = nullptr;
   SDL_Mutex *lock = nullptr;
@@ -29,7 +29,7 @@ public:
   void Reset();
 
   Video(Kotonoha_Time *timeManager, Kotonoha_IOMonitor *ioMonitor,
-        float cacheDurationSeconds = 2.0f);
+        Kotonoha_Demuxer *demuxer, float cacheDurationSeconds = 2.0f);
 
   bool Register(const char *path, Uint64 startTime, Uint64 endTime,
                 bool useOrsFrameTimeline = false, Uint64 orsEndFrame = 0);

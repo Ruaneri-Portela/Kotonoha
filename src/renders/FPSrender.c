@@ -1,5 +1,5 @@
 #include <Kotonoha/renders/FpsRender.h>
-#include <Kotonoha/utils/OverlayRenderUtils.h>
+#include <Kotonoha/utils/OverlayRender.h>
 
 struct FPS_common {
   SDL_Texture *texture;
@@ -7,7 +7,7 @@ struct FPS_common {
   SDL_FRect rect;
   SDL_Color color;
   SDL_Color shadowColor;
-  char text[32];
+  char text[64]; // CORRIGIDO: Era 'char text', causando Estouro de Buffer
   Uint64 lastTime;
   size_t count;
   float windowScale;
@@ -20,7 +20,6 @@ static void DestroyFPSTextures(void) {
     SDL_DestroyTexture(fpsCommon->shadow);
     fpsCommon->shadow = NULL;
   }
-
   if (fpsCommon->texture != NULL) {
     SDL_DestroyTexture(fpsCommon->texture);
     fpsCommon->texture = NULL;
@@ -31,7 +30,6 @@ void KotonohaFPSRenderShutdown(void) {
   if (fpsCommon == NULL) {
     return;
   }
-
   DestroyFPSTextures();
   SDL_free(fpsCommon);
   fpsCommon = NULL;
@@ -41,7 +39,6 @@ static bool UpdateFPSTexture(SDL_Renderer *render, TTF_Font *font) {
   if (render == NULL || font == NULL || fpsCommon == NULL) {
     return false;
   }
-
   SDL_Texture *newShadow = NULL;
   SDL_Texture *newTexture = NULL;
   float textWidth = 0.0f;
@@ -61,23 +58,26 @@ static bool UpdateFPSTexture(SDL_Renderer *render, TTF_Font *font) {
   }
 
   DestroyFPSTextures();
-
   fpsCommon->shadow = newShadow;
   fpsCommon->texture = newTexture;
-  fpsCommon->rect.w = textWidth;
-  fpsCommon->rect.h = textHeight;
+
+  // AJUSTE DE ESCALA: Mantém o tamanho lógico constante dividindo pela escala
+  const float scale =
+      (fpsCommon->windowScale > 0.0f) ? fpsCommon->windowScale : 1.0f;
+  fpsCommon->rect.w = textWidth * scale;
+  fpsCommon->rect.h = textHeight * scale;
 
   return true;
 }
 
 enum Kotonoha_Scene_Status KotonohaFPSRender(KOTONOHA_SCENE_CALL) {
   (void)target;
-
   TTF_Font *font = (TTF_Font *)userData;
-
   if (font == NULL) {
     return KOTONOHA_SCENE_NULL;
   }
+
+  TTF_SetFontSize(font, 28);
 
   int outputWidth = 0;
   int outputHeight = 0;
@@ -90,16 +90,15 @@ enum Kotonoha_Scene_Status KotonohaFPSRender(KOTONOHA_SCENE_CALL) {
 
   if (fpsCommon == NULL) {
     fpsCommon = (struct FPS_common *)SDL_calloc(1, sizeof(struct FPS_common));
-
     if (fpsCommon == NULL) {
       SDL_LogError(SDL_LOG_CATEGORY_ERROR,
                    "Failed to allocate FPS renderer state");
       return KOTONOHA_SCENE_NULL;
     }
-
     fpsCommon->color = (SDL_Color){255, 0, 255, 255};
     fpsCommon->shadowColor = (SDL_Color){0, 0, 0, 160};
     fpsCommon->lastTime = SDL_GetTicks();
+    fpsCommon->windowScale = windowScale;
     SDL_snprintf(fpsCommon->text, sizeof(fpsCommon->text), "FPS: 0 - 0.00ms");
 
     if (!UpdateFPSTexture(render, font)) {
@@ -109,7 +108,6 @@ enum Kotonoha_Scene_Status KotonohaFPSRender(KOTONOHA_SCENE_CALL) {
     }
   } else if (fpsCommon->windowScale != windowScale) {
     fpsCommon->windowScale = windowScale;
-
     if (!UpdateFPSTexture(render, font)) {
       return KOTONOHA_SCENE_NULL;
     }
@@ -118,26 +116,22 @@ enum Kotonoha_Scene_Status KotonohaFPSRender(KOTONOHA_SCENE_CALL) {
   if (SDL_GetTicks() - fpsCommon->lastTime >= 1000) {
     const float milliseconds =
         fpsCommon->count > 0 ? 1000.0f / (float)fpsCommon->count : 0.0f;
-
     SDL_snprintf(fpsCommon->text, sizeof(fpsCommon->text), "FPS: %zu - %.2fms",
                  fpsCommon->count, milliseconds);
 
     if (!UpdateFPSTexture(render, font)) {
       return KOTONOHA_SCENE_NULL;
     }
-
     fpsCommon->count = 0;
     fpsCommon->lastTime = SDL_GetTicks();
   }
 
   fpsCommon->count++;
-
-  fpsCommon->rect.x = 8.0f * windowScale;
-  fpsCommon->rect.y = 8.0f * windowScale;
+  fpsCommon->rect.x = 8.0f;
+  fpsCommon->rect.y = 8.0f;
 
   if (fpsCommon->rect.x + fpsCommon->rect.w > (float)outputWidth) {
     fpsCommon->rect.x = (float)outputWidth - fpsCommon->rect.w;
-
     if (fpsCommon->rect.x < 0.0f) {
       fpsCommon->rect.x = 0.0f;
     }
@@ -145,7 +139,6 @@ enum Kotonoha_Scene_Status KotonohaFPSRender(KOTONOHA_SCENE_CALL) {
 
   if (fpsCommon->rect.y + fpsCommon->rect.h > (float)outputHeight) {
     fpsCommon->rect.y = (float)outputHeight - fpsCommon->rect.h;
-
     if (fpsCommon->rect.y < 0.0f) {
       fpsCommon->rect.y = 0.0f;
     }
@@ -153,9 +146,8 @@ enum Kotonoha_Scene_Status KotonohaFPSRender(KOTONOHA_SCENE_CALL) {
 
   if (fpsCommon->shadow != NULL) {
     SDL_FRect shadowRect = fpsCommon->rect;
-    shadowRect.x += 2.0f * windowScale;
-    shadowRect.y += 2.0f * windowScale;
-
+    shadowRect.x += 2.0f;
+    shadowRect.y += 2.0f;
     if (!SDL_RenderTexture(render, fpsCommon->shadow, NULL, &shadowRect)) {
       SDL_LogError(SDL_LOG_CATEGORY_RENDER, "Failed to draw FPS shadow: %s",
                    SDL_GetError());

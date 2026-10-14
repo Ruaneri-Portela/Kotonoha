@@ -1,4 +1,5 @@
 #include <Kotonoha/utils/FFmpeg.h>
+#include <SDL3/SDL_stdinc.h>
 #include <errno.h>
 #include <libavutil/error.h>
 
@@ -26,16 +27,14 @@ static void KotonohaFmpegSetupHwDecode(struct Kotonoha_FFmpegHwContext *hwCtx,
 }
 
 int KotonohaFFmpegReadFrame(AVFormatContext *formatCtx, AVPacket *packet) {
-  if (formatCtx == NULL || packet == NULL) {
+  if (formatCtx == NULL || packet == NULL)
     return AVERROR(EINVAL);
-  }
 
   Kotonoha_IOMonitorOperation *operation =
       (Kotonoha_IOMonitorOperation *)formatCtx->interrupt_callback.opaque;
 
-  if (operation == NULL) {
+  if (operation == NULL)
     return av_read_frame(formatCtx, packet);
-  }
 
   KotonohaIOMonitorOperationBegin(operation);
   const int result = av_read_frame(formatCtx, packet);
@@ -54,27 +53,23 @@ int KotonohaFFmpegReadFrame(AVFormatContext *formatCtx, AVPacket *packet) {
 
 int KotonohaFFmpegSeekFrame(AVFormatContext *formatCtx,
                             Kotonoha_IOMonitorOperation *operation,
-                            int streamIndex, int64_t timestamp, int flags) {
-  if (formatCtx == NULL) {
+                            int streamIndex, Sint64 timestamp, int flags) {
+  if (formatCtx == NULL)
     return AVERROR(EINVAL);
-  }
 
-  if (operation != NULL) {
+  if (operation != NULL)
     KotonohaIOMonitorOperationBegin(operation);
-  }
   const int result = av_seek_frame(formatCtx, streamIndex, timestamp, flags);
-  if (operation != NULL) {
+  if (operation != NULL)
     KotonohaIOMonitorOperationEnd(operation);
-  }
 
   if (result == AVERROR_EXIT && operation != NULL) {
     KotonohaIOMonitorOperationSetStalled(
         operation, !KotonohaIOMonitorOperationIsCancelled(operation));
     return result;
   }
-  if (operation != NULL) {
+  if (operation != NULL)
     KotonohaIOMonitorOperationSetStalled(operation, false);
-  }
   return result;
 }
 
@@ -95,7 +90,7 @@ bool KotonohaFFmpegLoadMonitored(const char *path, AVFormatContext **formatCtx,
   bool isHttp = SDL_strstr(path, "http") != NULL;
   int openResult;
   int retryCount = 0;
-  const int maxRetries = 100; // Limite de tentativas para evitar loop infinito
+  const int maxRetries = 100;
 
   do {
     *formatCtx = avformat_alloc_context();
@@ -108,9 +103,8 @@ bool KotonohaFFmpegLoadMonitored(const char *path, AVFormatContext **formatCtx,
     (*formatCtx)->interrupt_callback.callback = KotonohaIOMonitorInterrupt;
     (*formatCtx)->interrupt_callback.opaque = ioOperation;
 
-    if (isHttp) {
+    if (isHttp)
       av_dict_set(&opts, "user_agent", "KotonohaEngine/0.1", 0);
-    }
     KotonohaIOMonitorOperationBegin(ioOperation);
     openResult = avformat_open_input(formatCtx, path, NULL, &opts);
     KotonohaIOMonitorOperationEnd(ioOperation);
@@ -118,9 +112,8 @@ bool KotonohaFFmpegLoadMonitored(const char *path, AVFormatContext **formatCtx,
 
     if (openResult == AVERROR_EXIT &&
         !KotonohaIOMonitorOperationIsCancelled(ioOperation)) {
-      if (*formatCtx != NULL) {
+      if (*formatCtx != NULL)
         avformat_close_input(formatCtx);
-      }
       if (++retryCount > maxRetries) {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
                      "Max retries reached opening '%s'", path);
@@ -133,9 +126,8 @@ bool KotonohaFFmpegLoadMonitored(const char *path, AVFormatContext **formatCtx,
       KotonohaIOMonitorSetMissing(ioOperation, true);
       if (KotonohaIOMonitorShouldRetryMissing(ioOperation) &&
           !KotonohaIOMonitorOperationIsCancelled(ioOperation)) {
-        if (*formatCtx != NULL) {
+        if (*formatCtx != NULL)
           avformat_close_input(formatCtx);
-        }
       }
     }
     break;
@@ -143,9 +135,8 @@ bool KotonohaFFmpegLoadMonitored(const char *path, AVFormatContext **formatCtx,
 
   if (openResult < 0) {
     KotonohaIOMonitorOperationSetStalled(ioOperation, false);
-    if (*formatCtx != NULL) {
+    if (*formatCtx != NULL)
       avformat_close_input(formatCtx);
-    }
     if (openResult != AVERROR_EXIT &&
         !KotonohaIOMonitorOperationIsCancelled(ioOperation) &&
         !KotonohaIOMonitorIsIgnoredMissing(ioOperation)) {
@@ -196,55 +187,14 @@ bool KotonohaFFmpegLoadMonitored(const char *path, AVFormatContext **formatCtx,
     return false;
   }
 
-  const AVCodec *codec = avcodec_find_decoder(
-      (*formatCtx)->streams[streamIndex]->codecpar->codec_id);
-  if (!codec) {
-    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
-                 "Erro: Codec nao encontrado para codec_id %d",
-                 (*formatCtx)->streams[streamIndex]->codecpar->codec_id);
+  if (!KotonohaFFmpegCreateDecoderCtx(*formatCtx, streamIndex, codecCtx,
+                                      hwCtx)) {
     avformat_close_input(formatCtx);
     return false;
   }
 
-  if (hwCtx != NULL) {
-    KotonohaFmpegSetupHwDecode(hwCtx, &codec);
-  }
-
-  *codecCtx = avcodec_alloc_context3(codec);
-  if (!*codecCtx) {
-    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
-                 "Erro: Nao foi possivel alocar o contexto do codec");
-    avformat_close_input(formatCtx);
-    return false;
-  }
-
-  if (avcodec_parameters_to_context(
-          *codecCtx, (*formatCtx)->streams[streamIndex]->codecpar) < 0) {
-    SDL_LogError(
-        SDL_LOG_CATEGORY_APPLICATION,
-        "Erro: Nao foi possivel copiar parametros do codec para o contexto");
-    avcodec_free_context(codecCtx);
-    avformat_close_input(formatCtx);
-    return false;
-  }
-
-  if (hwCtx != NULL && hwCtx->hwPixFmt != AV_PIX_FMT_NONE) {
-    (*codecCtx)->hw_device_ctx = av_buffer_ref(hwCtx->deviceRef);
-    (*codecCtx)->pix_fmt = hwCtx->hwPixFmt;
-  }
-
-  if (avcodec_open2(*codecCtx, codec, NULL) < 0) {
-    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
-                 "Erro: Nao foi possivel abrir o codec");
-    avcodec_free_context(codecCtx);
-    avformat_close_input(formatCtx);
-    return false;
-  }
-
-  if (streamIndexExport != NULL) {
+  if (streamIndexExport != NULL)
     *streamIndexExport = streamIndex;
-  }
-
   return true;
 }
 
@@ -257,34 +207,122 @@ bool KotonohaFFmpegLoad(const char *path, AVFormatContext **formatCtx,
   const bool loaded = KotonohaFFmpegLoadMonitored(
       path, formatCtx, codecCtx, mediaType, streamIndexExport, startIndex,
       hwCtx, &operation);
-
-  // Mantem o callback e opaque vinculados para evitar Crash no ReadFrame
   KotonohaIOMonitorOperationReset(&operation);
   return loaded;
 }
 
-Uint64 KotonohaFFmpegGetTime(AVStream *stream, Sint64 pts, Sint64 dts) {
-  if (pts != AV_NOPTS_VALUE) {
-    return (Uint64)(pts * av_q2d(stream->time_base) * 1000);
-  }
-  if (dts != AV_NOPTS_VALUE) {
-    return (Uint64)(dts * av_q2d(stream->time_base) * 1000);
+/* --- REUTILIZÁVEL: Criação de Contexto do Decoder --- */
+bool KotonohaFFmpegCreateDecoderCtx(AVFormatContext *formatCtx, int streamIndex,
+                                    AVCodecContext **codecCtx,
+                                    struct Kotonoha_FFmpegHwContext *hwCtx) {
+  if (!formatCtx || streamIndex < 0 || !codecCtx)
+    return false;
+
+  const AVCodec *codec =
+      avcodec_find_decoder(formatCtx->streams[streamIndex]->codecpar->codec_id);
+  if (!codec) {
+    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Erro: Codec nao encontrado");
+    return false;
   }
 
-  SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Ambos PTS e DTS sao invalidos\n");
-  return 0;
+  if (hwCtx != NULL) {
+    KotonohaFmpegSetupHwDecode(hwCtx, &codec);
+  }
+
+  *codecCtx = avcodec_alloc_context3(codec);
+  if (!*codecCtx)
+    return false;
+
+  if (avcodec_parameters_to_context(
+          *codecCtx, formatCtx->streams[streamIndex]->codecpar) < 0) {
+    avcodec_free_context(codecCtx);
+    return false;
+  }
+
+  if (hwCtx != NULL && hwCtx->hwPixFmt != AV_PIX_FMT_NONE) {
+    (*codecCtx)->hw_device_ctx = av_buffer_ref(hwCtx->deviceRef);
+    (*codecCtx)->pix_fmt = hwCtx->hwPixFmt;
+  }
+
+  if (avcodec_open2(*codecCtx, codec, NULL) < 0) {
+    avcodec_free_context(codecCtx);
+    return false;
+  }
+
+  return true;
 }
 
-struct SwsContext *
-KotonohaFFmpegCreateSwsContext(AVCodecContext *codecCtx,
-                               enum AVPixelFormat srcPixelFmt, int w, int h) {
-  struct SwsContext *swsCtx =
-      sws_getContext(codecCtx->width, codecCtx->height, srcPixelFmt, w, h,
-                     AV_PIX_FMT_RGBA, SWS_LANCZOS, NULL, NULL, NULL);
-  if (!swsCtx) {
-    SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Erro ao criar o contexto sws\n");
+/* --- REUTILIZÁVEL: Alocação e Inicialização do Resampler de Áudio --- */
+SwrContext *
+KotonohaFFmpegCreateAudioResampler(AVCodecContext *codecCtx, int outChannels,
+                                   int outSampleRate,
+                                   enum AVSampleFormat outSampleFmt) {
+  if (!codecCtx)
+    return NULL;
+
+  SwrContext *swrCtx = NULL;
+  AVChannelLayout outLayout;
+  av_channel_layout_default(&outLayout, outChannels);
+
+  if (swr_alloc_set_opts2(&swrCtx, &outLayout, outSampleFmt, outSampleRate,
+                          &codecCtx->ch_layout, codecCtx->sample_fmt,
+                          codecCtx->sample_rate, 0, NULL) < 0) {
+    av_channel_layout_uninit(&outLayout);
+    return NULL;
   }
-  return swsCtx;
+  av_channel_layout_uninit(&outLayout);
+
+  if (!swrCtx || swr_init(swrCtx) < 0) {
+    swr_free(&swrCtx);
+    return NULL;
+  }
+
+  return swrCtx;
+}
+
+/* --- REUTILIZÁVEL: Decodificação e Conversão de Buffer de Áudio --- */
+int KotonohaFFmpegConvertAudioFrame(SwrContext *swrCtx, AVFrame *pFrame,
+                                    int outChannels, enum AVSampleFormat outFmt,
+                                    Uint8 **target, int *size) {
+  if (!swrCtx || !pFrame || !target || !size)
+    return -1;
+
+  int outSamples = swr_get_out_samples(swrCtx, pFrame->nb_samples);
+  if (outSamples <= 0)
+    return 0;
+
+  Uint8 **nonPlanarData = NULL;
+  if (av_samples_alloc_array_and_samples(&nonPlanarData, NULL, outChannels,
+                                         outSamples, outFmt, 0) < 0) {
+    return -1;
+  }
+
+  int convertedSamples =
+      swr_convert(swrCtx, nonPlanarData, outSamples,
+                  (const uint8_t **)pFrame->extended_data, pFrame->nb_samples);
+
+  if (convertedSamples <= 0) {
+    av_freep(&nonPlanarData[0]);
+    av_freep(&nonPlanarData);
+    return convertedSamples < 0 ? -1 : 0;
+  }
+
+  const int bytesPerSample = av_get_bytes_per_sample(outFmt);
+  *size = convertedSamples * outChannels * bytesPerSample;
+  *target = (Uint8 *)SDL_malloc(*size);
+
+  if (!*target) {
+    av_freep(&nonPlanarData[0]);
+    av_freep(&nonPlanarData);
+    *size = 0;
+    return -1;
+  }
+
+  SDL_memcpy(*target, nonPlanarData[0], *size);
+  av_freep(&nonPlanarData[0]);
+  av_freep(&nonPlanarData);
+
+  return convertedSamples;
 }
 
 AVFrame *KotonohaFFmpegSwsConvertFrame(struct SwsContext *convertContext,
@@ -300,14 +338,14 @@ AVFrame *KotonohaFFmpegSwsConvertFrame(struct SwsContext *convertContext,
       av_image_get_buffer_size(AV_PIX_FMT_RGBA, targetW, targetH, 1));
 
   if (frameBuffer == NULL) {
-    SDL_LogError(0, "Error to allocate buffer\n");
+    SDL_LogError(0, "Error allocating buffer\n");
     av_frame_free(&pFrameRGB);
     return NULL;
   }
 
   if (av_image_fill_arrays(pFrameRGB->data, pFrameRGB->linesize, frameBuffer,
                            AV_PIX_FMT_RGBA, targetW, targetH, 1) < 0) {
-    SDL_LogError(0, "Error to fill frame\n");
+    SDL_LogError(0, "Error filling frame arrays\n");
     av_frame_free(&pFrameRGB);
     av_free(frameBuffer);
     return NULL;
@@ -316,8 +354,32 @@ AVFrame *KotonohaFFmpegSwsConvertFrame(struct SwsContext *convertContext,
   sws_scale(convertContext, (const uint8_t *const *)sourceFrame->data,
             sourceFrame->linesize, 0, sourceFrame->height, pFrameRGB->data,
             pFrameRGB->linesize);
+
   *buffer = frameBuffer;
   pFrameRGB->height = targetH;
   pFrameRGB->width = targetW;
   return pFrameRGB;
+};
+
+Uint64 KotonohaFFmpegGetTime(AVStream *stream, Sint64 pts, Sint64 dts) {
+  if (pts != AV_NOPTS_VALUE) {
+    return (Uint64)(pts * av_q2d(stream->time_base) * 1000);
+  }
+  if (dts != AV_NOPTS_VALUE) {
+    return (Uint64)(dts * av_q2d(stream->time_base) * 1000);
+  }
+  SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Ambos PTS e DTS sao invalidos\n");
+  return 0;
+}
+
+struct SwsContext *
+KotonohaFFmpegCreateSwsContext(AVCodecContext *codecCtx,
+                               enum AVPixelFormat srcPixelFmt, int w, int h) {
+  struct SwsContext *swsCtx =
+      sws_getContext(codecCtx->width, codecCtx->height, srcPixelFmt, w, h,
+                     AV_PIX_FMT_RGBA, SWS_LANCZOS, NULL, NULL, NULL);
+  if (!swsCtx) {
+    SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Erro ao criar o contexto sws\n");
+  }
+  return swsCtx;
 }

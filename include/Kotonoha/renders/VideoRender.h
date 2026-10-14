@@ -1,24 +1,22 @@
 #pragma once
 
+#include <SDL3/SDL.h>
+
 #include <Kotonoha/Kotonoha.h>
+#include <Kotonoha/utils/Demuxer.h>
 #include <Kotonoha/utils/FFmpeg.h>
 #include <Kotonoha/utils/Time.h>
-#include <SDL3/SDL.h>
-#include <libavcodec/avcodec.h>
-#include <libavformat/avformat.h>
-#include <libavutil/hwcontext.h>
-#include <libavutil/imgutils.h>
-#include <libswresample/swresample.h>
-#include <libswscale/swscale.h>
 
-typedef struct Kotonoha_CachedVideoFrame {
-  AVFrame *frame;
-  Uint64 ptsMs;
-} Kotonoha_CachedVideoFrame;
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef struct Kotonoha_VideoData {
   AVFrame *pFrame;
   AVFrame *pFrameRGB;
+  AVFrame *currentFrame; /* Quadro mantido até chegar o tempo do próximo */
+  Uint64 currentPtsMs;
+
   struct SwsContext *swsCtx;
   Uint8 *swsBuffer;
   int swsBufferWidth;
@@ -31,40 +29,26 @@ typedef struct Kotonoha_VideoData {
   Kotonoha_Time *time;
   Kotonoha_FFmpegHwContext *hwCtx;
   Kotonoha_IOMonitorOperation ioOperation;
+  Kotonoha_Demuxer *demuxer;
+  Kotonoha_DemuxStream *stream;
 
-  Uint64 startTime, endTime, lastTime, videoTime, frameTime;
+  Uint64 startTime, endTime, lastTime, videoTime;
   SDL_Texture *texture, *extraTexture;
 
-  // Dedicated background decode thread and frame cache queue
-  SDL_Thread *decodeThread;
-  SDL_Mutex *queueMutex;
-  SDL_Condition *queueCond;
-  Kotonoha_CachedVideoFrame *frameQueue;
-  int queueCapacity;
-  int queueHead;
-  int queueTail;
-  int queueCount;
-
-  SDL_AtomicInt threadRunning;
-  SDL_AtomicInt seekRequested;
-  Uint64 seekTargetMs;
-  SDL_AtomicInt isBuffering;
-  SDL_AtomicInt decodeThreadEof;
-  float cacheDurationSeconds;
-
-  // PLAY_MOVIE can opt into the original School Days 24-fps ORS timeline.
   bool useOrsFrameTimeline;
   Uint64 orsEndFrame;
-  bool demuxEof;
-  bool decoderEof;
 } Kotonoha_VideoData;
 
-struct Kotonoha_VideoData *KotonohaVideoRenderInit(
+Kotonoha_VideoData *KotonohaVideoRenderInit(
     const char *filename, Kotonoha_Time *time, Uint64 startTime, Uint64 endTime,
     bool useOrsFrameTimeline, Uint64 orsEndFrame, Kotonoha_IOMonitor *ioMonitor,
-    float cacheDurationSeconds);
+    float cacheDurationSeconds, Kotonoha_Demuxer *demuxer);
 
-void KotonohaVideoRenderShutdown(struct Kotonoha_VideoData **instance);
+void KotonohaVideoRenderShutdown(Kotonoha_VideoData **instance);
 
 enum Kotonoha_Scene_Status KotonohaVideoRenderProcess(void *userData,
                                                       SDL_Renderer *render);
+
+#ifdef __cplusplus
+}
+#endif

@@ -1,5 +1,6 @@
+
 #include <Kotonoha/renders/TimestampRender.h>
-#include <Kotonoha/utils/OverlayRenderUtils.h>
+#include <Kotonoha/utils/OverlayRender.h>
 #include <Kotonoha/utils/Time.h>
 
 struct Timestamp_common {
@@ -8,7 +9,7 @@ struct Timestamp_common {
   SDL_FRect rect;
   SDL_Color color;
   SDL_Color shadowColor;
-  char text[32];
+  char text[64]; // CORRIGIDO: Era 'char text', causando Estourameto de Buffer
   Uint64 lastTime;
   float windowScale;
 };
@@ -19,25 +20,20 @@ void KotonohaTimestampRenderShutdown(void) {
   if (timestampCommon == NULL) {
     return;
   }
-
   if (timestampCommon->texture != NULL) {
     SDL_DestroyTexture(timestampCommon->texture);
   }
-
   if (timestampCommon->shadow != NULL) {
     SDL_DestroyTexture(timestampCommon->shadow);
   }
-
   SDL_free(timestampCommon);
   timestampCommon = NULL;
 }
 
 static bool UpdateTimestampTexture(SDL_Renderer *render, TTF_Font *font) {
-
   if (render == NULL || font == NULL || timestampCommon == NULL) {
     return false;
   }
-
   SDL_Texture *newTexture = NULL;
   SDL_Texture *newShadow = NULL;
   float textWidth = 0.0f;
@@ -59,34 +55,38 @@ static bool UpdateTimestampTexture(SDL_Renderer *render, TTF_Font *font) {
   if (timestampCommon->texture != NULL) {
     SDL_DestroyTexture(timestampCommon->texture);
   }
-
   if (timestampCommon->shadow != NULL) {
     SDL_DestroyTexture(timestampCommon->shadow);
   }
 
   timestampCommon->texture = newTexture;
   timestampCommon->shadow = newShadow;
-  timestampCommon->rect.w = textWidth;
-  timestampCommon->rect.h = textHeight;
+
+  // AJUSTE DE ESCALA: Mantém o tamanho lógico constante dividindo pela escala
+  const float scale = (timestampCommon->windowScale > 0.0f)
+                          ? timestampCommon->windowScale
+                          : 1.0f;
+  timestampCommon->rect.w = textWidth * scale;
+  timestampCommon->rect.h = textHeight * scale;
 
   return true;
 }
 
 enum Kotonoha_Scene_Status KotonohaTimestampRender(KOTONOHA_SCENE_CALL) {
   (void)target;
-
   if (userData == NULL) {
     return KOTONOHA_SCENE_NULL;
   }
 
   void **args = (void **)userData;
-
   Kotonoha_Time *timestamp = (Kotonoha_Time *)args[0];
   TTF_Font *font = (TTF_Font *)args[1];
 
   if (timestamp == NULL || font == NULL) {
     return KOTONOHA_SCENE_NULL;
   }
+
+  TTF_SetFontSize(font, 28);
 
   int outputWidth = 0;
   int outputHeight = 0;
@@ -100,18 +100,15 @@ enum Kotonoha_Scene_Status KotonohaTimestampRender(KOTONOHA_SCENE_CALL) {
   if (timestampCommon == NULL) {
     timestampCommon = (struct Timestamp_common *)SDL_calloc(
         1, sizeof(struct Timestamp_common));
-
     if (timestampCommon == NULL) {
       SDL_LogError(SDL_LOG_CATEGORY_ERROR,
                    "Failed to allocate timestamp renderer state");
       return KOTONOHA_SCENE_NULL;
     }
-
     timestampCommon->color = (SDL_Color){0, 255, 255, 255};
     timestampCommon->shadowColor = (SDL_Color){0, 0, 0, 160};
     SDL_snprintf(timestampCommon->text, sizeof(timestampCommon->text),
                  "00:00:00 :TS");
-
     timestampCommon->windowScale = windowScale;
 
     if (!UpdateTimestampTexture(render, font)) {
@@ -121,7 +118,6 @@ enum Kotonoha_Scene_Status KotonohaTimestampRender(KOTONOHA_SCENE_CALL) {
     }
   } else if (timestampCommon->windowScale != windowScale) {
     timestampCommon->windowScale = windowScale;
-
     if (!UpdateTimestampTexture(render, font)) {
       return KOTONOHA_SCENE_NULL;
     }
@@ -142,21 +138,18 @@ enum Kotonoha_Scene_Status KotonohaTimestampRender(KOTONOHA_SCENE_CALL) {
     if (!UpdateTimestampTexture(render, font)) {
       return KOTONOHA_SCENE_NULL;
     }
-
     timestampCommon->lastTime = SDL_GetTicks();
   }
 
-  timestampCommon->rect.x =
-      (float)outputWidth - timestampCommon->rect.w - 8.0f * windowScale;
-  timestampCommon->rect.y = 8.0f * windowScale;
+  // Posição no canto superior direito mantendo margem física proporcional
+  timestampCommon->rect.x = (float)outputWidth - timestampCommon->rect.w - 8.0f;
+  timestampCommon->rect.y = 8.0f;
 
   if (timestampCommon->rect.x < 0.0f) {
     timestampCommon->rect.x = 0.0f;
   }
-
   if (timestampCommon->rect.y + timestampCommon->rect.h > (float)outputHeight) {
     timestampCommon->rect.y = (float)outputHeight - timestampCommon->rect.h;
-
     if (timestampCommon->rect.y < 0.0f) {
       timestampCommon->rect.y = 0.0f;
     }
@@ -164,9 +157,8 @@ enum Kotonoha_Scene_Status KotonohaTimestampRender(KOTONOHA_SCENE_CALL) {
 
   if (timestampCommon->shadow != NULL) {
     SDL_FRect shadowRect = timestampCommon->rect;
-    shadowRect.x += 2.0f * windowScale;
-    shadowRect.y += 2.0f * windowScale;
-
+    shadowRect.x += 2.0f;
+    shadowRect.y += 2.0f;
     if (!SDL_RenderTexture(render, timestampCommon->shadow, NULL,
                            &shadowRect)) {
       SDL_LogError(SDL_LOG_CATEGORY_RENDER,

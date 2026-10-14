@@ -1,5 +1,5 @@
 #include <Kotonoha/renders/LoadingRender.h>
-#include <Kotonoha/utils/OverlayRenderUtils.h>
+#include <Kotonoha/utils/OverlayRender.h>
 
 struct Loading_common {
   SDL_Texture *texture;

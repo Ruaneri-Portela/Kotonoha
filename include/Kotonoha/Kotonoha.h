@@ -1,8 +1,12 @@
 #pragma once
 
-#include "Kotonoha/utils/Config.h"
+#include <Kotonoha/utils/Config.h>
 #include <SDL3/SDL.h>
 #include <ass/ass.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 enum Kotonoha_Scene_Status {
   KOTONOHA_SCENE_NULL,
@@ -37,3 +41,7 @@ typedef struct Kotonoha_Game {
 #define KOTONOHA_AUDIO_COMPONENTS                                              \
   int (*function)(void *parms, Uint8 **target, int *size),                     \
       void (*closeFunction)(void *parms), void *parms
+
+#ifdef __cplusplus
+}
+#endif

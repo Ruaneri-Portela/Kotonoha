@@ -34,8 +34,7 @@ Kotonoha::Kotonoha(SDL_AppResult *status, struct Kotonoha_Game &context)
 
   processPoolRunning = true;
 
-  processPool = SDL_CreateThreadRuntime(EventsThread, "Events Thread", this,
-                                        nullptr, nullptr);
+  processPool = SDL_CreateThread(EventsThread, "KotonohaEvents", this);
 
   if (processPool == nullptr) {
     SDL_LogError(0, "Failed to create worker thread: %s", SDL_GetError());
@@ -104,7 +103,7 @@ Kotonoha::~Kotonoha() {
   fonts.clear();
 }
 
-int Kotonoha::EventsThread(void *data) {
+int SDLCALL Kotonoha::EventsThread(void *data) {
   Kotonoha *process = static_cast<Kotonoha *>(data);
   if (process == nullptr || process->gameContext.taskLock == nullptr) {
     return -1;

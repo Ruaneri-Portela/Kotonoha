@@ -92,13 +92,14 @@ Gameplay::Gameplay(const char *scriptPath, Kotonoha_Game *gameContext,
   KotonohaIOMonitorInit(&ioMonitor,
                         KotonohaIOMonitorRetryMissingAssetsEnabled());
 
+  this->demuxer = KotonohaDemuxerCreate(&ioMonitor);
   this->tm = KotonohaTimeNew(true);
   this->sb = KotonohaTextRenderInit(this->tm, gameContext);
   this->video =
-      new Video(this->tm, &ioMonitor, gameContext->config.videoCacheSeconds);
+      new Video(this->tm, &ioMonitor, this->demuxer, gameContext->config.videoCacheSeconds);
   this->image = new Image(this->tm, &ioMonitor);
   this->audio =
-      new Audio(static_cast<Sound *>(gameContext->sound), this->tm, &ioMonitor);
+      new Audio(static_cast<Sound *>(gameContext->sound), this->tm, &ioMonitor, this->demuxer);
   this->fade = new Fade(this->tm);
   this->drawCanvas = new Canvas();
 
@@ -145,6 +146,7 @@ SDL_AppResult Gameplay::Main(Kotonoha_Game *gameContext) {
       KotonohaTimeStart(tm);
     }
     firstFocus = false;
+    KotonohaDemuxerStart(this->demuxer);
   } else if (eventManager->CheckEnd(this)) {
     if (loop) {
       Reset(true);
@@ -226,6 +228,9 @@ void Gameplay::Reset(bool resetTime) {
 
   fade->Reset();
   if (resetTime) {
+    if (this->demuxer != nullptr) {
+      KotonohaDemuxerStop(this->demuxer);
+    }
     drawCanvas->Reset();
     video->Reset();
     image->Reset();
@@ -278,6 +283,11 @@ Gameplay::~Gameplay() {
   if (prompt) {
     delete prompt;
     prompt = nullptr;
+  }
+
+  if (demuxer != nullptr) {
+    KotonohaDemuxerDestroy(&demuxer);
+    demuxer = nullptr;
   }
 
   KotonohaIOMonitorBindNetworkWaitFlag(&ioMonitor, nullptr);

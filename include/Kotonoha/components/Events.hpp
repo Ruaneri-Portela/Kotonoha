@@ -7,12 +7,11 @@
 
 #include <unordered_map>
 #include <vector>
-extern "C" {
+
 #include <Kotonoha/parsers/Ors.h>
 #include <Kotonoha/renders/TextRender.h>
 #include <Kotonoha/utils/IOMonitor.h>
 #include <Kotonoha/utils/VoicePcm.h>
-}
 
 namespace Kotonoha {
 

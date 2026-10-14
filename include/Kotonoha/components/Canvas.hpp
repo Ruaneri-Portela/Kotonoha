@@ -1,10 +1,8 @@
 #pragma once
 #include <vector>
 
-extern "C" {
 #include <Kotonoha/Kotonoha.h>
 #include <SDL3/SDL.h>
-}
 
 namespace Kotonoha {
 

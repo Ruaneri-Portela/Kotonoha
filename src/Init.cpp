@@ -108,11 +108,10 @@ bool InitWindow() {
     return false;
   }
 
-#ifndef  KOTONOHA_MOBILE
+#ifndef KOTONOHA_MOBILE
   InitWindowIcon(global.window, "assets/icon.png");
 #endif
   InitCursor();
-
   return true;
 }
 

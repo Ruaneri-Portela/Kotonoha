@@ -2,11 +2,9 @@
 
 #include <vector>
 
-extern "C" {
 #include <Kotonoha/Kotonoha.h>
 #include <Kotonoha/utils/Time.h>
 #include <SDL3/SDL.h>
-}
 
 namespace Kotonoha {
 

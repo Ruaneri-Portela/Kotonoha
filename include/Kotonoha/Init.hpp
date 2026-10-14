@@ -7,7 +7,7 @@
 #include <unordered_map>
 #include <vector>
 
-extern struct Kotonoha_Game global;
+extern Kotonoha_Game global;
 
 namespace Kotonoha {
 

@@ -1,9 +1,15 @@
 #pragma once
 
 #include <Kotonoha/utils/IOMonitor.h>
-#include <stdbool.h>
-#include <stddef.h>
-#include <stdint.h>
+#include <SDL3/SDL.h>
 
-bool KotonohaPcmDecodeVoice(const char *path, int16_t **samples,
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+bool KotonohaPcmDecodeVoice(const char *path, Sint16 **samples,
                             size_t *sampleCount, Kotonoha_IOMonitor *ioMonitor);
+
+#ifdef __cplusplus
+}
+#endif

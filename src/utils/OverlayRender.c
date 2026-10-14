@@ -1,4 +1,4 @@
-#include <Kotonoha/utils/OverlayRenderUtils.h>
+#include <Kotonoha/utils/OverlayRender.h>
 
 bool KotonohaOverlayGetMetrics(SDL_Window *window, SDL_Renderer *render,
                                int *outputWidth, int *outputHeight,
@@ -40,6 +40,7 @@ bool KotonohaOverlayCreateTextTexture(SDL_Renderer *render, TTF_Font *font,
   const size_t textLength = SDL_strlen(text);
   int measuredWidth = 0;
   int measuredHeight = 0;
+
   if (!TTF_GetStringSize(font, text, textLength, &measuredWidth,
                          &measuredHeight)) {
     SDL_LogError(SDL_LOG_CATEGORY_RENDER, "Failed to measure overlay text: %s",
@@ -56,6 +57,7 @@ bool KotonohaOverlayCreateTextTexture(SDL_Renderer *render, TTF_Font *font,
 
   SDL_Texture *createdTexture = SDL_CreateTextureFromSurface(render, surface);
   SDL_DestroySurface(surface);
+
   if (createdTexture == NULL) {
     SDL_LogError(SDL_LOG_CATEGORY_RENDER,
                  "Failed to create overlay text texture: %s", SDL_GetError());

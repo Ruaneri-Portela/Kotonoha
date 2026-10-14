@@ -538,7 +538,6 @@ Event::Event(const char *orsPath, void *gameplay, struct Kotonoha_Game *gameCtx,
           endMs < startMs) {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
                      "Invalid subtitle timestamp range");
-        throw std::runtime_error("Invalid subtitle timestamp range");
       }
       const int eventId = ass_alloc_event(gp->sb->track);
       if (eventId < 0) {

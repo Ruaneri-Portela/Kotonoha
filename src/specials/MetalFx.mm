@@ -1,18 +1,15 @@
-#import <SDL3/SDL.h>
-#import <SDL3/SDL_render.h>
+#import <uuid/uuid.h>
 
+#import <Foundation/Foundation.h>
 #import <Metal/Metal.h>
 #import <MetalFX/MetalFX.h>
-#import <TargetConditionals.h>
 
+#include <Kotonoha/speciais/MetalFX.h>
 #include <cstddef>
 #include <deque>
 #include <mutex>
 #include <unordered_map>
-
-extern "C" {
-#import <Kotonoha/speciais/Upscaling.h>
-}
+#include <Kotonoha/speciais/Upscaling.h>
 
 #ifndef SDL_PROP_TEXTURE_METAL_TEXTURE_POINTER
 #define SDL_PROP_TEXTURE_METAL_TEXTURE_POINTER \
