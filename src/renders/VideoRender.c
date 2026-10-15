@@ -94,8 +94,9 @@ Kotonoha_VideoData *KotonohaVideoRenderInit(
 
   videoInstance->demuxer = demuxer;
   if (demuxer != NULL) {
-    videoInstance->stream = KotonohaDemuxerAddStream(
-        demuxer, filename, cacheDurationSeconds, videoInstance);
+    videoInstance->stream =
+        KotonohaDemuxerAddStream(demuxer, filename, cacheDurationSeconds,
+                                 videoInstance, AVMEDIA_TYPE_VIDEO);
   }
 
   if (!videoInstance->stream || videoInstance->stream->videoStreamIdx < 0) {

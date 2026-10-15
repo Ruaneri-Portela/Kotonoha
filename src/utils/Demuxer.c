@@ -300,7 +300,8 @@ bool KotonohaDemuxerIsStarted(Kotonoha_Demuxer *demuxer) {
 Kotonoha_DemuxStream *KotonohaDemuxerAddStream(Kotonoha_Demuxer *demuxer,
                                                const char *filename,
                                                float cacheDurationSeconds,
-                                               void *owner) {
+                                               void *owner,
+                                               enum AVMediaType type) {
   if (demuxer == NULL || filename == NULL || *filename == '\0') {
     return NULL;
   }
@@ -323,26 +324,30 @@ Kotonoha_DemuxStream *KotonohaDemuxerAddStream(Kotonoha_Demuxer *demuxer,
   KotonohaPacketQueueInit(&stream->audioQueue);
 
   AVCodecContext *dummyCodecCtx = NULL;
+  
+  // Tenta carregar o stream com base no tipo de mídia solicitado de entrada
   if (!KotonohaFFmpegLoadMonitored(filename, &stream->formatCtx, &dummyCodecCtx,
-                                   AVMEDIA_TYPE_VIDEO, &stream->videoStreamIdx,
+                                   type, 
+                                   (type == AVMEDIA_TYPE_VIDEO) ? &stream->videoStreamIdx : &stream->audioStreamIdx, 
                                    0, NULL, &stream->ioOperation)) {
-    if (!KotonohaFFmpegLoadMonitored(
-            filename, &stream->formatCtx, &dummyCodecCtx, AVMEDIA_TYPE_AUDIO,
-            &stream->audioStreamIdx, 0, NULL, &stream->ioOperation)) {
-      KotonohaPacketQueueDestroy(&stream->videoQueue);
-      KotonohaPacketQueueDestroy(&stream->audioQueue);
-      KotonohaIOMonitorOperationReset(&stream->ioOperation);
-      SDL_free(stream->filename);
-      SDL_free(stream);
-      return NULL;
-    }
+    // Se falhar o tipo principal, limpa os recursos e retorna NULL
+    KotonohaPacketQueueDestroy(&stream->videoQueue);
+    KotonohaPacketQueueDestroy(&stream->audioQueue);
+    KotonohaIOMonitorOperationReset(&stream->ioOperation);
+    SDL_free(stream->filename);
+    SDL_free(stream);
+    return NULL;
   } else {
-    avcodec_free_context(&dummyCodecCtx);
+    if (dummyCodecCtx) {
+      avcodec_free_context(&dummyCodecCtx);
+    }
+
+    // Varre o formatCtx para encontrar e preencher os índices de vídeo e áudio disponíveis
     for (unsigned int i = 0; i < stream->formatCtx->nb_streams; i++) {
-      if (stream->formatCtx->streams[i]->codecpar->codec_type ==
-          AVMEDIA_TYPE_AUDIO) {
+      if (stream->formatCtx->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO && stream->videoStreamIdx < 0) {
+        stream->videoStreamIdx = (int)i;
+      } else if (stream->formatCtx->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_AUDIO && stream->audioStreamIdx < 0) {
         stream->audioStreamIdx = (int)i;
-        break;
       }
     }
   }

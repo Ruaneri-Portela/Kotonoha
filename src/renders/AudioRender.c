@@ -40,8 +40,8 @@ struct Kotonoha_AudioDecode *KotonohaAudioInit(const char *path,
 
   audioDecode->demuxer = demuxer;
   if (demuxer != NULL) {
-    audioDecode->stream =
-        KotonohaDemuxerAddStream(demuxer, path, cacheSecs, audioDecode);
+    audioDecode->stream = KotonohaDemuxerAddStream(
+        demuxer, path, cacheSecs, audioDecode, AVMEDIA_TYPE_AUDIO);
   }
 
   if (!audioDecode->stream || audioDecode->stream->audioStreamIdx < 0) {

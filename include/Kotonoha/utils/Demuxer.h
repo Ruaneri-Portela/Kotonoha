@@ -66,7 +66,7 @@ void KotonohaDemuxerDestroy(Kotonoha_Demuxer **demuxer);
 Kotonoha_DemuxStream *KotonohaDemuxerAddStream(Kotonoha_Demuxer *demuxer,
                                                const char *filename,
                                                float cacheDurationSeconds,
-                                               void *owner);
+                                               void *owner, enum AVMediaType type);
 
 void KotonohaDemuxerRemoveStream(Kotonoha_Demuxer *demuxer,
                                  Kotonoha_DemuxStream **stream);
