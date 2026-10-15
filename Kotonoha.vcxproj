@@ -39,6 +39,7 @@
     <ClCompile Include="src\BasicGui.cpp" />
     <ClCompile Include="src\Gameplay.cpp" />
     <ClCompile Include="src\GameplayEvents.cpp" />
+    <ClCompile Include="src\Init.cpp" />
     <ClCompile Include="src\Kotonoha.cpp" />
     <ClCompile Include="src\Main.cpp" />
     <ClCompile Include="src\parsers\Ors.c" />
@@ -50,14 +51,16 @@
     <ClCompile Include="src\renders\TimestampRender.c" />
     <ClCompile Include="src\renders\VideoRender.c" />
     <ClCompile Include="src\specials\Anime4K.cpp" />
+    <ClCompile Include="src\specials\ConfigImGui.cpp" />
     <ClCompile Include="src\specials\OpenGL.c" />
     <ClCompile Include="src\specials\UpscalingGeneric.cpp" />
+    <ClCompile Include="src\utils\Config.c" />
+    <ClCompile Include="src\utils\Demuxer.c" />
     <ClCompile Include="src\utils\FFmpeg.c" />
     <ClCompile Include="src\utils\IOMonitor.c" />
-    <ClCompile Include="src\utils\OverlayRenderUtils.c" />
+    <ClCompile Include="src\utils\OverlayRender.c" />
     <ClCompile Include="src\utils\Path.c" />
     <ClCompile Include="src\utils\Time.c" />
-    <ClCompile Include="src\utils\UserEvents.c" />
     <ClCompile Include="src\utils\VoicePcm.c" />
   </ItemGroup>
   <ItemGroup>
@@ -86,24 +89,24 @@
     <ClInclude Include="include\Kotonoha\speciais\MetalFX.h" />
     <ClInclude Include="include\Kotonoha\speciais\OpenGL.h" />
     <ClInclude Include="include\Kotonoha\speciais\Upscaling.h" />
+    <ClInclude Include="include\Kotonoha\utils\Config.h" />
+    <ClInclude Include="include\Kotonoha\utils\Demuxer.h" />
     <ClInclude Include="include\Kotonoha\utils\FFmpeg.h" />
     <ClInclude Include="include\Kotonoha\utils\IOMonitor.h" />
-    <ClInclude Include="include\Kotonoha\utils\OverlayRenderUtils.h" />
+    <ClInclude Include="include\Kotonoha\utils\OrsTime.h" />
+    <ClInclude Include="include\Kotonoha\utils\OverlayRender.h" />
     <ClInclude Include="include\Kotonoha\utils\Path.h" />
     <ClInclude Include="include\Kotonoha\utils\Time.h" />
     <ClInclude Include="include\Kotonoha\utils\VoicePcm.h" />
-    <ClInclude Include="include\Kotonoha\utils\UserEvents.h" />
-    <ClInclude Include="include\Kotonoha\version.h" />
-    <ClInclude Include="src\resource.h" />
-  </ItemGroup>
-  <ItemGroup>
-    <ResourceCompile Include="src\Kotonoha.rc" />
   </ItemGroup>
   <ItemGroup>
     <None Include="BuildPacket.ps1" />
     <None Include="LICENSE" />
     <None Include="README.md" />
     <None Include="vcpkg.json" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="src\specials\Kotonoha.rc" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>17.0</VCProjectVersion>
