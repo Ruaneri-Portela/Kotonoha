@@ -102,80 +102,87 @@ void KotonohaAudioEnsureSync(Kotonoha_AudioDecode *ctx, Uint64 currentTimeMs,
   }
 }
 
+// Em AudioRender.c - KotonohaAudioRender ajustado
 int KotonohaAudioRender(void *data, Uint8 **target, int *size) {
   Kotonoha_AudioDecode *instance = (Kotonoha_AudioDecode *)data;
   if (!instance || !instance->stream || !target || !size)
-    return -1;
+    return -1; //[cite: 1]
 
   *target = NULL;
   *size = 0;
 
   if (instance->tm != NULL && *instance->tm != NULL) {
     if (KotonohaTimeIsPaused(*instance->tm) && !instance->ioOperation.stalled)
-      return 0;
+      return 0; //[cite: 1]
   }
 
   if (!instance->firstSeek) {
     if (instance->lastTime >= instance->start) {
       Uint64 initialSeekMs = instance->lastTime - instance->start;
-      KotonohaAudioSeek(instance, initialSeekMs);
+      KotonohaAudioSeek(instance, initialSeekMs); //[cite: 1]
     } else {
-      KotonohaAudioSeek(instance, 0);
+      KotonohaAudioSeek(instance, 0); //[cite: 1]
     }
-    instance->firstSeek = true; // Marca como inicializado para não repetir
+    instance->firstSeek = true;
   }
 
   AVFrame *pFrame = av_frame_alloc();
   if (!pFrame)
     return -1;
 
-  AVStream *stream = instance->formatCtx->streams[instance->audioStreamIndex];
+  AVStream *stream =
+      instance->formatCtx->streams[instance->audioStreamIndex]; //[cite: 1]
 
   while (true) {
-    int ret = avcodec_receive_frame(instance->codecCtx, pFrame);
+    // 1. Tenta receber um frame decodificado do codec
+    int ret = avcodec_receive_frame(instance->codecCtx, pFrame); //[cite: 1]
     if (ret == 0) {
-      Uint64 framePtsMs =
-          KotonohaFFmpegGetTime(stream, pFrame->pts, pFrame->pkt_dts);
+      Uint64 framePtsMs = KotonohaFFmpegGetTime(stream, pFrame->pts,
+                                                pFrame->pkt_dts); //[cite: 1, 4]
 
       int converted = KotonohaFFmpegConvertAudioFrame(
           instance->swrCtx, pFrame, instance->specification.channels,
-          AV_SAMPLE_FMT_FLT, target, size);
+          AV_SAMPLE_FMT_FLT, target, size); //[cite: 1, 4]
 
-      av_frame_free(&pFrame);
+      av_frame_free(&pFrame); //[cite: 1]
       if (converted <= 0)
-        return converted < 0 ? -1 : 0;
+        return converted < 0 ? -1 : 0; //[cite: 1]
 
-      instance->audioTime = framePtsMs;
-      instance->lastTime = framePtsMs;
-      return 2;
+      instance->audioTime = framePtsMs; //[cite: 1]
+      instance->lastTime = framePtsMs;  //[cite: 1]
+      return 2; // Frame decodificado e convertido com sucesso!
     }
 
+    // 2. Se o decodificador precisar de mais pacotes de entrada
     if (ret == AVERROR(EAGAIN)) {
       Uint64 pktPts = 0;
-      AVPacket *pkt =
-          KotonohaPacketQueuePop(&instance->stream->audioQueue, &pktPts);
+      AVPacket *pkt = KotonohaPacketQueuePop(&instance->stream->audioQueue,
+                                             &pktPts); //[cite: 1]
 
       if (pkt != NULL) {
-        avcodec_send_packet(instance->codecCtx, pkt);
-        av_packet_free(&pkt);
-        continue;
+        avcodec_send_packet(instance->codecCtx, pkt); //[cite: 1]
+        av_packet_free(&pkt);                         //[cite: 1]
+        continue; // Tenta extrair o frame novamente
       } else {
+        // A fila de pacotes está vazia no momento
         SDL_LockMutex(instance->stream->audioQueue.mutex);
-        bool isEof = instance->stream->audioQueue.eof;
+        bool isEof = instance->stream->audioQueue.eof; //[cite: 1]
         SDL_UnlockMutex(instance->stream->audioQueue.mutex);
 
         if (isEof) {
-          avcodec_send_packet(instance->codecCtx, NULL);
+          // Envia pacote flush (NULL) para extrair frames remanescentes
+          avcodec_send_packet(instance->codecCtx, NULL); //[cite: 1]
         } else {
+          // Apenas aguarda preenchimento da fila sem perder o estado atual
           av_frame_free(&pFrame);
           return 0;
         }
       }
     } else if (ret == AVERROR_EOF) {
-      av_frame_free(&pFrame);
-      return 1;
+      av_frame_free(&pFrame); //[cite: 1]
+      return 1;               // Fim do fluxo de áudio
     } else {
-      av_frame_free(&pFrame);
+      av_frame_free(&pFrame); //[cite: 1]
       return -1;
     }
   }
