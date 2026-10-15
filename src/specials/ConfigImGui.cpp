@@ -61,24 +61,24 @@ static void KotonohaSettings_ReadLine(ImGuiContext *ctx,
   float factor, cache;
   int full, vsync, fps, ts, ui, skip;
 
-  if (sscanf(line, "WindowSize=%d,%d", &w, &h) == 2) {
+  if (SDL_sscanf(line, "WindowSize=%d,%d", &w, &h) == 2) {
     config->windowSize[0] = w;
     config->windowSize[1] = h;
-  } else if (sscanf(line, "ScalerFactor=%f", &factor) == 1) {
+  } else if (SDL_sscanf(line, "ScalerFactor=%f", &factor) == 1) {
     config->scalerFactor = factor;
-  } else if (sscanf(line, "FullScreen=%d", &full) == 1) {
+  } else if (SDL_sscanf(line, "FullScreen=%d", &full) == 1) {
     config->fullScreen = (bool)full;
-  } else if (sscanf(line, "EnableVsync=%d", &vsync) == 1) {
+  } else if (SDL_sscanf(line, "EnableVsync=%d", &vsync) == 1) {
     config->enableVsync = (bool)vsync;
-  } else if (sscanf(line, "VideoCacheSeconds=%f", &cache) == 1) {
+  } else if (SDL_sscanf(line, "VideoCacheSeconds=%f", &cache) == 1) {
     config->videoCacheSeconds = cache;
-  } else if (sscanf(line, "ShowFps=%d", &fps) == 1) {
+  } else if (SDL_sscanf(line, "ShowFps=%d", &fps) == 1) {
     config->showFps = (bool)fps;
-  } else if (sscanf(line, "ShowTimestamp=%d", &ts) == 1) {
+  } else if (SDL_sscanf(line, "ShowTimestamp=%d", &ts) == 1) {
     config->showTimestamp = (bool)ts;
-  } else if (sscanf(line, "EnableDebugUi=%d", &ui) == 1) {
+  } else if (SDL_sscanf(line, "EnableDebugUi=%d", &ui) == 1) {
     config->enableDebugUi = (bool)ui;
-  } else if (sscanf(line, "SkipFiles=%d", &skip) == 1) {
+  } else if (SDL_sscanf(line, "SkipFiles=%d", &skip) == 1) {
     config->skipFiles = (bool)skip;
   } else if (strncmp(line, "AssetsPath=", 11) == 0) {
     ConfigImGui_SetString(&config->assetsPath, line + 11);

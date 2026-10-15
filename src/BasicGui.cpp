@@ -727,7 +727,7 @@ static void Kotonoha_DrawSettingsFields(Kotonoha_Config *cfg,
         SDL_Rect bounds;
         if (SDL_GetDisplayBounds(displays[currentDisplayIdx], &bounds)) {
           // Checa o estado atual da janela
-          const Uint32 flags = SDL_GetWindowFlags(context.window);
+          const SDL_WindowFlags flags = SDL_GetWindowFlags(context.window);
           const bool isFullscreen = (flags & SDL_WINDOW_FULLSCREEN) != 0;
           const bool isBorderless =
               ((flags & SDL_WINDOW_BORDERLESS) != 0) && !isFullscreen;
@@ -767,7 +767,7 @@ static void Kotonoha_DrawSettingsFields(Kotonoha_Config *cfg,
                                      "Borderless Fullscreen"};
 
     int currentModeIdx = 0;
-    const Uint32 flags = SDL_GetWindowFlags(context.window);
+    const SDL_WindowFlags flags = SDL_GetWindowFlags(context.window);
     if ((flags & SDL_WINDOW_FULLSCREEN) != 0) {
       currentModeIdx = 1;
     } else if ((flags & SDL_WINDOW_BORDERLESS) != 0) {

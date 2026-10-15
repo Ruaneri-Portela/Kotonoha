@@ -99,9 +99,6 @@
     <ClCompile Include="src\utils\Time.c">
       <Filter>Arquivos de Origem\utils</Filter>
     </ClCompile>
-    <ClCompile Include="src\utils\UserEvents.c">
-      <Filter>Arquivos de Origem\utils</Filter>
-    </ClCompile>
     <ClCompile Include="src\utils\VoicePcm.c">
       <Filter>Arquivos de Origem\utils</Filter>
     </ClCompile>
@@ -118,9 +115,6 @@
       <Filter>Arquivos de Origem\render</Filter>
     </ClCompile>
     <ClCompile Include="src\utils\IOMonitor.c">
-      <Filter>Arquivos de Origem\utils</Filter>
-    </ClCompile>
-    <ClCompile Include="src\utils\OverlayRenderUtils.c">
       <Filter>Arquivos de Origem\utils</Filter>
     </ClCompile>
     <ClCompile Include="src\components\Upscaling.cpp">
@@ -141,6 +135,21 @@
     <ClCompile Include="src\utils\Path.c">
       <Filter>Arquivos de Origem\utils</Filter>
     </ClCompile>
+    <ClCompile Include="src\utils\Config.c">
+      <Filter>Arquivos de Origem\utils</Filter>
+    </ClCompile>
+    <ClCompile Include="src\utils\Demuxer.c">
+      <Filter>Arquivos de Origem\utils</Filter>
+    </ClCompile>
+    <ClCompile Include="src\utils\OverlayRender.c">
+      <Filter>Arquivos de Origem\utils</Filter>
+    </ClCompile>
+    <ClCompile Include="src\specials\ConfigImGui.cpp">
+      <Filter>Arquivos de Origem\specials</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Init.cpp">
+      <Filter>Arquivos de Origem</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\Kotonoha\Gameplay.hpp">
@@ -150,9 +159,6 @@
       <Filter>Arquivos de Cabeçalho</Filter>
     </ClInclude>
     <ClInclude Include="include\Kotonoha\Kotonoha.hpp">
-      <Filter>Arquivos de Cabeçalho</Filter>
-    </ClInclude>
-    <ClInclude Include="include\Kotonoha\version.h">
       <Filter>Arquivos de Cabeçalho</Filter>
     </ClInclude>
     <ClInclude Include="include\Kotonoha\components\Audio.hpp">
@@ -197,32 +203,11 @@
     <ClInclude Include="include\Kotonoha\renders\VideoRender.h">
       <Filter>Arquivos de Cabeçalho\render</Filter>
     </ClInclude>
-    <ClInclude Include="include\Kotonoha\utils\FFmpeg.h">
-      <Filter>Arquivos de Cabeçalho\utils</Filter>
-    </ClInclude>
-    <ClInclude Include="include\Kotonoha\utils\Time.h">
-      <Filter>Arquivos de Cabeçalho\utils</Filter>
-    </ClInclude>
-    <ClInclude Include="include\Kotonoha\utils\VoicePcm.h">
-      <Filter>Arquivos de Cabeçalho\utils</Filter>
-    </ClInclude>
-    <ClInclude Include="include\Kotonoha\utils\UserEvents.h">
-      <Filter>Arquivos de Cabeçalho\utils</Filter>
-    </ClInclude>
-    <ClInclude Include="src\resource.h">
-      <Filter>Arquivos de Cabeçalho</Filter>
-    </ClInclude>
     <ClInclude Include="include\Kotonoha\renders\TimestampRender.h">
       <Filter>Arquivos de Cabeçalho\render</Filter>
     </ClInclude>
     <ClInclude Include="include\Kotonoha\renders\LoadingRender.h">
       <Filter>Arquivos de Cabeçalho\render</Filter>
-    </ClInclude>
-    <ClInclude Include="include\Kotonoha\utils\OverlayRenderUtils.h">
-      <Filter>Arquivos de Cabeçalho\utils</Filter>
-    </ClInclude>
-    <ClInclude Include="include\Kotonoha\utils\IOMonitor.h">
-      <Filter>Arquivos de Cabeçalho\utils</Filter>
     </ClInclude>
     <ClInclude Include="include\Kotonoha\components\VoiceActivity.hpp">
       <Filter>Arquivos de Cabeçalho\components</Filter>
@@ -242,14 +227,33 @@
     <ClInclude Include="include\Kotonoha\speciais\OpenGL.h">
       <Filter>Arquivos de Cabeçalho\specials</Filter>
     </ClInclude>
+    <ClInclude Include="include\Kotonoha\utils\Config.h">
+      <Filter>Arquivos de Cabeçalho\utils</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Kotonoha\utils\Demuxer.h">
+      <Filter>Arquivos de Cabeçalho\utils</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Kotonoha\utils\FFmpeg.h">
+      <Filter>Arquivos de Cabeçalho\utils</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Kotonoha\utils\IOMonitor.h">
+      <Filter>Arquivos de Cabeçalho\utils</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Kotonoha\utils\OrsTime.h">
+      <Filter>Arquivos de Cabeçalho\utils</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Kotonoha\utils\OverlayRender.h">
+      <Filter>Arquivos de Cabeçalho\utils</Filter>
+    </ClInclude>
     <ClInclude Include="include\Kotonoha\utils\Path.h">
       <Filter>Arquivos de Cabeçalho\utils</Filter>
     </ClInclude>
-  </ItemGroup>
-  <ItemGroup>
-    <ResourceCompile Include="src\Kotonoha.rc">
-      <Filter>Arquivos de Recurso</Filter>
-    </ResourceCompile>
+    <ClInclude Include="include\Kotonoha\utils\Time.h">
+      <Filter>Arquivos de Cabeçalho\utils</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Kotonoha\utils\VoicePcm.h">
+      <Filter>Arquivos de Cabeçalho\utils</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="LICENSE" />
@@ -258,5 +262,10 @@
     <None Include="BuildPacket.ps1">
       <Filter>Arquivos de Recurso</Filter>
     </None>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="src\specials\Kotonoha.rc">
+      <Filter>Arquivos de Recurso</Filter>
+    </ResourceCompile>
   </ItemGroup>
 </Project>

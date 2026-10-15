@@ -1,0 +1,51 @@
+// Microsoft Visual C++ generated resource script.
+//
+#include "resource.h"
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Icon
+//
+
+// Icon with lowest ID value placed first to ensure application icon
+// remains consistent on all systems.
+IDI_ICON1               ICON                    "../../assets/icon.ico"
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Version
+//
+
+VS_VERSION_INFO VERSIONINFO
+FILEVERSION 1, 0, 0, 0
+PRODUCTVERSION 0, 0, 0, 10
+FILEFLAGSMASK 0x3fL
+#ifdef _DEBUG
+FILEFLAGS 0x3L
+#else
+FILEFLAGS 0x2L
+#endif
+FILEOS 0x40000L
+FILETYPE 0x1L
+FILESUBTYPE 0x0L
+BEGIN
+BLOCK "StringFileInfo"
+BEGIN
+BLOCK "007f04b0"
+BEGIN
+VALUE "CompanyName", "Build by Ruaneri F. Portela"
+VALUE "FileDescription", "Kotonoha"
+VALUE "FileVersion", "1.0.0.0"
+VALUE "InternalName", "Kotonoha.exe"
+VALUE "LegalCopyright", "Copyright 2024"
+VALUE "OriginalFilename", "Kotonoha.exe"
+VALUE "ProductName", "Kotonoha Novel Engine"
+VALUE "ProductVersion", "Experimental"
+END
+END
+BLOCK "VarFileInfo"
+BEGIN
+VALUE "Translation", 0x7f, 1200
+END
+END

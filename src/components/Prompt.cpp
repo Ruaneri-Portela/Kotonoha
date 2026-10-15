@@ -272,15 +272,15 @@ enum Kotonoha_Scene_Status Prompt::Render(KOTONOHA_SCENE_CALL) {
     if (KotonohaOverlayCreateTextTexture(render, promptObj->font, txt.c_str(),
                                          shadowColor, &item.shadowTexture,
                                          &textW, &textH)) {
-      item.shadowW = textW * windowScale;
-      item.shadowH = textH * windowScale;
+      item.shadowW = static_cast<int>(textW * windowScale);
+      item.shadowH = static_cast<int>(textH * windowScale);
     }
 
     if (KotonohaOverlayCreateTextTexture(render, promptObj->font, txt.c_str(),
                                          fg, &item.textTexture, &textW,
                                          &textH)) {
-      item.textW = textW * windowScale;
-      item.textH = textH * windowScale;
+      item.textW = static_cast<int>(textW * windowScale);
+      item.textH = static_cast<int>(textH * windowScale);
     }
 
     if (item.shadowTexture != nullptr) {
