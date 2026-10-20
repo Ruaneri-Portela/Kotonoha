@@ -123,22 +123,22 @@ Gameplay::Gameplay(const char *scriptPath, Kotonoha_Game *gameContext,
   this->drawCanvas->RegisterCanva(
       this->image->Render, 0,
       {0, 0, static_cast<float>(windowWidth), static_cast<float>(windowHeight)},
-      this->image);
+      this->image, "Image");
 
   this->drawCanvas->RegisterCanva(
       this->video->Render, 1,
       {0, 0, static_cast<float>(windowWidth), static_cast<float>(windowHeight)},
-      this->video);
+      this->video, "Video");
 
   this->drawCanvas->RegisterCanva(
       KotonohaTextRenderDraw, 3,
       {0, 0, static_cast<float>(windowWidth), static_cast<float>(windowHeight)},
-      this->sb);
+      this->sb, "Subtitles");
 
   this->drawCanvas->RegisterCanva(
       this->fade->Render, 4,
       {0, 0, static_cast<float>(windowWidth), static_cast<float>(windowHeight)},
-      this->fade);
+      this->fade, "Fade");
 
   this->scriptPath = scriptPath ? scriptPath : "";
   this->eventManager =
@@ -182,7 +182,7 @@ SDL_AppResult Gameplay::Main(Kotonoha_Game *gameContext) {
 
                               canvasPlace,
 
-                              this->prompt);
+                              this->prompt, "Prompt");
 
     this->putPrompt = false;
   }
