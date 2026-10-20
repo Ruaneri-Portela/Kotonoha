@@ -24,15 +24,12 @@ void genWhiteNoise(void *parms, Uint8 **target, size_t *size) {
 
 struct Kotonoha_AudioDecode *KotonohaAudioInit(const char *path,
                                                SDL_AudioSpec specification,
-                                               Kotonoha_IOMonitor *ioMonitor,
                                                Kotonoha_Demuxer *demuxer) {
   struct Kotonoha_AudioDecode *audioDecode =
       (struct Kotonoha_AudioDecode *)SDL_calloc(
           1, sizeof(struct Kotonoha_AudioDecode));
   if (!audioDecode)
     return NULL;
-
-  KotonohaIOMonitorOperationInit(&audioDecode->ioOperation, ioMonitor);
 
   float cacheSecs = (audioDecode->cacheDurationSeconds > 0.1f)
                         ? audioDecode->cacheDurationSeconds
@@ -49,10 +46,10 @@ struct Kotonoha_AudioDecode *KotonohaAudioInit(const char *path,
     return NULL;
   }
 
-  audioDecode->formatCtx = audioDecode->stream->formatCtx;
   audioDecode->audioStreamIndex = audioDecode->stream->audioStreamIdx;
+  audioDecode->audioTimeBase = audioDecode->stream->audioTimeBase;
 
-  if (!KotonohaFFmpegCreateDecoderCtx(audioDecode->formatCtx,
+  if (!KotonohaFFmpegCreateDecoderCtx(audioDecode->stream->formatCtx,
                                       audioDecode->audioStreamIndex,
                                       &audioDecode->codecCtx, NULL)) {
     KotonohaAudioFree(audioDecode);
@@ -67,6 +64,11 @@ struct Kotonoha_AudioDecode *KotonohaAudioInit(const char *path,
       audioDecode->specification.freq, AV_SAMPLE_FMT_FLT);
 
   if (!audioDecode->swrCtx) {
+    KotonohaAudioFree(audioDecode);
+    return NULL;
+  }
+
+  if (!KotonohaDemuxerActivateStream(demuxer, audioDecode->stream)) {
     KotonohaAudioFree(audioDecode);
     return NULL;
   }
@@ -91,6 +93,7 @@ void KotonohaAudioSeek(Kotonoha_AudioDecode *ctx, Uint64 timeMs) {
   ctx->audioTime = timeMs;
   ctx->lastTime = timeMs;
   ctx->cannotSeek = false;
+  ctx->decoderFlushSent = false;
 }
 
 void KotonohaAudioEnsureSync(Kotonoha_AudioDecode *ctx, Uint64 currentTimeMs,
@@ -112,16 +115,13 @@ int KotonohaAudioRender(void *data, Uint8 **target, int *size) {
   *size = 0;
 
   if (instance->tm != NULL && *instance->tm != NULL) {
-    if (KotonohaTimeIsPaused(*instance->tm) && !instance->ioOperation.stalled)
-      return 0; //[cite: 1]
+    if (KotonohaTimeIsPaused(*instance->tm))
+      return 0;
   }
 
   if (!instance->firstSeek) {
-    if (instance->lastTime >= instance->start) {
-      Uint64 initialSeekMs = instance->lastTime - instance->start;
-      KotonohaAudioSeek(instance, initialSeekMs); //[cite: 1]
-    } else {
-      KotonohaAudioSeek(instance, 0); //[cite: 1]
+    if (instance->lastTime > 0) {
+      KotonohaAudioSeek(instance, instance->lastTime);
     }
     instance->firstSeek = true;
   }
@@ -130,15 +130,18 @@ int KotonohaAudioRender(void *data, Uint8 **target, int *size) {
   if (!pFrame)
     return -1;
 
-  AVStream *stream =
-      instance->formatCtx->streams[instance->audioStreamIndex]; //[cite: 1]
-
   while (true) {
     // 1. Tenta receber um frame decodificado do codec
     int ret = avcodec_receive_frame(instance->codecCtx, pFrame); //[cite: 1]
     if (ret == 0) {
-      Uint64 framePtsMs = KotonohaFFmpegGetTime(stream, pFrame->pts,
-                                                pFrame->pkt_dts); //[cite: 1, 4]
+      Uint64 framePtsMs = 0;
+      if (pFrame->pts != AV_NOPTS_VALUE) {
+        framePtsMs = (Uint64)(pFrame->pts *
+                              av_q2d(instance->audioTimeBase) * 1000.0);
+      } else if (pFrame->pkt_dts != AV_NOPTS_VALUE) {
+        framePtsMs = (Uint64)(pFrame->pkt_dts *
+                              av_q2d(instance->audioTimeBase) * 1000.0);
+      }
 
       int converted = KotonohaFFmpegConvertAudioFrame(
           instance->swrCtx, pFrame, instance->specification.channels,
@@ -160,20 +163,25 @@ int KotonohaAudioRender(void *data, Uint8 **target, int *size) {
                                              &pktPts); //[cite: 1]
 
       if (pkt != NULL) {
-        avcodec_send_packet(instance->codecCtx, pkt); //[cite: 1]
+        KotonohaDemuxStreamSetWaiting(instance->stream, false);
+        const int sendResult = avcodec_send_packet(instance->codecCtx, pkt);
         av_packet_free(&pkt);                         //[cite: 1]
+        if (sendResult < 0 && sendResult != AVERROR(EAGAIN)) {
+          av_frame_free(&pFrame);
+          return -1;
+        }
         continue; // Tenta extrair o frame novamente
       } else {
-        // A fila de pacotes está vazia no momento
-        SDL_LockMutex(instance->stream->audioQueue.mutex);
-        bool isEof = instance->stream->audioQueue.eof; //[cite: 1]
-        SDL_UnlockMutex(instance->stream->audioQueue.mutex);
-
-        if (isEof) {
-          // Envia pacote flush (NULL) para extrair frames remanescentes
-          avcodec_send_packet(instance->codecCtx, NULL); //[cite: 1]
+        if (KotonohaPacketQueueIsEof(&instance->stream->audioQueue)) {
+          if (!instance->decoderFlushSent) {
+            avcodec_send_packet(instance->codecCtx, NULL);
+            instance->decoderFlushSent = true;
+            continue;
+          }
+          av_frame_free(&pFrame);
+          return 1;
         } else {
-          // Apenas aguarda preenchimento da fila sem perder o estado atual
+          KotonohaDemuxStreamSetWaiting(instance->stream, true);
           av_frame_free(&pFrame);
           return 0;
         }
@@ -203,6 +211,5 @@ void KotonohaAudioFree(void *data) {
   if (audioDecode->codecCtx)
     avcodec_free_context(&audioDecode->codecCtx);
 
-  KotonohaIOMonitorOperationReset(&audioDecode->ioOperation);
   SDL_free(audioDecode);
 }

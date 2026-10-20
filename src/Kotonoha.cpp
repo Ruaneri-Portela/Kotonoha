@@ -20,9 +20,6 @@ Kotonoha::Kotonoha(SDL_AppResult *status, struct Kotonoha_Game &context)
 
   Kotonoha_Config &config = context.config;
 
-  // -i means the user explicitly chose to ignore missing assets.
-  KotonohaIOMonitorSetRetryMissingAssets(!config.skipFiles);
-
   gameContext.taskLock = SDL_CreateMutex();
 
   if (gameContext.taskLock == nullptr) {
@@ -58,12 +55,6 @@ Kotonoha::Kotonoha(SDL_AppResult *status, struct Kotonoha_Game &context)
 }
 
 Kotonoha::~Kotonoha() {
-  for (auto *gameplay : gameplays) {
-    if (gameplay != nullptr) {
-      KotonohaIOMonitorCancel(&gameplay->ioMonitor);
-    }
-  }
-
   processPoolRunning = false;
 
   if (processPool != nullptr) {
@@ -515,11 +506,13 @@ SDL_AppResult Kotonoha::Main(Gameplay **out) {
       continue;
     }
 
-    // Parsed scenes remain available for immediate transition, but only the
-    // visible scene may schedule media work or start decoders.
+    const size_t nextScene = currentScene + 1;
     for (size_t index = 0; index < gameplays.size(); ++index) {
       if (gameplays[index] != nullptr) {
-        gameplays[index]->SetMediaActive(index == currentScene);
+        const bool isCurrentScene = index == currentScene;
+        const bool isNextScene = index == nextScene;
+        gameplays[index]->SetMediaActive(isCurrentScene || isNextScene,
+                                         isNextScene);
       }
     }
 
@@ -532,9 +525,6 @@ SDL_AppResult Kotonoha::Main(Gameplay **out) {
       lastScene = currentScene;
       if (!current->firstFocus)
         current->Reset(true);
-#ifdef KOTONOHA_HAS_METALFX
-      KotonohaMetalFXClearScalerCache();
-#endif
       continue;
     }
 

@@ -48,10 +48,8 @@ void ReleaseImageLoad(Kotonoha_ImageLoad *load) {
   }
 
   KotonohaImageReleaseFrame(&load->frame, &load->buffer);
-  KotonohaIOMonitorOperationReset(&load->ioOperation);
 
   load->path = nullptr;
-  load->owner = nullptr;
   load->failed = false;
   load->missingIgnored = false;
 
@@ -60,7 +58,7 @@ void ReleaseImageLoad(Kotonoha_ImageLoad *load) {
 
 bool PrepareImageTexture(SDL_Renderer *renderer, const char *path,
                          Kotonoha_ImageLoad *load, SDL_Texture **texture,
-                         Kotonoha_IOMonitor *owner) {
+                         bool ignoreMissingAssets) {
   if (renderer == nullptr || path == nullptr || load == nullptr ||
       texture == nullptr) {
     SDL_LogError(SDL_LOG_CATEGORY_RENDER,
@@ -73,13 +71,10 @@ bool PrepareImageTexture(SDL_Renderer *renderer, const char *path,
   }
 
   // Decodificação síncrona direta sem threads
-  KotonohaIOMonitorOperationInit(&load->ioOperation, owner);
   load->path = path;
-  load->owner = owner;
   SDL_SetAtomicInt(&load->state, 1);
 
-  load->frame = KotonohaImageDecodeFrame(load->path, -1, -1, &load->buffer,
-                                         &load->ioOperation);
+  load->frame = KotonohaImageDecodeNativeFrame(load->path, ignoreMissingAssets);
 
   if (load->frame != nullptr) {
     *texture = KotonohaImageCreateTextureFromFrame(renderer, load->frame);
@@ -90,12 +85,9 @@ bool PrepareImageTexture(SDL_Renderer *renderer, const char *path,
     }
   } else {
     load->failed = true;
-    if (KotonohaIOMonitorIsIgnoredMissing(&load->ioOperation)) {
-      load->missingIgnored = true;
-    }
+    load->missingIgnored = ignoreMissingAssets;
   }
 
-  KotonohaIOMonitorOperationReset(&load->ioOperation);
   SDL_SetAtomicInt(&load->state, 0);
 
   return *texture != nullptr;
@@ -121,6 +113,53 @@ void DestroyPicture(Kotonoha_Picture *picture) {
   delete picture;
 }
 
+bool ClearTransparent(SDL_Renderer *renderer) {
+  Uint8 drawR = 0;
+  Uint8 drawG = 0;
+  Uint8 drawB = 0;
+  Uint8 drawA = 0;
+  if (!SDL_GetRenderDrawColor(renderer, &drawR, &drawG, &drawB, &drawA)) {
+    SDL_LogError(SDL_LOG_CATEGORY_RENDER,
+                 "Failed to save renderer draw color: %s", SDL_GetError());
+    return false;
+  }
+
+  const bool cleared = SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0) &&
+                       SDL_RenderClear(renderer);
+  const bool restored =
+      SDL_SetRenderDrawColor(renderer, drawR, drawG, drawB, drawA);
+  if (!cleared || !restored) {
+    SDL_LogError(SDL_LOG_CATEGORY_RENDER,
+                 "Failed to clear image layer transparently: %s",
+                 SDL_GetError());
+    return false;
+  }
+  return true;
+}
+
+bool RenderTextureToCanvasTarget(SDL_Renderer *renderer, SDL_Texture *texture,
+                                 SDL_Texture *target) {
+  float width = 0.0f;
+  float height = 0.0f;
+  if (renderer == nullptr || texture == nullptr || target == nullptr ||
+      !SDL_GetTextureSize(target, &width, &height) || width <= 0.0f ||
+      height <= 0.0f) {
+    SDL_LogError(SDL_LOG_CATEGORY_RENDER,
+                 "Invalid image or canvas target for rendering: %s",
+                 SDL_GetError());
+    return false;
+  }
+
+  const SDL_FRect destination{0.0f, 0.0f, width, height};
+  if (!SDL_RenderTexture(renderer, texture, nullptr, &destination)) {
+    SDL_LogError(SDL_LOG_CATEGORY_RENDER,
+                 "Failed to render image texture to canvas target: %s",
+                 SDL_GetError());
+    return false;
+  }
+  return true;
+}
+
 } // namespace
 
 AbcGroup::~AbcGroup() {
@@ -134,8 +173,9 @@ AbcGroup::~AbcGroup() {
   }
 }
 
-Image::Image(Kotonoha_Time *time, Kotonoha_IOMonitor *ioMonitor)
-    : timeManager(time), ioMonitor(ioMonitor), lock(nullptr) {
+Image::Image(Kotonoha_Time *time, bool ignoreMissingAssets)
+    : timeManager(time), ignoreMissingAssets(ignoreMissingAssets),
+      lock(nullptr) {
   lock = SDL_CreateMutex();
 
   if (lock == nullptr) {
@@ -286,7 +326,7 @@ void Image::DrawAbcForBase(Kotonoha_Picture *picture, SDL_Renderer *renderer,
 
     if (group->textures[index] == nullptr) {
       PrepareImageTexture(renderer, path.c_str(), &group->loads[index],
-                          &group->textures[index], ioMonitor);
+                          &group->textures[index], ignoreMissingAssets);
 
       if (group->textures[index] == nullptr) {
         continue;
@@ -310,13 +350,7 @@ void Image::DrawAbcForBase(Kotonoha_Picture *picture, SDL_Renderer *renderer,
     if (group->textures[index] == nullptr) {
       continue;
     }
-
-    if (!SDL_RenderTexture(renderer, group->textures[index], nullptr,
-                           nullptr)) {
-      SDL_LogError(SDL_LOG_CATEGORY_RENDER,
-                   "Failed to draw mouth overlay %s: %s", path.c_str(),
-                   SDL_GetError());
-    }
+    SDL_RenderTexture(renderer, group->textures[index], nullptr, nullptr);
   }
 }
 
@@ -347,7 +381,6 @@ Uint64 Image::Register(const char *path, Uint64 startTime, Uint64 endTime,
   object->id = id;
   object->canRender = true;
   object->baseGeneration = 0;
-  object->load.owner = ioMonitor;
 
   if (object->path == nullptr) {
     SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
@@ -450,6 +483,15 @@ void Image::RenderTexture(SDL_Renderer *render, SDL_Texture *target,
     return;
   }
 
+  if (!cleaned) {
+    if (!ClearTransparent(render)) {
+      return;
+    }
+    cleaned = true;
+  }
+
+  SDL_Texture *textureToRender = picture->texture;
+  bool upscaled = false;
   const float factor = KotonohaUpscalingInitFactor();
 
   if (factor > 1.0f && IsUpscalingActive()) {
@@ -476,78 +518,55 @@ void Image::RenderTexture(SDL_Renderer *render, SDL_Texture *target,
                                  factor)) {
       SDL_LogError(SDL_LOG_CATEGORY_RENDER,
                    "Failed to ensure upscaling textures for picture");
-      return;
+    } else if (!SDL_SetRenderTarget(render, extraTexture)) {
+      SDL_LogWarn(SDL_LOG_CATEGORY_RENDER,
+                  "Could not activate image upscaling target; drawing source "
+                  "texture directly: %s",
+                  SDL_GetError());
+    } else if (!ClearTransparent(render)) {
+      if (!SDL_SetRenderTarget(render, target)) {
+        SDL_LogError(SDL_LOG_CATEGORY_RENDER,
+                     "Failed to restore image render target: %s",
+                     SDL_GetError());
+      }
+    } else {
+      const SDL_FRect pictureDestination{0.0f, 0.0f, pictureWidth,
+                                         pictureHeight};
+      if (!SDL_RenderTexture(render, picture->texture, nullptr,
+                             &pictureDestination)) {
+        SDL_LogWarn(SDL_LOG_CATEGORY_RENDER,
+                    "Could not copy image into upscaling target; drawing "
+                    "source texture directly: %s",
+                    SDL_GetError());
+      } else {
+        if (picture->id == 0) {
+          DrawAbcForBase(picture, render, KotonohaTimeGet(timeManager));
+        }
+        if (!SDL_SetRenderTarget(render, target)) {
+          SDL_LogError(SDL_LOG_CATEGORY_RENDER,
+                       "Failed to restore image render target: %s",
+                       SDL_GetError());
+        } else if (ProcessUpscale(render, extraTexture)) {
+          textureToRender = upScaledTexture;
+          upscaled = true;
+        }
+      }
+
+      if (SDL_GetRenderTarget(render) != target &&
+          !SDL_SetRenderTarget(render, target)) {
+        SDL_LogError(SDL_LOG_CATEGORY_RENDER,
+                     "Failed to restore image render target: %s",
+                     SDL_GetError());
+        return;
+      }
     }
+  }
 
-    SDL_Rect originalViewport{};
-    SDL_Rect originalClip{};
-    float originalScaleX = 1.0f;
-    float originalScaleY = 1.0f;
-
-    const bool viewportEnabled = SDL_RenderViewportSet(render);
-    const bool clipEnabled = SDL_RenderClipEnabled(render);
-
-    SDL_GetRenderViewport(render, &originalViewport);
-    SDL_GetRenderClipRect(render, &originalClip);
-
-    if (!SDL_GetRenderScale(render, &originalScaleX, &originalScaleY)) {
-      SDL_LogError(SDL_LOG_CATEGORY_RENDER, "Failed to get renderer scale: %s",
-                   SDL_GetError());
-      return;
-    }
-
-    if (!SDL_SetRenderTarget(render, extraTexture)) {
-      SDL_LogError(SDL_LOG_CATEGORY_RENDER,
-                   "Failed to set upscaling render target: %s", SDL_GetError());
-      return;
-    }
-
-    SDL_SetRenderViewport(render, nullptr);
-    SDL_SetRenderClipRect(render, nullptr);
-    SDL_SetRenderScale(render, 1.0f, 1.0f);
-    SDL_SetRenderDrawColor(render, 0, 0, 0, 0);
-    SDL_RenderClear(render);
-
-    const SDL_FRect pictureDestination = {0.0f, 0.0f, pictureWidth,
-                                          pictureHeight};
-
-    SDL_RenderTexture(render, picture->texture, nullptr, &pictureDestination);
-
-    if (picture->id == 0) {
-      DrawAbcForBase(picture, render, KotonohaTimeGet(timeManager));
-    }
-
-    if (!SDL_SetRenderTarget(render, target)) {
-      SDL_LogError(SDL_LOG_CATEGORY_RENDER,
-                   "Failed to restore render target: %s", SDL_GetError());
-      return;
-    }
-
-    if (!SDL_SetRenderViewport(render,
-                               viewportEnabled ? &originalViewport : nullptr) ||
-        !SDL_SetRenderClipRect(render, clipEnabled ? &originalClip : nullptr) ||
-        !SDL_SetRenderScale(render, originalScaleX, originalScaleY)) {
-      SDL_LogError(SDL_LOG_CATEGORY_RENDER,
-                   "Failed to restore renderer state: %s", SDL_GetError());
-      return;
-    }
-
-    if (ProcessUpscale(render, extraTexture)) {
-      SDL_RenderTexture(render, upScaledTexture, nullptr, nullptr);
-      return;
-    }
-    SDL_RenderTexture(render, extraTexture, nullptr, nullptr);
+  if (!RenderTextureToCanvasTarget(render, textureToRender, target)) {
     return;
   }
 
-  if (!cleaned) {
-    SDL_RenderClear(render);
-    cleaned = true;
-  }
-
-  SDL_RenderTexture(render, picture->texture, nullptr, nullptr);
-
-  if (picture->id == 0) {
+  if (!upscaled && picture->id == 0) {
     DrawAbcForBase(picture, render, KotonohaTimeGet(timeManager));
   }
 }
@@ -585,20 +604,19 @@ Kotonoha_Scene_Status Image::Render(KOTONOHA_SCENE_CALL) {
                                  picture->endTime, &inRange, &diff);
 
     if (picture->texture == nullptr) {
+      if (!inRange && diff < -10000) {
+        ++it;
+        continue;
+      }
+
       PrepareImageTexture(render, picture->path, &picture->load,
-                          &picture->texture, here->ioMonitor);
+                          &picture->texture, here->ignoreMissingAssets);
 
       if (picture->texture == nullptr) {
         if (picture->load.failed && !picture->load.missingIgnored) {
           SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
                        "Failed to create image texture: %s",
                        picture->path ? picture->path : "<null>");
-        }
-
-        if (picture->load.ioOperation.stalled &&
-            status != KOTONOHA_SCENE_DRAW &&
-            status != KOTONOHA_SCENE_DRAW_LAST) {
-          status = Kotonoha_Scene_Status::KOTONOHA_SCENE_WAITING;
         }
 
         ++it;
@@ -655,7 +673,6 @@ Kotonoha_Scene_Status Image::Render(KOTONOHA_SCENE_CALL) {
     }
 
     here->RenderTexture(render, target, picture, cleaned);
-
     if (status != KOTONOHA_SCENE_DRAW_LAST) {
       status = KOTONOHA_SCENE_DRAW;
     }
@@ -684,7 +701,7 @@ void Image::Reset() {
     SDL_UnlockMutex(lock);
   }
 
-  for (auto *picture : pictures) {
+  for (auto *picture : oldPictures) {
     DestroyPicture(picture);
   }
 

@@ -32,6 +32,9 @@ private:
   TTF_Font *font = nullptr;
   std::string audioPath{};
   std::vector<PromptLayoutItem> lastLayout{};
+  SDL_FRect viewport = {0, 0, 0, 0};
+  int focusedIndex = -1;
+  bool keyboardFocusActive = false;
 
   void ClearLayoutTextures();
 
@@ -42,6 +45,8 @@ public:
 
   void HandleEvent(SDL_Event *event, Kotonoha_Game *gameContext,
                    Audio *audioManager);
+  void SetViewport(SDL_FRect viewport);
+  bool IsActive() const;
 
   static enum Kotonoha_Scene_Status Render(KOTONOHA_SCENE_CALL);
 

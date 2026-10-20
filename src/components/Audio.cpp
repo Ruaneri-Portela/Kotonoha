@@ -2,21 +2,9 @@
 
 namespace Kotonoha {
 
-static void CancelDecode(Kotonoha_AudioDecode *decode) {
-  if (decode == nullptr) {
-    return;
-  }
-
-  KotonohaIOMonitorOperationCancel(&decode->ioOperation);
-  if (decode->loopMedia != nullptr) {
-    KotonohaIOMonitorOperationCancel(&decode->loopMedia->ioOperation);
-  }
-}
-
 Audio::Audio(Sound *soundCtx, struct Kotonoha_Time *timeCtx,
-             Kotonoha_IOMonitor *ioMonitor, Kotonoha_Demuxer *demuxer)
-    : soundCtx(soundCtx), timeCtx(timeCtx), ioMonitor(ioMonitor),
-      demuxer(demuxer) {}
+             Kotonoha_Demuxer *demuxer)
+    : soundCtx(soundCtx), timeCtx(timeCtx), demuxer(demuxer) {}
 
 Kotonoha_AudioDecode *Audio::AddMedia(const char *path, Uint64 start,
                                       Uint64 end, bool inLoop,
@@ -73,7 +61,7 @@ Audio::AddMediaInternal(const char *path, Uint64 start, Uint64 end, bool inLoop,
   }
 
   Kotonoha_AudioDecode *newAudioDecode =
-      KotonohaAudioInit(path, targetChannel->GetSpecs(), ioMonitor, demuxer);
+      KotonohaAudioInit(path, targetChannel->GetSpecs(), demuxer);
   if (newAudioDecode == nullptr) {
     KotonohaAudioFree(loopMedia);
     return nullptr;
@@ -120,7 +108,7 @@ struct Kotonoha_AudioDecode *Audio::AddIntroLoopMedia(const char *introPath,
   }
 
   Kotonoha_AudioDecode *loop =
-      KotonohaAudioInit(loopPath, channel->GetSpecs(), ioMonitor, demuxer);
+      KotonohaAudioInit(loopPath, channel->GetSpecs(), demuxer);
   if (loop == nullptr) {
     return nullptr;
   }
@@ -128,7 +116,6 @@ struct Kotonoha_AudioDecode *Audio::AddIntroLoopMedia(const char *introPath,
   loop->tm = &timeCtx;
   loop->start = start;
   loop->end = end;
-  KotonohaAudioSeek(loop, 0);
 
   return AddMediaInternal(introPath, start, end, false, channelName, loop);
 }
@@ -144,7 +131,6 @@ void Audio::RemoveMedia(struct Kotonoha_AudioDecode *mediaPtr) {
       Sound::Channel::Pipe *pipePtr = std::get<1>(*pipeIt);
 
       if (mediaPtr == nullptr || decodePtr == mediaPtr) {
-        CancelDecode(decodePtr);
         if (channel != nullptr && pipePtr != nullptr) {
           channel->RemovePipe(pipePtr);
         }

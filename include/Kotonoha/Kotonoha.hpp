@@ -6,7 +6,7 @@
 #include <Kotonoha/renders/FpsRender.h>
 #include <Kotonoha/renders/LoadingRender.h>
 #include <Kotonoha/renders/TimestampRender.h>
-#include <Kotonoha/utils/Config.h>
+#include <Kotonoha/parsers/Config.h>
 #include <Kotonoha/utils/Path.h>
 
 #include <atomic>

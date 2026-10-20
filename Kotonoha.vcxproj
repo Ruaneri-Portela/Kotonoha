@@ -57,7 +57,6 @@
     <ClCompile Include="src\utils\Config.c" />
     <ClCompile Include="src\utils\Demuxer.c" />
     <ClCompile Include="src\utils\FFmpeg.c" />
-    <ClCompile Include="src\utils\IOMonitor.c" />
     <ClCompile Include="src\utils\OverlayRender.c" />
     <ClCompile Include="src\utils\Path.c" />
     <ClCompile Include="src\utils\Time.c" />
@@ -92,7 +91,7 @@
     <ClInclude Include="include\Kotonoha\utils\Config.h" />
     <ClInclude Include="include\Kotonoha\utils\Demuxer.h" />
     <ClInclude Include="include\Kotonoha\utils\FFmpeg.h" />
-    <ClInclude Include="include\Kotonoha\utils\IOMonitor.h" />
+    <ClInclude Include="include\Kotonoha\utils\FFmpegSDL.h" />
     <ClInclude Include="include\Kotonoha\utils\OrsTime.h" />
     <ClInclude Include="include\Kotonoha\utils\OverlayRender.h" />
     <ClInclude Include="include\Kotonoha\utils\Path.h" />
@@ -104,6 +103,14 @@
     <None Include="LICENSE" />
     <None Include="README.md" />
     <None Include="vcpkg.json" />
+    <None Include="assets\Anime4K\Anime4K_ModeA_A.glsl">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>assets\Anime4K\Anime4K_ModeA_A.glsl</Link>
+    </None>
+    <None Include="assets\Anime4K\Anime4K_Vertex.glsl">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>assets\Anime4K\Anime4K_Vertex.glsl</Link>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="src\specials\Kotonoha.rc" />
@@ -210,7 +217,7 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;KOTONOHA_HAS_ANIME4K=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>include;external\SDL_ttf\include;external\SDL\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
@@ -226,7 +233,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;KOTONOHA_HAS_ANIME4K=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>include;external\SDL_ttf\include;external\SDL\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
@@ -240,7 +247,7 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_DEBUG;_CONSOLE;KOTONOHA_HAS_ANIME4K=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>include;external\SDL_ttf\include;external\SDL\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
@@ -254,7 +261,7 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_DEBUG;_CONSOLE;KOTONOHA_HAS_ANIME4K=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>include;external\SDL_ttf\include;external\SDL\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
@@ -270,7 +277,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NDEBUG;_CONSOLE;KOTONOHA_HAS_ANIME4K=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>include;external\SDL_ttf\include;external\SDL\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
@@ -286,7 +293,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NDEBUG;_CONSOLE;KOTONOHA_HAS_ANIME4K=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>include;external\SDL_ttf\include;external\SDL\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>

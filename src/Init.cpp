@@ -1,6 +1,9 @@
 #include <Kotonoha/Init.hpp>
 #include <algorithm>
 #include <cctype>
+#if defined(__APPLE__)
+#include <TargetConditionals.h>
+#endif
 
 // Definição da estrutura global
 struct Kotonoha_Game global = {};
@@ -99,6 +102,10 @@ bool InitWindow() {
                                 SDL_WINDOW_HIDDEN |
                                 SDL_WINDOW_HIGH_PIXEL_DENSITY;
 
+#if defined(__APPLE__) && TARGET_OS_IOS
+  windowFlags |= SDL_WINDOW_FULLSCREEN;
+#endif
+
   global.window =
       SDL_CreateWindow("Kotonoha Engine", global.config.windowSize[0],
                        global.config.windowSize[1], windowFlags);
@@ -107,6 +114,7 @@ bool InitWindow() {
     SDL_LogError(0, "Couldn't create window: %s", SDL_GetError());
     return false;
   }
+  global.flags = SDL_GetWindowFlags(global.window);
 
 #ifndef KOTONOHA_MOBILE
   InitWindowIcon(global.window, "assets/icon.png");
@@ -116,8 +124,26 @@ bool InitWindow() {
 }
 
 bool InitRenderer() {
-  const std::vector<const char *> rendererMethods = {
-      global.config.preferredRenderer, nullptr, "software"};
+  std::vector<const char *> rendererMethods;
+  const bool hasExplicitRenderer =
+      global.config.preferredRenderer != nullptr &&
+      SDL_strcasecmp(global.config.preferredRenderer, "Auto") != 0;
+  if (hasExplicitRenderer) {
+    rendererMethods.push_back(global.config.preferredRenderer);
+  }
+
+#if defined(KOTONOHA_HAS_ANIME4K)
+  if (!hasExplicitRenderer && global.config.scalerFactor > 1.0f) {
+#if defined(__ANDROID__) || defined(ANDROID)
+    rendererMethods.push_back("opengles2");
+#else
+    rendererMethods.push_back("opengl");
+#endif
+  }
+#endif
+
+  rendererMethods.push_back(nullptr);
+  rendererMethods.push_back("software");
 
   for (const char *method : rendererMethods) {
     global.render = SDL_CreateRenderer(global.window, method);

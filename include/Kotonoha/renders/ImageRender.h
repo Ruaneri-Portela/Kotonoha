@@ -15,8 +15,6 @@ typedef struct Kotonoha_ImageLoad {
   AVFrame *frame;
   Uint8 *buffer;
   const char *path;
-  Kotonoha_IOMonitor *owner;
-  Kotonoha_IOMonitorOperation ioOperation;
   SDL_AtomicInt state;
   bool failed;
   bool missingIgnored;
@@ -35,8 +33,9 @@ typedef struct Kotonoha_Picture {
 SDL_Texture *KotonohaImageCreateTexture(SDL_Renderer *render, const char *path,
                                         int h, int w);
 AVFrame *KotonohaImageDecodeFrame(const char *path, int h, int w,
-                                  Uint8 **buffer,
-                                  Kotonoha_IOMonitorOperation *ioOperation);
+                                  Uint8 **buffer, bool ignoreMissingAssets);
+AVFrame *KotonohaImageDecodeNativeFrame(const char *path,
+                                        bool ignoreMissingAssets);
 SDL_Texture *KotonohaImageCreateTextureFromFrame(SDL_Renderer *render,
                                                  AVFrame *frame);
 

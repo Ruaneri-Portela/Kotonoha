@@ -14,7 +14,6 @@ class Video : public Upscaling {
 private:
   float cacheDurationSeconds = 2.0f;
   Kotonoha_Time *timeManager = nullptr;
-  Kotonoha_IOMonitor *ioMonitor = nullptr;
   Kotonoha_Demuxer *demuxer = nullptr;
 
   SDL_Texture *heldTexture = nullptr;
@@ -28,8 +27,8 @@ private:
 public:
   void Reset();
 
-  Video(Kotonoha_Time *timeManager, Kotonoha_IOMonitor *ioMonitor,
-        Kotonoha_Demuxer *demuxer, float cacheDurationSeconds = 2.0f);
+  Video(Kotonoha_Time *timeManager, Kotonoha_Demuxer *demuxer,
+        float cacheDurationSeconds = 2.0f);
 
   bool Register(const char *path, Uint64 startTime, Uint64 endTime,
                 bool useOrsFrameTimeline = false, Uint64 orsEndFrame = 0);

@@ -9,7 +9,6 @@
 #include <Kotonoha/components/Sound.hpp>
 #include <Kotonoha/components/Video.hpp>
 #include <Kotonoha/utils/Demuxer.h>
-#include <Kotonoha/utils/IOMonitor.h>
 #include <SDL3_ttf/SDL_ttf.h>
 #include <atomic>
 
@@ -23,15 +22,21 @@ class Gameplay {
 private:
   float aspectRatio = 16.0f / 9.0f;
   int windowWidth = 0, windowHeight = 0;
+  SDL_FRect canvasPlace = {0, 0, 0, 0};
   bool lastPauseStatus = false, playOnlyOnFocus = false;
   bool loadingPauseActive = false, pausedBeforeLoading = false;
+  bool loadingCandidateActive = false;
 
+  Uint64 loadingCandidateStartedAt = 0;
   Uint64 loadingOverlayVisibleUntil = 0;
   Uint64 loadingPauseStartedAt = 0;
   float deltaTime = 0.0f;
   Uint64 lastFrameNs = 0;
 
   std::atomic_bool mediaActive{false};
+  std::atomic_bool prefetchAllMedia{false};
+  bool prefetchPendingPromotion = false;
+  bool prefetchThreadSuspended = false;
   void UpdateDeltaTime();
   void UpdateCanvasSize(SDL_Window *window, SDL_Renderer *renderer);
   void UpdateLoadingPause(struct Kotonoha_Game *gameContext);
@@ -63,7 +68,6 @@ private:
 public:
   Kotonoha_Subtitles *sb = nullptr;
   Kotonoha_Time *tm = nullptr;
-  Kotonoha_IOMonitor ioMonitor{};
   Kotonoha_Demuxer *demuxer = nullptr;
   Canvas *drawCanvas = nullptr;
   Event *eventManager = nullptr;
@@ -92,8 +96,9 @@ public:
   float GetTime();
   float GetLastTime();
   void SetTime(float time);
-  void SetMediaActive(bool active);
+  void SetMediaActive(bool active, bool prefetchOnly = false);
   bool IsMediaActive() const;
+  bool ShouldPrefetchAllMedia() const;
   ~Gameplay();
 };
 } // namespace Kotonoha

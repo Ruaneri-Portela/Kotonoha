@@ -11,8 +11,6 @@
 #include <libswresample/swresample.h>
 #include <libswscale/swscale.h>
 
-#include <Kotonoha/utils/IOMonitor.h>
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -29,19 +27,8 @@ bool KotonohaFFmpegLoad(const char *path, AVFormatContext **formatCtx,
                         int *streamIndexExport, int startIndex,
                         struct Kotonoha_FFmpegHwContext *hwCtx);
 
-bool KotonohaFFmpegLoadMonitored(const char *path, AVFormatContext **formatCtx,
-                                 AVCodecContext **codecCtx,
-                                 enum AVMediaType mediaType,
-                                 int *streamIndexExport, int startIndex,
-                                 struct Kotonoha_FFmpegHwContext *hwCtx,
-                                 Kotonoha_IOMonitorOperation *ioOperation);
-
 /* Leitura e Posicionamento */
 int KotonohaFFmpegReadFrame(AVFormatContext *formatCtx, AVPacket *packet);
-
-int KotonohaFFmpegSeekFrame(AVFormatContext *formatCtx,
-                            Kotonoha_IOMonitorOperation *ioOperation,
-                            int streamIndex, Sint64 timestamp, int flags);
 
 Uint64 KotonohaFFmpegGetTime(AVStream *stream, Sint64 pts, Sint64 dts);
 

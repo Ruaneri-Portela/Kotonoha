@@ -181,6 +181,10 @@ if (ANDROID)
             log
             atomic
             m
+            GLESv2
+    )
+    target_compile_definitions(Kotonoha PRIVATE
+            KOTONOHA_HAS_ANIME4K=1
     )
 
     # ==============================================================================
@@ -230,6 +234,29 @@ else ()
             PkgConfig::SDL3_TTF
             imgui::imgui
     )
+
+    if (NOT APPLE)
+        find_package(OpenGL QUIET)
+        if (OpenGL_FOUND)
+            target_compile_definitions(Kotonoha PRIVATE
+                    KOTONOHA_HAS_ANIME4K=1
+            )
+            target_link_libraries(Kotonoha PRIVATE
+                    OpenGL::GL
+            )
+            add_custom_command(TARGET Kotonoha POST_BUILD
+                    COMMAND ${CMAKE_COMMAND} -E copy_directory
+                    "${KOTONOHA_ASSETS_DIR}/Anime4K"
+                    "$<TARGET_FILE_DIR:Kotonoha>/assets/Anime4K"
+                    VERBATIM
+            )
+        else ()
+            message(STATUS
+                    "OpenGL not found; Anime4K upscaling is disabled"
+            )
+        endif ()
+    endif ()
+
 
     # Haiku necessita que o executável seja gerado como PIC.
     if (CMAKE_SYSTEM_NAME STREQUAL "Haiku")

@@ -74,6 +74,8 @@ enum Kotonoha_Scene_Status KotonohaLoadingRender(KOTONOHA_SCENE_CALL) {
     return KOTONOHA_SCENE_NULL;
   }
 
+  TTF_SetFontSize(font, 28);
+
   int width = 0;
   int height = 0;
   float windowScale = 1.0f;
@@ -102,13 +104,15 @@ enum Kotonoha_Scene_Status KotonohaLoadingRender(KOTONOHA_SCENE_CALL) {
     return KOTONOHA_SCENE_NULL;
   }
 
-  SDL_FRect text = {((float)width - loadingCommon->textWidth) * 0.5f,
-                    ((float)height - loadingCommon->textHeight) * 0.5f,
-                    loadingCommon->textWidth, loadingCommon->textHeight};
+  const float textWidth = loadingCommon->textWidth * windowScale;
+  const float textHeight = loadingCommon->textHeight * windowScale;
+  SDL_FRect text = {((float)width - textWidth) * 0.5f,
+                    ((float)height - textHeight) * 0.5f, textWidth,
+                    textHeight};
 
   SDL_FRect shadow = text;
-  shadow.x += 2.0f * windowScale;
-  shadow.y += 2.0f * windowScale;
+  shadow.x += 2.0f;
+  shadow.y += 2.0f;
 
   if (!SDL_RenderTexture(render, loadingCommon->shadow, NULL, &shadow)) {
     SDL_LogError(SDL_LOG_CATEGORY_RENDER,

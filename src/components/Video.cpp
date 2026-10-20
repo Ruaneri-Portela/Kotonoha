@@ -2,9 +2,9 @@
 
 namespace Kotonoha {
 
-Video::Video(Kotonoha_Time *timeManager, Kotonoha_IOMonitor *ioMonitor,
-             Kotonoha_Demuxer *demuxer, float cacheDurationSeconds)
-    : timeManager(timeManager), ioMonitor(ioMonitor), demuxer(demuxer),
+Video::Video(Kotonoha_Time *timeManager, Kotonoha_Demuxer *demuxer,
+             float cacheDurationSeconds)
+    : timeManager(timeManager), demuxer(demuxer),
       cacheDurationSeconds(cacheDurationSeconds) {
   lock = SDL_CreateMutex();
   if (lock == nullptr) {
@@ -27,7 +27,7 @@ bool Video::Register(const char *path, Uint64 startTime, Uint64 endTime,
 
   Kotonoha_VideoData *object = KotonohaVideoRenderInit(
       path, timeManager, startTime, endTime, useOrsFrameTimeline, orsEndFrame,
-      ioMonitor, cacheDurationSeconds, demuxer);
+      cacheDurationSeconds, demuxer);
   if (object == nullptr) {
     return false;
   }
@@ -89,6 +89,13 @@ Kotonoha_Scene_Status Video::Render(KOTONOHA_SCENE_CALL) {
   Video *here = static_cast<Video *>(userData);
   if (here == nullptr || here->lock == nullptr) {
     return KOTONOHA_SCENE_COMPLETE;
+  }
+
+  if (!SDL_SetRenderDrawColor(render, 0, 0, 0, 255) ||
+      !SDL_RenderClear(render)) {
+    SDL_LogError(SDL_LOG_CATEGORY_RENDER, "Failed to clear video canvas: %s",
+                 SDL_GetError());
+    return KOTONOHA_SCENE_WAITING;
   }
 
   Kotonoha_Scene_Status returnStatus = KOTONOHA_SCENE_NULL;

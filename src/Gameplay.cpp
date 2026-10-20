@@ -3,6 +3,9 @@
 #include <Kotonoha/speciais/MetalFX.h>
 
 #include <SDL3_ttf/SDL_ttf.h>
+#if defined(__APPLE__)
+#include <TargetConditionals.h>
+#endif
 
 namespace Kotonoha {
 namespace {
@@ -57,7 +60,11 @@ void Gameplay::UpdateCanvasSize(SDL_Window *window, SDL_Renderer *renderer) {
     place.x = (renderWidth - place.w) * 0.5f;
   }
 
+  canvasPlace = place;
   drawCanvas->UpdateCanva(nullptr, -1, place);
+  if (prompt != nullptr) {
+    prompt->SetViewport(place);
+  }
 }
 
 void Gameplay::UpdateLoadingPause(struct Kotonoha_Game *gameContext) {
@@ -65,46 +72,51 @@ void Gameplay::UpdateLoadingPause(struct Kotonoha_Game *gameContext) {
     return;
   }
 
-  const bool loading = KotonohaIOMonitorIsLoading(&ioMonitor);
+  const bool loading = KotonohaDemuxerIsLoading(demuxer);
   const Uint64 now = SDL_GetTicks();
+  constexpr Uint64 kLoadingDebounceMs = 300;
   constexpr Uint64 kMinimumLoadingPauseMs = 1000;
 
-  if (loading && !loadingPauseActive) {
-    pausedBeforeLoading = gameContext->config.paused;
-    loadingPauseActive = true;
-    loadingPauseStartedAt = now;
-  }
-
   if (loading) {
-    // Keep pause and overlay stable while the decoder refills its cache.
+    if (!loadingCandidateActive) {
+      loadingCandidateActive = true;
+      loadingCandidateStartedAt = now;
+    }
+    if (now - loadingCandidateStartedAt < kLoadingDebounceMs) {
+      return;
+    }
+
+    if (!loadingPauseActive) {
+      pausedBeforeLoading = gameContext->config.paused;
+      loadingPauseActive = true;
+      loadingPauseStartedAt = now;
+    }
     loadingOverlayVisibleUntil = now + kMinimumLoadingPauseMs;
     gameContext->config.paused = true;
-  } else if (loadingPauseActive && now >= loadingOverlayVisibleUntil &&
-             now - loadingPauseStartedAt >= kMinimumLoadingPauseMs) {
-    gameContext->config.paused = pausedBeforeLoading;
-    loadingPauseActive = false;
-    loadingPauseStartedAt = 0;
+  } else {
+    loadingCandidateActive = false;
+    loadingCandidateStartedAt = 0;
+    if (loadingPauseActive && now >= loadingOverlayVisibleUntil &&
+        now - loadingPauseStartedAt >= kMinimumLoadingPauseMs) {
+      gameContext->config.paused = pausedBeforeLoading;
+      loadingPauseActive = false;
+      loadingPauseStartedAt = 0;
+    }
   }
 }
 
 Gameplay::Gameplay(const char *scriptPath, Kotonoha_Game *gameContext,
                    TTF_Font *font) {
-  KotonohaIOMonitorInit(&ioMonitor,
-                        KotonohaIOMonitorRetryMissingAssetsEnabled());
-
-  this->demuxer = KotonohaDemuxerCreate(&ioMonitor);
+  this->demuxer = KotonohaDemuxerCreate(!gameContext->config.skipFiles);
   this->tm = KotonohaTimeNew(true);
   this->sb = KotonohaTextRenderInit(this->tm, gameContext);
-  this->video = new Video(this->tm, &ioMonitor, this->demuxer,
+  this->video = new Video(this->tm, this->demuxer,
                           gameContext->config.videoCacheSeconds);
-  this->image = new Image(this->tm, &ioMonitor);
+  this->image = new Image(this->tm, gameContext->config.skipFiles);
   this->audio = new Audio(static_cast<Sound *>(gameContext->sound), this->tm,
-                          &ioMonitor, this->demuxer);
+                          this->demuxer);
   this->fade = new Fade(this->tm);
   this->drawCanvas = new Canvas();
-
-  KotonohaIOMonitorBindNetworkWaitFlag(&ioMonitor,
-                                       this->drawCanvas->NetworkWaitFlag());
 
   this->drawCanvas->RegisterCanva(
       this->image->Render, 0,
@@ -142,7 +154,10 @@ SDL_AppResult Gameplay::Main(Kotonoha_Game *gameContext) {
   }
   if (firstFocus) {
     UpdateCanvasSize(gameContext->window, gameContext->render);
-    if (!KotonohaTimeIsStarted(tm)) {
+    if (prefetchPendingPromotion) {
+      KotonohaTimeStart(tm);
+      prefetchPendingPromotion = false;
+    } else if (!KotonohaTimeIsStarted(tm)) {
       KotonohaTimeStart(tm);
     }
     firstFocus = false;
@@ -163,9 +178,7 @@ SDL_AppResult Gameplay::Main(Kotonoha_Game *gameContext) {
 
     drawCanvas->RegisterCanva(this->prompt->Render, 2,
 
-                              {0, 0, static_cast<float>(windowWidth),
-
-                               static_cast<float>(windowHeight)},
+                              canvasPlace,
 
                               this->prompt);
 
@@ -216,7 +229,7 @@ void Gameplay::UpdateDeltaTime() {
 float Gameplay::GetDeltaTime() const { return deltaTime; }
 
 bool Gameplay::ShouldShowLoadingOverlay() const {
-  return KotonohaIOMonitorIsLoading(&ioMonitor) ||
+  return loadingPauseActive ||
          SDL_GetTicks() < loadingOverlayVisibleUntil;
 }
 
@@ -227,6 +240,8 @@ void Gameplay::Reset(bool resetTime) {
 #endif
 
   if (resetTime) {
+    prefetchPendingPromotion = false;
+    prefetchThreadSuspended = false;
     if (this->demuxer != nullptr) {
       KotonohaDemuxerStop(this->demuxer);
     }
@@ -235,8 +250,6 @@ void Gameplay::Reset(bool resetTime) {
     }
     drawCanvas->Reset();
     fade->Reset();
-    video->Reset();
-    image->Reset();
     firstFocus = true;
     KotonohaTimeReset(tm, true);
   }
@@ -264,17 +277,42 @@ void Gameplay::SetTime(float time) {
   }
 }
 
-void Gameplay::SetMediaActive(bool active) {
+void Gameplay::SetMediaActive(bool active, bool prefetchOnly) {
+  prefetchAllMedia.store(active, std::memory_order_release);
   mediaActive.store(active, std::memory_order_release);
+
+  if (active && prefetchOnly) {
+    prefetchPendingPromotion = firstFocus;
+    if (!KotonohaTimeIsStarted(tm)) {
+      KotonohaTimeStart(tm);
+      KotonohaTimePause(tm);
+    } else if (firstFocus && !KotonohaTimeIsPaused(tm)) {
+      KotonohaTimePause(tm);
+    }
+
+    if (!KotonohaDemuxerIsStarted(demuxer)) {
+      KotonohaDemuxerStart(demuxer);
+    }
+    prefetchThreadSuspended = false;
+  } else if (active && prefetchThreadSuspended) {
+    KotonohaDemuxerStart(demuxer);
+    prefetchThreadSuspended = false;
+  } else if (!active && !prefetchThreadSuspended) {
+    KotonohaDemuxerSuspend(demuxer);
+    prefetchThreadSuspended = true;
+  }
 }
 
 bool Gameplay::IsMediaActive() const {
   return mediaActive.load(std::memory_order_acquire);
 }
 
+bool Gameplay::ShouldPrefetchAllMedia() const {
+  return prefetchAllMedia.load(std::memory_order_acquire);
+}
+
 Gameplay::~Gameplay() {
   SetMediaActive(false);
-  KotonohaIOMonitorCancel(&ioMonitor);
 
   delete this->eventManager;
   delete this->video;
@@ -293,7 +331,6 @@ Gameplay::~Gameplay() {
     demuxer = nullptr;
   }
 
-  KotonohaIOMonitorBindNetworkWaitFlag(&ioMonitor, nullptr);
   KotonohaTextRenderShutdown(&(this->sb));
   KotonohaTimeDestroy(this->tm);
 }

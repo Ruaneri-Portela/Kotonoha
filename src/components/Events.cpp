@@ -15,6 +15,8 @@ namespace Kotonoha {
 
 namespace {
 Event *activeSubtitleTrackOwner = nullptr;
+constexpr Uint64 kMediaPrefetchHorizonMs = 10000;
+constexpr Uint64 kMissingAssetRetryIntervalMs = 1000;
 
 static std::string BuildString(const char *str, const std::string &prefix = "",
                                const std::string &suffix = "") {
@@ -144,28 +146,32 @@ int Event::EventManager(void *data) {
   auto clearPendingAssetLoad = [&](const Kotonoha_OrsEvent *event) {
     auto pending = classUp->pendingAssetLoads.find(event);
     if (pending != classUp->pendingAssetLoads.end()) {
-      KotonohaIOMonitorOperationReset(&pending->second);
+      if (pending->second.loadingSignaled) {
+        KotonohaDemuxerSetExternalWaiter(gameplay->demuxer, false);
+      }
       classUp->pendingAssetLoads.erase(pending);
     }
   };
 
   auto updatePendingAssetLoad = [&](const Kotonoha_OrsEvent *event,
-                                    bool failed) {
-    if (!gameplay->ioMonitor.retryMissingAssets || !failed) {
+                                    bool failed, bool signalLoading) {
+    if (!gameplay->demuxer || !gameplay->demuxer->retryMissingAssets ||
+        !failed) {
       clearPendingAssetLoad(event);
       return false;
     }
 
-    auto pendingResult = classUp->pendingAssetLoads.emplace(
-        event, Kotonoha_IOMonitorOperation{});
-
-    auto pending = pendingResult.first;
-    bool inserted = pendingResult.second;
-
-    if (inserted) {
-      KotonohaIOMonitorOperationInit(&pending->second, &gameplay->ioMonitor);
+    const auto pendingResult = classUp->pendingAssetLoads.emplace(
+        event, Event::PendingAssetLoad{});
+    auto &pending = pendingResult.first->second;
+    pending.retryAfterTicks = SDL_GetTicks() + kMissingAssetRetryIntervalMs;
+    if (signalLoading && !pending.loadingSignaled) {
+      pending.loadingSignaled = true;
+      KotonohaDemuxerSetExternalWaiter(gameplay->demuxer, true);
+    } else if (!signalLoading && pending.loadingSignaled) {
+      pending.loadingSignaled = false;
+      KotonohaDemuxerSetExternalWaiter(gameplay->demuxer, false);
     }
-    KotonohaIOMonitorOperationSetStalled(&pending->second, true);
     return true;
   };
 
@@ -176,6 +182,12 @@ int Event::EventManager(void *data) {
     Uint64 endMs = 0;
 
     if (event->eventTouched) {
+      continue;
+    }
+
+    const auto pending = classUp->pendingAssetLoads.find(event);
+    if (pending != classUp->pendingAssetLoads.end() &&
+        SDL_GetTicks() < pending->second.retryAfterTicks) {
       continue;
     }
 
@@ -191,7 +203,8 @@ int Event::EventManager(void *data) {
       continue;
     }
 
-    if (startMs > actualTime && startMs - actualTime > 10000) {
+    if (!gameplay->ShouldPrefetchAllMedia() && startMs > actualTime &&
+        startMs - actualTime > kMediaPrefetchHorizonMs) {
       continue;
     }
 
@@ -224,8 +237,7 @@ int Event::EventManager(void *data) {
           int16_t *decodedPcm = nullptr;
           size_t decodedSampleCount = 0;
           if (KotonohaPcmDecodeVoice(voicePath.c_str(), &decodedPcm,
-                                     &decodedSampleCount,
-                                     &gameplay->ioMonitor)) {
+                                     &decodedSampleCount)) {
             std::unique_ptr<int16_t, decltype(&SDL_free)> pcmOwner(decodedPcm,
                                                                    SDL_free);
             const std::vector<int16_t> pcm(pcmOwner.get(),
@@ -362,8 +374,12 @@ int Event::EventManager(void *data) {
       break;
     }
 
-    event->eventTouched = !hasMediaAttachment ||
-                          !updatePendingAssetLoad(event, mediaAttachmentFailed);
+    const bool signalLoading =
+        startMs <= actualTime ||
+        startMs - actualTime <= kMediaPrefetchHorizonMs;
+    event->eventTouched =
+        !hasMediaAttachment ||
+        !updatePendingAssetLoad(event, mediaAttachmentFailed, signalLoading);
   }
 
   const Uint64 currentTime = KotonohaTimeGet(gameplay->tm);
@@ -448,14 +464,16 @@ void Event::Reset(void *gameplay) {
     return;
   }
 
+  SDL_LockMutex(eventMutex);
+
   for (auto &pending : pendingAssetLoads) {
-    KotonohaIOMonitorOperationReset(&pending.second);
+    if (pending.second.loadingSignaled) {
+      KotonohaDemuxerSetExternalWaiter(gp->demuxer, false);
+    }
   }
 
   gp->video->Reset();
   gp->image->Reset();
-
-  SDL_LockMutex(eventMutex);
   gp->audio->RemoveMedia(nullptr);
 
   pendingAssetLoads.clear();
@@ -663,9 +681,6 @@ Event::~Event() {
     activeSubtitleTrackOwner = nullptr;
   }
 
-  for (auto &pending : pendingAssetLoads) {
-    KotonohaIOMonitorOperationReset(&pending.second);
-  }
   pendingAssetLoads.clear();
   KotonohaOrsClean(&eventsFromScript);
   if (eventMutex != nullptr) {

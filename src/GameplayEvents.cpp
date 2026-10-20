@@ -20,7 +20,9 @@ void Gameplay::Events(SDL_Event *event, Kotonoha_Game *gameContext) {
     return;
   }
 
-  if (this->prompt != nullptr) {
+  const bool promptActive =
+      this->prompt != nullptr && this->prompt->IsActive();
+  if (this->prompt != nullptr && !KotonohaBasicGuiAnyFocus) {
     this->prompt->HandleEvent(event, gameContext, this->audio);
   }
 
@@ -39,8 +41,11 @@ void Gameplay::Events(SDL_Event *event, Kotonoha_Game *gameContext) {
 
   case SDL_EVENT_MOUSE_BUTTON_DOWN:
   case SDL_EVENT_FINGER_DOWN:
-    if (this->prompt != nullptr) {
-      this->prompt->HandleEvent(event, gameContext, this->audio);
+    if (!KotonohaBasicGuiAnyFocus && !promptActive &&
+        gameContext != nullptr &&
+        (event->type == SDL_EVENT_FINGER_DOWN ||
+         event->button.button == SDL_BUTTON_LEFT)) {
+      gameContext->config.next = true;
     }
     break;
 
@@ -63,7 +68,9 @@ void Gameplay::HandleGamepadButton(SDL_Event *event,
 
   switch (event->gbutton.button) {
   case SDL_GAMEPAD_BUTTON_SOUTH:
-    gameContext->config.next = true;
+    if (this->prompt == nullptr || !this->prompt->IsActive()) {
+      gameContext->config.next = true;
+    }
     break;
 
   case SDL_GAMEPAD_BUTTON_EAST:
@@ -147,6 +154,14 @@ void Gameplay::HandleKeyboard(SDL_Event *event, Kotonoha_Game *gameContext) {
   switch (event->key.key) {
   case SDLK_P:
     gameContext->config.paused = !gameContext->config.paused;
+    break;
+
+  case SDLK_SPACE:
+  case SDLK_RETURN:
+  case SDLK_KP_ENTER:
+    if (this->prompt == nullptr || !this->prompt->IsActive()) {
+      gameContext->config.next = true;
+    }
     break;
 
   case SDLK_I: {
