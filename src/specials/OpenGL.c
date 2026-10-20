@@ -1,4 +1,4 @@
-#include <Kotonoha/speciais/OpenGL.h>
+#include <Kotonoha/specials/OpenGL.h>
 
 #if defined(__APPLE__)
 #include <TargetConditionals.h>

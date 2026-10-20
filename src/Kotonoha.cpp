@@ -4,10 +4,8 @@
 #include <vector>
 
 extern "C" {
-#include <Kotonoha/speciais/Upscaling.h>
+#include <Kotonoha/specials/Upscaling.h>
 }
-
-extern bool KotonohaBasicGuiEditorShow;
 
 namespace Kotonoha {
 Kotonoha::Kotonoha(SDL_AppResult *status, struct Kotonoha_Game &context)

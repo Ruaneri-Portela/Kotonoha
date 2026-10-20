@@ -1,5 +1,5 @@
 #include <Kotonoha/renders/ImageRender.h>
-#include <Kotonoha/speciais/Upscaling.h>
+#include <Kotonoha/specials/Upscaling.h>
 #include <Kotonoha/utils/FFmpegSDL.h>
 
 static void prepareStraightAlphaForLinearFiltering(Uint8 *rgba, int width,

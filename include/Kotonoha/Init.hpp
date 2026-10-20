@@ -31,8 +31,3 @@ bool InitSound();
 Kotonoha *GetApp(void *appstate);
 
 } // namespace Kotonoha
-
-void KotonohaBasicGuiInit(Kotonoha_Game &gameContext, std::vector<Uint8> font);
-bool KotonohaBasicGuiRun(Kotonoha::Kotonoha *game, Kotonoha::Gameplay *play,
-                         Kotonoha_Game &context);
-void KotonohaBasicGuiEvent(SDL_Event *event);

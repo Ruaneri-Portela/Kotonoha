@@ -1,6 +1,8 @@
 #define SDL_MAIN_USE_CALLBACKS 1
 #include <Kotonoha/Init.hpp>
-#include <Kotonoha/speciais/Upscaling.h>
+#include <Kotonoha/debug/DebugUi.hpp>
+#include <Kotonoha/debug/LogPanel.hpp>
+#include <Kotonoha/specials/Upscaling.h>
 #include <SDL3/SDL_main.h>
 #include <cstring>
 #include <imgui.h>
@@ -14,6 +16,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
   }
   *appstate = nullptr;
 
+  Kotonoha::Debug::InstallLogCapture();
   IMGUI_CHECKVERSION();
   ImGui::CreateContext();
 
@@ -75,7 +78,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
 
   *appstate = engine;
   if (global.render != nullptr) {
-    KotonohaBasicGuiInit(global, imguiFontData);
+    Kotonoha::Debug::Init(global, imguiFontData);
     SDL_ShowWindow(global.window);
   }
 
@@ -89,7 +92,7 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event) {
     return SDL_APP_CONTINUE;
   }
 
-  KotonohaBasicGuiEvent(event);
+  Kotonoha::Debug::ProcessEvent(event);
 
   Kotonoha::Kotonoha *app = Kotonoha::GetApp(appstate);
   if (event->type == SDL_EVENT_QUIT) {
@@ -142,7 +145,7 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
     KotonohaLoadingRender(global.window, global.render, preferredFont, nullptr);
   }
 
-  if (!KotonohaBasicGuiRun(app, inRunning, global)) {
+  if (!Kotonoha::Debug::Run(app, inRunning, global)) {
     return SDL_APP_SUCCESS;
   }
   SDL_RenderPresent(global.render);
@@ -156,6 +159,7 @@ void SDL_AppQuit(void *appstate, SDL_AppResult result) {
   KotonohaUpscalingInitShutdown();
   Kotonoha::CleanupGlobalResources();
   KotonohaConfigFree(&global.config);
+  Kotonoha::Debug::UninstallLogCapture();
 
   TTF_Quit();
   SDL_Quit();

@@ -1,6 +1,6 @@
 #include <Kotonoha/Gameplay.hpp>
 
-#include <Kotonoha/speciais/MetalFX.h>
+#include <Kotonoha/specials/MetalFX.h>
 
 #include <SDL3_ttf/SDL_ttf.h>
 #if defined(__APPLE__)

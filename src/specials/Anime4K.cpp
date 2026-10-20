@@ -1,8 +1,8 @@
-#include <Kotonoha/speciais/Upscaling.h>
+#include <Kotonoha/specials/Upscaling.h>
 #include <SDL3/SDL.h>
 
 #if defined(KOTONOHA_HAS_ANIME4K)
-#include <Kotonoha/speciais/OpenGL.h>
+#include <Kotonoha/specials/OpenGL.h>
 
 #include <algorithm>
 #include <map>

@@ -1,4 +1,4 @@
-#include <Kotonoha/speciais/Upscaling.h>
+#include <Kotonoha/specials/Upscaling.h>
 #include <SDL3/SDL.h>
 
 static float g_upscalingFactor = 1.0f;
