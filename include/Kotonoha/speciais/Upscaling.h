@@ -1,6 +1,7 @@
 #pragma once
 #include <SDL3/SDL.h>
 
+#include <Kotonoha/parsers/Config.h>
 #include <Kotonoha/speciais/Anime4K.h>
 #include <Kotonoha/speciais/MetalFX.h>
 
@@ -15,8 +16,8 @@ typedef enum Kotonoha_UpscalerType {
 } Kotonoha_UpscalerType;
 
 // Generic Init & Shutdown
-bool KotonohaUpscalingInitInit(SDL_Renderer *renderer, const char *name,
-                               float factor);
+bool KotonohaUpscalingInit(SDL_Renderer *renderer, const char *name,
+                               Kotonoha_Config *config);
 void KotonohaUpscalingInitShutdown(void);
 
 // Capabilities & Selection
@@ -29,9 +30,13 @@ const char *Kotonoha_GetUpscalerName(void);
 void Kotonoha_SetUpscalerType(Kotonoha_UpscalerType type);
 bool Kotonoha_SetUpscalerByName(const char *name);
 
+// Global on/off switch for any upscaler
+bool KotonohaUpscalingIsEnabled(void);
+void KotonohaUpscalingSetEnabled(bool enabled);
+
 // Upscale Factor (e.g. 1.0f = disabled, 1.5f, 2.0f)
-float KotonohaUpscalingInitFactor(void);
-void KotonohaUpscalingInitSetFactor(float factor);
+float KotonohaUpscalingGetFactor(void);
+void KotonohaUpscalingSetFactor(float factor);
 
 // Generic Upscale execution function (routes to MetalFX or Anime4K/OpenGL)
 bool Kotonoha_UpscaleSDLTextureInto(SDL_Renderer *renderer,

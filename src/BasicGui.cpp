@@ -1,4 +1,5 @@
 #include <Kotonoha/Kotonoha.hpp>
+#include <Kotonoha/speciais/Upscaling.h>
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_iostream.h>
 #include <algorithm>
@@ -835,6 +836,18 @@ static void Kotonoha_DrawSettingsFields(Kotonoha_Config *cfg,
 
     if (ImGui::SliderFloat("Scaler Factor", &cfg->scalerFactor, 0.5f, 4.0f,
                            "%.2fx")) {
+      cfg->dirtyConfig = true;
+    }
+    if (ImGui::Checkbox("Enable Upscaling", &cfg->upscalingEnabled)) {
+      KotonohaUpscalingSetEnabled(cfg->upscalingEnabled);
+      cfg->dirtyConfig = true;
+    }
+    static std::string anime4kBuf = cfg->anime4kFiles ? cfg->anime4kFiles : "";
+    if (ImGui::InputText("Anime4K Files (;)", &anime4kBuf)) {
+      if (cfg->anime4kFiles)
+        SDL_free(cfg->anime4kFiles);
+      cfg->anime4kFiles = SDL_strdup(anime4kBuf.c_str());
+      KotonohaAnime4KSetFiles(cfg->anime4kFiles);
       cfg->dirtyConfig = true;
     }
     ImGui::TreePop();

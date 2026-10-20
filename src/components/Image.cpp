@@ -499,7 +499,7 @@ void Image::RenderTexture(SDL_Renderer *render, SDL_Texture *target,
 
   SDL_Texture *textureToRender = picture->texture;
   bool upscaled = false;
-  const float factor = KotonohaUpscalingInitFactor();
+  const float factor = KotonohaUpscalingGetFactor();
 
   if (factor > 1.0f && IsUpscalingActive()) {
     float pictureWidth = 0.0f;

@@ -48,7 +48,7 @@ void Video::RenderTexture(SDL_Renderer *render, SDL_Texture *texture) {
     return;
   }
 
-  const float factor = KotonohaUpscalingInitFactor();
+  const float factor = KotonohaUpscalingGetFactor();
 
   if (factor > 1.0f && IsUpscalingActive()) {
     float videoWidth = 0.0f;

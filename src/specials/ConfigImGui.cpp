@@ -59,7 +59,7 @@ static void KotonohaSettings_ReadLine(ImGuiContext *ctx,
 
   int w, h;
   float factor, cache, debugUiScale;
-  int full, vsync, fps, ts, ui, skip;
+  int full, vsync, fps, ts, ui, skip, upscaling;
 
   if (SDL_sscanf(line, "WindowSize=%d,%d", &w, &h) == 2) {
     config->windowSize[0] = w;
@@ -84,6 +84,10 @@ static void KotonohaSettings_ReadLine(ImGuiContext *ctx,
     config->enableDebugUi = (bool)ui;
   } else if (SDL_sscanf(line, "SkipFiles=%d", &skip) == 1) {
     config->skipFiles = (bool)skip;
+  } else if (SDL_sscanf(line, "UpscalingEnabled=%d", &upscaling) == 1) {
+    config->upscalingEnabled = (bool)upscaling;
+  } else if (strncmp(line, "Anime4kFiles=", 13) == 0) {
+    ConfigImGui_SetString(&config->anime4kFiles, line + 13);
   } else if (strncmp(line, "AssetsPath=", 11) == 0) {
     ConfigImGui_SetString(&config->assetsPath, line + 11);
   } else if (strncmp(line, "AssStyles=", 10) == 0) {
@@ -112,6 +116,10 @@ static void KotonohaSettings_WriteAll(ImGuiContext *ctx,
   buf->appendf("ShowTimestamp=%d\n", config->showTimestamp ? 1 : 0);
   buf->appendf("EnableDebugUi=%d\n", config->enableDebugUi ? 1 : 0);
   buf->appendf("SkipFiles=%d\n", config->skipFiles ? 1 : 0);
+  buf->appendf("UpscalingEnabled=%d\n", config->upscalingEnabled ? 1 : 0);
+  if (config->anime4kFiles != NULL) {
+    buf->appendf("Anime4kFiles=%s\n", config->anime4kFiles);
+  }
 
   if (config->assetsPath != NULL) {
     buf->appendf("AssetsPath=%s\n", config->assetsPath);

@@ -79,7 +79,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
     SDL_ShowWindow(global.window);
   }
 
-  KotonohaUpscalingInitInit(global.render, "Auto", global.config.scalerFactor);
+  KotonohaUpscalingInit(global.render, "Auto", &global.config);
 
   return status;
 }
