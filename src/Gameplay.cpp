@@ -109,11 +109,11 @@ void Gameplay::UpdateLoadingPause(struct Kotonoha_Game *gameContext) {
 
 Gameplay::Gameplay(const char *scriptPath, Kotonoha_Game *gameContext,
                    TTF_Font *font) {
-  this->demuxer = KotonohaDemuxerCreate(!gameContext->config.skipFiles);
+  this->demuxer = KotonohaDemuxerCreate(!gameContext->config.skipFiles,
+                                        &gameContext->config);
   this->tm = KotonohaTimeNew(true);
   this->sb = KotonohaTextRenderInit(this->tm, gameContext);
-  this->video =
-      new Video(this->tm, this->demuxer, gameContext->config.videoCacheSeconds);
+  this->video = new Video(this->tm, this->demuxer);
   this->image = new Image(this->tm, gameContext->config.skipFiles);
   this->audio = new Audio(static_cast<Sound *>(gameContext->sound), this->tm,
                           this->demuxer);

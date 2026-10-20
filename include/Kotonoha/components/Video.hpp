@@ -13,7 +13,6 @@ namespace Kotonoha {
 
 class Video : public Upscaling {
 private:
-  float cacheDurationSeconds = 2.0f;
   Kotonoha_Time *timeManager = nullptr;
   Kotonoha_Demuxer *demuxer = nullptr;
 
@@ -30,8 +29,7 @@ public:
   void Reset();
   std::vector<MediaBufferInfo> GetBufferInfo() const;
 
-  Video(Kotonoha_Time *timeManager, Kotonoha_Demuxer *demuxer,
-        float cacheDurationSeconds = 2.0f);
+  Video(Kotonoha_Time *timeManager, Kotonoha_Demuxer *demuxer);
 
   bool Register(const char *path, Uint64 startTime, Uint64 endTime,
                 bool useOrsFrameTimeline = false, Uint64 orsEndFrame = 0);

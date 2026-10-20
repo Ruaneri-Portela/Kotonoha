@@ -71,8 +71,9 @@ static void KotonohaSettings_ReadLine(ImGuiContext *ctx,
     config->fullScreen = (bool)full;
   } else if (SDL_sscanf(line, "EnableVsync=%d", &vsync) == 1) {
     config->enableVsync = (bool)vsync;
-  } else if (SDL_sscanf(line, "VideoCacheSeconds=%f", &cache) == 1) {
-    config->videoCacheSeconds = cache;
+  } else if (SDL_sscanf(line, "MediaCacheSeconds=%f", &cache) == 1 ||
+             SDL_sscanf(line, "VideoCacheSeconds=%f", &cache) == 1) {
+    config->mediaCacheSeconds = cache;
   } else if (SDL_sscanf(line, "DebugUiScale=%f", &debugUiScale) == 1) {
     if (debugUiScale >= 0.5f && debugUiScale <= 3.0f) {
       config->debugUiScale = debugUiScale;
@@ -144,32 +145,32 @@ static void KotonohaSettings_WriteAll(ImGuiContext *ctx,
     return;
 
   buf->appendf("[KotonohaConfig][Settings]\n");
-  buf->appendf("WindowSize=%d,%d\n", config->windowSize[0],
-               config->windowSize[1]);
-  buf->appendf("ScalerFactor=%.3f\n", config->scalerFactor);
+  buf->appendf("WindowSize=%d,%d\n", config->windowSize[0].load(),
+               config->windowSize[1].load());
+  buf->appendf("ScalerFactor=%.3f\n", config->scalerFactor.load());
   buf->appendf("FullScreen=%d\n", config->fullScreen ? 1 : 0);
   buf->appendf("EnableVsync=%d\n", config->enableVsync ? 1 : 0);
-  buf->appendf("VideoCacheSeconds=%.2f\n", config->videoCacheSeconds);
-  buf->appendf("DebugUiScale=%.2f\n", config->debugUiScale);
+  buf->appendf("MediaCacheSeconds=%.2f\n", config->mediaCacheSeconds.load());
+  buf->appendf("DebugUiScale=%.2f\n", config->debugUiScale.load());
   buf->appendf("ShowFps=%d\n", config->showFps ? 1 : 0);
   buf->appendf("ShowTimestamp=%d\n", config->showTimestamp ? 1 : 0);
   buf->appendf("EnableDebugUi=%d\n", config->enableDebugUi ? 1 : 0);
   buf->appendf("SkipFiles=%d\n", config->skipFiles ? 1 : 0);
   buf->appendf("UpscalingEnabled=%d\n", config->upscalingEnabled ? 1 : 0);
-  buf->appendf("SplashSeconds=%.2f\n", config->splashSeconds);
-  buf->appendf("SplashFadeSeconds=%.2f\n", config->splashFadeSeconds);
-  buf->appendf("PrefetchHorizonMs=%d\n", config->prefetchHorizonMs);
-  buf->appendf("SeekBigMs=%d\n", config->seekBigMs);
-  buf->appendf("SeekSmallMs=%d\n", config->seekSmallMs);
-  buf->appendf("LoadingDebounceMs=%d\n", config->loadingDebounceMs);
-  buf->appendf("MinLoadingPauseMs=%d\n", config->minLoadingPauseMs);
+  buf->appendf("SplashSeconds=%.2f\n", config->splashSeconds.load());
+  buf->appendf("SplashFadeSeconds=%.2f\n", config->splashFadeSeconds.load());
+  buf->appendf("PrefetchHorizonMs=%d\n", config->prefetchHorizonMs.load());
+  buf->appendf("SeekBigMs=%d\n", config->seekBigMs.load());
+  buf->appendf("SeekSmallMs=%d\n", config->seekSmallMs.load());
+  buf->appendf("LoadingDebounceMs=%d\n", config->loadingDebounceMs.load());
+  buf->appendf("MinLoadingPauseMs=%d\n", config->minLoadingPauseMs.load());
   if (config->titleMusic != NULL) {
     buf->appendf("TitleMusic=%s\n", config->titleMusic);
   }
   if (config->cursorPath != NULL) {
     buf->appendf("CursorPath=%s\n", config->cursorPath);
   }
-  buf->appendf("CursorSize=%d\n", config->cursorSize);
+  buf->appendf("CursorSize=%d\n", config->cursorSize.load());
   if (config->iconPath != NULL) {
     buf->appendf("IconPath=%s\n", config->iconPath);
   }

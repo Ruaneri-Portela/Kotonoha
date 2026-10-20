@@ -1,4 +1,5 @@
 #include <Kotonoha/debug/DebugInternal.hpp>
+#include <Kotonoha/utils/AtomicUi.hpp>
 
 namespace Kotonoha::Debug {
 
@@ -32,7 +33,8 @@ static void DrawPlayback(::Kotonoha::Kotonoha *game, ::Kotonoha::Gameplay *play,
   if (ImGui::Button(">> 5s", ImVec2(buttonWidth, 0)))
     play->SeekForward(5000);
   ImGui::SameLine();
-  ImGui::Checkbox("Pause", &context.config.paused);
+  EditAtomic(context.config.paused,
+             [](bool *v) { return ImGui::Checkbox("Pause", v); });
   ImGui::SameLine();
   ImGui::Checkbox("Loop", &play->loop);
 
@@ -117,7 +119,11 @@ void DrawControlPanel(::Kotonoha::Kotonoha *game, ::Kotonoha::Gameplay *play,
       ImVec2(380, 440),
       ImVec2(viewport->WorkSize.x * 0.9f, viewport->WorkSize.y * 0.9f));
 
-  if (ImGui::Begin("Kotonoha Control Panel", &context.config.enableDebugUi)) {
+  bool debugUiOpen = context.config.enableDebugUi;
+  const bool panelVisible =
+      ImGui::Begin("Kotonoha Control Panel", &debugUiOpen);
+  context.config.enableDebugUi = debugUiOpen;
+  if (panelVisible) {
     ImGui::TextColored(ImVec4(0.80f, 0.60f, 0.95f, 1.0f),
                        "Current Scene: %d / %d",
                        static_cast<int>(context.config.scene) + 1,

@@ -39,14 +39,10 @@ struct Kotonoha_AudioDecode *KotonohaAudioInit(const char *path,
     return NULL;
   }
 
-  float cacheSecs = (audioDecode->cacheDurationSeconds > 0.1f)
-                        ? audioDecode->cacheDurationSeconds
-                        : 2.0f;
-
   audioDecode->demuxer = demuxer;
   if (demuxer != NULL) {
-    audioDecode->stream = KotonohaDemuxerAddStream(
-        demuxer, path, cacheSecs, audioDecode, AVMEDIA_TYPE_AUDIO);
+    audioDecode->stream = KotonohaDemuxerAddStream(demuxer, path, audioDecode,
+                                                   AVMEDIA_TYPE_AUDIO);
   }
 
   if (!audioDecode->stream || audioDecode->stream->audioStreamIdx < 0) {

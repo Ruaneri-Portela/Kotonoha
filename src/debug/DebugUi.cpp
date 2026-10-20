@@ -144,10 +144,11 @@ bool Run(::Kotonoha::Kotonoha *game, ::Kotonoha::Gameplay *play,
     return true;
   }
 
-  const float debugUiScale = (context.config.debugUiScale >= 0.5f &&
-                              context.config.debugUiScale <= 3.0f)
-                                 ? context.config.debugUiScale
-                                 : 1.0f;
+  const float configuredUiScale = context.config.debugUiScale.load();
+  const float debugUiScale =
+      (configuredUiScale >= 0.5f && configuredUiScale <= 3.0f)
+          ? configuredUiScale
+          : 1.0f;
   if (debugUiBaseStyleReady && appliedDebugUiScale != debugUiScale) {
     ImGuiStyle &style = ImGui::GetStyle();
     style = debugUiBaseStyle;

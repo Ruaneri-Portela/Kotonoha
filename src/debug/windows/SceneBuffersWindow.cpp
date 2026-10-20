@@ -95,6 +95,21 @@ void DrawSceneBuffersWindow(::Kotonoha::Gameplay *play) {
                                             ? "<no file path>"
                                             : play->scriptPath.c_str());
         ImGui::Text("Scene time: %.3f s", static_cast<double>(play->GetTime()));
+
+        const std::string nowPlaying =
+            play->eventManager->GetMediaNowPath(play->audio);
+        if (nowPlaying.empty()) {
+          ImGui::TextDisabled("Now playing: -");
+        } else {
+          ImGui::AlignTextToFramePadding();
+          ImGui::TextColored(ImVec4(0.55f, 0.85f, 0.65f, 1.0f),
+                             "Now playing: %s", nowPlaying.c_str());
+          ImGui::SameLine();
+          if (ImGui::SmallButton("Stop")) {
+            play->eventManager->StopMediaNow(play->audio);
+          }
+        }
+
         ImGui::SetNextItemWidth(-1.0f);
         ImGui::InputTextWithHint("##scene_buffer_filter", "Filter media...",
                                  sceneBufferFilter,
@@ -102,7 +117,7 @@ void DrawSceneBuffersWindow(::Kotonoha::Gameplay *play) {
 
         const float tableHeight =
             std::max(ImGui::GetContentRegionAvail().y, 1.0f);
-        if (ImGui::BeginTable("##scene_media_buffers", 6,
+        if (ImGui::BeginTable("##scene_media_buffers", 7,
                               ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg |
                                   ImGuiTableFlags_ScrollY |
                                   ImGuiTableFlags_SizingStretchProp,
@@ -113,6 +128,8 @@ void DrawSceneBuffersWindow(::Kotonoha::Gameplay *play) {
                                   65.0f);
           ImGui::TableSetupColumn("Media", ImGuiTableColumnFlags_WidthStretch,
                                   1.0f);
+          ImGui::TableSetupColumn("Total (s)", ImGuiTableColumnFlags_WidthFixed,
+                                  75.0f);
           ImGui::TableSetupColumn("Played (s)",
                                   ImGuiTableColumnFlags_WidthFixed, 75.0f);
           ImGui::TableSetupColumn("Cache (s)", ImGuiTableColumnFlags_WidthFixed,
@@ -153,6 +170,12 @@ void DrawSceneBuffersWindow(::Kotonoha::Gameplay *play) {
             ImGui::TableNextColumn();
             ImGui::TextWrapped("%s",
                                item.path.empty() ? "-" : item.path.c_str());
+            ImGui::TableNextColumn();
+            if (item.totalMs > 0) {
+              ImGui::Text("%.3f", static_cast<double>(item.totalMs) / 1000.0);
+            } else {
+              ImGui::TextDisabled("-");
+            }
             ImGui::TableNextColumn();
             if (item.type == "Audio" || item.type == "Audio Loop" ||
                 item.type == "Video") {

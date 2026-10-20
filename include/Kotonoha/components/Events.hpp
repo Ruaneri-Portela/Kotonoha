@@ -64,6 +64,8 @@ public:
                      const Image *image) const;
   bool PlayMediaNow(Audio *audio, const std::string &path,
                     const std::string &channel) const;
+  void StopMediaNow(Audio *audio) const;
+  std::string GetMediaNowPath(Audio *audio) const;
   ~Event();
 };
 } // namespace Kotonoha

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <Kotonoha/parsers/Config.h>
 #include <Kotonoha/utils/FFmpeg.h>
 #include <SDL3/SDL.h>
 
@@ -37,7 +38,8 @@ typedef struct Kotonoha_DemuxStream {
   Kotonoha_PacketQueue videoQueue;
   Kotonoha_PacketQueue audioQueue;
 
-  Uint64 targetCacheMs;
+  // Total media length in ms (0 if unknown); cached when the file is opened.
+  SDL_AtomicInt totalDurationMs;
   SDL_AtomicInt seekRequested;
   Uint64 seekTargetMs;
   SDL_Mutex *controlMutex;
@@ -47,6 +49,12 @@ typedef struct Kotonoha_DemuxStream {
   SDL_AtomicInt operationActive;
   SDL_AtomicInt operationStartedAt;
   SDL_AtomicInt cancelled;
+  // After the cache is trimmed the reader re-seeks and drops packets that are
+  // already queued (pts <= skip*UntilMs). Used by the demux thread only.
+  bool skipVideoActive;
+  bool skipAudioActive;
+  Uint64 skipVideoUntilMs;
+  Uint64 skipAudioUntilMs;
   Uint64 lastPacketPtsMs;
   Uint64 reopenAfterMs;
   bool isNetwork;
@@ -66,6 +74,8 @@ typedef struct Kotonoha_Demuxer {
   SDL_AtomicInt waitingStreams;
   SDL_AtomicInt externalWaiters;
   bool retryMissingAssets;
+  // Not owned; must outlive the demuxer. Buffer limits are read from it.
+  const Kotonoha_Config *config;
 } Kotonoha_Demuxer;
 
 void KotonohaPacketQueueInit(Kotonoha_PacketQueue *q);
@@ -75,13 +85,18 @@ bool KotonohaPacketQueueHasPackets(Kotonoha_PacketQueue *q);
 bool KotonohaPacketQueueIsEof(Kotonoha_PacketQueue *q);
 void KotonohaPacketQueueGetBufferStats(Kotonoha_PacketQueue *q,
                                        Uint64 *cachedMs, bool *eof);
+// Drops queued packets beyond maxSpanMs (keeps at least one). Returns true when
+// something was discarded and stores the pts of the last kept packet.
+bool KotonohaPacketQueueTrim(Kotonoha_PacketQueue *q, Uint64 maxSpanMs,
+                             Uint64 *lastKeptPtsMs);
 bool KotonohaPacketQueueAtCacheLimit(Kotonoha_PacketQueue *q, Uint64 maxSpanMs);
 bool KotonohaPacketQueuePush(Kotonoha_PacketQueue *q, AVPacket *pkt,
                              AVStream *stream, Uint64 maxSpanMs);
 
 AVPacket *KotonohaPacketQueuePop(Kotonoha_PacketQueue *q, Uint64 *outPtsMs);
 
-Kotonoha_Demuxer *KotonohaDemuxerCreate(bool retryMissingAssets);
+Kotonoha_Demuxer *KotonohaDemuxerCreate(bool retryMissingAssets,
+                                        const Kotonoha_Config *config);
 void KotonohaDemuxerStart(Kotonoha_Demuxer *demuxer);
 void KotonohaDemuxerSuspend(Kotonoha_Demuxer *demuxer);
 void KotonohaDemuxerStop(Kotonoha_Demuxer *demuxer);
@@ -92,7 +107,6 @@ void KotonohaDemuxerDestroy(Kotonoha_Demuxer **demuxer);
 
 Kotonoha_DemuxStream *KotonohaDemuxerAddStream(Kotonoha_Demuxer *demuxer,
                                                const char *filename,
-                                               float cacheDurationSeconds,
                                                void *owner,
                                                enum AVMediaType type);
 bool KotonohaDemuxerActivateStream(Kotonoha_Demuxer *demuxer,
