@@ -39,16 +39,6 @@ void Gameplay::Events(SDL_Event *event, Kotonoha_Game *gameContext) {
     HandleKeyboard(event, gameContext);
     break;
 
-  case SDL_EVENT_MOUSE_BUTTON_DOWN:
-  case SDL_EVENT_FINGER_DOWN:
-    if (!KotonohaBasicGuiAnyFocus && !promptActive &&
-        gameContext != nullptr &&
-        (event->type == SDL_EVENT_FINGER_DOWN ||
-         event->button.button == SDL_BUTTON_LEFT)) {
-      gameContext->config.next = true;
-    }
-    break;
-
   case SDL_EVENT_WINDOW_RESIZED:
   case SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED:
   case SDL_EVENT_WINDOW_DISPLAY_CHANGED:
