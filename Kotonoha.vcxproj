@@ -63,11 +63,12 @@
     <ClCompile Include="src\renders\TimestampRender.c" />
     <ClCompile Include="src\renders\VideoRender.c" />
     <ClCompile Include="src\specials\Anime4K.cpp" />
-    <ClCompile Include="src\specials\ConfigImGui.cpp" />
+    <ClCompile Include="src\specials\ConfigFIle.cpp" />
     <ClCompile Include="src\specials\OpenGL.c" />
     <ClCompile Include="src\specials\UpscalingGeneric.cpp" />
     <ClCompile Include="src\utils\Demuxer.c" />
     <ClCompile Include="src\utils\FFmpeg.c" />
+    <ClCompile Include="src\utils\Log.c" />
     <ClCompile Include="src\utils\OverlayRender.c" />
     <ClCompile Include="src\utils\Path.c" />
     <ClCompile Include="src\utils\Time.c" />
@@ -107,11 +108,13 @@
     <ClInclude Include="include\Kotonoha\utils\Demuxer.h" />
     <ClInclude Include="include\Kotonoha\utils\FFmpeg.h" />
     <ClInclude Include="include\Kotonoha\utils\FFmpegSDL.h" />
+    <ClInclude Include="include\Kotonoha\utils\Log.h" />
     <ClInclude Include="include\Kotonoha\utils\OrsTime.h" />
     <ClInclude Include="include\Kotonoha\utils\OverlayRender.h" />
     <ClInclude Include="include\Kotonoha\utils\Path.h" />
     <ClInclude Include="include\Kotonoha\utils\Time.h" />
     <ClInclude Include="include\Kotonoha\utils\VoicePcm.h" />
+    <ClInclude Include="src\specials\resource.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="BuildPacket.ps1" />
@@ -121,6 +124,9 @@
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="src\specials\Kotonoha.rc" />
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="assets\icon.ico" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>17.0</VCProjectVersion>
@@ -257,6 +263,7 @@
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;KOTONOHA_HAS_ANIME4K=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>include;external\SDL_ttf\include;external\SDL\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
