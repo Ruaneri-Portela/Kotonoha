@@ -35,6 +35,19 @@ Audio::AddMediaInternal(const char *path, Uint64 start, Uint64 end, bool inLoop,
     return nullptr;
   }
 
+  std::vector<Kotonoha_AudioDecode *> finished;
+  for (auto &object : mediaObjects) {
+    for (auto &entry : std::get<1>(object)) {
+      if (std::get<0>(entry)->oneShotDone) {
+        finished.push_back(std::get<0>(entry));
+      }
+    }
+  }
+  for (auto *done : finished) {
+    KLOG_DEBUG(AUDIO, "One-shot audio finished; removing from playback list");
+    RemoveMedia(done);
+  }
+
   Sound::Channel *targetChannel = soundCtx->GetChannelByName(channel);
   if (targetChannel == nullptr) {
     KLOG_ERROR(AUDIO, "Channel not found: %s",
@@ -74,6 +87,9 @@ Audio::AddMediaInternal(const char *path, Uint64 start, Uint64 end, bool inLoop,
   newAudioDecode->dataGeneric = static_cast<void *>(this);
   newAudioDecode->inLoop = inLoop;
   newAudioDecode->loopMedia = loopMedia;
+  if (start == 0 && end == 0) {
+    KLOG_DEBUG(AUDIO, "One-shot audio on channel '%s': %s", channel, path);
+  }
 
   Sound::Channel::Pipe *newPipe =
       targetChannel->AddPipe(RenderMedia, KotonohaAudioFree, newAudioDecode);
@@ -157,6 +173,19 @@ int Audio::RenderMedia(void *data, Uint8 **target, int *size) {
 
   if (instance->tm == nullptr || *instance->tm == nullptr) {
     return 0;
+  }
+
+  // start/end of 0/0 means one-shot: play immediately until the end of the file
+  if (instance->start == 0 && instance->end == 0) {
+    if (instance->oneShotDone) {
+      return 0;
+    }
+    const int rt = KotonohaAudioRender(instance, target, size);
+    if (rt == 1 || rt == -1) {
+      instance->oneShotDone = true;
+      return 0;
+    }
+    return rt;
   }
 
   bool inRange = false;

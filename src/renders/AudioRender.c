@@ -114,7 +114,9 @@ int KotonohaAudioRender(void *data, Uint8 **target, int *size) {
   *target = NULL;
   *size = 0;
 
-  if (instance->tm != NULL && *instance->tm != NULL) {
+  // One-shot audio (start == end == 0) keeps playing while the game is paused
+  const bool oneShot = instance->start == 0 && instance->end == 0;
+  if (!oneShot && instance->tm != NULL && *instance->tm != NULL) {
     if (KotonohaTimeIsPaused(*instance->tm))
       return 0;
   }

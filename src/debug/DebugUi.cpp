@@ -17,6 +17,11 @@ float appliedDebugUiScale = 1.0f;
 
 bool IsAnyWindowFocused() { return anyWindowFocused; }
 
+bool IsMouseCaptured() {
+  return ImGui::GetCurrentContext() != nullptr &&
+         ImGui::GetIO().WantCaptureMouse;
+}
+
 bool IsScriptEditorVisible() { return scriptEditorVisible; }
 
 

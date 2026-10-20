@@ -31,21 +31,26 @@ private:
   Uint64 endTime = 0;
   TTF_Font *font = nullptr;
   std::string audioPath{};
+  std::string appearAudioPath{};
   std::vector<PromptLayoutItem> lastLayout{};
   SDL_FRect viewport = {0, 0, 0, 0};
   int focusedIndex = -1;
   bool keyboardFocusActive = false;
+  bool appearSoundPlayed = false;
+  Audio *audio = nullptr;
 
   void ClearLayoutTextures();
 
 public:
   Prompt(std::vector<std::string> prompt, int *promptResult, Uint64 start,
          Uint64 end, Kotonoha_Time *time, TTF_Font *font,
-         const char *clickAudioPath = nullptr);
+         const char *clickAudioPath = nullptr,
+         const char *appearAudioPath = nullptr);
 
   void HandleEvent(SDL_Event *event, Kotonoha_Game *gameContext,
                    Audio *audioManager);
   void SetViewport(SDL_FRect viewport);
+  void SetAudio(Audio *audioManager) { audio = audioManager; }
   bool IsActive() const;
 
   static enum Kotonoha_Scene_Status Render(KOTONOHA_SCENE_CALL);

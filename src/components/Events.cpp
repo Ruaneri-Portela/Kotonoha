@@ -234,7 +234,10 @@ int Event::EventManager(void *data) {
       continue;
     }
 
-    if (endMs < actualTime) {
+    const bool oneShotAudio =
+        startMs == 0 && endMs == 0 &&
+        (event->command == PLAY_VOICE || event->command == PLAY_SE);
+    if (endMs < actualTime && !oneShotAudio) {
       clearPendingAssetLoad(event);
       event->eventTouched = true;
       continue;
@@ -255,7 +258,8 @@ int Event::EventManager(void *data) {
         mediaAttachmentFailed =
             gameplay->audio->AddMedia(
                 voicePath.c_str(), startMs,
-                endMs > SDL_MAX_UINT64 - 1000 ? SDL_MAX_UINT64 : endMs + 1000,
+                (startMs == 0 && endMs == 0) ? 0
+                    : endMs > SDL_MAX_UINT64 - 1000 ? SDL_MAX_UINT64 : endMs + 1000,
                 false, "Voice") == nullptr;
 
         const char *key = event->data.play_voice->character_short;
@@ -660,7 +664,9 @@ Event::Event(const char *orsPath, void *gameplay, struct Kotonoha_Game *gameCtx,
       }
 
       gp->prompt =
-          new Prompt(options, &gp->promptId, startMs, endMs, gp->tm, font,"assets/SESELECT.OGG");
+          new Prompt(options, &gp->promptId, startMs, endMs, gp->tm, font,"assets/SESELECT.OGG",
+                     "assets/SEVIEW.OGG");
+      gp->prompt->SetAudio(gp->audio);
       gp->putPrompt = true;
       break;
     }

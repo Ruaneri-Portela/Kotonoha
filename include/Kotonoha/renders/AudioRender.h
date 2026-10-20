@@ -32,6 +32,7 @@ typedef struct Kotonoha_AudioDecode {
   bool cannotSeek;
   bool firstSeek;
   bool decoderFlushSent;
+  volatile bool oneShotDone;
 } Kotonoha_AudioDecode;
 
 void genWhiteNoise(void *data, Uint8 **target, size_t *size);

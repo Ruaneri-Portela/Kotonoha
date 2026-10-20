@@ -21,6 +21,7 @@ void ProcessEvent(SDL_Event *event);
 
 // True while a debug UI window owns the focus.
 bool IsAnyWindowFocused();
+bool IsMouseCaptured();
 
 // True while the script editor window is open.
 bool IsScriptEditorVisible();
