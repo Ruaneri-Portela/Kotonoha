@@ -15,7 +15,21 @@ bool Upscaling::IsUpscalingActive() const {
          Kotonoha_GetUpscalerType() != KOTONOHA_UPSCALER_NONE;
 }
 
+bool Upscaling::IsUpscaleCached(Uint64 key) const {
+  return cacheValid && cachedKey == key && upScaledTexture != nullptr;
+}
+
+void Upscaling::MarkUpscaleCached(Uint64 key) {
+  cachedKey = key;
+  cacheValid = true;
+}
+
+Uint64 Upscaling::HashCombine(Uint64 seed, Uint64 value) {
+  return seed ^ (value + 0x9e3779b97f4a7c15ULL + (seed << 6) + (seed >> 2));
+}
+
 void Upscaling::ResetUpscaling() {
+  cacheValid = false;
   if (extraTexture != nullptr) {
     SDL_DestroyTexture(extraTexture);
     extraTexture = nullptr;

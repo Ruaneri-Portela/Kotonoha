@@ -100,6 +100,8 @@ static void DrawScriptToggles(::Kotonoha::Kotonoha *game,
   ImGui::Checkbox("About", &aboutVisible);
   ImGui::SameLine();
   ImGui::Checkbox("Log", &logVisible);
+  ImGui::NewLine();
+  ImGui::Checkbox("Scene Buffers", &sceneBuffersVisible);
 }
 
 void DrawControlPanel(::Kotonoha::Kotonoha *game, ::Kotonoha::Gameplay *play,

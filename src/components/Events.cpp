@@ -6,6 +6,7 @@
 #include <SDL3/SDL.h>
 #include <SDL3_ttf/SDL_ttf.h>
 #include <cctype>
+#include <iterator>
 #include <memory>
 #include <sstream>
 #include <string>
@@ -725,6 +726,52 @@ bool Event::CheckEnd(void *gameplay) {
   }
 
   return KotonohaTimeGet(gp->tm) > lastTime;
+}
+
+std::vector<MediaBufferInfo>
+Event::GetMediaBufferInfo(const Audio *audio, const Video *video,
+                          const Image *image) const {
+  std::vector<MediaBufferInfo> result;
+  if (eventMutex == nullptr) {
+    KLOG_ERROR(SCRIPT, "Cannot inspect scene media before initialization");
+    return result;
+  }
+  SDL_LockMutex(eventMutex);
+  struct MutexUnlock {
+    SDL_Mutex *mutex;
+    ~MutexUnlock() { SDL_UnlockMutex(mutex); }
+  } unlock{eventMutex};
+
+  if (audio != nullptr) {
+    std::vector<MediaBufferInfo> audioBuffers = audio->GetBufferInfo();
+    result.insert(result.end(), std::make_move_iterator(audioBuffers.begin()),
+                  std::make_move_iterator(audioBuffers.end()));
+  }
+  if (video != nullptr) {
+    std::vector<MediaBufferInfo> videoBuffers = video->GetBufferInfo();
+    result.insert(result.end(), std::make_move_iterator(videoBuffers.begin()),
+                  std::make_move_iterator(videoBuffers.end()));
+  }
+  if (image != nullptr) {
+    std::vector<MediaBufferInfo> imageBuffers = image->GetBufferInfo();
+    result.insert(result.end(), std::make_move_iterator(imageBuffers.begin()),
+                  std::make_move_iterator(imageBuffers.end()));
+  }
+
+  return result;
+}
+
+bool Event::PlayMediaNow(Audio *audio, const std::string &path,
+                         const std::string &channel) const {
+  if (eventMutex == nullptr || audio == nullptr) {
+    KLOG_ERROR(SCRIPT, "Cannot play selected media without an active scene.");
+    return false;
+  }
+
+  SDL_LockMutex(eventMutex);
+  const bool played = audio->PlayNow(path, channel);
+  SDL_UnlockMutex(eventMutex);
+  return played;
 }
 
 Event::~Event() {

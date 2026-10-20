@@ -43,7 +43,8 @@ bool Video::Register(const char *path, Uint64 startTime, Uint64 endTime,
   return true;
 }
 
-void Video::RenderTexture(SDL_Renderer *render, SDL_Texture *texture) {
+void Video::RenderTexture(SDL_Renderer *render, SDL_Texture *texture,
+                          Uint64 contentKey) {
   if (render == nullptr || texture == nullptr) {
     return;
   }
@@ -74,10 +75,18 @@ void Video::RenderTexture(SDL_Renderer *render, SDL_Texture *texture) {
       return;
     }
 
-    if (ProcessUpscale(render, texture)) {
+    if (IsUpscaleCached(contentKey)) {
       SDL_RenderTexture(render, upScaledTexture, nullptr, nullptr);
       return;
     }
+
+    if (ProcessUpscale(render, texture)) {
+      MarkUpscaleCached(contentKey);
+      SDL_RenderTexture(render, upScaledTexture, nullptr, nullptr);
+      return;
+    }
+  } else {
+    ResetUpscaling();
   }
 
   SDL_RenderTexture(render, texture, nullptr, nullptr);
@@ -113,7 +122,12 @@ Kotonoha_Scene_Status Video::Render(KOTONOHA_SCENE_CALL) {
 
     if (status == KOTONOHA_SCENE_DRAW || status == KOTONOHA_SCENE_COMPLETE) {
       if (currentVideo->texture != nullptr) {
-        here->RenderTexture(render, currentVideo->texture);
+        here->RenderTexture(
+            render, currentVideo->texture,
+            HashCombine(
+                reinterpret_cast<Uint64>(currentVideo),
+                HashCombine(reinterpret_cast<Uint64>(currentVideo->texture),
+                            currentVideo->textureSerial)));
       }
 
       if (status == KOTONOHA_SCENE_DRAW) {
@@ -157,7 +171,8 @@ Kotonoha_Scene_Status Video::Render(KOTONOHA_SCENE_CALL) {
   }
 
   if (returnStatus != KOTONOHA_SCENE_DRAW && here->heldTexture != nullptr) {
-    here->RenderTexture(render, here->heldTexture);
+    here->RenderTexture(render, here->heldTexture,
+                        reinterpret_cast<Uint64>(here->heldTexture));
     returnStatus = KOTONOHA_SCENE_DRAW;
   }
 
@@ -209,6 +224,37 @@ void Video::Reset() {
   }
 
   oldVideos.clear();
+}
+
+std::vector<MediaBufferInfo> Video::GetBufferInfo() const {
+  std::vector<MediaBufferInfo> result;
+  if (lock == nullptr) {
+    KLOG_ERROR(VIDEO, "Cannot inspect video buffers before initialization");
+    return result;
+  }
+
+  SDL_LockMutex(lock);
+  for (const Kotonoha_VideoData *video : videos) {
+    if (video == nullptr) {
+      continue;
+    }
+
+    MediaBufferInfo info;
+    info.id = reinterpret_cast<Uint64>(video);
+    info.type = "Video";
+    if (video->stream != nullptr && video->stream->filename != nullptr) {
+      info.path = video->stream->filename;
+    }
+    info.playedMs = video->videoTime;
+    info.texture = video->texture;
+    if (video->stream != nullptr) {
+      KotonohaPacketQueueGetBufferStats(&video->stream->videoQueue,
+                                        &info.cachedMs, &info.eof);
+    }
+    result.push_back(std::move(info));
+  }
+  SDL_UnlockMutex(lock);
+  return result;
 }
 
 Video::~Video() {

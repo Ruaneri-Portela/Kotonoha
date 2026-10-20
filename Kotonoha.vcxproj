@@ -47,6 +47,7 @@
     <ClCompile Include="src\debug\windows\PlaylistWindow.cpp" />
     <ClCompile Include="src\debug\windows\ScriptEditorWindow.cpp" />
     <ClCompile Include="src\debug\windows\SettingsWindow.cpp" />
+    <ClCompile Include="src\debug\windows\SceneBuffersWindow.cpp" />
     <ClCompile Include="src\debug\windows\TextEditorWindow.cpp" />
     <ClCompile Include="src\Gameplay.cpp" />
     <ClCompile Include="src\GameplayEvents.cpp" />
@@ -80,6 +81,7 @@
     <ClInclude Include="include\Kotonoha\components\Events.hpp" />
     <ClInclude Include="include\Kotonoha\components\Fade.hpp" />
     <ClInclude Include="include\Kotonoha\components\Image.hpp" />
+    <ClInclude Include="include\Kotonoha\components\MediaBufferInfo.hpp" />
     <ClInclude Include="include\Kotonoha\components\Prompt.hpp" />
     <ClInclude Include="include\Kotonoha\components\Sound.hpp" />
     <ClInclude Include="include\Kotonoha\components\Upscaling.hpp" />

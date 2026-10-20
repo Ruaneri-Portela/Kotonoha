@@ -347,6 +347,32 @@ void Image::DrawAbcForBase(Kotonoha_Picture *picture, SDL_Renderer *renderer,
   }
 }
 
+Uint64 Image::ComputeUpscaleKey(const Kotonoha_Picture *picture,
+                                float factor) const {
+  Uint64 key = HashCombine(reinterpret_cast<Uint64>(picture),
+                           reinterpret_cast<Uint64>(picture->texture));
+  key = HashCombine(key, picture->baseGeneration);
+  key = HashCombine(key, static_cast<Uint64>(factor * 1000.0f));
+  if (picture->id != 0) {
+    return key;
+  }
+
+  const Uint64 atMs = KotonohaTimeGet(timeManager);
+  for (const auto &group : abcGroups) {
+    if (!group || group->ownerBaseGeneration != picture->baseGeneration ||
+        !group->bound || atMs < group->startTime || atMs >= group->endTime ||
+        atMs < group->bindingStartTime || atMs >= group->bindingEndTime ||
+        group->activeIndex > 2 || group->paths[group->activeIndex].empty()) {
+      continue;
+    }
+    key = HashCombine(key, reinterpret_cast<Uint64>(group.get()));
+    key = HashCombine(key, group->activeIndex);
+    key = HashCombine(
+        key, reinterpret_cast<Uint64>(group->textures[group->activeIndex]));
+  }
+  return key;
+}
+
 void Image::RemoveAbcGroupsForBase(Uint64 baseGeneration) {
   abcGroups.erase(
       std::remove_if(abcGroups.begin(), abcGroups.end(),
@@ -493,7 +519,17 @@ void Image::RenderTexture(SDL_Renderer *render, SDL_Texture *target,
   bool upscaled = false;
   const float factor = KotonohaUpscalingGetFactor();
 
-  if (factor > 1.0f && IsUpscalingActive()) {
+  if (!(factor > 1.0f && IsUpscalingActive())) {
+    ResetUpscaling();
+  } else {
+    const Uint64 contentKey = ComputeUpscaleKey(picture, factor);
+    if (IsUpscaleCached(contentKey)) {
+      textureToRender = upScaledTexture;
+      upscaled = true;
+    }
+  }
+
+  if (!upscaled && factor > 1.0f && IsUpscalingActive()) {
     float pictureWidth = 0.0f;
     float pictureHeight = 0.0f;
 
@@ -542,6 +578,7 @@ void Image::RenderTexture(SDL_Renderer *render, SDL_Texture *target,
           KLOG_ERROR(IMAGE, "Failed to restore image render target: %s",
                      SDL_GetError());
         } else if (ProcessUpscale(render, extraTexture)) {
+          MarkUpscaleCached(ComputeUpscaleKey(picture, factor));
           textureToRender = upScaledTexture;
           upscaled = true;
         }
@@ -698,6 +735,51 @@ void Image::Reset() {
   }
 
   oldPictures.clear();
+}
+
+std::vector<MediaBufferInfo> Image::GetBufferInfo() const {
+  std::vector<MediaBufferInfo> result;
+  if (lock == nullptr || timeManager == nullptr) {
+    KLOG_ERROR(IMAGE, "Cannot inspect image textures before initialization");
+    return result;
+  }
+
+  SDL_LockMutex(lock);
+  const Uint64 currentTime = KotonohaTimeGet(timeManager);
+  for (const Kotonoha_Picture *picture : pictures) {
+    if (picture == nullptr) {
+      continue;
+    }
+
+    MediaBufferInfo info;
+    info.id = reinterpret_cast<Uint64>(picture);
+    info.type = "Image";
+    if (picture->path != nullptr) {
+      info.path = picture->path;
+    }
+    info.texture = picture->texture;
+
+    const bool pictureActive =
+        currentTime >= picture->startTime && currentTime < picture->endTime;
+    if (picture->id == 0) {
+      for (const auto &group : abcGroups) {
+        if (!group || group->ownerBaseGeneration != picture->baseGeneration ||
+            !pictureActive || !group->bound || currentTime < group->startTime ||
+            currentTime >= group->endTime ||
+            currentTime < group->bindingStartTime ||
+            currentTime >= group->bindingEndTime || group->activeIndex > 2) {
+          continue;
+        }
+        SDL_Texture *overlay = group->textures[group->activeIndex];
+        if (overlay != nullptr) {
+          info.overlays.push_back({group->paths[group->activeIndex], overlay});
+        }
+      }
+    }
+    result.push_back(std::move(info));
+  }
+  SDL_UnlockMutex(lock);
+  return result;
 }
 
 } // namespace Kotonoha

@@ -1,4 +1,5 @@
 #pragma once
+#include <Kotonoha/components/MediaBufferInfo.hpp>
 #include <Kotonoha/components/Sound.hpp>
 #include <tuple>
 #include <vector>
@@ -30,6 +31,8 @@ public:
                                           const char *loopPath, Uint64 start,
                                           Uint64 end, const char *channel);
   void RemoveMedia(Kotonoha_AudioDecode *mediaPtr);
+  std::vector<MediaBufferInfo> GetBufferInfo() const;
+  bool PlayNow(const std::string &path, const std::string &channel);
   static int RenderMedia(void *data, Uint8 **target, int *size);
   ~Audio();
 };

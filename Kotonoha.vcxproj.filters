@@ -147,6 +147,9 @@
     <ClCompile Include="src\debug\windows\SettingsWindow.cpp">
       <Filter>Arquivos de Origem\debug\windows</Filter>
     </ClCompile>
+    <ClCompile Include="src\debug\windows\SceneBuffersWindow.cpp">
+      <Filter>Arquivos de Origem\debug\windows</Filter>
+    </ClCompile>
     <ClCompile Include="src\debug\windows\TextEditorWindow.cpp">
       <Filter>Arquivos de Origem\debug\windows</Filter>
     </ClCompile>
@@ -158,6 +161,9 @@
     </ClInclude>
     <ClInclude Include="include\Kotonoha\debug\LogPanel.hpp">
       <Filter>Arquivos de Cabeçalho\debug</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Kotonoha\components\MediaBufferInfo.hpp">
+      <Filter>Arquivos de Cabeçalho</Filter>
     </ClInclude>
     <ClCompile Include="src\Main.cpp">
       <Filter>Arquivos de Origem</Filter>

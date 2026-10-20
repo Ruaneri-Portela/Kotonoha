@@ -16,6 +16,7 @@ typedef struct Kotonoha_VideoData {
   AVFrame *pFrameRGB;
   AVFrame *currentFrame; /* Quadro mantido até chegar o tempo do próximo */
   Uint64 currentPtsMs;
+  Uint64 textureSerial; /* Incrementa a cada novo quadro enviado à textura */
 
   struct SwsContext *swsCtx;
   Uint8 *swsBuffer;
