@@ -257,12 +257,13 @@ int Event::EventManager(void *data) {
       if (event->data.play_se->path != nullptr &&
           SDL_strlen(event->data.play_se->path) > 0) {
         hasMediaAttachment = true;
+        const std::string seLogical = BuildString(
+            event->data.play_se->path, "", useExtension ? ".OGG" : "");
+        const std::string sePath =
+            useExtension ? ResolveAssetPath(assetsPath, seLogical)
+                         : seLogical;
         mediaAttachmentFailed =
-            gameplay->audio->AddMedia(BuildString(event->data.play_se->path,
-                                                  assetsPath,
-                                                  useExtension ? ".OGG" : "")
-                                          .c_str(),
-                                      startMs, endMs, true, "Se") == nullptr;
+            gameplay->audio->AddMedia(sePath.c_str(), startMs, endMs, true, "Se") == nullptr;
       }
       break;
 
@@ -298,12 +299,15 @@ int Event::EventManager(void *data) {
           SDL_strlen(event->data.path_end->path) > 0) {
         hasMediaAttachment = true;
         std::string str = ToUpper(event->data.path_end->path);
+        const std::string bgmLogical = BuildString(
+            useExtension ? str.c_str() : event->data.path_end->path,
+            "", useExtension ? ".OGG" : "");
+        const std::string bgmPath =
+            useExtension ? ResolveAssetPath(assetsPath, bgmLogical)
+                         : bgmLogical;
         mediaAttachmentFailed =
             gameplay->audio->AddMedia(
-                BuildString(useExtension ? str.c_str()
-                                         : event->data.path_end->path,
-                            assetsPath, useExtension ? ".OGG" : "")
-                    .c_str(),
+                bgmPath.c_str(),
                 startMs, endMs, true, "BGM") == nullptr;
       }
       break;
@@ -312,11 +316,13 @@ int Event::EventManager(void *data) {
       if (event->data.path_end->path != nullptr &&
           SDL_strlen(event->data.path_end->path) > 0) {
         hasMediaAttachment = true;
+        const std::string rollLogical = BuildString(
+            event->data.path_end->path, "", useExtension ? ".WMV" : "");
+        const std::string rollPath =
+            useExtension ? ResolveAssetPath(assetsPath, rollLogical)
+                         : rollLogical;
         mediaAttachmentFailed = !gameplay->video->Register(
-            BuildString(event->data.path_end->path, assetsPath,
-                        useExtension ? ".WMV" : "")
-                .c_str(),
-            startMs, endMs);
+            rollPath.c_str(), startMs, endMs);
       }
       break;
 
@@ -324,9 +330,11 @@ int Event::EventManager(void *data) {
       if (event->data.play_movie->path != nullptr &&
           SDL_strlen(event->data.play_movie->path) > 0) {
         hasMediaAttachment = true;
+        const std::string movieLogical = BuildString(
+            event->data.play_movie->path, "", useExtension ? ".WMV" : "");
         const std::string moviePath =
-            BuildString(event->data.play_movie->path, assetsPath,
-                        useExtension ? ".WMV" : "");
+            useExtension ? ResolveAssetPath(assetsPath, movieLogical)
+                         : movieLogical;
 
         Uint64 startFrame = 0;
         Uint64 endFrame = 0;
@@ -350,12 +358,13 @@ int Event::EventManager(void *data) {
       if (event->data.create_bg->path != nullptr &&
           SDL_strlen(event->data.create_bg->path) > 0) {
         hasMediaAttachment = true;
+        const std::string bgLogical = BuildString(
+            event->data.create_bg->path, "", useExtension ? ".PNG" : "");
+        const std::string bgPath =
+            useExtension ? ResolveAssetPath(assetsPath, bgLogical)
+                         : bgLogical;
         mediaAttachmentFailed =
-            gameplay->image->Register(BuildString(event->data.create_bg->path,
-                                                  assetsPath,
-                                                  useExtension ? ".PNG" : "")
-                                          .c_str(),
-                                      startMs, endMs, 0) == 0;
+            gameplay->image->Register(bgPath.c_str(), startMs, endMs, 0) == 0;
       }
       break;
 

@@ -3,6 +3,7 @@
 #if defined(__ANDROID__) || defined(ANDROID)
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
+#define kotonoha_glActiveTexture glActiveTexture
 #else
 #include <SDL3/SDL_opengl.h>
 #endif
@@ -17,6 +18,7 @@ bool KotonohaOpenGLInit(void);
 void KotonohaOpenGLReset(void);
 bool KotonohaOpenGLIsLoaded(void);
 
+#if !defined(__ANDROID__) && !defined(ANDROID)
 /* OpenGL 2.0 */
 extern PFNGLCREATESHADERPROC glCreateShader;
 extern PFNGLSHADERSOURCEPROC glShaderSource;
@@ -54,6 +56,7 @@ extern PFNGLBINDFRAMEBUFFERPROC glBindFramebuffer;
 extern PFNGLFRAMEBUFFERTEXTURE2DPROC glFramebufferTexture2D;
 extern PFNGLCHECKFRAMEBUFFERSTATUSPROC glCheckFramebufferStatus;
 extern PFNGLDELETEFRAMEBUFFERSPROC glDeleteFramebuffers;
+#endif
 
 #ifdef __cplusplus
 }
