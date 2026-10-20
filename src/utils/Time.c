@@ -1,3 +1,4 @@
+#include <Kotonoha/utils/Log.h>
 #include <Kotonoha/utils/Time.h>
 
 static Uint64 KotonohaTimeNow(void) { return SDL_GetTicks(); }
@@ -46,15 +47,13 @@ void KotonohaTimeReset(Kotonoha_Time *instance, bool stopAfterReset) {
 Kotonoha_Time *KotonohaTimeNew(bool startStopped) {
   Kotonoha_Time *time = (Kotonoha_Time *)SDL_calloc(1, sizeof(Kotonoha_Time));
   if (time == NULL) {
-    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
-                 "Failed to allocate memory for KotonohaTime");
+    KLOG_ERROR(CORE, "Failed to allocate memory for KotonohaTime");
     return NULL;
   }
 
   time->mutex = SDL_CreateMutex();
   if (time->mutex == NULL) {
-    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
-                 "Failed to create KotonohaTime mutex: %s", SDL_GetError());
+    KLOG_ERROR(CORE, "Failed to create KotonohaTime mutex: %s", SDL_GetError());
     SDL_free(time);
     return NULL;
   }

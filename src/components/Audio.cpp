@@ -1,3 +1,4 @@
+#include <Kotonoha/utils/Log.h>
 #include <Kotonoha/components/Audio.hpp>
 
 namespace Kotonoha {
@@ -17,26 +18,26 @@ Audio::AddMediaInternal(const char *path, Uint64 start, Uint64 end, bool inLoop,
                         const char *channel,
                         struct Kotonoha_AudioDecode *loopMedia) {
   if (soundCtx == nullptr || timeCtx == nullptr) {
-    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Invalid audio context.");
+    KLOG_ERROR(AUDIO, "Invalid audio context.");
     KotonohaAudioFree(loopMedia);
     return nullptr;
   }
 
   if (path == nullptr || *path == '\0') {
-    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Invalid audio path.");
+    KLOG_ERROR(AUDIO, "Invalid audio path.");
     KotonohaAudioFree(loopMedia);
     return nullptr;
   }
 
   if (channel == nullptr || *channel == '\0') {
-    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Invalid channel name.");
+    KLOG_ERROR(AUDIO, "Invalid channel name.");
     KotonohaAudioFree(loopMedia);
     return nullptr;
   }
 
   Sound::Channel *targetChannel = soundCtx->GetChannelByName(channel);
   if (targetChannel == nullptr) {
-    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Channel not found: %s",
+    KLOG_ERROR(AUDIO, "Channel not found: %s",
                  channel);
     KotonohaAudioFree(loopMedia);
     return nullptr;
@@ -78,8 +79,7 @@ Audio::AddMediaInternal(const char *path, Uint64 start, Uint64 end, bool inLoop,
       targetChannel->AddPipe(RenderMedia, KotonohaAudioFree, newAudioDecode);
 
   if (newPipe == nullptr) {
-    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
-                 "Failed to create audio pipe: %s", path);
+    KLOG_ERROR(AUDIO, "Failed to create audio pipe: %s", path);
     KotonohaAudioFree(newAudioDecode);
     return nullptr;
   }
@@ -95,14 +95,13 @@ struct Kotonoha_AudioDecode *Audio::AddIntroLoopMedia(const char *introPath,
   if (introPath == nullptr || *introPath == '\0' || loopPath == nullptr ||
       *loopPath == '\0' || channelName == nullptr || *channelName == '\0' ||
       soundCtx == nullptr || timeCtx == nullptr) {
-    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
-                 "Invalid intro/loop audio configuration.");
+    KLOG_ERROR(AUDIO, "Invalid intro/loop audio configuration.");
     return nullptr;
   }
 
   Sound::Channel *channel = soundCtx->GetChannelByName(channelName);
   if (channel == nullptr) {
-    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Channel not found: %s",
+    KLOG_ERROR(AUDIO, "Channel not found: %s",
                  channelName);
     return nullptr;
   }

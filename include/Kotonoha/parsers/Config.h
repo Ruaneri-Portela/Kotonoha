@@ -60,6 +60,9 @@ void KotonohaConfigSave(Kotonoha_Config *config);
 void KotonohaConfigRegisterImGuiHandler(Kotonoha_Config *config);
 void KotonohaConfigSetIniFilename(const char *path);
 
+// Texto de "About" compartilhado entre a linha de comando e a Debug UI
+const char *KotonohaAboutText(void);
+
 void KotonohaConfigApplyAndSave(Kotonoha_Config *config);
 
 void KotonohaConfigLoadFromDisk(const char *path);

@@ -1,3 +1,4 @@
+#include <Kotonoha/utils/Log.h>
 #include <Kotonoha/specials/OpenGL.h>
 
 #if defined(__APPLE__)
@@ -89,8 +90,7 @@ bool KotonohaOpenGLIsLoaded(void) { return g_glLoaded; }
 bool KotonohaOpenGLInit(void) {
   KotonohaOpenGLReset();
   if (SDL_GL_GetCurrentContext() == NULL) {
-    SDL_LogError(SDL_LOG_CATEGORY_RENDER,
-                 "OpenGL init failed: no current SDL OpenGL context");
+    KLOG_ERROR(UPSCALER, "OpenGL init failed: no current SDL OpenGL context");
     return false;
   }
 
@@ -141,8 +141,7 @@ bool KotonohaOpenGLInit(void) {
       !glBindBuffer || !glBufferData || !glDeleteBuffers ||
       !glGenFramebuffers || !glBindFramebuffer || !glFramebufferTexture2D ||
       !glCheckFramebufferStatus || !glDeleteFramebuffers) {
-    SDL_LogError(SDL_LOG_CATEGORY_RENDER,
-                 "OpenGL init failed: one or more required GL functions are "
+    KLOG_ERROR(UPSCALER, "OpenGL init failed: one or more required GL functions are "
                  "unavailable");
     KotonohaOpenGLReset();
     return false;

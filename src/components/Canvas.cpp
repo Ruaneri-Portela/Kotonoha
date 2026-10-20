@@ -1,3 +1,4 @@
+#include <Kotonoha/utils/Log.h>
 #include <Kotonoha/components/Canvas.hpp>
 #include <algorithm>
 
@@ -30,8 +31,7 @@ static bool CaptureDirtyFrame(SDL_Renderer *render, CanvasItem &item) {
     float width = 0.0f;
     float height = 0.0f;
     if (!SDL_GetTextureSize(item.target, &width, &height)) {
-      SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
-                   "Failed to get canvas texture dimensions: %s",
+      KLOG_ERROR(RENDER, "Failed to get canvas texture dimensions: %s",
                    SDL_GetError());
       return false;
     }
@@ -40,16 +40,14 @@ static bool CaptureDirtyFrame(SDL_Renderer *render, CanvasItem &item) {
         render, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET,
         static_cast<int>(width), static_cast<int>(height));
     if (item.dirtyFrame == nullptr) {
-      SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
-                   "Failed to create retained canvas texture: %s",
+      KLOG_ERROR(RENDER, "Failed to create retained canvas texture: %s",
                    SDL_GetError());
       return false;
     }
   }
 
   if (!SDL_SetRenderTarget(render, item.dirtyFrame)) {
-    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
-                 "Failed to set retained canvas target: %s", SDL_GetError());
+    KLOG_ERROR(RENDER, "Failed to set retained canvas target: %s", SDL_GetError());
     return false;
   }
 
@@ -82,8 +80,7 @@ static bool CaptureDirtyFrame(SDL_Renderer *render, CanvasItem &item) {
 
   if (!snapshotPrepared || !copied || !sourceBlendRestored ||
       !targetRestored || !snapshotBlendSet || !drawColorRestored) {
-    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
-                 "Failed to preserve canvas frame: %s", SDL_GetError());
+    KLOG_ERROR(RENDER, "Failed to preserve canvas frame: %s", SDL_GetError());
     item.hasDirtyFrame = false;
     return false;
   }
@@ -192,22 +189,19 @@ SDL_AppResult Canvas::RenderCanvas(SDL_Window *window, SDL_Renderer *render) {
           static_cast<int>(item.place.w), static_cast<int>(item.place.h));
 
       if (item.target == nullptr) {
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
-                     "Failed to create canvas texture: %s", SDL_GetError());
+        KLOG_ERROR(RENDER, "Failed to create canvas texture: %s", SDL_GetError());
         status = SDL_APP_FAILURE;
         continue;
       }
       if (!SDL_SetTextureBlendMode(item.target, SDL_BLENDMODE_BLEND)) {
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
-                     "Failed to configure canvas texture blending: %s",
+        KLOG_ERROR(RENDER, "Failed to configure canvas texture blending: %s",
                      SDL_GetError());
         status = SDL_APP_FAILURE;
       }
     }
 
     if (!SDL_SetRenderTarget(render, item.target)) {
-      SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
-                   "Failed to set canvas render target: %s", SDL_GetError());
+      KLOG_ERROR(RENDER, "Failed to set canvas render target: %s", SDL_GetError());
       status = SDL_APP_FAILURE;
       continue;
     }
@@ -239,8 +233,7 @@ SDL_AppResult Canvas::RenderCanvas(SDL_Window *window, SDL_Renderer *render) {
         result == KOTONOHA_SCENE_COMPLETE ||
         result == KOTONOHA_SCENE_WAITING) {
       if (!SDL_SetRenderTarget(render, nullptr)) {
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
-                     "Failed to restore backbuffer after canvas callback: %s",
+        KLOG_ERROR(RENDER, "Failed to restore backbuffer after canvas callback: %s",
                      SDL_GetError());
         return SDL_APP_FAILURE;
       }
@@ -251,8 +244,7 @@ SDL_AppResult Canvas::RenderCanvas(SDL_Window *window, SDL_Renderer *render) {
               : nullptr;
       if (retained != nullptr &&
           !SDL_RenderTexture(render, retained, nullptr, &item.place)) {
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
-                     "Failed to draw retained canvas item: %s",
+        KLOG_ERROR(RENDER, "Failed to draw retained canvas item: %s",
                      SDL_GetError());
         status = SDL_APP_FAILURE;
       } else if (retained != nullptr) {
@@ -263,8 +255,7 @@ SDL_AppResult Canvas::RenderCanvas(SDL_Window *window, SDL_Renderer *render) {
 
     if (item.target != nullptr) {
       if (!SDL_SetRenderTarget(render, nullptr)) {
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
-                     "Failed to restore backbuffer after canvas callback: %s",
+        KLOG_ERROR(RENDER, "Failed to restore backbuffer after canvas callback: %s",
                      SDL_GetError());
         return SDL_APP_FAILURE;
       }
@@ -272,8 +263,7 @@ SDL_AppResult Canvas::RenderCanvas(SDL_Window *window, SDL_Renderer *render) {
           hasNewFrame) {
         minDrawnZIndex = std::min(minDrawnZIndex, item.zIndex);
       } else if (hasNewFrame) {
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
-                     "Failed to draw canvas texture: %s", SDL_GetError());
+        KLOG_ERROR(RENDER, "Failed to draw canvas texture: %s", SDL_GetError());
         status = SDL_APP_FAILURE;
       }
     }

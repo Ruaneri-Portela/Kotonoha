@@ -1,3 +1,4 @@
+#include <Kotonoha/utils/Log.h>
 #include <Kotonoha/Gameplay.hpp>
 #include <Kotonoha/components/Events.hpp>
 #include <Kotonoha/utils/OrsTime.h>
@@ -109,6 +110,14 @@ static std::string ResolveAssetPath(const char *assetsPath,
   return current;
 }
 
+static const char *EventName(int command) {
+  static const char *const names[] = {
+      "CreateBG",  "PlaySe",   "PlayMovie", "WhiteFade", "BlackFade",
+      "PlayBgm",   "PrintText", "PlayVoice", "SkipFRAME", "SetSELECT",
+      "EndBgm",    "EndRoll",  "Next",      "Unknown"};
+  return command >= 0 && command < 14 ? names[command] : "Unknown";
+}
+
 static void DestroyEventManagerParams(void **parms) {
   if (parms == nullptr) {
     return;
@@ -175,6 +184,24 @@ int Event::EventManager(void *data) {
     return true;
   };
 
+  {
+    const Uint64 now = KotonohaTimeGet(gameplay->tm);
+    for (auto it = classUp->liveEvents.begin();
+         it != classUp->liveEvents.end();) {
+      Uint64 liveEnd = 0;
+      if (!KotonohaOrsTimeToMilliseconds((*it)->end, false, &liveEnd) ||
+          liveEnd < now) {
+        KLOG_DEBUG(SCRIPT, "Event ended: %s (end=%llu ms, now=%llu ms)",
+                   EventName((*it)->command),
+                   static_cast<unsigned long long>(liveEnd),
+                   static_cast<unsigned long long>(now));
+        it = classUp->liveEvents.erase(it);
+      } else {
+        ++it;
+      }
+    }
+  }
+
   for (auto *event = classUp->eventsFromScript.data; event != nullptr;
        event = event->next) {
     const Uint64 actualTime = KotonohaTimeGet(gameplay->tm);
@@ -193,8 +220,7 @@ int Event::EventManager(void *data) {
 
     if (!KotonohaOrsTimeToMilliseconds(event->start, true, &startMs) ||
         !KotonohaOrsTimeToMilliseconds(event->end, false, &endMs)) {
-      SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
-                  "Skipping ORS event with invalid 24-fps timestamp "
+      KLOG_WARN(SCRIPT, "Skipping ORS event with invalid 24-fps timestamp "
                   "start=%llu end=%llu",
                   static_cast<unsigned long long>(event->start),
                   static_cast<unsigned long long>(event->end));
@@ -389,6 +415,14 @@ int Event::EventManager(void *data) {
     event->eventTouched =
         !hasMediaAttachment ||
         !updatePendingAssetLoad(event, mediaAttachmentFailed, signalLoading);
+    if (event->eventTouched && classUp->liveEvents.insert(event).second) {
+      KLOG_DEBUG(SCRIPT,
+                 "Event inserted: %s (start=%llu ms, end=%llu ms, now=%llu ms)",
+                 EventName(event->command),
+                 static_cast<unsigned long long>(startMs),
+                 static_cast<unsigned long long>(endMs),
+                 static_cast<unsigned long long>(actualTime));
+    }
   }
 
   const Uint64 currentTime = KotonohaTimeGet(gameplay->tm);
@@ -486,6 +520,7 @@ void Event::Reset(void *gameplay) {
   gp->audio->RemoveMedia(nullptr);
 
   pendingAssetLoads.clear();
+  liveEvents.clear();
   voiceAnimations.clear();
   Uint64 actualTime = KotonohaTimeGet(gp->tm);
 
@@ -493,8 +528,7 @@ void Event::Reset(void *gameplay) {
        event = event->next) {
     Uint64 endMs = 0;
     if (!KotonohaOrsTimeToMilliseconds(event->end, false, &endMs)) {
-      SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
-                  "Skipping reset state for invalid ORS end timestamp %llu",
+      KLOG_WARN(SCRIPT, "Skipping reset state for invalid ORS end timestamp %llu",
                   static_cast<unsigned long long>(event->end));
       event->eventTouched = true;
       continue;
@@ -563,8 +597,7 @@ Event::Event(const char *orsPath, void *gameplay, struct Kotonoha_Game *gameCtx,
       if (!KotonohaOrsTimeToMilliseconds(event->start, true, &startMs) ||
           !KotonohaOrsTimeToMilliseconds(event->end, false, &endMs) ||
           endMs < startMs) {
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
-                     "Invalid subtitle timestamp range");
+        KLOG_ERROR(SCRIPT, "Invalid subtitle timestamp range");
       }
       const int eventId = ass_alloc_event(gp->sb->track);
       if (eventId < 0) {
@@ -613,8 +646,7 @@ Event::Event(const char *orsPath, void *gameplay, struct Kotonoha_Game *gameCtx,
       Uint64 endMs = 0;
       if (!KotonohaOrsTimeToMilliseconds(event->start, true, &startMs) ||
           !KotonohaOrsTimeToMilliseconds(event->end, false, &endMs)) {
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
-                     "Invalid choice prompt timestamp range");
+        KLOG_ERROR(SCRIPT, "Invalid choice prompt timestamp range");
         throw std::runtime_error("Invalid choice prompt timestamps");
       }
       std::vector<std::string> options;
@@ -636,8 +668,7 @@ Event::Event(const char *orsPath, void *gameplay, struct Kotonoha_Game *gameCtx,
     case SkipFRAME:
     case Next: {
       if (!KotonohaOrsTimeToMilliseconds(event->start, true, &lastTime)) {
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
-                     "Invalid scene end timestamp");
+        KLOG_ERROR(SCRIPT, "Invalid scene end timestamp");
         throw std::runtime_error("Invalid scene end timestamp");
       }
       break;

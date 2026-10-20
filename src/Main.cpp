@@ -1,4 +1,5 @@
 #define SDL_MAIN_USE_CALLBACKS 1
+#include <Kotonoha/utils/Log.h>
 #include <Kotonoha/Init.hpp>
 #include <Kotonoha/debug/DebugUi.hpp>
 #include <Kotonoha/debug/LogPanel.hpp>
@@ -16,6 +17,8 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
   }
   *appstate = nullptr;
 
+  KotonohaLogInit();
+  KLOG_INFO(CORE, "Kotonoha starting");
   Kotonoha::Debug::InstallLogCapture();
   IMGUI_CHECKVERSION();
   ImGui::CreateContext();
@@ -42,7 +45,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
       new (std::nothrow) Kotonoha::Kotonoha(&status, global);
 
   if (engine == nullptr) {
-    SDL_LogError(0, "Couldn't create Kotonoha engine instance");
+    KLOG_ERROR(CORE, "Couldn't create Kotonoha engine instance");
     return SDL_APP_FAILURE;
   }
 

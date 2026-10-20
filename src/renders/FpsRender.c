@@ -1,3 +1,4 @@
+#include <Kotonoha/utils/Log.h>
 #include <Kotonoha/renders/FpsRender.h>
 #include <Kotonoha/utils/OverlayRender.h>
 
@@ -91,8 +92,7 @@ enum Kotonoha_Scene_Status KotonohaFPSRender(KOTONOHA_SCENE_CALL) {
   if (fpsCommon == NULL) {
     fpsCommon = (struct FPS_common *)SDL_calloc(1, sizeof(struct FPS_common));
     if (fpsCommon == NULL) {
-      SDL_LogError(SDL_LOG_CATEGORY_ERROR,
-                   "Failed to allocate FPS renderer state");
+      KLOG_ERROR(RENDER, "Failed to allocate FPS renderer state");
       return KOTONOHA_SCENE_NULL;
     }
     fpsCommon->color = (SDL_Color){255, 0, 255, 255};
@@ -149,14 +149,14 @@ enum Kotonoha_Scene_Status KotonohaFPSRender(KOTONOHA_SCENE_CALL) {
     shadowRect.x += 2.0f;
     shadowRect.y += 2.0f;
     if (!SDL_RenderTexture(render, fpsCommon->shadow, NULL, &shadowRect)) {
-      SDL_LogError(SDL_LOG_CATEGORY_RENDER, "Failed to draw FPS shadow: %s",
+      KLOG_ERROR(RENDER, "Failed to draw FPS shadow: %s",
                    SDL_GetError());
     }
   }
 
   if (fpsCommon->texture != NULL &&
       !SDL_RenderTexture(render, fpsCommon->texture, NULL, &fpsCommon->rect)) {
-    SDL_LogError(SDL_LOG_CATEGORY_RENDER, "Failed to draw FPS text: %s",
+    KLOG_ERROR(RENDER, "Failed to draw FPS text: %s",
                  SDL_GetError());
   }
 

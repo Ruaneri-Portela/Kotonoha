@@ -1,4 +1,5 @@
 #include <Kotonoha/parsers/Config.h>
+#include <Kotonoha/utils/Log.h>
 #include <SDL3/SDL.h>
 #include <errno.h>
 #include <limits.h>
@@ -7,8 +8,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-static void About(void) {
-  printf("Kotonoha\n"
+const char *KotonohaAboutText(void) {
+  return ("Kotonoha\n"
          "========\n"
          "\n"
          "Kotonoha is a Visual Novel engine built upon SDL (Simple DirectMedia "
@@ -33,6 +34,8 @@ static void About(void) {
          "\n"
          "Copyright (c) 2023 Ruaneri Ferreira Portela\n");
 }
+
+static void About(void) { fputs(KotonohaAboutText(), stdout); }
 
 static void Help(void) {
   printf(
@@ -519,6 +522,8 @@ bool KotonohaConfigLoad(Kotonoha_Config *config, const char *path, int argc,
     }
   }
 
+  KLOG_INFO(CONFIG, "Configuration loaded (cancelOpen=%d)",
+            (int)config->cancelOpen);
   return !config->cancelOpen;
 }
 

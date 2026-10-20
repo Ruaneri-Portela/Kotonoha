@@ -1,3 +1,4 @@
+#include <Kotonoha/utils/Log.h>
 #include <Kotonoha/components/Video.hpp>
 
 namespace Kotonoha {
@@ -8,20 +9,19 @@ Video::Video(Kotonoha_Time *timeManager, Kotonoha_Demuxer *demuxer,
       cacheDurationSeconds(cacheDurationSeconds) {
   lock = SDL_CreateMutex();
   if (lock == nullptr) {
-    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
-                 "Failed to create video mutex: %s", SDL_GetError());
+    KLOG_ERROR(VIDEO, "Failed to create video mutex: %s", SDL_GetError());
   }
 }
 
 bool Video::Register(const char *path, Uint64 startTime, Uint64 endTime,
                      bool useOrsFrameTimeline, Uint64 orsEndFrame) {
   if (timeManager == nullptr) {
-    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Video time manager is null.");
+    KLOG_ERROR(VIDEO, "Video time manager is null.");
     return false;
   }
 
   if (path == nullptr || *path == '\0') {
-    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Video path is invalid.");
+    KLOG_ERROR(VIDEO, "Video path is invalid.");
     return false;
   }
 
@@ -55,8 +55,7 @@ void Video::RenderTexture(SDL_Renderer *render, SDL_Texture *texture) {
     float videoHeight = 0.0f;
 
     if (!SDL_GetTextureSize(texture, &videoWidth, &videoHeight)) {
-      SDL_LogError(SDL_LOG_CATEGORY_RENDER,
-                   "Failed to get video texture size: %s", SDL_GetError());
+      KLOG_ERROR(VIDEO, "Failed to get video texture size: %s", SDL_GetError());
       return;
     }
 
@@ -64,15 +63,14 @@ void Video::RenderTexture(SDL_Renderer *render, SDL_Texture *texture) {
     const int requiredHeight = static_cast<int>(videoHeight);
 
     if (requiredWidth <= 0 || requiredHeight <= 0) {
-      SDL_LogError(SDL_LOG_CATEGORY_RENDER, "Invalid video texture size: %dx%d",
+      KLOG_ERROR(VIDEO, "Invalid video texture size: %dx%d",
                    requiredWidth, requiredHeight);
       return;
     }
 
     if (!EnsureUpscalingTextures(render, requiredWidth, requiredHeight,
                                  factor)) {
-      SDL_LogError(SDL_LOG_CATEGORY_RENDER,
-                   "Failed to ensure upscaling textures for video");
+      KLOG_ERROR(VIDEO, "Failed to ensure upscaling textures for video");
       return;
     }
 
@@ -93,7 +91,7 @@ Kotonoha_Scene_Status Video::Render(KOTONOHA_SCENE_CALL) {
 
   if (!SDL_SetRenderDrawColor(render, 0, 0, 0, 255) ||
       !SDL_RenderClear(render)) {
-    SDL_LogError(SDL_LOG_CATEGORY_RENDER, "Failed to clear video canvas: %s",
+    KLOG_ERROR(VIDEO, "Failed to clear video canvas: %s",
                  SDL_GetError());
     return KOTONOHA_SCENE_WAITING;
   }

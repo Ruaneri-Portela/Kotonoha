@@ -5,6 +5,7 @@
 #import <MetalFX/MetalFX.h>
 
 #include <Kotonoha/specials/MetalFX.h>
+#include <Kotonoha/utils/Log.h>
 #include <cstddef>
 #include <deque>
 #include <mutex>
@@ -228,8 +229,7 @@ bool GetOrCreateScalerEntry(
         [descriptor newSpatialScalerWithDevice:device];
 
     if (scaler == nil) {
-        NSLog(
-            @"MetalFX: falha ao criar scaler "
+        KLOG_ERROR(UPSCALER, "Failed to create scaler "
              "(input format=%lu, output format=%lu)",
             (unsigned long)inputTexture.pixelFormat,
             (unsigned long)outputTexture.pixelFormat);
@@ -240,7 +240,7 @@ bool GetOrCreateScalerEntry(
         CreateMetalFXWorkingTexture(device, outputTexture);
 
     if (workingTexture == nil) {
-        NSLog(@"MetalFX: falha ao criar workingTexture");
+        KLOG_ERROR(UPSCALER, "Failed to create workingTexture");
         return false;
     }
 
@@ -326,20 +326,20 @@ id<MTLTexture> MetalFXUpscaleTextureInto(
     }
 
     if (inputTexture.device != outputTexture.device) {
-        NSLog(@"MetalFX: input e output usam devices diferentes");
+        KLOG_ERROR(UPSCALER, "Input and output use different devices");
         return nil;
     }
 
     if (outputTexture.width <= inputTexture.width ||
         outputTexture.height <= inputTexture.height) {
-        NSLog(@"MetalFX: output deve ser maior que input");
+        KLOG_ERROR(UPSCALER, "Output must be larger than input");
         return nil;
     }
 
     id<MTLDevice> device = inputTexture.device;
 
     if (!IsMetalFXAvailable(device)) {
-        NSLog(@"MetalFX nao esta disponivel neste device");
+        KLOG_ERROR(UPSCALER, "MetalFX is not available on this device");
         return nil;
     }
 
@@ -374,7 +374,7 @@ id<MTLTexture> MetalFXUpscaleTextureInto(
             commandBuffer,
             workingTexture,
             outputTexture)) {
-        NSLog(@"MetalFX: falha ao copiar para SDL_Texture");
+        KLOG_ERROR(UPSCALER, "Failed to copy into SDL_Texture");
         return nil;
     }
 
@@ -390,7 +390,7 @@ bool KotonohaMetalFXInit(SDL_Renderer *renderer, Kotonoha_Config *config)
     (void)config;
     @autoreleasepool {
         if (renderer == nullptr) {
-            SDL_SetError("KotonohaMetalFXInit: renderer nulo");
+            SDL_SetError("KotonohaMetalFXInit: renderer is null");
             return false;
         }
 
@@ -404,7 +404,7 @@ bool KotonohaMetalFXInit(SDL_Renderer *renderer, Kotonoha_Config *config)
         if (probe == nullptr) {
             SDL_SetError(
                 "KotonohaMetalFXInit: "
-                "nao foi possivel criar textura de teste");
+                "could not create probe texture");
             return false;
         }
 
@@ -414,7 +414,7 @@ bool KotonohaMetalFXInit(SDL_Renderer *renderer, Kotonoha_Config *config)
         if (metalTexture == nil) {
             SDL_SetError(
                 "KotonohaMetalFXInit: "
-                "renderer nao expoe MTLTexture; use backend Metal");
+                "renderer does not expose an MTLTexture; use the Metal backend");
             SDL_DestroyTexture(probe);
             return false;
         }
@@ -433,7 +433,7 @@ bool KotonohaMetalFXInit(SDL_Renderer *renderer, Kotonoha_Config *config)
         if (!IsMetalFXAvailable(g_metalDevice)) {
             SDL_SetError(
                 "KotonohaMetalFXInit: "
-                "MetalFX nao esta disponivel neste device");
+                "MetalFX is not available on this device");
             g_metalDevice = nil;
             return false;
         }
@@ -443,7 +443,7 @@ bool KotonohaMetalFXInit(SDL_Renderer *renderer, Kotonoha_Config *config)
         if (g_metalQueue == nil) {
             SDL_SetError(
                 "KotonohaMetalFXInit: "
-                "nao foi possivel criar MTLCommandQueue");
+                "could not create MTLCommandQueue");
             g_metalDevice = nil;
             return false;
         }
@@ -484,7 +484,7 @@ bool KotonohaMetalFXUpscaleSDLTextureInto(
         if (g_metalDevice == nil || g_metalQueue == nil) {
             SDL_SetError(
                 "KotonohaMetalFXUpscaleSDLTextureInto: "
-                "chame KotonohaMetalFXInit antes de usar o upscaler");
+                "call KotonohaMetalFXInit before using the upscaler");
             return false;
         }
 
@@ -502,7 +502,7 @@ bool KotonohaMetalFXUpscaleSDLTextureInto(
             outputHeight <= inputHeight) {
             SDL_SetError(
                 "KotonohaMetalFXUpscaleSDLTextureInto: "
-                "textura de saida deve ser maior que entrada");
+                "output texture must be larger than input texture");
             return false;
         }
 
@@ -516,7 +516,7 @@ bool KotonohaMetalFXUpscaleSDLTextureInto(
             outputMetalTexture == nil) {
             SDL_SetError(
                 "KotonohaMetalFXUpscaleSDLTextureInto: "
-                "SDL_Texture nao expoe MTLTexture nativa");
+                "SDL_Texture does not expose a native MTLTexture");
             return false;
         }
 
@@ -524,7 +524,7 @@ bool KotonohaMetalFXUpscaleSDLTextureInto(
             outputMetalTexture.device != g_metalDevice) {
             SDL_SetError(
                 "KotonohaMetalFXUpscaleSDLTextureInto: "
-                "textura usa MTLDevice diferente do device inicial");
+                "texture uses a different MTLDevice than the initial device");
             return false;
         }
 
@@ -534,7 +534,7 @@ bool KotonohaMetalFXUpscaleSDLTextureInto(
         if (commandBuffer == nil) {
             SDL_SetError(
                 "KotonohaMetalFXUpscaleSDLTextureInto: "
-                "nao foi possivel criar MTLCommandBuffer");
+                "could not create MTLCommandBuffer");
             return false;
         }
 
@@ -547,7 +547,7 @@ bool KotonohaMetalFXUpscaleSDLTextureInto(
         if (result == nil) {
             SDL_SetError(
                 "KotonohaMetalFXUpscaleSDLTextureInto: "
-                "MetalFX falhou ou textura nao suportada");
+                "MetalFX failed or texture is not supported");
             return false;
         }
 
@@ -556,7 +556,7 @@ bool KotonohaMetalFXUpscaleSDLTextureInto(
 
         if (commandBuffer.error != nil) {
             SDL_SetError(
-                "KotonohaMetalFXUpscaleSDLTextureInto: erro Metal: %s",
+                "KotonohaMetalFXUpscaleSDLTextureInto: Metal error: %s",
                 commandBuffer.error.localizedDescription.UTF8String);
             return false;
         }
