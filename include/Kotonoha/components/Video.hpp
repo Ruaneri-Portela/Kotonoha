@@ -1,5 +1,6 @@
 #pragma once
 
+#include <Kotonoha/components/MediaBufferInfo.hpp>
 #include <Kotonoha/components/Upscaling.hpp>
 #include <vector>
 
@@ -22,10 +23,12 @@ private:
   std::vector<Kotonoha_VideoData *> videos =
       std::vector<Kotonoha_VideoData *>();
 
-  void RenderTexture(SDL_Renderer *render, SDL_Texture *texture);
+  void RenderTexture(SDL_Renderer *render, SDL_Texture *texture,
+                     Uint64 contentKey);
 
 public:
   void Reset();
+  std::vector<MediaBufferInfo> GetBufferInfo() const;
 
   Video(Kotonoha_Time *timeManager, Kotonoha_Demuxer *demuxer,
         float cacheDurationSeconds = 2.0f);

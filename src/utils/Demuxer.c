@@ -105,6 +105,28 @@ bool KotonohaPacketQueueIsEof(Kotonoha_PacketQueue *q) {
   return eof;
 }
 
+void KotonohaPacketQueueGetBufferStats(Kotonoha_PacketQueue *q,
+                                       Uint64 *cachedMs, bool *eof) {
+  if (cachedMs != NULL) {
+    *cachedMs = 0;
+  }
+  if (eof != NULL) {
+    *eof = false;
+  }
+  if (!q || !q->mutex) {
+    return;
+  }
+
+  SDL_LockMutex(q->mutex);
+  if (cachedMs != NULL) {
+    *cachedMs = q->durationMs;
+  }
+  if (eof != NULL) {
+    *eof = q->eof;
+  }
+  SDL_UnlockMutex(q->mutex);
+}
+
 bool KotonohaPacketQueueAtCacheLimit(Kotonoha_PacketQueue *q,
                                      Uint64 maxSpanMs) {
   if (!q || !q->mutex) {

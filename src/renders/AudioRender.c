@@ -1,5 +1,6 @@
 #include <Kotonoha/renders/AudioRender.h>
 #include <Kotonoha/utils/Demuxer.h>
+#include <Kotonoha/utils/Log.h>
 
 static inline Uint64 u64_abs_diff(Uint64 a, Uint64 b) {
   return (a > b) ? (a - b) : (b - a);
@@ -30,6 +31,13 @@ struct Kotonoha_AudioDecode *KotonohaAudioInit(const char *path,
           1, sizeof(struct Kotonoha_AudioDecode));
   if (!audioDecode)
     return NULL;
+
+  audioDecode->stateMutex = SDL_CreateMutex();
+  if (audioDecode->stateMutex == NULL) {
+    KLOG_ERROR(AUDIO, "Failed to create audio state mutex: %s", SDL_GetError());
+    SDL_free(audioDecode);
+    return NULL;
+  }
 
   float cacheSecs = (audioDecode->cacheDurationSeconds > 0.1f)
                         ? audioDecode->cacheDurationSeconds
@@ -90,8 +98,10 @@ void KotonohaAudioSeek(Kotonoha_AudioDecode *ctx, Uint64 timeMs) {
   }
 
   ctx->executions++;
+  SDL_LockMutex(ctx->stateMutex);
   ctx->audioTime = timeMs;
   ctx->lastTime = timeMs;
+  SDL_UnlockMutex(ctx->stateMutex);
   ctx->cannotSeek = false;
   ctx->decoderFlushSent = false;
 }
@@ -100,7 +110,10 @@ void KotonohaAudioEnsureSync(Kotonoha_AudioDecode *ctx, Uint64 currentTimeMs,
                              bool forceOnOpen) {
   if (!ctx)
     return;
-  if (forceOnOpen || u64_abs_diff(currentTimeMs, ctx->audioTime) > 1000) {
+  SDL_LockMutex(ctx->stateMutex);
+  const Uint64 audioTime = ctx->audioTime;
+  SDL_UnlockMutex(ctx->stateMutex);
+  if (forceOnOpen || u64_abs_diff(currentTimeMs, audioTime) > 1000) {
     KotonohaAudioSeek(ctx, currentTimeMs);
   }
 }
@@ -122,8 +135,11 @@ int KotonohaAudioRender(void *data, Uint8 **target, int *size) {
   }
 
   if (!instance->firstSeek) {
-    if (instance->lastTime > 0) {
-      KotonohaAudioSeek(instance, instance->lastTime);
+    SDL_LockMutex(instance->stateMutex);
+    const Uint64 lastTime = instance->lastTime;
+    SDL_UnlockMutex(instance->stateMutex);
+    if (lastTime > 0) {
+      KotonohaAudioSeek(instance, lastTime);
     }
     instance->firstSeek = true;
   }
@@ -153,8 +169,10 @@ int KotonohaAudioRender(void *data, Uint8 **target, int *size) {
       if (converted <= 0)
         return converted < 0 ? -1 : 0; //[cite: 1]
 
-      instance->audioTime = framePtsMs; //[cite: 1]
-      instance->lastTime = framePtsMs;  //[cite: 1]
+      SDL_LockMutex(instance->stateMutex);
+      instance->audioTime = framePtsMs;
+      instance->lastTime = framePtsMs;
+      SDL_UnlockMutex(instance->stateMutex);
       return 2; // Frame decodificado e convertido com sucesso!
     }
 
@@ -212,6 +230,8 @@ void KotonohaAudioFree(void *data) {
     swr_free(&audioDecode->swrCtx);
   if (audioDecode->codecCtx)
     avcodec_free_context(&audioDecode->codecCtx);
+  if (audioDecode->stateMutex)
+    SDL_DestroyMutex(audioDecode->stateMutex);
 
   SDL_free(audioDecode);
 }

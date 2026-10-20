@@ -73,6 +73,8 @@ void KotonohaPacketQueueDestroy(Kotonoha_PacketQueue *q);
 void KotonohaPacketQueueFlush(Kotonoha_PacketQueue *q, bool preserveKeyFrame);
 bool KotonohaPacketQueueHasPackets(Kotonoha_PacketQueue *q);
 bool KotonohaPacketQueueIsEof(Kotonoha_PacketQueue *q);
+void KotonohaPacketQueueGetBufferStats(Kotonoha_PacketQueue *q,
+                                       Uint64 *cachedMs, bool *eof);
 bool KotonohaPacketQueueAtCacheLimit(Kotonoha_PacketQueue *q, Uint64 maxSpanMs);
 bool KotonohaPacketQueuePush(Kotonoha_PacketQueue *q, AVPacket *pkt,
                              AVStream *stream, Uint64 maxSpanMs);

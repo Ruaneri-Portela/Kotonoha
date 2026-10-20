@@ -1,12 +1,14 @@
 #pragma once
 #include <Kotonoha/components/Audio.hpp>
 #include <Kotonoha/components/Image.hpp>
+#include <Kotonoha/components/MediaBufferInfo.hpp>
 #include <Kotonoha/components/Prompt.hpp>
 #include <Kotonoha/components/Video.hpp>
 #include <Kotonoha/components/VoiceActivity.hpp>
 
 #include <unordered_map>
 #include <unordered_set>
+#include <string>
 #include <vector>
 
 #include <Kotonoha/parsers/Ors.h>
@@ -57,6 +59,11 @@ public:
   void ActivateSubtitles();
   void Reset(void *gameplay);
   bool CheckEnd(void *gameplay);
+  std::vector<MediaBufferInfo>
+  GetMediaBufferInfo(const Audio *audio, const Video *video,
+                     const Image *image) const;
+  bool PlayMediaNow(Audio *audio, const std::string &path,
+                    const std::string &channel) const;
   ~Event();
 };
 } // namespace Kotonoha

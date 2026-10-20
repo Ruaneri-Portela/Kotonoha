@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Kotonoha/components/Upscaling.hpp>
+#include <Kotonoha/components/MediaBufferInfo.hpp>
 #include <SDL3/SDL_render.h>
 #include <memory>
 #include <string>
@@ -49,6 +50,8 @@ private:
   void DrawAbcForBase(Kotonoha_Picture *picture, SDL_Renderer *renderer,
                       Uint64 atMs);
 
+  Uint64 ComputeUpscaleKey(const Kotonoha_Picture *picture, float factor) const;
+
   void RemoveAbcGroupsForBase(Uint64 baseGeneration);
 
   void RenderTexture(SDL_Renderer *render, SDL_Texture *target,
@@ -59,6 +62,7 @@ public:
   ~Image();
 
   void Reset();
+  std::vector<MediaBufferInfo> GetBufferInfo() const;
 
   Uint64 Register(const char *path, Uint64 startTime, Uint64 endTime, Uint8 id);
 

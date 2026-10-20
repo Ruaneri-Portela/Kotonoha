@@ -2,6 +2,37 @@
 #include <Kotonoha/utils/Log.h>
 
 namespace Kotonoha {
+namespace {
+
+void AppendAudioBufferInfo(std::vector<MediaBufferInfo> &result,
+                           const std::string &channel,
+                           const Kotonoha_AudioDecode *decode,
+                           const char *suffix) {
+  if (decode == nullptr) {
+    return;
+  }
+
+  MediaBufferInfo info;
+  info.id = reinterpret_cast<Uint64>(decode);
+  info.type = suffix != nullptr ? "Audio Loop" : "Audio";
+  info.channel = channel;
+  if (decode->stream != nullptr && decode->stream->filename != nullptr) {
+    info.path = decode->stream->filename;
+  }
+  (void)suffix;
+  if (decode->stateMutex != nullptr) {
+    SDL_LockMutex(decode->stateMutex);
+    info.playedMs = decode->lastTime;
+    SDL_UnlockMutex(decode->stateMutex);
+  }
+  if (decode->stream != nullptr) {
+    KotonohaPacketQueueGetBufferStats(&decode->stream->audioQueue,
+                                      &info.cachedMs, &info.eof);
+  }
+  result.push_back(std::move(info));
+}
+
+} // namespace
 
 Audio::Audio(Sound *soundCtx, struct Kotonoha_Time *timeCtx,
              Kotonoha_Demuxer *demuxer)
@@ -195,8 +226,10 @@ int Audio::RenderMedia(void *data, Uint8 **target, int *size) {
   Sint64 diff = 0;
 
   // Obtém o tempo atual na timeline para este evento de áudio
+  SDL_LockMutex(instance->stateMutex);
   instance->lastTime = KotonohaTimeGetFromEvent(*instance->tm, instance->start,
                                                 instance->end, &inRange, &diff);
+  SDL_UnlockMutex(instance->stateMutex);
   if (!inRange) {
     return 0;
   }
@@ -220,6 +253,31 @@ int Audio::RenderMedia(void *data, Uint8 **target, int *size) {
   }
 
   return rt;
+}
+
+std::vector<MediaBufferInfo> Audio::GetBufferInfo() const {
+  std::vector<MediaBufferInfo> result;
+  for (const auto &object : mediaObjects) {
+    const Sound::Channel *channel = std::get<0>(object);
+    const std::string channelName = channel != nullptr ? channel->name : "";
+    for (const auto &entry : std::get<1>(object)) {
+      const Kotonoha_AudioDecode *decode = std::get<0>(entry);
+      AppendAudioBufferInfo(result, channelName, decode, nullptr);
+      if (decode != nullptr && decode->loopMedia != nullptr) {
+        AppendAudioBufferInfo(result, channelName, decode->loopMedia,
+                              " (loop)");
+      }
+    }
+  }
+  return result;
+}
+
+bool Audio::PlayNow(const std::string &path, const std::string &channel) {
+  if (path.empty() || channel.empty()) {
+    KLOG_ERROR(AUDIO, "Cannot play media now without a path and channel.");
+    return false;
+  }
+  return AddMedia(path.c_str(), 0, 0, false, channel.c_str()) != nullptr;
 }
 
 Audio::~Audio() { RemoveMedia(nullptr); }

@@ -104,6 +104,7 @@ static bool updateTextureFromFrame(struct Kotonoha_VideoData *instance,
   if (!instance || !render || !frame)
     return false;
 
+  instance->textureSerial++;
   AVFrame *cpuFrame = getCpuReadableFrame(frame);
   if (!cpuFrame)
     return false;

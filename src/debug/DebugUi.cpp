@@ -176,6 +176,7 @@ bool Run(::Kotonoha::Kotonoha *game, ::Kotonoha::Gameplay *play,
   }
 
   DrawPlaylistWindow(game, context);
+  DrawSceneBuffersWindow(play);
   DrawSettingsWindow(context);
   DrawAboutWindow();
   DrawLogPanel(&logVisible);
