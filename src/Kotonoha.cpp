@@ -86,7 +86,7 @@ Kotonoha::Kotonoha(SDL_AppResult *status, struct Kotonoha_Game &context)
   if (!splashTextures.empty()) {
     splashActive = true;
     KLOG_INFO(CORE, "Showing %zu splash image(s), %.1f s each",
-              splashTextures.size(), config.splashSeconds);
+              splashTextures.size(), config.splashSeconds.load());
   }
 }
 
@@ -104,7 +104,7 @@ void Kotonoha::UpdateTitleMusic(bool titleScreen) {
     return;
   }
   if (titleAudio == nullptr) {
-    titleDemuxer = KotonohaDemuxerCreate(false);
+    titleDemuxer = KotonohaDemuxerCreate(false, &gameContext.config);
     titleTime = KotonohaTimeNew(true);
     titleAudio = new Audio(sound, titleTime, titleDemuxer);
     KotonohaDemuxerStart(titleDemuxer);
@@ -333,19 +333,24 @@ SDL_AppResult Kotonoha::Event(SDL_Event *event) {
       config->showFps = !config->showFps;
       break;
 
-    case SDLK_F9:
-      if (!SDL_GetRenderVSync(gameContext.render, &config->enableVsync)) {
+    case SDLK_F9: {
+      int vsyncState = 0;
+      if (!SDL_GetRenderVSync(gameContext.render, &vsyncState)) {
         KLOG_ERROR(CORE, "Failed to get VSync state: %s", SDL_GetError());
         break;
       }
+      config->enableVsync = vsyncState;
 
       if (!SDL_SetRenderVSync(gameContext.render,
                               gameContext.config.enableVsync ? 0 : 1)) {
         KLOG_ERROR(CORE, "Failed to toggle VSync: %s", SDL_GetError());
       }
 
-      SDL_GetRenderVSync(gameContext.render, &config->enableVsync);
+      if (SDL_GetRenderVSync(gameContext.render, &vsyncState)) {
+        config->enableVsync = vsyncState;
+      }
       break;
+    }
 
     case SDLK_F8:
       config->showTimestamp = !config->showTimestamp;

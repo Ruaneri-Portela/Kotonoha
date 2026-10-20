@@ -26,6 +26,8 @@ void AppendAudioBufferInfo(std::vector<MediaBufferInfo> &result,
     SDL_UnlockMutex(decode->stateMutex);
   }
   if (decode->stream != nullptr) {
+    info.totalMs = static_cast<Uint64>(SDL_GetAtomicInt(
+        const_cast<SDL_AtomicInt *>(&decode->stream->totalDurationMs)));
     KotonohaPacketQueueGetBufferStats(&decode->stream->audioQueue,
                                       &info.cachedMs, &info.eof);
   }
@@ -277,9 +279,49 @@ bool Audio::PlayNow(const std::string &path, const std::string &channel) {
     KLOG_ERROR(AUDIO, "Cannot play media now without a path and channel.");
     return false;
   }
-  return AddMedia(path.c_str(), 0, 0, false, channel.c_str()) != nullptr;
+  StopPreview();
+  previewMedia = AddMedia(path.c_str(), 0, 0, false, channel.c_str());
+  if (previewMedia == nullptr) {
+    return false;
+  }
+  previewPath = path;
+  return true;
 }
 
-Audio::~Audio() { RemoveMedia(nullptr); }
+bool Audio::IsTracked(const Kotonoha_AudioDecode *media) const {
+  for (const auto &object : mediaObjects) {
+    for (const auto &entry : std::get<1>(object)) {
+      if (std::get<0>(entry) == media) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+void Audio::StopPreview() {
+  // The decode may already have been freed when a one-shot finished.
+  if (previewMedia != nullptr && IsTracked(previewMedia)) {
+    RemoveMedia(previewMedia);
+  }
+  previewMedia = nullptr;
+  previewPath.clear();
+}
+
+std::string Audio::GetPreviewPath() {
+  if (previewMedia == nullptr) {
+    return {};
+  }
+  if (!IsTracked(previewMedia) || previewMedia->oneShotDone) {
+    previewMedia = nullptr;
+    previewPath.clear();
+  }
+  return previewPath;
+}
+
+Audio::~Audio() {
+  previewMedia = nullptr;
+  RemoveMedia(nullptr);
+}
 
 } // namespace Kotonoha

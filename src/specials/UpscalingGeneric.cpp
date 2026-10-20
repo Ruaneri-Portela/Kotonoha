@@ -57,7 +57,7 @@ bool KotonohaUpscalingInit(SDL_Renderer *renderer, const char *name,
 
   if (config->scalerFactor <= 1.0f) {
     KLOG_INFO(UPSCALER, "Upscaling disabled (factor %.2f)",
-              config->scalerFactor);
+              config->scalerFactor.load());
     g_upscalerType = KOTONOHA_UPSCALER_NONE;
     return true;
   }

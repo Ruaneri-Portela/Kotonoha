@@ -3,6 +3,16 @@
 #include <stdbool.h>
 #include <stddef.h>
 
+// Scalar settings are atomic because the debug UI, the main loop and the
+// worker threads (demuxer, event manager) read and write them concurrently.
+#ifdef __cplusplus
+#include <atomic>
+#define KOTONOHA_ATOMIC(T) std::atomic<T>
+#else
+#include <stdatomic.h>
+#define KOTONOHA_ATOMIC(T) _Atomic T
+#endif
+
 #if defined(__ANDROID__)
 #define KOTONOHA_MOBILE
 #elif defined(__APPLE__)
@@ -32,41 +42,44 @@ typedef struct Kotonoha_Config {
   char *titleMusic;
   char *iconPath;
   char *cursorPath;
-  int cursorSize;
+  KOTONOHA_ATOMIC(int) cursorSize;
   char *fontsPath;
   char *configFilePath;
 
   char **scriptsForced;
-  int scriptCount;
-  int scriptCapacity;
+  KOTONOHA_ATOMIC(int) scriptCount;
+  KOTONOHA_ATOMIC(int) scriptCapacity;
 
-  int enableVsync;
-  int windowSize[2];
-  float scalerFactor;
-  float videoCacheSeconds;
-  float debugUiScale;
-  float splashSeconds;
-  float splashFadeSeconds;
-  int prefetchHorizonMs;
-  int seekBigMs;
-  int seekSmallMs;
-  int loadingDebounceMs;
-  int minLoadingPauseMs;
+  KOTONOHA_ATOMIC(int) enableVsync;
+  KOTONOHA_ATOMIC(int) windowSize[2];
+  KOTONOHA_ATOMIC(float) scalerFactor;
+  // Maximum buffered seconds per audio/video stream. The demuxer reads this
+  // value on every use, so changes apply immediately.
+  KOTONOHA_ATOMIC(float) mediaCacheSeconds;
+  KOTONOHA_ATOMIC(float) debugUiScale;
+  KOTONOHA_ATOMIC(float) splashSeconds;
+  KOTONOHA_ATOMIC(float) splashFadeSeconds;
+  // How long before an event starts its media is opened (script timeline).
+  KOTONOHA_ATOMIC(int) prefetchHorizonMs;
+  KOTONOHA_ATOMIC(int) seekBigMs;
+  KOTONOHA_ATOMIC(int) seekSmallMs;
+  KOTONOHA_ATOMIC(int) loadingDebounceMs;
+  KOTONOHA_ATOMIC(int) minLoadingPauseMs;
 
-  bool fullScreen;
-  bool showFps;
-  bool showTimestamp;
-  bool enableDebugUi;
-  bool skipFiles;
-  bool upscalingEnabled;
+  KOTONOHA_ATOMIC(bool) fullScreen;
+  KOTONOHA_ATOMIC(bool) showFps;
+  KOTONOHA_ATOMIC(bool) showTimestamp;
+  KOTONOHA_ATOMIC(bool) enableDebugUi;
+  KOTONOHA_ATOMIC(bool) skipFiles;
+  KOTONOHA_ATOMIC(bool) upscalingEnabled;
 
-  bool dirtyConfig;
-  bool paused;
-  bool back;
-  bool next;
-  bool cancelOpen;
+  KOTONOHA_ATOMIC(bool) dirtyConfig;
+  KOTONOHA_ATOMIC(bool) paused;
+  KOTONOHA_ATOMIC(bool) back;
+  KOTONOHA_ATOMIC(bool) next;
+  KOTONOHA_ATOMIC(bool) cancelOpen;
 
-  int scene;
+  KOTONOHA_ATOMIC(int) scene;
 } Kotonoha_Config;
 
 void KotonohaConfigFree(Kotonoha_Config *config);

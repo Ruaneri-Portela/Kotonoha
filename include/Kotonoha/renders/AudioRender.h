@@ -21,7 +21,6 @@ typedef struct Kotonoha_AudioDecode {
   SDL_AudioSpec specification;
 
   Uint64 start, end, audioTime, lastTime;
-  float cacheDurationSeconds;
   SDL_Mutex *stateMutex;
 
   bool inLoop;

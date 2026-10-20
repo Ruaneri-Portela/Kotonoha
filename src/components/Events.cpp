@@ -774,6 +774,25 @@ bool Event::PlayMediaNow(Audio *audio, const std::string &path,
   return played;
 }
 
+void Event::StopMediaNow(Audio *audio) const {
+  if (eventMutex == nullptr || audio == nullptr) {
+    return;
+  }
+  SDL_LockMutex(eventMutex);
+  audio->StopPreview();
+  SDL_UnlockMutex(eventMutex);
+}
+
+std::string Event::GetMediaNowPath(Audio *audio) const {
+  if (eventMutex == nullptr || audio == nullptr) {
+    return {};
+  }
+  SDL_LockMutex(eventMutex);
+  std::string path = audio->GetPreviewPath();
+  SDL_UnlockMutex(eventMutex);
+  return path;
+}
+
 Event::~Event() {
   SetSubtitlesActive(false);
   if (activeSubtitleTrackOwner == this) {

@@ -44,11 +44,9 @@ typedef struct Kotonoha_VideoData {
   bool directTextureUploadFailed;
 } Kotonoha_VideoData;
 
-Kotonoha_VideoData *
-KotonohaVideoRenderInit(const char *filename, Kotonoha_Time *time,
-                        Uint64 startTime, Uint64 endTime,
-                        bool useOrsFrameTimeline, Uint64 orsEndFrame,
-                        float cacheDurationSeconds, Kotonoha_Demuxer *demuxer);
+Kotonoha_VideoData *KotonohaVideoRenderInit(
+    const char *filename, Kotonoha_Time *time, Uint64 startTime, Uint64 endTime,
+    bool useOrsFrameTimeline, Uint64 orsEndFrame, Kotonoha_Demuxer *demuxer);
 
 void KotonohaVideoRenderShutdown(Kotonoha_VideoData **instance);
 

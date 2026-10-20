@@ -3,10 +3,8 @@
 
 namespace Kotonoha {
 
-Video::Video(Kotonoha_Time *timeManager, Kotonoha_Demuxer *demuxer,
-             float cacheDurationSeconds)
-    : timeManager(timeManager), demuxer(demuxer),
-      cacheDurationSeconds(cacheDurationSeconds) {
+Video::Video(Kotonoha_Time *timeManager, Kotonoha_Demuxer *demuxer)
+    : timeManager(timeManager), demuxer(demuxer) {
   lock = SDL_CreateMutex();
   if (lock == nullptr) {
     KLOG_ERROR(VIDEO, "Failed to create video mutex: %s", SDL_GetError());
@@ -25,9 +23,9 @@ bool Video::Register(const char *path, Uint64 startTime, Uint64 endTime,
     return false;
   }
 
-  Kotonoha_VideoData *object = KotonohaVideoRenderInit(
-      path, timeManager, startTime, endTime, useOrsFrameTimeline, orsEndFrame,
-      cacheDurationSeconds, demuxer);
+  Kotonoha_VideoData *object =
+      KotonohaVideoRenderInit(path, timeManager, startTime, endTime,
+                              useOrsFrameTimeline, orsEndFrame, demuxer);
   if (object == nullptr) {
     return false;
   }
@@ -248,6 +246,8 @@ std::vector<MediaBufferInfo> Video::GetBufferInfo() const {
     info.playedMs = video->videoTime;
     info.texture = video->texture;
     if (video->stream != nullptr) {
+      info.totalMs = static_cast<Uint64>(SDL_GetAtomicInt(
+          const_cast<SDL_AtomicInt *>(&video->stream->totalDurationMs)));
       KotonohaPacketQueueGetBufferStats(&video->stream->videoQueue,
                                         &info.cachedMs, &info.eof);
     }

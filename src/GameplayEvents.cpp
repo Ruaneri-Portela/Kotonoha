@@ -251,8 +251,8 @@ void Gameplay::HandleMobileFocus(SDL_Event *event, Kotonoha_Game *gameContext) {
     break;
 
   case SDL_EVENT_WINDOW_FOCUS_LOST:
-    lastPauseStatus =
-        loadingPauseActive ? pausedBeforeLoading : gameContext->config.paused;
+    lastPauseStatus = loadingPauseActive ? pausedBeforeLoading
+                                         : gameContext->config.paused.load();
 
     gameContext->config.paused = true;
     Pause();

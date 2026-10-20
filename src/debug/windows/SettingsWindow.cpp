@@ -1,5 +1,6 @@
 #include <Kotonoha/debug/DebugInternal.hpp>
 #include <Kotonoha/specials/Upscaling.h>
+#include <Kotonoha/utils/AtomicUi.hpp>
 #include <imgui_stdlib.h>
 
 namespace Kotonoha::Debug {
@@ -136,11 +137,13 @@ void DrawSettingsFields(Kotonoha_Config *cfg, Kotonoha_Game &context) {
     /* ---------------- Resolução ---------------- */
     ImGui::Text("Window Resolution:");
     ImGui::SetNextItemWidth(100);
-    if (ImGui::InputInt("W##res_w", &cfg->windowSize[0]))
+    if (EditAtomic(cfg->windowSize[0],
+                   [](int *v) { return ImGui::InputInt("W##res_w", v); }))
       cfg->dirtyConfig = true;
     ImGui::SameLine();
     ImGui::SetNextItemWidth(100);
-    if (ImGui::InputInt("H##res_h", &cfg->windowSize[1]))
+    if (EditAtomic(cfg->windowSize[1],
+                   [](int *v) { return ImGui::InputInt("H##res_h", v); }))
       cfg->dirtyConfig = true;
 
     ImGui::SameLine();
@@ -148,11 +151,14 @@ void DrawSettingsFields(Kotonoha_Config *cfg, Kotonoha_Game &context) {
       SDL_SetWindowSize(context.window, cfg->windowSize[0], cfg->windowSize[1]);
     }
 
-    if (ImGui::SliderFloat("Scaler Factor", &cfg->scalerFactor, 0.5f, 4.0f,
-                           "%.2fx")) {
+    if (EditAtomic(cfg->scalerFactor, [](float *v) {
+          return ImGui::SliderFloat("Scaler Factor", v, 0.5f, 4.0f, "%.2fx");
+        })) {
       cfg->dirtyConfig = true;
     }
-    if (ImGui::Checkbox("Enable Upscaling", &cfg->upscalingEnabled)) {
+    if (EditAtomic(cfg->upscalingEnabled, [](bool *v) {
+          return ImGui::Checkbox("Enable Upscaling", v);
+        })) {
       KotonohaUpscalingSetEnabled(cfg->upscalingEnabled);
       cfg->dirtyConfig = true;
     }
@@ -169,20 +175,27 @@ void DrawSettingsFields(Kotonoha_Config *cfg, Kotonoha_Game &context) {
 
   if (ImGui::TreeNodeEx("Performance & Overlay",
                         ImGuiTreeNodeFlags_DefaultOpen)) {
-    if (ImGui::Checkbox("Show FPS Counter", &cfg->showFps))
+    if (EditAtomic(cfg->showFps, [](bool *v) {
+          return ImGui::Checkbox("Show FPS Counter", v);
+        }))
       cfg->dirtyConfig = true;
-    if (ImGui::Checkbox("Show Timestamps", &cfg->showTimestamp))
+    if (EditAtomic(cfg->showTimestamp, [](bool *v) {
+          return ImGui::Checkbox("Show Timestamps", v);
+        }))
       cfg->dirtyConfig = true;
-    if (ImGui::SliderFloat("Video Cache (s)", &cfg->videoCacheSeconds, 1.0f,
-                           15.0f, "%.1f sec")) {
+    if (EditAtomic(cfg->mediaCacheSeconds, [](float *v) {
+          return ImGui::SliderFloat("Media Cache (s)", v, 1.0f, 15.0f,
+                                    "%.1f sec");
+        })) {
       cfg->dirtyConfig = true;
     }
     ImGui::TreePop();
   }
 
   if (ImGui::TreeNodeEx("Debug UI", ImGuiTreeNodeFlags_DefaultOpen)) {
-    if (ImGui::SliderFloat("UI Scale", &cfg->debugUiScale, 0.5f, 3.0f,
-                           "%.2fx")) {
+    if (EditAtomic(cfg->debugUiScale, [](float *v) {
+          return ImGui::SliderFloat("UI Scale", v, 0.5f, 3.0f, "%.2fx");
+        })) {
       cfg->dirtyConfig = true;
     }
     ImGui::TreePop();

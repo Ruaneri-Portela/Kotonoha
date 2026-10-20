@@ -59,7 +59,8 @@ static void Help(void) {
       "  -q <factor>          Set the upscale factor; 1.0 disables upscaling\n"
       "  -f                   Toggle fullscreen mode\n"
       "  -v                   Enable VSync\n"
-      "  -c <sec>             Video decode cache duration in seconds (default: "
+      "  -c <sec>             Media (audio/video) cache duration in seconds "
+      "(default: "
       "2.0)\n"
       "\n"
       "Debugging:\n"
@@ -373,7 +374,7 @@ static bool ParseArguments(Kotonoha_Config *config, int argc, char *argv[]) {
         float cacheSec = strtof(argv[++i], &end);
         if (end != argv[i] && *end == '\0' && isfinite(cacheSec) &&
             cacheSec >= 0.1f && cacheSec <= 60.0f) {
-          config->videoCacheSeconds = cacheSec;
+          config->mediaCacheSeconds = cacheSec;
           config->dirtyConfig = true;
         } else {
           fprintf(stderr,
@@ -488,7 +489,7 @@ bool KotonohaConfigLoad(Kotonoha_Config *config, const char *path, int argc,
   config->windowSize[0] = 1280;
   config->windowSize[1] = 720;
   config->scalerFactor = 1.0f;
-  config->videoCacheSeconds = 2.0f;
+  config->mediaCacheSeconds = 2.0f;
   config->debugUiScale = 1.0f;
   config->cursorSize = 32;
   config->splashSeconds = 3.0f;

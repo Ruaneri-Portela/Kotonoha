@@ -233,11 +233,9 @@ cleanup:
   return false;
 }
 
-Kotonoha_VideoData *
-KotonohaVideoRenderInit(const char *filename, Kotonoha_Time *time,
-                        Uint64 startTime, Uint64 endTime,
-                        bool useOrsFrameTimeline, Uint64 orsEndFrame,
-                        float cacheDurationSeconds, Kotonoha_Demuxer *demuxer) {
+Kotonoha_VideoData *KotonohaVideoRenderInit(
+    const char *filename, Kotonoha_Time *time, Uint64 startTime, Uint64 endTime,
+    bool useOrsFrameTimeline, Uint64 orsEndFrame, Kotonoha_Demuxer *demuxer) {
   struct Kotonoha_VideoData *videoInstance =
       (struct Kotonoha_VideoData *)SDL_calloc(
           1, sizeof(struct Kotonoha_VideoData));
@@ -246,9 +244,8 @@ KotonohaVideoRenderInit(const char *filename, Kotonoha_Time *time,
 
   videoInstance->demuxer = demuxer;
   if (demuxer != NULL) {
-    videoInstance->stream =
-        KotonohaDemuxerAddStream(demuxer, filename, cacheDurationSeconds,
-                                 videoInstance, AVMEDIA_TYPE_VIDEO);
+    videoInstance->stream = KotonohaDemuxerAddStream(
+        demuxer, filename, videoInstance, AVMEDIA_TYPE_VIDEO);
   }
 
   if (!videoInstance->stream || videoInstance->stream->videoStreamIdx < 0) {
