@@ -6,6 +6,7 @@
 #include <Kotonoha/components/VoiceActivity.hpp>
 
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include <Kotonoha/parsers/Ors.h>
@@ -45,6 +46,7 @@ private:
   std::unordered_map<const Kotonoha_OrsEvent *, VoiceAnimation> voiceAnimations;
   std::unordered_map<const Kotonoha_OrsEvent *, PendingAssetLoad>
       pendingAssetLoads;
+  std::unordered_set<const Kotonoha_OrsEvent *> liveEvents;
 
   void SetSubtitlesActive(bool active);
 

@@ -1,3 +1,4 @@
+#include <Kotonoha/utils/Log.h>
 #include <Kotonoha/components/Sound.hpp>
 #include <algorithm>
 #include <climits>
@@ -80,7 +81,7 @@ Sound::Channel::Channel(Sound *parent, SDL_AudioSpec spec, bool startPaused,
 
   parms = static_cast<void **>(SDL_malloc(sizeof(void *) * 2));
   if (parms == nullptr) {
-    SDL_LogError(0, "Failed to alloc parms");
+    KLOG_ERROR(AUDIO, "Failed to alloc parms");
     return;
   }
 
@@ -89,7 +90,7 @@ Sound::Channel::Channel(Sound *parent, SDL_AudioSpec spec, bool startPaused,
 
   lockPipes = SDL_CreateMutex();
   if (lockPipes == nullptr) {
-    SDL_LogError(0, "Failed to create pipe mutex: %s", SDL_GetError());
+    KLOG_ERROR(AUDIO, "Failed to create pipe mutex: %s", SDL_GetError());
     SDL_free(parms);
     parms = nullptr;
     return;
@@ -98,7 +99,7 @@ Sound::Channel::Channel(Sound *parent, SDL_AudioSpec spec, bool startPaused,
   stream = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &spec,
                                      Render, &parms);
   if (stream == nullptr) {
-    SDL_LogError(0, "Failed to open audio: %s", SDL_GetError());
+    KLOG_ERROR(AUDIO, "Failed to open audio: %s", SDL_GetError());
     SDL_DestroyMutex(lockPipes);
     lockPipes = nullptr;
     SDL_free(parms);
@@ -118,15 +119,13 @@ Sound::Channel::~Channel() {
 
   if (stream != nullptr) {
     if (!SDL_PauseAudioStreamDevice(stream)) {
-      SDL_LogWarn(SDL_LOG_CATEGORY_AUDIO,
-                  "Failed to pause audio stream during shutdown: %s",
+      KLOG_WARN(AUDIO, "Failed to pause audio stream during shutdown: %s",
                   SDL_GetError());
     }
 
     const bool streamLocked = SDL_LockAudioStream(stream);
     if (!streamLocked) {
-      SDL_LogError(SDL_LOG_CATEGORY_AUDIO,
-                   "Failed to synchronize audio stream during shutdown: %s",
+      KLOG_ERROR(AUDIO, "Failed to synchronize audio stream during shutdown: %s",
                    SDL_GetError());
       SDL_DestroyAudioStream(stream);
       stream = nullptr;
@@ -238,7 +237,7 @@ void Sound::Channel::Render(void *userdata, SDL_AudioStream *astream,
   // Keep the device queue active while this channel has no media.
   Uint8 *data = static_cast<Uint8 *>(SDL_calloc(totalAmount, 1));
   if (data == nullptr) {
-    SDL_LogError(0, "Failed to alloc audio mix buffer");
+    KLOG_ERROR(AUDIO, "Failed to alloc audio mix buffer");
     return;
   }
 
@@ -273,7 +272,7 @@ void Sound::Channel::Render(void *userdata, SDL_AudioStream *astream,
   if (!SDL_PutAudioStreamDataNoCopy(astream, data, totalAmount, destroy,
                                     data)) {
     SDL_free(data);
-    SDL_LogError(0, "Failed to queue audio data: %s", SDL_GetError());
+    KLOG_ERROR(AUDIO, "Failed to queue audio data: %s", SDL_GetError());
   }
 }
 

@@ -1,3 +1,4 @@
+#include <Kotonoha/utils/Log.h>
 #include <Kotonoha/renders/ImageRender.h>
 #include <Kotonoha/specials/Upscaling.h>
 #include <Kotonoha/utils/FFmpegSDL.h>
@@ -63,15 +64,14 @@ static AVFrame *decodeFrame(const char *path, bool ignoreMissingAssets) {
   AVFrame *frame = NULL;
 
   if (packet == NULL) {
-    SDL_LogError(SDL_LOG_CATEGORY_ERROR,
-                 "Failed to allocate image packet: %s", SDL_GetError());
+    KLOG_ERROR(IMAGE, "Failed to allocate image packet: %s", SDL_GetError());
     return NULL;
   }
 
   if (!KotonohaFFmpegLoad(path, &fmtCtx, &codecCtx, AVMEDIA_TYPE_VIDEO,
                           &imageStreamIndex, 0, NULL)) {
     if (!ignoreMissingAssets) {
-      SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Failed to load image: %s\n", path);
+      KLOG_ERROR(IMAGE, "Failed to load image: %s", path);
     }
     avcodec_free_context(&codecCtx);
     avformat_close_input(&fmtCtx);
@@ -118,8 +118,7 @@ static AVFrame *decodeFrame(const char *path, bool ignoreMissingAssets) {
   }
 
   if (!frameDecoded || !frame) {
-    SDL_LogError(SDL_LOG_CATEGORY_ERROR,
-                 "Failed to decode image frame from codec: %s\n", path);
+    KLOG_ERROR(IMAGE, "Failed to decode image frame from codec: %s", path);
     av_packet_free(&packet);
     avcodec_free_context(&codecCtx);
     avformat_close_input(&fmtCtx);
@@ -137,8 +136,7 @@ static AVFrame *convertFrameToRgba(AVFrame *frame, int h, int w,
                                    Uint8 **buffer) {
   if (frame == NULL || buffer == NULL || frame->width <= 0 ||
       frame->height <= 0 || h <= 0 || w <= 0) {
-    SDL_LogError(SDL_LOG_CATEGORY_RENDER,
-                 "Invalid arguments for image RGBA conversion");
+    KLOG_ERROR(IMAGE, "Invalid arguments for image RGBA conversion");
     return NULL;
   }
 
@@ -148,8 +146,7 @@ static AVFrame *convertFrameToRgba(AVFrame *frame, int h, int w,
                      (enum AVPixelFormat)frame->format, w, h, AV_PIX_FMT_RGBA,
                      SWS_LANCZOS, NULL, NULL, NULL);
   if (swsCtx == NULL) {
-    SDL_LogError(SDL_LOG_CATEGORY_RENDER,
-                 "Failed to create image frame converter");
+    KLOG_ERROR(IMAGE, "Failed to create image frame converter");
     return NULL;
   }
 
@@ -166,8 +163,7 @@ static AVFrame *convertFrameToRgba(AVFrame *frame, int h, int w,
 AVFrame *KotonohaImageDecodeFrame(const char *path, int h, int w,
                                   Uint8 **buffer, bool ignoreMissingAssets) {
   if (path == NULL || buffer == NULL) {
-    SDL_LogError(SDL_LOG_CATEGORY_ERROR,
-                 "Invalid arguments for image frame decoding");
+    KLOG_ERROR(IMAGE, "Invalid arguments for image frame decoding");
     return NULL;
   }
   AVFrame *frame = decodeFrame(path, ignoreMissingAssets);
@@ -185,8 +181,7 @@ AVFrame *KotonohaImageDecodeFrame(const char *path, int h, int w,
 AVFrame *KotonohaImageDecodeNativeFrame(const char *path,
                                         bool ignoreMissingAssets) {
   if (path == NULL) {
-    SDL_LogError(SDL_LOG_CATEGORY_ERROR,
-                 "Invalid path for native image frame decoding");
+    KLOG_ERROR(IMAGE, "Invalid path for native image frame decoding");
     return NULL;
   }
   return decodeFrame(path, ignoreMissingAssets);
@@ -196,8 +191,7 @@ SDL_Texture *KotonohaImageCreateTextureFromFrame(SDL_Renderer *render,
                                                  AVFrame *frame) {
   if (render == NULL || frame == NULL || frame->width <= 0 ||
       frame->height <= 0 || frame->data[0] == NULL) {
-    SDL_LogError(SDL_LOG_CATEGORY_RENDER,
-                 "Invalid arguments for image texture creation");
+    KLOG_ERROR(IMAGE, "Invalid arguments for image texture creation");
     return NULL;
   }
 
@@ -228,17 +222,14 @@ SDL_Texture *KotonohaImageCreateTextureFromFrame(SDL_Renderer *render,
       if (KotonohaSDLUpdateTextureFromAVFrame(texture, frame)) {
         return texture;
       }
-      SDL_LogWarn(SDL_LOG_CATEGORY_RENDER,
-                  "Native SDL image upload failed; falling back to SWS: %s",
+      KLOG_WARN(IMAGE, "Native SDL image upload failed; falling back to SWS: %s",
                   SDL_GetError());
     } else if (texture == NULL) {
-      SDL_LogWarn(SDL_LOG_CATEGORY_RENDER,
-                  "Could not create native SDL image texture; falling back "
+      KLOG_WARN(IMAGE, "Could not create native SDL image texture; falling back "
                   "to SWS: %s",
                   SDL_GetError());
     } else {
-      SDL_LogWarn(SDL_LOG_CATEGORY_RENDER,
-                  "Could not configure native SDL image texture; falling "
+      KLOG_WARN(IMAGE, "Could not configure native SDL image texture; falling "
                   "back to SWS: %s",
                   SDL_GetError());
     }
@@ -259,8 +250,7 @@ SDL_Texture *KotonohaImageCreateTextureFromFrame(SDL_Renderer *render,
                               SDL_TEXTUREACCESS_STREAMING, frame->width,
                               frame->height);
   if (texture == NULL) {
-    SDL_LogError(SDL_LOG_CATEGORY_RENDER,
-                 "Failed to create SWS image texture: %s", SDL_GetError());
+    KLOG_ERROR(IMAGE, "Failed to create SWS image texture: %s", SDL_GetError());
   } else if (!SDL_SetTextureBlendMode(
                  texture, KotonohaAVPixelFormatHasAlpha(
                               (enum AVPixelFormat)frame->format)
@@ -268,8 +258,7 @@ SDL_Texture *KotonohaImageCreateTextureFromFrame(SDL_Renderer *render,
                               : SDL_BLENDMODE_NONE) ||
              !SDL_UpdateTexture(texture, NULL, rgbaFrame->data[0],
                                 rgbaFrame->linesize[0])) {
-    SDL_LogError(SDL_LOG_CATEGORY_RENDER,
-                 "Failed to upload SWS image texture: %s", SDL_GetError());
+    KLOG_ERROR(IMAGE, "Failed to upload SWS image texture: %s", SDL_GetError());
     SDL_DestroyTexture(texture);
     texture = NULL;
   }
@@ -291,22 +280,20 @@ void KotonohaImageReleaseFrame(AVFrame **frame, Uint8 **buffer) {
 SDL_Texture *KotonohaImageCreateTexture(SDL_Renderer *render, const char *path,
                                         int h, int w) {
   if (render == NULL || path == NULL) {
-    SDL_LogError(SDL_LOG_CATEGORY_RENDER,
-                 "Invalid arguments for image texture creation");
+    KLOG_ERROR(IMAGE, "Invalid arguments for image texture creation");
     return NULL;
   }
 
   AVFrame *frame = decodeFrame(path, false);
   if (frame == NULL) {
-    SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Failed to render image frame\n");
+    KLOG_ERROR(IMAGE, "Failed to render image frame");
     return NULL;
   }
 
   h = h == -1 ? frame->height : h;
   w = w == -1 ? frame->width : w;
   if (h <= 0 || w <= 0) {
-    SDL_LogError(SDL_LOG_CATEGORY_RENDER,
-                 "Invalid image texture dimensions: %dx%d", w, h);
+    KLOG_ERROR(IMAGE, "Invalid image texture dimensions: %dx%d", w, h);
     av_frame_free(&frame);
     return NULL;
   }
@@ -344,7 +331,7 @@ static bool copyFrameToSurface(SDL_Surface *surface, AVFrame *frame) {
   }
 
   if (!SDL_LockSurface(surface)) {
-    SDL_LogError(SDL_LOG_CATEGORY_RENDER, "Failed to lock image surface: %s",
+    KLOG_ERROR(IMAGE, "Failed to lock image surface: %s",
                  SDL_GetError());
     return false;
   }
@@ -360,22 +347,20 @@ static bool copyFrameToSurface(SDL_Surface *surface, AVFrame *frame) {
 
 SDL_Surface *KotonohaImageCreateSurface(const char *path, int h, int w) {
   if (path == NULL) {
-    SDL_LogError(SDL_LOG_CATEGORY_RENDER,
-                 "Invalid path for image surface creation");
+    KLOG_ERROR(IMAGE, "Invalid path for image surface creation");
     return NULL;
   }
 
   AVFrame *frame = decodeFrame(path, false);
   if (frame == NULL) {
-    SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Failed to render image frame\n");
+    KLOG_ERROR(IMAGE, "Failed to render image frame");
     return NULL;
   }
 
   h = h == -1 ? frame->height : h;
   w = w == -1 ? frame->width : w;
   if (h <= 0 || w <= 0) {
-    SDL_LogError(SDL_LOG_CATEGORY_RENDER,
-                 "Invalid image surface dimensions: %dx%d", w, h);
+    KLOG_ERROR(IMAGE, "Invalid image surface dimensions: %dx%d", w, h);
     av_frame_free(&frame);
     return NULL;
   }
@@ -399,8 +384,7 @@ SDL_Surface *KotonohaImageCreateSurface(const char *path, int h, int w) {
         SDL_DestroySurface(surface);
         surface = NULL;
       }
-      SDL_LogWarn(SDL_LOG_CATEGORY_RENDER,
-                  "Direct SDL surface creation failed; falling back to SWS");
+      KLOG_WARN(IMAGE, "Direct SDL surface creation failed; falling back to SWS");
     }
   }
 
@@ -413,8 +397,7 @@ SDL_Surface *KotonohaImageCreateSurface(const char *path, int h, int w) {
 
   surface = SDL_CreateSurface(w, h, SDL_PIXELFORMAT_RGBA32);
   if (surface == NULL) {
-    SDL_LogError(SDL_LOG_CATEGORY_RENDER,
-                 "Failed to create SWS image surface: %s", SDL_GetError());
+    KLOG_ERROR(IMAGE, "Failed to create SWS image surface: %s", SDL_GetError());
   } else if (!copyFrameToSurface(surface, rgbaFrame)) {
     SDL_DestroySurface(surface);
     surface = NULL;

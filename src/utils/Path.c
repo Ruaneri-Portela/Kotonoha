@@ -1,3 +1,4 @@
+#include <Kotonoha/utils/Log.h>
 #include <SDL3/SDL.h>
 
 #include <Kotonoha/utils/Path.h>
@@ -117,7 +118,7 @@ char *KotonohaPathGetAbsolute(const char *path) {
 
   basePath = SDL_GetCurrentDirectory();
   if (basePath == NULL) {
-    SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "Failed to get base path: %s",
+    KLOG_WARN(CORE, "Failed to get base path: %s",
                 SDL_GetError());
     return NULL;
   }

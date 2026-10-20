@@ -1,3 +1,4 @@
+#include <Kotonoha/utils/Log.h>
 #include <Kotonoha/renders/VideoRender.h>
 #include <Kotonoha/specials/Upscaling.h>
 #include <Kotonoha/utils/FFmpegSDL.h>
@@ -40,8 +41,7 @@ static bool KotonohaVideoCreateTexture(Kotonoha_VideoData *instance,
       SDL_CreateTexture(render, format, SDL_TEXTUREACCESS_STREAMING,
                         frame->width, frame->height);
   if (instance->texture == NULL && format != SDL_PIXELFORMAT_RGBA32) {
-    SDL_LogWarn(SDL_LOG_CATEGORY_RENDER,
-                "Renderer does not support native video pixel format %u; "
+    KLOG_WARN(VIDEO, "Renderer does not support native video pixel format %u; "
                 "using SWS conversion",
                 format);
     format = SDL_PIXELFORMAT_RGBA32;
@@ -51,8 +51,7 @@ static bool KotonohaVideoCreateTexture(Kotonoha_VideoData *instance,
     instance->directTextureUploadFailed = supportsDirectUpload;
   }
   if (instance->texture == NULL) {
-    SDL_LogError(SDL_LOG_CATEGORY_RENDER,
-                 "Failed to create video texture: %s", SDL_GetError());
+    KLOG_ERROR(VIDEO, "Failed to create video texture: %s", SDL_GetError());
     return false;
   }
 
@@ -62,8 +61,7 @@ static bool KotonohaVideoCreateTexture(Kotonoha_VideoData *instance,
               (enum AVPixelFormat)frame->format)
               ? SDL_BLENDMODE_BLEND
               : SDL_BLENDMODE_NONE)) {
-    SDL_LogError(SDL_LOG_CATEGORY_RENDER,
-                 "Failed to set video texture blending: %s", SDL_GetError());
+    KLOG_ERROR(VIDEO, "Failed to set video texture blending: %s", SDL_GetError());
     SDL_DestroyTexture(instance->texture);
     instance->texture = NULL;
     return false;
@@ -81,8 +79,7 @@ static bool KotonohaVideoEnsureSws(Kotonoha_VideoData *instance,
       (enum AVPixelFormat)frame->format, frame->width, frame->height,
       AV_PIX_FMT_RGBA, SWS_LANCZOS, NULL, NULL, NULL);
   if (instance->swsCtx == NULL) {
-    SDL_LogError(SDL_LOG_CATEGORY_RENDER,
-                 "Failed to create video frame converter");
+    KLOG_ERROR(VIDEO, "Failed to create video frame converter");
     return false;
   }
   return true;
@@ -117,8 +114,7 @@ static bool updateTextureFromFrame(struct Kotonoha_VideoData *instance,
     float textureWidth = 0.0f;
     float textureHeight = 0.0f;
     if (!SDL_GetTextureSize(instance->texture, &textureWidth, &textureHeight)) {
-      SDL_LogError(SDL_LOG_CATEGORY_RENDER,
-                   "Failed to get video texture dimensions: %s",
+      KLOG_ERROR(VIDEO, "Failed to get video texture dimensions: %s",
                    SDL_GetError());
       goto cleanup;
     }
@@ -148,8 +144,7 @@ static bool updateTextureFromFrame(struct Kotonoha_VideoData *instance,
       }
       return true;
     }
-    SDL_LogWarn(SDL_LOG_CATEGORY_RENDER,
-                "SDL native YUV/RGB upload failed; switching to SWS: %s",
+    KLOG_WARN(VIDEO, "SDL native YUV/RGB upload failed; switching to SWS: %s",
                 SDL_GetError());
     SDL_DestroyTexture(instance->texture);
     instance->texture = SDL_CreateTexture(
@@ -161,8 +156,7 @@ static bool updateTextureFromFrame(struct Kotonoha_VideoData *instance,
                                      (enum AVPixelFormat)cpuFrame->format)
                                      ? SDL_BLENDMODE_BLEND
                                      : SDL_BLENDMODE_NONE)) {
-      SDL_LogError(SDL_LOG_CATEGORY_RENDER,
-                   "Failed to create SWS fallback video texture: %s",
+      KLOG_ERROR(VIDEO, "Failed to create SWS fallback video texture: %s",
                    SDL_GetError());
       SDL_DestroyTexture(instance->texture);
       instance->texture = NULL;
@@ -178,8 +172,7 @@ static bool updateTextureFromFrame(struct Kotonoha_VideoData *instance,
   if (instance->pFrameRGB == NULL) {
     instance->pFrameRGB = av_frame_alloc();
     if (instance->pFrameRGB == NULL) {
-      SDL_LogError(SDL_LOG_CATEGORY_RENDER,
-                   "Failed to allocate converted video frame");
+      KLOG_ERROR(VIDEO, "Failed to allocate converted video frame");
       goto cleanup;
     }
   }
@@ -187,8 +180,7 @@ static bool updateTextureFromFrame(struct Kotonoha_VideoData *instance,
   const int bufSize = av_image_get_buffer_size(AV_PIX_FMT_RGBA, cpuFrame->width,
                                                cpuFrame->height, 1);
   if (bufSize <= 0) {
-    SDL_LogError(SDL_LOG_CATEGORY_RENDER,
-                 "Invalid video frame dimensions: %dx%d", cpuFrame->width,
+    KLOG_ERROR(VIDEO, "Invalid video frame dimensions: %dx%d", cpuFrame->width,
                  cpuFrame->height);
     goto cleanup;
   }
@@ -201,8 +193,7 @@ static bool updateTextureFromFrame(struct Kotonoha_VideoData *instance,
     if (instance->swsBuffer == NULL) {
       instance->swsBufferWidth = 0;
       instance->swsBufferHeight = 0;
-      SDL_LogError(SDL_LOG_CATEGORY_RENDER,
-                   "Failed to allocate video conversion buffer");
+      KLOG_ERROR(VIDEO, "Failed to allocate video conversion buffer");
       goto cleanup;
     }
     instance->swsBufferWidth = cpuFrame->width;
@@ -213,8 +204,7 @@ static bool updateTextureFromFrame(struct Kotonoha_VideoData *instance,
                              cpuFrame->width, cpuFrame->height, 1) < 0) {
       instance->swsBufferWidth = 0;
       instance->swsBufferHeight = 0;
-      SDL_LogError(SDL_LOG_CATEGORY_RENDER,
-                   "Failed to initialize converted video frame");
+      KLOG_ERROR(VIDEO, "Failed to initialize converted video frame");
       goto cleanup;
     }
   }
@@ -222,13 +212,13 @@ static bool updateTextureFromFrame(struct Kotonoha_VideoData *instance,
   if (!KotonohaVideoScaleFrameToRgba(
           instance, cpuFrame, instance->pFrameRGB->data[0],
           instance->pFrameRGB->linesize[0])) {
-    SDL_LogError(SDL_LOG_CATEGORY_RENDER, "Failed to convert video frame");
+    KLOG_ERROR(VIDEO, "Failed to convert video frame");
     goto cleanup;
   }
 
   if (!SDL_UpdateTexture(instance->texture, NULL, instance->pFrameRGB->data[0],
                          instance->pFrameRGB->linesize[0])) {
-    SDL_LogError(SDL_LOG_CATEGORY_RENDER, "Failed to update video texture: %s",
+    KLOG_ERROR(VIDEO, "Failed to update video texture: %s",
                  SDL_GetError());
     goto cleanup;
   }

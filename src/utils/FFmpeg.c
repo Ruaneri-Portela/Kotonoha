@@ -1,3 +1,4 @@
+#include <Kotonoha/utils/Log.h>
 #include <Kotonoha/utils/FFmpeg.h>
 #include <SDL3/SDL_stdinc.h>
 #include <errno.h>
@@ -20,9 +21,7 @@ static void KotonohaFmpegSetupHwDecode(struct Kotonoha_FFmpegHwContext *hwCtx,
   }
 
   hwCtx->hwPixFmt = AV_PIX_FMT_NONE;
-  SDL_LogError(
-      SDL_LOG_CATEGORY_APPLICATION,
-      "O decodificador %s nao suporta hardware aqui, voltando para Software",
+  KLOG_ERROR(FFMPEG, "Decoder %s does not support hardware decoding here, falling back to software",
       (*codec)->name);
 }
 
@@ -37,7 +36,7 @@ bool KotonohaFFmpegLoad(const char *path, AVFormatContext **formatCtx,
                         int *streamIndexExport, int startIndex,
                         struct Kotonoha_FFmpegHwContext *hwCtx) {
   if (path == NULL || formatCtx == NULL || codecCtx == NULL) {
-    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Invalid FFmpeg load arguments");
+    KLOG_ERROR(FFMPEG, "Invalid FFmpeg load arguments");
     return false;
   }
 
@@ -62,8 +61,7 @@ bool KotonohaFFmpegLoad(const char *path, AVFormatContext **formatCtx,
 
   const int streamInfoResult = avformat_find_stream_info(*formatCtx, NULL);
   if (streamInfoResult < 0) {
-    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
-                 "Could not read stream information from '%s': %s", path,
+    KLOG_ERROR(FFMPEG, "Could not read stream information from '%s': %s", path,
                  av_err2str(streamInfoResult));
     avformat_close_input(formatCtx);
     return false;
@@ -78,8 +76,7 @@ bool KotonohaFFmpegLoad(const char *path, AVFormatContext **formatCtx,
   }
 
   if (streamIndex == -1) {
-    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
-                 "Erro: Nenhum fluxo do tipo %d encontrado", mediaType);
+    KLOG_ERROR(FFMPEG, "Error: no stream of type %d found", mediaType);
     avformat_close_input(formatCtx);
     return false;
   }
@@ -105,7 +102,7 @@ bool KotonohaFFmpegCreateDecoderCtx(AVFormatContext *formatCtx, int streamIndex,
   const AVCodec *codec =
       avcodec_find_decoder(formatCtx->streams[streamIndex]->codecpar->codec_id);
   if (!codec) {
-    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Erro: Codec nao encontrado");
+    KLOG_ERROR(FFMPEG, "Error: codec not found");
     return false;
   }
 
@@ -214,20 +211,20 @@ AVFrame *KotonohaFFmpegSwsConvertFrame(struct SwsContext *convertContext,
                                        int targetH, int targetW) {
   if (convertContext == NULL || sourceFrame == NULL || buffer == NULL ||
       targetW <= 0 || targetH <= 0) {
-    SDL_LogError(0, "Invalid arguments for RGBA frame conversion\n");
+    KLOG_ERROR(FFMPEG, "Invalid arguments for RGBA frame conversion");
     return NULL;
   }
 
   AVFrame *pFrameRGB = av_frame_alloc();
   if (!pFrameRGB) {
-    SDL_LogError(0, "Error allocating frame\n");
+    KLOG_ERROR(FFMPEG, "Error allocating frame");
     return NULL;
   }
 
   const int bufferSize =
       av_image_get_buffer_size(AV_PIX_FMT_RGBA, targetW, targetH, 1);
   if (bufferSize <= 0) {
-    SDL_LogError(0, "Invalid target dimensions for RGBA conversion\n");
+    KLOG_ERROR(FFMPEG, "Invalid target dimensions for RGBA conversion");
     av_frame_free(&pFrameRGB);
     return NULL;
   }
@@ -235,14 +232,14 @@ AVFrame *KotonohaFFmpegSwsConvertFrame(struct SwsContext *convertContext,
   Uint8 *frameBuffer = (Uint8 *)av_malloc((size_t)bufferSize);
 
   if (frameBuffer == NULL) {
-    SDL_LogError(0, "Error allocating buffer\n");
+    KLOG_ERROR(FFMPEG, "Error allocating buffer");
     av_frame_free(&pFrameRGB);
     return NULL;
   }
 
   if (av_image_fill_arrays(pFrameRGB->data, pFrameRGB->linesize, frameBuffer,
                            AV_PIX_FMT_RGBA, targetW, targetH, 1) < 0) {
-    SDL_LogError(0, "Error filling frame arrays\n");
+    KLOG_ERROR(FFMPEG, "Error filling frame arrays");
     av_frame_free(&pFrameRGB);
     av_free(frameBuffer);
     return NULL;
@@ -253,7 +250,7 @@ AVFrame *KotonohaFFmpegSwsConvertFrame(struct SwsContext *convertContext,
                 sourceFrame->linesize, 0, sourceFrame->height, pFrameRGB->data,
                 pFrameRGB->linesize);
   if (scaledHeight != targetH) {
-    SDL_LogError(0, "Incomplete RGBA frame conversion (%d/%d rows)\n",
+    KLOG_ERROR(FFMPEG, "Incomplete RGBA frame conversion (%d/%d rows)",
                  scaledHeight, targetH);
     av_frame_free(&pFrameRGB);
     av_free(frameBuffer);
@@ -274,7 +271,7 @@ Uint64 KotonohaFFmpegGetTime(AVStream *stream, Sint64 pts, Sint64 dts) {
   if (dts != AV_NOPTS_VALUE) {
     return (Uint64)(dts * av_q2d(stream->time_base) * 1000);
   }
-  SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Ambos PTS e DTS sao invalidos\n");
+  KLOG_ERROR(FFMPEG, "Ambos PTS e DTS sao invalidos");
   return 0;
 }
 
@@ -285,7 +282,7 @@ KotonohaFFmpegCreateSwsContext(AVCodecContext *codecCtx,
       sws_getContext(codecCtx->width, codecCtx->height, srcPixelFmt, w, h,
                      AV_PIX_FMT_RGBA, SWS_LANCZOS, NULL, NULL, NULL);
   if (!swsCtx) {
-    SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Erro ao criar o contexto sws\n");
+    KLOG_ERROR(FFMPEG, "Error: failed to create the sws context");
   }
   return swsCtx;
 }

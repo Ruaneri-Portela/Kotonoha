@@ -1,3 +1,4 @@
+#include <Kotonoha/utils/Log.h>
 #include <Kotonoha/components/Image.hpp>
 #include <Kotonoha/specials/Upscaling.h>
 #include <algorithm>
@@ -61,8 +62,7 @@ bool PrepareImageTexture(SDL_Renderer *renderer, const char *path,
                          bool ignoreMissingAssets) {
   if (renderer == nullptr || path == nullptr || load == nullptr ||
       texture == nullptr) {
-    SDL_LogError(SDL_LOG_CATEGORY_RENDER,
-                 "Invalid arguments for image loading");
+    KLOG_ERROR(IMAGE, "Invalid arguments for image loading");
     return false;
   }
 
@@ -119,8 +119,7 @@ bool ClearTransparent(SDL_Renderer *renderer) {
   Uint8 drawB = 0;
   Uint8 drawA = 0;
   if (!SDL_GetRenderDrawColor(renderer, &drawR, &drawG, &drawB, &drawA)) {
-    SDL_LogError(SDL_LOG_CATEGORY_RENDER,
-                 "Failed to save renderer draw color: %s", SDL_GetError());
+    KLOG_ERROR(IMAGE, "Failed to save renderer draw color: %s", SDL_GetError());
     return false;
   }
 
@@ -129,8 +128,7 @@ bool ClearTransparent(SDL_Renderer *renderer) {
   const bool restored =
       SDL_SetRenderDrawColor(renderer, drawR, drawG, drawB, drawA);
   if (!cleared || !restored) {
-    SDL_LogError(SDL_LOG_CATEGORY_RENDER,
-                 "Failed to clear image layer transparently: %s",
+    KLOG_ERROR(IMAGE, "Failed to clear image layer transparently: %s",
                  SDL_GetError());
     return false;
   }
@@ -144,16 +142,14 @@ bool RenderTextureToCanvasTarget(SDL_Renderer *renderer, SDL_Texture *texture,
   if (renderer == nullptr || texture == nullptr || target == nullptr ||
       !SDL_GetTextureSize(target, &width, &height) || width <= 0.0f ||
       height <= 0.0f) {
-    SDL_LogError(SDL_LOG_CATEGORY_RENDER,
-                 "Invalid image or canvas target for rendering: %s",
+    KLOG_ERROR(IMAGE, "Invalid image or canvas target for rendering: %s",
                  SDL_GetError());
     return false;
   }
 
   const SDL_FRect destination{0.0f, 0.0f, width, height};
   if (!SDL_RenderTexture(renderer, texture, nullptr, &destination)) {
-    SDL_LogError(SDL_LOG_CATEGORY_RENDER,
-                 "Failed to render image texture to canvas target: %s",
+    KLOG_ERROR(IMAGE, "Failed to render image texture to canvas target: %s",
                  SDL_GetError());
     return false;
   }
@@ -179,8 +175,7 @@ Image::Image(Kotonoha_Time *time, bool ignoreMissingAssets)
   lock = SDL_CreateMutex();
 
   if (lock == nullptr) {
-    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
-                 "Failed to create image mutex: %s", SDL_GetError());
+    KLOG_ERROR(IMAGE, "Failed to create image mutex: %s", SDL_GetError());
   }
 }
 
@@ -277,8 +272,7 @@ void Image::DiscoverAbcGroups(const char *basePath, Uint64 startTime,
             return SDL_ENUM_CONTINUE;
           },
           &scan)) {
-    SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
-                "Failed to scan for A/B/C mouth overlays beside %s: %s",
+    KLOG_WARN(IMAGE, "Failed to scan for A/B/C mouth overlays beside %s: %s",
                 basePath, SDL_GetError());
   }
 
@@ -336,8 +330,7 @@ void Image::DrawAbcForBase(Kotonoha_Picture *picture, SDL_Renderer *renderer,
                                    SDL_BLENDMODE_BLEND) ||
           !SDL_SetTextureScaleMode(group->textures[index],
                                    SDL_SCALEMODE_LINEAR)) {
-        SDL_LogError(SDL_LOG_CATEGORY_RENDER,
-                     "Failed to configure mouth overlay %s: %s", path.c_str(),
+        KLOG_ERROR(IMAGE, "Failed to configure mouth overlay %s: %s", path.c_str(),
                      SDL_GetError());
 
         SDL_DestroyTexture(group->textures[index]);
@@ -367,7 +360,7 @@ void Image::RemoveAbcGroupsForBase(Uint64 baseGeneration) {
 Uint64 Image::Register(const char *path, Uint64 startTime, Uint64 endTime,
                        Uint8 id) {
   if (path == nullptr || *path == '\0') {
-    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Invalid image path.");
+    KLOG_ERROR(IMAGE, "Invalid image path.");
     return 0;
   }
 
@@ -386,8 +379,7 @@ Uint64 Image::Register(const char *path, Uint64 startTime, Uint64 endTime,
   object->load.failed = false;
 
   if (object->path == nullptr) {
-    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
-                 "Failed to duplicate image path.");
+    KLOG_ERROR(IMAGE, "Failed to duplicate image path.");
     delete object;
     return 0;
   }
@@ -506,8 +498,7 @@ void Image::RenderTexture(SDL_Renderer *render, SDL_Texture *target,
     float pictureHeight = 0.0f;
 
     if (!SDL_GetTextureSize(picture->texture, &pictureWidth, &pictureHeight)) {
-      SDL_LogError(SDL_LOG_CATEGORY_RENDER,
-                   "Failed to get picture texture size: %s", SDL_GetError());
+      KLOG_ERROR(IMAGE, "Failed to get picture texture size: %s", SDL_GetError());
       return;
     }
 
@@ -515,25 +506,21 @@ void Image::RenderTexture(SDL_Renderer *render, SDL_Texture *target,
     const int requiredHeight = static_cast<int>(pictureHeight);
 
     if (requiredWidth <= 0 || requiredHeight <= 0) {
-      SDL_LogError(SDL_LOG_CATEGORY_RENDER,
-                   "Invalid picture texture size: %dx%d", requiredWidth,
+      KLOG_ERROR(IMAGE, "Invalid picture texture size: %dx%d", requiredWidth,
                    requiredHeight);
       return;
     }
 
     if (!EnsureUpscalingTextures(render, requiredWidth, requiredHeight,
                                  factor)) {
-      SDL_LogError(SDL_LOG_CATEGORY_RENDER,
-                   "Failed to ensure upscaling textures for picture");
+      KLOG_ERROR(IMAGE, "Failed to ensure upscaling textures for picture");
     } else if (!SDL_SetRenderTarget(render, extraTexture)) {
-      SDL_LogWarn(SDL_LOG_CATEGORY_RENDER,
-                  "Could not activate image upscaling target; drawing source "
+      KLOG_WARN(IMAGE, "Could not activate image upscaling target; drawing source "
                   "texture directly: %s",
                   SDL_GetError());
     } else if (!ClearTransparent(render)) {
       if (!SDL_SetRenderTarget(render, target)) {
-        SDL_LogError(SDL_LOG_CATEGORY_RENDER,
-                     "Failed to restore image render target: %s",
+        KLOG_ERROR(IMAGE, "Failed to restore image render target: %s",
                      SDL_GetError());
       }
     } else {
@@ -541,8 +528,7 @@ void Image::RenderTexture(SDL_Renderer *render, SDL_Texture *target,
                                          pictureHeight};
       if (!SDL_RenderTexture(render, picture->texture, nullptr,
                              &pictureDestination)) {
-        SDL_LogWarn(SDL_LOG_CATEGORY_RENDER,
-                    "Could not copy image into upscaling target; drawing "
+        KLOG_WARN(IMAGE, "Could not copy image into upscaling target; drawing "
                     "source texture directly: %s",
                     SDL_GetError());
       } else {
@@ -550,8 +536,7 @@ void Image::RenderTexture(SDL_Renderer *render, SDL_Texture *target,
           DrawAbcForBase(picture, render, KotonohaTimeGet(timeManager));
         }
         if (!SDL_SetRenderTarget(render, target)) {
-          SDL_LogError(SDL_LOG_CATEGORY_RENDER,
-                       "Failed to restore image render target: %s",
+          KLOG_ERROR(IMAGE, "Failed to restore image render target: %s",
                        SDL_GetError());
         } else if (ProcessUpscale(render, extraTexture)) {
           textureToRender = upScaledTexture;
@@ -561,8 +546,7 @@ void Image::RenderTexture(SDL_Renderer *render, SDL_Texture *target,
 
       if (SDL_GetRenderTarget(render) != target &&
           !SDL_SetRenderTarget(render, target)) {
-        SDL_LogError(SDL_LOG_CATEGORY_RENDER,
-                     "Failed to restore image render target: %s",
+        KLOG_ERROR(IMAGE, "Failed to restore image render target: %s",
                      SDL_GetError());
         return;
       }
@@ -621,8 +605,7 @@ Kotonoha_Scene_Status Image::Render(KOTONOHA_SCENE_CALL) {
 
       if (picture->texture == nullptr) {
         if (picture->load.failed && !picture->load.missingIgnored) {
-          SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
-                       "Failed to create image texture: %s",
+          KLOG_ERROR(IMAGE, "Failed to create image texture: %s",
                        picture->path ? picture->path : "<null>");
         }
 
@@ -631,8 +614,7 @@ Kotonoha_Scene_Status Image::Render(KOTONOHA_SCENE_CALL) {
       }
 
       if (!SDL_SetTextureBlendMode(picture->texture, SDL_BLENDMODE_BLEND)) {
-        SDL_LogError(SDL_LOG_CATEGORY_RENDER,
-                     "Failed to set image texture blend mode: %s",
+        KLOG_ERROR(IMAGE, "Failed to set image texture blend mode: %s",
                      SDL_GetError());
 
         SDL_DestroyTexture(picture->texture);

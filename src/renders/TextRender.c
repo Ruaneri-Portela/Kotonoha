@@ -1,3 +1,4 @@
+#include <Kotonoha/utils/Log.h>
 #include <Kotonoha/renders/TextRender.h>
 
 #include <SDL3/SDL_render.h>
@@ -19,15 +20,13 @@ KotonohaTextRenderCreateGlyphTexture(SDL_Renderer *render,
                         SDL_TEXTUREACCESS_STREAMING, image->w, image->h);
 
   if (texture == NULL) {
-    SDL_LogError(SDL_LOG_CATEGORY_ERROR,
-                 "SDL_CreateTexture for ASS glyph failed: %s", SDL_GetError());
+    KLOG_ERROR(TEXT, "SDL_CreateTexture for ASS glyph failed: %s", SDL_GetError());
 
     return NULL;
   }
 
   if (!SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND)) {
-    SDL_LogError(SDL_LOG_CATEGORY_ERROR,
-                 "SDL_SetTextureBlendMode for ASS glyph failed: %s",
+    KLOG_ERROR(TEXT, "SDL_SetTextureBlendMode for ASS glyph failed: %s",
                  SDL_GetError());
 
     SDL_DestroyTexture(texture);
@@ -38,8 +37,7 @@ KotonohaTextRenderCreateGlyphTexture(SDL_Renderer *render,
   int pitch = 0;
 
   if (!SDL_LockTexture(texture, NULL, (void **)&pixels, &pitch)) {
-    SDL_LogError(SDL_LOG_CATEGORY_ERROR,
-                 "SDL_LockTexture for ASS glyph failed: %s", SDL_GetError());
+    KLOG_ERROR(TEXT, "SDL_LockTexture for ASS glyph failed: %s", SDL_GetError());
 
     SDL_DestroyTexture(texture);
     return NULL;
@@ -98,8 +96,7 @@ static bool KotonohaTextRenderGetTargetSize(SDL_Renderer *render,
     float textureHeight = 0.0f;
 
     if (!SDL_GetTextureSize(target, &textureWidth, &textureHeight)) {
-      SDL_LogError(SDL_LOG_CATEGORY_ERROR,
-                   "SDL_GetTextureSize for subtitle target failed: %s",
+      KLOG_ERROR(TEXT, "SDL_GetTextureSize for subtitle target failed: %s",
                    SDL_GetError());
 
       return false;
@@ -111,8 +108,7 @@ static bool KotonohaTextRenderGetTargetSize(SDL_Renderer *render,
     // NULL como target significa que a renderização é feita diretamente
     // para a janela associada ao SDL_Renderer.
     if (!SDL_GetRenderOutputSize(render, width, height)) {
-      SDL_LogError(SDL_LOG_CATEGORY_ERROR,
-                   "SDL_GetRenderOutputSize for subtitles failed: %s",
+      KLOG_ERROR(TEXT, "SDL_GetRenderOutputSize for subtitles failed: %s",
                    SDL_GetError());
 
       return false;
@@ -129,8 +125,7 @@ static bool KotonohaTextRenderGetTargetSize(SDL_Renderer *render,
 Kotonoha_Subtitles *KotonohaTextRenderInit(Kotonoha_Time *time,
                                            Kotonoha_Game *gameCtx) {
   if (time == NULL || gameCtx == NULL) {
-    SDL_LogError(SDL_LOG_CATEGORY_ERROR,
-                 "KotonohaTextRenderInit received invalid arguments.");
+    KLOG_ERROR(TEXT, "KotonohaTextRenderInit received invalid arguments.");
 
     return NULL;
   }
@@ -139,8 +134,7 @@ Kotonoha_Subtitles *KotonohaTextRenderInit(Kotonoha_Time *time,
       (Kotonoha_Subtitles *)SDL_calloc(1, sizeof(Kotonoha_Subtitles));
 
   if (object == NULL) {
-    SDL_LogError(SDL_LOG_CATEGORY_ERROR,
-                 "Failed to allocate Kotonoha_subtitles.");
+    KLOG_ERROR(TEXT, "Failed to allocate Kotonoha_subtitles.");
 
     return NULL;
   }
@@ -199,8 +193,7 @@ enum Kotonoha_Scene_Status KotonohaTextRenderDraw(KOTONOHA_SCENE_CALL) {
   // target == NULL é válido: nesse caso a renderização vai para a janela.
   if (previousTarget != target) {
     if (!SDL_SetRenderTarget(render, target)) {
-      SDL_LogError(SDL_LOG_CATEGORY_ERROR,
-                   "Failed to activate subtitle target: %s", SDL_GetError());
+      KLOG_ERROR(TEXT, "Failed to activate subtitle target: %s", SDL_GetError());
 
       return KOTONOHA_SCENE_FATAL_ERROR;
     }
@@ -242,8 +235,7 @@ enum Kotonoha_Scene_Status KotonohaTextRenderDraw(KOTONOHA_SCENE_CALL) {
   if (!SDL_GetRenderDrawColor(render, &previousRed, &previousGreen,
                               &previousBlue, &previousAlpha) ||
       !SDL_SetRenderDrawColor(render, 0, 0, 0, 0)) {
-    SDL_LogError(SDL_LOG_CATEGORY_ERROR,
-                 "Failed to prepare transparent subtitle canvas: %s",
+    KLOG_ERROR(TEXT, "Failed to prepare transparent subtitle canvas: %s",
                  SDL_GetError());
     if (previousTarget != target) {
       SDL_SetRenderTarget(render, previousTarget);
@@ -256,8 +248,7 @@ enum Kotonoha_Scene_Status KotonohaTextRenderDraw(KOTONOHA_SCENE_CALL) {
       SDL_SetRenderDrawColor(render, previousRed, previousGreen, previousBlue,
                              previousAlpha);
   if (!cleared || !restoredDrawColor) {
-    SDL_LogError(SDL_LOG_CATEGORY_ERROR,
-                 "Failed to clear transparent subtitle canvas: %s",
+    KLOG_ERROR(TEXT, "Failed to clear transparent subtitle canvas: %s",
                  SDL_GetError());
     if (previousTarget != target) {
       SDL_SetRenderTarget(render, previousTarget);
@@ -279,7 +270,7 @@ enum Kotonoha_Scene_Status KotonohaTextRenderDraw(KOTONOHA_SCENE_CALL) {
                                    (float)image->w, (float)image->h};
 
     if (!SDL_RenderTexture(render, glyphTexture, NULL, &destination)) {
-      SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Failed to draw ASS glyph: %s",
+      KLOG_ERROR(TEXT, "Failed to draw ASS glyph: %s",
                    SDL_GetError());
 
       SDL_DestroyTexture(glyphTexture);
@@ -299,8 +290,7 @@ enum Kotonoha_Scene_Status KotonohaTextRenderDraw(KOTONOHA_SCENE_CALL) {
   // Restaura o target que estava ativo antes de entrar na scene.
   if (previousTarget != target) {
     if (!SDL_SetRenderTarget(render, previousTarget)) {
-      SDL_LogError(SDL_LOG_CATEGORY_ERROR,
-                   "Failed to restore render target after subtitles: %s",
+      KLOG_ERROR(TEXT, "Failed to restore render target after subtitles: %s",
                    SDL_GetError());
 
       return KOTONOHA_SCENE_FATAL_ERROR;

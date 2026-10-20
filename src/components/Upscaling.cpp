@@ -1,3 +1,4 @@
+#include <Kotonoha/utils/Log.h>
 #include <Kotonoha/components/Upscaling.hpp>
 #include <cmath>
 
@@ -53,8 +54,7 @@ bool Upscaling::EnsureUpscalingTextures(SDL_Renderer *render, int width,
                                    SDL_TEXTUREACCESS_TARGET, width, height);
 
   if (extraTexture == nullptr) {
-    SDL_LogError(SDL_LOG_CATEGORY_RENDER,
-                 "Failed to create intermediate upscaling texture (%dx%d): %s",
+    KLOG_ERROR(UPSCALER, "Failed to create intermediate upscaling texture (%dx%d): %s",
                  width, height, SDL_GetError());
     return false;
   }
@@ -67,8 +67,7 @@ bool Upscaling::EnsureUpscalingTextures(SDL_Renderer *render, int width,
                                       targetUpscaledH);
 
   if (upScaledTexture == nullptr) {
-    SDL_LogError(SDL_LOG_CATEGORY_RENDER,
-                 "Failed to create output upscaled texture (%dx%d): %s",
+    KLOG_ERROR(UPSCALER, "Failed to create output upscaled texture (%dx%d): %s",
                  targetUpscaledW, targetUpscaledH, SDL_GetError());
     ResetUpscaling();
     return false;

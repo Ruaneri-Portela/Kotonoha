@@ -1,3 +1,4 @@
+#include <Kotonoha/utils/Log.h>
 #include <Kotonoha/Init.hpp>
 #include <algorithm>
 #include <cctype>
@@ -49,12 +50,12 @@ bool InitSDLSubsystems() {
 
   if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_EVENTS |
                 SDL_INIT_GAMEPAD)) {
-    SDL_LogError(0, "Couldn't initialize SDL: %s", SDL_GetError());
+    KLOG_ERROR(CORE, "Couldn't initialize SDL: %s", SDL_GetError());
     return false;
   }
 
   if (!TTF_Init()) {
-    SDL_LogError(0, "Couldn't initialize TTF: %s", SDL_GetError());
+    KLOG_ERROR(CORE, "Couldn't initialize TTF: %s", SDL_GetError());
     SDL_Quit();
     return false;
   }
@@ -111,7 +112,7 @@ bool InitWindow() {
                        global.config.windowSize[1], windowFlags);
 
   if (global.window == nullptr) {
-    SDL_LogError(0, "Couldn't create window: %s", SDL_GetError());
+    KLOG_ERROR(CORE, "Couldn't create window: %s", SDL_GetError());
     return false;
   }
   global.flags = SDL_GetWindowFlags(global.window);
@@ -149,23 +150,23 @@ bool InitRenderer() {
     global.render = SDL_CreateRenderer(global.window, method);
 
     if (global.render != nullptr) {
-      SDL_Log("Renderer created with method '%s'",
+      KLOG_INFO(CORE, "Renderer created with method '%s'",
               method ? method : "automatic");
       break;
     }
 
-    SDL_LogError(0, "Failed to create renderer with method '%s': %s",
+    KLOG_ERROR(CORE, "Failed to create renderer with method '%s': %s",
                  method ? method : "automatic", SDL_GetError());
   }
 
   if (global.render == nullptr) {
-    SDL_LogError(0, "Couldn't create renderer with any method, giving up: %s",
+    KLOG_ERROR(CORE, "Couldn't create renderer with any method, giving up: %s",
                  SDL_GetError());
     return false;
   }
 
   if (global.config.enableVsync && !SDL_SetRenderVSync(global.render, 1)) {
-    SDL_LogError(0, "Failed to enable VSync: %s", SDL_GetError());
+    KLOG_ERROR(CORE, "Failed to enable VSync: %s", SDL_GetError());
     return false;
   }
 
@@ -196,7 +197,7 @@ bool PreloadFontsInto(ASS_Library *library,
   SDL_PathInfo info;
 
   if (!SDL_GetPathInfo(absPath, &info) || info.type != SDL_PATHTYPE_DIRECTORY) {
-    SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "Fonts directory not found: %s",
+    KLOG_WARN(CORE, "Fonts directory not found: %s",
                 absPath);
 
     SDL_free(absPath);
@@ -260,8 +261,7 @@ bool PreloadFontsInto(ASS_Library *library,
         void *data = SDL_LoadFile(fullPath.c_str(), &size);
 
         if (data == nullptr || size == 0) {
-          SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
-                      "Failed to load font: %s: %s", fullPath.c_str(),
+          KLOG_WARN(CORE, "Failed to load font: %s: %s", fullPath.c_str(),
                       SDL_GetError());
 
           if (data != nullptr) {
@@ -280,21 +280,20 @@ bool PreloadFontsInto(ASS_Library *library,
 
           c->imguiFontData->assign(bytes, bytes + size);
 
-          SDL_Log("Selected font for ImGui: %s (%zu bytes)", fontName.c_str(),
+          KLOG_INFO(CORE, "Selected font for ImGui: %s (%zu bytes)", fontName.c_str(),
                   size);
         }
 
         ass_add_font(c->lib, const_cast<char *>(name.c_str()),
                      static_cast<char *>(data), static_cast<int>(size));
 
-        SDL_Log("Preloaded font into LibASS memory: %s (%zu bytes)",
+        KLOG_INFO(CORE, "Preloaded font into LibASS memory: %s (%zu bytes)",
                 name.c_str(), size);
 
         SDL_IOStream *io = SDL_IOFromMem(data, size);
 
         if (io == nullptr) {
-          SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
-                      "Failed to create memory IOStream for font: %s: %s",
+          KLOG_WARN(CORE, "Failed to create memory IOStream for font: %s: %s",
                       fullPath.c_str(), SDL_GetError());
 
           SDL_free(data);
@@ -304,8 +303,7 @@ bool PreloadFontsInto(ASS_Library *library,
         TTF_Font *font = TTF_OpenFontIO(io, true, 48);
 
         if (font == nullptr) {
-          SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
-                      "Failed to open font from memory: %s: %s",
+          KLOG_WARN(CORE, "Failed to open font from memory: %s: %s",
                       fullPath.c_str(), SDL_GetError());
 
           SDL_free(data);
@@ -326,14 +324,14 @@ bool InitLibAssAndTTFs(std::string defaultFont,
   global.ass_library = ass_library_init();
 
   if (global.ass_library == nullptr) {
-    SDL_LogError(0, "Couldn't initialize libAss");
+    KLOG_ERROR(CORE, "Couldn't initialize libAss");
     return false;
   }
 
   global.ass_renderer = ass_renderer_init(global.ass_library);
 
   if (global.ass_renderer == nullptr) {
-    SDL_LogError(0, "Couldn't initialize libAss Render");
+    KLOG_ERROR(CORE, "Couldn't initialize libAss Render");
     return false;
   }
 
@@ -356,7 +354,7 @@ bool InitLibAssAndTTFs(std::string defaultFont,
 bool InitSound() {
   global.sound = new (std::nothrow) Sound;
   if (global.sound == nullptr) {
-    SDL_LogError(0, "Couldn't create sound engine");
+    KLOG_ERROR(CORE, "Couldn't create sound engine");
     return false;
   }
 

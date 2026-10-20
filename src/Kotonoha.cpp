@@ -1,3 +1,4 @@
+#include <Kotonoha/utils/Log.h>
 #include <Kotonoha/Kotonoha.hpp>
 #include <cstring>
 #include <string>
@@ -21,7 +22,7 @@ Kotonoha::Kotonoha(SDL_AppResult *status, struct Kotonoha_Game &context)
   gameContext.taskLock = SDL_CreateMutex();
 
   if (gameContext.taskLock == nullptr) {
-    SDL_LogError(0, "Failed to create mutex: %s", SDL_GetError());
+    KLOG_ERROR(CORE, "Failed to create mutex: %s", SDL_GetError());
 
     *status = SDL_APP_FAILURE;
     return;
@@ -32,7 +33,7 @@ Kotonoha::Kotonoha(SDL_AppResult *status, struct Kotonoha_Game &context)
   processPool = SDL_CreateThread(EventsThread, "KotonohaEvents", this);
 
   if (processPool == nullptr) {
-    SDL_LogError(0, "Failed to create worker thread: %s", SDL_GetError());
+    KLOG_ERROR(CORE, "Failed to create worker thread: %s", SDL_GetError());
 
     *status = SDL_APP_FAILURE;
     return;
@@ -191,13 +192,13 @@ SDL_AppResult Kotonoha::Event(SDL_Event *event) {
 
     case SDLK_F9:
       if (!SDL_GetRenderVSync(gameContext.render, &config->enableVsync)) {
-        SDL_LogError(0, "Failed to get VSync state: %s", SDL_GetError());
+        KLOG_ERROR(CORE, "Failed to get VSync state: %s", SDL_GetError());
         break;
       }
 
       if (!SDL_SetRenderVSync(gameContext.render,
                               gameContext.config.enableVsync ? 0 : 1)) {
-        SDL_LogError(0, "Failed to toggle VSync: %s", SDL_GetError());
+        KLOG_ERROR(CORE, "Failed to toggle VSync: %s", SDL_GetError());
       }
 
       SDL_GetRenderVSync(gameContext.render, &config->enableVsync);
@@ -264,8 +265,7 @@ bool Kotonoha::LoadScriptFile(const char *path) {
   // Resolve o caminho absoluto do arquivo ou pasta
   char *absolutePath = KotonohaPathGetAbsolute(path);
   if (absolutePath == nullptr) {
-    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
-                 "Failed to resolve absolute path for: %s", path);
+    KLOG_ERROR(CORE, "Failed to resolve absolute path for: %s", path);
     return false;
   }
 
@@ -274,7 +274,7 @@ bool Kotonoha::LoadScriptFile(const char *path) {
 
   SDL_PathInfo info;
   if (!SDL_GetPathInfo(scriptPath.c_str(), &info)) {
-    SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "Script path not found: %s",
+    KLOG_WARN(CORE, "Script path not found: %s",
                 scriptPath.c_str());
     return false;
   }
@@ -327,8 +327,7 @@ bool Kotonoha::LoadScriptFile(const char *path) {
               return SDL_ENUM_CONTINUE;
             },
             &context)) {
-      SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
-                   "Failed to enumerate scripts directory: %s",
+      KLOG_ERROR(CORE, "Failed to enumerate scripts directory: %s",
                    scriptPath.c_str());
       return false;
     }
@@ -341,8 +340,7 @@ bool Kotonoha::LoadScriptFile(const char *path) {
       auto *gameplay = new (std::nothrow)
           Gameplay(file.c_str(), &gameContext, preferredFont);
       if (gameplay == nullptr) {
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
-                     "Failed to allocate Gameplay for script: %s",
+        KLOG_ERROR(CORE, "Failed to allocate Gameplay for script: %s",
                      file.c_str());
         continue;
       }
@@ -359,8 +357,7 @@ bool Kotonoha::LoadScriptFile(const char *path) {
     auto *gameplay = new (std::nothrow)
         Gameplay(scriptPath.c_str(), &gameContext, preferredFont);
     if (gameplay == nullptr) {
-      SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
-                   "Failed to allocate Gameplay for script: %s",
+      KLOG_ERROR(CORE, "Failed to allocate Gameplay for script: %s",
                    scriptPath.c_str());
       return false;
     }
@@ -377,24 +374,21 @@ bool Kotonoha::CaptureSceneTransitionFrame(bool activateTransition) {
     return false;
   }
   if (SDL_GetRenderTarget(gameContext.render) != nullptr) {
-    SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
-                "Scene transition capture skipped: render target is not the "
+    KLOG_WARN(CORE, "Scene transition capture skipped: render target is not the "
                 "backbuffer");
     return false;
   }
 
   SDL_Surface *surface = SDL_RenderReadPixels(gameContext.render, nullptr);
   if (surface == nullptr) {
-    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
-                 "Scene transition frame capture failed: %s", SDL_GetError());
+    KLOG_ERROR(CORE, "Scene transition frame capture failed: %s", SDL_GetError());
     return false;
   }
 
   SDL_Texture *nextFrame =
       SDL_CreateTextureFromSurface(gameContext.render, surface);
   if (nextFrame == nullptr) {
-    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
-                 "Scene transition texture creation failed: %s",
+    KLOG_ERROR(CORE, "Scene transition texture creation failed: %s",
                  SDL_GetError());
     SDL_DestroySurface(surface);
     return false;
@@ -402,8 +396,7 @@ bool Kotonoha::CaptureSceneTransitionFrame(bool activateTransition) {
   SDL_DestroySurface(surface);
 
   if (!SDL_SetTextureBlendMode(nextFrame, SDL_BLENDMODE_NONE)) {
-    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
-                 "Scene transition texture blend setup failed: %s",
+    KLOG_ERROR(CORE, "Scene transition texture blend setup failed: %s",
                  SDL_GetError());
     SDL_DestroyTexture(nextFrame);
     return false;
@@ -468,21 +461,18 @@ void Kotonoha::PresentSceneTransitionFrame(Gameplay *incoming) {
   }
 
   if (gameContext.render == nullptr) {
-    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
-                 "Cannot present retained scene frame without a renderer");
+    KLOG_ERROR(CORE, "Cannot present retained scene frame without a renderer");
     return;
   }
   if (SDL_GetRenderTarget(gameContext.render) != nullptr &&
       !SDL_SetRenderTarget(gameContext.render, nullptr)) {
-    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
-                 "Cannot restore backbuffer for retained scene frame: %s",
+    KLOG_ERROR(CORE, "Cannot restore backbuffer for retained scene frame: %s",
                  SDL_GetError());
     return;
   }
   if (!SDL_RenderTexture(gameContext.render, sceneTransitionFrame, nullptr,
                          nullptr)) {
-    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
-                 "Retained scene frame presentation failed: %s",
+    KLOG_ERROR(CORE, "Retained scene frame presentation failed: %s",
                  SDL_GetError());
   }
 }

@@ -1,3 +1,4 @@
+#include <Kotonoha/utils/Log.h>
 #include <Kotonoha/components/Fade.hpp>
 
 namespace Kotonoha {
@@ -14,8 +15,7 @@ const char *FadeDirectionName(FadeDirection direction) {
 
 Fade::Fade(Kotonoha_Time *time) : timeManager(time), lock(SDL_CreateMutex()) {
   if (lock == nullptr) {
-    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
-                 "[FADE] Failed to create fade mutex: %s", SDL_GetError());
+    KLOG_ERROR(RENDER, "[FADE] Failed to create fade mutex: %s", SDL_GetError());
   }
 }
 
@@ -83,8 +83,7 @@ void Fade::Register(Uint64 startPacked, Uint64 endPacked, FadeColor color,
   Uint64 endTick = 0;
   if (!DecodeOrsTick(startPacked, true, &startTick) ||
       !DecodeOrsTick(endPacked, false, &endTick) || endTick < startTick) {
-    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
-                 "[SD-FADE] Invalid ORS fade range start=%llu end=%llu",
+    KLOG_ERROR(RENDER, "[Fade] Invalid ORS fade range start=%llu end=%llu",
                  static_cast<unsigned long long>(startPacked),
                  static_cast<unsigned long long>(endPacked));
     return;
@@ -107,7 +106,7 @@ void Fade::Register(Uint64 startPacked, Uint64 endPacked, FadeColor color,
   events.push_back(event);
   SDL_UnlockMutex(lock);
 
-  SDL_Log("[SD-FADE] register %s %s ticks=%llu..%llu", FadeColorName(color),
+  KLOG_INFO(RENDER, "[Fade] register %s %s ticks=%llu..%llu", FadeColorName(color),
           FadeDirectionName(direction),
           static_cast<unsigned long long>(startTick),
           static_cast<unsigned long long>(endTick));
@@ -157,9 +156,7 @@ Kotonoha_Scene_Status Fade::Render(KOTONOHA_SCENE_CALL) {
   }
 
   if (activeCount > 1) {
-    SDL_LogWarn(
-        SDL_LOG_CATEGORY_APPLICATION,
-        "[SD-FADE] overlapping fades=%d at tick=%llu; latest start wins",
+    KLOG_WARN(RENDER, "[Fade] overlapping fades=%d at tick=%llu; latest start wins",
         activeCount, static_cast<unsigned long long>(tick));
   }
 
@@ -168,7 +165,7 @@ Kotonoha_Scene_Status Fade::Render(KOTONOHA_SCENE_CALL) {
   const Uint8 channel = active->color == FadeColor::White ? 255 : 0;
 
   if (!active->hasLoggedTick || active->lastLoggedTick != tick) {
-    SDL_Log("[FADE] %s %s tick=%llu start=%llu end=%llu alpha=%u",
+    KLOG_INFO(RENDER, "[Fade] %s %s tick=%llu start=%llu end=%llu alpha=%u",
             FadeColorName(active->color), FadeDirectionName(active->direction),
             static_cast<unsigned long long>(tick),
             static_cast<unsigned long long>(active->startTick),

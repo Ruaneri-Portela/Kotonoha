@@ -1,4 +1,5 @@
 
+#include <Kotonoha/utils/Log.h>
 #include <Kotonoha/renders/TimestampRender.h>
 #include <Kotonoha/utils/OverlayRender.h>
 #include <Kotonoha/utils/Time.h>
@@ -101,8 +102,7 @@ enum Kotonoha_Scene_Status KotonohaTimestampRender(KOTONOHA_SCENE_CALL) {
     timestampCommon = (struct Timestamp_common *)SDL_calloc(
         1, sizeof(struct Timestamp_common));
     if (timestampCommon == NULL) {
-      SDL_LogError(SDL_LOG_CATEGORY_ERROR,
-                   "Failed to allocate timestamp renderer state");
+      KLOG_ERROR(RENDER, "Failed to allocate timestamp renderer state");
       return KOTONOHA_SCENE_NULL;
     }
     timestampCommon->color = (SDL_Color){0, 255, 255, 255};
@@ -161,15 +161,14 @@ enum Kotonoha_Scene_Status KotonohaTimestampRender(KOTONOHA_SCENE_CALL) {
     shadowRect.y += 2.0f;
     if (!SDL_RenderTexture(render, timestampCommon->shadow, NULL,
                            &shadowRect)) {
-      SDL_LogError(SDL_LOG_CATEGORY_RENDER,
-                   "Failed to draw timestamp shadow: %s", SDL_GetError());
+      KLOG_ERROR(RENDER, "Failed to draw timestamp shadow: %s", SDL_GetError());
     }
   }
 
   if (timestampCommon->texture != NULL &&
       !SDL_RenderTexture(render, timestampCommon->texture, NULL,
                          &timestampCommon->rect)) {
-    SDL_LogError(SDL_LOG_CATEGORY_RENDER, "Failed to draw timestamp text: %s",
+    KLOG_ERROR(RENDER, "Failed to draw timestamp text: %s",
                  SDL_GetError());
   }
 

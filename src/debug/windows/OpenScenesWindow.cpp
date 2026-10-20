@@ -70,9 +70,9 @@ void DrawOpenScenesWindow(::Kotonoha::Kotonoha *game,
         ImGui::Checkbox("Settings Window", &settingsVisible);
         ImGui::SameLine();
         ImGui::Checkbox("About", &aboutVisible);
-        ImGui::SameLine();
-        ImGui::Checkbox("Log", &logVisible);
       }
+
+      ImGui::Checkbox("Log", &logVisible);
 
       if (ImGui::CollapsingHeader("Engine Settings")) {
         DrawSettingsFields(&context.config, context);

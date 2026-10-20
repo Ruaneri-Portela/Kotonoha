@@ -1,3 +1,4 @@
+#include <Kotonoha/utils/Log.h>
 #include <Kotonoha/parsers/Ors.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -180,7 +181,7 @@ static void KotonohaOrsDoDelete(Kotonoha_OrsEvent *target) {
   case Next:
     break;
   default:
-    SDL_LogError(0, "clean");
+    KLOG_ERROR(PARSER, "Failed to clean script event list");
     exit(1);
     break;
   }
@@ -193,7 +194,7 @@ static Kotonoha_OrsEvent *KotonohaOrsParseLine(char *line) {
 
   Kotonoha_OrsEvent *event = SDL_calloc(1, sizeof(Kotonoha_OrsEvent));
   if (event == NULL) {
-    SDL_LogError(0, "malloc");
+    KLOG_ERROR(PARSER, "Out of memory while parsing script event");
     exit(1);
   }
 
@@ -242,13 +243,13 @@ static Kotonoha_OrsEvent *KotonohaOrsParseLine(char *line) {
     event->command = UNKNOWN;
     event->data.unknown = SDL_malloc(sizeof(struct Kotonoha_OrsTypeUnknown));
     if (event->data.unknown == NULL) {
-      SDL_LogError(0, "malloc");
+      KLOG_ERROR(PARSER, "Out of memory while parsing script event");
       exit(1);
     }
 
     event->data.unknown->line = SDL_malloc((strlen(line) + 1) * sizeof(char));
     if (event->data.unknown->line == NULL) {
-      SDL_LogError(0, "malloc");
+      KLOG_ERROR(PARSER, "Out of memory while parsing script event");
       exit(1);
     }
 
@@ -304,7 +305,7 @@ static Kotonoha_OrsEvent *KotonohaOrsParseLine(char *line) {
   case PLAY_SE: {
     event->data.play_se = SDL_malloc(sizeof(struct Kotonoha_OrsTypePlaySe));
     if (event->data.play_se == NULL) {
-      SDL_LogError(0, "malloc");
+      KLOG_ERROR(PARSER, "Out of memory while parsing script event");
       exit(1);
     }
 
@@ -317,7 +318,7 @@ static Kotonoha_OrsEvent *KotonohaOrsParseLine(char *line) {
 
     event->data.play_se->path = SDL_malloc((sizeFind + 1) * sizeof(char));
     if (event->data.play_se->path == NULL) {
-      SDL_LogError(0, "malloc");
+      KLOG_ERROR(PARSER, "Out of memory while parsing script event");
       exit(1);
     }
 
@@ -333,14 +334,14 @@ static Kotonoha_OrsEvent *KotonohaOrsParseLine(char *line) {
     event->data.play_movie =
         SDL_malloc(sizeof(struct Kotonoha_OrsTypePlayMovie));
     if (event->data.play_movie == NULL) {
-      SDL_LogError(0, "malloc");
+      KLOG_ERROR(PARSER, "Out of memory while parsing script event");
       exit(1);
     }
 
     int sizeFind = KotonohaOrsSwapTabNull(line, &transformed);
     event->data.play_movie->path = SDL_malloc((sizeFind + 1) * sizeof(char));
     if (event->data.play_movie->path == NULL) {
-      SDL_LogError(0, "malloc");
+      KLOG_ERROR(PARSER, "Out of memory while parsing script event");
       exit(1);
     }
 
@@ -368,7 +369,7 @@ static Kotonoha_OrsEvent *KotonohaOrsParseLine(char *line) {
     {
       event->data.fade = SDL_malloc(sizeof(struct Kotonoha_OrsTypeFade));
       if (event->data.fade == NULL) {
-        SDL_LogError(0, "malloc");
+        KLOG_ERROR(PARSER, "Out of memory while parsing script event");
         exit(1);
       }
 
@@ -385,7 +386,7 @@ static Kotonoha_OrsEvent *KotonohaOrsParseLine(char *line) {
     event->data.print_text =
         SDL_malloc(sizeof(struct Kotonoha_OrsTypePrintText));
     if (event->data.print_text == NULL) {
-      SDL_LogError(0, "malloc");
+      KLOG_ERROR(PARSER, "Out of memory while parsing script event");
       exit(1);
     }
 
@@ -393,7 +394,7 @@ static Kotonoha_OrsEvent *KotonohaOrsParseLine(char *line) {
     event->data.print_text->character =
         SDL_malloc((sizeFind + 1) * sizeof(char));
     if (event->data.print_text->character == NULL) {
-      SDL_LogError(0, "malloc");
+      KLOG_ERROR(PARSER, "Out of memory while parsing script event");
       exit(1);
     }
 
@@ -406,7 +407,7 @@ static Kotonoha_OrsEvent *KotonohaOrsParseLine(char *line) {
     sizeFind = KotonohaOrsSwapTabNull(line, &transformed);
     event->data.print_text->text = SDL_malloc((sizeFind + 1) * sizeof(char));
     if (event->data.print_text->text == NULL) {
-      SDL_LogError(0, "malloc");
+      KLOG_ERROR(PARSER, "Out of memory while parsing script event");
       exit(1);
     }
 
@@ -433,13 +434,13 @@ static Kotonoha_OrsEvent *KotonohaOrsParseLine(char *line) {
     event->data.play_voice =
         SDL_calloc(1, sizeof(struct Kotonoha_OrsTypePlayVoice));
     if (event->data.play_voice == NULL) {
-      SDL_LogError(0, "malloc");
+      KLOG_ERROR(PARSER, "Out of memory while parsing script event");
       exit(1);
     }
 
     event->data.play_voice->path = SDL_strdup(fields[0]);
     if (event->data.play_voice->path == NULL) {
-      SDL_LogError(0, "malloc");
+      KLOG_ERROR(PARSER, "Out of memory while parsing script event");
       exit(1);
     }
 
@@ -459,14 +460,14 @@ static Kotonoha_OrsEvent *KotonohaOrsParseLine(char *line) {
   case CREATE_BG: {
     event->data.create_bg = SDL_malloc(sizeof(struct Kotonoha_OrsTypeCreateBg));
     if (event->data.create_bg == NULL) {
-      SDL_LogError(0, "malloc");
+      KLOG_ERROR(PARSER, "Out of memory while parsing script event");
       exit(1);
     }
 
     int sizeFind = KotonohaOrsSwapTabNull(line, &transformed);
     event->data.create_bg->a = SDL_malloc((sizeFind + 1) * sizeof(char));
     if (event->data.create_bg->a == NULL) {
-      SDL_LogError(0, "malloc");
+      KLOG_ERROR(PARSER, "Out of memory while parsing script event");
       exit(1);
     }
 
@@ -479,7 +480,7 @@ static Kotonoha_OrsEvent *KotonohaOrsParseLine(char *line) {
     sizeFind = KotonohaOrsSwapTabNull(line, &transformed);
     event->data.create_bg->path = SDL_malloc((sizeFind + 1) * sizeof(char));
     if (event->data.create_bg->path == NULL) {
-      SDL_LogError(0, "malloc");
+      KLOG_ERROR(PARSER, "Out of memory while parsing script event");
       exit(1);
     }
 
@@ -494,14 +495,14 @@ static Kotonoha_OrsEvent *KotonohaOrsParseLine(char *line) {
   case SetSELECT: {
     event->data.set_select = SDL_malloc(sizeof(struct KotonohaOrsSetSELECT));
     if (event->data.set_select == NULL) {
-      SDL_LogError(0, "malloc");
+      KLOG_ERROR(PARSER, "Out of memory while parsing script event");
       exit(1);
     }
 
     event->data.set_select->size = 0;
     event->data.set_select->options = SDL_malloc(sizeof(char *));
     if (event->data.set_select->options == NULL) {
-      SDL_LogError(0, "malloc");
+      KLOG_ERROR(PARSER, "Out of memory while parsing script event");
       exit(1);
     }
 
@@ -522,7 +523,7 @@ static Kotonoha_OrsEvent *KotonohaOrsParseLine(char *line) {
       if (!ignoreOption) {
         char *optionText = SDL_malloc((size_t)sizeStr * sizeof(char));
         if (optionText == NULL) {
-          SDL_LogError(0, "malloc");
+          KLOG_ERROR(PARSER, "Out of memory while parsing script event");
           exit(1);
         }
 
@@ -533,7 +534,7 @@ static Kotonoha_OrsEvent *KotonohaOrsParseLine(char *line) {
             (size_t)(event->data.set_select->size + 2) * sizeof(char *));
         if (newOptions == NULL) {
           SDL_free(optionText);
-          SDL_LogError(0, "realloc");
+          KLOG_ERROR(PARSER, "Out of memory while growing script buffer");
           exit(1);
         }
 
@@ -556,14 +557,14 @@ static Kotonoha_OrsEvent *KotonohaOrsParseLine(char *line) {
   case END_ROLL: {
     event->data.path_end = SDL_malloc(sizeof(struct Kotonoha_OrsTypePathEnd));
     if (event->data.path_end == NULL) {
-      SDL_LogError(0, "malloc");
+      KLOG_ERROR(PARSER, "Out of memory while parsing script event");
       exit(1);
     }
 
     int sizeFind = KotonohaOrsSwapTabNull(line, &transformed);
     event->data.path_end->path = SDL_malloc((sizeFind + 1) * sizeof(char));
     if (event->data.path_end->path == NULL) {
-      SDL_LogError(0, "malloc");
+      KLOG_ERROR(PARSER, "Out of memory while parsing script event");
       exit(1);
     }
 
@@ -580,13 +581,13 @@ static Kotonoha_OrsEvent *KotonohaOrsParseLine(char *line) {
     if (line != NULL) {
       event->data.unknown = SDL_malloc(sizeof(struct Kotonoha_OrsTypeUnknown));
       if (event->data.unknown == NULL) {
-        SDL_LogError(0, "malloc");
+        KLOG_ERROR(PARSER, "Out of memory while parsing script event");
         exit(1);
       }
 
       event->data.unknown->line = SDL_malloc((strlen(line) + 1) * sizeof(char));
       if (event->data.unknown->line == NULL) {
-        SDL_LogError(0, "malloc");
+        KLOG_ERROR(PARSER, "Out of memory while parsing script event");
         exit(1);
       }
 
@@ -650,7 +651,7 @@ Kotonoha_OrsData KotonohaOrsParser(const char *input) {
   Kotonoha_OrsData result = {NULL, NULL, 0};
   FILE *file = fopen(input, "r");
   if (file == NULL) {
-    SDL_LogError(0, "fopen");
+    KLOG_ERROR(PARSER, "Failed to open script file '%s'", input);
     return result;
   }
 
@@ -660,7 +661,7 @@ Kotonoha_OrsData KotonohaOrsParser(const char *input) {
     int c = MIMUMUM_LINE_SIZE;
     char *line = SDL_malloc(c * sizeof(char));
     if (line == NULL) {
-      SDL_LogError(0, "malloc");
+      KLOG_ERROR(PARSER, "Out of memory while parsing script event");
       exit(1);
     }
 
@@ -676,7 +677,7 @@ Kotonoha_OrsData KotonohaOrsParser(const char *input) {
         c *= 2;
         line = SDL_realloc(line, c * sizeof(char));
         if (line == NULL) {
-          SDL_LogError(0, "realloc");
+          KLOG_ERROR(PARSER, "Out of memory while growing script buffer");
           exit(1);
         }
       }

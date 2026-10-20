@@ -1,3 +1,4 @@
+#include <Kotonoha/utils/Log.h>
 #include <Kotonoha/Gameplay.hpp>
 
 #include <Kotonoha/debug/DebugUi.hpp>
@@ -156,7 +157,7 @@ void Gameplay::HandleKeyboard(SDL_Event *event, Kotonoha_Game *gameContext) {
 
   case SDLK_I: {
     const float timeInSeconds = GetTime();
-    SDL_Log("Time: %.2f, is paused %d\n", timeInSeconds,
+    KLOG_INFO(SCRIPT, "Time: %.2f, is paused %d", timeInSeconds,
             KotonohaTimeIsPaused(this->tm));
     break;
   }

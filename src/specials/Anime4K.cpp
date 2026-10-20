@@ -1,3 +1,4 @@
+#include <Kotonoha/utils/Log.h>
 #include <Kotonoha/specials/Upscaling.h>
 #include <SDL3/SDL.h>
 
@@ -122,8 +123,7 @@ std::string LoadAsset(const std::string &filename) {
     }
   }
   if (buffer == nullptr) {
-    SDL_LogWarn(SDL_LOG_CATEGORY_RENDER,
-                "Anime4K: could not load shader '%s'", filename.c_str());
+    KLOG_WARN(UPSCALER, "Anime4K: could not load shader '%s'", filename.c_str());
     return "";
   }
   std::string text(static_cast<const char *>(buffer), size);
@@ -247,7 +247,7 @@ GLuint CompileShader(GLenum type, const std::string &source) {
     if (len > 1) {
       std::string log((size_t)len, '\0');
       glGetShaderInfoLog(shader, len, NULL, &log[0]);
-      SDL_LogError(SDL_LOG_CATEGORY_RENDER, "Anime4K shader error: %s",
+      KLOG_ERROR(UPSCALER, "Anime4K shader error: %s",
                    log.c_str());
     }
     glDeleteShader(shader);
@@ -271,7 +271,7 @@ GLuint LinkProgram(GLuint vertex, GLuint fragment) {
     if (len > 1) {
       std::string log((size_t)len, '\0');
       glGetProgramInfoLog(program, len, NULL, &log[0]);
-      SDL_LogError(SDL_LOG_CATEGORY_RENDER, "Anime4K link error: %s",
+      KLOG_ERROR(UPSCALER, "Anime4K link error: %s",
                    log.c_str());
     }
     glDeleteProgram(program);
@@ -375,8 +375,7 @@ bool InitGLPipeline(SDL_Renderer *renderer) {
     return true;
 
   if (!KotonohaOpenGLInit()) {
-    SDL_LogWarn(SDL_LOG_CATEGORY_RENDER,
-                "Anime4K requires a current OpenGL renderer context.");
+    KLOG_WARN(UPSCALER, "Anime4K requires a current OpenGL renderer context.");
     return false;
   }
 
@@ -436,8 +435,7 @@ bool InitGLPipeline(SDL_Renderer *renderer) {
     }
   }
   if (mainPasses.empty() && kernelPasses.empty()) {
-    SDL_LogError(SDL_LOG_CATEGORY_RENDER,
-                 "Anime4K: no usable shader passes were loaded.");
+    KLOG_ERROR(UPSCALER, "Anime4K: no usable shader passes were loaded.");
     return false;
   }
   g_passes = mainPasses;
@@ -496,8 +494,7 @@ bool InitGLPipeline(SDL_Renderer *renderer) {
   glDeleteShader(vertex);
 
   if (!ok) {
-    SDL_LogWarn(SDL_LOG_CATEGORY_RENDER,
-                "Anime4K pipeline setup failed; disabling Anime4K scaler.");
+    KLOG_WARN(UPSCALER, "Anime4K pipeline setup failed; disabling Anime4K scaler.");
     DestroyPipeline();
     return false;
   }
@@ -516,7 +513,7 @@ bool InitGLPipeline(SDL_Renderer *renderer) {
   glBindBuffer(GL_ARRAY_BUFFER, (GLuint)prevBuffer);
 
   g_initialized = true;
-  SDL_Log("Anime4K v4.0 CNN (%s, %d passes) initialized", preset.c_str(),
+  KLOG_INFO(UPSCALER, "Anime4K v4.0 CNN (%s, %d passes) initialized", preset.c_str(),
           (int)g_passes.size());
   return true;
 }
@@ -575,7 +572,7 @@ void DebugProbe(const char *label, GLuint tex, int w, int h) {
   if (AttachTarget(tex)) {
     float px[4] = {0, 0, 0, 0};
     glReadPixels(w / 3, h / 3, 1, 1, GL_RGBA, GL_FLOAT, px);
-    SDL_Log("Anime4K probe %-28s %4dx%-4d rgba=%.3f %.3f %.3f %.3f", label, w,
+    KLOG_INFO(UPSCALER, "Anime4K probe %-28s %4dx%-4d rgba=%.3f %.3f %.3f %.3f", label, w,
             h, px[0], px[1], px[2], px[3]);
   }
   glBindFramebuffer(GL_FRAMEBUFFER, (GLuint)prevFbo);
@@ -737,16 +734,14 @@ bool KotonohaAnime4KUpscaleSDLTextureInto(SDL_Renderer *renderer,
   SDL_Texture *previousTarget = SDL_GetRenderTarget(renderer);
   auto fallbackCopy = [&]() {
     if (!SDL_SetRenderTarget(renderer, outputTexture)) {
-      SDL_LogError(SDL_LOG_CATEGORY_RENDER,
-                   "Anime4K fallback could not activate output texture: %s",
+      KLOG_ERROR(UPSCALER, "Anime4K fallback could not activate output texture: %s",
                    SDL_GetError());
       return false;
     }
     const bool copied = SDL_RenderTexture(renderer, inputTexture, NULL, NULL);
     const bool restored = SDL_SetRenderTarget(renderer, previousTarget);
     if (!copied || !restored) {
-      SDL_LogError(SDL_LOG_CATEGORY_RENDER,
-                   "Anime4K fallback render failed: %s", SDL_GetError());
+      KLOG_ERROR(UPSCALER, "Anime4K fallback render failed: %s", SDL_GetError());
     }
     return copied && restored;
   };
@@ -844,8 +839,7 @@ bool KotonohaAnime4KUpscaleSDLTextureInto(SDL_Renderer *renderer,
   (prevCull ? glEnable : glDisable)(GL_CULL_FACE);
 
   if (!ok) {
-    SDL_LogWarn(SDL_LOG_CATEGORY_RENDER,
-                "Anime4K pass failed; falling back to plain copy.");
+    KLOG_WARN(UPSCALER, "Anime4K pass failed; falling back to plain copy.");
     return fallbackCopy();
   }
   return true;

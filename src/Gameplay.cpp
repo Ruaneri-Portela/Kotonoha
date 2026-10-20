@@ -1,3 +1,4 @@
+#include <Kotonoha/utils/Log.h>
 #include <Kotonoha/Gameplay.hpp>
 
 #include <Kotonoha/specials/MetalFX.h>
@@ -21,13 +22,11 @@ void Gameplay::UpdateCanvasSize(SDL_Window *window, SDL_Renderer *renderer) {
   int pixelH = 0;
   if (renderer != nullptr) {
     if (!SDL_GetCurrentRenderOutputSize(renderer, &pixelW, &pixelH)) {
-      SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
-                   "SDL_GetCurrentRenderOutputSize failed: %s", SDL_GetError());
+      KLOG_ERROR(CORE, "SDL_GetCurrentRenderOutputSize failed: %s", SDL_GetError());
       return;
     }
   } else if (!SDL_GetWindowSizeInPixels(window, &pixelW, &pixelH)) {
-    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
-                 "SDL_GetWindowSizeInPixels failed: %s", SDL_GetError());
+    KLOG_ERROR(CORE, "SDL_GetWindowSizeInPixels failed: %s", SDL_GetError());
     return;
   }
 
