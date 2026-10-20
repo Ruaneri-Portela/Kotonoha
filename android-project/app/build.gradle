@@ -15,7 +15,8 @@ android {
                 arguments(
                         "-DCMAKE_TOOLCHAIN_FILE=${System.getenv('VCPKG_ROOT')}/scripts/buildsystems/vcpkg.cmake",
                         "-DVCPKG_CHAINLOAD_TOOLCHAIN_FILE=${System.getenv('ANDROID_NDK_HOME')}/build/cmake/android.toolchain.cmake",
-                        "-DANDROID_STL=c++_shared"
+                        "-DANDROID_STL=c++_shared",
+                        "-DCMAKE_IGNORE_PATH=${System.getenv('ANDROID_NDK_HOME')}/toolchains/llvm/prebuilt/windows-x86_64/lib"
                 )
                 // abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86', 'x86_64' //Outros ABIs
                 abiFilters 'arm64-v8a','x86_64'
