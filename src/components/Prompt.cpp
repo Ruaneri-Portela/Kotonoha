@@ -31,10 +31,11 @@ BuildVisiblePromptIndices(const std::vector<std::string> &items) {
 
 Prompt::Prompt(std::vector<std::string> prompt, int *promptResult, Uint64 start,
                Uint64 end, Kotonoha_Time *time, TTF_Font *font,
-               const char *clickAudioPath)
+               const char *clickAudioPath, const char *appearAudioPath)
     : prompt(std::move(prompt)), promptResult(promptResult), time(time),
       startTime(start), endTime(end), font(font),
-      audioPath(clickAudioPath ? clickAudioPath : "assets/Se/click.ogg") {}
+      audioPath(clickAudioPath ? clickAudioPath : "assets/Se/click.ogg"),
+      appearAudioPath(appearAudioPath ? appearAudioPath : "") {}
 
 Prompt::~Prompt() { ClearLayoutTextures(); }
 
@@ -74,18 +75,17 @@ void Prompt::HandleEvent(SDL_Event *event, struct Kotonoha_Game *gameContext,
   }
 
   auto selectOption = [&](int originalIndex) {
-    const auto option = std::find_if(
-        lastLayout.begin(), lastLayout.end(),
-        [originalIndex](const PromptLayoutItem &item) {
-          return item.originalIndex == originalIndex;
-        });
+    const auto option =
+        std::find_if(lastLayout.begin(), lastLayout.end(),
+                     [originalIndex](const PromptLayoutItem &item) {
+                       return item.originalIndex == originalIndex;
+                     });
     if (option == lastLayout.end()) {
       return false;
     }
     *promptResult = originalIndex;
     if (audioManager != nullptr && !audioPath.empty() && time != nullptr) {
-      const Uint64 nowMs = KotonohaTimeGet(time);
-      audioManager->AddMedia(audioPath.c_str(), nowMs, UINT64_MAX, false, "Se");
+      audioManager->AddMedia(audioPath.c_str(), 0, 0, false, "Se");
     }
     return true;
   };
@@ -94,11 +94,10 @@ void Prompt::HandleEvent(SDL_Event *event, struct Kotonoha_Game *gameContext,
     if (lastLayout.empty()) {
       return;
     }
-    auto focused = std::find_if(
-        lastLayout.begin(), lastLayout.end(),
-        [this](const PromptLayoutItem &item) {
-          return item.originalIndex == focusedIndex;
-        });
+    auto focused = std::find_if(lastLayout.begin(), lastLayout.end(),
+                                [this](const PromptLayoutItem &item) {
+                                  return item.originalIndex == focusedIndex;
+                                });
     int index = focused == lastLayout.end()
                     ? 0
                     : static_cast<int>(focused - lastLayout.begin());
@@ -219,11 +218,20 @@ enum Kotonoha_Scene_Status Prompt::Render(KOTONOHA_SCENE_CALL) {
 
   if (!inRange) {
     promptObj->ClearLayoutTextures();
+    promptObj->appearSoundPlayed = false;
     return KOTONOHA_SCENE_NULL;
   }
 
   const std::vector<int> visibleIndices =
       BuildVisiblePromptIndices(promptObj->prompt);
+
+  if (!promptObj->appearSoundPlayed && !visibleIndices.empty()) {
+    promptObj->appearSoundPlayed = true;
+    if (promptObj->audio != nullptr && !promptObj->appearAudioPath.empty()) {
+      promptObj->audio->AddMedia(promptObj->appearAudioPath.c_str(), 0, 0,
+                                 false, "Se");
+    }
+  }
 
   if (visibleIndices.empty()) {
     promptObj->ClearLayoutTextures();
@@ -332,14 +340,13 @@ enum Kotonoha_Scene_Status Prompt::Render(KOTONOHA_SCENE_CALL) {
     const bool selected = (*(promptObj->promptResult) == item.originalIndex);
     const bool clicking =
         hovered && isMouseDown && (*(promptObj->promptResult) == -1);
-    const bool focused =
-        promptObj->keyboardFocusActive &&
-        promptObj->focusedIndex == item.originalIndex;
+    const bool focused = promptObj->keyboardFocusActive &&
+                         promptObj->focusedIndex == item.originalIndex;
 
-    SDL_Color fg = clicking   ? SDL_Color{255, 140, 0, 255}
-                   : selected ? SDL_Color{255, 230, 120, 255}
+    SDL_Color fg = clicking               ? SDL_Color{255, 140, 0, 255}
+                   : selected             ? SDL_Color{255, 230, 120, 255}
                    : (hovered || focused) ? SDL_Color{180, 220, 255, 255}
-                              : SDL_Color{255, 255, 255, 255};
+                                          : SDL_Color{255, 255, 255, 255};
 
     SDL_Color shadowColor = {0, 0, 0, static_cast<Uint8>(hovered ? 200 : 160)};
 
@@ -398,6 +405,7 @@ void Prompt::Reset() {
   }
   focusedIndex = -1;
   keyboardFocusActive = false;
+  appearSoundPlayed = false;
   ClearLayoutTextures();
 }
 
