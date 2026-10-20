@@ -65,6 +65,7 @@ file(GLOB KOTONOHA_SOURCES CONFIGURE_DEPENDS
         "${CMAKE_CURRENT_SOURCE_DIR}/src/*.c"
         "${CMAKE_CURRENT_SOURCE_DIR}/src/components/*.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/src/debug/*.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/debug/windows/*.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/src/mobile/*.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/src/parsers/*.c"
         "${CMAKE_CURRENT_SOURCE_DIR}/src/renders/*.c"
