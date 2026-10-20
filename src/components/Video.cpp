@@ -170,8 +170,11 @@ Kotonoha_Scene_Status Video::Render(KOTONOHA_SCENE_CALL) {
     KotonohaVideoRenderShutdown(&video);
   }
 
-  if (isEmpty && returnStatus != KOTONOHA_SCENE_DRAW &&
-      returnStatus != KOTONOHA_SCENE_DRAW_LAST) {
+  // Vídeos futuros ainda não iniciados não devem manter o último frame do
+  // vídeo anterior cobrindo as camadas inferiores.
+  if (returnStatus == KOTONOHA_SCENE_NULL || (isEmpty &&
+      returnStatus != KOTONOHA_SCENE_DRAW &&
+      returnStatus != KOTONOHA_SCENE_DRAW_LAST)) {
     return KOTONOHA_SCENE_COMPLETE;
   }
 

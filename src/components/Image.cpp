@@ -392,9 +392,6 @@ Uint64 Image::Register(const char *path, Uint64 startTime, Uint64 endTime,
     return 0;
   }
 
-  // Pré-decodifica o frame da imagem em background se possível
-  object->load.frame = KotonohaImageDecodeFrame(path, -1, -1, &object->load.buffer, ignoreMissingAssets);
-
   if (lock == nullptr) {
     DestroyPicture(object);
     return 0;
@@ -458,8 +455,12 @@ void Image::SetAbcState(const std::string &key, Uint8 index,
     group->endTime = picture->endTime;
 
     for (size_t state = 0; state < 3; ++state) {
-      group->paths[state] = BuildDeterministicAbcPath(
+      std::string candidate = BuildDeterministicAbcPath(
           picture->path, normalizedKey, static_cast<char>('a' + state));
+      // Overlay ausente: segue só com a imagem base, sem tentar decodificar.
+      if (!candidate.empty() && SDL_GetPathInfo(candidate.c_str(), nullptr)) {
+        group->paths[state] = std::move(candidate);
+      }
     }
 
     abcGroups.emplace_back(std::move(group));
