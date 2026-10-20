@@ -2,6 +2,7 @@
 #include <SDL3/SDL.h>
 
 static float g_upscalingFactor = 1.0f;
+static bool g_upscalingEnabled = true;
 
 namespace {
 
@@ -43,11 +44,17 @@ static bool CopyTextureToTarget(SDL_Renderer *renderer,
 
 extern "C" {
 
-bool KotonohaUpscalingInitInit(SDL_Renderer *renderer, const char *name,
-                               float factor) {
-  g_upscalingFactor = factor;
+bool KotonohaUpscalingIsEnabled(void) { return g_upscalingEnabled; }
+void KotonohaUpscalingSetEnabled(bool enabled) { g_upscalingEnabled = enabled; }
 
-  if (factor <= 1.0f) {
+bool KotonohaUpscalingInit(SDL_Renderer *renderer, const char *name, Kotonoha_Config* config) {
+  if (config == NULL) {
+    return false;
+  }
+  g_upscalingEnabled = config->upscalingEnabled;
+  g_upscalingFactor = config->scalerFactor;
+
+  if (config->scalerFactor <= 1.0f) {
     g_upscalerType = KOTONOHA_UPSCALER_NONE;
     return true;
   }
@@ -87,8 +94,8 @@ bool KotonohaUpscalingInitInit(SDL_Renderer *renderer, const char *name,
 
   if (g_upscalerType == KOTONOHA_UPSCALER_METALFX) {
 #if defined(KOTONOHA_HAS_METALFX)
-    if (KotonohaMetalFXInit(renderer)) {
-      SDL_Log("Upscaling initialized with MetalFX (factor: %.2f)", factor);
+    if (KotonohaMetalFXInit(renderer, config)) {
+      SDL_Log("Upscaling initialized with MetalFX (factor: %.2f)", g_upscalingFactor);
       return true;
     }
 #endif
@@ -99,9 +106,9 @@ bool KotonohaUpscalingInitInit(SDL_Renderer *renderer, const char *name,
 
   if (g_upscalerType == KOTONOHA_UPSCALER_ANIME4K) {
 #if defined(KOTONOHA_HAS_ANIME4K)
-    if (KotonohaAnime4KInit(renderer)) {
+    if (KotonohaAnime4KInit(renderer, config)) {
       SDL_Log("Upscaling initialized with Anime4K / OpenGL (factor: %.2f)",
-              factor);
+              g_upscalingFactor);
       return true;
     }
 #endif
@@ -204,9 +211,9 @@ bool Kotonoha_SetUpscalerByName(const char *name) {
   return false;
 }
 
-float KotonohaUpscalingInitFactor(void) { return g_upscalingFactor; }
+float KotonohaUpscalingGetFactor(void) { return g_upscalingFactor; }
 
-void KotonohaUpscalingInitSetFactor(float factor) {
+void KotonohaUpscalingSetFactor(float factor) {
   g_upscalingFactor = factor;
 }
 
