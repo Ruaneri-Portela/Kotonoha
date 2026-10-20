@@ -1,6 +1,6 @@
 #pragma once
 
-#include <Kotonoha/speciais/Upscaling.h>
+#include <Kotonoha/specials/Upscaling.h>
 #include <SDL3/SDL_render.h>
 
 namespace Kotonoha {

@@ -2,8 +2,8 @@
 #include <SDL3/SDL.h>
 
 #include <Kotonoha/parsers/Config.h>
-#include <Kotonoha/speciais/Anime4K.h>
-#include <Kotonoha/speciais/MetalFX.h>
+#include <Kotonoha/specials/Anime4K.h>
+#include <Kotonoha/specials/MetalFX.h>
 
 #ifdef __cplusplus
 extern "C" {

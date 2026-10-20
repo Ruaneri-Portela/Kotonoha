@@ -37,6 +37,15 @@
     <Filter Include="Arquivos de Cabeçalho\utils">
       <UniqueIdentifier>{7193bfe4-c1a3-4b63-af35-528d150b1c25}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Arquivos de Origem\debug">
+      <UniqueIdentifier>{6b1f0c52-3a7e-4d19-9c64-1e5a0d7b2f01}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Arquivos de Origem\debug\windows">
+      <UniqueIdentifier>{6b1f0c52-3a7e-4d19-9c64-1e5a0d7b2f02}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Arquivos de Cabeçalho\debug">
+      <UniqueIdentifier>{6b1f0c52-3a7e-4d19-9c64-1e5a0d7b2f03}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Arquivos de Origem\specials">
       <UniqueIdentifier>{f30bf169-2486-475b-a915-ebf1c69d2eae}</UniqueIdentifier>
     </Filter>
@@ -81,7 +90,7 @@
     <ClCompile Include="src\renders\AudioRender.c">
       <Filter>Arquivos de Origem\render</Filter>
     </ClCompile>
-    <ClCompile Include="src\renders\FPSrender.c">
+    <ClCompile Include="src\renders\FpsRender.c">
       <Filter>Arquivos de Origem\render</Filter>
     </ClCompile>
     <ClCompile Include="src\renders\ImageRender.c">
@@ -105,9 +114,51 @@
     <ClCompile Include="src\renders\TimestampRender.c">
       <Filter>Arquivos de Origem\render</Filter>
     </ClCompile>
-    <ClCompile Include="src\BasicGui.cpp">
-      <Filter>Arquivos de Origem</Filter>
+    <ClCompile Include="src\debug\DebugUi.cpp">
+      <Filter>Arquivos de Origem\debug</Filter>
     </ClCompile>
+    <ClCompile Include="src\debug\DebugUtils.cpp">
+      <Filter>Arquivos de Origem\debug</Filter>
+    </ClCompile>
+    <ClCompile Include="src\debug\SceneManager.cpp">
+      <Filter>Arquivos de Origem\debug</Filter>
+    </ClCompile>
+    <ClCompile Include="src\debug\TextEditorModel.cpp">
+      <Filter>Arquivos de Origem\debug</Filter>
+    </ClCompile>
+    <ClCompile Include="src\debug\windows\AboutWindow.cpp">
+      <Filter>Arquivos de Origem\debug\windows</Filter>
+    </ClCompile>
+    <ClCompile Include="src\debug\windows\ControlPanelWindow.cpp">
+      <Filter>Arquivos de Origem\debug\windows</Filter>
+    </ClCompile>
+    <ClCompile Include="src\debug\windows\LogWindow.cpp">
+      <Filter>Arquivos de Origem\debug\windows</Filter>
+    </ClCompile>
+    <ClCompile Include="src\debug\windows\OpenScenesWindow.cpp">
+      <Filter>Arquivos de Origem\debug\windows</Filter>
+    </ClCompile>
+    <ClCompile Include="src\debug\windows\PlaylistWindow.cpp">
+      <Filter>Arquivos de Origem\debug\windows</Filter>
+    </ClCompile>
+    <ClCompile Include="src\debug\windows\ScriptEditorWindow.cpp">
+      <Filter>Arquivos de Origem\debug\windows</Filter>
+    </ClCompile>
+    <ClCompile Include="src\debug\windows\SettingsWindow.cpp">
+      <Filter>Arquivos de Origem\debug\windows</Filter>
+    </ClCompile>
+    <ClCompile Include="src\debug\windows\TextEditorWindow.cpp">
+      <Filter>Arquivos de Origem\debug\windows</Filter>
+    </ClCompile>
+    <ClInclude Include="include\Kotonoha\debug\DebugInternal.hpp">
+      <Filter>Arquivos de Cabeçalho\debug</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Kotonoha\debug\DebugUi.hpp">
+      <Filter>Arquivos de Cabeçalho\debug</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Kotonoha\debug\LogPanel.hpp">
+      <Filter>Arquivos de Cabeçalho\debug</Filter>
+    </ClInclude>
     <ClCompile Include="src\Main.cpp">
       <Filter>Arquivos de Origem</Filter>
     </ClCompile>
@@ -188,7 +239,7 @@
     <ClInclude Include="include\Kotonoha\renders\AudioRender.h">
       <Filter>Arquivos de Cabeçalho\render</Filter>
     </ClInclude>
-    <ClInclude Include="include\Kotonoha\renders\FPSrender.h">
+    <ClInclude Include="include\Kotonoha\renders\FpsRender.h">
       <Filter>Arquivos de Cabeçalho\render</Filter>
     </ClInclude>
     <ClInclude Include="include\Kotonoha\renders\ImageRender.h">
@@ -209,19 +260,19 @@
     <ClInclude Include="include\Kotonoha\components\VoiceActivity.hpp">
       <Filter>Arquivos de Cabeçalho\components</Filter>
     </ClInclude>
-    <ClInclude Include="include\Kotonoha\speciais\Anime4K.h">
+    <ClInclude Include="include\Kotonoha\specials\Anime4K.h">
       <Filter>Arquivos de Cabeçalho\specials</Filter>
     </ClInclude>
-    <ClInclude Include="include\Kotonoha\speciais\MetalFX.h">
+    <ClInclude Include="include\Kotonoha\specials\MetalFX.h">
       <Filter>Arquivos de Cabeçalho\specials</Filter>
     </ClInclude>
-    <ClInclude Include="include\Kotonoha\speciais\Upscaling.h">
+    <ClInclude Include="include\Kotonoha\specials\Upscaling.h">
       <Filter>Arquivos de Cabeçalho\specials</Filter>
     </ClInclude>
     <ClInclude Include="include\Kotonoha\components\Upscaling.hpp">
       <Filter>Arquivos de Cabeçalho\components</Filter>
     </ClInclude>
-    <ClInclude Include="include\Kotonoha\speciais\OpenGL.h">
+    <ClInclude Include="include\Kotonoha\specials\OpenGL.h">
       <Filter>Arquivos de Cabeçalho\specials</Filter>
     </ClInclude>
     <ClInclude Include="include\Kotonoha\utils\Config.h">

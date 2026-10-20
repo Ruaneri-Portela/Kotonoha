@@ -1,5 +1,5 @@
 #include <Kotonoha/components/Image.hpp>
-#include <Kotonoha/speciais/Upscaling.h>
+#include <Kotonoha/specials/Upscaling.h>
 #include <algorithm>
 #include <cctype>
 

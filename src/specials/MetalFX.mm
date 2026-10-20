@@ -4,12 +4,12 @@
 #import <Metal/Metal.h>
 #import <MetalFX/MetalFX.h>
 
-#include <Kotonoha/speciais/MetalFX.h>
+#include <Kotonoha/specials/MetalFX.h>
 #include <cstddef>
 #include <deque>
 #include <mutex>
 #include <unordered_map>
-#include <Kotonoha/speciais/Upscaling.h>
+#include <Kotonoha/specials/Upscaling.h>
 
 #ifndef SDL_PROP_TEXTURE_METAL_TEXTURE_POINTER
 #define SDL_PROP_TEXTURE_METAL_TEXTURE_POINTER \

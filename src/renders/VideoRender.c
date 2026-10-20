@@ -1,5 +1,5 @@
 #include <Kotonoha/renders/VideoRender.h>
-#include <Kotonoha/speciais/Upscaling.h>
+#include <Kotonoha/specials/Upscaling.h>
 #include <Kotonoha/utils/FFmpegSDL.h>
 #include <limits.h>
 

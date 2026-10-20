@@ -1,6 +1,6 @@
 #include <Kotonoha/Gameplay.hpp>
 
-extern bool KotonohaBasicGuiAnyFocus;
+#include <Kotonoha/debug/DebugUi.hpp>
 
 namespace Kotonoha {
 namespace {
@@ -22,7 +22,7 @@ void Gameplay::Events(SDL_Event *event, Kotonoha_Game *gameContext) {
 
   const bool promptActive =
       this->prompt != nullptr && this->prompt->IsActive();
-  if (this->prompt != nullptr && !KotonohaBasicGuiAnyFocus) {
+  if (this->prompt != nullptr && !Debug::IsAnyWindowFocused()) {
     this->prompt->HandleEvent(event, gameContext, this->audio);
   }
 
@@ -52,7 +52,7 @@ void Gameplay::Events(SDL_Event *event, Kotonoha_Game *gameContext) {
 
 void Gameplay::HandleGamepadButton(SDL_Event *event,
                                    Kotonoha_Game *gameContext) {
-  if (KotonohaBasicGuiAnyFocus) {
+  if (Debug::IsAnyWindowFocused()) {
     return;
   }
 
@@ -82,7 +82,7 @@ void Gameplay::HandleGamepadButton(SDL_Event *event,
 
 void Gameplay::HandleGamepadAxis(SDL_Event *event, Kotonoha_Game *gameContext) {
   (void)gameContext;
-  if (KotonohaBasicGuiAnyFocus) {
+  if (Debug::IsAnyWindowFocused()) {
     return;
   }
 
@@ -137,7 +137,7 @@ void Gameplay::HandleTriggerSeek(TriggerSeekState &state,
 }
 
 void Gameplay::HandleKeyboard(SDL_Event *event, Kotonoha_Game *gameContext) {
-  if (KotonohaBasicGuiAnyFocus) {
+  if (Debug::IsAnyWindowFocused()) {
     return;
   }
 
