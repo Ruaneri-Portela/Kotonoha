@@ -85,6 +85,27 @@ bool Upscaling::ProcessUpscale(SDL_Renderer *render, SDL_Texture *srcTexutre) {
       upScaledTexture == nullptr) {
     return false;
   }
+  // Texturas YUV/NV12 expõem só o plano Y ao OpenGL (resultado P&B); o SDL as
+  // converte para RGB ao desenhar na textura intermediária.
+  if (srcTexutre != extraTexture && extraTexture != nullptr) {
+    const SDL_PixelFormat format = srcTexutre->format;
+    if (format != SDL_PIXELFORMAT_RGBA32 && format != SDL_PIXELFORMAT_BGRA32 &&
+        format != SDL_PIXELFORMAT_ARGB8888 &&
+        format != SDL_PIXELFORMAT_XRGB8888) {
+      SDL_Texture *previousTarget = SDL_GetRenderTarget(render);
+      if (!SDL_SetRenderTarget(render, extraTexture)) {
+        return false;
+      }
+      SDL_SetRenderDrawColor(render, 0, 0, 0, 0);
+      SDL_RenderClear(render);
+      const bool copied = SDL_RenderTexture(render, srcTexutre, nullptr, nullptr);
+      SDL_SetRenderTarget(render, previousTarget);
+      if (!copied) {
+        return false;
+      }
+      srcTexutre = extraTexture;
+    }
+  }
   return Kotonoha_UpscaleSDLTextureInto(render, srcTexutre, upScaledTexture);
 }
 } // namespace Kotonoha
