@@ -375,10 +375,7 @@ else ()
                         DIRECTORY
                 )
 
-                if (ASSET_RELATIVE_PATH STREQUAL "Kotonoha.ini")
-                    # O motor lê Kotonoha.ini da raiz de Resources.
-                    set(ASSET_BUNDLE_LOCATION "Resources")
-                elseif (ASSET_RELATIVE_DIRECTORY)
+                if (ASSET_RELATIVE_DIRECTORY)
                     set(ASSET_BUNDLE_LOCATION
                             "Resources/assets/${ASSET_RELATIVE_DIRECTORY}"
                     )

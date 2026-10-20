@@ -121,8 +121,9 @@ bool InitWindow() {
                                 SDL_WINDOW_HIDDEN |
                                 SDL_WINDOW_HIGH_PIXEL_DENSITY;
 
-#if defined(__APPLE__) && TARGET_OS_IOS
+#if (defined(__APPLE__) && TARGET_OS_IOS) || defined(__ANDROID__)
   windowFlags |= SDL_WINDOW_FULLSCREEN;
+  global.config.fullScreen = true;
 #endif
 
   global.window =

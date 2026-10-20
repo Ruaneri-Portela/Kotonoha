@@ -519,10 +519,6 @@ bool KotonohaConfigLoad(Kotonoha_Config *config, const char *path, int argc,
   // marcam dirty se necessário)
   config->cancelOpen = ParseArguments(config, argc, argv);
 
-  if (config->assStyles == NULL) {
-    config->assStyles = SDL_strdup("assets/styles.skot");
-  }
-
   if (!config->cancelOpen) {
     if (!Config_LoadStylesFile(config)) {
       config->cancelOpen = true;

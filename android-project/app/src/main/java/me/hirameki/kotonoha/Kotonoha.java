@@ -15,7 +15,7 @@ public class Kotonoha extends SDLActivity {
     @Override
     protected String[] getArguments() {
         String[] defaultArgs = new String[]{
-                "-v", "-u", "-z", "-t", "-r", "opengles2", "-f", "-i"
+                "-v", "-u", "-z", "-t", "-r", "opengles2"
         };
         if (customArguments != null) {
             String[] args = new String[defaultArgs.length + customArguments.length];

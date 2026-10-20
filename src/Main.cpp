@@ -25,7 +25,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
 
   std::memset(&global, 0, sizeof(global));
 
-  if (!KotonohaConfigLoad(&global.config, "Kotonoha.ini", argc, argv) ||
+  if (!KotonohaConfigLoad(&global.config, "assets/Kotonoha.ini", argc, argv) ||
       global.config.cancelOpen) {
     return SDL_APP_SUCCESS;
   }

@@ -32,6 +32,7 @@ struct Pass {
   std::vector<std::string> binds;
   std::vector<std::string> width;
   std::vector<std::string> height;
+  std::vector<std::string> when;
   std::string body;
   bool hasDirectives = false;
   GLuint program = 0;
@@ -179,6 +180,8 @@ void ParsePasses(const std::string &source, std::vector<Pass> &out) {
         cur.binds.push_back(args[0]);
       else if (key == "SAVE" && !args.empty())
         cur.save = args[0];
+      else if (key == "WHEN")
+        cur.when = args;
       else if (key == "WIDTH")
         cur.width = args;
       else if (key == "HEIGHT")
@@ -191,29 +194,43 @@ void ParsePasses(const std::string &source, std::vector<Pass> &out) {
   flush();
 }
 
-int EvalSize(const std::vector<std::string> &rpn, const TexRef &mainTex,
-             const std::map<std::string, TexRef> &reg) {
+struct SizeContext {
+  int outW = 0;
+  int outH = 0;
+  int nativeW = 0;
+  int nativeH = 0;
+};
+
+// Avalia expressões RPN do formato libplacebo (WIDTH/HEIGHT/WHEN).
+bool EvalRpn(const std::vector<std::string> &rpn, const TexRef &mainTex,
+             const std::map<std::string, TexRef> &reg, const SizeContext &ctx,
+             float &result) {
   if (rpn.empty())
-    return -1;
+    return false;
   std::vector<float> stack;
   for (const std::string &tok : rpn) {
+    const bool numeric = SDL_isdigit((unsigned char)tok[0]) || tok[0] == '.' ||
+                         (tok.size() > 1 && tok[0] == '-');
     const size_t dot = tok.find('.');
-    if (dot != std::string::npos) {
+    if (!numeric && dot != std::string::npos) {
       const std::string name = tok.substr(0, dot);
       const bool isW = tok.substr(dot + 1) == "w";
-      const TexRef *ref = nullptr;
-      if (name == "MAIN" || name == "HOOKED") {
-        ref = &mainTex;
+      if (name == "OUTPUT") {
+        stack.push_back((float)(isW ? ctx.outW : ctx.outH));
+      } else if (name == "NATIVE") {
+        stack.push_back((float)(isW ? ctx.nativeW : ctx.nativeH));
+      } else if (name == "MAIN" || name == "HOOKED") {
+        stack.push_back((float)(isW ? mainTex.w : mainTex.h));
       } else {
         auto it = reg.find(name);
         if (it == reg.end())
-          return -1;
-        ref = &it->second;
+          return false;
+        stack.push_back((float)(isW ? it->second.w : it->second.h));
       }
-      stack.push_back((float)(isW ? ref->w : ref->h));
-    } else if (tok == "*" || tok == "/" || tok == "+" || tok == "-") {
+    } else if (tok == "*" || tok == "/" || tok == "+" || tok == "-" ||
+               tok == "<" || tok == ">") {
       if (stack.size() < 2)
-        return -1;
+        return false;
       const float b = stack.back();
       stack.pop_back();
       const float a = stack.back();
@@ -221,14 +238,26 @@ int EvalSize(const std::vector<std::string> &rpn, const TexRef &mainTex,
       stack.push_back(tok == "*"   ? a * b
                       : tok == "/" ? (b != 0.0f ? a / b : 0.0f)
                       : tok == "+" ? a + b
-                                   : a - b);
+                      : tok == "-" ? a - b
+                      : tok == "<" ? (a < b ? 1.0f : 0.0f)
+                                   : (a > b ? 1.0f : 0.0f));
     } else {
       stack.push_back((float)SDL_atof(tok.c_str()));
     }
   }
   if (stack.size() != 1)
+    return false;
+  result = stack.back();
+  return true;
+}
+
+int EvalSize(const std::vector<std::string> &rpn, const TexRef &mainTex,
+             const std::map<std::string, TexRef> &reg,
+             const SizeContext &ctx) {
+  float value = 0.0f;
+  if (!EvalRpn(rpn, mainTex, reg, ctx, value))
     return -1;
-  return std::max(1, (int)(stack.back() + 0.5f));
+  return std::max(1, (int)(value + 0.5f));
 }
 
 GLuint CompileShader(GLenum type, const std::string &source) {
@@ -597,9 +626,21 @@ bool RunChain(GLuint inTex, int inW, int inH, GLuint outTex, int outW,
     }
   };
 
+  SizeContext ctx;
+  ctx.outW = outW;
+  ctx.outH = outH;
+  ctx.nativeW = inW;
+  ctx.nativeH = inH;
+
   for (const Pass &pass : g_passes) {
-    int w = EvalSize(pass.width, mainTex, reg);
-    int h = EvalSize(pass.height, mainTex, reg);
+    if (!pass.when.empty()) {
+      float condition = 1.0f;
+      if (EvalRpn(pass.when, mainTex, reg, ctx, condition) &&
+          condition == 0.0f)
+        continue;
+    }
+    int w = EvalSize(pass.width, mainTex, reg, ctx);
+    int h = EvalSize(pass.height, mainTex, reg, ctx);
     if (w < 0)
       w = mainTex.w;
     if (h < 0)
@@ -610,6 +651,10 @@ bool RunChain(GLuint inTex, int inW, int inH, GLuint outTex, int outW,
       TexRef src;
       if (ref.name == "MAIN" || ref.name == "HOOKED") {
         src = mainTex;
+      } else if (ref.name == "NATIVE") {
+        src.id = inTex;
+        src.w = inW;
+        src.h = inH;
       } else {
         auto it = reg.find(ref.name);
         if (it == reg.end()) {
@@ -632,10 +677,15 @@ bool RunChain(GLuint inTex, int inW, int inH, GLuint outTex, int outW,
     for (size_t i = 0; i < pass.refs.size() && i < (size_t)kMaxUnits; i++) {
       const BindRef &ref = pass.refs[i];
       TexRef src;
-      if (ref.name == "MAIN" || ref.name == "HOOKED")
+      if (ref.name == "MAIN" || ref.name == "HOOKED") {
         src = mainTex;
-      else
+      } else if (ref.name == "NATIVE") {
+        src.id = inTex;
+        src.w = inW;
+        src.h = inH;
+      } else {
         src = reg[ref.name];
+      }
       kotonoha_glActiveTexture(GL_TEXTURE0 + (GLenum)i);
       glBindTexture(GL_TEXTURE_2D, sources[i]);
       if (ref.raw >= 0)
