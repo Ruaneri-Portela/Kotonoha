@@ -1,4 +1,4 @@
-#include <Kotonoha/utils/Config.h>
+#include <Kotonoha/parsers/Config.h>
 #include <SDL3/SDL.h>
 #include <errno.h>
 #include <limits.h>
@@ -485,6 +485,7 @@ bool KotonohaConfigLoad(Kotonoha_Config *config, const char *path, int argc,
   config->windowSize[1] = 720;
   config->scalerFactor = 1.0f;
   config->videoCacheSeconds = 2.0f;
+  config->debugUiScale = 1.0f;
   config->enableVsync = true;
 
   if (path != NULL) {

@@ -35,6 +35,7 @@ typedef struct Kotonoha_Config {
   int windowSize[2];
   float scalerFactor;
   float videoCacheSeconds;
+  float debugUiScale;
 
   bool fullScreen;
   bool showFps;

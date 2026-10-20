@@ -114,9 +114,6 @@
     <ClCompile Include="src\renders\LoadingRender.c">
       <Filter>Arquivos de Origem\render</Filter>
     </ClCompile>
-    <ClCompile Include="src\utils\IOMonitor.c">
-      <Filter>Arquivos de Origem\utils</Filter>
-    </ClCompile>
     <ClCompile Include="src\components\Upscaling.cpp">
       <Filter>Arquivos de Origem\components</Filter>
     </ClCompile>
@@ -236,7 +233,7 @@
     <ClInclude Include="include\Kotonoha\utils\FFmpeg.h">
       <Filter>Arquivos de Cabeçalho\utils</Filter>
     </ClInclude>
-    <ClInclude Include="include\Kotonoha\utils\IOMonitor.h">
+    <ClInclude Include="include\Kotonoha\utils\FFmpegSDL.h">
       <Filter>Arquivos de Cabeçalho\utils</Filter>
     </ClInclude>
     <ClInclude Include="include\Kotonoha\utils\OrsTime.h">

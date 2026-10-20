@@ -59,6 +59,9 @@ static std::string originalScriptPathForTemporary;
 static std::string temporaryScriptPath;
 static int temporaryGameplayIndex = -1;
 static bool temporaryGameplayActive = false;
+static ImGuiStyle debugUiBaseStyle;
+static bool debugUiBaseStyleReady = false;
+static float appliedDebugUiScale = 1.0f;
 
 /* ---------------- Funções Utilitárias ---------------- */
 
@@ -850,6 +853,14 @@ static void Kotonoha_DrawSettingsFields(Kotonoha_Config *cfg,
     ImGui::TreePop();
   }
 
+  if (ImGui::TreeNodeEx("Debug UI", ImGuiTreeNodeFlags_DefaultOpen)) {
+    if (ImGui::SliderFloat("UI Scale", &cfg->debugUiScale, 0.5f, 3.0f,
+                           "%.2fx")) {
+      cfg->dirtyConfig = true;
+    }
+    ImGui::TreePop();
+  }
+
   if (ImGui::TreeNodeEx("Paths & Assets", ImGuiTreeNodeFlags_DefaultOpen)) {
     static std::string assetsBuf = cfg->assetsPath ? cfg->assetsPath : "";
     if (ImGui::InputText("Assets Path", &assetsBuf)) {
@@ -1485,6 +1496,9 @@ void KotonohaBasicGuiInit(Kotonoha_Game &gameContext, std::vector<Uint8> font) {
   io.FontDefault = mainFont;
 
   Kotonoha_ApplyPurpleTheme();
+  debugUiBaseStyle = ImGui::GetStyle();
+  debugUiBaseStyleReady = true;
+  appliedDebugUiScale = 0.0f;
 
   ImGui_ImplSDL3_InitForSDLRenderer(gameContext.window, gameContext.render);
   ImGui_ImplSDLRenderer3_Init(gameContext.render);
@@ -1494,6 +1508,19 @@ bool KotonohaBasicGuiRun(Kotonoha::Kotonoha *game, Kotonoha::Gameplay *play,
                          Kotonoha_Game &context) {
   if (!context.config.enableDebugUi || game == nullptr) {
     return true;
+  }
+
+  const float debugUiScale =
+      (context.config.debugUiScale >= 0.5f &&
+       context.config.debugUiScale <= 3.0f)
+          ? context.config.debugUiScale
+          : 1.0f;
+  if (debugUiBaseStyleReady && appliedDebugUiScale != debugUiScale) {
+    ImGuiStyle &style = ImGui::GetStyle();
+    style = debugUiBaseStyle;
+    style.ScaleAllSizes(debugUiScale);
+    style.FontScaleMain = debugUiScale;
+    appliedDebugUiScale = debugUiScale;
   }
 
   Kotonoha_TryAutoLoadCurrentScene(game, context);

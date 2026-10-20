@@ -1,6 +1,6 @@
 #pragma once
 
-#include <Kotonoha/utils/Config.h>
+#include <Kotonoha/parsers/Config.h>
 #include <SDL3/SDL.h>
 #include <ass/ass.h>
 

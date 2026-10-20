@@ -1,6 +1,11 @@
 #include <Kotonoha/speciais/OpenGL.h>
 
 #define GL_LOAD_FUNC(type, name) name = (type)SDL_GL_GetProcAddress(#name)
+#define GL_LOAD_FUNC_EXT(type, name)                                         \
+  name = (type)SDL_GL_GetProcAddress(#name);                                 \
+  if (name == NULL) {                                                        \
+    name = (type)SDL_GL_GetProcAddress(#name "EXT");                         \
+  }
 
 PFNGLCREATESHADERPROC glCreateShader = NULL;
 PFNGLSHADERSOURCEPROC glShaderSource = NULL;
@@ -16,6 +21,9 @@ PFNGLGETPROGRAMIVPROC glGetProgramiv = NULL;
 PFNGLGETPROGRAMINFOLOGPROC glGetProgramInfoLog = NULL;
 PFNGLGETUNIFORMLOCATIONPROC glGetUniformLocation = NULL;
 PFNGLGETATTRIBLOCATIONPROC glGetAttribLocation = NULL;
+PFNGLGETVERTEXATTRIBIVPROC glGetVertexAttribiv = NULL;
+PFNGLGETVERTEXATTRIBPOINTERVPROC glGetVertexAttribPointerv = NULL;
+PFNGLACTIVETEXTUREPROC kotonoha_glActiveTexture = NULL;
 PFNGLUSEPROGRAMPROC glUseProgram = NULL;
 PFNGLUNIFORM1IPROC glUniform1i = NULL;
 PFNGLUNIFORM2FPROC glUniform2f = NULL;
@@ -50,6 +58,9 @@ void KotonohaOpenGLReset(void) {
   glGetProgramInfoLog = NULL;
   glGetUniformLocation = NULL;
   glGetAttribLocation = NULL;
+  glGetVertexAttribiv = NULL;
+  glGetVertexAttribPointerv = NULL;
+  kotonoha_glActiveTexture = NULL;
   glUseProgram = NULL;
   glUniform1i = NULL;
   glUniform2f = NULL;
@@ -91,6 +102,11 @@ bool KotonohaOpenGLInit(void) {
   GL_LOAD_FUNC(PFNGLGETPROGRAMINFOLOGPROC, glGetProgramInfoLog);
   GL_LOAD_FUNC(PFNGLGETUNIFORMLOCATIONPROC, glGetUniformLocation);
   GL_LOAD_FUNC(PFNGLGETATTRIBLOCATIONPROC, glGetAttribLocation);
+  GL_LOAD_FUNC(PFNGLGETVERTEXATTRIBIVPROC, glGetVertexAttribiv);
+  GL_LOAD_FUNC(PFNGLGETVERTEXATTRIBPOINTERVPROC,
+               glGetVertexAttribPointerv);
+  kotonoha_glActiveTexture =
+      (PFNGLACTIVETEXTUREPROC)SDL_GL_GetProcAddress("glActiveTexture");
   GL_LOAD_FUNC(PFNGLUSEPROGRAMPROC, glUseProgram);
   GL_LOAD_FUNC(PFNGLUNIFORM1IPROC, glUniform1i);
   GL_LOAD_FUNC(PFNGLUNIFORM2FPROC, glUniform2f);
@@ -101,17 +117,19 @@ bool KotonohaOpenGLInit(void) {
   GL_LOAD_FUNC(PFNGLBINDBUFFERPROC, glBindBuffer);
   GL_LOAD_FUNC(PFNGLBUFFERDATAPROC, glBufferData);
   GL_LOAD_FUNC(PFNGLDELETEBUFFERSPROC, glDeleteBuffers);
-  GL_LOAD_FUNC(PFNGLGENFRAMEBUFFERSPROC, glGenFramebuffers);
-  GL_LOAD_FUNC(PFNGLBINDFRAMEBUFFERPROC, glBindFramebuffer);
-  GL_LOAD_FUNC(PFNGLFRAMEBUFFERTEXTURE2DPROC, glFramebufferTexture2D);
-  GL_LOAD_FUNC(PFNGLCHECKFRAMEBUFFERSTATUSPROC, glCheckFramebufferStatus);
-  GL_LOAD_FUNC(PFNGLDELETEFRAMEBUFFERSPROC, glDeleteFramebuffers);
+  GL_LOAD_FUNC_EXT(PFNGLGENFRAMEBUFFERSPROC, glGenFramebuffers);
+  GL_LOAD_FUNC_EXT(PFNGLBINDFRAMEBUFFERPROC, glBindFramebuffer);
+  GL_LOAD_FUNC_EXT(PFNGLFRAMEBUFFERTEXTURE2DPROC, glFramebufferTexture2D);
+  GL_LOAD_FUNC_EXT(PFNGLCHECKFRAMEBUFFERSTATUSPROC, glCheckFramebufferStatus);
+  GL_LOAD_FUNC_EXT(PFNGLDELETEFRAMEBUFFERSPROC, glDeleteFramebuffers);
 
   if (!glCreateShader || !glShaderSource || !glCompileShader ||
       !glGetShaderiv || !glGetShaderInfoLog || !glDeleteShader ||
       !glCreateProgram || !glDeleteProgram || !glAttachShader ||
       !glLinkProgram || !glGetProgramiv || !glGetProgramInfoLog ||
       !glGetUniformLocation || !glGetAttribLocation || !glUseProgram ||
+      !glGetVertexAttribiv || !glGetVertexAttribPointerv ||
+      !kotonoha_glActiveTexture ||
       !glUniform1i || !glUniform2f || !glEnableVertexAttribArray ||
       !glVertexAttribPointer || !glDisableVertexAttribArray || !glGenBuffers ||
       !glBindBuffer || !glBufferData || !glDeleteBuffers ||
@@ -128,4 +146,5 @@ bool KotonohaOpenGLInit(void) {
   return true;
 }
 
-#undef GL_LOAD
+#undef GL_LOAD_FUNC
+#undef GL_LOAD_FUNC_EXT

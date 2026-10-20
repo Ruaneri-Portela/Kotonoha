@@ -235,7 +235,35 @@ enum Kotonoha_Scene_Status KotonohaTextRenderDraw(KOTONOHA_SCENE_CALL) {
     return KOTONOHA_SCENE_WAITING;
   }
 
-  SDL_RenderClear(render);
+  Uint8 previousRed = 0;
+  Uint8 previousGreen = 0;
+  Uint8 previousBlue = 0;
+  Uint8 previousAlpha = 0;
+  if (!SDL_GetRenderDrawColor(render, &previousRed, &previousGreen,
+                              &previousBlue, &previousAlpha) ||
+      !SDL_SetRenderDrawColor(render, 0, 0, 0, 0)) {
+    SDL_LogError(SDL_LOG_CATEGORY_ERROR,
+                 "Failed to prepare transparent subtitle canvas: %s",
+                 SDL_GetError());
+    if (previousTarget != target) {
+      SDL_SetRenderTarget(render, previousTarget);
+    }
+    return KOTONOHA_SCENE_FATAL_ERROR;
+  }
+
+  const bool cleared = SDL_RenderClear(render);
+  const bool restoredDrawColor =
+      SDL_SetRenderDrawColor(render, previousRed, previousGreen, previousBlue,
+                             previousAlpha);
+  if (!cleared || !restoredDrawColor) {
+    SDL_LogError(SDL_LOG_CATEGORY_ERROR,
+                 "Failed to clear transparent subtitle canvas: %s",
+                 SDL_GetError());
+    if (previousTarget != target) {
+      SDL_SetRenderTarget(render, previousTarget);
+    }
+    return KOTONOHA_SCENE_FATAL_ERROR;
+  }
 
   bool renderedAny = false;
 

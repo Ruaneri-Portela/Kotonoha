@@ -1,6 +1,6 @@
 #include "imgui.h"
 #include "imgui_internal.h"
-#include <Kotonoha/utils/Config.h>
+#include <Kotonoha/parsers/Config.h>
 #include <SDL3/SDL.h>
 #include <cstdio>
 #include <cstring>
@@ -58,7 +58,7 @@ static void KotonohaSettings_ReadLine(ImGuiContext *ctx,
     return;
 
   int w, h;
-  float factor, cache;
+  float factor, cache, debugUiScale;
   int full, vsync, fps, ts, ui, skip;
 
   if (SDL_sscanf(line, "WindowSize=%d,%d", &w, &h) == 2) {
@@ -72,6 +72,10 @@ static void KotonohaSettings_ReadLine(ImGuiContext *ctx,
     config->enableVsync = (bool)vsync;
   } else if (SDL_sscanf(line, "VideoCacheSeconds=%f", &cache) == 1) {
     config->videoCacheSeconds = cache;
+  } else if (SDL_sscanf(line, "DebugUiScale=%f", &debugUiScale) == 1) {
+    if (debugUiScale >= 0.5f && debugUiScale <= 3.0f) {
+      config->debugUiScale = debugUiScale;
+    }
   } else if (SDL_sscanf(line, "ShowFps=%d", &fps) == 1) {
     config->showFps = (bool)fps;
   } else if (SDL_sscanf(line, "ShowTimestamp=%d", &ts) == 1) {
@@ -103,6 +107,7 @@ static void KotonohaSettings_WriteAll(ImGuiContext *ctx,
   buf->appendf("FullScreen=%d\n", config->fullScreen ? 1 : 0);
   buf->appendf("EnableVsync=%d\n", config->enableVsync ? 1 : 0);
   buf->appendf("VideoCacheSeconds=%.2f\n", config->videoCacheSeconds);
+  buf->appendf("DebugUiScale=%.2f\n", config->debugUiScale);
   buf->appendf("ShowFps=%d\n", config->showFps ? 1 : 0);
   buf->appendf("ShowTimestamp=%d\n", config->showTimestamp ? 1 : 0);
   buf->appendf("EnableDebugUi=%d\n", config->enableDebugUi ? 1 : 0);

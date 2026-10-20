@@ -29,8 +29,7 @@ static inline bool KotonohaPcmReserve(Kotonoha_PcmBuffer *buffer,
 }
 
 bool KotonohaPcmDecodeVoice(const char *path, Sint16 **samples,
-                            size_t *sampleCount,
-                            Kotonoha_IOMonitor *ioMonitor) {
+                            size_t *sampleCount) {
   if (!samples || !sampleCount || !path || *path == '\0')
     return false;
 
@@ -43,12 +42,10 @@ bool KotonohaPcmDecodeVoice(const char *path, Sint16 **samples,
   AVFrame *frame = NULL;
   AVPacket *packet = NULL;
   Kotonoha_PcmBuffer pcm = {NULL, 0, 0};
-  Kotonoha_IOMonitorOperation ioOperation;
-  KotonohaIOMonitorOperationInit(&ioOperation, ioMonitor);
   int stream = -1;
 
-  if (!KotonohaFFmpegLoadMonitored(path, &format, &codec, AVMEDIA_TYPE_AUDIO,
-                                   &stream, 0, NULL, &ioOperation)) {
+  if (!KotonohaFFmpegLoad(path, &format, &codec, AVMEDIA_TYPE_AUDIO, &stream, 0,
+                          NULL)) {
     return false;
   }
 
@@ -99,7 +96,6 @@ cleanup:
     avcodec_free_context(&codec);
   if (format)
     avformat_close_input(&format);
-  KotonohaIOMonitorOperationReset(&ioOperation);
 
   return pcm.count > 0;
 }

@@ -1,6 +1,11 @@
 #pragma once
 #include <SDL3/SDL.h>
+#if defined(__ANDROID__) || defined(ANDROID)
+#include <GLES2/gl2.h>
+#include <GLES2/gl2ext.h>
+#else
 #include <SDL3/SDL_opengl.h>
+#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -27,6 +32,9 @@ extern PFNGLGETPROGRAMIVPROC glGetProgramiv;
 extern PFNGLGETPROGRAMINFOLOGPROC glGetProgramInfoLog;
 extern PFNGLGETUNIFORMLOCATIONPROC glGetUniformLocation;
 extern PFNGLGETATTRIBLOCATIONPROC glGetAttribLocation;
+extern PFNGLGETVERTEXATTRIBIVPROC glGetVertexAttribiv;
+extern PFNGLGETVERTEXATTRIBPOINTERVPROC glGetVertexAttribPointerv;
+extern PFNGLACTIVETEXTUREPROC kotonoha_glActiveTexture;
 extern PFNGLUSEPROGRAMPROC glUseProgram;
 extern PFNGLUNIFORM1IPROC glUniform1i;
 extern PFNGLUNIFORM2FPROC glUniform2f;

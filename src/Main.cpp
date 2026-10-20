@@ -2,8 +2,8 @@
 #include <Kotonoha/Init.hpp>
 #include <Kotonoha/speciais/Upscaling.h>
 #include <SDL3/SDL_main.h>
-#include <imgui.h>
 #include <cstring>
+#include <imgui.h>
 
 extern "C" {
 SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
@@ -109,7 +109,7 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
   }
 
   Kotonoha::Gameplay *inRunning = nullptr;
-  SDL_SetRenderDrawColor(global.render, 0, 0, 0, 0);
+  SDL_SetRenderDrawColor(global.render, 0, 0, 0, 255);
   SDL_RenderClear(global.render);
 
   const SDL_AppResult status = app->Main(&inRunning);
@@ -134,7 +134,6 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
 
   if (global.config.showTimestamp && inRunning != nullptr) {
     void *timestampArgs[2] = {inRunning->tm, preferredFont};
-
     KotonohaTimestampRender(global.window, global.render, timestampArgs,
                             nullptr);
   }
@@ -142,6 +141,7 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
   if (inRunning != nullptr && inRunning->ShouldShowLoadingOverlay()) {
     KotonohaLoadingRender(global.window, global.render, preferredFont, nullptr);
   }
+
   if (!KotonohaBasicGuiRun(app, inRunning, global)) {
     return SDL_APP_SUCCESS;
   }

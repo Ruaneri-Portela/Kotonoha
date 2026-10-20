@@ -10,7 +10,6 @@
 
 #include <Kotonoha/parsers/Ors.h>
 #include <Kotonoha/renders/TextRender.h>
-#include <Kotonoha/utils/IOMonitor.h>
 #include <Kotonoha/utils/VoicePcm.h>
 
 namespace Kotonoha {
@@ -29,6 +28,11 @@ private:
     long long duration;
   };
 
+  struct PendingAssetLoad {
+    Uint64 retryAfterTicks = 0;
+    bool loadingSignaled = false;
+  };
+
   Kotonoha_OrsData eventsFromScript;
   static int EventManager(void *data);
   SDL_Mutex *eventMutex = nullptr;
@@ -39,7 +43,7 @@ private:
   std::vector<Image *> imageToDelete;
   std::vector<Audio *> audioToDeleta;
   std::unordered_map<const Kotonoha_OrsEvent *, VoiceAnimation> voiceAnimations;
-  std::unordered_map<const Kotonoha_OrsEvent *, Kotonoha_IOMonitorOperation>
+  std::unordered_map<const Kotonoha_OrsEvent *, PendingAssetLoad>
       pendingAssetLoads;
 
   void SetSubtitlesActive(bool active);

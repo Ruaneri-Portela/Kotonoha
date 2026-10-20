@@ -35,7 +35,7 @@ struct AbcGroup {
 class Image : public Upscaling {
 private:
   Kotonoha_Time *timeManager = nullptr;
-  Kotonoha_IOMonitor *ioMonitor = nullptr;
+  bool ignoreMissingAssets = false;
 
   std::vector<Kotonoha_Picture *> pictures;
   SDL_Mutex *lock = nullptr;
@@ -55,7 +55,7 @@ private:
                      Kotonoha_Picture *picture, bool &cleaned);
 
 public:
-  Image(Kotonoha_Time *time, Kotonoha_IOMonitor *ioMonitor);
+  Image(Kotonoha_Time *time, bool ignoreMissingAssets);
   ~Image();
 
   void Reset();

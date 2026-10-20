@@ -22,13 +22,13 @@ typedef struct Kotonoha_VideoData {
   int swsBufferWidth;
   int swsBufferHeight;
 
-  AVFormatContext *pFormatCtx;
   AVCodecContext *pCodecCtx;
   int videoStreamIndex;
+  AVRational videoTimeBase;
+  enum AVPixelFormat sourcePixelFormat;
 
   Kotonoha_Time *time;
   Kotonoha_FFmpegHwContext *hwCtx;
-  Kotonoha_IOMonitorOperation ioOperation;
   Kotonoha_Demuxer *demuxer;
   Kotonoha_DemuxStream *stream;
 
@@ -38,12 +38,15 @@ typedef struct Kotonoha_VideoData {
   bool useOrsFrameTimeline;
   Uint64 orsEndFrame;
   bool firstSeek;
+  bool decoderFlushSent;
+  bool textureFormatInitialized;
+  bool directTextureUploadFailed;
 } Kotonoha_VideoData;
 
 Kotonoha_VideoData *KotonohaVideoRenderInit(
     const char *filename, Kotonoha_Time *time, Uint64 startTime, Uint64 endTime,
-    bool useOrsFrameTimeline, Uint64 orsEndFrame, Kotonoha_IOMonitor *ioMonitor,
-    float cacheDurationSeconds, Kotonoha_Demuxer *demuxer);
+    bool useOrsFrameTimeline, Uint64 orsEndFrame, float cacheDurationSeconds,
+    Kotonoha_Demuxer *demuxer);
 
 void KotonohaVideoRenderShutdown(Kotonoha_VideoData **instance);
 

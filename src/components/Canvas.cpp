@@ -11,6 +11,86 @@ static bool CanvasItemLess(const CanvasItem &a, const CanvasItem &b) {
 static bool IsValidSize(const SDL_FRect &place) {
   return place.w > 0.0f && place.h > 0.0f;
 }
+
+static void DestroyCanvasItemTextures(CanvasItem &item) {
+  if (item.target != nullptr) {
+    SDL_DestroyTexture(item.target);
+    item.target = nullptr;
+  }
+  if (item.dirtyFrame != nullptr) {
+    SDL_DestroyTexture(item.dirtyFrame);
+    item.dirtyFrame = nullptr;
+  }
+  item.hasDirtyFrame = false;
+  item.keepLastFrame = false;
+}
+
+static bool CaptureDirtyFrame(SDL_Renderer *render, CanvasItem &item) {
+  if (item.dirtyFrame == nullptr) {
+    float width = 0.0f;
+    float height = 0.0f;
+    if (!SDL_GetTextureSize(item.target, &width, &height)) {
+      SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
+                   "Failed to get canvas texture dimensions: %s",
+                   SDL_GetError());
+      return false;
+    }
+
+    item.dirtyFrame = SDL_CreateTexture(
+        render, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET,
+        static_cast<int>(width), static_cast<int>(height));
+    if (item.dirtyFrame == nullptr) {
+      SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
+                   "Failed to create retained canvas texture: %s",
+                   SDL_GetError());
+      return false;
+    }
+  }
+
+  if (!SDL_SetRenderTarget(render, item.dirtyFrame)) {
+    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
+                 "Failed to set retained canvas target: %s", SDL_GetError());
+    return false;
+  }
+
+  Uint8 drawR = 0;
+  Uint8 drawG = 0;
+  Uint8 drawB = 0;
+  Uint8 drawA = 0;
+  SDL_BlendMode sourceBlendMode = SDL_BLENDMODE_BLEND;
+  const bool drawColorSaved =
+      SDL_GetRenderDrawColor(render, &drawR, &drawG, &drawB, &drawA);
+  const bool sourceBlendSaved =
+      SDL_GetTextureBlendMode(item.target, &sourceBlendMode);
+  const bool snapshotPrepared =
+      drawColorSaved && sourceBlendSaved &&
+      SDL_SetRenderDrawColor(render, 0, 0, 0, 0) &&
+      SDL_RenderClear(render) &&
+      SDL_SetTextureBlendMode(item.target, SDL_BLENDMODE_NONE) &&
+      SDL_SetTextureBlendMode(item.dirtyFrame, SDL_BLENDMODE_NONE);
+  const bool copied = snapshotPrepared &&
+                      SDL_RenderTexture(render, item.target, nullptr, nullptr);
+  const bool sourceBlendRestored =
+      sourceBlendSaved &&
+      SDL_SetTextureBlendMode(item.target, sourceBlendMode);
+  const bool snapshotBlendSet =
+      SDL_SetTextureBlendMode(item.dirtyFrame, SDL_BLENDMODE_BLEND);
+  const bool drawColorRestored =
+      drawColorSaved &&
+      SDL_SetRenderDrawColor(render, drawR, drawG, drawB, drawA);
+  const bool targetRestored = SDL_SetRenderTarget(render, item.target);
+
+  if (!snapshotPrepared || !copied || !sourceBlendRestored ||
+      !targetRestored || !snapshotBlendSet || !drawColorRestored) {
+    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
+                 "Failed to preserve canvas frame: %s", SDL_GetError());
+    item.hasDirtyFrame = false;
+    return false;
+  }
+
+  item.hasDirtyFrame = true;
+  return true;
+}
 } // namespace
 
 void Canvas::RegisterCanva(
@@ -26,7 +106,10 @@ void Canvas::RegisterCanva(
   item.place = place;
   item.userData = userData;
   item.target = nullptr;
+  item.dirtyFrame = nullptr;
   item.swapTexture = false;
+  item.keepLastFrame = false;
+  item.hasDirtyFrame = false;
 
   drawingList.push_back(item);
   std::sort(drawingList.begin(), drawingList.end(), CanvasItemLess);
@@ -35,20 +118,8 @@ void Canvas::RegisterCanva(
 void Canvas::UnregisterCanva(
     Kotonoha_Scene_Status (*drawingPoint)(KOTONOHA_SCENE_CALL)) {
   for (auto &item : drawingList) {
-    if (item.drawingPoint == drawingPoint && item.target != nullptr) {
-      SDL_DestroyTexture(item.target);
-      item.target = nullptr;
-    }
-  }
-
-  if (dirtyTexture != nullptr) {
-    for (const auto &item : drawingList) {
-      if (item.drawingPoint == drawingPoint && item.zIndex == dirtyZIndex) {
-        SDL_DestroyTexture(dirtyTexture);
-        dirtyTexture = nullptr;
-        dirtyZIndex = 32767;
-        break;
-      }
+    if (item.drawingPoint == drawingPoint) {
+      DestroyCanvasItemTextures(item);
     }
   }
 
@@ -62,10 +133,6 @@ void Canvas::UnregisterCanva(
 void Canvas::UpdateCanva(
     Kotonoha_Scene_Status (*drawingPoint)(KOTONOHA_SCENE_CALL), Sint16 zIndex,
     SDL_FRect place) {
-  if (drawingPoint == nullptr) {
-    dirtyPlace = place;
-  }
-
   bool needsResort = false;
 
   for (auto &item : drawingList) {
@@ -73,7 +140,8 @@ void Canvas::UpdateCanva(
       continue;
     }
 
-    if (item.place.w != place.w || item.place.h != place.h) {
+    if ((item.place.w != place.w || item.place.h != place.h) &&
+        !item.keepLastFrame) {
       item.swapTexture = true;
     }
 
@@ -92,12 +160,6 @@ void Canvas::UpdateCanva(
 
 void Canvas::BeginFrame() { minDrawnZIndex = 32767; }
 
-SDL_AtomicInt *Canvas::NetworkWaitFlag() { return &networkWaitFlag; }
-
-bool Canvas::IsWaitingForNetwork() const {
-  return SDL_GetAtomicInt(&networkWaitFlag) != 0;
-}
-
 bool Canvas::DrewAtOrBelow(Sint16 zIndex) const {
   return minDrawnZIndex <= zIndex;
 }
@@ -110,17 +172,6 @@ SDL_AppResult Canvas::RenderCanvas(SDL_Window *window, SDL_Renderer *render) {
   BeginFrame();
   SDL_AppResult status = SDL_APP_CONTINUE;
 
-  if (dirtyTexture != nullptr) {
-    if (SDL_RenderTexture(render, dirtyTexture, nullptr, &dirtyPlace)) {
-      minDrawnZIndex = std::min(minDrawnZIndex, dirtyZIndex);
-    } else {
-      SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
-                   "Failed to draw retained canvas texture: %s",
-                   SDL_GetError());
-      status = SDL_APP_FAILURE;
-    }
-  }
-
   for (auto &item : drawingList) {
     if (item.userData == nullptr || item.drawingPoint == nullptr) {
       continue;
@@ -130,9 +181,8 @@ SDL_AppResult Canvas::RenderCanvas(SDL_Window *window, SDL_Renderer *render) {
       continue;
     }
 
-    if (item.swapTexture && item.target != nullptr) {
-      SDL_DestroyTexture(item.target);
-      item.target = nullptr;
+    if (item.swapTexture) {
+      DestroyCanvasItemTextures(item);
       item.swapTexture = false;
     }
 
@@ -163,51 +213,43 @@ SDL_AppResult Canvas::RenderCanvas(SDL_Window *window, SDL_Renderer *render) {
     }
     const Kotonoha_Scene_Status result =
         item.drawingPoint(window, render, item.userData, item.target);
-
-    if (result == KOTONOHA_SCENE_NULL || result == KOTONOHA_SCENE_COMPLETE) {
-      if (!SDL_SetRenderTarget(render, nullptr)) {
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
-                     "Failed to restore backbuffer after canvas callback: %s",
-                     SDL_GetError());
-        return SDL_APP_FAILURE;
-      }
-      continue;
-    }
+    const bool hasNewFrame = result == KOTONOHA_SCENE_DRAW ||
+                             result == KOTONOHA_SCENE_DRAW_LAST ||
+                             result == KOTONOHA_SCENE_DRAW_OVERLAYED;
 
     if (result == KOTONOHA_SCENE_DRAW_LAST) {
-      if (dirtyTexture != nullptr) {
-        SDL_DestroyTexture(dirtyTexture);
-      }
-      dirtyTexture = item.target;
-      dirtyPlace = item.place;
-      dirtyZIndex = item.zIndex;
-      item.target = nullptr;
+      item.keepLastFrame = true;
+    } else if (result == KOTONOHA_SCENE_DRAW ||
+               result == KOTONOHA_SCENE_DRAW_OVERLAYED) {
+      item.keepLastFrame = false;
+    }
 
+    if (hasNewFrame && !CaptureDirtyFrame(render, item)) {
+      status = SDL_APP_FAILURE;
+    }
+
+    if (result == KOTONOHA_SCENE_NULL ||
+        result == KOTONOHA_SCENE_COMPLETE ||
+        result == KOTONOHA_SCENE_WAITING) {
       if (!SDL_SetRenderTarget(render, nullptr)) {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
                      "Failed to restore backbuffer after canvas callback: %s",
                      SDL_GetError());
         return SDL_APP_FAILURE;
       }
-      if (dirtyTexture != nullptr &&
-          SDL_RenderTexture(render, dirtyTexture, nullptr, &dirtyPlace)) {
-        minDrawnZIndex = std::min(minDrawnZIndex, item.zIndex);
-      } else if (dirtyTexture != nullptr) {
+      SDL_Texture *retained =
+          item.hasDirtyFrame && (item.keepLastFrame ||
+                                 result == KOTONOHA_SCENE_WAITING)
+              ? item.dirtyFrame
+              : nullptr;
+      if (retained != nullptr &&
+          !SDL_RenderTexture(render, retained, nullptr, &item.place)) {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
-                     "Failed to draw retained canvas texture: %s",
+                     "Failed to draw retained canvas item: %s",
                      SDL_GetError());
         status = SDL_APP_FAILURE;
-      }
-      continue;
-    }
-
-    if (result == KOTONOHA_SCENE_WAITING) {
-      if (!SDL_SetRenderTarget(render, nullptr)) {
-        SDL_LogError(
-            SDL_LOG_CATEGORY_APPLICATION,
-            "Failed to restore backbuffer after waiting canvas callback: %s",
-            SDL_GetError());
-        return SDL_APP_FAILURE;
+      } else if (retained != nullptr) {
+        minDrawnZIndex = std::min(minDrawnZIndex, item.zIndex);
       }
       continue;
     }
@@ -220,11 +262,9 @@ SDL_AppResult Canvas::RenderCanvas(SDL_Window *window, SDL_Renderer *render) {
         return SDL_APP_FAILURE;
       }
       if (SDL_RenderTexture(render, item.target, nullptr, &item.place) &&
-          (result == KOTONOHA_SCENE_DRAW ||
-           result == KOTONOHA_SCENE_DRAW_OVERLAYED)) {
+          hasNewFrame) {
         minDrawnZIndex = std::min(minDrawnZIndex, item.zIndex);
-      } else if (result == KOTONOHA_SCENE_DRAW ||
-                 result == KOTONOHA_SCENE_DRAW_OVERLAYED) {
+      } else if (hasNewFrame) {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
                      "Failed to draw canvas texture: %s", SDL_GetError());
         status = SDL_APP_FAILURE;
@@ -238,17 +278,9 @@ int Canvas::CanvasCount() { return static_cast<int>(drawingList.size()); }
 
 void Canvas::Reset() {
   for (auto &item : drawingList) {
-    if (item.target != nullptr) {
-      SDL_DestroyTexture(item.target);
-      item.target = nullptr;
-    }
+    DestroyCanvasItemTextures(item);
   }
 
-  if (dirtyTexture != nullptr) {
-    SDL_DestroyTexture(dirtyTexture);
-    dirtyTexture = nullptr;
-  }
-  dirtyZIndex = 32767;
   minDrawnZIndex = 32767;
 }
 

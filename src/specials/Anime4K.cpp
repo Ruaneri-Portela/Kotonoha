@@ -2,16 +2,8 @@
 #include <SDL3/SDL.h>
 
 #if defined(KOTONOHA_HAS_ANIME4K)
-#if defined(__ANDROID__) || defined(ANDROID)
-#include <GLES2/gl2.h>
-#include <GLES2/gl2ext.h>
-#elif defined(__APPLE__)
-#include <OpenGL/gl3.h>
-#else
-#include <SDL3/SDL_opengl.h>
-#endif
+#include <Kotonoha/speciais/OpenGL.h>
 
-#include <sstream>
 #include <string>
 namespace {
 
@@ -27,89 +19,67 @@ static GLint g_uTextureSizeLoc = -1;
 static GLint g_aPosLoc = -1;
 static GLint g_aTexLoc = -1;
 
-static const char *kVertexShaderSource = R"(
-#version 100
-attribute vec2 aPos;
-attribute vec2 aTex;
-varying vec2 vTexCoord;
+struct VertexAttributeState {
+  GLint index;
+  GLint enabled;
+  GLint size;
+  GLint type;
+  GLint normalized;
+  GLint stride;
+  GLint buffer;
+  void *pointer;
+};
 
-void main() {
-    vTexCoord = aTex;
-    gl_Position = vec4(aPos, 0.0, 1.0);
+static VertexAttributeState SaveVertexAttribute(GLint index) {
+  VertexAttributeState state = {index, 0, 0, 0, 0, 0, 0, nullptr};
+  if (index < 0) {
+    return state;
+  }
+
+  glGetVertexAttribiv((GLuint)index, GL_VERTEX_ATTRIB_ARRAY_ENABLED,
+                      &state.enabled);
+  glGetVertexAttribiv((GLuint)index, GL_VERTEX_ATTRIB_ARRAY_SIZE,
+                      &state.size);
+  glGetVertexAttribiv((GLuint)index, GL_VERTEX_ATTRIB_ARRAY_TYPE,
+                      &state.type);
+  glGetVertexAttribiv((GLuint)index, GL_VERTEX_ATTRIB_ARRAY_NORMALIZED,
+                      &state.normalized);
+  glGetVertexAttribiv((GLuint)index, GL_VERTEX_ATTRIB_ARRAY_STRIDE,
+                      &state.stride);
+  glGetVertexAttribiv((GLuint)index, GL_VERTEX_ATTRIB_ARRAY_BUFFER_BINDING,
+                      &state.buffer);
+  glGetVertexAttribPointerv((GLuint)index, GL_VERTEX_ATTRIB_ARRAY_POINTER,
+                            &state.pointer);
+  return state;
 }
-)";
 
-static const char *kFallbackFragmentShaderSource = R"(
-#version 100
-precision mediump float;
+static void RestoreVertexAttribute(const VertexAttributeState &state) {
+  if (state.index < 0) {
+    return;
+  }
 
-varying vec2 vTexCoord;
-uniform sampler2D uTexture;
-uniform vec2 uTextureSize;
-
-float getLuma(vec3 color) {
-    return dot(color, vec3(0.299, 0.587, 0.114));
+  glBindBuffer(GL_ARRAY_BUFFER, (GLuint)state.buffer);
+  glVertexAttribPointer((GLuint)state.index, state.size, (GLenum)state.type,
+                        (GLboolean)state.normalized, state.stride,
+                        state.pointer);
+  if (state.enabled) {
+    glEnableVertexAttribArray((GLuint)state.index);
+  } else {
+    glDisableVertexAttribArray((GLuint)state.index);
+  }
 }
-
-vec4 getSample(vec2 offset) {
-    return texture2D(uTexture, vTexCoord + offset / uTextureSize);
-}
-
-void main() {
-    vec4 c = texture2D(uTexture, vTexCoord);
-
-    vec4 t  = getSample(vec2( 0.0, -1.0));
-    vec4 b  = getSample(vec2( 0.0,  1.0));
-    vec4 l  = getSample(vec2(-1.0,  0.0));
-    vec4 r  = getSample(vec2( 1.0,  0.0));
-
-    vec4 tl = getSample(vec2(-1.0, -1.0));
-    vec4 tr = getSample(vec2( 1.0, -1.0));
-    vec4 bl = getSample(vec2(-1.0,  1.0));
-    vec4 br = getSample(vec2( 1.0,  1.0));
-
-    float lumaC  = getLuma(c.rgb);
-    float lumaT  = getLuma(t.rgb);
-    float lumaB  = getLuma(b.rgb);
-    float lumaL  = getLuma(l.rgb);
-    float lumaR  = getLuma(r.rgb);
-
-    float lumaTL = getLuma(tl.rgb);
-    float lumaTR = getLuma(tr.rgb);
-    float lumaBL = getLuma(bl.rgb);
-    float lumaBR = getLuma(br.rgb);
-
-    float gx = (lumaTR + 2.0 * lumaR + lumaBR) - (lumaTL + 2.0 * lumaL + lumaBL);
-    float gy = (lumaBL + 2.0 * lumaB + lumaBR) - (lumaTL + 2.0 * lumaT + lumaTR);
-
-    float gradLen = length(vec2(gx, gy));
-
-    if (gradLen < 0.03) {
-        gl_FragColor = c;
-        return;
-    }
-
-    vec2 dir = vec2(gx, gy) / gradLen;
-
-    vec4 minColor = min(c, min(min(t, b), min(l, r)));
-    vec4 maxColor = max(c, max(max(t, b), max(l, r)));
-
-    vec4 samplePush1 = getSample(dir * 0.5);
-    vec4 pushed = mix(c, samplePush1, 0.5);
-    vec4 clamped = clamp(pushed, minColor, maxColor);
-
-    gl_FragColor = mix(c, clamped, 0.7);
-}
-)";
 
 static std::string LoadShaderSourceFromAssets(const char *filename) {
-  std::string path = std::string("assets/Anime4k/") + filename;
+  std::string path = std::string("assets/Anime4K/") + filename;
   size_t dataSize = 0;
   void *buffer = SDL_LoadFile(path.c_str(), &dataSize);
 
   if (buffer == nullptr) {
-    path = std::string("assets/Anime4K/") + filename;
-    buffer = SDL_LoadFile(path.c_str(), &dataSize);
+    const char *basePath = SDL_GetBasePath();
+    if (basePath != nullptr) {
+      path = std::string(basePath) + "assets/Anime4K/" + filename;
+      buffer = SDL_LoadFile(path.c_str(), &dataSize);
+    }
   }
 
   if (buffer == nullptr) {
@@ -151,26 +121,56 @@ static GLuint CompileShader(GLenum type, const char *source) {
   return shader;
 }
 
-static bool InitGLPipeline() {
-  KotonohaOpenGLInit();
+static std::string PrepareShaderSource(std::string source, bool isGLES) {
+  if (isGLES) {
+    return source;
+  }
 
+  const std::string esVersion = "#version 100";
+  const size_t versionPosition = source.find(esVersion);
+  if (versionPosition != std::string::npos) {
+    source.replace(versionPosition, esVersion.size(), "#version 110");
+  }
+
+  const std::string precision = "precision mediump float;";
+  const size_t precisionPosition = source.find(precision);
+  if (precisionPosition != std::string::npos) {
+    source.erase(precisionPosition, precision.size());
+  }
+  return source;
+}
+
+static bool InitGLPipeline(SDL_Renderer *renderer) {
   if (g_anime4kInitialized)
     return true;
 
-  std::string fragSource = LoadShaderSourceFromAssets("Anime4K_ModeA_A.glsl");
-  if (fragSource.empty()) {
-    fragSource = LoadShaderSourceFromAssets("Anime4K_Upscale.glsl");
-  }
-
-  if (fragSource.empty()) {
+  if (!KotonohaOpenGLInit()) {
     SDL_LogWarn(SDL_LOG_CATEGORY_RENDER,
-                "Anime4K shader files not found in assets/Anime4k/; disabling "
-                "Anime4K scaler.");
+                "Anime4K requires a current OpenGL renderer context.");
     return false;
   }
 
-  GLuint vertShader = CompileShader(GL_VERTEX_SHADER, kVertexShaderSource);
-  GLuint fragShader = CompileShader(GL_FRAGMENT_SHADER, fragSource.c_str());
+  const std::string vertexSource =
+      LoadShaderSourceFromAssets("Anime4K_Vertex.glsl");
+  const std::string fragSource =
+      LoadShaderSourceFromAssets("Anime4K_ModeA_A.glsl");
+  if (vertexSource.empty() || fragSource.empty()) {
+    SDL_LogWarn(SDL_LOG_CATEGORY_RENDER,
+                "Anime4K shader files are missing from assets/Anime4K.");
+    return false;
+  }
+
+  const char *rendererName =
+      renderer != nullptr ? SDL_GetRendererName(renderer) : nullptr;
+  const bool isGLES =
+      rendererName != nullptr &&
+      (SDL_strcasestr(rendererName, "gles") != nullptr ||
+       SDL_strcasestr(rendererName, "opengles") != nullptr);
+  const std::string preparedVertex = PrepareShaderSource(vertexSource, isGLES);
+  const std::string preparedFragment = PrepareShaderSource(fragSource, isGLES);
+  GLuint vertShader = CompileShader(GL_VERTEX_SHADER, preparedVertex.c_str());
+  GLuint fragShader =
+      CompileShader(GL_FRAGMENT_SHADER, preparedFragment.c_str());
 
   if (!vertShader || !fragShader) {
     if (vertShader)
@@ -235,7 +235,7 @@ static bool InitGLPipeline() {
 
   g_anime4kInitialized = true;
   SDL_Log("Anime4K OpenGL/GLES Upscaler initialized successfully from "
-          "assets/Anime4k/");
+          "assets/Anime4K/");
   return true;
 }
 
@@ -244,8 +244,7 @@ static bool InitGLPipeline() {
 extern "C" {
 
 bool KotonohaAnime4KInit(SDL_Renderer *renderer) {
-  (void)renderer;
-  return InitGLPipeline();
+  return InitGLPipeline(renderer);
 }
 
 void KotonohaAnime4KShutdown(void) {
@@ -275,12 +274,27 @@ bool KotonohaAnime4KUpscaleSDLTextureInto(SDL_Renderer *renderer,
     return false;
   }
 
+  SDL_Texture *previousTarget = SDL_GetRenderTarget(renderer);
+  auto fallbackCopy = [&]() {
+    if (!SDL_SetRenderTarget(renderer, outputTexture)) {
+      SDL_LogError(SDL_LOG_CATEGORY_RENDER,
+                   "Anime4K fallback could not activate output texture: %s",
+                   SDL_GetError());
+      return false;
+    }
+    const bool copied =
+        SDL_RenderTexture(renderer, inputTexture, NULL, NULL);
+    const bool restored = SDL_SetRenderTarget(renderer, previousTarget);
+    if (!copied || !restored) {
+      SDL_LogError(SDL_LOG_CATEGORY_RENDER,
+                   "Anime4K fallback render failed: %s", SDL_GetError());
+    }
+    return copied && restored;
+  };
+
   if (!g_anime4kInitialized) {
-    if (!InitGLPipeline()) {
-      SDL_SetRenderTarget(renderer, outputTexture);
-      SDL_RenderTexture(renderer, inputTexture, NULL, NULL);
-      SDL_SetRenderTarget(renderer, NULL);
-      return true;
+    if (!InitGLPipeline(renderer)) {
+      return fallbackCopy();
     }
   }
 
@@ -302,10 +316,7 @@ bool KotonohaAnime4KUpscaleSDLTextureInto(SDL_Renderer *renderer,
   }
 
   if (inTex == 0 || outTex == 0) {
-    SDL_SetRenderTarget(renderer, outputTexture);
-    SDL_RenderTexture(renderer, inputTexture, NULL, NULL);
-    SDL_SetRenderTarget(renderer, NULL);
-    return true;
+    return fallbackCopy();
   }
 
   GLint prevFBO = 0;
@@ -321,24 +332,56 @@ bool KotonohaAnime4KUpscaleSDLTextureInto(SDL_Renderer *renderer,
 
   if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
     glBindFramebuffer(GL_FRAMEBUFFER, prevFBO);
-    SDL_SetRenderTarget(renderer, outputTexture);
-    SDL_RenderTexture(renderer, inputTexture, NULL, NULL);
-    SDL_SetRenderTarget(renderer, NULL);
-    return true;
+    return fallbackCopy();
   }
 
-  glViewport(0, 0, (GLsizei)outputTexture->w, (GLsizei)outputTexture->h);
+  float outputWidth = 0.0f;
+  float outputHeight = 0.0f;
+  float inputWidth = 0.0f;
+  float inputHeight = 0.0f;
+  if (!SDL_GetTextureSize(outputTexture, &outputWidth, &outputHeight) ||
+      !SDL_GetTextureSize(inputTexture, &inputWidth, &inputHeight)) {
+    glBindFramebuffer(GL_FRAMEBUFFER, prevFBO);
+    glViewport(prevViewport[0], prevViewport[1], prevViewport[2],
+               prevViewport[3]);
+    glUseProgram(prevProgram);
+    return fallbackCopy();
+  }
+  const VertexAttributeState prevPosAttrib = SaveVertexAttribute(g_aPosLoc);
+  const VertexAttributeState prevTexAttrib =
+      g_aTexLoc == g_aPosLoc ? prevPosAttrib : SaveVertexAttribute(g_aTexLoc);
+  GLint prevArrayBuffer = 0;
+  GLint prevActiveTexture = GL_TEXTURE0;
+  glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &prevArrayBuffer);
+  glGetIntegerv(GL_ACTIVE_TEXTURE, &prevActiveTexture);
+  kotonoha_glActiveTexture(GL_TEXTURE0);
+  GLint prevTexture = 0;
+  glGetIntegerv(GL_TEXTURE_BINDING_2D, &prevTexture);
+  const GLboolean prevBlend = glIsEnabled(GL_BLEND);
+  const GLboolean prevScissor = glIsEnabled(GL_SCISSOR_TEST);
+  const GLboolean prevDepth = glIsEnabled(GL_DEPTH_TEST);
+  const GLboolean prevStencil = glIsEnabled(GL_STENCIL_TEST);
+  const GLboolean prevCull = glIsEnabled(GL_CULL_FACE);
+  glViewport(0, 0, (GLsizei)outputWidth, (GLsizei)outputHeight);
+  glDisable(GL_BLEND);
+  glDisable(GL_SCISSOR_TEST);
+  glDisable(GL_DEPTH_TEST);
+  glDisable(GL_STENCIL_TEST);
+  glDisable(GL_CULL_FACE);
 
   glUseProgram(g_program);
 
-  glActiveTexture(GL_TEXTURE0);
+  kotonoha_glActiveTexture(GL_TEXTURE0);
   glBindTexture(GL_TEXTURE_2D, inTex);
+  GLint prevMinFilter = GL_LINEAR;
+  GLint prevMagFilter = GL_LINEAR;
+  glGetTexParameteriv(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, &prevMinFilter);
+  glGetTexParameteriv(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, &prevMagFilter);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
   glUniform1i(g_uTextureLoc, 0);
-  glUniform2f(g_uTextureSizeLoc, (float)inputTexture->w,
-              (float)inputTexture->h);
+  glUniform2f(g_uTextureSizeLoc, inputWidth, inputHeight);
 
   glBindBuffer(GL_ARRAY_BUFFER, g_vbo);
 
@@ -355,17 +398,25 @@ bool KotonohaAnime4KUpscaleSDLTextureInto(SDL_Renderer *renderer,
 
   glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
-  if (g_aPosLoc >= 0)
-    glDisableVertexAttribArray(g_aPosLoc);
-  if (g_aTexLoc >= 0)
-    glDisableVertexAttribArray(g_aTexLoc);
-
-  glBindBuffer(GL_ARRAY_BUFFER, 0);
-
+  RestoreVertexAttribute(prevPosAttrib);
+  if (g_aTexLoc != g_aPosLoc) {
+    RestoreVertexAttribute(prevTexAttrib);
+  }
+  glBindBuffer(GL_ARRAY_BUFFER, (GLuint)prevArrayBuffer);
+  glBindTexture(GL_TEXTURE_2D, inTex);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, prevMinFilter);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, prevMagFilter);
+  glBindTexture(GL_TEXTURE_2D, (GLuint)prevTexture);
+  kotonoha_glActiveTexture((GLenum)prevActiveTexture);
   glBindFramebuffer(GL_FRAMEBUFFER, prevFBO);
   glViewport(prevViewport[0], prevViewport[1], prevViewport[2],
              prevViewport[3]);
   glUseProgram(prevProgram);
+  (prevBlend ? glEnable : glDisable)(GL_BLEND);
+  (prevScissor ? glEnable : glDisable)(GL_SCISSOR_TEST);
+  (prevDepth ? glEnable : glDisable)(GL_DEPTH_TEST);
+  (prevStencil ? glEnable : glDisable)(GL_STENCIL_TEST);
+  (prevCull ? glEnable : glDisable)(GL_CULL_FACE);
 
   return true;
 }

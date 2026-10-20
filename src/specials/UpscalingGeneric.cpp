@@ -13,6 +13,32 @@ static Kotonoha_UpscalerType g_upscalerType = KOTONOHA_UPSCALER_ANIME4K;
 static Kotonoha_UpscalerType g_upscalerType = KOTONOHA_UPSCALER_NONE;
 #endif
 
+static bool CopyTextureToTarget(SDL_Renderer *renderer,
+                                SDL_Texture *inputTexture,
+                                SDL_Texture *outputTexture) {
+  SDL_Texture *previousTarget = SDL_GetRenderTarget(renderer);
+  if (!SDL_SetRenderTarget(renderer, outputTexture)) {
+    SDL_LogError(SDL_LOG_CATEGORY_RENDER,
+                 "Failed to set upscale fallback target: %s", SDL_GetError());
+    return false;
+  }
+
+  const bool copied =
+      SDL_RenderTexture(renderer, inputTexture, NULL, NULL);
+  const bool restored = SDL_SetRenderTarget(renderer, previousTarget);
+  if (!copied) {
+    SDL_LogError(SDL_LOG_CATEGORY_RENDER,
+                 "Failed to copy source texture in upscale fallback: %s",
+                 SDL_GetError());
+  }
+  if (!restored) {
+    SDL_LogError(SDL_LOG_CATEGORY_RENDER,
+                 "Failed to restore render target after upscale fallback: %s",
+                 SDL_GetError());
+  }
+  return copied && restored;
+}
+
 } // namespace
 
 extern "C" {
@@ -55,13 +81,7 @@ bool KotonohaUpscalingInitInit(SDL_Renderer *renderer, const char *name,
     } else if (isOpenGL && Kotonoha_HasAnime4K()) {
       g_upscalerType = KOTONOHA_UPSCALER_ANIME4K;
     } else {
-      if (Kotonoha_HasMetalFX()) {
-        g_upscalerType = KOTONOHA_UPSCALER_METALFX;
-      } else if (Kotonoha_HasAnime4K()) {
-        g_upscalerType = KOTONOHA_UPSCALER_ANIME4K;
-      } else {
-        g_upscalerType = KOTONOHA_UPSCALER_NONE;
-      }
+      g_upscalerType = KOTONOHA_UPSCALER_NONE;
     }
   }
 
@@ -214,10 +234,7 @@ bool Kotonoha_UpscaleSDLTextureInto(SDL_Renderer *renderer,
   g_upscalerType = KOTONOHA_UPSCALER_NONE;
   g_upscalingFactor = 1.0f;
 
-  SDL_SetRenderTarget(renderer, outputTexture);
-  SDL_RenderTexture(renderer, inputTexture, NULL, NULL);
-  SDL_SetRenderTarget(renderer, NULL);
-  return true;
+  return CopyTextureToTarget(renderer, inputTexture, outputTexture);
 }
 
 } // extern "C"
