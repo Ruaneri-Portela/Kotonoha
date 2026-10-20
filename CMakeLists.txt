@@ -205,7 +205,7 @@ else ()
 
     if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
         list(APPEND KOTONOHA_SOURCES
-                src/Kotonoha.rc
+                src/specials/Kotonoha.rc
         )
     endif ()
 

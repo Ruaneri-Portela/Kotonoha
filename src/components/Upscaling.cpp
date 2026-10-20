@@ -10,7 +10,8 @@ Upscaling::~Upscaling() { ResetUpscaling(); }
 
 bool Upscaling::IsUpscalingActive() const {
   const float factor = KotonohaUpscalingInitFactor();
-  return factor > 1.0f && Kotonoha_HasUpscaler();
+  return factor > 1.0f &&
+         Kotonoha_GetUpscalerType() != KOTONOHA_UPSCALER_NONE;
 }
 
 void Upscaling::ResetUpscaling() {

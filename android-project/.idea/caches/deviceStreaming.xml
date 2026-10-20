@@ -813,6 +813,18 @@
           <option name="screenY" value="2640" />
         </PersistentDeviceSelectionData>
         <PersistentDeviceSelectionData>
+          <option name="api" value="37" />
+          <option name="brand" value="samsung" />
+          <option name="codename" value="b8q" />
+          <option name="id" value="b8q" />
+          <option name="labId" value="google" />
+          <option name="manufacturer" value="Samsung" />
+          <option name="name" value="Galaxy Z Flip8" />
+          <option name="screenDensity" value="480" />
+          <option name="screenX" value="1080" />
+          <option name="screenY" value="2520" />
+        </PersistentDeviceSelectionData>
+        <PersistentDeviceSelectionData>
           <option name="api" value="36" />
           <option name="brand" value="google" />
           <option name="codename" value="blazer" />
@@ -1509,6 +1521,18 @@
           <option name="screenDensity" value="280" />
           <option name="screenX" value="720" />
           <option name="screenY" value="1600" />
+        </PersistentDeviceSelectionData>
+        <PersistentDeviceSelectionData>
+          <option name="api" value="37" />
+          <option name="brand" value="samsung" />
+          <option name="codename" value="h8q" />
+          <option name="id" value="h8q" />
+          <option name="labId" value="google" />
+          <option name="manufacturer" value="Samsung" />
+          <option name="name" value="Galaxy Z Fold8" />
+          <option name="screenDensity" value="420" />
+          <option name="screenX" value="2448" />
+          <option name="screenY" value="1848" />
         </PersistentDeviceSelectionData>
         <PersistentDeviceSelectionData>
           <option name="accessStatus">
