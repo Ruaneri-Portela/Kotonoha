@@ -53,8 +53,7 @@ static void DrawTextEventList() {
   ImGui::EndChild();
 }
 
-bool DrawTextEditorWindow(::Kotonoha::Kotonoha *game,
-                                    Kotonoha_Game &context) {
+bool DrawTextEditorWindow(::Kotonoha::Kotonoha *game, Kotonoha_Game &context) {
   if (!textEditorVisible)
     return true;
 
@@ -95,8 +94,7 @@ bool DrawTextEditorWindow(::Kotonoha::Kotonoha *game,
 
       ImGui::SameLine();
       if (ImGui::Button("Save Temporary")) {
-        if (LoadTemporaryGameplayAt(game, context,
-                                             selectedSceneIndex)) {
+        if (LoadTemporaryGameplayAt(game, context, selectedSceneIndex)) {
           shouldFinishFrame = true;
         }
       }

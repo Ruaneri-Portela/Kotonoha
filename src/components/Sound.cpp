@@ -1,5 +1,5 @@
-#include <Kotonoha/utils/Log.h>
 #include <Kotonoha/components/Sound.hpp>
+#include <Kotonoha/utils/Log.h>
 #include <algorithm>
 #include <climits>
 
@@ -120,13 +120,14 @@ Sound::Channel::~Channel() {
   if (stream != nullptr) {
     if (!SDL_PauseAudioStreamDevice(stream)) {
       KLOG_WARN(AUDIO, "Failed to pause audio stream during shutdown: %s",
-                  SDL_GetError());
+                SDL_GetError());
     }
 
     const bool streamLocked = SDL_LockAudioStream(stream);
     if (!streamLocked) {
-      KLOG_ERROR(AUDIO, "Failed to synchronize audio stream during shutdown: %s",
-                   SDL_GetError());
+      KLOG_ERROR(AUDIO,
+                 "Failed to synchronize audio stream during shutdown: %s",
+                 SDL_GetError());
       SDL_DestroyAudioStream(stream);
       stream = nullptr;
       RemovePipe(nullptr);

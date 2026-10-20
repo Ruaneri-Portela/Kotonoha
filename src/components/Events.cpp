@@ -1,6 +1,6 @@
-#include <Kotonoha/utils/Log.h>
 #include <Kotonoha/Gameplay.hpp>
 #include <Kotonoha/components/Events.hpp>
+#include <Kotonoha/utils/Log.h>
 #include <Kotonoha/utils/OrsTime.h>
 #include <Kotonoha/utils/VoicePcm.h>
 #include <SDL3/SDL.h>
@@ -111,9 +111,9 @@ static std::string ResolveAssetPath(const char *assetsPath,
 
 static const char *EventName(int command) {
   static const char *const names[] = {
-      "CreateBG",  "PlaySe",   "PlayMovie", "WhiteFade", "BlackFade",
-      "PlayBgm",   "PrintText", "PlayVoice", "SkipFRAME", "SetSELECT",
-      "EndBgm",    "EndRoll",  "Next",      "Unknown"};
+      "CreateBG", "PlaySe",    "PlayMovie", "WhiteFade", "BlackFade",
+      "PlayBgm",  "PrintText", "PlayVoice", "SkipFRAME", "SetSELECT",
+      "EndBgm",   "EndRoll",   "Next",      "Unknown"};
   return command >= 0 && command < 14 ? names[command] : "Unknown";
 }
 
@@ -163,16 +163,16 @@ int Event::EventManager(void *data) {
     }
   };
 
-  auto updatePendingAssetLoad = [&](const Kotonoha_OrsEvent *event,
-                                    bool failed, bool signalLoading) {
+  auto updatePendingAssetLoad = [&](const Kotonoha_OrsEvent *event, bool failed,
+                                    bool signalLoading) {
     if (!gameplay->demuxer || !gameplay->demuxer->retryMissingAssets ||
         !failed) {
       clearPendingAssetLoad(event);
       return false;
     }
 
-    const auto pendingResult = classUp->pendingAssetLoads.emplace(
-        event, Event::PendingAssetLoad{});
+    const auto pendingResult =
+        classUp->pendingAssetLoads.emplace(event, Event::PendingAssetLoad{});
     auto &pending = pendingResult.first->second;
     pending.retryAfterTicks = SDL_GetTicks() + kMissingAssetRetryIntervalMs;
     if (signalLoading && !pending.loadingSignaled) {
@@ -221,10 +221,11 @@ int Event::EventManager(void *data) {
 
     if (!KotonohaOrsTimeToMilliseconds(event->start, true, &startMs) ||
         !KotonohaOrsTimeToMilliseconds(event->end, false, &endMs)) {
-      KLOG_WARN(SCRIPT, "Skipping ORS event with invalid 24-fps timestamp "
-                  "start=%llu end=%llu",
-                  static_cast<unsigned long long>(event->start),
-                  static_cast<unsigned long long>(event->end));
+      KLOG_WARN(SCRIPT,
+                "Skipping ORS event with invalid 24-fps timestamp "
+                "start=%llu end=%llu",
+                static_cast<unsigned long long>(event->start),
+                static_cast<unsigned long long>(event->end));
       clearPendingAssetLoad(event);
       event->eventTouched = true;
       continue;
@@ -257,11 +258,12 @@ int Event::EventManager(void *data) {
             useExtension ? ResolveAssetPath(assetsPath, voiceLogical)
                          : voiceLogical;
         mediaAttachmentFailed =
-            gameplay->audio->AddMedia(
-                voicePath.c_str(), startMs,
-                (startMs == 0 && endMs == 0) ? 0
-                    : endMs > SDL_MAX_UINT64 - 1000 ? SDL_MAX_UINT64 : endMs + 1000,
-                false, "Voice") == nullptr;
+            gameplay->audio->AddMedia(voicePath.c_str(), startMs,
+                                      (startMs == 0 && endMs == 0) ? 0
+                                      : endMs > SDL_MAX_UINT64 - 1000
+                                          ? SDL_MAX_UINT64
+                                          : endMs + 1000,
+                                      false, "Voice") == nullptr;
 
         const char *key = event->data.play_voice->character_short;
         if (key != nullptr && *key != '\0') {
@@ -288,13 +290,13 @@ int Event::EventManager(void *data) {
       if (event->data.play_se->path != nullptr &&
           SDL_strlen(event->data.play_se->path) > 0) {
         hasMediaAttachment = true;
-        const std::string seLogical = BuildString(
-            event->data.play_se->path, "", useExtension ? ".OGG" : "");
+        const std::string seLogical = BuildString(event->data.play_se->path, "",
+                                                  useExtension ? ".OGG" : "");
         const std::string sePath =
-            useExtension ? ResolveAssetPath(assetsPath, seLogical)
-                         : seLogical;
+            useExtension ? ResolveAssetPath(assetsPath, seLogical) : seLogical;
         mediaAttachmentFailed =
-            gameplay->audio->AddMedia(sePath.c_str(), startMs, endMs, true, "Se") == nullptr;
+            gameplay->audio->AddMedia(sePath.c_str(), startMs, endMs, true,
+                                      "Se") == nullptr;
       }
       break;
 
@@ -330,16 +332,15 @@ int Event::EventManager(void *data) {
           SDL_strlen(event->data.path_end->path) > 0) {
         hasMediaAttachment = true;
         std::string str = ToUpper(event->data.path_end->path);
-        const std::string bgmLogical = BuildString(
-            useExtension ? str.c_str() : event->data.path_end->path,
-            "", useExtension ? ".OGG" : "");
+        const std::string bgmLogical =
+            BuildString(useExtension ? str.c_str() : event->data.path_end->path,
+                        "", useExtension ? ".OGG" : "");
         const std::string bgmPath =
             useExtension ? ResolveAssetPath(assetsPath, bgmLogical)
                          : bgmLogical;
         mediaAttachmentFailed =
-            gameplay->audio->AddMedia(
-                bgmPath.c_str(),
-                startMs, endMs, true, "BGM") == nullptr;
+            gameplay->audio->AddMedia(bgmPath.c_str(), startMs, endMs, true,
+                                      "BGM") == nullptr;
       }
       break;
 
@@ -352,8 +353,8 @@ int Event::EventManager(void *data) {
         const std::string rollPath =
             useExtension ? ResolveAssetPath(assetsPath, rollLogical)
                          : rollLogical;
-        mediaAttachmentFailed = !gameplay->video->Register(
-            rollPath.c_str(), startMs, endMs);
+        mediaAttachmentFailed =
+            !gameplay->video->Register(rollPath.c_str(), startMs, endMs);
       }
       break;
 
@@ -392,8 +393,7 @@ int Event::EventManager(void *data) {
         const std::string bgLogical = BuildString(
             event->data.create_bg->path, "", useExtension ? ".PNG" : "");
         const std::string bgPath =
-            useExtension ? ResolveAssetPath(assetsPath, bgLogical)
-                         : bgLogical;
+            useExtension ? ResolveAssetPath(assetsPath, bgLogical) : bgLogical;
         mediaAttachmentFailed =
             gameplay->image->Register(bgPath.c_str(), startMs, endMs, 0) == 0;
       }
@@ -414,9 +414,8 @@ int Event::EventManager(void *data) {
       break;
     }
 
-    const bool signalLoading =
-        startMs <= actualTime ||
-        startMs - actualTime <= kMediaPrefetchHorizonMs;
+    const bool signalLoading = startMs <= actualTime ||
+                               startMs - actualTime <= kMediaPrefetchHorizonMs;
     event->eventTouched =
         !hasMediaAttachment ||
         !updatePendingAssetLoad(event, mediaAttachmentFailed, signalLoading);
@@ -533,8 +532,9 @@ void Event::Reset(void *gameplay) {
        event = event->next) {
     Uint64 endMs = 0;
     if (!KotonohaOrsTimeToMilliseconds(event->end, false, &endMs)) {
-      KLOG_WARN(SCRIPT, "Skipping reset state for invalid ORS end timestamp %llu",
-                  static_cast<unsigned long long>(event->end));
+      KLOG_WARN(SCRIPT,
+                "Skipping reset state for invalid ORS end timestamp %llu",
+                static_cast<unsigned long long>(event->end));
       event->eventTouched = true;
       continue;
     }

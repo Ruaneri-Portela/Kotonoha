@@ -17,7 +17,7 @@ typedef enum Kotonoha_UpscalerType {
 
 // Generic Init & Shutdown
 bool KotonohaUpscalingInit(SDL_Renderer *renderer, const char *name,
-                               Kotonoha_Config *config);
+                           Kotonoha_Config *config);
 void KotonohaUpscalingInitShutdown(void);
 
 // Capabilities & Selection

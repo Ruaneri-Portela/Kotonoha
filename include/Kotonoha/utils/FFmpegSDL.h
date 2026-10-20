@@ -6,8 +6,8 @@
 #include <libavutil/pixfmt.h>
 #include <limits.h>
 
-static inline Uint32 KotonohaSDLFormatForAVFrame(
-    const AVFrame *frame, bool *supportsDirectUpload) {
+static inline Uint32 KotonohaSDLFormatForAVFrame(const AVFrame *frame,
+                                                 bool *supportsDirectUpload) {
   if (supportsDirectUpload == NULL) {
     return SDL_PIXELFORMAT_RGBA32;
   }
@@ -18,8 +18,9 @@ static inline Uint32 KotonohaSDLFormatForAVFrame(
   }
 
 #if defined(__ANDROID__) || defined(ANDROID)
-  // On Android GLES renderers, direct YUV/NV12 texture upload often uses incorrect
-  // color conversion matrices in driver shaders. Force SWS conversion to RGBA for accurate colors.
+  // On Android GLES renderers, direct YUV/NV12 texture upload often uses
+  // incorrect color conversion matrices in driver shaders. Force SWS conversion
+  // to RGBA for accurate colors.
   *supportsDirectUpload = false;
   return SDL_PIXELFORMAT_RGBA32;
 #else
@@ -83,8 +84,8 @@ static inline bool KotonohaSDLUpdateTextureFromAVFrame(SDL_Texture *texture,
                                frame->linesize[1]);
   case AV_PIX_FMT_YUV420P:
     return frame->data[0] != NULL && frame->data[1] != NULL &&
-           frame->data[2] != NULL && frame->width > 0 &&
-           frame->height > 0 && frame->linesize[0] >= frame->width &&
+           frame->data[2] != NULL && frame->width > 0 && frame->height > 0 &&
+           frame->linesize[0] >= frame->width &&
            frame->linesize[1] >= frame->width / 2 + frame->width % 2 &&
            frame->linesize[2] >= frame->width / 2 + frame->width % 2 &&
            SDL_UpdateYUVTexture(texture, NULL, frame->data[0],
@@ -96,25 +97,23 @@ static inline bool KotonohaSDLUpdateTextureFromAVFrame(SDL_Texture *texture,
   case AV_PIX_FMT_ARGB:
   case AV_PIX_FMT_ABGR:
   case AV_PIX_FMT_RGB24:
-  case AV_PIX_FMT_BGR24:
-    {
-      const int bytesPerPixel = frame->format == AV_PIX_FMT_RGB24 ||
-                                        frame->format == AV_PIX_FMT_BGR24
-                                    ? 3
-                                    : 4;
-      return frame->data[0] != NULL && frame->width > 0 &&
-             frame->width <= INT_MAX / bytesPerPixel && frame->height > 0 &&
-             frame->linesize[0] >= frame->width * bytesPerPixel &&
-             SDL_UpdateTexture(texture, NULL, frame->data[0],
-                               frame->linesize[0]);
-    }
+  case AV_PIX_FMT_BGR24: {
+    const int bytesPerPixel =
+        frame->format == AV_PIX_FMT_RGB24 || frame->format == AV_PIX_FMT_BGR24
+            ? 3
+            : 4;
+    return frame->data[0] != NULL && frame->width > 0 &&
+           frame->width <= INT_MAX / bytesPerPixel && frame->height > 0 &&
+           frame->linesize[0] >= frame->width * bytesPerPixel &&
+           SDL_UpdateTexture(texture, NULL, frame->data[0], frame->linesize[0]);
+  }
   default:
     return false;
   }
 }
 
-static inline bool KotonohaAVPixelFormatSupportsDirectSurface(
-    enum AVPixelFormat format) {
+static inline bool
+KotonohaAVPixelFormatSupportsDirectSurface(enum AVPixelFormat format) {
   return format == AV_PIX_FMT_RGBA || format == AV_PIX_FMT_BGRA ||
          format == AV_PIX_FMT_ARGB || format == AV_PIX_FMT_ABGR ||
          format == AV_PIX_FMT_RGB24 || format == AV_PIX_FMT_BGR24;

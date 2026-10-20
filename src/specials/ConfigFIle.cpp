@@ -88,25 +88,33 @@ static void KotonohaSettings_ReadLine(ImGuiContext *ctx,
   } else if (SDL_sscanf(line, "UpscalingEnabled=%d", &upscaling) == 1) {
     config->upscalingEnabled = (bool)upscaling;
   } else if (SDL_sscanf(line, "SplashSeconds=%f", &fval) == 1) {
-    if (fval > 0.0f) config->splashSeconds = fval;
+    if (fval > 0.0f)
+      config->splashSeconds = fval;
   } else if (SDL_sscanf(line, "SplashFadeSeconds=%f", &fval) == 1) {
-    if (fval >= 0.0f) config->splashFadeSeconds = fval;
+    if (fval >= 0.0f)
+      config->splashFadeSeconds = fval;
   } else if (SDL_sscanf(line, "PrefetchHorizonMs=%d", &ival) == 1) {
-    if (ival >= 0) config->prefetchHorizonMs = ival;
+    if (ival >= 0)
+      config->prefetchHorizonMs = ival;
   } else if (SDL_sscanf(line, "SeekBigMs=%d", &ival) == 1) {
-    if (ival >= 0) config->seekBigMs = ival;
+    if (ival >= 0)
+      config->seekBigMs = ival;
   } else if (SDL_sscanf(line, "SeekSmallMs=%d", &ival) == 1) {
-    if (ival >= 0) config->seekSmallMs = ival;
+    if (ival >= 0)
+      config->seekSmallMs = ival;
   } else if (SDL_sscanf(line, "LoadingDebounceMs=%d", &ival) == 1) {
-    if (ival >= 0) config->loadingDebounceMs = ival;
+    if (ival >= 0)
+      config->loadingDebounceMs = ival;
   } else if (SDL_sscanf(line, "MinLoadingPauseMs=%d", &ival) == 1) {
-    if (ival >= 0) config->minLoadingPauseMs = ival;
+    if (ival >= 0)
+      config->minLoadingPauseMs = ival;
   } else if (strncmp(line, "TitleMusic=", 11) == 0) {
     ConfigImGui_SetString(&config->titleMusic, line + 11);
   } else if (strncmp(line, "CursorPath=", 11) == 0) {
     ConfigImGui_SetString(&config->cursorPath, line + 11);
   } else if (SDL_sscanf(line, "CursorSize=%d", &ival) == 1) {
-    if (ival > 0) config->cursorSize = ival;
+    if (ival > 0)
+      config->cursorSize = ival;
   } else if (strncmp(line, "IconPath=", 9) == 0) {
     ConfigImGui_SetString(&config->iconPath, line + 9);
   } else if (strncmp(line, "FontsPath=", 10) == 0) {

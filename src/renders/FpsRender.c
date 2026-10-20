@@ -1,5 +1,5 @@
-#include <Kotonoha/utils/Log.h>
 #include <Kotonoha/renders/FpsRender.h>
+#include <Kotonoha/utils/Log.h>
 #include <Kotonoha/utils/OverlayRender.h>
 
 struct FPS_common {
@@ -149,15 +149,13 @@ enum Kotonoha_Scene_Status KotonohaFPSRender(KOTONOHA_SCENE_CALL) {
     shadowRect.x += 2.0f;
     shadowRect.y += 2.0f;
     if (!SDL_RenderTexture(render, fpsCommon->shadow, NULL, &shadowRect)) {
-      KLOG_ERROR(RENDER, "Failed to draw FPS shadow: %s",
-                   SDL_GetError());
+      KLOG_ERROR(RENDER, "Failed to draw FPS shadow: %s", SDL_GetError());
     }
   }
 
   if (fpsCommon->texture != NULL &&
       !SDL_RenderTexture(render, fpsCommon->texture, NULL, &fpsCommon->rect)) {
-    KLOG_ERROR(RENDER, "Failed to draw FPS text: %s",
-                 SDL_GetError());
+    KLOG_ERROR(RENDER, "Failed to draw FPS text: %s", SDL_GetError());
   }
 
   return KOTONOHA_SCENE_DRAW_OVERLAYED;

@@ -1,5 +1,5 @@
-#include <Kotonoha/utils/Log.h>
 #include <Kotonoha/utils/FFmpeg.h>
+#include <Kotonoha/utils/Log.h>
 #include <SDL3/SDL_stdinc.h>
 #include <errno.h>
 #include <libavutil/error.h>
@@ -21,8 +21,10 @@ static void KotonohaFmpegSetupHwDecode(struct Kotonoha_FFmpegHwContext *hwCtx,
   }
 
   hwCtx->hwPixFmt = AV_PIX_FMT_NONE;
-  KLOG_ERROR(FFMPEG, "Decoder %s does not support hardware decoding here, falling back to software",
-      (*codec)->name);
+  KLOG_ERROR(FFMPEG,
+             "Decoder %s does not support hardware decoding here, falling back "
+             "to software",
+             (*codec)->name);
 }
 
 int KotonohaFFmpegReadFrame(AVFormatContext *formatCtx, AVPacket *packet) {
@@ -62,7 +64,7 @@ bool KotonohaFFmpegLoad(const char *path, AVFormatContext **formatCtx,
   const int streamInfoResult = avformat_find_stream_info(*formatCtx, NULL);
   if (streamInfoResult < 0) {
     KLOG_ERROR(FFMPEG, "Could not read stream information from '%s': %s", path,
-                 av_err2str(streamInfoResult));
+               av_err2str(streamInfoResult));
     avformat_close_input(formatCtx);
     return false;
   }
@@ -251,7 +253,7 @@ AVFrame *KotonohaFFmpegSwsConvertFrame(struct SwsContext *convertContext,
                 pFrameRGB->linesize);
   if (scaledHeight != targetH) {
     KLOG_ERROR(FFMPEG, "Incomplete RGBA frame conversion (%d/%d rows)",
-                 scaledHeight, targetH);
+               scaledHeight, targetH);
     av_frame_free(&pFrameRGB);
     av_free(frameBuffer);
     return NULL;

@@ -1,5 +1,5 @@
-#include <Kotonoha/utils/Log.h>
 #include <Kotonoha/components/Audio.hpp>
+#include <Kotonoha/utils/Log.h>
 
 namespace Kotonoha {
 
@@ -50,8 +50,7 @@ Audio::AddMediaInternal(const char *path, Uint64 start, Uint64 end, bool inLoop,
 
   Sound::Channel *targetChannel = soundCtx->GetChannelByName(channel);
   if (targetChannel == nullptr) {
-    KLOG_ERROR(AUDIO, "Channel not found: %s",
-                 channel);
+    KLOG_ERROR(AUDIO, "Channel not found: %s", channel);
     KotonohaAudioFree(loopMedia);
     return nullptr;
   }
@@ -117,8 +116,7 @@ struct Kotonoha_AudioDecode *Audio::AddIntroLoopMedia(const char *introPath,
 
   Sound::Channel *channel = soundCtx->GetChannelByName(channelName);
   if (channel == nullptr) {
-    KLOG_ERROR(AUDIO, "Channel not found: %s",
-                 channelName);
+    KLOG_ERROR(AUDIO, "Channel not found: %s", channelName);
     return nullptr;
   }
 

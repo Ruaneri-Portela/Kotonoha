@@ -1,5 +1,5 @@
-#include <Kotonoha/utils/Log.h>
 #include <Kotonoha/Gameplay.hpp>
+#include <Kotonoha/utils/Log.h>
 
 #include <Kotonoha/specials/MetalFX.h>
 
@@ -22,7 +22,8 @@ void Gameplay::UpdateCanvasSize(SDL_Window *window, SDL_Renderer *renderer) {
   int pixelH = 0;
   if (renderer != nullptr) {
     if (!SDL_GetCurrentRenderOutputSize(renderer, &pixelW, &pixelH)) {
-      KLOG_ERROR(CORE, "SDL_GetCurrentRenderOutputSize failed: %s", SDL_GetError());
+      KLOG_ERROR(CORE, "SDL_GetCurrentRenderOutputSize failed: %s",
+                 SDL_GetError());
       return;
     }
   } else if (!SDL_GetWindowSizeInPixels(window, &pixelW, &pixelH)) {
@@ -111,8 +112,8 @@ Gameplay::Gameplay(const char *scriptPath, Kotonoha_Game *gameContext,
   this->demuxer = KotonohaDemuxerCreate(!gameContext->config.skipFiles);
   this->tm = KotonohaTimeNew(true);
   this->sb = KotonohaTextRenderInit(this->tm, gameContext);
-  this->video = new Video(this->tm, this->demuxer,
-                          gameContext->config.videoCacheSeconds);
+  this->video =
+      new Video(this->tm, this->demuxer, gameContext->config.videoCacheSeconds);
   this->image = new Image(this->tm, gameContext->config.skipFiles);
   this->audio = new Audio(static_cast<Sound *>(gameContext->sound), this->tm,
                           this->demuxer);
@@ -230,8 +231,7 @@ void Gameplay::UpdateDeltaTime() {
 float Gameplay::GetDeltaTime() const { return deltaTime; }
 
 bool Gameplay::ShouldShowLoadingOverlay() const {
-  return loadingPauseActive ||
-         SDL_GetTicks() < loadingOverlayVisibleUntil;
+  return loadingPauseActive || SDL_GetTicks() < loadingOverlayVisibleUntil;
 }
 
 void Gameplay::Reset(bool resetTime) {

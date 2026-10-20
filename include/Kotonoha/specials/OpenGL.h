@@ -27,7 +27,8 @@ bool KotonohaOpenGLInit(void);
 void KotonohaOpenGLReset(void);
 bool KotonohaOpenGLIsLoaded(void);
 
-#if !defined(__ANDROID__) && !defined(ANDROID) && !(defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE)
+#if !defined(__ANDROID__) && !defined(ANDROID) &&                              \
+    !(defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE)
 /* OpenGL 2.0 */
 extern PFNGLCREATESHADERPROC glCreateShader;
 extern PFNGLSHADERSOURCEPROC glShaderSource;

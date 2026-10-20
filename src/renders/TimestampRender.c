@@ -1,6 +1,6 @@
 
-#include <Kotonoha/utils/Log.h>
 #include <Kotonoha/renders/TimestampRender.h>
+#include <Kotonoha/utils/Log.h>
 #include <Kotonoha/utils/OverlayRender.h>
 #include <Kotonoha/utils/Time.h>
 
@@ -168,8 +168,7 @@ enum Kotonoha_Scene_Status KotonohaTimestampRender(KOTONOHA_SCENE_CALL) {
   if (timestampCommon->texture != NULL &&
       !SDL_RenderTexture(render, timestampCommon->texture, NULL,
                          &timestampCommon->rect)) {
-    KLOG_ERROR(RENDER, "Failed to draw timestamp text: %s",
-                 SDL_GetError());
+    KLOG_ERROR(RENDER, "Failed to draw timestamp text: %s", SDL_GetError());
   }
 
   return KOTONOHA_SCENE_DRAW_OVERLAYED;

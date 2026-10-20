@@ -3,8 +3,8 @@
 
 namespace Kotonoha::Debug {
 
-void DrawOpenScenesWindow(::Kotonoha::Kotonoha *game,
-                                    Kotonoha_Game &context, bool &shouldExit) {
+void DrawOpenScenesWindow(::Kotonoha::Kotonoha *game, Kotonoha_Game &context,
+                          bool &shouldExit) {
   const ImGuiViewport *viewport = ImGui::GetMainViewport();
   ImGui::SetNextWindowPos(
       ImVec2(viewport->WorkPos.x + 20, viewport->WorkPos.y + 20),

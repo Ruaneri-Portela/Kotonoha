@@ -63,7 +63,7 @@ inline std::string temporaryScriptPath;
 inline int temporaryGameplayIndex = -1;
 inline bool temporaryGameplayActive = false;
 
-/* ---------------- Utilities (DebugUtils.cpp) ---------------- */
+/* ---------------- Utilities ---------------- */
 
 void SetEditorStatus(const char *text);
 bool IsValidGameplayIndex(::Kotonoha::Kotonoha *game, int index);
@@ -76,12 +76,12 @@ bool LoadTextFile(const std::string &path, std::string &outText);
 bool SaveTextFile(const std::string &path, const std::string &text);
 std::string GetTemporaryScenePath(const std::string &path);
 
-/* ---------------- Text editor model (TextEditorModel.cpp) ---------------- */
+/* ---------------- Text editor model ---------------- */
 
 void LoadTextEditor(const std::string &source);
 void SyncTextEditorToScript();
 
-/* ---------------- Scene management (SceneManager.cpp) ---------------- */
+/* ---------------- Scene management ---------------- */
 
 bool LoadSceneEditorFromDisk(::Kotonoha::Gameplay *play);
 bool OpenPaths(::Kotonoha::Kotonoha *game, const char *buffer, bool append);
@@ -97,7 +97,7 @@ bool LoadTemporaryGameplayAt(::Kotonoha::Kotonoha *game,
                              Kotonoha_Game &context, int index);
 bool RestoreOriginalPath(::Kotonoha::Kotonoha *game, Kotonoha_Game &context);
 
-/* ---------------- Windows (windows/*.cpp) ---------------- */
+/* ---------------- Windows ---------------- */
 
 void DrawAboutFields();
 void DrawAboutWindow();

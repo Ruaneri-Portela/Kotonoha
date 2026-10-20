@@ -1,7 +1,7 @@
-#include <Kotonoha/utils/Log.h>
 #include <Kotonoha/renders/VideoRender.h>
 #include <Kotonoha/specials/Upscaling.h>
 #include <Kotonoha/utils/FFmpegSDL.h>
+#include <Kotonoha/utils/Log.h>
 #include <limits.h>
 
 static inline Uint64 u64_abs_diff(Uint64 a, Uint64 b) {
@@ -35,15 +35,14 @@ static AVFrame *getCpuReadableFrame(AVFrame *src) {
 static bool KotonohaVideoCreateTexture(Kotonoha_VideoData *instance,
                                        SDL_Renderer *render, AVFrame *frame) {
   bool supportsDirectUpload = false;
-  Uint32 format =
-      KotonohaSDLFormatForAVFrame(frame, &supportsDirectUpload);
-  instance->texture =
-      SDL_CreateTexture(render, format, SDL_TEXTUREACCESS_STREAMING,
-                        frame->width, frame->height);
+  Uint32 format = KotonohaSDLFormatForAVFrame(frame, &supportsDirectUpload);
+  instance->texture = SDL_CreateTexture(
+      render, format, SDL_TEXTUREACCESS_STREAMING, frame->width, frame->height);
   if (instance->texture == NULL && format != SDL_PIXELFORMAT_RGBA32) {
-    KLOG_WARN(VIDEO, "Renderer does not support native video pixel format %u; "
-                "using SWS conversion",
-                format);
+    KLOG_WARN(VIDEO,
+              "Renderer does not support native video pixel format %u; "
+              "using SWS conversion",
+              format);
     format = SDL_PIXELFORMAT_RGBA32;
     instance->texture =
         SDL_CreateTexture(render, format, SDL_TEXTUREACCESS_STREAMING,
@@ -57,11 +56,11 @@ static bool KotonohaVideoCreateTexture(Kotonoha_VideoData *instance,
 
   if (!SDL_SetTextureBlendMode(
           instance->texture,
-          KotonohaAVPixelFormatHasAlpha(
-              (enum AVPixelFormat)frame->format)
+          KotonohaAVPixelFormatHasAlpha((enum AVPixelFormat)frame->format)
               ? SDL_BLENDMODE_BLEND
               : SDL_BLENDMODE_NONE)) {
-    KLOG_ERROR(VIDEO, "Failed to set video texture blending: %s", SDL_GetError());
+    KLOG_ERROR(VIDEO, "Failed to set video texture blending: %s",
+               SDL_GetError());
     SDL_DestroyTexture(instance->texture);
     instance->texture = NULL;
     return false;
@@ -89,16 +88,15 @@ static bool KotonohaVideoScaleFrameToRgba(Kotonoha_VideoData *instance,
                                           AVFrame *frame, uint8_t *pixels,
                                           int pitch) {
   if (pixels == NULL || frame->width <= 0 || frame->width > INT_MAX / 4 ||
-      pitch < frame->width * 4 ||
-      !KotonohaVideoEnsureSws(instance, frame)) {
+      pitch < frame->width * 4 || !KotonohaVideoEnsureSws(instance, frame)) {
     return false;
   }
 
   uint8_t *destinationData[4] = {pixels, NULL, NULL, NULL};
   const int destinationLines[4] = {pitch, 0, 0, 0};
-  return sws_scale(instance->swsCtx,
-                   (const uint8_t *const *)frame->data, frame->linesize, 0,
-                   frame->height, destinationData, destinationLines) > 0;
+  return sws_scale(instance->swsCtx, (const uint8_t *const *)frame->data,
+                   frame->linesize, 0, frame->height, destinationData,
+                   destinationLines) > 0;
 }
 
 static bool updateTextureFromFrame(struct Kotonoha_VideoData *instance,
@@ -115,7 +113,7 @@ static bool updateTextureFromFrame(struct Kotonoha_VideoData *instance,
     float textureHeight = 0.0f;
     if (!SDL_GetTextureSize(instance->texture, &textureWidth, &textureHeight)) {
       KLOG_ERROR(VIDEO, "Failed to get video texture dimensions: %s",
-                   SDL_GetError());
+                 SDL_GetError());
       goto cleanup;
     }
     if ((int)textureWidth != cpuFrame->width ||
@@ -145,19 +143,19 @@ static bool updateTextureFromFrame(struct Kotonoha_VideoData *instance,
       return true;
     }
     KLOG_WARN(VIDEO, "SDL native YUV/RGB upload failed; switching to SWS: %s",
-                SDL_GetError());
+              SDL_GetError());
     SDL_DestroyTexture(instance->texture);
-    instance->texture = SDL_CreateTexture(
-        render, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STREAMING,
-        cpuFrame->width, cpuFrame->height);
+    instance->texture = SDL_CreateTexture(render, SDL_PIXELFORMAT_RGBA32,
+                                          SDL_TEXTUREACCESS_STREAMING,
+                                          cpuFrame->width, cpuFrame->height);
     if (instance->texture == NULL ||
-        !SDL_SetTextureBlendMode(instance->texture,
-                                 KotonohaAVPixelFormatHasAlpha(
-                                     (enum AVPixelFormat)cpuFrame->format)
-                                     ? SDL_BLENDMODE_BLEND
-                                     : SDL_BLENDMODE_NONE)) {
+        !SDL_SetTextureBlendMode(
+            instance->texture,
+            KotonohaAVPixelFormatHasAlpha((enum AVPixelFormat)cpuFrame->format)
+                ? SDL_BLENDMODE_BLEND
+                : SDL_BLENDMODE_NONE)) {
       KLOG_ERROR(VIDEO, "Failed to create SWS fallback video texture: %s",
-                   SDL_GetError());
+                 SDL_GetError());
       SDL_DestroyTexture(instance->texture);
       instance->texture = NULL;
       goto cleanup;
@@ -181,7 +179,7 @@ static bool updateTextureFromFrame(struct Kotonoha_VideoData *instance,
                                                cpuFrame->height, 1);
   if (bufSize <= 0) {
     KLOG_ERROR(VIDEO, "Invalid video frame dimensions: %dx%d", cpuFrame->width,
-                 cpuFrame->height);
+               cpuFrame->height);
     goto cleanup;
   }
   if (instance->swsBuffer == NULL ||
@@ -199,9 +197,9 @@ static bool updateTextureFromFrame(struct Kotonoha_VideoData *instance,
     instance->swsBufferWidth = cpuFrame->width;
     instance->swsBufferHeight = cpuFrame->height;
     if (av_image_fill_arrays(instance->pFrameRGB->data,
-                             instance->pFrameRGB->linesize,
-                             instance->swsBuffer, AV_PIX_FMT_RGBA,
-                             cpuFrame->width, cpuFrame->height, 1) < 0) {
+                             instance->pFrameRGB->linesize, instance->swsBuffer,
+                             AV_PIX_FMT_RGBA, cpuFrame->width, cpuFrame->height,
+                             1) < 0) {
       instance->swsBufferWidth = 0;
       instance->swsBufferHeight = 0;
       KLOG_ERROR(VIDEO, "Failed to initialize converted video frame");
@@ -209,17 +207,16 @@ static bool updateTextureFromFrame(struct Kotonoha_VideoData *instance,
     }
   }
 
-  if (!KotonohaVideoScaleFrameToRgba(
-          instance, cpuFrame, instance->pFrameRGB->data[0],
-          instance->pFrameRGB->linesize[0])) {
+  if (!KotonohaVideoScaleFrameToRgba(instance, cpuFrame,
+                                     instance->pFrameRGB->data[0],
+                                     instance->pFrameRGB->linesize[0])) {
     KLOG_ERROR(VIDEO, "Failed to convert video frame");
     goto cleanup;
   }
 
   if (!SDL_UpdateTexture(instance->texture, NULL, instance->pFrameRGB->data[0],
                          instance->pFrameRGB->linesize[0])) {
-    KLOG_ERROR(VIDEO, "Failed to update video texture: %s",
-                 SDL_GetError());
+    KLOG_ERROR(VIDEO, "Failed to update video texture: %s", SDL_GetError());
     goto cleanup;
   }
 
@@ -235,10 +232,11 @@ cleanup:
   return false;
 }
 
-Kotonoha_VideoData *KotonohaVideoRenderInit(
-    const char *filename, Kotonoha_Time *time, Uint64 startTime, Uint64 endTime,
-    bool useOrsFrameTimeline, Uint64 orsEndFrame, float cacheDurationSeconds,
-    Kotonoha_Demuxer *demuxer) {
+Kotonoha_VideoData *
+KotonohaVideoRenderInit(const char *filename, Kotonoha_Time *time,
+                        Uint64 startTime, Uint64 endTime,
+                        bool useOrsFrameTimeline, Uint64 orsEndFrame,
+                        float cacheDurationSeconds, Kotonoha_Demuxer *demuxer) {
   struct Kotonoha_VideoData *videoInstance =
       (struct Kotonoha_VideoData *)SDL_calloc(
           1, sizeof(struct Kotonoha_VideoData));
@@ -381,11 +379,11 @@ enum Kotonoha_Scene_Status KotonohaVideoRenderProcess(void *userData,
     if (ret == 0) {
       Uint64 ptsMs = 0;
       if (recvFrame->pts != AV_NOPTS_VALUE) {
-        ptsMs = (Uint64)(recvFrame->pts *
-                         av_q2d(instance->videoTimeBase) * 1000.0);
+        ptsMs =
+            (Uint64)(recvFrame->pts * av_q2d(instance->videoTimeBase) * 1000.0);
       } else if (recvFrame->pkt_dts != AV_NOPTS_VALUE) {
-        ptsMs = (Uint64)(recvFrame->pkt_dts *
-                         av_q2d(instance->videoTimeBase) * 1000.0);
+        ptsMs = (Uint64)(recvFrame->pkt_dts * av_q2d(instance->videoTimeBase) *
+                         1000.0);
       }
 
       if (ptsMs < currentTime &&

@@ -1,5 +1,5 @@
-#include <Kotonoha/utils/Log.h>
 #include <Kotonoha/specials/Upscaling.h>
+#include <Kotonoha/utils/Log.h>
 #include <SDL3/SDL.h>
 
 #if defined(KOTONOHA_HAS_ANIME4K)
@@ -124,7 +124,8 @@ std::string LoadAsset(const std::string &filename) {
     }
   }
   if (buffer == nullptr) {
-    KLOG_WARN(UPSCALER, "Anime4K: could not load shader '%s'", filename.c_str());
+    KLOG_WARN(UPSCALER, "Anime4K: could not load shader '%s'",
+              filename.c_str());
     return "";
   }
   std::string text(static_cast<const char *>(buffer), size);
@@ -252,8 +253,7 @@ bool EvalRpn(const std::vector<std::string> &rpn, const TexRef &mainTex,
 }
 
 int EvalSize(const std::vector<std::string> &rpn, const TexRef &mainTex,
-             const std::map<std::string, TexRef> &reg,
-             const SizeContext &ctx) {
+             const std::map<std::string, TexRef> &reg, const SizeContext &ctx) {
   float value = 0.0f;
   if (!EvalRpn(rpn, mainTex, reg, ctx, value))
     return -1;
@@ -276,8 +276,7 @@ GLuint CompileShader(GLenum type, const std::string &source) {
     if (len > 1) {
       std::string log((size_t)len, '\0');
       glGetShaderInfoLog(shader, len, NULL, &log[0]);
-      KLOG_ERROR(UPSCALER, "Anime4K shader error: %s",
-                   log.c_str());
+      KLOG_ERROR(UPSCALER, "Anime4K shader error: %s", log.c_str());
     }
     glDeleteShader(shader);
     return 0;
@@ -300,8 +299,7 @@ GLuint LinkProgram(GLuint vertex, GLuint fragment) {
     if (len > 1) {
       std::string log((size_t)len, '\0');
       glGetProgramInfoLog(program, len, NULL, &log[0]);
-      KLOG_ERROR(UPSCALER, "Anime4K link error: %s",
-                   log.c_str());
+      KLOG_ERROR(UPSCALER, "Anime4K link error: %s", log.c_str());
     }
     glDeleteProgram(program);
     return 0;
@@ -335,8 +333,9 @@ std::string BuildFragment(Pass &pass) {
   }
 
   std::string src = Header();
-  src += UseLegacyGLSL() ? "varying vec2 vTex;\n#define fragColor gl_FragColor\n"
-                         : "in vec2 vTex;\nout vec4 fragColor;\n";
+  src += UseLegacyGLSL()
+             ? "varying vec2 vTex;\n#define fragColor gl_FragColor\n"
+             : "in vec2 vTex;\nout vec4 fragColor;\n";
   pass.refs.clear();
   for (const std::string &n : names) {
     BindRef ref;
@@ -367,8 +366,9 @@ std::string VertexSource() {
 
 std::string BlitSource() {
   return Header() +
-         (UseLegacyGLSL() ? "varying vec2 vTex;\n#define fragColor gl_FragColor\n"
-                          : "in vec2 vTex;\nout vec4 fragColor;\n") +
+         (UseLegacyGLSL()
+              ? "varying vec2 vTex;\n#define fragColor gl_FragColor\n"
+              : "in vec2 vTex;\nout vec4 fragColor;\n") +
          "uniform sampler2D uMain;\nuniform sampler2D uOrig;\n"
          "void main() {\n"
          "  vec3 rgb = clamp(texture(uMain, vTex).rgb, 0.0, 1.0);\n"
@@ -523,7 +523,8 @@ bool InitGLPipeline(SDL_Renderer *renderer) {
   glDeleteShader(vertex);
 
   if (!ok) {
-    KLOG_WARN(UPSCALER, "Anime4K pipeline setup failed; disabling Anime4K scaler.");
+    KLOG_WARN(UPSCALER,
+              "Anime4K pipeline setup failed; disabling Anime4K scaler.");
     DestroyPipeline();
     return false;
   }
@@ -542,8 +543,8 @@ bool InitGLPipeline(SDL_Renderer *renderer) {
   glBindBuffer(GL_ARRAY_BUFFER, (GLuint)prevBuffer);
 
   g_initialized = true;
-  KLOG_INFO(UPSCALER, "Anime4K v4.0 CNN (%s, %d passes) initialized", preset.c_str(),
-          (int)g_passes.size());
+  KLOG_INFO(UPSCALER, "Anime4K v4.0 CNN (%s, %d passes) initialized",
+            preset.c_str(), (int)g_passes.size());
   return true;
 }
 
@@ -557,8 +558,7 @@ GLuint AcquireTexture(int w, int h) {
   GLuint id = 0;
   glGenTextures(1, &id);
   glBindTexture(GL_TEXTURE_2D, id);
-  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, w, h, 0, GL_RGBA, GL_FLOAT,
-               NULL);
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, w, h, 0, GL_RGBA, GL_FLOAT, NULL);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -601,8 +601,8 @@ void DebugProbe(const char *label, GLuint tex, int w, int h) {
   if (AttachTarget(tex)) {
     float px[4] = {0, 0, 0, 0};
     glReadPixels(w / 3, h / 3, 1, 1, GL_RGBA, GL_FLOAT, px);
-    KLOG_INFO(UPSCALER, "Anime4K probe %-28s %4dx%-4d rgba=%.3f %.3f %.3f %.3f", label, w,
-            h, px[0], px[1], px[2], px[3]);
+    KLOG_INFO(UPSCALER, "Anime4K probe %-28s %4dx%-4d rgba=%.3f %.3f %.3f %.3f",
+              label, w, h, px[0], px[1], px[2], px[3]);
   }
   glBindFramebuffer(GL_FRAMEBUFFER, (GLuint)prevFbo);
 }
@@ -635,8 +635,7 @@ bool RunChain(GLuint inTex, int inW, int inH, GLuint outTex, int outW,
   for (const Pass &pass : g_passes) {
     if (!pass.when.empty()) {
       float condition = 1.0f;
-      if (EvalRpn(pass.when, mainTex, reg, ctx, condition) &&
-          condition == 0.0f)
+      if (EvalRpn(pass.when, mainTex, reg, ctx, condition) && condition == 0.0f)
         continue;
     }
     int w = EvalSize(pass.width, mainTex, reg, ctx);
@@ -784,14 +783,16 @@ bool KotonohaAnime4KUpscaleSDLTextureInto(SDL_Renderer *renderer,
   SDL_Texture *previousTarget = SDL_GetRenderTarget(renderer);
   auto fallbackCopy = [&]() {
     if (!SDL_SetRenderTarget(renderer, outputTexture)) {
-      KLOG_ERROR(UPSCALER, "Anime4K fallback could not activate output texture: %s",
-                   SDL_GetError());
+      KLOG_ERROR(UPSCALER,
+                 "Anime4K fallback could not activate output texture: %s",
+                 SDL_GetError());
       return false;
     }
     const bool copied = SDL_RenderTexture(renderer, inputTexture, NULL, NULL);
     const bool restored = SDL_SetRenderTarget(renderer, previousTarget);
     if (!copied || !restored) {
-      KLOG_ERROR(UPSCALER, "Anime4K fallback render failed: %s", SDL_GetError());
+      KLOG_ERROR(UPSCALER, "Anime4K fallback render failed: %s",
+                 SDL_GetError());
     }
     return copied && restored;
   };

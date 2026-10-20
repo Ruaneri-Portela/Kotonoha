@@ -1,5 +1,5 @@
-#include <Kotonoha/utils/Log.h>
 #include <Kotonoha/components/Video.hpp>
+#include <Kotonoha/utils/Log.h>
 
 namespace Kotonoha {
 
@@ -63,8 +63,8 @@ void Video::RenderTexture(SDL_Renderer *render, SDL_Texture *texture) {
     const int requiredHeight = static_cast<int>(videoHeight);
 
     if (requiredWidth <= 0 || requiredHeight <= 0) {
-      KLOG_ERROR(VIDEO, "Invalid video texture size: %dx%d",
-                   requiredWidth, requiredHeight);
+      KLOG_ERROR(VIDEO, "Invalid video texture size: %dx%d", requiredWidth,
+                 requiredHeight);
       return;
     }
 
@@ -91,8 +91,7 @@ Kotonoha_Scene_Status Video::Render(KOTONOHA_SCENE_CALL) {
 
   if (!SDL_SetRenderDrawColor(render, 0, 0, 0, 255) ||
       !SDL_RenderClear(render)) {
-    KLOG_ERROR(VIDEO, "Failed to clear video canvas: %s",
-                 SDL_GetError());
+    KLOG_ERROR(VIDEO, "Failed to clear video canvas: %s", SDL_GetError());
     return KOTONOHA_SCENE_WAITING;
   }
 
@@ -170,9 +169,9 @@ Kotonoha_Scene_Status Video::Render(KOTONOHA_SCENE_CALL) {
 
   // Vídeos futuros ainda não iniciados não devem manter o último frame do
   // vídeo anterior cobrindo as camadas inferiores.
-  if (returnStatus == KOTONOHA_SCENE_NULL || (isEmpty &&
-      returnStatus != KOTONOHA_SCENE_DRAW &&
-      returnStatus != KOTONOHA_SCENE_DRAW_LAST)) {
+  if (returnStatus == KOTONOHA_SCENE_NULL ||
+      (isEmpty && returnStatus != KOTONOHA_SCENE_DRAW &&
+       returnStatus != KOTONOHA_SCENE_DRAW_LAST)) {
     return KOTONOHA_SCENE_COMPLETE;
   }
 

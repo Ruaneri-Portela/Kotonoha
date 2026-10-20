@@ -1,7 +1,7 @@
-#include <Kotonoha/utils/Log.h>
 #include <Kotonoha/renders/ImageRender.h>
 #include <Kotonoha/specials/Upscaling.h>
 #include <Kotonoha/utils/FFmpegSDL.h>
+#include <Kotonoha/utils/Log.h>
 
 static void prepareStraightAlphaForLinearFiltering(Uint8 *rgba, int width,
                                                    int height, int pitch,
@@ -141,10 +141,9 @@ static AVFrame *convertFrameToRgba(AVFrame *frame, int h, int w,
   }
 
   *buffer = NULL;
-  struct SwsContext *swsCtx =
-      sws_getContext(frame->width, frame->height,
-                     (enum AVPixelFormat)frame->format, w, h, AV_PIX_FMT_RGBA,
-                     SWS_LANCZOS, NULL, NULL, NULL);
+  struct SwsContext *swsCtx = sws_getContext(
+      frame->width, frame->height, (enum AVPixelFormat)frame->format, w, h,
+      AV_PIX_FMT_RGBA, SWS_LANCZOS, NULL, NULL, NULL);
   if (swsCtx == NULL) {
     KLOG_ERROR(IMAGE, "Failed to create image frame converter");
     return NULL;
@@ -200,38 +199,39 @@ SDL_Texture *KotonohaImageCreateTextureFromFrame(SDL_Renderer *render,
       KotonohaSDLFormatForAVFrame(frame, &supportsDirectUpload);
   SDL_Texture *texture = NULL;
   if (supportsDirectUpload) {
-    texture = SDL_CreateTexture(render, nativeFormat, SDL_TEXTUREACCESS_STREAMING,
-                                frame->width, frame->height);
+    texture =
+        SDL_CreateTexture(render, nativeFormat, SDL_TEXTUREACCESS_STREAMING,
+                          frame->width, frame->height);
     if (texture != NULL &&
-        SDL_SetTextureBlendMode(
-            texture, KotonohaAVPixelFormatHasAlpha(
-                         (enum AVPixelFormat)frame->format)
-                         ? SDL_BLENDMODE_BLEND
-                         : SDL_BLENDMODE_NONE)) {
-      if (KotonohaAVPixelFormatHasAlpha(
-              (enum AVPixelFormat)frame->format)) {
+        SDL_SetTextureBlendMode(texture, KotonohaAVPixelFormatHasAlpha(
+                                             (enum AVPixelFormat)frame->format)
+                                             ? SDL_BLENDMODE_BLEND
+                                             : SDL_BLENDMODE_NONE)) {
+      if (KotonohaAVPixelFormatHasAlpha((enum AVPixelFormat)frame->format)) {
         const int alphaIndex =
-            frame->format == AV_PIX_FMT_ARGB ||
-                    frame->format == AV_PIX_FMT_ABGR
+            frame->format == AV_PIX_FMT_ARGB || frame->format == AV_PIX_FMT_ABGR
                 ? 0
                 : 3;
-        prepareStraightAlphaForLinearFiltering(
-            frame->data[0], frame->width, frame->height, frame->linesize[0],
-            alphaIndex);
+        prepareStraightAlphaForLinearFiltering(frame->data[0], frame->width,
+                                               frame->height,
+                                               frame->linesize[0], alphaIndex);
       }
       if (KotonohaSDLUpdateTextureFromAVFrame(texture, frame)) {
         return texture;
       }
-      KLOG_WARN(IMAGE, "Native SDL image upload failed; falling back to SWS: %s",
-                  SDL_GetError());
+      KLOG_WARN(IMAGE,
+                "Native SDL image upload failed; falling back to SWS: %s",
+                SDL_GetError());
     } else if (texture == NULL) {
-      KLOG_WARN(IMAGE, "Could not create native SDL image texture; falling back "
-                  "to SWS: %s",
-                  SDL_GetError());
+      KLOG_WARN(IMAGE,
+                "Could not create native SDL image texture; falling back "
+                "to SWS: %s",
+                SDL_GetError());
     } else {
-      KLOG_WARN(IMAGE, "Could not configure native SDL image texture; falling "
-                  "back to SWS: %s",
-                  SDL_GetError());
+      KLOG_WARN(IMAGE,
+                "Could not configure native SDL image texture; falling "
+                "back to SWS: %s",
+                SDL_GetError());
     }
     if (texture != NULL) {
       SDL_DestroyTexture(texture);
@@ -251,11 +251,11 @@ SDL_Texture *KotonohaImageCreateTextureFromFrame(SDL_Renderer *render,
                               frame->height);
   if (texture == NULL) {
     KLOG_ERROR(IMAGE, "Failed to create SWS image texture: %s", SDL_GetError());
-  } else if (!SDL_SetTextureBlendMode(
-                 texture, KotonohaAVPixelFormatHasAlpha(
-                              (enum AVPixelFormat)frame->format)
-                              ? SDL_BLENDMODE_BLEND
-                              : SDL_BLENDMODE_NONE) ||
+  } else if (!SDL_SetTextureBlendMode(texture,
+                                      KotonohaAVPixelFormatHasAlpha(
+                                          (enum AVPixelFormat)frame->format)
+                                          ? SDL_BLENDMODE_BLEND
+                                          : SDL_BLENDMODE_NONE) ||
              !SDL_UpdateTexture(texture, NULL, rgbaFrame->data[0],
                                 rgbaFrame->linesize[0])) {
     KLOG_ERROR(IMAGE, "Failed to upload SWS image texture: %s", SDL_GetError());
@@ -320,10 +320,10 @@ static bool copyFrameToSurface(SDL_Surface *surface, AVFrame *frame) {
     return false;
   }
 
-  const int bytesPerPixel = frame->format == AV_PIX_FMT_RGB24 ||
-                                    frame->format == AV_PIX_FMT_BGR24
-                                ? 3
-                                : 4;
+  const int bytesPerPixel =
+      frame->format == AV_PIX_FMT_RGB24 || frame->format == AV_PIX_FMT_BGR24
+          ? 3
+          : 4;
   if (frame->width > INT_MAX / bytesPerPixel ||
       frame->linesize[0] < frame->width * bytesPerPixel ||
       surface->pitch < frame->width * bytesPerPixel) {
@@ -331,8 +331,7 @@ static bool copyFrameToSurface(SDL_Surface *surface, AVFrame *frame) {
   }
 
   if (!SDL_LockSurface(surface)) {
-    KLOG_ERROR(IMAGE, "Failed to lock image surface: %s",
-                 SDL_GetError());
+    KLOG_ERROR(IMAGE, "Failed to lock image surface: %s", SDL_GetError());
     return false;
   }
 
@@ -366,10 +365,9 @@ SDL_Surface *KotonohaImageCreateSurface(const char *path, int h, int w) {
   }
 
   SDL_Surface *surface = NULL;
-  bool directSurfaceSupported =
-      h == frame->height && w == frame->width &&
-      KotonohaAVPixelFormatSupportsDirectSurface(
-          (enum AVPixelFormat)frame->format);
+  bool directSurfaceSupported = h == frame->height && w == frame->width &&
+                                KotonohaAVPixelFormatSupportsDirectSurface(
+                                    (enum AVPixelFormat)frame->format);
   if (directSurfaceSupported) {
     bool supportsDirectUpload = false;
     const Uint32 format =
@@ -384,7 +382,8 @@ SDL_Surface *KotonohaImageCreateSurface(const char *path, int h, int w) {
         SDL_DestroySurface(surface);
         surface = NULL;
       }
-      KLOG_WARN(IMAGE, "Direct SDL surface creation failed; falling back to SWS");
+      KLOG_WARN(IMAGE,
+                "Direct SDL surface creation failed; falling back to SWS");
     }
   }
 

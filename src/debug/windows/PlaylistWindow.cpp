@@ -4,8 +4,7 @@
 
 namespace Kotonoha::Debug {
 
-void DrawPlaylistWindow(::Kotonoha::Kotonoha *game,
-                                  Kotonoha_Game &context) {
+void DrawPlaylistWindow(::Kotonoha::Kotonoha *game, Kotonoha_Game &context) {
   if (!playlistVisible)
     return;
 
