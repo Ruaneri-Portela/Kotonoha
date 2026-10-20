@@ -68,6 +68,8 @@ constexpr int kSavedAttribs = 4;
 constexpr int kMaxUnits = 16;
 
 bool g_initialized = false;
+std::string g_filesSpec;
+bool g_filesDirty = false;
 bool g_isGLES = false;
 std::vector<Pass> g_passes;
 GLuint g_blitProgram = 0;
@@ -278,7 +280,19 @@ GLuint LinkProgram(GLuint vertex, GLuint fragment) {
   return program;
 }
 
+// macOS só expõe GLSL 1.20 no contexto legado do renderer SDL.
+bool UseLegacyGLSL() {
+#if defined(__APPLE__)
+  return !g_isGLES;
+#else
+  return false;
+#endif
+}
+
 std::string Header() {
+  if (UseLegacyGLSL())
+    return "#version 120\n"
+           "#define texture texture2D\n";
   return g_isGLES ? "#version 300 es\nprecision highp float;\nprecision highp "
                     "sampler2D;\n"
                   : "#version 130\n";
@@ -292,7 +306,8 @@ std::string BuildFragment(Pass &pass) {
   }
 
   std::string src = Header();
-  src += "in vec2 vTex;\nout vec4 fragColor;\n";
+  src += UseLegacyGLSL() ? "varying vec2 vTex;\n#define fragColor gl_FragColor\n"
+                         : "in vec2 vTex;\nout vec4 fragColor;\n";
   pass.refs.clear();
   for (const std::string &n : names) {
     BindRef ref;
@@ -312,6 +327,10 @@ std::string BuildFragment(Pass &pass) {
 }
 
 std::string VertexSource() {
+  if (UseLegacyGLSL())
+    return Header() +
+           "attribute vec2 aPos;\nattribute vec2 aTex;\nvarying vec2 vTex;\n"
+           "void main() { vTex = aTex; gl_Position = vec4(aPos, 0.0, 1.0); }\n";
   return Header() +
          "in vec2 aPos;\nin vec2 aTex;\nout vec2 vTex;\n"
          "void main() { vTex = aTex; gl_Position = vec4(aPos, 0.0, 1.0); }\n";
@@ -319,7 +338,8 @@ std::string VertexSource() {
 
 std::string BlitSource() {
   return Header() +
-         "in vec2 vTex;\nout vec4 fragColor;\n"
+         (UseLegacyGLSL() ? "varying vec2 vTex;\n#define fragColor gl_FragColor\n"
+                          : "in vec2 vTex;\nout vec4 fragColor;\n") +
          "uniform sampler2D uMain;\nuniform sampler2D uOrig;\n"
          "void main() {\n"
          "  vec3 rgb = clamp(texture(uMain, vTex).rgb, 0.0, 1.0);\n"
@@ -373,18 +393,39 @@ bool InitGLPipeline(SDL_Renderer *renderer) {
       preset != "UL")
     preset = "L";
 
-  const std::string files[] = {
-      "Anime4K_Clamp_Highlights.glsl",
-      "Anime4K_Restore_CNN_" + preset + ".glsl",
-      "Anime4K_Upscale_CNN_x2_" + preset + ".glsl",
-  };
+  std::vector<std::string> files;
+  {
+    size_t start = 0;
+    while (start <= g_filesSpec.size()) {
+      size_t end = g_filesSpec.find(';', start);
+      if (end == std::string::npos)
+        end = g_filesSpec.size();
+      std::string name = g_filesSpec.substr(start, end - start);
+      const size_t b = name.find_first_not_of(" \t\r\n");
+      const size_t e = name.find_last_not_of(" \t\r\n");
+      if (b != std::string::npos) {
+        name = name.substr(b, e - b + 1);
+        if (name.find_first_of("/\\") == std::string::npos &&
+            name.find("..") == std::string::npos)
+          files.push_back(name);
+      }
+      start = end + 1;
+    }
+  }
+  if (files.empty()) {
+    files = {
+        "Anime4K_Clamp_Highlights.glsl",
+        "Anime4K_Restore_CNN_" + preset + ".glsl",
+        "Anime4K_Upscale_CNN_x2_" + preset + ".glsl",
+    };
+  }
 
   std::vector<Pass> mainPasses;
   std::vector<Pass> kernelPasses;
   for (const std::string &file : files) {
     const std::string source = LoadAsset(file);
     if (source.empty())
-      return false;
+      continue;
     std::vector<Pass> parsed;
     ParsePasses(source, parsed);
     for (Pass &p : parsed) {
@@ -393,6 +434,11 @@ bool InitGLPipeline(SDL_Renderer *renderer) {
       else if (p.hook == "PREKERNEL")
         kernelPasses.push_back(p);
     }
+  }
+  if (mainPasses.empty() && kernelPasses.empty()) {
+    SDL_LogError(SDL_LOG_CATEGORY_RENDER,
+                 "Anime4K: no usable shader passes were loaded.");
+    return false;
   }
   g_passes = mainPasses;
   g_passes.insert(g_passes.end(), kernelPasses.begin(), kernelPasses.end());
@@ -661,7 +707,16 @@ GLuint TextureNumber(SDL_Texture *texture) {
 
 extern "C" {
 
-bool KotonohaAnime4KInit(SDL_Renderer *renderer) {
+void KotonohaAnime4KSetFiles(const char *files) {
+  const std::string next = files != NULL ? files : "";
+  if (next != g_filesSpec) {
+    g_filesSpec = next;
+    g_filesDirty = true;
+  }
+}
+
+bool KotonohaAnime4KInit(SDL_Renderer *renderer, Kotonoha_Config *config) {
+  KotonohaAnime4KSetFiles(config != NULL ? config->anime4kFiles : NULL);
   return InitGLPipeline(renderer);
 }
 
@@ -696,6 +751,13 @@ bool KotonohaAnime4KUpscaleSDLTextureInto(SDL_Renderer *renderer,
     return copied && restored;
   };
 
+  if (g_filesDirty) {
+    g_filesDirty = false;
+    if (g_initialized) {
+      DestroyPipeline();
+      g_initialized = false;
+    }
+  }
   if (!g_initialized && !InitGLPipeline(renderer)) {
     return fallbackCopy();
   }

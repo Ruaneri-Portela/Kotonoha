@@ -9,8 +9,8 @@ Upscaling::Upscaling(int baseWidth, int baseHeight)
 Upscaling::~Upscaling() { ResetUpscaling(); }
 
 bool Upscaling::IsUpscalingActive() const {
-  const float factor = KotonohaUpscalingInitFactor();
-  return factor > 1.0f &&
+  const float factor = KotonohaUpscalingGetFactor();
+  return KotonohaUpscalingIsEnabled() && factor > 1.0f &&
          Kotonoha_GetUpscalerType() != KOTONOHA_UPSCALER_NONE;
 }
 

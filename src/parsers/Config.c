@@ -486,6 +486,7 @@ bool KotonohaConfigLoad(Kotonoha_Config *config, const char *path, int argc,
   config->scalerFactor = 1.0f;
   config->videoCacheSeconds = 2.0f;
   config->debugUiScale = 1.0f;
+  config->upscalingEnabled = true;
   config->enableVsync = true;
 
   if (path != NULL) {
@@ -546,6 +547,11 @@ void KotonohaConfigFree(Kotonoha_Config *config) {
   if (config->preferredRenderer != NULL) {
     SDL_free(config->preferredRenderer);
     config->preferredRenderer = NULL;
+  }
+
+  if (config->anime4kFiles != NULL) {
+    SDL_free(config->anime4kFiles);
+    config->anime4kFiles = NULL;
   }
 
   if (config->configFilePath != NULL) {
