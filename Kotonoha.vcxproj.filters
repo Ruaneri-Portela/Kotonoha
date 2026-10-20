@@ -189,14 +189,17 @@
     <ClCompile Include="src\utils\OverlayRender.c">
       <Filter>Arquivos de Origem\utils</Filter>
     </ClCompile>
-    <ClCompile Include="src\specials\ConfigImGui.cpp">
-      <Filter>Arquivos de Origem\specials</Filter>
-    </ClCompile>
     <ClCompile Include="src\Init.cpp">
       <Filter>Arquivos de Origem</Filter>
     </ClCompile>
     <ClCompile Include="src\parsers\Config.c">
       <Filter>Arquivos de Origem\parser</Filter>
+    </ClCompile>
+    <ClCompile Include="src\specials\ConfigFIle.cpp">
+      <Filter>Arquivos de Origem\specials</Filter>
+    </ClCompile>
+    <ClCompile Include="src\utils\Log.c">
+      <Filter>Arquivos de Origem\utils</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -305,6 +308,12 @@
     <ClInclude Include="include\Kotonoha\parsers\Config.h">
       <Filter>Arquivos de Cabeçalho\parser</Filter>
     </ClInclude>
+    <ClInclude Include="include\Kotonoha\utils\Log.h">
+      <Filter>Arquivos de Cabeçalho\utils</Filter>
+    </ClInclude>
+    <ClInclude Include="src\specials\resource.h">
+      <Filter>Arquivos de Cabeçalho</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="LICENSE" />
@@ -318,5 +327,10 @@
     <ResourceCompile Include="src\specials\Kotonoha.rc">
       <Filter>Arquivos de Recurso</Filter>
     </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="assets\icon.ico">
+      <Filter>Arquivos de Recurso</Filter>
+    </Image>
   </ItemGroup>
 </Project>
