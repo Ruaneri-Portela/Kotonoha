@@ -17,6 +17,12 @@ static inline Uint32 KotonohaSDLFormatForAVFrame(
     return SDL_PIXELFORMAT_RGBA32;
   }
 
+#if defined(__ANDROID__) || defined(ANDROID)
+  // On Android GLES renderers, direct YUV/NV12 texture upload often uses incorrect
+  // color conversion matrices in driver shaders. Force SWS conversion to RGBA for accurate colors.
+  *supportsDirectUpload = false;
+  return SDL_PIXELFORMAT_RGBA32;
+#else
   const enum AVPixelFormat pixelFormat = (enum AVPixelFormat)frame->format;
   if ((pixelFormat == AV_PIX_FMT_NV12 || pixelFormat == AV_PIX_FMT_NV21 ||
        pixelFormat == AV_PIX_FMT_YUV420P ||
@@ -51,6 +57,7 @@ static inline Uint32 KotonohaSDLFormatForAVFrame(
     *supportsDirectUpload = false;
     return SDL_PIXELFORMAT_RGBA32;
   }
+#endif
 }
 
 static inline bool KotonohaAVPixelFormatHasAlpha(enum AVPixelFormat format) {
