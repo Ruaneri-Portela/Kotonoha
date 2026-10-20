@@ -1,9 +1,9 @@
 cmake_minimum_required(VERSION 3.18)
 
-if(APPLE)
+if (APPLE)
     set(CMAKE_OSX_DEPLOYMENT_TARGET "15.0" CACHE STRING
-        "Minimum macOS version (Sequoia)" FORCE)
-endif()
+            "Minimum macOS version (Sequoia)" FORCE)
+endif ()
 
 # ==============================================================================
 # Android / vcpkg target triplet
@@ -235,36 +235,37 @@ else ()
             imgui::imgui
     )
 
-    if (NOT APPLE)
-        find_package(OpenGL QUIET)
-        if (OpenGL_FOUND)
-            target_compile_definitions(Kotonoha PRIVATE
-                    KOTONOHA_HAS_ANIME4K=1
-            )
-            target_link_libraries(Kotonoha PRIVATE
-                    OpenGL::GL
-            )
-            add_custom_command(TARGET Kotonoha POST_BUILD
-                    COMMAND ${CMAKE_COMMAND} -E copy_directory
-                    "${KOTONOHA_ASSETS_DIR}/Anime4K"
-                    "$<TARGET_FILE_DIR:Kotonoha>/assets/Anime4K"
-                    VERBATIM
-            )
-        else ()
-            message(STATUS
-                    "OpenGL not found; Anime4K upscaling is disabled"
-            )
-        endif ()
+    # --------------------------------------------------------------------------
+    # Anime4K / OpenGL Configuration (Desktop: Linux, Windows, macOS, etc.)
+    # --------------------------------------------------------------------------
+    find_package(OpenGL QUIET)
+    if (OpenGL_FOUND)
+        target_compile_definitions(Kotonoha PRIVATE
+                KOTONOHA_HAS_ANIME4K=1
+        )
+        target_link_libraries(Kotonoha PRIVATE
+                OpenGL::GL
+        )
+        add_custom_command(TARGET Kotonoha POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E copy_directory
+                "${KOTONOHA_ASSETS_DIR}/Anime4K"
+                "$<TARGET_FILE_DIR:Kotonoha>/assets/Anime4K"
+                VERBATIM
+        )
+    else ()
+        message(STATUS
+                "OpenGL não encontrado; Anime4K upscaling desativado"
+        )
     endif ()
 
-
-    # Haiku necessita que o executável seja gerado como PIC.
+    # --------------------------------------------------------------------------
+    # Suporte específico para Haiku
+    # --------------------------------------------------------------------------
     if (CMAKE_SYSTEM_NAME STREQUAL "Haiku")
         target_compile_options(Kotonoha PRIVATE
                 -fPIC
         )
     endif ()
-
 
     # ==========================================================================
     # macOS application bundle

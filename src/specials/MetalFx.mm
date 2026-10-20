@@ -385,8 +385,9 @@ id<MTLTexture> MetalFXUpscaleTextureInto(
 
 extern "C" {
 
-bool KotonohaMetalFXInit(SDL_Renderer *renderer)
+bool KotonohaMetalFXInit(SDL_Renderer *renderer, Kotonoha_Config *config)
 {
+    (void)config;
     @autoreleasepool {
         if (renderer == nullptr) {
             SDL_SetError("KotonohaMetalFXInit: renderer nulo");

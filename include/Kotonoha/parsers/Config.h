@@ -25,6 +25,7 @@ typedef struct Kotonoha_Config {
   size_t assStylesSize;
 
   char *preferredRenderer;
+  char *anime4kFiles;
   char *configFilePath;
 
   char **scriptsForced;
@@ -42,6 +43,7 @@ typedef struct Kotonoha_Config {
   bool showTimestamp;
   bool enableDebugUi;
   bool skipFiles;
+  bool upscalingEnabled;
 
   bool dirtyConfig;
   bool paused;

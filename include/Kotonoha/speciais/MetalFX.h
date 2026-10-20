@@ -1,13 +1,15 @@
 #pragma once
 #include <SDL3/SDL.h>
 
+#include <Kotonoha/parsers/Config.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 #if defined(KOTONOHA_HAS_METALFX)
 
-bool KotonohaMetalFXInit(SDL_Renderer *renderer);
+bool KotonohaMetalFXInit(SDL_Renderer *renderer, Kotonoha_Config *config);
 void KotonohaMetalFXShutdown(void);
 bool KotonohaMetalFXUpscaleSDLTextureInto(SDL_Renderer *renderer,
                                           SDL_Texture *inputTexture,
@@ -16,8 +18,10 @@ void KotonohaMetalFXClearScalerCache(void);
 
 #else
 
-static inline bool KotonohaMetalFXInit(SDL_Renderer *renderer) {
+static inline bool KotonohaMetalFXInit(SDL_Renderer *renderer,
+                                      Kotonoha_Config *config) {
   (void)renderer;
+  (void)config;
   return false;
 }
 static inline void KotonohaMetalFXShutdown(void) {}
