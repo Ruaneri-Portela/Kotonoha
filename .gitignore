@@ -287,6 +287,8 @@ mono_crash.*
 
 # Build results
 [Dd]ebug/
+![Ss]rc/[Dd]ebug/
+![Ii]nclude/Kotonoha/[Dd]ebug/
 [Dd]ebugPublic/
 [Rr]elease/
 [Rr]eleases/
