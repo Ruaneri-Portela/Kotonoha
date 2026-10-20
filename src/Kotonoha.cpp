@@ -1,5 +1,5 @@
-#include <Kotonoha/utils/Log.h>
 #include <Kotonoha/Kotonoha.hpp>
+#include <Kotonoha/utils/Log.h>
 #include <cstring>
 #include <string>
 #include <vector>
@@ -111,9 +111,9 @@ void Kotonoha::UpdateTitleMusic(bool titleScreen) {
   }
   // One-shot (0/0) looping BGM: plays regardless of the timeline
   titleMedia = titleAudio->AddMedia(gameContext.config.titleMusic != nullptr
-                               ? gameContext.config.titleMusic
-                               : "assets/SDBGM28_LOOP.OGG",
-                           0, 0, true, "BGM");
+                                        ? gameContext.config.titleMusic
+                                        : "assets/SDBGM28_LOOP.OGG",
+                                    0, 0, true, "BGM");
   if (titleMedia == nullptr) {
     // Avoid retrying every frame
     KLOG_WARN(AUDIO, "Title music unavailable");
@@ -417,8 +417,7 @@ bool Kotonoha::LoadScriptFile(const char *path) {
 
   SDL_PathInfo info;
   if (!SDL_GetPathInfo(scriptPath.c_str(), &info)) {
-    KLOG_WARN(CORE, "Script path not found: %s",
-                scriptPath.c_str());
+    KLOG_WARN(CORE, "Script path not found: %s", scriptPath.c_str());
     return false;
   }
 
@@ -471,7 +470,7 @@ bool Kotonoha::LoadScriptFile(const char *path) {
             },
             &context)) {
       KLOG_ERROR(CORE, "Failed to enumerate scripts directory: %s",
-                   scriptPath.c_str());
+                 scriptPath.c_str());
       return false;
     }
 
@@ -484,7 +483,7 @@ bool Kotonoha::LoadScriptFile(const char *path) {
           Gameplay(file.c_str(), &gameContext, preferredFont);
       if (gameplay == nullptr) {
         KLOG_ERROR(CORE, "Failed to allocate Gameplay for script: %s",
-                     file.c_str());
+                   file.c_str());
         continue;
       }
 
@@ -501,7 +500,7 @@ bool Kotonoha::LoadScriptFile(const char *path) {
         Gameplay(scriptPath.c_str(), &gameContext, preferredFont);
     if (gameplay == nullptr) {
       KLOG_ERROR(CORE, "Failed to allocate Gameplay for script: %s",
-                   scriptPath.c_str());
+                 scriptPath.c_str());
       return false;
     }
 
@@ -517,14 +516,16 @@ bool Kotonoha::CaptureSceneTransitionFrame(bool activateTransition) {
     return false;
   }
   if (SDL_GetRenderTarget(gameContext.render) != nullptr) {
-    KLOG_WARN(CORE, "Scene transition capture skipped: render target is not the "
-                "backbuffer");
+    KLOG_WARN(CORE,
+              "Scene transition capture skipped: render target is not the "
+              "backbuffer");
     return false;
   }
 
   SDL_Surface *surface = SDL_RenderReadPixels(gameContext.render, nullptr);
   if (surface == nullptr) {
-    KLOG_ERROR(CORE, "Scene transition frame capture failed: %s", SDL_GetError());
+    KLOG_ERROR(CORE, "Scene transition frame capture failed: %s",
+               SDL_GetError());
     return false;
   }
 
@@ -532,7 +533,7 @@ bool Kotonoha::CaptureSceneTransitionFrame(bool activateTransition) {
       SDL_CreateTextureFromSurface(gameContext.render, surface);
   if (nextFrame == nullptr) {
     KLOG_ERROR(CORE, "Scene transition texture creation failed: %s",
-                 SDL_GetError());
+               SDL_GetError());
     SDL_DestroySurface(surface);
     return false;
   }
@@ -540,7 +541,7 @@ bool Kotonoha::CaptureSceneTransitionFrame(bool activateTransition) {
 
   if (!SDL_SetTextureBlendMode(nextFrame, SDL_BLENDMODE_NONE)) {
     KLOG_ERROR(CORE, "Scene transition texture blend setup failed: %s",
-                 SDL_GetError());
+               SDL_GetError());
     SDL_DestroyTexture(nextFrame);
     return false;
   }
@@ -610,13 +611,13 @@ void Kotonoha::PresentSceneTransitionFrame(Gameplay *incoming) {
   if (SDL_GetRenderTarget(gameContext.render) != nullptr &&
       !SDL_SetRenderTarget(gameContext.render, nullptr)) {
     KLOG_ERROR(CORE, "Cannot restore backbuffer for retained scene frame: %s",
-                 SDL_GetError());
+               SDL_GetError());
     return;
   }
   if (!SDL_RenderTexture(gameContext.render, sceneTransitionFrame, nullptr,
                          nullptr)) {
     KLOG_ERROR(CORE, "Retained scene frame presentation failed: %s",
-                 SDL_GetError());
+               SDL_GetError());
   }
 }
 

@@ -19,7 +19,7 @@ void KotonohaMetalFXClearScalerCache(void);
 #else
 
 static inline bool KotonohaMetalFXInit(SDL_Renderer *renderer,
-                                      Kotonoha_Config *config) {
+                                       Kotonoha_Config *config) {
   (void)renderer;
   (void)config;
   return false;

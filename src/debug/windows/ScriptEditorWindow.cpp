@@ -5,7 +5,7 @@
 namespace Kotonoha::Debug {
 
 bool DrawScriptEditorWindow(::Kotonoha::Kotonoha *game,
-                                      Kotonoha_Game &context) {
+                            Kotonoha_Game &context) {
   if (!scriptEditorVisible)
     return true;
 
@@ -42,7 +42,7 @@ bool DrawScriptEditorWindow(::Kotonoha::Kotonoha *game,
         if (ImGui::Button("Load From Disk") &&
             LoadSceneEditorFromDisk(selected)) {
           RecreateGameplayAtPath(game, context, selectedSceneIndex,
-                                          selected->scriptPath);
+                                 selected->scriptPath);
         }
 
         ImVec2 avail = ImGui::GetContentRegionAvail();
@@ -69,8 +69,7 @@ bool DrawScriptEditorWindow(::Kotonoha::Kotonoha *game,
 
         ImGui::SameLine();
         if (ImGui::Button("Save Temporary") &&
-            LoadTemporaryGameplayAt(game, context,
-                                             selectedSceneIndex)) {
+            LoadTemporaryGameplayAt(game, context, selectedSceneIndex)) {
           shouldFinishFrame = true;
         }
 

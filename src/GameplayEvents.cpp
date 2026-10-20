@@ -1,11 +1,10 @@
-#include <Kotonoha/utils/Log.h>
 #include <Kotonoha/Gameplay.hpp>
+#include <Kotonoha/utils/Log.h>
 
 #include <Kotonoha/debug/DebugUi.hpp>
 
 namespace Kotonoha {
 namespace {
-
 
 constexpr Sint16 kTriggerDeadZone = 3000;
 
@@ -19,8 +18,7 @@ void Gameplay::Events(SDL_Event *event, Kotonoha_Game *gameContext) {
     return;
   }
 
-  const bool promptActive =
-      this->prompt != nullptr && this->prompt->IsActive();
+  const bool promptActive = this->prompt != nullptr && this->prompt->IsActive();
   // Pointer input only cares whether the cursor is over a debug window; the
   // focus flag lags one frame behind and swallowed the first click.
   const bool pointerEvent = event->type == SDL_EVENT_MOUSE_BUTTON_DOWN ||
@@ -162,7 +160,7 @@ void Gameplay::HandleKeyboard(SDL_Event *event, Kotonoha_Game *gameContext) {
   case SDLK_I: {
     const float timeInSeconds = GetTime();
     KLOG_INFO(SCRIPT, "Time: %.2f, is paused %d", timeInSeconds,
-            KotonohaTimeIsPaused(this->tm));
+              KotonohaTimeIsPaused(this->tm));
     break;
   }
 

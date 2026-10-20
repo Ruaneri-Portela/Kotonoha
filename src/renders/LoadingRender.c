@@ -1,5 +1,5 @@
-#include <Kotonoha/utils/Log.h>
 #include <Kotonoha/renders/LoadingRender.h>
+#include <Kotonoha/utils/Log.h>
 #include <Kotonoha/utils/OverlayRender.h>
 
 struct Loading_common {
@@ -98,8 +98,7 @@ enum Kotonoha_Scene_Status KotonohaLoadingRender(KOTONOHA_SCENE_CALL) {
   if (!SDL_SetRenderDrawBlendMode(render, SDL_BLENDMODE_BLEND) ||
       !SDL_SetRenderDrawColor(render, 0, 0, 0, 190) ||
       !SDL_RenderFillRect(render, &overlay)) {
-    KLOG_ERROR(RENDER, "Failed to draw loading overlay: %s",
-                 SDL_GetError());
+    KLOG_ERROR(RENDER, "Failed to draw loading overlay: %s", SDL_GetError());
     SDL_SetRenderDrawBlendMode(render, SDL_BLENDMODE_NONE);
     return KOTONOHA_SCENE_NULL;
   }
@@ -107,24 +106,24 @@ enum Kotonoha_Scene_Status KotonohaLoadingRender(KOTONOHA_SCENE_CALL) {
   const float textWidth = loadingCommon->textWidth * windowScale;
   const float textHeight = loadingCommon->textHeight * windowScale;
   SDL_FRect text = {((float)width - textWidth) * 0.5f,
-                    ((float)height - textHeight) * 0.5f, textWidth,
-                    textHeight};
+                    ((float)height - textHeight) * 0.5f, textWidth, textHeight};
 
   SDL_FRect shadow = text;
   shadow.x += 2.0f;
   shadow.y += 2.0f;
 
   if (!SDL_RenderTexture(render, loadingCommon->shadow, NULL, &shadow)) {
-    KLOG_ERROR(RENDER, "Failed to draw loading label shadow: %s", SDL_GetError());
+    KLOG_ERROR(RENDER, "Failed to draw loading label shadow: %s",
+               SDL_GetError());
   }
 
   if (!SDL_RenderTexture(render, loadingCommon->texture, NULL, &text)) {
-    KLOG_ERROR(RENDER, "Failed to draw loading label: %s",
-                 SDL_GetError());
+    KLOG_ERROR(RENDER, "Failed to draw loading label: %s", SDL_GetError());
   }
 
   if (!SDL_SetRenderDrawBlendMode(render, SDL_BLENDMODE_NONE)) {
-    KLOG_ERROR(RENDER, "Failed to restore render blend mode: %s", SDL_GetError());
+    KLOG_ERROR(RENDER, "Failed to restore render blend mode: %s",
+               SDL_GetError());
   }
 
   return KOTONOHA_SCENE_DRAW_OVERLAYED;

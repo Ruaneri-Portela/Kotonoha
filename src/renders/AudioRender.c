@@ -138,8 +138,8 @@ int KotonohaAudioRender(void *data, Uint8 **target, int *size) {
     if (ret == 0) {
       Uint64 framePtsMs = 0;
       if (pFrame->pts != AV_NOPTS_VALUE) {
-        framePtsMs = (Uint64)(pFrame->pts *
-                              av_q2d(instance->audioTimeBase) * 1000.0);
+        framePtsMs =
+            (Uint64)(pFrame->pts * av_q2d(instance->audioTimeBase) * 1000.0);
       } else if (pFrame->pkt_dts != AV_NOPTS_VALUE) {
         framePtsMs = (Uint64)(pFrame->pkt_dts *
                               av_q2d(instance->audioTimeBase) * 1000.0);
@@ -167,7 +167,7 @@ int KotonohaAudioRender(void *data, Uint8 **target, int *size) {
       if (pkt != NULL) {
         KotonohaDemuxStreamSetWaiting(instance->stream, false);
         const int sendResult = avcodec_send_packet(instance->codecCtx, pkt);
-        av_packet_free(&pkt);                         //[cite: 1]
+        av_packet_free(&pkt); //[cite: 1]
         if (sendResult < 0 && sendResult != AVERROR(EAGAIN)) {
           av_frame_free(&pFrame);
           return -1;

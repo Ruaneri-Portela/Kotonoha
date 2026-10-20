@@ -2,9 +2,8 @@
 
 namespace Kotonoha::Debug {
 
-static void DrawPlayback(::Kotonoha::Kotonoha *game,
-                                  ::Kotonoha::Gameplay *play,
-                                  Kotonoha_Game &context) {
+static void DrawPlayback(::Kotonoha::Kotonoha *game, ::Kotonoha::Gameplay *play,
+                         Kotonoha_Game &context) {
   if (play == nullptr ||
       !ImGui::CollapsingHeader("Playback Controls",
                                ImGuiTreeNodeFlags_DefaultOpen)) {
@@ -47,8 +46,7 @@ static void DrawPlayback(::Kotonoha::Kotonoha *game,
     context.config.back = true;
   ImGui::SameLine();
   if (ImGui::Button("Exit", ImVec2(buttonWidth, 0))) {
-    GoToScene(game, context,
-                       static_cast<int>(game->gameplays.size()) - 1);
+    GoToScene(game, context, static_cast<int>(game->gameplays.size()) - 1);
     context.config.next = true;
   }
 }
@@ -81,7 +79,7 @@ void DrawAudio(Kotonoha_Game &context) {
 }
 
 static void DrawScriptToggles(::Kotonoha::Kotonoha *game,
-                                       Kotonoha_Game &context) {
+                              Kotonoha_Game &context) {
   if (!ImGui::CollapsingHeader("Tools & Panels",
                                ImGuiTreeNodeFlags_DefaultOpen))
     return;
@@ -104,9 +102,8 @@ static void DrawScriptToggles(::Kotonoha::Kotonoha *game,
   ImGui::Checkbox("Log", &logVisible);
 }
 
-void DrawControlPanel(::Kotonoha::Kotonoha *game,
-                                    ::Kotonoha::Gameplay *play,
-                                    Kotonoha_Game &context) {
+void DrawControlPanel(::Kotonoha::Kotonoha *game, ::Kotonoha::Gameplay *play,
+                      Kotonoha_Game &context) {
   if (play == nullptr)
     return;
 

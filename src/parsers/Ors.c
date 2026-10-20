@@ -1,5 +1,5 @@
-#include <Kotonoha/utils/Log.h>
 #include <Kotonoha/parsers/Ors.h>
+#include <Kotonoha/utils/Log.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>

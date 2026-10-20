@@ -1,6 +1,6 @@
-#include <Kotonoha/utils/Log.h>
 #include <Kotonoha/components/Image.hpp>
 #include <Kotonoha/specials/Upscaling.h>
+#include <Kotonoha/utils/Log.h>
 #include <algorithm>
 #include <cctype>
 
@@ -123,13 +123,13 @@ bool ClearTransparent(SDL_Renderer *renderer) {
     return false;
   }
 
-  const bool cleared = SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0) &&
-                       SDL_RenderClear(renderer);
+  const bool cleared =
+      SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0) && SDL_RenderClear(renderer);
   const bool restored =
       SDL_SetRenderDrawColor(renderer, drawR, drawG, drawB, drawA);
   if (!cleared || !restored) {
     KLOG_ERROR(IMAGE, "Failed to clear image layer transparently: %s",
-                 SDL_GetError());
+               SDL_GetError());
     return false;
   }
   return true;
@@ -143,14 +143,14 @@ bool RenderTextureToCanvasTarget(SDL_Renderer *renderer, SDL_Texture *texture,
       !SDL_GetTextureSize(target, &width, &height) || width <= 0.0f ||
       height <= 0.0f) {
     KLOG_ERROR(IMAGE, "Invalid image or canvas target for rendering: %s",
-                 SDL_GetError());
+               SDL_GetError());
     return false;
   }
 
   const SDL_FRect destination{0.0f, 0.0f, width, height};
   if (!SDL_RenderTexture(renderer, texture, nullptr, &destination)) {
     KLOG_ERROR(IMAGE, "Failed to render image texture to canvas target: %s",
-                 SDL_GetError());
+               SDL_GetError());
     return false;
   }
   return true;
@@ -273,7 +273,7 @@ void Image::DiscoverAbcGroups(const char *basePath, Uint64 startTime,
           },
           &scan)) {
     KLOG_WARN(IMAGE, "Failed to scan for A/B/C mouth overlays beside %s: %s",
-                basePath, SDL_GetError());
+              basePath, SDL_GetError());
   }
 
   for (auto &group : scan.groups) {
@@ -330,8 +330,8 @@ void Image::DrawAbcForBase(Kotonoha_Picture *picture, SDL_Renderer *renderer,
                                    SDL_BLENDMODE_BLEND) ||
           !SDL_SetTextureScaleMode(group->textures[index],
                                    SDL_SCALEMODE_LINEAR)) {
-        KLOG_ERROR(IMAGE, "Failed to configure mouth overlay %s: %s", path.c_str(),
-                     SDL_GetError());
+        KLOG_ERROR(IMAGE, "Failed to configure mouth overlay %s: %s",
+                   path.c_str(), SDL_GetError());
 
         SDL_DestroyTexture(group->textures[index]);
         group->textures[index] = nullptr;
@@ -498,7 +498,8 @@ void Image::RenderTexture(SDL_Renderer *render, SDL_Texture *target,
     float pictureHeight = 0.0f;
 
     if (!SDL_GetTextureSize(picture->texture, &pictureWidth, &pictureHeight)) {
-      KLOG_ERROR(IMAGE, "Failed to get picture texture size: %s", SDL_GetError());
+      KLOG_ERROR(IMAGE, "Failed to get picture texture size: %s",
+                 SDL_GetError());
       return;
     }
 
@@ -507,7 +508,7 @@ void Image::RenderTexture(SDL_Renderer *render, SDL_Texture *target,
 
     if (requiredWidth <= 0 || requiredHeight <= 0) {
       KLOG_ERROR(IMAGE, "Invalid picture texture size: %dx%d", requiredWidth,
-                   requiredHeight);
+                 requiredHeight);
       return;
     }
 
@@ -515,29 +516,31 @@ void Image::RenderTexture(SDL_Renderer *render, SDL_Texture *target,
                                  factor)) {
       KLOG_ERROR(IMAGE, "Failed to ensure upscaling textures for picture");
     } else if (!SDL_SetRenderTarget(render, extraTexture)) {
-      KLOG_WARN(IMAGE, "Could not activate image upscaling target; drawing source "
-                  "texture directly: %s",
-                  SDL_GetError());
+      KLOG_WARN(IMAGE,
+                "Could not activate image upscaling target; drawing source "
+                "texture directly: %s",
+                SDL_GetError());
     } else if (!ClearTransparent(render)) {
       if (!SDL_SetRenderTarget(render, target)) {
         KLOG_ERROR(IMAGE, "Failed to restore image render target: %s",
-                     SDL_GetError());
+                   SDL_GetError());
       }
     } else {
       const SDL_FRect pictureDestination{0.0f, 0.0f, pictureWidth,
                                          pictureHeight};
       if (!SDL_RenderTexture(render, picture->texture, nullptr,
                              &pictureDestination)) {
-        KLOG_WARN(IMAGE, "Could not copy image into upscaling target; drawing "
-                    "source texture directly: %s",
-                    SDL_GetError());
+        KLOG_WARN(IMAGE,
+                  "Could not copy image into upscaling target; drawing "
+                  "source texture directly: %s",
+                  SDL_GetError());
       } else {
         if (picture->id == 0) {
           DrawAbcForBase(picture, render, KotonohaTimeGet(timeManager));
         }
         if (!SDL_SetRenderTarget(render, target)) {
           KLOG_ERROR(IMAGE, "Failed to restore image render target: %s",
-                       SDL_GetError());
+                     SDL_GetError());
         } else if (ProcessUpscale(render, extraTexture)) {
           textureToRender = upScaledTexture;
           upscaled = true;
@@ -547,7 +550,7 @@ void Image::RenderTexture(SDL_Renderer *render, SDL_Texture *target,
       if (SDL_GetRenderTarget(render) != target &&
           !SDL_SetRenderTarget(render, target)) {
         KLOG_ERROR(IMAGE, "Failed to restore image render target: %s",
-                     SDL_GetError());
+                   SDL_GetError());
         return;
       }
     }
@@ -606,7 +609,7 @@ Kotonoha_Scene_Status Image::Render(KOTONOHA_SCENE_CALL) {
       if (picture->texture == nullptr) {
         if (picture->load.failed && !picture->load.missingIgnored) {
           KLOG_ERROR(IMAGE, "Failed to create image texture: %s",
-                       picture->path ? picture->path : "<null>");
+                     picture->path ? picture->path : "<null>");
         }
 
         ++it;
@@ -615,7 +618,7 @@ Kotonoha_Scene_Status Image::Render(KOTONOHA_SCENE_CALL) {
 
       if (!SDL_SetTextureBlendMode(picture->texture, SDL_BLENDMODE_BLEND)) {
         KLOG_ERROR(IMAGE, "Failed to set image texture blend mode: %s",
-                     SDL_GetError());
+                   SDL_GetError());
 
         SDL_DestroyTexture(picture->texture);
         picture->texture = nullptr;

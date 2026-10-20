@@ -1,17 +1,18 @@
-#include <Kotonoha/utils/Log.h>
 #include <Kotonoha/specials/OpenGL.h>
+#include <Kotonoha/utils/Log.h>
 
 #if defined(__APPLE__)
 #include <TargetConditionals.h>
 #endif
 
-#if !defined(__ANDROID__) && !defined(ANDROID) && !(defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE)
+#if !defined(__ANDROID__) && !defined(ANDROID) &&                              \
+    !(defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE)
 
 #define GL_LOAD_FUNC(type, name) name = (type)SDL_GL_GetProcAddress(#name)
-#define GL_LOAD_FUNC_EXT(type, name)                                         \
-  name = (type)SDL_GL_GetProcAddress(#name);                                 \
-  if (name == NULL) {                                                        \
-    name = (type)SDL_GL_GetProcAddress(#name "EXT");                         \
+#define GL_LOAD_FUNC_EXT(type, name)                                           \
+  name = (type)SDL_GL_GetProcAddress(#name);                                   \
+  if (name == NULL) {                                                          \
+    name = (type)SDL_GL_GetProcAddress(#name "EXT");                           \
   }
 
 PFNGLCREATESHADERPROC glCreateShader = NULL;
@@ -109,8 +110,7 @@ bool KotonohaOpenGLInit(void) {
   GL_LOAD_FUNC(PFNGLGETUNIFORMLOCATIONPROC, glGetUniformLocation);
   GL_LOAD_FUNC(PFNGLGETATTRIBLOCATIONPROC, glGetAttribLocation);
   GL_LOAD_FUNC(PFNGLGETVERTEXATTRIBIVPROC, glGetVertexAttribiv);
-  GL_LOAD_FUNC(PFNGLGETVERTEXATTRIBPOINTERVPROC,
-               glGetVertexAttribPointerv);
+  GL_LOAD_FUNC(PFNGLGETVERTEXATTRIBPOINTERVPROC, glGetVertexAttribPointerv);
   kotonoha_glActiveTexture =
       (PFNGLACTIVETEXTUREPROC)SDL_GL_GetProcAddress("glActiveTexture");
   GL_LOAD_FUNC(PFNGLUSEPROGRAMPROC, glUseProgram);
@@ -135,14 +135,15 @@ bool KotonohaOpenGLInit(void) {
       !glLinkProgram || !glGetProgramiv || !glGetProgramInfoLog ||
       !glGetUniformLocation || !glGetAttribLocation || !glUseProgram ||
       !glGetVertexAttribiv || !glGetVertexAttribPointerv ||
-      !kotonoha_glActiveTexture ||
-      !glUniform1i || !glUniform2f || !glEnableVertexAttribArray ||
-      !glVertexAttribPointer || !glDisableVertexAttribArray || !glGenBuffers ||
-      !glBindBuffer || !glBufferData || !glDeleteBuffers ||
-      !glGenFramebuffers || !glBindFramebuffer || !glFramebufferTexture2D ||
+      !kotonoha_glActiveTexture || !glUniform1i || !glUniform2f ||
+      !glEnableVertexAttribArray || !glVertexAttribPointer ||
+      !glDisableVertexAttribArray || !glGenBuffers || !glBindBuffer ||
+      !glBufferData || !glDeleteBuffers || !glGenFramebuffers ||
+      !glBindFramebuffer || !glFramebufferTexture2D ||
       !glCheckFramebufferStatus || !glDeleteFramebuffers) {
-    KLOG_ERROR(UPSCALER, "OpenGL init failed: one or more required GL functions are "
-                 "unavailable");
+    KLOG_ERROR(UPSCALER,
+               "OpenGL init failed: one or more required GL functions are "
+               "unavailable");
     KotonohaOpenGLReset();
     return false;
   }
@@ -158,13 +159,9 @@ bool KotonohaOpenGLInit(void) {
 
 static bool g_glLoaded = false;
 
-void KotonohaOpenGLReset(void) {
-  g_glLoaded = false;
-}
+void KotonohaOpenGLReset(void) { g_glLoaded = false; }
 
-bool KotonohaOpenGLIsLoaded(void) {
-  return g_glLoaded;
-}
+bool KotonohaOpenGLIsLoaded(void) { return g_glLoaded; }
 
 bool KotonohaOpenGLInit(void) {
   g_glLoaded = true;

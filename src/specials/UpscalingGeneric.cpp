@@ -1,5 +1,5 @@
-#include <Kotonoha/utils/Log.h>
 #include <Kotonoha/specials/Upscaling.h>
+#include <Kotonoha/utils/Log.h>
 #include <SDL3/SDL.h>
 
 static float g_upscalingFactor = 1.0f;
@@ -20,20 +20,22 @@ static bool CopyTextureToTarget(SDL_Renderer *renderer,
                                 SDL_Texture *outputTexture) {
   SDL_Texture *previousTarget = SDL_GetRenderTarget(renderer);
   if (!SDL_SetRenderTarget(renderer, outputTexture)) {
-    KLOG_ERROR(UPSCALER, "Failed to set upscale fallback target: %s", SDL_GetError());
+    KLOG_ERROR(UPSCALER, "Failed to set upscale fallback target: %s",
+               SDL_GetError());
     return false;
   }
 
-  const bool copied =
-      SDL_RenderTexture(renderer, inputTexture, NULL, NULL);
+  const bool copied = SDL_RenderTexture(renderer, inputTexture, NULL, NULL);
   const bool restored = SDL_SetRenderTarget(renderer, previousTarget);
   if (!copied) {
-    KLOG_ERROR(UPSCALER, "Failed to copy source texture in upscale fallback: %s",
-                 SDL_GetError());
+    KLOG_ERROR(UPSCALER,
+               "Failed to copy source texture in upscale fallback: %s",
+               SDL_GetError());
   }
   if (!restored) {
-    KLOG_ERROR(UPSCALER, "Failed to restore render target after upscale fallback: %s",
-                 SDL_GetError());
+    KLOG_ERROR(UPSCALER,
+               "Failed to restore render target after upscale fallback: %s",
+               SDL_GetError());
   }
   return copied && restored;
 }
@@ -45,7 +47,8 @@ extern "C" {
 bool KotonohaUpscalingIsEnabled(void) { return g_upscalingEnabled; }
 void KotonohaUpscalingSetEnabled(bool enabled) { g_upscalingEnabled = enabled; }
 
-bool KotonohaUpscalingInit(SDL_Renderer *renderer, const char *name, Kotonoha_Config* config) {
+bool KotonohaUpscalingInit(SDL_Renderer *renderer, const char *name,
+                           Kotonoha_Config *config) {
   if (config == NULL) {
     return false;
   }
@@ -94,19 +97,22 @@ bool KotonohaUpscalingInit(SDL_Renderer *renderer, const char *name, Kotonoha_Co
   if (g_upscalerType == KOTONOHA_UPSCALER_METALFX) {
 #if defined(KOTONOHA_HAS_METALFX)
     if (KotonohaMetalFXInit(renderer, config)) {
-      KLOG_INFO(UPSCALER, "Upscaling initialized with MetalFX (factor: %.2f)", g_upscalingFactor);
+      KLOG_INFO(UPSCALER, "Upscaling initialized with MetalFX (factor: %.2f)",
+                g_upscalingFactor);
       return true;
     }
 #endif
-    KLOG_WARN(UPSCALER, "MetalFX initialization failed; falling back to Anime4K.");
+    KLOG_WARN(UPSCALER,
+              "MetalFX initialization failed; falling back to Anime4K.");
     g_upscalerType = KOTONOHA_UPSCALER_ANIME4K;
   }
 
   if (g_upscalerType == KOTONOHA_UPSCALER_ANIME4K) {
 #if defined(KOTONOHA_HAS_ANIME4K)
     if (KotonohaAnime4KInit(renderer, config)) {
-      KLOG_INFO(UPSCALER, "Upscaling initialized with Anime4K / OpenGL (factor: %.2f)",
-              g_upscalingFactor);
+      KLOG_INFO(UPSCALER,
+                "Upscaling initialized with Anime4K / OpenGL (factor: %.2f)",
+                g_upscalingFactor);
       return true;
     }
 #endif
@@ -210,9 +216,7 @@ bool Kotonoha_SetUpscalerByName(const char *name) {
 
 float KotonohaUpscalingGetFactor(void) { return g_upscalingFactor; }
 
-void KotonohaUpscalingSetFactor(float factor) {
-  g_upscalingFactor = factor;
-}
+void KotonohaUpscalingSetFactor(float factor) { g_upscalingFactor = factor; }
 
 bool Kotonoha_UpscaleSDLTextureInto(SDL_Renderer *renderer,
                                     SDL_Texture *inputTexture,

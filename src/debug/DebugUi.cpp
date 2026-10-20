@@ -1,5 +1,5 @@
-#include <Kotonoha/debug/DebugUi.hpp>
 #include <Kotonoha/debug/DebugInternal.hpp>
+#include <Kotonoha/debug/DebugUi.hpp>
 #include <Kotonoha/debug/LogPanel.hpp>
 #include <imgui_impl_sdl3.h>
 #include <imgui_impl_sdlrenderer3.h>
@@ -23,7 +23,6 @@ bool IsMouseCaptured() {
 }
 
 bool IsScriptEditorVisible() { return scriptEditorVisible; }
-
 
 static bool FinishFrame(Kotonoha_Game &context) {
   ImGui::Render();
@@ -140,16 +139,15 @@ void Init(Kotonoha_Game &gameContext, std::vector<Uint8> font) {
 }
 
 bool Run(::Kotonoha::Kotonoha *game, ::Kotonoha::Gameplay *play,
-                         Kotonoha_Game &context) {
+         Kotonoha_Game &context) {
   if (!context.config.enableDebugUi || game == nullptr) {
     return true;
   }
 
-  const float debugUiScale =
-      (context.config.debugUiScale >= 0.5f &&
-       context.config.debugUiScale <= 3.0f)
-          ? context.config.debugUiScale
-          : 1.0f;
+  const float debugUiScale = (context.config.debugUiScale >= 0.5f &&
+                              context.config.debugUiScale <= 3.0f)
+                                 ? context.config.debugUiScale
+                                 : 1.0f;
   if (debugUiBaseStyleReady && appliedDebugUiScale != debugUiScale) {
     ImGuiStyle &style = ImGui::GetStyle();
     style = debugUiBaseStyle;
@@ -194,8 +192,6 @@ bool Run(::Kotonoha::Kotonoha *game, ::Kotonoha::Gameplay *play,
   return !shouldExit && FinishFrame(context);
 }
 
-void ProcessEvent(SDL_Event *event) {
-  ImGui_ImplSDL3_ProcessEvent(event);
-}
+void ProcessEvent(SDL_Event *event) { ImGui_ImplSDL3_ProcessEvent(event); }
 
 } // namespace Kotonoha::Debug

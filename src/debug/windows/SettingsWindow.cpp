@@ -1,11 +1,10 @@
 #include <Kotonoha/debug/DebugInternal.hpp>
-#include <imgui_stdlib.h>
 #include <Kotonoha/specials/Upscaling.h>
+#include <imgui_stdlib.h>
 
 namespace Kotonoha::Debug {
 
-void DrawSettingsFields(Kotonoha_Config *cfg,
-                                        Kotonoha_Game &context) {
+void DrawSettingsFields(Kotonoha_Config *cfg, Kotonoha_Game &context) {
   if (cfg == nullptr)
     return;
 

@@ -1,9 +1,9 @@
 #define SDL_MAIN_USE_CALLBACKS 1
-#include <Kotonoha/utils/Log.h>
 #include <Kotonoha/Init.hpp>
 #include <Kotonoha/debug/DebugUi.hpp>
 #include <Kotonoha/debug/LogPanel.hpp>
 #include <Kotonoha/specials/Upscaling.h>
+#include <Kotonoha/utils/Log.h>
 #include <SDL3/SDL_main.h>
 #include <cstring>
 #include <imgui.h>

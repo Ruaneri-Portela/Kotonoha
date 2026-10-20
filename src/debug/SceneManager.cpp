@@ -23,8 +23,7 @@ bool LoadSceneEditorFromDisk(::Kotonoha::Gameplay *play) {
   return true;
 }
 
-bool OpenPaths(::Kotonoha::Kotonoha *game, const char *buffer,
-                               bool append) {
+bool OpenPaths(::Kotonoha::Kotonoha *game, const char *buffer, bool append) {
   if (game == nullptr || buffer == nullptr)
     return false;
 
@@ -78,7 +77,7 @@ bool SelectScene(::Kotonoha::Kotonoha *game, int index) {
 }
 
 void TryAutoLoadCurrentScene(::Kotonoha::Kotonoha *game,
-                                             Kotonoha_Game &context) {
+                             Kotonoha_Game &context) {
   if (game == nullptr || context.config.scene >= game->gameplays.size()) {
     return;
   }
@@ -91,8 +90,7 @@ void TryAutoLoadCurrentScene(::Kotonoha::Kotonoha *game,
   SelectScene(game, static_cast<int>(context.config.scene));
 }
 
-void GoToScene(::Kotonoha::Kotonoha *game, Kotonoha_Game &context,
-                               int index) {
+void GoToScene(::Kotonoha::Kotonoha *game, Kotonoha_Game &context, int index) {
   if (!IsValidGameplayIndex(game, index))
     return;
 
@@ -114,9 +112,8 @@ void GoToScene(::Kotonoha::Kotonoha *game, Kotonoha_Game &context,
   }
 }
 
-bool RecreateGameplayAtPath(::Kotonoha::Kotonoha *game,
-                                            Kotonoha_Game &context, int index,
-                                            const std::string &newPath) {
+bool RecreateGameplayAtPath(::Kotonoha::Kotonoha *game, Kotonoha_Game &context,
+                            int index, const std::string &newPath) {
   if (game == nullptr || !IsValidGameplayIndex(game, index) ||
       newPath.empty()) {
     SetEditorStatus("Invalid recreation parameters.");
@@ -135,7 +132,8 @@ bool RecreateGameplayAtPath(::Kotonoha::Kotonoha *game,
     if (it != game->fonts.end()) {
       preferredFont = it->second;
     }
-    newPlay = new ::Kotonoha::Gameplay(newPath.c_str(), &context, preferredFont);
+    newPlay =
+        new ::Kotonoha::Gameplay(newPath.c_str(), &context, preferredFont);
   } catch (const std::exception &e) {
     SetEditorStatus(e.what());
     return false;
@@ -159,8 +157,8 @@ bool RecreateGameplayAtPath(::Kotonoha::Kotonoha *game,
   return true;
 }
 
-bool SaveAndReloadReplace(::Kotonoha::Kotonoha *game,
-                                          Kotonoha_Game &context, int index) {
+bool SaveAndReloadReplace(::Kotonoha::Kotonoha *game, Kotonoha_Game &context,
+                          int index) {
   ::Kotonoha::Gameplay *selected = GetGameplayAt(game, index);
   if (selected == nullptr)
     return false;
@@ -170,8 +168,7 @@ bool SaveAndReloadReplace(::Kotonoha::Kotonoha *game,
           ? originalScriptPathForTemporary
           : selected->scriptPath;
 
-  if (targetPath.empty() ||
-      !SaveTextFile(targetPath, sceneEditorText)) {
+  if (targetPath.empty() || !SaveTextFile(targetPath, sceneEditorText)) {
     return false;
   }
 
@@ -184,9 +181,8 @@ bool SaveAndReloadReplace(::Kotonoha::Kotonoha *game,
   return RecreateGameplayAtPath(game, context, index, targetPath);
 }
 
-bool LoadTemporaryGameplayAt(::Kotonoha::Kotonoha *game,
-                                             Kotonoha_Game &context,
-                                             int index) {
+bool LoadTemporaryGameplayAt(::Kotonoha::Kotonoha *game, Kotonoha_Game &context,
+                             int index) {
   if (game == nullptr || !IsValidGameplayIndex(game, index))
     return false;
 
@@ -216,8 +212,7 @@ bool LoadTemporaryGameplayAt(::Kotonoha::Kotonoha *game,
   return RecreateGameplayAtPath(game, context, index, tempPath);
 }
 
-bool RestoreOriginalPath(::Kotonoha::Kotonoha *game,
-                                         Kotonoha_Game &context) {
+bool RestoreOriginalPath(::Kotonoha::Kotonoha *game, Kotonoha_Game &context) {
   if (!temporaryGameplayActive ||
       !IsValidGameplayIndex(game, temporaryGameplayIndex)) {
     return false;

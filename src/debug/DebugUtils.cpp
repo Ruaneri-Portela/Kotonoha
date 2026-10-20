@@ -1,6 +1,6 @@
 #include <Kotonoha/debug/DebugInternal.hpp>
-#include <limits>
 #include <SDL3/SDL_iostream.h>
+#include <limits>
 
 namespace Kotonoha::Debug {
 
@@ -14,16 +14,14 @@ bool IsValidGameplayIndex(::Kotonoha::Kotonoha *game, int index) {
          index < static_cast<int>(game->gameplays.size());
 }
 
-::Kotonoha::Gameplay *GetGameplayAt(::Kotonoha::Kotonoha *game,
-                                                  int index) {
+::Kotonoha::Gameplay *GetGameplayAt(::Kotonoha::Kotonoha *game, int index) {
   if (!IsValidGameplayIndex(game, index)) {
     return nullptr;
   }
   return game->gameplays[index];
 }
 
-static std::string JoinPath(const std::string &dir,
-                                     const std::string &name) {
+static std::string JoinPath(const std::string &dir, const std::string &name) {
   if (dir.empty())
     return name;
   const char last = dir.back();
@@ -54,7 +52,7 @@ std::vector<std::string> SplitTabs(const std::string &text) {
 }
 
 std::string JoinLines(const std::vector<std::string> &lines,
-                                      bool finalNewline) {
+                      bool finalNewline) {
   std::string result;
   for (size_t i = 0; i < lines.size(); ++i) {
     if (i != 0) {
@@ -127,8 +125,7 @@ std::string FormatScriptTime(const std::string &timestamp) {
   return FormatTime(milliseconds + parts[2] * 10);
 }
 
-bool LoadTextFile(const std::string &path,
-                                  std::string &outText) {
+bool LoadTextFile(const std::string &path, std::string &outText) {
   if (path.empty()) {
     SetEditorStatus("Empty path.");
     return false;
@@ -147,8 +144,7 @@ bool LoadTextFile(const std::string &path,
   return true;
 }
 
-bool SaveTextFile(const std::string &path,
-                                  const std::string &text) {
+bool SaveTextFile(const std::string &path, const std::string &text) {
   if (path.empty()) {
     SetEditorStatus("Empty path.");
     return false;

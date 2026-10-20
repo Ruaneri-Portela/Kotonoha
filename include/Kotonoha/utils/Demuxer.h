@@ -73,8 +73,7 @@ void KotonohaPacketQueueDestroy(Kotonoha_PacketQueue *q);
 void KotonohaPacketQueueFlush(Kotonoha_PacketQueue *q, bool preserveKeyFrame);
 bool KotonohaPacketQueueHasPackets(Kotonoha_PacketQueue *q);
 bool KotonohaPacketQueueIsEof(Kotonoha_PacketQueue *q);
-bool KotonohaPacketQueueAtCacheLimit(Kotonoha_PacketQueue *q,
-                                     Uint64 maxSpanMs);
+bool KotonohaPacketQueueAtCacheLimit(Kotonoha_PacketQueue *q, Uint64 maxSpanMs);
 bool KotonohaPacketQueuePush(Kotonoha_PacketQueue *q, AVPacket *pkt,
                              AVStream *stream, Uint64 maxSpanMs);
 
@@ -92,7 +91,8 @@ void KotonohaDemuxerDestroy(Kotonoha_Demuxer **demuxer);
 Kotonoha_DemuxStream *KotonohaDemuxerAddStream(Kotonoha_Demuxer *demuxer,
                                                const char *filename,
                                                float cacheDurationSeconds,
-                                               void *owner, enum AVMediaType type);
+                                               void *owner,
+                                               enum AVMediaType type);
 bool KotonohaDemuxerActivateStream(Kotonoha_Demuxer *demuxer,
                                    Kotonoha_DemuxStream *stream);
 
@@ -100,8 +100,7 @@ void KotonohaDemuxerRemoveStream(Kotonoha_Demuxer *demuxer,
                                  Kotonoha_DemuxStream **stream);
 
 void KotonohaDemuxStreamSeek(Kotonoha_DemuxStream *stream, Uint64 targetMs);
-void KotonohaDemuxStreamSetWaiting(Kotonoha_DemuxStream *stream,
-                                   bool waiting);
+void KotonohaDemuxStreamSetWaiting(Kotonoha_DemuxStream *stream, bool waiting);
 void KotonohaDemuxStreamFlushBuffers(Kotonoha_DemuxStream *stream,
                                      bool preserveKeyFrame);
 

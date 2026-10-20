@@ -1,5 +1,5 @@
-#include <Kotonoha/utils/Log.h>
 #include <Kotonoha/components/Upscaling.hpp>
+#include <Kotonoha/utils/Log.h>
 #include <cmath>
 
 namespace Kotonoha {
@@ -54,8 +54,9 @@ bool Upscaling::EnsureUpscalingTextures(SDL_Renderer *render, int width,
                                    SDL_TEXTUREACCESS_TARGET, width, height);
 
   if (extraTexture == nullptr) {
-    KLOG_ERROR(UPSCALER, "Failed to create intermediate upscaling texture (%dx%d): %s",
-                 width, height, SDL_GetError());
+    KLOG_ERROR(UPSCALER,
+               "Failed to create intermediate upscaling texture (%dx%d): %s",
+               width, height, SDL_GetError());
     return false;
   }
 
@@ -68,7 +69,7 @@ bool Upscaling::EnsureUpscalingTextures(SDL_Renderer *render, int width,
 
   if (upScaledTexture == nullptr) {
     KLOG_ERROR(UPSCALER, "Failed to create output upscaled texture (%dx%d): %s",
-                 targetUpscaledW, targetUpscaledH, SDL_GetError());
+               targetUpscaledW, targetUpscaledH, SDL_GetError());
     ResetUpscaling();
     return false;
   }
@@ -97,7 +98,8 @@ bool Upscaling::ProcessUpscale(SDL_Renderer *render, SDL_Texture *srcTexutre) {
       }
       SDL_SetRenderDrawColor(render, 0, 0, 0, 0);
       SDL_RenderClear(render);
-      const bool copied = SDL_RenderTexture(render, srcTexutre, nullptr, nullptr);
+      const bool copied =
+          SDL_RenderTexture(render, srcTexutre, nullptr, nullptr);
       SDL_SetRenderTarget(render, previousTarget);
       if (!copied) {
         return false;

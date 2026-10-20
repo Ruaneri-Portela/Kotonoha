@@ -118,8 +118,7 @@ char *KotonohaPathGetAbsolute(const char *path) {
 
   basePath = SDL_GetCurrentDirectory();
   if (basePath == NULL) {
-    KLOG_WARN(CORE, "Failed to get base path: %s",
-                SDL_GetError());
+    KLOG_WARN(CORE, "Failed to get base path: %s", SDL_GetError());
     return NULL;
   }
 

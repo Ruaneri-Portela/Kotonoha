@@ -1,5 +1,5 @@
-#include <Kotonoha/utils/Log.h>
 #include <Kotonoha/components/Fade.hpp>
+#include <Kotonoha/utils/Log.h>
 
 namespace Kotonoha {
 
@@ -15,7 +15,8 @@ const char *FadeDirectionName(FadeDirection direction) {
 
 Fade::Fade(Kotonoha_Time *time) : timeManager(time), lock(SDL_CreateMutex()) {
   if (lock == nullptr) {
-    KLOG_ERROR(RENDER, "[FADE] Failed to create fade mutex: %s", SDL_GetError());
+    KLOG_ERROR(RENDER, "[FADE] Failed to create fade mutex: %s",
+               SDL_GetError());
   }
 }
 
@@ -84,8 +85,8 @@ void Fade::Register(Uint64 startPacked, Uint64 endPacked, FadeColor color,
   if (!DecodeOrsTick(startPacked, true, &startTick) ||
       !DecodeOrsTick(endPacked, false, &endTick) || endTick < startTick) {
     KLOG_ERROR(RENDER, "[Fade] Invalid ORS fade range start=%llu end=%llu",
-                 static_cast<unsigned long long>(startPacked),
-                 static_cast<unsigned long long>(endPacked));
+               static_cast<unsigned long long>(startPacked),
+               static_cast<unsigned long long>(endPacked));
     return;
   }
 
@@ -106,10 +107,10 @@ void Fade::Register(Uint64 startPacked, Uint64 endPacked, FadeColor color,
   events.push_back(event);
   SDL_UnlockMutex(lock);
 
-  KLOG_INFO(RENDER, "[Fade] register %s %s ticks=%llu..%llu", FadeColorName(color),
-          FadeDirectionName(direction),
-          static_cast<unsigned long long>(startTick),
-          static_cast<unsigned long long>(endTick));
+  KLOG_INFO(RENDER, "[Fade] register %s %s ticks=%llu..%llu",
+            FadeColorName(color), FadeDirectionName(direction),
+            static_cast<unsigned long long>(startTick),
+            static_cast<unsigned long long>(endTick));
 }
 
 void Fade::Reset() {
@@ -156,8 +157,9 @@ Kotonoha_Scene_Status Fade::Render(KOTONOHA_SCENE_CALL) {
   }
 
   if (activeCount > 1) {
-    KLOG_WARN(RENDER, "[Fade] overlapping fades=%d at tick=%llu; latest start wins",
-        activeCount, static_cast<unsigned long long>(tick));
+    KLOG_WARN(RENDER,
+              "[Fade] overlapping fades=%d at tick=%llu; latest start wins",
+              activeCount, static_cast<unsigned long long>(tick));
   }
 
   const Uint8 alpha =
@@ -166,11 +168,12 @@ Kotonoha_Scene_Status Fade::Render(KOTONOHA_SCENE_CALL) {
 
   if (!active->hasLoggedTick || active->lastLoggedTick != tick) {
     KLOG_INFO(RENDER, "[Fade] %s %s tick=%llu start=%llu end=%llu alpha=%u",
-            FadeColorName(active->color), FadeDirectionName(active->direction),
-            static_cast<unsigned long long>(tick),
-            static_cast<unsigned long long>(active->startTick),
-            static_cast<unsigned long long>(active->endTick),
-            static_cast<unsigned int>(alpha));
+              FadeColorName(active->color),
+              FadeDirectionName(active->direction),
+              static_cast<unsigned long long>(tick),
+              static_cast<unsigned long long>(active->startTick),
+              static_cast<unsigned long long>(active->endTick),
+              static_cast<unsigned int>(alpha));
     active->hasLoggedTick = true;
     active->lastLoggedTick = tick;
   }

@@ -1,5 +1,5 @@
-#include <Kotonoha/utils/Log.h>
 #include <Kotonoha/Init.hpp>
+#include <Kotonoha/utils/Log.h>
 #include <algorithm>
 #include <cctype>
 #if defined(__APPLE__)
@@ -95,7 +95,8 @@ bool InitCursor() {
     char *absolutePath = KotonohaPathGetAbsolute(global.config.cursorPath);
     if (absolutePath != nullptr) {
       const int size = global.config.cursorSize;
-      SDL_Surface *surface = KotonohaImageCreateSurface(absolutePath, size, size);
+      SDL_Surface *surface =
+          KotonohaImageCreateSurface(absolutePath, size, size);
       SDL_free(absolutePath);
       if (surface != nullptr) {
         global.cursor = SDL_CreateColorCursor(surface, 0, 0);
@@ -138,8 +139,8 @@ bool InitWindow() {
 
 #ifndef KOTONOHA_MOBILE
   InitWindowIcon(global.window, global.config.iconPath != nullptr
-                                       ? global.config.iconPath
-                                       : "assets/icon.png");
+                                    ? global.config.iconPath
+                                    : "assets/icon.png");
 #endif
   InitCursor();
   return true;
@@ -156,7 +157,8 @@ bool InitRenderer() {
 
 #if defined(KOTONOHA_HAS_ANIME4K)
   if (!hasExplicitRenderer && global.config.scalerFactor > 1.0f) {
-#if defined(__ANDROID__) || defined(ANDROID) || (defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE)
+#if defined(__ANDROID__) || defined(ANDROID) ||                                \
+    (defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE)
     rendererMethods.push_back("opengles2");
 #else
     rendererMethods.push_back("opengl");
@@ -172,17 +174,17 @@ bool InitRenderer() {
 
     if (global.render != nullptr) {
       KLOG_INFO(CORE, "Renderer created with method '%s'",
-              method ? method : "automatic");
+                method ? method : "automatic");
       break;
     }
 
     KLOG_ERROR(CORE, "Failed to create renderer with method '%s': %s",
-                 method ? method : "automatic", SDL_GetError());
+               method ? method : "automatic", SDL_GetError());
   }
 
   if (global.render == nullptr) {
     KLOG_ERROR(CORE, "Couldn't create renderer with any method, giving up: %s",
-                 SDL_GetError());
+               SDL_GetError());
     return false;
   }
 
@@ -218,8 +220,7 @@ bool PreloadFontsInto(ASS_Library *library,
   SDL_PathInfo info;
 
   if (!SDL_GetPathInfo(absPath, &info) || info.type != SDL_PATHTYPE_DIRECTORY) {
-    KLOG_WARN(CORE, "Fonts directory not found: %s",
-                absPath);
+    KLOG_WARN(CORE, "Fonts directory not found: %s", absPath);
 
     SDL_free(absPath);
     return false;
@@ -283,7 +284,7 @@ bool PreloadFontsInto(ASS_Library *library,
 
         if (data == nullptr || size == 0) {
           KLOG_WARN(CORE, "Failed to load font: %s: %s", fullPath.c_str(),
-                      SDL_GetError());
+                    SDL_GetError());
 
           if (data != nullptr) {
             SDL_free(data);
@@ -301,21 +302,21 @@ bool PreloadFontsInto(ASS_Library *library,
 
           c->imguiFontData->assign(bytes, bytes + size);
 
-          KLOG_INFO(CORE, "Selected font for ImGui: %s (%zu bytes)", fontName.c_str(),
-                  size);
+          KLOG_INFO(CORE, "Selected font for ImGui: %s (%zu bytes)",
+                    fontName.c_str(), size);
         }
 
         ass_add_font(c->lib, const_cast<char *>(name.c_str()),
                      static_cast<char *>(data), static_cast<int>(size));
 
         KLOG_INFO(CORE, "Preloaded font into LibASS memory: %s (%zu bytes)",
-                name.c_str(), size);
+                  name.c_str(), size);
 
         SDL_IOStream *io = SDL_IOFromMem(data, size);
 
         if (io == nullptr) {
           KLOG_WARN(CORE, "Failed to create memory IOStream for font: %s: %s",
-                      fullPath.c_str(), SDL_GetError());
+                    fullPath.c_str(), SDL_GetError());
 
           SDL_free(data);
           return SDL_ENUM_CONTINUE;
@@ -325,7 +326,7 @@ bool PreloadFontsInto(ASS_Library *library,
 
         if (font == nullptr) {
           KLOG_WARN(CORE, "Failed to open font from memory: %s: %s",
-                      fullPath.c_str(), SDL_GetError());
+                    fullPath.c_str(), SDL_GetError());
 
           SDL_free(data);
           return SDL_ENUM_CONTINUE;
