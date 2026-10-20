@@ -381,6 +381,9 @@ Uint64 Image::Register(const char *path, Uint64 startTime, Uint64 endTime,
   object->id = id;
   object->canRender = true;
   object->baseGeneration = 0;
+  object->load.frame = nullptr;
+  object->load.buffer = nullptr;
+  object->load.failed = false;
 
   if (object->path == nullptr) {
     SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
@@ -388,6 +391,9 @@ Uint64 Image::Register(const char *path, Uint64 startTime, Uint64 endTime,
     delete object;
     return 0;
   }
+
+  // Pré-decodifica o frame da imagem em background se possível
+  object->load.frame = KotonohaImageDecodeFrame(path, -1, -1, &object->load.buffer, ignoreMissingAssets);
 
   if (lock == nullptr) {
     DestroyPicture(object);
