@@ -79,9 +79,7 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				mobile/Android.cpp,
-				specials/Anime4K.cpp,
 				specials/bundle.cpp,
-				specials/OpenGL.c,
 			);
 			target = CEE78C302FCC37E10002CB9B /* KotonohaEngineTest */;
 		};
@@ -278,6 +276,7 @@
 					"KOTONOHA_HAS_METALFX=1",
 					"DEBUG=1",
 					"$(inherited)",
+					"KOTONOHA_HAS_ANIME4K=1",
 				);
 				GENERATE_INFOPLIST_FILE = YES;
 				HEADER_SEARCH_PATHS = (
@@ -297,6 +296,7 @@
 				INFOPLIST_KEY_UIStatusBarStyle = UIStatusBarStyleDarkContent;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
 				IPHONEOS_DEPLOYMENT_TARGET = 27.0;
+				KOTONOHA_HAS_ANIME4K = 1;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -363,7 +363,10 @@
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
-				GCC_PREPROCESSOR_DEFINITIONS = "KOTONOHA_HAS_METALFX=1";
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"KOTONOHA_HAS_METALFX=1",
+					"KOTONOHA_HAS_ANIME4K=1",
+				);
 				GENERATE_INFOPLIST_FILE = YES;
 				HEADER_SEARCH_PATHS = (
 					"$(PROJECT_DIR)/../include",
@@ -382,6 +385,7 @@
 				INFOPLIST_KEY_UIStatusBarStyle = UIStatusBarStyleDarkContent;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
 				IPHONEOS_DEPLOYMENT_TARGET = 27.0;
+				KOTONOHA_HAS_ANIME4K = 1;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",

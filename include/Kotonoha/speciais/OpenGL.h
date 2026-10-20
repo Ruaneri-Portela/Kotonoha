@@ -1,8 +1,17 @@
 #pragma once
 #include <SDL3/SDL.h>
+
+#if defined(__APPLE__)
+#include <TargetConditionals.h>
+#endif
+
 #if defined(__ANDROID__) || defined(ANDROID)
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
+#define kotonoha_glActiveTexture glActiveTexture
+#elif defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE
+#include <OpenGLES/ES3/gl.h>
+#include <OpenGLES/ES3/glext.h>
 #define kotonoha_glActiveTexture glActiveTexture
 #else
 #include <SDL3/SDL_opengl.h>
@@ -18,7 +27,7 @@ bool KotonohaOpenGLInit(void);
 void KotonohaOpenGLReset(void);
 bool KotonohaOpenGLIsLoaded(void);
 
-#if !defined(__ANDROID__) && !defined(ANDROID)
+#if !defined(__ANDROID__) && !defined(ANDROID) && !(defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE)
 /* OpenGL 2.0 */
 extern PFNGLCREATESHADERPROC glCreateShader;
 extern PFNGLSHADERSOURCEPROC glShaderSource;

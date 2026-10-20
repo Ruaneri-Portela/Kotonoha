@@ -134,7 +134,7 @@ bool InitRenderer() {
 
 #if defined(KOTONOHA_HAS_ANIME4K)
   if (!hasExplicitRenderer && global.config.scalerFactor > 1.0f) {
-#if defined(__ANDROID__) || defined(ANDROID)
+#if defined(__ANDROID__) || defined(ANDROID) || (defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE)
     rendererMethods.push_back("opengles2");
 #else
     rendererMethods.push_back("opengl");

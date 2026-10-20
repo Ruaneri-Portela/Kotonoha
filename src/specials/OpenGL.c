@@ -1,6 +1,10 @@
 #include <Kotonoha/speciais/OpenGL.h>
 
-#if !defined(__ANDROID__) && !defined(ANDROID)
+#if defined(__APPLE__)
+#include <TargetConditionals.h>
+#endif
+
+#if !defined(__ANDROID__) && !defined(ANDROID) && !(defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE)
 
 #define GL_LOAD_FUNC(type, name) name = (type)SDL_GL_GetProcAddress(#name)
 #define GL_LOAD_FUNC_EXT(type, name)                                         \
@@ -153,8 +157,19 @@ bool KotonohaOpenGLInit(void) {
 
 #else
 
-void KotonohaOpenGLReset(void) {}
-bool KotonohaOpenGLIsLoaded(void) { return false; }
-bool KotonohaOpenGLInit(void) { return false; }
+static bool g_glLoaded = false;
+
+void KotonohaOpenGLReset(void) {
+  g_glLoaded = false;
+}
+
+bool KotonohaOpenGLIsLoaded(void) {
+  return g_glLoaded;
+}
+
+bool KotonohaOpenGLInit(void) {
+  g_glLoaded = true;
+  return true;
+}
 
 #endif
