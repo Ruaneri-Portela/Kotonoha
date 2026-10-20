@@ -132,9 +132,6 @@
     <ClCompile Include="src\utils\Path.c">
       <Filter>Arquivos de Origem\utils</Filter>
     </ClCompile>
-    <ClCompile Include="src\utils\Config.c">
-      <Filter>Arquivos de Origem\utils</Filter>
-    </ClCompile>
     <ClCompile Include="src\utils\Demuxer.c">
       <Filter>Arquivos de Origem\utils</Filter>
     </ClCompile>
@@ -146,6 +143,9 @@
     </ClCompile>
     <ClCompile Include="src\Init.cpp">
       <Filter>Arquivos de Origem</Filter>
+    </ClCompile>
+    <ClCompile Include="src\parsers\Config.c">
+      <Filter>Arquivos de Origem\parser</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -250,6 +250,9 @@
     </ClInclude>
     <ClInclude Include="include\Kotonoha\utils\VoicePcm.h">
       <Filter>Arquivos de Cabeçalho\utils</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Kotonoha\parsers\Config.h">
+      <Filter>Arquivos de Cabeçalho\parser</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

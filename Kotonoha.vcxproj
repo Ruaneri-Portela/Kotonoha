@@ -42,6 +42,7 @@
     <ClCompile Include="src\Init.cpp" />
     <ClCompile Include="src\Kotonoha.cpp" />
     <ClCompile Include="src\Main.cpp" />
+    <ClCompile Include="src\parsers\Config.c" />
     <ClCompile Include="src\parsers\Ors.c" />
     <ClCompile Include="src\renders\AudioRender.c" />
     <ClCompile Include="src\renders\FPSrender.c" />
@@ -54,7 +55,6 @@
     <ClCompile Include="src\specials\ConfigImGui.cpp" />
     <ClCompile Include="src\specials\OpenGL.c" />
     <ClCompile Include="src\specials\UpscalingGeneric.cpp" />
-    <ClCompile Include="src\utils\Config.c" />
     <ClCompile Include="src\utils\Demuxer.c" />
     <ClCompile Include="src\utils\FFmpeg.c" />
     <ClCompile Include="src\utils\OverlayRender.c" />
@@ -76,6 +76,7 @@
     <ClInclude Include="include\Kotonoha\Gameplay.hpp" />
     <ClInclude Include="include\Kotonoha\Kotonoha.h" />
     <ClInclude Include="include\Kotonoha\Kotonoha.hpp" />
+    <ClInclude Include="include\Kotonoha\parsers\Config.h" />
     <ClInclude Include="include\Kotonoha\parsers\Ors.h" />
     <ClInclude Include="include\Kotonoha\renders\AudioRender.h" />
     <ClInclude Include="include\Kotonoha\renders\FPSrender.h" />
@@ -103,14 +104,6 @@
     <None Include="LICENSE" />
     <None Include="README.md" />
     <None Include="vcpkg.json" />
-    <None Include="assets\Anime4K\Anime4K_ModeA_A.glsl">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <Link>assets\Anime4K\Anime4K_ModeA_A.glsl</Link>
-    </None>
-    <None Include="assets\Anime4K\Anime4K_Vertex.glsl">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <Link>assets\Anime4K\Anime4K_Vertex.glsl</Link>
-    </None>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="src\specials\Kotonoha.rc" />
