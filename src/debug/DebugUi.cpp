@@ -110,6 +110,7 @@ void Init(Kotonoha_Game &gameContext, std::vector<Uint8> font) {
   ImGuiIO &io = ImGui::GetIO();
   io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
   io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
+  io.ConfigFlags |= ImGuiConfigFlags_NoMouseCursorChange;
 
   ImFont *mainFont = nullptr;
 

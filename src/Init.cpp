@@ -91,7 +91,25 @@ bool InitCursor() {
     global.cursor = nullptr;
   }
 
-  global.cursor = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_DEFAULT);
+  if (global.config.cursorPath != nullptr) {
+    char *absolutePath = KotonohaPathGetAbsolute(global.config.cursorPath);
+    if (absolutePath != nullptr) {
+      const int size = global.config.cursorSize;
+      SDL_Surface *surface = KotonohaImageCreateSurface(absolutePath, size, size);
+      SDL_free(absolutePath);
+      if (surface != nullptr) {
+        global.cursor = SDL_CreateColorCursor(surface, 0, 0);
+        SDL_DestroySurface(surface);
+      }
+    }
+    if (global.cursor == nullptr) {
+      KLOG_WARN(CORE, "Custom cursor '%s' unavailable: %s",
+                global.config.cursorPath, SDL_GetError());
+    }
+  }
+  if (global.cursor == nullptr) {
+    global.cursor = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_DEFAULT);
+  }
   if (global.cursor != nullptr) {
     SDL_SetCursor(global.cursor);
   }
@@ -118,7 +136,9 @@ bool InitWindow() {
   global.flags = SDL_GetWindowFlags(global.window);
 
 #ifndef KOTONOHA_MOBILE
-  InitWindowIcon(global.window, "assets/icon.png");
+  InitWindowIcon(global.window, global.config.iconPath != nullptr
+                                       ? global.config.iconPath
+                                       : "assets/icon.png");
 #endif
   InitCursor();
   return true;
@@ -335,7 +355,10 @@ bool InitLibAssAndTTFs(std::string defaultFont,
     return false;
   }
 
-  if (!PreloadFontsInto(global.ass_library, fonts, "assets/fonts",
+  if (!PreloadFontsInto(global.ass_library, fonts,
+                        global.config.fontsPath != nullptr
+                            ? global.config.fontsPath
+                            : "assets/fonts",
                         defaultFont.c_str(), &imguiFontData)) {
     return false;
   }

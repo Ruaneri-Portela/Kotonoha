@@ -53,7 +53,7 @@ static void DrawPlayback(::Kotonoha::Kotonoha *game,
   }
 }
 
-static void DrawAudio(Kotonoha_Game &context) {
+void DrawAudio(Kotonoha_Game &context) {
   if (!ImGui::CollapsingHeader("Audio Mixer", ImGuiTreeNodeFlags_DefaultOpen))
     return;
 

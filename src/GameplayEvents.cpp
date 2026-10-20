@@ -6,8 +6,6 @@
 namespace Kotonoha {
 namespace {
 
-constexpr Uint64 kSeekBigMs = 5000;
-constexpr Uint64 kSeekSmallMs = 50;
 
 constexpr Sint16 kTriggerDeadZone = 3000;
 
@@ -185,11 +183,11 @@ void Gameplay::HandleKeyboard(SDL_Event *event, Kotonoha_Game *gameContext) {
     break;
 
   case SDLK_Q:
-    SeekForward(kSeekSmallMs);
+    SeekForward(static_cast<Uint64>(gameContext->config.seekSmallMs));
     break;
 
   case SDLK_E:
-    SeekBackward(kSeekSmallMs);
+    SeekBackward(static_cast<Uint64>(gameContext->config.seekSmallMs));
     break;
 
   case SDLK_R:
@@ -204,8 +202,10 @@ void Gameplay::HandleKeyboard(SDL_Event *event, Kotonoha_Game *gameContext) {
 void Gameplay::SeekByKeyboardN(Kotonoha_Game *gameContext) {
   const Uint64 currentTime = KotonohaTimeGet(this->tm);
 
+  const Uint64 kSeekSmallMs =
+      static_cast<Uint64>(gameContext->config.seekSmallMs);
   if (currentTime < eventManager->lastTime - kSeekSmallMs) {
-    SeekForward(kSeekBigMs);
+    SeekForward(static_cast<Uint64>(gameContext->config.seekBigMs));
     return;
   }
 
@@ -215,8 +215,8 @@ void Gameplay::SeekByKeyboardN(Kotonoha_Game *gameContext) {
 void Gameplay::SeekByKeyboardB(Kotonoha_Game *gameContext) {
   const Uint64 currentTime = KotonohaTimeGet(this->tm);
 
-  if (currentTime > kSeekSmallMs) {
-    SeekBackward(kSeekBigMs);
+  if (currentTime > static_cast<Uint64>(gameContext->config.seekSmallMs)) {
+    SeekBackward(static_cast<Uint64>(gameContext->config.seekBigMs));
     return;
   }
 
