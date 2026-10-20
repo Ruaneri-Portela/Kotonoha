@@ -35,6 +35,7 @@ inline bool aboutVisible = false;
 inline bool playlistVisible = false;
 inline bool logVisible = false;
 inline bool sceneBuffersVisible = false;
+inline bool canvasLayersVisible = false;
 inline bool errorPopupVisible = false;
 
 // True while any debug UI window owns the focus (game input is suppressed).
@@ -111,6 +112,7 @@ void DrawOpenScenesWindow(::Kotonoha::Kotonoha *game, Kotonoha_Game &context,
                           bool &shouldExit);
 void DrawPlaylistWindow(::Kotonoha::Kotonoha *game, Kotonoha_Game &context);
 void DrawSceneBuffersWindow(::Kotonoha::Gameplay *play);
+void DrawCanvasLayersWindow(::Kotonoha::Gameplay *play);
 bool DrawScriptEditorWindow(::Kotonoha::Kotonoha *game, Kotonoha_Game &context);
 bool DrawTextEditorWindow(::Kotonoha::Kotonoha *game, Kotonoha_Game &context);
 

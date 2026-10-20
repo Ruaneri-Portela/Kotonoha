@@ -6,6 +6,16 @@
 
 namespace Kotonoha {
 
+// Snapshot of one canvas layer for the debug UI.
+struct CanvasLayerInfo {
+  const char *name = "";
+  Sint16 zIndex = 0;
+  SDL_FRect place{};
+  Kotonoha_Scene_Status status = KOTONOHA_SCENE_NULL;
+  SDL_Texture *texture = nullptr; // what the layer last drew (may be null)
+  bool retained = false;          // the last frame is being redrawn
+};
+
 struct CanvasItem {
   Kotonoha_Scene_Status (*drawingPoint)(KOTONOHA_SCENE_CALL);
   SDL_Texture *target;
@@ -18,6 +28,8 @@ struct CanvasItem {
   bool hasDirtyFrame;
 
   void *userData;
+  const char *name;
+  Kotonoha_Scene_Status lastStatus;
 };
 
 class Canvas {
@@ -27,7 +39,8 @@ private:
 
 public:
   void RegisterCanva(Kotonoha_Scene_Status (*drawingPoint)(KOTONOHA_SCENE_CALL),
-                     Sint16 zIndex, SDL_FRect place, void *userData);
+                     Sint16 zIndex, SDL_FRect place, void *userData,
+                     const char *name = "");
 
   void UnregisterCanva(
       Kotonoha_Scene_Status (*drawingPoint)(KOTONOHA_SCENE_CALL));
@@ -38,6 +51,7 @@ public:
   SDL_AppResult RenderCanvas(SDL_Window *window, SDL_Renderer *render);
 
   int CanvasCount();
+  std::vector<CanvasLayerInfo> GetLayerInfo() const;
   void BeginFrame();
   bool DrewAtOrBelow(Sint16 zIndex) const;
   void Reset();

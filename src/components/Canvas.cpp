@@ -91,7 +91,7 @@ static bool CaptureDirtyFrame(SDL_Renderer *render, CanvasItem &item) {
 
 void Canvas::RegisterCanva(
     Kotonoha_Scene_Status (*drawingPoint)(KOTONOHA_SCENE_CALL), Sint16 zIndex,
-    SDL_FRect place, void *userData) {
+    SDL_FRect place, void *userData, const char *name) {
   if (drawingPoint == nullptr || userData == nullptr) {
     return;
   }
@@ -106,6 +106,8 @@ void Canvas::RegisterCanva(
   item.swapTexture = false;
   item.keepLastFrame = false;
   item.hasDirtyFrame = false;
+  item.name = name != nullptr ? name : "";
+  item.lastStatus = KOTONOHA_SCENE_NULL;
 
   drawingList.push_back(item);
   std::sort(drawingList.begin(), drawingList.end(), CanvasItemLess);
@@ -152,6 +154,22 @@ void Canvas::UpdateCanva(
   if (needsResort) {
     std::sort(drawingList.begin(), drawingList.end(), CanvasItemLess);
   }
+}
+
+std::vector<CanvasLayerInfo> Canvas::GetLayerInfo() const {
+  std::vector<CanvasLayerInfo> layers;
+  layers.reserve(drawingList.size());
+  for (const CanvasItem &item : drawingList) {
+    CanvasLayerInfo info;
+    info.name = item.name;
+    info.zIndex = item.zIndex;
+    info.place = item.place;
+    info.status = item.lastStatus;
+    info.retained = item.keepLastFrame;
+    info.texture = item.target;
+    layers.push_back(info);
+  }
+  return layers;
 }
 
 void Canvas::BeginFrame() { minDrawnZIndex = 32767; }
@@ -208,6 +226,7 @@ SDL_AppResult Canvas::RenderCanvas(SDL_Window *window, SDL_Renderer *render) {
     }
     const Kotonoha_Scene_Status result =
         item.drawingPoint(window, render, item.userData, item.target);
+    item.lastStatus = result;
     const bool hasNewFrame = result == KOTONOHA_SCENE_DRAW ||
                              result == KOTONOHA_SCENE_DRAW_LAST ||
                              result == KOTONOHA_SCENE_DRAW_OVERLAYED;

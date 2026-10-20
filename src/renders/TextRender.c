@@ -218,8 +218,10 @@ enum Kotonoha_Scene_Status KotonohaTextRenderDraw(KOTONOHA_SCENE_CALL) {
       SDL_SetRenderTarget(render, previousTarget);
     }
 
+    // COMPLETE (not WAITING) tells the canvas to drop its retained frame;
+    // otherwise the last subtitle would be redrawn after it ended.
     return frame != NULL ? KOTONOHA_SCENE_DRAW_OVERLAYED
-                         : KOTONOHA_SCENE_WAITING;
+                         : KOTONOHA_SCENE_COMPLETE;
   }
 
   // Não há glyphs ativos neste timestamp.
@@ -228,7 +230,7 @@ enum Kotonoha_Scene_Status KotonohaTextRenderDraw(KOTONOHA_SCENE_CALL) {
       SDL_SetRenderTarget(render, previousTarget);
     }
 
-    return KOTONOHA_SCENE_WAITING;
+    return KOTONOHA_SCENE_COMPLETE;
   }
 
   Uint8 previousRed = 0;
@@ -298,5 +300,6 @@ enum Kotonoha_Scene_Status KotonohaTextRenderDraw(KOTONOHA_SCENE_CALL) {
     }
   }
 
-  return renderedAny ? KOTONOHA_SCENE_DRAW_OVERLAYED : KOTONOHA_SCENE_WAITING;
+  return renderedAny ? KOTONOHA_SCENE_DRAW_OVERLAYED
+                     : KOTONOHA_SCENE_COMPLETE;
 }

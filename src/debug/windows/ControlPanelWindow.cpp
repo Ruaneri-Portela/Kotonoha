@@ -104,6 +104,8 @@ static void DrawScriptToggles(::Kotonoha::Kotonoha *game,
   ImGui::Checkbox("Log", &logVisible);
   ImGui::NewLine();
   ImGui::Checkbox("Scene Buffers", &sceneBuffersVisible);
+  ImGui::SameLine();
+  ImGui::Checkbox("Canvas Layers", &canvasLayersVisible);
 }
 
 void DrawControlPanel(::Kotonoha::Kotonoha *game, ::Kotonoha::Gameplay *play,

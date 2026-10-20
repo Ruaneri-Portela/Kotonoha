@@ -88,9 +88,10 @@ void DrawSettingsFields(Kotonoha_Config *cfg, Kotonoha_Game &context) {
     int currentModeIdx = 0;
     const SDL_WindowFlags flags = SDL_GetWindowFlags(context.window);
     if ((flags & SDL_WINDOW_FULLSCREEN) != 0) {
-      currentModeIdx = 1;
-    } else if ((flags & SDL_WINDOW_BORDERLESS) != 0) {
-      currentModeIdx = 2;
+      // A fullscreen mode set means exclusive; otherwise SDL uses the desktop
+      // (borderless) fullscreen, which also hides the macOS menu bar and Dock.
+      currentModeIdx =
+          SDL_GetWindowFullscreenMode(context.window) != nullptr ? 1 : 2;
     }
 
     if (ImGui::Combo("Screen Mode", &currentModeIdx, fullscreenModes,
@@ -106,22 +107,26 @@ void DrawSettingsFields(Kotonoha_Config *cfg, Kotonoha_Game &context) {
         break;
 
       case 1: // Fullscreen Exclusive
+      {
         cfg->fullScreen = true;
-        SDL_SetWindowBordered(context.window, true);
+        const SDL_DisplayID display = SDL_GetDisplayForWindow(context.window);
+        const SDL_DisplayMode *desktopMode =
+            SDL_GetDesktopDisplayMode(display);
+        SDL_DisplayMode mode;
+        if (desktopMode != nullptr &&
+            SDL_GetClosestFullscreenDisplayMode(
+                display, desktopMode->w, desktopMode->h,
+                desktopMode->refresh_rate, true, &mode)) {
+          SDL_SetWindowFullscreenMode(context.window, &mode);
+        }
         SDL_SetWindowFullscreen(context.window, true);
         break;
+      }
 
-      case 2: // Borderless Fullscreen (Sem bordas)
-        cfg->fullScreen = false;
-        SDL_SetWindowFullscreen(context.window, false);
-        SDL_SetWindowBordered(context.window, false);
-
-        SDL_DisplayID currentDisplay = SDL_GetDisplayForWindow(context.window);
-        SDL_Rect bounds;
-        if (SDL_GetDisplayBounds(currentDisplay, &bounds)) {
-          SDL_SetWindowPosition(context.window, bounds.x, bounds.y);
-          SDL_SetWindowSize(context.window, bounds.w, bounds.h);
-        }
+      case 2: // Borderless Fullscreen (desktop mode, no video mode change)
+        cfg->fullScreen = true;
+        SDL_SetWindowFullscreenMode(context.window, nullptr);
+        SDL_SetWindowFullscreen(context.window, true);
         break;
       }
     }
