@@ -224,6 +224,13 @@ SDL_AppResult Canvas::RenderCanvas(SDL_Window *window, SDL_Renderer *render) {
       item.keepLastFrame = false;
     }
 
+    if (result == KOTONOHA_SCENE_COMPLETE) {
+      // O componente terminou: solta o último frame para não cobrir as
+      // camadas inferiores (ex.: imagem após o vídeo).
+      item.keepLastFrame = false;
+      item.hasDirtyFrame = false;
+    }
+
     if (hasNewFrame && !CaptureDirtyFrame(render, item)) {
       status = SDL_APP_FAILURE;
     }

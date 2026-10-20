@@ -684,6 +684,9 @@ Kotonoha_OrsData KotonohaOrsParser(const char *input) {
     }
 
     line[i] = '\0';
+    if (i > 0 && line[i - 1] == '\r') {
+      line[i - 1] = '\0';
+    }
 
     struct Kotonoha_OrsEvent *parsed_event = KotonohaOrsParseLine(line);
     if (parsed_event) {
