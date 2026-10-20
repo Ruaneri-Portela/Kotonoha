@@ -1,5 +1,7 @@
 #include <Kotonoha/speciais/OpenGL.h>
 
+#if !defined(__ANDROID__) && !defined(ANDROID)
+
 #define GL_LOAD_FUNC(type, name) name = (type)SDL_GL_GetProcAddress(#name)
 #define GL_LOAD_FUNC_EXT(type, name)                                         \
   name = (type)SDL_GL_GetProcAddress(#name);                                 \
@@ -148,3 +150,11 @@ bool KotonohaOpenGLInit(void) {
 
 #undef GL_LOAD_FUNC
 #undef GL_LOAD_FUNC_EXT
+
+#else
+
+void KotonohaOpenGLReset(void) {}
+bool KotonohaOpenGLIsLoaded(void) { return false; }
+bool KotonohaOpenGLInit(void) { return false; }
+
+#endif
