@@ -489,6 +489,14 @@ bool KotonohaConfigLoad(Kotonoha_Config *config, const char *path, int argc,
   config->scalerFactor = 1.0f;
   config->videoCacheSeconds = 2.0f;
   config->debugUiScale = 1.0f;
+  config->cursorSize = 32;
+  config->splashSeconds = 3.0f;
+  config->splashFadeSeconds = 0.8f;
+  config->prefetchHorizonMs = 10000;
+  config->seekBigMs = 5000;
+  config->seekSmallMs = 50;
+  config->loadingDebounceMs = 300;
+  config->minLoadingPauseMs = 1000;
   config->upscalingEnabled = true;
   config->enableVsync = true;
 
@@ -554,6 +562,22 @@ void KotonohaConfigFree(Kotonoha_Config *config) {
     config->preferredRenderer = NULL;
   }
 
+  SDL_free(config->promptSelectSound);
+  config->promptSelectSound = NULL;
+  SDL_free(config->promptViewSound);
+  config->promptViewSound = NULL;
+  SDL_free(config->titleMusic);
+  config->titleMusic = NULL;
+  SDL_free(config->iconPath);
+  config->iconPath = NULL;
+  SDL_free(config->cursorPath);
+  config->cursorPath = NULL;
+  SDL_free(config->fontsPath);
+  config->fontsPath = NULL;
+  if (config->splashFiles != NULL) {
+    SDL_free(config->splashFiles);
+    config->splashFiles = NULL;
+  }
   if (config->anime4kFiles != NULL) {
     SDL_free(config->anime4kFiles);
     config->anime4kFiles = NULL;

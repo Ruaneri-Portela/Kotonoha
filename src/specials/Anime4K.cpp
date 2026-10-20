@@ -396,7 +396,7 @@ bool InitGLPipeline(SDL_Renderer *renderer) {
   {
     size_t start = 0;
     while (start <= g_filesSpec.size()) {
-      size_t end = g_filesSpec.find(';', start);
+      size_t end = g_filesSpec.find(':', start);
       if (end == std::string::npos)
         end = g_filesSpec.size();
       std::string name = g_filesSpec.substr(start, end - start);

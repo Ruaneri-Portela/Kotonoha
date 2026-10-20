@@ -73,8 +73,10 @@ void Gameplay::UpdateLoadingPause(struct Kotonoha_Game *gameContext) {
 
   const bool loading = KotonohaDemuxerIsLoading(demuxer);
   const Uint64 now = SDL_GetTicks();
-  constexpr Uint64 kLoadingDebounceMs = 300;
-  constexpr Uint64 kMinimumLoadingPauseMs = 1000;
+  const Uint64 kLoadingDebounceMs =
+      static_cast<Uint64>(gameContext->config.loadingDebounceMs);
+  const Uint64 kMinimumLoadingPauseMs =
+      static_cast<Uint64>(gameContext->config.minLoadingPauseMs);
 
   if (loading) {
     if (!loadingCandidateActive) {

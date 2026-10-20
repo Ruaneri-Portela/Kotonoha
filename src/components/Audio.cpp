@@ -181,6 +181,11 @@ int Audio::RenderMedia(void *data, Uint8 **target, int *size) {
       return 0;
     }
     const int rt = KotonohaAudioRender(instance, target, size);
+    if ((rt == 1 || rt == -1) && instance->inLoop && rt == 1) {
+      KotonohaAudioSeek(instance, 0);
+      instance->cannotSeek = false;
+      return KotonohaAudioRender(instance, target, size);
+    }
     if (rt == 1 || rt == -1) {
       instance->oneShotDone = true;
       return 0;

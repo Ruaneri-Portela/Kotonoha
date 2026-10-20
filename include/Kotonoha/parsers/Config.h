@@ -26,6 +26,14 @@ typedef struct Kotonoha_Config {
 
   char *preferredRenderer;
   char *anime4kFiles;
+  char *splashFiles;
+  char *promptSelectSound;
+  char *promptViewSound;
+  char *titleMusic;
+  char *iconPath;
+  char *cursorPath;
+  int cursorSize;
+  char *fontsPath;
   char *configFilePath;
 
   char **scriptsForced;
@@ -37,6 +45,13 @@ typedef struct Kotonoha_Config {
   float scalerFactor;
   float videoCacheSeconds;
   float debugUiScale;
+  float splashSeconds;
+  float splashFadeSeconds;
+  int prefetchHorizonMs;
+  int seekBigMs;
+  int seekSmallMs;
+  int loadingDebounceMs;
+  int minLoadingPauseMs;
 
   bool fullScreen;
   bool showFps;

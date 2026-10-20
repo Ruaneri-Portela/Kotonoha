@@ -74,6 +74,8 @@ void DrawOpenScenesWindow(::Kotonoha::Kotonoha *game,
 
       ImGui::Checkbox("Log", &logVisible);
 
+      DrawAudio(context);
+
       if (ImGui::CollapsingHeader("Engine Settings")) {
         DrawSettingsFields(&context.config, context);
       }

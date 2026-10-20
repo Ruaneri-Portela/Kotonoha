@@ -32,6 +32,18 @@ private:
   Uint64 lastSceneFrameCaptureTime = 0;
   size_t lastScene = static_cast<size_t>(-1);
 
+  Kotonoha_Demuxer *titleDemuxer = nullptr;
+  Kotonoha_Time *titleTime = nullptr;
+  Audio *titleAudio = nullptr;
+  Kotonoha_AudioDecode *titleMedia = nullptr;
+  void UpdateTitleMusic(bool titleScreen);
+
+  std::vector<SDL_Texture *> splashTextures;
+  size_t splashIndex = 0;
+  Uint64 splashStartTicks = 0;
+  bool splashActive = false;
+  void FinishSplash();
+
   bool ParseArguments(int argc, char *argv[]);
   void LoadSubtitleStylesFile(const char *path);
   bool CaptureSceneTransitionFrame(bool activateTransition = true);
@@ -52,6 +64,10 @@ public:
   void PresentSceneTransitionFrame(Gameplay *incoming);
 
   void ClearGameplays();
+
+  // Config "Splash=a.png;b.png": each image is shown with fade in/out.
+  bool IsSplashActive() const { return splashActive; }
+  void RenderSplash();
   Kotonoha(SDL_AppResult *initStatus, struct Kotonoha_Game &gameContext);
 
   SDL_AppResult Event(SDL_Event *event);

@@ -16,7 +16,6 @@ namespace Kotonoha {
 
 namespace {
 Event *activeSubtitleTrackOwner = nullptr;
-constexpr Uint64 kMediaPrefetchHorizonMs = 10000;
 constexpr Uint64 kMissingAssetRetryIntervalMs = 1000;
 
 static std::string BuildString(const char *str, const std::string &prefix = "",
@@ -142,6 +141,8 @@ int Event::EventManager(void *data) {
     return -1;
   }
 
+  const Uint64 kMediaPrefetchHorizonMs =
+      static_cast<Uint64>(gameCtx->config.prefetchHorizonMs);
   bool useExtension = (gameCtx->config.assetsPath != nullptr);
   const char *assetsPath = useExtension ? gameCtx->config.assetsPath : "";
 
@@ -664,8 +665,13 @@ Event::Event(const char *orsPath, void *gameplay, struct Kotonoha_Game *gameCtx,
       }
 
       gp->prompt =
-          new Prompt(options, &gp->promptId, startMs, endMs, gp->tm, font,"assets/SESELECT.OGG",
-                     "assets/SEVIEW.OGG");
+          new Prompt(options, &gp->promptId, startMs, endMs, gp->tm, font,
+                     gameCtx->config.promptSelectSound != nullptr
+                         ? gameCtx->config.promptSelectSound
+                         : "assets/SESELECT.OGG",
+                     gameCtx->config.promptViewSound != nullptr
+                         ? gameCtx->config.promptViewSound
+                         : "assets/SEVIEW.OGG");
       gp->prompt->SetAudio(gp->audio);
       gp->putPrompt = true;
       break;

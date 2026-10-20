@@ -51,10 +51,136 @@ Kotonoha::Kotonoha(SDL_AppResult *status, struct Kotonoha_Game &context)
   }
 
   gameContext.processPoolTasks = &processPoolTasks;
+
+  const std::string splashList =
+      config.splashFiles != nullptr ? config.splashFiles : "assets/SPLASH.PNG";
+  size_t pos = 0;
+  while (pos <= splashList.size()) {
+    size_t end = splashList.find(':', pos);
+    if (end == std::string::npos) {
+      end = splashList.size();
+    }
+    std::string file = splashList.substr(pos, end - pos);
+    pos = end + 1;
+    const size_t first = file.find_first_not_of(" \t");
+    const size_t last = file.find_last_not_of(" \t");
+    if (first == std::string::npos) {
+      continue;
+    }
+    file = file.substr(first, last - first + 1);
+
+    SDL_Surface *logo = SDL_LoadPNG(file.c_str());
+    if (logo == nullptr) {
+      KLOG_WARN(CORE, "Splash image '%s' unavailable: %s", file.c_str(),
+                SDL_GetError());
+      continue;
+    }
+    SDL_Texture *texture =
+        SDL_CreateTextureFromSurface(gameContext.render, logo);
+    SDL_DestroySurface(logo);
+    if (texture != nullptr) {
+      SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
+      splashTextures.push_back(texture);
+    }
+  }
+  if (!splashTextures.empty()) {
+    splashActive = true;
+    KLOG_INFO(CORE, "Showing %zu splash image(s), %.1f s each",
+              splashTextures.size(), config.splashSeconds);
+  }
+}
+
+void Kotonoha::UpdateTitleMusic(bool titleScreen) {
+  Sound *sound = static_cast<Sound *>(gameContext.sound);
+  if (!titleScreen) {
+    if (titleMedia != nullptr && titleAudio != nullptr) {
+      titleAudio->RemoveMedia(titleMedia);
+      titleMedia = nullptr;
+      KLOG_DEBUG(AUDIO, "Title music stopped");
+    }
+    return;
+  }
+  if (titleMedia != nullptr || sound == nullptr || BGM == nullptr) {
+    return;
+  }
+  if (titleAudio == nullptr) {
+    titleDemuxer = KotonohaDemuxerCreate(false);
+    titleTime = KotonohaTimeNew(true);
+    titleAudio = new Audio(sound, titleTime, titleDemuxer);
+    KotonohaDemuxerStart(titleDemuxer);
+  }
+  // One-shot (0/0) looping BGM: plays regardless of the timeline
+  titleMedia = titleAudio->AddMedia(gameContext.config.titleMusic != nullptr
+                               ? gameContext.config.titleMusic
+                               : "assets/SDBGM28_LOOP.OGG",
+                           0, 0, true, "BGM");
+  if (titleMedia == nullptr) {
+    // Avoid retrying every frame
+    KLOG_WARN(AUDIO, "Title music unavailable");
+    titleMedia = reinterpret_cast<Kotonoha_AudioDecode *>(this);
+  } else {
+    KLOG_INFO(AUDIO, "Title music started");
+  }
+}
+
+void Kotonoha::FinishSplash() {
+  splashActive = false;
+  for (SDL_Texture *texture : splashTextures) {
+    SDL_DestroyTexture(texture);
+  }
+  splashTextures.clear();
+  KLOG_INFO(CORE, "Splash finished");
+}
+
+void Kotonoha::RenderSplash() {
+  if (!splashActive) {
+    return;
+  }
+  if (splashStartTicks == 0) {
+    splashStartTicks = SDL_GetTicks();
+  }
+  float elapsed =
+      static_cast<float>(SDL_GetTicks() - splashStartTicks) / 1000.0f;
+  const float splashSeconds = gameContext.config.splashSeconds;
+  const float fadeSeconds = gameContext.config.splashFadeSeconds;
+  while (elapsed >= splashSeconds) {
+    ++splashIndex;
+    splashStartTicks = SDL_GetTicks();
+    elapsed = 0.0f;
+    if (splashIndex >= splashTextures.size()) {
+      FinishSplash();
+      return;
+    }
+  }
+  SDL_Texture *splashTexture = splashTextures[splashIndex];
+
+  float alpha = 1.0f;
+  if (fadeSeconds > 0.0f && elapsed < fadeSeconds) {
+    alpha = elapsed / fadeSeconds;
+  } else if (fadeSeconds > 0.0f && elapsed > splashSeconds - fadeSeconds) {
+    alpha = (splashSeconds - elapsed) / fadeSeconds;
+  }
+  alpha = SDL_clamp(alpha, 0.0f, 1.0f);
+
+  int outW = 0, outH = 0;
+  if (!SDL_GetCurrentRenderOutputSize(gameContext.render, &outW, &outH) ||
+      outW <= 0 || outH <= 0) {
+    return;
+  }
+  float texW = 0.0f, texH = 0.0f;
+  SDL_GetTextureSize(splashTexture, &texW, &texH);
+  const float scale = SDL_min(static_cast<float>(outW) * 0.6f / texW,
+                              static_cast<float>(outH) * 0.6f / texH);
+  const SDL_FRect dst{(static_cast<float>(outW) - texW * scale) / 2.0f,
+                      (static_cast<float>(outH) - texH * scale) / 2.0f,
+                      texW * scale, texH * scale};
+  SDL_SetTextureAlphaMod(splashTexture, static_cast<Uint8>(alpha * 255.0f));
+  SDL_RenderTexture(gameContext.render, splashTexture, nullptr, &dst);
 }
 
 Kotonoha::~Kotonoha() {
   processPoolRunning = false;
+  FinishSplash();
 
   if (processPool != nullptr) {
     SDL_WaitThread(processPool, nullptr);
@@ -62,6 +188,16 @@ Kotonoha::~Kotonoha() {
   }
 
   ClearGameplays();
+
+  delete titleAudio;
+  titleAudio = nullptr;
+  if (titleDemuxer != nullptr) {
+    KotonohaDemuxerDestroy(&titleDemuxer);
+  }
+  if (titleTime != nullptr) {
+    KotonohaTimeDestroy(titleTime);
+    titleTime = nullptr;
+  }
 
   for (auto &task : processPoolTasks) {
     SDL_free(std::get<1>(task));
@@ -172,6 +308,13 @@ SDL_AppResult Kotonoha::Event(SDL_Event *event) {
   }
 
   Kotonoha_Config *config = &gameContext.config;
+
+  if (splashActive && (event->type == SDL_EVENT_KEY_DOWN ||
+                       event->type == SDL_EVENT_MOUSE_BUTTON_DOWN ||
+                       event->type == SDL_EVENT_FINGER_DOWN)) {
+    FinishSplash();
+    return SDL_APP_CONTINUE;
+  }
 
   switch (event->type) {
   case SDL_EVENT_KEY_DOWN:
@@ -552,6 +695,8 @@ SDL_AppResult Kotonoha::Main(Gameplay **out) {
     }
     break;
   }
+
+  UpdateTitleMusic(out == nullptr || *out == nullptr);
 
   const bool sceneChangePending =
       config->next || (config->back && config->scene > 0);

@@ -59,7 +59,8 @@ static void KotonohaSettings_ReadLine(ImGuiContext *ctx,
 
   int w, h;
   float factor, cache, debugUiScale;
-  int full, vsync, fps, ts, ui, skip, upscaling;
+  int full, vsync, fps, ts, ui, skip, upscaling, ival;
+  float fval;
 
   if (SDL_sscanf(line, "WindowSize=%d,%d", &w, &h) == 2) {
     config->windowSize[0] = w;
@@ -86,6 +87,36 @@ static void KotonohaSettings_ReadLine(ImGuiContext *ctx,
     config->skipFiles = (bool)skip;
   } else if (SDL_sscanf(line, "UpscalingEnabled=%d", &upscaling) == 1) {
     config->upscalingEnabled = (bool)upscaling;
+  } else if (SDL_sscanf(line, "SplashSeconds=%f", &fval) == 1) {
+    if (fval > 0.0f) config->splashSeconds = fval;
+  } else if (SDL_sscanf(line, "SplashFadeSeconds=%f", &fval) == 1) {
+    if (fval >= 0.0f) config->splashFadeSeconds = fval;
+  } else if (SDL_sscanf(line, "PrefetchHorizonMs=%d", &ival) == 1) {
+    if (ival >= 0) config->prefetchHorizonMs = ival;
+  } else if (SDL_sscanf(line, "SeekBigMs=%d", &ival) == 1) {
+    if (ival >= 0) config->seekBigMs = ival;
+  } else if (SDL_sscanf(line, "SeekSmallMs=%d", &ival) == 1) {
+    if (ival >= 0) config->seekSmallMs = ival;
+  } else if (SDL_sscanf(line, "LoadingDebounceMs=%d", &ival) == 1) {
+    if (ival >= 0) config->loadingDebounceMs = ival;
+  } else if (SDL_sscanf(line, "MinLoadingPauseMs=%d", &ival) == 1) {
+    if (ival >= 0) config->minLoadingPauseMs = ival;
+  } else if (strncmp(line, "TitleMusic=", 11) == 0) {
+    ConfigImGui_SetString(&config->titleMusic, line + 11);
+  } else if (strncmp(line, "CursorPath=", 11) == 0) {
+    ConfigImGui_SetString(&config->cursorPath, line + 11);
+  } else if (SDL_sscanf(line, "CursorSize=%d", &ival) == 1) {
+    if (ival > 0) config->cursorSize = ival;
+  } else if (strncmp(line, "IconPath=", 9) == 0) {
+    ConfigImGui_SetString(&config->iconPath, line + 9);
+  } else if (strncmp(line, "FontsPath=", 10) == 0) {
+    ConfigImGui_SetString(&config->fontsPath, line + 10);
+  } else if (strncmp(line, "PromptSelectSound=", 18) == 0) {
+    ConfigImGui_SetString(&config->promptSelectSound, line + 18);
+  } else if (strncmp(line, "PromptViewSound=", 16) == 0) {
+    ConfigImGui_SetString(&config->promptViewSound, line + 16);
+  } else if (strncmp(line, "Splash=", 7) == 0) {
+    ConfigImGui_SetString(&config->splashFiles, line + 7);
   } else if (strncmp(line, "Anime4kFiles=", 13) == 0) {
     ConfigImGui_SetString(&config->anime4kFiles, line + 13);
   } else if (strncmp(line, "AssetsPath=", 11) == 0) {
@@ -117,6 +148,35 @@ static void KotonohaSettings_WriteAll(ImGuiContext *ctx,
   buf->appendf("EnableDebugUi=%d\n", config->enableDebugUi ? 1 : 0);
   buf->appendf("SkipFiles=%d\n", config->skipFiles ? 1 : 0);
   buf->appendf("UpscalingEnabled=%d\n", config->upscalingEnabled ? 1 : 0);
+  buf->appendf("SplashSeconds=%.2f\n", config->splashSeconds);
+  buf->appendf("SplashFadeSeconds=%.2f\n", config->splashFadeSeconds);
+  buf->appendf("PrefetchHorizonMs=%d\n", config->prefetchHorizonMs);
+  buf->appendf("SeekBigMs=%d\n", config->seekBigMs);
+  buf->appendf("SeekSmallMs=%d\n", config->seekSmallMs);
+  buf->appendf("LoadingDebounceMs=%d\n", config->loadingDebounceMs);
+  buf->appendf("MinLoadingPauseMs=%d\n", config->minLoadingPauseMs);
+  if (config->titleMusic != NULL) {
+    buf->appendf("TitleMusic=%s\n", config->titleMusic);
+  }
+  if (config->cursorPath != NULL) {
+    buf->appendf("CursorPath=%s\n", config->cursorPath);
+  }
+  buf->appendf("CursorSize=%d\n", config->cursorSize);
+  if (config->iconPath != NULL) {
+    buf->appendf("IconPath=%s\n", config->iconPath);
+  }
+  if (config->fontsPath != NULL) {
+    buf->appendf("FontsPath=%s\n", config->fontsPath);
+  }
+  if (config->promptSelectSound != NULL) {
+    buf->appendf("PromptSelectSound=%s\n", config->promptSelectSound);
+  }
+  if (config->promptViewSound != NULL) {
+    buf->appendf("PromptViewSound=%s\n", config->promptViewSound);
+  }
+  if (config->splashFiles != NULL) {
+    buf->appendf("Splash=%s\n", config->splashFiles);
+  }
   if (config->anime4kFiles != NULL) {
     buf->appendf("Anime4kFiles=%s\n", config->anime4kFiles);
   }

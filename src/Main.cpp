@@ -118,6 +118,12 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
   SDL_SetRenderDrawColor(global.render, 0, 0, 0, 255);
   SDL_RenderClear(global.render);
 
+  if (app->IsSplashActive()) {
+    app->RenderSplash();
+    SDL_RenderPresent(global.render);
+    return SDL_APP_CONTINUE;
+  }
+
   const SDL_AppResult status = app->Main(&inRunning);
   if (status != SDL_APP_CONTINUE) {
     return status;

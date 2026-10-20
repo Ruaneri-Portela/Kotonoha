@@ -158,7 +158,7 @@ void DrawSettingsFields(Kotonoha_Config *cfg,
       cfg->dirtyConfig = true;
     }
     static std::string anime4kBuf = cfg->anime4kFiles ? cfg->anime4kFiles : "";
-    if (ImGui::InputText("Anime4K Files (;)", &anime4kBuf)) {
+    if (ImGui::InputText("Anime4K Files (:)", &anime4kBuf)) {
       if (cfg->anime4kFiles)
         SDL_free(cfg->anime4kFiles);
       cfg->anime4kFiles = SDL_strdup(anime4kBuf.c_str());

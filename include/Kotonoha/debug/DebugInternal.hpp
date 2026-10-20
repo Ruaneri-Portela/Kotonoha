@@ -103,6 +103,7 @@ void DrawAboutFields();
 void DrawAboutWindow();
 void DrawSettingsFields(Kotonoha_Config *cfg, Kotonoha_Game &context);
 void DrawSettingsWindow(Kotonoha_Game &context);
+void DrawAudio(Kotonoha_Game &context);
 void DrawControlPanel(::Kotonoha::Kotonoha *game, ::Kotonoha::Gameplay *play,
                       Kotonoha_Game &context);
 void DrawOpenScenesWindow(::Kotonoha::Kotonoha *game, Kotonoha_Game &context,
