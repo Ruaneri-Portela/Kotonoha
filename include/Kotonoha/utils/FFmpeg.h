@@ -30,7 +30,7 @@ bool KotonohaFFmpegLoad(const char *path, AVFormatContext **formatCtx,
 /* Leitura e Posicionamento */
 int KotonohaFFmpegReadFrame(AVFormatContext *formatCtx, AVPacket *packet);
 
-Uint64 KotonohaFFmpegGetTime(AVStream *stream, Sint64 pts, Sint64 dts);
+Uint64 KotonohaFFmpegGetTime(const AVStream *stream, Sint64 pts, Sint64 dts);
 
 /* Utilitários de Inicialização do Decodificador e Resamplers */
 bool KotonohaFFmpegCreateDecoderCtx(AVFormatContext *formatCtx, int streamIndex,

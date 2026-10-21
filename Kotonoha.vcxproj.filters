@@ -331,6 +331,9 @@
     <None Include="BuildPacket.ps1">
       <Filter>Arquivos de Recurso</Filter>
     </None>
+    <None Include="assets\Kotonoha.ini">
+      <Filter>Arquivos de Recurso</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="src\specials\Kotonoha.rc">
