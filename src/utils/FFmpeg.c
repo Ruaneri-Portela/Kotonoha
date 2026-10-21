@@ -266,7 +266,7 @@ AVFrame *KotonohaFFmpegSwsConvertFrame(struct SwsContext *convertContext,
   return pFrameRGB;
 };
 
-Uint64 KotonohaFFmpegGetTime(AVStream *stream, Sint64 pts, Sint64 dts) {
+Uint64 KotonohaFFmpegGetTime(const AVStream *stream, Sint64 pts, Sint64 dts) {
   if (pts != AV_NOPTS_VALUE) {
     return (Uint64)(pts * av_q2d(stream->time_base) * 1000);
   }
