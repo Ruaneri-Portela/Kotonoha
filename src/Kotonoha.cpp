@@ -69,19 +69,16 @@ Kotonoha::Kotonoha(SDL_AppResult *status, struct Kotonoha_Game &context)
     }
     file = file.substr(first, last - first + 1);
 
-    SDL_Surface *logo = SDL_LoadPNG(file.c_str());
-    if (logo == nullptr) {
+    SDL_Texture *texture =
+        KotonohaImageCreateTexture(gameContext.render, file.c_str(), -1, -1);
+    if (texture == nullptr) {
       KLOG_WARN(CORE, "Splash image '%s' unavailable: %s", file.c_str(),
                 SDL_GetError());
       continue;
     }
-    SDL_Texture *texture =
-        SDL_CreateTextureFromSurface(gameContext.render, logo);
-    SDL_DestroySurface(logo);
-    if (texture != nullptr) {
-      SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
-      splashTextures.push_back(texture);
-    }
+
+    SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
+    splashTextures.push_back(texture);
   }
   if (!splashTextures.empty()) {
     splashActive = true;

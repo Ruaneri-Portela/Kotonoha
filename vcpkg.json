@@ -8,7 +8,8 @@
       "features": [
         "harfbuzz",
         "svg"
-      ]
+      ],
+      "platform": "!linux"
     },
     {
       "name": "imgui",
@@ -17,7 +18,8 @@
         "freetype-svg",
         "sdl3-binding",
         "sdl3-renderer-binding"
-      ]
+      ],
+      "platform": "!linux"
     },
     {
       "name": "ffmpeg",
