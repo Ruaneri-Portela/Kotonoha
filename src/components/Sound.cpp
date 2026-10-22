@@ -216,9 +216,9 @@ static void SDLCALL destroy(void *userdata, const void *buf, int buflen) {
 
 void Sound::Channel::Render(void *userdata, SDL_AudioStream *astream,
                             int additionalAmount, int totalAmount) {
-  (void)additionalAmount;
+  (void)totalAmount;
 
-  if (userdata == nullptr || astream == nullptr || totalAmount <= 0) {
+  if (userdata == nullptr || astream == nullptr || additionalAmount <= 0) {
     return;
   }
 
@@ -235,8 +235,12 @@ void Sound::Channel::Render(void *userdata, SDL_AudioStream *astream,
     return;
   }
 
-  // Keep the device queue active while this channel has no media.
-  Uint8 *data = static_cast<Uint8 *>(SDL_calloc(totalAmount, 1));
+  /* SDL's playback callback reports the number of additional input bytes
+   * needed after accounting for data already buffered by the stream. Feeding
+   * totalAmount here overfills the stream and can queue silence ahead of short
+   * voice clips. */
+  const int mixAmount = additionalAmount;
+  Uint8 *data = static_cast<Uint8 *>(SDL_calloc(mixAmount, 1));
   if (data == nullptr) {
     KLOG_ERROR(AUDIO, "Failed to alloc audio mix buffer");
     return;
@@ -251,9 +255,9 @@ void Sound::Channel::Render(void *userdata, SDL_AudioStream *astream,
 
     int filled = 0;
 
-    while (filled < totalAmount) {
+    while (filled < mixAmount) {
       int gettedSize = 0;
-      Uint8 *localData = pipe->GetData(totalAmount - filled, &gettedSize);
+      Uint8 *localData = pipe->GetData(mixAmount - filled, &gettedSize);
 
       if (localData == nullptr || gettedSize <= 0) {
         break;
@@ -270,7 +274,7 @@ void Sound::Channel::Render(void *userdata, SDL_AudioStream *astream,
 
   SDL_UnlockMutex(thisChannel->lockPipes);
 
-  if (!SDL_PutAudioStreamDataNoCopy(astream, data, totalAmount, destroy,
+  if (!SDL_PutAudioStreamDataNoCopy(astream, data, mixAmount, destroy,
                                     data)) {
     SDL_free(data);
     KLOG_ERROR(AUDIO, "Failed to queue audio data: %s", SDL_GetError());

@@ -34,6 +34,9 @@ SDL_Texture *KotonohaImageCreateTexture(SDL_Renderer *render, const char *path,
                                         int h, int w);
 AVFrame *KotonohaImageDecodeFrame(const char *path, int h, int w,
                                   Uint8 **buffer, bool ignoreMissingAssets);
+AVFrame *KotonohaImageDecodeFrameInput(const Kotonoha_FFmpegInput *input, int h,
+                                       int w, Uint8 **buffer,
+                                       bool ignoreMissingAssets);
 AVFrame *KotonohaImageDecodeNativeFrame(const char *path,
                                         bool ignoreMissingAssets);
 SDL_Texture *KotonohaImageCreateTextureFromFrame(SDL_Renderer *render,
@@ -42,6 +45,18 @@ SDL_Texture *KotonohaImageCreateTextureFromFrame(SDL_Renderer *render,
 void KotonohaImageReleaseFrame(AVFrame **frame, Uint8 **buffer);
 
 SDL_Surface *KotonohaImageCreateSurface(const char *path, int h, int w);
+
+/* Compatibility spellings used by the validated legacy image/overlay path. */
+static inline SDL_Texture *Kotonoha_imageCreateTexture(SDL_Renderer *render,
+                                                       const char *path, int h,
+                                                       int w) {
+  return KotonohaImageCreateTexture(render, path, h, w);
+}
+
+static inline SDL_Surface *Kotonoha_imageCreateSurface(const char *path, int h,
+                                                       int w) {
+  return KotonohaImageCreateSurface(path, h, w);
+}
 
 #ifdef __cplusplus
 }

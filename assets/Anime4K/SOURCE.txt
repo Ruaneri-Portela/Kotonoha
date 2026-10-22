@@ -1,0 +1,6 @@
+﻿Anime4K upstream: https://github.com/bloc97/Anime4K
+Pinned commit: 7684e9586f8dcc738af08a1cdceb024cc184f426
+Files:
+  glsl/Restore/Anime4K_Clamp_Highlights.glsl
+  glsl/Restore/Anime4K_Restore_CNN_L.glsl
+  glsl/Upscale/Anime4K_Upscale_CNN_x2_L.glsl

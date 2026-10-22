@@ -5109,7 +5109,7 @@
         {
             "{5259A561-127C-4D43-A0A1-72F10C7B3BF8}:_E5EF462253414220BAD5E1B1446D7C88"
             {
-            "SourcePath" = "8:..\\x64\\Debug\\Kotonoha.exe"
+            "SourcePath" = "8:..\\build\\vs\\Debug-x64\\Debug\\SchoolDaysHQ.exe"
             "TargetName" = "8:"
             "Tag" = "8:"
             "Folder" = "8:_A25A1472F7044569A8F42516E8EFE485"

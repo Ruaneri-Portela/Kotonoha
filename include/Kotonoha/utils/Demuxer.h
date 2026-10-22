@@ -29,6 +29,11 @@ struct Kotonoha_Demuxer;
 typedef struct Kotonoha_DemuxStream {
   char *filename;
   AVFormatContext *formatCtx;
+  Kotonoha_FFmpegInputContext *inputContext;
+  Kotonoha_FFmpegInput directInput;
+  bool hasDirectInput;
+  bool directSource;
+  bool resolverBackedInput;
   int videoStreamIdx;
   int audioStreamIdx;
   AVRational videoTimeBase;
@@ -109,6 +114,13 @@ Kotonoha_DemuxStream *KotonohaDemuxerAddStream(Kotonoha_Demuxer *demuxer,
                                                const char *filename,
                                                void *owner,
                                                enum AVMediaType type);
+
+/* Direct custom-input variant used by archive/memory-backed consumers. The
+ * input opaque ownership transfers to the stream. Resolver-backed URI inputs
+ * should normally use KotonohaDemuxerAddStream so they can be reopened. */
+Kotonoha_DemuxStream *KotonohaDemuxerAddStreamInput(
+    Kotonoha_Demuxer *demuxer, const Kotonoha_FFmpegInput *input, void *owner,
+    enum AVMediaType type);
 bool KotonohaDemuxerActivateStream(Kotonoha_Demuxer *demuxer,
                                    Kotonoha_DemuxStream *stream);
 

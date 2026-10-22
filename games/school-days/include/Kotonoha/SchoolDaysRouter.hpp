@@ -1,0 +1,82 @@
+#pragma once
+
+#include <functional>
+#include <map>
+#include <string>
+#include <vector>
+
+namespace Kotonoha {
+
+struct SceneKey {
+    std::string value;
+
+    bool operator<(const SceneKey& other) const { return value < other.value; }
+    bool operator==(const SceneKey& other) const { return value == other.value; }
+
+    static SceneKey FromScriptPath(const std::string& path);
+};
+
+struct SchoolDaysRouteState {
+    int route = 0;
+    int scene = 0;
+    int choiceResult = -2;
+    std::map<std::string, int> sessionVariables;
+    std::map<std::string, int> globalVariables;
+    int callback34 = 0;
+    bool feelingApplied = false;
+    std::vector<int> endingRegistrations;
+};
+
+class SchoolDaysRouter {
+public:
+    enum class NextKind { Advanced, Terminal, Unresolved };
+    struct NextResult {
+        NextKind kind = NextKind::Unresolved;
+        SceneKey destination;
+        int transitionId = -1;
+        int endingId = -1;
+        std::vector<std::string> callbacks;
+
+        bool HasCallback(const std::string& name) const {
+            for (const auto& callback : callbacks) {
+                if (callback == name) return true;
+            }
+            return false;
+        }
+    };
+
+    explicit SchoolDaysRouter(std::function<void(const std::string&)> logger = {});
+    void Reset();
+    const SchoolDaysRouteState& State() const { return state; }
+    SceneKey CurrentScene() const;
+    bool IsCurrentSceneRoutingOnly() const;
+    bool HasChoice() const;
+    bool AcceptChoice(int result);
+    NextResult ResolveNext();
+
+#ifdef KOTONOHA_DEV_CHECKPOINTS
+    SceneKey DevCheckpointScene(const std::string& name) const;
+    bool RestoreDevCheckpoint(const std::string& name);
+    std::string DumpState() const;
+#endif
+
+#ifdef KOTONOHA_ROUTER_TEST_ACCESS
+    // Differential-conformance harness only. This intentionally exposes the
+    // already-existing state object without changing routing behavior so tests
+    // can inject targeted pre-states into the frozen ResolveNext semantics.
+    SchoolDaysRouteState& MutableStateForTest() { return state; }
+#endif
+
+private:
+    SchoolDaysRouteState state;
+    std::function<void(const std::string&)> log;
+
+    int CurrentNodeIndex() const;
+    int ReadSession(const char* name) const;
+    int ReadGlobal(const char* name) const;
+    void WriteSession(const char* name, int value);
+    void WriteGlobal(const char* name, int value);
+    void AddFeeling(const char* name, int delta);
+};
+
+} // namespace Kotonoha

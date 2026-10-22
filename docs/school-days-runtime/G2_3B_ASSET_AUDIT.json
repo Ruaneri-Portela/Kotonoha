@@ -1,0 +1,821 @@
+{
+  "files_scanned": 1857,
+  "resource_references": 3043,
+  "summary": [
+    {
+      "command": "EndBGM",
+      "suffix": ".ogg",
+      "status": "case_mismatch",
+      "count": 67
+    },
+    {
+      "command": "PlayBgm",
+      "suffix": "_int.ogg",
+      "status": "case_mismatch",
+      "count": 1102
+    },
+    {
+      "command": "PlayBgm",
+      "suffix": "_int.ogg",
+      "status": "missing",
+      "count": 386
+    },
+    {
+      "command": "PlayBgm",
+      "suffix": "_loop.ogg",
+      "status": "case_mismatch",
+      "count": 1488
+    }
+  ],
+  "missing_paths": {
+    "BGM/SD_BGM/sdbgm20": 218,
+    "BGM/SD_BGM/sdbgm29": 69,
+    "BGM/SD_BGM/sdbgm14": 12,
+    "BGM/SD_BGM/sdbgm28": 41,
+    "BGM/SD_BGM/sdbgm18": 20,
+    "BGM/SD_BGM/sdbgm33": 26
+  },
+  "case_insensitive_collisions": [],
+  "unique_resources": [
+    {
+      "command": "PlayBgm",
+      "logical": "BGM/SD_BGM/sdbgm07",
+      "expected": "BGM/SD_BGM/sdbgm07_int.ogg",
+      "actual": "assets\\BGM\\SD_BGM\\SDBGM07_INT.OGG",
+      "status": "case_mismatch",
+      "occurrences": 150,
+      "example_scenes": [
+        "00-00-A00.ENG.ORS",
+        "00-00-A01.ENG.ORS",
+        "00-00-F00.ENG.ORS"
+      ]
+    },
+    {
+      "command": "PlayBgm",
+      "logical": "BGM/SD_BGM/sdbgm07",
+      "expected": "BGM/SD_BGM/sdbgm07_loop.ogg",
+      "actual": "assets\\BGM\\SD_BGM\\SDBGM07_LOOP.OGG",
+      "status": "case_mismatch",
+      "occurrences": 150,
+      "example_scenes": [
+        "00-00-A00.ENG.ORS",
+        "00-00-A01.ENG.ORS",
+        "00-00-F00.ENG.ORS"
+      ]
+    },
+    {
+      "command": "PlayBgm",
+      "logical": "BGM/SD_BGM/sdbgm06",
+      "expected": "BGM/SD_BGM/sdbgm06_int.ogg",
+      "actual": "assets\\BGM\\SD_BGM\\SDBGM06_INT.OGG",
+      "status": "case_mismatch",
+      "occurrences": 167,
+      "example_scenes": [
+        "00-00-A03.ENG.ORS",
+        "00-00-A04.ENG.ORS",
+        "00-00-A05.ENG.ORS"
+      ]
+    },
+    {
+      "command": "PlayBgm",
+      "logical": "BGM/SD_BGM/sdbgm06",
+      "expected": "BGM/SD_BGM/sdbgm06_loop.ogg",
+      "actual": "assets\\BGM\\SD_BGM\\SDBGM06_LOOP.OGG",
+      "status": "case_mismatch",
+      "occurrences": 167,
+      "example_scenes": [
+        "00-00-A03.ENG.ORS",
+        "00-00-A04.ENG.ORS",
+        "00-00-A05.ENG.ORS"
+      ]
+    },
+    {
+      "command": "PlayBgm",
+      "logical": "BGM/SD_BGM/sdbgm03",
+      "expected": "BGM/SD_BGM/sdbgm03_int.ogg",
+      "actual": "assets\\BGM\\SD_BGM\\SDBGM03_INT.OGG",
+      "status": "case_mismatch",
+      "occurrences": 89,
+      "example_scenes": [
+        "00-00-B00.ENG.ORS",
+        "01-00-B00.ENG.ORS",
+        "01-00-E00.ENG.ORS"
+      ]
+    },
+    {
+      "command": "PlayBgm",
+      "logical": "BGM/SD_BGM/sdbgm03",
+      "expected": "BGM/SD_BGM/sdbgm03_loop.ogg",
+      "actual": "assets\\BGM\\SD_BGM\\SDBGM03_LOOP.OGG",
+      "status": "case_mismatch",
+      "occurrences": 89,
+      "example_scenes": [
+        "00-00-B00.ENG.ORS",
+        "01-00-B00.ENG.ORS",
+        "01-00-E00.ENG.ORS"
+      ]
+    },
+    {
+      "command": "PlayBgm",
+      "logical": "BGM/SD_BGM/sdbgm01",
+      "expected": "BGM/SD_BGM/sdbgm01_int.ogg",
+      "actual": "assets\\BGM\\SD_BGM\\SDBGM01_INT.OGG",
+      "status": "case_mismatch",
+      "occurrences": 119,
+      "example_scenes": [
+        "00-00-D00.ENG.ORS",
+        "01-00-Q00.ENG.ORS",
+        "01-00-Q01.ENG.ORS"
+      ]
+    },
+    {
+      "command": "PlayBgm",
+      "logical": "BGM/SD_BGM/sdbgm01",
+      "expected": "BGM/SD_BGM/sdbgm01_loop.ogg",
+      "actual": "assets\\BGM\\SD_BGM\\SDBGM01_LOOP.OGG",
+      "status": "case_mismatch",
+      "occurrences": 119,
+      "example_scenes": [
+        "00-00-D00.ENG.ORS",
+        "01-00-Q00.ENG.ORS",
+        "01-00-Q01.ENG.ORS"
+      ]
+    },
+    {
+      "command": "PlayBgm",
+      "logical": "BGM/SD_BGM/sdbgm08",
+      "expected": "BGM/SD_BGM/sdbgm08_int.ogg",
+      "actual": "assets\\BGM\\SD_BGM\\SDBGM08_INT.OGG",
+      "status": "case_mismatch",
+      "occurrences": 46,
+      "example_scenes": [
+        "00-00-G00.ENG.ORS",
+        "02-2S-A02.ENG.ORS",
+        "02-2S-W03.ENG.ORS"
+      ]
+    },
+    {
+      "command": "PlayBgm",
+      "logical": "BGM/SD_BGM/sdbgm08",
+      "expected": "BGM/SD_BGM/sdbgm08_loop.ogg",
+      "actual": "assets\\BGM\\SD_BGM\\SDBGM08_LOOP.OGG",
+      "status": "case_mismatch",
+      "occurrences": 46,
+      "example_scenes": [
+        "00-00-G00.ENG.ORS",
+        "02-2S-A02.ENG.ORS",
+        "02-2S-W03.ENG.ORS"
+      ]
+    },
+    {
+      "command": "EndBGM",
+      "logical": "BGM/Vocal/SDV01",
+      "expected": "BGM/Vocal/SDV01.ogg",
+      "actual": "assets\\BGM\\VOCAL\\SDV01.OGG",
+      "status": "case_mismatch",
+      "occurrences": 1,
+      "example_scenes": [
+        "00-00-L00.ENG.ORS"
+      ]
+    },
+    {
+      "command": "PlayBgm",
+      "logical": "BGM/SD_BGM/sdbgm20",
+      "expected": "BGM/SD_BGM/sdbgm20_int.ogg",
+      "actual": null,
+      "status": "missing",
+      "occurrences": 218,
+      "example_scenes": [
+        "01-00-A00.ENG.ORS",
+        "01-00-G00.ENG.ORS",
+        "01-00-G01.ENG.ORS"
+      ]
+    },
+    {
+      "command": "PlayBgm",
+      "logical": "BGM/SD_BGM/sdbgm20",
+      "expected": "BGM/SD_BGM/sdbgm20_loop.ogg",
+      "actual": "assets\\BGM\\SD_BGM\\SDBGM20_LOOP.OGG",
+      "status": "case_mismatch",
+      "occurrences": 218,
+      "example_scenes": [
+        "01-00-A00.ENG.ORS",
+        "01-00-G00.ENG.ORS",
+        "01-00-G01.ENG.ORS"
+      ]
+    },
+    {
+      "command": "PlayBgm",
+      "logical": "BGM/SD_BGM/sdbgm12",
+      "expected": "BGM/SD_BGM/sdbgm12_int.ogg",
+      "actual": "assets\\BGM\\SD_BGM\\SDBGM12_INT.OGG",
+      "status": "case_mismatch",
+      "occurrences": 46,
+      "example_scenes": [
+        "01-00-K00.ENG.ORS",
+        "01-00-K01.ENG.ORS",
+        "02-2K-P00.ENG.ORS"
+      ]
+    },
+    {
+      "command": "PlayBgm",
+      "logical": "BGM/SD_BGM/sdbgm12",
+      "expected": "BGM/SD_BGM/sdbgm12_loop.ogg",
+      "actual": "assets\\BGM\\SD_BGM\\SDBGM12_LOOP.OGG",
+      "status": "case_mismatch",
+      "occurrences": 46,
+      "example_scenes": [
+        "01-00-K00.ENG.ORS",
+        "01-00-K01.ENG.ORS",
+        "02-2K-P00.ENG.ORS"
+      ]
+    },
+    {
+      "command": "PlayBgm",
+      "logical": "BGM/SD_BGM/sdbgm19",
+      "expected": "BGM/SD_BGM/sdbgm19_int.ogg",
+      "actual": "assets\\BGM\\SD_BGM\\SDBGM19_INT.OGG",
+      "status": "case_mismatch",
+      "occurrences": 132,
+      "example_scenes": [
+        "01-00-L00.ENG.ORS",
+        "01-00-M00.ENG.ORS",
+        "01-00-M01.ENG.ORS"
+      ]
+    },
+    {
+      "command": "PlayBgm",
+      "logical": "BGM/SD_BGM/sdbgm19",
+      "expected": "BGM/SD_BGM/sdbgm19_loop.ogg",
+      "actual": "assets\\BGM\\SD_BGM\\SDBGM19_LOOP.OGG",
+      "status": "case_mismatch",
+      "occurrences": 132,
+      "example_scenes": [
+        "01-00-L00.ENG.ORS",
+        "01-00-M00.ENG.ORS",
+        "01-00-M01.ENG.ORS"
+      ]
+    },
+    {
+      "command": "PlayBgm",
+      "logical": "BGM/SD_BGM/sdbgm15",
+      "expected": "BGM/SD_BGM/sdbgm15_int.ogg",
+      "actual": "assets\\BGM\\SD_BGM\\SDBGM15_INT.OGG",
+      "status": "case_mismatch",
+      "occurrences": 13,
+      "example_scenes": [
+        "01-00-M07.ENG.ORS",
+        "01-00-M08.ENG.ORS",
+        "01-00-M09.ENG.ORS"
+      ]
+    },
+    {
+      "command": "PlayBgm",
+      "logical": "BGM/SD_BGM/sdbgm15",
+      "expected": "BGM/SD_BGM/sdbgm15_loop.ogg",
+      "actual": "assets\\BGM\\SD_BGM\\SDBGM15_LOOP.OGG",
+      "status": "case_mismatch",
+      "occurrences": 13,
+      "example_scenes": [
+        "01-00-M07.ENG.ORS",
+        "01-00-M08.ENG.ORS",
+        "01-00-M09.ENG.ORS"
+      ]
+    },
+    {
+      "command": "PlayBgm",
+      "logical": "BGM/SD_BGM/sdbgm16",
+      "expected": "BGM/SD_BGM/sdbgm16_int.ogg",
+      "actual": "assets\\BGM\\SD_BGM\\SDBGM16_INT.OGG",
+      "status": "case_mismatch",
+      "occurrences": 47,
+      "example_scenes": [
+        "01-1K-E00.ENG.ORS",
+        "01-1K-E01.ENG.ORS",
+        "01-1K-F00.ENG.ORS"
+      ]
+    },
+    {
+      "command": "PlayBgm",
+      "logical": "BGM/SD_BGM/sdbgm16",
+      "expected": "BGM/SD_BGM/sdbgm16_loop.ogg",
+      "actual": "assets\\BGM\\SD_BGM\\SDBGM16_LOOP.OGG",
+      "status": "case_mismatch",
+      "occurrences": 47,
+      "example_scenes": [
+        "01-1K-E00.ENG.ORS",
+        "01-1K-E01.ENG.ORS",
+        "01-1K-F00.ENG.ORS"
+      ]
+    },
+    {
+      "command": "PlayBgm",
+      "logical": "BGM/SD_BGM/sdbgm21",
+      "expected": "BGM/SD_BGM/sdbgm21_int.ogg",
+      "actual": "assets\\BGM\\SD_BGM\\SDBGM21_INT.OGG",
+      "status": "case_mismatch",
+      "occurrences": 98,
+      "example_scenes": [
+        "01-1K-E02.ENG.ORS",
+        "01-1S-I01.ENG.ORS",
+        "02-2K-O05.ENG.ORS"
+      ]
+    },
+    {
+      "command": "PlayBgm",
+      "logical": "BGM/SD_BGM/sdbgm21",
+      "expected": "BGM/SD_BGM/sdbgm21_loop.ogg",
+      "actual": "assets\\BGM\\SD_BGM\\SDBGM21_LOOP.OGG",
+      "status": "case_mismatch",
+      "occurrences": 98,
+      "example_scenes": [
+        "01-1K-E02.ENG.ORS",
+        "01-1S-I01.ENG.ORS",
+        "02-2K-O05.ENG.ORS"
+      ]
+    },
+    {
+      "command": "PlayBgm",
+      "logical": "BGM/SD_BGM/sdbgm11",
+      "expected": "BGM/SD_BGM/sdbgm11_int.ogg",
+      "actual": "assets\\BGM\\SD_BGM\\SDBGM11_INT.OGG",
+      "status": "case_mismatch",
+      "occurrences": 2,
+      "example_scenes": [
+        "01-1K-E03.ENG.ORS"
+      ]
+    },
+    {
+      "command": "PlayBgm",
+      "logical": "BGM/SD_BGM/sdbgm11",
+      "expected": "BGM/SD_BGM/sdbgm11_loop.ogg",
+      "actual": "assets\\BGM\\SD_BGM\\SDBGM11_LOOP.OGG",
+      "status": "case_mismatch",
+      "occurrences": 2,
+      "example_scenes": [
+        "01-1K-E03.ENG.ORS"
+      ]
+    },
+    {
+      "command": "PlayBgm",
+      "logical": "BGM/SD_BGM/sdbgm10",
+      "expected": "BGM/SD_BGM/sdbgm10_int.ogg",
+      "actual": "assets\\BGM\\SD_BGM\\SDBGM10_INT.OGG",
+      "status": "case_mismatch",
+      "occurrences": 4,
+      "example_scenes": [
+        "01-1K-E04.ENG.ORS",
+        "03-SB-A09.ENG.ORS",
+        "04-SE-K02.ENG.ORS"
+      ]
+    },
+    {
+      "command": "PlayBgm",
+      "logical": "BGM/SD_BGM/sdbgm10",
+      "expected": "BGM/SD_BGM/sdbgm10_loop.ogg",
+      "actual": "assets\\BGM\\SD_BGM\\SDBGM10_LOOP.OGG",
+      "status": "case_mismatch",
+      "occurrences": 4,
+      "example_scenes": [
+        "01-1K-E04.ENG.ORS",
+        "03-SB-A09.ENG.ORS",
+        "04-SE-K02.ENG.ORS"
+      ]
+    },
+    {
+      "command": "PlayBgm",
+      "logical": "BGM/SD_BGM/sdbgm29",
+      "expected": "BGM/SD_BGM/sdbgm29_int.ogg",
+      "actual": null,
+      "status": "missing",
+      "occurrences": 69,
+      "example_scenes": [
+        "01-1K-E04.ENG.ORS",
+        "02-2S-M00.ENG.ORS",
+        "02-2S-M01.ENG.ORS"
+      ]
+    },
+    {
+      "command": "PlayBgm",
+      "logical": "BGM/SD_BGM/sdbgm29",
+      "expected": "BGM/SD_BGM/sdbgm29_loop.ogg",
+      "actual": "assets\\BGM\\SD_BGM\\SDBGM29_LOOP.OGG",
+      "status": "case_mismatch",
+      "occurrences": 69,
+      "example_scenes": [
+        "01-1K-E04.ENG.ORS",
+        "02-2S-M00.ENG.ORS",
+        "02-2S-M01.ENG.ORS"
+      ]
+    },
+    {
+      "command": "PlayBgm",
+      "logical": "BGM/SD_BGM/sdbgm09",
+      "expected": "BGM/SD_BGM/sdbgm09_int.ogg",
+      "actual": "assets\\BGM\\SD_BGM\\SDBGM09_INT.OGG",
+      "status": "case_mismatch",
+      "occurrences": 2,
+      "example_scenes": [
+        "01-1K-E05.ENG.ORS",
+        "05-5H-C00.ENG.ORS"
+      ]
+    },
+    {
+      "command": "PlayBgm",
+      "logical": "BGM/SD_BGM/sdbgm09",
+      "expected": "BGM/SD_BGM/sdbgm09_loop.ogg",
+      "actual": "assets\\BGM\\SD_BGM\\SDBGM09_LOOP.OGG",
+      "status": "case_mismatch",
+      "occurrences": 2,
+      "example_scenes": [
+        "01-1K-E05.ENG.ORS",
+        "05-5H-C00.ENG.ORS"
+      ]
+    },
+    {
+      "command": "PlayBgm",
+      "logical": "BGM/SD_BGM/sdbgm14",
+      "expected": "BGM/SD_BGM/sdbgm14_int.ogg",
+      "actual": null,
+      "status": "missing",
+      "occurrences": 12,
+      "example_scenes": [
+        "01-1K-L00.ENG.ORS",
+        "03-B1-B00.ENG.ORS",
+        "03-B1-C00.ENG.ORS"
+      ]
+    },
+    {
+      "command": "PlayBgm",
+      "logical": "BGM/SD_BGM/sdbgm14",
+      "expected": "BGM/SD_BGM/sdbgm14_loop.ogg",
+      "actual": "assets\\BGM\\SD_BGM\\SDBGM14_LOOP.OGG",
+      "status": "case_mismatch",
+      "occurrences": 12,
+      "example_scenes": [
+        "01-1K-L00.ENG.ORS",
+        "03-B1-B00.ENG.ORS",
+        "03-B1-C00.ENG.ORS"
+      ]
+    },
+    {
+      "command": "EndBGM",
+      "logical": "BGM/Vocal/SDV04",
+      "expected": "BGM/Vocal/SDV04.ogg",
+      "actual": "assets\\BGM\\VOCAL\\SDV04.OGG",
+      "status": "case_mismatch",
+      "occurrences": 44,
+      "example_scenes": [
+        "01-1K-O00.ENG.ORS",
+        "01-1S-P00.ENG.ORS",
+        "02-2K-I02.ENG.ORS"
+      ]
+    },
+    {
+      "command": "PlayBgm",
+      "logical": "BGM/SD_BGM/sdbgm28",
+      "expected": "BGM/SD_BGM/sdbgm28_int.ogg",
+      "actual": null,
+      "status": "missing",
+      "occurrences": 41,
+      "example_scenes": [
+        "01-1S-H00.ENG.ORS",
+        "03-A1-D09.ENG.ORS",
+        "03-A1-D10.ENG.ORS"
+      ]
+    },
+    {
+      "command": "PlayBgm",
+      "logical": "BGM/SD_BGM/sdbgm28",
+      "expected": "BGM/SD_BGM/sdbgm28_loop.ogg",
+      "actual": "assets\\BGM\\SD_BGM\\SDBGM28_LOOP.OGG",
+      "status": "case_mismatch",
+      "occurrences": 41,
+      "example_scenes": [
+        "01-1S-H00.ENG.ORS",
+        "03-A1-D09.ENG.ORS",
+        "03-A1-D10.ENG.ORS"
+      ]
+    },
+    {
+      "command": "PlayBgm",
+      "logical": "BGM/SD_BGM/sdbgm13",
+      "expected": "BGM/SD_BGM/sdbgm13_int.ogg",
+      "actual": "assets\\BGM\\SD_BGM\\SDBGM13_INT.OGG",
+      "status": "case_mismatch",
+      "occurrences": 29,
+      "example_scenes": [
+        "02-2K-A00.ENG.ORS",
+        "02-2S-A00.ENG.ORS",
+        "02-2S-A01.ENG.ORS"
+      ]
+    },
+    {
+      "command": "PlayBgm",
+      "logical": "BGM/SD_BGM/sdbgm13",
+      "expected": "BGM/SD_BGM/sdbgm13_loop.ogg",
+      "actual": "assets\\BGM\\SD_BGM\\SDBGM13_LOOP.OGG",
+      "status": "case_mismatch",
+      "occurrences": 29,
+      "example_scenes": [
+        "02-2K-A00.ENG.ORS",
+        "02-2S-A00.ENG.ORS",
+        "02-2S-A01.ENG.ORS"
+      ]
+    },
+    {
+      "command": "PlayBgm",
+      "logical": "BGM/SD_BGM/sdbgm25",
+      "expected": "BGM/SD_BGM/sdbgm25_int.ogg",
+      "actual": "assets\\BGM\\SD_BGM\\SDBGM25_INT.OGG",
+      "status": "case_mismatch",
+      "occurrences": 63,
+      "example_scenes": [
+        "02-2K-E05.ENG.ORS",
+        "02-2K-O01.ENG.ORS",
+        "02-2K-O04.ENG.ORS"
+      ]
+    },
+    {
+      "command": "PlayBgm",
+      "logical": "BGM/SD_BGM/sdbgm25",
+      "expected": "BGM/SD_BGM/sdbgm25_loop.ogg",
+      "actual": "assets\\BGM\\SD_BGM\\SDBGM25_LOOP.OGG",
+      "status": "case_mismatch",
+      "occurrences": 63,
+      "example_scenes": [
+        "02-2K-E05.ENG.ORS",
+        "02-2K-O01.ENG.ORS",
+        "02-2K-O04.ENG.ORS"
+      ]
+    },
+    {
+      "command": "PlayBgm",
+      "logical": "BGM/SD_BGM/sdbgm18",
+      "expected": "BGM/SD_BGM/sdbgm18_int.ogg",
+      "actual": null,
+      "status": "missing",
+      "occurrences": 20,
+      "example_scenes": [
+        "02-2K-I02.ENG.ORS",
+        "03-A1-G00.ENG.ORS",
+        "03-BK-K01.ENG.ORS"
+      ]
+    },
+    {
+      "command": "PlayBgm",
+      "logical": "BGM/SD_BGM/sdbgm18",
+      "expected": "BGM/SD_BGM/sdbgm18_loop.ogg",
+      "actual": "assets\\BGM\\SD_BGM\\SDBGM18_LOOP.OGG",
+      "status": "case_mismatch",
+      "occurrences": 20,
+      "example_scenes": [
+        "02-2K-I02.ENG.ORS",
+        "03-A1-G00.ENG.ORS",
+        "03-BK-K01.ENG.ORS"
+      ]
+    },
+    {
+      "command": "PlayBgm",
+      "logical": "BGM/SD_BGM/sdbgm26",
+      "expected": "BGM/SD_BGM/sdbgm26_int.ogg",
+      "actual": "assets\\BGM\\SD_BGM\\SDBGM26_INT.OGG",
+      "status": "case_mismatch",
+      "occurrences": 44,
+      "example_scenes": [
+        "02-2K-K00.ENG.ORS",
+        "02-2K-K01.ENG.ORS",
+        "02-2K-K02.ENG.ORS"
+      ]
+    },
+    {
+      "command": "PlayBgm",
+      "logical": "BGM/SD_BGM/sdbgm26",
+      "expected": "BGM/SD_BGM/sdbgm26_loop.ogg",
+      "actual": "assets\\BGM\\SD_BGM\\SDBGM26_LOOP.OGG",
+      "status": "case_mismatch",
+      "occurrences": 44,
+      "example_scenes": [
+        "02-2K-K00.ENG.ORS",
+        "02-2K-K01.ENG.ORS",
+        "02-2K-K02.ENG.ORS"
+      ]
+    },
+    {
+      "command": "PlayBgm",
+      "logical": "BGM/SD_BGM/sdbgm33",
+      "expected": "BGM/SD_BGM/sdbgm33_int.ogg",
+      "actual": null,
+      "status": "missing",
+      "occurrences": 26,
+      "example_scenes": [
+        "02-2K-Q03.ENG.ORS",
+        "02-2K-Q04.ENG.ORS",
+        "02-2K-Q05.ENG.ORS"
+      ]
+    },
+    {
+      "command": "PlayBgm",
+      "logical": "BGM/SD_BGM/sdbgm33",
+      "expected": "BGM/SD_BGM/sdbgm33_loop.ogg",
+      "actual": "assets\\BGM\\SD_BGM\\SDBGM33_LOOP.OGG",
+      "status": "case_mismatch",
+      "occurrences": 26,
+      "example_scenes": [
+        "02-2K-Q03.ENG.ORS",
+        "02-2K-Q04.ENG.ORS",
+        "02-2K-Q05.ENG.ORS"
+      ]
+    },
+    {
+      "command": "EndBGM",
+      "logical": "Se03/03-A1/03-A1-Z02/SE03-A1-Z02-001",
+      "expected": "Se03/03-A1/03-A1-Z02/SE03-A1-Z02-001.ogg",
+      "actual": "assets\\Se03\\03-A1\\03-A1-Z02\\SE03-A1-Z02-001.OGG",
+      "status": "case_mismatch",
+      "occurrences": 1,
+      "example_scenes": [
+        "03-A1-Z02.ENG.ORS"
+      ]
+    },
+    {
+      "command": "PlayBgm",
+      "logical": "BGM/SD_BGM/sdbgm17",
+      "expected": "BGM/SD_BGM/sdbgm17_int.ogg",
+      "actual": "assets\\BGM\\SD_BGM\\SDBGM17_INT.OGG",
+      "status": "case_mismatch",
+      "occurrences": 30,
+      "example_scenes": [
+        "03-BK-H00.ENG.ORS",
+        "03-KA-A00.ENG.ORS",
+        "03-KA-A01.ENG.ORS"
+      ]
+    },
+    {
+      "command": "PlayBgm",
+      "logical": "BGM/SD_BGM/sdbgm17",
+      "expected": "BGM/SD_BGM/sdbgm17_loop.ogg",
+      "actual": "assets\\BGM\\SD_BGM\\SDBGM17_LOOP.OGG",
+      "status": "case_mismatch",
+      "occurrences": 30,
+      "example_scenes": [
+        "03-BK-H00.ENG.ORS",
+        "03-KA-A00.ENG.ORS",
+        "03-KA-A01.ENG.ORS"
+      ]
+    },
+    {
+      "command": "PlayBgm",
+      "logical": "BGM/SD_BGM/sdbgm23",
+      "expected": "BGM/SD_BGM/sdbgm23_int.ogg",
+      "actual": "assets\\BGM\\SD_BGM\\SDBGM23_INT.OGG",
+      "status": "case_mismatch",
+      "occurrences": 16,
+      "example_scenes": [
+        "04-KE-C00.ENG.ORS",
+        "04-SE-G00.ENG.ORS",
+        "05-A2-D00.ENG.ORS"
+      ]
+    },
+    {
+      "command": "PlayBgm",
+      "logical": "BGM/SD_BGM/sdbgm23",
+      "expected": "BGM/SD_BGM/sdbgm23_loop.ogg",
+      "actual": "assets\\BGM\\SD_BGM\\SDBGM23_LOOP.OGG",
+      "status": "case_mismatch",
+      "occurrences": 16,
+      "example_scenes": [
+        "04-KE-C00.ENG.ORS",
+        "04-SE-G00.ENG.ORS",
+        "05-A2-D00.ENG.ORS"
+      ]
+    },
+    {
+      "command": "EndBGM",
+      "logical": "BGM/Vocal/SDV08",
+      "expected": "BGM/Vocal/SDV08.ogg",
+      "actual": "assets\\BGM\\VOCAL\\SDV08.OGG",
+      "status": "case_mismatch",
+      "occurrences": 4,
+      "example_scenes": [
+        "05-5H-E00.ENG.ORS",
+        "05-5H-E01.ENG.ORS",
+        "05-5O-D10.ENG.ORS"
+      ]
+    },
+    {
+      "command": "EndBGM",
+      "logical": "BGM/Vocal/SDV06",
+      "expected": "BGM/Vocal/SDV06.ogg",
+      "actual": "assets\\BGM\\VOCAL\\SDV06.OGG",
+      "status": "case_mismatch",
+      "occurrences": 3,
+      "example_scenes": [
+        "05-5O-A09.ENG.ORS",
+        "05-A2-Z00.ENG.ORS",
+        "05-SD-E01.ENG.ORS"
+      ]
+    },
+    {
+      "command": "EndBGM",
+      "logical": "BGM/Vocal/SDV07",
+      "expected": "BGM/Vocal/SDV07.ogg",
+      "actual": "assets\\BGM\\VOCAL\\SDV07.OGG",
+      "status": "case_mismatch",
+      "occurrences": 5,
+      "example_scenes": [
+        "05-5O-B04.ENG.ORS",
+        "05-G0-L03.ENG.ORS",
+        "05-KB-L03.ENG.ORS"
+      ]
+    },
+    {
+      "command": "PlayBgm",
+      "logical": "BGM/SD_BGM/sdbgm17_semilong",
+      "expected": "BGM/SD_BGM/sdbgm17_semilong_int.ogg",
+      "actual": "assets\\BGM\\SD_BGM\\SDBGM17_SEMILONG_INT.OGG",
+      "status": "case_mismatch",
+      "occurrences": 3,
+      "example_scenes": [
+        "05-9H-A00.ENG.ORS",
+        "05-9H-A01.ENG.ORS",
+        "05-9H-A02.ENG.ORS"
+      ]
+    },
+    {
+      "command": "PlayBgm",
+      "logical": "BGM/SD_BGM/sdbgm17_semilong",
+      "expected": "BGM/SD_BGM/sdbgm17_semilong_loop.ogg",
+      "actual": "assets\\BGM\\SD_BGM\\SDBGM17_SEMILONG_LOOP.OGG",
+      "status": "case_mismatch",
+      "occurrences": 3,
+      "example_scenes": [
+        "05-9H-A00.ENG.ORS",
+        "05-9H-A01.ENG.ORS",
+        "05-9H-A02.ENG.ORS"
+      ]
+    },
+    {
+      "command": "PlayBgm",
+      "logical": "BGM/SD_BGM/sdbgm27",
+      "expected": "BGM/SD_BGM/sdbgm27_int.ogg",
+      "actual": "assets\\BGM\\SD_BGM\\SDBGM27_INT.OGG",
+      "status": "case_mismatch",
+      "occurrences": 2,
+      "example_scenes": [
+        "05-A2-E00.ENG.ORS",
+        "05-KC-F00.ENG.ORS"
+      ]
+    },
+    {
+      "command": "PlayBgm",
+      "logical": "BGM/SD_BGM/sdbgm27",
+      "expected": "BGM/SD_BGM/sdbgm27_loop.ogg",
+      "actual": "assets\\BGM\\SD_BGM\\SDBGM27_LOOP.OGG",
+      "status": "case_mismatch",
+      "occurrences": 2,
+      "example_scenes": [
+        "05-A2-E00.ENG.ORS",
+        "05-KC-F00.ENG.ORS"
+      ]
+    },
+    {
+      "command": "EndBGM",
+      "logical": "BGM/Vocal/SDV10",
+      "expected": "BGM/Vocal/SDV10.ogg",
+      "actual": "assets\\BGM\\VOCAL\\SDV10.OGG",
+      "status": "case_mismatch",
+      "occurrences": 4,
+      "example_scenes": [
+        "05-A2-F00.ENG.ORS",
+        "05-B0-F00.ENG.ORS",
+        "05-KC-F00.ENG.ORS"
+      ]
+    },
+    {
+      "command": "EndBGM",
+      "logical": "BGM/Vocal/SDV09",
+      "expected": "BGM/Vocal/SDV09.ogg",
+      "actual": "assets\\BGM\\VOCAL\\SDV09.OGG",
+      "status": "case_mismatch",
+      "occurrences": 3,
+      "example_scenes": [
+        "05-KC-H00.ENG.ORS",
+        "05-SB-E01.ENG.ORS",
+        "05-SB-I02.ENG.ORS"
+      ]
+    },
+    {
+      "command": "EndBGM",
+      "logical": "BGM/Vocal/SDV03",
+      "expected": "BGM/Vocal/SDV03.ogg",
+      "actual": "assets\\BGM\\VOCAL\\SDV03.OGG",
+      "status": "case_mismatch",
+      "occurrences": 2,
+      "example_scenes": [
+        "05-SA-G05.ENG.ORS",
+        "05-SA-T00.ENG.ORS"
+      ]
+    }
+  ]
+}
