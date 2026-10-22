@@ -337,14 +337,120 @@ static void KotonohaDemuxOperationEnd(Kotonoha_DemuxStream *stream) {
   SDL_SetAtomicInt(&stream->operationActive, 0);
 }
 
+static void KotonohaDemuxCloseFormat(Kotonoha_DemuxStream *stream) {
+  if (!stream) {
+    return;
+  }
+  if (stream->inputContext) {
+    KotonohaFFmpegCloseInput(&stream->formatCtx, &stream->inputContext);
+  } else if (stream->formatCtx) {
+    avformat_close_input(&stream->formatCtx);
+  }
+}
+
+static bool KotonohaDemuxDescribeStreams(Kotonoha_DemuxStream *stream) {
+  if (!stream || !stream->formatCtx) {
+    return false;
+  }
+  int videoIndex = -1;
+  int audioIndex = -1;
+  AVRational videoTimeBase = {0, 1};
+  AVRational audioTimeBase = {0, 1};
+  for (unsigned int i = 0; i < stream->formatCtx->nb_streams; ++i) {
+    AVStream *avStream = stream->formatCtx->streams[i];
+    if (avStream->codecpar->codec_type == AVMEDIA_TYPE_VIDEO && videoIndex < 0) {
+      videoIndex = (int)i;
+      videoTimeBase = avStream->time_base;
+    } else if (avStream->codecpar->codec_type == AVMEDIA_TYPE_AUDIO &&
+               audioIndex < 0) {
+      audioIndex = (int)i;
+      audioTimeBase = avStream->time_base;
+    }
+  }
+  const int selectedIndex =
+      stream->requestedType == AVMEDIA_TYPE_VIDEO ? videoIndex : audioIndex;
+  if (selectedIndex < 0) {
+    KLOG_ERROR(DEMUXER, "No requested media stream found in '%s'",
+               stream->filename ? stream->filename : "<custom-input>");
+    return false;
+  }
+  SDL_SetAtomicInt(&stream->totalDurationMs,
+                   stream->formatCtx->duration > 0
+                       ? (int)(stream->formatCtx->duration /
+                               (AV_TIME_BASE / 1000))
+                       : 0);
+  stream->videoStreamIdx = videoIndex;
+  stream->audioStreamIdx = audioIndex;
+  stream->videoTimeBase = videoTimeBase;
+  stream->audioTimeBase = audioTimeBase;
+  stream->formatCtx->interrupt_callback.callback = KotonohaDemuxInterrupt;
+  stream->formatCtx->interrupt_callback.opaque = stream;
+  return true;
+}
+
 static bool KotonohaDemuxOpenStream(Kotonoha_DemuxStream *stream) {
+  if (!stream) {
+    return false;
+  }
+
+  KotonohaDemuxCloseFormat(stream);
+  stream->videoStreamIdx = -1;
+  stream->audioStreamIdx = -1;
+
+  Kotonoha_FFmpegInput resolvedInput;
+  SDL_zero(resolvedInput);
+  const Kotonoha_FFmpegInput *customInput = NULL;
+  bool direct = false;
+
+  if (stream->hasDirectInput) {
+    customInput = &stream->directInput;
+    direct = true;
+  } else if (stream->filename && *stream->filename) {
+    const int resolved = KotonohaFFmpegResolveInput(stream->filename,
+                                                    &resolvedInput);
+    if (resolved < 0) {
+      return false;
+    }
+    if (resolved > 0) {
+      customInput = &resolvedInput;
+      stream->resolverBackedInput = true;
+    }
+  }
+
+  if (customInput) {
+    AVCodecContext *dummyCodec = NULL;
+    int selectedIndex = -1;
+    Kotonoha_FFmpegInputContext *inputContext = NULL;
+    AVFormatContext *formatContext = NULL;
+    const bool loaded = KotonohaFFmpegLoadInput(
+        customInput, &formatContext, &dummyCodec, stream->requestedType,
+        &selectedIndex, 0, NULL, &inputContext);
+    if (dummyCodec) {
+      avcodec_free_context(&dummyCodec);
+    }
+    if (!loaded) {
+      /* Custom input loader owns/closes opaque after validation. */
+      if (direct) {
+        SDL_zero(stream->directInput);
+        stream->hasDirectInput = false;
+      }
+      return false;
+    }
+    stream->formatCtx = formatContext;
+    stream->inputContext = inputContext;
+    if (direct) {
+      SDL_zero(stream->directInput);
+      stream->hasDirectInput = false;
+    }
+    return KotonohaDemuxDescribeStreams(stream);
+  }
+
   AVFormatContext *formatCtx = avformat_alloc_context();
   if (!formatCtx) {
     KLOG_ERROR(DEMUXER, "Could not allocate FFmpeg context for '%s'",
                stream->filename);
     return false;
   }
-
   formatCtx->interrupt_callback.callback = KotonohaDemuxInterrupt;
   formatCtx->interrupt_callback.opaque = stream;
 
@@ -359,8 +465,7 @@ static bool KotonohaDemuxOpenStream(Kotonoha_DemuxStream *stream) {
   }
 
   KotonohaDemuxOperationBegin(stream);
-  int result =
-      avformat_open_input(&formatCtx, stream->filename, NULL, &options);
+  int result = avformat_open_input(&formatCtx, stream->filename, NULL, &options);
   av_dict_free(&options);
   if (result >= 0) {
     KotonohaDemuxOperationBegin(stream);
@@ -377,42 +482,11 @@ static bool KotonohaDemuxOpenStream(Kotonoha_DemuxStream *stream) {
     }
     return false;
   }
-
-  int videoIndex = -1;
-  int audioIndex = -1;
-  AVRational videoTimeBase = {0, 1};
-  AVRational audioTimeBase = {0, 1};
-  for (unsigned int i = 0; i < formatCtx->nb_streams; ++i) {
-    AVStream *avStream = formatCtx->streams[i];
-    if (avStream->codecpar->codec_type == AVMEDIA_TYPE_VIDEO &&
-        videoIndex < 0) {
-      videoIndex = (int)i;
-      videoTimeBase = avStream->time_base;
-    } else if (avStream->codecpar->codec_type == AVMEDIA_TYPE_AUDIO &&
-               audioIndex < 0) {
-      audioIndex = (int)i;
-      audioTimeBase = avStream->time_base;
-    }
-  }
-
-  const int selectedIndex =
-      stream->requestedType == AVMEDIA_TYPE_VIDEO ? videoIndex : audioIndex;
-  if (selectedIndex < 0) {
-    KLOG_ERROR(DEMUXER, "No requested media stream found in '%s'",
-               stream->filename);
-    avformat_close_input(&formatCtx);
+  stream->formatCtx = formatCtx;
+  if (!KotonohaDemuxDescribeStreams(stream)) {
+    KotonohaDemuxCloseFormat(stream);
     return false;
   }
-
-  stream->formatCtx = formatCtx;
-  SDL_SetAtomicInt(&stream->totalDurationMs,
-                   formatCtx->duration > 0
-                       ? (int)(formatCtx->duration / (AV_TIME_BASE / 1000))
-                       : 0);
-  stream->videoStreamIdx = videoIndex;
-  stream->audioStreamIdx = audioIndex;
-  stream->videoTimeBase = videoTimeBase;
-  stream->audioTimeBase = audioTimeBase;
   return true;
 }
 
@@ -423,8 +497,9 @@ static void KotonohaDemuxSetQueueEof(Kotonoha_PacketQueue *queue, bool eof) {
 }
 
 static bool KotonohaDemuxReopenStream(Kotonoha_DemuxStream *stream) {
-  if (stream->formatCtx) {
-    avformat_close_input(&stream->formatCtx);
+  KotonohaDemuxCloseFormat(stream);
+  if (stream->directSource || !stream->filename || !*stream->filename) {
+    return false;
   }
   if (!KotonohaDemuxOpenStream(stream)) {
     stream->reopenAfterMs = SDL_GetTicks() + 1000;
@@ -501,7 +576,9 @@ static void KotonohaDemuxHandleSeek(Kotonoha_DemuxStream *stream) {
 
 // Buffer limit for a stream, always taken live from the global config.
 static Uint64 KotonohaDemuxStreamCacheMs(const Kotonoha_DemuxStream *stream) {
-  float seconds = stream->demuxer->config->mediaCacheSeconds;
+  float seconds = stream->demuxer->config
+                      ? stream->demuxer->config->mediaCacheSeconds
+                      : 2.0f;
   if (!(seconds >= 0.1f)) {
     seconds = 2.0f;
   }
@@ -821,37 +898,55 @@ void KotonohaDemuxerSetExternalWaiter(Kotonoha_Demuxer *demuxer, bool waiting) {
   }
 }
 
-Kotonoha_DemuxStream *KotonohaDemuxerAddStream(Kotonoha_Demuxer *demuxer,
-                                               const char *filename,
-                                               void *owner,
-                                               enum AVMediaType type) {
-  if (!demuxer || !filename || !*filename) {
+static Kotonoha_DemuxStream *KotonohaDemuxerCreateStream(
+    Kotonoha_Demuxer *demuxer, const char *filename,
+    const Kotonoha_FFmpegInput *input, void *owner, enum AVMediaType type) {
+  const bool pathInput = filename && *filename;
+  const bool directInput = input && input->opaque && input->read;
+  if (!demuxer || pathInput == directInput) {
     return NULL;
   }
 
   Kotonoha_DemuxStream *stream =
       (Kotonoha_DemuxStream *)SDL_calloc(1, sizeof(*stream));
   if (!stream) {
-    KLOG_ERROR(DEMUXER, "Could not allocate demuxer stream for '%s'", filename);
+    if (directInput && input->close) {
+      input->close(input->opaque);
+    }
+    KLOG_ERROR(DEMUXER, "Could not allocate demuxer stream");
     return NULL;
   }
-  stream->filename = SDL_strdup(filename);
+  const char *displayName = pathInput
+                                ? filename
+                                : (input->name && *input->name
+                                       ? input->name
+                                       : "<custom-input>");
+  stream->filename = SDL_strdup(displayName);
   stream->videoStreamIdx = -1;
   stream->audioStreamIdx = -1;
   stream->requestedType = type;
   stream->owner = owner;
   stream->demuxer = demuxer;
   stream->controlMutex = SDL_CreateMutex();
-  stream->isNetwork = KotonohaDemuxIsNetworkPath(filename);
+  stream->isNetwork = pathInput && KotonohaDemuxIsNetworkPath(filename);
+  if (directInput) {
+    stream->directInput = *input;
+    stream->hasDirectInput = true;
+    stream->directSource = true;
+  }
   KotonohaPacketQueueInit(&stream->videoQueue);
   KotonohaPacketQueueInit(&stream->audioQueue);
 
   if (!stream->filename || !stream->controlMutex || !stream->videoQueue.mutex ||
       !stream->videoQueue.cond || !stream->audioQueue.mutex ||
       !stream->audioQueue.cond || !KotonohaDemuxOpenStream(stream)) {
-    if (stream->formatCtx) {
-      avformat_close_input(&stream->formatCtx);
+    if (stream->hasDirectInput && stream->directInput.close &&
+        stream->directInput.opaque) {
+      stream->directInput.close(stream->directInput.opaque);
+      SDL_zero(stream->directInput);
+      stream->hasDirectInput = false;
     }
+    KotonohaDemuxCloseFormat(stream);
     KotonohaPacketQueueDestroy(&stream->videoQueue);
     KotonohaPacketQueueDestroy(&stream->audioQueue);
     if (stream->controlMutex) {
@@ -861,8 +956,20 @@ Kotonoha_DemuxStream *KotonohaDemuxerAddStream(Kotonoha_Demuxer *demuxer,
     SDL_free(stream);
     return NULL;
   }
-
   return stream;
+}
+
+Kotonoha_DemuxStream *KotonohaDemuxerAddStream(Kotonoha_Demuxer *demuxer,
+                                               const char *filename,
+                                               void *owner,
+                                               enum AVMediaType type) {
+  return KotonohaDemuxerCreateStream(demuxer, filename, NULL, owner, type);
+}
+
+Kotonoha_DemuxStream *KotonohaDemuxerAddStreamInput(
+    Kotonoha_Demuxer *demuxer, const Kotonoha_FFmpegInput *input, void *owner,
+    enum AVMediaType type) {
+  return KotonohaDemuxerCreateStream(demuxer, NULL, input, owner, type);
 }
 
 bool KotonohaDemuxerActivateStream(Kotonoha_Demuxer *demuxer,
@@ -913,9 +1020,7 @@ void KotonohaDemuxerRemoveStream(Kotonoha_Demuxer *demuxer,
   KotonohaPacketQueueDestroy(&stream->videoQueue);
   KotonohaPacketQueueDestroy(&stream->audioQueue);
   SDL_DestroyMutex(stream->controlMutex);
-  if (stream->formatCtx) {
-    avformat_close_input(&stream->formatCtx);
-  }
+  KotonohaDemuxCloseFormat(stream);
   SDL_free(stream->filename);
   SDL_free(stream);
   *streamPtr = NULL;
@@ -937,9 +1042,7 @@ void KotonohaDemuxerDestroy(Kotonoha_Demuxer **demuxer) {
     KotonohaPacketQueueDestroy(&stream->videoQueue);
     KotonohaPacketQueueDestroy(&stream->audioQueue);
     SDL_DestroyMutex(stream->controlMutex);
-    if (stream->formatCtx) {
-      avformat_close_input(&stream->formatCtx);
-    }
+    KotonohaDemuxCloseFormat(stream);
     SDL_free(stream->filename);
     SDL_free(stream);
     stream = next;

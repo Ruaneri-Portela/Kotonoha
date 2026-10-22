@@ -4,6 +4,81 @@
 #include <errno.h>
 #include <libavutil/error.h>
 
+
+#define KOTONOHA_FFMPEG_AVIO_BUFFER_SIZE 32768
+
+struct Kotonoha_FFmpegInputContext {
+  Kotonoha_FFmpegInput input;
+  char *name;
+  AVIOContext *avio;
+};
+
+static Kotonoha_FFmpegInputResolverFn gKotonohaFFmpegInputResolver = NULL;
+
+void KotonohaFFmpegSetInputResolver(Kotonoha_FFmpegInputResolverFn resolver) {
+  gKotonohaFFmpegInputResolver = resolver;
+}
+
+int KotonohaFFmpegResolveInput(const char *path, Kotonoha_FFmpegInput *input) {
+  if (input) {
+    SDL_zero(*input);
+  }
+  if (!path || !*path || !input || !gKotonohaFFmpegInputResolver) {
+    return 0;
+  }
+  return gKotonohaFFmpegInputResolver(path, input);
+}
+
+static int KotonohaFFmpegInputRead(void *opaque, uint8_t *buffer, int size) {
+  Kotonoha_FFmpegInputContext *ctx = (Kotonoha_FFmpegInputContext *)opaque;
+  if (!ctx || !ctx->input.read || !buffer || size <= 0) {
+    return AVERROR(EINVAL);
+  }
+  const int result = ctx->input.read(ctx->input.opaque, buffer, size);
+  if (result == 0) {
+    return AVERROR_EOF;
+  }
+  if (result > size) {
+    return AVERROR(EIO);
+  }
+  return result;
+}
+
+static int64_t KotonohaFFmpegInputSeek(void *opaque, int64_t offset,
+                                      int whence) {
+  Kotonoha_FFmpegInputContext *ctx = (Kotonoha_FFmpegInputContext *)opaque;
+  if (!ctx) {
+    return AVERROR(EINVAL);
+  }
+  if ((whence & AVSEEK_SIZE) != 0) {
+    return ctx->input.size ? ctx->input.size(ctx->input.opaque)
+                           : AVERROR(ENOSYS);
+  }
+  if (!ctx->input.seek) {
+    return AVERROR(ENOSYS);
+  }
+  return ctx->input.seek(ctx->input.opaque, offset, whence & ~AVSEEK_FORCE);
+}
+
+static void
+KotonohaFFmpegDestroyInputContext(Kotonoha_FFmpegInputContext **ptr) {
+  if (!ptr || !*ptr) {
+    return;
+  }
+  Kotonoha_FFmpegInputContext *ctx = *ptr;
+  if (ctx->avio) {
+    av_freep(&ctx->avio->buffer);
+    avio_context_free(&ctx->avio);
+  }
+  if (ctx->input.close && ctx->input.opaque) {
+    ctx->input.close(ctx->input.opaque);
+    ctx->input.opaque = NULL;
+  }
+  SDL_free(ctx->name);
+  SDL_free(ctx);
+  *ptr = NULL;
+}
+
 static void KotonohaFmpegSetupHwDecode(struct Kotonoha_FFmpegHwContext *hwCtx,
                                        const AVCodec **codec) {
   for (int i = 0;; i++) {
@@ -95,6 +170,119 @@ bool KotonohaFFmpegLoad(const char *path, AVFormatContext **formatCtx,
 }
 
 /* --- REUTILIZÁVEL: Criação de Contexto do Decoder --- */
+
+bool KotonohaFFmpegLoadInput(const Kotonoha_FFmpegInput *input,
+                             AVFormatContext **formatCtx,
+                             AVCodecContext **codecCtx,
+                             enum AVMediaType mediaType,
+                             int *streamIndexExport, int startIndex,
+                             struct Kotonoha_FFmpegHwContext *hwCtx,
+                             Kotonoha_FFmpegInputContext **inputContext) {
+  if (!input || !input->opaque || !input->read || !formatCtx || !codecCtx ||
+      !inputContext) {
+    if (input && input->close && input->opaque) {
+      input->close(input->opaque);
+    }
+    return false;
+  }
+
+  *formatCtx = NULL;
+  *codecCtx = NULL;
+  *inputContext = NULL;
+
+  Kotonoha_FFmpegInputContext *ctx =
+      (Kotonoha_FFmpegInputContext *)SDL_calloc(1, sizeof(*ctx));
+  if (!ctx) {
+    if (input->close) {
+      input->close(input->opaque);
+    }
+    return false;
+  }
+
+  ctx->input = *input;
+  ctx->name = SDL_strdup(input->name && *input->name ? input->name
+                                                    : "<custom-input>");
+  unsigned char *buffer =
+      (unsigned char *)av_malloc(KOTONOHA_FFMPEG_AVIO_BUFFER_SIZE);
+  if (!ctx->name || !buffer) {
+    if (buffer) {
+      av_free(buffer);
+    }
+    KotonohaFFmpegDestroyInputContext(&ctx);
+    return false;
+  }
+
+  ctx->avio = avio_alloc_context(
+      buffer, KOTONOHA_FFMPEG_AVIO_BUFFER_SIZE, 0, ctx,
+      KotonohaFFmpegInputRead, NULL,
+      (input->seek || input->size) ? KotonohaFFmpegInputSeek : NULL);
+  if (!ctx->avio) {
+    av_free(buffer);
+    KotonohaFFmpegDestroyInputContext(&ctx);
+    return false;
+  }
+
+  *formatCtx = avformat_alloc_context();
+  if (!*formatCtx) {
+    KotonohaFFmpegDestroyInputContext(&ctx);
+    return false;
+  }
+  (*formatCtx)->pb = ctx->avio;
+  (*formatCtx)->flags |= AVFMT_FLAG_CUSTOM_IO;
+
+  int result = avformat_open_input(formatCtx, ctx->name, NULL, NULL);
+  if (result >= 0) {
+    result = avformat_find_stream_info(*formatCtx, NULL);
+  }
+  if (result < 0) {
+    KLOG_ERROR(FFMPEG, "Could not open custom input '%s': %s", ctx->name,
+               av_err2str(result));
+    if (*formatCtx) {
+      avformat_close_input(formatCtx);
+    }
+    KotonohaFFmpegDestroyInputContext(&ctx);
+    return false;
+  }
+
+  int streamIndex = -1;
+  for (unsigned int i = (unsigned int)startIndex;
+       i < (*formatCtx)->nb_streams; ++i) {
+    if ((*formatCtx)->streams[i]->codecpar->codec_type == mediaType) {
+      streamIndex = (int)i;
+      break;
+    }
+  }
+  if (streamIndex < 0 ||
+      !KotonohaFFmpegCreateDecoderCtx(*formatCtx, streamIndex, codecCtx,
+                                      hwCtx)) {
+    if (*formatCtx) {
+      avformat_close_input(formatCtx);
+    }
+    KotonohaFFmpegDestroyInputContext(&ctx);
+    return false;
+  }
+
+  if (streamIndexExport) {
+    *streamIndexExport = streamIndex;
+  }
+  *inputContext = ctx;
+  return true;
+}
+
+void KotonohaFFmpegCloseInput(AVFormatContext **formatCtx,
+                              Kotonoha_FFmpegInputContext **inputContext) {
+  if (formatCtx && *formatCtx) {
+    avformat_close_input(formatCtx);
+  }
+  KotonohaFFmpegDestroyInputContext(inputContext);
+}
+
+int KotonohaFFmpegSeekFrame(AVFormatContext *formatCtx, int streamIndex,
+                            Sint64 timestamp, int flags) {
+  return formatCtx ? av_seek_frame(formatCtx, streamIndex, timestamp, flags)
+                   : AVERROR(EINVAL);
+}
+
 bool KotonohaFFmpegCreateDecoderCtx(AVFormatContext *formatCtx, int streamIndex,
                                     AVCodecContext **codecCtx,
                                     struct Kotonoha_FFmpegHwContext *hwCtx) {

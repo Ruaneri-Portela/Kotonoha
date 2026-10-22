@@ -289,6 +289,10 @@ mono_crash.*
 [Dd]ebug/
 ![Ss]rc/[Dd]ebug/
 ![Ii]nclude/Kotonoha/[Dd]ebug/
+![Gg]ames/school-days/src/runtime/[Dd]ebug/
+![Gg]ames/school-days/src/runtime/[Dd]ebug/**
+![Gg]ames/school-days/include/Kotonoha/[Dd]ebug/
+![Gg]ames/school-days/include/Kotonoha/[Dd]ebug/**
 [Dd]ebugPublic/
 [Rr]elease/
 [Rr]eleases/
@@ -663,7 +667,11 @@ FodyWeavers.xsd
 build/
 vcpkg_installed/
 zips/
-assets/
+# Runtime/game assets stay local. Anime4K shaders are redistributable third-party
+# runtime dependencies and are kept with their upstream license/provenance.
+assets/*
+!assets/Anime4K/
+.research/
 *.ini
 .vscode
 .cxx

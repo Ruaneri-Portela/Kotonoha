@@ -56,26 +56,59 @@ static void prepareStraightAlphaForLinearFiltering(Uint8 *rgba, int width,
   }
 }
 
-static AVFrame *decodeFrame(const char *path, bool ignoreMissingAssets) {
+static void closeImageInput(AVFormatContext **formatCtx,
+                            Kotonoha_FFmpegInputContext **inputContext) {
+  if (inputContext != NULL && *inputContext != NULL) {
+    KotonohaFFmpegCloseInput(formatCtx, inputContext);
+  } else if (formatCtx != NULL && *formatCtx != NULL) {
+    avformat_close_input(formatCtx);
+  }
+}
+
+static AVFrame *decodeFrameInternal(const char *path,
+                                    const Kotonoha_FFmpegInput *input,
+                                    bool ignoreMissingAssets) {
   AVFormatContext *fmtCtx = NULL;
   AVCodecContext *codecCtx = NULL;
-  AVPacket *packet = av_packet_alloc();
+  Kotonoha_FFmpegInputContext *inputContext = NULL;
+  AVPacket *packet = NULL;
   int imageStreamIndex = -1;
   AVFrame *frame = NULL;
+  const bool customInput = input != NULL;
+  const char *displayName = customInput
+                                ? (input->name != NULL && *input->name != '\0'
+                                       ? input->name
+                                       : "<custom-input>")
+                                : path;
 
-  if (packet == NULL) {
-    KLOG_ERROR(IMAGE, "Failed to allocate image packet: %s", SDL_GetError());
+  bool loaded = false;
+  if (customInput) {
+    loaded = KotonohaFFmpegLoadInput(
+        input, &fmtCtx, &codecCtx, AVMEDIA_TYPE_VIDEO, &imageStreamIndex, 0,
+        NULL, &inputContext);
+  } else {
+    loaded = KotonohaFFmpegLoad(path, &fmtCtx, &codecCtx, AVMEDIA_TYPE_VIDEO,
+                                &imageStreamIndex, 0, NULL);
+  }
+
+  if (!loaded) {
+    if (!ignoreMissingAssets) {
+      KLOG_ERROR(IMAGE, "Failed to load image: %s", displayName);
+    }
+    avcodec_free_context(&codecCtx);
+    closeImageInput(&fmtCtx, &inputContext);
+    if (customInput) {
+    }
     return NULL;
   }
 
-  if (!KotonohaFFmpegLoad(path, &fmtCtx, &codecCtx, AVMEDIA_TYPE_VIDEO,
-                          &imageStreamIndex, 0, NULL)) {
-    if (!ignoreMissingAssets) {
-      KLOG_ERROR(IMAGE, "Failed to load image: %s", path);
-    }
+  packet = av_packet_alloc();
+  if (packet == NULL) {
+    KLOG_ERROR(IMAGE, "Failed to allocate image packet: %s", SDL_GetError());
     avcodec_free_context(&codecCtx);
-    avformat_close_input(&fmtCtx);
-    av_packet_free(&packet);
+    closeImageInput(&fmtCtx, &inputContext);
+    if (customInput) {
+    }
     return NULL;
   }
 
@@ -118,18 +151,35 @@ static AVFrame *decodeFrame(const char *path, bool ignoreMissingAssets) {
   }
 
   if (!frameDecoded || !frame) {
-    KLOG_ERROR(IMAGE, "Failed to decode image frame from codec: %s", path);
+    KLOG_ERROR(IMAGE, "Failed to decode image frame from codec: %s",
+               displayName);
     av_packet_free(&packet);
     avcodec_free_context(&codecCtx);
-    avformat_close_input(&fmtCtx);
+    closeImageInput(&fmtCtx, &inputContext);
+    if (customInput) {
+    }
     return NULL;
   }
 
   av_packet_free(&packet);
   avcodec_free_context(&codecCtx);
-  avformat_close_input(&fmtCtx);
+  closeImageInput(&fmtCtx, &inputContext);
+  if (customInput) {
+  }
 
   return frame;
+}
+
+static AVFrame *decodeFrame(const char *path, bool ignoreMissingAssets) {
+  Kotonoha_FFmpegInput input;
+  const int resolved = KotonohaFFmpegResolveInput(path, &input);
+  if (resolved > 0) {
+    return decodeFrameInternal(NULL, &input, ignoreMissingAssets);
+  }
+  if (resolved < 0) {
+    return NULL;
+  }
+  return decodeFrameInternal(path, NULL, ignoreMissingAssets);
 }
 
 static AVFrame *convertFrameToRgba(AVFrame *frame, int h, int w,
@@ -166,6 +216,27 @@ AVFrame *KotonohaImageDecodeFrame(const char *path, int h, int w,
     return NULL;
   }
   AVFrame *frame = decodeFrame(path, ignoreMissingAssets);
+  if (frame == NULL) {
+    return NULL;
+  }
+
+  h = h == -1 ? frame->height : h;
+  w = w == -1 ? frame->width : w;
+  AVFrame *rgbaFrame = convertFrameToRgba(frame, h, w, buffer);
+  av_frame_free(&frame);
+  return rgbaFrame;
+}
+
+AVFrame *KotonohaImageDecodeFrameInput(const Kotonoha_FFmpegInput *input, int h,
+                                       int w, Uint8 **buffer,
+                                       bool ignoreMissingAssets) {
+  if (input == NULL || input->opaque == NULL || input->read == NULL ||
+      buffer == NULL) {
+    KLOG_ERROR(IMAGE, "Invalid arguments for image input decoding");
+    return NULL;
+  }
+
+  AVFrame *frame = decodeFrameInternal(NULL, input, ignoreMissingAssets);
   if (frame == NULL) {
     return NULL;
   }
