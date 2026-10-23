@@ -94,6 +94,12 @@ Kotonoha::SchoolDaysConfigMenuModel::Page ktrfConfigPage =
 bool ktrfTitleReplayActive = false;
 int ktrfRouteMapProjectionMajor = -1;
 int ktrfRouteMapProjectionSubpage = -1;
+// Runtime-observed retail MenuBar rule: the left transport button first places
+// the current physical scene at its start; activating it again while still in
+// that start-navigation state asks RouteProc for the authenticated predecessor.
+// Track the physical Gameplay identity rather than inventing a millisecond
+// threshold (no such threshold was proven in SysMenuSDHQ.dll).
+Kotonoha::Gameplay *ktrfMenuBackStartGameplay = nullptr;
 
 Kotonoha::SchoolDaysConfigMenuModel::Variant SchoolDaysConfigVariant() {
   using Source = Kotonoha::SchoolDaysSaveFeelModel::Variant;
@@ -1400,6 +1406,30 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event) {
   }
 
   if (ktrfReplayPlayback != nullptr && ktrfReplayPlayback->IsOpen()) {
+    if (!EnsureSchoolDaysMenuBar()) return SDL_APP_FAILURE;
+    if (Kotonoha::Gameplay *replayGameplay =
+            ktrfReplayPlayback->CurrentGameplay()) {
+      ktrfMenuBar->SetRuntimeState(ktrfRetailConfigState.autoMode,
+                                   replayGameplay->UserPaused(&global),
+                                   ktrfSchoolDaysSpeedIndex,
+                                   ktrfRetailConfigState.superSkip,
+                                   true, false, false, false);
+      ktrfMenuBar->SetReplayIndicatorState(true);
+
+      Kotonoha::SchoolDaysMenuBarPresenter::Action replayMenuAction;
+      const bool replayMenuConsumed =
+          ktrfMenuBar->HandleEvent(global.render, event, &replayMenuAction);
+      if (replayMenuAction.kind ==
+          Kotonoha::SchoolDaysMenuBarPresenter::ActionKind::SetReplayIndicatorOpacity) {
+        // 0x10026ED0 semantics are applied inside the presenter. No persistence
+        // write is authenticated for this SysMenu-local replay indicator state.
+        return SDL_APP_CONTINUE;
+      }
+      // Other replay-mode MenuBar actions are intentionally fail-closed until
+      // their replay-host predicates/callbacks are authenticated. Never leak a
+      // consumed top-bar click into the temporary narrative Gameplay.
+      if (replayMenuConsumed) return SDL_APP_CONTINUE;
+    }
     if (Kotonoha::SchoolDaysInputPolicy::AcceptsGameplayEventType(event->type)) {
       if (Kotonoha::Gameplay *replayGameplay =
               ktrfReplayPlayback->CurrentGameplay()) {
@@ -1982,10 +2012,16 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event) {
           if (Kotonoha::Gameplay* current = ktrfController->CurrentGameplay()) {
             current->ToggleUserPaused(&global);
           }
-        } else if (menuAction.kind == MenuAction::RestartScene) {
+        } else if (menuAction.kind == MenuAction::BackOrRestartScene) {
           if (Kotonoha::Gameplay* current = ktrfController->CurrentGameplay()) {
-            current->RestartCurrentScene();
-            if (ktrfSceneTransaction != nullptr) ktrfSceneTransaction->Reset();
+            const bool atStart = ktrfMenuBackStartGameplay == current;
+            if (atStart) {
+              global.config.back = true;
+            } else {
+              current->RestartCurrentScene();
+              ktrfMenuBackStartGameplay = current;
+              if (ktrfSceneTransaction != nullptr) ktrfSceneTransaction->Reset();
+            }
           }
         } else if (menuAction.kind == MenuAction::SetPlaybackSpeed) {
           if (menuAction.value < 0 || menuAction.value > 4) {
@@ -2004,17 +2040,22 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event) {
         } else if (menuAction.kind == MenuAction::OpenBackLog) {
           if (!OpenSchoolDaysBackLog()) return SDL_APP_FAILURE;
         } else if (menuAction.kind == MenuAction::SkipToEnd) {
+          ktrfMenuBackStartGameplay = nullptr;
           if (Kotonoha::Gameplay* current = ktrfController->CurrentGameplay()) {
             if (current->SkipSchoolDaysToEnd() && ktrfSceneTransaction != nullptr)
               ktrfSceneTransaction->Reset();
           }
         } else if (menuAction.kind == MenuAction::SkipToNextChoice) {
+          ktrfMenuBackStartGameplay = nullptr;
           if (!ktrfController->SkipToNextChoice(&error)) {
             SDL_LogError(0, "[SD-MENUBAR] next-choice skip failed: %s",
                          error.message);
             return SDL_APP_FAILURE;
           }
           if (ktrfSceneTransaction != nullptr) ktrfSceneTransaction->Reset();
+        } else if (menuAction.kind == MenuAction::SetReplayIndicatorOpacity) {
+          // The presenter already applies the authenticated local alpha/handle
+          // state. Persistence for this SysMenu-only preference is not proven.
         } else if (menuAction.kind == MenuAction::OpenSave) {
           if (!ktrfController->EnterGameplaySave(&error)) {
             SDL_LogError(0, "[SD-MENUBAR] SAVE transition failed: %s",
@@ -2066,6 +2107,9 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event) {
     }
     if (Kotonoha::SchoolDaysInputPolicy::AcceptsGameplayEventType(event->type)) {
       if (Kotonoha::Gameplay *current = ktrfController->CurrentGameplay()) {
+        if (event->type == SDL_EVENT_MOUSE_BUTTON_DOWN) {
+          ktrfMenuBackStartGameplay = nullptr;
+        }
         current->Events(event, &global);
       }
     }
@@ -2266,6 +2310,14 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
       SDL_LogError(0, "[SD-REPLAY] temporary playback has no active Gameplay");
       return SDL_APP_FAILURE;
     }
+    if (!EnsureSchoolDaysMenuBar()) return SDL_APP_FAILURE;
+    ktrfMenuBar->SetRuntimeState(ktrfRetailConfigState.autoMode,
+                                 replayGameplay->UserPaused(&global),
+                                 ktrfSchoolDaysSpeedIndex,
+                                 ktrfRetailConfigState.superSkip,
+                                 true, false, false, false);
+    ktrfMenuBar->SetReplayIndicatorState(true);
+    ktrfMenuBar->Update(static_cast<uint32_t>(SDL_GetTicks()), 0, 0);
     const SDL_AppResult replayStatus = replayGameplay->Main(&global);
     if (replayStatus == SDL_APP_FAILURE) return replayStatus;
     // SDL_APP_SUCCESS is the ordinary Gameplay end signal, not application
@@ -2677,6 +2729,7 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
                                  menuUserPaused, ktrfSchoolDaysSpeedIndex,
                                  ktrfRetailConfigState.superSkip,
                                  true, false, false, false);
+    ktrfMenuBar->SetReplayIndicatorState(false);
     if (ktrfController->ConsumeTopMeterRefreshRequest()) {
       ktrfMenuBar->RequestFeelingRefresh();
     }
@@ -2709,6 +2762,10 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
       Kotonoha::Gameplay *afterGameplay = ktrfController->CurrentGameplay();
       ktrfSceneTransaction->CommitIfSwapped(beforeGameplay, afterGameplay,
                                             "current-scene");
+      if (beforeGameplay != afterGameplay) {
+        ktrfMenuBackStartGameplay =
+            ktrfBackRequested ? afterGameplay : nullptr;
+      }
       if (ktrfBackRequested && beforeGameplay == afterGameplay) {
         ktrfSceneTransaction->CancelPreparedFor(beforeGameplay,
                                                 "back-no-swap");
@@ -2720,9 +2777,14 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
     app->PresentSceneTransitionFrame(inRunning);
   }
 
-  if (ktrfController != nullptr && ktrfMenuBar != nullptr &&
+  const bool ktrfReplayMenuBarVisible =
+      ktrfReplayPlayback != nullptr && ktrfReplayPlayback->IsOpen();
+  const bool ktrfGameplayMenuBarVisible =
+      ktrfController != nullptr &&
       ktrfController->FlowState() ==
-          Kotonoha::SchoolDaysFlowController::State::Gameplay) {
+          Kotonoha::SchoolDaysFlowController::State::Gameplay;
+  if (ktrfMenuBar != nullptr &&
+      (ktrfGameplayMenuBarVisible || ktrfReplayMenuBarVisible)) {
     std::string menuError;
     if (!ktrfMenuBar->Render(global.render, &menuError)) {
       SDL_LogError(0, "[SD-MENUBAR] render failed: %s", menuError.c_str());

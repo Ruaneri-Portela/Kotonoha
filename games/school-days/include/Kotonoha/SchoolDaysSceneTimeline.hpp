@@ -58,8 +58,16 @@ public:
         Kotonoha_SceneTick nextTick) {
         if (skipFrameTick == nextTick && currentTick < nextTick)
             return {true, nextTick};
-        if (skipFrameTick < nextTick && currentTick < skipFrameTick)
-            return {true, skipFrameTick > 24 ? skipFrameTick - 24 : 0};
+        if (skipFrameTick < nextTick && currentTick < nextTick) {
+            // Native state4/mode2 (FILMEngine 0x00425BF0): until the
+            // SkipFRAME boundary itself has been passed, seek to one second
+            // (24 retail ticks) before it so normal dispatch must reach the
+            // SetSELECT/choice. Once current > SkipFRAME, that choice boundary
+            // has already been crossed and the same control may target Next.
+            if (currentTick <= skipFrameTick)
+                return {true, skipFrameTick > 24 ? skipFrameTick - 24 : 0};
+            return {true, nextTick};
+        }
         /* The caller performs the authenticated atomic clock seek followed by
          * Event::Reset; this helper only computes the native target tick. */
         return {};

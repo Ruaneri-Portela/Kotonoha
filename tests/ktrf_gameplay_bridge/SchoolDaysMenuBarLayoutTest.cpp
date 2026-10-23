@@ -136,6 +136,61 @@ int main() {
               "system-control host inhibit classes mismatch");
         Check(!Presenter::ControlAvailableInNormalGameplay(15),
               "replay-latched controls must be disabled in normal Gameplay");
+        Check(Presenter::ControlAvailable(15, false, false, true, false, true) &&
+                  Presenter::ControlAvailable(24, false, false, true, false, true),
+              "replay-latched controls did not follow host +0x98 predicate");
+
+        // FUN_100262E0 classifier -> fixed records53..64.  Speeds share one
+        // help sprite and all ten repeat-opacity cells share record64.
+        const auto pauseHelp = Presenter::HoverHelpChip(1, Variant::Standard);
+        const auto backHelp = Presenter::HoverHelpChip(2, Variant::Standard);
+        const auto speedHelp5 = Presenter::HoverHelpChip(5, Variant::Standard);
+        const auto speedHelp9 = Presenter::HoverHelpChip(9, Variant::Standard);
+        const auto saveHelp = Presenter::HoverHelpChip(10, Variant::Standard);
+        const auto repeatHelp15 = Presenter::HoverHelpChip(15, Variant::Standard);
+        const auto repeatHelp24 = Presenter::HoverHelpChip(24, Variant::Standard);
+        Near(pauseHelp.source.x, 1.0f, "pause hover-help source x drifted");
+        Near(pauseHelp.source.y, 203.0f, "pause hover-help source y drifted");
+        Near(backHelp.source.x, 252.0f, "back hover-help source x drifted");
+        Near(speedHelp5.source.x, speedHelp9.source.x,
+             "speed controls stopped sharing native hover-help record58");
+        Near(speedHelp5.source.y, speedHelp9.source.y,
+             "speed controls stopped sharing native hover-help source row");
+        Near(saveHelp.source.x, 141.0f, "save hover-help source x drifted");
+        Near(repeatHelp15.source.x, repeatHelp24.source.x,
+             "repeat opacity controls stopped sharing native help record64");
+        Near(repeatHelp15.source.y, 379.0f,
+             "repeat opacity hover-help source y drifted");
+
+        Check(Presenter::ReplayOpacityLevelForControl(15) == 0 &&
+                  Presenter::ReplayOpacityLevelForControl(16) == 2 &&
+                  Presenter::ReplayOpacityLevelForControl(24) == 10,
+              "native repeat opacity level map drifted");
+        Check(Presenter::ReplayOpacityAlphaForControl(15) == 0 &&
+                  Presenter::ReplayOpacityAlphaForControl(16) == 50 &&
+                  Presenter::ReplayOpacityAlphaForControl(24) == 250,
+              "native repeat opacity alpha map drifted");
+        const auto repeatOff = Presenter::FixedChipRecord(69, Variant::Standard);
+        const auto repeatOn = Presenter::FixedChipRecord(70, Variant::Standard);
+        const auto repeatSelector = Presenter::FixedChipRecord(71, Variant::Standard);
+        Near(repeatOff.destination.x, 674.0f,
+             "repeat gray strip destination x drifted");
+        Near(repeatOff.destination.y, 4.0f,
+             "repeat gray strip destination y drifted");
+        Near(repeatOff.source.x, 322.0f,
+             "repeat gray strip atlas source drifted");
+        Near(repeatOn.source.x, 414.0f,
+             "repeat cyan strip atlas source drifted");
+        Near(repeatOn.source.y, 1.0f,
+             "repeat cyan strip atlas row drifted");
+        Near(repeatSelector.source.x, 1.0f,
+             "repeat selector atlas source x drifted");
+        Near(repeatSelector.source.y, 379.0f,
+             "repeat selector atlas source y drifted");
+        Near(Presenter::ControlRect(15, Variant::Standard).x, 676.0f,
+             "repeat opacity first cell drifted");
+        Near(Presenter::ControlRect(24, Variant::Standard).x, 784.0f,
+             "repeat opacity last cell drifted");
 
         const auto speedEnabled = Presenter::FixedChipRecord(47, Variant::Standard);
         const auto speedDisabled = Presenter::FixedChipRecord(66, Variant::Standard);
@@ -163,6 +218,14 @@ int main() {
         Check(Presenter::ActionForControl(14).kind ==
                   Presenter::ActionKind::OpenMainMenuConfirm,
               "MenuBar MainMenu confirmation action mismatch");
+        Check(Presenter::ActionForControl(2).kind ==
+                  Presenter::ActionKind::BackOrRestartScene,
+              "MenuBar back/current-scene action mismatch");
+        Check(Presenter::ActionForControl(15).kind ==
+                  Presenter::ActionKind::SetReplayIndicatorOpacity &&
+                  Presenter::ActionForControl(15).value == 0 &&
+                  Presenter::ActionForControl(24).value == 10,
+              "MenuBar repeat opacity action mismatch");
 
         Check(Presenter::FadeAlpha(0, true, 0) == 0,
               "MenuBar reveal start drifted");
@@ -235,6 +298,9 @@ int main() {
             << "controls_0_24_geometry=PASS\n"
             << "system_controls_normal_records_48_52=PASS\n"
             << "normal_gameplay_availability=PASS\n"
+            << "native_hover_help_records_53_64=PASS\n"
+            << "replay_opacity_levels=PASS\n"
+            << "replay_strip_records_69_71=PASS\n"
             << "transport_predicate_classes=PASS\n"
             << "speed_vs_superskip_bases=PASS\n"
             << "remenu_actions_10_14=PASS\n"
