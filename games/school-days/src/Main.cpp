@@ -1,1 +1,2 @@
-#include <Kotonoha/Main.h>
+// The Local* hooks live in SchoolDaysCallbacks.cpp.
+#include <Kotonoha/Main.hpp>

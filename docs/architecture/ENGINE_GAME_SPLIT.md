@@ -64,13 +64,25 @@ are no longer stored under the game tree. Game-specific routing/persistence
 headers and asset policy remain under `games/school-days/include` and
 `games/school-days/src/`.
 
-The SDL `SDL_App*` callbacks remain in the School Days application source,
-which is linked into `libKotonoha`; the desktop `SchoolDays` executable only
-includes the game-owned `games/school-days/include/Kotonoha/Main.h`. The
-callbacks call the engine master lifecycle
+Each application (`games/generic`, `games/school-days`) has its own
+`CMakeLists.txt` and links the shared `KotonohaRuntime` library
+(`libKotonoha`); macOS produces `Kotonoha.app` (generic engine + debug UI) and
+`SchoolDays.app`. The game's `Main.cpp` ends with
+`#include <Kotonoha/Main.hpp>`, which defines the `SDL_App*` entry points with
+the engine's default behaviour (engine master lifecycle, forced scripts,
+overlays, debug UI) and then calls the game's `LocalArgs`, `LocalInit`,
+`LocalEvent`, `LocalIterate` and `LocalQuit` hooks. Generic's hooks just return
+`SDL_APP_CONTINUE`; School Days' hooks add its KTRF/retail behaviour (in
+`SchoolDaysCallbacks.cpp`). The reported `SDL_AppResult` is always the worst of
+the default and local results (FAILURE > SUCCESS > CONTINUE). School Days
+renders its own frame, so `LocalIterate` calls `Kotonoha::MarkFrameHandled()` to
+skip the default one. School Days can load `Script/` assets from a loose
+directory with `--sd-script-dir <dir>` (maps `Script/<rest>` to `<dir>/<rest>`,
+overriding the GPK) and takes its splash from `System/SYSTEM/LOGO.png` in the
+GPK. The default path calls the engine master lifecycle
 (`EngineMasterInit`, `EngineMasterEvent`, `EngineMasterMain`,
 `EngineMasterShutdown`) for common SDL, renderer, audio, font, GUI, and engine
-setup, then apply School Days policy. SDLActivity loads `libKotonoha.so` on
+setup, and School Days applies its policy on top. SDLActivity loads `libKotonoha.so` on
 Android.
 
 When debug UI is enabled, the game continues to render across the full window;

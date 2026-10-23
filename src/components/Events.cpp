@@ -714,6 +714,30 @@ namespace Kotonoha {
 				break;
 			}
 		}
+		// One subtitle at a time: a line ends when the next one begins, so libass
+		// never stacks overlapping voice lines.
+		{
+			ASS_Track* track = gp->sb->track;
+			for (int i = 0; i < track->n_events; ++i) {
+				ASS_Event* current = track->events + i;
+				long long nextStart = -1;
+				for (int j = 0; j < track->n_events; ++j) {
+					const ASS_Event* other = track->events + j;
+					if (j == i || other->Start < current->Start ||
+						(other->Start == current->Start && j < i)) {
+						continue;
+					}
+					if (nextStart < 0 || other->Start < nextStart) {
+						nextStart = other->Start;
+					}
+				}
+				if (nextStart > current->Start &&
+					current->Start + current->Duration > nextStart) {
+					current->Duration = nextStart - current->Start;
+				}
+			}
+		}
+
 			PrepareChoicePrompt(gp, eventsFromScript, font);
 
 		eventMutex = SDL_CreateMutex();

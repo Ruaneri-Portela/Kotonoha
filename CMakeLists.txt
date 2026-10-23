@@ -184,13 +184,13 @@ endif()
 # Engine, runtime library, and SDL entry executable targets
 # ==============================================================================
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/KotonohaTargets.cmake")
+include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/KotonohaApp.cmake")
 
-
-
-if(KOTONOHA_DEV_CHECKPOINTS)
-    target_compile_definitions(Kotonoha PRIVATE KOTONOHA_DEV_CHECKPOINTS=1)
-    message(STATUS "KOTONOHA_DEV_CHECKPOINTS=ON (development-only routing helpers)")
-endif()
+# ==============================================================================
+# Applications (each game owns its CMakeLists.txt)
+# ==============================================================================
+add_subdirectory(games/generic)
+add_subdirectory(games/school-days)
 
 if((KOTONOHA_ROUTER_TESTS OR KOTONOHA_ORS_PARSER_TESTS) AND NOT ANDROID)
     include(CTest)

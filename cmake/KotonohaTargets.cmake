@@ -1,7 +1,10 @@
 # Build topology
 # --------------
-# KotonohaEngine is the reusable engine core. libKotonoha packages the runtime,
-# School Days profile and SDL callbacks; SchoolDays is only the SDL entry stub.
+# KotonohaEngine is the reusable engine core. KotonohaRuntime (libKotonoha on
+# desktop) packages the scene/gameplay runtime and debug UI. Applications live
+# in games/<name>/CMakeLists.txt and are added by the root CMakeLists:
+#   games/generic      Kotonoha.app    engine + debug UI, default behaviour
+#   games/school-days  SchoolDays.app  School Days HQ profile and SDL callbacks
 
 file(GLOB KOTONOHA_ENGINE_SOURCES CONFIGURE_DEPENDS
     "${KOTONOHA_ENGINE_SOURCE_DIR}/*.cpp"
@@ -69,15 +72,14 @@ set(KOTONOHA_GAMEPLAY_ADAPTER "${KOTONOHA_RUNTIME_SOURCE_DIR}/Gameplay.cpp")
 list(REMOVE_ITEM KOTONOHA_RUNTIME_SOURCES "${KOTONOHA_GAMEPLAY_ADAPTER}")
 list(APPEND KOTONOHA_PROFILE_RUNTIME_SOURCES "${KOTONOHA_GAMEPLAY_ADAPTER}")
 
-file(GLOB_RECURSE SCHOOL_DAYS_SOURCES CONFIGURE_DEPENDS
-    "${SCHOOL_DAYS_SOURCE_DIR}/*.cpp"
-    "${SCHOOL_DAYS_SOURCE_DIR}/*.c"
+# Prompt.cpp renders choice text through this pure layout helper, so the runtime
+# library owns the one School Days unit it links against; the game targets
+# exclude it from their own source list.
+set(KOTONOHA_RUNTIME_GAME_POLICY_SOURCES
+    "${SCHOOL_DAYS_SOURCE_DIR}/SchoolDaysChoiceTextPlan.cpp"
 )
-
-set(SCHOOL_DAYS_MAIN "${SCHOOL_DAYS_SOURCE_DIR}/Main.cpp")
-list(REMOVE_ITEM SCHOOL_DAYS_SOURCES "${SCHOOL_DAYS_MAIN}")
-set(SCHOOL_DAYS_LIBRARY_MAIN "${SCHOOL_DAYS_SOURCE_DIR}/SchoolDaysCallbacks.cpp")
-list(REMOVE_ITEM SCHOOL_DAYS_SOURCES "${SCHOOL_DAYS_LIBRARY_MAIN}")
+list(APPEND KOTONOHA_PROFILE_RUNTIME_SOURCES
+    ${KOTONOHA_RUNTIME_GAME_POLICY_SOURCES})
 
 # Hard build-boundary check: a School Days implementation file must live under
 # games/school-days and may never silently re-enter the engine source glob.
@@ -115,13 +117,6 @@ if(APPLE)
     list(APPEND KOTONOHA_ENGINE_SOURCES
         "${KOTONOHA_ENGINE_SOURCE_DIR}/specials/MetalFX.mm"
         "${KOTONOHA_ENGINE_SOURCE_DIR}/mobile/IOS.mm"
-    )
-endif()
-
-set(KOTONOHA_GAME_PLATFORM_SOURCES)
-if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
-    list(APPEND KOTONOHA_GAME_PLATFORM_SOURCES
-        "${KOTONOHA_ENGINE_SOURCE_DIR}/specials/Kotonoha.rc"
     )
 endif()
 
@@ -181,22 +176,18 @@ if(ANDROID)
         m
         GLESv2)
 
-    # SDLActivity loads libKotonoha.so and enters through the SDL callbacks
-    # exported by this library.
-    add_library(Kotonoha SHARED
+    # Static on Android: SDLActivity loads a single libKotonoha.so, which is
+    # the game library defined in games/school-days/CMakeLists.txt.
+    add_library(KotonohaRuntime STATIC
         ${KOTONOHA_PROFILE_RUNTIME_SOURCES}
-        ${KOTONOHA_RUNTIME_SOURCES}
-        ${SCHOOL_DAYS_SOURCES}
-        "${SCHOOL_DAYS_LIBRARY_MAIN}"
-        ${KOTONOHA_GAME_PLATFORM_SOURCES})
-    set_target_properties(Kotonoha PROPERTIES
-        OUTPUT_NAME Kotonoha
-        WINDOWS_EXPORT_ALL_SYMBOLS ON)
-    target_include_directories(Kotonoha PUBLIC
+        ${KOTONOHA_RUNTIME_SOURCES})
+    set_target_properties(KotonohaRuntime PROPERTIES
+        POSITION_INDEPENDENT_CODE ON)
+    target_include_directories(KotonohaRuntime PUBLIC
         "${SCHOOL_DAYS_INCLUDE_DIR}"
         "${KOTONOHA_INCLUDE_DIR}"
         "${KOTONOHA_ENGINE_SOURCE_DIR}/routing")
-    target_link_libraries(Kotonoha PUBLIC Kotonoha::Engine PRIVATE ZLIB::ZLIB)
+    target_link_libraries(KotonohaRuntime PUBLIC Kotonoha::Engine)
 
 # -----------------------------------------------------------------------------
 # Desktop
@@ -216,65 +207,24 @@ else()
         ${KOTONOHA_SDL3_TTF_TARGET}
         imgui::imgui)
 
-    add_library(Kotonoha SHARED
+    add_library(KotonohaRuntime SHARED
         ${KOTONOHA_PROFILE_RUNTIME_SOURCES}
-        ${KOTONOHA_RUNTIME_SOURCES}
-        ${SCHOOL_DAYS_SOURCES}
-        "${SCHOOL_DAYS_LIBRARY_MAIN}")
-    set_target_properties(Kotonoha PROPERTIES
+        ${KOTONOHA_RUNTIME_SOURCES})
+    set_target_properties(KotonohaRuntime PROPERTIES
+        OUTPUT_NAME Kotonoha
         WINDOWS_EXPORT_ALL_SYMBOLS ON
         MACOSX_RPATH ON
         INSTALL_RPATH "@loader_path")
-    target_include_directories(Kotonoha PUBLIC
+    target_include_directories(KotonohaRuntime PUBLIC
         "${SCHOOL_DAYS_INCLUDE_DIR}"
         "${KOTONOHA_INCLUDE_DIR}"
         "${KOTONOHA_ENGINE_SOURCE_DIR}/routing")
-    target_link_libraries(Kotonoha PUBLIC Kotonoha::Engine PRIVATE ZLIB::ZLIB)
-
-    if(APPLE)
-        add_executable(SchoolDays MACOSX_BUNDLE
-            "${SCHOOL_DAYS_MAIN}"
-            ${KOTONOHA_GAME_PLATFORM_SOURCES})
-    else()
-        add_executable(SchoolDays
-            "${SCHOOL_DAYS_MAIN}"
-            ${KOTONOHA_GAME_PLATFORM_SOURCES})
-    endif()
-
-    target_link_libraries(SchoolDays PRIVATE Kotonoha)
-
-    if(CMAKE_SYSTEM_NAME STREQUAL "Windows" AND
-       EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/assets/icon.ico")
-        target_compile_definitions(SchoolDays PRIVATE KOTONOHA_HAS_WINDOWS_ICON=1)
-    endif()
-
-    # Config.DAT and retail GPKs consume zlib from the game layer.  Copy the
-    # runtime DLL beside libKotonoha on Windows rather than coupling zlib to the
-    # reusable engine target.
-    if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
-        get_filename_component(_kotonoha_zlib_prefix "${ZLIB_INCLUDE_DIRS}" DIRECTORY)
-        find_file(_kotonoha_zlib_runtime
-            NAMES z.dll zlib1.dll
-            HINTS "${_kotonoha_zlib_prefix}/bin"
-            NO_DEFAULT_PATH)
-        if(_kotonoha_zlib_runtime)
-            add_custom_command(TARGET Kotonoha POST_BUILD
-                COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                    "${_kotonoha_zlib_runtime}"
-                    "$<TARGET_FILE_DIR:Kotonoha>"
-                VERBATIM)
-        endif()
-    endif()
+    target_link_libraries(KotonohaRuntime PUBLIC Kotonoha::Engine)
 
     find_package(OpenGL QUIET)
     if(OpenGL_FOUND)
         target_compile_definitions(KotonohaEngine PUBLIC KOTONOHA_HAS_ANIME4K=1)
         target_link_libraries(KotonohaEngine PUBLIC OpenGL::GL)
-        add_custom_command(TARGET SchoolDays POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy_directory
-                "${KOTONOHA_ASSETS_DIR}/Anime4K"
-            "$<TARGET_FILE_DIR:SchoolDays>/assets/Anime4K"
-            VERBATIM)
     else()
         message(STATUS "OpenGL not found; Anime4K upscaling is disabled")
     endif()
@@ -290,61 +240,9 @@ else()
             "-framework CoreFoundation"
             "-framework Metal"
             "-framework MetalFX")
-
-        set_target_properties(SchoolDays PROPERTIES
-            MACOSX_BUNDLE TRUE
-            MACOSX_BUNDLE_INFO_PLIST
-                "${CMAKE_CURRENT_SOURCE_DIR}/src/specials/Info.plist.in"
-            MACOSX_BUNDLE_BUNDLE_NAME "SchoolDays"
-            MACOSX_BUNDLE_GUI_IDENTIFIER "me.hirameki.kotonoha.schooldays"
-            MACOSX_BUNDLE_BUNDLE_VERSION "${PROJECT_VERSION}"
-            MACOSX_BUNDLE_SHORT_VERSION_STRING "${PROJECT_VERSION}"
-            MACOSX_BUNDLE_ICON_FILE "icon.icns"
-            BUILD_RPATH "@executable_path/../Frameworks")
-
-        set(KOTONOHA_ICON_FILE "${KOTONOHA_ASSETS_DIR}/icon.icns")
-        if(NOT EXISTS "${KOTONOHA_ICON_FILE}")
-            message(FATAL_ERROR "Ícone macOS não encontrado: ${KOTONOHA_ICON_FILE}")
-        endif()
-        set_source_files_properties("${KOTONOHA_ICON_FILE}" PROPERTIES
-            MACOSX_PACKAGE_LOCATION "Resources"
-            HEADER_FILE_ONLY TRUE)
-        target_sources(SchoolDays PRIVATE "${KOTONOHA_ICON_FILE}")
-
-        add_custom_command(TARGET SchoolDays POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E make_directory
-                "$<TARGET_BUNDLE_CONTENT_DIR:SchoolDays>/Frameworks"
-            COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                "$<TARGET_FILE:Kotonoha>"
-                "$<TARGET_BUNDLE_CONTENT_DIR:SchoolDays>/Frameworks"
-            VERBATIM)
-
-        if(EXISTS "${KOTONOHA_ASSETS_DIR}")
-            file(GLOB_RECURSE KOTONOHA_ASSET_FILES CONFIGURE_DEPENDS
-                "${KOTONOHA_ASSETS_DIR}/*")
-            foreach(ASSET_FILE IN LISTS KOTONOHA_ASSET_FILES)
-                if(IS_DIRECTORY "${ASSET_FILE}" OR ASSET_FILE STREQUAL KOTONOHA_ICON_FILE)
-                    continue()
-                endif()
-                file(RELATIVE_PATH ASSET_RELATIVE_PATH
-                    "${KOTONOHA_ASSETS_DIR}" "${ASSET_FILE}")
-                get_filename_component(ASSET_RELATIVE_DIRECTORY
-                    "${ASSET_RELATIVE_PATH}" DIRECTORY)
-                if(ASSET_RELATIVE_DIRECTORY)
-                    set(ASSET_BUNDLE_LOCATION
-                        "Resources/assets/${ASSET_RELATIVE_DIRECTORY}")
-                else()
-                    set(ASSET_BUNDLE_LOCATION "Resources/assets")
-                endif()
-                set_source_files_properties("${ASSET_FILE}" PROPERTIES
-                    MACOSX_PACKAGE_LOCATION "${ASSET_BUNDLE_LOCATION}"
-                    HEADER_FILE_ONLY TRUE)
-                target_sources(SchoolDays PRIVATE "${ASSET_FILE}")
-            endforeach()
-        endif()
     endif()
 endif()
 
 if(WIN32)
-    set_target_properties(Kotonoha PROPERTIES PREFIX "lib")
+    set_target_properties(KotonohaRuntime PROPERTIES PREFIX "lib")
 endif()

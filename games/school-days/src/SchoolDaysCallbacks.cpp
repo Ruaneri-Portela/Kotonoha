@@ -1,9 +1,9 @@
-#define SDL_MAIN_USE_CALLBACKS 1
 #if !defined(__ANDROID__) && !defined(ANDROID)
 #define SDL_MAIN_HANDLED 1
 #endif
 #include <Kotonoha/utils/Log.h>
 #include <Kotonoha/Init.hpp>
+#include <Kotonoha/Main.hpp>
 #include <Kotonoha/routing/SchoolDaysKtrfAppController.hpp>
 #include <Kotonoha/routing/SchoolDaysKtrfDebugGui.hpp>
 #include <Kotonoha/routing/SchoolDaysBackLog.hpp>
@@ -49,6 +49,8 @@ struct KtrfLaunchOptions {
   bool uiVariantSpecified = false;
   bool assetsRootSpecified = false;
   bool gpkRootSpecified = false;
+  bool scriptDirSpecified = false;
+  std::string scriptDir;
   std::string routePath;
   std::string orsRoot;
   std::string assetsRoot;
@@ -1037,6 +1039,19 @@ KtrfLaunchOptions ExtractKtrfLaunchOptions(int argc, char *argv[]) {
       continue;
     }
 
+    if (std::strcmp(argv[i], "--sd-script-dir") == 0) {
+      if (options.scriptDirSpecified || i + 1 >= argc ||
+          argv[i + 1] == nullptr || *argv[i + 1] == '\0') {
+        options.valid = false;
+        return options;
+      }
+      options.scriptDirSpecified = true;
+      options.scriptDir = argv[i + 1];
+      argv[i][0] = '!';
+      ++i;
+      continue;
+    }
+
     if (std::strcmp(argv[i], "--sd-gpk-root") == 0) {
       if (options.gpkRootSpecified || i + 1 >= argc || argv[i + 1] == nullptr ||
           *argv[i + 1] == '\0') {
@@ -1092,7 +1107,7 @@ KtrfLaunchOptions ExtractKtrfLaunchOptions(int argc, char *argv[]) {
     }
   }
   else if (options.uiVariantSpecified || options.assetsRootSpecified ||
-           options.gpkRootSpecified) {
+           options.gpkRootSpecified || options.scriptDirSpecified) {
     // These School Days profiles are meaningful only for KTRF mode.
     options.valid = false;
   }
@@ -1100,14 +1115,27 @@ KtrfLaunchOptions ExtractKtrfLaunchOptions(int argc, char *argv[]) {
   return options;
 }
 
+KtrfLaunchOptions ktrfLaunchOptions;
+
 } // namespace
 
-extern "C" {
-SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
-  if (appstate == nullptr) {
+SDL_AppResult LocalArgs(int argc, char *argv[]) {
+  ktrfLaunchOptions = ExtractKtrfLaunchOptions(argc, argv);
+  if (!ktrfLaunchOptions.valid) {
+    SDL_LogError(0,
+                 "Invalid KTRF launch arguments. Use -K <route.ktnroute> "
+                 "[<ors-root>] [--sd-assets-root <extracted-game-data-root>] "
+                 "[--sd-gpk-root <retail-game-root-or-Packs>] "
+                 "[--sd-script-dir <loose-script-directory>] "
+                 "[--sd-ui-variant standard|wide|wide-full|wide-note] "
+                 "and do not combine it with -l.");
     return SDL_APP_FAILURE;
   }
-  *appstate = nullptr;
+  return SDL_APP_CONTINUE;
+}
+
+SDL_AppResult LocalInit(void **appstate, int, char *[]) {
+  Kotonoha::Kotonoha *engine = Kotonoha::GetApp(*appstate);
   Kotonoha::InstallSchoolDaysImageAssetProvider();
 
   ktrfSceneTransaction.reset();
@@ -1121,29 +1149,12 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
   ktrfRetailDisplayBackendState = {};
   ktrfAssetsRoot.clear();
 
-  const KtrfLaunchOptions ktrfOptions = ExtractKtrfLaunchOptions(argc, argv);
-  if (!ktrfOptions.valid) {
-    SDL_LogError(0,
-                 "Invalid KTRF launch arguments. Use -K <route.ktnroute> "
-                 "[<ors-root>] [--sd-assets-root <extracted-game-data-root>] "
-                 "[--sd-gpk-root <retail-game-root-or-Packs>] "
-                 "[--sd-ui-variant standard|wide|wide-full|wide-note] "
-                 "and do not combine it with -l.");
-    return SDL_APP_FAILURE;
-  }
-
-  Kotonoha::Kotonoha *engine = nullptr;
-  const SDL_AppResult engineStatus =
-      Kotonoha::EngineMasterInit(&engine, argc, argv);
-  if (engineStatus != SDL_APP_CONTINUE) {
-    return engineStatus;
-  }
+  const KtrfLaunchOptions &ktrfOptions = ktrfLaunchOptions;
 
   if (ktrfOptions.requested) {
     const char *basePath = SDL_GetBasePath();
     if (basePath == nullptr || *basePath == '\0') {
       SDL_LogError(0, "[SD-CONFIG] SDL_GetBasePath failed: %s", SDL_GetError());
-      Kotonoha::EngineMasterShutdown(&engine);
       return SDL_APP_FAILURE;
     }
 
@@ -1155,7 +1166,6 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
       SDL_LogError(0, "[SD-CONFIG] Config.DAT startup failed: %s",
                    configError.c_str());
       ktrfConfigStorage.reset();
-      Kotonoha::EngineMasterShutdown(&engine);
       return SDL_APP_FAILURE;
     }
     ktrfRetailConfigState = configLoad.state;
@@ -1165,22 +1175,53 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
     if (ktrfRetailConfigState.useSom != persistedUseSom &&
         !CacheSchoolDaysRetailConfigState("UseSOM startup scan")) {
       ktrfConfigStorage.reset();
-      Kotonoha::EngineMasterShutdown(&engine);
       return SDL_APP_FAILURE;
     }
 
+    if (!ktrfOptions.scriptDirSpecified) {
+      // Default: Script/<rest> is served from ./assets/<rest> when present.
+      std::string ignored;
+      Kotonoha::SetSchoolDaysScriptDirectory("assets", &ignored);
+    }
+    if (ktrfOptions.scriptDirSpecified) {
+      std::string dirError;
+      if (!Kotonoha::SetSchoolDaysScriptDirectory(ktrfOptions.scriptDir,
+                                                 &dirError)) {
+        SDL_LogError(0, "[SD-SCRIPTS] script directory failed: %s",
+                     dirError.c_str());
+        ktrfConfigStorage.reset();
+        return SDL_APP_FAILURE;
+      }
+      SDL_Log("[SD-SCRIPTS] using script directory %s",
+              ktrfOptions.scriptDir.c_str());
+    }
     if (ktrfOptions.gpkRootSpecified) {
       std::string gpkError;
       if (!Kotonoha::MountSchoolDaysRetailGpks(ktrfOptions.gpkRoot, &gpkError)) {
         SDL_LogError(0, "[SD-GPK] retail mount failed: %s", gpkError.c_str());
         ktrfConfigStorage.reset();
-        Kotonoha::EngineMasterShutdown(&engine);
         return SDL_APP_FAILURE;
       }
-      Kotonoha::InstallMountedSchoolDaysAssetResolver();
       SDL_Log("[SD-GPK] mounted retail packs entries=%llu",
               static_cast<unsigned long long>(
                   Kotonoha::MountedSchoolDaysGpkEntryCount()));
+    }
+    if (ktrfOptions.gpkRootSpecified) {
+      Kotonoha::InstallMountedSchoolDaysAssetResolver();
+
+      // The retail logo lives in System.gpk; show it after the engine's
+      // default assets/SPLASH.PNG.
+      for (const char *logoPath :
+           {"System/SYSTEM/LOGO.png", "System/SYSTEM/LOGO.PNG"}) {
+        if (Kotonoha::LookupMountedSchoolDaysAsset(logoPath) !=
+            Kotonoha::SchoolDaysGpkLookupStatus::Present) {
+          continue;
+        }
+        if (engine->LoadSplashImages(
+                {Kotonoha::MakeSchoolDaysGpkUri(logoPath)}, true)) {
+          break;
+        }
+      }
     }
 
     const bool explicitUiVariant = ktrfOptions.uiVariantSpecified;
@@ -1195,7 +1236,6 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
           !Kotonoha::SchoolDaysDisplayPolicy::SelectAuto(
               outputWidth, outputHeight, &decision)) {
         SDL_LogError(0, "[SD-DISPLAY] automatic logical profile selection failed");
-        Kotonoha::EngineMasterShutdown(&engine);
         return SDL_APP_FAILURE;
       }
       ktrfUiVariant = decision.variant;
@@ -1238,7 +1278,6 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
     if (!ApplySchoolDaysRetailAudioAndUiState()) {
       SDL_LogError(0, "[SD-CONFIG] failed to project retail audio channels");
       ktrfConfigStorage.reset();
-      Kotonoha::EngineMasterShutdown(&engine);
       return SDL_APP_FAILURE;
     }
     ktrfController =
@@ -1257,7 +1296,6 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
       SDL_LogError(0, "Couldn't start School Days KTRF mode: %s",
                    error.message);
       ktrfController.reset();
-      Kotonoha::EngineMasterShutdown(&engine);
       return SDL_APP_FAILURE;
     }
     global.textLogUserdata = nullptr;
@@ -1271,7 +1309,6 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
       SDL_LogError(0, "[SD-SAVE] FILMENGINE profile load failed: %s",
                    saveError.c_str());
       ktrfController.reset();
-      Kotonoha::EngineMasterShutdown(&engine);
       return SDL_APP_FAILURE;
     }
     ktrfSaveStorage = std::make_unique<Kotonoha::SchoolDaysSaveStorage>();
@@ -1279,7 +1316,6 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
       SDL_LogError(0, "[SD-SAVE] storage init failed: %s", saveError.c_str());
       ktrfSaveStorage.reset();
       ktrfController.reset();
-      Kotonoha::EngineMasterShutdown(&engine);
       return SDL_APP_FAILURE;
     }
     std::vector<uint8_t> globalFlagBytes;
@@ -1290,7 +1326,6 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
                    saveError.c_str());
       ktrfSaveStorage.reset();
       ktrfController.reset();
-      Kotonoha::EngineMasterShutdown(&engine);
       return SDL_APP_FAILURE;
     }
     if (globalFlagPresent &&
@@ -1299,7 +1334,6 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
                    error.message);
       ktrfSaveStorage.reset();
       ktrfController.reset();
-      Kotonoha::EngineMasterShutdown(&engine);
       return SDL_APP_FAILURE;
     }
     // Retail frontend owns startup after GlobalFlag has been projected, so
@@ -1311,30 +1345,17 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
                    error.message);
       ktrfSaveStorage.reset();
       ktrfController.reset();
-      Kotonoha::EngineMasterShutdown(&engine);
       return SDL_APP_FAILURE;
     }
     ktrfSceneTransaction =
         std::make_unique<Kotonoha::SchoolDaysSceneTransaction>();
     ktrfSystemUi = std::make_unique<Kotonoha::SchoolDaysSystemUi>();
-  } else {
-    for (int i = 0; i < global.config.scriptCount; ++i) {
-      if (global.config.scriptsForced[i] != nullptr) {
-        engine->LoadScriptFile(global.config.scriptsForced[i]);
-      }
-    }
   }
-
-  *appstate = engine;
-  SDL_ShowWindow(global.window);
 
   return SDL_APP_CONTINUE;
 }
 
-SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event) {
-  if (event == nullptr) {
-    return SDL_APP_CONTINUE;
-  }
+SDL_AppResult LocalEvent(void *appstate, SDL_Event *event) {
 
 #ifdef KOTONOHA_DEV_CHECKPOINTS
   if (ktrfController != nullptr && event->type == SDL_EVENT_KEY_DOWN &&
@@ -1360,17 +1381,10 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event) {
   }
 #endif
 
+  // The engine already handled the event (and SDL_EVENT_QUIT) by now.
   Kotonoha::Kotonoha *app = Kotonoha::GetApp(appstate);
-  if (event->type == SDL_EVENT_QUIT) {
-    return SDL_APP_SUCCESS;
-  }
-  if (app == nullptr) {
+  if (app == nullptr || event->type == SDL_EVENT_QUIT) {
     return SDL_APP_CONTINUE;
-  }
-
-  const SDL_AppResult appResult = Kotonoha::EngineMasterEvent(app, event);
-  if (appResult != SDL_APP_CONTINUE) {
-    return appResult;
   }
 
   if (ktrfBackLog != nullptr && ktrfBackLog->IsOpen()) {
@@ -2118,17 +2132,20 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event) {
   return SDL_APP_CONTINUE;
 }
 
-SDL_AppResult SDL_AppIterate(void *appstate) {
+SDL_AppResult LocalIterate(void *appstate) {
   Kotonoha::Kotonoha *app = Kotonoha::GetApp(appstate);
   if (app == nullptr || global.render == nullptr) {
     return SDL_APP_FAILURE;
   }
+  // School Days renders the whole frame itself (flow controller, frontends,
+  // BackLog, transitions); skip the engine's default frame.
+  Kotonoha::MarkFrameHandled();
 
   Kotonoha::Gameplay *inRunning = nullptr;
   Kotonoha::Gameplay *beforeGameplay = nullptr;
   bool ktrfSceneAdvancePrepared = false;
 
-  if (ktrfController == nullptr && app->IsSplashActive()) {
+  if (app->IsSplashActive()) {
     SDL_SetRenderTarget(global.render, nullptr);
     SDL_SetRenderDrawColor(global.render, 0, 0, 0, 255);
     SDL_RenderClear(global.render);
@@ -2856,8 +2873,7 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
   return SDL_APP_CONTINUE;
 }
 
-void SDL_AppQuit(void *appstate, SDL_AppResult result) {
-  (void)result;
+void LocalQuit(void *, SDL_AppResult) {
 
   // Temporary frontend Gameplay destruction needs the still-live controller/
   // engine factory.
@@ -2907,8 +2923,6 @@ void SDL_AppQuit(void *appstate, SDL_AppResult result) {
   ktrfController.reset();
   Kotonoha::UninstallMountedSchoolDaysAssetResolver();
   Kotonoha::UnmountSchoolDaysRetailGpks();
-  Kotonoha::Kotonoha *engine = Kotonoha::GetApp(appstate);
-  Kotonoha::EngineMasterShutdown(&engine);
 }
 
-} // extern "C"
+
