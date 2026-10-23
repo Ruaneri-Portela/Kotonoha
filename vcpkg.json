@@ -39,6 +39,10 @@
     {
       "name": "libunibreak",
       "platform": "android | ios | osx"
+    },
+    {
+      "name": "libiconv",
+      "platform": "ios | android"
     }
   ]
 }

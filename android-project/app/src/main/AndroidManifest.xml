@@ -57,6 +57,12 @@
             </intent-filter>
         </activity>
 
+        <!-- Development-only adb entry point for the KTRF Android Gate 7 smoke. -->
+        <activity
+            android:name=".KtrfGate7Activity"
+            android:exported="true"
+            android:launchMode="singleTask" />
+
         <activity
             android:name=".Kotonoha"
             android:alwaysRetainTaskState="true"

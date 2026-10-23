@@ -1,0 +1,716 @@
+{
+  "assets_root": "assets",
+  "lookup_count": 52139,
+  "unique_logical_resources": 41167,
+  "by_command": {
+    "CreateBG": {
+      "exact": 12902,
+      "case_mismatch": 121,
+      "missing": 1
+    },
+    "EndBGM": {
+      "case_mismatch": 67
+    },
+    "EndRoll": {
+      "case_mismatch": 67
+    },
+    "PlayBgm": {
+      "case_mismatch": 2590,
+      "missing": 386
+    },
+    "PlayMovie": {
+      "case_mismatch": 2041
+    },
+    "PlaySe": {
+      "exact": 1708,
+      "case_mismatch": 1843
+    },
+    "PlayVoice": {
+      "exact": 30263,
+      "missing": 149,
+      "case_mismatch": 1
+    }
+  },
+  "unique_by_command_and_status": {
+    "CreateBG:case_mismatch": 36,
+    "CreateBG:exact": 10523,
+    "CreateBG:missing": 1,
+    "EndBGM:case_mismatch": 9,
+    "EndRoll:case_mismatch": 66,
+    "PlayBgm:case_mismatch": 46,
+    "PlayBgm:missing": 6,
+    "PlayMovie:case_mismatch": 1547,
+    "PlaySe:case_mismatch": 97,
+    "PlaySe:exact": 1136,
+    "PlayVoice:case_mismatch": 1,
+    "PlayVoice:exact": 27560,
+    "PlayVoice:missing": 139
+  },
+  "missing_unique_resources": {
+    "CreateBG": [
+      "Event01/01-00/01-00-T00/01-00-T00-009.PNG"
+    ],
+    "PlayBgm": [
+      "BGM/SD_BGM/sdbgm14_int.ogg",
+      "BGM/SD_BGM/sdbgm18_int.ogg",
+      "BGM/SD_BGM/sdbgm20_int.ogg",
+      "BGM/SD_BGM/sdbgm28_int.ogg",
+      "BGM/SD_BGM/sdbgm29_int.ogg",
+      "BGM/SD_BGM/sdbgm33_int.ogg"
+    ],
+    "PlayVoice": [
+      "Voice00/00-00/00-00-L00/00-00-L00-0570.OGG",
+      "Voice00/00-00/00-00-L00/00-00-L00-0640.OGG",
+      "Voice01/01-00/01-00-M03/01-00-M03-0210.OGG",
+      "Voice01/01-00/01-00-M05/01-00-M05-0150.OGG",
+      "Voice01/01-00/01-00-N10/01-00-N10-0070.OGG",
+      "Voice01/01-1K/01-1K-E03/01-1K-E03-0580.OGG",
+      "Voice01/01-1K/01-1K-E04/01-1K-E04-0270.OGG",
+      "Voice01/01-1S/01-1S-O00/01-1S-O00-0200.OGG",
+      "Voice02/02-2K/02-2K-C00/02-2K-C00-0150.OGG",
+      "Voice02/02-2K/02-2K-C00/02-2K-C00-0210.OGG",
+      "Voice02/02-2K/02-2K-J03/02-2K-J03-0150.OGG",
+      "Voice02/02-2K/02-2K-Q03/02-2K-Q03-1000.OGG",
+      "Voice02/02-2K/02-2K-Q04/02-2K-Q04-0130.OGG",
+      "Voice02/02-2K/02-2K-Q04/02-2K-Q04-0530.OGG",
+      "Voice02/02-2S/02-2S-J01/02-2S-J01-0040.OGG",
+      "Voice02/02-2S/02-2S-J01/02-2S-J01-0170.OGG",
+      "Voice02/02-2S/02-2S-M02/02-2S-M02-0050.OGG",
+      "Voice02/02-2S/02-2S-M03/02-2S-M03-0100.OGG",
+      "Voice03/03-A0/03-A0-A00/03-A0-A00-0160.OGG",
+      "Voice03/03-A1/03-A1-E04/03-A1-E04-0080.OGG",
+      "Voice03/03-A1/03-A1-E08/03-A1-E08-0840.OGG",
+      "Voice03/03-A1/03-A1-E08/03-A1-E08-1350.OGG",
+      "Voice03/03-A1/03-A1-Z01/03-A1-Z01-0020.OGG",
+      "Voice03/03-B2/03-B2-A02/03-B2-A02-0160.OGG",
+      "Voice03/03-BK/03-BK-B01/03-BK-B01-0060.OGG",
+      "Voice03/03-BK/03-BK-B01/03-BK-B01-0150.OGG",
+      "Voice03/03-BK/03-BK-B01/03-BK-B01-0170.OGG",
+      "Voice03/03-BK/03-BK-B03/03-BK-B03-0200.OGG",
+      "Voice03/03-BK/03-BK-B03/03-BK-B03-0250.OGG",
+      "Voice03/03-BK/03-BK-B04/03-BK-B04-0070.OGG",
+      "Voice03/03-BK/03-BK-C01/03-BK-C01-0030.OGG",
+      "Voice03/03-BK/03-BK-D05/03-BK-D05-0130.OGG",
+      "Voice03/03-BK/03-BK-H00/03-B K-H00-0410.OGG",
+      "Voice03/03-BK/03-BK-I00/03-BK-I00-0190.OGG",
+      "Voice03/03-BK/03-BK-I01/03-BK-I01-0090.OGG",
+      "Voice03/03-BK/03-BK-I06/03-BK-I06-0220.OGG",
+      "Voice03/03-BK/03-BK-K00/03-BK-K00-0430.OGG",
+      "Voice03/03-BK/03-BK-K02/03-BK-K02-0050.OGG",
+      "Voice03/03-BK/03-BK-K03/03-BK-K03-0160.OGG",
+      "Voice03/03-BK/03-BK-K03/03-BK-K03-0170.OGG",
+      "Voice03/03-BK/03-BK-K05/03-BK-K05-0260.OGG",
+      "Voice03/03-KA/03-KA-C00/03-KA-C00-0230.OGG",
+      "Voice03/03-KA/03-KA-K01/03-KA-K01-0110.OGG",
+      "Voice03/03-KA/03-KA-N00/03-KA-N00-0060.OGG",
+      "Voice03/03-KB/03-KB-A05/03-KB-A05-0090.OGG",
+      "Voice03/03-KB/03-KB-B00/03-KB-B00-0960.OGG",
+      "Voice03/03-KB/03-KB-B01/03-KB-B01-0080.OGG",
+      "Voice03/03-KB/03-KB-C05/03-KB-C05-0140.OGG",
+      "Voice03/03-KB/03-KB-K07/03-KB-K07-0160.OGG",
+      "Voice03/03-KB/03-KB-K10/03-KB-K10-0150.OGG",
+      "Voice03/03-KB/03-KB-L00/03-KB-L00-0500.OGG",
+      "Voice03/03-KB/03-KB-M05/03-KB-M05-0040.OGG",
+      "Voice03/03-KB/03-KB-O09/03-KB-O09-0180.OGG",
+      "Voice03/03-KB/03-KB-O09/03-KB-O09-0280.OGG",
+      "Voice03/03-KB/03-KB-O09/03-KB-O09-0390.OGG",
+      "Voice03/03-S0/03-S0-A00/03-S0-A00-0550.OGG",
+      "Voice03/03-SA/03-SA-A00/03-SA-A00-0080.OGG",
+      "Voice03/03-SA/03-SA-B01/03-SA-B01-0050.OGG",
+      "Voice03/03-SA/03-SA-B07/03-SA-B07-0870.OGG",
+      "Voice03/03-SA/03-SA-B07/03-SA-B07-0970.OGG",
+      "Voice03/03-SA/03-SA-B10/03-SA-B10-0310.OGG",
+      "Voice03/03-SA/03-SA-B10/03-SA-B10-0780.OGG",
+      "Voice03/03-SA/03-SA-C03/03-SA-C03-0380.OGG",
+      "Voice03/03-SA/03-SA-F01/03-SA-F01-0340.OGG",
+      "Voice03/03-SA/03-SA-G08/03-SA-G08-0030.OGG",
+      "Voice03/03-SA/03-SA-H01/03-SA-H01-0110.OGG",
+      "Voice03/03-SB/03-SB-A09/03-SB-A09-0220.OGG",
+      "Voice03/03-SB/03-SB-I03/03-SB-I03-1040.OGG",
+      "Voice03/03-SB/03-SB-J00/03-SB-J00-0140.OGG",
+      "Voice03/03-SB/03-SB-M02/03-SB-M02-0080.OGG",
+      "Voice03/03-SB/03-SB-M04/03-SB-M04-0060.OGG",
+      "Voice03/03-SB/03-SB-M05/03-SB-M05-0050.OGG",
+      "Voice04/04-C0/04-C0-I04/04-C0-I04-0580.OGG",
+      "Voice04/04-C1/04-C1-E00/04-C1-E00-0460.OGG",
+      "Voice04/04-E0/04-E0-F00/04-E0-F00-0510.OGG",
+      "Voice04/04-KA/04-KA-B04/04-KA-B04-0070.OGG",
+      "Voice04/04-KA/04-KA-D05/04-KA-D05-0370.OGG",
+      "Voice04/04-KA/04-KA-I03/04-KA-I03-0240.OGG",
+      "Voice04/04-KB/04-KB-B08/04-KB-B08-0030.OGG",
+      "Voice04/04-KC/04-KC-B04/04-KC-B04-0240.OGG",
+      "Voice04/04-KC/04-KC-B08/04-KC-B08-0040.OGG",
+      "Voice04/04-KC/04-KC-E04/04-KC-E04-0210.OGG",
+      "Voice04/04-KC/04-KC-H02/04-KC-H02-0110.OGG",
+      "Voice04/04-KE/04-KE-B00/04-KE-B00-0450.OGG",
+      "Voice04/04-KE/04-KE-C01/04-KE-C01-1180.OGG",
+      "Voice04/04-SA/04-SA-L03/04-SA-L03-0430.OGG",
+      "Voice04/04-SA/04-SA-L10/04-SA-L10-0150.OGG",
+      "Voice04/04-SA/04-SA-Q03/04-SA-Q03-0480.OGG",
+      "Voice04/04-SA/04-SA-U00/04-SA-U00-0530.OGG",
+      "Voice04/04-SB/04-SB-C02/04-SB-C02-0040.OGG",
+      "Voice04/04-SC/04-SC-D00/04-SC-D00-0260.OGG",
+      "Voice04/04-SC/04-SC-D00/04-SC-D00-0670.OGG",
+      "Voice04/04-SC/04-SC-D01/04-SC-D01-0150.OGG",
+      "Voice04/04-SE/04-SE-D01/04-SE-D01-0450.OGG",
+      "Voice04/04-SE/04-SE-D02/04-SE-D02-0080.OGG",
+      "Voice04/04-SE/04-SE-D03/04-SE-D03-0150.OGG",
+      "Voice04/04-SE/04-SE-D04/04-SE-D04-0260.OGG",
+      "Voice04/04-SE/04-SE-E04/04-SE-E04-0490.OGG",
+      "Voice05/05-5O/05-5O-A09/05-5O-A09-0720.OGG",
+      "Voice05/05-5O/05-5O-G04/05-5O-G04-0130.OGG",
+      "Voice05/05-5O/05-5O-I10/05-5O-I10-0050.OGG",
+      "Voice05/05-5O/05-5O-I10/05-5O-I10-0070.OGG",
+      "Voice05/05-5O/05-5O-J02/05-5O-J02-0050.OGG",
+      "Voice05/05-5O/05-5O-L04/05-5O-L04-0110.OGG",
+      "Voice05/05-5O/05-5O-N00/05-5O-N00-0260.OGG",
+      "Voice05/05-A2/05-A2-B00/05-A2-B00-0220.OGG",
+      "Voice05/05-A2/05-A2-Z00/05-A2-Z00-0220.OGG",
+      "Voice05/05-B0/05-B0-D00/05-B0-D00-0340.OGG",
+      "Voice05/05-G0/05-G0-A00/05-G0-A00-0080.OGG",
+      "Voice05/05-G0/05-G0-E01/05-G0-E01-0100.OGG",
+      "Voice05/05-KA/05-KA-A05/05-KA-A05-0140.OGG",
+      "Voice05/05-KB/05-KB-B02/05-KB-B02-0220.OGG",
+      "Voice05/05-KB/05-KB-F10/05-KB-F10-0110.OGG",
+      "Voice05/05-KC/05-KC-A00/05-KC-A00-0370.OGG",
+      "Voice05/05-KC/05-KC-D03/05-KC-D03-0090.OGG",
+      "Voice05/05-KC/05-KC-D03/05-KC-D03-0130.OGG",
+      "Voice05/05-KC/05-KC-F00/05-KC-F00-1220.OGG",
+      "Voice05/05-KC/05-KC-H00/05-KC-H00-0260.OGG",
+      "Voice05/05-KC/05-KC-H00/05-KC-H00-0270.OGG",
+      "Voice05/05-KC/05-KC-H00/05-KC-H00-0860.OGG",
+      "Voice05/05-KF/05-KF-A00/05-KF-A00-0490.OGG",
+      "Voice05/05-KF/05-KF-C05/05-KF-C05-0140.OGG",
+      "Voice05/05-KF/05-KF-H06/05-KF-H06-0060.OGG",
+      "Voice05/05-KG/05-KG-G00/05-KG-G00-0240.OGG",
+      "Voice05/05-SA/05-SA-B00/05-SA-B00-0070.OGG",
+      "Voice05/05-SA/05-SA-B01/05-SA-B01-0130.OGG",
+      "Voice05/05-SA/05-SA-H00/05-SA-H00-0030.OGG",
+      "Voice05/05-SA/05-SA-H01/05-SA-H01-0040.OGG",
+      "Voice05/05-SA/05-SA-I00/05-SA-I00-0480.OGG",
+      "Voice05/05-SA/05-SA-I00/05-SA-I00-0800.OGG",
+      "Voice05/05-SA/05-SA-I00/05-SA-I00-0970.OGG",
+      "Voice05/05-SA/05-SA-T00/05-SA-T00-0750.OGG",
+      "Voice05/05-SB/05-SB-D06/05-SB-D06-0480.OGG",
+      "Voice05/05-SB/05-SB-E01/05-SB-E01-0400.OGG",
+      "Voice05/05-SB/05-SB-E02/05-SB-E02-0060.OGG",
+      "Voice05/05-SD/05-SD-B03/05-SD-B03-0610.OGG",
+      "Voice05/05-SD/05-SD-C00/05-SD-C00-0650.OGG",
+      "Voice05/05-SE/05-SE-C08/05-SE-C08-0200.OGG",
+      "Voice05/05-SE/05-SE-H00/05-SE-H00-0360.OGG"
+    ]
+  },
+  "nonexact_samples": {
+    "CreateBG:case_mismatch": [
+      {
+        "ors": "00/00-00-A01.ENG.ORS",
+        "logical": "System/Screen/Black.PNG",
+        "physical_or_candidate": "System/SCREEN/BLACK.PNG"
+      },
+      {
+        "ors": "00/00-00-B00.ENG.ORS",
+        "logical": "System/Screen/Black.PNG",
+        "physical_or_candidate": "System/SCREEN/BLACK.PNG"
+      },
+      {
+        "ors": "00/00-00-D00.ENG.ORS",
+        "logical": "System/Screen/Black.PNG",
+        "physical_or_candidate": "System/SCREEN/BLACK.PNG"
+      },
+      {
+        "ors": "00/00-00-F00.ENG.ORS",
+        "logical": "Event00/00-00/00-00-F00/00-00-F00-001b.PNG",
+        "physical_or_candidate": "Event00/00-00/00-00-F00/00-00-F00-001B.PNG"
+      },
+      {
+        "ors": "00/00-00-F00.ENG.ORS",
+        "logical": "Event00/00-00/00-00-F00/00-00-F00-001c.PNG",
+        "physical_or_candidate": "Event00/00-00/00-00-F00/00-00-F00-001C.PNG"
+      },
+      {
+        "ors": "00/00-00-G00.ENG.ORS",
+        "logical": "System/Screen/White.PNG",
+        "physical_or_candidate": "System/SCREEN/WHITE.PNG"
+      },
+      {
+        "ors": "00/00-00-I00.ENG.ORS",
+        "logical": "System/Screen/Black.PNG",
+        "physical_or_candidate": "System/SCREEN/BLACK.PNG"
+      },
+      {
+        "ors": "01/01-00-B00.ENG.ORS",
+        "logical": "Event00/00-00/00-00-A04/00-00-A04-001a.PNG",
+        "physical_or_candidate": "Event00/00-00/00-00-A04/00-00-A04-001A.PNG"
+      },
+      {
+        "ors": "01/01-1K-K00.ENG.ORS",
+        "logical": "Event01/01-1K/01-1K-K00/01-1K-k00-002.PNG",
+        "physical_or_candidate": "Event01/01-1K/01-1K-K00/01-1K-K00-002.PNG"
+      },
+      {
+        "ors": "02/02-2K-J09.ENG.ORS",
+        "logical": "System/Screen/Black.PNG",
+        "physical_or_candidate": "System/SCREEN/BLACK.PNG"
+      },
+      {
+        "ors": "02/02-2K-O05.ENG.ORS",
+        "logical": "System/Screen/Black.PNG",
+        "physical_or_candidate": "System/SCREEN/BLACK.PNG"
+      },
+      {
+        "ors": "02/02-2K-Q05.ENG.ORS",
+        "logical": "System/Screen/White.PNG",
+        "physical_or_candidate": "System/SCREEN/WHITE.PNG"
+      }
+    ],
+    "CreateBG:missing": [
+      {
+        "ors": "01/01-00-T00.ENG.ORS",
+        "logical": "Event01/01-00/01-00-T00/01-00-T00-009.PNG",
+        "physical_or_candidate": "Event01/01-00/01-00-T00/01-00-T00-009.PNG"
+      }
+    ],
+    "EndBGM:case_mismatch": [
+      {
+        "ors": "00/00-00-L00.ENG.ORS",
+        "logical": "BGM/Vocal/SDV01.ogg",
+        "physical_or_candidate": "BGM/VOCAL/SDV01.OGG"
+      },
+      {
+        "ors": "01/01-1K-O00.ENG.ORS",
+        "logical": "BGM/Vocal/SDV04.ogg",
+        "physical_or_candidate": "BGM/VOCAL/SDV04.OGG"
+      },
+      {
+        "ors": "01/01-1S-P00.ENG.ORS",
+        "logical": "BGM/Vocal/SDV04.ogg",
+        "physical_or_candidate": "BGM/VOCAL/SDV04.OGG"
+      },
+      {
+        "ors": "02/02-2K-I02.ENG.ORS",
+        "logical": "BGM/Vocal/SDV04.ogg",
+        "physical_or_candidate": "BGM/VOCAL/SDV04.OGG"
+      },
+      {
+        "ors": "02/02-2K-R00.ENG.ORS",
+        "logical": "BGM/Vocal/SDV04.ogg",
+        "physical_or_candidate": "BGM/VOCAL/SDV04.OGG"
+      },
+      {
+        "ors": "02/02-2S-T02.ENG.ORS",
+        "logical": "BGM/Vocal/SDV04.ogg",
+        "physical_or_candidate": "BGM/VOCAL/SDV04.OGG"
+      },
+      {
+        "ors": "02/02-2S-T05.ENG.ORS",
+        "logical": "BGM/Vocal/SDV04.ogg",
+        "physical_or_candidate": "BGM/VOCAL/SDV04.OGG"
+      },
+      {
+        "ors": "03/03-A1-Z02.ENG.ORS",
+        "logical": "Se03/03-A1/03-A1-Z02/SE03-A1-Z02-001.ogg",
+        "physical_or_candidate": "Se03/03-A1/03-A1-Z02/SE03-A1-Z02-001.OGG"
+      },
+      {
+        "ors": "03/03-AK-E00.ENG.ORS",
+        "logical": "BGM/Vocal/SDV04.ogg",
+        "physical_or_candidate": "BGM/VOCAL/SDV04.OGG"
+      },
+      {
+        "ors": "03/03-B0-C00.ENG.ORS",
+        "logical": "BGM/Vocal/SDV04.ogg",
+        "physical_or_candidate": "BGM/VOCAL/SDV04.OGG"
+      },
+      {
+        "ors": "03/03-B1-D00.ENG.ORS",
+        "logical": "BGM/Vocal/SDV04.ogg",
+        "physical_or_candidate": "BGM/VOCAL/SDV04.OGG"
+      },
+      {
+        "ors": "03/03-B2-B00.ENG.ORS",
+        "logical": "BGM/Vocal/SDV04.ogg",
+        "physical_or_candidate": "BGM/VOCAL/SDV04.OGG"
+      }
+    ],
+    "EndRoll:case_mismatch": [
+      {
+        "ors": "00/00-00-L00.ENG.ORS",
+        "logical": "Movie00/00-00/00-00-L00/00-00-L00-029.wmv",
+        "physical_or_candidate": "Movie00/00-00/00-00-L00/00-00-L00-029.WMV"
+      },
+      {
+        "ors": "01/01-1K-O00.ENG.ORS",
+        "logical": "Movie01/01-1K/01-1K-O00/01-1K-O00-018.wmv",
+        "physical_or_candidate": "Movie01/01-1K/01-1K-O00/01-1K-O00-018.WMV"
+      },
+      {
+        "ors": "01/01-1S-P00.ENG.ORS",
+        "logical": "Movie01/01-1S/01-1S-P00/01-1S-P00-025.wmv",
+        "physical_or_candidate": "Movie01/01-1S/01-1S-P00/01-1S-P00-025.WMV"
+      },
+      {
+        "ors": "02/02-2K-I02.ENG.ORS",
+        "logical": "Movie02/02-2K/02-2K-I02/02-2K-I02-014.wmv",
+        "physical_or_candidate": "Movie02/02-2K/02-2K-I02/02-2K-I02-014.WMV"
+      },
+      {
+        "ors": "02/02-2K-R00.ENG.ORS",
+        "logical": "Movie02/02-2K/02-2K-R00/02-2K-R00-016.wmv",
+        "physical_or_candidate": "Movie02/02-2K/02-2K-R00/02-2K-R00-016.WMV"
+      },
+      {
+        "ors": "02/02-2S-T02.ENG.ORS",
+        "logical": "Movie02/02-2S/02-2S-T02/02-2S-T02-022.wmv",
+        "physical_or_candidate": "Movie02/02-2S/02-2S-T02/02-2S-T02-022.WMV"
+      },
+      {
+        "ors": "02/02-2S-T05.ENG.ORS",
+        "logical": "Movie02/02-2S/02-2S-T05/02-2S-T05-006.wmv",
+        "physical_or_candidate": "Movie02/02-2S/02-2S-T05/02-2S-T05-006.WMV"
+      },
+      {
+        "ors": "03/03-A1-Z02.ENG.ORS",
+        "logical": "Movie03/03-A1/03-A1-Z02/03-A1-Z02-009.wmv",
+        "physical_or_candidate": "Movie03/03-A1/03-A1-Z02/03-A1-Z02-009.WMV"
+      },
+      {
+        "ors": "03/03-AK-E00.ENG.ORS",
+        "logical": "Movie03/03-AK/03-AK-E00/03-AK-E00-047.wmv",
+        "physical_or_candidate": "Movie03/03-AK/03-AK-E00/03-AK-E00-047.WMV"
+      },
+      {
+        "ors": "03/03-B0-C00.ENG.ORS",
+        "logical": "Movie03/03-B0/03-B0-C00/03-B0-C00-008.wmv",
+        "physical_or_candidate": "Movie03/03-B0/03-B0-C00/03-B0-C00-008.WMV"
+      },
+      {
+        "ors": "03/03-B1-D00.ENG.ORS",
+        "logical": "Movie03/03-B1/03-B1-D00/03-B1-D00-007.wmv",
+        "physical_or_candidate": "Movie03/03-B1/03-B1-D00/03-B1-D00-007.WMV"
+      },
+      {
+        "ors": "03/03-B2-B00.ENG.ORS",
+        "logical": "Movie03/03-B2/03-B2-B00/03-B2-B00-028.wmv",
+        "physical_or_candidate": "Movie03/03-B2/03-B2-B00/03-B2-B00-028.WMV"
+      }
+    ],
+    "PlayBgm:case_mismatch": [
+      {
+        "ors": "00/00-00-A00.ENG.ORS",
+        "logical": "BGM/SD_BGM/sdbgm07_int.ogg",
+        "physical_or_candidate": "BGM/SD_BGM/SDBGM07_INT.OGG"
+      },
+      {
+        "ors": "00/00-00-A00.ENG.ORS",
+        "logical": "BGM/SD_BGM/sdbgm07_loop.ogg",
+        "physical_or_candidate": "BGM/SD_BGM/SDBGM07_LOOP.OGG"
+      },
+      {
+        "ors": "00/00-00-A01.ENG.ORS",
+        "logical": "BGM/SD_BGM/sdbgm07_int.ogg",
+        "physical_or_candidate": "BGM/SD_BGM/SDBGM07_INT.OGG"
+      },
+      {
+        "ors": "00/00-00-A01.ENG.ORS",
+        "logical": "BGM/SD_BGM/sdbgm07_loop.ogg",
+        "physical_or_candidate": "BGM/SD_BGM/SDBGM07_LOOP.OGG"
+      },
+      {
+        "ors": "00/00-00-A03.ENG.ORS",
+        "logical": "BGM/SD_BGM/sdbgm06_int.ogg",
+        "physical_or_candidate": "BGM/SD_BGM/SDBGM06_INT.OGG"
+      },
+      {
+        "ors": "00/00-00-A03.ENG.ORS",
+        "logical": "BGM/SD_BGM/sdbgm06_loop.ogg",
+        "physical_or_candidate": "BGM/SD_BGM/SDBGM06_LOOP.OGG"
+      },
+      {
+        "ors": "00/00-00-A04.ENG.ORS",
+        "logical": "BGM/SD_BGM/sdbgm06_int.ogg",
+        "physical_or_candidate": "BGM/SD_BGM/SDBGM06_INT.OGG"
+      },
+      {
+        "ors": "00/00-00-A04.ENG.ORS",
+        "logical": "BGM/SD_BGM/sdbgm06_loop.ogg",
+        "physical_or_candidate": "BGM/SD_BGM/SDBGM06_LOOP.OGG"
+      },
+      {
+        "ors": "00/00-00-A05.ENG.ORS",
+        "logical": "BGM/SD_BGM/sdbgm06_int.ogg",
+        "physical_or_candidate": "BGM/SD_BGM/SDBGM06_INT.OGG"
+      },
+      {
+        "ors": "00/00-00-A05.ENG.ORS",
+        "logical": "BGM/SD_BGM/sdbgm06_loop.ogg",
+        "physical_or_candidate": "BGM/SD_BGM/SDBGM06_LOOP.OGG"
+      },
+      {
+        "ors": "00/00-00-A06.ENG.ORS",
+        "logical": "BGM/SD_BGM/sdbgm06_int.ogg",
+        "physical_or_candidate": "BGM/SD_BGM/SDBGM06_INT.OGG"
+      },
+      {
+        "ors": "00/00-00-A06.ENG.ORS",
+        "logical": "BGM/SD_BGM/sdbgm06_loop.ogg",
+        "physical_or_candidate": "BGM/SD_BGM/SDBGM06_LOOP.OGG"
+      }
+    ],
+    "PlayBgm:missing": [
+      {
+        "ors": "01/01-00-A00.ENG.ORS",
+        "logical": "BGM/SD_BGM/sdbgm20_int.ogg",
+        "physical_or_candidate": "BGM/SD_BGM/sdbgm20_int.ogg"
+      },
+      {
+        "ors": "01/01-00-G00.ENG.ORS",
+        "logical": "BGM/SD_BGM/sdbgm20_int.ogg",
+        "physical_or_candidate": "BGM/SD_BGM/sdbgm20_int.ogg"
+      },
+      {
+        "ors": "01/01-00-G01.ENG.ORS",
+        "logical": "BGM/SD_BGM/sdbgm20_int.ogg",
+        "physical_or_candidate": "BGM/SD_BGM/sdbgm20_int.ogg"
+      },
+      {
+        "ors": "01/01-00-O00.ENG.ORS",
+        "logical": "BGM/SD_BGM/sdbgm20_int.ogg",
+        "physical_or_candidate": "BGM/SD_BGM/sdbgm20_int.ogg"
+      },
+      {
+        "ors": "01/01-00-O01.ENG.ORS",
+        "logical": "BGM/SD_BGM/sdbgm20_int.ogg",
+        "physical_or_candidate": "BGM/SD_BGM/sdbgm20_int.ogg"
+      },
+      {
+        "ors": "01/01-00-O02.ENG.ORS",
+        "logical": "BGM/SD_BGM/sdbgm20_int.ogg",
+        "physical_or_candidate": "BGM/SD_BGM/sdbgm20_int.ogg"
+      },
+      {
+        "ors": "01/01-00-O03.ENG.ORS",
+        "logical": "BGM/SD_BGM/sdbgm20_int.ogg",
+        "physical_or_candidate": "BGM/SD_BGM/sdbgm20_int.ogg"
+      },
+      {
+        "ors": "01/01-00-O04.ENG.ORS",
+        "logical": "BGM/SD_BGM/sdbgm20_int.ogg",
+        "physical_or_candidate": "BGM/SD_BGM/sdbgm20_int.ogg"
+      },
+      {
+        "ors": "01/01-00-P00.ENG.ORS",
+        "logical": "BGM/SD_BGM/sdbgm20_int.ogg",
+        "physical_or_candidate": "BGM/SD_BGM/sdbgm20_int.ogg"
+      },
+      {
+        "ors": "01/01-00-P01.ENG.ORS",
+        "logical": "BGM/SD_BGM/sdbgm20_int.ogg",
+        "physical_or_candidate": "BGM/SD_BGM/sdbgm20_int.ogg"
+      },
+      {
+        "ors": "01/01-00-P02.ENG.ORS",
+        "logical": "BGM/SD_BGM/sdbgm20_int.ogg",
+        "physical_or_candidate": "BGM/SD_BGM/sdbgm20_int.ogg"
+      },
+      {
+        "ors": "01/01-1K-E03.ENG.ORS",
+        "logical": "BGM/SD_BGM/sdbgm20_int.ogg",
+        "physical_or_candidate": "BGM/SD_BGM/sdbgm20_int.ogg"
+      }
+    ],
+    "PlayMovie:case_mismatch": [
+      {
+        "ors": "00/00-00-A00.ENG.ORS",
+        "logical": "Movie00/00-00/00-00-A00/00-00-A00-000.wmv",
+        "physical_or_candidate": "Movie00/00-00/00-00-A00/00-00-A00-000.WMV"
+      },
+      {
+        "ors": "00/00-00-A00.ENG.ORS",
+        "logical": "Movie00/00-00/00-00-A00/00-00-A00-001.wmv",
+        "physical_or_candidate": "Movie00/00-00/00-00-A00/00-00-A00-001.WMV"
+      },
+      {
+        "ors": "00/00-00-A00.ENG.ORS",
+        "logical": "Movie00/00-00/00-00-A00/00-00-A00-003.wmv",
+        "physical_or_candidate": "Movie00/00-00/00-00-A00/00-00-A00-003.WMV"
+      },
+      {
+        "ors": "00/00-00-A00.ENG.ORS",
+        "logical": "Movie00/00-00/00-00-A00/00-00-A00-004.wmv",
+        "physical_or_candidate": "Movie00/00-00/00-00-A00/00-00-A00-004.WMV"
+      },
+      {
+        "ors": "00/00-00-A00.ENG.ORS",
+        "logical": "Movie00/00-00/00-00-A00/00-00-A00-005.wmv",
+        "physical_or_candidate": "Movie00/00-00/00-00-A00/00-00-A00-005.WMV"
+      },
+      {
+        "ors": "00/00-00-A00.ENG.ORS",
+        "logical": "Movie00/00-00/00-00-A00/00-00-A00-006.wmv",
+        "physical_or_candidate": "Movie00/00-00/00-00-A00/00-00-A00-006.WMV"
+      },
+      {
+        "ors": "00/00-00-A00.ENG.ORS",
+        "logical": "Movie00/00-00/00-00-A00/00-00-A00-007.wmv",
+        "physical_or_candidate": "Movie00/00-00/00-00-A00/00-00-A00-007.WMV"
+      },
+      {
+        "ors": "00/00-00-A00.ENG.ORS",
+        "logical": "Movie00/00-00/00-00-A00/00-00-A00-008.wmv",
+        "physical_or_candidate": "Movie00/00-00/00-00-A00/00-00-A00-008.WMV"
+      },
+      {
+        "ors": "00/00-00-A00.ENG.ORS",
+        "logical": "Movie00/00-00/00-00-A00/00-00-A00-009.wmv",
+        "physical_or_candidate": "Movie00/00-00/00-00-A00/00-00-A00-009.WMV"
+      },
+      {
+        "ors": "00/00-00-A00.ENG.ORS",
+        "logical": "Movie00/00-00/00-00-A00/00-00-A00-010.wmv",
+        "physical_or_candidate": "Movie00/00-00/00-00-A00/00-00-A00-010.WMV"
+      },
+      {
+        "ors": "00/00-00-A00.ENG.ORS",
+        "logical": "Movie00/00-00/00-00-A00/00-00-A00-011.wmv",
+        "physical_or_candidate": "Movie00/00-00/00-00-A00/00-00-A00-011.WMV"
+      },
+      {
+        "ors": "00/00-00-A00.ENG.ORS",
+        "logical": "Movie00/00-00/00-00-A00/00-00-A00-012.wmv",
+        "physical_or_candidate": "Movie00/00-00/00-00-A00/00-00-A00-012.WMV"
+      }
+    ],
+    "PlaySe:case_mismatch": [
+      {
+        "ors": "00/00-00-A01.ENG.ORS",
+        "logical": "SysSe/SE_all/school/chime.OGG",
+        "physical_or_candidate": "SysSe/SE_ALL/SCHOOL/CHIME.OGG"
+      },
+      {
+        "ors": "01/01-00-C06.ENG.ORS",
+        "logical": "SysSe/SE_all/gaya/kyousitu_rouka.OGG",
+        "physical_or_candidate": "SysSe/SE_ALL/GAYA/KYOUSITU_ROUKA.OGG"
+      },
+      {
+        "ors": "01/01-00-D00.ENG.ORS",
+        "logical": "SysSe/SE_all/school/chime.OGG",
+        "physical_or_candidate": "SysSe/SE_ALL/SCHOOL/CHIME.OGG"
+      },
+      {
+        "ors": "01/01-00-E05.ENG.ORS",
+        "logical": "SysSe/SE_all/school/chime.OGG",
+        "physical_or_candidate": "SysSe/SE_ALL/SCHOOL/CHIME.OGG"
+      },
+      {
+        "ors": "01/01-00-E09.ENG.ORS",
+        "logical": "SysSe/SE_all/school/chime.OGG",
+        "physical_or_candidate": "SysSe/SE_ALL/SCHOOL/CHIME.OGG"
+      },
+      {
+        "ors": "01/01-00-H09.ENG.ORS",
+        "logical": "SysSe/SE_all/school/chime.OGG",
+        "physical_or_candidate": "SysSe/SE_ALL/SCHOOL/CHIME.OGG"
+      },
+      {
+        "ors": "01/01-00-I00.ENG.ORS",
+        "logical": "SysSe/SE_all/school/chime.OGG",
+        "physical_or_candidate": "SysSe/SE_ALL/SCHOOL/CHIME.OGG"
+      },
+      {
+        "ors": "01/01-00-M03.ENG.ORS",
+        "logical": "SysSe/SE_all/station_train/train_start.OGG",
+        "physical_or_candidate": "SysSe/SE_ALL/STATION_TRAIN/TRAIN_START.OGG"
+      },
+      {
+        "ors": "01/01-00-M06.ENG.ORS",
+        "logical": "SysSe/SE_all/station_train/gakuenmae_yuugata.OGG",
+        "physical_or_candidate": "SysSe/SE_ALL/STATION_TRAIN/GAKUENMAE_YUUGATA.OGG"
+      },
+      {
+        "ors": "01/01-00-O01.ENG.ORS",
+        "logical": "SysSe/SE_all/footsteps/asioto_room.OGG",
+        "physical_or_candidate": "SysSe/SE_ALL/FOOTSTEPS/ASIOTO_ROOM.OGG"
+      },
+      {
+        "ors": "01/01-00-OP1.ENG.ORS",
+        "logical": "BGM/Vocal/SDV01.OGG",
+        "physical_or_candidate": "BGM/VOCAL/SDV01.OGG"
+      },
+      {
+        "ors": "01/01-00-OP2.ENG.ORS",
+        "logical": "BGM/Vocal/SDV03.OGG",
+        "physical_or_candidate": "BGM/VOCAL/SDV03.OGG"
+      }
+    ],
+    "PlayVoice:case_mismatch": [
+      {
+        "ors": "05/05-SD-A01.ENG.ORS",
+        "logical": "Voice05/05-SD/05-SD-A01/05-SD-A01-0740hutaba.OGG",
+        "physical_or_candidate": "Voice05/05-SD/05-SD-A01/05-SD-A01-0740HUTABA.OGG"
+      }
+    ],
+    "PlayVoice:missing": [
+      {
+        "ors": "00/00-00-L00.ENG.ORS",
+        "logical": "Voice00/00-00/00-00-L00/00-00-L00-0570.OGG",
+        "physical_or_candidate": "Voice00/00-00/00-00-L00/00-00-L00-0570.OGG"
+      },
+      {
+        "ors": "00/00-00-L00.ENG.ORS",
+        "logical": "Voice00/00-00/00-00-L00/00-00-L00-0640.OGG",
+        "physical_or_candidate": "Voice00/00-00/00-00-L00/00-00-L00-0640.OGG"
+      },
+      {
+        "ors": "01/01-00-M03.ENG.ORS",
+        "logical": "Voice01/01-00/01-00-M03/01-00-M03-0210.OGG",
+        "physical_or_candidate": "Voice01/01-00/01-00-M03/01-00-M03-0210.OGG"
+      },
+      {
+        "ors": "01/01-00-M05.ENG.ORS",
+        "logical": "Voice01/01-00/01-00-M05/01-00-M05-0150.OGG",
+        "physical_or_candidate": "Voice01/01-00/01-00-M05/01-00-M05-0150.OGG"
+      },
+      {
+        "ors": "01/01-00-N10.ENG.ORS",
+        "logical": "Voice01/01-00/01-00-N10/01-00-N10-0070.OGG",
+        "physical_or_candidate": "Voice01/01-00/01-00-N10/01-00-N10-0070.OGG"
+      },
+      {
+        "ors": "01/01-1K-E03.ENG.ORS",
+        "logical": "Voice01/01-1K/01-1K-E03/01-1K-E03-0580.OGG",
+        "physical_or_candidate": "Voice01/01-1K/01-1K-E03/01-1K-E03-0580.OGG"
+      },
+      {
+        "ors": "01/01-1K-E04.ENG.ORS",
+        "logical": "Voice01/01-1K/01-1K-E04/01-1K-E04-0270.OGG",
+        "physical_or_candidate": "Voice01/01-1K/01-1K-E04/01-1K-E04-0270.OGG"
+      },
+      {
+        "ors": "01/01-1S-O00.ENG.ORS",
+        "logical": "Voice01/01-1S/01-1S-O00/01-1S-O00-0200.OGG",
+        "physical_or_candidate": "Voice01/01-1S/01-1S-O00/01-1S-O00-0200.OGG"
+      },
+      {
+        "ors": "02/02-2K-C00.ENG.ORS",
+        "logical": "Voice02/02-2K/02-2K-C00/02-2K-C00-0150.OGG",
+        "physical_or_candidate": "Voice02/02-2K/02-2K-C00/02-2K-C00-0150.OGG"
+      },
+      {
+        "ors": "02/02-2K-C00.ENG.ORS",
+        "logical": "Voice02/02-2K/02-2K-C00/02-2K-C00-0210.OGG",
+        "physical_or_candidate": "Voice02/02-2K/02-2K-C00/02-2K-C00-0210.OGG"
+      },
+      {
+        "ors": "02/02-2K-J03.ENG.ORS",
+        "logical": "Voice02/02-2K/02-2K-J03/02-2K-J03-0150.OGG",
+        "physical_or_candidate": "Voice02/02-2K/02-2K-J03/02-2K-J03-0150.OGG"
+      },
+      {
+        "ors": "02/02-2K-Q03.ENG.ORS",
+        "logical": "Voice02/02-2K/02-2K-Q03/02-2K-Q03-1000.OGG",
+        "physical_or_candidate": "Voice02/02-2K/02-2K-Q03/02-2K-Q03-1000.OGG"
+      }
+    ]
+  },
+  "note": "Parser-accepted tab rows only; physical availability is not proof of runtime activation."
+}

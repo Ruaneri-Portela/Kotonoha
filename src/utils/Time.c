@@ -1,7 +1,20 @@
 #include <Kotonoha/utils/Log.h>
 #include <Kotonoha/utils/Time.h>
 
+#include <math.h>
+
 static Uint64 KotonohaTimeNow(void) { return SDL_GetTicks(); }
+
+static bool KotonohaTimeRateSupported(double rate) {
+  return rate == 1.0 || rate == 2.0 || rate == 4.0 || rate == 12.0 ||
+         rate == 24.0;
+}
+
+static void KotonohaTimeMarkDiscontinuityUnlocked(Kotonoha_Time *instance) {
+  ++instance->discontinuitySerial;
+  if (instance->discontinuitySerial == 0)
+    instance->discontinuitySerial = 1;
+}
 
 static void KotonohaTimeLock(const Kotonoha_Time *instance) {
   if (instance != NULL && instance->mutex != NULL) {
@@ -19,15 +32,18 @@ static Uint64 KotonohaTimeGetUnlocked(const Kotonoha_Time *instance) {
   if (!instance->started)
     return 0;
 
-  if (instance->paused) {
-    return (instance->pausedTicks - instance->startTicks -
-            instance->accumulatedPauseTicks) +
-           instance->seekTicks;
-  }
-
-  return (KotonohaTimeNow() - instance->startTicks -
-          instance->accumulatedPauseTicks) +
-         instance->seekTicks;
+  const Uint64 wallNow =
+      instance->paused ? instance->pausedTicks : KotonohaTimeNow();
+  const Uint64 pausedAndStart =
+      instance->startTicks + instance->accumulatedPauseTicks;
+  const Uint64 elapsedWall =
+      wallNow >= pausedAndStart ? wallNow - pausedAndStart : 0;
+  const double scaled = (double)elapsedWall * instance->rate;
+  const Uint64 elapsedLogical =
+      scaled >= (double)SDL_MAX_UINT64 ? SDL_MAX_UINT64 : (Uint64)scaled;
+  if (SDL_MAX_UINT64 - instance->seekTicks < elapsedLogical)
+    return SDL_MAX_UINT64;
+  return instance->seekTicks + elapsedLogical;
 }
 
 void KotonohaTimeReset(Kotonoha_Time *instance, bool stopAfterReset) {
@@ -41,6 +57,7 @@ void KotonohaTimeReset(Kotonoha_Time *instance, bool stopAfterReset) {
   instance->seekTicks = 0;
   instance->started = !stopAfterReset;
   instance->paused = false;
+  KotonohaTimeMarkDiscontinuityUnlocked(instance);
   KotonohaTimeUnlock(instance);
 }
 
@@ -58,6 +75,7 @@ Kotonoha_Time *KotonohaTimeNew(bool startStopped) {
     return NULL;
   }
 
+  time->rate = 1.0;
   KotonohaTimeReset(time, startStopped);
   return time;
 }
@@ -83,6 +101,7 @@ void KotonohaTimeStart(Kotonoha_Time *instance) {
   instance->seekTicks = 0;
   instance->started = true;
   instance->paused = false;
+  KotonohaTimeMarkDiscontinuityUnlocked(instance);
   KotonohaTimeUnlock(instance);
 }
 
@@ -134,6 +153,7 @@ void KotonohaTimeSet(Kotonoha_Time *instance, Uint64 time) {
     instance->seekTicks = time;
     instance->started = true;
     instance->paused = false;
+    KotonohaTimeMarkDiscontinuityUnlocked(instance);
     KotonohaTimeUnlock(instance);
     return;
   }
@@ -147,7 +167,50 @@ void KotonohaTimeSet(Kotonoha_Time *instance, Uint64 time) {
     instance->startTicks = KotonohaTimeNow();
     instance->accumulatedPauseTicks = 0;
   }
+  KotonohaTimeMarkDiscontinuityUnlocked(instance);
   KotonohaTimeUnlock(instance);
+}
+
+bool KotonohaTimeSetRate(Kotonoha_Time *instance, double rate) {
+  if (instance == NULL || !isfinite(rate) || !KotonohaTimeRateSupported(rate))
+    return false;
+
+  KotonohaTimeLock(instance);
+  if (instance->rate == rate) {
+    KotonohaTimeUnlock(instance);
+    return true;
+  }
+
+  if (instance->started) {
+    const Uint64 logicalNow = KotonohaTimeGetUnlocked(instance);
+    const Uint64 wallNow = KotonohaTimeNow();
+    instance->seekTicks = logicalNow;
+    instance->startTicks = wallNow;
+    instance->accumulatedPauseTicks = 0;
+    if (instance->paused)
+      instance->pausedTicks = wallNow;
+  }
+  instance->rate = rate;
+  KotonohaTimeUnlock(instance);
+  return true;
+}
+
+double KotonohaTimeGetRate(const Kotonoha_Time *instance) {
+  if (instance == NULL)
+    return 1.0;
+  KotonohaTimeLock(instance);
+  const double rate = instance->rate;
+  KotonohaTimeUnlock(instance);
+  return rate;
+}
+
+Uint64 KotonohaTimeGetDiscontinuitySerial(const Kotonoha_Time *instance) {
+  if (instance == NULL)
+    return 0;
+  KotonohaTimeLock(instance);
+  const Uint64 serial = instance->discontinuitySerial;
+  KotonohaTimeUnlock(instance);
+  return serial;
 }
 
 bool KotonohaTimeIsStarted(const Kotonoha_Time *instance) {
@@ -175,7 +238,12 @@ void KotonohaTimeSeekForward(Kotonoha_Time *instance, Uint64 delta) {
     return;
 
   KotonohaTimeLock(instance);
-  instance->seekTicks += delta;
+  if (delta != 0) {
+    instance->seekTicks = SDL_MAX_UINT64 - instance->seekTicks < delta
+                              ? SDL_MAX_UINT64
+                              : instance->seekTicks + delta;
+    KotonohaTimeMarkDiscontinuityUnlocked(instance);
+  }
   KotonohaTimeUnlock(instance);
 }
 
@@ -185,7 +253,8 @@ void KotonohaTimeSeekBackward(Kotonoha_Time *instance, Uint64 delta) {
 
   KotonohaTimeLock(instance);
   const Uint64 current = KotonohaTimeGetUnlocked(instance);
-  instance->seekTicks = current < delta ? 0 : current - delta;
+  const Uint64 target = current < delta ? 0 : current - delta;
+  instance->seekTicks = target;
   if (instance->paused) {
     instance->pausedTicks =
         instance->startTicks + instance->accumulatedPauseTicks;
@@ -193,6 +262,8 @@ void KotonohaTimeSeekBackward(Kotonoha_Time *instance, Uint64 delta) {
     instance->startTicks = KotonohaTimeNow();
     instance->accumulatedPauseTicks = 0;
   }
+  if (target != current)
+    KotonohaTimeMarkDiscontinuityUnlocked(instance);
   KotonohaTimeUnlock(instance);
 }
 
