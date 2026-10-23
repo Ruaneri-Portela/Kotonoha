@@ -15,7 +15,14 @@ target_include_directories(ZeroNoTsukaimaFormats PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_link_libraries(ZeroNoTsukaimaFormats PUBLIC ${KOTONOHA_SDL3_TARGET})
 
-if(NOT ANDROID AND NOT IOS)
+if(ANDROID)
+    add_library(ZeroNoTsukaima SHARED
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/ZeroMain.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/Frontend.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/MoviePlayer.cpp")
+    set_target_properties(ZeroNoTsukaima PROPERTIES OUTPUT_NAME ZeroNoTsukaima)
+    target_link_libraries(ZeroNoTsukaima PRIVATE KotonohaRuntime ZeroNoTsukaimaFormats)
+elseif(NOT IOS)
     add_executable(ZeroExtract "${CMAKE_CURRENT_SOURCE_DIR}/tools/ZeroExtract.cpp")
     target_link_libraries(ZeroExtract PRIVATE ZeroNoTsukaimaFormats)
 
@@ -25,10 +32,8 @@ if(NOT ANDROID AND NOT IOS)
     # Registered with CTest from the root CMakeLists (CTest is enabled there).
     add_executable(ZeroFormatsTest "${CMAKE_CURRENT_SOURCE_DIR}/tests/ZeroFormatsTest.cpp")
     target_link_libraries(ZeroFormatsTest PRIVATE ZeroNoTsukaimaFormats)
-endif()
 
-# Playable application (desktop): ZeroNoTsukaima --zero <disc.bin>
-if(NOT ANDROID AND NOT IOS)
+    # Playable application (desktop): ZeroNoTsukaima --zero <disc.bin>
     add_executable(ZeroNoTsukaima
         "${CMAKE_CURRENT_SOURCE_DIR}/src/ZeroMain.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/src/Frontend.cpp"

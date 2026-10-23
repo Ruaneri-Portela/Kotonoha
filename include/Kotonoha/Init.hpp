@@ -30,6 +30,13 @@ bool InitLibAssAndTTFs(std::string defaultFont,
 bool InitSound();
 Kotonoha *GetApp(void *appstate);
 
+inline bool &FrameHandledFlag() {
+  static bool handled = false;
+  return handled;
+}
+
+inline void MarkFrameHandled() { FrameHandledFlag() = true; }
+
 SDL_AppResult EngineMasterInit(Kotonoha **app, int argc, char *argv[]);
 void EngineMasterShutdown(Kotonoha **app);
 SDL_AppResult EngineMasterEvent(Kotonoha *app, SDL_Event *event);

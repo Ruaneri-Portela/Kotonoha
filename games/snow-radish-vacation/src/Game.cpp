@@ -154,10 +154,16 @@ void Game::showNext() {
 bool Game::choose(size_t i) {
     if (!choosing_ || i >= choiceText_.size()) return false;
     vm_.setVar(choiceVar_, uint32_t(choiceValue_[i]));
+    // The uniform select closes with its own fade (FUN_00413c69(1, 0, 3)) while it is
+    // still on screen, and the script resumes once that fade is over.
+    if (kind_ == ChoiceKind::Uniform && transition) {
+        transition(1, 0, 3);
+        if (transitionPlaying && transitionPlaying()) audioWait_ = AudioWait::Transition;
+    }
     choosing_ = false;
-    map_ = false;
+    kind_ = ChoiceKind::Text;
     choiceText_.clear();
-    vm_.unblock();
+    if (audioWait_ == AudioWait::None) vm_.unblock();
     return true;
 }
 
@@ -240,7 +246,8 @@ void Game::native(Vm& vm, int id, const std::vector<Arg>& args) {
     }
     case 219: {
         mapArgs_ = ints;
-        map_ = true;
+        kind_ = ChoiceKind::Map;
+        initialFocus_ = -1;
         hasMsg_ = false;
         // Location map: a bitmask of destinations; the pick goes to the var ref.
         int ints = 0;
@@ -389,9 +396,27 @@ void Game::native(Vm& vm, int id, const std::vector<Arg>& args) {
             if (a.tag() == 1) vm.setVar(a.value(), 1);
         if (title) title();
         break;
+    case 220: { // uniform select (mode, var): FUN_004027dd, returns 1..3
+        choiceVar_ = 0;
+        for (const Arg& a : args)
+            if (a.tag() == 1) choiceVar_ = a.value();
+        const int current = int(vm.var(choiceVar_));
+        if (transition) transition(1, 0, 3); // opens with a type 1 fade at speed 3
+        kind_ = ChoiceKind::Uniform;
+        initialFocus_ = current >= 1 && current <= 3 ? current - 1 : 0;
+        choiceText_ = {"Uniform 1", "Uniform 2", "Uniform 3"};
+        choiceValue_ = {1, 2, 3};
+        hasMsg_ = false;
+        choosing_ = true;
+        ++sceneVersion_;
+        vm.block();
+        break;
+    }
     case 9:
     case 11:
     case 240: {
+        kind_ = ChoiceKind::Text;
+        initialFocus_ = -1;
         choiceText_.clear();
         choiceValue_.clear();
         choiceVar_ = 0;

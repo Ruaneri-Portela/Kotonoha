@@ -1,58 +1,152 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="#121212"
     android:orientation="vertical">
 
-    <!-- Toolbar ajustada dentro do layout principal -->
-
-    <!-- Conteúdo principal -->
-    <android.support.v7.widget.Toolbar
-        android:id="@+id/toolbar"
-        android:layout_width="match_parent"
-        android:layout_height="?attr/actionBarSize"
-        android:background="@color/colorPrimaryDark"
-        android:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar"
-        app:logo="@mipmap/ic_launcher"
-        app:title="Kotonoha Engine"/>
-
+    <!-- Header / Title Bar -->
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
+        android:layout_height="wrap_content"
+        android:background="#1F1F1F"
+        android:elevation="4dp"
         android:orientation="vertical"
-        android:padding="16dp">
+        android:padding="20dp">
 
-        <Button
-            android:id="@+id/button_school_days"
+        <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="@string/btn_a" />
+            android:text="Kotonoha Engine"
+            android:textColor="@android:color/white"
+            android:textSize="22sp"
+            android:textStyle="bold" />
 
-        <Button
-            android:id="@+id/button_generic"
+        <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="@string/btn_generic" />
-
-        <Space
-            android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="1" />
-
-        <EditText
-            android:id="@+id/custom_edit_text"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:inputType="text" />
-
-        <Button
-            android:id="@+id/button_custom_params"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/custom_params" />
-
+            android:layout_marginTop="4dp"
+            android:text="Selecione o jogo ou modo de inicialização"
+            android:textColor="#B0B0B0"
+            android:textSize="14sp" />
     </LinearLayout>
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:fillViewport="true">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <!-- Games Section Title -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="8dp"
+                android:text="Opções de Abertura / Jogos"
+                android:textColor="#90CAF9"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+
+            <!-- Generic (First) -->
+            <Button
+                android:id="@+id/button_generic"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="8dp"
+                android:backgroundTint="#303F9F"
+                android:text="@string/btn_generic"
+                android:textColor="@android:color/white" />
+
+            <!-- School Days -->
+            <Button
+                android:id="@+id/button_school_days"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="8dp"
+                android:backgroundTint="#303F9F"
+                android:text="@string/btn_a"
+                android:textColor="@android:color/white" />
+
+            <!-- Zero no Tsukaima -->
+            <Button
+                android:id="@+id/button_zero"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="8dp"
+                android:backgroundTint="#303F9F"
+                android:text="@string/btn_zero"
+                android:textColor="@android:color/white" />
+
+            <!-- Snow Radish Vacation -->
+            <Button
+                android:id="@+id/button_snow"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="8dp"
+                android:backgroundTint="#303F9F"
+                android:text="@string/btn_snow"
+                android:textColor="@android:color/white" />
+
+            <!-- Doki Doki Literature Club -->
+            <Button
+                android:id="@+id/button_ddlc"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                android:backgroundTint="#303F9F"
+                android:text="@string/btn_ddlc"
+                android:textColor="@android:color/white" />
+
+            <!-- Configuration Section -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="8dp"
+                android:text="Argumentos Personalizados"
+                android:textColor="#90CAF9"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+
+            <EditText
+                android:id="@+id/custom_edit_text"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                android:background="#2C2C2C"
+                android:hint="Ex: -v -u -z (opcional)"
+                android:inputType="text"
+                android:padding="12dp"
+                android:textColor="@android:color/white"
+                android:textColorHint="#808080"
+                android:textSize="14sp" />
+
+            <!-- Result Section -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="4dp"
+                android:text="Resultado da Intent"
+                android:textColor="#90CAF9"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/result_text_view"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="#1E1E1E"
+                android:padding="12dp"
+                android:text="Nenhum resultado recente."
+                android:textColor="#E0E0E0"
+                android:textSize="13sp" />
+
+        </LinearLayout>
+    </ScrollView>
 
 </LinearLayout>

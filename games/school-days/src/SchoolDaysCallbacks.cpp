@@ -1,9 +1,5 @@
-#if !defined(__ANDROID__) && !defined(ANDROID)
-#define SDL_MAIN_HANDLED 1
-#endif
 #include <Kotonoha/utils/Log.h>
 #include <Kotonoha/Init.hpp>
-#include <Kotonoha/Main.hpp>
 #include <Kotonoha/routing/SchoolDaysKtrfAppController.hpp>
 #include <Kotonoha/routing/SchoolDaysKtrfDebugGui.hpp>
 #include <Kotonoha/routing/SchoolDaysBackLog.hpp>

@@ -162,6 +162,11 @@ inline SchoolDaysAssetRootSelection SelectSchoolDaysAssetRoot(
 inline bool SchoolDaysAssetLogicalPathIsAbsolute(const std::string& logical) {
     if (logical.empty()) return false;
     if (logical.front() == '/' || logical.front() == '\\') return true;
+    if (logical.size() >= 7 &&
+        (logical.rfind("http://", 0) == 0 || logical.rfind("https://", 0) == 0 ||
+         logical.rfind("HTTP://", 0) == 0 || logical.rfind("HTTPS://", 0) == 0)) {
+        return true;
+    }
     return logical.size() >= 2u &&
            std::isalpha(static_cast<unsigned char>(logical[0])) != 0 &&
            logical[1] == ':';
@@ -214,8 +219,33 @@ inline SchoolDaysImageResolution ResolveSchoolDaysAssetPath(
         const char* assetRoot, const std::string& logicalPath) {
     SchoolDaysImageResolution result;
     result.logical = logicalPath;
-    if (logicalPath.empty() || SchoolDaysAssetLogicalPathIsAbsolute(logicalPath))
+    if (logicalPath.empty())
         return result;
+    if (SchoolDaysAssetLogicalPathIsAbsolute(logicalPath)) {
+        result.present = true;
+        result.physical = logicalPath;
+        result.status = SchoolDaysAssetResolutionStatus::Present;
+        return result;
+    }
+
+    if (assetRoot != nullptr && assetRoot[0] != '\0') {
+        std::string root(assetRoot);
+        if (root.size() >= 7 &&
+            (root.rfind("http://", 0) == 0 || root.rfind("https://", 0) == 0 ||
+             root.rfind("HTTP://", 0) == 0 || root.rfind("HTTPS://", 0) == 0)) {
+            std::string joined = root;
+            if (!joined.empty() && joined.back() != '/' && logicalPath.front() != '/') {
+                joined += '/';
+            } else if (!joined.empty() && joined.back() == '/' && logicalPath.front() == '/') {
+                joined.pop_back();
+            }
+            joined += logicalPath;
+            result.present = true;
+            result.physical = joined;
+            result.status = SchoolDaysAssetResolutionStatus::Present;
+            return result;
+        }
+    }
 
     // Validate the complete logical path before touching the filesystem.  This
     // matters after a missing prefix: optional media still returns a candidate

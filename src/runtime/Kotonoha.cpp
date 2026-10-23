@@ -10,6 +10,11 @@ extern "C" {
 }
 
 namespace Kotonoha {
+namespace {
+constexpr const char *kDefaultSplashFiles = "assets/SPLASH.PNG";
+constexpr const char *kDefaultTitleMusic = "assets/SDBGM28_LOOP.OGG";
+} // namespace
+
 Kotonoha::Kotonoha(SDL_AppResult *status, struct Kotonoha_Game &context)
     : gameContext(context) {
   if (status == nullptr) {
@@ -57,7 +62,7 @@ Kotonoha::Kotonoha(SDL_AppResult *status, struct Kotonoha_Game &context)
 
   std::vector<std::string> splashFiles;
   const std::string splashList =
-      config.splashFiles != nullptr ? config.splashFiles : "assets/SPLASH.PNG";
+      config.splashFiles != nullptr ? config.splashFiles : kDefaultSplashFiles;
   size_t pos = 0;
   while (pos <= splashList.size()) {
     size_t end = splashList.find(':', pos);
@@ -133,7 +138,7 @@ void Kotonoha::UpdateTitleMusic(bool titleScreen) {
   // One-shot (0/0) looping BGM: plays regardless of the timeline
   titleMedia = titleAudio->AddMedia(gameContext.config.titleMusic != nullptr
                                         ? gameContext.config.titleMusic
-                                        : "assets/SDBGM28_LOOP.OGG",
+                                        : kDefaultTitleMusic,
                                     0, 0, true, "BGM");
   if (titleMedia == nullptr) {
     // Avoid retrying every frame

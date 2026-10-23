@@ -76,6 +76,26 @@ int main(int argc, char** argv)
     if (!game.mapChoosing() || game.choices().size() != 2 || game.destination(1) != 3 || !game.choose(1) ||
         game.mapChoosing() || game.vm().var(0x344d) != 3)
         { std::puts("FAIL map destinations"); return 1; }
+    {
+        // Native 220: uniform select, focus starts on the variable, pick stored as 1..3,
+        // opened and closed with a type 1 fade at speed 3.
+        SnowRadish::Game uniform({});
+        int fades = 0;
+        bool fading = false;
+        uniform.transition = [&](int type, int, int speed) { if (type == 1 && speed == 3) { ++fades; fading = true; } };
+        uniform.transitionPlaying = [&] { return fading; };
+        uniform.vm().setVar(0x344c, 2);
+        uniform.native(uniform.vm(), 220, {{0},{0x1344c}});
+        if (!uniform.uniformChoosing() || uniform.choices().size() != 3 || uniform.initialFocus() != 1 || fades != 1)
+            { std::puts("FAIL uniform select open"); return 1; }
+        fading = false;
+        if (!uniform.choose(2) || uniform.choosing() || uniform.vm().var(0x344c) != 3 || fades != 2 ||
+            !uniform.waitingForAudio())
+            { std::puts("FAIL uniform select pick"); return 1; }
+        uniform.native(uniform.vm(), 9, {{0x1344c}});
+        if (uniform.choiceKind() != SnowRadish::Game::ChoiceKind::Text || uniform.initialFocus() != -1)
+            { std::puts("FAIL text choice kind"); return 1; }
+    }
     int pattern = -1;
     game.transition = [&](int type, int pat, int speed) { if (type == 11 && speed == 1) pattern = pat; };
     game.native(game.vm(), 64, {{11},{8206},{1}});

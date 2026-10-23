@@ -14,12 +14,19 @@ public class Kotonoha extends SDLActivity {
     public static final String EXTRA_TARGET = "target";
     public static final String TARGET_SCHOOL_DAYS = "SchoolDays";
     public static final String TARGET_GENERIC = "Generic";
+    public static final String TARGET_ZERO_NO_TSUKAIMA = "ZeroNoTsukaima";
+    public static final String TARGET_SNOW_RADISH = "SnowRadish";
+    public static final String TARGET_DDLC = "DokiDoki";
 
     private static String[] customArguments = null;
 
     private String resolveTarget() {
         String target = getIntent() == null ? null : getIntent().getStringExtra(EXTRA_TARGET);
-        return TARGET_GENERIC.equalsIgnoreCase(target) ? TARGET_GENERIC : TARGET_SCHOOL_DAYS;
+        if (TARGET_GENERIC.equalsIgnoreCase(target)) return TARGET_GENERIC;
+        if (TARGET_ZERO_NO_TSUKAIMA.equalsIgnoreCase(target)) return TARGET_ZERO_NO_TSUKAIMA;
+        if (TARGET_SNOW_RADISH.equalsIgnoreCase(target)) return TARGET_SNOW_RADISH;
+        if (TARGET_DDLC.equalsIgnoreCase(target)) return TARGET_DDLC;
+        return TARGET_SCHOOL_DAYS;
     }
 
     // Retail GPKs live in the OBB directory: Android/obb/<package>/.
@@ -41,14 +48,38 @@ public class Kotonoha extends SDLActivity {
         };
     }
 
+    private String[] snowRadishDefaultArguments() {
+        File dir = new File(getFilesDir(), "pack");
+        return new String[]{"--snow", dir.getAbsolutePath()};
+    }
+
+    private String[] ddlcDefaultArguments() {
+        File dir = new File(getFilesDir(), "game");
+        return new String[]{"--ddlc", dir.getAbsolutePath()};
+    }
+
+    private String[] zeroDefaultArguments() {
+        File file = new File(getFilesDir(), "z.bin");
+        return new String[]{"--zero", file.getAbsolutePath()};
+    }
+
     @Override
     protected String[] getArguments() {
         String[] defaultArgs = new String[]{
                 "-v", "-u", "-z", "-t", "-r", "opengles2"
         };
         String[] extra = customArguments;
-        if ((extra == null || extra.length == 0) && TARGET_SCHOOL_DAYS.equals(resolveTarget())) {
-            extra = schoolDaysDefaultArguments();
+        if (extra == null || extra.length == 0) {
+            String target = resolveTarget();
+            if (TARGET_SCHOOL_DAYS.equals(target)) {
+                extra = schoolDaysDefaultArguments();
+            } else if (TARGET_SNOW_RADISH.equals(target)) {
+                extra = snowRadishDefaultArguments();
+            } else if (TARGET_DDLC.equals(target)) {
+                extra = ddlcDefaultArguments();
+            } else if (TARGET_ZERO_NO_TSUKAIMA.equals(target)) {
+                extra = zeroDefaultArguments();
+            }
         }
         if (extra != null && extra.length > 0) {
             String[] args = new String[defaultArgs.length + extra.length];
@@ -62,9 +93,9 @@ public class Kotonoha extends SDLActivity {
     @Override
     protected String[] getLibraries() {
         return new String[] {
-                "SDL3",
-                "SDL3_ttf",
-                TARGET_GENERIC.equals(resolveTarget()) ? "KotonohaGeneric" : "KotonohaSchoolDays"
+                "SDL3_shared_bundle",
+                "SDL3_ttf_shared_bundle",
+                resolveTarget()
         };
     }
 

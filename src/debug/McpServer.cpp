@@ -536,6 +536,19 @@ Json ToolKey(const ToolContext &, const Json &args) {
   const std::string action = args.Str("action", "press");
   if (action == "press" || action == "down") PushKey(scancode, true);
   if (action == "press" || action == "up") PushKey(scancode, false);
+  // A real keyboard also emits text while text input is active.
+  const SDL_Keycode typed = SDL_GetKeyFromScancode(scancode, SDL_KMOD_NONE, false);
+  if (action == "press" && global.window != nullptr && SDL_TextInputActive(global.window) && typed >= 32 &&
+      typed < 127) {
+    static char chars[128][2];
+    chars[typed][0] = static_cast<char>(typed);
+    SDL_Event text;
+    SDL_zero(text);
+    text.type = SDL_EVENT_TEXT_INPUT;
+    text.text.windowID = SDL_GetWindowID(global.window);
+    text.text.text = chars[typed];
+    SDL_PushEvent(&text);
+  }
   if (action != "press" && action != "down" && action != "up") {
     return ToolText("action must be press, down or up", true);
   }

@@ -15,6 +15,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cmath>
 #include <cstdlib>
 #include <filesystem>
 #include <functional>
@@ -66,7 +67,7 @@ struct AnimatedTex {
 
 struct State {
     std::unique_ptr<SnowRadish::Game> game;
-    std::vector<uint8_t> soundPack, voicePack;
+    std::filesystem::path soundDatPath, voiceDatPath;
     std::map<std::string, SnowRadish::PackEntry> soundIndex, voiceIndex;
     Channel voice{{}, "Voice"}, bgm{{}, "BGM"}, se{{}, "Se"};
     std::string lastBgm;
@@ -78,7 +79,7 @@ struct State {
     std::string resumeBgm;
     bool muted = false; // set while replaying a save
     std::vector<uint8_t> script;
-    std::vector<uint8_t> gfx;
+    std::filesystem::path gfxDatPath;
     std::map<std::string, SnowRadish::PackEntry> gfxIndex;
     std::map<std::string, Kotonoha::CanvasImage> textures;
     std::map<std::string, SpriteTex> spriteTextures;
@@ -96,6 +97,9 @@ struct State {
     std::vector<Shown> sprites;
     uint32_t seenVersion = ~0u;
     Kotonoha::GameplayFlow* gameplay = nullptr;
+    TTF_Font* font = nullptr;
+    std::map<int, TTF_Font*> sizedFonts;
+    std::map<std::string, SDL_Texture*> texts;
 };
 State* g_state = nullptr;
 
@@ -117,9 +121,33 @@ bool startChannel(Channel& c, std::vector<int16_t> first, const std::vector<int1
     return c.player.Play(static_cast<Kotonoha::Sound*>(global.sound), c.engineChannel, std::move(clip));
 }
 
+std::vector<uint8_t> extractFromFile(const std::filesystem::path& datPath, const SnowRadish::PackEntry& entry) {
+    std::ifstream f(datPath, std::ios::binary | std::ios::ate);
+    if (!f.is_open()) return {};
+    const size_t fileSize = f.tellg();
+    if (entry.offset >= fileSize) return {};
+    const size_t avail = std::min<size_t>(entry.compressedSize, fileSize - entry.offset);
+    std::vector<uint8_t> compressed(avail);
+    f.seekg(entry.offset);
+    f.read(reinterpret_cast<char*>(compressed.data()), avail);
+
+    const bool known = entry.rawSize != 0;
+    if (known && entry.compressedSize == entry.rawSize) {
+        return compressed;
+    }
+    std::vector<uint8_t> out;
+    out.resize(known ? entry.rawSize : avail * 10);
+    const size_t produced = SnowRadish::lzssDecode(compressed.data(), avail, out.data(), out.size());
+    (void)produced;
+    if (!known) {
+        while (!out.empty() && out.back() == 0) out.pop_back();
+    }
+    return out;
+}
+
 bool startAdps(Channel& c, const SnowRadish::PackEntry& e, bool loop) {
     SnowRadish::AdpsTrack t;
-    if (!SnowRadish::decodeAdpsFile(SnowRadish::extractEntry(g_state->soundPack, e), t)) return false;
+    if (!SnowRadish::decodeAdpsFile(extractFromFile(g_state->soundDatPath, e), t)) return false;
     return startChannel(c, std::move(t.intro.samples), t.loop.samples, 2, loop);
 }
 
@@ -157,7 +185,7 @@ void playSound(const std::string& kind, const std::string& name, bool loop) {
     } else if (kind == "voice") {
         auto it = s.voiceIndex.find(lower(name));
         if (it == s.voiceIndex.end()) return;
-        SnowRadish::Pcm pcm = SnowRadish::decodeAdp4(SnowRadish::extractEntry(s.voicePack, it->second));
+        SnowRadish::Pcm pcm = SnowRadish::decodeAdp4(extractFromFile(s.voiceDatPath, it->second));
         std::vector<int16_t> rep;
         if (loop) rep = pcm.samples;
         s.voiceSamples = pcm.samples;
@@ -188,7 +216,7 @@ Kotonoha::CanvasImage* loadGraphic(const std::string& name, const char* ext) {
     Kotonoha::CanvasImage tex;
     auto it = g_state->gfxIndex.find(key);
     SnowRadish::Image img;
-    if (it != g_state->gfxIndex.end() && SnowRadish::decodeEvd(SnowRadish::extractEntry(g_state->gfx, it->second), img)) {
+    if (it != g_state->gfxIndex.end() && SnowRadish::decodeEvd(extractFromFile(g_state->gfxDatPath, it->second), img)) {
         SDL_Surface* s = SDL_CreateSurfaceFrom(int(img.width), int(img.height), SDL_PIXELFORMAT_RGB24, img.rgb.data(),
                                                int(img.width * 3));
         tex = textureFrom(s ? SDL_DuplicateSurface(s) : nullptr);
@@ -207,7 +235,7 @@ SpriteTex* loadSprite(const std::string& name) {
     auto it = g_state->gfxIndex.find(key + ".chd");
     if (it == g_state->gfxIndex.end()) it = g_state->gfxIndex.find("dummy00.chd");
     SnowRadish::Sprite sp;
-    if (it != g_state->gfxIndex.end() && SnowRadish::decodeChd(SnowRadish::extractEntry(g_state->gfx, it->second), sp)) {
+    if (it != g_state->gfxIndex.end() && SnowRadish::decodeChd(extractFromFile(g_state->gfxDatPath, it->second), sp)) {
         SDL_Surface* s = SDL_CreateSurfaceFrom(int(sp.width), int(sp.height), SDL_PIXELFORMAT_RGBA32, sp.rgba.data(),
                                                int(sp.width * 4));
         out.img = textureFrom(s ? SDL_DuplicateSurface(s) : nullptr);
@@ -234,7 +262,7 @@ AnimatedTex* loadAnimation(const std::string& name) {
     AnimatedTex out;
     auto it = g_state->gfxIndex.find(key + ".anm");
     SnowRadish::Animation anm;
-    if (it != g_state->gfxIndex.end() && SnowRadish::decodeAnm(SnowRadish::extractEntry(g_state->gfx, it->second), anm)) {
+    if (it != g_state->gfxIndex.end() && SnowRadish::decodeAnm(extractFromFile(g_state->gfxDatPath, it->second), anm)) {
         out.regions = std::move(anm.regions);
         out.cursor = anm.cursor;
         for (auto& frame : anm.frames) {
@@ -267,6 +295,65 @@ void drawTinted(Kotonoha::CanvasImage* img, float x, float y, const int tint[3])
     SDL_SetTextureColorMod(t, 255, 255, 255);
 }
 
+// Alpha of a .CHD on the 800x600 screen canvas (hit regions of the original selects).
+struct AlphaHit {
+    int x = 0, y = 0, w = 0, h = 0;
+    std::vector<uint8_t> alpha;
+    bool hit(float px, float py) const {
+        const int ix = int(px) - x, iy = int(py) - y;
+        return ix >= 0 && iy >= 0 && ix < w && iy < h && alpha[size_t(iy) * size_t(w) + size_t(ix)] != 0;
+    }
+};
+AlphaHit loadAlphaHit(const std::string& name) {
+    AlphaHit out;
+    auto it = g_state->gfxIndex.find(lower(name) + ".chd");
+    SnowRadish::Sprite sp;
+    if (it == g_state->gfxIndex.end() || !SnowRadish::decodeChd(extractFromFile(g_state->gfxDatPath, it->second), sp))
+        return out;
+    out.x = sp.x; out.y = sp.y; out.w = int(sp.width); out.h = int(sp.height);
+    out.alpha.resize(size_t(out.w) * size_t(out.h));
+    for (size_t i = 0; i < out.alpha.size(); ++i) out.alpha[i] = sp.rgba[i * 4 + 3];
+    return out;
+}
+
+// UTF-8 text at a logical size, rasterised at the output scale so it stays sharp.
+SDL_FPoint drawText(SDL_Renderer* r, const std::string& text, float x, float y, float size, SDL_Color color,
+                    bool measureOnly = false) {
+    if (!g_state->font || text.empty()) return {0, 0};
+    float sx = 1, sy = 1;
+    SDL_GetRenderScale(r, &sx, &sy);
+    const int px = std::max(1, int(size * std::max(sx, 1.0f) + 0.5f));
+    TTF_Font*& font = g_state->sizedFonts[px];
+    if (!font) {
+        font = TTF_CopyFont(g_state->font);
+        if (!font) return {0, 0};
+        TTF_SetFontSize(font, float(px));
+    }
+    const float k = size / float(px);
+    if (measureOnly) {
+        int w = 0, h = 0;
+        TTF_GetStringSize(font, text.c_str(), 0, &w, &h);
+        return {float(w) * k, float(h) * k};
+    }
+    const std::string key = std::to_string(px) + "|" + std::to_string(color.r) + "," + std::to_string(color.g) + "," +
+                            std::to_string(color.b) + "|" + text;
+    SDL_Texture*& tex = g_state->texts[key];
+    if (!tex) {
+        SDL_Surface* surf = TTF_RenderText_Blended(font, text.c_str(), 0, {color.r, color.g, color.b, 255});
+        if (!surf) return {0, 0};
+        tex = SDL_CreateTextureFromSurface(r, surf);
+        SDL_DestroySurface(surf);
+        if (!tex) return {0, 0};
+        SDL_SetTextureScaleMode(tex, SDL_SCALEMODE_LINEAR);
+    }
+    float w = 0, h = 0;
+    SDL_GetTextureSize(tex, &w, &h);
+    SDL_SetTextureAlphaMod(tex, color.a);
+    const SDL_FRect dst{x, y, w * k, h * k};
+    SDL_RenderTexture(r, tex, nullptr, &dst);
+    return {dst.w, dst.h};
+}
+
 class SnowSession : public Kotonoha::GameSession {
 public:
     explicit SnowSession(State& s) : s_(s) {
@@ -292,6 +379,7 @@ public:
         ended_ = false;
         auto_ = false;
         fadeMs_ = 0;
+        choiceOpen_ = false;
         s_.game = std::make_unique<SnowRadish::Game>(s_.script);
         s_.game->sound = playSound;
         if (SDL_getenv("SNOW_TRACE")) s_.game->trace = [](const std::string& t) { SDL_Log("[vm] %s", t.c_str()); };
@@ -327,6 +415,7 @@ public:
             if (input < 0) return;
             g.choose(size_t(input));
             mapHover_ = -1;
+            choiceOpen_ = false;
         } else {
             g.click();
         }
@@ -389,6 +478,10 @@ public:
         DrawWipe(r);
     }
     void DrawScene(SDL_Renderer* r) {
+        if (s_.game && s_.game->uniformChoosing()) {
+            DrawUniformSelect();
+            return;
+        }
         if (s_.filled) {
             SDL_SetRenderDrawColor(r, Uint8(s_.fillColor >> 16), Uint8(s_.fillColor >> 8), Uint8(s_.fillColor), 255);
             SDL_RenderFillRect(r, nullptr);
@@ -418,7 +511,7 @@ public:
         wipeMask_ = {};
         auto mask = [&](std::string name, bool alternate, SnowRadish::AlphaMask& out) {
             auto it = s_.gfxIndex.find(lower(name));
-            return it != s_.gfxIndex.end() && SnowRadish::decodeAlpha(SnowRadish::extractEntry(s_.gfx, it->second), alternate, out);
+            return it != s_.gfxIndex.end() && SnowRadish::decodeAlpha(extractFromFile(s_.gfxDatPath, it->second), alternate, out);
         };
         if (type == 2) {
             static const char* names[] = {"hart200", "maru200", "sima200", "star200", "suri200", "suri200r", "tako200"};
@@ -607,15 +700,158 @@ public:
             SDL_RenderTexture(r, from_, nullptr, nullptr);
         }
     }
+    // Original message window (FUN_004107d0): wakuh.chd (800x152 at 0,448) tinted
+    // with the MesWin_R/G/B setting (default 0,0,150), then bot.chd at 760,515 with
+    // its two buttons: the note replays the voice (bsc.chd lit on hover) and the
+    // arrow toggles auto mode (auto_on.chd while on, auto_off.chd lit on hover).
+    static constexpr int kWindowTint[3] = {0, 0, 150};
+    static constexpr SDL_FRect kVoiceButton{760, 515, 20, 20}, kAutoButton{760, 544, 20, 20};
+    WindowClick MessageWindowClick(float x, float y) override {
+        if (Choosing() || Fading()) return WindowClick::None;
+        const SDL_FPoint p{x, y};
+        if (SDL_PointInRectFloat(&p, &kAutoButton)) return WindowClick::ToggleAuto;
+        if (SDL_PointInRectFloat(&p, &kVoiceButton)) {
+            const auto& voice = s_.game->message().voice;
+            if (!voice.empty()) playSound("voice", voice, false);
+            return WindowClick::Consumed;
+        }
+        return WindowClick::None;
+    }
     void DrawMessageWindow(SDL_Renderer* renderer) override {
-        Kotonoha::DrawPanel(renderer, {20, 440, kW - 40, 150});
-        if (!HasMessage() || Choosing() || Fading()) return;
+        if (!HasMessage() || Choosing()) return;
+        auto* frame = loadSprite("wakuh");
+        drawTinted(&frame->img, frame->x, frame->y, kWindowTint);
+        auto* buttons = loadSprite("bot");
+        drawTex(&buttons->img, buttons->x, buttons->y);
+        SDL_FPoint mouse{-1, -1};
+        SDL_GetMouseState(&mouse.x, &mouse.y);
+        SDL_RenderCoordinatesFromWindow(renderer, mouse.x, mouse.y, &mouse.x, &mouse.y);
+        if (SDL_PointInRectFloat(&mouse, &kVoiceButton)) {
+            auto* lit = loadSprite("bsc");
+            drawTex(&lit->img, kVoiceButton.x, kVoiceButton.y);
+        }
+        if (auto_ || SDL_PointInRectFloat(&mouse, &kAutoButton)) {
+            auto* lit = loadSprite(auto_ ? "auto_on" : "auto_off");
+            drawTex(&lit->img, kAutoButton.x, kAutoButton.y);
+        }
+        if (Fading()) return;
         auto* animation = loadAnimation(auto_ ? "cursor02" : "cursor01");
         if (animation->frames.empty()) return;
         auto& pic = animation->frames[(SDL_GetTicks() / 170) % animation->frames.size()];
         drawTex(&pic.img, 715 + pic.x, 555 + pic.y);
     }
-    bool OwnsChoices() const override { return s_.game && s_.game->mapChoosing(); }
+    bool OwnsChoices() const override { return s_.game != nullptr; }
+    int ChoiceEvent(const SDL_Event& e) override {
+        OpenChoice();
+        switch (s_.game->choiceKind()) {
+        case SnowRadish::Game::ChoiceKind::Map: return MapEvent(e);
+        case SnowRadish::Game::ChoiceKind::Uniform: return UniformEvent(e);
+        default: return WindowEvent(e);
+        }
+    }
+    void DrawChoices(SDL_Renderer* r) override {
+        if (!s_.game || !s_.game->choosing()) return;
+        OpenChoice();
+        if (s_.game->mapChoosing()) DrawMap(r);
+        else if (!s_.game->uniformChoosing()) DrawWindow(r);
+    }
+    // Focus starts on the variable's value (the original moves the cursor there).
+    void OpenChoice() {
+        if (choiceOpen_) return;
+        choiceOpen_ = true;
+        choiceFocus_ = s_.game->initialFocus();
+    }
+
+    // ---- Native 220: uniform select (FUN_004027dd) ----
+    // selbase.evd holds the three figures in sepia; the focused one is drawn in
+    // colour from stsel{1,2,3}a.chd, whose alpha is also the hit region.
+    int UniformHit(float x, float y) {
+        if (uniformHit_.empty())
+            for (int i = 1; i <= 3; ++i) uniformHit_.push_back(loadAlphaHit("stsel" + std::to_string(i) + "a"));
+        for (size_t i = 0; i < uniformHit_.size(); ++i)
+            if (uniformHit_[i].hit(x, y)) return int(i);
+        return -1;
+    }
+    int UniformEvent(const SDL_Event& e) {
+        if (Fading()) return -1;
+        if (e.type == SDL_EVENT_MOUSE_MOTION) {
+            choiceFocus_ = UniformHit(e.motion.x, e.motion.y);
+        } else if (e.type == SDL_EVENT_MOUSE_BUTTON_DOWN && e.button.button == SDL_BUTTON_LEFT) {
+            choiceFocus_ = UniformHit(e.button.x, e.button.y);
+            return choiceFocus_;
+        } else if (e.type == SDL_EVENT_KEY_DOWN) {
+            const SDL_Keycode k = e.key.key;
+            if (k == SDLK_LEFT || k == SDLK_UP) choiceFocus_ = choiceFocus_ <= 0 ? 2 : choiceFocus_ - 1;
+            else if (k == SDLK_RIGHT || k == SDLK_DOWN) choiceFocus_ = choiceFocus_ < 0 || choiceFocus_ >= 2 ? 0 : choiceFocus_ + 1;
+            else if (k == SDLK_RETURN || k == SDLK_KP_ENTER) return choiceFocus_;
+        }
+        return -1;
+    }
+    void DrawUniformSelect() {
+        drawTex(loadGraphic("selbase", ".evd"), 0, 0);
+        if (choiceFocus_ < 0 || choiceFocus_ > 2) return;
+        auto* pic = loadSprite("stsel" + std::to_string(choiceFocus_ + 1) + "a");
+        drawTex(&pic->img, pic->x, pic->y);
+    }
+
+    // ---- Native 9: text choice window (FUN_00425a70) ----
+    // Items are 52 px high with 16 px between them, the block centred on the screen;
+    // its width is the widest 28 px label + 0x57 rounded down to 64. Each item is a
+    // row of 8 px selh.chd strips at y + 7, tinted black, or (0,150,150) when focused.
+    static constexpr float kItemH = 52, kItemGap = 16, kChoiceFont = 28;
+    SDL_FRect WindowItem(size_t i) {
+        const auto& items = s_.game->choices();
+        float widest = 0;
+        for (const auto& t : items) widest = std::max(widest, drawText(global.render, t, 0, 0, kChoiceFont, {}, true).x);
+        const float w = float((int(widest) + 0x57) & ~0x3f);
+        const float top = std::floor((kH - float(items.size()) * (kItemH + kItemGap)) / 2);
+        return {std::floor((kW - w) / 2), top + float(i) * (kItemH + kItemGap), w, kItemH};
+    }
+    int WindowHit(float x, float y) {
+        const SDL_FPoint p{x, y};
+        for (size_t i = 0; i < s_.game->choices().size(); ++i) {
+            const auto rect = WindowItem(i);
+            if (SDL_PointInRectFloat(&p, &rect)) return int(i);
+        }
+        return -1;
+    }
+    int WindowEvent(const SDL_Event& e) {
+        const int n = int(s_.game->choices().size());
+        if (!n) return -1;
+        if (e.type == SDL_EVENT_MOUSE_MOTION) {
+            const int hit = WindowHit(e.motion.x, e.motion.y);
+            if (hit >= 0) choiceFocus_ = hit;
+        } else if (e.type == SDL_EVENT_MOUSE_BUTTON_DOWN && e.button.button == SDL_BUTTON_LEFT) {
+            const int hit = WindowHit(e.button.x, e.button.y);
+            if (hit >= 0) return hit;
+        } else if (e.type == SDL_EVENT_KEY_DOWN) {
+            const SDL_Keycode k = e.key.key;
+            if (k == SDLK_UP) choiceFocus_ = choiceFocus_ <= 0 ? n - 1 : choiceFocus_ - 1;
+            else if (k == SDLK_DOWN) choiceFocus_ = choiceFocus_ < 0 || choiceFocus_ >= n - 1 ? 0 : choiceFocus_ + 1;
+            else if (k >= SDLK_A && k <= SDLK_I && int(k - SDLK_A) < n) choiceFocus_ = int(k - SDLK_A);
+            else if ((k == SDLK_RETURN || k == SDLK_KP_ENTER) && choiceFocus_ >= 0) return choiceFocus_;
+        }
+        return -1;
+    }
+    void DrawWindow(SDL_Renderer* r) {
+        auto* strip = loadSprite("selh");
+        SDL_Texture* t = strip->img ? strip->img.Source() : nullptr;
+        const auto& items = s_.game->choices();
+        for (size_t i = 0; i < items.size(); ++i) {
+            const auto rect = WindowItem(i);
+            const bool focused = int(i) == choiceFocus_;
+            if (t) {
+                SDL_SetTextureColorMod(t, 0, focused ? 149 : 0, focused ? 149 : 0);
+                for (float x = 0; x + 8 <= rect.w; x += 8) drawTex(&strip->img, rect.x + x, rect.y + 7);
+                SDL_SetTextureColorMod(t, 255, 255, 255);
+            }
+            const SDL_FPoint size = drawText(r, items[i], 0, 0, kChoiceFont, {}, true);
+            const float x = std::floor(rect.x + (rect.w - size.x) / 2), y = std::floor(rect.y + 7 + (38 - size.y) / 2);
+            drawText(r, items[i], x + 1, y + 1, kChoiceFont, {0, 0, 0, 255});
+            drawText(r, items[i], x, y, kChoiceFont, {255, 255, 255, 255});
+        }
+    }
+
     SDL_FRect Hotspot(size_t index) {
         char name[24]; std::snprintf(name, sizeof name, "map%04d", s_.game->destination(index));
         auto* pic = loadSprite(name);
@@ -623,7 +859,7 @@ public:
         if (pic->img) SDL_GetTextureSize(pic->img.Source(), &w, &h);
         return {pic->x, pic->y, w, h};
     }
-    int ChoiceEvent(const SDL_Event& e) override {
+    int MapEvent(const SDL_Event& e) {
         const int n = int(s_.game->choices().size());
         if (e.type == SDL_EVENT_MOUSE_MOTION || e.type == SDL_EVENT_MOUSE_BUTTON_DOWN) {
             SDL_FPoint p = e.type == SDL_EVENT_MOUSE_MOTION ? SDL_FPoint{e.motion.x, e.motion.y} : SDL_FPoint{e.button.x, e.button.y};
@@ -639,11 +875,10 @@ public:
     }
     int PickMap(int index) {
         if (index >= 0 && size_t(index) < s_.game->choices().size())
-            keepFrom_ = Capture([this](SDL_Renderer* r) { DrawScene(r); DrawChoices(r); });
+            keepFrom_ = Capture([this](SDL_Renderer* r) { DrawScene(r); DrawMap(r); });
         return index;
     }
-    void DrawChoices(SDL_Renderer*) override {
-        if (!OwnsChoices()) return;
+    void DrawMap(SDL_Renderer*) {
         const auto& args = s_.game->mapArgs();
         const int minutes = args.size() > 7 ? args[7] : 720;
         const int hour = minutes / 60 % 24;
@@ -809,7 +1044,7 @@ private:
         for (int i = 0; i < 3; ++i) {
             auto it = s_.gfxIndex.find("sline0" + std::to_string(i + 1) + ".snw");
             if (it == s_.gfxIndex.end()) continue;
-            const auto d = SnowRadish::extractEntry(s_.gfx, it->second);
+            const auto d = extractFromFile(s_.gfxDatPath, it->second);
             auto u32 = [&](size_t o) {
                 return uint32_t(d[o]) | d[o + 1] << 8 | d[o + 2] << 16 | uint32_t(d[o + 3]) << 24;
             };
@@ -933,6 +1168,9 @@ private:
     int fadeType_ = 1, fadePattern_ = 0, maskEdge_ = 128, fadeRange_ = 256, fadeStep_ = 4;
     int mapHover_ = -1;
     uint64_t fadeStart_ = 0, fadeMs_ = 0;
+    bool choiceOpen_ = false;
+    int choiceFocus_ = -1;
+    std::vector<AlphaHit> uniformHit_;
     bool keepFrom_ = false, booting_ = false, ended_ = false, cleared_ = false, auto_ = false;
     std::filesystem::path systemPath_;
     State& s_;
@@ -974,24 +1212,36 @@ SDL_AppResult LocalInit(void**, int, char*[]) {
     auto* s = new State();
     g_state = s;
     s->script = readFile(std::filesystem::path(g_dir) / "SCRIPT.DAT");
-    s->gfx = readFile(std::filesystem::path(g_dir) / "GRAPHIC.DAT");
-    if (s->script.empty() || s->gfx.empty()) {
+    s->gfxDatPath = std::filesystem::path(g_dir) / "GRAPHIC.DAT";
+    std::vector<uint8_t> gfxDirPack = readFile(s->gfxDatPath);
+    if (s->script.empty() || gfxDirPack.empty()) {
         SDL_Log("Snow Radish: SCRIPT.DAT/GRAPHIC.DAT not found in %s", g_dir.c_str());
         return SDL_APP_FAILURE;
     }
-    for (auto& e : SnowRadish::readDirectory(s->gfx)) s->gfxIndex[lower(e.name)] = e;
+    for (auto& e : SnowRadish::readDirectory(gfxDirPack)) s->gfxIndex[lower(e.name)] = e;
     auto stem = [](const std::string& n) { return lower(n.substr(0, n.find('.'))); };
-    s->soundPack = readFile(std::filesystem::path(g_dir) / "SOUND.DAT");
-    for (auto& e : SnowRadish::readDirectory(s->soundPack)) s->soundIndex[stem(e.name)] = e;
-    s->voicePack = readFile(std::filesystem::path(g_dir) / "VOICE.DAT");
-    for (auto& e : SnowRadish::readDirectory(s->voicePack)) s->voiceIndex[stem(e.name)] = e;
+    s->soundDatPath = std::filesystem::path(g_dir) / "SOUND.DAT";
+    {
+        std::vector<uint8_t> soundDirPack = readFile(s->soundDatPath);
+        for (auto& e : SnowRadish::readDirectory(soundDirPack)) s->soundIndex[stem(e.name)] = e;
+    }
+    s->voiceDatPath = std::filesystem::path(g_dir) / "VOICE.DAT";
+    {
+        std::vector<uint8_t> voiceDirPack = readFile(s->voiceDatPath);
+        for (auto& e : SnowRadish::readDirectory(voiceDirPack)) s->voiceIndex[stem(e.name)] = e;
+    }
     Kotonoha::GameplayFlow::Config cfg;
     cfg.id = "snow-radish-vacation";
     cfg.title = "Snow Radish Vacation!!";
     cfg.width = kW;
     cfg.height = kH;
-    cfg.textBox.box = {20, 440, kW - 40, 150};
+    // FUN_00426848: the text starts 56 px from the left and 20 px below the top of
+    // the 152 px window, keeps 84 px on the right (buttons) and advances 28 px per line.
+    cfg.textBox.box = {56, 448 + 20, kW - 56 - 84, 152 - 20};
     cfg.textBox.frame = false;
+    cfg.textBox.padding = 0;
+    cfg.textBox.fontSize = 24.0f;
+    cfg.textBox.lineHeight = 28.0f;
     s->gameplay = new Kotonoha::GameplayFlow(cfg);
     s->muted = true; // the opening runs behind the title screen
     const bool attached = s->gameplay->Attach(std::make_unique<SnowSession>(*s));
@@ -1018,6 +1268,7 @@ SDL_AppResult LocalIterate(void* appstate) {
         auto it = app->fonts.find("NotoSansJP-Regular");
         if (it != app->fonts.end()) font = it->second;
     }
+    g_state->font = font;
     Kotonoha::MarkFrameHandled();
     return g_state->gameplay->RunFrame(app, &global, font);
 }
@@ -1028,6 +1279,8 @@ void LocalQuit(void*, SDL_AppResult) {
         stopChannel(g_state->se);
         stopChannel(g_state->voice);
         delete g_state->gameplay;
+        for (auto& [_, tex] : g_state->texts) SDL_DestroyTexture(tex);
+        for (auto& [_, font] : g_state->sizedFonts) TTF_CloseFont(font);
     }
     delete g_state;
     g_state = nullptr;

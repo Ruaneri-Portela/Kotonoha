@@ -52,6 +52,11 @@ public:
   // Optional original message window, drawn in logical coordinates under the
   // text box text while a message shows (pair with TextBox::Style::frame = false).
   virtual void DrawMessageWindow(SDL_Renderer *) {}
+  // Buttons of that window: left clicks (logical coordinates) while a message
+  // shows go here first. Consumed swallows the click; ToggleAuto also flips
+  // auto mode as the A key does.
+  enum class WindowClick { None, Consumed, ToggleAuto };
+  virtual WindowClick MessageWindowClick(float /*x*/, float /*y*/) { return WindowClick::None; }
   // Optional original choice window. When OwnsChoices() is true the flow does
   // not open its choice panel: while Choosing(), events go to ChoiceEvent()
   // (pointer in logical coordinates), which returns the picked index or -1, and

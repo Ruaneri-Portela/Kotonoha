@@ -117,6 +117,8 @@ bool PcmPlayer::Play(Sound::Channel *channel, Clip clip) {
   v->loopStart = clip.loopStart;
   v->frames = clip.samples.size() / size_t(clip.channels);
   v->samples = std::move(clip.samples);
+  v->pos = std::min(clip.startFrame, v->frames);
+  v->consumed = double(v->pos);
   v->outFrameBytes = SDL_AUDIO_FRAMESIZE(out);
   v->outRate = out.freq;
   if (v->outFrameBytes <= 0 || v->outRate <= 0) {
@@ -166,6 +168,12 @@ void PcmPlayer::SetRate(int rate) {
   const float ratio = float(rate) / float(voice_->rate);
   voice_->ratio = ratio;
   SDL_SetAudioStreamFrequencyRatio(voice_->conv, ratio);
+}
+
+void PcmPlayer::SetGain(float gain) {
+  if (voice_ != nullptr) {
+    SDL_SetAudioStreamGain(voice_->conv, std::max(0.0f, gain));
+  }
 }
 
 int PcmPlayer::Rate() const {

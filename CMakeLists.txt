@@ -202,6 +202,7 @@ add_subdirectory(games/generic)
 add_subdirectory(games/school-days)
 add_subdirectory(games/zero-no-tsukaima)
 add_subdirectory(games/snow-radish-vacation)
+add_subdirectory(games/doki-doki-literature-club)
 
 if((KOTONOHA_ROUTER_TESTS OR KOTONOHA_ORS_PARSER_TESTS) AND NOT ANDROID)
     include_directories("${SCHOOL_DAYS_INCLUDE_DIR}")
@@ -216,6 +217,9 @@ if((KOTONOHA_ROUTER_TESTS OR KOTONOHA_ORS_PARSER_TESTS) AND NOT ANDROID)
     endif()
     if(TARGET SnowRadishPackTest)
         add_test(NAME SnowRadishPackTest COMMAND SnowRadishPackTest)
+    endif()
+    if(TARGET DdlcScriptTest)
+        add_test(NAME DdlcScriptTest COMMAND DdlcScriptTest)
     endif()
 
     add_executable(UpscalingTextureLifecycleTest
