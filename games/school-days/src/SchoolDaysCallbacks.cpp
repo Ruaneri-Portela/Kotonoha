@@ -1641,6 +1641,26 @@ static SDL_AppResult SchoolDaysHandleEvent(void *appstate, SDL_Event *event) {
   }
 
   if (ktrfPlayDataPlayback != nullptr && ktrfPlayDataPlayback->IsOpen()) {
+    if (!EnsureSchoolDaysMenuBar()) return SDL_APP_FAILURE;
+    if (Kotonoha::Gameplay *playDataGameplay =
+            ktrfPlayDataPlayback->CurrentGameplay()) {
+      ktrfMenuBar->SetRuntimeState(ktrfRetailConfigState.autoMode,
+                                   playDataGameplay->UserPaused(&global),
+                                   ktrfSchoolDaysSpeedIndex,
+                                   ktrfRetailConfigState.superSkip,
+                                   true, false, false, false);
+      // Native SceneView sets FILMEngine secondary +0x1E0 through vtbl+0x94(1)
+      // only for PlayData. MenuBar reads it through +0x98 and selects record70.
+      ktrfMenuBar->SetReplayIndicatorState(true);
+      Kotonoha::SchoolDaysMenuBarPresenter::Action playDataMenuAction;
+      const bool playDataMenuConsumed =
+          ktrfMenuBar->HandleEvent(global.render, event, &playDataMenuAction);
+      if (playDataMenuAction.kind ==
+          Kotonoha::SchoolDaysMenuBarPresenter::ActionKind::SetReplayIndicatorOpacity) {
+        return SDL_APP_CONTINUE;
+      }
+      if (playDataMenuConsumed) return SDL_APP_CONTINUE;
+    }
     if (Kotonoha::SchoolDaysInputPolicy::AcceptsGameplayEventType(event->type)) {
       if (Kotonoha::Gameplay *playDataGameplay =
               ktrfPlayDataPlayback->CurrentGameplay()) {
@@ -1658,21 +1678,54 @@ static SDL_AppResult SchoolDaysHandleEvent(void *appstate, SDL_Event *event) {
                                    replayGameplay->UserPaused(&global),
                                    ktrfSchoolDaysSpeedIndex,
                                    ktrfRetailConfigState.superSkip,
-                                   true, false, false, false);
-      ktrfMenuBar->SetReplayIndicatorState(true);
+                                   true, false, true, false);
+      // Ordinary HScene launch never calls host vtbl+0x94(1); +0x98 therefore
+      // remains zero and the native MenuBar uses record69 (gray).
+      ktrfMenuBar->SetReplayIndicatorState(false);
 
       Kotonoha::SchoolDaysMenuBarPresenter::Action replayMenuAction;
       const bool replayMenuConsumed =
           ktrfMenuBar->HandleEvent(global.render, event, &replayMenuAction);
-      if (replayMenuAction.kind ==
-          Kotonoha::SchoolDaysMenuBarPresenter::ActionKind::SetReplayIndicatorOpacity) {
-        // 0x10026ED0 semantics are applied inside the presenter. No persistence
-        // write is authenticated for this SysMenu-local replay indicator state.
+      using ReplayMenuAction =
+          Kotonoha::SchoolDaysMenuBarPresenter::ActionKind;
+      if (replayMenuAction.kind == ReplayMenuAction::ToggleAutoMode) {
+        ktrfRetailConfigState.autoMode = !ktrfRetailConfigState.autoMode;
+        replayGameplay->SetSchoolDaysAutoMode(ktrfRetailConfigState.autoMode);
+        if (!CacheSchoolDaysRetailConfigState("Replay AutoMode"))
+          return SDL_APP_FAILURE;
         return SDL_APP_CONTINUE;
       }
-      // Other replay-mode MenuBar actions are intentionally fail-closed until
-      // their replay-host predicates/callbacks are authenticated. Never leak a
-      // consumed top-bar click into the temporary narrative Gameplay.
+      if (replayMenuAction.kind == ReplayMenuAction::TogglePause) {
+        replayGameplay->ToggleUserPaused(&global);
+        return SDL_APP_CONTINUE;
+      }
+      if (replayMenuAction.kind == ReplayMenuAction::BackOrRestartScene) {
+        // Ordinary HScene replay is a fixed SceneView-owned sequence.  The
+        // authenticated control remains available, but there is no RouteProc
+        // owner to step backwards into; rewind the current physical scene.
+        replayGameplay->RestartCurrentScene();
+        return SDL_APP_CONTINUE;
+      }
+      if (replayMenuAction.kind == ReplayMenuAction::SkipToEnd) {
+        (void)replayGameplay->SkipSchoolDaysToEnd();
+        return SDL_APP_CONTINUE;
+      }
+      if (replayMenuAction.kind == ReplayMenuAction::SetPlaybackSpeed) {
+        if (replayMenuAction.value < 0 || replayMenuAction.value > 4 ||
+            !replayGameplay->SetSchoolDaysPlaybackSpeedIndex(
+                replayMenuAction.value)) {
+          SDL_LogError(0, "[SD-REPLAY] invalid replay speed index %d",
+                       replayMenuAction.value);
+          return SDL_APP_FAILURE;
+        }
+        ktrfSchoolDaysSpeedIndex = replayMenuAction.value;
+        return SDL_APP_CONTINUE;
+      }
+      // +104=1 during ordinary HScene playback makes Save/Load/BackLog and
+      // NextChoice unavailable; +98=0 likewise disables replay-opacity
+      // controls. Config/MainMenu remain host-level controls in retail, but
+      // their modal ownership is not part of the temporary Gameplay session.
+      // Consume them here rather than leaking a top-bar click into narrative.
       if (replayMenuConsumed) return SDL_APP_CONTINUE;
     }
     if (Kotonoha::SchoolDaysInputPolicy::AcceptsGameplayEventType(event->type)) {
@@ -2566,8 +2619,8 @@ static SDL_AppResult SchoolDaysRenderFrame(Kotonoha::Kotonoha *app) {
                                  replayGameplay->UserPaused(&global),
                                  ktrfSchoolDaysSpeedIndex,
                                  ktrfRetailConfigState.superSkip,
-                                 true, false, false, false);
-    ktrfMenuBar->SetReplayIndicatorState(true);
+                                 true, false, true, false);
+    ktrfMenuBar->SetReplayIndicatorState(false);
     ktrfMenuBar->Update(static_cast<uint32_t>(SDL_GetTicks()), 0, 0);
     const SDL_AppResult replayStatus = replayGameplay->Main(&global);
     if (replayStatus == SDL_APP_FAILURE) return replayStatus;
@@ -2608,6 +2661,14 @@ static SDL_AppResult SchoolDaysRenderFrame(Kotonoha::Kotonoha *app) {
       SDL_LogError(0, "[SD-REPLAY] PlayData has no active Gameplay");
       return SDL_APP_FAILURE;
     }
+    if (!EnsureSchoolDaysMenuBar()) return SDL_APP_FAILURE;
+    ktrfMenuBar->SetRuntimeState(ktrfRetailConfigState.autoMode,
+                                 playDataGameplay->UserPaused(&global),
+                                 ktrfSchoolDaysSpeedIndex,
+                                 ktrfRetailConfigState.superSkip,
+                                 true, false, false, false);
+    ktrfMenuBar->SetReplayIndicatorState(true);
+    ktrfMenuBar->Update(static_cast<uint32_t>(SDL_GetTicks()), 0, 0);
     const SDL_AppResult playDataStatus = playDataGameplay->Main(&global);
     if (playDataStatus == SDL_APP_FAILURE) return playDataStatus;
 
@@ -3029,7 +3090,8 @@ static SDL_AppResult SchoolDaysRenderFrame(Kotonoha::Kotonoha *app) {
   }
 
   const bool ktrfReplayMenuBarVisible =
-      ktrfReplayPlayback != nullptr && ktrfReplayPlayback->IsOpen();
+      (ktrfReplayPlayback != nullptr && ktrfReplayPlayback->IsOpen()) ||
+      (ktrfPlayDataPlayback != nullptr && ktrfPlayDataPlayback->IsOpen());
   const bool ktrfGameplayMenuBarVisible =
       ktrfController != nullptr &&
       ktrfController->FlowState() ==
