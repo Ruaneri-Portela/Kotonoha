@@ -35,18 +35,20 @@ GameplayFlow::GameplayFlow(Config config) : config_(std::move(config)), menu_(co
 bool GameplayFlow::Attach(std::unique_ptr<GameSession> session) {
   session_ = std::move(session);
   playing_ = false;
-  return session_ != nullptr && Begin();
+  // A front end shows first: start the story silently (validation only).
+  return session_ != nullptr && Begin(!session_->HasFrontend());
 }
 
-bool GameplayFlow::Begin() {
+bool GameplayFlow::Begin(bool sync) {
   if (!session_ || !session_->Start()) return false;
   titleItems_.clear();
+  frontend_ = false;
   inputs_.clear();
   lastLogged_.clear();
   choices_.Close();
   choicesOpen_ = false;
   playing_ = true;
-  session_->Sync();
+  if (sync) session_->Sync();
   return true;
 }
 
@@ -73,15 +75,26 @@ void GameplayFlow::ShowTitle() {
   playing_ = false;
   choices_.Close();
   choicesOpen_ = false;
-  titleItems_ = session_->TitleItems(menu_.Store().AnySave());
   titleHover_ = -1;
+  if (session_->HasFrontend()) {
+    titleItems_.clear();
+    frontend_ = true;
+    menu_.Hide();
+    session_->EnterFrontend(!booted_);
+    booted_ = true;
+    return;
+  }
+  titleItems_ = session_->TitleItems(menu_.Store().AnySave());
   if (titleItems_.empty()) menu_.Show(GameMenu::Page::Title, font_);
   else menu_.Hide();
 }
 
 void GameplayFlow::PickTitle(size_t index) {
-  if (index >= titleItems_.size()) return;
-  switch (titleItems_[index].action) {
+  if (index < titleItems_.size()) RunTitleAction(titleItems_[index].action);
+}
+
+void GameplayFlow::RunTitleAction(GameSession::TitleAction action) {
+  switch (action) {
   case GameSession::TitleAction::NewGame: Begin(); break;
   case GameSession::TitleAction::Load: menu_.Show(GameMenu::Page::LoadSlots, font_); break;
   case GameSession::TitleAction::Quit: {
@@ -152,7 +165,13 @@ SDL_AppResult GameplayFlow::HandleEvent(SDL_Event *e, Kotonoha_Game *game) {
     return SDL_APP_CONTINUE;
   }
   if (!playing_) {
-    if (!titleItems_.empty()) HandleTitleEvent(e, game);
+    if (frontend_) {
+      SDL_Event c = *e;
+      SDL_ConvertEventToRenderCoordinates(game->render, &c);
+      session_->FrontendEvent(c);
+    } else if (!titleItems_.empty()) {
+      HandleTitleEvent(e, game);
+    }
     return SDL_APP_CONTINUE;
   }
   if (session_->Choosing()) {
@@ -213,10 +232,12 @@ void GameplayFlow::Frame(Kotonoha_Game *game, TTF_Font *font) {
       Advance(pick);
     }
   }
+  if (!playing_ && frontend_ && !menu_.Active())
+    if (const auto action = session_->FrontendTick()) RunTitleAction(*action);
   session_->Tick();
   if (menu_.Active()) OnMenu(menu_.Poll());
   // "Back" from the load page returns to the session's own title, not the generic one.
-  if (!playing_ && !titleItems_.empty() && menu_.CurrentPage() == GameMenu::Page::Title) menu_.Hide();
+  if (!playing_ && (frontend_ || !titleItems_.empty()) && menu_.CurrentPage() == GameMenu::Page::Title) menu_.Hide();
 
   SDL_Renderer *r = game->render;
   SDL_SetRenderDrawColor(r, 0, 0, 0, 255);
@@ -234,6 +255,8 @@ void GameplayFlow::Frame(Kotonoha_Game *game, TTF_Font *font) {
       DrawPanel(r, {config_.width * 0.5f - 260.0f, config_.height * 0.5f - h * 0.5f, 520.0f, h});
       choices_.Draw(game->window, r);
     }
+  } else if (frontend_) {
+    session_->DrawFrontend(r);
   } else if (!titleItems_.empty()) {
     session_->DrawTitle(r, titleHover_);
   } else {

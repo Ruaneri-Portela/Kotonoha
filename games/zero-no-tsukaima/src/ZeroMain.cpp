@@ -1,6 +1,9 @@
 // Zero no Tsukaima (PS2) scene scripts running on the Kotonoha engine.
 // Usage: ZeroNoTsukaima --zero <disc.bin (MODE1/2048)> [--mcp [port]]
-// Backgrounds, character sprites and event CGs are drawn from SCENEDAT.
+// Backgrounds, character sprites and event CGs are drawn from SCENEDAT; the boot
+// logos, opening movie, title and mode menu are the original ones (Frontend).
+#include "Frontend.hpp"
+
 #include <ZeroNoTsukaima/Game.hpp>
 #include <ZeroNoTsukaima/Source.hpp>
 #include <ZeroNoTsukaima/Vag.hpp>
@@ -25,14 +28,19 @@ constexpr int kW = 640, kH = 448;
 
 std::string g_disc;
 
-// Headerless streams: rates are estimates; override with ZERO_VOICE_RATE / ZERO_BGM_RATE.
+// Rates from the original executable / SOUND_ID.LST format headers:
+// - voices: Talk() starts the VOICE_ID stream at 22050 Hz (SLPS_258.30 @ 0x102eac);
+// - BGM (*.STV, section header ST44TL.PSH): stereo 44100 Hz (stream pitch 3763 = 44100 * 4096 / 48000);
+// - SE (*.MNV, section headers MN2205.PSH / MN2205C.PSH): mono 22050 Hz.
+// Override with ZERO_VOICE_RATE / ZERO_BGM_RATE / ZERO_SE_RATE.
 int rateFromEnv(const char *name, int fallback) {
   const char *v = std::getenv(name);
   const int r = v ? std::atoi(v) : 0;
   return r >= 8000 && r <= 96000 ? r : fallback;
 }
 // Live-tunable: F2/F3 lower/raise the voice rate, F4/F5 the BGM rate (applied to what is playing too).
-int kVoiceRate = rateFromEnv("ZERO_VOICE_RATE", 24000), kBgmRate = rateFromEnv("ZERO_BGM_RATE", 24000);
+int kVoiceRate = rateFromEnv("ZERO_VOICE_RATE", 22050), kBgmRate = rateFromEnv("ZERO_BGM_RATE", 44100);
+const int kSeRate = rateFromEnv("ZERO_SE_RATE", 22050);
 constexpr int kRatePresets[] = {11025, 16000, 22050, 24000, 32000, 44100, 48000};
 
 struct Stream {
@@ -50,9 +58,10 @@ struct Picture {
 struct State {
   ZeroNoTsukaima::SceneSource source;
   std::map<int, Picture> pictures;
+  std::map<std::string, Picture> normals; // NORMAL (system UI) pictures by name
   int bgIndex = -1, cgIndex = -1;
   std::vector<std::pair<int, int>> sprites; // (SCENEDAT index, centre offset), back to front
-  Stream voice, bgm;
+  Stream voice, bgm, se;
   std::string lastBgm;
   Kotonoha::GameplayFlow *gameplay = nullptr;
 };
@@ -63,7 +72,7 @@ void stopStream(Stream &s) {
   s = Stream{};
 }
 
-bool playStream(Stream &out, const std::vector<uint8_t> &raw, int rate, bool loop) {
+bool playStream(Stream &out, const std::vector<uint8_t> &raw, int rate, bool loop, const char *what) {
   stopStream(out);
   std::vector<int16_t> pcm;
   int channels = 1;
@@ -93,7 +102,7 @@ bool playStream(Stream &out, const std::vector<uint8_t> &raw, int rate, bool loo
   if (!st) return false;
   SDL_PutAudioStreamData(st, pcm.data(), int(pcm.size() * sizeof(int16_t)));
   SDL_ResumeAudioStreamDevice(st);
-  SDL_Log("[audio] %s %zu samples @%d Hz", loop ? "bgm" : "voice", pcm.size(), rate);
+  SDL_Log("[audio] %s %zu samples @%d Hz", what, pcm.size(), rate);
   out.stream = st;
   out.loop = loop;
   out.rate = rate;
@@ -113,6 +122,7 @@ void stepRate(int &rate, Stream &live, int dir, const char *what) {
 void updateAudio() {
   State &s = *g_state;
   if (s.voice.stream && SDL_GetAudioStreamQueued(s.voice.stream) == 0) stopStream(s.voice);
+  if (s.se.stream && SDL_GetAudioStreamQueued(s.se.stream) == 0) stopStream(s.se);
   if (s.bgm.stream && s.bgm.loop && SDL_GetAudioStreamQueued(s.bgm.stream) < int(s.bgm.pcm.size()))
     SDL_PutAudioStreamData(s.bgm.stream, s.bgm.pcm.data(), int(s.bgm.pcm.size() * sizeof(int16_t)));
 }
@@ -120,18 +130,26 @@ void updateAudio() {
 void playVoice(int index) {
   stopStream(g_state->voice);
   std::vector<uint8_t> raw;
-  if (index > 0 && g_state->source.LoadVoice(size_t(index), &raw)) playStream(g_state->voice, raw, kVoiceRate, false);
+  if (index > 0 && g_state->source.LoadVoice(size_t(index), &raw)) playStream(g_state->voice, raw, kVoiceRate, false, "voice");
 }
 
-// "bgm04" -> SOUND_ID entry 4; series with other prefixes are not mapped yet.
+// Music by SOUND_ID.LST name: "bgm04" -> SOUND\BGM04.STV, "BGMA01" -> SOUND\BGMA01.STV.
 void playBgm(const std::string &name) {
   State &s = *g_state;
   if (name == s.lastBgm) return;
   s.lastBgm = name;
   stopStream(s.bgm);
-  if (name.size() < 4 || name.compare(0, 3, "bgm") != 0 || !std::isdigit((unsigned char)name[3])) return;
   std::vector<uint8_t> raw;
-  if (s.source.LoadSound(size_t(std::atoi(name.c_str() + 3)), &raw)) playStream(s.bgm, raw, kBgmRate, true);
+  const int index = s.source.SoundIndex(name);
+  if (index >= 0 && s.source.LoadSound(size_t(index), &raw)) playStream(s.bgm, raw, kBgmRate, true, "bgm");
+}
+
+void playSe(const std::string &name) {
+  State &s = *g_state;
+  std::vector<uint8_t> raw;
+  const int index = s.source.SoundIndex(name);
+  stopStream(s.se);
+  if (index >= 0 && s.source.LoadSound(size_t(index), &raw)) playStream(s.se, raw, kSeRate, false, "se");
 }
 
 const Picture *picture(int index) {
@@ -155,6 +173,52 @@ const Picture *picture(int index) {
   return it->second.tex ? &it->second : nullptr;
 }
 
+SDL_Texture *texture(const ZeroNoTsukaima::Image &img) {
+  SDL_Surface *surf = SDL_CreateSurfaceFrom(img.width, img.height, SDL_PIXELFORMAT_RGBA32,
+                                            const_cast<uint8_t *>(img.rgba.data()), img.width * 4);
+  if (!surf) return nullptr;
+  SDL_Texture *tex = SDL_CreateTextureFromSurface(global.render, surf);
+  SDL_DestroySurface(surf);
+  return tex;
+}
+
+class Host : public ZeroNoTsukaima::FrontendHost {
+public:
+  explicit Host(State &s) : s_(s) {}
+  SDL_Texture *NormalPicture(const std::string &name) override {
+    auto it = s_.normals.find(name);
+    if (it == s_.normals.end()) {
+      Picture p;
+      ZeroNoTsukaima::Image img;
+      if (s_.source.LoadNormalPicture(s_.source.NormalIndex(name), &img)) p.tex = texture(img);
+      else SDL_Log("[zero] NORMAL picture %s not found", name.c_str());
+      it = s_.normals.emplace(name, p).first;
+    }
+    return it->second.tex;
+  }
+  SDL_Texture *ScenePicture(const std::string &name) override {
+    const Picture *p = picture(s_.source.ScenedatIndex(name));
+    return p ? p->tex : nullptr;
+  }
+  int SystemVoice(const std::string &name) override {
+    playVoice(s_.source.SystemVoice(name));
+    if (!s_.voice.stream || s_.voice.rate <= 0) return 0;
+    return int(int64_t(SDL_GetAudioStreamQueued(s_.voice.stream)) / 2 * 1000 / s_.voice.rate);
+  }
+  void StopVoice() override { stopStream(s_.voice); }
+  void SystemSe(const std::string &name) override { playSe(name); }
+  void Music(const std::string &name) override { playBgm(name); }
+  void StopMusic() override {
+    stopStream(s_.bgm);
+    s_.lastBgm.clear();
+  }
+  bool Movie(int number, std::vector<uint8_t> *out) override { return s_.source.LoadMovie(number, out); }
+  SDL_Renderer *Renderer() override { return global.render; }
+
+private:
+  State &s_;
+};
+
 void drawPicture(int index) {
   const Picture *p = picture(index);
   if (!p) return;
@@ -174,9 +238,25 @@ void drawSprite(int index, int xpos) {
 
 class ZeroSession : public Kotonoha::GameSession {
 public:
-  explicit ZeroSession(State &s) : s_(s) {}
+  explicit ZeroSession(State &s) : s_(s), host_(s), frontend_(host_) {}
+
+  bool HasFrontend() const override { return true; }
+  void EnterFrontend(bool boot) override {
+    stopStream(s_.voice);
+    frontend_.Enter(boot);
+  }
+  void FrontendEvent(const SDL_Event &e) override { frontend_.Event(e); }
+  std::optional<TitleAction> FrontendTick() override {
+    switch (frontend_.Tick()) {
+    case ZeroNoTsukaima::Frontend::Result::NewGame: return TitleAction::NewGame;
+    case ZeroNoTsukaima::Frontend::Result::Load: return TitleAction::Load;
+    default: return std::nullopt;
+    }
+  }
+  void DrawFrontend(SDL_Renderer *r) override { frontend_.Draw(r); }
 
   bool Start() override {
+    frontend_.Leave();
     game_ = std::make_unique<ZeroNoTsukaima::Game>(
         s_.source.Names(), [this](size_t i, std::vector<uint8_t> *o) { return s_.source.LoadScene(i, o); });
     game_->SetCharacterTable(&s_.source.Catalog().Characters());
@@ -241,6 +321,8 @@ public:
 
 private:
   State &s_;
+  Host host_;
+  ZeroNoTsukaima::Frontend frontend_;
   std::unique_ptr<ZeroNoTsukaima::Game> game_;
   std::string lastKey_;
   bool replaying_ = false;
@@ -322,6 +404,7 @@ void LocalQuit(void *, SDL_AppResult) {
   if (g_state) {
     stopStream(g_state->voice);
     stopStream(g_state->bgm);
+    stopStream(g_state->se);
     delete g_state->gameplay;
   }
   delete g_state;

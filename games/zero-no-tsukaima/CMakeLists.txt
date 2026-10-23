@@ -9,6 +9,7 @@ add_library(ZeroNoTsukaimaFormats STATIC
     "${CMAKE_CURRENT_SOURCE_DIR}/src/Source.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/Catalog.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/Vag.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/Pss.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/Game.cpp")
 target_include_directories(ZeroNoTsukaimaFormats PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/include")
@@ -28,7 +29,10 @@ endif()
 
 # Playable application (desktop): ZeroNoTsukaima --zero <disc.bin>
 if(NOT ANDROID AND NOT IOS)
-    add_executable(ZeroNoTsukaima "${CMAKE_CURRENT_SOURCE_DIR}/src/ZeroMain.cpp")
+    add_executable(ZeroNoTsukaima
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/ZeroMain.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/Frontend.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/MoviePlayer.cpp")
     target_link_libraries(ZeroNoTsukaima PRIVATE KotonohaRuntime ZeroNoTsukaimaFormats)
     kotonoha_configure_app(ZeroNoTsukaima
         OUTPUT_NAME ZeroNoTsukaima

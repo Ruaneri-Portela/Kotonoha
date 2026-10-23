@@ -1,5 +1,6 @@
 #pragma once
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -56,6 +57,19 @@ public:
   virtual std::vector<TitleItem> TitleItems(bool /*hasSaves*/) const { return {}; }
   virtual void DrawTitle(SDL_Renderer *, int /*hover*/) {}
 
+  // Optional animated retail front end (boot logos, opening movie, original
+  // title and mode menus). When HasFrontend() is true the flow shows it instead
+  // of any title above: EnterFrontend(true) once at boot, EnterFrontend(false)
+  // when the player returns to the title from the pause menu. While it shows,
+  // events arrive with pointer coordinates in logical space, FrontendTick() runs
+  // every frame and an action it returns is carried out by the flow (Load opens
+  // the shared load page; backing out of it returns to the front end).
+  virtual bool HasFrontend() const { return false; }
+  virtual void EnterFrontend(bool /*boot*/) {}
+  virtual void FrontendEvent(const SDL_Event &) {}
+  virtual std::optional<TitleAction> FrontendTick() { return std::nullopt; }
+  virtual void DrawFrontend(SDL_Renderer *) {}
+
   // A port with its own complete retail front end (title, menus, saves,
   // back log) returns true: the flow then forwards every event and
   // frame to the session instead of running its generic title/text/menu flow,
@@ -108,7 +122,7 @@ private:
     SDL_Renderer *renderer;
   };
 
-  bool Begin();
+  bool Begin(bool sync = true);
   void Advance(int choice);
   void Replay(const std::vector<int> &inputs);
   void ShowTitle();
@@ -116,6 +130,7 @@ private:
   void SyncChoices();
   void HandleTitleEvent(SDL_Event *event, Kotonoha_Game *game);
   void PickTitle(size_t index);
+  void RunTitleAction(GameSession::TitleAction action);
 
   Config config_;
   std::unique_ptr<GameSession> session_;
@@ -128,6 +143,8 @@ private:
   bool choicesOpen_ = false;
   std::vector<GameSession::TitleItem> titleItems_; // non-empty while the session's title shows
   int titleHover_ = -1;
+  bool frontend_ = false; // the session's front end shows instead of the title
+  bool booted_ = false;   // the front end already ran its boot sequence
   std::string lastLogged_;
 };
 
