@@ -177,6 +177,18 @@ SDL_AppResult GameplayFlow::HandleEvent(SDL_Event *e, Kotonoha_Game *game) {
     return SDL_APP_CONTINUE;
   }
   if (session_->Choosing()) {
+    if (session_->OwnsChoices()) {
+      if ((e->type == SDL_EVENT_KEY_DOWN && e->key.key == SDLK_ESCAPE) ||
+          (e->type == SDL_EVENT_MOUSE_BUTTON_DOWN && e->button.button == SDL_BUTTON_RIGHT)) {
+        menu_.Show(GameMenu::Page::Pause, font_);
+        return SDL_APP_CONTINUE;
+      }
+      SDL_Event c = *e;
+      SDL_ConvertEventToRenderCoordinates(game->render, &c);
+      const int pick = session_->ChoiceEvent(c);
+      if (pick >= 0) Advance(pick);
+      return SDL_APP_CONTINUE;
+    }
     choices_.HandleEvent(e, game);
     return SDL_APP_CONTINUE;
   }
@@ -191,7 +203,7 @@ SDL_AppResult GameplayFlow::HandleEvent(SDL_Event *e, Kotonoha_Game *game) {
 }
 
 void GameplayFlow::SyncChoices() {
-  const bool want = session_->Choosing() && !menu_.Active();
+  const bool want = session_->Choosing() && !menu_.Active() && !session_->OwnsChoices();
   if (want && !choicesOpen_) {
     const auto items = session_->Choices();
     choices_.Open(items, font_);
@@ -211,6 +223,7 @@ void GameplayFlow::Frame(Kotonoha_Game *game, TTF_Font *font) {
     ShowTitle();
   }
 
+  if (playing_ && session_->Ended()) ShowTitle();
   if (playing_) {
     session_->Idle();
     session_->Sync();
@@ -257,7 +270,9 @@ void GameplayFlow::Frame(Kotonoha_Game *game, TTF_Font *font) {
   GameViewport viewport(r, config_);
   const SDL_FRect all{0, 0, config_.width, config_.height};
   if (playing_) {
+    if (textBox_.Visible()) session_->DrawMessageWindow(r);
     textBox_.Draw(r);
+    if (session_->Choosing() && session_->OwnsChoices()) session_->DrawChoices(r);
     if (choicesOpen_) {
       DrawDim(r, all, 130);
       const float h = 72.0f * float(session_->Choices().size()) + 36.0f;

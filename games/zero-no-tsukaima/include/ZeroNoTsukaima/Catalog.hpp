@@ -1,6 +1,7 @@
 #pragma once
 #include <cstdint>
 #include <map>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -48,6 +49,12 @@ public:
   // `stage` is the space-separated attribute list of a stage tag, e.g. "昼 ルイズの部屋".
   // Returns -1 when no background applies.
   int ResolveStage(const std::string &stage) const;
+  // Every stage name of the ENVINIT table (サイトの居間, 黒, 白 ...).
+  std::set<std::string> StageNames() const;
+  // Picture name of a stage that is not a BG background ("黒" -> "black", "萌えル" -> "MOERU").
+  std::string SpecialStage(const std::string &stage) const;
+  // Name plate picture of a speaker (ENVINIT nameImageMap, "ルイズ" -> "names_nameruizu").
+  const std::string *NameImage(const std::string &speaker) const;
   // Event CG name (cg05a, ECG48B, ...). Returns -1 when unknown.
   int ResolveEvent(const std::string &name) const;
 
@@ -60,6 +67,7 @@ private:
     bool timed = false;
   };
   std::map<std::string, Stage> stages_;
+  std::map<std::string, std::string> specialStages_, nameImages_;
   std::map<std::string, int> events_;
   CharacterTable characters_;
   std::map<std::string, std::pair<int, int>> spriteGroups_; // "TCG01_1D" -> (empty entry, face count)

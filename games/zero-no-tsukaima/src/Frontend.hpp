@@ -6,15 +6,46 @@
 #include <SDL3/SDL.h>
 
 #include <cstdint>
+#include <map>
+#include <set>
 #include <string>
 #include <vector>
 
 namespace ZeroNoTsukaima {
 
+// The original system save (zone 1, `sf.*`): options from initOption(),
+// per-character voice switches, clear / appear flags and the CG "seen" marks
+// (getMainDataAccessF). Kept as a text file next to the save slots.
+struct SystemData {
+  int charSpeed = 6, autoWait = 3, skipMode = 0, vibration = 1;
+  int voiceVol = 10, seVol = 10, bgmVol = 6, stereo = 1;
+  std::map<std::string, int> voiceOn;    // VOICES.NUT code -> 0 / 1 (missing = on)
+  std::map<std::string, int64_t> flags;  // "sf.clear_ru", "sf.ri_appear", ...
+  std::set<std::string> seen;            // SCENEDAT pictures shown in play
+
+  void ResetOptions(); // initOption()
+  bool VoiceOn(const std::string &code) const;
+  bool Flag(const std::string &name) const;
+  bool AllClear() const; // isAllClear()
+  bool Load(const std::string &path);
+  bool Save(const std::string &path) const;
+};
+
+// VOICES.NUT: speaker name -> voice config code ("etc" when unknown).
+std::string VoiceCode(const std::string &speaker);
+
 // What the front end needs from the application (textures, audio, disc).
 class FrontendHost {
 public:
   virtual ~FrontendHost() = default;
+  // Any picture by name: NORMAL first, then SCENEDAT; null (quietly) if missing.
+  virtual Kotonoha::CanvasImage *Picture(const std::string &name) = 0;
+  // Menu text (TextLayer) in logical coordinates; returns the logical size.
+  virtual SDL_FPoint DrawText(SDL_Renderer *r, const std::string &text, float x, float y, float size, SDL_Color color,
+                              bool measureOnly = false) = 0;
+  virtual SystemData &System() = 0;
+  virtual void SystemChanged() = 0; // apply volumes and write the system save
+  virtual bool HasScene(const std::string &name) = 0;
   // NORMAL (system UI) and SCENEDAT pictures by archive name; null if missing.
   virtual Kotonoha::CanvasImage *NormalPicture(const std::string &name) = 0;
   virtual Kotonoha::CanvasImage *ScenePicture(const std::string &name) = 0;
@@ -29,26 +60,35 @@ public:
   virtual Kotonoha::Sound::Channel *MovieAudio() = 0; // engine channel the movie soundtrack plays on
 };
 
-// The retail boot and title flow of OVERRIDE.NUT (LogoState, TitleState and
-// the GameMode menu), 640x448 logical:
-//   WARNING (first boot) -> MMV_LOGO -> ZERO2OP.PSS -> title -> mode menu.
-// Each logo fades in, waits for its system voice plus 2 s and fades out; any
-// key or click skips the current step. The title returns to the logo after
-// 45 s without input. Every state change is the original 500 ms crossfade.
+// The retail boot, title and system menus of OVERRIDE.NUT, 640x448 logical:
+//   WARNING (first boot) -> MMV_LOGO -> ZERO2OP.PSS -> title -> mode menu,
+// and from the mode menu OptionState / VoiceOptionState, the CG and scene
+// galleries (CgModeMenuState, CgViewState) and the sound / special voice
+// lists (SoundModeMenuState). Each logo fades in, waits for its system voice
+// plus 2 s and fades out; any key or click skips the current step. The title
+// returns to the logo after 45 s without input. Every state change is the
+// original 500 ms crossfade. Keys: arrows, Enter/Space/Z (circle),
+// Esc/Backspace/X or right click (cross), PageUp/PageDown or Q/W (L1/R1).
 class Frontend {
 public:
-  enum class Result { None, NewGame, Load };
+  // PlayScene: start Scene() (scene replay or special voice drama).
+  enum class Result { None, NewGame, Load, PlayScene };
+  enum class Replay { None, Scene, Voice };
 
   explicit Frontend(FrontendHost &host) : host_(host) {}
 
   void Enter(bool boot);
+  // After a story ends: a replay goes back to its gallery, the story to the logo (sceneend).
+  void Return(Replay from);
+  const std::string &Scene() const { return scene_; }
+  Replay ReplayKind() const { return replay_; }
   void Leave(); // stops the movie and the system voice
   void Event(const SDL_Event &e);
   Result Tick();
   void Draw(SDL_Renderer *r);
 
 private:
-  enum class Phase { Warning, Logo, Movie, Title, Menu };
+  enum class Phase { Warning, Logo, Movie, Title, Menu, Option, VoiceOption, Gallery, CgView, Sound };
   enum class Step { FadeIn, Hold, FadeOut };
 
   void Go(Phase phase, bool crossfade);
@@ -56,6 +96,33 @@ private:
   void EnterMenu(bool fromTitle);
   void Skip();
   void Activate(int item);
+  void EnterGallery(bool cg);
+  void EnterSound(bool voice);
+  void OptionKey(SDL_Keycode k);
+  void OptionChange(int dir);
+  void VoiceOptionKey(SDL_Keycode k);
+  void GalleryKey(SDL_Keycode k);
+  void GalleryPage(int dir);
+  void OpenCg(int entry);
+  void CgViewKey(SDL_Keycode k);
+  void CgNext();
+  void SoundKey(SDL_Keycode k);
+  void SoundPage(int dir, bool wrapped);
+  void Back(Phase to);
+  void MenuEvent(const SDL_Event &e, SDL_Keycode key, bool click, SDL_FPoint pt);
+  bool GalleryUnlocked(int n) const;
+  int GalleryCount() const;
+  int SoundCount() const;
+  bool SoundUnlocked(int n) const;
+  std::string SoundTitle(int n) const;
+  void DrawPageNumber(SDL_Renderer *r, int page, int pages, float alpha);
+  void DrawOption(SDL_Renderer *r, float alpha);
+  void DrawVoiceOption(SDL_Renderer *r, float alpha);
+  void DrawGallery(SDL_Renderer *r, float alpha);
+  void DrawCgView(SDL_Renderer *r, float alpha);
+  void DrawSound(SDL_Renderer *r, float alpha);
+  void DrawConfirm(SDL_Renderer *r);
+  Kotonoha::CanvasImage *Img(const std::string &name) { return host_.Picture(name); }
   void DrawPhase(SDL_Renderer *r, Phase phase, float alpha);
   void DrawImage(SDL_Renderer *r, Kotonoha::CanvasImage *img, float x, float y, float alpha, float light = 1.0f, float w = 0,
                  float h = 0);
@@ -74,6 +141,25 @@ private:
   uint64_t titleIdleStart_ = 0;
   int focus_ = 0; // menu cursor (kept like the original `curpos`)
   Result pending_ = Result::None;
+  std::string scene_;
+  Replay replay_ = Replay::None;
+  // OptionState (persistent like the original instance fields).
+  int optRow_ = 0, optDisp_ = 0;
+  bool confirm_ = false; // "初期化してよろしいですか？"
+  // VoiceOptionState cursor.
+  int voiceX_ = 0, voiceY_ = 0;
+  // CgModeMenuState: cg (true) or scene list.
+  bool galleryCg_ = true;
+  int galleryPage_ = 1, curX_ = 0, curY_ = 0;
+  // CgViewState: unlocked images of the entry, the one showing and its scroll.
+  std::vector<std::string> view_;
+  size_t viewIndex_ = 0;
+  float viewX_ = 0, viewY_ = 0;
+  uint64_t viewFade_ = 0;
+  // SoundModeMenuState: BGM (false) or special voice list.
+  bool soundVoice_ = false;
+  int soundPage_ = 1, soundCur_ = 0;
+  bool soundPlaying_ = false;
 };
 
 } // namespace ZeroNoTsukaima

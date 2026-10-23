@@ -239,14 +239,22 @@ void Game::native(Vm& vm, int id, const std::vector<Arg>& args) {
             if (a.tag() == 0 && ints++ == 6) mask = a.value();
             if (a.tag() == 1) choiceVar_ = a.value();
         }
+        static const char* kPlaceNames[] = {
+            "ヒの部屋", "浅葱と巴の部屋", "踊り場", "玄関", "スノーラディッシュ",
+            "店の外", "寝室", "リビング", "露天風呂", "倉庫"
+        };
         choiceText_.clear();
         choiceValue_.clear();
         for (int i = 1; i <= 10; ++i)
             if (mask & (1u << (i - 1))) {
-                choiceText_.push_back(std::string("Place ") + std::to_string(i));
+                choiceText_.push_back(kPlaceNames[i - 1]);
                 choiceValue_.push_back(i);
             }
         if (!choiceText_.empty()) {
+            background_ = "mapbase";
+            sprites_.clear();
+            filled_ = false;
+            ++sceneVersion_;
             choosing_ = true;
             vm.block();
         }

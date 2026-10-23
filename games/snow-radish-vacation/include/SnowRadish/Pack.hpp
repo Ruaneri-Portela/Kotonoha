@@ -41,6 +41,14 @@ struct Image {
 // tokens in BGR, stored bottom-up). Returns false on malformed data.
 bool decodeEvd(const std::vector<uint8_t>& data, Image& out);
 
+struct AlphaMask {
+    uint32_t width = 0, height = 0;
+    std::vector<uint8_t> alpha;
+};
+
+// ALPF is a 200x150 byte mask; ALPA is a 250x200 byte mask.
+bool decodeAlpha(const std::vector<uint8_t>& data, bool alternate, AlphaMask& out);
+
 } // namespace SnowRadish
 
 namespace SnowRadish {
@@ -50,6 +58,13 @@ struct Sprite {
     int32_t x = 0, y = 0;           // its position on the 800x600 screen canvas
     std::vector<uint8_t> rgba;      // top-down RGBA
 };
+
+struct Animation {
+    std::vector<Sprite> frames;
+};
+
+// Decodes type-1/type-2 .ANM frame tables (raw BGR or embedded CHD frames).
+bool decodeAnm(const std::vector<uint8_t>& data, Animation& out);
 
 // Decodes a type-1 .CHD sprite (LOCPU.DLL LoadChr): a 20-byte header (bounding
 // box), then 600 screen rows stored bottom-up. Row tokens: 0xFF end of row,

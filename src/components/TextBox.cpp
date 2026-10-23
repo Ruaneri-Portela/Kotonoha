@@ -58,9 +58,12 @@ TextBox::Cached TextBox::Rasterize(SDL_Renderer *renderer,
   if (font_ == nullptr || text.empty()) return out;
   TTF_SetFontSize(font_, style_.fontSize * density);
   const int wrap = logicalWrap > 0 ? static_cast<int>(logicalWrap * density) : 0;
+  const int defaultSkip = TTF_GetFontLineSkip(font_);
+  if (style_.lineHeight > 0) TTF_SetFontLineSkip(font_, static_cast<int>(style_.lineHeight * density + 0.5f));
   SDL_Surface *surface =
       wrap > 0 ? TTF_RenderText_Blended_Wrapped(font_, text.c_str(), 0, color, wrap)
                : TTF_RenderText_Blended(font_, text.c_str(), 0, color);
+  if (style_.lineHeight > 0) TTF_SetFontLineSkip(font_, defaultSkip);
   if (surface == nullptr) return out;
   out.texture = SDL_CreateTextureFromSurface(renderer, surface);
   out.width = static_cast<float>(surface->w) / density;
@@ -106,10 +109,13 @@ void TextBox::Draw(SDL_Renderer *renderer) {
     DrawPanel(renderer, {10, 8, captionTex_.width + 20, captionTex_.height + 8}, chip);
     Blit(renderer, captionTex_, 20, 12);
   }
-  if (Visible()) {
+  if (Visible() && !style_.frame) {
+    if (style_.speakerPlate && speakerTex_.texture != nullptr) Blit(renderer, speakerTex_, style_.box.x, style_.box.y - speakerTex_.height);
+    Blit(renderer, bodyTex_, style_.box.x + style_.padding, style_.box.y + style_.padding);
+  } else if (Visible()) {
     DrawPanel(renderer, style_.box);
     float y = style_.box.y + style_.padding * 0.6f;
-    if (speakerTex_.texture != nullptr) {
+    if (style_.speakerPlate && speakerTex_.texture != nullptr) {
       // Name plate straddling the top edge of the box.
       PanelStyle plate;
       plate.radius = 8.0f;

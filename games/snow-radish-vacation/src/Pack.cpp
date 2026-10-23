@@ -158,9 +158,68 @@ bool decodeEvd(const std::vector<uint8_t>& d, Image& img)
     return true;
 }
 
+bool decodeAlpha(const std::vector<uint8_t>& d, bool alternate, AlphaMask& out)
+{
+    const uint32_t width = alternate ? 250 : 200;
+    const uint32_t height = alternate ? 200 : 150;
+    if (d.size() != size_t(width) * height) return false;
+    out.width = width;
+    out.height = height;
+    out.alpha = d;
+    return true;
+}
+
 } // namespace SnowRadish
 
 namespace SnowRadish {
+
+bool decodeAnm(const std::vector<uint8_t>& d, Animation& out)
+{
+    out.frames.clear();
+    if (d.size() < 0x684 || (rd32(d.data()) != 1 && rd32(d.data()) != 2)) return false;
+
+    const uint32_t x = rd32(&d[76]), y = rd32(&d[80]);
+    const uint32_t width = rd32(&d[92]), height = rd32(&d[96]);
+    if (!width || !height || width > 8192 || height > 8192 || x > 8192 - width || y > 8192 - height)
+        return false;
+
+    for (size_t i = 0; i < 8; ++i) {
+        const uint32_t offset = rd32(&d[12 + i * 4]);
+        const uint32_t size = rd32(&d[44 + i * 4]);
+        if (size == 0) break;
+        if (offset < 0x684 || offset > d.size() || size > d.size() - offset) {
+            out.frames.clear();
+            return false;
+        }
+        std::vector<uint8_t> bytes(d.begin() + offset, d.begin() + offset + size);
+        Sprite frame;
+        if (bytes.size() >= 24 && rd32(bytes.data()) == 1 && decodeChd(bytes, frame)) {
+            out.frames.push_back(std::move(frame));
+            continue;
+        }
+        if (bytes.size() != size_t(width) * height * 3) {
+            out.frames.clear();
+            return false;
+        }
+        frame.width = width;
+        frame.height = height;
+        frame.x = int32_t(x);
+        frame.y = int32_t(y);
+        frame.rgba.resize(size_t(width) * height * 4);
+        for (uint32_t row = 0; row < height; ++row) {
+            const uint8_t* source = bytes.data() + size_t(height - 1 - row) * width * 3;
+            uint8_t* target = frame.rgba.data() + size_t(row) * width * 4;
+            for (uint32_t col = 0; col < width; ++col) {
+                target[col * 4] = source[col * 3 + 2];
+                target[col * 4 + 1] = source[col * 3 + 1];
+                target[col * 4 + 2] = source[col * 3];
+                target[col * 4 + 3] = 255;
+            }
+        }
+        out.frames.push_back(std::move(frame));
+    }
+    return out.frames.size() >= 2;
+}
 
 bool decodeChd(const std::vector<uint8_t>& d, Sprite& s)
 {
