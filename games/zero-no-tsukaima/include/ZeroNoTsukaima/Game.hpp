@@ -2,6 +2,8 @@
 #include <ZeroNoTsukaima/Catalog.hpp>
 #include <ZeroNoTsukaima/Scene.hpp>
 
+#include <SDL3/SDL_rect.h>
+
 #include <functional>
 #include <map>
 #include <set>
@@ -47,7 +49,9 @@ public:
   };
 
   // What the story is blocked on.
-  enum class Block { None, Click, Choice, Time, Voice, Se, Movie, End };
+  // Coffee: the `coffee` tag opened the coffee-break menu (CommandState "coffee");
+  // the host ends it with FinishWait() when the player picks NEXT.
+  enum class Block { None, Click, Choice, Time, Voice, Se, Movie, Coffee, End };
 
   // Requests for the host, in script order (see TakeCues).
   struct Cue {
@@ -109,6 +113,30 @@ public:
   bool Moving() const { return choosing_ && moving_; }
   const std::string &MoveBack() const { return moveBack_; }
   const std::vector<MoveDestination> &MoveDestinations() const { return moveShown_; }
+  // Overlays of OVERRIDE.NUT shown during a timed wait: LikeMeter (好感度
+  // action=up/down name=RU..) and TndlMeter (ツンデレパラメータ param=n, the
+  // needle moves from `from` to `to` = f.prm_tundere_eval).
+  struct Meter {
+    enum Kind { None, Like, Tundere } kind = None;
+    std::string name; // Like: RU / CU / TA / SI / AN / CH / RI / YRI
+    int delta = 0;    // Like: +1 up / -1 down; Tundere: the param
+    int from = 0, to = 0;
+    int64_t start = 0, end = 0;
+  };
+  const Meter *ActiveMeter() const { return meter_.kind != Meter::None && clock_ < meter_.end ? &meter_ : nullptr; }
+  // RouletteState (tndlslot [tun=true]): a choice whose index is the
+  // f.prm_tundere_boot the slot stopped at (0..17, +18 for the tsun slot).
+  bool Roulette() const { return choosing_ && roulette_; }
+  bool RouletteTsun() const { return rouletteTsun_; }
+  // selopt: the area the select window spreads its buttons over.
+  SDL_Rect SelectArea() const { return selectArea_; }
+  // Identifies the page waiting for a click (read marks for skip mode "既読").
+  std::string PageId() const { return waiting_ ? scriptName_ + "@" + std::to_string(pagePc_) : std::string(); }
+  // String variables (f.title, the save title).
+  std::string StringVar(const std::string &name) const {
+    auto it = strings_.find(name);
+    return it == strings_.end() ? std::string() : it->second;
+  }
   int64_t Flag(const std::string &name) const;
   // System variables (sf.*) restored from the system save before Start.
   void SetFlag(const std::string &name, int64_t value) { flags_[name] = value; }
@@ -193,6 +221,10 @@ private:
   Transition transition_;
   std::vector<std::string> choiceText_, choiceTarget_;
   bool moving_ = false;
+  bool roulette_ = false, rouletteTsun_ = false;
+  Meter meter_;
+  SDL_Rect selectArea_{0, 0, 640, 448};
+  size_t pagePc_ = 0;
   int moveCount_ = 0;
   std::string moveBack_, moveBgm_, moveDone_;
   std::vector<MoveDestination> moves_, moveShown_;
