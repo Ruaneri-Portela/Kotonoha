@@ -92,6 +92,7 @@ set(SCHOOL_DAYS_INCLUDE_DIR
 # Source roots
 # ==============================================================================
 set(KOTONOHA_ENGINE_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src")
+set(KOTONOHA_RUNTIME_SOURCE_DIR "${KOTONOHA_ENGINE_SOURCE_DIR}/runtime")
 set(SCHOOL_DAYS_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/games/school-days/src")
 
 
@@ -180,14 +181,14 @@ endif()
 
 
 # ==============================================================================
-# Engine library + game executable targets
+# Engine, runtime library, and SDL entry executable targets
 # ==============================================================================
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/KotonohaTargets.cmake")
 
 
 
 if(KOTONOHA_DEV_CHECKPOINTS)
-    target_compile_definitions(SchoolDaysHQ PRIVATE KOTONOHA_DEV_CHECKPOINTS=1)
+    target_compile_definitions(Kotonoha PRIVATE KOTONOHA_DEV_CHECKPOINTS=1)
     message(STATUS "KOTONOHA_DEV_CHECKPOINTS=ON (development-only routing helpers)")
 endif()
 
@@ -205,9 +206,22 @@ if((KOTONOHA_ROUTER_TESTS OR KOTONOHA_ORS_PARSER_TESTS) AND NOT ANDROID)
     target_link_libraries(KotonohaEngineLinkSmokeTest PRIVATE Kotonoha::Engine)
     add_test(NAME KotonohaEngineLinkSmokeTest COMMAND KotonohaEngineLinkSmokeTest)
 
+    add_executable(UpscalingTextureLifecycleTest
+        tests/UpscalingTextureLifecycleTest.cpp
+        ${KOTONOHA_ENGINE_SOURCE_DIR}/specials/UpscalingGeneric.cpp
+    )
+    target_include_directories(UpscalingTextureLifecycleTest PRIVATE
+        ${KOTONOHA_INCLUDE_DIR})
+    target_link_libraries(UpscalingTextureLifecycleTest PRIVATE
+        ${KOTONOHA_SDL3_TARGET})
+    set_target_properties(UpscalingTextureLifecycleTest PROPERTIES
+        CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
+    add_test(NAME UpscalingTextureLifecycleTest
+        COMMAND UpscalingTextureLifecycleTest)
+
     add_executable(OrsParserFidelityTest
         tests/OrsParserFidelityTest.cpp
-        ${SCHOOL_DAYS_SOURCE_DIR}/runtime/parsers/Ors.c
+        ${KOTONOHA_ENGINE_SOURCE_DIR}/parsers/Ors.c
     )
     target_include_directories(OrsParserFidelityTest PRIVATE
         ${KOTONOHA_INCLUDE_DIR}
@@ -218,7 +232,7 @@ if((KOTONOHA_ROUTER_TESTS OR KOTONOHA_ORS_PARSER_TESTS) AND NOT ANDROID)
 
     add_executable(SchoolDaysSceneTimelineTest
         tests/SchoolDaysSceneTimelineTest.cpp
-        ${SCHOOL_DAYS_SOURCE_DIR}/runtime/parsers/Ors.c
+        ${KOTONOHA_ENGINE_SOURCE_DIR}/parsers/Ors.c
     )
     target_include_directories(SchoolDaysSceneTimelineTest PRIVATE
         ${KOTONOHA_INCLUDE_DIR}
@@ -229,7 +243,7 @@ if((KOTONOHA_ROUTER_TESTS OR KOTONOHA_ORS_PARSER_TESTS) AND NOT ANDROID)
 
     add_executable(SchoolDaysAudioEventTest
         tests/SchoolDaysAudioEventTest.cpp
-        ${SCHOOL_DAYS_SOURCE_DIR}/runtime/parsers/Ors.c
+        ${KOTONOHA_ENGINE_SOURCE_DIR}/parsers/Ors.c
     )
     target_include_directories(SchoolDaysAudioEventTest PRIVATE ${KOTONOHA_INCLUDE_DIR})
     target_link_libraries(SchoolDaysAudioEventTest PRIVATE ${KOTONOHA_SDL3_TARGET})
@@ -238,9 +252,9 @@ if((KOTONOHA_ROUTER_TESTS OR KOTONOHA_ORS_PARSER_TESTS) AND NOT ANDROID)
 
     add_executable(SchoolDaysBgmEventTest
         tests/SchoolDaysBgmEventTest.cpp
-        ${SCHOOL_DAYS_SOURCE_DIR}/runtime/components/Audio.cpp
+        ${KOTONOHA_ENGINE_SOURCE_DIR}/components/Audio.cpp
         src/components/Sound.cpp
-        ${SCHOOL_DAYS_SOURCE_DIR}/runtime/renders/AudioRender.c
+        ${KOTONOHA_ENGINE_SOURCE_DIR}/renders/AudioRender.c
         src/utils/Demuxer.c
         src/utils/FFmpeg.c
         src/utils/Time.c
@@ -272,9 +286,9 @@ if((KOTONOHA_ROUTER_TESTS OR KOTONOHA_ORS_PARSER_TESTS) AND NOT ANDROID)
         ${SCHOOL_DAYS_SOURCE_DIR}/SchoolDaysAssetMount.cpp
         ${SCHOOL_DAYS_SOURCE_DIR}/SchoolDaysGpkArchive.cpp
         ${SCHOOL_DAYS_SOURCE_DIR}/SchoolDaysGpkIndex.cpp
-        ${SCHOOL_DAYS_SOURCE_DIR}/runtime/renders/AudioRender.c
+        ${KOTONOHA_ENGINE_SOURCE_DIR}/renders/AudioRender.c
         src/renders/ImageRender.c
-        ${SCHOOL_DAYS_SOURCE_DIR}/runtime/renders/VideoRender.c
+        ${KOTONOHA_ENGINE_SOURCE_DIR}/renders/VideoRender.c
         src/utils/Demuxer.c
         src/utils/FFmpeg.c
         src/utils/Time.c
@@ -289,9 +303,10 @@ if((KOTONOHA_ROUTER_TESTS OR KOTONOHA_ORS_PARSER_TESTS) AND NOT ANDROID)
 
     add_executable(SchoolDaysAbcRuntimeTest
         tests/SchoolDaysAbcRuntimeTest.cpp
-        ${SCHOOL_DAYS_SOURCE_DIR}/SchoolDaysVoicePcm.cpp
-        ${SCHOOL_DAYS_SOURCE_DIR}/SchoolDaysAbcTexture.cpp
-        ${SCHOOL_DAYS_SOURCE_DIR}/runtime/components/Image.cpp
+        ${KOTONOHA_ENGINE_SOURCE_DIR}/audio/VoicePcm.cpp
+        ${KOTONOHA_ENGINE_SOURCE_DIR}/graphics/TextureAlpha.cpp
+        ${KOTONOHA_ENGINE_SOURCE_DIR}/specials/UpscalingGeneric.cpp
+        ${KOTONOHA_RUNTIME_SOURCE_DIR}/components/Image.cpp
         src/renders/ImageRender.c
         src/utils/FFmpeg.c
         src/utils/Time.c
@@ -307,8 +322,9 @@ if((KOTONOHA_ROUTER_TESTS OR KOTONOHA_ORS_PARSER_TESTS) AND NOT ANDROID)
 
     add_executable(SchoolDaysAbcOverlayHotfixTest
         tests/SchoolDaysAbcOverlayHotfixTest.cpp
-        ${SCHOOL_DAYS_SOURCE_DIR}/SchoolDaysAbcTexture.cpp
-        ${SCHOOL_DAYS_SOURCE_DIR}/runtime/components/Image.cpp
+        ${KOTONOHA_ENGINE_SOURCE_DIR}/graphics/TextureAlpha.cpp
+        ${KOTONOHA_ENGINE_SOURCE_DIR}/specials/UpscalingGeneric.cpp
+        ${KOTONOHA_RUNTIME_SOURCE_DIR}/components/Image.cpp
         src/renders/ImageRender.c
         src/utils/FFmpeg.c
         src/utils/Time.c
@@ -327,8 +343,9 @@ if((KOTONOHA_ROUTER_TESTS OR KOTONOHA_ORS_PARSER_TESTS) AND NOT ANDROID)
 
     add_executable(SchoolDaysAbcEdgeSeamTest
         tests/SchoolDaysAbcEdgeSeamTest.cpp
-        ${SCHOOL_DAYS_SOURCE_DIR}/SchoolDaysAbcTexture.cpp
-        ${SCHOOL_DAYS_SOURCE_DIR}/runtime/components/Image.cpp
+        ${KOTONOHA_ENGINE_SOURCE_DIR}/graphics/TextureAlpha.cpp
+        ${KOTONOHA_ENGINE_SOURCE_DIR}/specials/UpscalingGeneric.cpp
+        ${KOTONOHA_RUNTIME_SOURCE_DIR}/components/Image.cpp
         src/renders/ImageRender.c
         src/utils/FFmpeg.c
         src/utils/Time.c
@@ -349,8 +366,9 @@ if((KOTONOHA_ROUTER_TESTS OR KOTONOHA_ORS_PARSER_TESTS) AND NOT ANDROID)
 
     add_executable(SchoolDaysMovieEventTest
         tests/SchoolDaysMovieEventTest.cpp
-        ${SCHOOL_DAYS_SOURCE_DIR}/runtime/components/Video.cpp
-        ${SCHOOL_DAYS_SOURCE_DIR}/runtime/renders/VideoRender.c
+        ${KOTONOHA_ENGINE_SOURCE_DIR}/components/Video.cpp
+        ${KOTONOHA_ENGINE_SOURCE_DIR}/specials/UpscalingGeneric.cpp
+        ${KOTONOHA_ENGINE_SOURCE_DIR}/renders/VideoRender.c
         src/utils/Demuxer.c
         src/utils/FFmpeg.c
         src/utils/Time.c
@@ -389,7 +407,7 @@ if((KOTONOHA_ROUTER_TESTS OR KOTONOHA_ORS_PARSER_TESTS) AND NOT ANDROID)
         ${SCHOOL_DAYS_SOURCE_DIR}/SchoolDaysTitleModel.cpp
         ${SCHOOL_DAYS_SOURCE_DIR}/SchoolDaysTitleRenderPlan.cpp
         src/renders/ImageRender.c
-        ${SCHOOL_DAYS_SOURCE_DIR}/runtime/renders/VideoRender.c
+        ${KOTONOHA_ENGINE_SOURCE_DIR}/renders/VideoRender.c
         src/utils/Demuxer.c
         src/utils/FFmpeg.c
         src/utils/Time.c
@@ -403,10 +421,11 @@ if((KOTONOHA_ROUTER_TESTS OR KOTONOHA_ORS_PARSER_TESTS) AND NOT ANDROID)
 
     add_executable(SchoolDaysRemainingOrsTest
         tests/SchoolDaysRemainingOrsTest.cpp
-        ${SCHOOL_DAYS_SOURCE_DIR}/runtime/parsers/Ors.c
+        ${KOTONOHA_ENGINE_SOURCE_DIR}/parsers/Ors.c
         src/components/Fade.cpp
-        ${SCHOOL_DAYS_SOURCE_DIR}/SchoolDaysAbcTexture.cpp
-        ${SCHOOL_DAYS_SOURCE_DIR}/runtime/components/Image.cpp
+        ${KOTONOHA_ENGINE_SOURCE_DIR}/graphics/TextureAlpha.cpp
+        ${KOTONOHA_ENGINE_SOURCE_DIR}/specials/UpscalingGeneric.cpp
+        ${KOTONOHA_RUNTIME_SOURCE_DIR}/components/Image.cpp
         src/renders/ImageRender.c
         src/utils/FFmpeg.c
         src/utils/Time.c
@@ -422,7 +441,7 @@ if((KOTONOHA_ROUTER_TESTS OR KOTONOHA_ORS_PARSER_TESTS) AND NOT ANDROID)
 
     add_executable(SchoolDaysRuntimeCorpusAudit
         tests/SchoolDaysRuntimeCorpusAudit.cpp
-        ${SCHOOL_DAYS_SOURCE_DIR}/runtime/parsers/Ors.c
+        ${KOTONOHA_ENGINE_SOURCE_DIR}/parsers/Ors.c
     )
     target_include_directories(SchoolDaysRuntimeCorpusAudit PRIVATE
         ${KOTONOHA_INCLUDE_DIR})
@@ -439,7 +458,7 @@ if((KOTONOHA_ROUTER_TESTS OR KOTONOHA_ORS_PARSER_TESTS) AND NOT ANDROID)
 
     add_executable(SchoolDaysRuntimeParityTest
         tests/SchoolDaysRuntimeParityTest.cpp
-        ${SCHOOL_DAYS_SOURCE_DIR}/runtime/parsers/Ors.c
+        ${KOTONOHA_ENGINE_SOURCE_DIR}/parsers/Ors.c
     )
     target_include_directories(SchoolDaysRuntimeParityTest PRIVATE
         ${KOTONOHA_INCLUDE_DIR})

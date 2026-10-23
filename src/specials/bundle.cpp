@@ -1,1 +1,1 @@
-extern "C" void bundle_anchor() {}
+extern "C" void KotonohaBundleAnchor() {}

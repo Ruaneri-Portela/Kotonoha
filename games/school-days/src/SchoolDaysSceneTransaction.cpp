@@ -46,8 +46,7 @@ bool SchoolDaysSceneTransaction::PrepareExplicit(SDL_Renderer* renderer,
     return true;
 }
 
-bool SchoolDaysSceneTransaction::CommitIfSwapped(SDL_Renderer* renderer,
-                                                  Gameplay* outgoing,
+bool SchoolDaysSceneTransaction::CommitIfSwapped(Gameplay* outgoing,
                                                   Gameplay* incoming,
                                                   const char* reason) {
     if (outgoing == nullptr || incoming == nullptr || outgoing == incoming) {
@@ -80,11 +79,6 @@ bool SchoolDaysSceneTransaction::CommitIfSwapped(SDL_Renderer* renderer,
     leaseActive = true;
     prepared = false;
     preparedOutgoing = nullptr;
-
-    if (renderer != nullptr) {
-        SDL_SetRenderTarget(renderer, nullptr);
-        presentedFrame.Present(renderer);
-    }
 
     SDL_Log("[SD-TRANSACTION] commit reason=%s outgoing=%p incoming=%p lease=active",
             reason != nullptr ? reason : "unknown",

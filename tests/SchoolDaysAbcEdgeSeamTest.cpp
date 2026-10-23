@@ -1,5 +1,5 @@
 #include <Kotonoha/components/Image.hpp>
-#include <Kotonoha/SchoolDaysAbcTexture.hpp>
+#include <Kotonoha/graphics/TextureAlpha.hpp>
 
 #include <algorithm>
 #include <cmath>

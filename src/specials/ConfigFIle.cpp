@@ -5,17 +5,17 @@
 #include <cstdio>
 #include <cstring>
 
-extern "C" {
+namespace Kotonoha::ConfigDetail {
 
-static void *KotonohaSettings_ReadOpen(ImGuiContext *ctx,
-                                       ImGuiSettingsHandler *handler,
-                                       const char *name) {
+static void *SettingsReadOpen(ImGuiContext *ctx,
+                              ImGuiSettingsHandler *handler,
+                              const char *name) {
   return (void *)1;
 }
 
 // Função totalmente segura que evita dar free em ponteiros estáticos ou
 // inválidos
-static void ConfigImGui_SetString(char **target, const char *source) {
+static void SetString(char **target, const char *source) {
   if (source == NULL)
     return;
 
@@ -44,9 +44,9 @@ static void ConfigImGui_SetString(char **target, const char *source) {
   }
 }
 
-static void KotonohaSettings_ReadLine(ImGuiContext *ctx,
-                                      ImGuiSettingsHandler *handler,
-                                      void *entry, const char *line) {
+static void SettingsReadLine(ImGuiContext *ctx,
+                             ImGuiSettingsHandler *handler,
+                             void *entry, const char *line) {
   Kotonoha_Config *config = (Kotonoha_Config *)handler->UserData;
   if (config == NULL || line == NULL)
     return;
@@ -110,36 +110,36 @@ static void KotonohaSettings_ReadLine(ImGuiContext *ctx,
     if (ival >= 0)
       config->minLoadingPauseMs = ival;
   } else if (strncmp(line, "TitleMusic=", 11) == 0) {
-    ConfigImGui_SetString(&config->titleMusic, line + 11);
+    SetString(&config->titleMusic, line + 11);
   } else if (strncmp(line, "CursorPath=", 11) == 0) {
-    ConfigImGui_SetString(&config->cursorPath, line + 11);
+    SetString(&config->cursorPath, line + 11);
   } else if (SDL_sscanf(line, "CursorSize=%d", &ival) == 1) {
     if (ival > 0)
       config->cursorSize = ival;
   } else if (strncmp(line, "IconPath=", 9) == 0) {
-    ConfigImGui_SetString(&config->iconPath, line + 9);
+    SetString(&config->iconPath, line + 9);
   } else if (strncmp(line, "FontsPath=", 10) == 0) {
-    ConfigImGui_SetString(&config->fontsPath, line + 10);
+    SetString(&config->fontsPath, line + 10);
   } else if (strncmp(line, "PromptSelectSound=", 18) == 0) {
-    ConfigImGui_SetString(&config->promptSelectSound, line + 18);
+    SetString(&config->promptSelectSound, line + 18);
   } else if (strncmp(line, "PromptViewSound=", 16) == 0) {
-    ConfigImGui_SetString(&config->promptViewSound, line + 16);
+    SetString(&config->promptViewSound, line + 16);
   } else if (strncmp(line, "Splash=", 7) == 0) {
-    ConfigImGui_SetString(&config->splashFiles, line + 7);
+    SetString(&config->splashFiles, line + 7);
   } else if (strncmp(line, "Anime4kFiles=", 13) == 0) {
-    ConfigImGui_SetString(&config->anime4kFiles, line + 13);
+    SetString(&config->anime4kFiles, line + 13);
   } else if (strncmp(line, "AssetsPath=", 11) == 0) {
-    ConfigImGui_SetString(&config->assetsPath, line + 11);
+    SetString(&config->assetsPath, line + 11);
   } else if (strncmp(line, "AssStyles=", 10) == 0) {
-    ConfigImGui_SetString(&config->assStyles, line + 10);
+    SetString(&config->assStyles, line + 10);
   } else if (strncmp(line, "PreferredRenderer=", 18) == 0) {
-    ConfigImGui_SetString(&config->preferredRenderer, line + 18);
+    SetString(&config->preferredRenderer, line + 18);
   }
 }
 
-static void KotonohaSettings_WriteAll(ImGuiContext *ctx,
-                                      ImGuiSettingsHandler *handler,
-                                      ImGuiTextBuffer *buf) {
+static void SettingsWriteAll(ImGuiContext *ctx,
+                             ImGuiSettingsHandler *handler,
+                             ImGuiTextBuffer *buf) {
   Kotonoha_Config *config = (Kotonoha_Config *)handler->UserData;
   if (config == NULL)
     return;
@@ -203,42 +203,59 @@ static void KotonohaSettings_WriteAll(ImGuiContext *ctx,
   buf->appendf("\n");
 }
 
-void KotonohaConfigRegisterImGuiHandler(Kotonoha_Config *config) {
+} // namespace Kotonoha::ConfigDetail
+
+extern "C" {
+
+bool KotonohaConfigRegisterImGuiHandler(Kotonoha_Config *config) {
+  if (config == nullptr) {
+    SDL_SetError("Kotonoha config handler requires a config object");
+    return false;
+  }
   ImGuiContext *ctx = ImGui::GetCurrentContext();
-  if (ctx) {
-    ImGuiSettingsHandler *existing =
-        ImGui::FindSettingsHandler("KotonohaConfig");
-    if (existing) {
-      existing->UserData = config;
-      return;
-    }
+  if (ctx == nullptr) {
+    SDL_SetError("Create an ImGui context before loading Kotonoha settings");
+    return false;
+  }
+  ImGuiSettingsHandler *existing =
+      ImGui::FindSettingsHandler("KotonohaConfig");
+  if (existing) {
+    existing->UserData = config;
+    return true;
   }
 
   ImGuiSettingsHandler handler;
   memset(&handler, 0, sizeof(handler));
   handler.TypeName = "KotonohaConfig";
   handler.TypeHash = ImHashStr("KotonohaConfig");
-  handler.ReadOpenFn = KotonohaSettings_ReadOpen;
-  handler.ReadLineFn = KotonohaSettings_ReadLine;
-  handler.WriteAllFn = KotonohaSettings_WriteAll;
+  handler.ReadOpenFn = Kotonoha::ConfigDetail::SettingsReadOpen;
+  handler.ReadLineFn = Kotonoha::ConfigDetail::SettingsReadLine;
+  handler.WriteAllFn = Kotonoha::ConfigDetail::SettingsWriteAll;
   handler.UserData = config;
 
   ImGui::AddSettingsHandler(&handler);
+  return true;
 }
 
 void KotonohaConfigSetIniFilename(const char *path) {
+  if (ImGui::GetCurrentContext() == nullptr) {
+    SDL_SetError("Create an ImGui context before setting the Kotonoha INI path");
+    return;
+  }
   ImGuiIO &io = ImGui::GetIO();
   io.IniFilename = path;
 }
 
 void KotonohaConfigApplyAndSave(Kotonoha_Config *config) {
   ImGuiContext *ctx = ImGui::GetCurrentContext();
-  if (ctx) {
-    ImGuiSettingsHandler *handler =
-        ImGui::FindSettingsHandler("KotonohaConfig");
-    if (handler) {
-      handler->UserData = config;
-    }
+  if (ctx == nullptr) {
+    SDL_SetError("Create an ImGui context before saving Kotonoha settings");
+    return;
+  }
+  ImGuiSettingsHandler *handler =
+      ImGui::FindSettingsHandler("KotonohaConfig");
+  if (handler) {
+    handler->UserData = config;
   }
 
   ImGuiIO &io = ImGui::GetIO();
@@ -249,6 +266,10 @@ void KotonohaConfigApplyAndSave(Kotonoha_Config *config) {
 }
 
 void KotonohaConfigLoadFromDisk(const char *path) {
+  if (ImGui::GetCurrentContext() == nullptr) {
+    SDL_SetError("Create an ImGui context before loading Kotonoha settings");
+    return;
+  }
   if (path != NULL) {
     ImGui::LoadIniSettingsFromDisk(path);
   } else {

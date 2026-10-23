@@ -1,5 +1,6 @@
 #pragma once
 
+#include <Kotonoha/AssetProvider.hpp>
 #include <filesystem>
 #include <algorithm>
 #include <cctype>
@@ -109,6 +110,30 @@ inline bool ListSchoolDaysAssetDirectoryReference(
         return false;
     }
     return gSchoolDaysVirtualAssetListDirectory(directoryReference, children, error);
+}
+
+class SchoolDaysImageAssetProvider final : public AssetProvider {
+public:
+    bool IsVirtualReference(const std::string& reference) const override {
+        return SchoolDaysAssetReferenceIsVirtual(reference);
+    }
+
+    bool ReadFile(const std::string& reference,
+                  std::vector<uint8_t>* bytes,
+                  std::string* error) const override {
+        return ReadSchoolDaysAssetReference(reference, bytes, error);
+    }
+
+    bool ListDirectory(const std::string& reference,
+                       std::vector<std::string>* children,
+                       std::string* error) const override {
+        return ListSchoolDaysAssetDirectoryReference(reference, children, error);
+    }
+};
+
+inline void InstallSchoolDaysImageAssetProvider() {
+    static const SchoolDaysImageAssetProvider provider;
+    SetAssetProvider(&provider);
 }
 
 struct SchoolDaysImageResolution {

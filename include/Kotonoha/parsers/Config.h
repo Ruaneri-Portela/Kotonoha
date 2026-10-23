@@ -87,7 +87,7 @@ typedef struct Kotonoha_Config {
 void KotonohaConfigFree(Kotonoha_Config *config);
 void KotonohaConfigSave(Kotonoha_Config *config);
 
-void KotonohaConfigRegisterImGuiHandler(Kotonoha_Config *config);
+bool KotonohaConfigRegisterImGuiHandler(Kotonoha_Config *config);
 void KotonohaConfigSetIniFilename(const char *path);
 
 // Texto de "About" compartilhado entre a linha de comando e a Debug UI
