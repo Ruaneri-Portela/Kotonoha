@@ -24,7 +24,17 @@ const char *StatusName(Kotonoha_Scene_Status status) {
   }
 }
 
+::Kotonoha::Canvas *sceneCanvas = nullptr;
+
 } // namespace
+
+void SetSceneCanvas(::Kotonoha::Canvas *canvas) { sceneCanvas = canvas; }
+
+void ForgetSceneCanvas(const ::Kotonoha::Canvas *canvas) {
+  if (sceneCanvas == canvas) {
+    sceneCanvas = nullptr;
+  }
+}
 
 void DrawCanvasLayersWindow(::Kotonoha::Gameplay *play) {
   if (!canvasLayersVisible) {
@@ -36,11 +46,14 @@ void DrawCanvasLayersWindow(::Kotonoha::Gameplay *play) {
       ImVec2(viewport->WorkSize.x * 0.45f, viewport->WorkSize.y * 0.70f),
       ImGuiCond_FirstUseEver);
   if (ImGui::Begin("Canvas Layers", &canvasLayersVisible)) {
-    if (play == nullptr || play->drawCanvas == nullptr) {
+    ::Kotonoha::Canvas *canvas =
+        play != nullptr && play->drawCanvas != nullptr ? play->drawCanvas
+                                                       : sceneCanvas;
+    if (canvas == nullptr) {
       ImGui::TextDisabled("No active scene.");
     } else {
       const std::vector<::Kotonoha::CanvasLayerInfo> layers =
-          play->drawCanvas->GetLayerInfo();
+          canvas->GetLayerInfo();
       ImGui::Text("%d layers (drawn bottom to top)",
                   static_cast<int>(layers.size()));
       ImGui::Separator();

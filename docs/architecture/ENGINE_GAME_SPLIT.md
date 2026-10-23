@@ -38,6 +38,12 @@ The latter are kept in a separate CMake source group and do not leak into the
 reusable `KotonohaEngine` archive. PCM analysis, ABC animation/texture helpers
 and the virtual-asset provider seam are engine-owned.
 
+Ports share three engine helpers for media:
+- `Kotonoha::GameplayFlow` draws the session scene into a "game" canvas layer at output resolution.
+- `Kotonoha::CanvasImage` sends pictures and video frames through the upscaler. It re-upscales only
+  changed sources.
+- `Kotonoha::PcmPlayer` plays decoded PCM clips on the `Voice`/`BGM`/`Se` mixer channels.
+
 `cmake/KotonohaTargets.cmake` enforces the base-engine boundary at configure
 time: sources and public headers assigned to `KotonohaEngine` are rejected if
 they contain an explicit `SchoolDays`/`schoolDays` implementation dependency.

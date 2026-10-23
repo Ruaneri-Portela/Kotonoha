@@ -32,6 +32,8 @@ GameplayFlow::GameplayFlow(Config config) : config_(std::move(config)), menu_(co
   textBox_.SetStyle(config_.textBox);
 }
 
+GameplayFlow::~GameplayFlow() { Debug::ForgetSceneCanvas(&canvas_); }
+
 bool GameplayFlow::Attach(std::unique_ptr<GameSession> session) {
   session_ = std::move(session);
   playing_ = false;
@@ -242,12 +244,19 @@ void GameplayFlow::Frame(Kotonoha_Game *game, TTF_Font *font) {
   SDL_Renderer *r = game->render;
   SDL_SetRenderDrawColor(r, 0, 0, 0, 255);
   SDL_RenderClear(r);
+  const SDL_FRect place = SceneRect(r);
+  if (!canvasReady_) {
+    canvas_.RegisterCanva(DrawSceneLayer, 0, place, this, "game");
+    canvasReady_ = true;
+  } else {
+    canvas_.UpdateCanva(DrawSceneLayer, -1, place);
+  }
+  canvas_.RenderCanvas(game->window, r);
+  Debug::SetSceneCanvas(&canvas_);
+
   GameViewport viewport(r, config_);
   const SDL_FRect all{0, 0, config_.width, config_.height};
-  SDL_SetRenderDrawColor(r, 8, 9, 20, 255);
-  SDL_RenderFillRect(r, &all);
   if (playing_) {
-    session_->Draw(r);
     textBox_.Draw(r);
     if (choicesOpen_) {
       DrawDim(r, all, 130);
@@ -255,6 +264,46 @@ void GameplayFlow::Frame(Kotonoha_Game *game, TTF_Font *font) {
       DrawPanel(r, {config_.width * 0.5f - 260.0f, config_.height * 0.5f - h * 0.5f, 520.0f, h});
       choices_.Draw(game->window, r);
     }
+  }
+  if (playing_ && menu_.Active()) {
+    DrawDim(r, all, 150);
+    DrawPanel(r, {config_.width * 0.5f - 230.0f, config_.height * 0.5f - 190.0f, 460.0f, 380.0f});
+  }
+  menu_.Draw(game->window, r, config_.width, config_.height, "");
+}
+
+// The letterboxed game area in output pixels (whole pixels, the canvas texture size).
+SDL_FRect GameplayFlow::SceneRect(SDL_Renderer *r) const {
+  SetWindowPresentation(r, static_cast<int>(config_.width), static_cast<int>(config_.height),
+                        SDL_LOGICAL_PRESENTATION_LETTERBOX);
+  SDL_FRect rect{0, 0, config_.width, config_.height};
+  SDL_GetRenderLogicalPresentationRect(r, &rect);
+  SetWindowPresentation(r, 0, 0, SDL_LOGICAL_PRESENTATION_DISABLED);
+  rect.x = SDL_roundf(rect.x);
+  rect.y = SDL_roundf(rect.y);
+  rect.w = SDL_max(1.0f, SDL_roundf(rect.w));
+  rect.h = SDL_max(1.0f, SDL_roundf(rect.h));
+  return rect;
+}
+
+// The "game" canvas layer: the session draws in logical coordinates, scaled to
+// the layer's output-pixel texture.
+Kotonoha_Scene_Status GameplayFlow::DrawSceneLayer(KOTONOHA_SCENE_CALL) {
+  (void)window;
+  auto *self = static_cast<GameplayFlow *>(userData);
+  float w = 0, h = 0;
+  if (self == nullptr || target == nullptr || !SDL_GetTextureSize(target, &w, &h)) return KOTONOHA_SCENE_NULL;
+  SDL_SetRenderScale(render, w / self->config_.width, h / self->config_.height);
+  SDL_SetRenderDrawColor(render, 8, 9, 20, 255);
+  SDL_RenderClear(render);
+  self->DrawScene(render);
+  SDL_SetRenderScale(render, 1.0f, 1.0f);
+  return KOTONOHA_SCENE_DRAW;
+}
+
+void GameplayFlow::DrawScene(SDL_Renderer *r) {
+  if (playing_) {
+    session_->Draw(r);
   } else if (frontend_) {
     session_->DrawFrontend(r);
   } else if (!titleItems_.empty()) {
@@ -265,13 +314,8 @@ void GameplayFlow::Frame(Kotonoha_Game *game, TTF_Font *font) {
     bg.borderWidth = 0;
     bg.top = {16, 20, 48, 255};
     bg.bottom = {4, 5, 14, 255};
-    DrawPanel(r, all, bg);
+    DrawPanel(r, {0, 0, config_.width, config_.height}, bg);
   }
-  if (playing_ && menu_.Active()) {
-    DrawDim(r, all, 150);
-    DrawPanel(r, {config_.width * 0.5f - 230.0f, config_.height * 0.5f - 190.0f, 460.0f, 380.0f});
-  }
-  menu_.Draw(game->window, r, config_.width, config_.height, "");
 }
 
 SDL_AppResult GameplayFlow::RunFrame(::Kotonoha::Kotonoha *app, Kotonoha_Game *game, TTF_Font *font) {

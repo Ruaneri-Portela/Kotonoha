@@ -9,20 +9,20 @@ namespace ZeroNoTsukaima {
 MoviePlayer::~MoviePlayer() { Close(); }
 
 void MoviePlayer::Close() {
-  if (audio_) SDL_DestroyAudioStream(audio_);
-  if (texture_) SDL_DestroyTexture(texture_);
+  audio_.Stop();
+  hasAudio_ = false;
+  image_.Reset(nullptr);
   if (parser_) av_parser_close(parser_);
   if (codec_) avcodec_free_context(&codec_);
   if (frame_) av_frame_free(&frame_);
   if (packet_) av_packet_free(&packet_);
-  audio_ = nullptr;
-  texture_ = nullptr;
   parser_ = nullptr;
   movie_ = PssMovie{};
   finished_ = true;
 }
 
-bool MoviePlayer::Open(const std::vector<uint8_t> &pss, SDL_Renderer *renderer, float volume) {
+bool MoviePlayer::Open(const std::vector<uint8_t> &pss, SDL_Renderer *renderer, Kotonoha::Sound::Channel *audio,
+                       float volume) {
   Close();
   renderer_ = renderer;
   if (!DemuxPss(pss.data(), pss.size(), &movie_)) return false;
@@ -40,20 +40,17 @@ bool MoviePlayer::Open(const std::vector<uint8_t> &pss, SDL_Renderer *renderer, 
   frameIndex_ = 0;
   fps_ = 30.0;
   duration_ = 0.0;
-  audioBytes_ = 0;
-  if (!movie_.pcm.empty() && movie_.rate > 0) {
-    const SDL_AudioSpec spec{SDL_AUDIO_S16, movie_.channels, movie_.rate};
-    audio_ = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &spec, nullptr, nullptr);
-    if (audio_) {
-      audioBytes_ = int64_t(movie_.pcm.size() * sizeof(int16_t));
-      SDL_SetAudioStreamGain(audio_, volume);
-      SDL_PutAudioStreamData(audio_, movie_.pcm.data(), int(audioBytes_));
-      SDL_FlushAudioStream(audio_);
-      SDL_ResumeAudioStreamDevice(audio_);
-      duration_ = double(movie_.pcm.size() / size_t(movie_.channels)) / movie_.rate;
-    }
-    std::vector<int16_t>().swap(movie_.pcm);
+  if (!movie_.pcm.empty() && movie_.rate > 0 && movie_.channels > 0) {
+    duration_ = double(movie_.pcm.size() / size_t(movie_.channels)) / movie_.rate;
+    Kotonoha::PcmPlayer::Clip clip;
+    clip.samples = std::move(movie_.pcm);
+    clip.channels = movie_.channels;
+    clip.rate = movie_.rate;
+    clip.gain = volume;
+    hasAudio_ = audio_.Play(audio, std::move(clip));
+    if (!hasAudio_) duration_ = 0.0;
   }
+  std::vector<int16_t>().swap(movie_.pcm);
   SDL_Log("[movie] %zu video packets, audio %.1f s @%d Hz", movie_.video.size(), duration_, movie_.rate);
   startTicks_ = SDL_GetTicksNS();
   finished_ = false;
@@ -61,10 +58,7 @@ bool MoviePlayer::Open(const std::vector<uint8_t> &pss, SDL_Renderer *renderer, 
 }
 
 double MoviePlayer::Clock() const {
-  if (audio_) {
-    const int64_t queued = SDL_GetAudioStreamQueued(audio_);
-    return double(audioBytes_ - queued) / (double(movie_.rate) * movie_.channels * 2.0);
-  }
+  if (hasAudio_) return audio_.Position();
   return double(SDL_GetTicksNS() - startTicks_) / 1e9;
 }
 
@@ -103,16 +97,17 @@ bool MoviePlayer::DecodeNext() {
 
 void MoviePlayer::Upload() {
   if (frame_->format != AV_PIX_FMT_YUV420P) return;
-  if (texture_ && (texture_->w != frame_->width || texture_->h != frame_->height)) {
-    SDL_DestroyTexture(texture_);
-    texture_ = nullptr;
+  SDL_Texture *tex = image_.Source();
+  if (tex && (tex->w != frame_->width || tex->h != frame_->height)) tex = nullptr;
+  if (!tex) {
+    tex = SDL_CreateTexture(renderer_, SDL_PIXELFORMAT_IYUV, SDL_TEXTUREACCESS_STREAMING, frame_->width,
+                            frame_->height);
+    image_.Reset(tex);
   }
-  if (!texture_)
-    texture_ = SDL_CreateTexture(renderer_, SDL_PIXELFORMAT_IYUV, SDL_TEXTUREACCESS_STREAMING, frame_->width,
-                                 frame_->height);
-  if (texture_)
-    SDL_UpdateYUVTexture(texture_, nullptr, frame_->data[0], frame_->linesize[0], frame_->data[1], frame_->linesize[1],
-                         frame_->data[2], frame_->linesize[2]);
+  if (!tex) return;
+  SDL_UpdateYUVTexture(tex, nullptr, frame_->data[0], frame_->linesize[0], frame_->data[1], frame_->linesize[1],
+                       frame_->data[2], frame_->linesize[2]);
+  image_.Touch(); // a new frame: upscaled once, on its first draw
 }
 
 void MoviePlayer::Update() {
@@ -133,11 +128,9 @@ void MoviePlayer::Update() {
     ++frameIndex_;
     pending_ = false;
   }
-  if (videoDone && (!audio_ || SDL_GetAudioStreamQueued(audio_) == 0)) finished_ = true;
+  if (videoDone && (!hasAudio_ || !audio_.Playing())) finished_ = true;
 }
 
-void MoviePlayer::Draw(SDL_Renderer *renderer, const SDL_FRect &dst) const {
-  if (texture_) SDL_RenderTexture(renderer, texture_, nullptr, &dst);
-}
+void MoviePlayer::Draw(SDL_Renderer *renderer, const SDL_FRect &dst) { image_.Draw(renderer, nullptr, &dst); }
 
 } // namespace ZeroNoTsukaima

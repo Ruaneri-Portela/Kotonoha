@@ -75,6 +75,9 @@ public:
     // script waits while transitionPlaying() is true (a click skips it).
     std::function<void(int type, int msec)> transition;
     std::function<bool()> transitionPlaying;
+    // Native 213 reached: the original title menu runs here (the host shows it before the
+    // story starts, so the script just continues with "start").
+    std::function<void()> title;
 
     // Optional trace of every native call (id, rendered arguments).
     std::function<void(const std::string&)> trace;
