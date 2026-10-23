@@ -1,6 +1,6 @@
 # Kotonoha Novel Engine α
 
-**Kotonoha Novel Engine** is a free and open-source C++ visual novel engine for `.ORS` scripts.  
+**Kotonoha Novel Engine** is a free and open-source C++ visual novel engine for `.ORS` scripts.
 It is a modern reimplementation inspired by the FORIS engine used in the *Days* series by 0verflow, including *School Days*.
 
 > ⚠️ **Status: Alpha.** Features are still being implemented and defects may occur.
@@ -51,7 +51,7 @@ Kotonoha targets:
 - **Android**
 - **iOS**
 
-The project can be built with **CMake + VCPKG** or, on Linux and macOS, with system libraries discovered through **pkg-config**. Native IDE projects are also included for **Visual Studio**, **Xcode**, and **Android Studio**.
+The canonical build is **CMake**. On Windows it integrates with VCPKG; on Linux and macOS it can also discover system libraries through **pkg-config**. Visual Studio consumes the same CMake targets through thin wrapper projects, Xcode should be generated from CMake, and Android Studio continues to use the Gradle/CMake project.
 
 ### Repository Layout
 
@@ -59,14 +59,21 @@ The project can be built with **CMake + VCPKG** or, on Linux and macOS, with sys
 .
 ├── CMakeLists.txt          # Cross-platform CMake build
 ├── vcpkg.json              # VCPKG dependency manifest
-├── Kotonoha.sln            # Visual Studio solution
-├── Kotonoha.vcxproj        # Visual Studio project
-├── Xcode/                  # Xcode project
+├── Kotonoha.sln            # Visual Studio CMake wrapper solution
+├── KotonohaEngine.vcxproj  # Wrapper for the engine library target
+├── SchoolDaysHQ.vcxproj    # Wrapper for the game executable target
 ├── android-project/        # Android Studio / Gradle project
-├── src/                    # Engine source code
-├── include/Kotonoha/       # Public/internal headers
+├── src/                    # Reusable engine implementation
+├── include/Kotonoha/       # Reusable engine headers
+├── games/school-days/      # School Days HQ application/runtime/profile
 └── external/               # Git submodules
 ```
+
+The build boundary is intentional: `KotonohaEngine` is a reusable library and
+`SchoolDaysHQ` is the application executable that links it. School Days source
+and headers live under `games/school-days`; the engine target is configure-time
+guarded against new School Days implementation dependencies. See
+`docs/architecture/ENGINE_GAME_SPLIT.md` for the ownership rules.
 
 ### Dependencies
 
@@ -111,13 +118,14 @@ Configure and build:
 
 ```powershell
 cmake -S . -B build -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake"
-cmake --build build --config Release
+cmake --build build --config Release --target KotonohaEngine SchoolDaysHQ
 ```
 
-The resulting executable is typically located under:
+The resulting artifacts are typically located under:
 
 ```text
-build/Release/
+build/Release/KotonohaEngine.lib
+build/Release/SchoolDaysHQ.exe
 ```
 
 #### Linux — System Libraries via pkg-config
@@ -158,7 +166,7 @@ cmake -S . -B build
 cmake --build build -j
 ```
 
-### Native IDE Projects
+### IDE Integration
 
 #### Visual Studio — Windows
 
@@ -168,16 +176,20 @@ Open:
 Kotonoha.sln
 ```
 
-Select a configuration such as **Debug** or **Release**, then build the solution.
+The solution exposes **KotonohaEngine** and **SchoolDaysHQ** as separate projects.
+Both are wrappers over the canonical CMake targets, so there is no second source
+list to keep synchronized. Set `VCPKG_ROOT` (or `KOTONOHA_VCPKG_ROOT`) before
+building on Windows.
 
 Ensure FFmpeg and libass are available through VCPKG, prebuilt binaries, or configured include/library paths.
 
 #### Xcode — macOS
 
-Open the Xcode project located in:
+Generate an Xcode project from the canonical CMake build:
 
-```text
-Xcode/
+```bash
+cmake -S . -B build/xcode -G Xcode
+cmake --build build/xcode --target KotonohaEngine SchoolDaysHQ
 ```
 
 Install dependencies with Homebrew:
@@ -186,7 +198,8 @@ Install dependencies with Homebrew:
 brew install ffmpeg libass
 ```
 
-Then select a scheme and build/run from Xcode.
+The tracked `Xcode/` project is a legacy snapshot and is not the authoritative
+source list after the engine/game split.
 
 #### Android Studio — Android
 
@@ -323,7 +336,7 @@ O Kotonoha suporta:
 - **macOS**
 - **Android**
 
-O projeto pode ser compilado com **CMake + VCPKG** ou, no Linux e macOS, com bibliotecas do sistema descobertas via **pkg-config**. Também estão incluídos projetos nativos para **Visual Studio**, **Xcode** e **Android Studio**.
+O build canônico é **CMake**. No Windows ele integra com VCPKG; no Linux e macOS também pode descobrir bibliotecas do sistema via **pkg-config**. O Visual Studio consome os mesmos targets do CMake através de projetos-wrapper finos, o Xcode deve ser gerado pelo CMake e o Android Studio continua usando Gradle/CMake.
 
 ### Estrutura do Repositório
 
@@ -331,14 +344,20 @@ O projeto pode ser compilado com **CMake + VCPKG** ou, no Linux e macOS, com bib
 .
 ├── CMakeLists.txt          # Build multiplataforma com CMake
 ├── vcpkg.json              # Manifesto de dependências do VCPKG
-├── Kotonoha.sln            # Solution do Visual Studio
-├── Kotonoha.vcxproj        # Projeto do Visual Studio
-├── Xcode/                  # Projeto do Xcode
+├── Kotonoha.sln            # Solution-wrapper do CMake para Visual Studio
+├── KotonohaEngine.vcxproj  # Wrapper do target da biblioteca do motor
+├── SchoolDaysHQ.vcxproj    # Wrapper do target executável do jogo
 ├── android-project/        # Projeto Android Studio / Gradle
-├── src/                    # Código-fonte do motor
-├── include/Kotonoha/       # Headers públicos/internos
+├── src/                    # Implementação reutilizável do motor
+├── include/Kotonoha/       # Headers reutilizáveis do motor
+├── games/school-days/      # Aplicação/runtime/perfil de School Days HQ
 └── external/               # Submódulos Git
 ```
+
+A fronteira é intencional: `KotonohaEngine` é uma biblioteca reutilizável e
+`SchoolDaysHQ` é o executável da aplicação que linka essa biblioteca. Fontes e
+headers de School Days ficam em `games/school-days`. Veja
+`docs/architecture/ENGINE_GAME_SPLIT.md` para as regras de ownership.
 
 ### Dependências
 
@@ -383,13 +402,14 @@ Configure e compile:
 
 ```powershell
 cmake -S . -B build -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake"
-cmake --build build --config Release
+cmake --build build --config Release --target KotonohaEngine SchoolDaysHQ
 ```
 
-O executável normalmente será gerado em:
+Os artefatos normalmente serão gerados em:
 
 ```text
-build/Release/
+build/Release/KotonohaEngine.lib
+build/Release/SchoolDaysHQ.exe
 ```
 
 #### Linux — Bibliotecas do Sistema via pkg-config
@@ -430,7 +450,7 @@ cmake -S . -B build
 cmake --build build -j
 ```
 
-### Projetos Nativos para IDEs
+### Integração com IDEs
 
 #### Visual Studio — Windows
 
@@ -440,16 +460,20 @@ Abra:
 Kotonoha.sln
 ```
 
-Selecione uma configuração como **Debug** ou **Release** e compile a solution.
+Essa solution expõe **KotonohaEngine** e **SchoolDaysHQ** como projetos separados.
+Ambos são wrappers dos targets canônicos do CMake, portanto não existe uma
+segunda lista de fontes para manter. Defina `VCPKG_ROOT` (ou
+`KOTONOHA_VCPKG_ROOT`) antes de compilar no Windows.
 
 Garanta que FFmpeg e libass estejam disponíveis via VCPKG, binários pré-compilados ou caminhos configurados de include e biblioteca.
 
 #### Xcode — macOS
 
-Abra o projeto do Xcode localizado em:
+Gere o projeto do Xcode a partir do CMake canônico:
 
-```text
-Xcode/
+```bash
+cmake -S . -B build/xcode -G Xcode
+cmake --build build/xcode --target KotonohaEngine SchoolDaysHQ
 ```
 
 Instale as dependências com Homebrew:
@@ -458,7 +482,8 @@ Instale as dependências com Homebrew:
 brew install ffmpeg libass
 ```
 
-Depois selecione um scheme e compile/executed pelo Xcode.
+O projeto rastreado em `Xcode/` é um snapshot legado e não é a lista de fontes
+autoritativa depois da separação motor/jogo.
 
 #### Android Studio — Android
 

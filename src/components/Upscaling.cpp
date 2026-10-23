@@ -114,8 +114,8 @@ bool Upscaling::ProcessUpscale(SDL_Renderer *render, SDL_Texture *srcTexutre) {
       SDL_RenderClear(render);
       const bool copied =
           SDL_RenderTexture(render, srcTexutre, nullptr, nullptr);
-      SDL_SetRenderTarget(render, previousTarget);
-      if (!copied) {
+      const bool restored = SDL_SetRenderTarget(render, previousTarget);
+      if (!copied || !restored) {
         return false;
       }
       srcTexutre = extraTexture;

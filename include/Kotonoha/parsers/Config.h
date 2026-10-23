@@ -6,7 +6,9 @@
 // Scalar settings are atomic because the debug UI, the main loop and the
 // worker threads (demuxer, event manager) read and write them concurrently.
 #ifdef __cplusplus
+extern "C++" {
 #include <atomic>
+}
 #define KOTONOHA_ATOMIC(T) std::atomic<T>
 #else
 #include <stdatomic.h>

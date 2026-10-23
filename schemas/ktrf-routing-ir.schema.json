@@ -1,0 +1,754 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:kotonoha:schema:ktrf-routing-ir:0.1",
+  "title": "KTRF Canonical Routing IR v0.1",
+  "description": "Structural schema. Semantic cross-reference, type, namespace and feature checks require a semantic validator.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "format",
+    "ir_version",
+    "document_id",
+    "profile",
+    "features",
+    "namespaces",
+    "entry_points",
+    "variables",
+    "resource_locators",
+    "external_hooks",
+    "endings",
+    "expressions",
+    "effects",
+    "choices",
+    "nodes",
+    "transitions"
+  ],
+  "properties": {
+    "format": {
+      "const": "ktrf-routing-ir"
+    },
+    "ir_version": {
+      "type": "string",
+      "pattern": "^0\\.1\\.\\d+$"
+    },
+    "document_id": {
+      "$ref": "#/$defs/id"
+    },
+    "profile": {
+      "$ref": "#/$defs/profile"
+    },
+    "features": {
+      "$ref": "#/$defs/features"
+    },
+    "namespaces": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/namespace"
+      }
+    },
+    "entry_points": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/entryPoint"
+      }
+    },
+    "variables": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/variable"
+      }
+    },
+    "resource_locators": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/resourceLocator"
+      }
+    },
+    "external_hooks": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/externalHook"
+      }
+    },
+    "endings": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/ending"
+      }
+    },
+    "expressions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/expression"
+      }
+    },
+    "effects": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/effect"
+      }
+    },
+    "choices": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/choice"
+      }
+    },
+    "nodes": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/node"
+      }
+    },
+    "transitions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/transition"
+      }
+    },
+    "metadata": {
+      "type": "object"
+    },
+    "extensions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/extension"
+      }
+    }
+  },
+  "$defs": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$"
+    },
+    "qname": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 256,
+      "pattern": "^[A-Za-z][A-Za-z0-9._-]*:[A-Za-z0-9][A-Za-z0-9._/-]*$"
+    },
+    "semver": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?$"
+    },
+    "jsonScalar": {
+      "type": [
+        "null",
+        "boolean",
+        "integer",
+        "number",
+        "string"
+      ]
+    },
+    "profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "version"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "version": {
+          "$ref": "#/$defs/semver"
+        },
+        "metadata": {
+          "type": "object"
+        }
+      }
+    },
+    "featureRequirement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "version"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/qname"
+        },
+        "version": {
+          "$ref": "#/$defs/semver"
+        }
+      }
+    },
+    "features": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "required",
+        "optional"
+      ],
+      "properties": {
+        "required": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/featureRequirement"
+          }
+        },
+        "optional": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/featureRequirement"
+          }
+        }
+      }
+    },
+    "namespace": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "prefix",
+        "uri"
+      ],
+      "properties": {
+        "prefix": {
+          "type": "string",
+          "pattern": "^[A-Za-z][A-Za-z0-9._-]*$",
+          "not": {
+            "const": "ktrf"
+          }
+        },
+        "uri": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "valueRef": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "value"
+          ],
+          "properties": {
+            "kind": {
+              "const": "literal"
+            },
+            "value": {}
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "ref"
+          ],
+          "properties": {
+            "kind": {
+              "const": "variable"
+            },
+            "ref": {
+              "$ref": "#/$defs/id"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "ref"
+          ],
+          "properties": {
+            "kind": {
+              "const": "expression"
+            },
+            "ref": {
+              "$ref": "#/$defs/id"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "entity",
+            "ref"
+          ],
+          "properties": {
+            "kind": {
+              "const": "entity"
+            },
+            "entity": {
+              "type": "string",
+              "minLength": 1
+            },
+            "ref": {
+              "$ref": "#/$defs/id"
+            }
+          }
+        }
+      ]
+    },
+    "entryPoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "node"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "node": {
+          "$ref": "#/$defs/id"
+        },
+        "trigger": {
+          "$ref": "#/$defs/qname"
+        },
+        "metadata": {
+          "type": "object"
+        },
+        "extensions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/extension"
+          }
+        }
+      }
+    },
+    "variable": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "type",
+        "scope",
+        "default"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "type": {
+          "$ref": "#/$defs/qname"
+        },
+        "scope": {
+          "$ref": "#/$defs/qname"
+        },
+        "default": {},
+        "label": {
+          "type": "string"
+        },
+        "metadata": {
+          "type": "object"
+        },
+        "extensions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/extension"
+          }
+        }
+      }
+    },
+    "resourceLocator": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "scheme",
+        "value"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "scheme": {
+          "$ref": "#/$defs/qname"
+        },
+        "value": {},
+        "media_type": {
+          "type": "string"
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "metadata": {
+          "type": "object"
+        },
+        "extensions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/extension"
+          }
+        }
+      }
+    },
+    "externalHook": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "symbol",
+        "contract"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "symbol": {
+          "$ref": "#/$defs/qname"
+        },
+        "contract": {
+          "type": "string",
+          "minLength": 1
+        },
+        "arguments_schema": {
+          "type": "object"
+        },
+        "metadata": {
+          "type": "object"
+        },
+        "extensions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/extension"
+          }
+        }
+      }
+    },
+    "ending": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "code": {
+          "$ref": "#/$defs/jsonScalar"
+        },
+        "label": {
+          "type": "string"
+        },
+        "metadata": {
+          "type": "object"
+        },
+        "extensions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/extension"
+          }
+        }
+      }
+    },
+    "expression": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "op",
+        "args"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "op": {
+          "$ref": "#/$defs/qname"
+        },
+        "args": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/valueRef"
+          }
+        },
+        "result_type": {
+          "$ref": "#/$defs/qname"
+        },
+        "metadata": {
+          "type": "object"
+        },
+        "extensions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/extension"
+          }
+        }
+      }
+    },
+    "effect": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "op",
+        "args"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "op": {
+          "$ref": "#/$defs/qname"
+        },
+        "args": {
+          "type": "object"
+        },
+        "metadata": {
+          "type": "object"
+        },
+        "extensions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/extension"
+          }
+        }
+      }
+    },
+    "choiceOption": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "value",
+        "effects"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "value": {
+          "$ref": "#/$defs/jsonScalar"
+        },
+        "effects": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/id"
+          }
+        },
+        "label": {
+          "type": "string"
+        },
+        "metadata": {
+          "type": "object"
+        },
+        "extensions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/extension"
+          }
+        }
+      }
+    },
+    "choiceTimeout": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "value",
+        "effects"
+      ],
+      "properties": {
+        "value": {
+          "$ref": "#/$defs/jsonScalar"
+        },
+        "effects": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/id"
+          }
+        },
+        "metadata": {
+          "type": "object"
+        }
+      }
+    },
+    "choice": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "node",
+        "result_variable",
+        "routing_policy",
+        "options"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "node": {
+          "$ref": "#/$defs/id"
+        },
+        "result_variable": {
+          "$ref": "#/$defs/id"
+        },
+        "routing_policy": {
+          "const": "ktrf:deferred"
+        },
+        "options": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/choiceOption"
+          }
+        },
+        "timeout": {
+          "$ref": "#/$defs/choiceTimeout"
+        },
+        "metadata": {
+          "type": "object"
+        },
+        "extensions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/extension"
+          }
+        }
+      }
+    },
+    "node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "kind",
+        "resources"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "kind": {
+          "$ref": "#/$defs/qname"
+        },
+        "resources": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/id"
+          }
+        },
+        "label": {
+          "type": "string"
+        },
+        "metadata": {
+          "type": "object"
+        },
+        "extensions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/extension"
+          }
+        }
+      }
+    },
+    "transition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "source",
+        "priority",
+        "effects",
+        "terminal"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "source": {
+          "$ref": "#/$defs/id"
+        },
+        "destination": {
+          "$ref": "#/$defs/id"
+        },
+        "priority": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "predicate": {
+          "$ref": "#/$defs/id"
+        },
+        "effects": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/id"
+          }
+        },
+        "terminal": {
+          "type": "boolean"
+        },
+        "triggers": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/qname"
+          }
+        },
+        "metadata": {
+          "type": "object"
+        },
+        "extensions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/extension"
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "terminal": {
+                "const": true
+              }
+            },
+            "required": [
+              "terminal"
+            ]
+          },
+          "then": {
+            "not": {
+              "required": [
+                "destination"
+              ]
+            }
+          },
+          "else": {
+            "required": [
+              "destination"
+            ]
+          }
+        }
+      ]
+    },
+    "extension": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "namespace",
+        "type",
+        "data"
+      ],
+      "properties": {
+        "namespace": {
+          "type": "string",
+          "pattern": "^[A-Za-z][A-Za-z0-9._-]*$"
+        },
+        "type": {
+          "type": "string",
+          "minLength": 1
+        },
+        "required_feature": {
+          "$ref": "#/$defs/qname"
+        },
+        "data": {}
+      }
+    }
+  }
+}

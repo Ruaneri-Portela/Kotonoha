@@ -1,0 +1,102 @@
+{
+  "format": "ktrf-routing-ir",
+  "ir_version": "0.1.0",
+  "document_id": "example.minimal.routing",
+  "profile": {
+    "id": "example.minimal",
+    "version": "1.0.0"
+  },
+  "features": {
+    "required": [
+      {
+        "id": "ktrf:expression-core",
+        "version": "1.0.0"
+      },
+      {
+        "id": "ktrf:effects-core",
+        "version": "1.0.0"
+      }
+    ],
+    "optional": []
+  },
+  "namespaces": [
+    {
+      "prefix": "example",
+      "uri": "urn:kotonoha:example:minimal"
+    }
+  ],
+  "entry_points": [
+    {
+      "id": "example:entry:new-game",
+      "node": "example:node:start",
+      "trigger": "ktrf:new-game"
+    }
+  ],
+  "variables": [
+    {
+      "id": "example:var:flag",
+      "type": "ktrf:int32",
+      "scope": "ktrf:session",
+      "default": 0
+    }
+  ],
+  "resource_locators": [],
+  "external_hooks": [],
+  "endings": [
+    {
+      "id": "example:ending:1",
+      "code": 1
+    }
+  ],
+  "expressions": [
+    {
+      "id": "example:expr:flag_eq_0",
+      "op": "ktrf:eq",
+      "args": [
+        {
+          "kind": "variable",
+          "ref": "example:var:flag"
+        },
+        {
+          "kind": "literal",
+          "value": 0
+        }
+      ],
+      "result_type": "ktrf:bool"
+    }
+  ],
+  "effects": [
+    {
+      "id": "example:effect:register_ending_1",
+      "op": "ktrf:register-ending",
+      "args": {
+        "ending": "example:ending:1"
+      }
+    }
+  ],
+  "choices": [],
+  "nodes": [
+    {
+      "id": "example:node:start",
+      "kind": "ktrf:scene",
+      "resources": []
+    }
+  ],
+  "transitions": [
+    {
+      "id": "example:transition:end",
+      "source": "example:node:start",
+      "priority": 0,
+      "predicate": "example:expr:flag_eq_0",
+      "effects": [
+        "example:effect:register_ending_1"
+      ],
+      "terminal": true,
+      "triggers": [
+        "ktrf:next"
+      ]
+    }
+  ],
+  "metadata": {},
+  "extensions": []
+}

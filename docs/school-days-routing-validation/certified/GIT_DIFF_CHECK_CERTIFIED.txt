@@ -1,0 +1,27 @@
+﻿games/school-days/include/Kotonoha/components/Prompt.hpp:202: trailing whitespace.
++  SDL_FRect viewport = {0, 0, 0, 0};
+games/school-days/include/Kotonoha/components/Prompt.hpp:236: trailing whitespace.
++  void SetViewport(SDL_FRect renderViewport) { viewport = renderViewport; }
+games/school-days/include/Kotonoha/components/Prompt.hpp:237: trailing whitespace.
++  bool IsActive() const;
+games/school-days/src/runtime/components/Prompt.cpp:195: trailing whitespace.
++bool Prompt::IsActive() const {
+games/school-days/src/runtime/components/Prompt.cpp:196: trailing whitespace.
++  if (promptResult == nullptr || *promptResult != -2 || time == nullptr)
+games/school-days/src/runtime/components/Prompt.cpp:197: trailing whitespace.
++    return false;
+games/school-days/src/runtime/components/Prompt.cpp:198: trailing whitespace.
++  if (schoolDaysInteraction.Enabled())
+games/school-days/src/runtime/components/Prompt.cpp:199: trailing whitespace.
++    return schoolDaysInteraction.InputOpenAtTick(SchoolDaysCurrentTick());
+games/school-days/src/runtime/components/Prompt.cpp:200: trailing whitespace.
++  return KotonohaTimeGet(time) < endTime;
+games/school-days/src/runtime/components/Prompt.cpp:201: trailing whitespace.
++}
+games/school-days/src/runtime/components/Prompt.cpp:202: trailing whitespace.
++
+GIT_DIFF_CHECK=PASS
+GIT_DIFF_CHECK=PASS
+GIT_DIFF_CHECK=PASS
+GIT_DIFF_CHECK=PASS
+GIT_DIFF_CHECK=PASS

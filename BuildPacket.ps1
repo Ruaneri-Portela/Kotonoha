@@ -33,15 +33,13 @@ Write-Host "Criando arquivo de vers o..."
 # Diret rio para pacotes
 $packetDest = ".\zips\"
 $builds = @("Win32", "x64")
-$msbuildPath = "C:\Program Files\Microsoft Visual Studio\18\Community\MSBuild\Current\Bin\MSBuild.exe"
-$file = "Kotonoha.sln"
 # Iterar sobre as plataformas
 foreach ($build in $builds) {
     $msbild = if ($build -eq "Win32") { "x86" } else { $build }
 
     # Compilar para Release
     Write-Host "Compilando $build (Release)..."
-    & $msbuildPath $file -p:Configuration=Release -p:Platform="$msbild"
+    & .\tools\build_cmake_target.ps1 -Target SchoolDaysHQ -Configuration Release -Platform $build
     if ($LASTEXITCODE -ne 0) {
         Write-Error "Falha na compila  o para $msbild em configura  o Release."
         exit $LASTEXITCODE
@@ -49,7 +47,7 @@ foreach ($build in $builds) {
 
     # Compilar para Debug
     Write-Host "Compilando $build (Debug)..."
-    & $msbuildPath $file -p:Configuration=Debug -p:Platform="$msbild"
+    & .\tools\build_cmake_target.ps1 -Target SchoolDaysHQ -Configuration Debug -Platform $build
     if ($LASTEXITCODE -ne 0) {
         Write-Error "Falha na compila  o para $msbild em configura  o Debug."
         exit $LASTEXITCODE
@@ -60,10 +58,11 @@ foreach ($build in $builds) {
      # Criar o diret rio para a plataforma
     New-Item -ItemType Directory -Path "$packetDest$build" -Force
 
-    # Copiar os arquivos do Release
-    Copy-Item -Path ".\$build\Release\*.exe" -Destination "$packetDest$build" -Force
-    Copy-Item -Path ".\$build\Release\*.dll" -Destination "$packetDest$build" -Force
+    # Copiar os arquivos do Release gerado pelo CMake canônico
+    $releaseDir = ".\build\vs\Release-$build\Release"
+    Copy-Item -Path "$releaseDir\SchoolDaysHQ.exe" -Destination "$packetDest$build" -Force
+    Copy-Item -Path "$releaseDir\*.dll" -Destination "$packetDest$build" -Force
 
-    Compress-Archive -Path "$packetDest\$build\*" -DestinationPath "$packetDest\Kotonoha_MSVC_$msbild($GIT_TAG)_($GIT_HASH)_win.zip" -Force
+    Compress-Archive -Path "$packetDest\$build\*" -DestinationPath "$packetDest\SchoolDaysHQ_MSVC_$msbild($GIT_TAG)_($GIT_HASH)_win.zip" -Force
     Remove-Item -Path "$packetDest$build" -Recurse -Force
 }

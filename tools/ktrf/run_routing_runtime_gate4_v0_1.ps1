@@ -1,0 +1,93 @@
+param(
+    [int]$MaxCombinationsPerNode = 250000,
+    [int]$MaxPairwisePerNode = 32,
+    [int]$BatchSize = 500
+)
+
+$ErrorActionPreference = "Stop"
+$Root = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
+$NativeBuild = Join-Path $Root "build\ktrf\routing-runtime-gate4-v0.1"
+$Artifact = Join-Path $Root "build\ktrf\school-days-hq.ktnroute"
+$Report = Join-Path $Root "build\ktrf\school-days-hq.native-state-matrix-diff.json"
+
+function Invoke-Checked {
+    param(
+        [Parameter(Mandatory=$true)][string]$Exe,
+        [Parameter(ValueFromRemainingArguments=$true)][string[]]$Args
+    )
+    & $Exe @Args
+    if ($LASTEXITCODE -ne 0) {
+        throw "$Exe failed with exit code $LASTEXITCODE"
+    }
+}
+
+function Resolve-BuiltExe {
+    param([Parameter(Mandatory=$true)][string]$Name)
+    $Candidates = @(
+        (Join-Path $NativeBuild "$Name.exe"),
+        (Join-Path $NativeBuild "Release\$Name.exe"),
+        (Join-Path $NativeBuild $Name),
+        (Join-Path $NativeBuild "Release\$Name")
+    )
+    $Found = $Candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+    if (-not $Found) {
+        throw "$Name executable not found under $NativeBuild"
+    }
+    return $Found
+}
+
+Write-Host "=== KTRF Routing Runtime v0.1 / Gate 4 Native Broader State Matrix ==="
+Write-Host ""
+
+Push-Location $Root
+try {
+    Write-Host "[1/6] Python syntax"
+    Invoke-Checked python -m py_compile `
+        .\tools\ktrf\diff_sdhq_native_state_matrix.py `
+        .\tools\ktrf\diff_sdhq_state_matrix.py `
+        .\tools\ktrf\diff_sdhq_targeted_transitions.py
+
+    Write-Host ""
+    Write-Host "[2/6] Fresh frozen School Days oracle -> canonical IR"
+    Invoke-Checked powershell -ExecutionPolicy Bypass -File .\tools\ktrf\run_sdhq_export.ps1
+
+    Write-Host ""
+    Write-Host "[3/6] Compile production KTRF fixture"
+    Invoke-Checked python .\tools\ktrf\compile_full_v0_1.py `
+        --ir .\build\ktrf\school-days-hq.routing.json `
+        --output .\build\ktrf\school-days-hq.ktnroute
+
+    Write-Host ""
+    Write-Host "[4/6] Configure standalone oracle/native state-matrix traces"
+    Invoke-Checked cmake -S .\tests\ktrf_native -B $NativeBuild
+
+    Write-Host ""
+    Write-Host "[5/6] Build frozen C++ oracle + native KTRF state-matrix traces"
+    Invoke-Checked cmake --build $NativeBuild --config Release --target `
+        SchoolDaysOracleTrace KtrfNativeStateMatrixTrace
+
+    $OracleExe = Resolve-BuiltExe "SchoolDaysOracleTrace"
+    $NativeExe = Resolve-BuiltExe "KtrfNativeStateMatrixTrace"
+
+    Write-Host ""
+    Write-Host "[6/6] Broad boundary matrix: frozen oracle vs native .ktnroute router"
+    Invoke-Checked python .\tools\ktrf\diff_sdhq_native_state_matrix.py `
+        --ir .\build\ktrf\school-days-hq.routing.json `
+        --artifact $Artifact `
+        --oracle-exe $OracleExe `
+        --native-exe $NativeExe `
+        --output $Report `
+        --max-combinations-per-node $MaxCombinationsPerNode `
+        --max-pairwise-per-node $MaxPairwisePerNode `
+        --batch-size $BatchSize
+
+    Write-Host ""
+    Write-Host "========================================================="
+    Write-Host " KTRF ROUTING RUNTIME v0.1 / GATE 4 BROAD PARITY: PASS"
+    Write-Host "========================================================="
+    Write-Host "Artifact: $Artifact"
+    Write-Host "Report:   $Report"
+}
+finally {
+    Pop-Location
+}

@@ -9,7 +9,9 @@
 
 // Icon with lowest ID value placed first to ensure application icon
 // remains consistent on all systems.
+#ifdef KOTONOHA_HAS_WINDOWS_ICON
 IDI_ICON1               ICON                    "../../assets/icon.ico"
+#endif
 
 
 /////////////////////////////////////////////////////////////////////////////
