@@ -72,8 +72,18 @@ zero-run). Verified on every compressed entry of the disc (size matches).
 
 The player-facing flow (title, pause, save/load by input replay, text box, choices, dim/panel styling) now lives in the engine class `Kotonoha::GameplayFlow` (`include/Kotonoha/components/GameplayFlow.hpp`). The port only implements `Kotonoha::GameSession` (story logic, pictures, audio). `LocalIterate` just returns `GameplayFlow::RunFrame` (splash, game frame, debug UI, MCP, present), the same loop School Days uses. Only the game picture is letterboxed to the logical resolution; the splash and the debug UI render over the full window.
 
-## Audio rate (unresolved)
-- The sample rate is not stored on the disc. Tune live with F2/F3 (voice) and F4/F5 (BGM), or set `ZERO_VOICE_RATE` / `ZERO_BGM_RATE`. Defaults: voice 24000, BGM 24000 (best match by ear).
+## Audio rates (from the original code)
+- Voices: `Talk(ch, voiceid)` (SLPS_258.30 @ 0x102de0) starts the VOICE_ID stream through 0x119e98 with
+  rate 22050 (`addiu a3, zero, 22050` @ 0x102eac); the player converts it to SPU pitch as
+  `(rate << 12) / 48000`.
+- BGM (`*.STV`): `SOUND_ID.LST` puts every sound section under a format header; BGM sits under
+  `ST44TL.PSH` (stereo 44.1 kHz) and the stream structures default to pitch 3763 (= 44100). Stereo
+  interleave is 0x1000 bytes (the two end flags are exactly 0x1000 apart). A tuning check of the decoded
+  tracks lands within ±3 cents of A440 at 44100 Hz (vs +45 cents at 24000 Hz).
+- SE (`*.MNV`): under `MN2205.PSH` / `MN2205C.PSH` (mono 22.05 kHz); SYS_SE01 is the menu focus blip.
+- Movies: 48 kHz stereo PCM from the PSS `SShd` header.
+- Defaults: voice 22050, BGM 44100, SE 22050. Override with `ZERO_VOICE_RATE` / `ZERO_BGM_RATE` /
+  `ZERO_SE_RATE`; F2/F3 (voice) and F4/F5 (BGM) still step the rate live.
 
 ## Character sprites (added)
 - `EvalNutTable` (Scene.cpp) runs the data-only Squirrel main of ENVINIT.NUT (SYSTEM 31) and returns its table.
@@ -89,3 +99,23 @@ The player-facing flow (title, pause, save/load by input replay, text box, choic
   sprites (bottom-aligned 640x448 canvases centred + xpos) between the background and the event CG.
 - Verified via MCP: サイト / ルイズ / オスマン / ギーシュ / モンモランシー with the expressions of the dialogue.
 - Not done: level (前/奥) zoom/y offset, show/hide slide transitions, face window (顔), time-of-day tint.
+
+## Native front end (added)
+Recovered from `OVERRIDE.NUT` (SYSTEM 35) and implemented 1:1 in `src/Frontend.cpp`
+(hooked into `GameplayFlow` through the `GameSession` front-end hooks):
+- Boot: WARNING (fade in 2 s, warning system voice + 2 s, fade out 2 s) → MMV_LOGO (fade in 2 s,
+  logo voice + 2 s, fade out 1 s) → opening movie `ZERO2OP.PSS` → title. Any key/click skips a step.
+  One of the system voice sets (`titleVoices`: logo/title/menu/warning) is picked at random (`random(6)`).
+- Title: BGMA01, background fade-in 1 s, title voice, logo (16,61) fade-in 1 s, copyright and the blinking
+  "press START" (1.5 s on / 0.8 s off). START → SYS_SE02 → game mode menu; 45 s idle → logo again.
+- Game mode menu (SYSTEM_BG02 + GAMEMODE_TITLE): New Game, Load, Option, CG/Scene/Sound gallery, Special
+  voice with ON/OFF images, hover/↑↓ (SYS_SE01), confirm (SYS_SE02), cancel → title (SYS_SE03).
+  New Game and Load work; Option and the galleries only log "not ported yet".
+- Pause → Title returns to the native title.
+- Name tables: NORMAL entries 9/10/11 are `SCENEDAT.LST`, `SOUND_ID.LST` and `NORMAL.LST` (index = archive
+  entry), entry 247 the movie names (14-byte records), SYSTEM 36 the system voice ids. BGM is now looked up
+  by name (fixes an off-by-one BGM choice).
+- Movies (`Pss.cpp`, `MoviePlayer.cpp`): the PSS is an MPEG-2 program stream; video 0xE0 is decoded with
+  FFmpeg (mpeg2video), private stream 1 carries `SShd` (type 1 = s16le PCM, 48 kHz stereo, 0x200 interleave)
+  + `SSbd` blocks alternating L/R. The audio queue drives the video clock.
+- Not done: native in-game message window (`MAIN_MESSAGEBASE`, name plates), option and gallery screens.

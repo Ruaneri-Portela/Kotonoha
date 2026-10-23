@@ -374,9 +374,12 @@ bool FinishWorkspaceFrame(Kotonoha_Game &context) {
 // The master panel is always present (no close/collapse). It replaces the
 // macOS-style main menu bar and hosts every debug window toggle.
 void DrawWindowMenu(WindowMenuExtension extension, void *userdata) {
+  // NoNav: keys pass through to the game, so they must not also drive the
+  // checkboxes here.
   const ImGuiWindowFlags flags = ImGuiWindowFlags_NoCollapse |
                                  ImGuiWindowFlags_AlwaysAutoResize |
-                                 ImGuiWindowFlags_NoSavedSettings;
+                                 ImGuiWindowFlags_NoSavedSettings |
+                                 ImGuiWindowFlags_NoNav;
   ImGui::SetNextWindowPos(ImVec2(8.0f, 8.0f), ImGuiCond_FirstUseEver);
   if (ImGui::Begin("Debug", nullptr, flags)) {
     ImGui::Checkbox("Scene Loader", &sceneLoaderVisible);
@@ -444,6 +447,14 @@ bool SyncActivation(Kotonoha_Game &context) {
     sceneBuffersVisible = false;
     canvasLayersVisible = false;
     errorPopupVisible = false;
+    // Input meant for the game piles up while the UI is hidden; replaying it
+    // on the first frame would drive keyboard nav (e.g. toggle a checkbox).
+    if (ImGui::GetCurrentContext() != nullptr) {
+      ImGuiIO &io = ImGui::GetIO();
+      io.ClearEventsQueue();
+      io.ClearInputKeys();
+      io.ClearInputMouse();
+    }
   }
   return activated;
 }

@@ -88,6 +88,14 @@ forwards events and frames to the retail front end (KTRF controller, title,
 SaveLoad, route map, config, menu bar, BackLog) and the session picks the debug
 GUI (KTRF scene list/state inspector) and the Gameplay reported to MCP.
 
+A session that keeps the generic in-game UI but has its own boot/title screens
+overrides the front-end hooks instead (`HasFrontend`, `EnterFrontend(boot)`,
+`FrontendEvent`, `FrontendTick`, `DrawFrontend`). The flow then calls them
+whenever it would show its own title page; `FrontendTick` returns the
+`TitleAction` picked (New Game, Load, Quit) and the flow still provides the
+load page (Escape/right click goes back), pause, save/load and the text box.
+Zero no Tsukaima uses this for its native warning/logo/movie/title/menu.
+
 Only the game picture uses the game viewport: `GameplayFlow::Frame` enables the
 letterboxed logical presentation (`Config::width`/`height`) while it draws the
 session and disables it again before returning, and pointer events are mapped
