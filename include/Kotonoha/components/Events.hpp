@@ -61,6 +61,7 @@ public:
   Event(const char *orsPath, void *gameplay, struct Kotonoha_Game *gameCtx,
         TTF_Font *font = nullptr);
   void ActivateSubtitles() {}
+  bool ProcessNow(void *gameplay, struct Kotonoha_Game *gameCtx);
   void Reset(void* gameplay, bool suppressBackLogCapture = false);
   SchoolDaysOptionalTick ComputeSkipToEndTarget(void* gameplay) const;
   bool SetSelectReached() const {
