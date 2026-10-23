@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cstdlib>
 #include <fstream>
 #include <sstream>
 #include <utility>
@@ -32,6 +33,28 @@ constexpr MenuButton kMenu[] = {{"GAME_NEW", 91},  {"GAME_LOAD", 139}, {"GAME_OP
                                 {"GAME_SCEE", 283}, {"GAME_SOUND", 329}, {"GAME_VOICE", 375}};
 constexpr int kMenuCount = int(sizeof(kMenu) / sizeof(kMenu[0]));
 constexpr float kMenuX = 48, kMenuW = 247, kMenuH = 47;
+
+// CommandState buttons (coffee_<N>_ON / _OFF); NEXT only in coffee mode.
+constexpr const char *kCommand[] = {"COMM_CARA", "COMM_SAVE", "COMM_LOAD", "COMM_OPTI", "COMM_TITL", "COMM_NEXT"};
+constexpr float kCommandY[] = {96, 144, 192, 240, 288, 334};
+constexpr const char *kVest[] = {"RUIZE", "KYURUKE", "TABASA", "KURISU", "SIESTA", "ANRIETTA", "LISH"};
+constexpr const char *kSaveChara[] = {"RUIZE", "KYURUKE", "TABASA", "KURISU", "SIESTA", "ANRIETTA", "RISHU"};
+constexpr int kCharaPages = 8;
+constexpr uint64_t kCharaFadeMs = 800;
+constexpr int kFilePages = 16, kFileRows = 4;
+
+std::string FullWidth(int value, int digits) {
+  static const char *const kDigits[] = {"０", "１", "２", "３", "４", "５", "６", "７", "８", "９"};
+  std::string out, ascii = std::to_string(value);
+  while (int(ascii.size()) < digits) ascii.insert(ascii.begin(), '0');
+  for (char c : ascii) out += kDigits[c - '0'];
+  return out;
+}
+
+size_t Utf8Next(const std::string &s, size_t i) {
+  const auto c = static_cast<unsigned char>(s[i]);
+  return std::min(s.size(), i + (c < 0x80 ? 1 : c < 0xE0 ? 2 : c < 0xF0 ? 3 : 4));
+}
 
 float Ramp(uint64_t elapsed, uint64_t total) { return total == 0 ? 1.0f : std::min(1.0f, float(elapsed) / float(total)); }
 
@@ -185,7 +208,26 @@ std::string VoiceCode(const std::string &speaker) {
   return "etc";
 }
 
+SlotInfo SlotInfo::Parse(const std::string &label) {
+  SlotInfo info;
+  std::stringstream in(label);
+  std::string playMs, maxLike;
+  std::getline(in, info.title, '\t');
+  if (std::getline(in, playMs, '\t')) info.playMs = std::strtoll(playMs.c_str(), nullptr, 10);
+  if (std::getline(in, maxLike, '\t')) info.maxLike = std::atoi(maxLike.c_str());
+  return info;
+}
+
+std::string SlotInfo::Label() const {
+  std::string clean = title;
+  std::replace(clean.begin(), clean.end(), '\t', ' ');
+  std::replace(clean.begin(), clean.end(), '\n', ' ');
+  return clean + "\t" + std::to_string(playMs) + "\t" + std::to_string(maxLike);
+}
+
 void Frontend::Enter(bool boot) {
+  inGame_ = false;
+  ask_ = Ask::None;
   pending_ = Result::None;
   replay_ = Replay::None;
   transition_ = false;
@@ -200,6 +242,8 @@ void Frontend::Enter(bool boot) {
 }
 
 void Frontend::Return(Replay from) {
+  inGame_ = false;
+  ask_ = Ask::None;
   pending_ = Result::None;
   transition_ = false;
   replay_ = Replay::None;
@@ -276,7 +320,7 @@ void Frontend::Activate(int item) {
   replay_ = Replay::None;
   switch (item) {
   case 0: pending_ = Result::NewGame; break;
-  case 1: pending_ = Result::Load; break;
+  case 1: OpenFiles(false, Phase::Menu); break;
   case 2: Go(Phase::Option, true); break;
   case 3: EnterGallery(true); break;
   case 4: EnterGallery(false); break;
@@ -308,6 +352,181 @@ void Frontend::EnterSound(bool voice) {
   Go(Phase::Sound, true);
 }
 
+// ---- In-game screens -------------------------------------------------------
+
+void Frontend::OpenCommand(bool coffee, int tundere, int maxLike) {
+  inGame_ = true;
+  coffee_ = coffee;
+  tundere_ = std::clamp(tundere, 0, 255);
+  maxLike_ = maxLike;
+  commandCur_ = 0;
+  ask_ = Ask::None;
+  pending_ = Result::None;
+  if (coffee) host_.Music("BGMA01");
+  else host_.SystemSe("SYS_SE02");
+  Go(Phase::Command, true);
+}
+
+void Frontend::OpenHistory(std::vector<HistoryEntry> entries) {
+  inGame_ = true;
+  ask_ = Ask::None;
+  pending_ = Result::None;
+  history_ = std::move(entries);
+  historyCur_ = std::max(0, int(history_.size()) - 1);
+  historyTop_ = std::max(0, historyCur_ - 2);
+  host_.SystemSe("SYS_SE02");
+  Go(Phase::History, true);
+}
+
+void Frontend::Close(Result result) {
+  pending_ = result;
+  inGame_ = false;
+  ask_ = Ask::None;
+  Go(Phase::Game, false);
+}
+
+void Frontend::CommandKey(SDL_Keycode k) {
+  if (k == SDLK_UP || k == SDLK_DOWN) {
+    commandCur_ = (commandCur_ + (k == SDLK_UP ? CommandCount() - 1 : 1)) % CommandCount();
+    host_.SystemSe("SYS_SE01");
+  } else if (IsConfirm(k)) {
+    CommandPress();
+  } else if (IsCancel(k) && !coffee_) {
+    host_.SystemSe("SYS_SE03");
+    Close(Result::Resume);
+  }
+}
+
+void Frontend::CommandPress() {
+  host_.SystemSe("SYS_SE02");
+  switch (commandCur_) {
+  case 0:
+    charaPage_ = charaPrev_ = 0;
+    charaFade_ = 0;
+    Go(Phase::Character, true);
+    break;
+  case 1: OpenFiles(true, Phase::Command); break;
+  case 2: OpenFiles(false, Phase::Command); break;
+  case 3: Go(Phase::Option, true); break;
+  case 4: ask_ = Ask::Title; break;
+  case 5: ask_ = Ask::Next; break;
+  default: break;
+  }
+}
+
+void Frontend::CharacterKey(SDL_Keycode k) {
+  int dir = 0;
+  if (k == SDLK_RIGHT || IsNextPage(k) || IsConfirm(k)) dir = 1;
+  else if (k == SDLK_LEFT || IsPrevPage(k)) dir = -1;
+  if (dir) {
+    charaPrev_ = charaPage_;
+    charaPage_ = (charaPage_ + dir + kCharaPages) % kCharaPages;
+    charaFade_ = SDL_GetTicks();
+  } else if (IsCancel(k)) {
+    Back(Phase::Command);
+  }
+}
+
+void Frontend::OpenFiles(bool save, Phase back) {
+  filesSave_ = save;
+  filesBack_ = back;
+  slotCache_.clear();
+  Go(Phase::Files, true);
+}
+
+const std::pair<bool, SlotInfo> &Frontend::CachedSlot(int slot) {
+  auto it = slotCache_.find(slot);
+  if (it == slotCache_.end()) {
+    SlotInfo info;
+    const bool ok = host_.Slot(slot, &info);
+    it = slotCache_.emplace(slot, std::make_pair(ok, info)).first;
+  }
+  return it->second;
+}
+
+void Frontend::FilesKey(SDL_Keycode k) {
+  auto page = [&](int dir) { filesPage_ = (filesPage_ - 1 + dir + kFilePages) % kFilePages + 1; };
+  if (k == SDLK_UP) {
+    if (filesCur_ > 0) --filesCur_;
+    else filesCur_ = kFileRows - 1, page(-1);
+    host_.SystemSe("SYS_SE01");
+  } else if (k == SDLK_DOWN) {
+    if (filesCur_ < kFileRows - 1) ++filesCur_;
+    else filesCur_ = 0, page(+1);
+    host_.SystemSe("SYS_SE01");
+  } else if (IsPrevPage(k) || k == SDLK_LEFT) {
+    page(-1);
+    host_.SystemSe("SYS_SE02");
+  } else if (IsNextPage(k) || k == SDLK_RIGHT) {
+    page(+1);
+    host_.SystemSe("SYS_SE02");
+  } else if (IsConfirm(k)) {
+    slot_ = (filesPage_ - 1) * kFileRows + filesCur_;
+    const bool exists = CachedSlot(slot_).first;
+    if (filesSave_) {
+      host_.SystemSe("SYS_SE02");
+      ask_ = exists ? Ask::Overwrite : Ask::Save;
+    } else if (exists) {
+      host_.SystemSe("SYS_SE02");
+      ask_ = Ask::Load;
+    }
+  } else if (IsCancel(k)) {
+    Back(filesBack_);
+  }
+}
+
+void Frontend::HistoryKey(SDL_Keycode k) {
+  const int last = std::max(0, int(history_.size()) - 1);
+  if (k == SDLK_UP) {
+    if (historyCur_ > 0) historyTop_ = std::min(historyTop_, --historyCur_);
+  } else if (k == SDLK_DOWN) {
+    if (historyCur_ < last && ++historyCur_ > historyTop_ + 2) historyTop_ = historyCur_ - 2;
+  } else if (IsPrevPage(k) || k == SDLK_LEFT) {
+    historyCur_ = std::max(0, historyCur_ - 3);
+    historyTop_ = std::max(0, historyTop_ - 3);
+  } else if (IsNextPage(k) || k == SDLK_RIGHT) {
+    historyCur_ = std::min(last, historyCur_ + 3);
+    historyTop_ = std::min(std::max(0, last - 2), historyTop_ + 3);
+  } else if (IsConfirm(k)) {
+    if (historyCur_ < int(history_.size()) && history_[historyCur_].voice > 0) host_.PlayVoice(history_[historyCur_].voice);
+    return;
+  } else if (IsCancel(k)) {
+    host_.SystemSe("SYS_SE03");
+    Close(Result::Resume);
+    return;
+  }
+  historyTop_ = std::clamp(historyTop_, std::max(0, historyCur_ - 2), historyCur_);
+}
+
+void Frontend::Answer(bool yes) {
+  const Ask ask = ask_;
+  ask_ = Ask::None;
+  if (!yes) {
+    host_.SystemSe("SYS_SE03");
+    return;
+  }
+  host_.SystemSe("SYS_SE02");
+  switch (ask) {
+  case Ask::Reset:
+    host_.System().ResetOptions();
+    host_.SystemChanged();
+    break;
+  case Ask::Title: Close(Result::Title); break;
+  case Ask::Next: Close(Result::Next); break;
+  case Ask::Save:
+  case Ask::Overwrite:
+    // done(): SE03 and back to the command screen.
+    pending_ = Result::Save;
+    slotCache_.clear();
+    host_.SystemSe("SYS_SE03");
+    Go(filesBack_, true);
+    break;
+  case Ask::Load: ask_ = Ask::Loaded; break;
+  case Ask::Loaded: Close(Result::LoadSlot); break;
+  case Ask::None: break;
+  }
+}
+
 // ---- OptionState ------------------------------------------------------------
 
 void Frontend::OptionKey(SDL_Keycode k) {
@@ -332,10 +551,10 @@ void Frontend::OptionKey(SDL_Keycode k) {
       Go(Phase::VoiceOption, true);
     } else if (optRow_ == 9) {
       host_.SystemSe("SYS_SE02");
-      confirm_ = true;
+      ask_ = Ask::Reset;
     }
   } else if (IsCancel(k)) {
-    Back(Phase::Menu);
+    Back(inGame_ ? Phase::Command : Phase::Menu);
   }
 }
 
@@ -569,18 +788,14 @@ void Frontend::MenuEvent(const SDL_Event &e, SDL_Keycode key, bool click, SDL_FP
   const bool motion = e.type == SDL_EVENT_MOUSE_MOTION;
   const bool wheel = e.type == SDL_EVENT_MOUSE_WHEEL;
   const SDL_Keycode wheelKey = wheel ? (e.wheel.y > 0 ? SDLK_UP : SDLK_DOWN) : 0;
-  if (confirm_) {
+  if (ask_ != Ask::None) {
+    if (ask_ == Ask::Loaded) {
+      if ((key && IsConfirm(key)) || (click && Inside(pt, 252, 262, 136, 40))) Answer(true);
+      return;
+    }
     const bool yes = (key && IsConfirm(key)) || (click && Inside(pt, 177, 262, 136, 40));
     const bool no = (key && IsCancel(key)) || (click && Inside(pt, 331, 262, 136, 40));
-    if (yes) {
-      host_.SystemSe("SYS_SE02");
-      host_.System().ResetOptions();
-      host_.SystemChanged();
-      confirm_ = false;
-    } else if (no) {
-      host_.SystemSe("SYS_SE03");
-      confirm_ = false;
-    }
+    if (yes || no) Answer(yes);
     return;
   }
   switch (phase_) {
@@ -641,6 +856,48 @@ void Frontend::MenuEvent(const SDL_Event &e, SDL_Keycode key, bool click, SDL_FP
     else if (wheel) CgViewKey(wheelKey);
     else if (click) CgNext();
     break;
+  case Phase::Command:
+    if (key) CommandKey(key);
+    else if (wheel) CommandKey(wheelKey);
+    else if (motion || click) {
+      for (int i = 0; i < CommandCount(); ++i) {
+        if (!Inside(pt, kMenuX, kCommandY[i], kMenuW, kMenuH)) continue;
+        if (commandCur_ != i && motion) host_.SystemSe("SYS_SE01");
+        commandCur_ = i;
+        if (click) CommandPress();
+      }
+    }
+    break;
+  case Phase::Character:
+    if (key) CharacterKey(key);
+    else if (wheel) CharacterKey(e.wheel.y > 0 ? SDLK_LEFT : SDLK_RIGHT);
+    else if (click) CharacterKey(pt.x < kW / 3 ? SDLK_LEFT : SDLK_RIGHT);
+    break;
+  case Phase::Files:
+    if (key) FilesKey(key);
+    else if (wheel) FilesKey(wheelKey);
+    else if (click && Inside(pt, 292, 66, 58, 37)) FilesKey(SDLK_PAGEUP);
+    else if (click && Inside(pt, 292, 378, 58, 37)) FilesKey(SDLK_PAGEDOWN);
+    else if (motion || click) {
+      for (int i = 0; i < 4; ++i) {
+        if (!Inside(pt, 47, 78.0f + 83.0f * float(i), 546, 78)) continue;
+        if (filesCur_ != i && motion) host_.SystemSe("SYS_SE01");
+        filesCur_ = i;
+        if (click) FilesKey(SDLK_RETURN);
+      }
+    }
+    break;
+  case Phase::History:
+    if (key) HistoryKey(key);
+    else if (wheel) HistoryKey(wheelKey);
+    else if (click) {
+      for (int i = 0; i < 3; ++i)
+        if (historyTop_ + i < int(history_.size()) && Inside(pt, 20, 20.0f + 120.0f * float(i), 540, 120)) {
+          if (historyCur_ == historyTop_ + i) HistoryKey(SDLK_RETURN);
+          historyCur_ = historyTop_ + i;
+        }
+    }
+    break;
   case Phase::Sound:
     if (key) SoundKey(key);
     else if (wheel) SoundKey(e.wheel.y > 0 ? SDLK_PAGEUP : SDLK_PAGEDOWN);
@@ -684,8 +941,12 @@ void Frontend::Event(const SDL_Event &e) {
   case Phase::VoiceOption:
   case Phase::Gallery:
   case Phase::CgView:
-  case Phase::Sound: {
-    if (transition_) break;
+  case Phase::Sound:
+  case Phase::Command:
+  case Phase::Character:
+  case Phase::Files:
+  case Phase::History: {
+    if (transition_ || (phase_ == Phase::Character && charaFade_ && SDL_GetTicks() - charaFade_ < 800)) break;
     const bool keyDown = e.type == SDL_EVENT_KEY_DOWN;
     SDL_Keycode k = keyDown && (!e.key.repeat || e.key.key == SDLK_UP || e.key.key == SDLK_DOWN ||
                                 e.key.key == SDLK_LEFT || e.key.key == SDLK_RIGHT)
@@ -837,6 +1098,11 @@ void Frontend::DrawPhase(SDL_Renderer *r, Phase phase, float alpha) {
   case Phase::Gallery: DrawGallery(r, alpha); break;
   case Phase::CgView: DrawCgView(r, alpha); break;
   case Phase::Sound: DrawSound(r, alpha); break;
+  case Phase::Command: DrawCommand(r, alpha); break;
+  case Phase::Character: DrawCharacter(r, alpha); break;
+  case Phase::Files: DrawFiles(r, alpha); break;
+  case Phase::History: DrawHistory(r, alpha); break;
+  case Phase::Game: break;
   }
 }
 
@@ -882,14 +1148,30 @@ void Frontend::DrawOption(SDL_Renderer *r, float alpha) {
   }
   DrawImage(r, Img("OPTION_UE"), 154, 83, alpha);
   DrawImage(r, Img("OPTION_SITA"), 155, 405, alpha);
-  if (confirm_ && phase_ == Phase::Option) DrawConfirm(r);
 }
 
 void Frontend::DrawConfirm(SDL_Renderer *r) {
+  static const char *const kText[] = {"",
+                                      "初期化してよろしいですか？",
+                                      "タイトルに戻っていいですか？",
+                                      "次の話に進んでいいですか？",
+                                      "ゲームデータをセーブしますか？",
+                                      "その場所にはゲームデータが存在します。\n上書きしますか？",
+                                      "ゲームデータをロードしますか？",
+                                      "ゲームデータをロードしました。"};
   DrawImage(r, Img("MESSEGE_DATA_SYS_WINDOW"), 0, 140, 1.0f);
-  const std::string text = "初期化してよろしいですか？";
-  const SDL_FPoint size = host_.DrawText(r, text, 0, 0, 16, {0, 0, 0, 255}, true);
-  host_.DrawText(r, text, (kW - size.x) / 2, (kH - size.y) / 2 - 12, 16, {0, 0, 0, 255});
+  std::vector<std::string> lines;
+  std::stringstream text(kText[int(ask_)]);
+  for (std::string line; std::getline(text, line);) lines.push_back(line);
+  const float lineH = 24, top = kH / 2 - 12 - lineH * float(lines.size()) / 2;
+  for (size_t i = 0; i < lines.size(); ++i) {
+    const SDL_FPoint size = host_.DrawText(r, lines[i], 0, 0, 16, {0, 0, 0, 255}, true);
+    host_.DrawText(r, lines[i], (kW - size.x) / 2, top + lineH * float(i) + (lineH - size.y) / 2, 16, {0, 0, 0, 255});
+  }
+  if (ask_ == Ask::Loaded) {
+    DrawImage(r, Img("MESSEGE_DATA_BO_MARU"), 252, 262, 1.0f);
+    return;
+  }
   DrawImage(r, Img("MESSEGE_DATA_BO_MARU"), 177, 262, 1.0f);
   DrawImage(r, Img("MESSEGE_DATA_BO_BATU"), 331, 262, 1.0f);
 }
@@ -971,16 +1253,118 @@ void Frontend::DrawSound(SDL_Renderer *r, float alpha) {
   }
 }
 
-void Frontend::Draw(SDL_Renderer *r) {
-  SDL_SetRenderDrawColor(r, 0, 0, 0, 255);
+void Frontend::DrawCommand(SDL_Renderer *r, float alpha) {
+  DrawImage(r, Img("SYSTEM_BG00"), 0, 0, alpha);
+  if (coffee_) DrawImage(r, Img("COFFEE_TITLE_COFFEBRACK"), 0, 25, alpha, 1.0f, 640, 45);
+  else DrawImage(r, Img("COMMAND_TITLE_COMMAND"), 0, 24, alpha, 1.0f, 640, 46);
+  for (int i = 0; i < CommandCount(); ++i) {
+    const bool on = i == commandCur_;
+    DrawImage(r, Img(std::string("COFFEE_") + kCommand[i] + (on ? "_ON" : "_OFF")), kMenuX, kCommandY[i], alpha,
+              on ? 1.0f : kDarkLevel, kMenuW, kMenuH);
+  }
+  if (coffee_) {
+    if (maxLike_ >= 0 && maxLike_ < 7) DrawImage(r, Img(std::string("COFFEE_VEST_") + kVest[maxLike_]), 288, 61, alpha);
+  } else {
+    DrawImage(r, Img("COMMAND_BOARD_TUNDERE"), 304, 144, alpha);
+    DrawImage(r, Img("COMMAND_BOARD_MATER"), 362.0f + float(tundere_) * 176.0f / 255.0f - 7.0f, 220, alpha);
+  }
+}
+
+void Frontend::DrawCharacter(SDL_Renderer *r, float alpha) {
   const SDL_FRect all{0, 0, kW, kH};
+  SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_BLEND);
+  SDL_SetRenderDrawColor(r, 0, 0, 0, uint8_t(alpha * 255.0f));
   SDL_RenderFillRect(r, &all);
-  if (transition_) {
+  auto page = [&](int n) { return Img("CHARADATA0" + std::to_string(n)); };
+  const float fade = charaFade_ ? Ramp(SDL_GetTicks() - charaFade_, kCharaFadeMs) : 1.0f;
+  if (fade < 1.0f) DrawImage(r, page(charaPrev_), 0, 0, alpha);
+  DrawImage(r, page(charaPage_), 0, 0, alpha * fade);
+  DrawImage(r, Img("SCENE_HIDARI"), 20, 237, alpha);
+  DrawImage(r, Img("SCENE_MIGI"), 600, 237, alpha);
+}
+
+void Frontend::DrawFiles(SDL_Renderer *r, float alpha) {
+  DrawImage(r, Img("SYSTEM_BG00"), 0, 0, alpha);
+  if (filesSave_) DrawImage(r, Img("FAILES_TITLE_SAVE"), 0, 23, alpha, 1.0f, 640, 47);
+  else DrawImage(r, Img("FAILES_TITLE_LOAD"), 0, 24, alpha, 1.0f, 640, 46);
+  DrawPageNumber(r, filesPage_, kFilePages, alpha);
+  DrawImage(r, Img("OPTION_UE"), 302, 76, alpha);
+  DrawImage(r, Img("OPTION_SITA"), 302, 388, alpha);
+  const SDL_Color black{0, 0, 0, uint8_t(alpha * 255.0f)};
+  for (int i = 0; i < kFileRows; ++i) {
+    const float y = 78.0f + 83.0f * float(i);
+    const bool on = i == filesCur_;
+    DrawImage(r, Img(on ? "FAILES_GAMEDATA_ON" : "FAILES_GAMEDATA_OFF"), 47, y, alpha, on ? 1.0f : kDarkLevel);
+    const int slot = (filesPage_ - 1) * kFileRows + i, number = slot + 1;
+    DrawImage(r, Img("FAILES_GAMEDATA_" + std::to_string(number / 10)), 80, y + 24, alpha);
+    DrawImage(r, Img("FAILES_GAMEDATA_" + std::to_string(number % 10)), 104, y + 24, alpha);
+    const auto &[ok, info] = CachedSlot(slot);
+    std::string title = "ゲームデータがありません", time = "プレイ時間　００：００";
+    if (ok) {
+      title = info.title.size() >= 2 ? info.title : "タイトル不明";
+      const int64_t t = std::max<int64_t>(0, info.playMs);
+      time = "プレイ時間　" + FullWidth(int(std::min<int64_t>(99, t / 3600000)), 2) + "：" + FullWidth(int(t / 60000 % 60), 2);
+      if (info.maxLike >= 0 && info.maxLike < 7)
+        DrawImage(r, Img(std::string("SAVECAHRA_SAVE") + kSaveChara[info.maxLike]), 432, y + 17, alpha);
+    }
+    host_.DrawText(r, title, 140, y + 10, 16, black);
+    host_.DrawText(r, time, 140, y + 42, 16, black);
+  }
+}
+
+void Frontend::DrawHistory(SDL_Renderer *r, float alpha) {
+  DrawImage(r, Img("NEWLOG_BG"), 0, 0, alpha);
+  DrawImage(r, Img("NEWLOG_SCROLLBER"), 567, 16, alpha);
+  const int len = int(history_.size());
+  const float knob = len < 2 ? 25.0f : 25.0f + 369.0f * float(historyCur_) / float(len - 1);
+  DrawImage(r, Img("NEWLOG_ICON"), 576, knob, alpha);
+  constexpr float kTextW = 540, kFont = 24, kLine = 30;
+  for (int e = 0; e < 3 && historyTop_ + e < len; ++e) {
+    const HistoryEntry &entry = history_[historyTop_ + e];
+    const SDL_Color color = historyTop_ + e == historyCur_ ? SDL_Color{255, 128, 128, uint8_t(alpha * 255.0f)}
+                                                             : SDL_Color{255, 255, 255, uint8_t(alpha * 255.0f)};
+    std::vector<std::string> lines{"【" + entry.name + "】"};
+    std::stringstream text(entry.text);
+    for (std::string para; std::getline(text, para);) {
+      std::string line;
+      float width = 0;
+      for (size_t i = 0; i < para.size();) {
+        const size_t next = Utf8Next(para, i);
+        const std::string ch = para.substr(i, next - i);
+        const float w = host_.DrawText(r, ch, 0, 0, kFont, color, true).x;
+        if (width + w > kTextW && !line.empty()) {
+          lines.push_back(line);
+          line.clear();
+          width = 0;
+        }
+        line += ch;
+        width += w;
+        i = next;
+      }
+      lines.push_back(line);
+    }
+    for (size_t l = 0; l < lines.size() && l < 4; ++l)
+      host_.DrawText(r, lines[l], 20, 20.0f + kLine * float(e * 4 + int(l)), kFont, color);
+  }
+}
+
+void Frontend::Draw(SDL_Renderer *r) {
+  // In-game screens draw over the story.
+  if (!inGame_) {
+    SDL_SetRenderDrawColor(r, 0, 0, 0, 255);
+    const SDL_FRect all{0, 0, kW, kH};
+    SDL_RenderFillRect(r, &all);
+  }
+  const float t = transition_ ? Ramp(SDL_GetTicks() - transitionStart_, kCrossfadeMs) : 1.0f;
+  if (transition_ && phase_ == Phase::Game) {
+    DrawPhase(r, previous_, 1.0f - t);
+  } else if (transition_) {
     DrawPhase(r, previous_, 1.0f);
-    DrawPhase(r, phase_, Ramp(SDL_GetTicks() - transitionStart_, kCrossfadeMs));
+    DrawPhase(r, phase_, t);
   } else {
     DrawPhase(r, phase_, 1.0f);
   }
+  if (ask_ != Ask::None) DrawConfirm(r);
 }
 
 } // namespace ZeroNoTsukaima

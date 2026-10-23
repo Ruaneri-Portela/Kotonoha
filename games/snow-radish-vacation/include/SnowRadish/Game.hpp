@@ -9,12 +9,17 @@
 
 namespace SnowRadish {
 
+inline constexpr const char* titleSuffix(bool cleared, bool hasSaves) {
+    return cleared ? (hasSaves ? "a" : "") : (hasSaves ? "c" : "b");
+}
+
 // Converts the Shift-JIS strings stored in scripts to UTF-8.
 std::string sjisToUtf8(const std::string& s);
 
 struct Message {
     std::string name;  // speaker (UTF-8), empty for narration
     std::string text;  // UTF-8
+    int actor = 0;
     std::string voice; // voice id such as V0121234, may be empty
 };
 
@@ -37,6 +42,10 @@ public:
     bool hasMessage() const { return waiting_ && hasMsg_; }
     bool finished() const { return vm_.ended(); }
     Vm& vm() { return vm_; }
+    int voiceActor() const { return voiceActor_; }
+    std::function<void(bool)> cleared;
+    // Seed/restore the system flag without treating replay as a new ending.
+    void setClearFlag(bool flag) { clearedFlag_ = flag; vm_.setVar(0x50cb, flag ? 1 : 0); }
 
     const std::string& currentScript() const { return scriptName_; }
     const std::string& background() const { return background_; }
@@ -61,6 +70,9 @@ public:
     bool skipAudioWait();
 
     bool choosing() const { return choosing_; }
+    bool mapChoosing() const { return choosing_ && map_; }
+    int destination(size_t i) const { return i < choiceValue_.size() ? choiceValue_[i] : 0; }
+    const std::vector<int>& mapArgs() const { return mapArgs_; }
     const std::vector<std::string>& choices() const { return choiceText_; }
     // Picks option i; stores its value into the script variable and resumes.
     bool choose(size_t i);
@@ -71,9 +83,9 @@ public:
     std::function<void(const std::string& kind, const std::string& name, bool loop)> sound;
     // Queried by the wait natives; return whether the voice / SE channel still plays.
     std::function<bool()> voicePlaying, sePlaying;
-    // Screen transition (native 64): reveal the new scene over msec milliseconds. The
-    // script waits while transitionPlaying() is true (a click skips it).
-    std::function<void(int type, int msec)> transition;
+    // Native 64: original effect, pattern and speed selector. The presenter owns
+    // its 15 ms scheduler; the script waits while transitionPlaying() is true.
+    std::function<void(int type, int pattern, int speed)> transition;
     std::function<bool()> transitionPlaying;
     // Native 213 reached: the original title menu runs here (the host shows it before the
     // story starts, so the script just continues with "start").
@@ -113,7 +125,8 @@ private:
     Message current_;
     bool hasMsg_ = false;
     bool waiting_ = false;
-    int speakerMode_ = 1;
+    bool clearedFlag_ = false;
+    int speakerMode_ = 1, voiceActor_ = 0;
     std::string speaker_;
     std::string background_;
     std::vector<Sprite> sprites_;
@@ -122,7 +135,8 @@ private:
     uint32_t sceneVersion_ = 0;
     enum class AudioWait { None, Voice, VoiceSkippable, SeSkippable, Transition };
     AudioWait audioWait_ = AudioWait::None;
-    bool choosing_ = false;
+    bool choosing_ = false, map_ = false;
+    std::vector<int> mapArgs_;
     std::vector<std::string> choiceText_;
     std::vector<int> choiceValue_;
     uint32_t choiceVar_ = 0;

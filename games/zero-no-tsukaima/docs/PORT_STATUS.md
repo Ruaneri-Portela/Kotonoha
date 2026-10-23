@@ -189,6 +189,28 @@ SoundModeMenuState, MoveState, SelectWindow, sceneEndState) and implemented in `
   logo), and `GameSession::Ended` returns the flow to the front end. `set value=xxx.ks` stores string
   variables used by `next storage=@var`.
 - `ZERO_START=NAME.KS` starts New Game at another script (development aid).
-- Not done: in-game command menu / coffee break (CommandState), native save/load screens (64 slots; the
-  engine save pages are used), history (back log), LikeMeter / TndlMeter / roulette, message / auto speed
-  (the engine `TextBox` shows whole pages), face window, level zoom.
+- Superseded: the in-game screens below replace the engine save pages and pause menu.
+
+## In-game screens (added)
+
+Recovered from `OVERRIDE.NUT` (CommandState, CharacterState, SaveState/LoadState, HistoryState,
+LikeMeter, TndlMeter, RouletteState) and implemented in `src/Frontend.cpp` / `src/ZeroMain.cpp`. The engine
+`GameplayFlow` got screen hooks (`OpenScreen` / `ScreenActive` / `ScreenEvent` / `DrawScreen`), flow
+requests (save / load / title) and pacing hooks (text speed, auto, skip).
+
+- Command menu (Escape / right click): save, load, character, option, title, plus the tundere board and
+  needle. In coffee-break mode (`コーヒーブレイク`) it shows NEXT, which continues the story.
+- Character screen: one page per character with the like icons, ←/→ with an 800 ms fade.
+- Save / Load: 64 native slots (16 pages × 4). Each slot shows the scene title, the play time and the
+  portrait of the most liked character. The confirm dialogs (M06 etc.) come from the original `memmsgs`.
+  Saves keep the engine replay format with a `title\tplayMs\tmaxLike` label.
+- History (PageUp / mouse wheel up): 3 entries per page on `newlog_bg` with the scroll bar; the current entry
+  is pink; Return replays its voice. Speakers are mapped through `historyNameMap`.
+- Meters: `好感度 action=up/down name=` (親密度 UP/DOWN with portrait, SYS_SE04/05) and
+  `ツンデレパラメータ param=` (board with needle).
+- Tundere slot (`tndlslot`): button and bar intro, two reels, stop by pressing, result labels, SLOT00-03
+  sounds. The result goes to `f.prm_tundere_boot` and the story continues.
+- Pacing: typewriter at the option message speed, auto mode (A key, オートプレイ icon) at the option auto
+  speed and waiting for the voice, Ctrl skip (all pages or read pages only, per the skip option). Read
+  pages are stored in `read.txt`.
+- Not done (not used by any script): level (前/奥) zoom, face window (顔).

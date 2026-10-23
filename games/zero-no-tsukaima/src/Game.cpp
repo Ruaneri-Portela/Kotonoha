@@ -197,6 +197,13 @@ void Game::Assign(const std::string &expression) {
   }
   std::string name = expression.substr(0, nameEnd);
   name.erase(std::remove_if(name.begin(), name.end(), [](unsigned char c) { return std::isspace(c); }), name.end());
+  std::string rhs = expression.substr(eq + 1);
+  rhs.erase(std::remove_if(rhs.begin(), rhs.end(), [](unsigned char c) { return std::isspace(c); }), rhs.end());
+  if (!compound && strings_.count(rhs)) {
+    // String copy (f.coffeetitle = f.title).
+    strings_[name] = strings_[rhs];
+    return;
+  }
   const int64_t value = Eval(expression.substr(eq + 1));
   int64_t &slot = flags_[name];
   if (compound == '+') slot += value;
@@ -432,7 +439,12 @@ void Game::Execute(const SceneTag &tag) {
 
   if (n == "ch") text_ += attr("text");
   else if (n == "r") text_ += "\n";
-  else if (n == "p") { if (!text_.empty()) waiting_ = true; }
+  else if (n == "p") {
+    if (!text_.empty()) {
+      waiting_ = true;
+      pagePc_ = pc_;
+    }
+  }
   else if (n == "er") text_.clear();
   else if (n == "msgon") msgOn_ = true;
   else if (n == "msgoff") { msgOn_ = false; text_.clear(); speaker_.clear(); }
@@ -449,7 +461,46 @@ void Game::Execute(const SceneTag &tag) {
   } else if (n == "goto") {
     if (const std::string *s = tag.Get("storage")) { LoadByName(*s); if (tag.Get("target")) Jump(attr("target")); }
     else Jump(attr("target"));
+  } else if (n == "title") {
+    strings_["f.title"] = attr("name");
+  } else if (n == "selopt") {
+    if (tag.Get("left")) selectArea_.x = IntAttr(tag, "left", 0);
+    if (tag.Get("top")) selectArea_.y = IntAttr(tag, "top", 0);
+    if (tag.Get("width")) selectArea_.w = IntAttr(tag, "width", 640);
+    if (tag.Get("height")) selectArea_.h = IntAttr(tag, "height", 448);
+  } else if (n == "好感度") {
+    // LikeMeter: icon + up/down mark (SE04 / SE05), 1500 ms. No variable changes.
+    std::string who = Upper(attr("name"));
+    if (!skipping_ && !who.empty()) {
+      const bool up = !tag.Get("action") || attr("action") == "up";
+      meter_ = {Meter::Like, who, up ? 1 : -1, 0, 0, clock_, clock_ + 1500};
+      cues_.push_back({Cue::Se, up ? "SYS_SE04" : "SYS_SE05", 0});
+      WaitFor(1500);
+    }
+  } else if (n == "ツンデレパラメータ") {
+    // TndlMeter.work: f.prm_tundere_eval += param, clamped to 0..255.
+    const int param = IntAttr(tag, "param", 0);
+    const int from = int(flags_["f.prm_tundere_eval"]);
+    const int to = std::clamp(from + param, 0, 255);
+    flags_["f.prm_tundere_eval"] = to;
+    if (!skipping_) {
+      const int ms = param != 0 ? 1500 : 1000;
+      meter_ = {Meter::Tundere, {}, param, from, to, clock_, clock_ + ms};
+      if (param != 0) cues_.push_back({Cue::Se, param > 0 ? "SYS_SE04" : "SYS_SE05", 0});
+      WaitFor(ms);
+    }
+  } else if (n == "tndlslot") {
+    roulette_ = choosing_ = true;
+    rouletteTsun_ = tag.Get("tun") && attr("tun") != "false" && attr("tun") != "0";
+    choiceText_.clear();
   } else if (n == "next" || n == "coffee") {
+    if (n == "coffee") {
+      // ScenePlayer.coffee: f.title = f.coffeetitle, then the coffee-break menu over the next story.
+      auto ct = strings_.find("f.coffeetitle");
+      if (ct != strings_.end() && !ct->second.empty()) strings_["f.title"] = ct->second;
+      strings_.erase("f.coffeetitle");
+      external_ = Block::Coffee;
+    }
     // "@expr" storages name a string variable (tag_next: nextStorage = eval(...)).
     std::string storage = attr("storage");
     if (!storage.empty() && storage[0] == '@') {
@@ -759,9 +810,11 @@ void Game::Advance(int64_t ms) {
 
 void Game::FinishWait(bool skipSection) {
   const Block b = Blocked();
-  if (b != Block::Time && b != Block::Voice && b != Block::Se && b != Block::Movie) return;
+  if (b != Block::Time && b != Block::Voice && b != Block::Se && b != Block::Movie && b != Block::Coffee) return;
   if (waitUntil_ >= 0) clock_ = std::max(clock_, waitUntil_);
   waitUntil_ = -1;
+  // NEXT on the coffee break: MusicStop(0, 0).
+  if (b == Block::Coffee) bgm_.clear();
   external_ = Block::None;
   if (skipSection && inSkip_) skipping_ = true;
   Pump();
@@ -774,6 +827,13 @@ bool Game::Click() {
 }
 
 bool Game::Choose(size_t index) {
+  if (choosing_ && roulette_) {
+    flags_["f.prm_tundere_boot"] = int64_t(index);
+    roulette_ = choosing_ = false;
+    bgm_.clear(); // RouletteState.done: MusicStop(0, 500)
+    Pump();
+    return true;
+  }
   if (choosing_ && moving_) {
     if (index >= moveShown_.size()) return false;
     // MoveState.select: drop the destination, count down and go there; the map music stops.

@@ -34,6 +34,21 @@ struct SystemData {
 // VOICES.NUT: speaker name -> voice config code ("etc" when unknown).
 std::string VoiceCode(const std::string &speaker);
 
+// A back log entry (HistoryState).
+struct HistoryEntry {
+  std::string name, text;
+  int voice = 0; // VOICE_ID index, 0 = none
+};
+
+// Save slot metadata kept in the slot label: f.title, play time and getMaxLike().
+struct SlotInfo {
+  std::string title;
+  int64_t playMs = 0;
+  int maxLike = -1;
+  static SlotInfo Parse(const std::string &label);
+  std::string Label() const;
+};
+
 // What the front end needs from the application (textures, audio, disc).
 class FrontendHost {
 public:
@@ -58,6 +73,9 @@ public:
   virtual bool Movie(int number, std::vector<uint8_t> *out) = 0;
   virtual SDL_Renderer *Renderer() = 0;
   virtual Kotonoha::Sound::Channel *MovieAudio() = 0; // engine channel the movie soundtrack plays on
+  // Save slot `slot` (0..63): false when empty.
+  virtual bool Slot(int slot, SlotInfo *info) = 0;
+  virtual void PlayVoice(int voice) = 0; // VOICE_ID index (back log replay)
 };
 
 // The retail boot, title and system menus of OVERRIDE.NUT, 640x448 logical:
@@ -69,10 +87,16 @@ public:
 // returns to the logo after 45 s without input. Every state change is the
 // original 500 ms crossfade. Keys: arrows, Enter/Space/Z (circle),
 // Esc/Backspace/X or right click (cross), PageUp/PageDown or Q/W (L1/R1).
+//
+// The in-game screens are here too (they share the menu parts): CommandState
+// (normal and the coffee break), CharacterState, the 64-slot SaveState /
+// LoadState and HistoryState. While InGame() they draw over the story.
 class Frontend {
 public:
   // PlayScene: start Scene() (scene replay or special voice drama).
-  enum class Result { None, NewGame, Load, PlayScene };
+  // Save / LoadSlot: write / load Slot(); Title: back to the title; Next: the
+  // coffee break ended (NEXT); Resume: an in-game screen closed.
+  enum class Result { None, NewGame, PlayScene, Save, LoadSlot, Title, Next, Resume };
   enum class Replay { None, Scene, Voice };
 
   explicit Frontend(FrontendHost &host) : host_(host) {}
@@ -87,8 +111,18 @@ public:
   Result Tick();
   void Draw(SDL_Renderer *r);
 
+  // In-game screens. `tundere` is f.prm_tundere_eval, `maxLike` getMaxLike(f).
+  void OpenCommand(bool coffee, int tundere, int maxLike);
+  void OpenHistory(std::vector<HistoryEntry> entries);
+  bool InGame() const { return inGame_; }
+  int Slot() const { return slot_; }
+
 private:
-  enum class Phase { Warning, Logo, Movie, Title, Menu, Option, VoiceOption, Gallery, CgView, Sound };
+  // Game: no screen, the story shows (in-game screens close to it).
+  enum class Phase { Warning, Logo, Movie, Title, Menu, Option, VoiceOption, Gallery, CgView, Sound,
+                     Command, Character, Files, History, Game };
+  // Confirm dialogs (ConfirmDialog YESNO / OK).
+  enum class Ask { None, Reset, Title, Next, Save, Overwrite, Load, Loaded };
   enum class Step { FadeIn, Hold, FadeOut };
 
   void Go(Phase phase, bool crossfade);
@@ -122,6 +156,20 @@ private:
   void DrawCgView(SDL_Renderer *r, float alpha);
   void DrawSound(SDL_Renderer *r, float alpha);
   void DrawConfirm(SDL_Renderer *r);
+  void Answer(bool yes);
+  void OpenFiles(bool save, Phase back);
+  void CommandKey(SDL_Keycode k);
+  void CommandPress();
+  void CharacterKey(SDL_Keycode k);
+  void FilesKey(SDL_Keycode k);
+  void HistoryKey(SDL_Keycode k);
+  void Close(Result result);
+  const std::pair<bool, SlotInfo> &CachedSlot(int slot);
+  int CommandCount() const { return coffee_ ? 6 : 5; }
+  void DrawCommand(SDL_Renderer *r, float alpha);
+  void DrawCharacter(SDL_Renderer *r, float alpha);
+  void DrawFiles(SDL_Renderer *r, float alpha);
+  void DrawHistory(SDL_Renderer *r, float alpha);
   Kotonoha::CanvasImage *Img(const std::string &name) { return host_.Picture(name); }
   void DrawPhase(SDL_Renderer *r, Phase phase, float alpha);
   void DrawImage(SDL_Renderer *r, Kotonoha::CanvasImage *img, float x, float y, float alpha, float light = 1.0f, float w = 0,
@@ -145,7 +193,7 @@ private:
   Replay replay_ = Replay::None;
   // OptionState (persistent like the original instance fields).
   int optRow_ = 0, optDisp_ = 0;
-  bool confirm_ = false; // "初期化してよろしいですか？"
+  Ask ask_ = Ask::None;
   // VoiceOptionState cursor.
   int voiceX_ = 0, voiceY_ = 0;
   // CgModeMenuState: cg (true) or scene list.
@@ -160,6 +208,17 @@ private:
   bool soundVoice_ = false;
   int soundPage_ = 1, soundCur_ = 0;
   bool soundPlaying_ = false;
+  // In-game screens.
+  bool inGame_ = false, coffee_ = false;
+  int commandCur_ = 0, tundere_ = 127, maxLike_ = 0;
+  int charaPage_ = 0, charaPrev_ = 0;
+  uint64_t charaFade_ = 0;
+  bool filesSave_ = false;
+  Phase filesBack_ = Phase::Menu;
+  int filesPage_ = 1, filesCur_ = 0, slot_ = 0;
+  std::map<int, std::pair<bool, SlotInfo>> slotCache_;
+  std::vector<HistoryEntry> history_;
+  int historyCur_ = 0, historyTop_ = 0;
 };
 
 } // namespace ZeroNoTsukaima

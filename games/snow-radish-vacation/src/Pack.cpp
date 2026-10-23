@@ -175,50 +175,59 @@ namespace SnowRadish {
 
 bool decodeAnm(const std::vector<uint8_t>& d, Animation& out)
 {
-    out.frames.clear();
-    if (d.size() < 0x684 || (rd32(d.data()) != 1 && rd32(d.data()) != 2)) return false;
-
-    const uint32_t x = rd32(&d[76]), y = rd32(&d[80]);
-    const uint32_t width = rd32(&d[92]), height = rd32(&d[96]);
-    if (!width || !height || width > 8192 || height > 8192 || x > 8192 - width || y > 8192 - height)
-        return false;
-
-    for (size_t i = 0; i < 8; ++i) {
-        const uint32_t offset = rd32(&d[12 + i * 4]);
-        const uint32_t size = rd32(&d[44 + i * 4]);
-        if (size == 0) break;
-        if (offset < 0x684 || offset > d.size() || size > d.size() - offset) {
-            out.frames.clear();
-            return false;
-        }
-        std::vector<uint8_t> bytes(d.begin() + offset, d.begin() + offset + size);
-        Sprite frame;
-        if (bytes.size() >= 24 && rd32(bytes.data()) == 1 && decodeChd(bytes, frame)) {
+    out = {};
+    if (d.size() < 12) return false;
+    const uint32_t count = rd32(d.data());
+    if (!count || count > 16) return false;
+    auto fail = [&]() { out = {}; return false; };
+    // Cursor files use the general animation format, not the lip-sync header.
+    if (rd32(&d[4]) >= 0x2084) {
+        if (d.size() < 0x2084 || count > 4) return false;
+        out.cursor = true;
+        for (uint32_t i = 0; i < count; ++i) {
+            const size_t off = rd32(&d[4 + i * 8]), size = rd32(&d[8 + i * 8]);
+            if (off < 0x2084 || off > d.size() || size > d.size() - off) return fail();
+            Sprite frame;
+            if (!decodeChd(std::vector<uint8_t>(d.begin() + off, d.begin() + off + size), frame)) return fail();
             out.frames.push_back(std::move(frame));
-            continue;
         }
-        if (bytes.size() != size_t(width) * height * 3) {
-            out.frames.clear();
-            return false;
-        }
-        frame.width = width;
-        frame.height = height;
-        frame.x = int32_t(x);
-        frame.y = int32_t(y);
-        frame.rgba.resize(size_t(width) * height * 4);
-        for (uint32_t row = 0; row < height; ++row) {
-            const uint8_t* source = bytes.data() + size_t(height - 1 - row) * width * 3;
-            uint8_t* target = frame.rgba.data() + size_t(row) * width * 4;
-            for (uint32_t col = 0; col < width; ++col) {
-                target[col * 4] = source[col * 3 + 2];
-                target[col * 4 + 1] = source[col * 3 + 1];
-                target[col * 4 + 2] = source[col * 3];
-                target[col * 4 + 3] = 255;
-            }
-        }
-        out.frames.push_back(std::move(frame));
+        return true;
     }
-    return out.frames.size() >= 2;
+    if (d.size() < 0x684) return false;
+    // FUN_0040b16c: first word is the number of independently voiced regions.
+    for (uint32_t region = 0; region < count; ++region) {
+        const size_t h = size_t(region) * 96;
+        const uint32_t x = rd32(&d[h + 76]), y = rd32(&d[h + 80]);
+        const uint32_t width = rd32(&d[h + 92]), height = rd32(&d[h + 96]);
+        if (!width || !height || width > 800 || height > 600 || x > 800 - width || y > 600 - height) return fail();
+        Animation::Region r{rd32(&d[h + 4]), out.frames.size(), 0};
+        for (size_t i = 0; i < 3; ++i) {
+            const size_t off = rd32(&d[h + 12 + i * 4]), size = rd32(&d[h + 44 + i * 4]);
+            if (!size || off < 0x684 || off > d.size() || size > d.size() - off) return fail();
+            std::vector<uint8_t> bytes(d.begin() + off, d.begin() + off + size);
+            Sprite frame;
+            if (!(bytes.size() >= 24 && rd32(bytes.data()) == 1 && decodeChd(bytes, frame))) {
+                if (bytes.size() != size_t(width) * height * 3) return fail();
+                frame.width = width; frame.height = height;
+                frame.x = int32_t(x); frame.y = int32_t(y);
+                frame.rgba.resize(size_t(width) * height * 4);
+                for (uint32_t row = 0; row < height; ++row) {
+                    const uint8_t* source = bytes.data() + size_t(height - 1 - row) * width * 3;
+                    uint8_t* target = frame.rgba.data() + size_t(row) * width * 4;
+                    for (uint32_t col = 0; col < width; ++col) {
+                        target[col * 4] = source[col * 3 + 2];
+                        target[col * 4 + 1] = source[col * 3 + 1];
+                        target[col * 4 + 2] = source[col * 3];
+                        target[col * 4 + 3] = 255;
+                    }
+                }
+            }
+            out.frames.push_back(std::move(frame));
+            ++r.count;
+        }
+        out.regions.push_back(r);
+    }
+    return true;
 }
 
 bool decodeChd(const std::vector<uint8_t>& d, Sprite& s)

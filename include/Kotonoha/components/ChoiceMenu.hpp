@@ -47,7 +47,7 @@ public:
     int slot = -1;
   };
 
-  explicit GameMenu(std::string gameId) : store_(std::move(gameId)) {}
+  explicit GameMenu(std::string gameId, int slots = SaveStore::kSlots) : store_(std::move(gameId), slots) {}
 
   void SetGameTitle(std::string title) { gameTitle_ = std::move(title); }
   SaveStore &Store() { return store_; }

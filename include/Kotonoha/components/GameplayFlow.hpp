@@ -60,6 +60,41 @@ public:
   virtual int ChoiceEvent(const SDL_Event &) { return -1; }
   virtual void DrawChoices(SDL_Renderer *) {}
 
+  // Optional original in-game screens (command menu, save/load pages, back
+  // log). The flow asks OpenScreen() on Esc / right click (Command) and on
+  // wheel up / Page Up (History); true means the session handled the request
+  // (false falls back to the generic pause menu). While ScreenActive(), every
+  // event goes to ScreenEvent() (pointer in logical coordinates) and
+  // DrawScreen() paints over the whole game.
+  enum class Screen { Command, History };
+  virtual bool OpenScreen(Screen) { return false; }
+  virtual bool ScreenActive() const { return false; }
+  virtual void ScreenEvent(const SDL_Event &) {}
+  virtual void DrawScreen(SDL_Renderer *) {}
+
+  // Requests the flow carries out for the session's own screens, polled every
+  // frame (in play and in the front end): write the replay inputs into a slot
+  // (labelled with SaveLabel()), load a slot, or return to the title.
+  struct FlowRequest {
+    enum Kind { None, Save, Load, Title } kind = None;
+    int slot = 0;
+  };
+  virtual FlowRequest TakeRequest() { return {}; }
+  virtual std::string SaveLabel() const { return {}; }
+
+  // Text pacing. TextDelayMs(): milliseconds per revealed character (0 shows
+  // the page at once; a click completes the page first). AutoDelayMs(): the
+  // pause of auto mode (A key) after a page is shown and VoiceActive() ended;
+  // negative disables auto mode. AutoChanged() reports toggles.
+  virtual int TextDelayMs() const { return 0; }
+  virtual int AutoDelayMs() const { return -1; }
+  virtual bool VoiceActive() const { return false; }
+  virtual void AutoChanged(bool) {}
+  // Skip (Ctrl held): pages advance every frame while CanSkip() is true.
+  virtual bool CanSkip() const { return false; }
+  // True while the story waits for a click (not for a timed event).
+  virtual bool WaitingForClick() const { return HasMessage(); }
+
   // Optional original title screen. When TitleItems() is not empty the flow shows
   // it instead of the generic title menu: items are hit-tested in logical
   // coordinates and DrawTitle() paints the screen with item `hover` highlighted.
@@ -107,6 +142,7 @@ public:
     std::string title; // title screen / window title
     float width = 800, height = 600; // logical resolution
     TextBox::Style textBox;
+    int saveSlots = SaveStore::kSlots;
   };
 
   explicit GameplayFlow(Config config);
@@ -154,6 +190,9 @@ private:
   void HandleTitleEvent(SDL_Event *event, Kotonoha_Game *game);
   void PickTitle(size_t index);
   void RunTitleAction(GameSession::TitleAction action);
+  void HandleRequest(const GameSession::FlowRequest &request);
+  void Pace();
+  bool OpenScreen(GameSession::Screen screen);
 
   Config config_;
   std::unique_ptr<GameSession> session_;
@@ -169,6 +208,12 @@ private:
   bool frontend_ = false; // the session's front end shows instead of the title
   bool booted_ = false;   // the front end already ran its boot sequence
   std::string lastLogged_;
+  // Text pacing: the page being revealed, when it began, and auto mode.
+  std::string pageKey_;
+  uint64_t pageStart_ = 0, pageDoneAt_ = 0;
+  size_t pageLength_ = 0;
+  bool pageComplete_ = true;
+  bool auto_ = false;
   Canvas canvas_;
   bool canvasReady_ = false;
 };

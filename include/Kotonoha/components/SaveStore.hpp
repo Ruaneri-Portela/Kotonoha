@@ -11,8 +11,9 @@ class SaveStore {
 public:
   static constexpr int kSlots = 3;
 
-  explicit SaveStore(std::string gameId) : gameId_(std::move(gameId)) {}
+  explicit SaveStore(std::string gameId, int slots = kSlots) : gameId_(std::move(gameId)), slots_(slots) {}
 
+  int Slots() const { return slots_; }
   bool Write(int slot, const std::string &label, const std::vector<int> &inputs) const;
   bool Read(int slot, std::string *label, std::vector<int> *inputs) const;
   bool Exists(int slot) const;
@@ -25,6 +26,7 @@ private:
   std::string Path(int slot) const;
 
   std::string gameId_;
+  int slots_;
 };
 
 } // namespace Kotonoha

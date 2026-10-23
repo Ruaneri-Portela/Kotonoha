@@ -11,6 +11,22 @@ bool GameSession::RunDebugUi(::Kotonoha::Kotonoha *app, Kotonoha_Game &game) {
 }
 
 // Logical presentation is per render target; the viewport belongs to the window.
+// The first `n` UTF-8 code points of `text`.
+static std::string Utf8Prefix(const std::string &text, size_t n) {
+  size_t i = 0;
+  for (size_t cp = 0; i < text.size() && cp < n; ++cp) {
+    ++i;
+    while (i < text.size() && (static_cast<unsigned char>(text[i]) & 0xC0) == 0x80) ++i;
+  }
+  return text.substr(0, i);
+}
+
+static size_t Utf8Length(const std::string &text) {
+  size_t n = 0;
+  for (unsigned char c : text) n += (c & 0xC0) != 0x80;
+  return n;
+}
+
 static void SetWindowPresentation(SDL_Renderer *r, int w, int h, SDL_RendererLogicalPresentation mode) {
   SDL_Texture *target = SDL_GetRenderTarget(r);
   if (target != nullptr) SDL_SetRenderTarget(r, nullptr);
@@ -27,7 +43,7 @@ GameplayFlow::GameViewport::~GameViewport() {
   SetWindowPresentation(renderer, 0, 0, SDL_LOGICAL_PRESENTATION_DISABLED);
 }
 
-GameplayFlow::GameplayFlow(Config config) : config_(std::move(config)), menu_(config_.id) {
+GameplayFlow::GameplayFlow(Config config) : config_(std::move(config)), menu_(config_.id, config_.saveSlots) {
   menu_.SetGameTitle(config_.title);
   textBox_.SetStyle(config_.textBox);
 }
@@ -47,6 +63,12 @@ bool GameplayFlow::Begin(bool sync) {
   frontend_ = false;
   inputs_.clear();
   lastLogged_.clear();
+  pageKey_.clear();
+  pageComplete_ = true;
+  if (auto_) {
+    auto_ = false;
+    session_->AutoChanged(false);
+  }
   choices_.Close();
   choicesOpen_ = false;
   playing_ = true;
@@ -57,6 +79,12 @@ bool GameplayFlow::Begin(bool sync) {
 void GameplayFlow::Advance(int choice) {
   const int in = session_->Choosing() ? choice : -1;
   if (session_->Choosing() && in < 0) return;
+  if (in < 0 && !pageComplete_) {
+    // The first click completes a page that is still being revealed.
+    pageComplete_ = true;
+    pageDoneAt_ = SDL_GetTicks();
+    return;
+  }
   if (in < 0 && session_->Skip()) return;
   inputs_.push_back(in);
   session_->Step(in);
@@ -105,6 +133,73 @@ void GameplayFlow::RunTitleAction(GameSession::TitleAction action) {
     SDL_PushEvent(&q);
     break;
   }
+  }
+}
+
+void GameplayFlow::HandleRequest(const GameSession::FlowRequest &request) {
+  switch (request.kind) {
+  case GameSession::FlowRequest::Save: {
+    std::string label = session_->SaveLabel();
+    if (label.empty()) label = SaveStore::MakeLabel(textBox_.Body(), 14);
+    menu_.Store().Write(request.slot, label.empty() ? "-" : label, inputs_);
+    SDL_Log("[save] slot %d (%zu inputs)", request.slot + 1, inputs_.size());
+    break;
+  }
+  case GameSession::FlowRequest::Load: {
+    std::vector<int> in;
+    if (menu_.Store().Read(request.slot, nullptr, &in)) {
+      Replay(in);
+      SDL_Log("[load] slot %d (%zu inputs)", request.slot + 1, in.size());
+    }
+    break;
+  }
+  case GameSession::FlowRequest::Title: ShowTitle(); break;
+  case GameSession::FlowRequest::None: break;
+  }
+}
+
+bool GameplayFlow::OpenScreen(GameSession::Screen screen) {
+  if (auto_) {
+    auto_ = false;
+    session_->AutoChanged(false);
+  }
+  return session_->OpenScreen(screen);
+}
+
+// Typewriter reveal, auto mode and Ctrl skip, run once per frame while playing.
+void GameplayFlow::Pace() {
+  const uint64_t now = SDL_GetTicks();
+  const std::string key = session_->HasMessage() ? session_->Speaker() + "\n" + session_->Text() : std::string();
+  const int delay = session_->TextDelayMs();
+  if (key != pageKey_) {
+    // A page that only grew (text appended after a wait) keeps its revealed part.
+    const bool grew = !pageKey_.empty() && key.compare(0, pageKey_.size(), pageKey_) == 0;
+    const size_t shown = grew ? pageLength_ : 0;
+    pageKey_ = key;
+    pageLength_ = Utf8Length(session_->Text());
+    pageComplete_ = delay <= 0 || pageLength_ <= shown;
+    pageStart_ = now - static_cast<uint64_t>(shown) * static_cast<uint64_t>(SDL_max(delay, 0));
+    pageDoneAt_ = now;
+  }
+  if (!pageComplete_ && now - pageStart_ >= static_cast<uint64_t>(delay) * pageLength_) {
+    pageComplete_ = true;
+    pageDoneAt_ = now;
+  }
+  const bool idle = !menu_.Active() && !session_->ScreenActive() && !session_->Choosing();
+  if (!idle) {
+    pageDoneAt_ = now;
+    return;
+  }
+  if ((SDL_GetModState() & SDL_KMOD_CTRL) != 0 && session_->CanSkip()) {
+    pageComplete_ = true;
+    if (session_->WaitingForClick()) Advance(-1);
+    else session_->Skip();
+    return;
+  }
+  if (session_->VoiceActive() || !pageComplete_) pageDoneAt_ = now;
+  if (auto_ && session_->WaitingForClick() && now - pageDoneAt_ >= static_cast<uint64_t>(session_->AutoDelayMs())) {
+    pageDoneAt_ = now;
+    Advance(-1);
   }
 }
 
@@ -176,11 +271,21 @@ SDL_AppResult GameplayFlow::HandleEvent(SDL_Event *e, Kotonoha_Game *game) {
     }
     return SDL_APP_CONTINUE;
   }
+  if (session_->ScreenActive()) {
+    SDL_Event c = *e;
+    SDL_ConvertEventToRenderCoordinates(game->render, &c);
+    session_->ScreenEvent(c);
+    return SDL_APP_CONTINUE;
+  }
+  const bool command = (e->type == SDL_EVENT_KEY_DOWN && e->key.key == SDLK_ESCAPE) ||
+                       (e->type == SDL_EVENT_MOUSE_BUTTON_DOWN && e->button.button == SDL_BUTTON_RIGHT);
+  const bool history = (e->type == SDL_EVENT_KEY_DOWN && e->key.key == SDLK_PAGEUP) ||
+                       (e->type == SDL_EVENT_MOUSE_WHEEL && e->wheel.y > 0);
+  if (history && OpenScreen(GameSession::Screen::History)) return SDL_APP_CONTINUE;
   if (session_->Choosing()) {
     if (session_->OwnsChoices()) {
-      if ((e->type == SDL_EVENT_KEY_DOWN && e->key.key == SDLK_ESCAPE) ||
-          (e->type == SDL_EVENT_MOUSE_BUTTON_DOWN && e->button.button == SDL_BUTTON_RIGHT)) {
-        menu_.Show(GameMenu::Page::Pause, font_);
+      if (command) {
+        if (!OpenScreen(GameSession::Screen::Command)) menu_.Show(GameMenu::Page::Pause, font_);
         return SDL_APP_CONTINUE;
       }
       SDL_Event c = *e;
@@ -192,12 +297,23 @@ SDL_AppResult GameplayFlow::HandleEvent(SDL_Event *e, Kotonoha_Game *game) {
     choices_.HandleEvent(e, game);
     return SDL_APP_CONTINUE;
   }
-  if (e->type == SDL_EVENT_KEY_DOWN) {
-    if (e->key.key == SDLK_ESCAPE) menu_.Show(GameMenu::Page::Pause, font_);
-    else if (e->key.key == SDLK_RETURN || e->key.key == SDLK_SPACE || e->key.key == SDLK_DOWN) Advance(-1);
-  } else if (e->type == SDL_EVENT_MOUSE_BUTTON_DOWN) {
-    if (e->button.button == SDL_BUTTON_RIGHT) menu_.Show(GameMenu::Page::Pause, font_);
-    else Advance(-1);
+  if (command) {
+    if (!OpenScreen(GameSession::Screen::Command)) menu_.Show(GameMenu::Page::Pause, font_);
+    return SDL_APP_CONTINUE;
+  }
+  const bool advance = (e->type == SDL_EVENT_KEY_DOWN && (e->key.key == SDLK_RETURN || e->key.key == SDLK_SPACE ||
+                                                          e->key.key == SDLK_DOWN)) ||
+                       e->type == SDL_EVENT_MOUSE_BUTTON_DOWN;
+  if (e->type == SDL_EVENT_KEY_DOWN && e->key.key == SDLK_A && !e->key.repeat && session_->AutoDelayMs() >= 0) {
+    auto_ = !auto_;
+    pageDoneAt_ = SDL_GetTicks();
+    session_->AutoChanged(auto_);
+  } else if (advance && auto_) {
+    // Any click stops auto mode (KAG cancelAuto).
+    auto_ = false;
+    session_->AutoChanged(false);
+  } else if (advance) {
+    Advance(-1);
   }
   return SDL_APP_CONTINUE;
 }
@@ -228,9 +344,17 @@ void GameplayFlow::Frame(Kotonoha_Game *game, TTF_Font *font) {
     session_->Idle();
     session_->Sync();
     SyncChoices();
+    Pace();
     textBox_.SetCaption(session_->Caption());
     if (session_->HasMessage()) {
-      textBox_.SetMessage(session_->Speaker(), session_->Text());
+      const std::string &text = session_->Text();
+      const int delay = session_->TextDelayMs();
+      if (pageComplete_ || delay <= 0) {
+        textBox_.SetMessage(session_->Speaker(), text);
+      } else {
+        const size_t shown = static_cast<size_t>((SDL_GetTicks() - pageStart_) / static_cast<uint64_t>(delay));
+        textBox_.SetMessage(session_->Speaker(), Utf8Prefix(text, shown));
+      }
       const std::string key = session_->Speaker() + session_->Text();
       if (key != lastLogged_) {
         lastLogged_ = key;
@@ -250,6 +374,7 @@ void GameplayFlow::Frame(Kotonoha_Game *game, TTF_Font *font) {
   if (!playing_ && frontend_ && !menu_.Active())
     if (const auto action = session_->FrontendTick()) RunTitleAction(*action);
   session_->Tick();
+  HandleRequest(session_->TakeRequest());
   if (menu_.Active()) OnMenu(menu_.Poll());
   // "Back" from the load page returns to the session's own title, not the generic one.
   if (!playing_ && (frontend_ || !titleItems_.empty()) && menu_.CurrentPage() == GameMenu::Page::Title) menu_.Hide();
@@ -279,6 +404,7 @@ void GameplayFlow::Frame(Kotonoha_Game *game, TTF_Font *font) {
       DrawPanel(r, {config_.width * 0.5f - 260.0f, config_.height * 0.5f - h * 0.5f, 520.0f, h});
       choices_.Draw(game->window, r);
     }
+    if (session_->ScreenActive()) session_->DrawScreen(r);
   }
   if (playing_ && menu_.Active()) {
     DrawDim(r, all, 150);

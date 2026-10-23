@@ -60,10 +60,13 @@ struct Sprite {
 };
 
 struct Animation {
+    struct Region { uint32_t actor = 0; size_t first = 0, count = 0; };
     std::vector<Sprite> frames;
+    std::vector<Region> regions;
+    bool cursor = false;
 };
 
-// Decodes type-1/type-2 .ANM frame tables (raw BGR or embedded CHD frames).
+// Decodes lip-sync region tables and cursor CHD offset/size tables.
 bool decodeAnm(const std::vector<uint8_t>& data, Animation& out);
 
 // Decodes a type-1 .CHD sprite (LOCPU.DLL LoadChr): a 20-byte header (bounding

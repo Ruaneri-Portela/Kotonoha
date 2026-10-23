@@ -13,22 +13,30 @@
 #include <Kotonoha/components/CanvasImage.hpp>
 #include <Kotonoha/components/GameplayFlow.hpp>
 #include <Kotonoha/components/PcmPlayer.hpp>
+#include <Kotonoha/components/SaveStore.hpp>
 #include <Kotonoha/components/Sound.hpp>
 
 #include <SDL3/SDL.h>
 #include <SDL3_ttf/SDL_ttf.h>
 
 #include <algorithm>
-#include <map>
 #include <cctype>
+#include <cmath>
 #include <cstdlib>
+#include <deque>
+#include <fstream>
+#include <map>
 #include <memory>
+#include <set>
 #include <string>
+#include <utility>
 
 using Kotonoha::global;
 namespace {
 
 constexpr int kW = 640, kH = 448;
+constexpr const char *kFlowId = "zero-no-tsukaima";
+constexpr int kSaveSlots = 64; // SaveState: 16 pages x 4
 
 std::string g_disc;
 
@@ -262,6 +270,13 @@ public:
     s_.lastBgm.clear();
   }
   bool Movie(int number, std::vector<uint8_t> *out) override { return s_.source.LoadMovie(number, out); }
+  bool Slot(int slot, ZeroNoTsukaima::SlotInfo *info) override {
+    std::string label;
+    if (!Kotonoha::SaveStore(kFlowId, kSaveSlots).Read(slot, &label, nullptr)) return false;
+    *info = ZeroNoTsukaima::SlotInfo::Parse(label);
+    return true;
+  }
+  void PlayVoice(int voice) override { playVoice(voice); }
   SDL_Renderer *Renderer() override { return global.render; }
   // The opening theme belongs to the music, so the BGM slider controls it.
   Kotonoha::Sound::Channel *MovieAudio() override {
@@ -293,13 +308,23 @@ void fill(SDL_Renderer *r, Uint8 v, float alpha) {
 
 class ZeroSession : public Kotonoha::GameSession {
 public:
-  explicit ZeroSession(State &s) : s_(s), host_(s), frontend_(host_) {}
+  explicit ZeroSession(State &s) : s_(s), host_(s), frontend_(host_) {
+    if (!s_.systemPath.empty()) {
+      readPath_ = s_.systemPath.substr(0, s_.systemPath.find_last_of("/\\") + 1) + "read.txt";
+      std::ifstream in(readPath_);
+      for (std::string line; std::getline(in, line);)
+        if (!line.empty()) read_.insert(line);
+    }
+    rouletteEvent_ = SDL_RegisterEvents(1);
+  }
   ~ZeroSession() override {
     if (snapshot_) SDL_DestroyTexture(snapshot_);
   }
 
   bool HasFrontend() const override { return true; }
   void EnterFrontend(bool boot) override {
+    playing_ = false;
+    roulette_ = {};
     s_.voice.Stop();
     s_.se.Stop();
     movie_.Close();
@@ -319,7 +344,7 @@ public:
     switch (frontend_.Tick()) {
     case ZeroNoTsukaima::Frontend::Result::NewGame:
     case ZeroNoTsukaima::Frontend::Result::PlayScene: return TitleAction::NewGame;
-    case ZeroNoTsukaima::Frontend::Result::Load: return TitleAction::Load;
+    case ZeroNoTsukaima::Frontend::Result::LoadSlot: LoadRequest(frontend_.Slot()); return std::nullopt;
     default: return std::nullopt;
     }
   }
@@ -346,6 +371,12 @@ public:
     s_.se.Stop();
     lastKey_.clear();
     lastTicks_ = 0;
+    history_.clear();
+    historyId_.clear();
+    roulette_ = {};
+    playMs_ = pendingPlayMs_;
+    pendingPlayMs_ = 0;
+    playing_ = true;
     game_->Pump();
     Settle();
     return true;
@@ -356,10 +387,12 @@ public:
       if (input < 0) return;
       game_->Choose(size_t(input));
     } else {
+      MarkRead(game_->PageId());
       game_->Click();
     }
     game_->Pump();
     Settle();
+    RecordHistory();
   }
 
   // Runs the game clock and ends the waits on sounds / movies the host plays.
@@ -367,6 +400,9 @@ public:
     const Uint64 now = SDL_GetTicks();
     const Uint64 delta = lastTicks_ ? now - lastTicks_ : 0;
     lastTicks_ = now;
+    // The in-game screens pause the story (and the play time).
+    if (frontend_.InGame()) return;
+    playMs_ += int64_t(delta);
     game_->Advance(int64_t(std::min<Uint64>(delta, 100)));
     for (int guard = 0; guard < 8; ++guard) {
       RunCues();
@@ -396,9 +432,13 @@ public:
   bool Choosing() const override { return game_->Choosing(); }
   // The original select window (choices) and MoveState map replace the engine choice panel.
   bool OwnsChoices() const override { return true; }
-  int ChoiceEvent(const SDL_Event &e) override { return game_->Moving() ? MoveEvent(e) : SelectEvent(e); }
+  int ChoiceEvent(const SDL_Event &e) override {
+    if (game_->Roulette()) return RouletteEvent(e);
+    return game_->Moving() ? MoveEvent(e) : SelectEvent(e);
+  }
   void DrawChoices(SDL_Renderer *r) override {
-    if (game_->Moving()) DrawMove(r);
+    if (game_->Roulette()) DrawRoulette(r);
+    else if (game_->Moving()) DrawMove(r);
     else DrawSelect(r);
   }
   std::vector<std::string> Choices() const override { return game_->Choices(); }
@@ -410,8 +450,11 @@ public:
 
   void Sync() override {
     if (!replaying_) Remember();
+    RecordHistory();
+    // The command screen / roulette own the music while they show.
+    const bool music = !replaying_ && !frontend_.InGame() && !roulette_.active;
     if (replaying_ || !game_->MessageVisible()) {
-      if (!replaying_) playBgm(game_->Bgm());
+      if (music) playBgm(game_->Bgm());
       return;
     }
     const std::string key = game_->Speaker() + game_->Text();
@@ -420,8 +463,69 @@ public:
       if (VoiceAllowed()) playVoice(game_->Voice());
       else s_.voice.Stop();
     }
-    playBgm(game_->Bgm());
+    if (music) playBgm(game_->Bgm());
   }
+
+  void Tick() override {
+    if (!playing_ || !game_) return;
+    // coffee tag: the command screen in coffee-break mode (NEXT goes on).
+    if (!replaying_ && game_->Blocked() == Block::Coffee && !frontend_.InGame()) {
+      s_.voice.Stop();
+      frontend_.OpenCommand(true, int(game_->Flag("f.prm_tundere_eval")), MaxLike());
+    }
+    using R = ZeroNoTsukaima::Frontend::Result;
+    switch (frontend_.Tick()) {
+    case R::Save: request_ = {FlowRequest::Save, frontend_.Slot()}; break;
+    case R::LoadSlot: LoadRequest(frontend_.Slot()); break;
+    case R::Title: request_ = {FlowRequest::Title, 0}; break;
+    case R::Next:
+      s_.bgm.Stop();
+      s_.lastBgm.clear();
+      game_->FinishWait();
+      RunCues();
+      break;
+    default: break;
+    }
+    TickRoulette();
+  }
+
+  // CommandState (Esc / right click) and HistoryState (wheel up / Page Up).
+  bool OpenScreen(Screen screen) override {
+    if (!game_ || frontend_.InGame()) return true;
+    if (screen == Screen::History) {
+      if (!history_.empty()) frontend_.OpenHistory({history_.begin(), history_.end()});
+      return true;
+    }
+    if (roulette_.active) return true;
+    frontend_.OpenCommand(false, int(game_->Flag("f.prm_tundere_eval")), MaxLike());
+    return true;
+  }
+  bool ScreenActive() const override { return game_ && frontend_.InGame(); }
+  void ScreenEvent(const SDL_Event &e) override { frontend_.Event(e); }
+  void DrawScreen(SDL_Renderer *r) override { frontend_.Draw(r); }
+  FlowRequest TakeRequest() override { return std::exchange(request_, FlowRequest{}); }
+  std::string SaveLabel() const override {
+    ZeroNoTsukaima::SlotInfo info;
+    info.title = game_->StringVar("f.title");
+    info.playMs = playMs_;
+    info.maxLike = MaxLike();
+    return info.Label();
+  }
+
+  // sys_0027: getCharSpeed = (10 - charSpeed) * 10 ms, getAutoWait = (10 - autoWait) * 150 ms.
+  int TextDelayMs() const override { return (10 - std::clamp(s_.system.charSpeed, 0, 10)) * 10; }
+  int AutoDelayMs() const override { return (10 - std::clamp(s_.system.autoWait, 0, 10)) * 150; }
+  bool VoiceActive() const override { return s_.voice.Playing(); }
+  void AutoChanged(bool on) override {
+    if (on == auto_) return;
+    auto_ = on;
+    host_.SystemSe(on ? "SYS_SE02" : "SYS_SE03");
+  }
+  // skipMode 1 = すべて (everything), 0 = 既読 (pages already read).
+  bool CanSkip() const override {
+    return game_ && !frontend_.InGame() && (s_.system.skipMode == 1 || read_.count(game_->PageId()) != 0);
+  }
+  bool WaitingForClick() const override { return game_ && game_->WaitingForClick() && !frontend_.InGame(); }
 
   void Draw(SDL_Renderer *r) override {
     SDL_SetRenderDrawColor(r, 0, 0, 0, 255);
@@ -440,7 +544,10 @@ public:
       SDL_SetRenderDrawColor(r, 0, 0, 0, 255);
       SDL_RenderClear(r);
       movie_.Draw(r, SDL_FRect{0, 0, kW, kH});
+      return;
     }
+    if (const auto *m = game_->ActiveMeter()) DrawMeter(r, *m);
+    if (auto_) DrawNormal(r, "MAIN_AUTOPLAY", 40, 45);
   }
 
   // MAIN_MESSAGEBASE frame, name plate picture and page cursor (PR_00 msgwin:
@@ -484,7 +591,7 @@ private:
     for (int guard = 0; guard < 100000; ++guard) {
       game_->TakeCues();
       const auto b = game_->Blocked();
-      if (b != Block::Time && b != Block::Voice && b != Block::Se && b != Block::Movie) break;
+      if (b != Block::Time && b != Block::Voice && b != Block::Se && b != Block::Movie && b != Block::Coffee) break;
       game_->FinishWait();
     }
     game_->TakeCues();
@@ -540,9 +647,11 @@ private:
   // No initial focus: the first UP selects the last button, the first DOWN the first.
   static constexpr int kSelectW = 400, kSelectH = 50;
 
+  // selopt (height=200 top=80 in every script) narrows the area the buttons spread over.
   SDL_FRect SelectRect(int i, int n) const {
-    const int h = kH / (n + 1);
-    return {float(kW / 2 - kSelectW / 2), float(h * (i + 1) - kSelectH / 2), float(kSelectW), float(kSelectH)};
+    const SDL_Rect area = game_->SelectArea();
+    const int h = area.h / (n + 1);
+    return {float(kW / 2 - kSelectW / 2), float(area.y + h * (i + 1) - kSelectH / 2), float(kSelectW), float(kSelectH)};
   }
 
   int SelectEvent(const SDL_Event &e) {
@@ -674,12 +783,228 @@ private:
     }
   }
 
-  void DrawNormal(SDL_Renderer *r, const char *name, float x, float y) {
-    if (Kotonoha::CanvasImage *img = host_.NormalPicture(name)) {
+  void DrawNormal(SDL_Renderer *r, const std::string &name, float x, float y, float alpha = 1.0f) {
+    if (alpha <= 0.0f) return;
+    if (Kotonoha::CanvasImage *img = host_.Picture(name)) {
       float w = 0, h = 0;
       SDL_GetTextureSize(img->Source(), &w, &h);
       const SDL_FRect dst{x, y, w, h};
+      SDL_SetTextureAlphaModFloat(img->Source(), std::min(alpha, 1.0f));
       img->Draw(r, nullptr, &dst);
+      SDL_SetTextureAlphaModFloat(img->Source(), 1.0f);
+    }
+  }
+
+  // getMaxLike(f): first maximum of f.cp_ru, cp_cu, cp_ta, cp_ch, cp_si, cp_an, cp_ri.
+  int MaxLike() const {
+    static const char *const kLikes[] = {"f.cp_ru", "f.cp_cu", "f.cp_ta", "f.cp_ch", "f.cp_si", "f.cp_an", "f.cp_ri"};
+    int best = 0;
+    for (int i = 1; i < 7; ++i)
+      if (game_->Flag(kLikes[i]) > game_->Flag(kLikes[best])) best = i;
+    return best;
+  }
+
+  void LoadRequest(int slot) {
+    ZeroNoTsukaima::SlotInfo info;
+    if (!host_.Slot(slot, &info)) return;
+    pendingPlayMs_ = info.playMs;
+    request_ = {FlowRequest::Load, slot};
+  }
+
+  void MarkRead(const std::string &id) {
+    if (id.empty() || !read_.insert(id).second || readPath_.empty()) return;
+    std::ofstream(readPath_, std::ios::app) << id << '\n';
+  }
+
+  // HistoryState back log: one entry per page, speaker names through historyNameMap.
+  void RecordHistory() {
+    if (!game_ || !game_->MessageVisible()) return;
+    const std::string id = game_->PageId();
+    if (id.empty() || id == historyId_) return;
+    historyId_ = id;
+    static const std::map<std::string, std::string> kNames = {
+        {"母ちゃん", "サイトの母"},
+        {"アンリエッタ・ルイズ", "２人"},
+        {"クリス・タバサ", "２人"},
+        {"サイト・ギーシュ・モンモランシー", "２人"},
+        {"サイト・クリス", "２人"},
+        {"サイト・シエスタ", "２人"},
+        {"サイト・リシュ・シエスタ", "３人"},
+        {"サイト・ルイズ", "２人"},
+        {"シエスタ・アンリエッタ", "２人"},
+        {"タバサ・クリス", "２人"},
+        {"ルイズ・キュルケ", "２人"},
+        {"女子生徒Ａ", "女子高生"},
+        {"女子生徒Ｂ", "女子高生"},
+        {"女子生徒Ｃ", "女子高生"},
+        {"女子生徒Ｄ", "女子高生"},
+        {"男子生徒Ａ", "男子生徒"},
+        {"男子生徒Ｂ", "男子生徒"},
+        {"男子生徒Ｃ", "男子生徒"},
+        {"男子生徒Ｄ", "男子生徒"},
+        {"男子生徒Ｅ", "男子生徒"},
+        {"部員Ａ", "部員"},
+        {"部員Ｂ", "部員"},
+        {"ミスコン司会", "司会"}};
+    std::string name = game_->Speaker();
+    if (auto it = kNames.find(name); it != kNames.end()) name = it->second;
+    ZeroNoTsukaima::HistoryEntry entry{name, game_->Text(), game_->Voice()};
+    // A page that continues the previous one (no er) replaces it.
+    if (!history_.empty() && history_.back().name == entry.name &&
+        entry.text.compare(0, history_.back().text.size(), history_.back().text) == 0)
+      history_.back() = entry;
+    else
+      history_.push_back(entry);
+    while (history_.size() > 200) history_.pop_front();
+  }
+
+  // LikeMeter (好感度) and TndlMeter (ツンデレパラメータ), OVERRIDE.NUT.
+  void DrawMeter(SDL_Renderer *r, const ZeroNoTsukaima::Game::Meter &m) {
+    const float t = std::clamp(float(game_->Clock() - m.start) / 1000.0f, 0.0f, 1.0f);
+    if (m.kind == ZeroNoTsukaima::Game::Meter::Like) {
+      static const std::map<std::string, std::string> kIcons = {
+          {"RU", "RUIZE"}, {"CU", "KYURUKE"}, {"TA", "TABASA"}, {"SI", "SIESTA"},
+          {"AN", "ANRIETTA"}, {"CH", "KURISH"}, {"RI", "RISH"}, {"YRI", "YRISH"}};
+      auto it = kIcons.find(upper(m.name));
+      if (it != kIcons.end()) DrawNormal(r, "MAIN_LOVE" + it->second, 242, 208);
+      DrawNormal(r, m.delta >= 0 ? "MAIN_LOVEUP" : "MAIN_LOVEDOWN", 265, 122 + 20 * (1 - t), t);
+      return;
+    }
+    DrawNormal(r, "MAIN_TUNDEREMETER", 371, 29);
+    const float eval = float(m.from) + float(m.to - m.from) * t;
+    DrawNormal(r, "MAIN_TUNDEREPOINT", 404 + eval * 176 / 255 - 7, 53);
+    if (m.delta > 0) DrawNormal(r, "MAIN_DEREUP", 258, 121 + 20 * (1 - t), t);
+    else if (m.delta < 0) DrawNormal(r, "MAIN_TUNUP", 260, 124 + 20 * (1 - t), t);
+  }
+
+  // RouletteState (tndlslot): two reels; CIRCLE stops the left, then the right one;
+  // f.prm_tundere_boot = left * 3 + rpoint[right] (+18 on the tsun slot).
+  struct RouletteAnim {
+    bool active = false, slot03 = false, finished = false;
+    int state = 0, left = 0, right = 0, pick = -1;
+    double shiftl = 0, shiftr = 0;
+    Uint64 start = 0, last = 0, doneAt = 0;
+  };
+
+  static float Decel(float t) { return 1 - (1 - t) * (1 - t); }
+
+  void TickRoulette() {
+    if (!game_->Roulette()) {
+      roulette_ = {};
+      return;
+    }
+    RouletteAnim &a = roulette_;
+    const Uint64 now = SDL_GetTicks();
+    if (!a.active) {
+      a = {};
+      a.active = true;
+      a.start = a.last = now;
+      playSe("SLOT00");
+      playBgm("BGM23");
+    }
+    const double dt = double(now - a.last);
+    a.last = now;
+    if (a.state == 0 && now - a.start >= 1000) a.state = 1;
+    if (a.state == 1 && now - a.start >= 2000) {
+      a.state = 2;
+      playSe("SLOT01");
+    }
+    constexpr double kSpeed = 5; // patterns per second
+    if (a.state <= 2) a.shiftl += kSpeed * dt / 1000.0;
+    if (a.state <= 3) a.shiftr += kSpeed * dt / 1000.0;
+    if (a.state == 4) {
+      if (!a.slot03 && now - a.doneAt >= 500) {
+        a.slot03 = true;
+        playSe("SLOT03");
+        s_.bgm.Stop();
+        s_.lastBgm.clear();
+      }
+      if (!a.finished && now - a.doneAt >= 2500) {
+        a.finished = true;
+        SDL_Event e{};
+        e.type = rouletteEvent_;
+        SDL_PushEvent(&e);
+      }
+    }
+  }
+
+  int RouletteEvent(const SDL_Event &e) {
+    RouletteAnim &a = roulette_;
+    if (e.type == rouletteEvent_) return a.finished ? a.pick : -1;
+    const bool press = (e.type == SDL_EVENT_KEY_DOWN && !e.key.repeat &&
+                        (e.key.key == SDLK_RETURN || e.key.key == SDLK_KP_ENTER || e.key.key == SDLK_SPACE ||
+                         e.key.key == SDLK_Z)) ||
+                       (e.type == SDL_EVENT_MOUSE_BUTTON_DOWN && e.button.button == SDL_BUTTON_LEFT);
+    if (!press || !a.active) return -1;
+    if (a.state == 2) {
+      playSe("SLOT02");
+      a.state = 3;
+      a.shiftl = std::ceil(a.shiftl);
+    } else if (a.state == 3) {
+      static constexpr int kPoint[] = {1, 3, 2, 3};
+      playSe("SLOT02");
+      a.state = 4;
+      a.shiftr = std::ceil(a.shiftr);
+      a.left = int(a.shiftl) % 6;
+      a.right = int(a.shiftr) % 4;
+      a.pick = a.left * 3 + kPoint[a.right] + (game_->RouletteTsun() ? 18 : 0);
+      a.doneAt = SDL_GetTicks();
+    }
+    return -1;
+  }
+
+  void DrawRoulette(SDL_Renderer *r) {
+    const RouletteAnim &a = roulette_;
+    if (!a.active) return;
+    const Uint64 now = SDL_GetTicks();
+    const bool tun = game_->RouletteTsun();
+    DrawNormal(r, "RULET_TUNDEREBASE02", 101, 135);
+    // layout(): pattern i at y - wrap(i * 50 - (50 * shift) % len), len = 6 * 50.
+    auto reel = [&](float x, double shift, auto name) {
+      constexpr double kStep = 50, kLen = 6 * kStep;
+      const double s0 = std::fmod(kStep * shift, kLen);
+      for (int i = 0; i < 6; ++i) {
+        double s = i * kStep - s0;
+        if (s < -kLen / 2) s += kLen;
+        else if (s > kLen / 2) s -= kLen;
+        DrawNormal(r, name(i), x, float(230 - s));
+      }
+    };
+    char buf[48];
+    reel(150, a.shiftl, [&](int i) {
+      SDL_snprintf(buf, sizeof buf, tun ? "RNAMES_TUNTUN%02d" : "RNAMES_DEREDERE%02d", i + 1);
+      return std::string(buf);
+    });
+    reel(340, a.shiftr, [&](int i) { return std::string(i % 2 ? "RNAMES_TUNDERE2P" : "RNAMES_TUNDERE1P"); });
+    DrawNormal(r, "RULET_TUNDEREBASE01", 0, 0);
+    if (a.state >= 1) {
+      // TriangleAction: opacity 0 -> 255 in 500 ms and back in 500 ms (solid once stopped).
+      const Uint64 t = (now - a.start - 1000) % 1000;
+      const float star = a.state == 4 ? 1.0f : t < 500 ? float(t) / 500.0f : 1.0f - float(t - 500) / 500.0f;
+      DrawNormal(r, "RULET_STAR", 45, 136, star);
+    }
+    const float bt = Decel(std::min(1.0f, float(now - a.start) / 1000.0f));
+    DrawNormal(r, "RULET_BUTTON", 81 + 640 * (1 - bt), 362);
+    const float rt = a.state >= 1 ? Decel(std::min(1.0f, float(now - a.start - 1000) / 1000.0f)) : 0.0f;
+    DrawNormal(r, "RULET_TUNDEREBAR", 91, 217 - 448 * (1 - rt));
+    if (a.state == 4 && now - a.doneAt >= 500) {
+      struct Tero {
+        float x, y;
+        const char *name;
+      };
+      static constexpr Tero kDere[] = {{144, 249, "RULET_TERO_DERE01"}, {108, 250, "RULET_TERO_DERE02"},
+                                       {195, 249, "RULET_TERO_DERE03"}, {170, 247, "RULET_TERO_DERE04"},
+                                       {167, 250, "RULET_TERO_DERE05"}, {172, 250, "RULET_TERO_DERE06"}};
+      static constexpr Tero kTun[] = {{194, 249, "RULET_TERO_TUN01"}, {252, 249, "RULET_TERO_TUN02"},
+                                      {252, 249, "RULET_TERO_TUN03"}, {167, 247, "RULET_TERO_TUN04"},
+                                      {197, 248, "RULET_TERO_TUN05"}, {137, 249, "RULET_TERO_TUN06"}};
+      static constexpr Tero kNum[] = {{112, 162, "RULET_TERO_HITORI"}, {112, 162, "RULET_TERO_HUTARI"},
+                                      {112, 162, "RULET_TERO_HITORI"}, {112, 162, "RULET_TERO_HUTARI"}};
+      const float drop = 448 * (1 - Decel(std::min(1.0f, float(now - a.doneAt - 500) / 1000.0f)));
+      const Tero &l = (tun ? kTun : kDere)[a.left];
+      const Tero &n = kNum[a.right];
+      DrawNormal(r, l.name, l.x, l.y - drop);
+      DrawNormal(r, n.name, n.x, n.y - drop);
     }
   }
 
@@ -770,8 +1095,16 @@ private:
   SDL_Texture *snapshot_ = nullptr;
   int snapW_ = 0, snapH_ = 0;
   uint32_t snapSerial_ = 0;
-  bool replaying_ = false;
+  bool replaying_ = false, playing_ = false, auto_ = false;
   int moveFocus_ = 0, selectFocus_ = -1;
+  FlowRequest request_;
+  int64_t playMs_ = 0, pendingPlayMs_ = 0;
+  std::deque<ZeroNoTsukaima::HistoryEntry> history_;
+  std::string historyId_;
+  std::set<std::string> read_;
+  std::string readPath_;
+  RouletteAnim roulette_;
+  Uint32 rouletteEvent_ = 0;
   ZeroNoTsukaima::Frontend::Replay replay_ = ZeroNoTsukaima::Frontend::Replay::None;
 };
 
@@ -825,6 +1158,7 @@ SDL_AppResult LocalInit(void **, int, char *[]) {
   cfg.textBox.fontSize = 24.0f;
   cfg.textBox.lineHeight = 32.0f;
   cfg.textBox.body = {0, 0, 0, 255};
+  cfg.saveSlots = kSaveSlots;
   s->gameplay = new Kotonoha::GameplayFlow(cfg);
   if (!s->gameplay->Attach(std::make_unique<ZeroSession>(*s))) {
     SDL_Log("Zero no Tsukaima: cannot start START.KS");

@@ -129,6 +129,11 @@ void Game::pump(size_t maxSteps) {
     vm_.run(maxSteps);
     // A called script that runs off its end returns to its caller.
     while (vm_.ended() && !waiting_ && !choosing_ && popCall()) vm_.run(maxSteps);
+    const bool flag = vm_.var(0x50cb) != 0;
+    if (flag != clearedFlag_) {
+        clearedFlag_ = flag;
+        if (cleared) cleared(flag);
+    }
 }
 
 void Game::showNext() {
@@ -142,6 +147,7 @@ void Game::showNext() {
     queue_.pop_front();
     hasMsg_ = true;
     waiting_ = true;
+    voiceActor_ = current_.actor;
     if (sound && !current_.voice.empty()) sound("voice", current_.voice, false);
 }
 
@@ -149,6 +155,7 @@ bool Game::choose(size_t i) {
     if (!choosing_ || i >= choiceText_.size()) return false;
     vm_.setVar(choiceVar_, uint32_t(choiceValue_[i]));
     choosing_ = false;
+    map_ = false;
     choiceText_.clear();
     vm_.unblock();
     return true;
@@ -196,6 +203,7 @@ void Game::native(Vm& vm, int id, const std::vector<Arg>& args) {
     case 7: {
         for (const auto& l : vm.lines()) {
             Message m;
+            m.actor = speakerMode_;
             m.text = sjisToUtf8(vm.textAt(l.object, l.index));
             m.voice = vm.textAt(l.object, l.index + 1);
             if (speakerMode_ != 1) m.name = sjisToUtf8(speaker_);
@@ -231,6 +239,9 @@ void Game::native(Vm& vm, int id, const std::vector<Arg>& args) {
         break;
     }
     case 219: {
+        mapArgs_ = ints;
+        map_ = true;
+        hasMsg_ = false;
         // Location map: a bitmask of destinations; the pick goes to the var ref.
         int ints = 0;
         uint32_t mask = 0;
@@ -299,12 +310,22 @@ void Game::native(Vm& vm, int id, const std::vector<Arg>& args) {
         break;
     }
     case 64: { // transition (type, pattern, speed); 0 just shows the new frame
-        // The original steps a 0..256 blend by 4/8/2/16/1 (speed 0..4) per frame tick.
-        static const int kStep[] = {4, 8, 2, 16, 1};
         const int type = ints.empty() ? 0 : ints[0];
+        const int pattern = ints.size() > 1 ? ints[1] : 0;
+        if (type == 11) {
+            const int index = (pattern & 0xfff) < 96 ? pattern & 0xfff : 0;
+            Sprite sp;
+            sp.name = "STKGR" + std::to_string(index / 12 + 1) + char('a' + index % 12);
+            sp.id = 1;
+            if ((pattern & 0x3000) == 0x1000) sp.tint[2] = 200;
+            if ((pattern & 0x3000) == 0x2000) sp.tint[0] = sp.tint[1] = 200;
+            sprites_.erase(std::remove_if(sprites_.begin(), sprites_.end(), [](const Sprite& s) { return s.id == 1; }), sprites_.end());
+            sprites_.push_back(std::move(sp));
+            ++sceneVersion_;
+        }
         const int speed = ints.size() > 2 && ints[2] >= 0 && ints[2] < 5 ? ints[2] : 0;
         if (type != 0 && transition) {
-            transition(type, 256 / kStep[speed] * 10);
+            transition(type, pattern, ints.size() > 2 && ints[2] == 5 ? 5 : speed);
             if (transitionPlaying && transitionPlaying()) {
                 audioWait_ = AudioWait::Transition;
                 vm.block();
@@ -336,6 +357,7 @@ void Game::native(Vm& vm, int id, const std::vector<Arg>& args) {
         for (const Arg& a : args)
             if (a.tag() == 2) names.push_back(vm.text(a));
         std::string v = names.size() > 1 && !names[1].empty() ? names[1] : names.empty() ? "" : names[0];
+        voiceActor_ = ints.empty() ? 0 : ints[0];
         if (sound && !v.empty()) sound("voice", v, ints.size() > 1 && ints[1] != 0);
         break;
     }
