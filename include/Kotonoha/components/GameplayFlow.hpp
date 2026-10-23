@@ -5,6 +5,7 @@
 #include <vector>
 
 #include <Kotonoha/Kotonoha.h>
+#include <Kotonoha/components/Canvas.hpp>
 #include <Kotonoha/components/ChoiceMenu.hpp>
 #include <Kotonoha/components/TextBox.hpp>
 
@@ -96,6 +97,7 @@ public:
   };
 
   explicit GameplayFlow(Config config);
+  ~GameplayFlow();
 
   // Takes the session and starts it; the title screen is shown once a font is available.
   bool Attach(std::unique_ptr<GameSession> session);
@@ -103,7 +105,10 @@ public:
 
   SDL_AppResult HandleEvent(SDL_Event *event, Kotonoha_Game *game);
   // Advances the flow, draws the whole frame (without presenting). The game
-  // layer is drawn letterboxed in the logical resolution; the logical
+  // scene (session Draw/DrawFrontend/DrawTitle) is the "game" layer of a
+  // canvas sized to the letterboxed area in output pixels, so pictures drawn
+  // through CanvasImage keep the upscaler's detail; the flow UI (text box,
+  // choices, menus) follows in the logical resolution. The logical
   // presentation is disabled again before returning, so anything drawn
   // afterwards (splash, debug UI, overlays) uses the full window.
   void Frame(Kotonoha_Game *game, TTF_Font *font);
@@ -113,6 +118,7 @@ public:
 
   bool Playing() const { return playing_; }
   size_t InputCount() const { return inputs_.size(); }
+  Canvas &SceneCanvas() { return canvas_; }
 
 private:
   // Applies the game viewport (letterboxed logical resolution) for its lifetime.
@@ -121,6 +127,10 @@ private:
     ~GameViewport();
     SDL_Renderer *renderer;
   };
+
+  static Kotonoha_Scene_Status DrawSceneLayer(KOTONOHA_SCENE_CALL);
+  void DrawScene(SDL_Renderer *renderer);
+  SDL_FRect SceneRect(SDL_Renderer *renderer) const;
 
   bool Begin(bool sync = true);
   void Advance(int choice);
@@ -146,6 +156,8 @@ private:
   bool frontend_ = false; // the session's front end shows instead of the title
   bool booted_ = false;   // the front end already ran its boot sequence
   std::string lastLogged_;
+  Canvas canvas_;
+  bool canvasReady_ = false;
 };
 
 } // namespace Kotonoha

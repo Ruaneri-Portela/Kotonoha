@@ -352,10 +352,12 @@ void Game::native(Vm& vm, int id, const std::vector<Arg>& args) {
     case 116: // BGM fade-out (time)
         if (sound) sound("bgmstop", "", false);
         break;
-    case 213: // title menu (mode, var): 1 start, 2 continue, 4 exit. The engine's title
+    case 213: // title menu (mode, var): 1 start, 2 continue, 4 exit. The host's title
               // screen already ran, so the script always continues with "start".
+              // Native 221 (the Overflow logo) is also played by the host.
         for (const Arg& a : args)
             if (a.tag() == 1) vm.setVar(a.value(), 1);
+        if (title) title();
         break;
     case 9:
     case 11:

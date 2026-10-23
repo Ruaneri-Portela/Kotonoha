@@ -60,7 +60,7 @@ void Frontend::Go(Phase phase, bool crossfade) {
   step_ = Step::FadeIn;
   if (phase == Phase::Movie) {
     std::vector<uint8_t> pss;
-    if (!host_.Movie(0, &pss) || !movie_.Open(pss, host_.Renderer(), 1.0f)) {
+    if (!host_.Movie(0, &pss) || !movie_.Open(pss, host_.Renderer(), host_.MovieAudio(), 1.0f)) {
       SDL_Log("[zero] opening movie unavailable");
       EnterTitle(false);
     }
@@ -204,8 +204,9 @@ Frontend::Result Frontend::Tick() {
   return r;
 }
 
-void Frontend::DrawImage(SDL_Renderer *r, SDL_Texture *tex, float x, float y, float alpha, float light, float w,
-                         float h) {
+void Frontend::DrawImage(SDL_Renderer *r, Kotonoha::CanvasImage *img, float x, float y, float alpha, float light,
+                         float w, float h) {
+  SDL_Texture *tex = img ? img->Source() : nullptr;
   if (!tex || alpha <= 0.0f) return;
   float tw = 0, th = 0;
   SDL_GetTextureSize(tex, &tw, &th);
@@ -214,7 +215,7 @@ void Frontend::DrawImage(SDL_Renderer *r, SDL_Texture *tex, float x, float y, fl
   const auto level = uint8_t(std::clamp(light, 0.0f, 1.0f) * 255.0f);
   SDL_SetTextureAlphaModFloat(tex, std::clamp(alpha, 0.0f, 1.0f));
   SDL_SetTextureColorMod(tex, level, level, level);
-  SDL_RenderTexture(r, tex, &src, &dst);
+  img->Draw(r, &src, &dst);
   SDL_SetTextureAlphaModFloat(tex, 1.0f);
   SDL_SetTextureColorMod(tex, 255, 255, 255);
 }

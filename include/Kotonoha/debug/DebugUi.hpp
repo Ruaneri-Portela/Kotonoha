@@ -16,6 +16,8 @@ bool GetDisplayMode(const Kotonoha_Game &context, DisplayMode *mode);
 bool SetDisplay(Kotonoha_Game &context, DisplayMode mode,
                 SDL_DisplayID targetDisplay = 0);
 
+class Canvas;
+
 } // namespace Kotonoha
 
 // Public entry points of the Dear ImGui based debug UI.
@@ -65,6 +67,11 @@ bool DrawAuxiliaryWindows(::Kotonoha::Kotonoha *game,
 // True while a debug UI window owns the focus.
 bool IsAnyWindowFocused();
 bool IsMouseCaptured();
+
+// Canvas shown by the Canvas Layers window when there is no ORS gameplay
+// (the GameplayFlow "game" layer of the ported games).
+void SetSceneCanvas(::Kotonoha::Canvas *canvas);
+void ForgetSceneCanvas(const ::Kotonoha::Canvas *canvas);
 
 // True while the script editor window is open.
 bool IsScriptEditorVisible();

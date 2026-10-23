@@ -1,6 +1,8 @@
 #pragma once
 #include "MoviePlayer.hpp"
 
+#include <Kotonoha/components/CanvasImage.hpp>
+
 #include <SDL3/SDL.h>
 
 #include <cstdint>
@@ -14,8 +16,8 @@ class FrontendHost {
 public:
   virtual ~FrontendHost() = default;
   // NORMAL (system UI) and SCENEDAT pictures by archive name; null if missing.
-  virtual SDL_Texture *NormalPicture(const std::string &name) = 0;
-  virtual SDL_Texture *ScenePicture(const std::string &name) = 0;
+  virtual Kotonoha::CanvasImage *NormalPicture(const std::string &name) = 0;
+  virtual Kotonoha::CanvasImage *ScenePicture(const std::string &name) = 0;
   // Plays a SYSVOICES voice and returns its length in milliseconds (0 = none).
   virtual int SystemVoice(const std::string &name) = 0;
   virtual void StopVoice() = 0;
@@ -24,6 +26,7 @@ public:
   virtual void StopMusic() = 0;
   virtual bool Movie(int number, std::vector<uint8_t> *out) = 0;
   virtual SDL_Renderer *Renderer() = 0;
+  virtual Kotonoha::Sound::Channel *MovieAudio() = 0; // engine channel the movie soundtrack plays on
 };
 
 // The retail boot and title flow of OVERRIDE.NUT (LogoState, TitleState and
@@ -54,7 +57,7 @@ private:
   void Skip();
   void Activate(int item);
   void DrawPhase(SDL_Renderer *r, Phase phase, float alpha);
-  void DrawImage(SDL_Renderer *r, SDL_Texture *tex, float x, float y, float alpha, float light = 1.0f, float w = 0,
+  void DrawImage(SDL_Renderer *r, Kotonoha::CanvasImage *img, float x, float y, float alpha, float light = 1.0f, float w = 0,
                  float h = 0);
   uint64_t Since() const { return SDL_GetTicks() - stepStart_; }
 

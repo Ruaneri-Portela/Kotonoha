@@ -72,3 +72,20 @@ The player-facing flow (title, pause, save/load by input replay, text box, choic
   so replay-based saves stay in sync.
 - `SNOW_TRACE=1` logs every native call (`[vm]`).
 - Not done: the exact length of a wipe tick (assumed 10 ms), the real shapes of the wipe types.
+
+## Engine audio channels and canvas (added)
+
+- Voice, BGM (intro + loop, looping from the loop point) and SE play through `Kotonoha::PcmPlayer` on the
+  engine `Voice`, `BGM` and `Se` channels, so the debug Audio Mixer controls them.
+- Backgrounds, buttons and sprites are `Kotonoha::CanvasImage`s drawn into the `GameplayFlow` "game" canvas
+  layer, so they go through the upscaler. They are upscaled once and the copies are freed when upscaling is
+  turned off. EVD pictures are converted to RGBA when loaded, because XRGB textures blend as transparent in
+  the RGBA canvas target.
+
+## Original front end: Overflow logo and title (added)
+- Boot order: engine splash (kept) → boot script `main.obj`: `69` white, `221` logo, `112(1,1)` BGM `sr001` loop, `213` title. The host `SnowSession` (GameplayFlow front-end hooks) plays 221 and 213 natively.
+- Native 221 (`FUN_0043d327`): `logo00.evd` on white, 48 ms frames, 600 frames maximum (sec 20). At sec 10 it fades white → logo over 60 frames and plays voice `V0310000`. At sec 15 it fades logo → white. Falling flakes use `snow09`/`snow11.CHD` on `SLINE01-03.SNW` paths; the count starts at 1/1, adds 1 every 30 frames, and caps at 20/40; speeds are 2/1. Any input skips the logo.
+- Native 213 (`FUN_004403de`): items T00b (no saves: Start/Exit) or T00c (Start/Load/Exit) at x 0x144. The boot entry is a wipe at speed 2 plus a 500 ms wait; other entries use speed 1. Up/Down/Enter work.
+- Start re-runs the boot script with its transitions ignored. `sr001` keeps playing (not restarted), and the first wipe starts from the title snapshot.
+- Pause → Title returns to the 213 title with `sr001` (this path is the port's assumption).
+- Not implemented: the cleared-game title variants (flag 0xcb, T00/T00a).

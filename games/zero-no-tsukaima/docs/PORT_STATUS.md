@@ -117,5 +117,13 @@ Recovered from `OVERRIDE.NUT` (SYSTEM 35) and implemented 1:1 in `src/Frontend.c
   by name (fixes an off-by-one BGM choice).
 - Movies (`Pss.cpp`, `MoviePlayer.cpp`): the PSS is an MPEG-2 program stream; video 0xE0 is decoded with
   FFmpeg (mpeg2video), private stream 1 carries `SShd` (type 1 = s16le PCM, 48 kHz stereo, 0x200 interleave)
-  + `SSbd` blocks alternating L/R. The audio queue drives the video clock.
+  + `SSbd` blocks alternating L/R. The soundtrack position drives the video clock.
 - Not done: native in-game message window (`MAIN_MESSAGEBASE`, name plates), option and gallery screens.
+
+## Engine audio channels and canvas (added)
+
+- Voice, BGM and SE play through `Kotonoha::PcmPlayer` on the engine `Voice`, `BGM` and `Se` channels, so the
+  debug Audio Mixer (F7 → Playback & Mixer) controls them. The movie soundtrack goes to `BGM`.
+- Pictures, sprites and movie frames are `Kotonoha::CanvasImage`s drawn into the `GameplayFlow` "game" canvas
+  layer at output resolution. The upscaler runs only when a picture changes (one pass per new movie frame).
+  Turning upscaling off frees the upscaled copies. The layer appears in the debug Canvas Layers window.
