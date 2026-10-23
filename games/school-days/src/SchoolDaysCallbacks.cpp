@@ -313,12 +313,23 @@ bool BackLogPointerToLogical(SDL_Renderer *renderer, const SDL_Event *event,
   return true;
 }
 
-bool OpenSchoolDaysBackLog() {
+bool OpenSchoolDaysBackLog(Kotonoha::Kotonoha* app) {
   if (ktrfBackLog != nullptr && ktrfBackLog->IsOpen()) return true;
-  if (ktrfController == nullptr || ktrfSceneTransaction == nullptr ||
+  if (app == nullptr || ktrfController == nullptr || ktrfSceneTransaction == nullptr ||
       global.render == nullptr || !ktrfUiVariantSpecified ||
       ktrfController->FlowState() !=
           Kotonoha::SchoolDaysFlowController::State::Gameplay) {
+    return false;
+  }
+  TTF_Font* primaryFont = nullptr;
+  TTF_Font* japaneseFallback = nullptr;
+  if (const auto it = app->fonts.find("ConcertOne-Regular"); it != app->fonts.end())
+    primaryFont = it->second;
+  if (const auto it = app->fonts.find("NotoSansJP-Regular"); it != app->fonts.end())
+    japaneseFallback = it->second;
+  if (primaryFont == nullptr) primaryFont = japaneseFallback;
+  if (primaryFont == nullptr) {
+    SDL_LogError(0, "[SD-BACKLOG] UI font chain is unavailable");
     return false;
   }
   Kotonoha::Gameplay *current = ktrfController->CurrentGameplay();
@@ -347,8 +358,8 @@ bool OpenSchoolDaysBackLog() {
     }
   }
   if (!presenter->Open(global.render, ktrfAssetsRoot, model->CurrentOrientation(),
-                       ktrfSaveProfile.useEnglish, ktrfSaveProfile.fontData,
-                       &error)) {
+                       ktrfSaveProfile.useEnglish, primaryFont,
+                       japaneseFallback, &error)) {
     model->Close();
     ktrfSceneTransaction->CancelPreparedFor(current, "backlog-skin-open-failed");
     SDL_SetAtomicInt(&global.textLogCaptureEnabled, 1);
@@ -2353,7 +2364,7 @@ static SDL_AppResult SchoolDaysHandleEvent(void *appstate, SDL_Event *event) {
           }
           ktrfSchoolDaysSpeedIndex = menuAction.value;
         } else if (menuAction.kind == MenuAction::OpenBackLog) {
-          if (!OpenSchoolDaysBackLog()) return SDL_APP_FAILURE;
+          if (!OpenSchoolDaysBackLog(app)) return SDL_APP_FAILURE;
         } else if (menuAction.kind == MenuAction::SkipToEnd) {
           ktrfMenuBackStartGameplay = nullptr;
           if (Kotonoha::Gameplay* current = ktrfController->CurrentGameplay()) {
