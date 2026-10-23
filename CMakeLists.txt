@@ -283,11 +283,5 @@ if(KOTONOHA_MPV_UPSCALER_RUNTIME_TESTS AND NOT ANDROID)
         CXX_STANDARD 17
         CXX_STANDARD_REQUIRED ON
     )
-    add_custom_command(TARGET MPVCompatibleUpscalerRuntimeTest POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_directory
-        "${KOTONOHA_ASSETS_DIR}/Anime4K"
-        "$<TARGET_FILE_DIR:MPVCompatibleUpscalerRuntimeTest>/assets/Anime4K"
-        VERBATIM
-    )
     add_test(NAME MPVCompatibleUpscalerRuntimeTest COMMAND MPVCompatibleUpscalerRuntimeTest)
 endif()
