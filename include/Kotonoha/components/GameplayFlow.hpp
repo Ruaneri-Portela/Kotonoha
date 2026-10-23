@@ -40,12 +40,25 @@ public:
 
   // Called after state changed (new text/scene): load pictures, start audio.
   virtual void Sync() {}
+  // True once the story has ended (no next scene): the flow returns to the
+  // title / front end, which EnterFrontend(false) receives.
+  virtual bool Ended() const { return false; }
   // Per-frame upkeep (audio queues, animations).
   virtual void Tick() {}
   // True while saved inputs are replayed: sessions should stay silent.
   virtual void SetReplaying(bool) {}
   // Draws scene layers (background, characters, CGs) in logical coordinates.
   virtual void Draw(SDL_Renderer *renderer) = 0;
+  // Optional original message window, drawn in logical coordinates under the
+  // text box text while a message shows (pair with TextBox::Style::frame = false).
+  virtual void DrawMessageWindow(SDL_Renderer *) {}
+  // Optional original choice window. When OwnsChoices() is true the flow does
+  // not open its choice panel: while Choosing(), events go to ChoiceEvent()
+  // (pointer in logical coordinates), which returns the picked index or -1, and
+  // DrawChoices() paints the window over the text box.
+  virtual bool OwnsChoices() const { return false; }
+  virtual int ChoiceEvent(const SDL_Event &) { return -1; }
+  virtual void DrawChoices(SDL_Renderer *) {}
 
   // Optional original title screen. When TitleItems() is not empty the flow shows
   // it instead of the generic title menu: items are hit-tested in logical

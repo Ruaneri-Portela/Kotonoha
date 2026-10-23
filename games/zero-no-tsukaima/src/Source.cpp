@@ -4,6 +4,8 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cstdio>
+#include <sstream>
 #include <tuple>
 
 namespace ZeroNoTsukaima {
@@ -75,6 +77,24 @@ bool SceneSource::Open(const std::string &discPath, std::string *error) {
         if (name.empty()) break;
         movies_.push_back(name);
       }
+  }
+  // NORMAL #8 is SCENE_ID.LST ("[SCENE_ID]" then "SCENE\\NAME.nut" per entry): the real
+  // entry order. The SCENES.NUT literal pool read above is only hash ordered.
+  if (normalBin_ && ReadEntry(*normalBin_, normalIndex_, 8, &list)) {
+    std::vector<std::string> names;
+    std::string text(list.begin(), list.end()), line;
+    std::istringstream in(text);
+    while (std::getline(in, line)) {
+      while (!line.empty() && (line.back() == '\r' || line.back() == '\0')) line.pop_back();
+      if (line.empty() || line[0] == '[') continue;
+      const size_t slash = line.find_last_of("\\/");
+      std::string name = slash == std::string::npos ? line : line.substr(slash + 1);
+      const size_t dot = name.rfind('.');
+      if (dot != std::string::npos) name = name.substr(0, dot);
+      names.push_back(name + ".KS");
+    }
+    if (names.size() == sceneIndex_.size()) names_ = std::move(names);
+    else std::fprintf(stderr, "[zero] SCENE_ID.LST has %zu names for %zu entries; keeping SCENES.NUT\n", names.size(), sceneIndex_.size());
   }
   if (ReadEntry(*sysBin, sysIndex, 36, &list))
     if (auto table = EvalNutTable(list))

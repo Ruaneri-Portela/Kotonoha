@@ -110,7 +110,7 @@ Recovered from `OVERRIDE.NUT` (SYSTEM 35) and implemented 1:1 in `src/Frontend.c
   "press START" (1.5 s on / 0.8 s off). START → SYS_SE02 → game mode menu; 45 s idle → logo again.
 - Game mode menu (SYSTEM_BG02 + GAMEMODE_TITLE): New Game, Load, Option, CG/Scene/Sound gallery, Special
   voice with ON/OFF images, hover/↑↓ (SYS_SE01), confirm (SYS_SE02), cancel → title (SYS_SE03).
-  New Game and Load work; Option and the galleries only log "not ported yet".
+  New Game and Load work; Option and the galleries are described below.
 - Pause → Title returns to the native title.
 - Name tables: NORMAL entries 9/10/11 are `SCENEDAT.LST`, `SOUND_ID.LST` and `NORMAL.LST` (index = archive
   entry), entry 247 the movie names (14-byte records), SYSTEM 36 the system voice ids. BGM is now looked up
@@ -118,7 +118,7 @@ Recovered from `OVERRIDE.NUT` (SYSTEM 35) and implemented 1:1 in `src/Frontend.c
 - Movies (`Pss.cpp`, `MoviePlayer.cpp`): the PSS is an MPEG-2 program stream; video 0xE0 is decoded with
   FFmpeg (mpeg2video), private stream 1 carries `SShd` (type 1 = s16le PCM, 48 kHz stereo, 0x200 interleave)
   + `SSbd` blocks alternating L/R. The soundtrack position drives the video clock.
-- Not done: native in-game message window (`MAIN_MESSAGEBASE`, name plates), option and gallery screens.
+- Message window, option and gallery screens: see the sections below.
 
 ## Engine audio channels and canvas (added)
 
@@ -127,3 +127,68 @@ Recovered from `OVERRIDE.NUT` (SYSTEM 35) and implemented 1:1 in `src/Frontend.c
 - Pictures, sprites and movie frames are `Kotonoha::CanvasImage`s drawn into the `GameplayFlow` "game" canvas
   layer at output resolution. The upscaler runs only when a picture changes (one pass per new movie frame).
   Turning upscaling off frees the upscaled copies. The layer appears in the debug Canvas Layers window.
+
+## Environment, transitions and message window (added)
+
+Behaviour follows the original Squirrel sources (SYSTEM 0008 MessageWindow, 0017-0026 Env*, 0027 ScenePlayer)
+and the ENVINIT tables (`transitions`, `actions`, `times`, `stages`, `nameImageMap`).
+
+- `Game` runs a game clock advanced by the host (`Advance`). Every timed wait (`wait time=` / `wait 1000=true`,
+  `wact`, transitions) is resolved on it. A click ends it (`GameSession::Skip`, not recorded); inside
+  `beginskip`..`endskip` the click skips the whole section. Replays end every wait at once, so saves stay
+  deterministic.
+- `begintrans` captures the scene and `endtrans time= trans=` crossfades from it (blocking). Auto transitions
+  (not in begintrans mode): stage change = `stagecharoff` (characters and event leave, message hidden, 1000 ms);
+  time change 300 ms; event CG 300 ms + message hidden. `nosync=true` doesn't wait.
+- Characters: `showslide` (fade + slide 50 px, 200 ms) when they appear or leave (`消去`, `allchar hide=true`).
+  `hidecharacters` and `hidebase` (stage + event) hide at once.
+- Free layers: `newlay file= level= name= opacity= xpos= ypos= hide=`, `<name> opacity= time= hide=`,
+  `dellay`. Levels 0-4 sit under the event CG, 5+ above it (original indices: stage 100, level L (L+1)*200,
+  event 1100). `black` / `white` are colour fills.
+- Actions: `揺れ０/１/２`, `揺らす*`, `ガクガク` and the `継続` variants shake a target until `reset=true` or
+  `stopaction`. `上段` / `下段*` / `背景*` / `リシュ登場` are decelerated moves (CG scrolling); `ev ... ypos=`
+  sets the starting offset of tall CGs.
+- Bare stage-name tags (`黒`, `白`, any ENVINIT stage) and time names work like `stage`. Non-BG stages
+  (`黒` → black, `白` → white, MOERU, MOETA, ECG09D) are looked up by SCENEDAT name.
+- Sounds: `se buf=0 sebNN=true`, `se buf=0 wait=true` (waits for the SE), `se stop=true`.
+  `entryvoice` / `playvoice` / `waitvoice` play a voice and wait for it. `movie no=N` plays the movie in the
+  game canvas (click skips).
+- Character light of the time of day (`夕`, `夜`, `夜闇`) is approximated by a colour modulation.
+- Message window: MAIN_MESSAGEBASE at (8,276), name plate picture from `nameImageMap` centred in 160 px at
+  (+64,+5), blinking MAIN_MESSAGECURSOR at (+550,+122). Text is black, 24 px, 32 px lines, at (+44,+52).
+  The engine `TextBox` gained `frame` / `speakerPlate` / `lineHeight` styles and `GameSession::DrawMessageWindow`.
+- Not done: level (前/奥) zoom/y offset, face window (顔), jump/zoom actions (びょんびょん, おじぎ, どっきり),
+  rule transitions (日付変更 / 夜明ける use a crossfade).
+
+## System menus, map and story flow (added)
+
+Recovered from `OVERRIDE.NUT` (OptionState, VoiceOptionState, CgModeMenuState, CgViewState,
+SoundModeMenuState, MoveState, SelectWindow, sceneEndState) and implemented in `src/Frontend.cpp` /
+`src/ZeroMain.cpp`. Tables (cglist, bgmtitles, voicetitles, VOICES.NUT codes) are in `src/MenuData.inc`.
+
+- Option: 10 rows (7 shown, scrolls), sliders for BGM / voice / SE volume, message and auto speed, stereo/mono,
+  skip mode, vibration, character voices (→ VoiceOption) and reset (confirm dialog). Volumes drive the
+  engine `Voice` / `Se` / `BGM` channels live.
+- VoiceOption: per-character voice switch (VOICES.NUT code); a switched-off character is not voiced in play.
+  リシュ / クリス stay `？` until `sf.ri_appear` / `sf.ch_appear`.
+- CG gallery (109 entries, 4×3 pages) unlocks an entry when one of its CGs was shown in play; CgView fades and
+  scrolls tall CGs. Scene gallery replays STAA*_00 after `sf.clear_*`; the replay ends back in the gallery.
+- Sound gallery plays the 50 BGM titles; Special voice plays the voice dramas (TUNDORAMA / ALLCREAREV,
+  unlocked by flag or after every clear) and returns to the list at the end.
+- System save: options, voice switches, `sf.*` flags and seen CGs in `system.txt` in the app pref dir
+  (`Kotonoha/zero-no-tsukaima`, next to the save slots).
+- Select window: `main_select-off` / `-on` 400×50 buttons at `448/(n+1)·(i+1) − 25`, centred captions,
+  no initial focus (SYS_SE01 / SYS_SE02). The engine got `GameSession::OwnsChoices` / `ChoiceEvent` /
+  `DrawChoices` for it.
+- Map (MoveState): `moveinit` / `moveadd` / `move` show `MOVE_MOVE_OFF/ON` buttons at (39, 70+60n) with the
+  `MOVETEXT_POINTnn` place names and the focused character pose at x = 452 − w/2 over the `back` stage with
+  the map BGM. Each pick goes to its storage and removes it; when `count` runs out `move` goes to the
+  `moveinit` storage.
+- Scene names now come from `SCENE_ID.LST` (NORMAL 8). The SCENES.NUT literal pool is in hash order, so
+  the old names were wrong. A script end now finishes the story (`sceneend`: replay → gallery, story →
+  logo), and `GameSession::Ended` returns the flow to the front end. `set value=xxx.ks` stores string
+  variables used by `next storage=@var`.
+- `ZERO_START=NAME.KS` starts New Game at another script (development aid).
+- Not done: in-game command menu / coffee break (CommandState), native save/load screens (64 slots; the
+  engine save pages are used), history (back log), LikeMeter / TndlMeter / roulette, message / auto speed
+  (the engine `TextBox` shows whole pages), face window, level zoom.

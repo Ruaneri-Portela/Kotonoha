@@ -21,6 +21,12 @@ public:
     SDL_Color body{255, 255, 255, 255};
     SDL_Color speaker{255, 230, 140, 255};
     SDL_Color caption{200, 200, 255, 255};
+    // A port drawing its own original window (GameSession::DrawMessageWindow)
+    // turns the box panel and the name plate off; the body then starts at
+    // box.x + padding, box.y + padding.
+    bool frame = true;
+    bool speakerPlate = true;
+    float lineHeight = 0.0f; // logical pixels between baselines, 0 = font default
   };
 
   TextBox() = default;

@@ -62,6 +62,7 @@ int TimeOffset(const std::string &word) {
 bool ImageCatalog::Build(const std::vector<uint8_t> &systemEnv, const std::vector<uint8_t> &systemMain,
                          const std::vector<uint32_t> &pictureSizes) {
   stages_.clear();
+  specialStages_.clear();
   events_.clear();
 
   // Stage table: "stages" followed by (display name, file base) pairs; a base ending in TIME has
@@ -74,7 +75,10 @@ bool ImageCatalog::Build(const std::vector<uint8_t> &systemEnv, const std::vecto
     std::string base = *(it + 1);
     const bool timed = base.size() > 4 && base.compare(base.size() - 4, 4, "TIME") == 0;
     if (timed) base.resize(base.size() - 4);
-    if (base.compare(0, 2, "BG") != 0) continue;
+    if (base.compare(0, 2, "BG") != 0) {
+      specialStages_[*it] = base; // black, white, MOERU, ECG09D ...
+      continue;
+    }
     byBase[base] = {*it, timed};
   }
   int next = 0;
@@ -126,6 +130,9 @@ void ImageCatalog::BuildCharacters(const std::vector<uint8_t> &systemEnv, const 
     if (t && t->kind == NutValue::Table)
       for (const auto &[k, v] : t->fields) (*out)[k] = text(v.get());
   };
+
+  nameImages_.clear();
+  names(env->Get("nameImageMap"), &nameImages_);
 
   std::set<std::string> bases;
   if (const NutValue *chars = env->Get("characters"); chars && chars->kind == NutValue::Table) {
@@ -207,6 +214,26 @@ int ImageCatalog::ResolveStage(const std::string &stage) const {
   }
   if (!found) return -1;
   return found->first + (found->timed ? offset : 0);
+}
+
+std::set<std::string> ImageCatalog::StageNames() const {
+  std::set<std::string> out;
+  for (const auto &[name, stage] : stages_) out.insert(name);
+  for (const auto &[name, image] : specialStages_) out.insert(name);
+  return out;
+}
+
+const std::string *ImageCatalog::NameImage(const std::string &speaker) const {
+  auto it = nameImages_.find(speaker);
+  return it == nameImages_.end() ? nullptr : &it->second;
+}
+
+std::string ImageCatalog::SpecialStage(const std::string &stage) const {
+  std::istringstream words(stage);
+  std::string w;
+  while (words >> w)
+    if (auto it = specialStages_.find(w); it != specialStages_.end()) return it->second;
+  return {};
 }
 
 int ImageCatalog::ResolveEvent(const std::string &name) const {

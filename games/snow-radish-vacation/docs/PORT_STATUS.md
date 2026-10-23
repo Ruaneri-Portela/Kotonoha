@@ -13,7 +13,7 @@
 - `.EVD` type 3 (800x600 pictures): delta/run/literal BGR stream from `LoadRgb`, stored bottom-up.
   `decodeEvd` + `SnowExtract --png` write 135 pictures (visually checked on 2 samples).
 - `.obj` script: `[u32 codeOffset][u16 nStrings][nStrings*(u32 off,u16 size)][Shift-JIS strings][bytecode]`.
-- SOUND.DAT entries are `seNNN.adps` (probably PS-ADPCM); not decoded yet.
+- SOUND.DAT entries are `seNNN.adps` (decoded by the ADPS implementation below); VOICE.DAT is loaded but its entry naming still lacks source-pack verification.
 
 ## `.obj` VM (of_adv3.exe, step function `fcn.00404694`, partial notes)
 - Code is an array of u32 words at `codeOffset`; word 0 of the code area is a header count. Each word:
@@ -21,23 +21,21 @@
   switch at 0x404dee), bits 0-15 = immediate. Operand modes compute a value + kind (imm, string/table ref,
   relative jump +/-, `sys[]` call 0x404e60, `usr[]` object 0x4789a4 stride 0x2a); ops include
   jump/conditional jump (condition word at 0x47b7b4), call/return, push/pop (ring of 0x80 at 0x47b3a4).
-- Not yet mapped: per-opcode semantics, the `sys[]` native table (graphics, text, voice, bgm, select, save).
+- The VM/native mapping is partial; game flow, dialogue, choices, map selection, pictures, and audio are implemented, while unsupported native calls remain no-ops.
 - Strings (`.obj` table) are Shift-JIS dialogue lines interleaved with voice ids (e.g. `V0121234`).
 
-## Pending
-- Other graphic types: EVD/IMG type 0/1/2/4 (non-800x600, sprites), CHD, ANM, ALPF/ALPA (alpha), SNW.
-- The `.obj` bytecode VM, VOICE.DAT, ADPS audio, AVI movies, saves, engine integration, Main, MCP validation.
+## Current pending work
+- Unsupported graphics still present: the two cursor-specific `.ANM` type 3/4 files. The supplied pack has no EVD type 2 or IMG types 1/3/4 entries; its three `.SNW` path resources are read by the logo presenter.
+- Animation frame playback and original timing; runtime alpha-mask compositing; exact transition shapes/timing; cleared-game title variants and their persistent flag; map hotspots and destination-preview synchronization.
+- AVI playback and VOICE.DAT naming remain unverified.
 
-## Jogável — `SnowRadish --snow <dir> [--mcp]`
-- Fundos EVD, sprites CHD, texto, escolhas, mapa de locais e loop de dias; validado via MCP.
-- Pendente: áudio (.adps/VOICE.DAT), saves, transições, nomes/gráficos reais do mapa.
-
-## Menu, texto e saves
-Mesmo conjunto do Zero: `TextBox`, `Prompt`/`ChoiceMenu` para escolhas e o mapa de locais, `GameMenu` (título/pausa/3 slots) e saves por replay. Validado via MCP (salvar e carregar restauram o mesmo trecho).
+## Playable build — `SnowRadish --snow <dir> [--mcp]`
+- EVD backgrounds, CHD sprites, text, choices, location map, and day loop are implemented; previously validated through MCP.
+- Shared title/pause/save/load flow and replay-based saves are implemented; save/replay validation is documented above.
 
 ## Audio (added)
 - `.ADPS` (SOUND.DAT `seNNN`/`srNNN`): 4-bit step-table ADPCM, two interleaved channels, tables extracted from
-  `of_adv3.exe` (`src/AdpsTables.inc`), decoded by `SnowRadish::decodeAdps`. Sample rate assumed 44100 Hz (unverified).
+  `of_adv3.exe` (`src/AdpsTables.inc`), decoded by `SnowRadish::decodeAdps` and played at 22050 Hz.
 - Natives: 96 = SE, 112 = BGM (n -> `srNNN`, looped), 115 = BGM stop, 128 = voice. Played with SDL3 audio streams in `Main.cpp`.
 - VOICE.DAT is loaded if present next to the other packs; its entry naming was not verified (no file available to test).
 
@@ -45,8 +43,9 @@ Mesmo conjunto do Zero: `TextBox`, `Prompt`/`ChoiceMenu` para escolhas e o mapa 
 - Type 0 (`.EVD`/`.IMG`/`.CHD`): uncompressed BGR, `[0][w][h]` + bottom-up rows. Map pictures and UI buttons.
 - Type 3 `.CHD` is the same stream as type 3 `.EVD` (full-frame CGs); `loadGraphic` tries `decodeEvd` first.
 - Type 1 `.EVD` uses the CHD row format with `[1][w][yOffset][x][rows]`, `yOffset + rows == 600`, bottom-aligned.
-- Still undecoded: `.ANM` (multi-frame, 182 files), `.EVD` type 2, `.IMG` types 1/3/4, `.ALPF`/`.ALPA`, `.SNW`.
-- `SnowExtract --png` now also writes sprites. 422 of 669 graphic entries decode.
+- `.ANM` type 1/2 assets (182 entries) are parsed as frame tables containing raw BGR or embedded CHD frames. Playback has not yet been wired to the runtime native or timed from the original scheduler.
+- `.ALPF` (200x150) and `.ALPA` (250x200) masks are decoded as raw alpha planes and exported as grayscale PNGs; runtime native compositing is still pending.
+- `SnowExtract --png` exports 664 of the pack's 669 entries. The two cursor-specific `.ANM` types 3/4 are not decoded to PNG; the three `.SNW` files are path data rather than pictures. The supplied pack has no EVD type 2 or IMG types 1/3/4 entries.
 
 ## Engine flow (added)
 
@@ -89,3 +88,7 @@ The player-facing flow (title, pause, save/load by input replay, text box, choic
 - Start re-runs the boot script with its transitions ignored. `sr001` keeps playing (not restarted), and the first wipe starts from the title snapshot.
 - Pause → Title returns to the 213 title with `sr001` (this path is the port's assumption).
 - Not implemented: the cleared-game title variants (flag 0xcb, T00/T00a).
+
+
+## Location map update
+- Native 219 now displays the original `mapbase.EVD` and uses the ten destination labels shown by the original map artwork instead of placeholder “Place N” labels. The shared choice menu still handles selection; map hotspot navigation and the per-destination preview/highlight are not implemented.
