@@ -11,6 +11,10 @@ constexpr Sint16 kTriggerDeadZone = 3000;
 // 10 segundos de mídia por segundo, com o gatilho totalmente pressionado.
 constexpr float kMaxSeekMsPerSecond = 20000.0f;
 
+inline bool IsDebugUiBlocked(bool isPointerEvent = false) {
+  return isPointerEvent ? Debug::IsMouseCaptured() : Debug::IsAnyWindowFocused();
+}
+
 } // namespace
 
 void Gameplay::Events(SDL_Event *event, Kotonoha_Game *gameContext) {
@@ -23,8 +27,7 @@ void Gameplay::Events(SDL_Event *event, Kotonoha_Game *gameContext) {
   // focus flag lags one frame behind and swallowed the first click.
   const bool pointerEvent = event->type == SDL_EVENT_MOUSE_BUTTON_DOWN ||
                             event->type == SDL_EVENT_FINGER_DOWN;
-  const bool blockedByDebug =
-      pointerEvent ? Debug::IsMouseCaptured() : Debug::IsAnyWindowFocused();
+  const bool blockedByDebug = IsDebugUiBlocked(pointerEvent);
   if (this->prompt != nullptr && !blockedByDebug) {
     this->prompt->HandleEvent(event, gameContext, this->audio);
   }
@@ -55,7 +58,7 @@ void Gameplay::Events(SDL_Event *event, Kotonoha_Game *gameContext) {
 
 void Gameplay::HandleGamepadButton(SDL_Event *event,
                                    Kotonoha_Game *gameContext) {
-  if (Debug::IsAnyWindowFocused()) {
+  if (IsDebugUiBlocked()) {
     return;
   }
 
@@ -85,7 +88,7 @@ void Gameplay::HandleGamepadButton(SDL_Event *event,
 
 void Gameplay::HandleGamepadAxis(SDL_Event *event, Kotonoha_Game *gameContext) {
   (void)gameContext;
-  if (Debug::IsAnyWindowFocused()) {
+  if (IsDebugUiBlocked()) {
     return;
   }
 
@@ -140,7 +143,7 @@ void Gameplay::HandleTriggerSeek(TriggerSeekState &state,
 }
 
 void Gameplay::HandleKeyboard(SDL_Event *event, Kotonoha_Game *gameContext) {
-  if (Debug::IsAnyWindowFocused()) {
+  if (IsDebugUiBlocked()) {
     return;
   }
 

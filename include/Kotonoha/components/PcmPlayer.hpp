@@ -20,6 +20,7 @@ public:
     bool loop = false;
     size_t loopStart = 0; // frame the loop restarts from
     float gain = 1.0f;
+    size_t startFrame = 0; // frame playback begins at (the loop still restarts at loopStart)
   };
 
   PcmPlayer() = default;
@@ -41,6 +42,8 @@ public:
   // Plays the clip at another sample rate (pitch and speed change together).
   void SetRate(int rate);
   int Rate() const;
+  // Volume of this clip (fades); 1 = unchanged.
+  void SetGain(float gain);
 
   struct Voice;
 

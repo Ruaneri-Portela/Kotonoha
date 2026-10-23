@@ -13,7 +13,7 @@ list(REMOVE_ITEM SCHOOL_DAYS_SOURCES "${SCHOOL_DAYS_MAIN}"
 
 if(ANDROID)
     add_library(SchoolDays SHARED ${SCHOOL_DAYS_SOURCES} "${SCHOOL_DAYS_MAIN}")
-    set_target_properties(SchoolDays PROPERTIES OUTPUT_NAME KotonohaSchoolDays)
+    set_target_properties(SchoolDays PROPERTIES OUTPUT_NAME SchoolDays)
 else()
     add_executable(SchoolDays ${SCHOOL_DAYS_SOURCES} "${SCHOOL_DAYS_MAIN}")
 endif()

@@ -23,7 +23,14 @@ int KotonohaFFmpegResolveInput(const char *path, Kotonoha_FFmpegInput *input) {
   if (input) {
     SDL_zero(*input);
   }
-  if (!path || !*path || !input || !gKotonohaFFmpegInputResolver) {
+  if (!path || !*path || !input) {
+    return 0;
+  }
+  if (SDL_strncasecmp(path, "http://", 7) == 0 ||
+      SDL_strncasecmp(path, "https://", 8) == 0) {
+    return 0;
+  }
+  if (!gKotonohaFFmpegInputResolver) {
     return 0;
   }
   return gKotonohaFFmpegInputResolver(path, input);

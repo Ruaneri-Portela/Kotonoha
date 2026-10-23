@@ -25,7 +25,6 @@ void BasicGuiShutdown();
 /* ---------------- Estado Global da Interface ---------------- */
 
 bool basicGuiEditorShow = false;
-bool basicGuiAnyFocus = false;
 
 namespace {
 bool imguiSdlBackendInitialized = false;
@@ -64,7 +63,6 @@ static std::vector<std::string> textEditorLines;
 static std::vector<TextEditorEntry> textEditorEntries;
 static std::string textEditorSyncedScript;
 static bool textEditorFinalNewline = false;
-static bool textEditorDirty = false;
 
 static std::string originalScriptPathForTemporary;
 static std::string temporaryScriptPath;
@@ -307,7 +305,6 @@ static void SyncTextEditorToScript() {
 
   sceneEditorText = JoinLines(textEditorLines, textEditorFinalNewline);
   textEditorSyncedScript = sceneEditorText;
-  textEditorDirty = true;
 }
 
 /* ---------------- I/O e Operações de Cena ---------------- */
@@ -423,7 +420,6 @@ static bool LoadSceneEditorFromDisk(::Kotonoha::Gameplay *play) {
   sceneEditorText = std::move(loadedText);
   LoadTextEditor(sceneEditorText);
   editorDirty = false;
-  textEditorDirty = false;
   SetEditorStatus("Editor loaded from disk.");
   return true;
 }
@@ -477,7 +473,6 @@ static bool SelectScene(::Kotonoha::Kotonoha *game, int index) {
   sceneEditorText = std::move(loadedText);
   LoadTextEditor(sceneEditorText);
   editorDirty = false;
-  textEditorDirty = false;
   SetEditorStatus("Editor loaded from disk.");
   return true;
 }
@@ -1370,11 +1365,6 @@ static bool DrawTextEditor(::Kotonoha::Kotonoha *game,
   return !shouldFinishFrame;
 }
 
-static const char *GetFocusedWindowName() {
-  ImGuiContext *ctx = ImGui::GetCurrentContext();
-  return (ctx && ctx->NavWindow) ? ctx->NavWindow->Name : nullptr;
-}
-
 /* ---------------- Configuração do Tema Roxo e Ciclo de Vida ----------------
  */
 
@@ -1546,7 +1536,6 @@ bool BasicGuiRun(::Kotonoha::Kotonoha *game, ::Kotonoha::Gameplay *play,
     return FinishFrameAndReturn(context);
   }
 
-  basicGuiAnyFocus = (GetFocusedWindowName() != nullptr);
   return !shouldExit && FinishFrameAndReturn(context);
 }
 

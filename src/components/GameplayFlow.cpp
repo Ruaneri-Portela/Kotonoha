@@ -301,10 +301,19 @@ SDL_AppResult GameplayFlow::HandleEvent(SDL_Event *e, Kotonoha_Game *game) {
     if (!OpenScreen(GameSession::Screen::Command)) menu_.Show(GameMenu::Page::Pause, font_);
     return SDL_APP_CONTINUE;
   }
+  auto windowClick = GameSession::WindowClick::None;
+  if (e->type == SDL_EVENT_MOUSE_BUTTON_DOWN && e->button.button == SDL_BUTTON_LEFT && session_->HasMessage()) {
+    SDL_Event c = *e;
+    SDL_ConvertEventToRenderCoordinates(game->render, &c);
+    windowClick = session_->MessageWindowClick(c.button.x, c.button.y);
+    if (windowClick == GameSession::WindowClick::Consumed) return SDL_APP_CONTINUE;
+  }
   const bool advance = (e->type == SDL_EVENT_KEY_DOWN && (e->key.key == SDLK_RETURN || e->key.key == SDLK_SPACE ||
                                                           e->key.key == SDLK_DOWN)) ||
                        e->type == SDL_EVENT_MOUSE_BUTTON_DOWN;
-  if (e->type == SDL_EVENT_KEY_DOWN && e->key.key == SDLK_A && !e->key.repeat && session_->AutoDelayMs() >= 0) {
+  if ((windowClick == GameSession::WindowClick::ToggleAuto ||
+       (e->type == SDL_EVENT_KEY_DOWN && e->key.key == SDLK_A && !e->key.repeat)) &&
+      session_->AutoDelayMs() >= 0) {
     auto_ = !auto_;
     pageDoneAt_ = SDL_GetTicks();
     session_->AutoChanged(auto_);

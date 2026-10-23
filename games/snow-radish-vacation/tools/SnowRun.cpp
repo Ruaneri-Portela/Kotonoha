@@ -31,11 +31,13 @@ int main(int argc, char** argv) {
             break;
         }
         if (game.choosing()) {
-            static int pick = 0;
+            static const char* seed = std::getenv("SNOWRUN_RANDOM");
+            static bool seeded = (seed ? std::srand(unsigned(std::atoi(seed))) : void(), true);
+            (void)seeded;
             std::printf("[%s] CHOICE:", game.currentScript().c_str());
             for (const auto& t : game.choices()) std::printf(" | %s", t.c_str());
             std::printf("\n");
-            game.choose(size_t(pick++ % game.choices().size() == 0 ? 0 : 0));
+            game.choose(seed ? size_t(std::rand()) % game.choices().size() : 0);
         } else if (game.hasMessage()) {
             const auto& m = game.message();
             std::printf("[%s] %s%s%s\n", game.currentScript().c_str(), m.name.empty() ? "" : (m.name + ": ").c_str(),

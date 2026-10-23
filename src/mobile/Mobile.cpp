@@ -88,6 +88,35 @@ extern "C" const char *KotonohaMobileGameDataDir(void) {
              : Kotonoha::Mobile::gameDataDirectory.c_str();
 }
 
+extern "C" const char *KotonohaMobilePreferredAssetDir(const char *mode) {
+  static std::string cachedPath;
+  std::string m = mode != nullptr ? mode : "";
+
+#if defined(__ANDROID__) || defined(ANDROID)
+  if (m == "external" || m == "obb") {
+    const char *ext = SDL_GetAndroidExternalStoragePath();
+    if (ext != nullptr && *ext != '\0') {
+      cachedPath = ext;
+    } else {
+      const char *internal = SDL_GetAndroidInternalStoragePath();
+      cachedPath = internal != nullptr ? internal : ".";
+    }
+  } else {
+    const char *internal = SDL_GetAndroidInternalStoragePath();
+    cachedPath = internal != nullptr ? internal : ".";
+  }
+#elif defined(__APPLE__)
+  // SDL resolves the bundle resources / Documents folders on both iOS and macOS.
+  const char *path = m == "documents" ? SDL_GetUserFolder(SDL_FOLDER_DOCUMENTS)
+                                      : SDL_GetBasePath();
+  cachedPath = path != nullptr ? path : ".";
+#else
+  cachedPath = ".";
+#endif
+
+  return cachedPath.c_str();
+}
+
 extern "C" void KotonohaMobileSetupShared(const char *resourcesDir,
                                           const char *documentsDir,
                                           const char *platformName,

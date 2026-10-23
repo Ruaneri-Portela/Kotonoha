@@ -69,8 +69,15 @@ public:
     // Click during a skippable audio wait. Returns true if a wait was cancelled.
     bool skipAudioWait();
 
+    // Kind of the pending choice: the native 9 text window, the native 219 location map
+    // or the native 220 uniform select (three figures side by side).
+    enum class ChoiceKind { Text, Map, Uniform };
     bool choosing() const { return choosing_; }
-    bool mapChoosing() const { return choosing_ && map_; }
+    ChoiceKind choiceKind() const { return kind_; }
+    bool mapChoosing() const { return choosing_ && kind_ == ChoiceKind::Map; }
+    bool uniformChoosing() const { return choosing_ && kind_ == ChoiceKind::Uniform; }
+    // Option focused when the window opens (the variable's current value), -1 for none.
+    int initialFocus() const { return initialFocus_; }
     int destination(size_t i) const { return i < choiceValue_.size() ? choiceValue_[i] : 0; }
     const std::vector<int>& mapArgs() const { return mapArgs_; }
     const std::vector<std::string>& choices() const { return choiceText_; }
@@ -135,7 +142,9 @@ private:
     uint32_t sceneVersion_ = 0;
     enum class AudioWait { None, Voice, VoiceSkippable, SeSkippable, Transition };
     AudioWait audioWait_ = AudioWait::None;
-    bool choosing_ = false, map_ = false;
+    bool choosing_ = false;
+    ChoiceKind kind_ = ChoiceKind::Text;
+    int initialFocus_ = -1;
     std::vector<int> mapArgs_;
     std::vector<std::string> choiceText_;
     std::vector<int> choiceValue_;

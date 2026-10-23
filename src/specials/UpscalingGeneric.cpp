@@ -494,6 +494,23 @@ bool KotonohaUpscalingUpdateTexture(SDL_Renderer *renderer,
     }
   }
 
+  // Callers tint at draw time (colour/alpha mod on the source); the cached
+  // output must hold the untinted picture, so copy it with neutral mods.
+  struct NeutralMods {
+    SDL_Texture *texture;
+    float r = 1, g = 1, b = 1, a = 1;
+    explicit NeutralMods(SDL_Texture *t) : texture(t) {
+      SDL_GetTextureColorModFloat(texture, &r, &g, &b);
+      SDL_GetTextureAlphaModFloat(texture, &a);
+      SDL_SetTextureColorModFloat(texture, 1, 1, 1);
+      SDL_SetTextureAlphaModFloat(texture, 1);
+    }
+    ~NeutralMods() {
+      SDL_SetTextureColorModFloat(texture, r, g, b);
+      SDL_SetTextureAlphaModFloat(texture, a);
+    }
+  } neutralMods(source);
+
   SDL_Texture *upscaleInput = source;
   if (needsIntermediate) {
     if (cached->intermediate == NULL ||

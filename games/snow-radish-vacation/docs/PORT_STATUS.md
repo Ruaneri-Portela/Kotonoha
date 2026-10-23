@@ -95,6 +95,17 @@ The player-facing flow (title, pause, save/load by input replay, text box, choic
 - Original `map0001`–`map0010` highlight pictures define hit rectangles. Five heroine badges use the original order `meg, alc, asg, tme, htk`. Hovered badges include `map_h01`–`map_h04` affection meters, clamped to 0..19 then divided by four; `$L302/305/303/304/306` map to VM variables `0x312e/3131/312f/3130/3132` (`FUN_00410199`).
 - Clock/date/AM-PM use the original glyphs. Previews at (464,364) follow `FUN_00401156`: destination-to-background table `{8,7,4,3,9,6,10,5,2,1}`, b/c/e day/dusk/night suffixes and the recovered d-suffix room exceptions. The selected complete map (including preview, highlight and badges) is retained as the outgoing wipe frame.
 
+## Original in-game interfaces
+- **Uniform select (native 220, `FUN_004027dd`)**: the only picture select in the scripts. It shows the three uniforms side by side on `selbase.evd`, with the hovered/focused figure in colour (`stsel1a`–`stsel3a`). The figure is hit-tested by the CHD alpha. ←↑/→↓ wrap, and Return or a click on a figure confirms. Opening and closing fade (`FUN_00413c69(1,0,3)`), and the select goes through the scene canvas (upscaler and wipes). The choice var receives 1..3 and the initial focus comes from its current value.
+- **Text choices (native 9, `FUN_00425a70`)**: the original window. Each item is 52 px high with a 16 px gap, centred, as wide as `(widest label + 0x57) & ~0x3f`. Rows of 8 px `selh.chd` strips at y+7 are tinted black, or (0,150,150) when focused. The 28 px label is white with a shadow. Keys a..i are hotkeys; ↑/↓ wrap; initially nothing is focused.
+- **Message window (`FUN_004107d0`, layout `FUN_00426848`)**: `wakuh.chd` (800x152 at 0,448) tinted with `MesWin_R/G/B`, whose default is 0,0,150 (settings table at `0x4556f0`). Text starts at (56,468) with 84 px kept on the right and a 28 px line pitch. `bot.chd` at (760,515) has two buttons:
+  - the note replays the page voice (`bsc` lit on hover);
+  - the arrow toggles auto (`auto_on` while on, `auto_off` lit on hover).
+
+  They use the engine hook `GameSession::MessageWindowClick`.
+- Engine fix: `KotonohaUpscalingUpdateTexture` now neutralises the source colour/alpha mod while copying. Tints are applied at draw time and are no longer baked into the cached upscaled frame.
+- Tools: `SNOWRUN_RANDOM=<seed> SnowRun` takes random choices to explore branches. `SnowExtract --png` prints the position and size of every CHD.
+
 ## Runtime scheduler and effect evidence
 - `FUN_0040b16c`/`FUN_0040b972`: background/sprite ANM layouts, three frames per actor region. `FUN_0040bf41` updates mouths every seventh scheduler call; `FUN_004273db` sleeps 17 ms, giving **119 ms**. `FUN_0042e435` supplies amplitude thresholds ±64/±16377 and the quiet/loud frame tables at `0x466e74/0x466e84`. Speaker IDs, not voice filename prefixes, select regions.
 - Cursor loader `FUN_0041f20f` and message loop `FUN_004273db`: cursor01 manual wait (three frames), cursor02 auto (four frames), drawn at (715,555) every **170 ms** (10×17). Auto mode uses the shared session hooks, a two-second post-voice delay, and the correct cursor.

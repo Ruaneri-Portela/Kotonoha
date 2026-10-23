@@ -78,6 +78,33 @@ namespace Kotonoha {
 		static bool ResolveNarrativeMedia(const char* assetRoot,
 			const std::string& logical, std::string* physical) {
 			if (physical == nullptr) return false;
+
+			// Se o próprio logical já for uma URL completa http(s)://
+			if (logical.size() >= 7 &&
+				(logical.rfind("http://", 0) == 0 || logical.rfind("https://", 0) == 0 ||
+				 logical.rfind("HTTP://", 0) == 0 || logical.rfind("HTTPS://", 0) == 0)) {
+				*physical = logical;
+				return true;
+			}
+
+			// Se o assetRoot for uma URL http(s):// (servidor remoto), junte assetRoot com logical garantindo a barra '/'
+			if (assetRoot != nullptr && assetRoot[0] != '\0') {
+				std::string root(assetRoot);
+				if (root.size() >= 7 &&
+					(root.rfind("http://", 0) == 0 || root.rfind("https://", 0) == 0 ||
+					 root.rfind("HTTP://", 0) == 0 || root.rfind("HTTPS://", 0) == 0)) {
+					std::string joined = root;
+					if (!joined.empty() && joined.back() != '/' && logical.front() != '/') {
+						joined += '/';
+					} else if (!joined.empty() && joined.back() == '/' && logical.front() == '/') {
+						joined.pop_back();
+					}
+					joined += logical;
+					*physical = joined;
+					return true;
+				}
+			}
+
 			// Generic Kotonoha historically accepts raw/cwd-relative media paths
 			// when no asset root is configured.  The typed School Days resolver is
 			// only meaningful once a dedicated or generic root exists.

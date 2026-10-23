@@ -41,13 +41,6 @@ inline SDL_AppResult WorstResult(SDL_AppResult a, SDL_AppResult b) {
   return static_cast<int>(a) >= static_cast<int>(b) ? a : b;
 }
 
-inline bool &FrameHandledFlag() {
-  static bool handled = false;
-  return handled;
-}
-
-inline void MarkFrameHandled() { FrameHandledFlag() = true; }
-
 inline SDL_AppResult DefaultInit(void **appstate, int argc, char *argv[]) {
   if (appstate == nullptr) {
     return SDL_APP_FAILURE;

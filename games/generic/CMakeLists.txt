@@ -2,9 +2,9 @@
 # behaviour only (scripts passed on the command line / ImGui). No game profile.
 # Produces Kotonoha.app on macOS and Kotonoha(.exe) elsewhere.
 if(ANDROID)
-    # Loaded by SDLActivity as libKotonohaGeneric.so (Intent target "Generic").
+    # Loaded by SDLActivity as libGeneric.so (Intent target "Generic").
     add_library(Kotonoha SHARED "${CMAKE_CURRENT_SOURCE_DIR}/src/Main.cpp")
-    set_target_properties(Kotonoha PROPERTIES OUTPUT_NAME KotonohaGeneric)
+    set_target_properties(Kotonoha PROPERTIES OUTPUT_NAME Generic)
     target_link_libraries(Kotonoha PRIVATE KotonohaRuntime)
     return()
 endif()

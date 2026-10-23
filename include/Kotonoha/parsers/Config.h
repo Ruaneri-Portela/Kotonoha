@@ -31,6 +31,7 @@ void KotonohaMobileSetup(void);
 // Directory holding the user-provided game files (.gpk): the app Documents
 // folder on iOS. NULL when the platform has no such convention.
 const char *KotonohaMobileGameDataDir(void);
+const char *KotonohaMobilePreferredAssetDir(const char *mode);
 #endif
 
 typedef struct Kotonoha_Config {

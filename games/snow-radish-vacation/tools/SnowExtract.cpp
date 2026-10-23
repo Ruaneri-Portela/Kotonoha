@@ -49,6 +49,8 @@ int main(int argc, char** argv)
         } else if (png && ext == ".chd") {
             SnowRadish::Sprite sp;
             if (SnowRadish::decodeChd(data, sp)) {
+                // Placement on the 800x600 canvas, for laying out the original UI.
+                std::printf("%s at %d,%d size %ux%u\n", e.name.c_str(), sp.x, sp.y, sp.width, sp.height);
                 SDL_Surface* s = SDL_CreateSurfaceFrom(static_cast<int>(sp.width), static_cast<int>(sp.height),
                                                        SDL_PIXELFORMAT_RGBA32, sp.rgba.data(), static_cast<int>(sp.width * 4));
                 if (s) {
