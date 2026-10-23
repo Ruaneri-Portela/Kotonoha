@@ -14,11 +14,11 @@ list(REMOVE_ITEM SCHOOL_DAYS_SOURCES "${SCHOOL_DAYS_MAIN}"
 if(ANDROID)
     add_library(SchoolDays SHARED ${SCHOOL_DAYS_SOURCES} "${SCHOOL_DAYS_MAIN}")
     set_target_properties(SchoolDays PROPERTIES OUTPUT_NAME SchoolDays)
+    target_link_libraries(SchoolDays PRIVATE Kotonoha KotonohaRuntime ZLIB::ZLIB)
 else()
     add_executable(SchoolDays ${SCHOOL_DAYS_SOURCES} "${SCHOOL_DAYS_MAIN}")
+    target_link_libraries(SchoolDays PUBLIC KotonohaRuntime PRIVATE ZLIB::ZLIB)
 endif()
-
-target_link_libraries(SchoolDays PUBLIC KotonohaRuntime PRIVATE ZLIB::ZLIB)
 
 if(KOTONOHA_DEV_CHECKPOINTS)
     target_compile_definitions(SchoolDays PRIVATE KOTONOHA_DEV_CHECKPOINTS=1)
@@ -30,9 +30,6 @@ if(NOT ANDROID)
         OUTPUT_NAME SchoolDays
         BUNDLE_ID "me.hirameki.kotonoha.schooldays")
 
-    # Config.DAT and retail GPKs consume zlib from the game layer.  Copy the
-    # runtime DLL beside the executable on Windows rather than coupling zlib to
-    # the reusable engine target.
     if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
         get_filename_component(_kotonoha_zlib_prefix "${ZLIB_INCLUDE_DIRS}" DIRECTORY)
         find_file(_kotonoha_zlib_runtime
@@ -49,7 +46,6 @@ if(NOT ANDROID)
     endif()
 endif()
 
-# School Days regression tests (games/school-days/tests).
 if((KOTONOHA_ROUTER_TESTS OR KOTONOHA_ORS_PARSER_TESTS) AND NOT ANDROID)
     add_subdirectory(tests)
 endif()

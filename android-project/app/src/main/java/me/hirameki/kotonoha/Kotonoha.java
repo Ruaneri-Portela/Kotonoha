@@ -13,7 +13,7 @@ public class Kotonoha extends SDLActivity {
 
     public static final String EXTRA_TARGET = "target";
     public static final String TARGET_SCHOOL_DAYS = "SchoolDays";
-    public static final String TARGET_GENERIC = "Generic";
+    public static final String TARGET_GENERIC = "Kotonoha";
     public static final String TARGET_ZERO_NO_TSUKAIMA = "ZeroNoTsukaima";
     public static final String TARGET_SNOW_RADISH = "SnowRadish";
     public static final String TARGET_DDLC = "DokiDoki";
@@ -49,17 +49,26 @@ public class Kotonoha extends SDLActivity {
     }
 
     private String[] snowRadishDefaultArguments() {
-        File dir = new File(getFilesDir(), "pack");
+        File dir = new File(new File(getFilesDir(), "assets"), "pack");
+        if (!dir.exists()) {
+            dir = new File(getFilesDir(), "pack");
+        }
         return new String[]{"--snow", dir.getAbsolutePath()};
     }
 
     private String[] ddlcDefaultArguments() {
-        File dir = new File(getFilesDir(), "game");
+        File dir = new File(new File(getFilesDir(), "assets"), "game");
+        if (!dir.exists()) {
+            dir = new File(getFilesDir(), "game");
+        }
         return new String[]{"--ddlc", dir.getAbsolutePath()};
     }
 
     private String[] zeroDefaultArguments() {
-        File file = new File(getFilesDir(), "z.bin");
+        File file = new File(new File(getFilesDir(), "assets"), "z.bin");
+        if (!file.exists()) {
+            file = new File(getFilesDir(), "z.bin");
+        }
         return new String[]{"--zero", file.getAbsolutePath()};
     }
 
