@@ -69,6 +69,12 @@ public:
   // Config "Splash=a.png;b.png": each image is shown with fade in/out.
   bool IsSplashActive() const { return splashActive; }
   void RenderSplash();
+  // Replaces the splash sequence (config default or a previous call) with the
+  // given image references, which may be virtual (e.g. mounted GPK URIs).
+  // With append, the images play after the current sequence. The current
+  // sequence is kept when none of the images can be loaded.
+  bool LoadSplashImages(const std::vector<std::string> &references,
+                        bool append = false);
   Kotonoha(SDL_AppResult *initStatus, struct Kotonoha_Game &gameContext);
 
   SDL_AppResult Event(SDL_Event *event);

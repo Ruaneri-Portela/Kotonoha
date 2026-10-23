@@ -417,6 +417,9 @@ void Prompt::HandleEvent(SDL_Event *event, struct Kotonoha_Game *gameContext,
     if (event->type == SDL_EVENT_MOUSE_MOTION) {
       schoolDaysInteraction.PointerMotion(normalizedX, normalizedY, currentTick);
     } else {
+      // A click without prior motion (touch, fast advance) must still set the
+      // selection index, otherwise it stays -1 and the click is lost.
+      schoolDaysInteraction.PointerMotion(normalizedX, normalizedY, currentTick);
       if (schoolDaysInteraction.LeftClick(normalizedX, normalizedY, currentTick,
                                           promptResult)) {
         ArmSchoolDaysExit(*promptResult);

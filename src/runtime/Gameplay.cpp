@@ -319,7 +319,18 @@ void Gameplay::Reset(bool resetTime) {
 
 void Gameplay::RestartCurrentScene() { Reset(true); }
 
-void Gameplay::SeekForward(Uint64 ms) { KotonohaTimeSeekForward(this->tm, ms); }
+void Gameplay::SeekForward(Uint64 ms) {
+  Uint64 promptStart = 0;
+  if (prompt != nullptr && prompt->PendingStartMs(&promptStart)) {
+    const Uint64 now = KotonohaTimeGet(tm);
+    if (now >= promptStart) return;
+    if (now + ms >= promptStart) {
+      KotonohaTimeSeekForward(tm, promptStart - now);
+      return;
+    }
+  }
+  KotonohaTimeSeekForward(tm, ms);
+}
 
 void Gameplay::SeekBackward(Uint64 ms) {
   KotonohaTimeSeekBackward(this->tm, ms);
@@ -330,11 +341,19 @@ bool Gameplay::SkipSchoolDaysToEnd() {
   if (tm == nullptr || eventManager == nullptr) return false;
   const SchoolDaysOptionalTick target = eventManager->ComputeSkipToEndTarget(this);
   if (!target) return false;
+  Uint64 promptStart = 0;
+  Uint64 targetMs = Kotonoha_SceneTickToMillisecondsCeil(*target);
+  if (prompt != nullptr && prompt->PendingStartMs(&promptStart) &&
+      targetMs > promptStart) {
+    // An unanswered choice stops the skip at its start.
+    if (KotonohaTimeGet(tm) >= promptStart) return false;
+    targetMs = promptStart;
+  }
 
   // Native state4 seek changes the scene clock as one transaction, then
   // reconstructs the active presentation at the destination.  Reusing the
   // Event reset path avoids sequential dispatch of the skipped ORS interval.
-  KotonohaTimeSet(tm, Kotonoha_SceneTickToMillisecondsCeil(*target));
+  KotonohaTimeSet(tm, targetMs);
   eventManager->Reset(this, true);
   return true;
 }

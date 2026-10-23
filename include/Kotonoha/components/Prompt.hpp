@@ -253,6 +253,13 @@ public:
     return schoolDaysInteraction.Enabled() && schoolDaysExitActive &&
            schoolDaysExitFinalFrameRendered;
   }
+  // Start (ms) of a choice that has not been answered yet; seeks must not
+  // jump over it.
+  bool PendingStartMs(Uint64 *startMs) const {
+    if (promptResult == nullptr || *promptResult != -2) return false;
+    if (startMs != nullptr) *startMs = startTime;
+    return true;
+  }
   bool UsesSchoolDaysPolicy() const { return schoolDaysInteraction.Enabled(); }
   int SchoolDaysStoredSelection() const {
     return schoolDaysInteraction.StoredSelection();

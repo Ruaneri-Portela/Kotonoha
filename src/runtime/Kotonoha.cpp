@@ -55,6 +55,7 @@ Kotonoha::Kotonoha(SDL_AppResult *status, struct Kotonoha_Game &context)
 
   gameContext.processPoolTasks = &processPoolTasks;
 
+  std::vector<std::string> splashFiles;
   const std::string splashList =
       config.splashFiles != nullptr ? config.splashFiles : "assets/SPLASH.PNG";
   size_t pos = 0;
@@ -70,8 +71,15 @@ Kotonoha::Kotonoha(SDL_AppResult *status, struct Kotonoha_Game &context)
     if (first == std::string::npos) {
       continue;
     }
-    file = file.substr(first, last - first + 1);
+    splashFiles.push_back(file.substr(first, last - first + 1));
+  }
+  LoadSplashImages(splashFiles);
+}
 
+bool Kotonoha::LoadSplashImages(const std::vector<std::string> &references,
+                                bool append) {
+  std::vector<SDL_Texture *> loaded;
+  for (const std::string &file : references) {
     SDL_Texture *texture =
         KotonohaImageCreateTexture(gameContext.render, file.c_str(), -1, -1);
     if (texture == nullptr) {
@@ -81,13 +89,26 @@ Kotonoha::Kotonoha(SDL_AppResult *status, struct Kotonoha_Game &context)
     }
 
     SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
-    splashTextures.push_back(texture);
+    loaded.push_back(texture);
   }
-  if (!splashTextures.empty()) {
-    splashActive = true;
-    KLOG_INFO(CORE, "Showing %zu splash image(s), %.1f s each",
-              splashTextures.size(), config.splashSeconds.load());
+  if (loaded.empty()) {
+    return false;
   }
+
+  if (append) {
+    splashTextures.insert(splashTextures.end(), loaded.begin(), loaded.end());
+  } else {
+    for (SDL_Texture *texture : splashTextures) {
+      SDL_DestroyTexture(texture);
+    }
+    splashTextures = std::move(loaded);
+    splashIndex = 0;
+    splashStartTicks = 0;
+  }
+  splashActive = true;
+  KLOG_INFO(CORE, "Showing %zu splash image(s), %.1f s each",
+            splashTextures.size(), gameContext.config.splashSeconds.load());
+  return true;
 }
 
 void Kotonoha::UpdateTitleMusic(bool titleScreen) {

@@ -1,3 +1,4 @@
+#include <Kotonoha/SchoolDaysAssetMount.hpp>
 #include <Kotonoha/routing/SchoolDaysKtrfSession.hpp>
 #include <Kotonoha/SchoolDaysImageAssetResolver.hpp>
 #include <Kotonoha/routing/SchoolDaysBackRules.hpp>
@@ -191,11 +192,17 @@ bool SchoolDaysKtrfSession::ResolveOrsPhysicalPath(
     const std::string packedLogical = "Script/English/" + relative;
     SchoolDaysImageResolution resolved;
     std::string reportedLogical = relative;
-    if (gSchoolDaysVirtualAssetLookup != nullptr) {
+    std::string scriptOverride;
+    if (ResolveSchoolDaysScriptDirectoryFile(packedLogical, &scriptOverride)) {
+        resolved.status = SchoolDaysAssetResolutionStatus::Present;
+        resolved.present = true;
+        resolved.physical = std::move(scriptOverride);
+    } else if (gSchoolDaysVirtualAssetLookup != nullptr) {
         resolved = ResolveSchoolDaysAssetPath("", packedLogical);
         reportedLogical = packedLogical;
     }
-    if ((gSchoolDaysVirtualAssetLookup == nullptr ||
+    if (!resolved.present &&
+        (gSchoolDaysVirtualAssetLookup == nullptr ||
          resolved.status == SchoolDaysAssetResolutionStatus::Missing) &&
         !assetsRoot.empty()) {
         resolved = ResolveSchoolDaysAssetPath(assetsRoot.c_str(), relative);
@@ -928,6 +935,12 @@ bool SchoolDaysKtrfSession::CommitChoice(int64_t value, int* accepted,
     if (!state.Capture(&stateBefore, error)) return false;
     const SchoolDaysPersistence persistenceBefore = persistence;
     const bool topMeterBefore = topMeterRefreshRequested;
+
+    if (wasCommitted && value < 0) {
+        // A later timeout/reset (-1) must not override a pick already captured.
+        *accepted = 1;
+        return true;
+    }
 
     if (!Kotonoha_SchoolDaysKtrfCommitChoice(&adapter, value, accepted, error)) {
         Kotonoha_KtrfError ignored{};

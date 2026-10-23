@@ -64,3 +64,16 @@ dependencies {
     implementation 'android.arch.navigation:navigation-ui:1.0.0'
     implementation 'com.android.support:design:28.0.0'
 }
+
+tasks.register('unitTestClasses') {
+    description = "Assembles unit test classes."
+    group = "Verification"
+    dependsOn tasks.matching { it.name.startsWith('compile') && it.name.endsWith('UnitTestSources') }
+}
+
+tasks.register('testClasses') {
+    description = "Assembles test classes."
+    group = "Verification"
+    dependsOn tasks.named('unitTestClasses')
+}
+
