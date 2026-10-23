@@ -94,9 +94,10 @@ void TestA03MarkersAndSkipTarget() {
             "markers were merged");
     Require(timeline.ComputeSkipToEndTarget(1240) == 1473,
             "known pre-SkipFRAME target");
-    Require(!timeline.ComputeSkipToEndTarget(1497).has_value() &&
-                !timeline.ComputeSkipToEndTarget(1550).has_value(),
-            "unknown post-SkipFRAME action was invented");
+    Require(timeline.ComputeSkipToEndTarget(1497) == 1473,
+            "choice-boundary click must return to the native pre-choice target");
+    Require(timeline.ComputeSkipToEndTarget(1550) == 1656,
+            "post-choice forward action must target Next");
 
     /* Resource preparation must not count as timeline dispatch. */
     fixture.events.last->eventPrepared = true; /* Next, prepared ahead of time. */

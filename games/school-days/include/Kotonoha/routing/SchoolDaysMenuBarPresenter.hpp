@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <cstdint>
 #include <string>
 
@@ -40,10 +41,11 @@ public:
         None,
         ToggleAutoMode,
         TogglePause,
-        RestartScene,
+        BackOrRestartScene,
         SkipToEnd,
         SkipToNextChoice,
         SetPlaybackSpeed,
+        SetReplayIndicatorOpacity,
         OpenSave,
         OpenLoad,
         OpenBackLog,
@@ -73,6 +75,14 @@ public:
     static ChipRecord ControlChip(int control, Variant variant);
     static ChipRecord NormalSystemControlChip(int control, Variant variant);
     static ChipRecord FixedChipRecord(int record, Variant variant);
+    // SysMenuSDHQ.dll FUN_100262E0: the native hover-help sprite selected for
+    // each control. Controls5..9 share one help record; controls15..24 share
+    // the repeat-indicator transparency help record.
+    static ChipRecord HoverHelpChip(int control, Variant variant);
+    // SysMenuSDHQ.dll 0x10026ED0 maps controls15..24 to the internal opacity
+    // level set {0,2,3,4,5,6,7,8,9,10}.  Alpha is level*25.
+    static int ReplayOpacityLevelForControl(int control);
+    static uint8_t ReplayOpacityAlphaForControl(int control);
     static uint8_t FadeAlpha(uint8_t startAlpha, bool targetVisible,
                              uint32_t elapsedMs);
     static int HitTest(float logicalX, float logicalY, Variant variant);
@@ -82,7 +92,8 @@ public:
     static bool ControlAvailable(int control, bool transportLocked,
                                  bool actionInhibit,
                                  bool speedControlsEnabled,
-                                 bool superSkipEnabled);
+                                 bool superSkipEnabled,
+                                 bool replayIndicatorAvailable = false);
     static bool ControlAvailableInNormalGameplay(int control);
     static Action ActionForControl(int control);
 
@@ -97,6 +108,11 @@ public:
                          bool superSkipEnabled, bool speedControlsEnabled,
                          bool transportLocked, bool actionInhibit,
                          bool fullBarSuppressed);
+    void SetReplayIndicatorState(bool available, int control = -1) {
+        replayIndicatorAvailable_ = available;
+        if (control >= 15 && control <= 24)
+            replayIndicatorControl_ = control;
+    }
     bool Render(SDL_Renderer* renderer, std::string* error = nullptr) const;
     bool HandleEvent(SDL_Renderer* renderer, const SDL_Event* event,
                      Action* action);
@@ -139,6 +155,9 @@ private:
     bool actionInhibit_ = false;
     bool fullBarSuppressed_ = false;
     int speedIndex_ = 0;
+    bool replayIndicatorAvailable_ = false;
+    int replayIndicatorControl_ = 24;
+    uint8_t replayIndicatorAlpha_ = 255;
     uint8_t barAlpha_ = 0;
     uint8_t fadeStartAlpha_ = 0;
     uint32_t fadeStartMs_ = 0;
