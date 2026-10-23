@@ -2,6 +2,8 @@
 
 extern "C" {
 #include <libavcodec/avcodec.h>
+#include <libavutil/imgutils.h>
+#include <libswscale/swscale.h>
 }
 
 namespace ZeroNoTsukaima {
@@ -96,18 +98,43 @@ bool MoviePlayer::DecodeNext() {
 }
 
 void MoviePlayer::Upload() {
-  if (frame_->format != AV_PIX_FMT_YUV420P) return;
+  if (!frame_ || frame_->width <= 0 || frame_->height <= 0) return;
+
+  static SwsContext *swsCtx = nullptr;
+  swsCtx = sws_getCachedContext(
+      swsCtx, frame_->width, frame_->height,
+      (enum AVPixelFormat)frame_->format, frame_->width, frame_->height,
+      AV_PIX_FMT_RGBA, SWS_BILINEAR, NULL, NULL, NULL);
+  if (!swsCtx) return;
+
+  static AVFrame *pFrameRGB = nullptr;
+  if (!pFrameRGB) pFrameRGB = av_frame_alloc();
+  if (!pFrameRGB) return;
+
+  const int bufferSize = av_image_get_buffer_size(AV_PIX_FMT_RGBA, frame_->width, frame_->height, 1);
+  static std::vector<uint8_t> rgbBuffer;
+  if (rgbBuffer.size() < size_t(bufferSize)) {
+    rgbBuffer.resize(bufferSize);
+  }
+
+  av_image_fill_arrays(pFrameRGB->data, pFrameRGB->linesize, rgbBuffer.data(),
+                       AV_PIX_FMT_RGBA, frame_->width, frame_->height, 1);
+
+  sws_scale(swsCtx, (const uint8_t *const *)frame_->data, frame_->linesize,
+            0, frame_->height, pFrameRGB->data, pFrameRGB->linesize);
+
   SDL_Texture *tex = image_.Source();
   if (tex && (tex->w != frame_->width || tex->h != frame_->height)) tex = nullptr;
   if (!tex) {
-    tex = SDL_CreateTexture(renderer_, SDL_PIXELFORMAT_IYUV, SDL_TEXTUREACCESS_STREAMING, frame_->width,
-                            frame_->height);
+    tex = SDL_CreateTexture(renderer_, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STREAMING,
+                            frame_->width, frame_->height);
+    if (tex) SDL_SetTextureBlendMode(tex, SDL_BLENDMODE_BLEND);
     image_.Reset(tex);
   }
   if (!tex) return;
-  SDL_UpdateYUVTexture(tex, nullptr, frame_->data[0], frame_->linesize[0], frame_->data[1], frame_->linesize[1],
-                       frame_->data[2], frame_->linesize[2]);
-  image_.Touch(); // a new frame: upscaled once, on its first draw
+
+  SDL_UpdateTexture(tex, nullptr, pFrameRGB->data[0], pFrameRGB->linesize[0]);
+  image_.Touch();
 }
 
 void MoviePlayer::Update() {

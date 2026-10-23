@@ -10,7 +10,7 @@ target_link_libraries(SnowRadishFormats PUBLIC ${KOTONOHA_SDL3_TARGET})
 if(ANDROID)
     add_library(SnowRadish SHARED "${CMAKE_CURRENT_SOURCE_DIR}/src/Main.cpp")
     set_target_properties(SnowRadish PROPERTIES OUTPUT_NAME SnowRadish)
-    target_link_libraries(SnowRadish PRIVATE KotonohaRuntime SnowRadishFormats)
+    target_link_libraries(SnowRadish PRIVATE Kotonoha KotonohaRuntime SnowRadishFormats)
 elseif(NOT IOS)
     add_executable(SnowRun "${CMAKE_CURRENT_SOURCE_DIR}/tools/SnowRun.cpp")
     target_link_libraries(SnowRun PRIVATE SnowRadishFormats)
@@ -20,7 +20,6 @@ elseif(NOT IOS)
     add_executable(SnowRadishPackTest "${CMAKE_CURRENT_SOURCE_DIR}/tests/PackTest.cpp")
     target_link_libraries(SnowRadishPackTest PRIVATE SnowRadishFormats)
 
-    # Playable application (desktop): SnowRadish --snow <dir with SCRIPT.DAT/GRAPHIC.DAT>
     add_executable(SnowRadish "${CMAKE_CURRENT_SOURCE_DIR}/src/Main.cpp")
     target_link_libraries(SnowRadish PRIVATE KotonohaRuntime SnowRadishFormats)
     kotonoha_configure_app(SnowRadish

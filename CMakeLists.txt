@@ -7,11 +7,7 @@ endif()
 
 # ==============================================================================
 # Android / vcpkg target triplet
-#
-# O Android Gradle Plugin/NDK define ANDROID_ABI. O triplet é definido antes
-# de resolver dependências vcpkg para corresponder à ABI que está sendo gerada.
 # ==============================================================================
-
 if (ANDROID_ABI STREQUAL "arm64-v8a")
     set(VCPKG_TARGET_TRIPLET "arm64-android" CACHE STRING "" FORCE)
 elseif (ANDROID_ABI STREQUAL "x86_64")
@@ -51,7 +47,6 @@ option(KOTONOHA_MPV_UPSCALER_RUNTIME_TESTS
 # Languages and language standards
 # ==============================================================================
 if (APPLE)
-    # Necessário para arquivos Objective-C / Objective-C++ usados em macOS.
     enable_language(OBJC OBJCXX)
 endif ()
 
@@ -62,15 +57,8 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 if(MSVC)
-    # MSVC requires this switch for the C11 <stdatomic.h> implementation.
-    # It is accepted in C++ translation units as well, so the directory-level
-    # option also covers the mixed C/C++ test targets.
     add_compile_options(/experimental:c11atomics)
 endif()
-
-# MSVC exposes <stdatomic.h> for C only when its C11 atomics mode is enabled.
-# The upstream thread-safe Kotonoha_Config intentionally uses C atomics.
-
 
 # ==============================================================================
 # Paths
@@ -87,14 +75,12 @@ set(SCHOOL_DAYS_INCLUDE_DIR
         "${CMAKE_CURRENT_SOURCE_DIR}/games/school-days/include"
 )
 
-
 # ==============================================================================
 # Source roots
 # ==============================================================================
 set(KOTONOHA_ENGINE_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src")
 set(KOTONOHA_RUNTIME_SOURCE_DIR "${KOTONOHA_ENGINE_SOURCE_DIR}/runtime")
 set(SCHOOL_DAYS_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/games/school-days/src")
-
 
 # ==============================================================================
 # Common dependencies
@@ -114,8 +100,6 @@ pkg_check_modules(LIBASS REQUIRED IMPORTED_TARGET
         libass
 )
 
-# Prefer the repository submodules so IDE/CMake builds use the same SDL/ImGui
-# revisions as upstream. System/vcpkg packages remain a supported fallback.
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/third_party/sdl3/CMakeLists.txt")
     message(STATUS "Using SDL3 submodule")
     set(SDL_SHARED ON CACHE BOOL "" FORCE)
@@ -179,7 +163,6 @@ else()
     find_package(imgui CONFIG REQUIRED)
 endif()
 
-
 # ==============================================================================
 # Engine, runtime library, and SDL entry executable targets
 # ==============================================================================
@@ -187,9 +170,17 @@ include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/KotonohaTargets.cmake")
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/KotonohaApp.cmake")
 
 # ==============================================================================
+# Target libKotonoha.so para Android
+# ==============================================================================
+if(ANDROID)
+    add_library(Kotonoha SHARED "${CMAKE_CURRENT_SOURCE_DIR}/games/generic/src/Main.cpp")
+    set_target_properties(Kotonoha PROPERTIES OUTPUT_NAME Kotonoha)
+    target_link_libraries(Kotonoha PRIVATE KotonohaRuntime)
+endif()
+
+# ==============================================================================
 # Applications (each game owns its CMakeLists.txt and its tests/ folder)
 # ==============================================================================
-# CTest and the School Days fixture root are shared by the game test folders.
 if((KOTONOHA_ROUTER_TESTS OR KOTONOHA_ORS_PARSER_TESTS) AND NOT ANDROID)
     include(CTest)
     set(KOTONOHA_SCHOOL_DAYS_FIXTURE_ROOT
@@ -259,7 +250,6 @@ if((KOTONOHA_ROUTER_TESTS OR KOTONOHA_ORS_PARSER_TESTS) AND NOT ANDROID)
     set_target_properties(FFmpegInputSourceTest PROPERTIES
         CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
     add_test(NAME FFmpegInputSourceTest COMMAND FFmpegInputSourceTest)
-
 endif()
 
 if(KOTONOHA_MPV_UPSCALER_RUNTIME_TESTS AND NOT ANDROID)

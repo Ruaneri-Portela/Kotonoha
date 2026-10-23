@@ -1202,55 +1202,108 @@ SDL_AppResult LocalArgs(int argc, char* argv[]) {
     return SDL_APP_CONTINUE;
 }
 
+// Helper para converter string para minúsculas
+std::string toLower(std::string_view str) {
+    std::string result;
+    result.reserve(str.size());
+    for (char c : str) {
+        result += static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    }
+    return result;
+}
+
+// Procura um arquivo no diretório ignorando case sensitive
+std::filesystem::path findFileIgnoreCase(const std::filesystem::path& dir, const std::string& filename) {
+    if (!std::filesystem::exists(dir) || !std::filesystem::is_directory(dir)) {
+        return dir / filename; // Retorna o caminho original como fallback
+    }
+
+    std::string targetLower = toLower(filename);
+
+    for (const auto& entry : std::filesystem::directory_iterator(dir)) {
+        if (entry.is_regular_file()) {
+            if (toLower(entry.path().filename().string()) == targetLower) {
+                return entry.path(); // Encontrou o arquivo com a caixa real no disco
+            }
+        }
+    }
+
+    return dir / filename; // Se não encontrar, tenta o nome exato original
+}
+
 SDL_AppResult LocalInit(void**, int, char*[]) {
     if (g_dir.empty()) {
         SDL_Log("Snow Radish: use --snow <dir>");
         return SDL_APP_FAILURE;
     }
-    // Game ports show only the game UI; F7 or KOTONOHA_DEBUG_UI=1 brings the debug panels back.
+
     global.config.enableDebugUi = std::getenv("KOTONOHA_DEBUG_UI") != nullptr;
-    auto* s = new State();
+
+    State* s = new State();
     g_state = s;
-    s->script = readFile(std::filesystem::path(g_dir) / "SCRIPT.DAT");
-    s->gfxDatPath = std::filesystem::path(g_dir) / "GRAPHIC.DAT";
+
+    std::filesystem::path dirPath(g_dir);
+
+    // Busca os arquivos no disco ignorando Maiúsculas/Minúsculas
+    std::filesystem::path scriptPath = findFileIgnoreCase(dirPath, "SCRIPT.DAT");
+    s->gfxDatPath = findFileIgnoreCase(dirPath, "GRAPHIC.DAT");
+    s->soundDatPath = findFileIgnoreCase(dirPath, "SOUND.DAT");
+    s->voiceDatPath = findFileIgnoreCase(dirPath, "VOICE.DAT");
+
+    s->script = readFile(scriptPath);
     std::vector<uint8_t> gfxDirPack = readFile(s->gfxDatPath);
+
     if (s->script.empty() || gfxDirPack.empty()) {
         SDL_Log("Snow Radish: SCRIPT.DAT/GRAPHIC.DAT not found in %s", g_dir.c_str());
         return SDL_APP_FAILURE;
     }
-    for (auto& e : SnowRadish::readDirectory(gfxDirPack)) s->gfxIndex[lower(e.name)] = e;
-    auto stem = [](const std::string& n) { return lower(n.substr(0, n.find('.'))); };
-    s->soundDatPath = std::filesystem::path(g_dir) / "SOUND.DAT";
+
+    // O índice dos pacotes internos já está usando `lower()`, o que garante case-insensitivity
+    for (auto& e : SnowRadish::readDirectory(gfxDirPack)) {
+        s->gfxIndex[lower(e.name)] = e;
+    }
+
+    auto stem = [](const std::string& n) {
+        return lower(n.substr(0, n.find('.')));
+    };
+
     {
         std::vector<uint8_t> soundDirPack = readFile(s->soundDatPath);
-        for (auto& e : SnowRadish::readDirectory(soundDirPack)) s->soundIndex[stem(e.name)] = e;
+        for (auto& e : SnowRadish::readDirectory(soundDirPack)) {
+            s->soundIndex[stem(e.name)] = e;
+        }
     }
-    s->voiceDatPath = std::filesystem::path(g_dir) / "VOICE.DAT";
+
     {
         std::vector<uint8_t> voiceDirPack = readFile(s->voiceDatPath);
-        for (auto& e : SnowRadish::readDirectory(voiceDirPack)) s->voiceIndex[stem(e.name)] = e;
+        for (auto& e : SnowRadish::readDirectory(voiceDirPack)) {
+            s->voiceIndex[stem(e.name)] = e;
+        }
     }
+
     Kotonoha::GameplayFlow::Config cfg;
     cfg.id = "snow-radish-vacation";
     cfg.title = "Snow Radish Vacation!!";
     cfg.width = kW;
     cfg.height = kH;
-    // FUN_00426848: the text starts 56 px from the left and 20 px below the top of
-    // the 152 px window, keeps 84 px on the right (buttons) and advances 28 px per line.
+
     cfg.textBox.box = {56, 448 + 20, kW - 56 - 84, 152 - 20};
     cfg.textBox.frame = false;
     cfg.textBox.padding = 0;
     cfg.textBox.fontSize = 24.0f;
     cfg.textBox.lineHeight = 28.0f;
+
     s->gameplay = new Kotonoha::GameplayFlow(cfg);
-    s->muted = true; // the opening runs behind the title screen
+    s->muted = true;
     const bool attached = s->gameplay->Attach(std::make_unique<SnowSession>(*s));
     s->muted = false;
     s->lastBgm.clear();
+
     if (!attached) {
         SDL_Log("Snow Radish: script init failed");
         return SDL_APP_FAILURE;
     }
+
     SDL_SetWindowTitle(global.window, "Snow Radish Vacation!!");
     return SDL_APP_CONTINUE;
 }
