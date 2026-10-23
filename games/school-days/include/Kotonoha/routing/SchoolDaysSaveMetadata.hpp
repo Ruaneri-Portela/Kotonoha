@@ -3,7 +3,7 @@
 #include <cstdint>
 #include <string>
 
-#include <Kotonoha/routing/SchoolDaysStateStore.hpp>
+#include <Kotonoha/routing/KtrfStateStore.hpp>
 
 namespace Kotonoha {
 
@@ -36,7 +36,7 @@ public:
                        const std::u16string& comment, Result* out,
                        std::string* error = nullptr);
 
-    static bool Build(const SchoolDaysStateStore& state, const LocalTime& time,
+    static bool Build(const KtrfStateStore& state, const LocalTime& time,
                       bool useEnglish, const std::u16string& comment,
                       Result* out, Kotonoha_KtrfError* error);
 

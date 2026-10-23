@@ -17,7 +17,7 @@ Reference IR interpreter:
 
 Compiled C++ oracle trace adapter:
 
-- `tests/SchoolDaysOracleTrace.cpp`
+- `games/school-days/tests/SchoolDaysOracleTrace.cpp`
 
 Differential verifier:
 
@@ -29,7 +29,7 @@ Runner:
 
 Generic interpreter tests:
 
-- `tests/ktrf/test_interpreter.py`
+- `games/school-days/tests/ktrf/test_interpreter.py`
 
 ## 2. Interpreter boundary
 
@@ -126,7 +126,7 @@ Each successful `STEP` emits one JSON object containing the post-step oracle sta
 The first direct differential corpus reuses the same 22 deterministic ending witnesses already certified by:
 
 ```text
-tests/SchoolDaysFullRouterTest.cpp
+games/school-days/tests/SchoolDaysFullRouterTest.cpp
 ```
 
 The Python verifier parses the `kEndingXX[]` arrays directly from that source file.

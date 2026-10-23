@@ -2,7 +2,7 @@
 #include <SDL3/SDL.h>
 
 #include <Kotonoha/parsers/Config.h>
-#include <Kotonoha/specials/Anime4K.h>
+#include <Kotonoha/specials/MPVCompatibleUpscaler.h>
 #include <Kotonoha/specials/MetalFX.h>
 
 #ifdef __cplusplus
@@ -11,7 +11,7 @@ extern "C" {
 
 typedef enum Kotonoha_UpscalerType {
   KOTONOHA_UPSCALER_NONE = 0,
-  KOTONOHA_UPSCALER_ANIME4K = 1,
+  KOTONOHA_UPSCALER_MPV_COMPATIBLE = 1,
   KOTONOHA_UPSCALER_METALFX = 2
 } Kotonoha_UpscalerType;
 
@@ -35,7 +35,7 @@ void KotonohaUpscalingInitShutdown(void);
 // Capabilities & Selection
 bool Kotonoha_HasUpscaler(void);
 bool Kotonoha_HasMetalFX(void);
-bool Kotonoha_HasAnime4K(void);
+bool Kotonoha_HasMPVUpscaler(void);
 
 Kotonoha_UpscalerType Kotonoha_GetUpscalerType(void);
 const char *Kotonoha_GetUpscalerName(void);
@@ -59,7 +59,7 @@ bool KotonohaUpscalingUpdateTexture(SDL_Renderer *renderer,
                                     bool *textureChanged);
 void KotonohaUpscalingReleaseTexture(Kotonoha_UpscaledTexture *cached);
 
-// Generic Upscale execution function (routes to MetalFX or Anime4K/OpenGL)
+// Generic Upscale execution function (routes to MetalFX or MPVCompatibleUpscaler/OpenGL)
 bool Kotonoha_UpscaleSDLTextureInto(SDL_Renderer *renderer,
                                     SDL_Texture *inputTexture,
                                     SDL_Texture *outputTexture);

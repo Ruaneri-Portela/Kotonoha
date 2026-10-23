@@ -16,7 +16,7 @@ No Python IR interpreter participates in the native side of this gate.
 
 ## Corpus
 
-The gate reuses the 22 deterministic ending witness arrays from `tests/SchoolDaysFullRouterTest.cpp` and the same `RESET` / `STEP` protocol used by `SchoolDaysOracleTrace`.
+The gate reuses the 22 deterministic ending witness arrays from `games/school-days/tests/SchoolDaysFullRouterTest.cpp` and the same `RESET` / `STEP` protocol used by `SchoolDaysOracleTrace`.
 
 For each witness step, both routers receive the same pre-state path and Choice input. The expected source transition ID embedded in the witness must also be selected by both implementations.
 

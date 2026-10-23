@@ -6,6 +6,8 @@ struct SDL_Window;
 
 namespace Kotonoha {
 
+class SchoolDaysFontData;
+
 class SchoolDaysCommentDialog {
 public:
     enum class Result {
@@ -18,6 +20,7 @@ public:
     static Result Run(SDL_Window* owner, bool useEnglish,
                       const std::u16string& initial,
                       std::u16string* output,
+                      const SchoolDaysFontData* font,
                       std::string* error = nullptr);
 };
 

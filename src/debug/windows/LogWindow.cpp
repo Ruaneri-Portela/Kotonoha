@@ -5,6 +5,7 @@
 #include <deque>
 #include <mutex>
 #include <string>
+#include <vector>
 
 namespace Kotonoha::Debug {
 namespace {
@@ -181,6 +182,21 @@ void DrawLogPanel(bool *open) {
   }
 
   ImGui::End();
+}
+
+std::vector<std::string> RecentLogLines(size_t count,
+                                        SDL_LogPriority minPriority) {
+  std::vector<std::string> lines;
+  std::lock_guard<std::mutex> guard(g_mutex);
+  for (auto it = g_entries.rbegin();
+       it != g_entries.rend() && lines.size() < count; ++it) {
+    if (it->priority < minPriority) {
+      continue;
+    }
+    lines.push_back(std::string("[") + PriorityLabel(it->priority) + "] " +
+                    it->text);
+  }
+  return {lines.rbegin(), lines.rend()};
 }
 
 } // namespace Kotonoha::Debug

@@ -7,7 +7,7 @@
 #include <vector>
 
 #include <Kotonoha/routing/SchoolDaysPersistenceCodec.hpp>
-#include <Kotonoha/routing/SchoolDaysStateStore.hpp>
+#include <Kotonoha/routing/KtrfStateStore.hpp>
 
 namespace Kotonoha {
 
@@ -25,9 +25,9 @@ public:
     };
 
     bool LoadGlobalFlag(const std::vector<uint8_t>& bytes,
-                        SchoolDaysStateStore* state,
+                        KtrfStateStore* state,
                         Kotonoha_KtrfError* error);
-    bool SerializeGlobalFlag(const SchoolDaysStateStore& state,
+    bool SerializeGlobalFlag(const KtrfStateStore& state,
                              std::vector<uint8_t>* bytes,
                              Kotonoha_KtrfError* error) const;
 
@@ -38,7 +38,7 @@ public:
                           Kotonoha_KtrfError* error) const;
 
     // Native-live persistence state.  Numeric values remain owned by
-    // SchoolDaysStateStore; this class records only sparse FlgH membership/type
+    // KtrfStateStore; this class records only sparse FlgH membership/type
     // plus SLog collections.  New game seeds the seven fields observed in the
     // authenticated first checkpoint (000..004, ROUTE, SCENE).
     void ResetNewGame();
@@ -54,7 +54,7 @@ public:
                               Kotonoha_KtrfError* error);
     bool RoutingEffectTargetsTopMeter(uint32_t effectIndex) const;
     bool RecordCheckpoint(int route, int scene, const std::string& sceneKey,
-                          SchoolDaysStateStore* state,
+                          KtrfStateStore* state,
                           Kotonoha_KtrfError* error);
     bool RecordChoice(const std::string& sceneKey, int64_t value,
                       Kotonoha_KtrfError* error);
@@ -62,20 +62,20 @@ public:
                             bool* present,
                             Kotonoha_KtrfError* error) const;
     bool RestoreBackCheckpoint(const SchoolDaysCoordinate& destination,
-                               SchoolDaysStateStore* state, bool* restored,
+                               KtrfStateStore* state, bool* restored,
                                Kotonoha_KtrfError* error);
     bool MarkLocalInteger(const std::string& key, int32_t type,
                           Kotonoha_KtrfError* error);
-    bool CaptureLocalFlgH(const SchoolDaysStateStore& state,
+    bool CaptureLocalFlgH(const KtrfStateStore& state,
                           SchoolDaysFlgH* out,
                           Kotonoha_KtrfError* error) const;
     bool ReplaceCurrentScriptSnapshot(const std::string& sceneKey,
                                       uint32_t versionBits,
-                                      const SchoolDaysStateStore& state,
+                                      const KtrfStateStore& state,
                                       Kotonoha_KtrfError* error);
 
     bool RegisterEnding(int endingCode, const std::string& sceneKey,
-                        SchoolDaysStateStore* state,
+                        KtrfStateStore* state,
                         Kotonoha_KtrfError* error);
 
     // R3 high-level save metadata seam. The original Save(slot,...) updates
@@ -90,7 +90,7 @@ public:
     // Keep those writes explicit so sparse type metadata is not inferred from
     // arbitrary StateStore writes.
     bool WriteGlobalInteger(const std::string& key, int32_t type, int32_t value,
-                            SchoolDaysStateStore* state,
+                            KtrfStateStore* state,
                             Kotonoha_KtrfError* error);
 
     bool HasGlobalFlag() const { return hasGlobalFlag_; }
@@ -122,7 +122,7 @@ private:
                               int32_t type, int32_t value,
                               Kotonoha_KtrfError* error);
     bool UpsertGlobalInteger(const std::string& key, int32_t type,
-                             int32_t value, SchoolDaysStateStore* state,
+                             int32_t value, KtrfStateStore* state,
                              Kotonoha_KtrfError* error);
     void RebuildLocalMetadataFromSave();
 

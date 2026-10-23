@@ -28,6 +28,9 @@ extern "C" {
 
 #if defined(KOTONOHA_MOBILE)
 void KotonohaMobileSetup(void);
+// Directory holding the user-provided game files (.gpk): the app Documents
+// folder on iOS. NULL when the platform has no such convention.
+const char *KotonohaMobileGameDataDir(void);
 #endif
 
 typedef struct Kotonoha_Config {
@@ -37,7 +40,7 @@ typedef struct Kotonoha_Config {
   size_t assStylesSize;
 
   char *preferredRenderer;
-  char *anime4kFiles;
+  char *mpvUpscalerFiles;
   char *splashFiles;
   char *promptSelectSound;
   char *promptViewSound;

@@ -5,7 +5,7 @@ param(
 $ErrorActionPreference = "Stop"
 
 $repo = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
-$cert = Join-Path $repo "docs\school-days-routing-validation\certified"
+$cert = Join-Path $repo "games\school-days\docs\routing-validation\certified"
 
 New-Item -ItemType Directory -Force -Path $cert | Out-Null
 
@@ -98,7 +98,7 @@ try {
     & python `
         ".\tools\schooldays-routing-verifier\freeze_route_model.py" `
         --root "." `
-        --out "docs/school-days-routing-validation/certified"
+        --out "games/school-days/docs/routing-validation/certified"
 
     if ($LASTEXITCODE -ne 0) {
         throw "Freeze audit failed"

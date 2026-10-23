@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 
-#include <Kotonoha/routing/SchoolDaysStateStore.hpp>
+#include <Kotonoha/routing/KtrfStateStore.hpp>
 
 namespace Kotonoha {
 
@@ -33,7 +33,7 @@ public:
 
     void Clear();
     bool Rebase(const SchoolDaysCoordinate& presented,
-                const SchoolDaysStateStore& state,
+                const KtrfStateStore& state,
                 Kotonoha_KtrfError* error);
 
     // Called after a semantic forward advance has selected destination, and
@@ -43,7 +43,7 @@ public:
     // step.  It is an audit/rollback aid; executable Back rules remain the
     // authority for semantic reversal.
     bool BuildForwardEntry(const SchoolDaysCoordinate& destination,
-                           const SchoolDaysStateStore& state,
+                           const KtrfStateStore& state,
                            Entry* entry,
                            Kotonoha_KtrfError* error) const;
     bool CommitForward(const Entry& entry);
@@ -57,7 +57,7 @@ public:
     bool HasPresented() const { return hasPresented_; }
 
 private:
-    static bool ReadFeelings(const SchoolDaysStateStore& state,
+    static bool ReadFeelings(const KtrfStateStore& state,
                              std::array<int64_t, kFeelingCount>* values,
                              Kotonoha_KtrfError* error);
 

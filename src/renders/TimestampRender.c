@@ -64,11 +64,8 @@ static bool UpdateTimestampTexture(SDL_Renderer *render, TTF_Font *font) {
   timestampCommon->shadow = newShadow;
 
   // AJUSTE DE ESCALA: Mantém o tamanho lógico constante dividindo pela escala
-  const float scale = (timestampCommon->windowScale > 0.0f)
-                          ? timestampCommon->windowScale
-                          : 1.0f;
-  timestampCommon->rect.w = textWidth * scale;
-  timestampCommon->rect.h = textHeight * scale;
+  timestampCommon->rect.w = textWidth;
+  timestampCommon->rect.h = textHeight;
 
   return true;
 }
@@ -87,8 +84,6 @@ enum Kotonoha_Scene_Status KotonohaTimestampRender(KOTONOHA_SCENE_CALL) {
     return KOTONOHA_SCENE_NULL;
   }
 
-  TTF_SetFontSize(font, 28);
-
   int outputWidth = 0;
   int outputHeight = 0;
   float windowScale = 1.0f;
@@ -97,6 +92,9 @@ enum Kotonoha_Scene_Status KotonohaTimestampRender(KOTONOHA_SCENE_CALL) {
                                  &windowScale)) {
     return KOTONOHA_SCENE_NULL;
   }
+
+  // Rasterize at physical pixels so the overlay is never upscaled.
+  TTF_SetFontSize(font, 28.0f * windowScale);
 
   if (timestampCommon == NULL) {
     timestampCommon = (struct Timestamp_common *)SDL_calloc(

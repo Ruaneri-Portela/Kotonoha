@@ -24,7 +24,7 @@ void SchoolDaysHistory::Clear() {
 }
 
 bool SchoolDaysHistory::ReadFeelings(
-    const SchoolDaysStateStore& state,
+    const KtrfStateStore& state,
     std::array<int64_t, kFeelingCount>* values,
     Kotonoha_KtrfError* error) {
     if (values == nullptr) return HistoryError(error, "history feeling output is null");
@@ -38,7 +38,7 @@ bool SchoolDaysHistory::ReadFeelings(
 }
 
 bool SchoolDaysHistory::Rebase(const SchoolDaysCoordinate& presented,
-                               const SchoolDaysStateStore& state,
+                               const KtrfStateStore& state,
                                Kotonoha_KtrfError* error) {
     std::array<int64_t, kFeelingCount> feelings{};
     if (!ReadFeelings(state, &feelings, error)) return false;
@@ -51,7 +51,7 @@ bool SchoolDaysHistory::Rebase(const SchoolDaysCoordinate& presented,
 
 bool SchoolDaysHistory::BuildForwardEntry(
     const SchoolDaysCoordinate& destination,
-    const SchoolDaysStateStore& state, Entry* entry,
+    const KtrfStateStore& state, Entry* entry,
     Kotonoha_KtrfError* error) const {
     if (!hasPresented_ || entry == nullptr) {
         return HistoryError(error, "history has no presented source scene");

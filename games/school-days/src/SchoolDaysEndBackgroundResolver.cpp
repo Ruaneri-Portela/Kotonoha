@@ -17,7 +17,7 @@ bool SchoolDaysEndBackgroundResolver::Fail(Kotonoha_KtrfError* error,
 }
 
 bool SchoolDaysEndBackgroundResolver::Resolve(
-    const Profile& profile, SchoolDaysStateStore* state, Result* out,
+    const Profile& profile, KtrfStateStore* state, Result* out,
     Kotonoha_KtrfError* error) {
     if (error != nullptr) {
         error->code = KOTONOHA_KTRF_OK;

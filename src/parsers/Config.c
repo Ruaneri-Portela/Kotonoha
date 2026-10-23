@@ -578,9 +578,9 @@ void KotonohaConfigFree(Kotonoha_Config *config) {
     SDL_free(config->splashFiles);
     config->splashFiles = NULL;
   }
-  if (config->anime4kFiles != NULL) {
-    SDL_free(config->anime4kFiles);
-    config->anime4kFiles = NULL;
+  if (config->mpvUpscalerFiles != NULL) {
+    SDL_free(config->mpvUpscalerFiles);
+    config->mpvUpscalerFiles = NULL;
   }
 
   if (config->configFilePath != NULL) {

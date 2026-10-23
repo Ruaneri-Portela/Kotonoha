@@ -19,7 +19,7 @@ bool SchoolDaysSaveService::Fail(Kotonoha_KtrfError* error,
 bool SchoolDaysSaveService::PlanSlot(
     int slot, const std::u16string& primaryMetadata,
     const std::u16string& subMetadata,
-    const SchoolDaysPersistence& persistence, const SchoolDaysStateStore& state,
+    const SchoolDaysPersistence& persistence, const KtrfStateStore& state,
     Plan* out, Kotonoha_KtrfError* error) {
     SchoolDaysSaveProfile profile;
     profile.saveFolder = "Save";
@@ -34,7 +34,7 @@ bool SchoolDaysSaveService::PlanSlot(
     const SchoolDaysSaveProfile& profile, int slot,
     const std::u16string& primaryMetadata,
     const std::u16string& subMetadata,
-    const SchoolDaysPersistence& persistence, const SchoolDaysStateStore& state,
+    const SchoolDaysPersistence& persistence, const KtrfStateStore& state,
     Plan* out, Kotonoha_KtrfError* error) {
     if (error != nullptr) {
         error->code = KOTONOHA_KTRF_OK;

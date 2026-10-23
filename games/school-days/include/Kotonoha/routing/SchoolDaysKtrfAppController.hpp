@@ -84,7 +84,7 @@ public:
     // Development inspection only. This exposes the already-bound KTRF adapter
     // so the debug UI can observe typed variable metadata and live runtime
     // values without changing routing semantics.
-    const Kotonoha_SchoolDaysKtrfAdapter* DebugAdapter() const {
+    const Kotonoha_KtrfAdapter* DebugAdapter() const {
         return bridge.Session().Adapter();
     }
 

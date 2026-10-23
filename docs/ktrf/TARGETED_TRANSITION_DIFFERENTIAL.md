@@ -55,7 +55,7 @@ tools/ktrf/run_sdhq_targeted_transition_diff.ps1
 Compiled oracle adapter:
 
 ```text
-tests/SchoolDaysOracleTrace.cpp
+games/school-days/tests/SchoolDaysOracleTrace.cpp
 ```
 
 Test-only state access:

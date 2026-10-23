@@ -52,7 +52,7 @@ void DrawTextureWindow(const std::vector<::Kotonoha::MediaBufferInfo> &media) {
         return item.id == selectedTextureId;
       });
 
-  if (ImGui::Begin("Media Texture", &texturePreviewVisible)) {
+  if (ImGui::Begin("Media Preview", &texturePreviewVisible)) {
     if (selected == media.end()) {
       ImGui::TextDisabled("The selected media is no longer in this scene.");
     } else {

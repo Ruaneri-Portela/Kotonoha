@@ -12,6 +12,10 @@
 //                 calls Kotonoha::MarkFrameHandled() to skip the default frame.
 //   LocalQuit     game teardown, run before the engine is shut down.
 //
+// With "--mcp [port]" (or KOTONOHA_MCP_PORT) the default frame also serves the
+// MCP control server (debug/McpServer.hpp); games that present their own frame
+// call Debug::Mcp::Service() right before SDL_RenderPresent.
+//
 // A game with no extras implements every hook as "return SDL_APP_CONTINUE" (or
 // an empty body).  The reported SDL_AppResult is always the worst of the
 // default and local results: FAILURE > SUCCESS > CONTINUE.
@@ -21,6 +25,7 @@
 
 #include <Kotonoha/Init.hpp>
 #include <Kotonoha/debug/DebugUi.hpp>
+#include <Kotonoha/debug/McpServer.hpp>
 #include <Kotonoha/utils/Log.h>
 
 SDL_AppResult LocalArgs(int argc, char *argv[]);
@@ -49,6 +54,7 @@ inline SDL_AppResult DefaultInit(void **appstate, int argc, char *argv[]) {
   }
   *appstate = nullptr;
 
+  const int mcpPort = Debug::Mcp::ParseArguments(argc, argv);
   SDL_AppResult result = LocalArgs(argc, argv);
   if (result != SDL_APP_CONTINUE) {
     return result;
@@ -68,6 +74,10 @@ inline SDL_AppResult DefaultInit(void **appstate, int argc, char *argv[]) {
     }
   }
 
+  if (mcpPort > 0) {
+    Debug::Mcp::Start(mcpPort);
+  }
+
   result = WorstResult(result, LocalInit(appstate, argc, argv));
   if (result == SDL_APP_CONTINUE) {
     SDL_ShowWindow(global.window);
@@ -82,6 +92,9 @@ inline SDL_AppResult DefaultEvent(void *appstate, SDL_Event *event) {
   }
   if (Kotonoha *app = GetApp(appstate)) {
     result = WorstResult(result, EngineMasterEvent(app, event));
+  }
+  if (EngineMasterCapturedByDebugUi(event)) {
+    return result;
   }
   return WorstResult(result, LocalEvent(appstate, event));
 }
@@ -124,6 +137,7 @@ inline SDL_AppResult DefaultFrame(Kotonoha *app) {
   if (!Debug::Run(app, inRunning, global)) {
     return SDL_APP_SUCCESS;
   }
+  Debug::Mcp::Service(app, inRunning);
   SDL_RenderPresent(global.render);
   return SDL_APP_CONTINUE;
 }
@@ -143,6 +157,7 @@ inline SDL_AppResult DefaultIterate(void *appstate) {
 }
 
 inline void DefaultQuit(void *appstate, SDL_AppResult result) {
+  Debug::Mcp::Stop();
   LocalQuit(appstate, result);
   Kotonoha *engine = GetApp(appstate);
   EngineMasterShutdown(&engine);

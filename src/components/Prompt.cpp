@@ -168,6 +168,31 @@ bool Prompt::IsActive() const {
   return KotonohaTimeGet(time) < endTime;
 }
 
+bool Prompt::SelectChoice(int index, Audio *audioManager) {
+  if (promptResult == nullptr || *promptResult != -2) return false;
+  if (!schoolDaysInteraction.Enabled()) {
+    if (time != nullptr && KotonohaTimeGet(time) >= endTime) return false;
+    if (index < 0 || static_cast<std::size_t>(index) >= prompt.size() ||
+        !PromptTextValid(prompt[static_cast<std::size_t>(index)])) {
+      return false;
+    }
+    *promptResult = index;
+    if (audioManager != nullptr && !audioPath.empty() && time != nullptr) {
+      audioManager->AddMedia(audioPath.c_str(), KotonohaTimeGet(time),
+                             UINT64_MAX, false, "Se");
+    }
+    return true;
+  }
+  float x = 0.0f, y = 0.0f;
+  if (!schoolDaysInteraction.ChoiceCenter(index, &x, &y)) return false;
+  const Kotonoha_SceneTick tick = SchoolDaysCurrentTick();
+  schoolDaysInteraction.PointerMotion(x, y, tick);
+  if (!schoolDaysInteraction.LeftClick(x, y, tick, promptResult)) return false;
+  ArmSchoolDaysExit(*promptResult);
+  PlaySchoolDaysPendingAudio(audioManager);
+  return true;
+}
+
 void Prompt::ClearLayoutTextures() {
   for (auto &item : lastLayout) {
     if (item.textTexture != nullptr) {
@@ -440,6 +465,24 @@ void Prompt::HandleEvent(SDL_Event *event, struct Kotonoha_Game *gameContext,
     return;
   }
 
+  if (event->type == SDL_EVENT_KEY_DOWN) {
+    const int count = static_cast<int>(lastLayout.size());
+    const SDL_Keycode key = event->key.key;
+    if (key == SDLK_UP || key == SDLK_LEFT) {
+      keyIndex = keyIndex < 0 ? count - 1 : (keyIndex + count - 1) % count;
+    } else if (key == SDLK_DOWN || key == SDLK_RIGHT) {
+      keyIndex = (keyIndex + 1) % count;
+    } else if ((key == SDLK_RETURN || key == SDLK_SPACE) && keyIndex >= 0) {
+      SelectChoice(lastLayout[static_cast<std::size_t>(keyIndex)].originalIndex,
+                   audioManager);
+    } else if (key >= SDLK_1 && key <= SDLK_9 &&
+               static_cast<int>(key - SDLK_1) < count) {
+      SelectChoice(lastLayout[static_cast<std::size_t>(key - SDLK_1)].originalIndex,
+                   audioManager);
+    }
+    return;
+  }
+
   float rawX = -1.0f;
   float rawY = -1.0f;
   bool isClick = false;
@@ -582,8 +625,6 @@ enum Kotonoha_Scene_Status Prompt::Render(KOTONOHA_SCENE_CALL) {
     return KOTONOHA_SCENE_DRAW_OVERLAYED;
   }
 
-  TTF_SetFontSize(promptObj->font, 32);
-
   int outputWidth = 0;
   int outputHeight = 0;
   float windowScale = 1.0f;
@@ -592,6 +633,9 @@ enum Kotonoha_Scene_Status Prompt::Render(KOTONOHA_SCENE_CALL) {
                                  &windowScale)) {
     return KOTONOHA_SCENE_NULL;
   }
+
+  // Rasterize at the physical pixel size so the text is never upscaled.
+  TTF_SetFontSize(promptObj->font, 32.0f * windowScale);
 
   float rawMouseX = 0.0f;
   float rawMouseY = 0.0f;
@@ -612,13 +656,16 @@ enum Kotonoha_Scene_Status Prompt::Render(KOTONOHA_SCENE_CALL) {
 
   static int lastOutputW = 0;
   static int lastOutputH = 0;
-  const bool targetResized =
-      (lastOutputW != outputWidth || lastOutputH != outputHeight);
+  static float lastWindowScale = 0.0f;
+  const bool targetResized = (lastOutputW != outputWidth ||
+                              lastOutputH != outputHeight ||
+                              lastWindowScale != windowScale);
 
   if (targetResized) {
     promptObj->ClearLayoutTextures();
     lastOutputW = outputWidth;
     lastOutputH = outputHeight;
+    lastWindowScale = windowScale;
   }
 
   if (promptObj->lastLayout.size() != visibleIndices.size()) {
@@ -632,10 +679,8 @@ enum Kotonoha_Scene_Status Prompt::Render(KOTONOHA_SCENE_CALL) {
                         promptObj->prompt[idx].size(), &textW, &textH);
 
       SDL_FRect rect{};
-      rect.w = (static_cast<float>(textW) + static_cast<float>(paddingX * 2)) *
-               windowScale;
-      rect.h = (static_cast<float>(textH) + static_cast<float>(paddingY * 2)) *
-               windowScale;
+      rect.w = static_cast<float>(textW + paddingX * 2);
+      rect.h = static_cast<float>(textH + paddingY * 2);
       rect.x = (static_cast<float>(outputWidth) - rect.w) / 2.0f;
       rect.y = (static_cast<float>(outputHeight) - rect.h) / 2.0f;
 
@@ -643,6 +688,31 @@ enum Kotonoha_Scene_Status Prompt::Render(KOTONOHA_SCENE_CALL) {
       item.originalIndex = idx;
       item.rect = rect;
       promptObj->lastLayout.push_back(item);
+    } else if (visibleIndices.size() > 2 || promptObj->verticalList) {
+      // A centred vertical list (always for more than two choices).
+      const float gap = 8.0f * windowScale;
+      float totalH = 0.0f;
+      std::vector<SDL_FRect> rects;
+      for (const int idx : visibleIndices) {
+        int textW = 0, textH = 0;
+        TTF_GetStringSize(promptObj->font, promptObj->prompt[idx].c_str(),
+                          promptObj->prompt[idx].size(), &textW, &textH);
+        SDL_FRect rect{};
+        rect.w = static_cast<float>(textW + paddingX * 2);
+        rect.h = static_cast<float>(textH + paddingY * 2);
+        totalH += rect.h + gap;
+        rects.push_back(rect);
+      }
+      float y = (static_cast<float>(outputHeight) - (totalH - gap)) / 2.0f;
+      for (std::size_t i = 0; i < rects.size(); ++i) {
+        rects[i].x = (static_cast<float>(outputWidth) - rects[i].w) / 2.0f;
+        rects[i].y = y;
+        y += rects[i].h + gap;
+        PromptLayoutItem item{};
+        item.originalIndex = visibleIndices[i];
+        item.rect = rects[i];
+        promptObj->lastLayout.push_back(item);
+      }
     } else {
       const size_t count =
           visibleIndices.size() > 2 ? 2 : visibleIndices.size();
@@ -653,12 +723,8 @@ enum Kotonoha_Scene_Status Prompt::Render(KOTONOHA_SCENE_CALL) {
                           promptObj->prompt[idx].size(), &textW, &textH);
 
         SDL_FRect rect{};
-        rect.w =
-            (static_cast<float>(textW) + static_cast<float>(paddingX * 2)) *
-            windowScale;
-        rect.h =
-            (static_cast<float>(textH) + static_cast<float>(paddingY * 2)) *
-            windowScale;
+        rect.w = static_cast<float>(textW + paddingX * 2);
+        rect.h = static_cast<float>(textH + paddingY * 2);
 
         const float regionX =
             (slot == 0) ? 0.0f : static_cast<float>(halfW);
@@ -676,8 +742,12 @@ enum Kotonoha_Scene_Status Prompt::Render(KOTONOHA_SCENE_CALL) {
 
   for (auto &item : promptObj->lastLayout) {
     const bool hovered =
-        mouseX >= item.rect.x && mouseX <= (item.rect.x + item.rect.w) &&
-        mouseY >= item.rect.y && mouseY <= (item.rect.y + item.rect.h);
+        (mouseX >= item.rect.x && mouseX <= (item.rect.x + item.rect.w) &&
+         mouseY >= item.rect.y && mouseY <= (item.rect.y + item.rect.h)) ||
+        (promptObj->keyIndex >= 0 &&
+         promptObj->keyIndex < static_cast<int>(promptObj->lastLayout.size()) &&
+         &item == &promptObj->lastLayout[static_cast<std::size_t>(
+                      promptObj->keyIndex)]);
 
     const bool selected = (*(promptObj->promptResult) == item.originalIndex);
     const bool clicking =
@@ -707,15 +777,15 @@ enum Kotonoha_Scene_Status Prompt::Render(KOTONOHA_SCENE_CALL) {
     if (KotonohaOverlayCreateTextTexture(render, promptObj->font, txt.c_str(),
                                          shadowColor, &item.shadowTexture,
                                          &textW, &textH)) {
-      item.shadowW = static_cast<int>(textW * windowScale);
-      item.shadowH = static_cast<int>(textH * windowScale);
+      item.shadowW = static_cast<int>(textW);
+      item.shadowH = static_cast<int>(textH);
     }
 
     if (KotonohaOverlayCreateTextTexture(render, promptObj->font, txt.c_str(),
                                          fg, &item.textTexture, &textW,
                                          &textH)) {
-      item.textW = static_cast<int>(textW * windowScale);
-      item.textH = static_cast<int>(textH * windowScale);
+      item.textW = static_cast<int>(textW);
+      item.textH = static_cast<int>(textH);
     }
 
     if (item.shadowTexture != nullptr) {
@@ -740,6 +810,7 @@ enum Kotonoha_Scene_Status Prompt::Render(KOTONOHA_SCENE_CALL) {
 }
 
 void Prompt::Reset() {
+  keyIndex = -1;
   if (promptResult != nullptr) {
     *promptResult = -2;
   }

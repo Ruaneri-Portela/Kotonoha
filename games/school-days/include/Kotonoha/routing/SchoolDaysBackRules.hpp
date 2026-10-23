@@ -63,24 +63,24 @@ public:
     static int SpForScene(int route, int scene);
 
     static bool ResolvePredecessor(int sourceRoute, int sourceScene,
-                                   const SchoolDaysStateStore* state,
+                                   const KtrfStateStore* state,
                                    PredecessorResult* result,
                                    Kotonoha_KtrfError* error);
-    static bool ApplyBoundary(SchoolDaysStateStore* state,
+    static bool ApplyBoundary(KtrfStateStore* state,
                               std::vector<std::string>* hooks,
                               Kotonoha_KtrfError* error,
                               std::vector<PersistenceWrite>* persistenceWrites = nullptr);
-    static bool ApplyTrialPv(SchoolDaysStateStore* state,
+    static bool ApplyTrialPv(KtrfStateStore* state,
                              std::vector<std::string>* hooks,
                              Kotonoha_KtrfError* error,
                              std::vector<PersistenceWrite>* persistenceWrites = nullptr);
     static bool ApplySourceOnly(const SchoolDaysCoordinate& source,
-                                SchoolDaysStateStore* state,
+                                KtrfStateStore* state,
                                 std::vector<std::string>* hooks,
                                 Kotonoha_KtrfError* error,
                                 std::vector<PersistenceWrite>* persistenceWrites = nullptr);
     static bool ApplyDestinationOnly(const SchoolDaysCoordinate& destination,
-                                     SchoolDaysStateStore* state,
+                                     KtrfStateStore* state,
                                      Kotonoha_KtrfError* error,
                                      std::vector<PersistenceWrite>* persistenceWrites = nullptr);
 
@@ -89,7 +89,7 @@ public:
     // predecessor mapper's reverse SP clear.  Caller owns transaction rollback.
     static bool Apply(const SchoolDaysCoordinate& source,
                       const SchoolDaysCoordinate& destination,
-                      SchoolDaysStateStore* state,
+                      KtrfStateStore* state,
                       std::vector<std::string>* hooks,
                       Kotonoha_KtrfError* error,
                       std::vector<PersistenceWrite>* persistenceWrites = nullptr);

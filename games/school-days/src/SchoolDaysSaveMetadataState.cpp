@@ -4,7 +4,7 @@
 
 namespace Kotonoha {
 
-bool SchoolDaysSaveMetadata::Build(const SchoolDaysStateStore& state,
+bool SchoolDaysSaveMetadata::Build(const KtrfStateStore& state,
                                    const LocalTime& time, bool useEnglish,
                                    const std::u16string& comment, Result* out,
                                    Kotonoha_KtrfError* error) {

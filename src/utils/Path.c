@@ -40,38 +40,13 @@ static bool KotonohaPathHasTrailingSeparator(const char *path) {
     return false;
   }
 
-#if defined(_WIN32)
-  return path[length - 1] == '\\' || path[length - 1] == '/';
-#else
-  return path[length - 1] == '/';
-#endif
+  return path[length - 1] == '/' || path[length - 1] == '\\';
 }
 
 static char *KotonohaPathNormalizeSeparators(const char *path) {
-  char *copy;
-  size_t i;
-  size_t length;
-
-  if (path == NULL) {
-    return NULL;
-  }
-
-  copy = KotonohaPathDuplicateString(path);
-  if (copy == NULL) {
-    return NULL;
-  }
-
-#if defined(_WIN32)
-  length = SDL_strlen(copy);
-
-  for (i = 0; i < length; i++) {
-    if (copy[i] == '/') {
-      copy[i] = '\\';
-    }
-  }
-#endif
-
-  return copy;
+  /* '/' is accepted by every platform SDL runs on, so it is the only
+     separator the engine produces. */
+  return KotonohaPathDuplicateString(path);
 }
 
 bool KotonohaPathIsAbsolute(const char *path) {
@@ -79,23 +54,16 @@ bool KotonohaPathIsAbsolute(const char *path) {
     return false;
   }
 
-#if defined(_WIN32)
-  /* C:\foo ou C:/foo */
-  if (SDL_isalpha((unsigned char)path[0]) && path[1] == ':') {
+  /* Drive paths (C:/foo, C:\foo) and UNC paths (//server/share). */
+  if (SDL_isalpha((unsigned char)path[0]) && path[1] == ':' &&
+      (path[2] == '/' || path[2] == '\\')) {
     return true;
   }
-
-  /* \\server\share ou //server/share */
   if ((path[0] == '\\' || path[0] == '/') &&
       (path[1] == '\\' || path[1] == '/')) {
     return true;
   }
-
-  return false;
-#else
-  /* /usr/share/fonts, /private/var/..., etc. */
   return path[0] == '/';
-#endif
 }
 
 char *KotonohaPathGetAbsolute(const char *path) {
@@ -131,12 +99,8 @@ char *KotonohaPathGetAbsolute(const char *path) {
   baseHasSeparator = false;
 
   if (basePathLength > 0) {
-#if defined(_WIN32)
     baseHasSeparator = basePath[basePathLength - 1] == '\\' ||
                        basePath[basePathLength - 1] == '/';
-#else
-    baseHasSeparator = basePath[basePathLength - 1] == '/';
-#endif
   }
 
   totalLength = basePathLength + (baseHasSeparator ? 0 : separatorLength) +
@@ -157,18 +121,6 @@ char *KotonohaPathGetAbsolute(const char *path) {
              path, pathLength);
 
   result[totalLength - 1] = '\0';
-
-#if defined(_WIN32)
-  {
-    size_t i;
-
-    for (i = 0; i < totalLength - 1; i++) {
-      if (result[i] == '/') {
-        result[i] = '\\';
-      }
-    }
-  }
-#endif
 
   return result;
 }
@@ -218,7 +170,5 @@ char *KotonohaPathJoin(const char *base, const char *relative) {
 
   result[totalLength - 1] = '\0';
 
-  char *normalized = KotonohaPathNormalizeSeparators(result);
-  SDL_free(result);
-  return normalized;
+  return result;
 }

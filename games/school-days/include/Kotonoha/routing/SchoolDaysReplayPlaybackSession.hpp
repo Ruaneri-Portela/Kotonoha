@@ -8,7 +8,7 @@
 namespace Kotonoha {
 
 // Temporary frontend-owned replay playback.  This class deliberately owns no
-// SchoolDaysStateStore/History/Persistence: live narrative state is only used
+// KtrfStateStore/History/Persistence: live narrative state is only used
 // by an injected read-only SceneKey resolver.
 class SchoolDaysReplayPlaybackSession final {
 public:

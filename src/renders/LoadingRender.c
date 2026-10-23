@@ -74,8 +74,6 @@ enum Kotonoha_Scene_Status KotonohaLoadingRender(KOTONOHA_SCENE_CALL) {
     return KOTONOHA_SCENE_NULL;
   }
 
-  TTF_SetFontSize(font, 28);
-
   int width = 0;
   int height = 0;
   float windowScale = 1.0f;
@@ -84,6 +82,9 @@ enum Kotonoha_Scene_Status KotonohaLoadingRender(KOTONOHA_SCENE_CALL) {
                                  &windowScale)) {
     return KOTONOHA_SCENE_NULL;
   }
+
+  // Rasterize at physical pixels so the overlay is never upscaled.
+  TTF_SetFontSize(font, 28.0f * windowScale);
 
   if (loadingCommon == NULL || loadingCommon->windowScale != windowScale) {
     KotonohaLoadingRenderShutdown();
@@ -103,8 +104,8 @@ enum Kotonoha_Scene_Status KotonohaLoadingRender(KOTONOHA_SCENE_CALL) {
     return KOTONOHA_SCENE_NULL;
   }
 
-  const float textWidth = loadingCommon->textWidth * windowScale;
-  const float textHeight = loadingCommon->textHeight * windowScale;
+  const float textWidth = loadingCommon->textWidth;
+  const float textHeight = loadingCommon->textHeight;
   SDL_FRect text = {((float)width - textWidth) * 0.5f,
                     ((float)height - textHeight) * 0.5f, textWidth, textHeight};
 

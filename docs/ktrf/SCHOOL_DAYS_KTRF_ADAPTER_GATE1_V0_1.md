@@ -46,7 +46,7 @@ routing semantics.
 
 ## API boundary
 
-`SchoolDaysKtrfAdapter` wraps `KtrfRouter` and provides:
+`KtrfAdapter` wraps `KtrfRouter` and provides:
 
 - profile validation;
 - `NODE -> scene-key` zero-copy resolution;

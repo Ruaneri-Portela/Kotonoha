@@ -1,7 +1,7 @@
 # School Days HQ application: game profile, KTRF adapter, persistence, UI,
 # GPK mount and the SDL callbacks, on top of the KotonohaRuntime library.
 # Produces SchoolDays.app on macOS, SchoolDays(.exe) on other desktops and
-# libKotonoha.so (loaded by SDLActivity) on Android.
+# libKotonohaSchoolDays.so (loaded by SDLActivity) on Android.
 
 file(GLOB_RECURSE SCHOOL_DAYS_SOURCES CONFIGURE_DEPENDS
     "${SCHOOL_DAYS_SOURCE_DIR}/*.cpp"
@@ -13,7 +13,7 @@ list(REMOVE_ITEM SCHOOL_DAYS_SOURCES "${SCHOOL_DAYS_MAIN}"
 
 if(ANDROID)
     add_library(SchoolDays SHARED ${SCHOOL_DAYS_SOURCES} "${SCHOOL_DAYS_MAIN}")
-    set_target_properties(SchoolDays PROPERTIES OUTPUT_NAME Kotonoha)
+    set_target_properties(SchoolDays PROPERTIES OUTPUT_NAME KotonohaSchoolDays)
 else()
     add_executable(SchoolDays ${SCHOOL_DAYS_SOURCES} "${SCHOOL_DAYS_MAIN}")
 endif()
@@ -47,4 +47,9 @@ if(NOT ANDROID)
                 VERBATIM)
         endif()
     endif()
+endif()
+
+# School Days regression tests (games/school-days/tests).
+if((KOTONOHA_ROUTER_TESTS OR KOTONOHA_ORS_PARSER_TESTS) AND NOT ANDROID)
+    add_subdirectory(tests)
 endif()

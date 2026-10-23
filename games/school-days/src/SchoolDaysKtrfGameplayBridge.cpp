@@ -166,7 +166,7 @@ bool SchoolDaysKtrfGameplayBridge::Advance(
     }
 
     *out = {};
-    SchoolDaysStateStore::Snapshot before;
+    KtrfStateStore::Snapshot before;
     if (!session.State().Capture(&before, error)) return false;
     const SchoolDaysPersistence persistenceBefore = session.Persistence();
     SchoolDaysKtrfSession::StepResult step;
@@ -480,7 +480,7 @@ bool SchoolDaysKtrfGameplayBridge::ResetNewGame(
     }
 
     *out = {};
-    SchoolDaysStateStore::Snapshot stateBefore;
+    KtrfStateStore::Snapshot stateBefore;
     if (!session.State().Capture(&stateBefore, error)) return false;
     const SchoolDaysHistory historyBefore = session.History();
     const SchoolDaysPersistence persistenceBefore = session.Persistence();
@@ -583,7 +583,7 @@ bool SchoolDaysKtrfGameplayBridge::DebugJumpToNode(
         return false;
     }
 
-    SchoolDaysStateStore::Snapshot stateBefore;
+    KtrfStateStore::Snapshot stateBefore;
     if (!session.State().Capture(&stateBefore, error)) return false;
     const SchoolDaysHistory historyBefore = session.History();
 

@@ -99,11 +99,7 @@ static std::string JoinPath(const std::string &dir,
   if (last == '/' || last == '\\') {
     return dir + name;
   }
-#ifdef _WIN32
-  return dir + "\\" + name;
-#else
   return dir + "/" + name;
-#endif
 }
 
 static std::vector<std::string> SplitTabs(const std::string &text) {
@@ -1467,8 +1463,11 @@ bool BasicGuiInit(Kotonoha_Game &gameContext, std::vector<Uint8> font) {
     void *fontData = SDL_malloc(fontDataSize);
     if (fontData != nullptr) {
       SDL_memcpy(fontData, font.data(), fontDataSize);
+      ImFontConfig fontConfig;
+      fontConfig.RasterizerDensity =
+          std::max(1.0f, SDL_GetWindowPixelDensity(gameContext.window));
       mainFont = io.Fonts->AddFontFromMemoryTTF(
-          fontData, static_cast<int>(fontDataSize), 16.0f);
+          fontData, static_cast<int>(fontDataSize), 16.0f, &fontConfig);
     }
   }
 

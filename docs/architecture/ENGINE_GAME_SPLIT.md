@@ -74,15 +74,31 @@ overlays, debug UI) and then calls the game's `LocalArgs`, `LocalInit`,
 `LocalEvent`, `LocalIterate` and `LocalQuit` hooks. Generic's hooks just return
 `SDL_APP_CONTINUE`; School Days' hooks add its KTRF/retail behaviour (in
 `SchoolDaysCallbacks.cpp`). The reported `SDL_AppResult` is always the worst of
-the default and local results (FAILURE > SUCCESS > CONTINUE). School Days
-renders its own frame, so `LocalIterate` calls `Kotonoha::MarkFrameHandled()` to
-skip the default one. School Days can load `Script/` assets from a loose
+the default and local results (FAILURE > SUCCESS > CONTINUE).
+
+All three ports (School Days, Snow Radish Vacation, Zero no Tsukaima) share the
+same game loop: `LocalInit` attaches a `Kotonoha::GameSession` to a
+`Kotonoha::GameplayFlow` (`include/Kotonoha/components/GameplayFlow.hpp`),
+`LocalEvent` forwards to `GameplayFlow::HandleEvent` and `LocalIterate` calls
+`Kotonoha::MarkFrameHandled()` and returns `GameplayFlow::RunFrame`, which runs
+the splash, the game frame, the debug UI, the MCP service and the present.
+Snow and Zero sessions use the flow's generic title/text box/choices/pause/save
+UI. School Days' `SchoolDaysSession` returns `OwnsFrontend() == true`: the flow
+forwards events and frames to the retail front end (KTRF controller, title,
+SaveLoad, route map, config, menu bar, BackLog) and the session picks the debug
+GUI (KTRF scene list/state inspector) and the Gameplay reported to MCP.
+
+Only the game picture uses the game viewport: `GameplayFlow::Frame` enables the
+letterboxed logical presentation (`Config::width`/`height`) while it draws the
+session and disables it again before returning, and pointer events are mapped
+through the same viewport. The splash, debug UI, MCP screenshots and other
+overlays therefore always render in full-window coordinates. School Days can load `Script/` assets from a loose
 directory with `--sd-script-dir <dir>` (maps `Script/<rest>` to `<dir>/<rest>`,
 overriding the GPK) and takes its splash from `System/SYSTEM/LOGO.png` in the
 GPK. The default path calls the engine master lifecycle
 (`EngineMasterInit`, `EngineMasterEvent`, `EngineMasterMain`,
 `EngineMasterShutdown`) for common SDL, renderer, audio, font, GUI, and engine
-setup, and School Days applies its policy on top. SDLActivity loads `libKotonoha.so` on
+setup, and School Days applies its policy on top. SDLActivity loads `libKotonohaSchoolDays.so` or `libKotonohaGeneric.so` (Intent extra `target` = `SchoolDays` | `Generic`) on
 Android.
 
 When debug UI is enabled, the game continues to render across the full window;
@@ -90,8 +106,10 @@ the menu bar and debug tools are drawn as overlays, without a reduced,
 letterboxed game viewport or per-frame render readback. Display-mode changes
 are managed by `Kotonoha::SetDisplay`, shared by the debug settings and the
 School Days SDL event path. School Days adds its KTRF scene catalog and state
-inspector to that Debug menu. The Load Scenes window is forced open while the
-School Days Title frontend is active. Script/Text editors display virtual
+inspector to that Debug menu. Whenever the debug UI is turned on (F7,
+`KOTONOHA_DEBUG_UI=1` or the settings), `Debug::SyncActivation` closes every
+tool window, so only the Debug panel is shown; the other windows are opened
+from its checkboxes. Script/Text editors display virtual
 archive-backed scenes read-only; filesystem scenes retain editing support.
 
 Image upscaling is generated and cached with each decoded image texture;
@@ -164,7 +182,12 @@ Before merging a boundary change:
 2. Build `KotonohaEngine` independently.
 3. Build `libKotonoha` and the `SchoolDays` entry executable.
 4. Verify the engine archive has no School Days symbols/dependencies.
-5. Run generic media/KTRF tests and School Days focused gates.
+5. Run generic media/KTRF tests and School Days focused gates. Engine tests
+   live in `tests/`; each game keeps its own tests under `games/<game>/tests`.
+   School Days' CTest targets (`games/school-days/tests/CMakeLists.txt`) are
+   enabled with `KOTONOHA_ROUTER_TESTS`/`KOTONOHA_ORS_PARSER_TESTS`; its
+   `ktrf_*` folders are standalone CMake projects and `ktrf/` holds the Python
+   tests for `tools/ktrf` (`python3 -m unittest discover -s games/school-days/tests/ktrf`).
 6. Run `git diff --check`.
 
 The original School Days executable is never required for these build gates.
@@ -190,3 +213,12 @@ should proceed in this order so behavior remains reviewable:
 
 Until those seams are complete, moving those APIs back into `KotonohaEngine`
 would recreate the reverse dependency this split is designed to prevent.
+
+## Mobile game data
+
+- Android: retail `.gpk` files (and `school-days-hq.ktnroute`) go in the OBB folder
+  `Android/obb/me.hirameki.kotonoha/`; `Kotonoha.java` passes it as `--sd-gpk-root`.
+- iOS: copy the `.gpk` files and the route into the app Documents folder (File
+  Sharing is enabled). The engine exposes it through `KotonohaMobileGameDataDir()`.
+- Xcode: `Xcode/KotonohaEngineTest.xcodeproj` has the `Kotonoha` (generic) and
+  `SchoolDays` targets/schemes.

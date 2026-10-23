@@ -42,8 +42,8 @@ option(KOTONOHA_ORS_PARSER_TESTS
     OFF
 )
 
-option(KOTONOHA_ANIME4K_RUNTIME_TESTS
-    "Build the standalone Anime4K OpenGL runtime regression test"
+option(KOTONOHA_MPV_UPSCALER_RUNTIME_TESTS
+    "Build the standalone MPVCompatibleUpscaler OpenGL runtime regression test"
     OFF
 )
 
@@ -187,24 +187,36 @@ include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/KotonohaTargets.cmake")
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/KotonohaApp.cmake")
 
 # ==============================================================================
-# Applications (each game owns its CMakeLists.txt)
+# Applications (each game owns its CMakeLists.txt and its tests/ folder)
 # ==============================================================================
-add_subdirectory(games/generic)
-add_subdirectory(games/school-days)
-
+# CTest and the School Days fixture root are shared by the game test folders.
 if((KOTONOHA_ROUTER_TESTS OR KOTONOHA_ORS_PARSER_TESTS) AND NOT ANDROID)
     include(CTest)
-    include_directories("${SCHOOL_DAYS_INCLUDE_DIR}")
     set(KOTONOHA_SCHOOL_DAYS_FIXTURE_ROOT
         "${CMAKE_CURRENT_SOURCE_DIR}/assets"
         CACHE PATH
         "Optional extracted School Days HQ retail fixture root used by corpus-dependent tests")
+endif()
+
+add_subdirectory(games/generic)
+add_subdirectory(games/school-days)
+add_subdirectory(games/zero-no-tsukaima)
+add_subdirectory(games/snow-radish-vacation)
+
+if((KOTONOHA_ROUTER_TESTS OR KOTONOHA_ORS_PARSER_TESTS) AND NOT ANDROID)
+    include_directories("${SCHOOL_DAYS_INCLUDE_DIR}")
 
     add_executable(KotonohaEngineLinkSmokeTest
         tests/KotonohaEngineLinkSmokeTest.cpp
     )
     target_link_libraries(KotonohaEngineLinkSmokeTest PRIVATE Kotonoha::Engine)
     add_test(NAME KotonohaEngineLinkSmokeTest COMMAND KotonohaEngineLinkSmokeTest)
+    if(TARGET ZeroFormatsTest)
+        add_test(NAME ZeroFormatsTest COMMAND ZeroFormatsTest)
+    endif()
+    if(TARGET SnowRadishPackTest)
+        add_test(NAME SnowRadishPackTest COMMAND SnowRadishPackTest)
+    endif()
 
     add_executable(UpscalingTextureLifecycleTest
         tests/UpscalingTextureLifecycleTest.cpp
@@ -230,43 +242,6 @@ if((KOTONOHA_ROUTER_TESTS OR KOTONOHA_ORS_PARSER_TESTS) AND NOT ANDROID)
     set_target_properties(OrsParserFidelityTest PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
     add_test(NAME OrsParserFidelityTest COMMAND OrsParserFidelityTest)
 
-    add_executable(SchoolDaysSceneTimelineTest
-        tests/SchoolDaysSceneTimelineTest.cpp
-        ${KOTONOHA_ENGINE_SOURCE_DIR}/parsers/Ors.c
-    )
-    target_include_directories(SchoolDaysSceneTimelineTest PRIVATE
-        ${KOTONOHA_INCLUDE_DIR}
-    )
-    target_link_libraries(SchoolDaysSceneTimelineTest PRIVATE ${KOTONOHA_SDL3_TARGET})
-    set_target_properties(SchoolDaysSceneTimelineTest PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
-    add_test(NAME SchoolDaysSceneTimelineTest COMMAND SchoolDaysSceneTimelineTest)
-
-    add_executable(SchoolDaysAudioEventTest
-        tests/SchoolDaysAudioEventTest.cpp
-        ${KOTONOHA_ENGINE_SOURCE_DIR}/parsers/Ors.c
-    )
-    target_include_directories(SchoolDaysAudioEventTest PRIVATE ${KOTONOHA_INCLUDE_DIR})
-    target_link_libraries(SchoolDaysAudioEventTest PRIVATE ${KOTONOHA_SDL3_TARGET})
-    set_target_properties(SchoolDaysAudioEventTest PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
-    add_test(NAME SchoolDaysAudioEventTest COMMAND SchoolDaysAudioEventTest)
-
-    add_executable(SchoolDaysBgmEventTest
-        tests/SchoolDaysBgmEventTest.cpp
-        ${KOTONOHA_ENGINE_SOURCE_DIR}/components/Audio.cpp
-        src/components/Sound.cpp
-        ${KOTONOHA_ENGINE_SOURCE_DIR}/renders/AudioRender.c
-        src/utils/Demuxer.c
-        src/utils/FFmpeg.c
-        src/utils/Time.c
-    )
-    target_include_directories(SchoolDaysBgmEventTest PRIVATE
-        ${KOTONOHA_INCLUDE_DIR} ${FFMPEG_INCLUDE_DIRS})
-    target_link_libraries(SchoolDaysBgmEventTest PRIVATE
-        ${KOTONOHA_SDL3_TARGET} PkgConfig::FFMPEG)
-    set_target_properties(SchoolDaysBgmEventTest PROPERTIES
-        CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
-    add_test(NAME SchoolDaysBgmEventTest COMMAND SchoolDaysBgmEventTest)
-
     add_executable(FFmpegInputSourceTest
         tests/FFmpegInputSourceTest.cpp
         src/utils/Demuxer.c
@@ -281,281 +256,44 @@ if((KOTONOHA_ROUTER_TESTS OR KOTONOHA_ORS_PARSER_TESTS) AND NOT ANDROID)
         CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
     add_test(NAME FFmpegInputSourceTest COMMAND FFmpegInputSourceTest)
 
-    add_executable(SchoolDaysGpkDirectRuntimeTest
-        tests/SchoolDaysGpkDirectRuntimeTest.cpp
-        ${SCHOOL_DAYS_SOURCE_DIR}/SchoolDaysAssetMount.cpp
-        ${SCHOOL_DAYS_SOURCE_DIR}/SchoolDaysGpkArchive.cpp
-        ${SCHOOL_DAYS_SOURCE_DIR}/SchoolDaysGpkIndex.cpp
-        ${KOTONOHA_ENGINE_SOURCE_DIR}/renders/AudioRender.c
-        src/renders/ImageRender.c
-        ${KOTONOHA_ENGINE_SOURCE_DIR}/renders/VideoRender.c
-        src/utils/Demuxer.c
-        src/utils/FFmpeg.c
-        src/utils/Time.c
-        src/utils/VoicePcm.c
-    )
-    target_include_directories(SchoolDaysGpkDirectRuntimeTest PRIVATE
-        ${KOTONOHA_INCLUDE_DIR} ${FFMPEG_INCLUDE_DIRS})
-    target_link_libraries(SchoolDaysGpkDirectRuntimeTest PRIVATE
-        ${KOTONOHA_SDL3_TARGET} PkgConfig::FFMPEG ZLIB::ZLIB)
-    set_target_properties(SchoolDaysGpkDirectRuntimeTest PROPERTIES
-        CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
-
-    add_executable(SchoolDaysAbcRuntimeTest
-        tests/SchoolDaysAbcRuntimeTest.cpp
-        ${KOTONOHA_ENGINE_SOURCE_DIR}/audio/VoicePcm.cpp
-        ${KOTONOHA_ENGINE_SOURCE_DIR}/graphics/TextureAlpha.cpp
-        ${KOTONOHA_ENGINE_SOURCE_DIR}/specials/UpscalingGeneric.cpp
-        ${KOTONOHA_RUNTIME_SOURCE_DIR}/components/Image.cpp
-        src/renders/ImageRender.c
-        src/utils/FFmpeg.c
-        src/utils/Time.c
-    )
-    target_include_directories(SchoolDaysAbcRuntimeTest PRIVATE
-        ${KOTONOHA_INCLUDE_DIR} ${FFMPEG_INCLUDE_DIRS})
-    target_link_libraries(SchoolDaysAbcRuntimeTest PRIVATE
-        ${KOTONOHA_SDL3_TARGET} PkgConfig::FFMPEG)
-    set_target_properties(SchoolDaysAbcRuntimeTest PROPERTIES
-        CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
-    add_test(NAME SchoolDaysAbcRuntimeTest COMMAND
-        SchoolDaysAbcRuntimeTest ${CMAKE_CURRENT_SOURCE_DIR}/assets)
-
-    add_executable(SchoolDaysAbcOverlayHotfixTest
-        tests/SchoolDaysAbcOverlayHotfixTest.cpp
-        ${KOTONOHA_ENGINE_SOURCE_DIR}/graphics/TextureAlpha.cpp
-        ${KOTONOHA_ENGINE_SOURCE_DIR}/specials/UpscalingGeneric.cpp
-        ${KOTONOHA_RUNTIME_SOURCE_DIR}/components/Image.cpp
-        src/renders/ImageRender.c
-        src/utils/FFmpeg.c
-        src/utils/Time.c
-    )
-    target_include_directories(SchoolDaysAbcOverlayHotfixTest PRIVATE
-        ${KOTONOHA_INCLUDE_DIR} ${FFMPEG_INCLUDE_DIRS})
-    target_link_libraries(SchoolDaysAbcOverlayHotfixTest PRIVATE
-        ${KOTONOHA_SDL3_TARGET} PkgConfig::FFMPEG)
-    set_target_properties(SchoolDaysAbcOverlayHotfixTest PROPERTIES
-        CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
-    if(EXISTS "${KOTONOHA_SCHOOL_DAYS_FIXTURE_ROOT}/Event00/00-00/00-00-A01/00-00-A01-004.PNG"
-       AND EXISTS "${KOTONOHA_SCHOOL_DAYS_FIXTURE_ROOT}/Event00/00-00/00-00-A02/00-00-A02-001B.PNG")
-        add_test(NAME SchoolDaysAbcOverlayHotfixTest COMMAND
-            SchoolDaysAbcOverlayHotfixTest ${KOTONOHA_SCHOOL_DAYS_FIXTURE_ROOT})
-    endif()
-
-    add_executable(SchoolDaysAbcEdgeSeamTest
-        tests/SchoolDaysAbcEdgeSeamTest.cpp
-        ${KOTONOHA_ENGINE_SOURCE_DIR}/graphics/TextureAlpha.cpp
-        ${KOTONOHA_ENGINE_SOURCE_DIR}/specials/UpscalingGeneric.cpp
-        ${KOTONOHA_RUNTIME_SOURCE_DIR}/components/Image.cpp
-        src/renders/ImageRender.c
-        src/utils/FFmpeg.c
-        src/utils/Time.c
-    )
-    target_include_directories(SchoolDaysAbcEdgeSeamTest PRIVATE
-        ${KOTONOHA_INCLUDE_DIR} ${FFMPEG_INCLUDE_DIRS})
-    target_link_libraries(SchoolDaysAbcEdgeSeamTest PRIVATE
-        ${KOTONOHA_SDL3_TARGET} PkgConfig::FFMPEG)
-    set_target_properties(SchoolDaysAbcEdgeSeamTest PROPERTIES
-        CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
-    if(EXISTS "${KOTONOHA_SCHOOL_DAYS_FIXTURE_ROOT}/Event00/00-00/00-00-A01/00-00-A01-004.PNG"
-       AND EXISTS "${KOTONOHA_SCHOOL_DAYS_FIXTURE_ROOT}/Event00/00-00/00-00-A02/00-00-A02-001B.PNG"
-       AND EXISTS "${KOTONOHA_SCHOOL_DAYS_FIXTURE_ROOT}/Event04/04-SB/04-SB-E00/04-SB-E00-020.PNG")
-        add_test(NAME SchoolDaysAbcEdgeSeamTest COMMAND
-            SchoolDaysAbcEdgeSeamTest ${KOTONOHA_SCHOOL_DAYS_FIXTURE_ROOT}
-            ${CMAKE_BINARY_DIR})
-    endif()
-
-    add_executable(SchoolDaysMovieEventTest
-        tests/SchoolDaysMovieEventTest.cpp
-        ${KOTONOHA_ENGINE_SOURCE_DIR}/components/Video.cpp
-        ${KOTONOHA_ENGINE_SOURCE_DIR}/specials/UpscalingGeneric.cpp
-        ${KOTONOHA_ENGINE_SOURCE_DIR}/renders/VideoRender.c
-        src/utils/Demuxer.c
-        src/utils/FFmpeg.c
-        src/utils/Time.c
-    )
-    target_include_directories(SchoolDaysMovieEventTest PRIVATE
-        ${KOTONOHA_INCLUDE_DIR} ${FFMPEG_INCLUDE_DIRS})
-    target_link_libraries(SchoolDaysMovieEventTest PRIVATE
-        ${KOTONOHA_SDL3_TARGET} PkgConfig::FFMPEG)
-    set_target_properties(SchoolDaysMovieEventTest PROPERTIES
-        CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
-    add_test(NAME SchoolDaysMovieEventTest COMMAND
-        SchoolDaysMovieEventTest ${CMAKE_CURRENT_SOURCE_DIR}/assets)
-
-    add_executable(SchoolDaysTitleMovieRuntimeTest
-        tests/SchoolDaysTitleMovieRuntimeTest.cpp
-        ${SCHOOL_DAYS_SOURCE_DIR}/SchoolDaysCmap.cpp
-        ${SCHOOL_DAYS_SOURCE_DIR}/SchoolDaysFontData.cpp
-        ${SCHOOL_DAYS_SOURCE_DIR}/SchoolDaysSaveFeelModel.cpp
-        ${SCHOOL_DAYS_SOURCE_DIR}/SchoolDaysSaveFeelRenderPlan.cpp
-        ${SCHOOL_DAYS_SOURCE_DIR}/SchoolDaysSaveLoadModel.cpp
-        ${SCHOOL_DAYS_SOURCE_DIR}/SchoolDaysSaveLoadRenderPlan.cpp
-        ${SCHOOL_DAYS_SOURCE_DIR}/SchoolDaysConfigMenuModel.cpp
-        ${SCHOOL_DAYS_SOURCE_DIR}/SchoolDaysConfigMenuRenderPlan.cpp
-        ${SCHOOL_DAYS_SOURCE_DIR}/SchoolDaysSomConSetModel.cpp
-        ${SCHOOL_DAYS_SOURCE_DIR}/SchoolDaysExitViewModel.cpp
-        ${SCHOOL_DAYS_SOURCE_DIR}/SchoolDaysExitViewRenderPlan.cpp
-        ${SCHOOL_DAYS_SOURCE_DIR}/SchoolDaysReplayModel.cpp
-        ${SCHOOL_DAYS_SOURCE_DIR}/SchoolDaysReplayRenderPlan.cpp
-        ${SCHOOL_DAYS_SOURCE_DIR}/SchoolDaysRouteMapModel.cpp
-        ${SCHOOL_DAYS_SOURCE_DIR}/SchoolDaysRouteMapRenderPlan.cpp
-        ${SCHOOL_DAYS_SOURCE_DIR}/SchoolDaysMenuBarLayout.cpp
-        ${SCHOOL_DAYS_SOURCE_DIR}/SchoolDaysMenuBarPresenter.cpp
-        ${SCHOOL_DAYS_SOURCE_DIR}/SchoolDaysTopMeterModel.cpp
-        ${SCHOOL_DAYS_SOURCE_DIR}/SchoolDaysTopMeterRenderPlan.cpp
-        ${SCHOOL_DAYS_SOURCE_DIR}/SchoolDaysSystemUi.cpp
-        ${SCHOOL_DAYS_SOURCE_DIR}/SchoolDaysTitleModel.cpp
-        ${SCHOOL_DAYS_SOURCE_DIR}/SchoolDaysTitleRenderPlan.cpp
-        src/renders/ImageRender.c
-        ${KOTONOHA_ENGINE_SOURCE_DIR}/renders/VideoRender.c
-        src/utils/Demuxer.c
-        src/utils/FFmpeg.c
-        src/utils/Time.c
-    )
-    target_include_directories(SchoolDaysTitleMovieRuntimeTest PRIVATE
-        ${KOTONOHA_INCLUDE_DIR} ${FFMPEG_INCLUDE_DIRS})
-    target_link_libraries(SchoolDaysTitleMovieRuntimeTest PRIVATE
-        ${KOTONOHA_SDL3_TARGET} PkgConfig::FFMPEG)
-    set_target_properties(SchoolDaysTitleMovieRuntimeTest PROPERTIES
-        CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
-
-    add_executable(SchoolDaysRemainingOrsTest
-        tests/SchoolDaysRemainingOrsTest.cpp
-        ${KOTONOHA_ENGINE_SOURCE_DIR}/parsers/Ors.c
-        src/components/Fade.cpp
-        ${KOTONOHA_ENGINE_SOURCE_DIR}/graphics/TextureAlpha.cpp
-        ${KOTONOHA_ENGINE_SOURCE_DIR}/specials/UpscalingGeneric.cpp
-        ${KOTONOHA_RUNTIME_SOURCE_DIR}/components/Image.cpp
-        src/renders/ImageRender.c
-        src/utils/FFmpeg.c
-        src/utils/Time.c
-    )
-    target_include_directories(SchoolDaysRemainingOrsTest PRIVATE
-        ${KOTONOHA_INCLUDE_DIR} ${FFMPEG_INCLUDE_DIRS})
-    target_link_libraries(SchoolDaysRemainingOrsTest PRIVATE
-        ${KOTONOHA_SDL3_TARGET} PkgConfig::FFMPEG)
-    set_target_properties(SchoolDaysRemainingOrsTest PROPERTIES
-        CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
-    add_test(NAME SchoolDaysRemainingOrsTest COMMAND
-        SchoolDaysRemainingOrsTest ${CMAKE_CURRENT_SOURCE_DIR}/assets)
-
-    add_executable(SchoolDaysRuntimeCorpusAudit
-        tests/SchoolDaysRuntimeCorpusAudit.cpp
-        ${KOTONOHA_ENGINE_SOURCE_DIR}/parsers/Ors.c
-    )
-    target_include_directories(SchoolDaysRuntimeCorpusAudit PRIVATE
-        ${KOTONOHA_INCLUDE_DIR})
-    target_link_libraries(SchoolDaysRuntimeCorpusAudit PRIVATE ${KOTONOHA_SDL3_TARGET})
-    set_target_properties(SchoolDaysRuntimeCorpusAudit PROPERTIES
-        CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
-    file(GLOB_RECURSE KOTONOHA_SCHOOL_DAYS_ORS_FIXTURES
-        CONFIGURE_DEPENDS
-        "${KOTONOHA_SCHOOL_DAYS_FIXTURE_ROOT}/*.ORS")
-    if(KOTONOHA_SCHOOL_DAYS_ORS_FIXTURES)
-        add_test(NAME SchoolDaysRuntimeCorpusAudit COMMAND
-            SchoolDaysRuntimeCorpusAudit ${KOTONOHA_SCHOOL_DAYS_FIXTURE_ROOT})
-    endif()
-
-    add_executable(SchoolDaysRuntimeParityTest
-        tests/SchoolDaysRuntimeParityTest.cpp
-        ${KOTONOHA_ENGINE_SOURCE_DIR}/parsers/Ors.c
-    )
-    target_include_directories(SchoolDaysRuntimeParityTest PRIVATE
-        ${KOTONOHA_INCLUDE_DIR})
-    target_link_libraries(SchoolDaysRuntimeParityTest PRIVATE ${KOTONOHA_SDL3_TARGET})
-    set_target_properties(SchoolDaysRuntimeParityTest PROPERTIES
-        CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
-    if(EXISTS "${KOTONOHA_SCHOOL_DAYS_FIXTURE_ROOT}/SysSe/SE_all/school/chime.OGG"
-       AND EXISTS "${KOTONOHA_SCHOOL_DAYS_FIXTURE_ROOT}/Voice05/05-SD/05-SD-A01/05-SD-A01-0740hutaba.OGG")
-        add_test(NAME SchoolDaysRuntimeParityTest COMMAND
-            SchoolDaysRuntimeParityTest ${KOTONOHA_SCHOOL_DAYS_FIXTURE_ROOT})
-    endif()
 endif()
 
-if(KOTONOHA_ANIME4K_RUNTIME_TESTS AND NOT ANDROID)
+if(KOTONOHA_MPV_UPSCALER_RUNTIME_TESTS AND NOT ANDROID)
     include(CTest)
     if(NOT CMAKE_SYSTEM_NAME STREQUAL "Windows")
         message(FATAL_ERROR
-            "KOTONOHA_ANIME4K_RUNTIME_TESTS currently requires Windows")
+            "KOTONOHA_MPV_UPSCALER_RUNTIME_TESTS currently requires Windows")
     endif()
     if(NOT OpenGL_FOUND)
         message(FATAL_ERROR
-            "KOTONOHA_ANIME4K_RUNTIME_TESTS requires OpenGL")
+            "KOTONOHA_MPV_UPSCALER_RUNTIME_TESTS requires OpenGL")
     endif()
 
-    add_executable(Anime4KRuntimeTest
-        tests/Anime4KRuntimeTest.cpp
-        src/specials/Anime4K.cpp
+    add_executable(MPVCompatibleUpscalerRuntimeTest
+        tests/MPVCompatibleUpscalerRuntimeTest.cpp
+        src/specials/MPVCompatibleUpscaler.cpp
         src/specials/OpenGL.c
         src/utils/Log.c
     )
-    target_include_directories(Anime4KRuntimeTest PRIVATE
+    target_include_directories(MPVCompatibleUpscalerRuntimeTest PRIVATE
         ${KOTONOHA_INCLUDE_DIR}
     )
-    target_compile_definitions(Anime4KRuntimeTest PRIVATE
-        KOTONOHA_HAS_ANIME4K=1
+    target_compile_definitions(MPVCompatibleUpscalerRuntimeTest PRIVATE
+        KOTONOHA_HAS_MPV_UPSCALER=1
     )
-    target_link_libraries(Anime4KRuntimeTest PRIVATE
+    target_link_libraries(MPVCompatibleUpscalerRuntimeTest PRIVATE
         ${KOTONOHA_SDL3_TARGET}
         OpenGL::GL
     )
-    set_target_properties(Anime4KRuntimeTest PROPERTIES
+    set_target_properties(MPVCompatibleUpscalerRuntimeTest PROPERTIES
         CXX_STANDARD 17
         CXX_STANDARD_REQUIRED ON
     )
-    add_custom_command(TARGET Anime4KRuntimeTest POST_BUILD
+    add_custom_command(TARGET MPVCompatibleUpscalerRuntimeTest POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_directory
         "${KOTONOHA_ASSETS_DIR}/Anime4K"
-        "$<TARGET_FILE_DIR:Anime4KRuntimeTest>/assets/Anime4K"
+        "$<TARGET_FILE_DIR:MPVCompatibleUpscalerRuntimeTest>/assets/Anime4K"
         VERBATIM
     )
-    add_test(NAME Anime4KRuntimeTest COMMAND Anime4KRuntimeTest)
-endif()
-
-if(KOTONOHA_ROUTER_TESTS AND NOT ANDROID)
-    add_executable(SchoolDaysHandoffRouterTest
-        tests/SchoolDaysHandoffRouterTest.cpp
-        ${SCHOOL_DAYS_SOURCE_DIR}/SchoolDaysRouter.cpp
-    )
-    target_include_directories(SchoolDaysHandoffRouterTest PRIVATE
-        ${KOTONOHA_INCLUDE_DIR}
-    )
-
-    add_executable(SchoolDaysFullRouterTest
-        tests/SchoolDaysFullRouterTest.cpp
-        ${SCHOOL_DAYS_SOURCE_DIR}/SchoolDaysRouter.cpp
-    )
-    target_include_directories(SchoolDaysFullRouterTest PRIVATE
-        ${KOTONOHA_INCLUDE_DIR}
-    )
-
-    add_executable(SchoolDaysDevCheckpointTest
-        tests/SchoolDaysDevCheckpointTest.cpp
-        ${SCHOOL_DAYS_SOURCE_DIR}/SchoolDaysRouter.cpp
-    )
-    target_include_directories(SchoolDaysDevCheckpointTest PRIVATE
-        ${KOTONOHA_INCLUDE_DIR}
-    )
-    target_compile_definitions(SchoolDaysDevCheckpointTest PRIVATE
-        KOTONOHA_DEV_CHECKPOINTS=1
-    )
-
-    # Machine-readable trace adapter used only for KTRF differential
-    # conformance. It drives the frozen SchoolDaysRouter routing logic and has
-    # test-only access to the state object so targeted pre-states can be
-    # injected without changing ResolveNext semantics.
-    add_executable(SchoolDaysOracleTrace
-        tests/SchoolDaysOracleTrace.cpp
-        ${SCHOOL_DAYS_SOURCE_DIR}/SchoolDaysRouter.cpp
-    )
-    target_include_directories(SchoolDaysOracleTrace PRIVATE
-        ${KOTONOHA_INCLUDE_DIR}
-    )
-    target_compile_definitions(SchoolDaysOracleTrace PRIVATE
-        KOTONOHA_ROUTER_TEST_ACCESS=1
-    )
-
-    add_test(NAME SchoolDaysHandoffRouterTest COMMAND SchoolDaysHandoffRouterTest)
-    add_test(NAME SchoolDaysFullRouterTest COMMAND SchoolDaysFullRouterTest)
-    add_test(NAME SchoolDaysDevCheckpointTest COMMAND SchoolDaysDevCheckpointTest)
+    add_test(NAME MPVCompatibleUpscalerRuntimeTest COMMAND MPVCompatibleUpscalerRuntimeTest)
 endif()

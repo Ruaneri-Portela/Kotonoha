@@ -104,7 +104,7 @@ int SchoolDaysBackRules::SpForScene(int route, int scene) {
 }
 
 bool SchoolDaysBackRules::ResolvePredecessor(
-    int sourceRoute, int sourceScene, const SchoolDaysStateStore* state,
+    int sourceRoute, int sourceScene, const KtrfStateStore* state,
     PredecessorResult* result, Kotonoha_KtrfError* error) {
     if (state == nullptr || result == nullptr) {
         return Fail(error, "School Days Back predecessor argument is null");
@@ -163,7 +163,7 @@ bool SchoolDaysBackRules::ResolvePredecessor(
     return true;
 }
 
-bool SchoolDaysBackRules::ApplyBoundary(SchoolDaysStateStore* state,
+bool SchoolDaysBackRules::ApplyBoundary(KtrfStateStore* state,
                                         std::vector<std::string>* hooks,
                                         Kotonoha_KtrfError* error,
                                         std::vector<PersistenceWrite>* persistenceWrites) {
@@ -179,7 +179,7 @@ bool SchoolDaysBackRules::ApplyBoundary(SchoolDaysStateStore* state,
     return true;
 }
 
-bool SchoolDaysBackRules::ApplyTrialPv(SchoolDaysStateStore* state,
+bool SchoolDaysBackRules::ApplyTrialPv(KtrfStateStore* state,
                                        std::vector<std::string>* hooks,
                                        Kotonoha_KtrfError* error,
                                        std::vector<PersistenceWrite>* persistenceWrites) {
@@ -195,7 +195,7 @@ bool SchoolDaysBackRules::ApplyTrialPv(SchoolDaysStateStore* state,
 }
 
 bool SchoolDaysBackRules::ApplySourceOnly(
-    const SchoolDaysCoordinate& source, SchoolDaysStateStore* state,
+    const SchoolDaysCoordinate& source, KtrfStateStore* state,
     std::vector<std::string>* hooks, Kotonoha_KtrfError* error,
     std::vector<PersistenceWrite>* persistenceWrites) {
     if (state == nullptr || hooks == nullptr) {
@@ -254,7 +254,7 @@ bool SchoolDaysBackRules::ApplySourceOnly(
 
 bool SchoolDaysBackRules::Apply(const SchoolDaysCoordinate& source,
                                 const SchoolDaysCoordinate& destination,
-                                SchoolDaysStateStore* state,
+                                KtrfStateStore* state,
                                 std::vector<std::string>* hooks,
                                 Kotonoha_KtrfError* error,
                                 std::vector<PersistenceWrite>* persistenceWrites) {
@@ -273,7 +273,7 @@ bool SchoolDaysBackRules::Apply(const SchoolDaysCoordinate& source,
 }
 
 bool SchoolDaysBackRules::ApplyDestinationOnly(
-    const SchoolDaysCoordinate& destination, SchoolDaysStateStore* state,
+    const SchoolDaysCoordinate& destination, KtrfStateStore* state,
     Kotonoha_KtrfError* error,
     std::vector<PersistenceWrite>* persistenceWrites) {
     if (state == nullptr) {

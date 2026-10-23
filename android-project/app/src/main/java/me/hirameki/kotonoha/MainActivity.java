@@ -18,7 +18,15 @@ public class MainActivity extends Activity {
         findViewById(R.id.button_school_days).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                startKotonohaWithArguments(new String[]{
+                startKotonohaWithArguments(Kotonoha.TARGET_SCHOOL_DAYS, new String[]{
+                });
+            }
+        });
+
+        findViewById(R.id.button_generic).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                startKotonohaWithArguments(Kotonoha.TARGET_GENERIC, new String[]{
                 });
             }
         });
@@ -29,7 +37,7 @@ public class MainActivity extends Activity {
                 EditText editText = findViewById(R.id.custom_edit_text);
                 String customParams = editText.getText().toString();
                 String[] args = customParams.split(" ");
-                startKotonohaWithArguments(args);
+                startKotonohaWithArguments(Kotonoha.TARGET_GENERIC, args);
             }
         });
 
@@ -41,9 +49,10 @@ public class MainActivity extends Activity {
         System.exit(0);
     }
 
-    private void startKotonohaWithArguments(String[] arguments) {
+    private void startKotonohaWithArguments(String target, String[] arguments) {
         Kotonoha.setArguments(arguments);
         Intent intent = new Intent(this, Kotonoha.class);
+        intent.putExtra(Kotonoha.EXTRA_TARGET, target);
         intent.addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
         startActivityForResult(intent, 1);
     }

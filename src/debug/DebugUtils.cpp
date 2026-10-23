@@ -29,11 +29,7 @@ static std::string JoinPath(const std::string &dir, const std::string &name) {
   if (last == '/' || last == '\\') {
     return dir + name;
   }
-#ifdef _WIN32
-  return dir + "\\" + name;
-#else
   return dir + "/" + name;
-#endif
 }
 
 std::vector<std::string> SplitTabs(const std::string &text) {

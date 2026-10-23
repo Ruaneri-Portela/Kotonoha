@@ -59,6 +59,28 @@ public:
     return policy_.twoChoiceOrientation;
   }
   int StoredSelection() const { return storedSelection_; }
+  std::size_t ChoiceCount() const { return choiceCount_; }
+
+  // Normalized centre of a choice, for synthetic (automation) input.
+  bool ChoiceCenter(int index, float *x, float *y) const {
+    if (index < 0 || static_cast<std::size_t>(index) >= choiceCount_ ||
+        x == nullptr || y == nullptr) {
+      return false;
+    }
+    *x = 0.5f;
+    *y = 0.5f;
+    if (choiceCount_ == 2) {
+      const float c = (static_cast<float>(index) + 0.5f) / 2.0f;
+      if (policy_.twoChoiceOrientation == SchoolDaysPromptOrientation::LeftRight)
+        *x = c;
+      else if (policy_.twoChoiceOrientation ==
+               SchoolDaysPromptOrientation::TopBottom)
+        *y = c;
+      else
+        return false;
+    }
+    return true;
+  }
   bool Seeded() const { return seeded_; }
 
   void SetAutoMode(bool enabled) { autoMode_ = enabled; }
@@ -200,6 +222,8 @@ private:
   std::string audioPath{};
   SDL_FRect viewport = {0, 0, 0, 0};
   std::vector<PromptLayoutItem> lastLayout{};
+  bool verticalList = false;
+  int keyIndex = -1; // keyboard-highlighted entry of lastLayout
   SchoolDaysPromptInteraction schoolDaysInteraction{};
   SDL_Texture *schoolDaysScratchTexture = nullptr;
   std::string schoolDaysAssetRoot{};
@@ -231,8 +255,15 @@ public:
          const char *clickAudioPath = nullptr);
 
   void Update();
+  // Lay out even one or two choices as a vertical list (menus).
+  void SetVerticalList(bool vertical) { verticalList = vertical; }
   void SetViewport(SDL_FRect renderViewport) { viewport = renderViewport; }
   bool IsActive() const;
+  const std::vector<std::string> &Choices() const { return prompt; }
+  // Answers the pending choice as if the player pointed at and clicked it
+  // (any choice count for the generic layout). False when the prompt is not
+  // accepting input.
+  bool SelectChoice(int index, Audio *audioManager);
   void HandleEvent(SDL_Event *event, Kotonoha_Game *gameContext,
                    Audio *audioManager);
   void EnableSchoolDaysPolicy(const SchoolDaysPromptPolicy &policy);

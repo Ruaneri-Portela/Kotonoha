@@ -236,7 +236,7 @@ Diagnostic-code stability is a tooling promise, not part of the future binary KT
 
 Reference semantic tests live under:
 
-`tests/ktrf/test_validate_ir.py`
+`games/school-days/tests/ktrf/test_validate_ir.py`
 
 Run:
 

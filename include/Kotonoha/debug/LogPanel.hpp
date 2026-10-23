@@ -2,6 +2,9 @@
 
 #include <SDL3/SDL.h>
 
+#include <string>
+#include <vector>
+
 namespace Kotonoha::Debug {
 
 // Captures every SDL_Log* message into a bounded in-memory ring buffer while
@@ -15,5 +18,10 @@ void UninstallLogCapture();
 // Draws the "Log" window. Must be called between ImGui::NewFrame() and
 // ImGui::Render(). Does nothing when `open` is null or false.
 void DrawLogPanel(bool *open);
+
+// Newest `count` captured messages at or above `minPriority`, oldest first,
+// formatted as "[LEVEL] text".
+std::vector<std::string> RecentLogLines(size_t count,
+                                        SDL_LogPriority minPriority);
 
 } // namespace Kotonoha::Debug

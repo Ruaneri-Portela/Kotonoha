@@ -11,6 +11,7 @@
 #include <Kotonoha/utils/Demuxer.h>
 #include <SDL3_ttf/SDL_ttf.h>
 #include <atomic>
+#include <memory>
 
 #include <Kotonoha/Kotonoha.h>
 #include <Kotonoha/renders/AudioRender.h>
@@ -99,6 +100,14 @@ public:
   Audio *audio = nullptr;
   Fade *fade = nullptr;
   Prompt *prompt = nullptr;
+  // Owners of the observer pointers above.
+  std::unique_ptr<Canvas> ownedCanvas;
+  std::unique_ptr<Event> ownedEvents;
+  std::unique_ptr<Video> ownedVideo;
+  std::unique_ptr<Image> ownedImage;
+  std::unique_ptr<Audio> ownedAudio;
+  std::unique_ptr<Fade> ownedFade;
+  std::unique_ptr<Prompt> ownedPrompt;
   int promptId = -2;
   bool putPrompt = false;
   bool choiceCommitSubmitted = false;

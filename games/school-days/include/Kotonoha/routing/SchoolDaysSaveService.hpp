@@ -38,13 +38,13 @@ public:
     static bool PlanSlot(int slot, const std::u16string& primaryMetadata,
                          const std::u16string& subMetadata,
                          const SchoolDaysPersistence& persistence,
-                         const SchoolDaysStateStore& state, Plan* out,
+                         const KtrfStateStore& state, Plan* out,
                          Kotonoha_KtrfError* error);
     static bool PlanSlot(const SchoolDaysSaveProfile& profile, int slot,
                          const std::u16string& primaryMetadata,
                          const std::u16string& subMetadata,
                          const SchoolDaysPersistence& persistence,
-                         const SchoolDaysStateStore& state, Plan* out,
+                         const KtrfStateStore& state, Plan* out,
                          Kotonoha_KtrfError* error);
 
     // Call only after the caller has completed the external writes it chose to

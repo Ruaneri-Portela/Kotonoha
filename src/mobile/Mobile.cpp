@@ -1,16 +1,10 @@
-#include <chrono>
+#include <SDL3/SDL.h>
+
 #include <cstdio>
-#include <ctime>
-#include <iomanip>
+#include <filesystem>
 #include <iostream>
 #include <sstream>
 #include <string>
-
-#ifdef _WIN32
-#include <direct.h>
-#else
-#include <unistd.h>
-#endif
 
 namespace Kotonoha::Mobile {
 
@@ -22,19 +16,15 @@ static std::string GetSafeDirectory(const char *directory) {
 static bool SetWorkingDirectory(const char *resourcesDir) {
   const std::string directory = GetSafeDirectory(resourcesDir);
 
-#ifdef _WIN32
-  const int result = _chdir(directory.c_str());
-#else
-  const int result = chdir(directory.c_str());
-#endif
+  std::error_code error;
+  std::filesystem::current_path(directory, error);
 
-  if (result == 0) {
+  if (!error) {
     return true;
   }
 
-  std::cerr << "Failed to change working directory to " << directory << ": ";
-
-  std::perror("");
+  std::cerr << "Failed to change working directory to " << directory << ": "
+            << error.message() << '\n';
 
   return false;
 }
@@ -64,24 +54,21 @@ static bool RedirectLogs(const char *documentsDir) {
 }
 
 static std::string CreateLogHeader() {
-  const auto now = std::chrono::system_clock::now();
-
-  const std::time_t actualTime = std::chrono::system_clock::to_time_t(now);
-
-  std::tm localTime{};
-
-#ifdef _WIN32
-  const bool hasLocalTime = localtime_s(&localTime, &actualTime) == 0;
-#else
-  const bool hasLocalTime = localtime_r(&actualTime, &localTime) != nullptr;
-#endif
+  SDL_Time sdlTime = 0;
+  SDL_DateTime localTime{};
+  const bool hasLocalTime =
+      SDL_GetCurrentTime(&sdlTime) && SDL_TimeToDateTime(sdlTime, &localTime, true);
 
   std::stringstream header;
 
   header << '\n' << "New execution: ";
 
   if (hasLocalTime) {
-    header << std::put_time(&localTime, "%Y-%m-%d %H:%M:%S");
+    char stamp[32];
+    std::snprintf(stamp, sizeof(stamp), "%04d-%02d-%02d %02d:%02d:%02d",
+                  localTime.year, localTime.month, localTime.day,
+                  localTime.hour, localTime.minute, localTime.second);
+    header << stamp;
   } else {
     header << "time unavailable";
   }
@@ -91,7 +78,15 @@ static std::string CreateLogHeader() {
   return header.str();
 }
 
+static std::string gameDataDirectory;
+
 } // namespace Kotonoha::Mobile
+
+extern "C" const char *KotonohaMobileGameDataDir(void) {
+  return Kotonoha::Mobile::gameDataDirectory.empty()
+             ? nullptr
+             : Kotonoha::Mobile::gameDataDirectory.c_str();
+}
 
 extern "C" void KotonohaMobileSetupShared(const char *resourcesDir,
                                           const char *documentsDir,
@@ -106,6 +101,10 @@ extern "C" void KotonohaMobileSetupShared(const char *resourcesDir,
   const std::string platform = platformName != nullptr && *platformName != '\0'
                                    ? platformName
                                    : "Mobile";
+
+  if (redirect) {
+    Kotonoha::Mobile::gameDataDirectory = documentsDirectory;
+  }
 
   // Assets são acessados relativamente a Resources:
   // assets/font.ttf

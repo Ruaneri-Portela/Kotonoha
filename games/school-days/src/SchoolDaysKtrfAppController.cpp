@@ -103,8 +103,8 @@ bool SchoolDaysKtrfAppController::BuildDebugSceneCatalog(
 
     debugScenes.reserve(nodes->item_count);
     for (uint32_t nodeIndex = 0; nodeIndex < nodes->item_count; ++nodeIndex) {
-        Kotonoha_SchoolDaysKtrfNodeView view{};
-        if (!Kotonoha_SchoolDaysKtrfGetNodeView(adapter, nodeIndex, &view, error)) {
+        Kotonoha_KtrfNodeView view{};
+        if (!Kotonoha_KtrfGetNodeView(adapter, nodeIndex, &view, error)) {
             debugScenes.clear();
             return false;
         }
@@ -454,7 +454,7 @@ bool SchoolDaysKtrfAppController::SubmitGameplayExit(
     // EXE state5 confirmation writes FLAG_LOGO through the global VT_BOOL
     // setter before Script.Free tears down the active scene. Keep the persisted
     // type explicit; type11 true is canonical VARIANT_BOOL -1.
-    SchoolDaysStateStore::Snapshot stateBefore;
+    KtrfStateStore::Snapshot stateBefore;
     if (!bridge.Session().State().Capture(&stateBefore, error)) return false;
     const SchoolDaysPersistence persistenceBefore = bridge.Session().Persistence();
     if (!bridge.Session().Persistence().WriteGlobalInteger(
@@ -786,7 +786,7 @@ bool SchoolDaysKtrfAppController::ResolveTitleBackground(
         }
         return false;
     }
-    SchoolDaysStateStore::Snapshot stateBefore;
+    KtrfStateStore::Snapshot stateBefore;
     if (!bridge.Session().State().Capture(&stateBefore, error)) return false;
     const SchoolDaysPersistence persistenceBefore = bridge.Session().Persistence();
 
@@ -838,7 +838,7 @@ bool SchoolDaysKtrfAppController::BuildInitialRouteMapProjection(
         return false;
     }
 
-    const SchoolDaysStateStore& state = bridge.Session().State();
+    const KtrfStateStore& state = bridge.Session().State();
     int64_t route = 0;
     int64_t endClear = 0;
     if (!state.ReadSessionInt("ROUTE", &route, error) ||
@@ -901,7 +901,7 @@ bool SchoolDaysKtrfAppController::BuildRouteMapProjection(
     // Normal Title LOAD -> RouteMap owns the unrestricted host path.
     next.alternateHost = false;
 
-    const SchoolDaysStateStore& state = bridge.Session().State();
+    const KtrfStateStore& state = bridge.Session().State();
     for (int i = 0; i < page.nodeCount; ++i) {
         const std::string key = SchoolDaysRouteMapModel::NodeSpKey(major, subpage, i);
         int64_t value = 0;

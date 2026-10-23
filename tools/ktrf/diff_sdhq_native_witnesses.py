@@ -99,7 +99,7 @@ def main(argv:Sequence[str]|None=None)->int:
     p=argparse.ArgumentParser()
     p.add_argument("--ir",type=Path,required=True); p.add_argument("--oracle-exe",type=Path,required=True)
     p.add_argument("--native-exe",type=Path,required=True); p.add_argument("--artifact",type=Path,required=True)
-    p.add_argument("--witness-source",type=Path,default=Path("tests/SchoolDaysFullRouterTest.cpp")); a=p.parse_args(argv)
+    p.add_argument("--witness-source",type=Path,default=Path("games/school-days/tests/SchoolDaysFullRouterTest.cpp")); a=p.parse_args(argv)
     for x in (a.ir,a.oracle_exe,a.native_exe,a.artifact,a.witness_source):
         if not x.resolve().exists(): raise SystemExit(f"required path not found: {x.resolve()}")
     doc=json.loads(a.ir.read_text(encoding="utf-8-sig")); model=MappingModel(doc); total=0

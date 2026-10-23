@@ -232,7 +232,7 @@ bool SchoolDaysPersistence::UpsertGlobalString(
 
 bool SchoolDaysPersistence::WriteGlobalInteger(
     const std::string& key, int32_t type, int32_t value,
-    SchoolDaysStateStore* state, Kotonoha_KtrfError* error) {
+    KtrfStateStore* state, Kotonoha_KtrfError* error) {
     ClearError(error);
     if (key.empty() || (type != 3 && type != 11)) {
         return Fail(error, KOTONOHA_KTRF_ERROR_ARGUMENT,
@@ -242,7 +242,7 @@ bool SchoolDaysPersistence::WriteGlobalInteger(
 }
 
 bool SchoolDaysPersistence::LoadGlobalFlag(const std::vector<uint8_t>& bytes,
-                                           SchoolDaysStateStore* state,
+                                           KtrfStateStore* state,
                                            Kotonoha_KtrfError* error) {
     ClearError(error);
     if (state == nullptr) {
@@ -257,7 +257,7 @@ bool SchoolDaysPersistence::LoadGlobalFlag(const std::vector<uint8_t>& bytes,
     std::vector<std::pair<std::string, int64_t>> numeric;
     if (!NumericEntries(parsed, &numeric, error)) return false;
 
-    SchoolDaysStateStore::Snapshot before;
+    KtrfStateStore::Snapshot before;
     if (!state->Capture(&before, error)) return false;
 
     // GlobalFlag.DAT is one persisted FlagsHash, not the complete KTRF global
@@ -300,7 +300,7 @@ bool SchoolDaysPersistence::LoadGlobalFlag(const std::vector<uint8_t>& bytes,
 }
 
 bool SchoolDaysPersistence::SerializeGlobalFlag(
-    const SchoolDaysStateStore& state, std::vector<uint8_t>* bytes,
+    const KtrfStateStore& state, std::vector<uint8_t>* bytes,
     Kotonoha_KtrfError* error) const {
     ClearError(error);
     if (!hasGlobalFlag_ || bytes == nullptr) {
@@ -705,7 +705,7 @@ bool SchoolDaysPersistence::RoutingEffectTargetsTopMeter(
 }
 
 bool SchoolDaysPersistence::CaptureLocalFlgH(
-    const SchoolDaysStateStore& state, SchoolDaysFlgH* out,
+    const KtrfStateStore& state, SchoolDaysFlgH* out,
     Kotonoha_KtrfError* error) const {
     ClearError(error);
     if (out == nullptr) {
@@ -738,7 +738,7 @@ bool SchoolDaysPersistence::CaptureLocalFlgH(
 
 bool SchoolDaysPersistence::UpsertGlobalInteger(
     const std::string& key, int32_t type, int32_t value,
-    SchoolDaysStateStore* state, Kotonoha_KtrfError* error) {
+    KtrfStateStore* state, Kotonoha_KtrfError* error) {
     if (state == nullptr) {
         return Fail(error, KOTONOHA_KTRF_ERROR_ARGUMENT,
                     "School Days global persistence state is null");
@@ -753,7 +753,7 @@ bool SchoolDaysPersistence::UpsertGlobalInteger(
 
 bool SchoolDaysPersistence::RecordCheckpoint(
     int route, int scene, const std::string& sceneKey,
-    SchoolDaysStateStore* state, Kotonoha_KtrfError* error) {
+    KtrfStateStore* state, Kotonoha_KtrfError* error) {
     ClearError(error);
     if (state == nullptr || sceneKey.empty()) {
         return Fail(error, KOTONOHA_KTRF_ERROR_ARGUMENT,
@@ -769,7 +769,7 @@ bool SchoolDaysPersistence::RecordCheckpoint(
     std::snprintf(spBuffer, sizeof(spBuffer), "SP%03d", sp);
     const std::string spKey = spBuffer;
 
-    SchoolDaysStateStore::Snapshot stateBefore;
+    KtrfStateStore::Snapshot stateBefore;
     if (!state->Capture(&stateBefore, error)) return false;
     const SchoolDaysPersistence persistenceBefore = *this;
 
@@ -866,7 +866,7 @@ bool SchoolDaysPersistence::ReadRecordedChoice(
 }
 
 bool SchoolDaysPersistence::RestoreBackCheckpoint(
-    const SchoolDaysCoordinate& destination, SchoolDaysStateStore* state,
+    const SchoolDaysCoordinate& destination, KtrfStateStore* state,
     bool* restored, Kotonoha_KtrfError* error) {
     ClearError(error);
     if (state == nullptr || restored == nullptr) {
@@ -897,7 +897,7 @@ bool SchoolDaysPersistence::RestoreBackCheckpoint(
                     "School Days Back checkpoint SP resolves to a different SceneKey");
     }
 
-    SchoolDaysStateStore::Snapshot stateBefore;
+    KtrfStateStore::Snapshot stateBefore;
     if (!state->Capture(&stateBefore, error)) return false;
     const SchoolDaysPersistence persistenceBefore = *this;
 
@@ -946,7 +946,7 @@ bool SchoolDaysPersistence::RestoreBackCheckpoint(
 
 bool SchoolDaysPersistence::ReplaceCurrentScriptSnapshot(
     const std::string& sceneKey, uint32_t versionBits,
-    const SchoolDaysStateStore& state, Kotonoha_KtrfError* error) {
+    const KtrfStateStore& state, Kotonoha_KtrfError* error) {
     ClearError(error);
     if (sceneKey.empty()) {
         return Fail(error, KOTONOHA_KTRF_ERROR_ARGUMENT,
@@ -988,7 +988,7 @@ bool SchoolDaysPersistence::SerializeSaveLog(
 
 bool SchoolDaysPersistence::RegisterEnding(int endingCode,
                                            const std::string& sceneKey,
-                                           SchoolDaysStateStore* state,
+                                           KtrfStateStore* state,
                                            Kotonoha_KtrfError* error) {
     ClearError(error);
     if (state == nullptr || sceneKey.empty() || endingCode < 0 || endingCode >= 22) {
@@ -996,7 +996,7 @@ bool SchoolDaysPersistence::RegisterEnding(int endingCode,
                     "School Days ending code is out of range");
     }
 
-    SchoolDaysStateStore::Snapshot stateSnapshot;
+    KtrfStateStore::Snapshot stateSnapshot;
     if (!state->Capture(&stateSnapshot, error)) return false;
     const SchoolDaysPersistence persistenceBefore = *this;
 

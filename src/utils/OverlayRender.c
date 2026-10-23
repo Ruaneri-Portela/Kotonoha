@@ -55,6 +55,10 @@ bool KotonohaOverlayCreateTextTexture(SDL_Renderer *render, TTF_Font *font,
   SDL_Texture *createdTexture = SDL_CreateTextureFromSurface(render, surface);
   SDL_DestroySurface(surface);
 
+  if (createdTexture != NULL) {
+    SDL_SetTextureScaleMode(createdTexture, SDL_SCALEMODE_LINEAR);
+  }
+
   if (createdTexture == NULL) {
     KLOG_ERROR(RENDER, "Failed to create overlay text texture: %s",
                SDL_GetError());
