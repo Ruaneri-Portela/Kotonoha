@@ -10,6 +10,7 @@
 #include <Kotonoha/utils/Path.h>
 
 #include <atomic>
+#include <memory>
 #include <string>
 #include <tuple>
 #include <vector>
@@ -34,7 +35,7 @@ private:
 
   Kotonoha_Demuxer *titleDemuxer = nullptr;
   Kotonoha_Time *titleTime = nullptr;
-  Audio *titleAudio = nullptr;
+  std::unique_ptr<Audio> titleAudio;
   Kotonoha_AudioDecode *titleMedia = nullptr;
   void UpdateTitleMusic(bool titleScreen);
 

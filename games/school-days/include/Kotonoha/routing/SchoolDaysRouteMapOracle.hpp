@@ -1,6 +1,6 @@
 #pragma once
 
-#include <Kotonoha/routing/SchoolDaysStateStore.hpp>
+#include <Kotonoha/routing/KtrfStateStore.hpp>
 
 namespace Kotonoha {
 
@@ -16,13 +16,13 @@ public:
     // Returns the native RouteMap control/current-marker value, or zero when
     // the requested major is not the current story, ROUTE is out of range, or
     // no authenticated SCENE/SP witness is active.
-    static int CheckScript(const SchoolDaysStateStore& state, int major,
+    static int CheckScript(const KtrfStateStore& state, int major,
                            Kotonoha_KtrfError* error);
 
     // RouteProcSDHQ.dll:_GetRouteMapPage@8 (0x1000C120).
     // The major argument is deliberately not clamped here: SysMenu passes the
     // raw GetStory()-1 value before normalizing -1 to zero.
-    static int GetRouteMapPage(const SchoolDaysStateStore& state, int major,
+    static int GetRouteMapPage(const KtrfStateStore& state, int major,
                                Kotonoha_KtrfError* error);
 };
 

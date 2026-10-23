@@ -1,182 +1,281 @@
 #include <Kotonoha/routing/SchoolDaysCommentDialog.hpp>
+#include <Kotonoha/routing/SchoolDaysFontData.hpp>
+#include <Kotonoha/routing/SchoolDaysSaveLoadRenderPlan.hpp>
 
 #include <SDL3/SDL.h>
 
-#ifdef _WIN32
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-
+#include <algorithm>
 #include <cstdint>
-#include <vector>
-#endif
+#include <array>
+#include <cstdio>
+#include <map>
+#include <memory>
 
 namespace Kotonoha {
 
-#ifdef _WIN32
 namespace {
 
-constexpr int kEditId = 0x40c;
-constexpr int kInstructionId = 0x410;
+std::u16string ToUtf16(const std::string& text) {
+    std::u16string out;
+    const char* cursor = text.c_str();
+    size_t left = text.size();
+    while (left > 0) {
+        uint32_t cp = SDL_StepUTF8(&cursor, &left);
+        if (cp == 0) break;
+        if (cp >= 0x10000u) {
+            cp -= 0x10000u;
+            out.push_back(static_cast<char16_t>(0xd800u + (cp >> 10u)));
+            out.push_back(static_cast<char16_t>(0xdc00u + (cp & 0x3ffu)));
+        } else {
+            out.push_back(static_cast<char16_t>(cp));
+        }
+    }
+    return out;
+}
 
-struct DialogState {
-    std::u16string initial;
-    std::u16string result;
-    bool useEnglish = false;
+void PopLastCodePoint(std::u16string* text) {
+    if (text->empty()) return;
+    const char16_t last = text->back();
+    text->pop_back();
+    if (last >= 0xdc00u && last < 0xe000u && !text->empty()) text->pop_back();
+}
+
+// SDL's built-in debug font is ASCII-only; other code points are shown as '?'.
+std::string ToDisplayAscii(const std::u16string& text) {
+    std::string out;
+    for (char16_t c : text) {
+        if (c >= 0xdc00u && c < 0xe000u) continue;
+        out.push_back(c >= 0x20u && c < 0x7fu ? static_cast<char>(c) : '?');
+    }
+    return out;
+}
+
+struct TextureDeleter {
+    void operator()(SDL_Texture* texture) const { SDL_DestroyTexture(texture); }
+};
+using TexturePtr = std::unique_ptr<SDL_Texture, TextureDeleter>;
+
+// Draws text with the glyph atlas shipped in the game's FONTDATA, scaled so
+// 48px glyphs become `height` render pixels. Returns the drawn width.
+class GlyphPainter {
+public:
+    GlyphPainter(SDL_Renderer* renderer, const SchoolDaysFontData* font,
+                 bool english)
+        : renderer_(renderer), font_(font), english_(english) {}
+
+    float Draw(const std::u16string& text, float x, float y, float height,
+               bool measureOnly = false) {
+        const float scale = height / static_cast<float>(SchoolDaysFontData::kGlyphHeight);
+        float cursor = x;
+        for (char16_t c : text) {
+            if (c >= 0xd800u && c < 0xe000u) continue;
+            const uint16_t code = static_cast<uint16_t>(c);
+            if (!measureOnly) {
+                if (SDL_Texture* texture = Glyph(code)) {
+                    const SDL_FRect dst{cursor, y, SchoolDaysFontData::kGlyphWidth * scale,
+                                        height};
+                    SDL_RenderTexture(renderer_, texture, nullptr, &dst);
+                }
+            }
+            cursor += static_cast<float>(
+                          SchoolDaysSaveLoadRenderPlan::GlyphAdvance(code, english_)) * scale;
+        }
+        return cursor - x;
+    }
+
+private:
+    SDL_Texture* Glyph(uint16_t code) {
+        auto found = cache_.find(code);
+        if (found != cache_.end()) return found->second.get();
+        TexturePtr texture;
+        SchoolDaysFontData::Glyph glyph;
+        if (font_ != nullptr && font_->HasGlyph(code) &&
+            font_->DecodeGlyph(code, &glyph)) {
+            std::array<uint32_t, SchoolDaysFontData::kGlyphPixels> pixels{};
+            for (int i = 0; i < SchoolDaysFontData::kGlyphPixels; ++i) {
+                const uint32_t g = glyph.gray[static_cast<size_t>(i)];
+                pixels[static_cast<size_t>(i)] =
+                    (static_cast<uint32_t>(glyph.alpha[static_cast<size_t>(i)]) << 24u) |
+                    (g << 16u) | (g << 8u) | g;
+            }
+            texture.reset(SDL_CreateTexture(renderer_, SDL_PIXELFORMAT_ARGB8888,
+                                            SDL_TEXTUREACCESS_STATIC,
+                                            SchoolDaysFontData::kGlyphWidth,
+                                            SchoolDaysFontData::kGlyphHeight));
+            if (texture) {
+                SDL_UpdateTexture(texture.get(), nullptr, pixels.data(),
+                                  SchoolDaysFontData::kGlyphWidth * 4);
+                SDL_SetTextureBlendMode(texture.get(), SDL_BLENDMODE_BLEND);
+                SDL_SetTextureScaleMode(texture.get(), SDL_SCALEMODE_LINEAR);
+            }
+        }
+        SDL_Texture* raw = texture.get();
+        cache_.emplace(code, std::move(texture));
+        return raw;
+    }
+
+    SDL_Renderer* renderer_;
+    const SchoolDaysFontData* font_;
+    bool english_;
+    std::map<uint16_t, TexturePtr> cache_;
 };
 
-void AlignDword(std::vector<uint16_t>* words) {
-    if ((words->size() & 1u) != 0u) words->push_back(0u);
-}
-
-void PushDword(std::vector<uint16_t>* words, uint32_t value) {
-    words->push_back(static_cast<uint16_t>(value));
-    words->push_back(static_cast<uint16_t>(value >> 16u));
-}
-
-void PushString(std::vector<uint16_t>* words, const wchar_t* value) {
-    if (value != nullptr) {
-        while (*value != L'\0') words->push_back(static_cast<uint16_t>(*value++));
-    }
-    words->push_back(0u);
-}
-
-void PushOrdinal(std::vector<uint16_t>* words, uint16_t ordinal) {
-    words->push_back(0xffffu);
-    words->push_back(ordinal);
-}
-
-void AddExItem(std::vector<uint16_t>* words, DWORD style, DWORD exStyle,
-               short x, short y, short cx, short cy, uint32_t id,
-               uint16_t classOrdinal, const wchar_t* title) {
-    AlignDword(words);
-    PushDword(words, 0u); // helpID
-    PushDword(words, exStyle);
-    PushDword(words, style);
-    words->push_back(static_cast<uint16_t>(x));
-    words->push_back(static_cast<uint16_t>(y));
-    words->push_back(static_cast<uint16_t>(cx));
-    words->push_back(static_cast<uint16_t>(cy));
-    PushDword(words, id);
-    PushOrdinal(words, classOrdinal);
-    PushString(words, title);
-    words->push_back(0u); // no creation data
-}
-
-std::vector<uint16_t> BuildTemplate(bool useEnglish) {
-    std::vector<uint16_t> w;
-    w.reserve(192u);
-
-    // DIALOGEX geometry/styles match shipped resources 0x73 (JP) and 0x77
-    // (EN).  Reconstruct the declarative fields rather than embedding/copying
-    // the original resource blob.
-    w.push_back(1u);      // dlgVer
-    w.push_back(0xffffu); // DIALOGEX signature
-    PushDword(&w, 0u);    // helpID
-    PushDword(&w, 0u);
-    PushDword(&w, 0x90c002cau);
-    w.push_back(4u); // cdit
-    w.push_back(0u); w.push_back(0u); w.push_back(280u); w.push_back(62u);
-    w.push_back(0u); // no menu
-    w.push_back(0u); // default dialog class
-    PushString(&w, useEnglish ? L"Enter comment" : L"\x30b3\x30e1\x30f3\x30c8\x5165\x529b");
-    w.push_back(8u);
-    w.push_back(400u);
-    w.push_back(0x0100u); // italic=0, charset=DEFAULT_CHARSET(1)
-    PushString(&w, L"MS Shell Dlg");
-
-    AddExItem(&w, 0x50010001u, 0u, 223, 41, 50, 14, IDCANCEL, 0x80u,
-              useEnglish ? L"Cancel" : L"\x30ad\x30e3\x30f3\x30bb\x30eb");
-    AddExItem(&w, 0x50810080u, 0u, 7, 21, 266, 14, kEditId, 0x81u, L"");
-    AddExItem(&w, 0x50020000u, 0u, 7, 8, 266, 8, kInstructionId, 0x82u,
-              useEnglish ? L"Insert comments (120 characters or less)"
-                         : L"\x30b3\x30e1\x30f3\x30c8\x5165\x529b\xff08\xff16\xff10\x6587\x5b57\x4ee5\x5185\xff09");
-    AddExItem(&w, 0x50010001u, 0u, 168, 41, 50, 14, IDOK, 0x80u, L"OK");
-    return w;
-}
-
-INT_PTR CALLBACK DialogProc(HWND dialog, UINT message, WPARAM wParam,
-                            LPARAM lParam) {
-    auto* state = reinterpret_cast<DialogState*>(
-        GetWindowLongPtrW(dialog, DWLP_USER));
-    if (message == WM_INITDIALOG) {
-        state = reinterpret_cast<DialogState*>(lParam);
-        SetWindowLongPtrW(dialog, DWLP_USER, reinterpret_cast<LONG_PTR>(state));
-        if (state != nullptr) {
-            SetDlgItemTextW(dialog, kEditId,
-                            reinterpret_cast<const wchar_t*>(state->initial.c_str()));
-            // The shipped dialog describes 60 JP characters / 120 EN chars.
-            SendDlgItemMessageW(dialog, kEditId, EM_SETLIMITTEXT,
-                                state->useEnglish ? 120u : 60u, 0);
-        }
-        SetFocus(GetDlgItem(dialog, kEditId));
-        SendDlgItemMessageW(dialog, kEditId, EM_SETSEL, 0u, -1);
-        return FALSE;
-    }
-    if (message == WM_COMMAND) {
-        const WORD id = LOWORD(wParam);
-        if (id == IDOK) {
-            if (state == nullptr) return TRUE;
-            const int length = GetWindowTextLengthW(GetDlgItem(dialog, kEditId));
-            std::vector<wchar_t> buffer(static_cast<size_t>(length) + 1u, L'\0');
-            GetDlgItemTextW(dialog, kEditId, buffer.data(),
-                            static_cast<int>(buffer.size()));
-            state->result.assign(
-                reinterpret_cast<const char16_t*>(buffer.data()),
-                reinterpret_cast<const char16_t*>(buffer.data() + length));
-            EndDialog(dialog, IDOK);
-            return TRUE;
-        }
-        if (id == IDCANCEL) {
-            EndDialog(dialog, IDCANCEL);
-            return TRUE;
-        }
-    }
-    if (message == WM_CLOSE) {
-        EndDialog(dialog, IDCANCEL);
-        return TRUE;
-    }
-    return FALSE;
-}
-
 } // namespace
-#endif
 
 SchoolDaysCommentDialog::Result SchoolDaysCommentDialog::Run(
     SDL_Window* owner, bool useEnglish, const std::u16string& initial,
-    std::u16string* output, std::string* error) {
-    if (error != nullptr) error->clear();
-    if (output == nullptr) {
-        if (error != nullptr) *error = "School Days comment-dialog output is null";
+    std::u16string* output, const SchoolDaysFontData* font,
+    std::string* error) {
+    SDL_Renderer* renderer = owner != nullptr ? SDL_GetRenderer(owner) : nullptr;
+    if (renderer == nullptr || output == nullptr) {
+        if (error != nullptr) *error = "comment dialog needs an SDL renderer";
         return Result::Failed;
     }
-    output->clear();
-#ifndef _WIN32
-    (void)owner; (void)useEnglish; (void)initial;
-    if (error != nullptr) *error = "School Days native comment dialog is Windows-only";
-    return Result::Unsupported;
-#else
-    HWND hwnd = nullptr;
-    if (owner != nullptr) {
-        const SDL_PropertiesID props = SDL_GetWindowProperties(owner);
-        hwnd = static_cast<HWND>(SDL_GetPointerProperty(
-            props, SDL_PROP_WINDOW_WIN32_HWND_POINTER, nullptr));
+
+    const size_t limit = useEnglish ? 120u : 60u;
+    std::u16string text = initial.substr(0, limit);
+
+    // Keep the frame behind the dialog; the backbuffer is not preserved.
+    SDL_Texture* backdrop = nullptr;
+    if (SDL_Surface* shot = SDL_RenderReadPixels(renderer, nullptr)) {
+        backdrop = SDL_CreateTextureFromSurface(renderer, shot);
+        SDL_DestroySurface(shot);
     }
-    DialogState state;
-    state.initial = initial;
-    state.useEnglish = useEnglish;
-    auto templ = BuildTemplate(useEnglish);
-    const INT_PTR result = DialogBoxIndirectParamW(
-        GetModuleHandleW(nullptr),
-        reinterpret_cast<const DLGTEMPLATE*>(templ.data()), hwnd, DialogProc,
-        reinterpret_cast<LPARAM>(&state));
-    if (result == IDOK) {
-        *output = std::move(state.result);
-        return Result::Confirmed;
+
+    // Work in physical pixels so the dialog follows the display DPI.
+    SDL_RendererLogicalPresentation presentation = SDL_LOGICAL_PRESENTATION_DISABLED;
+    int logicalW = 0, logicalH = 0;
+    SDL_GetRenderLogicalPresentation(renderer, &logicalW, &logicalH, &presentation);
+    SDL_SetRenderLogicalPresentation(renderer, 0, 0, SDL_LOGICAL_PRESENTATION_DISABLED);
+    float dpi = SDL_GetWindowDisplayScale(owner);
+    if (dpi <= 0.0f) dpi = SDL_GetWindowPixelDensity(owner);
+    if (dpi <= 0.0f) dpi = 1.0f;
+    GlyphPainter painter(renderer, font, useEnglish);
+    const bool hasFont = font != nullptr && font->IsLoaded();
+
+    const char* title = useEnglish ? "Insert comments (120 characters or less)"
+                                   : "Insert comments (60 characters or less)";
+    SDL_StartTextInput(owner);
+
+    Result result = Result::Cancelled;
+    bool done = false;
+    SDL_FRect okButton{}, cancelButton{};
+    while (!done) {
+        SDL_Event event;
+        while (SDL_PollEvent(&event)) {
+            switch (event.type) {
+            case SDL_EVENT_QUIT:
+                SDL_PushEvent(&event);
+                result = Result::Cancelled;
+                done = true;
+                break;
+            case SDL_EVENT_TEXT_INPUT:
+                if (event.text.text != nullptr) {
+                    const std::u16string add = ToUtf16(event.text.text);
+                    if (text.size() + add.size() <= limit) text += add;
+                }
+                break;
+            case SDL_EVENT_KEY_DOWN:
+                if (event.key.key == SDLK_RETURN || event.key.key == SDLK_KP_ENTER) {
+                    result = Result::Confirmed;
+                    done = true;
+                } else if (event.key.key == SDLK_ESCAPE) {
+                    result = Result::Cancelled;
+                    done = true;
+                } else if (event.key.key == SDLK_BACKSPACE) {
+                    PopLastCodePoint(&text);
+                }
+                break;
+            case SDL_EVENT_MOUSE_BUTTON_DOWN: {
+                SDL_FPoint point;
+                SDL_ConvertEventToRenderCoordinates(renderer, &event);
+                point = {event.button.x, event.button.y};
+                if (SDL_PointInRectFloat(&point, &okButton)) {
+                    result = Result::Confirmed;
+                    done = true;
+                } else if (SDL_PointInRectFloat(&point, &cancelButton)) {
+                    result = Result::Cancelled;
+                    done = true;
+                }
+                break;
+            }
+            default:
+                break;
+            }
+        }
+        if (done) break;
+
+        int w = 0, h = 0;
+        SDL_GetCurrentRenderOutputSize(renderer, &w, &h);
+        const float width = static_cast<float>(w), height = static_cast<float>(h);
+        const float boxW = std::min(width * 0.94f, 900.0f * dpi), boxH = 170.0f * dpi;
+        const SDL_FRect box{(width - boxW) / 2, (height - boxH) / 2, boxW, boxH};
+        const float line = 26.0f * dpi;
+        okButton = {box.x + boxW - 230 * dpi, box.y + boxH - 50 * dpi, 100 * dpi, 38 * dpi};
+        cancelButton = {box.x + boxW - 120 * dpi, box.y + boxH - 50 * dpi, 110 * dpi, 38 * dpi};
+
+        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+        SDL_RenderClear(renderer);
+        if (backdrop != nullptr) SDL_RenderTexture(renderer, backdrop, nullptr, nullptr);
+        SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 150);
+        SDL_RenderFillRect(renderer, nullptr);
+        SDL_SetRenderDrawColor(renderer, 24, 26, 40, 245);
+        SDL_RenderFillRect(renderer, &box);
+        SDL_SetRenderDrawColor(renderer, 200, 210, 235, 255);
+        SDL_RenderRect(renderer, &box);
+
+        const SDL_FRect field{box.x + 14 * dpi, box.y + 50 * dpi, boxW - 28 * dpi, 38 * dpi};
+        SDL_SetRenderDrawColor(renderer, 8, 9, 18, 255);
+        SDL_RenderFillRect(renderer, &field);
+        SDL_SetRenderDrawColor(renderer, 200, 210, 235, 255);
+        SDL_RenderRect(renderer, &field);
+
+        SDL_SetRenderDrawColor(renderer, 60, 80, 130, 255);
+        SDL_RenderFillRect(renderer, &okButton);
+        SDL_SetRenderDrawColor(renderer, 70, 70, 80, 255);
+        SDL_RenderFillRect(renderer, &cancelButton);
+        SDL_SetRenderDrawColor(renderer, 200, 210, 235, 255);
+        SDL_RenderRect(renderer, &okButton);
+        SDL_RenderRect(renderer, &cancelButton);
+
+        std::u16string shown = text;
+        if (((SDL_GetTicks() / 500u) & 1u) == 0u) shown.push_back(u'_');
+        if (hasFont) {
+            painter.Draw(ToUtf16(title), box.x + 14 * dpi, box.y + 12 * dpi, line);
+            // Keep the tail of long text visible inside the field.
+            const float maxWidth = field.w - 16 * dpi;
+            std::u16string visible = shown;
+            while (visible.size() > 1u &&
+                   painter.Draw(visible, 0, 0, line, true) > maxWidth) {
+                visible.erase(visible.begin());
+            }
+            painter.Draw(visible, field.x + 8 * dpi, field.y + 6 * dpi, line);
+            const float okW = painter.Draw(u"OK", 0, 0, line, true);
+            painter.Draw(u"OK", okButton.x + (okButton.w - okW) / 2,
+                         okButton.y + 5 * dpi, line);
+            const float cancelW = painter.Draw(u"Cancel", 0, 0, line, true);
+            painter.Draw(u"Cancel", cancelButton.x + (cancelButton.w - cancelW) / 2,
+                         cancelButton.y + 5 * dpi, line);
+        } else {
+            SDL_SetRenderScale(renderer, dpi, dpi);
+            SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+            SDL_RenderDebugText(renderer, (box.x + 14 * dpi) / dpi, (box.y + 18 * dpi) / dpi, title);
+            SDL_RenderDebugText(renderer, (field.x + 8 * dpi) / dpi, (field.y + 14 * dpi) / dpi,
+                                ToDisplayAscii(shown).c_str());
+            SDL_RenderDebugText(renderer, (okButton.x + 30 * dpi) / dpi, (okButton.y + 14 * dpi) / dpi, "OK");
+            SDL_RenderDebugText(renderer, (cancelButton.x + 20 * dpi) / dpi, (cancelButton.y + 14 * dpi) / dpi, "Cancel");
+            SDL_SetRenderScale(renderer, 1.0f, 1.0f);
+        }
+        SDL_RenderPresent(renderer);
+        SDL_Delay(16);
     }
-    if (result == IDCANCEL) return Result::Cancelled;
-    if (error != nullptr) *error = "School Days native comment dialog failed";
-    return Result::Failed;
-#endif
+
+    SDL_StopTextInput(owner);
+    SDL_SetRenderLogicalPresentation(renderer, logicalW, logicalH, presentation);
+    if (backdrop != nullptr) SDL_DestroyTexture(backdrop);
+    if (result == Result::Confirmed) *output = std::move(text);
+    return result;
 }
 
 } // namespace Kotonoha

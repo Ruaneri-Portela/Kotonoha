@@ -115,7 +115,7 @@ void ClearError(Kotonoha_KtrfError* error) {
     error->message[0] = '\0';
 }
 
-bool NativeStoryFor(const SchoolDaysStateStore& state, int64_t route,
+bool NativeStoryFor(const KtrfStateStore& state, int64_t route,
                     int* story, Kotonoha_KtrfError* error) {
     if (story == nullptr) return false;
     if (route == 0) *story = 1;
@@ -132,7 +132,7 @@ bool NativeStoryFor(const SchoolDaysStateStore& state, int64_t route,
     return true;
 }
 
-bool SpFallback(const SchoolDaysStateStore& state, uint8_t groupIndex,
+bool SpFallback(const KtrfStateStore& state, uint8_t groupIndex,
                 int* result, Kotonoha_KtrfError* error) {
     if (result == nullptr || groupIndex >= 6) return false;
     const SpGroup group = kSpGroups[groupIndex];
@@ -150,7 +150,7 @@ bool SpFallback(const SchoolDaysStateStore& state, uint8_t groupIndex,
     return true;
 }
 
-bool CheckScriptImpl(const SchoolDaysStateStore& state, int major, int* result,
+bool CheckScriptImpl(const KtrfStateStore& state, int major, int* result,
                      Kotonoha_KtrfError* error) {
     if (result == nullptr) return false;
     *result = 0;
@@ -178,14 +178,14 @@ bool CheckScriptImpl(const SchoolDaysStateStore& state, int major, int* result,
     return SpFallback(state, rule.spGroup, result, error);
 }
 
-bool ReadCheckForPage(const SchoolDaysStateStore& state, int major, int* value,
+bool ReadCheckForPage(const KtrfStateStore& state, int major, int* value,
                       Kotonoha_KtrfError* error) {
     return CheckScriptImpl(state, major, value, error);
 }
 
 } // namespace
 
-int SchoolDaysRouteMapOracle::CheckScript(const SchoolDaysStateStore& state,
+int SchoolDaysRouteMapOracle::CheckScript(const KtrfStateStore& state,
                                          int major,
                                          Kotonoha_KtrfError* error) {
     ClearError(error);
@@ -193,7 +193,7 @@ int SchoolDaysRouteMapOracle::CheckScript(const SchoolDaysStateStore& state,
     return CheckScriptImpl(state, major, &result, error) ? result : 0;
 }
 
-int SchoolDaysRouteMapOracle::GetRouteMapPage(const SchoolDaysStateStore& state,
+int SchoolDaysRouteMapOracle::GetRouteMapPage(const KtrfStateStore& state,
                                              int major,
                                              Kotonoha_KtrfError* error) {
     ClearError(error);

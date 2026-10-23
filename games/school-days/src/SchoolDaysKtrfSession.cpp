@@ -69,7 +69,7 @@ bool RouteMapCoordinateValue(const SchoolDaysFlgH& flags,
     return true;
 }
 
-bool ProbeResolvedOrs(const Kotonoha_SchoolDaysKtrfOrsAsset& asset,
+bool ProbeResolvedOrs(const Kotonoha_KtrfOrsAsset& asset,
                       size_t* bytes, Kotonoha_KtrfError* error) {
     if (bytes != nullptr) *bytes = 0u;
     if (asset.path[0] == '\0') {
@@ -78,7 +78,7 @@ bool ProbeResolvedOrs(const Kotonoha_SchoolDaysKtrfOrsAsset& asset,
     }
     const std::string reference(asset.path, asset.path_length);
     if (!SchoolDaysAssetReferenceIsVirtual(reference))
-        return Kotonoha_SchoolDaysKtrfProbeOrs(&asset, bytes, error) != 0;
+        return Kotonoha_KtrfProbeOrs(&asset, bytes, error) != 0;
 
     std::vector<uint8_t> content;
     std::string assetError;
@@ -110,7 +110,7 @@ bool SchoolDaysKtrfSession::StepResult::HasHook(const std::string& symbol) const
 
 SchoolDaysKtrfSession::SchoolDaysKtrfSession() {
     Kotonoha_KtrfInit(&document);
-    Kotonoha_SchoolDaysKtrfAdapterInit(&adapter);
+    Kotonoha_KtrfAdapterInit(&adapter);
 }
 
 SchoolDaysKtrfSession::~SchoolDaysKtrfSession() {
@@ -121,8 +121,8 @@ int SchoolDaysKtrfSession::OnEnding(int64_t endingCode, void* userdata,
                                     Kotonoha_KtrfError* error) {
     auto* self = static_cast<SchoolDaysKtrfSession*>(userdata);
     if (self == nullptr) return 0;
-    Kotonoha_SchoolDaysKtrfNodeView view{};
-    if (!Kotonoha_SchoolDaysKtrfCurrentNodeView(&self->adapter, &view, error) ||
+    Kotonoha_KtrfNodeView view{};
+    if (!Kotonoha_KtrfCurrentNodeView(&self->adapter, &view, error) ||
         view.kind != KOTONOHA_SDHQ_NODE_SCENE || view.scene_key == nullptr) {
         return 0;
     }
@@ -143,9 +143,9 @@ int SchoolDaysKtrfSession::OnHook(const char* symbol, size_t symbolLength,
     if (hook == "overflow.sdhq:callback_00") {
         int route = 0;
         int scene = 0;
-        Kotonoha_SchoolDaysKtrfNodeView view{};
+        Kotonoha_KtrfNodeView view{};
         if (!self->state.ReadCoordinate(&route, &scene, error) ||
-            !Kotonoha_SchoolDaysKtrfCurrentNodeView(&self->adapter, &view, error) ||
+            !Kotonoha_KtrfCurrentNodeView(&self->adapter, &view, error) ||
             view.kind != KOTONOHA_SDHQ_NODE_SCENE || view.scene_key == nullptr) {
             return 0;
         }
@@ -172,7 +172,7 @@ int SchoolDaysKtrfSession::OnEffectApplied(uint32_t effectIndex,
 }
 
 bool SchoolDaysKtrfSession::ResolveOrsPhysicalPath(
-    Kotonoha_SchoolDaysKtrfOrsAsset* asset, Kotonoha_KtrfError* error) const {
+    Kotonoha_KtrfOrsAsset* asset, Kotonoha_KtrfError* error) const {
     if (asset == nullptr || asset->scene_key == nullptr ||
         asset->scene_key_length == 0u) {
         if (error != nullptr) {
@@ -238,7 +238,7 @@ bool SchoolDaysKtrfSession::ResolveOrsPhysicalPath(
 }
 
 bool SchoolDaysKtrfSession::FillScene(
-    const Kotonoha_SchoolDaysKtrfOrsAsset& asset,
+    const Kotonoha_KtrfOrsAsset& asset,
     SchoolDaysKtrfScene* out) const {
     if (out == nullptr || asset.scene_key == nullptr || asset.path[0] == '\0') {
         return false;
@@ -254,7 +254,7 @@ bool SchoolDaysKtrfSession::Open(const char* ktrfPath, const char* root,
                                  Kotonoha_KtrfError* error) {
     Close();
     Kotonoha_KtrfInit(&document);
-    Kotonoha_SchoolDaysKtrfAdapterInit(&adapter);
+    Kotonoha_KtrfAdapterInit(&adapter);
 
     if (ktrfPath == nullptr || *ktrfPath == '\0' || root == nullptr || *root == '\0') {
         if (error != nullptr) {
@@ -269,26 +269,26 @@ bool SchoolDaysKtrfSession::Open(const char* ktrfPath, const char* root,
         return false;
     }
 
-    Kotonoha_SchoolDaysKtrfCallbacks callbacks{};
+    Kotonoha_KtrfCallbacks callbacks{};
     callbacks.register_ending = &SchoolDaysKtrfSession::OnEnding;
     callbacks.call_hook = &SchoolDaysKtrfSession::OnHook;
     callbacks.effect_applied = &SchoolDaysKtrfSession::OnEffectApplied;
     callbacks.userdata = this;
 
-    if (!Kotonoha_SchoolDaysKtrfAdapterBind(&adapter, &document, &callbacks, error)) {
+    if (!Kotonoha_KtrfAdapterBind(&adapter, &document, &callbacks, error)) {
         Kotonoha_KtrfClean(&document);
         Kotonoha_KtrfInit(&document);
         return false;
     }
     if (!state.Bind(&adapter, error)) {
-        Kotonoha_SchoolDaysKtrfAdapterClean(&adapter);
+        Kotonoha_KtrfAdapterClean(&adapter);
         Kotonoha_KtrfClean(&document);
         Kotonoha_KtrfInit(&document);
         return false;
     }
     if (!persistence.ValidateEffectOracle(adapter.document, error)) {
         state.Unbind();
-        Kotonoha_SchoolDaysKtrfAdapterClean(&adapter);
+        Kotonoha_KtrfAdapterClean(&adapter);
         Kotonoha_KtrfClean(&document);
         Kotonoha_KtrfInit(&document);
         return false;
@@ -308,11 +308,11 @@ void SchoolDaysKtrfSession::Close() {
     persistence = SchoolDaysPersistence{};
     state.Unbind();
     if (opened || adapter.document != nullptr) {
-        Kotonoha_SchoolDaysKtrfAdapterClean(&adapter);
+        Kotonoha_KtrfAdapterClean(&adapter);
     }
     Kotonoha_KtrfClean(&document);
     Kotonoha_KtrfInit(&document);
-    Kotonoha_SchoolDaysKtrfAdapterInit(&adapter);
+    Kotonoha_KtrfAdapterInit(&adapter);
     assetsRoot.clear();
     pendingHooks.clear();
     pendingEndings.clear();
@@ -378,8 +378,8 @@ bool SchoolDaysKtrfSession::PlanLoadSave(
 
     uint32_t matchedNode = KOTONOHA_KTRF_NULL_INDEX;
     for (uint32_t nodeIndex = 0u; nodeIndex < nodes->item_count; ++nodeIndex) {
-        Kotonoha_SchoolDaysKtrfNodeView view{};
-        if (!Kotonoha_SchoolDaysKtrfGetNodeView(&adapter, nodeIndex, &view,
+        Kotonoha_KtrfNodeView view{};
+        if (!Kotonoha_KtrfGetNodeView(&adapter, nodeIndex, &view,
                                                 error)) {
             return false;
         }
@@ -438,7 +438,7 @@ bool SchoolDaysKtrfSession::CommitLoadSave(const LoadPlan& plan,
         return false;
     }
 
-    SchoolDaysStateStore::Snapshot before;
+    KtrfStateStore::Snapshot before;
     if (!state.Capture(&before, error)) return false;
     const SchoolDaysHistory historyBefore = history;
     const SchoolDaysPersistence persistenceBefore = persistence;
@@ -574,7 +574,7 @@ bool SchoolDaysKtrfSession::CommitRouteMapCheckpoint(
                             "School Days RouteMap checkpoint changed before commit");
     }
 
-    SchoolDaysStateStore::Snapshot stateBefore;
+    KtrfStateStore::Snapshot stateBefore;
     if (!state.Capture(&stateBefore, error)) return false;
     const SchoolDaysHistory historyBefore = history;
     const SchoolDaysPersistence persistenceBefore = persistence;
@@ -639,7 +639,7 @@ bool SchoolDaysKtrfSession::ResetNewGame(SchoolDaysKtrfScene* scene,
     // process-persistent and must survive returning from Title to a fresh game.
     // Preserve both runtime-backed and detached global projections across the
     // generic router reset.
-    SchoolDaysStateStore::Snapshot before;
+    KtrfStateStore::Snapshot before;
     std::unordered_map<std::string, int64_t> globalBefore;
     if (!state.Capture(&before, error) ||
         !state.EnumerateGlobalInts(&globalBefore, error)) {
@@ -659,8 +659,8 @@ bool SchoolDaysKtrfSession::ResetNewGame(SchoolDaysKtrfScene* scene,
         pendingEndings = endingsBefore;
     };
 
-    Kotonoha_SchoolDaysKtrfNodeView view{};
-    if (!Kotonoha_SchoolDaysKtrfResetNewGame(&adapter, &view, error)) {
+    Kotonoha_KtrfNodeView view{};
+    if (!Kotonoha_KtrfResetNewGame(&adapter, &view, error)) {
         rollback();
         return false;
     }
@@ -673,8 +673,8 @@ bool SchoolDaysKtrfSession::ResetNewGame(SchoolDaysKtrfScene* scene,
         return false;
     }
 
-    Kotonoha_SchoolDaysKtrfOrsAsset asset{};
-    if (!Kotonoha_SchoolDaysKtrfCurrentOrs(&adapter, assetsRoot.c_str(), &asset,
+    Kotonoha_KtrfOrsAsset asset{};
+    if (!Kotonoha_KtrfCurrentOrs(&adapter, assetsRoot.c_str(), &asset,
                                            error) ||
         !ResolveOrsPhysicalPath(&asset, error)) {
         rollback();
@@ -698,8 +698,8 @@ bool SchoolDaysKtrfSession::ResetNewGame(SchoolDaysKtrfScene* scene,
 bool SchoolDaysKtrfSession::CurrentScene(SchoolDaysKtrfScene* scene,
                                          Kotonoha_KtrfError* error) const {
     if (!opened || scene == nullptr) return false;
-    Kotonoha_SchoolDaysKtrfOrsAsset asset{};
-    if (!Kotonoha_SchoolDaysKtrfCurrentOrs(&adapter, assetsRoot.c_str(), &asset,
+    Kotonoha_KtrfOrsAsset asset{};
+    if (!Kotonoha_KtrfCurrentOrs(&adapter, assetsRoot.c_str(), &asset,
                                            error) ||
         !ResolveOrsPhysicalPath(&asset, error)) {
         return false;
@@ -719,8 +719,8 @@ bool SchoolDaysKtrfSession::ResolveSceneNode(uint32_t nodeIndex,
         return false;
     }
 
-    Kotonoha_SchoolDaysKtrfOrsAsset asset{};
-    if (!Kotonoha_SchoolDaysKtrfResolveNodeOrs(
+    Kotonoha_KtrfOrsAsset asset{};
+    if (!Kotonoha_KtrfResolveNodeOrs(
             &adapter, nodeIndex, assetsRoot.c_str(), &asset, error) ||
         !ResolveOrsPhysicalPath(&asset, error)) {
         return false;
@@ -759,8 +759,8 @@ bool SchoolDaysKtrfSession::ResolveSceneKey(
 
     uint32_t matchedNode = KOTONOHA_KTRF_NULL_INDEX;
     for (uint32_t nodeIndex = 0u; nodeIndex < nodes->item_count; ++nodeIndex) {
-        Kotonoha_SchoolDaysKtrfNodeView view{};
-        if (!Kotonoha_SchoolDaysKtrfGetNodeView(&adapter, nodeIndex, &view, error))
+        Kotonoha_KtrfNodeView view{};
+        if (!Kotonoha_KtrfGetNodeView(&adapter, nodeIndex, &view, error))
             return false;
         if (view.kind != KOTONOHA_SDHQ_NODE_SCENE || view.scene_key == nullptr ||
             view.scene_key_length != sceneKey.size() ||
@@ -828,8 +828,8 @@ bool SchoolDaysKtrfSession::ResolveSemanticCoordinate(
 
     const size_t expectedLength = std::strlen(expectedKey);
     for (uint32_t nodeIndex = 0u; nodeIndex < nodes->item_count; ++nodeIndex) {
-        Kotonoha_SchoolDaysKtrfNodeView view{};
-        if (!Kotonoha_SchoolDaysKtrfGetNodeView(&adapter, nodeIndex, &view, error))
+        Kotonoha_KtrfNodeView view{};
+        if (!Kotonoha_KtrfGetNodeView(&adapter, nodeIndex, &view, error))
             return false;
         bool matches = view.scene_key != nullptr &&
                        view.scene_key_length == expectedLength &&
@@ -893,8 +893,8 @@ bool SchoolDaysKtrfSession::DebugActivateNode(uint32_t nodeIndex,
         return false;
     }
 
-    Kotonoha_SchoolDaysKtrfNodeView view{};
-    if (!Kotonoha_SchoolDaysKtrfGetNodeView(&adapter, nodeIndex, &view, error)) {
+    Kotonoha_KtrfNodeView view{};
+    if (!Kotonoha_KtrfGetNodeView(&adapter, nodeIndex, &view, error)) {
         return false;
     }
     if (view.kind != KOTONOHA_SDHQ_NODE_SCENE) {
@@ -931,7 +931,7 @@ bool SchoolDaysKtrfSession::CommitChoice(int64_t value, int* accepted,
     }
     const bool wasCommitted = adapter.router.choice_committed[choiceIndex] != 0u;
 
-    SchoolDaysStateStore::Snapshot stateBefore;
+    KtrfStateStore::Snapshot stateBefore;
     if (!state.Capture(&stateBefore, error)) return false;
     const SchoolDaysPersistence persistenceBefore = persistence;
     const bool topMeterBefore = topMeterRefreshRequested;
@@ -942,7 +942,7 @@ bool SchoolDaysKtrfSession::CommitChoice(int64_t value, int* accepted,
         return true;
     }
 
-    if (!Kotonoha_SchoolDaysKtrfCommitChoice(&adapter, value, accepted, error)) {
+    if (!Kotonoha_KtrfCommitChoice(&adapter, value, accepted, error)) {
         Kotonoha_KtrfError ignored{};
         (void)state.Restore(stateBefore, &ignored);
         persistence = persistenceBefore;
@@ -950,8 +950,8 @@ bool SchoolDaysKtrfSession::CommitChoice(int64_t value, int* accepted,
         return false;
     }
     if (*accepted != 0 && !wasCommitted) {
-        Kotonoha_SchoolDaysKtrfNodeView view{};
-        if (!Kotonoha_SchoolDaysKtrfCurrentNodeView(&adapter, &view, error) ||
+        Kotonoha_KtrfNodeView view{};
+        if (!Kotonoha_KtrfCurrentNodeView(&adapter, &view, error) ||
             view.kind != KOTONOHA_SDHQ_NODE_SCENE || view.scene_key == nullptr ||
             !persistence.RecordChoice(
                 std::string(view.scene_key, view.scene_key_length), value,
@@ -970,7 +970,7 @@ bool SchoolDaysKtrfSession::Advance(const char* trigger, StepResult* out,
                                     Kotonoha_KtrfError* error) {
     if (!opened || out == nullptr) return false;
 
-    SchoolDaysStateStore::Snapshot stateBefore;
+    KtrfStateStore::Snapshot stateBefore;
     if (!state.Capture(&stateBefore, error)) return false;
     const SchoolDaysPersistence persistenceBefore = persistence;
     const auto hooksBefore = pendingHooks;
@@ -989,8 +989,8 @@ bool SchoolDaysKtrfSession::Advance(const char* trigger, StepResult* out,
     pendingHooks.clear();
     pendingEndings.clear();
 
-    Kotonoha_SchoolDaysKtrfAssetAdvanceResult result{};
-    if (!Kotonoha_SchoolDaysKtrfAdvanceToOrs(
+    Kotonoha_KtrfAssetAdvanceResult result{};
+    if (!Kotonoha_KtrfAdvanceToOrs(
             &adapter, assetsRoot.c_str(), trigger, &result, error)) {
         rollback();
         return false;
@@ -1050,7 +1050,7 @@ bool SchoolDaysKtrfSession::CommitTerminalRoutingReset(
         return false;
     }
 
-    SchoolDaysStateStore::Snapshot stateBefore;
+    KtrfStateStore::Snapshot stateBefore;
     if (!state.Capture(&stateBefore, error)) return false;
     const SchoolDaysPersistence persistenceBefore = persistence;
     const SchoolDaysHistory historyBefore = history;
@@ -1114,8 +1114,8 @@ bool SchoolDaysKtrfSession::PlanBack(BackPlan* plan,
             }
             return false;
         }
-        Kotonoha_SchoolDaysKtrfNodeView sourceView{};
-        if (!Kotonoha_SchoolDaysKtrfGetNodeView(
+        Kotonoha_KtrfNodeView sourceView{};
+        if (!Kotonoha_KtrfGetNodeView(
                 &adapter, adapter.router.current_node_index, &sourceView, error)) {
             return false;
         }
@@ -1147,7 +1147,7 @@ bool SchoolDaysKtrfSession::PlanBack(BackPlan* plan,
             return false;
         }
         if (routingOnly) {
-            SchoolDaysStateStore::Snapshot before;
+            KtrfStateStore::Snapshot before;
             if (!state.Capture(&before, error)) return false;
 
             std::vector<std::string> ignoredHooks;
@@ -1288,7 +1288,7 @@ bool SchoolDaysKtrfSession::CommitBack(BackPlan* plan,
         return false;
     }
 
-    SchoolDaysStateStore::Snapshot before;
+    KtrfStateStore::Snapshot before;
     if (!state.Capture(&before, error)) return false;
     const SchoolDaysHistory historyBefore = history;
     const SchoolDaysPersistence persistenceBefore = persistence;

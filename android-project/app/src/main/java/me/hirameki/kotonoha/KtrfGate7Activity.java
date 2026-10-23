@@ -85,6 +85,7 @@ public class KtrfGate7Activity extends Activity {
 
         Kotonoha.setArguments(args);
         Intent intent = new Intent(this, Kotonoha.class);
+        intent.putExtra(Kotonoha.EXTRA_TARGET, Kotonoha.TARGET_SCHOOL_DAYS);
         intent.addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
         startActivityForResult(intent, REQUEST_KOTONOHA);
     }

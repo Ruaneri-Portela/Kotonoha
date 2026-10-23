@@ -5,12 +5,12 @@ struct Kotonoha_Game;
 namespace Kotonoha {
 class Gameplay;
 class SchoolDaysKtrfAppController;
-class SchoolDaysSceneTransaction;
+class KtrfSceneTransaction;
 }
 
 bool Kotonoha_SchoolDaysKtrfDebugGuiRun(
     Kotonoha::SchoolDaysKtrfAppController* controller,
     Kotonoha::Kotonoha* game,
     Kotonoha::Gameplay* play,
-    Kotonoha::SchoolDaysSceneTransaction* transaction,
+    Kotonoha::KtrfSceneTransaction* transaction,
     Kotonoha_Game& context);

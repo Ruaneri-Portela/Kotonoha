@@ -36,7 +36,7 @@ It reuses:
 tools/ktrf/diff_sdhq_targeted_transitions.py
 tools/ktrf/diff_sdhq_witnesses.py
 tools/ktrf/interpreter.py
-tests/SchoolDaysOracleTrace.cpp
+games/school-days/tests/SchoolDaysOracleTrace.cpp
 ```
 
 No new routing evaluator is introduced.

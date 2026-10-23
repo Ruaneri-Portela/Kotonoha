@@ -6,8 +6,8 @@
 
 extern "C" {
 #include <Kotonoha/parsers/Ktrf.h>
-#include <Kotonoha/routing/SchoolDaysKtrfAdapter.h>
-#include <Kotonoha/routing/SchoolDaysKtrfAssetResolver.h>
+#include <Kotonoha/routing/KtrfAdapter.h>
+#include <Kotonoha/routing/KtrfAssetResolver.h>
 }
 
 #include <Kotonoha/routing/SchoolDaysHistory.hpp>
@@ -125,10 +125,10 @@ public:
     bool DebugActivateNode(uint32_t nodeIndex, Kotonoha_KtrfError* error);
 
     const std::string& AssetsRoot() const { return assetsRoot; }
-    const Kotonoha_SchoolDaysKtrfAdapter* Adapter() const { return &adapter; }
-    Kotonoha_SchoolDaysKtrfAdapter* MutableAdapter() { return &adapter; }
-    const SchoolDaysStateStore& State() const { return state; }
-    SchoolDaysStateStore& State() { return state; }
+    const Kotonoha_KtrfAdapter* Adapter() const { return &adapter; }
+    Kotonoha_KtrfAdapter* MutableAdapter() { return &adapter; }
+    const KtrfStateStore& State() const { return state; }
+    KtrfStateStore& State() { return state; }
     const SchoolDaysHistory& History() const { return history; }
     SchoolDaysHistory& History() { return history; }
     const SchoolDaysPersistence& Persistence() const { return persistence; }
@@ -147,9 +147,9 @@ private:
     static int OnEffectApplied(uint32_t effectIndex, void* userdata,
                                Kotonoha_KtrfError* error);
 
-    bool ResolveOrsPhysicalPath(Kotonoha_SchoolDaysKtrfOrsAsset* asset,
+    bool ResolveOrsPhysicalPath(Kotonoha_KtrfOrsAsset* asset,
                                 Kotonoha_KtrfError* error) const;
-    bool FillScene(const Kotonoha_SchoolDaysKtrfOrsAsset& asset,
+    bool FillScene(const Kotonoha_KtrfOrsAsset& asset,
                    SchoolDaysKtrfScene* out) const;
     bool ResolveSemanticCoordinate(int route, int scene,
                                    SchoolDaysCoordinate* coordinate,
@@ -158,8 +158,8 @@ private:
                                    Kotonoha_KtrfError* error) const;
 
     Kotonoha_KtrfDocument document{};
-    Kotonoha_SchoolDaysKtrfAdapter adapter{};
-    SchoolDaysStateStore state;
+    Kotonoha_KtrfAdapter adapter{};
+    KtrfStateStore state;
     SchoolDaysHistory history;
     SchoolDaysPersistence persistence;
     std::string assetsRoot;

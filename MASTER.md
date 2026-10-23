@@ -67,7 +67,7 @@ Status: **VALIDADO**
 
 Pipeline funcional:
 
-Windows → Gradle → CMake → vcpkg → Android NDK/Clang ARM64 → libKotonoha.so → APK → Poco X7 Pro
+Windows → Gradle → CMake → vcpkg → Android NDK/Clang ARM64 → libKotonohaSchoolDays.so/libKotonohaGeneric.so → APK → Poco X7 Pro
 
 O APK compila, instala e executa no dispositivo real.
 

@@ -37,7 +37,7 @@ does not gain filesystem or School Days naming rules.
 ## New native API
 
 ```text
-SchoolDaysKtrfAssetResolver.h/.c
+KtrfAssetResolver.h/.c
 ```
 
 provides:
@@ -140,7 +140,7 @@ That replacement is Gate 3:
 
 ```text
 KtrfRouter
-  -> SchoolDaysKtrfAdapter
+  -> KtrfAdapter
   -> ORS Asset Resolver
   -> Gameplay/Event
   -> next physical scene

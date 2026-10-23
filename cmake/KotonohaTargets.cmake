@@ -33,6 +33,11 @@ set(KOTONOHA_PROFILE_RUNTIME_SOURCES
     "${KOTONOHA_ENGINE_SOURCE_DIR}/components/Audio.cpp"
     "${KOTONOHA_ENGINE_SOURCE_DIR}/components/Events.cpp"
     "${KOTONOHA_ENGINE_SOURCE_DIR}/components/Prompt.cpp"
+    "${KOTONOHA_ENGINE_SOURCE_DIR}/components/Panel.cpp"
+    "${KOTONOHA_ENGINE_SOURCE_DIR}/components/GameplayFlow.cpp"
+    "${KOTONOHA_ENGINE_SOURCE_DIR}/components/TextBox.cpp"
+    "${KOTONOHA_ENGINE_SOURCE_DIR}/components/SaveStore.cpp"
+    "${KOTONOHA_ENGINE_SOURCE_DIR}/components/ChoiceMenu.cpp"
     "${KOTONOHA_ENGINE_SOURCE_DIR}/components/Video.cpp"
     "${KOTONOHA_ENGINE_SOURCE_DIR}/parsers/Ors.c"
     "${KOTONOHA_ENGINE_SOURCE_DIR}/renders/AudioRender.c"
@@ -51,6 +56,9 @@ set(KOTONOHA_PROFILE_RUNTIME_HEADERS
     "${KOTONOHA_INCLUDE_DIR}/Kotonoha/components/Audio.hpp"
     "${KOTONOHA_INCLUDE_DIR}/Kotonoha/components/Events.hpp"
     "${KOTONOHA_INCLUDE_DIR}/Kotonoha/components/Prompt.hpp"
+    "${KOTONOHA_INCLUDE_DIR}/Kotonoha/components/TextBox.hpp"
+    "${KOTONOHA_INCLUDE_DIR}/Kotonoha/components/SaveStore.hpp"
+    "${KOTONOHA_INCLUDE_DIR}/Kotonoha/components/ChoiceMenu.hpp"
     "${KOTONOHA_INCLUDE_DIR}/Kotonoha/components/Video.hpp"
     "${KOTONOHA_INCLUDE_DIR}/Kotonoha/parsers/Ors.h"
     "${KOTONOHA_INCLUDE_DIR}/Kotonoha/renders/AudioRender.h"
@@ -160,7 +168,7 @@ if(ANDROID)
     target_link_directories(KotonohaEngine PUBLIC ${LIBASS_LIBRARY_DIRS})
     target_compile_options(KotonohaEngine PRIVATE ${LIBASS_CFLAGS_OTHER})
     target_link_options(KotonohaEngine PUBLIC ${LIBASS_LDFLAGS_OTHER})
-    target_compile_definitions(KotonohaEngine PUBLIC KOTONOHA_HAS_ANIME4K=1)
+    target_compile_definitions(KotonohaEngine PUBLIC KOTONOHA_HAS_MPV_UPSCALER=1)
 
     target_link_libraries(KotonohaEngine PUBLIC
         SDL3_shared_bundle
@@ -223,10 +231,10 @@ else()
 
     find_package(OpenGL QUIET)
     if(OpenGL_FOUND)
-        target_compile_definitions(KotonohaEngine PUBLIC KOTONOHA_HAS_ANIME4K=1)
+        target_compile_definitions(KotonohaEngine PUBLIC KOTONOHA_HAS_MPV_UPSCALER=1)
         target_link_libraries(KotonohaEngine PUBLIC OpenGL::GL)
     else()
-        message(STATUS "OpenGL not found; Anime4K upscaling is disabled")
+        message(STATUS "OpenGL not found; MPVCompatibleUpscaler upscaling is disabled")
     endif()
 
     if(CMAKE_SYSTEM_NAME STREQUAL "Haiku")

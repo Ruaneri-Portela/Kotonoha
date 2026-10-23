@@ -1,5 +1,6 @@
 #include <Kotonoha/Init.hpp>
 #include <Kotonoha/debug/DebugUi.hpp>
+#include <Kotonoha/debug/McpServer.hpp>
 #include <Kotonoha/specials/Upscaling.h>
 #include <Kotonoha/utils/Log.h>
 #include <algorithm>
@@ -171,11 +172,18 @@ void EngineMasterShutdown(Kotonoha **app) {
   engineMasterActive = false;
 }
 
+bool EngineMasterCapturedByDebugUi(const SDL_Event *event) {
+  return global.config.enableDebugUi.load() && Debug::ShouldCaptureEvent(event);
+}
+
 SDL_AppResult EngineMasterEvent(Kotonoha *app, SDL_Event *event) {
   if (event == nullptr) {
     return SDL_APP_CONTINUE;
   }
   Debug::ProcessEvent(event);
+  if (EngineMasterCapturedByDebugUi(event)) {
+    return SDL_APP_CONTINUE;
+  }
   return app != nullptr ? app->Event(event) : SDL_APP_CONTINUE;
 }
 
@@ -188,6 +196,7 @@ SDL_AppResult EngineMasterMain(Kotonoha *app, Gameplay **running) {
     SDL_SetRenderDrawColor(global.render, 0, 0, 0, 255);
     SDL_RenderClear(global.render);
     app->RenderSplash();
+    Debug::Mcp::Service(app, nullptr);
     SDL_RenderPresent(global.render);
     *running = nullptr;
     return SDL_APP_CONTINUE;
@@ -315,7 +324,7 @@ bool InitRenderer() {
     rendererMethods.push_back(global.config.preferredRenderer);
   }
 
-#if defined(KOTONOHA_HAS_ANIME4K)
+#if defined(KOTONOHA_HAS_MPV_UPSCALER)
   if (!hasExplicitRenderer && global.config.scalerFactor > 1.0f) {
 #if defined(__ANDROID__) || defined(ANDROID) ||                                \
     (defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE)
@@ -492,6 +501,8 @@ bool PreloadFontsInto(ASS_Library *library,
           return SDL_ENUM_CONTINUE;
         }
 
+        TTF_SetFontHinting(font, TTF_HINTING_LIGHT);
+        TTF_SetFontKerning(font, true);
         (*c->fonts)[fontName] = font;
 
         return SDL_ENUM_CONTINUE;
@@ -531,7 +542,7 @@ bool InitLibAssAndTTFs(std::string defaultFont,
                 ASS_FONTPROVIDER_NONE, nullptr, 1);
 
   ass_set_shaper(global.ass_renderer, ASS_SHAPING_COMPLEX);
-  ass_set_hinting(global.ass_renderer, ASS_HINTING_NATIVE);
+  ass_set_hinting(global.ass_renderer, ASS_HINTING_NONE);
 
   return true;
 }

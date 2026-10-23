@@ -127,7 +127,7 @@ void Kotonoha::UpdateTitleMusic(bool titleScreen) {
   if (titleAudio == nullptr) {
     titleDemuxer = KotonohaDemuxerCreate(false, &gameContext.config);
     titleTime = KotonohaTimeNew(true);
-    titleAudio = new Audio(sound, titleTime, titleDemuxer);
+    titleAudio = std::make_unique<Audio>(sound, titleTime, titleDemuxer);
     KotonohaDemuxerStart(titleDemuxer);
   }
   // One-shot (0/0) looping BGM: plays regardless of the timeline
@@ -213,8 +213,7 @@ Kotonoha::~Kotonoha() {
 
   ClearGameplays();
 
-  delete titleAudio;
-  titleAudio = nullptr;
+  titleAudio.reset();
   if (titleDemuxer != nullptr) {
     KotonohaDemuxerDestroy(&titleDemuxer);
   }

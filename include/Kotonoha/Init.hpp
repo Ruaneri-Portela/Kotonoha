@@ -33,6 +33,8 @@ Kotonoha *GetApp(void *appstate);
 SDL_AppResult EngineMasterInit(Kotonoha **app, int argc, char *argv[]);
 void EngineMasterShutdown(Kotonoha **app);
 SDL_AppResult EngineMasterEvent(Kotonoha *app, SDL_Event *event);
+// True when the debug UI owns the event; game-side handlers must skip it.
+bool EngineMasterCapturedByDebugUi(const SDL_Event *event);
 SDL_AppResult EngineMasterMain(Kotonoha *app, Gameplay **running);
 
 bool BasicGuiInit(Kotonoha_Game &gameContext, std::vector<Uint8> font);

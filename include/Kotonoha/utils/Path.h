@@ -2,11 +2,7 @@
 
 #include <stdbool.h>
 
-#if defined(_WIN32)
-#define KotonohaPath_SEPARATOR "\\"
-#else
 #define KotonohaPath_SEPARATOR "/"
-#endif
 
 #ifdef __cplusplus
 extern "C" {

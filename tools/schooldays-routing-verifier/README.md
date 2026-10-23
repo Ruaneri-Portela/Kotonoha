@@ -6,7 +6,7 @@ This directory contains standalone verification helpers for the recovered School
 
 `run_quick.ps1` compiles and runs the existing 22-ending witness suite directly against:
 
-- `tests/SchoolDaysFullRouterTest.cpp`
+- `games/school-days/tests/SchoolDaysFullRouterTest.cpp`
 - `games/school-days/src/SchoolDaysRouter.cpp`
 
 It uses the Visual Studio 2022 C++ toolchain discovered through `vswhere.exe`.
@@ -32,7 +32,7 @@ The exhaustive state-space verifier is the next milestone and is intentionally n
 
 Its required graph-level baseline is documented under:
 
-`docs/school-days-routing-validation/MODEL_CHECKING_PLAN.md`
+`games/school-days/docs/routing-validation/MODEL_CHECKING_PLAN.md`
 
 ## Scene inventory audit
 

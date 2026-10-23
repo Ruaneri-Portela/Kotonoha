@@ -35,6 +35,11 @@ bool BeginWorkspaceFrame(Kotonoha_Game &context,
 // Renders the workspace and restores SDL's normal render scale.
 bool FinishWorkspaceFrame(Kotonoha_Game &context);
 
+// Tracks enableDebugUi; on each activation (F7, KOTONOHA_DEBUG_UI, settings)
+// every tool window is closed so only the Debug panel is shown. Returns true
+// on the activation frame so games can close their own windows too.
+bool SyncActivation(Kotonoha_Game &context);
+
 // Builds and renders one debug UI frame. Returns false when the application
 // should stop.
 bool Run(::Kotonoha::Kotonoha *game, ::Kotonoha::Gameplay *play,
@@ -42,12 +47,14 @@ bool Run(::Kotonoha::Kotonoha *game, ::Kotonoha::Gameplay *play,
 
 // Forwards an SDL event to ImGui.
 void ProcessEvent(SDL_Event *event);
+// True when the debug UI owns this input event and the game must not see it.
+bool ShouldCaptureEvent(const SDL_Event *event);
 void UpdateFocusState();
 
 // Draws the Debug menu and makes every debug window reachable.
 void DrawWindowMenu(WindowMenuExtension extension = nullptr,
                     void *userdata = nullptr);
-bool &ControlPanelVisibility();
+bool &PlaybackVisibility();
 
 // Draws utility windows inside an already-started ImGui frame.
 bool DrawAuxiliaryWindows(::Kotonoha::Kotonoha *game,

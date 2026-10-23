@@ -9,7 +9,7 @@
 #include <Kotonoha/routing/SchoolDaysBackLog.hpp>
 #include <Kotonoha/routing/SchoolDaysBackLogPresenter.hpp>
 #include <Kotonoha/routing/SchoolDaysInputPolicy.hpp>
-#include <Kotonoha/routing/SchoolDaysSceneTransaction.hpp>
+#include <Kotonoha/routing/KtrfSceneTransaction.hpp>
 #include <Kotonoha/routing/SchoolDaysSaveProfile.hpp>
 #include <Kotonoha/routing/SchoolDaysSaveStorage.hpp>
 #include <Kotonoha/routing/SchoolDaysCommentDialog.hpp>
@@ -23,9 +23,11 @@
 #include <Kotonoha/routing/SchoolDaysSystemUi.hpp>
 #include <Kotonoha/routing/SchoolDaysTitleProfile.hpp>
 #include <Kotonoha/debug/DebugUi.hpp>
+#include <Kotonoha/debug/McpServer.hpp>
 #include <Kotonoha/SchoolDaysImageAssetResolver.hpp>
 #include <Kotonoha/SchoolDaysAssetMount.hpp>
 #include <Kotonoha/components/Audio.hpp>
+#include <Kotonoha/components/GameplayFlow.hpp>
 #include <Kotonoha/components/Sound.hpp>
 #include <Kotonoha/specials/Upscaling.h>
 #include <Kotonoha/utils/OverlayRender.h>
@@ -33,6 +35,7 @@
 #include <imgui.h>
 #include <algorithm>
 #include <cstring>
+#include <filesystem>
 #include <ctime>
 #include <memory>
 #include <limits>
@@ -60,7 +63,7 @@ struct KtrfLaunchOptions {
 };
 
 std::unique_ptr<Kotonoha::SchoolDaysKtrfAppController> ktrfController;
-std::unique_ptr<Kotonoha::SchoolDaysSceneTransaction> ktrfSceneTransaction;
+std::unique_ptr<Kotonoha::KtrfSceneTransaction> ktrfSceneTransaction;
 std::unique_ptr<Kotonoha::SchoolDaysSystemUi> ktrfSystemUi;
 std::unique_ptr<Kotonoha::SchoolDaysMenuBarPresenter> ktrfMenuBar;
 std::unique_ptr<Kotonoha::SchoolDaysBackLogModel> ktrfBackLog;
@@ -592,8 +595,7 @@ bool StartSchoolDaysTitleBgm(
   ktrfTitleAudio = std::make_unique<Kotonoha::Audio>(
       static_cast<Kotonoha::Sound *>(global.sound), ktrfTitleAudioClock);
   ktrfTitleBgm = ktrfTitleAudio->AddMedia(
-      resolved.physical.c_str(), 0u, std::numeric_limits<Uint64>::max(), true,
-      "BGM", true);
+      resolved.physical.c_str(), 0u, 0u, true, "BGM", true);
   if (ktrfTitleBgm == nullptr) {
     StopSchoolDaysTitleBgm();
     return false;
@@ -624,20 +626,17 @@ bool FlushSchoolDaysGlobalFlag(const char *reason) {
 
 bool CurrentSaveLocalTime(Kotonoha::SchoolDaysSaveMetadata::LocalTime *out) {
   if (out == nullptr) return false;
-  const std::time_t now = std::time(nullptr);
-  if (now == static_cast<std::time_t>(-1)) return false;
-  std::tm local{};
-#ifdef _WIN32
-  if (localtime_s(&local, &now) != 0) return false;
-#else
-  if (localtime_r(&now, &local) == nullptr) return false;
-#endif
-  out->year = local.tm_year + 1900;
-  out->month = local.tm_mon + 1;
-  out->day = local.tm_mday;
-  out->weekday = local.tm_wday;
-  out->hour = local.tm_hour;
-  out->minute = local.tm_min;
+  SDL_Time now = 0;
+  SDL_DateTime local{};
+  if (!SDL_GetCurrentTime(&now) || !SDL_TimeToDateTime(now, &local, true)) {
+    return false;
+  }
+  out->year = local.year;
+  out->month = local.month;
+  out->day = local.day;
+  out->weekday = local.day_of_week;
+  out->hour = local.hour;
+  out->minute = local.minute;
   return true;
 }
 
@@ -873,6 +872,172 @@ bool ExecuteSaveLoadLoadSlot(int slot) {
   // Recreate MenuBar from the loaded feelings/state on the first Gameplay tick.
   ktrfMenuBar.reset();
   return true;
+}
+
+// ---- MCP save tools -------------------------------------------------------
+std::string Utf16ToUtf8Mcp(const std::u16string &text) {
+  std::string out;
+  for (size_t i = 0; i < text.size(); ++i) {
+    uint32_t cp = text[i];
+    if (cp >= 0xd800u && cp < 0xdc00u && i + 1 < text.size() &&
+        text[i + 1] >= 0xdc00u && text[i + 1] < 0xe000u) {
+      cp = 0x10000u + ((cp - 0xd800u) << 10u) + (text[++i] - 0xdc00u);
+    }
+    char buffer[4];
+    const int n = static_cast<int>(SDL_UCS4ToUTF8(cp, buffer) - buffer);
+    out.append(buffer, static_cast<size_t>(n));
+  }
+  return out;
+}
+
+std::u16string Utf8ToUtf16Mcp(const std::string &text) {
+  std::u16string out;
+  const char *cursor = text.c_str();
+  size_t left = text.size();
+  while (left > 0) {
+    uint32_t cp = SDL_StepUTF8(&cursor, &left);
+    if (cp == 0) break;
+    if (cp >= 0x10000u) {
+      cp -= 0x10000u;
+      out.push_back(static_cast<char16_t>(0xd800u + (cp >> 10u)));
+      out.push_back(static_cast<char16_t>(0xdc00u + (cp & 0x3ffu)));
+    } else {
+      out.push_back(static_cast<char16_t>(cp));
+    }
+  }
+  return out;
+}
+
+// Minimal extraction of "key": <int> / "key": "<string>" from the flat
+// argument object the MCP server hands to extra tools.
+bool McpArgInt(const std::string &json, const char *key, int *value) {
+  const size_t at = json.find(std::string("\"") + key + "\"");
+  if (at == std::string::npos) return false;
+  const size_t colon = json.find(':', at);
+  if (colon == std::string::npos) return false;
+  char *end = nullptr;
+  const long parsed = std::strtol(json.c_str() + colon + 1, &end, 10);
+  if (end == json.c_str() + colon + 1) return false;
+  *value = static_cast<int>(parsed);
+  return true;
+}
+
+bool McpArgString(const std::string &json, const char *key, std::string *value) {
+  const size_t at = json.find(std::string("\"") + key + "\"");
+  if (at == std::string::npos) return false;
+  size_t i = json.find('"', json.find(':', at));
+  if (i == std::string::npos) return false;
+  value->clear();
+  for (++i; i < json.size() && json[i] != '"'; ++i) {
+    if (json[i] == '\\' && i + 1 < json.size()) {
+      const char c = json[++i];
+      value->push_back(c == 'n' ? '\n' : c == 't' ? '\t' : c);
+    } else {
+      value->push_back(json[i]);
+    }
+  }
+  return true;
+}
+
+const char *McpFlowName() {
+  using State = Kotonoha::SchoolDaysFlowController::State;
+  if (ktrfController == nullptr) return "none";
+  switch (ktrfController->FlowState()) {
+  case State::TitleLoad: return "TitleLoad";
+  case State::GameplayLoad: return "GameplayLoad";
+  case State::GameplaySave: return "GameplaySave";
+  case State::SaveLoad: return "SaveLoad";
+  default: return "other";
+  }
+}
+
+std::string McpSaveSlots(::Kotonoha::Kotonoha *, ::Kotonoha::Gameplay *,
+                         const std::string &args, bool *isError, void *) {
+  int first = 0, count = 100;
+  McpArgInt(args, "first", &first);
+  McpArgInt(args, "count", &count);
+  first = std::max(0, std::min(first, 99));
+  count = std::max(1, std::min(count, 100 - first));
+  std::string out = std::string("{\"flow\":\"") + McpFlowName() + "\",\"slots\":[";
+  bool firstItem = true;
+  for (int slot = first; slot < first + count; ++slot) {
+    Kotonoha::SchoolDaysSaveService::SlotMetadata metadata;
+    if (!ReadSaveSlotMetadataForUi(slot, &metadata)) {
+      *isError = true;
+      return "slot metadata read failed";
+    }
+    if (!metadata.occupied) continue;
+    auto quote = [](const std::string &text) {
+      std::string q = "\"";
+      for (char c : text) {
+        if (c == '"' || c == '\\') q.push_back('\\');
+        if (static_cast<unsigned char>(c) >= 0x20u) q.push_back(c);
+      }
+      return q + "\"";
+    };
+    if (!firstItem) out += ",";
+    firstItem = false;
+    out += "{\"slot\":" + std::to_string(slot) +
+           ",\"date\":" + quote(Utf16ToUtf8Mcp(metadata.date)) +
+           ",\"story\":" + quote(Utf16ToUtf8Mcp(metadata.story)) +
+           ",\"comment\":" + quote(Utf16ToUtf8Mcp(metadata.comment)) + "}";
+  }
+  return out + "]}";
+}
+
+std::string McpSaveSlot(::Kotonoha::Kotonoha *, ::Kotonoha::Gameplay *,
+                        const std::string &args, bool *isError, void *) {
+  int slot = -1;
+  std::string comment = "Kotonoha";
+  McpArgInt(args, "slot", &slot);
+  McpArgString(args, "comment", &comment);
+  if (slot < 0 || slot > 99) {
+    *isError = true;
+    return "slot must be 0..99";
+  }
+  if (ktrfController == nullptr ||
+      ktrfController->FlowState() !=
+          Kotonoha::SchoolDaysFlowController::State::GameplaySave) {
+    *isError = true;
+    return std::string("open the SAVE screen first (flow=") + McpFlowName() + ")";
+  }
+  Kotonoha::SchoolDaysSaveLoadModel::Output request;
+  request.action = Kotonoha::SchoolDaysSaveLoadModel::Action::SaveSlotRequested;
+  request.slot = slot;
+  request.comment = Utf8ToUtf16Mcp(comment);
+  if (!ExecuteSaveLoadWrite(request)) {
+    *isError = true;
+    return "save failed (see logs)";
+  }
+  return "saved slot " + std::to_string(slot);
+}
+
+std::string McpLoadSlot(::Kotonoha::Kotonoha *, ::Kotonoha::Gameplay *,
+                        const std::string &args, bool *isError, void *) {
+  int slot = -1;
+  McpArgInt(args, "slot", &slot);
+  if (!ExecuteSaveLoadLoadSlot(slot)) {
+    *isError = true;
+    return std::string("load failed; open a LOAD screen first (flow=") +
+           McpFlowName() + ") and use an occupied slot 0..99";
+  }
+  return "loaded slot " + std::to_string(slot);
+}
+
+void RegisterSaveMcpTools() {
+  namespace Mcp = Kotonoha::Debug::Mcp;
+  Mcp::RegisterTool({"save_slots",
+                     "List occupied save slots (date, story, comment) and the current flow state.",
+                     R"J({"type":"object","properties":{"first":{"type":"integer"},"count":{"type":"integer"}}})J",
+                     McpSaveSlots});
+  Mcp::RegisterTool({"save_slot",
+                     "Write a save into a slot; the in-game SAVE screen must be open.",
+                     R"J({"type":"object","properties":{"slot":{"type":"integer"},"comment":{"type":"string"}},"required":["slot"]})J",
+                     McpSaveSlot});
+  Mcp::RegisterTool({"load_slot",
+                     "Load an occupied slot; a LOAD screen (title or in-game) must be open.",
+                     R"J({"type":"object","properties":{"slot":{"type":"integer"}},"required":["slot"]})J",
+                     McpLoadSlot});
 }
 
 bool CloseGameplayConfigUi() {
@@ -1117,10 +1282,73 @@ KtrfLaunchOptions ExtractKtrfLaunchOptions(int argc, char *argv[]) {
 
 KtrfLaunchOptions ktrfLaunchOptions;
 
+// Which debug GUI and Gameplay the shared frame steps use after
+// SchoolDaysRenderFrame (title frontends hide the bridge Gameplay from the
+// debug GUI while MCP still sees it; the BackLog shows the frozen scene).
+struct SchoolDaysFrameDebug {
+  enum class Mode { Engine, EngineIfEnabled, Ktrf };
+  Mode mode = Mode::EngineIfEnabled;
+  Kotonoha::Gameplay *debugGameplay = nullptr;
+  Kotonoha::Gameplay *mcpGameplay = nullptr;
+};
+SchoolDaysFrameDebug ktrfFrameDebug;
+
+// School Days as a GameSession: it keeps its complete retail front end (title,
+// SaveLoad, route map, config, menu bar, BackLog), so GameplayFlow forwards
+// events and frames to it and only adds the shared splash / debug UI / MCP /
+// present steps, like every other port.
+class SchoolDaysSession final : public Kotonoha::GameSession {
+public:
+  explicit SchoolDaysSession(void *appstate) : appstate_(appstate) {}
+
+  bool OwnsFrontend() const override { return true; }
+  SDL_AppResult HandleEvent(SDL_Event *event, Kotonoha_Game *game) override;
+  SDL_AppResult RenderFrame(Kotonoha::Kotonoha *app,
+                            Kotonoha_Game *game) override;
+  Kotonoha::Gameplay *RunningGameplay() override;
+  bool RunDebugUi(Kotonoha::Kotonoha *app, Kotonoha_Game &game) override;
+
+  // The retail story runs inside the KTRF controller / Gameplay instead.
+  bool Start() override { return true; }
+  void Step(int) override {}
+  bool Choosing() const override { return false; }
+  std::vector<std::string> Choices() const override { return {}; }
+  bool HasMessage() const override { return false; }
+  std::string Speaker() const override { return {}; }
+  std::string Text() const override { return {}; }
+  void Draw(SDL_Renderer *) override {}
+
+private:
+  void *appstate_;
+};
+
+std::unique_ptr<Kotonoha::GameplayFlow> ktrfFlow;
+
 } // namespace
 
 SDL_AppResult LocalArgs(int argc, char *argv[]) {
   ktrfLaunchOptions = ExtractKtrfLaunchOptions(argc, argv);
+#if defined(KOTONOHA_MOBILE)
+  // Mobile launches have no command line: use the route and GPKs the user
+  // placed in the platform game-data folder (iOS Documents).
+  if (!ktrfLaunchOptions.requested && ktrfLaunchOptions.valid) {
+    const char *dataDir = KotonohaMobileGameDataDir();
+    if (dataDir != nullptr) {
+      const std::string root = dataDir;
+      std::string route = root + "/school-days-hq.ktnroute";
+      if (!std::filesystem::exists(route)) {
+        route = "assets/school-days-hq.ktnroute";
+      }
+      std::string program = argc > 0 && argv[0] != nullptr ? argv[0] : "app";
+      std::string rootArg = root;
+      std::string gpkFlag = "--sd-gpk-root";
+      std::string routeFlag = "-K";
+      char *synthetic[] = {program.data(), routeFlag.data(), route.data(),
+                           gpkFlag.data(), rootArg.data()};
+      ktrfLaunchOptions = ExtractKtrfLaunchOptions(5, synthetic);
+    }
+  }
+#endif
   if (!ktrfLaunchOptions.valid) {
     SDL_LogError(0,
                  "Invalid KTRF launch arguments. Use -K <route.ktnroute> "
@@ -1348,14 +1576,21 @@ SDL_AppResult LocalInit(void **appstate, int, char *[]) {
       return SDL_APP_FAILURE;
     }
     ktrfSceneTransaction =
-        std::make_unique<Kotonoha::SchoolDaysSceneTransaction>();
+        std::make_unique<Kotonoha::KtrfSceneTransaction>();
     ktrfSystemUi = std::make_unique<Kotonoha::SchoolDaysSystemUi>();
+    RegisterSaveMcpTools();
   }
 
+  ktrfFlow = std::make_unique<Kotonoha::GameplayFlow>(
+      Kotonoha::GameplayFlow::Config{"school-days", "School Days HQ"});
+  if (!ktrfFlow->Attach(std::make_unique<SchoolDaysSession>(*appstate))) {
+    SDL_LogError(0, "[SD] gameplay flow attach failed");
+    return SDL_APP_FAILURE;
+  }
   return SDL_APP_CONTINUE;
 }
 
-SDL_AppResult LocalEvent(void *appstate, SDL_Event *event) {
+static SDL_AppResult SchoolDaysHandleEvent(void *appstate, SDL_Event *event) {
 
 #ifdef KOTONOHA_DEV_CHECKPOINTS
   if (ktrfController != nullptr && event->type == SDL_EVENT_KEY_DOWN &&
@@ -1524,10 +1759,27 @@ SDL_AppResult LocalEvent(void *appstate, SDL_Event *event) {
           }
           std::u16string comment;
           std::string dialogError;
+          Kotonoha::SchoolDaysFontData dialogFont;
+          {
+            std::filesystem::path fontLogical(ktrfSaveProfile.fontData);
+            if (ktrfSaveProfile.useEnglish) {
+              fontLogical.replace_filename(fontLogical.stem().string() + "_eng" +
+                                           fontLogical.extension().string());
+            }
+            const auto fontAsset = Kotonoha::ResolveSchoolDaysAssetPath(
+                ktrfAssetsRoot.c_str(), fontLogical.generic_string());
+            std::string fontError;
+            if (!fontAsset.present || fontAsset.collision ||
+                !dialogFont.LoadFile(fontAsset.physical, &fontError)) {
+              SDL_LogWarn(0, "[SD-SAVELOAD] comment dialog FONTDATA unavailable: %s",
+                          fontError.c_str());
+              dialogFont.Clear();
+            }
+          }
           const auto dialogResult = Kotonoha::SchoolDaysCommentDialog::Run(
               global.window, ktrfSaveProfile.useEnglish,
               metadata.occupied ? metadata.comment : std::u16string{},
-              &comment, &dialogError);
+              &comment, &dialogFont, &dialogError);
           if (dialogResult ==
               Kotonoha::SchoolDaysCommentDialog::Result::Confirmed) {
             if (!ktrfSystemUi->SubmitSaveLoadComment(comment)) {
@@ -2132,31 +2384,19 @@ SDL_AppResult LocalEvent(void *appstate, SDL_Event *event) {
   return SDL_APP_CONTINUE;
 }
 
-SDL_AppResult LocalIterate(void *appstate) {
-  Kotonoha::Kotonoha *app = Kotonoha::GetApp(appstate);
+// Renders the whole School Days frame (flow controller, frontends, BackLog,
+// transitions) without presenting. The splash, debug UI, MCP service and
+// present are the shared GameplayFlow::RunFrame steps; this records which
+// Gameplay and debug GUI they should use for the frame.
+static SDL_AppResult SchoolDaysRenderFrame(Kotonoha::Kotonoha *app) {
   if (app == nullptr || global.render == nullptr) {
     return SDL_APP_FAILURE;
   }
-  // School Days renders the whole frame itself (flow controller, frontends,
-  // BackLog, transitions); skip the engine's default frame.
-  Kotonoha::MarkFrameHandled();
+  ktrfFrameDebug = {};
 
   Kotonoha::Gameplay *inRunning = nullptr;
   Kotonoha::Gameplay *beforeGameplay = nullptr;
   bool ktrfSceneAdvancePrepared = false;
-
-  if (app->IsSplashActive()) {
-    SDL_SetRenderTarget(global.render, nullptr);
-    SDL_SetRenderDrawColor(global.render, 0, 0, 0, 255);
-    SDL_RenderClear(global.render);
-    app->RenderSplash();
-    if (global.config.enableDebugUi &&
-        !Kotonoha::Debug::Run(app, nullptr, global)) {
-      return SDL_APP_SUCCESS;
-    }
-    SDL_RenderPresent(global.render);
-    return SDL_APP_CONTINUE;
-  }
 
   if (ktrfController != nullptr) {
     beforeGameplay = ktrfController->CurrentGameplay();
@@ -2205,11 +2445,9 @@ SDL_AppResult LocalIterate(void *appstate) {
       SDL_LogError(0, "[SD-BACKLOG] render failed");
       return SDL_APP_FAILURE;
     }
-    if (global.config.enableDebugUi &&
-        !Kotonoha::Debug::Run(app, beforeGameplay, global)) {
-      return SDL_APP_SUCCESS;
-    }
-    SDL_RenderPresent(global.render);
+    ktrfFrameDebug.mode = SchoolDaysFrameDebug::Mode::EngineIfEnabled;
+    ktrfFrameDebug.debugGameplay = beforeGameplay;
+    ktrfFrameDebug.mcpGameplay = beforeGameplay;
     return SDL_APP_CONTINUE;
   }
 
@@ -2856,24 +3094,61 @@ SDL_AppResult LocalIterate(void *appstate) {
            Kotonoha::SchoolDaysFlowController::State::TitleConfig ||
        ktrfController->FlowState() ==
            Kotonoha::SchoolDaysFlowController::State::TitleExit);
-  const bool guiContinue =
-      titleFrontend
-          ? Kotonoha_SchoolDaysKtrfDebugGuiRun(
-                ktrfController.get(), app, nullptr,
-                ktrfSceneTransaction.get(), global)
-          : ktrfController != nullptr
-                ? Kotonoha_SchoolDaysKtrfDebugGuiRun(
-                      ktrfController.get(), app, inRunning,
-                      ktrfSceneTransaction.get(), global)
-                : Kotonoha::Debug::Run(app, inRunning, global);
-  if (!guiContinue) {
-    return SDL_APP_SUCCESS;
-  }
-  SDL_RenderPresent(global.render);
+  ktrfFrameDebug.mode = ktrfController != nullptr
+                           ? SchoolDaysFrameDebug::Mode::Ktrf
+                           : SchoolDaysFrameDebug::Mode::Engine;
+  ktrfFrameDebug.debugGameplay = titleFrontend ? nullptr : inRunning;
+  ktrfFrameDebug.mcpGameplay = inRunning;
   return SDL_APP_CONTINUE;
 }
 
+bool SchoolDaysSession::RunDebugUi(Kotonoha::Kotonoha *app,
+                                   Kotonoha_Game &game) {
+  switch (ktrfFrameDebug.mode) {
+  case SchoolDaysFrameDebug::Mode::Ktrf:
+    return Kotonoha_SchoolDaysKtrfDebugGuiRun(
+        ktrfController.get(), app, ktrfFrameDebug.debugGameplay,
+        ktrfSceneTransaction.get(), game);
+  case SchoolDaysFrameDebug::Mode::EngineIfEnabled:
+    return !game.config.enableDebugUi ||
+           Kotonoha::Debug::Run(app, ktrfFrameDebug.debugGameplay, game);
+  case SchoolDaysFrameDebug::Mode::Engine:
+    break;
+  }
+  return Kotonoha::Debug::Run(app, ktrfFrameDebug.debugGameplay, game);
+}
+
+Kotonoha::Gameplay *SchoolDaysSession::RunningGameplay() {
+  return ktrfFrameDebug.mcpGameplay;
+}
+
+SDL_AppResult SchoolDaysSession::HandleEvent(SDL_Event *event,
+                                             Kotonoha_Game *) {
+  return SchoolDaysHandleEvent(appstate_, event);
+}
+
+SDL_AppResult SchoolDaysSession::RenderFrame(Kotonoha::Kotonoha *app,
+                                             Kotonoha_Game *) {
+  return SchoolDaysRenderFrame(app);
+}
+
+SDL_AppResult LocalEvent(void *, SDL_Event *event) {
+  return ktrfFlow != nullptr ? ktrfFlow->HandleEvent(event, &global)
+                             : SDL_APP_CONTINUE;
+}
+
+SDL_AppResult LocalIterate(void *appstate) {
+  Kotonoha::Kotonoha *app = Kotonoha::GetApp(appstate);
+  if (app == nullptr || ktrfFlow == nullptr) {
+    return SDL_APP_FAILURE;
+  }
+  // School Days renders the whole frame itself; skip the engine's default.
+  Kotonoha::MarkFrameHandled();
+  return ktrfFlow->RunFrame(app, &global, nullptr);
+}
+
 void LocalQuit(void *, SDL_AppResult) {
+  ktrfFlow.reset();
 
   // Temporary frontend Gameplay destruction needs the still-live controller/
   // engine factory.

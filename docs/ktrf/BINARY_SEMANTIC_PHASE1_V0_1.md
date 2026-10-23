@@ -268,7 +268,7 @@ Metadata and graph collections that phase 1 does not encode are excluded from th
 ```text
 tools/ktrf/binary_semantic_phase1_v0_1.py
 tools/ktrf/compile_phase1_v0_1.py
-tests/ktrf/test_binary_semantic_phase1_v0_1.py
+games/school-days/tests/ktrf/test_binary_semantic_phase1_v0_1.py
 tools/ktrf/run_binary_semantic_phase1_v0_1.ps1
 ```
 

@@ -6211,7 +6211,7 @@ static constexpr PredecessorAction kPredecessorActions[] = {
     {54, 1, 54, 0, 0, "", 0},
 };
 
-static bool EvaluateGeneratedPredicate(uint16_t id, const SchoolDaysStateStore* state, bool* result, Kotonoha_KtrfError* error) {
+static bool EvaluateGeneratedPredicate(uint16_t id, const KtrfStateStore* state, bool* result, Kotonoha_KtrfError* error) {
     if (state == nullptr || result == nullptr) return false;
     switch (id) {
     case 0: *result = true; return true;

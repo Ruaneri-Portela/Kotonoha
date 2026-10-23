@@ -63,10 +63,8 @@ static bool UpdateFPSTexture(SDL_Renderer *render, TTF_Font *font) {
   fpsCommon->texture = newTexture;
 
   // AJUSTE DE ESCALA: Mantém o tamanho lógico constante dividindo pela escala
-  const float scale =
-      (fpsCommon->windowScale > 0.0f) ? fpsCommon->windowScale : 1.0f;
-  fpsCommon->rect.w = textWidth * scale;
-  fpsCommon->rect.h = textHeight * scale;
+  fpsCommon->rect.w = textWidth;
+  fpsCommon->rect.h = textHeight;
 
   return true;
 }
@@ -78,8 +76,6 @@ enum Kotonoha_Scene_Status KotonohaFPSRender(KOTONOHA_SCENE_CALL) {
     return KOTONOHA_SCENE_NULL;
   }
 
-  TTF_SetFontSize(font, 28);
-
   int outputWidth = 0;
   int outputHeight = 0;
   float windowScale = 1.0f;
@@ -88,6 +84,9 @@ enum Kotonoha_Scene_Status KotonohaFPSRender(KOTONOHA_SCENE_CALL) {
                                  &windowScale)) {
     return KOTONOHA_SCENE_NULL;
   }
+
+  // Rasterize at physical pixels so the overlay is never upscaled.
+  TTF_SetFontSize(font, 28.0f * windowScale);
 
   if (fpsCommon == NULL) {
     fpsCommon = (struct FPS_common *)SDL_calloc(1, sizeof(struct FPS_common));

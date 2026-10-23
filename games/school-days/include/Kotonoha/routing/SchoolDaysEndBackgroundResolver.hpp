@@ -3,7 +3,7 @@
 #include <string>
 #include <vector>
 
-#include <Kotonoha/routing/SchoolDaysStateStore.hpp>
+#include <Kotonoha/routing/KtrfStateStore.hpp>
 
 namespace Kotonoha {
 
@@ -36,7 +36,7 @@ public:
         bool promotedAllClear = false;
     };
 
-    static bool Resolve(const Profile& profile, SchoolDaysStateStore* state,
+    static bool Resolve(const Profile& profile, KtrfStateStore* state,
                         Result* out, Kotonoha_KtrfError* error);
 
 private:

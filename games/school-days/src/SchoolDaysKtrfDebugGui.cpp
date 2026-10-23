@@ -1,7 +1,7 @@
 #include <Kotonoha/Kotonoha.hpp>
 #include <Kotonoha/routing/SchoolDaysKtrfAppController.hpp>
 #include <Kotonoha/routing/SchoolDaysKtrfDebugGui.hpp>
-#include <Kotonoha/routing/SchoolDaysSceneTransaction.hpp>
+#include <Kotonoha/routing/KtrfSceneTransaction.hpp>
 #include <Kotonoha/routing/SchoolDaysKtrfStateInspector.hpp>
 #include <Kotonoha/debug/DebugUi.hpp>
 
@@ -26,14 +26,14 @@ void SetDebugStatus(const char* text) {
 }
 
 void DrawKtrfDebugMenu(void*) {
-    ImGui::MenuItem("KTRF Scene List", nullptr, &showKtrfScenes);
-    ImGui::MenuItem("KTRF State Inspector", nullptr, &showKtrfState);
+    ImGui::Checkbox("KTRF Scene List", &showKtrfScenes);
+    ImGui::Checkbox("KTRF State Inspector", &showKtrfState);
 }
 
 template <typename Action>
 bool RunDebugSceneMutation(Kotonoha::SchoolDaysKtrfAppController* controller,
                            Kotonoha::Gameplay*& play,
-                           Kotonoha::SchoolDaysSceneTransaction* transaction,
+                           Kotonoha::KtrfSceneTransaction* transaction,
                            Kotonoha_Game& context,
                            const char* reason,
                            Action action) {
@@ -72,7 +72,7 @@ bool RunDebugSceneMutation(Kotonoha::SchoolDaysKtrfAppController* controller,
 
 bool JumpToOrdinal(Kotonoha::SchoolDaysKtrfAppController* controller,
                    std::size_t ordinal, Kotonoha::Gameplay*& play,
-                   Kotonoha::SchoolDaysSceneTransaction* transaction,
+                   Kotonoha::KtrfSceneTransaction* transaction,
                    Kotonoha_Game& context) {
     return RunDebugSceneMutation(
         controller, play, transaction, context, "debug-scene-jump", [&]() {
@@ -92,7 +92,7 @@ bool JumpToOrdinal(Kotonoha::SchoolDaysKtrfAppController* controller,
 
 bool JumpRelative(Kotonoha::SchoolDaysKtrfAppController* controller,
                   int delta, Kotonoha::Gameplay*& play,
-                  Kotonoha::SchoolDaysSceneTransaction* transaction,
+                  Kotonoha::KtrfSceneTransaction* transaction,
                   Kotonoha_Game& context) {
     return RunDebugSceneMutation(
         controller, play, transaction, context, "debug-relative-jump", [&]() {
@@ -116,8 +116,12 @@ bool Kotonoha_SchoolDaysKtrfDebugGuiRun(
     Kotonoha::SchoolDaysKtrfAppController* controller,
     Kotonoha::Kotonoha* game,
     Kotonoha::Gameplay* play,
-    Kotonoha::SchoolDaysSceneTransaction* transaction,
+    Kotonoha::KtrfSceneTransaction* transaction,
     Kotonoha_Game& context) {
+    if (Kotonoha::Debug::SyncActivation(context)) {
+        showKtrfScenes = false;
+        showKtrfState = false;
+    }
     if (controller == nullptr || !controller->IsOpen()) return true;
 
     const auto flowState = controller->FlowState();
@@ -144,7 +148,7 @@ bool Kotonoha_SchoolDaysKtrfDebugGuiRun(
             if (showKtrfScenes) {
                 const int currentOrdinal = controller->DebugCurrentSceneOrdinal();
                 const std::size_t sceneCount = controller->DebugSceneCount();
-                ImGui::Begin("Scenes - KTRF", &showKtrfScenes);
+                ImGui::Begin("KTRF Scene List", &showKtrfScenes);
                 ImGui::Text("Physical scenes: %d",
                             static_cast<int>(sceneCount));
                 ImGui::TextDisabled(
@@ -196,9 +200,9 @@ bool Kotonoha_SchoolDaysKtrfDebugGuiRun(
     const std::size_t sceneCount = controller->DebugSceneCount();
     const auto& currentScene = controller->CurrentScene();
 
-    bool& controlPanelVisible = Kotonoha::Debug::ControlPanelVisibility();
-    if (controlPanelVisible) {
-    ImGui::Begin("Kotonoha - School Days KTRF", &controlPanelVisible);
+    bool& playbackVisible = Kotonoha::Debug::PlaybackVisibility();
+    if (playbackVisible) {
+    ImGui::Begin("KTRF Playback & Mixer", &playbackVisible);
 
     if (currentOrdinal >= 0) {
         ImGui::Text("Current Scene: %d / %d", currentOrdinal + 1,
@@ -318,7 +322,7 @@ bool Kotonoha_SchoolDaysKtrfDebugGuiRun(
     }
 
     if (showKtrfScenes) {
-        ImGui::Begin("Scenes - KTRF", &showKtrfScenes);
+        ImGui::Begin("KTRF Scene List", &showKtrfScenes);
         ImGui::Text("Physical scenes: %d", static_cast<int>(sceneCount));
         ImGui::TextWrapped("Current: %s", controller->CurrentScene().sceneKey.c_str());
         ImGui::InputTextWithHint("##ktrf_scene_filter", "filter scene key (e.g. 05/05-9O)",

@@ -126,8 +126,8 @@ static void SettingsReadLine(ImGuiContext *ctx,
     SetString(&config->promptViewSound, line + 16);
   } else if (strncmp(line, "Splash=", 7) == 0) {
     SetString(&config->splashFiles, line + 7);
-  } else if (strncmp(line, "Anime4kFiles=", 13) == 0) {
-    SetString(&config->anime4kFiles, line + 13);
+  } else if (strncmp(line, "MpvUpscalerFiles=", 13) == 0) {
+    SetString(&config->mpvUpscalerFiles, line + 13);
   } else if (strncmp(line, "AssetsPath=", 11) == 0) {
     SetString(&config->assetsPath, line + 11);
   } else if (strncmp(line, "AssStyles=", 10) == 0) {
@@ -186,8 +186,8 @@ static void SettingsWriteAll(ImGuiContext *ctx,
   if (config->splashFiles != NULL) {
     buf->appendf("Splash=%s\n", config->splashFiles);
   }
-  if (config->anime4kFiles != NULL) {
-    buf->appendf("Anime4kFiles=%s\n", config->anime4kFiles);
+  if (config->mpvUpscalerFiles != NULL) {
+    buf->appendf("MpvUpscalerFiles=%s\n", config->mpvUpscalerFiles);
   }
 
   if (config->assetsPath != NULL) {

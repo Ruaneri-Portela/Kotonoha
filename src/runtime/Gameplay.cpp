@@ -113,12 +113,17 @@ Gameplay::Gameplay(const char *scriptPath, Kotonoha_Game *gameContext,
                                         &gameContext->config);
   this->tm = KotonohaTimeNew(true);
   this->sb = KotonohaTextRenderInit(this->tm, gameContext);
-  this->video = new Video(this->tm, this->demuxer);
-  this->image = new Image(this->tm, gameContext->config.skipFiles);
-  this->audio = new Audio(static_cast<Sound *>(gameContext->sound), this->tm,
-                          this->demuxer);
-  this->fade = new Fade(this->tm);
-  this->drawCanvas = new Canvas();
+  ownedVideo = std::make_unique<Video>(this->tm, this->demuxer);
+  ownedImage = std::make_unique<Image>(this->tm, gameContext->config.skipFiles);
+  ownedAudio = std::make_unique<Audio>(static_cast<Sound *>(gameContext->sound),
+                                       this->tm, this->demuxer);
+  ownedFade = std::make_unique<Fade>(this->tm);
+  ownedCanvas = std::make_unique<Canvas>();
+  this->video = ownedVideo.get();
+  this->image = ownedImage.get();
+  this->audio = ownedAudio.get();
+  this->fade = ownedFade.get();
+  this->drawCanvas = ownedCanvas.get();
 
   this->drawCanvas->RegisterCanva(
       this->image->Render, 0,
@@ -141,8 +146,9 @@ Gameplay::Gameplay(const char *scriptPath, Kotonoha_Game *gameContext,
       this->fade, "Fade");
 
   this->scriptPath = scriptPath ? scriptPath : "";
-  this->eventManager =
-      new Event(this->scriptPath.c_str(), this, gameContext, font);
+  ownedEvents =
+      std::make_unique<Event>(this->scriptPath.c_str(), this, gameContext, font);
+  this->eventManager = ownedEvents.get();
 #if defined(__ANDROID__) || defined(ANDROID)
   playOnlyOnFocus = true;
   lastPauseStatus = gameContext->config.paused;
@@ -434,17 +440,20 @@ Gameplay::~Gameplay() {
   RequestShutdown();
   mediaActive.store(false, std::memory_order_release);
 
-  delete this->eventManager;
-  delete this->video;
-  delete this->image;
-  delete this->audio;
-  delete this->drawCanvas;
-  delete this->fade;
-
-  if (prompt) {
-    delete prompt;
-    prompt = nullptr;
-  }
+  ownedEvents.reset();
+  ownedVideo.reset();
+  ownedImage.reset();
+  ownedAudio.reset();
+  ownedCanvas.reset();
+  ownedFade.reset();
+  ownedPrompt.reset();
+  eventManager = nullptr;
+  video = nullptr;
+  image = nullptr;
+  audio = nullptr;
+  drawCanvas = nullptr;
+  fade = nullptr;
+  prompt = nullptr;
 
   if (demuxer != nullptr) {
     KotonohaDemuxerDestroy(&demuxer);

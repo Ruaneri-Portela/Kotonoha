@@ -29,6 +29,12 @@
             android:layout_height="wrap_content"
             android:text="@string/btn_a" />
 
+        <Button
+            android:id="@+id/button_generic"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/btn_generic" />
+
         <Space
             android:layout_width="match_parent"
             android:layout_height="0dp"

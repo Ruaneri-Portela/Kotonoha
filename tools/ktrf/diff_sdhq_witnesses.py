@@ -332,7 +332,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument(
         "--witness-source",
         type=Path,
-        default=Path("tests/SchoolDaysFullRouterTest.cpp"),
+        default=Path("games/school-days/tests/SchoolDaysFullRouterTest.cpp"),
     )
     parser.add_argument(
         "--interpreter",

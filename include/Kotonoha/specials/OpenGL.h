@@ -21,7 +21,7 @@
 extern "C" {
 #endif
 
-/* Loads the OpenGL entry points used by Anime4K.
+/* Loads the OpenGL entry points used by MPVCompatibleUpscaler.
    Call only after an OpenGL context is current on this thread. */
 bool KotonohaOpenGLInit(void);
 void KotonohaOpenGLReset(void);

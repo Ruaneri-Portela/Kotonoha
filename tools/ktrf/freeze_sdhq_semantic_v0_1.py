@@ -57,10 +57,10 @@ ORACLE_FILES = [
     "games/school-days/src/SchoolDaysRouteData.generated.inc",
     "games/school-days/src/SchoolDaysRouter.cpp",
     "games/school-days/include/Kotonoha/SchoolDaysRouter.hpp",
-    "tests/SchoolDaysOracleTrace.cpp",
-    "tests/SchoolDaysFullRouterTest.cpp",
-    "docs/school-days-routing-validation/certified/ROUTING_MODEL_CATALOG.json",
-    "docs/school-days-routing-validation/certified/ROUTING_MODEL_FREEZE.json",
+    "games/school-days/tests/SchoolDaysOracleTrace.cpp",
+    "games/school-days/tests/SchoolDaysFullRouterTest.cpp",
+    "games/school-days/docs/routing-validation/certified/ROUTING_MODEL_CATALOG.json",
+    "games/school-days/docs/routing-validation/certified/ROUTING_MODEL_FREEZE.json",
 ]
 
 CONFORMANCE_TOOL_FILES = [
@@ -71,9 +71,9 @@ CONFORMANCE_TOOL_FILES = [
     "tools/ktrf/diff_sdhq_effect_stress.py",
     "tools/ktrf/diff_sdhq_state_matrix.py",
     "tools/ktrf/sdhq_injected_state_interpreter.py",
-    "tests/ktrf/test_validate_ir.py",
-    "tests/ktrf/test_export_sdhq_ir.py",
-    "tests/ktrf/test_interpreter.py",
+    "games/school-days/tests/ktrf/test_validate_ir.py",
+    "games/school-days/tests/ktrf/test_export_sdhq_ir.py",
+    "games/school-days/tests/ktrf/test_interpreter.py",
 ]
 
 DEFAULT_REPORTS = {

@@ -33,9 +33,8 @@ inline bool textEditorVisible = false;
 inline bool settingsVisible = false;
 inline bool aboutVisible = false;
 inline bool playlistVisible = false;
-inline bool controlPanelVisible = true;
-inline bool openScenesVisible = false;
-inline bool titleScenesWindowSession = false;
+inline bool playbackVisible = false;
+inline bool sceneLoaderVisible = false;
 inline bool logVisible = false;
 inline bool sceneBuffersVisible = false;
 inline bool canvasLayersVisible = false;
@@ -109,16 +108,16 @@ bool RestoreOriginalPath(::Kotonoha::Kotonoha *game, Kotonoha_Game &context);
 void DrawAboutFields();
 void DrawAboutWindow();
 void DrawSettingsFields(Kotonoha_Config *cfg, Kotonoha_Game &context);
-void DrawSettingsWindow(Kotonoha_Game &context);
+void DrawEngineSettingsWindow(Kotonoha_Game &context);
 void DrawWindowMenu(void (*extension)(void *), void *userdata);
 bool DrawAuxiliaryWindows(::Kotonoha::Kotonoha *game,
                           ::Kotonoha::Gameplay *play,
                           Kotonoha_Game &context, bool forceOpenScenes,
                           bool &shouldExit, bool drawControlPanel);
 void DrawAudio(Kotonoha_Game &context);
-void DrawControlPanel(::Kotonoha::Kotonoha *game, ::Kotonoha::Gameplay *play,
+void DrawPlaybackWindow(::Kotonoha::Kotonoha *game, ::Kotonoha::Gameplay *play,
                       Kotonoha_Game &context);
-void DrawOpenScenesWindow(::Kotonoha::Kotonoha *game, Kotonoha_Game &context,
+void DrawSceneLoaderWindow(::Kotonoha::Kotonoha *game, Kotonoha_Game &context,
                           bool &shouldExit);
 void DrawPlaylistWindow(::Kotonoha::Kotonoha *game, Kotonoha_Game &context);
 void DrawSceneBuffersWindow(::Kotonoha::Gameplay *play);

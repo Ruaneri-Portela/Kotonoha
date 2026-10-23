@@ -33,9 +33,9 @@ CANONICAL_FILES = [
     "games/school-days/src/SchoolDaysRouter.cpp",
     "games/school-days/src/SchoolDaysRouteData.generated.inc",
     "src/runtime/Kotonoha.cpp",
-    "tests/SchoolDaysFullRouterTest.cpp",
-    "tests/SchoolDaysHandoffRouterTest.cpp",
-    "tests/SchoolDaysDevCheckpointTest.cpp",
+    "games/school-days/tests/SchoolDaysFullRouterTest.cpp",
+    "games/school-days/tests/SchoolDaysHandoffRouterTest.cpp",
+    "games/school-days/tests/SchoolDaysDevCheckpointTest.cpp",
     "tools/schooldays-routing-verifier/audit_terminal_callbacks.py",
     "tools/schooldays-routing-verifier/freeze_route_model.py",
     "tools/schooldays-routing-verifier/run_freeze_audit.ps1",
@@ -84,7 +84,7 @@ def main() -> int:
     parser.add_argument("--root", default=".")
     parser.add_argument(
         "--out",
-        default="docs/school-days-routing-validation/certified",
+        default="games/school-days/docs/routing-validation/certified",
     )
     args = parser.parse_args()
 
@@ -399,7 +399,7 @@ def main() -> int:
     router_cpp = (root / "games/school-days/src/SchoolDaysRouter.cpp").read_text(
         encoding="utf-8"
     )
-    dev_test = (root / "tests/SchoolDaysDevCheckpointTest.cpp").read_text(
+    dev_test = (root / "games/school-days/tests/SchoolDaysDevCheckpointTest.cpp").read_text(
         encoding="utf-8"
     )
     kotonoha_cpp = (root / "src/runtime/Kotonoha.cpp").read_text(

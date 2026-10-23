@@ -54,10 +54,11 @@ namespace Kotonoha {
 				for (char** it = event->data.set_select->options;
 					it != nullptr && *it != nullptr; ++it)
 					options.push_back(BuildString(*it));
-					gp->prompt = new Prompt(options, &gp->promptId,
+					gp->ownedPrompt = std::make_unique<Prompt>(options, &gp->promptId,
 					Kotonoha_SceneTickToMillisecondsCeil(event->startTick),
 						Kotonoha_SceneTickToMillisecondsCeil(event->endTick), gp->tm,
 						font);
+					gp->prompt = gp->ownedPrompt.get();
 					SchoolDaysPromptPolicy promptPolicy{};
 					promptPolicy.enabled = true;
 					promptPolicy.startTick = event->startTick;
@@ -573,7 +574,7 @@ namespace Kotonoha {
 		gp->image->Reset();
 		if (gp->prompt != nullptr) {
 			gp->drawCanvas->UnregisterCanva(Prompt::Render);
-			delete gp->prompt;
+			gp->ownedPrompt.reset();
 			gp->prompt = nullptr;
 		}
 		gp->promptId = -2;

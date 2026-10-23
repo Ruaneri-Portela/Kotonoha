@@ -1,3 +1,4 @@
+#include <cstring>
 #include <Kotonoha/debug/DebugInternal.hpp>
 #include <Kotonoha/debug/DebugUi.hpp>
 #include <Kotonoha/debug/LogPanel.hpp>
@@ -204,7 +205,8 @@ static const char *GetFocusedWindowName() {
 }
 
 void UpdateFocusState() {
-  anyWindowFocused = GetFocusedWindowName() != nullptr;
+  const char *focused = GetFocusedWindowName();
+  anyWindowFocused = focused != nullptr && std::strcmp(focused, "Debug") != 0;
 }
 
 static void ApplyPurpleTheme() {
@@ -293,8 +295,11 @@ bool Init(Kotonoha_Game &gameContext, std::vector<Uint8> font) {
     void *fontData = SDL_malloc(fontDataSize);
     if (fontData != nullptr) {
       SDL_memcpy(fontData, font.data(), fontDataSize);
+      ImFontConfig fontConfig;
+      fontConfig.RasterizerDensity =
+          std::max(1.0f, SDL_GetWindowPixelDensity(gameContext.window));
       mainFont = io.Fonts->AddFontFromMemoryTTF(
-          fontData, static_cast<int>(fontDataSize), 16.0f);
+          fontData, static_cast<int>(fontDataSize), 16.0f, &fontConfig);
     }
   }
 
@@ -366,60 +371,101 @@ bool FinishWorkspaceFrame(Kotonoha_Game &context) {
   return true;
 }
 
+// The master panel is always present (no close/collapse). It replaces the
+// macOS-style main menu bar and hosts every debug window toggle.
 void DrawWindowMenu(WindowMenuExtension extension, void *userdata) {
-  if (!ImGui::BeginMainMenuBar()) {
-    return;
-  }
-  if (ImGui::BeginMenu("Debug")) {
-    ImGui::MenuItem("Load Scenes", nullptr, &openScenesVisible);
-    ImGui::MenuItem("Control Panel", nullptr, &controlPanelVisible);
-    ImGui::MenuItem("Playlist", nullptr, &playlistVisible);
-    ImGui::MenuItem("Script Editor", nullptr, &scriptEditorVisible);
-    ImGui::MenuItem("Text Editor", nullptr, &textEditorVisible);
-    ImGui::MenuItem("Scene Buffers", nullptr, &sceneBuffersVisible);
-    ImGui::MenuItem("Canvas Layers", nullptr, &canvasLayersVisible);
-    ImGui::MenuItem("Settings", nullptr, &settingsVisible);
-    ImGui::MenuItem("Log", nullptr, &logVisible);
-    ImGui::MenuItem("About", nullptr, &aboutVisible);
+  const ImGuiWindowFlags flags = ImGuiWindowFlags_NoCollapse |
+                                 ImGuiWindowFlags_AlwaysAutoResize |
+                                 ImGuiWindowFlags_NoSavedSettings;
+  ImGui::SetNextWindowPos(ImVec2(8.0f, 8.0f), ImGuiCond_FirstUseEver);
+  if (ImGui::Begin("Debug", nullptr, flags)) {
+    ImGui::Checkbox("Scene Loader", &sceneLoaderVisible);
+    ImGui::Checkbox("Playback & Mixer", &playbackVisible);
+    ImGui::Checkbox("Playlist", &playlistVisible);
+    ImGui::Checkbox("Script Editor", &scriptEditorVisible);
+    ImGui::Checkbox("Text Editor", &textEditorVisible);
+    ImGui::Checkbox("Scene Buffers", &sceneBuffersVisible);
+    ImGui::Checkbox("Canvas Layers", &canvasLayersVisible);
+    ImGui::Checkbox("Engine Settings", &settingsVisible);
+    ImGui::Checkbox("Log", &logVisible);
+    ImGui::Checkbox("About Kotonoha", &aboutVisible);
     if (extension != nullptr) {
       ImGui::Separator();
       extension(userdata);
     }
-    ImGui::EndMenu();
   }
-  ImGui::EndMainMenuBar();
+  ImGui::End();
+  UpdateFocusState();
 }
 
-static void UpdateTitleScenesWindow(bool forceOpenScenes) {
-  if (forceOpenScenes) {
-    if (!titleScenesWindowSession) {
-      openScenesVisible = true;
-      titleScenesWindowSession = true;
-    }
-  } else if (titleScenesWindowSession) {
-    openScenesVisible = false;
-    titleScenesWindowSession = false;
+bool ShouldCaptureEvent(const SDL_Event *event) {
+  if (event == nullptr || !sdlBackendInitialized ||
+      ImGui::GetCurrentContext() == nullptr) {
+    return false;
+  }
+  const ImGuiIO &io = ImGui::GetIO();
+  const char *focused = GetFocusedWindowName();
+  const bool focusedWindowIsTool =
+      focused != nullptr && std::strcmp(focused, "Debug") != 0;
+  switch (event->type) {
+  case SDL_EVENT_MOUSE_BUTTON_DOWN:
+  case SDL_EVENT_MOUSE_BUTTON_UP:
+  case SDL_EVENT_MOUSE_MOTION:
+  case SDL_EVENT_MOUSE_WHEEL:
+  case SDL_EVENT_FINGER_DOWN:
+  case SDL_EVENT_FINGER_UP:
+  case SDL_EVENT_FINGER_MOTION:
+    return io.WantCaptureMouse;
+  case SDL_EVENT_KEY_DOWN:
+  case SDL_EVENT_KEY_UP:
+  case SDL_EVENT_TEXT_INPUT:
+  case SDL_EVENT_TEXT_EDITING:
+    // The always-open master panel keeps nav focus; it must not swallow keys.
+    return io.WantTextInput || focusedWindowIsTool;
+  default:
+    return false;
   }
 }
 
-bool &ControlPanelVisibility() { return controlPanelVisible; }
+bool SyncActivation(Kotonoha_Game &context) {
+  static bool wasEnabled = false;
+  const bool enabled = context.config.enableDebugUi.load();
+  const bool activated = enabled && !wasEnabled;
+  wasEnabled = enabled;
+  if (activated) {
+    scriptEditorVisible = false;
+    textEditorVisible = false;
+    settingsVisible = false;
+    aboutVisible = false;
+    playlistVisible = false;
+    playbackVisible = false;
+    sceneLoaderVisible = false;
+    logVisible = false;
+    sceneBuffersVisible = false;
+    canvasLayersVisible = false;
+    errorPopupVisible = false;
+  }
+  return activated;
+}
+
+bool &PlaybackVisibility() { return playbackVisible; }
 
 bool DrawAuxiliaryWindows(::Kotonoha::Kotonoha *game,
                           ::Kotonoha::Gameplay *play,
                           Kotonoha_Game &context, bool forceOpenScenes,
                           bool &shouldExit, bool drawControlPanel) {
-  UpdateTitleScenesWindow(forceOpenScenes);
-  if (openScenesVisible) {
-    DrawOpenScenesWindow(game, context, shouldExit);
+  (void)forceOpenScenes;
+  if (sceneLoaderVisible) {
+    DrawSceneLoaderWindow(game, context, shouldExit);
   }
 
   if (drawControlPanel) {
-    DrawControlPanel(game, play, context);
+    DrawPlaybackWindow(game, play, context);
   }
   DrawPlaylistWindow(game, context);
   DrawSceneBuffersWindow(play);
   DrawCanvasLayersWindow(play);
-  DrawSettingsWindow(context);
+  DrawEngineSettingsWindow(context);
   DrawAboutWindow();
   DrawLogPanel(&logVisible);
   if (!DrawScriptEditorWindow(game, context, play)) {
@@ -434,7 +480,7 @@ bool Run(::Kotonoha::Kotonoha *game, ::Kotonoha::Gameplay *play,
     return true;
   }
 
-  UpdateTitleScenesWindow(forceOpenScenes);
+  SyncActivation(context);
   if (!context.config.enableDebugUi.load()) {
     return true;
   }
@@ -467,7 +513,7 @@ bool Run(::Kotonoha::Kotonoha *game, ::Kotonoha::Gameplay *play,
   BeginWorkspaceFrame(context);
   bool shouldExit = false;
 
-  DrawControlPanel(game, play, context);
+  DrawPlaybackWindow(game, play, context);
   if (!DrawAuxiliaryWindows(game, play, context, forceOpenScenes,
                             shouldExit)) {
     return FinishWorkspaceFrame(context);

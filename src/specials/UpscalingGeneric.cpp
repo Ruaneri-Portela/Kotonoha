@@ -23,8 +23,8 @@ static void AdvanceUpscalingRevision() {
 
 #if defined(KOTONOHA_HAS_METALFX)
 static Kotonoha_UpscalerType g_upscalerType = KOTONOHA_UPSCALER_METALFX;
-#elif defined(KOTONOHA_HAS_ANIME4K)
-static Kotonoha_UpscalerType g_upscalerType = KOTONOHA_UPSCALER_ANIME4K;
+#elif defined(KOTONOHA_HAS_MPV_UPSCALER)
+static Kotonoha_UpscalerType g_upscalerType = KOTONOHA_UPSCALER_MPV_COMPATIBLE;
 #else
 static Kotonoha_UpscalerType g_upscalerType = KOTONOHA_UPSCALER_NONE;
 #endif
@@ -214,8 +214,8 @@ bool KotonohaUpscalingInit(SDL_Renderer *renderer, const char *name,
 
     if (isMetal && Kotonoha_HasMetalFX()) {
       g_upscalerType = KOTONOHA_UPSCALER_METALFX;
-    } else if (isOpenGL && Kotonoha_HasAnime4K()) {
-      g_upscalerType = KOTONOHA_UPSCALER_ANIME4K;
+    } else if (isOpenGL && Kotonoha_HasMPVUpscaler()) {
+      g_upscalerType = KOTONOHA_UPSCALER_MPV_COMPATIBLE;
     } else {
       g_upscalerType = KOTONOHA_UPSCALER_NONE;
     }
@@ -233,20 +233,20 @@ bool KotonohaUpscalingInit(SDL_Renderer *renderer, const char *name,
     }
 #endif
     KLOG_WARN(UPSCALER,
-              "MetalFX initialization failed; falling back to Anime4K.");
-    g_upscalerType = KOTONOHA_UPSCALER_ANIME4K;
+              "MetalFX initialization failed; falling back to MPVCompatibleUpscaler.");
+    g_upscalerType = KOTONOHA_UPSCALER_MPV_COMPATIBLE;
   }
 
-  if (g_upscalerType == KOTONOHA_UPSCALER_ANIME4K) {
-#if defined(KOTONOHA_HAS_ANIME4K)
-    if (KotonohaAnime4KInit(renderer, config)) {
+  if (g_upscalerType == KOTONOHA_UPSCALER_MPV_COMPATIBLE) {
+#if defined(KOTONOHA_HAS_MPV_UPSCALER)
+    if (KotonohaMPVUpscalerInit(renderer, config)) {
       KLOG_INFO(UPSCALER,
-                "Anime4K ready (renderer=%s enabled=%d factor=%.2f)",
+                "MPVCompatibleUpscaler ready (renderer=%s enabled=%d factor=%.2f)",
                 rendererName, g_upscalingEnabled ? 1 : 0, g_upscalingFactor);
       return true;
     }
 #endif
-    KLOG_WARN(UPSCALER, "Anime4K initialization failed.");
+    KLOG_WARN(UPSCALER, "MPVCompatibleUpscaler initialization failed.");
   }
 
   KLOG_WARN(UPSCALER,
@@ -261,15 +261,15 @@ void KotonohaUpscalingInitShutdown(void) {
 #if defined(KOTONOHA_HAS_METALFX)
   KotonohaMetalFXShutdown();
 #endif
-#if defined(KOTONOHA_HAS_ANIME4K)
-  KotonohaAnime4KShutdown();
+#if defined(KOTONOHA_HAS_MPV_UPSCALER)
+  KotonohaMPVUpscalerShutdown();
 #endif
   g_upscalerType = KOTONOHA_UPSCALER_NONE;
   AdvanceUpscalingRevision();
 }
 
 bool Kotonoha_HasUpscaler(void) {
-  return Kotonoha_HasMetalFX() || Kotonoha_HasAnime4K();
+  return Kotonoha_HasMetalFX() || Kotonoha_HasMPVUpscaler();
 }
 
 bool Kotonoha_HasMetalFX(void) {
@@ -280,8 +280,8 @@ bool Kotonoha_HasMetalFX(void) {
 #endif
 }
 
-bool Kotonoha_HasAnime4K(void) {
-#if defined(KOTONOHA_HAS_ANIME4K)
+bool Kotonoha_HasMPVUpscaler(void) {
+#if defined(KOTONOHA_HAS_MPV_UPSCALER)
   return true;
 #else
   return false;
@@ -294,8 +294,8 @@ const char *Kotonoha_GetUpscalerName(void) {
   switch (g_upscalerType) {
   case KOTONOHA_UPSCALER_METALFX:
     return "MetalFX";
-  case KOTONOHA_UPSCALER_ANIME4K:
-    return "Anime4K";
+  case KOTONOHA_UPSCALER_MPV_COMPATIBLE:
+    return "MPVCompatibleUpscaler";
   default:
     return "None";
   }
@@ -319,11 +319,12 @@ bool Kotonoha_SetUpscalerByName(const char *name) {
     }
     return false;
   }
-  if (SDL_strcasecmp(name, "Anime4K") == 0 ||
+  if (SDL_strcasecmp(name, "MPVCompatibleUpscaler") == 0 ||
+      SDL_strcasecmp(name, "Anime4K") == 0 ||
       SDL_strcasecmp(name, "OpenGL") == 0 ||
       SDL_strcasecmp(name, "GLES") == 0) {
-    if (Kotonoha_HasAnime4K()) {
-      Kotonoha_SetUpscalerType(KOTONOHA_UPSCALER_ANIME4K);
+    if (Kotonoha_HasMPVUpscaler()) {
+      Kotonoha_SetUpscalerType(KOTONOHA_UPSCALER_MPV_COMPATIBLE);
       return true;
     }
     return false;
@@ -335,8 +336,8 @@ bool Kotonoha_SetUpscalerByName(const char *name) {
   if (SDL_strcasecmp(name, "Auto") == 0) {
     if (Kotonoha_HasMetalFX()) {
       Kotonoha_SetUpscalerType(KOTONOHA_UPSCALER_METALFX);
-    } else if (Kotonoha_HasAnime4K()) {
-      Kotonoha_SetUpscalerType(KOTONOHA_UPSCALER_ANIME4K);
+    } else if (Kotonoha_HasMPVUpscaler()) {
+      Kotonoha_SetUpscalerType(KOTONOHA_UPSCALER_MPV_COMPATIBLE);
     } else {
       Kotonoha_SetUpscalerType(KOTONOHA_UPSCALER_NONE);
     }
@@ -569,13 +570,13 @@ bool Kotonoha_UpscaleSDLTextureInto(SDL_Renderer *renderer,
     }
     KLOG_WARN(UPSCALER, "MetalFX texture upscale failed: %s", SDL_GetError());
 #endif
-  } else if (g_upscalerType == KOTONOHA_UPSCALER_ANIME4K) {
-#if defined(KOTONOHA_HAS_ANIME4K)
-    if (KotonohaAnime4KUpscaleSDLTextureInto(renderer, inputTexture,
+  } else if (g_upscalerType == KOTONOHA_UPSCALER_MPV_COMPATIBLE) {
+#if defined(KOTONOHA_HAS_MPV_UPSCALER)
+    if (KotonohaMPVUpscalerUpscaleSDLTextureInto(renderer, inputTexture,
                                              outputTexture)) {
       return true;
     }
-    KLOG_WARN(UPSCALER, "Anime4K texture upscale failed: %s", SDL_GetError());
+    KLOG_WARN(UPSCALER, "MPVCompatibleUpscaler texture upscale failed: %s", SDL_GetError());
 #endif
   }
 

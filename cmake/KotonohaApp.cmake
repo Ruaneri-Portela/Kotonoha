@@ -2,7 +2,7 @@
 #     OUTPUT_NAME <name>          executable / bundle name (Kotonoha, SchoolDays)
 #     BUNDLE_ID   <identifier>    macOS bundle identifier)
 #
-# Shared packaging for the desktop applications: Windows icon resource, Anime4K
+# Shared packaging for the desktop applications: Windows icon resource, MPVCompatibleUpscaler
 # shaders, and on macOS the .app bundle with libKotonoha.dylib in Frameworks,
 # the icon and the engine assets in Resources/assets.
 function(kotonoha_configure_app target)
