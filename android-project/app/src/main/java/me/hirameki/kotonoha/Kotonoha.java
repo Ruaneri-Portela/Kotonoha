@@ -29,45 +29,67 @@ public class Kotonoha extends SDLActivity {
         return TARGET_SCHOOL_DAYS;
     }
 
-    // Retail GPKs live in the OBB directory: Android/obb/<package>/.
     private String[] schoolDaysDefaultArguments() {
         File obb = getObbDir();
         File assets = new File(getFilesDir(), "assets");
+
         File route = new File(obb, "school-days-hq.ktnroute");
         if (!route.isFile()) {
             route = new File(assets, "school-days-hq.ktnroute");
         }
-        File styles = new File(assets, "STYLES.SKOT");
+
+        File styles = new File(obb, "STYLES.SKOT");
         if (!styles.isFile()) {
-            styles = new File(assets, "styles.skot");
+            styles = new File(obb, "styles.skot");
+            if (!styles.isFile()) {
+                styles = new File(assets, "STYLES.SKOT");
+                if (!styles.isFile()) {
+                    styles = new File(assets, "styles.skot");
+                }
+            }
         }
+
+        File packs = new File(obb, "Packs");
+        if (!packs.exists()) {
+            packs = new File(assets, "Packs");
+        }
+
         return new String[]{
                 "-s", styles.getAbsolutePath(),
                 "-K", route.getAbsolutePath(),
-                "--sd-gpk-root", obb.getAbsolutePath()
+                "--sd-gpk-root", packs.getAbsolutePath()
         };
     }
 
     private String[] snowRadishDefaultArguments() {
-        File dir = new File(new File(getFilesDir(), "assets"), "pack");
+        File dir = new File(getObbDir(), "pack");
         if (!dir.exists()) {
-            dir = new File(getFilesDir(), "pack");
+            dir = new File(new File(getFilesDir(), "assets"), "pack");
+            if (!dir.exists()) {
+                dir = new File(getFilesDir(), "pack");
+            }
         }
         return new String[]{"--snow", dir.getAbsolutePath()};
     }
 
     private String[] ddlcDefaultArguments() {
-        File dir = new File(new File(getFilesDir(), "assets"), "game");
+        File dir = new File(getObbDir(), "game");
         if (!dir.exists()) {
-            dir = new File(getFilesDir(), "game");
+            dir = new File(new File(getFilesDir(), "assets"), "game");
+            if (!dir.exists()) {
+                dir = new File(getFilesDir(), "game");
+            }
         }
         return new String[]{"--ddlc", dir.getAbsolutePath()};
     }
 
     private String[] zeroDefaultArguments() {
-        File file = new File(new File(getFilesDir(), "assets"), "z.bin");
+        File file = new File(getObbDir(), "z.bin");
         if (!file.exists()) {
-            file = new File(getFilesDir(), "z.bin");
+            file = new File(new File(getFilesDir(), "assets"), "z.bin");
+            if (!file.exists()) {
+                file = new File(getFilesDir(), "z.bin");
+            }
         }
         return new String[]{"--zero", file.getAbsolutePath()};
     }
