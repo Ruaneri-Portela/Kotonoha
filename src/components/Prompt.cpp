@@ -45,42 +45,15 @@ void SetError(std::string *error, const std::string &value) {
   if (error != nullptr) *error = value;
 }
 
-std::shared_ptr<SchoolDaysFontData>
-LoadSharedSchoolDaysChoiceFont(const std::string &assetRoot, std::string *error) {
-  struct Cache {
-    std::string root;
-    std::shared_ptr<SchoolDaysFontData> font;
-    std::string error;
-    bool attempted = false;
-  };
-  static Cache cache;
-  if (cache.attempted && cache.root == assetRoot) {
-    SetError(error, cache.error);
-    return cache.font;
-  }
-
-  cache = Cache{};
-  cache.root = assetRoot;
-  cache.attempted = true;
-  const auto resolved = ResolveSchoolDaysAssetPath(
-      assetRoot.c_str(), "System/System/FONTDATA_ENG.DAT");
-  if (!resolved.present || resolved.collision) {
-    cache.error = resolved.collision
-                      ? "School Days FONTDATA_ENG path has a case collision"
-                      : "School Days FONTDATA_ENG asset is missing";
-    SetError(error, cache.error);
-    return {};
-  }
-
-  auto font = std::make_shared<SchoolDaysFontData>();
-  if (!font->LoadFile(resolved.physical, &cache.error)) {
-    SetError(error, cache.error);
-    return {};
-  }
-  cache.font = std::move(font);
-  cache.error.clear();
-  if (error != nullptr) error->clear();
-  return cache.font;
+std::string Utf16ToUtf8Prompt(const std::u16string &text) {
+  if (text.empty()) return {};
+  char *converted = SDL_iconv_string(
+      "UTF-8", "UTF-16LE", reinterpret_cast<const char *>(text.c_str()),
+      (text.size() + 1u) * sizeof(char16_t));
+  if (converted == nullptr) return {};
+  std::string result(converted);
+  SDL_free(converted);
+  return result;
 }
 
 } // namespace
@@ -113,9 +86,7 @@ bool Prompt::ConfigureSchoolDaysPresentation(const char *assetRoot,
   if (!schoolDaysInteraction.Enabled()) return true;
   const std::string root = assetRoot != nullptr ? assetRoot : "";
   if (schoolDaysPresentationAttempted && root == schoolDaysAssetRoot) {
-    const bool ready = schoolDaysPresentationConfigured &&
-                       schoolDaysFontData != nullptr &&
-                       schoolDaysFontData->IsLoaded();
+    const bool ready = schoolDaysPresentationConfigured && font != nullptr;
     if (error != nullptr) error->clear(); // first failed attempt already logged
     return ready;
   }
@@ -124,14 +95,11 @@ bool Prompt::ConfigureSchoolDaysPresentation(const char *assetRoot,
   schoolDaysPresentationConfigured = false;
   schoolDaysPresentationAttempted = true;
   schoolDaysPresentationError.clear();
-  schoolDaysFontData.reset();
   schoolDaysSelectAudioPath.clear();
   schoolDaysCancelAudioPath.clear();
 
-  schoolDaysFontData =
-      LoadSharedSchoolDaysChoiceFont(schoolDaysAssetRoot,
-                                     &schoolDaysPresentationError);
-  if (schoolDaysFontData == nullptr || !schoolDaysFontData->IsLoaded()) {
+  if (font == nullptr) {
+    schoolDaysPresentationError = "Kotonoha choice font is unavailable";
     SetError(error, schoolDaysPresentationError);
     return false;
   }
@@ -277,68 +245,83 @@ bool Prompt::RenderSchoolDays(SDL_Renderer *renderer, int outputWidth,
                               int outputHeight) {
   using Plan = SchoolDaysChoiceTextPlan;
   if (renderer == nullptr || outputWidth <= 0 || outputHeight <= 0 ||
-      !schoolDaysPresentationConfigured || schoolDaysFontData == nullptr ||
-      !schoolDaysFontData->IsLoaded()) {
+      !schoolDaysPresentationConfigured || font == nullptr) {
     return false;
   }
-
-  if (schoolDaysScratchTexture == nullptr) {
-    schoolDaysScratchTexture = SDL_CreateTexture(
-        renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, 1024,
-        512);
-    if (schoolDaysScratchTexture == nullptr ||
-        !SDL_SetTextureBlendMode(schoolDaysScratchTexture, SDL_BLENDMODE_BLEND)) {
-      ClearSchoolDaysScratchTexture();
-      return false;
-    }
-  }
-
-  std::vector<Uint32> pixels(1024u * 512u, 0u);
   const std::vector<int> visibleIndices = BuildVisiblePromptIndices(prompt);
   const int choiceCount = static_cast<int>(std::min<size_t>(visibleIndices.size(), 2u));
   if (choiceCount <= 0) return true;
 
   std::vector<std::vector<Plan::Line>> itemLines;
   itemLines.reserve(static_cast<size_t>(choiceCount));
-  SchoolDaysFontData::Glyph glyph{};
-  std::string decodeError;
   for (int slot = 0; slot < choiceCount; ++slot) {
     auto lines = Plan::WrapRetailEnglish(
         Utf8ToUtf16Prompt(prompt[visibleIndices[static_cast<size_t>(slot)]]));
     if (lines.size() > 5u) return false;
-    for (size_t lineIndex = 0; lineIndex < lines.size(); ++lineIndex) {
-      const int baseY = slot * 256 + static_cast<int>(lineIndex) * Plan::kGlyphHeight;
-      for (const auto &placement : lines[lineIndex].glyphs) {
-        if (!schoolDaysFontData->DecodeGlyph(placement.glyph, &glyph, &decodeError))
-          return false;
-        for (int gy = 0; gy < Plan::kGlyphHeight; ++gy) {
-          const int dstY = baseY + gy;
-          if (dstY < 0 || dstY >= 512) continue;
-          for (int gx = 0; gx < Plan::kGlyphWidth; ++gx) {
-            const int dstX = placement.x + gx;
-            if (dstX < 0 || dstX >= 1024) continue;
-            const size_t src = static_cast<size_t>(gy * Plan::kGlyphWidth + gx);
-            const Uint8 alpha = glyph.alpha[src];
-            if (alpha == 0u) continue;
-            const Uint8 gray = glyph.gray[src];
-            const Uint32 incoming = (static_cast<Uint32>(alpha) << 24u) |
-                                    (static_cast<Uint32>(gray) << 16u) |
-                                    (static_cast<Uint32>(gray) << 8u) | gray;
-            Uint32 &existing = pixels[static_cast<size_t>(dstY) * 1024u +
-                                      static_cast<size_t>(dstX)];
-            // EXE 0x4367D0: winner-take-all unsigned packed-ARGB max.  Alpha
-            // therefore dominates; grayscale breaks ties at equal alpha.
-            existing = Plan::CompositeScratchPixel(existing, incoming);
-          }
-        }
-      }
-    }
     itemLines.push_back(std::move(lines));
   }
 
-  if (!SDL_UpdateTexture(schoolDaysScratchTexture, nullptr, pixels.data(),
-                         1024 * static_cast<int>(sizeof(Uint32)))) {
-    return false;
+  if (schoolDaysScratchTexture == nullptr) {
+    schoolDaysScratchTexture = SDL_CreateTexture(
+        renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STREAMING, 1024,
+        512);
+    if (schoolDaysScratchTexture == nullptr ||
+        !SDL_SetTextureBlendMode(schoolDaysScratchTexture, SDL_BLENDMODE_BLEND)) {
+      ClearSchoolDaysScratchTexture();
+      return false;
+    }
+
+    SDL_Surface *scratch =
+        SDL_CreateSurface(1024, 512, SDL_PIXELFORMAT_RGBA32);
+    if (scratch == nullptr || !SDL_FillSurfaceRect(scratch, nullptr, 0u)) {
+      if (scratch != nullptr) SDL_DestroySurface(scratch);
+      ClearSchoolDaysScratchTexture();
+      return false;
+    }
+
+    const float previousSize = TTF_GetFontSize(font);
+    constexpr float kChoiceFontPointSize = 40.0f;
+    if (!TTF_SetFontSize(font, kChoiceFontPointSize)) {
+      SDL_DestroySurface(scratch);
+      ClearSchoolDaysScratchTexture();
+      return false;
+    }
+
+    bool rasterOk = true;
+    const SDL_Color white{255, 255, 255, 255};
+    for (int slot = 0; slot < choiceCount && rasterOk; ++slot) {
+      const auto &lines = itemLines[static_cast<size_t>(slot)];
+      for (size_t lineIndex = 0; lineIndex < lines.size(); ++lineIndex) {
+        const std::string utf8 = Utf16ToUtf8Prompt(lines[lineIndex].text);
+        if (utf8.empty()) continue;
+        SDL_Surface *textSurface = TTF_RenderText_Blended(
+            font, utf8.c_str(), utf8.size(), white);
+        if (textSurface == nullptr) {
+          rasterOk = false;
+          break;
+        }
+        const int measuredWidth = std::max(1, Plan::Measure(lines[lineIndex].text));
+        SDL_Rect destination{0,
+                             slot * 256 + static_cast<int>(lineIndex) *
+                                              Plan::kGlyphHeight,
+                             std::min(measuredWidth, 1024),
+                             Plan::kGlyphHeight};
+        rasterOk = SDL_BlitSurfaceScaled(textSurface, nullptr, scratch,
+                                         &destination, SDL_SCALEMODE_LINEAR);
+        SDL_DestroySurface(textSurface);
+        if (!rasterOk) break;
+      }
+    }
+
+    if (previousSize > 0.0f) (void)TTF_SetFontSize(font, previousSize);
+    if (!rasterOk ||
+        !SDL_UpdateTexture(schoolDaysScratchTexture, nullptr, scratch->pixels,
+                           scratch->pitch)) {
+      SDL_DestroySurface(scratch);
+      ClearSchoolDaysScratchTexture();
+      return false;
+    }
+    SDL_DestroySurface(scratch);
   }
 
   const float outputAspect = static_cast<float>(outputWidth) /
@@ -569,8 +552,8 @@ enum Kotonoha_Scene_Status Prompt::Render(KOTONOHA_SCENE_CALL) {
     SDL_GetRenderDrawColor(render, &oldR, &oldG, &oldB, &oldA);
     SDL_SetRenderDrawColor(render, 0, 0, 0, 0);
     SDL_RenderClear(render);
-    // Missing/malformed authenticated resources fail closed; never fall back
-    // to SDL_ttf for the School Days policy branch.
+    // The School Days branch keeps its authenticated layout/timing contract,
+    // while glyph pixels come from the Prompt's configured Kotonoha TTF.
     if (!finalExitFrame) {
       promptObj->RenderSchoolDays(render, outputWidth, outputHeight);
     } else {

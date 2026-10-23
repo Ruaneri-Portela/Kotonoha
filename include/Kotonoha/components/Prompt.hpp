@@ -1,13 +1,11 @@
 #pragma once
 #include <cstddef>
 #include <cstdlib>
-#include <memory>
 #include <string>
 #include <vector>
 
 #include <Kotonoha/Kotonoha.h>
 #include <Kotonoha/SceneTime.h>
-#include <Kotonoha/routing/SchoolDaysFontData.hpp>
 #include <Kotonoha/utils/Time.h>
 #include <SDL3/SDL.h>
 #include <SDL3_ttf/SDL_ttf.h>
@@ -38,7 +36,8 @@ struct SchoolDaysPromptPolicy {
  * remains available only for profiles whose orientation has not been proved.
  *
  * Interaction state remains isolated from presentation; the Prompt's School
- * Days branch separately owns the authenticated FONTDATA/SE/fade renderer.
+ * Days branch separately owns the School Days layout/SE/fade renderer while
+ * glyph rasterization uses Kotonoha's configured TTF font.
  */
 class SchoolDaysPromptInteraction {
 public:
@@ -202,7 +201,6 @@ private:
   SDL_FRect viewport = {0, 0, 0, 0};
   std::vector<PromptLayoutItem> lastLayout{};
   SchoolDaysPromptInteraction schoolDaysInteraction{};
-  std::shared_ptr<SchoolDaysFontData> schoolDaysFontData{};
   SDL_Texture *schoolDaysScratchTexture = nullptr;
   std::string schoolDaysAssetRoot{};
   std::string schoolDaysSelectAudioPath{};
