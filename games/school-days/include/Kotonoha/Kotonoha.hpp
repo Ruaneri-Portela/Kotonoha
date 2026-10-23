@@ -60,6 +60,7 @@ public:
 
   bool LoadScriptFile(const char *path);
   void DeleteGameplay(Gameplay *gameplay);
+  bool CaptureLastPresentedFrameForTransition();
   void CacheSceneTransitionFrameIfNeeded(Gameplay *current);
   void PresentSceneTransitionFrame(Gameplay *incoming);
 

@@ -10,7 +10,9 @@ extern "C" void KotonohaMobileSetupShared(const char *resourcesDir,
                                           const char *platformName,
                                           bool redirect);
 
-static std::string KotonohaAppleGetBundleResourcesPath() {
+namespace Kotonoha::Mobile {
+
+static std::string GetBundleResourcesPath() {
   @autoreleasepool {
     NSBundle *bundle = [NSBundle mainBundle];
     NSString *resourcePath = [bundle resourcePath];
@@ -20,7 +22,7 @@ static std::string KotonohaAppleGetBundleResourcesPath() {
   }
 }
 
-static std::string KotonohaAppleGetDocumentsPath() {
+static std::string GetDocumentsPath() {
   @autoreleasepool {
     NSFileManager *fileManager = [NSFileManager defaultManager];
 
@@ -35,10 +37,12 @@ static std::string KotonohaAppleGetDocumentsPath() {
   }
 }
 
-extern "C" void KotonohaMobileSetup(void) {
-  const std::string resourcesPath = KotonohaAppleGetBundleResourcesPath();
+} // namespace Kotonoha::Mobile
 
-  const std::string documentsPath = KotonohaAppleGetDocumentsPath();
+extern "C" void KotonohaMobileSetup(void) {
+  const std::string resourcesPath = Kotonoha::Mobile::GetBundleResourcesPath();
+
+  const std::string documentsPath = Kotonoha::Mobile::GetDocumentsPath();
 
 #if TARGET_OS_OSX
   KotonohaMobileSetupShared(resourcesPath.c_str(), documentsPath.c_str(),

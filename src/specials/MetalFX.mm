@@ -16,6 +16,7 @@
 #define SDL_PROP_TEXTURE_METAL_TEXTURE_POINTER "SDL.texture.metal.texture"
 #endif
 
+namespace Kotonoha::Detail {
 namespace {
 
 constexpr size_t kMaxCachedScalers = 8;
@@ -330,6 +331,9 @@ id<MTLTexture> MetalFXUpscaleTextureInto(id<MTLTexture> inputTexture,
 }
 
 } // namespace
+} // namespace Kotonoha::Detail
+
+using namespace Kotonoha::Detail;
 
 extern "C" {
 

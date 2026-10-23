@@ -12,13 +12,15 @@
 #include <unistd.h>
 #endif
 
-static std::string KotonohaMobileGetSafeDirectory(const char *directory) {
+namespace Kotonoha::Mobile {
+
+static std::string GetSafeDirectory(const char *directory) {
   return directory != nullptr && *directory != '\0' ? std::string(directory)
                                                     : std::string(".");
 }
 
-static bool KotonohaMobileSetWorkingDirectory(const char *resourcesDir) {
-  const std::string directory = KotonohaMobileGetSafeDirectory(resourcesDir);
+static bool SetWorkingDirectory(const char *resourcesDir) {
+  const std::string directory = GetSafeDirectory(resourcesDir);
 
 #ifdef _WIN32
   const int result = _chdir(directory.c_str());
@@ -37,8 +39,8 @@ static bool KotonohaMobileSetWorkingDirectory(const char *resourcesDir) {
   return false;
 }
 
-static bool KotonohaMobileRedirectLogs(const char *documentsDir) {
-  const std::string directory = KotonohaMobileGetSafeDirectory(documentsDir);
+static bool RedirectLogs(const char *documentsDir) {
+  const std::string directory = GetSafeDirectory(documentsDir);
 
   const std::string stdoutPath = directory + "/info.log";
 
@@ -61,7 +63,7 @@ static bool KotonohaMobileRedirectLogs(const char *documentsDir) {
   return true;
 }
 
-static std::string KotonohaMobileCreateLogHeader() {
+static std::string CreateLogHeader() {
   const auto now = std::chrono::system_clock::now();
 
   const std::time_t actualTime = std::chrono::system_clock::to_time_t(now);
@@ -89,15 +91,17 @@ static std::string KotonohaMobileCreateLogHeader() {
   return header.str();
 }
 
+} // namespace Kotonoha::Mobile
+
 extern "C" void KotonohaMobileSetupShared(const char *resourcesDir,
                                           const char *documentsDir,
                                           const char *platformName,
                                           bool redirect) {
   const std::string resourcesDirectory =
-      KotonohaMobileGetSafeDirectory(resourcesDir);
+      Kotonoha::Mobile::GetSafeDirectory(resourcesDir);
 
   const std::string documentsDirectory =
-      KotonohaMobileGetSafeDirectory(documentsDir);
+      Kotonoha::Mobile::GetSafeDirectory(documentsDir);
 
   const std::string platform = platformName != nullptr && *platformName != '\0'
                                    ? platformName
@@ -107,7 +111,7 @@ extern "C" void KotonohaMobileSetupShared(const char *resourcesDir,
   // assets/font.ttf
   // assets/shaders/upscale.metallib
   const bool directoryChanged =
-      KotonohaMobileSetWorkingDirectory(resourcesDirectory.c_str());
+      Kotonoha::Mobile::SetWorkingDirectory(resourcesDirectory.c_str());
 
   // Mantém stdout/stderr no terminal, console do Xcode ou logcat.
   if (!redirect) {
@@ -128,9 +132,9 @@ extern "C" void KotonohaMobileSetupShared(const char *resourcesDir,
   const std::string stderrPath = documentsDirectory + "/error.log";
 
   const bool logsRedirected =
-      KotonohaMobileRedirectLogs(documentsDirectory.c_str());
+      Kotonoha::Mobile::RedirectLogs(documentsDirectory.c_str());
 
-  const std::string header = KotonohaMobileCreateLogHeader();
+  const std::string header = Kotonoha::Mobile::CreateLogHeader();
 
   std::cout << header << "STDOUT -> " << stdoutPath << '\n'
             << platform << " resources directory -> " << resourcesDirectory

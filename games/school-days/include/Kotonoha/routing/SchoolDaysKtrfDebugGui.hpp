@@ -10,6 +10,7 @@ class SchoolDaysSceneTransaction;
 
 bool Kotonoha_SchoolDaysKtrfDebugGuiRun(
     Kotonoha::SchoolDaysKtrfAppController* controller,
+    Kotonoha::Kotonoha* game,
     Kotonoha::Gameplay* play,
     Kotonoha::SchoolDaysSceneTransaction* transaction,
     Kotonoha_Game& context);

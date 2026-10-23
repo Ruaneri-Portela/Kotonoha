@@ -17,6 +17,7 @@
 // Executa os shaders originais do Anime4K v4.0 (formato mpv, multi-pass)
 // sobre texturas flutuantes em FBOs. Cadeia usada (Mode A):
 // Clamp_Highlights -> Restore_CNN -> Upscale_CNN_x2 -> De-Ring (PREKERNEL).
+namespace Kotonoha::Detail {
 namespace {
 
 struct BindRef {
@@ -750,6 +751,9 @@ GLuint TextureNumber(SDL_Texture *texture) {
 }
 
 } // namespace
+} // namespace Kotonoha::Detail
+
+using namespace Kotonoha::Detail;
 
 extern "C" {
 

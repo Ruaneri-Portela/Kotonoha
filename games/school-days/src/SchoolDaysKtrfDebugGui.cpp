@@ -3,6 +3,7 @@
 #include <Kotonoha/routing/SchoolDaysKtrfDebugGui.hpp>
 #include <Kotonoha/routing/SchoolDaysSceneTransaction.hpp>
 #include <Kotonoha/routing/SchoolDaysKtrfStateInspector.hpp>
+#include <Kotonoha/debug/DebugUi.hpp>
 
 #include <imgui.h>
 #include <imgui_impl_sdl3.h>
@@ -22,6 +23,11 @@ char debugStatus[512] = {0};
 
 void SetDebugStatus(const char* text) {
     SDL_snprintf(debugStatus, sizeof(debugStatus), "%s", text != nullptr ? text : "");
+}
+
+void DrawKtrfDebugMenu(void*) {
+    ImGui::MenuItem("KTRF Scene List", nullptr, &showKtrfScenes);
+    ImGui::MenuItem("KTRF State Inspector", nullptr, &showKtrfState);
 }
 
 template <typename Action>
@@ -59,7 +65,7 @@ bool RunDebugSceneMutation(Kotonoha::SchoolDaysKtrfAppController* controller,
 
     play = controller->CurrentGameplay();
     if (transaction != nullptr && context.render != nullptr && before != nullptr) {
-        transaction->CommitIfSwapped(context.render, before, play, reason);
+        transaction->CommitIfSwapped(before, play, reason);
     }
     return true;
 }
@@ -108,26 +114,91 @@ bool JumpRelative(Kotonoha::SchoolDaysKtrfAppController* controller,
 
 bool Kotonoha_SchoolDaysKtrfDebugGuiRun(
     Kotonoha::SchoolDaysKtrfAppController* controller,
+    Kotonoha::Kotonoha* game,
     Kotonoha::Gameplay* play,
     Kotonoha::SchoolDaysSceneTransaction* transaction,
     Kotonoha_Game& context) {
-    if (!context.config.enableDebugUi) return true;
     if (controller == nullptr || !controller->IsOpen()) return true;
 
-    play = controller->CurrentGameplay();
-    if (play == nullptr) return true;
+    const auto flowState = controller->FlowState();
+    const bool titleFrontend =
+        flowState == Kotonoha::SchoolDaysFlowController::State::Title ||
+        flowState == Kotonoha::SchoolDaysFlowController::State::TitleLoad ||
+        flowState == Kotonoha::SchoolDaysFlowController::State::TitleRouteMap ||
+        flowState == Kotonoha::SchoolDaysFlowController::State::TitleConfig ||
+        flowState == Kotonoha::SchoolDaysFlowController::State::TitleExit;
+    if (!context.config.enableDebugUi) {
+        Kotonoha::Debug::Run(game, play, context, titleFrontend);
+        return true;
+    }
 
-    ImGuiIO& io = ImGui::GetIO();
-    ImGui_ImplSDLRenderer3_NewFrame();
-    ImGui_ImplSDL3_NewFrame();
-    ImGui::NewFrame();
+    play = titleFrontend ? nullptr : controller->CurrentGameplay();
+    if (play == nullptr && !titleFrontend) return true;
+
+    Kotonoha::Debug::BeginWorkspaceFrame(
+        context, &DrawKtrfDebugMenu, nullptr);
+
+    if (titleFrontend) {
+        bool shouldExit = false;
+        if (context.config.enableDebugUi) {
+            if (showKtrfScenes) {
+                const int currentOrdinal = controller->DebugCurrentSceneOrdinal();
+                const std::size_t sceneCount = controller->DebugSceneCount();
+                ImGui::Begin("Scenes - KTRF", &showKtrfScenes);
+                ImGui::Text("Physical scenes: %d",
+                            static_cast<int>(sceneCount));
+                ImGui::TextDisabled(
+                    "Scene jumps are available while KTRF Gameplay is active.");
+                ImGui::InputTextWithHint(
+                    "##ktrf_scene_filter", "filter scene key", sceneFilter,
+                    IM_ARRAYSIZE(sceneFilter));
+                if (ImGui::BeginListBox("##ktrf_scene_playlist")) {
+                    for (std::size_t i = 0; i < sceneCount; ++i) {
+                        const auto* entry = controller->DebugSceneAt(i);
+                        if (entry == nullptr ||
+                            (sceneFilter[0] != '\0' &&
+                             entry->sceneKey.find(sceneFilter) ==
+                                 std::string::npos)) {
+                            continue;
+                        }
+                        char label[512];
+                        SDL_snprintf(label, sizeof(label), "%04d  %s  [NODE %u]",
+                                     static_cast<int>(i + 1),
+                                     entry->sceneKey.c_str(),
+                                     static_cast<unsigned>(entry->nodeIndex));
+                        ImGui::Selectable(
+                            label,
+                            currentOrdinal >= 0 &&
+                                static_cast<std::size_t>(currentOrdinal) == i,
+                            ImGuiSelectableFlags_Disabled);
+                    }
+                    ImGui::EndListBox();
+                }
+                ImGui::End();
+            }
+            if (showKtrfState) {
+                Kotonoha_SchoolDaysKtrfStateInspectorRun(
+                    controller, context, &showKtrfState);
+            }
+        }
+        const bool auxiliaryWindowsContinue =
+            Kotonoha::Debug::DrawAuxiliaryWindows(
+                game, nullptr, context, true, shouldExit,
+                context.config.enableDebugUi);
+        const bool frameRendered =
+            Kotonoha::Debug::FinishWorkspaceFrame(context);
+        Kotonoha::Debug::UpdateFocusState();
+        return frameRendered && auxiliaryWindowsContinue && !shouldExit;
+    }
 
     bool exitRequested = false;
     const int currentOrdinal = controller->DebugCurrentSceneOrdinal();
     const std::size_t sceneCount = controller->DebugSceneCount();
     const auto& currentScene = controller->CurrentScene();
 
-    ImGui::Begin("Kotonoha - School Days KTRF");
+    bool& controlPanelVisible = Kotonoha::Debug::ControlPanelVisibility();
+    if (controlPanelVisible) {
+    ImGui::Begin("Kotonoha - School Days KTRF", &controlPanelVisible);
 
     if (currentOrdinal >= 0) {
         ImGui::Text("Current Scene: %d / %d", currentOrdinal + 1,
@@ -234,9 +305,6 @@ bool Kotonoha_SchoolDaysKtrfDebugGuiRun(
     }
 
     if (ImGui::CollapsingHeader("Script / Routing", ImGuiTreeNodeFlags_DefaultOpen)) {
-        ImGui::Checkbox("Show Scenes", &showKtrfScenes);
-        ImGui::SameLine();
-        ImGui::Checkbox("Show State Inspector", &showKtrfState);
         ImGui::TextDisabled("KTRF debug jumps preserve runtime variables, sync ROUTE/SCENE to the selected scene, and activate its NODE.");
         ImGui::TextDisabled("Text Scene Editor is disabled here because .ENG.ORS is a binary asset.");
     }
@@ -247,6 +315,7 @@ bool Kotonoha_SchoolDaysKtrfDebugGuiRun(
     }
 
     ImGui::End();
+    }
 
     if (showKtrfScenes) {
         ImGui::Begin("Scenes - KTRF", &showKtrfScenes);
@@ -288,13 +357,11 @@ bool Kotonoha_SchoolDaysKtrfDebugGuiRun(
         Kotonoha_SchoolDaysKtrfStateInspectorRun(controller, context, &showKtrfState);
     }
 
-    ImGui::Render();
-    SDL_SetRenderScale(context.render, io.DisplayFramebufferScale.x,
-                       io.DisplayFramebufferScale.y);
-    ImGui_ImplSDLRenderer3_RenderDrawData(ImGui::GetDrawData(), context.render);
-    // Match the ordinary BasicGui frame finalizer: renderer scale is shared
-    // SDL state, so leaving the HiDPI ImGui scale active would distort the
-    // next School Days gameplay/SystemUi frame and its pointer transform.
-    SDL_SetRenderScale(context.render, 1.0f, 1.0f);
-    return !exitRequested;
+    const bool auxiliaryWindowsContinue =
+        Kotonoha::Debug::DrawAuxiliaryWindows(
+            game, play, context, false, exitRequested);
+
+    const bool frameRendered = Kotonoha::Debug::FinishWorkspaceFrame(context);
+    Kotonoha::Debug::UpdateFocusState();
+    return frameRendered && auxiliaryWindowsContinue && !exitRequested;
 }

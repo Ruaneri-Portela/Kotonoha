@@ -1,6 +1,6 @@
 param(
     [Parameter(Mandatory = $true)]
-    [ValidateSet("KotonohaEngine", "SchoolDaysHQ")]
+    [ValidateSet("Kotonoha", "SchoolDays", "KotonohaEngine")]
     [string]$Target,
 
     [ValidateSet("Debug", "Release")]

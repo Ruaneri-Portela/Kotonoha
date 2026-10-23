@@ -288,9 +288,9 @@ mono_crash.*
 # Build results
 [Dd]ebug/
 ![Ss]rc/[Dd]ebug/
+!src/runtime/debug/
+!src/runtime/debug/**
 ![Ii]nclude/Kotonoha/[Dd]ebug/
-![Gg]ames/school-days/src/runtime/[Dd]ebug/
-![Gg]ames/school-days/src/runtime/[Dd]ebug/**
 ![Gg]ames/school-days/include/Kotonoha/[Dd]ebug/
 ![Gg]ames/school-days/include/Kotonoha/[Dd]ebug/**
 [Dd]ebugPublic/

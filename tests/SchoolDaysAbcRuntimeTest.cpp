@@ -1,5 +1,5 @@
-#include <Kotonoha/SchoolDaysAbcRuntime.hpp>
-#include <Kotonoha/SchoolDaysVoicePcm.hpp>
+#include <Kotonoha/graphics/AbcAnimation.hpp>
+#include <Kotonoha/audio/VoicePcm.hpp>
 #include <Kotonoha/components/Image.hpp>
 
 #include <filesystem>
@@ -15,35 +15,35 @@ void Check(bool okay, const char* message) {
 
 void TestPcmGeometry() {
     using namespace Kotonoha;
-    Check(OriginalSchoolDaysActivityTime100ns(1) == 416667 &&
-          OriginalSchoolDaysActivityTime100ns(2) == 833333 &&
-          OriginalSchoolDaysActivityTime100ns(3) == 1250000,
+    Check(ActivityTime100ns(1) == 416667 &&
+          ActivityTime100ns(2) == 833333 &&
+          ActivityTime100ns(3) == 1250000,
           "original 100 ns activity timestamp rounding");
     std::vector<int16_t> pcm(22050, 0);
     pcm[0] = 60;
     pcm[1917] = 61;
     pcm[3834] = -60;
     pcm[5752] = -59;
-    auto records = AnalyzeSchoolDaysPcm(pcm);
+    auto records = AnalyzePcmActivity(pcm);
     Check(records.size() == 12, "full 44100-byte chunk record count");
     Check(!records[0].active && records[1].active && records[2].active &&
           !records[3].active, "signed s16 thresholds");
-    Check(!SampleSchoolDaysPcmChunk(pcm, 0, 44100, 23),
+    Check(!SamplePcmChunk(pcm, 0, 44100, 23),
           "index >= B must be inactive");
-    Check(SchoolDaysActivityAt(records, 1) &&
-          !SchoolDaysActivityAt(records, 12), "activity query after media EOF");
+    Check(IsVoiceActiveAt(records, 1) &&
+          !IsVoiceActiveAt(records, 12), "activity query after media EOF");
 
     pcm.resize(22050 + 10000, 0);
-    records = AnalyzeSchoolDaysPcm(pcm);
+    records = AnalyzePcmActivity(pcm);
     Check(records.size() == 17, "partial final chunk record count");
     for (size_t n = 12; n < records.size(); ++n)
         Check(!records[n].active, "partial final chunk negative index");
-    Check(!SampleSchoolDaysPcmChunk(pcm, 44100, 20000, 12),
+    Check(!SamplePcmChunk(pcm, 44100, 20000, 12),
           "negative local sample index must be inactive");
 
     std::vector<int16_t> fullTwoChunks(44100, 0);
     fullTwoChunks[22050 + 958] = 61;
-    records = AnalyzeSchoolDaysPcm(fullTwoChunks);
+    records = AnalyzePcmActivity(fullTwoChunks);
     Check(records.size() == 24 && records[12].active,
           "P/2 offset in second full chunk");
     /* AVFrame boundaries must not alter the normalized sample stream. */
@@ -51,7 +51,7 @@ void TestPcmGeometry() {
     for (size_t pos = 0; pos < fullTwoChunks.size(); pos += 1073)
         split.insert(split.end(), fullTwoChunks.begin() + pos,
                      fullTwoChunks.begin() + std::min(pos + 1073, fullTwoChunks.size()));
-    const auto repeated = AnalyzeSchoolDaysPcm(split);
+    const auto repeated = AnalyzePcmActivity(split);
     Check(repeated.size() == records.size(), "AVFrame-size independence count");
     for (size_t n = 0; n < records.size(); ++n)
         Check(repeated[n].active == records[n].active, "AVFrame-size independence value");
@@ -59,48 +59,48 @@ void TestPcmGeometry() {
 
 void TestResourceCollisionPolicy() {
     using namespace Kotonoha;
-    SchoolDaysAbcGroupResources group;
+    AbcGroupResources group;
     group.baseStem = "BASE";
     group.key = "mak";
-    Check(AssignSchoolDaysAbcResource(group, 0, "BASEMAK.A.PNG"),
+    Check(AssignAbcResource(group, 0, "BASEMAK.A.PNG"),
           "first ABC resource assignment failed");
-    Check(AssignSchoolDaysAbcResource(group, 0, "BASEMAK.A.PNG") &&
+    Check(AssignAbcResource(group, 0, "BASEMAK.A.PNG") &&
               !group.collision,
           "idempotent ABC resource assignment became a collision");
-    Check(!AssignSchoolDaysAbcResource(group, 0, "basemak.a.png") &&
+    Check(!AssignAbcResource(group, 0, "basemak.a.png") &&
               group.collision && !group.Complete(),
           "fold-equivalent ABC sibling collision did not fail closed");
-    Check(!AssignSchoolDaysAbcResource(group, 3, "invalid.PNG"),
+    Check(!AssignAbcResource(group, 3, "invalid.PNG"),
           "out-of-range ABC state was accepted");
 }
 
 void TestScheduler() {
     using namespace Kotonoha;
-    Check(SchoolDaysAbcAnimationUpdatesAtRate(1.0) &&
-              SchoolDaysAbcAnimationUpdatesAtRate(2.0) &&
-              SchoolDaysAbcAnimationUpdatesAtRate(4.0) &&
-              !SchoolDaysAbcAnimationUpdatesAtRate(12.0) &&
-              !SchoolDaysAbcAnimationUpdatesAtRate(24.0),
+    Check(AbcAnimationUpdatesAtRate(1.0) &&
+              AbcAnimationUpdatesAtRate(2.0) &&
+              AbcAnimationUpdatesAtRate(4.0) &&
+              !AbcAnimationUpdatesAtRate(12.0) &&
+              !AbcAnimationUpdatesAtRate(24.0),
           "retail ImageChar 12x/24x ABC update gate");
-    std::vector<SchoolDaysActivityRecord> active;
+    std::vector<AbcActivityRecord> active;
     for (unsigned n = 0; n < 16; ++n) active.push_back({n, true});
-    auto at2 = ComputeSchoolDaysAbcStateAt(active, 1, 2);
-    auto at3 = ComputeSchoolDaysAbcStateAt(active, 1, 3);
-    auto at6 = ComputeSchoolDaysAbcStateAt(active, 1, 6);
-    auto at9 = ComputeSchoolDaysAbcStateAt(active, 1, 9);
+    auto at2 = ComputeAbcAnimationAt(active, 1, 2);
+    auto at3 = ComputeAbcAnimationAt(active, 1, 3);
+    auto at6 = ComputeAbcAnimationAt(active, 1, 6);
+    auto at9 = ComputeAbcAnimationAt(active, 1, 9);
     Check(at2.activeIndex == 0 && at3.activeIndex == 1 &&
           at6.activeIndex == 2 && at9.activeIndex == 0,
           "24 Hz graphic tick / 3: A B C A");
     active[3].active = false; // scene tick 4
-    auto idle = ComputeSchoolDaysAbcStateAt(active, 1, 4);
-    auto resumed = ComputeSchoolDaysAbcStateAt(active, 1, 6);
+    auto idle = ComputeAbcAnimationAt(active, 1, 4);
+    auto resumed = ComputeAbcAnimationAt(active, 1, 6);
     Check(idle.activeIndex == 0 && idle.counter == 1 &&
           resumed.activeIndex == 2, "idle convergence and retained counter");
-    Check(ComputeSchoolDaysAbcStateAt(active, 1, 6).counter == resumed.counter,
+    Check(ComputeAbcAnimationAt(active, 1, 6).counter == resumed.counter,
           "seek rebuild must be deterministic");
-    SchoolDaysAbcState mak, tai;
-    AdvanceSchoolDaysAbcState(mak, active, 1, 3);
-    AdvanceSchoolDaysAbcState(tai, active, 10, 10);
+    AbcAnimationState mak, tai;
+    AdvanceAbcAnimation(mak, active, 1, 3);
+    AdvanceAbcAnimation(tai, active, 10, 10);
     Check(mak.counter == 1 && tai.counter == 0,
           "different keys must keep independent counters");
 }
@@ -215,11 +215,11 @@ void TestVoiceDecode(const fs::path& assets) {
         "00-00-A01-0230.OGG";
     if (!fs::exists(voice)) return;
     std::vector<int16_t> pcm;
-    Check(Kotonoha::DecodeSchoolDaysVoicePcm(voice.string(), pcm) &&
+    Check(Kotonoha::DecodeVoicePcm(voice.string(), pcm) &&
           pcm.size() > 44100, "real MAK voice mono s16 decode");
     std::cout << "A01 MAK PCM samples: " << pcm.size() << '\n';
     Check(pcm.size() == 59943, "MAK PCM length differs from G1.4.1 trace");
-    const auto makActivity = Kotonoha::AnalyzeSchoolDaysPcm(pcm);
+    const auto makActivity = Kotonoha::AnalyzePcmActivity(pcm);
     std::string makBits;
     for (const auto& record : makActivity) makBits += record.active ? '1' : '0';
     Check(makBits == "00001101111001111111111000000000",
@@ -228,10 +228,10 @@ void TestVoiceDecode(const fs::path& assets) {
           "real MAK voice activity records");
     const fs::path tai = voice.parent_path() / "00-00-A01-0240.OGG";
     if (fs::exists(tai)) {
-        Check(Kotonoha::DecodeSchoolDaysVoicePcm(tai.string(), pcm),
+        Check(Kotonoha::DecodeVoicePcm(tai.string(), pcm),
               "real TAI voice mono s16 decode");
         std::cout << "A01 TAI PCM samples: " << pcm.size() << '\n';
-        const auto taiActivity = Kotonoha::AnalyzeSchoolDaysPcm(pcm);
+        const auto taiActivity = Kotonoha::AnalyzePcmActivity(pcm);
         std::string taiBits;
         for (const auto& record : taiActivity) taiBits += record.active ? '1' : '0';
         Check(taiBits == "000111011111101111111110111111111100000000",

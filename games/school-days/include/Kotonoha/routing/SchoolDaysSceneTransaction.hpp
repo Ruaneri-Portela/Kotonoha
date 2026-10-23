@@ -31,9 +31,10 @@ public:
                          const char* reason);
 
     // Called after routing/action code. If outgoing != incoming, the prepared
-    // composition becomes the active lease and is redrawn in the same frame.
-    bool CommitIfSwapped(SDL_Renderer* renderer, Gameplay* outgoing,
-                         Gameplay* incoming, const char* reason);
+    // composition becomes the active lease; it is presented underneath the
+    // incoming Gameplay on the next render pass.
+    bool CommitIfSwapped(Gameplay* outgoing, Gameplay* incoming,
+                         const char* reason);
 
     // Drop an explicit/automatic capture when the action that requested it
     // resolves without replacing the outgoing Gameplay. Never touches an

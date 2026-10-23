@@ -15,6 +15,18 @@ typedef enum Kotonoha_UpscalerType {
   KOTONOHA_UPSCALER_METALFX = 2
 } Kotonoha_UpscalerType;
 
+typedef struct Kotonoha_UpscaledTexture {
+  SDL_Texture *intermediate;
+  SDL_Texture *output;
+  Uint64 sourceSerial;
+  Uint64 settingsRevision;
+  int sourceWidth;
+  int sourceHeight;
+  Uint32 sourceFormat;
+  float factor;
+  bool initialized;
+} Kotonoha_UpscaledTexture;
+
 // Generic Init & Shutdown
 bool KotonohaUpscalingInit(SDL_Renderer *renderer, const char *name,
                            Kotonoha_Config *config);
@@ -37,6 +49,15 @@ void KotonohaUpscalingSetEnabled(bool enabled);
 // Upscale Factor (e.g. 1.0f = disabled, 1.5f, 2.0f)
 float KotonohaUpscalingGetFactor(void);
 void KotonohaUpscalingSetFactor(float factor);
+Uint64 KotonohaUpscalingGetRevision(void);
+
+// Rebuilds one cached texture only when its source or upscaling settings change.
+bool KotonohaUpscalingUpdateTexture(SDL_Renderer *renderer,
+                                    SDL_Texture *source,
+                                    Uint64 sourceSerial,
+                                    Kotonoha_UpscaledTexture *cached,
+                                    bool *textureChanged);
+void KotonohaUpscalingReleaseTexture(Kotonoha_UpscaledTexture *cached);
 
 // Generic Upscale execution function (routes to MetalFX or Anime4K/OpenGL)
 bool Kotonoha_UpscaleSDLTextureInto(SDL_Renderer *renderer,

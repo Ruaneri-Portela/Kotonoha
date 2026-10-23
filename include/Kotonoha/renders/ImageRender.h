@@ -1,4 +1,5 @@
 #pragma once
+#include <Kotonoha/specials/Upscaling.h>
 #include <Kotonoha/utils/FFmpeg.h>
 #include <SDL3/SDL.h>
 #include <libavcodec/avcodec.h>
@@ -18,6 +19,7 @@ typedef struct Kotonoha_ImageLoad {
   SDL_AtomicInt state;
   bool failed;
   bool missingIgnored;
+  Kotonoha_UpscaledTexture upscaled;
 } Kotonoha_ImageLoad;
 
 typedef struct Kotonoha_Picture {

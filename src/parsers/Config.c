@@ -434,7 +434,9 @@ static bool ParseArguments(Kotonoha_Config *config, int argc, char *argv[]) {
 }
 
 static bool LoadConfigFile(Kotonoha_Config *config, const char *path) {
-  KotonohaConfigRegisterImGuiHandler(config);
+  if (!KotonohaConfigRegisterImGuiHandler(config)) {
+    return false;
+  }
   if (path != NULL) {
     // Se um caminho customizado foi passado, configura o arquivo no ImGui
     KotonohaConfigSetIniFilename(path);
