@@ -72,6 +72,9 @@ bool SchoolDaysMenuBarPresenter::Open(SDL_Renderer* renderer,
     actionInhibit_ = false;
     fullBarSuppressed_ = false;
     speedIndex_ = 0;
+    replayIndicatorAvailable_ = false;
+    replayIndicatorControl_ = 24;
+    replayIndicatorAlpha_ = 255;
     opened_ = true;
     return true;
 }
@@ -89,6 +92,9 @@ void SchoolDaysMenuBarPresenter::Close() {
     fadeStartMs_ = 0;
     barAlpha_ = 0;
     opened_ = false;
+    replayIndicatorAvailable_ = false;
+    replayIndicatorControl_ = 24;
+    replayIndicatorAlpha_ = 255;
 }
 
 bool SchoolDaysMenuBarPresenter::HandleEvent(SDL_Renderer* renderer,
@@ -125,7 +131,8 @@ bool SchoolDaysMenuBarPresenter::HandleEvent(SDL_Renderer* renderer,
     const bool availableNow =
         !fullBarSuppressed_ &&
         ControlAvailable(hit, transportLocked_, actionInhibit_,
-                         speedControlsEnabled_, superSkipEnabled_);
+                         speedControlsEnabled_, superSkipEnabled_,
+                         replayIndicatorAvailable_);
     const int available = availableNow ? hit : -1;
 
     if (event->type == SDL_EVENT_MOUSE_MOTION) {
@@ -145,6 +152,10 @@ bool SchoolDaysMenuBarPresenter::HandleEvent(SDL_Renderer* renderer,
     // the stored hover selection. A click never silently changes selection.
     if (available >= 0 && available == selection_) {
         *action = ActionForControl(available);
+        if (action->kind == ActionKind::SetReplayIndicatorOpacity) {
+            replayIndicatorControl_ = available;
+            replayIndicatorAlpha_ = ReplayOpacityAlphaForControl(available);
+        }
     }
     return hit >= 0;
 }
@@ -289,6 +300,47 @@ bool SchoolDaysMenuBarPresenter::Render(SDL_Renderer* renderer,
         }
     }
 
+    // Repeat-mode strip. Retail 0x10021C20 always submits this family: record69
+    // is the ordinary gray strip, record70 is the cyan replay-active strip,
+    // and record71 is the movable 12x17 selector. The active-state predicate
+    // is FILMEngine secondary-vtable +0x98 (main+0x1E0), not elapsed story time.
+    {
+        const ChipRecord repeatStrip =
+            FixedChipRecord(replayIndicatorAvailable_ ? 70 : 69, variant_);
+        if (!RenderClipped(renderer, chip_, repeatStrip.source,
+                           repeatStrip.destination, viewport, error)) {
+            return false;
+        }
+
+        ChipRecord selector = FixedChipRecord(71, variant_);
+        const SDL_FRect selectorControl =
+            ControlRect(replayIndicatorControl_, variant_);
+        selector.destination = selectorControl;
+        if (!RenderClipped(renderer, chip_, selector.source,
+                           selector.destination, viewport, error)) {
+            return false;
+        }
+
+        // record68 is the authored cyan "MODO REPETIÇÃO" indicator. Static
+        // SysMenu code submits this sprite locally, but retail runtime
+        // observation closes the parent-composition seam: ordinary Gameplay
+        // presents only the gray strip, while the label is visible only with
+        // the replay latch (+0x98) active.
+        if (replayIndicatorAvailable_) {
+            const ChipRecord repeatLabel = FixedChipRecord(68, variant_);
+            const uint8_t effectiveAlpha = static_cast<uint8_t>(
+                (static_cast<unsigned>(barAlpha_) * replayIndicatorAlpha_ + 127u) /
+                255u);
+            SDL_SetTextureAlphaMod(chip_, effectiveAlpha);
+            if (!RenderClipped(renderer, chip_, repeatLabel.source,
+                               repeatLabel.destination, viewport, error)) {
+                SDL_SetTextureAlphaMod(chip_, barAlpha_);
+                return false;
+            }
+            SDL_SetTextureAlphaMod(chip_, barAlpha_);
+        }
+    }
+
     // Persistent transport state. Native ordinary draw order after MenuBar.PNG
     // is speed strip (rec47 enabled / rec66 disabled), next-choice/SKIP
     // (rec46 enabled / rec65 disabled), pause (44/45), then auto (42/43).
@@ -331,6 +383,17 @@ bool SchoolDaysMenuBarPresenter::Render(SDL_Renderer* renderer,
                        : ControlChip(selection_, variant_));
         if (hover.source.w > 0.0f && hover.source.h > 0.0f &&
             !RenderClipped(renderer, chip_, hover.source, hover.destination,
+                           viewport, error)) {
+            return false;
+        }
+
+        // FUN_100262E0 renders one of fixed records53..64 below the controls
+        // whenever a valid control is selected.  These are the retail-authored
+        // help strings (e.g. pause/play, save, load, and the shared repeat
+        // transparency description for controls15..24).
+        const ChipRecord help = HoverHelpChip(selection_, variant_);
+        if (help.source.w > 0.0f && help.source.h > 0.0f &&
+            !RenderClipped(renderer, chip_, help.source, help.destination,
                            viewport, error)) {
             return false;
         }

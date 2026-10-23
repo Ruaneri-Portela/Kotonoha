@@ -188,6 +188,37 @@ SchoolDaysMenuBarPresenter::FixedChipRecord(int record, Variant variant) {
     return out;
 }
 
+SchoolDaysMenuBarPresenter::ChipRecord
+SchoolDaysMenuBarPresenter::HoverHelpChip(int control, Variant variant) {
+    // FUN_100262E0 uses the byte classifier at 0x1002651C to pick records
+    // 53..64.  Keep this table literal so a future layout refactor cannot
+    // accidentally invent per-speed/per-opacity help strings that retail did
+    // not have.
+    static constexpr std::array<int, 25> kHelpRecords{{
+        53, 54, 55, 56, 57,
+        58, 58, 58, 58, 58,
+        59, 60, 61, 62, 63,
+        64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
+    }};
+    if (control < 0 || control >= static_cast<int>(kHelpRecords.size())) {
+        return {};
+    }
+    return FixedChipRecord(kHelpRecords[static_cast<size_t>(control)], variant);
+}
+
+int SchoolDaysMenuBarPresenter::ReplayOpacityLevelForControl(int control) {
+    if (control < 15 || control > 24) return -1;
+    // 0x10026ED0 deliberately skips internal level1.
+    if (control == 15) return 0;
+    return control - 14;
+}
+
+uint8_t SchoolDaysMenuBarPresenter::ReplayOpacityAlphaForControl(int control) {
+    const int level = ReplayOpacityLevelForControl(control);
+    if (level < 0) return 0;
+    return static_cast<uint8_t>(level * 25);
+}
+
 uint8_t SchoolDaysMenuBarPresenter::FadeAlpha(uint8_t startAlpha,
                                               bool targetVisible,
                                               uint32_t elapsedMs) {
@@ -220,7 +251,8 @@ int SchoolDaysMenuBarPresenter::HitTest(float logicalX, float logicalY,
 
 bool SchoolDaysMenuBarPresenter::ControlAvailable(
     int control, bool transportLocked, bool actionInhibit,
-    bool speedControlsEnabled, bool superSkipEnabled) {
+    bool speedControlsEnabled, bool superSkipEnabled,
+    bool replayIndicatorAvailable) {
     // SysMenuSDHQ.dll FUN_10023FB0:
     //   0..3  class0: unconditional
     //   4     class1: host+104==0 && host+110==0 && SuperSkip!=0
@@ -236,6 +268,10 @@ bool SchoolDaysMenuBarPresenter::ControlAvailable(
         return !transportLocked && speedControlsEnabled;
     if (control >= 10 && control <= 12) return !actionInhibit;
     if (control >= 13 && control <= 14) return true;
+    // Class4 calls the host secondary-interface predicate at +0x98.  In the
+    // retail EXE that slot is 0x0042BEF0 and returns main+0x1E0: the
+    // repeat/replay-latched mode used by the alternate loader path.
+    if (control >= 15 && control <= 24) return replayIndicatorAvailable;
     return false;
 }
 
@@ -258,7 +294,7 @@ SchoolDaysMenuBarPresenter::ActionForControl(int control) {
         out.kind = ActionKind::TogglePause;
         break;
     case 2:
-        out.kind = ActionKind::RestartScene;
+        out.kind = ActionKind::BackOrRestartScene;
         break;
     case 3:
         out.kind = ActionKind::SkipToEnd;
@@ -273,6 +309,19 @@ SchoolDaysMenuBarPresenter::ActionForControl(int control) {
     case 9:
         out.kind = ActionKind::SetPlaybackSpeed;
         out.value = control - 5;
+        break;
+    case 15:
+    case 16:
+    case 17:
+    case 18:
+    case 19:
+    case 20:
+    case 21:
+    case 22:
+    case 23:
+    case 24:
+        out.kind = ActionKind::SetReplayIndicatorOpacity;
+        out.value = ReplayOpacityLevelForControl(control);
         break;
     case 10:
         out.kind = ActionKind::OpenSave;
