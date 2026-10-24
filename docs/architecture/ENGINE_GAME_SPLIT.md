@@ -26,14 +26,14 @@ On Android there is no desktop executable target; SDLActivity loads
 
 ### Engine
 
-All engine implementation and runtime subsystem files live under `src/`, with
+All engine implementation and runtime subsystem files live under `src/Kotonoha/`, with
 public interfaces in `include/Kotonoha/`. The reusable base in `KotonohaEngine`
 contains low-level rendering/media/audio, time and I/O, the generic KTRF
 runtime/router, platform helpers, upscaling, configuration and other
 game-independent primitives.
 
 `libKotonoha` adds the higher-level scene/gameplay host, component systems,
-renderers, parser and debug UI from `src/`, plus game-provided profile adapters.
+renderers, parser and debug UI from `src/Kotonoha/`, plus game-provided profile adapters.
 The latter are kept in a separate CMake source group and do not leak into the
 reusable `KotonohaEngine` archive. PCM analysis, ABC animation/texture helpers
 and the virtual-asset provider seam are engine-owned.
@@ -62,10 +62,10 @@ games/school-days/src/
 This directory owns the School Days routing/profile, KTRF adapter, persistence,
 frontend/UI, GPK archive reader/mount, save/load/replay/route-map/menu behavior,
 generated authenticated routing tables and SDL app callbacks. The small
-profile-specific `Gameplay` adapter lives at `src/runtime/Gameplay.cpp` and is
+profile-specific `Gameplay` adapter lives at `src/Kotonoha/runtime/Gameplay.cpp` and is
 compiled as a profile-runtime extension rather than part of the reusable core.
 Generic and runtime component, parser, renderer and debug files are all under
-`src/`, with their APIs under `include/Kotonoha/`; these subsystem directories
+`src/Kotonoha/`, with their APIs under `include/Kotonoha/`; these subsystem directories
 are no longer stored under the game tree. Game-specific routing/persistence
 headers and asset policy remain under `games/school-days/include` and
 `games/school-days/src/`.

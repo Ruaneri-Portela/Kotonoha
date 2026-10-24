@@ -1,6 +1,6 @@
 #pragma once
 
-// Private header shared by the debug UI translation units (src/debug/**).
+// Private header shared by the debug UI translation units (src/Kotonoha/debug/**).
 // The public entry points live in <Kotonoha/debug/DebugUi.hpp>.
 
 #include <Kotonoha/Kotonoha.hpp>

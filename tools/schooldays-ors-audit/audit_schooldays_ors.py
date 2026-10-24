@@ -17,7 +17,7 @@ VERSION = "1.0.0"
 HDR = re.compile(r"^\s*\[([^\]]+)\]")
 TS = re.compile(r"^\d+:\d{1,2}:\d{1,2}$")
 
-# Exact headers currently recognized by src/parsers/Ors.c.
+# Exact headers currently recognized by src/Kotonoha/parsers/Ors.c.
 PARSER = {
     "CreateBG": "CREATE_BG",
     "PlaySe": "PLAY_SE",

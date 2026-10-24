@@ -78,7 +78,7 @@ set(SCHOOL_DAYS_INCLUDE_DIR
 # ==============================================================================
 # Source roots
 # ==============================================================================
-set(KOTONOHA_ENGINE_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src")
+set(KOTONOHA_ENGINE_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/Kotonoha")
 set(KOTONOHA_RUNTIME_SOURCE_DIR "${KOTONOHA_ENGINE_SOURCE_DIR}/runtime")
 set(SCHOOL_DAYS_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/games/school-days/src")
 
@@ -239,9 +239,9 @@ if((KOTONOHA_ROUTER_TESTS OR KOTONOHA_ORS_PARSER_TESTS) AND NOT ANDROID)
 
     add_executable(FFmpegInputSourceTest
         tests/FFmpegInputSourceTest.cpp
-        src/utils/Demuxer.c
-        src/utils/FFmpeg.c
-        src/utils/VoicePcm.c
+        ${KOTONOHA_ENGINE_SOURCE_DIR}/utils/Demuxer.c
+        ${KOTONOHA_ENGINE_SOURCE_DIR}/utils/FFmpeg.c
+        ${KOTONOHA_ENGINE_SOURCE_DIR}/utils/VoicePcm.c
     )
     target_include_directories(FFmpegInputSourceTest PRIVATE
         ${KOTONOHA_INCLUDE_DIR} ${FFMPEG_INCLUDE_DIRS})
@@ -265,9 +265,9 @@ if(KOTONOHA_MPV_UPSCALER_RUNTIME_TESTS AND NOT ANDROID)
 
     add_executable(MPVCompatibleUpscalerRuntimeTest
         tests/MPVCompatibleUpscalerRuntimeTest.cpp
-        src/specials/MPVCompatibleUpscaler.cpp
-        src/specials/OpenGL.c
-        src/utils/Log.c
+        ${KOTONOHA_ENGINE_SOURCE_DIR}/specials/MPVCompatibleUpscaler.cpp
+        ${KOTONOHA_ENGINE_SOURCE_DIR}/specials/OpenGL.c
+        ${KOTONOHA_ENGINE_SOURCE_DIR}/utils/Log.c
     )
     target_include_directories(MPVCompatibleUpscalerRuntimeTest PRIVATE
         ${KOTONOHA_INCLUDE_DIR}

@@ -31,7 +31,7 @@ function(kotonoha_configure_app target)
     set_target_properties(${target} PROPERTIES
             MACOSX_BUNDLE TRUE
             MACOSX_BUNDLE_INFO_PLIST
-            "${CMAKE_SOURCE_DIR}/src/specials/Info.plist.in"
+            "${KOTONOHA_ENGINE_SOURCE_DIR}/specials/Info.plist.in"
             MACOSX_BUNDLE_BUNDLE_NAME "${APP_OUTPUT_NAME}"
             MACOSX_BUNDLE_GUI_IDENTIFIER "${APP_BUNDLE_ID}"
             MACOSX_BUNDLE_BUNDLE_VERSION "${PROJECT_VERSION}"
