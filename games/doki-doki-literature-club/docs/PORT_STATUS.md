@@ -17,7 +17,7 @@ The port runs the original Ren'Py 6.99 game data without Python or Ren'Py:
 ## Running
 
 ```
-DokiDoki -r opengl --ddlc /path/to/DDLC-1.1.1-pc/game [--mcp]
+DokiDoki -r opengl --ddlc /path/to/DDLC-1.1.1-pc/game
 ```
 
 `DDLC_DIR` can be used instead of `--ddlc`. Persistent data is stored in the

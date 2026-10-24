@@ -20,7 +20,6 @@
 #include <Kotonoha/routing/SchoolDaysSystemUi.hpp>
 #include <Kotonoha/routing/SchoolDaysTitleProfile.hpp>
 #include <Kotonoha/debug/DebugUi.hpp>
-#include <Kotonoha/debug/McpServer.hpp>
 #include <Kotonoha/SchoolDaysImageAssetResolver.hpp>
 #include <Kotonoha/SchoolDaysAssetMount.hpp>
 #include <Kotonoha/components/Audio.hpp>
@@ -1128,172 +1127,6 @@ bool ExecuteSaveLoadLoadSlot(int slot) {
   return true;
 }
 
-// ---- MCP save tools -------------------------------------------------------
-std::string Utf16ToUtf8Mcp(const std::u16string &text) {
-  std::string out;
-  for (size_t i = 0; i < text.size(); ++i) {
-    uint32_t cp = text[i];
-    if (cp >= 0xd800u && cp < 0xdc00u && i + 1 < text.size() &&
-        text[i + 1] >= 0xdc00u && text[i + 1] < 0xe000u) {
-      cp = 0x10000u + ((cp - 0xd800u) << 10u) + (text[++i] - 0xdc00u);
-    }
-    char buffer[4];
-    const int n = static_cast<int>(SDL_UCS4ToUTF8(cp, buffer) - buffer);
-    out.append(buffer, static_cast<size_t>(n));
-  }
-  return out;
-}
-
-std::u16string Utf8ToUtf16Mcp(const std::string &text) {
-  std::u16string out;
-  const char *cursor = text.c_str();
-  size_t left = text.size();
-  while (left > 0) {
-    uint32_t cp = SDL_StepUTF8(&cursor, &left);
-    if (cp == 0) break;
-    if (cp >= 0x10000u) {
-      cp -= 0x10000u;
-      out.push_back(static_cast<char16_t>(0xd800u + (cp >> 10u)));
-      out.push_back(static_cast<char16_t>(0xdc00u + (cp & 0x3ffu)));
-    } else {
-      out.push_back(static_cast<char16_t>(cp));
-    }
-  }
-  return out;
-}
-
-// Minimal extraction of "key": <int> / "key": "<string>" from the flat
-// argument object the MCP server hands to extra tools.
-bool McpArgInt(const std::string &json, const char *key, int *value) {
-  const size_t at = json.find(std::string("\"") + key + "\"");
-  if (at == std::string::npos) return false;
-  const size_t colon = json.find(':', at);
-  if (colon == std::string::npos) return false;
-  char *end = nullptr;
-  const long parsed = std::strtol(json.c_str() + colon + 1, &end, 10);
-  if (end == json.c_str() + colon + 1) return false;
-  *value = static_cast<int>(parsed);
-  return true;
-}
-
-bool McpArgString(const std::string &json, const char *key, std::string *value) {
-  const size_t at = json.find(std::string("\"") + key + "\"");
-  if (at == std::string::npos) return false;
-  size_t i = json.find('"', json.find(':', at));
-  if (i == std::string::npos) return false;
-  value->clear();
-  for (++i; i < json.size() && json[i] != '"'; ++i) {
-    if (json[i] == '\\' && i + 1 < json.size()) {
-      const char c = json[++i];
-      value->push_back(c == 'n' ? '\n' : c == 't' ? '\t' : c);
-    } else {
-      value->push_back(json[i]);
-    }
-  }
-  return true;
-}
-
-const char *McpFlowName() {
-  using State = Kotonoha::SchoolDaysFlowController::State;
-  if (ktrfController == nullptr) return "none";
-  switch (ktrfController->FlowState()) {
-  case State::TitleLoad: return "TitleLoad";
-  case State::GameplayLoad: return "GameplayLoad";
-  case State::GameplaySave: return "GameplaySave";
-  case State::SaveLoad: return "SaveLoad";
-  default: return "other";
-  }
-}
-
-std::string McpSaveSlots(::Kotonoha::Kotonoha *, ::Kotonoha::Gameplay *,
-                         const std::string &args, bool *isError, void *) {
-  int first = 0, count = 100;
-  McpArgInt(args, "first", &first);
-  McpArgInt(args, "count", &count);
-  first = std::max(0, std::min(first, 99));
-  count = std::max(1, std::min(count, 100 - first));
-  std::string out = std::string("{\"flow\":\"") + McpFlowName() + "\",\"slots\":[";
-  bool firstItem = true;
-  for (int slot = first; slot < first + count; ++slot) {
-    Kotonoha::SchoolDaysSaveService::SlotMetadata metadata;
-    if (!ReadSaveSlotMetadataForUi(slot, &metadata)) {
-      *isError = true;
-      return "slot metadata read failed";
-    }
-    if (!metadata.occupied) continue;
-    auto quote = [](const std::string &text) {
-      std::string q = "\"";
-      for (char c : text) {
-        if (c == '"' || c == '\\') q.push_back('\\');
-        if (static_cast<unsigned char>(c) >= 0x20u) q.push_back(c);
-      }
-      return q + "\"";
-    };
-    if (!firstItem) out += ",";
-    firstItem = false;
-    out += "{\"slot\":" + std::to_string(slot) +
-           ",\"date\":" + quote(Utf16ToUtf8Mcp(metadata.date)) +
-           ",\"story\":" + quote(Utf16ToUtf8Mcp(metadata.story)) +
-           ",\"comment\":" + quote(Utf16ToUtf8Mcp(metadata.comment)) + "}";
-  }
-  return out + "]}";
-}
-
-std::string McpSaveSlot(::Kotonoha::Kotonoha *, ::Kotonoha::Gameplay *,
-                        const std::string &args, bool *isError, void *) {
-  int slot = -1;
-  std::string comment = "Kotonoha";
-  McpArgInt(args, "slot", &slot);
-  McpArgString(args, "comment", &comment);
-  if (slot < 0 || slot > 99) {
-    *isError = true;
-    return "slot must be 0..99";
-  }
-  if (ktrfController == nullptr ||
-      ktrfController->FlowState() !=
-          Kotonoha::SchoolDaysFlowController::State::GameplaySave) {
-    *isError = true;
-    return std::string("open the SAVE screen first (flow=") + McpFlowName() + ")";
-  }
-  Kotonoha::SchoolDaysSaveLoadModel::Output request;
-  request.action = Kotonoha::SchoolDaysSaveLoadModel::Action::SaveSlotRequested;
-  request.slot = slot;
-  request.comment = Utf8ToUtf16Mcp(comment);
-  if (!ExecuteSaveLoadWrite(request)) {
-    *isError = true;
-    return "save failed (see logs)";
-  }
-  return "saved slot " + std::to_string(slot);
-}
-
-std::string McpLoadSlot(::Kotonoha::Kotonoha *, ::Kotonoha::Gameplay *,
-                        const std::string &args, bool *isError, void *) {
-  int slot = -1;
-  McpArgInt(args, "slot", &slot);
-  if (!ExecuteSaveLoadLoadSlot(slot)) {
-    *isError = true;
-    return std::string("load failed; open a LOAD screen first (flow=") +
-           McpFlowName() + ") and use an occupied slot 0..99";
-  }
-  return "loaded slot " + std::to_string(slot);
-}
-
-void RegisterSaveMcpTools() {
-  namespace Mcp = Kotonoha::Debug::Mcp;
-  Mcp::RegisterTool({"save_slots",
-                     "List occupied save slots (date, story, comment) and the current flow state.",
-                     R"J({"type":"object","properties":{"first":{"type":"integer"},"count":{"type":"integer"}}})J",
-                     McpSaveSlots});
-  Mcp::RegisterTool({"save_slot",
-                     "Write a save into a slot; the in-game SAVE screen must be open.",
-                     R"J({"type":"object","properties":{"slot":{"type":"integer"},"comment":{"type":"string"}},"required":["slot"]})J",
-                     McpSaveSlot});
-  Mcp::RegisterTool({"load_slot",
-                     "Load an occupied slot; a LOAD screen (title or in-game) must be open.",
-                     R"J({"type":"object","properties":{"slot":{"type":"integer"}},"required":["slot"]})J",
-                     McpLoadSlot});
-}
-
 bool CloseGameplayConfigUi() {
   if (ktrfController == nullptr || ktrfSystemUi == nullptr ||
       ktrfController->FlowState() !=
@@ -1538,7 +1371,7 @@ KtrfLaunchOptions ktrfLaunchOptions;
 
 // Which debug GUI and Gameplay the shared frame steps use after
 // SchoolDaysRenderFrame (title frontends hide the bridge Gameplay from the
-// debug GUI while MCP still sees it; the BackLog shows the frozen scene).
+// debug GUI; the BackLog shows the frozen scene).
 struct SchoolDaysFrameDebug {
   enum class Mode { Engine, EngineIfEnabled, Ktrf };
   Mode mode = Mode::EngineIfEnabled;
@@ -1549,7 +1382,7 @@ SchoolDaysFrameDebug ktrfFrameDebug;
 
 // School Days as a GameSession: it keeps its complete retail front end (title,
 // SaveLoad, route map, config, menu bar, BackLog), so GameplayFlow forwards
-// events and frames to it and only adds the shared splash / debug UI / MCP /
+// events and frames to it and only adds the shared splash / debug UI /
 // present steps, like every other port.
 class SchoolDaysSession final : public Kotonoha::GameSession {
 public:
@@ -1839,7 +1672,6 @@ SDL_AppResult LocalInit(void **appstate, int, char *[]) {
     ktrfReplaySceneTransaction =
         std::make_unique<Kotonoha::KtrfSceneTransaction>();
     ktrfSystemUi = std::make_unique<Kotonoha::SchoolDaysSystemUi>();
-    RegisterSaveMcpTools();
   }
 
   ktrfFlow = std::make_unique<Kotonoha::GameplayFlow>(
@@ -2805,7 +2637,7 @@ static SDL_AppResult SchoolDaysHandleEvent(void *appstate, SDL_Event *event) {
 }
 
 // Renders the whole School Days frame (flow controller, frontends, BackLog,
-// transitions) without presenting. The splash, debug UI, MCP service and
+// transitions) without presenting. The splash, debug UI,
 // present are the shared GameplayFlow::RunFrame steps; this records which
 // Gameplay and debug GUI they should use for the frame.
 static SDL_AppResult SchoolDaysRenderFrame(Kotonoha::Kotonoha *app) {

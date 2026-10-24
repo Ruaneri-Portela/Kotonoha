@@ -87,12 +87,12 @@ same game loop: `LocalInit` attaches a `Kotonoha::GameSession` to a
 `Kotonoha::GameplayFlow` (`include/Kotonoha/components/GameplayFlow.hpp`),
 `LocalEvent` forwards to `GameplayFlow::HandleEvent` and `LocalIterate` calls
 `Kotonoha::MarkFrameHandled()` and returns `GameplayFlow::RunFrame`, which runs
-the splash, the game frame, the debug UI, the MCP service and the present.
+the splash, the game frame, the debug UI and the present.
 Snow and Zero sessions use the flow's generic title/text box/choices/pause/save
 UI. School Days' `SchoolDaysSession` returns `OwnsFrontend() == true`: the flow
 forwards events and frames to the retail front end (KTRF controller, title,
 SaveLoad, route map, config, menu bar, BackLog) and the session picks the debug
-GUI (KTRF scene list/state inspector) and the Gameplay reported to MCP.
+GUI (KTRF scene list/state inspector) and the active Gameplay.
 
 A session that keeps the generic in-game UI but has its own boot/title screens
 overrides the front-end hooks instead (`HasFrontend`, `EnterFrontend(boot)`,
@@ -105,7 +105,7 @@ Zero no Tsukaima uses this for its native warning/logo/movie/title/menu.
 Only the game picture uses the game viewport: `GameplayFlow::Frame` enables the
 letterboxed logical presentation (`Config::width`/`height`) while it draws the
 session and disables it again before returning, and pointer events are mapped
-through the same viewport. The splash, debug UI, MCP screenshots and other
+through the same viewport. The splash, debug UI and other
 overlays therefore always render in full-window coordinates. School Days can load `Script/` assets from a loose
 directory with `--sd-script-dir <dir>` (maps `Script/<rest>` to `<dir>/<rest>`,
 overriding the GPK) and takes its splash from `System/SYSTEM/LOGO.png` in the

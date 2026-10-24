@@ -1,6 +1,5 @@
 #include <Kotonoha/Init.hpp>
 #include <Kotonoha/debug/DebugUi.hpp>
-#include <Kotonoha/debug/McpServer.hpp>
 #include <Kotonoha/specials/Upscaling.h>
 #include <Kotonoha/utils/Log.h>
 #include <algorithm>
@@ -196,7 +195,6 @@ SDL_AppResult EngineMasterMain(Kotonoha *app, Gameplay **running) {
     SDL_SetRenderDrawColor(global.render, 0, 0, 0, 255);
     SDL_RenderClear(global.render);
     app->RenderSplash();
-    Debug::Mcp::Service(app, nullptr);
     SDL_RenderPresent(global.render);
     *running = nullptr;
     return SDL_APP_CONTINUE;

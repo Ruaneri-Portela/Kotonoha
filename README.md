@@ -280,14 +280,6 @@ Example workflow:
 3. Use A/B choices to branch the story.
 4. Use `-i` during development if some media files have not yet been added.
 
-### MCP Control Server
-
-Launch with `--mcp [port]` (default `8765`) or `KOTONOHA_MCP_PORT=<port>` to expose a [Model Context Protocol](https://modelcontextprotocol.io) server at `http://127.0.0.1:<port>/mcp` (streamable HTTP, JSON-RPC over POST, loopback only, non-local `Origin` rejected). Tools run on the main thread right before the frame is presented:
-
-`get_state`, `screenshot`, `get_buffers` (audio/video played/cached/EOF in seconds), `get_logs`, `key`, `mouse`, `playback`, `scene`, `load_script`, `quit`.
-
-Example client config: `{"mcpServers": {"kotonoha": {"url": "http://127.0.0.1:8765/mcp"}}}`. The implementation is `src/debug/McpServer.cpp`; games that present their own frame call `Debug::Mcp::Service()` before `SDL_RenderPresent`.
-
 ### Contributing
 
 Contributions are welcome. Before opening a pull request:

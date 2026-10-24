@@ -2,7 +2,6 @@
 #include <Kotonoha/components/Panel.hpp>
 #include <Kotonoha/Kotonoha.hpp>
 #include <Kotonoha/debug/DebugUi.hpp>
-#include <Kotonoha/debug/McpServer.hpp>
 
 namespace Kotonoha {
 
@@ -477,7 +476,6 @@ SDL_AppResult GameplayFlow::RunFrame(::Kotonoha::Kotonoha *app, Kotonoha_Game *g
     SDL_RenderClear(r);
     app->RenderSplash();
     if (game->config.enableDebugUi && !Debug::Run(app, nullptr, *game)) return SDL_APP_SUCCESS;
-    Debug::Mcp::Service(app, nullptr);
     SDL_RenderPresent(r);
     return SDL_APP_CONTINUE;
   }
@@ -488,7 +486,6 @@ SDL_AppResult GameplayFlow::RunFrame(::Kotonoha::Kotonoha *app, Kotonoha_Game *g
     Frame(game, font);
   }
   if (session_ && !session_->RunDebugUi(app, *game)) return SDL_APP_SUCCESS;
-  Debug::Mcp::Service(app, session_ ? session_->RunningGameplay() : nullptr);
   SDL_RenderPresent(r);
   return SDL_APP_CONTINUE;
 }
