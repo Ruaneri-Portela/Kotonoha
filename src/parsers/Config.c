@@ -422,7 +422,6 @@ static bool ParseArguments(Kotonoha_Config *config, int argc, char *argv[]) {
 
     default:
       fprintf(stderr, "Unknown option: %s\n", arg);
-      cancelOpen = true;
       break;
     }
     if (cancelOpen) {
