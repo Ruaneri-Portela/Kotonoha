@@ -42,20 +42,17 @@ std::vector<uint8_t> readFile(const std::filesystem::path& p) {
     return std::vector<uint8_t>((std::istreambuf_iterator<char>(f)), {});
 }
 
-// Taken from the original executable: WAVEFORMATEX is stereo, 16-bit, 22050 Hz x1.
+// WAVEFORMATEX: stereo, 16-bit, 22050 Hz x1.
 constexpr int kSampleRate = 22050;
 
-// One of the original mixer channels (0 voice, 1 BGM, 2 SE), played on the
-// engine's Voice / BGM / Se channel: starting a sound replaces whatever the
-// channel was playing.
 struct Channel {
     Kotonoha::PcmPlayer player;
     const char* engineChannel = "";
 };
 
 struct SpriteTex {
-    Kotonoha::CanvasImage img; // drawn through the engine upscaler
-    float x = 0, y = 0; // cropped picture position on the screen canvas
+    Kotonoha::CanvasImage img;
+    float x = 0, y = 0;
 };
 
 struct AnimatedTex {
@@ -75,9 +72,8 @@ struct State {
     uint64_t voiceStart = 0;
     int voiceActor = 0;
     bool lastBgmLoop = true;
-    // The title music keeps playing into the story when the boot script asks for it again.
     std::string resumeBgm;
-    bool muted = false; // set while replaying a save
+    bool muted = false;
     std::vector<uint8_t> script;
     std::filesystem::path gfxDatPath;
     std::map<std::string, SnowRadish::PackEntry> gfxIndex;
@@ -110,7 +106,6 @@ bool playing(const Channel& c) { return c.player.Playing(); }
 bool startChannel(Channel& c, std::vector<int16_t> first, const std::vector<int16_t>& loop, int channels, bool looping) {
     stopChannel(c);
     if (first.empty() && loop.empty()) return false;
-    // Played once, the loop block simply follows the intro.
     Kotonoha::PcmPlayer::Clip clip;
     clip.loopStart = first.size() / size_t(channels);
     clip.samples = std::move(first);
@@ -122,10 +117,14 @@ bool startChannel(Channel& c, std::vector<int16_t> first, const std::vector<int1
 }
 
 std::vector<uint8_t> extractFromFile(const std::filesystem::path& datPath, const SnowRadish::PackEntry& entry) {
+    if (datPath.empty()) return {};
+
     std::ifstream f(datPath, std::ios::binary | std::ios::ate);
     if (!f.is_open()) return {};
-    const size_t fileSize = f.tellg();
+
+    const size_t fileSize = static_cast<size_t>(f.tellg());
     if (entry.offset >= fileSize) return {};
+
     const size_t avail = std::min<size_t>(entry.compressedSize, fileSize - entry.offset);
     std::vector<uint8_t> compressed(avail);
     f.seekg(entry.offset);
@@ -135,14 +134,46 @@ std::vector<uint8_t> extractFromFile(const std::filesystem::path& datPath, const
     if (known && entry.compressedSize == entry.rawSize) {
         return compressed;
     }
+
     std::vector<uint8_t> out;
     out.resize(known ? entry.rawSize : avail * 10);
     const size_t produced = SnowRadish::lzssDecode(compressed.data(), avail, out.data(), out.size());
     (void)produced;
+
     if (!known) {
         while (!out.empty() && out.back() == 0) out.pop_back();
     }
     return out;
+}
+
+std::map<std::string, SnowRadish::PackEntry> readDatDirectory(const std::filesystem::path& datPath) {
+    std::ifstream f(datPath, std::ios::binary | std::ios::ate);
+    if (!f.is_open()) return {};
+
+    const size_t fileSize = static_cast<size_t>(f.tellg());
+    if (fileSize == 0) return {};
+
+    constexpr size_t kMaxHeaderScan = 2 * 1024 * 1024;
+    const size_t scanSize = std::min<size_t>(fileSize, kMaxHeaderScan);
+    
+    std::vector<uint8_t> dirBuffer(scanSize);
+    f.seekg(0);
+    f.read(reinterpret_cast<char*>(dirBuffer.data()), scanSize);
+
+    std::map<std::string, SnowRadish::PackEntry> index;
+    auto entries = SnowRadish::readDirectory(dirBuffer);
+    
+    if (entries.empty()) {
+        dirBuffer.resize(fileSize);
+        f.seekg(0);
+        f.read(reinterpret_cast<char*>(dirBuffer.data()), fileSize);
+        entries = SnowRadish::readDirectory(dirBuffer);
+    }
+
+    for (auto& entry : entries) {
+        index[lower(entry.name)] = entry;
+    }
+    return index;
 }
 
 bool startAdps(Channel& c, const SnowRadish::PackEntry& e, bool loop) {
@@ -197,8 +228,6 @@ void playSound(const std::string& kind, const std::string& name, bool loop) {
 
 Kotonoha::CanvasImage textureFrom(SDL_Surface* s) {
     if (!s) return {};
-    // Opaque RGB pictures become XRGB textures, which the canvas target would
-    // blend as transparent; give them a real alpha channel.
     SDL_Surface* rgba = s->format == SDL_PIXELFORMAT_RGBA32 ? s : SDL_ConvertSurface(s, SDL_PIXELFORMAT_RGBA32);
     if (rgba != s) SDL_DestroySurface(s);
     if (!rgba) return {};
@@ -208,25 +237,22 @@ Kotonoha::CanvasImage textureFrom(SDL_Surface* s) {
     return Kotonoha::CanvasImage(tex);
 }
 
-// Full-frame pictures (.EVD) and raw buttons (.IMG, type 0).
 Kotonoha::CanvasImage* loadGraphic(const std::string& name, const char* ext) {
     auto key = lower(name + ext);
     auto cached = g_state->textures.find(key);
-    if (cached != g_state->textures.end()) return cached->second ? &cached->second : nullptr;
+    if (cached != g_state->textures.end()) return &cached->second;
     Kotonoha::CanvasImage tex;
     auto it = g_state->gfxIndex.find(key);
     SnowRadish::Image img;
     if (it != g_state->gfxIndex.end() && SnowRadish::decodeEvd(extractFromFile(g_state->gfxDatPath, it->second), img)) {
-        SDL_Surface* s = SDL_CreateSurfaceFrom(int(img.width), int(img.height), SDL_PIXELFORMAT_RGB24, img.rgb.data(),
-                                               int(img.width * 3));
+        SDL_Surface* s = SDL_CreateSurfaceFrom(int(img.width), int(img.height), SDL_PIXELFORMAT_RGB24, img.rgb.data(), int(img.width * 3));
         tex = textureFrom(s ? SDL_DuplicateSurface(s) : nullptr);
         if (s) SDL_DestroySurface(s);
     }
     auto& slot = g_state->textures[key] = std::move(tex);
-    return slot ? &slot : nullptr;
+    return &slot;
 }
 
-// Character sprites (.CHD): full-screen canvases cropped to their visible part.
 SpriteTex* loadSprite(const std::string& name) {
     auto key = lower(name);
     auto cached = g_state->spriteTextures.find(key);
@@ -236,8 +262,7 @@ SpriteTex* loadSprite(const std::string& name) {
     if (it == g_state->gfxIndex.end()) it = g_state->gfxIndex.find("dummy00.chd");
     SnowRadish::Sprite sp;
     if (it != g_state->gfxIndex.end() && SnowRadish::decodeChd(extractFromFile(g_state->gfxDatPath, it->second), sp)) {
-        SDL_Surface* s = SDL_CreateSurfaceFrom(int(sp.width), int(sp.height), SDL_PIXELFORMAT_RGBA32, sp.rgba.data(),
-                                               int(sp.width * 4));
+        SDL_Surface* s = SDL_CreateSurfaceFrom(int(sp.width), int(sp.height), SDL_PIXELFORMAT_RGBA32, sp.rgba.data(), int(sp.width * 4));
         out.img = textureFrom(s ? SDL_DuplicateSurface(s) : nullptr);
         if (s) SDL_DestroySurface(s);
         out.x = float(sp.x);
@@ -249,7 +274,7 @@ SpriteTex* loadSprite(const std::string& name) {
 }
 
 void drawTex(Kotonoha::CanvasImage* img, float x, float y) {
-    if (!img || !*img) return;
+    if (!img || !img->Source()) return;
     SDL_FRect r{x, y, 0, 0};
     SDL_GetTextureSize(img->Source(), &r.w, &r.h);
     img->Draw(global.render, nullptr, &r);
@@ -267,7 +292,7 @@ AnimatedTex* loadAnimation(const std::string& name) {
         out.cursor = anm.cursor;
         for (auto& frame : anm.frames) {
             SDL_Surface* surface = SDL_CreateSurfaceFrom(int(frame.width), int(frame.height), SDL_PIXELFORMAT_RGBA32,
-                                                        frame.rgba.data(), int(frame.width * 4));
+                                                          frame.rgba.data(), int(frame.width * 4));
             SpriteTex tex;
             tex.img = textureFrom(surface ? SDL_DuplicateSurface(surface) : nullptr);
             if (surface) SDL_DestroySurface(surface);
@@ -278,8 +303,6 @@ AnimatedTex* loadAnimation(const std::string& name) {
     return &(g_state->animations[key] = std::move(out));
 }
 
-// Tint as in the original (0x100 neutral per channel): below it darkens, above
-// it adds the extra amount on top.
 void drawTinted(Kotonoha::CanvasImage* img, float x, float y, const int tint[3]) {
     SDL_Texture* t = img ? img->Source() : nullptr;
     if (!t) return;
@@ -295,7 +318,6 @@ void drawTinted(Kotonoha::CanvasImage* img, float x, float y, const int tint[3])
     SDL_SetTextureColorMod(t, 255, 255, 255);
 }
 
-// Alpha of a .CHD on the 800x600 screen canvas (hit regions of the original selects).
 struct AlphaHit {
     int x = 0, y = 0, w = 0, h = 0;
     std::vector<uint8_t> alpha;
@@ -304,6 +326,7 @@ struct AlphaHit {
         return ix >= 0 && iy >= 0 && ix < w && iy < h && alpha[size_t(iy) * size_t(w) + size_t(ix)] != 0;
     }
 };
+
 AlphaHit loadAlphaHit(const std::string& name) {
     AlphaHit out;
     auto it = g_state->gfxIndex.find(lower(name) + ".chd");
@@ -316,7 +339,6 @@ AlphaHit loadAlphaHit(const std::string& name) {
     return out;
 }
 
-// UTF-8 text at a logical size, rasterised at the output scale so it stays sharp.
 SDL_FPoint drawText(SDL_Renderer* r, const std::string& text, float x, float y, float size, SDL_Color color,
                     bool measureOnly = false) {
     if (!g_state->font || text.empty()) return {0, 0};
@@ -369,7 +391,6 @@ public:
     }
 
     bool Start() override {
-        // Started from the title: its music (sr001) goes on, as the original never stops it.
         s_.resumeBgm = s_.muted || !playing(s_.bgm) ? "" : s_.lastBgm;
         if (s_.resumeBgm.empty()) stopChannel(s_.bgm);
         stopChannel(s_.se);
@@ -385,7 +406,6 @@ public:
         if (SDL_getenv("SNOW_TRACE")) s_.game->trace = [](const std::string& t) { SDL_Log("[vm] %s", t.c_str()); };
         s_.game->voicePlaying = [this] { return playing(s_.voice); };
         s_.game->sePlaying = [this] { return playing(s_.se); };
-        // The boot script (white screen, logo, title) already ran in the front end.
         s_.game->transition = [this](int type, int pattern, int speed) {
             if (!booting_) BeginTransition(type, pattern, speed);
         };
@@ -497,8 +517,6 @@ public:
         }
     }
 
-    // Snapshot of what is on screen now (the scene before the script's changes are
-    // synced), faded out over the new scene.
     void BeginTransition(int type, int pattern, int speed) {
         static constexpr int steps[] = {4, 8, 2, 16, 1};
         fadeType_ = type; fadePattern_ = pattern;
@@ -528,7 +546,6 @@ public:
 
         fadeMs_ = 0;
         if (s_.muted) return;
-        // The first wipe after the title starts from the title picture.
         if (keepFrom_) keepFrom_ = false;
         else if (!Capture([this](SDL_Renderer* r) { DrawScene(r); })) return;
         if (!wipeMask_.alpha.empty()) {
@@ -553,7 +570,7 @@ public:
         fadeStart_ = SDL_GetTicks();
         fadeMs_ = uint64_t(msec);
     }
-    // Renders a picture into from_, the "before" image of a wipe.
+
     bool Capture(const std::function<void(SDL_Renderer*)>& draw) {
         SDL_Renderer* r = global.render;
         if (!from_) {
@@ -569,15 +586,15 @@ public:
         SDL_SetRenderTarget(r, old);
         return true;
     }
+
     bool Fading() const { return fadeMs_ && SDL_GetTicks() - fadeStart_ < fadeMs_; }
     float WipeProgress() const {
         return std::min(float((SDL_GetTicks() - fadeStart_) / kWipeTick) * fadeStep_ / fadeRange_, 1.0f);
     }
 
     void DrawAnimation(const std::string& name, float dx, float dy, const int* tint) {
-        auto* animation = loadAnimation(name);
+        auto animation = loadAnimation(name);
         if (!animation || animation->cursor || !playing(s_.voice)) return;
-        // FUN_0040bf41 runs the mouth update every seventh 17 ms scheduler call.
         static constexpr uint8_t quiet[] = {1,1,2,0,1,1,0,2,1,1,1,0,2,1,1,0};
         static constexpr uint8_t loud[] = {2,0,2,1,2,1,0,2,0,1,2,1,2,0,2,1};
         const uint64_t elapsed = SDL_GetTicks() - s_.voiceStart;
@@ -596,6 +613,7 @@ public:
             else drawTex(&pic.img, pic.x + dx, pic.y + dy);
         }
     }
+
     void DrawWipe(SDL_Renderer* r) {
         if (!Fading() || !from_) return;
         const float t = WipeProgress();
@@ -619,7 +637,7 @@ public:
             if (!to_) to_ = SDL_CreateTexture(r, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, kW, kH);
             if (!to_) return;
             if (toClock_ != fadeStart_) {
-                auto* target = SDL_GetRenderTarget(r);
+                auto target = SDL_GetRenderTarget(r);
                 SDL_SetRenderTarget(r, to_);
                 SDL_SetRenderDrawColor(r, 0, 0, 0, 255);
                 SDL_RenderClear(r);
@@ -648,7 +666,6 @@ public:
             case 4: {
                 part(from_, 0, kW, 0, remaining);
                 part(to_, 0, kW, remaining, progress);
-                // FUN_00417450 builds byte ramps, then applies SubSaturation.
                 SDL_BlendMode previous;
                 SDL_GetRenderDrawBlendMode(r, &previous);
                 const auto subtract = SDL_ComposeCustomBlendMode(SDL_BLENDFACTOR_ONE, SDL_BLENDFACTOR_ONE,
@@ -700,10 +717,7 @@ public:
             SDL_RenderTexture(r, from_, nullptr, nullptr);
         }
     }
-    // Original message window (FUN_004107d0): wakuh.chd (800x152 at 0,448) tinted
-    // with the MesWin_R/G/B setting (default 0,0,150), then bot.chd at 760,515 with
-    // its two buttons: the note replays the voice (bsc.chd lit on hover) and the
-    // arrow toggles auto mode (auto_on.chd while on, auto_off.chd lit on hover).
+
     static constexpr int kWindowTint[3] = {0, 0, 150};
     static constexpr SDL_FRect kVoiceButton{760, 515, 20, 20}, kAutoButton{760, 544, 20, 20};
     WindowClick MessageWindowClick(float x, float y) override {
@@ -719,23 +733,23 @@ public:
     }
     void DrawMessageWindow(SDL_Renderer* renderer) override {
         if (!HasMessage() || Choosing()) return;
-        auto* frame = loadSprite("wakuh");
+        auto frame = loadSprite("wakuh");
         drawTinted(&frame->img, frame->x, frame->y, kWindowTint);
-        auto* buttons = loadSprite("bot");
+        auto buttons = loadSprite("bot");
         drawTex(&buttons->img, buttons->x, buttons->y);
         SDL_FPoint mouse{-1, -1};
         SDL_GetMouseState(&mouse.x, &mouse.y);
         SDL_RenderCoordinatesFromWindow(renderer, mouse.x, mouse.y, &mouse.x, &mouse.y);
         if (SDL_PointInRectFloat(&mouse, &kVoiceButton)) {
-            auto* lit = loadSprite("bsc");
+            auto lit = loadSprite("bsc");
             drawTex(&lit->img, kVoiceButton.x, kVoiceButton.y);
         }
         if (auto_ || SDL_PointInRectFloat(&mouse, &kAutoButton)) {
-            auto* lit = loadSprite(auto_ ? "auto_on" : "auto_off");
+            auto lit = loadSprite(auto_ ? "auto_on" : "auto_off");
             drawTex(&lit->img, kAutoButton.x, kAutoButton.y);
         }
         if (Fading()) return;
-        auto* animation = loadAnimation(auto_ ? "cursor02" : "cursor01");
+        auto animation = loadAnimation(auto_ ? "cursor02" : "cursor01");
         if (animation->frames.empty()) return;
         auto& pic = animation->frames[(SDL_GetTicks() / 170) % animation->frames.size()];
         drawTex(&pic.img, 715 + pic.x, 555 + pic.y);
@@ -755,16 +769,12 @@ public:
         if (s_.game->mapChoosing()) DrawMap(r);
         else if (!s_.game->uniformChoosing()) DrawWindow(r);
     }
-    // Focus starts on the variable's value (the original moves the cursor there).
     void OpenChoice() {
         if (choiceOpen_) return;
         choiceOpen_ = true;
         choiceFocus_ = s_.game->initialFocus();
     }
 
-    // ---- Native 220: uniform select (FUN_004027dd) ----
-    // selbase.evd holds the three figures in sepia; the focused one is drawn in
-    // colour from stsel{1,2,3}a.chd, whose alpha is also the hit region.
     int UniformHit(float x, float y) {
         if (uniformHit_.empty())
             for (int i = 1; i <= 3; ++i) uniformHit_.push_back(loadAlphaHit("stsel" + std::to_string(i) + "a"));
@@ -790,14 +800,10 @@ public:
     void DrawUniformSelect() {
         drawTex(loadGraphic("selbase", ".evd"), 0, 0);
         if (choiceFocus_ < 0 || choiceFocus_ > 2) return;
-        auto* pic = loadSprite("stsel" + std::to_string(choiceFocus_ + 1) + "a");
+        auto pic = loadSprite("stsel" + std::to_string(choiceFocus_ + 1) + "a");
         drawTex(&pic->img, pic->x, pic->y);
     }
 
-    // ---- Native 9: text choice window (FUN_00425a70) ----
-    // Items are 52 px high with 16 px between them, the block centred on the screen;
-    // its width is the widest 28 px label + 0x57 rounded down to 64. Each item is a
-    // row of 8 px selh.chd strips at y + 7, tinted black, or (0,150,150) when focused.
     static constexpr float kItemH = 52, kItemGap = 16, kChoiceFont = 28;
     SDL_FRect WindowItem(size_t i) {
         const auto& items = s_.game->choices();
@@ -834,8 +840,8 @@ public:
         return -1;
     }
     void DrawWindow(SDL_Renderer* r) {
-        auto* strip = loadSprite("selh");
-        SDL_Texture* t = strip->img ? strip->img.Source() : nullptr;
+        auto strip = loadSprite("selh");
+        SDL_Texture* t = strip->img.Source();
         const auto& items = s_.game->choices();
         for (size_t i = 0; i < items.size(); ++i) {
             const auto rect = WindowItem(i);
@@ -854,9 +860,9 @@ public:
 
     SDL_FRect Hotspot(size_t index) {
         char name[24]; std::snprintf(name, sizeof name, "map%04d", s_.game->destination(index));
-        auto* pic = loadSprite(name);
+        auto pic = loadSprite(name);
         float w = 0, h = 0;
-        if (pic->img) SDL_GetTextureSize(pic->img.Source(), &w, &h);
+        if (pic->img.Source()) SDL_GetTextureSize(pic->img.Source(), &w, &h);
         return {pic->x, pic->y, w, h};
     }
     int MapEvent(const SDL_Event& e) {
@@ -882,7 +888,7 @@ public:
         const auto& args = s_.game->mapArgs();
         const int minutes = args.size() > 7 ? args[7] : 720;
         const int hour = minutes / 60 % 24;
-        auto sprite = [](const std::string& name, float dx = 0, float dy = 0) { auto* pic = loadSprite(name); drawTex(&pic->img, pic->x + dx, pic->y + dy); };
+        auto sprite = [](const std::string& name, float dx = 0, float dy = 0) { auto pic = loadSprite(name); drawTex(&pic->img, pic->x + dx, pic->y + dy); };
         sprite(hour < 12 ? "map_am" : "map_pm");
         sprite("map_d" + std::to_string(std::clamp(minutes / 1440, 0, 9)), 454, 310);
         int h = hour % 12; if (!h) h = 12;
@@ -922,9 +928,6 @@ public:
         drawTex(loadGraphic(name, ".img"), 464, 364);
     }
 
-    // ---- Original front end (OF_ADV3.EXE boot script) ----
-    // start.obj: white screen, native 221 (Overflow logo), wipe 64(1,0,0) to white,
-    // BGM 112(1,1) = sr001 looped, native 213 (title menu).
     bool HasFrontend() const override { return true; }
     void EnterFrontend(bool boot) override {
         stopChannel(s_.voice);
@@ -937,7 +940,6 @@ public:
             StartLogo();
             return;
         }
-        // Back from the story: the title wipes in over the last scene (213 with mode 1: speed 1).
         Capture([this](SDL_Renderer* r) { DrawScene(r); });
         playSound("bgm", "sr001", true);
         BeginPhase(Phase::TitleIn, kWipeTick * 256 / 8);
@@ -946,20 +948,19 @@ public:
         const bool press = e.type == SDL_EVENT_MOUSE_BUTTON_DOWN || e.type == SDL_EVENT_KEY_DOWN;
         switch (phase_) {
         case Phase::Logo:
-            if (press) EndLogo(); // any input breaks the logo loop
+            if (press) EndLogo();
             break;
         case Phase::White:
         case Phase::TitleIn:
-            if (press) phaseMs_ = 0; // a click ends a wipe
+            if (press) phaseMs_ = 0;
             break;
-        case Phase::TitleWait: break; // input is flushed after the 500 ms wait
+        case Phase::TitleWait: break;
         case Phase::Title: TitleEvent(e); break;
         }
     }
     std::optional<TitleAction> FrontendTick() override {
         const uint64_t now = SDL_GetTicks();
         if (phase_ == Phase::Logo) {
-            // The logo loop runs one frame every 48 ms (timeGetTime).
             if (now - logoClock_ > 1000) logoClock_ = now - kLogoFrameMs;
             while (phase_ == Phase::Logo && now - logoClock_ >= kLogoFrameMs) {
                 logoClock_ += kLogoFrameMs;
@@ -969,9 +970,9 @@ public:
             if (phase_ == Phase::White) {
                 playSound("bgm", "sr001", true);
                 Capture([](SDL_Renderer* r) { FillWhite(r); });
-                BeginPhase(Phase::TitleIn, kWipeTick * 256 / 2); // 213 mode 0: wipe speed 2...
+                BeginPhase(Phase::TitleIn, kWipeTick * 256 / 2);
             } else if (phase_ == Phase::TitleIn && boot_) {
-                BeginPhase(Phase::TitleWait, 500); // ...then a 500 ms wait
+                BeginPhase(Phase::TitleWait, 500);
             } else {
                 BeginPhase(Phase::Title, 0);
             }
@@ -1001,15 +1002,15 @@ public:
 private:
     enum class Phase { Logo, White, TitleIn, TitleWait, Title };
     static constexpr uint64_t kLogoFrameMs = 0x30;
-    static constexpr int kWipeTick = 15; // GrpWipeWait default at 0x458af4
-    static constexpr int kFadeFrames = 60; // the logo fades step (max-min)/120*2 per frame
+    static constexpr int kWipeTick = 15;
+    static constexpr int kFadeFrames = 60;
     static constexpr int kMaxFlakes[2] = {20, 40}, kFlakeSpeed[2] = {2, 1};
 
     struct Flake {
-        int type = 0; // 0 snow09, 1 snow11
+        int type = 0;
         bool alive = false;
         int x = 0, y = 0;
-        const std::vector<int>* path = nullptr; // x offset per y (SLINE0n.SNW)
+        const std::vector<int>* path = nullptr;
     };
 
     static void FillWhite(SDL_Renderer* r) {
@@ -1022,9 +1023,6 @@ private:
         phaseMs_ = uint64_t(std::max(0, ms));
     }
 
-    // Native 221 (FUN_0043d327): two groups of falling snowflakes over a white screen;
-    // after 10 "seconds" (30 frames each) the white fades to logo00.evd, the voice
-    // V0310000 plays, from 15 the logo fades back to white, and at 20 the loop ends.
     void StartLogo() {
         LoadPaths();
         for (auto& g : flakes_)
@@ -1037,7 +1035,7 @@ private:
     }
     void EndLogo() {
         stopChannel(s_.voice);
-        BeginPhase(Phase::White, kWipeTick * 256 / 4); // 64(1,0,0): speed 0
+        BeginPhase(Phase::White, kWipeTick * 256 / 4);
     }
     void LoadPaths() {
         if (!paths_[0].empty()) return;
@@ -1053,7 +1051,6 @@ private:
             for (size_t k = 0; k < n; ++k) paths_[i].push_back(int32_t(u32(12 + k * 4)));
         }
     }
-    // FUN_0043d013: random flake image, path (sline01..03 x3, then sline01) and start x.
     void Spawn(Flake& f) {
         static const int kPath[10] = {0, 1, 2, 0, 1, 2, 0, 1, 2, 0};
         f.type = SDL_rand(2);
@@ -1091,26 +1088,30 @@ private:
         float logoAlpha = 0.0f;
         if (logoState_ == 0 && sec_ >= 10) logoAlpha = t;
         else if (logoState_ == 1) logoAlpha = sec_ >= 15 ? 1.0f - t : 1.0f;
-        if (logo && logoAlpha > 0.0f) {
+        if (logo && logo->Source() && logoAlpha > 0.0f) {
             SDL_SetTextureAlphaModFloat(logo->Source(), logoAlpha);
             drawTex(logo, 0, 0);
             SDL_SetTextureAlphaModFloat(logo->Source(), 1.0f);
         }
-        // FUN_0043d155: drawn at x + path[y], shifted per image, while on screen.
         for (int g = 0; g < 2; ++g)
             for (int i = 0; i < count_[g]; ++i) {
                 const Flake& f = flakes_[g][size_t(i)];
                 if (!f.alive || f.y >= int(f.path->size())) continue;
-                int x = f.x + (*f.path)[size_t(f.y)], y = f.y - 10;
-                if (f.type == 0) x -= 4, y = f.y - 14;
-                else x -= 5, y -= 5;
+                int x = f.x + (*f.path)[size_t(f.y)];
+                int y = f.y - 10;
+                if (f.type == 0) {
+                    x -= 4;
+                    y = f.y - 14;
+                } else {
+                    x -= 5;
+                    y -= 5;
+                }
                 if (x >= kW || y >= kH) continue;
                 SpriteTex* pic = loadSprite(f.type == 0 ? "snow09" : "snow11");
                 if (pic) drawTex(&pic->img, pic->x + float(x), pic->y + float(y));
             }
     }
 
-    // Native 213 (FUN_004403de): T00/T00a after clearing, T00b/T00c otherwise.
     std::vector<TitleItem> Items() const {
         std::vector<TitleItem> v;
         if (titleSaves_) {
@@ -1131,8 +1132,6 @@ private:
         const std::string button = "T0" + std::to_string(hover + 1) + suffix;
         drawTex(loadGraphic(button, ".img"), items[size_t(hover)].rect.x, items[size_t(hover)].rect.y);
     }
-    // Mouse hover picks the button; Up/Down move between buttons; a left click or Enter
-    // on a button selects it (right click / Esc do nothing).
     void TitleEvent(const SDL_Event& e) {
         const auto items = Items();
         const int n = int(items.size());
@@ -1202,7 +1201,6 @@ SDL_AppResult LocalArgs(int argc, char* argv[]) {
     return SDL_APP_CONTINUE;
 }
 
-// Helper para converter string para minúsculas
 std::string toLower(std::string_view str) {
     std::string result;
     result.reserve(str.size());
@@ -1212,10 +1210,9 @@ std::string toLower(std::string_view str) {
     return result;
 }
 
-// Procura um arquivo no diretório ignorando case sensitive
 std::filesystem::path findFileIgnoreCase(const std::filesystem::path& dir, const std::string& filename) {
     if (!std::filesystem::exists(dir) || !std::filesystem::is_directory(dir)) {
-        return dir / filename; // Retorna o caminho original como fallback
+        return dir / filename;
     }
 
     std::string targetLower = toLower(filename);
@@ -1223,12 +1220,12 @@ std::filesystem::path findFileIgnoreCase(const std::filesystem::path& dir, const
     for (const auto& entry : std::filesystem::directory_iterator(dir)) {
         if (entry.is_regular_file()) {
             if (toLower(entry.path().filename().string()) == targetLower) {
-                return entry.path(); // Encontrou o arquivo com a caixa real no disco
+                return entry.path();
             }
         }
     }
 
-    return dir / filename; // Se não encontrar, tenta o nome exato original
+    return dir / filename;
 }
 
 SDL_AppResult LocalInit(void**, int, char*[]) {
@@ -1242,43 +1239,32 @@ SDL_AppResult LocalInit(void**, int, char*[]) {
     State* s = new State();
     g_state = s;
 
-    std::filesystem::path dirPath(g_dir);
+    std::filesystem::path dirPath = std::filesystem::absolute(g_dir);
 
-    // Busca os arquivos no disco ignorando Maiúsculas/Minúsculas
     std::filesystem::path scriptPath = findFileIgnoreCase(dirPath, "SCRIPT.DAT");
     s->gfxDatPath = findFileIgnoreCase(dirPath, "GRAPHIC.DAT");
     s->soundDatPath = findFileIgnoreCase(dirPath, "SOUND.DAT");
     s->voiceDatPath = findFileIgnoreCase(dirPath, "VOICE.DAT");
 
     s->script = readFile(scriptPath);
-    std::vector<uint8_t> gfxDirPack = readFile(s->gfxDatPath);
 
-    if (s->script.empty() || gfxDirPack.empty()) {
-        SDL_Log("Snow Radish: SCRIPT.DAT/GRAPHIC.DAT not found in %s", g_dir.c_str());
+    s->gfxIndex = readDatDirectory(s->gfxDatPath);
+
+    if (s->script.empty() || s->gfxIndex.empty()) {
+        SDL_Log("Snow Radish: SCRIPT.DAT/GRAPHIC.DAT not found or invalid in %s", g_dir.c_str());
         return SDL_APP_FAILURE;
-    }
-
-    // O índice dos pacotes internos já está usando `lower()`, o que garante case-insensitivity
-    for (auto& e : SnowRadish::readDirectory(gfxDirPack)) {
-        s->gfxIndex[lower(e.name)] = e;
     }
 
     auto stem = [](const std::string& n) {
         return lower(n.substr(0, n.find('.')));
     };
 
-    {
-        std::vector<uint8_t> soundDirPack = readFile(s->soundDatPath);
-        for (auto& e : SnowRadish::readDirectory(soundDirPack)) {
-            s->soundIndex[stem(e.name)] = e;
-        }
+    for (const auto& [name, entry] : readDatDirectory(s->soundDatPath)) {
+        s->soundIndex[stem(name)] = entry;
     }
 
-    {
-        std::vector<uint8_t> voiceDirPack = readFile(s->voiceDatPath);
-        for (auto& e : SnowRadish::readDirectory(voiceDirPack)) {
-            s->voiceIndex[stem(e.name)] = e;
-        }
+    for (const auto& [name, entry] : readDatDirectory(s->voiceDatPath)) {
+        s->voiceIndex[stem(name)] = entry;
     }
 
     Kotonoha::GameplayFlow::Config cfg;
