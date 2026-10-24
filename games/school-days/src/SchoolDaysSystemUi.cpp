@@ -61,6 +61,10 @@ void SchoolDaysSystemUi::DestroyTextures() {
         SDL_DestroyTexture(saveLoadTextTexture_);
         saveLoadTextTexture_ = nullptr;
     }
+    if (routeMapTextTexture_ != nullptr) {
+        SDL_DestroyTexture(routeMapTextTexture_);
+        routeMapTextTexture_ = nullptr;
+    }
     if (replayThumbnailTexture_ != nullptr) {
         SDL_DestroyTexture(replayThumbnailTexture_);
         replayThumbnailTexture_ = nullptr;
@@ -74,10 +78,13 @@ void SchoolDaysSystemUi::DestroyTextures() {
         replayPopupChipTexture_ = nullptr;
     }
     saveLoadFont_.Clear();
+    routeMapFont_.Clear();
     saveLoadTextPixels_.clear();
+    routeMapTextPixels_.clear();
     saveLoadMetadata_.clear();
     saveLoadCommentAdvances_.clear();
     saveLoadUseEnglish_ = false;
+    routeMapUseEnglish_ = false;
     replayAssetsRoot_.clear();
     replayLoadedPage_ = -1;
     replayLoadedSceneCheckCount_ = -1;
@@ -104,7 +111,8 @@ void SchoolDaysSystemUi::Close() {
 bool SchoolDaysSystemUi::OpenRouteMap(
     SDL_Renderer* renderer, const std::string& assetsRoot,
     SchoolDaysRouteMapModel::Variant variant, int initialMajor,
-    int initialSubpage, bool alternateHost, std::string* error) {
+    int initialSubpage, bool alternateHost, int completionPercent,
+    bool useEnglish, const std::string& fontDataLogicalPath, std::string* error) {
     Close();
     if (renderer == nullptr) {
         if (error != nullptr) *error = "School Days RouteMap renderer is null";
@@ -114,6 +122,7 @@ bool SchoolDaysSystemUi::OpenRouteMap(
                         alternateHost, error)) {
         return false;
     }
+    routeMap_.SetCompletionPercent(completionPercent);
     routeMapAssetsRoot_ = assetsRoot;
     routeMapLoadedMajor_ = -1;
     routeMapLoadedSubpage_ = -1;
@@ -121,8 +130,97 @@ bool SchoolDaysSystemUi::OpenRouteMap(
         Close();
         return false;
     }
+
+    namespace fs = std::filesystem;
+    fs::path fontLogical(fontDataLogicalPath);
+    if (fontLogical.empty() || fontLogical.is_absolute()) {
+        if (error != nullptr) *error = "School Days RouteMap FONTDATA logical path is invalid";
+        Close();
+        return false;
+    }
+    if (useEnglish) {
+        const auto ext = fontLogical.extension().string();
+        const auto stem = fontLogical.stem().string();
+        fontLogical.replace_filename(stem + "_eng" + ext);
+    }
+    std::string fontPhysical;
+    if (!ResolveSchoolDaysRequiredAssetPath(
+            assetsRoot.c_str(), fontLogical.generic_string(), &fontPhysical,
+            error, "RouteMap FONTDATA") ||
+        !routeMapFont_.LoadFile(fontPhysical, error)) {
+        Close();
+        return false;
+    }
+    routeMapTextTexture_ = SDL_CreateTexture(
+        renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, 512, 128);
+    if (routeMapTextTexture_ == nullptr ||
+        !SDL_SetTextureBlendMode(routeMapTextTexture_, SDL_BLENDMODE_BLEND)) {
+        if (error != nullptr)
+            *error = std::string("School Days RouteMap FONTDATA texture setup failed: ") +
+                     SDL_GetError();
+        Close();
+        return false;
+    }
+    routeMapUseEnglish_ = useEnglish;
+    routeMapTextPixels_.assign(static_cast<size_t>(512) * 128u, 0u);
+    if (!UpdateRouteMapCompletionTexture(error)) {
+        Close();
+        return false;
+    }
     resultEmitted_ = false;
     return true;
+}
+
+bool SchoolDaysSystemUi::UpdateRouteMapCompletionTexture(std::string* error) {
+    if (routeMapTextTexture_ == nullptr || !routeMapFont_.IsLoaded() ||
+        routeMapTextPixels_.size() != static_cast<size_t>(512) * 128u) {
+        if (error != nullptr) *error = "School Days RouteMap FONTDATA presenter is not ready";
+        return false;
+    }
+    std::fill(routeMapTextPixels_.begin(), routeMapTextPixels_.end(), 0u);
+    const auto text = SchoolDaysRouteMapRenderPlan::CompletionTextFor(
+        routeMap_, routeMapUseEnglish_);
+    int x = 0;
+    SchoolDaysFontData::Glyph glyph;
+    for (char16_t unit : text.text) {
+        const uint16_t code = static_cast<uint16_t>(unit);
+        if (!routeMapFont_.DecodeGlyph(code, &glyph, error)) return false;
+        if (x < 0 || x + SchoolDaysFontData::kGlyphWidth > 512) {
+            if (error != nullptr) *error = "School Days RouteMap FONTDATA text exceeds backing";
+            return false;
+        }
+        for (int gy = 0; gy < SchoolDaysFontData::kGlyphHeight; ++gy) {
+            for (int gx = 0; gx < SchoolDaysFontData::kGlyphWidth; ++gx) {
+                const size_t source = static_cast<size_t>(gy) *
+                                          SchoolDaysFontData::kGlyphWidth +
+                                      static_cast<size_t>(gx);
+                const uint8_t alpha = glyph.alpha[source];
+                const uint8_t gray = glyph.gray[source];
+                const uint32_t packed = (static_cast<uint32_t>(alpha) << 24u) |
+                                        (static_cast<uint32_t>(gray) << 16u) |
+                                        (static_cast<uint32_t>(gray) << 8u) |
+                                        static_cast<uint32_t>(gray);
+                uint32_t& destination = routeMapTextPixels_[
+                    static_cast<size_t>(gy) * 512u + static_cast<size_t>(x + gx)];
+                if (destination < packed) destination = packed;
+            }
+        }
+        x += SchoolDaysRouteMapRenderPlan::CompletionGlyphAdvance(code);
+    }
+    if (!SDL_UpdateTexture(routeMapTextTexture_, nullptr,
+                           routeMapTextPixels_.data(),
+                           512 * static_cast<int>(sizeof(uint32_t)))) {
+        if (error != nullptr)
+            *error = std::string("School Days RouteMap FONTDATA upload failed: ") +
+                     SDL_GetError();
+        return false;
+    }
+    const uint8_t a = static_cast<uint8_t>(text.color >> 24u);
+    const uint8_t r = static_cast<uint8_t>(text.color >> 16u);
+    const uint8_t g = static_cast<uint8_t>(text.color >> 8u);
+    const uint8_t b = static_cast<uint8_t>(text.color);
+    return SDL_SetTextureColorMod(routeMapTextTexture_, r, g, b) &&
+           SDL_SetTextureAlphaMod(routeMapTextTexture_, a);
 }
 
 bool SchoolDaysSystemUi::EnsureRouteMapTextures(SDL_Renderer* renderer,
@@ -1302,6 +1400,21 @@ bool SchoolDaysSystemUi::Render(SDL_Renderer* renderer, std::string* error) {
                 if (error != nullptr) *error = SDL_GetError();
                 return false;
             }
+        }
+        if (routeMapTextTexture_ == nullptr) {
+            if (error != nullptr) *error = "School Days RouteMap FONTDATA texture is unavailable";
+            return false;
+        }
+        const auto text = SchoolDaysRouteMapRenderPlan::CompletionTextFor(
+            routeMap_, routeMapUseEnglish_);
+        const SDL_FRect nativeTextDst = {text.destination.x, text.destination.y,
+                                         text.destination.w, text.destination.h};
+        const SDL_FRect textDst = TransformRect(nativeTextDst, viewport);
+        const SDL_FRect textSource = {0.0f, 0.0f, 512.0f, 48.0f};
+        if (!SDL_RenderTexture(renderer, routeMapTextTexture_, &textSource,
+                               &textDst)) {
+            if (error != nullptr) *error = SDL_GetError();
+            return false;
         }
         return true;
     }

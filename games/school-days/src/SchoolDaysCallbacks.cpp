@@ -2900,6 +2900,8 @@ static SDL_AppResult SchoolDaysRenderFrame(Kotonoha::Kotonoha *app) {
         if (!ktrfSystemUi->OpenRouteMap(
                 global.render, ktrfAssetsRoot, SchoolDaysRouteMapVariant(),
                 projection.major, projection.subpage, projection.alternateHost,
+                projection.completionPercent, ktrfSaveProfile.useEnglish,
+                ktrfSaveProfile.fontData,
                 &uiError)) {
           SDL_LogError(0, "[SD-ROUTEMAP] presenter open failed: %s",
                        uiError.c_str());

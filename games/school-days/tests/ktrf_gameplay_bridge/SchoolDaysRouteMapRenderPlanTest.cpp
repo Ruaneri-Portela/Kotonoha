@@ -170,9 +170,40 @@ int main() {
             WriteCmap(root,Model::CmapRelativePath(page.major,page.subpage,v.variant),11+page.n);
     }
 
+    // SysMenu completion text is global/page-stable.  Only presentation differs
+    // by language and the authenticated alternate-host +0x34 gate.
+    std::string error;
+    Model completion;
+    Check(completion.Open(root.string(),Model::Variant::Standard,0,0,false,&error),
+          error.c_str());
+    completion.SetCompletionPercent(49);
+    const auto jpText=Plan::CompletionTextFor(completion,false);
+    const auto enText=Plan::CompletionTextFor(completion,true);
+    Check(jpText.displayedPercent==49 && jpText.color==UINT32_C(0xFFFFFFFF) &&
+              jpText.text==u"\u30B7\u30CA\u30EA\u30AA\u9054\u6210\u7387 49\uFF05",
+          "normal Japanese completion text drifted");
+    Check(enText.text==u"   49\uFF05   Complete",
+          "English completion text drifted");
+    Check(EqRect(jpText.destination,{305.0f,87.0f,288.0f,24.0f}),
+          "Standard completion text position drifted");
+    Check(Plan::CompletionGlyphAdvance(u'A')==24 &&
+              Plan::CompletionGlyphAdvance(UINT16_C(0x9054))==45,
+          "completion FONTDATA glyph advances drifted");
+
+    Model completionAlt;
+    Check(completionAlt.Open(root.string(),Model::Variant::Wide,5,3,true,&error),
+          error.c_str());
+    completionAlt.SetCompletionPercent(99);
+    const auto altText=Plan::CompletionTextFor(completionAlt,false);
+    Check(altText.displayedPercent==0 && altText.color==UINT32_C(0xFF7F7F7F) &&
+              altText.text==u"\u30B7\u30CA\u30EA\u30AA\u9054\u6210\u7387  0\uFF05",
+          "alternate-host completion zero/gray gate drifted");
+    Check(EqRect(altText.destination,{305.0f,12.0f,288.0f,24.0f}),
+          "Wide completion text position drifted");
+
     // Exercise the complete authenticated draw-role sequence on all 16 pages.
     for(const Page& page:pages) {
-        Model model; std::string error;
+        Model model;
         Check(model.Open(root.string(),Model::Variant::Wide,page.major,page.subpage,false,&error),error.c_str());
         for(int i=0;i<page.n;++i) model.SetNodeAvailable(i,(i%2)==0);
         model.SetCurrentMarker(11+page.n-1);
@@ -207,7 +238,7 @@ int main() {
     }
 
     // Alternate host adds exactly native common records 23..28 before 29..32.
-    Model alt; std::string error;
+    Model alt;
     Check(alt.Open(root.string(),Model::Variant::Standard,0,0,true,&error),error.c_str());
     const auto altSprites=Plan::Build(alt);
     Check(altSprites.size()==28u,"alternate-host draw count drifted");
@@ -250,5 +281,7 @@ int main() {
              <<"native_draw_roles_order=PASS\n"
              <<"hover_precedence_unasserted=PASS\n"
              <<"logical_variants_only=PASS\n";
+    std::cout<<"completion_text_format_position_color=PASS\n"
+             <<"completion_alternate_host_zero_gray=PASS\n";
     return 0;
 }
