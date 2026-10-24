@@ -1,5 +1,5 @@
 // Snow Radish Vacation!! (Overflow ADV3) running on the Kotonoha engine.
-// Usage: SnowRadish --snow <dir with SCRIPT.DAT and GRAPHIC.DAT> [--mcp [port]]
+// Usage: SnowRadish --snow <dir with SCRIPT.DAT and GRAPHIC.DAT>
 #include "SnowRadish/Game.hpp"
 
 #include <Kotonoha/Main.hpp>

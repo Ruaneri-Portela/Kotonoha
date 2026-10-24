@@ -127,14 +127,14 @@ public:
   // A port with its own complete retail front end (title, menus, saves,
   // back log) returns true: the flow then forwards every event and
   // frame to the session instead of running its generic title/text/menu flow,
-  // and only wraps it with the shared splash / debug UI / MCP / present steps.
+  // and only wraps it with the shared splash / debug UI / present steps.
   // The story hooks above are unused in that mode.
   virtual bool OwnsFrontend() const { return false; }
   // Per-event handling; non-CONTINUE ends the app.
   virtual SDL_AppResult HandleEvent(SDL_Event *, Kotonoha_Game *) { return SDL_APP_CONTINUE; }
   // Renders the whole game frame without presenting; non-CONTINUE ends the app.
   virtual SDL_AppResult RenderFrame(::Kotonoha::Kotonoha *, Kotonoha_Game *) { return SDL_APP_CONTINUE; }
-  // Gameplay shown to the debug UI and the MCP server.
+  // Gameplay shown to the debug UI.
   virtual ::Kotonoha::Gameplay *RunningGameplay() { return nullptr; }
   // Debug UI pass; false when the player asked to quit from it.
   virtual bool RunDebugUi(::Kotonoha::Kotonoha *app, Kotonoha_Game &game);
@@ -167,7 +167,7 @@ public:
   // afterwards (splash, debug UI, overlays) uses the full window.
   void Frame(Kotonoha_Game *game, TTF_Font *font);
   // The shared per-frame driver used by every port's LocalIterate: splash,
-  // game frame, debug UI, MCP service and present.
+  // game frame, debug UI and present.
   SDL_AppResult RunFrame(::Kotonoha::Kotonoha *app, Kotonoha_Game *game, TTF_Font *font);
 
   bool Playing() const { return playing_; }

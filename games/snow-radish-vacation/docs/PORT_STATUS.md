@@ -31,8 +31,8 @@
 - Type-5 pattern-4 subtractive shading uses the original subtraction blend where the renderer supports it; other backends fall back to alpha darkening. The special type-12 welcome presentation still uses a generic crossfade.
 - Supplied graphics have no EVD type 2 or IMG types 1/3/4 entries, so those absent formats are not verified. The three `.SNW` files are paths used by the logo, not pictures.
 
-## Playable build — `SnowRadish --snow <dir> [--mcp]`
-- EVD backgrounds, CHD sprites, text, choices, location map, and day loop are implemented; previously validated through MCP.
+## Playable build — `SnowRadish --snow <dir>`
+- EVD backgrounds, CHD sprites, text, choices, location map, and day loop are implemented.
 - Shared title/pause/save/load flow and replay-based saves are implemented; save/replay validation is documented below.
 
 ## Audio (added)
@@ -51,7 +51,7 @@
 
 ## Engine flow (added)
 
-The player-facing flow (title, pause, save/load by input replay, text box, choices, dim/panel styling) now lives in the engine class `Kotonoha::GameplayFlow` (`include/Kotonoha/components/GameplayFlow.hpp`). The port only implements `Kotonoha::GameSession` (story logic, pictures, audio). `LocalIterate` just returns `GameplayFlow::RunFrame` (splash, game frame, debug UI, MCP, present), the same loop School Days uses. Only the game picture is letterboxed to the logical resolution; the splash and the debug UI render over the full window.
+The player-facing flow (title, pause, save/load by input replay, text box, choices, dim/panel styling) now lives in the engine class `Kotonoha::GameplayFlow` (`include/Kotonoha/components/GameplayFlow.hpp`). The port only implements `Kotonoha::GameSession` (story logic, pictures, audio). `LocalIterate` just returns `GameplayFlow::RunFrame` (splash, game frame, debug UI, present), the same loop School Days uses. Only the game picture is letterboxed to the logical resolution; the splash and the debug UI render over the full window.
 
 ## Audio rate and New Game flow
 - BGM/SE are 22050 Hz stereo 16-bit (voices: mono), taken from the WAVEFORMATEX built in `of_adv3.exe` (file offset ~0x2e7a3).
@@ -119,6 +119,6 @@ The player-facing flow (title, pause, save/load by input replay, text box, choic
 - Full existing build: `cd build && ninja` (no new build tree).
 - `build/games/snow-radish-vacation/SnowRadishPackTest` passes synthetic alpha/ANM, malformed/multi-region ANM, map destination, type-0xb, all four title variants and cleared/reset-flag callback tests.
 - The same test with the retail pack directory validates **184 ANMs (two cursors), 53 masks and 4428 ADP4 names**. **1349 inputs** reproduce the first native-219 map with identical choices, map arguments and script after replay.
-- Actual SDL/OpenGL app on MCP port **8766**: original title, voiced STKGR1a/stmeg1a mouth-frame changes, ALPF wipe and map hover/preview captured; map replay save/load restored successfully. CoreAudio initialization stalled in this environment, so runtime smoke testing used `SDL_AUDIODRIVER=dummy`; PCM decoding and voice timing still run. Existing slot 1 was preserved; the previously empty slot 3 contains the first-map validation replay.
+- Actual SDL/OpenGL app: original title, voiced STKGR1a/stmeg1a mouth-frame changes, ALPF wipe and map hover/preview captured; map replay save/load restored successfully. CoreAudio initialization stalled in this environment, so runtime smoke testing used `SDL_AUDIODRIVER=dummy`; PCM decoding and voice timing still run. Existing slot 1 was preserved; the previously empty slot 3 contains the first-map validation replay.
 - `git diff --check -- games/snow-radish-vacation` passes. No shared engine or other game files were edited for this port.
 - No complete route was played to completion in the final smoke run: cleared-flag detection is covered by the native callback test; the title/storage path is implemented, not claimed as a full ending-to-relaunch playthrough.
