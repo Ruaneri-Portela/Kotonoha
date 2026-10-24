@@ -61,7 +61,14 @@ bool SchoolDaysSaveProfile::Load(const std::string& assetsRoot,
         !Value(text, "SaveFolder", &profile.saveFolder) || profile.saveFolder.empty() ||
         !Value(text, "SaveFileName", &profile.saveFileName) || profile.saveFileName.empty() ||
         !Value(text, "FlagFileName", &profile.flagFileName) || profile.flagFileName.empty() ||
-        !Value(text, "SaveConfig", &profile.saveConfig) || profile.saveConfig.empty()) {
+        !Value(text, "SaveConfig", &profile.saveConfig) || profile.saveConfig.empty() ||
+        !Value(text, "SeCancel", &profile.seCancel) || profile.seCancel.empty() ||
+        !Value(text, "SeSelect", &profile.seSelect) || profile.seSelect.empty() ||
+        !Value(text, "SeClick", &profile.seClick) || profile.seClick.empty() ||
+        !Value(text, "SeUp", &profile.seUp) || profile.seUp.empty() ||
+        !Value(text, "SeDown", &profile.seDown) || profile.seDown.empty() ||
+        !Value(text, "SeView", &profile.seView) || profile.seView.empty() ||
+        !Value(text, "SeOpen", &profile.seOpen) || profile.seOpen.empty()) {
         return Fail(error, "School Days FILMENGINE.INI persistence keys are malformed");
     }
     profile.useEnglish = english == "1";
