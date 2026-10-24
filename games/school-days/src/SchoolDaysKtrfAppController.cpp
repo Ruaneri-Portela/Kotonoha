@@ -387,7 +387,7 @@ bool SchoolDaysKtrfAppController::SkipToNextChoice(
             // when the destination is the choice-bearing script.  Reuse the
             // authenticated atomic SkipFRAME target instead of replaying the
             // skipped ORS interval.
-            (void)target->SkipSchoolDaysToEnd();
+            (void)target->SkipToEndBoundary();
         }
         gameContext->config.scene = 0;
         gameContext->config.next = false;
@@ -1192,7 +1192,7 @@ SDL_AppResult SchoolDaysKtrfAppController::Main(Gameplay** out,
             if (out != nullptr) *out = current;
         }
         else if (current->prompt != nullptr &&
-                 current->prompt->SchoolDaysPresentationTailActive()) {
+                 current->prompt->PresentationTailActive()) {
             // The native choice commits immediately, but its state2/state3
             // presentation remains alive for 24 ticks after timeout or 48
             // ticks after an accepted selection.  Keep the current Gameplay

@@ -27,7 +27,7 @@ private:
   Sound *soundCtx = nullptr;
   Kotonoha_time *timeCtx = nullptr;
   Kotonoha_Demuxer *demuxer = nullptr;
-  double schoolDaysPlaybackRate = 1.0;
+  double playbackRate = 1.0;
   Kotonoha_audioDecode *previewMedia = nullptr;
   std::string previewPath;
 
@@ -48,7 +48,7 @@ public:
                                           Uint64 end,
                                           const char *channel = "BGM");
   void SetMediaEnabled(Kotonoha_audioDecode *mediaPtr, bool enabled);
-  bool SetSchoolDaysPlaybackRate(double requestedRate);
+  bool SetPlaybackRate(double requestedRate);
   void RemoveMedia(Kotonoha_audioDecode *mediaPtr);
   std::vector<MediaBufferInfo> GetBufferInfo() const;
   bool PlayNow(const std::string &path, const std::string &channel);

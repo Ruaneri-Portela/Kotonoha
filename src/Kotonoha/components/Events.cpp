@@ -4,6 +4,7 @@
 #include <Kotonoha/SchoolDaysMovieAssetResolver.hpp>
 #include <Kotonoha/SchoolDaysImageAssetResolver.hpp>
 #include <Kotonoha/Gameplay.hpp>
+#include <Kotonoha/routing/SchoolDaysPromptBehavior.hpp>
 #include <SDL3/SDL.h>
 #include <sstream>
 #include <algorithm>
@@ -59,7 +60,7 @@ namespace Kotonoha {
 						Kotonoha_SceneTickToMillisecondsCeil(event->endTick), gp->tm,
 						font);
 					gp->prompt = gp->ownedPrompt.get();
-					SchoolDaysPromptPolicy promptPolicy{};
+						SchoolDaysPromptPolicy promptPolicy{};
 					promptPolicy.enabled = true;
 					promptPolicy.startTick = event->startTick;
 					promptPolicy.endTick = event->endTick;
@@ -67,9 +68,10 @@ namespace Kotonoha {
 						// selector chooses the *_H CMAP under that exact pair, so the
 						// authenticated two-choice layout is top/bottom.
 					promptPolicy.twoChoiceOrientation =
-							SchoolDaysPromptOrientation::TopBottom;
-					gp->prompt->EnableSchoolDaysPolicy(promptPolicy);
-					gp->prompt->SetSchoolDaysAutoMode(gp->SchoolDaysAutoMode());
+								SchoolDaysPromptOrientation::TopBottom;
+						gp->prompt->SetBehavior(
+								std::make_unique<SchoolDaysPromptBehavior>(promptPolicy));
+					gp->prompt->SetAutoMode(gp->AutoChoiceMode());
 			gp->putPrompt = true;
 			return; // Corpus v1.02 has at most one SetSELECT per ORS.
 			}

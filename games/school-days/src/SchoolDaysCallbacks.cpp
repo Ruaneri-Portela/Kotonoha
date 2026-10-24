@@ -15,6 +15,7 @@
 #include <Kotonoha/routing/SchoolDaysRetailConfigPolicy.hpp>
 #include <Kotonoha/routing/SchoolDaysMenuBarPresenter.hpp>
 #include <Kotonoha/routing/SchoolDaysPlayDataSession.hpp>
+#include <Kotonoha/routing/SchoolDaysPlaybackPolicy.hpp>
 #include <Kotonoha/routing/SchoolDaysReplayPlaybackSession.hpp>
 #include <Kotonoha/routing/SchoolDaysSystemUi.hpp>
 #include <Kotonoha/routing/SchoolDaysTitleProfile.hpp>
@@ -1737,7 +1738,7 @@ static SDL_AppResult SchoolDaysHandleEvent(void *appstate, SDL_Event *event) {
           Kotonoha::SchoolDaysMenuBarPresenter::ActionKind;
       if (playDataMenuAction.kind == PlayDataMenuAction::ToggleAutoMode) {
         ktrfRetailConfigState.autoMode = !ktrfRetailConfigState.autoMode;
-        playDataGameplay->SetSchoolDaysAutoMode(ktrfRetailConfigState.autoMode);
+        playDataGameplay->SetAutoChoiceMode(ktrfRetailConfigState.autoMode);
         if (!CacheSchoolDaysRetailConfigState("PlayData AutoMode"))
           return SDL_APP_FAILURE;
         return SDL_APP_CONTINUE;
@@ -1751,12 +1752,12 @@ static SDL_AppResult SchoolDaysHandleEvent(void *appstate, SDL_Event *event) {
         return SDL_APP_CONTINUE;
       }
       if (playDataMenuAction.kind == PlayDataMenuAction::SkipToEnd) {
-        (void)playDataGameplay->SkipSchoolDaysToEnd();
+        (void)playDataGameplay->SkipToEndBoundary();
         return SDL_APP_CONTINUE;
       }
       if (playDataMenuAction.kind == PlayDataMenuAction::SetPlaybackSpeed) {
         if (playDataMenuAction.value < 0 || playDataMenuAction.value > 4 ||
-            !playDataGameplay->SetSchoolDaysPlaybackSpeedIndex(
+            !Kotonoha::SchoolDaysPlaybackPolicy::Apply(playDataGameplay,
                 playDataMenuAction.value)) {
           SDL_LogError(0, "[SD-REPLAY] invalid PlayData speed index %d",
                        playDataMenuAction.value);
@@ -1814,7 +1815,7 @@ static SDL_AppResult SchoolDaysHandleEvent(void *appstate, SDL_Event *event) {
           Kotonoha::SchoolDaysMenuBarPresenter::ActionKind;
       if (replayMenuAction.kind == ReplayMenuAction::ToggleAutoMode) {
         ktrfRetailConfigState.autoMode = !ktrfRetailConfigState.autoMode;
-        replayGameplay->SetSchoolDaysAutoMode(ktrfRetailConfigState.autoMode);
+        replayGameplay->SetAutoChoiceMode(ktrfRetailConfigState.autoMode);
         if (!CacheSchoolDaysRetailConfigState("Replay AutoMode"))
           return SDL_APP_FAILURE;
         return SDL_APP_CONTINUE;
@@ -1831,12 +1832,12 @@ static SDL_AppResult SchoolDaysHandleEvent(void *appstate, SDL_Event *event) {
         return SDL_APP_CONTINUE;
       }
       if (replayMenuAction.kind == ReplayMenuAction::SkipToEnd) {
-        (void)replayGameplay->SkipSchoolDaysToEnd();
+        (void)replayGameplay->SkipToEndBoundary();
         return SDL_APP_CONTINUE;
       }
       if (replayMenuAction.kind == ReplayMenuAction::SetPlaybackSpeed) {
         if (replayMenuAction.value < 0 || replayMenuAction.value > 4 ||
-            !replayGameplay->SetSchoolDaysPlaybackSpeedIndex(
+            !Kotonoha::SchoolDaysPlaybackPolicy::Apply(replayGameplay,
                 replayMenuAction.value)) {
           SDL_LogError(0, "[SD-REPLAY] invalid replay speed index %d",
                        replayMenuAction.value);
@@ -2342,7 +2343,7 @@ static SDL_AppResult SchoolDaysHandleEvent(void *appstate, SDL_Event *event) {
                                   : nullptr))
                     : ktrfController->CurrentGameplay();
             if (current != nullptr) {
-              if (!current->SetSchoolDaysPlaybackSpeedIndex(0)) {
+              if (!Kotonoha::SchoolDaysPlaybackPolicy::Apply(current, 0)) {
                 SDL_LogError(0, "[SD-CONFIG] Skip-off speed reset failed");
                 return SDL_APP_FAILURE;
               }
@@ -2452,7 +2453,7 @@ static SDL_AppResult SchoolDaysHandleEvent(void *appstate, SDL_Event *event) {
         if (menuAction.kind == MenuAction::ToggleAutoMode) {
           ktrfRetailConfigState.autoMode = !ktrfRetailConfigState.autoMode;
           if (Kotonoha::Gameplay* current = ktrfController->CurrentGameplay()) {
-            current->SetSchoolDaysAutoMode(ktrfRetailConfigState.autoMode);
+            current->SetAutoChoiceMode(ktrfRetailConfigState.autoMode);
           }
           if (!CacheSchoolDaysRetailConfigState("AutoMode"))
             return SDL_APP_FAILURE;
@@ -2478,7 +2479,7 @@ static SDL_AppResult SchoolDaysHandleEvent(void *appstate, SDL_Event *event) {
             return SDL_APP_FAILURE;
           }
           if (Kotonoha::Gameplay* current = ktrfController->CurrentGameplay()) {
-            if (!current->SetSchoolDaysPlaybackSpeedIndex(menuAction.value)) {
+            if (!Kotonoha::SchoolDaysPlaybackPolicy::Apply(current, menuAction.value)) {
               SDL_LogError(0, "[SD-MENUBAR] playback speed index %d failed",
                            menuAction.value);
               return SDL_APP_FAILURE;
@@ -2490,7 +2491,7 @@ static SDL_AppResult SchoolDaysHandleEvent(void *appstate, SDL_Event *event) {
         } else if (menuAction.kind == MenuAction::SkipToEnd) {
           ktrfMenuBackStartGameplay = nullptr;
           if (Kotonoha::Gameplay* current = ktrfController->CurrentGameplay()) {
-            if (current->SkipSchoolDaysToEnd() && ktrfSceneTransaction != nullptr)
+            if (current->SkipToEndBoundary() && ktrfSceneTransaction != nullptr)
               ktrfSceneTransaction->Reset();
           }
         } else if (menuAction.kind == MenuAction::SkipToNextChoice) {
@@ -2603,8 +2604,8 @@ static SDL_AppResult SchoolDaysRenderFrame(Kotonoha::Kotonoha *app) {
       // AutoMode is persisted independently from the physical Gameplay owner.
       // Re-project it every tick so a freshly swapped/loaded scene inherits the
       // current retail state before its Prompt can time out.
-      beforeGameplay->SetSchoolDaysAutoMode(ktrfRetailConfigState.autoMode);
-      if (!beforeGameplay->SetSchoolDaysPlaybackSpeedIndex(
+      beforeGameplay->SetAutoChoiceMode(ktrfRetailConfigState.autoMode);
+      if (!Kotonoha::SchoolDaysPlaybackPolicy::Apply(beforeGameplay,
               ktrfSchoolDaysSpeedIndex)) {
         SDL_LogError(0, "[SD-MENUBAR] failed to project playback speed index %d",
                      ktrfSchoolDaysSpeedIndex);
@@ -2682,9 +2683,9 @@ static SDL_AppResult SchoolDaysRenderFrame(Kotonoha::Kotonoha *app) {
       !ktrfController->HasPendingHandoff() && beforeGameplay != nullptr &&
       beforeGameplay->eventManager != nullptr &&
       (beforeGameplay->prompt == nullptr ||
-       (!beforeGameplay->prompt->SchoolDaysPresentationTailActive() &&
-        !beforeGameplay->prompt->SchoolDaysPresentationNeedsFinalFrame() &&
-        !beforeGameplay->prompt->SchoolDaysPresentationFinalFrameRendered())) &&
+       (!beforeGameplay->prompt->PresentationTailActive() &&
+        !beforeGameplay->prompt->PresentationNeedsFinalFrame() &&
+        !beforeGameplay->prompt->PresentationFinalFrameRendered())) &&
       beforeGameplay->eventManager->ReachedNext(beforeGameplay)) {
     SDL_SetRenderTarget(global.render, nullptr);
     ktrfSceneTransaction->PrepareAutomatic(global.render, beforeGameplay);
@@ -2732,7 +2733,7 @@ static SDL_AppResult SchoolDaysRenderFrame(Kotonoha::Kotonoha *app) {
   if (ktrfSceneTransaction != nullptr && beforeGameplay != nullptr &&
       afterControllerGameplay == beforeGameplay &&
       beforeGameplay->prompt != nullptr &&
-      beforeGameplay->prompt->SchoolDaysPresentationTailActive()) {
+      beforeGameplay->prompt->PresentationTailActive()) {
     // ReachedNext may become visible to the pre-frame transaction check one
     // iterate before Prompt::Update arms the native state2/state3 tail.  Do not
     // retain that stale pre-tail frame for the eventual scene swap; keep the
@@ -2748,7 +2749,7 @@ static SDL_AppResult SchoolDaysRenderFrame(Kotonoha::Kotonoha *app) {
       !ktrfSceneTransaction->HasLease() &&
       !ktrfSceneTransaction->HasPreparedFrameFor(beforeGameplay) &&
       beforeGameplay->eventManager != nullptr && beforeGameplay->prompt != nullptr &&
-      beforeGameplay->prompt->SchoolDaysPresentationFinalFrameRendered() &&
+      beforeGameplay->prompt->PresentationFinalFrameRendered() &&
       beforeGameplay->eventManager->ReachedNext(beforeGameplay)) {
     // The alpha-zero 24/48-tick choice frame has just been composed into the
     // current backbuffer by Gameplay::Main. Capture it now, before
@@ -2788,7 +2789,7 @@ static SDL_AppResult SchoolDaysRenderFrame(Kotonoha::Kotonoha *app) {
     const int priorSelectResult = replayGameplay->promptId;
     if (replayGameplay->eventManager->CheckEnd(replayGameplay) &&
         (replayGameplay->prompt == nullptr ||
-         !replayGameplay->prompt->SchoolDaysPresentationTailActive())) {
+         !replayGameplay->prompt->PresentationTailActive())) {
       if (ktrfReplaySceneTransaction != nullptr &&
           !ktrfReplaySceneTransaction->HasLease() &&
           !ktrfReplaySceneTransaction->HasPreparedFrameFor(replayGameplay) &&
@@ -2865,7 +2866,7 @@ static SDL_AppResult SchoolDaysRenderFrame(Kotonoha::Kotonoha *app) {
 
     if (playDataGameplay->eventManager->CheckEnd(playDataGameplay) &&
         (playDataGameplay->prompt == nullptr ||
-         !playDataGameplay->prompt->SchoolDaysPresentationTailActive())) {
+         !playDataGameplay->prompt->PresentationTailActive())) {
       if (ktrfReplaySceneTransaction != nullptr &&
           !ktrfReplaySceneTransaction->HasLease() &&
           !ktrfReplaySceneTransaction->HasPreparedFrameFor(playDataGameplay) &&
@@ -3162,7 +3163,6 @@ static SDL_AppResult SchoolDaysRenderFrame(Kotonoha::Kotonoha *app) {
       } else {
         std::string uiError;
         if (!ktrfSystemUi->SetConfigVisualState(
-                global.render, ktrfAssetsRoot,
                 CurrentSchoolDaysConfigVisualState(), &uiError)) {
           SDL_LogError(0, "[SD-SYSTEM-UI] ConfigMenu state refresh failed: %s",
                        uiError.c_str());
