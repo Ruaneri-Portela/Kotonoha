@@ -4,7 +4,7 @@ O runtime de cena agora associa a **chave textual genérica** de `PlayVoice` ao 
 
 ## Proveniência
 
-Base dinâmica: G1.2–G1.4.1 em `D:/SCHOOL DAYS HQ/Overflow/SCHOOLDAYS HQ/Research_engine/13_COMPLETE_RUNTIME_RESEARCH/asset_trace/reports/`. O produtor original é `SCHOOLDAYS HQ.exe` VA `0x0041BA90` (RVA `0x1BA90`); o consumer é `0x0041A830` (RVA `0x1A830`). O scheduler gráfico é `0x00444CF0` (RVA `0x44CF0`) e o seletor `0x00444B80` (RVA `0x44B80`). O áudio original de MAK/TAI foi observado em PCM mono s16 a 44.100 Hz. A implementação genérica em `src/audio/VoicePcm.cpp` não altera o decoder float usado para reprodução: ela decodifica uma cópia de análise pelo FFmpeg/SWR na tarefa de preparação do evento. A callback do mixer não acessa Image/SDL render. O runtime de evento consome a sequência produzida sob seu mutex; o render usa o mutex da Image.
+Base dinâmica: G1.2–G1.4.1 em `D:/SCHOOL DAYS HQ/Overflow/SCHOOLDAYS HQ/Research_engine/13_COMPLETE_RUNTIME_RESEARCH/asset_trace/reports/`. O produtor original é `SCHOOLDAYS HQ.exe` VA `0x0041BA90` (RVA `0x1BA90`); o consumer é `0x0041A830` (RVA `0x1A830`). O scheduler gráfico é `0x00444CF0` (RVA `0x44CF0`) e o seletor `0x00444B80` (RVA `0x44B80`). O áudio original de MAK/TAI foi observado em PCM mono s16 a 44.100 Hz. A implementação genérica em `src/Kotonoha/audio/VoicePcm.cpp` não altera o decoder float usado para reprodução: ela decodifica uma cópia de análise pelo FFmpeg/SWR na tarefa de preparação do evento. A callback do mixer não acessa Image/SDL render. O runtime de evento consome a sequência produzida sob seu mutex; o render usa o mutex da Image.
 
 ## Geometria da atividade
 

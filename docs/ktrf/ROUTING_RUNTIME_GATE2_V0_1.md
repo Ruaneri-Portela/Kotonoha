@@ -11,7 +11,7 @@ Files:
 
 ```text
 include/Kotonoha/routing/KtrfRouter.h
-src/routing/KtrfRouter.c
+src/Kotonoha/routing/KtrfRouter.c
 ```
 
 The router wraps `Kotonoha_KtrfRuntime` and owns only routing activation state:

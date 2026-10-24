@@ -7,7 +7,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 get_filename_component(KOTONOHA_ROOT "${CMAKE_CURRENT_LIST_DIR}/../../../.." ABSOLUTE)
-include_directories("${KOTONOHA_ROOT}/src/routing")
+include_directories("${KOTONOHA_ROOT}/src/Kotonoha/routing")
 include_directories("${KOTONOHA_ROOT}/games/school-days/include")
 
 add_executable(KtrfSchoolDaysPersistenceCodecTest
@@ -17,13 +17,13 @@ add_executable(KtrfSchoolDaysPersistenceCodecTest
 
 add_executable(KtrfSchoolDaysPersistenceRuntimeTest
     KtrfSchoolDaysPersistenceRuntimeTest.cpp
-    "${KOTONOHA_ROOT}/src/parsers/Ktrf.c"
-    "${KOTONOHA_ROOT}/src/parsers/KtrfTyped.c"
-    "${KOTONOHA_ROOT}/src/routing/KtrfRuntime.c"
-    "${KOTONOHA_ROOT}/src/routing/KtrfRouter.c"
-    "${KOTONOHA_ROOT}/src/routing/KtrfAdapter.c"
-    "${KOTONOHA_ROOT}/src/routing/KtrfAssetResolver.c"
-    "${KOTONOHA_ROOT}/src/runtime/KtrfStateStore.cpp"
+    "${KOTONOHA_ROOT}/src/Kotonoha/parsers/Ktrf.c"
+    "${KOTONOHA_ROOT}/src/Kotonoha/parsers/KtrfTyped.c"
+    "${KOTONOHA_ROOT}/src/Kotonoha/routing/KtrfRuntime.c"
+    "${KOTONOHA_ROOT}/src/Kotonoha/routing/KtrfRouter.c"
+    "${KOTONOHA_ROOT}/src/Kotonoha/routing/KtrfAdapter.c"
+    "${KOTONOHA_ROOT}/src/Kotonoha/routing/KtrfAssetResolver.c"
+    "${KOTONOHA_ROOT}/src/Kotonoha/runtime/KtrfStateStore.cpp"
     "${KOTONOHA_ROOT}/games/school-days/src/SchoolDaysHistory.cpp"
     "${KOTONOHA_ROOT}/games/school-days/src/SchoolDaysPersistenceCodec.cpp"
     "${KOTONOHA_ROOT}/games/school-days/src/SchoolDaysPersistence.cpp"

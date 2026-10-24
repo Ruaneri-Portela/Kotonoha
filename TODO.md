@@ -26,7 +26,7 @@ o último frame da cena anterior deveria permanecer enquanto a próxima cena pre
 - `src/Main.cpp`
 - `src/Kotonoha.cpp`
 - `src/Gameplay.cpp`
-- `src/components/Canvas.cpp`
+- `src/Kotonoha/components/Canvas.cpp`
 - `include/Kotonoha/components/Canvas.hpp`
 
 Próximo passo:
