@@ -471,24 +471,33 @@ void GameplayFlow::DrawScene(SDL_Renderer *r) {
 SDL_AppResult GameplayFlow::RunFrame(::Kotonoha::Kotonoha *app, Kotonoha_Game *game, TTF_Font *font) {
   if (app == nullptr || game == nullptr || game->render == nullptr) return SDL_APP_FAILURE;
   SDL_Renderer *r = game->render;
+
   if (app->IsSplashActive()) {
     SDL_SetRenderTarget(r, nullptr);
     SDL_SetRenderDrawColor(r, 0, 0, 0, 255);
     SDL_RenderClear(r);
     app->RenderSplash();
     if (game->config.enableDebugUi && !Debug::Run(app, nullptr, *game)) return SDL_APP_SUCCESS;
-    Debug::Mcp::Service(app, nullptr);
-    SDL_RenderPresent(r);
-    return SDL_APP_CONTINUE;
-  }
-  if (session_ && session_->OwnsFrontend()) {
-    const SDL_AppResult status = session_->RenderFrame(app, game);
-    if (status != SDL_APP_CONTINUE) return status;
   } else {
-    Frame(game, font);
+    if (session_ && session_->OwnsFrontend()) {
+      const SDL_AppResult status = session_->RenderFrame(app, game);
+      if (status != SDL_APP_CONTINUE) return status;
+    } else {
+      Frame(game, font);
+    }
+
+    if (session_ && !session_->RunDebugUi(app, *game)) return SDL_APP_SUCCESS;
   }
-  if (session_ && !session_->RunDebugUi(app, *game)) return SDL_APP_SUCCESS;
-  Debug::Mcp::Service(app, session_ ? session_->RunningGameplay() : nullptr);
+
+  // Renderização comum de Overlay (FPS)
+  if (game->config.showFps) {
+    KotonohaFPSRender(game->window, game->render, font, nullptr);
+  }
+
+  // Serviço MCP e apresentação final
+  Gameplay *mcpGameplay = (!app->IsSplashActive() && session_) ? session_->RunningGameplay() : nullptr;
+  Debug::Mcp::Service(app, mcpGameplay);
+
   SDL_RenderPresent(r);
   return SDL_APP_CONTINUE;
 }

@@ -7,7 +7,7 @@
 		<key>Kotonoha copy.xcscheme_^#shared#^_</key>
 		<dict>
 			<key>orderHint</key>
-			<integer>2</integer>
+			<integer>3</integer>
 		</dict>
 		<key>Kotonoha.xcscheme_^#shared#^_</key>
 		<dict>
@@ -34,6 +34,11 @@
 			<key>orderHint</key>
 			<integer>2</integer>
 		</dict>
+		<key>ZeroNoTsukaima.xcscheme_^#shared#^_</key>
+		<dict>
+			<key>orderHint</key>
+			<integer>4</integer>
+		</dict>
 		<key>libKotonoha.xcscheme_^#shared#^_</key>
 		<dict>
 			<key>orderHint</key>
@@ -42,7 +47,17 @@
 	</dict>
 	<key>SuppressBuildableAutocreation</key>
 	<dict>
+		<key>CE44DF85308D4F350075A21F</key>
+		<dict>
+			<key>primary</key>
+			<true/>
+		</dict>
 		<key>CE5F6B9D308C6FAD006BE483</key>
+		<dict>
+			<key>primary</key>
+			<true/>
+		</dict>
+		<key>CE7BF84C308CB7910071BA8B</key>
 		<dict>
 			<key>primary</key>
 			<true/>
