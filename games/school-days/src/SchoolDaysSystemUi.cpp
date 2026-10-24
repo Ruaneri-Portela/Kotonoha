@@ -1083,9 +1083,22 @@ bool SchoolDaysSystemUi::HandleEvent(SDL_Renderer* renderer,
                 output->hasReplayAction = true;
                 output->replayAction = action;
             }
+            // SceneView ordinary activation calls id2; its explicit close path
+            // calls the shared cancel preset id0.
+            output->uiSfx =
+                action.kind == SchoolDaysReplayModel::ActionKind::Close
+                    ? UiSfxCue::Cancel : UiSfxCue::Click;
             return true;
         }
-        return pointerMoved && replay_.SetSelectionFromPointer(virtualX, virtualY);
+        if (!pointerMoved) return false;
+        const bool changed = replay_.SetSelectionFromPointer(virtualX, virtualY);
+        if (changed && output != nullptr && !replay_.SceneCheckOpen() &&
+            replay_.CurrentView() == SchoolDaysReplayModel::View::PlayData &&
+            replay_.Selection() >= 23 && replay_.Selection() <= 32) {
+            // 0x1001EB16..0x1001EB62: secondary PlayData row-hit transition.
+            output->uiSfx = UiSfxCue::Open;
+        }
+        return changed;
     }
     if (routeMap_.IsOpen()) {
         if (pointerActivated) {
@@ -1144,6 +1157,10 @@ bool SchoolDaysSystemUi::HandleEvent(SDL_Renderer* renderer,
             }
             output->hasConfigAction = true;
             output->configAction = action;
+            // ConfigMenu ordinary activation uses id2; close/back uses id0.
+            output->uiSfx =
+                action.kind == SchoolDaysConfigMenuModel::ActionKind::Close
+                    ? UiSfxCue::Cancel : UiSfxCue::Click;
             return true;
         }
         return pointerMoved &&
@@ -1161,6 +1178,8 @@ bool SchoolDaysSystemUi::HandleEvent(SDL_Renderer* renderer,
             if (!title_.ActivateSelection(&activation)) return false;
             output->hasTitleActivation = true;
             output->titleActivation = activation;
+            // TitleView 0x10020BFC/0x10020C53 -> host SFX id2.
+            output->uiSfx = UiSfxCue::Click;
             return true;
         }
         return pointerMoved && title_.SetSelectionFromPointer(virtualX, virtualY);
@@ -1190,9 +1209,21 @@ bool SchoolDaysSystemUi::HandleEvent(SDL_Renderer* renderer,
                 output->hasSaveLoadOutput = true;
                 output->saveLoadOutput = modelOutput;
             }
+            // SaveLoad ordinary activation uses id2; its explicit close/back
+            // path uses the shared cancel preset id0.
+            output->uiSfx =
+                modelOutput.action == SchoolDaysSaveLoadModel::Action::Close
+                    ? UiSfxCue::Cancel : UiSfxCue::Click;
             return true;
         }
-        return pointerMoved && saveLoad_.SetSelectionFromPointer(virtualX, virtualY);
+        if (!pointerMoved) return false;
+        const bool changed = saveLoad_.SetSelectionFromPointer(virtualX, virtualY);
+        if (changed && output != nullptr && saveLoad_.Selection() >= 22 &&
+            saveLoad_.Selection() <= 31) {
+            // 0x10015061..0x10015095: secondary SaveLoad row-hit transition.
+            output->uiSfx = UiSfxCue::Open;
+        }
+        return changed;
     }
     if (pointerActivated) {
         // Native coordinate activation recomputes the CMAP hit and accepts only

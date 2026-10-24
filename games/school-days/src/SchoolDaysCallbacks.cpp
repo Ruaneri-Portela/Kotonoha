@@ -610,6 +610,54 @@ bool StartSchoolDaysTitleBgm(
   return true;
 }
 
+const std::string *SchoolDaysUiSfxStem(
+    Kotonoha::SchoolDaysSystemUi::UiSfxCue cue) {
+  using Cue = Kotonoha::SchoolDaysSystemUi::UiSfxCue;
+  switch (cue) {
+  case Cue::Cancel: return &ktrfSaveProfile.seCancel;
+  case Cue::Select: return &ktrfSaveProfile.seSelect;
+  case Cue::Click: return &ktrfSaveProfile.seClick;
+  case Cue::Up: return &ktrfSaveProfile.seUp;
+  case Cue::Down: return &ktrfSaveProfile.seDown;
+  case Cue::View: return &ktrfSaveProfile.seView;
+  case Cue::Open: return &ktrfSaveProfile.seOpen;
+  case Cue::None: break;
+  }
+  return nullptr;
+}
+
+bool PlaySchoolDaysUiSfx(Kotonoha::SchoolDaysSystemUi::UiSfxCue cue) {
+  if (cue == Kotonoha::SchoolDaysSystemUi::UiSfxCue::None) return true;
+  const std::string *stem = SchoolDaysUiSfxStem(cue);
+  if (stem == nullptr || stem->empty()) return false;
+
+  // FILMENGINE.INI stores system-SE stems. The shipped School Days HQ assets
+  // for all seven authenticated presets are Ogg/Vorbis files; the resolver is
+  // case-insensitive and therefore preserves the original logical stem while
+  // selecting the actual packaged filename.
+  const auto resolved = Kotonoha::ResolveSchoolDaysAssetPath(
+      ktrfAssetsRoot.c_str(), *stem + ".ogg");
+  if (!resolved.present || resolved.collision) {
+    SDL_LogError(0, "[SD-UI-SE] preset id=%d asset could not be resolved",
+                 static_cast<int>(cue));
+    return false;
+  }
+
+  Kotonoha::Audio *audio = ktrfTitleAudio.get();
+  if (audio == nullptr && ktrfController != nullptr) {
+    if (Kotonoha::Gameplay *gameplay = ktrfController->CurrentGameplay())
+      audio = gameplay->audio;
+  }
+  if (audio == nullptr) return false;
+  if (audio->AddMedia(resolved.physical.c_str(), 0u, 0u, false, "Se", true) ==
+      nullptr) {
+    SDL_LogError(0, "[SD-UI-SE] preset id=%d playback failed",
+                 static_cast<int>(cue));
+    return false;
+  }
+  return true;
+}
+
 bool FlushSchoolDaysGlobalFlag(const char *reason) {
   if (ktrfController == nullptr || ktrfSaveStorage == nullptr ||
       !ktrfController->HasGlobalFlag()) {
@@ -873,6 +921,13 @@ bool ExecuteSaveLoadLoadSlot(int slot) {
   // persisted SLog collections. Type-2 LogMessage rows are never serialized.
   ResetSchoolDaysBackLog();
   SDL_SetAtomicInt(&global.textLogCaptureEnabled, 1);
+
+  // LOAD is a child of the retained Title frontend, so its BGM must keep the
+  // same decoder/position while the SaveLoad view is open.  Only a successful
+  // TitleLoad -> Gameplay transition leaves that owner and tears the media down.
+  if (flowState == Kotonoha::SchoolDaysFlowController::State::TitleLoad) {
+    StopSchoolDaysTitleBgm();
+  }
 
   ktrfSystemUi->Close();
   ktrfSaveLoadMetadataPage = -1;
@@ -1776,6 +1831,7 @@ static SDL_AppResult SchoolDaysHandleEvent(void *appstate, SDL_Event *event) {
       ktrfSystemUi->IsSaveLoadOpen()) {
     Kotonoha::SchoolDaysSystemUi::Output output;
     if (ktrfSystemUi->HandleEvent(global.render, event, &output)) {
+      (void)PlaySchoolDaysUiSfx(output.uiSfx);
       if (output.hasSaveLoadOutput) {
         using Action = Kotonoha::SchoolDaysSaveLoadModel::Action;
         if (output.saveLoadOutput.action == Action::Close) {
@@ -1972,6 +2028,7 @@ static SDL_AppResult SchoolDaysHandleEvent(void *appstate, SDL_Event *event) {
       ktrfSystemUi->IsTitleOpen()) {
     Kotonoha::SchoolDaysSystemUi::Output output;
     if (ktrfSystemUi->HandleEvent(global.render, event, &output)) {
+      (void)PlaySchoolDaysUiSfx(output.uiSfx);
       if (output.hasTitleActivation) {
         using Result = Kotonoha::SchoolDaysTitleModel::Result;
         if (output.titleActivation.result == Result::Start &&
@@ -1995,7 +2052,6 @@ static SDL_AppResult SchoolDaysHandleEvent(void *appstate, SDL_Event *event) {
                          error.message);
             return SDL_APP_FAILURE;
           }
-          StopSchoolDaysTitleBgm();
           if (ktrfSceneTransaction != nullptr) ktrfSceneTransaction->Reset();
           ktrfSystemUi->Close();
           ktrfSaveLoadMetadataPage = -1;
@@ -2043,6 +2099,7 @@ static SDL_AppResult SchoolDaysHandleEvent(void *appstate, SDL_Event *event) {
       ktrfTitleReplayActive && ktrfSystemUi->IsReplayOpen()) {
     Kotonoha::SchoolDaysSystemUi::Output output;
     if (ktrfSystemUi->HandleEvent(global.render, event, &output)) {
+      (void)PlaySchoolDaysUiSfx(output.uiSfx);
       if (output.hasReplayAction) {
         using Kind = Kotonoha::SchoolDaysReplayModel::ActionKind;
         const auto &action = output.replayAction;
@@ -2152,6 +2209,7 @@ static SDL_AppResult SchoolDaysHandleEvent(void *appstate, SDL_Event *event) {
       ktrfSystemUi->IsConfigOpen()) {
     Kotonoha::SchoolDaysSystemUi::Output output;
     if (ktrfSystemUi->HandleEvent(global.render, event, &output)) {
+      (void)PlaySchoolDaysUiSfx(output.uiSfx);
       if (output.hasConfigAction) {
         using Kind = Kotonoha::SchoolDaysConfigMenuModel::ActionKind;
         const auto &action = output.configAction;
@@ -2791,12 +2849,6 @@ static SDL_AppResult SchoolDaysRenderFrame(Kotonoha::Kotonoha *app) {
           return SDL_APP_FAILURE;
         }
         std::string uiError;
-        if (flowState == Kotonoha::SchoolDaysFlowController::State::TitleLoad) {
-          // Title audio belongs to the broader Title/modal frontend session.
-          // LOAD is a real exit from that session, unlike Config/Exit modals,
-          // so enforce teardown here as well as in the pointer-action path.
-          StopSchoolDaysTitleBgm();
-        }
         if (!ktrfSystemUi->OpenSaveLoad(global.render, ktrfAssetsRoot,
                                         ktrfUiVariant, saveLoadMode,
                                         ktrfSaveProfile.textInput,
@@ -2947,7 +2999,8 @@ static SDL_AppResult SchoolDaysRenderFrame(Kotonoha::Kotonoha *app) {
       const auto state = ktrfController->FlowState();
       const bool titleModal =
           state == Kotonoha::SchoolDaysFlowController::State::TitleConfig ||
-          state == Kotonoha::SchoolDaysFlowController::State::TitleExit;
+          state == Kotonoha::SchoolDaysFlowController::State::TitleExit ||
+          state == Kotonoha::SchoolDaysFlowController::State::TitleLoad;
       if (!titleModal) StopSchoolDaysTitleBgm();
       ktrfSystemUi->Close();
     }

@@ -44,7 +44,14 @@ int main(int argc, char** argv) {
               profile.saveFolder == "Save" &&
               profile.saveFileName == "Save/SaveFile00%d.DAT" &&
               profile.flagFileName == "Save/GlobalFlag.DAT" &&
-              profile.saveConfig == "FILMEngine/SaveFile00%d",
+              profile.saveConfig == "FILMEngine/SaveFile00%d" &&
+              profile.seCancel == "SysSe/NewSys/SeCancel_01" &&
+              profile.seSelect == "SysSe/NewSys/SeSelect" &&
+              profile.seClick == "SysSe/NewSys/SeClick_01" &&
+              profile.seUp == "SysSe/NewSys/SeUp" &&
+              profile.seDown == "SysSe/NewSys/SeDown" &&
+              profile.seView == "SysSe/NewSys/SeView" &&
+              profile.seOpen == "SysSe/NewSys/SeOpen",
           "authenticated FILMENGINE persistence profile drifted");
 
     std::string formatted;

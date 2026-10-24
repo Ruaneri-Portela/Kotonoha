@@ -33,6 +33,17 @@ namespace Kotonoha {
 // persistence authority into the UI layer.
 class SchoolDaysSystemUi {
 public:
+    enum class UiSfxCue : int {
+        None = -1,
+        Cancel = 0,
+        Select = 1,
+        Click = 2,
+        Up = 3,
+        Down = 4,
+        View = 5,
+        Open = 6,
+    };
+
     struct Output {
         bool hasSaveFeelResult = false;
         SchoolDaysSaveFeelModel::Result saveFeelResult =
@@ -50,6 +61,7 @@ public:
         SchoolDaysReplayModel::Action replayAction{};
         bool hasRouteMapAction = false;
         SchoolDaysRouteMapModel::Action routeMapAction{};
+        UiSfxCue uiSfx = UiSfxCue::None;
     };
 
     struct Layout {
