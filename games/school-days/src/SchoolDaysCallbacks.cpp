@@ -2916,6 +2916,7 @@ static SDL_AppResult SchoolDaysRenderFrame(Kotonoha::Kotonoha *app) {
   if (ktrfController != nullptr && ktrfSceneTransaction != nullptr &&
       ktrfGameplayFlow &&
       !ktrfSceneTransaction->HasLease() &&
+      !ktrfSceneTransaction->HasPreparedFrameFor(beforeGameplay) &&
       !ktrfController->HasPendingHandoff() && beforeGameplay != nullptr &&
       beforeGameplay->eventManager != nullptr &&
       (beforeGameplay->prompt == nullptr ||
