@@ -34,7 +34,6 @@ public:
         bool autoDraw = true;
         bool autoMode = false;
         bool superSkip = false;
-        bool useSom = false;
     };
 
     static State Defaults();

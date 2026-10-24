@@ -154,7 +154,6 @@ include_directories("${SCHOOL_DAYS_INCLUDE_DIR}")
         ${SCHOOL_DAYS_SOURCE_DIR}/SchoolDaysSaveLoadRenderPlan.cpp
         ${SCHOOL_DAYS_SOURCE_DIR}/SchoolDaysConfigMenuModel.cpp
         ${SCHOOL_DAYS_SOURCE_DIR}/SchoolDaysConfigMenuRenderPlan.cpp
-        ${SCHOOL_DAYS_SOURCE_DIR}/SchoolDaysSomConSetModel.cpp
         ${SCHOOL_DAYS_SOURCE_DIR}/SchoolDaysExitViewModel.cpp
         ${SCHOOL_DAYS_SOURCE_DIR}/SchoolDaysExitViewRenderPlan.cpp
         ${SCHOOL_DAYS_SOURCE_DIR}/SchoolDaysReplayModel.cpp
@@ -280,3 +279,21 @@ if(KOTONOHA_ROUTER_TESTS)
     add_test(NAME SchoolDaysFullRouterTest COMMAND SchoolDaysFullRouterTest)
     add_test(NAME SchoolDaysDevCheckpointTest COMMAND SchoolDaysDevCheckpointTest)
 endif()
+
+add_executable(SchoolDaysScriptOverlayTest
+    ${CMAKE_CURRENT_SOURCE_DIR}/ktrf_gameplay_bridge/SchoolDaysScriptOverlayTest.cpp
+    ${SCHOOL_DAYS_SOURCE_DIR}/SchoolDaysScriptOverlay.cpp
+)
+target_include_directories(SchoolDaysScriptOverlayTest PRIVATE
+    ${KOTONOHA_INCLUDE_DIR}
+    ${SCHOOL_DAYS_INCLUDE_DIR}
+)
+set_target_properties(SchoolDaysScriptOverlayTest PROPERTIES
+    CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
+add_test(NAME SchoolDaysScriptOverlayTest COMMAND SchoolDaysScriptOverlayTest)
+
+# The detailed School Days model/bridge tests remain independently buildable
+# without making every normal test build compile the full suite.  Keeping the
+# subdirectory in the game-owned test tree also makes migrated targets such as
+# SchoolDaysScriptOverlayTest reachable from the canonical root build.
+add_subdirectory(ktrf_gameplay_bridge EXCLUDE_FROM_ALL)
