@@ -1,19 +1,13 @@
 cmake_minimum_required(VERSION 3.18)
-if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
-    project(KtrfSchoolDaysGameplayBridgeGate4 LANGUAGES C CXX)
-endif()
+project(KtrfSchoolDaysGameplayBridgeGate4 LANGUAGES C CXX)
 
-if(NOT TARGET SDL3::SDL3)
-    find_package(SDL3 CONFIG REQUIRED)
-endif()
-if(NOT TARGET ZLIB::ZLIB)
-    find_package(ZLIB REQUIRED)
-endif()
+find_package(SDL3 CONFIG REQUIRED)
+find_package(ZLIB REQUIRED)
 
 set(CMAKE_C_STANDARD 11)
-set(CMAKE_C_STANDARD_REQUIRED ON)
+set(CMAKE_C_STANDARD_REQUIBED ON)
 set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_STANDARD_REQUIBED ON)
 
 get_filename_component(KOTONOHA_ROOT "${CMAKE_CURRENT_LIST_DIR}/../../../.." ABSOLUTE)
 include_directories("${KOTONOHA_ROOT}/src/Kotonoha/routing")
@@ -344,6 +338,7 @@ target_include_directories(SchoolDaysConfigExitModelTest PRIVATE
 target_include_directories(SchoolDaysConfigExitRenderPlanTest PRIVATE
     "${KOTONOHA_ROOT}/include"
 )
+
 target_include_directories(SchoolDaysReplayModelTest PRIVATE
     "${KOTONOHA_ROOT}/include"
 )
