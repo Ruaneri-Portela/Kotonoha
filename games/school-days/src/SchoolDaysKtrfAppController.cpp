@@ -902,6 +902,12 @@ bool SchoolDaysKtrfAppController::BuildRouteMapProjection(
     next.alternateHost = false;
 
     const KtrfStateStore& state = bridge.Session().State();
+    SchoolDaysRouteMapOracle::Completion completion;
+    if (!SchoolDaysRouteMapOracle::ComputeCompletion(
+            state, bridge.Session().Adapter()->document, &completion, error)) {
+        return false;
+    }
+    next.completionPercent = completion.percent;
     for (int i = 0; i < page.nodeCount; ++i) {
         const std::string key = SchoolDaysRouteMapModel::NodeSpKey(major, subpage, i);
         int64_t value = 0;

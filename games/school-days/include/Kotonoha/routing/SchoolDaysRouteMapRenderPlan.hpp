@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <string>
 #include <vector>
 
 #include <Kotonoha/routing/SchoolDaysRouteMapModel.hpp>
@@ -72,6 +73,13 @@ public:
         int logicalHeight = 600;
     };
 
+    struct CompletionText {
+        std::u16string text;
+        Rect destination{};
+        uint32_t color = UINT32_C(0xFFFFFFFF);
+        int displayedPercent = 0;
+    };
+
     static Layout LayoutFor(SchoolDaysRouteMapModel::Variant variant);
     static Size ChipSizeForPage(int major, int subpage);
     static Record CommonRecord(int recordIndex);
@@ -79,6 +87,11 @@ public:
                              NodeBand band);
     static int NodeRecordIndex(int major, int subpage, int localIndex,
                                NodeBand band);
+    static CompletionText CompletionTextFor(const SchoolDaysRouteMapModel& model,
+                                            bool useEnglish);
+    static int CompletionGlyphAdvance(uint16_t code) {
+        return code < UINT16_C(0x80) ? 24 : 45;
+    }
 
     // This remains false until a native path proves band0 composition order.
     static constexpr bool NodeHoverPrecedenceProven() { return false; }
