@@ -14,7 +14,6 @@
 #include <Kotonoha/routing/SchoolDaysTitleModel.hpp>
 #include <Kotonoha/routing/SchoolDaysConfigMenuModel.hpp>
 #include <Kotonoha/routing/SchoolDaysConfigMenuRenderPlan.hpp>
-#include <Kotonoha/routing/SchoolDaysSomConSetModel.hpp>
 #include <Kotonoha/routing/SchoolDaysExitViewModel.hpp>
 #include <Kotonoha/routing/SchoolDaysReplayModel.hpp>
 #include <Kotonoha/routing/SchoolDaysReplayRenderPlan.hpp>
@@ -54,7 +53,6 @@ public:
         SchoolDaysTitleModel::Activation titleActivation{};
         bool hasConfigAction = false;
         SchoolDaysConfigMenuModel::Action configAction{};
-        bool hasSomConSetReturn = false;
         bool hasExitActivation = false;
         SchoolDaysExitViewModel::Activation exitActivation{};
         bool hasReplayAction = false;
@@ -114,11 +112,7 @@ public:
         SchoolDaysConfigMenuModel::Page page,
         const SchoolDaysConfigMenuRenderPlan::VisualState& visualState,
         std::string* error = nullptr);
-    bool OpenSomConSet(SDL_Renderer* renderer, const std::string& assetsRoot,
-                       SchoolDaysSomConSetModel::Variant variant,
-                       std::string* error = nullptr);
     bool SetConfigVisualState(
-        SDL_Renderer* renderer, const std::string& assetsRoot,
         const SchoolDaysConfigMenuRenderPlan::VisualState& visualState,
         std::string* error = nullptr);
     bool OpenExit(SDL_Renderer* renderer, const std::string& assetsRoot,
@@ -170,7 +164,6 @@ public:
     bool IsSaveLoadOpen() const { return saveLoad_.IsOpen(); }
     bool IsTitleOpen() const { return title_.IsOpen(); }
     bool IsConfigOpen() const { return configMenu_.IsOpen(); }
-    bool IsSomConSetOpen() const { return somConSet_.IsOpen(); }
     bool IsExitOpen() const { return exitView_.IsOpen(); }
     bool IsReplayOpen() const { return replay_.IsOpen(); }
     bool IsRouteMapOpen() const { return routeMap_.IsOpen(); }
@@ -178,7 +171,6 @@ public:
     const SchoolDaysSaveLoadModel& SaveLoad() const { return saveLoad_; }
     const SchoolDaysTitleModel& Title() const { return title_; }
     const SchoolDaysConfigMenuModel& ConfigMenu() const { return configMenu_; }
-    const SchoolDaysSomConSetModel& SomConSet() const { return somConSet_; }
     const SchoolDaysExitViewModel& ExitView() const { return exitView_; }
     const SchoolDaysReplayModel& Replay() const { return replay_; }
     const SchoolDaysRouteMapModel& RouteMap() const { return routeMap_; }
@@ -209,7 +201,6 @@ private:
     SchoolDaysSaveLoadModel saveLoad_;
     SchoolDaysTitleModel title_;
     SchoolDaysConfigMenuModel configMenu_;
-    SchoolDaysSomConSetModel somConSet_;
     SchoolDaysExitViewModel exitView_;
     SchoolDaysReplayModel replay_;
     SchoolDaysRouteMapModel routeMap_;

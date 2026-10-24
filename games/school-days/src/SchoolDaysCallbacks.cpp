@@ -13,7 +13,6 @@
 #include <Kotonoha/routing/SchoolDaysDisplayPolicy.hpp>
 #include <Kotonoha/routing/SchoolDaysFrontendTransition.hpp>
 #include <Kotonoha/routing/SchoolDaysRetailConfigPolicy.hpp>
-#include <Kotonoha/routing/SchoolDaysLegacySomCon.hpp>
 #include <Kotonoha/routing/SchoolDaysMenuBarPresenter.hpp>
 #include <Kotonoha/routing/SchoolDaysPlayDataSession.hpp>
 #include <Kotonoha/routing/SchoolDaysReplayPlaybackSession.hpp>
@@ -87,9 +86,6 @@ Kotonoha::SchoolDaysDisplayPolicy::RetailBackendState
     ktrfRetailDisplayBackendState{};
 Kotonoha::SchoolDaysRetailConfigPolicy::State ktrfRetailConfigState =
     Kotonoha::SchoolDaysRetailConfigPolicy::Defaults();
-// Production deliberately has no physical serial backend. Tests/integration
-// seams can instantiate SchoolDaysLegacySomCon with an explicit backend.
-Kotonoha::SchoolDaysLegacySomCon ktrfLegacySomCon;
 int ktrfSchoolDaysSpeedIndex = 0;
 std::string ktrfAssetsRoot;
 int ktrfSaveLoadMetadataPage = -1;
@@ -556,13 +552,6 @@ CurrentSchoolDaysConfigVisualState() {
   state.soundLevels = {{ktrfRetailConfigState.bgmVolume,
                         ktrfRetailConfigState.seVolume,
                         ktrfRetailConfigState.voiceVolume}};
-  // Normal host exposes the SomCon page. Its inner controls project the exact
-  // ConfigMenu +0x328/+0x31C/+0x320/+0x324 state machine fields.
-  const auto& som = ktrfLegacySomCon.CurrentState();
-  state.somConSetActive = som.useSom;
-  state.somConInteractionActive = som.connected;
-  state.somConSecondaryCurrent = som.secondary ? 16 : 17;
-  state.somConDeviceIndex = som.deviceIndex;
   return state;
 }
 
@@ -1489,15 +1478,6 @@ SDL_AppResult LocalInit(void **appstate, int, char *[]) {
       return SDL_APP_FAILURE;
     }
     ktrfRetailConfigState = configLoad.state;
-    const bool persistedUseSom = ktrfRetailConfigState.useSom;
-    (void)ktrfLegacySomCon.ApplyPersistedUseSom(persistedUseSom);
-    ktrfRetailConfigState.useSom = ktrfLegacySomCon.CurrentState().useSom;
-    if (ktrfRetailConfigState.useSom != persistedUseSom &&
-        !CacheSchoolDaysRetailConfigState("UseSOM startup scan")) {
-      ktrfConfigStorage.reset();
-      return SDL_APP_FAILURE;
-    }
-
     if (!ktrfOptions.scriptDirSpecified) {
       // Default: Script/<rest> is served from ./assets/<rest> when present.
       std::string ignored;
@@ -2297,26 +2277,6 @@ static SDL_AppResult SchoolDaysHandleEvent(void *appstate, SDL_Event *event) {
     }
   }
 
-  // Native Config outer mode7 owns an independent SomconSet popup after the
-  // control4 scan latch (+0x32C) is raised. Keep the enclosing Config flow
-  // frozen while the popup owns input; its sole control is host transition2
-  // back to Config mode4, where the EXE clears the latch.
-  if (ktrfController != nullptr && ktrfSystemUi != nullptr &&
-      (ktrfController->FlowState() ==
-           Kotonoha::SchoolDaysFlowController::State::TitleConfig ||
-       ktrfController->FlowState() ==
-           Kotonoha::SchoolDaysFlowController::State::GameplayConfig) &&
-      ktrfSystemUi->IsSomConSetOpen()) {
-    Kotonoha::SchoolDaysSystemUi::Output output;
-    if (ktrfSystemUi->HandleEvent(global.render, event, &output)) {
-      if (output.hasSomConSetReturn) {
-        ktrfLegacySomCon.ClearErrorFlag();
-        ktrfSystemUi->Close();
-      }
-      return SDL_APP_CONTINUE;
-    }
-  }
-
   if (ktrfController != nullptr && ktrfSystemUi != nullptr &&
       (ktrfReplayHostModal == KtrfReplayHostModal::Config ||
        ktrfController->FlowState() ==
@@ -2463,36 +2423,6 @@ static SDL_AppResult SchoolDaysHandleEvent(void *appstate, SDL_Event *event) {
               // enclosing Title/modal session and remains untouched.
               ktrfSystemUi->Close();
             }
-          }
-        } else if (action.kind == Kind::SomConAutoScan ||
-                   action.kind == Kind::SomConDisable ||
-                   action.kind == Kind::SomConSelectDevice ||
-                   action.kind == Kind::SomConStartSecondary ||
-                   action.kind == Kind::SomConStopSecondary) {
-          int control = -1;
-          if (action.kind == Kind::SomConAutoScan) control = 4;
-          else if (action.kind == Kind::SomConDisable) control = 5;
-          else if (action.kind == Kind::SomConSelectDevice)
-            control = 6 + action.value;
-          else if (action.kind == Kind::SomConStartSecondary) control = 16;
-          else control = 17;
-
-          const bool oldUseSom = ktrfRetailConfigState.useSom;
-          const auto result = ktrfLegacySomCon.ActivateControl(control);
-          ktrfRetailConfigState.useSom =
-              ktrfLegacySomCon.CurrentState().useSom;
-          if (oldUseSom != ktrfRetailConfigState.useSom &&
-              !CacheSchoolDaysRetailConfigState("UseSOM")) {
-            return SDL_APP_FAILURE;
-          }
-
-          using SomResult = Kotonoha::SchoolDaysLegacySomCon::ControlResult;
-          if (result == SomResult::RequestErrorPopup) {
-            // Iterate observes errorFlag and opens the independent mode7 popup.
-            ktrfSystemUi->Close();
-          } else if (result == SomResult::UnsafeDeviceIndex) {
-            SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
-                        "[SD-SOMCON] rejected native-unsafe device index9");
           }
         } else {
           SDL_Log("[SD-CONFIG] typed action kind=%d value=%d bank=%d choice=%d deferred",
@@ -3219,19 +3149,7 @@ static SDL_AppResult SchoolDaysRenderFrame(Kotonoha::Kotonoha *app) {
             Kotonoha::SchoolDaysFlowController::State::TitleConfig ||
         ktrfController->FlowState() ==
             Kotonoha::SchoolDaysFlowController::State::GameplayConfig) {
-      if (ktrfReplayHostModal != KtrfReplayHostModal::Config &&
-          ktrfLegacySomCon.CurrentState().errorFlag) {
-        if (!ktrfSystemUi->IsSomConSetOpen()) {
-          std::string uiError;
-          if (!ktrfSystemUi->OpenSomConSet(global.render, ktrfAssetsRoot,
-                                           SchoolDaysConfigVariant(),
-                                           &uiError)) {
-            SDL_LogError(0, "[SD-SYSTEM-UI] SomconSet open failed: %s",
-                         uiError.c_str());
-            return SDL_APP_FAILURE;
-          }
-        }
-      } else if (!ktrfSystemUi->IsConfigOpen()) {
+      if (!ktrfSystemUi->IsConfigOpen()) {
         const auto visualState = CurrentSchoolDaysConfigVisualState();
         std::string uiError;
         if (!ktrfSystemUi->OpenConfig(global.render, ktrfAssetsRoot,
@@ -3251,8 +3169,7 @@ static SDL_AppResult SchoolDaysRenderFrame(Kotonoha::Kotonoha *app) {
           return SDL_APP_FAILURE;
         }
       }
-    } else if (ktrfSystemUi->IsConfigOpen() ||
-               ktrfSystemUi->IsSomConSetOpen()) {
+    } else if (ktrfSystemUi->IsConfigOpen()) {
       ktrfSystemUi->Close();
     }
 
@@ -3379,7 +3296,7 @@ static SDL_AppResult SchoolDaysRenderFrame(Kotonoha::Kotonoha *app) {
   if (ktrfSystemUi != nullptr &&
       (ktrfSystemUi->IsSaveFeelOpen() || ktrfSystemUi->IsSaveLoadOpen() ||
        ktrfSystemUi->IsTitleOpen() || ktrfSystemUi->IsConfigOpen() ||
-       ktrfSystemUi->IsSomConSetOpen() || ktrfSystemUi->IsExitOpen() ||
+       ktrfSystemUi->IsExitOpen() ||
        ktrfSystemUi->IsReplayOpen() || ktrfSystemUi->IsRouteMapOpen())) {
     std::string uiError;
     if (!ktrfSystemUi->Render(global.render, &uiError)) {
@@ -3530,7 +3447,6 @@ void LocalQuit(void *, SDL_AppResult) {
   ktrfRetailDisplayBackendState = {};
   ktrfRetailConfigState =
       Kotonoha::SchoolDaysRetailConfigPolicy::Defaults();
-  ktrfLegacySomCon = Kotonoha::SchoolDaysLegacySomCon{};
   Kotonoha_SetMenuVoiceEnabled(&global, true);
   Kotonoha_SetMessageLayerEnabled(&global, true);
   global.profileAssetsRoot = nullptr;

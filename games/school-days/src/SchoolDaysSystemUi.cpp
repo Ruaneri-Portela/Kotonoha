@@ -99,7 +99,6 @@ void SchoolDaysSystemUi::Close() {
     saveLoad_.Close();
     title_.Close();
     configMenu_.Close();
-    somConSet_.Close();
     exitView_.Close();
     replay_.Close();
     routeMap_.Close();
@@ -429,9 +428,7 @@ bool SchoolDaysSystemUi::OpenConfig(
     configVisualState_ = visualState;
 
     const auto base = ResolveSchoolDaysAssetPath(
-        assetsRoot.c_str(),
-        SchoolDaysConfigMenuRenderPlan::BaseRelativePath(configMenu_,
-                                                         configVisualState_));
+        assetsRoot.c_str(), SchoolDaysConfigMenuRenderPlan::BaseRelativePath(configMenu_));
     const auto chip = ResolveSchoolDaysAssetPath(
         assetsRoot.c_str(), SchoolDaysConfigMenuModel::ChipRelativePath(page));
     if (!base.present || base.collision || !chip.present || chip.collision) {
@@ -465,85 +462,15 @@ bool SchoolDaysSystemUi::OpenConfig(
 }
 
 bool SchoolDaysSystemUi::SetConfigVisualState(
-    SDL_Renderer* renderer, const std::string& assetsRoot,
     const SchoolDaysConfigMenuRenderPlan::VisualState& visualState,
     std::string* error) {
     if (error != nullptr) error->clear();
-    if (!configMenu_.IsOpen() || renderer == nullptr || baseTexture_ == nullptr) {
+    if (!configMenu_.IsOpen() || baseTexture_ == nullptr) {
         if (error != nullptr)
             *error = "School Days ConfigMenu visual presenter is not ready";
         return false;
     }
-
-    const std::string oldBase = SchoolDaysConfigMenuRenderPlan::BaseRelativePath(
-        configMenu_, configVisualState_);
-    const std::string newBase = SchoolDaysConfigMenuRenderPlan::BaseRelativePath(
-        configMenu_, visualState);
-    if (oldBase != newBase) {
-        const auto resolved = ResolveSchoolDaysAssetPath(assetsRoot.c_str(), newBase);
-        if (!resolved.present || resolved.collision) {
-            if (error != nullptr)
-                *error = "School Days ConfigMenu updated base resource could not be resolved";
-            return false;
-        }
-        SDL_Texture* replacement =
-            KotonohaImageCreateTexture(renderer, resolved.physical.c_str(), -1, -1);
-        if (replacement == nullptr ||
-            !SDL_SetTextureBlendMode(replacement, SDL_BLENDMODE_NONE)) {
-            if (error != nullptr)
-                *error = std::string("School Days ConfigMenu updated base texture load failed: ") +
-                         SDL_GetError();
-            if (replacement != nullptr) SDL_DestroyTexture(replacement);
-            return false;
-        }
-        SDL_DestroyTexture(baseTexture_);
-        baseTexture_ = replacement;
-    }
     configVisualState_ = visualState;
-    return true;
-}
-
-bool SchoolDaysSystemUi::OpenSomConSet(
-    SDL_Renderer* renderer, const std::string& assetsRoot,
-    SchoolDaysSomConSetModel::Variant variant, std::string* error) {
-    Close();
-    if (renderer == nullptr) {
-        if (error != nullptr) *error = "School Days SomconSet renderer is null";
-        return false;
-    }
-    if (!somConSet_.Open(assetsRoot, variant, error)) return false;
-
-    const auto base = ResolveSchoolDaysAssetPath(
-        assetsRoot.c_str(), SchoolDaysSomConSetModel::BaseRelativePath());
-    const auto chip = ResolveSchoolDaysAssetPath(
-        assetsRoot.c_str(), SchoolDaysSomConSetModel::ChipRelativePath());
-    if (!base.present || base.collision || !chip.present || chip.collision) {
-        if (error != nullptr)
-            *error = "School Days SomconSet base/CHIP resources could not be resolved";
-        Close();
-        return false;
-    }
-
-    baseTexture_ =
-        KotonohaImageCreateTexture(renderer, base.physical.c_str(), -1, -1);
-    chipTexture_ =
-        KotonohaImageCreateTexture(renderer, chip.physical.c_str(), -1, -1);
-    if (baseTexture_ == nullptr || chipTexture_ == nullptr) {
-        if (error != nullptr)
-            *error = std::string("School Days SomconSet texture load failed: ") +
-                     SDL_GetError();
-        Close();
-        return false;
-    }
-    SDL_SetTextureBlendMode(baseTexture_, SDL_BLENDMODE_BLEND);
-    if (!SDL_SetTextureBlendMode(chipTexture_, SDL_BLENDMODE_BLEND)) {
-        if (error != nullptr)
-            *error = std::string("School Days SomconSet CHIP blend setup failed: ") +
-                     SDL_GetError();
-        Close();
-        return false;
-    }
-    resultEmitted_ = false;
     return true;
 }
 
@@ -970,7 +897,7 @@ bool SchoolDaysSystemUi::PointerToVirtual(SDL_Renderer* renderer, float x, float
                                           int* virtualX, int* virtualY) const {
     if (renderer == nullptr || virtualX == nullptr || virtualY == nullptr ||
         (!saveFeel_.IsOpen() && !saveLoad_.IsOpen() && !title_.IsOpen() &&
-         !configMenu_.IsOpen() && !somConSet_.IsOpen() && !exitView_.IsOpen() && !replay_.IsOpen() &&
+         !configMenu_.IsOpen() && !exitView_.IsOpen() && !replay_.IsOpen() &&
          !routeMap_.IsOpen())) {
         return false;
     }
@@ -990,13 +917,11 @@ bool SchoolDaysSystemUi::PointerToVirtual(SDL_Renderer* renderer, float x, float
                : (title_.IsOpen()
                       ? title_.Cmap()
                       : (configMenu_.IsOpen() ? configMenu_.Cmap()
-                                              : (somConSet_.IsOpen()
-                                                     ? somConSet_.Cmap()
-                                                     : (exitView_.IsOpen()
-                                                            ? exitView_.Cmap()
-                                                            : (replay_.IsOpen()
-                                                                   ? replay_.Cmap()
-                                                                   : routeMap_.Cmap()))))));
+                                              : (exitView_.IsOpen()
+                                                     ? exitView_.Cmap()
+                                                     : (replay_.IsOpen()
+                                                            ? replay_.Cmap()
+                                                            : routeMap_.Cmap())))));
     const auto viewport = ComputeViewport(
         width, height, static_cast<int>(cmap.Width()), static_cast<int>(cmap.Height()));
     if (viewport.scale <= 0.0f) return false;
@@ -1139,7 +1064,7 @@ bool SchoolDaysSystemUi::HandleEvent(SDL_Renderer* renderer,
                                      const SDL_Event* event, Output* output) {
     if (output != nullptr) *output = {};
     if ((!saveFeel_.IsOpen() && !saveLoad_.IsOpen() && !title_.IsOpen() &&
-         !configMenu_.IsOpen() && !somConSet_.IsOpen() && !exitView_.IsOpen() && !replay_.IsOpen() &&
+         !configMenu_.IsOpen() && !exitView_.IsOpen() && !replay_.IsOpen() &&
          !routeMap_.IsOpen()) ||
         event == nullptr || (resultEmitted_ && !saveLoad_.IsOpen())) return false;
 
@@ -1222,37 +1147,12 @@ bool SchoolDaysSystemUi::HandleEvent(SDL_Renderer* renderer,
         }
         return pointerMoved && routeMap_.SetSelectionFromPointer(virtualX, virtualY);
     }
-    if (somConSet_.IsOpen()) {
-        if (pointerActivated) {
-            const int hit = somConSet_.HitControl(virtualX, virtualY);
-            if (hit < 0 || hit != somConSet_.Selection()) return false;
-            int transition = -1;
-            if (!somConSet_.Activate(&transition) ||
-                transition != SchoolDaysSomConSetModel::kReturnToConfigHostTransition) {
-                return false;
-            }
-            output->hasSomConSetReturn = true;
-            return true;
-        }
-        return pointerMoved && somConSet_.SetSelectionFromPointer(virtualX, virtualY);
-    }
     if (configMenu_.IsOpen()) {
         if (pointerActivated) {
             const int hit = configMenu_.HitControl(virtualX, virtualY);
             if (hit < 0 || hit != configMenu_.Selection()) return false;
             SchoolDaysConfigMenuModel::Action action;
             if (!configMenu_.Activate(&action)) return false;
-            if (action.kind == SchoolDaysConfigMenuModel::ActionKind::SelectPage &&
-                action.page == SchoolDaysConfigMenuModel::Page::SomCon &&
-                !configVisualState_.somConAvailable) {
-                return false;
-            }
-            if (configMenu_.CurrentPage() == SchoolDaysConfigMenuModel::Page::SomCon &&
-                hit >= 6 && hit <= 17 &&
-                (!configVisualState_.somConSetActive ||
-                 !configVisualState_.somConInteractionActive)) {
-                return false;
-            }
             output->hasConfigAction = true;
             output->configAction = action;
             // ConfigMenu ordinary activation uses id2; close/back uses id0.
@@ -1488,45 +1388,6 @@ bool SchoolDaysSystemUi::Render(SDL_Renderer* renderer, std::string* error) {
             const auto popupPlan =
                 SchoolDaysReplayRenderPlan::BuildSceneCheck(replay_, visual);
             if (!drawReplayPlan(popupPlan, true)) return false;
-        }
-        return true;
-    }
-    if (somConSet_.IsOpen()) {
-        if (renderer == nullptr || baseTexture_ == nullptr || chipTexture_ == nullptr) {
-            if (error != nullptr) *error = "School Days SomconSet presenter is not open";
-            return false;
-        }
-        int outputWidth = 0;
-        int outputHeight = 0;
-        if (!SDL_GetCurrentRenderOutputSize(renderer, &outputWidth, &outputHeight)) {
-            if (error != nullptr) *error = SDL_GetError();
-            return false;
-        }
-        const auto viewport = ComputeViewport(
-            outputWidth, outputHeight, static_cast<int>(somConSet_.Cmap().Width()),
-            static_cast<int>(somConSet_.Cmap().Height()));
-        if (viewport.scale <= 0.0f) {
-            if (error != nullptr) *error = "School Days SomconSet viewport is invalid";
-            return false;
-        }
-        const auto nativeLayout =
-            SchoolDaysConfigMenuRenderPlan::LayoutFor(somConSet_.CurrentVariant());
-        const SDL_FRect nativeDst = {
-            -0.5f * nativeLayout.scale,
-            nativeLayout.yOffset * nativeLayout.scale,
-            800.0f * nativeLayout.scale,
-            450.0f * nativeLayout.scale};
-        const SDL_FRect dst = TransformRect(nativeDst, viewport);
-        if (!SDL_RenderTexture(renderer, baseTexture_, nullptr, &dst)) {
-            if (error != nullptr) *error = SDL_GetError();
-            return false;
-        }
-        // Pop_Som_Chip is the popup's single transparent hover artwork.  With
-        // one native control there is no atlas-selection ambiguity.
-        if (somConSet_.Selection() == 0 &&
-            !SDL_RenderTexture(renderer, chipTexture_, nullptr, &dst)) {
-            if (error != nullptr) *error = SDL_GetError();
-            return false;
         }
         return true;
     }
