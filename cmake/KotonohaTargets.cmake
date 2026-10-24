@@ -26,12 +26,10 @@ file(GLOB_RECURSE KOTONOHA_ENGINE_HEADERS CONFIGURE_DEPENDS
     "${KOTONOHA_INCLUDE_DIR}/Kotonoha/*.hpp"
 )
 
-# Higher-level component/parser/render implementations use the shared engine
-# tree but still contain ORS and School Days policies; package them in
-# libKotonoha without pulling those policies into the reusable core archive.
+# Higher-level generic component/parser/render implementations packaged in the
+# shared runtime. Game policy is never compiled from games/* into this target.
 set(KOTONOHA_PROFILE_RUNTIME_SOURCES
     "${KOTONOHA_ENGINE_SOURCE_DIR}/components/Audio.cpp"
-    "${KOTONOHA_ENGINE_SOURCE_DIR}/components/Events.cpp"
     "${KOTONOHA_ENGINE_SOURCE_DIR}/components/Prompt.cpp"
     "${KOTONOHA_ENGINE_SOURCE_DIR}/components/Panel.cpp"
     "${KOTONOHA_ENGINE_SOURCE_DIR}/components/GameplayFlow.cpp"
@@ -50,23 +48,6 @@ file(GLOB_RECURSE KOTONOHA_PROFILE_DEBUG_SOURCES CONFIGURE_DEPENDS
 list(APPEND KOTONOHA_PROFILE_RUNTIME_SOURCES ${KOTONOHA_PROFILE_DEBUG_SOURCES})
 list(REMOVE_ITEM KOTONOHA_ENGINE_SOURCES ${KOTONOHA_PROFILE_RUNTIME_SOURCES})
 
-# These runtime extension contracts are public to libKotonoha and its profile
-# adapter, but intentionally excluded from the game-independent core header gate.
-set(KOTONOHA_PROFILE_RUNTIME_HEADERS
-    "${KOTONOHA_INCLUDE_DIR}/Kotonoha/components/Audio.hpp"
-    "${KOTONOHA_INCLUDE_DIR}/Kotonoha/components/Events.hpp"
-    "${KOTONOHA_INCLUDE_DIR}/Kotonoha/components/Prompt.hpp"
-    "${KOTONOHA_INCLUDE_DIR}/Kotonoha/components/TextBox.hpp"
-    "${KOTONOHA_INCLUDE_DIR}/Kotonoha/components/SaveStore.hpp"
-    "${KOTONOHA_INCLUDE_DIR}/Kotonoha/components/ChoiceMenu.hpp"
-    "${KOTONOHA_INCLUDE_DIR}/Kotonoha/components/Video.hpp"
-    "${KOTONOHA_INCLUDE_DIR}/Kotonoha/parsers/Ors.h"
-    "${KOTONOHA_INCLUDE_DIR}/Kotonoha/renders/AudioRender.h"
-    "${KOTONOHA_INCLUDE_DIR}/Kotonoha/renders/TextRender.h"
-    "${KOTONOHA_INCLUDE_DIR}/Kotonoha/renders/VideoRender.h"
-)
-list(REMOVE_ITEM KOTONOHA_ENGINE_HEADERS ${KOTONOHA_PROFILE_RUNTIME_HEADERS})
-
 file(GLOB_RECURSE KOTONOHA_RUNTIME_SOURCES CONFIGURE_DEPENDS
     "${KOTONOHA_RUNTIME_SOURCE_DIR}/*.cpp"
     "${KOTONOHA_RUNTIME_SOURCE_DIR}/*.c"
@@ -80,45 +61,43 @@ set(KOTONOHA_GAMEPLAY_ADAPTER "${KOTONOHA_RUNTIME_SOURCE_DIR}/Gameplay.cpp")
 list(REMOVE_ITEM KOTONOHA_RUNTIME_SOURCES "${KOTONOHA_GAMEPLAY_ADAPTER}")
 list(APPEND KOTONOHA_PROFILE_RUNTIME_SOURCES "${KOTONOHA_GAMEPLAY_ADAPTER}")
 
-# Prompt.cpp renders choice text through this pure layout helper, so the runtime
-# library owns the one School Days unit it links against; the game targets
-# exclude it from their own source list.
-set(KOTONOHA_RUNTIME_GAME_POLICY_SOURCES
-    "${SCHOOL_DAYS_SOURCE_DIR}/SchoolDaysChoiceTextPlan.cpp"
-    "${SCHOOL_DAYS_SOURCE_DIR}/SchoolDaysPromptBehavior.cpp"
-)
-list(APPEND KOTONOHA_PROFILE_RUNTIME_SOURCES
-    ${KOTONOHA_RUNTIME_GAME_POLICY_SOURCES})
+# Hard build-boundary check: no game-specific implementation or API may live in
+# the reusable engine/runtime trees. Add new game names here when a port lands.
+set(KOTONOHA_GAME_SPECIFIC_TOKEN_REGEX
+    "SchoolDays|schoolDays|School Days|SnowRadish|snowRadish|Snow Radish|ZeroNoTsukaima|zeroNoTsukaima|Zero no Tsukaima|DokiDoki|dokiDoki|Doki Doki|DDLC|ddlc")
+set(KOTONOHA_GAME_SPECIFIC_FILENAME_REGEX
+    "^(SchoolDays|SnowRadish|ZeroNoTsukaima|DokiDoki|DDLC)")
 
-# Hard build-boundary check: a School Days implementation file must live under
-# games/school-days and may never silently re-enter the engine source glob.
-foreach(_source IN LISTS KOTONOHA_ENGINE_SOURCES KOTONOHA_RUNTIME_SOURCES)
+foreach(_source IN LISTS
+        KOTONOHA_ENGINE_SOURCES
+        KOTONOHA_PROFILE_RUNTIME_SOURCES
+        KOTONOHA_RUNTIME_SOURCES)
     get_filename_component(_name "${_source}" NAME)
-    if(_name MATCHES "^SchoolDays")
+    if(_name MATCHES "${KOTONOHA_GAME_SPECIFIC_FILENAME_REGEX}")
         message(FATAL_ERROR
-            "School Days source leaked into KotonohaEngine: ${_source}. "
-            "Move it under games/school-days/src instead.")
+            "Game-specific source leaked into Kotonoha engine/runtime: ${_source}. "
+            "Move it under games/<game>/src instead.")
     endif()
     file(READ "${_source}" _engine_source_text)
-    if(_engine_source_text MATCHES "SchoolDays|schoolDays")
+    if(_engine_source_text MATCHES "${KOTONOHA_GAME_SPECIFIC_TOKEN_REGEX}")
         message(FATAL_ERROR
-            "School Days implementation dependency leaked into KotonohaEngine: "
-            "${_source}. Keep profile policy in libKotonoha.")
+            "Game-specific implementation dependency leaked into Kotonoha "
+            "engine/runtime: ${_source}. Keep game policy under games/<game>.")
     endif()
 endforeach()
 
 foreach(_header IN LISTS KOTONOHA_ENGINE_HEADERS)
     get_filename_component(_name "${_header}" NAME)
-    if(_name MATCHES "^SchoolDays")
+    if(_name MATCHES "${KOTONOHA_GAME_SPECIFIC_FILENAME_REGEX}")
         message(FATAL_ERROR
-            "School Days header leaked into the engine include tree: ${_header}. "
-            "Move it under games/school-days/include instead.")
+            "Game-specific header leaked into the engine include tree: ${_header}. "
+            "Move it under games/<game>/include instead.")
     endif()
     file(READ "${_header}" _engine_header_text)
-    if(_engine_header_text MATCHES "SchoolDays|schoolDays|School Days")
+    if(_engine_header_text MATCHES "${KOTONOHA_GAME_SPECIFIC_TOKEN_REGEX}")
         message(FATAL_ERROR
-            "School Days API dependency leaked into the engine include tree: "
-            "${_header}. Keep game/profile APIs under games/school-days/include.")
+            "Game-specific API dependency leaked into the engine include tree: "
+            "${_header}. Keep game APIs under games/<game>/include.")
     endif()
 endforeach()
 
@@ -192,8 +171,8 @@ if(ANDROID)
         ${KOTONOHA_RUNTIME_SOURCES})
     set_target_properties(KotonohaRuntime PROPERTIES
         POSITION_INDEPENDENT_CODE ON)
+    target_compile_definitions(KotonohaRuntime PUBLIC KOTONOHA_RUNTIME_STATIC=1)
     target_include_directories(KotonohaRuntime PUBLIC
-        "${SCHOOL_DAYS_INCLUDE_DIR}"
         "${KOTONOHA_INCLUDE_DIR}"
         "${KOTONOHA_ENGINE_SOURCE_DIR}/routing")
     target_link_libraries(KotonohaRuntime PUBLIC Kotonoha::Engine)
@@ -219,13 +198,13 @@ else()
     add_library(KotonohaRuntime SHARED
         ${KOTONOHA_PROFILE_RUNTIME_SOURCES}
         ${KOTONOHA_RUNTIME_SOURCES})
+    target_compile_definitions(KotonohaRuntime PRIVATE KOTONOHA_RUNTIME_EXPORTS=1)
     set_target_properties(KotonohaRuntime PROPERTIES
         OUTPUT_NAME Kotonoha
         WINDOWS_EXPORT_ALL_SYMBOLS ON
         MACOSX_RPATH ON
         INSTALL_RPATH "@loader_path")
     target_include_directories(KotonohaRuntime PUBLIC
-        "${SCHOOL_DAYS_INCLUDE_DIR}"
         "${KOTONOHA_INCLUDE_DIR}"
         "${KOTONOHA_ENGINE_SOURCE_DIR}/routing")
     target_link_libraries(KotonohaRuntime PUBLIC Kotonoha::Engine)

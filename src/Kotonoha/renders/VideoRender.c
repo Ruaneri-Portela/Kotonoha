@@ -450,7 +450,7 @@ enum Kotonoha_Scene_Status KotonohaVideoRenderProcess(void *userData,
       instance->pCodecCtx == NULL)
     return KOTONOHA_SCENE_NULL;
 
-  /* School Days event END, in the exact 24 Hz domain, owns lifetime. */
+  /* The authored event END, in the exact 24 Hz domain, owns lifetime. */
   if (Kotonoha_MillisecondsToSceneTick(KotonohaTimeGet(instance->time)) >=
       instance->endTick)
     return KOTONOHA_SCENE_COMPLETE;
@@ -507,7 +507,7 @@ enum Kotonoha_Scene_Status KotonohaVideoRenderProcess(void *userData,
     return retained_or_waiting(instance);
 
   /*
-   * At accelerated School Days rates the logical clock can cross many source
+   * At accelerated playback rates the logical clock can cross many source
    * frames between two renderer callbacks.  Keep only the newest frame at or
    * before the logical target and retain the first future frame.  Returning on
    * the first overdue frame makes 12x/24x playback fall farther behind every

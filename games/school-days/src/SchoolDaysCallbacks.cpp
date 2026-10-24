@@ -27,7 +27,6 @@
 #include <Kotonoha/components/Sound.hpp>
 #include <Kotonoha/specials/Upscaling.h>
 #include <Kotonoha/utils/OverlayRender.h>
-#include <SDL3/SDL_main.h>
 #include <imgui.h>
 #include <algorithm>
 #include <cstring>

@@ -1,4 +1,5 @@
 #include <Kotonoha/routing/SchoolDaysKtrfGameplayBridge.hpp>
+#include <Kotonoha/routing/SchoolDaysEventRuntime.hpp>
 #include <Kotonoha/Gameplay.hpp>
 
 #include <new>
@@ -12,7 +13,8 @@ Gameplay* CreateRealGameplay(const char* orsPath, Kotonoha_Game* gameContext,
         return nullptr;
     }
     try {
-        return new Gameplay(orsPath, gameContext);
+        return new Gameplay(orsPath, gameContext,
+                            MakeSchoolDaysEventRuntimeFactory());
     }
     catch (...) {
         return nullptr;

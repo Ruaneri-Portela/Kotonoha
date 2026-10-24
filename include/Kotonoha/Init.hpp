@@ -9,7 +9,17 @@
 
 namespace Kotonoha {
 
-extern Kotonoha_Game global;
+#if defined(_WIN32) && !defined(KOTONOHA_RUNTIME_STATIC)
+#if defined(KOTONOHA_RUNTIME_EXPORTS)
+#define KOTONOHA_RUNTIME_DATA __declspec(dllexport)
+#else
+#define KOTONOHA_RUNTIME_DATA __declspec(dllimport)
+#endif
+#else
+#define KOTONOHA_RUNTIME_DATA
+#endif
+
+extern KOTONOHA_RUNTIME_DATA Kotonoha_Game global;
 
 void CleanupGlobalResources();
 bool InitSDLSubsystems();

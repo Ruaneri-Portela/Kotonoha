@@ -42,7 +42,7 @@ bool DrawScriptEditorWindow(::Kotonoha::Kotonoha *game,
                               IsReadOnlyAssetPath(selected->scriptPath);
         if (activeReadOnly) {
           ImGui::TextColored(ImVec4(0.80f, 0.60f, 0.95f, 1.0f),
-                             "Active School Days scene");
+                             "Active mounted scene");
         } else {
           ImGui::TextColored(ImVec4(0.80f, 0.60f, 0.95f, 1.0f),
                              "Selected Scene: %d", selectedSceneIndex);

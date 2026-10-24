@@ -1,5 +1,6 @@
 #include <Kotonoha/Kotonoha.hpp>
 #include <Kotonoha/routing/SchoolDaysKtrfAppController.hpp>
+#include <Kotonoha/routing/SchoolDaysEventRuntime.hpp>
 #include <Kotonoha/routing/SchoolDaysPlayDataSession.hpp>
 #include <Kotonoha/routing/SchoolDaysReplayPlaybackSession.hpp>
 #include <Kotonoha/routing/SchoolDaysRouteMapModel.hpp>
@@ -39,7 +40,8 @@ Gameplay* SchoolDaysKtrfAppController::CreateGameplay(
         const bool userPaused =
             inheritUserPause ? previous->UserPaused(context) : false;
 
-        auto* gameplay = new Gameplay(orsPath, context, preferredFont);
+        auto* gameplay = new Gameplay(orsPath, context, preferredFont,
+                                      MakeSchoolDaysEventRuntimeFactory());
         if (inheritUserPause) {
             gameplay->SetUserPaused(context, userPaused);
         }
@@ -154,6 +156,7 @@ bool SchoolDaysKtrfAppController::Open(
 
     engine = requestedEngine;
     gameContext = requestedContext;
+    engine->SetGameplayEventRuntimeFactory(MakeSchoolDaysEventRuntimeFactory());
     this->ktrfPath = ktrfPath != nullptr ? ktrfPath : "";
     this->orsRoot = orsRoot != nullptr ? orsRoot : "";
 
@@ -163,6 +166,7 @@ bool SchoolDaysKtrfAppController::Open(
     factory.userdata = this;
 
     if (!bridge.Open(ktrfPath, orsRoot, gameContext, factory, error)) {
+        engine->SetGameplayEventRuntimeFactory({});
         engine = nullptr;
         gameContext = nullptr;
         this->ktrfPath.clear();
@@ -193,6 +197,7 @@ void SchoolDaysKtrfAppController::Close() {
     flow.Reset();
     bridge.Close();
     opened = false;
+    if (engine != nullptr) engine->SetGameplayEventRuntimeFactory({});
     engine = nullptr;
     gameContext = nullptr;
     ktrfPath.clear();
