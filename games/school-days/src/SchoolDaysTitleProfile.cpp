@@ -67,9 +67,11 @@ bool SchoolDaysTitleProfile::Load(
 
     std::string base;
     std::string titleBgm;
+    std::string systemBgm;
     int endBgView = 0;
     if (!Value(start, "BaseFile", &base) || base.empty() ||
         !Value(start, "TitleBGM", &titleBgm) || titleBgm.empty() ||
+        !Value(start, "SystemBGM", &systemBgm) || systemBgm.empty() ||
         !Decimal(start, "EndBGView", &endBgView) ||
         (endBgView != 0 && endBgView != 1)) {
         return Fail(error, "School Days STARTSCRIPT title keys are malformed");
@@ -78,6 +80,7 @@ bool SchoolDaysTitleProfile::Load(
     SchoolDaysEndBackgroundResolver::Profile profile;
     profile.baseAsset = base;
     profile.titleBgmStem = titleBgm;
+    profile.systemBgmStem = systemBgm;
     profile.endBgView = endBgView != 0;
     if (!profile.endBgView) {
         *out = std::move(profile);

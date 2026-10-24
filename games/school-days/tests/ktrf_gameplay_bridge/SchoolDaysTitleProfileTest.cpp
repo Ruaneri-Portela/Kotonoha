@@ -19,6 +19,8 @@ int main(int argc, char** argv) {
           "BaseFile drifted from authenticated profile");
     Check(profile.titleBgmStem == "BGM/SD_BGM/sdbgm28",
           "TitleBGM drifted from authenticated profile");
+    Check(profile.systemBgmStem == "BGM/SD_BGM/sdbgm29",
+          "SystemBGM drifted from authenticated profile");
     Check(profile.endingMax == 22 && profile.endingAssets.size() == 22,
           "EndingMax/list size drifted");
     Check(profile.endingAssets.front() == "System/EndTitle/END-05-5H-E00.png" &&
@@ -31,6 +33,7 @@ int main(int argc, char** argv) {
     std::cout << "SCHOOL DAYS TITLE PROFILE GATE PASS\n"
               << "startscript_base_endbg=PASS\n"
               << "titlebgm_loop_stem=PASS\n"
+              << "systembgm_loop_stem=PASS\n"
               << "endingmax22=PASS\n"
               << "ending_order=PASS\n"
               << "wmv_entries=PASS\n"
