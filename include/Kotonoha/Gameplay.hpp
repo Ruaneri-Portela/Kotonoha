@@ -57,7 +57,7 @@ private:
 
   std::atomic_bool mediaActive{false};
   std::atomic_bool shutdownRequested{false};
-  std::atomic_bool schoolDaysAutoMode{false};
+  std::atomic_bool autoChoiceMode{false};
   std::atomic_bool prefetchAllMedia{false};
   bool prefetchPendingPromotion = false;
   bool prefetchThreadSuspended = false;
@@ -126,15 +126,15 @@ public:
   void SetUserPaused(struct Kotonoha_Game *gameContext, bool paused);
   void ToggleUserPaused(struct Kotonoha_Game *gameContext);
   bool UserPaused(const struct Kotonoha_Game *gameContext) const;
-  void SetSchoolDaysAutoMode(bool enabled);
-  bool SchoolDaysAutoMode() const {
-    return schoolDaysAutoMode.load(std::memory_order_acquire);
+  void SetAutoChoiceMode(bool enabled);
+  bool AutoChoiceMode() const {
+    return autoChoiceMode.load(std::memory_order_acquire);
   }
 
   void SeekForward(Uint64 ms);
   void SeekBackward(Uint64 ms);
-  bool SkipSchoolDaysToEnd();
-  bool SetSchoolDaysPlaybackSpeedIndex(int index);
+  bool SkipToEndBoundary();
+  bool SetPlaybackRate(double rate);
   float GetDeltaTime() const;
   bool ShouldShowLoadingOverlay() const;
   float GetTime();

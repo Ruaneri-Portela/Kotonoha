@@ -45,8 +45,8 @@ Kotonoha_audioDecode *Audio::CreateDecode(const char *path,
                                                          demuxer)
                                      : Kotonoha_AudioInit(path, specification);
   if (decode != nullptr &&
-      !KotonohaAudioSetSchoolDaysPlaybackRate(decode,
-                                              schoolDaysPlaybackRate)) {
+      !KotonohaAudioSetPlaybackRate(decode,
+                                              playbackRate)) {
     KotonohaAudioFree(decode);
     return nullptr;
   }
@@ -116,7 +116,7 @@ Kotonoha_audioDecode *Audio::AddMediaInternal(
   }
 
   /* Pipe construction invokes RenderMedia once. enabled must already reflect
-   * PREPARE state so preloaded School Days media is guaranteed silent. */
+   * PREPARE state so preloaded profile media is guaranteed silent. */
   Sound::Channel::Pipe *pipe =
       targetChannel->AddPipe(RenderMedia, KotonohaAudioFree, decode);
   if (pipe == nullptr) {
@@ -163,10 +163,10 @@ void Audio::SetMediaEnabled(Kotonoha_audioDecode *mediaPtr, bool enabled) {
     SDL_SetAtomicInt(&mediaPtr->enabled, enabled ? 1 : 0);
 }
 
-bool Audio::SetSchoolDaysPlaybackRate(double requestedRate) {
-  if (KotonohaSchoolDaysAudioRateIndex(requestedRate) < 0)
+bool Audio::SetPlaybackRate(double requestedRate) {
+  if (!KotonohaAudioRateIsSupported(requestedRate))
     return false;
-  if (schoolDaysPlaybackRate == requestedRate)
+  if (playbackRate == requestedRate)
     return true;
 
   for (auto &object : mediaObjects) {
@@ -179,12 +179,12 @@ bool Audio::SetSchoolDaysPlaybackRate(double requestedRate) {
       Kotonoha_audioDecode *decode = std::get<0>(entry);
       if (decode == nullptr)
         continue;
-      if (!KotonohaAudioSetSchoolDaysPlaybackRate(decode, requestedRate)) {
+      if (!KotonohaAudioSetPlaybackRate(decode, requestedRate)) {
         SDL_UnlockMutex(channel->lockPipes);
         return false;
       }
       if (decode->loopMedia != nullptr &&
-          !KotonohaAudioSetSchoolDaysPlaybackRate(decode->loopMedia,
+          !KotonohaAudioSetPlaybackRate(decode->loopMedia,
                                                   requestedRate)) {
         SDL_UnlockMutex(channel->lockPipes);
         return false;
@@ -193,7 +193,7 @@ bool Audio::SetSchoolDaysPlaybackRate(double requestedRate) {
     SDL_UnlockMutex(channel->lockPipes);
   }
 
-  schoolDaysPlaybackRate = requestedRate;
+  playbackRate = requestedRate;
   return true;
 }
 

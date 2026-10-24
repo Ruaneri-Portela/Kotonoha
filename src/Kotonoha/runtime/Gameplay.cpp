@@ -1,5 +1,4 @@
 #include <Kotonoha/Gameplay.hpp>
-#include <Kotonoha/SchoolDaysImageAssetResolver.hpp>
 #include <Kotonoha/utils/Log.h>
 
 #include <Kotonoha/specials/MetalFX.h>
@@ -163,24 +162,18 @@ SDL_AppResult Gameplay::Main(Kotonoha_Game *gameContext) {
       drawCanvas == nullptr) {
     return SDL_APP_FAILURE;
   }
-  /* Choice timeout is timeline state, not a rendering side effect.  Keep the
-   * School Days -2 (pending) -> -1 (timeout) transition advancing even when a
-   * frame ends before the prompt canvas is rendered. */
+  // Prompt timeout/state belongs to the prompt behavior, not to rendering.
+  // Advance it even when this frame ends before the prompt canvas is drawn.
   if (prompt != nullptr) {
-    if (prompt->UsesSchoolDaysPolicy()) {
-      std::string presentationError;
-      const auto presentationRoot = SelectSchoolDaysAssetRoot(
-          gameContext->profileAssetsRoot, gameContext->config.assetsPath);
-      if (!prompt->ConfigureSchoolDaysPresentation(
-              presentationRoot.root, &presentationError) &&
-          !presentationError.empty()) {
-        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
-                    "School Days choice presentation unavailable: %s",
-                    presentationError.c_str());
-      }
+    std::string presentationError;
+    if (!prompt->PrepareBehavior(gameContext, &presentationError) &&
+        !presentationError.empty()) {
+      SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                  "Prompt behavior presentation unavailable: %s",
+                  presentationError.c_str());
     }
     prompt->Update();
-    prompt->PlaySchoolDaysPendingAudio(audio);
+    prompt->PlayPendingAudio(audio);
   }
   if (firstFocus) {
     UpdateCanvasSize(gameContext->window, gameContext->render);
@@ -204,12 +197,11 @@ SDL_AppResult Gameplay::Main(Kotonoha_Game *gameContext) {
     if (loop) {
       Reset(true);
     } else if (prompt != nullptr &&
-               (prompt->SchoolDaysPresentationTailActive() ||
-                prompt->SchoolDaysPresentationNeedsFinalFrame())) {
-      // School Days commits the choice result before its state2/state3 exit
-      // animation finishes. Keep rendering through the exact alpha-zero frame
-      // at tick 24/48 so a scene-transaction lease cannot retain the prior
-      // alpha-11 composition.
+               (prompt->PresentationTailActive() ||
+                prompt->PresentationNeedsFinalFrame())) {
+      // A game-owned prompt behavior may retain a visual tail after committing
+      // its result. Keep the scene alive until that behavior publishes its
+      // terminal frame so transition capture cannot retain a stale overlay.
       gameContext->config.next = false;
     } else {
       gameContext->config.next = true;
@@ -274,10 +266,10 @@ bool Gameplay::UserPaused(const struct Kotonoha_Game *gameContext) const {
                                 : pauseIntent.UserPaused();
 }
 
-void Gameplay::SetSchoolDaysAutoMode(bool enabled) {
-  schoolDaysAutoMode.store(enabled, std::memory_order_release);
+void Gameplay::SetAutoChoiceMode(bool enabled) {
+  autoChoiceMode.store(enabled, std::memory_order_release);
   if (prompt != nullptr) {
-    prompt->SetSchoolDaysAutoMode(enabled);
+    prompt->SetAutoMode(enabled);
   }
 }
 
@@ -351,9 +343,9 @@ void Gameplay::SeekBackward(Uint64 ms) {
   Reset(false);
 }
 
-bool Gameplay::SkipSchoolDaysToEnd() {
+bool Gameplay::SkipToEndBoundary() {
   if (tm == nullptr || eventManager == nullptr) return false;
-  const SchoolDaysOptionalTick target = eventManager->ComputeSkipToEndTarget(this);
+  const auto target = eventManager->ComputeSkipToEndTarget(this);
   if (!target) return false;
   Uint64 promptStart = 0;
   Uint64 targetMs = Kotonoha_SceneTickToMillisecondsCeil(*target);
@@ -372,20 +364,18 @@ bool Gameplay::SkipSchoolDaysToEnd() {
   return true;
 }
 
-bool Gameplay::SetSchoolDaysPlaybackSpeedIndex(int index) {
-  static constexpr double kNativeRates[] = {1.0, 2.0, 4.0, 12.0, 24.0};
-  if (tm == nullptr || index < 0 || index >= 5) return false;
+bool Gameplay::SetPlaybackRate(double requestedRate) {
+  if (tm == nullptr || !KotonohaAudioRateIsSupported(requestedRate)) return false;
   const double previousRate = KotonohaTimeGetRate(tm);
-  const double requestedRate = kNativeRates[index];
 
-  // Retail broadcasts the rate to active audio/voice and advances the FILM
-  // clock with the same factor. Video reads this shared clock directly.
-  if (audio != nullptr && !audio->SetSchoolDaysPlaybackRate(requestedRate)) {
-    (void)audio->SetSchoolDaysPlaybackRate(previousRate);
+  // Keep media and the scene clock on one rate. Game profiles decide which
+  // rates to expose; the engine only applies the requested value.
+  if (audio != nullptr && !audio->SetPlaybackRate(requestedRate)) {
+    (void)audio->SetPlaybackRate(previousRate);
     return false;
   }
   if (!KotonohaTimeSetRate(tm, requestedRate)) {
-    if (audio != nullptr) (void)audio->SetSchoolDaysPlaybackRate(previousRate);
+    if (audio != nullptr) (void)audio->SetPlaybackRate(previousRate);
     return false;
   }
   return true;

@@ -2,25 +2,20 @@
 #include <Kotonoha/utils/Log.h>
 #include <math.h>
 
-static const double school_days_audio_rates[] = {1.0, 2.0, 4.0, 12.0, 24.0};
-
-int KotonohaSchoolDaysAudioRateIndex(double requestedRate) {
-  for (int i = 0; i < 5; ++i) {
-    if (fabs(requestedRate - school_days_audio_rates[i]) < 0.000001)
-      return i;
-  }
-  return -1;
+bool KotonohaAudioRateIsSupported(double requestedRate) {
+  return isfinite(requestedRate) && requestedRate >= 1.0 &&
+         requestedRate <= 24.0;
 }
 
-bool KotonohaSchoolDaysAudioRateNeedsSourceResync(int oldIndex, int newIndex) {
-  return oldIndex >= 3 && oldIndex <= 4 && newIndex >= 0 && newIndex <= 2;
+bool KotonohaAudioRateNeedsSourceResync(double oldRate, double newRate) {
+  return oldRate > 4.0 && newRate <= 4.0;
 }
 
-bool KotonohaSchoolDaysAudioRatePlanInit(
+bool KotonohaAudioRatePlanInit(
     int sourceSampleRate, int processingSampleRate, double requestedRate,
-    Kotonoha_SchoolDaysAudioRatePlan *plan) {
+    Kotonoha_AudioRatePlan *plan) {
   if (plan == NULL || sourceSampleRate <= 0 || processingSampleRate <= 0 ||
-      KotonohaSchoolDaysAudioRateIndex(requestedRate) < 0)
+      !KotonohaAudioRateIsSupported(requestedRate))
     return false;
 
   const double softwareFactor = requestedRate < 2.0 ? requestedRate : 2.0;
@@ -49,9 +44,9 @@ bool KotonohaSchoolDaysAudioRatePlanInit(
   return true;
 }
 
-bool KotonohaSchoolDaysAudioOlaBlock(
+bool KotonohaAudioOlaBlock(
     const float *source, int sourceFrames, int channels,
-    const Kotonoha_SchoolDaysAudioRatePlan *plan, float *output,
+    const Kotonoha_AudioRatePlan *plan, float *output,
     int outputFrames) {
   if (source == NULL || output == NULL || plan == NULL || channels <= 0 ||
       sourceFrames < plan->inputFrames || outputFrames < plan->windowFrames)
@@ -81,32 +76,30 @@ bool KotonohaSchoolDaysAudioOlaBlock(
 static void audio_rate_processor_reset(Kotonoha_AudioDecode *decode) {
   if (decode == NULL)
     return;
-  if (decode->schoolDaysRateStream != NULL) {
-    SDL_DestroyAudioStream(decode->schoolDaysRateStream);
-    decode->schoolDaysRateStream = NULL;
+  if (decode->rateStream != NULL) {
+    SDL_DestroyAudioStream(decode->rateStream);
+    decode->rateStream = NULL;
   }
-  decode->schoolDaysOlaFrames = 0;
+  decode->olaFrames = 0;
 }
 
 static void audio_seek_internal(Kotonoha_AudioDecode *ctx, Uint64 timeMs,
                                 bool countExecution);
 
-bool KotonohaAudioSetSchoolDaysPlaybackRate(Kotonoha_AudioDecode *ctx,
-                                            double requestedRate) {
+bool KotonohaAudioSetPlaybackRate(Kotonoha_AudioDecode *ctx,
+                                  double requestedRate) {
   if (ctx == NULL)
     return false;
-  const int newIndex = KotonohaSchoolDaysAudioRateIndex(requestedRate);
-  if (newIndex < 0)
+  if (!KotonohaAudioRateIsSupported(requestedRate))
     return false;
 
-  const int oldIndex = ctx->schoolDaysPlaybackRateIndex;
-  if (oldIndex == newIndex)
+  const double oldRate = ctx->playbackRate;
+  if (fabs(oldRate - requestedRate) < 0.000001)
     return true;
 
   const bool resyncSource =
-      KotonohaSchoolDaysAudioRateNeedsSourceResync(oldIndex, newIndex);
-  ctx->schoolDaysPlaybackRateIndex = newIndex;
-  ctx->schoolDaysPlaybackRate = requestedRate;
+      KotonohaAudioRateNeedsSourceResync(oldRate, requestedRate);
+  ctx->playbackRate = requestedRate;
   audio_rate_processor_reset(ctx);
 
   if (resyncSource &&
@@ -152,24 +145,24 @@ static void wait_for_legacy_audio_cache(Kotonoha_AudioDecode *decode) {
 }
 
 static bool audio_rate_plan_for_decode(
-    Kotonoha_AudioDecode *decode, Kotonoha_SchoolDaysAudioRatePlan *plan) {
+    Kotonoha_AudioDecode *decode, Kotonoha_AudioRatePlan *plan) {
   if (decode == NULL || decode->codecCtx == NULL || plan == NULL)
     return false;
   const int sourceSampleRate = decode->codecCtx->sample_rate > 0
                                    ? decode->codecCtx->sample_rate
                                    : decode->specification.freq;
-  return KotonohaSchoolDaysAudioRatePlanInit(
+  return KotonohaAudioRatePlanInit(
       sourceSampleRate, decode->specification.freq,
-      decode->schoolDaysPlaybackRate, plan);
+      decode->playbackRate, plan);
 }
 
 static bool audio_rate_ensure_ola_capacity(Kotonoha_AudioDecode *decode,
                                            size_t requiredFrames) {
-  if (requiredFrames <= decode->schoolDaysOlaCapacityFrames)
+  if (requiredFrames <= decode->olaCapacityFrames)
     return true;
 
-  size_t capacity = decode->schoolDaysOlaCapacityFrames != 0
-                        ? decode->schoolDaysOlaCapacityFrames
+  size_t capacity = decode->olaCapacityFrames != 0
+                        ? decode->olaCapacityFrames
                         : 4096;
   while (capacity < requiredFrames) {
     if (capacity > SIZE_MAX / 2)
@@ -182,17 +175,17 @@ static bool audio_rate_ensure_ola_capacity(Kotonoha_AudioDecode *decode,
       capacity * channels > SIZE_MAX / sizeof(float))
     return false;
   float *buffer = (float *)SDL_realloc(
-      decode->schoolDaysOlaBuffer, capacity * channels * sizeof(float));
+      decode->olaBuffer, capacity * channels * sizeof(float));
   if (buffer == NULL)
     return false;
-  decode->schoolDaysOlaBuffer = buffer;
-  decode->schoolDaysOlaCapacityFrames = capacity;
+  decode->olaBuffer = buffer;
+  decode->olaCapacityFrames = capacity;
   return true;
 }
 
 static int audio_rate_stream_output(
     Kotonoha_AudioDecode *decode,
-    const Kotonoha_SchoolDaysAudioRatePlan *plan, float *softwareOutput,
+    const Kotonoha_AudioRatePlan *plan, float *softwareOutput,
     size_t softwareFrames, bool final, Uint8 **target, int *size) {
   const int channels = decode->specification.channels;
   if (fabs(plan->hardwareRatio - 1.0) < 0.000001) {
@@ -205,14 +198,14 @@ static int audio_rate_stream_output(
     return 1;
   }
 
-  if (decode->schoolDaysRateStream == NULL) {
+  if (decode->rateStream == NULL) {
     SDL_AudioSpec spec = decode->specification;
-    decode->schoolDaysRateStream = SDL_CreateAudioStream(&spec, &spec);
-    if (decode->schoolDaysRateStream == NULL ||
+    decode->rateStream = SDL_CreateAudioStream(&spec, &spec);
+    if (decode->rateStream == NULL ||
         !SDL_SetAudioStreamFrequencyRatio(
-            decode->schoolDaysRateStream, (float)plan->hardwareRatio)) {
+            decode->rateStream, (float)plan->hardwareRatio)) {
       SDL_LogError(SDL_LOG_CATEGORY_AUDIO,
-                   "School Days playback-rate stream init failed: %s",
+                   "Playback-rate stream init failed: %s",
                    SDL_GetError());
       SDL_free(softwareOutput);
       audio_rate_processor_reset(decode);
@@ -223,10 +216,10 @@ static int audio_rate_stream_output(
   if (softwareFrames != 0) {
     const int softwareBytes =
         (int)(softwareFrames * (size_t)channels * sizeof(float));
-    if (!SDL_PutAudioStreamData(decode->schoolDaysRateStream, softwareOutput,
+    if (!SDL_PutAudioStreamData(decode->rateStream, softwareOutput,
                                 softwareBytes)) {
       SDL_LogError(SDL_LOG_CATEGORY_AUDIO,
-                   "School Days playback-rate stream write failed: %s",
+                   "Playback-rate stream write failed: %s",
                    SDL_GetError());
       SDL_free(softwareOutput);
       return -1;
@@ -234,18 +227,18 @@ static int audio_rate_stream_output(
   }
   SDL_free(softwareOutput);
 
-  if (final && !SDL_FlushAudioStream(decode->schoolDaysRateStream)) {
+  if (final && !SDL_FlushAudioStream(decode->rateStream)) {
     SDL_LogError(SDL_LOG_CATEGORY_AUDIO,
-                 "School Days playback-rate stream flush failed: %s",
+                 "Playback-rate stream flush failed: %s",
                  SDL_GetError());
     return -1;
   }
 
   const int available =
-      SDL_GetAudioStreamAvailable(decode->schoolDaysRateStream);
+      SDL_GetAudioStreamAvailable(decode->rateStream);
   if (available < 0) {
     SDL_LogError(SDL_LOG_CATEGORY_AUDIO,
-                 "School Days playback-rate stream query failed: %s",
+                 "Playback-rate stream query failed: %s",
                  SDL_GetError());
     return -1;
   }
@@ -256,12 +249,12 @@ static int audio_rate_stream_output(
   if (output == NULL)
     return -1;
   const int received = SDL_GetAudioStreamData(
-      decode->schoolDaysRateStream, output, available);
+      decode->rateStream, output, available);
   if (received <= 0) {
     SDL_free(output);
     if (received < 0) {
       SDL_LogError(SDL_LOG_CATEGORY_AUDIO,
-                   "School Days playback-rate stream read failed: %s",
+                   "Playback-rate stream read failed: %s",
                    SDL_GetError());
       return -1;
     }
@@ -276,13 +269,13 @@ static int audio_rate_process(Kotonoha_AudioDecode *decode, Uint8 **target,
                               int *size, bool final) {
   if (decode == NULL || target == NULL || size == NULL)
     return -1;
-  if (decode->schoolDaysPlaybackRateIndex == 0)
+  if (fabs(decode->playbackRate - 1.0) < 0.000001)
     return final ? 0 : ((*target != NULL && *size > 0) ? 1 : 0);
   if (decode->specification.format != SDL_AUDIO_F32 ||
       decode->specification.channels <= 0)
     return -1;
 
-  Kotonoha_SchoolDaysAudioRatePlan plan;
+  Kotonoha_AudioRatePlan plan;
   if (!audio_rate_plan_for_decode(decode, &plan))
     return -1;
 
@@ -292,35 +285,35 @@ static int audio_rate_process(Kotonoha_AudioDecode *decode, Uint8 **target,
     if ((size_t)*size % frameBytes != 0)
       return -1;
     const size_t incomingFrames = (size_t)*size / frameBytes;
-    const size_t required = decode->schoolDaysOlaFrames + incomingFrames;
+    const size_t required = decode->olaFrames + incomingFrames;
     if (!audio_rate_ensure_ola_capacity(decode, required))
       return -1;
-    SDL_memcpy(decode->schoolDaysOlaBuffer +
-                   decode->schoolDaysOlaFrames * (size_t)channels,
+    SDL_memcpy(decode->olaBuffer +
+                   decode->olaFrames * (size_t)channels,
                *target, incomingFrames * frameBytes);
-    decode->schoolDaysOlaFrames = required;
+    decode->olaFrames = required;
     SDL_free(*target);
     *target = NULL;
     *size = 0;
   }
 
   const size_t inputFrames = (size_t)plan.inputFrames;
-  if (final && decode->schoolDaysOlaFrames != 0) {
-    const size_t remainder = decode->schoolDaysOlaFrames % inputFrames;
+  if (final && decode->olaFrames != 0) {
+    const size_t remainder = decode->olaFrames % inputFrames;
     if (remainder != 0) {
-      const size_t padded = decode->schoolDaysOlaFrames +
+      const size_t padded = decode->olaFrames +
                             (inputFrames - remainder);
       if (!audio_rate_ensure_ola_capacity(decode, padded))
         return -1;
-      SDL_memset(decode->schoolDaysOlaBuffer +
-                     decode->schoolDaysOlaFrames * (size_t)channels,
-                 0, (padded - decode->schoolDaysOlaFrames) *
+      SDL_memset(decode->olaBuffer +
+                     decode->olaFrames * (size_t)channels,
+                 0, (padded - decode->olaFrames) *
                         (size_t)channels * sizeof(float));
-      decode->schoolDaysOlaFrames = padded;
+      decode->olaFrames = padded;
     }
   }
 
-  const size_t blocks = decode->schoolDaysOlaFrames / inputFrames;
+  const size_t blocks = decode->olaFrames / inputFrames;
   const size_t outputFrames = blocks * (size_t)plan.windowFrames;
   float *softwareOutput = NULL;
   if (outputFrames != 0) {
@@ -329,11 +322,11 @@ static int audio_rate_process(Kotonoha_AudioDecode *decode, Uint8 **target,
     if (softwareOutput == NULL)
       return -1;
     for (size_t block = 0; block < blocks; ++block) {
-      const float *source = decode->schoolDaysOlaBuffer +
+      const float *source = decode->olaBuffer +
                             block * inputFrames * (size_t)channels;
       float *output = softwareOutput +
                       block * (size_t)plan.windowFrames * (size_t)channels;
-      if (!KotonohaSchoolDaysAudioOlaBlock(
+      if (!KotonohaAudioOlaBlock(
               source, plan.inputFrames, channels, &plan, output,
               plan.windowFrames)) {
         SDL_free(softwareOutput);
@@ -342,14 +335,14 @@ static int audio_rate_process(Kotonoha_AudioDecode *decode, Uint8 **target,
     }
 
     const size_t consumed = blocks * inputFrames;
-    const size_t remaining = decode->schoolDaysOlaFrames - consumed;
+    const size_t remaining = decode->olaFrames - consumed;
     if (remaining != 0) {
-      SDL_memmove(decode->schoolDaysOlaBuffer,
-                  decode->schoolDaysOlaBuffer +
+      SDL_memmove(decode->olaBuffer,
+                  decode->olaBuffer +
                       consumed * (size_t)channels,
                   remaining * (size_t)channels * sizeof(float));
     }
-    decode->schoolDaysOlaFrames = remaining;
+    decode->olaFrames = remaining;
   }
 
   return audio_rate_stream_output(decode, &plan, softwareOutput, outputFrames,
@@ -398,8 +391,7 @@ Kotonoha_AudioDecode *KotonohaAudioInit(const char *path,
   audioDecode->cacheDurationSeconds = 2.0f;
   audioDecode->specification = specification;
   audioDecode->executions = 1;
-  audioDecode->schoolDaysPlaybackRateIndex = 0;
-  audioDecode->schoolDaysPlaybackRate = 1.0;
+  audioDecode->playbackRate = 1.0;
   SDL_SetAtomicInt(&audioDecode->enabled, 1);
 
   audioDecode->stream =
@@ -675,9 +667,9 @@ void KotonohaAudioFree(void *data) {
     SDL_DestroyMutex(decode->stateMutex);
 
   audio_rate_processor_reset(decode);
-  SDL_free(decode->schoolDaysOlaBuffer);
-  decode->schoolDaysOlaBuffer = NULL;
-  decode->schoolDaysOlaCapacityFrames = 0;
+  SDL_free(decode->olaBuffer);
+  decode->olaBuffer = NULL;
+  decode->olaCapacityFrames = 0;
 
   if (decode->ownedDemuxer != NULL) {
     Kotonoha_Demuxer *owned = decode->ownedDemuxer;
