@@ -50,6 +50,7 @@ int main(int argc, char** argv) {
 
     Model m; std::string error;
     Check(m.Open(root.string(),Model::Variant::Standard,2,1,false,&error),error.c_str());
+    m.SetCompletionPercent(49);
     Check(m.Major()==2 && m.Subpage()==1 && m.CurrentPageInfo().nodeOffset==7,
           "RouteMap initial state failed");
 
@@ -58,6 +59,8 @@ int main(int argc, char** argv) {
     Model::Action action;
     Check(m.Activate(&action,&error) && m.Major()==3 && m.Subpage()==2,
           "RouteMap low->high family subpage mapping failed");
+    Check(m.CompletionPercent()==49,
+          "RouteMap completion changed across major/page navigation");
     // Crossing back high->low maps subpage2 to1.
     m.SetSelectionFromPointer(2,0);
     Check(m.Activate(&action,&error) && m.Major()==2 && m.Subpage()==1,
@@ -71,6 +74,8 @@ int main(int argc, char** argv) {
     m.SetSelectionFromPointer(10,0);
     Check(m.Activate(&action,&error) && m.Subpage()==1,
           "RouteMap next-subpage failed");
+    Check(m.CompletionPercent()==49,
+          "RouteMap completion changed across subpage navigation");
 
     // Node activation is SP-gated and emits native selector only when available.
     m.SetSelectionFromPointer(11,0);
@@ -121,6 +126,7 @@ int main(int argc, char** argv) {
               << "sp_node_selector=PASS\n"
               << "back_to_load=PASS\n"
               << "logical_variant_resources=PASS\n";
+    std::cout << "completion_page_stable=PASS\n";
     if (argc == 2) std::cout << "real_corpus_four_variants=PASS\n";
     return 0;
 }

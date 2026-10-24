@@ -140,6 +140,34 @@ int main() {
                   Presenter::ControlAvailable(24, false, false, true, false, true),
               "replay-latched controls did not follow host +0x98 predicate");
 
+        // Ordinary SceneView HScene playback calls host +0xA4, which writes
+        // host predicate +104=1 while leaving +98=0.  FUN_10023FB0 therefore
+        // keeps transport/config/main-menu controls, but gates NextChoice,
+        // Save/Load/BackLog and the PlayData-only repeat-opacity row.
+        for (int control = 0; control <= 3; ++control) {
+            Check(Presenter::ControlAvailable(control, false, true, true, true,
+                                              false),
+                  "ordinary replay transport control unexpectedly disabled");
+        }
+        Check(!Presenter::ControlAvailable(4, false, true, true, true, false),
+              "ordinary replay NextChoice must follow +104 inhibit");
+        for (int control = 5; control <= 9; ++control) {
+            Check(Presenter::ControlAvailable(control, false, true, true, true,
+                                              false),
+                  "ordinary replay speed control unexpectedly disabled");
+        }
+        for (int control = 10; control <= 12; ++control) {
+            Check(!Presenter::ControlAvailable(control, false, true, true, true,
+                                               false),
+                  "ordinary replay Save/Load/BackLog must follow +104 inhibit");
+        }
+        Check(Presenter::ControlAvailable(13, false, true, true, true, false) &&
+                  Presenter::ControlAvailable(14, false, true, true, true, false),
+              "ordinary replay Config/MainMenu controls must stay available");
+        Check(!Presenter::ControlAvailable(15, false, true, true, true, false) &&
+                  !Presenter::ControlAvailable(24, false, true, true, true, false),
+              "ordinary replay must not expose PlayData repeat-opacity controls");
+
         // FUN_100262E0 classifier -> fixed records53..64.  Speeds share one
         // help sprite and all ten repeat-opacity cells share record64.
         const auto pauseHelp = Presenter::HoverHelpChip(1, Variant::Standard);

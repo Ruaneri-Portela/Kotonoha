@@ -33,6 +33,17 @@ namespace Kotonoha {
 // persistence authority into the UI layer.
 class SchoolDaysSystemUi {
 public:
+    enum class UiSfxCue : int {
+        None = -1,
+        Cancel = 0,
+        Select = 1,
+        Click = 2,
+        Up = 3,
+        Down = 4,
+        View = 5,
+        Open = 6,
+    };
+
     struct Output {
         bool hasSaveFeelResult = false;
         SchoolDaysSaveFeelModel::Result saveFeelResult =
@@ -50,6 +61,7 @@ public:
         SchoolDaysReplayModel::Action replayAction{};
         bool hasRouteMapAction = false;
         SchoolDaysRouteMapModel::Action routeMapAction{};
+        UiSfxCue uiSfx = UiSfxCue::None;
     };
 
     struct Layout {
@@ -120,7 +132,9 @@ public:
     bool OpenRouteMap(SDL_Renderer* renderer, const std::string& assetsRoot,
                       SchoolDaysRouteMapModel::Variant variant,
                       int initialMajor, int initialSubpage,
-                      bool alternateHost, std::string* error = nullptr);
+                      bool alternateHost, int completionPercent,
+                      bool useEnglish, const std::string& fontDataLogicalPath,
+                      std::string* error = nullptr);
     void SetReplayHSceneAvailable(int index, bool available) {
         replay_.SetHSceneAvailable(index, available);
     }
@@ -189,6 +203,7 @@ private:
                              std::string* error);
     bool EnsureReplayTextures(SDL_Renderer* renderer, std::string* error);
     bool EnsureRouteMapTextures(SDL_Renderer* renderer, std::string* error);
+    bool UpdateRouteMapCompletionTexture(std::string* error);
 
     SchoolDaysSaveFeelModel saveFeel_;
     SchoolDaysSaveLoadModel saveLoad_;
@@ -208,6 +223,7 @@ private:
     uint64_t titleVideoStartMs_ = 0u;
     float titleBackgroundHeight_ = 450.0f;
     SDL_Texture* saveLoadTextTexture_ = nullptr;
+    SDL_Texture* routeMapTextTexture_ = nullptr;
     SDL_Texture* replayThumbnailTexture_ = nullptr;
     SDL_Texture* replayPopupBaseTexture_ = nullptr;
     SDL_Texture* replayPopupChipTexture_ = nullptr;
@@ -220,10 +236,13 @@ private:
     int routeMapLoadedMajor_ = -1;
     int routeMapLoadedSubpage_ = -1;
     SchoolDaysFontData saveLoadFont_;
+    SchoolDaysFontData routeMapFont_;
     std::vector<uint32_t> saveLoadTextPixels_;
+    std::vector<uint32_t> routeMapTextPixels_;
     std::vector<SchoolDaysSaveService::SlotMetadata> saveLoadMetadata_;
     std::vector<int> saveLoadCommentAdvances_;
     bool saveLoadUseEnglish_ = false;
+    bool routeMapUseEnglish_ = false;
     bool resultEmitted_ = false;
 };
 

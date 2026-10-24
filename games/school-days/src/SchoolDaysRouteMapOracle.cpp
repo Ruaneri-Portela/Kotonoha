@@ -1,7 +1,14 @@
 #include <Kotonoha/routing/SchoolDaysRouteMapOracle.hpp>
 
+extern "C" {
+#include <Kotonoha/parsers/KtrfTyped.h>
+}
+
+#include <cstddef>
 #include <cstdint>
 #include <cstdio>
+#include <cstring>
+#include <string>
 
 namespace Kotonoha {
 namespace {
@@ -113,6 +120,15 @@ void ClearError(Kotonoha_KtrfError* error) {
     if (error == nullptr) return;
     error->code = KOTONOHA_KTRF_OK;
     error->message[0] = '\0';
+}
+
+bool Fail(Kotonoha_KtrfError* error, Kotonoha_KtrfErrorCode code,
+          const char* message) {
+    if (error != nullptr) {
+        error->code = code;
+        std::snprintf(error->message, sizeof(error->message), "%s", message);
+    }
+    return false;
 }
 
 bool NativeStoryFor(const KtrfStateStore& state, int64_t route,
@@ -241,6 +257,68 @@ int SchoolDaysRouteMapOracle::GetRouteMapPage(const KtrfStateStore& state,
     default:
         return 0;
     }
+}
+
+bool SchoolDaysRouteMapOracle::IsCompletionSceneKey(const char* sceneKey,
+                                                    size_t length) {
+    static constexpr char kOp1[] = "-OP1";
+    if (sceneKey == nullptr || length == 0u) return false;
+    return length < sizeof(kOp1) - 1u ||
+           std::memcmp(sceneKey + length - (sizeof(kOp1) - 1u), kOp1,
+                       sizeof(kOp1) - 1u) != 0;
+}
+
+bool SchoolDaysRouteMapOracle::ComputeCompletion(
+    const KtrfStateStore& state, const Kotonoha_KtrfDocument* document,
+    Completion* completion, Kotonoha_KtrfError* error) {
+    ClearError(error);
+    if (document == nullptr || completion == nullptr) {
+        return Fail(error, KOTONOHA_KTRF_ERROR_ARGUMENT,
+                    "School Days RouteMap completion argument is null");
+    }
+
+    const Kotonoha_KtrfSection* nodes = Kotonoha_KtrfFindSection(document, "NODE");
+    if (nodes == nullptr) {
+        return Fail(error, KOTONOHA_KTRF_ERROR_FORMAT,
+                    "School Days RouteMap completion corpus has no NODE section");
+    }
+
+    Completion next;
+    next.scriptCount = 0;
+    for (uint32_t nodeIndex = 0u; nodeIndex < nodes->item_count; ++nodeIndex) {
+        Kotonoha_KtrfNode node{};
+        if (!Kotonoha_KtrfGetNode(document, nodeIndex, &node, error)) return false;
+        const char* nodeId = nullptr;
+        size_t nodeIdLength = 0u;
+        if (!Kotonoha_KtrfGetString(document, node.id_str, &nodeId,
+                                    &nodeIdLength, error)) return false;
+        static constexpr char kNodePrefix[] = "sdhq:node:";
+        constexpr size_t kNodePrefixLength = sizeof(kNodePrefix) - 1u;
+        if (nodeIdLength <= kNodePrefixLength ||
+            std::memcmp(nodeId, kNodePrefix, kNodePrefixLength) != 0) {
+            return Fail(error, KOTONOHA_KTRF_ERROR_FORMAT,
+                        "School Days RouteMap NODE lacks authenticated SceneKey id");
+        }
+        const char* sceneKey = nodeId + kNodePrefixLength;
+        const size_t sceneKeyLength = nodeIdLength - kNodePrefixLength;
+        if (!IsCompletionSceneKey(sceneKey, sceneKeyLength)) continue;
+
+        ++next.scriptCount;
+        int64_t value = 0;
+        if (!state.ReadGlobalInt(std::string(sceneKey, sceneKeyLength), &value,
+                                 error)) {
+            return false;
+        }
+        if (value != 0) ++next.readCount;
+    }
+
+    if (next.scriptCount != kCompletionScriptCount) {
+        return Fail(error, KOTONOHA_KTRF_ERROR_FORMAT,
+                    "School Days RouteMap completion corpus is not 1825 scripts");
+    }
+    next.percent = CompletionPercentForReadCount(next.readCount);
+    *completion = next;
+    return true;
 }
 
 } // namespace Kotonoha

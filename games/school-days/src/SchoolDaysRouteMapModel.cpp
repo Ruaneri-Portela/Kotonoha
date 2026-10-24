@@ -122,6 +122,7 @@ void SchoolDaysRouteMapModel::Close() {
     subpage_ = 0;
     selection_ = -1;
     currentMarker_ = -1;
+    completionPercent_ = 0;
     alternateHost_ = false;
     nodeAvailable_.fill(false);
     nodeHistory_.fill(false);

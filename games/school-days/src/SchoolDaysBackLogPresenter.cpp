@@ -1,7 +1,9 @@
 #include <Kotonoha/routing/SchoolDaysBackLogPresenter.hpp>
 
 #include <algorithm>
-#include <filesystem>
+#include <map>
+#include <string>
+#include <vector>
 
 #include <Kotonoha/SchoolDaysImageAssetResolver.hpp>
 
@@ -10,6 +12,21 @@ extern "C" {
 }
 
 namespace Kotonoha {
+
+namespace {
+
+std::string Utf16ToUtf8BackLog(const std::u16string& text) {
+    if (text.empty()) return {};
+    char* converted = SDL_iconv_string(
+        "UTF-8", "UTF-16LE", reinterpret_cast<const char*>(text.c_str()),
+        (text.size() + 1u) * sizeof(char16_t));
+    if (converted == nullptr) return {};
+    std::string result(converted);
+    SDL_free(converted);
+    return result;
+}
+
+} // namespace
 
 SchoolDaysBackLogPresenter::~SchoolDaysBackLogPresenter() { Close(); }
 
@@ -23,7 +40,7 @@ bool SchoolDaysBackLogPresenter::Fail(std::string* error, const char* text) {
 bool SchoolDaysBackLogPresenter::Open(
     SDL_Renderer* renderer, const std::string& assetsRoot,
     SchoolDaysBackLogModel::Orientation orientation, bool useEnglish,
-    const std::string& fontDataLogicalPath, std::string* error) {
+    TTF_Font* primaryFont, TTF_Font* japaneseFallback, std::string* error) {
     Close();
     if (renderer == nullptr) return Fail(error, "School Days BackLog renderer is null");
 
@@ -42,31 +59,37 @@ bool SchoolDaysBackLogPresenter::Open(
         Close();
         return Fail(error, "School Days BackLog texture load failed");
     }
-    namespace fs = std::filesystem;
-    fs::path fontLogical(fontDataLogicalPath);
-    if (fontLogical.empty() || fontLogical.is_absolute()) {
+    if (primaryFont == nullptr) {
         Close();
-        return Fail(error, "School Days BackLog FONTDATA logical path is invalid");
+        return Fail(error, "School Days BackLog UI font is unavailable");
     }
-    if (useEnglish) {
-        const std::string extension = fontLogical.extension().string();
-        const std::string stem = fontLogical.stem().string();
-        fontLogical.replace_filename(stem + "_eng" + extension);
-    }
-    const auto fontAsset = ResolveSchoolDaysAssetPath(
-        assetsRoot.c_str(), fontLogical.generic_string());
-    if (!fontAsset.present || fontAsset.collision ||
-        !font_.LoadFile(fontAsset.physical, error)) {
+    font_ = TTF_CopyFont(primaryFont);
+    if (font_ == nullptr) {
         Close();
-        return Fail(error, "School Days BackLog FONTDATA asset could not be loaded");
+        return Fail(error, "School Days BackLog UI font copy failed");
     }
-    text_ = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888,
+    if (japaneseFallback != nullptr && japaneseFallback != primaryFont) {
+        fallbackFont_ = TTF_CopyFont(japaneseFallback);
+        if (fallbackFont_ == nullptr) {
+            Close();
+            return Fail(error, "School Days BackLog Japanese fallback copy failed");
+        }
+        const float primarySize = TTF_GetFontSize(font_);
+        if (primarySize > 0.0f && !TTF_SetFontSize(fallbackFont_, primarySize)) {
+            Close();
+            return Fail(error, "School Days BackLog fallback size setup failed");
+        }
+        if (!TTF_AddFallbackFont(font_, fallbackFont_)) {
+            Close();
+            return Fail(error, "School Days BackLog fallback chain setup failed");
+        }
+    }
+    text_ = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA32,
                               SDL_TEXTUREACCESS_STREAMING, 2048, 1024);
     if (text_ == nullptr || !SDL_SetTextureBlendMode(text_, SDL_BLENDMODE_BLEND)) {
         Close();
-        return Fail(error, "School Days BackLog FONTDATA texture setup failed");
+        return Fail(error, "School Days BackLog text texture setup failed");
     }
-    textPixels_.assign(static_cast<size_t>(2048) * 1024u, 0u);
     SDL_SetTextureBlendMode(base_, SDL_BLENDMODE_BLEND);
     SDL_SetTextureBlendMode(chip_, SDL_BLENDMODE_BLEND);
     orientation_ = orientation;
@@ -82,8 +105,13 @@ void SchoolDaysBackLogPresenter::Close() {
     base_ = nullptr;
     chip_ = nullptr;
     text_ = nullptr;
-    font_.Clear();
-    textPixels_.clear();
+    if (font_ != nullptr) {
+        TTF_ClearFallbackFonts(font_);
+        TTF_CloseFont(font_);
+    }
+    if (fallbackFont_ != nullptr) TTF_CloseFont(fallbackFont_);
+    font_ = nullptr;
+    fallbackFont_ = nullptr;
     useEnglish_ = false;
     opened_ = false;
 }
@@ -92,7 +120,7 @@ bool SchoolDaysBackLogPresenter::Render(
     SDL_Renderer* renderer, const SchoolDaysBackLogModel& model,
     std::string* error) {
     if (!opened_ || renderer == nullptr || base_ == nullptr || chip_ == nullptr ||
-        text_ == nullptr || !font_.IsLoaded() ||
+        text_ == nullptr || font_ == nullptr ||
         !model.IsOpen() || model.CurrentOrientation() != orientation_) {
         return Fail(error, "School Days BackLog presenter is not open for this model");
     }
@@ -145,7 +173,7 @@ bool SchoolDaysBackLogPresenter::Render(
     if (model.RawCountSnapshot() == 0u || model.CurrentRawIndex() < 0) return true;
 
     if (!useEnglish_ || orientation_ != SchoolDaysBackLogModel::Orientation::Horizon) {
-        return Fail(error, "School Days BackLog native text path is not authenticated for this profile");
+        return Fail(error, "School Days BackLog text layout is not authenticated for this profile");
     }
     const auto textPlan =
         SchoolDaysBackLogRenderPlan::BuildRetailHorizonEnglish(model);
@@ -154,38 +182,58 @@ bool SchoolDaysBackLogPresenter::Render(
                                ? "School Days BackLog contains unsupported native markup"
                                : "School Days BackLog native text plan is invalid");
     }
-    std::fill(textPixels_.begin(), textPixels_.end(), 0u);
-    SchoolDaysFontData::Glyph glyph;
+    SDL_Surface* scratch =
+        SDL_CreateSurface(2048, 1024, SDL_PIXELFORMAT_RGBA32);
+    if (scratch == nullptr || !SDL_FillSurfaceRect(scratch, nullptr, 0u)) {
+        if (scratch != nullptr) SDL_DestroySurface(scratch);
+        return Fail(error, "School Days BackLog text surface setup failed");
+    }
+    const SDL_Color white{255, 255, 255, 255};
     for (const auto& block : textPlan.blocks) {
-        for (const auto& placement : block.glyphs) {
-            if (!font_.DecodeGlyph(placement.codepoint, &glyph, error)) return false;
-            for (int gy = 0; gy < SchoolDaysFontData::kGlyphHeight; ++gy) {
-                const int y = placement.y + gy;
-                if (y < 0 || y >= 1024) continue;
-                for (int gx = 0; gx < SchoolDaysFontData::kGlyphWidth; ++gx) {
-                    const int x = placement.x + gx;
-                    if (x < 0 || x >= 2048) continue;
-                    const size_t source = static_cast<size_t>(gy) *
-                                              SchoolDaysFontData::kGlyphWidth +
-                                          static_cast<size_t>(gx);
-                    const uint8_t alpha = glyph.alpha[source];
-                    const uint8_t gray = glyph.gray[source];
-                    const uint32_t packed = (static_cast<uint32_t>(alpha) << 24u) |
-                                            (static_cast<uint32_t>(gray) << 16u) |
-                                            (static_cast<uint32_t>(gray) << 8u) |
-                                            static_cast<uint32_t>(gray);
-                    uint32_t& destination = textPixels_[static_cast<size_t>(y) * 2048u +
-                                                        static_cast<size_t>(x)];
-                    if (destination < packed) destination = packed;
-                }
+        // Build one shaped TTF run per authenticated FONTDATA row. The run is
+        // then fitted back into the exact native advance span, so wrapping,
+        // centering and scroll geometry stay unchanged while glyph coverage
+        // comes from the engine's UI font chain.
+        std::map<int, std::vector<SchoolDaysBackLogRenderPlan::NativeGlyph>> rows;
+        for (const auto& placement : block.glyphs) rows[placement.y].push_back(placement);
+        for (const auto& [y, placements] : rows) {
+            if (placements.empty()) continue;
+            std::u16string text;
+            text.reserve(placements.size());
+            for (const auto& placement : placements)
+                text.push_back(static_cast<char16_t>(placement.codepoint));
+            const std::string utf8 = Utf16ToUtf8BackLog(text);
+            if (utf8.empty()) continue;
+
+            SDL_Surface* rendered =
+                TTF_RenderText_Blended(font_, utf8.c_str(), utf8.size(), white);
+            if (rendered == nullptr) {
+                SDL_DestroySurface(scratch);
+                return Fail(error, "School Days BackLog TTF rasterization failed");
+            }
+            const auto& first = placements.front();
+            const auto& last = placements.back();
+            const int span = std::max(
+                1, last.x +
+                       SchoolDaysBackLogRenderPlan::RetailEnglishGlyphAdvance(
+                           last.codepoint) -
+                       first.x);
+            SDL_Rect destination{first.x, y, span, 48};
+            const bool blitted = SDL_BlitSurfaceScaled(
+                rendered, nullptr, scratch, &destination, SDL_SCALEMODE_LINEAR);
+            SDL_DestroySurface(rendered);
+            if (!blitted) {
+                SDL_DestroySurface(scratch);
+                return Fail(error, "School Days BackLog TTF composition failed");
             }
         }
     }
-    if (!SDL_UpdateTexture(text_, nullptr, textPixels_.data(),
-                           2048 * static_cast<int>(sizeof(uint32_t)))) {
+    if (!SDL_UpdateTexture(text_, nullptr, scratch->pixels, scratch->pitch)) {
+        SDL_DestroySurface(scratch);
         if (error != nullptr) *error = SDL_GetError();
         return false;
     }
+    SDL_DestroySurface(scratch);
     const auto textSource = SchoolDaysBackLogRenderPlan::TextSurfaceSource();
     const auto textDestination =
         SchoolDaysBackLogRenderPlan::TextSurfaceDestination(model.CurrentVariant());
