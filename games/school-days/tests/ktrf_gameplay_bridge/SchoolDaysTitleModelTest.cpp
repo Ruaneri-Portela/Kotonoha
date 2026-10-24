@@ -1,5 +1,6 @@
 #include <Kotonoha/routing/SchoolDaysTitleModel.hpp>
 #include <Kotonoha/routing/SchoolDaysTitleRenderPlan.hpp>
+#include <Kotonoha/routing/SchoolDaysFrontendTransition.hpp>
 
 #include <cstdlib>
 #include <iostream>
@@ -117,6 +118,33 @@ int main(int argc, char** argv) {
               plan[2].destination.y == 428.0f,
           "Title disabled REVER record/yOffset mismatch");
 
+    using Fade = Kotonoha::SchoolDaysFrontendTransition;
+    Check(Fade::SpecFor(Fade::Profile::TitleToStart).outgoingMs == 1000u &&
+              Fade::SpecFor(Fade::Profile::TitleToStart).outgoingColor ==
+                  Fade::Color::Black,
+          "Title->Start transition profile drifted");
+    const auto child = Fade::SpecFor(Fade::Profile::TitleToChild);
+    Check(child.outgoingMs == 500u && child.incomingMs == 500u &&
+              child.outgoingColor == Fade::Color::White &&
+              child.incomingColor == Fade::Color::White,
+          "normal-host Title child transition profile drifted");
+    Check(Fade::OutgoingAlpha(0u, 500u) == 0u &&
+              Fade::OutgoingAlpha(250u, 500u) == 127u &&
+              Fade::OutgoingAlpha(500u, 500u) == 255u &&
+              Fade::IncomingAlpha(0u, 500u) == 255u &&
+              Fade::IncomingAlpha(250u, 500u) == 128u &&
+              Fade::IncomingAlpha(500u, 500u) == 0u,
+          "frontend fade integer alpha timeline drifted");
+    Fade fade;
+    fade.Begin(Fade::Profile::TitleToChild, 100u);
+    Check(fade.Alpha(350u) == 127u && !fade.NeedsHandoff(599u) &&
+              fade.NeedsHandoff(600u),
+          "frontend fade outgoing handoff timing drifted");
+    fade.CompleteHandoff(600u);
+    Check(fade.Alpha(600u) == 255u && fade.Alpha(850u) == 128u &&
+              !fade.Active(1100u),
+          "frontend fade incoming timing drifted");
+
     std::cout << "SCHOOL DAYS TITLE MODEL GATE PASS\n"
               << "resource_precedence=PASS\n"
               << "item_availability=PASS\n"
@@ -125,6 +153,7 @@ int main(int argc, char** argv) {
               << "start_selector0=PASS\n"
               << "dormant_ac_selector1_contract=PASS\n"
               << "standard_offset=PASS\n"
-              << "disabled_rever=PASS\n";
+              << "disabled_rever=PASS\n"
+              << "frontend_transition_timing=PASS\n";
     return 0;
 }

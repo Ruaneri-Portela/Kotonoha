@@ -11,6 +11,7 @@
 #include <Kotonoha/routing/SchoolDaysCommentDialog.hpp>
 #include <Kotonoha/routing/SchoolDaysConfigStorage.hpp>
 #include <Kotonoha/routing/SchoolDaysDisplayPolicy.hpp>
+#include <Kotonoha/routing/SchoolDaysFrontendTransition.hpp>
 #include <Kotonoha/routing/SchoolDaysRetailConfigPolicy.hpp>
 #include <Kotonoha/routing/SchoolDaysLegacySomCon.hpp>
 #include <Kotonoha/routing/SchoolDaysMenuBarPresenter.hpp>
@@ -95,12 +96,38 @@ Kotonoha::SchoolDaysConfigMenuModel::Page ktrfConfigPage =
 bool ktrfTitleReplayActive = false;
 int ktrfRouteMapProjectionMajor = -1;
 int ktrfRouteMapProjectionSubpage = -1;
+enum class KtrfFrontendHandoff : uint8_t {
+  None,
+  TitleStart,
+  TitleLoad,
+  TitleConfig,
+  TitleReplay,
+  LoadToTitle,
+  ConfigToTitle,
+  ReplayToTitle,
+};
+Kotonoha::SchoolDaysFrontendTransition ktrfFrontendTransition;
+KtrfFrontendHandoff ktrfFrontendHandoff = KtrfFrontendHandoff::None;
+bool ktrfTitleHasPresented = false;
 // Runtime-observed retail MenuBar rule: the left transport button first places
 // the current physical scene at its start; activating it again while still in
 // that start-navigation state asks RouteProc for the authenticated predecessor.
 // Track the physical Gameplay identity rather than inventing a millisecond
 // threshold (no such threshold was proven in SysMenuSDHQ.dll).
 Kotonoha::Gameplay *ktrfMenuBackStartGameplay = nullptr;
+
+bool BeginSchoolDaysFrontendHandoff(
+    KtrfFrontendHandoff handoff,
+    Kotonoha::SchoolDaysFrontendTransition::Profile profile) {
+  if (handoff == KtrfFrontendHandoff::None ||
+      ktrfFrontendHandoff != KtrfFrontendHandoff::None ||
+      ktrfFrontendTransition.Active(SDL_GetTicks())) {
+    return false;
+  }
+  ktrfFrontendHandoff = handoff;
+  ktrfFrontendTransition.Begin(profile, SDL_GetTicks());
+  return true;
+}
 
 Kotonoha::SchoolDaysConfigMenuModel::Variant SchoolDaysConfigVariant() {
   using Source = Kotonoha::SchoolDaysSaveFeelModel::Variant;
@@ -887,6 +914,114 @@ bool CancelTitleLoadUi() {
   return true;
 }
 
+bool ApplySchoolDaysFrontendHandoff() {
+  const uint64_t now = SDL_GetTicks();
+  if (ktrfFrontendHandoff == KtrfFrontendHandoff::None ||
+      !ktrfFrontendTransition.NeedsHandoff(now)) {
+    return true;
+  }
+  if (ktrfController == nullptr || ktrfSystemUi == nullptr) return false;
+
+  Kotonoha_KtrfError error{};
+  switch (ktrfFrontendHandoff) {
+  case KtrfFrontendHandoff::TitleStart:
+    if (ktrfSceneTransaction != nullptr) ktrfSceneTransaction->Reset();
+    if (!ktrfController->StartNewGame(0, &error)) {
+      SDL_LogError(0, "[SD-TITLE] faded new-game start failed: %s", error.message);
+      return false;
+    }
+    ResetSchoolDaysBackLog();
+    SDL_SetAtomicInt(&global.textLogCaptureEnabled, 1);
+    StopSchoolDaysTitleBgm();
+    ktrfSystemUi->Close();
+    ktrfMenuBar.reset();
+    break;
+  case KtrfFrontendHandoff::TitleLoad:
+    if (!ktrfController->EnterTitleLoad(&error)) {
+      SDL_LogError(0, "[SD-TITLE] faded LOAD transition failed: %s", error.message);
+      return false;
+    }
+    if (ktrfSceneTransaction != nullptr) ktrfSceneTransaction->Reset();
+    ktrfSystemUi->Close();
+    ktrfSaveLoadMetadataPage = -1;
+    break;
+  case KtrfFrontendHandoff::TitleConfig:
+    if (!ktrfController->EnterTitleConfig(&error)) {
+      SDL_LogError(0, "[SD-TITLE] faded Config transition failed: %s", error.message);
+      return false;
+    }
+    if (ktrfSceneTransaction != nullptr) ktrfSceneTransaction->Reset();
+    ktrfConfigPage = Kotonoha::SchoolDaysConfigMenuModel::Page::Def;
+    ktrfSystemUi->Close();
+    break;
+  case KtrfFrontendHandoff::TitleReplay:
+    if (ktrfSceneTransaction != nullptr) ktrfSceneTransaction->Reset();
+    ktrfTitleReplayActive = true;
+    ktrfSystemUi->Close();
+    break;
+  case KtrfFrontendHandoff::LoadToTitle:
+    if (!CancelTitleLoadUi()) return false;
+    break;
+  case KtrfFrontendHandoff::ConfigToTitle:
+    if (!CacheSchoolDaysRetailConfigState("Config close")) return false;
+    if (!ktrfController->CloseTitleConfig(&error)) {
+      SDL_LogError(0, "[SD-CONFIG] faded close transition failed: %s",
+                   error.message);
+      return false;
+    }
+    ktrfSystemUi->Close();
+    break;
+  case KtrfFrontendHandoff::ReplayToTitle:
+    ktrfTitleReplayActive = false;
+    ktrfSystemUi->Close();
+    break;
+  case KtrfFrontendHandoff::None:
+    break;
+  }
+
+  ktrfFrontendHandoff = KtrfFrontendHandoff::None;
+  ktrfFrontendTransition.CompleteHandoff(now);
+  return true;
+}
+
+bool RenderSchoolDaysFrontendTransition() {
+  const uint64_t now = SDL_GetTicks();
+  if (!ktrfFrontendTransition.Active(now)) return true;
+
+  int outputWidth = 0;
+  int outputHeight = 0;
+  if (!SDL_GetCurrentRenderOutputSize(global.render, &outputWidth, &outputHeight) ||
+      outputWidth <= 0 || outputHeight <= 0) {
+    return false;
+  }
+
+  int logicalWidth = 800;
+  int logicalHeight = 600;
+  using Variant = Kotonoha::SchoolDaysSaveFeelModel::Variant;
+  switch (ktrfUiVariant) {
+  case Variant::Standard: logicalWidth = 800; logicalHeight = 600; break;
+  case Variant::Wide: logicalWidth = 800; logicalHeight = 450; break;
+  case Variant::WideFull: logicalWidth = 1280; logicalHeight = 720; break;
+  case Variant::WideNote: logicalWidth = 1024; logicalHeight = 576; break;
+  }
+  const float scale = std::min(static_cast<float>(outputWidth) / logicalWidth,
+                               static_cast<float>(outputHeight) / logicalHeight);
+  const SDL_FRect rect = {
+      (outputWidth - logicalWidth * scale) * 0.5f,
+      (outputHeight - logicalHeight * scale) * 0.5f,
+      logicalWidth * scale, logicalHeight * scale};
+  const uint8_t alpha = ktrfFrontendTransition.Alpha(now);
+  const bool white = ktrfFrontendTransition.CurrentColor() ==
+                     Kotonoha::SchoolDaysFrontendTransition::Color::White;
+  const uint8_t component = white ? 255u : 0u;
+  if (!SDL_SetRenderDrawBlendMode(global.render, SDL_BLENDMODE_BLEND) ||
+      !SDL_SetRenderDrawColor(global.render, component, component, component, alpha) ||
+      !SDL_RenderFillRect(global.render, &rect)) {
+    return false;
+  }
+  return SDL_SetRenderDrawBlendMode(global.render, SDL_BLENDMODE_NONE);
+}
+
 bool ExecuteSaveLoadLoadSlot(int slot) {
   if (slot < 0 || slot >= 100 || ktrfController == nullptr ||
       ktrfSaveStorage == nullptr || ktrfSystemUi == nullptr) {
@@ -1437,6 +1572,9 @@ SDL_AppResult LocalInit(void **appstate, int, char *[]) {
   ktrfUiVariant = Kotonoha::SchoolDaysSaveFeelModel::Variant::Standard;
   ktrfRetailDisplayState = {};
   ktrfRetailDisplayBackendState = {};
+  ktrfFrontendTransition.Reset();
+  ktrfFrontendHandoff = KtrfFrontendHandoff::None;
+  ktrfTitleHasPresented = false;
   ktrfAssetsRoot.clear();
 
   const KtrfLaunchOptions &ktrfOptions = ktrfLaunchOptions;
@@ -1805,6 +1943,16 @@ static SDL_AppResult SchoolDaysHandleEvent(void *appstate, SDL_Event *event) {
     return SDL_APP_CONTINUE;
   }
 
+  // Retail fades are modal presentation states.  Keep the outgoing/incoming
+  // view stable until the opaque handoff or fade-in completes instead of
+  // accepting another SysMenu pointer action mid-transition.
+  if (ktrfFrontendTransition.Active(SDL_GetTicks()) &&
+      (event->type == SDL_EVENT_MOUSE_MOTION ||
+       event->type == SDL_EVENT_MOUSE_BUTTON_DOWN ||
+       event->type == SDL_EVENT_MOUSE_BUTTON_UP)) {
+    return SDL_APP_CONTINUE;
+  }
+
   if (ktrfController != nullptr && ktrfSystemUi != nullptr &&
       ktrfController->FlowPromptVisible() && ktrfSystemUi->IsSaveFeelOpen()) {
     Kotonoha::SchoolDaysSystemUi::Output output;
@@ -1837,7 +1985,9 @@ static SDL_AppResult SchoolDaysHandleEvent(void *appstate, SDL_Event *event) {
         if (output.saveLoadOutput.action == Action::Close) {
           if (ktrfController->FlowState() ==
               Kotonoha::SchoolDaysFlowController::State::TitleLoad) {
-            if (!CancelTitleLoadUi()) return SDL_APP_FAILURE;
+            (void)BeginSchoolDaysFrontendHandoff(
+                KtrfFrontendHandoff::LoadToTitle,
+                Kotonoha::SchoolDaysFrontendTransition::Profile::ChildToTitle);
           } else if (ktrfController->FlowState() ==
                          Kotonoha::SchoolDaysFlowController::State::GameplaySave ||
                      ktrfController->FlowState() ==
@@ -2033,28 +2183,13 @@ static SDL_AppResult SchoolDaysHandleEvent(void *appstate, SDL_Event *event) {
         using Result = Kotonoha::SchoolDaysTitleModel::Result;
         if (output.titleActivation.result == Result::Start &&
             output.titleActivation.startSelector == 0) {
-          Kotonoha_KtrfError error{};
-          if (ktrfSceneTransaction != nullptr) ktrfSceneTransaction->Reset();
-          if (!ktrfController->StartNewGame(0, &error)) {
-            SDL_LogError(0, "[SD-TITLE] new-game start failed: %s",
-                         error.message);
-            return SDL_APP_FAILURE;
-          }
-          ResetSchoolDaysBackLog();
-          SDL_SetAtomicInt(&global.textLogCaptureEnabled, 1);
-          StopSchoolDaysTitleBgm();
-          ktrfSystemUi->Close();
-          ktrfMenuBar.reset();
+          (void)BeginSchoolDaysFrontendHandoff(
+              KtrfFrontendHandoff::TitleStart,
+              Kotonoha::SchoolDaysFrontendTransition::Profile::TitleToStart);
         } else if (output.titleActivation.result == Result::Load) {
-          Kotonoha_KtrfError error{};
-          if (!ktrfController->EnterTitleLoad(&error)) {
-            SDL_LogError(0, "[SD-TITLE] LOAD transition failed: %s",
-                         error.message);
-            return SDL_APP_FAILURE;
-          }
-          if (ktrfSceneTransaction != nullptr) ktrfSceneTransaction->Reset();
-          ktrfSystemUi->Close();
-          ktrfSaveLoadMetadataPage = -1;
+          (void)BeginSchoolDaysFrontendHandoff(
+              KtrfFrontendHandoff::TitleLoad,
+              Kotonoha::SchoolDaysFrontendTransition::Profile::TitleToChild);
         } else if (output.titleActivation.result == Result::Exit) {
           Kotonoha_KtrfError error{};
           if (!ktrfController->EnterTitleExit(&error)) {
@@ -2065,19 +2200,13 @@ static SDL_AppResult SchoolDaysHandleEvent(void *appstate, SDL_Event *event) {
           if (ktrfSceneTransaction != nullptr) ktrfSceneTransaction->Reset();
           ktrfSystemUi->Close();
         } else if (output.titleActivation.result == Result::Config) {
-          Kotonoha_KtrfError error{};
-          if (!ktrfController->EnterTitleConfig(&error)) {
-            SDL_LogError(0, "[SD-TITLE] ConfigMenu transition failed: %s",
-                         error.message);
-            return SDL_APP_FAILURE;
-          }
-          if (ktrfSceneTransaction != nullptr) ktrfSceneTransaction->Reset();
-          ktrfConfigPage = Kotonoha::SchoolDaysConfigMenuModel::Page::Def;
-          ktrfSystemUi->Close();
+          (void)BeginSchoolDaysFrontendHandoff(
+              KtrfFrontendHandoff::TitleConfig,
+              Kotonoha::SchoolDaysFrontendTransition::Profile::TitleToChild);
         } else if (output.titleActivation.result == Result::Replay) {
-          if (ktrfSceneTransaction != nullptr) ktrfSceneTransaction->Reset();
-          ktrfTitleReplayActive = true;
-          ktrfSystemUi->Close();
+          (void)BeginSchoolDaysFrontendHandoff(
+              KtrfFrontendHandoff::TitleReplay,
+              Kotonoha::SchoolDaysFrontendTransition::Profile::TitleToChild);
         } else {
           // The remaining authenticated Title actions are typed by TitleModel
           // but their target presenters/semantics are integrated incrementally
@@ -2104,8 +2233,9 @@ static SDL_AppResult SchoolDaysHandleEvent(void *appstate, SDL_Event *event) {
         using Kind = Kotonoha::SchoolDaysReplayModel::ActionKind;
         const auto &action = output.replayAction;
         if (action.kind == Kind::Close) {
-          ktrfTitleReplayActive = false;
-          ktrfSystemUi->Close();
+          (void)BeginSchoolDaysFrontendHandoff(
+              KtrfFrontendHandoff::ReplayToTitle,
+              Kotonoha::SchoolDaysFrontendTransition::Profile::ChildToTitle);
         } else if (action.kind == Kind::SceneCheckRequested) {
           if (!RefreshSchoolDaysReplayAvailability()) return SDL_APP_FAILURE;
         } else if (action.kind == Kind::HSceneRequested) {
@@ -2218,15 +2348,9 @@ static SDL_AppResult SchoolDaysHandleEvent(void *appstate, SDL_Event *event) {
               Kotonoha::SchoolDaysFlowController::State::GameplayConfig) {
             if (!CloseGameplayConfigUi()) return SDL_APP_FAILURE;
           } else {
-            if (!CacheSchoolDaysRetailConfigState("Config close"))
-              return SDL_APP_FAILURE;
-            Kotonoha_KtrfError error{};
-            if (!ktrfController->CloseTitleConfig(&error)) {
-              SDL_LogError(0, "[SD-CONFIG] close transition failed: %s",
-                           error.message);
-              return SDL_APP_FAILURE;
-            }
-            ktrfSystemUi->Close();
+            (void)BeginSchoolDaysFrontendHandoff(
+                KtrfFrontendHandoff::ConfigToTitle,
+                Kotonoha::SchoolDaysFrontendTransition::Profile::ChildToTitle);
           }
         } else if (action.kind == Kind::SelectPage) {
           // Page changes preserve outer Config ownership; the presenter is
@@ -2515,6 +2639,21 @@ static SDL_AppResult SchoolDaysRenderFrame(Kotonoha::Kotonoha *app) {
   Kotonoha::Gameplay *inRunning = nullptr;
   Kotonoha::Gameplay *beforeGameplay = nullptr;
   bool ktrfSceneAdvancePrepared = false;
+
+  if (ktrfController == nullptr && app->IsSplashActive()) {
+    SDL_SetRenderTarget(global.render, nullptr);
+    SDL_SetRenderDrawColor(global.render, 0, 0, 0, 255);
+    SDL_RenderClear(global.render);
+    app->RenderSplash();
+    if (global.config.enableDebugUi &&
+        !Kotonoha::Debug::Run(app, nullptr, global)) {
+      return SDL_APP_SUCCESS;
+    }
+    SDL_RenderPresent(global.render);
+    return SDL_APP_CONTINUE;
+  }
+
+  if (!ApplySchoolDaysFrontendHandoff()) return SDL_APP_FAILURE;
 
   if (ktrfController != nullptr) {
     beforeGameplay = ktrfController->CurrentGameplay();
@@ -2996,6 +3135,15 @@ static SDL_AppResult SchoolDaysRenderFrame(Kotonoha::Kotonoha *app) {
           ktrfSystemUi->Close();
           return SDL_APP_FAILURE;
         }
+        const uint64_t now = SDL_GetTicks();
+        if (!ktrfFrontendTransition.Active(now)) {
+          ktrfFrontendTransition.BeginIncoming(
+              ktrfTitleHasPresented
+                  ? Kotonoha::SchoolDaysFrontendTransition::Color::White
+                  : Kotonoha::SchoolDaysFrontendTransition::Color::Black,
+              ktrfTitleHasPresented ? 500u : 1000u, now);
+        }
+        ktrfTitleHasPresented = true;
       }
     } else if (ktrfSystemUi->IsTitleOpen()) {
       const auto state = ktrfController->FlowState();
@@ -3184,6 +3332,12 @@ static SDL_AppResult SchoolDaysRenderFrame(Kotonoha::Kotonoha *app) {
     }
   }
 
+  if (!RenderSchoolDaysFrontendTransition()) {
+    SDL_LogError(0, "[SD-TRANSITION] frontend fade render failed: %s",
+                 SDL_GetError());
+    return SDL_APP_FAILURE;
+  }
+
   TTF_Font *preferredFont = nullptr;
 
   auto it = app->fonts.find("ConcertOne-Regular");
@@ -3308,6 +3462,9 @@ void LocalQuit(void *, SDL_AppResult) {
   ktrfSaveLoadMetadataPage = -1;
   ktrfConfigPage = Kotonoha::SchoolDaysConfigMenuModel::Page::Def;
   ktrfTitleReplayActive = false;
+  ktrfFrontendTransition.Reset();
+  ktrfFrontendHandoff = KtrfFrontendHandoff::None;
+  ktrfTitleHasPresented = false;
   ktrfRouteMapProjectionMajor = -1;
   ktrfRouteMapProjectionSubpage = -1;
   ktrfRetailDisplayState = {};
