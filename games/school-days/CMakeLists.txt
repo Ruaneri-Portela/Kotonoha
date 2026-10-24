@@ -8,8 +8,7 @@ file(GLOB_RECURSE SCHOOL_DAYS_SOURCES CONFIGURE_DEPENDS
     "${SCHOOL_DAYS_SOURCE_DIR}/*.c"
 )
 set(SCHOOL_DAYS_MAIN "${SCHOOL_DAYS_SOURCE_DIR}/Main.cpp")
-list(REMOVE_ITEM SCHOOL_DAYS_SOURCES "${SCHOOL_DAYS_MAIN}"
-    ${KOTONOHA_RUNTIME_GAME_POLICY_SOURCES})
+list(REMOVE_ITEM SCHOOL_DAYS_SOURCES "${SCHOOL_DAYS_MAIN}")
 
 if(ANDROID)
     add_library(SchoolDays SHARED ${SCHOOL_DAYS_SOURCES} "${SCHOOL_DAYS_MAIN}")
@@ -19,6 +18,10 @@ else()
     add_executable(SchoolDays ${SCHOOL_DAYS_SOURCES} "${SCHOOL_DAYS_MAIN}")
     target_link_libraries(SchoolDays PUBLIC KotonohaRuntime PRIVATE ZLIB::ZLIB)
 endif()
+
+target_include_directories(SchoolDays PRIVATE
+    "${SCHOOL_DAYS_INCLUDE_DIR}"
+    "${KOTONOHA_INCLUDE_DIR}")
 
 if(KOTONOHA_DEV_CHECKPOINTS)
     target_compile_definitions(SchoolDays PRIVATE KOTONOHA_DEV_CHECKPOINTS=1)

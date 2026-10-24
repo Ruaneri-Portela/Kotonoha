@@ -107,7 +107,9 @@ void Gameplay::UpdateLoadingPause(struct Kotonoha_Game *gameContext) {
 }
 
 Gameplay::Gameplay(const char *scriptPath, Kotonoha_Game *gameContext,
-                   TTF_Font *font) {
+                   TTF_Font *font,
+                   GameplayEventRuntimeFactory eventFactory)
+    : eventRuntimeFactory(eventFactory) {
   this->demuxer = KotonohaDemuxerCreate(!gameContext->config.skipFiles,
                                         &gameContext->config);
   this->tm = KotonohaTimeNew(true);
@@ -145,17 +147,21 @@ Gameplay::Gameplay(const char *scriptPath, Kotonoha_Game *gameContext,
       this->fade, "Fade");
 
   this->scriptPath = scriptPath ? scriptPath : "";
-  ownedEvents =
-      std::make_unique<Event>(this->scriptPath.c_str(), this, gameContext, font);
-  this->eventManager = ownedEvents.get();
+  if (eventRuntimeFactory.create != nullptr) {
+    ownedEvents = eventRuntimeFactory.create(
+        this->scriptPath.c_str(), this, gameContext, font,
+        eventRuntimeFactory.userdata);
+  }
+  this->eventManager = ownedEvents;
 #if defined(__ANDROID__) || defined(ANDROID)
   playOnlyOnFocus = true;
   lastPauseStatus = gameContext->config.paused;
 #endif
 }
 
-Gameplay::Gameplay(const char *scriptPath, Kotonoha_Game *gameContext)
-    : Gameplay(scriptPath, gameContext, nullptr) {}
+Gameplay::Gameplay(const char *scriptPath, Kotonoha_Game *gameContext,
+                   GameplayEventRuntimeFactory eventFactory)
+    : Gameplay(scriptPath, gameContext, nullptr, eventFactory) {}
 
 SDL_AppResult Gameplay::Main(Kotonoha_Game *gameContext) {
   if (gameContext == nullptr || eventManager == nullptr ||
@@ -346,9 +352,9 @@ void Gameplay::SeekBackward(Uint64 ms) {
 bool Gameplay::SkipToEndBoundary() {
   if (tm == nullptr || eventManager == nullptr) return false;
   const auto target = eventManager->ComputeSkipToEndTarget(this);
-  if (!target) return false;
+  if (!target.present) return false;
   Uint64 promptStart = 0;
-  Uint64 targetMs = Kotonoha_SceneTickToMillisecondsCeil(*target);
+  Uint64 targetMs = Kotonoha_SceneTickToMillisecondsCeil(target.tick);
   if (prompt != nullptr && prompt->PendingStartMs(&promptStart) &&
       targetMs > promptStart) {
     // An unanswered choice stops the skip at its start.
@@ -382,7 +388,9 @@ bool Gameplay::SetPlaybackRate(double requestedRate) {
 }
 
 float Gameplay::GetLastTime() {
-  return MsToSeconds(static_cast<Uint64>(this->eventManager->lastTime));
+  return eventManager != nullptr
+             ? MsToSeconds(static_cast<Uint64>(eventManager->LastTime()))
+             : 0.0f;
 }
 
 float Gameplay::GetTime() { return MsToSeconds(KotonohaTimeGet(this->tm)); }
@@ -438,7 +446,14 @@ Gameplay::~Gameplay() {
   RequestShutdown();
   mediaActive.store(false, std::memory_order_release);
 
-  ownedEvents.reset();
+  if (ownedEvents != nullptr) {
+    if (eventRuntimeFactory.destroy != nullptr) {
+      eventRuntimeFactory.destroy(ownedEvents, eventRuntimeFactory.userdata);
+    } else {
+      delete ownedEvents;
+    }
+    ownedEvents = nullptr;
+  }
   ownedVideo.reset();
   ownedImage.reset();
   ownedAudio.reset();

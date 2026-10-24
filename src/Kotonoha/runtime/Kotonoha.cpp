@@ -443,6 +443,19 @@ void Kotonoha::ClearGameplays() {
   }
 }
 
+Gameplay *Kotonoha::CreateGameplay(const char *path, TTF_Font *preferredFont) {
+  if (path == nullptr || *path == '\0' ||
+      gameplayEventRuntimeFactory.create == nullptr) {
+    return nullptr;
+  }
+  try {
+    return new Gameplay(path, &gameContext, preferredFont,
+                        gameplayEventRuntimeFactory);
+  } catch (...) {
+    return nullptr;
+  }
+}
+
 bool Kotonoha::LoadScriptFile(const char *path) {
   if (path == nullptr || *path == '\0') {
     return false;
@@ -522,8 +535,7 @@ bool Kotonoha::LoadScriptFile(const char *path) {
     std::sort(files.begin(), files.end());
 
     for (const std::string &file : files) {
-      auto *gameplay = new (std::nothrow)
-          Gameplay(file.c_str(), &gameContext, preferredFont);
+      auto *gameplay = CreateGameplay(file.c_str(), preferredFont);
       if (gameplay == nullptr) {
         KLOG_ERROR(CORE, "Failed to allocate Gameplay for script: %s",
                    file.c_str());
@@ -539,8 +551,7 @@ bool Kotonoha::LoadScriptFile(const char *path) {
 
   // 2. Se for um ARQUIVO individual
   if (info.type == SDL_PATHTYPE_FILE) {
-    auto *gameplay = new (std::nothrow)
-        Gameplay(scriptPath.c_str(), &gameContext, preferredFont);
+    auto *gameplay = CreateGameplay(scriptPath.c_str(), preferredFont);
     if (gameplay == nullptr) {
       KLOG_ERROR(CORE, "Failed to allocate Gameplay for script: %s",
                  scriptPath.c_str());

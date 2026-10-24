@@ -13,6 +13,7 @@
 #include <memory>
 #include <string>
 #include <tuple>
+#include <unordered_map>
 #include <vector>
 
 namespace Kotonoha {
@@ -26,6 +27,7 @@ private:
   std::vector<std::tuple<SDL_ThreadFunction, void *>> processPoolTasks;
 
   std::string preferredUpscaler = "Auto";
+  GameplayEventRuntimeFactory gameplayEventRuntimeFactory{};
   bool sceneTransitionPrepared = false;
   bool sceneTransitionActive = false;
 
@@ -60,6 +62,10 @@ public:
   Sound::Channel *Se = nullptr;
 
   bool LoadScriptFile(const char *path);
+  void SetGameplayEventRuntimeFactory(GameplayEventRuntimeFactory factory) {
+    gameplayEventRuntimeFactory = factory;
+  }
+  Gameplay *CreateGameplay(const char *path, TTF_Font *preferredFont = nullptr);
   void DeleteGameplay(Gameplay *gameplay);
   bool CaptureLastPresentedFrameForTransition();
   void CacheSceneTransitionFrameIfNeeded(Gameplay *current);

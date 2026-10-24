@@ -149,7 +149,7 @@ Kotonoha_Subtitles *KotonohaTextRenderInit(Kotonoha_Time *time,
 
   object->time = time;
   object->gameCtx = gameCtx;
-  object->schoolDaysHiddenLastFrame = false;
+  object->messageLayerHiddenLastFrame = false;
 
   return object;
 }
@@ -180,13 +180,12 @@ enum Kotonoha_Scene_Status KotonohaTextRenderDraw(KOTONOHA_SCENE_CALL) {
     return KOTONOHA_SCENE_NULL;
   }
 
-  const bool schoolDaysTextEnabled =
+  const bool messageLayerEnabled =
       environment->gameCtx == NULL ||
-      environment->gameCtx->profileAssetsRoot == NULL ||
       Kotonoha_IsMessageLayerEnabled(environment->gameCtx);
   const bool forceRedraw =
-      schoolDaysTextEnabled &&
-      (environment->schoolDaysHiddenLastFrame ||
+      messageLayerEnabled &&
+      (environment->messageLayerHiddenLastFrame ||
        !environment->hasRenderedFrame);
 
   int targetWidth = 0;
@@ -213,14 +212,14 @@ enum Kotonoha_Scene_Status KotonohaTextRenderDraw(KOTONOHA_SCENE_CALL) {
     }
   }
 
-  if (!schoolDaysTextEnabled) {
+  if (!messageLayerEnabled) {
     Uint8 r = 0, g = 0, b = 0, a = 0;
     const bool gotColor = SDL_GetRenderDrawColor(render, &r, &g, &b, &a);
     const bool setTransparent = SDL_SetRenderDrawColor(render, 0, 0, 0, 0);
     const bool cleared = setTransparent && SDL_RenderClear(render);
     const bool restoredColor =
         gotColor && SDL_SetRenderDrawColor(render, r, g, b, a);
-    environment->schoolDaysHiddenLastFrame = true;
+    environment->messageLayerHiddenLastFrame = true;
     environment->hasRenderedFrame = false;
     environment->lastFrameHasSubtitle = false;
     if (previousTarget != target)
@@ -228,7 +227,7 @@ enum Kotonoha_Scene_Status KotonohaTextRenderDraw(KOTONOHA_SCENE_CALL) {
     return cleared && restoredColor ? KOTONOHA_SCENE_WAITING
                                     : KOTONOHA_SCENE_FATAL_ERROR;
   }
-  environment->schoolDaysHiddenLastFrame = false;
+  environment->messageLayerHiddenLastFrame = false;
 
   // Configura libass usando as dimensões físicas do render target.
   ass_set_storage_size(environment->ass_renderer, targetWidth, targetHeight);

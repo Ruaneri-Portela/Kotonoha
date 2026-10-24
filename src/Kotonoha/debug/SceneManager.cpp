@@ -139,8 +139,11 @@ bool RecreateGameplayAtPath(::Kotonoha::Kotonoha *game, Kotonoha_Game &context,
     if (it != game->fonts.end()) {
       preferredFont = it->second;
     }
-    newPlay =
-        new ::Kotonoha::Gameplay(newPath.c_str(), &context, preferredFont);
+    newPlay = game->CreateGameplay(newPath.c_str(), preferredFont);
+    if (newPlay == nullptr) {
+      SetEditorStatus("Gameplay factory rejected scene recreation.");
+      return false;
+    }
   } catch (const std::exception &e) {
     SetEditorStatus(e.what());
     return false;

@@ -204,7 +204,8 @@ void Gameplay::SeekByKeyboardN(Kotonoha_Game *gameContext) {
 
   const Uint64 kSeekSmallMs =
       static_cast<Uint64>(gameContext->config.seekSmallMs);
-  if (currentTime < eventManager->lastTime - kSeekSmallMs) {
+  if (eventManager != nullptr &&
+      currentTime < eventManager->LastTime() - kSeekSmallMs) {
     SeekForward(static_cast<Uint64>(gameContext->config.seekBigMs));
     return;
   }

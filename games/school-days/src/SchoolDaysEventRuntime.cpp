@@ -1,4 +1,4 @@
-#include <Kotonoha/components/Events.hpp>
+#include <Kotonoha/routing/SchoolDaysEventRuntime.hpp>
 #include <Kotonoha/SchoolDaysBgmAssetResolver.hpp>
 #include <Kotonoha/audio/VoicePcm.hpp>
 #include <Kotonoha/SchoolDaysMovieAssetResolver.hpp>
@@ -129,7 +129,7 @@ namespace Kotonoha {
 
 	} // namespace
 
-	int Event::EventManager(void* data) {
+	int SchoolDaysEventRuntime::EventManager(void* data) {
 		void** parms = static_cast<void**>(data);
 		if (parms == nullptr) {
 			return -1;
@@ -137,7 +137,7 @@ namespace Kotonoha {
 
 		auto* gameplay = static_cast<Gameplay*>(parms[0]);
 		auto* gameCtx = static_cast<struct Kotonoha_Game*>(parms[1]);
-		auto* classUp = static_cast<Event*>(parms[2]);
+		auto* classUp = static_cast<SchoolDaysEventRuntime*>(parms[2]);
 		if (gameplay == nullptr || gameCtx == nullptr || classUp == nullptr ||
 			classUp->eventMutex == nullptr) {
 			return -1;
@@ -580,7 +580,7 @@ namespace Kotonoha {
 		return 0;
 	}
 
-		void Event::Reset(void* gameplay, bool suppressBackLogCapture) {
+		void SchoolDaysEventRuntime::Reset(void* gameplay, bool suppressBackLogCapture) {
 		auto* gp = static_cast<Gameplay*>(gameplay);
 		if (gp == nullptr || eventMutex == nullptr) {
 			return;
@@ -659,16 +659,18 @@ namespace Kotonoha {
 		SDL_UnlockMutex(eventMutex);
 	}
 
-		SchoolDaysOptionalTick Event::ComputeSkipToEndTarget(void* gameplay) const {
+		GameplayEventTarget SchoolDaysEventRuntime::ComputeSkipToEndTarget(void* gameplay) const {
 			auto* gp = static_cast<Gameplay*>(gameplay);
 			if (gp == nullptr || gp->tm == nullptr || !Kotonoha_timeIsStarted(gp->tm))
 				return {};
 			const Kotonoha_SceneTick currentTick =
 				Kotonoha_MillisecondsToSceneTick(Kotonoha_timeGet(gp->tm));
-			return timeline.ComputeSkipToEndTarget(currentTick);
+			const SchoolDaysOptionalTick target =
+				timeline.ComputeSkipToEndTarget(currentTick);
+			return target ? GameplayEventTarget{true, *target} : GameplayEventTarget{};
 		}
 
-		Event::Event(const char* orsPath, void* gameplay,
+		SchoolDaysEventRuntime::SchoolDaysEventRuntime(const char* orsPath, void* gameplay,
 			struct Kotonoha_Game* gameCtx, TTF_Font* font)
 			: eventMutex(nullptr), font(font), lastTime(0) {
 			if (orsPath != nullptr && SchoolDaysAssetReferenceIsVirtual(orsPath)) {
@@ -798,7 +800,7 @@ namespace Kotonoha {
 		SDL_UnlockMutex(gameCtx->taskLock);
 	}
 
-			bool Event::ProcessNow(void* gameplay, struct Kotonoha_Game* gameCtx) {
+			bool SchoolDaysEventRuntime::ProcessNow(void* gameplay, struct Kotonoha_Game* gameCtx) {
 				if (gameplay == nullptr || gameCtx == nullptr ||
 					gameCtx->taskLock == nullptr || eventMutex == nullptr) {
 					return false;
@@ -814,7 +816,7 @@ namespace Kotonoha {
 				return result >= 0;
 			}
 
-	bool Event::CheckEnd(void* gameplay) {
+	bool SchoolDaysEventRuntime::CheckEnd(void* gameplay) {
 		auto* gp = static_cast<Gameplay*>(gameplay);
 		if (gp == nullptr || gp->tm == nullptr) {
 			return false;
@@ -825,7 +827,7 @@ namespace Kotonoha {
 			return readyToEnd.load(std::memory_order_acquire);
 	}
 
-		bool Event::ReachedNext(void* gameplay) const {
+		bool SchoolDaysEventRuntime::ReachedNext(void* gameplay) const {
 			auto* gp = static_cast<Gameplay*>(gameplay);
 			if (gp == nullptr || gp->tm == nullptr) return false;
 				return nextBoundaryTick && Kotonoha_MillisecondsToSceneTick(
@@ -834,7 +836,7 @@ namespace Kotonoha {
 
 
 std::vector<MediaBufferInfo>
-Event::GetMediaBufferInfo(const Audio *audio, const Video *video,
+SchoolDaysEventRuntime::GetMediaBufferInfo(const Audio *audio, const Video *video,
                           const Image *image) const {
   std::vector<MediaBufferInfo> result;
   if (eventMutex == nullptr) return result;
@@ -858,7 +860,7 @@ Event::GetMediaBufferInfo(const Audio *audio, const Video *video,
   return result;
 }
 
-bool Event::PlayMediaNow(Audio *audio, const std::string &path,
+bool SchoolDaysEventRuntime::PlayMediaNow(Audio *audio, const std::string &path,
                          const std::string &channel) const {
   if (eventMutex == nullptr || audio == nullptr) return false;
   SDL_LockMutex(eventMutex);
@@ -867,14 +869,14 @@ bool Event::PlayMediaNow(Audio *audio, const std::string &path,
   return played;
 }
 
-void Event::StopMediaNow(Audio *audio) const {
+void SchoolDaysEventRuntime::StopMediaNow(Audio *audio) const {
   if (eventMutex == nullptr || audio == nullptr) return;
   SDL_LockMutex(eventMutex);
   audio->StopPreview();
   SDL_UnlockMutex(eventMutex);
 }
 
-std::string Event::GetMediaNowPath(Audio *audio) const {
+std::string SchoolDaysEventRuntime::GetMediaNowPath(Audio *audio) const {
   if (eventMutex == nullptr || audio == nullptr) return {};
   SDL_LockMutex(eventMutex);
   std::string path = audio->GetPreviewPath();
@@ -882,12 +884,37 @@ std::string Event::GetMediaNowPath(Audio *audio) const {
   return path;
 }
 
-	Event::~Event() {
+	SchoolDaysEventRuntime::~SchoolDaysEventRuntime() {
 		Kotonoha_OrsClean(&eventsFromScript);
 		if (eventMutex != nullptr) {
 			SDL_DestroyMutex(eventMutex);
 			eventMutex = nullptr;
 		}
 	}
+
+namespace {
+
+GameplayEventRuntime *CreateSchoolDaysEventRuntime(
+    const char *scriptPath, void *gameplay, Kotonoha_Game *gameCtx,
+    TTF_Font *font, void *) {
+  try {
+    return new SchoolDaysEventRuntime(scriptPath, gameplay, gameCtx, font);
+  } catch (...) {
+    return nullptr;
+  }
+}
+
+void DestroySchoolDaysEventRuntime(GameplayEventRuntime *runtime, void *) {
+  delete static_cast<SchoolDaysEventRuntime *>(runtime);
+}
+
+} // namespace
+
+GameplayEventRuntimeFactory MakeSchoolDaysEventRuntimeFactory() {
+  GameplayEventRuntimeFactory factory;
+  factory.create = &CreateSchoolDaysEventRuntime;
+  factory.destroy = &DestroySchoolDaysEventRuntime;
+  return factory;
+}
 
 } // namespace Kotonoha

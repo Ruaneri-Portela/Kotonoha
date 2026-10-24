@@ -61,6 +61,7 @@ private:
   std::atomic_bool prefetchAllMedia{false};
   bool prefetchPendingPromotion = false;
   bool prefetchThreadSuspended = false;
+  GameplayEventRuntimeFactory eventRuntimeFactory{};
   void UpdateDeltaTime();
   void UpdateCanvasSize(SDL_Window *window, SDL_Renderer *renderer);
   void UpdateLoadingPause(struct Kotonoha_Game *gameContext);
@@ -94,7 +95,7 @@ public:
   Kotonoha_Time *tm = nullptr;
   Kotonoha_Demuxer *demuxer = nullptr;
   Canvas *drawCanvas = nullptr;
-  Event *eventManager = nullptr;
+  GameplayEventRuntime *eventManager = nullptr;
   Video *video = nullptr;
   Image *image = nullptr;
   Audio *audio = nullptr;
@@ -102,7 +103,7 @@ public:
   Prompt *prompt = nullptr;
   // Owners of the observer pointers above.
   std::unique_ptr<Canvas> ownedCanvas;
-  std::unique_ptr<Event> ownedEvents;
+  GameplayEventRuntime *ownedEvents = nullptr;
   std::unique_ptr<Video> ownedVideo;
   std::unique_ptr<Image> ownedImage;
   std::unique_ptr<Audio> ownedAudio;
@@ -115,8 +116,9 @@ public:
        firstFocus = true;
   std::string scriptPath;
   Gameplay(const char *scriptPath, struct Kotonoha_Game *gameContext,
-           TTF_Font *font);
-  Gameplay(const char *scriptPath, struct Kotonoha_Game *gameContext);
+           TTF_Font *font, GameplayEventRuntimeFactory eventFactory);
+  Gameplay(const char *scriptPath, struct Kotonoha_Game *gameContext,
+           GameplayEventRuntimeFactory eventFactory);
   SDL_AppResult Main(struct Kotonoha_Game *gameContext);
   void Events(SDL_Event *event, struct Kotonoha_Game *gameContext);
   void Reset(bool resetTime);
