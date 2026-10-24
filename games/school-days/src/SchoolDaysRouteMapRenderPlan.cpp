@@ -2,6 +2,7 @@
 
 #include <array>
 #include <cstddef>
+#include <string>
 
 namespace Kotonoha {
 namespace {
@@ -181,6 +182,38 @@ SchoolDaysRouteMapRenderPlan::Record SchoolDaysRouteMapRenderPlan::NodeRecord(
     return R(pos.x, pos.y, size, size,
              1.0f + 39.0f * static_cast<float>(localIndex),
              105.0f + 39.0f * static_cast<float>(bandIndex));
+}
+
+SchoolDaysRouteMapRenderPlan::CompletionText
+SchoolDaysRouteMapRenderPlan::CompletionTextFor(
+    const SchoolDaysRouteMapModel& model, bool useEnglish) {
+    CompletionText out;
+    const Layout layout = LayoutFor(model.CurrentVariant());
+    out.displayedPercent = model.AlternateHost() ? 0 : model.CompletionPercent();
+    out.color = model.AlternateHost() ? UINT32_C(0xFF7F7F7F)
+                                      : UINT32_C(0xFFFFFFFF);
+
+    std::u16string value;
+    if (out.displayedPercent < 10) value = u"  ";
+    else if (out.displayedPercent < 100) value = u" ";
+    const std::string digits = std::to_string(out.displayedPercent);
+    for (char digit : digits) value.push_back(static_cast<char16_t>(digit));
+
+    if (useEnglish) {
+        out.text = u"  ";
+        out.text += value;
+        out.text += u"\uFF05   Complete";
+    } else {
+        out.text = u"\u30B7\u30CA\u30EA\u30AA\u9054\u6210\u7387";
+        out.text += value;
+        out.text += u"\uFF05";
+    }
+
+    // Authenticated RouteMap text object placement from SysMenuSDHQ v1.02.
+    out.destination = {305.0f * layout.scale,
+                       (layout.yOffset + 12.0f) * layout.scale,
+                       288.0f * layout.scale, 24.0f * layout.scale};
+    return out;
 }
 
 std::vector<SchoolDaysRouteMapRenderPlan::Sprite>

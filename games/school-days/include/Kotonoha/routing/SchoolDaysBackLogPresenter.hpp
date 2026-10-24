@@ -3,8 +3,8 @@
 #include <string>
 
 #include <SDL3/SDL.h>
+#include <SDL3_ttf/SDL_ttf.h>
 
-#include <Kotonoha/routing/SchoolDaysFontData.hpp>
 #include <Kotonoha/routing/SchoolDaysBackLog.hpp>
 
 namespace Kotonoha {
@@ -22,7 +22,7 @@ public:
 
     bool Open(SDL_Renderer* renderer, const std::string& assetsRoot,
               SchoolDaysBackLogModel::Orientation orientation,
-              bool useEnglish, const std::string& fontDataLogicalPath,
+              bool useEnglish, TTF_Font* primaryFont, TTF_Font* japaneseFallback,
               std::string* error = nullptr);
     void Close();
 
@@ -38,8 +38,10 @@ private:
     SDL_Texture* base_ = nullptr;
     SDL_Texture* chip_ = nullptr;
     SDL_Texture* text_ = nullptr;
-    SchoolDaysFontData font_;
-    std::vector<uint32_t> textPixels_;
+    // Dedicated copies keep BackLog point-size/fallback state isolated from
+    // Prompt and other UI users of the shared engine font map.
+    TTF_Font* font_ = nullptr;
+    TTF_Font* fallbackFont_ = nullptr;
     bool useEnglish_ = false;
     bool opened_ = false;
 };

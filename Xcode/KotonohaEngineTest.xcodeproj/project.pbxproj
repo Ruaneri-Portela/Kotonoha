@@ -687,7 +687,7 @@
 					"$(PROJECT_DIR)/../src/routing",
 					"$(PROJECT_DIR)/../vcpkg_installed/arm64-ios-simulator/include",
 				);
-				INFOPLIST_FILE = "Kotonoha copy-Info.plist";
+				INFOPLIST_FILE = Info.plist;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.games";
 				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -781,7 +781,7 @@
 					"$(PROJECT_DIR)/../vcpkg_installed/arm64-ios-simulator/include",
 					"$(PROJECT_DIR)/../games/snow-radish-vacation/include",
 				);
-				INFOPLIST_FILE = "Kotonoha copy-Info.plist";
+				INFOPLIST_FILE = Info.plist;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.games";
 				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;

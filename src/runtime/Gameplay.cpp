@@ -192,6 +192,14 @@ SDL_AppResult Gameplay::Main(Kotonoha_Game *gameContext) {
     }
     firstFocus = false;
     KotonohaDemuxerStart(this->demuxer);
+    // Event construction occurs before this clock is started, so its eager
+    // EventManager pass intentionally returns without dispatching tick zero.
+    // Prime synchronously now; otherwise the 50 ms worker cadence can present
+    // an empty black frame before the first CREATE_BG / movie is registered.
+    if (!eventManager->ProcessNow(this, gameContext)) {
+      SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                  "Failed to prime first scene frame: %s", scriptPath.c_str());
+    }
   } else if (eventManager->CheckEnd(this)) {
     if (loop) {
       Reset(true);

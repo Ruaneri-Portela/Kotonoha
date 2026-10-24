@@ -231,6 +231,23 @@ void CheckHighestSpWins(Fixture& f) {
     }
 }
 
+void CheckCompletionMathAndDomain() {
+    Check(Oracle::CompletionPercentForReadCount(0) == 0,
+          "completion 0/1825 did not truncate to 0");
+    Check(Oracle::CompletionPercentForReadCount(912) == 49,
+          "completion 912/1825 did not truncate to 49");
+    Check(Oracle::CompletionPercentForReadCount(913) == 50,
+          "completion 913/1825 did not truncate to 50");
+    Check(Oracle::CompletionPercentForReadCount(1824) == 99,
+          "completion 1824/1825 did not truncate to 99");
+    Check(Oracle::CompletionPercentForReadCount(1825) == 100,
+          "completion 1825/1825 did not reach 100");
+    Check(Oracle::IsCompletionSceneKey("01/01-00-A00", 12u),
+          "ordinary SceneKey was excluded from completion domain");
+    Check(!Oracle::IsCompletionSceneKey("01/01-00-OP1", 12u),
+          "OP1 SceneKey was included in completion domain");
+}
+
 } // namespace
 
 int main() {
@@ -239,6 +256,7 @@ int main() {
     CheckStoryGateAndBounds(fixture);
     CheckSceneOverride(fixture);
     CheckHighestSpWins(fixture);
+    CheckCompletionMathAndDomain();
 
     std::cout << "SCHOOL DAYS ROUTEMAP ORACLE GATE PASS\n"
               << "page_cases_12=PASS\n"
@@ -246,5 +264,7 @@ int main() {
               << "route_bounds=PASS\n"
               << "scene_override=PASS\n"
               << "highest_sp_wins_6_groups=PASS\n";
+    std::cout << "completion_0_912_913_1824_1825=PASS\n"
+              << "completion_op1_excluded=PASS\n";
     return 0;
 }

@@ -44,12 +44,14 @@ public:
     void SetNodeAvailable(int localIndex, bool available);
     void SetNodeHistory(int localIndex, bool seen);
     void SetCurrentMarker(int marker) { currentMarker_ = marker; }
+    void SetCompletionPercent(int percent) { completionPercent_ = percent; }
 
     bool IsOpen() const { return open_; }
     int Major() const { return major_; }
     int Subpage() const { return subpage_; }
     int Selection() const { return selection_; }
     int CurrentMarker() const { return currentMarker_; }
+    int CompletionPercent() const { return completionPercent_; }
     bool AlternateHost() const { return alternateHost_; }
     Variant CurrentVariant() const { return variant_; }
     const SchoolDaysCmap& Cmap() const { return cmap_; }
@@ -79,6 +81,7 @@ private:
     int subpage_ = 0;
     int selection_ = -1;
     int currentMarker_ = -1;
+    int completionPercent_ = 0;
     bool alternateHost_ = false;
     std::array<bool, 19> nodeAvailable_{};
     std::array<bool, 19> nodeHistory_{};

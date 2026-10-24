@@ -19,6 +19,9 @@ public:
         // STARTSCRIPT.INI [TitleBGM] logical stem.  The retail Title path
         // appends _loop.ogg and accepts a loop-only asset.
         std::string titleBgmStem;
+        // STARTSCRIPT.INI [SystemBGM] logical stem. SysMenu/SceneView own this
+        // separately from TitleBGM and release it before replay FILM playback.
+        std::string systemBgmStem;
         std::string allClearAsset;
         std::vector<std::string> endingAssets;
     };

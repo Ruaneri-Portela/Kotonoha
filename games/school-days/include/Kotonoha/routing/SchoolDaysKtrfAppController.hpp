@@ -35,6 +35,7 @@ public:
         int major = 0;
         int subpage = 0;
         int currentMarker = -1;
+        int completionPercent = 0;
         bool alternateHost = false;
         std::array<bool, 19> available{};
     };

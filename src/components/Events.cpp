@@ -796,6 +796,22 @@ namespace Kotonoha {
 		SDL_UnlockMutex(gameCtx->taskLock);
 	}
 
+			bool Event::ProcessNow(void* gameplay, struct Kotonoha_Game* gameCtx) {
+				if (gameplay == nullptr || gameCtx == nullptr ||
+					gameCtx->taskLock == nullptr || eventMutex == nullptr) {
+					return false;
+				}
+
+				// The background task invokes this same EventManager while holding
+				// taskLock.  Serialize the first-frame prime with that worker and use
+				// stack parameters so task ownership/lifetime remains unchanged.
+				void* parms[3] = {gameplay, gameCtx, this};
+				SDL_LockMutex(gameCtx->taskLock);
+				const int result = EventManager(parms);
+				SDL_UnlockMutex(gameCtx->taskLock);
+				return result >= 0;
+			}
+
 	bool Event::CheckEnd(void* gameplay) {
 		auto* gp = static_cast<Gameplay*>(gameplay);
 		if (gp == nullptr || gp->tm == nullptr) {
