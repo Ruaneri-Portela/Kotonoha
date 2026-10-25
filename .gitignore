@@ -676,6 +676,8 @@ assets/*
 games-assets/*
 !assets/Anime4K/
 !assets/ArtCNN/
+!assets/icon.ico
+!assets/icon.png
 .research/
 *.ini
 .vscode
