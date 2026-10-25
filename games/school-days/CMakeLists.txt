@@ -9,15 +9,13 @@ file(GLOB_RECURSE SCHOOL_DAYS_SOURCES CONFIGURE_DEPENDS
     "${SCHOOL_DAYS_SOURCE_DIR}/*.cpp"
     "${SCHOOL_DAYS_SOURCE_DIR}/*.c"
 )
-set(SCHOOL_DAYS_MAIN "${SCHOOL_DAYS_SOURCE_DIR}/Main.cpp")
-list(REMOVE_ITEM SCHOOL_DAYS_SOURCES "${SCHOOL_DAYS_MAIN}")
 
 if(ANDROID)
-    add_library(SchoolDays SHARED ${SCHOOL_DAYS_SOURCES} "${SCHOOL_DAYS_MAIN}")
+    add_library(SchoolDays SHARED ${SCHOOL_DAYS_SOURCES} )
     set_target_properties(SchoolDays PROPERTIES OUTPUT_NAME SchoolDays)
     target_link_libraries(SchoolDays PRIVATE Kotonoha KotonohaRuntime ZLIB::ZLIB)
 else()
-    add_executable(SchoolDays ${SCHOOL_DAYS_SOURCES} "${SCHOOL_DAYS_MAIN}")
+    add_executable(SchoolDays ${SCHOOL_DAYS_SOURCES})
     target_link_libraries(SchoolDays PUBLIC KotonohaRuntime PRIVATE ZLIB::ZLIB)
     if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
         # Commercial/player-facing Windows builds are GUI applications.  Keep
