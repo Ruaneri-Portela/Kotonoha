@@ -140,12 +140,28 @@ int main() {
     }
     Check(rowHover,"PlayData available row hover missing");
 
+    const auto metadata = Plan::MetadataLayout(Model::Variant::Standard);
+    Check(metadata.size()==10u, "Replay Data metadata row count drifted");
+    Near(metadata[0].dateSource.x,0.0f,"metadata date src x");
+    Near(metadata[0].dateSource.y,2.0f,"metadata date src y");
+    Near(metadata[0].storySource.x,1024.0f,"metadata story src x");
+    Near(metadata[0].commentSource.y,514.0f,"metadata comment src y");
+    Near(metadata[0].date.x,1.0f,"metadata date dst x");
+    Near(metadata[0].date.y,175.5f,"metadata Standard date dst y");
+    Near(metadata[0].story.x,262.5f,"metadata story dst x");
+    Near(metadata[0].comment.x,330.0f,"metadata comment dst x");
+    Near(metadata[9].date.y,472.5f,"metadata row9 dst y");
+    Check(Plan::MetadataGlyphAdvance('A')==24 &&
+          Plan::MetadataGlyphAdvance(0x3042)==45,
+          "Replay Data native glyph advance drifted");
+
     fs::remove_all(root,ec);
     std::cout << "SCHOOL DAYS REPLAY RENDER PLAN GATE PASS\n"
               << "logical_layouts=PASS\n"
               << "hscene_placeholder_thumbnail_order=PASS\n"
               << "widefull_transform=PASS\n"
               << "scenecheck_draw_order=PASS\n"
-              << "playdata_row_hover=PASS\n";
+              << "playdata_row_hover=PASS\n"
+              << "playdata_metadata_layout=PASS\n";
     return 0;
 }

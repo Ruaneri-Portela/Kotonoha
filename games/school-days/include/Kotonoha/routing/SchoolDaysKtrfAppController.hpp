@@ -97,7 +97,12 @@ public:
     bool EnterGameplayLoad(Kotonoha_KtrfError* error);
     bool EnterGameplayConfig(Kotonoha_KtrfError* error);
     bool EnterGameplayExit(Kotonoha_KtrfError* error);
-    bool SkipToNextChoice(Kotonoha_KtrfError* error);
+    // Commit a resolved Prompt result at the input boundary.  School Days
+    // commits selection semantics immediately while the visual choice tail may
+    // continue for 24/48 ticks; delaying this until the next Main() lets a
+    // second queued MenuBar event reset or persist pre-choice state.
+    bool SubmitCurrentChoiceIfReady(Kotonoha_KtrfError* error);
+    bool SkipToNextChoice(bool allowUnreadScenes, Kotonoha_KtrfError* error);
     bool EnterGameplayRouteMap(Kotonoha_KtrfError* error);
     bool ReturnGameplayRouteMapToLoad(Kotonoha_KtrfError* error);
     bool CloseGameplayModal(Kotonoha_KtrfError* error);

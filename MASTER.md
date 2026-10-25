@@ -238,7 +238,7 @@ Responsável por:
 
 Arquivos:
 - `include/Kotonoha/components/Canvas.hpp`
-- `src/components/Canvas.cpp`
+- `src/Kotonoha/components/Canvas.cpp`
 
 Responsável pela composição visual.
 
@@ -264,7 +264,7 @@ Estado: **IMPLEMENTADO — aguardando validação visual no Poco X7 Pro**.
 
 ## Video
 
-`src/components/Video.cpp`
+`src/Kotonoha/components/Video.cpp`
 
 Vídeo pode retornar:
 - DRAW
@@ -278,7 +278,7 @@ School Days utiliza grande quantidade de pequenos WMV.
 
 ## Image
 
-`src/components/Image.cpp`
+`src/Kotonoha/components/Image.cpp`
 
 Imagens também podem retornar `KOTONOHA_SCENE_DRAW_LAST`.
 

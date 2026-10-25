@@ -14,7 +14,7 @@ typedef struct Kotonoha_Subtitles {
 
   Kotonoha_Time *time;
   Kotonoha_Game *gameCtx;
-  bool schoolDaysHiddenLastFrame;
+  bool messageLayerHiddenLastFrame;
   bool hasRenderedFrame;
   bool lastFrameHasSubtitle;
 } Kotonoha_Subtitles;

@@ -1,5 +1,6 @@
 #include <Kotonoha/routing/SchoolDaysKtrfGameplayBridge.hpp>
 #include <Kotonoha/routing/SchoolDaysBackRules.hpp>
+#include <Kotonoha/Gameplay.hpp>
 
 #include <cstdio>
 
@@ -169,11 +170,16 @@ bool SchoolDaysKtrfGameplayBridge::Advance(
     KtrfStateStore::Snapshot before;
     if (!session.State().Capture(&before, error)) return false;
     const SchoolDaysPersistence persistenceBefore = session.Persistence();
+    const auto transientBefore = session.CaptureTransientState();
+    const auto rollbackAdvance = [&]() {
+        Kotonoha_KtrfError ignored{};
+        (void)session.State().Restore(before, &ignored);
+        session.Persistence() = persistenceBefore;
+        session.RestoreTransientState(transientBefore);
+    };
     SchoolDaysKtrfSession::StepResult step;
     if (!session.Advance(trigger, &step, error)) {
-        Kotonoha_KtrfError restoreError{};
-        (void)session.State().Restore(before, &restoreError);
-        session.Persistence() = persistenceBefore;
+        rollbackAdvance();
         return false;
     }
 
@@ -183,6 +189,19 @@ bool SchoolDaysKtrfGameplayBridge::Advance(
     out->hooks = step.hooks;
     out->endings = step.endings;
 
+    // Retail SCHOOLDAYS HQ.exe!0x00424020 writes the outgoing SceneKey as
+    // VT_BOOL true through FILMEngine's global FlagsHash slot +0x1C exactly
+    // when a normal physical script has completed, before it publishes the
+    // next script.  These per-SceneKey flags are the host+0x88 read/skip
+    // eligibility oracle used by MenuBar SuperSkip.  Stage the same mutation
+    // inside this already-transactional Advance so any failed destination
+    // creation restores both State and GlobalFlag along with routing.
+    auto markCompletedSceneRead = [&]() -> bool {
+        if (currentScene.sceneKey.empty()) return true;
+        return session.Persistence().WriteGlobalInteger(
+            currentScene.sceneKey, 11, -1, &session.State(), error);
+    };
+
     switch (step.kind) {
     case SchoolDaysKtrfSession::StepKind::Unresolved:
         out->kind = StepKind::Unresolved;
@@ -191,10 +210,12 @@ bool SchoolDaysKtrfGameplayBridge::Advance(
         out->kind = StepKind::BlockedChoice;
         return true;
     case SchoolDaysKtrfSession::StepKind::Terminal:
+        if (!markCompletedSceneRead()) {
+            rollbackAdvance();
+            return false;
+        }
         if (!session.CommitTerminalRoutingReset(&step, error)) {
-            Kotonoha_KtrfError restoreError{};
-            (void)session.State().Restore(before, &restoreError);
-            session.Persistence() = persistenceBefore;
+            rollbackAdvance();
             return false;
         }
         out->hooks = step.hooks;
@@ -205,14 +226,16 @@ bool SchoolDaysKtrfGameplayBridge::Advance(
         return true;
     case SchoolDaysKtrfSession::StepKind::Scene:
         {
+        if (!markCompletedSceneRead()) {
+            rollbackAdvance();
+            return false;
+        }
         SchoolDaysCoordinate destination;
         SchoolDaysHistory::Entry historyEntry;
         if (!BuildCoordinate(step.scene, &destination, error) ||
             !session.History().BuildForwardEntry(destination, session.State(),
                                                  &historyEntry, error)) {
-            Kotonoha_KtrfError restoreError{};
-            (void)session.State().Restore(before, &restoreError);
-            session.Persistence() = persistenceBefore;
+            rollbackAdvance();
             return false;
         }
         if (IsCallback38(step.hooks)) {
@@ -224,9 +247,7 @@ bool SchoolDaysKtrfGameplayBridge::Advance(
             if (!session.Persistence().ReplaceCurrentScriptSnapshot(
                     step.scene.sceneKey, UINT32_C(0x3f800000),
                     session.State(), error)) {
-                Kotonoha_KtrfError restoreError{};
-                (void)session.State().Restore(before, &restoreError);
-                session.Persistence() = persistenceBefore;
+                rollbackAdvance();
                 return false;
             }
             out->kind = StepKind::PendingHandoff;
@@ -239,9 +260,7 @@ bool SchoolDaysKtrfGameplayBridge::Advance(
         Gameplay* next = factory.create(step.scene.orsPath.c_str(), gameContext,
                                         factory.userdata);
         if (next == nullptr) {
-            Kotonoha_KtrfError restoreError{};
-            (void)session.State().Restore(before, &restoreError);
-            session.Persistence() = persistenceBefore;
+            rollbackAdvance();
             SetError(error, KOTONOHA_KTRF_ERROR_IO,
                      "School Days gameplay factory failed to create scene");
             return false;
@@ -251,9 +270,7 @@ bool SchoolDaysKtrfGameplayBridge::Advance(
             ? session.History().Rebase(historyEntry.destination, session.State(), error)
             : session.History().CommitForward(historyEntry);
         if (!historyCommitted) {
-            Kotonoha_KtrfError restoreError{};
-            (void)session.State().Restore(before, &restoreError);
-            session.Persistence() = persistenceBefore;
+            rollbackAdvance();
             session.History() = historyBefore;
             factory.destroy(next, factory.userdata);
             SetError(error, KOTONOHA_KTRF_ERROR_FORMAT,
@@ -263,9 +280,7 @@ bool SchoolDaysKtrfGameplayBridge::Advance(
         if (!session.Persistence().ReplaceCurrentScriptSnapshot(
                 step.scene.sceneKey, UINT32_C(0x3f800000),
                 session.State(), error)) {
-            Kotonoha_KtrfError restoreError{};
-            (void)session.State().Restore(before, &restoreError);
-            session.Persistence() = persistenceBefore;
+            rollbackAdvance();
             session.History() = historyBefore;
             factory.destroy(next, factory.userdata);
             return false;
@@ -285,22 +300,33 @@ bool SchoolDaysKtrfGameplayBridge::Advance(
 }
 
 bool SchoolDaysKtrfGameplayBridge::AdvanceToNextChoice(
-    const char* trigger, StepResult* out, Kotonoha_KtrfError* error) {
+    const char* trigger, bool allowUnreadScenes, StepResult* out,
+    Kotonoha_KtrfError* error) {
     if (!opened || out == nullptr) {
         SetError(error, KOTONOHA_KTRF_ERROR_ARGUMENT,
                  "School Days next-choice advance requires an open bridge/result");
         return false;
     }
 
-    // SuperSkip crosses physical scripts through the same authenticated KTRF
-    // advance transaction used by natural scene completion.  A pending choice,
-    // handoff, terminal or unresolved route is a semantic stop; only a completed
-    // physical scene swap is eligible to continue immediately.
+    // Native SysMenu ctrl4 enters FILMEngine mode5. Across scripts, retail
+    // host+0x88 permits chaining only when Config Skip is enabled OR the newly
+    // loaded SceneKey is already true in GlobalFlag. An unread destination is
+    // therefore a semantic stop at that script's beginning. The current script
+    // itself is still allowed to reach its own SkipFRAME; only the cross-script
+    // continuation is gated here.
     for (;;) {
         StepResult step;
         if (!Advance(trigger, &step, error)) return false;
         *out = step;
         if (step.kind != StepKind::SwappedScene) return true;
+        if (allowUnreadScenes) continue;
+
+        int64_t alreadyRead = 0;
+        if (!session.State().ReadGlobalInt(step.scene.sceneKey,
+                                           &alreadyRead, error)) {
+            return false;
+        }
+        if (alreadyRead == 0) return true;
     }
 }
 
@@ -409,6 +435,17 @@ bool SchoolDaysKtrfGameplayBridge::LoadSave(
         return false;
     }
 
+    if (plan.restoreRecordedChoice) {
+        // The saved tag1 already contains the choice effects and the session
+        // restored the KTRF choice latch above.  Do not leave the new Gameplay
+        // with a fresh interactive Prompt that could submit those effects again.
+        next->choiceCommitSubmitted = true;
+        next->promptId = plan.recordedChoiceValue;
+        next->putPrompt = false;
+        next->ownedPrompt.reset();
+        next->prompt = nullptr;
+    }
+
     Gameplay* previous = currentGameplay;
     currentGameplay = next;
     currentScene = plan.scene;
@@ -484,23 +521,25 @@ bool SchoolDaysKtrfGameplayBridge::ResetNewGame(
     if (!session.State().Capture(&stateBefore, error)) return false;
     const SchoolDaysHistory historyBefore = session.History();
     const SchoolDaysPersistence persistenceBefore = session.Persistence();
-
-    SchoolDaysKtrfScene first;
-    if (!session.ResetNewGame(&first, error)) {
+    const auto transientBefore = session.CaptureTransientState();
+    const auto rollbackReset = [&]() {
         Kotonoha_KtrfError ignored{};
         (void)session.State().Restore(stateBefore, &ignored);
         session.History() = historyBefore;
         session.Persistence() = persistenceBefore;
+        session.RestoreTransientState(transientBefore);
+    };
+
+    SchoolDaysKtrfScene first;
+    if (!session.ResetNewGame(&first, error)) {
+        rollbackReset();
         return false;
     }
 
     Gameplay* next = factory.create(first.orsPath.c_str(), gameContext,
                                     factory.userdata);
     if (next == nullptr) {
-        Kotonoha_KtrfError ignored{};
-        (void)session.State().Restore(stateBefore, &ignored);
-        session.History() = historyBefore;
-        session.Persistence() = persistenceBefore;
+        rollbackReset();
         SetError(error, KOTONOHA_KTRF_ERROR_IO,
                  "School Days new game failed to create initial Gameplay");
         return false;
@@ -511,10 +550,7 @@ bool SchoolDaysKtrfGameplayBridge::ResetNewGame(
         !session.History().Rebase(coordinate, session.State(), error) ||
         !session.Persistence().ReplaceCurrentScriptSnapshot(
             first.sceneKey, UINT32_C(0x3f800000), session.State(), error)) {
-        Kotonoha_KtrfError ignored{};
-        (void)session.State().Restore(stateBefore, &ignored);
-        session.History() = historyBefore;
-        session.Persistence() = persistenceBefore;
+        rollbackReset();
         factory.destroy(next, factory.userdata);
         return false;
     }
@@ -541,8 +577,21 @@ bool SchoolDaysKtrfGameplayBridge::ReleaseCurrentGameplayForFrontend(
         return false;
     }
     if (currentGameplay != nullptr) {
+        if (gameContext != nullptr) {
+            // User pause is scoped to the narrative Gameplay.  Script.Free /
+            // return-to-frontend must not leak that effective pause bit into
+            // Title and the next freshly-created scene.
+            currentGameplay->SetUserPaused(gameContext, false);
+        }
         factory.destroy(currentGameplay, factory.userdata);
         currentGameplay = nullptr;
+    }
+    if (gameContext != nullptr) {
+        // Loading pause is a second component of GameplayPauseIntent.  If the
+        // scene is released while that component is active, SetUserPaused(false)
+        // alone still leaves EffectivePaused()==true.  Narrative ownership ends
+        // here, so the shared frontend bit must be cleared unconditionally.
+        gameContext->config.paused = false;
     }
     // Script.Free (EXE 0x4236F0) tears down the script manager after the
     // physical media/gameplay objects.  Its 0x432870 call clears transient BLog
@@ -586,6 +635,15 @@ bool SchoolDaysKtrfGameplayBridge::DebugJumpToNode(
     KtrfStateStore::Snapshot stateBefore;
     if (!session.State().Capture(&stateBefore, error)) return false;
     const SchoolDaysHistory historyBefore = session.History();
+    const SchoolDaysPersistence persistenceBefore = session.Persistence();
+    const auto transientBefore = session.CaptureTransientState();
+    const auto rollback = [&]() {
+        Kotonoha_KtrfError restoreError{};
+        (void)session.State().Restore(stateBefore, &restoreError);
+        session.History() = historyBefore;
+        session.Persistence() = persistenceBefore;
+        session.RestoreTransientState(transientBefore);
+    };
 
     // Create first so a bad/missing ORS cannot strand router state away from the
     // currently live Gameplay.
@@ -598,10 +656,10 @@ bool SchoolDaysKtrfGameplayBridge::DebugJumpToNode(
     }
 
     if (!session.DebugActivateNode(nodeIndex, error) ||
-        !session.State().WriteCoordinate(targetRoute, targetScene, error)) {
-        Kotonoha_KtrfError restoreError{};
-        (void)session.State().Restore(stateBefore, &restoreError);
-        session.History() = historyBefore;
+        !session.State().WriteCoordinate(targetRoute, targetScene, error) ||
+        !session.Persistence().ReplaceCurrentScriptSnapshot(
+            target.sceneKey, UINT32_C(0x3f800000), session.State(), error)) {
+        rollback();
         factory.destroy(next, factory.userdata);
         return false;
     }
@@ -609,9 +667,7 @@ bool SchoolDaysKtrfGameplayBridge::DebugJumpToNode(
     SchoolDaysCoordinate coordinate;
     if (!BuildCoordinate(target, &coordinate, error) ||
         !session.History().Rebase(coordinate, session.State(), error)) {
-        Kotonoha_KtrfError restoreError{};
-        (void)session.State().Restore(stateBefore, &restoreError);
-        session.History() = historyBefore;
+        rollback();
         factory.destroy(next, factory.userdata);
         return false;
     }

@@ -1,5 +1,6 @@
 #include <Kotonoha/Gameplay.hpp>
 #include <Kotonoha/components/Prompt.hpp>
+#include <Kotonoha/routing/SchoolDaysPromptBehavior.hpp>
 #include <Kotonoha/routing/SchoolDaysInputPolicy.hpp>
 
 #include <cstdlib>

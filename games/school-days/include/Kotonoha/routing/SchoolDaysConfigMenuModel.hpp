@@ -6,9 +6,9 @@
 
 namespace Kotonoha {
 
-// Pointer-only semantic model for MENU::ConfigMenu.  The model deliberately
-// stops at typed requests: applying display/audio policy and executing legacy
-// SomCon transactions belong to the host/state-machine integration boundary.
+// Pointer-only semantic model for MENU::ConfigMenu. The model stops at typed
+// requests; applying display/audio policy belongs to the host integration
+// boundary.
 class SchoolDaysConfigMenuModel {
 public:
     enum class Variant {
@@ -21,7 +21,7 @@ public:
     enum class Page : int {
         Def = 0,
         Sound = 1,
-        SomCon = 2,
+        Display = 2,
     };
 
     enum class ActionKind {
@@ -37,19 +37,14 @@ public:
         SetMenVoice,
         SetMute,
         SetSoundLevel,
-        SomConAutoScan,
-        SomConDisable,
-        SomConSelectDevice,
-        SomConStartSecondary,
-        SomConStopSecondary,
     };
 
     struct Action {
         ActionKind kind = ActionKind::None;
         Page page = Page::Def;
 
-        // Boolean, direct-level and SomCon-device actions use value. ConfigMenu's visible
-        // bank order is authenticated as BGM/SE/Voice = 0/1/2; the native host
+        // Boolean and direct-level actions use value. ConfigMenu's visible bank
+        // order is authenticated as BGM/SE/Voice = 0/1/2; the native host
         // bank ABI is Voice/SE/BGM = 0/1/2 and is translated by the retail
         // config policy at the integration boundary.
         int value = 0;
@@ -66,7 +61,6 @@ public:
     static std::string CmapRelativePath(Page page, Variant variant);
     static std::string BaseRelativePath(Page page);
     static std::string ChipRelativePath(Page page);
-    static const char* SomConSetRelativePath();
 
     bool Open(const std::string& assetsRoot, Variant variant, Page page,
               std::string* error = nullptr);

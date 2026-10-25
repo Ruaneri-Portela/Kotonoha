@@ -54,21 +54,6 @@ static constexpr Record kSound[] = {
     {37,374,163,34,1,320},{210,374,163,34,165,320},{427,374,163,34,329,320},{599,374,165,34,493,320},
 };
 
-static constexpr Record kSomCon[] = {
-    {10,54,194,38,1,1},{204,54,194,38,196,1},{398,54,194,38,391,1},{702,6,98,42,586,1},
-    {438,375,163,34,1,44},{610,375,164,34,165,44},
-    {11,153,70,28,1,81},{89,153,70,28,72,81},{168,153,70,28,143,81},{246,153,70,28,214,81},
-    {324,153,70,28,285,81},{403,153,70,28,356,81},{481,153,70,28,427,81},{559,153,70,28,498,81},
-    {638,153,70,28,569,81},{716,153,70,28,640,81},{8,234,166,36,330,44},{181,234,167,36,497,44},
-    {10,54,194,38,1,110},{204,54,194,38,196,110},{398,54,194,38,391,110},
-    {438,375,163,34,1,149},{610,375,164,34,165,149},
-    {11,153,70,28,1,186},{89,153,70,28,72,186},{168,153,70,28,143,186},{246,153,70,28,214,186},
-    {324,153,70,28,285,186},{403,153,70,28,356,186},{481,153,70,28,427,186},{559,153,70,28,498,186},
-    {638,153,70,28,569,186},{716,153,70,28,640,186},{8,234,166,36,330,149},{181,234,167,36,497,149},
-    {10,54,194,38,1,215},{204,54,194,38,196,215},{398,54,194,38,391,215},
-    {438,375,163,34,1,254},{610,375,164,34,165,254},{8,234,166,36,330,254},{181,234,167,36,497,254},
-};
-
 Plan::Rect Destination(const Record& r, const Plan::Layout& layout,
                        float widthOverride = -1.0f) {
     const float width = widthOverride >= 0.0f ? widthOverride : r.w;
@@ -95,22 +80,15 @@ bool PairContains(int value, int a, int b) {
     return value == a || value == b;
 }
 
-bool CommonControlAvailable(int control, const Plan::VisualState& state) {
-    if (control == 2) return state.somConAvailable;
-    return control >= 0 && control <= 3;
+bool CommonControlAvailable(int control) {
+    return control == 0 || control == 1 || control == 2 || control == 3;
 }
 
 bool ControlAvailable(Model::Page page, int control,
-                      const Plan::VisualState& state) {
-    if (control >= 0 && control <= 3) return CommonControlAvailable(control, state);
+                      const Plan::VisualState&) {
+    if (control >= 0 && control <= 3) return CommonControlAvailable(control);
     if (page == Model::Page::Def) return control >= 4 && control <= 13;
     if (page == Model::Page::Sound) return control >= 4 && control <= 43;
-    if (page == Model::Page::SomCon) {
-        if (control == 4 || control == 5) return true;
-        if (control >= 6 && control <= 17) {
-            return state.somConSetActive && state.somConInteractionActive;
-        }
-    }
     return false;
 }
 
@@ -168,28 +146,6 @@ void PushSoundLevel(std::vector<Plan::Sprite>& out, const Plan::Layout& layout,
     out.push_back(sprite);
 }
 
-bool SomConCurrentHoverWithSprite(int control, const Plan::VisualState& state,
-                                  int* record) {
-    if (record == nullptr) return false;
-    if (control == 4 && state.somConSetActive) {
-        *record = 38;
-        return true;
-    }
-    if (control == 5 && !state.somConSetActive) {
-        *record = 39;
-        return true;
-    }
-    if (control == 16 && state.somConSecondaryCurrent == 16) {
-        *record = 40;
-        return true;
-    }
-    if (control == 17 && state.somConSecondaryCurrent == 17) {
-        *record = 41;
-        return true;
-    }
-    return false;
-}
-
 } // namespace
 
 SchoolDaysConfigMenuRenderPlan::Layout SchoolDaysConfigMenuRenderPlan::LayoutFor(
@@ -205,11 +161,7 @@ SchoolDaysConfigMenuRenderPlan::Layout SchoolDaysConfigMenuRenderPlan::LayoutFor
 }
 
 std::string SchoolDaysConfigMenuRenderPlan::BaseRelativePath(
-    const SchoolDaysConfigMenuModel& model, const VisualState& state) {
-    if (model.CurrentPage() == SchoolDaysConfigMenuModel::Page::SomCon &&
-        state.somConSetActive) {
-        return SchoolDaysConfigMenuModel::SomConSetRelativePath();
-    }
+    const SchoolDaysConfigMenuModel& model) {
     return SchoolDaysConfigMenuModel::BaseRelativePath(model.CurrentPage());
 }
 
@@ -223,9 +175,7 @@ SchoolDaysConfigMenuRenderPlan::Build(const SchoolDaysConfigMenuModel& model,
     const auto page = model.CurrentPage();
 
     Sprite base;
-    base.texture = (page == Model::Page::SomCon && state.somConSetActive)
-                       ? Texture::SomConSetBase
-                       : Texture::Base;
+    base.texture = Texture::Base;
     base.role = Role::Base;
     base.destination = {-0.5f * layout.scale,
                         layout.yOffset * layout.scale,
@@ -297,56 +247,20 @@ SchoolDaysConfigMenuRenderPlan::Build(const SchoolDaysConfigMenuModel& model,
         }
         return out;
     }
-
-    // SomCon. Device meanings remain opaque; only authenticated visual flags
-    // and indices are projected.
-    if (state.somConAvailable) {
-        out.push_back(FromRecord(kSomCon[20], 20, 2, Role::ActiveTab, layout));
-    }
-    const int primaryRecord = state.somConSetActive ? 21 : 22;
-    out.push_back(FromRecord(kSomCon[primaryRecord], primaryRecord,
-                             state.somConSetActive ? 4 : 5,
-                             Role::CurrentState, layout));
-
-    if (state.somConSetActive && state.somConInteractionActive) {
-        if (PairContains(state.somConSecondaryCurrent, 16, 17)) {
-            const int secondaryRecord = state.somConSecondaryCurrent == 16 ? 33 : 34;
-            out.push_back(FromRecord(kSomCon[secondaryRecord], secondaryRecord,
-                                     state.somConSecondaryCurrent,
-                                     Role::CurrentState, layout));
+    if (page == Model::Page::Display) {
+        // Geometry 2 was the shipped SOMCON tab. The remaster reuses that tab
+        // position for its physical display/upscaling page; game-owned drawing
+        // covers the old label/content after this authenticated skin pass.
+        out.push_back(FromRecord(kDef[16], 16, 2, Role::ActiveTab, layout));
+        const int control = model.Selection();
+        if (control >= 0 && control <= 2) {
+            const int record = 27 + control;
+            out.push_back(FromRecord(kDef[record], record, control,
+                                     Role::Hover, layout));
+        } else if (control == 3) {
+            out.push_back(FromRecord(kDef[3], 3, control, Role::Hover, layout));
         }
-        if (state.somConDeviceIndex >= 0 && state.somConDeviceIndex <= 9) {
-            const int deviceRecord = 23 + state.somConDeviceIndex;
-            out.push_back(FromRecord(kSomCon[deviceRecord], deviceRecord,
-                                     6 + state.somConDeviceIndex,
-                                     Role::CurrentState, layout));
-        }
-    }
-
-    const int control = model.Selection();
-    if (control >= 0 && control <= 17 && ControlAvailable(page, control, state)) {
-        if (control == 2) {
-            out.push_back(FromRecord(kSomCon[37], 37, control, Role::Hover, layout));
-        }
-        else {
-            int currentRecord = -1;
-            if (SomConCurrentHoverWithSprite(control, state, &currentRecord)) {
-                out.push_back(FromRecord(kSomCon[currentRecord], currentRecord,
-                                         control, Role::Hover, layout));
-            }
-            else if (state.somConInteractionActive &&
-                     state.somConDeviceIndex >= 0 &&
-                     state.somConDeviceIndex <= 9 &&
-                     control == 6 + state.somConDeviceIndex) {
-                // FUN_1000A250 reports the current device as handled without
-                // drawing an additional third-band sprite. The persistent marker
-                // above remains visible and first-band hover is suppressed.
-            }
-            else {
-                out.push_back(FromRecord(kSomCon[control], control, control,
-                                         Role::Hover, layout));
-            }
-        }
+        return out;
     }
     return out;
 }

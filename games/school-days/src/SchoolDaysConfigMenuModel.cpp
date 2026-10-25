@@ -32,7 +32,7 @@ const char* SchoolDaysConfigMenuModel::PageToken(Page page) {
     switch (page) {
     case Page::Def: return "Def";
     case Page::Sound: return "Sound";
-    case Page::SomCon: return "SomCon";
+    case Page::Display: return "Def";
     }
     return "Def";
 }
@@ -49,10 +49,6 @@ std::string SchoolDaysConfigMenuModel::BaseRelativePath(Page page) {
 
 std::string SchoolDaysConfigMenuModel::ChipRelativePath(Page page) {
     return std::string("System/Option/Option_") + PageToken(page) + "_Chip.png";
-}
-
-const char* SchoolDaysConfigMenuModel::SomConSetRelativePath() {
-    return "System/Option/Option_SomCon_Set.png";
 }
 
 bool SchoolDaysConfigMenuModel::Open(const std::string& assetsRoot,
@@ -100,7 +96,8 @@ bool SchoolDaysConfigMenuModel::DecodeAction(Page page, int control,
     if (action == nullptr) return false;
     *action = {};
 
-    // Common tab/close ids are shared by Def, Sound and SomCon.
+    // The shipped third-tab region used SOMCON. The remaster removes that
+    // device UI and reuses the authenticated pointer region for Display.
     if (control >= 0 && control <= 2) {
         action->kind = ActionKind::SelectPage;
         action->page = static_cast<Page>(control);
@@ -172,29 +169,6 @@ bool SchoolDaysConfigMenuModel::DecodeAction(Page page, int control,
         return false;
     }
 
-    if (page == Page::SomCon) {
-        if (control == 4) {
-            action->kind = ActionKind::SomConAutoScan;
-            return true;
-        }
-        if (control == 5) {
-            action->kind = ActionKind::SomConDisable;
-            return true;
-        }
-        if (control >= 6 && control <= 15) {
-            action->kind = ActionKind::SomConSelectDevice;
-            action->value = control - 6;
-            return true;
-        }
-        if (control == 16) {
-            action->kind = ActionKind::SomConStartSecondary;
-            return true;
-        }
-        if (control == 17) {
-            action->kind = ActionKind::SomConStopSecondary;
-            return true;
-        }
-    }
     return false;
 }
 

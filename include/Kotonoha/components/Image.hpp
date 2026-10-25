@@ -1,6 +1,7 @@
 #pragma once
 #include <Kotonoha/graphics/AbcAnimation.hpp>
 #include <Kotonoha/components/MediaBufferInfo.hpp>
+#include <Kotonoha/components/Upscaling.hpp>
 #include <memory>
 #include <string>
 #include <vector>
@@ -12,7 +13,7 @@ extern "C" {
 }
 
 namespace Kotonoha {
-class Image {
+class Image : public Upscaling {
 public:
   struct AbcGroup {
     AbcGroupResources resources;

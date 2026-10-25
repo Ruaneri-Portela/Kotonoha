@@ -62,11 +62,26 @@ public:
         std::array<bool, 4> enabled{{false, false, false, false}};
     };
 
+    struct MetadataRect {
+        int row = -1;
+        Rect dateSource{};
+        Rect storySource{};
+        Rect commentSource{};
+        Rect date{};
+        Rect story{};
+        Rect comment{};
+    };
+
     static Layout LayoutFor(SchoolDaysReplayModel::Variant variant);
     static std::vector<Sprite> Build(const SchoolDaysReplayModel& model);
     static std::vector<Sprite> BuildSceneCheck(
         const SchoolDaysReplayModel& model,
         const SceneCheckVisualState& visualState);
+    static std::vector<MetadataRect> MetadataLayout(
+        SchoolDaysReplayModel::Variant variant);
+    static int MetadataGlyphAdvance(uint16_t glyph) {
+        return glyph < 0x80u ? 24 : 45;
+    }
 
     static std::string ThumbnailRelativePath(int page);
 };

@@ -406,6 +406,7 @@ void InstallMountedSchoolDaysAssetResolver() {
     InstallSchoolDaysVirtualAssetIo(&MountedResolverIsReference, &MountedResolverRead,
                                     &MountedResolverListDirectory);
     KotonohaFFmpegSetInputResolver(&MountedFfmpegResolve);
+    KotonohaRuntimeSetFFmpegInputResolver(&MountedFfmpegResolve);
 }
 
 void UninstallMountedSchoolDaysAssetResolver() {
@@ -413,7 +414,11 @@ void UninstallMountedSchoolDaysAssetResolver() {
         InstallSchoolDaysVirtualAssetLookup(nullptr);
         InstallSchoolDaysVirtualAssetIo(nullptr, nullptr, nullptr);
         KotonohaFFmpegSetInputResolver(nullptr);
+        KotonohaRuntimeSetFFmpegInputResolver(nullptr);
     }
+    // The generic runtime DLL outlives the School Days module during teardown.
+    // Never leave it holding a vtable pointer to the game-owned provider.
+    UninstallSchoolDaysImageAssetProvider();
 }
 
 bool SchoolDaysRetailGpksMounted() {

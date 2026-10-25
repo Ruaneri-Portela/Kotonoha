@@ -1,9 +1,11 @@
 #include <Kotonoha/Kotonoha.hpp>
 #include <Kotonoha/routing/SchoolDaysKtrfAppController.hpp>
+#include <Kotonoha/routing/SchoolDaysEventRuntime.hpp>
 #include <Kotonoha/routing/SchoolDaysPlayDataSession.hpp>
 #include <Kotonoha/routing/SchoolDaysReplayPlaybackSession.hpp>
 #include <Kotonoha/routing/SchoolDaysRouteMapModel.hpp>
 #include <Kotonoha/routing/SchoolDaysRouteMapOracle.hpp>
+#include <Kotonoha/routing/SchoolDaysSubtitleTypography.hpp>
 
 #include <new>
 
@@ -23,7 +25,8 @@ Gameplay* SchoolDaysKtrfAppController::CreateGameplay(
 
     try {
         TTF_Font* preferredFont = nullptr;
-        const auto fontIt = self->engine->fonts.find("ConcertOne-Regular");
+        const auto fontIt = self->engine->fonts.find(
+            SchoolDaysSubtitleTypography::PrimaryFontKey);
         if (fontIt != self->engine->fonts.end()) {
             preferredFont = fontIt->second;
         }
@@ -39,7 +42,12 @@ Gameplay* SchoolDaysKtrfAppController::CreateGameplay(
         const bool userPaused =
             inheritUserPause ? previous->UserPaused(context) : false;
 
-        auto* gameplay = new Gameplay(orsPath, context, preferredFont);
+        auto* gameplay = new Gameplay(orsPath, context, preferredFont,
+                                      MakeSchoolDaysEventRuntimeFactory());
+        if (!gameplay->HasEventRuntime()) {
+            delete gameplay;
+            return nullptr;
+        }
         if (inheritUserPause) {
             gameplay->SetUserPaused(context, userPaused);
         }
@@ -108,7 +116,7 @@ bool SchoolDaysKtrfAppController::BuildDebugSceneCatalog(
             debugScenes.clear();
             return false;
         }
-        if (view.kind != KOTONOHA_SDHQ_NODE_SCENE) continue;
+        if (view.kind != KOTONOHA_KTRF_NODE_SCENE) continue;
         if (view.scene_key == nullptr || view.scene_key_length == 0u) {
             if (error != nullptr) {
                 error->code = KOTONOHA_KTRF_ERROR_FORMAT;
@@ -154,6 +162,7 @@ bool SchoolDaysKtrfAppController::Open(
 
     engine = requestedEngine;
     gameContext = requestedContext;
+    engine->SetGameplayEventRuntimeFactory(MakeSchoolDaysEventRuntimeFactory());
     this->ktrfPath = ktrfPath != nullptr ? ktrfPath : "";
     this->orsRoot = orsRoot != nullptr ? orsRoot : "";
 
@@ -163,6 +172,7 @@ bool SchoolDaysKtrfAppController::Open(
     factory.userdata = this;
 
     if (!bridge.Open(ktrfPath, orsRoot, gameContext, factory, error)) {
+        engine->SetGameplayEventRuntimeFactory({});
         engine = nullptr;
         gameContext = nullptr;
         this->ktrfPath.clear();
@@ -193,6 +203,7 @@ void SchoolDaysKtrfAppController::Close() {
     flow.Reset();
     bridge.Close();
     opened = false;
+    if (engine != nullptr) engine->SetGameplayEventRuntimeFactory({});
     engine = nullptr;
     gameContext = nullptr;
     ktrfPath.clear();
@@ -300,6 +311,20 @@ bool SchoolDaysKtrfAppController::ExecuteFlowAction(
     }
 
     if (step.kind == SchoolDaysKtrfGameplayBridge::StepKind::Terminal) {
+        // CompleteHandoff has already consumed the terminal bridge latch and
+        // moved the outer flow to Title.  Native Script.Free tears down the
+        // physical scene/script manager at this boundary; keeping the ending
+        // Gameplay alive here leaks media, pause state and transient SLog into
+        // the next Title->Start/Load session.
+        if (nextAction == SchoolDaysFlowController::Action::EnterTitle &&
+            !bridge.ReleaseCurrentGameplayForFrontend(error)) {
+            return false;
+        }
+        if (gameContext != nullptr) {
+            gameContext->config.scene = 0;
+            gameContext->config.next = false;
+            gameContext->config.back = false;
+        }
         return ExecuteFlowAction(nextAction, error);
     }
     if (step.kind != SchoolDaysKtrfGameplayBridge::StepKind::SwappedScene) return false;
@@ -364,8 +389,30 @@ bool SchoolDaysKtrfAppController::EnterGameplayExit(
     return ExecuteFlowAction(action, error);
 }
 
-bool SchoolDaysKtrfAppController::SkipToNextChoice(
+bool SchoolDaysKtrfAppController::SubmitCurrentChoiceIfReady(
     Kotonoha_KtrfError* error) {
+    if (!opened || !bridge.IsOpen() || bridge.HasPendingHandoff() ||
+        flow.CurrentState() != SchoolDaysFlowController::State::Gameplay) {
+        return true;
+    }
+    Gameplay* current = bridge.CurrentGameplay();
+    if (current == nullptr || current->prompt == nullptr ||
+        !SchoolDaysChoiceShouldSubmit(current->choiceCommitSubmitted,
+                                      current->prompt->Result())) {
+        return true;
+    }
+
+    int accepted = 0;
+    const int64_t value = static_cast<int64_t>(current->prompt->Result());
+    if (!bridge.CommitChoice(value, &accepted, error) || !accepted) {
+        return false;
+    }
+    current->choiceCommitSubmitted = true;
+    return true;
+}
+
+bool SchoolDaysKtrfAppController::SkipToNextChoice(
+    bool allowUnreadScenes, Kotonoha_KtrfError* error) {
     if (!opened || !bridge.IsOpen() || bridge.HasPendingHandoff() ||
         flow.CurrentState() != SchoolDaysFlowController::State::Gameplay) {
         if (error != nullptr) {
@@ -377,7 +424,10 @@ bool SchoolDaysKtrfAppController::SkipToNextChoice(
     }
 
     SchoolDaysKtrfGameplayBridge::StepResult step;
-    if (!bridge.AdvanceToNextChoice("ktrf:next", &step, error)) return false;
+    if (!bridge.AdvanceToNextChoice("ktrf:next", allowUnreadScenes,
+                                    &step, error)) {
+        return false;
+    }
 
     switch (step.kind) {
     case SchoolDaysKtrfGameplayBridge::StepKind::BlockedChoice: {
@@ -387,7 +437,19 @@ bool SchoolDaysKtrfAppController::SkipToNextChoice(
             // when the destination is the choice-bearing script.  Reuse the
             // authenticated atomic SkipFRAME target instead of replaying the
             // skipped ORS interval.
-            (void)target->SkipSchoolDaysToEnd();
+            if (target->tm != nullptr && !Kotonoha_timeIsStarted(target->tm)) {
+                // Cross-script SuperSkip creates the destination Gameplay before
+                // its first render tick. Start only the scene clock here so the
+                // authenticated SkipFRAME target can be applied before any tick0
+                // composition is ever presented. Demux/media still prime in the
+                // normal first Main() path at the already-seeked scene time.
+                KotonohaTimeStart(target->tm);
+            }
+            if (!target->SkipToEndBoundary()) {
+                SDL_LogWarn(
+                    SDL_LOG_CATEGORY_APPLICATION,
+                    "[KTRF-SUPERSKIP] choice destination was already at/after its stop boundary");
+            }
         }
         gameContext->config.scene = 0;
         gameContext->config.next = false;
@@ -400,6 +462,13 @@ bool SchoolDaysKtrfAppController::SkipToNextChoice(
     case SchoolDaysKtrfGameplayBridge::StepKind::Unresolved:
         return true;
     case SchoolDaysKtrfGameplayBridge::StepKind::SwappedScene:
+        // Retail mode5 stops at the beginning of the first unread destination
+        // when Config Skip is off (host+0x88 == 0). AdvanceToNextChoice returns
+        // that already-published physical scene as the successful stop.
+        gameContext->config.scene = 0;
+        gameContext->config.next = false;
+        gameContext->config.back = false;
+        return true;
     case SchoolDaysKtrfGameplayBridge::StepKind::BackBoundary:
     case SchoolDaysKtrfGameplayBridge::StepKind::BackTrialPv:
     case SchoolDaysKtrfGameplayBridge::StepKind::BackNoScript:
@@ -1171,17 +1240,11 @@ SDL_AppResult SchoolDaysKtrfAppController::Main(Gameplay** out,
     const SDL_AppResult result = current->Main(gameContext);
     if (result == SDL_APP_FAILURE) return result;
 
-    if (current->prompt != nullptr && SchoolDaysChoiceShouldSubmit(
-            current->choiceCommitSubmitted, current->prompt->Result())) {
-        Kotonoha_KtrfError error{};
-        int accepted = 0;
-        const int64_t value = static_cast<int64_t>(current->prompt->Result());
-        if (!bridge.CommitChoice(value, &accepted, &error) || !accepted) {
-            SDL_LogError(0, "[KTRF-APP] choice commit failed value=%lld: %s",
-                         static_cast<long long>(value), error.message);
-            return SDL_APP_FAILURE;
-        }
-        current->choiceCommitSubmitted = true;
+    Kotonoha_KtrfError choiceError{};
+    if (!SubmitCurrentChoiceIfReady(&choiceError)) {
+        SDL_LogError(0, "[KTRF-APP] choice commit failed: %s",
+                     choiceError.message);
+        return SDL_APP_FAILURE;
     }
 
     if (result != SDL_APP_CONTINUE || gameContext->config.next) {
@@ -1192,7 +1255,7 @@ SDL_AppResult SchoolDaysKtrfAppController::Main(Gameplay** out,
             if (out != nullptr) *out = current;
         }
         else if (current->prompt != nullptr &&
-                 current->prompt->SchoolDaysPresentationTailActive()) {
+                 current->prompt->PresentationTailActive()) {
             // The native choice commits immediately, but its state2/state3
             // presentation remains alive for 24 ticks after timeout or 48
             // ticks after an accepted selection.  Keep the current Gameplay

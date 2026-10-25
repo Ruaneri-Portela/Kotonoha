@@ -6,25 +6,28 @@
 extern "C" {
 #endif
 
-#define KOTONOHA_SDHQ_PROFILE_ID "overflow.school-days-hq"
-#define KOTONOHA_SDHQ_PROFILE_VERSION "1.0.0"
-#define KOTONOHA_SDHQ_SCENE_SCHEME "overflow.sdhq:scene-key"
-#define KOTONOHA_SDHQ_SCENE_MEDIA_TYPE "application/x-overflow-ors"
-#define KOTONOHA_SDHQ_HOOK_CONTRACT "overflow.sdhq.callback/1.0.0"
-#define KOTONOHA_SDHQ_NEW_GAME_ENTRY "sdhq:entry:new-game"
-#define KOTONOHA_SDHQ_MAX_TRANSITION_TRACE 64u
+#define KOTONOHA_KTRF_MAX_TRANSITION_TRACE 64u
 
 typedef enum Kotonoha_KtrfNodeKind {
-  KOTONOHA_SDHQ_NODE_SCENE = 1,
-  KOTONOHA_SDHQ_NODE_DISPATCHER = 2
+  KOTONOHA_KTRF_NODE_SCENE = 1,
+  KOTONOHA_KTRF_NODE_DISPATCHER = 2
 } Kotonoha_KtrfNodeKind;
 
 typedef enum Kotonoha_KtrfAdvanceStatus {
-  KOTONOHA_SDHQ_ADVANCE_UNRESOLVED = 0,
-  KOTONOHA_SDHQ_ADVANCE_BLOCKED_CHOICE = 1,
-  KOTONOHA_SDHQ_ADVANCE_ADVANCED = 2,
-  KOTONOHA_SDHQ_ADVANCE_TERMINAL = 3
+  KOTONOHA_KTRF_ADVANCE_UNRESOLVED = 0,
+  KOTONOHA_KTRF_ADVANCE_BLOCKED_CHOICE = 1,
+  KOTONOHA_KTRF_ADVANCE_ADVANCED = 2,
+  KOTONOHA_KTRF_ADVANCE_TERMINAL = 3
 } Kotonoha_KtrfAdvanceStatus;
+
+typedef int (*Kotonoha_KtrfProfileValidator)(
+    const Kotonoha_KtrfDocument *document, uint32_t *new_game_entry_index,
+    Kotonoha_KtrfError *error);
+
+typedef struct Kotonoha_KtrfProfileConfig {
+  Kotonoha_KtrfProfileValidator validate_document;
+  uint32_t max_dispatch_hops;
+} Kotonoha_KtrfProfileConfig;
 
 typedef struct Kotonoha_KtrfNodeView {
   uint8_t kind;
@@ -40,7 +43,7 @@ typedef struct Kotonoha_KtrfAdvanceResult {
   uint8_t reserved[3];
   uint32_t hop_count;
   uint32_t transition_trace_count;
-  uint32_t transition_trace[KOTONOHA_SDHQ_MAX_TRANSITION_TRACE];
+  uint32_t transition_trace[KOTONOHA_KTRF_MAX_TRANSITION_TRACE];
   Kotonoha_KtrfRouteResult route;
   Kotonoha_KtrfNodeView scene;
 } Kotonoha_KtrfAdvanceResult;
@@ -64,6 +67,7 @@ typedef struct Kotonoha_KtrfCallbacks {
 
 typedef struct Kotonoha_KtrfAdapter {
   const Kotonoha_KtrfDocument *document;
+  const Kotonoha_KtrfProfileConfig *profile;
   Kotonoha_KtrfRouter router;
   Kotonoha_KtrfCallbacks callbacks;
   uint32_t new_game_entry_index;
@@ -78,6 +82,7 @@ void Kotonoha_KtrfAdapterClean(
 int Kotonoha_KtrfAdapterBind(
     Kotonoha_KtrfAdapter *adapter,
     const Kotonoha_KtrfDocument *document,
+    const Kotonoha_KtrfProfileConfig *profile,
     const Kotonoha_KtrfCallbacks *callbacks,
     Kotonoha_KtrfError *error);
 

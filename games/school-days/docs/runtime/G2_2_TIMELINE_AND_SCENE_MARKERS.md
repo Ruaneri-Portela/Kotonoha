@@ -20,6 +20,6 @@ Antes, `start/end` usavam uma codificação numérica legada, interpretada em pa
 
 ## Arquivos e validação
 
-Alterados: `CMakeLists.txt`, `include/Kotonoha/parsers/Ors.h`, `src/parsers/Ors.c`, `include/Kotonoha/components/Events.hpp` e `src/components/Events.cpp`. Novos: `include/Kotonoha/SchoolDaysSceneTime.h`, `include/Kotonoha/SchoolDaysSceneTimeline.hpp` e `games/school-days/tests/SchoolDaysSceneTimelineTest.cpp`.
+Alterados: `CMakeLists.txt`, `include/Kotonoha/parsers/Ors.h`, `src/Kotonoha/parsers/Ors.c`, `include/Kotonoha/components/Events.hpp` e `src/Kotonoha/components/Events.cpp`. Novos: `include/Kotonoha/SchoolDaysSceneTime.h`, `include/Kotonoha/SchoolDaysSceneTimeline.hpp` e `games/school-days/tests/SchoolDaysSceneTimelineTest.cpp`.
 
 O teste G2.2 cobre conversões, A03 (`SkipFRAME=1497`, `PlayVoice=1567`, `Next=1656`), marcadores iguais, alvo `1240 → 1473`, ausência de alvo pós-`SkipFRAME`, saltos de vários ticks, ordem textual e reset/seek. Foram executados o build desktop Release de `Kotonoha` e cinco testes Release (parser G2.1, timeline G2.2 e três testes de routing), todos aprovados. O audit do corpus real em `assets/` reproduziu 1.857 ORS, 86.539 linhas, 86.536 eventos aceitos, 281 `MoveSom`, 149 vozes com campos opcionais vazios, três linhas malformadas/no-op e zero headers desconhecidos.

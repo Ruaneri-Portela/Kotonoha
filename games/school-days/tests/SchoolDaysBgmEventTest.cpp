@@ -2,6 +2,7 @@
 #include <Kotonoha/SchoolDaysBgmAssetResolver.hpp>
 #include <Kotonoha/SchoolDaysSceneTimeline.hpp>
 #include <Kotonoha/components/Audio.hpp>
+#include <Kotonoha/routing/SchoolDaysPlaybackPolicy.hpp>
 
 #include <filesystem>
 #include <fstream>
@@ -35,8 +36,8 @@ void WriteWave(const fs::path& path) {
     Require(static_cast<bool>(out), "write WAV fixture");
 }
 void TestPlaybackRatePlan() {
-    Kotonoha_SchoolDaysAudioRatePlan plan{};
-    Require(KotonohaSchoolDaysAudioRatePlanInit(44100, 48000, 2.0, &plan),
+    Kotonoha_AudioRatePlan plan{};
+    Require(KotonohaAudioRatePlanInit(44100, 48000, 2.0, &plan),
             "2x rate plan rejected");
     Require(plan.windowFrames == 2400 && plan.overlapFrames == 384 &&
                 plan.inputFrames == 4800 && plan.skipFrames == 2016 &&
@@ -48,38 +49,45 @@ void TestPlaybackRatePlan() {
                 std::abs(plan.hardwareRatio - 1.0) < 0.000001,
             "2x software/hardware split mismatch");
 
-    Require(KotonohaSchoolDaysAudioRatePlanInit(44100, 48000, 4.0, &plan) &&
+    Require(KotonohaAudioRatePlanInit(44100, 48000, 4.0, &plan) &&
                 std::abs(plan.residualRate - 2.0) < 0.000001 &&
                 std::abs(plan.hardwareFrequency - 88200.0) < 0.000001 &&
                 std::abs(plan.hardwareRatio - 2.0) < 0.000001,
             "4x residual SetFrequency mismatch");
-    Require(KotonohaSchoolDaysAudioRatePlanInit(44100, 48000, 12.0, &plan) &&
+    Require(KotonohaAudioRatePlanInit(44100, 48000, 12.0, &plan) &&
                 std::abs(plan.residualRate - 6.0) < 0.000001 &&
                 std::abs(plan.hardwareFrequency - 100000.0) < 0.000001 &&
                 std::abs(plan.hardwareRatio - (100000.0 / 44100.0)) < 0.000001,
             "12x 100 kHz cap mismatch");
-    Require(KotonohaSchoolDaysAudioRatePlanInit(44100, 48000, 24.0, &plan) &&
+    Require(KotonohaAudioRatePlanInit(44100, 48000, 24.0, &plan) &&
                 std::abs(plan.residualRate - 12.0) < 0.000001 &&
                 std::abs(plan.hardwareFrequency - 100000.0) < 0.000001,
             "24x 100 kHz cap mismatch");
 
-    Require(KotonohaSchoolDaysAudioRateIndex(1.0) == 0 &&
-                KotonohaSchoolDaysAudioRateIndex(2.0) == 1 &&
-                KotonohaSchoolDaysAudioRateIndex(4.0) == 2 &&
-                KotonohaSchoolDaysAudioRateIndex(12.0) == 3 &&
-                KotonohaSchoolDaysAudioRateIndex(24.0) == 4 &&
-                KotonohaSchoolDaysAudioRateIndex(3.0) < 0,
-            "native rate index mapping mismatch");
-    Require(KotonohaSchoolDaysAudioRateNeedsSourceResync(3, 0) &&
-                KotonohaSchoolDaysAudioRateNeedsSourceResync(4, 2) &&
-                !KotonohaSchoolDaysAudioRateNeedsSourceResync(2, 0) &&
-                !KotonohaSchoolDaysAudioRateNeedsSourceResync(3, 3) &&
-                !KotonohaSchoolDaysAudioRateNeedsSourceResync(3, 4),
+    Require(KotonohaAudioRateIsSupported(1.0) &&
+                KotonohaAudioRateIsSupported(3.0) &&
+                KotonohaAudioRateIsSupported(24.0) &&
+                !KotonohaAudioRateIsSupported(0.5) &&
+                !KotonohaAudioRateIsSupported(25.0),
+            "generic playback-rate bounds mismatch");
+    Require(KotonohaAudioRateNeedsSourceResync(12.0, 1.0) &&
+                KotonohaAudioRateNeedsSourceResync(24.0, 4.0) &&
+                !KotonohaAudioRateNeedsSourceResync(4.0, 1.0) &&
+                !KotonohaAudioRateNeedsSourceResync(12.0, 12.0) &&
+                !KotonohaAudioRateNeedsSourceResync(12.0, 24.0),
             "high-to-low source resync policy mismatch");
+
+    double retailRate = 0.0;
+    Require(Kotonoha::SchoolDaysPlaybackPolicy::RateForIndex(0, &retailRate) &&
+                retailRate == 1.0 &&
+                Kotonoha::SchoolDaysPlaybackPolicy::RateForIndex(4, &retailRate) &&
+                retailRate == 24.0 &&
+                !Kotonoha::SchoolDaysPlaybackPolicy::RateForIndex(5, &retailRate),
+            "School Days speed selector policy mismatch");
 }
 void TestPlaybackRateCrossfade() {
-    Kotonoha_SchoolDaysAudioRatePlan plan{};
-    Require(KotonohaSchoolDaysAudioRatePlanInit(1000, 1000, 2.0, &plan) &&
+    Kotonoha_AudioRatePlan plan{};
+    Require(KotonohaAudioRatePlanInit(1000, 1000, 2.0, &plan) &&
                 plan.windowFrames == 50 && plan.overlapFrames == 8 &&
                 plan.inputFrames == 100 && plan.skipFrames == 42 &&
                 plan.prefixFrames == 42,
@@ -91,7 +99,7 @@ void TestPlaybackRateCrossfade() {
         source[frame * 2] = static_cast<float>(frame);
         source[frame * 2 + 1] = static_cast<float>(1000 + frame);
     }
-    Require(KotonohaSchoolDaysAudioOlaBlock(
+    Require(KotonohaAudioOlaBlock(
                 source.data(), 100, 2, &plan, output.data(), 50),
             "OLA block rejected valid stereo PCM");
     for (int frame = 0; frame < plan.prefixFrames; ++frame) {
@@ -234,25 +242,25 @@ void TestPreparedPhysicalMedia() {
                                     "BGM", nullptr) != nullptr,
                 "dummy BGM channel");
         Kotonoha::Audio audio(&sound, time);
-        Require(audio.SetSchoolDaysPlaybackRate(4.0),
+        Require(audio.SetPlaybackRate(4.0),
                 "Audio manager rejected native 4x rate");
         auto* normal = audio.AddIntroLoopMedia(
             path.string().c_str(), path.string().c_str(), 0, 100000);
         Require(normal != nullptr && normal->loopMedia != nullptr &&
                 SDL_GetAtomicInt(&normal->enabled) == 0,
                 "BGM prepare activated early or omitted loop");
-        Require(normal->schoolDaysPlaybackRateIndex == 2 &&
-                    normal->loopMedia->schoolDaysPlaybackRateIndex == 2,
+        Require(normal->playbackRate == 4.0 &&
+                    normal->loopMedia->playbackRate == 4.0,
                 "new intro/loop did not inherit current rate");
-        Require(audio.SetSchoolDaysPlaybackRate(12.0) &&
-                    normal->schoolDaysPlaybackRateIndex == 3 &&
-                    normal->loopMedia->schoolDaysPlaybackRateIndex == 3,
+        Require(audio.SetPlaybackRate(12.0) &&
+                    normal->playbackRate == 12.0 &&
+                    normal->loopMedia->playbackRate == 12.0,
                 "active decoder broadcast omitted intro/loop");
-        Require(audio.SetSchoolDaysPlaybackRate(12.0),
-                "same-index rate update was not idempotent");
-        Require(audio.SetSchoolDaysPlaybackRate(4.0) &&
-                    normal->schoolDaysPlaybackRateIndex == 2 &&
-                    normal->loopMedia->schoolDaysPlaybackRateIndex == 2,
+        Require(audio.SetPlaybackRate(12.0),
+                "same-rate update was not idempotent");
+        Require(audio.SetPlaybackRate(4.0) &&
+                    normal->playbackRate == 4.0 &&
+                    normal->loopMedia->playbackRate == 4.0,
                 "high-to-low rate broadcast failed");
         audio.SetMediaEnabled(normal, true);
         Require(SDL_GetAtomicInt(&normal->enabled) == 1,
@@ -261,7 +269,7 @@ void TestPreparedPhysicalMedia() {
                                       false, "BGM", false);
         Require(ending != nullptr && !ending->inLoop &&
                 SDL_GetAtomicInt(&ending->enabled) == 0 &&
-                ending->schoolDaysPlaybackRateIndex == 2,
+                ending->playbackRate == 4.0,
                 "EndBGM must prepare one-shot without activation");
         audio.SetMediaEnabled(ending, true);
         audio.RemoveMedia(ending);

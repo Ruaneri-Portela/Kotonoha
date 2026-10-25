@@ -67,6 +67,7 @@ include_directories("${SCHOOL_DAYS_INCLUDE_DIR}")
         ${CMAKE_CURRENT_SOURCE_DIR}/SchoolDaysAbcRuntimeTest.cpp
         ${KOTONOHA_ENGINE_SOURCE_DIR}/audio/VoicePcm.cpp
         ${KOTONOHA_ENGINE_SOURCE_DIR}/graphics/TextureAlpha.cpp
+        ${KOTONOHA_ENGINE_SOURCE_DIR}/components/Upscaling.cpp
         ${KOTONOHA_ENGINE_SOURCE_DIR}/specials/UpscalingGeneric.cpp
         ${KOTONOHA_RUNTIME_SOURCE_DIR}/components/Image.cpp
         ${KOTONOHA_ENGINE_SOURCE_DIR}/renders/ImageRender.c
@@ -85,6 +86,7 @@ include_directories("${SCHOOL_DAYS_INCLUDE_DIR}")
     add_executable(SchoolDaysAbcOverlayHotfixTest
         ${CMAKE_CURRENT_SOURCE_DIR}/SchoolDaysAbcOverlayHotfixTest.cpp
         ${KOTONOHA_ENGINE_SOURCE_DIR}/graphics/TextureAlpha.cpp
+        ${KOTONOHA_ENGINE_SOURCE_DIR}/components/Upscaling.cpp
         ${KOTONOHA_ENGINE_SOURCE_DIR}/specials/UpscalingGeneric.cpp
         ${KOTONOHA_RUNTIME_SOURCE_DIR}/components/Image.cpp
         ${KOTONOHA_ENGINE_SOURCE_DIR}/renders/ImageRender.c
@@ -106,6 +108,7 @@ include_directories("${SCHOOL_DAYS_INCLUDE_DIR}")
     add_executable(SchoolDaysAbcEdgeSeamTest
         ${CMAKE_CURRENT_SOURCE_DIR}/SchoolDaysAbcEdgeSeamTest.cpp
         ${KOTONOHA_ENGINE_SOURCE_DIR}/graphics/TextureAlpha.cpp
+        ${KOTONOHA_ENGINE_SOURCE_DIR}/components/Upscaling.cpp
         ${KOTONOHA_ENGINE_SOURCE_DIR}/specials/UpscalingGeneric.cpp
         ${KOTONOHA_RUNTIME_SOURCE_DIR}/components/Image.cpp
         ${KOTONOHA_ENGINE_SOURCE_DIR}/renders/ImageRender.c
@@ -154,7 +157,6 @@ include_directories("${SCHOOL_DAYS_INCLUDE_DIR}")
         ${SCHOOL_DAYS_SOURCE_DIR}/SchoolDaysSaveLoadRenderPlan.cpp
         ${SCHOOL_DAYS_SOURCE_DIR}/SchoolDaysConfigMenuModel.cpp
         ${SCHOOL_DAYS_SOURCE_DIR}/SchoolDaysConfigMenuRenderPlan.cpp
-        ${SCHOOL_DAYS_SOURCE_DIR}/SchoolDaysSomConSetModel.cpp
         ${SCHOOL_DAYS_SOURCE_DIR}/SchoolDaysExitViewModel.cpp
         ${SCHOOL_DAYS_SOURCE_DIR}/SchoolDaysExitViewRenderPlan.cpp
         ${SCHOOL_DAYS_SOURCE_DIR}/SchoolDaysReplayModel.cpp
@@ -186,6 +188,7 @@ include_directories("${SCHOOL_DAYS_INCLUDE_DIR}")
         ${KOTONOHA_ENGINE_SOURCE_DIR}/parsers/Ors.c
         ${KOTONOHA_ENGINE_SOURCE_DIR}/components/Fade.cpp
         ${KOTONOHA_ENGINE_SOURCE_DIR}/graphics/TextureAlpha.cpp
+        ${KOTONOHA_ENGINE_SOURCE_DIR}/components/Upscaling.cpp
         ${KOTONOHA_ENGINE_SOURCE_DIR}/specials/UpscalingGeneric.cpp
         ${KOTONOHA_RUNTIME_SOURCE_DIR}/components/Image.cpp
         ${KOTONOHA_ENGINE_SOURCE_DIR}/renders/ImageRender.c

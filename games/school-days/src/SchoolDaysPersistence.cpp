@@ -16,6 +16,9 @@ namespace {
 
 #include "generated/SchoolDaysPersistenceEffectTypes.inc"
 
+constexpr const char* kLiveChoiceCommitMarker =
+    "__KOTONOHA_LIVE_CHOICE_COMMITTED";
+
 bool Fail(Kotonoha_KtrfError* error, Kotonoha_KtrfErrorCode code,
           const char* message) {
     if (error != nullptr) {
@@ -381,7 +384,41 @@ bool SchoolDaysPersistence::ParseSaveImage(const std::vector<uint8_t>& bytes,
     SaveImage planned;
     planned.document = std::move(parsed);
     planned.scriptRecordIndex = scriptIndex;
-    const auto& script = planned.document.records[scriptIndex];
+    auto& script = planned.document.records[scriptIndex];
+
+    // tag4 is a historical SceneKey -> choice oracle used by PlayData.  It does
+    // not identify whether the current visit to that SceneKey has already
+    // committed.  Kotonoha-created saves therefore carry one private bit in the
+    // current tag1 FlgH.  Consume it here and strip it from every tag1 before
+    // rebuilding/restoring native local state, so it never becomes a live script
+    // variable or persists through the in-memory School Days manager.
+    const std::u16string liveChoiceMarker = AsciiUtf16(kLiveChoiceCommitMarker);
+    for (size_t i = 0u; i < planned.document.records.size(); ++i) {
+        auto& record = planned.document.records[i];
+        if (record.tag != 1) continue;
+        auto marker = std::find_if(
+            record.flags.entries.begin(), record.flags.entries.end(),
+            [&](const SchoolDaysFlgHEntry& entry) {
+                return entry.key == liveChoiceMarker;
+            });
+        if (marker == record.flags.entries.end()) continue;
+        if (i == scriptIndex) {
+            if (marker->type != 3 ||
+                (marker->integer != 0 && marker->integer != 1)) {
+                return Fail(error, KOTONOHA_KTRF_ERROR_FORMAT,
+                            "School Days live-choice save marker is invalid");
+            }
+            planned.liveChoiceCommitMarkerPresent = true;
+            planned.liveChoiceCommitted = marker->integer != 0;
+        }
+        record.flags.entries.erase(marker);
+    }
+    mergedSession.erase(kLiveChoiceCommitMarker);
+    mergedOrder.erase(
+        std::remove(mergedOrder.begin(), mergedOrder.end(),
+                    std::string(kLiveChoiceCommitMarker)),
+        mergedOrder.end());
+
     if (!Utf16Ascii(script.name, &planned.sceneKey, error) ||
         !NumericEntries(script.flags, &planned.sessionInts, error)) {
         return false;
@@ -971,6 +1008,29 @@ bool SchoolDaysPersistence::ReplaceCurrentScriptSnapshot(
     return true;
 }
 
+bool SchoolDaysPersistence::RefreshCurrentScriptSnapshot(
+    const KtrfStateStore& state, Kotonoha_KtrfError* error) {
+    ClearError(error);
+    const SchoolDaysSLogRecord* current = nullptr;
+    for (const auto& record : saveLog_.records) {
+        if (record.tag != 1) continue;
+        if (current != nullptr) {
+            return Fail(error, KOTONOHA_KTRF_ERROR_FORMAT,
+                        "School Days SLog contains multiple current script snapshots");
+        }
+        current = &record;
+    }
+    if (current == nullptr) {
+        return Fail(error, KOTONOHA_KTRF_ERROR_FORMAT,
+                    "School Days SLog has no current script snapshot");
+    }
+
+    std::string sceneKey;
+    if (!Utf16Ascii(current->name, &sceneKey, error)) return false;
+    const uint32_t versionBits = current->floatBits;
+    return ReplaceCurrentScriptSnapshot(sceneKey, versionBits, state, error);
+}
+
 bool SchoolDaysPersistence::SerializeSaveLog(
     std::vector<uint8_t>* bytes, Kotonoha_KtrfError* error) const {
     ClearError(error);
@@ -980,6 +1040,42 @@ bool SchoolDaysPersistence::SerializeSaveLog(
     }
     std::string codecError;
     if (!SchoolDaysPersistenceCodec::SerializeSLog(saveLog_, bytes,
+                                                   &codecError)) {
+        return Fail(error, KOTONOHA_KTRF_ERROR_FORMAT, codecError.c_str());
+    }
+    return true;
+}
+
+bool SchoolDaysPersistence::SerializeSaveLogWithLiveChoiceCommitMarker(
+    bool committed, std::vector<uint8_t>* bytes,
+    Kotonoha_KtrfError* error) const {
+    ClearError(error);
+    if (!hasSaveLog_ || bytes == nullptr) {
+        return Fail(error, KOTONOHA_KTRF_ERROR_ARGUMENT,
+                    "School Days SLog document is not loaded");
+    }
+
+    SchoolDaysSLog marked = saveLog_;
+    SchoolDaysSLogRecord* current = nullptr;
+    for (auto& record : marked.records) {
+        if (record.tag != 1) continue;
+        if (current != nullptr) {
+            return Fail(error, KOTONOHA_KTRF_ERROR_FORMAT,
+                        "School Days SLog contains multiple current script snapshots");
+        }
+        current = &record;
+    }
+    if (current == nullptr) {
+        return Fail(error, KOTONOHA_KTRF_ERROR_FORMAT,
+                    "School Days SLog has no current script snapshot");
+    }
+    if (!UpsertInteger(&current->flags, kLiveChoiceCommitMarker, 3,
+                       committed ? 1 : 0, error)) {
+        return false;
+    }
+
+    std::string codecError;
+    if (!SchoolDaysPersistenceCodec::SerializeSLog(marked, bytes,
                                                    &codecError)) {
         return Fail(error, KOTONOHA_KTRF_ERROR_FORMAT, codecError.c_str());
     }

@@ -25,13 +25,32 @@ function(kotonoha_configure_app target)
     endif()
 
     if(NOT APPLE)
+        # Generic renderer assets (shader models, licenses, etc.) belong to the
+        # engine/application package, not to a specific game profile.
+        if(EXISTS "${KOTONOHA_ASSETS_DIR}")
+            if(CMAKE_CONFIGURATION_TYPES)
+                set(kotonoha_asset_output "${CMAKE_BINARY_DIR}/$<CONFIG>/assets")
+            else()
+                set(kotonoha_asset_output "${CMAKE_BINARY_DIR}/assets")
+            endif()
+            if(NOT TARGET KotonohaRuntimeAssets)
+                add_custom_target(KotonohaRuntimeAssets
+                COMMAND ${CMAKE_COMMAND} -E make_directory
+                    "${kotonoha_asset_output}"
+                COMMAND ${CMAKE_COMMAND} -E copy_directory
+                    "${KOTONOHA_ASSETS_DIR}"
+                    "${kotonoha_asset_output}"
+                VERBATIM)
+            endif()
+            add_dependencies(${target} KotonohaRuntimeAssets)
+        endif()
         return()
     endif()
 
     set_target_properties(${target} PROPERTIES
             MACOSX_BUNDLE TRUE
             MACOSX_BUNDLE_INFO_PLIST
-            "${CMAKE_SOURCE_DIR}/src/specials/Info.plist.in"
+            "${KOTONOHA_ENGINE_SOURCE_DIR}/specials/Info.plist.in"
             MACOSX_BUNDLE_BUNDLE_NAME "${APP_OUTPUT_NAME}"
             MACOSX_BUNDLE_GUI_IDENTIFIER "${APP_BUNDLE_ID}"
             MACOSX_BUNDLE_BUNDLE_VERSION "${PROJECT_VERSION}"

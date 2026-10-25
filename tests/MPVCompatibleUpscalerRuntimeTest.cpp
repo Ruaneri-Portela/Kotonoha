@@ -1,4 +1,5 @@
-#include <Kotonoha/speciais/MPVCompatibleUpscaler.h>
+#include <Kotonoha/specials/MPVCompatibleUpscaler.h>
+#include <Kotonoha/specials/Upscaling.h>
 #include <Kotonoha/utils/Log.h>
 #include <SDL3/SDL.h>
 
@@ -15,9 +16,25 @@ void Check(bool condition, const char *message) {
   }
 }
 
+const char *PresetName(Kotonoha_UpscalerPreset preset) {
+  switch (preset) {
+  case KOTONOHA_UPSCALER_PRESET_ARTCNN_C4F16:
+    return "ArtCNN C4F16";
+  case KOTONOHA_UPSCALER_PRESET_ARTCNN_C4F16_DS:
+    return "ArtCNN C4F16 DS";
+  case KOTONOHA_UPSCALER_PRESET_ARTCNN_C4F32:
+    return "ArtCNN C4F32";
+  case KOTONOHA_UPSCALER_PRESET_LEGACY_ANIME4K:
+  default:
+    return "Anime4K B-S";
+  }
+}
+
 void DrawFixture(SDL_Renderer *renderer, SDL_Texture *texture) {
   Check(SDL_SetRenderTarget(renderer, texture), "set input target");
-  Check(SDL_SetRenderDrawColor(renderer, 12, 18, 30, 255), "set clear color");
+  Check(SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_NONE),
+        "set fixture draw blend mode");
+  Check(SDL_SetRenderDrawColor(renderer, 12, 18, 30, 96), "set clear color");
   Check(SDL_RenderClear(renderer), "clear input texture");
 
   const SDL_FRect left{4.0f, 4.0f, 24.0f, 40.0f};
@@ -45,7 +62,7 @@ SDL_Surface *Readback(SDL_Renderer *renderer, SDL_Texture *texture,
 }
 
 void ValidateOutput(SDL_Renderer *renderer, SDL_Texture *output,
-                    SDL_Texture *linearReference) {
+                    SDL_Texture *linearReference, const char *presetName) {
   SDL_Surface *rgba = Readback(renderer, output, "read MPVCompatibleUpscaler output");
   SDL_Surface *linear =
       Readback(renderer, linearReference, "read linear reference");
@@ -60,6 +77,7 @@ void ValidateOutput(SDL_Renderer *renderer, SDL_Texture *output,
   std::uint64_t alphaSum = 0;
   std::uint64_t absoluteDifference = 0;
   std::uint64_t differentPixels = 0;
+  int maxAlphaDifference = 0;
   const auto *pixels = static_cast<const Uint8 *>(rgba->pixels);
   const auto *linearPixels = static_cast<const Uint8 *>(linear->pixels);
   for (int y = 0; y < rgba->h; ++y) {
@@ -80,6 +98,9 @@ void ValidateOutput(SDL_Renderer *renderer, SDL_Texture *output,
         pixelDiffers |= difference != 0;
       }
       alphaSum += p[3];
+      maxAlphaDifference = std::max(
+          maxAlphaDifference,
+          std::abs(static_cast<int>(p[3]) - static_cast<int>(q[3])));
       if (pixelDiffers)
         ++differentPixels;
     }
@@ -96,14 +117,57 @@ void ValidateOutput(SDL_Renderer *renderer, SDL_Texture *output,
   Check(maxValue - minValue >= 80, "MPVCompatibleUpscaler output lost image contrast");
   Check(rgbSum > 0, "MPVCompatibleUpscaler output is black/empty");
   Check(alphaSum > 0, "MPVCompatibleUpscaler output has no alpha coverage");
+  Check(maxAlphaDifference <= 1,
+        "shader preset changed source alpha instead of preserving it");
   Check(differentPixels > 32 && absoluteDifference > 1000,
         "MPVCompatibleUpscaler output matches plain linear fallback");
 
-  std::cout << "MPVCompatibleUpscalerRuntimeTest PASS size=" << width << 'x' << height
+  std::cout << "MPVCompatibleUpscalerRuntimeTest PASS preset=" << presetName
+            << " size=" << width << 'x' << height
             << " range=" << minValue << ".." << maxValue
             << " rgb_sum=" << rgbSum << " alpha_sum=" << alphaSum
             << " different_pixels=" << differentPixels
-            << " abs_diff=" << absoluteDifference << '\n';
+            << " abs_diff=" << absoluteDifference
+            << " max_alpha_diff=" << maxAlphaDifference << '\n';
+}
+
+void RunPreset(SDL_Renderer *renderer, SDL_Texture *input,
+               SDL_Texture *output, SDL_Texture *linearReference,
+               Kotonoha_UpscalerPreset preset) {
+  Kotonoha_Config config{};
+  config.upscalerPreset = static_cast<int>(preset);
+  config.mpvUpscalerFiles = nullptr;
+  KotonohaMPVUpscalerSetPreset(static_cast<int>(preset));
+  Check(KotonohaMPVUpscalerInit(renderer, &config),
+        "initialize MPVCompatibleUpscaler preset pipeline");
+  Check(KotonohaMPVUpscalerUpscaleSDLTextureInto(renderer, input, output),
+        "execute MPVCompatibleUpscaler preset pipeline");
+  ValidateOutput(renderer, output, linearReference,
+                 PresetName(preset));
+  KotonohaMPVUpscalerShutdown();
+}
+
+void RunHotSwap(SDL_Renderer *renderer, SDL_Texture *input,
+                SDL_Texture *output, SDL_Texture *linearReference) {
+  Kotonoha_Config config{};
+  config.upscalerPreset =
+      static_cast<int>(KOTONOHA_UPSCALER_PRESET_LEGACY_ANIME4K);
+  config.mpvUpscalerFiles = nullptr;
+  KotonohaMPVUpscalerSetPreset(
+      static_cast<int>(KOTONOHA_UPSCALER_PRESET_LEGACY_ANIME4K));
+  Check(KotonohaMPVUpscalerInit(renderer, &config),
+        "initialize hot-swap source preset");
+  Check(KotonohaMPVUpscalerUpscaleSDLTextureInto(renderer, input, output),
+        "render hot-swap source preset");
+
+  // No shutdown/context/texture recreation here. The next draw must consume
+  // g_filesDirty, rebuild the GL chain lazily and preserve alpha/state.
+  KotonohaMPVUpscalerSetPreset(
+      static_cast<int>(KOTONOHA_UPSCALER_PRESET_ARTCNN_C4F16_DS));
+  Check(KotonohaMPVUpscalerUpscaleSDLTextureInto(renderer, input, output),
+        "hot-swap to ArtCNN preset without renderer restart");
+  ValidateOutput(renderer, output, linearReference, "HotSwap -> ArtCNN C4F16 DS");
+  KotonohaMPVUpscalerShutdown();
 }
 
 } // namespace
@@ -118,8 +182,6 @@ int main() {
   try {
     Check(SDL_setenv_unsafe("KOTONOHA_MPV_UPSCALER_DEBUG", "1", 1) == 0,
           "set MPVCompatibleUpscaler debug environment");
-    Check(SDL_setenv_unsafe("KOTONOHA_MPV_UPSCALER_PRESET", "L", 1) == 0,
-          "set MPVCompatibleUpscaler preset environment");
     KotonohaLogInit();
     Check(SDL_Init(SDL_INIT_VIDEO), "SDL video init");
 
@@ -151,12 +213,14 @@ int main() {
           "render linear reference");
     Check(SDL_SetRenderTarget(renderer, nullptr),
           "restore target after linear reference");
-    Check(KotonohaMPVUpscalerInit(renderer), "initialize MPVCompatibleUpscaler pipeline");
-    Check(KotonohaMPVUpscalerUpscaleSDLTextureInto(renderer, input, output),
-          "execute MPVCompatibleUpscaler pipeline");
-    ValidateOutput(renderer, output, linearReference);
-
-    KotonohaMPVUpscalerShutdown();
+    for (const auto preset : {
+             KOTONOHA_UPSCALER_PRESET_LEGACY_ANIME4K,
+             KOTONOHA_UPSCALER_PRESET_ARTCNN_C4F16,
+             KOTONOHA_UPSCALER_PRESET_ARTCNN_C4F16_DS,
+             KOTONOHA_UPSCALER_PRESET_ARTCNN_C4F32}) {
+      RunPreset(renderer, input, output, linearReference, preset);
+    }
+    RunHotSwap(renderer, input, output, linearReference);
     SDL_DestroyTexture(linearReference);
     SDL_DestroyTexture(output);
     SDL_DestroyTexture(input);

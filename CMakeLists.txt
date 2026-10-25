@@ -78,7 +78,7 @@ set(SCHOOL_DAYS_INCLUDE_DIR
 # ==============================================================================
 # Source roots
 # ==============================================================================
-set(KOTONOHA_ENGINE_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src")
+set(KOTONOHA_ENGINE_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/Kotonoha")
 set(KOTONOHA_RUNTIME_SOURCE_DIR "${KOTONOHA_ENGINE_SOURCE_DIR}/runtime")
 set(SCHOOL_DAYS_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/games/school-days/src")
 
@@ -86,7 +86,6 @@ set(SCHOOL_DAYS_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/games/school-days/src")
 # Common dependencies
 # ==============================================================================
 find_package(PkgConfig REQUIRED)
-find_package(ZLIB REQUIRED)
 
 pkg_check_modules(FFMPEG REQUIRED IMPORTED_TARGET
         libavcodec
@@ -203,6 +202,22 @@ if((KOTONOHA_ROUTER_TESTS OR KOTONOHA_ORS_PARSER_TESTS) AND NOT ANDROID)
     )
     target_link_libraries(KotonohaEngineLinkSmokeTest PRIVATE Kotonoha::Engine)
     add_test(NAME KotonohaEngineLinkSmokeTest COMMAND KotonohaEngineLinkSmokeTest)
+
+    add_executable(TextRenderMessageLayerTest
+        tests/TextRenderMessageLayerTest.cpp
+        ${KOTONOHA_ENGINE_SOURCE_DIR}/renders/TextRender.c
+        ${KOTONOHA_ENGINE_SOURCE_DIR}/utils/Log.c
+        ${KOTONOHA_ENGINE_SOURCE_DIR}/utils/Time.c
+    )
+    target_include_directories(TextRenderMessageLayerTest PRIVATE
+        ${KOTONOHA_INCLUDE_DIR}
+        ${LIBASS_INCLUDE_DIRS})
+    target_link_libraries(TextRenderMessageLayerTest PRIVATE
+        ${KOTONOHA_SDL3_TARGET}
+        PkgConfig::LIBASS)
+    set_target_properties(TextRenderMessageLayerTest PROPERTIES
+        CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
+    add_test(NAME TextRenderMessageLayerTest COMMAND TextRenderMessageLayerTest)
     if(TARGET ZeroFormatsTest)
         add_test(NAME ZeroFormatsTest COMMAND ZeroFormatsTest)
     endif()
@@ -239,9 +254,9 @@ if((KOTONOHA_ROUTER_TESTS OR KOTONOHA_ORS_PARSER_TESTS) AND NOT ANDROID)
 
     add_executable(FFmpegInputSourceTest
         tests/FFmpegInputSourceTest.cpp
-        src/utils/Demuxer.c
-        src/utils/FFmpeg.c
-        src/utils/VoicePcm.c
+        ${KOTONOHA_ENGINE_SOURCE_DIR}/utils/Demuxer.c
+        ${KOTONOHA_ENGINE_SOURCE_DIR}/utils/FFmpeg.c
+        ${KOTONOHA_ENGINE_SOURCE_DIR}/utils/VoicePcm.c
     )
     target_include_directories(FFmpegInputSourceTest PRIVATE
         ${KOTONOHA_INCLUDE_DIR} ${FFMPEG_INCLUDE_DIRS})
@@ -265,9 +280,9 @@ if(KOTONOHA_MPV_UPSCALER_RUNTIME_TESTS AND NOT ANDROID)
 
     add_executable(MPVCompatibleUpscalerRuntimeTest
         tests/MPVCompatibleUpscalerRuntimeTest.cpp
-        src/specials/MPVCompatibleUpscaler.cpp
-        src/specials/OpenGL.c
-        src/utils/Log.c
+        ${KOTONOHA_ENGINE_SOURCE_DIR}/specials/MPVCompatibleUpscaler.cpp
+        ${KOTONOHA_ENGINE_SOURCE_DIR}/specials/OpenGL.c
+        ${KOTONOHA_ENGINE_SOURCE_DIR}/utils/Log.c
     )
     target_include_directories(MPVCompatibleUpscalerRuntimeTest PRIVATE
         ${KOTONOHA_INCLUDE_DIR}

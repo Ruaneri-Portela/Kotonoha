@@ -575,7 +575,7 @@ Interp::Interp() {
     m1("log", std::log);
     math.o->attrs["pow"] = makeFunction("pow", [](Interp&, Args& a, Kwargs&) { return Value::real(std::pow(a.at(0).num(), a.at(1).num())); });
     math.o->attrs["atan2"] = makeFunction("atan2", [](Interp&, Args& a, Kwargs&) { return Value::real(std::atan2(a.at(0).num(), a.at(1).num())); });
-    math.o->attrs["pi"] = Value::real(M_PI);
+    math.o->attrs["pi"] = Value::real(std::acos(-1.0));
     b["math"] = math;
 
     Value random = nameSpace("random");

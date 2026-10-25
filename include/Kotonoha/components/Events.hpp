@@ -1,81 +1,60 @@
 #pragma once
-#include <Kotonoha/components/Audio.hpp>
-#include <Kotonoha/components/Image.hpp>
 #include <Kotonoha/components/MediaBufferInfo.hpp>
-#include <Kotonoha/components/Prompt.hpp>
-#include <Kotonoha/components/Video.hpp>
-#include <Kotonoha/SchoolDaysSceneTimeline.hpp>
-#include <Kotonoha/SchoolDaysAudioEventState.hpp>
-#include <Kotonoha/SchoolDaysBgmEventState.hpp>
-#include <Kotonoha/graphics/AbcAnimation.hpp>
-#include <Kotonoha/SchoolDaysMovieEventState.hpp>
-#include <Kotonoha/SchoolDaysRemainingOrs.hpp>
+#include <Kotonoha/Kotonoha.h>
+#include <Kotonoha/SceneTime.h>
 #include <SDL3_ttf/SDL_ttf.h>
-#include <atomic>
-#include <unordered_map>
-extern "C" {
-#include <Kotonoha/parsers/Ors.h>
-#include <Kotonoha/renders/TextRender.h>
-}
+
+#include <string>
+#include <vector>
 
 namespace Kotonoha {
-class Event {
-private:
-  Kotonoha_orsData eventsFromScript;
-  SchoolDaysSceneTimeline timeline;
-  SchoolDaysOptionalTick nextBoundaryTick;
-  SchoolDaysSeSlots seSlots;
-  SchoolDaysBgmSlots bgmSlots;
-  std::unordered_map<const Kotonoha_orsEvent*, Kotonoha_audioDecode*> voiceMedia;
-  std::unordered_map<const Kotonoha_orsEvent*,
-                     std::vector<AbcActivityRecord>> voiceActivity;
-  struct AbcBinding {
-    const Kotonoha_orsEvent* voice = nullptr;
-    Image::AbcGroup* group = nullptr;
-    Uint64 ownerBaseGeneration = 0;
-    AbcAnimationState state;
-    Kotonoha_SceneTick lastTick = 0;
-    bool initialized = false;
-  };
-  std::unordered_map<std::string, AbcBinding> abcBindings;
-  std::vector<const Kotonoha_orsEvent*> activeVoiceEvents;
-  std::unordered_map<const Kotonoha_orsEvent*, Kotonoha_audioDecode*> seMedia;
-  std::unordered_map<const Kotonoha_orsEvent*, Kotonoha_audioDecode*> normalBgmMedia;
-  std::unordered_map<const Kotonoha_orsEvent*, Kotonoha_audioDecode*> endingBgmMedia;
-  std::unordered_map<const Kotonoha_orsEvent*, SchoolDaysMovieEventState> movieStates;
-  std::unordered_map<const Kotonoha_orsEvent*, Uint64> bgResources;
-  SchoolDaysMoveSomNoOp moveSom;
-  static int EventManager(void *data);
-  SDL_Mutex *eventMutex = nullptr;
-  std::atomic_bool readyToEnd{false};
-  std::atomic_bool setSelectReached{false};
-  std::atomic_bool suppressBackLogCaptureOnce{false};
-  TTF_Font *font = nullptr;
+class Audio;
+class Video;
+class Image;
 
-  std::vector<Video*> videoToDelete;
-  std::vector<Image*> imageToDelete;
-  std::vector<Audio*> audioToDeleta;
-
-public:
-  Uint64 lastTime = 0;
-  Event(const char *orsPath, void *gameplay, struct Kotonoha_Game *gameCtx,
-        TTF_Font *font = nullptr);
-  void ActivateSubtitles() {}
-  bool ProcessNow(void *gameplay, struct Kotonoha_Game *gameCtx);
-  void Reset(void* gameplay, bool suppressBackLogCapture = false);
-  SchoolDaysOptionalTick ComputeSkipToEndTarget(void* gameplay) const;
-  bool SetSelectReached() const {
-    return setSelectReached.load(std::memory_order_acquire);
-  }
-  bool ReachedNext(void *gameplay) const;
-  bool CheckEnd(void *gameplay);
-  std::vector<MediaBufferInfo> GetMediaBufferInfo(const Audio *audio,
-                                                  const Video *video,
-                                                  const Image *image) const;
-  bool PlayMediaNow(Audio *audio, const std::string &path,
-                    const std::string &channel) const;
-  void StopMediaNow(Audio *audio) const;
-  std::string GetMediaNowPath(Audio *audio) const;
-  ~Event();
+struct GameplayEventTarget {
+  bool present = false;
+  Kotonoha_SceneTick tick = 0;
 };
+
+// Generic event backend consumed by Gameplay. Script formats and authored
+// resource policy belong to the game implementing this interface.
+class GameplayEventRuntime {
+public:
+  virtual ~GameplayEventRuntime() = default;
+  virtual void ActivateSubtitles() {}
+  virtual bool ProcessNow(void *gameplay, Kotonoha_Game *gameCtx) = 0;
+  virtual bool HasFatalError() const { return false; }
+  // Rebuild the backend at the Gameplay clock.  A discontinuous seek may ask
+  // the game backend not to replay authored side effects/history capture for
+  // events crossed only because of that seek.  The meaning of those side
+  // effects is game-owned; the engine does not know about a specific log/UI.
+  virtual void Reset(void *gameplay, bool suppressReplaySideEffects = false) = 0;
+  virtual GameplayEventTarget ComputeSkipToEndTarget(void *gameplay) const = 0;
+  virtual bool SetSelectReached() const = 0;
+  virtual bool ReachedNext(void *gameplay) const = 0;
+  virtual bool CheckEnd(void *gameplay) = 0;
+  virtual Uint64 LastTime() const = 0;
+  virtual std::vector<MediaBufferInfo>
+  GetMediaBufferInfo(const Audio *audio, const Video *video,
+                     const Image *image) const = 0;
+  virtual bool PlayMediaNow(Audio *audio, const std::string &path,
+                            const std::string &channel) const = 0;
+  virtual void StopMediaNow(Audio *audio) const = 0;
+  virtual std::string GetMediaNowPath(Audio *audio) const = 0;
+};
+
+struct GameplayEventRuntimeFactory {
+  using Create = GameplayEventRuntime *(*)(const char *scriptPath,
+                                            void *gameplay,
+                                            Kotonoha_Game *gameCtx,
+                                            TTF_Font *font,
+                                            void *userdata);
+  using Destroy = void (*)(GameplayEventRuntime *runtime, void *userdata);
+
+  Create create = nullptr;
+  Destroy destroy = nullptr;
+  void *userdata = nullptr;
+};
+
 } // namespace Kotonoha

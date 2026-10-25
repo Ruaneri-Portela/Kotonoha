@@ -139,10 +139,6 @@ int main() {
               ConfigModel::CmapRelativePath(ConfigModel::Page::Sound,
                                             ConfigModel::Variant::WideFull),
               configRegions);
-    WriteCmap(tree.root,
-              ConfigModel::CmapRelativePath(ConfigModel::Page::SomCon,
-                                            ConfigModel::Variant::WideNote),
-              configRegions);
     WriteCmap(tree.root, ExitModel::CmapRelativePath(ExitModel::Variant::Standard),
               {1u, 2u, 0u});
     WriteCmap(tree.root, ExitModel::CmapRelativePath(ExitModel::Variant::WideFull),
@@ -151,8 +147,6 @@ int main() {
     std::string error;
     ConfigModel config;
     ConfigPlan::VisualState state;
-    Check(state.somConAvailable,
-          "normal-host SomCon tab must default available");
     state.defWideCurrent = 4;
     state.defFullCurrent = 6;
     state.defSkipCurrent = 8;
@@ -202,11 +196,22 @@ int main() {
     sprites = ConfigPlan::Build(config, state);
     Check(sprites.back().recordIndex == 27,
           "Def active tab hover did not use third band");
-    state.somConAvailable = false;
     Select(config, 2);
     sprites = ConfigPlan::Build(config, state);
-    Check(sprites.size() == 7u,
-          "unavailable SomCon tab unexpectedly emitted hover");
+    Check(sprites.size() == 8u && sprites.back().recordIndex == 2,
+          "Display tab hover did not use the shipped third-tab geometry");
+
+    config.Close();
+    Check(config.Open(tree.root.string(), ConfigModel::Variant::Standard,
+                      ConfigModel::Page::Display, &error), error.c_str());
+    sprites = ConfigPlan::Build(config, state);
+    Check(sprites.size() == 2u && sprites[1].role == ConfigPlan::Role::ActiveTab &&
+              sprites[1].recordIndex == 16 && sprites[1].control == 2,
+          "Display page did not activate third-tab geometry");
+    Select(config, 2);
+    sprites = ConfigPlan::Build(config, state);
+    Check(sprites.size() == 3u && sprites.back().recordIndex == 29,
+          "Display active-tab hover did not use third-band record29");
 
     config.Close();
     state = {};
@@ -260,51 +265,6 @@ int main() {
               sprites[1].role == ConfigPlan::Role::ActiveTab,
           "unsupported legacy sound state emitted false current markers");
 
-    config.Close();
-    state = {};
-    state.somConSetActive = true;
-    state.somConInteractionActive = true;
-    state.somConSecondaryCurrent = 16;
-    state.somConDeviceIndex = 7;
-    Check(config.Open(tree.root.string(), ConfigModel::Variant::WideNote,
-                      ConfigModel::Page::SomCon, &error), error.c_str());
-    Check(ConfigPlan::BaseRelativePath(config, state) ==
-              "System/Option/Option_SomCon_Set.png",
-          "SomCon Set base resource selection mismatch");
-    sprites = ConfigPlan::Build(config, state);
-    Check(sprites.size() == 5u &&
-              sprites[0].texture == ConfigPlan::Texture::SomConSetBase &&
-              sprites[1].recordIndex == 20 && sprites[2].recordIndex == 21 &&
-              sprites[3].recordIndex == 33 && sprites[4].recordIndex == 30 &&
-              sprites[4].control == 13,
-          "SomCon persistent overlay order/mapping mismatch");
-    Select(config, 4);
-    sprites = ConfigPlan::Build(config, state);
-    Check(sprites.back().recordIndex == 38,
-          "SomCon current control4 did not use third-band hover");
-    Select(config, 5);
-    sprites = ConfigPlan::Build(config, state);
-    Check(sprites.back().recordIndex == 5,
-          "SomCon inactive control5 did not use first-band hover");
-    Select(config, 16);
-    sprites = ConfigPlan::Build(config, state);
-    Check(sprites.back().recordIndex == 40,
-          "SomCon current control16 did not use third-band hover");
-    Select(config, 13);
-    sprites = ConfigPlan::Build(config, state);
-    Check(sprites.size() == 5u,
-          "SomCon current device should suppress extra hover sprite");
-    Select(config, 12);
-    sprites = ConfigPlan::Build(config, state);
-    Check(sprites.size() == 6u && sprites.back().recordIndex == 12,
-          "SomCon non-current device did not use first-band hover");
-
-    state.somConAvailable = false;
-    Select(config, 2);
-    sprites = ConfigPlan::Build(config, state);
-    Check(sprites.size() == 4u,
-          "SomCon unavailable active tab should suppress tab overlays");
-
     ExitModel exitView;
     Check(exitView.Open(tree.root.string(), ExitModel::Variant::Standard, &error),
           error.c_str());
@@ -348,9 +308,9 @@ int main() {
               << "base_first_normals_baked=PASS\n"
               << "config_three_chip_bands=PASS\n"
               << "def_tabs_close_current_hover=PASS\n"
+              << "display_tab2_render=PASS\n"
               << "sound_cumulative_clip=PASS\n"
               << "sound_c10_c11_native_quirk=PASS\n"
-              << "somcon_opaque_visual_gates=PASS\n"
               << "exit_two_choice_hover=PASS\n";
     return 0;
 }

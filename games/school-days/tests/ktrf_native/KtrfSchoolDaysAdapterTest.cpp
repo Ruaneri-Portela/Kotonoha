@@ -1,6 +1,7 @@
 #include <Kotonoha/parsers/Ktrf.h>
 #include <Kotonoha/parsers/KtrfTyped.h>
 #include <Kotonoha/routing/KtrfAdapter.h>
+#include <Kotonoha/routing/SchoolDaysKtrfProfile.hpp>
 
 #include <cstdlib>
 #include <cstring>
@@ -73,7 +74,8 @@ int main(int argc, char** argv) {
     Kotonoha_KtrfAdapter adapter{};
     Kotonoha_KtrfAdapterInit(&adapter);
     if (!Kotonoha_KtrfAdapterBind(
-            &adapter, &document, &callbacks, &error))
+            &adapter, &document, &Kotonoha::SchoolDaysKtrfProfile(), &callbacks,
+            &error))
         Fail(std::string("bind failed: ") + error.message);
 
     Check(Count(document, "NODE") == 1857u, "NODE count mismatch");
@@ -89,13 +91,13 @@ int main(int argc, char** argv) {
         if (!Kotonoha_KtrfGetNodeView(
                 &adapter, i, &view, &error))
             Fail(std::string("node view failed: ") + error.message);
-        if (view.kind == KOTONOHA_SDHQ_NODE_SCENE) {
+        if (view.kind == KOTONOHA_KTRF_NODE_SCENE) {
             ++scenes;
             Check(view.resource_index != KOTONOHA_KTRF_NULL_INDEX,
                   "scene missing resource index");
             Check(view.scene_key != nullptr && view.scene_key_length != 0u,
                   "scene missing scene-key");
-        } else if (view.kind == KOTONOHA_SDHQ_NODE_DISPATCHER) {
+        } else if (view.kind == KOTONOHA_KTRF_NODE_DISPATCHER) {
             ++dispatchers;
             Check(view.resource_index == KOTONOHA_KTRF_NULL_INDEX,
                   "dispatcher unexpectedly has resource");
@@ -111,7 +113,7 @@ int main(int argc, char** argv) {
     Kotonoha_KtrfNodeView initial{};
     if (!Kotonoha_KtrfResetNewGame(&adapter, &initial, &error))
         Fail(std::string("new-game reset failed: ") + error.message);
-    Check(initial.kind == KOTONOHA_SDHQ_NODE_SCENE,
+    Check(initial.kind == KOTONOHA_KTRF_NODE_SCENE,
           "new-game entry is not a physical scene");
     Check(Slice(initial.scene_key, initial.scene_key_length) == "00/00-00-A00",
           "new-game scene-key mismatch");
@@ -121,13 +123,13 @@ int main(int argc, char** argv) {
         if (!Kotonoha_KtrfAdvance(
                 &adapter, "ktrf:next", &result, &error))
             Fail(std::string("single-step advance failed: ") + error.message);
-        Check(result.status == KOTONOHA_SDHQ_ADVANCE_ADVANCED,
+        Check(result.status == KOTONOHA_KTRF_ADVANCE_ADVANCED,
               "first routing step did not advance");
         Check(result.hop_count == 1u, "single-step advance hop count mismatch");
         Check(result.route.transition_index != KOTONOHA_KTRF_NULL_INDEX,
               "first routing step has no transition");
-        Check(result.scene.kind == KOTONOHA_SDHQ_NODE_SCENE ||
-                  result.scene.kind == KOTONOHA_SDHQ_NODE_DISPATCHER,
+        Check(result.scene.kind == KOTONOHA_KTRF_NODE_SCENE ||
+                  result.scene.kind == KOTONOHA_KTRF_NODE_DISPATCHER,
               "advanced node has invalid adapter kind");
     }
 

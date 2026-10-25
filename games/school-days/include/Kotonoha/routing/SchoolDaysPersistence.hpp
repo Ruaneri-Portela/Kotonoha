@@ -22,6 +22,12 @@ public:
         int route = 0;
         int scene = 0;
         std::vector<std::pair<std::string, int64_t>> sessionInts;
+        // Kotonoha-created saves carry a narrow compatibility marker inside the
+        // current tag1 FlgH so a historical tag4 for the same SceneKey cannot be
+        // mistaken for a choice committed on the active visit. ParseSaveImage
+        // consumes/strips it before the native FlgH projection is restored.
+        bool liveChoiceCommitMarkerPresent = false;
+        bool liveChoiceCommitted = false;
     };
 
     bool LoadGlobalFlag(const std::vector<uint8_t>& bytes,
@@ -36,6 +42,9 @@ public:
     void CommitSaveImage(const SaveImage& image);
     bool SerializeSaveLog(std::vector<uint8_t>* bytes,
                           Kotonoha_KtrfError* error) const;
+    bool SerializeSaveLogWithLiveChoiceCommitMarker(
+        bool committed, std::vector<uint8_t>* bytes,
+        Kotonoha_KtrfError* error) const;
 
     // Native-live persistence state.  Numeric values remain owned by
     // KtrfStateStore; this class records only sparse FlgH membership/type
@@ -72,6 +81,12 @@ public:
     bool ReplaceCurrentScriptSnapshot(const std::string& sceneKey,
                                       uint32_t versionBits,
                                       const KtrfStateStore& state,
+                                      Kotonoha_KtrfError* error);
+    // Re-capture the live local/session values into the existing tag-1 script
+    // record without changing its SceneKey/version.  SAVE can happen during a
+    // post-choice presentation tail, after choice effects changed KTRF state
+    // but before the next physical scene snapshot is committed.
+    bool RefreshCurrentScriptSnapshot(const KtrfStateStore& state,
                                       Kotonoha_KtrfError* error);
 
     bool RegisterEnding(int endingCode, const std::string& sceneKey,

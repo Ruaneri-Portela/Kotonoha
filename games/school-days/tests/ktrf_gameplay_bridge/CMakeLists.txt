@@ -10,26 +10,29 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIBED ON)
 
 get_filename_component(KOTONOHA_ROOT "${CMAKE_CURRENT_LIST_DIR}/../../../.." ABSOLUTE)
-include_directories("${KOTONOHA_ROOT}/src/routing")
+include_directories("${KOTONOHA_ROOT}/src/Kotonoha/routing")
 include_directories("${KOTONOHA_ROOT}/games/school-days/include")
 
 add_executable(KtrfSchoolDaysGameplayBridgeTest
     KtrfSchoolDaysGameplayBridgeTest.cpp
-    "${KOTONOHA_ROOT}/src/parsers/Ktrf.c"
-    "${KOTONOHA_ROOT}/src/parsers/KtrfTyped.c"
-    "${KOTONOHA_ROOT}/src/routing/KtrfRuntime.c"
-    "${KOTONOHA_ROOT}/src/routing/KtrfRouter.c"
-    "${KOTONOHA_ROOT}/src/routing/KtrfAdapter.c"
-    "${KOTONOHA_ROOT}/src/routing/KtrfAssetResolver.c"
-    "${KOTONOHA_ROOT}/src/runtime/KtrfStateStore.cpp"
+    GameplayBridgeTestRuntimeStubs.cpp
+    "${KOTONOHA_ROOT}/src/Kotonoha/parsers/Ktrf.c"
+    "${KOTONOHA_ROOT}/src/Kotonoha/parsers/KtrfTyped.c"
+    "${KOTONOHA_ROOT}/src/Kotonoha/routing/KtrfRuntime.c"
+    "${KOTONOHA_ROOT}/src/Kotonoha/routing/KtrfRouter.c"
+    "${KOTONOHA_ROOT}/src/Kotonoha/routing/KtrfAdapter.c"
+    "${KOTONOHA_ROOT}/games/school-days/src/KtrfAssetResolver.cpp"
+    "${KOTONOHA_ROOT}/games/school-days/src/KtrfStateStore.cpp"
     "${KOTONOHA_ROOT}/games/school-days/src/SchoolDaysHistory.cpp"
     "${KOTONOHA_ROOT}/games/school-days/src/SchoolDaysPersistenceCodec.cpp"
     "${KOTONOHA_ROOT}/games/school-days/src/SchoolDaysPersistence.cpp"
     "${KOTONOHA_ROOT}/games/school-days/src/SchoolDaysBackRules.cpp"
+    "${KOTONOHA_ROOT}/games/school-days/src/SchoolDaysKtrfProfile.cpp"
     "${KOTONOHA_ROOT}/games/school-days/src/SchoolDaysKtrfSession.cpp"
     "${KOTONOHA_ROOT}/games/school-days/tests/ktrf_common/ScriptDirectoryStub.cpp"
     "${KOTONOHA_ROOT}/games/school-days/src/SchoolDaysKtrfGameplayBridge.cpp"
 )
+target_link_libraries(KtrfSchoolDaysGameplayBridgeTest PRIVATE SDL3::SDL3)
 
 add_executable(SchoolDaysFlowControllerTest
     SchoolDaysFlowControllerTest.cpp
@@ -152,13 +155,6 @@ add_executable(SchoolDaysConfigExitRenderPlanTest
     "${KOTONOHA_ROOT}/games/school-days/src/SchoolDaysExitViewRenderPlan.cpp"
 )
 
-add_executable(SchoolDaysLegacySomConTest
-    SchoolDaysLegacySomConTest.cpp
-    "${KOTONOHA_ROOT}/games/school-days/src/SchoolDaysCmap.cpp"
-    "${KOTONOHA_ROOT}/games/school-days/src/SchoolDaysLegacySomCon.cpp"
-    "${KOTONOHA_ROOT}/games/school-days/src/SchoolDaysSomConSetModel.cpp"
-)
-
 add_executable(SchoolDaysReplayModelTest
     SchoolDaysReplayModelTest.cpp
     "${KOTONOHA_ROOT}/games/school-days/src/SchoolDaysCmap.cpp"
@@ -185,17 +181,18 @@ add_executable(SchoolDaysReplayPlaybackSessionTest
 
 add_executable(SchoolDaysPlayDataSessionTest
     SchoolDaysPlayDataSessionTest.cpp
-    "${KOTONOHA_ROOT}/src/parsers/Ktrf.c"
-    "${KOTONOHA_ROOT}/src/parsers/KtrfTyped.c"
-    "${KOTONOHA_ROOT}/src/routing/KtrfRuntime.c"
-    "${KOTONOHA_ROOT}/src/routing/KtrfRouter.c"
-    "${KOTONOHA_ROOT}/src/routing/KtrfAdapter.c"
-    "${KOTONOHA_ROOT}/src/routing/KtrfAssetResolver.c"
-    "${KOTONOHA_ROOT}/src/runtime/KtrfStateStore.cpp"
+    "${KOTONOHA_ROOT}/src/Kotonoha/parsers/Ktrf.c"
+    "${KOTONOHA_ROOT}/src/Kotonoha/parsers/KtrfTyped.c"
+    "${KOTONOHA_ROOT}/src/Kotonoha/routing/KtrfRuntime.c"
+    "${KOTONOHA_ROOT}/src/Kotonoha/routing/KtrfRouter.c"
+    "${KOTONOHA_ROOT}/src/Kotonoha/routing/KtrfAdapter.c"
+    "${KOTONOHA_ROOT}/games/school-days/src/KtrfAssetResolver.cpp"
+    "${KOTONOHA_ROOT}/games/school-days/src/KtrfStateStore.cpp"
     "${KOTONOHA_ROOT}/games/school-days/src/SchoolDaysHistory.cpp"
     "${KOTONOHA_ROOT}/games/school-days/src/SchoolDaysPersistenceCodec.cpp"
     "${KOTONOHA_ROOT}/games/school-days/src/SchoolDaysPersistence.cpp"
     "${KOTONOHA_ROOT}/games/school-days/src/SchoolDaysBackRules.cpp"
+    "${KOTONOHA_ROOT}/games/school-days/src/SchoolDaysKtrfProfile.cpp"
     "${KOTONOHA_ROOT}/games/school-days/src/SchoolDaysKtrfSession.cpp"
     "${KOTONOHA_ROOT}/games/school-days/tests/ktrf_common/ScriptDirectoryStub.cpp"
     "${KOTONOHA_ROOT}/games/school-days/src/SchoolDaysPlayDataSession.cpp"
@@ -216,10 +213,11 @@ add_executable(SchoolDaysRouteMapRenderPlanTest
 
 add_executable(SchoolDaysRouteMapOracleTest
     SchoolDaysRouteMapOracleTest.cpp
-    "${KOTONOHA_ROOT}/src/parsers/Ktrf.c"
-    "${KOTONOHA_ROOT}/src/parsers/KtrfTyped.c"
-    "${KOTONOHA_ROOT}/src/routing/KtrfRuntime.c"
-    "${KOTONOHA_ROOT}/src/runtime/KtrfStateStore.cpp"
+    "${KOTONOHA_ROOT}/games/school-days/src/SchoolDaysKtrfProfile.cpp"
+    "${KOTONOHA_ROOT}/src/Kotonoha/parsers/Ktrf.c"
+    "${KOTONOHA_ROOT}/src/Kotonoha/parsers/KtrfTyped.c"
+    "${KOTONOHA_ROOT}/src/Kotonoha/routing/KtrfRuntime.c"
+    "${KOTONOHA_ROOT}/games/school-days/src/KtrfStateStore.cpp"
     "${KOTONOHA_ROOT}/games/school-days/src/SchoolDaysRouteMapOracle.cpp"
 )
 
@@ -230,6 +228,10 @@ add_executable(SchoolDaysTitleProfileTest
 
 add_executable(SchoolDaysTitleMovieClockTest
     SchoolDaysTitleMovieClockTest.cpp
+)
+
+add_executable(SchoolDaysEpisodeOverlayTest
+    SchoolDaysEpisodeOverlayTest.cpp
 )
 
 add_executable(SchoolDaysSaveStorageTest
@@ -345,9 +347,6 @@ target_include_directories(SchoolDaysConfigExitModelTest PRIVATE
 target_include_directories(SchoolDaysConfigExitRenderPlanTest PRIVATE
     "${KOTONOHA_ROOT}/include"
 )
-target_include_directories(SchoolDaysLegacySomConTest PRIVATE
-    "${KOTONOHA_ROOT}/include"
-)
 
 target_include_directories(SchoolDaysReplayModelTest PRIVATE
     "${KOTONOHA_ROOT}/include"
@@ -423,7 +422,6 @@ if(MSVC)
     target_compile_options(SchoolDaysTitleModelTest PRIVATE /W4 /permissive-)
     target_compile_options(SchoolDaysConfigExitModelTest PRIVATE /W4 /permissive-)
     target_compile_options(SchoolDaysConfigExitRenderPlanTest PRIVATE /W4 /permissive-)
-    target_compile_options(SchoolDaysLegacySomConTest PRIVATE /W4 /permissive-)
     target_compile_options(SchoolDaysReplayScriptOracleTest PRIVATE /W4 /permissive-)
     target_compile_options(SchoolDaysReplayPlaybackSessionTest PRIVATE /W4 /permissive-)
     target_compile_options(SchoolDaysPlayDataSessionTest PRIVATE /W4 /permissive-)
@@ -431,6 +429,7 @@ if(MSVC)
     target_compile_options(SchoolDaysRouteMapOracleTest PRIVATE /W4 /permissive-)
     target_compile_options(SchoolDaysTitleProfileTest PRIVATE /W4 /permissive-)
     target_compile_options(SchoolDaysTitleMovieClockTest PRIVATE /W4 /permissive-)
+    target_compile_options(SchoolDaysEpisodeOverlayTest PRIVATE /W4 /permissive-)
     target_compile_options(SchoolDaysSaveStorageTest PRIVATE /W4 /permissive-)
     target_compile_options(SchoolDaysPromptPolicyTest PRIVATE /W4 /permissive-)
     target_compile_options(SchoolDaysChoiceTextPlanTest PRIVATE /W4 /permissive-)
@@ -490,9 +489,6 @@ else()
     target_compile_options(SchoolDaysConfigExitRenderPlanTest PRIVATE
         -Wall -Wextra -Wpedantic
     )
-    target_compile_options(SchoolDaysLegacySomConTest PRIVATE
-        -Wall -Wextra -Wpedantic
-    )
     target_compile_options(SchoolDaysReplayScriptOracleTest PRIVATE
         -Wall -Wextra -Wpedantic
     )
@@ -512,6 +508,9 @@ else()
         -Wall -Wextra -Wpedantic
     )
     target_compile_options(SchoolDaysTitleMovieClockTest PRIVATE
+        -Wall -Wextra -Wpedantic
+    )
+    target_compile_options(SchoolDaysEpisodeOverlayTest PRIVATE
         -Wall -Wextra -Wpedantic
     )
     target_compile_options(SchoolDaysSaveStorageTest PRIVATE
