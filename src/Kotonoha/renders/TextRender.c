@@ -7,42 +7,89 @@
 // Internal helpers
 // =============================================================================
 
-static SDL_Texture *
-KotonohaTextRenderCreateGlyphTexture(SDL_Renderer *render,
-                                     const ASS_Image *image) {
-  if (render == NULL || image == NULL || image->bitmap == NULL ||
-      image->w <= 0 || image->h <= 0) {
-    return NULL;
+static bool KotonohaTextRenderEnsureGlyphTexture(
+    Kotonoha_Subtitles *environment, SDL_Renderer *render, int width,
+    int height) {
+  if (environment == NULL || render == NULL || width <= 0 || height <= 0)
+    return false;
+
+  if (environment->glyphTexture != NULL &&
+      environment->glyphRenderer == render &&
+      environment->glyphTextureWidth >= width &&
+      environment->glyphTextureHeight >= height) {
+    return true;
   }
 
-  SDL_Texture *texture =
-      SDL_CreateTexture(render, SDL_PIXELFORMAT_RGBA32,
-                        SDL_TEXTUREACCESS_STREAMING, image->w, image->h);
+  if (environment->glyphTexture != NULL) {
+    SDL_DestroyTexture(environment->glyphTexture);
+    environment->glyphTexture = NULL;
+  }
 
+  /* libass commonly returns several ASS_Image layers for one subtitle.  A
+   * create/destroy pair for every layer on every redraw is especially costly
+   * on the Android GLES backend, where the streaming-texture backing stores can
+   * outlive the SDL_Texture wrapper for multiple presents.  Keep one staging
+   * texture and only grow it when a larger ASS bitmap is encountered. */
+  const int textureWidth =
+      environment->glyphRenderer == render && environment->glyphTextureWidth > width
+          ? environment->glyphTextureWidth
+          : width;
+  const int textureHeight =
+      environment->glyphRenderer == render && environment->glyphTextureHeight > height
+          ? environment->glyphTextureHeight
+          : height;
+  SDL_Texture *texture = SDL_CreateTexture(
+      render, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STREAMING,
+      textureWidth, textureHeight);
   if (texture == NULL) {
-    KLOG_ERROR(TEXT, "SDL_CreateTexture for ASS glyph failed: %s",
+    KLOG_ERROR(TEXT, "SDL_CreateTexture for ASS glyph cache failed: %s",
                SDL_GetError());
-
-    return NULL;
+    environment->glyphRenderer = NULL;
+    environment->glyphTextureWidth = 0;
+    environment->glyphTextureHeight = 0;
+    return false;
   }
 
   if (!SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND)) {
-    KLOG_ERROR(TEXT, "SDL_SetTextureBlendMode for ASS glyph failed: %s",
+    KLOG_ERROR(TEXT, "SDL_SetTextureBlendMode for ASS glyph cache failed: %s",
                SDL_GetError());
-
     SDL_DestroyTexture(texture);
-    return NULL;
+    environment->glyphRenderer = NULL;
+    environment->glyphTextureWidth = 0;
+    environment->glyphTextureHeight = 0;
+    return false;
   }
+
+  environment->glyphRenderer = render;
+  environment->glyphTexture = texture;
+  environment->glyphTextureWidth = textureWidth;
+  environment->glyphTextureHeight = textureHeight;
+  return true;
+}
+
+static bool KotonohaTextRenderUpdateGlyphTexture(
+    Kotonoha_Subtitles *environment, SDL_Renderer *render,
+    const ASS_Image *image) {
+  if (environment == NULL || render == NULL || image == NULL ||
+      image->bitmap == NULL || image->w <= 0 || image->h <= 0) {
+    return false;
+  }
+
+  if (!KotonohaTextRenderEnsureGlyphTexture(environment, render, image->w,
+                                            image->h)) {
+    return false;
+  }
+
+  const SDL_Rect updateRect = {0, 0, image->w, image->h};
 
   Uint8 *pixels = NULL;
   int pitch = 0;
 
-  if (!SDL_LockTexture(texture, NULL, (void **)&pixels, &pitch)) {
-    KLOG_ERROR(TEXT, "SDL_LockTexture for ASS glyph failed: %s",
+  if (!SDL_LockTexture(environment->glyphTexture, &updateRect,
+                       (void **)&pixels, &pitch)) {
+    KLOG_ERROR(TEXT, "SDL_LockTexture for ASS glyph cache failed: %s",
                SDL_GetError());
-
-    SDL_DestroyTexture(texture);
-    return NULL;
+    return false;
   }
 
   // ASS_Image::color tem formato RRGGBBAA, mas AA representa transparência:
@@ -76,9 +123,8 @@ KotonohaTextRenderCreateGlyphTexture(SDL_Renderer *render,
     bitmap += image->stride;
   }
 
-  SDL_UnlockTexture(texture);
-
-  return texture;
+  SDL_UnlockTexture(environment->glyphTexture);
+  return true;
 }
 
 static bool KotonohaTextRenderGetTargetSize(SDL_Renderer *render,
@@ -149,6 +195,10 @@ Kotonoha_Subtitles *KotonohaTextRenderInit(Kotonoha_Time *time,
 
   object->time = time;
   object->gameCtx = gameCtx;
+  object->glyphRenderer = NULL;
+  object->glyphTexture = NULL;
+  object->glyphTextureWidth = 0;
+  object->glyphTextureHeight = 0;
   object->messageLayerHiddenLastFrame = false;
 
   return object;
@@ -159,10 +209,10 @@ void KotonohaTextRenderShutdown(struct Kotonoha_Subtitles **object) {
     return;
   }
 
-  // Não há mais subTexture persistente para destruir.
-  //
-  // As texturas temporárias de glyph são criadas e destruídas no mesmo
-  // frame, dentro de KotonohaTextRenderDraw().
+  if ((*object)->glyphTexture != NULL) {
+    SDL_DestroyTexture((*object)->glyphTexture);
+    (*object)->glyphTexture = NULL;
+  }
   SDL_free(*object);
   *object = NULL;
 }
@@ -303,21 +353,37 @@ enum Kotonoha_Scene_Status KotonohaTextRenderDraw(KOTONOHA_SCENE_CALL) {
 
   bool renderedAny = false;
 
-  for (ASS_Image *image = frame; image != NULL; image = image->next) {
-    SDL_Texture *glyphTexture =
-        KotonohaTextRenderCreateGlyphTexture(render, image);
+  int requiredGlyphWidth = 0;
+  int requiredGlyphHeight = 0;
+  for (const ASS_Image *image = frame; image != NULL; image = image->next) {
+    if (image->bitmap == NULL || image->w <= 0 || image->h <= 0)
+      continue;
+    if (image->w > requiredGlyphWidth)
+      requiredGlyphWidth = image->w;
+    if (image->h > requiredGlyphHeight)
+      requiredGlyphHeight = image->h;
+  }
+  if (requiredGlyphWidth > 0 && requiredGlyphHeight > 0 &&
+      !KotonohaTextRenderEnsureGlyphTexture(
+          environment, render, requiredGlyphWidth, requiredGlyphHeight)) {
+    if (previousTarget != target)
+      SDL_SetRenderTarget(render, previousTarget);
+    return KOTONOHA_SCENE_FATAL_ERROR;
+  }
 
-    if (glyphTexture == NULL) {
+  for (ASS_Image *image = frame; image != NULL; image = image->next) {
+    if (!KotonohaTextRenderUpdateGlyphTexture(environment, render, image)) {
       continue;
     }
 
+    const SDL_FRect source = {0.0f, 0.0f, (float)image->w,
+                              (float)image->h};
     const SDL_FRect destination = {(float)image->dst_x, (float)image->dst_y,
                                    (float)image->w, (float)image->h};
 
-    if (!SDL_RenderTexture(render, glyphTexture, NULL, &destination)) {
+    if (!SDL_RenderTexture(render, environment->glyphTexture, &source,
+                           &destination)) {
       KLOG_ERROR(TEXT, "Failed to draw ASS glyph: %s", SDL_GetError());
-
-      SDL_DestroyTexture(glyphTexture);
 
       if (previousTarget != target) {
         SDL_SetRenderTarget(render, previousTarget);
@@ -327,8 +393,6 @@ enum Kotonoha_Scene_Status KotonohaTextRenderDraw(KOTONOHA_SCENE_CALL) {
     }
 
     renderedAny = true;
-
-    SDL_DestroyTexture(glyphTexture);
   }
 
   // Restaura o target que estava ativo antes de entrar na scene.

@@ -1,0 +1,9 @@
+<resources>
+    <string name="school_days_app_name">School Days HQ</string>
+    <string name="school_days_port">School Days HQ 1.02 - Kotonoha Engine</string>
+    <string name="data_ready">Dados do jogo prontos.</string>
+    <string name="data_missing">Selecione a pasta Packs do School Days HQ original, ou a pasta do jogo que contém Packs. O aplicativo importa e valida os 29 arquivos GPK.</string>
+    <string name="import_data">Importar dados do jogo</string>
+    <string name="reimport_data">Reimportar / atualizar dados</string>
+    <string name="play_game">Jogar</string>
+</resources>

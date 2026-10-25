@@ -23,6 +23,8 @@ struct CanvasItem {
 
   Sint16 zIndex;
   SDL_FRect place;
+  int targetWidth;
+  int targetHeight;
   bool swapTexture;
   bool keepLastFrame;
   bool hasDirtyFrame;
@@ -53,6 +55,10 @@ public:
 
   void UpdateCanva(Kotonoha_Scene_Status (*drawingPoint)(KOTONOHA_SCENE_CALL),
                    Sint16 zIndex, SDL_FRect place);
+  // Changes only the backing render-target resolution. The item is still
+  // composited into its physical `place`, allowing mobile builds to render at
+  // a lower internal resolution and let SDL scale the finished layer.
+  void UpdateTargetSize(int width, int height);
 
   SDL_AppResult RenderCanvas(SDL_Window *window, SDL_Renderer *render);
 

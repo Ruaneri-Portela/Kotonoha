@@ -150,6 +150,14 @@ bool KotonohaPacketQueueTrim(Kotonoha_PacketQueue *q, Uint64 maxSpanMs,
   }
 
   Kotonoha_PacketNode *curr = keep->next;
+  if (curr == NULL) {
+    /* The queue is over the requested span only because the single retained
+     * packet (or the set we must retain) is itself larger than the limit.
+     * Nothing can be discarded, so report no trim. Returning true here used
+     * to make the caller seek backwards to the same packet indefinitely. */
+    SDL_UnlockMutex(q->mutex);
+    return false;
+  }
   keep->next = NULL;
   q->tail = keep;
   q->durationMs = kept;
@@ -639,7 +647,22 @@ static bool KotonohaDemuxProcessStream(Kotonoha_DemuxStream *stream,
   KotonohaDemuxHandleSeek(stream);
 
   const Uint64 cacheMs = KotonohaDemuxStreamCacheMs(stream);
-  KotonohaDemuxTrimCache(stream, cacheMs);
+  if (stream->appliedCacheLimitMs == 0) {
+    stream->appliedCacheLimitMs = cacheMs;
+  } else if (cacheMs < stream->appliedCacheLimitMs) {
+    /*
+     * Trim is a configuration-change operation, not normal steady-state
+     * buffering. PacketQueuePush already stops once the queue reaches its
+     * current span. Running TrimCache every worker pass can repeatedly seek
+     * backwards when the queue consists of a single packet whose duration is
+     * larger than the requested span (nothing is actually removable), causing
+     * the same compressed range to be demuxed indefinitely.
+     */
+    KotonohaDemuxTrimCache(stream, cacheMs);
+    stream->appliedCacheLimitMs = cacheMs;
+  } else if (cacheMs > stream->appliedCacheLimitMs) {
+    stream->appliedCacheLimitMs = cacheMs;
+  }
   const bool videoFull =
       stream->videoStreamIdx < 0 ||
       KotonohaPacketQueueAtCacheLimit(&stream->videoQueue, cacheMs);

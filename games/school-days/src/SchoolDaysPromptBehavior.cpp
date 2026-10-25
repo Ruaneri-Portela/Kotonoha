@@ -28,7 +28,7 @@ std::vector<int> VisibleChoiceIndices(const Prompt &prompt) {
 std::u16string Utf8ToUtf16(const std::string &text) {
   if (text.empty()) return {};
   char *converted = SDL_iconv_string("UTF-16LE", "UTF-8", text.c_str(),
-                                    text.size() + 1u);
+                                    text.size());
   if (converted == nullptr) return {};
   const auto *units = reinterpret_cast<const char16_t *>(converted);
   std::u16string result;
@@ -41,7 +41,7 @@ std::string Utf16ToUtf8(const std::u16string &text) {
   if (text.empty()) return {};
   char *converted = SDL_iconv_string(
       "UTF-8", "UTF-16LE", reinterpret_cast<const char *>(text.c_str()),
-      (text.size() + 1u) * sizeof(char16_t));
+      text.size() * sizeof(char16_t));
   if (converted == nullptr) return {};
   std::string result(converted);
   SDL_free(converted);

@@ -25,6 +25,7 @@
 #include <Kotonoha/Main.hpp>
 #include <Kotonoha/debug/DebugUi.hpp>
 #include <Kotonoha/Display.hpp>
+#include <Kotonoha/mobile/AndroidDisplay.hpp>
 #include <Kotonoha/SchoolDaysImageAssetResolver.hpp>
 #include <Kotonoha/SchoolDaysAssetMount.hpp>
 #include <Kotonoha/components/Audio.hpp>
@@ -39,6 +40,7 @@ extern "C" {
 #include <imgui.h>
 #include <algorithm>
 #include <cmath>
+#include <cstdlib>
 #include <cstring>
 #include <filesystem>
 #include <ctime>
@@ -46,6 +48,7 @@ extern "C" {
 #include <limits>
 #include <mutex>
 #include <string>
+#include <vector>
 
 using Kotonoha::global;
 
@@ -358,9 +361,11 @@ struct SchoolDaysModernDisplayPanelState {
   int selectedResolution = -1;
   int hoveredRow = -1;
   int hoveredResolution = -1;
+  int hoveredRenderScale = -1;
   int hoveredUpscaler = -1;
   int resolutionScroll = 0;
   bool resolutionListOpen = false;
+  bool renderScaleListOpen = false;
   bool upscalerListOpen = false;
 };
 
@@ -549,12 +554,675 @@ void ApplySchoolDaysUpscalerOption(int index) {
     return;
   const auto &option = kSchoolDaysUpscalerOptions[index];
   if (option.enabled) {
+    if (global.config.scalerFactor.load() <= 1.0f) {
+      global.config.scalerFactor = 2.0f;
+      KotonohaUpscalingSetFactor(2.0f);
+      global.config.dirtyConfig = true;
+    }
     Kotonoha::RuntimeSetUpscalingPreset(option.preset);
     Kotonoha::RuntimeSetUpscalingEnabled(true);
   } else {
     Kotonoha::RuntimeSetUpscalingEnabled(false);
   }
 }
+
+#if defined(__ANDROID__) || defined(ANDROID)
+
+struct SchoolDaysAndroidRenderScaleOption {
+  int percent;
+  const char *label;
+};
+
+constexpr SchoolDaysAndroidRenderScaleOption kSchoolDaysAndroidRenderScales[] = {
+    {100, "Native"},
+    {75, "Balanced"},
+    {50, "Performance"},
+};
+
+const std::vector<Kotonoha::AndroidDisplayMode> &SchoolDaysAndroidDisplayModes() {
+  static const std::vector<Kotonoha::AndroidDisplayMode> unique = [] {
+    const auto modes = Kotonoha::AndroidEnumerateDisplayModes();
+    std::vector<Kotonoha::AndroidDisplayMode> result;
+    result.reserve(modes.size());
+
+    int currentWidth = 0;
+    int currentHeight = 0;
+    const int currentModeId = Kotonoha::AndroidCurrentDisplayModeId();
+    for (const auto &mode : modes) {
+      if (mode.modeId == currentModeId) {
+        currentWidth = mode.width;
+        currentHeight = mode.height;
+        break;
+      }
+    }
+
+    const long long currentArea =
+        static_cast<long long>(currentWidth) * currentHeight;
+    for (const auto &mode : modes) {
+    if (mode.width <= 0 || mode.height <= 0 || mode.refreshRate <= 0.0f)
+      continue;
+    auto duplicate = std::find_if(result.begin(), result.end(), [&](const auto &existing) {
+      return std::fabs(existing.refreshRate - mode.refreshRate) < 0.01f;
+    });
+    if (duplicate == result.end()) {
+      result.push_back(mode);
+    } else {
+      const bool oldMatchesCurrent = duplicate->width == currentWidth &&
+                                     duplicate->height == currentHeight;
+      const bool newMatchesCurrent = mode.width == currentWidth &&
+                                     mode.height == currentHeight;
+      if (newMatchesCurrent && !oldMatchesCurrent) {
+        *duplicate = mode;
+      } else if (newMatchesCurrent == oldMatchesCurrent && currentArea > 0) {
+        const long long oldArea =
+            static_cast<long long>(duplicate->width) * duplicate->height;
+        const long long newArea = static_cast<long long>(mode.width) * mode.height;
+        if (std::llabs(newArea - currentArea) <
+            std::llabs(oldArea - currentArea)) {
+          *duplicate = mode;
+        }
+      }
+    }
+  }
+  std::sort(result.begin(), result.end(), [](const auto &a, const auto &b) {
+    return a.refreshRate < b.refreshRate;
+  });
+    return result;
+  }();
+  return unique;
+}
+
+bool SchoolDaysAndroidContentViewportSize(int *width, int *height) {
+  if (width == nullptr || height == nullptr || global.render == nullptr)
+    return false;
+  int outputWidth = 0;
+  int outputHeight = 0;
+  if (!SDL_GetCurrentRenderOutputSize(global.render, &outputWidth, &outputHeight) ||
+      outputWidth <= 0 || outputHeight <= 0)
+    return false;
+  const bool standard =
+      ktrfUiVariant == Kotonoha::SchoolDaysSaveFeelModel::Variant::Standard;
+  const float contentAspect = standard ? (4.0f / 3.0f) : (16.0f / 9.0f);
+  const float outputAspect =
+      static_cast<float>(outputWidth) / static_cast<float>(outputHeight);
+  if (outputAspect < contentAspect) {
+    *width = outputWidth;
+    *height = std::max(1, static_cast<int>(std::lround(outputWidth / contentAspect)));
+  } else {
+    *height = outputHeight;
+    *width = std::max(1, static_cast<int>(std::lround(outputHeight * contentAspect)));
+  }
+  return true;
+}
+
+int SchoolDaysAndroidRenderScaleIndex() {
+  const int current = std::clamp(global.config.renderScalePercent.load(), 25, 100);
+  for (int i = 0;
+       i < static_cast<int>(std::size(kSchoolDaysAndroidRenderScales)); ++i) {
+    if (kSchoolDaysAndroidRenderScales[i].percent == current) return i;
+  }
+  return 0;
+}
+
+SchoolDaysResolutionPopupLayout SchoolDaysRenderScalePopup(
+    const SDL_FRect &panel) {
+  auto out = SchoolDaysResolutionPopup(panel);
+  out.visibleRows = static_cast<int>(std::size(kSchoolDaysAndroidRenderScales));
+  out.rect.h = out.headerHeight + out.visibleRows * out.rowHeight + 12.0f;
+  return out;
+}
+
+int SchoolDaysSelectedAndroidMode(
+    const std::vector<Kotonoha::AndroidDisplayMode> &modes) {
+  if (modes.empty()) return -1;
+  const int wantedWidth = global.config.fullscreenSize[0].load();
+  const int wantedHeight = global.config.fullscreenSize[1].load();
+  const float wantedRefresh =
+      static_cast<float>(global.config.fullscreenRefreshMilliHz.load()) / 1000.0f;
+  if (wantedWidth > 0 && wantedHeight > 0 && wantedRefresh > 0.0f) {
+    for (int i = 0; i < static_cast<int>(modes.size()); ++i) {
+      const auto &mode = modes[static_cast<size_t>(i)];
+      if (mode.width == wantedWidth && mode.height == wantedHeight &&
+          std::fabs(mode.refreshRate - wantedRefresh) < 0.05f)
+        return i;
+    }
+  }
+
+  const int currentModeId = Kotonoha::AndroidCurrentDisplayModeId();
+  for (int i = 0; i < static_cast<int>(modes.size()); ++i)
+    if (modes[static_cast<size_t>(i)].modeId == currentModeId) return i;
+  return 0;
+}
+
+void PersistSchoolDaysAndroidDisplayConfig() {
+  KotonohaConfigSave(&global.config);
+  global.config.dirtyConfig = false;
+}
+
+void FormatSchoolDaysAndroidMode(const Kotonoha::AndroidDisplayMode &mode,
+                                 char *buffer, size_t bufferSize) {
+  if (buffer == nullptr || bufferSize == 0u) return;
+  const float rounded = std::round(mode.refreshRate);
+  if (std::fabs(mode.refreshRate - rounded) < 0.01f) {
+    SDL_snprintf(buffer, bufferSize, "%.0f FPS", rounded);
+  } else {
+    SDL_snprintf(buffer, bufferSize, "%.2f FPS", mode.refreshRate);
+  }
+}
+
+bool ApplySchoolDaysAndroidMode(int index) {
+  const auto &modes = SchoolDaysAndroidDisplayModes();
+  if (index < 0 || index >= static_cast<int>(modes.size())) return false;
+  const auto &mode = modes[static_cast<size_t>(index)];
+  if (!Kotonoha::AndroidRequestDisplayMode(mode.modeId)) return false;
+
+  ktrfModernDisplayPanel.selectedResolution = index;
+  global.config.fullScreen = true;
+  global.config.displayMode =
+      static_cast<int>(Kotonoha::DisplayMode::BorderlessFullscreen);
+  global.config.displayIndex = 0;
+  global.config.fullscreenSize[0] = mode.width;
+  global.config.fullscreenSize[1] = mode.height;
+  global.config.fullscreenRefreshMilliHz =
+      static_cast<int>(mode.refreshRate * 1000.0f + 0.5f);
+  global.config.enableVsync = true;
+  global.config.dirtyConfig = true;
+  if (global.render != nullptr) (void)SDL_SetRenderVSync(global.render, 1);
+  PersistSchoolDaysAndroidDisplayConfig();
+  return true;
+}
+
+bool SchoolDaysAndroidPointerPosition(const SDL_Event *event, float *x, float *y,
+                                      bool *activated) {
+  if (event == nullptr || x == nullptr || y == nullptr || activated == nullptr ||
+      global.render == nullptr)
+    return false;
+  *activated = false;
+  if (event->type == SDL_EVENT_MOUSE_MOTION ||
+      event->type == SDL_EVENT_MOUSE_BUTTON_DOWN) {
+    SDL_Event converted = *event;
+    if (!SDL_ConvertEventToRenderCoordinates(global.render, &converted))
+      return false;
+    if (event->type == SDL_EVENT_MOUSE_MOTION) {
+      *x = converted.motion.x;
+      *y = converted.motion.y;
+    } else {
+      if (converted.button.button != SDL_BUTTON_LEFT) return false;
+      *x = converted.button.x;
+      *y = converted.button.y;
+      *activated = true;
+    }
+    return true;
+  }
+
+  if (event->type == SDL_EVENT_FINGER_MOTION ||
+      event->type == SDL_EVENT_FINGER_DOWN) {
+    int width = 0;
+    int height = 0;
+    if (global.window == nullptr ||
+        !SDL_GetWindowSizeInPixels(global.window, &width, &height) || width <= 0 ||
+        height <= 0)
+      return false;
+    const float windowX = event->tfinger.x * static_cast<float>(width);
+    const float windowY = event->tfinger.y * static_cast<float>(height);
+    if (!SDL_RenderCoordinatesFromWindow(global.render, windowX, windowY, x, y))
+      return false;
+    *activated = event->type == SDL_EVENT_FINGER_DOWN;
+    return true;
+  }
+  return false;
+}
+
+bool RenderSchoolDaysAndroidDisplayPanel(Kotonoha::Kotonoha *app, TTF_Font *font) {
+  if (app == nullptr || font == nullptr || global.render == nullptr) return true;
+  const SDL_FRect panel = SchoolDaysModernDisplayPanelRect();
+  if (panel.w <= 0.0f || panel.h <= 0.0f) return true;
+
+  SDL_SetRenderDrawBlendMode(global.render, SDL_BLENDMODE_BLEND);
+  SDL_SetRenderDrawColor(global.render, 12, 15, 24, 242);
+  if (!SDL_RenderFillRect(global.render, &panel)) return false;
+  SDL_SetRenderDrawColor(global.render, 255, 255, 255, 64);
+  if (!SDL_RenderRect(global.render, &panel)) return false;
+
+  const auto &modes = SchoolDaysAndroidDisplayModes();
+  int selected = SchoolDaysSelectedAndroidMode(modes);
+  if (selected >= 0) ktrfModernDisplayPanel.selectedResolution = selected;
+
+  const int aspect =
+      std::clamp(global.config.contentAspectPreference.load(), 0, 2);
+  const char *aspectLabel[] = {"Auto (device)", "4:3", "16:9"};
+  int renderBaseWidth = 0;
+  int renderBaseHeight = 0;
+  (void)SchoolDaysAndroidContentViewportSize(&renderBaseWidth, &renderBaseHeight);
+  const int renderPercent =
+      std::clamp(global.config.renderScalePercent.load(), 25, 100);
+  const int renderWidth =
+      std::max(1, static_cast<int>(std::lround(renderBaseWidth * renderPercent / 100.0f)));
+  const int renderHeight =
+      std::max(1, static_cast<int>(std::lround(renderBaseHeight * renderPercent / 100.0f)));
+  char renderText[128];
+  SDL_snprintf(renderText, sizeof(renderText), "Render Resolution: %dx%d (%d%%)",
+               renderWidth, renderHeight, renderPercent);
+  char modeText[96] = "Frame Rate: Device default";
+  if (selected >= 0 && selected < static_cast<int>(modes.size())) {
+    char formatted[96];
+    FormatSchoolDaysAndroidMode(modes[static_cast<size_t>(selected)], formatted,
+                                sizeof(formatted));
+    SDL_snprintf(modeText, sizeof(modeText), "Frame Rate: %s", formatted);
+  }
+  char aspectText[96];
+  SDL_snprintf(aspectText, sizeof(aspectText), "Aspect: %s", aspectLabel[aspect]);
+  const int upscalerOption = SchoolDaysCurrentUpscalerOption();
+  char upscaleText[160];
+  SDL_snprintf(upscaleText, sizeof(upscaleText), "Upscaling: %s",
+               kSchoolDaysUpscalerOptions[upscalerOption].label);
+
+  const char *labels[5] = {"DISPLAY / ANDROID", aspectText, renderText, modeText,
+                           upscaleText};
+  const float rowHeight = SchoolDaysModernDisplayRowHeight(panel);
+  for (int row = 1; row <= 4; ++row) {
+    const SDL_FRect box = SchoolDaysModernDisplayRowRect(panel, row);
+    const bool hovered = ktrfModernDisplayPanel.hoveredRow == row;
+    SDL_SetRenderDrawColor(global.render, hovered ? 65 : 255,
+                           hovered ? 92 : 255, hovered ? 148 : 255,
+                           hovered ? 118 : 18);
+    if (!SDL_RenderFillRect(global.render, &box)) return false;
+    SDL_SetRenderDrawColor(global.render, 255, 255, 255, hovered ? 170 : 54);
+    if (!SDL_RenderRect(global.render, &box)) return false;
+  }
+  for (int row = 0; row < 5; ++row) {
+    SDL_Surface *surface = Kotonoha::SchoolDaysSubtitleTypography::Render(
+        font, labels[row], SDL_strlen(labels[row]));
+    if (surface == nullptr) continue;
+    SDL_Texture *texture = SDL_CreateTextureFromSurface(global.render, surface);
+    if (texture != nullptr) {
+      const float scale = row == 0 ? 0.56f : 0.46f;
+      SDL_FRect dst{panel.x + 28.0f, panel.y + 20.0f + row * rowHeight,
+                    surface->w * scale, surface->h * scale};
+      (void)SDL_RenderTexture(global.render, texture, nullptr, &dst);
+      SDL_DestroyTexture(texture);
+    }
+    SDL_DestroySurface(surface);
+  }
+
+  int outputWidth = 0;
+  int outputHeight = 0;
+  char deviceInfo[160] = "Landscape / aspect-fit";
+  if (SDL_GetCurrentRenderOutputSize(global.render, &outputWidth, &outputHeight) &&
+      outputWidth > 0 && outputHeight > 0) {
+    SDL_snprintf(deviceInfo, sizeof(deviceInfo),
+                 "Device viewport: %dx%d  |  %.2f:1  |  Landscape",
+                 outputWidth, outputHeight,
+                 static_cast<double>(outputWidth) / outputHeight);
+  }
+  SDL_Surface *infoSurface = Kotonoha::SchoolDaysSubtitleTypography::Render(
+      font, deviceInfo, SDL_strlen(deviceInfo));
+  if (infoSurface != nullptr) {
+    SDL_Texture *infoTexture =
+        SDL_CreateTextureFromSurface(global.render, infoSurface);
+    if (infoTexture != nullptr) {
+      const float scale = 0.34f;
+      SDL_FRect dst{panel.x + 28.0f, panel.y + 20.0f + 5.15f * rowHeight,
+                    infoSurface->w * scale, infoSurface->h * scale};
+      (void)SDL_RenderTexture(global.render, infoTexture, nullptr, &dst);
+      SDL_DestroyTexture(infoTexture);
+    }
+    SDL_DestroySurface(infoSurface);
+  }
+
+  for (int row = 1; row <= 4; ++row) {
+    const SDL_FRect box = SchoolDaysModernDisplayRowRect(panel, row);
+    const bool hovered = ktrfModernDisplayPanel.hoveredRow == row;
+    const bool open =
+        (row == 2 && ktrfModernDisplayPanel.renderScaleListOpen) ||
+        (row == 3 && ktrfModernDisplayPanel.resolutionListOpen) ||
+        (row == 4 && ktrfModernDisplayPanel.upscalerListOpen);
+    const char *marker = open ? "^" : (hovered ? "SELECT  >" : ">");
+    SDL_Surface *surface = Kotonoha::SchoolDaysSubtitleTypography::Render(
+        font, marker, SDL_strlen(marker));
+    if (surface == nullptr) continue;
+    SDL_Texture *texture = SDL_CreateTextureFromSurface(global.render, surface);
+    if (texture != nullptr) {
+      const float scale = hovered ? 0.38f : 0.34f;
+      const float w = surface->w * scale;
+      const float h = surface->h * scale;
+      SDL_FRect dst{box.x + box.w - w - 14.0f,
+                    box.y + (box.h - h) * 0.5f, w, h};
+      (void)SDL_RenderTexture(global.render, texture, nullptr, &dst);
+      SDL_DestroyTexture(texture);
+    }
+    SDL_DestroySurface(surface);
+  }
+
+  if (ktrfModernDisplayPanel.renderScaleListOpen) {
+    const auto popup = SchoolDaysRenderScalePopup(panel);
+    SDL_SetRenderDrawColor(global.render, 8, 11, 18, 252);
+    if (!SDL_RenderFillRect(global.render, &popup.rect)) return false;
+    SDL_SetRenderDrawColor(global.render, 190, 205, 235, 230);
+    if (!SDL_RenderRect(global.render, &popup.rect)) return false;
+
+    const char *heading = "RENDER RESOLUTION";
+    SDL_Surface *headingSurface = Kotonoha::SchoolDaysSubtitleTypography::Render(
+        font, heading, SDL_strlen(heading));
+    if (headingSurface != nullptr) {
+      SDL_Texture *headingTexture =
+          SDL_CreateTextureFromSurface(global.render, headingSurface);
+      if (headingTexture != nullptr) {
+        const float scale = 0.34f;
+        SDL_FRect dst{popup.rect.x + 12.0f, popup.rect.y + 5.0f,
+                      headingSurface->w * scale, headingSurface->h * scale};
+        (void)SDL_RenderTexture(global.render, headingTexture, nullptr, &dst);
+        SDL_DestroyTexture(headingTexture);
+      }
+      SDL_DestroySurface(headingSurface);
+    }
+
+    const int chosen = SchoolDaysAndroidRenderScaleIndex();
+    for (int index = 0;
+         index < static_cast<int>(std::size(kSchoolDaysAndroidRenderScales)); ++index) {
+      const SDL_FRect item{popup.rect.x + 8.0f,
+                           popup.rect.y + popup.headerHeight +
+                               index * popup.rowHeight,
+                           popup.rect.w - 16.0f, popup.rowHeight - 3.0f};
+      const bool hovered = ktrfModernDisplayPanel.hoveredRenderScale == index;
+      const bool selectedScale = chosen == index;
+      if (hovered || selectedScale) {
+        SDL_SetRenderDrawColor(global.render, selectedScale ? 57 : 50,
+                               selectedScale ? 83 : 64,
+                               selectedScale ? 144 : 90,
+                               hovered ? 220 : 150);
+        if (!SDL_RenderFillRect(global.render, &item)) return false;
+      }
+      const auto &option = kSchoolDaysAndroidRenderScales[index];
+      const int scaledWidth = std::max(
+          1, static_cast<int>(std::lround(renderBaseWidth * option.percent / 100.0f)));
+      const int scaledHeight = std::max(
+          1, static_cast<int>(std::lround(renderBaseHeight * option.percent / 100.0f)));
+      char itemText[160];
+      SDL_snprintf(itemText, sizeof(itemText), "%s %s  %dx%d (%d%%)",
+                   selectedScale ? ">" : " ", option.label, scaledWidth,
+                   scaledHeight, option.percent);
+      SDL_Surface *itemSurface = Kotonoha::SchoolDaysSubtitleTypography::Render(
+          font, itemText, SDL_strlen(itemText));
+      if (itemSurface != nullptr) {
+        SDL_Texture *itemTexture =
+            SDL_CreateTextureFromSurface(global.render, itemSurface);
+        if (itemTexture != nullptr) {
+          const float scale = 0.35f;
+          const float h = itemSurface->h * scale;
+          SDL_FRect dst{item.x + 10.0f, item.y + (item.h - h) * 0.5f,
+                        itemSurface->w * scale, h};
+          (void)SDL_RenderTexture(global.render, itemTexture, nullptr, &dst);
+          SDL_DestroyTexture(itemTexture);
+        }
+        SDL_DestroySurface(itemSurface);
+      }
+    }
+  }
+
+  if (ktrfModernDisplayPanel.resolutionListOpen && !modes.empty()) {
+    const auto popup = SchoolDaysResolutionPopup(panel);
+    const int maxScroll =
+        std::max(0, static_cast<int>(modes.size()) - popup.visibleRows);
+    ktrfModernDisplayPanel.resolutionScroll = std::clamp(
+        ktrfModernDisplayPanel.resolutionScroll, 0, maxScroll);
+    SDL_SetRenderDrawColor(global.render, 8, 11, 18, 252);
+    if (!SDL_RenderFillRect(global.render, &popup.rect)) return false;
+    SDL_SetRenderDrawColor(global.render, 190, 205, 235, 230);
+    if (!SDL_RenderRect(global.render, &popup.rect)) return false;
+
+    const char *heading = "SUPPORTED FRAME RATES";
+    SDL_Surface *headingSurface = Kotonoha::SchoolDaysSubtitleTypography::Render(
+        font, heading, SDL_strlen(heading));
+    if (headingSurface != nullptr) {
+      SDL_Texture *headingTexture =
+          SDL_CreateTextureFromSurface(global.render, headingSurface);
+      if (headingTexture != nullptr) {
+        const float scale = 0.34f;
+        SDL_FRect dst{popup.rect.x + 12.0f, popup.rect.y + 5.0f,
+                      headingSurface->w * scale, headingSurface->h * scale};
+        (void)SDL_RenderTexture(global.render, headingTexture, nullptr, &dst);
+        SDL_DestroyTexture(headingTexture);
+      }
+      SDL_DestroySurface(headingSurface);
+    }
+
+    for (int visible = 0; visible < popup.visibleRows; ++visible) {
+      const int index = ktrfModernDisplayPanel.resolutionScroll + visible;
+      if (index >= static_cast<int>(modes.size())) break;
+      const SDL_FRect item{popup.rect.x + 8.0f,
+                           popup.rect.y + popup.headerHeight +
+                               visible * popup.rowHeight,
+                           popup.rect.w - 16.0f, popup.rowHeight - 3.0f};
+      const bool hovered = ktrfModernDisplayPanel.hoveredResolution == index;
+      const bool chosen = selected == index;
+      if (hovered || chosen) {
+        SDL_SetRenderDrawColor(global.render, chosen ? 57 : 50,
+                               chosen ? 83 : 64, chosen ? 144 : 90,
+                               hovered ? 220 : 150);
+        if (!SDL_RenderFillRect(global.render, &item)) return false;
+      }
+      char formatted[96];
+      FormatSchoolDaysAndroidMode(modes[static_cast<size_t>(index)], formatted,
+                                  sizeof(formatted));
+      char itemText[128];
+      SDL_snprintf(itemText, sizeof(itemText), "%s %s", chosen ? ">" : " ",
+                   formatted);
+      SDL_Surface *itemSurface = Kotonoha::SchoolDaysSubtitleTypography::Render(
+          font, itemText, SDL_strlen(itemText));
+      if (itemSurface != nullptr) {
+        SDL_Texture *itemTexture =
+            SDL_CreateTextureFromSurface(global.render, itemSurface);
+        if (itemTexture != nullptr) {
+          const float scale = 0.38f;
+          const float h = itemSurface->h * scale;
+          SDL_FRect dst{item.x + 10.0f, item.y + (item.h - h) * 0.5f,
+                        itemSurface->w * scale, h};
+          (void)SDL_RenderTexture(global.render, itemTexture, nullptr, &dst);
+          SDL_DestroyTexture(itemTexture);
+        }
+        SDL_DestroySurface(itemSurface);
+      }
+    }
+  }
+
+  if (ktrfModernDisplayPanel.upscalerListOpen) {
+    const auto popup = SchoolDaysUpscalerPopup(panel);
+    SDL_SetRenderDrawColor(global.render, 8, 11, 18, 252);
+    if (!SDL_RenderFillRect(global.render, &popup.rect)) return false;
+    SDL_SetRenderDrawColor(global.render, 190, 205, 235, 230);
+    if (!SDL_RenderRect(global.render, &popup.rect)) return false;
+    const int chosen = SchoolDaysCurrentUpscalerOption();
+    for (int index = 0;
+         index < static_cast<int>(std::size(kSchoolDaysUpscalerOptions)); ++index) {
+      const SDL_FRect item{popup.rect.x + 8.0f,
+                           popup.rect.y + popup.headerHeight +
+                               index * popup.rowHeight,
+                           popup.rect.w - 16.0f, popup.rowHeight - 3.0f};
+      const bool hovered = ktrfModernDisplayPanel.hoveredUpscaler == index;
+      const bool selectedPreset = chosen == index;
+      if (hovered || selectedPreset) {
+        SDL_SetRenderDrawColor(global.render, selectedPreset ? 57 : 50,
+                               selectedPreset ? 83 : 64,
+                               selectedPreset ? 144 : 90,
+                               hovered ? 220 : 150);
+        if (!SDL_RenderFillRect(global.render, &item)) return false;
+      }
+      char itemText[160];
+      SDL_snprintf(itemText, sizeof(itemText), "%s %s",
+                   selectedPreset ? ">" : " ",
+                   kSchoolDaysUpscalerOptions[index].label);
+      SDL_Surface *itemSurface = Kotonoha::SchoolDaysSubtitleTypography::Render(
+          font, itemText, SDL_strlen(itemText));
+      if (itemSurface != nullptr) {
+        SDL_Texture *itemTexture =
+            SDL_CreateTextureFromSurface(global.render, itemSurface);
+        if (itemTexture != nullptr) {
+          const float scale = 0.34f;
+          const float h = itemSurface->h * scale;
+          SDL_FRect dst{item.x + 10.0f, item.y + (item.h - h) * 0.5f,
+                        itemSurface->w * scale, h};
+          (void)SDL_RenderTexture(global.render, itemTexture, nullptr, &dst);
+          SDL_DestroyTexture(itemTexture);
+        }
+        SDL_DestroySurface(itemSurface);
+      }
+    }
+  }
+  return true;
+}
+
+bool HandleSchoolDaysAndroidDisplayPanel(const SDL_Event *event) {
+  if (event == nullptr || global.render == nullptr || ktrfSystemUi == nullptr ||
+      !ktrfSystemUi->IsConfigOpen() ||
+      ktrfConfigPage != Kotonoha::SchoolDaysConfigMenuModel::Page::Display)
+    return false;
+
+  if (event->type == SDL_EVENT_MOUSE_WHEEL) {
+    if (!ktrfModernDisplayPanel.resolutionListOpen) return false;
+    const auto &modes = SchoolDaysAndroidDisplayModes();
+    const auto popup = SchoolDaysResolutionPopup(SchoolDaysModernDisplayPanelRect());
+    const int maxScroll =
+        std::max(0, static_cast<int>(modes.size()) - popup.visibleRows);
+    if (event->wheel.y > 0.0f)
+      --ktrfModernDisplayPanel.resolutionScroll;
+    else if (event->wheel.y < 0.0f)
+      ++ktrfModernDisplayPanel.resolutionScroll;
+    ktrfModernDisplayPanel.resolutionScroll = std::clamp(
+        ktrfModernDisplayPanel.resolutionScroll, 0, maxScroll);
+    return true;
+  }
+
+  float x = 0.0f;
+  float y = 0.0f;
+  bool activated = false;
+  if (!SchoolDaysAndroidPointerPosition(event, &x, &y, &activated)) return false;
+  const SDL_FRect panel = SchoolDaysModernDisplayPanelRect();
+  if (!SchoolDaysPointInRect(x, y, panel)) return false;
+
+  int row = -1;
+  for (int candidate = 1; candidate <= 4; ++candidate) {
+    if (SchoolDaysPointInRect(
+            x, y, SchoolDaysModernDisplayRowRect(panel, candidate))) {
+      row = candidate;
+      break;
+    }
+  }
+  ktrfModernDisplayPanel.hoveredRow = row;
+  ktrfModernDisplayPanel.hoveredResolution = -1;
+  ktrfModernDisplayPanel.hoveredRenderScale = -1;
+  ktrfModernDisplayPanel.hoveredUpscaler = -1;
+
+  const auto &modes = SchoolDaysAndroidDisplayModes();
+  if (ktrfModernDisplayPanel.renderScaleListOpen) {
+    const auto popup = SchoolDaysRenderScalePopup(panel);
+    if (SchoolDaysPointInRect(x, y, popup.rect)) {
+      const float relativeY = y - popup.rect.y - popup.headerHeight;
+      if (relativeY >= 0.0f) {
+        const int index = static_cast<int>(relativeY / popup.rowHeight);
+        if (index >= 0 &&
+            index < static_cast<int>(std::size(kSchoolDaysAndroidRenderScales))) {
+          ktrfModernDisplayPanel.hoveredRenderScale = index;
+          if (activated) {
+            global.config.renderScalePercent =
+                kSchoolDaysAndroidRenderScales[index].percent;
+            global.config.dirtyConfig = true;
+            PersistSchoolDaysAndroidDisplayConfig();
+            ktrfModernDisplayPanel.renderScaleListOpen = false;
+          }
+        }
+      }
+      return true;
+    }
+  }
+
+  if (ktrfModernDisplayPanel.resolutionListOpen) {
+    const auto popup = SchoolDaysResolutionPopup(panel);
+    if (SchoolDaysPointInRect(x, y, popup.rect)) {
+      const float relativeY = y - popup.rect.y - popup.headerHeight;
+      if (relativeY >= 0.0f) {
+        const int visible = static_cast<int>(relativeY / popup.rowHeight);
+        const int index = ktrfModernDisplayPanel.resolutionScroll + visible;
+        if (visible >= 0 && visible < popup.visibleRows && index >= 0 &&
+            index < static_cast<int>(modes.size())) {
+          ktrfModernDisplayPanel.hoveredResolution = index;
+          if (activated) {
+            (void)ApplySchoolDaysAndroidMode(index);
+            ktrfModernDisplayPanel.resolutionListOpen = false;
+          }
+        }
+      }
+      return true;
+    }
+  }
+
+  if (ktrfModernDisplayPanel.upscalerListOpen) {
+    const auto popup = SchoolDaysUpscalerPopup(panel);
+    if (SchoolDaysPointInRect(x, y, popup.rect)) {
+      const float relativeY = y - popup.rect.y - popup.headerHeight;
+      if (relativeY >= 0.0f) {
+        const int index = static_cast<int>(relativeY / popup.rowHeight);
+        if (index >= 0 &&
+            index < static_cast<int>(std::size(kSchoolDaysUpscalerOptions))) {
+          ktrfModernDisplayPanel.hoveredUpscaler = index;
+          if (activated) {
+            ApplySchoolDaysUpscalerOption(index);
+            PersistSchoolDaysAndroidDisplayConfig();
+            ktrfModernDisplayPanel.upscalerListOpen = false;
+          }
+        }
+      }
+      return true;
+    }
+  }
+
+  if (!activated) return true;
+  if (row == 1) {
+    ktrfModernDisplayPanel.renderScaleListOpen = false;
+    ktrfModernDisplayPanel.resolutionListOpen = false;
+    ktrfModernDisplayPanel.upscalerListOpen = false;
+    const int next =
+        (std::clamp(global.config.contentAspectPreference.load(), 0, 2) + 1) % 3;
+    global.config.contentAspectPreference = next;
+    global.config.dirtyConfig = true;
+    (void)ApplySchoolDaysModernAspectPreference();
+    PersistSchoolDaysAndroidDisplayConfig();
+    ktrfSystemUi->Close();
+    return true;
+  }
+  if (row == 2) {
+    ktrfModernDisplayPanel.resolutionListOpen = false;
+    ktrfModernDisplayPanel.upscalerListOpen = false;
+    ktrfModernDisplayPanel.renderScaleListOpen =
+        !ktrfModernDisplayPanel.renderScaleListOpen;
+    return true;
+  }
+  if (row == 3) {
+    ktrfModernDisplayPanel.renderScaleListOpen = false;
+    ktrfModernDisplayPanel.upscalerListOpen = false;
+    ktrfModernDisplayPanel.resolutionListOpen =
+        !ktrfModernDisplayPanel.resolutionListOpen;
+    if (ktrfModernDisplayPanel.resolutionListOpen && !modes.empty()) {
+      const auto popup = SchoolDaysResolutionPopup(panel);
+      const int selected = SchoolDaysSelectedAndroidMode(modes);
+      const int maxScroll =
+          std::max(0, static_cast<int>(modes.size()) - popup.visibleRows);
+      ktrfModernDisplayPanel.resolutionScroll = std::clamp(
+          selected - popup.visibleRows / 2, 0, maxScroll);
+    }
+    return true;
+  }
+  if (row == 4) {
+    ktrfModernDisplayPanel.renderScaleListOpen = false;
+    ktrfModernDisplayPanel.resolutionListOpen = false;
+    ktrfModernDisplayPanel.upscalerListOpen =
+        !ktrfModernDisplayPanel.upscalerListOpen;
+    return true;
+  }
+  return true;
+}
+
+#endif
 
 bool ApplySchoolDaysResolutionSelection(int index) {
   const auto resolutions = SchoolDaysCurrentResolutions();
@@ -638,6 +1306,10 @@ bool RenderSchoolDaysModernDisplayPanel(Kotonoha::Kotonoha *app) {
 
   if (ktrfConfigPage != Kotonoha::SchoolDaysConfigMenuModel::Page::Display)
     return true;
+
+#if defined(__ANDROID__) || defined(ANDROID)
+  return RenderSchoolDaysAndroidDisplayPanel(app, font);
+#endif
 
   const SDL_FRect panel = SchoolDaysModernDisplayPanelRect();
   if (panel.w <= 0.0f || panel.h <= 0.0f) return true;
@@ -912,6 +1584,9 @@ bool HandleSchoolDaysModernDisplayPanel(const SDL_Event *event) {
       ktrfConfigPage != Kotonoha::SchoolDaysConfigMenuModel::Page::Display) {
     return false;
   }
+#if defined(__ANDROID__) || defined(ANDROID)
+  return HandleSchoolDaysAndroidDisplayPanel(event);
+#endif
   const bool pointerEvent = event->type == SDL_EVENT_MOUSE_MOTION ||
                             event->type == SDL_EVENT_MOUSE_BUTTON_DOWN;
   if (!pointerEvent && event->type != SDL_EVENT_MOUSE_WHEEL) return false;
@@ -1146,7 +1821,18 @@ bool ApplySchoolDaysRetailAudioAndUiState() {
   };
   for (const auto &projection : projections) {
     auto *channel = sound->GetChannelByName(projection.name);
-    if (channel == nullptr) return false;
+    if (channel == nullptr) {
+      // Audio output is optional at runtime. SDL can legitimately have no
+      // default playback device (headless/remote sessions, a disconnected
+      // device, or an OS device transition). The School Days UI/config state
+      // must still be usable in that case; media events already fail closed
+      // when their target channel is unavailable. Do not turn a missing audio
+      // device into a fatal application-startup error.
+      SDL_LogWarn(SDL_LOG_CATEGORY_AUDIO,
+                  "[SD-CONFIG] audio channel '%s' unavailable; continuing silent",
+                  projection.name);
+      continue;
+    }
     const float gain =
         ktrfRetailConfigState.mute
             ? 0.0f
@@ -1206,8 +1892,12 @@ Kotonoha::SchoolDaysBackLogModel::Variant SchoolDaysBackLogVariant() {
 
 std::u16string Utf8ToUtf16(const char *text) {
   if (text == nullptr || *text == '\0') return {};
+  // SDL_iconv_string() appends its own zero terminator.  Passing the source
+  // NUL as input is not portable: Android's bionic iconv leaves that byte
+  // unconsumed while reporting E2BIG for UTF-8 -> UTF-16LE.  SDL then keeps
+  // doubling its output buffer forever.  Convert only the actual UTF-8 bytes.
   char *converted = SDL_iconv_string("UTF-16LE", "UTF-8", text,
-                                    SDL_strlen(text) + 1u);
+                                    SDL_strlen(text));
   if (converted == nullptr) return {};
   const char16_t *units = reinterpret_cast<const char16_t *>(converted);
   size_t count = 0u;
@@ -1628,6 +2318,13 @@ bool StartSchoolDaysFrontendBgm(const std::string &stem,
       owner == KtrfFrontendBgmOwner::None) {
     return false;
   }
+  auto *sound = static_cast<Kotonoha::Sound *>(global.sound);
+  if (sound->GetChannelByName("BGM") == nullptr) {
+    SDL_LogWarn(SDL_LOG_CATEGORY_AUDIO,
+                "[SD-FRONTEND-BGM] %s BGM channel unavailable; continuing silent",
+                label != nullptr ? label : "frontend");
+    return true;
+  }
   if (ktrfTitleBgm != nullptr || ktrfTitleAudio != nullptr ||
       ktrfTitleAudioClock != nullptr) {
     StopSchoolDaysTitleBgm();
@@ -1644,7 +2341,7 @@ bool StartSchoolDaysFrontendBgm(const std::string &stem,
   ktrfTitleAudioClock = Kotonoha_timeNew(false);
   if (ktrfTitleAudioClock == nullptr) return false;
   ktrfTitleAudio = std::make_unique<Kotonoha::Audio>(
-      static_cast<Kotonoha::Sound *>(global.sound), ktrfTitleAudioClock);
+      sound, ktrfTitleAudioClock);
   ktrfTitleBgm = ktrfTitleAudio->AddMedia(
       resolved.physical.c_str(), 0u, 0u, true, "BGM", true);
   if (ktrfTitleBgm == nullptr) {
@@ -1983,45 +2680,20 @@ bool ExecutePlayDataLoadSlot(int slot) {
     return ClosePlayDataSaveLoadUi();
   }
 
-  // Once PlayData's +0x98 one-shot latch has been consumed, native SceneView
-  // stops using the tag4-only reader. It performs the ordinary full SaveFile
-  // load on the active FILMEngine and then its outer mode resolver leaves
-  // SceneView for mode 1 (normal gameplay). Kotonoha keeps PlayData in an
-  // isolated KTRF session, so the faithful equivalent is to load the same slot
-  // transactionally into the retained narrative controller and then retire the
-  // temporary PlayData owner. Carry the active PlayData GlobalFlag image across
-  // that ownership boundary before the first loaded gameplay frame runs.
-  std::vector<uint8_t> playDataGlobal;
-  const bool hasPlayDataGlobal =
-      ktrfPlayDataPlayback->Session().Persistence().HasGlobalFlag();
-  if (hasPlayDataGlobal &&
-      !ktrfPlayDataPlayback->Session().SerializeGlobalFlag(&playDataGlobal,
-                                                           &error)) {
-    SDL_LogError(0, "[SD-PLAYDATA-LOAD] active GlobalFlag snapshot failed: %s",
-                 error.message);
-    return false;
-  }
-  if (ktrfController == nullptr || !ktrfController->LoadSaveFile(bytes, &error)) {
-    SDL_LogError(0, "[SD-PLAYDATA-LOAD] normal gameplay promotion failed slot=%d: %s",
+  // Replay Data never promotes the selected slot into normal narrative
+  // gameplay.  The SaveFile remains a recorded-choice oracle; selecting a new
+  // slot after the one-shot latch was consumed restarts the private FILM owner
+  // from A00 with that oracle, matching the desktop Replay Data contract.
+  if (!ktrfPlayDataPlayback->RestartFromRecordedChoiceOracle(bytes, &error)) {
+    SDL_LogError(0, "[SD-PLAYDATA-LOAD] restart from slot=%d oracle failed: %s",
                  slot, error.message);
     return false;
   }
-  if (hasPlayDataGlobal &&
-      !ktrfController->LoadGlobalFlag(playDataGlobal, &error)) {
-    // The bytes were produced by this same runtime immediately above, so this
-    // is an invariant failure after the full-load transaction has already
-    // crossed into normal gameplay. Finish the owner handoff rather than leave
-    // two visible owners alive, and surface the diagnostic loudly.
-    SDL_LogError(0, "[SD-PLAYDATA-LOAD] promoted GlobalFlag apply failed: %s",
-                 error.message);
-  }
 
-  if (ktrfSceneTransaction != nullptr) ktrfSceneTransaction->Reset();
   if (ktrfReplaySceneTransaction != nullptr) ktrfReplaySceneTransaction->Reset();
   ktrfSystemUi->Close();
   ktrfSaveLoadMetadataPage = -1;
   ktrfReplayHostModal = KtrfReplayHostModal::None;
-  ktrfPlayDataPlayback.reset();
   ResetSchoolDaysBackLog();
   SDL_SetAtomicInt(&global.textLogCaptureEnabled, 1);
   ktrfMenuBackStartGameplay = nullptr;
@@ -2665,6 +3337,16 @@ SDL_AppResult LocalArgs(int argc, char *argv[]) {
 
 SDL_AppResult LocalInit(void **appstate, int, char *[]) {
   Kotonoha::Kotonoha *engine = Kotonoha::GetApp(*appstate);
+#if defined(KOTONOHA_SCHOOL_DAYS_DEDICATED_ANDROID)
+  // The dedicated Android package is a player build. Older test APKs passed
+  // -u/-z/-t and persisted those developer overlays in Kotonoha's config, so
+  // merely removing the flags would leave upgrades showing the debug panel.
+  // Keep an explicit environment-variable escape hatch for developer sessions,
+  // but never inherit persisted debug/FPS/timestamp state for normal users.
+  global.config.enableDebugUi = SDL_getenv("KOTONOHA_DEBUG_UI") != nullptr;
+  global.config.showFps = false;
+  global.config.showTimestamp = false;
+#endif
   Kotonoha::InstallSchoolDaysImageAssetProvider();
 
   ktrfSceneTransaction.reset();

@@ -265,6 +265,7 @@ fabric.properties
 ### AndroidStudio Patch ###
 
 !/gradle/wrapper/gradle-wrapper.jar
+!/android-project/gradle/wrapper/gradle-wrapper.jar
 
 ### VisualStudio ###
 ## Ignore Visual Studio temporary files, build results, and

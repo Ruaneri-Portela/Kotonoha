@@ -118,6 +118,8 @@ void Canvas::RegisterCanva(
   item.drawingPoint = drawingPoint;
   item.zIndex = zIndex;
   item.place = place;
+  item.targetWidth = 0;
+  item.targetHeight = 0;
   item.userData = userData;
   item.target = nullptr;
   item.dirtyFrame = nullptr;
@@ -189,6 +191,18 @@ void Canvas::UpdateCanva(
   }
 }
 
+void Canvas::UpdateTargetSize(int width, int height) {
+  const int nextWidth = std::max(1, width);
+  const int nextHeight = std::max(1, height);
+  for (auto &item : drawingList) {
+    if (item.targetWidth != nextWidth || item.targetHeight != nextHeight) {
+      item.targetWidth = nextWidth;
+      item.targetHeight = nextHeight;
+      item.swapTexture = true;
+    }
+  }
+}
+
 std::vector<CanvasLayerInfo> Canvas::GetLayerInfo() const {
   std::vector<CanvasLayerInfo> layers;
   layers.reserve(drawingList.size());
@@ -237,9 +251,15 @@ SDL_AppResult Canvas::RenderCanvas(SDL_Window *window, SDL_Renderer *render) {
     }
 
     if (item.target == nullptr) {
+      const int targetWidth =
+          item.targetWidth > 0 ? item.targetWidth
+                               : std::max(1, static_cast<int>(item.place.w));
+      const int targetHeight =
+          item.targetHeight > 0 ? item.targetHeight
+                                : std::max(1, static_cast<int>(item.place.h));
       item.target = SDL_CreateTexture(
           render, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET,
-          static_cast<int>(item.place.w), static_cast<int>(item.place.h));
+          targetWidth, targetHeight);
 
       if (item.target == nullptr) {
         KLOG_ERROR(RENDER, "Failed to create canvas texture: %s",

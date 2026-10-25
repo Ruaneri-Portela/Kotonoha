@@ -6,6 +6,7 @@
 #include <SDL3/SDL_render.h>
 #include <algorithm>
 #include <cctype>
+#include <cstdint>
 #include <map>
 
 namespace Kotonoha {
@@ -389,6 +390,45 @@ void Image::RenderTexture(SDL_Renderer *render, SDL_Texture *target,
       if (requiredWidth > 0 && requiredHeight > 0 &&
           EnsureUpscalingTextures(render, requiredWidth, requiredHeight,
                                   factor)) {
+        // A still CG/background can remain on screen for thousands of display
+        // frames while its authored pixels are unchanged.  Running the full
+        // ArtCNN chain on every vsync is pure duplicate work (26 passes for
+        // C4F16).  Cache the composed base+ABC result and invalidate only when
+        // the base generation, active ABC state, or upscaler settings change.
+        //
+        // The ABC group objects are stable for the lifetime of this Image
+        // scene, so their addresses are safe local cache identities.  Entry /
+        // exit from a binding window changes membership in the hash even when
+        // the selected mouth frame itself has not changed.
+        const Uint64 atMs = Kotonoha_timeGet(timeManager);
+        Uint64 contentKey = HashCombine(picture->baseGeneration,
+                                        KotonohaUpscalingGetRevision());
+        if (picture->id == 0) {
+          for (const auto &item : abcGroups) {
+            const auto *group = item.get();
+            if (group == nullptr || !group->bound ||
+                group->ownerBaseGeneration == 0 ||
+                group->ownerBaseGeneration != activeBaseGeneration ||
+                group->ownerBaseGeneration != picture->baseGeneration ||
+                atMs < group->startTime || atMs >= group->endTime ||
+                atMs < group->bindingStartTime ||
+                atMs >= group->bindingEndTime || group->activeIndex > 2 ||
+                group->resources.paths[group->activeIndex].empty()) {
+              continue;
+            }
+            contentKey = HashCombine(
+                contentKey,
+                static_cast<Uint64>(reinterpret_cast<std::uintptr_t>(group)));
+            contentKey = HashCombine(contentKey, group->activeIndex);
+          }
+        }
+
+        if (IsUpscaleCached(contentKey) && upScaledTexture != nullptr) {
+          ClearTransparentLayer(render, cleaned);
+          SDL_RenderTexture(render, upScaledTexture, nullptr, nullptr);
+          return;
+        }
+
         SDL_Texture *previousTarget = SDL_GetRenderTarget(render);
         SDL_Rect previousViewport{};
         SDL_Rect previousClip{};
@@ -440,6 +480,7 @@ void Image::RenderTexture(SDL_Renderer *render, SDL_Texture *target,
           }
 
           const bool upscaled = baseDrawn && ProcessUpscale(render, extraTexture);
+          if (upscaled) MarkUpscaleCached(contentKey);
 
           // Upscaler backends may change GL/SDL render state.  Restore every
           // state component before returning to Canvas, even on fallback.
