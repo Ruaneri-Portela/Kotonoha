@@ -32,11 +32,20 @@ void AppendAudioBufferInfo(std::vector<MediaBufferInfo> &result,
 } // namespace
 
 Audio::Audio(Sound *soundCtx, Kotonoha_time *timeCtx)
-    : soundCtx(soundCtx), timeCtx(timeCtx) {}
+    : soundCtx(soundCtx), timeCtx(timeCtx) {
+  mediaLock = SDL_CreateMutex();
+  if (mediaLock == nullptr)
+    KLOG_ERROR(AUDIO, "Failed to create Audio media mutex: %s", SDL_GetError());
+  previewLock = SDL_CreateMutex();
+  if (previewLock == nullptr)
+    KLOG_ERROR(AUDIO, "Failed to create Audio preview mutex: %s", SDL_GetError());
+}
 
 Audio::Audio(Sound *soundCtx, Kotonoha_time *timeCtx,
              Kotonoha_Demuxer *demuxer)
-    : soundCtx(soundCtx), timeCtx(timeCtx), demuxer(demuxer) {}
+    : Audio(soundCtx, timeCtx) {
+  this->demuxer = demuxer;
+}
 
 Kotonoha_audioDecode *Audio::CreateDecode(const char *path,
                                           SDL_AudioSpec specification) {
@@ -45,8 +54,8 @@ Kotonoha_audioDecode *Audio::CreateDecode(const char *path,
                                                          demuxer)
                                      : Kotonoha_AudioInit(path, specification);
   if (decode != nullptr &&
-      !KotonohaAudioSetPlaybackRate(decode,
-                                              playbackRate)) {
+      !KotonohaAudioSetPlaybackRate(
+          decode, playbackRate.load(std::memory_order_acquire))) {
     KotonohaAudioFree(decode);
     return nullptr;
   }
@@ -63,19 +72,27 @@ Kotonoha_audioDecode *Audio::AddMediaInternal(
     return nullptr;
   }
 
+  if (mediaLock == nullptr) {
+    KotonohaAudioFree(loopMedia);
+    return nullptr;
+  }
+  SDL_LockMutex(mediaLock);
+
   std::vector<Kotonoha_audioDecode *> finished;
   for (auto &object : mediaObjects) {
     for (auto &entry : std::get<1>(object)) {
-      if (std::get<0>(entry) != nullptr && std::get<0>(entry)->oneShotDone)
+      if (std::get<0>(entry) != nullptr &&
+          SDL_GetAtomicInt(&std::get<0>(entry)->oneShotDone) != 0)
         finished.push_back(std::get<0>(entry));
     }
   }
-  for (auto *done : finished) RemoveMedia(done);
+  for (auto *done : finished) RemoveMediaUnlocked(done);
 
   Sound::Channel *targetChannel = soundCtx->GetChannelByName(channel);
   if (targetChannel == nullptr) {
     SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Channel not found: %s", channel);
     KotonohaAudioFree(loopMedia);
+    SDL_UnlockMutex(mediaLock);
     return nullptr;
   }
 
@@ -98,6 +115,15 @@ Kotonoha_audioDecode *Audio::AddMediaInternal(
   Kotonoha_audioDecode *decode = CreateDecode(path, targetChannel->GetSpecs());
   if (decode == nullptr) {
     KotonohaAudioFree(loopMedia);
+    SDL_UnlockMutex(mediaLock);
+    return nullptr;
+  }
+  if (loopMedia != nullptr &&
+      !KotonohaAudioSetPlaybackRate(
+          loopMedia, playbackRate.load(std::memory_order_acquire))) {
+    KotonohaAudioFree(loopMedia);
+    KotonohaAudioFree(decode);
+    SDL_UnlockMutex(mediaLock);
     return nullptr;
   }
 
@@ -121,10 +147,12 @@ Kotonoha_audioDecode *Audio::AddMediaInternal(
       targetChannel->AddPipe(RenderMedia, KotonohaAudioFree, decode);
   if (pipe == nullptr) {
     KotonohaAudioFree(decode);
+    SDL_UnlockMutex(mediaLock);
     return nullptr;
   }
 
   pipes->emplace_back(decode, pipe);
+  SDL_UnlockMutex(mediaLock);
   return decode;
 }
 
@@ -159,15 +187,48 @@ Kotonoha_audioDecode *Audio::AddIntroLoopMedia(const char *introPath,
 }
 
 void Audio::SetMediaEnabled(Kotonoha_audioDecode *mediaPtr, bool enabled) {
-  if (mediaPtr != nullptr)
+  if (mediaPtr == nullptr || mediaLock == nullptr) return;
+
+  // Event-state tables retain raw decode identities.  A completed one-shot can
+  // be reaped by AddMediaInternal on another thread; validate membership while
+  // holding the same lock that owns mediaObjects before dereferencing it.
+  SDL_LockMutex(mediaLock);
+  if (IsTrackedUnlocked(mediaPtr)) {
     SDL_SetAtomicInt(&mediaPtr->enabled, enabled ? 1 : 0);
+  }
+  SDL_UnlockMutex(mediaLock);
 }
 
 bool Audio::SetPlaybackRate(double requestedRate) {
   if (!KotonohaAudioRateIsSupported(requestedRate))
     return false;
-  if (playbackRate == requestedRate)
+  const double previousRate = playbackRate.load(std::memory_order_acquire);
+  if (previousRate == requestedRate)
     return true;
+  if (mediaLock == nullptr) return false;
+  SDL_LockMutex(mediaLock);
+
+  const auto restorePreviousRate = [&]() {
+    // A rate change spans every decode owned by this Gameplay.  If any one
+    // update fails, restore the complete set before releasing mediaLock so the
+    // audio graph is never externally observable in a mixed-rate state.
+    for (auto &rollbackObject : mediaObjects) {
+      Sound::Channel *rollbackChannel = std::get<0>(rollbackObject);
+      if (rollbackChannel == nullptr || rollbackChannel->lockPipes == nullptr)
+        continue;
+      SDL_LockMutex(rollbackChannel->lockPipes);
+      for (auto &rollbackEntry : std::get<1>(rollbackObject)) {
+        Kotonoha_audioDecode *rollbackDecode = std::get<0>(rollbackEntry);
+        if (rollbackDecode == nullptr) continue;
+        (void)KotonohaAudioSetPlaybackRate(rollbackDecode, previousRate);
+        if (rollbackDecode->loopMedia != nullptr) {
+          (void)KotonohaAudioSetPlaybackRate(rollbackDecode->loopMedia,
+                                             previousRate);
+        }
+      }
+      SDL_UnlockMutex(rollbackChannel->lockPipes);
+    }
+  };
 
   for (auto &object : mediaObjects) {
     Sound::Channel *channel = std::get<0>(object);
@@ -181,23 +242,28 @@ bool Audio::SetPlaybackRate(double requestedRate) {
         continue;
       if (!KotonohaAudioSetPlaybackRate(decode, requestedRate)) {
         SDL_UnlockMutex(channel->lockPipes);
+        restorePreviousRate();
+        SDL_UnlockMutex(mediaLock);
         return false;
       }
       if (decode->loopMedia != nullptr &&
           !KotonohaAudioSetPlaybackRate(decode->loopMedia,
                                                   requestedRate)) {
         SDL_UnlockMutex(channel->lockPipes);
+        restorePreviousRate();
+        SDL_UnlockMutex(mediaLock);
         return false;
       }
     }
     SDL_UnlockMutex(channel->lockPipes);
   }
 
-  playbackRate = requestedRate;
+  playbackRate.store(requestedRate, std::memory_order_release);
+  SDL_UnlockMutex(mediaLock);
   return true;
 }
 
-void Audio::RemoveMedia(Kotonoha_audioDecode *mediaPtr) {
+void Audio::RemoveMediaUnlocked(Kotonoha_audioDecode *mediaPtr) {
   for (auto mediaIt = mediaObjects.begin(); mediaIt != mediaObjects.end();) {
     Sound::Channel *channel = std::get<0>(*mediaIt);
     auto &pipes = std::get<1>(*mediaIt);
@@ -207,6 +273,13 @@ void Audio::RemoveMedia(Kotonoha_audioDecode *mediaPtr) {
       Sound::Channel::Pipe *pipe = std::get<1>(*pipeIt);
 
       if (mediaPtr == nullptr || decode == mediaPtr) {
+        // Invalidate preview identity before Channel::RemovePipe frees decode.
+        // Without this, a later allocation can reuse the address and turn the
+        // stale preview pointer into an ABA match for unrelated media.
+        Kotonoha_audioDecode *expected = decode;
+        (void)previewMedia.compare_exchange_strong(
+            expected, nullptr, std::memory_order_acq_rel,
+            std::memory_order_acquire);
         if (channel != nullptr && pipe != nullptr)
           channel->RemovePipe(pipe); /* owns/frees decode */
         pipeIt = pipes.erase(pipeIt);
@@ -222,6 +295,13 @@ void Audio::RemoveMedia(Kotonoha_audioDecode *mediaPtr) {
   }
 }
 
+void Audio::RemoveMedia(Kotonoha_audioDecode *mediaPtr) {
+  if (mediaLock == nullptr) return;
+  SDL_LockMutex(mediaLock);
+  RemoveMediaUnlocked(mediaPtr);
+  SDL_UnlockMutex(mediaLock);
+}
+
 int Audio::RenderMedia(void *data, Uint8 **target, int *size) {
   if (data == nullptr || target == nullptr || size == nullptr)
     return 0;
@@ -233,7 +313,7 @@ int Audio::RenderMedia(void *data, Uint8 **target, int *size) {
     return 0;
 
   if (instance->start == 0 && instance->end == 0) {
-    if (instance->oneShotDone) return 0;
+    if (SDL_GetAtomicInt(&instance->oneShotDone) != 0) return 0;
     int result = KotonohaAudioRender(instance, target, size);
     if (result == 1 && instance->inLoop) {
       KotonohaAudioSeek(instance, 0);
@@ -241,7 +321,7 @@ int Audio::RenderMedia(void *data, Uint8 **target, int *size) {
       return KotonohaAudioRender(instance, target, size);
     }
     if (result == 1 || result == -1) {
-      instance->oneShotDone = true;
+      SDL_SetAtomicInt(&instance->oneShotDone, 1);
       return 0;
     }
     return result;
@@ -280,6 +360,8 @@ int Audio::RenderMedia(void *data, Uint8 **target, int *size) {
 
 std::vector<MediaBufferInfo> Audio::GetBufferInfo() const {
   std::vector<MediaBufferInfo> result;
+  if (mediaLock == nullptr) return result;
+  SDL_LockMutex(mediaLock);
   for (const auto &object : mediaObjects) {
     const Sound::Channel *channel = std::get<0>(object);
     const std::string channelName = channel != nullptr ? channel->name : "";
@@ -290,44 +372,105 @@ std::vector<MediaBufferInfo> Audio::GetBufferInfo() const {
         AppendAudioBufferInfo(result, channelName, decode->loopMedia, " (loop)");
     }
   }
+  SDL_UnlockMutex(mediaLock);
   return result;
 }
 
 bool Audio::PlayNow(const std::string &path, const std::string &channel) {
-  if (path.empty() || channel.empty()) return false;
-  StopPreview();
-  previewMedia = AddMedia(path.c_str(), 0, 0, false, channel.c_str());
-  if (previewMedia == nullptr) return false;
+  if (path.empty() || channel.empty() || previewLock == nullptr ||
+      mediaLock == nullptr)
+    return false;
+  SDL_LockMutex(previewLock);
+  SDL_LockMutex(mediaLock);
+  Kotonoha_audioDecode *previous =
+      previewMedia.load(std::memory_order_acquire);
+  if (previous != nullptr && IsTrackedUnlocked(previous)) {
+    RemoveMediaUnlocked(previous);
+  }
+  SDL_UnlockMutex(mediaLock);
+  previewMedia.store(nullptr, std::memory_order_release);
+  previewPath.clear();
+  Kotonoha_audioDecode *created =
+      AddMedia(path.c_str(), 0, 0, false, channel.c_str());
+  if (created == nullptr) {
+    SDL_UnlockMutex(previewLock);
+    return false;
+  }
+  previewMedia.store(created, std::memory_order_release);
   previewPath = path;
+  SDL_UnlockMutex(previewLock);
   return true;
 }
 
-bool Audio::IsTracked(const Kotonoha_audioDecode *media) const {
+bool Audio::IsTrackedUnlocked(const Kotonoha_audioDecode *media) const {
   for (const auto &object : mediaObjects)
     for (const auto &entry : std::get<1>(object))
       if (std::get<0>(entry) == media) return true;
   return false;
 }
 
+bool Audio::IsTracked(const Kotonoha_audioDecode *media) const {
+  if (mediaLock == nullptr) return false;
+  SDL_LockMutex(mediaLock);
+  const bool tracked = IsTrackedUnlocked(media);
+  SDL_UnlockMutex(mediaLock);
+  return tracked;
+}
+
 void Audio::StopPreview() {
-  if (previewMedia != nullptr && IsTracked(previewMedia))
-    RemoveMedia(previewMedia);
-  previewMedia = nullptr;
+  if (previewLock == nullptr || mediaLock == nullptr) return;
+  SDL_LockMutex(previewLock);
+  SDL_LockMutex(mediaLock);
+  Kotonoha_audioDecode *current = previewMedia.load(std::memory_order_acquire);
+  if (current != nullptr && IsTrackedUnlocked(current))
+    RemoveMediaUnlocked(current);
+  SDL_UnlockMutex(mediaLock);
+  previewMedia.store(nullptr, std::memory_order_release);
   previewPath.clear();
+  SDL_UnlockMutex(previewLock);
 }
 
 std::string Audio::GetPreviewPath() {
-  if (previewMedia == nullptr) return {};
-  if (!IsTracked(previewMedia) || previewMedia->oneShotDone) {
-    previewMedia = nullptr;
+  if (previewLock == nullptr || mediaLock == nullptr) return {};
+  SDL_LockMutex(previewLock);
+  Kotonoha_audioDecode *current = previewMedia.load(std::memory_order_acquire);
+  if (current == nullptr) {
+    previewPath.clear();
+    SDL_UnlockMutex(previewLock);
+    return {};
+  }
+
+  // previewLock protects the handle/path pair, but the events worker may reap
+  // a completed one-shot under mediaLock.  Keep mediaLock held across both the
+  // membership check and the oneShotDone dereference so a successful lookup
+  // cannot turn into a use-after-free before the flag is read.
+  SDL_LockMutex(mediaLock);
+  current = previewMedia.load(std::memory_order_acquire);
+  const bool tracked = current != nullptr && IsTrackedUnlocked(current);
+  const bool completed =
+      tracked && SDL_GetAtomicInt(&current->oneShotDone) != 0;
+  if (!tracked || completed) {
+    previewMedia.store(nullptr, std::memory_order_release);
     previewPath.clear();
   }
-  return previewPath;
+  SDL_UnlockMutex(mediaLock);
+
+  const std::string result = previewPath;
+  SDL_UnlockMutex(previewLock);
+  return result;
 }
 
 Audio::~Audio() {
-  previewMedia = nullptr;
+  StopPreview();
   RemoveMedia(nullptr);
+  if (mediaLock != nullptr) {
+    SDL_DestroyMutex(mediaLock);
+    mediaLock = nullptr;
+  }
+  if (previewLock != nullptr) {
+    SDL_DestroyMutex(previewLock);
+    previewLock = nullptr;
+  }
 }
 
 } // namespace Kotonoha

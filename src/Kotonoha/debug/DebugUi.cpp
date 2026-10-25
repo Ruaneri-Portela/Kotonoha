@@ -2,181 +2,11 @@
 #include <Kotonoha/debug/DebugInternal.hpp>
 #include <Kotonoha/debug/DebugUi.hpp>
 #include <Kotonoha/debug/LogPanel.hpp>
+#include <Kotonoha/specials/Upscaling.h>
 #include <algorithm>
 #include <imgui_impl_sdl3.h>
 #include <imgui_impl_sdlrenderer3.h>
 #include <imgui_internal.h>
-
-namespace Kotonoha {
-
-bool GetDisplayMode(const Kotonoha_Game &context, DisplayMode *mode) {
-  if (context.window == nullptr || mode == nullptr) {
-    SDL_SetError("Display mode query requires a window and output value");
-    return false;
-  }
-
-  const SDL_WindowFlags flags = SDL_GetWindowFlags(context.window);
-  if ((flags & SDL_WINDOW_FULLSCREEN) == 0) {
-    *mode = DisplayMode::Windowed;
-  } else {
-    *mode = SDL_GetWindowFullscreenMode(context.window) != nullptr
-                ? DisplayMode::ExclusiveFullscreen
-                : DisplayMode::BorderlessFullscreen;
-  }
-  return true;
-}
-
-bool SetDisplay(Kotonoha_Game &context, DisplayMode mode,
-                SDL_DisplayID targetDisplay) {
-  if (mode != DisplayMode::Windowed &&
-      mode != DisplayMode::ExclusiveFullscreen &&
-      mode != DisplayMode::BorderlessFullscreen) {
-    SDL_SetError("Invalid Kotonoha display mode");
-    SDL_LogError(SDL_LOG_CATEGORY_VIDEO, "Kotonoha::SetDisplay failed: %s",
-                 SDL_GetError());
-    return false;
-  }
-
-  if (context.window == nullptr) {
-    SDL_SetError("Display mode change requires a window");
-    SDL_LogError(SDL_LOG_CATEGORY_VIDEO, "Kotonoha::SetDisplay failed: %s",
-                 SDL_GetError());
-    return false;
-  }
-
-  SDL_Window *window = context.window;
-  const SDL_DisplayID currentDisplay = SDL_GetDisplayForWindow(window);
-  if (targetDisplay == 0) {
-    targetDisplay = currentDisplay;
-  }
-  if (targetDisplay == 0) {
-    SDL_SetError("No display is available for the window");
-    SDL_LogError(SDL_LOG_CATEGORY_VIDEO, "Kotonoha::SetDisplay failed: %s",
-                 SDL_GetError());
-    return false;
-  }
-
-  SDL_Rect targetBounds{};
-  if (!SDL_GetDisplayBounds(targetDisplay, &targetBounds)) {
-    SDL_LogError(SDL_LOG_CATEGORY_VIDEO,
-                 "Kotonoha::SetDisplay could not query display bounds: %s",
-                 SDL_GetError());
-    return false;
-  }
-
-  DisplayMode currentMode;
-  if (!GetDisplayMode(context, &currentMode)) {
-    SDL_LogError(SDL_LOG_CATEGORY_VIDEO,
-                 "Kotonoha::SetDisplay could not query current mode: %s",
-                 SDL_GetError());
-    return false;
-  }
-
-  auto syncActualState = [&]() {
-    context.flags = SDL_GetWindowFlags(window);
-    DisplayMode actualMode;
-    if (GetDisplayMode(context, &actualMode)) {
-      context.config.fullScreen = actualMode != DisplayMode::Windowed;
-    }
-  };
-  auto fail = [&](const char *operation) {
-    SDL_LogError(SDL_LOG_CATEGORY_VIDEO, "Kotonoha::SetDisplay failed to %s: %s",
-                 operation, SDL_GetError());
-    syncActualState();
-    return false;
-  };
-
-  if (currentMode == mode && currentDisplay == targetDisplay) {
-    syncActualState();
-    return true;
-  }
-
-  if (currentMode != DisplayMode::Windowed) {
-    if (!SDL_SetWindowFullscreen(window, false)) {
-      return fail("leave fullscreen");
-    }
-    if (!SDL_SyncWindow(window)) {
-      return fail("synchronize the window after leaving fullscreen");
-    }
-  }
-
-  if (targetDisplay != currentDisplay) {
-    if (!SDL_SetWindowPosition(window, targetBounds.x + 50,
-                               targetBounds.y + 50)) {
-      return fail("move the window to the requested display");
-    }
-    if (!SDL_SyncWindow(window)) {
-      return fail("synchronize the window on the requested display");
-    }
-  }
-
-  switch (mode) {
-  case DisplayMode::Windowed:
-    if (!SDL_SetWindowFullscreenMode(window, nullptr)) {
-      return fail("reset the fullscreen mode");
-    }
-    if (!SDL_SetWindowBordered(window, true)) {
-      return fail("restore window decorations");
-    }
-    if (!SDL_SetWindowSize(window, context.config.windowSize[0],
-                           context.config.windowSize[1])) {
-      return fail("restore the configured window size");
-    }
-    break;
-
-  case DisplayMode::ExclusiveFullscreen: {
-    const SDL_DisplayMode *desktopMode = SDL_GetDesktopDisplayMode(targetDisplay);
-    if (desktopMode == nullptr) {
-      return fail("query the desktop display mode");
-    }
-
-    SDL_DisplayMode fullscreenMode{};
-    SDL_ClearError();
-    if (!SDL_GetClosestFullscreenDisplayMode(
-            targetDisplay, desktopMode->w, desktopMode->h,
-            desktopMode->refresh_rate, true, &fullscreenMode)) {
-      if (SDL_GetError()[0] == '\0') {
-        SDL_SetError("No compatible exclusive fullscreen mode is available");
-      }
-      return fail("find an exclusive fullscreen mode");
-    }
-    if (!SDL_SetWindowFullscreenMode(window, &fullscreenMode)) {
-      return fail("set the exclusive fullscreen mode");
-    }
-    if (!SDL_SetWindowFullscreen(window, true)) {
-      return fail("enter exclusive fullscreen");
-    }
-    break;
-  }
-
-  case DisplayMode::BorderlessFullscreen:
-    if (!SDL_SetWindowFullscreenMode(window, nullptr)) {
-      return fail("select borderless fullscreen");
-    }
-    if (!SDL_SetWindowFullscreen(window, true)) {
-      return fail("enter borderless fullscreen");
-    }
-    break;
-  }
-
-  if (!SDL_SyncWindow(window)) {
-    return fail("synchronize the requested display mode");
-  }
-
-  DisplayMode actualMode;
-  if (!GetDisplayMode(context, &actualMode)) {
-    return fail("verify the requested display mode");
-  }
-  if (actualMode != mode) {
-    SDL_SetError("The window manager rejected the requested display mode");
-    return fail("apply the requested display mode");
-  }
-
-  syncActualState();
-  return true;
-}
-
-} // namespace Kotonoha
 
 namespace Kotonoha::Debug {
 
@@ -187,6 +17,7 @@ bool debugUiBaseStyleReady = false;
 float appliedDebugUiScale = 1.0f;
 bool sdlBackendInitialized = false;
 bool rendererBackendInitialized = false;
+Kotonoha_Game *debugUiGameContext = nullptr;
 
 } // namespace
 
@@ -328,6 +159,7 @@ bool Init(Kotonoha_Game &gameContext, std::vector<Uint8> font) {
     return false;
   }
   InstallLogCapture();
+  debugUiGameContext = &gameContext;
   return true;
 }
 
@@ -342,6 +174,7 @@ void Shutdown() {
     sdlBackendInitialized = false;
   }
   debugUiBaseStyleReady = false;
+  debugUiGameContext = nullptr;
 }
 
 bool BeginWorkspaceFrame(Kotonoha_Game &context,
@@ -390,11 +223,56 @@ void DrawWindowMenu(WindowMenuExtension extension, void *userdata) {
     ImGui::Checkbox("Scene Buffers", &sceneBuffersVisible);
     ImGui::Checkbox("Canvas Layers", &canvasLayersVisible);
     ImGui::Checkbox("Engine Settings", &settingsVisible);
+    if (debugUiGameContext != nullptr) {
+      auto &config = debugUiGameContext->config;
+      bool upscalingEnabled = config.upscalingEnabled.load();
+      if (ImGui::Checkbox("Enable Upscaling", &upscalingEnabled)) {
+        config.upscalingEnabled.store(upscalingEnabled);
+        KotonohaUpscalingSetEnabled(upscalingEnabled);
+        config.dirtyConfig = true;
+      }
+
+      int preset = std::clamp(config.upscalerPreset.load(), 0, 3);
+      const char *presetNames[] = {"Legacy Anime4K B-S", "Anime Light (ArtCNN C4F16)",
+                                   "Anime Clean (ArtCNN C4F16 DS)",
+                                   "Anime Quality (ArtCNN C4F32)"};
+      if (ImGui::Combo("Upscaler Preset", &preset, presetNames,
+                       IM_ARRAYSIZE(presetNames))) {
+        config.upscalerPreset.store(preset);
+        KotonohaUpscalingSetPreset(static_cast<Kotonoha_UpscalerPreset>(preset));
+        config.dirtyConfig = true;
+      }
+
+      float scalerFactor = config.scalerFactor.load();
+      if (ImGui::SliderFloat("Upscale Factor", &scalerFactor, 1.0f, 4.0f,
+                             "%.2fx")) {
+        config.scalerFactor.store(scalerFactor);
+        KotonohaUpscalingSetFactor(scalerFactor);
+        config.dirtyConfig = true;
+      }
+
+      const char *upscalerName = Kotonoha_GetUpscalerName();
+      const char *rendererName = debugUiGameContext->render != nullptr
+                                     ? SDL_GetRendererName(debugUiGameContext->render)
+                                     : nullptr;
+      ImGui::TextDisabled("Renderer: %s",
+                          rendererName != nullptr ? rendererName : "unavailable");
+      if (!upscalingEnabled || scalerFactor <= 1.0f) {
+        ImGui::TextDisabled("Upscale inactive");
+      } else if (Kotonoha_GetUpscalerType() == KOTONOHA_UPSCALER_NONE) {
+        ImGui::TextDisabled("Upscale: SDL fallback (%.2fx)", scalerFactor);
+        ImGui::TextDisabled("Shader upscaling requires an OpenGL renderer after restart.");
+      } else {
+        ImGui::TextDisabled("Upscale: %s (%.2fx)",
+                            upscalerName != nullptr ? upscalerName : "active",
+                            scalerFactor);
+      }
+    }
     ImGui::Checkbox("Log", &logVisible);
     ImGui::Checkbox("About Kotonoha", &aboutVisible);
     if (extension != nullptr) {
       ImGui::Separator();
-      extension(userdata);
+      extension(userdata, ImGui::GetCurrentContext());
     }
   }
   ImGui::End();
@@ -515,10 +393,14 @@ bool Run(::Kotonoha::Kotonoha *game, ::Kotonoha::Gameplay *play,
     TryAutoLoadCurrentScene(game, context);
   }
 
-  if (!forceOpenScenes && context.config.scene < game->gameplays.size()) {
-    play = game->gameplays[context.config.scene];
-  } else if (!forceOpenScenes) {
-    play = nullptr;
+  // A game may supply a live Gameplay that is intentionally not registered in
+  // Kotonoha::gameplays (temporary playback, preview, replay, etc.).  Preserve
+  // that explicit target.  Fall back to the registry only when the caller did
+  // not provide one; otherwise debug windows silently inspect the wrong scene.
+  if (!forceOpenScenes && play == nullptr) {
+    if (context.config.scene < game->gameplays.size()) {
+      play = game->gameplays[context.config.scene];
+    }
   }
 
   BeginWorkspaceFrame(context);

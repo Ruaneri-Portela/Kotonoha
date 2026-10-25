@@ -198,7 +198,9 @@ else()
     add_library(KotonohaRuntime SHARED
         ${KOTONOHA_PROFILE_RUNTIME_SOURCES}
         ${KOTONOHA_RUNTIME_SOURCES})
-    target_compile_definitions(KotonohaRuntime PRIVATE KOTONOHA_RUNTIME_EXPORTS=1)
+    target_compile_definitions(KotonohaRuntime
+        PUBLIC KOTONOHA_RUNTIME_SHARED=1
+        PRIVATE KOTONOHA_RUNTIME_EXPORTS=1)
     set_target_properties(KotonohaRuntime PROPERTIES
         OUTPUT_NAME Kotonoha
         WINDOWS_EXPORT_ALL_SYMBOLS ON

@@ -50,6 +50,26 @@ typedef int (*Kotonoha_FFmpegInputResolverFn)(const char *path,
 void KotonohaFFmpegSetInputResolver(Kotonoha_FFmpegInputResolverFn resolver);
 int KotonohaFFmpegResolveInput(const char *path, Kotonoha_FFmpegInput *input);
 
+#if defined(KOTONOHA_RUNTIME_SHARED)
+#if defined(_WIN32)
+#if defined(KOTONOHA_RUNTIME_EXPORTS)
+#define KOTONOHA_FFMPEG_RUNTIME_API __declspec(dllexport)
+#else
+#define KOTONOHA_FFMPEG_RUNTIME_API __declspec(dllimport)
+#endif
+#else
+#define KOTONOHA_FFMPEG_RUNTIME_API
+#endif
+KOTONOHA_FFMPEG_RUNTIME_API void KotonohaRuntimeSetFFmpegInputResolver(
+    Kotonoha_FFmpegInputResolverFn resolver);
+#undef KOTONOHA_FFMPEG_RUNTIME_API
+#else
+static inline void KotonohaRuntimeSetFFmpegInputResolver(
+    Kotonoha_FFmpegInputResolverFn resolver) {
+  KotonohaFFmpegSetInputResolver(resolver);
+}
+#endif
+
 typedef struct Kotonoha_FFmpegInputContext Kotonoha_FFmpegInputContext;
 
 bool KotonohaFFmpegLoadInput(const Kotonoha_FFmpegInput *input,

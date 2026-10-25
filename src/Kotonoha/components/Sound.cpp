@@ -158,13 +158,16 @@ Sound::Channel::~Channel() {
 SDL_AudioSpec Sound::Channel::GetSpecs() { return spec; }
 
 Sound::Channel::Pipe *Sound::Channel::AddPipe(KOTONOHA_AUDIO_COMPONENTS) {
-  Pipe *pipe = new Pipe(function, closeFunction, parms);
-  if (pipe == nullptr) {
+  // Until the pipe is successfully inserted, ownership of `parms` remains
+  // with the caller.  Constructing a Pipe while the channel is already torn
+  // down would make its destructor invoke closeFunction and the caller would
+  // then free the same decoder again on the nullptr return path.
+  if (lockPipes == nullptr) {
     return nullptr;
   }
 
-  if (lockPipes == nullptr) {
-    delete pipe;
+  Pipe *pipe = new Pipe(function, closeFunction, parms);
+  if (pipe == nullptr) {
     return nullptr;
   }
 

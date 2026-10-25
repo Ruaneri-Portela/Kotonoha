@@ -154,6 +154,11 @@ Kotonoha_Scene_Status Video::RenderCallback(KOTONOHA_SCENE_CALL) {
   if (here == nullptr || here->lock == nullptr)
     return KOTONOHA_SCENE_COMPLETE;
 
+  // SDL textures are renderer-thread resources.  Retired decoders may be
+  // discovered by the events worker, but their texture/upscaler teardown must
+  // happen here on the render thread (SDL_DestroyTexture is main-thread only).
+  here->CollectRetired();
+
   Kotonoha_Scene_Status returnStatus = KOTONOHA_SCENE_NULL;
 
   /* Removal/reset also take this lock, so a decoder cannot be freed while the
@@ -190,9 +195,9 @@ Kotonoha_Scene_Status Video::RenderCallback(KOTONOHA_SCENE_CALL) {
 
     case KOTONOHA_SCENE_COMPLETE:
       /* Present the retained terminal frame once at ORS END; Canvas then owns
-       * the DRAW_LAST composited texture while the decoder teardown is deferred
-       * to the events worker.  avformat_close_input can block long enough to
-       * produce a visible hitch when run on the render thread. */
+       * the DRAW_LAST composited texture. Decoder teardown is queued and
+       * collected at the beginning of a later render-thread callback so GPU
+       * resources are never destroyed by the events worker. */
       if (returnStatus != KOTONOHA_SCENE_DRAW && displayTexture != nullptr) {
         SDL_RenderTexture(render, displayTexture, nullptr, nullptr);
         returnStatus = KOTONOHA_SCENE_DRAW_LAST;
@@ -215,9 +220,11 @@ Kotonoha_Scene_Status Video::RenderCallback(KOTONOHA_SCENE_CALL) {
       break;
 
     case KOTONOHA_SCENE_FATAL_ERROR:
-      returnStatus = KOTONOHA_SCENE_FATAL_ERROR;
-      ++it;
-      break;
+      // Fatal is terminal for the entire video layer.  Continuing the loop
+      // lets a later decoder overwrite returnStatus with DRAW/WAITING and hides
+      // the failure from Canvas, leaving the scene running on corrupt state.
+      SDL_UnlockMutex(here->lock);
+      return KOTONOHA_SCENE_FATAL_ERROR;
 
     default:
       ++it;

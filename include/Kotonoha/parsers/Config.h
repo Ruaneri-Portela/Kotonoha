@@ -58,7 +58,17 @@ typedef struct Kotonoha_Config {
 
   KOTONOHA_ATOMIC(int) enableVsync;
   KOTONOHA_ATOMIC(int) windowSize[2];
+  KOTONOHA_ATOMIC(int) displayMode;
+  KOTONOHA_ATOMIC(int) displayIndex;
+  KOTONOHA_ATOMIC(int) fullscreenSize[2];
+  KOTONOHA_ATOMIC(int) fullscreenRefreshMilliHz;
+  // Generic authored-content aspect preference. Profiles may interpret
+  // 0=Auto, 1=4:3, 2=16:9; the engine never hard-codes game resources.
+  KOTONOHA_ATOMIC(int) contentAspectPreference;
   KOTONOHA_ATOMIC(float) scalerFactor;
+  // Generic player-facing upscaler preset. Values are Kotonoha_UpscalerPreset;
+  // stored as int here to keep the C config parser independent of C++ headers.
+  KOTONOHA_ATOMIC(int) upscalerPreset;
   // Maximum buffered seconds per audio/video stream. The demuxer reads this
   // value on every use, so changes apply immediately.
   KOTONOHA_ATOMIC(float) mediaCacheSeconds;

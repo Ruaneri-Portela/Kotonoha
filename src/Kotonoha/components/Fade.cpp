@@ -153,7 +153,12 @@ Kotonoha_Scene_Status Fade::Render(KOTONOHA_SCENE_CALL) {
 
   if (active == nullptr) {
     SDL_UnlockMutex(here->lock);
-    return KOTONOHA_SCENE_WAITING;
+    // A fade only owns its authored interval.  Returning WAITING here asks
+    // Canvas to retain the last dirty frame, which is catastrophic for an OUT
+    // fade: its terminal opaque black/white frame remains composited over later
+    // media. COMPLETE releases that retained overlay while keeping the Fade
+    // component registered for later authored events on the same physical scene.
+    return KOTONOHA_SCENE_COMPLETE;
   }
 
   if (activeCount > 1) {

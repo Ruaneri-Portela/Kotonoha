@@ -481,6 +481,61 @@ int Kotonoha_KtrfRouterCurrentChoiceAt(const Kotonoha_KtrfRouter *router,
                  "current-node choice ordinal %u is out of range", ordinal);
 }
 
+int Kotonoha_KtrfRouterChoiceValueIsValid(
+    const Kotonoha_KtrfRouter *router, uint32_t choice_index,
+    const Kotonoha_KtrfRuntimeValue *value, int *valid,
+    Kotonoha_KtrfError *error) {
+  Kotonoha_KtrfChoice choice;
+  uint32_t i;
+  rr_clear_error(error);
+  if (valid != NULL)
+    *valid = 0;
+  if (router == NULL || router->document == NULL || value == NULL ||
+      valid == NULL)
+    return rr_fail(error, KOTONOHA_KTRF_ERROR_ARGUMENT,
+                   "choice validation argument is null");
+  if (choice_index >= router->choice_count)
+    return rr_fail(error, KOTONOHA_KTRF_ERROR_RANGE,
+                   "choice index %u is out of range", choice_index);
+  if (!rr_choice_belongs_to_current(router, choice_index, &choice, error))
+    return 0;
+
+  for (i = 0u; i < choice.option_count; ++i) {
+    Kotonoha_KtrfChoiceOption option;
+    Kotonoha_KtrfRuntimeValue option_value;
+    if (!Kotonoha_KtrfGetChoiceOption(router->document, choice_index, i,
+                                      &option, error))
+      return 0;
+    if (!rr_scalar_to_value(router->document, &option.value, &option_value,
+                            error))
+      return 0;
+    if (rr_value_equal(&option_value, value)) {
+      *valid = 1;
+      return 1;
+    }
+  }
+
+  {
+    Kotonoha_KtrfChoiceTimeout timeout;
+    Kotonoha_KtrfRuntimeValue timeout_value;
+    int has_timeout = 0;
+    if (!Kotonoha_KtrfGetChoiceTimeout(router->document, choice_index,
+                                       &has_timeout, &timeout, error))
+      return 0;
+    if (has_timeout) {
+      if (!rr_scalar_to_value(router->document, &timeout.value, &timeout_value,
+                              error))
+        return 0;
+      if (rr_value_equal(&timeout_value, value)) {
+        *valid = 1;
+        return 1;
+      }
+    }
+  }
+
+  return 1;
+}
+
 int Kotonoha_KtrfRouterCommitChoiceValueObserved(
     Kotonoha_KtrfRouter *router, uint32_t choice_index,
     const Kotonoha_KtrfRuntimeValue *value, int *accepted,

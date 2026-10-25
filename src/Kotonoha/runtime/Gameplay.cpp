@@ -4,6 +4,8 @@
 #include <Kotonoha/specials/MetalFX.h>
 
 #include <SDL3_ttf/SDL_ttf.h>
+#include <cmath>
+#include <stdexcept>
 #if defined(__APPLE__)
 #include <TargetConditionals.h>
 #endif
@@ -13,6 +15,23 @@ namespace {
 static float MsToSeconds(Uint64 value) {
   return static_cast<float>(value) / 1000.0f;
 }
+
+class GameplayTaskLockGuard {
+public:
+  explicit GameplayTaskLockGuard(Kotonoha_Game *gameContext)
+      : lock_(gameContext != nullptr ? gameContext->taskLock : nullptr) {
+    if (lock_ != nullptr) SDL_LockMutex(lock_);
+  }
+  ~GameplayTaskLockGuard() {
+    if (lock_ != nullptr) SDL_UnlockMutex(lock_);
+  }
+
+  GameplayTaskLockGuard(const GameplayTaskLockGuard &) = delete;
+  GameplayTaskLockGuard &operator=(const GameplayTaskLockGuard &) = delete;
+
+private:
+  SDL_Mutex *lock_ = nullptr;
+};
 } // namespace
 void Gameplay::UpdateCanvasSize(SDL_Window *window, SDL_Renderer *renderer) {
   if ((window == nullptr && renderer == nullptr) || drawCanvas == nullptr) {
@@ -109,22 +128,32 @@ void Gameplay::UpdateLoadingPause(struct Kotonoha_Game *gameContext) {
 Gameplay::Gameplay(const char *scriptPath, Kotonoha_Game *gameContext,
                    TTF_Font *font,
                    GameplayEventRuntimeFactory eventFactory)
-    : eventRuntimeFactory(eventFactory) {
-  this->demuxer = KotonohaDemuxerCreate(!gameContext->config.skipFiles,
-                                        &gameContext->config);
-  this->tm = KotonohaTimeNew(true);
-  this->sb = KotonohaTextRenderInit(this->tm, gameContext);
-  ownedVideo = std::make_unique<Video>(this->tm, this->demuxer);
-  ownedImage = std::make_unique<Image>(this->tm, gameContext->config.skipFiles);
-  ownedAudio = std::make_unique<Audio>(static_cast<Sound *>(gameContext->sound),
-                                       this->tm, this->demuxer);
-  ownedFade = std::make_unique<Fade>(this->tm);
-  ownedCanvas = std::make_unique<Canvas>();
-  this->video = ownedVideo.get();
-  this->image = ownedImage.get();
-  this->audio = ownedAudio.get();
-  this->fade = ownedFade.get();
-  this->drawCanvas = ownedCanvas.get();
+    : gameContext_(gameContext), eventRuntimeFactory(eventFactory) {
+  if (gameContext == nullptr) {
+    throw std::invalid_argument("Gameplay requires a game context");
+  }
+  try {
+    this->demuxer = KotonohaDemuxerCreate(!gameContext->config.skipFiles,
+                                          &gameContext->config);
+    this->tm = KotonohaTimeNew(true);
+    if (this->demuxer == nullptr || this->tm == nullptr) {
+      throw std::runtime_error("Gameplay core timing/demuxer initialization failed");
+    }
+    this->sb = KotonohaTextRenderInit(this->tm, gameContext);
+    if (this->sb == nullptr) {
+      throw std::runtime_error("Gameplay subtitle initialization failed");
+    }
+    ownedVideo = std::make_unique<Video>(this->tm, this->demuxer);
+    ownedImage = std::make_unique<Image>(this->tm, gameContext->config.skipFiles);
+    ownedAudio = std::make_unique<Audio>(static_cast<Sound *>(gameContext->sound),
+                                         this->tm, this->demuxer);
+    ownedFade = std::make_unique<Fade>(this->tm);
+    ownedCanvas = std::make_unique<Canvas>();
+    this->video = ownedVideo.get();
+    this->image = ownedImage.get();
+    this->audio = ownedAudio.get();
+    this->fade = ownedFade.get();
+    this->drawCanvas = ownedCanvas.get();
 
   this->drawCanvas->RegisterCanva(
       this->image->Render, 0,
@@ -146,17 +175,43 @@ Gameplay::Gameplay(const char *scriptPath, Kotonoha_Game *gameContext,
       {0, 0, static_cast<float>(windowWidth), static_cast<float>(windowHeight)},
       this->fade, "Fade");
 
-  this->scriptPath = scriptPath ? scriptPath : "";
-  if (eventRuntimeFactory.create != nullptr) {
-    ownedEvents = eventRuntimeFactory.create(
-        this->scriptPath.c_str(), this, gameContext, font,
-        eventRuntimeFactory.userdata);
-  }
-  this->eventManager = ownedEvents;
+    this->scriptPath = scriptPath ? scriptPath : "";
+    if (eventRuntimeFactory.create != nullptr) {
+      ownedEvents = eventRuntimeFactory.create(
+          this->scriptPath.c_str(), this, gameContext, font,
+          eventRuntimeFactory.userdata);
+    }
+    this->eventManager = ownedEvents;
 #if defined(__ANDROID__) || defined(ANDROID)
-  playOnlyOnFocus = true;
-  lastPauseStatus = gameContext->config.paused;
+    playOnlyOnFocus = true;
+    lastPauseStatus = gameContext->config.paused;
 #endif
+  } catch (...) {
+    // A C++ constructor that throws never runs ~Gameplay.  Release the raw C
+    // resources explicitly, after unwinding component owners that may still
+    // reference them.
+    ownedPrompt.reset();
+    ownedCanvas.reset();
+    ownedFade.reset();
+    ownedAudio.reset();
+    ownedImage.reset();
+    ownedVideo.reset();
+    drawCanvas = nullptr;
+    fade = nullptr;
+    audio = nullptr;
+    image = nullptr;
+    video = nullptr;
+    if (sb != nullptr) KotonohaTextRenderShutdown(&sb);
+    if (demuxer != nullptr) {
+      KotonohaDemuxerDestroy(&demuxer);
+      demuxer = nullptr;
+    }
+    if (tm != nullptr) {
+      KotonohaTimeDestroy(tm);
+      tm = nullptr;
+    }
+    throw;
+  }
 }
 
 Gameplay::Gameplay(const char *scriptPath, Kotonoha_Game *gameContext,
@@ -168,6 +223,17 @@ SDL_AppResult Gameplay::Main(Kotonoha_Game *gameContext) {
       drawCanvas == nullptr) {
     return SDL_APP_FAILURE;
   }
+  if (eventManager->HasFatalError()) {
+    KLOG_ERROR(CORE, "Gameplay event runtime entered a fatal state: %s",
+               scriptPath.c_str());
+    return SDL_APP_FAILURE;
+  }
+  // The physical drawable can change while a Gameplay stays alive (windowed /
+  // fullscreen toggles, monitor moves, DPI changes, resolution changes). Keep
+  // the authored canvas fitted to the current output instead of freezing the
+  // first-frame placement for the whole scene.
+  UpdateCanvasSize(gameContext->window, gameContext->render);
+
   // Prompt timeout/state belongs to the prompt behavior, not to rendering.
   // Advance it even when this frame ends before the prompt canvas is drawn.
   if (prompt != nullptr) {
@@ -182,7 +248,6 @@ SDL_AppResult Gameplay::Main(Kotonoha_Game *gameContext) {
     prompt->PlayPendingAudio(audio);
   }
   if (firstFocus) {
-    UpdateCanvasSize(gameContext->window, gameContext->render);
     if (prefetchPendingPromotion) {
       KotonohaTimeStart(tm);
       prefetchPendingPromotion = false;
@@ -198,6 +263,7 @@ SDL_AppResult Gameplay::Main(Kotonoha_Game *gameContext) {
     if (!eventManager->ProcessNow(this, gameContext)) {
       SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
                   "Failed to prime first scene frame: %s", scriptPath.c_str());
+      if (eventManager->HasFatalError()) return SDL_APP_FAILURE;
     }
   } else if (eventManager->CheckEnd(this)) {
     if (loop) {
@@ -242,6 +308,7 @@ SDL_AppResult Gameplay::Main(Kotonoha_Game *gameContext) {
   }
 
   UpdateTriggers(GetDeltaTime());
+  if (eventManager->HasFatalError()) return SDL_APP_FAILURE;
   return result;
 }
 
@@ -306,7 +373,7 @@ bool Gameplay::ShouldShowLoadingOverlay() const {
   return pauseIntent.Loading() || SDL_GetTicks() < loadingOverlayVisibleUntil;
 }
 
-void Gameplay::Reset(bool resetTime) {
+void Gameplay::ResetLocked(bool resetTime, bool suppressReplaySideEffects) {
 
 #ifdef KOTONOHA_HAS_METALFX
   KotonohaMetalFXClearScalerCache();
@@ -318,60 +385,123 @@ void Gameplay::Reset(bool resetTime) {
     if (this->demuxer != nullptr) {
       KotonohaDemuxerStop(this->demuxer);
     }
-    if (prompt != nullptr) {
+    // A physical restart/seek must not erase a semantic choice that routing has
+    // already committed.  The game runtime owns whether/how that committed
+    // prompt is presented after its presentation rebuild.
+    if (prompt != nullptr && !choiceCommitSubmitted) {
       prompt->Reset();
     }
-    drawCanvas->Reset();
-    fade->Reset();
+    if (drawCanvas != nullptr) drawCanvas->Reset();
+    if (fade != nullptr) fade->Reset();
     firstFocus = true;
-    KotonohaTimeReset(tm, true);
+    if (tm != nullptr) KotonohaTimeReset(tm, true);
   }
-  eventManager->Reset(this);
+  if (eventManager != nullptr)
+    eventManager->Reset(this, suppressReplaySideEffects);
+}
+
+void Gameplay::Reset(bool resetTime) {
+  GameplayTaskLockGuard taskGuard(gameContext_);
+  ResetLocked(resetTime);
 }
 
 void Gameplay::RestartCurrentScene() { Reset(true); }
 
 void Gameplay::SeekForward(Uint64 ms) {
-  Uint64 promptStart = 0;
-  if (prompt != nullptr && prompt->PendingStartMs(&promptStart)) {
-    const Uint64 now = KotonohaTimeGet(tm);
-    if (now >= promptStart) return;
-    if (now + ms >= promptStart) {
-      KotonohaTimeSeekForward(tm, promptStart - now);
-      return;
+  if (tm == nullptr) return;
+  bool moved = false;
+  {
+    GameplayTaskLockGuard taskGuard(gameContext_);
+    Uint64 promptStart = 0;
+    if (prompt != nullptr && prompt->PendingStartMs(&promptStart)) {
+      const Uint64 now = KotonohaTimeGet(tm);
+      if (now >= promptStart) return;
+      // Compare the delta rather than now+ms so an oversized seek cannot wrap
+      // Uint64 and accidentally jump past an unanswered choice boundary.
+      if (ms >= promptStart - now) {
+        KotonohaTimeSeekForward(tm, promptStart - now);
+        moved = true;
+      }
+    }
+    if (!moved) {
+      KotonohaTimeSeekForward(tm, ms);
+      moved = ms != 0;
     }
   }
-  KotonohaTimeSeekForward(tm, ms);
+  // The render thread observes the scene clock immediately.  Advance the event
+  // runtime to the same destination before returning so media registration does
+  // not trail the clock by the background worker's 50 ms cadence.
+  if (moved && eventManager != nullptr &&
+      !eventManager->ProcessNow(this, gameContext_)) {
+    KLOG_ERROR(CORE, "Failed to advance presentation after forward seek: %s",
+               scriptPath.c_str());
+  }
 }
 
 void Gameplay::SeekBackward(Uint64 ms) {
-  KotonohaTimeSeekBackward(this->tm, ms);
-  Reset(false);
+  {
+    GameplayTaskLockGuard taskGuard(gameContext_);
+    KotonohaTimeSeekBackward(this->tm, ms);
+    ResetLocked(false);
+  }
+
+  // Reset(false) clears/rebuilds presentation ownership at the new clock but
+  // the game event runtime still has to activate the media that are live at
+  // that destination.  Do it synchronously after releasing taskLock;
+  // ProcessNow owns that lock itself.  Otherwise Canvas may render an empty
+  // image/video set until the cadence-limited background worker runs.
+  if (eventManager != nullptr &&
+      !eventManager->ProcessNow(this, gameContext_)) {
+    KLOG_ERROR(CORE, "Failed to rebuild presentation after backward seek: %s",
+               scriptPath.c_str());
+  }
 }
 
 bool Gameplay::SkipToEndBoundary() {
   if (tm == nullptr || eventManager == nullptr) return false;
-  const auto target = eventManager->ComputeSkipToEndTarget(this);
-  if (!target.present) return false;
-  Uint64 promptStart = 0;
-  Uint64 targetMs = Kotonoha_SceneTickToMillisecondsCeil(target.tick);
-  if (prompt != nullptr && prompt->PendingStartMs(&promptStart) &&
-      targetMs > promptStart) {
-    // An unanswered choice stops the skip at its start.
-    if (KotonohaTimeGet(tm) >= promptStart) return false;
-    targetMs = promptStart;
+  // EventManager runs on the shared process worker under taskLock.  Hold the
+  // same lock for target computation + clock jump + presentation rebuild so a
+  // worker pass can never observe the new clock with the old timeline/media
+  // state in between.
+  {
+    GameplayTaskLockGuard taskGuard(gameContext_);
+    const auto target = eventManager->ComputeSkipToEndTarget(this);
+    if (!target.present) return false;
+    Uint64 promptStart = 0;
+    Uint64 targetMs = Kotonoha_SceneTickToMillisecondsCeil(target.tick);
+    if (prompt != nullptr && prompt->PendingStartMs(&promptStart) &&
+        targetMs > promptStart) {
+      // An unanswered choice stops the skip at its start.
+      if (KotonohaTimeGet(tm) >= promptStart) return false;
+      targetMs = promptStart;
+    }
+
+    // Native state4 seek changes the scene clock as one transaction, then
+    // reconstructs the active presentation at the destination.  Reusing the
+    // Event reset avoids sequential dispatch of the skipped authored interval.
+    KotonohaTimeSet(tm, targetMs);
+    eventManager->Reset(this, true);
   }
 
-  // Native state4 seek changes the scene clock as one transaction, then
-  // reconstructs the active presentation at the destination.  Reusing the
-  // Event reset path avoids sequential dispatch of the skipped ORS interval.
-  KotonohaTimeSet(tm, targetMs);
-  eventManager->Reset(this, true);
-  return true;
+  // Reset intentionally clears stale media before rebuilding state at the
+  // destination.  A newly-created Gameplay after a higher-level script jump has not
+  // started its demuxer yet; its first Main() already primes synchronously at
+  // the sought clock, before any frame can be presented.  For an already-live
+  // scene, prime here before returning to the render loop rather than leaving
+  // a 0..50 ms window in which Canvas can present a black frame while waiting
+  // for the background EventsThread cadence.
+  if (firstFocus) return !eventManager->HasFatalError();
+  if (!eventManager->ProcessNow(this, gameContext_)) {
+    KLOG_ERROR(CORE, "Failed to rebuild presentation after skip: %s",
+               scriptPath.c_str());
+    return false;
+  }
+  return !eventManager->HasFatalError();
 }
 
 bool Gameplay::SetPlaybackRate(double requestedRate) {
   if (tm == nullptr || !KotonohaAudioRateIsSupported(requestedRate)) return false;
+  GameplayTaskLockGuard taskGuard(gameContext_);
   const double previousRate = KotonohaTimeGetRate(tm);
 
   // Keep media and the scene clock on one rate. Game profiles decide which
@@ -396,10 +526,30 @@ float Gameplay::GetLastTime() {
 float Gameplay::GetTime() { return MsToSeconds(KotonohaTimeGet(this->tm)); }
 
 void Gameplay::SetTime(float time) {
-  const float currentTime = GetTime();
-  KotonohaTimeSet(this->tm, static_cast<Uint64>(time * 1000.0f));
-  if (time < currentTime) {
-    Reset(false);
+  if (tm == nullptr || !std::isfinite(time)) return;
+  const double requestedMsDouble =
+      static_cast<double>(SDL_max(time, 0.0f)) * 1000.0;
+  const Uint64 requestedMs = requestedMsDouble >= static_cast<double>(SDL_MAX_UINT64)
+                                 ? SDL_MAX_UINT64
+                                 : static_cast<Uint64>(requestedMsDouble);
+  bool changed = false;
+  {
+    GameplayTaskLockGuard taskGuard(gameContext_);
+    const Uint64 currentMs = KotonohaTimeGet(tm);
+    changed = requestedMs != currentMs;
+    if (changed) {
+      // Absolute editor/debug seeks are discontinuities, not playback.  Rebuild
+      // the timeline at the destination instead of dispatching every event in
+      // the skipped interval; otherwise authored history/side effects can be
+      // replayed for time that was never actually presented.
+      KotonohaTimeSet(tm, requestedMs);
+      ResetLocked(false, true);
+    }
+  }
+  if (changed && eventManager != nullptr &&
+      !eventManager->ProcessNow(this, gameContext_)) {
+    KLOG_ERROR(CORE, "Failed to rebuild presentation after SetTime: %s",
+               scriptPath.c_str());
   }
 }
 

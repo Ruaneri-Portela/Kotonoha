@@ -224,7 +224,13 @@ enum Kotonoha_Scene_Status KotonohaTextRenderDraw(KOTONOHA_SCENE_CALL) {
     environment->lastFrameHasSubtitle = false;
     if (previousTarget != target)
       SDL_SetRenderTarget(render, previousTarget);
-    return cleared && restoredColor ? KOTONOHA_SCENE_WAITING
+    // The message layer is intentionally hidden, not paused.  COMPLETE tells
+    // Canvas to release any retained subtitle dirty-frame immediately; WAITING
+    // would keep re-presenting the last visible subtitle and make OFF look like
+    // a frozen caption.  The timeline itself keeps advancing, and
+    // messageLayerHiddenLastFrame forces a fresh libass render at the current
+    // timestamp when the layer is enabled again.
+    return cleared && restoredColor ? KOTONOHA_SCENE_COMPLETE
                                     : KOTONOHA_SCENE_FATAL_ERROR;
   }
   environment->messageLayerHiddenLastFrame = false;

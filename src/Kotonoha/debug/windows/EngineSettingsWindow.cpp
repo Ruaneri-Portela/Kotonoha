@@ -117,6 +117,16 @@ void DrawSettingsFields(Kotonoha_Config *cfg, Kotonoha_Game &context) {
       KotonohaUpscalingSetEnabled(cfg->upscalingEnabled);
       cfg->dirtyConfig = true;
     }
+    int preset = std::clamp(cfg->upscalerPreset.load(), 0, 3);
+    const char *presetNames[] = {"Legacy Anime4K B-S", "Anime Light (ArtCNN C4F16)",
+                                 "Anime Clean (ArtCNN C4F16 DS)",
+                                 "Anime Quality (ArtCNN C4F32)"};
+    if (ImGui::Combo("Upscaler Preset", &preset, presetNames,
+                     IM_ARRAYSIZE(presetNames))) {
+      cfg->upscalerPreset = preset;
+      KotonohaUpscalingSetPreset(static_cast<Kotonoha_UpscalerPreset>(preset));
+      cfg->dirtyConfig = true;
+    }
     const float activeFactor = KotonohaUpscalingGetFactor();
     if (!KotonohaUpscalingIsEnabled()) {
       ImGui::TextDisabled("Upscaling is disabled in the active configuration.");
@@ -135,7 +145,7 @@ void DrawSettingsFields(Kotonoha_Config *cfg, Kotonoha_Game &context) {
       if (cfg->mpvUpscalerFiles)
         SDL_free(cfg->mpvUpscalerFiles);
       cfg->mpvUpscalerFiles = SDL_strdup(mpvFilesBuf.c_str());
-      KotonohaMPVUpscalerSetFiles(cfg->mpvUpscalerFiles);
+      KotonohaUpscalingSetCustomShaderFiles(cfg->mpvUpscalerFiles);
       cfg->dirtyConfig = true;
     }
     ImGui::TreePop();
