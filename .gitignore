@@ -672,9 +672,11 @@ zips/
 # Runtime/game assets stay local. Anime4K shaders are redistributable third-party
 # runtime dependencies and are kept with their upstream license/provenance.
 assets/*
+games-assets/*
 !assets/Anime4K/
 !assets/ArtCNN/
 .research/
 *.ini
 .vscode
 .cxx
+Xcode/vcpkg/*

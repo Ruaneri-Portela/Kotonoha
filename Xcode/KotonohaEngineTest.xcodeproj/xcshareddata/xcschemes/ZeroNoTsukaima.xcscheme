@@ -16,7 +16,8 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "CE44DF85308D4F350075A21F"
-               BuildableName = "ZeroNoTsukaima.app"
+               BuildableName = "Zero No Tsukaima.app"
+               BlueprintName = "Zero No Tsukaima"
                ReferencedContainer = "container:KotonohaEngineTest.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
@@ -45,16 +46,11 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "CE44DF85308D4F350075A21F"
-            BuildableName = "ZeroNoTsukaima.app"
+            BuildableName = "Zero No Tsukaima.app"
+            BlueprintName = "Zero No Tsukaima"
             ReferencedContainer = "container:KotonohaEngineTest.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
-      <CommandLineArguments>
-         <CommandLineArgument
-            argument = "--zero &quot;assets/ZeroNoTsukaima.bin&quot;"
-            isEnabled = "YES">
-         </CommandLineArgument>
-      </CommandLineArguments>
    </LaunchAction>
    <ProfileAction
       buildConfiguration = "Release"
@@ -67,7 +63,8 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "CE44DF85308D4F350075A21F"
-            BuildableName = "ZeroNoTsukaima.app"
+            BuildableName = "Zero No Tsukaima.app"
+            BlueprintName = "Zero No Tsukaima"
             ReferencedContainer = "container:KotonohaEngineTest.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>

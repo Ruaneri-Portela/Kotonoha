@@ -16,8 +16,8 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "958C0766C5CAECF50DC231C4"
-               BuildableName = "SchoolDays.app"
-               BlueprintName = "SchoolDays"
+               BuildableName = "School Days.app"
+               BlueprintName = "School Days"
                ReferencedContainer = "container:KotonohaEngineTest.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
@@ -50,8 +50,8 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "958C0766C5CAECF50DC231C4"
-            BuildableName = "SchoolDays.app"
-            BlueprintName = "SchoolDays"
+            BuildableName = "School Days.app"
+            BlueprintName = "School Days"
             ReferencedContainer = "container:KotonohaEngineTest.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
@@ -80,8 +80,8 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "958C0766C5CAECF50DC231C4"
-            BuildableName = "SchoolDays.app"
-            BlueprintName = "SchoolDays"
+            BuildableName = "School Days.app"
+            BlueprintName = "School Days"
             ReferencedContainer = "container:KotonohaEngineTest.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>

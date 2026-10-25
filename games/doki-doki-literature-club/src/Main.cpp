@@ -1639,25 +1639,35 @@ SDL_AppResult LocalArgs(int argc, char* argv[]) {
 }
 
 SDL_AppResult LocalInit(void**, int, char*[]) {
+    // Tenta usar "assets" como diretório padrão se nada foi especificado via CLI ou EnvVar
     if (g_dir.empty()) {
-        SDL_Log("DDLC: use --ddlc <DDLC game dir>");
-        return SDL_APP_FAILURE;
+        if (std::filesystem::exists("doki-doki-literature-club") && std::filesystem::is_directory("doki-doki-literature-club")) {
+            g_dir = "doki-doki-literature-club";
+        } else {
+            SDL_Log("DDLC: use --ddlc <DDLC game dir> or set DDLC_DIR environment variable");
+            return SDL_APP_FAILURE;
+        }
     }
+
     global.config.enableDebugUi = std::getenv("KOTONOHA_DEBUG_UI") != nullptr;
     auto* g = new Game();
     g_game = g;
+    
     if (!g->assets.open(g_dir)) {
         SDL_Log("DDLC: cannot open the archives in %s", g_dir.c_str());
         return SDL_APP_FAILURE;
     }
+
     std::string err;
     if (!g->script.load(g->assets, &err)) {
         SDL_Log("DDLC: script load failed: %s", err.c_str());
         return SDL_APP_FAILURE;
     }
+
     g->host.assets = &g->assets;
     g->host.text = &g->text;
     g->text.assets = &g->assets;
+
     if (char* pref = SDL_GetPrefPath("Kotonoha", "ddlc")) {
         g->host.persistentPath = std::string(pref) + "persistent.txt";
         SDL_free(pref);
@@ -1670,10 +1680,12 @@ SDL_AppResult LocalInit(void**, int, char*[]) {
     cfg.width = kW;
     cfg.height = kH;
     g->flow = new Kotonoha::GameplayFlow(cfg);
+
     if (!g->flow->Attach(std::make_unique<DdlcSession>(*g))) {
         SDL_Log("DDLC: session start failed");
         return SDL_APP_FAILURE;
     }
+
     SDL_SetWindowTitle(global.window, "Doki Doki Literature Club!");
     return SDL_APP_CONTINUE;
 }

@@ -16,8 +16,8 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "CE5F6B9D308C6FAD006BE483"
-               BuildableName = "SnowRadishVacation.app"
-               BlueprintName = "SnowRadishVacation"
+               BuildableName = "Snow Radish Vacation!!.app"
+               BlueprintName = "Snow Radish Vacation!!"
                ReferencedContainer = "container:KotonohaEngineTest.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
@@ -46,17 +46,11 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "CE5F6B9D308C6FAD006BE483"
-            BuildableName = "SnowRadishVacation.app"
-            BlueprintName = "SnowRadishVacation"
+            BuildableName = "Snow Radish Vacation!!.app"
+            BlueprintName = "Snow Radish Vacation!!"
             ReferencedContainer = "container:KotonohaEngineTest.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
-      <CommandLineArguments>
-         <CommandLineArgument
-            argument = "--snow assets/pack"
-            isEnabled = "YES">
-         </CommandLineArgument>
-      </CommandLineArguments>
    </LaunchAction>
    <ProfileAction
       buildConfiguration = "Release"
@@ -69,8 +63,8 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "CE5F6B9D308C6FAD006BE483"
-            BuildableName = "SnowRadishVacation.app"
-            BlueprintName = "SnowRadishVacation"
+            BuildableName = "Snow Radish Vacation!!.app"
+            BlueprintName = "Snow Radish Vacation!!"
             ReferencedContainer = "container:KotonohaEngineTest.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>

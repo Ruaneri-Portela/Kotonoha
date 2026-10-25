@@ -24,5 +24,7 @@ elseif(NOT IOS)
     target_link_libraries(SnowRadish PRIVATE KotonohaRuntime SnowRadishFormats)
     kotonoha_configure_app(SnowRadish
         OUTPUT_NAME SnowRadish
-        BUNDLE_ID "me.hirameki.kotonoha.snowradish")
+        BUNDLE_ID "me.hirameki.kotonoha.snowradish"
+        GAME_ASSET "snow-radish-vacation"
+        )
 endif()

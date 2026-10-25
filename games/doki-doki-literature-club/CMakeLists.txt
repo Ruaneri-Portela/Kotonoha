@@ -28,5 +28,7 @@ elseif(NOT IOS)
     target_link_libraries(DokiDoki PRIVATE KotonohaRuntime DdlcFormats PkgConfig::FFMPEG)
     kotonoha_configure_app(DokiDoki
         OUTPUT_NAME DokiDoki
-        BUNDLE_ID "me.hirameki.kotonoha.ddlc")
+        BUNDLE_ID "me.hirameki.kotonoha.ddlc"
+        GAME_ASSET "doki-doki-literature-club"
+        )
 endif()

@@ -39,5 +39,7 @@ elseif(NOT IOS)
     target_link_libraries(ZeroNoTsukaima PRIVATE KotonohaRuntime ZeroNoTsukaimaFormats)
     kotonoha_configure_app(ZeroNoTsukaima
         OUTPUT_NAME ZeroNoTsukaima
-        BUNDLE_ID "me.hirameki.kotonoha.zero")
+        BUNDLE_ID "me.hirameki.kotonoha.zero"
+        GAME_ASSET "zero-no-tsukaima"
+        )
 endif()
