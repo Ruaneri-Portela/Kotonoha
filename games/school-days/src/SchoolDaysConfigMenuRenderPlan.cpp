@@ -81,7 +81,7 @@ bool PairContains(int value, int a, int b) {
 }
 
 bool CommonControlAvailable(int control) {
-    return control == 0 || control == 1 || control == 3;
+    return control == 0 || control == 1 || control == 2 || control == 3;
 }
 
 bool ControlAvailable(Model::Page page, int control,
@@ -244,6 +244,21 @@ SchoolDaysConfigMenuRenderPlan::Build(const SchoolDaysConfigMenuModel& model,
 
         for (int bank = 0; bank < 3; ++bank) {
             PushSoundLevel(out, layout, bank, state.soundLevels[bank]);
+        }
+        return out;
+    }
+    if (page == Model::Page::Display) {
+        // Geometry 2 was the shipped SOMCON tab. The remaster reuses that tab
+        // position for its physical display/upscaling page; game-owned drawing
+        // covers the old label/content after this authenticated skin pass.
+        out.push_back(FromRecord(kDef[16], 16, 2, Role::ActiveTab, layout));
+        const int control = model.Selection();
+        if (control >= 0 && control <= 2) {
+            const int record = 27 + control;
+            out.push_back(FromRecord(kDef[record], record, control,
+                                     Role::Hover, layout));
+        } else if (control == 3) {
+            out.push_back(FromRecord(kDef[3], 3, control, Role::Hover, layout));
         }
         return out;
     }

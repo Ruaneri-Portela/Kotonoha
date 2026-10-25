@@ -1,6 +1,7 @@
 #include <Kotonoha/parsers/Ktrf.h>
 #include <Kotonoha/routing/KtrfAdapter.h>
-#include <Kotonoha/routing/KtrfAssetResolver.h>
+#include <Kotonoha/routing/SchoolDaysKtrfAssetResolver.hpp>
+#include <Kotonoha/routing/SchoolDaysKtrfProfile.hpp>
 
 #include <cstdlib>
 #include <cstring>
@@ -66,7 +67,8 @@ int main(int argc, char** argv) {
     Kotonoha_KtrfAdapter adapter{};
     Kotonoha_KtrfAdapterInit(&adapter);
     if (!Kotonoha_KtrfAdapterBind(
-            &adapter, &document, &callbacks, &error))
+            &adapter, &document, &Kotonoha::SchoolDaysKtrfProfile(), &callbacks,
+            &error))
         Fail(std::string("bind failed: ") + error.message);
 
     uint32_t scene_assets = 0u;
@@ -78,9 +80,9 @@ int main(int argc, char** argv) {
         if (!Kotonoha_KtrfGetNodeView(&adapter, i, &view, &error))
             Fail(std::string("node view failed: ") + error.message);
 
-        Kotonoha_KtrfOrsAsset resolved{};
-        if (view.kind == KOTONOHA_SDHQ_NODE_DISPATCHER) {
-            if (Kotonoha_KtrfResolveNodeOrs(
+        SchoolDaysKtrfResolvedAsset resolved{};
+        if (view.kind == KOTONOHA_KTRF_NODE_DISPATCHER) {
+            if (SchoolDaysKtrfResolveNodeAsset(
                     &adapter, i, assets_root, &resolved, &error))
                 Fail("dispatcher unexpectedly resolved to an ORS asset");
             Check(error.code == KOTONOHA_KTRF_ERROR_FORMAT,
@@ -89,7 +91,7 @@ int main(int argc, char** argv) {
             continue;
         }
 
-        if (!Kotonoha_KtrfResolveNodeOrs(
+        if (!SchoolDaysKtrfResolveNodeAsset(
                 &adapter, i, assets_root, &resolved, &error))
             Fail(std::string("asset resolve failed for ") +
                  Slice(view.scene_key, view.scene_key_length) + ": " +
@@ -101,11 +103,12 @@ int main(int argc, char** argv) {
         Check(Slice(resolved.scene_key, resolved.scene_key_length) ==
                   Slice(view.scene_key, view.scene_key_length),
               "resolved scene-key mismatch");
-        Check(EndsWith(resolved.path, KOTONOHA_SDHQ_ORS_EXTENSION),
+        Check(EndsWith(resolved.path,
+                       Kotonoha::SchoolDaysKtrfRuntimeProfile().assetExtension),
               "resolved path lacks .ENG.ORS extension");
 
         size_t file_size = 0u;
-        if (!Kotonoha_KtrfProbeOrs(&resolved, &file_size, &error))
+        if (!SchoolDaysKtrfProbeAsset(&resolved, &file_size, &error))
             Fail(std::string("physical ORS probe failed for ") +
                  Slice(view.scene_key, view.scene_key_length) + ": " +
                  error.message);
@@ -121,8 +124,8 @@ int main(int argc, char** argv) {
     if (!Kotonoha_KtrfResetNewGame(&adapter, &initial, &error))
         Fail(std::string("new-game reset failed: ") + error.message);
 
-    Kotonoha_KtrfOrsAsset initial_asset{};
-    if (!Kotonoha_KtrfCurrentOrs(
+    SchoolDaysKtrfResolvedAsset initial_asset{};
+    if (!SchoolDaysKtrfCurrentAsset(
             &adapter, assets_root, &initial_asset, &error))
         Fail(std::string("current ORS resolve failed: ") + error.message);
 
@@ -133,20 +136,20 @@ int main(int argc, char** argv) {
           "new-game physical ORS filename mismatch");
 
     size_t initial_size = 0u;
-    if (!Kotonoha_KtrfProbeOrs(
+    if (!SchoolDaysKtrfProbeAsset(
             &initial_asset, &initial_size, &error))
         Fail(std::string("new-game ORS probe failed: ") + error.message);
 
-    Kotonoha_KtrfAssetAdvanceResult next{};
-    if (!Kotonoha_KtrfAdvanceToOrs(
+    SchoolDaysKtrfAssetAdvanceResult next{};
+    if (!SchoolDaysKtrfAdvanceToAsset(
             &adapter, assets_root, "ktrf:next", &next, &error))
         Fail(std::string("advance-to-ORS failed: ") + error.message);
-    Check(next.advance.status == KOTONOHA_SDHQ_ADVANCE_ADVANCED,
+    Check(next.advance.status == KOTONOHA_KTRF_ADVANCE_ADVANCED,
           "first routing step did not resolve to a physical scene");
     Check(next.asset.path[0] != '\0', "first routed ORS path is empty");
 
     size_t next_size = 0u;
-    if (!Kotonoha_KtrfProbeOrs(&next.asset, &next_size, &error))
+    if (!SchoolDaysKtrfProbeAsset(&next.asset, &next_size, &error))
         Fail(std::string("first routed ORS probe failed: ") + error.message);
 
     std::cout << "SCHOOL DAYS KTRF ADAPTER GATE 2 PASS\n";

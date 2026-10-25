@@ -131,9 +131,19 @@ public:
     }
 };
 
-inline void InstallSchoolDaysImageAssetProvider() {
+inline const AssetProvider* SchoolDaysImageAssetProviderInstance() {
     static const SchoolDaysImageAssetProvider provider;
-    SetAssetProvider(&provider);
+    return &provider;
+}
+
+inline void InstallSchoolDaysImageAssetProvider() {
+    SetAssetProvider(SchoolDaysImageAssetProviderInstance());
+}
+
+inline void UninstallSchoolDaysImageAssetProvider() {
+    if (GetAssetProvider() == SchoolDaysImageAssetProviderInstance()) {
+        SetAssetProvider(nullptr);
+    }
 }
 
 struct SchoolDaysImageResolution {
@@ -222,9 +232,10 @@ inline SchoolDaysImageResolution ResolveSchoolDaysAssetPath(
     if (logicalPath.empty())
         return result;
     if (SchoolDaysAssetLogicalPathIsAbsolute(logicalPath)) {
-        result.present = true;
-        result.physical = logicalPath;
-        result.status = SchoolDaysAssetResolutionStatus::Present;
+        // This resolver accepts logical names below the selected School Days
+        // mount only.  Treat drive/UNC/URL-style logical input as invalid so an
+        // authored or malformed path cannot bypass the mounted namespace.
+        result.status = SchoolDaysAssetResolutionStatus::Invalid;
         return result;
     }
 

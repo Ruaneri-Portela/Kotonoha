@@ -88,7 +88,7 @@ int main(int argc, char** argv) {
     Check(loaded.state.voiceVolume == 8 && loaded.state.bgmVolume == 5 &&
               loaded.state.seVolume == 5 && loaded.state.textView &&
               loaded.state.menVoice && !loaded.state.mute && loaded.state.skip &&
-              loaded.state.autoDraw && !loaded.state.superSkip && !loaded.state.useSom,
+              loaded.state.autoDraw && !loaded.state.superSkip,
           "typed Config.DAT projection/default truthiness failed");
     Check(loaded.state.masterVolume == -1.0f,
           "unproven persisted MasterVolume was incorrectly restored");

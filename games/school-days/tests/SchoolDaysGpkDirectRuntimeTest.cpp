@@ -10,6 +10,7 @@
 
 #include <cstdint>
 #include <filesystem>
+#include <fstream>
 #include <iostream>
 #include <limits>
 #include <stdexcept>
@@ -59,16 +60,23 @@ void TestDflt(const std::filesystem::path& packs) {
 }
 
 void TestImage() {
-    constexpr const char* logical = "System/MenuBar/MenuBar.PNG";
-    const std::string uri = Uri(logical);
-    Uint8* pixels = nullptr;
-    AVFrame* frame = KotonohaImageDecodeFrame(uri.c_str(), -1, -1, &pixels, false);
-    Check(frame != nullptr && pixels != nullptr && frame->width > 0 &&
-              frame->height > 0,
-          "retail PNG did not decode through mounted URI");
-    std::cout << "image=" << logical << " " << frame->width << "x"
-              << frame->height << " PASS\n";
-    KotonohaImageReleaseFrame(&frame, &pixels);
+    for (const char* logical : {"System/MenuBar/MenuBar.PNG",
+                                "System/SCREEN/TELOP/TELOP02.PNG"}) {
+        const std::string uri = Uri(logical);
+        Uint8* pixels = nullptr;
+        AVFrame* frame = KotonohaImageDecodeFrame(uri.c_str(), -1, -1, &pixels, false);
+        Check(frame != nullptr && pixels != nullptr && frame->width > 0 &&
+                  frame->height > 0,
+              std::string("retail PNG did not decode through mounted URI: ") +
+                  logical);
+        if (std::string(logical).find("TELOP") != std::string::npos) {
+            Check(frame->width == 800 && frame->height == 452,
+                  "retail Episode TELOP geometry drifted");
+        }
+        std::cout << "image=" << logical << " " << frame->width << "x"
+                  << frame->height << " PASS\n";
+        KotonohaImageReleaseFrame(&frame, &pixels);
+    }
 }
 
 void TestBgm() {
@@ -134,11 +142,48 @@ void TestMovie() {
     Kotonoha_timeDestroy(time);
 }
 
+void ExtractAbcFixture(const std::filesystem::path& output) {
+    struct Witness {
+        const char* logical;
+    };
+    constexpr Witness witnesses[] = {
+        {"Event00/00-00/00-00-A01/00-00-A01-004.PNG"},
+        {"Event00/00-00/00-00-A01/00-00-A01-004MAK.A.PNG"},
+        {"Event00/00-00/00-00-A01/00-00-A01-004MAK.B.PNG"},
+        {"Event00/00-00/00-00-A01/00-00-A01-004MAK.C.PNG"},
+        {"Event00/00-00/00-00-A01/00-00-A01-004TAI.B.PNG"},
+        {"Event00/00-00/00-00-A02/00-00-A02-001B.PNG"},
+        {"Event00/00-00/00-00-A02/00-00-A02-001BMAK.A.PNG"},
+        {"Event00/00-00/00-00-A02/00-00-A02-001BMAK.B.PNG"},
+        {"Event00/00-00/00-00-A02/00-00-A02-001BMAK.C.PNG"},
+        {"Event04/04-SB/04-SB-E00/04-SB-E00-020.PNG"},
+        {"Event04/04-SB/04-SB-E00/04-SB-E00-020X03.A.PNG"},
+        {"Event04/04-SB/04-SB-E00/04-SB-E00-020X03.B.PNG"},
+        {"Event04/04-SB/04-SB-E00/04-SB-E00-020X03.C.PNG"},
+    };
+    for (const auto& witness : witnesses) {
+        std::vector<uint8_t> bytes;
+        std::string error;
+        const std::string uri = Uri(witness.logical);
+        Check(Kotonoha::ReadSchoolDaysAssetRef(uri, &bytes, &error), error);
+        const auto path = output / std::filesystem::path(witness.logical);
+        std::filesystem::create_directories(path.parent_path());
+        std::ofstream file(path, std::ios::binary | std::ios::trunc);
+        Check(static_cast<bool>(file), "ABC fixture output could not be created");
+        file.write(reinterpret_cast<const char*>(bytes.data()),
+                   static_cast<std::streamsize>(bytes.size()));
+        Check(static_cast<bool>(file), "ABC fixture output write failed");
+    }
+    std::cout << "abc_fixture=" << output.string() << " files="
+              << std::size(witnesses) << " PASS\n";
+}
+
 } // namespace
 
 int main(int argc, char** argv) {
     try {
-        Check(argc == 2, "usage: SchoolDaysGpkDirectRuntimeTest <Packs-folder>");
+        Check(argc == 2 || argc == 3,
+              "usage: SchoolDaysGpkDirectRuntimeTest <Packs-folder> [ABC-fixture-output]");
         Check(SDL_Init(0), std::string("SDL_Init failed: ") + SDL_GetError());
         std::string error;
         const std::filesystem::path packs(argv[1]);
@@ -152,6 +197,7 @@ int main(int argc, char** argv) {
         TestBgm();
         TestVoice();
         TestMovie();
+        if (argc == 3) ExtractAbcFixture(argv[2]);
 
         Kotonoha::UninstallMountedSchoolDaysAssetResolver();
         Kotonoha::UnmountSchoolDaysRetailGpks();

@@ -99,6 +99,9 @@ int main() {
               "System/Option/Option_Def.cmap" &&
               Config::CmapRelativePath(Config::Page::Sound, Config::Variant::Wide) ==
                   "System/Option/Option_Sound_Wide.cmap" &&
+              Config::CmapRelativePath(Config::Page::Display,
+                                       Config::Variant::Wide) ==
+                  "System/Option/Option_Def_Wide.cmap" &&
               Config::CmapRelativePath(Config::Page::Def,
                                        Config::Variant::WideNote) ==
                   "System/Option/Option_Def_Wide_Note.cmap",
@@ -141,7 +144,7 @@ int main() {
         Config::Variant::WideFull, Config::Variant::WideNote,
     };
     const Config::Page pages[] = {
-        Config::Page::Def, Config::Page::Sound,
+        Config::Page::Def, Config::Page::Sound, Config::Page::Display,
     };
     for (const auto variant : configVariants) {
         for (const auto page : pages) {
@@ -175,16 +178,13 @@ int main() {
                       Config::Page::Def, &error),
           error.c_str());
     Config::Action action;
-    for (int control = 0; control <= 1; ++control) {
+    for (int control = 0; control <= 2; ++control) {
         SelectControl(config, control);
         Check(config.Activate(&action) &&
                   action.kind == Config::ActionKind::SelectPage &&
                   action.page == static_cast<Config::Page>(control),
               "Config common tab mapping mismatch");
     }
-    SelectControl(config, 2);
-    Check(!config.Activate(&action),
-          "removed Config tab id2 unexpectedly activated");
     SelectControl(config, 3);
     Check(config.Activate(&action) && action.kind == Config::ActionKind::Close,
           "Config close mapping mismatch");
@@ -290,7 +290,7 @@ int main() {
               << "title_config_exit_codes=PASS\n"
               << "resource_variants=PASS\n"
               << "config_common_controls=PASS\n"
-              << "config_removed_tab2_inert=PASS\n"
+              << "config_display_tab2=PASS\n"
               << "config_def_typed_outputs=PASS\n"
               << "config_sound_opaque_banks=PASS\n"
               << "exit_two_choice_contract=PASS\n"

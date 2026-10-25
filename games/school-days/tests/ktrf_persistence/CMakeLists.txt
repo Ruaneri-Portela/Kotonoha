@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.18)
 project(KtrfSchoolDaysPersistenceGate6 LANGUAGES C CXX)
 
+find_package(SDL3 CONFIG REQUIRED)
+
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_STANDARD 17)
@@ -17,13 +19,14 @@ add_executable(KtrfSchoolDaysPersistenceCodecTest
 
 add_executable(KtrfSchoolDaysPersistenceRuntimeTest
     KtrfSchoolDaysPersistenceRuntimeTest.cpp
+    "${KOTONOHA_ROOT}/games/school-days/tests/ktrf_gameplay_bridge/GameplayBridgeTestRuntimeStubs.cpp"
     "${KOTONOHA_ROOT}/src/Kotonoha/parsers/Ktrf.c"
     "${KOTONOHA_ROOT}/src/Kotonoha/parsers/KtrfTyped.c"
     "${KOTONOHA_ROOT}/src/Kotonoha/routing/KtrfRuntime.c"
     "${KOTONOHA_ROOT}/src/Kotonoha/routing/KtrfRouter.c"
     "${KOTONOHA_ROOT}/src/Kotonoha/routing/KtrfAdapter.c"
-    "${KOTONOHA_ROOT}/src/Kotonoha/routing/KtrfAssetResolver.c"
-    "${KOTONOHA_ROOT}/src/Kotonoha/runtime/KtrfStateStore.cpp"
+    "${KOTONOHA_ROOT}/games/school-days/src/KtrfAssetResolver.cpp"
+    "${KOTONOHA_ROOT}/games/school-days/src/KtrfStateStore.cpp"
     "${KOTONOHA_ROOT}/games/school-days/src/SchoolDaysHistory.cpp"
     "${KOTONOHA_ROOT}/games/school-days/src/SchoolDaysPersistenceCodec.cpp"
     "${KOTONOHA_ROOT}/games/school-days/src/SchoolDaysPersistence.cpp"
@@ -31,10 +34,12 @@ add_executable(KtrfSchoolDaysPersistenceRuntimeTest
     "${KOTONOHA_ROOT}/games/school-days/src/SchoolDaysSaveService.cpp"
     "${KOTONOHA_ROOT}/games/school-days/src/SchoolDaysEndBackgroundResolver.cpp"
     "${KOTONOHA_ROOT}/games/school-days/src/SchoolDaysBackRules.cpp"
+    "${KOTONOHA_ROOT}/games/school-days/src/SchoolDaysKtrfProfile.cpp"
     "${KOTONOHA_ROOT}/games/school-days/src/SchoolDaysKtrfSession.cpp"
     "${KOTONOHA_ROOT}/games/school-days/tests/ktrf_common/ScriptDirectoryStub.cpp"
     "${KOTONOHA_ROOT}/games/school-days/src/SchoolDaysKtrfGameplayBridge.cpp"
 )
+target_link_libraries(KtrfSchoolDaysPersistenceRuntimeTest PRIVATE SDL3::SDL3)
 
 target_include_directories(KtrfSchoolDaysPersistenceCodecTest PRIVATE
     "${KOTONOHA_ROOT}/include"

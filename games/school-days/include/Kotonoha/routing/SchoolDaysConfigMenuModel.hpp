@@ -21,6 +21,7 @@ public:
     enum class Page : int {
         Def = 0,
         Sound = 1,
+        Display = 2,
     };
 
     enum class ActionKind {

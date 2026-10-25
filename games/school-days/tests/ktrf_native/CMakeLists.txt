@@ -110,6 +110,7 @@ endif()
 
 add_executable(KtrfSchoolDaysAdapterTest
     KtrfSchoolDaysAdapterTest.cpp
+    "${KOTONOHA_ROOT}/games/school-days/src/SchoolDaysKtrfProfile.cpp"
     "${KOTONOHA_ROOT}/src/Kotonoha/parsers/Ktrf.c"
     "${KOTONOHA_ROOT}/src/Kotonoha/parsers/KtrfTyped.c"
     "${KOTONOHA_ROOT}/src/Kotonoha/routing/KtrfRuntime.c"
@@ -128,12 +129,13 @@ endif()
 
 add_executable(KtrfSchoolDaysAssetResolverTest
     KtrfSchoolDaysAssetResolverTest.cpp
+    "${KOTONOHA_ROOT}/games/school-days/src/SchoolDaysKtrfProfile.cpp"
     "${KOTONOHA_ROOT}/src/Kotonoha/parsers/Ktrf.c"
     "${KOTONOHA_ROOT}/src/Kotonoha/parsers/KtrfTyped.c"
     "${KOTONOHA_ROOT}/src/Kotonoha/routing/KtrfRuntime.c"
     "${KOTONOHA_ROOT}/src/Kotonoha/routing/KtrfRouter.c"
     "${KOTONOHA_ROOT}/src/Kotonoha/routing/KtrfAdapter.c"
-    "${KOTONOHA_ROOT}/src/Kotonoha/routing/KtrfAssetResolver.c"
+    "${KOTONOHA_ROOT}/games/school-days/src/KtrfAssetResolver.cpp"
 )
 target_include_directories(KtrfSchoolDaysAssetResolverTest PRIVATE
     "${KOTONOHA_ROOT}/include"

@@ -2,6 +2,7 @@
 #include <Kotonoha/routing/SchoolDaysKtrfSession.hpp>
 #include <Kotonoha/SchoolDaysImageAssetResolver.hpp>
 #include <Kotonoha/routing/SchoolDaysBackRules.hpp>
+#include <Kotonoha/routing/SchoolDaysKtrfProfile.hpp>
 
 #include <algorithm>
 #include <cstdio>
@@ -69,7 +70,7 @@ bool RouteMapCoordinateValue(const SchoolDaysFlgH& flags,
     return true;
 }
 
-bool ProbeResolvedOrs(const Kotonoha_KtrfOrsAsset& asset,
+bool ProbeResolvedOrs(const SchoolDaysKtrfResolvedAsset& asset,
                       size_t* bytes, Kotonoha_KtrfError* error) {
     if (bytes != nullptr) *bytes = 0u;
     if (asset.path[0] == '\0') {
@@ -78,7 +79,7 @@ bool ProbeResolvedOrs(const Kotonoha_KtrfOrsAsset& asset,
     }
     const std::string reference(asset.path, asset.path_length);
     if (!SchoolDaysAssetReferenceIsVirtual(reference))
-        return Kotonoha_KtrfProbeOrs(&asset, bytes, error) != 0;
+        return SchoolDaysKtrfProbeAsset(&asset, bytes, error) != 0;
 
     std::vector<uint8_t> content;
     std::string assetError;
@@ -123,7 +124,7 @@ int SchoolDaysKtrfSession::OnEnding(int64_t endingCode, void* userdata,
     if (self == nullptr) return 0;
     Kotonoha_KtrfNodeView view{};
     if (!Kotonoha_KtrfCurrentNodeView(&self->adapter, &view, error) ||
-        view.kind != KOTONOHA_SDHQ_NODE_SCENE || view.scene_key == nullptr) {
+        view.kind != KOTONOHA_KTRF_NODE_SCENE || view.scene_key == nullptr) {
         return 0;
     }
     const std::string sceneKey(view.scene_key, view.scene_key_length);
@@ -146,7 +147,7 @@ int SchoolDaysKtrfSession::OnHook(const char* symbol, size_t symbolLength,
         Kotonoha_KtrfNodeView view{};
         if (!self->state.ReadCoordinate(&route, &scene, error) ||
             !Kotonoha_KtrfCurrentNodeView(&self->adapter, &view, error) ||
-            view.kind != KOTONOHA_SDHQ_NODE_SCENE || view.scene_key == nullptr) {
+            view.kind != KOTONOHA_KTRF_NODE_SCENE || view.scene_key == nullptr) {
             return 0;
         }
         const std::string sceneKey(view.scene_key, view.scene_key_length);
@@ -172,7 +173,7 @@ int SchoolDaysKtrfSession::OnEffectApplied(uint32_t effectIndex,
 }
 
 bool SchoolDaysKtrfSession::ResolveOrsPhysicalPath(
-    Kotonoha_KtrfOrsAsset* asset, Kotonoha_KtrfError* error) const {
+    SchoolDaysKtrfResolvedAsset* asset, Kotonoha_KtrfError* error) const {
     if (asset == nullptr || asset->scene_key == nullptr ||
         asset->scene_key_length == 0u) {
         if (error != nullptr) {
@@ -184,7 +185,7 @@ bool SchoolDaysKtrfSession::ResolveOrsPhysicalPath(
     }
 
     std::string relative(asset->scene_key, asset->scene_key_length);
-    relative += KOTONOHA_SDHQ_ORS_EXTENSION;
+    relative += SchoolDaysKtrfRuntimeProfile().assetExtension;
 
     // The retail source of truth is Script.GPK/English.  Preserve the historic
     // extracted ORS root only as a compatibility fallback for development
@@ -238,7 +239,7 @@ bool SchoolDaysKtrfSession::ResolveOrsPhysicalPath(
 }
 
 bool SchoolDaysKtrfSession::FillScene(
-    const Kotonoha_KtrfOrsAsset& asset,
+    const SchoolDaysKtrfResolvedAsset& asset,
     SchoolDaysKtrfScene* out) const {
     if (out == nullptr || asset.scene_key == nullptr || asset.path[0] == '\0') {
         return false;
@@ -275,7 +276,8 @@ bool SchoolDaysKtrfSession::Open(const char* ktrfPath, const char* root,
     callbacks.effect_applied = &SchoolDaysKtrfSession::OnEffectApplied;
     callbacks.userdata = this;
 
-    if (!Kotonoha_KtrfAdapterBind(&adapter, &document, &callbacks, error)) {
+    if (!Kotonoha_KtrfAdapterBind(&adapter, &document, &SchoolDaysKtrfProfile(),
+                                  &callbacks, error)) {
         Kotonoha_KtrfClean(&document);
         Kotonoha_KtrfInit(&document);
         return false;
@@ -383,7 +385,7 @@ bool SchoolDaysKtrfSession::PlanLoadSave(
                                                 error)) {
             return false;
         }
-        if (view.kind != KOTONOHA_SDHQ_NODE_SCENE || view.scene_key == nullptr ||
+        if (view.kind != KOTONOHA_KTRF_NODE_SCENE || view.scene_key == nullptr ||
             view.scene_key_length != plan->image.sceneKey.size() ||
             std::memcmp(view.scene_key, plan->image.sceneKey.data(),
                         view.scene_key_length) != 0) {
@@ -423,6 +425,44 @@ bool SchoolDaysKtrfSession::PlanLoadSave(
     plan->destination.scene = plan->image.scene;
     plan->destination.nodeIndex = matchedNode;
     plan->destination.sceneKey = plan->image.sceneKey;
+
+    // tag4 is keyed by SceneKey and records an already-applied choice.  A save
+    // taken during the post-choice visual tail therefore contains both the
+    // post-choice tag1 state and this tag4 result.  Carry the result in the load
+    // plan so CommitLoadSave can restore router bookkeeping without replaying
+    // the choice effects a second time.
+    const std::u16string choiceKey(plan->image.sceneKey.begin(),
+                                   plan->image.sceneKey.end());
+    size_t matchingChoices = 0u;
+    for (const auto& record : plan->image.document.records) {
+        if (record.tag != 4 || record.name != choiceKey) continue;
+        ++matchingChoices;
+        if (matchingChoices > 1u) {
+            if (error != nullptr) {
+                error->code = KOTONOHA_KTRF_ERROR_FORMAT;
+                std::snprintf(error->message, sizeof(error->message),
+                              "School Days save contains duplicate tag4 choice records for SceneKey");
+            }
+            return false;
+        }
+        plan->recordedChoicePresent = true;
+        plan->recordedChoiceValue = record.integer;
+    }
+    // New Kotonoha saves explicitly distinguish the active visit from the
+    // historical tag4 oracle. Native/older saves have no such bit, so retain
+    // the established tag4 behavior for compatibility where the ambiguity is
+    // impossible to resolve from bytes alone.
+    plan->restoreRecordedChoice = plan->image.liveChoiceCommitMarkerPresent
+        ? plan->image.liveChoiceCommitted
+        : plan->recordedChoicePresent;
+    if (plan->restoreRecordedChoice && !plan->recordedChoicePresent) {
+        if (error != nullptr) {
+            error->code = KOTONOHA_KTRF_ERROR_FORMAT;
+            std::snprintf(error->message, sizeof(error->message),
+                          "School Days live-choice save marker has no matching tag4 record");
+        }
+        return false;
+    }
     return true;
 }
 
@@ -444,18 +484,60 @@ bool SchoolDaysKtrfSession::CommitLoadSave(const LoadPlan& plan,
     const SchoolDaysPersistence persistenceBefore = persistence;
     const auto hooksBefore = pendingHooks;
     const auto endingsBefore = pendingEndings;
+    const bool topMeterBefore = topMeterRefreshRequested;
 
     if (!state.ReplaceSessionInts(plan.image.sessionInts, error) ||
         !Kotonoha_KtrfRouterActivateNode(&adapter.router,
                                          plan.destination.nodeIndex, error) ||
-        !state.ResetChoicesForNode(plan.destination.nodeIndex, error) ||
-        !history.Rebase(plan.destination, state, error)) {
+        !state.ResetChoicesForNode(plan.destination.nodeIndex, error)) {
         Kotonoha_KtrfError ignored{};
         (void)state.Restore(before, &ignored);
         history = historyBefore;
         persistence = persistenceBefore;
         pendingHooks = hooksBefore;
         pendingEndings = endingsBefore;
+        topMeterRefreshRequested = topMeterBefore;
+        return false;
+    }
+
+    if (plan.restoreRecordedChoice) {
+        uint32_t count = 0u;
+        uint32_t choiceIndex = KOTONOHA_KTRF_NULL_INDEX;
+        Kotonoha_KtrfRuntimeValue persistedValue{};
+        int valid = 0;
+        persistedValue.kind = KOTONOHA_KTRF_RUNTIME_INT64;
+        persistedValue.as.int64_value = plan.recordedChoiceValue;
+        if (!Kotonoha_KtrfRouterCurrentChoiceCount(&adapter.router, &count, error) ||
+            count != 1u ||
+            !Kotonoha_KtrfRouterCurrentChoiceAt(&adapter.router, 0u,
+                                                &choiceIndex, error) ||
+            !Kotonoha_KtrfRouterChoiceValueIsValid(
+                &adapter.router, choiceIndex, &persistedValue, &valid, error) ||
+            valid == 0) {
+            if (error != nullptr && error->code == KOTONOHA_KTRF_OK) {
+                error->code = KOTONOHA_KTRF_ERROR_FORMAT;
+                std::snprintf(error->message, sizeof(error->message),
+                              "School Days saved tag4 value is invalid for its scene choice");
+            }
+            Kotonoha_KtrfError ignored{};
+            (void)state.Restore(before, &ignored);
+            history = historyBefore;
+            persistence = persistenceBefore;
+            pendingHooks = hooksBefore;
+            pendingEndings = endingsBefore;
+            topMeterRefreshRequested = topMeterBefore;
+            return false;
+        }
+    }
+
+    if (!history.Rebase(plan.destination, state, error)) {
+        Kotonoha_KtrfError ignored{};
+        (void)state.Restore(before, &ignored);
+        history = historyBefore;
+        persistence = persistenceBefore;
+        pendingHooks = hooksBefore;
+        pendingEndings = endingsBefore;
+        topMeterRefreshRequested = topMeterBefore;
         return false;
     }
 
@@ -474,10 +556,56 @@ bool SchoolDaysKtrfSession::CommitLoadSave(const LoadPlan& plan,
         persistence = persistenceBefore;
         pendingHooks = hooksBefore;
         pendingEndings = endingsBefore;
+        topMeterRefreshRequested = topMeterBefore;
         return false;
     }
 
     persistence.CommitSaveImage(plan.image);
+    if (plan.restoreRecordedChoice) {
+        uint32_t count = 0u;
+        uint32_t choiceIndex = KOTONOHA_KTRF_NULL_INDEX;
+        Kotonoha_KtrfChoice choice{};
+        Kotonoha_KtrfRuntimeValue value{};
+        if (!Kotonoha_KtrfRouterCurrentChoiceCount(&adapter.router, &count, error) ||
+            count != 1u ||
+            !Kotonoha_KtrfRouterCurrentChoiceAt(&adapter.router, 0u,
+                                                &choiceIndex, error) ||
+            !Kotonoha_KtrfGetChoice(adapter.document, choiceIndex, &choice,
+                                    error)) {
+            if (error != nullptr && error->code == KOTONOHA_KTRF_OK) {
+                error->code = KOTONOHA_KTRF_ERROR_FORMAT;
+                std::snprintf(error->message, sizeof(error->message),
+                              "School Days saved tag4 has no unique choice on its scene");
+            }
+            Kotonoha_KtrfError ignored{};
+            (void)state.Restore(before, &ignored);
+            history = historyBefore;
+            persistence = persistenceBefore;
+            pendingHooks = hooksBefore;
+            pendingEndings = endingsBefore;
+            topMeterRefreshRequested = topMeterBefore;
+            return false;
+        }
+        value.kind = KOTONOHA_KTRF_RUNTIME_INT64;
+        value.as.int64_value = plan.recordedChoiceValue;
+        if (!Kotonoha_KtrfRuntimeSetVariable(&adapter.router.runtime,
+                                             choice.result_variable_index,
+                                             &value, error)) {
+            Kotonoha_KtrfError ignored{};
+            (void)state.Restore(before, &ignored);
+            history = historyBefore;
+            persistence = persistenceBefore;
+            pendingHooks = hooksBefore;
+            pendingEndings = endingsBefore;
+            topMeterRefreshRequested = topMeterBefore;
+            return false;
+        }
+        // Effects are already present in tag1.  Restore only the router latch
+        // and selected value so a freshly-created Gameplay cannot submit the
+        // same choice again after LOAD.
+        adapter.router.choice_values[choiceIndex] = value;
+        adapter.router.choice_committed[choiceIndex] = 1u;
+    }
     if (!persistence.MarkLocalInteger("BackSel", 3, error) ||
         !state.WriteSessionInt("BackSel", -1, error) ||
         !persistence.ReplaceCurrentScriptSnapshot(
@@ -488,6 +616,7 @@ bool SchoolDaysKtrfSession::CommitLoadSave(const LoadPlan& plan,
         persistence = persistenceBefore;
         pendingHooks = hooksBefore;
         pendingEndings = endingsBefore;
+        topMeterRefreshRequested = topMeterBefore;
         return false;
     }
     pendingHooks.clear();
@@ -580,6 +709,7 @@ bool SchoolDaysKtrfSession::CommitRouteMapCheckpoint(
     const SchoolDaysPersistence persistenceBefore = persistence;
     const auto hooksBefore = pendingHooks;
     const auto endingsBefore = pendingEndings;
+    const bool topMeterBefore = topMeterRefreshRequested;
 
     auto rollback = [&]() {
         Kotonoha_KtrfError ignored{};
@@ -588,6 +718,7 @@ bool SchoolDaysKtrfSession::CommitRouteMapCheckpoint(
         persistence = persistenceBefore;
         pendingHooks = hooksBefore;
         pendingEndings = endingsBefore;
+        topMeterRefreshRequested = topMeterBefore;
     };
 
     bool checkpointRestored = false;
@@ -649,6 +780,7 @@ bool SchoolDaysKtrfSession::ResetNewGame(SchoolDaysKtrfScene* scene,
     const SchoolDaysPersistence persistenceBefore = persistence;
     const auto hooksBefore = pendingHooks;
     const auto endingsBefore = pendingEndings;
+    const bool topMeterBefore = topMeterRefreshRequested;
 
     auto rollback = [&]() {
         Kotonoha_KtrfError ignored{};
@@ -657,6 +789,7 @@ bool SchoolDaysKtrfSession::ResetNewGame(SchoolDaysKtrfScene* scene,
         persistence = persistenceBefore;
         pendingHooks = hooksBefore;
         pendingEndings = endingsBefore;
+        topMeterRefreshRequested = topMeterBefore;
     };
 
     Kotonoha_KtrfNodeView view{};
@@ -673,9 +806,9 @@ bool SchoolDaysKtrfSession::ResetNewGame(SchoolDaysKtrfScene* scene,
         return false;
     }
 
-    Kotonoha_KtrfOrsAsset asset{};
-    if (!Kotonoha_KtrfCurrentOrs(&adapter, assetsRoot.c_str(), &asset,
-                                           error) ||
+    SchoolDaysKtrfResolvedAsset asset{};
+    if (!SchoolDaysKtrfCurrentAsset(&adapter, assetsRoot.c_str(), &asset,
+                                    error) ||
         !ResolveOrsPhysicalPath(&asset, error)) {
         rollback();
         return false;
@@ -690,6 +823,7 @@ bool SchoolDaysKtrfSession::ResetNewGame(SchoolDaysKtrfScene* scene,
 
     pendingHooks.clear();
     pendingEndings.clear();
+    topMeterRefreshRequested = false;
     history.Clear();
     persistence.ResetNewGame();
     return FillScene(asset, scene);
@@ -698,9 +832,9 @@ bool SchoolDaysKtrfSession::ResetNewGame(SchoolDaysKtrfScene* scene,
 bool SchoolDaysKtrfSession::CurrentScene(SchoolDaysKtrfScene* scene,
                                          Kotonoha_KtrfError* error) const {
     if (!opened || scene == nullptr) return false;
-    Kotonoha_KtrfOrsAsset asset{};
-    if (!Kotonoha_KtrfCurrentOrs(&adapter, assetsRoot.c_str(), &asset,
-                                           error) ||
+    SchoolDaysKtrfResolvedAsset asset{};
+    if (!SchoolDaysKtrfCurrentAsset(&adapter, assetsRoot.c_str(), &asset,
+                                    error) ||
         !ResolveOrsPhysicalPath(&asset, error)) {
         return false;
     }
@@ -719,8 +853,8 @@ bool SchoolDaysKtrfSession::ResolveSceneNode(uint32_t nodeIndex,
         return false;
     }
 
-    Kotonoha_KtrfOrsAsset asset{};
-    if (!Kotonoha_KtrfResolveNodeOrs(
+    SchoolDaysKtrfResolvedAsset asset{};
+    if (!SchoolDaysKtrfResolveNodeAsset(
             &adapter, nodeIndex, assetsRoot.c_str(), &asset, error) ||
         !ResolveOrsPhysicalPath(&asset, error)) {
         return false;
@@ -762,7 +896,7 @@ bool SchoolDaysKtrfSession::ResolveSceneKey(
         Kotonoha_KtrfNodeView view{};
         if (!Kotonoha_KtrfGetNodeView(&adapter, nodeIndex, &view, error))
             return false;
-        if (view.kind != KOTONOHA_SDHQ_NODE_SCENE || view.scene_key == nullptr ||
+        if (view.kind != KOTONOHA_KTRF_NODE_SCENE || view.scene_key == nullptr ||
             view.scene_key_length != sceneKey.size() ||
             std::memcmp(view.scene_key, sceneKey.data(), sceneKey.size()) != 0) {
             continue;
@@ -835,7 +969,7 @@ bool SchoolDaysKtrfSession::ResolveSemanticCoordinate(
                        view.scene_key_length == expectedLength &&
                        std::memcmp(view.scene_key, expectedKey,
                                    expectedLength) == 0;
-        if (!matches && view.kind == KOTONOHA_SDHQ_NODE_DISPATCHER) {
+        if (!matches && view.kind == KOTONOHA_KTRF_NODE_DISPATCHER) {
             Kotonoha_KtrfNode node{};
             const char* id = nullptr;
             size_t idLength = 0u;
@@ -858,11 +992,11 @@ bool SchoolDaysKtrfSession::ResolveSemanticCoordinate(
         coordinate->scene = scene;
         coordinate->nodeIndex = nodeIndex;
         coordinate->sceneKey = expectedKey;
-        if (view.kind == KOTONOHA_SDHQ_NODE_DISPATCHER) {
+        if (view.kind == KOTONOHA_KTRF_NODE_DISPATCHER) {
             *routingOnly = true;
             return true;
         }
-        if (view.kind != KOTONOHA_SDHQ_NODE_SCENE) {
+        if (view.kind != KOTONOHA_KTRF_NODE_SCENE) {
             if (error != nullptr) {
                 error->code = KOTONOHA_KTRF_ERROR_FORMAT;
                 std::snprintf(error->message, sizeof(error->message),
@@ -897,7 +1031,7 @@ bool SchoolDaysKtrfSession::DebugActivateNode(uint32_t nodeIndex,
     if (!Kotonoha_KtrfGetNodeView(&adapter, nodeIndex, &view, error)) {
         return false;
     }
-    if (view.kind != KOTONOHA_SDHQ_NODE_SCENE) {
+    if (view.kind != KOTONOHA_KTRF_NODE_SCENE) {
         if (error != nullptr) {
             error->code = KOTONOHA_KTRF_ERROR_ARGUMENT;
             std::snprintf(error->message, sizeof(error->message),
@@ -952,7 +1086,7 @@ bool SchoolDaysKtrfSession::CommitChoice(int64_t value, int* accepted,
     if (*accepted != 0 && !wasCommitted) {
         Kotonoha_KtrfNodeView view{};
         if (!Kotonoha_KtrfCurrentNodeView(&adapter, &view, error) ||
-            view.kind != KOTONOHA_SDHQ_NODE_SCENE || view.scene_key == nullptr ||
+            view.kind != KOTONOHA_KTRF_NODE_SCENE || view.scene_key == nullptr ||
             !persistence.RecordChoice(
                 std::string(view.scene_key, view.scene_key_length), value,
                 error)) {
@@ -989,8 +1123,8 @@ bool SchoolDaysKtrfSession::Advance(const char* trigger, StepResult* out,
     pendingHooks.clear();
     pendingEndings.clear();
 
-    Kotonoha_KtrfAssetAdvanceResult result{};
-    if (!Kotonoha_KtrfAdvanceToOrs(
+    SchoolDaysKtrfAssetAdvanceResult result{};
+    if (!SchoolDaysKtrfAdvanceToAsset(
             &adapter, assetsRoot.c_str(), trigger, &result, error)) {
         rollback();
         return false;
@@ -1002,13 +1136,13 @@ bool SchoolDaysKtrfSession::Advance(const char* trigger, StepResult* out,
     out->endings = pendingEndings;
 
     switch (result.advance.status) {
-    case KOTONOHA_SDHQ_ADVANCE_UNRESOLVED:
+    case KOTONOHA_KTRF_ADVANCE_UNRESOLVED:
         out->kind = StepKind::Unresolved;
         return true;
-    case KOTONOHA_SDHQ_ADVANCE_BLOCKED_CHOICE:
+    case KOTONOHA_KTRF_ADVANCE_BLOCKED_CHOICE:
         out->kind = StepKind::BlockedChoice;
         return true;
-    case KOTONOHA_SDHQ_ADVANCE_ADVANCED: {
+    case KOTONOHA_KTRF_ADVANCE_ADVANCED: {
         size_t bytes = 0;
         out->kind = StepKind::Scene;
         if (!ResolveOrsPhysicalPath(&result.asset, error) ||
@@ -1023,7 +1157,7 @@ bool SchoolDaysKtrfSession::Advance(const char* trigger, StepResult* out,
         }
         return true;
     }
-    case KOTONOHA_SDHQ_ADVANCE_TERMINAL:
+    case KOTONOHA_KTRF_ADVANCE_TERMINAL:
         out->kind = StepKind::Terminal;
         return true;
     default:
@@ -1120,7 +1254,7 @@ bool SchoolDaysKtrfSession::PlanBack(BackPlan* plan,
             return false;
         }
         const size_t keyLength = std::strlen(key);
-        if (sourceView.kind != KOTONOHA_SDHQ_NODE_SCENE ||
+        if (sourceView.kind != KOTONOHA_KTRF_NODE_SCENE ||
             sourceView.scene_key == nullptr || sourceView.scene_key_length != keyLength ||
             std::memcmp(sourceView.scene_key, key, keyLength) != 0) {
             if (error != nullptr) {

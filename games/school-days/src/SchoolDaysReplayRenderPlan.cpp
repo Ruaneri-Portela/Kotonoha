@@ -134,6 +134,36 @@ SchoolDaysReplayRenderPlan::Layout SchoolDaysReplayRenderPlan::LayoutFor(
     return {1.0f,75.0f,800,600};
 }
 
+std::vector<SchoolDaysReplayRenderPlan::MetadataRect>
+SchoolDaysReplayRenderPlan::MetadataLayout(
+    SchoolDaysReplayModel::Variant variant) {
+    const Layout layout = LayoutFor(variant);
+    std::vector<MetadataRect> rows;
+    rows.reserve(10u);
+    auto scaleText = [&](float x, float y, float w, float h) -> Rect {
+        return {x * layout.scale,
+                (y + layout.yOffset) * layout.scale,
+                w * layout.scale,
+                h * layout.scale};
+    };
+    for (int row = 0; row < 10; ++row) {
+        const float rowY = 48.0f * static_cast<float>(row);
+        const float destY = 100.5f + 33.0f * static_cast<float>(row);
+        MetadataRect item;
+        item.row = row;
+        item.dateSource = {0.0f, 2.0f + rowY, 548.0f, 48.0f};
+        item.storySource = {1024.0f, 2.0f + rowY, 548.0f, 48.0f};
+        item.commentSource = {0.0f, 514.0f + rowY, 986.0f, 48.0f};
+        // SceneView 0x1001B6D0/0x1001C850 destinations. Unlike SaveLoad,
+        // Replay does not apply the English proportional-x adjustment here.
+        item.date = scaleText(1.0f, destY, 252.0f, 24.0f);
+        item.story = scaleText(262.5f, destY, 252.0f, 24.0f);
+        item.comment = scaleText(330.0f, destY, 494.0f, 24.0f);
+        rows.push_back(item);
+    }
+    return rows;
+}
+
 std::string SchoolDaysReplayRenderPlan::ThumbnailRelativePath(int page) {
     if (page < 0 || page > 3) return {};
     char path[64]{};

@@ -3,6 +3,8 @@
 # Produces SchoolDays.app on macOS, SchoolDays(.exe) on other desktops and
 # libKotonohaSchoolDays.so (loaded by SDLActivity) on Android.
 
+find_package(ZLIB REQUIRED)
+
 file(GLOB_RECURSE SCHOOL_DAYS_SOURCES CONFIGURE_DEPENDS
     "${SCHOOL_DAYS_SOURCE_DIR}/*.cpp"
     "${SCHOOL_DAYS_SOURCE_DIR}/*.c"
@@ -17,6 +19,12 @@ if(ANDROID)
 else()
     add_executable(SchoolDays ${SCHOOL_DAYS_SOURCES} "${SCHOOL_DAYS_MAIN}")
     target_link_libraries(SchoolDays PUBLIC KotonohaRuntime PRIVATE ZLIB::ZLIB)
+    if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
+        # Commercial/player-facing Windows builds are GUI applications.  Keep
+        # diagnostics in SDL/debugger logging, but do not allocate a console
+        # window beside the game for ordinary users.
+        set_target_properties(SchoolDays PROPERTIES WIN32_EXECUTABLE TRUE)
+    endif()
 endif()
 
 target_include_directories(SchoolDays PRIVATE
@@ -32,6 +40,14 @@ if(NOT ANDROID)
     kotonoha_configure_app(SchoolDays
         OUTPUT_NAME SchoolDays
         BUNDLE_ID "me.hirameki.kotonoha.schooldays")
+
+    add_custom_command(TARGET SchoolDays POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E make_directory
+            "$<TARGET_FILE_DIR:SchoolDays>/assets/school-days"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${CMAKE_CURRENT_SOURCE_DIR}/assets/styles.skot"
+            "$<TARGET_FILE_DIR:SchoolDays>/assets/school-days/styles.skot"
+        VERBATIM)
 
     if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
         get_filename_component(_kotonoha_zlib_prefix "${ZLIB_INCLUDE_DIRS}" DIRECTORY)

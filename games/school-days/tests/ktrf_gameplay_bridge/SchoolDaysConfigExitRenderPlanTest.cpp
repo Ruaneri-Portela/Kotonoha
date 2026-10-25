@@ -198,8 +198,20 @@ int main() {
           "Def active tab hover did not use third band");
     Select(config, 2);
     sprites = ConfigPlan::Build(config, state);
-    Check(sprites.size() == 7u,
-          "removed Config tab id2 unexpectedly emitted hover");
+    Check(sprites.size() == 8u && sprites.back().recordIndex == 2,
+          "Display tab hover did not use the shipped third-tab geometry");
+
+    config.Close();
+    Check(config.Open(tree.root.string(), ConfigModel::Variant::Standard,
+                      ConfigModel::Page::Display, &error), error.c_str());
+    sprites = ConfigPlan::Build(config, state);
+    Check(sprites.size() == 2u && sprites[1].role == ConfigPlan::Role::ActiveTab &&
+              sprites[1].recordIndex == 16 && sprites[1].control == 2,
+          "Display page did not activate third-tab geometry");
+    Select(config, 2);
+    sprites = ConfigPlan::Build(config, state);
+    Check(sprites.size() == 3u && sprites.back().recordIndex == 29,
+          "Display active-tab hover did not use third-band record29");
 
     config.Close();
     state = {};
@@ -296,7 +308,7 @@ int main() {
               << "base_first_normals_baked=PASS\n"
               << "config_three_chip_bands=PASS\n"
               << "def_tabs_close_current_hover=PASS\n"
-              << "removed_config_tab2_inert=PASS\n"
+              << "display_tab2_render=PASS\n"
               << "sound_cumulative_clip=PASS\n"
               << "sound_c10_c11_native_quirk=PASS\n"
               << "exit_two_choice_hover=PASS\n";

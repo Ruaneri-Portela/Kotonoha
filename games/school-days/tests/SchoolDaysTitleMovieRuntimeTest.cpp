@@ -343,7 +343,8 @@ void TestReplayPresenterCorpus(const fs::path& root) {
 
         Ui ui;
         std::string error;
-        Check(ui.OpenReplay(renderer, root.string(), probe.variant, &error),
+        Check(ui.OpenReplay(renderer, root.string(), probe.variant,
+                            false, false, "System/System/FONTDATA.DAT", &error),
               error.c_str());
         ui.SetReplayHSceneAvailable(0, true);
         ClearAndRender(ui, renderer);

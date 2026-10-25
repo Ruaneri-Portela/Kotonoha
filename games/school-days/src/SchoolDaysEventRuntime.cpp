@@ -9,6 +9,9 @@
 #include <sstream>
 #include <algorithm>
 #include <cctype>
+#include <exception>
+#include <memory>
+#include <stdexcept>
 #include <string>
 #include <utility>
 #include <vector>
@@ -16,6 +19,37 @@
 namespace Kotonoha {
 
 	namespace {
+			class ScopedSdlMutex {
+			public:
+				explicit ScopedSdlMutex(SDL_Mutex* mutex) : mutex_(mutex) {
+					locked_ = mutex_ != nullptr;
+					if (locked_) SDL_LockMutex(mutex_);
+				}
+				~ScopedSdlMutex() {
+					if (locked_) SDL_UnlockMutex(mutex_);
+				}
+				ScopedSdlMutex(const ScopedSdlMutex&) = delete;
+				ScopedSdlMutex& operator=(const ScopedSdlMutex&) = delete;
+				bool Locked() const { return locked_; }
+
+			private:
+				SDL_Mutex* mutex_ = nullptr;
+				bool locked_ = false;
+			};
+
+			class ScopedOrsData {
+			public:
+				explicit ScopedOrsData(Kotonoha_orsData* data) : data_(data) {}
+				~ScopedOrsData() {
+					if (data_ != nullptr) Kotonoha_OrsClean(data_);
+				}
+				ScopedOrsData(const ScopedOrsData&) = delete;
+				ScopedOrsData& operator=(const ScopedOrsData&) = delete;
+				void Release() { data_ = nullptr; }
+			private:
+				Kotonoha_orsData* data_ = nullptr;
+			};
+
 		static std::string BuildString(const char* str,
 			const std::string& prefix = "",
 			const std::string& suffix = "") {
@@ -142,6 +176,7 @@ namespace Kotonoha {
 			classUp->eventMutex == nullptr) {
 			return -1;
 		}
+			try {
 			const auto cancelled = [gameplay]() {
 				return gameplay->ShutdownRequested();
 			};
@@ -156,13 +191,12 @@ namespace Kotonoha {
 			const bool useExtension = assetRoot.available;
 			const char* assetsPath = assetRoot.root;
 
-		SDL_LockMutex(classUp->eventMutex);
+			ScopedSdlMutex eventGuard(classUp->eventMutex);
+			if (!eventGuard.Locked()) return -1;
 			if (cancelled()) {
-				SDL_UnlockMutex(classUp->eventMutex);
 				return -1;
 			}
 		if (gameplay->tm == nullptr || !gameplay->tm->started) {
-			SDL_UnlockMutex(classUp->eventMutex);
 			return 0;
 		}
 
@@ -368,11 +402,9 @@ namespace Kotonoha {
 			};
 		for (auto* event : classUp->timeline.AdvanceTo(currentTick)) {
 				if (cancelled()) {
-					SDL_UnlockMutex(classUp->eventMutex);
 					return -1;
 				}
 				if (!prepareEvent(event)) {
-					SDL_UnlockMutex(classUp->eventMutex);
 					return -1;
 				}
 					if (!suppressBackLogCapture && event->command == PRINT_TEXT &&
@@ -491,13 +523,12 @@ namespace Kotonoha {
 			}
 		}
 			/* Natural movie completion is retired by the render callback so the
-			   terminal texture can bridge an adjacent WMV.  Destruction belongs on
-			   this worker, not the render thread. */
-			gameplay->video->CollectRetired();
+			   terminal texture can bridge an adjacent WMV. Retired decoders own SDL
+			   textures/upscale caches, so collection and destruction intentionally
+			   remain on Video::RenderCallback's renderer thread. */
 		for (auto it = classUp->abcBindings.begin();
 			it != classUp->abcBindings.end();) {
 				if (cancelled()) {
-					SDL_UnlockMutex(classUp->eventMutex);
 					return -1;
 				}
 			auto& binding = it->second;
@@ -519,7 +550,6 @@ namespace Kotonoha {
 						? binding.lastTick + 1 : binding.voice->startTick;
 					for (Kotonoha_SceneTick tick = first; tick <= currentTick; ++tick) {
 							if (cancelled()) {
-								SDL_UnlockMutex(classUp->eventMutex);
 								return -1;
 							}
 						const Uint8 before = binding.state.activeIndex;
@@ -568,7 +598,6 @@ namespace Kotonoha {
 				event = event->next) {
 				if (event->startTick <= currentTick || event->eventPrepared) continue;
 				if (!prepareEvent(event)) {
-					SDL_UnlockMutex(classUp->eventMutex);
 					return -1;
 				}
 				break;
@@ -576,20 +605,36 @@ namespace Kotonoha {
 			classUp->readyToEnd.store(classUp->timeline.ReadyToEnd(currentTick),
 				std::memory_order_release);
 
-		SDL_UnlockMutex(classUp->eventMutex);
-		return 0;
+			return 0;
+			} catch (const std::exception& error) {
+				classUp->fatalError.store(true, std::memory_order_release);
+				SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
+				             "[SD-EVENT] worker exception: %s", error.what());
+				return -1;
+			} catch (...) {
+				classUp->fatalError.store(true, std::memory_order_release);
+				SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
+				             "[SD-EVENT] worker exception: unknown");
+				return -1;
+			}
 	}
 
-		void SchoolDaysEventRuntime::Reset(void* gameplay, bool suppressBackLogCapture) {
+		void SchoolDaysEventRuntime::Reset(void* gameplay, bool suppressReplaySideEffects) {
 		auto* gp = static_cast<Gameplay*>(gameplay);
 		if (gp == nullptr || eventMutex == nullptr) {
 			return;
 		}
+			const bool choiceAlreadyCommitted = gp->choiceCommitSubmitted;
 
-		SDL_LockMutex(eventMutex);
+			ScopedSdlMutex eventGuard(eventMutex);
+			if (!eventGuard.Locked()) {
+				fatalError.store(true, std::memory_order_release);
+				return;
+			}
+			try {
 			readyToEnd.store(false, std::memory_order_release);
 				setSelectReached.store(false, std::memory_order_release);
-				if (suppressBackLogCapture) {
+				if (suppressReplaySideEffects) {
 					suppressBackLogCaptureOnce.store(true, std::memory_order_release);
 				}
 
@@ -602,14 +647,27 @@ namespace Kotonoha {
 		moveSom.Reset();
 		gp->image->Reset();
 		if (gp->prompt != nullptr) {
-			gp->drawCanvas->UnregisterCanva(Prompt::Render);
+				// The Canvas retains both the callback and its userdata.  Across the
+				// desktop EXE/DLL split the address used for Prompt::Render is not a
+				// stable ownership key, so remove the exact object before freeing it.
+				// Otherwise the next Canvas frame can invoke Prompt::Render with the
+				// just-freed Prompt (ASAN: heap-use-after-free on skip-to-choice).
+				if (gp->drawCanvas != nullptr)
+					gp->drawCanvas->UnregisterCanvaUserData(gp->prompt);
 			gp->ownedPrompt.reset();
 			gp->prompt = nullptr;
 		}
-		gp->promptId = -2;
 		gp->putPrompt = false;
-		gp->choiceCommitSubmitted = false;
-			PrepareChoicePrompt(gp, eventsFromScript, font);
+			if (!choiceAlreadyCommitted) {
+				gp->promptId = -2;
+				gp->choiceCommitSubmitted = false;
+				PrepareChoicePrompt(gp, eventsFromScript, font);
+			} else {
+				// Restart/seek is a presentation operation.  Once the KTRF router has
+				// committed this scene's choice, do not expose a second interactive
+				// prompt that could disagree with the already-applied routing effects.
+				gp->choiceCommitSubmitted = true;
+			}
 		gp->audio->RemoveMedia(nullptr);
 		voiceMedia.clear();
 		seMedia.clear();
@@ -656,7 +714,15 @@ namespace Kotonoha {
 				event = event->next) event->eventPrepared = false;
 		}
 
-		SDL_UnlockMutex(eventMutex);
+			} catch (const std::exception& error) {
+				fatalError.store(true, std::memory_order_release);
+				SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
+				             "[SD-EVENT] reset exception: %s", error.what());
+			} catch (...) {
+				fatalError.store(true, std::memory_order_release);
+				SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
+				             "[SD-EVENT] reset exception: unknown");
+			}
 	}
 
 		GameplayEventTarget SchoolDaysEventRuntime::ComputeSkipToEndTarget(void* gameplay) const {
@@ -684,6 +750,7 @@ namespace Kotonoha {
 			} else {
 				eventsFromScript = Kotonoha_OrsParser(orsPath);
 			}
+				ScopedOrsData orsGuard(&eventsFromScript);
 
 		if (eventsFromScript.size == 0) {
 			throw std::runtime_error("Ors invalid");
@@ -695,8 +762,8 @@ namespace Kotonoha {
 		}
 
 		auto* gp = static_cast<Gameplay*>(gameplay);
-		if (gp == nullptr || gameCtx == nullptr) {
-			Kotonoha_OrsClean(&eventsFromScript);
+			if (gp == nullptr || gameCtx == nullptr || gp->sb == nullptr ||
+				gp->sb->ass_library == nullptr) {
 			throw std::runtime_error("Invalid gameplay context");
 		}
 
@@ -707,18 +774,27 @@ namespace Kotonoha {
 				<< (gameCtx->config.assStylesData == nullptr
 					? "" : gameCtx->config.assStylesData) << std::endl;
 
-		gp->sb->track = ass_new_track(gp->sb->ass_library);
+			ASS_Track* subtitleTrack = ass_new_track(gp->sb->ass_library);
+			if (subtitleTrack == nullptr) {
+				throw std::runtime_error("Failed to allocate ASS subtitle track");
+			}
+			std::unique_ptr<ASS_Track, void (*)(ASS_Track*)> subtitleTrackGuard(
+				subtitleTrack, ass_free_track);
 
-		ass_process_data(gp->sb->track,
+			ass_process_data(subtitleTrack,
 			const_cast<char*>(subSs.str().c_str()),
 			static_cast<int>(subSs.str().size()));
+			SDL_Log("[SD-SUBTITLES] track styles=%d", subtitleTrack->n_styles);
 
 		for (auto* event = eventsFromScript.data; event != nullptr;
 			event = event->next) {
 			switch (event->command) {
 			case PRINT_TEXT: {
-				ass_alloc_event(gp->sb->track);
-				ASS_Event* subtitleEvent = gp->sb->track->events + (gp->sb->track->n_events - 1);
+					const int subtitleIndex = ass_alloc_event(subtitleTrack);
+					if (subtitleIndex < 0) {
+						throw std::runtime_error("Failed to allocate ASS subtitle event");
+					}
+					ASS_Event* subtitleEvent = subtitleTrack->events + subtitleIndex;
 				const Uint64 startMs = Kotonoha_SceneTickToMillisecondsCeil(event->startTick);
 				const Uint64 endMs = Kotonoha_SceneTickToMillisecondsCeil(event->endTick);
 				subtitleEvent->Start = startMs;
@@ -726,8 +802,8 @@ namespace Kotonoha {
 				subtitleEvent->Text =
 					SDL_strdup(BuildString(event->data.print_text->text).c_str());
 
-				for (int i = 0; i < gp->sb->track->n_styles; ++i) {
-					ASS_Style* style = gp->sb->track->styles + i;
+					for (int i = 0; i < subtitleTrack->n_styles; ++i) {
+						ASS_Style* style = subtitleTrack->styles + i;
 
 					if (SDL_strcmp(style->Name, "Default") == 0) {
 						subtitleEvent->Style = i;
@@ -746,10 +822,11 @@ namespace Kotonoha {
 				break;
 			}
 		}
+			SDL_Log("[SD-SUBTITLES] track events=%d", subtitleTrack->n_events);
 		// One subtitle at a time: a line ends when the next one begins, so libass
 		// never stacks overlapping voice lines.
 		{
-			ASS_Track* track = gp->sb->track;
+				ASS_Track* track = subtitleTrack;
 			for (int i = 0; i < track->n_events; ++i) {
 				ASS_Event* current = track->events + i;
 				long long nextStart = -1;
@@ -774,13 +851,11 @@ namespace Kotonoha {
 
 		eventMutex = SDL_CreateMutex();
 		if (eventMutex == nullptr) {
-			Kotonoha_OrsClean(&eventsFromScript);
 			throw std::runtime_error("Failed to create event mutex");
 		}
 
 		void** parms = static_cast<void**>(SDL_malloc(sizeof(void*) * 3));
 		if (parms == nullptr) {
-			Kotonoha_OrsClean(&eventsFromScript);
 			SDL_DestroyMutex(eventMutex);
 			eventMutex = nullptr;
 			throw std::runtime_error("Failed to allocate EventManager params");
@@ -790,14 +865,35 @@ namespace Kotonoha {
 		parms[1] = gameCtx;
 		parms[2] = this;
 
-		SDL_LockMutex(gameCtx->taskLock);
-		auto* tasks =
-			static_cast<std::vector<std::tuple<SDL_ThreadFunction, void*>>*>(
-				gameCtx->processPoolTasks);
+				try {
+					ScopedSdlMutex taskGuard(gameCtx->taskLock);
+					if (!taskGuard.Locked()) {
+						throw std::runtime_error("Failed to lock School Days task pool");
+					}
+					auto* tasks =
+						static_cast<std::vector<std::tuple<SDL_ThreadFunction, void*>>*>(
+							gameCtx->processPoolTasks);
+					const int initialEventResult = EventManager(parms);
+				if (initialEventResult < 0 || tasks == nullptr) {
+					throw std::runtime_error("Initial School Days event processing failed");
+				}
+				tasks->emplace_back(EventManager, parms);
+			} catch (...) {
+				SDL_free(parms);
+				if (eventMutex != nullptr) {
+					SDL_DestroyMutex(eventMutex);
+					eventMutex = nullptr;
+				}
+				throw;
+			}
 
-		EventManager(parms);
-		tasks->emplace_back(EventManager, parms);
-		SDL_UnlockMutex(gameCtx->taskLock);
+			// Publish the fully-built subtitle track only after every constructor
+			// step that can fail has succeeded.  The runtime owns it for exactly the
+			// lifetime of this CurrentScene.
+			gp->sb->track = subtitleTrack;
+			subtitleOwner_ = gp->sb;
+			ownedSubtitleTrack_ = subtitleTrackGuard.release();
+				orsGuard.Release();
 	}
 
 			bool SchoolDaysEventRuntime::ProcessNow(void* gameplay, struct Kotonoha_Game* gameCtx) {
@@ -810,10 +906,10 @@ namespace Kotonoha {
 				// taskLock.  Serialize the first-frame prime with that worker and use
 				// stack parameters so task ownership/lifetime remains unchanged.
 				void* parms[3] = {gameplay, gameCtx, this};
-				SDL_LockMutex(gameCtx->taskLock);
-				const int result = EventManager(parms);
-				SDL_UnlockMutex(gameCtx->taskLock);
-				return result >= 0;
+					ScopedSdlMutex taskGuard(gameCtx->taskLock);
+					if (!taskGuard.Locked()) return false;
+					const int result = EventManager(parms);
+					return result >= 0 && !HasFatalError();
 			}
 
 	bool SchoolDaysEventRuntime::CheckEnd(void* gameplay) {
@@ -840,51 +936,77 @@ SchoolDaysEventRuntime::GetMediaBufferInfo(const Audio *audio, const Video *vide
                           const Image *image) const {
   std::vector<MediaBufferInfo> result;
   if (eventMutex == nullptr) return result;
-  SDL_LockMutex(eventMutex);
-  if (audio != nullptr) {
-    auto buffers = audio->GetBufferInfo();
-    result.insert(result.end(), std::make_move_iterator(buffers.begin()),
-                  std::make_move_iterator(buffers.end()));
+  ScopedSdlMutex eventGuard(eventMutex);
+  if (!eventGuard.Locked()) return result;
+  try {
+    if (audio != nullptr) {
+      auto buffers = audio->GetBufferInfo();
+      result.insert(result.end(), std::make_move_iterator(buffers.begin()),
+                    std::make_move_iterator(buffers.end()));
+    }
+    if (video != nullptr) {
+      auto buffers = video->GetBufferInfo();
+      result.insert(result.end(), std::make_move_iterator(buffers.begin()),
+                    std::make_move_iterator(buffers.end()));
+    }
+    if (image != nullptr) {
+      auto buffers = image->GetBufferInfo();
+      result.insert(result.end(), std::make_move_iterator(buffers.begin()),
+                    std::make_move_iterator(buffers.end()));
+    }
+  } catch (...) {
+    fatalError.store(true, std::memory_order_release);
+    result.clear();
   }
-  if (video != nullptr) {
-    auto buffers = video->GetBufferInfo();
-    result.insert(result.end(), std::make_move_iterator(buffers.begin()),
-                  std::make_move_iterator(buffers.end()));
-  }
-  if (image != nullptr) {
-    auto buffers = image->GetBufferInfo();
-    result.insert(result.end(), std::make_move_iterator(buffers.begin()),
-                  std::make_move_iterator(buffers.end()));
-  }
-  SDL_UnlockMutex(eventMutex);
   return result;
 }
 
 bool SchoolDaysEventRuntime::PlayMediaNow(Audio *audio, const std::string &path,
                          const std::string &channel) const {
   if (eventMutex == nullptr || audio == nullptr) return false;
-  SDL_LockMutex(eventMutex);
-  const bool played = audio->PlayNow(path, channel);
-  SDL_UnlockMutex(eventMutex);
-  return played;
+  ScopedSdlMutex eventGuard(eventMutex);
+  if (!eventGuard.Locked()) return false;
+  try {
+    return audio->PlayNow(path, channel);
+  } catch (...) {
+    fatalError.store(true, std::memory_order_release);
+    return false;
+  }
 }
 
 void SchoolDaysEventRuntime::StopMediaNow(Audio *audio) const {
   if (eventMutex == nullptr || audio == nullptr) return;
-  SDL_LockMutex(eventMutex);
-  audio->StopPreview();
-  SDL_UnlockMutex(eventMutex);
+  ScopedSdlMutex eventGuard(eventMutex);
+  if (!eventGuard.Locked()) return;
+  try {
+    audio->StopPreview();
+  } catch (...) {
+    fatalError.store(true, std::memory_order_release);
+  }
 }
 
 std::string SchoolDaysEventRuntime::GetMediaNowPath(Audio *audio) const {
   if (eventMutex == nullptr || audio == nullptr) return {};
-  SDL_LockMutex(eventMutex);
-  std::string path = audio->GetPreviewPath();
-  SDL_UnlockMutex(eventMutex);
-  return path;
+  ScopedSdlMutex eventGuard(eventMutex);
+  if (!eventGuard.Locked()) return {};
+  try {
+    return audio->GetPreviewPath();
+  } catch (...) {
+    fatalError.store(true, std::memory_order_release);
+    return {};
+  }
 }
 
 	SchoolDaysEventRuntime::~SchoolDaysEventRuntime() {
+			if (subtitleOwner_ != nullptr &&
+				subtitleOwner_->track == ownedSubtitleTrack_) {
+				subtitleOwner_->track = nullptr;
+			}
+			if (ownedSubtitleTrack_ != nullptr) {
+				ass_free_track(ownedSubtitleTrack_);
+				ownedSubtitleTrack_ = nullptr;
+			}
+			subtitleOwner_ = nullptr;
 		Kotonoha_OrsClean(&eventsFromScript);
 		if (eventMutex != nullptr) {
 			SDL_DestroyMutex(eventMutex);

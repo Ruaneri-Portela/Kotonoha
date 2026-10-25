@@ -3,6 +3,7 @@
 #include <Kotonoha/SchoolDaysImageAssetResolver.hpp>
 #include <Kotonoha/components/Audio.hpp>
 #include <Kotonoha/routing/SchoolDaysChoiceTextPlan.hpp>
+#include <Kotonoha/routing/SchoolDaysSubtitleTypography.hpp>
 
 #include <SDL3_ttf/SDL_ttf.h>
 
@@ -296,22 +297,14 @@ bool SchoolDaysPromptBehavior::RenderRetail(Prompt &prompt,
       return false;
     }
 
-    const float previousSize = TTF_GetFontSize(font);
-    if (!TTF_SetFontSize(font, 40.0f)) {
-      SDL_DestroySurface(scratch);
-      ClearScratchTexture();
-      return false;
-    }
-
     bool rasterOk = true;
-    const SDL_Color white{255, 255, 255, 255};
     for (int slot = 0; slot < choiceCount && rasterOk; ++slot) {
       const auto &lines = itemLines[static_cast<std::size_t>(slot)];
       for (std::size_t lineIndex = 0; lineIndex < lines.size(); ++lineIndex) {
         const std::string utf8 = Utf16ToUtf8(lines[lineIndex].text);
         if (utf8.empty()) continue;
-        SDL_Surface *textSurface =
-            TTF_RenderText_Blended(font, utf8.c_str(), utf8.size(), white);
+        SDL_Surface *textSurface = SchoolDaysSubtitleTypography::Render(
+            font, utf8.c_str(), utf8.size());
         if (textSurface == nullptr) {
           rasterOk = false;
           break;
@@ -328,7 +321,6 @@ bool SchoolDaysPromptBehavior::RenderRetail(Prompt &prompt,
       }
     }
 
-    if (previousSize > 0.0f) (void)TTF_SetFontSize(font, previousSize);
     if (!rasterOk || !SDL_UpdateTexture(scratchTexture_, nullptr,
                                         scratch->pixels, scratch->pitch)) {
       SDL_DestroySurface(scratch);

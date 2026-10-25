@@ -122,7 +122,12 @@ public:
                   std::string* error = nullptr);
     bool OpenReplay(SDL_Renderer* renderer, const std::string& assetsRoot,
                     SchoolDaysReplayModel::Variant variant,
+                    bool textInputEnabled, bool useEnglish,
+                    const std::string& fontDataLogicalPath,
                     std::string* error = nullptr);
+    bool SetReplayPlayDataMetadata(
+        const std::vector<SchoolDaysSaveService::SlotMetadata>& slots,
+        std::string* error = nullptr);
     bool OpenRouteMap(SDL_Renderer* renderer, const std::string& assetsRoot,
                       SchoolDaysRouteMapModel::Variant variant,
                       int initialMajor, int initialSubpage,
@@ -194,6 +199,7 @@ private:
                              const Viewport& viewport,
                              std::string* error);
     bool EnsureReplayTextures(SDL_Renderer* renderer, std::string* error);
+    bool UpdateReplayMetadataTexture(std::string* error);
     bool EnsureRouteMapTextures(SDL_Renderer* renderer, std::string* error);
     bool UpdateRouteMapCompletionTexture(std::string* error);
 
@@ -215,6 +221,7 @@ private:
     float titleBackgroundHeight_ = 450.0f;
     SDL_Texture* saveLoadTextTexture_ = nullptr;
     SDL_Texture* routeMapTextTexture_ = nullptr;
+    SDL_Texture* replayTextTexture_ = nullptr;
     SDL_Texture* replayThumbnailTexture_ = nullptr;
     SDL_Texture* replayPopupBaseTexture_ = nullptr;
     SDL_Texture* replayPopupChipTexture_ = nullptr;
@@ -222,18 +229,24 @@ private:
     SchoolDaysReplayModel::View replayLoadedView_ =
         SchoolDaysReplayModel::View::HScene;
     int replayLoadedPage_ = -1;
+    int replayTextLoadedPage_ = -1;
     int replayLoadedSceneCheckCount_ = -1;
     std::string routeMapAssetsRoot_;
     int routeMapLoadedMajor_ = -1;
     int routeMapLoadedSubpage_ = -1;
     SchoolDaysFontData saveLoadFont_;
     SchoolDaysFontData routeMapFont_;
+    SchoolDaysFontData replayFont_;
     std::vector<uint32_t> saveLoadTextPixels_;
     std::vector<uint32_t> routeMapTextPixels_;
+    std::vector<uint32_t> replayTextPixels_;
     std::vector<SchoolDaysSaveService::SlotMetadata> saveLoadMetadata_;
+    std::vector<SchoolDaysSaveService::SlotMetadata> replayMetadata_;
     std::vector<int> saveLoadCommentAdvances_;
     bool saveLoadUseEnglish_ = false;
     bool routeMapUseEnglish_ = false;
+    bool replayTextInputEnabled_ = false;
+    bool replayUseEnglish_ = false;
     bool resultEmitted_ = false;
 };
 

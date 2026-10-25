@@ -1,5 +1,6 @@
 #include <Kotonoha/Kotonoha.hpp>
 #include <Kotonoha/routing/SchoolDaysKtrfAppController.hpp>
+#include <Kotonoha/routing/SchoolDaysKtrfSession.hpp>
 #include <Kotonoha/routing/SchoolDaysKtrfDebugGui.hpp>
 #include <Kotonoha/routing/KtrfSceneTransaction.hpp>
 #include <Kotonoha/routing/SchoolDaysKtrfStateInspector.hpp>
@@ -25,8 +26,17 @@ void SetDebugStatus(const char* text) {
     SDL_snprintf(debugStatus, sizeof(debugStatus), "%s", text != nullptr ? text : "");
 }
 
-void DrawKtrfDebugMenu(void*) {
+void DrawKtrfDebugMenu(void*, ImGuiContext* context) {
+    // The runtime owns the ImGui context. The executable links the same ImGui
+    // implementation for game-only debug windows, so synchronize its module-
+    // local current-context pointer before issuing any ImGui calls here.
+    ImGui::SetCurrentContext(context);
     ImGui::Checkbox("KTRF Scene List", &showKtrfScenes);
+    ImGui::Checkbox("KTRF State Inspector", &showKtrfState);
+}
+
+void DrawPlayDataDebugMenu(void*, ImGuiContext* context) {
+    ImGui::SetCurrentContext(context);
     ImGui::Checkbox("KTRF State Inspector", &showKtrfState);
 }
 
@@ -116,6 +126,7 @@ bool Kotonoha_SchoolDaysKtrfDebugGuiRun(
     Kotonoha::SchoolDaysKtrfAppController* controller,
     Kotonoha::Kotonoha* game,
     Kotonoha::Gameplay* play,
+    Kotonoha::SchoolDaysKtrfSession* temporarySession,
     Kotonoha::KtrfSceneTransaction* transaction,
     Kotonoha_Game& context) {
     if (Kotonoha::Debug::SyncActivation(context)) {
@@ -131,9 +142,35 @@ bool Kotonoha_SchoolDaysKtrfDebugGuiRun(
         flowState == Kotonoha::SchoolDaysFlowController::State::TitleRouteMap ||
         flowState == Kotonoha::SchoolDaysFlowController::State::TitleConfig ||
         flowState == Kotonoha::SchoolDaysFlowController::State::TitleExit;
+    const bool temporaryPlayback = titleFrontend && play != nullptr;
     if (!context.config.enableDebugUi) {
-        Kotonoha::Debug::Run(game, play, context, titleFrontend);
+        Kotonoha::Debug::Run(game, temporaryPlayback ? play : nullptr, context,
+                             titleFrontend && !temporaryPlayback);
         return true;
+    }
+
+    if (temporaryPlayback) {
+        // Replay/HScene and PlayData live outside the retained narrative
+        // controller. Their Gameplay is nevertheless a normal engine Gameplay,
+        // so expose it to the generic Playback/Scene Buffers/Canvas tools.
+        // Ordinary Replay has no private KTRF runtime. PlayData does, so expose
+        // only the read-only state inspector bound to that exact temporary
+        // session; never display the retained controller state in its place.
+        Kotonoha::Debug::BeginWorkspaceFrame(
+            context, temporarySession != nullptr ? &DrawPlayDataDebugMenu : nullptr,
+            nullptr);
+        if (temporarySession != nullptr && showKtrfState) {
+            Kotonoha_SchoolDaysKtrfStateInspectorRunSession(
+                temporarySession, context, &showKtrfState);
+        }
+        bool shouldExit = false;
+        const bool auxiliaryWindowsContinue =
+            Kotonoha::Debug::DrawAuxiliaryWindows(
+                game, play, context, false, shouldExit,
+                context.config.enableDebugUi);
+        const bool frameRendered = Kotonoha::Debug::FinishWorkspaceFrame(context);
+        Kotonoha::Debug::UpdateFocusState();
+        return frameRendered && auxiliaryWindowsContinue && !shouldExit;
     }
 
     play = titleFrontend ? nullptr : controller->CurrentGameplay();
@@ -228,7 +265,9 @@ bool Kotonoha_SchoolDaysKtrfDebugGuiRun(
 
         if (ImGui::Button("Back 5s")) play->SeekBackward(5000);
         ImGui::SameLine();
-        if (ImGui::Button("Forward 5s")) play->SeekForward(5000);
+        if (ImGui::Button("Forward 5s")) {
+            play->SetTime(SDL_min(play->GetTime() + 5.0f, play->GetLastTime()));
+        }
         ImGui::SameLine();
         bool paused = context.config.paused.load();
         if (ImGui::Checkbox("Paused", &paused)) {

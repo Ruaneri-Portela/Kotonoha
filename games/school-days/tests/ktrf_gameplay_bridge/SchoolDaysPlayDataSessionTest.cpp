@@ -117,60 +117,56 @@ ChoiceSaveFixture BuildChoiceSave(const char* ktrfPath, const char* orsRoot,
     Kotonoha::SchoolDaysKtrfSession source;
     if (!source.Open(ktrfPath, orsRoot, error)) Fail(error->message);
 
-    const auto* adapter = source.Adapter();
-    for (uint32_t choiceIndex = 0u;
-         adapter != nullptr && choiceIndex < adapter->router.choice_count;
-         ++choiceIndex) {
-        Kotonoha_KtrfChoice choice{};
-        if (!Kotonoha_KtrfGetChoice(adapter->document, choiceIndex, &choice,
-                                    error) ||
-            choice.option_count == 0u) {
-            continue;
-        }
-
-        Kotonoha::SchoolDaysKtrfScene choiceScene;
-        Kotonoha_KtrfError probeError{};
-        if (!source.ResolveSceneNode(choice.node_index, &choiceScene,
-                                     &probeError)) {
-            continue;
-        }
-        int route = 0;
-        int scene = 0;
-        if (!CoordinateForSceneKey(choiceScene.sceneKey, &route, &scene)) {
-            continue;
-        }
-
-        Kotonoha_KtrfChoiceOption option{};
-        if (!Kotonoha_KtrfGetChoiceOption(adapter->document, choiceIndex, 0u,
-                                          &option, error) ||
-            option.value.kind != KOTONOHA_KTRF_SCALAR_INT64) {
-            continue;
-        }
-
-        if (!source.DebugActivateNode(choice.node_index, error) ||
-            !source.State().WriteCoordinate(route, scene, error)) {
-            Fail(error->message);
-        }
-        source.Persistence().ResetNewGame();
-        if (!source.Persistence().RecordChoice(
-                choiceScene.sceneKey, option.value.as.int64_value, error) ||
-            !source.Persistence().ReplaceCurrentScriptSnapshot(
-                choiceScene.sceneKey, UINT32_C(0x3f800000), source.State(), error)) {
-            Fail(error->message);
-        }
-
-        ChoiceSaveFixture fixture;
-        fixture.sceneKey = choiceScene.sceneKey;
-        fixture.savedValue = option.value.as.int64_value;
-        if (!source.Persistence().SerializeSaveLog(&fixture.bytes, error)) {
-            Fail(error->message);
-        }
-        source.Close();
-        return fixture;
+    // A03 is the first authenticated physical choice reached by the normal
+    // new-game path (A00 -> A01 -> A02 -> A03).  Pin this scene explicitly
+    // instead of taking the first entry from the document-wide choice table:
+    // choice-table order is not a reachability order and can select a later
+    // branch whose path itself crosses an unresolved choice.
+    constexpr uint32_t kChoiceNode = 3u;
+    constexpr int kRoute = 0;
+    constexpr int kScene = 3;
+    Kotonoha::SchoolDaysKtrfScene choiceScene;
+    if (!source.ResolveSceneNode(kChoiceNode, &choiceScene, error) ||
+        choiceScene.sceneKey != "00/00-00-A03" ||
+        !source.DebugActivateNode(kChoiceNode, error) ||
+        !source.State().WriteCoordinate(kRoute, kScene, error)) {
+        Fail(error->message);
     }
 
+    auto* adapter = source.Adapter();
+    uint32_t choiceCount = 0u;
+    uint32_t choiceIndex = KOTONOHA_KTRF_NULL_INDEX;
+    Kotonoha_KtrfChoiceOption option{};
+    if (adapter == nullptr ||
+        !Kotonoha_KtrfRouterCurrentChoiceCount(&adapter->router, &choiceCount,
+                                               error) ||
+        choiceCount == 0u ||
+        !Kotonoha_KtrfRouterCurrentChoiceAt(&adapter->router, 0u, &choiceIndex,
+                                            error) ||
+        !Kotonoha_KtrfGetChoiceOption(adapter->document, choiceIndex, 0u,
+                                      &option, error) ||
+        option.value.kind != KOTONOHA_KTRF_SCALAR_INT64) {
+        source.Close();
+        Fail("authenticated A03 choice fixture is unavailable");
+    }
+
+    source.Persistence().ResetNewGame();
+    int accepted = 0;
+    if (!source.CommitChoice(option.value.as.int64_value, &accepted, error) ||
+        accepted == 0 ||
+        !source.Persistence().ReplaceCurrentScriptSnapshot(
+            choiceScene.sceneKey, UINT32_C(0x3f800000), source.State(), error)) {
+        Fail(error->message);
+    }
+
+    ChoiceSaveFixture fixture;
+    fixture.sceneKey = choiceScene.sceneKey;
+    fixture.savedValue = option.value.as.int64_value;
+    if (!source.Persistence().SerializeSaveLog(&fixture.bytes, error)) {
+        Fail(error->message);
+    }
     source.Close();
-    Fail("could not synthesize a physical choice SaveFile fixture");
+    return fixture;
 }
 
 AdvanceSaveFixture BuildAdvanceSave(const char* ktrfPath, const char* orsRoot,
@@ -249,15 +245,22 @@ int main(int argc, char** argv) {
     auto* game = reinterpret_cast<Kotonoha_Game*>(&gameStub);
     Kotonoha_KtrfError error{};
 
+    Kotonoha::SchoolDaysKtrfSession expectedSave;
+    Check(expectedSave.Open(argv[1], argv[2], &error), error.message);
+    Kotonoha::SchoolDaysKtrfSession::LoadPlan expectedPlan;
+    Check(expectedSave.PlanLoadSave(saveBytes, &expectedPlan, &error), error.message);
+    const std::string expectedSceneKey = expectedPlan.scene.sceneKey;
+    expectedSave.Close();
+
     Fixture fixture;
     Kotonoha::SchoolDaysPlayDataSession session;
     Check(session.Start(argv[1], argv[2], saveBytes, nullptr, game,
                         FactoryFor(&fixture), &error),
           error.message);
     Check(session.IsOpen() && session.CurrentGameplay() != nullptr &&
-              !session.CurrentScene().sceneKey.empty() &&
+              session.CurrentScene().sceneKey == expectedSceneKey &&
               !session.CurrentScene().orsPath.empty(),
-          "authenticated SaveFile did not open a private physical scene");
+          "PlayData did not restore the selected SaveFile checkpoint privately");
     Check(session.ChoiceReplayLatchArmed(),
           "PlayData one-shot choice latch was not armed after restore");
     Check(fixture.creates == 1 && fixture.live == 1 && fixture.maxLive == 1,
@@ -293,18 +296,36 @@ int main(int argc, char** argv) {
     Check(choiceSession.Start(argv[1], argv[2], choiceSave.bytes, nullptr, game,
                               FactoryFor(&choiceFixture), &error),
           error.message);
+    Check(choiceSession.CurrentScene().sceneKey == choiceSave.sceneKey,
+          "choice PlayData fixture did not restore its saved SceneKey");
+    const LiveSnapshot oracleBefore = CaptureLive(choiceSession.Session(), &error);
+    Check(choiceSession.ReplaceRecordedChoiceOracle(choiceSave.bytes, &error),
+          error.message);
+    const LiveSnapshot oracleAfter = CaptureLive(choiceSession.Session(), &error);
+    Check(SameLive(oracleBefore, oracleAfter) &&
+              choiceSession.CurrentScene().sceneKey == choiceSave.sceneKey &&
+              choiceSession.ChoiceReplayLatchArmed(),
+          "armed PlayData tag4-oracle replacement mutated the private checkpoint");
     result = -2;
     committed = true;
     Check(choiceSession.UpdateChoice(false, &result, &committed, &error) &&
               !committed && result == -2 &&
               choiceSession.ChoiceReplayLatchArmed(),
           "pre-SetSELECT frame consumed saved tag4");
+    const LiveSnapshot beforeRecordedSetSelect =
+        CaptureLive(choiceSession.Session(), &error);
     Check(choiceSession.UpdateChoice(true, &result, &committed, &error) &&
               committed && result == choiceSave.savedValue &&
               !choiceSession.ChoiceReplayLatchArmed(),
           "reached SetSELECT did not consume exactly the saved tag4 choice");
+    const LiveSnapshot afterRecordedSetSelect =
+        CaptureLive(choiceSession.Session(), &error);
+    Check(SameLive(beforeRecordedSetSelect, afterRecordedSetSelect),
+          "restored tag4 SetSELECT replay applied saved choice effects twice");
+
     choiceSession.Close();
-    Check(choiceFixture.live == 0 && choiceFixture.destroys == 1,
+    Check(choiceFixture.live == 0 &&
+              choiceFixture.destroys == choiceFixture.creates,
           "choice timing fixture leaked private Gameplay");
 
     // Keep an independent live session populated while PlayData advances and
@@ -343,13 +364,13 @@ int main(int argc, char** argv) {
                              FactoryFor(&advanceProbeFixture), &error),
           error.message);
     Check(advanceProbe.CurrentScene().sceneKey == advanceSave.sceneKey,
-          "advance fixture restored the wrong source scene");
+          "advance fixture did not restore its SaveFile checkpoint");
     bool terminal = true;
     Check(advanceProbe.AdvanceAfterSceneEnd(&terminal, &error) && !terminal &&
               advanceProbe.CurrentScene().sceneKey == advanceSave.nextSceneKey &&
               advanceProbeFixture.creates == 2 &&
               advanceProbeFixture.destroys == 1 && advanceProbeFixture.live == 1,
-          "authenticated non-terminal advance fixture no longer reaches A03");
+          "PlayData private saved checkpoint did not advance A02 -> A03");
     advanceProbe.Close();
     Check(advanceProbeFixture.live == 0 && advanceProbeFixture.destroys == 2,
           "advance fixture probe leaked private Gameplay ownership");
@@ -382,9 +403,11 @@ int main(int argc, char** argv) {
           "malformed PlayData SaveFile reached Gameplay creation");
 
     std::cout << "SCHOOL DAYS PLAYDATA SESSION GATE PASS\n"
-              << "copied_save_private_restore=PASS\n"
+              << "copied_save_private_checkpoint_restore=PASS\n"
               << "choice_latch_deferred_until_setselect=PASS\n"
               << "saved_tag4_consumed_at_setselect=PASS\n"
+              << "saved_tag4_effects_not_reapplied=PASS\n"
+              << "armed_load_tag4_only=PASS\n"
               << "private_gameplay_ownership=PASS\n"
               << "factory_failure_initial_atomic=PASS\n"
               << "factory_failure_after_advance_atomic=PASS\n"
