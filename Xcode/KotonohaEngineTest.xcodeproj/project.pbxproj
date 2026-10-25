@@ -26,11 +26,15 @@
 		B692C51BAC9AB798B1DC20EA /* GameController.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CF22FCC3A6E0002CB9B /* GameController.framework */; };
 		BA92F3B3977264EC0CA856EE /* Media.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = CEDA2B0D307AF24100027D9C /* Media.xcassets */; };
 		C54F7D387DE9DBD46B3347C9 /* libiconv.2.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = CE8CB980307E6E0C00FF3167 /* libiconv.2.tbd */; };
+		CE12377E308D66A500509275 /* zero-no-tsukaima in CopyFiles */ = {isa = PBXBuildFile; fileRef = CE12377D308D66A500509275 /* zero-no-tsukaima */; };
+		CE123781308D66D600509275 /* snow-radish-vacation in Copy Files */ = {isa = PBXBuildFile; fileRef = CE12377F308D66CA00509275 /* snow-radish-vacation */; };
+		CE123783308D66F400509275 /* doki-doki-literature-club in CopyFiles */ = {isa = PBXBuildFile; fileRef = CE123782308D66F400509275 /* doki-doki-literature-club */; };
+		CE123785308D672900509275 /* generic in CopyFiles */ = {isa = PBXBuildFile; fileRef = CE123784308D672900509275 /* generic */; };
 		CE371660307B51EC00C1C8A5 /* MetalFX.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CE37165F307B51EC00C1C8A5 /* MetalFX.framework */; };
 		CE3D8665307DB4A100B299A2 /* assets in CopyFiles */ = {isa = PBXBuildFile; fileRef = CE3D8664307DB4A100B299A2 /* assets */; };
 		CE44D769308CB83A0075A21F /* libKotonohaEngine.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CE7BF84D308CB7910071BA8B /* libKotonohaEngine.a */; };
 		CE44DCE0308CB9560075A21F /* libKotonohaEngine.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CE7BF84D308CB7910071BA8B /* libKotonohaEngine.a */; };
-		CE44DCE7308CB9C00075A21F /* libKotonohaEngine.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CE7BF84D308CB7910071BA8B /* libKotonohaEngine.a */; };
+		CE44DCE7308CB9C00075A21F /* libKotonohaEngine.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CE7BF84D308CB7910071BA8B /* libKotonohaEngine.a */; platformFilter = ios; };
 		CE44DF8A308D4F350075A21F /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CF62FCC3A850002CB9B /* UIKit.framework */; };
 		CE44DF8B308D4F350075A21F /* CoreBluetooth.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CD92FCC3A450002CB9B /* CoreBluetooth.framework */; };
 		CE44DF8C308D4F350075A21F /* libKotonohaEngine.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CE7BF84D308CB7910071BA8B /* libKotonohaEngine.a */; };
@@ -54,6 +58,29 @@
 		CE44DF9E308D4F350075A21F /* AudioToolbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CDD2FCC3A450002CB9B /* AudioToolbox.framework */; };
 		CE44DFA0308D4F350075A21F /* Media.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = CEDA2B0D307AF24100027D9C /* Media.xcassets */; };
 		CE44DFA2308D4F350075A21F /* assets in CopyFiles */ = {isa = PBXBuildFile; fileRef = CE3D8664307DB4A100B299A2 /* assets */; };
+		CE44E5C5308D58AE0075A21F /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CF62FCC3A850002CB9B /* UIKit.framework */; };
+		CE44E5C6308D58AE0075A21F /* CoreBluetooth.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CD92FCC3A450002CB9B /* CoreBluetooth.framework */; };
+		CE44E5C7308D58AE0075A21F /* libKotonohaEngine.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CE7BF84D308CB7910071BA8B /* libKotonohaEngine.a */; };
+		CE44E5C8308D58AE0075A21F /* OpenGLES.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CF82FCC3A8E0002CB9B /* OpenGLES.framework */; };
+		CE44E5C9308D58AE0075A21F /* GameController.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CF22FCC3A6E0002CB9B /* GameController.framework */; };
+		CE44E5CA308D58AE0075A21F /* libiconv.2.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = CE8CB980307E6E0C00FF3167 /* libiconv.2.tbd */; };
+		CE44E5CB308D58AE0075A21F /* VideoToolbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CFA2FCC3A9B0002CB9B /* VideoToolbox.framework */; };
+		CE44E5CC308D58AE0075A21F /* CoreGraphics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CDA2FCC3A450002CB9B /* CoreGraphics.framework */; };
+		CE44E5CD308D58AE0075A21F /* CoreVideo.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CDC2FCC3A450002CB9B /* CoreVideo.framework */; };
+		CE44E5CE308D58AE0075A21F /* CoreText.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CDB2FCC3A450002CB9B /* CoreText.framework */; };
+		CE44E5CF308D58AE0075A21F /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CDE2FCC3A450002CB9B /* Foundation.framework */; };
+		CE44E5D0308D58AE0075A21F /* CoreHaptics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CE22FCC3A450002CB9B /* CoreHaptics.framework */; };
+		CE44E5D1308D58AE0075A21F /* CoreAudio.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CD82FCC3A450002CB9B /* CoreAudio.framework */; };
+		CE44E5D2308D58AE0075A21F /* QuartzCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CFC2FCC3AE40002CB9B /* QuartzCore.framework */; };
+		CE44E5D3308D58AE0075A21F /* MetalFX.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CE37165F307B51EC00C1C8A5 /* MetalFX.framework */; };
+		CE44E5D4308D58AE0075A21F /* CoreMedia.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CE32FCC3A450002CB9B /* CoreMedia.framework */; };
+		CE44E5D5308D58AE0075A21F /* AVFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CDF2FCC3A450002CB9B /* AVFoundation.framework */; };
+		CE44E5D6308D58AE0075A21F /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CF42FCC3A7D0002CB9B /* Metal.framework */; };
+		CE44E5D7308D58AE0075A21F /* libexpat.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = CE8CB982307E6E6800FF3167 /* libexpat.tbd */; };
+		CE44E5D8308D58AE0075A21F /* CoreMotion.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CFE2FCC3AF40002CB9B /* CoreMotion.framework */; };
+		CE44E5D9308D58AE0075A21F /* AudioToolbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CDD2FCC3A450002CB9B /* AudioToolbox.framework */; };
+		CE44E5DB308D58AE0075A21F /* Media.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = CEDA2B0D307AF24100027D9C /* Media.xcassets */; };
+		CE44E5DD308D58AE0075A21F /* assets in CopyFiles */ = {isa = PBXBuildFile; fileRef = CE3D8664307DB4A100B299A2 /* assets */; };
 		CE5F6BA1308C6FAD006BE483 /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CF62FCC3A850002CB9B /* UIKit.framework */; };
 		CE5F6BA2308C6FAD006BE483 /* CoreBluetooth.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CD92FCC3A450002CB9B /* CoreBluetooth.framework */; };
 		CE5F6BA3308C6FAD006BE483 /* OpenGLES.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CF82FCC3A8E0002CB9B /* OpenGLES.framework */; };
@@ -130,6 +157,13 @@
 			remoteGlobalIDString = CE7BF84C308CB7910071BA8B;
 			remoteInfo = KotonohaEngine;
 		};
+		CE44E5C2308D58AE0075A21F /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = CEE78C292FCC37E10002CB9B /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = CE7BF84C308CB7910071BA8B;
+			remoteInfo = KotonohaEngine;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -139,6 +173,7 @@
 			dstPath = "";
 			dstSubfolderSpec = 7;
 			files = (
+				CE123785308D672900509275 /* generic in CopyFiles */,
 				CE3D8665307DB4A100B299A2 /* assets in CopyFiles */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -149,7 +184,19 @@
 			dstPath = "";
 			dstSubfolderSpec = 7;
 			files = (
+				CE12377E308D66A500509275 /* zero-no-tsukaima in CopyFiles */,
 				CE44DFA2308D4F350075A21F /* assets in CopyFiles */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CE44E5DC308D58AE0075A21F /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 12;
+			dstPath = "";
+			dstSubfolderSpec = 7;
+			files = (
+				CE123783308D66F400509275 /* doki-doki-literature-club in CopyFiles */,
+				CE44E5DD308D58AE0075A21F /* assets in CopyFiles */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -160,6 +207,7 @@
 			dstSubfolderSpec = 7;
 			files = (
 				CE5F6BB8308C6FAD006BE483 /* assets in Copy Files */,
+				CE123781308D66D600509275 /* snow-radish-vacation in Copy Files */,
 			);
 			name = "Copy Files";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -187,12 +235,17 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		80826FC2423E0FBEEA4E8212 /* SchoolDays.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SchoolDays.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		80826FC2423E0FBEEA4E8212 /* School Days.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "School Days.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		CE12377D308D66A500509275 /* zero-no-tsukaima */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "zero-no-tsukaima"; path = "../../../games-assets/zero-no-tsukaima"; sourceTree = "<group>"; };
+		CE12377F308D66CA00509275 /* snow-radish-vacation */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "snow-radish-vacation"; path = "../../../games-assets/snow-radish-vacation"; sourceTree = "<group>"; };
+		CE123782308D66F400509275 /* doki-doki-literature-club */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "doki-doki-literature-club"; path = "../../../games-assets/doki-doki-literature-club"; sourceTree = "<group>"; };
+		CE123784308D672900509275 /* generic */ = {isa = PBXFileReference; lastKnownFileType = folder; name = generic; path = "../../../games-assets/generic"; sourceTree = "<group>"; };
 		CE37165F307B51EC00C1C8A5 /* MetalFX.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MetalFX.framework; path = System/Library/Frameworks/MetalFX.framework; sourceTree = SDKROOT; };
 		CE3D8664307DB4A100B299A2 /* assets */ = {isa = PBXFileReference; lastKnownFileType = folder; name = assets; path = ../../assets; sourceTree = "<group>"; };
-		CE44DFA6308D4F350075A21F /* ZeroNoTsukaima.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ZeroNoTsukaima.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		CE44DFA6308D4F350075A21F /* Zero No Tsukaima.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Zero No Tsukaima.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		CE44E5E1308D58AE0075A21F /* Doki Doki Literature Club.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Doki Doki Literature Club.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		CE540CF52FCD0736006FA974 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		CE5F6BBC308C6FAD006BE483 /* SnowRadishVacation.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SnowRadishVacation.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		CE5F6BBC308C6FAD006BE483 /* Snow Radish Vacation!!.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Snow Radish Vacation!!.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		CE7BF84D308CB7910071BA8B /* libKotonohaEngine.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libKotonohaEngine.a; sourceTree = BUILT_PRODUCTS_DIR; };
 		CE8CB97E307E6DFB00FF3167 /* libiconv.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libiconv.tbd; path = usr/lib/libiconv.tbd; sourceTree = SDKROOT; };
 		CE8CB980307E6E0C00FF3167 /* libiconv.2.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libiconv.2.tbd; path = usr/lib/libiconv.2.tbd; sourceTree = SDKROOT; };
@@ -221,7 +274,7 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		8D63A656162B19B9D8E40095 /* Exceptions for "src" folder in "SchoolDays" target */ = {
+		8D63A656162B19B9D8E40095 /* Exceptions for "src" folder in "School Days" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				audio/VoicePcm.cpp,
@@ -297,14 +350,14 @@
 				utils/Time.c,
 				utils/VoicePcm.c,
 			);
-			target = 958C0766C5CAECF50DC231C4 /* SchoolDays */;
+			target = 958C0766C5CAECF50DC231C4 /* School Days */;
 		};
-		A10000000000000000000006 /* Exceptions for "src" folder in "SchoolDays" target */ = {
+		A10000000000000000000006 /* Exceptions for "src" folder in "School Days" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				SchoolDaysChoiceTextPlan.cpp,
 			);
-			target = 958C0766C5CAECF50DC231C4 /* SchoolDays */;
+			target = 958C0766C5CAECF50DC231C4 /* School Days */;
 		};
 		CE44D4CF308CB7D50075A21F /* Exceptions for "src" folder in "KotonohaEngine" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
@@ -380,7 +433,7 @@
 			);
 			target = CE7BF84C308CB7910071BA8B /* KotonohaEngine */;
 		};
-		CE44DFA8308D4F360075A21F /* Exceptions for "src" folder in "ZeroNoTsukaima" target */ = {
+		CE44DFA8308D4F360075A21F /* Exceptions for "src" folder in "Zero No Tsukaima" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				audio/VoicePcm.cpp,
@@ -456,14 +509,14 @@
 				utils/Time.c,
 				utils/VoicePcm.c,
 			);
-			target = CE44DF85308D4F350075A21F /* ZeroNoTsukaima */;
+			target = CE44DF85308D4F350075A21F /* Zero No Tsukaima */;
 		};
-		CE44DFAA308D4F540075A21F /* Exceptions for "src" folder in "ZeroNoTsukaima" target */ = {
+		CE44DFAA308D4F540075A21F /* Exceptions for "src" folder in "Zero No Tsukaima" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Main.cpp,
 			);
-			target = CE44DF85308D4F350075A21F /* ZeroNoTsukaima */;
+			target = CE44DF85308D4F350075A21F /* Zero No Tsukaima */;
 		};
 		CE44E28E308D51D60075A21F /* Exceptions for "src" folder in "KotonohaEngine" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
@@ -472,7 +525,7 @@
 			);
 			target = CE7BF84C308CB7910071BA8B /* KotonohaEngine */;
 		};
-		CE5F6C04308C6FAE006BE483 /* Exceptions for "src" folder in "SnowRadishVacation" target */ = {
+		CE44E5E4308D58B10075A21F /* Exceptions for "src" folder in "Doki Doki Literature Club" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				audio/VoicePcm.cpp,
@@ -548,14 +601,100 @@
 				utils/Time.c,
 				utils/VoicePcm.c,
 			);
-			target = CE5F6B9D308C6FAD006BE483 /* SnowRadishVacation */;
+			target = CE44E5C0308D58AE0075A21F /* Doki Doki Literature Club */;
 		};
-		CE5F6C05308C702B006BE483 /* Exceptions for "src" folder in "SnowRadishVacation" target */ = {
+		CE44E5E5308D58DA0075A21F /* Exceptions for "src" folder in "Doki Doki Literature Club" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Main.cpp,
 			);
-			target = CE5F6B9D308C6FAD006BE483 /* SnowRadishVacation */;
+			target = CE44E5C0308D58AE0075A21F /* Doki Doki Literature Club */;
+		};
+		CE5F6C04308C6FAE006BE483 /* Exceptions for "src" folder in "Snow Radish Vacation!!" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				audio/VoicePcm.cpp,
+				components/Audio.cpp,
+				components/Canvas.cpp,
+				components/CanvasImage.cpp,
+				components/ChoiceMenu.cpp,
+				components/Events.cpp,
+				components/Fade.cpp,
+				components/GameplayFlow.cpp,
+				components/Panel.cpp,
+				components/PcmPlayer.cpp,
+				components/Prompt.cpp,
+				components/SaveStore.cpp,
+				components/Sound.cpp,
+				components/TextBox.cpp,
+				components/Upscaling.cpp,
+				components/Video.cpp,
+				debug/DebugUi.cpp,
+				debug/DebugUtils.cpp,
+				debug/McpServer.cpp,
+				debug/SceneManager.cpp,
+				debug/TextEditorModel.cpp,
+				debug/windows/AboutWindow.cpp,
+				debug/windows/CanvasLayersWindow.cpp,
+				debug/windows/EngineSettingsWindow.cpp,
+				debug/windows/LogWindow.cpp,
+				debug/windows/PlaybackWindow.cpp,
+				debug/windows/PlaylistWindow.cpp,
+				debug/windows/SceneBuffersWindow.cpp,
+				debug/windows/SceneLoaderWindow.cpp,
+				debug/windows/ScriptEditorWindow.cpp,
+				debug/windows/TextEditorWindow.cpp,
+				graphics/TextureAlpha.cpp,
+				mobile/Android.cpp,
+				mobile/IOS.mm,
+				mobile/Mobile.cpp,
+				parsers/Config.c,
+				parsers/Ktrf.c,
+				parsers/KtrfTyped.c,
+				parsers/Ors.c,
+				renders/AudioRender.c,
+				renders/FpsRender.c,
+				renders/ImageRender.c,
+				renders/LoadingRender.c,
+				renders/TextRender.c,
+				renders/TimestampRender.c,
+				renders/VideoRender.c,
+				routing/KtrfAdapter.c,
+				routing/KtrfAssetResolver.c,
+				routing/KtrfRouter.c,
+				routing/KtrfRuntime.c,
+				runtime/BasicGui.cpp,
+				runtime/components/Image.cpp,
+				runtime/Gameplay.cpp,
+				runtime/GameplayEvents.cpp,
+				runtime/Init.cpp,
+				runtime/Kotonoha.cpp,
+				runtime/KtrfPresentedFrame.cpp,
+				runtime/KtrfSceneTransaction.cpp,
+				runtime/KtrfStateStore.cpp,
+				specials/bundle.cpp,
+				specials/ConfigFIle.cpp,
+				specials/Info.plist.in,
+				specials/Kotonoha.rc,
+				specials/MetalFX.mm,
+				specials/MPVCompatibleUpscaler.cpp,
+				specials/OpenGL.c,
+				specials/UpscalingGeneric.cpp,
+				utils/Demuxer.c,
+				utils/FFmpeg.c,
+				utils/Log.c,
+				utils/OverlayRender.c,
+				utils/Time.c,
+				utils/VoicePcm.c,
+			);
+			target = CE5F6B9D308C6FAD006BE483 /* Snow Radish Vacation!! */;
+		};
+		CE5F6C05308C702B006BE483 /* Exceptions for "src" folder in "Snow Radish Vacation!!" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Main.cpp,
+			);
+			target = CE5F6B9D308C6FAD006BE483 /* Snow Radish Vacation!! */;
 		};
 		CEBBA499307F5CDB0015C15E /* Exceptions for "src" folder in "Kotonoha" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
@@ -641,8 +780,9 @@
 		A10000000000000000000001 /* src */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				CE5F6C05308C702B006BE483 /* Exceptions for "src" folder in "SnowRadishVacation" target */,
-				CE44DFAA308D4F540075A21F /* Exceptions for "src" folder in "ZeroNoTsukaima" target */,
+				CE5F6C05308C702B006BE483 /* Exceptions for "src" folder in "Snow Radish Vacation!!" target */,
+				CE44DFAA308D4F540075A21F /* Exceptions for "src" folder in "Zero No Tsukaima" target */,
+				CE44E5E5308D58DA0075A21F /* Exceptions for "src" folder in "Doki Doki Literature Club" target */,
 			);
 			name = src;
 			path = ../games/generic/src;
@@ -651,7 +791,7 @@
 		A10000000000000000000002 /* src */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				A10000000000000000000006 /* Exceptions for "src" folder in "SchoolDays" target */,
+				A10000000000000000000006 /* Exceptions for "src" folder in "School Days" target */,
 				CE44E28E308D51D60075A21F /* Exceptions for "src" folder in "KotonohaEngine" target */,
 			);
 			name = src;
@@ -682,6 +822,18 @@
 			path = "../games/zero-no-tsukaima/src";
 			sourceTree = SOURCE_ROOT;
 		};
+		CE44E5F1308D58FA0075A21F /* src */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			name = src;
+			path = "../games/doki-doki-literature-club/src";
+			sourceTree = SOURCE_ROOT;
+		};
+		CE44E601308D59050075A21F /* include */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			name = include;
+			path = "../games/doki-doki-literature-club/include";
+			sourceTree = SOURCE_ROOT;
+		};
 		CE5F6C19308C7095006BE483 /* src */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			name = src;
@@ -698,10 +850,11 @@
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
 				CEBBA499307F5CDB0015C15E /* Exceptions for "src" folder in "Kotonoha" target */,
-				8D63A656162B19B9D8E40095 /* Exceptions for "src" folder in "SchoolDays" target */,
-				CE5F6C04308C6FAE006BE483 /* Exceptions for "src" folder in "SnowRadishVacation" target */,
+				8D63A656162B19B9D8E40095 /* Exceptions for "src" folder in "School Days" target */,
+				CE5F6C04308C6FAE006BE483 /* Exceptions for "src" folder in "Snow Radish Vacation!!" target */,
 				CE44D4CF308CB7D50075A21F /* Exceptions for "src" folder in "KotonohaEngine" target */,
-				CE44DFA8308D4F360075A21F /* Exceptions for "src" folder in "ZeroNoTsukaima" target */,
+				CE44DFA8308D4F360075A21F /* Exceptions for "src" folder in "Zero No Tsukaima" target */,
+				CE44E5E4308D58B10075A21F /* Exceptions for "src" folder in "Doki Doki Literature Club" target */,
 			);
 			name = src;
 			path = ../src/Kotonoha;
@@ -735,6 +888,34 @@
 				CE44DF9C308D4F350075A21F /* libexpat.tbd in Frameworks */,
 				CE44DF9D308D4F350075A21F /* CoreMotion.framework in Frameworks */,
 				CE44DF9E308D4F350075A21F /* AudioToolbox.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CE44E5C4308D58AE0075A21F /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				CE44E5C5308D58AE0075A21F /* UIKit.framework in Frameworks */,
+				CE44E5C6308D58AE0075A21F /* CoreBluetooth.framework in Frameworks */,
+				CE44E5C7308D58AE0075A21F /* libKotonohaEngine.a in Frameworks */,
+				CE44E5C8308D58AE0075A21F /* OpenGLES.framework in Frameworks */,
+				CE44E5C9308D58AE0075A21F /* GameController.framework in Frameworks */,
+				CE44E5CA308D58AE0075A21F /* libiconv.2.tbd in Frameworks */,
+				CE44E5CB308D58AE0075A21F /* VideoToolbox.framework in Frameworks */,
+				CE44E5CC308D58AE0075A21F /* CoreGraphics.framework in Frameworks */,
+				CE44E5CD308D58AE0075A21F /* CoreVideo.framework in Frameworks */,
+				CE44E5CE308D58AE0075A21F /* CoreText.framework in Frameworks */,
+				CE44E5CF308D58AE0075A21F /* Foundation.framework in Frameworks */,
+				CE44E5D0308D58AE0075A21F /* CoreHaptics.framework in Frameworks */,
+				CE44E5D1308D58AE0075A21F /* CoreAudio.framework in Frameworks */,
+				CE44E5D2308D58AE0075A21F /* QuartzCore.framework in Frameworks */,
+				CE44E5D3308D58AE0075A21F /* MetalFX.framework in Frameworks */,
+				CE44E5D4308D58AE0075A21F /* CoreMedia.framework in Frameworks */,
+				CE44E5D5308D58AE0075A21F /* AVFoundation.framework in Frameworks */,
+				CE44E5D6308D58AE0075A21F /* Metal.framework in Frameworks */,
+				CE44E5D7308D58AE0075A21F /* libexpat.tbd in Frameworks */,
+				CE44E5D8308D58AE0075A21F /* CoreMotion.framework in Frameworks */,
+				CE44E5D9308D58AE0075A21F /* AudioToolbox.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -837,6 +1018,7 @@
 			children = (
 				A10000000000000000000002 /* src */,
 				A10000000000000000000003 /* include */,
+				80826FC2423E0FBEEA4E8212 /* School Days.app */,
 			);
 			path = "school-days";
 			sourceTree = "<group>";
@@ -844,8 +1026,10 @@
 		CE44DFAC308D50370075A21F /* snow-radish-vacation */ = {
 			isa = PBXGroup;
 			children = (
+				CE5F6BBC308C6FAD006BE483 /* Snow Radish Vacation!!.app */,
 				CE5F6C19308C7095006BE483 /* src */,
 				CE5F6C24308C709F006BE483 /* include */,
+				CE12377F308D66CA00509275 /* snow-radish-vacation */,
 			);
 			path = "snow-radish-vacation";
 			sourceTree = "<group>";
@@ -853,14 +1037,11 @@
 		CE44DFAD308D505C0075A21F /* games */ = {
 			isa = PBXGroup;
 			children = (
+				CE44E5E6308D58DF0075A21F /* doki-doki-literature-club */,
 				CE44E28F308D52570075A21F /* zero-no-tsukaima */,
 				CE44DFAE308D506D0075A21F /* generic */,
 				CE44DFAC308D50370075A21F /* snow-radish-vacation */,
 				CE44DFAB308D4F9C0075A21F /* school-days */,
-				CE44DFA6308D4F350075A21F /* ZeroNoTsukaima.app */,
-				80826FC2423E0FBEEA4E8212 /* SchoolDays.app */,
-				CEDA2B0C307AF19D00027D9C /* Kotonoha.app */,
-				CE5F6BBC308C6FAD006BE483 /* SnowRadishVacation.app */,
 				CE3D8664307DB4A100B299A2 /* assets */,
 				CEDA2B0D307AF24100027D9C /* Media.xcassets */,
 			);
@@ -871,6 +1052,8 @@
 			isa = PBXGroup;
 			children = (
 				A10000000000000000000001 /* src */,
+				CE123784308D672900509275 /* generic */,
+				CEDA2B0C307AF19D00027D9C /* Kotonoha.app */,
 			);
 			path = generic;
 			sourceTree = "<group>";
@@ -890,8 +1073,21 @@
 			children = (
 				CE44E29A308D527C0075A21F /* include */,
 				CE44E2AB308D52870075A21F /* src */,
+				CE12377D308D66A500509275 /* zero-no-tsukaima */,
+				CE44DFA6308D4F350075A21F /* Zero No Tsukaima.app */,
 			);
 			path = "zero-no-tsukaima";
+			sourceTree = "<group>";
+		};
+		CE44E5E6308D58DF0075A21F /* doki-doki-literature-club */ = {
+			isa = PBXGroup;
+			children = (
+				CE123782308D66F400509275 /* doki-doki-literature-club */,
+				CE44E5F1308D58FA0075A21F /* src */,
+				CE44E601308D59050075A21F /* include */,
+				CE44E5E1308D58AE0075A21F /* Doki Doki Literature Club.app */,
+			);
+			path = "doki-doki-literature-club";
 			sourceTree = "<group>";
 		};
 		CEE78C282FCC37E10002CB9B = {
@@ -937,9 +1133,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		958C0766C5CAECF50DC231C4 /* SchoolDays */ = {
+		958C0766C5CAECF50DC231C4 /* School Days */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 15BE91A8E4C298B25EAEA233 /* Build configuration list for PBXNativeTarget "SchoolDays" */;
+			buildConfigurationList = 15BE91A8E4C298B25EAEA233 /* Build configuration list for PBXNativeTarget "School Days" */;
 			buildPhases = (
 				EF0D8CF0C270AC15BBC383B0 /* Sources */,
 				F903ED0E001C98106DF1DA26 /* Frameworks */,
@@ -957,16 +1153,16 @@
 				CE3D666D307DB16F00B299A2 /* include */,
 				CEBBA470307F5CA60015C15E /* src */,
 			);
-			name = SchoolDays;
+			name = "School Days";
 			packageProductDependencies = (
 			);
 			productName = SchoolDays;
-			productReference = 80826FC2423E0FBEEA4E8212 /* SchoolDays.app */;
+			productReference = 80826FC2423E0FBEEA4E8212 /* School Days.app */;
 			productType = "com.apple.product-type.application";
 		};
-		CE44DF85308D4F350075A21F /* ZeroNoTsukaima */ = {
+		CE44DF85308D4F350075A21F /* Zero No Tsukaima */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = CE44DFA3308D4F350075A21F /* Build configuration list for PBXNativeTarget "ZeroNoTsukaima" */;
+			buildConfigurationList = CE44DFA3308D4F350075A21F /* Build configuration list for PBXNativeTarget "Zero No Tsukaima" */;
 			buildPhases = (
 				CE44DF88308D4F350075A21F /* Sources */,
 				CE44DF89308D4F350075A21F /* Frameworks */,
@@ -985,16 +1181,44 @@
 				CE44E2AB308D52870075A21F /* src */,
 				CEBBA470307F5CA60015C15E /* src */,
 			);
-			name = ZeroNoTsukaima;
+			name = "Zero No Tsukaima";
 			packageProductDependencies = (
 			);
 			productName = Kotonoha;
-			productReference = CE44DFA6308D4F350075A21F /* ZeroNoTsukaima.app */;
+			productReference = CE44DFA6308D4F350075A21F /* Zero No Tsukaima.app */;
 			productType = "com.apple.product-type.application";
 		};
-		CE5F6B9D308C6FAD006BE483 /* SnowRadishVacation */ = {
+		CE44E5C0308D58AE0075A21F /* Doki Doki Literature Club */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = CE5F6BB9308C6FAD006BE483 /* Build configuration list for PBXNativeTarget "SnowRadishVacation" */;
+			buildConfigurationList = CE44E5DE308D58AE0075A21F /* Build configuration list for PBXNativeTarget "Doki Doki Literature Club" */;
+			buildPhases = (
+				CE44E5C3308D58AE0075A21F /* Sources */,
+				CE44E5C4308D58AE0075A21F /* Frameworks */,
+				CE44E5DA308D58AE0075A21F /* Resources */,
+				CE44E5DC308D58AE0075A21F /* CopyFiles */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				CE44E5C1308D58AE0075A21F /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				A10000000000000000000001 /* src */,
+				A10000000000000000000003 /* include */,
+				CE3D666D307DB16F00B299A2 /* include */,
+				CE44E5F1308D58FA0075A21F /* src */,
+				CEBBA470307F5CA60015C15E /* src */,
+			);
+			name = "Doki Doki Literature Club";
+			packageProductDependencies = (
+			);
+			productName = Kotonoha;
+			productReference = CE44E5E1308D58AE0075A21F /* Doki Doki Literature Club.app */;
+			productType = "com.apple.product-type.application";
+		};
+		CE5F6B9D308C6FAD006BE483 /* Snow Radish Vacation!! */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = CE5F6BB9308C6FAD006BE483 /* Build configuration list for PBXNativeTarget "Snow Radish Vacation!!" */;
 			buildPhases = (
 				CE5F6B9E308C6FAD006BE483 /* Sources */,
 				CE5F6BA0308C6FAD006BE483 /* Frameworks */,
@@ -1014,11 +1238,11 @@
 				CE5F6C24308C709F006BE483 /* include */,
 				CEBBA470307F5CA60015C15E /* src */,
 			);
-			name = SnowRadishVacation;
+			name = "Snow Radish Vacation!!";
 			packageProductDependencies = (
 			);
 			productName = Kotonoha;
-			productReference = CE5F6BBC308C6FAD006BE483 /* SnowRadishVacation.app */;
+			productReference = CE5F6BBC308C6FAD006BE483 /* Snow Radish Vacation!!.app */;
 			productType = "com.apple.product-type.application";
 		};
 		CE7BF84C308CB7910071BA8B /* KotonohaEngine */ = {
@@ -1102,10 +1326,11 @@
 			projectRoot = "";
 			targets = (
 				CEE78C302FCC37E10002CB9B /* Kotonoha */,
-				958C0766C5CAECF50DC231C4 /* SchoolDays */,
-				CE5F6B9D308C6FAD006BE483 /* SnowRadishVacation */,
+				958C0766C5CAECF50DC231C4 /* School Days */,
+				CE5F6B9D308C6FAD006BE483 /* Snow Radish Vacation!! */,
 				CE7BF84C308CB7910071BA8B /* KotonohaEngine */,
-				CE44DF85308D4F350075A21F /* ZeroNoTsukaima */,
+				CE44DF85308D4F350075A21F /* Zero No Tsukaima */,
+				CE44E5C0308D58AE0075A21F /* Doki Doki Literature Club */,
 			);
 		};
 /* End PBXProject section */
@@ -1124,6 +1349,14 @@
 			buildActionMask = 2147483647;
 			files = (
 				CE44DFA0308D4F350075A21F /* Media.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CE44E5DA308D58AE0075A21F /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				CE44E5DB308D58AE0075A21F /* Media.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1147,6 +1380,13 @@
 
 /* Begin PBXSourcesBuildPhase section */
 		CE44DF88308D4F350075A21F /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CE44E5C3308D58AE0075A21F /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -1196,6 +1436,7 @@
 		};
 		CE44DCE9308CB9C00075A21F /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
+			platformFilter = ios;
 			target = CE7BF84C308CB7910071BA8B /* KotonohaEngine */;
 			targetProxy = CE44DCE8308CB9C00075A21F /* PBXContainerItemProxy */;
 		};
@@ -1203,6 +1444,11 @@
 			isa = PBXTargetDependency;
 			target = CE7BF84C308CB7910071BA8B /* KotonohaEngine */;
 			targetProxy = CE44DF87308D4F350075A21F /* PBXContainerItemProxy */;
+		};
+		CE44E5C1308D58AE0075A21F /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = CE7BF84C308CB7910071BA8B /* KotonohaEngine */;
+			targetProxy = CE44E5C2308D58AE0075A21F /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -1230,16 +1476,17 @@
 				HEADER_SEARCH_PATHS = (
 					"$(PROJECT_DIR)/../include",
 					"$(PROJECT_DIR)/../games/school-days/include",
-					"$(PROJECT_DIR)/../src/Kotonoha/routing",
-					"$(PROJECT_DIR)/../vcpkg_installed/arm64-ios/include",
+					"$(PROJECT_DIR)/../src/routing",
+					"$(PROJECT_DIR)/vcpkg/iOS/arm64-ios/include",
 				);
 				"HEADER_SEARCH_PATHS[sdk=iphonesimulator*]" = (
 					"$(PROJECT_DIR)/../include",
 					"$(PROJECT_DIR)/../games/school-days/include",
-					"$(PROJECT_DIR)/../src/Kotonoha/routing",
-					"$(PROJECT_DIR)/../vcpkg_installed/arm64-ios-simulator/include",
+					"$(PROJECT_DIR)/../src/routing",
+					"$(PROJECT_DIR)/vcpkg/iOS-simulator/arm64-ios-simulator/include",
 				);
 				INFOPLIST_FILE = Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "School Days HQ";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.games";
 				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -1253,8 +1500,8 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				LIBRARY_SEARCH_PATHS = "$(PROJECT_DIR)/../vcpkg_installed/arm64-ios/debug/lib";
-				"LIBRARY_SEARCH_PATHS[sdk=iphonesimulator*]" = "$(PROJECT_DIR)/../vcpkg_installed/arm64-ios-simulator/debug/lib";
+				LIBRARY_SEARCH_PATHS = "$(PROJECT_DIR)/vcpkg/iOS/arm64-ios/debug/lib";
+				"LIBRARY_SEARCH_PATHS[sdk=iphonesimulator*]" = "$(PROJECT_DIR)/vcpkg/iOS-simulator/arm64-ios-simulator/debug/lib";
 				MARKETING_VERSION = 1.0;
 				OTHER_LDFLAGS = (
 					"-lass",
@@ -1325,18 +1572,19 @@
 				HEADER_SEARCH_PATHS = (
 					"$(PROJECT_DIR)/../include",
 					"$(PROJECT_DIR)/../games/school-days/include",
-						"$(PROJECT_DIR)/../src/Kotonoha/routing",
-					"$(PROJECT_DIR)/../vcpkg_installed/arm64-ios/include",
+					"$(PROJECT_DIR)/../src/routing",
+					"$(PROJECT_DIR)/vcpkg/iOS/arm64-ios/include",
 					"$(PROJECT_DIR)/../games/zero-no-tsukaima/include",
 				);
 				"HEADER_SEARCH_PATHS[sdk=iphonesimulator*]" = (
 					"$(PROJECT_DIR)/../include",
 					"$(PROJECT_DIR)/../games/school-days/include",
-						"$(PROJECT_DIR)/../src/Kotonoha/routing",
-					"$(PROJECT_DIR)/../vcpkg_installed/arm64-ios-simulator/include",
+					"$(PROJECT_DIR)/../src/routing",
+					"$(PROJECT_DIR)/vcpkg/iOS-simulator/arm64-ios-simulator/include",
 					"$(PROJECT_DIR)/../games/zero-no-tsukaima/include",
 				);
-				INFOPLIST_FILE = "Kotonoha copy-Info.plist";
+				INFOPLIST_FILE = Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Zero no Tsukaima";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.games";
 				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -1350,8 +1598,8 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				LIBRARY_SEARCH_PATHS = "$(PROJECT_DIR)/../vcpkg_installed/arm64-ios/debug/lib";
-				"LIBRARY_SEARCH_PATHS[sdk=iphonesimulator*]" = "$(PROJECT_DIR)/../vcpkg_installed/arm64-ios-simulator/debug/lib";
+				LIBRARY_SEARCH_PATHS = "$(PROJECT_DIR)/vcpkg/iOS/arm64-ios/debug/lib";
+				"LIBRARY_SEARCH_PATHS[sdk=iphonesimulator*]" = "$(PROJECT_DIR)/vcpkg/iOS-simulator/arm64-ios-simulator/debug/lib";
 				MARKETING_VERSION = 1.0;
 				OTHER_LDFLAGS = (
 					"-lass",
@@ -1420,18 +1668,19 @@
 				HEADER_SEARCH_PATHS = (
 					"$(PROJECT_DIR)/../include",
 					"$(PROJECT_DIR)/../games/school-days/include",
-						"$(PROJECT_DIR)/../src/Kotonoha/routing",
-					"$(PROJECT_DIR)/../vcpkg_installed/arm64-ios/include",
+					"$(PROJECT_DIR)/../src/routing",
+					"$(PROJECT_DIR)/vcpkg/iOS/arm64-ios/include",
 					"$(PROJECT_DIR)/../games/zero-no-tsukaima/include",
 				);
 				"HEADER_SEARCH_PATHS[sdk=iphonesimulator*]" = (
 					"$(PROJECT_DIR)/../include",
 					"$(PROJECT_DIR)/../games/school-days/include",
-						"$(PROJECT_DIR)/../src/Kotonoha/routing",
-					"$(PROJECT_DIR)/../vcpkg_installed/arm64-ios-simulator/include",
+					"$(PROJECT_DIR)/../src/routing",
+					"$(PROJECT_DIR)/vcpkg/iOS-simulator/arm64-ios-simulator/include",
 					"$(PROJECT_DIR)/../games/zero-no-tsukaima/include",
 				);
-				INFOPLIST_FILE = "Kotonoha copy-Info.plist";
+				INFOPLIST_FILE = Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Zero no Tsukaima";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.games";
 				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -1445,8 +1694,8 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				LIBRARY_SEARCH_PATHS = "$(PROJECT_DIR)/../vcpkg_installed/arm64-ios/lib";
-				"LIBRARY_SEARCH_PATHS[sdk=iphonesimulator*]" = "$(PROJECT_DIR)/../vcpkg_installed/arm64-ios-simulator/lib";
+				LIBRARY_SEARCH_PATHS = "$(PROJECT_DIR)/vcpkg/iOS/arm64-ios/lib";
+				"LIBRARY_SEARCH_PATHS[sdk=iphonesimulator*]" = "$(PROJECT_DIR)/vcpkg/iOS-simulator/arm64-ios-simulator/lib";
 				MARKETING_VERSION = 1.0;
 				OTHER_LDFLAGS = (
 					"-lass",
@@ -1494,6 +1743,200 @@
 			};
 			name = Release;
 		};
+		CE44E5DF308D58AE0075A21F /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_ASSET_PATHS = ../assets;
+				DEVELOPMENT_TEAM = 64T9B5HFFD;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"KOTONOHA_HAS_METALFX=1",
+					"DEBUG=1",
+					"$(inherited)",
+					"KOTONOHA_HAS_MPV_UPSCALER=1",
+				);
+				GENERATE_INFOPLIST_FILE = YES;
+				HEADER_SEARCH_PATHS = (
+					"$(PROJECT_DIR)/../include",
+					"$(PROJECT_DIR)/../games/school-days/include",
+					"$(PROJECT_DIR)/../src/routing",
+					"$(PROJECT_DIR)/vcpkg/iOS/arm64-ios/include",
+					"$(PROJECT_DIR)/../games/doki-doki-literature-club/include",
+				);
+				"HEADER_SEARCH_PATHS[sdk=iphonesimulator*]" = (
+					"$(PROJECT_DIR)/../include",
+					"$(PROJECT_DIR)/../games/school-days/include",
+					"$(PROJECT_DIR)/../src/routing",
+					"$(PROJECT_DIR)/vcpkg/iOS-simulator/arm64-ios-simulator/include",
+					"$(PROJECT_DIR)/../games/doki-doki-literature-club/include",
+				);
+				INFOPLIST_FILE = Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Doki Doki Literature Club";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.games";
+				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UIRequiredDeviceCapabilities = metal;
+				INFOPLIST_KEY_UIStatusBarHidden = NO;
+				INFOPLIST_KEY_UIStatusBarStyle = UIStatusBarStyleDarkContent;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				IPHONEOS_DEPLOYMENT_TARGET = 27.0;
+				KOTONOHA_HAS_MPV_UPSCALER = 1;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				LIBRARY_SEARCH_PATHS = "$(PROJECT_DIR)/vcpkg/iOS/arm64-ios/debug/lib";
+				"LIBRARY_SEARCH_PATHS[sdk=iphonesimulator*]" = "$(PROJECT_DIR)/vcpkg/iOS-simulator/arm64-ios-simulator/debug/lib";
+				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"-lass",
+					"-lavcodec",
+					"-lavdevice",
+					"-lavfilter",
+					"-lavformat",
+					"-lavutil",
+					"-lbrotlicommon",
+					"-lbrotlidec",
+					"-lbrotlienc",
+					"-lbz2d",
+					"-lcharset",
+					"-lexpat",
+					"-lfontconfig",
+					"-lfreetyped",
+					"-lfribidi",
+					"-lharfbuzz-gpu",
+					"-lharfbuzz-raster",
+					"-lharfbuzz-subset",
+					"-lharfbuzz-vector",
+					"-lharfbuzz",
+					"-liconv",
+					"-limguid",
+					"-lplutosvg",
+					"-lplutovg",
+					"-lpng",
+					"-lpng16d",
+					"-lSDL3_ttf",
+					"-lSDL3",
+					"-lswresample",
+					"-lswscale",
+					"-lunibreak",
+					"-luuid",
+					"-lz",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha.dokidokiliteratureclub;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		CE44E5E0308D58AE0075A21F /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_ASSET_PATHS = ../assets;
+				DEVELOPMENT_TEAM = 64T9B5HFFD;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"KOTONOHA_HAS_METALFX=1",
+					"KOTONOHA_HAS_MPV_UPSCALER=1",
+				);
+				GENERATE_INFOPLIST_FILE = YES;
+				HEADER_SEARCH_PATHS = (
+					"$(PROJECT_DIR)/../include",
+					"$(PROJECT_DIR)/../games/school-days/include",
+					"$(PROJECT_DIR)/../src/routing",
+					"$(PROJECT_DIR)/vcpkg/iOS/arm64-ios/include",
+					"$(PROJECT_DIR)/../games/doki-doki-literature-club/include",
+				);
+				"HEADER_SEARCH_PATHS[sdk=iphonesimulator*]" = (
+					"$(PROJECT_DIR)/../include",
+					"$(PROJECT_DIR)/../games/school-days/include",
+					"$(PROJECT_DIR)/../src/routing",
+					"$(PROJECT_DIR)/vcpkg/iOS-simulator/arm64-ios-simulator/include",
+					"$(PROJECT_DIR)/../games/doki-doki-literature-club/include",
+				);
+				INFOPLIST_FILE = Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Doki Doki Literature Club";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.games";
+				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UIRequiredDeviceCapabilities = metal;
+				INFOPLIST_KEY_UIStatusBarHidden = NO;
+				INFOPLIST_KEY_UIStatusBarStyle = UIStatusBarStyleDarkContent;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				IPHONEOS_DEPLOYMENT_TARGET = 27.0;
+				KOTONOHA_HAS_MPV_UPSCALER = 1;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				LIBRARY_SEARCH_PATHS = "$(PROJECT_DIR)/vcpkg/iOS/arm64-ios/lib";
+				"LIBRARY_SEARCH_PATHS[sdk=iphonesimulator*]" = "$(PROJECT_DIR)/vcpkg/iOS-simulator/arm64-ios-simulator/lib";
+				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"-lass",
+					"-lavcodec",
+					"-lavdevice",
+					"-lavfilter",
+					"-lavformat",
+					"-lavutil",
+					"-lbrotlicommon",
+					"-lbrotlidec",
+					"-lbrotlienc",
+					"-lbz2",
+					"-lcharset",
+					"-lexpat",
+					"-lfontconfig",
+					"-lfreetype",
+					"-lfribidi",
+					"-lharfbuzz-gpu",
+					"-lharfbuzz-raster",
+					"-lharfbuzz-subset",
+					"-lharfbuzz-vector",
+					"-lharfbuzz",
+					"-liconv",
+					"-limgui",
+					"-lplutosvg",
+					"-lplutovg",
+					"-lpng",
+					"-lpng16",
+					"-lSDL3_ttf",
+					"-lSDL3",
+					"-lswresample",
+					"-lswscale",
+					"-lunibreak",
+					"-luuid",
+					"-lz",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha.dokidokiliteratureclub;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 		CE5F6BBA308C6FAD006BE483 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -1517,17 +1960,18 @@
 				HEADER_SEARCH_PATHS = (
 					"$(PROJECT_DIR)/../include",
 					"$(PROJECT_DIR)/../games/school-days/include",
-					"$(PROJECT_DIR)/../src/Kotonoha/routing",
-					"$(PROJECT_DIR)/../vcpkg_installed/arm64-ios/include",
+					"$(PROJECT_DIR)/../src/routing",
+					"$(PROJECT_DIR)/vcpkg/iOS/arm64-ios/include",
 					"$(PROJECT_DIR)/../games/snow-radish-vacation/include",
 				);
 				"HEADER_SEARCH_PATHS[sdk=iphonesimulator*]" = (
 					"$(PROJECT_DIR)/../include",
 					"$(PROJECT_DIR)/../games/school-days/include",
-					"$(PROJECT_DIR)/../src/Kotonoha/routing",
-					"$(PROJECT_DIR)/../vcpkg_installed/arm64-ios-simulator/include",
+					"$(PROJECT_DIR)/../src/routing",
+					"$(PROJECT_DIR)/vcpkg/iOS-simulator/arm64-ios-simulator/include",
 				);
 				INFOPLIST_FILE = Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Snow Radish Vacation!!";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.games";
 				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -1541,8 +1985,8 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				LIBRARY_SEARCH_PATHS = "$(PROJECT_DIR)/../vcpkg_installed/arm64-ios/debug/lib";
-				"LIBRARY_SEARCH_PATHS[sdk=iphonesimulator*]" = "$(PROJECT_DIR)/../vcpkg_installed/arm64-ios-simulator/debug/lib";
+				LIBRARY_SEARCH_PATHS = "$(PROJECT_DIR)/vcpkg/iOS/arm64-ios/debug/lib";
+				"LIBRARY_SEARCH_PATHS[sdk=iphonesimulator*]" = "$(PROJECT_DIR)/vcpkg/iOS-simulator/arm64-ios-simulator/debug/lib";
 				MARKETING_VERSION = 1.0;
 				OTHER_LDFLAGS = (
 					"-lass",
@@ -1611,17 +2055,18 @@
 				HEADER_SEARCH_PATHS = (
 					"$(PROJECT_DIR)/../include",
 					"$(PROJECT_DIR)/../games/school-days/include",
-					"$(PROJECT_DIR)/../src/Kotonoha/routing",
-					"$(PROJECT_DIR)/../vcpkg_installed/arm64-ios/include",
+					"$(PROJECT_DIR)/../src/routing",
+					"$(PROJECT_DIR)/vcpkg/iOS/arm64-ios/include",
 				);
 				"HEADER_SEARCH_PATHS[sdk=iphonesimulator*]" = (
 					"$(PROJECT_DIR)/../include",
 					"$(PROJECT_DIR)/../games/school-days/include",
-					"$(PROJECT_DIR)/../src/Kotonoha/routing",
-					"$(PROJECT_DIR)/../vcpkg_installed/arm64-ios-simulator/include",
+					"$(PROJECT_DIR)/../src/routing",
+					"$(PROJECT_DIR)/vcpkg/iOS-simulator/arm64-ios-simulator/include",
 					"$(PROJECT_DIR)/../games/snow-radish-vacation/include",
 				);
 				INFOPLIST_FILE = Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Snow Radish Vacation!!";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.games";
 				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -1635,8 +2080,8 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				LIBRARY_SEARCH_PATHS = "$(PROJECT_DIR)/../vcpkg_installed/arm64-ios/lib";
-				"LIBRARY_SEARCH_PATHS[sdk=iphonesimulator*]" = "$(PROJECT_DIR)/../vcpkg_installed/arm64-ios-simulator/lib";
+				LIBRARY_SEARCH_PATHS = "$(PROJECT_DIR)/vcpkg/iOS/arm64-ios/lib";
+				"LIBRARY_SEARCH_PATHS[sdk=iphonesimulator*]" = "$(PROJECT_DIR)/vcpkg/iOS-simulator/arm64-ios-simulator/lib";
 				MARKETING_VERSION = 1.0;
 				OTHER_LDFLAGS = (
 					"-lass",
@@ -1693,17 +2138,21 @@
 					"KOTONOHA_HAS_METALFX=1",
 					"KOTONOHA_HAS_MPV_UPSCALER=1",
 				);
+				"GCC_PREPROCESSOR_DEFINITIONS[sdk=iphonesimulator*]" = (
+					"KOTONOHA_HAS_METALFX=0",
+					"KOTONOHA_HAS_MPV_UPSCALER=1",
+				);
 				HEADER_SEARCH_PATHS = (
 					"$(PROJECT_DIR)/../include",
 					"$(PROJECT_DIR)/../games/school-days/include",
-					"$(PROJECT_DIR)/../src/Kotonoha/routing",
-					"$(PROJECT_DIR)/../vcpkg_installed/arm64-ios/include",
+					"$(PROJECT_DIR)/../src/routing",
+					"$(PROJECT_DIR)/vcpkg/iOS/arm64-ios/include",
 				);
 				"HEADER_SEARCH_PATHS[sdk=iphonesimulator*]" = (
 					"$(PROJECT_DIR)/../include",
 					"$(PROJECT_DIR)/../games/school-days/include",
-					"$(PROJECT_DIR)/../src/Kotonoha/routing",
-					"$(PROJECT_DIR)/../vcpkg_installed/arm64-ios-simulator/include",
+					"$(PROJECT_DIR)/../src/routing",
+					"$(PROJECT_DIR)/vcpkg/iOS-simulator/arm64-ios-simulator/include",
 					"$(PROJECT_DIR)/../games/snow-radish-vacation/include",
 				);
 				IPHONEOS_DEPLOYMENT_TARGET = 27.0;
@@ -1723,17 +2172,21 @@
 					"KOTONOHA_HAS_METALFX=1",
 					"KOTONOHA_HAS_MPV_UPSCALER=1",
 				);
+				"GCC_PREPROCESSOR_DEFINITIONS[sdk=iphone*]" = (
+					"KOTONOHA_HAS_METALFX=0",
+					"KOTONOHA_HAS_MPV_UPSCALER=1",
+				);
 				HEADER_SEARCH_PATHS = (
 					"$(PROJECT_DIR)/../include",
 					"$(PROJECT_DIR)/../games/school-days/include",
-					"$(PROJECT_DIR)/../src/Kotonoha/routing",
-					"$(PROJECT_DIR)/../vcpkg_installed/arm64-ios/include",
+					"$(PROJECT_DIR)/../src/routing",
+					"$(PROJECT_DIR)/vcpkg/iOS/arm64-ios/include",
 				);
 				"HEADER_SEARCH_PATHS[sdk=iphonesimulator*]" = (
 					"$(PROJECT_DIR)/../include",
 					"$(PROJECT_DIR)/../games/school-days/include",
-					"$(PROJECT_DIR)/../src/Kotonoha/routing",
-					"$(PROJECT_DIR)/../vcpkg_installed/arm64-ios-simulator/include",
+					"$(PROJECT_DIR)/../src/routing",
+					"$(PROJECT_DIR)/vcpkg/iOS-simulator/arm64-ios-simulator/include",
 					"$(PROJECT_DIR)/../games/snow-radish-vacation/include",
 				);
 				IPHONEOS_DEPLOYMENT_TARGET = 27.0;
@@ -1767,16 +2220,17 @@
 				HEADER_SEARCH_PATHS = (
 					"$(PROJECT_DIR)/../include",
 					"$(PROJECT_DIR)/../games/school-days/include",
-					"$(PROJECT_DIR)/../src/Kotonoha/routing",
-					"$(PROJECT_DIR)/../vcpkg_installed/arm64-ios/include",
+					"$(PROJECT_DIR)/../src/routing",
+					"$(PROJECT_DIR)/vcpkg/iOS/arm64-ios/include",
 				);
 				"HEADER_SEARCH_PATHS[sdk=iphonesimulator*]" = (
 					"$(PROJECT_DIR)/../include",
 					"$(PROJECT_DIR)/../games/school-days/include",
-					"$(PROJECT_DIR)/../src/Kotonoha/routing",
-					"$(PROJECT_DIR)/../vcpkg_installed/arm64-ios-simulator/include",
+					"$(PROJECT_DIR)/../src/routing",
+					"$(PROJECT_DIR)/vcpkg/iOS-simulator/arm64-ios-simulator/include",
 				);
 				INFOPLIST_FILE = Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Kotonoha;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.games";
 				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -1790,8 +2244,8 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				LIBRARY_SEARCH_PATHS = "$(PROJECT_DIR)/../vcpkg_installed/arm64-ios/debug/lib";
-				"LIBRARY_SEARCH_PATHS[sdk=iphonesimulator*]" = "$(PROJECT_DIR)/../vcpkg_installed/arm64-ios-simulator/debug/lib";
+				LIBRARY_SEARCH_PATHS = "$(PROJECT_DIR)/vcpkg/iOS/arm64-ios/debug/lib";
+				"LIBRARY_SEARCH_PATHS[sdk=iphonesimulator*]" = "$(PROJECT_DIR)/vcpkg/iOS-simulator/arm64-ios-simulator/debug/lib";
 				MARKETING_VERSION = 1.0;
 				OTHER_LDFLAGS = (
 					"-lass",
@@ -1834,6 +2288,8 @@
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = YES;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -1860,16 +2316,17 @@
 				HEADER_SEARCH_PATHS = (
 					"$(PROJECT_DIR)/../include",
 					"$(PROJECT_DIR)/../games/school-days/include",
-					"$(PROJECT_DIR)/../src/Kotonoha/routing",
-					"$(PROJECT_DIR)/../vcpkg_installed/arm64-ios/include",
+					"$(PROJECT_DIR)/../src/routing",
+					"$(PROJECT_DIR)/vcpkg/iOS/arm64-ios/include",
 				);
 				"HEADER_SEARCH_PATHS[sdk=iphonesimulator*]" = (
 					"$(PROJECT_DIR)/../include",
 					"$(PROJECT_DIR)/../games/school-days/include",
-					"$(PROJECT_DIR)/../src/Kotonoha/routing",
-					"$(PROJECT_DIR)/../vcpkg_installed/arm64-ios-simulator/include",
+					"$(PROJECT_DIR)/../src/routing",
+					"$(PROJECT_DIR)/vcpkg/iOS-simulator/arm64-ios-simulator/include",
 				);
 				INFOPLIST_FILE = Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Kotonoha;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.games";
 				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -1883,8 +2340,8 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				LIBRARY_SEARCH_PATHS = "$(PROJECT_DIR)/../vcpkg_installed/arm64-ios/lib";
-				"LIBRARY_SEARCH_PATHS[sdk=iphonesimulator*]" = "$(PROJECT_DIR)/../vcpkg_installed/arm64-ios-simulator/lib";
+				LIBRARY_SEARCH_PATHS = "$(PROJECT_DIR)/vcpkg/iOS/arm64-ios/lib";
+				"LIBRARY_SEARCH_PATHS[sdk=iphonesimulator*]" = "$(PROJECT_DIR)/vcpkg/iOS-simulator/arm64-ios-simulator/lib";
 				MARKETING_VERSION = 1.0;
 				OTHER_LDFLAGS = (
 					"-lass",
@@ -1927,6 +2384,8 @@
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = YES;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -2073,16 +2532,17 @@
 				HEADER_SEARCH_PATHS = (
 					"$(PROJECT_DIR)/../include",
 					"$(PROJECT_DIR)/../games/school-days/include",
-					"$(PROJECT_DIR)/../src/Kotonoha/routing",
-					"$(PROJECT_DIR)/../vcpkg_installed/arm64-ios/include",
+					"$(PROJECT_DIR)/../src/routing",
+					"$(PROJECT_DIR)/vcpkg/iOS/arm64-ios/include",
 				);
 				"HEADER_SEARCH_PATHS[sdk=iphonesimulator*]" = (
 					"$(PROJECT_DIR)/../include",
 					"$(PROJECT_DIR)/../games/school-days/include",
-					"$(PROJECT_DIR)/../src/Kotonoha/routing",
-					"$(PROJECT_DIR)/../vcpkg_installed/arm64-ios-simulator/include",
+					"$(PROJECT_DIR)/../src/routing",
+					"$(PROJECT_DIR)/vcpkg/iOS-simulator/arm64-ios-simulator/include",
 				);
 				INFOPLIST_FILE = Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "School Days HQ";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.games";
 				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -2096,8 +2556,8 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				LIBRARY_SEARCH_PATHS = "$(PROJECT_DIR)/../vcpkg_installed/arm64-ios/lib";
-				"LIBRARY_SEARCH_PATHS[sdk=iphonesimulator*]" = "$(PROJECT_DIR)/../vcpkg_installed/arm64-ios-simulator/lib";
+				LIBRARY_SEARCH_PATHS = "$(PROJECT_DIR)/vcpkg/iOS/arm64-ios/lib";
+				"LIBRARY_SEARCH_PATHS[sdk=iphonesimulator*]" = "$(PROJECT_DIR)/vcpkg/iOS-simulator/arm64-ios-simulator/lib";
 				MARKETING_VERSION = 1.0;
 				OTHER_LDFLAGS = (
 					"-lass",
@@ -2148,7 +2608,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		15BE91A8E4C298B25EAEA233 /* Build configuration list for PBXNativeTarget "SchoolDays" */ = {
+		15BE91A8E4C298B25EAEA233 /* Build configuration list for PBXNativeTarget "School Days" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				9FD54CC691520CB1A998849D /* Debug */,
@@ -2157,7 +2617,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		CE44DFA3308D4F350075A21F /* Build configuration list for PBXNativeTarget "ZeroNoTsukaima" */ = {
+		CE44DFA3308D4F350075A21F /* Build configuration list for PBXNativeTarget "Zero No Tsukaima" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				CE44DFA4308D4F350075A21F /* Debug */,
@@ -2166,7 +2626,16 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		CE5F6BB9308C6FAD006BE483 /* Build configuration list for PBXNativeTarget "SnowRadishVacation" */ = {
+		CE44E5DE308D58AE0075A21F /* Build configuration list for PBXNativeTarget "Doki Doki Literature Club" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				CE44E5DF308D58AE0075A21F /* Debug */,
+				CE44E5E0308D58AE0075A21F /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		CE5F6BB9308C6FAD006BE483 /* Build configuration list for PBXNativeTarget "Snow Radish Vacation!!" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				CE5F6BBA308C6FAD006BE483 /* Debug */,

@@ -37,7 +37,9 @@ endif()
 if(NOT ANDROID)
     kotonoha_configure_app(SchoolDays
         OUTPUT_NAME SchoolDays
-        BUNDLE_ID "me.hirameki.kotonoha.schooldays")
+        BUNDLE_ID "me.hirameki.kotonoha.schooldays"
+        GAME_ASSET "school-days"
+        )
 
     add_custom_command(TARGET SchoolDays POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E make_directory

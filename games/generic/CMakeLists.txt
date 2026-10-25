@@ -13,4 +13,6 @@ target_link_libraries(KotonohaGeneric PRIVATE KotonohaRuntime)
 kotonoha_configure_app(KotonohaGeneric
     INCLUDE_ASSETS_SCRIPTS
     OUTPUT_NAME Kotonoha
-    BUNDLE_ID "me.hirameki.kotonoha")
+    BUNDLE_ID "me.hirameki.kotonoha"
+    GAME_ASSET "generic"
+    )

@@ -1,13 +1,13 @@
 # kotonoha_configure_app(<target>
-#     [INCLUDE_ASSETS_SCRIPTS]
 #     OUTPUT_NAME <name>          executable / bundle name (Kotonoha, SchoolDays)
-#     BUNDLE_ID   <identifier>    macOS bundle identifier)
+#     BUNDLE_ID   <identifier>    macOS bundle identifier
+#     GAME_ASSET  <game_folder>   specific subfolder in games-assets/ to copy to Resources/assets)
 #
 # Shared packaging for desktop applications: Windows icon resource, and on macOS
 # the .app bundle with libKotonoha.dylib and recursive dylibs in Frameworks,
-# the icon and the engine assets in Resources/assets.
+# the icon, the engine assets (excluding scripts/), and optionally game-specific assets in Resources/assets.
 function(kotonoha_configure_app target)
-    cmake_parse_arguments(APP "INCLUDE_ASSETS_SCRIPTS" "OUTPUT_NAME;BUNDLE_ID" "" ${ARGN})
+    cmake_parse_arguments(APP "" "OUTPUT_NAME;BUNDLE_ID;GAME_ASSET" "" ${ARGN})
     if(NOT APP_OUTPUT_NAME)
         set(APP_OUTPUT_NAME "${target}")
     endif()
@@ -101,7 +101,7 @@ function(kotonoha_configure_app target)
             COMMAND ${CMAKE_COMMAND} -P "${FIXUP_SCRIPT}"
             VERBATIM)
 
-    # --- Empacotamento dos Assets em Resources/assets (Dentro da .app no macOS) ---
+    # --- Empacotamento dos Engine Assets em Resources/assets (ignora scripts/ sempre) ---
     if(EXISTS "${KOTONOHA_ASSETS_DIR}")
         file(GLOB_RECURSE asset_files CONFIGURE_DEPENDS "${KOTONOHA_ASSETS_DIR}/*")
         foreach(asset_file IN LISTS asset_files)
@@ -111,8 +111,8 @@ function(kotonoha_configure_app target)
 
             file(RELATIVE_PATH asset_relative "${KOTONOHA_ASSETS_DIR}" "${asset_file}")
 
-            # Ignora scripts/ nos assets do bundle .app por padrão, a menos que INCLUDE_ASSETS_SCRIPTS seja passado
-            if(NOT APP_INCLUDE_ASSETS_SCRIPTS AND asset_relative MATCHES "^scripts/")
+            # Ignora permanentemente arquivos dentro de scripts/
+            if(asset_relative MATCHES "^scripts/")
                 continue()
             endif()
 
@@ -127,5 +127,34 @@ function(kotonoha_configure_app target)
                     HEADER_FILE_ONLY TRUE)
             target_sources(${target} PRIVATE "${asset_file}")
         endforeach()
+    endif()
+
+    # --- Empacotamento dos Game Assets em Resources/assets ---
+    if(APP_GAME_ASSET)
+        set(game_asset_dir "${CMAKE_SOURCE_DIR}/games-assets/${APP_GAME_ASSET}")
+        if(NOT EXISTS "${game_asset_dir}")
+            message(WARNING "Diretório de game assets não encontrado: ${game_asset_dir}")
+        else()
+            file(GLOB_RECURSE game_files CONFIGURE_DEPENDS "${game_asset_dir}/*")
+            foreach(game_file IN LISTS game_files)
+                if(IS_DIRECTORY "${game_file}")
+                    continue()
+                endif()
+
+                file(RELATIVE_PATH game_relative "${game_asset_dir}" "${game_file}")
+                get_filename_component(game_sub_dir "${game_relative}" DIRECTORY)
+
+                if(game_sub_dir)
+                    set(game_location "Resources/${APP_GAME_ASSET}/${game_sub_dir}")
+                else()
+                    set(game_location "Resources/${APP_GAME_ASSET}")
+                endif()
+
+                set_source_files_properties("${game_file}" PROPERTIES
+                        MACOSX_PACKAGE_LOCATION "${game_location}"
+                        HEADER_FILE_ONLY TRUE)
+                target_sources(${target} PRIVATE "${game_file}")
+            endforeach()
+        endif()
     endif()
 endfunction()

@@ -1230,8 +1230,12 @@ std::filesystem::path findFileIgnoreCase(const std::filesystem::path& dir, const
 
 SDL_AppResult LocalInit(void**, int, char*[]) {
     if (g_dir.empty()) {
-        SDL_Log("Snow Radish: use --snow <dir>");
-        return SDL_APP_FAILURE;
+        if (std::filesystem::exists("snow-radish-vacation") && std::filesystem::is_directory("snow-radish-vacation")) {
+            g_dir = "snow-radish-vacation";
+        } else {
+            SDL_Log("Snow Radish: use --snow <dir> or set SNOW_DIR environment variable");
+            return SDL_APP_FAILURE;
+        }
     }
 
     global.config.enableDebugUi = std::getenv("KOTONOHA_DEBUG_UI") != nullptr;

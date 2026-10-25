@@ -1126,9 +1126,14 @@ SDL_AppResult LocalArgs(int argc, char *argv[]) {
 
 SDL_AppResult LocalInit(void **, int, char *[]) {
   if (g_disc.empty()) {
-    SDL_Log("Zero no Tsukaima: use --zero <disc.bin>");
-    return SDL_APP_FAILURE;
+    if (std::filesystem::exists("zero-no-tsukaima/ZeroNoTsukaima.bin")) {
+      g_disc = "zero-no-tsukaima/ZeroNoTsukaima.bin";
+    } else {
+      SDL_Log("Zero no Tsukaima: use --zero <disc.bin> or set ZERO_DISC environment variable");
+      return SDL_APP_FAILURE;
+    }
   }
+
   // Game ports show only the game UI; F7 or KOTONOHA_DEBUG_UI=1 brings the debug panels back.
   global.config.enableDebugUi = std::getenv("KOTONOHA_DEBUG_UI") != nullptr;
   auto *s = new State();
