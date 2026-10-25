@@ -26,6 +26,24 @@
 		B692C51BAC9AB798B1DC20EA /* GameController.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CF22FCC3A6E0002CB9B /* GameController.framework */; };
 		BA92F3B3977264EC0CA856EE /* Media.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = CEDA2B0D307AF24100027D9C /* Media.xcassets */; };
 		C54F7D387DE9DBD46B3347C9 /* libiconv.2.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = CE8CB980307E6E0C00FF3167 /* libiconv.2.tbd */; };
+		CE01826D308DDCE900A04405 /* GLKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CE02FCC3A450002CB9B /* GLKit.framework */; platformFilter = ios; };
+		CE01826E308DDCE900A04405 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CDE2FCC3A450002CB9B /* Foundation.framework */; };
+		CE01826F308DDCEB00A04405 /* CoreVideo.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CDC2FCC3A450002CB9B /* CoreVideo.framework */; };
+		CE018270308DDCEC00A04405 /* CoreMedia.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CE32FCC3A450002CB9B /* CoreMedia.framework */; };
+		CE018271308DDCEE00A04405 /* CoreText.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CDB2FCC3A450002CB9B /* CoreText.framework */; };
+		CE018272308DDCF000A04405 /* CoreGraphics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CDA2FCC3A450002CB9B /* CoreGraphics.framework */; };
+		CE018273308DDCF100A04405 /* CoreAudio.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CD82FCC3A450002CB9B /* CoreAudio.framework */; };
+		CE018274308DDCF500A04405 /* AVFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CDF2FCC3A450002CB9B /* AVFoundation.framework */; };
+		CE018275308DDCF600A04405 /* AudioToolbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CDD2FCC3A450002CB9B /* AudioToolbox.framework */; };
+		CE018276308DDCF800A04405 /* Accelerate.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CE12FCC3A450002CB9B /* Accelerate.framework */; };
+		CE018277308DDCF900A04405 /* GameController.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CF22FCC3A6E0002CB9B /* GameController.framework */; };
+		CE018278308DDCFA00A04405 /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CF42FCC3A7D0002CB9B /* Metal.framework */; };
+		CE018279308DDCFC00A04405 /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CF62FCC3A850002CB9B /* UIKit.framework */; };
+		CE01827A308DDCFD00A04405 /* OpenGLES.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CF82FCC3A8E0002CB9B /* OpenGLES.framework */; platformFilter = ios; };
+		CE01827B308DDD0000A04405 /* VideoToolbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CFA2FCC3A9B0002CB9B /* VideoToolbox.framework */; };
+		CE01827C308DDD0800A04405 /* CoreMotion.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CFE2FCC3AF40002CB9B /* CoreMotion.framework */; };
+		CE01827D308DDD0900A04405 /* QuartzCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CFC2FCC3AE40002CB9B /* QuartzCore.framework */; };
+		CE01827E308DDD0A00A04405 /* MetalFX.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CE37165F307B51EC00C1C8A5 /* MetalFX.framework */; platformFilter = ios; };
 		CE12377E308D66A500509275 /* zero-no-tsukaima in CopyFiles */ = {isa = PBXBuildFile; fileRef = CE12377D308D66A500509275 /* zero-no-tsukaima */; };
 		CE123781308D66D600509275 /* snow-radish-vacation in Copy Files */ = {isa = PBXBuildFile; fileRef = CE12377F308D66CA00509275 /* snow-radish-vacation */; };
 		CE123783308D66F400509275 /* doki-doki-literature-club in CopyFiles */ = {isa = PBXBuildFile; fileRef = CE123782308D66F400509275 /* doki-doki-literature-club */; };
@@ -282,7 +300,6 @@
 				components/Canvas.cpp,
 				components/CanvasImage.cpp,
 				components/ChoiceMenu.cpp,
-				components/Events.cpp,
 				components/Fade.cpp,
 				components/GameplayFlow.cpp,
 				components/Panel.cpp,
@@ -323,7 +340,6 @@
 				renders/TimestampRender.c,
 				renders/VideoRender.c,
 				routing/KtrfAdapter.c,
-				routing/KtrfAssetResolver.c,
 				routing/KtrfRouter.c,
 				routing/KtrfRuntime.c,
 				runtime/BasicGui.cpp,
@@ -334,7 +350,6 @@
 				runtime/Kotonoha.cpp,
 				runtime/KtrfPresentedFrame.cpp,
 				runtime/KtrfSceneTransaction.cpp,
-				runtime/KtrfStateStore.cpp,
 				specials/bundle.cpp,
 				specials/ConfigFIle.cpp,
 				specials/Info.plist.in,
@@ -367,7 +382,6 @@
 				components/Canvas.cpp,
 				components/CanvasImage.cpp,
 				components/ChoiceMenu.cpp,
-				components/Events.cpp,
 				components/Fade.cpp,
 				components/GameplayFlow.cpp,
 				components/Panel.cpp,
@@ -407,7 +421,6 @@
 				renders/TimestampRender.c,
 				renders/VideoRender.c,
 				routing/KtrfAdapter.c,
-				routing/KtrfAssetResolver.c,
 				routing/KtrfRouter.c,
 				routing/KtrfRuntime.c,
 				runtime/BasicGui.cpp,
@@ -418,7 +431,6 @@
 				runtime/Kotonoha.cpp,
 				runtime/KtrfPresentedFrame.cpp,
 				runtime/KtrfSceneTransaction.cpp,
-				runtime/KtrfStateStore.cpp,
 				specials/ConfigFIle.cpp,
 				specials/MetalFX.mm,
 				specials/MPVCompatibleUpscaler.cpp,
@@ -441,7 +453,6 @@
 				components/Canvas.cpp,
 				components/CanvasImage.cpp,
 				components/ChoiceMenu.cpp,
-				components/Events.cpp,
 				components/Fade.cpp,
 				components/GameplayFlow.cpp,
 				components/Panel.cpp,
@@ -482,7 +493,6 @@
 				renders/TimestampRender.c,
 				renders/VideoRender.c,
 				routing/KtrfAdapter.c,
-				routing/KtrfAssetResolver.c,
 				routing/KtrfRouter.c,
 				routing/KtrfRuntime.c,
 				runtime/BasicGui.cpp,
@@ -493,7 +503,6 @@
 				runtime/Kotonoha.cpp,
 				runtime/KtrfPresentedFrame.cpp,
 				runtime/KtrfSceneTransaction.cpp,
-				runtime/KtrfStateStore.cpp,
 				specials/bundle.cpp,
 				specials/ConfigFIle.cpp,
 				specials/Info.plist.in,
@@ -533,7 +542,6 @@
 				components/Canvas.cpp,
 				components/CanvasImage.cpp,
 				components/ChoiceMenu.cpp,
-				components/Events.cpp,
 				components/Fade.cpp,
 				components/GameplayFlow.cpp,
 				components/Panel.cpp,
@@ -574,7 +582,6 @@
 				renders/TimestampRender.c,
 				renders/VideoRender.c,
 				routing/KtrfAdapter.c,
-				routing/KtrfAssetResolver.c,
 				routing/KtrfRouter.c,
 				routing/KtrfRuntime.c,
 				runtime/BasicGui.cpp,
@@ -585,7 +592,6 @@
 				runtime/Kotonoha.cpp,
 				runtime/KtrfPresentedFrame.cpp,
 				runtime/KtrfSceneTransaction.cpp,
-				runtime/KtrfStateStore.cpp,
 				specials/bundle.cpp,
 				specials/ConfigFIle.cpp,
 				specials/Info.plist.in,
@@ -618,7 +624,6 @@
 				components/Canvas.cpp,
 				components/CanvasImage.cpp,
 				components/ChoiceMenu.cpp,
-				components/Events.cpp,
 				components/Fade.cpp,
 				components/GameplayFlow.cpp,
 				components/Panel.cpp,
@@ -631,7 +636,6 @@
 				components/Video.cpp,
 				debug/DebugUi.cpp,
 				debug/DebugUtils.cpp,
-				debug/McpServer.cpp,
 				debug/SceneManager.cpp,
 				debug/TextEditorModel.cpp,
 				debug/windows/AboutWindow.cpp,
@@ -660,7 +664,6 @@
 				renders/TimestampRender.c,
 				renders/VideoRender.c,
 				routing/KtrfAdapter.c,
-				routing/KtrfAssetResolver.c,
 				routing/KtrfRouter.c,
 				routing/KtrfRuntime.c,
 				runtime/BasicGui.cpp,
@@ -671,7 +674,6 @@
 				runtime/Kotonoha.cpp,
 				runtime/KtrfPresentedFrame.cpp,
 				runtime/KtrfSceneTransaction.cpp,
-				runtime/KtrfStateStore.cpp,
 				specials/bundle.cpp,
 				specials/ConfigFIle.cpp,
 				specials/Info.plist.in,
@@ -704,7 +706,6 @@
 				components/Canvas.cpp,
 				components/CanvasImage.cpp,
 				components/ChoiceMenu.cpp,
-				components/Events.cpp,
 				components/Fade.cpp,
 				components/GameplayFlow.cpp,
 				components/Panel.cpp,
@@ -745,7 +746,6 @@
 				renders/TimestampRender.c,
 				renders/VideoRender.c,
 				routing/KtrfAdapter.c,
-				routing/KtrfAssetResolver.c,
 				routing/KtrfRouter.c,
 				routing/KtrfRuntime.c,
 				runtime/BasicGui.cpp,
@@ -756,7 +756,6 @@
 				runtime/Kotonoha.cpp,
 				runtime/KtrfPresentedFrame.cpp,
 				runtime/KtrfSceneTransaction.cpp,
-				runtime/KtrfStateStore.cpp,
 				specials/bundle.cpp,
 				specials/ConfigFIle.cpp,
 				specials/Info.plist.in,
@@ -951,6 +950,24 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				CE018274308DDCF500A04405 /* AVFoundation.framework in Frameworks */,
+				CE018273308DDCF100A04405 /* CoreAudio.framework in Frameworks */,
+				CE01827D308DDD0900A04405 /* QuartzCore.framework in Frameworks */,
+				CE01827B308DDD0000A04405 /* VideoToolbox.framework in Frameworks */,
+				CE018272308DDCF000A04405 /* CoreGraphics.framework in Frameworks */,
+				CE018270308DDCEC00A04405 /* CoreMedia.framework in Frameworks */,
+				CE01826D308DDCE900A04405 /* GLKit.framework in Frameworks */,
+				CE018275308DDCF600A04405 /* AudioToolbox.framework in Frameworks */,
+				CE018277308DDCF900A04405 /* GameController.framework in Frameworks */,
+				CE01827A308DDCFD00A04405 /* OpenGLES.framework in Frameworks */,
+				CE018271308DDCEE00A04405 /* CoreText.framework in Frameworks */,
+				CE018279308DDCFC00A04405 /* UIKit.framework in Frameworks */,
+				CE01827E308DDD0A00A04405 /* MetalFX.framework in Frameworks */,
+				CE018276308DDCF800A04405 /* Accelerate.framework in Frameworks */,
+				CE01826E308DDCE900A04405 /* Foundation.framework in Frameworks */,
+				CE018278308DDCFA00A04405 /* Metal.framework in Frameworks */,
+				CE01826F308DDCEB00A04405 /* CoreVideo.framework in Frameworks */,
+				CE01827C308DDD0800A04405 /* CoreMotion.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1591,7 +1608,8 @@
 				INFOPLIST_KEY_UIRequiredDeviceCapabilities = metal;
 				INFOPLIST_KEY_UIStatusBarHidden = NO;
 				INFOPLIST_KEY_UIStatusBarStyle = UIStatusBarStyleDarkContent;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				IPHONEOS_DEPLOYMENT_TARGET = 27.0;
 				KOTONOHA_HAS_MPV_UPSCALER = 1;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1687,7 +1705,8 @@
 				INFOPLIST_KEY_UIRequiredDeviceCapabilities = metal;
 				INFOPLIST_KEY_UIStatusBarHidden = NO;
 				INFOPLIST_KEY_UIStatusBarStyle = UIStatusBarStyleDarkContent;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				IPHONEOS_DEPLOYMENT_TARGET = 27.0;
 				KOTONOHA_HAS_MPV_UPSCALER = 1;
 				LD_RUNPATH_SEARCH_PATHS = (
