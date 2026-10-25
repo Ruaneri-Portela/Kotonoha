@@ -665,12 +665,15 @@ FodyWeavers.xsd
 
 # End of https://www.toptal.com/developers/gitignore/api/visualstudio,visualstudiocode,androidstudio,c++,java,macos,vcpkg,cmake
 build/
+build-*/
+dist/
 vcpkg_installed/
 zips/
 # Runtime/game assets stay local. Anime4K shaders are redistributable third-party
 # runtime dependencies and are kept with their upstream license/provenance.
 assets/*
 !assets/Anime4K/
+!assets/ArtCNN/
 .research/
 *.ini
 .vscode
