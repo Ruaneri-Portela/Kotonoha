@@ -22,6 +22,7 @@
 #include <Kotonoha/routing/SchoolDaysSystemUi.hpp>
 #include <Kotonoha/routing/SchoolDaysSubtitleTypography.hpp>
 #include <Kotonoha/routing/SchoolDaysTitleProfile.hpp>
+#include <Kotonoha/Main.hpp>
 #include <Kotonoha/debug/DebugUi.hpp>
 #include <Kotonoha/Display.hpp>
 #include <Kotonoha/SchoolDaysImageAssetResolver.hpp>
