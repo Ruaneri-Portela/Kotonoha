@@ -1,10 +1,12 @@
 #include <Kotonoha/Init.hpp>
 #include <Kotonoha/Display.hpp>
 #include <Kotonoha/debug/DebugUi.hpp>
+#include <Kotonoha/mobile/AndroidDisplay.hpp>
 #include <Kotonoha/specials/Upscaling.h>
 #include <Kotonoha/utils/Log.h>
 #include <algorithm>
 #include <cctype>
+#include <cmath>
 #include <cstring>
 #include <imgui.h>
 #include <new>
@@ -316,11 +318,62 @@ bool InitWindow() {
   SDL_WindowFlags windowFlags = global.flags | SDL_WINDOW_RESIZABLE |
                                 SDL_WINDOW_HIDDEN |
                                 SDL_WINDOW_HIGH_PIXEL_DENSITY;
+#if defined(__ANDROID__) || defined(ANDROID)
+  int androidRequestedModeId = 0;
+#endif
 
 #if (defined(__APPLE__) && TARGET_OS_IOS) || defined(__ANDROID__)
   windowFlags |= SDL_WINDOW_FULLSCREEN;
   global.config.fullScreen = true;
   SDL_SetHint(SDL_HINT_ORIENTATIONS, "LandscapeLeft LandscapeRight");
+#if defined(__ANDROID__) || defined(ANDROID)
+  global.config.displayMode = static_cast<int>(DisplayMode::BorderlessFullscreen);
+
+  // Android Display.Mode ids are device/session details. Persist a portable
+  // width/height/refresh tuple and resolve it to the current mode id on launch.
+  const int wantedWidth = global.config.fullscreenSize[0].load();
+  const int wantedHeight = global.config.fullscreenSize[1].load();
+  const float wantedRefresh =
+      static_cast<float>(global.config.fullscreenRefreshMilliHz.load()) / 1000.0f;
+  if (wantedRefresh > 0.0f) {
+    const auto modes = AndroidEnumerateDisplayModes();
+    int currentWidth = 0;
+    int currentHeight = 0;
+    const int currentModeId = AndroidCurrentDisplayModeId();
+    for (const auto &mode : modes) {
+      if (mode.modeId == currentModeId) {
+        currentWidth = mode.width;
+        currentHeight = mode.height;
+        break;
+      }
+    }
+
+    const AndroidDisplayMode *best = nullptr;
+    for (const auto &mode : modes) {
+      if (std::fabs(mode.refreshRate - wantedRefresh) >= 0.05f) continue;
+
+      if (wantedWidth > 0 && wantedHeight > 0) {
+        if (mode.width == wantedWidth && mode.height == wantedHeight) {
+          best = &mode;
+          break;
+        }
+        continue;
+      }
+
+      // A first-run FPS choice must not silently increase the physical panel
+      // resolution.  Prefer the current panel dimensions and use the first
+      // matching refresh only as a fallback for devices that expose no exact
+      // resolution/Hz pair.
+      if (currentWidth > 0 && currentHeight > 0 &&
+          mode.width == currentWidth && mode.height == currentHeight) {
+        best = &mode;
+        break;
+      }
+      if (best == nullptr) best = &mode;
+    }
+    if (best != nullptr) androidRequestedModeId = best->modeId;
+  }
+#endif
 #endif
 
   global.window =
@@ -333,6 +386,19 @@ bool InitWindow() {
   }
   global.flags = SDL_GetWindowFlags(global.window);
 
+#if defined(__ANDROID__) || defined(ANDROID)
+  // Apply the persisted hardware mode only after SDL has created its Android
+  // Surface/window. Applying it before SDL_CreateWindow is racy because SDL's
+  // subsequent window setup rewrites WindowManager.LayoutParams.
+  if (androidRequestedModeId > 0 &&
+      !AndroidRequestDisplayMode(androidRequestedModeId)) {
+    KLOG_WARN(CORE, "Could not restore Android display mode id=%d",
+              androidRequestedModeId);
+  }
+#endif
+
+#if !defined(__ANDROID__) && \
+    !(defined(__APPLE__) && defined(TARGET_OS_IOS) && TARGET_OS_IOS)
   const auto desiredMode = static_cast<DisplayMode>(
       std::clamp(global.config.displayMode.load(), 0, 2));
   const SDL_DisplayID targetDisplay =
@@ -350,6 +416,7 @@ bool InitWindow() {
     global.flags = 0;
     return false;
   }
+#endif
 
 #ifndef KOTONOHA_MOBILE
   InitWindowIcon(global.window, global.config.iconPath != nullptr

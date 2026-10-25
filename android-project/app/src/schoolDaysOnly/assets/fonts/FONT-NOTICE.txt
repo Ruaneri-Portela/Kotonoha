@@ -1,0 +1,27 @@
+Fonts bundled by the dedicated School Days HQ Android package
+=============================================================
+
+All four font files below declare the SIL Open Font License 1.1 in their
+embedded name metadata.  The complete license text is distributed next to
+them as OFL-1.1.txt.
+
+ConcertOne-Regular.ttf
+  Family: Concert One
+  Copyright: Copyright (c) 2011 Johan Kallas (johankallas@gmail.com),
+             Copyright (c) 2011 Mihkel Virkus (mihkelvirkus@gmail.com),
+             with Reserved Font Name Concert.
+
+NotoSans-Regular.ttf
+  Family: Noto Sans
+  Copyright: Copyright 2022 The Noto Project Authors
+             (https://github.com/notofonts/latin-greek-cyrillic)
+
+NotoSansJP-Regular.ttf
+  Family: Noto Sans JP
+  Copyright: (c) 2014-2021 Adobe (http://www.adobe.com/),
+             with Reserved Font Name 'Source'.
+
+YoungSerif-Regular.ttf
+  Family: Young Serif
+  Copyright: Copyright 2023 The Young Serif Project Authors
+             (https://github.com/noirblancrouge/YoungSerif)

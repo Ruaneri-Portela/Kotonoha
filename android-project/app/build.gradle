@@ -2,31 +2,93 @@ plugins {
     id 'com.android.application'
 }
 
+// Keep Ruaneri's multi-game Android harness as the default build.  The
+// distributable School Days HQ package is an explicit opt-in so it can use a
+// dedicated application id, bootstrap/import UI and a smaller native target
+// set without removing any of the other game test targets.
+def schoolDaysOnly = providers.gradleProperty('schoolDaysOnly')
+        .map { it.toBoolean() }
+        .orElse(false)
+        .get()
+
+def vcpkgRoot = System.getenv('VCPKG_ROOT')
+def pinnedNdkVersion = '27.0.12077973'
+def androidNdkHome = System.getenv('ANDROID_NDK_HOME')
+if (schoolDaysOnly) {
+    // Keep Ruaneri's default multi-game Gradle configuration permissive.  The
+    // dedicated distributable is the only variant that requires a reproducible
+    // toolchain path up front.
+    if (!vcpkgRoot) {
+        throw new GradleException('VCPKG_ROOT must point to the vcpkg checkout used by Kotonoha')
+    }
+    if (!androidNdkHome) {
+        throw new GradleException('ANDROID_NDK_HOME must point to Android NDK ' + pinnedNdkVersion)
+    }
+    if (new File(androidNdkHome).name != pinnedNdkVersion) {
+        throw new GradleException('ANDROID_NDK_HOME must use NDK ' + pinnedNdkVersion
+                + ' (got ' + androidNdkHome + ')')
+    }
+}
+
+def vcpkgHostTriplet = System.getenv('VCPKG_HOST_TRIPLET')
+if (!vcpkgHostTriplet) {
+    def os = System.getProperty('os.name').toLowerCase(Locale.ROOT)
+    def arch = System.getProperty('os.arch').toLowerCase(Locale.ROOT)
+    def arm64 = arch.contains('aarch64') || arch.contains('arm64')
+    if (os.contains('windows')) {
+        vcpkgHostTriplet = arm64 ? 'arm64-windows' : 'x64-windows'
+    } else if (os.contains('mac')) {
+        vcpkgHostTriplet = arm64 ? 'arm64-osx' : 'x64-osx'
+    } else {
+        vcpkgHostTriplet = arm64 ? 'arm64-linux' : 'x64-linux'
+    }
+}
+
 android {
     namespace "me.hirameki.kotonoha"
     compileSdk 34
 
     defaultConfig {
+        applicationId schoolDaysOnly
+                ? "me.hirameki.kotonoha.schooldayshq"
+                : "me.hirameki.kotonoha"
         minSdk 28
         versionCode 1
-        versionName "1.0"
+        versionName schoolDaysOnly ? "1.02-test" : "1.0"
         externalNativeBuild {
             cmake {
                 arguments(
-                        "-DCMAKE_TOOLCHAIN_FILE=${System.getenv('VCPKG_ROOT')}/scripts/buildsystems/vcpkg.cmake",
-                        "-DVCPKG_CHAINLOAD_TOOLCHAIN_FILE=${System.getenv('ANDROID_NDK_HOME')}/build/cmake/android.toolchain.cmake",
+                        "-DCMAKE_TOOLCHAIN_FILE=${vcpkgRoot}/scripts/buildsystems/vcpkg.cmake",
+                        "-DVCPKG_CHAINLOAD_TOOLCHAIN_FILE=${androidNdkHome}/build/cmake/android.toolchain.cmake",
+                        "-DVCPKG_HOST_TRIPLET=${vcpkgHostTriplet}",
                         "-DANDROID_STL=c++_shared",
-                        "-DCMAKE_IGNORE_PATH=${System.getenv('ANDROID_NDK_HOME')}/toolchains/llvm/prebuilt/windows-x86_64/lib"
+                        "-DKOTONOHA_ANDROID_SCHOOL_DAYS_ONLY=${schoolDaysOnly ? 'ON' : 'OFF'}",
+                        "-DCMAKE_IGNORE_PATH=${androidNdkHome}/toolchains/llvm/prebuilt/windows-x86_64/lib"
                 )
-                // abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86', 'x86_64' //Outros ABIs
-                abiFilters 'arm64-v8a','x86_64'
+                if (schoolDaysOnly) {
+                    // Commercial/test School Days package ships only the real
+                    // phone ABI. The default multi-game harness retains x86_64
+                    // for Ruaneri's emulator/testing workflow.
+                    abiFilters 'arm64-v8a'
+                } else {
+                    abiFilters 'arm64-v8a', 'x86_64'
+                }
             }
         }
-        targetSdk 33
+        targetSdk schoolDaysOnly ? 34 : 33
     }
 
     buildTypes {
         release {
+            // Test/distributable sideload builds use the same debug keystore as
+            // the current QA package so they can update in place without
+            // deleting the imported 11 GB of game data. A store/release key can
+            // replace this later without changing native optimization flags.
+            if (schoolDaysOnly) {
+                signingConfig signingConfigs.debug
+            }
+            debuggable false
+            jniDebuggable false
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
@@ -35,12 +97,24 @@ android {
     externalNativeBuild {
         cmake {
             path '../../CMakeLists.txt'
+            if (schoolDaysOnly) {
+                version '3.22.1'
+            }
         }
     }
 
     sourceSets.main {
         jniLibs.srcDir 'libs'
-        assets.srcDir '../../assets'
+        manifest.srcFile schoolDaysOnly
+                ? 'src/schoolDaysOnly/AndroidManifest.xml'
+                : 'src/main/AndroidManifest.xml'
+        if (schoolDaysOnly) {
+            java.srcDir 'src/schoolDaysOnly/java'
+            res.srcDir 'src/schoolDaysOnly/res'
+        }
+        assets.srcDirs = schoolDaysOnly
+                ? ['src/schoolDaysOnly/assets', '../../assets', '../../games/school-days/assets']
+                : ['../../assets']
     }
 
     lint {
@@ -49,7 +123,7 @@ android {
     buildFeatures {
         viewBinding true
     }
-    ndkVersion '27.0.12077973'
+    ndkVersion pinnedNdkVersion
     buildToolsVersion '37.0.0'
 }
 

@@ -1,6 +1,11 @@
 {
   "builtin-baseline": "0c2a9ace1964b818b15f7ae50ba1c42404918a7b",
   "dependencies": [
+    {
+      "name": "pkgconf",
+      "host": true,
+      "platform": "android"
+    },
     "libass",
     "sdl3",
     {
@@ -34,7 +39,7 @@
     },
     {
       "name": "fontconfig",
-      "platform": "android | ios | osx"
+      "platform": "ios | osx"
     },
     {
       "name": "libunibreak",

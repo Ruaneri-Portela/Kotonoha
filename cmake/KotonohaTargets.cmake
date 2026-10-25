@@ -149,6 +149,13 @@ if(ANDROID)
     target_compile_options(KotonohaEngine PRIVATE ${LIBASS_CFLAGS_OTHER})
     target_link_options(KotonohaEngine PUBLIC ${LIBASS_LDFLAGS_OTHER})
     target_compile_definitions(KotonohaEngine PUBLIC KOTONOHA_HAS_MPV_UPSCALER=1)
+    if(KOTONOHA_ANDROID_SCHOOL_DAYS_ONLY)
+        # Dedicated mobile packages may choose a conservative, explicitly
+        # enabled first-run shader preset. Persisted user config still overrides
+        # these defaults after the config file is loaded.
+        target_compile_definitions(KotonohaEngine PUBLIC
+            KOTONOHA_MOBILE_LOWEST_UPSCALER_DEFAULT=1)
+    endif()
 
     target_link_libraries(KotonohaEngine PUBLIC
         SDL3_shared_bundle

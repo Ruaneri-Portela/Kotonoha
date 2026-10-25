@@ -200,7 +200,8 @@ void TestPhysicalVideo(const fs::path& file) {
         Check(video.Prepare(&event, file.string().c_str()),
               "synthetic WMV prepare failed");
         Check(Video::Render(nullptr, renderer, nullptr, &video, nullptr) ==
-              KOTONOHA_SCENE_NULL, "prepared WMV presented before activation");
+              KOTONOHA_SCENE_WAITING,
+              "due prepared WMV should wait invisibly until activation");
         Check(video.Activate(&event), "WMV activation failed");
         bool sawFrame = false, sawEof = false;
         SDL_Delay(10); // Let the demux queue fill without advancing logical time.
@@ -227,6 +228,78 @@ void TestPhysicalVideo(const fs::path& file) {
         video.Reset();
         Check(!video.Activate(&event), "reset retained decoder");
     }
+    SDL_DestroyRenderer(renderer);
+    SDL_DestroySurface(surface);
+    Kotonoha_timeDestroy(clock);
+}
+
+void TestTerminalFrameRetentionPolicy(const fs::path& file) {
+    using namespace Kotonoha;
+    Kotonoha_time* clock = Kotonoha_timeNew(false);
+    Check(clock != nullptr, "retention policy clock");
+    Kotonoha_timePause(clock);
+    Kotonoha_timeSet(clock, 0);
+
+    SDL_Surface* surface = SDL_CreateSurface(128, 96, SDL_PIXELFORMAT_RGBA32);
+    SDL_Renderer* renderer = surface ? SDL_CreateSoftwareRenderer(surface) : nullptr;
+    Check(renderer != nullptr, "retention policy software renderer");
+
+    {
+        Video video(clock);
+        Kotonoha_orsEvent current{}, future{};
+        current.command = PLAY_MOVIE;
+        current.startTick = 0;
+        current.endTick = 12;       // 500 ms
+        future.command = PLAY_MOVIE;
+        future.startTick = 100;     // Authored gap before the next movie.
+        future.endTick = 112;
+
+        Check(video.Prepare(&current, file.string().c_str()),
+              "retention current prepare failed");
+        Check(video.Prepare(&future, file.string().c_str()),
+              "retention future prepare failed");
+        Check(video.Activate(&current), "retention current activate failed");
+        SDL_Delay(10);
+        (void)Video::Render(nullptr, renderer, nullptr, &video, nullptr);
+
+        Kotonoha_timeSet(clock, Kotonoha_SceneTickToMillisecondsCeil(12));
+        Check(Video::Render(nullptr, renderer, nullptr, &video, nullptr) ==
+                  KOTONOHA_SCENE_DRAW_LAST,
+              "movie END did not publish terminal frame");
+        Check(Video::Render(nullptr, renderer, nullptr, &video, nullptr) ==
+                  KOTONOHA_SCENE_COMPLETE,
+              "future prepared movie retained stale frame across authored gap");
+    }
+
+    {
+        Video video(clock);
+        Kotonoha_orsEvent current{}, adjacent{};
+        current.command = PLAY_MOVIE;
+        current.startTick = 0;
+        current.endTick = 12;
+        adjacent.command = PLAY_MOVIE;
+        adjacent.startTick = 12;    // Same-tick WMV -> WMV handoff.
+        adjacent.endTick = 24;
+
+        Kotonoha_timeSet(clock, 0);
+        Check(video.Prepare(&current, file.string().c_str()),
+              "adjacent current prepare failed");
+        Check(video.Prepare(&adjacent, file.string().c_str()),
+              "adjacent next prepare failed");
+        Check(video.Activate(&current), "adjacent current activate failed");
+        SDL_Delay(10);
+        (void)Video::Render(nullptr, renderer, nullptr, &video, nullptr);
+
+        Kotonoha_timeSet(clock, Kotonoha_SceneTickToMillisecondsCeil(12));
+        Check(Video::Render(nullptr, renderer, nullptr, &video, nullptr) ==
+                  KOTONOHA_SCENE_DRAW_LAST,
+              "adjacent movie END did not publish terminal frame");
+        Check(Video::Render(nullptr, renderer, nullptr, &video, nullptr) ==
+                  KOTONOHA_SCENE_WAITING,
+              "same-tick future movie did not bridge terminal frame while activation lagged");
+        Check(video.Activate(&adjacent), "adjacent next activate failed");
+    }
+
     SDL_DestroyRenderer(renderer);
     SDL_DestroySurface(surface);
     Kotonoha_timeDestroy(clock);
@@ -308,6 +381,7 @@ int main(int argc, char** argv) {
             "kotonoha_g2_5_synthetic.wmv";
         if (MakeSyntheticWmv(fixture)) {
             TestPhysicalVideo(fixture);
+            TestTerminalFrameRetentionPolicy(fixture);
             TestHighRateVideoDiscontinuity(fixture);
             std::error_code error; fs::remove(fixture, error);
         } else {

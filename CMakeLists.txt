@@ -43,6 +43,11 @@ option(KOTONOHA_MPV_UPSCALER_RUNTIME_TESTS
     OFF
 )
 
+option(KOTONOHA_ANDROID_SCHOOL_DAYS_ONLY
+    "Build only the Android targets required by the dedicated School Days HQ app"
+    OFF
+)
+
 # ==============================================================================
 # Languages and language standards
 # ==============================================================================
@@ -171,7 +176,7 @@ include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/KotonohaApp.cmake")
 # ==============================================================================
 # Target libKotonoha.so para Android
 # ==============================================================================
-if(ANDROID)
+if(ANDROID AND NOT KOTONOHA_ANDROID_SCHOOL_DAYS_ONLY)
     add_library(Kotonoha SHARED "${CMAKE_CURRENT_SOURCE_DIR}/games/generic/src/Main.cpp")
     set_target_properties(Kotonoha PROPERTIES OUTPUT_NAME Kotonoha)
     target_link_libraries(Kotonoha PRIVATE KotonohaRuntime)
@@ -190,9 +195,11 @@ endif()
 
 add_subdirectory(games/generic)
 add_subdirectory(games/school-days)
-add_subdirectory(games/zero-no-tsukaima)
-add_subdirectory(games/snow-radish-vacation)
-add_subdirectory(games/doki-doki-literature-club)
+if(NOT (ANDROID AND KOTONOHA_ANDROID_SCHOOL_DAYS_ONLY))
+    add_subdirectory(games/zero-no-tsukaima)
+    add_subdirectory(games/snow-radish-vacation)
+    add_subdirectory(games/doki-doki-literature-club)
+endif()
 
 if((KOTONOHA_ROUTER_TESTS OR KOTONOHA_ORS_PARSER_TESTS) AND NOT ANDROID)
     include_directories("${SCHOOL_DAYS_INCLUDE_DIR}")

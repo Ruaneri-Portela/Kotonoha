@@ -81,6 +81,14 @@ void Gameplay::UpdateCanvasSize(SDL_Window *window, SDL_Renderer *renderer) {
 
   canvasPlace = place;
   drawCanvas->UpdateCanva(nullptr, -1, place);
+  const int renderScalePercent =
+      gameContext_ != nullptr
+          ? std::clamp(gameContext_->config.renderScalePercent.load(), 25, 100)
+          : 100;
+  const float renderScale = static_cast<float>(renderScalePercent) / 100.0f;
+  drawCanvas->UpdateTargetSize(
+      std::max(1, static_cast<int>(std::lround(place.w * renderScale))),
+      std::max(1, static_cast<int>(std::lround(place.h * renderScale))));
   if (prompt != nullptr) {
     prompt->SetViewport(place);
   }

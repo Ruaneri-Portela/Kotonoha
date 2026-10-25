@@ -172,14 +172,14 @@ Kotonoha_Scene_Status Video::RenderCallback(KOTONOHA_SCENE_CALL) {
     }
 
     if (!it->active) {
-      if (video->texture != nullptr) {
-        bool ignoredTextureChanged = false;
-        GetDisplayTexture(render, video, &ignoredTextureChanged);
-      }
+      // PREPARE is intentionally visually silent.  Do not spend GPU time
+      // upscaling a cached opening texture before the authored START; the first
+      // active frame will populate the upscale cache on demand.
       ++it; /* PREPARE stays physically cached but visually silent. */
       continue;
     }
 
+    const Uint64 textureSerialBefore = video->textureSerial;
     const Kotonoha_Scene_Status status =
         KotonohaVideoRenderProcess(video, render);
     bool upscaledTextureChanged = false;
@@ -187,6 +187,19 @@ Kotonoha_Scene_Status Video::RenderCallback(KOTONOHA_SCENE_CALL) {
         GetDisplayTexture(render, video, &upscaledTextureChanged);
     switch (status) {
     case KOTONOHA_SCENE_DRAW:
+      // VideoRender may report DRAW simply because a previously uploaded
+      // texture is still valid (EOF, future-frame wait, short starvation).
+      // When no decoder frame and no upscaler output changed, let Canvas reuse
+      // its retained dirtyFrame instead of redrawing and snapshotting the same
+      // pixels every display vsync.
+      if (!video->decoderEof && video->textureSerial == textureSerialBefore &&
+          !upscaledTextureChanged) {
+        if (returnStatus != KOTONOHA_SCENE_DRAW &&
+            returnStatus != KOTONOHA_SCENE_DRAW_LAST)
+          returnStatus = KOTONOHA_SCENE_WAITING;
+        ++it;
+        break;
+      }
       if (displayTexture != nullptr)
         SDL_RenderTexture(render, displayTexture, nullptr, nullptr);
       returnStatus = KOTONOHA_SCENE_DRAW;
@@ -233,11 +246,47 @@ Kotonoha_Scene_Status Video::RenderCallback(KOTONOHA_SCENE_CALL) {
   }
 
   const bool empty = here->videos.empty();
+  bool hasActive = false;
+  bool hasDueInactive = false;
+  const Kotonoha_SceneTick currentTick =
+      here->timeManager != nullptr
+          ? Kotonoha_MillisecondsToSceneTick(KotonohaTimeGet(here->timeManager))
+          : 0;
+  for (const auto &item : here->videos) {
+    if (item.active) {
+      hasActive = true;
+      continue;
+    }
+    if (item.event != nullptr && item.event->startTick <= currentTick &&
+        currentTick < item.event->endTick) {
+      /*
+       * The authored next movie is already due but the event worker has not
+       * activated it yet.  Preserve the previous terminal frame while that
+       * same-tick handoff catches up; once the pending movie becomes active,
+       * its normal WAITING/DRAW result owns retention.
+       */
+      hasDueInactive = true;
+    }
+  }
   SDL_UnlockMutex(here->lock);
 
   if (empty && returnStatus != KOTONOHA_SCENE_DRAW_LAST &&
       returnStatus != KOTONOHA_SCENE_FATAL_ERROR)
     return KOTONOHA_SCENE_COMPLETE;
+  if (!hasActive && returnStatus == KOTONOHA_SCENE_NULL) {
+    /*
+     * PREPARE intentionally keeps future decoders in `videos`.  Their mere
+     * presence must not keep Canvas' DRAW_LAST frame alive across an authored
+     * gap (for example WMV -> CreateBG -> later WMV).  That stale video layer
+     * otherwise covers the image layer until the future movie starts, making
+     * the scene look frozen while audio/text continue.
+     *
+     * Only a movie whose authored window is already due may bridge the old
+     * terminal frame while activation catches up.
+     */
+    return hasDueInactive ? KOTONOHA_SCENE_WAITING
+                          : KOTONOHA_SCENE_COMPLETE;
+  }
   return returnStatus;
 }
 
