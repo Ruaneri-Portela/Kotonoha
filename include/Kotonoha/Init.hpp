@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Kotonoha/Kotonoha.hpp>
+#include <Kotonoha/specials/Upscaling.h>
 #include <SDL3/SDL.h>
 #include <SDL3_ttf/SDL_ttf.h>
 #include <string>
@@ -53,6 +54,15 @@ SDL_AppResult EngineMasterEvent(Kotonoha *app, SDL_Event *event);
 // True when the debug UI owns the event; game-side handlers must skip it.
 bool EngineMasterCapturedByDebugUi(const SDL_Event *event);
 SDL_AppResult EngineMasterMain(Kotonoha *app, Gameplay **running);
+
+// Runtime-owned upscaler state. Desktop games must use this boundary instead of
+// calling the static KotonohaEngine copy directly: KotonohaRuntime.dll and a
+// consumer may otherwise each own separate file-static upscaler globals.
+KOTONOHA_RUNTIME_DATA bool RuntimeUpscalingEnabled();
+KOTONOHA_RUNTIME_DATA void RuntimeSetUpscalingEnabled(bool enabled);
+KOTONOHA_RUNTIME_DATA Kotonoha_UpscalerPreset RuntimeUpscalingPreset();
+KOTONOHA_RUNTIME_DATA const char *RuntimeUpscalingPresetName();
+KOTONOHA_RUNTIME_DATA void RuntimeSetUpscalingPreset(Kotonoha_UpscalerPreset preset);
 
 bool BasicGuiInit(Kotonoha_Game &gameContext, std::vector<Uint8> font);
 void BasicGuiShutdown();

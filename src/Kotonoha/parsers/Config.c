@@ -489,7 +489,16 @@ bool KotonohaConfigLoad(Kotonoha_Config *config, const char *path, int argc,
   // Define os valores padrão
   config->windowSize[0] = 1280;
   config->windowSize[1] = 720;
+  config->displayMode = 0;
+  config->displayIndex = 0;
+  config->fullscreenSize[0] = 0;
+  config->fullscreenSize[1] = 0;
+  config->fullscreenRefreshMilliHz = 0;
+  config->contentAspectPreference = 0;
   config->scalerFactor = 1.0f;
+  // Backward-compatible default for existing Kotonoha.ini files. Individual
+  // application packages may opt into another preset explicitly.
+  config->upscalerPreset = 0;
   config->mediaCacheSeconds = 2.0f;
   config->debugUiScale = 1.0f;
   config->cursorSize = 32;

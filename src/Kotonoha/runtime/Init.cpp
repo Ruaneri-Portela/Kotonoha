@@ -1,4 +1,5 @@
 #include <Kotonoha/Init.hpp>
+#include <Kotonoha/Display.hpp>
 #include <Kotonoha/debug/DebugUi.hpp>
 #include <Kotonoha/specials/Upscaling.h>
 #include <Kotonoha/utils/Log.h>
@@ -7,6 +8,7 @@
 #include <cstring>
 #include <imgui.h>
 #include <new>
+#include <filesystem>
 #if defined(__APPLE__)
 #include <TargetConditionals.h>
 #endif
@@ -19,6 +21,28 @@ namespace {
 bool engineMasterActive = false;
 bool sdlInitialized = false;
 bool ttfInitialized = false;
+}
+
+bool RuntimeUpscalingEnabled() { return KotonohaUpscalingIsEnabled(); }
+
+void RuntimeSetUpscalingEnabled(bool enabled) {
+  KotonohaUpscalingSetEnabled(enabled);
+  global.config.upscalingEnabled = enabled;
+  global.config.dirtyConfig = true;
+}
+
+Kotonoha_UpscalerPreset RuntimeUpscalingPreset() {
+  return KotonohaUpscalingGetPreset();
+}
+
+const char *RuntimeUpscalingPresetName() {
+  return KotonohaUpscalingGetPresetName(KotonohaUpscalingGetPreset());
+}
+
+void RuntimeSetUpscalingPreset(Kotonoha_UpscalerPreset preset) {
+  KotonohaUpscalingSetPreset(preset);
+  global.config.upscalerPreset = static_cast<int>(KotonohaUpscalingGetPreset());
+  global.config.dirtyConfig = true;
 }
 
 void CleanupGlobalResources() {
@@ -82,7 +106,12 @@ SDL_AppResult EngineMasterInit(Kotonoha **app, int argc, char *argv[]) {
     return SDL_APP_FAILURE;
   }
 
-  if (!KotonohaConfigLoad(&global.config, "Kotonoha.ini", argc, argv)) {
+  std::filesystem::path configPath("Kotonoha.ini");
+  if (const char *basePath = SDL_GetBasePath(); basePath != nullptr && *basePath != '\0') {
+    configPath = std::filesystem::path(basePath) / "Kotonoha.ini";
+  }
+  const std::string configPathUtf8 = configPath.lexically_normal().string();
+  if (!KotonohaConfigLoad(&global.config, configPathUtf8.c_str(), argc, argv)) {
     SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
                  "Failed to load Kotonoha configuration");
     EngineMasterShutdown(app);
@@ -151,12 +180,21 @@ void EngineMasterShutdown(Kotonoha **app) {
     return;
   }
 
+  // Persist generic display/upscaling/window settings on every orderly exit,
+  // not only when the developer settings window happened to press Save.
+  if (global.config.configFilePath != nullptr && ImGui::GetCurrentContext() != nullptr) {
+    KotonohaConfigSave(&global.config);
+  }
+
+  // Debug/ImGui and shader upscalers own renderer/backend resources. Tear them
+  // down while the SDL renderer/OpenGL context still exists; the Kotonoha
+  // destructor destroys that renderer as part of gameContext.
+  Debug::Shutdown();
+  KotonohaUpscalingInitShutdown();
   if (app != nullptr && *app != nullptr) {
     delete *app;
     *app = nullptr;
   }
-  Debug::Shutdown();
-  KotonohaUpscalingInitShutdown();
   CleanupGlobalResources();
   KotonohaConfigFree(&global.config);
 
@@ -294,8 +332,16 @@ bool InitWindow() {
   }
   global.flags = SDL_GetWindowFlags(global.window);
 
-  if (global.config.fullScreen &&
-      !SetDisplay(global, DisplayMode::BorderlessFullscreen)) {
+  const auto desiredMode = static_cast<DisplayMode>(
+      std::clamp(global.config.displayMode.load(), 0, 2));
+  const SDL_DisplayID targetDisplay =
+      ResolveDisplayIndex(global.config.displayIndex.load());
+  const float requestedRefresh =
+      static_cast<float>(global.config.fullscreenRefreshMilliHz.load()) / 1000.0f;
+  if (desiredMode != DisplayMode::Windowed &&
+      !SetDisplay(global, desiredMode, targetDisplay,
+                  global.config.fullscreenSize[0].load(),
+                  global.config.fullscreenSize[1].load(), requestedRefresh)) {
     KLOG_ERROR(CORE, "Couldn't apply configured fullscreen mode: %s",
                SDL_GetError());
     SDL_DestroyWindow(global.window);

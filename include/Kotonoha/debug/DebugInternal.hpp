@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 // Private header shared by the debug UI translation units (src/Kotonoha/debug/**).
 // The public entry points live in <Kotonoha/debug/DebugUi.hpp>.
@@ -109,7 +109,7 @@ void DrawAboutFields();
 void DrawAboutWindow();
 void DrawSettingsFields(Kotonoha_Config *cfg, Kotonoha_Game &context);
 void DrawEngineSettingsWindow(Kotonoha_Game &context);
-void DrawWindowMenu(void (*extension)(void *), void *userdata);
+void DrawWindowMenu(void (*extension)(void *, ImGuiContext *), void *userdata);
 bool DrawAuxiliaryWindows(::Kotonoha::Kotonoha *game,
                           ::Kotonoha::Gameplay *play,
                           Kotonoha_Game &context, bool forceOpenScenes,

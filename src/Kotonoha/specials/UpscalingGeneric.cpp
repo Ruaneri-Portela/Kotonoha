@@ -8,9 +8,14 @@ namespace Kotonoha::Detail {
 
 static float g_upscalingFactor = 1.0f;
 static bool g_upscalingEnabled = true;
+static Kotonoha_UpscalerPreset g_upscalingPreset =
+    KOTONOHA_UPSCALER_PRESET_LEGACY_ANIME4K;
 static Uint64 g_upscalingRevision = 1;
 static Uint64 g_failedUpscalerRevision = 0;
 static bool g_loggedUnavailableBackend = false;
+#if defined(KOTONOHA_HAS_MPV_UPSCALER)
+static Uint64 g_observedMpvRetryDeadlineMs = 0;
+#endif
 
 static void AdvanceUpscalingRevision() {
   ++g_upscalingRevision;
@@ -165,7 +170,11 @@ using Kotonoha::Detail::g_loggedUnavailableBackend;
 using Kotonoha::Detail::g_upscalerType;
 using Kotonoha::Detail::g_upscalingEnabled;
 using Kotonoha::Detail::g_upscalingFactor;
+using Kotonoha::Detail::g_upscalingPreset;
 using Kotonoha::Detail::g_upscalingRevision;
+#if defined(KOTONOHA_HAS_MPV_UPSCALER)
+using Kotonoha::Detail::g_observedMpvRetryDeadlineMs;
+#endif
 
 extern "C" {
 
@@ -176,7 +185,68 @@ void KotonohaUpscalingSetEnabled(bool enabled) {
     AdvanceUpscalingRevision();
   }
 }
-Uint64 KotonohaUpscalingGetRevision(void) { return g_upscalingRevision; }
+
+Kotonoha_UpscalerPreset KotonohaUpscalingGetPreset(void) {
+  return g_upscalingPreset;
+}
+
+const char *KotonohaUpscalingGetPresetName(Kotonoha_UpscalerPreset preset) {
+  switch (preset) {
+  case KOTONOHA_UPSCALER_PRESET_ARTCNN_C4F16:
+    return "Anime Light (ArtCNN C4F16)";
+  case KOTONOHA_UPSCALER_PRESET_ARTCNN_C4F16_DS:
+    return "Anime Clean (ArtCNN C4F16 DS)";
+  case KOTONOHA_UPSCALER_PRESET_ARTCNN_C4F32:
+    return "Anime Quality (ArtCNN C4F32)";
+  case KOTONOHA_UPSCALER_PRESET_LEGACY_ANIME4K:
+  default:
+    return "Legacy Anime4K B-S";
+  }
+}
+
+void KotonohaUpscalingSetPreset(Kotonoha_UpscalerPreset preset) {
+  if (preset < KOTONOHA_UPSCALER_PRESET_LEGACY_ANIME4K ||
+      preset >= KOTONOHA_UPSCALER_PRESET_COUNT) {
+    preset = KOTONOHA_UPSCALER_PRESET_LEGACY_ANIME4K;
+  }
+  if (g_upscalingPreset == preset) {
+    return;
+  }
+  g_upscalingPreset = preset;
+#if defined(KOTONOHA_HAS_MPV_UPSCALER)
+  KotonohaMPVUpscalerSetPreset(static_cast<int>(preset));
+#endif
+  // Static image/Canvas caches are keyed by this revision. A model switch must
+  // rebuild them even when their source texture/serial has not changed.
+  AdvanceUpscalingRevision();
+}
+
+void KotonohaUpscalingSetCustomShaderFiles(const char *files) {
+#if defined(KOTONOHA_HAS_MPV_UPSCALER)
+  KotonohaMPVUpscalerSetFiles(files);
+#else
+  (void)files;
+#endif
+  AdvanceUpscalingRevision();
+}
+Uint64 KotonohaUpscalingGetRevision(void) {
+#if defined(KOTONOHA_HAS_MPV_UPSCALER)
+  if (g_upscalerType == KOTONOHA_UPSCALER_MPV_COMPATIBLE) {
+    const Uint64 retryDeadline = KotonohaMPVUpscalerRetryDeadlineMs();
+    if (retryDeadline == 0) {
+      g_observedMpvRetryDeadlineMs = 0;
+    } else if (retryDeadline != g_observedMpvRetryDeadlineMs &&
+               SDL_GetTicks() >= retryDeadline) {
+      // A cached static texture may currently contain the temporary SDL copy.
+      // Advance the generic revision exactly once for this retry deadline so
+      // CanvasImage/Video re-enter the backend when the retry becomes due.
+      g_observedMpvRetryDeadlineMs = retryDeadline;
+      AdvanceUpscalingRevision();
+    }
+  }
+#endif
+  return g_upscalingRevision;
+}
 
 bool KotonohaUpscalingInit(SDL_Renderer *renderer, const char *name,
                            Kotonoha_Config *config) {
@@ -185,6 +255,15 @@ bool KotonohaUpscalingInit(SDL_Renderer *renderer, const char *name,
   }
   g_upscalingEnabled = config->upscalingEnabled;
   g_upscalingFactor = config->scalerFactor;
+  const int configuredPreset = config->upscalerPreset.load();
+  g_upscalingPreset =
+      configuredPreset >= KOTONOHA_UPSCALER_PRESET_LEGACY_ANIME4K &&
+              configuredPreset < KOTONOHA_UPSCALER_PRESET_COUNT
+          ? static_cast<Kotonoha_UpscalerPreset>(configuredPreset)
+          : KOTONOHA_UPSCALER_PRESET_LEGACY_ANIME4K;
+#if defined(KOTONOHA_HAS_MPV_UPSCALER)
+  KotonohaMPVUpscalerSetPreset(static_cast<int>(g_upscalingPreset));
+#endif
   AdvanceUpscalingRevision();
 
   if (name != NULL && SDL_strcasecmp(name, "Auto") != 0) {
@@ -245,8 +324,17 @@ bool KotonohaUpscalingInit(SDL_Renderer *renderer, const char *name,
                 rendererName, g_upscalingEnabled ? 1 : 0, g_upscalingFactor);
       return true;
     }
+    // Keep the selected backend alive after a transient initialization failure.
+    // MPVCompatibleUpscaler owns a bounded retry/fallback path; changing the
+    // generic type to NONE here would prevent that retry path from ever being
+    // called again when an OpenGL context becomes available later.
+    KLOG_WARN(UPSCALER,
+              "MPVCompatibleUpscaler initialization failed; using SDL texture "
+              "scaling while the backend retries.");
+    return true;
+#else
+    KLOG_WARN(UPSCALER, "MPVCompatibleUpscaler is not available in this build.");
 #endif
-    KLOG_WARN(UPSCALER, "MPVCompatibleUpscaler initialization failed.");
   }
 
   KLOG_WARN(UPSCALER,

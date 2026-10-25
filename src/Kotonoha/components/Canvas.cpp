@@ -26,16 +26,34 @@ static void DestroyCanvasItemTextures(CanvasItem &item) {
   item.keepLastFrame = false;
 }
 
-static bool CaptureDirtyFrame(SDL_Renderer *render, CanvasItem &item) {
-  if (item.dirtyFrame == nullptr) {
-    float width = 0.0f;
-    float height = 0.0f;
-    if (!SDL_GetTextureSize(item.target, &width, &height)) {
-      KLOG_ERROR(RENDER, "Failed to get canvas texture dimensions: %s",
-                 SDL_GetError());
-      return false;
-    }
+static void DestroyCanvasItemTarget(CanvasItem &item) {
+  if (item.target != nullptr) {
+    SDL_DestroyTexture(item.target);
+    item.target = nullptr;
+  }
+}
 
+static bool CaptureDirtyFrame(SDL_Renderer *render, CanvasItem &item) {
+  float width = 0.0f;
+  float height = 0.0f;
+  if (!SDL_GetTextureSize(item.target, &width, &height)) {
+    KLOG_ERROR(RENDER, "Failed to get canvas texture dimensions: %s",
+               SDL_GetError());
+    return false;
+  }
+
+  if (item.dirtyFrame != nullptr) {
+    float dirtyWidth = 0.0f;
+    float dirtyHeight = 0.0f;
+    if (!SDL_GetTextureSize(item.dirtyFrame, &dirtyWidth, &dirtyHeight) ||
+        dirtyWidth != width || dirtyHeight != height) {
+      SDL_DestroyTexture(item.dirtyFrame);
+      item.dirtyFrame = nullptr;
+      item.hasDirtyFrame = false;
+    }
+  }
+
+  if (item.dirtyFrame == nullptr) {
     item.dirtyFrame = SDL_CreateTexture(
         render, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET,
         static_cast<int>(width), static_cast<int>(height));
@@ -128,6 +146,22 @@ void Canvas::UnregisterCanva(
                     drawingList.end());
 }
 
+void Canvas::UnregisterCanvaUserData(void *userData) {
+  if (userData == nullptr) return;
+
+  for (auto &item : drawingList) {
+    if (item.userData == userData) {
+      DestroyCanvasItemTextures(item);
+    }
+  }
+
+  drawingList.erase(std::remove_if(drawingList.begin(), drawingList.end(),
+                                   [userData](const CanvasItem &item) {
+                                     return item.userData == userData;
+                                   }),
+                    drawingList.end());
+}
+
 void Canvas::UpdateCanva(
     Kotonoha_Scene_Status (*drawingPoint)(KOTONOHA_SCENE_CALL), Sint16 zIndex,
     SDL_FRect place) {
@@ -138,8 +172,7 @@ void Canvas::UpdateCanva(
       continue;
     }
 
-    if ((item.place.w != place.w || item.place.h != place.h) &&
-        !item.keepLastFrame) {
+    if (item.place.w != place.w || item.place.h != place.h) {
       item.swapTexture = true;
     }
 
@@ -196,7 +229,10 @@ SDL_AppResult Canvas::RenderCanvas(SDL_Window *window, SDL_Renderer *render) {
     }
 
     if (item.swapTexture) {
-      DestroyCanvasItemTextures(item);
+      // Resize the live render target immediately, but keep a retained
+      // DRAW_LAST frame available until the callback produces a frame at the
+      // new size.  CaptureDirtyFrame will recreate dirtyFrame once that happens.
+      DestroyCanvasItemTarget(item);
       item.swapTexture = false;
     }
 
@@ -227,6 +263,18 @@ SDL_AppResult Canvas::RenderCanvas(SDL_Window *window, SDL_Renderer *render) {
     const Kotonoha_Scene_Status result =
         item.drawingPoint(window, render, item.userData, item.target);
     item.lastStatus = result;
+
+    if (result == KOTONOHA_SCENE_FATAL_ERROR) {
+      // A component has declared its render state unusable.  Do not silently
+      // convert that into a successful frame; restore the backbuffer and let
+      // Gameplay propagate the failure to its owner.
+      if (!SDL_SetRenderTarget(render, nullptr)) {
+        KLOG_ERROR(RENDER,
+                   "Failed to restore backbuffer after fatal canvas callback: %s",
+                   SDL_GetError());
+      }
+      return SDL_APP_FAILURE;
+    }
     const bool hasNewFrame = result == KOTONOHA_SCENE_DRAW ||
                              result == KOTONOHA_SCENE_DRAW_LAST ||
                              result == KOTONOHA_SCENE_DRAW_OVERLAYED;

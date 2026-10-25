@@ -896,7 +896,7 @@ static void DrawPlayback(::Kotonoha::Kotonoha *game,
     play->SeekBackward(5000);
   ImGui::SameLine();
   if (ImGui::Button(">> 5s", ImVec2(buttonWidth, 0)))
-    play->SeekForward(5000);
+    play->SetTime(std::min(play->GetTime() + 5.0f, play->GetLastTime()));
   ImGui::SameLine();
   bool paused = context.config.paused.load();
   if (ImGui::Checkbox("Pause", &paused)) {

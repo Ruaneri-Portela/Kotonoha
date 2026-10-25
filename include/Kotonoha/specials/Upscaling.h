@@ -15,6 +15,17 @@ typedef enum Kotonoha_UpscalerType {
   KOTONOHA_UPSCALER_METALFX = 2
 } Kotonoha_UpscalerType;
 
+// Player-facing model/pipeline choice. This is intentionally separate from the
+// backend type above: MPVCompatible/OpenGL can execute several anime-oriented
+// shader families while MetalFX remains a backend implementation detail.
+typedef enum Kotonoha_UpscalerPreset {
+  KOTONOHA_UPSCALER_PRESET_LEGACY_ANIME4K = 0,
+  KOTONOHA_UPSCALER_PRESET_ARTCNN_C4F16 = 1,
+  KOTONOHA_UPSCALER_PRESET_ARTCNN_C4F16_DS = 2,
+  KOTONOHA_UPSCALER_PRESET_ARTCNN_C4F32 = 3,
+  KOTONOHA_UPSCALER_PRESET_COUNT = 4
+} Kotonoha_UpscalerPreset;
+
 typedef struct Kotonoha_UpscaledTexture {
   SDL_Texture *intermediate;
   SDL_Texture *output;
@@ -45,6 +56,12 @@ bool Kotonoha_SetUpscalerByName(const char *name);
 // Global on/off switch for any upscaler
 bool KotonohaUpscalingIsEnabled(void);
 void KotonohaUpscalingSetEnabled(bool enabled);
+Kotonoha_UpscalerPreset KotonohaUpscalingGetPreset(void);
+const char *KotonohaUpscalingGetPresetName(Kotonoha_UpscalerPreset preset);
+void KotonohaUpscalingSetPreset(Kotonoha_UpscalerPreset preset);
+// Advanced mpv/libplacebo shader override. Changing it invalidates generic
+// texture caches just like changing a player-facing preset.
+void KotonohaUpscalingSetCustomShaderFiles(const char *files);
 
 // Upscale Factor (e.g. 1.0f = disabled, 1.5f, 2.0f)
 float KotonohaUpscalingGetFactor(void);

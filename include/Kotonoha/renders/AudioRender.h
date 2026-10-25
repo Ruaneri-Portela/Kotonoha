@@ -65,7 +65,8 @@ typedef struct Kotonoha_audioDecode {
   bool hasTargetTime;
   bool decoderFlushSent;
   bool decoderEof;
-  volatile bool oneShotDone;
+  /* Written by SDL's audio callback and observed by gameplay/UI threads. */
+  SDL_AtomicInt oneShotDone;
 
   /* Per-decoder rate control keeps the global Sound mixer (and UI audio
    * outside a Gameplay Audio instance) untouched. */

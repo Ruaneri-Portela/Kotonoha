@@ -59,7 +59,7 @@ static void SettingsReadLine(ImGuiContext *ctx,
 
   int w, h;
   float factor, cache, debugUiScale;
-  int full, vsync, fps, ts, ui, skip, upscaling, ival;
+  int full, vsync, fps, ts, ui, skip, upscaling, ival, mode, display;
   float fval;
 
   if (SDL_sscanf(line, "WindowSize=%d,%d", &w, &h) == 2) {
@@ -69,6 +69,23 @@ static void SettingsReadLine(ImGuiContext *ctx,
     config->scalerFactor = factor;
   } else if (SDL_sscanf(line, "FullScreen=%d", &full) == 1) {
     config->fullScreen = (bool)full;
+    config->displayMode = full ? 2 : 0;
+  } else if (SDL_sscanf(line, "DisplayMode=%d", &mode) == 1) {
+    if (mode >= 0 && mode <= 2) {
+      config->displayMode = mode;
+      config->fullScreen = mode != 0;
+    }
+  } else if (SDL_sscanf(line, "DisplayIndex=%d", &display) == 1) {
+    if (display >= 0) config->displayIndex = display;
+  } else if (SDL_sscanf(line, "FullscreenSize=%d,%d", &w, &h) == 2) {
+    if (w > 0 && h > 0) {
+      config->fullscreenSize[0] = w;
+      config->fullscreenSize[1] = h;
+    }
+  } else if (SDL_sscanf(line, "FullscreenRefreshMilliHz=%d", &ival) == 1) {
+    if (ival >= 0) config->fullscreenRefreshMilliHz = ival;
+  } else if (SDL_sscanf(line, "ContentAspectPreference=%d", &ival) == 1) {
+    if (ival >= 0 && ival <= 2) config->contentAspectPreference = ival;
   } else if (SDL_sscanf(line, "EnableVsync=%d", &vsync) == 1) {
     config->enableVsync = (bool)vsync;
   } else if (SDL_sscanf(line, "MediaCacheSeconds=%f", &cache) == 1 ||
@@ -88,6 +105,8 @@ static void SettingsReadLine(ImGuiContext *ctx,
     config->skipFiles = (bool)skip;
   } else if (SDL_sscanf(line, "UpscalingEnabled=%d", &upscaling) == 1) {
     config->upscalingEnabled = (bool)upscaling;
+  } else if (SDL_sscanf(line, "UpscalerPreset=%d", &ival) == 1) {
+    if (ival >= 0 && ival <= 3) config->upscalerPreset = ival;
   } else if (SDL_sscanf(line, "SplashSeconds=%f", &fval) == 1) {
     if (fval > 0.0f)
       config->splashSeconds = fval;
@@ -149,6 +168,14 @@ static void SettingsWriteAll(ImGuiContext *ctx,
                config->windowSize[1].load());
   buf->appendf("ScalerFactor=%.3f\n", config->scalerFactor.load());
   buf->appendf("FullScreen=%d\n", config->fullScreen ? 1 : 0);
+  buf->appendf("DisplayMode=%d\n", config->displayMode.load());
+  buf->appendf("DisplayIndex=%d\n", config->displayIndex.load());
+  buf->appendf("FullscreenSize=%d,%d\n", config->fullscreenSize[0].load(),
+               config->fullscreenSize[1].load());
+  buf->appendf("FullscreenRefreshMilliHz=%d\n",
+               config->fullscreenRefreshMilliHz.load());
+  buf->appendf("ContentAspectPreference=%d\n",
+               config->contentAspectPreference.load());
   buf->appendf("EnableVsync=%d\n", config->enableVsync ? 1 : 0);
   buf->appendf("MediaCacheSeconds=%.2f\n", config->mediaCacheSeconds.load());
   buf->appendf("DebugUiScale=%.2f\n", config->debugUiScale.load());
@@ -157,6 +184,7 @@ static void SettingsWriteAll(ImGuiContext *ctx,
   buf->appendf("EnableDebugUi=%d\n", config->enableDebugUi ? 1 : 0);
   buf->appendf("SkipFiles=%d\n", config->skipFiles ? 1 : 0);
   buf->appendf("UpscalingEnabled=%d\n", config->upscalingEnabled ? 1 : 0);
+  buf->appendf("UpscalerPreset=%d\n", config->upscalerPreset.load());
   buf->appendf("SplashSeconds=%.2f\n", config->splashSeconds.load());
   buf->appendf("SplashFadeSeconds=%.2f\n", config->splashFadeSeconds.load());
   buf->appendf("PrefetchHorizonMs=%d\n", config->prefetchHorizonMs.load());

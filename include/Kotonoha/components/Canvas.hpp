@@ -45,6 +45,12 @@ public:
   void UnregisterCanva(
       Kotonoha_Scene_Status (*drawingPoint)(KOTONOHA_SCENE_CALL));
 
+  // Remove layers owned by one concrete object.  This is safer than comparing
+  // callback function addresses when the caller and the runtime live in
+  // different DLL/EXE modules and is the correct lifetime boundary before the
+  // pointed-to userdata is destroyed.
+  void UnregisterCanvaUserData(void *userData);
+
   void UpdateCanva(Kotonoha_Scene_Status (*drawingPoint)(KOTONOHA_SCENE_CALL),
                    Sint16 zIndex, SDL_FRect place);
 

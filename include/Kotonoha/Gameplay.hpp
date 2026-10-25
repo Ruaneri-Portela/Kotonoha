@@ -61,7 +61,9 @@ private:
   std::atomic_bool prefetchAllMedia{false};
   bool prefetchPendingPromotion = false;
   bool prefetchThreadSuspended = false;
+  Kotonoha_Game *gameContext_ = nullptr;
   GameplayEventRuntimeFactory eventRuntimeFactory{};
+  void ResetLocked(bool resetTime, bool suppressReplaySideEffects = false);
   void UpdateDeltaTime();
   void UpdateCanvasSize(SDL_Window *window, SDL_Renderer *renderer);
   void UpdateLoadingPause(struct Kotonoha_Game *gameContext);
@@ -132,6 +134,7 @@ public:
   bool AutoChoiceMode() const {
     return autoChoiceMode.load(std::memory_order_acquire);
   }
+  bool HasEventRuntime() const { return eventManager != nullptr; }
 
   void SeekForward(Uint64 ms);
   void SeekBackward(Uint64 ms);

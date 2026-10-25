@@ -204,10 +204,12 @@ void Gameplay::SeekByKeyboardN(Kotonoha_Game *gameContext) {
 
   const Uint64 kSeekSmallMs =
       static_cast<Uint64>(gameContext->config.seekSmallMs);
-  if (eventManager != nullptr &&
-      currentTime < eventManager->LastTime() - kSeekSmallMs) {
-    SeekForward(static_cast<Uint64>(gameContext->config.seekBigMs));
-    return;
+  if (eventManager != nullptr) {
+    const Uint64 lastTime = eventManager->LastTime();
+    if (currentTime < lastTime && lastTime - currentTime > kSeekSmallMs) {
+      SeekForward(static_cast<Uint64>(gameContext->config.seekBigMs));
+      return;
+    }
   }
 
   gameContext->config.next = true;

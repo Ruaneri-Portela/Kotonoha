@@ -58,6 +58,14 @@ int Kotonoha_KtrfRouterCurrentChoiceAt(const Kotonoha_KtrfRouter *router,
                                        uint32_t *choice_index,
                                        Kotonoha_KtrfError *error);
 
+// Read-only validation for persisted/replayed choice values.  This checks the
+// same encoded option/timeout domain as CommitChoiceValue without changing the
+// result variable, applying effects, or setting the committed latch.
+int Kotonoha_KtrfRouterChoiceValueIsValid(
+    const Kotonoha_KtrfRouter *router, uint32_t choice_index,
+    const Kotonoha_KtrfRuntimeValue *value, int *valid,
+    Kotonoha_KtrfError *error);
+
 int Kotonoha_KtrfRouterCommitChoiceValue(
     Kotonoha_KtrfRouter *router, uint32_t choice_index,
     const Kotonoha_KtrfRuntimeValue *value, int *accepted,

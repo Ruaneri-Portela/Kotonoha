@@ -43,19 +43,6 @@ void ReleaseImageLoad(Kotonoha_ImageLoad *load) {
   SDL_SetAtomicInt(&load->state, 0);
 }
 
-bool UpdateUpscaledTexture(SDL_Renderer *renderer, SDL_Texture *texture,
-                           Kotonoha_UpscaledTexture *cache) {
-  if (cache == nullptr) {
-    return false;
-  }
-  const Uint64 revision = KotonohaUpscalingGetRevision();
-  if (cache->initialized && cache->sourceSerial == 1 &&
-      cache->settingsRevision == revision) {
-    return cache->output != nullptr;
-  }
-  return KotonohaUpscalingUpdateTexture(renderer, texture, 1, cache, nullptr);
-}
-
 bool DecodeLazyTexture(SDL_Renderer *renderer, const char *path,
                        Kotonoha_ImageLoad *load, SDL_Texture **texture,
                        bool ignoreMissingAssets, bool prepareLinearAbc) {
@@ -94,10 +81,6 @@ bool DecodeLazyTexture(SDL_Renderer *renderer, const char *path,
       *texture = nullptr;
     }
 
-    if (*texture != nullptr) {
-      KotonohaUpscalingUpdateTexture(renderer, *texture, 1, &load->upscaled,
-                                     nullptr);
-    }
     load->failed = *texture == nullptr;
   } else {
     load->missingIgnored = ignoreMissingAssets;
@@ -184,12 +167,7 @@ void Image::DrawAbcForBase(Kotonoha_Picture *picture, SDL_Renderer *renderer,
     }
 
     if (group->textures[index] != nullptr) {
-      SDL_Texture *texture = group->textures[index];
-      if (UpdateUpscaledTexture(renderer, texture,
-                                &group->loads[index].upscaled)) {
-        texture = group->loads[index].upscaled.output;
-      }
-      SDL_RenderTexture(renderer, texture, nullptr, nullptr);
+      SDL_RenderTexture(renderer, group->textures[index], nullptr, nullptr);
     }
   }
 }
@@ -397,18 +375,113 @@ Image::Image(Kotonoha_time *time, bool ignoreMissing)
 
 void Image::RenderTexture(SDL_Renderer *render, SDL_Texture *target,
                           Kotonoha_Picture *picture, bool &cleaned) {
-  (void)target;
   if (render == nullptr || picture == nullptr || picture->texture == nullptr) {
     return;
   }
 
-  SDL_Texture *displayTexture = picture->texture;
-  if (UpdateUpscaledTexture(render, picture->texture,
-                            &picture->load.upscaled)) {
-    displayTexture = picture->load.upscaled.output;
+  const float factor = KotonohaUpscalingGetFactor();
+  if (factor > 1.0f && IsUpscalingActive()) {
+    float pictureWidth = 0.0f;
+    float pictureHeight = 0.0f;
+    if (SDL_GetTextureSize(picture->texture, &pictureWidth, &pictureHeight)) {
+      const int requiredWidth = static_cast<int>(pictureWidth);
+      const int requiredHeight = static_cast<int>(pictureHeight);
+      if (requiredWidth > 0 && requiredHeight > 0 &&
+          EnsureUpscalingTextures(render, requiredWidth, requiredHeight,
+                                  factor)) {
+        SDL_Texture *previousTarget = SDL_GetRenderTarget(render);
+        SDL_Rect previousViewport{};
+        SDL_Rect previousClip{};
+        float previousScaleX = 1.0f;
+        float previousScaleY = 1.0f;
+        Uint8 previousR = 0, previousG = 0, previousB = 0, previousA = 0;
+        const bool viewportEnabled = SDL_RenderViewportSet(render);
+        const bool clipEnabled = SDL_RenderClipEnabled(render);
+        const bool stateSaved =
+            SDL_GetRenderViewport(render, &previousViewport) &&
+            SDL_GetRenderClipRect(render, &previousClip) &&
+            SDL_GetRenderScale(render, &previousScaleX, &previousScaleY) &&
+            SDL_GetRenderDrawColor(render, &previousR, &previousG, &previousB,
+                                   &previousA);
+
+        if (stateSaved && SDL_SetRenderTarget(render, extraTexture) &&
+            SDL_SetRenderViewport(render, nullptr) &&
+            SDL_SetRenderClipRect(render, nullptr) &&
+            SDL_SetRenderScale(render, 1.0f, 1.0f) &&
+            SDL_SetRenderDrawColor(render, 0, 0, 0, 0) &&
+            SDL_RenderClear(render)) {
+          const SDL_FRect destination = {0.0f, 0.0f, pictureWidth,
+                                         pictureHeight};
+          // Preserve the decoded base as straight RGBA in the transparent
+          // source-resolution intermediate. Blending a semitransparent base
+          // into transparent here and then blending the upscaled result again
+          // onto Canvas would apply alpha twice (RGB*a, then RGB*a^2).
+          SDL_BlendMode previousBaseBlend = SDL_BLENDMODE_BLEND;
+          const bool baseBlendSaved =
+              SDL_GetTextureBlendMode(picture->texture, &previousBaseBlend);
+          const bool basePrepared =
+              baseBlendSaved &&
+              SDL_SetTextureBlendMode(picture->texture, SDL_BLENDMODE_NONE);
+          const bool baseRendered =
+              basePrepared &&
+              SDL_RenderTexture(render, picture->texture, nullptr, &destination);
+          const bool baseBlendRestored =
+              baseBlendSaved &&
+              SDL_SetTextureBlendMode(picture->texture, previousBaseBlend);
+          const bool baseDrawn =
+              basePrepared && baseRendered && baseBlendRestored;
+          if (baseDrawn && picture->id == 0) {
+            // The authored ABC mouth/eye patch belongs to the base image.  It
+            // must be composited at source resolution before any AI upscaler:
+            // running the CNN over the sparse transparent ABC texture alone
+            // creates an artificial RGB edge that its later alpha restore can
+            // expose as the faint rectangular seam seen in gameplay.
+            DrawAbcForBase(picture, render, Kotonoha_timeGet(timeManager));
+          }
+
+          const bool upscaled = baseDrawn && ProcessUpscale(render, extraTexture);
+
+          // Upscaler backends may change GL/SDL render state.  Restore every
+          // state component before returning to Canvas, even on fallback.
+          const bool targetRestored = SDL_SetRenderTarget(
+              render, target != nullptr ? target : previousTarget);
+          const bool viewportRestored = SDL_SetRenderViewport(
+              render, viewportEnabled ? &previousViewport : nullptr);
+          const bool clipRestored = SDL_SetRenderClipRect(
+              render, clipEnabled ? &previousClip : nullptr);
+          const bool scaleRestored =
+              SDL_SetRenderScale(render, previousScaleX, previousScaleY);
+          const bool colorRestored = SDL_SetRenderDrawColor(
+              render, previousR, previousG, previousB, previousA);
+
+          if (baseDrawn && targetRestored && viewportRestored && clipRestored &&
+              scaleRestored && colorRestored) {
+            ClearTransparentLayer(render, cleaned);
+            SDL_RenderTexture(render,
+                              upscaled ? upScaledTexture : extraTexture,
+                              nullptr, nullptr);
+            return;
+          }
+        }
+
+        // A partial setup failure must not leak the intermediate render target
+        // or modified state into the rest of the frame.
+        SDL_SetRenderTarget(render, target != nullptr ? target : previousTarget);
+        if (stateSaved) {
+          SDL_SetRenderViewport(render,
+                                viewportEnabled ? &previousViewport : nullptr);
+          SDL_SetRenderClipRect(render,
+                                clipEnabled ? &previousClip : nullptr);
+          SDL_SetRenderScale(render, previousScaleX, previousScaleY);
+          SDL_SetRenderDrawColor(render, previousR, previousG, previousB,
+                                 previousA);
+        }
+      }
+    }
   }
+
   ClearTransparentLayer(render, cleaned);
-  SDL_RenderTexture(render, displayTexture, nullptr, nullptr);
+  SDL_RenderTexture(render, picture->texture, nullptr, nullptr);
   if (picture->id == 0) {
     DrawAbcForBase(picture, render, Kotonoha_timeGet(timeManager));
   }
@@ -428,28 +501,6 @@ Kotonoha_Scene_Status Image::RenderCallback(KOTONOHA_SCENE_CALL) {
       Kotonoha_MillisecondsToSceneTick(nowMs);
 
   SDL_LockMutex(here->lock);
-  for (Kotonoha_Picture *picture : here->pictures) {
-    if (picture != nullptr && picture->texture != nullptr &&
-        picture->load.upscaled.settingsRevision !=
-            KotonohaUpscalingGetRevision()) {
-      KotonohaUpscalingUpdateTexture(render, picture->texture, 1,
-                                    &picture->load.upscaled, nullptr);
-    }
-  }
-  for (const auto &group : here->abcGroups) {
-    if (group == nullptr) {
-      continue;
-    }
-    for (size_t index = 0; index < 3; ++index) {
-      if (group->textures[index] != nullptr &&
-          group->loads[index].upscaled.settingsRevision !=
-              KotonohaUpscalingGetRevision()) {
-        KotonohaUpscalingUpdateTexture(render, group->textures[index], 1,
-                                       &group->loads[index].upscaled, nullptr);
-      }
-    }
-  }
-
   for (auto it = here->pictures.begin(); it != here->pictures.end();) {
     Kotonoha_Picture *picture = *it;
     if (picture == nullptr) {
@@ -546,6 +597,7 @@ Kotonoha_Scene_Status Image::RenderCallback(KOTONOHA_SCENE_CALL) {
 }
 
 void Image::Reset() {
+  ResetUpscaling();
   std::vector<Kotonoha_Picture *> oldPictures;
   if (lock != nullptr) {
     SDL_LockMutex(lock);
@@ -576,9 +628,7 @@ std::vector<MediaBufferInfo> Image::GetBufferInfo() const {
     info.id = reinterpret_cast<Uint64>(picture);
     info.type = "Image";
     if (picture->path != nullptr) info.path = picture->path;
-    info.texture = picture->load.upscaled.output != nullptr
-                       ? picture->load.upscaled.output
-                       : picture->texture;
+    info.texture = picture->texture;
 
     const bool pictureActive =
         currentTime >= picture->startTime && currentTime < picture->endTime;

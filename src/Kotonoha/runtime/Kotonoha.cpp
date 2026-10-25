@@ -2,6 +2,7 @@
 #include <Kotonoha/debug/DebugUi.hpp>
 #include <Kotonoha/utils/Log.h>
 #include <cstring>
+#include <exception>
 #include <string>
 #include <vector>
 
@@ -195,8 +196,13 @@ void Kotonoha::RenderSplash() {
   }
   float texW = 0.0f, texH = 0.0f;
   SDL_GetTextureSize(splashTexture, &texW, &texH);
-  const float scale = SDL_min(static_cast<float>(outW) * 0.6f / texW,
-                              static_cast<float>(outH) * 0.6f / texH);
+  // Splash artwork is authored as a presentation frame, not a thumbnail.
+  // Fit it against the full render output while preserving aspect ratio.
+  // Matching-aspect images (for example 1280x720 in a 16:9 output) therefore
+  // fill the entire viewport; other aspect ratios remain centered with the
+  // renderer's black clear visible as letter/pillar-boxing.
+  const float scale = SDL_min(static_cast<float>(outW) / texW,
+                              static_cast<float>(outH) / texH);
   const SDL_FRect dst{(static_cast<float>(outW) - texW * scale) / 2.0f,
                       (static_cast<float>(outH) - texH * scale) / 2.0f,
                       texW * scale, texH * scale};
@@ -280,7 +286,14 @@ int SDLCALL Kotonoha::EventsThread(void *data) {
     SDL_LockMutex(process->gameContext.taskLock);
 
     for (auto it = tasks.begin(); it != tasks.end();) {
-      const int result = std::get<0>(*it)(std::get<1>(*it));
+      int result = -1;
+      try {
+        result = std::get<0>(*it)(std::get<1>(*it));
+      } catch (const std::exception &error) {
+        KLOG_ERROR(CORE, "Background gameplay task threw: %s", error.what());
+      } catch (...) {
+        KLOG_ERROR(CORE, "Background gameplay task threw an unknown exception");
+      }
       if (result == -1) {
         SDL_free(std::get<1>(*it));
         it = tasks.erase(it);
@@ -449,8 +462,13 @@ Gameplay *Kotonoha::CreateGameplay(const char *path, TTF_Font *preferredFont) {
     return nullptr;
   }
   try {
-    return new Gameplay(path, &gameContext, preferredFont,
-                        gameplayEventRuntimeFactory);
+    auto *gameplay = new Gameplay(path, &gameContext, preferredFont,
+                                  gameplayEventRuntimeFactory);
+    if (!gameplay->HasEventRuntime()) {
+      delete gameplay;
+      return nullptr;
+    }
+    return gameplay;
   } catch (...) {
     return nullptr;
   }

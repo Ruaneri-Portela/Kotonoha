@@ -54,6 +54,21 @@ void TestTextureCreationAndDynamicSettings() {
         "cached output was not reused");
   Check(!textureChanged, "unchanged texture was upscaled again");
 
+  const Uint64 beforePreset = KotonohaUpscalingGetRevision();
+  KotonohaUpscalingSetPreset(KOTONOHA_UPSCALER_PRESET_ARTCNN_C4F16);
+  Check(KotonohaUpscalingGetRevision() != beforePreset,
+        "preset change did not advance upscaling revision");
+  Check(KotonohaUpscalingUpdateTexture(renderer, source, 1, &cached,
+                                       &textureChanged),
+        "preset change did not rebuild cached texture");
+  Check(textureChanged,
+        "static texture cache retained output from the previous preset");
+
+  const Uint64 samePreset = KotonohaUpscalingGetRevision();
+  KotonohaUpscalingSetPreset(KOTONOHA_UPSCALER_PRESET_ARTCNN_C4F16);
+  Check(KotonohaUpscalingGetRevision() == samePreset,
+        "reselecting the same preset invalidated caches unnecessarily");
+
   KotonohaUpscalingSetFactor(3.0f);
   Check(KotonohaUpscalingUpdateTexture(renderer, source, 1, &cached,
                                        &textureChanged),
