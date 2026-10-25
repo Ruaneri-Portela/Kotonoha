@@ -28,7 +28,7 @@ Header:
 
 Implementation:
 
-`src/parsers/Ktrf.c`
+`src/Kotonoha/parsers/Ktrf.c`
 
 Initialize a document with `Kotonoha_KtrfInit()` before first load and clean/reinitialize it before reuse. The loaded document owns its input bytes. Section payload pointers and string views remain valid until `Kotonoha_KtrfClean()`.
 

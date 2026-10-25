@@ -49,11 +49,9 @@ bool SchoolDaysPlayDataSession::PrimeRecordedChoice(
     if (!choiceReplayLatchArmed_) return true;
 
     int32_t saved = -1;
-    bool present = false;
-    if (!session_.Persistence().ReadRecordedChoice(
-            currentScene_.sceneKey, &saved, &present, error)) {
-        return false;
-    }
+    const auto savedIt = recordedChoices_.find(currentScene_.sceneKey);
+    const bool present = savedIt != recordedChoices_.end();
+    if (present) saved = savedIt->second;
     // Native 0x4330F0 returns -1 when the tag4 key is absent. Any result other
     // than -2 consumes host +0x98, after which normal selection processing
     // records the accepted value into the temporary loaded SLog.
@@ -61,6 +59,57 @@ bool SchoolDaysPlayDataSession::PrimeRecordedChoice(
     *promptResult = choice;
     choiceReplayLatchArmed_ = false;
     return UpdateChoice(true, promptResult, committed, error);
+}
+
+bool SchoolDaysPlayDataSession::ParseRecordedChoices(
+    const std::vector<uint8_t>& saveBytes,
+    std::map<std::string, int32_t>* out,
+    Kotonoha_KtrfError* error) const {
+    if (out == nullptr || saveBytes.empty()) {
+        return Fail(error, KOTONOHA_KTRF_ERROR_ARGUMENT,
+                    "School Days PlayData choice-oracle input is invalid");
+    }
+    SchoolDaysPersistence::SaveImage replayImage;
+    if (!session_.Persistence().ParseSaveImage(saveBytes, &replayImage, error)) {
+        return false;
+    }
+
+    std::map<std::string, int32_t> parsed;
+    for (const auto& record : replayImage.document.records) {
+        if (record.tag != 4) continue;
+        std::string sceneKey;
+        sceneKey.reserve(record.name.size());
+        for (const char16_t unit : record.name) {
+            if (unit > 0x7fu) {
+                return Fail(error, KOTONOHA_KTRF_ERROR_FORMAT,
+                            "School Days PlayData tag4 SceneKey is not ASCII");
+            }
+            sceneKey.push_back(static_cast<char>(unit));
+        }
+        if (sceneKey.empty() ||
+            !parsed.emplace(sceneKey, record.integer).second) {
+            return Fail(error, KOTONOHA_KTRF_ERROR_FORMAT,
+                        "School Days PlayData contains duplicate/empty tag4 SceneKey");
+        }
+    }
+    *out = std::move(parsed);
+    return true;
+}
+
+bool SchoolDaysPlayDataSession::ReplaceRecordedChoiceOracle(
+    const std::vector<uint8_t>& saveBytes, Kotonoha_KtrfError* error) {
+    if (!opened_ || !choiceReplayLatchArmed_) {
+        return Fail(error, KOTONOHA_KTRF_ERROR_ARGUMENT,
+                    "School Days PlayData tag4-only LOAD requires the armed replay latch");
+    }
+    std::map<std::string, int32_t> next;
+    if (!ParseRecordedChoices(saveBytes, &next, error)) return false;
+    recordedChoices_ = std::move(next);
+    if (error != nullptr) {
+        error->code = KOTONOHA_KTRF_OK;
+        error->message[0] = '\0';
+    }
+    return true;
 }
 
 bool SchoolDaysPlayDataSession::UpdateChoice(
@@ -115,6 +164,16 @@ bool SchoolDaysPlayDataSession::Start(
     }
     if (globalFlagBytes != nullptr && !globalFlagBytes->empty() &&
         !session_.LoadGlobalFlag(*globalFlagBytes, error)) {
+        Close();
+        return false;
+    }
+
+    // Snapshot tag4 independently because SceneView may replace the replay
+    // oracle while this private playback owner is alive.  The selected SaveFile
+    // itself is nevertheless a real private LOAD checkpoint: restore its
+    // State/History/Persistence/SceneKey exactly as the authenticated PlayData
+    // flow does, then create only the private Gameplay.
+    if (!ParseRecordedChoices(saveBytes, &recordedChoices_, error)) {
         Close();
         return false;
     }
@@ -174,6 +233,7 @@ void SchoolDaysPlayDataSession::Close() {
     }
     currentGameplay_ = nullptr;
     currentScene_ = {};
+    recordedChoices_.clear();
     session_.Close();
     factory_ = {};
     gameContext_ = nullptr;

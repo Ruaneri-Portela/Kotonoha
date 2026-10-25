@@ -8,8 +8,8 @@ namespace Kotonoha {
 class Gameplay;
 
 // Owns visual continuity for KTRF Current Scene swaps.
-// It never invents a fade or transition color; BlackFade/WhiteFade remain
-// entirely ORS-driven. This object only retains the last presented composition
+// It never invents a fade or transition color; authored fade events remain
+// owned by the active game event backend. This object only retains the last presented composition
 // until the incoming Gameplay has produced a primary visual (image/video).
 class KtrfSceneTransaction {
 public:
@@ -20,7 +20,7 @@ public:
 
     void Reset();
 
-    // Called before the frame clear when the outgoing Gameplay is at its ORS
+    // Called before the frame clear when the outgoing Gameplay is at its authored
     // terminal point. Captures the already-presented backbuffer but does not
     // activate the lease until a swap is actually observed.
     bool PrepareAutomatic(SDL_Renderer* renderer, Gameplay* outgoing);
@@ -46,8 +46,8 @@ public:
     void PresentLease(SDL_Renderer* renderer) const;
 
     // Present an explicit capture without turning it into a scene-swap lease.
-    // SysMenu modals such as BackLog use this to freeze the current Gameplay
-    // composition while the narrative clock/input remain paused.
+    // Modal game UI can use this to freeze the current Gameplay composition
+    // while the narrative clock/input remain paused.
     bool PresentPrepared(SDL_Renderer* renderer, const Gameplay* outgoing) const;
 
     // Release only after image/video (canvas z <= 1) actually drew.

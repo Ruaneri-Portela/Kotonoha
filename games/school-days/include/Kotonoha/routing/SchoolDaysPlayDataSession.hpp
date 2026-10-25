@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <map>
 #include <vector>
 
 #include <Kotonoha/routing/SchoolDaysKtrfGameplayBridge.hpp>
@@ -10,10 +11,11 @@ struct Kotonoha_Game;
 
 namespace Kotonoha {
 
-// Isolated implementation of SceneView PlayData.  It owns a private KTRF
-// session/state/persistence image seeded from one SaveFile plus a read-only
-// snapshot of the live GlobalFlag.  Nothing in this object aliases the live
-// SchoolDaysKtrfGameplayBridge.
+// Isolated implementation of SceneView PlayData.  The selected SaveFile is
+// restored into a private KTRF session (state/history/persistence + SceneKey),
+// while the live narrative owner remains untouched.  Recorded tag4 choices are
+// replay data: the one-shot latch is consumed only when the physical ORS reaches
+// SetSELECT.  Nothing in this object aliases the live SchoolDaysKtrfGameplayBridge.
 class SchoolDaysPlayDataSession {
 public:
     SchoolDaysPlayDataSession() = default;
@@ -34,6 +36,14 @@ public:
     Gameplay* CurrentGameplay() const { return currentGameplay_; }
     const SchoolDaysKtrfScene& CurrentScene() const { return currentScene_; }
     bool ChoiceReplayLatchArmed() const { return choiceReplayLatchArmed_; }
+    const SchoolDaysKtrfSession& Session() const { return session_; }
+    SchoolDaysKtrfSession& Session() { return session_; }
+
+    // While the one-shot replay latch is armed, SceneView can replace the tag4
+    // oracle without changing the already-restored private checkpoint.  This is
+    // deliberately narrower than a normal LOAD and never touches the live owner.
+    bool ReplaceRecordedChoiceOracle(const std::vector<uint8_t>& saveBytes,
+                                     Kotonoha_KtrfError* error);
 
     // Commits a resolved prompt into the private router/SLog. While the native
     // +0x98 latch is armed, the first SetSELECT that has actually reached its
@@ -56,12 +66,16 @@ private:
                        Kotonoha_KtrfError* error);
     bool PrimeRecordedChoice(int* promptResult, bool* committed,
                              Kotonoha_KtrfError* error);
+    bool ParseRecordedChoices(const std::vector<uint8_t>& saveBytes,
+                              std::map<std::string, int32_t>* out,
+                              Kotonoha_KtrfError* error) const;
 
     SchoolDaysKtrfSession session_;
     SchoolDaysKtrfGameplayBridge::Factory factory_{};
     Kotonoha_Game* gameContext_ = nullptr;
     Gameplay* currentGameplay_ = nullptr;
     SchoolDaysKtrfScene currentScene_;
+    std::map<std::string, int32_t> recordedChoices_;
     bool choiceReplayLatchArmed_ = false;
     bool choiceCommittedForScene_ = false;
     bool opened_ = false;

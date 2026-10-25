@@ -242,7 +242,6 @@
 				components/Video.cpp,
 				debug/DebugUi.cpp,
 				debug/DebugUtils.cpp,
-				debug/McpServer.cpp,
 				debug/SceneManager.cpp,
 				debug/TextEditorModel.cpp,
 				debug/windows/AboutWindow.cpp,
@@ -328,7 +327,6 @@
 				components/Video.cpp,
 				debug/DebugUi.cpp,
 				debug/DebugUtils.cpp,
-				debug/McpServer.cpp,
 				debug/SceneManager.cpp,
 				debug/TextEditorModel.cpp,
 				debug/windows/AboutWindow.cpp,
@@ -403,7 +401,6 @@
 				components/Video.cpp,
 				debug/DebugUi.cpp,
 				debug/DebugUtils.cpp,
-				debug/McpServer.cpp,
 				debug/SceneManager.cpp,
 				debug/TextEditorModel.cpp,
 				debug/windows/AboutWindow.cpp,
@@ -496,7 +493,6 @@
 				components/Video.cpp,
 				debug/DebugUi.cpp,
 				debug/DebugUtils.cpp,
-				debug/McpServer.cpp,
 				debug/SceneManager.cpp,
 				debug/TextEditorModel.cpp,
 				debug/windows/AboutWindow.cpp,
@@ -582,7 +578,6 @@
 				components/Video.cpp,
 				debug/DebugUi.cpp,
 				debug/DebugUtils.cpp,
-				debug/McpServer.cpp,
 				debug/SceneManager.cpp,
 				debug/TextEditorModel.cpp,
 				debug/windows/AboutWindow.cpp,
@@ -709,7 +704,7 @@
 				CE44DFA8308D4F360075A21F /* Exceptions for "src" folder in "ZeroNoTsukaima" target */,
 			);
 			name = src;
-			path = ../src;
+			path = ../src/Kotonoha;
 			sourceTree = SOURCE_ROOT;
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -1235,13 +1230,13 @@
 				HEADER_SEARCH_PATHS = (
 					"$(PROJECT_DIR)/../include",
 					"$(PROJECT_DIR)/../games/school-days/include",
-					"$(PROJECT_DIR)/../src/routing",
+					"$(PROJECT_DIR)/../src/Kotonoha/routing",
 					"$(PROJECT_DIR)/../vcpkg_installed/arm64-ios/include",
 				);
 				"HEADER_SEARCH_PATHS[sdk=iphonesimulator*]" = (
 					"$(PROJECT_DIR)/../include",
 					"$(PROJECT_DIR)/../games/school-days/include",
-					"$(PROJECT_DIR)/../src/routing",
+					"$(PROJECT_DIR)/../src/Kotonoha/routing",
 					"$(PROJECT_DIR)/../vcpkg_installed/arm64-ios-simulator/include",
 				);
 				INFOPLIST_FILE = Info.plist;
@@ -1330,14 +1325,14 @@
 				HEADER_SEARCH_PATHS = (
 					"$(PROJECT_DIR)/../include",
 					"$(PROJECT_DIR)/../games/school-days/include",
-					"$(PROJECT_DIR)/../src/routing",
+						"$(PROJECT_DIR)/../src/Kotonoha/routing",
 					"$(PROJECT_DIR)/../vcpkg_installed/arm64-ios/include",
 					"$(PROJECT_DIR)/../games/zero-no-tsukaima/include",
 				);
 				"HEADER_SEARCH_PATHS[sdk=iphonesimulator*]" = (
 					"$(PROJECT_DIR)/../include",
 					"$(PROJECT_DIR)/../games/school-days/include",
-					"$(PROJECT_DIR)/../src/routing",
+						"$(PROJECT_DIR)/../src/Kotonoha/routing",
 					"$(PROJECT_DIR)/../vcpkg_installed/arm64-ios-simulator/include",
 					"$(PROJECT_DIR)/../games/zero-no-tsukaima/include",
 				);
@@ -1425,14 +1420,14 @@
 				HEADER_SEARCH_PATHS = (
 					"$(PROJECT_DIR)/../include",
 					"$(PROJECT_DIR)/../games/school-days/include",
-					"$(PROJECT_DIR)/../src/routing",
+						"$(PROJECT_DIR)/../src/Kotonoha/routing",
 					"$(PROJECT_DIR)/../vcpkg_installed/arm64-ios/include",
 					"$(PROJECT_DIR)/../games/zero-no-tsukaima/include",
 				);
 				"HEADER_SEARCH_PATHS[sdk=iphonesimulator*]" = (
 					"$(PROJECT_DIR)/../include",
 					"$(PROJECT_DIR)/../games/school-days/include",
-					"$(PROJECT_DIR)/../src/routing",
+						"$(PROJECT_DIR)/../src/Kotonoha/routing",
 					"$(PROJECT_DIR)/../vcpkg_installed/arm64-ios-simulator/include",
 					"$(PROJECT_DIR)/../games/zero-no-tsukaima/include",
 				);
@@ -1522,14 +1517,14 @@
 				HEADER_SEARCH_PATHS = (
 					"$(PROJECT_DIR)/../include",
 					"$(PROJECT_DIR)/../games/school-days/include",
-					"$(PROJECT_DIR)/../src/routing",
+					"$(PROJECT_DIR)/../src/Kotonoha/routing",
 					"$(PROJECT_DIR)/../vcpkg_installed/arm64-ios/include",
 					"$(PROJECT_DIR)/../games/snow-radish-vacation/include",
 				);
 				"HEADER_SEARCH_PATHS[sdk=iphonesimulator*]" = (
 					"$(PROJECT_DIR)/../include",
 					"$(PROJECT_DIR)/../games/school-days/include",
-					"$(PROJECT_DIR)/../src/routing",
+					"$(PROJECT_DIR)/../src/Kotonoha/routing",
 					"$(PROJECT_DIR)/../vcpkg_installed/arm64-ios-simulator/include",
 				);
 				INFOPLIST_FILE = Info.plist;
@@ -1616,13 +1611,13 @@
 				HEADER_SEARCH_PATHS = (
 					"$(PROJECT_DIR)/../include",
 					"$(PROJECT_DIR)/../games/school-days/include",
-					"$(PROJECT_DIR)/../src/routing",
+					"$(PROJECT_DIR)/../src/Kotonoha/routing",
 					"$(PROJECT_DIR)/../vcpkg_installed/arm64-ios/include",
 				);
 				"HEADER_SEARCH_PATHS[sdk=iphonesimulator*]" = (
 					"$(PROJECT_DIR)/../include",
 					"$(PROJECT_DIR)/../games/school-days/include",
-					"$(PROJECT_DIR)/../src/routing",
+					"$(PROJECT_DIR)/../src/Kotonoha/routing",
 					"$(PROJECT_DIR)/../vcpkg_installed/arm64-ios-simulator/include",
 					"$(PROJECT_DIR)/../games/snow-radish-vacation/include",
 				);
@@ -1701,13 +1696,13 @@
 				HEADER_SEARCH_PATHS = (
 					"$(PROJECT_DIR)/../include",
 					"$(PROJECT_DIR)/../games/school-days/include",
-					"$(PROJECT_DIR)/../src/routing",
+					"$(PROJECT_DIR)/../src/Kotonoha/routing",
 					"$(PROJECT_DIR)/../vcpkg_installed/arm64-ios/include",
 				);
 				"HEADER_SEARCH_PATHS[sdk=iphonesimulator*]" = (
 					"$(PROJECT_DIR)/../include",
 					"$(PROJECT_DIR)/../games/school-days/include",
-					"$(PROJECT_DIR)/../src/routing",
+					"$(PROJECT_DIR)/../src/Kotonoha/routing",
 					"$(PROJECT_DIR)/../vcpkg_installed/arm64-ios-simulator/include",
 					"$(PROJECT_DIR)/../games/snow-radish-vacation/include",
 				);
@@ -1731,13 +1726,13 @@
 				HEADER_SEARCH_PATHS = (
 					"$(PROJECT_DIR)/../include",
 					"$(PROJECT_DIR)/../games/school-days/include",
-					"$(PROJECT_DIR)/../src/routing",
+					"$(PROJECT_DIR)/../src/Kotonoha/routing",
 					"$(PROJECT_DIR)/../vcpkg_installed/arm64-ios/include",
 				);
 				"HEADER_SEARCH_PATHS[sdk=iphonesimulator*]" = (
 					"$(PROJECT_DIR)/../include",
 					"$(PROJECT_DIR)/../games/school-days/include",
-					"$(PROJECT_DIR)/../src/routing",
+					"$(PROJECT_DIR)/../src/Kotonoha/routing",
 					"$(PROJECT_DIR)/../vcpkg_installed/arm64-ios-simulator/include",
 					"$(PROJECT_DIR)/../games/snow-radish-vacation/include",
 				);
@@ -1772,13 +1767,13 @@
 				HEADER_SEARCH_PATHS = (
 					"$(PROJECT_DIR)/../include",
 					"$(PROJECT_DIR)/../games/school-days/include",
-					"$(PROJECT_DIR)/../src/routing",
+					"$(PROJECT_DIR)/../src/Kotonoha/routing",
 					"$(PROJECT_DIR)/../vcpkg_installed/arm64-ios/include",
 				);
 				"HEADER_SEARCH_PATHS[sdk=iphonesimulator*]" = (
 					"$(PROJECT_DIR)/../include",
 					"$(PROJECT_DIR)/../games/school-days/include",
-					"$(PROJECT_DIR)/../src/routing",
+					"$(PROJECT_DIR)/../src/Kotonoha/routing",
 					"$(PROJECT_DIR)/../vcpkg_installed/arm64-ios-simulator/include",
 				);
 				INFOPLIST_FILE = Info.plist;
@@ -1865,13 +1860,13 @@
 				HEADER_SEARCH_PATHS = (
 					"$(PROJECT_DIR)/../include",
 					"$(PROJECT_DIR)/../games/school-days/include",
-					"$(PROJECT_DIR)/../src/routing",
+					"$(PROJECT_DIR)/../src/Kotonoha/routing",
 					"$(PROJECT_DIR)/../vcpkg_installed/arm64-ios/include",
 				);
 				"HEADER_SEARCH_PATHS[sdk=iphonesimulator*]" = (
 					"$(PROJECT_DIR)/../include",
 					"$(PROJECT_DIR)/../games/school-days/include",
-					"$(PROJECT_DIR)/../src/routing",
+					"$(PROJECT_DIR)/../src/Kotonoha/routing",
 					"$(PROJECT_DIR)/../vcpkg_installed/arm64-ios-simulator/include",
 				);
 				INFOPLIST_FILE = Info.plist;
@@ -2078,13 +2073,13 @@
 				HEADER_SEARCH_PATHS = (
 					"$(PROJECT_DIR)/../include",
 					"$(PROJECT_DIR)/../games/school-days/include",
-					"$(PROJECT_DIR)/../src/routing",
+					"$(PROJECT_DIR)/../src/Kotonoha/routing",
 					"$(PROJECT_DIR)/../vcpkg_installed/arm64-ios/include",
 				);
 				"HEADER_SEARCH_PATHS[sdk=iphonesimulator*]" = (
 					"$(PROJECT_DIR)/../include",
 					"$(PROJECT_DIR)/../games/school-days/include",
-					"$(PROJECT_DIR)/../src/routing",
+					"$(PROJECT_DIR)/../src/Kotonoha/routing",
 					"$(PROJECT_DIR)/../vcpkg_installed/arm64-ios-simulator/include",
 				);
 				INFOPLIST_FILE = Info.plist;

@@ -23,7 +23,6 @@ public:
 
     enum class Texture : uint8_t {
         Base,
-        SomConSetBase,
         Chip,
     };
 
@@ -57,8 +56,6 @@ public:
     // native pair orientation instead of translating host getters into new
     // display/audio policy.
     struct VisualState {
-        bool somConAvailable = true;
-
         int defWideCurrent = 5;        // native pair 4/5
         int defFullCurrent = 6;        // native pair 6/7
         int defSkipCurrent = 9;        // native pair 8/9
@@ -68,17 +65,10 @@ public:
         int soundMenVoiceCurrent = 11; // native pair 10/11
         int soundMuteCurrent = 13;     // native pair 12/13
         std::array<int, 3> soundLevels{{0, 0, 0}}; // native range 0..10
-
-        // Opaque SomCon visual state. No device behavior is inferred here.
-        bool somConSetActive = false;          // object +0x328
-        bool somConInteractionActive = false;  // object +0x31C
-        int somConSecondaryCurrent = 17;       // native pair 16/17 (+0x320)
-        int somConDeviceIndex = 0;             // object +0x324, native 0..9
     };
 
     static Layout LayoutFor(SchoolDaysConfigMenuModel::Variant variant);
-    static std::string BaseRelativePath(const SchoolDaysConfigMenuModel& model,
-                                        const VisualState& state);
+    static std::string BaseRelativePath(const SchoolDaysConfigMenuModel& model);
     static std::vector<Sprite> Build(const SchoolDaysConfigMenuModel& model,
                                      const VisualState& state);
 };

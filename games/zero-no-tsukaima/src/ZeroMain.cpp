@@ -1,5 +1,5 @@
 // Zero no Tsukaima (PS2) scene scripts running on the Kotonoha engine.
-// Usage: ZeroNoTsukaima --zero <disc.bin (MODE1/2048)> [--mcp [port]]
+// Usage: ZeroNoTsukaima --zero <disc.bin (MODE1/2048)>
 // Backgrounds, character sprites and event CGs are drawn from SCENEDAT; the boot
 // logos, opening movie, title and mode menu are the original ones (Frontend).
 #include "Frontend.hpp"

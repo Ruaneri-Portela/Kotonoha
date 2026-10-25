@@ -1,0 +1,5 @@
+﻿Source: https://github.com/Artoriuz/ArtCNN
+Fragment-shader revision: d842d656518df4c78062c4411b116264aeff243c
+Files: ArtCNN_C4F16.glsl; ArtCNN_C4F16_DS.glsl; ArtCNN_C4F32.glsl
+License: MIT; see LICENSE-ArtCNN.txt
+Reason for pin: immediately pre-compute revision, compatible with Kotonoha fragment-shader backend.

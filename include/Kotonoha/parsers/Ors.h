@@ -114,9 +114,9 @@ extern "C" {
 
 struct Kotonoha_orsData Kotonoha_OrsParser(const char *input);
 
-/* Parse an ORS directly from an in-memory logical resource.  This is the
- * backend-neutral entry point used by School Days GPK assets; the filesystem
- * parser above remains a compatibility wrapper for ordinary Kotonoha scripts. */
+/* Parse an ORS directly from an in-memory logical resource.  Virtual archives
+ * and other game asset providers can use this backend-neutral entry point; the
+ * filesystem parser above remains a compatibility wrapper for loose scripts. */
 struct Kotonoha_orsData Kotonoha_OrsParserBytes(const void *bytes, size_t size);
 
 void Kotonoha_OrsClean(struct Kotonoha_orsData *events);

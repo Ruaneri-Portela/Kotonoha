@@ -1,29 +1,18 @@
 #pragma once
 
 #include <Kotonoha/Kotonoha.hpp>
+#include <Kotonoha/Display.hpp>
 #include <SDL3/SDL.h>
 #include <vector>
 
-namespace Kotonoha {
+struct ImGuiContext;
 
-enum class DisplayMode : Uint8 {
-  Windowed,
-  ExclusiveFullscreen,
-  BorderlessFullscreen
-};
-
-bool GetDisplayMode(const Kotonoha_Game &context, DisplayMode *mode);
-bool SetDisplay(Kotonoha_Game &context, DisplayMode mode,
-                SDL_DisplayID targetDisplay = 0);
-
-class Canvas;
-
-} // namespace Kotonoha
+namespace Kotonoha { class Canvas; }
 
 // Public entry points of the Dear ImGui based debug UI.
 namespace Kotonoha::Debug {
 
-using WindowMenuExtension = void (*)(void *userdata);
+using WindowMenuExtension = void (*)(void *userdata, ImGuiContext *context);
 
 // Creates the fonts, theme and ImGui backends. Call once after the renderer
 // exists.

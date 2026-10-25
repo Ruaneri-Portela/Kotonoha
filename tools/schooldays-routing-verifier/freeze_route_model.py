@@ -32,7 +32,7 @@ CANONICAL_FILES = [
     "games/school-days/include/Kotonoha/Kotonoha.hpp",
     "games/school-days/src/SchoolDaysRouter.cpp",
     "games/school-days/src/SchoolDaysRouteData.generated.inc",
-    "src/runtime/Kotonoha.cpp",
+    "src/Kotonoha/runtime/Kotonoha.cpp",
     "games/school-days/tests/SchoolDaysFullRouterTest.cpp",
     "games/school-days/tests/SchoolDaysHandoffRouterTest.cpp",
     "games/school-days/tests/SchoolDaysDevCheckpointTest.cpp",
@@ -402,7 +402,7 @@ def main() -> int:
     dev_test = (root / "games/school-days/tests/SchoolDaysDevCheckpointTest.cpp").read_text(
         encoding="utf-8"
     )
-    kotonoha_cpp = (root / "src/runtime/Kotonoha.cpp").read_text(
+    kotonoha_cpp = (root / "src/Kotonoha/runtime/Kotonoha.cpp").read_text(
         encoding="utf-8"
     )
 

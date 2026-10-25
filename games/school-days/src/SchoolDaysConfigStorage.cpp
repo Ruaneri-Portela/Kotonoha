@@ -281,9 +281,6 @@ bool SchoolDaysConfigStorage::ParseLoadedDocument(const std::string& text,
         } else if (key == "SuperSkip") {
             if (!readInt(key, value, &number)) return false;
             out->state.superSkip = number != 0;
-        } else if (key == "UseSOM") {
-            if (!readInt(key, value, &number)) return false;
-            out->state.useSom = number != 0;
         } else if (key == "DisplayType") {
             if (!readInt(key, value, &number)) return false;
             out->display.hasDisplayType = true;
@@ -349,8 +346,7 @@ bool SchoolDaysConfigStorage::CacheState(
            SetKeyValue("Skip", state.skip ? "1" : "0", error) &&
            SetKeyValue("AutoDraw", state.autoDraw ? "1" : "0", error) &&
            SetKeyValue("AutoMode", state.autoMode ? "1" : "0", error) &&
-           SetKeyValue("SuperSkip", state.superSkip ? "1" : "0", error) &&
-           SetKeyValue("UseSOM", state.useSom ? "1" : "0", error);
+           SetKeyValue("SuperSkip", state.superSkip ? "1" : "0", error);
 }
 
 bool SchoolDaysConfigStorage::CacheDisplayType(int value, std::string* error) {

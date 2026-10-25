@@ -346,12 +346,19 @@ void TestCase(const fs::path& assets, const fs::path& output,
     Check(defaultScale == SDL_SCALEMODE_LINEAR,
           "default SDL filtering changed; reassess seam contract");
     if (changedHiddenRgb > 0) {
-        Check(nearest.edge.darkPixels < linear.edge.darkPixels &&
-              nearest.edge.meanRgbError < linear.edge.meanRgbError,
-              "nearest did not reduce black edge compared with linear");
-        Check(processedLinear.edge.darkPixels <= nearest.edge.darkPixels &&
-              processedLinear.edge.meanRgbError < linear.edge.meanRgbError / 4.0,
-              "one-pixel dilation did not remove the black linear fringe");
+        // Kotonoha_imageCreateTexture() now performs the same one-pixel hidden
+        // RGB preparation while decoding.  Therefore the production LINEAR
+        // texture should already match the explicitly prepared control; the old
+        // historical expectation that NEAREST must outperform LINEAR no longer
+        // describes the renderer we ship.
+        Check(std::abs(processedLinear.edge.meanRgbError -
+                       linear.edge.meanRgbError) < 0.1 &&
+              std::abs(static_cast<long long>(processedLinear.edge.darkPixels) -
+                       static_cast<long long>(linear.edge.darkPixels)) <= 2,
+              "decoded linear ABC texture differs from the prepared control");
+        Check(linear.edge.meanRgbError <= nearest.edge.meanRgbError + 0.1 &&
+              linear.edge.darkPixels <= nearest.edge.darkPixels + 2,
+              "prepared linear ABC filtering regressed behind nearest sampling");
     } else {
         Check(processedLinear.edge.darkPixels == linear.edge.darkPixels &&
               std::abs(processedLinear.edge.meanRgbError -
@@ -391,15 +398,13 @@ void TestCase(const fs::path& assets, const fs::path& output,
                       << '\n';
         }
         if (changedHiddenRgb > 0) {
-            Check(BrightnessAt(linear.pixels, raster.surface->pitch, edgeX, y) + 10 <
-                      BrightnessAt(reference, raster.surface->pitch, edgeX, y) &&
-                  std::abs(BrightnessAt(nearest.pixels, raster.surface->pitch, edgeX, y) -
+            Check(std::abs(BrightnessAt(linear.pixels, raster.surface->pitch, edgeX, y) -
                            BrightnessAt(reference, raster.surface->pitch, edgeX, y)) <= 5,
-                  "real edge probe did not isolate dark linear halo");
+                  "production linear edge probe has a dark fringe");
             Check(std::abs(BrightnessAt(processedLinear.pixels,
-                                       raster.surface->pitch, edgeX, y) -
+                                        raster.surface->pitch, edgeX, y) -
                            BrightnessAt(reference, raster.surface->pitch, edgeX, y)) <= 5,
-                  "dilated linear edge probe still has a black fringe");
+                  "prepared linear edge probe still has a black fringe");
         }
     }
 

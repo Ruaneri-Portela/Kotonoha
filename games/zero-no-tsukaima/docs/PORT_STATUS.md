@@ -44,10 +44,10 @@ zero-run). Verified on every compressed entry of the disc (size matches).
 - Os scripts `SYSTEM` (fonte Squirrel) ainda exigem uma VM/interpretador completo ou reescrita das classes.
 - Ainda NÃO jogável: faltam interpretador dos scripts, camadas/texto, áudio VAG e o `Main` do jogo.
 
-## Jogável (cena/texto) — `ZeroNoTsukaima --zero <disc.bin> [--mcp]`
+## Jogável (cena/texto) — `ZeroNoTsukaima --zero <disc.bin>`
 - `SceneSource` lê SCENE_ID/SYSTEM direto do disco; `Game` interpreta as cenas (tags estilo KAG):
   texto Shift-JIS, falas, flags/`eval`, `goto`/`next`, escolhas, avanço por clique.
-- Validado via MCP: START.KS → prólogo → sala de aula, escolhas e ~300 páginas sem travar.
+- Validado: START.KS → prólogo → sala de aula, escolhas e ~300 páginas sem travar.
 - Pendente: mapa nome-de-imagem → índice do disco (fundos/CGs/sprites hoje aparecem só como texto),
   áudio VAG/BGM, saves. A ordem das cenas ao fim de um script (índice-1) é uma suposição.
 
@@ -70,7 +70,7 @@ zero-run). Verified on every compressed entry of the disc (size matches).
 
 ## Engine flow (added)
 
-The player-facing flow (title, pause, save/load by input replay, text box, choices, dim/panel styling) now lives in the engine class `Kotonoha::GameplayFlow` (`include/Kotonoha/components/GameplayFlow.hpp`). The port only implements `Kotonoha::GameSession` (story logic, pictures, audio). `LocalIterate` just returns `GameplayFlow::RunFrame` (splash, game frame, debug UI, MCP, present), the same loop School Days uses. Only the game picture is letterboxed to the logical resolution; the splash and the debug UI render over the full window.
+The player-facing flow (title, pause, save/load by input replay, text box, choices, dim/panel styling) now lives in the engine class `Kotonoha::GameplayFlow` (`include/Kotonoha/components/GameplayFlow.hpp`). The port only implements `Kotonoha::GameSession` (story logic, pictures, audio). `LocalIterate` just returns `GameplayFlow::RunFrame` (splash, game frame, debug UI, present), the same loop School Days uses. Only the game picture is letterboxed to the logical resolution; the splash and the debug UI render over the full window.
 
 ## Audio rates (from the original code)
 - Voices: `Talk(ch, voiceid)` (SLPS_258.30 @ 0x102de0) starts the VOICE_ID stream through 0x119e98 with
@@ -97,7 +97,7 @@ The player-facing flow (title, pause, save/load by input replay, text box, choic
 - `Game` keeps per-character pose / dress / face / xpos / visibility from character tags
   (`サイト {学生服 怒り 左 出}`), `allchar {hide}` hides, `allchar {reset}` clears. `ZeroMain` draws the
   sprites (bottom-aligned 640x448 canvases centred + xpos) between the background and the event CG.
-- Verified via MCP: サイト / ルイズ / オスマン / ギーシュ / モンモランシー with the expressions of the dialogue.
+- Verified: サイト / ルイズ / オスマン / ギーシュ / モンモランシー with the expressions of the dialogue.
 - Not done: level (前/奥) zoom/y offset, show/hide slide transitions, face window (顔), time-of-day tint.
 
 ## Native front end (added)

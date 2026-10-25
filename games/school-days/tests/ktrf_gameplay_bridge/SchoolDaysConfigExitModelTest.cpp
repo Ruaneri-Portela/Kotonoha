@@ -99,9 +99,9 @@ int main() {
               "System/Option/Option_Def.cmap" &&
               Config::CmapRelativePath(Config::Page::Sound, Config::Variant::Wide) ==
                   "System/Option/Option_Sound_Wide.cmap" &&
-              Config::CmapRelativePath(Config::Page::SomCon,
-                                       Config::Variant::WideFull) ==
-                  "System/Option/Option_SomCon_Wide_Full.cmap" &&
+              Config::CmapRelativePath(Config::Page::Display,
+                                       Config::Variant::Wide) ==
+                  "System/Option/Option_Def_Wide.cmap" &&
               Config::CmapRelativePath(Config::Page::Def,
                                        Config::Variant::WideNote) ==
                   "System/Option/Option_Def_Wide_Note.cmap",
@@ -109,11 +109,7 @@ int main() {
     Check(Config::BaseRelativePath(Config::Page::Def) ==
               "System/Option/Option_Def.png" &&
               Config::ChipRelativePath(Config::Page::Sound) ==
-                  "System/Option/Option_Sound_Chip.png" &&
-              Config::BaseRelativePath(Config::Page::SomCon) ==
-                  "System/Option/Option_SomCon.png" &&
-              std::string(Config::SomConSetRelativePath()) ==
-                  "System/Option/Option_SomCon_Set.png",
+                  "System/Option/Option_Sound_Chip.png",
           "Config image resource paths mismatch");
 
     Check(std::string(Exit::CmapRelativePath(Exit::Variant::Standard)) ==
@@ -148,7 +144,7 @@ int main() {
         Config::Variant::WideFull, Config::Variant::WideNote,
     };
     const Config::Page pages[] = {
-        Config::Page::Def, Config::Page::Sound, Config::Page::SomCon,
+        Config::Page::Def, Config::Page::Sound, Config::Page::Display,
     };
     for (const auto variant : configVariants) {
         for (const auto page : pages) {
@@ -263,30 +259,6 @@ int main() {
               !config.Activate(&action),
           "Config background hit did not clear activation");
 
-    Check(config.Open(tree.root.string(), Config::Variant::WideNote,
-                      Config::Page::SomCon, &error),
-          error.c_str());
-    SelectControl(config, 4);
-    Check(config.Activate(&action) &&
-              action.kind == Config::ActionKind::SomConAutoScan,
-          "SomCon auto-scan action mapping mismatch");
-    SelectControl(config, 15);
-    Check(config.Activate(&action) &&
-              action.kind == Config::ActionKind::SomConSelectDevice &&
-              action.value == 9,
-          "SomCon native index9 must remain typed for fail-closed host rejection");
-    SelectControl(config, 16);
-    Check(config.Activate(&action) &&
-              action.kind == Config::ActionKind::SomConStartSecondary,
-          "SomCon s96 action mapping mismatch");
-    SelectControl(config, 17);
-    Check(config.Activate(&action) &&
-              action.kind == Config::ActionKind::SomConStopSecondary,
-          "SomCon b action mapping mismatch");
-    SelectControl(config, 3);
-    Check(config.Activate(&action) && action.kind == Config::ActionKind::Close,
-          "SomCon page cannot safely close");
-
     Exit exitView;
     for (const auto variant : exitVariants) {
         Check(exitView.Open(tree.root.string(), variant, &error), error.c_str());
@@ -318,9 +290,9 @@ int main() {
               << "title_config_exit_codes=PASS\n"
               << "resource_variants=PASS\n"
               << "config_common_controls=PASS\n"
+              << "config_display_tab2=PASS\n"
               << "config_def_typed_outputs=PASS\n"
               << "config_sound_opaque_banks=PASS\n"
-              << "config_somcon_actions=PASS\n"
               << "exit_two_choice_contract=PASS\n"
               << "pointer_only_background_clear=PASS\n";
     return 0;

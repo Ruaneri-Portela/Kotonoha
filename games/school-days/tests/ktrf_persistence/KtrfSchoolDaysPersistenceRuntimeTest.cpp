@@ -188,7 +188,7 @@ uint32_t FindNodeBySceneKey(const Kotonoha_KtrfAdapter* adapter,
         Kotonoha_KtrfNodeView view{};
         if (!Kotonoha_KtrfGetNodeView(adapter, i, &view, error))
             Fail(error->message);
-        if (view.kind == KOTONOHA_SDHQ_NODE_SCENE &&
+        if (view.kind == KOTONOHA_KTRF_NODE_SCENE &&
             view.scene_key != nullptr &&
             view.scene_key_length == sceneKey.size() &&
             std::string(view.scene_key, view.scene_key_length) == sceneKey) {

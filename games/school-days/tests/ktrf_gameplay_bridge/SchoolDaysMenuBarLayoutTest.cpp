@@ -168,6 +168,18 @@ int main() {
                   !Presenter::ControlAvailable(24, false, true, true, true, false),
               "ordinary replay must not expose PlayData repeat-opacity controls");
 
+        // PlayData keeps +104 clear and sets the replay latch +98. Unlike
+        // ordinary HScene replay, native therefore leaves Save/Load/BackLog
+        // available while also exposing the repeat-opacity row.
+        for (int control = 10; control <= 14; ++control) {
+            Check(Presenter::ControlAvailable(control, false, false, true, true,
+                                              true),
+                  "PlayData ReMenu control unexpectedly disabled");
+        }
+        Check(Presenter::ControlAvailable(15, false, false, true, false, true) &&
+                  Presenter::ControlAvailable(24, false, false, true, false, true),
+              "PlayData replay-latched opacity row unavailable");
+
         // FUN_100262E0 classifier -> fixed records53..64.  Speeds share one
         // help sprite and all ten repeat-opacity cells share record64.
         const auto pauseHelp = Presenter::HoverHelpChip(1, Variant::Standard);

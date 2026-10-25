@@ -1,9 +1,11 @@
 #include <Kotonoha/routing/SchoolDaysKtrfSession.hpp>
 #include <Kotonoha/routing/SchoolDaysBackRules.hpp>
 
+#include <algorithm>
 #include <cstdlib>
 #include <iostream>
 #include <string>
+#include <vector>
 
 namespace {
 [[noreturn]] void Fail(const std::string& message) { std::cerr << "KtrfSchoolDaysSessionTest: " << message << '\n'; std::exit(2); }
@@ -405,6 +407,163 @@ int main(int argc, char** argv) {
           "Back Trial/PV effects mismatch");
     if (!state.Restore(stateBefore, &error)) Fail(error.message);
 
+    // A tag4 is historical PlayData state, so Back must keep it.  That means a
+    // save taken on a pending revisit cannot use tag4 presence alone to decide
+    // whether the active visit already committed its choice.  Reproduce the
+    // exact A03 -> choose -> A04 -> Back A03 -> save -> load regression here.
+    Kotonoha::SchoolDaysKtrfScene choiceScene;
+    if (!session.ResetNewGame(&choiceScene, &error))
+        Fail(std::string("choice-save regression reset failed: ") + error.message);
+    const char* choicePath[] = {
+        "00/00-00-A01", "00/00-00-A02", "00/00-00-A03"
+    };
+    for (const char* expectedScene : choicePath) {
+        Kotonoha::SchoolDaysKtrfSession::StepResult step;
+        if (!session.Advance("ktrf:next", &step, &error)) {
+            Fail(std::string("choice-save setup advance failed: ") + error.message);
+        }
+        Check(step.kind == Kotonoha::SchoolDaysKtrfSession::StepKind::Scene &&
+                  step.scene.sceneKey == expectedScene,
+              std::string("choice-save setup did not reach ") + expectedScene);
+        choiceScene = step.scene;
+    }
+    Check(session.Persistence().ReplaceCurrentScriptSnapshot(
+              choiceScene.sceneKey, UINT32_C(0x3f800000), state, &error),
+          std::string("A03 tag1 setup failed: ") + error.message);
+
+    const int64_t revisitChoiceValue = FirstChoiceValue(session.Adapter(), &error);
+    int revisitAccepted = 0;
+    if (!session.CommitChoice(revisitChoiceValue, &revisitAccepted, &error)) {
+        Fail(std::string("A03 choice commit failed: ") + error.message);
+    }
+    Check(revisitAccepted != 0, "A03 legal choice was rejected");
+
+    auto HasA03Tag4 = [&]() {
+        for (const auto& record : session.Persistence().SaveLogDocument().records) {
+            if (record.tag == 4 && record.name == u"00/00-00-A03") return true;
+        }
+        return false;
+    };
+    Check(HasA03Tag4(), "A03 choice commit did not create historical tag4");
+
+    auto BuildCurrentSaveBytes = [&](std::vector<uint8_t>* bytes) {
+        Kotonoha::SchoolDaysPersistence staged = session.Persistence();
+        Kotonoha::KtrfStateStore::Snapshot live;
+        if (!state.Capture(&live, &error)) Fail(error.message);
+        const bool committed = std::any_of(
+            live.choiceCommitted.begin(), live.choiceCommitted.end(),
+            [](uint8_t value) { return value != 0u; });
+        if (!staged.RefreshCurrentScriptSnapshot(state, &error) ||
+            !staged.SerializeSaveLogWithLiveChoiceCommitMarker(
+                committed, bytes, &error)) {
+            Fail(std::string("choice-save serialization failed: ") + error.message);
+        }
+    };
+
+    std::vector<uint8_t> postChoiceBytes;
+    BuildCurrentSaveBytes(&postChoiceBytes);
+    Kotonoha::SchoolDaysKtrfSession::LoadPlan postChoiceLoad;
+    if (!session.PlanLoadSave(postChoiceBytes, &postChoiceLoad, &error)) {
+        Fail(std::string("post-choice save parse failed: ") + error.message);
+    }
+    Check(postChoiceLoad.recordedChoicePresent &&
+              postChoiceLoad.image.liveChoiceCommitMarkerPresent &&
+              postChoiceLoad.image.liveChoiceCommitted &&
+              postChoiceLoad.restoreRecordedChoice,
+          "post-choice save did not preserve current committed-choice semantics");
+
+    Kotonoha::SchoolDaysKtrfSession::StepResult toA04;
+    if (!session.Advance("ktrf:next", &toA04, &error))
+        Fail(std::string("A03 -> A04 advance failed: ") + error.message);
+    Check(toA04.kind == Kotonoha::SchoolDaysKtrfSession::StepKind::Scene &&
+              toA04.scene.sceneKey == "00/00-00-A04",
+          "committed A03 choice did not advance to A04");
+
+    Kotonoha::SchoolDaysKtrfSession::BackPlan revisitBack;
+    if (!session.PlanBack(&revisitBack, &error) ||
+        !session.CommitBack(&revisitBack, &error)) {
+        Fail(std::string("A04 -> Back A03 failed: ") + error.message);
+    }
+    Check(revisitBack.kind == Kotonoha::SchoolDaysKtrfSession::BackKind::Scene &&
+              revisitBack.scene.sceneKey == "00/00-00-A03",
+          "Back from A04 did not revisit A03");
+    Check(HasA03Tag4(),
+          "Back incorrectly deleted historical A03 tag4 needed by PlayData");
+
+    uint32_t revisitChoiceCount = 0u;
+    uint32_t revisitChoiceIndex = KOTONOHA_KTRF_NULL_INDEX;
+    if (!Kotonoha_KtrfRouterCurrentChoiceCount(
+            &session.Adapter()->router, &revisitChoiceCount, &error) ||
+        revisitChoiceCount != 1u ||
+        !Kotonoha_KtrfRouterCurrentChoiceAt(
+            &session.Adapter()->router, 0u, &revisitChoiceIndex, &error)) {
+        Fail(std::string("revisited A03 choice lookup failed: ") + error.message);
+    }
+    Check(session.Adapter()->router.choice_committed[revisitChoiceIndex] == 0u,
+          "Back to A03 did not restore a pending live choice");
+
+    std::vector<uint8_t> pendingRevisitBytes;
+    BuildCurrentSaveBytes(&pendingRevisitBytes);
+    Kotonoha::SchoolDaysKtrfSession::LoadPlan pendingRevisitLoad;
+    if (!session.PlanLoadSave(pendingRevisitBytes, &pendingRevisitLoad, &error)) {
+        Fail(std::string("pending-revisit load plan failed: ") + error.message);
+    }
+    Check(pendingRevisitLoad.recordedChoicePresent &&
+              pendingRevisitLoad.image.liveChoiceCommitMarkerPresent &&
+              !pendingRevisitLoad.image.liveChoiceCommitted &&
+              !pendingRevisitLoad.restoreRecordedChoice,
+          "historical A03 tag4 was still mistaken for the current visit");
+    Check(std::none_of(
+              pendingRevisitLoad.image.sessionInts.begin(),
+              pendingRevisitLoad.image.sessionInts.end(),
+              [](const auto& item) {
+                  return item.first == "__KOTONOHA_LIVE_CHOICE_COMMITTED";
+              }),
+          "private live-choice marker leaked into restored tag1 session state");
+    if (!session.CommitLoadSave(pendingRevisitLoad, &error)) {
+        Fail(std::string("pending-revisit load commit failed: ") + error.message);
+    }
+    revisitChoiceCount = 0u;
+    revisitChoiceIndex = KOTONOHA_KTRF_NULL_INDEX;
+    if (!Kotonoha_KtrfRouterCurrentChoiceCount(
+            &session.Adapter()->router, &revisitChoiceCount, &error) ||
+        revisitChoiceCount != 1u ||
+        !Kotonoha_KtrfRouterCurrentChoiceAt(
+            &session.Adapter()->router, 0u, &revisitChoiceIndex, &error)) {
+        Fail(std::string("loaded pending A03 choice lookup failed: ") + error.message);
+    }
+    Check(session.Adapter()->router.choice_committed[revisitChoiceIndex] == 0u &&
+              HasA03Tag4() &&
+              state.DetachedSession().count(
+                  "__KOTONOHA_LIVE_CHOICE_COMMITTED") == 0u,
+          "pending A03 LOAD suppressed the choice or lost historical tag4");
+
+    // Save/load during A03's post-choice visual tail remains the opposite case:
+    // restore the latch/value only; the choice effects already live in tag1.
+    if (!session.PlanLoadSave(postChoiceBytes, &postChoiceLoad, &error) ||
+        !session.CommitLoadSave(postChoiceLoad, &error)) {
+        Fail(std::string("post-choice save/load restore failed: ") + error.message);
+    }
+    revisitChoiceCount = 0u;
+    revisitChoiceIndex = KOTONOHA_KTRF_NULL_INDEX;
+    if (!Kotonoha_KtrfRouterCurrentChoiceCount(
+            &session.Adapter()->router, &revisitChoiceCount, &error) ||
+        revisitChoiceCount != 1u ||
+        !Kotonoha_KtrfRouterCurrentChoiceAt(
+            &session.Adapter()->router, 0u, &revisitChoiceIndex, &error)) {
+        Fail(std::string("loaded post-choice A03 lookup failed: ") + error.message);
+    }
+    const auto& restoredChoice = session.Adapter()->router.choice_values[revisitChoiceIndex];
+    Check(session.Adapter()->router.choice_committed[revisitChoiceIndex] != 0u &&
+              restoredChoice.kind == KOTONOHA_KTRF_RUNTIME_INT64 &&
+              restoredChoice.as.int64_value == revisitChoiceValue,
+          "post-choice A03 LOAD did not restore committed choice latch/value");
+
+    // Leave the established Gate 3 smoke path on its original clean new-game
+    // starting point after the isolated save/load regression above.
+    if (!session.ResetNewGame(&scene, &error))
+        Fail(std::string("post-regression reset failed: ") + error.message);
+
     Kotonoha::SchoolDaysKtrfScene current;
     if (!session.CurrentScene(&current, &error)) Fail(error.message);
     Check(current.sceneKey == scene.sceneKey && current.orsPath == scene.orsPath, "CurrentScene mismatch");
@@ -466,6 +625,8 @@ int main(int argc, char** argv) {
               << "sentinel_back_predecessors=PASS\n"
               << "back_no_script_commit=PASS\n"
               << "back_boundary_trial_specials=PASS\n"
+              << "pending_revisit_tag4_load=PASS\n"
+              << "post_choice_save_load_latch=PASS\n"
               << "adapter_asset_bridge=PASS\n"
               << "physical_ors_probe_per_scene=PASS\n";
     return 0;

@@ -2,7 +2,7 @@
 // The original archives (.rpa) and compiled scripts (.rpyc) are read at run
 // time and executed by the port's own Python/ATL runtime (Ddlc::Vm); this
 // file is the host: decoding, audio, text, drawing and the GUI screens.
-// Usage: DokiDoki --ddlc <DDLC game dir> [--mcp [port]]   (or DDLC_DIR)
+// Usage: DokiDoki --ddlc <DDLC game dir>   (or DDLC_DIR)
 #include "Ddlc/Runtime.hpp"
 
 #include <Kotonoha/Main.hpp>

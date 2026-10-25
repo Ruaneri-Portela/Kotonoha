@@ -4,10 +4,10 @@ Escopo: corpus distribuído de School Days HQ v1.02, com `UnicodeFile != 0` e `U
 
 ## Alterações
 
-- `src/parsers/Ors.c`: exige a aridade do comando antes de criar o evento e usa apenas TAB como separador. As duas linhas de `05-KI-OP1` com vírgulas e o `PrintText` de cinco campos em `03-KB-D10` não criam eventos. O `;` final termina a linha; um `;` dentro do texto não a trunca.
-- `src/parsers/Ors.c`: remove o ajuste condicional de `+1` em `START == previous.END`. A inserção ordenada já usa comparação estrita `>` e, portanto, mantém a ordem textual entre eventos com mesmo `START`.
-- `include/Kotonoha/parsers/Ors.h` e `src/parsers/Ors.c`: reconhecem `MoveSom` com `START`, valor numérico e `END`. O modelo o armazena e libera; o runtime existente cai no `default` neutro. Nenhum SOMCON foi implementado.
-- `src/parsers/Ors.c`: os campos vazios de `PlayVoice` continuam ocupando suas posições; NUMERIC vazio vira `0` e KEY vazia permanece `""`. `SetSELECT` trata `null` e `NULL` como opções ausentes (além da opção vazia já tratada), sem tornar `null` um token global. `CreateBG.FIELD0` continua armazenado sem nova semântica.
+- `src/Kotonoha/parsers/Ors.c`: exige a aridade do comando antes de criar o evento e usa apenas TAB como separador. As duas linhas de `05-KI-OP1` com vírgulas e o `PrintText` de cinco campos em `03-KB-D10` não criam eventos. O `;` final termina a linha; um `;` dentro do texto não a trunca.
+- `src/Kotonoha/parsers/Ors.c`: remove o ajuste condicional de `+1` em `START == previous.END`. A inserção ordenada já usa comparação estrita `>` e, portanto, mantém a ordem textual entre eventos com mesmo `START`.
+- `include/Kotonoha/parsers/Ors.h` e `src/Kotonoha/parsers/Ors.c`: reconhecem `MoveSom` com `START`, valor numérico e `END`. O modelo o armazena e libera; o runtime existente cai no `default` neutro. Nenhum SOMCON foi implementado.
+- `src/Kotonoha/parsers/Ors.c`: os campos vazios de `PlayVoice` continuam ocupando suas posições; NUMERIC vazio vira `0` e KEY vazia permanece `""`. `SetSELECT` trata `null` e `NULL` como opções ausentes (além da opção vazia já tratada), sem tornar `null` um token global. `CreateBG.FIELD0` continua armazenado sem nova semântica.
 - `SkipFRAME` e `Next` continuam tipos separados. Seus `START` são preservados individualmente no modelo; a lógica de skip/scene no runtime não faz parte deste gate.
 
 ## Validação

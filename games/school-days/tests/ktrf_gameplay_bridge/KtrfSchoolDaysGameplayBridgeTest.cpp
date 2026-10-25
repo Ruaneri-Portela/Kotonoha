@@ -504,7 +504,7 @@ int main(int argc, char** argv) {
     // Advance transaction and stop before an unresolved semantic decision.  It
     // must never manufacture a raw seek across those intervening ORS files.
     Kotonoha::SchoolDaysKtrfGameplayBridge::StepResult nextChoice;
-    if (!bridge.AdvanceToNextChoice("ktrf:next", &nextChoice, &error))
+    if (!bridge.AdvanceToNextChoice("ktrf:next", true, &nextChoice, &error))
         Fail(std::string("next-choice advance failed: ") + error.message);
     Check(nextChoice.kind ==
               Kotonoha::SchoolDaysKtrfGameplayBridge::StepKind::BlockedChoice,
@@ -515,6 +515,63 @@ int main(int argc, char** argv) {
         Fail(std::string("next-choice count read failed: ") + error.message);
     Check(nextChoiceCount != 0u && !bridge.HasPendingHandoff(),
           "next-choice stop did not leave the choice-bearing route active");
+
+    // Retail host+0x88 gates cross-script SuperSkip when Config Skip is off:
+    // a fresh unread destination must stop at its beginning rather than chain
+    // all the way to the first choice. Completing A00 also records A00=true in
+    // GlobalFlag, exactly like EXE 0x00424020 -> interface +0x1C(SceneKey,true).
+    bridge.Close();
+    if (!bridge.Open(argv[1], argv[2], &gameContext, factory, &error))
+        Fail(std::string("re-open before unread SuperSkip test failed: ") +
+             error.message);
+    Kotonoha::SchoolDaysKtrfGameplayBridge::StepResult unreadStop;
+    if (!bridge.AdvanceToNextChoice("ktrf:next", false, &unreadStop, &error))
+        Fail(std::string("unread next-choice advance failed: ") + error.message);
+    Check(unreadStop.kind ==
+              Kotonoha::SchoolDaysKtrfGameplayBridge::StepKind::SwappedScene &&
+              unreadStop.scene.sceneKey == "00/00-00-A01",
+          "SuperSkip with Skip off did not stop at the first unread script");
+    int64_t readMarker = 0;
+    Check(bridge.Session().State().ReadGlobalInt("00/00-00-A00", &readMarker,
+                                                &error) &&
+              readMarker != 0,
+          "completed outgoing script was not recorded as globally read");
+    Check(bridge.Session().State().ReadGlobalInt("00/00-00-A01", &readMarker,
+                                                &error) &&
+              readMarker == 0,
+          "unread destination was marked read before it completed");
+
+    // Mark A01/A02 as historical reads.  The same Skip-off path may chain
+    // through them, but A03 itself is still unread, so native host+0x88 stops
+    // at A03's beginning rather than immediately seeking its SetSELECT.
+    Check(bridge.Session().Persistence().WriteGlobalInteger(
+              "00/00-00-A01", 11, -1, &bridge.Session().State(), &error) &&
+              bridge.Session().Persistence().WriteGlobalInteger(
+                  "00/00-00-A02", 11, -1, &bridge.Session().State(), &error),
+          "failed to seed authenticated read markers for SuperSkip test");
+    Kotonoha::SchoolDaysKtrfGameplayBridge::StepResult unreadChoiceScene;
+    if (!bridge.AdvanceToNextChoice("ktrf:next", false, &unreadChoiceScene, &error))
+        Fail(std::string("partially-seen next-choice advance failed: ") + error.message);
+    Check(unreadChoiceScene.kind ==
+              Kotonoha::SchoolDaysKtrfGameplayBridge::StepKind::SwappedScene &&
+              unreadChoiceScene.scene.sceneKey == "00/00-00-A03",
+          "SuperSkip did not stop at the unread choice-bearing script start");
+
+    // Once A03 is globally read, activating SuperSkip while already in A03 is
+    // allowed to reach that script's own SkipFRAME == SetSELECT boundary.
+    Check(bridge.Session().Persistence().WriteGlobalInteger(
+              "00/00-00-A03", 11, -1, &bridge.Session().State(), &error),
+          "failed to mark the choice-bearing script as read");
+    Kotonoha::SchoolDaysKtrfGameplayBridge::StepResult seenNextChoice;
+    if (!bridge.AdvanceToNextChoice("ktrf:next", false, &seenNextChoice, &error))
+        Fail(std::string("seen next-choice advance failed: ") + error.message);
+    if (seenNextChoice.kind !=
+            Kotonoha::SchoolDaysKtrfGameplayBridge::StepKind::BlockedChoice ||
+        bridge.CurrentScene().sceneKey != "00/00-00-A03") {
+        Fail("read-marker SuperSkip did not stop at A03's live choice: kind=" +
+             std::to_string(static_cast<int>(seenNextChoice.kind)) +
+             " scene=" + bridge.CurrentScene().sceneKey);
+    }
 
     // Re-open once more so the established long forward smoke retains its
     // original clean-new-game starting point.

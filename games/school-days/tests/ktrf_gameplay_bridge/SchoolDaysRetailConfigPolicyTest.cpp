@@ -27,7 +27,7 @@ int main() {
     Check(state.masterVolume == -1.0f && state.voiceVolume == 5 &&
               state.bgmVolume == 5 && state.seVolume == 5 && state.textView &&
               state.menVoice && !state.mute && !state.skip && state.autoDraw &&
-              !state.superSkip && !state.useSom,
+              !state.superSkip,
           "0x10006CE0 defaults drifted");
 
     Check(Policy::NativeBankForUi(Ui::Bgm) == Native::Bgm &&
