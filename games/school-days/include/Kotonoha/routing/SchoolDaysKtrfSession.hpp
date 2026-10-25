@@ -7,8 +7,9 @@
 extern "C" {
 #include <Kotonoha/parsers/Ktrf.h>
 #include <Kotonoha/routing/KtrfAdapter.h>
-#include <Kotonoha/routing/KtrfAssetResolver.h>
 }
+
+#include <Kotonoha/routing/SchoolDaysKtrfAssetResolver.hpp>
 
 #include <Kotonoha/routing/SchoolDaysHistory.hpp>
 #include <Kotonoha/routing/SchoolDaysPersistence.hpp>
@@ -67,12 +68,29 @@ public:
         SchoolDaysPersistence::SaveImage image;
         SchoolDaysCoordinate destination;
         SchoolDaysKtrfScene scene;
+        bool recordedChoicePresent = false;
+        int32_t recordedChoiceValue = -1;
+        // tag4 is historical PlayData state and may outlive the active visit.
+        // This is the narrower live-visit decision used to restore the router
+        // latch and suppress a freshly-created Prompt after LOAD.
+        bool restoreRecordedChoice = false;
     };
 
     struct RouteMapCheckpointPlan {
         int selector = -1;
         SchoolDaysCoordinate destination;
         SchoolDaysKtrfScene scene;
+    };
+
+    // Non-StateStore outputs produced by one routing advance.  GameplayBridge
+    // may still fail after Session::Advance succeeds (for example, while
+    // creating the destination Gameplay).  These fields must participate in
+    // that outer transaction as well or hooks/endings/top-meter latches leak
+    // from a route that was otherwise rolled back.
+    struct TransientState {
+        std::vector<std::string> pendingHooks;
+        std::vector<int64_t> pendingEndings;
+        bool topMeterRefreshRequested = false;
     };
 
     SchoolDaysKtrfSession();
@@ -138,6 +156,14 @@ public:
         topMeterRefreshRequested = false;
         return requested;
     }
+    TransientState CaptureTransientState() const {
+        return {pendingHooks, pendingEndings, topMeterRefreshRequested};
+    }
+    void RestoreTransientState(const TransientState& snapshot) {
+        pendingHooks = snapshot.pendingHooks;
+        pendingEndings = snapshot.pendingEndings;
+        topMeterRefreshRequested = snapshot.topMeterRefreshRequested;
+    }
 
 private:
     static int OnEnding(int64_t endingCode, void* userdata,
@@ -147,9 +173,9 @@ private:
     static int OnEffectApplied(uint32_t effectIndex, void* userdata,
                                Kotonoha_KtrfError* error);
 
-    bool ResolveOrsPhysicalPath(Kotonoha_KtrfOrsAsset* asset,
+    bool ResolveOrsPhysicalPath(SchoolDaysKtrfResolvedAsset* asset,
                                 Kotonoha_KtrfError* error) const;
-    bool FillScene(const Kotonoha_KtrfOrsAsset& asset,
+    bool FillScene(const SchoolDaysKtrfResolvedAsset& asset,
                    SchoolDaysKtrfScene* out) const;
     bool ResolveSemanticCoordinate(int route, int scene,
                                    SchoolDaysCoordinate* coordinate,

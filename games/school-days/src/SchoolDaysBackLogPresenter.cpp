@@ -6,6 +6,7 @@
 #include <vector>
 
 #include <Kotonoha/SchoolDaysImageAssetResolver.hpp>
+#include <Kotonoha/routing/SchoolDaysSubtitleTypography.hpp>
 
 extern "C" {
 #include <Kotonoha/renders/ImageRender.h>
@@ -188,7 +189,6 @@ bool SchoolDaysBackLogPresenter::Render(
         if (scratch != nullptr) SDL_DestroySurface(scratch);
         return Fail(error, "School Days BackLog text surface setup failed");
     }
-    const SDL_Color white{255, 255, 255, 255};
     for (const auto& block : textPlan.blocks) {
         // Build one shaped TTF run per authenticated FONTDATA row. The run is
         // then fitted back into the exact native advance span, so wrapping,
@@ -205,8 +205,8 @@ bool SchoolDaysBackLogPresenter::Render(
             const std::string utf8 = Utf16ToUtf8BackLog(text);
             if (utf8.empty()) continue;
 
-            SDL_Surface* rendered =
-                TTF_RenderText_Blended(font_, utf8.c_str(), utf8.size(), white);
+            SDL_Surface* rendered = SchoolDaysSubtitleTypography::Render(
+                font_, utf8.c_str(), utf8.size());
             if (rendered == nullptr) {
                 SDL_DestroySurface(scratch);
                 return Fail(error, "School Days BackLog TTF rasterization failed");

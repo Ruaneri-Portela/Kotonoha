@@ -65,6 +65,10 @@ void SchoolDaysSystemUi::DestroyTextures() {
         SDL_DestroyTexture(routeMapTextTexture_);
         routeMapTextTexture_ = nullptr;
     }
+    if (replayTextTexture_ != nullptr) {
+        SDL_DestroyTexture(replayTextTexture_);
+        replayTextTexture_ = nullptr;
+    }
     if (replayThumbnailTexture_ != nullptr) {
         SDL_DestroyTexture(replayThumbnailTexture_);
         replayThumbnailTexture_ = nullptr;
@@ -79,14 +83,20 @@ void SchoolDaysSystemUi::DestroyTextures() {
     }
     saveLoadFont_.Clear();
     routeMapFont_.Clear();
+    replayFont_.Clear();
     saveLoadTextPixels_.clear();
     routeMapTextPixels_.clear();
+    replayTextPixels_.clear();
     saveLoadMetadata_.clear();
+    replayMetadata_.clear();
     saveLoadCommentAdvances_.clear();
     saveLoadUseEnglish_ = false;
     routeMapUseEnglish_ = false;
+    replayTextInputEnabled_ = false;
+    replayUseEnglish_ = false;
     replayAssetsRoot_.clear();
     replayLoadedPage_ = -1;
+    replayTextLoadedPage_ = -1;
     replayLoadedSceneCheckCount_ = -1;
     routeMapAssetsRoot_.clear();
     routeMapLoadedMajor_ = -1;
@@ -269,6 +279,8 @@ bool SchoolDaysSystemUi::EnsureRouteMapTextures(SDL_Renderer* renderer,
 bool SchoolDaysSystemUi::OpenReplay(SDL_Renderer* renderer,
                                     const std::string& assetsRoot,
                                     SchoolDaysReplayModel::Variant variant,
+                                    bool textInputEnabled, bool useEnglish,
+                                    const std::string& fontDataLogicalPath,
                                     std::string* error) {
     Close();
     if (renderer == nullptr) {
@@ -279,6 +291,49 @@ bool SchoolDaysSystemUi::OpenReplay(SDL_Renderer* renderer,
                       error)) {
         return false;
     }
+
+    std::filesystem::path fontLogical(fontDataLogicalPath);
+    if (fontLogical.empty() || fontLogical.is_absolute()) {
+        if (error != nullptr) *error = "School Days Replay FONTDATA logical path is invalid";
+        Close();
+        return false;
+    }
+    if (useEnglish) {
+        const auto ext = fontLogical.extension().string();
+        const auto stem = fontLogical.stem().string();
+        fontLogical.replace_filename(stem + "_eng" + ext);
+    }
+    std::string fontPhysical;
+    if (!ResolveSchoolDaysRequiredAssetPath(
+            assetsRoot.c_str(), fontLogical.generic_string(), &fontPhysical, error,
+            "Replay FONTDATA") ||
+        !replayFont_.LoadFile(fontPhysical, error)) {
+        Close();
+        return false;
+    }
+    replayTextTexture_ = SDL_CreateTexture(
+        renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, 2048, 1024);
+    if (replayTextTexture_ == nullptr ||
+        !SDL_SetTextureBlendMode(replayTextTexture_, SDL_BLENDMODE_BLEND)) {
+        if (error != nullptr)
+            *error = std::string("School Days Replay FONTDATA texture setup failed: ") +
+                     SDL_GetError();
+        Close();
+        return false;
+    }
+    replayTextPixels_.assign(static_cast<size_t>(2048) * 1024u, 0u);
+    replayMetadata_.assign(100u, SchoolDaysSaveService::SlotMetadata{});
+    replayTextInputEnabled_ = textInputEnabled;
+    replayUseEnglish_ = useEnglish;
+    replayTextLoadedPage_ = -1;
+    if (!SDL_UpdateTexture(replayTextTexture_, nullptr, replayTextPixels_.data(),
+                           2048 * static_cast<int>(sizeof(uint32_t)))) {
+        if (error != nullptr)
+            *error = std::string("School Days Replay FONTDATA texture clear failed: ") +
+                     SDL_GetError();
+        Close();
+        return false;
+    }
     replayAssetsRoot_ = assetsRoot;
     replayLoadedPage_ = -1;
     replayLoadedSceneCheckCount_ = -1;
@@ -287,6 +342,97 @@ bool SchoolDaysSystemUi::OpenReplay(SDL_Renderer* renderer,
         return false;
     }
     resultEmitted_ = false;
+    return true;
+}
+
+bool SchoolDaysSystemUi::SetReplayPlayDataMetadata(
+    const std::vector<SchoolDaysSaveService::SlotMetadata>& slots,
+    std::string* error) {
+    if (error != nullptr) error->clear();
+    if (!replay_.IsOpen() || replayTextTexture_ == nullptr ||
+        !replayFont_.IsLoaded() || slots.size() != 100u) {
+        if (error != nullptr)
+            *error = "School Days Replay metadata presenter is not ready";
+        return false;
+    }
+    replayMetadata_ = slots;
+    for (int slot = 0; slot < 100; ++slot) {
+        replay_.SetPlayDataAvailable(
+            slot, replayMetadata_[static_cast<size_t>(slot)].occupied);
+    }
+    replayTextLoadedPage_ = -1;
+    return true;
+}
+
+bool SchoolDaysSystemUi::UpdateReplayMetadataTexture(std::string* error) {
+    if (error != nullptr) error->clear();
+    if (!replay_.IsOpen() || replayTextTexture_ == nullptr ||
+        !replayFont_.IsLoaded() || replayMetadata_.size() != 100u) {
+        if (error != nullptr)
+            *error = "School Days Replay metadata texture is not ready";
+        return false;
+    }
+    const int page = replay_.Page();
+    if (page < 0 || page >= 10) {
+        if (error != nullptr) *error = "School Days Replay metadata page is invalid";
+        return false;
+    }
+    std::fill(replayTextPixels_.begin(), replayTextPixels_.end(), 0u);
+
+    auto drawText = [&](const std::u16string& text, int startX, int startY) -> bool {
+        int x = startX;
+        const size_t count = std::min(text.size(), size_t{20});
+        SchoolDaysFontData::Glyph glyph;
+        for (size_t i = 0u; i < count; ++i) {
+            const uint16_t code = static_cast<uint16_t>(text[i]);
+            if (!replayFont_.DecodeGlyph(code, &glyph, error)) return false;
+            if (x < 0 || startY < 0 || x + SchoolDaysFontData::kGlyphWidth > 2048 ||
+                startY + SchoolDaysFontData::kGlyphHeight > 1024) {
+                if (error != nullptr)
+                    *error = "School Days Replay FONTDATA glyph exceeds atlas";
+                return false;
+            }
+            for (int gy = 0; gy < SchoolDaysFontData::kGlyphHeight; ++gy) {
+                for (int gx = 0; gx < SchoolDaysFontData::kGlyphWidth; ++gx) {
+                    const size_t source = static_cast<size_t>(gy) *
+                                              SchoolDaysFontData::kGlyphWidth +
+                                          static_cast<size_t>(gx);
+                    const uint8_t alpha = glyph.alpha[source];
+                    const uint8_t gray = glyph.gray[source];
+                    const uint32_t packed = (static_cast<uint32_t>(alpha) << 24u) |
+                                            (static_cast<uint32_t>(gray) << 16u) |
+                                            (static_cast<uint32_t>(gray) << 8u) |
+                                            static_cast<uint32_t>(gray);
+                    uint32_t& destination = replayTextPixels_[
+                        static_cast<size_t>(startY + gy) * 2048u +
+                        static_cast<size_t>(x + gx)];
+                    if (destination < packed) destination = packed;
+                }
+            }
+            x += SchoolDaysReplayRenderPlan::MetadataGlyphAdvance(code);
+        }
+        return true;
+    };
+
+    for (int row = 0; row < 10; ++row) {
+        const int slot = page * 10 + row;
+        const auto& metadata = replayMetadata_[static_cast<size_t>(slot)];
+        if (!metadata.occupied) continue;
+        if (!drawText(metadata.date, 0, 48 * row) ||
+            !drawText(metadata.story, 1024, 48 * row) ||
+            (replayTextInputEnabled_ &&
+             !drawText(metadata.comment, 0, 512 + 48 * row))) {
+            return false;
+        }
+    }
+    if (!SDL_UpdateTexture(replayTextTexture_, nullptr, replayTextPixels_.data(),
+                           2048 * static_cast<int>(sizeof(uint32_t)))) {
+        if (error != nullptr)
+            *error = std::string("School Days Replay FONTDATA atlas upload failed: ") +
+                     SDL_GetError();
+        return false;
+    }
+    replayTextLoadedPage_ = page;
     return true;
 }
 
@@ -353,6 +499,11 @@ bool SchoolDaysSystemUi::EnsureReplayTextures(SDL_Renderer* renderer,
         }
         replayLoadedView_ = view;
         replayLoadedPage_ = page;
+    }
+
+    if (view == SchoolDaysReplayModel::View::PlayData &&
+        replayTextLoadedPage_ != page && !UpdateReplayMetadataTexture(error)) {
+        return false;
     }
 
     if (sceneCheck) {
@@ -1378,6 +1529,39 @@ bool SchoolDaysSystemUi::Render(SDL_Renderer* renderer, std::string* error) {
         // underneath the translucent Pop_Replay artwork.
         const auto parentPlan = SchoolDaysReplayRenderPlan::Build(replay_);
         if (!drawReplayPlan(parentPlan, false)) return false;
+
+        if (replay_.CurrentView() == SchoolDaysReplayModel::View::PlayData) {
+            if (replayTextTexture_ == nullptr || replayMetadata_.size() != 100u) {
+                if (error != nullptr)
+                    *error = "School Days Replay Data text texture is unavailable";
+                return false;
+            }
+            const int page = replay_.Page();
+            const auto metadataLayout =
+                SchoolDaysReplayRenderPlan::MetadataLayout(replay_.CurrentVariant());
+            for (const auto& row : metadataLayout) {
+                const int slot = page * 10 + row.row;
+                if (slot < 0 || slot >= 100 ||
+                    !replayMetadata_[static_cast<size_t>(slot)].occupied) {
+                    continue;
+                }
+                auto drawTextRegion = [&](const SchoolDaysReplayRenderPlan::Rect& src,
+                                          const SchoolDaysReplayRenderPlan::Rect& nativeDst) {
+                    const SDL_FRect source = {src.x, src.y, src.w, src.h};
+                    const SDL_FRect native = {
+                        nativeDst.x, nativeDst.y, nativeDst.w, nativeDst.h};
+                    const SDL_FRect dst = TransformRect(native, viewport);
+                    return SDL_RenderTexture(renderer, replayTextTexture_, &source, &dst);
+                };
+                if (!drawTextRegion(row.dateSource, row.date) ||
+                    !drawTextRegion(row.storySource, row.story) ||
+                    (replayTextInputEnabled_ &&
+                     !drawTextRegion(row.commentSource, row.comment))) {
+                    if (error != nullptr) *error = SDL_GetError();
+                    return false;
+                }
+            }
+        }
 
         if (replay_.SceneCheckOpen()) {
             SchoolDaysReplayRenderPlan::SceneCheckVisualState visual;

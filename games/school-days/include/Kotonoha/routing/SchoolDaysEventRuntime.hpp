@@ -56,7 +56,10 @@ private:
   std::atomic_bool readyToEnd{false};
   std::atomic_bool setSelectReached{false};
   std::atomic_bool suppressBackLogCaptureOnce{false};
+  mutable std::atomic_bool fatalError{false};
   TTF_Font *font = nullptr;
+  Kotonoha_Subtitles *subtitleOwner_ = nullptr;
+  ASS_Track *ownedSubtitleTrack_ = nullptr;
 
   std::vector<Video*> videoToDelete;
   std::vector<Image*> imageToDelete;
@@ -67,7 +70,10 @@ public:
   SchoolDaysEventRuntime(const char *orsPath, void *gameplay,
                          Kotonoha_Game *gameCtx, TTF_Font *font = nullptr);
   bool ProcessNow(void *gameplay, Kotonoha_Game *gameCtx) override;
-  void Reset(void *gameplay, bool suppressBackLogCapture = false) override;
+  bool HasFatalError() const override {
+    return fatalError.load(std::memory_order_acquire);
+  }
+  void Reset(void *gameplay, bool suppressReplaySideEffects = false) override;
   GameplayEventTarget ComputeSkipToEndTarget(void *gameplay) const override;
   bool SetSelectReached() const override {
     return setSelectReached.load(std::memory_order_acquire);

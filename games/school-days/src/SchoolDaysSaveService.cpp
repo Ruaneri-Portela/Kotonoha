@@ -1,5 +1,6 @@
 #include <Kotonoha/routing/SchoolDaysSaveService.hpp>
 
+#include <algorithm>
 #include <cstdio>
 
 namespace Kotonoha {
@@ -67,12 +68,30 @@ bool SchoolDaysSaveService::PlanSlot(
     planned.globalFlagPath = profile.flagFileName;
     planned.saveConfigSubKey = planned.saveConfigKey + "_Sub";
 
-    // 0x0042AEA0 calls the SLog writer before mutating SaveConfig metadata.
-    if (!persistence.SerializeSaveLog(&planned.saveFileBytes, error)) {
+    // SAVE is legal during the post-choice visual tail.  At that point tag4
+    // already records the accepted choice while the tag1 FlgH snapshot may
+    // still describe the pre-choice scene state.  Refresh tag1 on a staged
+    // copy from the live KTRF state before serializing; never mutate the live
+    // persistence object until the external writes have succeeded and Commit
+    // is called.
+    planned.stagedPersistence = persistence;
+    KtrfStateStore::Snapshot liveState;
+    if (!state.Capture(&liveState, error)) return false;
+    // Router activation clears every choice latch, so a committed bit in this
+    // snapshot can only belong to the active node/visit. Persist that fact
+    // separately from tag4, whose SceneKey record intentionally survives Back
+    // for PlayData history.
+    const bool liveChoiceCommitted = std::any_of(
+        liveState.choiceCommitted.begin(), liveState.choiceCommitted.end(),
+        [](uint8_t value) { return value != 0u; });
+    if (!planned.stagedPersistence.RefreshCurrentScriptSnapshot(state, error) ||
+        !planned.stagedPersistence.SerializeSaveLogWithLiveChoiceCommitMarker(
+            liveChoiceCommitted, &planned.saveFileBytes, error)) {
         return false;
     }
 
-    planned.stagedPersistence = persistence;
+    // 0x0042AEA0 writes SLog before mutating SaveConfig metadata.  The staged
+    // object preserves that high-level transaction ordering for the caller.
     if (!planned.stagedPersistence.UpsertGlobalString(
             planned.saveConfigKey, primaryMetadata, error) ||
         !planned.stagedPersistence.UpsertGlobalString(

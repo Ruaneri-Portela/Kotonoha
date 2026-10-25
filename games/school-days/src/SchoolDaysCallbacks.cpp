@@ -8,9 +8,11 @@
 #include <Kotonoha/routing/KtrfSceneTransaction.hpp>
 #include <Kotonoha/routing/SchoolDaysSaveProfile.hpp>
 #include <Kotonoha/routing/SchoolDaysSaveStorage.hpp>
+#include <Kotonoha/routing/SchoolDaysSaveMetadata.hpp>
 #include <Kotonoha/routing/SchoolDaysCommentDialog.hpp>
 #include <Kotonoha/routing/SchoolDaysConfigStorage.hpp>
 #include <Kotonoha/routing/SchoolDaysDisplayPolicy.hpp>
+#include <Kotonoha/routing/SchoolDaysEpisodeOverlay.hpp>
 #include <Kotonoha/routing/SchoolDaysFrontendTransition.hpp>
 #include <Kotonoha/routing/SchoolDaysRetailConfigPolicy.hpp>
 #include <Kotonoha/routing/SchoolDaysMenuBarPresenter.hpp>
@@ -18,8 +20,10 @@
 #include <Kotonoha/routing/SchoolDaysPlaybackPolicy.hpp>
 #include <Kotonoha/routing/SchoolDaysReplayPlaybackSession.hpp>
 #include <Kotonoha/routing/SchoolDaysSystemUi.hpp>
+#include <Kotonoha/routing/SchoolDaysSubtitleTypography.hpp>
 #include <Kotonoha/routing/SchoolDaysTitleProfile.hpp>
 #include <Kotonoha/debug/DebugUi.hpp>
+#include <Kotonoha/Display.hpp>
 #include <Kotonoha/SchoolDaysImageAssetResolver.hpp>
 #include <Kotonoha/SchoolDaysAssetMount.hpp>
 #include <Kotonoha/components/Audio.hpp>
@@ -27,8 +31,13 @@
 #include <Kotonoha/components/Sound.hpp>
 #include <Kotonoha/specials/Upscaling.h>
 #include <Kotonoha/utils/OverlayRender.h>
+extern "C" {
+#include <Kotonoha/renders/ImageRender.h>
+}
+#include <SDL3_ttf/SDL_ttf.h>
 #include <imgui.h>
 #include <algorithm>
+#include <cmath>
 #include <cstring>
 #include <filesystem>
 #include <ctime>
@@ -94,10 +103,14 @@ Kotonoha::SchoolDaysConfigMenuModel::Page ktrfConfigPage =
 bool ktrfTitleReplayActive = false;
 enum class KtrfReplayHostModal : uint8_t {
   None,
+  Save,
+  Load,
   Config,
   MainMenuConfirm,
 };
 KtrfReplayHostModal ktrfReplayHostModal = KtrfReplayHostModal::None;
+enum class KtrfBackLogOwner : uint8_t { None, Narrative, PlayData };
+KtrfBackLogOwner ktrfBackLogOwner = KtrfBackLogOwner::None;
 int ktrfRouteMapProjectionMajor = -1;
 int ktrfRouteMapProjectionSubpage = -1;
 enum class KtrfFrontendHandoff : uint8_t {
@@ -113,12 +126,177 @@ enum class KtrfFrontendHandoff : uint8_t {
 Kotonoha::SchoolDaysFrontendTransition ktrfFrontendTransition;
 KtrfFrontendHandoff ktrfFrontendHandoff = KtrfFrontendHandoff::None;
 bool ktrfTitleHasPresented = false;
+Kotonoha::SchoolDaysEpisodeOverlay ktrfEpisodeOverlay;
+Kotonoha::Gameplay *ktrfEpisodeOverlayOwner = nullptr;
+SDL_Texture *ktrfEpisodeTelopTexture = nullptr;
+int ktrfEpisodeTextureNumber = 0;
 // Runtime-observed retail MenuBar rule: the left transport button first places
 // the current physical scene at its start; activating it again while still in
 // that start-navigation state asks RouteProc for the authenticated predecessor.
 // Track the physical Gameplay identity rather than inventing a millisecond
 // threshold (no such threshold was proven in SysMenuSDHQ.dll).
 Kotonoha::Gameplay *ktrfMenuBackStartGameplay = nullptr;
+
+void DestroySchoolDaysEpisodeOverlayTexture() {
+  if (ktrfEpisodeTelopTexture != nullptr) {
+    SDL_DestroyTexture(ktrfEpisodeTelopTexture);
+    ktrfEpisodeTelopTexture = nullptr;
+  }
+  ktrfEpisodeTextureNumber = 0;
+}
+
+void ResetSchoolDaysEpisodeOverlay() {
+  ktrfEpisodeOverlay.Reset();
+  ktrfEpisodeOverlayOwner = nullptr;
+  DestroySchoolDaysEpisodeOverlayTexture();
+}
+
+bool ArmSchoolDaysEpisodeOverlay(const std::string &sourceSceneKey,
+                                 const std::string &destinationSceneKey,
+                                 Kotonoha::Gameplay *owner) {
+  DestroySchoolDaysEpisodeOverlayTexture();
+  ktrfEpisodeOverlayOwner = nullptr;
+  if (!ktrfEpisodeOverlay.ArmForNaturalHandoff(sourceSceneKey,
+                                               destinationSceneKey)) {
+    SDL_LogError(0,
+                 "[SD-EPISODE] natural handoff %s -> %s did not map to Episode 2..6",
+                 sourceSceneKey.c_str(), destinationSceneKey.c_str());
+    return false;
+  }
+  if (owner == nullptr) {
+    ktrfEpisodeOverlay.Reset();
+    SDL_LogError(0, "[SD-EPISODE] handoff destination has no Gameplay owner");
+    return false;
+  }
+  ktrfEpisodeOverlayOwner = owner;
+  SDL_Log("[SD-EPISODE] armed Episode %d scene=%s",
+          ktrfEpisodeOverlay.EpisodeNumber(), destinationSceneKey.c_str());
+  return true;
+}
+
+bool EnsureSchoolDaysEpisodeOverlayTexture() {
+  if (!ktrfEpisodeOverlay.Armed()) return false;
+  const int episode = ktrfEpisodeOverlay.EpisodeNumber();
+  if (ktrfEpisodeTelopTexture != nullptr &&
+      ktrfEpisodeTextureNumber == episode) {
+    return true;
+  }
+
+  DestroySchoolDaysEpisodeOverlayTexture();
+  const std::string logical =
+      Kotonoha::SchoolDaysEpisodeOverlay::TelopLogicalPath(episode);
+  if (logical.empty()) {
+    SDL_SetError("School Days Episode overlay has no retail TELOP mapping");
+    return false;
+  }
+  const auto asset =
+      Kotonoha::ResolveSchoolDaysAssetPath(ktrfAssetsRoot.c_str(), logical);
+  if (!asset.present || asset.collision || asset.physical.empty()) {
+    SDL_SetError("School Days retail Episode TELOP asset could not be resolved");
+    return false;
+  }
+  ktrfEpisodeTelopTexture =
+      KotonohaImageCreateTexture(global.render, asset.physical.c_str(), -1, -1);
+  if (ktrfEpisodeTelopTexture == nullptr) return false;
+  if (!SDL_SetTextureBlendMode(ktrfEpisodeTelopTexture, SDL_BLENDMODE_BLEND) ||
+      !SDL_SetTextureScaleMode(ktrfEpisodeTelopTexture, SDL_SCALEMODE_LINEAR)) {
+    DestroySchoolDaysEpisodeOverlayTexture();
+    return false;
+  }
+  ktrfEpisodeTextureNumber = episode;
+  return true;
+}
+
+bool RenderSchoolDaysEpisodeOverlay(Kotonoha::Gameplay *play) {
+  if (ktrfController == nullptr || play == nullptr ||
+      play != ktrfEpisodeOverlayOwner ||
+      ktrfController->FlowState() !=
+          Kotonoha::SchoolDaysFlowController::State::Gameplay ||
+      !ktrfEpisodeOverlay.AppliesTo(ktrfController->CurrentScene().sceneKey)) {
+    return true;
+  }
+
+  const uint64_t sceneMs = KotonohaTimeGet(play->tm);
+  const uint8_t alpha = Kotonoha::SchoolDaysEpisodeOverlay::Alpha(sceneMs);
+  if (alpha == 0u) return true;
+  if (!EnsureSchoolDaysEpisodeOverlayTexture()) return false;
+
+  // TELOP01..06 are the retail 800x452 transparent full-frame overlays.  Draw
+  // the complete asset through the same Gameplay canvas placement as the
+  // authored WMV/image layers: this preserves the original caption position,
+  // antialiasing, shadow and per-pixel alpha without recreating any typography.
+  int outputWidth = 0;
+  int outputHeight = 0;
+  if (!SDL_GetCurrentRenderOutputSize(global.render, &outputWidth, &outputHeight) ||
+      outputWidth <= 0 || outputHeight <= 0) {
+    return false;
+  }
+  constexpr float aspectRatio = 16.0f / 9.0f;
+  SDL_FRect destination{};
+  const float renderWidth = static_cast<float>(outputWidth);
+  const float renderHeight = static_cast<float>(outputHeight);
+  const float outputAspect = renderWidth / renderHeight;
+  if (outputAspect < aspectRatio) {
+    destination.w = renderWidth;
+    destination.h = renderWidth / aspectRatio;
+    destination.x = 0.0f;
+    destination.y = (renderHeight - destination.h) * 0.5f;
+  } else {
+    destination.h = renderHeight;
+    destination.w = renderHeight * aspectRatio;
+    destination.y = 0.0f;
+    destination.x = (renderWidth - destination.w) * 0.5f;
+  }
+  if (!SDL_SetTextureAlphaMod(ktrfEpisodeTelopTexture, alpha)) return false;
+  return SDL_RenderTexture(global.render, ktrfEpisodeTelopTexture, nullptr,
+                           &destination);
+}
+
+void ClearTemporaryPlaybackPause() {
+  Kotonoha::Gameplay *temporary =
+      ktrfReplayPlayback != nullptr && ktrfReplayPlayback->IsOpen()
+          ? ktrfReplayPlayback->CurrentGameplay()
+          : (ktrfPlayDataPlayback != nullptr && ktrfPlayDataPlayback->IsOpen()
+                 ? ktrfPlayDataPlayback->CurrentGameplay()
+                 : nullptr);
+  if (temporary != nullptr) {
+    temporary->SetUserPaused(&global, false);
+  } else {
+    global.config.paused = false;
+  }
+}
+
+bool EnsureSchoolDaysSubtitleStyles() {
+  if (global.config.assStylesData != nullptr &&
+      global.config.assStylesSize > 0u) {
+    return true;
+  }
+
+  const char *basePath = SDL_GetBasePath();
+  if (basePath == nullptr || *basePath == '\0') {
+    SDL_LogError(0, "[SD-SUBTITLES] SDL_GetBasePath failed: %s",
+                 SDL_GetError());
+    return false;
+  }
+
+  const std::filesystem::path stylePath =
+      std::filesystem::path(basePath) / "assets" / "school-days" /
+      "styles.skot";
+  size_t styleSize = 0;
+  void *styleData = SDL_LoadFile(stylePath.string().c_str(), &styleSize);
+  if (styleData == nullptr || styleSize == 0u) {
+    if (styleData != nullptr) SDL_free(styleData);
+    SDL_LogError(0, "[SD-SUBTITLES] default styles unavailable: %s (%s)",
+                 stylePath.string().c_str(), SDL_GetError());
+    return false;
+  }
+
+  global.config.assStylesData = static_cast<char *>(styleData);
+  global.config.assStylesSize = styleSize;
+  SDL_Log("[SD-SUBTITLES] default styles loaded bytes=%llu",
+          static_cast<unsigned long long>(styleSize));
+  return true;
+}
 
 bool BeginSchoolDaysFrontendHandoff(
     KtrfFrontendHandoff handoff,
@@ -173,6 +351,780 @@ void RefreshSchoolDaysRetailDisplayProjection() {
           ktrfRetailDisplayBackendState);
   ktrfUiVariant = Kotonoha::SchoolDaysDisplayPolicy::SelectRetailVariant(
       ktrfRetailDisplayState);
+}
+
+struct SchoolDaysModernDisplayPanelState {
+  int selectedResolution = -1;
+  int hoveredRow = -1;
+  int hoveredResolution = -1;
+  int hoveredUpscaler = -1;
+  int resolutionScroll = 0;
+  bool resolutionListOpen = false;
+  bool upscalerListOpen = false;
+};
+
+SchoolDaysModernDisplayPanelState ktrfModernDisplayPanel;
+
+bool ApplySchoolDaysModernAspectPreference() {
+  const int preference = std::clamp(global.config.contentAspectPreference.load(), 0, 2);
+  Kotonoha::SchoolDaysSaveFeelModel::Variant requested = ktrfUiVariant;
+  if (preference == 1) {
+    requested = Kotonoha::SchoolDaysSaveFeelModel::Variant::Standard;
+  } else if (preference == 2) {
+    requested = Kotonoha::SchoolDaysSaveFeelModel::Variant::Wide;
+  } else {
+    int outputWidth = 0;
+    int outputHeight = 0;
+    Kotonoha::SchoolDaysDisplayPolicy::Decision decision;
+    if (!SDL_GetCurrentRenderOutputSize(global.render, &outputWidth, &outputHeight) ||
+        !Kotonoha::SchoolDaysDisplayPolicy::SelectAuto(
+            outputWidth, outputHeight, &decision)) {
+      return false;
+    }
+    requested = decision.variant;
+  }
+
+  ktrfRetailDisplayBackendState = SchoolDaysRetailBackendSeed(requested);
+  RefreshSchoolDaysRetailDisplayProjection();
+  return true;
+}
+
+bool ApplySchoolDaysRetailWindowModeToPhysicalDisplay() {
+  const bool full = ktrfRetailDisplayBackendState.windowMode != 0;
+  const auto mode = full ? Kotonoha::DisplayMode::BorderlessFullscreen
+                         : Kotonoha::DisplayMode::Windowed;
+  const SDL_DisplayID display =
+      Kotonoha::ResolveDisplayIndex(global.config.displayIndex.load());
+  if (!Kotonoha::SetDisplay(global, mode, display)) {
+    SDL_LogError(0,
+                 "[SD-CONFIG] failed to synchronize retail WINDOW/FULL with physical display: %s",
+                 SDL_GetError());
+    return false;
+  }
+  return true;
+}
+
+SDL_FRect SchoolDaysModernConfigViewportRect() {
+  int width = 0;
+  int height = 0;
+  if (global.render == nullptr ||
+      !SDL_GetCurrentRenderOutputSize(global.render, &width, &height) ||
+      width <= 0 || height <= 0) {
+    return {};
+  }
+  const auto layout = Kotonoha::SchoolDaysConfigMenuRenderPlan::LayoutFor(
+      SchoolDaysConfigVariant());
+  const float scale = std::min(
+      static_cast<float>(width) / static_cast<float>(layout.logicalWidth),
+      static_cast<float>(height) / static_cast<float>(layout.logicalHeight));
+  const float viewportWidth = layout.logicalWidth * scale;
+  const float viewportHeight = layout.logicalHeight * scale;
+  return {(width - viewportWidth) * 0.5f, (height - viewportHeight) * 0.5f,
+          viewportWidth, viewportHeight};
+}
+
+SDL_FRect SchoolDaysModernDisplayTabRect() {
+  const SDL_FRect viewport = SchoolDaysModernConfigViewportRect();
+  if (viewport.w <= 0.0f || viewport.h <= 0.0f) return {};
+  const auto layout = Kotonoha::SchoolDaysConfigMenuRenderPlan::LayoutFor(
+      SchoolDaysConfigVariant());
+  const float viewportScale = viewport.w / layout.logicalWidth;
+  const float x = (398.0f - 0.5f) * layout.scale;
+  const float y = (54.0f - 0.5f + layout.yOffset) * layout.scale;
+  const float w = (194.0f + 1.0f) * layout.scale;
+  const float h = (38.0f + 1.0f) * layout.scale;
+  return {viewport.x + x * viewportScale,
+          viewport.y + y * viewportScale,
+          w * viewportScale, h * viewportScale};
+}
+
+SDL_FRect SchoolDaysModernDisplayPanelRect() {
+  const SDL_FRect viewport = SchoolDaysModernConfigViewportRect();
+  const SDL_FRect tab = SchoolDaysModernDisplayTabRect();
+  if (viewport.w <= 0.0f || tab.h <= 0.0f) return {};
+  const float margin = std::max(14.0f, viewport.w * 0.018f);
+  const float y = tab.y + tab.h + std::max(8.0f, viewport.h * 0.012f);
+  return {viewport.x + margin, y,
+          viewport.w - margin * 2.0f,
+          std::max(0.0f, viewport.y + viewport.h - y - margin)};
+}
+
+std::vector<Kotonoha::DisplayResolution> SchoolDaysCurrentResolutions() {
+  SDL_DisplayID display = Kotonoha::ResolveDisplayIndex(global.config.displayIndex.load());
+  if (display == 0 && global.window != nullptr)
+    display = SDL_GetDisplayForWindow(global.window);
+  return Kotonoha::EnumerateDisplayResolutions(display);
+}
+
+void FormatSchoolDaysResolution(const Kotonoha::DisplayResolution &r,
+                                char *buffer, size_t bufferSize) {
+  if (buffer == nullptr || bufferSize == 0u) return;
+  const float rounded = std::round(r.refreshRate);
+  if (std::fabs(r.refreshRate - rounded) < 0.01f) {
+    SDL_snprintf(buffer, bufferSize, "%dx%d @ %.0f Hz",
+                 r.width, r.height, r.refreshRate);
+  } else {
+    SDL_snprintf(buffer, bufferSize, "%dx%d @ %.2f Hz",
+                 r.width, r.height, r.refreshRate);
+  }
+}
+
+bool SchoolDaysPointInRect(float x, float y, const SDL_FRect &rect) {
+  return x >= rect.x && x < rect.x + rect.w && y >= rect.y &&
+         y < rect.y + rect.h;
+}
+
+float SchoolDaysModernDisplayRowHeight(const SDL_FRect &panel) {
+  return std::min(64.0f, std::max(44.0f, panel.h / 7.2f));
+}
+
+SDL_FRect SchoolDaysModernDisplayRowRect(const SDL_FRect &panel, int row) {
+  const float rowHeight = SchoolDaysModernDisplayRowHeight(panel);
+  return {panel.x + 18.0f,
+          panel.y + 20.0f + row * rowHeight - 4.0f,
+          panel.w - 36.0f,
+          rowHeight - 8.0f};
+}
+
+struct SchoolDaysResolutionPopupLayout {
+  SDL_FRect rect{};
+  float headerHeight = 0.0f;
+  float rowHeight = 0.0f;
+  int visibleRows = 0;
+};
+
+SchoolDaysResolutionPopupLayout SchoolDaysResolutionPopup(
+    const SDL_FRect &panel) {
+  SchoolDaysResolutionPopupLayout out;
+  out.rowHeight = std::min(44.0f, std::max(34.0f,
+      SchoolDaysModernDisplayRowHeight(panel) * 0.72f));
+  out.headerHeight = out.rowHeight;
+  out.rect = {panel.x + panel.w * 0.44f,
+              panel.y + 16.0f,
+              panel.w * 0.54f - 16.0f,
+              panel.h - 32.0f};
+  out.visibleRows = std::max(
+      1, static_cast<int>((out.rect.h - out.headerHeight - 12.0f) /
+                          out.rowHeight));
+  return out;
+}
+
+struct SchoolDaysUpscalerOption {
+  const char *label;
+  bool enabled;
+  Kotonoha_UpscalerPreset preset;
+};
+
+constexpr SchoolDaysUpscalerOption kSchoolDaysUpscalerOptions[] = {
+    {"OFF", false, KOTONOHA_UPSCALER_PRESET_ARTCNN_C4F16},
+    {"Anime Light - ArtCNN C4F16", true,
+     KOTONOHA_UPSCALER_PRESET_ARTCNN_C4F16},
+    {"Anime Clean - ArtCNN C4F16 DS", true,
+     KOTONOHA_UPSCALER_PRESET_ARTCNN_C4F16_DS},
+    {"Anime Quality - ArtCNN C4F32", true,
+     KOTONOHA_UPSCALER_PRESET_ARTCNN_C4F32},
+    {"Legacy - Anime4K B-S", true,
+     KOTONOHA_UPSCALER_PRESET_LEGACY_ANIME4K},
+};
+
+SchoolDaysResolutionPopupLayout SchoolDaysUpscalerPopup(
+    const SDL_FRect &panel) {
+  auto out = SchoolDaysResolutionPopup(panel);
+  out.visibleRows = static_cast<int>(std::size(kSchoolDaysUpscalerOptions));
+  out.rect.h = out.headerHeight + out.visibleRows * out.rowHeight + 12.0f;
+  return out;
+}
+
+int SchoolDaysCurrentUpscalerOption() {
+  if (!Kotonoha::RuntimeUpscalingEnabled()) return 0;
+  const auto preset = Kotonoha::RuntimeUpscalingPreset();
+  for (int i = 1; i < static_cast<int>(std::size(kSchoolDaysUpscalerOptions)); ++i)
+    if (kSchoolDaysUpscalerOptions[i].preset == preset) return i;
+  return 4;
+}
+
+void ApplySchoolDaysUpscalerOption(int index) {
+  if (index < 0 || index >= static_cast<int>(std::size(kSchoolDaysUpscalerOptions)))
+    return;
+  const auto &option = kSchoolDaysUpscalerOptions[index];
+  if (option.enabled) {
+    Kotonoha::RuntimeSetUpscalingPreset(option.preset);
+    Kotonoha::RuntimeSetUpscalingEnabled(true);
+  } else {
+    Kotonoha::RuntimeSetUpscalingEnabled(false);
+  }
+}
+
+bool ApplySchoolDaysResolutionSelection(int index) {
+  const auto resolutions = SchoolDaysCurrentResolutions();
+  if (index < 0 || index >= static_cast<int>(resolutions.size())) return false;
+
+  ktrfModernDisplayPanel.selectedResolution = index;
+  const auto &r = resolutions[static_cast<size_t>(index)];
+  const auto mode = static_cast<Kotonoha::DisplayMode>(
+      std::clamp(global.config.displayMode.load(), 0, 2));
+  const SDL_DisplayID display =
+      Kotonoha::ResolveDisplayIndex(global.config.displayIndex.load());
+
+  if (mode == Kotonoha::DisplayMode::Windowed) {
+    global.config.windowSize[0] = r.width;
+    global.config.windowSize[1] = r.height;
+    global.config.dirtyConfig = true;
+    return Kotonoha::SetDisplay(global, mode, display);
+  }
+  if (mode == Kotonoha::DisplayMode::ExclusiveFullscreen) {
+    return Kotonoha::SetDisplay(global, mode, display,
+                                r.width, r.height, r.refreshRate);
+  }
+
+  // Borderless follows the desktop/native mode by definition. Keep the chosen
+  // mode as the preferred exclusive resolution so switching to Exclusive later
+  // has an explicit player-selected target.
+  global.config.fullscreenSize[0] = r.width;
+  global.config.fullscreenSize[1] = r.height;
+  global.config.fullscreenRefreshMilliHz =
+      static_cast<int>(r.refreshRate * 1000.0f + 0.5f);
+  global.config.dirtyConfig = true;
+  return true;
+}
+
+bool RenderSchoolDaysModernDisplayPanel(Kotonoha::Kotonoha *app) {
+  if (app == nullptr || global.render == nullptr || ktrfSystemUi == nullptr ||
+      !ktrfSystemUi->IsConfigOpen()) {
+    return true;
+  }
+  TTF_Font *font = nullptr;
+  if (const auto it = app->fonts.find(
+          Kotonoha::SchoolDaysSubtitleTypography::PrimaryFontKey);
+      it != app->fonts.end()) {
+    font = it->second;
+  }
+  if (font == nullptr) return true;
+
+  // Always cover/rename the removed SOMCON tab, even while General/Sound is
+  // selected. This keeps the original authored tab geometry without exposing a
+  // dead hardware surface in the commercial remaster.
+  const SDL_FRect tab = SchoolDaysModernDisplayTabRect();
+  if (tab.w > 0.0f && tab.h > 0.0f) {
+    const bool active =
+        ktrfConfigPage == Kotonoha::SchoolDaysConfigMenuModel::Page::Display;
+    SDL_SetRenderDrawBlendMode(global.render, SDL_BLENDMODE_BLEND);
+    if (active)
+      SDL_SetRenderDrawColor(global.render, 186, 205, 244, 255);
+    else
+      SDL_SetRenderDrawColor(global.render, 235, 238, 242, 252);
+    if (!SDL_RenderFillRect(global.render, &tab)) return false;
+    SDL_SetRenderDrawColor(global.render, 118, 122, 132, 255);
+    if (!SDL_RenderRect(global.render, &tab)) return false;
+    const char *tabText = "DISPLAY OPTIONS";
+    SDL_Surface *tabSurface = Kotonoha::SchoolDaysSubtitleTypography::Render(
+        font, tabText, SDL_strlen(tabText));
+    if (tabSurface != nullptr) {
+      SDL_Texture *tabTexture = SDL_CreateTextureFromSurface(global.render, tabSurface);
+      if (tabTexture != nullptr) {
+        const float scale = std::min(
+            0.42f, std::min((tab.w - 18.0f) / std::max(1, tabSurface->w),
+                            (tab.h - 10.0f) / std::max(1, tabSurface->h)));
+        SDL_FRect dst{tab.x + (tab.w - tabSurface->w * scale) * 0.5f,
+                      tab.y + (tab.h - tabSurface->h * scale) * 0.5f,
+                      tabSurface->w * scale, tabSurface->h * scale};
+        (void)SDL_RenderTexture(global.render, tabTexture, nullptr, &dst);
+        SDL_DestroyTexture(tabTexture);
+      }
+      SDL_DestroySurface(tabSurface);
+    }
+  }
+
+  if (ktrfConfigPage != Kotonoha::SchoolDaysConfigMenuModel::Page::Display)
+    return true;
+
+  const SDL_FRect panel = SchoolDaysModernDisplayPanelRect();
+  if (panel.w <= 0.0f || panel.h <= 0.0f) return true;
+
+  SDL_SetRenderDrawBlendMode(global.render, SDL_BLENDMODE_BLEND);
+  SDL_SetRenderDrawColor(global.render, 12, 15, 24, 242);
+  if (!SDL_RenderFillRect(global.render, &panel)) return false;
+  SDL_SetRenderDrawColor(global.render, 255, 255, 255, 64);
+  if (!SDL_RenderRect(global.render, &panel)) return false;
+
+  const auto resolutions = SchoolDaysCurrentResolutions();
+  int selected = ktrfModernDisplayPanel.selectedResolution;
+  if (selected < 0 || selected >= static_cast<int>(resolutions.size())) {
+    selected = 0;
+    const int wantedW = global.config.displayMode.load() ==
+                                static_cast<int>(Kotonoha::DisplayMode::ExclusiveFullscreen)
+                            ? global.config.fullscreenSize[0].load()
+                            : global.config.windowSize[0].load();
+    const int wantedH = global.config.displayMode.load() ==
+                                static_cast<int>(Kotonoha::DisplayMode::ExclusiveFullscreen)
+                            ? global.config.fullscreenSize[1].load()
+                            : global.config.windowSize[1].load();
+    for (int i = 0; i < static_cast<int>(resolutions.size()); ++i) {
+      if (resolutions[static_cast<size_t>(i)].width == wantedW &&
+          resolutions[static_cast<size_t>(i)].height == wantedH) {
+        selected = i;
+        break;
+      }
+    }
+    ktrfModernDisplayPanel.selectedResolution = selected;
+  }
+
+  const int aspect = std::clamp(global.config.contentAspectPreference.load(), 0, 2);
+  const char *aspectLabel[] = {"Auto", "4:3", "16:9"};
+  const int mode = std::clamp(global.config.displayMode.load(), 0, 2);
+  const char *modeLabel = mode == static_cast<int>(Kotonoha::DisplayMode::Windowed)
+                              ? "Windowed"
+                              : mode == static_cast<int>(Kotonoha::DisplayMode::BorderlessFullscreen)
+                                    ? "Borderless"
+                                    : "Exclusive";
+  char displayText[64];
+  SDL_snprintf(displayText, sizeof(displayText), "Display %d",
+               global.config.displayIndex.load() + 1);
+  char resolutionText[96] = "Desktop/native";
+  if (!resolutions.empty()) {
+    const auto &r = resolutions[static_cast<size_t>(selected)];
+    FormatSchoolDaysResolution(r, resolutionText, sizeof(resolutionText));
+  }
+  const int upscalerOption = SchoolDaysCurrentUpscalerOption();
+  const char *upscaleText = kSchoolDaysUpscalerOptions[upscalerOption].label;
+  char aspectText[96];
+  char modeText[96];
+  char monitorText[96];
+  char resText[128];
+  char upscaleLabel[128];
+  SDL_snprintf(aspectText, sizeof(aspectText), "Aspect: %s", aspectLabel[aspect]);
+  SDL_snprintf(modeText, sizeof(modeText), "Mode: %s", modeLabel);
+  SDL_snprintf(monitorText, sizeof(monitorText), "Monitor: %s", displayText);
+  SDL_snprintf(resText, sizeof(resText), "Resolution: %s", resolutionText);
+  SDL_snprintf(upscaleLabel, sizeof(upscaleLabel), "Upscaling: %s", upscaleText);
+
+  const char *labels[6] = {"DISPLAY / REMASTER", aspectText, modeText,
+                           monitorText, resText, upscaleLabel};
+  const float rowHeight = SchoolDaysModernDisplayRowHeight(panel);
+  for (int row = 1; row <= 5; ++row) {
+    const SDL_FRect box = SchoolDaysModernDisplayRowRect(panel, row);
+    const bool hovered = ktrfModernDisplayPanel.hoveredRow == row;
+    SDL_SetRenderDrawColor(global.render,
+                           hovered ? 65 : 255,
+                           hovered ? 92 : 255,
+                           hovered ? 148 : 255,
+                           hovered ? 118 : 18);
+    if (!SDL_RenderFillRect(global.render, &box)) return false;
+    SDL_SetRenderDrawColor(global.render, 255, 255, 255,
+                           hovered ? 170 : 54);
+    if (!SDL_RenderRect(global.render, &box)) return false;
+  }
+  for (int row = 0; row < 6; ++row) {
+    SDL_Surface *surface = Kotonoha::SchoolDaysSubtitleTypography::Render(
+        font, labels[row], SDL_strlen(labels[row]));
+    if (surface == nullptr) continue;
+    SDL_Texture *texture = SDL_CreateTextureFromSurface(global.render, surface);
+    if (texture != nullptr) {
+      const float scale = row == 0 ? 0.56f : 0.50f;
+      SDL_FRect dst{panel.x + 28.0f,
+                    panel.y + 20.0f + row * rowHeight,
+                    surface->w * scale, surface->h * scale};
+      (void)SDL_RenderTexture(global.render, texture, nullptr, &dst);
+      SDL_DestroyTexture(texture);
+    }
+    SDL_DestroySurface(surface);
+  }
+
+  // Persistent affordance plus a stronger hover cue: unlike the authored
+  // bitmap controls, these modern rows are text-driven and otherwise look like
+  // passive labels. The marker makes it obvious that every row is selectable.
+  for (int row = 1; row <= 5; ++row) {
+    const SDL_FRect box = SchoolDaysModernDisplayRowRect(panel, row);
+    const bool hovered = ktrfModernDisplayPanel.hoveredRow == row;
+    const char *marker =
+        (row == 4 && ktrfModernDisplayPanel.resolutionListOpen) ||
+                (row == 5 && ktrfModernDisplayPanel.upscalerListOpen)
+            ? "^"
+            : (hovered ? "SELECT  >" : ">");
+    SDL_Surface *markerSurface = Kotonoha::SchoolDaysSubtitleTypography::Render(
+        font, marker, SDL_strlen(marker));
+    if (markerSurface == nullptr) continue;
+    SDL_Texture *markerTexture =
+        SDL_CreateTextureFromSurface(global.render, markerSurface);
+    if (markerTexture != nullptr) {
+      const float scale = hovered ? 0.38f : 0.34f;
+      const float w = markerSurface->w * scale;
+      const float h = markerSurface->h * scale;
+      SDL_FRect dst{box.x + box.w - w - 14.0f,
+                    box.y + (box.h - h) * 0.5f, w, h};
+      (void)SDL_RenderTexture(global.render, markerTexture, nullptr, &dst);
+      SDL_DestroyTexture(markerTexture);
+    }
+    SDL_DestroySurface(markerSurface);
+  }
+
+  if (ktrfModernDisplayPanel.resolutionListOpen && !resolutions.empty()) {
+    const auto popup = SchoolDaysResolutionPopup(panel);
+    const int maxScroll = std::max(
+        0, static_cast<int>(resolutions.size()) - popup.visibleRows);
+    ktrfModernDisplayPanel.resolutionScroll = std::clamp(
+        ktrfModernDisplayPanel.resolutionScroll, 0, maxScroll);
+
+    SDL_SetRenderDrawColor(global.render, 8, 11, 18, 252);
+    if (!SDL_RenderFillRect(global.render, &popup.rect)) return false;
+    SDL_SetRenderDrawColor(global.render, 190, 205, 235, 230);
+    if (!SDL_RenderRect(global.render, &popup.rect)) return false;
+
+    const char *heading = "RESOLUTIONS  -  WHEEL TO SCROLL";
+    SDL_Surface *headingSurface =
+        Kotonoha::SchoolDaysSubtitleTypography::Render(
+            font, heading, SDL_strlen(heading));
+    if (headingSurface != nullptr) {
+      SDL_Texture *headingTexture =
+          SDL_CreateTextureFromSurface(global.render, headingSurface);
+      if (headingTexture != nullptr) {
+        const float scale = 0.34f;
+        SDL_FRect dst{popup.rect.x + 12.0f, popup.rect.y + 5.0f,
+                      headingSurface->w * scale, headingSurface->h * scale};
+        (void)SDL_RenderTexture(global.render, headingTexture, nullptr, &dst);
+        SDL_DestroyTexture(headingTexture);
+      }
+      SDL_DestroySurface(headingSurface);
+    }
+
+    for (int visible = 0; visible < popup.visibleRows; ++visible) {
+      const int index = ktrfModernDisplayPanel.resolutionScroll + visible;
+      if (index >= static_cast<int>(resolutions.size())) break;
+      const SDL_FRect item{
+          popup.rect.x + 8.0f,
+          popup.rect.y + popup.headerHeight + visible * popup.rowHeight,
+          popup.rect.w - 16.0f,
+          popup.rowHeight - 3.0f};
+      const bool hovered =
+          ktrfModernDisplayPanel.hoveredResolution == index;
+      const bool chosen = selected == index;
+      if (hovered || chosen) {
+        SDL_SetRenderDrawColor(global.render,
+                               chosen ? 57 : 50,
+                               chosen ? 83 : 64,
+                               chosen ? 144 : 90,
+                               hovered ? 220 : 150);
+        if (!SDL_RenderFillRect(global.render, &item)) return false;
+      }
+      SDL_SetRenderDrawColor(global.render, 255, 255, 255,
+                             hovered ? 150 : 32);
+      if (!SDL_RenderRect(global.render, &item)) return false;
+
+      const auto &r = resolutions[static_cast<size_t>(index)];
+      char itemText[128];
+      char modeText[96];
+      FormatSchoolDaysResolution(r, modeText, sizeof(modeText));
+      SDL_snprintf(itemText, sizeof(itemText), "%s %s",
+                   chosen ? ">" : " ", modeText);
+      SDL_Surface *itemSurface =
+          Kotonoha::SchoolDaysSubtitleTypography::Render(
+              font, itemText, SDL_strlen(itemText));
+      if (itemSurface == nullptr) continue;
+      SDL_Texture *itemTexture =
+          SDL_CreateTextureFromSurface(global.render, itemSurface);
+      if (itemTexture != nullptr) {
+        const float scale = 0.38f;
+        const float h = itemSurface->h * scale;
+        SDL_FRect dst{item.x + 10.0f,
+                      item.y + (item.h - h) * 0.5f,
+                      itemSurface->w * scale, h};
+        (void)SDL_RenderTexture(global.render, itemTexture, nullptr, &dst);
+        SDL_DestroyTexture(itemTexture);
+      }
+      SDL_DestroySurface(itemSurface);
+    }
+  }
+
+  if (ktrfModernDisplayPanel.upscalerListOpen) {
+    const auto popup = SchoolDaysUpscalerPopup(panel);
+    SDL_SetRenderDrawColor(global.render, 8, 11, 18, 252);
+    if (!SDL_RenderFillRect(global.render, &popup.rect)) return false;
+    SDL_SetRenderDrawColor(global.render, 190, 205, 235, 230);
+    if (!SDL_RenderRect(global.render, &popup.rect)) return false;
+
+    const char *heading = "ANIME UPSCALER PRESETS";
+    SDL_Surface *headingSurface =
+        Kotonoha::SchoolDaysSubtitleTypography::Render(
+            font, heading, SDL_strlen(heading));
+    if (headingSurface != nullptr) {
+      SDL_Texture *headingTexture =
+          SDL_CreateTextureFromSurface(global.render, headingSurface);
+      if (headingTexture != nullptr) {
+        const float scale = 0.34f;
+        SDL_FRect dst{popup.rect.x + 12.0f, popup.rect.y + 5.0f,
+                      headingSurface->w * scale, headingSurface->h * scale};
+        (void)SDL_RenderTexture(global.render, headingTexture, nullptr, &dst);
+        SDL_DestroyTexture(headingTexture);
+      }
+      SDL_DestroySurface(headingSurface);
+    }
+
+    const int chosen = SchoolDaysCurrentUpscalerOption();
+    for (int index = 0;
+         index < static_cast<int>(std::size(kSchoolDaysUpscalerOptions)); ++index) {
+      const SDL_FRect item{
+          popup.rect.x + 8.0f,
+          popup.rect.y + popup.headerHeight + index * popup.rowHeight,
+          popup.rect.w - 16.0f,
+          popup.rowHeight - 3.0f};
+      const bool hovered = ktrfModernDisplayPanel.hoveredUpscaler == index;
+      const bool selectedPreset = chosen == index;
+      if (hovered || selectedPreset) {
+        SDL_SetRenderDrawColor(global.render,
+                               selectedPreset ? 57 : 50,
+                               selectedPreset ? 83 : 64,
+                               selectedPreset ? 144 : 90,
+                               hovered ? 220 : 150);
+        if (!SDL_RenderFillRect(global.render, &item)) return false;
+      }
+      SDL_SetRenderDrawColor(global.render, 255, 255, 255,
+                             hovered ? 150 : 32);
+      if (!SDL_RenderRect(global.render, &item)) return false;
+
+      char itemText[160];
+      SDL_snprintf(itemText, sizeof(itemText), "%s %s",
+                   selectedPreset ? ">" : " ",
+                   kSchoolDaysUpscalerOptions[index].label);
+      SDL_Surface *itemSurface =
+          Kotonoha::SchoolDaysSubtitleTypography::Render(
+              font, itemText, SDL_strlen(itemText));
+      if (itemSurface == nullptr) continue;
+      SDL_Texture *itemTexture =
+          SDL_CreateTextureFromSurface(global.render, itemSurface);
+      if (itemTexture != nullptr) {
+        const float scale = 0.34f;
+        const float h = itemSurface->h * scale;
+        SDL_FRect dst{item.x + 10.0f, item.y + (item.h - h) * 0.5f,
+                      itemSurface->w * scale, h};
+        (void)SDL_RenderTexture(global.render, itemTexture, nullptr, &dst);
+        SDL_DestroyTexture(itemTexture);
+      }
+      SDL_DestroySurface(itemSurface);
+    }
+  }
+  return true;
+}
+
+bool HandleSchoolDaysModernDisplayPanel(const SDL_Event *event) {
+  if (event == nullptr || global.render == nullptr ||
+      ktrfSystemUi == nullptr || !ktrfSystemUi->IsConfigOpen() ||
+      ktrfConfigPage != Kotonoha::SchoolDaysConfigMenuModel::Page::Display) {
+    return false;
+  }
+  const bool pointerEvent = event->type == SDL_EVENT_MOUSE_MOTION ||
+                            event->type == SDL_EVENT_MOUSE_BUTTON_DOWN;
+  if (!pointerEvent && event->type != SDL_EVENT_MOUSE_WHEEL) return false;
+
+  const SDL_FRect panel = SchoolDaysModernDisplayPanelRect();
+  if (panel.w <= 0.0f || panel.h <= 0.0f) return false;
+
+  if (event->type == SDL_EVENT_MOUSE_WHEEL) {
+    if (!ktrfModernDisplayPanel.resolutionListOpen) return false;
+    const auto resolutions = SchoolDaysCurrentResolutions();
+    const auto popup = SchoolDaysResolutionPopup(panel);
+    const int maxScroll = std::max(
+        0, static_cast<int>(resolutions.size()) - popup.visibleRows);
+    if (event->wheel.y > 0.0f)
+      --ktrfModernDisplayPanel.resolutionScroll;
+    else if (event->wheel.y < 0.0f)
+      ++ktrfModernDisplayPanel.resolutionScroll;
+    ktrfModernDisplayPanel.resolutionScroll = std::clamp(
+        ktrfModernDisplayPanel.resolutionScroll, 0, maxScroll);
+    ktrfModernDisplayPanel.hoveredResolution = -1;
+    return true;
+  }
+
+  SDL_Event converted = *event;
+  if (!SDL_ConvertEventToRenderCoordinates(global.render, &converted)) return false;
+  const float x = event->type == SDL_EVENT_MOUSE_MOTION
+                      ? converted.motion.x
+                      : converted.button.x;
+  const float y = event->type == SDL_EVENT_MOUSE_MOTION
+                      ? converted.motion.y
+                      : converted.button.y;
+
+  int row = -1;
+  for (int candidate = 1; candidate <= 5; ++candidate) {
+    if (SchoolDaysPointInRect(
+            x, y, SchoolDaysModernDisplayRowRect(panel, candidate))) {
+      row = candidate;
+      break;
+    }
+  }
+
+  if (event->type == SDL_EVENT_MOUSE_MOTION) {
+    ktrfModernDisplayPanel.hoveredRow = row;
+    ktrfModernDisplayPanel.hoveredResolution = -1;
+    ktrfModernDisplayPanel.hoveredUpscaler = -1;
+    if (ktrfModernDisplayPanel.resolutionListOpen) {
+      const auto resolutions = SchoolDaysCurrentResolutions();
+      const auto popup = SchoolDaysResolutionPopup(panel);
+      if (SchoolDaysPointInRect(x, y, popup.rect)) {
+        const float relativeY = y - popup.rect.y - popup.headerHeight;
+        if (relativeY >= 0.0f) {
+          const int visible = static_cast<int>(relativeY / popup.rowHeight);
+          if (visible >= 0 && visible < popup.visibleRows) {
+            const int index =
+                ktrfModernDisplayPanel.resolutionScroll + visible;
+            if (index >= 0 && index < static_cast<int>(resolutions.size()))
+              ktrfModernDisplayPanel.hoveredResolution = index;
+          }
+        }
+      }
+    }
+    if (ktrfModernDisplayPanel.upscalerListOpen) {
+      const auto popup = SchoolDaysUpscalerPopup(panel);
+      if (SchoolDaysPointInRect(x, y, popup.rect)) {
+        const float relativeY = y - popup.rect.y - popup.headerHeight;
+        if (relativeY >= 0.0f) {
+          const int index = static_cast<int>(relativeY / popup.rowHeight);
+          if (index >= 0 &&
+              index < static_cast<int>(std::size(kSchoolDaysUpscalerOptions)))
+            ktrfModernDisplayPanel.hoveredUpscaler = index;
+        }
+      }
+    }
+    return SchoolDaysPointInRect(x, y, panel);
+  }
+
+  if (converted.button.button != SDL_BUTTON_LEFT) return false;
+
+  if (ktrfModernDisplayPanel.resolutionListOpen) {
+    const auto resolutions = SchoolDaysCurrentResolutions();
+    const auto popup = SchoolDaysResolutionPopup(panel);
+    if (SchoolDaysPointInRect(x, y, popup.rect)) {
+      const float relativeY = y - popup.rect.y - popup.headerHeight;
+      if (relativeY >= 0.0f) {
+        const int visible = static_cast<int>(relativeY / popup.rowHeight);
+        const int index = ktrfModernDisplayPanel.resolutionScroll + visible;
+        if (visible >= 0 && visible < popup.visibleRows && index >= 0 &&
+            index < static_cast<int>(resolutions.size())) {
+          (void)ApplySchoolDaysResolutionSelection(index);
+          ktrfModernDisplayPanel.resolutionListOpen = false;
+          ktrfModernDisplayPanel.hoveredResolution = -1;
+        }
+      }
+      return true;
+    }
+    if (row != 4) {
+      ktrfModernDisplayPanel.resolutionListOpen = false;
+      ktrfModernDisplayPanel.hoveredResolution = -1;
+    }
+  }
+
+  if (ktrfModernDisplayPanel.upscalerListOpen) {
+    const auto popup = SchoolDaysUpscalerPopup(panel);
+    if (SchoolDaysPointInRect(x, y, popup.rect)) {
+      const float relativeY = y - popup.rect.y - popup.headerHeight;
+      if (relativeY >= 0.0f) {
+        const int index = static_cast<int>(relativeY / popup.rowHeight);
+        if (index >= 0 &&
+            index < static_cast<int>(std::size(kSchoolDaysUpscalerOptions))) {
+          ApplySchoolDaysUpscalerOption(index);
+          ktrfModernDisplayPanel.upscalerListOpen = false;
+          ktrfModernDisplayPanel.hoveredUpscaler = -1;
+        }
+      }
+      return true;
+    }
+    if (row != 5) {
+      ktrfModernDisplayPanel.upscalerListOpen = false;
+      ktrfModernDisplayPanel.hoveredUpscaler = -1;
+    }
+  }
+
+  if (!SchoolDaysPointInRect(x, y, panel)) return false;
+  if (row <= 0 || row > 5) return true;
+
+  if (row == 1) {
+    ktrfModernDisplayPanel.resolutionListOpen = false;
+    ktrfModernDisplayPanel.upscalerListOpen = false;
+    const int next = (std::clamp(global.config.contentAspectPreference.load(), 0, 2) + 1) % 3;
+    global.config.contentAspectPreference = next;
+    global.config.dirtyConfig = true;
+    if (!ApplySchoolDaysModernAspectPreference()) return true;
+    ktrfSystemUi->Close(); // reopen immediately next Iterate with new resource family
+    return true;
+  }
+
+  if (row == 2) {
+    ktrfModernDisplayPanel.resolutionListOpen = false;
+    ktrfModernDisplayPanel.upscalerListOpen = false;
+    const int current = std::clamp(global.config.displayMode.load(), 0, 2);
+    // UI order: Windowed -> Borderless -> Exclusive.
+    int next = 0;
+    if (current == static_cast<int>(Kotonoha::DisplayMode::Windowed))
+      next = static_cast<int>(Kotonoha::DisplayMode::BorderlessFullscreen);
+    else if (current == static_cast<int>(Kotonoha::DisplayMode::BorderlessFullscreen))
+      next = static_cast<int>(Kotonoha::DisplayMode::ExclusiveFullscreen);
+    else
+      next = static_cast<int>(Kotonoha::DisplayMode::Windowed);
+    const auto resolutions = SchoolDaysCurrentResolutions();
+    int w = 0, h = 0; float hz = 0.0f;
+    const int selected = ktrfModernDisplayPanel.selectedResolution;
+    if (selected >= 0 && selected < static_cast<int>(resolutions.size())) {
+      const auto &r = resolutions[static_cast<size_t>(selected)];
+      w = r.width; h = r.height; hz = r.refreshRate;
+    }
+    if (Kotonoha::SetDisplay(global, static_cast<Kotonoha::DisplayMode>(next),
+                             Kotonoha::ResolveDisplayIndex(global.config.displayIndex.load()),
+                             w, h, hz)) {
+      // The modern physical modes project back to the original two-state
+      // WINDOW/FULL control: Windowed => WINDOW, either fullscreen mode => FULL.
+      ktrfRetailDisplayBackendState.windowMode =
+          next == static_cast<int>(Kotonoha::DisplayMode::Windowed) ? 0 : 1;
+      RefreshSchoolDaysRetailDisplayProjection();
+      if (ktrfSystemUi != nullptr) ktrfSystemUi->Close();
+    }
+    return true;
+  }
+
+  if (row == 3) {
+    ktrfModernDisplayPanel.resolutionListOpen = false;
+    ktrfModernDisplayPanel.upscalerListOpen = false;
+    int displayCount = 0;
+    SDL_DisplayID *displays = SDL_GetDisplays(&displayCount);
+    if (displays != nullptr && displayCount > 0) {
+      const int next = (global.config.displayIndex.load() + 1) % displayCount;
+      global.config.displayIndex = next;
+      global.config.dirtyConfig = true;
+      ktrfModernDisplayPanel.selectedResolution = -1;
+      ktrfModernDisplayPanel.resolutionScroll = 0;
+      Kotonoha::DisplayMode mode = Kotonoha::DisplayMode::Windowed;
+      (void)Kotonoha::GetDisplayMode(global, &mode);
+      (void)Kotonoha::SetDisplay(global, mode, displays[next]);
+    }
+    SDL_free(displays);
+    return true;
+  }
+
+  if (row == 4) {
+    ktrfModernDisplayPanel.upscalerListOpen = false;
+    const auto resolutions = SchoolDaysCurrentResolutions();
+    if (resolutions.empty()) return true;
+    ktrfModernDisplayPanel.resolutionListOpen =
+        !ktrfModernDisplayPanel.resolutionListOpen;
+    if (ktrfModernDisplayPanel.resolutionListOpen) {
+      const auto popup = SchoolDaysResolutionPopup(panel);
+      const int selected = std::clamp(
+          ktrfModernDisplayPanel.selectedResolution, 0,
+          static_cast<int>(resolutions.size()) - 1);
+      const int maxScroll = std::max(
+          0, static_cast<int>(resolutions.size()) - popup.visibleRows);
+      ktrfModernDisplayPanel.resolutionScroll = std::clamp(
+          selected - popup.visibleRows / 2, 0, maxScroll);
+    }
+    return true;
+  }
+
+  if (row == 5) {
+    ktrfModernDisplayPanel.resolutionListOpen = false;
+    ktrfModernDisplayPanel.upscalerListOpen =
+        !ktrfModernDisplayPanel.upscalerListOpen;
+    ktrfModernDisplayPanel.hoveredUpscaler = -1;
+    return true;
+  }
+  return true;
 }
 
 bool ApplySchoolDaysRetailAudioAndUiState() {
@@ -290,23 +1242,28 @@ void ResetSchoolDaysBackLog() {
   ktrfBackLogStore.ResetTransient();
   ktrfBackLogHistoryIndex = 0;
   ktrfBackLogLastSceneKey.clear();
+  ktrfBackLogOwner = KtrfBackLogOwner::None;
 }
 
 void ObserveSchoolDaysBackLogScriptChange() {
-  if (ktrfController == nullptr ||
-      ktrfController->FlowState() !=
-          Kotonoha::SchoolDaysFlowController::State::Gameplay ||
-      ktrfController->HasPendingHandoff()) {
-    return;
+  const std::string *sceneKey = nullptr;
+  if (ktrfPlayDataPlayback != nullptr && ktrfPlayDataPlayback->IsOpen() &&
+      ktrfReplayHostModal == KtrfReplayHostModal::None) {
+    sceneKey = &ktrfPlayDataPlayback->CurrentScene().sceneKey;
+  } else if (ktrfController != nullptr &&
+             ktrfController->FlowState() ==
+                 Kotonoha::SchoolDaysFlowController::State::Gameplay &&
+             !ktrfController->HasPendingHandoff()) {
+    sceneKey = &ktrfController->CurrentScene().sceneKey;
   }
-  const std::string &sceneKey = ktrfController->CurrentScene().sceneKey;
-  if (sceneKey.empty() || sceneKey == ktrfBackLogLastSceneKey) return;
+  if (sceneKey == nullptr) return;
+  if (sceneKey->empty() || *sceneKey == ktrfBackLogLastSceneKey) return;
   std::lock_guard<std::mutex> lock(ktrfBackLogMutex);
   // Native ScriptChange keeps a transient SceneKey -> manager+0x08 count map.
   // Revisiting a script truncates abandoned-branch LogMessages before that
   // script becomes the active producer again.
-  ktrfBackLogStore.ObserveScriptChange(sceneKey);
-  ktrfBackLogLastSceneKey = sceneKey;
+  ktrfBackLogStore.ObserveScriptChange(*sceneKey);
+  ktrfBackLogLastSceneKey = *sceneKey;
 }
 
 bool BackLogPointerToLogical(SDL_Renderer *renderer, const SDL_Event *event,
@@ -346,29 +1303,52 @@ bool BackLogPointerToLogical(SDL_Renderer *renderer, const SDL_Event *event,
 
 bool OpenSchoolDaysBackLog(Kotonoha::Kotonoha* app) {
   if (ktrfBackLog != nullptr && ktrfBackLog->IsOpen()) return true;
-  if (app == nullptr || ktrfController == nullptr || ktrfSceneTransaction == nullptr ||
-      global.render == nullptr || !ktrfUiVariantSpecified ||
-      ktrfController->FlowState() !=
-          Kotonoha::SchoolDaysFlowController::State::Gameplay) {
+  if (app == nullptr || global.render == nullptr || !ktrfUiVariantSpecified) {
     return false;
   }
+
+  Kotonoha::Gameplay *current = nullptr;
+  Kotonoha::KtrfSceneTransaction *transaction = nullptr;
+  KtrfBackLogOwner owner = KtrfBackLogOwner::None;
+  if (ktrfPlayDataPlayback != nullptr && ktrfPlayDataPlayback->IsOpen() &&
+      ktrfReplayHostModal == KtrfReplayHostModal::None) {
+    current = ktrfPlayDataPlayback->CurrentGameplay();
+    transaction = ktrfReplaySceneTransaction.get();
+    owner = KtrfBackLogOwner::PlayData;
+  } else if (ktrfController != nullptr && ktrfSceneTransaction != nullptr &&
+             ktrfController->FlowState() ==
+                 Kotonoha::SchoolDaysFlowController::State::Gameplay) {
+    current = ktrfController->CurrentGameplay();
+    transaction = ktrfSceneTransaction.get();
+    owner = KtrfBackLogOwner::Narrative;
+  }
+  if (current == nullptr || transaction == nullptr || owner == KtrfBackLogOwner::None)
+    return false;
+
   TTF_Font* primaryFont = nullptr;
   TTF_Font* japaneseFallback = nullptr;
-  if (const auto it = app->fonts.find("ConcertOne-Regular"); it != app->fonts.end())
+  if (const auto it = app->fonts.find(
+          Kotonoha::SchoolDaysSubtitleTypography::PrimaryFontKey);
+      it != app->fonts.end())
     primaryFont = it->second;
-  if (const auto it = app->fonts.find("NotoSansJP-Regular"); it != app->fonts.end())
+  if (const auto it = app->fonts.find(
+          Kotonoha::SchoolDaysSubtitleTypography::JapaneseFallbackFontKey);
+      it != app->fonts.end())
     japaneseFallback = it->second;
   if (primaryFont == nullptr) primaryFont = japaneseFallback;
   if (primaryFont == nullptr) {
     SDL_LogError(0, "[SD-BACKLOG] UI font chain is unavailable");
     return false;
   }
-  Kotonoha::Gameplay *current = ktrfController->CurrentGameplay();
-  if (current == nullptr) return false;
   SDL_SetAtomicInt(&global.textLogCaptureEnabled, 0);
   SDL_SetRenderTarget(global.render, nullptr);
-  if (!ktrfSceneTransaction->PrepareExplicit(global.render, current,
-                                             "backlog-modal")) {
+  // Immediately after a CurrentScene swap the transaction may already own the
+  // only valid outgoing composition as a carry lease.  That lease is exactly
+  // the frozen frame BackLog needs; trying to prepare a second frame is
+  // rejected by KtrfSceneTransaction and must not turn this click into a fatal
+  // application result.
+  if (!transaction->HasLease() &&
+      !transaction->PrepareExplicit(global.render, current, "backlog-modal")) {
     SDL_SetAtomicInt(&global.textLogCaptureEnabled, 1);
     return false;
   }
@@ -382,7 +1362,7 @@ bool OpenSchoolDaysBackLog(Kotonoha::Kotonoha* app) {
     if (!model->Open(ktrfAssetsRoot, ktrfBackLogStore,
                      Kotonoha::SchoolDaysBackLogModel::Orientation::Horizon,
                      SchoolDaysBackLogVariant(), &error)) {
-      ktrfSceneTransaction->CancelPreparedFor(current, "backlog-open-failed");
+      transaction->CancelPreparedFor(current, "backlog-open-failed");
       SDL_SetAtomicInt(&global.textLogCaptureEnabled, 1);
       SDL_LogError(0, "[SD-BACKLOG] open failed: %s", error.c_str());
       return false;
@@ -392,7 +1372,7 @@ bool OpenSchoolDaysBackLog(Kotonoha::Kotonoha* app) {
                        ktrfSaveProfile.useEnglish, primaryFont,
                        japaneseFallback, &error)) {
     model->Close();
-    ktrfSceneTransaction->CancelPreparedFor(current, "backlog-skin-open-failed");
+    transaction->CancelPreparedFor(current, "backlog-skin-open-failed");
     SDL_SetAtomicInt(&global.textLogCaptureEnabled, 1);
     SDL_LogError(0, "[SD-BACKLOG] skin open failed: %s", error.c_str());
     return false;
@@ -401,20 +1381,32 @@ bool OpenSchoolDaysBackLog(Kotonoha::Kotonoha* app) {
   // wall time from the Gameplay clock as well; the first Gameplay::Main after
   // close reconciles loading/user-pause intent before deciding Resume/Pause.
   current->Pause();
+  ktrfBackLogOwner = owner;
   ktrfBackLog = std::move(model);
   ktrfBackLogPresenter = std::move(presenter);
   return true;
 }
 
 void CloseSchoolDaysBackLog() {
-  Kotonoha::Gameplay *current =
-      ktrfController != nullptr ? ktrfController->CurrentGameplay() : nullptr;
+  Kotonoha::Gameplay *current = nullptr;
+  Kotonoha::KtrfSceneTransaction *transaction = nullptr;
+  if (ktrfBackLogOwner == KtrfBackLogOwner::PlayData &&
+      ktrfPlayDataPlayback != nullptr && ktrfPlayDataPlayback->IsOpen()) {
+    current = ktrfPlayDataPlayback->CurrentGameplay();
+    transaction = ktrfReplaySceneTransaction.get();
+  } else if (ktrfBackLogOwner == KtrfBackLogOwner::Narrative &&
+             ktrfController != nullptr) {
+    current = ktrfController->CurrentGameplay();
+    transaction = ktrfSceneTransaction.get();
+  }
   ktrfBackLogPresenter.reset();
   if (ktrfBackLog != nullptr) ktrfBackLog->Close();
   ktrfBackLog.reset();
-  if (ktrfSceneTransaction != nullptr && current != nullptr) {
-    ktrfSceneTransaction->CancelPreparedFor(current, "backlog-close");
+  if (transaction != nullptr && current != nullptr) {
+    transaction->CancelPreparedFor(current, "backlog-close");
+    if (!current->UserPaused(&global)) current->Resume();
   }
+  ktrfBackLogOwner = KtrfBackLogOwner::None;
   SDL_SetAtomicInt(&global.textLogCaptureEnabled, 1);
 }
 
@@ -492,13 +1484,14 @@ bool RefreshSchoolDaysReplayAvailability() {
     ktrfSystemUi->SetReplayHSceneAvailable(i, value != 0);
   }
 
-  // Native SceneView PlayData availability is the SaveFile openability gate:
-  // each of the 100 rows corresponds directly to SaveFile00%d.DAT.  A missing
-  // file is an ordinary locked/inert row; path/profile failures are real errors.
+  // Native SceneView asks the host +0x9C for the same SaveConfig projection used
+  // by SaveLoad: DATE, STORY and optional _Sub comment/name.  Openability still
+  // gates the call, but the returned metadata is also the row's visible text.
   if (ktrfSaveStorage == nullptr) {
     SDL_LogError(0, "[SD-REPLAY] PlayData storage is unavailable");
     return false;
   }
+  std::vector<Kotonoha::SchoolDaysSaveService::SlotMetadata> replayMetadata(100u);
   for (int slot = 0; slot < 100; ++slot) {
     bool openable = false;
     std::string storageError;
@@ -507,7 +1500,23 @@ bool RefreshSchoolDaysReplayAvailability() {
                    storageError.c_str());
       return false;
     }
-    ktrfSystemUi->SetReplayPlayDataAvailable(slot, openable);
+    Kotonoha_KtrfError metadataError{};
+    if (!ktrfController->ReadSaveSlotMetadata(
+            ktrfSaveProfile, slot, openable,
+            &replayMetadata[static_cast<size_t>(slot)], &metadataError)) {
+      SDL_LogError(0, "[SD-REPLAY] PlayData slot %d metadata failed: %s", slot,
+                   metadataError.message);
+      return false;
+    }
+    ktrfSystemUi->SetReplayPlayDataAvailable(
+        slot, replayMetadata[static_cast<size_t>(slot)].occupied);
+  }
+  std::string replayMetadataError;
+  if (!ktrfSystemUi->SetReplayPlayDataMetadata(replayMetadata,
+                                               &replayMetadataError)) {
+    SDL_LogError(0, "[SD-REPLAY] PlayData metadata projection failed: %s",
+                 replayMetadataError.c_str());
+    return false;
   }
 
   if (ktrfSystemUi->Replay().SceneCheckOpen()) {
@@ -794,7 +1803,10 @@ bool RefreshSaveLoadMetadataForUi() {
   for (int row = 0; row < 10; ++row) {
     if (!ReadSaveSlotMetadataForUi(page * 10 + row,
                                    &rows[static_cast<size_t>(row)])) {
-      return false;
+      // A single corrupt/openable slot must not poison the entire page. The
+      // default metadata row is unavailable/empty, matching the safest UI
+      // projection while preserving every other valid slot.
+      rows[static_cast<size_t>(row)] = {};
     }
   }
   std::string uiError;
@@ -870,6 +1882,152 @@ bool ExecuteSaveLoadWrite(
   return true;
 }
 
+bool ExecutePlayDataSaveLoadWrite(
+    const Kotonoha::SchoolDaysSaveLoadModel::Output &output) {
+  if (output.action !=
+          Kotonoha::SchoolDaysSaveLoadModel::Action::SaveSlotRequested ||
+      ktrfPlayDataPlayback == nullptr || !ktrfPlayDataPlayback->IsOpen() ||
+      ktrfReplayHostModal != KtrfReplayHostModal::Save ||
+      ktrfSaveStorage == nullptr || ktrfController == nullptr) {
+    return false;
+  }
+
+  Kotonoha::SchoolDaysSaveMetadata::LocalTime time;
+  if (!CurrentSaveLocalTime(&time)) return false;
+  Kotonoha::SchoolDaysSaveMetadata::Result metadata;
+  Kotonoha_KtrfError error{};
+  auto &session = ktrfPlayDataPlayback->Session();
+  if (!Kotonoha::SchoolDaysSaveMetadata::Build(
+          session.State(), time, ktrfSaveProfile.useEnglish, output.comment,
+          &metadata, &error)) {
+    SDL_LogError(0, "[SD-PLAYDATA-SAVE] metadata build failed: %s",
+                 error.message);
+    return false;
+  }
+
+  Kotonoha::SchoolDaysSaveService::Plan plan;
+  if (!Kotonoha::SchoolDaysSaveService::PlanSlot(
+          ktrfSaveProfile, output.slot, metadata.primary, metadata.sub,
+          session.Persistence(), session.State(), &plan, &error)) {
+    SDL_LogError(0, "[SD-PLAYDATA-SAVE] save plan failed: %s", error.message);
+    return false;
+  }
+  std::string storageError;
+  if (!ktrfSaveStorage->WriteSaveFile(plan, &storageError)) {
+    SDL_LogError(0, "[SD-PLAYDATA-SAVE] SaveFile write failed: %s",
+                 storageError.c_str());
+    return false;
+  }
+  if (!Kotonoha::SchoolDaysSaveService::Commit(
+          plan, &session.Persistence(), &error)) {
+    SDL_LogError(0, "[SD-PLAYDATA-SAVE] private metadata commit failed: %s",
+                 error.message);
+    return false;
+  }
+  if (!ktrfSaveStorage->WriteGlobalFlag(plan, &storageError)) {
+    SDL_LogError(0, "[SD-PLAYDATA-SAVE] GlobalFlag flush failed: %s",
+                 storageError.c_str());
+    return false;
+  }
+  // Retail has one active FILMEngine/global flag owner.  Kotonoha intentionally
+  // isolates PlayData's session/router, so publish only the committed global
+  // image back to the retained controller after disk success; never copy the
+  // private route/session state into normal narrative gameplay.
+  if (!ktrfController->LoadGlobalFlag(plan.globalFlagBytes, &error)) {
+    SDL_LogError(0, "[SD-PLAYDATA-SAVE] shared GlobalFlag publish failed: %s",
+                 error.message);
+    return false;
+  }
+  ktrfSaveLoadMetadataPage = -1;
+  return true;
+}
+
+bool ClosePlayDataSaveLoadUi() {
+  if (ktrfPlayDataPlayback == nullptr || !ktrfPlayDataPlayback->IsOpen() ||
+      ktrfSystemUi == nullptr ||
+      (ktrfReplayHostModal != KtrfReplayHostModal::Save &&
+       ktrfReplayHostModal != KtrfReplayHostModal::Load)) {
+    return false;
+  }
+  Kotonoha::Gameplay *current = ktrfPlayDataPlayback->CurrentGameplay();
+  ktrfSystemUi->Close();
+  ktrfSaveLoadMetadataPage = -1;
+  ktrfReplayHostModal = KtrfReplayHostModal::None;
+  if (current != nullptr && !current->UserPaused(&global)) current->Resume();
+  return true;
+}
+
+bool ExecutePlayDataLoadSlot(int slot) {
+  if (slot < 0 || slot >= 100 || ktrfPlayDataPlayback == nullptr ||
+      !ktrfPlayDataPlayback->IsOpen() || ktrfSaveStorage == nullptr ||
+      ktrfReplayHostModal != KtrfReplayHostModal::Load) {
+    return false;
+  }
+  std::vector<uint8_t> bytes;
+  std::string storageError;
+  if (!ktrfSaveStorage->ReadSaveFile(slot, &bytes, &storageError)) {
+    SDL_LogError(0, "[SD-PLAYDATA-LOAD] SaveFile read failed slot=%d: %s",
+                 slot, storageError.c_str());
+    return false;
+  }
+
+  Kotonoha_KtrfError error{};
+  const bool oracleOnly = ktrfPlayDataPlayback->ChoiceReplayLatchArmed();
+  if (oracleOnly) {
+    if (!ktrfPlayDataPlayback->ReplaceRecordedChoiceOracle(bytes, &error)) {
+      SDL_LogError(0, "[SD-PLAYDATA-LOAD] slot=%d tag4 oracle apply failed: %s",
+                   slot, error.message);
+      return false;
+    }
+    return ClosePlayDataSaveLoadUi();
+  }
+
+  // Once PlayData's +0x98 one-shot latch has been consumed, native SceneView
+  // stops using the tag4-only reader. It performs the ordinary full SaveFile
+  // load on the active FILMEngine and then its outer mode resolver leaves
+  // SceneView for mode 1 (normal gameplay). Kotonoha keeps PlayData in an
+  // isolated KTRF session, so the faithful equivalent is to load the same slot
+  // transactionally into the retained narrative controller and then retire the
+  // temporary PlayData owner. Carry the active PlayData GlobalFlag image across
+  // that ownership boundary before the first loaded gameplay frame runs.
+  std::vector<uint8_t> playDataGlobal;
+  const bool hasPlayDataGlobal =
+      ktrfPlayDataPlayback->Session().Persistence().HasGlobalFlag();
+  if (hasPlayDataGlobal &&
+      !ktrfPlayDataPlayback->Session().SerializeGlobalFlag(&playDataGlobal,
+                                                           &error)) {
+    SDL_LogError(0, "[SD-PLAYDATA-LOAD] active GlobalFlag snapshot failed: %s",
+                 error.message);
+    return false;
+  }
+  if (ktrfController == nullptr || !ktrfController->LoadSaveFile(bytes, &error)) {
+    SDL_LogError(0, "[SD-PLAYDATA-LOAD] normal gameplay promotion failed slot=%d: %s",
+                 slot, error.message);
+    return false;
+  }
+  if (hasPlayDataGlobal &&
+      !ktrfController->LoadGlobalFlag(playDataGlobal, &error)) {
+    // The bytes were produced by this same runtime immediately above, so this
+    // is an invariant failure after the full-load transaction has already
+    // crossed into normal gameplay. Finish the owner handoff rather than leave
+    // two visible owners alive, and surface the diagnostic loudly.
+    SDL_LogError(0, "[SD-PLAYDATA-LOAD] promoted GlobalFlag apply failed: %s",
+                 error.message);
+  }
+
+  if (ktrfSceneTransaction != nullptr) ktrfSceneTransaction->Reset();
+  if (ktrfReplaySceneTransaction != nullptr) ktrfReplaySceneTransaction->Reset();
+  ktrfSystemUi->Close();
+  ktrfSaveLoadMetadataPage = -1;
+  ktrfReplayHostModal = KtrfReplayHostModal::None;
+  ktrfPlayDataPlayback.reset();
+  ResetSchoolDaysBackLog();
+  SDL_SetAtomicInt(&global.textLogCaptureEnabled, 1);
+  ktrfMenuBackStartGameplay = nullptr;
+  ktrfMenuBar.reset();
+  return true;
+}
+
 bool CloseGameplaySaveLoadUi() {
   if (ktrfController == nullptr || ktrfSystemUi == nullptr) return false;
   const auto state = ktrfController->FlowState();
@@ -892,6 +2050,7 @@ bool CloseGameplaySaveLoadUi() {
 bool CloseSaveLoadUi() {
   if (ktrfController == nullptr || ktrfSystemUi == nullptr) return false;
   Kotonoha::Gameplay *before = ktrfController->CurrentGameplay();
+  const std::string sourceSceneKey = ktrfController->CurrentScene().sceneKey;
   bool prepared = false;
   if (before != nullptr && ktrfSceneTransaction != nullptr &&
       global.render != nullptr) {
@@ -929,9 +2088,16 @@ bool CloseSaveLoadUi() {
               before, after, "saveload-close")) {
         return false;
       }
+      // The TELOP overlay is presentation-only.  A route/handoff that is not
+      // covered by the still-partial retail TELOP evidence must never turn a
+      // successful SaveLoad close into a narrative failure.
+      (void)ArmSchoolDaysEpisodeOverlay(
+          sourceSceneKey, ktrfController->CurrentScene().sceneKey, after);
     } else {
       // Terminal SaveLoad closes into TitleView without a narrative swap.
       ktrfSceneTransaction->Reset();
+      ktrfMenuBackStartGameplay = nullptr;
+      ktrfMenuBar.reset();
     }
   }
   ktrfSystemUi->Close();
@@ -967,6 +2133,7 @@ bool ApplySchoolDaysFrontendHandoff() {
   Kotonoha_KtrfError error{};
   switch (ktrfFrontendHandoff) {
   case KtrfFrontendHandoff::TitleStart:
+    ktrfMenuBackStartGameplay = nullptr;
     if (ktrfSceneTransaction != nullptr) ktrfSceneTransaction->Reset();
     if (!ktrfController->StartNewGame(0, &error)) {
       SDL_LogError(0, "[SD-TITLE] faded new-game start failed: %s", error.message);
@@ -1086,16 +2253,20 @@ bool ExecuteSaveLoadLoadSlot(int slot) {
     return false;
   }
 
-  // SaveLoad owns the visible surface while the persistence transaction swaps
-  // Gameplay. A narrative presentation lease is stale here and must not retain
-  // the terminal Gameplay that is about to be replaced.
-  if (ktrfSceneTransaction != nullptr) ktrfSceneTransaction->Reset();
   Kotonoha_KtrfError error{};
   if (!ktrfController->LoadSaveFile(bytes, &error)) {
     SDL_LogError(0, "[SD-LOAD] SaveFile apply failed slot=%d: %s", slot,
                  error.message);
     return false;
   }
+  // Loading a checkpoint must never synthesize an episode card.  The retail
+  // card belongs to the natural callback_38 handoff only; loading 01/..A00 in
+  // the original immediately presents the saved scene without Episode 2.
+  ResetSchoolDaysEpisodeOverlay();
+  // Only a successful persistence transaction actually replaces Gameplay.
+  // Keep any existing narrative lease intact on parse/apply failure so closing
+  // the still-open LOAD view can resume the same live scene safely.
+  if (ktrfSceneTransaction != nullptr) ktrfSceneTransaction->Reset();
 
   // Native load clears the transient BackLog manager before rebuilding the
   // persisted SLog collections. Type-2 LogMessage rows are never serialized.
@@ -1109,6 +2280,7 @@ bool ExecuteSaveLoadLoadSlot(int slot) {
     StopSchoolDaysTitleBgm();
   }
 
+  ktrfMenuBackStartGameplay = nullptr;
   ktrfSystemUi->Close();
   ktrfSaveLoadMetadataPage = -1;
   // Recreate MenuBar from the loaded feelings/state on the first Gameplay tick.
@@ -1144,9 +2316,11 @@ bool SubmitSaveFeelUiOutput(const Kotonoha::SchoolDaysSystemUi::Output &output) 
       ktrfController->FlowState() ==
           Kotonoha::SchoolDaysFlowController::State::HandoffPrompt;
   Kotonoha::Gameplay *beforeGameplay = nullptr;
+  std::string sourceSceneKey;
   bool preparedForUiContinue = false;
   if (normalHandoffContinue) {
     beforeGameplay = ktrfController->CurrentGameplay();
+    sourceSceneKey = ktrfController->CurrentScene().sceneKey;
     if (global.render == nullptr || beforeGameplay == nullptr ||
         ktrfSceneTransaction == nullptr || ktrfSystemUi == nullptr) {
       SDL_LogError(0,
@@ -1205,6 +2379,18 @@ bool SubmitSaveFeelUiOutput(const Kotonoha::SchoolDaysSystemUi::Output &output) 
     return false;
   }
 
+  if (ktrfController->FlowState() ==
+      Kotonoha::SchoolDaysFlowController::State::Title) {
+    // Terminal Script.Free released the physical Gameplay. Clear every
+    // presentation/input latch that still names the old narrative owner before
+    // Title can allocate another Gameplay at the same address.
+    ktrfMenuBackStartGameplay = nullptr;
+    if (ktrfSceneTransaction != nullptr) ktrfSceneTransaction->Reset();
+    ResetSchoolDaysBackLog();
+    SDL_SetAtomicInt(&global.textLogCaptureEnabled, 0);
+    ktrfMenuBar.reset();
+  }
+
   if (normalHandoffContinue && ktrfSceneTransaction != nullptr) {
     Kotonoha::Gameplay *afterGameplay = ktrfController->CurrentGameplay();
     if (afterGameplay == beforeGameplay || afterGameplay == nullptr) {
@@ -1222,6 +2408,11 @@ bool SubmitSaveFeelUiOutput(const Kotonoha::SchoolDaysSystemUi::Output &output) 
                    "[SD-SYSTEM-UI] handoff swap lacks a retained presentation frame");
       return false;
     }
+    // Episode-card presentation is deliberately best-effort until the original
+    // EP2..EP6 trigger/timing contract is runtime-authenticated.  Never let it
+    // block the already-committed RouteProc handoff.
+    (void)ArmSchoolDaysEpisodeOverlay(
+        sourceSceneKey, ktrfController->CurrentScene().sceneKey, afterGameplay);
   }
   if (ktrfSystemUi != nullptr) {
     ktrfSystemUi->Close();
@@ -1424,6 +2615,39 @@ SDL_AppResult LocalArgs(int argc, char *argv[]) {
       ktrfLaunchOptions = ExtractKtrfLaunchOptions(5, synthetic);
     }
   }
+#else
+  // Commercial desktop layout: when no development KTRF command line was
+  // supplied, discover the route/Packs beside the executable. This keeps the
+  // debug -K contract intact while allowing a shipped SchoolDays.exe to launch
+  // exactly like the retail executable.
+  if (!ktrfLaunchOptions.requested && ktrfLaunchOptions.valid && argc > 0 &&
+      argv[0] != nullptr && *argv[0] != '\0') {
+    std::error_code ec;
+    std::filesystem::path executable = std::filesystem::absolute(argv[0], ec);
+    if (!ec) {
+      const std::filesystem::path root = executable.parent_path();
+      std::filesystem::path route = root / "route" / "school-days-hq.ktnroute";
+      if (!std::filesystem::exists(route, ec)) {
+        ec.clear();
+        route = root / "school-days-hq.ktnroute";
+      }
+      const std::filesystem::path packs = root / "Packs";
+      if (std::filesystem::exists(route, ec) && !ec &&
+          std::filesystem::is_directory(packs, ec) && !ec) {
+        std::string program = executable.string();
+        std::string routeFlag = "-K";
+        std::string routeArg = route.string();
+        std::string gpkFlag = "--sd-gpk-root";
+        std::string packsArg = packs.string();
+        char *synthetic[] = {program.data(), routeFlag.data(), routeArg.data(),
+                             gpkFlag.data(), packsArg.data()};
+        ktrfLaunchOptions = ExtractKtrfLaunchOptions(5, synthetic);
+        if (ktrfLaunchOptions.requested && ktrfLaunchOptions.valid) {
+          SDL_Log("[SD-LAUNCH] discovered packaged route/Packs beside executable");
+        }
+      }
+    }
+  }
 #endif
   if (!ktrfLaunchOptions.valid) {
     SDL_LogError(0,
@@ -1452,9 +2676,11 @@ SDL_AppResult LocalInit(void **appstate, int, char *[]) {
   ktrfUiVariant = Kotonoha::SchoolDaysSaveFeelModel::Variant::Standard;
   ktrfRetailDisplayState = {};
   ktrfRetailDisplayBackendState = {};
+  ktrfModernDisplayPanel = {};
   ktrfFrontendTransition.Reset();
   ktrfFrontendHandoff = KtrfFrontendHandoff::None;
   ktrfTitleHasPresented = false;
+  ResetSchoolDaysEpisodeOverlay();
   ktrfReplayHostModal = KtrfReplayHostModal::None;
   ktrfAssetsRoot.clear();
 
@@ -1478,6 +2704,10 @@ SDL_AppResult LocalInit(void **appstate, int, char *[]) {
       return SDL_APP_FAILURE;
     }
     ktrfRetailConfigState = configLoad.state;
+    if (!EnsureSchoolDaysSubtitleStyles()) {
+      ktrfConfigStorage.reset();
+      return SDL_APP_FAILURE;
+    }
     if (!ktrfOptions.scriptDirSpecified) {
       // Default: Script/<rest> is served from ./assets/<rest> when present.
       std::string ignored;
@@ -1566,7 +2796,24 @@ SDL_AppResult LocalInit(void **appstate, int, char *[]) {
         ktrfRetailDisplayBackendState.typeMiniNote =
             configLoad.display.typeMiniNote;
     }
+    if (!explicitUiVariant) {
+      // In the remaster, physical display mode is persisted generically in
+      // Kotonoha.ini.  Project that authoritative modern state back into the
+      // original two-state WINDOW/FULL control on startup instead of inventing
+      // a WindowMode writer for Config.DAT that has not been authenticated.
+      Kotonoha::DisplayMode physicalMode = Kotonoha::DisplayMode::Windowed;
+      if (Kotonoha::GetDisplayMode(global, &physicalMode)) {
+        ktrfRetailDisplayBackendState.windowMode =
+            physicalMode == Kotonoha::DisplayMode::Windowed ? 0 : 1;
+      }
+    }
     RefreshSchoolDaysRetailDisplayProjection();
+    if (!explicitUiVariant && global.config.contentAspectPreference.load() != 0) {
+      if (!ApplySchoolDaysModernAspectPreference()) {
+        SDL_LogError(0, "[SD-DISPLAY] persisted aspect preference failed");
+        return SDL_APP_FAILURE;
+      }
+    }
     // Keep an extracted root only as fallback.  GPK-only launches use the
     // supplied retail root as a non-empty School Days namespace marker; the
     // resolver consults the mounted archive first and never treats the retail
@@ -1669,6 +2916,7 @@ static SDL_AppResult SchoolDaysHandleEvent(void *appstate, SDL_Event *event) {
   if (ktrfController != nullptr && event->type == SDL_EVENT_KEY_DOWN &&
       event->key.key == SDLK_F5 && ktrfController->HasPendingHandoff()) {
     Kotonoha::Gameplay *beforeGameplay = ktrfController->CurrentGameplay();
+    const std::string sourceSceneKey = ktrfController->CurrentScene().sceneKey;
     if (ktrfSceneTransaction != nullptr && global.render != nullptr &&
         beforeGameplay != nullptr) {
       SDL_SetRenderTarget(global.render, nullptr);
@@ -1682,8 +2930,13 @@ static SDL_AppResult SchoolDaysHandleEvent(void *appstate, SDL_Event *event) {
         SDL_LogError(0, "[KTRF-HANDOFF] continue failed: %s", error.message);
       }
     } else if (ktrfSceneTransaction != nullptr) {
-      ktrfSceneTransaction->CommitIfSwapped(
-          beforeGameplay, ktrfController->CurrentGameplay(), "episode-handoff");
+      Kotonoha::Gameplay *afterGameplay = ktrfController->CurrentGameplay();
+      if (ktrfSceneTransaction->CommitIfSwapped(
+              beforeGameplay, afterGameplay, "episode-handoff")) {
+        (void)ArmSchoolDaysEpisodeOverlay(
+            sourceSceneKey, ktrfController->CurrentScene().sceneKey,
+            afterGameplay);
+      }
     }
     return SDL_APP_CONTINUE;
   }
@@ -1767,6 +3020,27 @@ static SDL_AppResult SchoolDaysHandleEvent(void *appstate, SDL_Event *event) {
       }
       if (playDataMenuAction.kind ==
           PlayDataMenuAction::SetReplayIndicatorOpacity) {
+        return SDL_APP_CONTINUE;
+      }
+      if (playDataMenuAction.kind == PlayDataMenuAction::OpenSave) {
+        playDataGameplay->Pause();
+        ktrfReplayHostModal = KtrfReplayHostModal::Save;
+        if (ktrfSystemUi != nullptr) ktrfSystemUi->Close();
+        ktrfSaveLoadMetadataPage = -1;
+        return SDL_APP_CONTINUE;
+      }
+      if (playDataMenuAction.kind == PlayDataMenuAction::OpenLoad) {
+        playDataGameplay->Pause();
+        ktrfReplayHostModal = KtrfReplayHostModal::Load;
+        if (ktrfSystemUi != nullptr) ktrfSystemUi->Close();
+        ktrfSaveLoadMetadataPage = -1;
+        return SDL_APP_CONTINUE;
+      }
+      if (playDataMenuAction.kind == PlayDataMenuAction::OpenBackLog) {
+        if (!OpenSchoolDaysBackLog(app)) {
+          SDL_LogError(0, "[SD-PLAYDATA] BackLog open failed");
+          return SDL_APP_FAILURE;
+        }
         return SDL_APP_CONTINUE;
       }
       if (playDataMenuAction.kind == PlayDataMenuAction::OpenConfig) {
@@ -1900,8 +3174,12 @@ static SDL_AppResult SchoolDaysHandleEvent(void *appstate, SDL_Event *event) {
       return SDL_APP_CONTINUE;
     }
   }
+  const bool playDataSaveLoad =
+      ktrfPlayDataPlayback != nullptr && ktrfPlayDataPlayback->IsOpen() &&
+      (ktrfReplayHostModal == KtrfReplayHostModal::Save ||
+       ktrfReplayHostModal == KtrfReplayHostModal::Load);
   if (ktrfController != nullptr && ktrfSystemUi != nullptr &&
-      (ktrfController->FlowState() ==
+      (playDataSaveLoad || ktrfController->FlowState() ==
            Kotonoha::SchoolDaysFlowController::State::SaveLoad ||
        ktrfController->FlowState() ==
            Kotonoha::SchoolDaysFlowController::State::TitleLoad ||
@@ -1916,7 +3194,9 @@ static SDL_AppResult SchoolDaysHandleEvent(void *appstate, SDL_Event *event) {
       if (output.hasSaveLoadOutput) {
         using Action = Kotonoha::SchoolDaysSaveLoadModel::Action;
         if (output.saveLoadOutput.action == Action::Close) {
-          if (ktrfController->FlowState() ==
+          if (playDataSaveLoad) {
+            if (!ClosePlayDataSaveLoadUi()) return SDL_APP_FAILURE;
+          } else if (ktrfController->FlowState() ==
               Kotonoha::SchoolDaysFlowController::State::TitleLoad) {
             (void)BeginSchoolDaysFrontendHandoff(
                 KtrfFrontendHandoff::LoadToTitle,
@@ -1931,10 +3211,22 @@ static SDL_AppResult SchoolDaysHandleEvent(void *appstate, SDL_Event *event) {
           }
         } else if (output.saveLoadOutput.action ==
                    Action::LoadSlotRequested) {
-          if (!ExecuteSaveLoadLoadSlot(output.saveLoadOutput.slot)) {
-            return SDL_APP_FAILURE;
+          const bool loaded = playDataSaveLoad
+                                  ? ExecutePlayDataLoadSlot(output.saveLoadOutput.slot)
+                                  : ExecuteSaveLoadLoadSlot(output.saveLoadOutput.slot);
+          if (!loaded) {
+            // Corrupt/missing user save data is recoverable UI input, not an
+            // engine invariant failure. Keep LOAD open so another slot can be
+            // selected or the modal can be closed normally.
+            return SDL_APP_CONTINUE;
           }
         } else if (output.saveLoadOutput.action == Action::RouteMap) {
+          if (playDataSaveLoad) {
+            // The native PlayData LOAD reader contract is authenticated, but a
+            // RouteMap handoff from that nested SaveLoad view is not. Consume
+            // the request without leaking it into the retained narrative host.
+            return SDL_APP_CONTINUE;
+          }
           Kotonoha_KtrfError routeError{};
           const bool gameplayLoad =
               ktrfController->FlowState() ==
@@ -2072,6 +3364,7 @@ static SDL_AppResult SchoolDaysHandleEvent(void *appstate, SDL_Event *event) {
           if (confirm) {
             // Replay/PlayData are temporary Title-owned sessions. Top Menu
             // terminates only temporary playback and returns to Title.
+            ClearTemporaryPlaybackPause();
             ktrfReplayPlayback.reset();
             ktrfPlayDataPlayback.reset();
             if (ktrfReplaySceneTransaction != nullptr)
@@ -2114,6 +3407,7 @@ static SDL_AppResult SchoolDaysHandleEvent(void *appstate, SDL_Event *event) {
             }
             ResetSchoolDaysBackLog();
             SDL_SetAtomicInt(&global.textLogCaptureEnabled, 0);
+            ktrfMenuBackStartGameplay = nullptr;
             ktrfMenuBar.reset();
           }
           if (ktrfSceneTransaction != nullptr) ktrfSceneTransaction->Reset();
@@ -2247,7 +3541,7 @@ static SDL_AppResult SchoolDaysHandleEvent(void *appstate, SDL_Event *event) {
           }
           if (ktrfSaveStorage == nullptr) {
             SDL_LogError(0, "[SD-REPLAY] PlayData storage is unavailable");
-            return SDL_APP_FAILURE;
+            return SDL_APP_CONTINUE;
           }
           std::vector<uint8_t> saveBytes;
           std::string storageError;
@@ -2255,7 +3549,7 @@ static SDL_AppResult SchoolDaysHandleEvent(void *appstate, SDL_Event *event) {
                                              &storageError)) {
             SDL_LogError(0, "[SD-REPLAY] PlayData slot read failed: %s",
                          storageError.c_str());
-            return SDL_APP_FAILURE;
+            return SDL_APP_CONTINUE;
           }
           auto playback =
               std::make_unique<Kotonoha::SchoolDaysPlayDataSession>();
@@ -2264,13 +3558,16 @@ static SDL_AppResult SchoolDaysHandleEvent(void *appstate, SDL_Event *event) {
                   saveBytes, playback.get(), &replayError)) {
             SDL_LogError(0, "[SD-REPLAY] PlayData start failed: %s",
                          replayError.message);
-            return SDL_APP_FAILURE;
+            return SDL_APP_CONTINUE;
           }
           StopSchoolDaysTitleBgm();
           if (ktrfReplaySceneTransaction != nullptr)
             ktrfReplaySceneTransaction->Reset();
           ktrfSystemUi->Close();
           ktrfPlayDataPlayback = std::move(playback);
+          // PlayData owns a fresh FILM gameplay/history beginning at A00.  Its
+          // BackLog must not inherit messages from the retained narrative host.
+          ResetSchoolDaysBackLog();
         }
       }
       return SDL_APP_CONTINUE;
@@ -2284,6 +3581,7 @@ static SDL_AppResult SchoolDaysHandleEvent(void *appstate, SDL_Event *event) {
        ktrfController->FlowState() ==
            Kotonoha::SchoolDaysFlowController::State::GameplayConfig) &&
       ktrfSystemUi->IsConfigOpen()) {
+    if (HandleSchoolDaysModernDisplayPanel(event)) return SDL_APP_CONTINUE;
     Kotonoha::SchoolDaysSystemUi::Output output;
     if (ktrfSystemUi->HandleEvent(global.render, event, &output)) {
       (void)PlaySchoolDaysUiSfx(output.uiSfx);
@@ -2317,6 +3615,13 @@ static SDL_AppResult SchoolDaysHandleEvent(void *appstate, SDL_Event *event) {
           // Page changes preserve outer Config ownership; the presenter is
           // reopened on the requested authenticated page with the same logical
           // display profile. State projection is refreshed in Iterate.
+          if (action.page !=
+              Kotonoha::SchoolDaysConfigMenuModel::Page::Display) {
+            ktrfModernDisplayPanel.resolutionListOpen = false;
+            ktrfModernDisplayPanel.hoveredResolution = -1;
+            ktrfModernDisplayPanel.upscalerListOpen = false;
+            ktrfModernDisplayPanel.hoveredUpscaler = -1;
+          }
           ktrfConfigPage = action.page;
           ktrfSystemUi->Close();
         } else if (action.kind == Kind::SetMenVoice) {
@@ -2392,6 +3697,7 @@ static SDL_AppResult SchoolDaysHandleEvent(void *appstate, SDL_Event *event) {
         } else if (action.kind == Kind::RequestWide ||
                    action.kind == Kind::RequestFull) {
           const auto beforeVariant = ktrfUiVariant;
+          const auto beforeBackend = ktrfRetailDisplayBackendState;
           const auto request =
               action.kind == Kind::RequestWide
                   ? Kotonoha::SchoolDaysDisplayPolicy::RetailConfigRequest::Wide
@@ -2400,6 +3706,14 @@ static SDL_AppResult SchoolDaysHandleEvent(void *appstate, SDL_Event *event) {
                   request, action.value, SchoolDaysRetailConfigInputs(),
                   &ktrfRetailDisplayBackendState)) {
             RefreshSchoolDaysRetailDisplayProjection();
+            if (action.kind == Kind::RequestFull &&
+                !ApplySchoolDaysRetailWindowModeToPhysicalDisplay()) {
+              // A rejected OS/window-manager transition must not leave the
+              // original Config UI claiming a state that was not applied.
+              ktrfRetailDisplayBackendState = beforeBackend;
+              RefreshSchoolDaysRetailDisplayProjection();
+              return SDL_APP_CONTINUE;
+            }
             if (action.kind == Kind::RequestWide &&
                 ktrfConfigStorage != nullptr) {
               std::string configError;
@@ -2462,10 +3776,18 @@ static SDL_AppResult SchoolDaysHandleEvent(void *appstate, SDL_Event *event) {
           }
         } else if (menuAction.kind == MenuAction::BackOrRestartScene) {
           if (Kotonoha::Gameplay* current = ktrfController->CurrentGameplay()) {
+            // RestartCurrentScene() immediately restarts the Gameplay clock, so
+            // testing for literal scene tick 0 gives the user only ~42 ms to
+            // press Back again.  The retail navigation state is already tracked
+            // explicitly by this Gameplay latch and is cleared by ordinary
+            // gameplay input / transport actions below.  Use the latch itself:
+            // first Back rewinds this physical scene, the next Back walks to the
+            // authenticated predecessor without depending on frame timing.
             const bool atStart = ktrfMenuBackStartGameplay == current;
             if (atStart) {
               global.config.back = true;
             } else {
+              ktrfMenuBackStartGameplay = nullptr;
               current->RestartCurrentScene();
               ktrfMenuBackStartGameplay = current;
               if (ktrfSceneTransaction != nullptr) ktrfSceneTransaction->Reset();
@@ -2495,7 +3817,8 @@ static SDL_AppResult SchoolDaysHandleEvent(void *appstate, SDL_Event *event) {
           }
         } else if (menuAction.kind == MenuAction::SkipToNextChoice) {
           ktrfMenuBackStartGameplay = nullptr;
-          if (!ktrfController->SkipToNextChoice(&error)) {
+          if (!ktrfController->SkipToNextChoice(ktrfRetailConfigState.skip,
+                                                &error)) {
             SDL_LogError(0, "[SD-MENUBAR] next-choice skip failed: %s",
                          error.message);
             return SDL_APP_FAILURE;
@@ -2559,6 +3882,17 @@ static SDL_AppResult SchoolDaysHandleEvent(void *appstate, SDL_Event *event) {
           ktrfMenuBackStartGameplay = nullptr;
         }
         current->Events(event, &global);
+        // School Days commits a chosen result immediately; only the visual
+        // state2/state3 tail remains alive afterward.  Flush the semantic
+        // result in the same input callback so a second queued MenuBar event
+        // (Skip/Restart/SAVE/LOAD/Config) cannot observe pre-choice routing or
+        // reset an accepted selection before the next frame.
+        Kotonoha_KtrfError choiceError{};
+        if (!ktrfController->SubmitCurrentChoiceIfReady(&choiceError)) {
+          SDL_LogError(0, "[KTRF-APP] input-boundary choice commit failed: %s",
+                       choiceError.message);
+          return SDL_APP_FAILURE;
+        }
       }
     }
   }
@@ -2620,21 +3954,39 @@ static SDL_AppResult SchoolDaysRenderFrame(Kotonoha::Kotonoha *app) {
 
   const bool ktrfBackLogOpen =
       ktrfBackLog != nullptr && ktrfBackLog->IsOpen();
-  const bool ktrfBackLogCapture =
+  const bool narrativeBackLogCapture =
       ktrfController != nullptr && !ktrfBackLogOpen &&
       (ktrfReplayPlayback == nullptr || !ktrfReplayPlayback->IsOpen()) &&
       (ktrfPlayDataPlayback == nullptr || !ktrfPlayDataPlayback->IsOpen()) &&
       ktrfController->FlowState() ==
           Kotonoha::SchoolDaysFlowController::State::Gameplay;
+  const bool playDataBackLogCapture =
+      !ktrfBackLogOpen && ktrfReplayHostModal == KtrfReplayHostModal::None &&
+      ktrfPlayDataPlayback != nullptr && ktrfPlayDataPlayback->IsOpen();
   SDL_SetAtomicInt(&global.textLogCaptureEnabled,
-                   ktrfBackLogCapture ? 1 : 0);
+                   (narrativeBackLogCapture || playDataBackLogCapture) ? 1 : 0);
 
   if (ktrfBackLogOpen) {
     SDL_SetRenderTarget(global.render, nullptr);
     SDL_SetRenderDrawColor(global.render, 0, 0, 0, 0);
     SDL_RenderClear(global.render);
-    if (ktrfSceneTransaction == nullptr || beforeGameplay == nullptr ||
-        !ktrfSceneTransaction->PresentPrepared(global.render, beforeGameplay)) {
+    Kotonoha::Gameplay *backLogGameplay = nullptr;
+    Kotonoha::KtrfSceneTransaction *backLogTransaction = nullptr;
+    if (ktrfBackLogOwner == KtrfBackLogOwner::PlayData &&
+        ktrfPlayDataPlayback != nullptr && ktrfPlayDataPlayback->IsOpen()) {
+      backLogGameplay = ktrfPlayDataPlayback->CurrentGameplay();
+      backLogTransaction = ktrfReplaySceneTransaction.get();
+    } else if (ktrfBackLogOwner == KtrfBackLogOwner::Narrative) {
+      backLogGameplay = beforeGameplay;
+      backLogTransaction = ktrfSceneTransaction.get();
+    }
+    const bool frozenPresented =
+        backLogTransaction != nullptr && backLogGameplay != nullptr &&
+        (backLogTransaction->HasLease()
+             ? (backLogTransaction->PresentLease(global.render), true)
+             : backLogTransaction->PresentPrepared(global.render,
+                                                    backLogGameplay));
+    if (!frozenPresented) {
       SDL_LogError(0, "[SD-BACKLOG] frozen Gameplay frame is unavailable");
       return SDL_APP_FAILURE;
     }
@@ -2696,6 +4048,36 @@ static SDL_AppResult SchoolDaysRenderFrame(Kotonoha::Kotonoha *app) {
         ktrfSceneTransaction->HasLease();
   }
 
+  // Temporary SceneView playback needs the same outgoing-frame transaction as
+  // narrative Gameplay.  In particular, a choice can publish its alpha-zero
+  // terminal frame one render before CheckEnd becomes visible to the frontend.
+  // Capture the already-presented composition before clearing the backbuffer so
+  // a later Gameplay::Main early-return can never turn the carry frame black.
+  Kotonoha::Gameplay *temporaryBeforeGameplay = nullptr;
+  if (ktrfReplayHostModal == KtrfReplayHostModal::None) {
+    if (ktrfReplayPlayback != nullptr && ktrfReplayPlayback->IsOpen()) {
+      temporaryBeforeGameplay = ktrfReplayPlayback->CurrentGameplay();
+    } else if (ktrfPlayDataPlayback != nullptr && ktrfPlayDataPlayback->IsOpen()) {
+      temporaryBeforeGameplay = ktrfPlayDataPlayback->CurrentGameplay();
+    }
+  }
+  if (ktrfReplaySceneTransaction != nullptr && temporaryBeforeGameplay != nullptr &&
+      temporaryBeforeGameplay->eventManager != nullptr &&
+      !ktrfReplaySceneTransaction->HasLease() &&
+      !ktrfReplaySceneTransaction->HasPreparedFrameFor(temporaryBeforeGameplay) &&
+      (temporaryBeforeGameplay->prompt == nullptr ||
+       (!temporaryBeforeGameplay->prompt->PresentationTailActive() &&
+        !temporaryBeforeGameplay->prompt->PresentationNeedsFinalFrame() &&
+        !temporaryBeforeGameplay->prompt->PresentationFinalFrameRendered())) &&
+      temporaryBeforeGameplay->eventManager->ReachedNext(temporaryBeforeGameplay)) {
+    SDL_SetRenderTarget(global.render, nullptr);
+    if (!ktrfReplaySceneTransaction->PrepareAutomatic(global.render,
+                                                       temporaryBeforeGameplay)) {
+      SDL_LogError(0, "[SD-REPLAY] failed to pre-retain outgoing temporary frame");
+      return SDL_APP_FAILURE;
+    }
+  }
+
   SDL_SetRenderTarget(global.render, nullptr);
   SDL_SetRenderDrawColor(global.render, 0, 0, 0, 0);
   SDL_RenderClear(global.render);
@@ -2710,9 +4092,13 @@ static SDL_AppResult SchoolDaysRenderFrame(Kotonoha::Kotonoha *app) {
   if (ktrfReplayHostModal == KtrfReplayHostModal::None &&
       ktrfReplaySceneTransaction != nullptr &&
       ((ktrfReplayPlayback != nullptr && ktrfReplayPlayback->IsOpen()) ||
-       (ktrfPlayDataPlayback != nullptr && ktrfPlayDataPlayback->IsOpen())) &&
-      ktrfReplaySceneTransaction->HasLease()) {
-    ktrfReplaySceneTransaction->PresentLease(global.render);
+       (ktrfPlayDataPlayback != nullptr && ktrfPlayDataPlayback->IsOpen()))) {
+    if (ktrfReplaySceneTransaction->HasLease()) {
+      ktrfReplaySceneTransaction->PresentLease(global.render);
+    } else if (temporaryBeforeGameplay != nullptr) {
+      ktrfReplaySceneTransaction->PresentPrepared(global.render,
+                                                  temporaryBeforeGameplay);
+    }
   }
 
   const SDL_AppResult status = ktrfController != nullptr
@@ -2781,6 +4167,25 @@ static SDL_AppResult SchoolDaysRenderFrame(Kotonoha::Kotonoha *app) {
     ktrfMenuBar->Update(static_cast<uint32_t>(SDL_GetTicks()), 0, 0);
     const SDL_AppResult replayStatus = replayGameplay->Main(&global);
     if (replayStatus == SDL_APP_FAILURE) return replayStatus;
+
+    if (ktrfReplaySceneTransaction != nullptr && replayGameplay->prompt != nullptr &&
+        replayGameplay->prompt->PresentationTailActive()) {
+      ktrfReplaySceneTransaction->CancelPreparedFor(
+          replayGameplay, "replay-choice-tail");
+    }
+    if (ktrfReplaySceneTransaction != nullptr && replayGameplay->prompt != nullptr &&
+        !ktrfReplaySceneTransaction->HasLease() &&
+        !ktrfReplaySceneTransaction->HasPreparedFrameFor(replayGameplay) &&
+        replayGameplay->prompt->PresentationFinalFrameRendered() &&
+        replayGameplay->eventManager->ReachedNext(replayGameplay)) {
+      SDL_SetRenderTarget(global.render, nullptr);
+      if (!ktrfReplaySceneTransaction->PrepareAutomatic(global.render,
+                                                         replayGameplay)) {
+        SDL_LogError(0,
+                     "[SD-REPLAY] failed to retain final HScene choice frame");
+        return SDL_APP_FAILURE;
+      }
+    }
     if (ktrfReplaySceneTransaction != nullptr)
       ktrfReplaySceneTransaction->ReleaseIfIncomingReady(replayGameplay);
     // SDL_APP_SUCCESS is the ordinary Gameplay end signal, not application
@@ -2791,11 +4196,9 @@ static SDL_AppResult SchoolDaysRenderFrame(Kotonoha::Kotonoha *app) {
          !replayGameplay->prompt->PresentationTailActive())) {
       if (ktrfReplaySceneTransaction != nullptr &&
           !ktrfReplaySceneTransaction->HasLease() &&
-          !ktrfReplaySceneTransaction->HasPreparedFrameFor(replayGameplay) &&
-          !ktrfReplaySceneTransaction->PrepareAutomatic(global.render,
-                                                         replayGameplay)) {
+          !ktrfReplaySceneTransaction->HasPreparedFrameFor(replayGameplay)) {
         SDL_LogError(0,
-                     "[SD-REPLAY] failed to retain outgoing HScene frame");
+                     "[SD-REPLAY] HScene ended without a retained outgoing frame");
         return SDL_APP_FAILURE;
       }
       bool completed = false;
@@ -2808,6 +4211,7 @@ static SDL_AppResult SchoolDaysRenderFrame(Kotonoha::Kotonoha *app) {
       }
       global.config.next = false;
       if (completed) {
+        ClearTemporaryPlaybackPause();
         if (ktrfReplaySceneTransaction != nullptr)
           ktrfReplaySceneTransaction->Reset();
         ktrfReplayPlayback.reset();
@@ -2845,6 +4249,25 @@ static SDL_AppResult SchoolDaysRenderFrame(Kotonoha::Kotonoha *app) {
     ktrfMenuBar->Update(static_cast<uint32_t>(SDL_GetTicks()), 0, 0);
     const SDL_AppResult playDataStatus = playDataGameplay->Main(&global);
     if (playDataStatus == SDL_APP_FAILURE) return playDataStatus;
+
+    if (ktrfReplaySceneTransaction != nullptr && playDataGameplay->prompt != nullptr &&
+        playDataGameplay->prompt->PresentationTailActive()) {
+      ktrfReplaySceneTransaction->CancelPreparedFor(
+          playDataGameplay, "playdata-choice-tail");
+    }
+    if (ktrfReplaySceneTransaction != nullptr && playDataGameplay->prompt != nullptr &&
+        !ktrfReplaySceneTransaction->HasLease() &&
+        !ktrfReplaySceneTransaction->HasPreparedFrameFor(playDataGameplay) &&
+        playDataGameplay->prompt->PresentationFinalFrameRendered() &&
+        playDataGameplay->eventManager->ReachedNext(playDataGameplay)) {
+      SDL_SetRenderTarget(global.render, nullptr);
+      if (!ktrfReplaySceneTransaction->PrepareAutomatic(global.render,
+                                                         playDataGameplay)) {
+        SDL_LogError(0,
+                     "[SD-REPLAY] failed to retain final PlayData choice frame");
+        return SDL_APP_FAILURE;
+      }
+    }
     if (ktrfReplaySceneTransaction != nullptr)
       ktrfReplaySceneTransaction->ReleaseIfIncomingReady(playDataGameplay);
 
@@ -2859,7 +4282,14 @@ static SDL_AppResult SchoolDaysRenderFrame(Kotonoha::Kotonoha *app) {
             &playDataGameplay->promptId, &choiceCommitted, &choiceError)) {
       SDL_LogError(0, "[SD-REPLAY] PlayData choice restore/commit failed: %s",
                    choiceError.message);
-      return SDL_APP_FAILURE;
+      ClearTemporaryPlaybackPause();
+      if (ktrfReplaySceneTransaction != nullptr)
+        ktrfReplaySceneTransaction->Reset();
+      ktrfPlayDataPlayback.reset();
+      global.config.next = false;
+      global.config.back = false;
+      inRunning = nullptr;
+      return SDL_APP_CONTINUE;
     }
     if (choiceCommitted) playDataGameplay->choiceCommitSubmitted = true;
 
@@ -2868,11 +4298,9 @@ static SDL_AppResult SchoolDaysRenderFrame(Kotonoha::Kotonoha *app) {
          !playDataGameplay->prompt->PresentationTailActive())) {
       if (ktrfReplaySceneTransaction != nullptr &&
           !ktrfReplaySceneTransaction->HasLease() &&
-          !ktrfReplaySceneTransaction->HasPreparedFrameFor(playDataGameplay) &&
-          !ktrfReplaySceneTransaction->PrepareAutomatic(global.render,
-                                                         playDataGameplay)) {
+          !ktrfReplaySceneTransaction->HasPreparedFrameFor(playDataGameplay)) {
         SDL_LogError(0,
-                     "[SD-REPLAY] failed to retain outgoing PlayData frame");
+                     "[SD-REPLAY] PlayData ended without a retained outgoing frame");
         return SDL_APP_FAILURE;
       }
       bool terminal = false;
@@ -2880,10 +4308,18 @@ static SDL_AppResult SchoolDaysRenderFrame(Kotonoha::Kotonoha *app) {
       if (!ktrfPlayDataPlayback->AdvanceAfterSceneEnd(&terminal, &replayError)) {
         SDL_LogError(0, "[SD-REPLAY] PlayData private routing failed: %s",
                      replayError.message);
-        return SDL_APP_FAILURE;
+        ClearTemporaryPlaybackPause();
+        if (ktrfReplaySceneTransaction != nullptr)
+          ktrfReplaySceneTransaction->Reset();
+        ktrfPlayDataPlayback.reset();
+        global.config.next = false;
+        global.config.back = false;
+        inRunning = nullptr;
+        return SDL_APP_CONTINUE;
       }
       global.config.next = false;
       if (terminal) {
+        ClearTemporaryPlaybackPause();
         if (ktrfReplaySceneTransaction != nullptr)
           ktrfReplaySceneTransaction->Reset();
         ktrfPlayDataPlayback.reset();
@@ -2954,13 +4390,24 @@ static SDL_AppResult SchoolDaysRenderFrame(Kotonoha::Kotonoha *app) {
     }
 
     const auto flowState = ktrfController->FlowState();
-    if (flowState == Kotonoha::SchoolDaysFlowController::State::SaveLoad ||
+    const bool playDataHostSaveLoad =
+        ktrfPlayDataPlayback != nullptr && ktrfPlayDataPlayback->IsOpen() &&
+        (ktrfReplayHostModal == KtrfReplayHostModal::Save ||
+         ktrfReplayHostModal == KtrfReplayHostModal::Load);
+    if (playDataHostSaveLoad ||
+        flowState == Kotonoha::SchoolDaysFlowController::State::SaveLoad ||
         flowState == Kotonoha::SchoolDaysFlowController::State::TitleLoad ||
         flowState == Kotonoha::SchoolDaysFlowController::State::GameplaySave ||
         flowState == Kotonoha::SchoolDaysFlowController::State::GameplayLoad) {
-      const auto saveLoadMode =
+      const bool playDataLoad =
+          playDataHostSaveLoad &&
+          ktrfReplayHostModal == KtrfReplayHostModal::Load;
+      const bool controllerLoad =
+          !playDataHostSaveLoad &&
           (flowState == Kotonoha::SchoolDaysFlowController::State::TitleLoad ||
-           flowState == Kotonoha::SchoolDaysFlowController::State::GameplayLoad)
+           flowState == Kotonoha::SchoolDaysFlowController::State::GameplayLoad);
+      const auto saveLoadMode =
+          (playDataLoad || controllerLoad)
               ? Kotonoha::SchoolDaysSaveLoadModel::Mode::Load
               : Kotonoha::SchoolDaysSaveLoadModel::Mode::Save;
       if (!ktrfSystemUi->IsSaveLoadOpen()) {
@@ -2983,7 +4430,11 @@ static SDL_AppResult SchoolDaysRenderFrame(Kotonoha::Kotonoha *app) {
       }
       if (ktrfSaveLoadMetadataPage != ktrfSystemUi->SaveLoad().Page() &&
           !RefreshSaveLoadMetadataForUi()) {
-        return SDL_APP_FAILURE;
+        // A bad/openable slot or a temporary storage failure is recoverable at
+        // the SaveLoad boundary.  Keep the modal open and retry on a later
+        // frame rather than turning user data damage into process termination.
+        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                    "[SD-SAVELOAD] metadata refresh rejected; keeping view open");
       }
 
       Kotonoha::SchoolDaysSystemUi::Output output;
@@ -2995,8 +4446,14 @@ static SDL_AppResult SchoolDaysRenderFrame(Kotonoha::Kotonoha *app) {
           SDL_LogError(0, "[SD-SAVELOAD] LOAD view emitted SAVE request");
           return SDL_APP_FAILURE;
         }
-        if (!ExecuteSaveLoadWrite(output.saveLoadOutput)) {
-          return SDL_APP_FAILURE;
+        const bool wrote = playDataHostSaveLoad
+                               ? ExecutePlayDataSaveLoadWrite(output.saveLoadOutput)
+                               : ExecuteSaveLoadWrite(output.saveLoadOutput);
+        if (!wrote) {
+          // The concrete I/O/persistence failure was already logged. Keep the
+          // SAVE modal active and consume this frame so narrative input cannot
+          // leak through a failed write attempt.
+          return SDL_APP_CONTINUE;
         }
       }
     } else if (ktrfSystemUi->IsSaveLoadOpen()) {
@@ -3053,8 +4510,10 @@ static SDL_AppResult SchoolDaysRenderFrame(Kotonoha::Kotonoha *app) {
           if (!StartSchoolDaysSystemBgm()) return SDL_APP_FAILURE;
           if (!ktrfSystemUi->IsReplayOpen()) {
             std::string uiError;
-            if (!ktrfSystemUi->OpenReplay(global.render, ktrfAssetsRoot,
-                                          SchoolDaysReplayVariant(), &uiError)) {
+            if (!ktrfSystemUi->OpenReplay(
+                    global.render, ktrfAssetsRoot, SchoolDaysReplayVariant(),
+                    ktrfSaveProfile.textInput, ktrfSaveProfile.useEnglish,
+                    ktrfSaveProfile.fontData, &uiError)) {
               SDL_LogError(0, "[SD-SYSTEM-UI] Replay open failed: %s",
                            uiError.c_str());
               return SDL_APP_FAILURE;
@@ -3275,6 +4734,15 @@ static SDL_AppResult SchoolDaysRenderFrame(Kotonoha::Kotonoha *app) {
     app->PresentSceneTransitionFrame(inRunning);
   }
 
+  // Episode 1 owns this exact presentation inside its authored WMV. Episode
+  // 2..6 are host overlays armed only by the natural episode handoff above.
+  // Render before MenuBar so the caption remains part of the scene composition.
+  if (!RenderSchoolDaysEpisodeOverlay(inRunning)) {
+    SDL_LogWarn(0, "[SD-EPISODE] optional overlay render failed: %s",
+                SDL_GetError());
+    ResetSchoolDaysEpisodeOverlay();
+  }
+
   const bool ktrfReplayMenuBarVisible =
       ktrfReplayHostModal == KtrfReplayHostModal::None &&
       ((ktrfReplayPlayback != nullptr && ktrfReplayPlayback->IsOpen()) ||
@@ -3301,6 +4769,12 @@ static SDL_AppResult SchoolDaysRenderFrame(Kotonoha::Kotonoha *app) {
     if (!ktrfSystemUi->Render(global.render, &uiError)) {
       SDL_LogError(0, "[SD-SYSTEM-UI] system view render failed: %s",
                    uiError.c_str());
+      return SDL_APP_FAILURE;
+    }
+    if (ktrfSystemUi->IsConfigOpen() &&
+        !RenderSchoolDaysModernDisplayPanel(app)) {
+      SDL_LogError(0, "[SD-DISPLAY] modern Options panel render failed: %s",
+                   SDL_GetError());
       return SDL_APP_FAILURE;
     }
   }
@@ -3345,10 +4819,19 @@ static SDL_AppResult SchoolDaysRenderFrame(Kotonoha::Kotonoha *app) {
            Kotonoha::SchoolDaysFlowController::State::TitleConfig ||
        ktrfController->FlowState() ==
            Kotonoha::SchoolDaysFlowController::State::TitleExit);
+  const bool temporaryPlayback =
+      (ktrfReplayPlayback != nullptr && ktrfReplayPlayback->IsOpen()) ||
+      (ktrfPlayDataPlayback != nullptr && ktrfPlayDataPlayback->IsOpen());
   ktrfFrameDebug.mode = ktrfController != nullptr
                            ? SchoolDaysFrameDebug::Mode::Ktrf
                            : SchoolDaysFrameDebug::Mode::Engine;
-  ktrfFrameDebug.debugGameplay = titleFrontend ? nullptr : inRunning;
+  // Replay/HScene and PlayData are frontend-owned, but they still own a real
+  // Gameplay.  Keep that physical Gameplay visible to the generic engine debug
+  // tools instead of hiding it merely because the retained narrative
+  // controller is in Title state.  School Days routing/state inspection remains
+  // controller-owned and is handled separately by the game debug wrapper.
+  ktrfFrameDebug.debugGameplay =
+      titleFrontend && !temporaryPlayback ? nullptr : inRunning;
   ktrfFrameDebug.mcpGameplay = inRunning;
   return SDL_APP_CONTINUE;
 }
@@ -3357,9 +4840,15 @@ bool SchoolDaysSession::RunDebugUi(Kotonoha::Kotonoha *app,
                                    Kotonoha_Game &game) {
   switch (ktrfFrameDebug.mode) {
   case SchoolDaysFrameDebug::Mode::Ktrf:
+    {
+      Kotonoha::SchoolDaysKtrfSession* temporarySession =
+          ktrfPlayDataPlayback != nullptr && ktrfPlayDataPlayback->IsOpen()
+              ? &ktrfPlayDataPlayback->Session()
+              : nullptr;
     return Kotonoha_SchoolDaysKtrfDebugGuiRun(
         ktrfController.get(), app, ktrfFrameDebug.debugGameplay,
-        ktrfSceneTransaction.get(), game);
+        temporarySession, ktrfSceneTransaction.get(), game);
+    }
   case SchoolDaysFrameDebug::Mode::EngineIfEnabled:
     return !game.config.enableDebugUi ||
            Kotonoha::Debug::Run(app, ktrfFrameDebug.debugGameplay, game);
@@ -3440,10 +4929,12 @@ void LocalQuit(void *, SDL_AppResult) {
   ktrfFrontendTransition.Reset();
   ktrfFrontendHandoff = KtrfFrontendHandoff::None;
   ktrfTitleHasPresented = false;
+  ResetSchoolDaysEpisodeOverlay();
   ktrfRouteMapProjectionMajor = -1;
   ktrfRouteMapProjectionSubpage = -1;
   ktrfRetailDisplayState = {};
   ktrfRetailDisplayBackendState = {};
+  ktrfModernDisplayPanel = {};
   ktrfRetailConfigState =
       Kotonoha::SchoolDaysRetailConfigPolicy::Defaults();
   Kotonoha_SetMenuVoiceEnabled(&global, true);

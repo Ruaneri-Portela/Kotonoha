@@ -1,4 +1,5 @@
 #include <Kotonoha/routing/SchoolDaysRouteMapOracle.hpp>
+#include <Kotonoha/routing/SchoolDaysKtrfProfile.hpp>
 
 extern "C" {
 #include <Kotonoha/parsers/KtrfTyped.h>
@@ -77,6 +78,7 @@ public:
         runtimeValues_[0].kind = KOTONOHA_KTRF_RUNTIME_INT64;
         runtimeValues_[1].kind = KOTONOHA_KTRF_RUNTIME_INT64;
         adapter_.document = &document_;
+        adapter_.profile = &Kotonoha::SchoolDaysKtrfProfile();
         adapter_.router.document = &document_;
         adapter_.router.runtime.document = &document_;
         adapter_.router.runtime.variables = runtimeValues_.data();

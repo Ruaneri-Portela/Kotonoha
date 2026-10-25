@@ -64,7 +64,8 @@ public:
 
     bool CommitChoice(int64_t value, int* accepted, Kotonoha_KtrfError* error);
     bool Advance(const char* trigger, StepResult* out, Kotonoha_KtrfError* error);
-    bool AdvanceToNextChoice(const char* trigger, StepResult* out,
+    bool AdvanceToNextChoice(const char* trigger, bool allowUnreadScenes,
+                             StepResult* out,
                              Kotonoha_KtrfError* error);
     bool Back(StepResult* out, Kotonoha_KtrfError* error);
     bool LoadSave(const std::vector<uint8_t>& bytes, StepResult* out,
@@ -116,7 +117,5 @@ private:
     bool pendingHandoff = false;
     bool opened = false;
 };
-
-SchoolDaysKtrfGameplayBridge::Factory MakeSchoolDaysRealGameplayFactory();
 
 } // namespace Kotonoha

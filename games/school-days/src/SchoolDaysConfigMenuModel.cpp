@@ -32,6 +32,7 @@ const char* SchoolDaysConfigMenuModel::PageToken(Page page) {
     switch (page) {
     case Page::Def: return "Def";
     case Page::Sound: return "Sound";
+    case Page::Display: return "Def";
     }
     return "Def";
 }
@@ -95,9 +96,9 @@ bool SchoolDaysConfigMenuModel::DecodeAction(Page page, int control,
     if (action == nullptr) return false;
     *action = {};
 
-    // Config keeps the shipped third-tab CMAP region for compatibility with
-    // the original resources, but only Def and Sound are exposed.
-    if (control >= 0 && control <= 1) {
+    // The shipped third-tab region used SOMCON. The remaster removes that
+    // device UI and reuses the authenticated pointer region for Display.
+    if (control >= 0 && control <= 2) {
         action->kind = ActionKind::SelectPage;
         action->page = static_cast<Page>(control);
         return true;

@@ -1,5 +1,6 @@
 #include <Kotonoha/routing/SchoolDaysKtrfStateInspector.hpp>
 #include <Kotonoha/routing/SchoolDaysKtrfAppController.hpp>
+#include <Kotonoha/routing/SchoolDaysKtrfSession.hpp>
 
 extern "C" {
 #include <Kotonoha/parsers/KtrfTyped.h>
@@ -75,20 +76,10 @@ std::string FormatValue(const Kotonoha_KtrfRuntimeValue& value) {
     }
 }
 
-bool CollectRows(Kotonoha::SchoolDaysKtrfAppController* controller,
-                 std::vector<StateRow>& rows,
-                 Kotonoha_KtrfError* error) {
+bool CollectRowsFromAdapter(const Kotonoha_KtrfAdapter* adapter,
+                            std::vector<StateRow>& rows,
+                            Kotonoha_KtrfError* error) {
     rows.clear();
-    if (controller == nullptr || !controller->IsOpen()) {
-        if (error != nullptr) {
-            error->code = KOTONOHA_KTRF_ERROR_ARGUMENT;
-            SDL_snprintf(error->message, sizeof(error->message),
-                         "KTRF state inspector controller is not open");
-        }
-        return false;
-    }
-
-    const auto* adapter = controller->DebugAdapter();
     if (adapter == nullptr || adapter->document == nullptr ||
         adapter->router.runtime.document == nullptr) {
         if (error != nullptr) {
@@ -124,6 +115,34 @@ bool CollectRows(Kotonoha::SchoolDaysKtrfAppController* controller,
     }
 
     return true;
+}
+
+bool CollectRows(Kotonoha::SchoolDaysKtrfAppController* controller,
+                 std::vector<StateRow>& rows,
+                 Kotonoha_KtrfError* error) {
+    if (controller == nullptr || !controller->IsOpen()) {
+        if (error != nullptr) {
+            error->code = KOTONOHA_KTRF_ERROR_ARGUMENT;
+            SDL_snprintf(error->message, sizeof(error->message),
+                         "KTRF state inspector controller is not open");
+        }
+        return false;
+    }
+    return CollectRowsFromAdapter(controller->DebugAdapter(), rows, error);
+}
+
+bool CollectRows(Kotonoha::SchoolDaysKtrfSession* session,
+                 std::vector<StateRow>& rows,
+                 Kotonoha_KtrfError* error) {
+    if (session == nullptr || session->Adapter() == nullptr) {
+        if (error != nullptr) {
+            error->code = KOTONOHA_KTRF_ERROR_ARGUMENT;
+            SDL_snprintf(error->message, sizeof(error->message),
+                         "KTRF state inspector temporary session is not open");
+        }
+        return false;
+    }
+    return CollectRowsFromAdapter(session->Adapter(), rows, error);
 }
 
 bool MatchesFilter(const StateRow& row) {
@@ -255,5 +274,93 @@ void Kotonoha_SchoolDaysKtrfStateInspectorRun(
         ImGui::EndTable();
     }
 
+    ImGui::End();
+}
+
+void Kotonoha_SchoolDaysKtrfStateInspectorRunSession(
+    Kotonoha::SchoolDaysKtrfSession* session,
+    Kotonoha_Game&,
+    bool* open) {
+    if (open == nullptr || !*open) return;
+
+    std::vector<StateRow> rows;
+    Kotonoha_KtrfError error{};
+    const bool ok = CollectRows(session, rows, &error);
+
+    ImGui::Begin("KTRF State Inspector", open);
+    if (!ok) {
+        ImGui::TextWrapped("Failed to read KTRF state: %s",
+                           error.message[0] != '\0' ? error.message : "unknown error");
+        ImGui::End();
+        return;
+    }
+
+    if (baselineValues.size() != rows.size()) CaptureBaseline(rows);
+    if (observedValues.size() != rows.size()) InitializeObserved(rows);
+    if (logChanges) {
+        for (std::size_t i = 0; i < rows.size(); ++i) {
+            if (observedValues[i] == rows[i].value) continue;
+            SDL_Log("[KTRF-STATE] var[%u] %s: %s -> %s",
+                    static_cast<unsigned>(rows[i].index), rows[i].id.c_str(),
+                    observedValues[i].c_str(), rows[i].value.c_str());
+        }
+    }
+    for (std::size_t i = 0; i < rows.size(); ++i) observedValues[i] = rows[i].value;
+
+    if (ImGui::Button("Capture Baseline")) CaptureBaseline(rows);
+    ImGui::SameLine();
+    ImGui::Checkbox("Changed only", &changedOnly);
+    ImGui::SameLine();
+    ImGui::Checkbox("Log changes", &logChanges);
+    ImGui::SetNextItemWidth(280.0f);
+    ImGui::InputTextWithHint("##ktrf_state_filter", "filter id/type/scope/value",
+                             stateFilter, IM_ARRAYSIZE(stateFilter));
+
+    std::size_t changedCount = 0;
+    for (std::size_t i = 0; i < rows.size(); ++i) {
+        if (i < baselineValues.size() && baselineValues[i] != rows[i].value)
+            ++changedCount;
+    }
+    ImGui::Text("Variables: %d   Changed since baseline: %d",
+                static_cast<int>(rows.size()), static_cast<int>(changedCount));
+    ImGui::TextDisabled(
+        "PlayData private KTRF session (read-only inspector). Capture a baseline, then inspect changes.");
+
+    ImVec2 tableSize = ImGui::GetContentRegionAvail();
+    if (tableSize.y < 220.0f) tableSize.y = 220.0f;
+    const ImGuiTableFlags flags = ImGuiTableFlags_Borders |
+                                  ImGuiTableFlags_RowBg |
+                                  ImGuiTableFlags_Resizable |
+                                  ImGuiTableFlags_ScrollY;
+    if (ImGui::BeginTable("##ktrf_state_table", 6, flags, tableSize)) {
+        ImGui::TableSetupScrollFreeze(0, 1);
+        ImGui::TableSetupColumn("Δ", ImGuiTableColumnFlags_WidthFixed, 24.0f);
+        ImGui::TableSetupColumn("#", ImGuiTableColumnFlags_WidthFixed, 52.0f);
+        ImGui::TableSetupColumn("ID", ImGuiTableColumnFlags_WidthStretch, 2.0f);
+        ImGui::TableSetupColumn("Type", ImGuiTableColumnFlags_WidthStretch, 1.0f);
+        ImGui::TableSetupColumn("Scope", ImGuiTableColumnFlags_WidthStretch, 1.0f);
+        ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch, 1.5f);
+        ImGui::TableHeadersRow();
+        for (std::size_t i = 0; i < rows.size(); ++i) {
+            const bool changed = i < baselineValues.size() &&
+                                 baselineValues[i] != rows[i].value;
+            if (changedOnly && !changed) continue;
+            if (!MatchesFilter(rows[i])) continue;
+            ImGui::TableNextRow();
+            ImGui::TableSetColumnIndex(0);
+            if (changed) ImGui::TextUnformatted("*");
+            ImGui::TableSetColumnIndex(1);
+            ImGui::Text("%u", static_cast<unsigned>(rows[i].index));
+            ImGui::TableSetColumnIndex(2);
+            ImGui::TextUnformatted(rows[i].id.c_str());
+            ImGui::TableSetColumnIndex(3);
+            ImGui::TextUnformatted(rows[i].type.c_str());
+            ImGui::TableSetColumnIndex(4);
+            ImGui::TextUnformatted(rows[i].scope.c_str());
+            ImGui::TableSetColumnIndex(5);
+            ImGui::TextUnformatted(rows[i].value.c_str());
+        }
+        ImGui::EndTable();
+    }
     ImGui::End();
 }
