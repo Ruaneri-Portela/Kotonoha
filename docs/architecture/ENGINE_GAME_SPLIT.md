@@ -151,10 +151,13 @@ archive-backed scenes read-only; filesystem scenes retain editing support.
 Image upscaling is generated and cached with each decoded image texture;
 video upscaling is regenerated only when a decoded frame changes. Frame
 presentation reuses those textures and never runs the upscaler over the full
-screen. Changing the enable flag or factor invalidates the content-texture
-caches. With upscaling enabled, a factor above `1.0` is required; if no shader
-backend is available or it fails, the engine retains the requested factor and
-uses SDL texture scaling instead of silently disabling upscaling.
+screen. Changing the enable flag, factor or selected model preset invalidates
+the content-texture caches. The generic shader backend currently ships
+ArtCNN anime-oriented presets plus Anime4K as a legacy compatibility preset;
+game code selects a preset through the generic upscaler API rather than owning
+shader execution. With upscaling enabled, a factor above `1.0` is required; if
+no shader backend is available or it fails, the engine retains the requested
+factor and uses SDL texture scaling instead of silently disabling upscaling.
 
 ## Public context seam
 
@@ -184,6 +187,13 @@ asset-provider and media interfaces (`sdgpk://` + custom FFmpeg AVIO). GPK
 parsing, DFLT/zlib handling, Script.GPK ORS resolution and game-specific
 resource naming are not part of `KotonohaEngine`.
 
+The same rule applies to KTRF semantics. The generic adapter owns routing,
+profile validation callbacks and dispatch-hop limits only. School Days owns its
+`ROUTE`/`SCENE` coordinate projection, variable namespace prefixes,
+`choice_result=-2` pending convention and physical `.ENG.ORS` resolution. Those
+helpers therefore live under `games/school-days`, even though they operate on
+generic KTRF runtime structures.
+
 ## Dependency rule
 
 The allowed direction is:
@@ -209,8 +219,9 @@ Release/SchoolDays.exe
 ```
 
 On macOS the app bundle contains `libKotonoha.dylib` in `Contents/Frameworks`;
-on Android SDLActivity continues to load `libKotonoha.so`. Engine-owned
-Anime4K shaders are staged with the `SchoolDays` app.
+on Android SDLActivity continues to load `libKotonoha.so`. Redistributable
+engine-owned upscaler shader assets and their license/provenance files are
+staged with applications that use the generic upscaler backend.
 
 ## Validation expectations
 
