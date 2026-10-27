@@ -76,7 +76,25 @@ static bool CopyTextureToTarget(SDL_Renderer *renderer,
   return prepared && copied && blendRestored && colorRestored && restored;
 }
 
-static bool IsSupportedUpscaleInputFormat(SDL_PixelFormat format) {
+static bool IsGlesRenderer(SDL_Renderer *renderer) {
+  const char *name = renderer != nullptr ? SDL_GetRendererName(renderer) : nullptr;
+  return name != nullptr && SDL_strcasestr(name, "gles") != nullptr;
+}
+
+static SDL_PixelFormat UpscaleWorkingFormat(SDL_Renderer *renderer) {
+  // SDL's GLES backend compensates BGRA targets in its own shaders.  The
+  // MPV-compatible upscaler samples the underlying GL texture directly, so
+  // BGRA targets become R/B swapped there.  Use an explicit RGBA working
+  // format on GLES and keep the historical desktop format elsewhere.
+  return IsGlesRenderer(renderer) ? SDL_PIXELFORMAT_RGBA32
+                                  : SDL_PIXELFORMAT_BGRA32;
+}
+
+static bool IsSupportedUpscaleInputFormat(SDL_Renderer *renderer,
+                                          SDL_PixelFormat format) {
+  if (IsGlesRenderer(renderer)) {
+    return format == SDL_PIXELFORMAT_RGBA32;
+  }
   return format == SDL_PIXELFORMAT_RGBA32 || format == SDL_PIXELFORMAT_BGRA32 ||
          format == SDL_PIXELFORMAT_ARGB8888 ||
          format == SDL_PIXELFORMAT_XRGB8888;
@@ -464,6 +482,7 @@ bool KotonohaUpscalingUpdateTexture(SDL_Renderer *renderer,
   using Kotonoha::Detail::ConvertTextureForUpscaling;
   using Kotonoha::Detail::IsSupportedUpscaleInputFormat;
   using Kotonoha::Detail::StoreUpscaledTextureMetadata;
+  using Kotonoha::Detail::UpscaleWorkingFormat;
 
   if (textureChanged != NULL) {
     *textureChanged = false;
@@ -509,7 +528,9 @@ bool KotonohaUpscalingUpdateTexture(SDL_Renderer *renderer,
     return cached->output != NULL;
   }
 
-  const bool needsIntermediate = !IsSupportedUpscaleInputFormat(source->format);
+  const bool needsIntermediate =
+      !IsSupportedUpscaleInputFormat(renderer, source->format);
+  const SDL_PixelFormat workingFormat = UpscaleWorkingFormat(renderer);
   const bool outputSizeValid =
       width <= static_cast<int>(static_cast<float>(INT_MAX) / factor) &&
       height <= static_cast<int>(static_cast<float>(INT_MAX) / factor);
@@ -546,7 +567,7 @@ bool KotonohaUpscalingUpdateTexture(SDL_Renderer *renderer,
     KotonohaUpscalingReleaseTexture(cached);
     if (needsIntermediate) {
       cached->intermediate =
-          SDL_CreateTexture(renderer, SDL_PIXELFORMAT_BGRA32,
+          SDL_CreateTexture(renderer, workingFormat,
                             SDL_TEXTUREACCESS_TARGET, width, height);
       if (cached->intermediate == NULL ||
           !SDL_SetTextureBlendMode(cached->intermediate, SDL_BLENDMODE_NONE)) {
@@ -564,7 +585,7 @@ bool KotonohaUpscalingUpdateTexture(SDL_Renderer *renderer,
     }
 
     cached->output =
-        SDL_CreateTexture(renderer, SDL_PIXELFORMAT_BGRA32,
+        SDL_CreateTexture(renderer, workingFormat,
                           SDL_TEXTUREACCESS_TARGET, outputWidth, outputHeight);
     if (cached->output == NULL ||
         !SDL_SetTextureBlendMode(cached->output, SDL_BLENDMODE_BLEND) ||

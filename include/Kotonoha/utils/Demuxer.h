@@ -61,6 +61,10 @@ typedef struct Kotonoha_DemuxStream {
   Uint64 skipVideoUntilMs;
   Uint64 skipAudioUntilMs;
   Uint64 lastPacketPtsMs;
+  /* Last cache limit observed by the demux worker. Trimming/reseeking is only
+   * needed when the configured limit actually shrinks; normal one-packet
+   * overshoot must not cause a seek loop. */
+  Uint64 appliedCacheLimitMs;
   Uint64 reopenAfterMs;
   bool isNetwork;
   bool registered;

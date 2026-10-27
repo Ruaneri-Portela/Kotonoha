@@ -493,18 +493,51 @@ bool KotonohaConfigLoad(Kotonoha_Config *config, const char *path, int argc,
   config->displayIndex = 0;
   config->fullscreenSize[0] = 0;
   config->fullscreenSize[1] = 0;
+#if defined(KOTONOHA_MOBILE_LOWEST_UPSCALER_DEFAULT)
+  // Dedicated mobile player first-run policy.  60 Hz keeps UI/input responsive
+  // without driving the whole compositor at 90/120 Hz by default; the mobile
+  // Display menu can still opt into every device-supported rate.
+  config->fullscreenRefreshMilliHz = 60000;
+#else
   config->fullscreenRefreshMilliHz = 0;
+#endif
   config->contentAspectPreference = 0;
+#if defined(KOTONOHA_MOBILE_LOWEST_UPSCALER_DEFAULT)
+  // The dedicated player's authored frame is near 800x450 and the default
+  // ArtCNN preset produces roughly 1600x900 at 2x.  A 75% logical render
+  // target on modern 1080p/1220p phones closely matches that output, avoiding
+  // a larger intermediate Canvas that adds bandwidth/VRAM but no new detail.
+  // Users can still select Native (100%) or Performance (50%) in Display.
+  config->renderScalePercent = 75;
+#else
+  config->renderScalePercent = 100;
+#endif
+  config->mobileDisplayProfileVersion = 0;
+#if defined(KOTONOHA_MOBILE_LOWEST_UPSCALER_DEFAULT)
+  // Dedicated mobile first-run profile: start on the lightest AI preset at a
+  // useful factor. Settings loaded from Kotonoha.ini immediately override this,
+  // so a player's later choice is never reset on launch.
+  config->scalerFactor = 2.0f;
+  config->upscalerPreset = 1;
+#else
   config->scalerFactor = 1.0f;
   // Backward-compatible default for existing Kotonoha.ini files. Individual
   // application packages may opt into another preset explicitly.
   config->upscalerPreset = 0;
+#endif
   config->mediaCacheSeconds = 2.0f;
   config->debugUiScale = 1.0f;
   config->cursorSize = 32;
   config->splashSeconds = 3.0f;
   config->splashFadeSeconds = 0.8f;
+#if defined(KOTONOHA_MOBILE_LOWEST_UPSCALER_DEFAULT)
+  // Retail media opens from the mounted GPKs in milliseconds on Android.  Five
+  // seconds keeps a large safety margin while avoiding twice as many future
+  // decoders/queues resident as the desktop-oriented 10 s window.
+  config->prefetchHorizonMs = 5000;
+#else
   config->prefetchHorizonMs = 10000;
+#endif
   config->seekBigMs = 5000;
   config->seekSmallMs = 50;
   config->loadingDebounceMs = 300;
@@ -526,6 +559,31 @@ bool KotonohaConfigLoad(Kotonoha_Config *config, const char *path, int argc,
     config->cancelOpen = true;
     return false;
   }
+
+#if defined(KOTONOHA_MOBILE_LOWEST_UPSCALER_DEFAULT)
+  // Version 1 introduces the dedicated mobile Display profile. Older builds
+  // wrote Legacy Anime4K as their automatic default even when the player had
+  // never selected it. Migrate that baseline exactly once. Once version 1 is
+  // persisted, subsequent user choices always win on future launches.
+  if (atomic_load(&config->mobileDisplayProfileVersion) < 1) {
+    config->scalerFactor = 2.0f;
+    config->upscalerPreset = 1;
+    config->upscalingEnabled = true;
+    config->mobileDisplayProfileVersion = 1;
+    config->dirtyConfig = true;
+  }
+  // Version 2 adds the conservative Android frame-rate/prefetch defaults.  Do
+  // not overwrite an explicit nonzero refresh choice; migrate only the legacy
+  // device-default/10 s baseline once.
+  if (atomic_load(&config->mobileDisplayProfileVersion) < 2) {
+    if (atomic_load(&config->fullscreenRefreshMilliHz) == 0)
+      config->fullscreenRefreshMilliHz = 60000;
+    if (atomic_load(&config->prefetchHorizonMs) == 10000)
+      config->prefetchHorizonMs = 5000;
+    config->mobileDisplayProfileVersion = 2;
+    config->dirtyConfig = true;
+  }
+#endif
 
   // Processa argumentos de linha de comando (argumentos sobrepõem o arquivo e
   // marcam dirty se necessário)

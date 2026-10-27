@@ -86,6 +86,8 @@ static void SettingsReadLine(ImGuiContext *ctx,
     if (ival >= 0) config->fullscreenRefreshMilliHz = ival;
   } else if (SDL_sscanf(line, "ContentAspectPreference=%d", &ival) == 1) {
     if (ival >= 0 && ival <= 2) config->contentAspectPreference = ival;
+  } else if (SDL_sscanf(line, "RenderScalePercent=%d", &ival) == 1) {
+    if (ival >= 25 && ival <= 100) config->renderScalePercent = ival;
   } else if (SDL_sscanf(line, "EnableVsync=%d", &vsync) == 1) {
     config->enableVsync = (bool)vsync;
   } else if (SDL_sscanf(line, "MediaCacheSeconds=%f", &cache) == 1 ||
@@ -107,6 +109,8 @@ static void SettingsReadLine(ImGuiContext *ctx,
     config->upscalingEnabled = (bool)upscaling;
   } else if (SDL_sscanf(line, "UpscalerPreset=%d", &ival) == 1) {
     if (ival >= 0 && ival <= 3) config->upscalerPreset = ival;
+  } else if (SDL_sscanf(line, "MobileDisplayProfileVersion=%d", &ival) == 1) {
+    if (ival >= 0) config->mobileDisplayProfileVersion = ival;
   } else if (SDL_sscanf(line, "SplashSeconds=%f", &fval) == 1) {
     if (fval > 0.0f)
       config->splashSeconds = fval;
@@ -176,6 +180,8 @@ static void SettingsWriteAll(ImGuiContext *ctx,
                config->fullscreenRefreshMilliHz.load());
   buf->appendf("ContentAspectPreference=%d\n",
                config->contentAspectPreference.load());
+  buf->appendf("RenderScalePercent=%d\n",
+               config->renderScalePercent.load());
   buf->appendf("EnableVsync=%d\n", config->enableVsync ? 1 : 0);
   buf->appendf("MediaCacheSeconds=%.2f\n", config->mediaCacheSeconds.load());
   buf->appendf("DebugUiScale=%.2f\n", config->debugUiScale.load());
@@ -185,6 +191,8 @@ static void SettingsWriteAll(ImGuiContext *ctx,
   buf->appendf("SkipFiles=%d\n", config->skipFiles ? 1 : 0);
   buf->appendf("UpscalingEnabled=%d\n", config->upscalingEnabled ? 1 : 0);
   buf->appendf("UpscalerPreset=%d\n", config->upscalerPreset.load());
+  buf->appendf("MobileDisplayProfileVersion=%d\n",
+               config->mobileDisplayProfileVersion.load());
   buf->appendf("SplashSeconds=%.2f\n", config->splashSeconds.load());
   buf->appendf("SplashFadeSeconds=%.2f\n", config->splashFadeSeconds.load());
   buf->appendf("PrefetchHorizonMs=%d\n", config->prefetchHorizonMs.load());

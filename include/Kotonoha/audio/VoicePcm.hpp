@@ -9,5 +9,6 @@ namespace Kotonoha {
 /* Independent analysis decode. Does not alter the float playback decoder. */
 bool DecodeVoicePcm(const std::string& path,
                     std::vector<int16_t>& monoS16At44100,
-                    const std::atomic_bool* cancelled = nullptr);
+                    const std::atomic_bool* cancelled = nullptr,
+                    uint64_t maxDurationMs = 0);
 }

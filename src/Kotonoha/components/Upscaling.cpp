@@ -4,6 +4,25 @@
 
 namespace Kotonoha {
 
+namespace {
+bool IsGlesRenderer(SDL_Renderer *renderer) {
+  const char *name = renderer != nullptr ? SDL_GetRendererName(renderer) : nullptr;
+  return name != nullptr && SDL_strcasestr(name, "gles") != nullptr;
+}
+
+SDL_PixelFormat UpscaleWorkingFormat(SDL_Renderer *renderer) {
+  return IsGlesRenderer(renderer) ? SDL_PIXELFORMAT_RGBA32
+                                  : SDL_PIXELFORMAT_BGRA32;
+}
+
+bool IsDirectUpscaleInput(SDL_Renderer *renderer, SDL_PixelFormat format) {
+  if (IsGlesRenderer(renderer)) return format == SDL_PIXELFORMAT_RGBA32;
+  return format == SDL_PIXELFORMAT_RGBA32 || format == SDL_PIXELFORMAT_BGRA32 ||
+         format == SDL_PIXELFORMAT_ARGB8888 ||
+         format == SDL_PIXELFORMAT_XRGB8888;
+}
+} // namespace
+
 Upscaling::Upscaling(int baseWidth, int baseHeight)
     : baseWidth(baseWidth), baseHeight(baseHeight) {}
 
@@ -64,7 +83,8 @@ bool Upscaling::EnsureUpscalingTextures(SDL_Renderer *render, int width,
   baseHeight = height;
   currentFactor = factor;
 
-  extraTexture = SDL_CreateTexture(render, SDL_PIXELFORMAT_BGRA32,
+  const SDL_PixelFormat workingFormat = UpscaleWorkingFormat(render);
+  extraTexture = SDL_CreateTexture(render, workingFormat,
                                    SDL_TEXTUREACCESS_TARGET, width, height);
 
   if (extraTexture == nullptr) {
@@ -77,7 +97,7 @@ bool Upscaling::EnsureUpscalingTextures(SDL_Renderer *render, int width,
   SDL_SetTextureScaleMode(extraTexture, SDL_SCALEMODE_LINEAR);
   SDL_SetTextureBlendMode(extraTexture, SDL_BLENDMODE_BLEND);
 
-  upScaledTexture = SDL_CreateTexture(render, SDL_PIXELFORMAT_BGRA32,
+  upScaledTexture = SDL_CreateTexture(render, workingFormat,
                                       SDL_TEXTUREACCESS_TARGET, targetUpscaledW,
                                       targetUpscaledH);
 
@@ -103,9 +123,7 @@ bool Upscaling::ProcessUpscale(SDL_Renderer *render, SDL_Texture *srcTexutre) {
   // converte para RGB ao desenhar na textura intermediária.
   if (srcTexutre != extraTexture && extraTexture != nullptr) {
     const SDL_PixelFormat format = srcTexutre->format;
-    if (format != SDL_PIXELFORMAT_RGBA32 && format != SDL_PIXELFORMAT_BGRA32 &&
-        format != SDL_PIXELFORMAT_ARGB8888 &&
-        format != SDL_PIXELFORMAT_XRGB8888) {
+    if (!IsDirectUpscaleInput(render, format)) {
       SDL_Texture *previousTarget = SDL_GetRenderTarget(render);
       if (!SDL_SetRenderTarget(render, extraTexture)) {
         return false;
