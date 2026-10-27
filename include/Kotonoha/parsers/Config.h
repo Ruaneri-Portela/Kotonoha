@@ -65,10 +65,18 @@ typedef struct Kotonoha_Config {
   // Generic authored-content aspect preference. Profiles may interpret
   // 0=Auto, 1=4:3, 2=16:9; the engine never hard-codes game resources.
   KOTONOHA_ATOMIC(int) contentAspectPreference;
+  // Internal render resolution as a percentage of the fitted content viewport.
+  // 100 means native fitted resolution; mobile profiles may expose lower values
+  // while keeping the physical Android Surface at its device-native size.
+  KOTONOHA_ATOMIC(int) renderScalePercent;
   KOTONOHA_ATOMIC(float) scalerFactor;
   // Generic player-facing upscaler preset. Values are Kotonoha_UpscalerPreset;
   // stored as int here to keep the C config parser independent of C++ headers.
   KOTONOHA_ATOMIC(int) upscalerPreset;
+  // Versioned mobile defaults. This lets a dedicated mobile package migrate
+  // one old automatic default once without resetting choices the player makes
+  // after the new profile has been established.
+  KOTONOHA_ATOMIC(int) mobileDisplayProfileVersion;
   // Maximum buffered seconds per audio/video stream. The demuxer reads this
   // value on every use, so changes apply immediately.
   KOTONOHA_ATOMIC(float) mediaCacheSeconds;

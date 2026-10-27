@@ -46,6 +46,17 @@ static bool InitializeLoadingRender(SDL_Renderer *render, TTF_Font *font,
 
   state->windowScale = windowScale;
 
+  /* Font size is part of this cached render state. Re-applying
+   * TTF_SetFontSize() every presented frame is both unnecessary and very
+   * expensive on FreeType-backed mobile builds; some backends retain size
+   * objects/caches on each call. Only resize when the overlay cache itself is
+   * rebuilt for a new output scale. */
+  if (!TTF_SetFontSize(font, 28.0f * windowScale)) {
+    KLOG_ERROR(RENDER, "Failed to size loading overlay font: %s", SDL_GetError());
+    SDL_free(state);
+    return false;
+  }
+
   if (!KotonohaOverlayCreateTextTexture(
           render, font, "Loading...", (SDL_Color){0, 0, 0, 160}, &state->shadow,
           &state->textWidth, &state->textHeight)) {
@@ -82,9 +93,6 @@ enum Kotonoha_Scene_Status KotonohaLoadingRender(KOTONOHA_SCENE_CALL) {
                                  &windowScale)) {
     return KOTONOHA_SCENE_NULL;
   }
-
-  // Rasterize at physical pixels so the overlay is never upscaled.
-  TTF_SetFontSize(font, 28.0f * windowScale);
 
   if (loadingCommon == NULL || loadingCommon->windowScale != windowScale) {
     KotonohaLoadingRenderShutdown();

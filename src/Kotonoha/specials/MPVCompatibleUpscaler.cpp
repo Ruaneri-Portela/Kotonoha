@@ -54,6 +54,7 @@ struct PoolTex {
   int w;
   int h;
   bool inUse;
+  Uint64 lastUsed;
 };
 
 struct VertexAttributeState {
@@ -88,6 +89,31 @@ GLint g_blitTex = -1;
 GLuint g_fbo = 0;
 GLuint g_vbo = 0;
 std::vector<PoolTex> g_pool;
+Uint64 g_poolUseSerial = 0;
+
+constexpr Uint64 kRgba16fBytesPerPixel = 8;
+constexpr Uint64 kPoolBudgetBytes = 256ull * 1024ull * 1024ull;
+
+Uint64 PoolTextureBytes(const PoolTex &t) {
+  return static_cast<Uint64>(std::max(t.w, 0)) *
+         static_cast<Uint64>(std::max(t.h, 0)) * kRgba16fBytesPerPixel;
+}
+
+void TrimPoolToBudget() {
+  Uint64 total = 0;
+  for (const PoolTex &t : g_pool) total += PoolTextureBytes(t);
+  while (total > kPoolBudgetBytes) {
+    auto victim = g_pool.end();
+    for (auto it = g_pool.begin(); it != g_pool.end(); ++it) {
+      if (it->inUse) continue;
+      if (victim == g_pool.end() || it->lastUsed < victim->lastUsed) victim = it;
+    }
+    if (victim == g_pool.end()) break;
+    total -= PoolTextureBytes(*victim);
+    glDeleteTextures(1, &victim->id);
+    g_pool.erase(victim);
+  }
+}
 
 const char *PresetLogName(Kotonoha_UpscalerPreset preset) {
   switch (preset) {
@@ -623,9 +649,11 @@ bool InitGLPipeline(SDL_Renderer *renderer) {
 }
 
 GLuint AcquireTexture(int w, int h) {
+  const Uint64 useSerial = ++g_poolUseSerial;
   for (PoolTex &t : g_pool) {
     if (!t.inUse && t.w == w && t.h == h) {
       t.inUse = true;
+      t.lastUsed = useSerial;
       return t.id;
     }
   }
@@ -637,7 +665,7 @@ GLuint AcquireTexture(int w, int h) {
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-  g_pool.push_back({id, w, h, true});
+  g_pool.push_back({id, w, h, true, useSerial});
   return id;
 }
 
@@ -691,14 +719,21 @@ bool RunChain(GLuint inTex, int inW, int inH, GLuint outTex, int outW,
   mainTex.h = inH;
   bool mainIsLuma = false;
 
+  std::map<std::string, int> remainingUses;
+  for (const Pass &pass : g_passes) {
+    for (const BindRef &ref : pass.refs) {
+      if (ref.name == "MAIN" || ref.name == "HOOKED" ||
+          ref.name == "NATIVE" || ref.name == "LUMA") {
+        continue;
+      }
+      ++remainingUses[ref.name];
+    }
+  }
+
   auto cleanup = [&]() {
     for (PoolTex &t : g_pool)
       t.inUse = false;
-    if (g_pool.size() > 64) {
-      for (PoolTex &t : g_pool)
-        glDeleteTextures(1, &t.id);
-      g_pool.clear();
-    }
+    TrimPoolToBudget();
   };
 
   SizeContext ctx;
@@ -772,6 +807,26 @@ bool RunChain(GLuint inTex, int inW, int inH, GLuint outTex, int outW,
     BindQuad(pass.aPos, pass.aTex);
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     DebugProbe(pass.save.empty() ? "MAIN" : pass.save.c_str(), dest, w, h);
+
+    // Saved shader outputs can be very large RGBA16F textures.  Release each
+    // saved register as soon as its last consumer has drawn instead of keeping
+    // every ArtCNN layer resident until the end of the chain.
+    for (const BindRef &ref : pass.refs) {
+      if (ref.name == "MAIN" || ref.name == "HOOKED" ||
+          ref.name == "NATIVE" || ref.name == "LUMA") {
+        continue;
+      }
+      auto use = remainingUses.find(ref.name);
+      if (use == remainingUses.end()) continue;
+      --use->second;
+      if (use->second <= 0) {
+        auto saved = reg.find(ref.name);
+        if (saved != reg.end()) {
+          if (saved->second.owned) ReleaseTexture(saved->second.id);
+          reg.erase(saved);
+        }
+      }
+    }
 
     const std::string target = pass.save.empty() ? "MAIN" : pass.save;
     TexRef updated;

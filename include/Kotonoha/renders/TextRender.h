@@ -14,6 +14,10 @@ typedef struct Kotonoha_Subtitles {
 
   Kotonoha_Time *time;
   Kotonoha_Game *gameCtx;
+  SDL_Renderer *glyphRenderer;
+  SDL_Texture *glyphTexture;
+  int glyphTextureWidth;
+  int glyphTextureHeight;
   bool messageLayerHiddenLastFrame;
   bool hasRenderedFrame;
   bool lastFrameHasSubtitle;

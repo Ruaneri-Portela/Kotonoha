@@ -40,10 +40,18 @@ public:
     SchoolDaysKtrfSession& Session() { return session_; }
 
     // While the one-shot replay latch is armed, SceneView can replace the tag4
-    // oracle without changing the already-restored private checkpoint.  This is
+    // oracle without changing the fresh private playback state.  This is
     // deliberately narrower than a normal LOAD and never touches the live owner.
     bool ReplaceRecordedChoiceOracle(const std::vector<uint8_t>& saveBytes,
                                      Kotonoha_KtrfError* error);
+
+    // Replay Data uses a SaveFile as recorded-choice input, not as a narrative
+    // checkpoint.  Selecting another slot after playback has begun therefore
+    // restarts the private FILM owner from the new-game entry (A00) while
+    // replacing only the tag4 oracle.  The retained normal-game owner is never
+    // promoted to the selected SaveFile.
+    bool RestartFromRecordedChoiceOracle(const std::vector<uint8_t>& saveBytes,
+                                         Kotonoha_KtrfError* error);
 
     // Commits a resolved prompt into the private router/SLog. While the native
     // +0x98 latch is armed, the first SetSELECT that has actually reached its

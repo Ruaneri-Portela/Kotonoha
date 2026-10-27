@@ -234,9 +234,10 @@ bool SameLive(const LiveSnapshot& a, const LiveSnapshot& b) {
 } // namespace
 
 int main(int argc, char** argv) {
-    if (argc != 4) {
+    if (argc != 4 && argc != 5) {
         std::cerr << "usage: SchoolDaysPlayDataSessionTest "
-                     "<route.ktnroute> <ors-root> <copied-savefile>\n";
+                     "<route.ktnroute> <ors-root> <copied-savefile> "
+                     "[copied-globalflag]\n";
         return 2;
     }
 
@@ -249,7 +250,11 @@ int main(int argc, char** argv) {
     Check(expectedSave.Open(argv[1], argv[2], &error), error.message);
     Kotonoha::SchoolDaysKtrfSession::LoadPlan expectedPlan;
     Check(expectedSave.PlanLoadSave(saveBytes, &expectedPlan, &error), error.message);
-    const std::string expectedSceneKey = expectedPlan.scene.sceneKey;
+    const std::string savedCheckpointSceneKey = expectedPlan.scene.sceneKey;
+    Kotonoha::SchoolDaysKtrfScene expectedFreshScene;
+    Check(expectedSave.ResetNewGame(&expectedFreshScene, &error), error.message);
+    Check(expectedFreshScene.sceneKey == "00/00-00-A00",
+          "new-game Replay Data entry drifted from A00");
     expectedSave.Close();
 
     Fixture fixture;
@@ -258,9 +263,10 @@ int main(int argc, char** argv) {
                         FactoryFor(&fixture), &error),
           error.message);
     Check(session.IsOpen() && session.CurrentGameplay() != nullptr &&
-              session.CurrentScene().sceneKey == expectedSceneKey &&
+              session.CurrentScene().sceneKey == expectedFreshScene.sceneKey &&
+              session.CurrentScene().sceneKey != savedCheckpointSceneKey &&
               !session.CurrentScene().orsPath.empty(),
-          "PlayData did not restore the selected SaveFile checkpoint privately");
+          "Replay Data promoted the selected SaveFile checkpoint instead of starting A00");
     Check(session.ChoiceReplayLatchArmed(),
           "PlayData one-shot choice latch was not armed after restore");
     Check(fixture.creates == 1 && fixture.live == 1 && fixture.maxLive == 1,
@@ -275,6 +281,52 @@ int main(int argc, char** argv) {
     session.Close();
     Check(!session.IsOpen() && fixture.live == 0 && fixture.destroys == 1,
           "PlayData close leaked private Gameplay/session ownership");
+
+    if (argc == 5) {
+        // Production SceneView passes the live GlobalFlag snapshot into the
+        // private PlayData owner.  Exercise that exact non-null path with the
+        // copied 100% GlobalFlag so REVER/H-scene QA cannot regress behind the
+        // unit tests' historical nullptr shortcut.
+        const auto globalFlagBytes = ReadBytes(argv[4]);
+        Fixture globalFixture;
+        Kotonoha::SchoolDaysPlayDataSession globalSession;
+        Check(globalSession.Start(argv[1], argv[2], saveBytes, &globalFlagBytes,
+                                  game, FactoryFor(&globalFixture), &error),
+              error.message);
+        std::unordered_map<std::string, int64_t> privateGlobals;
+        Check(globalSession.Session().State().EnumerateGlobalInts(&privateGlobals,
+                                                                  &error),
+              error.message);
+        const auto allClear = privateGlobals.find("AllClear");
+        const auto endClear = privateGlobals.find("EndClear");
+        Check(allClear != privateGlobals.end() && allClear->second == -1 &&
+                  endClear != privateGlobals.end() && endClear->second == -1,
+              "100% GlobalFlag snapshot was not loaded into private PlayData state");
+        globalSession.Close();
+        Check(globalFixture.live == 0 &&
+                  globalFixture.creates == globalFixture.destroys,
+              "100% GlobalFlag PlayData close leaked private Gameplay ownership");
+
+        // A later private owner that is started without a GlobalFlag must not
+        // inherit the prior 100% snapshot through process-global/session state.
+        Fixture isolatedFixture;
+        Kotonoha::SchoolDaysPlayDataSession isolatedSession;
+        Check(isolatedSession.Start(argv[1], argv[2], saveBytes, nullptr, game,
+                                    FactoryFor(&isolatedFixture), &error),
+              error.message);
+        std::unordered_map<std::string, int64_t> isolatedGlobals;
+        Check(isolatedSession.Session().State().EnumerateGlobalInts(&isolatedGlobals,
+                                                                    &error),
+              error.message);
+        const auto isolatedAllClear = isolatedGlobals.find("AllClear");
+        Check(isolatedAllClear == isolatedGlobals.end() ||
+                  isolatedAllClear->second != -1,
+              "100% GlobalFlag leaked from closed PlayData into a new private owner");
+        isolatedSession.Close();
+        Check(isolatedFixture.live == 0 &&
+                  isolatedFixture.creates == isolatedFixture.destroys,
+              "post-100% isolation PlayData close leaked private Gameplay ownership");
+    }
 
     Fixture failedFactory;
     failedFactory.failCreateAt = 0;
@@ -296,8 +348,18 @@ int main(int argc, char** argv) {
     Check(choiceSession.Start(argv[1], argv[2], choiceSave.bytes, nullptr, game,
                               FactoryFor(&choiceFixture), &error),
           error.message);
+    Check(choiceSession.CurrentScene().sceneKey == expectedFreshScene.sceneKey,
+          "choice Replay Data did not begin from fresh A00");
+    for (int guard = 0;
+         guard < 8 && choiceSession.CurrentScene().sceneKey != choiceSave.sceneKey;
+         ++guard) {
+        bool reachedTerminal = false;
+        Check(choiceSession.AdvanceAfterSceneEnd(&reachedTerminal, &error) &&
+                  !reachedTerminal,
+              error.message);
+    }
     Check(choiceSession.CurrentScene().sceneKey == choiceSave.sceneKey,
-          "choice PlayData fixture did not restore its saved SceneKey");
+          "fresh Replay Data path did not reach authenticated A03 choice");
     const LiveSnapshot oracleBefore = CaptureLive(choiceSession.Session(), &error);
     Check(choiceSession.ReplaceRecordedChoiceOracle(choiceSave.bytes, &error),
           error.message);
@@ -320,8 +382,23 @@ int main(int argc, char** argv) {
           "reached SetSELECT did not consume exactly the saved tag4 choice");
     const LiveSnapshot afterRecordedSetSelect =
         CaptureLive(choiceSession.Session(), &error);
-    Check(SameLive(beforeRecordedSetSelect, afterRecordedSetSelect),
-          "restored tag4 SetSELECT replay applied saved choice effects twice");
+    Check(!SameLive(beforeRecordedSetSelect, afterRecordedSetSelect),
+          "fresh Replay Data tag4 choice did not apply its routing effects");
+    const int replayedChoice = result;
+    committed = true;
+    Check(choiceSession.UpdateChoice(true, &result, &committed, &error) &&
+              !committed && result == replayedChoice,
+          "fresh Replay Data accepted the same saved choice twice");
+    const LiveSnapshot afterDuplicateSetSelect =
+        CaptureLive(choiceSession.Session(), &error);
+    Check(SameLive(afterRecordedSetSelect, afterDuplicateSetSelect),
+          "fresh Replay Data applied saved choice effects more than once");
+
+    Check(choiceSession.RestartFromRecordedChoiceOracle(choiceSave.bytes, &error),
+          error.message);
+    Check(choiceSession.CurrentScene().sceneKey == expectedFreshScene.sceneKey &&
+              choiceSession.ChoiceReplayLatchArmed(),
+          "Replay Data LOAD did not restart A00 with the selected choice oracle");
 
     choiceSession.Close();
     Check(choiceFixture.live == 0 &&
@@ -356,21 +433,23 @@ int main(int argc, char** argv) {
     const AdvanceSaveFixture advanceSave =
         BuildAdvanceSave(argv[1], argv[2], &error);
 
-    // Prove the isolated fixture still has the authenticated non-terminal
-    // A02 -> A03 edge before using it to exercise second-create failure.
+    // A SaveFile carrying an A02 checkpoint must still be treated only as
+    // Replay Data oracle/history input.  Prove the private owner starts at A00
+    // and advances along the fresh route instead of resuming A02 -> A03.
     Fixture advanceProbeFixture;
     Kotonoha::SchoolDaysPlayDataSession advanceProbe;
     Check(advanceProbe.Start(argv[1], argv[2], advanceSave.bytes, nullptr, game,
                              FactoryFor(&advanceProbeFixture), &error),
           error.message);
-    Check(advanceProbe.CurrentScene().sceneKey == advanceSave.sceneKey,
-          "advance fixture did not restore its SaveFile checkpoint");
+    Check(advanceProbe.CurrentScene().sceneKey == expectedFreshScene.sceneKey &&
+              advanceProbe.CurrentScene().sceneKey != advanceSave.sceneKey,
+          "advance fixture incorrectly resumed its SaveFile checkpoint");
     bool terminal = true;
     Check(advanceProbe.AdvanceAfterSceneEnd(&terminal, &error) && !terminal &&
-              advanceProbe.CurrentScene().sceneKey == advanceSave.nextSceneKey &&
+              advanceProbe.CurrentScene().sceneKey == "00/00-00-A01" &&
               advanceProbeFixture.creates == 2 &&
               advanceProbeFixture.destroys == 1 && advanceProbeFixture.live == 1,
-          "PlayData private saved checkpoint did not advance A02 -> A03");
+          "fresh Replay Data owner did not advance A00 -> A01");
     advanceProbe.Close();
     Check(advanceProbeFixture.live == 0 && advanceProbeFixture.destroys == 2,
           "advance fixture probe leaked private Gameplay ownership");
@@ -403,15 +482,17 @@ int main(int argc, char** argv) {
           "malformed PlayData SaveFile reached Gameplay creation");
 
     std::cout << "SCHOOL DAYS PLAYDATA SESSION GATE PASS\n"
-              << "copied_save_private_checkpoint_restore=PASS\n"
+              << "save_oracle_fresh_a00_start=PASS\n"
               << "choice_latch_deferred_until_setselect=PASS\n"
               << "saved_tag4_consumed_at_setselect=PASS\n"
-              << "saved_tag4_effects_not_reapplied=PASS\n"
+              << "saved_tag4_effects_applied_once=PASS\n"
               << "armed_load_tag4_only=PASS\n"
+              << "post_latch_load_restarts_a00=PASS\n"
               << "private_gameplay_ownership=PASS\n"
               << "factory_failure_initial_atomic=PASS\n"
               << "factory_failure_after_advance_atomic=PASS\n"
               << "live_state_history_persistence_isolation=PASS\n"
+              << "optional_100_percent_globalflag_isolation=PASS\n"
               << "malformed_save_fail_closed=PASS\n";
     return 0;
 }

@@ -77,6 +77,11 @@ namespace Kotonoha {
 		static std::string AbcKey(std::string key) {
 			std::transform(key.begin(), key.end(), key.begin(),
 				[](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+				/* The shipped scripts use "xxx" as an explicit no-ABC sentinel. The
+				 * image corpus has no xxx.a/b/c frames, so decoding a second PCM copy of
+				 * those voices can never drive mouth animation. Treat it exactly like an
+				 * absent animation key. */
+				if (key == "xxx") key.clear();
 			return key;
 		}
 			static void PrepareChoicePrompt(Gameplay* gp,
@@ -206,14 +211,19 @@ namespace Kotonoha {
 			const bool suppressBackLogCapture =
 				classUp->suppressBackLogCaptureOnce.exchange(
 					false, std::memory_order_acq_rel);
-		/* Registration may prepare media early; semantic dispatch stays on the
-		   real scene tick. The old runtime used a 10-second preparation window. */
+			/* Registration may prepare media early; semantic dispatch stays on the
+			   real scene tick.  Keep the horizon configurable so the dedicated
+			   Android build can use a smaller resident-media window without changing
+			   authored START/END timing. */
+			const int prefetchHorizonMs =
+				std::clamp(gameCtx->config.prefetchHorizonMs.load(), 0, 60000);
 		Kotonoha_SceneTick preparationLimit =
-			Kotonoha_MillisecondsToSceneTick(actualTime + 10000);
+				Kotonoha_MillisecondsToSceneTick(
+					actualTime + static_cast<Uint64>(prefetchHorizonMs));
 		const SchoolDaysOptionalTick nextTick = classUp->timeline.NextTick();
 		if (nextTick && preparationLimit > *nextTick)
 			preparationLimit = *nextTick;
-			const auto prepareEvent = [&](Kotonoha_orsEvent* event) -> bool {
+				const auto prepareEvent = [&](Kotonoha_orsEvent* event) -> bool {
 				if (cancelled()) return false;
 				if (event == nullptr || event->eventPrepared) return true;
 				event->eventPrepared = true;
@@ -243,11 +253,13 @@ namespace Kotonoha {
 						endMs + 1000,
 						false,
 						"Voice", false);
-					if (classUp->voiceMedia[event] != nullptr &&
-						*SchoolDaysVoiceAnimationKey(event) != '\0') {
+						if (classUp->voiceMedia[event] != nullptr &&
+							!AbcKey(SchoolDaysVoiceAnimationKey(event)).empty()) {
 						std::vector<int16_t> pcm;
+							const Uint64 authoredDurationMs =
+								endMs > startMs ? endMs - startMs : 1;
 							if (DecodeVoicePcm(voicePath, pcm,
-									gameplay->ShutdownFlag()))
+										gameplay->ShutdownFlag(), authoredDurationMs))
 							classUp->voiceActivity[event] = AnalyzePcmActivity(pcm);
 					}
 				}
@@ -317,10 +329,24 @@ namespace Kotonoha {
 					logicalPath, event->startTick, event->endTick,
 					roll ? 0 : event->data.play_movie->a);
 				bool ready = false;
-				if (state.Supported()) {
+					if (state.Supported()) {
 					std::string resolved;
-					if (ResolveNarrativeMedia(assetsPath, state.resource, &resolved))
-						ready = gameplay->video->Prepare(event, resolved.c_str());
+						if (ResolveNarrativeMedia(assetsPath, state.resource, &resolved)) {
+							ready = gameplay->video->Prepare(event, resolved.c_str());
+							if (!ready) {
+								SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+									"[SD-MOVIE] Prepare failed logical=%s resolved=%s ticks=%llu..%llu",
+									state.resource.c_str(), resolved.c_str(),
+									static_cast<unsigned long long>(event->startTick),
+									static_cast<unsigned long long>(event->endTick));
+							}
+						} else {
+							SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+								"[SD-MOVIE] Resolve failed logical=%s ticks=%llu..%llu",
+								state.resource.c_str(),
+								static_cast<unsigned long long>(event->startTick),
+								static_cast<unsigned long long>(event->endTick));
+						}
 				} else {
 					SDL_Log("[SD-MOVIE] Unsupported PlayMovie numeric=%llu path=%s",
 						static_cast<unsigned long long>(state.numeric), logicalPath);
@@ -376,7 +402,8 @@ namespace Kotonoha {
 			default:
 				break;
 			}
-				return !cancelled();
+					const bool preparedOk = !cancelled();
+					return preparedOk;
 			};
 		classUp->activeVoiceEvents.erase(std::remove_if(
 			classUp->activeVoiceEvents.begin(), classUp->activeVoiceEvents.end(),
@@ -591,9 +618,9 @@ namespace Kotonoha {
 		}
 
 			/* Keep the original 10-second PREPARE horizon without allowing a batch of
-			   future FFmpeg opens to delay semantic START dispatch.  At most one future
-			   event is warmed per worker pass; due events above always take priority. */
-			for (auto* event = classUp->eventsFromScript.data;
+			   future FFmpeg opens to delay semantic START dispatch. At most one future event
+			   is warmed per worker pass; due events above always take priority. */
+				for (auto* event = classUp->eventsFromScript.data;
 				event != nullptr && event->startTick <= preparationLimit;
 				event = event->next) {
 				if (event->startTick <= currentTick || event->eventPrepared) continue;

@@ -112,6 +112,37 @@ bool SchoolDaysPlayDataSession::ReplaceRecordedChoiceOracle(
     return true;
 }
 
+bool SchoolDaysPlayDataSession::RestartFromRecordedChoiceOracle(
+    const std::vector<uint8_t>& saveBytes, Kotonoha_KtrfError* error) {
+    if (!opened_ || currentGameplay_ == nullptr) {
+        return Fail(error, KOTONOHA_KTRF_ERROR_ARGUMENT,
+                    "School Days PlayData restart requires an open playback");
+    }
+
+    std::map<std::string, int32_t> nextChoices;
+    if (!ParseRecordedChoices(saveBytes, &nextChoices, error)) return false;
+
+    SchoolDaysKtrfScene freshScene;
+    if (!session_.ResetNewGame(&freshScene, error)) return false;
+
+    // ResetNewGame has already moved the private semantic owner to A00.  If the
+    // physical Gameplay cannot be rebuilt, fail closed rather than leave an old
+    // renderer paired with fresh routing state.
+    if (!CreateAndSwap(freshScene, error)) {
+        Close();
+        return false;
+    }
+
+    recordedChoices_ = std::move(nextChoices);
+    choiceReplayLatchArmed_ = true;
+    choiceCommittedForScene_ = false;
+    if (error != nullptr) {
+        error->code = KOTONOHA_KTRF_OK;
+        error->message[0] = '\0';
+    }
+    return true;
+}
+
 bool SchoolDaysPlayDataSession::UpdateChoice(
     bool setSelectReached, int* promptResult, bool* committed,
     Kotonoha_KtrfError* error) {
@@ -169,20 +200,18 @@ bool SchoolDaysPlayDataSession::Start(
     }
 
     // Snapshot tag4 independently because SceneView may replace the replay
-    // oracle while this private playback owner is alive.  The selected SaveFile
-    // itself is nevertheless a real private LOAD checkpoint: restore its
-    // State/History/Persistence/SceneKey exactly as the authenticated PlayData
-    // flow does, then create only the private Gameplay.
+    // oracle while this private playback owner is alive. Replay Data does not
+    // resume the SaveFile's physical checkpoint: the slot is an oracle/history
+    // source and the temporary FILM owner always begins from a fresh A00.
     if (!ParseRecordedChoices(saveBytes, &recordedChoices_, error)) {
         Close();
         return false;
     }
 
-    SchoolDaysKtrfSession::LoadPlan plan;
+    SchoolDaysKtrfScene freshScene;
     choiceReplayLatchArmed_ = true;
-    if (!session_.PlanLoadSave(saveBytes, &plan, error) ||
-        !session_.CommitLoadSave(plan, error) ||
-        !CreateAndSwap(plan.scene, error)) {
+    if (!session_.ResetNewGame(&freshScene, error) ||
+        !CreateAndSwap(freshScene, error)) {
         Close();
         return false;
     }
