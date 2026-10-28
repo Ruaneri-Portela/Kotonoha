@@ -10,6 +10,7 @@
 #include <Kotonoha/components/CanvasImage.hpp>
 #include <Kotonoha/components/GameplayFlow.hpp>
 #include <Kotonoha/components/PcmPlayer.hpp>
+#include <Kotonoha/components/SaveStore.hpp>
 #include <Kotonoha/components/Sound.hpp>
 #include <Kotonoha/debug/DebugUi.hpp>
 
@@ -722,6 +723,8 @@ struct Game {
     float mx = -1, my = -1;
     bool ctrl = false, skipToggle = false, autoMode = false;
     bool pauseMenu = false, nameInput = false;
+    enum class SubMenu { None, Save, Load };
+    SubMenu subMenu = SubMenu::None;
     std::string nameText, notice;
     std::vector<Button> buttons, drawn;
     std::string hoverKey;
@@ -982,6 +985,8 @@ struct Game {
         sfx("gui/sfx/select.ogg");
         if (l == "Skip") skipToggle = !skipToggle;
         else if (l == "Auto") autoMode = !autoMode;
+        else if (l == "Save") { subMenu = SubMenu::Save; openPause(true); }
+        else if (l == "Load") { subMenu = SubMenu::Load; openPause(true); }
         else openPause(true);
     }
 
@@ -1311,6 +1316,7 @@ struct Game {
 
     void startGame() {
         nameInput = false;
+        subMenu = SubMenu::None;
         SDL_StopTextInput(global.window);
         host.stop("music", 1.0);
         newVm();
@@ -1321,6 +1327,7 @@ struct Game {
 
     void returnToMenu() {
         pauseMenu = false;
+        subMenu = SubMenu::None;
         freeze(false);
         host.stopAll();
         newVm();
@@ -1330,6 +1337,7 @@ struct Game {
     void openPause(bool on) {
         if (phase != Phase::Play) return;
         pauseMenu = on;
+        if (!on) subMenu = SubMenu::None;
         freeze(on);
     }
 
@@ -1420,6 +1428,50 @@ struct Game {
         startGame();
     }
 
+    void drawSaveLoadMenu(SDL_Renderer* r) {
+        drawn.clear();
+        drawImage(r, "gui/overlay/game_menu.png", 0, 0, kW, kH);
+        Kotonoha::SaveStore store("doki-doki-literature-club", 3);
+        std::vector<std::pair<std::string, std::function<void()>>> items;
+        for (int i = 0; i < 3; ++i) {
+            std::string lbl = store.Label(i);
+            if (lbl.empty()) {
+                lbl = "Slot " + std::to_string(i + 1) + " (Empty)";
+            } else {
+                lbl = "Slot " + std::to_string(i + 1) + ": " + lbl;
+            }
+            items.push_back({lbl, [this, i, &store] {
+                if (subMenu == SubMenu::Save) {
+                    std::string labelText = vm ? "Statement " + std::to_string(vm->statements) : "DDLC Save";
+                    store.Write(i, labelText, {int(vm ? vm->statements : 0)});
+                    notice = "Game saved to Slot " + std::to_string(i + 1);
+                    subMenu = SubMenu::None;
+                } else if (subMenu == SubMenu::Load) {
+                    if (store.Exists(i)) {
+                        std::string slabel;
+                        std::vector<int> inputs;
+                        if (store.Read(i, &slabel, &inputs) && !inputs.empty()) {
+                            size_t targetStmt = size_t(inputs[0]);
+                            startGame();
+                            skipToggle = true;
+                            while (vm && vm->running() && !vm->finished() && vm->statements < targetStmt) {
+                                update();
+                            }
+                            skipToggle = false;
+                            pauseMenu = false;
+                            freeze(false);
+                            subMenu = SubMenu::None;
+                        }
+                    } else {
+                        notice = "Slot " + std::to_string(i + 1) + " is empty.";
+                    }
+                }
+            }});
+        }
+        items.push_back({"Back", [this] { subMenu = SubMenu::None; }});
+        navigation(r, items);
+    }
+
     void drawMainMenu(SDL_Renderer* r) {
         const double t = now();
         const auto& m = vm->scene.master;
@@ -1429,7 +1481,9 @@ struct Game {
         const std::string newGame = pt == 1 ? "\xC5\x94\xC5\x97\xC3\xB1\xC4\xAE\xC2\xBC\xC2\xBB\xC5\xA7\xC3\xBE\xC5\x80\xC3"
                                               "\x82\xC5\xBB\xC5\x95\xC4\x9B\xC5\x8D\xC3\xAC\xC2\xAB"
                                             : "New Game";
-        if (!nameInput && notice.empty()) {
+        if (subMenu == SubMenu::Load) {
+            drawSaveLoadMenu(r);
+        } else if (!nameInput && notice.empty()) {
             navigation(r, {{newGame,
                             [this] {
                                 if (vm->py.getAttr(vm->persistent, "playername").truthy()) return startGame();
@@ -1437,7 +1491,7 @@ struct Game {
                                 nameText.clear();
                                 SDL_StartTextInput(global.window);
                             }},
-                           {"Load Game", [this] { notice = "Saving and loading are not available in this port yet."; }},
+                           {"Load Game", [this] { subMenu = SubMenu::Load; }},
                            {"Settings", [this] { notice = "Settings are not available in this port yet."; }},
                            {"Help", [this] { notice = "Doki Doki Literature Club! is a free game by Team Salvato."; }},
                            {"Quit", [this] { quit = true; }}});
@@ -1453,9 +1507,15 @@ struct Game {
     }
 
     void drawPauseMenu(SDL_Renderer* r) {
+        if (subMenu != SubMenu::None) {
+            drawSaveLoadMenu(r);
+            return;
+        }
         drawn.clear();
         drawImage(r, "gui/overlay/game_menu.png", 0, 0, kW, kH);
         navigation(r, {{"Return", [this] { openPause(false); }},
+                       {"Save Game", [this] { subMenu = SubMenu::Save; }},
+                       {"Load Game", [this] { subMenu = SubMenu::Load; }},
                        {"Main Menu", [this] { returnToMenu(); }},
                        {"Quit", [this] { quit = true; }}});
     }
