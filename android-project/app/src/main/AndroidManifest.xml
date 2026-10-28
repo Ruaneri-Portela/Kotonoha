@@ -42,38 +42,5 @@
         <meta-data
             android:name="SDL_ENV.SDL_ANDROID_TRAP_BACK_BUTTON"
             android:value="1" />
-
-        <activity
-            android:name=".MainActivity"
-            android:alwaysRetainTaskState="true"
-            android:launchMode="singleInstance"
-            android:configChanges="layoutDirection|locale|grammaticalGender|fontScale|fontWeightAdjustment|orientation|uiMode|screenLayout|screenSize|smallestScreenSize|keyboard|keyboardHidden|navigation"
-            android:exported="true">
-
-            <!-- Define MainActivity como a intent padrão -->
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
-
-        <!-- Development-only adb entry point for the KTRF Android Gate 7 smoke. -->
-        <activity
-            android:name=".KtrfGate7Activity"
-            android:exported="true"
-            android:launchMode="singleTask" />
-
-        <activity
-            android:name=".Kotonoha"
-            android:alwaysRetainTaskState="true"
-            android:configChanges="layoutDirection|locale|grammaticalGender|fontScale|fontWeightAdjustment|orientation|uiMode|screenLayout|screenSize|smallestScreenSize|keyboard|keyboardHidden|navigation"
-            android:exported="true"
-            android:launchMode="singleInstance">
-
-            <!-- Intents específicas para Kotonoha (se necessário) -->
-            <intent-filter>
-                <action android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED" />
-            </intent-filter>
-        </activity>
     </application>
 </manifest>

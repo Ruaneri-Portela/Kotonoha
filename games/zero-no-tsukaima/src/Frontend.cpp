@@ -80,7 +80,7 @@ bool IsConfirm(SDL_Keycode k) {
          k == SDLK_Z;
 }
 bool IsCancel(SDL_Keycode k) {
-  return k == SDLK_ESCAPE || k == SDLK_BACKSPACE || k == SDLK_X;
+  return k == SDLK_ESCAPE || k == SDLK_BACKSPACE || k == SDLK_X || k == SDLK_AC_BACK;
 }
 bool IsPrevPage(SDL_Keycode k) { return k == SDLK_PAGEUP || k == SDLK_Q; }
 bool IsNextPage(SDL_Keycode k) { return k == SDLK_PAGEDOWN || k == SDLK_W; }

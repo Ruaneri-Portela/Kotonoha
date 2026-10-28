@@ -1,6 +1,7 @@
 package me.hirameki.kotonoha;
 
 import android.content.Context;
+import android.os.Bundle;
 import android.util.DisplayMetrics;
 import android.view.WindowManager;
 
@@ -8,6 +9,8 @@ import org.libsdl.app.SDLActivity;
 
 import java.io.File;
 import java.util.Locale;
+
+import me.hirameki.kotonoha.BuildConfig;
 
 public class Kotonoha extends SDLActivity {
 
@@ -22,11 +25,14 @@ public class Kotonoha extends SDLActivity {
 
     private String resolveTarget() {
         String target = getIntent() == null ? null : getIntent().getStringExtra(EXTRA_TARGET);
-        if (TARGET_GENERIC.equalsIgnoreCase(target)) return TARGET_GENERIC;
-        if (TARGET_ZERO_NO_TSUKAIMA.equalsIgnoreCase(target)) return TARGET_ZERO_NO_TSUKAIMA;
-        if (TARGET_SNOW_RADISH.equalsIgnoreCase(target)) return TARGET_SNOW_RADISH;
-        if (TARGET_DDLC.equalsIgnoreCase(target)) return TARGET_DDLC;
-        return TARGET_SCHOOL_DAYS;
+        if (target != null && !target.isEmpty()) {
+            if (TARGET_GENERIC.equalsIgnoreCase(target)) return TARGET_GENERIC;
+            if (TARGET_ZERO_NO_TSUKAIMA.equalsIgnoreCase(target)) return TARGET_ZERO_NO_TSUKAIMA;
+            if (TARGET_SNOW_RADISH.equalsIgnoreCase(target)) return TARGET_SNOW_RADISH;
+            if (TARGET_DDLC.equalsIgnoreCase(target)) return TARGET_DDLC;
+            if (TARGET_SCHOOL_DAYS.equalsIgnoreCase(target)) return TARGET_SCHOOL_DAYS;
+        }
+        return BuildConfig.DEFAULT_TARGET;
     }
 
     private String[] schoolDaysDefaultArguments() {
@@ -84,11 +90,11 @@ public class Kotonoha extends SDLActivity {
     }
 
     private String[] zeroDefaultArguments() {
-        File file = new File(getObbDir(), "z.bin");
+        File file = new File(getObbDir(), "ZeroNoTsukaima.bin");
         if (!file.exists()) {
-            file = new File(new File(getFilesDir(), "assets"), "z.bin");
+            file = new File(new File(getFilesDir(), "assets"), "ZeroNoTsukaima.bin");
             if (!file.exists()) {
-                file = new File(getFilesDir(), "z.bin");
+                file = new File(getFilesDir(), "ZeroNoTsukaima.bin");
             }
         }
         return new String[]{"--zero", file.getAbsolutePath()};
@@ -97,7 +103,7 @@ public class Kotonoha extends SDLActivity {
     @Override
     protected String[] getArguments() {
         String[] defaultArgs = new String[]{
-                "-v", "-u", "-z", "-t", "-r", "opengles2"
+                "-v", "-u", "-z", "-t",
         };
         String[] extra = customArguments;
         if (extra == null || extra.length == 0) {
@@ -132,6 +138,12 @@ public class Kotonoha extends SDLActivity {
 
     public static void setArguments(String[] arguments) {
         customArguments = arguments;
+    }
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        ExtractAssets.copyAssetsToDataFiles(this);
     }
 
     @Override

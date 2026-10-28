@@ -107,7 +107,7 @@ void GameMenu::OpenPage(Page page) {
 void GameMenu::HandleEvent(SDL_Event *event, Kotonoha_Game *game) {
   if (!Active()) return;
   // Escape / right click on a slot page is the same as its "Back" item.
-  const bool back = (event->type == SDL_EVENT_KEY_DOWN && event->key.key == SDLK_ESCAPE) ||
+  const bool back = (event->type == SDL_EVENT_KEY_DOWN && (event->key.key == SDLK_ESCAPE || event->key.key == SDLK_AC_BACK)) ||
                     (event->type == SDL_EVENT_MOUSE_BUTTON_DOWN && event->button.button == SDL_BUTTON_RIGHT);
   if (back && (page_ == Page::SaveSlots || page_ == Page::LoadSlots)) {
     OpenPage(parent_ == Page::None ? Page::Title : parent_);

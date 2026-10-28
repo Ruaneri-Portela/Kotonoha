@@ -277,7 +277,7 @@ SDL_AppResult GameplayFlow::HandleEvent(SDL_Event *e, Kotonoha_Game *game) {
     session_->ScreenEvent(c);
     return SDL_APP_CONTINUE;
   }
-  const bool command = (e->type == SDL_EVENT_KEY_DOWN && e->key.key == SDLK_ESCAPE) ||
+  const bool command = (e->type == SDL_EVENT_KEY_DOWN && (e->key.key == SDLK_ESCAPE || e->key.key == SDLK_AC_BACK)) ||
                        (e->type == SDL_EVENT_MOUSE_BUTTON_DOWN && e->button.button == SDL_BUTTON_RIGHT);
   const bool history = (e->type == SDL_EVENT_KEY_DOWN && e->key.key == SDLK_PAGEUP) ||
                        (e->type == SDL_EVENT_MOUSE_WHEEL && e->wheel.y > 0);

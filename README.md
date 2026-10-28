@@ -61,11 +61,15 @@ The canonical build is **CMake**. On Windows it integrates with VCPKG; on Linux 
 ├── vcpkg.json              # VCPKG dependency manifest
 ├── Kotonoha.sln            # Visual Studio CMake wrapper solution
 ├── Kotonoha.vcxproj        # Wrapper for the libKotonoha target
-├── SchoolDays.vcxproj      # Wrapper for the game executable target
+├── games/                  # Game implementations and Visual Studio projects (.vcxproj)
+│   ├── school-days/        # School Days HQ & SchoolDays.vcxproj
+│   ├── doki-doki-literature-club/ # DDLC & DokiDoki.vcxproj
+│   ├── generic/            # Generic engine & Generic.vcxproj
+│   ├── snow-radish-vacation/      # Snow Radish & SnowRadish.vcxproj
+│   └── zero-no-tsukaima/          # Zero no Tsukaima & ZeroNoTsukaima.vcxproj
 ├── android-project/        # Android Studio / Gradle project
 ├── src/                    # Engine components, parsers, renders and debug
 ├── include/Kotonoha/       # Engine and runtime subsystem headers
-├── games/school-days/      # School Days HQ application/runtime/profile
 └── external/               # Git submodules
 ```
 

@@ -2,31 +2,24 @@ plugins {
     id 'com.android.application'
 }
 
-// Keep Ruaneri's multi-game Android harness as the default build.  The
-// distributable School Days HQ package is an explicit opt-in so it can use a
-// dedicated application id, bootstrap/import UI and a smaller native target
-// set without removing any of the other game test targets.
-def schoolDaysOnly = providers.gradleProperty('schoolDaysOnly')
-        .map { it.toBoolean() }
-        .orElse(false)
-        .get()
-
 def vcpkgRoot = System.getenv('VCPKG_ROOT')
 def pinnedNdkVersion = '27.0.12077973'
 def androidNdkHome = System.getenv('ANDROID_NDK_HOME')
-if (schoolDaysOnly) {
-    // Keep Ruaneri's default multi-game Gradle configuration permissive.  The
-    // dedicated distributable is the only variant that requires a reproducible
-    // toolchain path up front.
-    if (!vcpkgRoot) {
-        throw new GradleException('VCPKG_ROOT must point to the vcpkg checkout used by Kotonoha')
+
+// Fallback auto-discovery for ANDROID_NDK_HOME if not set in environment
+if (!androidNdkHome) {
+    def userHome = System.getProperty("user.home")
+    def defaultNdk = new File(userHome, "Library/Android/sdk/ndk/${pinnedNdkVersion}")
+    if (defaultNdk.exists()) {
+        androidNdkHome = defaultNdk.absolutePath
     }
-    if (!androidNdkHome) {
-        throw new GradleException('ANDROID_NDK_HOME must point to Android NDK ' + pinnedNdkVersion)
-    }
-    if (new File(androidNdkHome).name != pinnedNdkVersion) {
-        throw new GradleException('ANDROID_NDK_HOME must use NDK ' + pinnedNdkVersion
-                + ' (got ' + androidNdkHome + ')')
+}
+
+// Fallback auto-discovery for VCPKG_ROOT if not set in environment
+if (!vcpkgRoot) {
+    def rootVcpkg = new File(rootProject.projectDir, "../vcpkg")
+    if (rootVcpkg.exists()) {
+        vcpkgRoot = rootVcpkg.absolutePath
     }
 }
 
@@ -49,12 +42,12 @@ android {
     compileSdk 34
 
     defaultConfig {
-        applicationId schoolDaysOnly
-                ? "me.hirameki.kotonoha.schooldayshq"
-                : "me.hirameki.kotonoha"
+        applicationId "me.hirameki.kotonoha"
         minSdk 28
         versionCode 1
-        versionName schoolDaysOnly ? "1.02-test" : "1.0"
+        versionName "1.0"
+        targetSdk 34
+
         externalNativeBuild {
             cmake {
                 arguments(
@@ -62,31 +55,55 @@ android {
                         "-DVCPKG_CHAINLOAD_TOOLCHAIN_FILE=${androidNdkHome}/build/cmake/android.toolchain.cmake",
                         "-DVCPKG_HOST_TRIPLET=${vcpkgHostTriplet}",
                         "-DANDROID_STL=c++_shared",
-                        "-DKOTONOHA_ANDROID_SCHOOL_DAYS_ONLY=${schoolDaysOnly ? 'ON' : 'OFF'}",
                         "-DCMAKE_IGNORE_PATH=${androidNdkHome}/toolchains/llvm/prebuilt/windows-x86_64/lib"
                 )
-                if (schoolDaysOnly) {
-                    // Commercial/test School Days package ships only the real
-                    // phone ABI. The default multi-game harness retains x86_64
-                    // for Ruaneri's emulator/testing workflow.
-                    abiFilters 'arm64-v8a'
-                } else {
-                    abiFilters 'arm64-v8a', 'x86_64'
-                }
+                abiFilters 'arm64-v8a', 'x86_64'
             }
         }
-        targetSdk schoolDaysOnly ? 34 : 33
+    }
+
+    flavorDimensions "game"
+
+    productFlavors {
+        generic {
+            dimension "game"
+            applicationId "me.hirameki.kotonoha"
+            versionName "1.0"
+            buildConfigField "String", "DEFAULT_TARGET", "\"Kotonoha\""
+        }
+
+        schoolDays {
+            dimension "game"
+            applicationId "me.hirameki.kotonoha.schooldayshq"
+            versionName "1.02-test"
+            buildConfigField "String", "DEFAULT_TARGET", "\"SchoolDays\""
+        }
+
+        dokiDoki {
+            dimension "game"
+            applicationId "me.hirameki.kotonoha.ddlc"
+            versionName "1.0"
+            buildConfigField "String", "DEFAULT_TARGET", "\"DokiDoki\""
+        }
+
+        zeroNoTsukaima {
+            dimension "game"
+            applicationId "me.hirameki.kotonoha.zero"
+            versionName "1.0"
+            buildConfigField "String", "DEFAULT_TARGET", "\"ZeroNoTsukaima\""
+        }
+
+        snowRadish {
+            dimension "game"
+            applicationId "me.hirameki.kotonoha.snowradish"
+            versionName "1.0"
+            buildConfigField "String", "DEFAULT_TARGET", "\"SnowRadish\""
+        }
     }
 
     buildTypes {
         release {
-            // Test/distributable sideload builds use the same debug keystore as
-            // the current QA package so they can update in place without
-            // deleting the imported 11 GB of game data. A store/release key can
-            // replace this later without changing native optimization flags.
-            if (schoolDaysOnly) {
-                signingConfig signingConfigs.debug
-            }
+            signingConfig signingConfigs.debug
             debuggable false
             jniDebuggable false
             minifyEnabled false
@@ -97,24 +114,40 @@ android {
     externalNativeBuild {
         cmake {
             path '../../CMakeLists.txt'
-            if (schoolDaysOnly) {
-                version '3.22.1'
-            }
+            version '3.22.1'
         }
     }
 
-    sourceSets.main {
-        jniLibs.srcDir 'libs'
-        manifest.srcFile schoolDaysOnly
-                ? 'src/schoolDaysOnly/AndroidManifest.xml'
-                : 'src/main/AndroidManifest.xml'
-        if (schoolDaysOnly) {
-            java.srcDir 'src/schoolDaysOnly/java'
-            res.srcDir 'src/schoolDaysOnly/res'
+    sourceSets {
+        main {
+            jniLibs.srcDir 'libs'
+            assets.srcDirs = ['../../assets']
         }
-        assets.srcDirs = schoolDaysOnly
-                ? ['src/schoolDaysOnly/assets', '../../assets', '../../games/school-days/assets']
-                : ['../../assets']
+        generic {
+            manifest.srcFile '../../games/generic/android/AndroidManifest.xml'
+            assets.srcDirs = ['../../assets', '../../games/generic/assets']
+        }
+        schoolDays {
+            manifest.srcFile '../../games/school-days/android/AndroidManifest.xml'
+            java.srcDir '../../games/school-days/android/java'
+            res.srcDir '../../games/school-days/android/res'
+            assets.srcDirs = ['../../games/school-days/android/assets', '../../assets', '../../games/school-days/assets']
+        }
+        dokiDoki {
+            manifest.srcFile '../../games/doki-doki-literature-club/android/AndroidManifest.xml'
+            res.srcDir '../../games/doki-doki-literature-club/android/res'
+            assets.srcDirs = ['../../assets', '../../games/doki-doki-literature-club/assets']
+        }
+        zeroNoTsukaima {
+            manifest.srcFile '../../games/zero-no-tsukaima/android/AndroidManifest.xml'
+            res.srcDir '../../games/zero-no-tsukaima/android/res'
+            assets.srcDirs = ['../../assets', '../../games/zero-no-tsukaima/assets']
+        }
+        snowRadish {
+            manifest.srcFile '../../games/snow-radish-vacation/android/AndroidManifest.xml'
+            res.srcDir '../../games/snow-radish-vacation/android/res'
+            assets.srcDirs = ['../../assets', '../../games/snow-radish-vacation/assets']
+        }
     }
 
     lint {
@@ -122,6 +155,7 @@ android {
     }
     buildFeatures {
         viewBinding true
+        buildConfig true
     }
     ndkVersion pinnedNdkVersion
     buildToolsVersion '37.0.0'
@@ -150,4 +184,3 @@ tasks.register('testClasses') {
     group = "Verification"
     dependsOn tasks.named('unitTestClasses')
 }
-
