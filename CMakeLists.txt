@@ -92,6 +92,48 @@ set(SCHOOL_DAYS_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/games/school-days/src")
 # ==============================================================================
 find_package(PkgConfig REQUIRED)
 
+# Generate missing libunibreak.pc for vcpkg if needed
+# (vcpkg's libunibreak port installs CMake configs instead of pkg-config, but libass.pc requires libunibreak)
+if(NOT VCPKG_INSTALLED_DIR)
+    set(VCPKG_INSTALLED_DIR "${CMAKE_BINARY_DIR}/vcpkg_installed")
+endif()
+
+if(VCPKG_TARGET_TRIPLET)
+    set(_VCPKG_PKGCONFIG_DIR "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/lib/pkgconfig")
+    if(EXISTS "${_VCPKG_PKGCONFIG_DIR}" AND NOT EXISTS "${_VCPKG_PKGCONFIG_DIR}/libunibreak.pc")
+        file(WRITE "${_VCPKG_PKGCONFIG_DIR}/libunibreak.pc"
+"prefix=\${pcfiledir}/../..
+exec_prefix=\${prefix}
+libdir=\${prefix}/lib
+includedir=\${prefix}/include
+
+Name: libunibreak
+Description: Line breaking and word breaking library for Unicode
+Version: 7.0
+Libs: -L\${libdir} -lunibreak
+Cflags: -I\${includedir}
+"
+        )
+    endif()
+
+    set(_VCPKG_DEBUG_PKGCONFIG_DIR "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/debug/lib/pkgconfig")
+    if(EXISTS "${_VCPKG_DEBUG_PKGCONFIG_DIR}" AND NOT EXISTS "${_VCPKG_DEBUG_PKGCONFIG_DIR}/libunibreak.pc")
+        file(WRITE "${_VCPKG_DEBUG_PKGCONFIG_DIR}/libunibreak.pc"
+"prefix=\${pcfiledir}/../../..
+exec_prefix=\${prefix}
+libdir=\${prefix}/debug/lib
+includedir=\${prefix}/include
+
+Name: libunibreak
+Description: Line breaking and word breaking library for Unicode
+Version: 7.0
+Libs: -L\${libdir} -lunibreak
+Cflags: -I\${includedir}
+"
+        )
+    endif()
+endif()
+
 pkg_check_modules(FFMPEG REQUIRED IMPORTED_TARGET
         libavcodec
         libavformat

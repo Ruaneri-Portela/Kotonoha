@@ -1,31 +1,14 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    android:versionCode="1"
-    android:versionName="1.02"
-    android:installLocation="auto">
-
-    <uses-feature android:glEsVersion="0x00020000" />
-    <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
-    <uses-feature android:name="android.hardware.bluetooth" android:required="false" />
-    <uses-feature android:name="android.hardware.gamepad" android:required="false" />
-    <uses-feature android:name="android.hardware.usb.host" android:required="false" />
-    <uses-feature android:name="android.hardware.type.pc" android:required="false" />
-
-    <uses-permission android:name="android.permission.VIBRATE" />
-    <uses-permission android:name="android.permission.INTERNET" />
+    xmlns:tools="http://schemas.android.com/tools">
 
     <application
-        android:allowBackup="true"
-        android:hardwareAccelerated="true"
         android:icon="@mipmap/ic_launcher_schooldays"
         android:roundIcon="@mipmap/ic_launcher_schooldays_round"
         android:label="@string/school_days_app_name"
-        android:theme="@style/Theme.AppCompat.NoActionBar">
-        <meta-data
-            android:name="SDL_ENV.SDL_ANDROID_TRAP_BACK_BUTTON"
-            android:value="1" />
+        tools:replace="android:icon,android:roundIcon,android:label">
 
         <activity
-            android:name=".SchoolDaysMainActivity"
+            android:name="me.hirameki.kotonoha.SchoolDaysMainActivity"
             android:alwaysRetainTaskState="true"
             android:configChanges="layoutDirection|locale|grammaticalGender|fontScale|fontWeightAdjustment|orientation|uiMode|screenLayout|screenSize|smallestScreenSize|keyboard|keyboardHidden|navigation"
             android:exported="true"
@@ -38,7 +21,7 @@
         </activity>
 
         <activity
-            android:name=".SchoolDaysKotonoha"
+            android:name="me.hirameki.kotonoha.SchoolDaysKotonoha"
             android:alwaysRetainTaskState="true"
             android:configChanges="layoutDirection|locale|grammaticalGender|fontScale|fontWeightAdjustment|orientation|uiMode|screenLayout|screenSize|smallestScreenSize|keyboard|keyboardHidden|navigation"
             android:exported="false"

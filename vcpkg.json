@@ -1,5 +1,5 @@
 {
-  "builtin-baseline": "0c2a9ace1964b818b15f7ae50ba1c42404918a7b",
+  "builtin-baseline": "ada4709cf238a75753b71b99681e1c5d31a078c9",
   "dependencies": [
     {
       "name": "pkgconf",
@@ -39,7 +39,7 @@
     },
     {
       "name": "fontconfig",
-      "platform": "ios | osx"
+      "platform": "android | ios | osx"
     },
     {
       "name": "libunibreak",

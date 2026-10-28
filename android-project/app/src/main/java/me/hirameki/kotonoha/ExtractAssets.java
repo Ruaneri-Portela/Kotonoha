@@ -15,7 +15,7 @@ public class ExtractAssets {
 
     public static void copyAssetsToDataFiles(Context context) {
         AssetManager assetManager = context.getAssets();
-        copyDirectory(assetManager, "", "/data/data/" + context.getPackageName() + "/files/assets");
+        copyDirectory(assetManager, "", new File(context.getFilesDir(), "assets").getAbsolutePath());
     }
 
     private static void copyDirectory(AssetManager assetManager, String srcDir, String destDir) {

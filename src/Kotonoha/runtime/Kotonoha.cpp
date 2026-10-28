@@ -361,9 +361,10 @@ SDL_AppResult Kotonoha::Event(SDL_Event *event) {
 
   switch (event->type) {
   case SDL_EVENT_KEY_DOWN:
+    if (event->key.key == SDLK_AC_BACK) {
+      event->key.key = SDLK_ESCAPE;
+    }
     switch (event->key.key) {
-    case SDLK_AC_BACK:
-      return SDL_APP_SUCCESS;
 
     case SDLK_F11:
       if (!event->key.repeat) {

@@ -110,6 +110,9 @@ Criar posteriormente fluxo final para instalação/cópia dos assets sem necessi
 - Voice / SE / BGM — `VALIDADO`
 - Fontes corrigidas — `VALIDADO`
 - styles.skot — `VALIDADO`
+- Tratamento unificado do botão de voltar (hardware back / `SDLK_AC_BACK` → `SDLK_ESCAPE`) para abertura de menus em todos os motores e jogos — `CONCLUÍDO`
+- Organização e criação de projetos Visual Studio (`.vcxproj`) para todos os jogos dentro de suas respectivas pastas em `games/` (`school-days`, `doki-doki-literature-club`, `generic`, `snow-radish-vacation`, `zero-no-tsukaima`) e integração no `Kotonoha.sln` — `CONCLUÍDO`
+- Configuração de alvos padrão via `buildConfigField` em product flavors do Gradle — `CONCLUÍDO`
 
 ---
 

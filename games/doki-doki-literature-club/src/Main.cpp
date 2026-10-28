@@ -1569,7 +1569,8 @@ struct Game {
                     if (std::isalpha((unsigned char)*c) && nameText.size() < 12) nameText += *c;
             break;
         case SDL_EVENT_KEY_DOWN: {
-            const SDL_Keycode k = e->key.key;
+            SDL_Keycode k = e->key.key;
+            if (k == SDLK_AC_BACK) k = SDLK_ESCAPE;
             if (k == SDLK_LCTRL || k == SDLK_RCTRL) ctrl = true;
             if (nameInput) {
                 if (k == SDLK_BACKSPACE && !nameText.empty()) nameText.pop_back();
@@ -1641,8 +1642,8 @@ SDL_AppResult LocalArgs(int argc, char* argv[]) {
 SDL_AppResult LocalInit(void**, int, char*[]) {
     // Tenta usar "assets" como diretório padrão se nada foi especificado via CLI ou EnvVar
     if (g_dir.empty()) {
-        if (std::filesystem::exists("doki-doki-literature-club") && std::filesystem::is_directory("doki-doki-literature-club")) {
-            g_dir = "doki-doki-literature-club";
+        if (std::filesystem::exists("doki-doki-literature-club/game") && std::filesystem::is_directory("doki-doki-literature-club/game")) {
+            g_dir = "doki-doki-literature-club/game";
         } else {
             SDL_Log("DDLC: use --ddlc <DDLC game dir> or set DDLC_DIR environment variable");
             return SDL_APP_FAILURE;
