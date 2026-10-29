@@ -1,10 +1,12 @@
-#import <uuid/uuid.h>
+#include <Kotonoha/specials/MetalFX.h>
 
+#if defined(KOTONOHA_HAS_METALFX)
+
+#import <uuid/uuid.h>
 #import <Foundation/Foundation.h>
 #import <Metal/Metal.h>
 #import <MetalFX/MetalFX.h>
 
-#include <Kotonoha/specials/MetalFX.h>
 #include <Kotonoha/specials/Upscaling.h>
 #include <Kotonoha/utils/Log.h>
 #include <cstddef>
@@ -499,3 +501,5 @@ void KotonohaMetalFXClearScalerCache(void) {
 }
 
 } // extern "C"
+
+#endif // KOTONOHA_HAS_METALFX

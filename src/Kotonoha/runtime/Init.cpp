@@ -325,7 +325,7 @@ bool InitWindow() {
 #if (defined(__APPLE__) && TARGET_OS_IOS) || defined(__ANDROID__)
   windowFlags |= SDL_WINDOW_FULLSCREEN;
   global.config.fullScreen = true;
-  SDL_SetHint(SDL_HINT_ORIENTATIONS, "LandscapeLeft LandscapeRight");
+  SDL_SetHint(SDL_HINT_ORIENTATIONS, "LandscapeLeft LandscapeRight Portrait PortraitUpsideDown");
 #if defined(__ANDROID__) || defined(ANDROID)
   global.config.displayMode = static_cast<int>(DisplayMode::BorderlessFullscreen);
 

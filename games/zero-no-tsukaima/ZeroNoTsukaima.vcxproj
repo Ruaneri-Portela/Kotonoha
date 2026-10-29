@@ -101,7 +101,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <NMakeBuildCommandLine>powershell -NoProfile -ExecutionPolicy Bypass -File "$(ProjectDir)..\..\tools\build_cmake_target.ps1" -Target ZeroNoTsukaima -Configuration Release -Platform x64</NMakeBuildCommandLine>
     <NMakeReBuildCommandLine>powershell -NoProfile -ExecutionPolicy Bypass -File "$(ProjectDir)..\..\tools\build_cmake_target.ps1" -Target ZeroNoTsukaima -Configuration Release -Platform x64 -Rebuild</NMakeReBuildCommandLine>
-    <NMakeCleanCommandLine>powershell -NoProfile -ExecutionPolicy Bypass -File "$(ProjectDir).tsz..\tools\build_cmake_target.ps1" -Target ZeroNoTsukaima -Configuration Release -Platform x64 -Clean</NMakeCleanCommandLine>
+    <NMakeCleanCommandLine>powershell -NoProfile -ExecutionPolicy Bypass -File "$(ProjectDir)..\..\tools\build_cmake_target.ps1" -Target ZeroNoTsukaima -Configuration Release -Platform x64 -Clean</NMakeCleanCommandLine>
     <NMakeOutput>$(ProjectDir)..\..\build\vs\Release-x64\Release\ZeroNoTsukaima.exe</NMakeOutput>
   </PropertyGroup>
   <ItemGroup>

@@ -1,4 +1,5 @@
 #include <Kotonoha/components/Video.hpp>
+#include <Kotonoha/utils/Log.h>
 
 namespace Kotonoha {
 
@@ -13,8 +14,7 @@ static void ShutdownVideoDecoder(Kotonoha_videoData **video) {
 Video::Video(Kotonoha_time *timeManager) : timeManager(timeManager) {
   lock = SDL_CreateMutex();
   if (lock == nullptr)
-    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
-                 "Failed to create video mutex: %s", SDL_GetError());
+    KLOG_ERROR(CORE, "Failed to create video mutex: %s", SDL_GetError());
 }
 
 Video::Video(Kotonoha_time *timeManager, Kotonoha_Demuxer *demuxer)

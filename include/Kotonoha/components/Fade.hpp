@@ -3,6 +3,7 @@
 #include <vector>
 
 #include <Kotonoha/Kotonoha.h>
+#include <Kotonoha/components/Canvas.hpp>
 #include <Kotonoha/utils/Time.h>
 #include <SDL3/SDL.h>
 
@@ -42,6 +43,8 @@ public:
                            FadeDirection direction);
 
   static Kotonoha_Scene_Status Render(KOTONOHA_SCENE_CALL);
+
+  using RenderDispatcher = ComponentRenderDispatcher<Fade, &Fade::Render>;
 
   ~Fade();
 };

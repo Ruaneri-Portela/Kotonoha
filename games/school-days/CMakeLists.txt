@@ -1,3 +1,15 @@
+cmake_minimum_required(VERSION 3.18)
+project(SchoolDaysApp LANGUAGES C CXX)
+
+if(NOT TARGET KotonohaRuntime)
+    set(_ROOT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../..")
+    set(KOTONOHA_INCLUDE_DIR "${_ROOT_DIR}/include")
+    set(KOTONOHA_ENGINE_SOURCE_DIR "${_ROOT_DIR}/src/Kotonoha")
+    set(SCHOOL_DAYS_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
+    set(SCHOOL_DAYS_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src")
+    add_subdirectory("${_ROOT_DIR}" kotonoha_build EXCLUDE_FROM_ALL)
+endif()
+
 # School Days HQ application: game profile, KTRF adapter, persistence, UI,
 # GPK mount and the SDL callbacks, on top of the KotonohaRuntime library.
 # Produces SchoolDays.app on macOS, SchoolDays(.exe) on other desktops and
@@ -13,13 +25,7 @@ file(GLOB_RECURSE SCHOOL_DAYS_SOURCES CONFIGURE_DEPENDS
 if(ANDROID)
     add_library(SchoolDays SHARED ${SCHOOL_DAYS_SOURCES} )
     set_target_properties(SchoolDays PROPERTIES OUTPUT_NAME SchoolDays)
-    if(KOTONOHA_ANDROID_SCHOOL_DAYS_ONLY)
-        target_compile_definitions(SchoolDays PRIVATE
-            KOTONOHA_SCHOOL_DAYS_DEDICATED_ANDROID=1)
-        target_link_libraries(SchoolDays PRIVATE KotonohaRuntime ZLIB::ZLIB)
-    else()
-        target_link_libraries(SchoolDays PRIVATE Kotonoha KotonohaRuntime ZLIB::ZLIB)
-    endif()
+    target_link_libraries(SchoolDays PRIVATE KotonohaRuntime ZLIB::ZLIB)
 else()
     add_executable(SchoolDays ${SCHOOL_DAYS_SOURCES})
     target_link_libraries(SchoolDays PUBLIC KotonohaRuntime PRIVATE ZLIB::ZLIB)

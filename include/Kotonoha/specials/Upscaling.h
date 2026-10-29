@@ -75,6 +75,7 @@ bool KotonohaUpscalingUpdateTexture(SDL_Renderer *renderer,
                                     Kotonoha_UpscaledTexture *cached,
                                     bool *textureChanged);
 void KotonohaUpscalingReleaseTexture(Kotonoha_UpscaledTexture *cached);
+void KotonohaUpscalingClearCache(void);
 
 // Generic Upscale execution function (routes to MetalFX or MPVCompatibleUpscaler/OpenGL)
 bool Kotonoha_UpscaleSDLTextureInto(SDL_Renderer *renderer,
