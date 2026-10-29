@@ -474,6 +474,12 @@ void KotonohaUpscalingReleaseTexture(Kotonoha_UpscaledTexture *cached) {
   SDL_zero(*cached);
 }
 
+void KotonohaUpscalingClearCache(void) {
+#if defined(KOTONOHA_HAS_METALFX)
+  KotonohaMetalFXClearScalerCache();
+#endif
+}
+
 bool KotonohaUpscalingUpdateTexture(SDL_Renderer *renderer,
                                     SDL_Texture *source,
                                     Uint64 sourceSerial,

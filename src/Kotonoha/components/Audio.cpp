@@ -90,7 +90,7 @@ Kotonoha_audioDecode *Audio::AddMediaInternal(
 
   Sound::Channel *targetChannel = soundCtx->GetChannelByName(channel);
   if (targetChannel == nullptr) {
-    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Channel not found: %s", channel);
+    KLOG_ERROR(AUDIO, "Channel not found: %s", channel);
     KotonohaAudioFree(loopMedia);
     SDL_UnlockMutex(mediaLock);
     return nullptr;

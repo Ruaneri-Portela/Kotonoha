@@ -23,20 +23,6 @@ if (!vcpkgRoot) {
     }
 }
 
-def vcpkgHostTriplet = System.getenv('VCPKG_HOST_TRIPLET')
-if (!vcpkgHostTriplet) {
-    def os = System.getProperty('os.name').toLowerCase(Locale.ROOT)
-    def arch = System.getProperty('os.arch').toLowerCase(Locale.ROOT)
-    def arm64 = arch.contains('aarch64') || arch.contains('arm64')
-    if (os.contains('windows')) {
-        vcpkgHostTriplet = arm64 ? 'arm64-windows' : 'x64-windows'
-    } else if (os.contains('mac')) {
-        vcpkgHostTriplet = arm64 ? 'arm64-osx' : 'x64-osx'
-    } else {
-        vcpkgHostTriplet = arm64 ? 'arm64-linux' : 'x64-linux'
-    }
-}
-
 android {
     namespace "me.hirameki.kotonoha"
     compileSdk 34
@@ -53,7 +39,6 @@ android {
                 arguments(
                         "-DCMAKE_TOOLCHAIN_FILE=${vcpkgRoot}/scripts/buildsystems/vcpkg.cmake",
                         "-DVCPKG_CHAINLOAD_TOOLCHAIN_FILE=${androidNdkHome}/build/cmake/android.toolchain.cmake",
-                        "-DVCPKG_HOST_TRIPLET=${vcpkgHostTriplet}",
                         "-DANDROID_STL=c++_shared",
                         "-DCMAKE_IGNORE_PATH=${androidNdkHome}/toolchains/llvm/prebuilt/windows-x86_64/lib"
                 )
@@ -70,6 +55,11 @@ android {
             applicationId "me.hirameki.kotonoha"
             versionName "1.0"
             buildConfigField "String", "DEFAULT_TARGET", "\"Kotonoha\""
+            externalNativeBuild {
+                cmake {
+                    arguments "-DKOTONOHA_GAME=generic"
+                }
+            }
         }
 
         schoolDays {
@@ -77,6 +67,11 @@ android {
             applicationId "me.hirameki.kotonoha.schooldayshq"
             versionName "1.02-test"
             buildConfigField "String", "DEFAULT_TARGET", "\"SchoolDays\""
+            externalNativeBuild {
+                cmake {
+                    arguments "-DKOTONOHA_GAME=school-days"
+                }
+            }
         }
 
         dokiDoki {
@@ -84,6 +79,11 @@ android {
             applicationId "me.hirameki.kotonoha.ddlc"
             versionName "1.0"
             buildConfigField "String", "DEFAULT_TARGET", "\"DokiDoki\""
+            externalNativeBuild {
+                cmake {
+                    arguments "-DKOTONOHA_GAME=doki-doki-literature-club"
+                }
+            }
         }
 
         zeroNoTsukaima {
@@ -91,6 +91,11 @@ android {
             applicationId "me.hirameki.kotonoha.zero"
             versionName "1.0"
             buildConfigField "String", "DEFAULT_TARGET", "\"ZeroNoTsukaima\""
+            externalNativeBuild {
+                cmake {
+                    arguments "-DKOTONOHA_GAME=zero-no-tsukaima"
+                }
+            }
         }
 
         snowRadish {
@@ -98,6 +103,11 @@ android {
             applicationId "me.hirameki.kotonoha.snowradish"
             versionName "1.0"
             buildConfigField "String", "DEFAULT_TARGET", "\"SnowRadish\""
+            externalNativeBuild {
+                cmake {
+                    arguments "-DKOTONOHA_GAME=snow-radish-vacation"
+                }
+            }
         }
     }
 

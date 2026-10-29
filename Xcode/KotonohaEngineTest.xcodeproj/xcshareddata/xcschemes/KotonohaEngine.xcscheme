@@ -17,6 +17,7 @@
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "CE7BF84C308CB7910071BA8B"
                BuildableName = "libKotonohaEngine.a"
+               BlueprintName = "KotonohaEngine"
                ReferencedContainer = "container:KotonohaEngineTest.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
@@ -52,6 +53,7 @@
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "CE7BF84C308CB7910071BA8B"
             BuildableName = "libKotonohaEngine.a"
+            BlueprintName = "KotonohaEngine"
             ReferencedContainer = "container:KotonohaEngineTest.xcodeproj">
          </BuildableReference>
       </MacroExpansion>

@@ -1,5 +1,12 @@
 # Build topology
 # --------------
+option(KOTONOHA_ENABLE_MPV_UPSCALER "Enable MPV/OpenGL upscaler (Anime4K/ArtCNN)" ON)
+if(APPLE)
+    option(KOTONOHA_ENABLE_METALFX "Enable MetalFX upscaler on Apple platforms" ON)
+else()
+    option(KOTONOHA_ENABLE_METALFX "Enable MetalFX upscaler on Apple platforms" OFF)
+endif()
+
 # KotonohaEngine is the reusable engine core. KotonohaRuntime (libKotonoha on
 # desktop) packages the scene/gameplay runtime and debug UI. Applications live
 # in games/<name>/CMakeLists.txt and are added by the root CMakeLists:
@@ -103,9 +110,13 @@ endforeach()
 
 if(APPLE)
     list(APPEND KOTONOHA_ENGINE_SOURCES
-        "${KOTONOHA_ENGINE_SOURCE_DIR}/specials/MetalFX.mm"
         "${KOTONOHA_ENGINE_SOURCE_DIR}/mobile/IOS.mm"
     )
+    if(KOTONOHA_ENABLE_METALFX)
+        list(APPEND KOTONOHA_ENGINE_SOURCES
+            "${KOTONOHA_ENGINE_SOURCE_DIR}/specials/MetalFX.mm"
+        )
+    endif()
 endif()
 
 # -----------------------------------------------------------------------------
@@ -148,13 +159,8 @@ if(ANDROID)
     target_link_directories(KotonohaEngine PUBLIC ${LIBASS_LIBRARY_DIRS})
     target_compile_options(KotonohaEngine PRIVATE ${LIBASS_CFLAGS_OTHER})
     target_link_options(KotonohaEngine PUBLIC ${LIBASS_LDFLAGS_OTHER})
-    target_compile_definitions(KotonohaEngine PUBLIC KOTONOHA_HAS_MPV_UPSCALER=1)
-    if(KOTONOHA_ANDROID_SCHOOL_DAYS_ONLY)
-        # Dedicated mobile packages may choose a conservative, explicitly
-        # enabled first-run shader preset. Persisted user config still overrides
-        # these defaults after the config file is loaded.
-        target_compile_definitions(KotonohaEngine PUBLIC
-            KOTONOHA_MOBILE_LOWEST_UPSCALER_DEFAULT=1)
+    if(KOTONOHA_ENABLE_MPV_UPSCALER)
+        target_compile_definitions(KotonohaEngine PUBLIC KOTONOHA_HAS_MPV_UPSCALER=1)
     endif()
 
     target_link_libraries(KotonohaEngine PUBLIC
@@ -219,18 +225,18 @@ else()
     target_link_libraries(KotonohaRuntime PUBLIC Kotonoha::Engine)
 
     find_package(OpenGL QUIET)
-    if(OpenGL_FOUND)
+    if(OpenGL_FOUND AND KOTONOHA_ENABLE_MPV_UPSCALER)
         target_compile_definitions(KotonohaEngine PUBLIC KOTONOHA_HAS_MPV_UPSCALER=1)
         target_link_libraries(KotonohaEngine PUBLIC OpenGL::GL)
     else()
-        message(STATUS "OpenGL not found; MPVCompatibleUpscaler upscaling is disabled")
+        message(STATUS "MPVCompatibleUpscaler upscaling is disabled")
     endif()
 
     if(CMAKE_SYSTEM_NAME STREQUAL "Haiku")
         target_compile_options(KotonohaEngine PRIVATE -fPIC)
     endif()
 
-    if(APPLE)
+    if(APPLE AND KOTONOHA_ENABLE_METALFX)
         target_compile_definitions(KotonohaEngine PUBLIC KOTONOHA_HAS_METALFX=1)
         target_link_libraries(KotonohaEngine PUBLIC
             "-framework Foundation"

@@ -7,6 +7,7 @@
 
 #include <Kotonoha/Kotonoha.h>
 #include <Kotonoha/SceneTime.h>
+#include <Kotonoha/components/Canvas.hpp>
 #include <Kotonoha/utils/Time.h>
 #include <SDL3/SDL.h>
 #include <SDL3_ttf/SDL_ttf.h>
@@ -123,6 +124,8 @@ public:
   SDL_FRect Viewport() const { return viewport; }
 
   static enum Kotonoha_Scene_Status Render(KOTONOHA_SCENE_CALL);
+
+  using RenderDispatcher = ComponentRenderDispatcher<Prompt, &Prompt::Render>;
 
   void Reset();
   int Result() const { return promptResult != nullptr ? *promptResult : -2; }

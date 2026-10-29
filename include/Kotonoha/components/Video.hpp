@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Kotonoha/Kotonoha.h>
+#include <Kotonoha/components/Canvas.hpp>
 #include <Kotonoha/components/MediaBufferInfo.hpp>
 #include <Kotonoha/parsers/Ors.h>
 #include <Kotonoha/renders/VideoRender.h>
@@ -43,32 +44,7 @@ public:
 
   static Kotonoha_Scene_Status RenderCallback(KOTONOHA_SCENE_CALL);
 
-  /*
-   * A callable callback token keeps both source contracts without creating an
-   * overloaded function set.  Gameplay historically writes
-   * `video->Render` where Canvas expects a four-argument function pointer,
-   * while the frozen G2.7 helper invokes `Video::Render(...)` with the removed
-   * event-stack argument. Video never consumed that event stack.
-   */
-  struct RenderDispatcher {
-    using Callback = Kotonoha_Scene_Status (*)(SDL_Window *, SDL_Renderer *,
-                                               void *, SDL_Texture *);
-
-    operator Callback() const { return &Video::RenderCallback; }
-
-    Kotonoha_Scene_Status operator()(SDL_Window *window, SDL_Renderer *render,
-                                     void *userData, SDL_Texture *target) const {
-      return Video::RenderCallback(window, render, userData, target);
-    }
-
-    Kotonoha_Scene_Status operator()(SDL_Window *window, SDL_Renderer *render,
-                                     void *legacyEventQueue, void *userData,
-                                     SDL_Texture *target) const {
-      (void)legacyEventQueue;
-      return Video::RenderCallback(window, render, userData, target);
-    }
-  };
-
+  using RenderDispatcher = ComponentRenderDispatcher<Video, &Video::RenderCallback>;
   inline static const RenderDispatcher Render{};
   ~Video();
 };

@@ -164,22 +164,22 @@ Gameplay::Gameplay(const char *scriptPath, Kotonoha_Game *gameContext,
     this->drawCanvas = ownedCanvas.get();
 
   this->drawCanvas->RegisterCanva(
-      this->image->Render, 0,
+      this->image->Render, CanvasLayer::Image,
       {0, 0, static_cast<float>(windowWidth), static_cast<float>(windowHeight)},
       this->image, "Image");
 
   this->drawCanvas->RegisterCanva(
-      this->video->Render, 1,
+      this->video->Render, CanvasLayer::Video,
       {0, 0, static_cast<float>(windowWidth), static_cast<float>(windowHeight)},
       this->video, "Video");
 
   this->drawCanvas->RegisterCanva(
-      KotonohaTextRenderDraw, 3,
+      KotonohaTextRenderDraw, CanvasLayer::Subtitles,
       {0, 0, static_cast<float>(windowWidth), static_cast<float>(windowHeight)},
       this->sb, "Subtitles");
 
   this->drawCanvas->RegisterCanva(
-      this->fade->Render, 4,
+      this->fade->Render, CanvasLayer::Fade,
       {0, 0, static_cast<float>(windowWidth), static_cast<float>(windowHeight)},
       this->fade, "Fade");
 
@@ -293,13 +293,8 @@ SDL_AppResult Gameplay::Main(Kotonoha_Game *gameContext) {
   UpdateDeltaTime();
 
   if (this->putPrompt && this->prompt != nullptr) {
-
-    drawCanvas->RegisterCanva(this->prompt->Render, 2,
-
-                              canvasPlace,
-
-                              this->prompt, "Prompt");
-
+    drawCanvas->RegisterCanva(this->prompt->Render, CanvasLayer::Prompt,
+                              canvasPlace, this->prompt, "Prompt");
     this->putPrompt = false;
   }
 

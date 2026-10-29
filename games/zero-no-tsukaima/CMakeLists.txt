@@ -1,3 +1,13 @@
+cmake_minimum_required(VERSION 3.18)
+project(ZeroNoTsukaimaApp LANGUAGES C CXX)
+
+if(NOT TARGET KotonohaRuntime)
+    set(_ROOT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../..")
+    set(KOTONOHA_INCLUDE_DIR "${_ROOT_DIR}/include")
+    set(KOTONOHA_ENGINE_SOURCE_DIR "${_ROOT_DIR}/src/Kotonoha")
+    add_subdirectory("${_ROOT_DIR}" kotonoha_build EXCLUDE_FROM_ALL)
+endif()
+
 # Zero no Tsukaima (PS2) support: disc/archive/image format library and tools.
 # Pure C++17 + SDL3 (no engine runtime needed yet); assets stay in the user's
 # disc image and are never copied into the repository.
@@ -21,7 +31,7 @@ if(ANDROID)
         "${CMAKE_CURRENT_SOURCE_DIR}/src/Frontend.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/src/MoviePlayer.cpp")
     set_target_properties(ZeroNoTsukaima PROPERTIES OUTPUT_NAME ZeroNoTsukaima)
-    target_link_libraries(ZeroNoTsukaima PRIVATE Kotonoha KotonohaRuntime ZeroNoTsukaimaFormats)
+    target_link_libraries(ZeroNoTsukaima PRIVATE KotonohaRuntime ZeroNoTsukaimaFormats)
 elseif(NOT IOS)
     add_executable(ZeroExtract "${CMAKE_CURRENT_SOURCE_DIR}/tools/ZeroExtract.cpp")
     target_link_libraries(ZeroExtract PRIVATE ZeroNoTsukaimaFormats)

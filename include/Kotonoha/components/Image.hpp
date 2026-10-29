@@ -1,7 +1,8 @@
 #pragma once
-#include <Kotonoha/graphics/AbcAnimation.hpp>
+#include <Kotonoha/components/Canvas.hpp>
 #include <Kotonoha/components/MediaBufferInfo.hpp>
 #include <Kotonoha/components/Upscaling.hpp>
+#include <Kotonoha/graphics/AbcAnimation.hpp>
 #include <memory>
 #include <string>
 #include <vector>
@@ -63,31 +64,7 @@ public:
 
   static Kotonoha_Scene_Status RenderCallback(KOTONOHA_SCENE_CALL);
 
-  /*
-   * Keep both callback shapes used across the merged codebase: Canvas consumes
-   * the current four-argument callback, while the frozen G2.7 tests still call
-   * the historical five-argument form that carried an event queue. Image never
-   * consumed that queue, so both forms intentionally reach the same renderer.
-   */
-  struct RenderDispatcher {
-    using Callback = Kotonoha_Scene_Status (*)(SDL_Window *, SDL_Renderer *,
-                                               void *, SDL_Texture *);
-
-    operator Callback() const { return &Image::RenderCallback; }
-
-    Kotonoha_Scene_Status operator()(SDL_Window *window, SDL_Renderer *render,
-                                     void *userData, SDL_Texture *target) const {
-      return Image::RenderCallback(window, render, userData, target);
-    }
-
-    Kotonoha_Scene_Status operator()(SDL_Window *window, SDL_Renderer *render,
-                                     void *legacyEventQueue, void *userData,
-                                     SDL_Texture *target) const {
-      (void)legacyEventQueue;
-      return Image::RenderCallback(window, render, userData, target);
-    }
-  };
-
+  using RenderDispatcher = ComponentRenderDispatcher<Image, &Image::RenderCallback>;
   inline static const RenderDispatcher Render{};
 
   ~Image();

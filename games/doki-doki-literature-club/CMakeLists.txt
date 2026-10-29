@@ -1,3 +1,13 @@
+cmake_minimum_required(VERSION 3.18)
+project(DokiDokiApp LANGUAGES C CXX)
+
+if(NOT TARGET KotonohaRuntime)
+    set(_ROOT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../..")
+    set(KOTONOHA_INCLUDE_DIR "${_ROOT_DIR}/include")
+    set(KOTONOHA_ENGINE_SOURCE_DIR "${_ROOT_DIR}/src/Kotonoha")
+    add_subdirectory("${_ROOT_DIR}" kotonoha_build EXCLUDE_FROM_ALL)
+endif()
+
 # Doki Doki Literature Club! (Ren'Py 6.99) proof-of-concept port: reads the
 # original .rpa archives and runs the compiled .rpyc script.
 find_package(ZLIB REQUIRED)
@@ -19,7 +29,7 @@ target_link_libraries(DdlcFormats PUBLIC ${KOTONOHA_SDL3_TARGET} ZLIB::ZLIB)
 if(ANDROID)
     add_library(DokiDoki SHARED "${CMAKE_CURRENT_SOURCE_DIR}/src/Main.cpp")
     set_target_properties(DokiDoki PROPERTIES OUTPUT_NAME DokiDoki)
-    target_link_libraries(DokiDoki PRIVATE Kotonoha KotonohaRuntime DdlcFormats PkgConfig::FFMPEG)
+    target_link_libraries(DokiDoki PRIVATE KotonohaRuntime DdlcFormats PkgConfig::FFMPEG)
 elseif(NOT IOS)
     add_executable(DdlcScriptTest "${CMAKE_CURRENT_SOURCE_DIR}/tests/DdlcScriptTest.cpp")
     target_link_libraries(DdlcScriptTest PRIVATE DdlcFormats)

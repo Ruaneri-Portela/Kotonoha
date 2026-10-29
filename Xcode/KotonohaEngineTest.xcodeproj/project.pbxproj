@@ -11,7 +11,6 @@
 		0112C2D86815D38589B35EFC /* CoreVideo.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CDC2FCC3A450002CB9B /* CoreVideo.framework */; };
 		0DA4764CC5D2478DE52B6FAA /* CoreBluetooth.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CD92FCC3A450002CB9B /* CoreBluetooth.framework */; };
 		29922EE30D5A218D445AACF5 /* VideoToolbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CFA2FCC3A9B0002CB9B /* VideoToolbox.framework */; };
-		33D026FBD84D4FDAFA8CEC6C /* MetalFX.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CE37165F307B51EC00C1C8A5 /* MetalFX.framework */; };
 		34CC4E97831CBFEB2B08B47D /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CF42FCC3A7D0002CB9B /* Metal.framework */; };
 		3C4069A198BDE138839402F7 /* CoreMedia.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CE32FCC3A450002CB9B /* CoreMedia.framework */; };
 		4ED938D9BE10731671596DC1 /* AudioToolbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CDD2FCC3A450002CB9B /* AudioToolbox.framework */; };
@@ -43,12 +42,10 @@
 		CE01827B308DDD0000A04405 /* VideoToolbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CFA2FCC3A9B0002CB9B /* VideoToolbox.framework */; };
 		CE01827C308DDD0800A04405 /* CoreMotion.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CFE2FCC3AF40002CB9B /* CoreMotion.framework */; };
 		CE01827D308DDD0900A04405 /* QuartzCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CFC2FCC3AE40002CB9B /* QuartzCore.framework */; };
-		CE01827E308DDD0A00A04405 /* MetalFX.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CE37165F307B51EC00C1C8A5 /* MetalFX.framework */; platformFilter = ios; };
 		CE12377E308D66A500509275 /* zero-no-tsukaima in CopyFiles */ = {isa = PBXBuildFile; fileRef = CE12377D308D66A500509275 /* zero-no-tsukaima */; };
 		CE123781308D66D600509275 /* snow-radish-vacation in Copy Files */ = {isa = PBXBuildFile; fileRef = CE12377F308D66CA00509275 /* snow-radish-vacation */; };
 		CE123783308D66F400509275 /* doki-doki-literature-club in CopyFiles */ = {isa = PBXBuildFile; fileRef = CE123782308D66F400509275 /* doki-doki-literature-club */; };
 		CE123785308D672900509275 /* generic in CopyFiles */ = {isa = PBXBuildFile; fileRef = CE123784308D672900509275 /* generic */; };
-		CE371660307B51EC00C1C8A5 /* MetalFX.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CE37165F307B51EC00C1C8A5 /* MetalFX.framework */; };
 		CE3D8665307DB4A100B299A2 /* assets in CopyFiles */ = {isa = PBXBuildFile; fileRef = CE3D8664307DB4A100B299A2 /* assets */; };
 		CE44D769308CB83A0075A21F /* libKotonohaEngine.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CE7BF84D308CB7910071BA8B /* libKotonohaEngine.a */; };
 		CE44DCE0308CB9560075A21F /* libKotonohaEngine.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CE7BF84D308CB7910071BA8B /* libKotonohaEngine.a */; };
@@ -67,7 +64,6 @@
 		CE44DF95308D4F350075A21F /* CoreHaptics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CE22FCC3A450002CB9B /* CoreHaptics.framework */; };
 		CE44DF96308D4F350075A21F /* CoreAudio.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CD82FCC3A450002CB9B /* CoreAudio.framework */; };
 		CE44DF97308D4F350075A21F /* QuartzCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CFC2FCC3AE40002CB9B /* QuartzCore.framework */; };
-		CE44DF98308D4F350075A21F /* MetalFX.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CE37165F307B51EC00C1C8A5 /* MetalFX.framework */; };
 		CE44DF99308D4F350075A21F /* CoreMedia.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CE32FCC3A450002CB9B /* CoreMedia.framework */; };
 		CE44DF9A308D4F350075A21F /* AVFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CDF2FCC3A450002CB9B /* AVFoundation.framework */; };
 		CE44DF9B308D4F350075A21F /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CF42FCC3A7D0002CB9B /* Metal.framework */; };
@@ -90,7 +86,6 @@
 		CE44E5D0308D58AE0075A21F /* CoreHaptics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CE22FCC3A450002CB9B /* CoreHaptics.framework */; };
 		CE44E5D1308D58AE0075A21F /* CoreAudio.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CD82FCC3A450002CB9B /* CoreAudio.framework */; };
 		CE44E5D2308D58AE0075A21F /* QuartzCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CFC2FCC3AE40002CB9B /* QuartzCore.framework */; };
-		CE44E5D3308D58AE0075A21F /* MetalFX.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CE37165F307B51EC00C1C8A5 /* MetalFX.framework */; };
 		CE44E5D4308D58AE0075A21F /* CoreMedia.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CE32FCC3A450002CB9B /* CoreMedia.framework */; };
 		CE44E5D5308D58AE0075A21F /* AVFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CDF2FCC3A450002CB9B /* AVFoundation.framework */; };
 		CE44E5D6308D58AE0075A21F /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CF42FCC3A7D0002CB9B /* Metal.framework */; };
@@ -112,7 +107,6 @@
 		CE5F6BAB308C6FAD006BE483 /* CoreHaptics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CE22FCC3A450002CB9B /* CoreHaptics.framework */; };
 		CE5F6BAC308C6FAD006BE483 /* CoreAudio.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CD82FCC3A450002CB9B /* CoreAudio.framework */; };
 		CE5F6BAD308C6FAD006BE483 /* QuartzCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CFC2FCC3AE40002CB9B /* QuartzCore.framework */; };
-		CE5F6BAE308C6FAD006BE483 /* MetalFX.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CE37165F307B51EC00C1C8A5 /* MetalFX.framework */; };
 		CE5F6BAF308C6FAD006BE483 /* CoreMedia.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CE32FCC3A450002CB9B /* CoreMedia.framework */; };
 		CE5F6BB0308C6FAD006BE483 /* AVFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CDF2FCC3A450002CB9B /* AVFoundation.framework */; };
 		CE5F6BB1308C6FAD006BE483 /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEE78CF42FCC3A7D0002CB9B /* Metal.framework */; };
@@ -880,7 +874,6 @@
 				CE44DF95308D4F350075A21F /* CoreHaptics.framework in Frameworks */,
 				CE44DF96308D4F350075A21F /* CoreAudio.framework in Frameworks */,
 				CE44DF97308D4F350075A21F /* QuartzCore.framework in Frameworks */,
-				CE44DF98308D4F350075A21F /* MetalFX.framework in Frameworks */,
 				CE44DF99308D4F350075A21F /* CoreMedia.framework in Frameworks */,
 				CE44DF9A308D4F350075A21F /* AVFoundation.framework in Frameworks */,
 				CE44DF9B308D4F350075A21F /* Metal.framework in Frameworks */,
@@ -908,7 +901,6 @@
 				CE44E5D0308D58AE0075A21F /* CoreHaptics.framework in Frameworks */,
 				CE44E5D1308D58AE0075A21F /* CoreAudio.framework in Frameworks */,
 				CE44E5D2308D58AE0075A21F /* QuartzCore.framework in Frameworks */,
-				CE44E5D3308D58AE0075A21F /* MetalFX.framework in Frameworks */,
 				CE44E5D4308D58AE0075A21F /* CoreMedia.framework in Frameworks */,
 				CE44E5D5308D58AE0075A21F /* AVFoundation.framework in Frameworks */,
 				CE44E5D6308D58AE0075A21F /* Metal.framework in Frameworks */,
@@ -936,7 +928,6 @@
 				CE5F6BAB308C6FAD006BE483 /* CoreHaptics.framework in Frameworks */,
 				CE5F6BAC308C6FAD006BE483 /* CoreAudio.framework in Frameworks */,
 				CE5F6BAD308C6FAD006BE483 /* QuartzCore.framework in Frameworks */,
-				CE5F6BAE308C6FAD006BE483 /* MetalFX.framework in Frameworks */,
 				CE5F6BAF308C6FAD006BE483 /* CoreMedia.framework in Frameworks */,
 				CE5F6BB0308C6FAD006BE483 /* AVFoundation.framework in Frameworks */,
 				CE5F6BB1308C6FAD006BE483 /* Metal.framework in Frameworks */,
@@ -962,7 +953,6 @@
 				CE01827A308DDCFD00A04405 /* OpenGLES.framework in Frameworks */,
 				CE018271308DDCEE00A04405 /* CoreText.framework in Frameworks */,
 				CE018279308DDCFC00A04405 /* UIKit.framework in Frameworks */,
-				CE01827E308DDD0A00A04405 /* MetalFX.framework in Frameworks */,
 				CE018276308DDCF800A04405 /* Accelerate.framework in Frameworks */,
 				CE01826E308DDCE900A04405 /* Foundation.framework in Frameworks */,
 				CE018278308DDCFA00A04405 /* Metal.framework in Frameworks */,
@@ -989,7 +979,6 @@
 				CEE78CEE2FCC3A450002CB9B /* CoreHaptics.framework in Frameworks */,
 				CEE78CF12FCC3A670002CB9B /* CoreAudio.framework in Frameworks */,
 				CEE78CFD2FCC3AE40002CB9B /* QuartzCore.framework in Frameworks */,
-				CE371660307B51EC00C1C8A5 /* MetalFX.framework in Frameworks */,
 				CEE78CEF2FCC3A450002CB9B /* CoreMedia.framework in Frameworks */,
 				CEE78CEB2FCC3A450002CB9B /* AVFoundation.framework in Frameworks */,
 				CEE78CF52FCC3A7D0002CB9B /* Metal.framework in Frameworks */,
@@ -1017,7 +1006,6 @@
 				5034FC4665988AF38D248634 /* CoreHaptics.framework in Frameworks */,
 				005A1F2B1D1CEA006DC18656 /* CoreAudio.framework in Frameworks */,
 				D734B793F3F2799B4AB7344D /* QuartzCore.framework in Frameworks */,
-				33D026FBD84D4FDAFA8CEC6C /* MetalFX.framework in Frameworks */,
 				3C4069A198BDE138839402F7 /* CoreMedia.framework in Frameworks */,
 				861F83F8A287773A1A0C0DD1 /* AVFoundation.framework in Frameworks */,
 				34CC4E97831CBFEB2B08B47D /* Metal.framework in Frameworks */,
@@ -1484,10 +1472,8 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
 				GCC_PREPROCESSOR_DEFINITIONS = (
-					"KOTONOHA_HAS_METALFX=1",
 					"DEBUG=1",
 					"$(inherited)",
-					"KOTONOHA_HAS_MPV_UPSCALER=1",
 				);
 				GENERATE_INFOPLIST_FILE = YES;
 				HEADER_SEARCH_PATHS = (
@@ -1580,10 +1566,8 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
 				GCC_PREPROCESSOR_DEFINITIONS = (
-					"KOTONOHA_HAS_METALFX=1",
 					"DEBUG=1",
 					"$(inherited)",
-					"KOTONOHA_HAS_MPV_UPSCALER=1",
 				);
 				GENERATE_INFOPLIST_FILE = YES;
 				HEADER_SEARCH_PATHS = (
@@ -1608,8 +1592,7 @@
 				INFOPLIST_KEY_UIRequiredDeviceCapabilities = metal;
 				INFOPLIST_KEY_UIStatusBarHidden = NO;
 				INFOPLIST_KEY_UIStatusBarStyle = UIStatusBarStyleDarkContent;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
 				IPHONEOS_DEPLOYMENT_TARGET = 27.0;
 				KOTONOHA_HAS_MPV_UPSCALER = 1;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1678,10 +1661,7 @@
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
-				GCC_PREPROCESSOR_DEFINITIONS = (
-					"KOTONOHA_HAS_METALFX=1",
-					"KOTONOHA_HAS_MPV_UPSCALER=1",
-				);
+				GCC_PREPROCESSOR_DEFINITIONS = "";
 				GENERATE_INFOPLIST_FILE = YES;
 				HEADER_SEARCH_PATHS = (
 					"$(PROJECT_DIR)/../include",
@@ -1705,8 +1685,7 @@
 				INFOPLIST_KEY_UIRequiredDeviceCapabilities = metal;
 				INFOPLIST_KEY_UIStatusBarHidden = NO;
 				INFOPLIST_KEY_UIStatusBarStyle = UIStatusBarStyleDarkContent;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
 				IPHONEOS_DEPLOYMENT_TARGET = 27.0;
 				KOTONOHA_HAS_MPV_UPSCALER = 1;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1776,10 +1755,8 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
 				GCC_PREPROCESSOR_DEFINITIONS = (
-					"KOTONOHA_HAS_METALFX=1",
 					"DEBUG=1",
 					"$(inherited)",
-					"KOTONOHA_HAS_MPV_UPSCALER=1",
 				);
 				GENERATE_INFOPLIST_FILE = YES;
 				HEADER_SEARCH_PATHS = (
@@ -1873,10 +1850,7 @@
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
-				GCC_PREPROCESSOR_DEFINITIONS = (
-					"KOTONOHA_HAS_METALFX=1",
-					"KOTONOHA_HAS_MPV_UPSCALER=1",
-				);
+				GCC_PREPROCESSOR_DEFINITIONS = "";
 				GENERATE_INFOPLIST_FILE = YES;
 				HEADER_SEARCH_PATHS = (
 					"$(PROJECT_DIR)/../include",
@@ -1970,22 +1944,25 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
 				GCC_PREPROCESSOR_DEFINITIONS = (
-					"KOTONOHA_HAS_METALFX=1",
 					"DEBUG=1",
 					"$(inherited)",
-					"KOTONOHA_HAS_MPV_UPSCALER=1",
 				);
 				GENERATE_INFOPLIST_FILE = YES;
 				HEADER_SEARCH_PATHS = (
 					"$(PROJECT_DIR)/../include",
 					"$(PROJECT_DIR)/../games/school-days/include",
+					"$(PROJECT_DIR)/../games/snow-radish-vacation/include",
+					"$(PROJECT_DIR)/../games/zero-no-tsukaima/include",
+					"$(PROJECT_DIR)/../games/doki-doki-literature-club/include",
 					"$(PROJECT_DIR)/../src/routing",
 					"$(PROJECT_DIR)/vcpkg/iOS/arm64-ios/include",
-					"$(PROJECT_DIR)/../games/snow-radish-vacation/include",
 				);
 				"HEADER_SEARCH_PATHS[sdk=iphonesimulator*]" = (
 					"$(PROJECT_DIR)/../include",
 					"$(PROJECT_DIR)/../games/school-days/include",
+					"$(PROJECT_DIR)/../games/snow-radish-vacation/include",
+					"$(PROJECT_DIR)/../games/zero-no-tsukaima/include",
+					"$(PROJECT_DIR)/../games/doki-doki-literature-club/include",
 					"$(PROJECT_DIR)/../src/routing",
 					"$(PROJECT_DIR)/vcpkg/iOS-simulator/arm64-ios-simulator/include",
 				);
@@ -2066,23 +2043,25 @@
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
-				GCC_PREPROCESSOR_DEFINITIONS = (
-					"KOTONOHA_HAS_METALFX=1",
-					"KOTONOHA_HAS_MPV_UPSCALER=1",
-				);
+				GCC_PREPROCESSOR_DEFINITIONS = "";
 				GENERATE_INFOPLIST_FILE = YES;
 				HEADER_SEARCH_PATHS = (
 					"$(PROJECT_DIR)/../include",
 					"$(PROJECT_DIR)/../games/school-days/include",
+					"$(PROJECT_DIR)/../games/snow-radish-vacation/include",
+					"$(PROJECT_DIR)/../games/zero-no-tsukaima/include",
+					"$(PROJECT_DIR)/../games/doki-doki-literature-club/include",
 					"$(PROJECT_DIR)/../src/routing",
 					"$(PROJECT_DIR)/vcpkg/iOS/arm64-ios/include",
 				);
 				"HEADER_SEARCH_PATHS[sdk=iphonesimulator*]" = (
 					"$(PROJECT_DIR)/../include",
 					"$(PROJECT_DIR)/../games/school-days/include",
+					"$(PROJECT_DIR)/../games/snow-radish-vacation/include",
+					"$(PROJECT_DIR)/../games/zero-no-tsukaima/include",
+					"$(PROJECT_DIR)/../games/doki-doki-literature-club/include",
 					"$(PROJECT_DIR)/../src/routing",
 					"$(PROJECT_DIR)/vcpkg/iOS-simulator/arm64-ios-simulator/include",
-					"$(PROJECT_DIR)/../games/snow-radish-vacation/include",
 				);
 				INFOPLIST_FILE = Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Snow Radish Vacation!!";
@@ -2157,22 +2136,24 @@
 					"KOTONOHA_HAS_METALFX=1",
 					"KOTONOHA_HAS_MPV_UPSCALER=1",
 				);
-				"GCC_PREPROCESSOR_DEFINITIONS[sdk=iphonesimulator*]" = (
-					"KOTONOHA_HAS_METALFX=0",
-					"KOTONOHA_HAS_MPV_UPSCALER=1",
-				);
+				"GCC_PREPROCESSOR_DEFINITIONS[sdk=iphonesimulator*]" = "KOTONOHA_HAS_MPV_UPSCALER=1";
 				HEADER_SEARCH_PATHS = (
 					"$(PROJECT_DIR)/../include",
 					"$(PROJECT_DIR)/../games/school-days/include",
+					"$(PROJECT_DIR)/../games/snow-radish-vacation/include",
+					"$(PROJECT_DIR)/../games/zero-no-tsukaima/include",
+					"$(PROJECT_DIR)/../games/doki-doki-literature-club/include",
 					"$(PROJECT_DIR)/../src/routing",
 					"$(PROJECT_DIR)/vcpkg/iOS/arm64-ios/include",
 				);
 				"HEADER_SEARCH_PATHS[sdk=iphonesimulator*]" = (
 					"$(PROJECT_DIR)/../include",
 					"$(PROJECT_DIR)/../games/school-days/include",
+					"$(PROJECT_DIR)/../games/snow-radish-vacation/include",
+					"$(PROJECT_DIR)/../games/zero-no-tsukaima/include",
+					"$(PROJECT_DIR)/../games/doki-doki-literature-club/include",
 					"$(PROJECT_DIR)/../src/routing",
 					"$(PROJECT_DIR)/vcpkg/iOS-simulator/arm64-ios-simulator/include",
-					"$(PROJECT_DIR)/../games/snow-radish-vacation/include",
 				);
 				IPHONEOS_DEPLOYMENT_TARGET = 27.0;
 				OTHER_LDFLAGS = "-ObjC";
@@ -2191,22 +2172,24 @@
 					"KOTONOHA_HAS_METALFX=1",
 					"KOTONOHA_HAS_MPV_UPSCALER=1",
 				);
-				"GCC_PREPROCESSOR_DEFINITIONS[sdk=iphone*]" = (
-					"KOTONOHA_HAS_METALFX=0",
-					"KOTONOHA_HAS_MPV_UPSCALER=1",
-				);
+				"GCC_PREPROCESSOR_DEFINITIONS[sdk=iphone*]" = "KOTONOHA_HAS_MPV_UPSCALER=1";
 				HEADER_SEARCH_PATHS = (
 					"$(PROJECT_DIR)/../include",
 					"$(PROJECT_DIR)/../games/school-days/include",
+					"$(PROJECT_DIR)/../games/snow-radish-vacation/include",
+					"$(PROJECT_DIR)/../games/zero-no-tsukaima/include",
+					"$(PROJECT_DIR)/../games/doki-doki-literature-club/include",
 					"$(PROJECT_DIR)/../src/routing",
 					"$(PROJECT_DIR)/vcpkg/iOS/arm64-ios/include",
 				);
 				"HEADER_SEARCH_PATHS[sdk=iphonesimulator*]" = (
 					"$(PROJECT_DIR)/../include",
 					"$(PROJECT_DIR)/../games/school-days/include",
+					"$(PROJECT_DIR)/../games/snow-radish-vacation/include",
+					"$(PROJECT_DIR)/../games/zero-no-tsukaima/include",
+					"$(PROJECT_DIR)/../games/doki-doki-literature-club/include",
 					"$(PROJECT_DIR)/../src/routing",
 					"$(PROJECT_DIR)/vcpkg/iOS-simulator/arm64-ios-simulator/include",
-					"$(PROJECT_DIR)/../games/snow-radish-vacation/include",
 				);
 				IPHONEOS_DEPLOYMENT_TARGET = 27.0;
 				OTHER_LDFLAGS = "-ObjC";
@@ -2230,10 +2213,8 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
 				GCC_PREPROCESSOR_DEFINITIONS = (
-					"KOTONOHA_HAS_METALFX=1",
 					"DEBUG=1",
 					"$(inherited)",
-					"KOTONOHA_HAS_MPV_UPSCALER=1",
 				);
 				GENERATE_INFOPLIST_FILE = YES;
 				HEADER_SEARCH_PATHS = (
@@ -2327,20 +2308,23 @@
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
-				GCC_PREPROCESSOR_DEFINITIONS = (
-					"KOTONOHA_HAS_METALFX=1",
-					"KOTONOHA_HAS_MPV_UPSCALER=1",
-				);
+				GCC_PREPROCESSOR_DEFINITIONS = "";
 				GENERATE_INFOPLIST_FILE = YES;
 				HEADER_SEARCH_PATHS = (
 					"$(PROJECT_DIR)/../include",
 					"$(PROJECT_DIR)/../games/school-days/include",
+					"$(PROJECT_DIR)/../games/snow-radish-vacation/include",
+					"$(PROJECT_DIR)/../games/zero-no-tsukaima/include",
+					"$(PROJECT_DIR)/../games/doki-doki-literature-club/include",
 					"$(PROJECT_DIR)/../src/routing",
 					"$(PROJECT_DIR)/vcpkg/iOS/arm64-ios/include",
 				);
 				"HEADER_SEARCH_PATHS[sdk=iphonesimulator*]" = (
 					"$(PROJECT_DIR)/../include",
 					"$(PROJECT_DIR)/../games/school-days/include",
+					"$(PROJECT_DIR)/../games/snow-radish-vacation/include",
+					"$(PROJECT_DIR)/../games/zero-no-tsukaima/include",
+					"$(PROJECT_DIR)/../games/doki-doki-literature-club/include",
 					"$(PROJECT_DIR)/../src/routing",
 					"$(PROJECT_DIR)/vcpkg/iOS-simulator/arm64-ios-simulator/include",
 				);
@@ -2543,10 +2527,7 @@
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
-				GCC_PREPROCESSOR_DEFINITIONS = (
-					"KOTONOHA_HAS_METALFX=1",
-					"KOTONOHA_HAS_MPV_UPSCALER=1",
-				);
+				GCC_PREPROCESSOR_DEFINITIONS = "";
 				GENERATE_INFOPLIST_FILE = YES;
 				HEADER_SEARCH_PATHS = (
 					"$(PROJECT_DIR)/../include",

@@ -92,48 +92,6 @@ set(SCHOOL_DAYS_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/games/school-days/src")
 # ==============================================================================
 find_package(PkgConfig REQUIRED)
 
-# Generate missing libunibreak.pc for vcpkg if needed
-# (vcpkg's libunibreak port installs CMake configs instead of pkg-config, but libass.pc requires libunibreak)
-if(NOT VCPKG_INSTALLED_DIR)
-    set(VCPKG_INSTALLED_DIR "${CMAKE_BINARY_DIR}/vcpkg_installed")
-endif()
-
-if(VCPKG_TARGET_TRIPLET)
-    set(_VCPKG_PKGCONFIG_DIR "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/lib/pkgconfig")
-    if(EXISTS "${_VCPKG_PKGCONFIG_DIR}" AND NOT EXISTS "${_VCPKG_PKGCONFIG_DIR}/libunibreak.pc")
-        file(WRITE "${_VCPKG_PKGCONFIG_DIR}/libunibreak.pc"
-"prefix=\${pcfiledir}/../..
-exec_prefix=\${prefix}
-libdir=\${prefix}/lib
-includedir=\${prefix}/include
-
-Name: libunibreak
-Description: Line breaking and word breaking library for Unicode
-Version: 7.0
-Libs: -L\${libdir} -lunibreak
-Cflags: -I\${includedir}
-"
-        )
-    endif()
-
-    set(_VCPKG_DEBUG_PKGCONFIG_DIR "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/debug/lib/pkgconfig")
-    if(EXISTS "${_VCPKG_DEBUG_PKGCONFIG_DIR}" AND NOT EXISTS "${_VCPKG_DEBUG_PKGCONFIG_DIR}/libunibreak.pc")
-        file(WRITE "${_VCPKG_DEBUG_PKGCONFIG_DIR}/libunibreak.pc"
-"prefix=\${pcfiledir}/../../..
-exec_prefix=\${prefix}
-libdir=\${prefix}/debug/lib
-includedir=\${prefix}/include
-
-Name: libunibreak
-Description: Line breaking and word breaking library for Unicode
-Version: 7.0
-Libs: -L\${libdir} -lunibreak
-Cflags: -I\${includedir}
-"
-        )
-    endif()
-endif()
-
 pkg_check_modules(FFMPEG REQUIRED IMPORTED_TARGET
         libavcodec
         libavformat
@@ -216,15 +174,6 @@ include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/KotonohaTargets.cmake")
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/KotonohaApp.cmake")
 
 # ==============================================================================
-# Target libKotonoha.so para Android
-# ==============================================================================
-if(ANDROID AND NOT KOTONOHA_ANDROID_SCHOOL_DAYS_ONLY)
-    add_library(Kotonoha SHARED "${CMAKE_CURRENT_SOURCE_DIR}/games/generic/src/Main.cpp")
-    set_target_properties(Kotonoha PROPERTIES OUTPUT_NAME Kotonoha)
-    target_link_libraries(Kotonoha PRIVATE KotonohaRuntime)
-endif()
-
-# ==============================================================================
 # Applications (each game owns its CMakeLists.txt and its tests/ folder)
 # ==============================================================================
 if((KOTONOHA_ROUTER_TESTS OR KOTONOHA_ORS_PARSER_TESTS) AND NOT ANDROID)
@@ -235,12 +184,18 @@ if((KOTONOHA_ROUTER_TESTS OR KOTONOHA_ORS_PARSER_TESTS) AND NOT ANDROID)
         "Optional extracted School Days HQ retail fixture root used by corpus-dependent tests")
 endif()
 
-add_subdirectory(games/generic)
-add_subdirectory(games/school-days)
-if(NOT (ANDROID AND KOTONOHA_ANDROID_SCHOOL_DAYS_ONLY))
-    add_subdirectory(games/zero-no-tsukaima)
-    add_subdirectory(games/snow-radish-vacation)
+set(KOTONOHA_GAME "" CACHE STRING "Specific game to build")
+
+if(KOTONOHA_GAME)
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/games/${KOTONOHA_GAME}/CMakeLists.txt")
+        add_subdirectory("games/${KOTONOHA_GAME}")
+    endif()
+elseif(KOTONOHA_BUILD_ALL_GAMES)
+    add_subdirectory(games/generic)
+    add_subdirectory(games/school-days)
     add_subdirectory(games/doki-doki-literature-club)
+    add_subdirectory(games/snow-radish-vacation)
+    add_subdirectory(games/zero-no-tsukaima)
 endif()
 
 if((KOTONOHA_ROUTER_TESTS OR KOTONOHA_ORS_PARSER_TESTS) AND NOT ANDROID)
