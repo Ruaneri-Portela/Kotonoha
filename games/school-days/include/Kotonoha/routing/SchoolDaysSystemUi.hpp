@@ -10,8 +10,6 @@
 #include <Kotonoha/routing/SchoolDaysSaveLoadModel.hpp>
 #include <Kotonoha/routing/SchoolDaysSaveService.hpp>
 #include <Kotonoha/routing/SchoolDaysFontData.hpp>
-#include <Kotonoha/routing/SchoolDaysEndBackgroundResolver.hpp>
-#include <Kotonoha/routing/SchoolDaysTitleModel.hpp>
 #include <Kotonoha/routing/SchoolDaysConfigMenuModel.hpp>
 #include <Kotonoha/routing/SchoolDaysConfigMenuRenderPlan.hpp>
 #include <Kotonoha/routing/SchoolDaysExitViewModel.hpp>
@@ -20,16 +18,16 @@
 #include <Kotonoha/routing/SchoolDaysRouteMapModel.hpp>
 #include <Kotonoha/routing/SchoolDaysRouteMapRenderPlan.hpp>
 
-struct Kotonoha_Time;
-struct Kotonoha_videoData;
-
 namespace Kotonoha {
 
-// Presentation-only School Days system UI.  Semantic outer flow remains in
-// SchoolDaysFlowController; this object owns only extracted UI resources,
-// native coordinate transforms, pointer interaction and the pure SaveFeel
-// model.  SaveLoad/Title presenters can be added here without moving KTRF or
-// persistence authority into the UI layer.
+class AssetProvider;
+
+// Presentation-only School Days system UI (SaveFeel, SaveLoad, Config, Exit,
+// Replay and RouteMap panels drawn from the retail System artwork). The runtime
+// keeps the semantic flow; this object owns the UI textures, the native
+// coordinate transform and pointer interaction. Coordinates are those of the
+// logical area set with SetArea() (the game viewport). The title screen is
+// drawn by the runtime itself.
 class SchoolDaysSystemUi {
 public:
     enum class UiSfxCue : int {
@@ -49,8 +47,6 @@ public:
             SchoolDaysSaveFeelModel::Result::Skip;
         bool hasSaveLoadOutput = false;
         SchoolDaysSaveLoadModel::Output saveLoadOutput{};
-        bool hasTitleActivation = false;
-        SchoolDaysTitleModel::Activation titleActivation{};
         bool hasConfigAction = false;
         SchoolDaysConfigMenuModel::Action configAction{};
         bool hasExitActivation = false;
@@ -69,7 +65,8 @@ public:
         float nativeYOffset = 75.0f;
     };
 
-    SchoolDaysSystemUi() = default;
+    explicit SchoolDaysSystemUi(const AssetProvider* assets = nullptr)
+        : assets_(assets) {}
     ~SchoolDaysSystemUi();
 
     SchoolDaysSystemUi(const SchoolDaysSystemUi&) = delete;
@@ -98,13 +95,6 @@ public:
     }
     bool SetSaveLoadMetadata(
         const std::vector<SchoolDaysSaveService::SlotMetadata>& rows,
-        std::string* error = nullptr);
-    bool OpenTitle(
-        SDL_Renderer* renderer, const std::string& assetsRoot,
-        SchoolDaysTitleModel::Variant variant,
-        const SchoolDaysTitleModel::HostState& hostState,
-        const SchoolDaysEndBackgroundResolver::Result& background,
-        const std::string& baseBackgroundAsset,
         std::string* error = nullptr);
     bool OpenConfig(
         SDL_Renderer* renderer, const std::string& assetsRoot,
@@ -164,17 +154,22 @@ public:
     void Update(uint32_t nowMs, int64_t feeling001, int64_t feeling002,
                 Output* output);
     bool Render(SDL_Renderer* renderer, std::string* error = nullptr);
+    // Logical size events and rendering use (defaults to 1280x720).
+    void SetArea(SDL_Point area) { area_ = area; }
+    void SetAssetProvider(const AssetProvider* assets) { assets_ = assets; }
+    bool IsOpen() const {
+        return saveFeel_.IsOpen() || saveLoad_.IsOpen() || configMenu_.IsOpen() ||
+               exitView_.IsOpen() || replay_.IsOpen() || routeMap_.IsOpen();
+    }
 
     bool IsSaveFeelOpen() const { return saveFeel_.IsOpen(); }
     bool IsSaveLoadOpen() const { return saveLoad_.IsOpen(); }
-    bool IsTitleOpen() const { return title_.IsOpen(); }
     bool IsConfigOpen() const { return configMenu_.IsOpen(); }
     bool IsExitOpen() const { return exitView_.IsOpen(); }
     bool IsReplayOpen() const { return replay_.IsOpen(); }
     bool IsRouteMapOpen() const { return routeMap_.IsOpen(); }
     const SchoolDaysSaveFeelModel& SaveFeel() const { return saveFeel_; }
     const SchoolDaysSaveLoadModel& SaveLoad() const { return saveLoad_; }
-    const SchoolDaysTitleModel& Title() const { return title_; }
     const SchoolDaysConfigMenuModel& ConfigMenu() const { return configMenu_; }
     const SchoolDaysExitViewModel& ExitView() const { return exitView_; }
     const SchoolDaysReplayModel& Replay() const { return replay_; }
@@ -195,9 +190,8 @@ private:
                                    const Viewport& viewport);
     bool EmitModelResult(SchoolDaysSaveFeelModel::Result result, Output* output);
     void DestroyTextures();
-    bool DrawTitleBackground(SDL_Renderer* renderer,
-                             const Viewport& viewport,
-                             std::string* error);
+    SDL_Texture* LoadTexture(SDL_Renderer* renderer,
+                             const std::string& physical) const;
     bool EnsureReplayTextures(SDL_Renderer* renderer, std::string* error);
     bool UpdateReplayMetadataTexture(std::string* error);
     bool EnsureRouteMapTextures(SDL_Renderer* renderer, std::string* error);
@@ -205,7 +199,6 @@ private:
 
     SchoolDaysSaveFeelModel saveFeel_;
     SchoolDaysSaveLoadModel saveLoad_;
-    SchoolDaysTitleModel title_;
     SchoolDaysConfigMenuModel configMenu_;
     SchoolDaysExitViewModel exitView_;
     SchoolDaysReplayModel replay_;
@@ -214,11 +207,8 @@ private:
     Layout layout_{};
     SDL_Texture* baseTexture_ = nullptr;
     SDL_Texture* chipTexture_ = nullptr;
-    SDL_Texture* titleBackgroundTexture_ = nullptr;
-    Kotonoha_Time* titleVideoClock_ = nullptr;
-    Kotonoha_videoData* titleVideo_ = nullptr;
-    uint64_t titleVideoStartMs_ = 0u;
-    float titleBackgroundHeight_ = 450.0f;
+    const AssetProvider* assets_ = nullptr;
+    SDL_Point area_{1280, 720};
     SDL_Texture* saveLoadTextTexture_ = nullptr;
     SDL_Texture* routeMapTextTexture_ = nullptr;
     SDL_Texture* replayTextTexture_ = nullptr;

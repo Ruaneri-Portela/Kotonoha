@@ -1,6 +1,8 @@
 #include <ZeroNoTsukaima/Catalog.hpp>
 #include <ZeroNoTsukaima/Scene.hpp>
 
+#include <Kotonoha/localization/Encoding.hpp>
+
 #include <algorithm>
 #include <cctype>
 #include <cstdlib>
@@ -16,7 +18,7 @@ std::vector<std::string> Tokens(const std::vector<uint8_t> &data) {
   std::string cur;
   for (uint8_t c : data) {
     if (c < 0x20) {
-      if (cur.size() >= 2) out.push_back(ShiftJisToUtf8(cur));
+      if (cur.size() >= 2) out.push_back(Kotonoha::ShiftJisToUtf8(cur));
       cur.clear();
     } else {
       cur += char(c);

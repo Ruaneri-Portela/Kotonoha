@@ -42,6 +42,7 @@ Node* Script::build(const Value& ast, const std::string& file) {
     n->k = kindOf(ast.cls());
     n->file = file;
     n->line = int((*n)["linenumber"].integer());
+    n->route = routes_.at(file);
     switch (n->k) {
     case Node::K::Label:
     case Node::K::Init:
@@ -108,6 +109,7 @@ bool Script::load(const Assets& assets, std::string* error) {
     for (const auto& name : assets.names())
         if (name.size() > 5 && name.compare(name.size() - 5, 5, ".rpyc") == 0) files.push_back(name);
     std::sort(files.begin(), files.end());
+    files.erase(std::unique(files.begin(), files.end()), files.end());
     for (const auto& file : files) {
         Value data;
         try {
@@ -119,6 +121,7 @@ bool Script::load(const Assets& assets, std::string* error) {
             if (error) *error = file + ": " + e.what();
             return false;
         }
+        routes_[file] = static_cast<int>(routes_.size()) + 1;
         const auto& top = data.items();
         if (top.size() < 2) continue;
         auto block = buildBlock(top[1], file);
@@ -135,6 +138,31 @@ bool Script::load(const Assets& assets, std::string* error) {
 Node* Script::label(const std::string& name) const {
     auto it = labels_.find(name);
     return it == labels_.end() ? nullptr : it->second;
+}
+
+std::map<int, std::vector<std::string>> Script::translationSources() const {
+    std::map<int, std::vector<std::string>> result;
+    for (const auto& node : nodes_) {
+        auto& texts = result[node->route];
+        if (node->k == Node::K::Say) {
+            const auto text = node->str("what");
+            if (!text.empty()) texts.push_back(text);
+        } else if (node->k == Node::K::Menu) {
+            for (const auto& entry : node->ast.get("items").items()) {
+                const auto& items = entry.items();
+                if (!items.empty() && items[0].isStr() && !items[0].s.empty())
+                    texts.push_back(items[0].s);
+            }
+        }
+    }
+    for (auto it = result.begin(); it != result.end();) {
+        auto& texts = it->second;
+        std::sort(texts.begin(), texts.end());
+        texts.erase(std::unique(texts.begin(), texts.end()), texts.end());
+        if (texts.empty()) it = result.erase(it);
+        else ++it;
+    }
+    return result;
 }
 
 } // namespace Ddlc

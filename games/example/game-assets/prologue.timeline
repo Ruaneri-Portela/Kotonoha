@@ -1,0 +1,8 @@
+# Seconds; intervals include their start and exclude their end.
+duration 8
+at 0 subtitle 2 "Kotonoha - SDL_ttf"
+at 2 dialogue 3 "Narrador" "Uma historia tambem pode seguir o tempo."
+at 5 subtitle 3 "Agora, a sua jornada comeca."
+# Paths are relative to this file. Uncomment with your own media:
+# at 0 video 8 "intro.mp4"
+# at 0 audio 8 "music.ogg"

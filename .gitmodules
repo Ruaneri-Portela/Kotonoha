@@ -1,9 +1,9 @@
-[submodule "lib/submodules/SDL3"]
-	path = lib/submodules/SDL3
-	url = https://github.com/libsdl-org/SDL.git
-[submodule "lib/submodules/SDL-ttf"]
-	path = lib/submodules/SDL-ttf
-	url = https://github.com/libsdl-org/SDL_ttf.git
 [submodule "lib/submodules/imgui"]
 	path = lib/submodules/imgui
 	url = https://github.com/ocornut/imgui.git
+[submodule "lib/submodules/SDL_ttf"]
+	path = lib/submodules/SDL_ttf
+	url = https://github.com/libsdl-org/SDL_ttf.git
+[submodule "lib/submodules/SDL"]
+	path = lib/submodules/SDL
+	url = https://github.com/libsdl-org/SDL.git

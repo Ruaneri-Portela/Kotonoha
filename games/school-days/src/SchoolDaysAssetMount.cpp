@@ -1,8 +1,5 @@
 #include <Kotonoha/SchoolDaysAssetMount.hpp>
 #include <Kotonoha/SchoolDaysImageAssetResolver.hpp>
-extern "C" {
-#include <Kotonoha/utils/FFmpeg.h>
-}
 
 #include <algorithm>
 #include <cctype>
@@ -21,17 +18,6 @@ namespace {
 std::mutex gMountMutex;
 std::shared_ptr<const SchoolDaysGpkAssetStore> gMount;
 std::filesystem::path gScriptDirectory;
-
-struct MountedFfmpegInput {
-    std::shared_ptr<const SchoolDaysGpkAssetStore> mount;
-    std::ifstream file;
-    std::vector<uint8_t> prefix;
-    std::vector<uint8_t> memory;
-    uint64_t bodyOffset = 0u;
-    uint64_t logicalSize = 0u;
-    uint64_t position = 0u;
-    std::string name;
-};
 
 std::shared_ptr<const SchoolDaysGpkAssetStore> CurrentMount() {
     std::lock_guard<std::mutex> guard(gMountMutex);
@@ -137,133 +123,6 @@ bool MountedResolverListDirectory(const std::string& directoryReference,
     children->reserve(logicalChildren.size());
     for (const auto& child : logicalChildren) children->push_back(MakeSchoolDaysGpkUri(child));
     return true;
-}
-
-int MountedFfmpegRead(void* opaque, Uint8* buffer, int bufferSize) {
-    auto* input = static_cast<MountedFfmpegInput*>(opaque);
-    if (input == nullptr || buffer == nullptr || bufferSize <= 0) return AVERROR(EINVAL);
-    if (input->position >= input->logicalSize) return 0;
-    const uint64_t requested = std::min<uint64_t>(
-        static_cast<uint64_t>(bufferSize), input->logicalSize - input->position);
-    if (!input->memory.empty()) {
-        std::memcpy(buffer, input->memory.data() + static_cast<size_t>(input->position),
-                    static_cast<size_t>(requested));
-        input->position += requested;
-        return static_cast<int>(requested);
-    }
-
-    uint64_t done = 0u;
-    if (input->position < input->prefix.size()) {
-        const uint64_t prefixBytes = std::min<uint64_t>(
-            requested, input->prefix.size() - static_cast<size_t>(input->position));
-        std::memcpy(buffer, input->prefix.data() + static_cast<size_t>(input->position),
-                    static_cast<size_t>(prefixBytes));
-        input->position += prefixBytes;
-        done += prefixBytes;
-    }
-    const uint64_t remaining = requested - done;
-    if (remaining != 0u) {
-        const uint64_t bodyPosition = input->position - input->prefix.size();
-        const uint64_t physical = input->bodyOffset + bodyPosition;
-        if (physical > static_cast<uint64_t>(std::numeric_limits<std::streamoff>::max()))
-            return done != 0u ? static_cast<int>(done) : AVERROR(EIO);
-        input->file.clear();
-        input->file.seekg(static_cast<std::streamoff>(physical), std::ios::beg);
-        if (!input->file)
-            return done != 0u ? static_cast<int>(done) : AVERROR(EIO);
-        input->file.read(reinterpret_cast<char*>(buffer + done),
-                         static_cast<std::streamsize>(remaining));
-        const std::streamsize got = input->file.gcount();
-        if (got <= 0)
-            return done != 0u ? static_cast<int>(done) : AVERROR(EIO);
-        input->position += static_cast<uint64_t>(got);
-        done += static_cast<uint64_t>(got);
-    }
-    return static_cast<int>(done);
-}
-
-Sint64 MountedFfmpegSeek(void* opaque, Sint64 offset, int whence) {
-    auto* input = static_cast<MountedFfmpegInput*>(opaque);
-    if (input == nullptr) return AVERROR(EINVAL);
-    int64_t base = 0;
-    switch (whence) {
-    case SEEK_SET: base = 0; break;
-    case SEEK_CUR:
-        if (input->position > static_cast<uint64_t>(INT64_MAX)) return AVERROR(EINVAL);
-        base = static_cast<int64_t>(input->position);
-        break;
-    case SEEK_END:
-        if (input->logicalSize > static_cast<uint64_t>(INT64_MAX)) return AVERROR(EINVAL);
-        base = static_cast<int64_t>(input->logicalSize);
-        break;
-    default: return AVERROR(EINVAL);
-    }
-    if ((offset > 0 && base > INT64_MAX - offset) ||
-        (offset < 0 && base < INT64_MIN - offset))
-        return AVERROR(EINVAL);
-    const int64_t target = base + offset;
-    if (target < 0 || static_cast<uint64_t>(target) > input->logicalSize)
-        return AVERROR(EINVAL);
-    input->position = static_cast<uint64_t>(target);
-    return static_cast<Sint64>(target);
-}
-
-Sint64 MountedFfmpegSize(void* opaque) {
-    auto* input = static_cast<MountedFfmpegInput*>(opaque);
-    if (input == nullptr || input->logicalSize > static_cast<uint64_t>(INT64_MAX))
-        return AVERROR(EINVAL);
-    return static_cast<Sint64>(input->logicalSize);
-}
-
-void MountedFfmpegClose(void* opaque) {
-    delete static_cast<MountedFfmpegInput*>(opaque);
-}
-
-int MountedFfmpegResolve(const char* reference, Kotonoha_FFmpegInput* out) {
-    if (reference == nullptr || out == nullptr) return 0;
-    const std::string ref(reference);
-    if (!IsSchoolDaysGpkUri(ref)) return 0;
-    std::string logical;
-    if (!SchoolDaysLogicalFromGpkUri(ref, &logical)) return -1;
-    logical = CanonicalGpkLogical(logical);
-    const auto mount = CurrentMount();
-    if (mount == nullptr) return -1;
-    size_t archiveIndex = 0u;
-    size_t entryIndex = 0u;
-    if (mount->Lookup(logical, &archiveIndex, &entryIndex) !=
-        SchoolDaysGpkLookupStatus::Present) {
-        return -1;
-    }
-    const SchoolDaysGpkArchive* archive = mount->Archive(archiveIndex);
-    if (archive == nullptr || entryIndex >= archive->Index().Entries().size()) return -1;
-    const auto& entry = archive->Index().Entries()[entryIndex];
-
-    std::unique_ptr<MountedFfmpegInput> input(new (std::nothrow) MountedFfmpegInput());
-    if (!input) return -1;
-    input->mount = mount;
-    input->name = ref;
-    input->logicalSize = entry.IsRaw() ? static_cast<uint64_t>(entry.storedLength)
-                                      : static_cast<uint64_t>(entry.uncompressedLength);
-    if (entry.IsRaw()) {
-        input->prefix = entry.inlinePrefix;
-        input->bodyOffset = entry.offset;
-        input->file.open(archive->Path(), std::ios::binary);
-        if (!input->file) return -1;
-    } else {
-        std::string error;
-        if (!mount->Read(logical, &input->memory, &error) ||
-            input->memory.size() != input->logicalSize) {
-            return -1;
-        }
-    }
-
-    out->name = input->name.c_str();
-    out->opaque = input.release();
-    out->read = &MountedFfmpegRead;
-    out->seek = &MountedFfmpegSeek;
-    out->size = &MountedFfmpegSize;
-    out->close = &MountedFfmpegClose;
-    return 1;
 }
 
 bool ReadFilesystem(std::string_view reference, std::vector<uint8_t>* out,
@@ -405,20 +264,13 @@ void InstallMountedSchoolDaysAssetResolver() {
     InstallSchoolDaysVirtualAssetLookup(&MountedResolverLookup);
     InstallSchoolDaysVirtualAssetIo(&MountedResolverIsReference, &MountedResolverRead,
                                     &MountedResolverListDirectory);
-    KotonohaFFmpegSetInputResolver(&MountedFfmpegResolve);
-    KotonohaRuntimeSetFFmpegInputResolver(&MountedFfmpegResolve);
 }
 
 void UninstallMountedSchoolDaysAssetResolver() {
     if (gSchoolDaysVirtualAssetLookup == &MountedResolverLookup) {
         InstallSchoolDaysVirtualAssetLookup(nullptr);
         InstallSchoolDaysVirtualAssetIo(nullptr, nullptr, nullptr);
-        KotonohaFFmpegSetInputResolver(nullptr);
-        KotonohaRuntimeSetFFmpegInputResolver(nullptr);
     }
-    // The generic runtime DLL outlives the School Days module during teardown.
-    // Never leave it holding a vtable pointer to the game-owned provider.
-    UninstallSchoolDaysImageAssetProvider();
 }
 
 bool SchoolDaysRetailGpksMounted() {

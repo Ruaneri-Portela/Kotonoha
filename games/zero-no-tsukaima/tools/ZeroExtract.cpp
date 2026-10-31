@@ -2,7 +2,8 @@
 //   ZeroExtract <disc.bin|disc.iso> <outdir> [--png]
 // Archives (NAME.HD + NAME.BIN) become <outdir>/NAME/NNNN.{tm2,txt,bin};
 // with --png every TIM2 picture is also written as NNNN.png.
-#include <ZeroNoTsukaima/Disc.hpp>
+#include <Kotonoha/core/DiscImage.hpp>
+#include <ZeroNoTsukaima/Archive.hpp>
 #include <ZeroNoTsukaima/Lz.hpp>
 #include <ZeroNoTsukaima/Tim2.hpp>
 
@@ -48,30 +49,30 @@ int main(int argc, char **argv) {
     return 2;
   }
   const bool png = argc > 3 && std::strcmp(argv[3], "--png") == 0;
-  Disc disc;
+  Kotonoha::DiscImage disc;
   std::string error;
-  if (!disc.Open(argv[1], &error)) {
+  if (!disc.tryOpen(argv[1], &error)) {
     std::fprintf(stderr, "error: %s\n", error.c_str());
     return 1;
   }
-  std::printf("volume %s, %zu files\n", disc.VolumeLabel().c_str(), disc.Files().size());
+  std::printf("volume %s, %zu files\n", disc.volumeLabel().c_str(), disc.files().size());
   const fs::path out = argv[2];
   fs::create_directories(out);
 
-  for (const auto &entry : disc.Files()) {
-    const auto dot = entry.name.rfind('.');
-    const std::string stem = entry.name.substr(0, dot);
-    const std::string ext = dot == std::string::npos ? "" : entry.name.substr(dot);
-    if (ext == ".BIN" && disc.Find(stem + ".HD") != nullptr) {
+  for (const auto &entry : disc.files()) {
+    const auto dot = entry.path.rfind('.');
+    const std::string stem = entry.path.substr(0, dot);
+    const std::string ext = dot == std::string::npos ? "" : entry.path.substr(dot);
+    if (ext == ".BIN" && disc.find(stem + ".HD") != nullptr) {
       std::vector<uint8_t> hd;
-      disc.Read(*disc.Find(stem + ".HD"), &hd);
+      hd = disc.read(*disc.find(stem + ".HD"));
       const auto index = ParseArchiveIndex(hd);
       const fs::path dir = out / stem;
       fs::create_directories(dir);
       int unpacked = 0, raw = 0, pictures = 0;
       for (size_t i = 0; i < index.size(); ++i) {
         std::vector<uint8_t> blob;
-        if (!disc.ReadRange(entry, index[i].offset, index[i].size, &blob)) {
+        if (!disc.readInto(entry, index[i].offset, index[i].size, blob)) {
           std::fprintf(stderr, "  %s #%zu: read failed\n", stem.c_str(), i);
           continue;
         }
@@ -103,7 +104,10 @@ int main(int argc, char **argv) {
                   index.size(), unpacked, raw, pictures);
     } else if (ext != ".HD" && stem != "VOICE_ID" && stem != "SOUND_ID") {
       std::vector<uint8_t> data;
-      if (disc.Read(entry, &data)) WriteFile(out / entry.name, data);
+      if (disc.readInto(entry, 0, entry.size, data)) {
+        fs::create_directories((out / entry.path).parent_path());
+        WriteFile(out / entry.path, data);
+      }
     }
   }
   return 0;

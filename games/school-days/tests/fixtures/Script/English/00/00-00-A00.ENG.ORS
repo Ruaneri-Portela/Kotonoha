@@ -1,0 +1,7 @@
+[CreateBG]=00:00:00	0	Bg/test	00:02:00;
+[PlayMovie]=00:00:00	Movie/test	0	00:02:00;
+[PlayVoice]=00:00:00	Voice/test	0	xxx	00:02:00;
+[PlayBgm]=00:00:00	Music/Bgm/test	00:02:00;
+[PrintText]=00:00:00	Fixture	Synthetic WMV, OGG, PNG and caption presentation.	00:02:00;
+[SkipFRAME]=00:02:00;
+[Next]=00:02:00;

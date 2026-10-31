@@ -1,40 +1,19 @@
 #include <cstdio>
 #include "SnowRadish/Game.hpp"
 
+#include <Kotonoha/localization/Encoding.hpp>
+
 #include <algorithm>
 #include <cctype>
 
 namespace SnowRadish {
 
-#include "Cp932Table.inc"
-
-std::string sjisToUtf8(const std::string& s) {
-    std::string out;
-    auto put = [&](uint32_t u) {
-        if (u < 0x80) out.push_back(char(u));
-        else if (u < 0x800) {
-            out.push_back(char(0xC0 | u >> 6));
-            out.push_back(char(0x80 | (u & 0x3F)));
-        } else {
-            out.push_back(char(0xE0 | u >> 12));
-            out.push_back(char(0x80 | ((u >> 6) & 0x3F)));
-            out.push_back(char(0x80 | (u & 0x3F)));
-        }
-    };
-    for (size_t i = 0; i < s.size(); ++i) {
-        const uint8_t c = uint8_t(s[i]);
-        if (c < 0x80) put(c);
-        else if (c >= 0xA1 && c <= 0xDF) put(0xFF61 + (c - 0xA1));
-        else if (c >= 0x81 && c <= 0xFC && i + 1 < s.size()) {
-            const uint8_t t = uint8_t(s[++i]);
-            const unsigned short u = t >= 0x40 && t <= 0xFC ? kCp932Table[c - 0x81][t - 0x40] : 0;
-            put(u ? u : 0x3F);
-        } else put(0x3F);
-    }
-    return out;
-}
-
 namespace {
+const char* const kPlaceNames[] = {
+    "ヒの部屋", "浅葱と巴の部屋", "踊り場", "玄関", "スノーラディッシュ",
+    "店の外", "寝室", "リビング", "露天風呂", "倉庫"
+};
+
 std::string lower(std::string s) {
     std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) { return char(std::tolower(c)); });
     return s;
@@ -59,6 +38,23 @@ ObjectPtr Game::loadByName(const std::string& rawName) {
         return obj;
     }
     return nullptr;
+}
+
+std::map<int, std::vector<std::string>> Game::texts() {
+    std::map<int, std::vector<std::string>> out;
+    for (const auto& e : entries_) {
+        const ObjectPtr obj = loadByName(e.name);
+        if (!obj) continue;
+        auto& route = out[int(obj->id & 0xfff)];
+        // Only strings with Shift-JIS characters are text; ASCII ones are
+        // file names, voice ids and numbers.
+        for (const std::string& raw : obj->strings)
+            if (std::any_of(raw.begin(), raw.end(), [](char c) { return uint8_t(c) >= 0x80; }))
+                route.push_back(Kotonoha::ShiftJisToUtf8(raw));
+        if (route.empty()) out.erase(int(obj->id & 0xfff));
+    }
+    out[kMapRoute].assign(std::begin(kPlaceNames), std::end(kPlaceNames));
+    return out;
 }
 
 ObjectPtr Game::loadById(uint32_t id12) {
@@ -99,6 +95,33 @@ bool Game::init() {
     vm_.registerObject(main_);
     scriptName_ = start->name;
     vm_.start(start, 0);
+    return true;
+}
+
+std::vector<std::string> Game::debugScripts() const {
+    std::vector<std::string> result;
+    for (const auto& entry : entries_) result.push_back(entry.name);
+    return result;
+}
+
+bool Game::debugJump(const std::string& name) {
+    const auto names = debugScripts();
+    if (std::find(names.begin(), names.end(), name) == names.end()) return false;
+    const auto object = loadByName(name);
+    if (!object) return false;
+    if (main_) vm_.unregisterObject(main_);
+    main_ = object;
+    vm_.registerObject(main_);
+    vm_.start(main_);
+    scriptName_ = main_->name;
+    queue_.clear();
+    callStack_.clear();
+    current_ = {};
+    hasMsg_ = waiting_ = choosing_ = false;
+    audioWait_ = AudioWait::None;
+    choiceText_.clear();
+    choiceRoute_.clear();
+    choiceValue_.clear();
     return true;
 }
 
@@ -163,6 +186,7 @@ bool Game::choose(size_t i) {
     choosing_ = false;
     kind_ = ChoiceKind::Text;
     choiceText_.clear();
+    choiceRoute_.clear();
     if (audioWait_ == AudioWait::None) vm_.unblock();
     return true;
 }
@@ -187,7 +211,7 @@ void Game::native(Vm& vm, int id, const std::vector<Arg>& args) {
         for (size_t i = 0; i < args.size(); ++i) {
             if (i) t += ", ";
             const Arg& a = args[i];
-            if (a.tag() == 2) t += "\"" + sjisToUtf8(vm.text(a)) + "\"";
+            if (a.tag() == 2) t += "\"" + Kotonoha::ShiftJisToUtf8(vm.text(a)) + "\"";
             else if (a.tag() == 1) t += "v" + std::to_string(a.value()) + "=" + std::to_string(vm.var(a.value()));
             else t += std::to_string(a.value());
         }
@@ -210,14 +234,19 @@ void Game::native(Vm& vm, int id, const std::vector<Arg>& args) {
         for (const auto& l : vm.lines()) {
             Message m;
             m.actor = speakerMode_;
-            m.text = sjisToUtf8(vm.textAt(l.object, l.index));
+            m.text = Kotonoha::ShiftJisToUtf8(vm.textAt(l.object, l.index));
+            m.route = int(l.object);
             m.voice = vm.textAt(l.object, l.index + 1);
-            if (speakerMode_ != 1) m.name = sjisToUtf8(speaker_);
+            if (speakerMode_ != 1) {
+                m.name = Kotonoha::ShiftJisToUtf8(speaker_);
+                m.nameRoute = speakerRoute_;
+            }
             queue_.push_back(std::move(m));
         }
         vm.lines().clear();
         speakerMode_ = 1;
         speaker_.clear();
+        speakerRoute_ = kNoRoute;
         if (!queue_.empty()) {
             vm.block();
             showNext();
@@ -227,7 +256,10 @@ void Game::native(Vm& vm, int id, const std::vector<Arg>& args) {
     case 5: {
         for (const Arg& a : args) {
             if (a.tag() == 0) speakerMode_ = a.value();
-            if (a.tag() == 2) speaker_ = vm.text(a);
+            if (a.tag() == 2) {
+                speaker_ = vm.text(a);
+                speakerRoute_ = int(a.object());
+            }
         }
         break;
     }
@@ -257,15 +289,13 @@ void Game::native(Vm& vm, int id, const std::vector<Arg>& args) {
             if (a.tag() == 0 && ints++ == 6) mask = a.value();
             if (a.tag() == 1) choiceVar_ = a.value();
         }
-        static const char* kPlaceNames[] = {
-            "ヒの部屋", "浅葱と巴の部屋", "踊り場", "玄関", "スノーラディッシュ",
-            "店の外", "寝室", "リビング", "露天風呂", "倉庫"
-        };
         choiceText_.clear();
+        choiceRoute_.clear();
         choiceValue_.clear();
         for (int i = 1; i <= 10; ++i)
             if (mask & (1u << (i - 1))) {
                 choiceText_.push_back(kPlaceNames[i - 1]);
+                choiceRoute_.push_back(kMapRoute);
                 choiceValue_.push_back(i);
             }
         if (!choiceText_.empty()) {
@@ -405,6 +435,7 @@ void Game::native(Vm& vm, int id, const std::vector<Arg>& args) {
         kind_ = ChoiceKind::Uniform;
         initialFocus_ = current >= 1 && current <= 3 ? current - 1 : 0;
         choiceText_ = {"Uniform 1", "Uniform 2", "Uniform 3"};
+        choiceRoute_.assign(3, kNoRoute);
         choiceValue_ = {1, 2, 3};
         hasMsg_ = false;
         choosing_ = true;
@@ -418,12 +449,14 @@ void Game::native(Vm& vm, int id, const std::vector<Arg>& args) {
         kind_ = ChoiceKind::Text;
         initialFocus_ = -1;
         choiceText_.clear();
+        choiceRoute_.clear();
         choiceValue_.clear();
         choiceVar_ = 0;
         for (const Arg& a : args)
             if (a.tag() == 1) choiceVar_ = a.value();
         for (const auto& l : vm.lines()) {
-            choiceText_.push_back(sjisToUtf8(vm.textAt(l.object, l.index)));
+            choiceText_.push_back(Kotonoha::ShiftJisToUtf8(vm.textAt(l.object, l.index)));
+            choiceRoute_.push_back(int(l.object));
             choiceValue_.push_back(std::atoi(vm.textAt(l.object, l.index + 1).c_str()));
         }
         vm.lines().clear();

@@ -1,6 +1,5 @@
 #pragma once
-// Dynamic values shared by the pickle loader (Ren'Py .rpyc / .rpa indexes) and
-// the small Python evaluator that runs the game's script expressions.
+// Dynamic values shared by the pickle loader and the embedded Python bridge.
 #include <cstdint>
 #include <functional>
 #include <map>
@@ -13,6 +12,7 @@
 namespace Ddlc {
 
 struct Object;
+struct PythonValue;
 using ObjRef = std::shared_ptr<Object>;
 
 struct Value {
@@ -65,6 +65,7 @@ struct Object {
     std::map<std::string, Value> attrs;      // instance attributes
     NativeFn fn;                             // functions and callable classes
     std::shared_ptr<void> payload;           // C++ data (displayables, transforms...)
+    std::shared_ptr<PythonValue> python;      // an object owned by CPython
     bool openAttrs = false;                  // missing attributes read as None (persistent)
 
     Value* findKey(const Value& key);

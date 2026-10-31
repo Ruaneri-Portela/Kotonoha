@@ -1,9 +1,0 @@
-<resources>
-    <string name="app_name">Kotonoha Engine</string>
-    <string name="custom_params">Use custrom parameters</string>
-    <string name="btn_a">School Days</string>
-    <string name="btn_generic">Kotonoha (Generic)</string>
-    <string name="btn_zero">Zero no Tsukaima</string>
-    <string name="btn_snow">Snow Radish Vacation</string>
-    <string name="btn_ddlc">Doki Doki Literature Club</string>
-</resources>

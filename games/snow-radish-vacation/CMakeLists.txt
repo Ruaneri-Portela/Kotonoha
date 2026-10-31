@@ -1,40 +1,55 @@
-cmake_minimum_required(VERSION 3.18)
-project(SnowRadishApp LANGUAGES C CXX)
+cmake_minimum_required(VERSION 3.16)
 
-if(NOT TARGET KotonohaRuntime)
-    set(_ROOT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../..")
-    set(KOTONOHA_INCLUDE_DIR "${_ROOT_DIR}/include")
-    set(KOTONOHA_ENGINE_SOURCE_DIR "${_ROOT_DIR}/src/Kotonoha")
-    add_subdirectory("${_ROOT_DIR}" kotonoha_build EXCLUDE_FROM_ALL)
+project(SnowRadishVacation VERSION 0.1.0 LANGUAGES C CXX)
+
+if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
+    include(CTest)
 endif()
 
-# Snow Radish Vacation!! (Overflow ADV3, Win32) pack-format library.
+if(NOT TARGET Kotonoha::Engine)
+    add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../lib"
+        "${CMAKE_CURRENT_BINARY_DIR}/kotonoha")
+endif()
+
+# Overflow ADV3 formats (packs, pictures, ADPCM, script VM). Assets stay in the
+# user's DAT directory and are never copied into the repository.
 add_library(SnowRadishFormats STATIC
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/Pack.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/Vm.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/Game.cpp")
-target_include_directories(SnowRadishFormats PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
+    src/Pack.cpp
+    src/Vm.cpp
+    src/Game.cpp
+)
+target_include_directories(SnowRadishFormats PUBLIC include)
+target_link_libraries(SnowRadishFormats PUBLIC Kotonoha::Engine)
 target_compile_features(SnowRadishFormats PUBLIC cxx_std_17)
-target_link_libraries(SnowRadishFormats PUBLIC ${KOTONOHA_SDL3_TARGET})
+set_target_properties(SnowRadishFormats PROPERTIES CXX_EXTENSIONS OFF)
 
-if(ANDROID)
-    add_library(SnowRadish SHARED "${CMAKE_CURRENT_SOURCE_DIR}/src/Main.cpp")
-    set_target_properties(SnowRadish PROPERTIES OUTPUT_NAME SnowRadish)
-    target_link_libraries(SnowRadish PRIVATE KotonohaRuntime SnowRadishFormats)
-elseif(NOT IOS)
-    add_executable(SnowRun "${CMAKE_CURRENT_SOURCE_DIR}/tools/SnowRun.cpp")
-    target_link_libraries(SnowRun PRIVATE SnowRadishFormats)
-    add_executable(SnowExtract "${CMAKE_CURRENT_SOURCE_DIR}/tools/SnowExtract.cpp")
-    target_link_libraries(SnowExtract PRIVATE SnowRadishFormats)
+# The game on the Kotonoha engine: DAT AssetProvider, session and the
+# polymorphic engine components.
+add_library(snow_radish_vacation STATIC
+    src/SnowAssets.cpp
+    src/SnowSession.cpp
+    src/SnowComponents.cpp
+    src/SnowRuntime.cpp
+    src/SnowLauncher.cpp
+)
+target_include_directories(snow_radish_vacation PUBLIC src)
+target_link_libraries(snow_radish_vacation PUBLIC Kotonoha::Engine SnowRadishFormats)
+set_target_properties(snow_radish_vacation PROPERTIES CXX_EXTENSIONS OFF)
 
-    add_executable(SnowRadishPackTest "${CMAKE_CURRENT_SOURCE_DIR}/tests/PackTest.cpp")
-    target_link_libraries(SnowRadishPackTest PRIVATE SnowRadishFormats)
+kotonoha_add_app(SnowRadish src/main.cpp)
+target_link_libraries(SnowRadish PRIVATE snow_radish_vacation)
+set_target_properties(SnowRadish PROPERTIES CXX_EXTENSIONS OFF)
+kotonoha_configure_app(SnowRadish
+    BUNDLE_ID me.hirameki.kotonoha.snowradishvacation GAME snow-radish-vacation)
 
-    add_executable(SnowRadish "${CMAKE_CURRENT_SOURCE_DIR}/src/Main.cpp")
-    target_link_libraries(SnowRadish PRIVATE KotonohaRuntime SnowRadishFormats)
-    kotonoha_configure_app(SnowRadish
-        OUTPUT_NAME SnowRadish
-        BUNDLE_ID "me.hirameki.kotonoha.snowradish"
-        GAME_ASSET "snow-radish-vacation"
-        )
+if(NOT ANDROID)
+add_executable(SnowRun tools/SnowRun.cpp)
+target_link_libraries(SnowRun PRIVATE SnowRadishFormats)
+
+add_executable(SnowExtract tools/SnowExtract.cpp)
+target_link_libraries(SnowExtract PRIVATE SnowRadishFormats)
+endif()
+
+if(BUILD_TESTING)
+    add_subdirectory(tests)
 endif()

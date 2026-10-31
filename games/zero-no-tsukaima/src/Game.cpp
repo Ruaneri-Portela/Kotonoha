@@ -212,11 +212,28 @@ void Game::Assign(const std::string &expression) {
   else slot = value;
 }
 
+std::vector<std::string> Game::SceneTexts(const std::vector<SceneTag> &tags) {
+  std::vector<std::string> out;
+  std::set<std::string> seen;
+  auto add = [&](const std::string *text) {
+    if (text && !text->empty() && seen.insert(*text).second) out.push_back(*text);
+  };
+  for (const SceneTag &tag : tags) {
+    if (tag.name == "ch" || tag.name == "seladd") add(tag.Get("text"));
+    else if (tag.name == "dispname") {
+      const std::string *disp = tag.Get("disp");
+      add(disp && !disp->empty() ? disp : tag.Get("name"));
+    }
+  }
+  return out;
+}
+
 bool Game::LoadScene(size_t index, const std::string &label) {
   std::vector<uint8_t> data;
-  tags_.clear();
+  std::vector<SceneTag> tags;
+  if (index >= names_.size() || !loader_(index, &data) || !ParseSceneTags(data, &tags)) return false;
+  tags_ = std::move(tags);
   labels_.clear();
-  if (index >= names_.size() || !loader_(index, &data) || !ParseSceneTags(data, &tags_)) return false;
   sceneIndex_ = index;
   scriptName_ = names_[index];
   for (size_t i = 0; i < tags_.size(); ++i)
@@ -235,6 +252,17 @@ bool Game::LoadByName(const std::string &name) {
   return false;
 }
 
+std::string Game::CurrentLabel() const {
+  const std::string *best = nullptr;
+  size_t at = 0;
+  for (const auto &[name, index] : labels_)
+    if (index <= pc_ && (!best || index >= at)) {
+      best = &name;
+      at = index;
+    }
+  return best ? *best : std::string();
+}
+
 bool Game::Jump(const std::string &label) {
   auto it = labels_.find(label);
   if (it == labels_.end()) it = labels_.find(label.size() && label[0] == '*' ? label : "*" + label);
@@ -246,6 +274,20 @@ bool Game::Jump(const std::string &label) {
 bool Game::Start(const std::string &scriptName) {
   finished_ = false;
   return LoadByName(scriptName);
+}
+
+bool Game::DebugJump(const std::string &scriptName) {
+  if (!LoadByName(scriptName)) return false;
+  waiting_ = choosing_ = finished_ = msgOn_ = false;
+  external_ = Block::None;
+  waitUntil_ = -1;
+  transMode_ = inSkip_ = skipping_ = moving_ = roulette_ = false;
+  transition_ = {};
+  choiceText_.clear();
+  choiceTarget_.clear();
+  cues_.clear();
+  text_.clear();
+  return true;
 }
 
 float Game::Anim::At(int64_t t) const {
@@ -437,7 +479,7 @@ void Game::Execute(const SceneTag &tag) {
     return v ? *v : std::string();
   };
 
-  if (n == "ch") text_ += attr("text");
+  if (n == "ch") text_ += translate ? translate(sceneIndex_, attr("text")) : attr("text");
   else if (n == "r") text_ += "\n";
   else if (n == "p") {
     if (!text_.empty()) {

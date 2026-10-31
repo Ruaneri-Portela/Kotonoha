@@ -1,0 +1,131 @@
+if(NOT EXISTS "${APP_EXECUTABLE}" OR NOT IS_DIRECTORY "${BUNDLE_CONTENTS}")
+    message(FATAL_ERROR "App bundle is missing: ${APP_EXECUTABLE}")
+endif()
+
+if(NOT APP_GAME)
+    message(FATAL_ERROR "App bundle game identifier is missing")
+endif()
+if(APP_GAME STREQUAL "doki-doki-literature-club")
+    if(NOT IS_DIRECTORY "${PYTHON_STDLIB}" OR NOT PYTHON_VERSION)
+        message(FATAL_ERROR "Python standard library is missing: ${PYTHON_STDLIB}")
+    endif()
+    set(include_python ON)
+elseif(PYTHON_STDLIB OR PYTHON_VERSION)
+    message(FATAL_ERROR "Only Doki Doki Literature Club may bundle Python")
+else()
+    set(include_python OFF)
+endif()
+
+set(plugins)
+if(include_python)
+    get_filename_component(python_stdlib_real "${PYTHON_STDLIB}" REALPATH)
+    get_filename_component(python_lib_dir "${python_stdlib_real}" DIRECTORY)
+    get_filename_component(python_framework_version "${python_lib_dir}" DIRECTORY)
+    if(python_framework_version MATCHES "/Python\\.framework/Versions/[^/]+$" AND
+       EXISTS "${python_framework_version}/Python")
+        get_filename_component(python_version "${python_framework_version}" NAME)
+        set(python_framework "${BUNDLE_CONTENTS}/Frameworks/Python.framework")
+        set(python_version_dir "${python_framework}/Versions/${python_version}")
+        set(python_home "${python_version_dir}")
+    else()
+        set(python_home "${BUNDLE_CONTENTS}/Frameworks/python")
+    endif()
+    set(python_lib "${python_home}/lib/python${PYTHON_VERSION}")
+    file(COPY "${PYTHON_STDLIB}/" DESTINATION "${python_lib}"
+        PATTERN "__pycache__" EXCLUDE PATTERN "*.pyc" EXCLUDE
+        PATTERN "site-packages" EXCLUDE PATTERN "test" EXCLUDE
+        PATTERN "tests" EXCLUDE PATTERN "config-*" EXCLUDE)
+    file(GLOB stale_python_configs LIST_DIRECTORIES true "${python_lib}/config-*")
+    if(stale_python_configs)
+        message(FATAL_ERROR
+            "The bundle contains a stale Python build configuration directory. Clean the build before packaging.")
+    endif()
+    file(GLOB_RECURSE plugins "${python_lib}/lib-dynload/*.so")
+    # Remove the old CMake-owned layout after the new copy is ready.
+    file(REMOVE_RECURSE "${BUNDLE_CONTENTS}/Resources/python")
+endif()
+
+include(BundleUtilities)
+set(BU_CHMOD_BUNDLE_ITEMS ON)
+
+if(include_python)
+    if(python_framework)
+        if(EXISTS "${python_version_dir}/Resources/Python.app")
+            message(FATAL_ERROR
+                "The bundle contains a stale nested Python.app. Clean the build before packaging.")
+        endif()
+        file(MAKE_DIRECTORY "${python_version_dir}/Resources")
+        file(COPY "${python_framework_version}/Python" DESTINATION "${python_version_dir}")
+        if(EXISTS "${python_framework_version}/Resources/Info.plist")
+            file(COPY "${python_framework_version}/Resources/Info.plist"
+                DESTINATION "${python_version_dir}/Resources")
+        endif()
+        foreach(link IN ITEMS "Versions/Current|${python_version}"
+                              "Python|Versions/Current/Python"
+                              "Resources|Versions/Current/Resources")
+            string(REPLACE "|" ";" parts "${link}")
+            list(GET parts 0 name)
+            list(GET parts 1 target)
+            set(link_path "${python_framework}/${name}")
+            if(IS_SYMLINK "${link_path}")
+                file(READ_SYMLINK "${link_path}" existing_target)
+                if(NOT existing_target STREQUAL target)
+                    message(FATAL_ERROR "Stale Python framework link: ${link_path}")
+                endif()
+            elseif(EXISTS "${link_path}")
+                message(FATAL_ERROR "Python framework link is not a symlink: ${link_path}")
+            else()
+                file(CREATE_LINK "${target}" "${link_path}" SYMBOLIC RESULT link_result)
+                if(NOT link_result STREQUAL "0")
+                    message(FATAL_ERROR "Cannot create ${link_path}: ${link_result}")
+                endif()
+            endif()
+        endforeach()
+
+        set(bundled_python
+            "@executable_path/../Frameworks/Python.framework/Versions/${python_version}/Python")
+        foreach(item IN ITEMS "${APP_EXECUTABLE}" ${plugins})
+            get_prerequisites("${item}" prerequisites 1 0 "" "${DEPENDENCY_DIRS}")
+            foreach(prerequisite IN LISTS prerequisites)
+                if(prerequisite MATCHES "(^|/)Python\\.framework/Versions/[^/]+/Python$")
+                    execute_process(COMMAND install_name_tool -change "${prerequisite}"
+                        "${bundled_python}" "${item}" RESULT_VARIABLE change_result)
+                    if(NOT change_result EQUAL 0)
+                        message(FATAL_ERROR "Cannot relocate Python dependency in ${item}")
+                    endif()
+                endif()
+            endforeach()
+        endforeach()
+    endif()
+endif()
+
+fixup_bundle("${APP_EXECUTABLE}" "${plugins}" "${DEPENDENCY_DIRS}")
+
+include("${CMAKE_CURRENT_LIST_DIR}/CheckBundleContents.cmake")
+
+foreach(plugin IN LISTS plugins)
+    execute_process(COMMAND codesign --force --sign - "${plugin}"
+        RESULT_VARIABLE plugin_sign_result)
+    if(NOT plugin_sign_result EQUAL 0)
+        message(FATAL_ERROR "Could not ad-hoc sign Python extension ${plugin}")
+    endif()
+endforeach()
+
+get_filename_component(app_dir "${BUNDLE_CONTENTS}" DIRECTORY)
+execute_process(COMMAND codesign --force --deep --sign - "${app_dir}"
+    RESULT_VARIABLE sign_result)
+if(NOT sign_result EQUAL 0)
+    message(FATAL_ERROR "Could not ad-hoc sign ${app_dir}")
+endif()
+execute_process(COMMAND codesign --verify --deep --strict "${app_dir}"
+    RESULT_VARIABLE verify_result)
+if(NOT verify_result EQUAL 0)
+    message(FATAL_ERROR "Could not verify the ad-hoc signature of ${app_dir}")
+endif()
+foreach(plugin IN LISTS plugins)
+    execute_process(COMMAND codesign --verify --strict "${plugin}"
+        RESULT_VARIABLE plugin_verify_result)
+    if(NOT plugin_verify_result EQUAL 0)
+        message(FATAL_ERROR "Could not verify the signature of Python extension ${plugin}")
+    endif()
+endforeach()

@@ -67,6 +67,4 @@ bool ParseSceneTags(const std::vector<uint8_t> &unpacked, std::vector<SceneTag> 
 // position in the list is the SCENE_ID archive index.
 bool ParseSceneNames(const std::vector<uint8_t> &unpacked, std::vector<std::string> *out);
 
-std::string ShiftJisToUtf8(const std::string &s);
-
 } // namespace ZeroNoTsukaima

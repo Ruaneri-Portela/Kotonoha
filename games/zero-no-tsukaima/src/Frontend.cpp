@@ -91,11 +91,10 @@ std::string Up(std::string s) {
   return s;
 }
 
-SDL_FPoint Size(Kotonoha::CanvasImage *img) {
-  float w = 0, h = 0;
-  if (img && img->Source())
-    SDL_GetTextureSize(img->Source(), &w, &h);
-  return {w, h};
+SDL_FPoint Size(Picture *img) {
+  if (!img || !img->Source())
+    return {0, 0};
+  return {img->Width(), img->Height()};
 }
 
 bool Inside(SDL_FPoint pt, float x, float y, float w, float h) {
@@ -332,7 +331,7 @@ void Frontend::Return(Replay from) {
 }
 
 void Frontend::Leave() {
-  movie_.Close();
+  movie_.reset();
   host_.StopVoice();
 }
 
@@ -343,9 +342,8 @@ void Frontend::Go(Phase phase, bool crossfade) {
   transitionStart_ = stepStart_ = phaseStart_ = SDL_GetTicks();
   step_ = Step::FadeIn;
   if (phase == Phase::Movie) {
-    std::vector<uint8_t> pss;
-    if (!host_.Movie(0, &pss) ||
-        !movie_.Open(pss, host_.Renderer(), host_.MovieAudio(), 1.0f)) {
+    movie_ = host_.OpenMovie(0);
+    if (!movie_) {
       SDL_Log("[zero] opening movie unavailable");
       EnterTitle(false);
     }
@@ -381,7 +379,7 @@ void Frontend::Skip() {
     Go(Phase::Movie, false);
     break;
   case Phase::Movie:
-    movie_.Close();
+    movie_.reset();
     EnterTitle(false);
     break;
   default:
@@ -1260,9 +1258,9 @@ Frontend::Result Frontend::Tick() {
     break;
   }
   case Phase::Movie:
-    movie_.Update();
-    if (movie_.Finished()) {
-      movie_.Close();
+    if (movie_) movie_->update(*host_.Renderer());
+    if (!movie_ || movie_->finished()) {
+      movie_.reset();
       EnterTitle(false);
     }
     break;
@@ -1292,13 +1290,12 @@ Frontend::Result Frontend::Tick() {
   return r;
 }
 
-void Frontend::DrawImage(SDL_Renderer *r, Kotonoha::CanvasImage *img, float x,
+void Frontend::DrawImage(SDL_Renderer *r, Picture *img, float x,
                          float y, float alpha, float light, float w, float h) {
   SDL_Texture *tex = img ? img->Source() : nullptr;
   if (!tex || alpha <= 0.0f)
     return;
-  float tw = 0, th = 0;
-  SDL_GetTextureSize(tex, &tw, &th);
+  const float tw = img->Width(), th = img->Height();
   const SDL_FRect src{0, 0, w > 0 ? std::min(w, tw) : tw,
                       h > 0 ? std::min(h, th) : th};
   const SDL_FRect dst{x, y, src.w, src.h};
@@ -1333,7 +1330,7 @@ void Frontend::DrawPhase(SDL_Renderer *r, Phase phase, float alpha) {
   case Phase::Movie:
     SDL_SetRenderDrawColor(r, 0, 0, 0, 255);
     SDL_RenderFillRect(r, &all);
-    movie_.Draw(r, all);
+    if (movie_) movie_->render(*r, all, host_.Upscaler(), true);
     break;
   case Phase::Title: {
     const int stage = phase == phase_ ? titleStage_ : 2;
@@ -1552,7 +1549,7 @@ void Frontend::DrawCgView(SDL_Renderer *r, float alpha) {
   const float fade = viewFade_ ? Ramp(SDL_GetTicks() - viewFade_, 500) : 1.0f;
   if (fade < 1.0f && viewIndex_ > 0)
     DrawImage(r, host_.Picture(view_[viewIndex_ - 1]), 0, 0, alpha);
-  Kotonoha::CanvasImage *img = host_.Picture(view_[viewIndex_]);
+  Picture *img = host_.Picture(view_[viewIndex_]);
   DrawImage(r, img, viewX_, viewY_, alpha * fade);
   const SDL_FPoint size = Size(img);
   if (size.y > kH) {

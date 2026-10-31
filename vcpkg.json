@@ -1,53 +1,47 @@
 {
+  "name": "kotonoha",
+  "version-string": "0.1.0",
   "builtin-baseline": "ada4709cf238a75753b71b99681e1c5d31a078c9",
   "dependencies": [
-    {
-      "name": "pkgconf",
-      "host": true,
-      "platform": "android"
-    },
+    "freetype",
+    "harfbuzz",
+    "json-c",
     "libass",
-    "sdl3",
-    {
-      "name": "sdl3-ttf",
-      "features": [
-        "harfbuzz",
-        "svg"
-      ],
-      "platform": "!linux"
-    },
-    {
-      "name": "imgui",
-      "features": [
-        "freetype",
-        "freetype-svg",
-        "sdl3-binding",
-        "sdl3-renderer-binding"
-      ],
-      "platform": "!linux"
-    },
-    {
-      "name": "ffmpeg",
-      "features": [
-        "zlib"
-      ],
-      "platform": "!linux"
-    },
-    {
-      "name": "expat",
-      "platform": "android"
-    },
     {
       "name": "fontconfig",
-      "platform": "android | ios | osx"
+      "platform": "android | ios"
     },
     {
       "name": "libunibreak",
-      "platform": "android | ios | osx"
+      "platform": "android | ios"
     },
     {
       "name": "libiconv",
-      "platform": "ios | android"
+      "platform": "android"
+    },
+    {
+      "name": "plutosvg",
+      "features": ["freetype"]
+    },
+    "zlib",
+    {
+      "name": "ffmpeg",
+      "features": ["zlib"]
+    },
+    {
+      "name": "pkgconf",
+      "host": true
     }
-  ]
+  ],
+  "features": {
+    "android-python": {
+      "description": "Embedded CPython runtime for the Android DDLC app",
+      "dependencies": [
+        {
+          "name": "python3",
+          "platform": "android"
+        }
+      ]
+    }
+  }
 }
