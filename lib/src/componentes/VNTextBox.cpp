@@ -17,6 +17,12 @@ VNTextBox::VNTextBox(Engine &engineRef, std::string speaker,
   VNTextBox::setDialogue(speaker, dialogue);
 }
 
+void VNTextBox::completeDialogue() {
+  visibleChars = static_cast<double>(VNTextBoxUtility::CountUtf8Chars(fullDialogue));
+  visibleDialogue = fullDialogue;
+  isComplete = true;
+}
+
 void VNTextBox::setTextSpeed(double charsPerSecond) {
   if (!std::isfinite(charsPerSecond) || charsPerSecond <= 0)
     throw std::invalid_argument("Text speed must be positive and finite");
@@ -63,12 +69,13 @@ void VNTextBox::update() {
   clock.reset();
   if (!visible || isComplete || engine.isStoryPaused())
     return;
+  const std::size_t totalChars = VNTextBoxUtility::CountUtf8Chars(fullDialogue);
   visibleChars = std::min(visibleChars + charactersPerSecond() * delta,
-                          static_cast<double>(fullDialogue.size()));
+                          static_cast<double>(totalChars));
   const auto bytes =
       utf8Prefix(fullDialogue, static_cast<std::size_t>(visibleChars));
   visibleDialogue = fullDialogue.substr(0, bytes);
-  isComplete = bytes == fullDialogue.size();
+  isComplete = (visibleChars >= totalChars);
 }
 
 void VNTextBox::render(RendererRef renderer, float) {
@@ -94,9 +101,22 @@ void VNTextBox::renderSpeaker(RendererRef renderer) {
 }
 
 void VNTextBox::renderDialogue(RendererRef renderer) {
-  SDL_Rect clip{60, 556, 1140, 110};
+  SDL_Rect clip{60, 550, 1140, 130};
   SDL_SetRenderClipRect(&renderer, &clip);
-  engine.GetUI().text(renderer, visibleDialogue, 60, 556, 1140);
+
+  // Utiliza textSize(str, width).x para obter a largura em pixels
+  auto measureText = [this](const std::string &str) -> float {
+    return engine.GetUI().textSize(str, 1140.0f).x;
+  };
+
+  const auto lines = VNTextBoxUtility::WrapText(visibleDialogue, measureText, 1140.0f);
+  
+  int yOffset = 550;
+  for (const auto &line : lines) {
+    engine.GetUI().text(renderer, line, 60, static_cast<float>(yOffset), 1140.0f);
+    yOffset += 28;
+  }
+
   SDL_SetRenderClipRect(&renderer, nullptr);
 }
 

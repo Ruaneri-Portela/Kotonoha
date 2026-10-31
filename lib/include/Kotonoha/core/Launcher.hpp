@@ -12,7 +12,9 @@
 struct ImGuiContext;
 
 namespace Kotonoha {
-namespace ImGuiTheme { class ShaderFilePicker; }
+namespace ImGuiTheme {
+class ShaderFilePicker;
+}
 
 // Pre-game configuration window (ImGui) for renderer, window, upscaling and
 // logs. It edits the same EngineSettings file the Engine loads, so the game

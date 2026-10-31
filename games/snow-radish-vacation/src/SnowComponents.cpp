@@ -336,26 +336,11 @@ void SnowBacklog::renderFrame(Kotonoha::RendererRef renderer) {
 }
 
 std::vector<std::string> SnowBacklog::Wrap(SDL_Renderer *r, const std::string &text, float width) {
-  std::vector<std::string> lines;
-  std::string line;
-  for (std::size_t i = 0; i < text.size();) {
-    std::size_t next = i + 1;
-    while (next < text.size() && (static_cast<unsigned char>(text[next]) & 0xC0) == 0x80) ++next;
-    const std::string ch = text.substr(i, next - i);
-    i = next;
-    if (ch == "\n") {
-      lines.push_back(std::move(line));
-      line.clear();
-      continue;
-    }
-    if (!line.empty() && session_.DrawText(r, line + ch, 0, 0, 20, {}, true).x > width) {
-      lines.push_back(std::move(line));
-      line.clear();
-    }
-    line += ch;
-  }
-  if (!line.empty()) lines.push_back(std::move(line));
-  return lines;
+  auto measureText = [this, r](const std::string &str) -> float {
+    return session_.DrawText(r, str, 0, 0, 20, {}, true).x;
+  };
+
+  return Kotonoha::VNTextBoxUtility::WrapText(text, measureText, width);
 }
 
 void SnowBacklog::renderEntries(Kotonoha::RendererRef renderer) {

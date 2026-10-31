@@ -69,11 +69,11 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
     options.persistSettings = true;
     std::string disc;
     std::string dumpPath; // export every route and exit
-    bool launcher = false; // opt-in
+
     Kotonoha::CommandLine arguments("ZeroNoTsukaima", options);
     arguments.option("--zero", "DISC.bin", "Zero no Tsukaima game disc", disc);
     arguments.option("--dump-translation", "FILE", "Export original texts by route and exit", dumpPath);
-    arguments.flag("--launcher", "Open the disc selection launcher", launcher);
+    arguments.flag("--launcher", "Open the disc selection launcher", options.launcher);
     arguments.parse(argc, argv);
     if (arguments.wantsHelp()) { std::fputs(arguments.help().c_str(), stdout); return SDL_APP_SUCCESS; }
     app->frames = arguments.frames;
@@ -86,7 +86,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
     if (disc.empty()) disc = DefaultDisc();
     if (disc.empty()) disc = Kotonoha::GameLauncher::rememberedPath(settingsPath, "disc.txt");
 
-    if (launcher) {
+    if (options.launcher) {
       app->launcher = std::make_unique<ZeroNoTsukaima::ZeroLauncher>(settingsPath, disc);
       app->launcher->open();
     } else {

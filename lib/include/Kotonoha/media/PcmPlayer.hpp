@@ -5,7 +5,6 @@
 #include <SDL3/SDL.h>
 
 #include <atomic>
-#include <climits>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -55,7 +54,8 @@ private:
     std::atomic<uint64_t> fed{0};  // frames queued so far
     std::atomic<bool> ended{false};
   };
-  static void SDLCALL Feed(void *user, SDL_AudioStream *stream, int additional, int total);
+  static void SDLCALL Feed(void *user, SDL_AudioStream *stream, int additional,
+                           int total);
   uint64_t Consumed() const;
 
   std::unique_ptr<Voice> voice_;

@@ -4,6 +4,7 @@
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/FileSystem.hpp>
 #include <Kotonoha/media/upscaling/Upscaler.hpp>
+#include <Kotonoha/componentes/VNTextBox.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -72,10 +73,12 @@ SnowSession::SnowSession(Kotonoha::Engine &engine, std::shared_ptr<SnowAssets> a
   script_ = assets_->Script();
   systemPath_ = Kotonoha::preferredDocumentsDirectory("snow-radish-vacation") / "system.dat";
   cleared_ = ReadFile(systemPath_) == std::vector<uint8_t>{83, 82, 86, 1, 1};
-  const std::string customFont = engine_.GetSettings().fontPath;
-  const std::string fontPath = !customFont.empty() ? Kotonoha::FileResolver::font(customFont).string() : FindFont();
-  if (!fontPath.empty()) font_ = TTF_OpenFont(fontPath.c_str(), kTextSize);
-  if (!font_) SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "[snow] no CJK font found (set SNOW_FONT)");
+  fontData_ = Kotonoha::FileResolver::loadFontMemory(engine_.GetSettings().fontPath);
+  if (!fontData_.empty()) {
+    SDL_IOStream *io = SDL_IOFromConstMem(fontData_.data(), fontData_.size());
+    if (io) font_ = TTF_OpenFontIO(io, true, kTextSize);
+  }
+  if (!font_) SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "[snow] no CJK font found");
 }
 
 SnowSession::~SnowSession() { Shutdown(); }
@@ -771,28 +774,19 @@ void SnowSession::DrawMessageText(SDL_Renderer *r, const std::string &speaker, c
     const SDL_FPoint size = DrawText(r, speaker, 0, 0, kTextSize, {}, true);
     DrawText(r, speaker, kTextBox.x, kTextBox.y - size.y, kTextSize, {255, 230, 140, 255});
   }
+
   if (text != wrappedKey_) {
-    // Greedy per-character wrap (Japanese has no spaces), so a prefix wraps like the full page.
     wrappedKey_ = text;
-    wrapped_.clear();
-    std::string line;
-    for (size_t i = 0; i < text.size();) {
-      const size_t next = NextChar(text, i);
-      const std::string ch = text.substr(i, next - i);
-      i = next;
-      if (ch == "\n") {
-        wrapped_.push_back(std::move(line));
-        line.clear();
-        continue;
-      }
-      if (!line.empty() && DrawText(r, line + ch, 0, 0, kTextSize, {}, true).x > kTextBox.w) {
-        wrapped_.push_back(std::move(line));
-        line.clear();
-      }
-      line += ch;
-    }
-    if (!line.empty()) wrapped_.push_back(std::move(line));
+
+    // Lambda de medição utilizando o motor de texto interno da SnowSession
+    auto measureText = [this, r](const std::string &str) -> float {
+      return DrawText(r, str, 0, 0, kTextSize, {}, true).x;
+    };
+
+    // Delega o algoritmo de quebra para o utilitário da engine Kotonoha
+    wrapped_ = Kotonoha::VNTextBoxUtility::WrapText(text, measureText, kTextBox.w);
   }
+
   float y = kTextBox.y;
   for (const auto &line : wrapped_) {
     if (y + kLineHeight > kTextBox.y + kTextBox.h + 4) break;

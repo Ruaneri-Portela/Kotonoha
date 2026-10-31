@@ -29,8 +29,8 @@ public:
   void setPosition(double seconds);
   double position() const;
   // Self-clocked fade starting now; switches to the scene's own clock.
-  void play(Direction direction, double seconds, SDL_Color color = {0, 0, 0, 255},
-            bool hold = false);
+  void play(Direction direction, double seconds,
+            SDL_Color color = {0, 0, 0, 255}, bool hold = false);
 
   // Coverage 0 (clear) .. 1 (opaque color) of one event at a position.
   static float alphaAt(const Event &event, double position);

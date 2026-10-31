@@ -70,11 +70,10 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
     options.persistSettings = true;
     std::string directory;
     std::string dumpPath; // export every route and exit
-    bool launcher = false; // opt-in
     Kotonoha::CommandLine arguments("SnowRadish", options);
     arguments.option("--snow", "DIRECTORY", "Snow Radish DAT directory", directory);
     arguments.option("--dump-translation", "FILE", "Export original texts by route and exit", dumpPath);
-    arguments.flag("--launcher", "Open the DAT selection launcher", launcher);
+    arguments.flag("--launcher", "Open the DAT selection launcher", options.launcher);
     arguments.parse(argc, argv);
     if (arguments.wantsHelp()) { std::fputs(arguments.help().c_str(), stdout); return SDL_APP_SUCCESS; }
     app->frames = arguments.frames;
@@ -86,7 +85,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
       if (const char *value = std::getenv("SNOW_DIR"); value && *value) directory = value;
     if (directory.empty()) directory = DefaultDirectory();
     if (directory.empty()) directory = Kotonoha::GameLauncher::rememberedPath(settingsPath, "dir.txt");
-    if (launcher) {
+    if (options.launcher) {
       app->launcher = std::make_unique<SnowRadish::SnowLauncher>(settingsPath, directory);
       app->launcher->open();
     } else {

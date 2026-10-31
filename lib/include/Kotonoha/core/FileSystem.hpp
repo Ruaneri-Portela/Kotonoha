@@ -3,6 +3,7 @@
 #include <filesystem>
 #include <optional>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 namespace Kotonoha {
@@ -24,22 +25,29 @@ class FileResolver {
 public:
   static std::vector<std::filesystem::path> roots(const std::string &game = {});
   // First existing <root>/relative; absolute paths are returned when present.
-  static std::optional<std::filesystem::path> find(const std::filesystem::path &relative,
-                                                   const std::string &game = {});
+  static std::optional<std::filesystem::path>
+  find(const std::filesystem::path &relative, const std::string &game = {});
   // Like find() but throws, listing every searched location.
   static std::filesystem::path resolve(const std::filesystem::path &relative,
                                        const std::string &game = {});
   // assets/<relative> (engine) and game-assets/<relative> (game data; also
   // games/<game>/game-assets/<relative> for source-tree runs).
-  static std::optional<std::filesystem::path> findEngineAsset(const std::filesystem::path &relative);
-  static std::filesystem::path engineAsset(const std::filesystem::path &relative);
-  static std::optional<std::filesystem::path> findGameAsset(const std::string &game,
-                                                            const std::filesystem::path &relative);
+  static std::optional<std::filesystem::path>
+  findEngineAsset(const std::filesystem::path &relative);
+  static std::filesystem::path
+  engineAsset(const std::filesystem::path &relative);
+  static std::optional<std::filesystem::path>
+  findGameAsset(const std::string &game, const std::filesystem::path &relative);
   static std::filesystem::path gameAsset(const std::string &game,
                                          const std::filesystem::path &relative);
   // Engine fonts live only in assets/fonts.
   static std::filesystem::path fontDirectory();
-  static std::filesystem::path font(const std::string &file = "NotoSansJP-Regular.ttf");
+  static std::filesystem::path
+  font(const std::string &file = "NotoSansJP-Regular.ttf");
+  static std::vector<uint8_t> loadFontMemory(const std::string &file = {});
+  static const std::unordered_map<std::string, std::vector<uint8_t>> &
+  getFontMap();
+  static const std::vector<uint8_t> *getFontBytes(const std::string &name);
 };
 
 void writeTextFileAtomically(const std::string &path,

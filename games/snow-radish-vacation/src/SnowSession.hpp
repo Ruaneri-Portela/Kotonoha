@@ -234,6 +234,7 @@ private:
   int frame_ = 0, sec_ = 0, fade_ = 0, logoState_ = 0;
 
   // text
+  std::vector<uint8_t> fontData_;
   TTF_Font *font_ = nullptr;
   std::map<int, TTF_Font *> sizedFonts_;
   std::map<std::string, SDL_Texture *> texts_;

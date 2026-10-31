@@ -2,7 +2,6 @@
 
 #include <Kotonoha/core/SDL.hpp>
 
-#include <cstdint>
 #include <filesystem>
 #include <string>
 #include <unordered_map>
@@ -52,8 +51,8 @@ public:
   // backend is enabled, scales above 1 go through it (Upscaling::scaled);
   // otherwise (or with nullptr) the picture is scaled linearly. Cached per
   // renderer, id and scale.
-  SDL_Texture &texture(RendererRef renderer, const std::string &id,
-                       float scale, Upscaling *upscaling);
+  SDL_Texture &texture(RendererRef renderer, const std::string &id, float scale,
+                       Upscaling *upscaling);
   // CPU copy of the same scaled picture (RGBA32), not cached.
   SurfacePtr surface(RendererRef renderer, const std::string &id, float scale,
                      Upscaling *upscaling) const;

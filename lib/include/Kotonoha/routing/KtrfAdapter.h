@@ -48,15 +48,14 @@ typedef struct Kotonoha_KtrfAdvanceResult {
   Kotonoha_KtrfNodeView scene;
 } Kotonoha_KtrfAdvanceResult;
 
-typedef int (*Kotonoha_EndingFn)(
-    int64_t ending_code, void *userdata, Kotonoha_KtrfError *error);
+typedef int (*Kotonoha_EndingFn)(int64_t ending_code, void *userdata,
+                                 Kotonoha_KtrfError *error);
 
-typedef int (*Kotonoha_HookFn)(
-    const char *symbol, size_t symbol_length, void *userdata,
-    Kotonoha_KtrfError *error);
+typedef int (*Kotonoha_HookFn)(const char *symbol, size_t symbol_length,
+                               void *userdata, Kotonoha_KtrfError *error);
 
-typedef int (*Kotonoha_EffectAppliedFn)(
-    uint32_t effect_index, void *userdata, Kotonoha_KtrfError *error);
+typedef int (*Kotonoha_EffectAppliedFn)(uint32_t effect_index, void *userdata,
+                                        Kotonoha_KtrfError *error);
 
 typedef struct Kotonoha_KtrfCallbacks {
   Kotonoha_EndingFn register_ending;
@@ -74,41 +73,38 @@ typedef struct Kotonoha_KtrfAdapter {
   uint32_t max_dispatch_hops;
 } Kotonoha_KtrfAdapter;
 
-void Kotonoha_KtrfAdapterInit(
-    Kotonoha_KtrfAdapter *adapter);
-void Kotonoha_KtrfAdapterClean(
-    Kotonoha_KtrfAdapter *adapter);
+void Kotonoha_KtrfAdapterInit(Kotonoha_KtrfAdapter *adapter);
+void Kotonoha_KtrfAdapterClean(Kotonoha_KtrfAdapter *adapter);
 
-int Kotonoha_KtrfAdapterBind(
-    Kotonoha_KtrfAdapter *adapter,
-    const Kotonoha_KtrfDocument *document,
-    const Kotonoha_KtrfProfileConfig *profile,
-    const Kotonoha_KtrfCallbacks *callbacks,
-    Kotonoha_KtrfError *error);
+int Kotonoha_KtrfAdapterBind(Kotonoha_KtrfAdapter *adapter,
+                             const Kotonoha_KtrfDocument *document,
+                             const Kotonoha_KtrfProfileConfig *profile,
+                             const Kotonoha_KtrfCallbacks *callbacks,
+                             Kotonoha_KtrfError *error);
 
-int Kotonoha_KtrfGetNodeView(
-    const Kotonoha_KtrfAdapter *adapter, uint32_t node_index,
-    Kotonoha_KtrfNodeView *out, Kotonoha_KtrfError *error);
+int Kotonoha_KtrfGetNodeView(const Kotonoha_KtrfAdapter *adapter,
+                             uint32_t node_index, Kotonoha_KtrfNodeView *out,
+                             Kotonoha_KtrfError *error);
 
-int Kotonoha_KtrfCurrentNodeView(
-    const Kotonoha_KtrfAdapter *adapter,
-    Kotonoha_KtrfNodeView *out, Kotonoha_KtrfError *error);
+int Kotonoha_KtrfCurrentNodeView(const Kotonoha_KtrfAdapter *adapter,
+                                 Kotonoha_KtrfNodeView *out,
+                                 Kotonoha_KtrfError *error);
 
-int Kotonoha_KtrfResetNewGame(
-    Kotonoha_KtrfAdapter *adapter,
-    Kotonoha_KtrfNodeView *scene, Kotonoha_KtrfError *error);
+int Kotonoha_KtrfResetNewGame(Kotonoha_KtrfAdapter *adapter,
+                              Kotonoha_KtrfNodeView *scene,
+                              Kotonoha_KtrfError *error);
 
-int Kotonoha_KtrfCommitChoice(
-    Kotonoha_KtrfAdapter *adapter, int64_t value, int *accepted,
-    Kotonoha_KtrfError *error);
+int Kotonoha_KtrfCommitChoice(Kotonoha_KtrfAdapter *adapter, int64_t value,
+                              int *accepted, Kotonoha_KtrfError *error);
 
-int Kotonoha_KtrfAdvance(
-    Kotonoha_KtrfAdapter *adapter, const char *trigger,
-    Kotonoha_KtrfAdvanceResult *out, Kotonoha_KtrfError *error);
+int Kotonoha_KtrfAdvance(Kotonoha_KtrfAdapter *adapter, const char *trigger,
+                         Kotonoha_KtrfAdvanceResult *out,
+                         Kotonoha_KtrfError *error);
 
-int Kotonoha_KtrfAdvanceToScene(
-    Kotonoha_KtrfAdapter *adapter, const char *trigger,
-    Kotonoha_KtrfAdvanceResult *out, Kotonoha_KtrfError *error);
+int Kotonoha_KtrfAdvanceToScene(Kotonoha_KtrfAdapter *adapter,
+                                const char *trigger,
+                                Kotonoha_KtrfAdvanceResult *out,
+                                Kotonoha_KtrfError *error);
 
 #ifdef __cplusplus
 }

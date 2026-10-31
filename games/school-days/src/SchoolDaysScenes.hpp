@@ -32,7 +32,7 @@ public:
 class Subtitles final : public Kotonoha::SubtitleScene {
 public:
   using SubtitleScene::SubtitleScene;
-  void bind(const Kotonoha_orsData &script);
+  void bind(const Kotonoha_orsData &script, int nodeId = -1);
 };
 
 class GameScene final : public Kotonoha::Scene {

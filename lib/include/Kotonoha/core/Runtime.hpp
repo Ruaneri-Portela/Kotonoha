@@ -9,7 +9,6 @@
 #include <optional>
 #include <stdexcept>
 #include <string>
-#include <utility>
 #include <vector>
 
 namespace Kotonoha {
@@ -82,7 +81,9 @@ public:
   // label, route...), shown as the node by the debug overlay and MCP. Empty
   // means the engine VNManager node is used.
   virtual std::string debugNode() const { return {}; }
-  virtual std::optional<double> debugNodeSeconds() const { return std::nullopt; }
+  virtual std::optional<double> debugNodeSeconds() const {
+    return std::nullopt;
+  }
   virtual std::vector<DebugNode> debugNodes() const { return {}; }
   virtual void debugJumpToNode(const std::string &) {
     throw std::runtime_error("This runtime does not support node jumps");

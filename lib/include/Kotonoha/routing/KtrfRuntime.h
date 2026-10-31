@@ -41,9 +41,10 @@ typedef struct Kotonoha_KtrfRuntimeValue {
 struct Kotonoha_KtrfRuntime;
 typedef struct Kotonoha_KtrfRuntime Kotonoha_KtrfRuntime;
 
-typedef int (*Kotonoha_KtrfRegisterEndingFn)(
-    Kotonoha_KtrfRuntime *runtime, uint32_t ending_index, void *userdata,
-    Kotonoha_KtrfError *error);
+typedef int (*Kotonoha_KtrfRegisterEndingFn)(Kotonoha_KtrfRuntime *runtime,
+                                             uint32_t ending_index,
+                                             void *userdata,
+                                             Kotonoha_KtrfError *error);
 
 typedef int (*Kotonoha_KtrfCallHookFn)(
     Kotonoha_KtrfRuntime *runtime, uint32_t hook_index,

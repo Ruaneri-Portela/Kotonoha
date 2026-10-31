@@ -2,6 +2,7 @@
 
 #include <Kotonoha/core/AssetProvider.hpp>
 #include <Kotonoha/core/Clock.hpp>
+#include <Kotonoha/core/Config.hpp>
 #include <Kotonoha/core/Log.hpp>
 #include <Kotonoha/core/Runtime.hpp>
 #include <Kotonoha/core/SDL.hpp>
@@ -32,6 +33,7 @@ struct EngineOptions {
   std::string logPath;
   std::string rendererOverride;
   std::string subtitleStylePath;
+  bool launcher = defaultLauncherEnabled();
   // Asset source; defaults to plain files relative to the working directory.
   std::shared_ptr<AssetProvider> assets;
 };
@@ -60,6 +62,8 @@ private:
   bool agentPaused = false;
   Clock frameClock;
   Translation translation;
+  float edgeSwipeStartX = -1;
+  bool edgeSwipeActive = false;
   void configureRenderSpace(RenderSpace space);
   void applyWindowSettings(const EngineSettings &value);
 
@@ -74,6 +78,7 @@ public:
   RendererRef GetRenderer() { return *renderer; }
   SDL_FPoint screenSize() const;
   const Translation &GetTranslation() const { return translation; }
+  Translation &GetTranslation() { return translation; }
   // Writes every original text (runtime routes + loaded script nodes) to a
   // translation JSON, keeping the translations already loaded.
   void dumpTranslation(const std::string &path);
@@ -87,7 +92,9 @@ public:
   AssetProvider &GetAssets() { return *assets; }
   void SetAssetProvider(std::shared_ptr<AssetProvider> provider);
   const EngineSettings &GetSettings() const { return settings; }
-  const std::optional<AssStyle> &GetSubtitleStyle() const { return subtitleStyle; }
+  const std::optional<AssStyle> &GetSubtitleStyle() const {
+    return subtitleStyle;
+  }
   void applySettings(const EngineSettings &value, bool persist = true);
   void saveSettings() const;
   void openSettings();

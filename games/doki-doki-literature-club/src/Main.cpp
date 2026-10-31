@@ -71,15 +71,15 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char** argv) {
         auto& options = app->options;
         options.persistSettings = true;
         std::string directory, dumpPath;
-        bool launcher = false;
+
         Kotonoha::CommandLine arguments("DokiDoki", options);
         arguments.option("--ddlc", "DIRECTORY", "DDLC directory containing scripts.rpa", directory);
         arguments.option("--dump-translation", "FILE", "Export original texts by route and exit", dumpPath);
-        arguments.flag("--launcher", "Open the DDLC selection launcher", launcher);
+        arguments.flag("--launcher", "Open the DDLC selection launcher", options.launcher);
         arguments.parse(argc, argv);
         if (arguments.wantsHelp()) { std::fputs(arguments.help().c_str(), stdout); return SDL_APP_SUCCESS; }
         app->frames = arguments.frames;
-        if (launcher && !dumpPath.empty())
+        if (options.launcher && !dumpPath.empty())
             throw std::invalid_argument("--dump-translation cannot be combined with --launcher");
         if (options.enableMCP && options.settingsPath.empty()) options.persistSettings = false;
         if (options.settingsPath.empty() && options.persistSettings)
@@ -89,7 +89,7 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char** argv) {
             if (const char* value = std::getenv("DDLC_DIR"); value && *value) directory = value;
         if (directory.empty()) directory = defaultDirectory();
         if (directory.empty()) directory = Kotonoha::GameLauncher::rememberedPath(settingsPath, "dir.txt");
-        if (launcher) {
+        if (options.launcher) {
             app->launcher = std::make_unique<Ddlc::GameLauncher>(settingsPath, directory);
             app->launcher->open();
         } else {

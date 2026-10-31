@@ -222,9 +222,8 @@ int Kotonoha_KtrfGetVariable(const Kotonoha_KtrfDocument *document,
 int Kotonoha_KtrfGetResource(const Kotonoha_KtrfDocument *document,
                              uint32_t index, Kotonoha_KtrfResource *out,
                              Kotonoha_KtrfError *error);
-int Kotonoha_KtrfGetHook(const Kotonoha_KtrfDocument *document,
-                         uint32_t index, Kotonoha_KtrfHook *out,
-                         Kotonoha_KtrfError *error);
+int Kotonoha_KtrfGetHook(const Kotonoha_KtrfDocument *document, uint32_t index,
+                         Kotonoha_KtrfHook *out, Kotonoha_KtrfError *error);
 int Kotonoha_KtrfGetEnding(const Kotonoha_KtrfDocument *document,
                            uint32_t index, Kotonoha_KtrfEnding *out,
                            Kotonoha_KtrfError *error);
@@ -267,9 +266,8 @@ int Kotonoha_KtrfGetChoiceTimeoutEffect(const Kotonoha_KtrfDocument *document,
                                         uint32_t local_effect_index,
                                         uint32_t *effect_index,
                                         Kotonoha_KtrfError *error);
-int Kotonoha_KtrfGetNode(const Kotonoha_KtrfDocument *document,
-                         uint32_t index, Kotonoha_KtrfNode *out,
-                         Kotonoha_KtrfError *error);
+int Kotonoha_KtrfGetNode(const Kotonoha_KtrfDocument *document, uint32_t index,
+                         Kotonoha_KtrfNode *out, Kotonoha_KtrfError *error);
 int Kotonoha_KtrfGetNodeResource(const Kotonoha_KtrfDocument *document,
                                  uint32_t node_index,
                                  uint32_t local_resource_index,
