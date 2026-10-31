@@ -1,9 +1,9 @@
-[submodule "third_party/imgui"]
-	path = third_party/imgui
-	url = https://github.com/ocornut/imgui.git
-[submodule "third_party/sdl3"]
-	path = third_party/sdl3
+[submodule "lib/submodules/SDL3"]
+	path = lib/submodules/SDL3
 	url = https://github.com/libsdl-org/SDL.git
-[submodule "third_party/sdl3_ttf"]
-	path = third_party/sdl3_ttf
+[submodule "lib/submodules/SDL-ttf"]
+	path = lib/submodules/SDL-ttf
 	url = https://github.com/libsdl-org/SDL_ttf.git
+[submodule "lib/submodules/imgui"]
+	path = lib/submodules/imgui
+	url = https://github.com/ocornut/imgui.git
