@@ -1,5 +1,7 @@
+#include <Kotonoha/componentes/InGameMenu.hpp>
 #include <Kotonoha/componentes/SettingsMenu.hpp>
 #include <Kotonoha/componentes/VNManager.hpp>
+#include <Kotonoha/core/Config.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/FileSystem.hpp>
 #include <Kotonoha/core/UI.hpp>
@@ -412,9 +414,64 @@ SDL_AppResult Engine::Event(EventPtr event) {
   SDL_Event logical = *event;
   if (!SDL_ConvertEventToRenderCoordinates(renderer.get(), &logical))
     throw std::runtime_error(SDL_GetError());
+  const SDL_Point view = runtime.viewport();
+  const auto frame = UI::designFrame(view);
+  SDL_Event framed = UI::toFrame(logical, frame);
+
+  // Manual mobile menu button click detection
+  const SDL_FRect mobileMenuButton{16, 16, 76, 36};
+  if (isMobilePlatform() && runtime.GetState() == GameState::Gameplay && !settingsMenu->isOpen() && !GetInGameMenuRuntime(*this).IsOpen()) {
+    if (logical.type == SDL_EVENT_MOUSE_BUTTON_DOWN && logical.button.button == SDL_BUTTON_LEFT) {
+      const SDL_FPoint pt{framed.button.x, framed.button.y};
+      if (SDL_PointInRectFloat(&pt, &mobileMenuButton)) {
+        GetInGameMenuRuntime(*this).open();
+        return SDL_APP_CONTINUE;
+      }
+    } else if (logical.type == SDL_EVENT_FINGER_DOWN) {
+      const SDL_FPoint pt{logical.tfinger.x * view.x, logical.tfinger.y * view.y};
+      const SDL_FPoint designPt{(pt.x - frame.x) / frame.scale, (pt.y - frame.y) / frame.scale};
+      if (SDL_PointInRectFloat(&designPt, &mobileMenuButton)) {
+        GetInGameMenuRuntime(*this).open();
+        return SDL_APP_CONTINUE;
+      }
+    }
+  }
+
+  // Edge swipe detection from left edge (x < 40)
+  if (isMobilePlatform()) {
+    if (logical.type == SDL_EVENT_MOUSE_BUTTON_DOWN) {
+      if (logical.button.x < 40) {
+        edgeSwipeStartX = logical.button.x;
+        edgeSwipeActive = true;
+      }
+    } else if (logical.type == SDL_EVENT_MOUSE_MOTION && edgeSwipeActive) {
+      if (logical.motion.x > edgeSwipeStartX + 60) {
+        edgeSwipeActive = false;
+        edgeSwipeStartX = -1;
+        GetInGameMenuRuntime(*this).open();
+      }
+    } else if (logical.type == SDL_EVENT_MOUSE_BUTTON_UP) {
+      edgeSwipeActive = false;
+      edgeSwipeStartX = -1;
+    } else if (logical.type == SDL_EVENT_FINGER_DOWN) {
+      if (logical.tfinger.x * view.x < 40) {
+        edgeSwipeStartX = logical.tfinger.x * view.x;
+        edgeSwipeActive = true;
+      }
+    } else if (logical.type == SDL_EVENT_FINGER_MOTION && edgeSwipeActive) {
+      if (logical.tfinger.x * view.x > edgeSwipeStartX + 60) {
+        edgeSwipeActive = false;
+        edgeSwipeStartX = -1;
+        GetInGameMenuRuntime(*this).open();
+      }
+    } else if (logical.type == SDL_EVENT_FINGER_UP) {
+      edgeSwipeActive = false;
+      edgeSwipeStartX = -1;
+    }
+  }
+
   const bool mouseButton = logical.type == SDL_EVENT_MOUSE_BUTTON_DOWN ||
                            logical.type == SDL_EVENT_MOUSE_BUTTON_UP;
-  const SDL_Point view = runtime.viewport();
   const bool outsideNovel =
       mouseButton && (logical.button.x < 0 || logical.button.x >= view.x ||
                       logical.button.y < 0 || logical.button.y >= view.y);
@@ -458,6 +515,14 @@ SDL_AppResult Engine::Iterate() {
   }
   debug->renderHUD(*renderer);
   debug->renderMenu(*renderer);
+  if (isMobilePlatform() && runtime.GetState() == GameState::Gameplay && !settingsMenu->isOpen() && !GetInGameMenuRuntime(*this).IsOpen()) {
+    configureRenderSpace(RenderSpace::Novel);
+    {
+      UI::FrameScope scope(*renderer, design);
+      ui->button(*renderer, {16, 16, 76, 36}, "Menu");
+    }
+    configureRenderSpace(RenderSpace::Screen);
+  }
   SDL_RenderPresent(renderer.get());
   configureRenderSpace(RenderSpace::Novel);
   return SDL_APP_CONTINUE;

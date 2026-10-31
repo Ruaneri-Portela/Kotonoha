@@ -54,8 +54,7 @@ int Kotonoha_KtrfRouterCurrentChoiceCount(const Kotonoha_KtrfRouter *router,
                                           Kotonoha_KtrfError *error);
 
 int Kotonoha_KtrfRouterCurrentChoiceAt(const Kotonoha_KtrfRouter *router,
-                                       uint32_t ordinal,
-                                       uint32_t *choice_index,
+                                       uint32_t ordinal, uint32_t *choice_index,
                                        Kotonoha_KtrfError *error);
 
 // Read-only validation for persisted/replayed choice values.  This checks the
@@ -66,21 +65,23 @@ int Kotonoha_KtrfRouterChoiceValueIsValid(
     const Kotonoha_KtrfRuntimeValue *value, int *valid,
     Kotonoha_KtrfError *error);
 
-int Kotonoha_KtrfRouterCommitChoiceValue(
-    Kotonoha_KtrfRouter *router, uint32_t choice_index,
-    const Kotonoha_KtrfRuntimeValue *value, int *accepted,
-    Kotonoha_KtrfError *error);
+int Kotonoha_KtrfRouterCommitChoiceValue(Kotonoha_KtrfRouter *router,
+                                         uint32_t choice_index,
+                                         const Kotonoha_KtrfRuntimeValue *value,
+                                         int *accepted,
+                                         Kotonoha_KtrfError *error);
 
-int Kotonoha_KtrfRouterCommitChoiceOption(
-    Kotonoha_KtrfRouter *router, uint32_t choice_index,
-    uint32_t local_option_index, int *accepted, Kotonoha_KtrfError *error);
+int Kotonoha_KtrfRouterCommitChoiceOption(Kotonoha_KtrfRouter *router,
+                                          uint32_t choice_index,
+                                          uint32_t local_option_index,
+                                          int *accepted,
+                                          Kotonoha_KtrfError *error);
 
-int Kotonoha_KtrfRouterCommitChoiceTimeout(
-    Kotonoha_KtrfRouter *router, uint32_t choice_index, int *accepted,
-    Kotonoha_KtrfError *error);
+int Kotonoha_KtrfRouterCommitChoiceTimeout(Kotonoha_KtrfRouter *router,
+                                           uint32_t choice_index, int *accepted,
+                                           Kotonoha_KtrfError *error);
 
-int Kotonoha_KtrfRouterTrigger(Kotonoha_KtrfRouter *router,
-                               const char *trigger,
+int Kotonoha_KtrfRouterTrigger(Kotonoha_KtrfRouter *router, const char *trigger,
                                Kotonoha_KtrfRouteResult *out,
                                Kotonoha_KtrfError *error);
 

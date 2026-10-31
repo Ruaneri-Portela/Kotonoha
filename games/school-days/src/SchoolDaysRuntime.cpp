@@ -2,6 +2,7 @@
 
 #include <Kotonoha/SchoolDaysBgmEventState.hpp>
 #include <Kotonoha/SchoolDaysMovieEventState.hpp>
+#include <Kotonoha/parsers/Ors.h>
 #include <Kotonoha/componentes/FadeScene.hpp>
 #include <Kotonoha/componentes/SettingsMenu.hpp>
 #include <Kotonoha/componentes/SplashScreen.hpp>
@@ -252,7 +253,7 @@ void Runtime::openScene(const Kotonoha::SchoolDaysKtrfScene &next, bool restoreC
   scene = next;
   script = presentation->data;
   timeline.Bind(&script);
-  if (subtitles) subtitles->bind(script);
+  if (subtitles) subtitles->bind(script, scene.nodeIndex);
   if (fadeScene) fadeScene->clear();
   // Native ScriptChange truncates abandoned-branch BackLog messages.
   if (!scene.sceneKey.empty() && scene.sceneKey != backlogScene) {
@@ -979,9 +980,13 @@ void Runtime::openBacklog() {
   closePanels();
   std::string failure;
   TtfFont font;
+  std::vector<uint8_t> fontData;
   try {
-    font.font = TTF_OpenFont(Kotonoha::FileResolver::font(engine->GetSettings().fontPath).string().c_str(),
-                             Kotonoha::SchoolDaysSubtitleTypography::PointSize);
+    fontData = Kotonoha::FileResolver::loadFontMemory(engine->GetSettings().fontPath);
+    if (!fontData.empty()) {
+      SDL_IOStream *io = SDL_IOFromConstMem(fontData.data(), fontData.size());
+      if (io) font.font = TTF_OpenFontIO(io, true, Kotonoha::SchoolDaysSubtitleTypography::PointSize);
+    }
   } catch (const std::exception &error) { failure = error.what(); }
   // The authenticated retail text layout is the English horizontal BackLog.
   if (profile.useEnglish && font.font &&
@@ -1132,6 +1137,44 @@ std::vector<Kotonoha::DebugNode> Runtime::debugNodes() const {
     nodes.push_back(std::move(output));
   }
   return nodes;
+}
+
+Kotonoha::Translation::SourceTexts Runtime::translationSources() const {
+  Kotonoha::Translation::SourceTexts texts;
+  const auto *document = bridge.Session().Adapter()->document;
+  if (!document) return texts;
+  const auto *section = Kotonoha_KtrfFindSection(document, "NODE");
+  Kotonoha_KtrfError error{};
+  if (!section) return texts;
+  for (uint32_t i = 0; i < section->item_count; ++i) {
+    Kotonoha::SchoolDaysKtrfScene resolved;
+    if (bridge.Session().ResolveSceneNode(i, &resolved, &error)) {
+      std::vector<std::string> nodeTexts;
+      if (!resolved.orsPath.empty()) {
+        try {
+          auto bytes = assets->read(resolved.orsPath);
+          Kotonoha_orsData orsScript = Kotonoha_OrsParserBytes(bytes.data(), bytes.size());
+          if (orsScript.size > 0) {
+            for (auto *evt = orsScript.data; evt; evt = evt->next) {
+              if (evt->command == PRINT_TEXT && evt->data.print_text && evt->data.print_text->text) {
+                if (*evt->data.print_text->text)
+                  nodeTexts.push_back(evt->data.print_text->text);
+              } else if (evt->command == SetSELECT && evt->data.set_select) {
+                for (Uint64 s = 0; s < evt->data.set_select->size; ++s) {
+                  if (evt->data.set_select->options[s] && *evt->data.set_select->options[s])
+                    nodeTexts.push_back(evt->data.set_select->options[s]);
+                }
+              }
+            }
+            Kotonoha_OrsClean(&orsScript);
+          }
+        } catch (...) {}
+      }
+      if (!nodeTexts.empty())
+        texts[int(i)] = std::move(nodeTexts);
+    }
+  }
+  return texts;
 }
 
 void Runtime::debugJumpToNode(const std::string &id) {

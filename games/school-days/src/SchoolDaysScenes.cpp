@@ -109,14 +109,17 @@ void LogoSplash::render(Kotonoha::RendererRef renderer, float) {
   SDL_SetTextureAlphaModFloat(texture, 1.0f);
 }
 
-void Subtitles::bind(const Kotonoha_orsData &script) {
+void Subtitles::bind(const Kotonoha_orsData &script, int nodeId) {
   std::vector<Kotonoha::SubtitleCue> cues;
+  const auto &translation = engine.GetTranslation();
   for (auto *event = script.data; event; event = event->next)
     if (event->command == PRINT_TEXT && event->data.print_text &&
         event->data.print_text->text && event->endTick > event->startTick) {
       const auto &text = *event->data.print_text;
+      std::string original = text.text ? text.text : "";
+      std::string translated = translation.text(nodeId, original);
       cues.push_back({event->startTick / 24.0, event->endTick / 24.0,
-          text.text, text.character ? text.character : ""});
+          translated, text.character ? text.character : ""});
     }
   setCues(cues, 46);
   setPosition(0);
@@ -270,7 +273,8 @@ void GameScene::render(Kotonoha::RendererRef renderer, float) {
     const auto area = choiceArea(i, int(visible.size()));
     ui.panel(renderer, area, selectedChoice == i ? SDL_Color{56, 70, 105, 175}
                                                 : SDL_Color{10, 16, 28, 110});
-    const auto &text = runtime.choice->data.set_select->options[visible[i]];
+    const auto &rawText = runtime.choice->data.set_select->options[visible[i]];
+    const std::string text = engine.GetTranslation().text(runtime.scene.nodeIndex, rawText ? rawText : "");
     const std::string label = std::to_string(i + 1) + ". " + text;
     const float height = ui.textHeight(renderer, label, area.w - 48);
     ui.text(renderer, label, area.x + 24, area.y + (area.h - height) / 2, area.w - 48);

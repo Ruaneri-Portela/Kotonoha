@@ -17,7 +17,8 @@ struct UpscaleSettings {
   UpscaleBackend backend = UpscaleBackend::Auto;
   UpscalePreset preset = UpscalePreset::Anime4K;
   float factor = 1;
-  std::string shaderFiles; // Ordered newline-separated paths; legacy ':' lists accepted.
+  std::string shaderFiles; // Ordered newline-separated paths; legacy ':' lists
+                           // accepted.
   bool enabled() const;
   void validate() const;
 };

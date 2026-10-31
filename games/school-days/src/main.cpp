@@ -53,10 +53,12 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
   SDL_SetAppMetadata("School Days HQ", "0.1.0", "me.hirameki.kotonoha.schooldays");
   try {
     auto app = std::make_unique<App>();
-    bool launcher = false;
     std::string directory;
     app->options.persistSettings = true;
-    Kotonoha::CommandLine arguments("SchoolDays", app->options);
+
+    Kotonoha::EngineOptions &options = app->options;
+
+    Kotonoha::CommandLine arguments("SchoolDays", options);
     arguments.option("--school-days", "DIRECTORY", "Retail Packs or extracted game directory", directory);
     arguments.alias("--school-days", "--assets");
     arguments.option("--ktrf", "FILE", "School Days routing graph", app->route);
@@ -64,7 +66,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
     arguments.option("--documents", "DIRECTORY", "Save-game and GlobalFlag directory", app->documents);
     arguments.option("--node", "ID", "Start at an index or scene key", app->startNode);
     arguments.option("--dump-ktrf", "FILE", "Export the active routing graph", app->dump);
-    arguments.flag("--launcher", "Open the game/data selection launcher", launcher);
+    arguments.flag("--launcher", "Open the game/data selection launcher", options.launcher);
     arguments.parse(argc, argv);
     if (arguments.wantsHelp()) { std::fputs(arguments.help().c_str(), stdout); return SDL_APP_SUCCESS; }
     app->frames = arguments.frames;
@@ -86,7 +88,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
       if (const char *env = std::getenv("SCHOOL_DAYS_DIR")) directory = env;
     if (directory.empty()) directory = SchoolDays::Assets::defaultDirectory().string();
     if (directory.empty()) directory = Kotonoha::GameLauncher::rememberedPath(settings, "dir.txt");
-    if (launcher) {
+    if (options.launcher) {
       app->launcher = std::make_unique<SchoolDays::Launcher>(settings, directory, app->route);
       app->launcher->open();
     } else {

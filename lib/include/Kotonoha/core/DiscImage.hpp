@@ -2,7 +2,6 @@
 
 #include <Kotonoha/core/AssetProvider.hpp>
 
-#include <cstdint>
 #include <filesystem>
 #include <memory>
 #include <mutex>

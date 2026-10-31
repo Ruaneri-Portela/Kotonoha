@@ -96,11 +96,13 @@ ZeroSession::ZeroSession(Kotonoha::Engine &engine, std::shared_ptr<DiscAssetProv
     for (std::string line; std::getline(in, line);)
       if (!line.empty()) read_.insert(line);
   }
-  const std::string customFont = engine_.GetSettings().fontPath;
-  const std::string fontPath = !customFont.empty() ? Kotonoha::FileResolver::font(customFont).string() : FindFont();
-  if (!fontPath.empty()) font_ = TTF_OpenFont(fontPath.c_str(), 24.0f);
-  if (font_) SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "[zero] font %s", fontPath.c_str());
-  else SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "[zero] no Japanese font found (set ZERO_FONT)");
+  fontData_ = Kotonoha::FileResolver::loadFontMemory(engine_.GetSettings().fontPath);
+  if (!fontData_.empty()) {
+    SDL_IOStream *io = SDL_IOFromConstMem(fontData_.data(), fontData_.size());
+    if (io) font_ = TTF_OpenFontIO(io, true, 24.0f);
+  }
+  if (font_) SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "[zero] loaded font from memory (%zu bytes)", fontData_.size());
+  else SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "[zero] no font found in memory");
   ApplyVolumes();
 }
 

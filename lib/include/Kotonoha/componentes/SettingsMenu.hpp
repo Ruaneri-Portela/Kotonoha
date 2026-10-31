@@ -6,7 +6,9 @@
 
 namespace Kotonoha {
 class Engine;
-namespace ImGuiTheme { class ShaderFilePicker; }
+namespace ImGuiTheme {
+class ShaderFilePicker;
+}
 
 class SettingsMenu {
   Engine &engine;

@@ -30,37 +30,28 @@ void eraseLastCharacter(std::string &text) {
 }
 
 UI::UI(const std::string &fontPath) {
-  if (!TTF_Init())
-    throw std::runtime_error(SDL_GetError());
-  std::string path;
   try {
-    if (!fontPath.empty()) {
-      try {
-        path = FileResolver::font(fontPath).string();
-        font.reset(TTF_OpenFont(path.c_str(), 24));
-      } catch (const std::exception &error) {
-        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "UI custom font '%s': %s", fontPath.c_str(), error.what());
+    fontData = FileResolver::loadFontMemory(fontPath);
+    if (fontData.empty()) {
+      fontData = FileResolver::loadFontMemory("");
+    }
+    if (!fontData.empty()) {
+      SDL_IOStream *io = SDL_IOFromConstMem(fontData.data(), fontData.size());
+      if (io) {
+        font.reset(TTF_OpenFontIO(io, true, 24));
       }
     }
-    if (!font) {
-      path = FileResolver::font().string();
-      font.reset(TTF_OpenFont(path.c_str(), 24));
-    }
-  } catch (...) {
-    TTF_Quit();
-    throw;
+  } catch (const std::exception &error) {
+    SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "UI font memory load error: %s", error.what());
   }
   if (!font) {
-    const std::string error = "Cannot open font " + path + ": " + SDL_GetError();
-    TTF_Quit();
-    throw std::runtime_error(error);
+    throw std::runtime_error(std::string("Cannot open font via memory: ") + SDL_GetError());
   }
 }
 
 UI::~UI() {
   cache.clear();
   font.reset();
-  TTF_Quit();
 }
 
 void UI::setPixelDensity(float value) {

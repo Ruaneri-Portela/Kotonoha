@@ -7,7 +7,6 @@
 #include <Kotonoha/core/Scene.hpp>
 #include <Kotonoha/script/VNScript.hpp>
 
-#include <functional>
 #include <unordered_map>
 #include <vector>
 

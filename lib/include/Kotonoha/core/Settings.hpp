@@ -1,16 +1,15 @@
 #pragma once
 
+#include <Kotonoha/core/Config.hpp>
 #include <Kotonoha/media/upscaling/Upscaler.hpp>
 #include <string>
 
 namespace Kotonoha {
 
-enum class WindowMode { Windowed, Borderless, Exclusive };
-
 struct EngineSettings {
   int width = 1280, height = 720;
   int display = 0;
-  WindowMode mode = WindowMode::Windowed;
+  WindowMode mode = defaultWindowMode();
   int fullscreenWidth = 0, fullscreenHeight = 0;
   float refreshRate = 0;
   bool resizable = true;

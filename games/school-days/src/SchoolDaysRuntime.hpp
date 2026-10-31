@@ -138,6 +138,7 @@ public:
   SDL_Point viewport() const override { return {1280, 720}; }
   std::string debugNode() const override;
   std::optional<double> debugNodeSeconds() const override { return elapsed; }
+  Kotonoha::Translation::SourceTexts translationSources() const override;
   std::vector<Kotonoha::DebugNode> debugNodes() const override;
   void debugJumpToNode(const std::string &id) override;
   bool hasCustomKtrf() const override { return true; }

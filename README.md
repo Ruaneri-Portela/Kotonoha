@@ -104,7 +104,7 @@ Prepare native dependencies before opening/building:
 
 ```sh
 "$VCPKG_ROOT/vcpkg" install --x-manifest-root="$PWD" \
-  --x-install-root="$PWD/vcpkg_installed" --triplet=arm64-ios
+  --x-install-root="$PWD/build/ios-deps/ios" --triplet=arm64-ios
 "$VCPKG_ROOT/vcpkg" install --x-manifest-root="$PWD" \
   --x-install-root="$PWD/build/ios-deps/simulator" --triplet=arm64-ios-simulator
 ```

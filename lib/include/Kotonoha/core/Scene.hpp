@@ -2,10 +2,6 @@
 
 #include "SDL.hpp"
 
-#include <functional>
-#include <string>
-#include <vector>
-
 namespace Kotonoha {
 
 class Engine;

@@ -534,6 +534,48 @@ void Launcher::drawAdvanced() {
         static_cast<SDL_LogPriority>(priority + SDL_LOG_PRIORITY_TRACE);
 }
 
+namespace {
+struct FontOption {
+  std::string filename;
+  std::string label;
+  bool isCJK = false;
+};
+
+std::vector<FontOption> getAvailableFonts() {
+  std::vector<FontOption> options;
+  try {
+    auto dir = FileResolver::fontDirectory();
+    std::error_code ec;
+    if (std::filesystem::exists(dir, ec)) {
+      for (const auto &entry : std::filesystem::directory_iterator(dir, ec)) {
+        if (entry.is_regular_file(ec)) {
+          auto ext = entry.path().extension().string();
+          std::string lower;
+          for (char c : ext) lower += static_cast<char>(std::tolower(c));
+          if (lower == ".ttf" || lower == ".otf" || lower == ".ttc") {
+            std::string name = entry.path().filename().string();
+            bool cjk = (name.find("JP") != std::string::npos ||
+                        name.find("Japanese") != std::string::npos ||
+                        name.find("CJK") != std::string::npos ||
+                        name.find("Gothic") != std::string::npos ||
+                        name.find("Mincho") != std::string::npos ||
+                        name.find("NotoSans") != std::string::npos);
+            std::string label = name + (cjk ? " [CJK / JP]" : " [Latin]");
+            options.push_back({name, label, cjk});
+          }
+        }
+      }
+    }
+  } catch (...) {}
+  std::sort(options.begin(), options.end(), [](const FontOption &a, const FontOption &b) {
+    if (a.isCJK != b.isCJK)
+      return a.isCJK > b.isCJK;
+    return a.filename < b.filename;
+  });
+  return options;
+}
+} // namespace
+
 void Launcher::drawTranslation() {
   ImGui::TextUnformatted("Translation dictionary (JSON)");
   const ImGuiStyle &style = ImGui::GetStyle();
@@ -556,7 +598,6 @@ void Launcher::drawTranslation() {
   ImGui::SameLine();
   if (ImGui::Button("Clear##translation")) {
     draft.translationPath.clear();
-    draft.fontPath.clear();
   }
 
   std::error_code ec;
@@ -578,40 +619,52 @@ void Launcher::drawTranslation() {
   ImGui::Separator();
   ImGui::Spacing();
 
-  if (draft.translationPath.empty()) {
-    ImGui::TextDisabled("Define a translation file above to choose a custom font.");
-  } else {
-    ImGui::TextUnformatted("Custom font file (TTF / OTF / TTC)");
-    ImGui::SetNextItemWidth(-buttonWidth - style.ItemSpacing.x);
-    ImGui::InputText("##fontPath", &draft.fontPath);
-    ImGui::SameLine();
-    if (ImGui::Button("Browse...##font")) {
-      const std::string initial =
-          draft.fontPath.empty()
-              ? std::string()
-              : std::filesystem::path(draft.fontPath).parent_path().string();
-      browseFile({{"Font files (*.ttf, *.otf, *.ttc)", "*.ttf;*.otf;*.ttc"}, {"All files (*)", "*"}},
-                 initial, [this](const std::string &path) { draft.fontPath = path; });
-    }
-    ImGui::SameLine();
-    if (ImGui::Button("Clear##font")) {
-      draft.fontPath.clear();
-    }
+  ImGui::TextUnformatted("Default Font (SDL_ttf, ImGui, libass)");
 
-    if (!draft.fontPath.empty()) {
-      const auto resolvedFont = FileResolver::font(draft.fontPath);
-      if (std::filesystem::exists(resolvedFont, ec)) {
-        ImGui::PushStyleColor(ImGuiCol_Text, ImGuiTheme::success());
-        ImGui::TextUnformatted("Font file found");
-        ImGui::PopStyleColor();
-      } else {
-        ImGui::PushStyleColor(ImGuiCol_Text, ImGuiTheme::warning());
-        ImGui::TextUnformatted("Font file not found");
-        ImGui::PopStyleColor();
-      }
-    } else {
-      ImGui::TextDisabled("Default font will be used");
+  auto fonts = getAvailableFonts();
+  if (draft.fontPath.empty() && !fonts.empty()) {
+    draft.fontPath = fonts.front().filename;
+  }
+
+  std::string currentLabel = draft.fontPath.empty() ? "Default (Noto Sans JP)" : draft.fontPath;
+  for (const auto &f : fonts) {
+    if (f.filename == draft.fontPath) {
+      currentLabel = f.label;
+      break;
     }
+  }
+
+  ImGui::SetNextItemWidth(-buttonWidth - style.ItemSpacing.x);
+  if (ImGui::BeginCombo("##fontCombo", currentLabel.c_str())) {
+    for (const auto &f : fonts) {
+      bool selected = (f.filename == draft.fontPath);
+      if (ImGui::Selectable(f.label.c_str(), selected)) {
+        draft.fontPath = f.filename;
+      }
+      if (selected) {
+        ImGui::SetItemDefaultFocus();
+      }
+    }
+    ImGui::EndCombo();
+  }
+  ImGui::SameLine();
+  if (ImGui::Button("Clear##font")) {
+    draft.fontPath.clear();
+  }
+
+  if (!draft.fontPath.empty()) {
+    const auto resolvedFont = FileResolver::font(draft.fontPath);
+    if (std::filesystem::exists(resolvedFont, ec)) {
+      ImGui::PushStyleColor(ImGuiCol_Text, ImGuiTheme::success());
+      ImGui::TextUnformatted("Font file found in available fonts");
+      ImGui::PopStyleColor();
+    } else {
+      ImGui::PushStyleColor(ImGuiCol_Text, ImGuiTheme::warning());
+      ImGui::TextUnformatted("Font file not found");
+      ImGui::PopStyleColor();
+    }
+  } else {
+    ImGui::TextDisabled("Default engine font (Noto Sans JP / CJK & Latin) will be used");
   }
 }
 

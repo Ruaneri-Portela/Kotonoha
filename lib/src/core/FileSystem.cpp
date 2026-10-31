@@ -1,9 +1,11 @@
 #include <Kotonoha/core/FileSystem.hpp>
+#include <Kotonoha/core/Config.hpp>
 
 #include <SDL3/SDL.h>
 #include <filesystem>
 #include <algorithm>
 #include <fstream>
+#include <mutex>
 #include <stdexcept>
 #ifdef __APPLE__
 #include <TargetConditionals.h>
@@ -227,22 +229,129 @@ std::filesystem::path FileResolver::gameAsset(const std::string &game,
   throw std::runtime_error("Game file not found: " + relative.string() + "; searched:" + searched);
 }
 
-std::filesystem::path FileResolver::fontDirectory() { return engineAsset("fonts"); }
+std::filesystem::path FileResolver::fontDirectory() {
+  if (auto found = find("fonts"); found && std::filesystem::is_directory(*found))
+    return *found;
+  if (auto found = find("assets/fonts"); found && std::filesystem::is_directory(*found))
+    return *found;
+  std::error_code ec;
+  auto resDir = resourceDirectory();
+  if (std::filesystem::exists(resDir / "fonts", ec))
+    return resDir / "fonts";
+  if (std::filesystem::exists(resDir / "assets" / "fonts", ec))
+    return resDir / "assets" / "fonts";
+  return engineAsset("fonts");
+}
 
 std::filesystem::path FileResolver::font(const std::string &file) {
-  if (file.empty())
-    return engineAsset("fonts/NotoSansJP-Regular.ttf");
+  std::string filename = file.empty() ? defaultFontName() : file;
   std::error_code error;
-  std::filesystem::path path(file);
-  if (path.is_absolute() || file.find_first_of("/\\") != std::string::npos) {
+  std::filesystem::path path(filename);
+  if (path.is_absolute() || filename.find_first_of("/\\") != std::string::npos) {
     if (auto found = find(path))
       return *found;
     if (std::filesystem::exists(path, error))
       return path;
   }
-  if (auto found = findEngineAsset(std::filesystem::path("fonts") / file))
+  if (auto found = find(filename); found && std::filesystem::exists(*found, error))
     return *found;
-  return engineAsset(std::filesystem::path("fonts") / file);
+  if (auto found = find(std::filesystem::path("fonts") / filename); found && std::filesystem::exists(*found, error))
+    return *found;
+  if (auto found = find(std::filesystem::path("assets") / "fonts" / filename); found && std::filesystem::exists(*found, error))
+    return *found;
+  try {
+    auto resDir = resourceDirectory();
+    if (std::filesystem::exists(resDir / filename, error))
+      return resDir / filename;
+    if (std::filesystem::exists(resDir / "fonts" / filename, error))
+      return resDir / "fonts" / filename;
+    if (std::filesystem::exists(resDir / "assets" / "fonts" / filename, error))
+      return resDir / "assets" / "fonts" / filename;
+  } catch (...) {}
+  return engineAsset(std::filesystem::path("fonts") / filename);
+}
+
+const std::unordered_map<std::string, std::vector<uint8_t>> &FileResolver::getFontMap() {
+  static std::unordered_map<std::string, std::vector<uint8_t>> cache;
+  static std::once_flag flag;
+  std::call_once(flag, []() {
+    std::vector<std::filesystem::path> searchDirs;
+    searchDirs.push_back(fontDirectory());
+    try {
+      auto resDir = resourceDirectory();
+      searchDirs.push_back(resDir);
+      searchDirs.push_back(resDir / "fonts");
+      searchDirs.push_back(resDir / "assets" / "fonts");
+    } catch (...) {}
+
+    std::error_code ec;
+    for (const auto &dir : searchDirs) {
+      if (std::filesystem::exists(dir, ec) && std::filesystem::is_directory(dir, ec)) {
+        for (const auto &entry : std::filesystem::directory_iterator(dir, ec)) {
+          if (entry.is_regular_file(ec)) {
+            auto ext = entry.path().extension().string();
+            std::string lower;
+            for (char c : ext) lower += static_cast<char>(std::tolower(c));
+            if (lower == ".ttf" || lower == ".otf" || lower == ".ttc") {
+              std::string filename = entry.path().filename().string();
+              if (cache.find(filename) == cache.end()) {
+                std::ifstream file(entry.path(), std::ios::binary | std::ios::ate);
+                if (file) {
+                  std::streamsize size = file.tellg();
+                  file.seekg(0, std::ios::beg);
+                  std::vector<uint8_t> buffer(size);
+                  if (file.read(reinterpret_cast<char*>(buffer.data()), size)) {
+                    cache[filename] = std::move(buffer);
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    if (cache.find(defaultFontName()) == cache.end()) {
+      auto defPath = font(defaultFontName());
+      std::ifstream file(defPath, std::ios::binary | std::ios::ate);
+      if (file) {
+        std::streamsize size = file.tellg();
+        file.seekg(0, std::ios::beg);
+        std::vector<uint8_t> buffer(size);
+        if (file.read(reinterpret_cast<char*>(buffer.data()), size)) {
+          cache[defaultFontName()] = std::move(buffer);
+        }
+      }
+    }
+  });
+  return cache;
+}
+
+const std::vector<uint8_t> *FileResolver::getFontBytes(const std::string &name) {
+  const auto &map = getFontMap();
+  if (!name.empty()) {
+    std::filesystem::path p(name);
+    std::string filename = p.filename().string();
+    auto found = map.find(filename);
+    if (found != map.end())
+      return &found->second;
+    found = map.find(name);
+    if (found != map.end())
+      return &found->second;
+  }
+  auto found = map.find(defaultFontName());
+  if (found != map.end())
+    return &found->second;
+  if (!map.empty())
+    return &map.begin()->second;
+  return nullptr;
+}
+
+std::vector<uint8_t> FileResolver::loadFontMemory(const std::string &file) {
+  if (const auto *bytes = getFontBytes(file)) {
+    return *bytes;
+  }
+  return {};
 }
 
 void writeTextFileAtomically(const std::string &path,

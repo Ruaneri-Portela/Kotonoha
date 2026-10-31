@@ -57,16 +57,26 @@ struct SubtitleScene::State {
   std::optional<AssStyle> style;
   int glyphWidth = 0, glyphHeight = 0;
 
-  State() {
+  State(Engine &engine) {
     if (!library)
       throw std::runtime_error("Cannot initialize libass");
     ass_set_message_cb(library.get(), message, nullptr);
     renderer.reset(ass_renderer_init(library.get()));
     if (!renderer)
       throw std::runtime_error("Cannot initialize libass renderer");
-    // Only engine fonts (assets/fonts): no system font provider.
-    const auto font = FileResolver::font();
     ass_set_fonts_dir(library.get(), FileResolver::fontDirectory().string().c_str());
+
+    try {
+      auto data = FileResolver::loadFontMemory(engine.GetSettings().fontPath);
+      if (!data.empty()) {
+        ass_add_font(library.get(), const_cast<char*>("default"),
+                     reinterpret_cast<char*>(data.data()), static_cast<int>(data.size()));
+        ass_add_font(library.get(), const_cast<char*>("Noto Sans JP"),
+                     reinterpret_cast<char*>(data.data()), static_cast<int>(data.size()));
+      }
+    } catch (...) {}
+
+    const auto font = FileResolver::font(engine.GetSettings().fontPath);
     ass_set_fonts(renderer.get(), font.string().c_str(), "Noto Sans JP",
                   ASS_FONTPROVIDER_NONE, nullptr, 1);
   }
@@ -76,7 +86,7 @@ SubtitleScene::SubtitleScene(Engine &engine, int width, int height)
     : Scene(engine), width(width), height(height) {
   if (width <= 0 || height <= 0 || width > 8192 || height > 8192)
     throw std::invalid_argument("Invalid subtitle scene dimensions");
-  state = std::make_unique<State>();
+  state = std::make_unique<State>(engine);
   state->style = engine.GetSubtitleStyle();
 }
 SubtitleScene::~SubtitleScene() = default;

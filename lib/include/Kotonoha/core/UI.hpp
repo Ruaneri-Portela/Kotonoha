@@ -2,8 +2,10 @@
 
 #include <Kotonoha/core/SDL.hpp>
 #include <SDL3_ttf/SDL_ttf.h>
+#include <cstdint>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 namespace Kotonoha {
 
@@ -15,7 +17,9 @@ class UI {
     TexturePtr texture;
     float width = 0, height = 0;
   };
-  SDLHandle<TTF_Font, TTF_CloseFont> font;
+  TTFSession ttfSession;
+  std::vector<uint8_t> fontData;
+  FontPtr font;
   std::unordered_map<std::string, CachedText> cache;
   float density = 1;
 

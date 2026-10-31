@@ -1,9 +1,6 @@
 #pragma once
+#include <Kotonoha/core/Config.hpp>
 #include <SDL3/SDL.h>
-
-#if defined(__APPLE__)
-#include <TargetConditionals.h>
-#endif
 
 #if defined(__ANDROID__) || defined(ANDROID)
 #include <GLES2/gl2.h>

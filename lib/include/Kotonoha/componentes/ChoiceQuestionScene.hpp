@@ -42,9 +42,10 @@ public:
                       std::vector<ChoiceOption> choices,
                       std::function<void(int, const std::string &)> callback);
 
-  virtual void setQuestion(const std::string &question,
-                   const std::vector<ChoiceOption> &choices,
-                   std::function<void(int, const std::string &)> callback) {
+  virtual void
+  setQuestion(const std::string &question,
+              const std::vector<ChoiceOption> &choices,
+              std::function<void(int, const std::string &)> callback) {
     if (choices.empty())
       throw std::invalid_argument(
           "Choice component requires at least one option");

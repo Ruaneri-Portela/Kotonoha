@@ -16,6 +16,13 @@ public:
   void load(const std::string &path);
   std::string text(int nodeId, const std::string &original) const;
   void dump(const std::string &path, const SourceTexts &texts) const;
+
+  std::unordered_map<std::string, Dictionary> &mutableSections() {
+    return sections;
+  }
+  const std::unordered_map<std::string, Dictionary> &getSections() const {
+    return sections;
+  }
 };
 
 } // namespace Kotonoha

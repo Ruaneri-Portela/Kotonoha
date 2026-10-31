@@ -186,6 +186,7 @@ private:
 
   std::map<std::string, ZeroNoTsukaima::Picture> pictures_;
   float picturesScale_ = 1.0f;
+  std::vector<uint8_t> fontData_;
   TTF_Font *font_ = nullptr;
   std::map<int, TTF_Font *> sizedFonts_;
   std::map<std::string, SDL_Texture *> texts_;
