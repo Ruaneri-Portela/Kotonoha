@@ -1,8 +1,6 @@
 #include <Kotonoha/routing/SchoolDaysSystemUi.hpp>
 #include <Kotonoha/routing/SchoolDaysSaveFeelRenderPlan.hpp>
 #include <Kotonoha/routing/SchoolDaysSaveLoadRenderPlan.hpp>
-#include <Kotonoha/routing/SchoolDaysTitleMovieClock.hpp>
-#include <Kotonoha/routing/SchoolDaysTitleRenderPlan.hpp>
 #include <Kotonoha/routing/SchoolDaysConfigMenuRenderPlan.hpp>
 #include <Kotonoha/routing/SchoolDaysExitViewRenderPlan.hpp>
 #include <Kotonoha/routing/SchoolDaysReplayRenderPlan.hpp>
@@ -10,11 +8,7 @@
 
 #include <Kotonoha/SchoolDaysImageAssetResolver.hpp>
 
-extern "C" {
-#include <Kotonoha/renders/ImageRender.h>
-#include <Kotonoha/renders/VideoRender.h>
-#include <Kotonoha/utils/Time.h>
-}
+#include <Kotonoha/core/AssetProvider.hpp>
 
 #include <algorithm>
 #include <array>
@@ -24,6 +18,21 @@ extern "C" {
 #include <limits>
 
 namespace Kotonoha {
+
+SDL_Texture* SchoolDaysSystemUi::LoadTexture(SDL_Renderer* renderer,
+                                             const std::string& physical) const {
+    if (renderer == nullptr || assets_ == nullptr) {
+        SDL_SetError("School Days SystemUi has no asset provider");
+        return nullptr;
+    }
+    try {
+        const SurfacePtr surface = assets_->loadSurface(physical);
+        return SDL_CreateTextureFromSurface(renderer, surface.get());
+    } catch (const std::exception& error) {
+        SDL_SetError("%s", error.what());
+        return nullptr;
+    }
+}
 
 SchoolDaysSystemUi::~SchoolDaysSystemUi() {
     Close();
@@ -36,15 +45,6 @@ SchoolDaysSystemUi::Layout SchoolDaysSystemUi::LayoutForVariant(
 }
 
 void SchoolDaysSystemUi::DestroyTextures() {
-    if (titleVideo_ != nullptr) {
-        Kotonoha_VideoRenderShutdown(&titleVideo_);
-    }
-    if (titleVideoClock_ != nullptr) {
-        Kotonoha_timeDestroy(titleVideoClock_);
-        titleVideoClock_ = nullptr;
-    }
-    titleVideoStartMs_ = 0u;
-    titleBackgroundHeight_ = 450.0f;
     if (baseTexture_ != nullptr) {
         SDL_DestroyTexture(baseTexture_);
         baseTexture_ = nullptr;
@@ -52,10 +52,6 @@ void SchoolDaysSystemUi::DestroyTextures() {
     if (chipTexture_ != nullptr) {
         SDL_DestroyTexture(chipTexture_);
         chipTexture_ = nullptr;
-    }
-    if (titleBackgroundTexture_ != nullptr) {
-        SDL_DestroyTexture(titleBackgroundTexture_);
-        titleBackgroundTexture_ = nullptr;
     }
     if (saveLoadTextTexture_ != nullptr) {
         SDL_DestroyTexture(saveLoadTextTexture_);
@@ -107,7 +103,6 @@ void SchoolDaysSystemUi::Close() {
     DestroyTextures();
     saveFeel_.Close();
     saveLoad_.Close();
-    title_.Close();
     configMenu_.Close();
     exitView_.Close();
     replay_.Close();
@@ -262,8 +257,8 @@ bool SchoolDaysSystemUi::EnsureRouteMapTextures(SDL_Renderer* renderer,
             *error = "School Days RouteMap base/CHIP resources could not be resolved";
         return false;
     }
-    baseTexture_ = KotonohaImageCreateTexture(renderer, base.physical.c_str(), -1, -1);
-    chipTexture_ = KotonohaImageCreateTexture(renderer, chip.physical.c_str(), -1, -1);
+    baseTexture_ = LoadTexture(renderer, base.physical);
+    chipTexture_ = LoadTexture(renderer, chip.physical);
     if (baseTexture_ == nullptr || chipTexture_ == nullptr) {
         if (error != nullptr)
             *error = std::string("School Days RouteMap texture load failed: ") + SDL_GetError();
@@ -468,8 +463,8 @@ bool SchoolDaysSystemUi::EnsureReplayTextures(SDL_Renderer* renderer,
                 *error = "School Days Replay base/CHIP resources could not be resolved";
             return false;
         }
-        baseTexture_ = KotonohaImageCreateTexture(renderer, base.physical.c_str(), -1, -1);
-        chipTexture_ = KotonohaImageCreateTexture(renderer, chip.physical.c_str(), -1, -1);
+        baseTexture_ = LoadTexture(renderer, base.physical);
+        chipTexture_ = LoadTexture(renderer, chip.physical);
         if (baseTexture_ == nullptr || chipTexture_ == nullptr) {
             if (error != nullptr)
                 *error = std::string("School Days Replay texture load failed: ") + SDL_GetError();
@@ -489,7 +484,7 @@ bool SchoolDaysSystemUi::EnsureReplayTextures(SDL_Renderer* renderer,
                 return false;
             }
             replayThumbnailTexture_ =
-                KotonohaImageCreateTexture(renderer, thumb.physical.c_str(), -1, -1);
+                LoadTexture(renderer, thumb.physical);
             if (replayThumbnailTexture_ == nullptr) {
                 if (error != nullptr)
                     *error = std::string("School Days Replay thumbnail load failed: ") + SDL_GetError();
@@ -533,10 +528,8 @@ bool SchoolDaysSystemUi::EnsureReplayTextures(SDL_Renderer* renderer,
                     *error = "School Days SceneCheck resources could not be resolved";
                 return false;
             }
-            replayPopupBaseTexture_ = KotonohaImageCreateTexture(
-                renderer, popupBase.physical.c_str(), -1, -1);
-            replayPopupChipTexture_ = KotonohaImageCreateTexture(
-                renderer, popupChip.physical.c_str(), -1, -1);
+            replayPopupBaseTexture_ = LoadTexture(renderer, popupBase.physical);
+            replayPopupChipTexture_ = LoadTexture(renderer, popupChip.physical);
             if (replayPopupBaseTexture_ == nullptr ||
                 replayPopupChipTexture_ == nullptr) {
                 if (error != nullptr)
@@ -590,9 +583,9 @@ bool SchoolDaysSystemUi::OpenConfig(
     }
 
     baseTexture_ =
-        KotonohaImageCreateTexture(renderer, base.physical.c_str(), -1, -1);
+        LoadTexture(renderer, base.physical);
     chipTexture_ =
-        KotonohaImageCreateTexture(renderer, chip.physical.c_str(), -1, -1);
+        LoadTexture(renderer, chip.physical);
     if (baseTexture_ == nullptr || chipTexture_ == nullptr) {
         if (error != nullptr)
             *error = std::string("School Days ConfigMenu texture load failed: ") +
@@ -648,9 +641,9 @@ bool SchoolDaysSystemUi::OpenExit(
     }
 
     baseTexture_ =
-        KotonohaImageCreateTexture(renderer, base.physical.c_str(), -1, -1);
+        LoadTexture(renderer, base.physical);
     chipTexture_ =
-        KotonohaImageCreateTexture(renderer, chip.physical.c_str(), -1, -1);
+        LoadTexture(renderer, chip.physical);
     if (baseTexture_ == nullptr || chipTexture_ == nullptr) {
         if (error != nullptr)
             *error = std::string("School Days ExitView texture load failed: ") +
@@ -728,8 +721,8 @@ bool SchoolDaysSystemUi::OpenSaveLoad(
         return false;
     }
 
-    baseTexture_ = KotonohaImageCreateTexture(renderer, base.physical.c_str(), -1, -1);
-    chipTexture_ = KotonohaImageCreateTexture(renderer, chip.physical.c_str(), -1, -1);
+    baseTexture_ = LoadTexture(renderer, base.physical);
+    chipTexture_ = LoadTexture(renderer, chip.physical);
     if (baseTexture_ == nullptr || chipTexture_ == nullptr) {
         if (error != nullptr) *error = std::string("School Days SaveLoad texture load failed: ") + SDL_GetError();
         Close();
@@ -846,126 +839,6 @@ bool SchoolDaysSystemUi::SetSaveLoadMetadata(
     return true;
 }
 
-bool SchoolDaysSystemUi::OpenTitle(
-    SDL_Renderer* renderer, const std::string& assetsRoot,
-    SchoolDaysTitleModel::Variant variant,
-    const SchoolDaysTitleModel::HostState& hostState,
-    const SchoolDaysEndBackgroundResolver::Result& background,
-    const std::string& baseBackgroundAsset,
-    std::string* error) {
-    Close();
-    if (renderer == nullptr || background.asset.empty()) {
-        if (error != nullptr) *error = "School Days Title presenter arguments are invalid";
-        return false;
-    }
-
-    if (!title_.Open(assetsRoot, variant, hostState, error)) return false;
-
-    const auto overlay = ResolveSchoolDaysImageAsset(
-        assetsRoot.c_str(), SchoolDaysTitleModel::ResourceStem(title_.CurrentFamily()));
-    const auto chip = ResolveSchoolDaysImageAsset(
-        assetsRoot.c_str(), SchoolDaysTitleModel::ChipStem(title_.CurrentFamily()));
-    if (!overlay.present || overlay.collision || !chip.present || chip.collision) {
-        if (error != nullptr) *error = "School Days Title overlay/CHIP resources could not be resolved";
-        Close();
-        return false;
-    }
-
-    baseTexture_ =
-        KotonohaImageCreateTexture(renderer, overlay.physical.c_str(), -1, -1);
-    chipTexture_ =
-        KotonohaImageCreateTexture(renderer, chip.physical.c_str(), -1, -1);
-    if (baseTexture_ == nullptr || chipTexture_ == nullptr) {
-        if (error != nullptr) *error = std::string("School Days Title overlay texture load failed: ") + SDL_GetError();
-        Close();
-        return false;
-    }
-    SDL_SetTextureBlendMode(baseTexture_, SDL_BLENDMODE_BLEND);
-    SDL_SetTextureBlendMode(chipTexture_, SDL_BLENDMODE_BLEND);
-
-    std::filesystem::path selectedPath(background.asset);
-    std::string extension = selectedPath.extension().string();
-    std::transform(extension.begin(), extension.end(), extension.begin(),
-                   [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
-
-    auto loadStill = [&](const std::string& logical, float height,
-                         bool required) -> bool {
-        const auto resolved = ResolveSchoolDaysAssetPath(assetsRoot.c_str(), logical);
-        if (!resolved.present || resolved.collision) {
-            if (required && error != nullptr)
-                *error = "School Days Title background asset could not be resolved";
-            return !required;
-        }
-        SDL_Texture* texture =
-            KotonohaImageCreateTexture(renderer, resolved.physical.c_str(), -1, -1);
-        if (texture == nullptr) {
-            if (required && error != nullptr)
-                *error = std::string("School Days Title background texture load failed: ") + SDL_GetError();
-            return !required;
-        }
-        if (titleBackgroundTexture_ != nullptr)
-            SDL_DestroyTexture(titleBackgroundTexture_);
-        titleBackgroundTexture_ = texture;
-        SDL_SetTextureBlendMode(titleBackgroundTexture_, SDL_BLENDMODE_NONE);
-        titleBackgroundHeight_ = height;
-        return true;
-    };
-
-    if (extension == ".png") {
-        const float height =
-            background.kind == SchoolDaysEndBackgroundResolver::Kind::Base
-                ? 450.0f
-                : 452.0f;
-        if (!loadStill(background.asset, height, true)) {
-            Close();
-            return false;
-        }
-    } else {
-        // Keep BaseFile ready solely as the authenticated movie-open/decode
-        // fallback. It is not drawn while a healthy WMV owns the background.
-        (void)loadStill(baseBackgroundAsset, 450.0f, false);
-        const auto movie = ResolveSchoolDaysAssetPath(assetsRoot.c_str(), background.asset);
-        if (movie.status == SchoolDaysAssetResolutionStatus::Collision ||
-            movie.status == SchoolDaysAssetResolutionStatus::Invalid) {
-            if (error != nullptr) {
-                *error = movie.status == SchoolDaysAssetResolutionStatus::Collision
-                    ? "School Days Title movie path has a case-insensitive collision"
-                    : "School Days Title movie path is invalid";
-            }
-            Close();
-            return false;
-        }
-        if (movie.status == SchoolDaysAssetResolutionStatus::Present) {
-            titleVideoClock_ = Kotonoha_timeNew(false);
-            if (titleVideoClock_ != nullptr) {
-                Kotonoha_timePause(titleVideoClock_);
-                Kotonoha_timeSet(titleVideoClock_, 0u);
-                titleVideo_ = Kotonoha_VideoRenderInit(
-                    movie.physical.c_str(), titleVideoClock_, 0u,
-                    std::numeric_limits<Uint64>::max(),
-                    std::numeric_limits<Kotonoha_SceneTick>::max());
-            }
-        }
-        if (titleVideo_ != nullptr) {
-            titleVideoStartMs_ = SDL_GetTicks();
-            titleBackgroundHeight_ = 452.0f;
-        } else {
-            if (titleVideoClock_ != nullptr) {
-                Kotonoha_timeDestroy(titleVideoClock_);
-                titleVideoClock_ = nullptr;
-            }
-            if (titleBackgroundTexture_ == nullptr &&
-                !loadStill(baseBackgroundAsset, 450.0f, true)) {
-                Close();
-                return false;
-            }
-            titleBackgroundHeight_ = 450.0f;
-        }
-    }
-    layout_ = LayoutForVariant(variant);
-    return true;
-}
-
 bool SchoolDaysSystemUi::OpenSaveFeel(
     SDL_Renderer* renderer, const std::string& assetsRoot,
     SchoolDaysSaveFeelModel::Variant variant, std::string* error) {
@@ -990,8 +863,8 @@ bool SchoolDaysSystemUi::OpenSaveFeel(
         return false;
     }
 
-    baseTexture_ = KotonohaImageCreateTexture(renderer, base.physical.c_str(), -1, -1);
-    chipTexture_ = KotonohaImageCreateTexture(renderer, chip.physical.c_str(), -1, -1);
+    baseTexture_ = LoadTexture(renderer, base.physical);
+    chipTexture_ = LoadTexture(renderer, chip.physical);
     if (baseTexture_ == nullptr || chipTexture_ == nullptr) {
         if (error != nullptr) {
             *error = std::string("School Days SaveFeel texture load failed: ") +
@@ -1047,32 +920,27 @@ SDL_FRect SchoolDaysSystemUi::TransformRect(const SDL_FRect& native,
 bool SchoolDaysSystemUi::PointerToVirtual(SDL_Renderer* renderer, float x, float y,
                                           int* virtualX, int* virtualY) const {
     if (renderer == nullptr || virtualX == nullptr || virtualY == nullptr ||
-        (!saveFeel_.IsOpen() && !saveLoad_.IsOpen() && !title_.IsOpen() &&
+        (!saveFeel_.IsOpen() && !saveLoad_.IsOpen() &&
          !configMenu_.IsOpen() && !exitView_.IsOpen() && !replay_.IsOpen() &&
          !routeMap_.IsOpen())) {
         return false;
     }
 
-    float renderX = 0.0f;
-    float renderY = 0.0f;
-    if (!SDL_RenderCoordinatesFromWindow(renderer, x, y, &renderX, &renderY)) {
-        return false;
-    }
-    int width = 0;
-    int height = 0;
-    if (!SDL_GetCurrentRenderOutputSize(renderer, &width, &height)) return false;
+    // NeoStart delivers pointer events already in the game's logical frame.
+    const float renderX = x;
+    const float renderY = y;
+    const int width = area_.x;
+    const int height = area_.y;
     const SchoolDaysCmap& cmap = saveFeel_.IsOpen()
         ? saveFeel_.Cmap()
         : (saveLoad_.IsOpen()
                ? saveLoad_.Cmap()
-               : (title_.IsOpen()
-                      ? title_.Cmap()
-                      : (configMenu_.IsOpen() ? configMenu_.Cmap()
-                                              : (exitView_.IsOpen()
-                                                     ? exitView_.Cmap()
-                                                     : (replay_.IsOpen()
-                                                            ? replay_.Cmap()
-                                                            : routeMap_.Cmap())))));
+               : (configMenu_.IsOpen() ? configMenu_.Cmap()
+                                       : (exitView_.IsOpen()
+                                              ? exitView_.Cmap()
+                                              : (replay_.IsOpen()
+                                                     ? replay_.Cmap()
+                                                     : routeMap_.Cmap()))));
     const auto viewport = ComputeViewport(
         width, height, static_cast<int>(cmap.Width()), static_cast<int>(cmap.Height()));
     if (viewport.scale <= 0.0f) return false;
@@ -1103,92 +971,6 @@ bool SchoolDaysSystemUi::EmitModelResult(SchoolDaysSaveFeelModel::Result result,
     return true;
 }
 
-bool SchoolDaysSystemUi::DrawTitleBackground(SDL_Renderer* renderer,
-                                             const Viewport& viewport,
-                                             std::string* error) {
-    if (renderer == nullptr) return false;
-
-    if (titleVideo_ != nullptr && titleVideoClock_ != nullptr) {
-        const uint64_t elapsed = SDL_GetTicks() - titleVideoStartMs_;
-        const uint64_t frame = SchoolDaysTitleMovieClock::FrameIndex(elapsed);
-        const uint64_t targetMs =
-            SchoolDaysTitleMovieClock::TargetMilliseconds(frame);
-        Kotonoha_timeSet(titleVideoClock_, targetMs);
-
-        bool failed = false;
-        for (;;) {
-            const Uint64 oldVideoTime = titleVideo_->videoTime;
-            SDL_Texture* const oldTexture = titleVideo_->texture;
-            const auto status =
-                Kotonoha_VideoRenderProcess(titleVideo_, renderer);
-            if (status == KOTONOHA_SCENE_FATAL_ERROR ||
-                status == KOTONOHA_SCENE_COMPLETE ||
-                status == KOTONOHA_SCENE_NULL) {
-                failed = true;
-                break;
-            }
-            if (titleVideo_->decoderEof) break;
-            if (titleVideo_->videoTime >= targetMs &&
-                titleVideo_->texture != nullptr) {
-                break;
-            }
-            if (titleVideo_->currentFrame != nullptr &&
-                titleVideo_->currentPtsMs > targetMs) {
-                break;
-            }
-            const bool progressed = titleVideo_->videoTime != oldVideoTime ||
-                                    titleVideo_->texture != oldTexture;
-            if (!progressed) break;
-        }
-
-        if (failed) {
-            SDL_LogWarn(SDL_LOG_CATEGORY_RENDER,
-                        "School Days Title EndBG movie failed; using BaseFile fallback");
-            Kotonoha_VideoRenderShutdown(&titleVideo_);
-            Kotonoha_timeDestroy(titleVideoClock_);
-            titleVideoClock_ = nullptr;
-            titleVideoStartMs_ = 0u;
-            titleBackgroundHeight_ = 450.0f;
-            if (titleBackgroundTexture_ == nullptr) {
-                if (error != nullptr)
-                    *error = "School Days Title movie failed without BaseFile fallback";
-                return false;
-            }
-        }
-    }
-
-    const auto nativeLayout =
-        SchoolDaysTitleRenderPlan::LayoutFor(title_.CurrentVariant());
-    const SDL_FRect bgNative = {
-        0.0f, nativeLayout.yOffset * nativeLayout.scale,
-        800.0f * nativeLayout.scale,
-        titleBackgroundHeight_ * nativeLayout.scale};
-    const SDL_FRect bgDst = TransformRect(bgNative, viewport);
-
-    if (titleVideo_ != nullptr) {
-        if (titleVideo_->texture == nullptr) {
-            // Retail keeps the movie object active while waiting for its first
-            // sample. Do not substitute BaseFile unless open/decode failed.
-            return true;
-        }
-        if (!SDL_RenderTexture(renderer, titleVideo_->texture, nullptr, &bgDst)) {
-            if (error != nullptr) *error = SDL_GetError();
-            return false;
-        }
-        return true;
-    }
-
-    if (titleBackgroundTexture_ == nullptr) {
-        if (error != nullptr) *error = "School Days Title background texture is unavailable";
-        return false;
-    }
-    if (!SDL_RenderTexture(renderer, titleBackgroundTexture_, nullptr, &bgDst)) {
-        if (error != nullptr) *error = SDL_GetError();
-        return false;
-    }
-    return true;
-}
-
 bool SchoolDaysSystemUi::SubmitSaveLoadComment(const std::u16string& comment) {
     return saveLoad_.SubmitComment(comment);
 }
@@ -1214,7 +996,7 @@ void SchoolDaysSystemUi::Next() {
 bool SchoolDaysSystemUi::HandleEvent(SDL_Renderer* renderer,
                                      const SDL_Event* event, Output* output) {
     if (output != nullptr) *output = {};
-    if ((!saveFeel_.IsOpen() && !saveLoad_.IsOpen() && !title_.IsOpen() &&
+    if ((!saveFeel_.IsOpen() && !saveLoad_.IsOpen() &&
          !configMenu_.IsOpen() && !exitView_.IsOpen() && !replay_.IsOpen() &&
          !routeMap_.IsOpen()) ||
         event == nullptr || (resultEmitted_ && !saveLoad_.IsOpen())) return false;
@@ -1315,24 +1097,6 @@ bool SchoolDaysSystemUi::HandleEvent(SDL_Renderer* renderer,
         return pointerMoved &&
                configMenu_.SetSelectionFromPointer(virtualX, virtualY);
     }
-    if (title_.IsOpen()) {
-        if (pointerActivated) {
-            const int hit = title_.HitItem(virtualX, virtualY);
-            if (hit < 0 || hit != title_.Selection() ||
-                !SchoolDaysTitleModel::ItemAvailable(
-                    hit, title_.CurrentHostState())) {
-                return false;
-            }
-            SchoolDaysTitleModel::Activation activation;
-            if (!title_.ActivateSelection(&activation)) return false;
-            output->hasTitleActivation = true;
-            output->titleActivation = activation;
-            // TitleView 0x10020BFC/0x10020C53 -> host SFX id2.
-            output->uiSfx = UiSfxCue::Click;
-            return true;
-        }
-        return pointerMoved && title_.SetSelectionFromPointer(virtualX, virtualY);
-    }
     if (exitView_.IsOpen()) {
         if (pointerActivated) {
             const int hit = exitView_.HitChoice(virtualX, virtualY);
@@ -1425,10 +1189,8 @@ bool SchoolDaysSystemUi::Render(SDL_Renderer* renderer, std::string* error) {
         }
         int outputWidth = 0;
         int outputHeight = 0;
-        if (!SDL_GetCurrentRenderOutputSize(renderer, &outputWidth, &outputHeight)) {
-            if (error != nullptr) *error = SDL_GetError();
-            return false;
-        }
+        outputWidth = area_.x;
+        outputHeight = area_.y;
         const auto viewport = ComputeViewport(
             outputWidth, outputHeight, static_cast<int>(routeMap_.Cmap().Width()),
             static_cast<int>(routeMap_.Cmap().Height()));
@@ -1477,10 +1239,8 @@ bool SchoolDaysSystemUi::Render(SDL_Renderer* renderer, std::string* error) {
         }
         int outputWidth = 0;
         int outputHeight = 0;
-        if (!SDL_GetCurrentRenderOutputSize(renderer, &outputWidth, &outputHeight)) {
-            if (error != nullptr) *error = SDL_GetError();
-            return false;
-        }
+        outputWidth = area_.x;
+        outputHeight = area_.y;
         const auto viewport = ComputeViewport(
             outputWidth, outputHeight, static_cast<int>(replay_.Cmap().Width()),
             static_cast<int>(replay_.Cmap().Height()));
@@ -1582,10 +1342,8 @@ bool SchoolDaysSystemUi::Render(SDL_Renderer* renderer, std::string* error) {
         }
         int outputWidth = 0;
         int outputHeight = 0;
-        if (!SDL_GetCurrentRenderOutputSize(renderer, &outputWidth, &outputHeight)) {
-            if (error != nullptr) *error = SDL_GetError();
-            return false;
-        }
+        outputWidth = area_.x;
+        outputHeight = area_.y;
         const auto viewport = ComputeViewport(
             outputWidth, outputHeight,
             static_cast<int>(configMenu_.Cmap().Width()),
@@ -1621,10 +1379,8 @@ bool SchoolDaysSystemUi::Render(SDL_Renderer* renderer, std::string* error) {
         }
         int outputWidth = 0;
         int outputHeight = 0;
-        if (!SDL_GetCurrentRenderOutputSize(renderer, &outputWidth, &outputHeight)) {
-            if (error != nullptr) *error = SDL_GetError();
-            return false;
-        }
+        outputWidth = area_.x;
+        outputHeight = area_.y;
         const auto viewport = ComputeViewport(
             outputWidth, outputHeight, static_cast<int>(exitView_.Cmap().Width()),
             static_cast<int>(exitView_.Cmap().Height()));
@@ -1650,47 +1406,6 @@ bool SchoolDaysSystemUi::Render(SDL_Renderer* renderer, std::string* error) {
         }
         return true;
     }
-    if (title_.IsOpen()) {
-        if (renderer == nullptr || baseTexture_ == nullptr || chipTexture_ == nullptr ||
-            (titleBackgroundTexture_ == nullptr && titleVideo_ == nullptr)) {
-            if (error != nullptr) *error = "School Days Title presenter is not open";
-            return false;
-        }
-        int outputWidth = 0;
-        int outputHeight = 0;
-        if (!SDL_GetCurrentRenderOutputSize(renderer, &outputWidth, &outputHeight)) {
-            if (error != nullptr) *error = SDL_GetError();
-            return false;
-        }
-        const auto viewport = ComputeViewport(
-            outputWidth, outputHeight, static_cast<int>(title_.Cmap().Width()),
-            static_cast<int>(title_.Cmap().Height()));
-        if (viewport.scale <= 0.0f) {
-            if (error != nullptr) *error = "School Days Title viewport is invalid";
-            return false;
-        }
-        const auto plan = SchoolDaysTitleRenderPlan::Build(title_);
-
-        if (!DrawTitleBackground(renderer, viewport, error)) return false;
-
-        for (const auto& sprite : plan) {
-            SDL_Texture* texture =
-                sprite.texture == SchoolDaysTitleRenderPlan::Texture::Overlay
-                    ? baseTexture_ : chipTexture_;
-            const SDL_FRect nativeDst = {sprite.destination.x, sprite.destination.y,
-                                         sprite.destination.w, sprite.destination.h};
-            const SDL_FRect dst = TransformRect(nativeDst, viewport);
-            const SDL_FRect source = {sprite.source.x, sprite.source.y,
-                                      sprite.source.w, sprite.source.h};
-            const SDL_FRect* sourcePtr = sprite.hasSource ? &source : nullptr;
-            if (!SDL_RenderTexture(renderer, texture, sourcePtr, &dst)) {
-                if (error != nullptr) *error = SDL_GetError();
-                return false;
-            }
-        }
-        return true;
-    }
-
     if (saveLoad_.IsOpen()) {
         if (renderer == nullptr || baseTexture_ == nullptr || chipTexture_ == nullptr) {
             if (error != nullptr) *error = "School Days SaveLoad presenter is not open";
@@ -1698,10 +1413,8 @@ bool SchoolDaysSystemUi::Render(SDL_Renderer* renderer, std::string* error) {
         }
         int outputWidth = 0;
         int outputHeight = 0;
-        if (!SDL_GetCurrentRenderOutputSize(renderer, &outputWidth, &outputHeight)) {
-            if (error != nullptr) *error = SDL_GetError();
-            return false;
-        }
+        outputWidth = area_.x;
+        outputHeight = area_.y;
         const auto viewport = ComputeViewport(
             outputWidth, outputHeight, static_cast<int>(saveLoad_.Cmap().Width()),
             static_cast<int>(saveLoad_.Cmap().Height()));
@@ -1768,10 +1481,8 @@ bool SchoolDaysSystemUi::Render(SDL_Renderer* renderer, std::string* error) {
 
     int outputWidth = 0;
     int outputHeight = 0;
-    if (!SDL_GetCurrentRenderOutputSize(renderer, &outputWidth, &outputHeight)) {
-        if (error != nullptr) *error = SDL_GetError();
-        return false;
-    }
+    outputWidth = area_.x;
+    outputHeight = area_.y;
     const auto viewport = ComputeViewport(
         outputWidth, outputHeight, static_cast<int>(saveFeel_.Cmap().Width()),
         static_cast<int>(saveFeel_.Cmap().Height()));

@@ -1,44 +1,55 @@
-cmake_minimum_required(VERSION 3.18)
-project(DokiDokiApp LANGUAGES C CXX)
+cmake_minimum_required(VERSION 3.16)
 
-if(NOT TARGET KotonohaRuntime)
-    set(_ROOT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../..")
-    set(KOTONOHA_INCLUDE_DIR "${_ROOT_DIR}/include")
-    set(KOTONOHA_ENGINE_SOURCE_DIR "${_ROOT_DIR}/src/Kotonoha")
-    add_subdirectory("${_ROOT_DIR}" kotonoha_build EXCLUDE_FROM_ALL)
+project(DokiDokiLiteratureClub VERSION 0.1.0 LANGUAGES CXX)
+
+if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
+    include(CTest)
 endif()
 
-# Doki Doki Literature Club! (Ren'Py 6.99) proof-of-concept port: reads the
-# original .rpa archives and runs the compiled .rpyc script.
+if(NOT TARGET Kotonoha::Engine)
+    add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../lib"
+        "${CMAKE_CURRENT_BINARY_DIR}/kotonoha")
+endif()
+
 find_package(ZLIB REQUIRED)
+if(ANDROID)
+    find_package(Python3 REQUIRED COMPONENTS Development)
+else()
+    find_package(Python3 REQUIRED COMPONENTS Interpreter Development)
+endif()
 
 add_library(DdlcFormats STATIC
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/Value.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/Archive.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/Script.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/PyParse.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/PyExec.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/PyBuiltins.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/Display.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/Vm.cpp")
-target_include_directories(DdlcFormats PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include"
-    PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
+    src/Archive.cpp
+    src/Display.cpp
+    src/Python.cpp
+    src/Script.cpp
+    src/Value.cpp
+    src/Vm.cpp
+)
+target_include_directories(DdlcFormats PUBLIC include)
 target_compile_features(DdlcFormats PUBLIC cxx_std_20)
-target_link_libraries(DdlcFormats PUBLIC ${KOTONOHA_SDL3_TARGET} ZLIB::ZLIB)
+target_link_libraries(DdlcFormats PUBLIC SDL3::SDL3 ZLIB::ZLIB
+    PRIVATE Python3::Python)
+set_target_properties(DdlcFormats PROPERTIES CXX_EXTENSIONS OFF)
 
-if(ANDROID)
-    add_library(DokiDoki SHARED "${CMAKE_CURRENT_SOURCE_DIR}/src/Main.cpp")
-    set_target_properties(DokiDoki PROPERTIES OUTPUT_NAME DokiDoki)
-    target_link_libraries(DokiDoki PRIVATE KotonohaRuntime DdlcFormats PkgConfig::FFMPEG)
-elseif(NOT IOS)
-    add_executable(DdlcScriptTest "${CMAKE_CURRENT_SOURCE_DIR}/tests/DdlcScriptTest.cpp")
-    target_link_libraries(DdlcScriptTest PRIVATE DdlcFormats)
+add_library(doki_doki_literature_club STATIC
+    src/DdlcAssets.cpp
+    src/DdlcLauncher.cpp
+    src/DdlcRuntime.cpp
+    src/DdlcSession.cpp
+)
+target_include_directories(doki_doki_literature_club PUBLIC src)
+target_link_libraries(doki_doki_literature_club PUBLIC Kotonoha::Engine DdlcFormats)
+set_target_properties(doki_doki_literature_club PROPERTIES CXX_EXTENSIONS OFF)
 
-    add_executable(DokiDoki "${CMAKE_CURRENT_SOURCE_DIR}/src/Main.cpp")
-    target_link_libraries(DokiDoki PRIVATE KotonohaRuntime DdlcFormats PkgConfig::FFMPEG)
-    kotonoha_configure_app(DokiDoki
-        OUTPUT_NAME DokiDoki
-        BUNDLE_ID "me.hirameki.kotonoha.ddlc"
-        GAME_ASSET "doki-doki-literature-club"
-        )
+kotonoha_add_app(DokiDoki src/main.cpp)
+target_link_libraries(DokiDoki PRIVATE doki_doki_literature_club)
+set_target_properties(DokiDoki PROPERTIES CXX_EXTENSIONS OFF)
+kotonoha_configure_app(DokiDoki
+    BUNDLE_ID me.hirameki.kotonoha.dokidokiliteratureclub GAME doki-doki-literature-club
+    PYTHON_STDLIB "${Python3_STDLIB}"
+    PYTHON_VERSION "${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR}")
+
+if(BUILD_TESTING)
+    add_subdirectory(tests)
 endif()

@@ -1,0 +1,3101 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 70;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		00063DF34CD89A1C960AC7A1 /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4A9B6E799E2376E8183ADE52 /* Metal.framework */; };
+		0351CDE51DCA0C4936C1DF41 /* OpenGLES.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4FFD1FC9FD3DE0FD18C5D44F /* OpenGLES.framework */; };
+		040512B9F35D75B5BB9768EC /* AudioToolbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FBAC8B3DF93878243BF88A65 /* AudioToolbox.framework */; };
+		050A4D0B472931E1890EBB2A /* KotonohaImGui.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CE1893F63095457700B0DF80 /* KotonohaImGui.framework */; };
+		07A049B4976F891C254A94F9 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6AC33256490759509EFF9BF1 /* Foundation.framework */; };
+		114B6B5EFBB32818F66E7821 /* imgui_stdlib.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5F688AD0FCE10DF72F51EBE2 /* imgui_stdlib.cpp */; };
+		13599080B1B22DF28D660B24 /* OpenGLES.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4FFD1FC9FD3DE0FD18C5D44F /* OpenGLES.framework */; };
+		16EC5DF5A36984D999EC0494 /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 42D538C486E337F7390CE7EF /* CoreFoundation.framework */; };
+		19BED8FC8B7B20E634F015A4 /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4A9B6E799E2376E8183ADE52 /* Metal.framework */; };
+		1C1BEDC96BB369F0EBB5E509 /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4A9B6E799E2376E8183ADE52 /* Metal.framework */; };
+		21B6562D334DA665E4242ADB /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6AC33256490759509EFF9BF1 /* Foundation.framework */; };
+		24D9F733B5F5C03EC97C0E8F /* CoreMedia.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B78DCDBFE541F1854A2A0FFC /* CoreMedia.framework */; };
+		28397863F12D36A2790D35B4 /* KotonohaImGui.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = CE1893F63095457700B0DF80 /* KotonohaImGui.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		2D2BD1CCA88BA5240E15B020 /* Vm.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0242730B1E228181304627F9 /* Vm.cpp */; };
+		2F1D04C8C4123C3FE151357D /* CoreVideo.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B2FAEAC42A6E7C5EDC4F4A07 /* CoreVideo.framework */; };
+		2F2460A93B4F1788834ED379 /* KotonohaImGui.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = CE1893F63095457700B0DF80 /* KotonohaImGui.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		315D3E2E533CD6DAE91B649C /* AudioToolbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FBAC8B3DF93878243BF88A65 /* AudioToolbox.framework */; };
+		32E27A969CF80FD2F163B388 /* imgui.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 749E86948BF0AA6831055589 /* imgui.cpp */; };
+		32F56A41ADF2FEC206961C8C /* Archive.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 08EFD6BD9770B9CFE023EC0A /* Archive.cpp */; };
+		35C4FCC0CDFE89ECF8419CD5 /* AudioToolbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FBAC8B3DF93878243BF88A65 /* AudioToolbox.framework */; };
+		3DCC3FE48DEC316ECF9B16E6 /* imgui_tables.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 43B9E4E908D1CC67D291F5F0 /* imgui_tables.cpp */; };
+		53478FE376E9C070B9153460 /* CoreMedia.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B78DCDBFE541F1854A2A0FFC /* CoreMedia.framework */; };
+		541B61671D1BD960E11EFBA5 /* OpenGLES.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4FFD1FC9FD3DE0FD18C5D44F /* OpenGLES.framework */; };
+		584A1D0CF18C97F703CC5657 /* SvgTestFont.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 2F6E483E9694EDC9C9D4B92F /* SvgTestFont.ttf */; };
+		598189BE172661BEFAF268B5 /* Script.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 35CBE9E83D4457472483BFC4 /* Script.cpp */; };
+		5C8E1CE6D93E084716E8EC80 /* OpenGLES.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4FFD1FC9FD3DE0FD18C5D44F /* OpenGLES.framework */; };
+		5CE2F057901EC6ED26F6EE73 /* imgui_widgets.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 1E3DAC86D86C8594D18E1D20 /* imgui_widgets.cpp */; };
+		5FD58DACF503942DD43372EC /* AudioToolbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FBAC8B3DF93878243BF88A65 /* AudioToolbox.framework */; };
+		60A0CF2EB40CCE0868E90DAE /* imgui_impl_sdlrenderer3.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E3E0EC27DFAF9CC3242B7CFB /* imgui_impl_sdlrenderer3.cpp */; };
+		62DCD5E25DA7DD5725F20D17 /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4A9B6E799E2376E8183ADE52 /* Metal.framework */; };
+		67BD4F9CC0336601B8C6EB93 /* VideoToolbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C446DAC72995F2973C600D09 /* VideoToolbox.framework */; };
+		69AB1192C3C11DF6A6B0C2A5 /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4A9B6E799E2376E8183ADE52 /* Metal.framework */; };
+		69E54331BD2760DEDB7A8229 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6AC33256490759509EFF9BF1 /* Foundation.framework */; };
+		6D4E7E573D0C19F64FB7DC1F /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 42D538C486E337F7390CE7EF /* CoreFoundation.framework */; };
+		6E82F57434E062B14268CF74 /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 42D538C486E337F7390CE7EF /* CoreFoundation.framework */; };
+		73254F43B14942E9DB2E9D7C /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4A9B6E799E2376E8183ADE52 /* Metal.framework */; };
+		74A4D38972F6167E3B967D0E /* KotonohaImGui.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = CE1893F63095457700B0DF80 /* KotonohaImGui.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		7504FCC4F6303984EF390FC7 /* DdlcScriptTest.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0BDBADE5AA1843BDCBE0381B /* DdlcScriptTest.cpp */; };
+		7F94124DD2A7442B5840761D /* VideoToolbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C446DAC72995F2973C600D09 /* VideoToolbox.framework */; };
+		82E66C23A2A026D23A1E5092 /* KotonohaImGui.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CE1893F63095457700B0DF80 /* KotonohaImGui.framework */; };
+		8387BC2F1541AEDAF3B7E149 /* CoreVideo.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B2FAEAC42A6E7C5EDC4F4A07 /* CoreVideo.framework */; };
+		85A76F761FE62E10C86C36C1 /* KotonohaImGui.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CE1893F63095457700B0DF80 /* KotonohaImGui.framework */; };
+		8DE0B9E6A7EAE72191C3C08D /* VideoToolbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C446DAC72995F2973C600D09 /* VideoToolbox.framework */; };
+		8FD10C1CB72DE555CBC113C4 /* KotonohaImGui.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CE1893F63095457700B0DF80 /* KotonohaImGui.framework */; };
+		91A50DE1D021BF91FBE3647D /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 42D538C486E337F7390CE7EF /* CoreFoundation.framework */; };
+		951714C2518E026491F167D1 /* CoreVideo.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B2FAEAC42A6E7C5EDC4F4A07 /* CoreVideo.framework */; };
+		95C29BC1C6D52AD2764F8DD4 /* KotonohaImGui.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CE1893F63095457700B0DF80 /* KotonohaImGui.framework */; };
+		98261791889246CE2BAD8448 /* CoreMedia.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B78DCDBFE541F1854A2A0FFC /* CoreMedia.framework */; };
+		99641A082B7C25DE5A37EF86 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6AC33256490759509EFF9BF1 /* Foundation.framework */; };
+		9C95B7E6948652E0E273AC9C /* Value.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 528F10C36D905193890E9E1A /* Value.cpp */; };
+		9D7333169777213B9128550D /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6AC33256490759509EFF9BF1 /* Foundation.framework */; };
+		9EC1E9F2A54D574B1DA7955D /* VideoToolbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C446DAC72995F2973C600D09 /* VideoToolbox.framework */; };
+		9F8D61CDCCA3417C88D1FF7B /* KotonohaImGui.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = CE1893F63095457700B0DF80 /* KotonohaImGui.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		A05503E85A6235A5D99B59C0 /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4A9B6E799E2376E8183ADE52 /* Metal.framework */; };
+		A1B12F5C153B5C61E327BBF6 /* PlatformSmokeTests.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AE21419FA90F5C4BEEBC3657 /* PlatformSmokeTests.cpp */; };
+		A3C33CEC77B04675F7A5AA18 /* OpenGLES.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4FFD1FC9FD3DE0FD18C5D44F /* OpenGLES.framework */; };
+		A440F07C98B600AB565B93FF /* VideoToolbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C446DAC72995F2973C600D09 /* VideoToolbox.framework */; };
+		A9D0C18C4388BB3A2F46B7FE /* Display.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AD816549C60CF2EB4A36ECE3 /* Display.cpp */; };
+		AA9987A8B857455D47CDBC01 /* KotonohaImGui.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = CE1893F63095457700B0DF80 /* KotonohaImGui.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		ABEFE38E96ACB442C93A3DE9 /* CoreMedia.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B78DCDBFE541F1854A2A0FFC /* CoreMedia.framework */; };
+		B0187C77DBF8A368436B4DF8 /* KotonohaImGui.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CE1893F63095457700B0DF80 /* KotonohaImGui.framework */; };
+		B2A1A7A5F150FA8E81BB5AAC /* Python.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9AB15324823089557328B514 /* Python.cpp */; };
+		B2CD2E4C7288A6658B098F27 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6AC33256490759509EFF9BF1 /* Foundation.framework */; };
+		B4BB6CE1EB747E088B849FD4 /* imgui_draw.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 514697826932CEDC425F9738 /* imgui_draw.cpp */; };
+		B52AF223D05D05073EED9B4B /* AudioToolbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FBAC8B3DF93878243BF88A65 /* AudioToolbox.framework */; };
+		B84A837CFA60AF826FEDF121 /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 42D538C486E337F7390CE7EF /* CoreFoundation.framework */; };
+		C113B6F1928D5B96C95CFF85 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6AC33256490759509EFF9BF1 /* Foundation.framework */; };
+		C3439BFD95E2D5A59273A6DA /* KotonohaImGui.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CE1893F63095457700B0DF80 /* KotonohaImGui.framework */; };
+		C3EBC58FDD32C6339A9E70A6 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4ED8EF91713B7445DF30DEB0 /* Foundation.framework */; };
+		C66FEE77049BAB19C9BD251C /* VideoToolbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C446DAC72995F2973C600D09 /* VideoToolbox.framework */; };
+		C6C715B25F09535CA51B0782 /* AudioToolbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FBAC8B3DF93878243BF88A65 /* AudioToolbox.framework */; };
+		C8B9B0905CBB2EAFB89B850D /* VideoToolbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C446DAC72995F2973C600D09 /* VideoToolbox.framework */; };
+		C9AC40427DA745385043977C /* KotonohaImGui.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CE1893F63095457700B0DF80 /* KotonohaImGui.framework */; };
+		CE1893FF30954CF000B0DF80 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6AC33256490759509EFF9BF1 /* Foundation.framework */; };
+		CE18940030954CF000B0DF80 /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4A9B6E799E2376E8183ADE52 /* Metal.framework */; };
+		CE18940130954CF000B0DF80 /* OpenGLES.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4FFD1FC9FD3DE0FD18C5D44F /* OpenGLES.framework */; };
+		CE18940230954CF000B0DF80 /* VideoToolbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C446DAC72995F2973C600D09 /* VideoToolbox.framework */; };
+		CE18940330954CF000B0DF80 /* CoreVideo.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B2FAEAC42A6E7C5EDC4F4A07 /* CoreVideo.framework */; };
+		CE18940430954CF000B0DF80 /* CoreMedia.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B78DCDBFE541F1854A2A0FFC /* CoreMedia.framework */; };
+		CE18940530954CF000B0DF80 /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 42D538C486E337F7390CE7EF /* CoreFoundation.framework */; };
+		CE18940630954CF000B0DF80 /* AudioToolbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FBAC8B3DF93878243BF88A65 /* AudioToolbox.framework */; };
+		CE233D6F309602A4004AB51E /* Python.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CE233D663096024A004AB51E /* Python.framework */; };
+		CE233D70309602A4004AB51E /* Python.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = CE233D663096024A004AB51E /* Python.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		CE2FEE0530956E7200E7D27F /* assets in Resources */ = {isa = PBXBuildFile; fileRef = CE2FEE0330956E6100E7D27F /* assets */; };
+		CE2FEE0630956E7600E7D27F /* assets in Resources */ = {isa = PBXBuildFile; fileRef = CE2FEE0330956E6100E7D27F /* assets */; };
+		CE2FEE0730956E7700E7D27F /* assets in Resources */ = {isa = PBXBuildFile; fileRef = CE2FEE0330956E6100E7D27F /* assets */; };
+		CE2FEE0930956E8300E7D27F /* assets in Resources */ = {isa = PBXBuildFile; fileRef = CE2FEE0330956E6100E7D27F /* assets */; };
+		CE2FEE0A30956E9400E7D27F /* game-assets in Resources */ = {isa = PBXBuildFile; fileRef = CE2FEE0130956E3300E7D27F /* game-assets */; };
+		CE2FEE0C30956EA000E7D27F /* game-assets in Resources */ = {isa = PBXBuildFile; fileRef = CE2FEE0B30956EA000E7D27F /* game-assets */; };
+		CE2FEE0E30956EB700E7D27F /* game-assets in Resources */ = {isa = PBXBuildFile; fileRef = CE2FEE0D30956EB700E7D27F /* game-assets */; };
+		CE2FEE1030956ECD00E7D27F /* game-assets in Resources */ = {isa = PBXBuildFile; fileRef = CE2FEE0F30956ECC00E7D27F /* game-assets */; };
+		CEC5DF0F3095F7EB00D4D78B /* KotonohaEngine.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CE1893F83095457F00B0DF80 /* KotonohaEngine.framework */; };
+		CEC5DF103095F7EB00D4D78B /* KotonohaEngine.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = CE1893F83095457F00B0DF80 /* KotonohaEngine.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		CEC5DF113095F7F200D4D78B /* KotonohaEngine.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CE1893F83095457F00B0DF80 /* KotonohaEngine.framework */; };
+		CEC5DF123095F7F200D4D78B /* KotonohaEngine.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = CE1893F83095457F00B0DF80 /* KotonohaEngine.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		CEC5DF133095F7F800D4D78B /* KotonohaEngine.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CE1893F83095457F00B0DF80 /* KotonohaEngine.framework */; };
+		CEC5DF143095F7F800D4D78B /* KotonohaEngine.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = CE1893F83095457F00B0DF80 /* KotonohaEngine.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		CEC5DF153095F7FC00D4D78B /* KotonohaEngine.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CE1893F83095457F00B0DF80 /* KotonohaEngine.framework */; };
+		CEC5DF163095F7FC00D4D78B /* KotonohaEngine.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = CE1893F83095457F00B0DF80 /* KotonohaEngine.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		CEC5DF173095F82B00D4D78B /* SDL3.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEFD20B530959039006D0E4E /* SDL3.framework */; };
+		CEC5DF183095F82B00D4D78B /* SDL3.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = CEFD20B530959039006D0E4E /* SDL3.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		CEC5DF193095F83700D4D78B /* KotonohaEngine.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CE1893F83095457F00B0DF80 /* KotonohaEngine.framework */; };
+		CEC5DF1A3095F83700D4D78B /* KotonohaEngine.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = CE1893F83095457F00B0DF80 /* KotonohaEngine.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		CEC5DF1B3095F83A00D4D78B /* KotonohaEngine.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CE1893F83095457F00B0DF80 /* KotonohaEngine.framework */; };
+		CEC5DF1C3095F83A00D4D78B /* KotonohaEngine.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = CE1893F83095457F00B0DF80 /* KotonohaEngine.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		CEC5DF1D3095F83D00D4D78B /* KotonohaEngine.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CE1893F83095457F00B0DF80 /* KotonohaEngine.framework */; };
+		CEC5DF1E3095F83D00D4D78B /* KotonohaEngine.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = CE1893F83095457F00B0DF80 /* KotonohaEngine.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		CEF8839B3095998500CB6787 /* assets in Resources */ = {isa = PBXBuildFile; fileRef = CE2FEE0330956E6100E7D27F /* assets */; };
+		CEFD20B63095904E006D0E4E /* SDL3.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEFD20B530959039006D0E4E /* SDL3.framework */; };
+		CEFD20B73095904E006D0E4E /* SDL3.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = CEFD20B530959039006D0E4E /* SDL3.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		CEFD20B930959057006D0E4E /* SDL3.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEFD20B530959039006D0E4E /* SDL3.framework */; };
+		CEFD20BA30959057006D0E4E /* SDL3.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = CEFD20B530959039006D0E4E /* SDL3.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		CEFD20BB3095905B006D0E4E /* SDL3.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEFD20B530959039006D0E4E /* SDL3.framework */; };
+		CEFD20BC3095905B006D0E4E /* SDL3.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = CEFD20B530959039006D0E4E /* SDL3.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		CEFD20BE30959062006D0E4E /* SDL3.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEFD20B530959039006D0E4E /* SDL3.framework */; };
+		CEFD20BF30959062006D0E4E /* SDL3.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = CEFD20B530959039006D0E4E /* SDL3.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		CEFD20C130959068006D0E4E /* SDL3.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEFD20B530959039006D0E4E /* SDL3.framework */; };
+		CEFD20C230959068006D0E4E /* SDL3.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = CEFD20B530959039006D0E4E /* SDL3.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		CEFD20C430959070006D0E4E /* SDL3.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEFD20B530959039006D0E4E /* SDL3.framework */; };
+		CEFD20C530959070006D0E4E /* SDL3.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = CEFD20B530959039006D0E4E /* SDL3.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		CEFD20C730959075006D0E4E /* SDL3.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEFD20B530959039006D0E4E /* SDL3.framework */; };
+		CEFD20C830959075006D0E4E /* SDL3.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = CEFD20B530959039006D0E4E /* SDL3.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		CEFD20CA30959078006D0E4E /* SDL3.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEFD20B530959039006D0E4E /* SDL3.framework */; };
+		CEFD20CB30959078006D0E4E /* SDL3.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = CEFD20B530959039006D0E4E /* SDL3.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		CEFD20CD3095908D006D0E4E /* SDL3_ttf.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEFD20AD3095902A006D0E4E /* SDL3_ttf.framework */; };
+		CEFD20CE3095908D006D0E4E /* SDL3_ttf.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = CEFD20AD3095902A006D0E4E /* SDL3_ttf.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		CEFD20D03095908F006D0E4E /* SDL3_ttf.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEFD20AD3095902A006D0E4E /* SDL3_ttf.framework */; };
+		CEFD20D130959091006D0E4E /* SDL3_ttf.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEFD20AD3095902A006D0E4E /* SDL3_ttf.framework */; };
+		CEFD20D230959091006D0E4E /* SDL3_ttf.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = CEFD20AD3095902A006D0E4E /* SDL3_ttf.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		CEFD20D330959093006D0E4E /* SDL3_ttf.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEFD20AD3095902A006D0E4E /* SDL3_ttf.framework */; };
+		CEFD20D430959093006D0E4E /* SDL3_ttf.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = CEFD20AD3095902A006D0E4E /* SDL3_ttf.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		CEFD20D530959094006D0E4E /* SDL3_ttf.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEFD20AD3095902A006D0E4E /* SDL3_ttf.framework */; };
+		CEFD20D630959094006D0E4E /* SDL3_ttf.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = CEFD20AD3095902A006D0E4E /* SDL3_ttf.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		CEFD20D730959096006D0E4E /* SDL3_ttf.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEFD20AD3095902A006D0E4E /* SDL3_ttf.framework */; };
+		CEFD20D830959097006D0E4E /* SDL3_ttf.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = CEFD20AD3095902A006D0E4E /* SDL3_ttf.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		CEFD20D93095909A006D0E4E /* SDL3_ttf.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEFD20AD3095902A006D0E4E /* SDL3_ttf.framework */; };
+		CEFD20DA3095909A006D0E4E /* SDL3_ttf.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = CEFD20AD3095902A006D0E4E /* SDL3_ttf.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		CEFD20DB3095909C006D0E4E /* SDL3_ttf.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEFD20AD3095902A006D0E4E /* SDL3_ttf.framework */; };
+		CEFD20DC3095909C006D0E4E /* SDL3_ttf.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = CEFD20AD3095902A006D0E4E /* SDL3_ttf.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		CEFD20DD3095909F006D0E4E /* SDL3_ttf.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEFD20AD3095902A006D0E4E /* SDL3_ttf.framework */; };
+		CEFD20DE3095909F006D0E4E /* SDL3_ttf.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = CEFD20AD3095902A006D0E4E /* SDL3_ttf.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		D4CDA1DA18ACC1DFA370B8A8 /* AudioToolbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FBAC8B3DF93878243BF88A65 /* AudioToolbox.framework */; };
+		D86023A902907AE397697254 /* CoreMedia.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B78DCDBFE541F1854A2A0FFC /* CoreMedia.framework */; };
+		D9039BE17B8168D74C1A3C68 /* CoreMedia.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B78DCDBFE541F1854A2A0FFC /* CoreMedia.framework */; };
+		D93AB727AA38217D72F47245 /* CoreMedia.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B78DCDBFE541F1854A2A0FFC /* CoreMedia.framework */; };
+		DCD02DF66CDECCBEB4709AA2 /* CoreVideo.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B2FAEAC42A6E7C5EDC4F4A07 /* CoreVideo.framework */; };
+		DCE5859CDAFE38345890B137 /* OpenGLES.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4FFD1FC9FD3DE0FD18C5D44F /* OpenGLES.framework */; };
+		E201393195443303D237CF41 /* KotonohaImGui.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = CE1893F63095457700B0DF80 /* KotonohaImGui.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		E35016335D4071C074943DF2 /* KotonohaImGui.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = CE1893F63095457700B0DF80 /* KotonohaImGui.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		EFBA004F458C8C0351794692 /* imgui_impl_sdl3.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 84BEEE477A504ECE1C36DCF8 /* imgui_impl_sdl3.cpp */; };
+		F4B068DC6AEC13E173931970 /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 42D538C486E337F7390CE7EF /* CoreFoundation.framework */; };
+		F8C44FAF4C88BABECDD7E74C /* CoreVideo.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B2FAEAC42A6E7C5EDC4F4A07 /* CoreVideo.framework */; };
+		FA056BF695F93AE290705FB8 /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 42D538C486E337F7390CE7EF /* CoreFoundation.framework */; };
+		FABF92E8ADBAE676428C1DA1 /* CoreVideo.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B2FAEAC42A6E7C5EDC4F4A07 /* CoreVideo.framework */; };
+		FDA1599DA4BD8492F7A2721F /* OpenGLES.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4FFD1FC9FD3DE0FD18C5D44F /* OpenGLES.framework */; };
+		FFF7E19F670CD661E45F8603 /* CoreVideo.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B2FAEAC42A6E7C5EDC4F4A07 /* CoreVideo.framework */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		054CDF5269CDA16084000B94 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 1D7F34E45396E7C9086D3FB4 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 4B0417D636D80E1973E6EC48;
+			remoteInfo = KotonohaImGui;
+		};
+		06A6939E50D1421DEBEDFCEA /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 1D7F34E45396E7C9086D3FB4 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 4B0417D636D80E1973E6EC48;
+			remoteInfo = KotonohaImGui;
+		};
+		14771AACDB6EC34D1110B863 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 1D7F34E45396E7C9086D3FB4 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = D353276E353ED61BDA9316AE;
+			remoteInfo = KotonohaEngine;
+		};
+		72A18C5BD52963B963760581 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 1D7F34E45396E7C9086D3FB4 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = D353276E353ED61BDA9316AE;
+			remoteInfo = KotonohaEngine;
+		};
+		764C91FB597C61230CB21F8A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 1D7F34E45396E7C9086D3FB4 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 4B0417D636D80E1973E6EC48;
+			remoteInfo = KotonohaImGui;
+		};
+		93EB77C8A1F624C0C5E8403F /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 1D7F34E45396E7C9086D3FB4 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = D353276E353ED61BDA9316AE;
+			remoteInfo = KotonohaEngine;
+		};
+		A0DCD9AD38E3128B2A7643ED /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 1D7F34E45396E7C9086D3FB4 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = D353276E353ED61BDA9316AE;
+			remoteInfo = KotonohaEngine;
+		};
+		AC6CA98CA3652A5A3DA1EDE7 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 1D7F34E45396E7C9086D3FB4 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = D353276E353ED61BDA9316AE;
+			remoteInfo = KotonohaEngine;
+		};
+		B0515C58A9FE43DEC8A9BE19 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 1D7F34E45396E7C9086D3FB4 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 4B0417D636D80E1973E6EC48;
+			remoteInfo = KotonohaImGui;
+		};
+		C2C2DC3F6FBC1C93A189F3E4 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 1D7F34E45396E7C9086D3FB4 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 4B0417D636D80E1973E6EC48;
+			remoteInfo = KotonohaImGui;
+		};
+		C99E3084D70C5580B1AC9332 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 1D7F34E45396E7C9086D3FB4 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = D353276E353ED61BDA9316AE;
+			remoteInfo = KotonohaEngine;
+		};
+		CE5B84420E8BA6419639142A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 1D7F34E45396E7C9086D3FB4 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 4B0417D636D80E1973E6EC48;
+			remoteInfo = KotonohaImGui;
+		};
+		CEFD20AC3095902A006D0E4E /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = CEFD20A630959029006D0E4E /* SDL_ttf.xcodeproj */;
+			proxyType = 2;
+			remoteGlobalIDString = BE48FD6707AFA17000BB41DA;
+			remoteInfo = SDL3_ttf;
+		};
+		CEFD20B430959039006D0E4E /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = CEFD20AE30959038006D0E4E /* SDL.xcodeproj */;
+			proxyType = 2;
+			remoteGlobalIDString = BECDF66C0761BA81005FE872;
+			remoteInfo = SDL3;
+		};
+		E86E272ADCDBE259976B8104 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 1D7F34E45396E7C9086D3FB4 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 4B0417D636D80E1973E6EC48;
+			remoteInfo = KotonohaImGui;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		0E48296832DEADC8678B45DD /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				CEFD20CB30959078006D0E4E /* SDL3.framework in Embed Frameworks */,
+				CEC5DF143095F7F800D4D78B /* KotonohaEngine.framework in Embed Frameworks */,
+				CEFD20D230959091006D0E4E /* SDL3_ttf.framework in Embed Frameworks */,
+				E201393195443303D237CF41 /* KotonohaImGui.framework in Embed Frameworks */,
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		3DC2C52A64E11C89482FA6E0 /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				CEFD20C230959068006D0E4E /* SDL3.framework in Embed Frameworks */,
+				CEC5DF1A3095F83700D4D78B /* KotonohaEngine.framework in Embed Frameworks */,
+				CEFD20D830959097006D0E4E /* SDL3_ttf.framework in Embed Frameworks */,
+				2F2460A93B4F1788834ED379 /* KotonohaImGui.framework in Embed Frameworks */,
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		56FA712D85DF0DAF6F8CF8BC /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				CEFD20BF30959062006D0E4E /* SDL3.framework in Embed Frameworks */,
+				CEC5DF1C3095F83A00D4D78B /* KotonohaEngine.framework in Embed Frameworks */,
+				CEFD20DA3095909A006D0E4E /* SDL3_ttf.framework in Embed Frameworks */,
+				9F8D61CDCCA3417C88D1FF7B /* KotonohaImGui.framework in Embed Frameworks */,
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5E488808308B154542045A9C /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				CEFD20B73095904E006D0E4E /* SDL3.framework in Embed Frameworks */,
+				CEC5DF1E3095F83D00D4D78B /* KotonohaEngine.framework in Embed Frameworks */,
+				CEFD20DC3095909C006D0E4E /* SDL3_ttf.framework in Embed Frameworks */,
+				E35016335D4071C074943DF2 /* KotonohaImGui.framework in Embed Frameworks */,
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		8259E0D5B3223BFA39E28144 /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				CEC5DF183095F82B00D4D78B /* SDL3.framework in Embed Frameworks */,
+				CEFD20CE3095908D006D0E4E /* SDL3_ttf.framework in Embed Frameworks */,
+				CEC5DF163095F7FC00D4D78B /* KotonohaEngine.framework in Embed Frameworks */,
+				AA9987A8B857455D47CDBC01 /* KotonohaImGui.framework in Embed Frameworks */,
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		83D16F3B85E1D7E9D3665D56 /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				CEFD20C830959075006D0E4E /* SDL3.framework in Embed Frameworks */,
+				CEC5DF123095F7F200D4D78B /* KotonohaEngine.framework in Embed Frameworks */,
+				CEFD20D430959093006D0E4E /* SDL3_ttf.framework in Embed Frameworks */,
+				28397863F12D36A2790D35B4 /* KotonohaImGui.framework in Embed Frameworks */,
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BE47F0E128389E9166264908 /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				CE233D70309602A4004AB51E /* Python.framework in Embed Frameworks */,
+				CEFD20D630959094006D0E4E /* SDL3_ttf.framework in Embed Frameworks */,
+				CEFD20C530959070006D0E4E /* SDL3.framework in Embed Frameworks */,
+				74A4D38972F6167E3B967D0E /* KotonohaImGui.framework in Embed Frameworks */,
+				CEC5DF103095F7EB00D4D78B /* KotonohaEngine.framework in Embed Frameworks */,
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CE2FEDF430956BFA00E7D27F /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				CEFD20BA30959057006D0E4E /* SDL3.framework in Embed Frameworks */,
+				CEFD20DE3095909F006D0E4E /* SDL3_ttf.framework in Embed Frameworks */,
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CEFD20BD3095905B006D0E4E /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				CEFD20BC3095905B006D0E4E /* SDL3.framework in Embed Frameworks */,
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		0242730B1E228181304627F9 /* Vm.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; name = Vm.cpp; path = "../games/doki-doki-literature-club/src/Vm.cpp"; sourceTree = "<group>"; };
+		08EFD6BD9770B9CFE023EC0A /* Archive.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; name = Archive.cpp; path = "../games/doki-doki-literature-club/src/Archive.cpp"; sourceTree = "<group>"; };
+		0BDBADE5AA1843BDCBE0381B /* DdlcScriptTest.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; name = DdlcScriptTest.cpp; path = "../games/doki-doki-literature-club/tests/DdlcScriptTest.cpp"; sourceTree = "<group>"; };
+		1E3DAC86D86C8594D18E1D20 /* imgui_widgets.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; name = imgui_widgets.cpp; path = ../lib/submodules/imgui/imgui_widgets.cpp; sourceTree = "<group>"; };
+		2F6E483E9694EDC9C9D4B92F /* SvgTestFont.ttf */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = file; name = SvgTestFont.ttf; path = ../lib/tests/fixtures/SvgTestFont.ttf; sourceTree = "<group>"; };
+		35CBE9E83D4457472483BFC4 /* Script.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; name = Script.cpp; path = "../games/doki-doki-literature-club/src/Script.cpp"; sourceTree = "<group>"; };
+		42D538C486E337F7390CE7EF /* CoreFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreFoundation.framework; path = System/Library/Frameworks/CoreFoundation.framework; sourceTree = SDKROOT; };
+		43B9E4E908D1CC67D291F5F0 /* imgui_tables.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; name = imgui_tables.cpp; path = ../lib/submodules/imgui/imgui_tables.cpp; sourceTree = "<group>"; };
+		4A9B6E799E2376E8183ADE52 /* Metal.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Metal.framework; path = System/Library/Frameworks/Metal.framework; sourceTree = SDKROOT; };
+		4ED8EF91713B7445DF30DEB0 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
+		4FFD1FC9FD3DE0FD18C5D44F /* OpenGLES.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = OpenGLES.framework; path = System/Library/Frameworks/OpenGLES.framework; sourceTree = SDKROOT; };
+		514697826932CEDC425F9738 /* imgui_draw.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; name = imgui_draw.cpp; path = ../lib/submodules/imgui/imgui_draw.cpp; sourceTree = "<group>"; };
+		528F10C36D905193890E9E1A /* Value.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; name = Value.cpp; path = "../games/doki-doki-literature-club/src/Value.cpp"; sourceTree = "<group>"; };
+		5F688AD0FCE10DF72F51EBE2 /* imgui_stdlib.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; name = imgui_stdlib.cpp; path = ../lib/submodules/imgui/misc/cpp/imgui_stdlib.cpp; sourceTree = "<group>"; };
+		6AC33256490759509EFF9BF1 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
+		749E86948BF0AA6831055589 /* imgui.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; name = imgui.cpp; path = ../lib/submodules/imgui/imgui.cpp; sourceTree = "<group>"; };
+		7B888328F9DCB92CBAEEB6FE /* Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		84BEEE477A504ECE1C36DCF8 /* imgui_impl_sdl3.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; name = imgui_impl_sdl3.cpp; path = ../lib/submodules/imgui/backends/imgui_impl_sdl3.cpp; sourceTree = "<group>"; };
+		9AB15324823089557328B514 /* Python.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; name = Python.cpp; path = "../games/doki-doki-literature-club/src/Python.cpp"; sourceTree = "<group>"; };
+		AD816549C60CF2EB4A36ECE3 /* Display.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; name = Display.cpp; path = "../games/doki-doki-literature-club/src/Display.cpp"; sourceTree = "<group>"; };
+		AE21419FA90F5C4BEEBC3657 /* PlatformSmokeTests.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; name = PlatformSmokeTests.cpp; path = ../lib/tests/PlatformSmokeTests.cpp; sourceTree = "<group>"; };
+		B2FAEAC42A6E7C5EDC4F4A07 /* CoreVideo.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreVideo.framework; path = System/Library/Frameworks/CoreVideo.framework; sourceTree = SDKROOT; };
+		B78DCDBFE541F1854A2A0FFC /* CoreMedia.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreMedia.framework; path = System/Library/Frameworks/CoreMedia.framework; sourceTree = SDKROOT; };
+		C446DAC72995F2973C600D09 /* VideoToolbox.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = VideoToolbox.framework; path = System/Library/Frameworks/VideoToolbox.framework; sourceTree = SDKROOT; };
+		CE1893F63095457700B0DF80 /* KotonohaImGui.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = KotonohaImGui.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		CE1893F83095457F00B0DF80 /* KotonohaEngine.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = KotonohaEngine.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		CE233D663096024A004AB51E /* Python.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Python.framework; path = "../build/iOS-deps/Python.xcframework/ios-arm64/Python.framework"; sourceTree = SOURCE_ROOT; };
+		CE2FEE0130956E3300E7D27F /* game-assets */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "game-assets"; path = "../../games/zero-no-tsukaima/game-assets"; sourceTree = "<group>"; };
+		CE2FEE0330956E6100E7D27F /* assets */ = {isa = PBXFileReference; lastKnownFileType = folder; name = assets; path = ../assets; sourceTree = "<group>"; };
+		CE2FEE0B30956EA000E7D27F /* game-assets */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "game-assets"; path = "../../games/snow-radish-vacation/game-assets"; sourceTree = "<group>"; };
+		CE2FEE0D30956EB700E7D27F /* game-assets */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "game-assets"; path = "../../games/doki-doki-literature-club/game-assets"; sourceTree = "<group>"; };
+		CE2FEE0F30956ECC00E7D27F /* game-assets */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "game-assets"; path = "../../games/school-days/game-assets"; sourceTree = "<group>"; };
+		CEFD20A630959029006D0E4E /* SDL_ttf.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = SDL_ttf.xcodeproj; path = ../lib/submodules/SDL_ttf/Xcode/SDL_ttf.xcodeproj; sourceTree = SOURCE_ROOT; };
+		CEFD20AE30959038006D0E4E /* SDL.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = SDL.xcodeproj; path = ../lib/submodules/SDL/Xcode/SDL/SDL.xcodeproj; sourceTree = SOURCE_ROOT; };
+		CEFD20B83095904E006D0E4E /* Kotonoha.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Kotonoha.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		CEFD20C030959062006D0E4E /* Zero No Tsukaima.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Zero No Tsukaima.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		CEFD20C330959068006D0E4E /* Snow Radish Vacation!!.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Snow Radish Vacation!!.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		CEFD20C630959070006D0E4E /* Doki Doki Literature Club.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Doki Doki Literature Club.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		CEFD20C930959075006D0E4E /* School Days HQ.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "School Days HQ.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		CEFD20CC30959079006D0E4E /* KotonohaIOSSmoke.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = KotonohaIOSSmoke.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		CEFD20CF3095908D006D0E4E /* DdlcIOSScriptSmoke.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = DdlcIOSScriptSmoke.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		E3E0EC27DFAF9CC3242B7CFB /* imgui_impl_sdlrenderer3.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; name = imgui_impl_sdlrenderer3.cpp; path = ../lib/submodules/imgui/backends/imgui_impl_sdlrenderer3.cpp; sourceTree = "<group>"; };
+		FBAC8B3DF93878243BF88A65 /* AudioToolbox.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AudioToolbox.framework; path = System/Library/Frameworks/AudioToolbox.framework; sourceTree = SDKROOT; };
+/* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		CEC5DD6F3095F3D700D4D78B /* src */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); name = src; path = ../lib/src; sourceTree = SOURCE_ROOT; };
+		CEC5DDE23095F3E400D4D78B /* include */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); name = include; path = ../lib/include; sourceTree = SOURCE_ROOT; };
+		CEC5DE193095F4B300D4D78B /* src */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); name = src; path = "../games/school-days/src"; sourceTree = SOURCE_ROOT; };
+		CEC5DE7A3095F4BD00D4D78B /* include */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); name = include; path = "../games/school-days/include"; sourceTree = SOURCE_ROOT; };
+		CEC5DE8A3095F4E900D4D78B /* src */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); name = src; path = "../games/snow-radish-vacation/src"; sourceTree = SOURCE_ROOT; };
+		CEC5DE993095F4F200D4D78B /* include */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); name = include; path = "../games/snow-radish-vacation/include"; sourceTree = SOURCE_ROOT; };
+		CEC5DEAA3095F50700D4D78B /* src */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); name = src; path = "../games/doki-doki-literature-club/src"; sourceTree = SOURCE_ROOT; };
+		CEC5DEBC3095F50E00D4D78B /* include */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); name = include; path = "../games/doki-doki-literature-club/include"; sourceTree = SOURCE_ROOT; };
+		CEC5DED63095F52200D4D78B /* src */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); name = src; path = "../games/zero-no-tsukaima/src"; sourceTree = SOURCE_ROOT; };
+		CEC5DEF33095F52A00D4D78B /* include */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); name = include; path = "../games/zero-no-tsukaima/include"; sourceTree = SOURCE_ROOT; };
+		CEC5DF023095F56000D4D78B /* game-assets */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); name = "game-assets"; path = "../games/example/game-assets"; sourceTree = SOURCE_ROOT; };
+		CEC5DF0A3095F6F000D4D78B /* src */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); name = src; path = ../games/example/src; sourceTree = SOURCE_ROOT; };
+/* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		0D058B48A1D4B4EC1D2B5F55 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C113B6F1928D5B96C95CFF85 /* Foundation.framework in Frameworks */,
+				CEC5DF133095F7F800D4D78B /* KotonohaEngine.framework in Frameworks */,
+				CEFD20D130959091006D0E4E /* SDL3_ttf.framework in Frameworks */,
+				00063DF34CD89A1C960AC7A1 /* Metal.framework in Frameworks */,
+				13599080B1B22DF28D660B24 /* OpenGLES.framework in Frameworks */,
+				CEFD20CA30959078006D0E4E /* SDL3.framework in Frameworks */,
+				9EC1E9F2A54D574B1DA7955D /* VideoToolbox.framework in Frameworks */,
+				2F1D04C8C4123C3FE151357D /* CoreVideo.framework in Frameworks */,
+				D86023A902907AE397697254 /* CoreMedia.framework in Frameworks */,
+				F4B068DC6AEC13E173931970 /* CoreFoundation.framework in Frameworks */,
+				D4CDA1DA18ACC1DFA370B8A8 /* AudioToolbox.framework in Frameworks */,
+				B0187C77DBF8A368436B4DF8 /* KotonohaImGui.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		256C7E1B7675538C43018721 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				CE1893FF30954CF000B0DF80 /* Foundation.framework in Frameworks */,
+				CEC5DF113095F7F200D4D78B /* KotonohaEngine.framework in Frameworks */,
+				CEFD20D330959093006D0E4E /* SDL3_ttf.framework in Frameworks */,
+				CE18940030954CF000B0DF80 /* Metal.framework in Frameworks */,
+				CE18940130954CF000B0DF80 /* OpenGLES.framework in Frameworks */,
+				CEFD20C730959075006D0E4E /* SDL3.framework in Frameworks */,
+				CE18940230954CF000B0DF80 /* VideoToolbox.framework in Frameworks */,
+				CE18940330954CF000B0DF80 /* CoreVideo.framework in Frameworks */,
+				CE18940430954CF000B0DF80 /* CoreMedia.framework in Frameworks */,
+				CE18940530954CF000B0DF80 /* CoreFoundation.framework in Frameworks */,
+				CE18940630954CF000B0DF80 /* AudioToolbox.framework in Frameworks */,
+				C3439BFD95E2D5A59273A6DA /* KotonohaImGui.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		4CF9943E042AC036C5E46F58 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				CEFD20BB3095905B006D0E4E /* SDL3.framework in Frameworks */,
+				C3EBC58FDD32C6339A9E70A6 /* Foundation.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		4DB74ABD0CB182F836B0A5A9 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B2CD2E4C7288A6658B098F27 /* Foundation.framework in Frameworks */,
+				19BED8FC8B7B20E634F015A4 /* Metal.framework in Frameworks */,
+				0351CDE51DCA0C4936C1DF41 /* OpenGLES.framework in Frameworks */,
+				C66FEE77049BAB19C9BD251C /* VideoToolbox.framework in Frameworks */,
+				CEFD20B930959057006D0E4E /* SDL3.framework in Frameworks */,
+				F8C44FAF4C88BABECDD7E74C /* CoreVideo.framework in Frameworks */,
+				53478FE376E9C070B9153460 /* CoreMedia.framework in Frameworks */,
+				91A50DE1D021BF91FBE3647D /* CoreFoundation.framework in Frameworks */,
+				315D3E2E533CD6DAE91B649C /* AudioToolbox.framework in Frameworks */,
+				82E66C23A2A026D23A1E5092 /* KotonohaImGui.framework in Frameworks */,
+				CEFD20DD3095909F006D0E4E /* SDL3_ttf.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		73189A070EBC2487BCF04D1D /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				99641A082B7C25DE5A37EF86 /* Foundation.framework in Frameworks */,
+				CEC5DF153095F7FC00D4D78B /* KotonohaEngine.framework in Frameworks */,
+				CEFD20D03095908F006D0E4E /* SDL3_ttf.framework in Frameworks */,
+				A05503E85A6235A5D99B59C0 /* Metal.framework in Frameworks */,
+				541B61671D1BD960E11EFBA5 /* OpenGLES.framework in Frameworks */,
+				8DE0B9E6A7EAE72191C3C08D /* VideoToolbox.framework in Frameworks */,
+				FABF92E8ADBAE676428C1DA1 /* CoreVideo.framework in Frameworks */,
+				24D9F733B5F5C03EC97C0E8F /* CoreMedia.framework in Frameworks */,
+				6E82F57434E062B14268CF74 /* CoreFoundation.framework in Frameworks */,
+				35C4FCC0CDFE89ECF8419CD5 /* AudioToolbox.framework in Frameworks */,
+				C9AC40427DA745385043977C /* KotonohaImGui.framework in Frameworks */,
+				CEC5DF173095F82B00D4D78B /* SDL3.framework in Frameworks */,
+				CEFD20CD3095908D006D0E4E /* SDL3_ttf.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		89A0242AD2BDAB7995934C71 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				07A049B4976F891C254A94F9 /* Foundation.framework in Frameworks */,
+				CEC5DF193095F83700D4D78B /* KotonohaEngine.framework in Frameworks */,
+				CEFD20D730959096006D0E4E /* SDL3_ttf.framework in Frameworks */,
+				62DCD5E25DA7DD5725F20D17 /* Metal.framework in Frameworks */,
+				A3C33CEC77B04675F7A5AA18 /* OpenGLES.framework in Frameworks */,
+				CEFD20C130959068006D0E4E /* SDL3.framework in Frameworks */,
+				67BD4F9CC0336601B8C6EB93 /* VideoToolbox.framework in Frameworks */,
+				951714C2518E026491F167D1 /* CoreVideo.framework in Frameworks */,
+				98261791889246CE2BAD8448 /* CoreMedia.framework in Frameworks */,
+				B84A837CFA60AF826FEDF121 /* CoreFoundation.framework in Frameworks */,
+				B52AF223D05D05073EED9B4B /* AudioToolbox.framework in Frameworks */,
+				95C29BC1C6D52AD2764F8DD4 /* KotonohaImGui.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		923910C0A18B4A8EE5D95A54 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				21B6562D334DA665E4242ADB /* Foundation.framework in Frameworks */,
+				CEFD20D530959094006D0E4E /* SDL3_ttf.framework in Frameworks */,
+				1C1BEDC96BB369F0EBB5E509 /* Metal.framework in Frameworks */,
+				CEC5DF0F3095F7EB00D4D78B /* KotonohaEngine.framework in Frameworks */,
+				5C8E1CE6D93E084716E8EC80 /* OpenGLES.framework in Frameworks */,
+				A440F07C98B600AB565B93FF /* VideoToolbox.framework in Frameworks */,
+				CE233D6F309602A4004AB51E /* Python.framework in Frameworks */,
+				FFF7E19F670CD661E45F8603 /* CoreVideo.framework in Frameworks */,
+				ABEFE38E96ACB442C93A3DE9 /* CoreMedia.framework in Frameworks */,
+				FA056BF695F93AE290705FB8 /* CoreFoundation.framework in Frameworks */,
+				CEFD20C430959070006D0E4E /* SDL3.framework in Frameworks */,
+				C6C715B25F09535CA51B0782 /* AudioToolbox.framework in Frameworks */,
+				85A76F761FE62E10C86C36C1 /* KotonohaImGui.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B471FF9F8E351CC64311BEED /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				69E54331BD2760DEDB7A8229 /* Foundation.framework in Frameworks */,
+				CEC5DF1B3095F83A00D4D78B /* KotonohaEngine.framework in Frameworks */,
+				CEFD20D93095909A006D0E4E /* SDL3_ttf.framework in Frameworks */,
+				73254F43B14942E9DB2E9D7C /* Metal.framework in Frameworks */,
+				DCE5859CDAFE38345890B137 /* OpenGLES.framework in Frameworks */,
+				CEFD20BE30959062006D0E4E /* SDL3.framework in Frameworks */,
+				C8B9B0905CBB2EAFB89B850D /* VideoToolbox.framework in Frameworks */,
+				DCD02DF66CDECCBEB4709AA2 /* CoreVideo.framework in Frameworks */,
+				D9039BE17B8168D74C1A3C68 /* CoreMedia.framework in Frameworks */,
+				6D4E7E573D0C19F64FB7DC1F /* CoreFoundation.framework in Frameworks */,
+				5FD58DACF503942DD43372EC /* AudioToolbox.framework in Frameworks */,
+				050A4D0B472931E1890EBB2A /* KotonohaImGui.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		F191DA00F62141A39803230B /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				9D7333169777213B9128550D /* Foundation.framework in Frameworks */,
+				CEC5DF1D3095F83D00D4D78B /* KotonohaEngine.framework in Frameworks */,
+				CEFD20DB3095909C006D0E4E /* SDL3_ttf.framework in Frameworks */,
+				69AB1192C3C11DF6A6B0C2A5 /* Metal.framework in Frameworks */,
+				FDA1599DA4BD8492F7A2721F /* OpenGLES.framework in Frameworks */,
+				CEFD20B63095904E006D0E4E /* SDL3.framework in Frameworks */,
+				7F94124DD2A7442B5840761D /* VideoToolbox.framework in Frameworks */,
+				8387BC2F1541AEDAF3B7E149 /* CoreVideo.framework in Frameworks */,
+				D93AB727AA38217D72F47245 /* CoreMedia.framework in Frameworks */,
+				16EC5DF5A36984D999EC0494 /* CoreFoundation.framework in Frameworks */,
+				040512B9F35D75B5BB9768EC /* AudioToolbox.framework in Frameworks */,
+				8FD10C1CB72DE555CBC113C4 /* KotonohaImGui.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		1FDB485883E5E4E9F6B124E9 /* ZeroNoTsukaima */ = {
+			isa = PBXGroup;
+			children = (
+				CE2FEE0130956E3300E7D27F /* game-assets */,
+				CEC5DED63095F52200D4D78B /* src */,
+				CEC5DEF33095F52A00D4D78B /* include */,
+			);
+			name = ZeroNoTsukaima;
+			sourceTree = "<group>";
+		};
+		36D4CBEC49EE89380D7D6546 /* iOS SDK */ = {
+			isa = PBXGroup;
+			children = (
+				6AC33256490759509EFF9BF1 /* Foundation.framework */,
+				4A9B6E799E2376E8183ADE52 /* Metal.framework */,
+				4FFD1FC9FD3DE0FD18C5D44F /* OpenGLES.framework */,
+				C446DAC72995F2973C600D09 /* VideoToolbox.framework */,
+				B2FAEAC42A6E7C5EDC4F4A07 /* CoreVideo.framework */,
+				B78DCDBFE541F1854A2A0FFC /* CoreMedia.framework */,
+				42D538C486E337F7390CE7EF /* CoreFoundation.framework */,
+				FBAC8B3DF93878243BF88A65 /* AudioToolbox.framework */,
+			);
+			name = "iOS SDK";
+			sourceTree = "<group>";
+		};
+		39B43841AB08C0F3D2B90564 /* Dependencies */ = {
+			isa = PBXGroup;
+			children = (
+				CEFD20A630959029006D0E4E /* SDL_ttf.xcodeproj */,
+				CEFD20AE30959038006D0E4E /* SDL.xcodeproj */,
+			);
+			name = Dependencies;
+			sourceTree = "<group>";
+		};
+		4C3DDA454526E9E63A3838DC /* DokiDoki */ = {
+			isa = PBXGroup;
+			children = (
+				CE2FEE0D30956EB700E7D27F /* game-assets */,
+				CEC5DEAA3095F50700D4D78B /* src */,
+				CEC5DEBC3095F50E00D4D78B /* include */,
+			);
+			name = DokiDoki;
+			sourceTree = "<group>";
+		};
+		4F26D58EFC961A5F80AEE91E /* iOS */ = {
+			isa = PBXGroup;
+			children = (
+				4ED8EF91713B7445DF30DEB0 /* Foundation.framework */,
+			);
+			name = iOS;
+			sourceTree = "<group>";
+		};
+		5F48FF1401F6941033C84B00 /* KotonohaEngine */ = {
+			isa = PBXGroup;
+			children = (
+				CEC5DD6F3095F3D700D4D78B /* src */,
+				CEC5DDE23095F3E400D4D78B /* include */,
+				6F169E3D666AE9FF00F231D9 /* Dear ImGui */,
+			);
+			name = KotonohaEngine;
+			sourceTree = "<group>";
+		};
+		631A16BFE07F40AA692A7726 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				36D4CBEC49EE89380D7D6546 /* iOS SDK */,
+				4F26D58EFC961A5F80AEE91E /* iOS */,
+				CE233D663096024A004AB51E /* Python.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		6F169E3D666AE9FF00F231D9 /* Dear ImGui */ = {
+			isa = PBXGroup;
+			children = (
+				84BEEE477A504ECE1C36DCF8 /* imgui_impl_sdl3.cpp */,
+				E3E0EC27DFAF9CC3242B7CFB /* imgui_impl_sdlrenderer3.cpp */,
+				749E86948BF0AA6831055589 /* imgui.cpp */,
+				514697826932CEDC425F9738 /* imgui_draw.cpp */,
+				43B9E4E908D1CC67D291F5F0 /* imgui_tables.cpp */,
+				1E3DAC86D86C8594D18E1D20 /* imgui_widgets.cpp */,
+				5F688AD0FCE10DF72F51EBE2 /* imgui_stdlib.cpp */,
+			);
+			name = "Dear ImGui";
+			sourceTree = "<group>";
+		};
+		77EB89FA83F4679C0B43BB3A /* SchoolDays */ = {
+			isa = PBXGroup;
+			children = (
+				CE2FEE0F30956ECC00E7D27F /* game-assets */,
+				CEC5DE193095F4B300D4D78B /* src */,
+				CEC5DE7A3095F4BD00D4D78B /* include */,
+			);
+			name = SchoolDays;
+			sourceTree = "<group>";
+		};
+		7F3481CB6F8C3B7CB0B6997D /* KotonohaIOSSmoke */ = {
+			isa = PBXGroup;
+			children = (
+				AE21419FA90F5C4BEEBC3657 /* PlatformSmokeTests.cpp */,
+				2F6E483E9694EDC9C9D4B92F /* SvgTestFont.ttf */,
+			);
+			name = KotonohaIOSSmoke;
+			sourceTree = "<group>";
+		};
+		8ACF7B9780997A33BB40E3EE /* Kotonoha */ = {
+			isa = PBXGroup;
+			children = (
+				CEC5DF023095F56000D4D78B /* game-assets */,
+				CEC5DF0A3095F6F000D4D78B /* src */,
+			);
+			name = Kotonoha;
+			sourceTree = "<group>";
+		};
+		A26AC0FB19398B931B700335 = {
+			isa = PBXGroup;
+			children = (
+				A54782C73AB6DBA8C72202DE /* Products */,
+				39B43841AB08C0F3D2B90564 /* Dependencies */,
+				631A16BFE07F40AA692A7726 /* Frameworks */,
+				5F48FF1401F6941033C84B00 /* KotonohaEngine */,
+				B04B3C26A9140A77C2BF3DA3 /* Resources */,
+				CE18940930954CF000B0DF80 /* Recovered References */,
+				CEC5DD2C3095F35400D4D78B /* Games */,
+				D0DAFF547CC8900C1CAA85CC /* DdlcIOSScriptSmoke */,
+				7F3481CB6F8C3B7CB0B6997D /* KotonohaIOSSmoke */,
+			);
+			sourceTree = "<group>";
+		};
+		A54782C73AB6DBA8C72202DE /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				CEFD20B83095904E006D0E4E /* Kotonoha.app */,
+				CEFD20C030959062006D0E4E /* Zero No Tsukaima.app */,
+				CEFD20C330959068006D0E4E /* Snow Radish Vacation!!.app */,
+				CEFD20C630959070006D0E4E /* Doki Doki Literature Club.app */,
+				CEFD20C930959075006D0E4E /* School Days HQ.app */,
+				CEFD20CC30959079006D0E4E /* KotonohaIOSSmoke.app */,
+				CEFD20CF3095908D006D0E4E /* DdlcIOSScriptSmoke.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		B04B3C26A9140A77C2BF3DA3 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				7B888328F9DCB92CBAEEB6FE /* Info.plist */,
+				CE2FEE0330956E6100E7D27F /* assets */,
+			);
+			name = Resources;
+			sourceTree = "<group>";
+		};
+		CE18940930954CF000B0DF80 /* Recovered References */ = {
+			isa = PBXGroup;
+			children = (
+				CE1893F63095457700B0DF80 /* KotonohaImGui.framework */,
+				CE1893F83095457F00B0DF80 /* KotonohaEngine.framework */,
+			);
+			name = "Recovered References";
+			sourceTree = "<group>";
+		};
+		CEC5DD2C3095F35400D4D78B /* Games */ = {
+			isa = PBXGroup;
+			children = (
+				F72608A62717C49A80B163F3 /* SnowRadish */,
+				4C3DDA454526E9E63A3838DC /* DokiDoki */,
+				77EB89FA83F4679C0B43BB3A /* SchoolDays */,
+				1FDB485883E5E4E9F6B124E9 /* ZeroNoTsukaima */,
+				8ACF7B9780997A33BB40E3EE /* Kotonoha */,
+			);
+			path = Games;
+			sourceTree = "<group>";
+		};
+		CEFD20A730959029006D0E4E /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				CEFD20AD3095902A006D0E4E /* SDL3_ttf.framework */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		CEFD20AF30959038006D0E4E /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				CEFD20B530959039006D0E4E /* SDL3.framework */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		D0DAFF547CC8900C1CAA85CC /* DdlcIOSScriptSmoke */ = {
+			isa = PBXGroup;
+			children = (
+				08EFD6BD9770B9CFE023EC0A /* Archive.cpp */,
+				AD816549C60CF2EB4A36ECE3 /* Display.cpp */,
+				9AB15324823089557328B514 /* Python.cpp */,
+				35CBE9E83D4457472483BFC4 /* Script.cpp */,
+				528F10C36D905193890E9E1A /* Value.cpp */,
+				0242730B1E228181304627F9 /* Vm.cpp */,
+				0BDBADE5AA1843BDCBE0381B /* DdlcScriptTest.cpp */,
+			);
+			name = DdlcIOSScriptSmoke;
+			sourceTree = "<group>";
+		};
+		F72608A62717C49A80B163F3 /* SnowRadish */ = {
+			isa = PBXGroup;
+			children = (
+				CE2FEE0B30956EA000E7D27F /* game-assets */,
+				CEC5DE8A3095F4E900D4D78B /* src */,
+				CEC5DE993095F4F200D4D78B /* include */,
+			);
+			name = SnowRadish;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXHeadersBuildPhase section */
+		546BF80CF78818BCD80C52F9 /* Headers */ = {
+			isa = PBXHeadersBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B8EC4C488E290B3F09C661EF /* Headers */ = {
+			isa = PBXHeadersBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXHeadersBuildPhase section */
+
+/* Begin PBXNativeTarget section */
+		4B0417D636D80E1973E6EC48 /* ImGui */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = CD845DF72523912C4152CA3C /* Build configuration list for PBXNativeTarget "ImGui" */;
+			buildPhases = (
+				546BF80CF78818BCD80C52F9 /* Headers */,
+				E2064F1C3476AAC4B9658927 /* Sources */,
+				4CF9943E042AC036C5E46F58 /* Frameworks */,
+				E72FD9BA9B95865C3DFFD24E /* Resources */,
+				CEFD20BD3095905B006D0E4E /* Embed Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = ImGui;
+			productName = KotonohaImGui;
+			productReference = CE1893F63095457700B0DF80 /* KotonohaImGui.framework */;
+			productType = "com.apple.product-type.framework";
+		};
+		520E72353D5BDC48568DB4E5 /* ZeroNoTsukaima */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 98E1B0FFE1859F198CD37E19 /* Build configuration list for PBXNativeTarget "ZeroNoTsukaima" */;
+			buildPhases = (
+				9B5A6D43DC888AD7DF2CD005 /* Sources */,
+				B471FF9F8E351CC64311BEED /* Frameworks */,
+				2E14E4A6BD8A5988A2826E9B /* Resources */,
+				56FA712D85DF0DAF6F8CF8BC /* Embed Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				84187B2A59E39784145C2647 /* PBXTargetDependency */,
+				BA2C1703D25945801FF65758 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				CEC5DED63095F52200D4D78B /* src */,
+			);
+			name = ZeroNoTsukaima;
+			productName = ZeroNoTsukaima;
+			productReference = CEFD20C030959062006D0E4E /* Zero No Tsukaima.app */;
+			productType = "com.apple.product-type.application";
+		};
+		949A01BF0095966CB485B790 /* DdlcIOSScriptSmoke */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 3D2E618FAB65D74415D9FC15 /* Build configuration list for PBXNativeTarget "DdlcIOSScriptSmoke" */;
+			buildPhases = (
+				B2910F922636E2C71323E71E /* Sources */,
+				73189A070EBC2487BCF04D1D /* Frameworks */,
+				8082A9C7E5D585B573A4006A /* Resources */,
+				8259E0D5B3223BFA39E28144 /* Embed Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				474D437F16E15F94F9505B79 /* PBXTargetDependency */,
+				C6BB95B1A4F9B4E7100662E4 /* PBXTargetDependency */,
+			);
+			name = DdlcIOSScriptSmoke;
+			productName = DdlcIOSScriptSmoke;
+			productReference = CEFD20CF3095908D006D0E4E /* DdlcIOSScriptSmoke.app */;
+			productType = "com.apple.product-type.application";
+		};
+		A400B29EF272BE64C3491F34 /* DokiDoki */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 3DC7F66D10389B79DD67A8A3 /* Build configuration list for PBXNativeTarget "DokiDoki" */;
+			buildPhases = (
+				F4F7219F0DD3F13683F73E5E /* Sources */,
+				923910C0A18B4A8EE5D95A54 /* Frameworks */,
+				C579A8529269B769F70C8DBC /* Resources */,
+				BE47F0E128389E9166264908 /* Embed Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				67C9A3762180F2D06D129551 /* PBXTargetDependency */,
+				DB0BFC1C75F63B3B7279B926 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				CEC5DEAA3095F50700D4D78B /* src */,
+			);
+			name = DokiDoki;
+			productName = DokiDoki;
+			productReference = CEFD20C630959070006D0E4E /* Doki Doki Literature Club.app */;
+			productType = "com.apple.product-type.application";
+		};
+		A867443685C2CE18C7FD8641 /* Kotonoha */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 50DC32467EE785080C77222C /* Build configuration list for PBXNativeTarget "Kotonoha" */;
+			buildPhases = (
+				D6DBFFEF966834E8FA58BB0F /* Sources */,
+				F191DA00F62141A39803230B /* Frameworks */,
+				16865082BF6A893EA974B8E2 /* Resources */,
+				5E488808308B154542045A9C /* Embed Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				4EC7F4B16154635E829D27E8 /* PBXTargetDependency */,
+				ACB1BBD81F6B45339578C363 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				CEC5DF0A3095F6F000D4D78B /* src */,
+			);
+			name = Kotonoha;
+			productName = Kotonoha;
+			productReference = CEFD20B83095904E006D0E4E /* Kotonoha.app */;
+			productType = "com.apple.product-type.application";
+		};
+		B2AA2CDDA40EC4CA2D8F5581 /* KotonohaIOSSmoke */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 2208E06EDC535238381FD794 /* Build configuration list for PBXNativeTarget "KotonohaIOSSmoke" */;
+			buildPhases = (
+				791AA4871AEF0E7F0ECBD67C /* Sources */,
+				0D058B48A1D4B4EC1D2B5F55 /* Frameworks */,
+				D921E010272CDA742AFD795A /* Resources */,
+				0E48296832DEADC8678B45DD /* Embed Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				F8E24AFA37D9DD4A30F85679 /* PBXTargetDependency */,
+				9D61193F3E7EFB994DC14002 /* PBXTargetDependency */,
+			);
+			name = KotonohaIOSSmoke;
+			productName = KotonohaIOSSmoke;
+			productReference = CEFD20CC30959079006D0E4E /* KotonohaIOSSmoke.app */;
+			productType = "com.apple.product-type.application";
+		};
+		BE0392014335264F35BE50B4 /* SchoolDays */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 220DE57FAE84D97D3AD6053B /* Build configuration list for PBXNativeTarget "SchoolDays" */;
+			buildPhases = (
+				0E6839BF832E99B1548367D1 /* Sources */,
+				256C7E1B7675538C43018721 /* Frameworks */,
+				D4612865B292EF3C8AC0EB21 /* Resources */,
+				83D16F3B85E1D7E9D3665D56 /* Embed Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				4EC7F4B16154635E829D27E8 /* PBXTargetDependency */,
+				ACB1BBD81F6B45339578C363 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				CEC5DE193095F4B300D4D78B /* src */,
+			);
+			name = SchoolDays;
+			productName = SchoolDays;
+			productReference = CEFD20C930959075006D0E4E /* School Days HQ.app */;
+			productType = "com.apple.product-type.application";
+		};
+		D353276E353ED61BDA9316AE /* KotonohaEngine */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A172C4EBB4C310171295D52E /* Build configuration list for PBXNativeTarget "KotonohaEngine" */;
+			buildPhases = (
+				B8EC4C488E290B3F09C661EF /* Headers */,
+				F6209617F9B29249EADBF0DC /* Sources */,
+				4DB74ABD0CB182F836B0A5A9 /* Frameworks */,
+				ED9F7F4BF13FE52F79605FE7 /* Resources */,
+				CE2FEDF430956BFA00E7D27F /* Embed Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				4FB6A9E8AB70EDE7C297BD3E /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				CEC5DD6F3095F3D700D4D78B /* src */,
+			);
+			name = KotonohaEngine;
+			productName = KotonohaEngine;
+			productReference = CE1893F83095457F00B0DF80 /* KotonohaEngine.framework */;
+			productType = "com.apple.product-type.framework";
+		};
+		F406C89377A29563869CE5E8 /* SnowRadish */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 84F33EA247BBFDC18D34009E /* Build configuration list for PBXNativeTarget "SnowRadish" */;
+			buildPhases = (
+				A193E32CDC63C9B60398FAAC /* Sources */,
+				89A0242AD2BDAB7995934C71 /* Frameworks */,
+				BFDEEA8D51F1541B933AC6DE /* Resources */,
+				3DC2C52A64E11C89482FA6E0 /* Embed Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				35436405B40E5D31404F4813 /* PBXTargetDependency */,
+				E2652F6A678720220E7C2573 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				CEC5DE8A3095F4E900D4D78B /* src */,
+			);
+			name = SnowRadish;
+			productName = SnowRadish;
+			productReference = CEFD20C330959068006D0E4E /* Snow Radish Vacation!!.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		1D7F34E45396E7C9086D3FB4 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				LastSwiftUpdateCheck = 1600;
+				LastUpgradeCheck = 1600;
+				TargetAttributes = {
+					4B0417D636D80E1973E6EC48 = {
+						DevelopmentTeam = 64T9B5HFFD;
+					};
+					520E72353D5BDC48568DB4E5 = {
+						DevelopmentTeam = 64T9B5HFFD;
+						ProvisioningStyle = Automatic;
+					};
+					949A01BF0095966CB485B790 = {
+						DevelopmentTeam = 64T9B5HFFD;
+						ProvisioningStyle = Automatic;
+					};
+					A400B29EF272BE64C3491F34 = {
+						DevelopmentTeam = 64T9B5HFFD;
+						ProvisioningStyle = Automatic;
+					};
+					A867443685C2CE18C7FD8641 = {
+						DevelopmentTeam = 64T9B5HFFD;
+						ProvisioningStyle = Automatic;
+					};
+					B2AA2CDDA40EC4CA2D8F5581 = {
+						DevelopmentTeam = 64T9B5HFFD;
+						ProvisioningStyle = Automatic;
+					};
+					BE0392014335264F35BE50B4 = {
+						DevelopmentTeam = 64T9B5HFFD;
+						ProvisioningStyle = Automatic;
+					};
+					D353276E353ED61BDA9316AE = {
+						DevelopmentTeam = 64T9B5HFFD;
+					};
+					F406C89377A29563869CE5E8 = {
+						DevelopmentTeam = 64T9B5HFFD;
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = 3C5111B97E2863B4F28467DB /* Build configuration list for PBXProject "Kotonoha" */;
+			compatibilityVersion = "Xcode 3.2";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = A26AC0FB19398B931B700335;
+			productRefGroup = A54782C73AB6DBA8C72202DE /* Products */;
+			projectDirPath = "";
+			projectReferences = (
+				{
+					ProductGroup = CEFD20AF30959038006D0E4E /* Products */;
+					ProjectRef = CEFD20AE30959038006D0E4E /* SDL.xcodeproj */;
+				},
+				{
+					ProductGroup = CEFD20A730959029006D0E4E /* Products */;
+					ProjectRef = CEFD20A630959029006D0E4E /* SDL_ttf.xcodeproj */;
+				},
+			);
+			projectRoot = "";
+			targets = (
+				4B0417D636D80E1973E6EC48 /* ImGui */,
+				D353276E353ED61BDA9316AE /* KotonohaEngine */,
+				A867443685C2CE18C7FD8641 /* Kotonoha */,
+				520E72353D5BDC48568DB4E5 /* ZeroNoTsukaima */,
+				F406C89377A29563869CE5E8 /* SnowRadish */,
+				A400B29EF272BE64C3491F34 /* DokiDoki */,
+				BE0392014335264F35BE50B4 /* SchoolDays */,
+				B2AA2CDDA40EC4CA2D8F5581 /* KotonohaIOSSmoke */,
+				949A01BF0095966CB485B790 /* DdlcIOSScriptSmoke */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXReferenceProxy section */
+		CEFD20AD3095902A006D0E4E /* SDL3_ttf.framework */ = {
+			isa = PBXReferenceProxy;
+			fileType = wrapper.framework;
+			path = SDL3_ttf.framework;
+			remoteRef = CEFD20AC3095902A006D0E4E /* PBXContainerItemProxy */;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+		CEFD20B530959039006D0E4E /* SDL3.framework */ = {
+			isa = PBXReferenceProxy;
+			fileType = wrapper.framework;
+			path = SDL3.framework;
+			remoteRef = CEFD20B430959039006D0E4E /* PBXContainerItemProxy */;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+/* End PBXReferenceProxy section */
+
+/* Begin PBXResourcesBuildPhase section */
+		16865082BF6A893EA974B8E2 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				CE2FEE0530956E7200E7D27F /* assets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		2E14E4A6BD8A5988A2826E9B /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				CE2FEE0630956E7600E7D27F /* assets in Resources */,
+				CE2FEE0A30956E9400E7D27F /* game-assets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		8082A9C7E5D585B573A4006A /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BFDEEA8D51F1541B933AC6DE /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				CE2FEE0C30956EA000E7D27F /* game-assets in Resources */,
+				CE2FEE0730956E7700E7D27F /* assets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C579A8529269B769F70C8DBC /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				CE2FEE0E30956EB700E7D27F /* game-assets in Resources */,
+				CEF8839B3095998500CB6787 /* assets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D4612865B292EF3C8AC0EB21 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				CE2FEE1030956ECD00E7D27F /* game-assets in Resources */,
+				CE2FEE0930956E8300E7D27F /* assets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D921E010272CDA742AFD795A /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				584A1D0CF18C97F703CC5657 /* SvgTestFont.ttf in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E72FD9BA9B95865C3DFFD24E /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		ED9F7F4BF13FE52F79605FE7 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		0E6839BF832E99B1548367D1 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		791AA4871AEF0E7F0ECBD67C /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A1B12F5C153B5C61E327BBF6 /* PlatformSmokeTests.cpp in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		9B5A6D43DC888AD7DF2CD005 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A193E32CDC63C9B60398FAAC /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B2910F922636E2C71323E71E /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				32F56A41ADF2FEC206961C8C /* Archive.cpp in Sources */,
+				A9D0C18C4388BB3A2F46B7FE /* Display.cpp in Sources */,
+				B2A1A7A5F150FA8E81BB5AAC /* Python.cpp in Sources */,
+				598189BE172661BEFAF268B5 /* Script.cpp in Sources */,
+				9C95B7E6948652E0E273AC9C /* Value.cpp in Sources */,
+				2D2BD1CCA88BA5240E15B020 /* Vm.cpp in Sources */,
+				7504FCC4F6303984EF390FC7 /* DdlcScriptTest.cpp in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D6DBFFEF966834E8FA58BB0F /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E2064F1C3476AAC4B9658927 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				EFBA004F458C8C0351794692 /* imgui_impl_sdl3.cpp in Sources */,
+				60A0CF2EB40CCE0868E90DAE /* imgui_impl_sdlrenderer3.cpp in Sources */,
+				32E27A969CF80FD2F163B388 /* imgui.cpp in Sources */,
+				B4BB6CE1EB747E088B849FD4 /* imgui_draw.cpp in Sources */,
+				3DCC3FE48DEC316ECF9B16E6 /* imgui_tables.cpp in Sources */,
+				5CE2F057901EC6ED26F6EE73 /* imgui_widgets.cpp in Sources */,
+				114B6B5EFBB32818F66E7821 /* imgui_stdlib.cpp in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		F4F7219F0DD3F13683F73E5E /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		F6209617F9B29249EADBF0DC /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		35436405B40E5D31404F4813 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = KotonohaEngine;
+			target = D353276E353ED61BDA9316AE /* KotonohaEngine */;
+			targetProxy = 72A18C5BD52963B963760581 /* PBXContainerItemProxy */;
+		};
+		474D437F16E15F94F9505B79 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = KotonohaEngine;
+			target = D353276E353ED61BDA9316AE /* KotonohaEngine */;
+			targetProxy = A0DCD9AD38E3128B2A7643ED /* PBXContainerItemProxy */;
+		};
+		4EC7F4B16154635E829D27E8 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = KotonohaEngine;
+			target = D353276E353ED61BDA9316AE /* KotonohaEngine */;
+			targetProxy = C99E3084D70C5580B1AC9332 /* PBXContainerItemProxy */;
+		};
+		4FB6A9E8AB70EDE7C297BD3E /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = KotonohaImGui;
+			target = 4B0417D636D80E1973E6EC48 /* ImGui */;
+			targetProxy = E86E272ADCDBE259976B8104 /* PBXContainerItemProxy */;
+		};
+		67C9A3762180F2D06D129551 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = KotonohaEngine;
+			target = D353276E353ED61BDA9316AE /* KotonohaEngine */;
+			targetProxy = AC6CA98CA3652A5A3DA1EDE7 /* PBXContainerItemProxy */;
+		};
+		84187B2A59E39784145C2647 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = KotonohaEngine;
+			target = D353276E353ED61BDA9316AE /* KotonohaEngine */;
+			targetProxy = 93EB77C8A1F624C0C5E8403F /* PBXContainerItemProxy */;
+		};
+		9D61193F3E7EFB994DC14002 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = KotonohaImGui;
+			target = 4B0417D636D80E1973E6EC48 /* ImGui */;
+			targetProxy = 06A6939E50D1421DEBEDFCEA /* PBXContainerItemProxy */;
+		};
+		ACB1BBD81F6B45339578C363 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = KotonohaImGui;
+			target = 4B0417D636D80E1973E6EC48 /* ImGui */;
+			targetProxy = B0515C58A9FE43DEC8A9BE19 /* PBXContainerItemProxy */;
+		};
+		BA2C1703D25945801FF65758 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = KotonohaImGui;
+			target = 4B0417D636D80E1973E6EC48 /* ImGui */;
+			targetProxy = CE5B84420E8BA6419639142A /* PBXContainerItemProxy */;
+		};
+		C6BB95B1A4F9B4E7100662E4 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = KotonohaImGui;
+			target = 4B0417D636D80E1973E6EC48 /* ImGui */;
+			targetProxy = C2C2DC3F6FBC1C93A189F3E4 /* PBXContainerItemProxy */;
+		};
+		DB0BFC1C75F63B3B7279B926 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = KotonohaImGui;
+			target = 4B0417D636D80E1973E6EC48 /* ImGui */;
+			targetProxy = 764C91FB597C61230CB21F8A /* PBXContainerItemProxy */;
+		};
+		E2652F6A678720220E7C2573 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = KotonohaImGui;
+			target = 4B0417D636D80E1973E6EC48 /* ImGui */;
+			targetProxy = 054CDF5269CDA16084000B94 /* PBXContainerItemProxy */;
+		};
+		F8E24AFA37D9DD4A30F85679 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = KotonohaEngine;
+			target = D353276E353ED61BDA9316AE /* KotonohaEngine */;
+			targetProxy = 14771AACDB6EC34D1110B863 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		012E59043CF7AE17B9ED4F5D /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CLANG_CXX_LANGUAGE_STANDARD = "c++20";
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 64T9B5HFFD;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"KOTONOHA_IOS_DDLC_TEST=1",
+				);
+				GENERATE_INFOPLIST_FILE = NO;
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(KOTONOHA_ROOT)/games/doki-doki-literature-club/include",
+					"$(KOTONOHA_ROOT)/games/doki-doki-literature-club/src",
+					"$(KOTONOHA_ROOT)/build/ios-deps/Python.xcframework/ios-arm64_x86_64-simulator/Python.framework/Headers",
+				);
+				"HEADER_SEARCH_PATHS[sdk=iphoneos*]" = (
+					"$(inherited)",
+					"$(KOTONOHA_ROOT)/games/doki-doki-literature-club/include",
+					"$(KOTONOHA_ROOT)/games/doki-doki-literature-club/src",
+					"$(KOTONOHA_ROOT)/build/ios-deps/Python.xcframework/ios-arm64/Python.framework/Headers",
+				);
+				"HEADER_SEARCH_PATHS[sdk=iphonesimulator*]" = (
+					"$(inherited)",
+					"$(KOTONOHA_ROOT)/games/doki-doki-literature-club/include",
+					"$(KOTONOHA_ROOT)/games/doki-doki-literature-club/src",
+					"$(KOTONOHA_ROOT)/build/ios-deps/Python.xcframework/ios-arm64_x86_64-simulator/Python.framework/Headers",
+				);
+				INFOPLIST_FILE = "$(PROJECT_DIR)/Info.plist";
+				IPHONEOS_DEPLOYMENT_TARGET = "$(RECOMMENDED_IPHONEOS_DEPLOYMENT_TARGET)";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-lavformat",
+					"-lavcodec",
+					"-lswresample",
+					"-lswscale",
+					"-lavutil",
+					"-ljson-c",
+					"-lz",
+					"-liconv",
+					"-lass",
+					"-lfribidi",
+					"-lunibreak",
+					"-lfontconfig",
+					"-lexpat",
+					"-lharfbuzz",
+					"-lfreetype",
+					"-lpng16",
+					"-lbz2",
+					"-lbrotlidec",
+					"-lbrotlicommon",
+					"-framework",
+					CoreText,
+				);
+				"OTHER_LDFLAGS[sdk=iphoneos*]" = (
+					"$(inherited)",
+					"-lavformat",
+					"-lavcodec",
+					"-lswresample",
+					"-lswscale",
+					"-lavutil",
+					"-ljson-c",
+					"-lz",
+					"-liconv",
+					"-weak_framework",
+					MetalFX,
+					"-lass",
+					"-lfribidi",
+					"-lunibreak",
+					"-lfontconfig",
+					"-lexpat",
+					"-lharfbuzz",
+					"-lfreetype",
+					"-lpng16",
+					"-lbz2",
+					"-lbrotlidec",
+					"-lbrotlicommon",
+					"-framework",
+					CoreText,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "me.kotonoha.ddlc-ios-smoke";
+				PRODUCT_NAME = DdlcIOSScriptSmoke;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		04063D398FAE8707BCFDB473 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CURRENT_PROJECT_VERSION = 1;
+				DEFINES_MODULE = NO;
+				DEVELOPMENT_TEAM = 64T9B5HFFD;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				GENERATE_INFOPLIST_FILE = YES;
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				IPHONEOS_DEPLOYMENT_TARGET = "$(RECOMMENDED_IPHONEOS_DEPLOYMENT_TARGET)";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MACH_O_TYPE = mh_dylib;
+				PRODUCT_BUNDLE_IDENTIFIER = me.kotonoha.imgui;
+				PRODUCT_NAME = KotonohaImGui;
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VERSIONING_SYSTEM = "apple-generic";
+				VERSION_INFO_PREFIX = "";
+			};
+			name = Debug;
+		};
+		14DF013216802904D98DFEE1 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 64T9B5HFFD;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"KOTONOHA_IOS_SMOKE=1",
+				);
+				GENERATE_INFOPLIST_FILE = NO;
+				HEADER_SEARCH_PATHS = "$(inherited)";
+				INFOPLIST_FILE = "$(PROJECT_DIR)/Info.plist";
+				IPHONEOS_DEPLOYMENT_TARGET = "$(RECOMMENDED_IPHONEOS_DEPLOYMENT_TARGET)";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-lavformat",
+					"-lavcodec",
+					"-lswresample",
+					"-lswscale",
+					"-lavutil",
+					"-ljson-c",
+					"-lz",
+					"-liconv",
+					"-lass",
+					"-lfribidi",
+					"-lunibreak",
+					"-lfontconfig",
+					"-lexpat",
+					"-lharfbuzz",
+					"-lfreetype",
+					"-lpng16",
+					"-lbz2",
+					"-lbrotlidec",
+					"-lbrotlicommon",
+					"-framework",
+					CoreText,
+				);
+				"OTHER_LDFLAGS[sdk=iphoneos*]" = (
+					"$(inherited)",
+					"-lavformat",
+					"-lavcodec",
+					"-lswresample",
+					"-lswscale",
+					"-lavutil",
+					"-ljson-c",
+					"-lz",
+					"-liconv",
+					"-weak_framework",
+					MetalFX,
+					"-lass",
+					"-lfribidi",
+					"-lunibreak",
+					"-lfontconfig",
+					"-lexpat",
+					"-lharfbuzz",
+					"-lfreetype",
+					"-lpng16",
+					"-lbz2",
+					"-lbrotlidec",
+					"-lbrotlicommon",
+					"-framework",
+					CoreText,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "me.kotonoha.ios-smoke";
+				PRODUCT_NAME = KotonohaIOSSmoke;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		153C6FF8DDC2C095A21EC676 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 64T9B5HFFD;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"KOTONOHA_IOS_SMOKE=1",
+				);
+				GENERATE_INFOPLIST_FILE = NO;
+				HEADER_SEARCH_PATHS = "$(inherited)";
+				INFOPLIST_FILE = "$(PROJECT_DIR)/Info.plist";
+				IPHONEOS_DEPLOYMENT_TARGET = "$(RECOMMENDED_IPHONEOS_DEPLOYMENT_TARGET)";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-lavformat",
+					"-lavcodec",
+					"-lswresample",
+					"-lswscale",
+					"-lavutil",
+					"-ljson-c",
+					"-lz",
+					"-liconv",
+					"-lass",
+					"-lfribidi",
+					"-lunibreak",
+					"-lfontconfig",
+					"-lexpat",
+					"-lharfbuzz",
+					"-lfreetype",
+					"-lpng16",
+					"-lbz2",
+					"-lbrotlidec",
+					"-lbrotlicommon",
+					"-framework",
+					CoreText,
+				);
+				"OTHER_LDFLAGS[sdk=iphoneos*]" = (
+					"$(inherited)",
+					"-lavformat",
+					"-lavcodec",
+					"-lswresample",
+					"-lswscale",
+					"-lavutil",
+					"-ljson-c",
+					"-lz",
+					"-liconv",
+					"-weak_framework",
+					MetalFX,
+					"-lass",
+					"-lfribidi",
+					"-lunibreak",
+					"-lfontconfig",
+					"-lexpat",
+					"-lharfbuzz",
+					"-lfreetype",
+					"-lpng16",
+					"-lbz2",
+					"-lbrotlidec",
+					"-lbrotlicommon",
+					"-framework",
+					CoreText,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "me.kotonoha.ios-smoke";
+				PRODUCT_NAME = KotonohaIOSSmoke;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		1DBA53A1FC84D4DCFF931631 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "c++17";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = x86_64;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(KOTONOHA_ROOT)/lib/include",
+					"$(KOTONOHA_ROOT)/lib/submodules/SDL3/include",
+					"$(KOTONOHA_ROOT)/lib/submodules/SDL-ttf/include",
+					"$(KOTONOHA_ROOT)/lib/submodules/imgui",
+					"$(KOTONOHA_ROOT)/lib/submodules/imgui/backends",
+					"$(KOTONOHA_ROOT)/lib/submodules/imgui/misc/cpp",
+					"$(KOTONOHA_VCPKG_PREFIX)/include",
+					"$(KOTONOHA_VCPKG_PREFIX)/include/freetype",
+					"$(KOTONOHA_VCPKG_PREFIX)/include/harfbuzz",
+					"$(KOTONOHA_VCPKG_PREFIX)/include/plutosvg",
+					"$(KOTONOHA_VCPKG_PREFIX)/include/plutovg",
+				);
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				KOTONOHA_PYTHON_NATIVE_DIR = "$(KOTONOHA_ROOT)/build/ios-deps/python/native/$(PLATFORM_NAME)";
+				KOTONOHA_PYTHON_XCFRAMEWORK = "../build/ios-deps/Python.xcframework";
+				KOTONOHA_ROOT = "$(PROJECT_DIR)/..";
+				KOTONOHA_VCPKG_PREFIX = "$(KOTONOHA_VCPKG_ROOT)/$(KOTONOHA_VCPKG_TRIPLET)";
+				"KOTONOHA_VCPKG_ROOT[sdk=iphoneos*]" = "$(KOTONOHA_ROOT)/build/ios-deps/ios";
+				"KOTONOHA_VCPKG_ROOT[sdk=iphonesimulator*]" = "$(KOTONOHA_ROOT)/build/ios-deps/simulator";
+				"KOTONOHA_VCPKG_TRIPLET[sdk=iphoneos*]" = "arm64-ios";
+				"KOTONOHA_VCPKG_TRIPLET[sdk=iphonesimulator*]" = "arm64-ios-simulator";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(KOTONOHA_VCPKG_PREFIX)/lib",
+				);
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		317FE82A16E1A9A4CDFBCC0D /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CURRENT_PROJECT_VERSION = 1;
+				DEFINES_MODULE = NO;
+				DEVELOPMENT_TEAM = 64T9B5HFFD;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				GENERATE_INFOPLIST_FILE = YES;
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				IPHONEOS_DEPLOYMENT_TARGET = "$(RECOMMENDED_IPHONEOS_DEPLOYMENT_TARGET)";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MACH_O_TYPE = mh_dylib;
+				PRODUCT_BUNDLE_IDENTIFIER = me.kotonoha.imgui;
+				PRODUCT_NAME = KotonohaImGui;
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
+				VERSIONING_SYSTEM = "apple-generic";
+				VERSION_INFO_PREFIX = "";
+			};
+			name = Release;
+		};
+		32064BB89101DC69EFE0FCF9 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CLANG_CXX_LANGUAGE_STANDARD = "c++20";
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 64T9B5HFFD;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"KOTONOHA_IOS_DDLC_TEST=1",
+				);
+				GENERATE_INFOPLIST_FILE = NO;
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(KOTONOHA_ROOT)/games/doki-doki-literature-club/include",
+					"$(KOTONOHA_ROOT)/games/doki-doki-literature-club/src",
+					"$(KOTONOHA_ROOT)/build/ios-deps/Python.xcframework/ios-arm64_x86_64-simulator/Python.framework/Headers",
+				);
+				"HEADER_SEARCH_PATHS[sdk=iphoneos*]" = (
+					"$(inherited)",
+					"$(KOTONOHA_ROOT)/games/doki-doki-literature-club/include",
+					"$(KOTONOHA_ROOT)/games/doki-doki-literature-club/src",
+					"$(KOTONOHA_ROOT)/build/ios-deps/Python.xcframework/ios-arm64/Python.framework/Headers",
+				);
+				"HEADER_SEARCH_PATHS[sdk=iphonesimulator*]" = (
+					"$(inherited)",
+					"$(KOTONOHA_ROOT)/games/doki-doki-literature-club/include",
+					"$(KOTONOHA_ROOT)/games/doki-doki-literature-club/src",
+					"$(KOTONOHA_ROOT)/build/ios-deps/Python.xcframework/ios-arm64_x86_64-simulator/Python.framework/Headers",
+				);
+				INFOPLIST_FILE = "$(PROJECT_DIR)/Info.plist";
+				IPHONEOS_DEPLOYMENT_TARGET = "$(RECOMMENDED_IPHONEOS_DEPLOYMENT_TARGET)";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-lavformat",
+					"-lavcodec",
+					"-lswresample",
+					"-lswscale",
+					"-lavutil",
+					"-ljson-c",
+					"-lz",
+					"-liconv",
+					"-lass",
+					"-lfribidi",
+					"-lunibreak",
+					"-lfontconfig",
+					"-lexpat",
+					"-lharfbuzz",
+					"-lfreetype",
+					"-lpng16",
+					"-lbz2",
+					"-lbrotlidec",
+					"-lbrotlicommon",
+					"-framework",
+					CoreText,
+				);
+				"OTHER_LDFLAGS[sdk=iphoneos*]" = (
+					"$(inherited)",
+					"-lavformat",
+					"-lavcodec",
+					"-lswresample",
+					"-lswscale",
+					"-lavutil",
+					"-ljson-c",
+					"-lz",
+					"-liconv",
+					"-weak_framework",
+					MetalFX,
+					"-lass",
+					"-lfribidi",
+					"-lunibreak",
+					"-lfontconfig",
+					"-lexpat",
+					"-lharfbuzz",
+					"-lfreetype",
+					"-lpng16",
+					"-lbz2",
+					"-lbrotlidec",
+					"-lbrotlicommon",
+					"-framework",
+					CoreText,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "me.kotonoha.ddlc-ios-smoke";
+				PRODUCT_NAME = DdlcIOSScriptSmoke;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		703633FFAC5CF0AA7DEDE35F /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CURRENT_PROJECT_VERSION = 1;
+				DEFINES_MODULE = NO;
+				DEVELOPMENT_TEAM = 64T9B5HFFD;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				"GCC_PREPROCESSOR_DEFINITIONS[sdk=iphoneos*]" = (
+					"$(inherited)",
+					"KOTONOHA_HAS_METALFX=1",
+				);
+				GENERATE_INFOPLIST_FILE = YES;
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				IPHONEOS_DEPLOYMENT_TARGET = "$(RECOMMENDED_IPHONEOS_DEPLOYMENT_TARGET)";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MACH_O_TYPE = staticlib;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-lavformat",
+					"-lavcodec",
+					"-lswresample",
+					"-lswscale",
+					"-lavutil",
+					"-ljson-c",
+					"-lz",
+					"-liconv",
+					"-lass",
+					"-lfribidi",
+					"-lunibreak",
+					"-lfontconfig",
+					"-lexpat",
+					"-lharfbuzz",
+					"-lfreetype",
+					"-lpng16",
+					"-lbz2",
+					"-lbrotlidec",
+					"-lbrotlicommon",
+					"-framework",
+					CoreText,
+				);
+				"OTHER_LDFLAGS[sdk=iphoneos*]" = (
+					"$(inherited)",
+					"-lavformat",
+					"-lavcodec",
+					"-lswresample",
+					"-lswscale",
+					"-lavutil",
+					"-ljson-c",
+					"-lz",
+					"-liconv",
+					"-weak_framework",
+					MetalFX,
+					"-lass",
+					"-lfribidi",
+					"-lunibreak",
+					"-lfontconfig",
+					"-lexpat",
+					"-lharfbuzz",
+					"-lfreetype",
+					"-lpng16",
+					"-lbz2",
+					"-lbrotlidec",
+					"-lbrotlicommon",
+					"-framework",
+					CoreText,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = me.kotonoha.engine;
+				PRODUCT_NAME = KotonohaEngine;
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VERSIONING_SYSTEM = "apple-generic";
+				VERSION_INFO_PREFIX = "";
+			};
+			name = Debug;
+		};
+		963AB609379B221237E5DBEA /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 64T9B5HFFD;
+				GENERATE_INFOPLIST_FILE = NO;
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(KOTONOHA_ROOT)/games/zero-no-tsukaima/include",
+					"$(KOTONOHA_ROOT)/games/zero-no-tsukaima/src",
+				);
+				INFOPLIST_FILE = "$(PROJECT_DIR)/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "Zero No Tsukaima";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.games";
+				IPHONEOS_DEPLOYMENT_TARGET = "$(RECOMMENDED_IPHONEOS_DEPLOYMENT_TARGET)";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-lavformat",
+					"-lavcodec",
+					"-lswresample",
+					"-lswscale",
+					"-lavutil",
+					"-ljson-c",
+					"-lz",
+					"-liconv",
+					"-lass",
+					"-lfribidi",
+					"-lunibreak",
+					"-lfontconfig",
+					"-lexpat",
+					"-lharfbuzz",
+					"-lfreetype",
+					"-lpng16",
+					"-lbz2",
+					"-lbrotlidec",
+					"-lbrotlicommon",
+					"-framework",
+					CoreText,
+				);
+				"OTHER_LDFLAGS[sdk=iphoneos*]" = (
+					"$(inherited)",
+					"-lavformat",
+					"-lavcodec",
+					"-lswresample",
+					"-lswscale",
+					"-lavutil",
+					"-ljson-c",
+					"-lz",
+					"-liconv",
+					"-weak_framework",
+					MetalFX,
+					"-lass",
+					"-lfribidi",
+					"-lunibreak",
+					"-lfontconfig",
+					"-lexpat",
+					"-lharfbuzz",
+					"-lfreetype",
+					"-lpng16",
+					"-lbz2",
+					"-lbrotlidec",
+					"-lbrotlicommon",
+					"-framework",
+					CoreText,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha.zeronotsukaima;
+				PRODUCT_NAME = "Zero No Tsukaima";
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		99430190104E40879696561C /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 64T9B5HFFD;
+				GENERATE_INFOPLIST_FILE = NO;
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(KOTONOHA_ROOT)/games/zero-no-tsukaima/include",
+					"$(KOTONOHA_ROOT)/games/zero-no-tsukaima/src",
+				);
+				INFOPLIST_FILE = "$(PROJECT_DIR)/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "Zero No Tsukaima";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.games";
+				IPHONEOS_DEPLOYMENT_TARGET = "$(RECOMMENDED_IPHONEOS_DEPLOYMENT_TARGET)";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-lavformat",
+					"-lavcodec",
+					"-lswresample",
+					"-lswscale",
+					"-lavutil",
+					"-ljson-c",
+					"-lz",
+					"-liconv",
+					"-lass",
+					"-lfribidi",
+					"-lunibreak",
+					"-lfontconfig",
+					"-lexpat",
+					"-lharfbuzz",
+					"-lfreetype",
+					"-lpng16",
+					"-lbz2",
+					"-lbrotlidec",
+					"-lbrotlicommon",
+					"-framework",
+					CoreText,
+				);
+				"OTHER_LDFLAGS[sdk=iphoneos*]" = (
+					"$(inherited)",
+					"-lavformat",
+					"-lavcodec",
+					"-lswresample",
+					"-lswscale",
+					"-lavutil",
+					"-ljson-c",
+					"-lz",
+					"-liconv",
+					"-weak_framework",
+					MetalFX,
+					"-lass",
+					"-lfribidi",
+					"-lunibreak",
+					"-lfontconfig",
+					"-lexpat",
+					"-lharfbuzz",
+					"-lfreetype",
+					"-lpng16",
+					"-lbz2",
+					"-lbrotlidec",
+					"-lbrotlicommon",
+					"-framework",
+					CoreText,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha.zeronotsukaima;
+				PRODUCT_NAME = "Zero No Tsukaima";
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		A23E2C445F09D435EBF562A8 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 64T9B5HFFD;
+				GENERATE_INFOPLIST_FILE = NO;
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(KOTONOHA_ROOT)/games/school-days/include",
+					"$(KOTONOHA_ROOT)/games/school-days/src",
+				);
+				INFOPLIST_FILE = "$(PROJECT_DIR)/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "School Days HQ";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.games";
+				IPHONEOS_DEPLOYMENT_TARGET = "$(RECOMMENDED_IPHONEOS_DEPLOYMENT_TARGET)";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-lavformat",
+					"-lavcodec",
+					"-lswresample",
+					"-lswscale",
+					"-lavutil",
+					"-ljson-c",
+					"-lz",
+					"-liconv",
+					"-lass",
+					"-lfribidi",
+					"-lunibreak",
+					"-lfontconfig",
+					"-lexpat",
+					"-lharfbuzz",
+					"-lfreetype",
+					"-lpng16",
+					"-lbz2",
+					"-lbrotlidec",
+					"-lbrotlicommon",
+					"-framework",
+					CoreText,
+				);
+				"OTHER_LDFLAGS[sdk=iphoneos*]" = (
+					"$(inherited)",
+					"-lavformat",
+					"-lavcodec",
+					"-lswresample",
+					"-lswscale",
+					"-lavutil",
+					"-ljson-c",
+					"-lz",
+					"-liconv",
+					"-weak_framework",
+					MetalFX,
+					"-lass",
+					"-lfribidi",
+					"-lunibreak",
+					"-lfontconfig",
+					"-lexpat",
+					"-lharfbuzz",
+					"-lfreetype",
+					"-lpng16",
+					"-lbz2",
+					"-lbrotlidec",
+					"-lbrotlicommon",
+					"-framework",
+					CoreText,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha.schooldays;
+				PRODUCT_NAME = "School Days HQ";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		A73D3D35F8F97B6F28DCA1B2 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 64T9B5HFFD;
+				GENERATE_INFOPLIST_FILE = NO;
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(KOTONOHA_ROOT)/games/snow-radish-vacation/include",
+					"$(KOTONOHA_ROOT)/games/snow-radish-vacation/src",
+				);
+				INFOPLIST_FILE = "$(PROJECT_DIR)/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "Snow Radish Vacation!!";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.games";
+				IPHONEOS_DEPLOYMENT_TARGET = "$(RECOMMENDED_IPHONEOS_DEPLOYMENT_TARGET)";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-lavformat",
+					"-lavcodec",
+					"-lswresample",
+					"-lswscale",
+					"-lavutil",
+					"-ljson-c",
+					"-lz",
+					"-liconv",
+					"-lass",
+					"-lfribidi",
+					"-lunibreak",
+					"-lfontconfig",
+					"-lexpat",
+					"-lharfbuzz",
+					"-lfreetype",
+					"-lpng16",
+					"-lbz2",
+					"-lbrotlidec",
+					"-lbrotlicommon",
+					"-framework",
+					CoreText,
+				);
+				"OTHER_LDFLAGS[sdk=iphoneos*]" = (
+					"$(inherited)",
+					"-lavformat",
+					"-lavcodec",
+					"-lswresample",
+					"-lswscale",
+					"-lavutil",
+					"-ljson-c",
+					"-lz",
+					"-liconv",
+					"-weak_framework",
+					MetalFX,
+					"-lass",
+					"-lfribidi",
+					"-lunibreak",
+					"-lfontconfig",
+					"-lexpat",
+					"-lharfbuzz",
+					"-lfreetype",
+					"-lpng16",
+					"-lbz2",
+					"-lbrotlidec",
+					"-lbrotlicommon",
+					"-framework",
+					CoreText,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha.snowradishvacation;
+				PRODUCT_NAME = "Snow Radish Vacation!!";
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		AA7B3C72B9EF32D3DACF1D35 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 64T9B5HFFD;
+				GENERATE_INFOPLIST_FILE = NO;
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(KOTONOHA_ROOT)/games/example/include",
+					"$(KOTONOHA_ROOT)/games/example/src",
+				);
+				INFOPLIST_FILE = "$(PROJECT_DIR)/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = Kotonoha;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.games";
+				IPHONEOS_DEPLOYMENT_TARGET = "$(RECOMMENDED_IPHONEOS_DEPLOYMENT_TARGET)";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-lavformat",
+					"-lavcodec",
+					"-lswresample",
+					"-lswscale",
+					"-lavutil",
+					"-ljson-c",
+					"-lz",
+					"-liconv",
+					"-lass",
+					"-lfribidi",
+					"-lunibreak",
+					"-lfontconfig",
+					"-lexpat",
+					"-lharfbuzz",
+					"-lfreetype",
+					"-lpng16",
+					"-lbz2",
+					"-lbrotlidec",
+					"-lbrotlicommon",
+					"-framework",
+					CoreText,
+				);
+				"OTHER_LDFLAGS[sdk=iphoneos*]" = (
+					"$(inherited)",
+					"-lavformat",
+					"-lavcodec",
+					"-lswresample",
+					"-lswscale",
+					"-lavutil",
+					"-ljson-c",
+					"-lz",
+					"-liconv",
+					"-weak_framework",
+					MetalFX,
+					"-lass",
+					"-lfribidi",
+					"-lunibreak",
+					"-lfontconfig",
+					"-lexpat",
+					"-lharfbuzz",
+					"-lfreetype",
+					"-lpng16",
+					"-lbz2",
+					"-lbrotlidec",
+					"-lbrotlicommon",
+					"-framework",
+					CoreText,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha;
+				PRODUCT_NAME = Kotonoha;
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		AD99F876CD18AF25DAF56552 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CURRENT_PROJECT_VERSION = 1;
+				DEFINES_MODULE = NO;
+				DEVELOPMENT_TEAM = 64T9B5HFFD;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				"GCC_PREPROCESSOR_DEFINITIONS[sdk=iphoneos*]" = (
+					"$(inherited)",
+					"KOTONOHA_HAS_METALFX=1",
+				);
+				GENERATE_INFOPLIST_FILE = YES;
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				IPHONEOS_DEPLOYMENT_TARGET = "$(RECOMMENDED_IPHONEOS_DEPLOYMENT_TARGET)";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MACH_O_TYPE = staticlib;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-lavformat",
+					"-lavcodec",
+					"-lswresample",
+					"-lswscale",
+					"-lavutil",
+					"-ljson-c",
+					"-lz",
+					"-liconv",
+					"-lass",
+					"-lfribidi",
+					"-lunibreak",
+					"-lfontconfig",
+					"-lexpat",
+					"-lharfbuzz",
+					"-lfreetype",
+					"-lpng16",
+					"-lbz2",
+					"-lbrotlidec",
+					"-lbrotlicommon",
+					"-framework",
+					CoreText,
+				);
+				"OTHER_LDFLAGS[sdk=iphoneos*]" = (
+					"$(inherited)",
+					"-lavformat",
+					"-lavcodec",
+					"-lswresample",
+					"-lswscale",
+					"-lavutil",
+					"-ljson-c",
+					"-lz",
+					"-liconv",
+					"-weak_framework",
+					MetalFX,
+					"-lass",
+					"-lfribidi",
+					"-lunibreak",
+					"-lfontconfig",
+					"-lexpat",
+					"-lharfbuzz",
+					"-lfreetype",
+					"-lpng16",
+					"-lbz2",
+					"-lbrotlidec",
+					"-lbrotlicommon",
+					"-framework",
+					CoreText,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = me.kotonoha.engine;
+				PRODUCT_NAME = KotonohaEngine;
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
+				VERSIONING_SYSTEM = "apple-generic";
+				VERSION_INFO_PREFIX = "";
+			};
+			name = Release;
+		};
+		B6277E6420F2468AB7B016F4 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 64T9B5HFFD;
+				GENERATE_INFOPLIST_FILE = NO;
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(KOTONOHA_ROOT)/games/snow-radish-vacation/include",
+					"$(KOTONOHA_ROOT)/games/snow-radish-vacation/src",
+				);
+				INFOPLIST_FILE = "$(PROJECT_DIR)/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "Snow Radish Vacation!!";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.games";
+				IPHONEOS_DEPLOYMENT_TARGET = "$(RECOMMENDED_IPHONEOS_DEPLOYMENT_TARGET)";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-lavformat",
+					"-lavcodec",
+					"-lswresample",
+					"-lswscale",
+					"-lavutil",
+					"-ljson-c",
+					"-lz",
+					"-liconv",
+					"-lass",
+					"-lfribidi",
+					"-lunibreak",
+					"-lfontconfig",
+					"-lexpat",
+					"-lharfbuzz",
+					"-lfreetype",
+					"-lpng16",
+					"-lbz2",
+					"-lbrotlidec",
+					"-lbrotlicommon",
+					"-framework",
+					CoreText,
+				);
+				"OTHER_LDFLAGS[sdk=iphoneos*]" = (
+					"$(inherited)",
+					"-lavformat",
+					"-lavcodec",
+					"-lswresample",
+					"-lswscale",
+					"-lavutil",
+					"-ljson-c",
+					"-lz",
+					"-liconv",
+					"-weak_framework",
+					MetalFX,
+					"-lass",
+					"-lfribidi",
+					"-lunibreak",
+					"-lfontconfig",
+					"-lexpat",
+					"-lharfbuzz",
+					"-lfreetype",
+					"-lpng16",
+					"-lbz2",
+					"-lbrotlidec",
+					"-lbrotlicommon",
+					"-framework",
+					CoreText,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha.snowradishvacation;
+				PRODUCT_NAME = "Snow Radish Vacation!!";
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		D46E4BBB26FC079F0F505645 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CLANG_CXX_LANGUAGE_STANDARD = "c++20";
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 64T9B5HFFD;
+				"FRAMEWORK_SEARCH_PATHS[sdk=iphoneos*]" = (
+					"$(inherited)",
+					"$(KOTONOHA_ROOT)/build/ios-deps/Python.xcframework/ios-arm64",
+				);
+				"FRAMEWORK_SEARCH_PATHS[sdk=iphonesimulator*]" = (
+					"$(inherited)",
+					"$(KOTONOHA_ROOT)/build/ios-deps/Python.xcframework/ios-arm64_x86_64-simulator",
+				);
+				GENERATE_INFOPLIST_FILE = NO;
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(KOTONOHA_ROOT)/games/doki-doki-literature-club/include",
+					"$(KOTONOHA_ROOT)/games/doki-doki-literature-club/src",
+					"$(KOTONOHA_ROOT)/build/ios-deps/Python.xcframework/ios-arm64_x86_64-simulator/Python.framework/Headers",
+				);
+				"HEADER_SEARCH_PATHS[sdk=iphoneos*]" = (
+					"$(inherited)",
+					"$(KOTONOHA_ROOT)/games/doki-doki-literature-club/include",
+					"$(KOTONOHA_ROOT)/games/doki-doki-literature-club/src",
+					"$(KOTONOHA_ROOT)/build/ios-deps/Python.xcframework/ios-arm64/Python.framework/Headers",
+				);
+				"HEADER_SEARCH_PATHS[sdk=iphonesimulator*]" = (
+					"$(inherited)",
+					"$(KOTONOHA_ROOT)/games/doki-doki-literature-club/include",
+					"$(KOTONOHA_ROOT)/games/doki-doki-literature-club/src",
+					"$(KOTONOHA_ROOT)/build/ios-deps/Python.xcframework/ios-arm64_x86_64-simulator/Python.framework/Headers",
+				);
+				INFOPLIST_FILE = "$(PROJECT_DIR)/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "Doki Doki Literature Club";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.games";
+				IPHONEOS_DEPLOYMENT_TARGET = "$(RECOMMENDED_IPHONEOS_DEPLOYMENT_TARGET)";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-lavformat",
+					"-lavcodec",
+					"-lswresample",
+					"-lswscale",
+					"-lavutil",
+					"-ljson-c",
+					"-lz",
+					"-liconv",
+					"-lass",
+					"-lfribidi",
+					"-lunibreak",
+					"-lfontconfig",
+					"-lexpat",
+					"-lharfbuzz",
+					"-lfreetype",
+					"-lpng16",
+					"-lbz2",
+					"-lbrotlidec",
+					"-lbrotlicommon",
+					"-framework",
+					CoreText,
+				);
+				"OTHER_LDFLAGS[sdk=iphoneos*]" = (
+					"$(inherited)",
+					"-lavformat",
+					"-lavcodec",
+					"-lswresample",
+					"-lswscale",
+					"-lavutil",
+					"-ljson-c",
+					"-lz",
+					"-liconv",
+					"-weak_framework",
+					MetalFX,
+					"-lass",
+					"-lfribidi",
+					"-lunibreak",
+					"-lfontconfig",
+					"-lexpat",
+					"-lharfbuzz",
+					"-lfreetype",
+					"-lpng16",
+					"-lbz2",
+					"-lbrotlidec",
+					"-lbrotlicommon",
+					"-framework",
+					CoreText,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha.dokidokiliteratureclub;
+				PRODUCT_NAME = "Doki Doki Literature Club";
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		D93B3B73C1689863AA74F4C1 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "c++17";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = x86_64;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(KOTONOHA_ROOT)/lib/include",
+					"$(KOTONOHA_ROOT)/lib/submodules/SDL3/include",
+					"$(KOTONOHA_ROOT)/lib/submodules/SDL-ttf/include",
+					"$(KOTONOHA_ROOT)/lib/submodules/imgui",
+					"$(KOTONOHA_ROOT)/lib/submodules/imgui/backends",
+					"$(KOTONOHA_ROOT)/lib/submodules/imgui/misc/cpp",
+					"$(KOTONOHA_VCPKG_PREFIX)/include",
+					"$(KOTONOHA_VCPKG_PREFIX)/include/freetype",
+					"$(KOTONOHA_VCPKG_PREFIX)/include/harfbuzz",
+					"$(KOTONOHA_VCPKG_PREFIX)/include/plutosvg",
+					"$(KOTONOHA_VCPKG_PREFIX)/include/plutovg",
+				);
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				KOTONOHA_PYTHON_NATIVE_DIR = "$(KOTONOHA_ROOT)/build/ios-deps/python/native/$(PLATFORM_NAME)";
+				KOTONOHA_PYTHON_XCFRAMEWORK = "../build/ios-deps/Python.xcframework";
+				KOTONOHA_ROOT = "$(PROJECT_DIR)/..";
+				KOTONOHA_VCPKG_PREFIX = "$(KOTONOHA_VCPKG_ROOT)/$(KOTONOHA_VCPKG_TRIPLET)";
+				"KOTONOHA_VCPKG_ROOT[sdk=iphoneos*]" = "$(KOTONOHA_ROOT)/build/ios-deps/ios";
+				"KOTONOHA_VCPKG_ROOT[sdk=iphonesimulator*]" = "$(KOTONOHA_ROOT)/build/ios-deps/simulator";
+				"KOTONOHA_VCPKG_TRIPLET[sdk=iphoneos*]" = "arm64-ios";
+				"KOTONOHA_VCPKG_TRIPLET[sdk=iphonesimulator*]" = "arm64-ios-simulator";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(KOTONOHA_VCPKG_PREFIX)/lib",
+				);
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		F33CAD57B8C7740030BF2A44 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CLANG_CXX_LANGUAGE_STANDARD = "c++20";
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 64T9B5HFFD;
+				"FRAMEWORK_SEARCH_PATHS[sdk=iphoneos*]" = (
+					"$(inherited)",
+					"$(KOTONOHA_ROOT)/build/ios-deps/Python.xcframework/ios-arm64",
+				);
+				"FRAMEWORK_SEARCH_PATHS[sdk=iphonesimulator*]" = (
+					"$(inherited)",
+					"$(KOTONOHA_ROOT)/build/ios-deps/Python.xcframework/ios-arm64_x86_64-simulator",
+				);
+				GENERATE_INFOPLIST_FILE = NO;
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(KOTONOHA_ROOT)/games/doki-doki-literature-club/include",
+					"$(KOTONOHA_ROOT)/games/doki-doki-literature-club/src",
+					"$(KOTONOHA_ROOT)/build/ios-deps/Python.xcframework/ios-arm64_x86_64-simulator/Python.framework/Headers",
+				);
+				"HEADER_SEARCH_PATHS[sdk=iphoneos*]" = (
+					"$(inherited)",
+					"$(KOTONOHA_ROOT)/games/doki-doki-literature-club/include",
+					"$(KOTONOHA_ROOT)/games/doki-doki-literature-club/src",
+					"$(KOTONOHA_ROOT)/build/ios-deps/Python.xcframework/ios-arm64/Python.framework/Headers",
+				);
+				"HEADER_SEARCH_PATHS[sdk=iphonesimulator*]" = (
+					"$(inherited)",
+					"$(KOTONOHA_ROOT)/games/doki-doki-literature-club/include",
+					"$(KOTONOHA_ROOT)/games/doki-doki-literature-club/src",
+					"$(KOTONOHA_ROOT)/build/ios-deps/Python.xcframework/ios-arm64_x86_64-simulator/Python.framework/Headers",
+				);
+				INFOPLIST_FILE = "$(PROJECT_DIR)/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "Doki Doki Literature Club";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.games";
+				IPHONEOS_DEPLOYMENT_TARGET = "$(RECOMMENDED_IPHONEOS_DEPLOYMENT_TARGET)";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-lavformat",
+					"-lavcodec",
+					"-lswresample",
+					"-lswscale",
+					"-lavutil",
+					"-ljson-c",
+					"-lz",
+					"-liconv",
+					"-lass",
+					"-lfribidi",
+					"-lunibreak",
+					"-lfontconfig",
+					"-lexpat",
+					"-lharfbuzz",
+					"-lfreetype",
+					"-lpng16",
+					"-lbz2",
+					"-lbrotlidec",
+					"-lbrotlicommon",
+					"-framework",
+					CoreText,
+				);
+				"OTHER_LDFLAGS[sdk=iphoneos*]" = (
+					"$(inherited)",
+					"-lavformat",
+					"-lavcodec",
+					"-lswresample",
+					"-lswscale",
+					"-lavutil",
+					"-ljson-c",
+					"-lz",
+					"-liconv",
+					"-weak_framework",
+					MetalFX,
+					"-lass",
+					"-lfribidi",
+					"-lunibreak",
+					"-lfontconfig",
+					"-lexpat",
+					"-lharfbuzz",
+					"-lfreetype",
+					"-lpng16",
+					"-lbz2",
+					"-lbrotlidec",
+					"-lbrotlicommon",
+					"-framework",
+					CoreText,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha.dokidokiliteratureclub;
+				PRODUCT_NAME = "Doki Doki Literature Club";
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		F584632B905532558183FC39 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 64T9B5HFFD;
+				GENERATE_INFOPLIST_FILE = NO;
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(KOTONOHA_ROOT)/games/example/include",
+					"$(KOTONOHA_ROOT)/games/example/src",
+				);
+				INFOPLIST_FILE = "$(PROJECT_DIR)/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = Kotonoha;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.games";
+				IPHONEOS_DEPLOYMENT_TARGET = "$(RECOMMENDED_IPHONEOS_DEPLOYMENT_TARGET)";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-lavformat",
+					"-lavcodec",
+					"-lswresample",
+					"-lswscale",
+					"-lavutil",
+					"-ljson-c",
+					"-lz",
+					"-liconv",
+					"-lass",
+					"-lfribidi",
+					"-lunibreak",
+					"-lfontconfig",
+					"-lexpat",
+					"-lharfbuzz",
+					"-lfreetype",
+					"-lpng16",
+					"-lbz2",
+					"-lbrotlidec",
+					"-lbrotlicommon",
+					"-framework",
+					CoreText,
+				);
+				"OTHER_LDFLAGS[sdk=iphoneos*]" = (
+					"$(inherited)",
+					"-lavformat",
+					"-lavcodec",
+					"-lswresample",
+					"-lswscale",
+					"-lavutil",
+					"-ljson-c",
+					"-lz",
+					"-liconv",
+					"-weak_framework",
+					MetalFX,
+					"-lass",
+					"-lfribidi",
+					"-lunibreak",
+					"-lfontconfig",
+					"-lexpat",
+					"-lharfbuzz",
+					"-lfreetype",
+					"-lpng16",
+					"-lbz2",
+					"-lbrotlidec",
+					"-lbrotlicommon",
+					"-framework",
+					CoreText,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha;
+				PRODUCT_NAME = Kotonoha;
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		F9DE90849D78408C9A808364 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 64T9B5HFFD;
+				GENERATE_INFOPLIST_FILE = NO;
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(KOTONOHA_ROOT)/games/school-days/include",
+					"$(KOTONOHA_ROOT)/games/school-days/src",
+				);
+				INFOPLIST_FILE = "$(PROJECT_DIR)/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "School Days HQ";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.games";
+				IPHONEOS_DEPLOYMENT_TARGET = "$(RECOMMENDED_IPHONEOS_DEPLOYMENT_TARGET)";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-lavformat",
+					"-lavcodec",
+					"-lswresample",
+					"-lswscale",
+					"-lavutil",
+					"-ljson-c",
+					"-lz",
+					"-liconv",
+					"-lass",
+					"-lfribidi",
+					"-lunibreak",
+					"-lfontconfig",
+					"-lexpat",
+					"-lharfbuzz",
+					"-lfreetype",
+					"-lpng16",
+					"-lbz2",
+					"-lbrotlidec",
+					"-lbrotlicommon",
+					"-framework",
+					CoreText,
+				);
+				"OTHER_LDFLAGS[sdk=iphoneos*]" = (
+					"$(inherited)",
+					"-lavformat",
+					"-lavcodec",
+					"-lswresample",
+					"-lswscale",
+					"-lavutil",
+					"-ljson-c",
+					"-lz",
+					"-liconv",
+					"-weak_framework",
+					MetalFX,
+					"-lass",
+					"-lfribidi",
+					"-lunibreak",
+					"-lfontconfig",
+					"-lexpat",
+					"-lharfbuzz",
+					"-lfreetype",
+					"-lpng16",
+					"-lbz2",
+					"-lbrotlidec",
+					"-lbrotlicommon",
+					"-framework",
+					CoreText,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha.schooldays;
+				PRODUCT_NAME = "School Days HQ";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		2208E06EDC535238381FD794 /* Build configuration list for PBXNativeTarget "KotonohaIOSSmoke" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				153C6FF8DDC2C095A21EC676 /* Release */,
+				14DF013216802904D98DFEE1 /* Debug */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		220DE57FAE84D97D3AD6053B /* Build configuration list for PBXNativeTarget "SchoolDays" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				F9DE90849D78408C9A808364 /* Release */,
+				A23E2C445F09D435EBF562A8 /* Debug */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		3C5111B97E2863B4F28467DB /* Build configuration list for PBXProject "Kotonoha" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				D93B3B73C1689863AA74F4C1 /* Debug */,
+				1DBA53A1FC84D4DCFF931631 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		3D2E618FAB65D74415D9FC15 /* Build configuration list for PBXNativeTarget "DdlcIOSScriptSmoke" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				32064BB89101DC69EFE0FCF9 /* Release */,
+				012E59043CF7AE17B9ED4F5D /* Debug */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		3DC7F66D10389B79DD67A8A3 /* Build configuration list for PBXNativeTarget "DokiDoki" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				D46E4BBB26FC079F0F505645 /* Release */,
+				F33CAD57B8C7740030BF2A44 /* Debug */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		50DC32467EE785080C77222C /* Build configuration list for PBXNativeTarget "Kotonoha" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AA7B3C72B9EF32D3DACF1D35 /* Release */,
+				F584632B905532558183FC39 /* Debug */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		84F33EA247BBFDC18D34009E /* Build configuration list for PBXNativeTarget "SnowRadish" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A73D3D35F8F97B6F28DCA1B2 /* Release */,
+				B6277E6420F2468AB7B016F4 /* Debug */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		98E1B0FFE1859F198CD37E19 /* Build configuration list for PBXNativeTarget "ZeroNoTsukaima" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				963AB609379B221237E5DBEA /* Release */,
+				99430190104E40879696561C /* Debug */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A172C4EBB4C310171295D52E /* Build configuration list for PBXNativeTarget "KotonohaEngine" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AD99F876CD18AF25DAF56552 /* Release */,
+				703633FFAC5CF0AA7DEDE35F /* Debug */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		CD845DF72523912C4152CA3C /* Build configuration list for PBXNativeTarget "ImGui" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				317FE82A16E1A9A4CDFBCC0D /* Release */,
+				04063D398FAE8707BCFDB473 /* Debug */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 1D7F34E45396E7C9086D3FB4 /* Project object */;
+}

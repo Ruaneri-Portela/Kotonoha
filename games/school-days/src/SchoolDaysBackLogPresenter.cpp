@@ -8,9 +8,7 @@
 #include <Kotonoha/SchoolDaysImageAssetResolver.hpp>
 #include <Kotonoha/routing/SchoolDaysSubtitleTypography.hpp>
 
-extern "C" {
-#include <Kotonoha/renders/ImageRender.h>
-}
+#include <Kotonoha/core/AssetProvider.hpp>
 
 namespace Kotonoha {
 
@@ -54,8 +52,18 @@ bool SchoolDaysBackLogPresenter::Open(
         return Fail(error, "School Days BackLog PNG/CHIP asset could not be resolved");
     }
 
-    base_ = KotonohaImageCreateTexture(renderer, baseAsset.physical.c_str(), -1, -1);
-    chip_ = KotonohaImageCreateTexture(renderer, chipAsset.physical.c_str(), -1, -1);
+    const auto load = [&](const std::string& physical) -> SDL_Texture* {
+        if (assets_ == nullptr) return nullptr;
+        try {
+            const SurfacePtr surface = assets_->loadSurface(physical);
+            return SDL_CreateTextureFromSurface(renderer, surface.get());
+        } catch (const std::exception& failure) {
+            SDL_SetError("%s", failure.what());
+            return nullptr;
+        }
+    };
+    base_ = load(baseAsset.physical);
+    chip_ = load(chipAsset.physical);
     if (base_ == nullptr || chip_ == nullptr) {
         Close();
         return Fail(error, "School Days BackLog texture load failed");
@@ -126,12 +134,8 @@ bool SchoolDaysBackLogPresenter::Render(
         return Fail(error, "School Days BackLog presenter is not open for this model");
     }
 
-    int outputWidth = 0;
-    int outputHeight = 0;
-    if (!SDL_GetCurrentRenderOutputSize(renderer, &outputWidth, &outputHeight)) {
-        if (error != nullptr) *error = SDL_GetError();
-        return false;
-    }
+    const int outputWidth = area_.x;
+    const int outputHeight = area_.y;
     const auto layout = SchoolDaysBackLogRenderPlan::LayoutFor(model.CurrentVariant());
     if (outputWidth <= 0 || outputHeight <= 0 || layout.logicalWidth <= 0 ||
         layout.logicalHeight <= 0) {

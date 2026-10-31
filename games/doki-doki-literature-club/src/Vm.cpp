@@ -242,7 +242,10 @@ Value Vm::interact(Interaction in) {
         inter_ = std::move(in);
         vmTurn_ = false;
         cv_.notify_all();
-        cv_.wait(lk, [&] { return vmTurn_; });
+        {
+            PythonThreadRelease release;
+            cv_.wait(lk, [&] { return vmTurn_; });
+        }
         if (abort_) throw AbortSignal{};
     }
     collectHidden();
@@ -297,20 +300,91 @@ std::string Vm::savePersistentText() {
 
 // ---- files ------------------------------------------------------------------
 
-// Game-relative key for a path the scripts build from config.basedir.
-static std::string fileKey(Vm& vm, const std::string& name) {
-    std::string key = name;
-    std::replace(key.begin(), key.end(), '\\', '/');
-    const std::string base = vm.py.getAttr(vm.config, "basedir").text();
-    if (!base.empty() && key.rfind(base + "/", 0) == 0) key = key.substr(base.size() + 1);
-    if (key.rfind("game/", 0) == 0) key = key.substr(5);
-    return key;
+// The game addresses game/ and its base directory (characters/, the notes it
+// leaves for the player). game/ is read-only: writes and removals there are
+// virtual, kept in the persistent overlay. Base-directory files are real files
+// in Vm::userDirectory when it is set, and virtual otherwise.
+namespace {
+
+constexpr const char* kRootPrefix = "@root/";
+
+bool isRootKey(const std::string& key) { return key.rfind(kRootPrefix, 0) == 0; }
+
+bool beneath(const std::filesystem::path& relative) {
+    return !relative.empty() && !relative.is_absolute() && *relative.begin() != ".." && relative != ".";
 }
 
-Value Vm::fileObject(const std::string& path, std::string content, bool writable) {
+} // namespace
+
+static std::string fileKey(Vm& vm, const std::string& name) {
+    if (name.empty() || name.find('\0') != std::string::npos)
+        throw PyError("IOError: invalid game file path");
+    std::string normalized = name;
+    std::replace(normalized.begin(), normalized.end(), '\\', '/');
+    std::error_code error;
+    const auto game = std::filesystem::weakly_canonical(std::filesystem::absolute(vm.assets.dir()), error);
+    if (error) throw PyError("IOError: cannot resolve the game directory: " + error.message());
+    const auto root = game.parent_path();
+    const std::filesystem::path requested(normalized);
+    const auto path = std::filesystem::weakly_canonical(requested.is_absolute() ? requested : game / requested, error);
+    if (error) throw PyError("IOError: cannot resolve " + name + ": " + error.message());
+    if (!vm.userDirectory.empty()) {
+        const auto user = std::filesystem::weakly_canonical(std::filesystem::absolute(vm.userDirectory), error);
+        if (error) throw PyError("IOError: cannot resolve the base directory: " + error.message());
+        if (const auto relative = path.lexically_relative(user); beneath(relative)) {
+            if (*relative.begin() == "game") {
+                const auto inGame = relative.lexically_relative("game");
+                if (!beneath(inGame)) throw PyError("IOError: invalid game file path: " + name);
+                return inGame.generic_string();
+            }
+            return kRootPrefix + relative.generic_string();
+        }
+    }
+    const auto relative = path.lexically_relative(root);
+    if (!beneath(relative))
+        throw PyError("IOError: path is outside the game installation: " + name);
+    const auto withinGame = path.lexically_relative(game);
+    if (beneath(withinGame))
+        return withinGame.generic_string();
+    return kRootPrefix + relative.generic_string();
+}
+
+static std::filesystem::path userFile(const Vm& vm, const std::string& key) {
+    return vm.userDirectory / std::filesystem::path(key.substr(std::string(kRootPrefix).size()));
+}
+
+void Vm::setVirtualFile(const std::string& name, const Value& value) {
+    const std::string key = fileKey(*this, name);
+    if (isRootKey(key) && !userDirectory.empty()) {
+        const auto path = userFile(*this, key);
+        std::error_code error;
+        if (value.isNone()) {
+            if (!std::filesystem::remove(path, error) || error)
+                throw PyError("OSError: cannot remove " + path.string() +
+                              (error ? ": " + error.message() : std::string()));
+            return;
+        }
+        std::filesystem::create_directories(path.parent_path(), error);
+        if (error) throw PyError("IOError: cannot create " + path.parent_path().string() + ": " + error.message());
+        std::ofstream out(path, std::ios::binary | std::ios::trunc);
+        const std::string data = value.text();
+        if (!out || !out.write(data.data(), std::streamsize(data.size())))
+            throw PyError("IOError: cannot write " + path.string());
+        return;
+    }
+    Value vfs = persistent.get("_ddlc_files");
+    if (!vfs.isObj() || vfs.o->k != Object::K::Dict) {
+        vfs = makeDict();
+        py.setAttr(persistent, "_ddlc_files", vfs);
+    }
+    py.setItem(vfs, Value::str(key), value);
+}
+
+Value Vm::fileObject(const std::string& path, std::string content, bool writable, bool append) {
     Value f = makeInstance("file");
     auto data = std::make_shared<std::string>(std::move(content));
-    auto pos = std::make_shared<size_t>(0);
+    auto pos = std::make_shared<size_t>(append ? data->size() : 0);
+    auto closed = std::make_shared<bool>(false);
     std::vector<Value> lines;
     size_t s = 0;
     while (s < data->size()) {
@@ -321,48 +395,73 @@ Value Vm::fileObject(const std::string& path, std::string content, bool writable
     }
     f.o->attrs["__lines__"] = makeList(lines);
     f.o->attrs["name"] = Value::str(path);
-    f.o->attrs["read"] = makeFunction("read", [data, pos](Interp&, Args& a, Kwargs&) {
+    f.o->attrs["read"] = makeFunction("read", [data, pos, closed](Interp&, Args& a, Kwargs&) {
+        if (*closed) throw PyError("ValueError: read from closed file");
         size_t n = a.empty() || a[0].integer() < 0 ? std::string::npos : size_t(a[0].integer());
         std::string r = data->substr(std::min(*pos, data->size()), n);
         *pos += r.size();
         return Value::str(r);
     });
     Vm* vm = this;
-    f.o->attrs["write"] = makeFunction("write", [data, path, writable, vm](Interp&, Args& a, Kwargs&) {
-        if (!a.empty()) *data += a[0].text();
-        if (writable && vm->persistent.isObj()) {
-            // Files the game writes (firstrun, the .chr files) live in the
-            // persistent data instead of the user's game folder.
-            Value vfs = vm->persistent.get("_ddlc_files");
-            if (!vfs.isObj()) {
-                vfs = makeDict();
-                vm->py.setAttr(vm->persistent, "_ddlc_files", vfs);
-            }
-            vm->py.setItem(vfs, Value::str(fileKey(*vm, path)), Value::str(*data));
-        }
+    f.o->attrs["write"] = makeFunction("write", [data, pos, closed, path, writable, append, vm](Interp&, Args& a, Kwargs&) {
+        if (*closed) throw PyError("ValueError: write to closed file");
+        if (!writable) throw PyError("IOError: file is not writable");
+        if (a.empty() || !a[0].isStr()) throw PyError("TypeError: write requires a string");
+        if (append) *pos = data->size();
+        if (*pos > data->size()) data->resize(*pos, '\0');
+        const std::string& text = a[0].s;
+        if (*pos + text.size() > data->size()) data->resize(*pos + text.size());
+        data->replace(*pos, text.size(), text);
+        *pos += text.size();
+        vm->setVirtualFile(path, Value::str(*data));
         return Value();
     });
-    f.o->attrs["close"] = makeFunction("close", [](Interp&, Args&, Kwargs&) { return Value(); });
-    f.o->attrs["seek"] = makeFunction("seek", [pos](Interp&, Args& a, Kwargs&) {
-        *pos = a.empty() ? 0 : size_t(std::max<int64_t>(0, a[0].integer()));
+    f.o->attrs["close"] = makeFunction("close", [closed](Interp&, Args&, Kwargs&) {
+        *closed = true;
+        return Value();
+    });
+    f.o->attrs["seek"] = makeFunction("seek", [data, pos, closed](Interp&, Args& a, Kwargs&) {
+        if (*closed) throw PyError("ValueError: seek on closed file");
+        const int64_t offset = a.empty() ? 0 : a[0].integer();
+        const int64_t whence = a.size() < 2 ? 0 : a[1].integer();
+        if (whence < 0 || whence > 2) throw PyError("ValueError: invalid seek origin");
+        const int64_t base = whence == 1 ? int64_t(*pos) : whence == 2 ? int64_t(data->size()) : 0;
+        if (offset < -base) throw PyError("ValueError: negative file position");
+        *pos = size_t(base + offset);
         return Value();
     });
     return f;
 }
 
 std::string Vm::readFile(const std::string& name, bool& ok) {
-    ok = true;
     const std::string key = fileKey(*this, name);
+    if (isRootKey(key) && !userDirectory.empty()) {
+        const auto path = userFile(*this, key);
+        std::error_code error;
+        std::ifstream in;
+        if (std::filesystem::is_regular_file(path, error)) in.open(path, std::ios::binary);
+        ok = in.is_open() && in.good();
+        return ok ? std::string(std::istreambuf_iterator<char>(in), {}) : std::string();
+    }
     Value vfs = persistent.get("_ddlc_files");
     if (vfs.isObj())
-        if (Value* v = vfs.o->findKey(Value::str(key))) return v->text();
-    if (assets.has(key)) {
+        if (Value* v = vfs.o->findKey(Value::str(key))) {
+            ok = !v->isNone();
+            return ok ? v->text() : std::string();
+        }
+    if (!isRootKey(key) && assets.has(key)) {
+        ok = true;
         auto bytes = assets.read(key);
         return std::string(bytes.begin(), bytes.end());
     }
-    std::filesystem::path p = std::filesystem::path(assets.dir()) / key;
+    const std::filesystem::path game = std::filesystem::absolute(assets.dir());
+    const std::filesystem::path p = isRootKey(key)
+        ? game.parent_path() / key.substr(std::string(kRootPrefix).size()) : game / key;
     std::ifstream in(p, std::ios::binary);
-    if (in) return std::string(std::istreambuf_iterator<char>(in), {});
+    if (in) {
+        ok = true;
+        return std::string(std::istreambuf_iterator<char>(in), {});
+    }
     ok = false;
     return {};
 }
@@ -372,7 +471,7 @@ std::string Vm::readFile(const std::string& name, bool& ok) {
 void Vm::init(const std::string& persistentText) {
     auto ns = [&](const char* name) {
         Value v = Interp::nameSpace(name);
-        py.store[name] = v;
+        py.set(name, v);
         return v;
     };
     persistent = ns("persistent");
@@ -398,7 +497,7 @@ void Vm::init(const std::string& persistentText) {
     std::string base = dir.parent_path().generic_string();
     if (dir.filename().empty()) base = dir.parent_path().parent_path().generic_string();
     auto& c = config.o->attrs;
-    c["basedir"] = Value::str(base);
+    c["basedir"] = Value::str(userDirectory.empty() ? base : userDirectory.generic_string());
     c["gamedir"] = Value::str(dir.generic_string());
     c["developer"] = Value::boolean(false);
     c["allow_skipping"] = Value::boolean(true);
@@ -412,11 +511,11 @@ void Vm::init(const std::string& persistentText) {
     py.getItem(keymap, Value::str("game_menu")).o->items.push_back(Value::str("mouseup_3"));
     c["keymap"] = keymap;
 
-    py.store["_dismiss_pause"] = Value::boolean(true);
-    py.store["quick_menu"] = Value::boolean(true);
-    py.store["main_menu"] = Value::boolean(false);
-    py.store["_window"] = Value::boolean(false);
-    py.store["_return"] = Value();
+    py.set("_dismiss_pause", Value::boolean(true));
+    py.set("quick_menu", Value::boolean(true));
+    py.set("main_menu", Value::boolean(false));
+    py.set("_window", Value::boolean(false));
+    py.set("_return", Value());
 
     VmNatives::install(*this);
 
@@ -446,9 +545,6 @@ void Vm::init(const std::string& persistentText) {
     py.def("get_pos", [vm](Interp&, Args& a, Kwargs& kw) {
         return Value::real(vm->backend.position(argOr(a, 0, kw, "channel", Value::str("music")).text()));
     });
-    for (const char* noop : {"delete_character", "restore_all_characters", "restore_relevant_characters",
-                             "delete_all_saves", "restore_character"})
-        py.def(noop, [](Interp&, Args&, Kwargs&) { return Value(); });
 }
 
 void Vm::execInit(Node* n) {
@@ -461,13 +557,16 @@ void Vm::execInit(Node* n) {
         const std::string store = n->str("store"), var = n->str("varname");
         Value v = py.eval(source("code"));
         if (store == "store") {
-            if (n->k == Node::K::Default && py.store.count(var)) break;
-            py.store[var] = v;
+            if (n->k == Node::K::Default && py.has(var)) break;
+            py.set(var, v);
             break;
         }
         std::string nsName = store.rfind("store.", 0) == 0 ? store.substr(6) : store;
-        Value& target = py.store[nsName];
-        if (!target.isObj()) target = Interp::nameSpace(nsName);
+        Value target = py.has(nsName) ? py.lookup(nsName) : Value();
+        if (!target.isObj()) {
+            target = Interp::nameSpace(nsName);
+            py.set(nsName, target);
+        }
         if (n->k == Node::K::Default) {
             const Value* cur = target.attr(var);
             if (cur && !cur->isNone()) break;
@@ -498,8 +597,8 @@ void Vm::execInit(Node* n) {
                 t->params.emplace_back(kv[0].text(), kv.size() > 1 && !kv[1].isNone() ? kv[1].text() : "");
             }
         const std::string store = n->str("store");
-        if (store.empty() || store == "store") py.store[t->name] = atlValue(t, this);
-        else py.setAttr(py.store[store.substr(6)], t->name, atlValue(t, this));
+        if (store.empty() || store == "store") py.set(t->name, atlValue(t, this));
+        else py.setAttr(py.lookup(store.substr(6)), t->name, atlValue(t, this));
         break;
     }
     default: break;
@@ -520,32 +619,71 @@ void VmNatives::install(Vm& vm) {
     };
 
     // Built-in transforms and transitions.
-    py.store["left"] = atlValue(placement(0, 0, 1, 1, "left"), v);
-    py.store["right"] = atlValue(placement(1, 1, 1, 1, "right"), v);
-    py.store["center"] = atlValue(placement(.5, .5, 1, 1, "center"), v);
-    py.store["truecenter"] = atlValue(placement(.5, .5, .5, .5, "truecenter"), v);
-    py.store["topleft"] = atlValue(placement(0, 0, 0, 0, "topleft"), v);
-    py.store["top"] = atlValue(placement(.5, .5, 0, 0, "top"), v);
-    py.store["topright"] = atlValue(placement(1, 1, 0, 0, "topright"), v);
-    py.store["offscreenleft"] = atlValue(placement(0, 1, 1, 1, "offscreenleft"), v);
-    py.store["offscreenright"] = atlValue(placement(1, 0, 1, 1, "offscreenright"), v);
-    py.store["default"] = atlValue(placement(.5, .5, 1, 1, "default"), v);
-    py.store["dissolve"] = transitionValue(dissolve(.5));
+    py.set("left", atlValue(placement(0, 0, 1, 1, "left"), v));
+    py.set("right", atlValue(placement(1, 1, 1, 1, "right"), v));
+    py.set("center", atlValue(placement(.5, .5, 1, 1, "center"), v));
+    py.set("truecenter", atlValue(placement(.5, .5, .5, .5, "truecenter"), v));
+    py.set("topleft", atlValue(placement(0, 0, 0, 0, "topleft"), v));
+    py.set("top", atlValue(placement(.5, .5, 0, 0, "top"), v));
+    py.set("topright", atlValue(placement(1, 1, 0, 0, "topright"), v));
+    py.set("offscreenleft", atlValue(placement(0, 1, 1, 1, "offscreenleft"), v));
+    py.set("offscreenright", atlValue(placement(1, 0, 1, 1, "offscreenright"), v));
+    py.set("default", atlValue(placement(.5, .5, 1, 1, "default"), v));
+    py.set("dissolve", transitionValue(dissolve(.5)));
 
     py.def("_", [](Interp&, Args& a, Kwargs&) { return a.empty() ? Value() : a[0]; });
-    py.def("globals", [](Interp&, Args&, Kwargs&) { return makeDict(); });
     py.def("open", [v](Interp&, Args& a, Kwargs& kw) {
         const std::string path = argOr(a, 0, kw, "name").text();
         const std::string mode = argOr(a, 1, kw, "mode", Value::str("r")).text();
-        if (mode.find('w') != std::string::npos || mode.find('a') != std::string::npos) {
-            Value f = v->fileObject(path, "", true);
-            v->py.call(f.get("write"), {Value::str("")});
-            return f;
-        }
+        const bool truncate = mode.find('w') != std::string::npos;
+        const bool append = mode.find('a') != std::string::npos;
+        const bool read = mode.find('r') != std::string::npos;
+        if (int(truncate) + int(append) + int(read) != 1 ||
+            mode.find_first_not_of("rwa+b") != std::string::npos)
+            throw PyError("ValueError: unsupported file mode " + mode);
+        const bool writable = truncate || append || mode.find('+') != std::string::npos;
         bool ok = false;
-        std::string data = v->readFile(path, ok);
-        if (!ok) throw PyError("IOError: " + path);
-        return v->fileObject(path, data, false);
+        std::string data = truncate ? std::string() : v->readFile(path, ok);
+        if (!ok && read) throw PyError("IOError: " + path);
+        if (truncate || (append && !ok)) v->setVirtualFile(path, Value::str(""));
+        return v->fileObject(path, std::move(data), writable, append);
+    });
+    Value os = py.builtins.at("os");
+    os.o->openAttrs = false;
+    def(os, "remove", [v](Interp&, Args& a, Kwargs&) {
+        const std::string path = a.at(0).text();
+        bool ok = false;
+        v->readFile(path, ok);
+        if (!ok) throw PyError("OSError: file does not exist: " + path);
+        v->setVirtualFile(path, Value());
+        return Value();
+    });
+    os.o->attrs["unlink"] = os.o->attrs["remove"];
+    Value osPath = Interp::nameSpace("os.path");
+    osPath.o->openAttrs = false;
+    def(osPath, "join", [](Interp&, Args& a, Kwargs&) {
+        if (a.empty()) throw PyError("TypeError: os.path.join needs a path");
+        std::filesystem::path result(a[0].text());
+        for (size_t i = 1; i < a.size(); ++i) result /= a[i].text();
+        return Value::str(result.generic_string());
+    });
+    def(osPath, "exists", [v](Interp&, Args& a, Kwargs&) {
+        bool ok = false;
+        v->readFile(a.at(0).text(), ok);
+        return Value::boolean(ok);
+    });
+    os.o->attrs["path"] = osPath;
+    Value environment = Interp::nameSpace("os.environ");
+    environment.o->openAttrs = false;
+    def(environment, "get", [](Interp&, Args& a, Kwargs&) {
+        const char* value = SDL_getenv(a.at(0).text().c_str());
+        return value ? Value::str(value) : a.size() > 1 ? a[1] : Value();
+    });
+    os.o->attrs["environ"] = environment;
+    Value subprocess = py.builtins.at("subprocess");
+    subprocess.o->openAttrs = false;
+    def(subprocess, "check_output", [](Interp&, Args&, Kwargs&) -> Value {
+        throw PyError("OSError: launching external processes is unavailable in this port");
     });
 
     // Characters.
@@ -554,8 +692,15 @@ void VmNatives::install(Vm& vm) {
             Value c = makeInstance("Character");
             c.o->attrs["name"] = argOr(a, 0, kw, "name");
             c.o->attrs["dynamic"] = Value::boolean(dynamic);
+            c.o->attrs["display_args"] = makeDict();
+            c.o->attrs["what_args"] = makeDict();
             for (auto& [k, val] : kw)
                 if (k != "name") c.o->attrs[k] = val;
+            c.o->attrs["add_history"] = makeFunction("add_history", [](Interp& py, Args& a, Kwargs& kw) {
+                return py.call(py.lookup("_kt_add_history"),
+                               {argOr(a, 0, kw, "kind", Value::str("adv")), argOr(a, 1, kw, "who"),
+                                argOr(a, 2, kw, "what")});
+            });
             return c;
         };
     };
@@ -564,7 +709,7 @@ void VmNatives::install(Vm& vm) {
 
     // Displayables.
     Value im = Interp::nameSpace("im");
-    py.store["im"] = im;
+    py.set("im", im);
     auto composite = [v, disp, size2](bool live) {
         return [v, disp, size2, live](Interp&, Args& a, Kwargs&) {
             double w = 0, h = 0;
@@ -590,6 +735,20 @@ void VmNatives::install(Vm& vm) {
     });
     py.def("AnimatedMask", [v](Interp&, Args&, Kwargs&) { return v->dispValue(makeNullDisp(0, 0)); });
     py.def("ParticleBurst", [v](Interp&, Args&, Kwargs&) { return v->dispValue(makeNullDisp(0, 0)); });
+    // Dialogue history (renpy.character.HistoryEntry); the script edits it in Act 2.
+    py.exec("class HistoryEntry(object):\n"
+            "    def __init__(self, kind='adv', who=None, what=None):\n"
+            "        self.kind = kind\n"
+            "        self.who = who\n"
+            "        self.what = what\n"
+            "_history = True\n"
+            "_history_list = []\n"
+            "def _kt_add_history(kind, who, what):\n"
+            "    if not _history:\n"
+            "        return\n"
+            "    _history_list.append(HistoryEntry(kind, who, what))\n"
+            "    while len(_history_list) > (config.history_length or 250):\n"
+            "        _history_list.pop(0)\n");
     // Particles are decorative: sprites are tracked but never drawn.
     py.exec("class _KtSprite(object):\n"
             "    x = 0\n"
@@ -700,6 +859,12 @@ void VmNatives::install(Vm& vm) {
         r.o->attrs["value"] = a.empty() ? Value::boolean(true) : a[0];
         return r;
     });
+    // Quit(confirm=...): the host quits the application when a screen returns it.
+    py.def("Quit", [](Interp&, Args& a, Kwargs& kw) {
+        Value r = makeInstance("Quit");
+        r.o->attrs["confirm"] = argOr(a, 0, kw, "confirm", Value::boolean(true));
+        return r;
+    });
     py.def("__screenargs", [](Interp&, Args& a, Kwargs& kw) {
         Value d = makeDict();
         for (auto& [k, val] : kw) d.o->dict.emplace_back(Value::str(k), val);
@@ -708,8 +873,9 @@ void VmNatives::install(Vm& vm) {
 
     // The renpy module.
     Value renpy = Interp::nameSpace("renpy");
-    py.store["renpy"] = renpy;
+    py.set("renpy", renpy);
     py.builtins["renpy"] = renpy;
+    py.registerModule("renpy", renpy);
     auto sub = [&](Value parent, const char* name) {
         Value n = Interp::nameSpace(name);
         parent.o->attrs[name] = n;
@@ -859,11 +1025,17 @@ void VmNatives::install(Vm& vm) {
     def(renpy, "display_menu", [v](Interp&, Args& a, Kwargs& kw) {
         std::vector<Interaction::Item> items;
         std::string caption;
-        for (auto& it : a.at(0).items()) {
+        const Value list = argOr(a, 0, kw, "items");
+        for (auto& it : list.items()) {
             const auto& p = it.items();
             if (p.size() < 2) continue;
             if (p[1].isNone()) caption = p[0].text();
             else items.push_back({v->interpolate(p[0].text()), p[1]});
+        }
+        if (!kwGet(kw, "interact", Value::boolean(true)).truthy()) {
+            for (auto& item : items) item.enabled = false;
+            v->inertMenu_ = std::move(items);
+            return Value();
         }
         return v->menu(items, caption, kwGet(kw, "screen", Value::str("choice")).text());
     });
@@ -899,11 +1071,83 @@ void VmNatives::install(Vm& vm) {
         const std::string n = a.empty() ? "" : a[0].text();
         return Value::boolean(n == "pc" || n == "large");
     });
+    // Screen effects (tear, invert) are drawn by the host from a frame capture;
+    // the screenshot the script passes along is only a placeholder.
+    Value display = sub(renpy, "display");
+    Value draw = sub(display, "draw");
+    def(draw, "screenshot", [](Interp&, Args&, Kwargs&) {
+        Value shot = makeInstance("Screenshot");
+        shot.o->attrs["get_width"] = makeFunction("get_width", [](Interp&, Args&, Kwargs&) { return Value::integer(1280); });
+        shot.o->attrs["get_height"] = makeFunction("get_height", [](Interp&, Args&, Kwargs&) { return Value::integer(720); });
+        shot.o->attrs["subsurface"] = makeFunction("subsurface", [shot](Interp&, Args&, Kwargs&) { return shot; });
+        return shot;
+    });
+    def(draw, "set_mouse_pos", [v](Interp&, Args& a, Kwargs&) {
+        v->backend.setMousePosition(a.at(0).num(), a.at(1).num());
+        return Value();
+    });
+    def(renpy, "get_mouse_pos", [v](Interp&, Args&, Kwargs&) {
+        double x = 0, y = 0;
+        v->backend.mousePosition(x, y);
+        return makeTuple({Value::integer(int64_t(x)), Value::integer(int64_t(y))});
+    });
+    def(sub(display, "behavior"), "clear_keymap_cache", [](Interp&, Args&, Kwargs&) { return Value(); });
+    def(renpy, "get_physical_size", [](Interp&, Args&, Kwargs&) {
+        return makeTuple({Value::integer(1280), Value::integer(720)});
+    });
+    def(renpy, "hide_screen", [v](Interp&, Args& a, Kwargs&) {
+        const std::string name = a.at(0).text();
+        auto& s = v->scene.screens;
+        s.erase(std::remove_if(s.begin(), s.end(), [&](const ScreenState& x) { return x.name == name; }), s.end());
+        return Value();
+    });
+    def(renpy, "show_screen", [v](Interp&, Args& a, Kwargs& kw) {
+        const std::string name = a.at(0).text();
+        auto& s = v->scene.screens;
+        s.erase(std::remove_if(s.begin(), s.end(), [&](const ScreenState& x) { return x.name == name; }), s.end());
+        s.push_back({name, Args(a.begin() + 1, a.end()), kw, v->now()});
+        return Value();
+    });
+    def(renpy, "get_screen", [v](Interp&, Args& a, Kwargs&) {
+        const std::string name = a.at(0).text();
+        for (auto& screen : v->scene.screens)
+            if (screen.name == name) return Value::boolean(true);
+        return Value();
+    });
+    def(renpy, "current_screen", [v](Interp&, Args&, Kwargs&) {
+        Value screen = makeInstance("ScreenDisplayable");
+        const std::string name = v->scene.screens.empty() ? "" : v->scene.screens.back().name;
+        screen.o->attrs["screen_name"] = makeTuple({Value::str(name)});
+        return screen;
+    });
+    def(renpy, "jump_out_of_context", [](Interp&, Args& a, Kwargs&) -> Value { throw JumpSignal{a.at(0).text(), false}; });
+    def(renpy, "call_in_new_context", [](Interp&, Args&, Kwargs&) { return Value(); });
+    // _window_show / _window_hide: the window statement as functions.
+    auto window = [v](bool show) {
+        return [v, show](Interp& py, Args& a, Kwargs& kw) {
+            v->windowAuto_ = false;
+            if (v->scene.window.visible == show) return Value();
+            const bool given = !a.empty() || std::any_of(kw.begin(), kw.end(), [](auto& k) { return k.first == "trans"; });
+            Value trans = !given
+                ? py.getAttr(v->config, show ? "window_show_transition" : "window_hide_transition")
+                : argOr(a, 0, kw, "trans");
+            v->scene.window.visible = show;
+            v->scene.window.who.clear();
+            v->scene.window.what.clear();
+            v->scene.window.rich = {};
+            if (auto tr = v->toTransition(trans)) v->transition(tr);
+            return Value();
+        };
+    };
+    py.def("_window_show", window(true));
+    py.def("_window_hide", window(false));
+
     Value singleton = Interp::nameSpace("singleton");
     def(singleton, "SingleInstance", [](Interp&, Args&, Kwargs&) { return makeInstance("SingleInstance"); });
     py.builtins["singleton"] = singleton;
+    py.registerModule("singleton", singleton);
     def(vm.gui, "init", [](Interp&, Args&, Kwargs&) { return Value(); });
-    Value build = py.store["build"];
+    Value build = py.lookup("build");
     for (const char* noop : {"archive", "classify", "documentation", "executable", "package", "clear"})
         def(build, noop, [](Interp&, Args&, Kwargs&) { return Value(); });
     def(renpy, "list_saved_games", [](Interp&, Args&, Kwargs&) { return makeList(); });
@@ -917,7 +1161,7 @@ void VmNatives::install(Vm& vm) {
 
     // ui: the immediate-mode widgets of the poem game.
     Value ui = Interp::nameSpace("ui");
-    py.store["ui"] = ui;
+    py.set("ui", ui);
     renpy.o->attrs["ui"] = ui;
     def(ui, "text", [v](Interp&, Args& a, Kwargs& kw) {
         Interaction::Item t;
@@ -1013,13 +1257,14 @@ void Vm::bindLabel(Node* label, const Value&) {
         if (const Value* k = kwFind(pendingKw_, name.c_str())) val = *k, set = true;
         else if (pi < pendingArgs_.size()) val = pendingArgs_[pi++], set = true;
         if (!set && kv.size() > 1 && !kv[1].isNone()) val = py.eval(kv[1].text());
-        py.store[name] = val;
+        py.set(name, val);
     }
     pendingArgs_.clear();
     pendingKw_.clear();
 }
 
 Node* Vm::exec(Node* n) {
+    currentNode_ = n;
     auto source = [&](const char* field) { return n->ast.get(field).get("source").text(); };
     switch (n->k) {
     case Node::K::Label: bindLabel(n, {}); return n->next;
@@ -1033,7 +1278,8 @@ Node* Vm::exec(Node* n) {
                 whoV = Value::str(who.text());
             }
         }
-        say(whoV, n->str("what"), n->ast.get("attributes"));
+        const std::string original = n->str("what");
+        say(whoV, translate ? translate(n->route, original) : original, n->ast.get("attributes"));
         if (!n->ast.get("with_").isNone()) doWith(n->ast.get("with_").text());
         return n->next;
     }
@@ -1076,7 +1322,7 @@ Node* Vm::exec(Node* n) {
     }
     case Node::K::Return: {
         Value e = n->ast.get("expression");
-        py.store["_return"] = e.isNone() ? Value() : py.eval(e.text());
+        py.set("_return", e.isNone() ? Value() : py.eval(e.text()));
         if (callStack_.empty()) return nullptr;
         Node* r = callStack_.back();
         callStack_.pop_back();
@@ -1115,7 +1361,8 @@ Node* Vm::exec(Node* n) {
             const auto& it = items[i].items();
             if (it.size() < 3) continue;
             if (it[2].isNone()) {
-                caption = it[0].text();
+                const std::string original = it[0].text();
+                caption = translate ? translate(n->route, original) : original;
                 continue;
             }
             bool ok = true;
@@ -1124,7 +1371,9 @@ Node* Vm::exec(Node* n) {
             } catch (const PyError&) {
             }
             if (!ok) continue;
-            choices.push_back({interpolate(it[0].text()), Value::integer(int64_t(i))});
+            const std::string original = it[0].text();
+            choices.push_back({interpolate(translate ? translate(n->route, original) : original),
+                               Value::integer(int64_t(i))});
             index.push_back(i);
         }
         Value r = menu(choices, caption, "choice");
@@ -1220,7 +1469,7 @@ void Vm::execUser(const std::string& line) {
             auto& s = scene.screens;
             s.erase(std::remove_if(s.begin(), s.end(), [&](const ScreenState& x) { return x.name == name; }), s.end());
             s.push_back({name, args, kw, now()});
-        } else py.store["_return"] = callScreen(name, args, kw);
+        } else py.set("_return", callScreen(name, args, kw));
     } else backend.log("unhandled statement: " + line);
 }
 
@@ -1228,7 +1477,11 @@ void Vm::execUser(const std::string& line) {
 
 void Vm::say(const Value& who, const std::string& what, const Value& attrs) {
     std::string name, prefix, suffix, image;
+    Value callback;
     if (who.cls() == "Character") {
+        const Value displayArgs = who.get("display_args");
+        if (displayArgs.isObj() && displayArgs.o->k == Object::K::Dict)
+            if (const Value* found = displayArgs.o->findKey(Value::str("callback"))) callback = *found;
         Value n = who.get("name");
         if (who.get("dynamic").truthy() && !n.isNone()) {
             try {
@@ -1254,6 +1507,17 @@ void Vm::say(const Value& who, const std::string& what, const Value& attrs) {
             else backend.log("say attributes: unknown image " + image);
         }
     }
+
+    // Character callbacks (Monika's slow_nodismiss in Act 3) may jump away.
+    auto notify = [&](const char* event) {
+        if (!callback.isObj()) return;
+        try {
+            py.call(callback, {Value::str(event)}, {{"interact", Value::boolean(true)}});
+        } catch (const PyError& error) {
+            backend.log(std::string("character callback: ") + error.what());
+        }
+    };
+    notify("begin");
 
     std::string text = interpolate(prefix + what + suffix);
     Value filter = py.getAttr(config, "replace_text");
@@ -1286,6 +1550,8 @@ void Vm::say(const Value& who, const std::string& what, const Value& attrs) {
         in.k = Interaction::K::Say;
         in.sayWait = kind;
         in.sayTime = time;
+        in.items = inertMenu_;
+        notify("show");
         interact(std::move(in));
         from = to;
     };
@@ -1295,6 +1561,14 @@ void Vm::say(const Value& who, const std::string& what, const Value& attrs) {
     const bool endsNoWait = !waits.empty() && waits.back().at >= total && waits.back().kind == 2;
     const bool endsClick = !waits.empty() && waits.back().at >= total && waits.back().kind == 0;
     if (!endsNoWait && !endsClick) segment(total, 0, 0);
+    inertMenu_.clear();
+    notify("end");
+    try {
+        py.call(py.lookup("_kt_add_history"), {Value::str("adv"), name.empty() ? Value() : Value::str(name),
+                                               Value::str(text)});
+    } catch (const PyError& error) {
+        backend.log(std::string("history: ") + error.what());
+    }
     // The window stays up (empty) until the next line.
     if (endsNoWait) return;
     scene.window.who.clear();

@@ -210,7 +210,7 @@ const std::array<SchoolDaysRetailGpkSpec, 29>& SchoolDaysRetailGpkSpecs() {
         {"Se00.GPK", "Se00"}, {"Se01.GPK", "Se01"},
         {"Se02.GPK", "Se02"}, {"Se03.GPK", "Se03"},
         {"Se04.GPK", "Se04"}, {"Se05.GPK", "Se05"},
-        {"SysSe.GPK", "SysSe"}, {"System.gpk", "System"},
+        {"SysSe.GPK", "SysSe"}, {"System.GPK", "System"},
         {"Voice00.GPK", "Voice00"}, {"Voice01.GPK", "Voice01"},
         {"Voice02.GPK", "Voice02"}, {"Voice03.GPK", "Voice03"},
         {"Voice04.GPK", "Voice04"}, {"Voice05.GPK", "Voice05"},

@@ -704,3 +704,4 @@ Xcode/vcpkg/*
 /Android/app/build/
 /Android/app/.cxx/
 /Android/local.properties
+Xcode/Python.xcframework

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="VcsDirectoryMappings">
+    <mapping directory="$PROJECT_DIR$/.." vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../lib/submodules/SDL" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../lib/submodules/SDL_ttf" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../lib/submodules/SDL_ttf/external/freetype" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../lib/submodules/SDL_ttf/external/freetype/subprojects/dlg" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../lib/submodules/SDL_ttf/external/harfbuzz" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../lib/submodules/SDL_ttf/external/plutosvg" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../lib/submodules/SDL_ttf/external/plutosvg/plutovg" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../lib/submodules/SDL_ttf/external/plutovg" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../lib/submodules/imgui" vcs="Git" />
+  </component>
+</project>

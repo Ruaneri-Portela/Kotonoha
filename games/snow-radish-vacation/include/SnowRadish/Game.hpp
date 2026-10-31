@@ -13,14 +13,16 @@ inline constexpr const char* titleSuffix(bool cleared, bool hasSaves) {
     return cleared ? (hasSaves ? "a" : "") : (hasSaves ? "c" : "b");
 }
 
-// Converts the Shift-JIS strings stored in scripts to UTF-8.
-std::string sjisToUtf8(const std::string& s);
+// Translation routes: script texts are keyed by the 12-bit id of the script
+// object that stores them; the built-in map place names use kMapRoute.
+inline constexpr int kNoRoute = -1, kMapRoute = 0x1000;
 
 struct Message {
     std::string name;  // speaker (UTF-8), empty for narration
     std::string text;  // UTF-8
     int actor = 0;
     std::string voice; // voice id such as V0121234, may be empty
+    int route = kNoRoute, nameRoute = kNoRoute;
 };
 
 // Headless game logic: owns the script pack, the script VM and the visual novel
@@ -32,6 +34,8 @@ public:
     bool init();
     // Switches the running script (as the goto native does).
     bool gotoScript(const std::string& name) { return loadScript(name, true); }
+    std::vector<std::string> debugScripts() const;
+    bool debugJump(const std::string& name);
     // Runs the VM until it blocks on user input or maxSteps ran out.
     void pump(size_t maxSteps = 200000);
     // Advances past the current message. Returns false if nothing was pending.
@@ -81,6 +85,10 @@ public:
     int destination(size_t i) const { return i < choiceValue_.size() ? choiceValue_[i] : 0; }
     const std::vector<int>& mapArgs() const { return mapArgs_; }
     const std::vector<std::string>& choices() const { return choiceText_; }
+    const std::vector<int>& choiceRoutes() const { return choiceRoute_; }
+    // Every displayable text (UTF-8) of the pack, grouped by route: the
+    // Shift-JIS strings of each script object plus the map place names.
+    std::map<int, std::vector<std::string>> texts();
     // Picks option i; stores its value into the script variable and resumes.
     bool choose(size_t i);
 
@@ -135,6 +143,7 @@ private:
     bool clearedFlag_ = false;
     int speakerMode_ = 1, voiceActor_ = 0;
     std::string speaker_;
+    int speakerRoute_ = kNoRoute;
     std::string background_;
     std::vector<Sprite> sprites_;
     bool filled_ = false;
@@ -147,6 +156,7 @@ private:
     int initialFocus_ = -1;
     std::vector<int> mapArgs_;
     std::vector<std::string> choiceText_;
+    std::vector<int> choiceRoute_;
     std::vector<int> choiceValue_;
     uint32_t choiceVar_ = 0;
 };

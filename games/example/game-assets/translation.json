@@ -1,0 +1,33 @@
+{
+  "0": {
+    "As sombras se esgueiravam pela entrada da caverna misteriosa.": "Shadows crept around the entrance to the mysterious cave."
+  },
+  "3": {
+    "Certo, {player}! Precisamos nos preparar antes da travessia.": "All right, {player}! We must prepare before the crossing."
+  },
+  "4": {
+    "O que voce decide pegar no acampamento?": "What will you take from the camp?",
+    "Pegar a Tocha Antiga": "Take the Old Torch",
+    "Pegar o Mapa Desenhado": "Take the Drawn Map"
+  },
+  "100": {
+    "SERRA DO ECO - 23:47": "ECHO RIDGE - 23:47",
+    "A ultima luz do vale desaparece. Uma tempestade se aproxima.": "The last light in the valley fades. A storm approaches."
+  },
+  "30": {
+    "[O vento aumenta]": "[The wind rises]",
+    "A trilha esta sumindo na chuva. Fique perto!": "The trail is vanishing in the rain. Stay close!",
+    "O vento esconde o sinal. O que fazer?": "The wind hides the signal. What now?",
+    "Esperar o sinal do companheiro": "Wait for your companion's signal",
+    "Continuar com cuidado": "Continue carefully"
+  },
+  "40": {
+    "A ponte cede! Decida antes do proximo trovao.": "The bridge is collapsing! Decide before the next thunderclap.",
+    "Ajudar o companheiro a atravessar": "Help your companion cross",
+    "Correr sozinho para a margem": "Run to the riverbank alone"
+  },
+  "nodo": {
+    "Narrador": "Narrator",
+    "Companheiro": "Companion"
+  }
+}

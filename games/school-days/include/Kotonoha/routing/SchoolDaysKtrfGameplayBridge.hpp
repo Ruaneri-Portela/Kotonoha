@@ -10,7 +10,13 @@ struct Kotonoha_Game;
 
 namespace Kotonoha {
 
-class Gameplay;
+class SchoolDaysScenePresentation {
+public:
+    virtual ~SchoolDaysScenePresentation() = default;
+    virtual void RestoreChoice(int64_t value) = 0;
+    virtual void SetPaused(bool paused) = 0;
+};
+using Gameplay = SchoolDaysScenePresentation;
 
 class SchoolDaysKtrfGameplayBridge {
 public:

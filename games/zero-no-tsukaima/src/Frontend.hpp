@@ -1,12 +1,15 @@
 #pragma once
-#include "MoviePlayer.hpp"
+#include "Media.hpp"
 
-#include <Kotonoha/components/CanvasImage.hpp>
+#include <Kotonoha/media/MediaPlayer.hpp>
+
+#include "Media.hpp"
 
 #include <SDL3/SDL.h>
 
 #include <cstdint>
 #include <map>
+#include <memory>
 #include <set>
 #include <string>
 #include <vector>
@@ -54,7 +57,7 @@ class FrontendHost {
 public:
   virtual ~FrontendHost() = default;
   // Any picture by name: NORMAL first, then SCENEDAT; null (quietly) if missing.
-  virtual Kotonoha::CanvasImage *Picture(const std::string &name) = 0;
+  virtual ZeroNoTsukaima::Picture *Picture(const std::string &name) = 0;
   // Menu text (TextLayer) in logical coordinates; returns the logical size.
   virtual SDL_FPoint DrawText(SDL_Renderer *r, const std::string &text, float x, float y, float size, SDL_Color color,
                               bool measureOnly = false) = 0;
@@ -62,17 +65,19 @@ public:
   virtual void SystemChanged() = 0; // apply volumes and write the system save
   virtual bool HasScene(const std::string &name) = 0;
   // NORMAL (system UI) and SCENEDAT pictures by archive name; null if missing.
-  virtual Kotonoha::CanvasImage *NormalPicture(const std::string &name) = 0;
-  virtual Kotonoha::CanvasImage *ScenePicture(const std::string &name) = 0;
+  virtual ZeroNoTsukaima::Picture *NormalPicture(const std::string &name) = 0;
+  virtual ZeroNoTsukaima::Picture *ScenePicture(const std::string &name) = 0;
   // Plays a SYSVOICES voice and returns its length in milliseconds (0 = none).
   virtual int SystemVoice(const std::string &name) = 0;
   virtual void StopVoice() = 0;
   virtual void SystemSe(const std::string &name) = 0;
   virtual void Music(const std::string &name) = 0; // looping SOUND_ID stream, e.g. "BGMA01"
   virtual void StopMusic() = 0;
-  virtual bool Movie(int number, std::vector<uint8_t> *out) = 0;
+  // Disc movie `number` playing on an engine MediaPlayer (self-timed, with the
+  // PSS soundtrack); null when the movie is missing or cannot be decoded.
+  virtual std::unique_ptr<Kotonoha::MediaPlayer> OpenMovie(int number) = 0;
+  virtual Kotonoha::Upscaling *Upscaler() = 0; // engine pipeline for movie frames
   virtual SDL_Renderer *Renderer() = 0;
-  virtual Kotonoha::Sound::Channel *MovieAudio() = 0; // engine channel the movie soundtrack plays on
   // Save slot `slot` (0..63): false when empty.
   virtual bool Slot(int slot, SlotInfo *info) = 0;
   virtual void PlayVoice(int voice) = 0; // VOICE_ID index (back log replay)
@@ -115,6 +120,7 @@ public:
   void OpenCommand(bool coffee, int tundere, int maxLike);
   void OpenHistory(std::vector<HistoryEntry> entries);
   bool InGame() const { return inGame_; }
+  bool InHistory() const { return inGame_ && phase_ == Phase::History; }
   int Slot() const { return slot_; }
 
 private:
@@ -170,14 +176,14 @@ private:
   void DrawCharacter(SDL_Renderer *r, float alpha);
   void DrawFiles(SDL_Renderer *r, float alpha);
   void DrawHistory(SDL_Renderer *r, float alpha);
-  Kotonoha::CanvasImage *Img(const std::string &name) { return host_.Picture(name); }
+  Picture *Img(const std::string &name) { return host_.Picture(name); }
   void DrawPhase(SDL_Renderer *r, Phase phase, float alpha);
-  void DrawImage(SDL_Renderer *r, Kotonoha::CanvasImage *img, float x, float y, float alpha, float light = 1.0f, float w = 0,
+  void DrawImage(SDL_Renderer *r, Picture *img, float x, float y, float alpha, float light = 1.0f, float w = 0,
                  float h = 0);
   uint64_t Since() const { return SDL_GetTicks() - stepStart_; }
 
   FrontendHost &host_;
-  MoviePlayer movie_;
+  std::unique_ptr<Kotonoha::MediaPlayer> movie_;
   Phase phase_ = Phase::Title, previous_ = Phase::Title;
   Step step_ = Step::FadeIn;
   uint64_t stepStart_ = 0, phaseStart_ = 0, transitionStart_ = 0;

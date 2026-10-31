@@ -1,0 +1,161 @@
+plugins {
+    id 'com.android.application'
+}
+
+def engineRoot = rootProject.projectDir.parentFile
+def sdlRoot = new File(rootProject.projectDir, '.deps/SDL')
+def sdlRevision = '4bb5020be2a3e3f7a963b84c95f49fe7ef5d35a4'
+def vcpkgRoot = providers.environmentVariable('VCPKG_ROOT').orNull
+if (!vcpkgRoot) {
+    throw new GradleException('Set VCPKG_ROOT to your vcpkg checkout before opening Android.')
+}
+def includeGameAssets = providers.gradleProperty('bundleGameAssets').orElse('true').get().toBoolean()
+def abis = providers.gradleProperty('abis').orElse('arm64-v8a').get().split(',').toList()
+def games = [
+    example: ['example', 'Kotonoha', 'me.kotonoha.example', 'Kotonoha'],
+    zeroNoTsukaima: ['zero-no-tsukaima', 'ZeroNoTsukaima', 'me.hirameki.kotonoha.zeronotsukaima', 'Zero no Tsukaima'],
+    snowRadish: ['snow-radish-vacation', 'SnowRadish', 'me.hirameki.kotonoha.snowradishvacation', 'Snow Radish Vacation!!'],
+    dokiDoki: ['doki-doki-literature-club', 'DokiDoki', 'me.hirameki.kotonoha.dokidokiliteratureclub', 'Doki Doki Literature Club!'],
+    schoolDays: ['school-days', 'SchoolDays', 'me.hirameki.kotonoha.schooldays', 'School Days']
+]
+
+def prepareSDL = tasks.register('prepareSDL') {
+    inputs.property('revision', sdlRevision)
+    outputs.file(new File(sdlRoot, '.kotonoha-revision'))
+    doLast {
+        def executeGit = { List<String> command ->
+            def process = new ProcessBuilder(command).inheritIO().start()
+            if (process.waitFor() != 0) throw new GradleException("Git dependency failed: ${command}")
+        }
+        if (!new File(sdlRoot, '.git').exists()) {
+            sdlRoot.parentFile.mkdirs()
+            executeGit(['git', 'clone', '--no-checkout', '--filter=blob:none',
+                        'https://github.com/libsdl-org/SDL.git', sdlRoot.absolutePath])
+        }
+        executeGit(['git', '-C', sdlRoot.absolutePath, 'fetch', 'origin', sdlRevision])
+        executeGit(['git', '-C', sdlRoot.absolutePath, 'checkout', '--detach', sdlRevision])
+        new File(sdlRoot, '.kotonoha-revision').text = sdlRevision + '\n'
+    }
+}
+
+android {
+    namespace 'org.kotonoha.android'
+    compileSdk 36
+    ndkVersion '28.2.13676358'
+    defaultConfig {
+        minSdk 28
+        targetSdk 34
+        versionCode 1
+        versionName '0.1.0'
+        ndk { abiFilters.addAll(abis) }
+        externalNativeBuild {
+            cmake {
+                arguments "-DCMAKE_TOOLCHAIN_FILE=${vcpkgRoot}/scripts/buildsystems/vcpkg.cmake",
+                          "-DVCPKG_MANIFEST_DIR=${engineRoot}",
+                          "-DVCPKG_CHAINLOAD_TOOLCHAIN_FILE=${android.ndkDirectory}/build/cmake/android.toolchain.cmake",
+                          "-DKOTONOHA_SDL_SOURCE_DIR=${sdlRoot}",
+                          '-DANDROID_STL=c++_shared'
+            }
+        }
+    }
+    flavorDimensions += 'game'
+    productFlavors {
+        games.each { flavor, game ->
+            create(flavor) {
+                dimension 'game'
+                applicationId game[2]
+                manifestPlaceholders.appName = game[3]
+                buildConfigField 'String', 'NATIVE_TARGET', "\"${game[1]}\""
+                externalNativeBuild {
+                    cmake {
+                        arguments "-DKOTONOHA_ANDROID_GAME=${game[0]}",
+                                  "-DVCPKG_INSTALLED_DIR=${rootProject.projectDir}/build/vcpkg${flavor == 'dokiDoki' ? '-python' : ''}",
+                                  "-DVCPKG_MANIFEST_FEATURES=${flavor == 'dokiDoki' ? 'android-python' : ''}"
+                        targets game[1]
+                    }
+                }
+            }
+        }
+    }
+    buildFeatures { buildConfig true }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    externalNativeBuild {
+        cmake {
+            path '../CMakeLists.txt'
+            version '3.22.1'
+        }
+    }
+    sourceSets {
+        main {
+            java.srcDir new File(sdlRoot, 'android-project/app/src/main/java')
+        }
+    }
+    packaging { jniLibs { useLegacyPackaging = true } }
+}
+
+android.applicationVariants.all { variant ->
+    def game = games[variant.flavorName]
+    def taskSuffix = variant.name.capitalize()
+    def staged = layout.buildDirectory.dir("generated/assets/${variant.name}")
+    def gameAssets = new File(engineRoot, "games/${game[0]}/game-assets")
+    def includeThisGame = includeGameAssets || variant.flavorName == 'example'
+    def assets = tasks.register("stage${taskSuffix}Assets", Sync) {
+        from(new File(engineRoot, 'assets')) { into 'assets' }
+        if (includeThisGame) {
+            from(gameAssets) { into 'game-assets' }
+        }
+        into staged
+        doFirst {
+            if (includeThisGame && !gameAssets.isDirectory()) {
+                throw new GradleException("Game asset source directory is missing: ${gameAssets}")
+            }
+        }
+        doLast {
+            new File(staged.get().asFile, 'game-assets').mkdirs()
+            if (variant.flavorName == 'dokiDoki') {
+                if (abis.size() != 1) {
+                    throw new GradleException('DDLC APKs must use one ABI each (-Pabis=arm64-v8a or x86_64).')
+                }
+                def triplet = abis[0] == 'arm64-v8a' ? 'arm64-android' : 'x64-android'
+                def prefix = new File(rootProject.projectDir, "build/vcpkg-python/${triplet}")
+                def stdlibs = fileTree(new File(prefix, 'lib')).matching { include 'python3.*/**' }.files
+                if (stdlibs.empty) throw new GradleException('Android CPython standard library is missing.')
+                copy {
+                    from new File(prefix, 'lib')
+                    include 'python3.*/**'
+                    into new File(staged.get().asFile, 'python/lib')
+                }
+            }
+            def digest = java.security.MessageDigest.getInstance('SHA-256')
+            fileTree(staged).files.sort { it.path }.each { file ->
+                digest.update(file.toPath().toString().replace(staged.get().asFile.path, '').getBytes('UTF-8'))
+                file.withInputStream { stream ->
+                    byte[] buffer = new byte[65536]
+                    int count
+                    while ((count = stream.read(buffer)) != -1) digest.update(buffer, 0, count)
+                }
+            }
+            new File(staged.get().asFile, 'packaged-assets.sha256').text = digest.digest().encodeHex().toString() + '\n'
+        }
+    }
+    variant.mergeAssetsProvider.configure {
+        dependsOn assets
+        inputs.dir staged
+    }
+    android.sourceSets[variant.name].assets.srcDir staged
+    if (variant.flavorName == 'dokiDoki') {
+        assets.configure {
+            dependsOn variant.externalNativeBuildProviders
+        }
+    }
+}
+
+tasks.configureEach { task ->
+    if (task.name == 'preBuild' || task.name.startsWith('configureCMake') ||
+        task.name.startsWith('buildCMake') || task.name.startsWith('compile')) {
+        task.dependsOn prepareSDL
+    }
+}

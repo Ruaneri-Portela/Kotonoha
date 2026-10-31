@@ -1,55 +1,63 @@
-cmake_minimum_required(VERSION 3.18)
-project(ZeroNoTsukaimaApp LANGUAGES C CXX)
+cmake_minimum_required(VERSION 3.16)
 
-if(NOT TARGET KotonohaRuntime)
-    set(_ROOT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../..")
-    set(KOTONOHA_INCLUDE_DIR "${_ROOT_DIR}/include")
-    set(KOTONOHA_ENGINE_SOURCE_DIR "${_ROOT_DIR}/src/Kotonoha")
-    add_subdirectory("${_ROOT_DIR}" kotonoha_build EXCLUDE_FROM_ALL)
+project(ZeroNoTsukaima VERSION 0.1.0 LANGUAGES C CXX)
+
+if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
+    include(CTest)
 endif()
 
-# Zero no Tsukaima (PS2) support: disc/archive/image format library and tools.
-# Pure C++17 + SDL3 (no engine runtime needed yet); assets stay in the user's
-# disc image and are never copied into the repository.
+if(NOT TARGET Kotonoha::Engine)
+    add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../lib"
+        "${CMAKE_CURRENT_BINARY_DIR}/kotonoha")
+endif()
+
+# Disc / archive / image / script formats of the PS2 game. Assets stay in the
+# user's disc image and are never copied into the repository.
 add_library(ZeroNoTsukaimaFormats STATIC
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/Disc.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/Lz.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/Tim2.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/Scene.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/Source.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/Catalog.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/Vag.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/Pss.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/Game.cpp")
-target_include_directories(ZeroNoTsukaimaFormats PUBLIC
-    "${CMAKE_CURRENT_SOURCE_DIR}/include")
-target_link_libraries(ZeroNoTsukaimaFormats PUBLIC ${KOTONOHA_SDL3_TARGET})
+    src/Archive.cpp
+    src/Lz.cpp
+    src/Tim2.cpp
+    src/Scene.cpp
+    src/Source.cpp
+    src/Catalog.cpp
+    src/Vag.cpp
+    src/Pss.cpp
+    src/Game.cpp
+)
+target_include_directories(ZeroNoTsukaimaFormats PUBLIC include)
+target_link_libraries(ZeroNoTsukaimaFormats PUBLIC Kotonoha::Engine)
+target_compile_features(ZeroNoTsukaimaFormats PUBLIC cxx_std_17)
+set_target_properties(ZeroNoTsukaimaFormats PROPERTIES CXX_EXTENSIONS OFF)
 
-if(ANDROID)
-    add_library(ZeroNoTsukaima SHARED
-        "${CMAKE_CURRENT_SOURCE_DIR}/src/ZeroMain.cpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/src/Frontend.cpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/src/MoviePlayer.cpp")
-    set_target_properties(ZeroNoTsukaima PROPERTIES OUTPUT_NAME ZeroNoTsukaima)
-    target_link_libraries(ZeroNoTsukaima PRIVATE KotonohaRuntime ZeroNoTsukaimaFormats)
-elseif(NOT IOS)
-    add_executable(ZeroExtract "${CMAKE_CURRENT_SOURCE_DIR}/tools/ZeroExtract.cpp")
-    target_link_libraries(ZeroExtract PRIVATE ZeroNoTsukaimaFormats)
+# The game on the Kotonoha engine: disc AssetProvider, session and the
+# polymorphic engine components.
+add_library(zero_no_tsukaima STATIC
+    src/Media.cpp
+    src/Frontend.cpp
+    src/DiscAssetProvider.cpp
+    src/ZeroSession.cpp
+    src/ZeroComponents.cpp
+    src/ZeroRuntime.cpp
+    src/ZeroLauncher.cpp
+)
+target_include_directories(zero_no_tsukaima PUBLIC src)
+target_link_libraries(zero_no_tsukaima PUBLIC Kotonoha::Engine ZeroNoTsukaimaFormats)
+set_target_properties(zero_no_tsukaima PROPERTIES CXX_EXTENSIONS OFF)
 
-    add_executable(ZeroRun "${CMAKE_CURRENT_SOURCE_DIR}/tools/ZeroRun.cpp")
-    target_link_libraries(ZeroRun PRIVATE ZeroNoTsukaimaFormats)
+kotonoha_add_app(ZeroNoTsukaima src/main.cpp)
+target_link_libraries(ZeroNoTsukaima PRIVATE zero_no_tsukaima)
+set_target_properties(ZeroNoTsukaima PROPERTIES CXX_EXTENSIONS OFF)
+kotonoha_configure_app(ZeroNoTsukaima
+    BUNDLE_ID me.hirameki.kotonoha.zeronotsukaima GAME zero-no-tsukaima)
 
-    add_executable(ZeroFormatsTest "${CMAKE_CURRENT_SOURCE_DIR}/tests/ZeroFormatsTest.cpp")
-    target_link_libraries(ZeroFormatsTest PRIVATE ZeroNoTsukaimaFormats)
+if(NOT ANDROID)
+add_executable(ZeroExtract tools/ZeroExtract.cpp)
+target_link_libraries(ZeroExtract PRIVATE ZeroNoTsukaimaFormats)
 
-    add_executable(ZeroNoTsukaima
-        "${CMAKE_CURRENT_SOURCE_DIR}/src/ZeroMain.cpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/src/Frontend.cpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/src/MoviePlayer.cpp")
-    target_link_libraries(ZeroNoTsukaima PRIVATE KotonohaRuntime ZeroNoTsukaimaFormats)
-    kotonoha_configure_app(ZeroNoTsukaima
-        OUTPUT_NAME ZeroNoTsukaima
-        BUNDLE_ID "me.hirameki.kotonoha.zero"
-        GAME_ASSET "zero-no-tsukaima"
-        )
+add_executable(ZeroRun tools/ZeroRun.cpp)
+target_link_libraries(ZeroRun PRIVATE ZeroNoTsukaimaFormats)
+endif()
+
+if(BUILD_TESTING)
+    add_subdirectory(tests)
 endif()

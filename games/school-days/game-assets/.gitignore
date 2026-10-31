@@ -1,0 +1,5 @@
+# Commercial data must be supplied by the user, never packaged here.
+*
+!.gitignore
+!school-days-hq.ktnroute
+!styles.ass

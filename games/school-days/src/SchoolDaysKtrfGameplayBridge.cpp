@@ -1,6 +1,5 @@
 #include <Kotonoha/routing/SchoolDaysKtrfGameplayBridge.hpp>
 #include <Kotonoha/routing/SchoolDaysBackRules.hpp>
-#include <Kotonoha/Gameplay.hpp>
 
 #include <cstdio>
 
@@ -89,7 +88,7 @@ bool SchoolDaysKtrfGameplayBridge::Open(
     const Factory& requestedFactory, Kotonoha_KtrfError* error) {
     Close();
 
-    if (context == nullptr || requestedFactory.create == nullptr ||
+    if (requestedFactory.create == nullptr ||
         requestedFactory.destroy == nullptr) {
         SetError(error, KOTONOHA_KTRF_ERROR_ARGUMENT,
                  "School Days gameplay bridge context/factory is invalid");
@@ -439,11 +438,7 @@ bool SchoolDaysKtrfGameplayBridge::LoadSave(
         // The saved tag1 already contains the choice effects and the session
         // restored the KTRF choice latch above.  Do not leave the new Gameplay
         // with a fresh interactive Prompt that could submit those effects again.
-        next->choiceCommitSubmitted = true;
-        next->promptId = plan.recordedChoiceValue;
-        next->putPrompt = false;
-        next->ownedPrompt.reset();
-        next->prompt = nullptr;
+        next->RestoreChoice(plan.recordedChoiceValue);
     }
 
     Gameplay* previous = currentGameplay;
@@ -581,7 +576,7 @@ bool SchoolDaysKtrfGameplayBridge::ReleaseCurrentGameplayForFrontend(
             // User pause is scoped to the narrative Gameplay.  Script.Free /
             // return-to-frontend must not leak that effective pause bit into
             // Title and the next freshly-created scene.
-            currentGameplay->SetUserPaused(gameContext, false);
+            currentGameplay->SetPaused(false);
         }
         factory.destroy(currentGameplay, factory.userdata);
         currentGameplay = nullptr;
@@ -591,7 +586,6 @@ bool SchoolDaysKtrfGameplayBridge::ReleaseCurrentGameplayForFrontend(
         // scene is released while that component is active, SetUserPaused(false)
         // alone still leaves EffectivePaused()==true.  Narrative ownership ends
         // here, so the shared frontend bit must be cleared unconditionally.
-        gameContext->config.paused = false;
     }
     // Script.Free (EXE 0x4236F0) tears down the script manager after the
     // physical media/gameplay objects.  Its 0x432870 call clears transient BLog

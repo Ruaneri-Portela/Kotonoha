@@ -21,6 +21,7 @@ struct Node {
     Node* next = nullptr;
     std::string file;
     int line = 0;
+    int route = 0;
     const Value& operator[](const char* name) const;
     std::string str(const char* name) const;
 };
@@ -30,11 +31,18 @@ public:
     // Loads every .rpyc of the archives.
     bool load(const Assets& assets, std::string* error = nullptr);
     Node* label(const std::string& name) const;
+    std::vector<std::string> labelNames() const {
+        std::vector<std::string> result;
+        for (const auto& entry : labels_) result.push_back(entry.first);
+        return result;
+    }
     bool hasLabel(const std::string& name) const { return labels_.count(name) != 0; }
     // Init-time statements (Define, Default, Image, Transform, Python...) in run order.
     const std::vector<Node*>& inits() const { return inits_; }
     size_t nodeCount() const { return nodes_.size(); }
     size_t fileCount() const { return files_; }
+    // Routes identify sorted script files; their original strings remain keys.
+    std::map<int, std::vector<std::string>> translationSources() const;
 
 private:
     Node* build(const Value& ast, const std::string& file);
@@ -46,6 +54,7 @@ private:
     std::map<std::string, Node*> labels_;
     std::vector<std::pair<int, Node*>> initOrder_;
     std::vector<Node*> inits_;
+    std::map<std::string, int> routes_;
     size_t files_ = 0, seq_ = 0;
 };
 

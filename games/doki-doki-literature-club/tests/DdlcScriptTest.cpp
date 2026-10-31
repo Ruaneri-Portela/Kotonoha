@@ -2,10 +2,17 @@
 // code, the splash screen and Act 1 from the start label through the first
 // poem game, answering every interaction automatically.
 // Usage: DdlcScriptTest [game dir] [max interactions]   (or DDLC_DIR)
+#if defined(KOTONOHA_IOS_DDLC_TEST)
+#define SDL_MAIN_USE_CALLBACKS 1
+#include <SDL3/SDL.h>
+#include <SDL3/SDL_main.h>
+#endif
+
 #include "Ddlc/Runtime.hpp"
 
 #include <cstdio>
 #include <cstdlib>
+#include <filesystem>
 #include <map>
 
 using namespace Ddlc;
@@ -94,18 +101,18 @@ bool drive(Vm& vm, double& clock, int limit, Stats& st, bool verbose) {
 
 } // namespace
 
-int main(int argc, char** argv) {
+int runDdlcScriptTest(int argc, char** argv) {
     const char* env = std::getenv("DDLC_DIR");
     std::string dir = argc > 1 ? argv[1] : env ? env : "";
     const int limit = argc > 2 ? std::atoi(argv[2]) : 4000;
     if (dir.empty()) {
-        std::printf("DdlcScriptTest: no game dir (pass it or set DDLC_DIR); skipped\n");
-        return 0;
+        std::fprintf(stderr, "DdlcScriptTest: no game directory supplied\n");
+        return 1;
     }
     Assets assets;
     if (!assets.open(dir)) {
-        std::printf("DdlcScriptTest: cannot open %s; skipped\n", dir.c_str());
-        return 0;
+        std::fprintf(stderr, "DdlcScriptTest: cannot open %s\n", dir.c_str());
+        return 1;
     }
     Script script;
     std::string err;
@@ -120,6 +127,44 @@ int main(int argc, char** argv) {
     double clock = 0;
     int failed = 0;
 
+    // Files written or deleted by the script stay in its persistent overlay.
+    {
+        Vm vm(assets, script, backend);
+        vm.init("");
+        const auto game = std::filesystem::absolute(dir).lexically_normal();
+        const auto virtualPath = game.parent_path() / "kotonoha-ddlc-virtual-test.tmp";
+        const auto sourcePath = game / "scripts.rpa";
+        if (std::filesystem::exists(virtualPath) || !std::filesystem::exists(sourcePath))
+            throw std::runtime_error("Cannot safely exercise the virtual filesystem");
+        vm.py.set("virtual_path", Value::str(virtualPath.string()));
+        vm.py.set("source_path", Value::str(sourcePath.string()));
+        vm.py.exec(
+            "import os\n"
+            "with open(virtual_path, 'w+') as f:\n"
+            "    f.write('ab\\n')\n"
+            "    f.seek(1)\n"
+            "    f.write('Z')\n"
+            "with open(virtual_path, 'a') as f: f.write('!')\n"
+            "with open(virtual_path, 'r') as f: assert f.read() == 'aZ\\n!'\n"
+            "os.remove(source_path)\n"
+            "assert not os.path.exists(source_path)\n"
+        );
+        if (std::filesystem::exists(virtualPath) || !std::filesystem::exists(sourcePath)) {
+            std::fprintf(stderr, "virtual operations touched the game installation\n");
+            ++failed;
+        }
+        const std::string persistent = vm.savePersistentText();
+        Vm restored(assets, script, backend);
+        restored.init(persistent);
+        restored.py.set("virtual_path", Value::str(virtualPath.string()));
+        restored.py.set("source_path", Value::str(sourcePath.string()));
+        restored.py.exec(
+            "import os\n"
+            "assert open(virtual_path).read() == 'aZ\\n!'\n"
+            "assert not os.path.exists(source_path)\n"
+        );
+    }
+
     // Splash screen (first run: disclaimer + menu).
     {
         Vm vm(assets, script, backend);
@@ -127,10 +172,11 @@ int main(int argc, char** argv) {
         vm.init("");
         std::printf("init: %zu images, %zu errors\n", vm.images.size(), vm.errors.size());
         for (auto& e : vm.errors) std::printf("  init error: %s\n", e.c_str());
+        failed += int(vm.errors.size());
         vm.errors.clear();
         vm.start("splashscreen");
         Stats st;
-        drive(vm, clock, 200, st, true);
+        drive(vm, clock, 200, st, false);
         std::printf("splash: %d interactions (%d say, %d menu, %d pause, %d transitions), finished=%d\n", st.total,
                     st.says, st.menus, st.pauses, st.transitions, int(vm.finished()));
         if (!vm.finished()) ++failed;
@@ -150,6 +196,8 @@ int main(int argc, char** argv) {
         Vm vm(assets, script, backend);
         vm.clock = [&] { return clock; };
         vm.init(backend.persistent);
+        for (auto& e : vm.errors) std::printf("  init error: %s\n", e.c_str());
+        failed += int(vm.errors.size());
         vm.errors.clear();
         vm.start("start");
         Stats st;
@@ -175,3 +223,24 @@ int main(int argc, char** argv) {
     std::printf(failed ? "DdlcScriptTest: FAILED (%d)\n" : "DdlcScriptTest: OK\n", failed);
     return failed ? 1 : 0;
 }
+
+#if defined(KOTONOHA_IOS_DDLC_TEST)
+SDL_AppResult SDL_AppInit(void**, int argc, char** argv) {
+    try {
+        const int result = runDdlcScriptTest(argc, argv);
+        if (result == 0) {
+            SDL_Log("KOTONOHA_DDLC_IOS_SCRIPT_OK");
+            return SDL_APP_SUCCESS;
+        }
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "DDLC iOS script test failed (%d)", result);
+    } catch (const std::exception& error) {
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "DDLC iOS script test: %s", error.what());
+    }
+    return SDL_APP_FAILURE;
+}
+SDL_AppResult SDL_AppEvent(void*, SDL_Event*) { return SDL_APP_CONTINUE; }
+SDL_AppResult SDL_AppIterate(void*) { return SDL_APP_CONTINUE; }
+void SDL_AppQuit(void*, SDL_AppResult) {}
+#else
+int main(int argc, char** argv) { return runDdlcScriptTest(argc, argv); }
+#endif

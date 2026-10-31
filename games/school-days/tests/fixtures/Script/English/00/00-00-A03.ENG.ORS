@@ -1,0 +1,3 @@
+[SetSELECT]=00:00:00	First synthetic choice	Second synthetic choice	02:00:00;
+[SkipFRAME]=00:00:00;
+[Next]=02:00:00;

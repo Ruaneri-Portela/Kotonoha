@@ -7,6 +7,7 @@
 
 #include <atomic>
 #include <condition_variable>
+#include <filesystem>
 #include <functional>
 #include <map>
 #include <memory>
@@ -241,6 +242,9 @@ public:
     virtual std::string playing(const std::string& channel) { return {}; }
     virtual double position(const std::string& channel) { return 0; }
     virtual void savePersistent(const std::string& text) {}
+    // Pointer position in the 1280x720 game space (renpy.get_mouse_pos / set_mouse_pos).
+    virtual void mousePosition(double& x, double& y) { x = y = 0; }
+    virtual void setMousePosition(double x, double y) {}
     virtual void log(const std::string& line);
 };
 
@@ -263,9 +267,16 @@ public:
     bool running() const { return threadAlive_; }
     bool finished() const { return inter_.k == Interaction::K::End || inter_.k == Interaction::K::Restart; }
 
+    // Stands for Ren'Py's config.basedir; set it before init(). Files the
+    // script addresses outside game/ (characters/*.chr, the easter-egg notes)
+    // are real files here. Empty keeps them in the persistent overlay.
+    std::filesystem::path userDirectory;
+
     // Clock (seconds). Hosts may override it (headless tests).
     std::function<double()> clock;
+    std::function<std::string(int, const std::string&)> translate;
     double now() const { return clock(); }
+    const Node* currentNode() const { return currentNode_; }
 
     Scene scene;     // the live scene lists
     Scene committed; // the scene as of the last interaction (transition source)
@@ -317,8 +328,9 @@ private:
     void installNatives();
     Value callScreen(const std::string& name, Args args, Kwargs kw);
 
-    Value fileObject(const std::string& path, std::string content, bool writable);
+    Value fileObject(const std::string& path, std::string content, bool writable, bool append = false);
     std::string readFile(const std::string& name, bool& ok);
+    void setVirtualFile(const std::string& name, const Value& value);
 
     std::vector<Node*> callStack_;
     Args pendingArgs_;
@@ -332,7 +344,10 @@ private:
     struct ThreadHolder;
     std::unique_ptr<ThreadHolder> thread_;
     std::string startLabel_;
+    const Node* currentNode_ = nullptr;
     bool windowAuto_ = true;
+    // renpy.display_menu(interact=False): shown, unclickable, during the next say.
+    std::vector<Interaction::Item> inertMenu_;
     std::vector<Interaction::Item> uiButtons_;
     std::vector<std::pair<std::string, Value>> uiTexts_;
 };

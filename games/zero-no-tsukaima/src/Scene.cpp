@@ -1,38 +1,12 @@
 #include <ZeroNoTsukaima/Scene.hpp>
 
+#include <Kotonoha/localization/Encoding.hpp>
+
 #include <SDL3/SDL_stdinc.h>
 
 #include <cstring>
 
 namespace ZeroNoTsukaima {
-
-#include "Cp932Table.inc"
-
-std::string ShiftJisToUtf8(const std::string &s) {
-  std::string out;
-  auto put = [&](uint32_t u) {
-    if (u < 0x80) out.push_back(char(u));
-    else if (u < 0x800) {
-      out.push_back(char(0xC0 | u >> 6));
-      out.push_back(char(0x80 | (u & 0x3F)));
-    } else {
-      out.push_back(char(0xE0 | u >> 12));
-      out.push_back(char(0x80 | ((u >> 6) & 0x3F)));
-      out.push_back(char(0x80 | (u & 0x3F)));
-    }
-  };
-  for (size_t i = 0; i < s.size(); ++i) {
-    const uint8_t c = uint8_t(s[i]);
-    if (c < 0x80) put(c);
-    else if (c >= 0xA1 && c <= 0xDF) put(0xFF61 + (c - 0xA1));
-    else if (c >= 0x81 && c <= 0xFC && i + 1 < s.size()) {
-      const uint8_t t = uint8_t(s[++i]);
-      const unsigned short u = t >= 0x40 && t <= 0xFC ? kCp932Table[c - 0x81][t - 0x40] : 0;
-      put(u ? u : 0x3F);
-    } else put(0x3F);
-  }
-  return out;
-}
 
 namespace {
 
@@ -61,7 +35,7 @@ struct Reader {
       const int32_t n = I32();
       if (n < 0 || p + size_t(n) > b.size()) { ok = false; return lit; }
       lit.kind = NutLiteral::String;
-      lit.text = ShiftJisToUtf8(std::string(reinterpret_cast<const char *>(&b[p]), size_t(n)));
+      lit.text = Kotonoha::ShiftJisToUtf8(std::string(reinterpret_cast<const char *>(&b[p]), size_t(n)));
       p += size_t(n);
     } else if (t == 0x05000002) {
       lit.kind = NutLiteral::Integer;

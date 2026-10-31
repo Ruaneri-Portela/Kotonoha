@@ -9,12 +9,15 @@
 
 namespace Kotonoha {
 
+class AssetProvider;
+
 // SDL owner for the authenticated v1.02 BackLog skin.  Resource geometry stays
 // in SchoolDaysBackLogRenderPlan; this class only resolves textures and applies
 // the physical aspect-fit viewport.
 class SchoolDaysBackLogPresenter {
 public:
-    SchoolDaysBackLogPresenter() = default;
+    explicit SchoolDaysBackLogPresenter(const AssetProvider* assets = nullptr)
+        : assets_(assets) {}
     ~SchoolDaysBackLogPresenter();
 
     SchoolDaysBackLogPresenter(const SchoolDaysBackLogPresenter&) = delete;
@@ -29,6 +32,8 @@ public:
     bool Render(SDL_Renderer* renderer, const SchoolDaysBackLogModel& model,
                 std::string* error = nullptr);
     bool IsOpen() const { return opened_; }
+    // Logical size Render() fits the 16:9 skin into (the game viewport).
+    void SetArea(SDL_Point area) { area_ = area; }
 
 private:
     static bool Fail(std::string* error, const char* text);
@@ -44,6 +49,8 @@ private:
     TTF_Font* fallbackFont_ = nullptr;
     bool useEnglish_ = false;
     bool opened_ = false;
+    const AssetProvider* assets_ = nullptr;
+    SDL_Point area_{1280, 720};
 };
 
 } // namespace Kotonoha

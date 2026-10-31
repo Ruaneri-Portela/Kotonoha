@@ -10,11 +10,11 @@
 
 namespace ZeroNoTsukaima {
 
-bool SceneSource::ReadEntry(const Disc::Entry &bin, const std::vector<ArchiveEntry> &index, size_t i,
+bool SceneSource::ReadEntry(const Kotonoha::DiscImage::Entry &bin, const std::vector<ArchiveEntry> &index, size_t i,
                             std::vector<uint8_t> *out) const {
   if (i >= index.size()) return false;
   std::vector<uint8_t> blob;
-  if (!disc_.ReadRange(bin, index[i].offset, index[i].size, &blob)) return false;
+  if (!disc_->readInto(bin, index[i].offset, index[i].size, blob)) return false;
   std::vector<uint8_t> unpacked;
   if (Unpack(blob.data(), blob.size(), &unpacked)) *out = std::move(unpacked);
   else *out = std::move(blob);
@@ -22,33 +22,33 @@ bool SceneSource::ReadEntry(const Disc::Entry &bin, const std::vector<ArchiveEnt
 }
 
 bool SceneSource::Open(const std::string &discPath, std::string *error) {
-  if (!disc_.Open(discPath, error)) return false;
-  const Disc::Entry *sysBin = disc_.Find("SYSTEM.BIN");
-  const Disc::Entry *sysHd = disc_.Find("SYSTEM.HD");
-  sceneBin_ = disc_.Find("SCENE_ID.BIN");
-  const Disc::Entry *sceneHd = disc_.Find("SCENE_ID.HD");
+  if (!disc_->tryOpen(discPath, error)) return false;
+  const Kotonoha::DiscImage::Entry *sysBin = disc_->find("SYSTEM.BIN");
+  const Kotonoha::DiscImage::Entry *sysHd = disc_->find("SYSTEM.HD");
+  sceneBin_ = disc_->find("SCENE_ID.BIN");
+  const Kotonoha::DiscImage::Entry *sceneHd = disc_->find("SCENE_ID.HD");
   if (!sysBin || !sysHd || !sceneBin_ || !sceneHd) {
     if (error) *error = "SYSTEM / SCENE_ID archives not found on the disc";
     return false;
   }
   std::vector<uint8_t> hd;
-  disc_.Read(*sceneHd, &hd);
+  disc_->readInto(*sceneHd, 0, sceneHd->size, hd);
   sceneIndex_ = ParseArchiveIndex(hd);
-  pictureBin_ = disc_.Find("SCENEDAT.BIN");
-  if (const Disc::Entry *h = disc_.Find("SCENEDAT.HD")) {
+  pictureBin_ = disc_->find("SCENEDAT.BIN");
+  if (const Kotonoha::DiscImage::Entry *h = disc_->find("SCENEDAT.HD")) {
     std::vector<uint8_t> raw;
-    if (pictureBin_ && disc_.Read(*h, &raw)) pictureIndex_ = ParseArchiveIndex(raw);
+    if (pictureBin_ && disc_->readInto(*h, 0, h->size, raw)) pictureIndex_ = ParseArchiveIndex(raw);
   }
-  voiceBin_ = disc_.Find("VOICE_ID.BIN");
-  soundBin_ = disc_.Find("SOUND_ID.BIN");
+  voiceBin_ = disc_->find("VOICE_ID.BIN");
+  soundBin_ = disc_->find("SOUND_ID.BIN");
   for (auto [bin, name, index] : {std::tuple{voiceBin_, "VOICE_ID.HD", &voiceIndex_},
                                   std::tuple{soundBin_, "SOUND_ID.HD", &soundIndex_}}) {
-    const Disc::Entry *h = disc_.Find(name);
+    const Kotonoha::DiscImage::Entry *h = disc_->find(name);
     std::vector<uint8_t> raw;
-    if (bin && h && disc_.Read(*h, &raw)) *index = ParseArchiveIndex(raw);
+    if (bin && h && disc_->readInto(*h, 0, h->size, raw)) *index = ParseArchiveIndex(raw);
   }
   hd.clear();
-  disc_.Read(*sysHd, &hd);
+  disc_->readInto(*sysHd, 0, sysHd->size, hd);
   const auto sysIndex = ParseArchiveIndex(hd);
   std::vector<uint8_t> nut;
   if (!ReadEntry(*sysBin, sysIndex, 32, &nut) || !ParseSceneNames(nut, &names_)) {
@@ -61,10 +61,10 @@ bool SceneSource::Open(const std::string &discPath, std::string *error) {
     for (const ArchiveEntry &e : pictureIndex_) sizes.push_back(e.size);
     catalog_.Build(env, main, sizes);
   }
-  normalBin_ = disc_.Find("NORMAL.BIN");
-  if (const Disc::Entry *h = disc_.Find("NORMAL.HD")) {
+  normalBin_ = disc_->find("NORMAL.BIN");
+  if (const Kotonoha::DiscImage::Entry *h = disc_->find("NORMAL.HD")) {
     std::vector<uint8_t> raw;
-    if (normalBin_ && disc_.Read(*h, &raw)) normalIndex_ = ParseArchiveIndex(raw);
+    if (normalBin_ && disc_->readInto(*h, 0, h->size, raw)) normalIndex_ = ParseArchiveIndex(raw);
   }
   std::vector<uint8_t> list;
   if (normalBin_) {
@@ -129,24 +129,28 @@ int SceneSource::Lookup(const std::map<std::string, int> &table, const std::stri
   return it == table.end() ? -1 : it->second;
 }
 
+bool SceneSource::ReadNormalPicture(int index, std::vector<uint8_t> *out) const {
+  return normalBin_ && index >= 0 && ReadEntry(*normalBin_, normalIndex_, size_t(index), out);
+}
+
 bool SceneSource::LoadNormalPicture(int index, Image *out) const {
-  if (!normalBin_ || index < 0) return false;
   std::vector<uint8_t> data;
-  if (!ReadEntry(*normalBin_, normalIndex_, size_t(index), &data)) return false;
-  return DecodeTim2(data.data(), data.size(), out);
+  return ReadNormalPicture(index, &data) && DecodeTim2(data.data(), data.size(), out);
 }
 
 bool SceneSource::LoadMovie(int number, std::vector<uint8_t> *out) const {
   if (number < 0 || size_t(number) >= movies_.size()) return false;
-  const Disc::Entry *e = disc_.Find("MOVIE/" + movies_[size_t(number)]);
-  return e != nullptr && disc_.Read(*e, out);
+  const Kotonoha::DiscImage::Entry *e = disc_->find("MOVIE/" + movies_[size_t(number)]);
+  return e != nullptr && disc_->readInto(*e, 0, e->size, *out);
+}
+
+bool SceneSource::ReadPicture(int index, std::vector<uint8_t> *out) const {
+  return pictureBin_ && index >= 0 && ReadEntry(*pictureBin_, pictureIndex_, size_t(index), out);
 }
 
 bool SceneSource::LoadPicture(int index, Image *out) const {
-  if (!pictureBin_ || index < 0) return false;
   std::vector<uint8_t> data;
-  if (!ReadEntry(*pictureBin_, pictureIndex_, size_t(index), &data)) return false;
-  return DecodeTim2(data.data(), data.size(), out);
+  return ReadPicture(index, &data) && DecodeTim2(data.data(), data.size(), out);
 }
 
 bool SceneSource::LoadScene(size_t index, std::vector<uint8_t> *out) const {
@@ -155,12 +159,12 @@ bool SceneSource::LoadScene(size_t index, std::vector<uint8_t> *out) const {
 
 bool SceneSource::LoadVoice(size_t index, std::vector<uint8_t> *out) const {
   if (!voiceBin_ || index >= voiceIndex_.size()) return false;
-  return disc_.ReadRange(*voiceBin_, voiceIndex_[index].offset, voiceIndex_[index].size, out);
+  return disc_->readInto(*voiceBin_, voiceIndex_[index].offset, voiceIndex_[index].size, *out);
 }
 
 bool SceneSource::LoadSound(size_t index, std::vector<uint8_t> *out) const {
   if (!soundBin_ || index >= soundIndex_.size()) return false;
-  return disc_.ReadRange(*soundBin_, soundIndex_[index].offset, soundIndex_[index].size, out);
+  return disc_->readInto(*soundBin_, soundIndex_[index].offset, soundIndex_[index].size, *out);
 }
 
 } // namespace ZeroNoTsukaima

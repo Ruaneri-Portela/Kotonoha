@@ -61,6 +61,7 @@ public:
   };
 
   bool Start(const std::string &scriptName);
+  bool DebugJump(const std::string &scriptName);
   void Pump();
   bool Click();
   bool Choose(size_t index);
@@ -102,6 +103,16 @@ public:
   // Null when no transition runs; `progress` gets 0..1.
   const Transition *ActiveTransition(float *progress) const;
   const std::string &ScriptName() const { return scriptName_; }
+  // Translation route of the running script: its SCENE_ID index.
+  size_t SceneIndex() const { return sceneIndex_; }
+  // Index of the running tag and the last *label at or before it ("" if none).
+  size_t Pc() const { return pc_; }
+  std::string CurrentLabel() const;
+  // Optional text replacement for each [ch] segment, by route (scene index).
+  std::function<std::string(size_t scene, const std::string &text)> translate;
+  // Displayable texts of a scene, in order and without repeats: [ch]
+  // segments, [dispname] names and [seladd] choices.
+  static std::vector<std::string> SceneTexts(const std::vector<SceneTag> &tags);
   uint32_t SceneVersion() const { return version_; }
   // MoveState (moveinit / moveadd / move): while Moving() the choices are the
   // map destinations; Choose(i) goes to the i-th one.

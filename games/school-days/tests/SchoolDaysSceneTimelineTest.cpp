@@ -23,7 +23,7 @@ struct Fixture {
         static unsigned sequence = 0;
         const auto stamp = std::chrono::steady_clock::now()
                                .time_since_epoch().count();
-        path = fs::temp_directory_path() /
+        path = fs::current_path() /
                ("kotonoha_g2_2_" + std::to_string(stamp) + "_" +
                 std::to_string(++sequence) + ".ors");
         {

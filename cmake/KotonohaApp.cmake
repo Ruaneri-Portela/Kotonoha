@@ -1,160 +1,73 @@
-# kotonoha_configure_app(<target>
-#     OUTPUT_NAME <name>          executable / bundle name (Kotonoha, SchoolDays)
-#     BUNDLE_ID   <identifier>    macOS bundle identifier
-#     GAME_ASSET  <game_folder>   specific subfolder in games-assets/ to copy to Resources/assets)
-#
-# Shared packaging for desktop applications: Windows icon resource, and on macOS
-# the .app bundle with libKotonoha.dylib and recursive dylibs in Frameworks,
-# the icon, the engine assets (excluding scripts/), and optionally game-specific assets in Resources/assets.
+option(KOTONOHA_BUILD_MACOS_BUNDLES "Build macOS application bundles"
+    OFF)
+
+function(kotonoha_add_app target)
+    if(ANDROID)
+        add_library(${target} SHARED ${ARGN})
+    else()
+        add_executable(${target} ${ARGN})
+    endif()
+endfunction()
+
 function(kotonoha_configure_app target)
-    cmake_parse_arguments(APP "" "OUTPUT_NAME;BUNDLE_ID;GAME_ASSET" "" ${ARGN})
-    if(NOT APP_OUTPUT_NAME)
-        set(APP_OUTPUT_NAME "${target}")
+    cmake_parse_arguments(APP "" "BUNDLE_ID;GAME;PYTHON_STDLIB;PYTHON_VERSION" "" ${ARGN})
+    if((APP_PYTHON_STDLIB OR APP_PYTHON_VERSION) AND
+       NOT APP_GAME STREQUAL "doki-doki-literature-club")
+        message(FATAL_ERROR "Only Doki Doki Literature Club may bundle Python")
     endif()
-    set_target_properties(${target} PROPERTIES
-            OUTPUT_NAME "${APP_OUTPUT_NAME}"
-            RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}")
-
-    if(CMAKE_SYSTEM_NAME STREQUAL "Windows" AND
-            EXISTS "${CMAKE_SOURCE_DIR}/assets/icon.ico")
-        target_compile_definitions(${target} PRIVATE KOTONOHA_HAS_WINDOWS_ICON=1)
-    endif()
-    if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
-        target_sources(${target} PRIVATE
-                "${KOTONOHA_ENGINE_SOURCE_DIR}/specials/Kotonoha.rc")
-    endif()
-
-    if(NOT APPLE)
-        # Generic renderer assets (shader models, licenses, etc.) belong to the
-        # engine/application package, not to a specific game profile.
-        if(EXISTS "${KOTONOHA_ASSETS_DIR}")
-            if(CMAKE_CONFIGURATION_TYPES)
-                set(kotonoha_asset_output "${CMAKE_BINARY_DIR}/$<CONFIG>/assets")
-            else()
-                set(kotonoha_asset_output "${CMAKE_BINARY_DIR}/assets")
-            endif()
-            if(NOT TARGET KotonohaRuntimeAssets)
-                add_custom_target(KotonohaRuntimeAssets
-                COMMAND ${CMAKE_COMMAND} -E make_directory
-                    "${kotonoha_asset_output}"
-                COMMAND ${CMAKE_COMMAND} -E copy_directory
-                    "${KOTONOHA_ASSETS_DIR}"
-                    "${kotonoha_asset_output}"
-                VERBATIM)
-            endif()
-            add_dependencies(${target} KotonohaRuntimeAssets)
-        endif()
-        return()
-    endif()
-
-    set_target_properties(${target} PROPERTIES
+    if(APPLE AND CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND KOTONOHA_BUILD_MACOS_BUNDLES)
+        set_target_properties(${target} PROPERTIES
             MACOSX_BUNDLE TRUE
-            MACOSX_BUNDLE_INFO_PLIST
-            "${KOTONOHA_ENGINE_SOURCE_DIR}/specials/Info.plist.in"
-            MACOSX_BUNDLE_BUNDLE_NAME "${APP_OUTPUT_NAME}"
+            MACOSX_BUNDLE_INFO_PLIST "${KOTONOHA_PROJECT_ROOT}/cmake/Info.plist.in"
+            MACOSX_BUNDLE_BUNDLE_NAME "${target}"
             MACOSX_BUNDLE_GUI_IDENTIFIER "${APP_BUNDLE_ID}"
             MACOSX_BUNDLE_BUNDLE_VERSION "${PROJECT_VERSION}"
             MACOSX_BUNDLE_SHORT_VERSION_STRING "${PROJECT_VERSION}"
             MACOSX_BUNDLE_ICON_FILE "icon.icns"
-            BUILD_RPATH "@executable_path/../Frameworks")
-
-    set(icon_file "${KOTONOHA_ASSETS_DIR}/icon.icns")
-    if(NOT EXISTS "${icon_file}")
-        message(FATAL_ERROR "Ícone macOS não encontrado: ${icon_file}")
-    endif()
-    set_source_files_properties("${icon_file}" PROPERTIES
-            MACOSX_PACKAGE_LOCATION "Resources"
-            HEADER_FILE_ONLY TRUE)
-    target_sources(${target} PRIVATE "${icon_file}")
-
-    # --- Resolução Recursiva de Bibliotecas (.dylib) em Frameworks ---
-    add_custom_command(TARGET ${target} POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E make_directory
-            "$<TARGET_BUNDLE_CONTENT_DIR:${target}>/Frameworks"
-            COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            "$<TARGET_FILE:KotonohaRuntime>"
-            "$<TARGET_BUNDLE_CONTENT_DIR:${target}>/Frameworks"
-            VERBATIM)
-
-    # Script pós-build apontando para o executável exato no bundle
-    set(FIXUP_SCRIPT "${CMAKE_CURRENT_BINARY_DIR}/fixup_${target}.cmake")
-    file(GENERATE OUTPUT "${FIXUP_SCRIPT}" CONTENT "
-        include(BundleUtilities)
-
-        # Aponta para o binário do executável dentro do bundle macOS
-        set(APP_EXEC \"$<TARGET_FILE:${target}>\")
-
-        # Inclui os diretórios de build e do vcpkg na busca por dylibs
-        set(LIBS_SEARCH_DIRS
-            \"$<TARGET_FILE_DIR:KotonohaRuntime>\"
-            \"${CMAKE_BINARY_DIR}\"
-            \"${CMAKE_BINARY_DIR}/vcpkg_installed\"
-            \"/usr/local/lib\"
-            \"/opt/homebrew/lib\"
-        )
-
-        # Executa a cópia recursiva e o re-link via install_name_tool
-        fixup_bundle(\"\${APP_EXEC}\" \"\" \"\${LIBS_SEARCH_DIRS}\")
-    ")
-
-    add_custom_command(TARGET ${target} POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -P "${FIXUP_SCRIPT}"
-            VERBATIM)
-
-    # --- Empacotamento dos Engine Assets em Resources/assets (ignora scripts/ sempre) ---
-    if(EXISTS "${KOTONOHA_ASSETS_DIR}")
-        file(GLOB_RECURSE asset_files CONFIGURE_DEPENDS "${KOTONOHA_ASSETS_DIR}/*")
-        foreach(asset_file IN LISTS asset_files)
-            if(IS_DIRECTORY "${asset_file}" OR asset_file STREQUAL icon_file)
-                continue()
-            endif()
-
-            file(RELATIVE_PATH asset_relative "${KOTONOHA_ASSETS_DIR}" "${asset_file}")
-
-            # Ignora permanentemente arquivos dentro de scripts/
-            if(asset_relative MATCHES "^scripts/")
-                continue()
-            endif()
-
-            get_filename_component(asset_dir "${asset_relative}" DIRECTORY)
-            if(asset_dir)
-                set(asset_location "Resources/assets/${asset_dir}")
-            else()
-                set(asset_location "Resources/assets")
-            endif()
-            set_source_files_properties("${asset_file}" PROPERTIES
-                    MACOSX_PACKAGE_LOCATION "${asset_location}"
-                    HEADER_FILE_ONLY TRUE)
-            target_sources(${target} PRIVATE "${asset_file}")
-        endforeach()
+            BUILD_RPATH "@executable_path/../Frameworks"
+            XCODE_ATTRIBUTE_CODE_SIGNING_ALLOWED NO)
+        set(icon "${KOTONOHA_ENGINE_ASSETS}/icon.icns")
+        set_source_files_properties("${icon}" PROPERTIES
+            MACOSX_PACKAGE_LOCATION Resources HEADER_FILE_ONLY TRUE)
+        target_sources(${target} PRIVATE "${icon}")
     endif()
 
-    # --- Empacotamento dos Game Assets em Resources/assets ---
-    if(APP_GAME_ASSET)
-        set(game_asset_dir "${CMAKE_SOURCE_DIR}/games-assets/${APP_GAME_ASSET}")
-        if(NOT EXISTS "${game_asset_dir}")
-            message(WARNING "Diretório de game assets não encontrado: ${game_asset_dir}")
-        else()
-            file(GLOB_RECURSE game_files CONFIGURE_DEPENDS "${game_asset_dir}/*")
-            foreach(game_file IN LISTS game_files)
-                if(IS_DIRECTORY "${game_file}")
-                    continue()
-                endif()
+    kotonoha_copy_assets(${target} GAME "${APP_GAME}")
 
-                file(RELATIVE_PATH game_relative "${game_asset_dir}" "${game_file}")
-                get_filename_component(game_sub_dir "${game_relative}" DIRECTORY)
-
-                if(game_sub_dir)
-                    set(game_location "Resources/${APP_GAME_ASSET}/${game_sub_dir}")
-                else()
-                    set(game_location "Resources/${APP_GAME_ASSET}")
-                endif()
-
-                set_source_files_properties("${game_file}" PROPERTIES
-                        MACOSX_PACKAGE_LOCATION "${game_location}"
-                        HEADER_FILE_ONLY TRUE)
-                target_sources(${target} PRIVATE "${game_file}")
-            endforeach()
+    if(APPLE AND CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND KOTONOHA_BUILD_MACOS_BUNDLES)
+        set_property(TARGET ${target} APPEND PROPERTY LINK_DEPENDS
+            "${KOTONOHA_PROJECT_ROOT}/cmake/BundleApp.cmake"
+            "${KOTONOHA_PROJECT_ROOT}/cmake/CheckBundleContents.cmake"
+            "${KOTONOHA_PROJECT_ROOT}/cmake/PackageAssets.cmake"
+            "${KOTONOHA_PROJECT_ROOT}/cmake/CheckBundledAssets.cmake")
+        set(search_dirs
+            "$<TARGET_FILE_DIR:KotonohaEngine>"
+            "$<TARGET_FILE_DIR:kotonoha_imgui>"
+            "$<TARGET_FILE_DIR:SDL3::SDL3>"
+            "$<TARGET_FILE_DIR:SDL3_ttf::SDL3_ttf>"
+            ${FFMPEG_LIBRARY_DIRS} ${FFMPEG_STATIC_LIBRARY_DIRS}
+            ${JSON_C_LIBRARY_DIRS})
+        if(FREETYPE_LIBRARY_RELEASE)
+            get_filename_component(freetype_directory "${FREETYPE_LIBRARY_RELEASE}" DIRECTORY)
+            list(APPEND search_dirs "${freetype_directory}")
+        endif()
+        add_custom_command(TARGET ${target} POST_BUILD
+            COMMAND "${CMAKE_COMMAND}"
+                "-DAPP_EXECUTABLE=$<TARGET_FILE:${target}>"
+                "-DBUNDLE_CONTENTS=$<TARGET_BUNDLE_CONTENT_DIR:${target}>"
+                "-DAPP_GAME=${APP_GAME}"
+                "-DDEPENDENCY_DIRS=${search_dirs}"
+                "-DPYTHON_STDLIB=${APP_PYTHON_STDLIB}"
+                "-DPYTHON_VERSION=${APP_PYTHON_VERSION}"
+                -P "${KOTONOHA_PROJECT_ROOT}/cmake/BundleApp.cmake"
+            VERBATIM)
+        if(BUILD_TESTING)
+            add_test(NAME "Kotonoha.BundleLayout.${target}"
+                COMMAND "${CMAKE_COMMAND}"
+                    "-DBUNDLE_CONTENTS=$<TARGET_BUNDLE_CONTENT_DIR:${target}>"
+                    "-DAPP_GAME=${APP_GAME}"
+                    "-DPYTHON_VERSION=${APP_PYTHON_VERSION}"
+                    -P "${KOTONOHA_PROJECT_ROOT}/cmake/CheckBundleContents.cmake")
         endif()
     endif()
 endfunction()
