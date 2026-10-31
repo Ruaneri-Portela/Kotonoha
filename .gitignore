@@ -672,6 +672,7 @@ vcpkg_installed/
 zips/
 # Runtime/game assets stay local. Anime4K shaders are redistributable third-party
 # runtime dependencies and are kept with their upstream license/provenance.
+
 assets/*
 games-assets/*
 !assets/Anime4K/
@@ -683,3 +684,23 @@ games-assets/*
 .vscode
 .cxx
 Xcode/vcpkg/*
+
+/build/
+/vcpkg_installed/
+/.cache/
+**/.DS_Store
+**/xcuserdata/
+**/*.xcuserstate
+**/imgui.ini
+*.vn
+*.vn.tmp
+/translation.json
+# Dumps/translations contain the games' script text
+/translations/
+/Android/.gradle/
+/Android/.deps/
+/Android/.cxx/
+/Android/build/
+/Android/app/build/
+/Android/app/.cxx/
+/Android/local.properties
