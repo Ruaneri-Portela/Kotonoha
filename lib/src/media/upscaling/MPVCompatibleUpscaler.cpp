@@ -2,6 +2,7 @@
 #include <Kotonoha/core/Log.hpp>
 #include <Kotonoha/core/OpenGL.hpp>
 #include <Kotonoha/media/upscaling/OpenGLUpscaler.hpp>
+#include <Kotonoha/media/upscaling/Upscaler.hpp>
 
 #include <algorithm>
 #include <map>
@@ -18,14 +19,6 @@
 // legacy preset and ArtCNN uses the same runner through its LUMA hook.
 namespace Kotonoha {
 namespace {
-
-enum Kotonoha_UpscalerPreset {
-  KOTONOHA_UPSCALER_PRESET_LEGACY_ANIME4K,
-  KOTONOHA_UPSCALER_PRESET_ARTCNN_C4F16,
-  KOTONOHA_UPSCALER_PRESET_ARTCNN_C4F16_DS,
-  KOTONOHA_UPSCALER_PRESET_ARTCNN_C4F32,
-  KOTONOHA_UPSCALER_PRESET_COUNT
-};
 
 struct BindRef {
   std::string name;
@@ -85,7 +78,7 @@ SDL_GLContext g_context = nullptr;
 std::string g_filesSpec;
 bool g_filesDirty = false;
 bool g_isGLES = false;
-Kotonoha_UpscalerPreset g_preset = KOTONOHA_UPSCALER_PRESET_LEGACY_ANIME4K;
+UpscalePreset g_preset = UpscalePreset::Anime4K;
 std::vector<Pass> g_passes;
 GLuint g_blitProgram = 0;
 GLint g_blitMainLoc = -1;
@@ -122,15 +115,15 @@ void TrimPoolToBudget() {
   }
 }
 
-const char *PresetLogName(Kotonoha_UpscalerPreset preset) {
+const char *PresetLogName(UpscalePreset preset) {
   switch (preset) {
-  case KOTONOHA_UPSCALER_PRESET_ARTCNN_C4F16:
+  case UpscalePreset::ArtCNN:
     return "ArtCNN C4F16";
-  case KOTONOHA_UPSCALER_PRESET_ARTCNN_C4F16_DS:
+  case UpscalePreset::ArtCNNDenoise:
     return "ArtCNN C4F16 DS";
-  case KOTONOHA_UPSCALER_PRESET_ARTCNN_C4F32:
+  case UpscalePreset::ArtCNNLarge:
     return "ArtCNN C4F32";
-  case KOTONOHA_UPSCALER_PRESET_LEGACY_ANIME4K:
+  case UpscalePreset::Anime4K:
   default:
     return "Anime4K B-S";
   }
@@ -167,8 +160,7 @@ void RestoreVertexAttribute(const VertexAttributeState &state) {
 
 std::string LoadAsset(const std::string &filename) {
   const char *assetFolder =
-      g_preset == KOTONOHA_UPSCALER_PRESET_LEGACY_ANIME4K ? "Anime4K"
-                                                          : "ArtCNN";
+      g_preset == UpscalePreset::Anime4K ? "Anime4K" : "ArtCNN";
   const std::filesystem::path supplied(filename);
   std::string path = supplied.has_parent_path()
                          ? supplied.string()
@@ -516,11 +508,11 @@ bool InitGLPipeline(SDL_Renderer *renderer) {
 
   std::vector<std::string> files = Kotonoha::UpscaleShaderFiles(g_filesSpec);
   if (files.empty()) {
-    if (g_preset == KOTONOHA_UPSCALER_PRESET_ARTCNN_C4F16) {
+    if (g_preset == UpscalePreset::ArtCNN) {
       files.push_back("ArtCNN_C4F16.glsl");
-    } else if (g_preset == KOTONOHA_UPSCALER_PRESET_ARTCNN_C4F16_DS) {
+    } else if (g_preset == UpscalePreset::ArtCNNDenoise) {
       files.push_back("ArtCNN_C4F16_DS.glsl");
-    } else if (g_preset == KOTONOHA_UPSCALER_PRESET_ARTCNN_C4F32) {
+    } else if (g_preset == UpscalePreset::ArtCNNLarge) {
       files.push_back("ArtCNN_C4F32.glsl");
     } else {
       // Legacy Anime4K remains the compatibility/fallback preset. Keep its
@@ -632,7 +624,7 @@ bool InitGLPipeline(SDL_Renderer *renderer) {
     return false;
   }
   SDL_LogInfo(LogUpscaler, "MPVCompatibleUpscaler preset '%s' initialized (%d passes)",
-            PresetLogName(g_preset), (int)g_passes.size());
+              PresetLogName(g_preset), (int)g_passes.size());
   return true;
 }
 
@@ -796,7 +788,7 @@ bool RunChain(GLuint inTex, int inW, int inH, GLuint outTex, int outW,
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     DebugProbe(pass.save.empty() ? "MAIN" : pass.save.c_str(), dest, w, h);
 
-    // Saved shader outputs can be very large RGBA16F textures.  Release each
+    // Saved shader outputs can be very large RGBA16F textures. Release each
     // saved register as soon as its last consumer has drawn instead of keeping
     // every ArtCNN layer resident until the end of the chain.
     for (const BindRef &ref : pass.refs) {
@@ -870,14 +862,9 @@ GLuint TextureNumber(SDL_Texture *texture) {
   return id;
 }
 
-void KotonohaMPVUpscalerSetPreset(int preset) {
-  Kotonoha_UpscalerPreset next = KOTONOHA_UPSCALER_PRESET_LEGACY_ANIME4K;
-  if (preset >= KOTONOHA_UPSCALER_PRESET_LEGACY_ANIME4K &&
-      preset < KOTONOHA_UPSCALER_PRESET_COUNT) {
-    next = static_cast<Kotonoha_UpscalerPreset>(preset);
-  }
-  if (next != g_preset) {
-    g_preset = next;
+void KotonohaMPVUpscalerSetPreset(UpscalePreset preset) {
+  if (preset != g_preset) {
+    g_preset = preset;
     g_filesDirty = true;
   }
 }
@@ -907,8 +894,8 @@ Uint64 KotonohaMPVUpscalerRetryDeadlineMs(void) {
 }
 
 bool KotonohaMPVUpscalerUpscaleSDLTextureInto(SDL_Renderer *renderer,
-                                          SDL_Texture *inputTexture,
-                                          SDL_Texture *outputTexture) {
+                                              SDL_Texture *inputTexture,
+                                              SDL_Texture *outputTexture) {
   if (renderer == NULL || inputTexture == NULL || outputTexture == NULL) {
     return false;
   }
@@ -931,16 +918,16 @@ bool KotonohaMPVUpscalerUpscaleSDLTextureInto(SDL_Renderer *renderer,
     }
     if (!SDL_SetRenderTarget(renderer, outputTexture)) {
       SDL_LogError(LogUpscaler, "MPVCompatibleUpscaler fallback could not activate output texture: %s",
-                 SDL_GetError());
+                   SDL_GetError());
       return false;
     }
     // The input may be a transparent source composite (for example a base
-    // image plus an animated overlay patch).  Copy with blending disabled and
+    // image plus an animated overlay patch). Copy with blending disabled and
     // clear the reused output first; otherwise transparent pixels can blend
     // over the previous upscaled frame and expose stale rectangles/ghosting.
     const bool prepared = SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0) &&
                           SDL_SetTextureColorModFloat(inputTexture, 1.0f, 1.0f,
-                                                     1.0f) &&
+                                                      1.0f) &&
                           SDL_SetTextureAlphaModFloat(inputTexture, 1.0f) &&
                           SDL_SetTextureBlendMode(inputTexture,
                                                   SDL_BLENDMODE_NONE) &&
@@ -959,7 +946,7 @@ bool KotonohaMPVUpscalerUpscaleSDLTextureInto(SDL_Renderer *renderer,
     if (!prepared || !copied || !blendRestored || !modRestored ||
         !colorRestored || !restored) {
       SDL_LogError(LogUpscaler, "MPVCompatibleUpscaler fallback render failed: %s",
-                 SDL_GetError());
+                   SDL_GetError());
     }
     return prepared && copied && blendRestored && modRestored && colorRestored &&
            restored;
@@ -977,7 +964,7 @@ bool KotonohaMPVUpscalerUpscaleSDLTextureInto(SDL_Renderer *renderer,
     }
   }
   if (g_initialized && SDL_GL_GetCurrentContext() != g_context) {
-    // A renderer/context replacement invalidates every cached GL name.  Never
+    // A renderer/context replacement invalidates every cached GL name. Never
     // delete those names while another context is current; forget and rebuild.
     ForgetPipelineState();
     g_initFailed = false;
@@ -1078,7 +1065,7 @@ bool KotonohaMPVUpscalerUpscaleSDLTextureInto(SDL_Renderer *renderer,
   if (!ok) {
     SDL_LogWarn(LogUpscaler, "MPVCompatibleUpscaler pass failed; falling back to plain copy.");
     // A stale/lost GL context or poisoned shader chain must not be retried on
-    // every frame.  Drop the pipeline only from its owning context, latch the
+    // every frame. Drop the pipeline only from its owning context, latch the
     // failure briefly, and then allow a clean rebuild.
     if (SDL_GL_GetCurrentContext() == g_context)
       DestroyPipeline();
@@ -1110,7 +1097,7 @@ bool OpenGLUpscaler::isAvaliable(RendererRef renderer) {
 }
 
 void OpenGLUpscaler::configureBackend(const UpscaleSettings &value) {
-  KotonohaMPVUpscalerSetPreset(static_cast<int>(value.preset));
+  KotonohaMPVUpscalerSetPreset(value.preset);
   KotonohaMPVUpscalerSetFiles(value.shaderFiles.c_str());
 }
 
