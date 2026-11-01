@@ -2,6 +2,7 @@
 
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/UI.hpp>
+#include <Kotonoha/utils/BacklogUtility.hpp>
 
 #include <algorithm>
 
@@ -320,7 +321,7 @@ void SnowPauseMenu::renderItem(Kotonoha::RendererRef renderer, int index, bool f
 
 void SnowBacklog::onEvent(Kotonoha::EventRef event) {
   if (!session_.Playing()) return;
-  if (isVisible() && (RightClick(event) || IsKey(event, SDLK_ESCAPE))) return close();
+  if (isVisible() && Kotonoha::ShouldOpenBacklog(engine, event)) return close();
   if (!isVisible() && (IsKey(event, SDLK_PAGEUP) || WheelUp(event))) return open();
   if (isVisible() && IsKey(event, SDLK_PAGEDOWN)) {
     scroll = std::min(maxScroll, scroll + 400);

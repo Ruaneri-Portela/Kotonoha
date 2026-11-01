@@ -3,8 +3,9 @@ plugins {
 }
 
 def engineRoot = rootProject.projectDir.parentFile
-def sdlRoot = new File(rootProject.projectDir, '.deps/SDL')
-def sdlRevision = '4bb5020be2a3e3f7a963b84c95f49fe7ef5d35a4'
+// 1. Aponta diretamente para o SDL em lib/submodules/SDL a partir do engineRoot
+def sdlRoot = new File(engineRoot, 'lib/submodules/SDL')
+
 def vcpkgRoot = providers.environmentVariable('VCPKG_ROOT').orNull
 if (!vcpkgRoot) {
     throw new GradleException('Set VCPKG_ROOT to your vcpkg checkout before opening Android.')
@@ -12,31 +13,12 @@ if (!vcpkgRoot) {
 def includeGameAssets = providers.gradleProperty('bundleGameAssets').orElse('true').get().toBoolean()
 def abis = providers.gradleProperty('abis').orElse('arm64-v8a').get().split(',').toList()
 def games = [
-    example: ['example', 'Kotonoha', 'me.kotonoha.example', 'Kotonoha'],
-    zeroNoTsukaima: ['zero-no-tsukaima', 'ZeroNoTsukaima', 'me.hirameki.kotonoha.zeronotsukaima', 'Zero no Tsukaima'],
-    snowRadish: ['snow-radish-vacation', 'SnowRadish', 'me.hirameki.kotonoha.snowradishvacation', 'Snow Radish Vacation!!'],
-    dokiDoki: ['doki-doki-literature-club', 'DokiDoki', 'me.hirameki.kotonoha.dokidokiliteratureclub', 'Doki Doki Literature Club!'],
-    schoolDays: ['school-days', 'SchoolDays', 'me.hirameki.kotonoha.schooldays', 'School Days']
+        example: ['example', 'Kotonoha', 'me.kotonoha.example', 'Kotonoha'],
+        zeroNoTsukaima: ['zero-no-tsukaima', 'ZeroNoTsukaima', 'me.hirameki.kotonoha.zeronotsukaima', 'Zero no Tsukaima'],
+        snowRadish: ['snow-radish-vacation', 'SnowRadish', 'me.hirameki.kotonoha.snowradishvacation', 'Snow Radish Vacation!!'],
+        dokiDoki: ['doki-doki-literature-club', 'DokiDoki', 'me.hirameki.kotonoha.dokidokiliteratureclub', 'Doki Doki Literature Club!'],
+        schoolDays: ['school-days', 'SchoolDays', 'me.hirameki.kotonoha.schooldays', 'School Days']
 ]
-
-def prepareSDL = tasks.register('prepareSDL') {
-    inputs.property('revision', sdlRevision)
-    outputs.file(new File(sdlRoot, '.kotonoha-revision'))
-    doLast {
-        def executeGit = { List<String> command ->
-            def process = new ProcessBuilder(command).inheritIO().start()
-            if (process.waitFor() != 0) throw new GradleException("Git dependency failed: ${command}")
-        }
-        if (!new File(sdlRoot, '.git').exists()) {
-            sdlRoot.parentFile.mkdirs()
-            executeGit(['git', 'clone', '--no-checkout', '--filter=blob:none',
-                        'https://github.com/libsdl-org/SDL.git', sdlRoot.absolutePath])
-        }
-        executeGit(['git', '-C', sdlRoot.absolutePath, 'fetch', 'origin', sdlRevision])
-        executeGit(['git', '-C', sdlRoot.absolutePath, 'checkout', '--detach', sdlRevision])
-        new File(sdlRoot, '.kotonoha-revision').text = sdlRevision + '\n'
-    }
-}
 
 android {
     namespace 'org.kotonoha.android'
@@ -51,10 +33,10 @@ android {
         externalNativeBuild {
             cmake {
                 arguments "-DCMAKE_TOOLCHAIN_FILE=${vcpkgRoot}/scripts/buildsystems/vcpkg.cmake",
-                          "-DVCPKG_MANIFEST_DIR=${engineRoot}",
-                          "-DVCPKG_CHAINLOAD_TOOLCHAIN_FILE=${android.ndkDirectory}/build/cmake/android.toolchain.cmake",
-                          "-DKOTONOHA_SDL_SOURCE_DIR=${sdlRoot}",
-                          '-DANDROID_STL=c++_shared'
+                        "-DVCPKG_MANIFEST_DIR=${engineRoot}",
+                        "-DVCPKG_CHAINLOAD_TOOLCHAIN_FILE=${android.ndkDirectory}/build/cmake/android.toolchain.cmake",
+                        "-DKOTONOHA_SDL_SOURCE_DIR=${sdlRoot}",
+                        "-DANDROID_PLATFORM=android-28", "-DANDROID_STL=c++_shared"
             }
         }
     }
@@ -69,12 +51,19 @@ android {
                 externalNativeBuild {
                     cmake {
                         arguments "-DKOTONOHA_ANDROID_GAME=${game[0]}",
-                                  "-DVCPKG_INSTALLED_DIR=${rootProject.projectDir}/build/vcpkg${flavor == 'dokiDoki' ? '-python' : ''}",
-                                  "-DVCPKG_MANIFEST_FEATURES=${flavor == 'dokiDoki' ? 'android-python' : ''}"
+                                "-DVCPKG_INSTALLED_DIR=${rootProject.projectDir}/build/vcpkg${flavor == 'dokiDoki' ? '-python' : ''}",
+                                "-DVCPKG_MANIFEST_FEATURES=${flavor == 'dokiDoki' ? 'android-python' : ''}"
                         targets game[1]
                     }
                 }
             }
+        }
+    }
+    buildTypes {
+        release {
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'),
+                    'proguard-rules.pro',
+                    file("${sdlRoot}/android-project/app/proguard-rules.pro")
         }
     }
     buildFeatures { buildConfig true }
@@ -90,7 +79,8 @@ android {
     }
     sourceSets {
         main {
-            java.srcDir new File(sdlRoot, 'android-project/app/src/main/java')
+            // Mapeia os arquivos Java do repositório local do SDL
+            java.srcDirs += new File(sdlRoot, 'android-project/app/src/main/java')
         }
     }
     packaging { jniLibs { useLegacyPackaging = true } }
@@ -150,12 +140,5 @@ android.applicationVariants.all { variant ->
         assets.configure {
             dependsOn variant.externalNativeBuildProviders
         }
-    }
-}
-
-tasks.configureEach { task ->
-    if (task.name == 'preBuild' || task.name.startsWith('configureCMake') ||
-        task.name.startsWith('buildCMake') || task.name.startsWith('compile')) {
-        task.dependsOn prepareSDL
     }
 }

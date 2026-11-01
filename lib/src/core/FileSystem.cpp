@@ -30,10 +30,13 @@ std::filesystem::path androidDirectory(const char *method) {
   auto activity = static_cast<jobject>(SDL_GetAndroidActivity());
   if (!env || !activity)
     throw std::runtime_error("Android storage requires an SDL activity");
+
   jclass type = env->GetObjectClass(activity);
-  env->DeleteLocalRef(activity);
   jmethodID id = type ? env->GetMethodID(type, method, "()Ljava/lang/String;") : nullptr;
+
+  // A chamada precisa acontecer ENQUANTO activity ainda é um local ref válido
   auto value = id ? static_cast<jstring>(env->CallObjectMethod(activity, id)) : nullptr;
+
   if (env->ExceptionCheck() || !value) {
     if (env->ExceptionCheck()) {
       env->ExceptionDescribe();
@@ -41,24 +44,30 @@ std::filesystem::path androidDirectory(const char *method) {
     }
     if (value) env->DeleteLocalRef(value);
     if (type) env->DeleteLocalRef(type);
+    env->DeleteLocalRef(activity); // Libera o activity aqui
     throw std::runtime_error(std::string("Cannot locate Android directory: ") + method);
   }
+
   const char *text = env->GetStringUTFChars(value, nullptr);
   if (!text) {
     env->DeleteLocalRef(value);
     env->DeleteLocalRef(type);
+    env->DeleteLocalRef(activity); // Libera o activity aqui
     throw std::runtime_error("Cannot read Android storage path");
   }
+
   std::filesystem::path result(text);
   env->ReleaseStringUTFChars(value, text);
   env->DeleteLocalRef(value);
   env->DeleteLocalRef(type);
+  env->DeleteLocalRef(activity); // Libera o activity ao final de tudo
+
   if (result.empty())
     throw std::runtime_error(std::string("Empty Android directory: ") + method);
   return result;
 }
 #endif
-} // namespace
+}
 
 std::filesystem::path resourceDirectory() {
 #ifdef __ANDROID__

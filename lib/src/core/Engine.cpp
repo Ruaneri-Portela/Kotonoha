@@ -228,7 +228,7 @@ void Engine::applyWindowSettings(const EngineSettings &value) {
   int width = 0, height = 0;
   check(SDL_GetWindowSize(window.get(), &width, &height), "Get window size");
   if ((!fullscreen || modeChanged) &&
-      (width != value.width || height != value.height))
+      (width != value.width || height != value.height) && canChangeDisplaySize())
     check(SDL_SetWindowSize(window.get(), value.width, value.height),
           "Set window size");
   if (SDL_GetDisplayForWindow(window.get()) != display)
@@ -515,14 +515,6 @@ SDL_AppResult Engine::Iterate() {
   }
   debug->renderHUD(*renderer);
   debug->renderMenu(*renderer);
-  if (isMobilePlatform() && runtime.GetState() == GameState::Gameplay && !settingsMenu->isOpen() && !GetInGameMenuRuntime(*this).IsOpen()) {
-    configureRenderSpace(RenderSpace::Novel);
-    {
-      UI::FrameScope scope(*renderer, design);
-      ui->button(*renderer, {16, 16, 76, 36}, "Menu");
-    }
-    configureRenderSpace(RenderSpace::Screen);
-  }
   SDL_RenderPresent(renderer.get());
   configureRenderSpace(RenderSpace::Novel);
   return SDL_APP_CONTINUE;

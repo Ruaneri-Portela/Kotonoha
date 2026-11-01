@@ -7,8 +7,8 @@ import java.io.File;
 public final class GameActivity extends SDLActivity {
     @Override
     protected String[] getLibraries() {
-        return new String[]{"c++_shared", "SDL3", "kotonoha_imgui",
-                            "SDL3_ttf", "kotonoha", BuildConfig.NATIVE_TARGET};
+        return new String[]{"c++_shared", "SDL3",
+                            "SDL3_ttf", "kotonoha", "kotonoha_imgui", BuildConfig.NATIVE_TARGET};
     }
 
     public String getKotonohaResourceDirectory() {

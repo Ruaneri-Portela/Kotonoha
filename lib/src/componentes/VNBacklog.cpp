@@ -1,5 +1,6 @@
 #include <Kotonoha/componentes/VNBacklog.hpp>
 #include <Kotonoha/core/UI.hpp>
+#include <Kotonoha/utils/BackAction.hpp>
 #include <algorithm>
 
 namespace Kotonoha {
@@ -19,11 +20,14 @@ void VNBacklog::clear() {
 }
 
 void VNBacklog::onEvent(EventRef event) {
+  if (Kotonoha::BackAction(engine, event)) {
+    close();
+    return;
+  }
+  
   if (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat) {
     if (event.key.key == SDLK_B)
       toggle();
-    else if (isOpen && event.key.key == SDLK_ESCAPE)
-      close();
     else if (isOpen && event.key.key == SDLK_UP)
       scroll = std::max(0.0f, scroll - 80);
     else if (isOpen && event.key.key == SDLK_DOWN)
@@ -53,8 +57,7 @@ void VNBacklog::renderFrame(RendererRef renderer) {
   auto &ui = engine.GetUI();
   ui.panel(renderer, {0, 0, UI::width, UI::height}, {0, 0, 0, 160});
   ui.panel(renderer, {120, 80, 1040, 560});
-  ui.text(renderer, "Dialogue history", 145, 105, 800,
-          {255, 215, 100, 255});
+  ui.text(renderer, "Dialogue history", 145, 105, 800, {255, 215, 100, 255});
   ui.button(renderer, {980, 100, 160, 44}, "Close [ESC]");
 }
 
