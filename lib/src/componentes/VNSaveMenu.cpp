@@ -2,6 +2,7 @@
 #include <Kotonoha/componentes/VNSaveMenu.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/UI.hpp>
+#include <Kotonoha/utils/BackAction.hpp>
 
 #include <algorithm>
 #include <stdexcept>
@@ -158,14 +159,16 @@ void VNSaveMenu::activate() {
 void VNSaveMenu::onEvent(EventRef event) {
   if (!opened)
     return;
+
+  if (BackAction(engine, event)) {
+    if (confirmation != Confirmation::None)
+      confirmation = Confirmation::None;
+    else
+      close();
+    return;
+  }
+
   if (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat) {
-    if (event.key.key == SDLK_ESCAPE) {
-      if (confirmation != Confirmation::None)
-        confirmation = Confirmation::None;
-      else
-        close();
-      return;
-    }
     if (event.key.key == SDLK_RETURN) {
       activate();
       return;

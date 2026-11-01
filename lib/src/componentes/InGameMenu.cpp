@@ -1,3 +1,4 @@
+#include "Kotonoha/utils/BackAction.hpp"
 #include <Kotonoha/componentes/InGameMenu.hpp>
 #include <Kotonoha/componentes/VNBacklog.hpp>
 #include <Kotonoha/core/Engine.hpp>
@@ -54,11 +55,13 @@ void InGameMenu::activate(int index) {
 
 void InGameMenu::onEvent(EventRef event) {
   const int count = itemCount();
+
+  if (BackAction(engine, event)) {
+    toggle();
+    return;
+  }
+
   if (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat) {
-    if (event.key.key == SDLK_ESCAPE) {
-      toggle();
-      return;
-    }
     if (!IsOpen() || count <= 0)
       return;
     if (event.key.key == SDLK_B) {

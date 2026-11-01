@@ -1,22 +1,33 @@
+#include "../debug/ImGuiTheme.hpp"
 #include <Kotonoha/componentes/SettingsMenu.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/Log.hpp>
 #include <Kotonoha/core/UI.hpp>
-#include "../debug/ImGuiTheme.hpp"
+#include <Kotonoha/utils/BackAction.hpp>
 
-#include <array>
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <stdexcept>
 
 namespace Kotonoha {
 SettingsMenu::SettingsMenu(Engine &engine)
-    : engine(engine), shaderPicker(std::make_unique<ImGuiTheme::ShaderFilePicker>()) {}
+    : engine(engine),
+      shaderPicker(std::make_unique<ImGuiTheme::ShaderFilePicker>()) {}
 SettingsMenu::~SettingsMenu() = default;
 
 std::vector<int> SettingsMenu::rows() const {
-  std::vector<int> result{0, 1, 2, 3, 4, 5};
-  if (engine.GetUpscaler().resolve(draft.upscaling.backend) == UpscaleBackend::MPV) {
+  std::vector<int> result;
+  if (canChangeDisplaySize()) {
+    result.push_back(0);
+    result.push_back(1);
+    result.push_back(2);
+    result.push_back(3);
+  }
+  result.push_back(4);
+  result.push_back(5);
+  if (engine.GetUpscaler().resolve(draft.upscaling.backend) ==
+      UpscaleBackend::MPV) {
     result.push_back(6);
     result.push_back(10);
   }
@@ -80,7 +91,8 @@ void SettingsMenu::activate(int index, int direction) {
     close();
   } else if (index == 11)
     draft.masterVolume = std::clamp(
-        std::round((draft.masterVolume + direction * 0.05f) * 100) / 100, 0.0f, 1.0f);
+        std::round((draft.masterVolume + direction * 0.05f) * 100) / 100, 0.0f,
+        1.0f);
   else if (index == 12)
     draft.masterMuted = !draft.masterMuted;
   else if (index == 10)
@@ -93,15 +105,18 @@ void SettingsMenu::onEvent(EventRef event) {
   if (!visible)
     return;
   const auto items = rows();
+
+  if (BackAction(engine, event)) {
+    close();
+    return;
+  }
+
   if (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat) {
-    if (event.key.key == SDLK_ESCAPE) {
-      close();
-      return;
-    }
     if (event.key.key == SDLK_DOWN)
       selected = (selected + 1) % static_cast<int>(items.size());
     if (event.key.key == SDLK_UP)
-      selected = (selected + static_cast<int>(items.size()) - 1) % static_cast<int>(items.size());
+      selected = (selected + static_cast<int>(items.size()) - 1) %
+                 static_cast<int>(items.size());
   }
   try {
     if (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat &&
@@ -152,8 +167,13 @@ void SettingsMenu::render(RendererRef renderer) {
           (draft.upscaling.factor <= 1 ? " (off)" : ""),
       "Apply and save",
       "Back without applying",
-      "MPV shader files: " + std::to_string(UpscaleShaderFiles(draft.upscaling.shaderFiles).size()) + " (choose...)",
-      "Master volume: " + std::to_string(int(std::lround(draft.masterVolume * 100))) + "% (Left / Right)",
+      "MPV shader files: " +
+          std::to_string(
+              UpscaleShaderFiles(draft.upscaling.shaderFiles).size()) +
+          " (choose...)",
+      "Master volume: " +
+          std::to_string(int(std::lround(draft.masterVolume * 100))) +
+          "% (Left / Right)",
       std::string("Mute all audio: ") + (draft.masterMuted ? "Yes" : "No")};
   ui.panel(renderer, {0, 0, UI::width, UI::height}, {0, 0, 0, 210});
   ui.panel(renderer, {330, 30, 620, 650});

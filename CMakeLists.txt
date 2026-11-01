@@ -2,8 +2,14 @@ cmake_minimum_required(VERSION 3.16)
 
 project(Kotonoha VERSION 0.1.0 LANGUAGES CXX)
 
+# Global 16KiB page support
+if(ANDROID)
+    add_link_options("-Wl,-z,max-page-size=16384")
+endif()
+
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 include(CTest)
+
 option(KOTONOHA_BUILD_EXAMPLE "Build the Kotonoha example game" ON)
 option(KOTONOHA_BUILD_ZERO "Build the Zero no Tsukaima (PS2) port" ON)
 option(KOTONOHA_BUILD_SNOW "Build the Snow Radish Vacation!! port" ON)
@@ -11,6 +17,7 @@ option(KOTONOHA_BUILD_DDLC "Build the Doki Doki Literature Club! port" ON)
 option(KOTONOHA_BUILD_SCHOOL_DAYS "Build the School Days port" ON)
 
 add_subdirectory(lib)
+
 if(KOTONOHA_BUILD_EXAMPLE)
     add_subdirectory(games/example)
 endif()

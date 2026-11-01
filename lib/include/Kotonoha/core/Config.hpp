@@ -27,4 +27,9 @@ inline bool defaultLauncherEnabled() { return isMobilePlatform(); }
 // Default font name used across the engine (SDL_ttf, ImGui, libass)
 inline const char *defaultFontName() { return "NotoSansJP-Regular.ttf"; }
 
+// Helper to check if display size and monitor settings can be changed
+inline bool canChangeDisplaySize() {
+  return !isMobilePlatform();
+}
+
 } // namespace Kotonoha

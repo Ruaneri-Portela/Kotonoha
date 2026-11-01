@@ -1,6 +1,7 @@
 #include <Kotonoha/core/Launcher.hpp>
 #include <Kotonoha/core/Log.hpp>
 #include <Kotonoha/core/FileSystem.hpp>
+#include <Kotonoha/core/Config.hpp>
 
 #include <imgui.h>
 #include <imgui_impl_sdl3.h>
@@ -87,15 +88,38 @@ void Launcher::open() {
     throw std::runtime_error(SDL_GetError());
   videoInitialized = true;
   try {
-    window.reset(SDL_CreateWindow(title.c_str(), 760, 560,
-                                  SDL_WINDOW_RESIZABLE |
-                                      SDL_WINDOW_HIGH_PIXEL_DENSITY));
+    // 1. Define o modo padrão baseado na plataforma se não estiver configurado
+    WindowMode mode = defaultWindowMode();
+
+    // 2. Determina as flags da janela SDL3 com base no modo
+    Uint32 windowFlags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY;
+
+    if (mode == WindowMode::Borderless || mode == WindowMode::Exclusive) {
+      windowFlags |= SDL_WINDOW_FULLSCREEN;
+    }
+
+    // 3. Obtém o tamanho da tela do monitor principal se for mobile/fullscreen
+    int width = 760;
+    int height = 560;
+
+    if (isMobilePlatform()) {
+      SDL_DisplayID displayID = SDL_GetPrimaryDisplay();
+      const SDL_DisplayMode *displayMode = SDL_GetCurrentDisplayMode(displayID);
+      if (displayMode) {
+        width = displayMode->w;
+        height = displayMode->h;
+      }
+    }
+
+    window.reset(SDL_CreateWindow(title.c_str(), width, height, windowFlags));
     if (!window)
       throw std::runtime_error(SDL_GetError());
+
     renderer.reset(SDL_CreateRenderer(window.get(), nullptr));
     if (!renderer)
       throw std::runtime_error(SDL_GetError());
     SDL_SetRenderVSync(renderer.get(), 1);
+
     IMGUI_CHECKVERSION();
     context = ImGui::CreateContext();
     ImGui::SetCurrentContext(context);
@@ -104,6 +128,7 @@ void Launcher::open() {
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
     ImGuiTheme::loadFonts(draft.fontPath);
     ImGuiTheme::apply(1);
+
     if (!ImGui_ImplSDL3_InitForSDLRenderer(window.get(), renderer.get()))
       throw std::runtime_error("Cannot initialize ImGui for the launcher");
     if (!ImGui_ImplSDLRenderer3_Init(renderer.get())) {
@@ -200,6 +225,9 @@ void Launcher::browseFile(const FileFilters &filters,
   if (dialog)
     return;
   auto next = std::make_shared<Dialog>();
+  next->names.reserve(filters.size());
+  next->patterns.reserve(filters.size());
+  next->filters.reserve(filters.size());
   for (const auto &[name, pattern] : filters) {
     next->names.push_back(name);
     next->patterns.push_back(pattern);
@@ -375,87 +403,95 @@ void Launcher::draw() {
 }
 
 void Launcher::drawVideo() {
-  int mode = static_cast<int>(draft.mode);
-  if (ImGui::Combo("Mode", &mode, Modes, 3))
-    draft.mode = static_cast<WindowMode>(mode);
+  if (canChangeDisplaySize()) {
+    int mode = static_cast<int>(draft.mode);
+    if (ImGui::Combo("Mode", &mode, Modes, 3))
+      draft.mode = static_cast<WindowMode>(mode);
 
-  int count = 0;
-  SDL_DisplayID *displays = SDL_GetDisplays(&count);
-  if (count > 0) {
-    draft.display = std::clamp(draft.display, 0, count - 1);
-    const char *name = SDL_GetDisplayName(displays[draft.display]);
-    const std::string current = std::to_string(draft.display + 1) + ": " +
-                                (name ? name : "Monitor");
-    if (ImGui::BeginCombo("Monitor", current.c_str())) {
-      for (int i = 0; i < count; ++i) {
-        const char *label = SDL_GetDisplayName(displays[i]);
-        const std::string text =
-            std::to_string(i + 1) + ": " + (label ? label : "Monitor");
-        if (ImGui::Selectable(text.c_str(), i == draft.display))
-          draft.display = i;
-      }
-      ImGui::EndCombo();
-    }
-  }
-
-  const std::string size =
-      std::to_string(draft.width) + " x " + std::to_string(draft.height);
-  if (ImGui::BeginCombo("Window", size.c_str())) {
-    for (const auto &[w, h] : Resolutions) {
-      const std::string text = std::to_string(w) + " x " + std::to_string(h);
-      if (ImGui::Selectable(text.c_str(),
-                            w == draft.width && h == draft.height)) {
-        draft.width = w;
-        draft.height = h;
+    int count = 0;
+    SDL_DisplayID *displays = SDL_GetDisplays(&count);
+    if (count > 0) {
+      draft.display = std::clamp(draft.display, 0, count - 1);
+      const char *name = SDL_GetDisplayName(displays[draft.display]);
+      const std::string current = std::to_string(draft.display + 1) + ": " +
+                                  (name ? name : "Monitor");
+      if (ImGui::BeginCombo("Monitor", current.c_str())) {
+        for (int i = 0; i < count; ++i) {
+          const char *label = SDL_GetDisplayName(displays[i]);
+          const std::string text =
+              std::to_string(i + 1) + ": " + (label ? label : "Monitor");
+          if (ImGui::Selectable(text.c_str(), i == draft.display))
+            draft.display = i;
+        }
+        ImGui::EndCombo();
       }
     }
-    ImGui::EndCombo();
-  }
-  int custom[2]{draft.width, draft.height};
-  if (ImGui::InputInt2("Custom size", custom)) {
-    draft.width = std::clamp(custom[0], 320, 16384);
-    draft.height = std::clamp(custom[1], 240, 16384);
-  }
 
-  if (draft.mode == WindowMode::Exclusive && count > 0) {
-    int modes = 0;
-    SDL_DisplayMode **list =
-        SDL_GetFullscreenDisplayModes(displays[draft.display], &modes);
-    std::string current = "Desktop resolution";
-    if (draft.fullscreenWidth > 0)
-      current = std::to_string(draft.fullscreenWidth) + " x " +
-                std::to_string(draft.fullscreenHeight) + " @ " +
-                std::to_string(static_cast<int>(draft.refreshRate + 0.5f)) +
-                " Hz";
-    if (ImGui::BeginCombo("Exclusive resolution", current.c_str())) {
-      if (ImGui::Selectable("Desktop resolution",
-                            draft.fullscreenWidth == 0)) {
-        draft.fullscreenWidth = draft.fullscreenHeight = 0;
-        draft.refreshRate = 0;
-      }
-      for (int i = 0; list && i < modes; ++i) {
-        const SDL_DisplayMode &m = *list[i];
-        const std::string text =
-            std::to_string(m.w) + " x " + std::to_string(m.h) + " @ " +
-            std::to_string(static_cast<int>(m.refresh_rate + 0.5f)) + " Hz";
-        const bool selected = m.w == draft.fullscreenWidth &&
-                              m.h == draft.fullscreenHeight &&
-                              m.refresh_rate == draft.refreshRate;
-        if (ImGui::Selectable(text.c_str(), selected)) {
-          draft.fullscreenWidth = m.w;
-          draft.fullscreenHeight = m.h;
-          draft.refreshRate = m.refresh_rate;
+    const std::string size =
+        std::to_string(draft.width) + " x " + std::to_string(draft.height);
+    if (ImGui::BeginCombo("Window", size.c_str())) {
+      for (const auto &[w, h] : Resolutions) {
+        const std::string text = std::to_string(w) + " x " + std::to_string(h);
+        if (ImGui::Selectable(text.c_str(),
+                              w == draft.width && h == draft.height)) {
+          draft.width = w;
+          draft.height = h;
         }
       }
       ImGui::EndCombo();
     }
-    SDL_free(list);
+    int custom[2]{draft.width, draft.height};
+    if (ImGui::InputInt2("Custom size", custom)) {
+      draft.width = std::clamp(custom[0], 320, 16384);
+      draft.height = std::clamp(custom[1], 240, 16384);
+    }
+
+    if (draft.mode == WindowMode::Exclusive && count > 0) {
+      int modes = 0;
+      SDL_DisplayMode **list =
+          SDL_GetFullscreenDisplayModes(displays[draft.display], &modes);
+      std::string current = "Desktop resolution";
+      if (draft.fullscreenWidth > 0)
+        current = std::to_string(draft.fullscreenWidth) + " x " +
+                  std::to_string(draft.fullscreenHeight) + " @ " +
+                  std::to_string(static_cast<int>(draft.refreshRate + 0.5f)) +
+                  " Hz";
+      if (ImGui::BeginCombo("Exclusive resolution", current.c_str())) {
+        if (ImGui::Selectable("Desktop resolution",
+                              draft.fullscreenWidth == 0)) {
+          draft.fullscreenWidth = draft.fullscreenHeight = 0;
+          draft.refreshRate = 0;
+        }
+        for (int i = 0; list && i < modes; ++i) {
+          const SDL_DisplayMode &m = *list[i];
+          const std::string text =
+              std::to_string(m.w) + " x " + std::to_string(m.h) + " @ " +
+              std::to_string(static_cast<int>(m.refresh_rate + 0.5f)) + " Hz";
+          const bool selected = m.w == draft.fullscreenWidth &&
+                                m.h == draft.fullscreenHeight &&
+                                m.refresh_rate == draft.refreshRate;
+          if (ImGui::Selectable(text.c_str(), selected)) {
+            draft.fullscreenWidth = m.w;
+            draft.fullscreenHeight = m.h;
+            draft.refreshRate = m.refresh_rate;
+          }
+        }
+        ImGui::EndCombo();
+      }
+      SDL_free(list);
+    }
+    if (count > 0) {
+      SDL_free(displays);
+    }
+  } else {
+    ImGui::TextDisabled("Display size and monitor settings are managed by Android/iOS.");
   }
-  SDL_free(displays);
 
   ImGui::Checkbox("VSync", &draft.vsync);
-  ImGui::SameLine();
-  ImGui::Checkbox("Resizable window", &draft.resizable);
+  if (canChangeDisplaySize()) {
+    ImGui::SameLine();
+    ImGui::Checkbox("Resizable window", &draft.resizable);
+  }
 
   const std::string renderer =
       draft.renderer.empty() ? "Automatic" : draft.renderer;
@@ -592,7 +628,7 @@ void Launcher::drawTranslation() {
         draft.translationPath.empty()
             ? std::string()
             : std::filesystem::path(draft.translationPath).parent_path().string();
-    browseFile({{"Translation JSON (*.json)", "*.json"}, {"All files (*)", "*"}},
+    browseFile({{"Translation JSON (*.json)", "json"}, {"All files (*)", "*"}},
                initial, [this](const std::string &path) { draft.translationPath = path; });
   }
   ImGui::SameLine();
