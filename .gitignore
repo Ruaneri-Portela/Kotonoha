@@ -704,3 +704,5 @@ games-assets/*
 /Android/local.properties
 !lib/src/debug/
 !lib/src/debug/**
+!lib/include/Kotonoha/debug
+!lib/include/Kotonoha/debug/**
