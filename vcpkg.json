@@ -1,7 +1,7 @@
 {
   "name": "kotonoha",
   "version-string": "0.1.0",
-  "builtin-baseline": "ada4709cf238a75753b71b99681e1c5d31a078c9",
+  "builtin-baseline": "9a5dfef5d1a0438a7d24856a85bd60f309d355e9",
   "dependencies": [
     "freetype",
     "harfbuzz",
@@ -21,12 +21,16 @@
     },
     {
       "name": "plutosvg",
-      "features": ["freetype"]
+      "features": [
+        "freetype"
+      ]
     },
     "zlib",
     {
       "name": "ffmpeg",
-      "features": ["zlib"]
+      "features": [
+        "zlib"
+      ]
     },
     {
       "name": "pkgconf",
