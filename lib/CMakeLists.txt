@@ -87,7 +87,22 @@ add_library(KotonohaEngine SHARED
     src/componentes/VNManager.cpp
     src/componentes/VNSave.cpp
     src/componentes/VNSaveMenu.cpp
+    src/core/Runtime.cpp
+    src/core/UI.cpp
+    src/componentes/ChoiceQuestionScene.cpp
+    src/componentes/FadeScene.cpp
+    src/componentes/GameMenu.cpp
+    src/componentes/InGameMenu.cpp
+    src/componentes/SettingsMenu.cpp
+    src/componentes/SplashScreen.cpp
+    src/componentes/SubtitleScene.cpp
+    src/componentes/TextInputDialog.cpp
+    src/componentes/VNBacklog.cpp
+    src/componentes/VNManager.cpp
+    src/componentes/VNSave.cpp
+    src/componentes/VNSaveMenu.cpp
     src/componentes/VNTextBox.cpp
+    src/utils/BackAction.cpp
     src/debug/DebugOverlay.cpp
     src/debug/ImGuiTheme.cpp
     src/localization/Encoding.cpp
