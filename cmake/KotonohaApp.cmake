@@ -11,10 +11,12 @@ endfunction()
 
 function(kotonoha_configure_app target)
     cmake_parse_arguments(APP "" "BUNDLE_ID;GAME;PYTHON_STDLIB;PYTHON_VERSION" "" ${ARGN})
+    
     if((APP_PYTHON_STDLIB OR APP_PYTHON_VERSION) AND
        NOT APP_GAME STREQUAL "doki-doki-literature-club")
         message(FATAL_ERROR "Only Doki Doki Literature Club may bundle Python")
     endif()
+
     if(APPLE AND CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND KOTONOHA_BUILD_MACOS_BUNDLES)
         set_target_properties(${target} PROPERTIES
             MACOSX_BUNDLE TRUE
@@ -68,6 +70,23 @@ function(kotonoha_configure_app target)
                     "-DAPP_GAME=${APP_GAME}"
                     "-DPYTHON_VERSION=${APP_PYTHON_VERSION}"
                     -P "${KOTONOHA_PROJECT_ROOT}/cmake/CheckBundleContents.cmake")
+        endif()
+    elseif(WIN32)
+        # 1. Copia DLLs de alvos dinamicos nativos do CMake
+        add_custom_command(TARGET ${target} POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                $<TARGET_RUNTIME_DLLS:${target}>
+                $<TARGET_FILE_DIR:${target}>
+            COMMAND_EXPAND_LISTS
+        )
+
+        # 2. Copia DLLs da pasta bin do vcpkg (se a toolchain do vcpkg estiver ativa)
+        if(DEFINED VCPKG_INSTALLED_DIR AND DEFINED VCPKG_TARGET_TRIPLET)
+            add_custom_command(TARGET ${target} POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E copy_directory
+                    "$<IF:$<CONFIG:Debug>,${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/debug/bin,${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/bin>"
+                    $<TARGET_FILE_DIR:${target}>
+            )
         endif()
     endif()
 endfunction()
