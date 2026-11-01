@@ -10,6 +10,7 @@
 #include <vector>
 #include <mutex>
 #include <algorithm>
+#include <cstring>
 
 namespace Kotonoha::ImGuiTheme {
 struct ShaderFilePicker::Result {
