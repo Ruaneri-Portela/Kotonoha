@@ -683,8 +683,6 @@ games-assets/*
 *.ini
 .vscode
 .cxx
-Xcode/vcpkg/*
-
 /build/
 /vcpkg_installed/
 /.cache/
@@ -704,4 +702,5 @@ Xcode/vcpkg/*
 /Android/app/build/
 /Android/app/.cxx/
 /Android/local.properties
-Xcode/Python.xcframework
+!lib/src/debug/
+!lib/src/debug/**
