@@ -40,6 +40,14 @@ public:
 
   virtual void setDialogue(const std::string &speaker,
                            const std::string &dialogue);
+  void translationChanged(const std::string &original,
+                          const std::string &previous,
+                          const std::string &translated) override {
+    replaceTranslation(original, previous, translated);
+  }
+  void replaceTranslation(const std::string &original,
+                          const std::string &previous,
+                          const std::string &translated);
   void setTextSpeed(double charsPerSecond);
   double getTextSpeed() const { return cps; }
 

@@ -7,6 +7,7 @@
 #include <cstring>
 #include <filesystem>
 #include <fstream>
+#include <stdexcept>
 #include <unordered_map>
 
 namespace Ddlc {
@@ -383,114 +384,180 @@ bool inflate(const uint8_t *data, size_t size, std::vector<uint8_t> &out) {
   return r == Z_STREAM_END;
 }
 
-Archive::~Archive() {
-  if (file_)
-    std::fclose(file_);
-}
+Archive::~Archive() = default;
 
 bool Archive::open(const std::string &path) {
-  file_ = std::fopen(path.c_str(), "rb");
-  if (!file_)
+  File candidate(std::fopen(path.c_str(), "rb"), &std::fclose);
+  if (!candidate)
     return false;
   char header[64] = {};
-  if (!std::fgets(header, sizeof header, file_))
+  if (!std::fgets(header, sizeof header, candidate.get()))
     return false;
   unsigned long long offset = 0;
   unsigned int key = 0;
-  if (std::sscanf(header, "RPA-3.0 %llx %x", &offset, &key) != 2)
+  if (std::sscanf(header, "RPE-1.0 %x %llx", &key, &offset) == 2)
+    key ^= 0xffffffffu;
+  else if (std::sscanf(header, "RPA-3.0 %llx %x", &offset, &key) != 2)
     return false;
-  std::fseek(file_, 0, SEEK_END);
-  const long end = std::ftell(file_);
-  if (end < 0 || offset >= uint64_t(end))
+  if (std::fseek(candidate.get(), 0, SEEK_END) != 0)
+    return false;
+  const long end = std::ftell(candidate.get());
+  if (end < 0 || offset >= uint64_t(end) ||
+      uint64_t(end) - offset > 128 * 1024 * 1024)
     return false;
   std::vector<uint8_t> packed(size_t(uint64_t(end) - offset)), raw;
-  std::fseek(file_, long(offset), SEEK_SET);
-  if (std::fread(packed.data(), 1, packed.size(), file_) != packed.size())
+  if (std::fseek(candidate.get(), long(offset), SEEK_SET) != 0 ||
+      std::fread(packed.data(), 1, packed.size(), candidate.get()) !=
+          packed.size())
     return false;
   if (!inflate(packed.data(), packed.size(), raw))
     return false;
   const Value index = unpickle(raw);
   if (!index.isObj())
     return false;
+  std::map<std::string, std::vector<Entry>> entries;
   for (const auto &[name, parts] : index.o->dict) {
-    const auto &list = parts.items();
-    if (list.empty())
-      continue;
-    const auto &t = list[0].items();
-    if (t.size() < 2)
-      continue;
-    Entry e;
-    e.offset = uint64_t(t[0].integer() ^ int64_t(key));
-    e.length = uint64_t(t[1].integer() ^ int64_t(key));
-    if (t.size() > 2 && t[2].isStr())
-      e.prefix = t[2].s;
-    index_[lower(name.text())] = e;
+    auto &chunks = entries[lower(name.text())];
+    for (const auto &part : parts.items()) {
+      const auto &t = part.items();
+      if (t.size() < 2)
+        return false;
+      Entry e;
+      e.offset = uint64_t(t[0].integer() ^ int64_t(key));
+      e.length = uint64_t(t[1].integer() ^ int64_t(key));
+      if (t.size() > 2 && t[2].isStr())
+        e.prefix = t[2].s;
+      if (e.prefix.size() > e.length || e.offset > offset ||
+          e.length - e.prefix.size() > offset - e.offset ||
+          e.length > 1024ull * 1024 * 1024)
+        return false;
+      chunks.push_back(std::move(e));
+    }
   }
+  file_ = std::move(candidate);
+  index_ = std::move(entries);
   return true;
 }
 
 bool Archive::has(const std::string &name) const {
   return index_.count(lower(name)) != 0;
 }
-
 std::vector<uint8_t> Archive::read(const std::string &name) const {
-  auto it = index_.find(lower(name));
-  if (it == index_.end() || !file_)
+  auto found = index_.find(lower(name));
+  if (found == index_.end() || !file_)
     return {};
-  const Entry &e = it->second;
-  std::vector<uint8_t> out(e.prefix.begin(), e.prefix.end());
-  const size_t body =
-      size_t(e.length) - std::min<size_t>(e.prefix.size(), size_t(e.length));
-  const size_t at = out.size();
-  out.resize(at + body);
-  std::fseek(file_, long(e.offset), SEEK_SET);
-  if (std::fread(out.data() + at, 1, body, file_) != body)
-    return {};
+  std::lock_guard<std::mutex> lock(readMutex_);
+  std::vector<uint8_t> out;
+  for (const auto &e : found->second) {
+    if (e.length > 1024ull * 1024 * 1024 - out.size())
+      throw std::runtime_error("DDLC asset exceeds size limit");
+    out.insert(out.end(), e.prefix.begin(), e.prefix.end());
+    const auto body = size_t(e.length) - e.prefix.size(), at = out.size();
+    out.resize(at + body);
+    if (std::fseek(file_.get(), long(e.offset), SEEK_SET) != 0 ||
+        std::fread(out.data() + at, 1, body, file_.get()) != body)
+      return {};
+  }
   return out;
 }
-
 std::vector<std::string> Archive::names() const {
-  std::vector<std::string> v;
-  for (const auto &[k, _] : index_)
-    v.push_back(k);
-  return v;
+  std::vector<std::string> result;
+  for (const auto &[id, chunks] : index_)
+    result.push_back(id);
+  return result;
 }
 
+namespace {
+std::vector<uint8_t> readLoose(const std::filesystem::path &path) {
+  std::ifstream file(path, std::ios::binary);
+  if (!file)
+    return {};
+  return std::vector<uint8_t>((std::istreambuf_iterator<char>(file)), {});
+}
+} // namespace
 bool Assets::open(const std::string &gameDir) {
   dir_ = gameDir;
+  archives_.clear();
+  loose_.clear();
+  overlayArchives_.clear();
+  overlayRead_ = {};
+  rootRead_ = {};
+  overlayNames_ = {};
   std::error_code ec;
-  std::vector<std::filesystem::path> rpas;
-  for (const auto &entry : std::filesystem::directory_iterator(gameDir, ec))
-    if (lower(entry.path().extension().string()) == ".rpa")
-      rpas.push_back(entry.path());
-  std::sort(rpas.begin(), rpas.end());
-  for (const auto &p : rpas) {
-    auto a = std::make_unique<Archive>();
-    if (a->open(p.string()))
-      archives_.push_back(std::move(a));
+  std::vector<std::filesystem::path> packages;
+  for (const auto &entry :
+       std::filesystem::recursive_directory_iterator(gameDir, ec)) {
+    if (!entry.is_regular_file())
+      continue;
+    const auto relative = entry.path().lexically_relative(gameDir);
+    // Save directories are writable state, never installation assets.
+    if (*relative.begin() == "saves")
+      continue;
+    auto id = lower(relative.generic_string());
+    if (!loose_.emplace(id, entry.path()).second)
+      return false;
+    if (relative.parent_path().empty() &&
+        (lower(entry.path().extension().string()) == ".rpa" ||
+         lower(entry.path().extension().string()) == ".rpx"))
+      packages.push_back(entry.path());
   }
-  return !archives_.empty();
+  if (ec)
+    return false;
+  std::sort(packages.rbegin(), packages.rend());
+  for (const auto &p : packages) {
+    auto archive = std::make_unique<Archive>();
+    if (!archive->open(p.string()))
+      return false;
+    archives_.push_back(std::move(archive));
+  }
+  return !archives_.empty() || !loose_.empty();
 }
-
+void Assets::mountOverlay(const std::vector<std::string> &packages,
+                          OverlayRead read, OverlayNames names,
+                          OverlayRead rootRead) {
+  std::vector<std::unique_ptr<Archive>> mounted;
+  for (const auto &file : packages) {
+    auto archive = std::make_unique<Archive>();
+    if (!archive->open(file))
+      throw std::runtime_error("Cannot read DDLC overlay archive: " + file);
+    mounted.push_back(std::move(archive));
+  }
+  overlayArchives_ = std::move(mounted);
+  overlayRead_ = std::move(read);
+  overlayNames_ = std::move(names);
+  rootRead_ = std::move(rootRead);
+}
+bool Assets::readOverlayRoot(const std::string &name,
+                             std::vector<uint8_t> *out) const {
+  return rootRead_ && rootRead_(name, out);
+}
 bool Assets::has(const std::string &name) const {
+  if (overlayRead_ && overlayRead_(name, nullptr))
+    return true;
+  for (const auto &a : overlayArchives_)
+    if (a->has(name))
+      return true;
+  if (loose_.count(lower(name)))
+    return true;
   for (const auto &a : archives_)
     if (a->has(name))
       return true;
-  std::error_code ec;
-  return std::filesystem::is_regular_file(std::filesystem::path(dir_) / name,
-                                          ec);
+  return false;
 }
-
 std::vector<uint8_t> Assets::read(const std::string &name) const {
+  std::vector<uint8_t> bytes;
+  if (overlayRead_ && overlayRead_(name, &bytes))
+    return bytes;
+  for (const auto &a : overlayArchives_)
+    if (a->has(name))
+      return a->read(name);
+  if (auto file = loose_.find(lower(name)); file != loose_.end())
+    return readLoose(file->second);
   for (const auto &a : archives_)
     if (a->has(name))
       return a->read(name);
-  std::ifstream f(std::filesystem::path(dir_) / name, std::ios::binary);
-  if (!f)
-    return {};
-  return std::vector<uint8_t>((std::istreambuf_iterator<char>(f)), {});
+  return {};
 }
-
 std::string Assets::resolveImage(const std::string &name) const {
   if (has(name))
     return name;
@@ -498,14 +565,25 @@ std::string Assets::resolveImage(const std::string &name) const {
     return "images/" + name;
   return {};
 }
-
 std::vector<std::string> Assets::names() const {
-  std::vector<std::string> v;
+  std::vector<std::string> result;
   for (const auto &a : archives_) {
-    auto n = a->names();
-    v.insert(v.end(), n.begin(), n.end());
+    auto names = a->names();
+    result.insert(result.end(), names.begin(), names.end());
   }
-  return v;
+  for (const auto &[id, path] : loose_)
+    result.push_back(id);
+  for (const auto &a : overlayArchives_) {
+    auto names = a->names();
+    result.insert(result.end(), names.begin(), names.end());
+  }
+  if (overlayNames_) {
+    auto names = overlayNames_();
+    result.insert(result.end(), names.begin(), names.end());
+  }
+  std::sort(result.begin(), result.end());
+  result.erase(std::unique(result.begin(), result.end()), result.end());
+  return result;
 }
 
 bool loadRpyc(const std::vector<uint8_t> &file, Value &out) {

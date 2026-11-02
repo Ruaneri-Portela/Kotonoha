@@ -15,32 +15,32 @@ class MediaPlayer;
 // Keys are ignored; missing or undecodable files are skipped.
 class SplashScreen : public Scene {
 public:
-    static constexpr double fadeSeconds = 0.8;
-    static constexpr double displaySeconds = 3.0;
+  static constexpr double fadeSeconds = 0.8;
+  static constexpr double displaySeconds = 3.0;
 
-    SplashScreen(Engine &engine, std::vector<std::filesystem::path> media);
+  SplashScreen(Engine &engine, std::vector<std::filesystem::path> media);
 
-    bool finished() const override { return current >= media.size(); }
-    void restart() override;
+  bool finished() const override { return current >= media.size(); }
+  void restart() override;
 
-    bool capturesInput() const override { return !finished(); }
-    RenderSpace renderSpace() const override { return RenderSpace::Screen; }
-    bool handleEvent(EventRef event) override;
-    void update() override;
-    void render(RendererRef renderer, float scale) override;
+  bool capturesInput() const override { return !finished(); }
+  RenderSpace renderSpace() const override { return RenderSpace::Screen; }
+  bool handleEvent(EventRef event) override;
+  void update() override;
+  void render(RendererRef renderer, float scale) override;
 
 private:
-    std::vector<std::filesystem::path> media;
-    size_t current = 0;
-    TexturePtr texture;
-    std::unique_ptr<MediaPlayer> video;
-    Uint64 startedNs = 0;
-    bool loaded = false;
+  std::vector<std::filesystem::path> media;
+  size_t current = 0;
+  TexturePtr texture;
+  std::unique_ptr<MediaPlayer> video;
+  Uint64 startedNs = 0;
+  bool loaded = false;
 
-    void load(RendererRef renderer);
-    void next();
-    bool currentIsVideo() const;
-    double elapsed() const;
+  void load(RendererRef renderer);
+  void next();
+  bool currentIsVideo() const;
+  double elapsed() const;
 };
 
 } // namespace Kotonoha

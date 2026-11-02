@@ -277,6 +277,22 @@ struct Interp::State {
       raiseCurrentError();
     static const char *compatibility = R"py(
 import ast
+import hashlib as _native_hashlib
+import types as _types
+def legacy_decode(value, encoding="utf-8", errors="strict"):
+    if isinstance(value,str): value=value.encode("utf-8","surrogateescape")
+    return value.decode(encoding,errors)
+class _LegacyHash:
+    def __init__(self, native): self._native=native
+    def update(self,data):
+        if isinstance(data,str): data=data.encode("utf-8","surrogateescape")
+        return self._native.update(data)
+    def digest(self): return self._native.digest()
+    def hexdigest(self): return self._native.hexdigest()
+    def copy(self): return _LegacyHash(self._native.copy())
+def _legacy_md5(data=b"", **kwargs):
+    result=_LegacyHash(_native_hashlib.md5(**kwargs));result.update(data);return result
+legacy_hashlib=_types.SimpleNamespace(md5=_legacy_md5)
 class _LegacyGlobals(ast.NodeTransformer):
     def visit_FunctionDef(self, node):
         self.generic_visit(node)
@@ -294,9 +310,14 @@ class _LegacyGlobals(ast.NodeTransformer):
             node.body.insert(0, ast.copy_location(ast.Global(names=list(dict.fromkeys(names))), node))
         return node
     visit_AsyncFunctionDef = visit_FunctionDef
-def compile_legacy(source):
-    tree = _LegacyGlobals().visit(ast.parse(source, "<Ren'Py>", "exec"))
-    return compile(ast.fix_missing_locations(tree), "<Ren'Py>", "exec")
+    def visit_Call(self,node):
+        self.generic_visit(node)
+        if isinstance(node.func,ast.Attribute) and node.func.attr=="decode":
+            return ast.copy_location(ast.Call(func=ast.Name(id="_kt_legacy_decode",ctx=ast.Load()), args=[node.func.value]+node.args, keywords=node.keywords),node)
+        return node
+def compile_legacy(source,mode="exec"):
+    tree = _LegacyGlobals().visit(ast.parse(source, "<Ren'Py>", mode))
+    return compile(ast.fix_missing_locations(tree), "<Ren'Py>", mode)
 def legacy_range(*args):
     return list(range(*args))
 )py";
@@ -304,6 +325,15 @@ def legacy_range(*args):
                                  helperGlobals.get(), helperGlobals.get()));
     if (!initialized)
       raiseCurrentError();
+    PyObject *decoder =
+        PyDict_GetItemString(helperGlobals.get(), "legacy_decode");
+    if (!decoder ||
+        PyDict_SetItemString(builtinsDict, "_kt_legacy_decode", decoder) < 0)
+      raiseCurrentError();
+    hashModule = PyDict_GetItemString(helperGlobals.get(), "legacy_hashlib");
+    if (!hashModule)
+      raiseCurrentError();
+    Py_INCREF(hashModule);
     legacyCompiler =
         PyDict_GetItemString(helperGlobals.get(), "compile_legacy");
     if (!legacyCompiler)
@@ -328,6 +358,7 @@ def legacy_range(*args):
     Py_XDECREF(callableType);
     Py_XDECREF(controlError);
     Py_XDECREF(legacyCompiler);
+    Py_XDECREF(hashModule);
   }
 
   Interp &owner;
@@ -338,6 +369,7 @@ def legacy_range(*args):
   PyObject *callableType = nullptr;
   PyObject *controlError = nullptr;
   PyObject *legacyCompiler = nullptr;
+  PyObject *hashModule = nullptr;
   std::unordered_map<Object *, PyObject *> proxies;
   std::unordered_map<std::string, PyObject *> codeCache;
   std::unordered_map<std::string, Value> modules;
@@ -526,6 +558,10 @@ def legacy_range(*args):
           PyExc_ImportError,
           "Relative imports are not supported by the Ren'Py bridge");
       return nullptr;
+    }
+    if (std::string(name) == "hashlib") {
+      Py_INCREF(bridge->hashModule);
+      return bridge->hashModule;
     }
     const auto found = bridge->modules.find(name);
     if (found == bridge->modules.end()) {
@@ -747,6 +783,18 @@ def legacy_range(*args):
       PyObject *code =
           Py_CompileString(source.c_str(), "<Ren'Py>",
                            expression ? Py_eval_input : Py_file_input);
+      if (source.find(".decode") != std::string::npos) {
+        Py_XDECREF(code);
+        PyErr_Clear();
+        Ref input(PyUnicode_DecodeUTF8(source.data(),
+                                       static_cast<Py_ssize_t>(source.size()),
+                                       "surrogateescape"));
+        Ref mode(PyUnicode_FromString(expression ? "eval" : "exec"));
+        code = input && mode
+                   ? PyObject_CallFunctionObjArgs(legacyCompiler, input.get(),
+                                                  mode.get(), nullptr)
+                   : nullptr;
+      }
       if (!code && !expression && PyErr_ExceptionMatches(PyExc_SyntaxError)) {
         PyObject *type = nullptr, *error = nullptr, *trace = nullptr;
         PyErr_Fetch(&type, &error, &trace);

@@ -41,11 +41,17 @@ SDL_AppResult SDL_AppInit(void **state, int argc, char **argv) {
       std::fputs(cli.help().c_str(), stdout);
       return SDL_APP_SUCCESS;
     }
+    if (options.enableMCP && options.settingsPath.empty())
+      options.persistSettings = false;
+    if (options.persistSettings && options.settingsPath.empty())
+      options.settingsPath = Kotonoha::EngineSettings::defaultPath(
+          "me.hirameki.kotonoha.summerradishvacation");
     if (directory.empty()) {
       const char *env = SDL_getenv("SUMMER_DIR");
       directory = env ? env : "games/summer-radish-vacation/game-assets";
     }
     auto assets = std::make_shared<SummerRadish::SummerAssets>(directory);
+    assets->setOverlay(options.assetOverlayDirectory());
     if (!dump.empty()) {
       SummerRadish::SummerRuntime game(assets);
       Kotonoha::Translation translation;
@@ -54,8 +60,6 @@ SDL_AppResult SDL_AppInit(void **state, int argc, char **argv) {
       translation.dump(dump, game.translationSources());
       return SDL_APP_SUCCESS;
     }
-    if (options.enableMCP && options.settingsPath.empty())
-      options.persistSettings = false;
     *state = new App(assets, std::move(options), cli.frames);
     return SDL_APP_CONTINUE;
   } catch (const std::exception &e) {

@@ -22,6 +22,16 @@ CommandLine::CommandLine(std::string program, EngineOptions &engine)
   flag("--mcp", "Enable the stdio MCP interface", engine.enableMCP);
   option("--mcp-root", "DIRECTORY", "Restrict MCP files to this root",
          engine.mcpFileRoot);
+  option("--asset-overlay", "DIRECTORY", "Override game assets from a folder",
+         [&engine](const std::string &path) {
+           engine.assetOverlayPath = path;
+           engine.assetOverlaySpecified = true;
+         });
+  flag("--no-asset-overlay",
+       "Use original assets, ignoring a remembered overlay", [&engine] {
+         engine.assetOverlayPath.clear();
+         engine.assetOverlaySpecified = true;
+       });
   option("--translation", "FILE", "Load a translation dictionary",
          engine.translationPath);
   option("--subtitle-style", "FILE.ass",

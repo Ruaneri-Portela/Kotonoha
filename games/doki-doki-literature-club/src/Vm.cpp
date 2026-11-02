@@ -517,6 +517,13 @@ std::string Vm::readFile(const std::string &name, bool &ok) {
     if (std::filesystem::is_regular_file(path, error))
       in.open(path, std::ios::binary);
     ok = in.is_open() && in.good();
+    const auto logical = key.substr(std::string(kRootPrefix).size());
+    std::vector<uint8_t> bytes;
+    if (!ok && assets.readOverlayRoot(logical, &bytes)) {
+      ok = true;
+      return std::string(bytes.begin(), bytes.end());
+    }
+
     return ok ? std::string(std::istreambuf_iterator<char>(in), {})
               : std::string();
   }
@@ -526,6 +533,13 @@ std::string Vm::readFile(const std::string &name, bool &ok) {
       ok = !v->isNone();
       return ok ? v->text() : std::string();
     }
+  std::vector<uint8_t> rootBytes;
+  if (isRootKey(key) &&
+      assets.readOverlayRoot(key.substr(std::string(kRootPrefix).size()),
+                             &rootBytes)) {
+    ok = true;
+    return std::string(rootBytes.begin(), rootBytes.end());
+  }
   if (!isRootKey(key) && assets.has(key)) {
     ok = true;
     auto bytes = assets.read(key);
@@ -581,6 +595,7 @@ void Vm::init(const std::string &persistentText) {
   c["basedir"] =
       Value::str(userDirectory.empty() ? base : userDirectory.generic_string());
   c["gamedir"] = Value::str(dir.generic_string());
+  c["images_directory"] = Value::str("images");
   c["developer"] = Value::boolean(false);
   c["allow_skipping"] = Value::boolean(true);
   c["skipping"] = Value::boolean(false);
@@ -621,6 +636,30 @@ void Vm::init(const std::string &persistentText) {
   }
   if (failures)
     backend.log(std::to_string(failures) + " init statements failed");
+
+  // Ren'Py common/00images.rpy registers basename images after explicit init
+  // declarations. A declared image always wins over an automatic definition.
+  auto imageDirectory = config.get("images_directory");
+  if (imageDirectory.truthy()) {
+    auto prefix = imageDirectory.text();
+    while (!prefix.empty() && prefix.back() == '/')
+      prefix.pop_back();
+    prefix += '/';
+    for (const auto &file : assets.names()) {
+      if (file.compare(0, prefix.size(), prefix) != 0)
+        continue;
+      auto path = std::filesystem::path(file);
+      auto ext = path.extension().string();
+      for (char &c : ext)
+        c = char(std::tolower(static_cast<unsigned char>(c)));
+      if (ext != ".png" && ext != ".jpg" && ext != ".webp")
+        continue;
+      auto name = path.stem().string();
+      for (char &c : name)
+        c = char(std::tolower(static_cast<unsigned char>(c)));
+      images.try_emplace(name, Value::str(file));
+    }
+  }
 
   // Natives replacing helpers of the init code that need real Ren'Py internals.
   Vm *vm = this;
@@ -802,6 +841,19 @@ void VmNatives::install(Vm &vm) {
     throw PyError(
         "OSError: launching external processes is unavailable in this port");
   });
+
+  Value shutil = Interp::nameSpace("shutil");
+  shutil.o->openAttrs = false;
+  def(shutil, "copyfile", [v](Interp &, Args &a, Kwargs &) {
+    bool ok = false;
+    const auto data = v->readFile(a.at(0).text(), ok);
+    if (!ok)
+      throw PyError("IOError: copy source does not exist");
+    v->setVirtualFile(a.at(1).text(), Value::str(data));
+    return a.at(1);
+  });
+  py.registerModule("shutil", shutil);
+  py.builtins["shutil"] = shutil;
 
   // Characters.
   auto character = [](bool dynamic) {
@@ -1775,6 +1827,18 @@ void Vm::execUser(const std::string &line) {
 
 // ---- say / menu / screens ---------------------------------------------------
 
+std::string Vm::formatDialogueText(const std::string &raw) {
+  std::string text = interpolate(raw);
+  Value filter = py.getAttr(config, "replace_text");
+  if (filter.isObj() && filter.o->fn) {
+    try {
+      text = py.call(filter, {Value::str(text)}).text();
+    } catch (const PyError &) {
+    }
+  }
+  return text;
+}
+
 void Vm::say(const Value &who, const std::string &what, const Value &attrs) {
   std::string name, prefix, suffix, image;
   Value callback;
@@ -1830,14 +1894,7 @@ void Vm::say(const Value &who, const std::string &what, const Value &attrs) {
   };
   notify("begin");
 
-  std::string text = interpolate(prefix + what + suffix);
-  Value filter = py.getAttr(config, "replace_text");
-  if (filter.isObj() && filter.o->fn) {
-    try {
-      text = py.call(filter, {Value::str(text)}).text();
-    } catch (const PyError &) {
-    }
-  }
+  std::string text = formatDialogueText(prefix + what + suffix);
   name = interpolate(name);
 
   if (windowAuto_ && !scene.window.visible) {

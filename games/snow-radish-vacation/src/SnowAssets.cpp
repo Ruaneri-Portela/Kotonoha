@@ -134,7 +134,7 @@ const SnowAssets::Pack *SnowAssets::PackOf(const std::string &id,
   return nullptr;
 }
 
-bool SnowAssets::contains(const std::string &id) const {
+bool SnowAssets::containsAsset(const std::string &id) const {
   if (id == "script")
     return true;
   std::string key;
@@ -174,7 +174,7 @@ std::vector<uint8_t> SnowAssets::Extract(const Pack &pack,
   return out;
 }
 
-std::vector<Uint8> SnowAssets::read(const std::string &id) const {
+std::vector<Uint8> SnowAssets::readAsset(const std::string &id) const {
   if (id == "script") {
     auto bytes = ReadFile(scriptPath_);
     if (bytes.empty())
@@ -190,7 +190,8 @@ std::vector<Uint8> SnowAssets::read(const std::string &id) const {
   return Extract(*pack, it->second);
 }
 
-std::vector<std::string> SnowAssets::list(const std::string &prefix) const {
+std::vector<std::string>
+SnowAssets::listAsset(const std::string &prefix) const {
   std::vector<std::string> ids;
   if (std::string("script").rfind(prefix, 0) == 0)
     ids.push_back("script");
@@ -207,20 +208,18 @@ std::vector<std::string> SnowAssets::list(const std::string &prefix) const {
 }
 
 std::vector<uint8_t> SnowAssets::Graphic(const std::string &file) const {
-  const auto it = graphic_.index.find(Lower(file));
-  return it == graphic_.index.end() ? std::vector<uint8_t>{}
-                                    : Extract(graphic_, it->second);
+  const auto id = "graphic/" + file;
+  return contains(id) ? read(id) : std::vector<uint8_t>{};
 }
-
 bool SnowAssets::HasGraphic(const std::string &file) const {
-  return graphic_.index.count(Lower(file)) != 0;
+  return contains("graphic/" + file);
 }
 
-Kotonoha::SurfacePtr SnowAssets::loadSurface(const std::string &id) const {
+Kotonoha::SurfacePtr SnowAssets::loadSurfaceAsset(const std::string &id) const {
   std::string key;
   const Pack *pack = PackOf(id, key);
   if (pack != &graphic_)
-    return AssetProvider::loadSurface(id);
+    return AssetProvider::loadSurfaceAsset(id);
   if (const auto hash = key.find('#'); hash != std::string::npos) {
     Animation anm;
     const int frame = std::atoi(key.c_str() + hash + 1);
@@ -246,10 +245,10 @@ Kotonoha::SurfacePtr SnowAssets::loadSurface(const std::string &id) const {
     return RgbaSurface(int(sprite.width), int(sprite.height),
                        sprite.rgba.data(), SDL_PIXELFORMAT_RGBA32, 4);
   }
-  return AssetProvider::loadSurface(id);
+  return AssetProvider::loadSurfaceAsset(id);
 }
 
-Kotonoha::AudioClip SnowAssets::loadAudio(const std::string &id) const {
+Kotonoha::AudioClip SnowAssets::loadAudioAsset(const std::string &id) const {
   std::string key;
   const Pack *pack = PackOf(id, key);
   if (pack == &sound_) {
@@ -266,7 +265,7 @@ Kotonoha::AudioClip SnowAssets::loadAudio(const std::string &id) const {
       throw std::runtime_error("Cannot decode ADP4 " + id);
     return Clip(pcm.samples, 1);
   }
-  return AssetProvider::loadAudio(id);
+  return AssetProvider::loadAudioAsset(id);
 }
 
 SnowAssets::Placement SnowAssets::Sprite(const std::string &name) const {
@@ -304,15 +303,12 @@ bool SnowAssets::Alpha(const std::string &file, bool alternate,
 }
 
 bool SnowAssets::Adps(const std::string &stem, AdpsTrack &out) const {
-  const auto it = sound_.index.find(Lower(stem));
-  return it != sound_.index.end() &&
-         decodeAdpsFile(Extract(sound_, it->second), out);
+  const auto id = "sound/" + stem;
+  return contains(id) && decodeAdpsFile(read(id), out);
 }
-
 Pcm SnowAssets::Voice(const std::string &stem) const {
-  const auto it = voice_.index.find(Lower(stem));
-  return it == voice_.index.end() ? Pcm{}
-                                  : decodeAdp4(Extract(voice_, it->second));
+  const auto id = "voice/" + stem;
+  return contains(id) ? decodeAdp4(read(id)) : Pcm{};
 }
 
 } // namespace SnowRadish

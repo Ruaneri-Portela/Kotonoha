@@ -8,6 +8,7 @@
 #include <Kotonoha/core/SDL.hpp>
 #include <Kotonoha/core/Scene.hpp>
 #include <Kotonoha/core/Settings.hpp>
+#include <Kotonoha/events/InputActions.hpp>
 #include <Kotonoha/localization/Translation.hpp>
 #include <Kotonoha/media/AudioMixer.hpp>
 #include <Kotonoha/parsers/AssStyle.hpp>
@@ -25,6 +26,9 @@ class SettingsMenu;
 
 struct EngineOptions {
   std::string translationPath;
+  std::string assetOverlayPath;
+  bool assetOverlaySpecified = false;
+  std::string assetOverlayDirectory() const;
   bool enableMCP = false;
   std::string mcpFileRoot = ".";
   EngineSettings settings;
@@ -60,6 +64,7 @@ private:
   std::unique_ptr<DebugOverlay> debug;
   std::unique_ptr<MCPServer> mcp;
   bool agentPaused = false;
+  InputActions inputActions;
   Clock frameClock;
   Translation translation;
   float edgeSwipeStartX = -1;
@@ -75,9 +80,12 @@ public:
   Runtime &GetRuntime() { return runtime; }
   UI &GetUI() { return *ui; }
   TimelinePlayer &GetTimeline() { return *timeline; }
+  InputActions &GetInputActions() { return inputActions; }
   RendererRef GetRenderer() { return *renderer; }
   SDL_FPoint screenSize() const;
   const Translation &GetTranslation() const { return translation; }
+  void setTranslation(const std::string &section, const std::string &original,
+                      const std::string &translated);
   Translation &GetTranslation() { return translation; }
   // Writes every original text (runtime routes + loaded script nodes) to a
   // translation JSON, keeping the translations already loaded.

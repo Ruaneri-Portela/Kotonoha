@@ -91,11 +91,76 @@ bool seedCharacters(const std::filesystem::path &user,
   return true;
 }
 
-GameAssets::GameAssets(const std::filesystem::path &directory) {
+GameAssets::GameAssets(const std::filesystem::path &directory,
+                       const std::filesystem::path &overlayDirectory) {
+  auto gameDirectory = directory;
+  if (std::filesystem::is_regular_file(directory / "game" / "scripts.rpa"))
+    gameDirectory /= "game";
   if (!assets_.open(
-          std::filesystem::absolute(directory).lexically_normal().string()))
+          std::filesystem::absolute(gameDirectory).lexically_normal().string()))
     throw std::runtime_error("Cannot open Ren'Py archives in " +
                              directory.string());
+  if (!overlayDirectory.empty()) {
+    std::vector<std::filesystem::path> roots;
+    if (std::filesystem::is_directory(overlayDirectory / "game"))
+      roots.push_back(overlayDirectory / "game");
+    if (std::filesystem::is_directory(overlayDirectory / "vnx" / "game"))
+      roots.push_back(overlayDirectory / "vnx" / "game");
+    if (roots.empty())
+      roots.push_back(overlayDirectory);
+    auto rootOverlay =
+        std::make_shared<Kotonoha::AssetOverlay>(overlayDirectory);
+    auto overlays = std::make_shared<std::vector<Kotonoha::AssetOverlay>>();
+    std::vector<std::string> packages;
+    for (const auto &root : roots) {
+      overlays->emplace_back(root);
+      std::vector<std::filesystem::path> archives;
+      for (const auto &file : std::filesystem::directory_iterator(root)) {
+        const auto extension =
+            Kotonoha::AssetOverlay::key(file.path().extension().string());
+        if (file.is_regular_file() &&
+            (extension == ".rpa" || extension == ".rpx"))
+          archives.push_back(file.path());
+      }
+      std::sort(archives.rbegin(), archives.rend());
+      for (const auto &path : archives)
+        packages.push_back(path.string());
+    }
+    assets_.mountOverlay(
+        packages,
+        [overlays](const std::string &id, std::vector<uint8_t> *bytes) {
+          for (const auto &overlay : *overlays) {
+            auto file = overlay.resolve(id);
+            if (file.empty())
+              continue;
+            if (bytes) {
+              Kotonoha::FileSystemAssetProvider source;
+              *bytes = source.read(file);
+            }
+            return true;
+          }
+          return false;
+        },
+        [overlays] {
+          std::vector<std::string> result;
+          for (const auto &overlay : *overlays) {
+            auto names = overlay.list();
+            result.insert(result.end(), names.begin(), names.end());
+          }
+          return result;
+        },
+        [rootOverlay](const std::string &id, std::vector<uint8_t> *bytes) {
+          auto file = rootOverlay->resolve(id);
+          if (file.empty())
+            return false;
+          if (bytes) {
+            Kotonoha::FileSystemAssetProvider source;
+            *bytes = source.read(file);
+          }
+          return true;
+        });
+    setOverlay(roots.front());
+  }
   std::string error;
   if (!script_.load(assets_, &error))
     throw std::runtime_error("Cannot load DDLC scripts" +
@@ -117,17 +182,18 @@ std::string GameAssets::name() const {
   return "Doki Doki Literature Club! (" + assets_.dir() + ")";
 }
 
-bool GameAssets::contains(const std::string &id) const {
+bool GameAssets::containsAsset(const std::string &id) const {
   return assets_.has(id);
 }
 
-std::vector<Uint8> GameAssets::read(const std::string &id) const {
+std::vector<Uint8> GameAssets::readAsset(const std::string &id) const {
   if (!contains(id))
     throw std::runtime_error("DDLC asset not found: " + id);
   return assets_.read(id);
 }
 
-std::vector<std::string> GameAssets::list(const std::string &prefix) const {
+std::vector<std::string>
+GameAssets::listAsset(const std::string &prefix) const {
   auto result = assets_.names();
   result.erase(std::remove_if(result.begin(), result.end(),
                               [&](const std::string &id) {

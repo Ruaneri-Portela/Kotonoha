@@ -487,10 +487,11 @@ bool ZeroSession::Start() {
   frontend_.Leave();
   movie_.reset();
   const SceneSource &source = disc_->Source();
-  game_ = std::make_unique<Game>(source.Names(),
-                                 [this](size_t i, std::vector<uint8_t> *o) {
-                                   return disc_->Source().LoadScene(i, o);
-                                 });
+  game_ = std::make_unique<Game>(
+      source.Names(), [this](size_t i, std::vector<uint8_t> *o) {
+        *o = disc_->read("script/" + disc_->Source().Names().at(i));
+        return true;
+      });
   game_->translate = [this](size_t scene, const std::string &text) {
     return engine_.GetTranslation().text(int(scene), text);
   };

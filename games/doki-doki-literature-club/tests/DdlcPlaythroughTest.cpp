@@ -2,10 +2,12 @@
 // is a scratch folder below the working directory, so the character files the
 // script deletes and restores are real files the test can inspect (and delete,
 // as the player does to leave Act 3).
-// Usage: DdlcPlaythroughTest <game dir> [cycles]
+// Usage: DdlcPlaythroughTest <game dir> [overlay directory] [cycles]
 #include "Ddlc/Runtime.hpp"
 #include "DdlcAssets.hpp"
 
+#include <algorithm>
+#include <chrono>
 #include <cstdio>
 #include <cstdlib>
 #include <filesystem>
@@ -109,11 +111,31 @@ int drive(Vm &vm, double &clock, int limit, const std::filesystem::path &user,
 
 int main(int argc, char **argv) {
   if (argc < 2) {
-    std::fprintf(stderr, "usage: DdlcPlaythroughTest <game dir> [cycles]\n");
+    std::fprintf(
+        stderr,
+        "usage: DdlcPlaythroughTest <game dir> [overlay directory] [cycles]\n");
     return 2;
   }
-  const int cycles = argc > 2 ? std::atoi(argv[2]) : 12;
-  const auto user = std::filesystem::absolute("ddlc-playthrough-user");
+  const std::string second = argc > 2 ? argv[2] : "";
+  const bool legacyCycles =
+      !second.empty() && std::all_of(second.begin(), second.end(), [](char c) {
+        return c >= '0' && c <= '9';
+      });
+  const std::string overlay = legacyCycles ? std::string() : second;
+  const int cycles = legacyCycles ? std::atoi(argv[2])
+                     : argc > 3   ? std::atoi(argv[3])
+                                  : 12;
+  const auto user = std::filesystem::absolute(
+      "ddlc-playthrough-user-" +
+      std::to_string(
+          std::chrono::steady_clock::now().time_since_epoch().count()));
+  struct Cleanup {
+    std::filesystem::path path;
+    ~Cleanup() {
+      std::error_code error;
+      std::filesystem::remove_all(path, error);
+    }
+  } cleanup{user};
   int failed = 0;
   auto check = [&](bool ok, const std::string &what) {
     if (!ok) {
@@ -124,13 +146,9 @@ int main(int argc, char **argv) {
   try {
     std::filesystem::remove_all(user);
     std::filesystem::create_directories(user);
-    Assets assets;
-    if (!assets.open(argv[1]))
-      throw std::runtime_error(std::string("cannot open ") + argv[1]);
-    Script script;
-    std::string error;
-    if (!script.load(assets, &error))
-      throw std::runtime_error("script load failed: " + error);
+    GameAssets gameAssets(argv[1], overlay);
+    const auto &assets = gameAssets.source();
+    const auto &script = gameAssets.script();
 
     check(seedCharacters(user, assets.dir(), &assets),
           "the characters folder is seeded");

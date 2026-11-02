@@ -18,7 +18,7 @@ SummerAssets::SummerAssets(std::filesystem::path root) {
     packs.emplace(type, std::make_unique<Pack>(found));
   }
 }
-bool SummerAssets::contains(const std::string &id) const {
+bool SummerAssets::containsAsset(const std::string &id) const {
   auto s = canonical(id);
   auto slash = s.find('/');
   if (slash == s.npos)
@@ -26,7 +26,7 @@ bool SummerAssets::contains(const std::string &id) const {
   auto pack = packs.find(s.substr(0, slash));
   return pack != packs.end() && pack->second->contains(s.substr(slash + 1));
 }
-Bytes SummerAssets::read(const std::string &id) const {
+Bytes SummerAssets::readAsset(const std::string &id) const {
   auto s = canonical(id);
   auto slash = s.find('/');
   auto pack = packs.find(s.substr(0, slash));
@@ -34,7 +34,8 @@ Bytes SummerAssets::read(const std::string &id) const {
     throw std::runtime_error("Unknown Summer asset: " + id);
   return pack->second->read(s.substr(slash + 1));
 }
-std::vector<std::string> SummerAssets::list(const std::string &prefix) const {
+std::vector<std::string>
+SummerAssets::listAsset(const std::string &prefix) const {
   std::vector<std::string> result;
   auto search = canonical(prefix);
   for (auto &[type, pack] : packs)
@@ -48,7 +49,8 @@ std::vector<std::string> SummerAssets::list(const std::string &prefix) const {
 Image SummerAssets::picture(const std::string &id) const {
   return decodeImage(read(id), id.substr(id.find_last_of('.') + 1));
 }
-Kotonoha::SurfacePtr SummerAssets::loadSurface(const std::string &id) const {
+Kotonoha::SurfacePtr
+SummerAssets::loadSurfaceAsset(const std::string &id) const {
   auto img = picture(id);
   Kotonoha::SurfacePtr s(
       SDL_CreateSurface(img.width, img.height, SDL_PIXELFORMAT_RGBA32));

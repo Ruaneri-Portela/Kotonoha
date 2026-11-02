@@ -21,6 +21,7 @@ struct EngineSettings {
   UpscaleSettings upscaling;
   SDL_LogPriority logPriority = SDL_LOG_PRIORITY_INFO;
   std::string translationPath;
+  std::string assetOverlayPath;
   std::string fontPath;
   void validate() const;
   static EngineSettings load(const std::string &path);

@@ -36,10 +36,10 @@ class MemoryAssetProvider final : public AssetProvider {
 public:
   std::map<std::string, std::vector<Uint8>> files;
   std::string name() const override { return "Memory"; }
-  bool contains(const std::string &id) const override {
+  bool containsAsset(const std::string &id) const override {
     return files.count(id) != 0;
   }
-  std::vector<Uint8> read(const std::string &id) const override {
+  std::vector<Uint8> readAsset(const std::string &id) const override {
     const auto found = files.find(id);
     if (found == files.end())
       throw std::runtime_error("Missing " + id);

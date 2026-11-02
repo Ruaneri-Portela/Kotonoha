@@ -1,4 +1,5 @@
 #include "SchoolDaysRuntime.hpp"
+#include <Kotonoha/events/BackAction.hpp>
 
 #include <Kotonoha/SchoolDaysBgmEventState.hpp>
 #include <Kotonoha/SchoolDaysMovieEventState.hpp>
@@ -706,13 +707,25 @@ void Runtime::renderStatus(Kotonoha::RendererRef renderer) {
   ui.text(renderer, status, 40, 700 - height, 1200);
 }
 
+bool Runtime::handleBackAction() {
+  SDL_Event back{};
+  back.type = SDL_EVENT_KEY_DOWN;
+  back.key.key = SDLK_ESCAPE;
+  onEvent(back);
+  return true;
+}
+bool Runtime::handleBacklogAction() {
+  if (modal())
+    return false;
+  openBacklog();
+  return true;
+}
 void Runtime::onEvent(Kotonoha::EventRef event) {
   if (currentState == Kotonoha::GameState::Splash) {
     Kotonoha::Runtime::onEvent(event);
     return;
   }
-  const bool escape = event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat &&
-                      event.key.key == SDLK_ESCAPE;
+  const bool escape = Kotonoha::BackAction(*engine, event);
   if (saveMenu->isOpen()) {
     dispatchEvent(*saveMenu, event);
     return;
@@ -1383,6 +1396,9 @@ void Runtime::loadGame(const std::string &path) {
   openScene(result.scene);
 }
 
+int Runtime::translationRoute() const {
+  return bridge.CurrentScene().nodeIndex;
+}
 std::string Runtime::debugNode() const {
   return bridge.CurrentScene().sceneKey;
 }

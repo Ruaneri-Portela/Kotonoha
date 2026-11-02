@@ -1,5 +1,6 @@
 #include "Kotonoha/parsers/Ktrf.h"
 
+#include <memory>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -549,6 +550,8 @@ static int ktrf_parse_owned(Kotonoha_KtrfDocument *doc,
   if (section_count != 0u) {
     Kotonoha_KtrfSection **by_offset = (Kotonoha_KtrfSection **)malloc(
         (size_t)section_count * sizeof(*by_offset));
+    std::unique_ptr<Kotonoha_KtrfSection *, decltype(&free)> ownedOffsets(
+        by_offset, free);
     if (by_offset == NULL)
       return ktrf_fail(error, KOTONOHA_KTRF_ERROR_MEMORY,
                        "out of memory sorting KTRF section payloads");
@@ -562,27 +565,23 @@ static int ktrf_parse_owned(Kotonoha_KtrfDocument *doc,
       uint64_t pos;
       uint32_t actual_crc;
       if (section->offset < cursor) {
-        free(by_offset);
         return ktrf_fail(error, KOTONOHA_KTRF_ERROR_FORMAT,
                          "KTRF section %.4s overlaps previous data",
                          section->type);
       }
       for (pos = cursor; pos < section->offset; ++pos) {
         if (data[pos] != 0u) {
-          free(by_offset);
           return ktrf_fail(error, KOTONOHA_KTRF_ERROR_FORMAT,
                            "non-zero KTRF section padding");
         }
       }
       actual_crc = ktrf_crc32(section->payload, (size_t)section->stored_size);
       if (actual_crc != section->crc32) {
-        free(by_offset);
         return ktrf_fail(error, KOTONOHA_KTRF_ERROR_INTEGRITY,
                          "KTRF section %.4s CRC32 mismatch", section->type);
       }
       cursor = section->offset + section->stored_size;
     }
-    free(by_offset);
   }
   if (cursor != file_size)
     return ktrf_fail(error, KOTONOHA_KTRF_ERROR_FORMAT,
@@ -725,30 +724,28 @@ int Kotonoha_KtrfLoadFile(const char *path, Kotonoha_KtrfDocument *out,
     return ktrf_fail(error, KOTONOHA_KTRF_ERROR_ARGUMENT,
                      "KTRF path/out argument is null");
   file = fopen(path, "rb");
+  std::unique_ptr<FILE, decltype(&fclose)> ownedFile(file, fclose);
   if (file == NULL)
     return ktrf_fail(error, KOTONOHA_KTRF_ERROR_IO,
                      "failed to open KTRF file: %s", path);
   if (fseek(file, 0, SEEK_END) != 0 || (length = ftell(file)) < 0 ||
       fseek(file, 0, SEEK_SET) != 0) {
-    fclose(file);
     return ktrf_fail(error, KOTONOHA_KTRF_ERROR_IO,
                      "failed to determine KTRF file size");
   }
   bytes = length != 0 ? (uint8_t *)malloc((size_t)length) : NULL;
+  std::unique_ptr<uint8_t, decltype(&free)> ownedBytes(bytes, free);
   if (length != 0 && bytes == NULL) {
-    fclose(file);
     return ktrf_fail(error, KOTONOHA_KTRF_ERROR_MEMORY,
                      "out of memory reading KTRF file");
   }
   read_size = length != 0 ? fread(bytes, 1u, (size_t)length, file) : 0u;
-  fclose(file);
+  ownedFile.reset();
   if (read_size != (size_t)length) {
-    free(bytes);
     return ktrf_fail(error, KOTONOHA_KTRF_ERROR_IO,
                      "short read while loading KTRF file");
   }
   ok = Kotonoha_KtrfLoadMemoryCopy(bytes, (size_t)length, out, error);
-  free(bytes);
   return ok;
 }
 

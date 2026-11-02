@@ -49,6 +49,7 @@ struct App {
 
   void Start(const std::string &disc) {
     auto provider = std::make_shared<ZeroNoTsukaima::DiscAssetProvider>(disc);
+    provider->setOverlay(options.assetOverlayDirectory());
     game = std::make_unique<Application>(std::move(provider), options);
     game->framesLeft = frames;
   }
@@ -98,9 +99,9 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
       if (const char *value = std::getenv("ZERO_DISC"); value && *value)
         disc = value;
     if (disc.empty())
-      disc = DefaultDisc();
-    if (disc.empty())
       disc = Kotonoha::GameLauncher::rememberedPath(settingsPath, "disc.txt");
+    if (disc.empty())
+      disc = DefaultDisc();
 
     if (options.launcher) {
       app->launcher =

@@ -1,3 +1,4 @@
+#include <Kotonoha/core/AssetOverlay.hpp>
 #include <Kotonoha/core/Config.hpp>
 #include <Kotonoha/core/FileSystem.hpp>
 #include <Kotonoha/core/Launcher.hpp>
@@ -186,6 +187,9 @@ void Launcher::setStatus(std::string message, bool error) {
 bool Launcher::launch() {
   try {
     draft.validate();
+    if (!draft.assetOverlayPath.empty()) {
+      AssetOverlay validateOverlay(draft.assetOverlayPath);
+    }
     std::string error;
     if (!validate(error)) {
       setStatus(error.empty() ? "Invalid settings" : error, true);
@@ -354,6 +358,16 @@ void Launcher::draw() {
   if (ImGui::BeginTabBar("##tabs")) {
     if (ImGui::BeginTabItem("Game")) {
       drawGameOptions();
+      ImGui::SeparatorText("Asset overlay (all games)");
+      ImGui::InputText("Overlay folder", &draft.assetOverlayPath);
+      if (ImGui::Button("Browse overlay..."))
+        browseFolder(draft.assetOverlayPath, [this](const std::string &path) {
+          draft.assetOverlayPath = path;
+        });
+      ImGui::SameLine();
+      if (ImGui::Button("Disable overlay"))
+        draft.assetOverlayPath.clear();
+
       ImGui::EndTabItem();
     }
     if (ImGui::BeginTabItem("Video")) {

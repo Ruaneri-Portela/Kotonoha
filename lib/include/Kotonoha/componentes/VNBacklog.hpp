@@ -32,6 +32,7 @@ protected:
   float lastDragY = 0;
   float scrollVelocity = 0;
   Clock clock;
+  ScrollGesture scrollGesture;
 
   virtual void renderFrame(RendererRef renderer);
   virtual void renderEntries(RendererRef renderer);
@@ -48,12 +49,14 @@ public:
     isOpen = true;
     scrollToBottom = true;
     isDragging = false;
+    scrollGesture.reset();
     scrollVelocity = 0;
     clock.reset();
   }
   virtual void close() {
     isOpen = false;
     isDragging = false;
+    scrollGesture.reset();
     scrollVelocity = 0;
   }
   void toggle() { isVisible() ? close() : open(); }

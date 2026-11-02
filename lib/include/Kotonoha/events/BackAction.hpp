@@ -1,10 +1,9 @@
 #pragma once
 
 #include <Kotonoha/core/SDL.hpp>
-#include <Kotonoha/core/Engine.hpp>
-#include <unordered_set>
 
 namespace Kotonoha {
+class Engine;
 
 bool BackAction(Engine &engine, EventRef event);
 

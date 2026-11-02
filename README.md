@@ -302,3 +302,5 @@ DPI scaling and is persisted with the other settings.
 The [Portuguese reference](README.pt-BR.md) documents the complete component,
 media, scripting and MCP APIs and the existing port limitations. ZNT/SRV
 dialogue translations and DDLC's later acts have not been fully validated.
+
+Shared overlay, gesture and live translation behavior: [documentation](docs/ASSET_OVERLAYS.md).

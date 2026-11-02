@@ -1143,6 +1143,7 @@ Translation::SourceTexts SummerRuntime::translationSources() const {
   }
   return result;
 }
+int SummerRuntime::translationRoute() const { return impl->route(); }
 std::string SummerRuntime::debugNode() const {
   return impl->vm.position.script + ":" + std::to_string(impl->vm.position.pc);
 }

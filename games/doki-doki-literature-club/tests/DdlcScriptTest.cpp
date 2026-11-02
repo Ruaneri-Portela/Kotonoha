@@ -9,6 +9,7 @@
 #endif
 
 #include "Ddlc/Runtime.hpp"
+#include "DdlcAssets.hpp"
 
 #include <cstdio>
 #include <cstdlib>
@@ -118,17 +119,8 @@ int runDdlcScriptTest(int argc, char **argv) {
     std::fprintf(stderr, "DdlcScriptTest: no game directory supplied\n");
     return 1;
   }
-  Assets assets;
-  if (!assets.open(dir)) {
-    std::fprintf(stderr, "DdlcScriptTest: cannot open %s\n", dir.c_str());
-    return 1;
-  }
-  Script script;
-  std::string err;
-  if (!script.load(assets, &err)) {
-    std::fprintf(stderr, "script load failed: %s\n", err.c_str());
-    return 1;
-  }
+  GameAssets gameAssets(dir,argc>3?argv[3]:"");
+  const auto&assets=gameAssets.source();const auto&script=gameAssets.script();
   std::printf("script: %zu files, %zu statements, %zu inits\n",
               script.fileCount(), script.nodeCount(), script.inits().size());
 

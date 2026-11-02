@@ -149,9 +149,32 @@ void SubtitleScene::setCues(const std::vector<SubtitleCue> &cues,
         << ',' << style << ",,0,0,0,," << literal(cue.text) << '\n';
   }
   loadAss(ass.str());
+  sourceCues = cues;
+  cueFontSize = fontSize;
 }
 
-void SubtitleScene::clear() { state->track.reset(); }
+void SubtitleScene::translationChanged(const std::string &original,
+                                       const std::string &previous,
+                                       const std::string &translated) {
+  auto cues = sourceCues;
+  bool changed = false;
+  for (auto &cue : cues) {
+    if (cue.text == original || cue.text == previous) {
+      cue.text = translated;
+      changed = true;
+    }
+    if (cue.speaker == original || cue.speaker == previous) {
+      cue.speaker = translated;
+      changed = true;
+    }
+  }
+  if (changed)
+    setCues(cues, cueFontSize);
+}
+void SubtitleScene::clear() {
+  state->track.reset();
+  sourceCues.clear();
+}
 
 void SubtitleScene::setStyle(AssStyle style) {
   state->style = AssStyle::parse(style.header);

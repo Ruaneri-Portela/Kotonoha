@@ -27,6 +27,7 @@ std::filesystem::path ScriptRoot(const std::filesystem::path &root) {
 
 Assets::Assets(std::filesystem::path root, const std::string &scripts)
     : directory(std::move(root)) {
+  setOverlay(scripts);
   std::string info;
   if (!checkDirectory(directory, info))
     throw std::runtime_error(info);
@@ -37,7 +38,7 @@ Assets::Assets(std::filesystem::path root, const std::string &scripts)
     Kotonoha::InstallMountedSchoolDaysAssetResolver();
   }
   if (!scripts.empty() &&
-      !Kotonoha::SetSchoolDaysScriptDirectory(scripts, &info)) {
+      !Kotonoha::SetSchoolDaysAssetOverlay(scripts, &info)) {
     if (mounted) {
       Kotonoha::UninstallMountedSchoolDaysAssetResolver();
       Kotonoha::UnmountSchoolDaysRetailGpks();
@@ -57,10 +58,12 @@ Assets::~Assets() {
     Kotonoha::UninstallMountedSchoolDaysAssetResolver();
     Kotonoha::UnmountSchoolDaysRetailGpks();
   }
-  Kotonoha::SetSchoolDaysScriptDirectory({});
+  Kotonoha::SetSchoolDaysAssetOverlay({});
 }
 
 std::string Assets::resolve(const std::string &logical, bool image) const {
+  if (auto file = overlayPath(logical); !file.empty())
+    return file;
   if (Kotonoha::IsSchoolDaysGpkUri(logical))
     return logical;
   const auto found = image ? Kotonoha::ResolveSchoolDaysImageAsset(
@@ -73,7 +76,18 @@ std::string Assets::resolve(const std::string &logical, bool image) const {
   return found.physical;
 }
 
-bool Assets::contains(const std::string &id) const {
+std::string Assets::overlayId(const std::string &id) const {
+  std::string logical;
+  if (Kotonoha::SchoolDaysLogicalFromGpkUri(id, &logical))
+    return logical;
+  std::filesystem::path file(id);
+  if (file.is_absolute()) {
+    auto rel = file.lexically_relative(directory);
+    return rel.generic_string();
+  }
+  return id;
+}
+bool Assets::containsAsset(const std::string &id) const {
   if (Kotonoha::IsSchoolDaysGpkUri(id)) {
     std::string logical;
     return Kotonoha::SchoolDaysLogicalFromGpkUri(id, &logical) &&
@@ -84,7 +98,7 @@ bool Assets::contains(const std::string &id) const {
   return std::filesystem::is_regular_file(id, ec);
 }
 
-std::vector<Uint8> Assets::read(const std::string &id) const {
+std::vector<Uint8> Assets::readAsset(const std::string &id) const {
   std::vector<Uint8> bytes;
   std::string error;
   if (!Kotonoha::ReadSchoolDaysAssetRef(id, &bytes, &error))
@@ -92,7 +106,7 @@ std::vector<Uint8> Assets::read(const std::string &id) const {
   return bytes;
 }
 
-std::string Assets::localPath(const std::string &id) const {
+std::string Assets::localPathAsset(const std::string &id) const {
   return Kotonoha::IsSchoolDaysGpkUri(id) ? std::string() : id;
 }
 

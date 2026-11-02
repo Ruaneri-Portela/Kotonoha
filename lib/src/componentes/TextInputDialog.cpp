@@ -1,5 +1,6 @@
 #include <Kotonoha/componentes/TextInputDialog.hpp>
 #include <Kotonoha/core/UI.hpp>
+#include <Kotonoha/events/BackAction.hpp>
 #include <cmath>
 #include <stdexcept>
 
@@ -52,7 +53,7 @@ void TextInputDialog::onEvent(EventRef event) {
       const auto value = input;
       callback(value);
     }
-  } else if ((key && event.key.key == SDLK_ESCAPE) ||
+  } else if (BackAction(engine, event) ||
              UI::clicked(event, {620, 402, 240, 48})) {
     const auto callback = onCancel;
     if (callback)
