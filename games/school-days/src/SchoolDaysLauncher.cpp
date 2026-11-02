@@ -18,9 +18,9 @@ Launcher::Launcher(std::string settingsPath, std::string directory,
            "copied."}) {
   loadPath(std::move(directory));
   if (route.empty())
-    route = Assets::findDefaultRoute().string();
-  if (route.empty())
     route = rememberedPath(getSettingsPath(), RouteRememberFile);
+  if (route.empty())
+    route = Assets::findDefaultRoute().string();
   routeOption = addPathOption(
       {"Route file (.ktnroute)",
        PathKind::File,

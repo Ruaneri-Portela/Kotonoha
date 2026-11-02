@@ -51,6 +51,15 @@ int main(int argc, char **argv) {
     require(python.eval(Ddlc::Value::str(bytes).repr()).s == bytes,
             "Persistent string literals preserve arbitrary bytes");
 
+    python.set("legacy_line", Ddlc::Value::str("  coração  "));
+    require(python.eval("legacy_line.strip().decode('utf-8')").s == "coração",
+            "Python2 byte string decode preserves translated UTF8");
+    python.set("binary_hash_input", Ddlc::Value::str(std::string("a\0b", 3)));
+    python.exec(
+        "import hashlib\nh=hashlib.md5()\nh.update(binary_hash_input)\n");
+    require(python.eval("h.hexdigest()").s ==
+                "70350f6027bce3713f6b76473084309b",
+            "Python2 hashlib MD5 consumes exact bytes including NUL");
     auto persistent = Ddlc::Interp::nameSpace("persistent");
     python.set("persistent", persistent);
     python.exec("persistent.points = [1, 2]\npersistent.points.append(3)\n");

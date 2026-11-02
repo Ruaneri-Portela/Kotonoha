@@ -36,10 +36,12 @@ struct App {
   std::unique_ptr<SchoolDays::Launcher> launcher;
   std::unique_ptr<Application> application;
   Kotonoha::EngineOptions options;
-  std::string scripts, route, startNode, dump, documents;
+  std::string route, startNode, dump, documents;
   long frames = -1;
   void start(const std::string &directory) {
-    auto assets = std::make_shared<SchoolDays::Assets>(directory, scripts);
+    auto assets = std::make_shared<SchoolDays::Assets>(
+        directory, options.assetOverlayDirectory());
+    assets->setOverlay(options.assetOverlayDirectory());
     application = std::make_unique<Application>(std::move(assets), route,
                                                 options, documents);
     if (!startNode.empty()) {
@@ -69,8 +71,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
                      "Retail Packs or extracted game directory", directory);
     arguments.alias("--school-days", "--assets");
     arguments.option("--ktrf", "FILE", "School Days routing graph", app->route);
-    arguments.option("--scripts", "DIRECTORY",
-                     "Translated ORS script directory", app->scripts);
+    arguments.alias("--asset-overlay", "--scripts");
     arguments.option("--documents", "DIRECTORY",
                      "Save-game and GlobalFlag directory", app->documents);
     arguments.option("--node", "ID", "Start at an index or scene key",
@@ -98,18 +99,17 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
         app->options.persistSettings ? app->options.settingsPath : "";
 
     if (app->route.empty())
-      app->route = SchoolDays::Assets::defaultRoute().string();
+      app->route = Kotonoha::GameLauncher::rememberedPath(settings, SchoolDays::Launcher::RouteRememberFile);
     if (app->route.empty())
-      app->route = Kotonoha::GameLauncher::rememberedPath(
-          settings, SchoolDays::Launcher::RouteRememberFile);
+      app->route = SchoolDays::Assets::defaultRoute().string();
 
     if (directory.empty())
       if (const char *env = std::getenv("SCHOOL_DAYS_DIR"))
         directory = env;
     if (directory.empty())
-      directory = SchoolDays::Assets::defaultDirectory().string();
-    if (directory.empty())
       directory = Kotonoha::GameLauncher::rememberedPath(settings, "dir.txt");
+    if (directory.empty())
+      directory = SchoolDays::Assets::defaultDirectory().string();
     if (options.launcher) {
       app->launcher = std::make_unique<SchoolDays::Launcher>(
           settings, directory, app->route);

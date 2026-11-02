@@ -203,7 +203,7 @@ bool SchoolDaysKtrfSession::ResolveOrsPhysicalPath(
   SchoolDaysImageResolution resolved;
   std::string reportedLogical = relative;
   std::string scriptOverride;
-  if (ResolveSchoolDaysScriptDirectoryFile(packedLogical, &scriptOverride)) {
+  if (ResolveSchoolDaysOverlayFile(packedLogical, &scriptOverride)) {
     resolved.status = SchoolDaysAssetResolutionStatus::Present;
     resolved.present = true;
     resolved.physical = std::move(scriptOverride);

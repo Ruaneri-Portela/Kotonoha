@@ -2,6 +2,7 @@
 #include <Kotonoha/componentes/InGameMenu.hpp>
 #include <Kotonoha/componentes/VNBacklog.hpp>
 #include <Kotonoha/core/UI.hpp>
+#include <Kotonoha/events/BackAction.hpp>
 #include <algorithm>
 #include <stdexcept>
 
@@ -39,12 +40,28 @@ void ChoiceQuestionScene::select(std::size_t index) {
 void ChoiceQuestionScene::openMenu() { GetInGameMenuRuntime(engine).open(); }
 void ChoiceQuestionScene::openBacklog() { GetVNBacklogRuntime(engine).open(); }
 
+void ChoiceQuestionScene::translationChanged(const std::string &original,
+                                             const std::string &previous,
+                                             const std::string &translated) {
+  auto replace = [&](std::string &text) {
+    if (text == original || text == previous)
+      text = translated;
+  };
+  replace(questionText);
+  for (auto &option : options)
+    replace(option.label);
+}
+
 void ChoiceQuestionScene::onEvent(EventRef event) {
   if (!active || options.empty())
     return;
   layout();
   const auto area = listArea();
   const float top = area.y, bottom = area.y + area.h;
+  if (BackAction(engine, event)) {
+    openMenu();
+    return;
+  }
   if (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat) {
     if (event.key.key == SDLK_B) {
       openBacklog();
@@ -69,10 +86,14 @@ void ChoiceQuestionScene::onEvent(EventRef event) {
           options[selected].hitBox.y + options[selected].hitBox.h - bottom;
     scroll = std::max(0.0f, scroll);
   }
-  if (event.type == SDL_EVENT_MOUSE_WHEEL) {
+  if (event.type == SDL_EVENT_MOUSE_WHEEL ||
+      (event.type >= SDL_EVENT_FINGER_DOWN &&
+       event.type <= SDL_EVENT_FINGER_CANCELED)) {
     const auto &last = options.back().hitBox;
-    const float maxScroll = std::max(0.0f, last.y + last.h + scroll - bottom);
-    scroll = std::clamp(scroll - event.wheel.y * 60, 0.0f, maxScroll);
+    float velocity = 0;
+    bool follow = false;
+    scrollGesture.handle(event, UI::height, scroll, velocity, follow,
+                         std::max(0.f, last.y + last.h + scroll - bottom));
   }
   if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN && event.button.y >= top &&
       event.button.y < bottom) {

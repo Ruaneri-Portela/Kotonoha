@@ -38,11 +38,11 @@ public:
   const std::filesystem::path &Directory() const { return directory_; }
 
   std::string name() const override;
-  bool contains(const std::string &id) const override;
-  std::vector<Uint8> read(const std::string &id) const override;
-  std::vector<std::string> list(const std::string &prefix = {}) const override;
-  Kotonoha::SurfacePtr loadSurface(const std::string &id) const override;
-  Kotonoha::AudioClip loadAudio(const std::string &id) const override;
+  bool containsAsset(const std::string &id) const override;
+  std::vector<Uint8> readAsset(const std::string &id) const override;
+  std::vector<std::string> listAsset(const std::string &prefix = {}) const override;
+  Kotonoha::SurfacePtr loadSurfaceAsset(const std::string &id) const override;
+  Kotonoha::AudioClip loadAudioAsset(const std::string &id) const override;
 
   // Typed access for the presentation layer (decoded once, cached).
   std::vector<uint8_t> Script() const { return read("script"); }

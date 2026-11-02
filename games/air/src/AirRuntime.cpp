@@ -1069,6 +1069,8 @@ void AirRuntime::update() {
       SDL_Log("%s", i.error.c_str());
       break;
     }
+ if(i.vm.scenario()<8000&&GetState()==GameState::Menu){if(GetScenes(GameState::Gameplay).empty())for(auto*scene:GetScenes(GameState::Menu))AddScene(scene,GameState::Gameplay);SetState(GameState::Gameplay);}
+
 }
 void AirRuntime::saveGame(const std::string &path) {
   auto &i = *impl;

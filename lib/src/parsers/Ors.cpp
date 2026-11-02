@@ -1,7 +1,14 @@
+#include <Kotonoha/core/Resource.hpp>
 #include <Kotonoha/parsers/Ors.h>
+#include <exception>
+#include <fstream>
+#include <iterator>
+#include <memory>
+#include <new>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <vector>
 
 static char *Kotonoha_ORS_char_jump_tab(char *line) {
   for (; *line != '\t' && *line; line++) {
@@ -70,7 +77,7 @@ static bool Kotonoha_ORS_parse_tick(const char *text,
 }
 
 static char *Kotonoha_ORS_copy_field(const char *start, size_t length) {
-  char *copy = SDL_malloc(length + 1);
+  char *copy = static_cast<char *>(SDL_malloc(length + 1));
   if (copy != NULL) {
     memcpy(copy, start, length);
     copy[length] = '\0';
@@ -120,17 +127,25 @@ static bool Kotonoha_ORS_command_is(const char *start, size_t length,
 }
 
 static void Kotonoha_ORS_doDelete(struct Kotonoha_orsEvent *target) {
+  if (!target)
+    return;
   switch (target->command) {
   case CREATE_BG:
+    if (!target->data.create_bg)
+      break;
     SDL_free(target->data.create_bg->a);
     SDL_free(target->data.create_bg->path);
     SDL_free(target->data.create_bg);
     break;
   case PLAY_SE:
+    if (!target->data.play_se)
+      break;
     SDL_free(target->data.play_se->path);
     SDL_free(target->data.play_se);
     break;
   case PLAY_MOVIE:
+    if (!target->data.play_movie)
+      break;
     SDL_free(target->data.play_movie->path);
     SDL_free(target->data.play_movie);
     break;
@@ -141,15 +156,21 @@ static void Kotonoha_ORS_doDelete(struct Kotonoha_orsEvent *target) {
   case PLAY_BGM:
   case END_BGM:
   case END_ROLL:
+    if (!target->data.path_end)
+      break;
     SDL_free(target->data.path_end->path);
     SDL_free(target->data.path_end);
     break;
   case PRINT_TEXT:
+    if (!target->data.print_text)
+      break;
     SDL_free(target->data.print_text->character);
     SDL_free(target->data.print_text->text);
     SDL_free(target->data.print_text);
     break;
   case PLAY_VOICE:
+    if (!target->data.play_voice)
+      break;
     SDL_free(target->data.play_voice->path);
     if (target->data.play_voice->character_short != NULL) {
       SDL_free(target->data.play_voice->character_short);
@@ -160,13 +181,18 @@ static void Kotonoha_ORS_doDelete(struct Kotonoha_orsEvent *target) {
     SDL_free(target->data.move_som);
     break;
   case SetSELECT:
-    for (char **it = target->data.set_select->options; *it != NULL; it++) {
+    if (!target->data.set_select)
+      break;
+    for (char **it = target->data.set_select->options; it && *it != NULL;
+         it++) {
       SDL_free(*it);
     }
     SDL_free(target->data.set_select->options);
     SDL_free(target->data.set_select);
     break;
   case UNKNOWN:
+    if (!target->data.unknown)
+      break;
     SDL_free(target->data.unknown->line);
     SDL_free(target->data.unknown);
     break;
@@ -175,7 +201,7 @@ static void Kotonoha_ORS_doDelete(struct Kotonoha_orsEvent *target) {
     break;
   default:
     SDL_LogError(0, "clean");
-    exit(1);
+    return;
     break;
   }
 }
@@ -185,23 +211,26 @@ static struct Kotonoha_orsEvent *Kotonoha_ORS_parse_line(char *line) {
     return NULL;
   }
 
-  struct Kotonoha_orsEvent *event =
-      SDL_calloc(1, sizeof(struct Kotonoha_orsEvent));
+  struct Kotonoha_orsEvent *event = static_cast<struct Kotonoha_orsEvent *>(
+      SDL_calloc(1, sizeof(struct Kotonoha_orsEvent)));
   if (event == NULL) {
     SDL_LogError(0, "malloc");
-    exit(1);
+    throw std::bad_alloc();
   }
 
+  auto destroy = [](Kotonoha_orsEvent *event) {
+    Kotonoha_ORS_doDelete(event);
+    SDL_free(event);
+  };
+  std::unique_ptr<Kotonoha_orsEvent, decltype(destroy)> owned(event, destroy);
   char *open = strchr(line, '[');
   if (open == NULL) {
-    SDL_free(event);
     return NULL;
   }
 
   char *commandStart = open + 1;
   char *commandEnd = strchr(commandStart, ']');
   if (commandEnd == NULL) {
-    SDL_free(event);
     return NULL;
   }
 
@@ -244,25 +273,26 @@ static struct Kotonoha_orsEvent *Kotonoha_ORS_parse_line(char *line) {
     event->command = MOVE_SOM;
   } else {
     event->command = UNKNOWN;
-    event->data.unknown = SDL_malloc(sizeof(struct Kotonoha_orsTypeUnknown));
+    event->data.unknown = static_cast<struct Kotonoha_orsTypeUnknown *>(
+        SDL_calloc(1, sizeof(struct Kotonoha_orsTypeUnknown)));
     if (event->data.unknown == NULL) {
       SDL_LogError(0, "malloc");
-      exit(1);
+      throw std::bad_alloc();
     }
 
-    event->data.unknown->line = SDL_malloc((strlen(line) + 1) * sizeof(char));
+    event->data.unknown->line =
+        static_cast<char *>(SDL_malloc((strlen(line) + 1) * sizeof(char)));
     if (event->data.unknown->line == NULL) {
       SDL_LogError(0, "malloc");
-      exit(1);
+      throw std::bad_alloc();
     }
 
     memcpy(event->data.unknown->line, line, strlen(line) + 1);
-    return event;
+    return owned.release();
   }
 
   char *eq = strchr(line, '=');
   if (eq == NULL) {
-    SDL_free(event);
     return NULL;
   }
   line = eq + 1;
@@ -270,24 +300,20 @@ static struct Kotonoha_orsEvent *Kotonoha_ORS_parse_line(char *line) {
   /* Dialogue may contain a literal ';'; the final one terminates the line. */
   char *end = strrchr(line, ';');
   if (end == NULL) {
-    SDL_free(event);
     return NULL;
   }
   *end = '\0';
   if (Kotonoha_ORS_field_count(line) !=
       Kotonoha_ORS_expected_fields(event->command)) {
-    SDL_free(event);
     return NULL;
   }
   if (!Kotonoha_ORS_parse_tick(line, &event->startTick)) {
-    SDL_free(event);
     return NULL;
   }
   char *finalField = strrchr(line, '\t');
   if (finalField == NULL) {
     event->endTick = event->startTick;
   } else if (!Kotonoha_ORS_parse_tick(finalField + 1, &event->endTick)) {
-    SDL_free(event);
     return NULL;
   }
 
@@ -304,16 +330,14 @@ static struct Kotonoha_orsEvent *Kotonoha_ORS_parse_line(char *line) {
     break;
 
   case MOVE_SOM: {
-    event->data.move_som = SDL_malloc(sizeof(struct Kotonoha_orsTypeMoveSom));
+    event->data.move_som = static_cast<struct Kotonoha_orsTypeMoveSom *>(
+        SDL_calloc(1, sizeof(struct Kotonoha_orsTypeMoveSom)));
     if (event->data.move_som == NULL) {
-      SDL_free(event);
       return NULL;
     }
     char *numeric = line;
     char *end_tick = strchr(numeric, '\t');
     if (end_tick == NULL) {
-      SDL_free(event->data.move_som);
-      SDL_free(event);
       return NULL;
     }
     *end_tick++ = '\0';
@@ -323,10 +347,11 @@ static struct Kotonoha_orsEvent *Kotonoha_ORS_parse_line(char *line) {
   }
 
   case PLAY_SE: {
-    event->data.play_se = SDL_malloc(sizeof(struct Kotonoha_orsTypePlaySe));
+    event->data.play_se = static_cast<struct Kotonoha_orsTypePlaySe *>(
+        SDL_calloc(1, sizeof(struct Kotonoha_orsTypePlaySe)));
     if (event->data.play_se == NULL) {
       SDL_LogError(0, "malloc");
-      exit(1);
+      throw std::bad_alloc();
     }
 
     Kotonoha_ORS_swap_tab_null(line, &transformed);
@@ -336,10 +361,11 @@ static struct Kotonoha_orsEvent *Kotonoha_ORS_parse_line(char *line) {
     line = Kotonoha_ORS_char_jump_tab(line);
     int sizeFind = Kotonoha_ORS_swap_tab_null(line, &transformed);
 
-    event->data.play_se->path = SDL_malloc((sizeFind + 1) * sizeof(char));
+    event->data.play_se->path =
+        static_cast<char *>(SDL_malloc((sizeFind + 1) * sizeof(char)));
     if (event->data.play_se->path == NULL) {
       SDL_LogError(0, "malloc");
-      exit(1);
+      throw std::bad_alloc();
     }
 
     memcpy(event->data.play_se->path, line, sizeFind * sizeof(char));
@@ -352,18 +378,19 @@ static struct Kotonoha_orsEvent *Kotonoha_ORS_parse_line(char *line) {
   }
 
   case PLAY_MOVIE: {
-    event->data.play_movie =
-        SDL_malloc(sizeof(struct Kotonoha_orsTypePlayMovie));
+    event->data.play_movie = static_cast<struct Kotonoha_orsTypePlayMovie *>(
+        SDL_calloc(1, sizeof(struct Kotonoha_orsTypePlayMovie)));
     if (event->data.play_movie == NULL) {
       SDL_LogError(0, "malloc");
-      exit(1);
+      throw std::bad_alloc();
     }
 
     int sizeFind = Kotonoha_ORS_swap_tab_null(line, &transformed);
-    event->data.play_movie->path = SDL_malloc((sizeFind + 1) * sizeof(char));
+    event->data.play_movie->path =
+        static_cast<char *>(SDL_malloc((sizeFind + 1) * sizeof(char)));
     if (event->data.play_movie->path == NULL) {
       SDL_LogError(0, "malloc");
-      exit(1);
+      throw std::bad_alloc();
     }
 
     memcpy(event->data.play_movie->path, line, sizeFind * sizeof(char));
@@ -389,13 +416,15 @@ static struct Kotonoha_orsEvent *Kotonoha_ORS_parse_line(char *line) {
     goto fade;
   fade:
     {
-      event->data.fade = SDL_malloc(sizeof(struct Kotonoha_orsTypeFade));
+      event->data.fade = static_cast<struct Kotonoha_orsTypeFade *>(
+          SDL_calloc(1, sizeof(struct Kotonoha_orsTypeFade)));
       if (event->data.fade == NULL) {
         SDL_LogError(0, "malloc");
-        exit(1);
+        throw std::bad_alloc();
       }
 
-      event->data.fade->color = genericAction;
+      event->data.fade->color =
+          static_cast<Kotonoha_orsFadecolor>(genericAction);
       Kotonoha_ORS_swap_tab_null(line, &transformed);
       event->data.fade->a = (strcmp(line, "IN") == 0) ? true : false;
       Kotonoha_ORS_swap_tab_null(line, &transformed);
@@ -406,19 +435,19 @@ static struct Kotonoha_orsEvent *Kotonoha_ORS_parse_line(char *line) {
     }
 
   case PRINT_TEXT: {
-    event->data.print_text =
-        SDL_malloc(sizeof(struct Kotonoha_orsTypePrintText));
+    event->data.print_text = static_cast<struct Kotonoha_orsTypePrintText *>(
+        SDL_calloc(1, sizeof(struct Kotonoha_orsTypePrintText)));
     if (event->data.print_text == NULL) {
       SDL_LogError(0, "malloc");
-      exit(1);
+      throw std::bad_alloc();
     }
 
     int sizeFind = Kotonoha_ORS_swap_tab_null(line, &transformed);
     event->data.print_text->character =
-        SDL_malloc((sizeFind + 1) * sizeof(char));
+        static_cast<char *>(SDL_malloc((sizeFind + 1) * sizeof(char)));
     if (event->data.print_text->character == NULL) {
       SDL_LogError(0, "malloc");
-      exit(1);
+      throw std::bad_alloc();
     }
 
     memcpy(event->data.print_text->character, line, sizeFind * sizeof(char));
@@ -428,10 +457,11 @@ static struct Kotonoha_orsEvent *Kotonoha_ORS_parse_line(char *line) {
     line = Kotonoha_ORS_char_jump_tab(line);
 
     sizeFind = Kotonoha_ORS_swap_tab_null(line, &transformed);
-    event->data.print_text->text = SDL_malloc((sizeFind + 1) * sizeof(char));
+    event->data.print_text->text =
+        static_cast<char *>(SDL_malloc((sizeFind + 1) * sizeof(char)));
     if (event->data.print_text->text == NULL) {
       SDL_LogError(0, "malloc");
-      exit(1);
+      throw std::bad_alloc();
     }
 
     memcpy(event->data.print_text->text, line, sizeFind * sizeof(char));
@@ -452,10 +482,9 @@ static struct Kotonoha_orsEvent *Kotonoha_ORS_parse_line(char *line) {
       *separator = '\0'; /* Exact arity was checked above. */
       fields[i] = separator + 1;
     }
-    event->data.play_voice =
-        SDL_calloc(1, sizeof(struct Kotonoha_orsTypePlayVoice));
+    event->data.play_voice = static_cast<struct Kotonoha_orsTypePlayVoice *>(
+        SDL_calloc(1, sizeof(struct Kotonoha_orsTypePlayVoice)));
     if (event->data.play_voice == NULL) {
-      SDL_free(event);
       return NULL;
     }
     event->data.play_voice->path =
@@ -468,10 +497,6 @@ static struct Kotonoha_orsEvent *Kotonoha_ORS_parse_line(char *line) {
     if (event->data.play_voice->path == NULL ||
         (strcmp(fields[2], "xxx") != 0 &&
          event->data.play_voice->character_short == NULL)) {
-      SDL_free(event->data.play_voice->path);
-      SDL_free(event->data.play_voice->character_short);
-      SDL_free(event->data.play_voice);
-      SDL_free(event);
       return NULL;
     }
     event->end = Kotonoha_ORS_parse_timestamp(fields[3]);
@@ -479,17 +504,19 @@ static struct Kotonoha_orsEvent *Kotonoha_ORS_parse_line(char *line) {
   }
 
   case CREATE_BG: {
-    event->data.create_bg = SDL_malloc(sizeof(struct Kotonoha_orsTypeCreateBg));
+    event->data.create_bg = static_cast<struct Kotonoha_orsTypeCreateBg *>(
+        SDL_calloc(1, sizeof(struct Kotonoha_orsTypeCreateBg)));
     if (event->data.create_bg == NULL) {
       SDL_LogError(0, "malloc");
-      exit(1);
+      throw std::bad_alloc();
     }
 
     int sizeFind = Kotonoha_ORS_swap_tab_null(line, &transformed);
-    event->data.create_bg->a = SDL_malloc((sizeFind + 1) * sizeof(char));
+    event->data.create_bg->a =
+        static_cast<char *>(SDL_malloc((sizeFind + 1) * sizeof(char)));
     if (event->data.create_bg->a == NULL) {
       SDL_LogError(0, "malloc");
-      exit(1);
+      throw std::bad_alloc();
     }
 
     memcpy(event->data.create_bg->a, line, sizeFind * sizeof(char));
@@ -499,10 +526,11 @@ static struct Kotonoha_orsEvent *Kotonoha_ORS_parse_line(char *line) {
     line = Kotonoha_ORS_char_jump_tab(line);
 
     sizeFind = Kotonoha_ORS_swap_tab_null(line, &transformed);
-    event->data.create_bg->path = SDL_malloc((sizeFind + 1) * sizeof(char));
+    event->data.create_bg->path =
+        static_cast<char *>(SDL_malloc((sizeFind + 1) * sizeof(char)));
     if (event->data.create_bg->path == NULL) {
       SDL_LogError(0, "malloc");
-      exit(1);
+      throw std::bad_alloc();
     }
 
     memcpy(event->data.create_bg->path, line, sizeFind * sizeof(char));
@@ -515,17 +543,19 @@ static struct Kotonoha_orsEvent *Kotonoha_ORS_parse_line(char *line) {
   }
 
   case SetSELECT: {
-    event->data.set_select = SDL_malloc(sizeof(struct Kotonoha_orsSetSELECT));
+    event->data.set_select = static_cast<struct Kotonoha_orsSetSELECT *>(
+        SDL_calloc(1, sizeof(struct Kotonoha_orsSetSELECT)));
     if (event->data.set_select == NULL) {
       SDL_LogError(0, "malloc");
-      exit(1);
+      throw std::bad_alloc();
     }
 
     event->data.set_select->size = 0;
-    event->data.set_select->options = SDL_malloc(sizeof(char *));
+    event->data.set_select->options =
+        static_cast<char **>(SDL_malloc(sizeof(char *)));
     if (event->data.set_select->options == NULL) {
       SDL_LogError(0, "malloc");
-      exit(1);
+      throw std::bad_alloc();
     }
 
     event->data.set_select->options[0] = NULL;
@@ -542,21 +572,22 @@ static struct Kotonoha_orsEvent *Kotonoha_ORS_parse_line(char *line) {
                                 strcmp(line, "\"\"") == 0;
 
       if (!ignoreOption) {
-        char *optionText = SDL_malloc((size_t)sizeStr * sizeof(char));
+        char *optionText =
+            static_cast<char *>(SDL_malloc((size_t)sizeStr * sizeof(char)));
         if (optionText == NULL) {
           SDL_LogError(0, "malloc");
-          exit(1);
+          throw std::bad_alloc();
         }
 
         memcpy(optionText, line, (size_t)sizeStr * sizeof(char));
 
-        char **newOptions = SDL_realloc(
+        char **newOptions = static_cast<char **>(SDL_realloc(
             event->data.set_select->options,
-            (size_t)(event->data.set_select->size + 2) * sizeof(char *));
+            (size_t)(event->data.set_select->size + 2) * sizeof(char *)));
         if (newOptions == NULL) {
           SDL_free(optionText);
           SDL_LogError(0, "realloc");
-          exit(1);
+          throw std::bad_alloc();
         }
 
         event->data.set_select->options = newOptions;
@@ -577,17 +608,19 @@ static struct Kotonoha_orsEvent *Kotonoha_ORS_parse_line(char *line) {
   case PLAY_BGM:
   case END_BGM:
   case END_ROLL: {
-    event->data.path_end = SDL_malloc(sizeof(struct Kotonoha_orsTypePathEnd));
+    event->data.path_end = static_cast<struct Kotonoha_orsTypePathEnd *>(
+        SDL_calloc(1, sizeof(struct Kotonoha_orsTypePathEnd)));
     if (event->data.path_end == NULL) {
       SDL_LogError(0, "malloc");
-      exit(1);
+      throw std::bad_alloc();
     }
 
     int sizeFind = Kotonoha_ORS_swap_tab_null(line, &transformed);
-    event->data.path_end->path = SDL_malloc((sizeFind + 1) * sizeof(char));
+    event->data.path_end->path =
+        static_cast<char *>(SDL_malloc((sizeFind + 1) * sizeof(char)));
     if (event->data.path_end->path == NULL) {
       SDL_LogError(0, "malloc");
-      exit(1);
+      throw std::bad_alloc();
     }
 
     memcpy(event->data.path_end->path, line, sizeFind * sizeof(char));
@@ -602,16 +635,18 @@ static struct Kotonoha_orsEvent *Kotonoha_ORS_parse_line(char *line) {
   default:
     event->command = UNKNOWN;
     if (line != NULL) {
-      event->data.unknown = SDL_malloc(sizeof(struct Kotonoha_orsTypeUnknown));
+      event->data.unknown = static_cast<struct Kotonoha_orsTypeUnknown *>(
+          SDL_calloc(1, sizeof(struct Kotonoha_orsTypeUnknown)));
       if (event->data.unknown == NULL) {
         SDL_LogError(0, "malloc");
-        exit(1);
+        throw std::bad_alloc();
       }
 
-      event->data.unknown->line = SDL_malloc((strlen(line) + 1) * sizeof(char));
+      event->data.unknown->line =
+          static_cast<char *>(SDL_malloc((strlen(line) + 1) * sizeof(char)));
       if (event->data.unknown->line == NULL) {
         SDL_LogError(0, "malloc");
-        exit(1);
+        throw std::bad_alloc();
       }
 
       memcpy(event->data.unknown->line, line, strlen(line) + 1);
@@ -623,7 +658,7 @@ static struct Kotonoha_orsEvent *Kotonoha_ORS_parse_line(char *line) {
   }
 
   event->eventTouched = false;
-  return event;
+  return owned.release();
 }
 
 static void Kotonoha_ORS_storage(struct Kotonoha_orsData *target,
@@ -684,96 +719,49 @@ static void Kotonoha_ORS_parse_buffer_line(struct Kotonoha_orsData *result,
     --end;
   }
   const size_t length = end - begin;
-  char *line = SDL_malloc(length + 1u);
-  if (line == NULL) {
-    SDL_LogError(0, "malloc");
-    exit(1);
-  }
-  if (length != 0u) {
-    memcpy(line, bytes + begin, length);
-  }
-  line[length] = '\0';
-  struct Kotonoha_orsEvent *parsed_event = Kotonoha_ORS_parse_line(line);
-  if (parsed_event != NULL) {
-    Kotonoha_ORS_storage(result, parsed_event);
-  }
-  SDL_free(line);
+  std::vector<char> line(length + 1u, 0);
+  if (length)
+    memcpy(line.data(), bytes + begin, length);
+  auto *parsed = Kotonoha_ORS_parse_line(line.data());
+  if (parsed)
+    Kotonoha_ORS_storage(result, parsed);
 }
 
 struct Kotonoha_orsData Kotonoha_OrsParserBytes(const void *input,
                                                 size_t size) {
-  struct Kotonoha_orsData result = {NULL, NULL, 0};
-  if (input == NULL && size != 0u) {
-    return result;
+  Kotonoha::Resource<Kotonoha_orsData, Kotonoha_OrsClean> owned;
+  auto &result = owned.get();
+  if (!input && size)
+    return {};
+  try {
+    auto *bytes = static_cast<const char *>(input);
+    size_t begin = 0;
+    for (size_t n = 0; n < size; ++n)
+      if (bytes[n] == '\n') {
+        Kotonoha_ORS_parse_buffer_line(&result, bytes, begin, n);
+        begin = n + 1;
+      }
+    if (begin < size)
+      Kotonoha_ORS_parse_buffer_line(&result, bytes, begin, size);
+    return owned.release();
+  } catch (const std::exception &e) {
+    SDL_LogError(0, "ORS parse: %s", e.what());
+    return {};
   }
-  const char *bytes = (const char *)input;
-  size_t begin = 0u;
-  for (size_t pos = 0u; pos < size; ++pos) {
-    if (bytes[pos] != '\n') {
-      continue;
-    }
-    Kotonoha_ORS_parse_buffer_line(&result, bytes, begin, pos);
-    begin = pos + 1u;
-  }
-  /* fopen/fgetc processes the final unterminated line at EOF.  An empty file
-   * (or a file ending in LF) does not need a synthetic extra event. */
-  if (begin < size) {
-    Kotonoha_ORS_parse_buffer_line(&result, bytes, begin, size);
-  }
-  return result;
 }
-
-struct Kotonoha_orsData Kotonoha_OrsParser(const char *input) {
-  struct Kotonoha_orsData result = {NULL, NULL, 0};
-  FILE *file = fopen(input, "r");
-  if (file == NULL) {
-    SDL_LogError(0, "fopen");
-    return result;
+struct Kotonoha_orsData Kotonoha_OrsParser(const char *path) {
+  if (!path)
+    return {};
+  try {
+    std::ifstream input(path, std::ios::binary);
+    if (!input)
+      return {};
+    std::vector<char> bytes((std::istreambuf_iterator<char>(input)), {});
+    return Kotonoha_OrsParserBytes(bytes.data(), bytes.size());
+  } catch (const std::exception &e) {
+    SDL_LogError(0, "ORS read: %s", e.what());
+    return {};
   }
-
-  bool not_end_of_file = true;
-
-  while (not_end_of_file) {
-    int c = MIMUMUM_LINE_SIZE;
-    char *line = SDL_malloc(c * sizeof(char));
-    if (line == NULL) {
-      SDL_LogError(0, "malloc");
-      exit(1);
-    }
-
-    int i = 0;
-    while (true) {
-      int ch = fgetc(file);
-      if (ch == '\n' || ch == EOF) {
-        not_end_of_file = (ch != EOF);
-        break;
-      }
-
-      if (i >= c - 1) {
-        c *= 2;
-        line = SDL_realloc(line, c * sizeof(char));
-        if (line == NULL) {
-          SDL_LogError(0, "realloc");
-          exit(1);
-        }
-      }
-      line[i++] = (char)ch;
-    }
-
-    line[i] = '\0';
-    if (i > 0 && line[i - 1] == '\r') {
-      line[i - 1] = '\0';
-    }
-
-    struct Kotonoha_orsEvent *parsed_event = Kotonoha_ORS_parse_line(line);
-    if (parsed_event) {
-      Kotonoha_ORS_storage(&result, parsed_event);
-    }
-    SDL_free(line);
-  }
-
-  fclose(file);
-  return result;
 }
 
 void Kotonoka_OrsDelete(struct Kotonoha_orsData *events,
@@ -794,6 +782,8 @@ void Kotonoka_OrsDelete(struct Kotonoha_orsData *events,
           here->next->prev = prv;
       }
 
+      if (events->last == here)
+        events->last = prv;
       Kotonoha_ORS_doDelete(target);
       SDL_free(here);
       events->size--;

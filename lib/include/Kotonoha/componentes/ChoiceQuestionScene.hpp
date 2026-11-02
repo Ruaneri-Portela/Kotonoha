@@ -26,6 +26,7 @@ protected:
   bool active = false;
   std::size_t selected = 0;
   float scroll = 0;
+  ScrollGesture scrollGesture;
   // Area the options scroll and receive clicks in.
   virtual SDL_FRect listArea() const { return {230, 190, 820, 440}; }
   virtual void layout();
@@ -68,6 +69,8 @@ public:
   }
   bool capturesInput() const override { return active; }
 
+  void translationChanged(const std::string &, const std::string &,
+                          const std::string &) override;
   void onEvent(EventRef event) override;
   void update() override;
   void render(RendererRef renderer, float scale) override;

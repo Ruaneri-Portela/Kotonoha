@@ -4,6 +4,9 @@
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/FileSystem.hpp>
 #include <Kotonoha/core/UI.hpp>
+#include <Kotonoha/events/BackAction.hpp>
+#include <Kotonoha/events/BacklogEvents.hpp>
+#include <Kotonoha/events/InputActions.hpp>
 #include <Kotonoha/media/PcmPlayer.hpp>
 #include <Kotonoha/media/upscaling/Upscaler.hpp>
 
@@ -874,6 +877,128 @@ struct Game {
                    "DDLC: cannot play UI sound %s", file);
   }
 
+  struct LiveEdit {
+    std::string previous, translated;
+  };
+  std::map<std::string, LiveEdit> liveEdits;
+  const Node *liveNode = nullptr;
+  std::string liveNativeText, liveNativeSpeaker;
+  Window projectedWindow;
+  bool projectionDirty = false;
+  Kotonoha::ScrollGesture historyGesture, poemGesture;
+
+  void syncLiveLine() {
+    const Node *node = vm ? vm->currentNode() : nullptr;
+    const auto text = vm ? vm->scene.window.what : std::string();
+    const auto who = vm ? vm->scene.window.who : std::string();
+    if (node != liveNode || text != liveNativeText ||
+        who != liveNativeSpeaker) {
+      liveNode = node;
+      liveNativeText = text;
+      liveNativeSpeaker = who;
+      liveEdits.clear();
+      projectionDirty = true;
+    }
+  }
+  void translationChanged(const std::string &original,
+                          const std::string &previous,
+                          const std::string &translated) {
+    if (!vm)
+      return;
+    syncLiveLine();
+    auto [entry, inserted] =
+        liveEdits.try_emplace(original, LiveEdit{previous, translated});
+    if (!inserted)
+      entry->second.translated = translated;
+    projectionDirty = true;
+  }
+  const Window &displayWindow(const Window &native) {
+    syncLiveLine();
+    if (liveEdits.empty() || native.what != liveNativeText ||
+        native.who != liveNativeSpeaker)
+      return native;
+    if (!projectionDirty)
+      return projectedWindow;
+    projectedWindow = native;
+    for (const auto &[original, edit] : liveEdits) {
+      const auto before = vm->interpolate(edit.previous),
+                 rawOriginal = vm->interpolate(original);
+      if (projectedWindow.who == before || projectedWindow.who == rawOriginal)
+        projectedWindow.who = vm->interpolate(edit.translated);
+      bool applies = false;
+      if (liveNode && liveNode->k == Node::K::Say &&
+          liveNode->str("what") == original) {
+        std::string prefix, suffix;
+        const auto expression = liveNode->ast.get("who");
+        if (!expression.isNone())
+          try {
+            auto who = vm->py.eval(expression.text());
+            if (who.cls() == "Character") {
+              auto p = who.get("what_prefix"), s = who.get("what_suffix");
+              prefix = p.isNone() ? "" : p.text();
+              suffix = s.isNone() ? "" : s.text();
+            }
+          } catch (const PyError &) {
+          }
+        projectedWindow.what =
+            vm->formatDialogueText(prefix + edit.translated + suffix);
+        applies = true;
+      } else if (projectedWindow.what == before ||
+                 projectedWindow.what == rawOriginal) {
+        projectedWindow.what = vm->interpolate(edit.translated);
+        applies = true;
+      }
+      if (applies)
+        projectedWindow.rich = parseRich(projectedWindow.what, vm->textCps);
+    }
+    projectionDirty = false;
+    return projectedWindow;
+  }
+  size_t displayVisible(const Window &native, double time) {
+    const auto &shown = displayWindow(native);
+    auto visible = native.visibleAt(time);
+    return &native == &shown ? std::min(visible, shown.rich.glyphs.size())
+           : native.rich.glyphs.empty()
+               ? shown.rich.glyphs.size()
+               : std::min(shown.rich.glyphs.size(),
+                          size_t(std::llround(double(visible) *
+                                              shown.rich.glyphs.size() /
+                                              native.rich.glyphs.size())));
+  }
+  std::string displayChoice(const Interaction::Item &item) {
+    syncLiveLine();
+    for (const auto &[original, edit] : liveEdits) {
+      if (item.text == vm->interpolate(edit.previous) ||
+          item.text == vm->interpolate(original))
+        return vm->interpolate(edit.translated);
+    }
+    return item.text;
+  }
+  bool backAction() {
+    if (nameInput) {
+      nameInput = false;
+      SDL_StopTextInput(&engine.GetWindow());
+      return true;
+    }
+    if (phase != Phase::Play)
+      return false;
+    if (!notice.empty())
+      notice.clear();
+    else if (pauseMenu && subMenu != SubMenu::None)
+      subMenu = SubMenu::None;
+    else
+      openPause(!pauseMenu);
+    return true;
+  }
+  bool openHistory() {
+    if (phase != Phase::Play || pauseMenu)
+      return false;
+    subMenu = SubMenu::History;
+    historyScroll = 0;
+    openPause(true);
+    return true;
+  }
+
   // ---- primitives (logical 1280x720 coordinates, render scale set) ----
 
   Tex *image(SDL_Renderer *r, const std::string &file) {
@@ -1097,7 +1222,8 @@ struct Game {
 
   // ---- screens ----
 
-  void drawWindow(SDL_Renderer *r, const Window &w, double t) {
+  void drawWindow(SDL_Renderer *r, const Window &native, double t) {
+    const Window &w = displayWindow(native);
     const std::string box =
         w.monika ? "gui/textbox_monika.png" : "gui/textbox.png";
     if (Tex *tb = image(r, box))
@@ -1115,7 +1241,8 @@ struct Game {
     ds.outlines = {{2.f, 0x000000aa}};
     ds.maxWidth = 744;
     const float m[6] = {1, 0, 268, 0, 1, kWinTop + 62};
-    drawRich(r, w.rich, w.visibleAt(t), ds, m, 1, w.what);
+    const auto mapped = displayVisible(native, t);
+    drawRich(r, w.rich, mapped, ds, m, 1, w.what);
   }
 
   void drawQuickMenu(SDL_Renderer *r) {
@@ -1169,7 +1296,7 @@ struct Game {
     std::vector<float> hs;
     float total = 0;
     for (auto &it : in.items) {
-      hs.push_back(textSize(it.text, st).y + 10);
+      hs.push_back(textSize(displayChoice(it), st).y + 10);
       total += hs.back();
     }
     total += 22 * float(in.items.size() > 0 ? in.items.size() - 1 : 0);
@@ -1192,8 +1319,9 @@ struct Game {
                 b, 100, 5, 100, 5);
       TextStyle s = st;
       s.color = hov ? 0xffaa99ff : 0x000000ff;
-      const SDL_FPoint sz = textSize(it.text, s);
-      drawText(r, it.text, s, kW / 2 - sz.x / 2, y + 5);
+      const auto label = displayChoice(it);
+      const SDL_FPoint sz = textSize(label, s);
+      drawText(r, label, s, kW / 2 - sz.x / 2, y + 5);
       y += hs[i] + 22;
     }
   }
@@ -2232,6 +2360,25 @@ struct Game {
 
   bool handleEvent(const SDL_Event &event) {
     const SDL_Event *e = &event;
+    if (Kotonoha::BackAction(engine, event) && phase == Phase::Play)
+      return backAction();
+    if (Kotonoha::ShouldOpenBacklog(engine, event) && phase == Phase::Play &&
+        !pauseMenu)
+      return openHistory();
+    float velocity = 0;
+    bool follow = false;
+    if (pauseMenu && subMenu == SubMenu::History) {
+      float target = historyMax - historyScroll;
+      if (historyGesture.handle(event, kH, target, velocity, follow,
+                                historyMax)) {
+        historyScroll = historyMax - target;
+        return true;
+      }
+    } else if (vm && vm->scene.hasScreen("poem") && poemMax > 0 &&
+               poemGesture.handle(event, kH, poemScroll, velocity, follow,
+                                  poemMax))
+      return true;
+
     switch (e->type) {
     case SDL_EVENT_MOUSE_MOTION:
       mx = e->motion.x;
@@ -2247,10 +2394,9 @@ struct Game {
         openPause(!pauseMenu);
       break;
     case SDL_EVENT_FINGER_DOWN:
-      mx = e->tfinger.x;
-      my = e->tfinger.y;
-      if (mx >= 0 && mx < kW && my >= 0 && my < kH)
-        click();
+    case SDL_EVENT_FINGER_UP:
+    case SDL_EVENT_FINGER_MOTION:
+      // Engine synthesizes a click only after a completed tap, never on down.
       break;
     case SDL_EVENT_MOUSE_WHEEL:
       if (pauseMenu && subMenu == SubMenu::History)
@@ -2340,6 +2486,70 @@ GameSession::GameSession(Kotonoha::Engine &engine,
     : impl_(std::make_unique<Impl>(engine, std::move(assets))) {}
 
 GameSession::~GameSession() = default;
+
+void GameSession::startGame() { impl_->game.startGame(); }
+void GameSession::setPaused(bool paused) { impl_->game.openPause(paused); }
+bool GameSession::backAction() { return impl_->game.backAction(); }
+bool GameSession::openHistory() { return impl_->game.openHistory(); }
+bool GameSession::historyOpen() const {
+  return impl_->game.pauseMenu && impl_->game.subMenu == Game::SubMenu::History;
+}
+void GameSession::translationChanged(const std::string &original,
+                                     const std::string &previous,
+                                     const std::string &translated) {
+  impl_->game.translationChanged(original, previous, translated);
+}
+std::string GameSession::dialogueText() const {
+  auto &g = impl_->game;
+  return g.vm ? g.displayWindow(g.vm->scene.window).what : std::string();
+}
+std::string GameSession::dialogueSourceText() const {
+  auto &g = impl_->game;
+  auto *n = g.vm ? g.vm->currentNode() : nullptr;
+  return n && n->k == Node::K::Say ? n->str("what") : std::string();
+}
+std::string GameSession::dialogueSpeaker() const {
+  auto &g = impl_->game;
+  return g.vm ? g.displayWindow(g.vm->scene.window).who : std::string();
+}
+std::string GameSession::visibleDialogueText() const {
+  auto &g = impl_->game;
+  std::string result;
+  if (g.vm) {
+    const auto &native = g.vm->scene.window;
+    const auto &shown = g.displayWindow(native);
+    auto count = g.displayVisible(native, g.now());
+    for (size_t n = 0; n < count; ++n)
+      result += shown.rich.glyphs[n].ch;
+  }
+  return result;
+}
+bool GameSession::dialogueComplete() const {
+  auto &g = impl_->game;
+  return !g.vm ||
+         g.vm->scene.window.visibleAt(g.now()) >= g.vm->scene.window.to;
+}
+void GameSession::completeDialogue() {
+  auto &g = impl_->game;
+  if (g.vm) {
+    auto &w = g.vm->scene.window;
+    auto time = g.now();
+    if (w.visibleAt(time) < w.to)
+      w.t0 -= g.revealDone(w) - time;
+  }
+}
+std::vector<std::string> GameSession::choiceTexts() const {
+  auto &g = impl_->game;
+  std::vector<std::string> result;
+  if (g.vm)
+    for (auto &i : g.vm->interaction().items)
+      result.push_back(g.displayChoice(i));
+  return result;
+}
+int GameSession::translationRoute() const {
+  auto &g = impl_->game;
+  return g.vm && g.vm->currentNode() ? g.vm->currentNode()->route : -1;
+}
 
 void GameSession::update(bool suspended) {
   auto &game = impl_->game;

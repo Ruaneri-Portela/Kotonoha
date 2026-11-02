@@ -1,6 +1,7 @@
 #include "Kotonoha/routing/KtrfRuntime.h"
 
 #include <math.h>
+#include <memory>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -632,6 +633,8 @@ int Kotonoha_KtrfRuntimeApplyEffect(Kotonoha_KtrfRuntime *runtime,
           runtime, effect.payload_a, runtime->callbacks.userdata, error);
     return 1;
   case KOTONOHA_KTRF_EFFECT_CALL_HOOK: {
+    std::unique_ptr<Kotonoha_KtrfRuntimeValue, decltype(&free)> ownedArguments(
+        nullptr, free);
     Kotonoha_KtrfRuntimeValue *arguments = NULL;
     uint32_t i;
     int ok;
@@ -641,6 +644,7 @@ int Kotonoha_KtrfRuntimeApplyEffect(Kotonoha_KtrfRuntime *runtime,
     if (effect.value_count != 0u) {
       arguments = (Kotonoha_KtrfRuntimeValue *)calloc(
           effect.value_count, sizeof(Kotonoha_KtrfRuntimeValue));
+      ownedArguments.reset(arguments);
       if (arguments == NULL)
         return rt_fail(error, KOTONOHA_KTRF_ERROR_MEMORY,
                        "out of memory allocating hook arguments");
@@ -651,14 +655,12 @@ int Kotonoha_KtrfRuntimeApplyEffect(Kotonoha_KtrfRuntime *runtime,
                                        error) ||
           !Kotonoha_KtrfRuntimeEvalValueRef(runtime, &ref, &arguments[i],
                                             error)) {
-        free(arguments);
         return 0;
       }
     }
     ok = runtime->callbacks.call_hook(runtime, effect.payload_a, arguments,
                                       effect.value_count,
                                       runtime->callbacks.userdata, error);
-    free(arguments);
     return ok;
   }
   default:

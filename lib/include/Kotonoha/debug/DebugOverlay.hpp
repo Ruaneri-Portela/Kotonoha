@@ -81,7 +81,7 @@ public:
   void update();
   void renderHUD(RendererRef renderer);
   void renderMenu(RendererRef renderer);
-  bool isVisible() const { return visible; }
+  bool isVisible() const { return visible || showTranslationWindow; }
   void setVisible(bool value);
   DebugSettings &getSettings() { return settings; }
   const DebugSettings &getSettings() const { return settings; }

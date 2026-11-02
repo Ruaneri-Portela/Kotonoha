@@ -51,6 +51,7 @@ struct App {
 
   void Start(const std::string &directory) {
     auto assets = std::make_shared<SnowRadish::SnowAssets>(directory);
+    assets->setOverlay(options.assetOverlayDirectory());
     game = std::make_unique<Application>(std::move(assets), options);
     game->framesLeft = frames;
   }
@@ -100,10 +101,9 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
       if (const char *value = std::getenv("SNOW_DIR"); value && *value)
         directory = value;
     if (directory.empty())
-      directory = DefaultDirectory();
+      directory = Kotonoha::GameLauncher::rememberedPath(settingsPath, "dir.txt");
     if (directory.empty())
-      directory =
-          Kotonoha::GameLauncher::rememberedPath(settingsPath, "dir.txt");
+      directory = DefaultDirectory();
     if (options.launcher) {
       app->launcher =
           std::make_unique<SnowRadish::SnowLauncher>(settingsPath, directory);

@@ -24,6 +24,30 @@ void VNTextBox::completeDialogue() {
   isComplete = true;
 }
 
+void VNTextBox::replaceTranslation(const std::string &original,
+                                   const std::string &previous,
+                                   const std::string &translated) {
+  const auto replace = [&](std::string &text) {
+    if (text == previous || text == original) {
+      text = translated;
+      return true;
+    }
+    return false;
+  };
+  replace(speakerName);
+  if (replace(fullDialogue)) {
+    if (isComplete) {
+      visibleDialogue = fullDialogue;
+      visibleChars = VNTextBoxUtility::CountUtf8Chars(fullDialogue);
+    } else {
+      visibleChars = std::min(
+          visibleChars, double(VNTextBoxUtility::CountUtf8Chars(fullDialogue)));
+      visibleDialogue = fullDialogue.substr(
+          0, utf8Prefix(fullDialogue, size_t(visibleChars)));
+    }
+  }
+}
+
 void VNTextBox::setTextSpeed(double charsPerSecond) {
   if (!std::isfinite(charsPerSecond) || charsPerSecond <= 0)
     throw std::invalid_argument("Text speed must be positive and finite");

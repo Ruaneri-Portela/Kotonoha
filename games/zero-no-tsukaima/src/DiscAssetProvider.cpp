@@ -123,11 +123,11 @@ bool DiscAssetProvider::Read(const std::string &id,
   return false;
 }
 
-bool DiscAssetProvider::contains(const std::string &id) const {
+bool DiscAssetProvider::containsAsset(const std::string &id) const {
   std::string kind, key;
   int n = -1;
   if (!Split(id, &kind, &key))
-    return DiscImageAssetProvider::contains(id);
+    return DiscImageAssetProvider::containsAsset(id);
   if (kind == "scenedat")
     return Number(key, &n) && size_t(n) < source_->PictureCount();
   if (kind == "normal")
@@ -148,20 +148,20 @@ bool DiscAssetProvider::contains(const std::string &id) const {
       if (name == key)
         return true;
   }
-  return DiscImageAssetProvider::contains(id);
+  return DiscImageAssetProvider::containsAsset(id);
 }
 
-std::vector<Uint8> DiscAssetProvider::read(const std::string &id) const {
+std::vector<Uint8> DiscAssetProvider::readAsset(const std::string &id) const {
   std::vector<uint8_t> out;
   if (Read(id, &out))
     return out;
-  if (DiscImageAssetProvider::contains(id))
-    return DiscImageAssetProvider::read(id);
+  if (DiscImageAssetProvider::containsAsset(id))
+    return DiscImageAssetProvider::readAsset(id);
   throw std::runtime_error("Asset not found on the disc: " + id);
 }
 
 std::vector<std::string>
-DiscAssetProvider::list(const std::string &prefix) const {
+DiscAssetProvider::listAsset(const std::string &prefix) const {
   std::vector<std::string> ids;
   auto add = [&](const std::string &id) {
     if (id.compare(0, prefix.size(), prefix) == 0)
@@ -181,13 +181,13 @@ DiscAssetProvider::list(const std::string &prefix) const {
     add("sound/" + entry.first);
   for (const auto &name : source_->Names())
     add("script/" + name);
-  for (auto &path : DiscImageAssetProvider::list(prefix))
+  for (auto &path : DiscImageAssetProvider::listAsset(prefix))
     ids.push_back(std::move(path));
   return ids;
 }
 
 Kotonoha::SurfacePtr
-DiscAssetProvider::loadSurface(const std::string &id) const {
+DiscAssetProvider::loadSurfaceAsset(const std::string &id) const {
   const std::vector<uint8_t> data = read(id);
   Image image;
   if (!DecodeTim2(data.data(), data.size(), &image))

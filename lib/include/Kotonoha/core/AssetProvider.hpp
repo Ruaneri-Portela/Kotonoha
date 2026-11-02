@@ -1,5 +1,6 @@
 #pragma once
 
+#include <Kotonoha/core/AssetOverlay.hpp>
 #include <Kotonoha/core/SDL.hpp>
 
 #include <filesystem>
@@ -23,6 +24,7 @@ struct AudioClip {
 class AssetProvider {
   std::unordered_map<std::string, TexturePtr> textures;
   SDL_Renderer *textureRenderer = nullptr;
+  AssetOverlay overlay;
 
 public:
   AssetProvider();
@@ -31,19 +33,36 @@ public:
   AssetProvider &operator=(const AssetProvider &) = delete;
 
   virtual std::string name() const = 0;
-  virtual bool contains(const std::string &id) const = 0;
+  void setOverlay(const std::filesystem::path &directory);
+  const std::filesystem::path &overlayDirectory() const {
+    return overlay.root();
+  }
+  std::string overlayPath(const std::string &id) const;
+
+protected:
+  virtual std::string overlayId(const std::string &id) const { return id; }
+  virtual bool containsAsset(const std::string &) const = 0;
+  virtual std::vector<Uint8> readAsset(const std::string &) const = 0;
+  virtual std::vector<std::string> listAsset(const std::string &) const;
+  virtual std::string localPathAsset(const std::string &) const;
+  virtual SurfacePtr loadSurfaceAsset(const std::string &) const;
+  virtual SurfacePtr loadFrameAsset(const std::string &, double) const;
+  virtual AudioClip loadAudioAsset(const std::string &) const;
+
+public:
+  bool contains(const std::string &id) const;
   // Raw bytes of an asset; throws when it does not exist.
-  virtual std::vector<Uint8> read(const std::string &id) const = 0;
+  std::vector<Uint8> read(const std::string &id) const;
   // Identifiers under a prefix, when the provider can enumerate them.
-  virtual std::vector<std::string> list(const std::string &prefix = {}) const;
+  std::vector<std::string> list(const std::string &prefix = {}) const;
   // A file streaming consumers may open directly; empty for in-memory assets.
-  virtual std::string localPath(const std::string &id) const;
+  std::string localPath(const std::string &id) const;
   // Default decoders: SDL first (BMP/PNG/JPG, WAV), then FFmpeg for every
   // other picture, video (first frame) or audio format it can probe.
-  virtual SurfacePtr loadSurface(const std::string &id) const;
-  virtual AudioClip loadAudio(const std::string &id) const;
+  SurfacePtr loadSurface(const std::string &id) const;
+  AudioClip loadAudio(const std::string &id) const;
   // The video frame shown at `seconds` (a picture for still images).
-  virtual SurfacePtr loadFrame(const std::string &id, double seconds) const;
+  SurfacePtr loadFrame(const std::string &id, double seconds) const;
 
   // Texture of loadSurface(id), cached per renderer until clearCache().
   SDL_Texture &texture(RendererRef renderer, const std::string &id);
@@ -71,10 +90,11 @@ public:
   explicit FileSystemAssetProvider(std::filesystem::path root = {});
   const std::filesystem::path &getRoot() const;
   std::string name() const override;
-  bool contains(const std::string &id) const override;
-  std::vector<Uint8> read(const std::string &id) const override;
-  std::vector<std::string> list(const std::string &prefix = {}) const override;
-  std::string localPath(const std::string &id) const override;
+  bool containsAsset(const std::string &id) const override;
+  std::vector<Uint8> readAsset(const std::string &id) const override;
+  std::vector<std::string>
+  listAsset(const std::string &prefix = {}) const override;
+  std::string localPathAsset(const std::string &id) const override;
 };
 
 } // namespace Kotonoha

@@ -10,6 +10,7 @@
 #include <Kotonoha/media/upscaling/MetalFXUpscaler.hpp>
 #include <Kotonoha/media/upscaling/OpenGLUpscaler.hpp>
 #include <Kotonoha/script/KtrfScript.hpp>
+#include <Kotonoha/parsers/Documents.hpp>
 #include <Kotonoha/script/TimelinePlayer.hpp>
 
 #include <algorithm>
@@ -533,6 +534,9 @@ void testRenderState(Engine &engine) {
 
 int main(int argc, char **argv) {
   try {
+    Kotonoha::OrsDocument emptyOrs(Kotonoha_OrsParserBytes(nullptr,0));
+    Kotonoha::OrsDocument movedOrs(std::move(emptyOrs));
+    require(emptyOrs.get().data==nullptr&&movedOrs.get().size==0,"Parser resource ownership moves safely");
     TemporaryDirectory temporary;
     if (argc == 1) {
       testLog(temporary.path);

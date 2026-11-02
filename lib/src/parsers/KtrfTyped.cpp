@@ -1,6 +1,7 @@
 #include "Kotonoha/parsers/KtrfTyped.h"
 
 #include <math.h>
+#include <memory>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -1300,9 +1301,9 @@ typed_validate_expression_cycles(const Kotonoha_KtrfDocument *document,
     return 1;
   indegree = (uint32_t *)calloc(count, sizeof(uint32_t));
   queue = (uint32_t *)malloc((size_t)count * sizeof(uint32_t));
+  std::unique_ptr<uint32_t, decltype(&free)> ownedIndegree(indegree, free),
+      ownedQueue(queue, free);
   if (!indegree || !queue) {
-    free(indegree);
-    free(queue);
     return typed_fail(error, KOTONOHA_KTRF_ERROR_MEMORY,
                       "out of memory validating EXPR acyclicity");
   }
@@ -1351,15 +1352,11 @@ typed_validate_expression_cycles(const Kotonoha_KtrfDocument *document,
       }
     }
   }
-  free(indegree);
-  free(queue);
   if (visited != count)
     return typed_fail(error, KOTONOHA_KTRF_ERROR_FORMAT,
                       "Expression reference cycle is not allowed");
   return 1;
 fail:
-  free(indegree);
-  free(queue);
   return 0;
 }
 

@@ -2,6 +2,7 @@
 
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/UI.hpp>
+#include <Kotonoha/events/BackAction.hpp>
 
 #include <algorithm>
 
@@ -35,6 +36,16 @@ bool RightClick(Kotonoha::EventRef e) {
          e.button.button == SDL_BUTTON_RIGHT;
 }
 
+SDL_Event NativeNavigation(Kotonoha::Engine &engine, Kotonoha::EventRef event) {
+  SDL_Event native = event;
+  if (Kotonoha::BackAction(engine, event)) {
+    native = {};
+    native.type = SDL_EVENT_KEY_DOWN;
+    native.key.key = SDLK_ESCAPE;
+  }
+  return native;
+}
+
 } // namespace
 
 // ---------------------------------------------------------------- title
@@ -46,7 +57,7 @@ bool ZeroTitleMenu::isVisible() const { return !session_.Playing(); }
 
 void ZeroTitleMenu::onEvent(Kotonoha::EventRef event) {
   if (isVisible())
-    session_.FrontendEvent(event);
+    session_.FrontendEvent(NativeNavigation(engine, event));
 }
 
 void ZeroTitleMenu::update() {
@@ -402,7 +413,7 @@ ZeroCommandMenu::ZeroCommandMenu(Kotonoha::Engine &engine, ZeroSession &session)
 
 void ZeroCommandMenu::onEvent(Kotonoha::EventRef event) {
   if (IsOpen())
-    session_.ScreenEvent(event);
+    session_.ScreenEvent(NativeNavigation(engine, event));
   else if (session_.Playing())
     InGameMenu::onEvent(event); // Esc opens CommandState
 }
@@ -415,7 +426,7 @@ void ZeroCommandMenu::update() {
 
 void ZeroBacklog::onEvent(Kotonoha::EventRef event) {
   if (isVisible())
-    session_.ScreenEvent(event);
+    session_.ScreenEvent(NativeNavigation(engine, event));
   else if (session_.Playing() && !session_.ScreenActive())
     VNBacklog::onEvent(event); // B opens HistoryState
 }

@@ -24,69 +24,20 @@ void VNBacklog::clear() {
 }
 
 void VNBacklog::onEvent(EventRef event) {
-  if (Kotonoha::BackAction(engine, event)) {
+  if (!isOpen)
+    return;
+  if (BackAction(engine, event) ||
+      (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat &&
+       event.key.key == SDLK_B) ||
+      UI::clicked(event, {980, 100, 160, 44})) {
     close();
     return;
   }
-
-  if (isOpen && event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat &&
-      event.key.key == SDLK_B) {
-    close();
-    return;
-  }
-
-  if (isOpen && HandleBacklogScrollEvent(event, targetScroll, scrollVelocity,
-                                         scrollToBottom, maxScroll)) {
-    return;
-  }
-
-  if (isOpen && event.type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
-      event.button.button == SDL_BUTTON_LEFT) {
-    if (UI::clicked(event, {980, 100, 160, 44})) {
-      close();
-      return;
-    }
-    isDragging = true;
-    dragStartY = event.button.y;
-    dragStartScroll = targetScroll;
-    lastDragY = event.button.y;
-    scrollVelocity = 0.0f;
-    scrollToBottom = false;
-  } else if (isOpen && event.type == SDL_EVENT_MOUSE_MOTION && isDragging) {
-    const float currentY = event.motion.y;
-    const float dy = currentY - dragStartY;
-    targetScroll = std::clamp(dragStartScroll - dy, 0.0f, maxScroll);
+  scrollGesture.handle(event, UI::height, targetScroll, scrollVelocity,
+                       scrollToBottom, maxScroll);
+  isDragging = scrollGesture.isDragging();
+  if (isDragging)
     scroll = targetScroll;
-    const float instVel = -(currentY - lastDragY);
-    scrollVelocity = scrollVelocity * 0.4f + (instVel * 60.0f) * 0.6f;
-    lastDragY = currentY;
-  } else if (isOpen && event.type == SDL_EVENT_MOUSE_BUTTON_UP &&
-             event.button.button == SDL_BUTTON_LEFT) {
-    isDragging = false;
-  }
-
-  if (isOpen && event.type == SDL_EVENT_FINGER_DOWN) {
-    const float fingerY = event.tfinger.y * UI::height;
-    isDragging = true;
-    dragTouchId = event.tfinger.fingerID;
-    dragStartY = fingerY;
-    dragStartScroll = targetScroll;
-    lastDragY = fingerY;
-    scrollVelocity = 0.0f;
-    scrollToBottom = false;
-  } else if (isOpen && event.type == SDL_EVENT_FINGER_MOTION && isDragging &&
-             event.tfinger.fingerID == dragTouchId) {
-    const float fingerY = event.tfinger.y * UI::height;
-    const float dy = fingerY - dragStartY;
-    targetScroll = std::clamp(dragStartScroll - dy, 0.0f, maxScroll);
-    scroll = targetScroll;
-    const float instVel = -(fingerY - lastDragY);
-    scrollVelocity = scrollVelocity * 0.4f + (instVel * 60.0f) * 0.6f;
-    lastDragY = fingerY;
-  } else if (isOpen && event.type == SDL_EVENT_FINGER_UP && isDragging &&
-             event.tfinger.fingerID == dragTouchId) {
-    isDragging = false;
-  }
 }
 
 void VNBacklog::update() {

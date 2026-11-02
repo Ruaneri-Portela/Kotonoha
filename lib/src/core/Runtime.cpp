@@ -6,6 +6,8 @@
 #include <Kotonoha/core/UI.hpp>
 #include <Kotonoha/script/TimelinePlayer.hpp>
 
+#include <Kotonoha/events/InputActions.hpp>
+#include <charconv>
 #include <stdexcept>
 
 namespace Kotonoha {
@@ -16,6 +18,26 @@ Runtime::Runtime(std::string name, std::string version, std::string identify)
 
 Runtime::~Runtime() = default;
 
+int Runtime::translationRoute() const {
+  auto node = debugNode();
+  size_t start = 0;
+  bool tagged = false;
+  for (auto tag : {" | scene ", " | route "})
+    if (auto pos = node.find(tag); pos != node.npos) {
+      start = pos + std::char_traits<char>::length(tag);
+      tagged = true;
+      break;
+    }
+  int id = -1;
+  auto parsed =
+      std::from_chars(node.data() + start, node.data() + node.size(), id);
+  return parsed.ec == std::errc{} && id >= 0 &&
+                 (tagged || parsed.ptr == node.data() + node.size() ||
+                  *parsed.ptr == ':')
+             ? id
+             : -1;
+}
+
 void Runtime::saveGame(const std::string &) {
   throw std::logic_error("This game has not implemented saveGame");
 }
@@ -25,6 +47,7 @@ void Runtime::loadGame(const std::string &) {
 }
 
 void Runtime::init(Engine &engine) {
+  splashEngine = &engine;
   engine.GetTimeline().stop();
   if (SDL_TextInputActive(&engine.GetWindow()) &&
       !SDL_StopTextInput(&engine.GetWindow()))
@@ -149,6 +172,8 @@ void Runtime::update() {
 }
 
 void Runtime::onEvent(EventRef event) {
+  if (splashEngine && HandleNavigation(*splashEngine, event))
+    return;
   const auto activeScenes = GetActiveScenes();
   for (auto it = activeScenes.rbegin(); it != activeScenes.rend(); ++it) {
     if (*it && (*it)->renderSpace() == RenderSpace::Novel &&

@@ -100,12 +100,12 @@ envelope, reloads it, jumps to a numeric node and verifies byte-exact dumping.
 Shared engine sources required (no new dependencies beyond existing SDL3):
 
 ```
-src/parsers/Ktrf.c
-src/parsers/KtrfTyped.c
-src/parsers/Ors.c
-src/routing/KtrfRuntime.c
-src/routing/KtrfRouter.c
-src/routing/KtrfAdapter.c
+src/parsers/Ktrf.cpp
+src/parsers/KtrfTyped.cpp
+src/parsers/Ors.cpp
+src/routing/KtrfRuntime.cpp
+src/routing/KtrfRouter.cpp
+src/routing/KtrfAdapter.cpp
 ```
 
 Public headers are under `Kotonoha/parsers`, `Kotonoha/routing` and

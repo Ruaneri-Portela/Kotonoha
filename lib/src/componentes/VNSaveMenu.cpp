@@ -216,10 +216,28 @@ void VNSaveMenu::onEvent(EventRef event) {
       return;
     }
   }
+  if (count() && event.type >= SDL_EVENT_FINGER_DOWN &&
+      event.type <= SDL_EVENT_FINGER_CANCELED) {
+    if (event.type == SDL_EVENT_FINGER_DOWN) {
+      listScroll = float(first * 50);
+      if (event.tfinger.y * UI::height < 160 ||
+          event.tfinger.y * UI::height > 510)
+        return;
+    }
+    float velocity = 0;
+    bool follow = false;
+    scrollGesture.handle(
+        event, UI::height, listScroll, velocity, follow,
+        float(count() > pageSize ? (count() - pageSize) * 50 : 0));
+    first = size_t(listScroll / 50);
+  }
   if (event.type == SDL_EVENT_MOUSE_WHEEL && count()) {
-    if (event.wheel.y < 0)
+    const float delta =
+        event.wheel.y *
+        (event.wheel.direction == SDL_MOUSEWHEEL_FLIPPED ? -1.f : 1.f);
+    if (delta < 0)
       selected = std::min(count() - 1, selected + 1);
-    else if (event.wheel.y > 0 && selected > 0)
+    else if (delta > 0 && selected > 0)
       --selected;
     revealSelection();
   }

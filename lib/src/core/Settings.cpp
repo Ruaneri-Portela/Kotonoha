@@ -59,6 +59,7 @@ void EngineSettings::validate() const {
       logPriority < SDL_LOG_PRIORITY_TRACE ||
       logPriority > SDL_LOG_PRIORITY_CRITICAL ||
       renderer.find('\0') != std::string::npos ||
+      assetOverlayPath.find('\0') != std::string::npos ||
       translationPath.find('\0') != std::string::npos ||
       fontPath.find('\0') != std::string::npos ||
       !std::isfinite(masterVolume) || masterVolume < 0 || masterVolume > 1 ||
@@ -117,6 +118,7 @@ EngineSettings EngineSettings::load(const std::string &path) {
   read(root.get(), "factor", result.upscaling.factor);
   read(root.get(), "shaderFiles", result.upscaling.shaderFiles);
   read(root.get(), "translationPath", result.translationPath);
+  read(root.get(), "assetOverlayPath", result.assetOverlayPath);
   read(root.get(), "fontPath", result.fontPath);
   result.mode = static_cast<WindowMode>(mode);
   result.upscaling.backend = static_cast<UpscaleBackend>(backend);
@@ -168,6 +170,8 @@ void EngineSettings::save(const std::string &path) const {
                          json_object_new_double(upscaling.factor));
   json_object_object_add(root.get(), "shaderFiles",
                          json_object_new_string(upscaling.shaderFiles.c_str()));
+  json_object_object_add(root.get(), "assetOverlayPath",
+                         json_object_new_string(assetOverlayPath.c_str()));
   json_object_object_add(root.get(), "translationPath",
                          json_object_new_string(translationPath.c_str()));
   json_object_object_add(root.get(), "fontPath",

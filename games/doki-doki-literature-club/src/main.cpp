@@ -43,7 +43,9 @@ struct App {
   long frames = -1;
 
   void start(const std::string &directory) {
-    auto assets = std::make_shared<Ddlc::GameAssets>(directory);
+    auto assets = std::make_shared<Ddlc::GameAssets>(
+        directory, options.assetOverlayDirectory());
+    assets->setOverlay(options.assetOverlayDirectory());
     game = std::make_unique<Application>(assets, options);
     game->framesLeft = frames;
   }
@@ -103,10 +105,9 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
       if (const char *value = std::getenv("DDLC_DIR"); value && *value)
         directory = value;
     if (directory.empty())
-      directory = defaultDirectory();
+      directory = Kotonoha::GameLauncher::rememberedPath(settingsPath, "dir.txt");
     if (directory.empty())
-      directory =
-          Kotonoha::GameLauncher::rememberedPath(settingsPath, "dir.txt");
+      directory = defaultDirectory();
     if (options.launcher) {
       app->launcher =
           std::make_unique<Ddlc::GameLauncher>(settingsPath, directory);

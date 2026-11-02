@@ -263,6 +263,17 @@ void testGame(const std::string &discPath) {
                   node.find(".KS") != std::string::npos,
               "The debug overlay shows the game script node");
     }
+    {
+      const auto original = text->getText();
+      auto route = std::to_string(session.Story()->SceneIndex());
+      text->completeDialogue();
+      engine.setTranslation(route, original,
+                            "Tradução atualizada sem reiniciar a cena");
+      engine.Iterate();
+      require(text->getText() == "Tradução atualizada sem reiniciar a cena",
+              "Zero native textbox refreshes a live edit");
+      engine.setTranslation(route, original, original);
+    }
     capture(engine, game, "1-message");
     testDump(engine, session.Story()->Text(),
              int(session.Story()->SceneIndex()));
@@ -300,6 +311,23 @@ void testGame(const std::string &discPath) {
     require(menu->IsOpen() && engine.isStoryPaused(),
             "Esc opens CommandState through InGameMenu");
     capture(engine, game, "2-command");
+    for (auto pair : {std::pair{SDL_EVENT_FINGER_DOWN, SDL_FingerID(1)},
+                      std::pair{SDL_EVENT_FINGER_DOWN, SDL_FingerID(2)},
+                      std::pair{SDL_EVENT_FINGER_UP, SDL_FingerID(1)},
+                      std::pair{SDL_EVENT_FINGER_UP, SDL_FingerID(2)}}) {
+      SDL_Event touch{};
+      touch.type = pair.first;
+      touch.tfinger.touchID = 1;
+      touch.tfinger.fingerID = pair.second;
+      touch.tfinger.x = .5;
+      touch.tfinger.y = .5;
+      send(engine, touch);
+    }
+    frames(engine, 30);
+    require(!menu->IsOpen(), "Two-finger Back closes native CommandState");
+    press(engine, SDLK_ESCAPE);
+    frames(engine, 30);
+
     pressUntil(
         engine, SDLK_ESCAPE, [&] { return !menu->IsOpen(); }, 20,
         "close command menu");

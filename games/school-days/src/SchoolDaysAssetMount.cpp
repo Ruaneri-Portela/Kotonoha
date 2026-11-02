@@ -1,5 +1,6 @@
 #include <Kotonoha/SchoolDaysAssetMount.hpp>
 #include <Kotonoha/SchoolDaysImageAssetResolver.hpp>
+#include <Kotonoha/core/AssetOverlay.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -17,16 +18,16 @@ namespace {
 
 std::mutex gMountMutex;
 std::shared_ptr<const SchoolDaysGpkAssetStore> gMount;
-std::filesystem::path gScriptDirectory;
+std::shared_ptr<const AssetOverlay> gOverlay;
 
 std::shared_ptr<const SchoolDaysGpkAssetStore> CurrentMount() {
   std::lock_guard<std::mutex> guard(gMountMutex);
   return gMount;
 }
 
-std::filesystem::path CurrentScriptDirectory() {
+std::shared_ptr<const AssetOverlay> CurrentOverlay() {
   std::lock_guard<std::mutex> guard(gMountMutex);
-  return gScriptDirectory;
+  return gOverlay;
 }
 
 // Translated scripts name resources with their original Kotonoha-side layout
@@ -67,7 +68,7 @@ MountedResolverLookup(const std::string &logicalPath, std::string *reference) {
   if (reference != nullptr)
     reference->clear();
   std::string physical;
-  if (ResolveSchoolDaysScriptDirectoryFile(logicalPath, &physical)) {
+  if (ResolveSchoolDaysOverlayFile(logicalPath, &physical)) {
     if (reference != nullptr)
       *reference = physical;
     return SchoolDaysAssetResolutionStatus::Present;
@@ -190,99 +191,52 @@ bool MountSchoolDaysRetailGpks(const std::filesystem::path &gameOrPacksRoot,
   return true;
 }
 
-bool SetSchoolDaysScriptDirectory(const std::filesystem::path &directory,
-                                  std::string *error) {
-  if (error != nullptr)
-    error->clear();
-  std::error_code ec;
-  std::filesystem::path canonical;
-  if (!directory.empty()) {
-    if (!std::filesystem::is_directory(directory, ec))
-      return Fail(error, "School Days script directory does not exist");
-    canonical = std::filesystem::weakly_canonical(directory, ec);
-    if (ec)
-      canonical = directory;
+bool SetSchoolDaysAssetOverlay(const std::filesystem::path &directory,
+                               std::string *error) {
+  try {
+    auto mounted = std::make_shared<AssetOverlay>(directory);
+    std::lock_guard<std::mutex> guard(gMountMutex);
+    gOverlay = std::move(mounted);
+    return true;
+  } catch (const std::exception &e) {
+    return Fail(error, e.what());
   }
-  std::lock_guard<std::mutex> guard(gMountMutex);
-  gScriptDirectory = std::move(canonical);
-  return true;
 }
-
-bool SchoolDaysScriptDirectorySet() {
-  return !CurrentScriptDirectory().empty();
+bool SchoolDaysAssetOverlaySet() {
+  auto overlay = CurrentOverlay();
+  return overlay && !overlay->root().empty();
 }
-
-bool ResolveSchoolDaysScriptDirectoryFile(std::string_view logicalPath,
-                                          std::string *physical) {
-  const auto root = CurrentScriptDirectory();
-  if (root.empty() || logicalPath.empty())
+bool ResolveSchoolDaysOverlayFile(std::string_view logical,
+                                  std::string *physical) {
+  auto overlay = CurrentOverlay();
+  if (!overlay)
     return false;
-  std::string normalized(logicalPath);
-  for (char &ch : normalized)
-    if (ch == '\\')
-      ch = '/';
-  // Only the Script pack can be overridden: "Script/<rest>" maps to
-  // <dir>/<rest>.
-  constexpr std::string_view kScriptPrefix = "Script/";
-  if (normalized.size() <= kScriptPrefix.size())
-    return false;
-  for (size_t i = 0; i < kScriptPrefix.size(); ++i) {
-    if (std::tolower(static_cast<unsigned char>(normalized[i])) !=
-        std::tolower(static_cast<unsigned char>(kScriptPrefix[i])))
-      return false;
-  }
-  normalized.erase(0, kScriptPrefix.size());
-  // The language directory is not part of the loose layout.
-  constexpr std::string_view kLanguage = "English/";
-  if (normalized.size() > kLanguage.size()) {
-    bool language = true;
-    for (size_t i = 0; i < kLanguage.size() && language; ++i) {
-      language = std::tolower(static_cast<unsigned char>(normalized[i])) ==
-                 std::tolower(static_cast<unsigned char>(kLanguage[i]));
+  auto file = overlay->resolve(std::string(logical));
+  // Compatibility names are mapped onto the same indexed engine overlay;
+  // there is no separate filesystem script mount.
+  if (file.empty()) {
+    auto key = AssetOverlay::key(std::string(logical));
+    const std::string prefix = "script/english/";
+    if (key.compare(0, prefix.size(), prefix) == 0) {
+      std::filesystem::path relative(key.substr(prefix.size()));
+      auto name = relative.filename().string();
+      name.resize(name.find('.') == name.npos ? name.size() : name.find('.'));
+      auto stem = (relative.parent_path() / name).generic_string();
+      for (const auto &candidate : overlay->list(stem)) {
+        std::filesystem::path path(candidate);
+        if (path.parent_path() == relative.parent_path() &&
+            path.extension() == ".txt") {
+          file = overlay->resolve(candidate);
+          break;
+        }
+      }
     }
-    if (language)
-      normalized.erase(0, kLanguage.size());
-  }
-  const std::filesystem::path relative(normalized);
-  if (relative.is_absolute() || relative.has_root_name())
-    return false;
-  for (const auto &part : relative) {
-    if (part == "..")
-      return false;
   }
 
-  // Loose scripts are always "<stem>*.txt": 00/00-00-A00.ENG.ORS opens the
-  // first 00/00-00-A00*.txt (the stem is the name up to its first '.').
-  const std::string fileName = relative.filename().string();
-  const std::string stem = fileName.substr(0, fileName.find('.'));
-  if (stem.empty())
+  if (file.empty())
     return false;
-  const auto directory = (root / relative).parent_path();
-  const auto lower = [](std::string text) {
-    for (char &ch : text)
-      ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
-    return text;
-  };
-  const std::string stemLower = lower(stem);
-  std::error_code ec;
-  std::string best;
-  for (std::filesystem::directory_iterator it(directory, ec), end;
-       !ec && it != end; it.increment(ec)) {
-    if (!it->is_regular_file(ec))
-      continue;
-    const std::string name = it->path().filename().string();
-    const std::string nameLower = lower(name);
-    if (nameLower.size() < stemLower.size() + 4u ||
-        nameLower.compare(0, stemLower.size(), stemLower) != 0 ||
-        nameLower.compare(nameLower.size() - 4u, 4u, ".txt") != 0)
-      continue;
-    if (best.empty() || name < best)
-      best = name;
-  }
-  if (best.empty())
-    return false;
-  if (physical != nullptr)
-    *physical = (directory / best).string();
+  if (physical)
+    *physical = std::move(file);
   return true;
 }
 
@@ -317,7 +271,7 @@ size_t MountedSchoolDaysGpkEntryCount() {
 
 SchoolDaysGpkLookupStatus
 LookupMountedSchoolDaysAsset(std::string_view logicalPath) {
-  if (ResolveSchoolDaysScriptDirectoryFile(logicalPath, nullptr))
+  if (ResolveSchoolDaysOverlayFile(logicalPath, nullptr))
     return SchoolDaysGpkLookupStatus::Present;
   const auto mount = CurrentMount();
   return mount != nullptr ? mount->Lookup(CanonicalGpkLogical(logicalPath))
@@ -327,7 +281,7 @@ LookupMountedSchoolDaysAsset(std::string_view logicalPath) {
 bool ReadMountedSchoolDaysAsset(std::string_view logicalPath,
                                 std::vector<uint8_t> *out, std::string *error) {
   std::string physical;
-  if (ResolveSchoolDaysScriptDirectoryFile(logicalPath, &physical))
+  if (ResolveSchoolDaysOverlayFile(logicalPath, &physical))
     return ReadFilesystem(physical, out, error);
   const auto mount = CurrentMount();
   if (mount == nullptr)

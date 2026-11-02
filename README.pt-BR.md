@@ -1310,3 +1310,5 @@ build/games/summer-radish-vacation/SummerRadish.app/Contents/MacOS/SummerRadish 
 O port ainda não tem equivalência 1:1 comprovada. Recursos implementados,
 evidências da descompilação com REA, testes e pendências estão em
 [PORT_STATUS.md](games/summer-radish-vacation/PORT_STATUS.md).
+
+Shared overlay, gesture and live translation behavior: [documentation](docs/ASSET_OVERLAYS.md).

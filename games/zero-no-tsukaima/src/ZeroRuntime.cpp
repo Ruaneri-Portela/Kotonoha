@@ -111,6 +111,21 @@ void ZeroRuntime::onEvent(Kotonoha::EventRef event) {
   Runtime::onEvent(event);
 }
 
+std::vector<int> ZeroRuntime::translationRoutes() const {
+  std::vector<int> ids;
+  for (size_t n = 0; n < disc_->Source().Names().size(); ++n)
+    ids.push_back(int(n));
+  return ids;
+}
+std::vector<std::string> ZeroRuntime::translationTexts(int route) const {
+  const auto &source = disc_->Source();
+  if (route < 0 || size_t(route) >= source.Names().size())
+    return {};
+  const auto bytes = disc_->read("script/" + source.Names()[route]);
+  std::vector<SceneTag> tags;
+  return ParseSceneTags(bytes, &tags) ? Game::SceneTexts(tags)
+                                      : std::vector<std::string>{};
+}
 Kotonoha::Translation::SourceTexts ZeroRuntime::translationSources() const {
   Kotonoha::Translation::SourceTexts texts;
   const SceneSource &source = disc_->Source();

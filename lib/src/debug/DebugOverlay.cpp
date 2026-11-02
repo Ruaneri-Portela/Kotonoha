@@ -1,6 +1,8 @@
 #include <Kotonoha/debug/DebugOverlay.hpp>
 
+#include <Kotonoha/componentes/ChoiceQuestionScene.hpp>
 #include <Kotonoha/componentes/VNManager.hpp>
+#include <Kotonoha/componentes/VNTextBox.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/FileSystem.hpp>
 #include <Kotonoha/core/Log.hpp>
@@ -12,6 +14,8 @@
 #include <imgui.h>
 #include <imgui_impl_sdl3.h>
 #include <imgui_impl_sdlrenderer3.h>
+#include <imgui_stdlib.h>
+#include <unordered_set>
 
 #include <algorithm>
 #include <charconv>
@@ -90,6 +94,8 @@ bool DebugOverlay::handleEvent(EventRef event) {
     }
     if (event.key.key == SDLK_F7) {
       showTranslationWindow = !showTranslationWindow;
+      if (showTranslationWindow)
+        transSourcesStale = true;
       return true;
     }
     if (visible && event.key.key == SDLK_ESCAPE) {
@@ -514,19 +520,29 @@ void DebugOverlay::refreshTranslationSources() {
   transSourcesStale = false;
   try {
     cachedManagerSources = GetVNManagerRuntime(engine).translationSources();
-    cachedRuntimeSources = engine.GetRuntime().translationSources();
+    cachedRuntimeSources.clear();
 
     cachedAllNodeKeys.clear();
-    const auto addKey = [&](const std::string &k) {
-      if (!k.empty() &&
-          std::find(cachedAllNodeKeys.begin(), cachedAllNodeKeys.end(), k) ==
-              cachedAllNodeKeys.end())
-        cachedAllNodeKeys.push_back(k);
+    std::unordered_set<std::string> uniqueKeys;
+    const auto addKey = [&](const std::string &key) {
+      int number = -1;
+      auto parsed =
+          std::from_chars(key.data(), key.data() + key.size(), number);
+      if (key != "nodo" &&
+          (parsed.ec != std::errc{} || parsed.ptr != key.data() + key.size() ||
+           number < 0))
+        return;
+      if (uniqueKeys.insert(key).second)
+        cachedAllNodeKeys.push_back(key);
     };
+    if (auto current = engine.GetRuntime().translationRoute(); current >= 0)
+      addKey(std::to_string(current));
 
     for (int id : GetVNManagerRuntime(engine).getNodeIds())
       addKey(std::to_string(id));
     for (const auto &[id, _] : cachedManagerSources)
+      addKey(std::to_string(id));
+    for (int id : engine.GetRuntime().translationRoutes())
       addKey(std::to_string(id));
     for (const auto &[id, _] : cachedRuntimeSources)
       addKey(std::to_string(id));
@@ -542,7 +558,13 @@ void DebugOverlay::refreshTranslationSources() {
                 int idA = -1, idB = -1;
                 auto pA = std::from_chars(a.data(), a.data() + a.size(), idA);
                 auto pB = std::from_chars(b.data(), b.data() + b.size(), idB);
-                if (pA.ec == std::errc{} && pB.ec == std::errc{})
+                const bool numericA =
+                    pA.ec == std::errc{} && pA.ptr == a.data() + a.size();
+                const bool numericB =
+                    pB.ec == std::errc{} && pB.ptr == b.data() + b.size();
+                if (numericA != numericB)
+                  return numericA;
+                if (numericA)
                   return idA < idB;
                 return a < b;
               });
@@ -582,6 +604,8 @@ void DebugOverlay::drawTranslationWindow() {
   const int mgrActiveId = manager.getCurrentNodeId();
   if (mgrActiveId >= 0) {
     activeNodeKey = std::to_string(mgrActiveId);
+  } else if (engine.GetRuntime().translationRoute() >= 0) {
+    activeNodeKey = std::to_string(engine.GetRuntime().translationRoute());
   } else {
     std::string rtDebug = engine.GetRuntime().debugNode();
     if (!rtDebug.empty()) {
@@ -706,6 +730,9 @@ void DebugOverlay::drawTranslationWindow() {
           addString(s);
       }
 
+      if (cachedRuntimeSources.find(nodeInt) == cachedRuntimeSources.end())
+        cachedRuntimeSources.emplace(
+            nodeInt, engine.GetRuntime().translationTexts(nodeInt));
       auto rIt = cachedRuntimeSources.find(nodeInt);
       if (rIt != cachedRuntimeSources.end()) {
         for (const auto &s : rIt->second)
@@ -713,6 +740,22 @@ void DebugOverlay::drawTranslationWindow() {
       }
     }
 
+    if (stringsToTranslate.empty() &&
+        nodeInt == engine.GetRuntime().translationRoute()) {
+      for (auto *scene : engine.GetRuntime().GetActiveScenes()) {
+        if (auto *box = dynamic_cast<VNTextBox *>(scene);
+            box && box->isVisible()) {
+          addString(box->getSpeaker());
+          addString(box->getText());
+        }
+        if (auto *choice = dynamic_cast<ChoiceQuestionScene *>(scene);
+            choice && choice->isActive()) {
+          addString(choice->getQuestion());
+          for (const auto &option : choice->getOptions())
+            addString(option.label);
+        }
+      }
+    }
     auto secIt = sections.find(selectedTransNodeStr);
     if (secIt != sections.end()) {
       for (const auto &[orig, _] : secIt->second)
@@ -737,29 +780,28 @@ void DebugOverlay::drawTranslationWindow() {
 
         std::string currentVal =
             translation.text(nodeInt >= 0 ? nodeInt : -1, orig);
-        if (currentVal == orig && secIt != sections.end()) {
-          auto foundVal = secIt->second.find(orig);
-          if (foundVal != secIt->second.end())
+        const auto currentSection = sections.find(selectedTransNodeStr);
+        if (currentVal == orig && currentSection != sections.end()) {
+          auto foundVal = currentSection->second.find(orig);
+          if (foundVal != currentSection->second.end())
             currentVal = foundVal->second;
         }
 
-        char inputBuffer[2048];
-        SDL_strlcpy(inputBuffer, currentVal.c_str(), sizeof(inputBuffer));
+        std::string inputBuffer = currentVal;
 
         if (ImGui::Button("Colar")) {
-          char *clip = SDL_GetClipboardText();
+          SDLMemoryPtr<char> clip(SDL_GetClipboardText());
           if (clip) {
-            SDL_strlcpy(inputBuffer, clip, sizeof(inputBuffer));
-            SDL_free(clip);
-            sections[selectedTransNodeStr][orig] = inputBuffer;
+            inputBuffer = clip.get();
+            engine.setTranslation(selectedTransNodeStr, orig, inputBuffer);
           }
         }
         ImGui::SameLine();
         ImGui::TextUnformatted("Tradução:");
 
-        if (ImGui::InputTextMultiline("##transInput", inputBuffer,
-                                      sizeof(inputBuffer), ImVec2(-1, 54))) {
-          sections[selectedTransNodeStr][orig] = inputBuffer;
+        if (ImGui::InputTextMultiline("##transInput", &inputBuffer,
+                                      ImVec2(-1, 54))) {
+          engine.setTranslation(selectedTransNodeStr, orig, inputBuffer);
         }
 
         ImGui::PopID();

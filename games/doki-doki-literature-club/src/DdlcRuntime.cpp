@@ -19,6 +19,11 @@ public:
   void render(Kotonoha::RendererRef renderer, float) override {
     session_.drawStage(renderer);
   }
+  void translationChanged(const std::string &original,
+                          const std::string &previous,
+                          const std::string &translated) override {
+    session_.translationChanged(original, previous, translated);
+  }
 
 private:
   GameSession &session_;
@@ -50,7 +55,17 @@ public:
   bool handleEvent(Kotonoha::EventRef event) override {
     return !session_.inMenu() && session_.event(event);
   }
-  void update() override { session_.showingDialogue() ? show() : hide(); }
+  void update() override {
+    session_.showingDialogue() ? show() : hide();
+    speakerName = session_.dialogueSpeaker();
+    fullDialogue = session_.dialogueText();
+    visibleDialogue = session_.visibleDialogueText();
+    isComplete = session_.dialogueComplete();
+  }
+  void completeDialogue() override {
+    session_.completeDialogue();
+    update();
+  }
 
 protected:
   void renderFrame(Kotonoha::RendererRef renderer) override {
@@ -88,6 +103,8 @@ public:
   Pause(Kotonoha::Engine &engine, GameSession &session)
       : InGameMenu(engine), session_(session) {}
   bool IsOpen() const override { return session_.paused(); }
+  void open() override { session_.setPaused(true); }
+  void close() override { session_.setPaused(false); }
   void onEvent(Kotonoha::EventRef event) override {
     if (IsOpen())
       session_.event(event);
@@ -147,7 +164,20 @@ void GameRuntime::addGameScenes() {
     AddScene(scene);
 }
 void GameRuntime::initMenu(Kotonoha::Engine &) { addGameScenes(); }
-void GameRuntime::initGameplay(Kotonoha::Engine &) { addGameScenes(); }
+void GameRuntime::initGameplay(Kotonoha::Engine &) {
+  if (session_ && !session_->playing())
+    session_->startGame();
+  addGameScenes();
+}
+bool GameRuntime::handleBackAction() {
+  return session_ && session_->backAction();
+}
+bool GameRuntime::handleBacklogAction() {
+  return session_ && session_->openHistory();
+}
+int GameRuntime::translationRoute() const {
+  return session_ ? session_->translationRoute() : -1;
+}
 
 void GameRuntime::update() {
   if (currentState != Kotonoha::GameState::Splash && session_ && engine_) {

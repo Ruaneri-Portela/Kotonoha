@@ -10,6 +10,8 @@ class TextInputDialog;
 class VNSaveMenu final : public Scene {
   enum class Confirmation { None, Overwrite, Delete };
   bool opened = false, loading = false;
+  ScrollGesture scrollGesture;
+  float listScroll = 0;
   Confirmation confirmation = Confirmation::None;
   std::unique_ptr<TextInputDialog> renameDialog;
   std::string directory, error;

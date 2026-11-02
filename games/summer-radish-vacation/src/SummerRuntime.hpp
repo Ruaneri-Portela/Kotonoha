@@ -17,6 +17,7 @@ public:
   void saveGame(const std::string &) override;
   void loadGame(const std::string &) override;
   Kotonoha::Translation::SourceTexts translationSources() const override;
+  int translationRoute()const override;
   std::string debugNode() const override;
   std::vector<Kotonoha::DebugNode> debugNodes() const override;
   void debugJumpToNode(const std::string &) override;

@@ -1,6 +1,8 @@
 #include <Kotonoha/componentes/InGameMenu.hpp>
 #include <Kotonoha/componentes/SettingsMenu.hpp>
+#include <Kotonoha/componentes/VNBacklog.hpp>
 #include <Kotonoha/componentes/VNManager.hpp>
+#include <Kotonoha/componentes/VNTextBox.hpp>
 #include <Kotonoha/core/Config.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/FileSystem.hpp>
@@ -84,7 +86,19 @@ void Engine::dumpKtrf(const std::string &path) {
   SDL_LogInfo(LogCore, "Dumped KTRF: %s", path.c_str());
 }
 
+std::string EngineOptions::assetOverlayDirectory() const {
+  if (assetOverlaySpecified)
+    return assetOverlayPath;
+  if (!assetOverlayPath.empty())
+    return assetOverlayPath;
+  if (!settings.assetOverlayPath.empty())
+    return settings.assetOverlayPath;
+  if (!settingsPath.empty() && std::filesystem::exists(settingsPath))
+    return EngineSettings::load(settingsPath).assetOverlayPath;
+  return {};
+}
 SDLSession::SDLSession(const Runtime &runtime) {
+  SDL_SetHint(SDL_HINT_TOUCH_MOUSE_EVENTS, "0");
   if (!SDL_SetAppMetadata(runtime.name.c_str(), runtime.version.c_str(),
                           runtime.identify.c_str()) ||
       !SDL_Init(SDL_INIT_AUDIO | SDL_INIT_VIDEO | SDL_INIT_EVENTS))
@@ -112,6 +126,10 @@ Engine::Engine(Runtime &run, EngineOptions options)
       !settingsPath.empty() && std::filesystem::exists(settingsPath);
   if (storedSettings)
     settings = EngineSettings::load(settingsPath);
+  if (options.assetOverlaySpecified || !options.assetOverlayDirectory().empty())
+    settings.assetOverlayPath = options.assetOverlayDirectory();
+  if (options.assetOverlaySpecified || !settings.assetOverlayPath.empty())
+    assets->setOverlay(settings.assetOverlayPath);
   // A fresh window follows the game viewport aspect (default height kept).
   const SDL_Point view = runtime.viewport();
   if (view.x <= 0 || view.y <= 0)
@@ -344,9 +362,29 @@ void Engine::advanceTimeline(double seconds) {
   frameClock.reset();
 }
 
+void Engine::setTranslation(const std::string &section,
+                            const std::string &original,
+                            const std::string &translated) {
+  auto &dictionary = translation.mutableSections()[section];
+  auto found = dictionary.find(original);
+  auto previous = found == dictionary.end() ? original : found->second;
+  if (previous == translated)
+    return;
+  dictionary[original] = translated;
+  const int route = runtime.translationRoute();
+  if (route >= 0 && section != "nodo" && section != std::to_string(route))
+    return;
+  for (auto *scene : runtime.GetActiveScenes())
+    if (scene)
+      scene->translationChanged(original, previous,
+                                translated.empty() ? original : translated);
+}
+
 void Engine::SetAssetProvider(std::shared_ptr<AssetProvider> provider) {
   if (!provider)
     throw std::invalid_argument("Asset provider is required");
+  if (!settings.assetOverlayPath.empty())
+    provider->setOverlay(settings.assetOverlayPath);
   assets = std::move(provider);
   SDL_LogInfo(LogCore, "Asset provider: %s", assets->name().c_str());
 }
@@ -389,6 +427,7 @@ SDL_AppResult Engine::Event(EventPtr event) {
     return SDL_APP_CONTINUE;
   if (event->type == SDL_EVENT_QUIT)
     return SDL_APP_SUCCESS;
+  inputActions.process(*event);
   synchronizeTimeline();
   const bool debugConsumed = debug->handleEvent(*event);
   if (debugConsumed) {
@@ -401,6 +440,7 @@ SDL_AppResult Engine::Event(EventPtr event) {
     throw std::runtime_error(SDL_GetError());
   const bool consumed =
       !settingsMenu->isOpen() && runtime.onScreenEvent(screenEvent);
+  const bool touchTap = inputActions.tap();
   configureRenderSpace(RenderSpace::Novel);
   if (event->type == SDL_EVENT_KEY_DOWN && !event->key.repeat &&
       (event->key.key == SDLK_F11 ||
@@ -447,64 +487,8 @@ SDL_AppResult Engine::Event(EventPtr event) {
     }
   }
 
-  // Edge swipe detection from left edge (x < 40)
-  if (isMobilePlatform()) {
-    if (logical.type == SDL_EVENT_MOUSE_BUTTON_DOWN) {
-      if (logical.button.x < 40) {
-        edgeSwipeStartX = logical.button.x;
-        edgeSwipeActive = true;
-      }
-    } else if (logical.type == SDL_EVENT_MOUSE_MOTION && edgeSwipeActive) {
-      if (logical.motion.x > edgeSwipeStartX + 60) {
-        edgeSwipeActive = false;
-        edgeSwipeStartX = -1;
-        GetInGameMenuRuntime(*this).open();
-      }
-    } else if (logical.type == SDL_EVENT_MOUSE_BUTTON_UP) {
-      edgeSwipeActive = false;
-      edgeSwipeStartX = -1;
-    } else if (logical.type == SDL_EVENT_FINGER_DOWN) {
-      if (logical.tfinger.x * view.x < 40) {
-        edgeSwipeStartX = logical.tfinger.x * view.x;
-        edgeSwipeActive = true;
-      }
-    } else if (logical.type == SDL_EVENT_FINGER_MOTION && edgeSwipeActive) {
-      if (logical.tfinger.x * view.x > edgeSwipeStartX + 60) {
-        edgeSwipeActive = false;
-        edgeSwipeStartX = -1;
-        GetInGameMenuRuntime(*this).open();
-      }
-    } else if (logical.type == SDL_EVENT_FINGER_UP) {
-      edgeSwipeActive = false;
-      edgeSwipeStartX = -1;
-    }
-  }
-
-  // Back action in-game screen handling for mobile (Android/iOS) and general
-  // inGame gameplay
-  if (runtime.GetState() == GameState::Gameplay && !settingsMenu->isOpen()) {
-    bool sceneCapturingInput = false;
-    for (const auto *scene : runtime.GetActiveScenes()) {
-      if (scene && scene->capturesInput()) {
-        sceneCapturingInput = true;
-        break;
-      }
-    }
-    if (!sceneCapturingInput) {
-      if (BackAction(*this, logical)) {
-        InGameMenu *menuToOpen = &GetInGameMenuRuntime(*this);
-        for (auto *scene : runtime.GetActiveScenes()) {
-          if (auto *m = dynamic_cast<InGameMenu *>(scene)) {
-            menuToOpen = m;
-            break;
-          }
-        }
-        menuToOpen->open();
-        return SDL_APP_CONTINUE;
-      }
-    }
-  }
-
+  if (!settingsMenu->isOpen() && HandleNavigation(*this, logical))
+    return SDL_APP_CONTINUE;
   const bool mouseButton = logical.type == SDL_EVENT_MOUSE_BUTTON_DOWN ||
                            logical.type == SDL_EVENT_MOUSE_BUTTON_UP;
   const bool outsideNovel =
@@ -518,6 +502,22 @@ SDL_AppResult Engine::Event(EventPtr event) {
   timeline->setPaused(isStoryPaused());
   if (wasPaused != timeline->isPaused())
     frameClock.reset();
+  if (touchTap && !consumed) {
+    int w = 0, h = 0;
+    SDL_GetWindowSize(window.get(), &w, &h);
+    SDL_Event tap{};
+    tap.type = SDL_EVENT_MOUSE_BUTTON_DOWN;
+    tap.button.windowID = SDL_GetWindowID(window.get());
+    tap.button.which = SDL_TOUCH_MOUSEID;
+    tap.button.button = SDL_BUTTON_LEFT;
+    tap.button.down = true;
+    tap.button.x = event->tfinger.x * w;
+    tap.button.y = event->tfinger.y * h;
+    Event(&tap);
+    tap.type = SDL_EVENT_MOUSE_BUTTON_UP;
+    tap.button.down = false;
+    Event(&tap);
+  }
   return SDL_APP_CONTINUE;
 }
 

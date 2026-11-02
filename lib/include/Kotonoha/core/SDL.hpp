@@ -14,6 +14,9 @@ template <auto Destroy> struct SDLDeleter {
 template <typename T, auto Destroy>
 using SDLHandle = std::unique_ptr<T, SDLDeleter<Destroy>>;
 
+template <class T> using SDLMemoryPtr = SDLHandle<T, SDL_free>;
+using IOStreamPtr = SDLHandle<SDL_IOStream, SDL_CloseIO>;
+
 using CursorPtr = SDLHandle<SDL_Cursor, SDL_DestroyCursor>;
 using TexturePtr = SDLHandle<SDL_Texture, SDL_DestroyTexture>;
 using SurfacePtr = SDLHandle<SDL_Surface, SDL_DestroySurface>;

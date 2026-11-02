@@ -231,16 +231,17 @@ std::string DiscImageAssetProvider::name() const {
          ")";
 }
 
-bool DiscImageAssetProvider::contains(const std::string &id) const {
+bool DiscImageAssetProvider::containsAsset(const std::string &id) const {
   return disc->find(id) != nullptr;
 }
 
-std::vector<Uint8> DiscImageAssetProvider::read(const std::string &id) const {
+std::vector<Uint8>
+DiscImageAssetProvider::readAsset(const std::string &id) const {
   return disc->read(id);
 }
 
 std::vector<std::string>
-DiscImageAssetProvider::list(const std::string &prefix) const {
+DiscImageAssetProvider::listAsset(const std::string &prefix) const {
   const std::string wanted = normalize(prefix);
   std::vector<std::string> ids;
   for (const auto &entry : disc->files())

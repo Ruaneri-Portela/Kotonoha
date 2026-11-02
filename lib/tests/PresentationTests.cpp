@@ -150,6 +150,11 @@ void subtitles(Engine &engine) {
   require(colored(renderer, 1) == 0, "End time is exclusive");
   draw(1.2);
   require(colored(renderer, 1) > 100, "Seeking backwards restores subtitle");
+  auto beforeEdit=colored(renderer,1);engine.GetRuntime().AddScene(&scene);
+  engine.setTranslation("0","NEW CUE","X");scene.render(renderer,1);
+  draw(1.2);require(scene.getPosition()==1.2&&colored(renderer,1)<beforeEdit,"Live subtitle editing keeps the timeline and updates rendered glyphs");
+  engine.GetRuntime().RemoveScene(&scene);
+
   SDL_SetRenderScale(&renderer, 0.5f, 0.5f);
   draw(1.5);
   require(colored(renderer, 1) > 20, "Subtitle resizes with renderer scale");

@@ -128,6 +128,8 @@ public:
   void renderGameplay(Kotonoha::RendererRef renderer, float scale) override;
   void renderMenu(Kotonoha::RendererRef renderer, float scale) override;
   void onEvent(Kotonoha::EventRef event) override;
+  bool handleBackAction() override;
+  bool handleBacklogAction() override;
   // Native panel state (tests and the debug tools).
   const Kotonoha::SchoolDaysSystemUi &panels() const { return systemUi; }
   bool backlogOpen() const { return backlogModel.IsOpen(); }
@@ -135,6 +137,7 @@ public:
   const Kotonoha::SchoolDaysRetailConfigPolicy::State &retailConfig() const { return config; }
   void openPanel(int control) { activateControl(control); }
   SDL_Point viewport() const override { return {1280, 720}; }
+  int translationRoute()const override;
   std::string debugNode() const override;
   std::optional<double> debugNodeSeconds() const override { return elapsed; }
   Kotonoha::Translation::SourceTexts translationSources() const override;

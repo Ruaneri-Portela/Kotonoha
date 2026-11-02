@@ -1,5 +1,6 @@
 #include "ZeroRuntime.hpp"
 #include <Kotonoha/core/Engine.hpp>
+#include <Kotonoha/debug/DebugOverlay.hpp>
 #include <filesystem>
 #include <iostream>
 #include <stdexcept>
@@ -21,6 +22,23 @@ int main(int argc, char **argv) {
     const auto nodes = engine.debugNodes();
     if (!session || nodes.empty() || !session->Playing())
       throw std::runtime_error("Missing native debug nodes");
+    for (auto key : {SDLK_F7, SDLK_F10}) {
+      SDL_Event toggle{};
+      toggle.type = SDL_EVENT_KEY_DOWN;
+      toggle.key.key = key;
+      auto start = SDL_GetPerformanceCounter();
+      engine.Event(&toggle);
+      engine.Iterate();
+      double elapsed = double(SDL_GetPerformanceCounter() - start) /
+                       SDL_GetPerformanceFrequency();
+      if (elapsed > 2.0)
+        throw std::runtime_error(
+            "Opening debug/translation editor stalled the engine");
+      std::cout << "debug key " << key << " opened in " << elapsed * 1000
+                << "ms\n";
+      engine.Event(&toggle);
+      engine.Iterate();
+    }
     const auto script = session->Story()->ScriptName();
     const auto previous = runtime.debugNode();
     bool rejected = false;

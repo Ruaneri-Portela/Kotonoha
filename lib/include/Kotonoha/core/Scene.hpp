@@ -1,6 +1,7 @@
 #pragma once
 
 #include "SDL.hpp"
+#include <string>
 
 namespace Kotonoha {
 
@@ -29,6 +30,8 @@ public:
   // draw in viewport coordinates keep the default.
   virtual bool designSpace() const { return false; }
   virtual void update() {}
+  virtual void translationChanged(const std::string &, const std::string &,
+                                  const std::string &) {}
   virtual void render(RendererRef renderer, float scale) {}
 
 protected:

@@ -1,7 +1,7 @@
 #pragma once
 
-#include <imgui.h>
 #include <Kotonoha/media/upscaling/Upscaler.hpp>
+#include <imgui.h>
 #include <memory>
 
 // Shared look of every ImGui context in the engine (debug overlay, launcher).
@@ -12,7 +12,8 @@ class ShaderFilePicker {
   struct Result;
   std::shared_ptr<Result> pending;
   std::string failure;
-  static void SDLCALL finished(void *data, const char *const *files, int filter);
+  static void SDLCALL finished(void *data, const char *const *files,
+                               int filter);
 
 public:
   void browse(SDL_Window *window);

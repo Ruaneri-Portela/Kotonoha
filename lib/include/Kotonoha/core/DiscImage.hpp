@@ -78,9 +78,10 @@ public:
   const DiscImage &getDisc() const;
   std::shared_ptr<const DiscImage> shareDisc() const;
   std::string name() const override;
-  bool contains(const std::string &id) const override;
-  std::vector<Uint8> read(const std::string &id) const override;
-  std::vector<std::string> list(const std::string &prefix = {}) const override;
+  bool containsAsset(const std::string &id) const override;
+  std::vector<Uint8> readAsset(const std::string &id) const override;
+  std::vector<std::string>
+  listAsset(const std::string &prefix = {}) const override;
 };
 
 } // namespace Kotonoha

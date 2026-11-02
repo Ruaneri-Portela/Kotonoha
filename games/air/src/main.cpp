@@ -38,6 +38,11 @@ SDL_AppResult SDL_AppInit(void **state, int argc, char **argv) {
       std::fputs(cli.help().c_str(), stdout);
       return SDL_APP_SUCCESS;
     }
+    if (options.enableMCP && options.settingsPath.empty())
+      options.persistSettings = false;
+    if (options.persistSettings && options.settingsPath.empty())
+      options.settingsPath =
+          Kotonoha::EngineSettings::defaultPath("me.hirameki.kotonoha.air");
     if (directory.empty()) {
       const char *env = SDL_getenv("AIR_DIR");
       if (env)
@@ -59,9 +64,8 @@ SDL_AppResult SDL_AppInit(void **state, int argc, char **argv) {
               "Informe a pasta de AIR com --air DIRECTORY ou AIR_DIR.");
       }
     }
-    auto assets = std::make_shared<Air::AirAssets>(directory);
-    if (options.enableMCP && options.settingsPath.empty())
-      options.persistSettings = false;
+    auto assets = std::make_shared<Air::AirAssets>(
+        directory, options.assetOverlayDirectory());
     *state = new App(assets, std::move(options), cli.frames);
     return SDL_APP_CONTINUE;
   } catch (const std::exception &e) {

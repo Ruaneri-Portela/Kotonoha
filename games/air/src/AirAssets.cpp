@@ -6,46 +6,38 @@
 #include <fstream>
 #include <stdexcept>
 namespace Air {
-namespace {
-std::string loadConfig(const std::filesystem::path &root) {
-  for (auto &file : std::filesystem::directory_iterator(root))
-    if (canonical(file.path().filename().string()) == "GAMEEXE.INI") {
-      std::ifstream stream(file.path(), std::ios::binary);
-      if (!stream)
-        break;
-      return std::string((std::istreambuf_iterator<char>(stream)), {});
-    }
-  throw std::runtime_error("Gameexe.ini not found in " + root.string());
-}
-} // namespace
-AirAssets::AirAssets(const std::filesystem::path &directory)
-    : root(std::filesystem::canonical(directory)),
-      configSource(loadConfig(root)), config(configSource) {
+AirAssets::AirAssets(const std::filesystem::path &directory,
+                     const std::filesystem::path &overlay)
+    : root(std::filesystem::canonical(directory)), config("") {
   for (auto &entry : std::filesystem::recursive_directory_iterator(root))
     if (entry.is_regular_file())
       files.emplace(
           canonical(
               std::filesystem::relative(entry.path(), root).generic_string()),
           entry.path());
+  setOverlay(overlay);
+  const auto ini = read("Gameexe.ini");
+  configSource.assign(ini.begin(), ini.end());
+  config = Config(configSource);
   if (!contains("Seen.txt"))
     throw std::runtime_error("AIR Seen.txt not found");
 }
-bool AirAssets::contains(const std::string &id) const {
+bool AirAssets::containsAsset(const std::string &id) const {
   return files.count(canonical(id)) != 0;
 }
-std::string AirAssets::localPath(const std::string &id) const {
+std::string AirAssets::localPathAsset(const std::string &id) const {
   auto i = files.find(canonical(id));
   if (i == files.end())
     throw std::runtime_error("AIR asset missing: " + id);
   return i->second.string();
 }
-std::vector<Uint8> AirAssets::read(const std::string &id) const {
+std::vector<Uint8> AirAssets::readAsset(const std::string &id) const {
   std::ifstream input(localPath(id), std::ios::binary);
   if (!input)
     throw std::runtime_error("Cannot read AIR asset: " + id);
   return std::vector<Uint8>((std::istreambuf_iterator<char>(input)), {});
 }
-std::vector<std::string> AirAssets::list(const std::string &prefix) const {
+std::vector<std::string> AirAssets::listAsset(const std::string &prefix) const {
   std::vector<std::string> result;
   const auto key = canonical(prefix);
   for (auto &[id, file] : files)
@@ -66,11 +58,11 @@ std::string AirAssets::graphic(const std::string &name) const {
     }
   throw std::runtime_error("AIR graphic missing: " + name);
 }
-Kotonoha::SurfacePtr AirAssets::loadSurface(const std::string &id) const {
+Kotonoha::SurfacePtr AirAssets::loadSurfaceAsset(const std::string &id) const {
   const auto extension =
       canonical(std::filesystem::path(id).extension().string());
   if (extension != ".G00" && extension != ".PDT")
-    return AssetProvider::loadSurface(id);
+    return AssetProvider::loadSurfaceAsset(id);
   const auto image =
       extension == ".PDT" ? decodePDT(read(id)) : decodeG00(read(id));
   Kotonoha::SurfacePtr surface(
@@ -83,9 +75,9 @@ Kotonoha::SurfacePtr AirAssets::loadSurface(const std::string &id) const {
                 image.rgba.data() + y * image.width * 4, image.width * 4);
   return surface;
 }
-Kotonoha::AudioClip AirAssets::loadAudio(const std::string &id) const {
+Kotonoha::AudioClip AirAssets::loadAudioAsset(const std::string &id) const {
   if (canonical(std::filesystem::path(id).extension().string()) == ".NWA")
     return Kotonoha::MediaDecoder::decodeAudio(nwaToWav(read(id)));
-  return AssetProvider::loadAudio(id);
+  return AssetProvider::loadAudioAsset(id);
 }
 } // namespace Air

@@ -16,6 +16,8 @@ class SubtitleScene : public Scene {
   std::unique_ptr<State> state;
   double position = 0;
   int width, height;
+  std::vector<SubtitleCue> sourceCues;
+  float cueFontSize = 32;
 
 public:
   explicit SubtitleScene(Engine &engine, int width = 1280, int height = 720);
@@ -23,6 +25,8 @@ public:
   void loadAss(const std::string &script);
   void setStyle(AssStyle style);
   void setCues(const std::vector<SubtitleCue> &cues, float fontSize = 32);
+  void translationChanged(const std::string &, const std::string &,
+                          const std::string &) override;
   void clear();
   void setPosition(double seconds);
   double getPosition() const { return position; }
