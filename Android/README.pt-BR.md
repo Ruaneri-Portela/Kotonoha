@@ -22,9 +22,7 @@ Cada flavor tem applicationId e APK proprios em `app/build/outputs/apk/`.
 A ABI padrao e `arm64-v8a`; use `-Pabis=x86_64` no emulador.
 Execute as invocacoes Gradle sequencialmente: builds simultaneos compartilham
 os diretorios nativos `.cxx`. Uma invocacao pode receber varios targets assemble.
-Compile DDLC com uma ABI por APK. As dependencias ficam em `build/vcpkg`;
-DDLC habilita o recurso `android-python` do manifesto. Nenhuma biblioteca
-Python macOS/iOS e usada no Android.
+Compile DDLC com uma ABI por APK. As dependencias ficam em `build/vcpkg`; DDLC usa CPython fornecido pelo vcpkg. Nenhuma biblioteca Python macOS/iOS e usada no Android.
 
 SDL e dependencia remota do Git, fixada na revisao
 `4bb5020be2a3e3f7a963b84c95f49fe7ef5d35a4` em [app/build.gradle](app/build.gradle).

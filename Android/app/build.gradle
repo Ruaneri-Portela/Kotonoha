@@ -51,8 +51,7 @@ android {
                 externalNativeBuild {
                     cmake {
                         arguments "-DKOTONOHA_ANDROID_GAME=${game[0]}",
-                                "-DVCPKG_INSTALLED_DIR=${rootProject.projectDir}/build/vcpkg${flavor == 'dokiDoki' ? '-python' : ''}",
-                                "-DVCPKG_MANIFEST_FEATURES=${flavor == 'dokiDoki' ? 'android-python' : ''}"
+                                "-DVCPKG_INSTALLED_DIR=${rootProject.projectDir}/build/vcpkg${flavor == 'dokiDoki' ? '-python' : ''}"
                         targets game[1]
                     }
                 }

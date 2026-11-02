@@ -8,6 +8,7 @@
 #include <Kotonoha/debug/DebugOverlay.hpp>
 #include <Kotonoha/mcp/MCPServer.hpp>
 #include <Kotonoha/script/TimelinePlayer.hpp>
+#include <Kotonoha/events/BackAction.hpp>
 
 #include <algorithm>
 #include <charconv>
@@ -467,6 +468,30 @@ SDL_AppResult Engine::Event(EventPtr event) {
     } else if (logical.type == SDL_EVENT_FINGER_UP) {
       edgeSwipeActive = false;
       edgeSwipeStartX = -1;
+    }
+  }
+
+  // Back action in-game screen handling for mobile (Android/iOS) and general inGame gameplay
+  if (runtime.GetState() == GameState::Gameplay && !settingsMenu->isOpen()) {
+    bool sceneCapturingInput = false;
+    for (const auto *scene : runtime.GetActiveScenes()) {
+      if (scene && scene->capturesInput()) {
+        sceneCapturingInput = true;
+        break;
+      }
+    }
+    if (!sceneCapturingInput) {
+      if (BackAction(*this, logical)) {
+        InGameMenu *menuToOpen = &GetInGameMenuRuntime(*this);
+        for (auto *scene : runtime.GetActiveScenes()) {
+          if (auto *m = dynamic_cast<InGameMenu *>(scene)) {
+            menuToOpen = m;
+            break;
+          }
+        }
+        menuToOpen->open();
+        return SDL_APP_CONTINUE;
+      }
     }
   }
 

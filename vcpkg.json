@@ -8,6 +8,10 @@
     "json-c",
     "libass",
     {
+      "name": "python3",
+      "platform": "android"
+    },
+    {
       "name": "fontconfig",
       "platform": "android | ios"
     },
@@ -36,16 +40,5 @@
       "name": "pkgconf",
       "host": true
     }
-  ],
-  "features": {
-    "android-python": {
-      "description": "Embedded CPython runtime for the Android DDLC app",
-      "dependencies": [
-        {
-          "name": "python3",
-          "platform": "android"
-        }
-      ]
-    }
-  }
+  ]
 }

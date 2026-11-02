@@ -1,7 +1,9 @@
 #include <Kotonoha/componentes/VNBacklog.hpp>
 #include <Kotonoha/core/UI.hpp>
-#include <Kotonoha/utils/BackAction.hpp>
+#include <Kotonoha/events/BackAction.hpp>
+#include <Kotonoha/events/BacklogEvents.hpp>
 #include <algorithm>
+#include <cmath>
 
 namespace Kotonoha {
 
@@ -16,7 +18,9 @@ void VNBacklog::addEntry(const std::string &speaker, const std::string &text) {
 
 void VNBacklog::clear() {
   entries.clear();
-  scroll = maxScroll = 0;
+  scroll = targetScroll = maxScroll = 0;
+  isDragging = false;
+  scrollVelocity = 0;
 }
 
 void VNBacklog::onEvent(EventRef event) {
@@ -24,27 +28,84 @@ void VNBacklog::onEvent(EventRef event) {
     close();
     return;
   }
-  
-  if (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat) {
-    if (event.key.key == SDLK_B)
-      toggle();
-    else if (isOpen && event.key.key == SDLK_UP)
-      scroll = std::max(0.0f, scroll - 80);
-    else if (isOpen && event.key.key == SDLK_DOWN)
-      scroll = std::min(maxScroll, scroll + 80);
-  }
-  if (isOpen && event.type == SDL_EVENT_MOUSE_WHEEL) {
-    scrollToBottom = false;
-    const float direction =
-        event.wheel.direction == SDL_MOUSEWHEEL_FLIPPED ? -1 : 1;
-    scroll =
-        std::clamp(scroll - event.wheel.y * direction * 60, 0.0f, maxScroll);
-  }
-  if (isOpen && UI::clicked(event, {980, 100, 160, 44}))
+
+  if (isOpen && event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat && event.key.key == SDLK_B) {
     close();
+    return;
+  }
+
+  if (isOpen && HandleBacklogScrollEvent(event, targetScroll, scrollVelocity, scrollToBottom, maxScroll)) {
+    return;
+  }
+
+  if (isOpen && event.type == SDL_EVENT_MOUSE_BUTTON_DOWN && event.button.button == SDL_BUTTON_LEFT) {
+    if (UI::clicked(event, {980, 100, 160, 44})) {
+      close();
+      return;
+    }
+    isDragging = true;
+    dragStartY = event.button.y;
+    dragStartScroll = targetScroll;
+    lastDragY = event.button.y;
+    scrollVelocity = 0.0f;
+    scrollToBottom = false;
+  } else if (isOpen && event.type == SDL_EVENT_MOUSE_MOTION && isDragging) {
+    const float currentY = event.motion.y;
+    const float dy = currentY - dragStartY;
+    targetScroll = std::clamp(dragStartScroll - dy, 0.0f, maxScroll);
+    scroll = targetScroll;
+    const float instVel = -(currentY - lastDragY);
+    scrollVelocity = scrollVelocity * 0.4f + (instVel * 60.0f) * 0.6f;
+    lastDragY = currentY;
+  } else if (isOpen && event.type == SDL_EVENT_MOUSE_BUTTON_UP && event.button.button == SDL_BUTTON_LEFT) {
+    isDragging = false;
+  }
+
+  if (isOpen && event.type == SDL_EVENT_FINGER_DOWN) {
+    const float fingerY = event.tfinger.y * UI::height;
+    isDragging = true;
+    dragTouchId = event.tfinger.fingerID;
+    dragStartY = fingerY;
+    dragStartScroll = targetScroll;
+    lastDragY = fingerY;
+    scrollVelocity = 0.0f;
+    scrollToBottom = false;
+  } else if (isOpen && event.type == SDL_EVENT_FINGER_MOTION && isDragging && event.tfinger.fingerID == dragTouchId) {
+    const float fingerY = event.tfinger.y * UI::height;
+    const float dy = fingerY - dragStartY;
+    targetScroll = std::clamp(dragStartScroll - dy, 0.0f, maxScroll);
+    scroll = targetScroll;
+    const float instVel = -(fingerY - lastDragY);
+    scrollVelocity = scrollVelocity * 0.4f + (instVel * 60.0f) * 0.6f;
+    lastDragY = fingerY;
+  } else if (isOpen && event.type == SDL_EVENT_FINGER_UP && isDragging && event.tfinger.fingerID == dragTouchId) {
+    isDragging = false;
+  }
 }
 
-void VNBacklog::update() {}
+void VNBacklog::update() {
+  if (!isOpen)
+    return;
+  const float dt = std::min(0.1f, static_cast<float>(clock.seconds()));
+  clock.reset();
+
+  if (isDragging) {
+    scroll = std::clamp(targetScroll, 0.0f, maxScroll);
+  } else {
+    if (std::abs(scrollVelocity) > 1.0f) {
+      targetScroll += scrollVelocity * dt;
+      scrollVelocity *= std::pow(0.02f, dt);
+      targetScroll = std::clamp(targetScroll, 0.0f, maxScroll);
+      if (targetScroll <= 0.0f || targetScroll >= maxScroll) {
+        scrollVelocity = 0.0f;
+      }
+    }
+    if (dt > 0.0001f) {
+      scroll += (targetScroll - scroll) * (1.0f - std::exp(-25.0f * dt));
+      scroll = std::clamp(scroll, 0.0f, maxScroll);
+    }
+  }
+}
 
 void VNBacklog::render(RendererRef renderer, float) {
   if (!isVisible())
@@ -68,8 +129,13 @@ void VNBacklog::renderEntries(RendererRef renderer) {
     total += ui.textHeight(renderer, entry.speaker, 960) +
              ui.textHeight(renderer, entry.text, 960) + 24;
   maxScroll = std::max(0.0f, total - 450);
-  scroll = scrollToBottom ? maxScroll : std::clamp(scroll, 0.0f, maxScroll);
-  scrollToBottom = false;
+  if (scrollToBottom) {
+    targetScroll = scroll = maxScroll;
+    scrollToBottom = false;
+  } else {
+    targetScroll = std::clamp(targetScroll, 0.0f, maxScroll);
+    scroll = std::clamp(scroll, 0.0f, maxScroll);
+  }
   SDL_Rect clip{145, 165, 990, 450};
   SDL_SetRenderClipRect(&renderer, &clip);
   float y = 165 - scroll;

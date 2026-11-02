@@ -1,5 +1,6 @@
 #pragma once
 
+#include <Kotonoha/core/Clock.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/Scene.hpp>
 
@@ -21,7 +22,17 @@ protected:
   bool isOpen = false;
   bool scrollToBottom = false;
   float scroll = 0;
+  float targetScroll = 0;
   float maxScroll = 0;
+
+  bool isDragging = false;
+  SDL_FingerID dragTouchId = 0;
+  float dragStartY = 0;
+  float dragStartScroll = 0;
+  float lastDragY = 0;
+  float scrollVelocity = 0;
+  Clock clock;
+
   virtual void renderFrame(RendererRef renderer);
   virtual void renderEntries(RendererRef renderer);
 
@@ -36,8 +47,15 @@ public:
   virtual void open() {
     isOpen = true;
     scrollToBottom = true;
+    isDragging = false;
+    scrollVelocity = 0;
+    clock.reset();
   }
-  virtual void close() { isOpen = false; }
+  virtual void close() {
+    isOpen = false;
+    isDragging = false;
+    scrollVelocity = 0;
+  }
   void toggle() { isVisible() ? close() : open(); }
 
   virtual bool isVisible() const { return isOpen; }
