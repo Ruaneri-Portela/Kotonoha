@@ -36,9 +36,10 @@ UI::UI(const std::string &fontPath) {
       fontData = FileResolver::loadFontMemory("");
     }
     if (!fontData.empty()) {
-      SDL_IOStream *io = SDL_IOFromConstMem(fontData.data(), fontData.size());
+      Kotonoha::IOStreamPtr io{
+          SDL_IOFromConstMem(fontData.data(), fontData.size())};
       if (io) {
-        font.reset(TTF_OpenFontIO(io, true, 24));
+        font.reset(TTF_OpenFontIO(io.release(), true, 24));
       }
     }
   } catch (const std::exception &error) {

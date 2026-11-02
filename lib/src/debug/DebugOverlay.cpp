@@ -79,6 +79,23 @@ DebugOverlay::~DebugOverlay() {
 
 bool DebugOverlay::handleEvent(EventRef event) {
   ImGui_ImplSDL3_ProcessEvent(&event);
+  SDL_Event pointer{};
+  if (touchPointer.translate(event, engine.GetWindow(), pointer)) {
+    SDL_Event position{};
+    position.type = SDL_EVENT_MOUSE_MOTION;
+    position.motion.windowID = pointer.type == SDL_EVENT_MOUSE_MOTION
+                                   ? pointer.motion.windowID
+                                   : pointer.button.windowID;
+    position.motion.which = SDL_TOUCH_MOUSEID;
+    position.motion.x = pointer.type == SDL_EVENT_MOUSE_MOTION
+                            ? pointer.motion.x
+                            : pointer.button.x;
+    position.motion.y = pointer.type == SDL_EVENT_MOUSE_MOTION
+                            ? pointer.motion.y
+                            : pointer.button.y;
+    ImGui_ImplSDL3_ProcessEvent(&position);
+    ImGui_ImplSDL3_ProcessEvent(&pointer);
+  }
   if (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat) {
     if (event.key.key == SDLK_F10) {
       setVisible(!visible);
@@ -108,7 +125,9 @@ bool DebugOverlay::handleEvent(EventRef event) {
                      (event.type >= SDL_EVENT_MOUSE_MOTION &&
                       event.type <= SDL_EVENT_MOUSE_WHEEL);
   // The inspector is modal for game input, including its opening/closing click.
-  return (visible || showTranslationWindow) && input;
+  const bool touch = event.type >= SDL_EVENT_FINGER_DOWN &&
+                     event.type <= SDL_EVENT_FINGER_CANCELED;
+  return (visible || showTranslationWindow) && (input || touch);
 }
 
 void DebugOverlay::update() {

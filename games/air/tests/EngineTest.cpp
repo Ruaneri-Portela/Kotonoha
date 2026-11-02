@@ -109,7 +109,20 @@ int main(int argc, char **argv) {
     for (int n = 0; n < 10; ++n)
       engine.Iterate();
     check(game.debugNode() == paused, "Pause menu advanced story");
-    menu.close();
+    auto touch = [&](Uint32 type, int id) {
+      SDL_Event event{};
+      event.type = type;
+      event.tfinger.touchID = 1;
+      event.tfinger.fingerID = id;
+      event.tfinger.x = 0.5f + id * 0.02f;
+      event.tfinger.y = 0.5f;
+      engine.Event(&event);
+    };
+    touch(SDL_EVENT_FINGER_DOWN, 1);
+    touch(SDL_EVENT_FINGER_DOWN, 2);
+    touch(SDL_EVENT_FINGER_UP, 1);
+    touch(SDL_EVENT_FINGER_UP, 2);
+    check(!menu.IsOpen(), "Two-finger touch did not close AIR pause menu");
     const auto progressStart = SDL_GetTicks();
     std::string lastNode = game.debugNode();
     int progress = 0;
@@ -138,7 +151,8 @@ int main(int argc, char **argv) {
               << game.debugNode() << '\n';
     check(game.debugNode() != node, "Restored dialogue could not advance");
     // Reproduce the reported live block and exercise multi-image transitions.
-    for (const auto &entry : {"170:2441", "173:14", "163:1373", "702:25244"}) {
+    for (const auto &entry :
+         {"170:2441", "173:14", "163:1373", "702:25244", "9037:118"}) {
       game.debugJumpToNode(entry);
       engine.Iterate();
       check(game.diagnostic().empty(), game.diagnostic().c_str());

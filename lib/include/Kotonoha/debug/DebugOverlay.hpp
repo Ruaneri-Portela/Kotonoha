@@ -1,4 +1,5 @@
 #pragma once
+#include <Kotonoha/events/InputActions.hpp>
 
 #include <Kotonoha/core/Clock.hpp>
 #include <Kotonoha/core/SDL.hpp>
@@ -23,6 +24,7 @@ struct DebugSettings {
 
 class DebugOverlay {
   Engine &engine;
+  TouchPointer touchPointer;
   DebugSettings settings;
   bool visible = false;
   Clock frameClock;

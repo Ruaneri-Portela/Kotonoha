@@ -84,6 +84,7 @@ Launcher::~Launcher() { close(); }
 void Launcher::open() {
   if (isOpen())
     return;
+  SDL_SetHint(SDL_HINT_TOUCH_MOUSE_EVENTS, "0");
   if (!SDL_InitSubSystem(SDL_INIT_VIDEO))
     throw std::runtime_error(SDL_GetError());
   videoInitialized = true;
@@ -265,6 +266,23 @@ SDL_AppResult Launcher::event(const SDL_Event &event) {
     return SDL_APP_CONTINUE;
   ImGui::SetCurrentContext(context);
   ImGui_ImplSDL3_ProcessEvent(&event);
+  SDL_Event pointer{};
+  if (touchPointer.translate(event, *window, pointer)) {
+    SDL_Event position{};
+    position.type = SDL_EVENT_MOUSE_MOTION;
+    position.motion.windowID = pointer.type == SDL_EVENT_MOUSE_MOTION
+                                   ? pointer.motion.windowID
+                                   : pointer.button.windowID;
+    position.motion.which = SDL_TOUCH_MOUSEID;
+    position.motion.x = pointer.type == SDL_EVENT_MOUSE_MOTION
+                            ? pointer.motion.x
+                            : pointer.button.x;
+    position.motion.y = pointer.type == SDL_EVENT_MOUSE_MOTION
+                            ? pointer.motion.y
+                            : pointer.button.y;
+    ImGui_ImplSDL3_ProcessEvent(&position);
+    ImGui_ImplSDL3_ProcessEvent(&pointer);
+  }
   if (event.type == SDL_EVENT_QUIT ||
       (event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED &&
        event.window.windowID == SDL_GetWindowID(window.get())))

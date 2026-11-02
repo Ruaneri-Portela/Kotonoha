@@ -1,4 +1,5 @@
 #pragma once
+#include <Kotonoha/events/InputActions.hpp>
 
 #include <Kotonoha/core/SDL.hpp>
 #include <Kotonoha/core/Settings.hpp>
@@ -63,6 +64,7 @@ protected:
 
 private:
   struct Dialog;
+  TouchPointer touchPointer;
   static void SDLCALL dialogFinished(void *data, const char *const *files,
                                      int filter);
   std::string title, settingsPath, status;

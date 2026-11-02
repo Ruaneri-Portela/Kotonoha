@@ -8,102 +8,221 @@
 
 /* Begin PBXBuildFile section */
 		00063DF34CD89A1C960AC7A1 /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4A9B6E799E2376E8183ADE52 /* Metal.framework */; };
+		00ABDF2909E36AA1D6AF6B0B /* _multibytecodec.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 15E03530E42B12EE24D41B19 /* _multibytecodec.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		00ED9A08259936EA27F81B38 /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 42D538C486E337F7390CE7EF /* CoreFoundation.framework */; };
+		0299CB3629EAAF6D599AF4ED /* _testmultiphase.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = DDFB69DC3775D0311567E1FD /* _testmultiphase.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		0351CDE51DCA0C4936C1DF41 /* OpenGLES.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4FFD1FC9FD3DE0FD18C5D44F /* OpenGLES.framework */; };
+		037D3C3D629EF1C43221C48C /* _codecs_iso2022.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = BA59560E87AF5E75F6FF6202 /* _codecs_iso2022.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		040512B9F35D75B5BB9768EC /* AudioToolbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FBAC8B3DF93878243BF88A65 /* AudioToolbox.framework */; };
 		050A4D0B472931E1890EBB2A /* KotonohaImGui.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CE1893F63095457700B0DF80 /* KotonohaImGui.framework */; };
+		06F0A9556C2EE159F65115BD /* _testimportmultiple.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 718C36C5C8FC84BA810410C0 /* _testimportmultiple.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		07A049B4976F891C254A94F9 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6AC33256490759509EFF9BF1 /* Foundation.framework */; };
+		08CC5FE5B95F7BA5901515EE /* termios.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 150B9A2F85BFA37DAFC1DA7D /* termios.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		08CF1D0B2CB3907037A419E5 /* _hashlib.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = AAAC6F32B9716B0C6103CE99 /* _hashlib.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		0956286F8E98465088FC64C3 /* array.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 4ACCE709BEC29A304D9378AE /* array.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		09DA5550D64BCB5E57750139 /* _random.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 91637AA8D0D342511A804AA1 /* _random.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		0A996D18CEA636E4F2D6D4CA /* SDL3_ttf.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = CEFD20AD3095902A006D0E4E /* SDL3_ttf.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		0AB9552443B390501E4E97EF /* SDL3.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEFD20B530959039006D0E4E /* SDL3.framework */; };
+		0AD671B82986BC6644FE21C6 /* _testimportmultiple.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 718C36C5C8FC84BA810410C0 /* _testimportmultiple.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		0B23AA68115E8CCC81D3A05B /* _sha1.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = FCFC49BFC93F88983052526E /* _sha1.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		0B65256FA7D60FD62D1D4089 /* assets in Resources */ = {isa = PBXBuildFile; fileRef = 4B570C15B7EBDFAD987CA4C4 /* assets */; };
-		0D41E252FE4369A2E9AE8A7A /* Replay.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9BFB8BAF9FC008E6D14042C8 /* Replay.cpp */; };
+		0B8A5F14BBA84D8DDB5DA4CA /* pyexpat.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 92B20B5268D269B4C4535CA0 /* pyexpat.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		0BF1920ABFC23A0B2F103DCF /* _sqlite3.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 83A08D605BAA386DCC00A9FD /* _sqlite3.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		0C25F6A6124265740AF1CC13 /* _pickle.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 1E4CEF5911A1C476E3336FAE /* _pickle.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		0CB8755A386CBC31B4814AA6 /* _codecs_tw.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = D0AC9EDE4A6864C7406BB72F /* _codecs_tw.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		0E0202CDC4E0C9E5C71A886C /* _decimal.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = B287B88F36F9FE7FDE35CCDC /* _decimal.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		0FD08010051B9FE9DBC1961E /* _ctypes_test.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 31CC9EC35C6984F19D7612B3 /* _ctypes_test.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		1051F7CF651A6963D995607D /* Python.xcframework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = CE90DB553098CBF100281500 /* Python.xcframework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		108286D41C43B92BB2DA1204 /* SDL3_ttf.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEFD20AD3095902A006D0E4E /* SDL3_ttf.framework */; };
 		114B6B5EFBB32818F66E7821 /* imgui_stdlib.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5F688AD0FCE10DF72F51EBE2 /* imgui_stdlib.cpp */; };
+		1177B3A210D393803D9EA4BB /* array.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 4ACCE709BEC29A304D9378AE /* array.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		13599080B1B22DF28D660B24 /* OpenGLES.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4FFD1FC9FD3DE0FD18C5D44F /* OpenGLES.framework */; };
+		1371E43EC55225787A8631A5 /* xxlimited_35.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = E61C84D0AC3D59F4A3B6DB36 /* xxlimited_35.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		13C156712CD198E2BB280D47 /* _ssl.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = DB704E7428F8367E87ED925C /* _ssl.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		13E52486A6117519E24EB4F2 /* KotonohaEngine.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CE1893F83095457F00B0DF80 /* KotonohaEngine.framework */; };
+		145E4E793BBFA1A136C8EDEA /* _testbuffer.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = DEE02E8227379844A4C2E13C /* _testbuffer.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		149DD7CDB6C517991BDC1DBB /* CoreMedia.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B78DCDBFE541F1854A2A0FFC /* CoreMedia.framework */; };
 		16EC5DF5A36984D999EC0494 /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 42D538C486E337F7390CE7EF /* CoreFoundation.framework */; };
+		19B614D6482B2CC9818E95B7 /* _testclinic.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 1AFF8E85C8E18A59B741C836 /* _testclinic.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		19BED8FC8B7B20E634F015A4 /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4A9B6E799E2376E8183ADE52 /* Metal.framework */; };
+		1A2EDEB838C1053AED946570 /* fcntl.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 4EC023822E779C408544E330 /* fcntl.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		1C1BEDC96BB369F0EBB5E509 /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4A9B6E799E2376E8183ADE52 /* Metal.framework */; };
+		1EF6200DE5F8C29A524172B5 /* cmath.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 440FCF7BEA08D35F90C24775 /* cmath.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		21B6562D334DA665E4242ADB /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6AC33256490759509EFF9BF1 /* Foundation.framework */; };
+		220DBB9382037C5B3F15D287 /* _elementtree.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = BE853869404063D285F02AEC /* _elementtree.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		22F99307CC4A07446751CEA6 /* zlib.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 89F9A504E0BB12B1B51786FB /* zlib.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		23318CCC38F24025FC81E818 /* assets in Resources */ = {isa = PBXBuildFile; fileRef = 4C0D884F99638CBB5B02A07D /* assets */; };
+		2494734C10F3C34093F68DF0 /* _bz2.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = A5D8C2ABB2F5E427B3B1984D /* _bz2.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		24D9F733B5F5C03EC97C0E8F /* CoreMedia.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B78DCDBFE541F1854A2A0FFC /* CoreMedia.framework */; };
 		28397863F12D36A2790D35B4 /* KotonohaImGui.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = CE1893F63095457700B0DF80 /* KotonohaImGui.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		29038B500CA6CFEAE195F39B /* _queue.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 26BBDF9E8802FDEDBA0D64C5 /* _queue.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		2C92212412D75B19AD0605F3 /* _hmac.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 8E9708F7D6F68BCBB74A8400 /* _hmac.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		2D2BD1CCA88BA5240E15B020 /* Vm.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0242730B1E228181304627F9 /* Vm.cpp */; };
+		2F1C96F87AECDC4D23ECED90 /* _codecs_cn.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 516539DFE6567E2E37EA46E7 /* _codecs_cn.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		2F1D04C8C4123C3FE151357D /* CoreVideo.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B2FAEAC42A6E7C5EDC4F4A07 /* CoreVideo.framework */; };
 		2F2460A93B4F1788834ED379 /* KotonohaImGui.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = CE1893F63095457700B0DF80 /* KotonohaImGui.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		30442EA5E538600E7A0A60AC /* Python.xcframework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = CE90DB553098CBF100281500 /* Python.xcframework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		315D3E2E533CD6DAE91B649C /* AudioToolbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FBAC8B3DF93878243BF88A65 /* AudioToolbox.framework */; };
+		316F42681A166CD66EF8E008 /* Python.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = CE90DB553098CBF100281500 /* Python.xcframework */; };
+		319E737219A2B620B4A8D684 /* _sha3.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 6C8A0E978D71CD2188E323F1 /* _sha3.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		31D8AF87DC83E60E466F29E2 /* _uuid.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = AFE19CE045BB24E291044227 /* _uuid.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		3217BCBA549E11655D324B04 /* _lzma.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 6C9806081CEE061BA0F00EE2 /* _lzma.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		32E27A969CF80FD2F163B388 /* imgui.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 749E86948BF0AA6831055589 /* imgui.cpp */; };
 		32F56A41ADF2FEC206961C8C /* Archive.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 08EFD6BD9770B9CFE023EC0A /* Archive.cpp */; };
+		351AFFB276B7F76EE9F1FDC0 /* _struct.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = C493414D30C0DC9E2CB6E56A /* _struct.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		35C4FCC0CDFE89ECF8419CD5 /* AudioToolbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FBAC8B3DF93878243BF88A65 /* AudioToolbox.framework */; };
+		3693C2D22F6819A6E92D41D1 /* _random.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 91637AA8D0D342511A804AA1 /* _random.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		376FB2AC718F267584F93F2F /* _codecs_hk.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 75DF1AA2413B7EC88DBE80BE /* _codecs_hk.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		37FD5B2504B10F75ACB2F275 /* _ssl.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = DB704E7428F8367E87ED925C /* _ssl.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		3C10FC2105AB750757315713 /* _zstd.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = B1CD58968FC23625B0FCF604 /* _zstd.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		3DCC3FE48DEC316ECF9B16E6 /* imgui_tables.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 43B9E4E908D1CC67D291F5F0 /* imgui_tables.cpp */; };
+		3F4E8FB9E34E8F18AAB57427 /* _interpqueues.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 8A47D1B7992DE27916835FAA /* _interpqueues.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		42193D5A6C3BCBD61FC5DB86 /* _lsprof.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 958E48A4BF48F7CC5B856624 /* _lsprof.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		421C7B7AF7C5B5C6EB986FAD /* _testinternalcapi.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = FDAFA92165858CF5A6DC4CAB /* _testinternalcapi.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		42AD42A2610ACC148A6FD3BB /* _testinternalcapi.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = FDAFA92165858CF5A6DC4CAB /* _testinternalcapi.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		42FE8A2128E0A347FAF45F92 /* unicodedata.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 8AB7327E13E1B295FA5D4B74 /* unicodedata.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		43AE9460F0D5F6484889996E /* VideoToolbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C446DAC72995F2973C600D09 /* VideoToolbox.framework */; };
+		44EE1C78848092ADDDE34760 /* select.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 2B246E8A7ABD2510133DE376 /* select.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		454A66B53853EA9DCBB49491 /* KotonohaEngine.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = CE1893F83095457F00B0DF80 /* KotonohaEngine.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		463A4157B20BF5BEB9A27158 /* _uuid.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = AFE19CE045BB24E291044227 /* _uuid.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		481B1044A53ECB1B893E95D6 /* _testsinglephase.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = EFADD430DB01E76F8FEAD591 /* _testsinglephase.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		48454109453FDFF168A748C2 /* AudioToolbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FBAC8B3DF93878243BF88A65 /* AudioToolbox.framework */; };
+		4C5650FAC0545D18E1B55B5E /* _socket.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 76DB86BCBCACA1C30AFF9D09 /* _socket.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		4DDF89379F25E3A29D895DAD /* _md5.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 7379F358F50618304E663174 /* _md5.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		4F5B0FDA0B48AEE84AA1BB83 /* _struct.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = C493414D30C0DC9E2CB6E56A /* _struct.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		4FDC3DCF7698E8B42C597DBB /* xxlimited.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 2781D05D07504035F2CFAFEE /* xxlimited.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		50C5FFA340EE4C2BF3B3F77B /* pyexpat.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 92B20B5268D269B4C4535CA0 /* pyexpat.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		516FFB9A9FC6DB3528DA0EC0 /* _testlimitedcapi.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 2D33FD1A2EB0DFCF3620417D /* _testlimitedcapi.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		529B5102EF3236F6D9830675 /* _sha3.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 6C8A0E978D71CD2188E323F1 /* _sha3.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		53478FE376E9C070B9153460 /* CoreMedia.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B78DCDBFE541F1854A2A0FFC /* CoreMedia.framework */; };
 		541B61671D1BD960E11EFBA5 /* OpenGLES.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4FFD1FC9FD3DE0FD18C5D44F /* OpenGLES.framework */; };
+		5547856E6CC38D8AAE06ABF0 /* _interpreters.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 26E116FFD2EE4D3012803BA0 /* _interpreters.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		557118BF53890FC972275EA9 /* _socket.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 76DB86BCBCACA1C30AFF9D09 /* _socket.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		56690D5D44C1602233D51925 /* _sha2.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = CEDFC336F4945B9B468438BC /* _sha2.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		5699E4F5C749E0E42D7CD4BF /* _bisect.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = DE6A15AB88BF5B798A0FF869 /* _bisect.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		584A1D0CF18C97F703CC5657 /* SvgTestFont.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 2F6E483E9694EDC9C9D4B92F /* SvgTestFont.ttf */; };
+		587DFB1DBAB20B325F1D0642 /* _statistics.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 5DE24A4243A60EC5676ED207 /* _statistics.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		5922118C186273774C435BB9 /* _codecs_kr.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = FB7C631042C14C0105BF5715 /* _codecs_kr.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		592826710EA4ED2C90150006 /* VideoToolbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C446DAC72995F2973C600D09 /* VideoToolbox.framework */; };
 		598189BE172661BEFAF268B5 /* Script.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 35CBE9E83D4457472483BFC4 /* Script.cpp */; };
+		5BF684CE4260D2D3EAF49415 /* _testcapi.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 08904302FD78EF668F6A5905 /* _testcapi.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		5C8E1CE6D93E084716E8EC80 /* OpenGLES.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4FFD1FC9FD3DE0FD18C5D44F /* OpenGLES.framework */; };
 		5CE2F057901EC6ED26F6EE73 /* imgui_widgets.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 1E3DAC86D86C8594D18E1D20 /* imgui_widgets.cpp */; };
+		5D10317219AA52CA3C60FA60 /* _multibytecodec.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 15E03530E42B12EE24D41B19 /* _multibytecodec.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		5FD58DACF503942DD43372EC /* AudioToolbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FBAC8B3DF93878243BF88A65 /* AudioToolbox.framework */; };
+		607CC8B072956D4E9CF0B885 /* binascii.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = A9B5CE300F1EA791828A8104 /* binascii.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		60A0CF2EB40CCE0868E90DAE /* imgui_impl_sdlrenderer3.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E3E0EC27DFAF9CC3242B7CFB /* imgui_impl_sdlrenderer3.cpp */; };
+		61AC687593A11ABD62A926BA /* _testsinglephase.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = EFADD430DB01E76F8FEAD591 /* _testsinglephase.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		6271E50E94A21DA67FD87B83 /* _codecs_tw.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = D0AC9EDE4A6864C7406BB72F /* _codecs_tw.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		62DCD5E25DA7DD5725F20D17 /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4A9B6E799E2376E8183ADE52 /* Metal.framework */; };
 		6301D6002C77E5273B461E72 /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4A9B6E799E2376E8183ADE52 /* Metal.framework */; };
+		633E0058843D8BD84D571E09 /* xxlimited_3_13.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 4DA21200322D9F37636CBDFE /* xxlimited_3_13.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		6340E05E79740E23C3C02A20 /* KotonohaImGui.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CE1893F63095457700B0DF80 /* KotonohaImGui.framework */; };
+		64D899192CBD43B2C584AAEE /* _interpchannels.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = FD05D4D2301E99063B9B4FFF /* _interpchannels.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		6556A0C88E436DB669EC7120 /* _bz2.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = A5D8C2ABB2F5E427B3B1984D /* _bz2.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		65CC81619F6007C5117D1BF1 /* _heapq.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = F6224B0389359800F5E57E4F /* _heapq.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		65DCD8C40D10F70A8F74C05D /* _pickle.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 1E4CEF5911A1C476E3336FAE /* _pickle.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		66CF661D437A3ADF8A0DB5D5 /* binascii.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = A9B5CE300F1EA791828A8104 /* binascii.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		6752731C85C2F8B2F3E4BAD6 /* zlib.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 89F9A504E0BB12B1B51786FB /* zlib.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		67BD4F9CC0336601B8C6EB93 /* VideoToolbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C446DAC72995F2973C600D09 /* VideoToolbox.framework */; };
 		69AB1192C3C11DF6A6B0C2A5 /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4A9B6E799E2376E8183ADE52 /* Metal.framework */; };
 		69E54331BD2760DEDB7A8229 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6AC33256490759509EFF9BF1 /* Foundation.framework */; };
+		6A756F65C2FA1ECFA4E0366C /* _csv.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = E84056C986E173093BCC489F /* _csv.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		6B415B41B4DE26A98C7A34F4 /* _testlimitedcapi.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 2D33FD1A2EB0DFCF3620417D /* _testlimitedcapi.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		6C57CBFBCE8680710A37BFAC /* _math_integer.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 1BE56743BB636E2D4BAB2FCB /* _math_integer.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		6D4E7E573D0C19F64FB7DC1F /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 42D538C486E337F7390CE7EF /* CoreFoundation.framework */; };
+		6D5BB7B3AB90014A55FB86E6 /* resource.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = ED3652828BEF86F94266D8C8 /* resource.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		6DDBCA94A5B26FEE2F1B5945 /* _interpqueues.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 8A47D1B7992DE27916835FAA /* _interpqueues.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		6E82F57434E062B14268CF74 /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 42D538C486E337F7390CE7EF /* CoreFoundation.framework */; };
+		715954B1D713C94F31C91DA7 /* _math_integer.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 1BE56743BB636E2D4BAB2FCB /* _math_integer.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		73254F43B14942E9DB2E9D7C /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4A9B6E799E2376E8183ADE52 /* Metal.framework */; };
+		73B9B8F56AA2E552ED6E70DF /* _dbm.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 057006EE70B2F266897CF831 /* _dbm.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		74A4D38972F6167E3B967D0E /* KotonohaImGui.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = CE1893F63095457700B0DF80 /* KotonohaImGui.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		7504FCC4F6303984EF390FC7 /* DdlcScriptTest.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0BDBADE5AA1843BDCBE0381B /* DdlcScriptTest.cpp */; };
+		77876D52DDD72D3C142D973D /* _ctypes.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = B0E136854CDBA9F76742A5DA /* _ctypes.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		7926EB2A7F352C10F099ACCB /* _statistics.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 5DE24A4243A60EC5676ED207 /* _statistics.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		7ABD34365E51463BE499B782 /* _json.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = AAFB89E908BDA77D54AABE49 /* _json.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		7B99A304C47DBBB655F0AB73 /* _bisect.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = DE6A15AB88BF5B798A0FF869 /* _bisect.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		7EFB4F1125FA1E7A80C3B266 /* _ctypes.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = B0E136854CDBA9F76742A5DA /* _ctypes.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		7F94124DD2A7442B5840761D /* VideoToolbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C446DAC72995F2973C600D09 /* VideoToolbox.framework */; };
+		7FD42C12A4898832693C3F67 /* _hmac.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 8E9708F7D6F68BCBB74A8400 /* _hmac.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		7FDAF090509E14964FEE0854 /* _blake2.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 2F0CCA89023E04A7F84E444E /* _blake2.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		8029535D3B42A8BEBE80D0A9 /* _zoneinfo.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = BA84F78900F207073C05F9CC /* _zoneinfo.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		80B8D9A239619517B6CF9774 /* _heapq.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = F6224B0389359800F5E57E4F /* _heapq.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		82E66C23A2A026D23A1E5092 /* KotonohaImGui.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CE1893F63095457700B0DF80 /* KotonohaImGui.framework */; };
 		82FE432053F731C949333CD2 /* SDL3.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEFD20B530959039006D0E4E /* SDL3.framework */; };
+		837845F38FF7D962EF85CEE9 /* xxsubtype.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 1B52335E78D2EA2972F15624 /* xxsubtype.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		8387BC2F1541AEDAF3B7E149 /* CoreVideo.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B2FAEAC42A6E7C5EDC4F4A07 /* CoreVideo.framework */; };
 		85A76F761FE62E10C86C36C1 /* KotonohaImGui.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CE1893F63095457700B0DF80 /* KotonohaImGui.framework */; };
+		86FD5EBA38E52E963C531676 /* _testclinic_limited.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = A9ABFE0CC08D30FF79C20ECA /* _testclinic_limited.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		8A8CBB408EA86B5EF6EB67B8 /* _remote_debugging.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 44FF0BEABF96805EA3839AC0 /* _remote_debugging.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		8DE0B9E6A7EAE72191C3C08D /* VideoToolbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C446DAC72995F2973C600D09 /* VideoToolbox.framework */; };
+		8E34834EE2585F154A85F58B /* _zstd.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = B1CD58968FC23625B0FCF604 /* _zstd.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		8E4FA5A40B66444E0382DCB3 /* mmap.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 009E3FE8EB0EA1374DE16896 /* mmap.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		8FD10C1CB72DE555CBC113C4 /* KotonohaImGui.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CE1893F63095457700B0DF80 /* KotonohaImGui.framework */; };
+		8FE1094032A4201507C313C8 /* termios.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 150B9A2F85BFA37DAFC1DA7D /* termios.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		8FE20EDE4E8732164C00EA2B /* _testclinic.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 1AFF8E85C8E18A59B741C836 /* _testclinic.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		91A50DE1D021BF91FBE3647D /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 42D538C486E337F7390CE7EF /* CoreFoundation.framework */; };
+		91E035C9F22737E3F9A22549 /* _remote_debugging.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 44FF0BEABF96805EA3839AC0 /* _remote_debugging.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		923F7FE3D55FC9FFC19A46A4 /* fcntl.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 4EC023822E779C408544E330 /* fcntl.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		940977A82A62E27D1F5BF92F /* game-assets in Resources */ = {isa = PBXBuildFile; fileRef = 6661193008ED2C99D8F4C85E /* game-assets */; };
 		951714C2518E026491F167D1 /* CoreVideo.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B2FAEAC42A6E7C5EDC4F4A07 /* CoreVideo.framework */; };
+		953762127BABEA9F41912A01 /* _sha2.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = CEDFC336F4945B9B468438BC /* _sha2.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		953B1C44BA57226DD925B36B /* SDL3.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = CEFD20B530959039006D0E4E /* SDL3.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		95C29BC1C6D52AD2764F8DD4 /* KotonohaImGui.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CE1893F63095457700B0DF80 /* KotonohaImGui.framework */; };
 		98261791889246CE2BAD8448 /* CoreMedia.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B78DCDBFE541F1854A2A0FFC /* CoreMedia.framework */; };
 		99641A082B7C25DE5A37EF86 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6AC33256490759509EFF9BF1 /* Foundation.framework */; };
+		9BE58CFA8F60C35094AD7D80 /* _interpreters.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 26E116FFD2EE4D3012803BA0 /* _interpreters.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		9C95B7E6948652E0E273AC9C /* Value.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 528F10C36D905193890E9E1A /* Value.cpp */; };
 		9D7333169777213B9128550D /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6AC33256490759509EFF9BF1 /* Foundation.framework */; };
 		9DB2A8DE44BF3F36E235F9DA /* KotonohaEngine.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CE1893F83095457F00B0DF80 /* KotonohaEngine.framework */; };
 		9DB5F8E9AB98CD91B36F7554 /* CoreMedia.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B78DCDBFE541F1854A2A0FFC /* CoreMedia.framework */; };
+		9DE3AFCAFD71FDA4566FB9C5 /* _sha1.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = FCFC49BFC93F88983052526E /* _sha1.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		9EC1E9F2A54D574B1DA7955D /* VideoToolbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C446DAC72995F2973C600D09 /* VideoToolbox.framework */; };
-		9F1F7ACA40D3AF645B906942 /* DdlcAssets.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FE4FB68934157B4FA11CFF5B /* DdlcAssets.cpp */; };
+		9ED1D4C9A6532E28DE046E86 /* _codecs_cn.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 516539DFE6567E2E37EA46E7 /* _codecs_cn.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		9F8D61CDCCA3417C88D1FF7B /* KotonohaImGui.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = CE1893F63095457700B0DF80 /* KotonohaImGui.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		A05503E85A6235A5D99B59C0 /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4A9B6E799E2376E8183ADE52 /* Metal.framework */; };
 		A1B12F5C153B5C61E327BBF6 /* PlatformSmokeTests.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AE21419FA90F5C4BEEBC3657 /* PlatformSmokeTests.cpp */; };
+		A31731683D6211C393E820A3 /* _codecs_hk.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 75DF1AA2413B7EC88DBE80BE /* _codecs_hk.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		A3BC6B209CEEAD34B52EFF86 /* xxsubtype.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 1B52335E78D2EA2972F15624 /* xxsubtype.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		A3C33CEC77B04675F7A5AA18 /* OpenGLES.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4FFD1FC9FD3DE0FD18C5D44F /* OpenGLES.framework */; };
+		A3F5184D7AF08851B50741FD /* _testmultiphase.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = DDFB69DC3775D0311567E1FD /* _testmultiphase.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		A440F07C98B600AB565B93FF /* VideoToolbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C446DAC72995F2973C600D09 /* VideoToolbox.framework */; };
+		A7B72700A05E4D4D509F3A57 /* math.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = CDE937DF873378DC9B0AA622 /* math.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		A9D0C18C4388BB3A2F46B7FE /* Display.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AD816549C60CF2EB4A36ECE3 /* Display.cpp */; };
 		AA9987A8B857455D47CDBC01 /* KotonohaImGui.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = CE1893F63095457700B0DF80 /* KotonohaImGui.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		AB3615E2ECD483A3C6144BA5 /* _lzma.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 6C9806081CEE061BA0F00EE2 /* _lzma.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		ABBE584881C50C0E6F5635C7 /* AudioToolbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FBAC8B3DF93878243BF88A65 /* AudioToolbox.framework */; };
 		ABEFE38E96ACB442C93A3DE9 /* CoreMedia.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B78DCDBFE541F1854A2A0FFC /* CoreMedia.framework */; };
+		AF89A64A11DD17958B8C602C /* cmath.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 440FCF7BEA08D35F90C24775 /* cmath.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		B0187C77DBF8A368436B4DF8 /* KotonohaImGui.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CE1893F63095457700B0DF80 /* KotonohaImGui.framework */; };
 		B0B70F6B7CDA5AAE47B11A1F /* KotonohaImGui.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = CE1893F63095457700B0DF80 /* KotonohaImGui.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		B1EF5FA0C91BA0E38AA4E73B /* xxlimited.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 2781D05D07504035F2CFAFEE /* xxlimited.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		B2A1A7A5F150FA8E81BB5AAC /* Python.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9AB15324823089557328B514 /* Python.cpp */; };
 		B2CD2E4C7288A6658B098F27 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6AC33256490759509EFF9BF1 /* Foundation.framework */; };
+		B40D382241A078A244A0AE9E /* python in Resources */ = {isa = PBXBuildFile; fileRef = CFDDD60E5D49E74EDC4E2B3C /* python */; };
 		B4BB6CE1EB747E088B849FD4 /* imgui_draw.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 514697826932CEDC425F9738 /* imgui_draw.cpp */; };
 		B52AF223D05D05073EED9B4B /* AudioToolbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FBAC8B3DF93878243BF88A65 /* AudioToolbox.framework */; };
+		B5516AAC86E574F0DAD458CA /* _lsprof.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 958E48A4BF48F7CC5B856624 /* _lsprof.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		B5F37745211531F47ACD8025 /* _elementtree.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = BE853869404063D285F02AEC /* _elementtree.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		B678C1A87E59B9D3BB76E7D4 /* mmap.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 009E3FE8EB0EA1374DE16896 /* mmap.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		B84A837CFA60AF826FEDF121 /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 42D538C486E337F7390CE7EF /* CoreFoundation.framework */; };
+		B8D007799620565C4F96BFA4 /* xxlimited_35.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = E61C84D0AC3D59F4A3B6DB36 /* xxlimited_35.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		BD6AE847C3BBDA0D4B54AB3B /* select.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 2B246E8A7ABD2510133DE376 /* select.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		BF2B3E1DA8C767B0CE0953C2 /* resource.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = ED3652828BEF86F94266D8C8 /* resource.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		C113B6F1928D5B96C95CFF85 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6AC33256490759509EFF9BF1 /* Foundation.framework */; };
+		C2837928493BD6A14A3987DE /* math.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = CDE937DF873378DC9B0AA622 /* math.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		C3203C4345CD0787D8FBA7E0 /* SDL3_ttf.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEFD20AD3095902A006D0E4E /* SDL3_ttf.framework */; };
 		C3439BFD95E2D5A59273A6DA /* KotonohaImGui.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CE1893F63095457700B0DF80 /* KotonohaImGui.framework */; };
 		C66FEE77049BAB19C9BD251C /* VideoToolbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C446DAC72995F2973C600D09 /* VideoToolbox.framework */; };
 		C6C715B25F09535CA51B0782 /* AudioToolbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FBAC8B3DF93878243BF88A65 /* AudioToolbox.framework */; };
 		C76939FD0D0403B83BEAEDB5 /* SDL3_ttf.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = CEFD20AD3095902A006D0E4E /* SDL3_ttf.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		C8B9B0905CBB2EAFB89B850D /* VideoToolbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C446DAC72995F2973C600D09 /* VideoToolbox.framework */; };
+		C8BD04563E67AA6C284B3572 /* python in Resources */ = {isa = PBXBuildFile; fileRef = 03AC09E9C0D0653AF91758F7 /* python */; };
 		C9AC40427DA745385043977C /* KotonohaImGui.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CE1893F63095457700B0DF80 /* KotonohaImGui.framework */; };
+		CB1C3BDF0BBC41426746A25E /* _testcapi.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 08904302FD78EF668F6A5905 /* _testcapi.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		CB8065727F189FC6F034CEA4 /* _md5.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 7379F358F50618304E663174 /* _md5.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		CDD51E6399F925D7880A972C /* _testbuffer.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = DEE02E8227379844A4C2E13C /* _testbuffer.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		CE1893FF30954CF000B0DF80 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6AC33256490759509EFF9BF1 /* Foundation.framework */; };
 		CE18940030954CF000B0DF80 /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4A9B6E799E2376E8183ADE52 /* Metal.framework */; };
 		CE18940130954CF000B0DF80 /* OpenGLES.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4FFD1FC9FD3DE0FD18C5D44F /* OpenGLES.framework */; };
@@ -137,6 +256,7 @@
 		CEC5DF1C3095F83A00D4D78B /* KotonohaEngine.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = CE1893F83095457F00B0DF80 /* KotonohaEngine.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		CEC5DF1D3095F83D00D4D78B /* KotonohaEngine.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CE1893F83095457F00B0DF80 /* KotonohaEngine.framework */; };
 		CEC5DF1E3095F83D00D4D78B /* KotonohaEngine.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = CE1893F83095457F00B0DF80 /* KotonohaEngine.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		CEDBE52417C8631E50248464 /* _json.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = AAFB89E908BDA77D54AABE49 /* _json.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		CEF8839B3095998500CB6787 /* assets in Resources */ = {isa = PBXBuildFile; fileRef = CE2FEE0330956E6100E7D27F /* assets */; };
 		CEFD20B63095904E006D0E4E /* SDL3.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEFD20B530959039006D0E4E /* SDL3.framework */; };
 		CEFD20B73095904E006D0E4E /* SDL3.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = CEFD20B530959039006D0E4E /* SDL3.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
@@ -173,32 +293,51 @@
 		CEFD20DE3095909F006D0E4E /* SDL3_ttf.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = CEFD20AD3095902A006D0E4E /* SDL3_ttf.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		D0E726613E02562BB97436D1 /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 42D538C486E337F7390CE7EF /* CoreFoundation.framework */; };
 		D1D07C592ADAC2BC2B68C612 /* CoreVideo.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B2FAEAC42A6E7C5EDC4F4A07 /* CoreVideo.framework */; };
+		D359EE0EA775E5C03FC2B529 /* _ctypes_test.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 31CC9EC35C6984F19D7612B3 /* _ctypes_test.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		D4CDA1DA18ACC1DFA370B8A8 /* AudioToolbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FBAC8B3DF93878243BF88A65 /* AudioToolbox.framework */; };
+		D5426C9A8495A81C48EE6F19 /* _testclinic_limited.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = A9ABFE0CC08D30FF79C20ECA /* _testclinic_limited.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		D5503602DDAF33D053DB64C6 /* _codecs_kr.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = FB7C631042C14C0105BF5715 /* _codecs_kr.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		D5C93F7C6866ABDE2F7B3C92 /* KotonohaImGui.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CE1893F63095457700B0DF80 /* KotonohaImGui.framework */; };
 		D65279F819A39074B3FBFE5C /* game-assets in Resources */ = {isa = PBXBuildFile; fileRef = C310110E5F08805A6AAD5858 /* game-assets */; };
+		D80EC2D025530A5FED57C43E /* _dbm.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 057006EE70B2F266897CF831 /* _dbm.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		D86023A902907AE397697254 /* CoreMedia.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B78DCDBFE541F1854A2A0FFC /* CoreMedia.framework */; };
+		D8DC687A01BF7CFA1E2463F8 /* _hashlib.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = AAAC6F32B9716B0C6103CE99 /* _hashlib.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		D9039BE17B8168D74C1A3C68 /* CoreMedia.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B78DCDBFE541F1854A2A0FFC /* CoreMedia.framework */; };
 		D93AB727AA38217D72F47245 /* CoreMedia.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B78DCDBFE541F1854A2A0FFC /* CoreMedia.framework */; };
+		DC9445F6413957A13B3161FD /* _xxtestfuzz.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 49547D91FA3085FB8F0D0019 /* _xxtestfuzz.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		DCD02DF66CDECCBEB4709AA2 /* CoreVideo.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B2FAEAC42A6E7C5EDC4F4A07 /* CoreVideo.framework */; };
 		DCE5859CDAFE38345890B137 /* OpenGLES.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4FFD1FC9FD3DE0FD18C5D44F /* OpenGLES.framework */; };
 		E201393195443303D237CF41 /* KotonohaImGui.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = CE1893F63095457700B0DF80 /* KotonohaImGui.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		E35016335D4071C074943DF2 /* KotonohaImGui.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = CE1893F63095457700B0DF80 /* KotonohaImGui.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		E4DAA69952E60E69599BDBBF /* _decimal.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = B287B88F36F9FE7FDE35CCDC /* _decimal.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		E53EAF48AE4478F39C1C30B5 /* _xxtestfuzz.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 49547D91FA3085FB8F0D0019 /* _xxtestfuzz.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		E5B05E3BE061D2015AC18EDD /* _csv.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = E84056C986E173093BCC489F /* _csv.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		E6FD1D975FBB91BE04384D7D /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4A9B6E799E2376E8183ADE52 /* Metal.framework */; };
+		E78A3D2619C3D4725967C9F1 /* _blake2.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 2F0CCA89023E04A7F84E444E /* _blake2.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		EA5FCB8C425E60C6312097BD /* OpenGLES.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4FFD1FC9FD3DE0FD18C5D44F /* OpenGLES.framework */; };
 		EC13B4C789762B363921420B /* OpenGLES.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4FFD1FC9FD3DE0FD18C5D44F /* OpenGLES.framework */; };
+		EE2A2FF17BF4A4DB52BA3D8C /* _queue.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 26BBDF9E8802FDEDBA0D64C5 /* _queue.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		EE545567FFB86122F791AFB7 /* _codecs_jp.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = BF419AE62F91C71F47490CB9 /* _codecs_jp.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		EE918BAF9BB671D70411D6C3 /* _zoneinfo.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = BA84F78900F207073C05F9CC /* _zoneinfo.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		EF2AB0D8E753C3C32DF19315 /* _interpchannels.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = FD05D4D2301E99063B9B4FFF /* _interpchannels.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		EFBA004F458C8C0351794692 /* imgui_impl_sdl3.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 84BEEE477A504ECE1C36DCF8 /* imgui_impl_sdl3.cpp */; };
+		F01E97222D423AB168FF027D /* unicodedata.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 8AB7327E13E1B295FA5D4B74 /* unicodedata.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		F029D8479550506631C23D37 /* SDL3.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = CEFD20B530959039006D0E4E /* SDL3.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		F06F58C90FB5D93099D8D04D /* CoreVideo.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B2FAEAC42A6E7C5EDC4F4A07 /* CoreVideo.framework */; };
 		F44843F4A07F1E51800C95E7 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6AC33256490759509EFF9BF1 /* Foundation.framework */; };
 		F4B068DC6AEC13E173931970 /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 42D538C486E337F7390CE7EF /* CoreFoundation.framework */; };
+		F5D0CEDC42B78DAE0F9243CC /* _codecs_jp.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = BF419AE62F91C71F47490CB9 /* _codecs_jp.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		F7FCF7B7563994211343C198 /* KotonohaEngine.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = CE1893F83095457F00B0DF80 /* KotonohaEngine.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		F8C44FAF4C88BABECDD7E74C /* CoreVideo.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B2FAEAC42A6E7C5EDC4F4A07 /* CoreVideo.framework */; };
+		F9211F4F9D28F0CE9CF4052F /* _codecs_iso2022.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = BA59560E87AF5E75F6FF6202 /* _codecs_iso2022.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		FA056BF695F93AE290705FB8 /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 42D538C486E337F7390CE7EF /* CoreFoundation.framework */; };
 		FABF92E8ADBAE676428C1DA1 /* CoreVideo.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B2FAEAC42A6E7C5EDC4F4A07 /* CoreVideo.framework */; };
 		FBC37707E15D5F0D78065FF0 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6AC33256490759509EFF9BF1 /* Foundation.framework */; };
+		FBCD96D861D873A302B5347D /* _sqlite3.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 83A08D605BAA386DCC00A9FD /* _sqlite3.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		FDA1599DA4BD8492F7A2721F /* OpenGLES.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4FFD1FC9FD3DE0FD18C5D44F /* OpenGLES.framework */; };
 		FDE0C671E26D9A7B3CAB8221 /* KotonohaImGui.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = CE1893F63095457700B0DF80 /* KotonohaImGui.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		FFF7E19F670CD661E45F8603 /* CoreVideo.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B2FAEAC42A6E7C5EDC4F4A07 /* CoreVideo.framework */; };
+		FFFCC3E77E7704A6B4EC1445 /* xxlimited_3_13.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 4DA21200322D9F37636CBDFE /* xxlimited_3_13.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -432,6 +571,75 @@
 				CEFD20CE3095908D006D0E4E /* SDL3_ttf.framework in Embed Frameworks */,
 				CEC5DF163095F7FC00D4D78B /* KotonohaEngine.framework in Embed Frameworks */,
 				AA9987A8B857455D47CDBC01 /* KotonohaImGui.framework in Embed Frameworks */,
+				5699E4F5C749E0E42D7CD4BF /* _bisect.framework in Embed Frameworks */,
+				7FDAF090509E14964FEE0854 /* _blake2.framework in Embed Frameworks */,
+				6556A0C88E436DB669EC7120 /* _bz2.framework in Embed Frameworks */,
+				2F1C96F87AECDC4D23ECED90 /* _codecs_cn.framework in Embed Frameworks */,
+				376FB2AC718F267584F93F2F /* _codecs_hk.framework in Embed Frameworks */,
+				F9211F4F9D28F0CE9CF4052F /* _codecs_iso2022.framework in Embed Frameworks */,
+				F5D0CEDC42B78DAE0F9243CC /* _codecs_jp.framework in Embed Frameworks */,
+				5922118C186273774C435BB9 /* _codecs_kr.framework in Embed Frameworks */,
+				6271E50E94A21DA67FD87B83 /* _codecs_tw.framework in Embed Frameworks */,
+				6A756F65C2FA1ECFA4E0366C /* _csv.framework in Embed Frameworks */,
+				77876D52DDD72D3C142D973D /* _ctypes.framework in Embed Frameworks */,
+				0FD08010051B9FE9DBC1961E /* _ctypes_test.framework in Embed Frameworks */,
+				73B9B8F56AA2E552ED6E70DF /* _dbm.framework in Embed Frameworks */,
+				E4DAA69952E60E69599BDBBF /* _decimal.framework in Embed Frameworks */,
+				220DBB9382037C5B3F15D287 /* _elementtree.framework in Embed Frameworks */,
+				D8DC687A01BF7CFA1E2463F8 /* _hashlib.framework in Embed Frameworks */,
+				65CC81619F6007C5117D1BF1 /* _heapq.framework in Embed Frameworks */,
+				2C92212412D75B19AD0605F3 /* _hmac.framework in Embed Frameworks */,
+				EF2AB0D8E753C3C32DF19315 /* _interpchannels.framework in Embed Frameworks */,
+				6DDBCA94A5B26FEE2F1B5945 /* _interpqueues.framework in Embed Frameworks */,
+				9BE58CFA8F60C35094AD7D80 /* _interpreters.framework in Embed Frameworks */,
+				CEDBE52417C8631E50248464 /* _json.framework in Embed Frameworks */,
+				42193D5A6C3BCBD61FC5DB86 /* _lsprof.framework in Embed Frameworks */,
+				3217BCBA549E11655D324B04 /* _lzma.framework in Embed Frameworks */,
+				715954B1D713C94F31C91DA7 /* _math_integer.framework in Embed Frameworks */,
+				4DDF89379F25E3A29D895DAD /* _md5.framework in Embed Frameworks */,
+				00ABDF2909E36AA1D6AF6B0B /* _multibytecodec.framework in Embed Frameworks */,
+				65DCD8C40D10F70A8F74C05D /* _pickle.framework in Embed Frameworks */,
+				EE2A2FF17BF4A4DB52BA3D8C /* _queue.framework in Embed Frameworks */,
+				3693C2D22F6819A6E92D41D1 /* _random.framework in Embed Frameworks */,
+				91E035C9F22737E3F9A22549 /* _remote_debugging.framework in Embed Frameworks */,
+				9DE3AFCAFD71FDA4566FB9C5 /* _sha1.framework in Embed Frameworks */,
+				953762127BABEA9F41912A01 /* _sha2.framework in Embed Frameworks */,
+				529B5102EF3236F6D9830675 /* _sha3.framework in Embed Frameworks */,
+				4C5650FAC0545D18E1B55B5E /* _socket.framework in Embed Frameworks */,
+				FBCD96D861D873A302B5347D /* _sqlite3.framework in Embed Frameworks */,
+				13C156712CD198E2BB280D47 /* _ssl.framework in Embed Frameworks */,
+				587DFB1DBAB20B325F1D0642 /* _statistics.framework in Embed Frameworks */,
+				351AFFB276B7F76EE9F1FDC0 /* _struct.framework in Embed Frameworks */,
+				CDD51E6399F925D7880A972C /* _testbuffer.framework in Embed Frameworks */,
+				5BF684CE4260D2D3EAF49415 /* _testcapi.framework in Embed Frameworks */,
+				8FE20EDE4E8732164C00EA2B /* _testclinic.framework in Embed Frameworks */,
+				86FD5EBA38E52E963C531676 /* _testclinic_limited.framework in Embed Frameworks */,
+				0AD671B82986BC6644FE21C6 /* _testimportmultiple.framework in Embed Frameworks */,
+				421C7B7AF7C5B5C6EB986FAD /* _testinternalcapi.framework in Embed Frameworks */,
+				516FFB9A9FC6DB3528DA0EC0 /* _testlimitedcapi.framework in Embed Frameworks */,
+				0299CB3629EAAF6D599AF4ED /* _testmultiphase.framework in Embed Frameworks */,
+				61AC687593A11ABD62A926BA /* _testsinglephase.framework in Embed Frameworks */,
+				463A4157B20BF5BEB9A27158 /* _uuid.framework in Embed Frameworks */,
+				E53EAF48AE4478F39C1C30B5 /* _xxtestfuzz.framework in Embed Frameworks */,
+				EE918BAF9BB671D70411D6C3 /* _zoneinfo.framework in Embed Frameworks */,
+				8E34834EE2585F154A85F58B /* _zstd.framework in Embed Frameworks */,
+				0956286F8E98465088FC64C3 /* array.framework in Embed Frameworks */,
+				607CC8B072956D4E9CF0B885 /* binascii.framework in Embed Frameworks */,
+				AF89A64A11DD17958B8C602C /* cmath.framework in Embed Frameworks */,
+				1A2EDEB838C1053AED946570 /* fcntl.framework in Embed Frameworks */,
+				C2837928493BD6A14A3987DE /* math.framework in Embed Frameworks */,
+				8E4FA5A40B66444E0382DCB3 /* mmap.framework in Embed Frameworks */,
+				50C5FFA340EE4C2BF3B3F77B /* pyexpat.framework in Embed Frameworks */,
+				BF2B3E1DA8C767B0CE0953C2 /* resource.framework in Embed Frameworks */,
+				BD6AE847C3BBDA0D4B54AB3B /* select.framework in Embed Frameworks */,
+				08CC5FE5B95F7BA5901515EE /* termios.framework in Embed Frameworks */,
+				F01E97222D423AB168FF027D /* unicodedata.framework in Embed Frameworks */,
+				B1EF5FA0C91BA0E38AA4E73B /* xxlimited.framework in Embed Frameworks */,
+				B8D007799620565C4F96BFA4 /* xxlimited_35.framework in Embed Frameworks */,
+				FFFCC3E77E7704A6B4EC1445 /* xxlimited_3_13.framework in Embed Frameworks */,
+				A3BC6B209CEEAD34B52EFF86 /* xxsubtype.framework in Embed Frameworks */,
+				6752731C85C2F8B2F3E4BAD6 /* zlib.framework in Embed Frameworks */,
+				1051F7CF651A6963D995607D /* Python.xcframework in Embed Frameworks */,
 			);
 			name = "Embed Frameworks";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -460,6 +668,75 @@
 				CEFD20C530959070006D0E4E /* SDL3.framework in Embed Frameworks */,
 				74A4D38972F6167E3B967D0E /* KotonohaImGui.framework in Embed Frameworks */,
 				CEC5DF103095F7EB00D4D78B /* KotonohaEngine.framework in Embed Frameworks */,
+				7B99A304C47DBBB655F0AB73 /* _bisect.framework in Embed Frameworks */,
+				E78A3D2619C3D4725967C9F1 /* _blake2.framework in Embed Frameworks */,
+				2494734C10F3C34093F68DF0 /* _bz2.framework in Embed Frameworks */,
+				9ED1D4C9A6532E28DE046E86 /* _codecs_cn.framework in Embed Frameworks */,
+				A31731683D6211C393E820A3 /* _codecs_hk.framework in Embed Frameworks */,
+				037D3C3D629EF1C43221C48C /* _codecs_iso2022.framework in Embed Frameworks */,
+				EE545567FFB86122F791AFB7 /* _codecs_jp.framework in Embed Frameworks */,
+				D5503602DDAF33D053DB64C6 /* _codecs_kr.framework in Embed Frameworks */,
+				0CB8755A386CBC31B4814AA6 /* _codecs_tw.framework in Embed Frameworks */,
+				E5B05E3BE061D2015AC18EDD /* _csv.framework in Embed Frameworks */,
+				7EFB4F1125FA1E7A80C3B266 /* _ctypes.framework in Embed Frameworks */,
+				D359EE0EA775E5C03FC2B529 /* _ctypes_test.framework in Embed Frameworks */,
+				D80EC2D025530A5FED57C43E /* _dbm.framework in Embed Frameworks */,
+				0E0202CDC4E0C9E5C71A886C /* _decimal.framework in Embed Frameworks */,
+				B5F37745211531F47ACD8025 /* _elementtree.framework in Embed Frameworks */,
+				08CF1D0B2CB3907037A419E5 /* _hashlib.framework in Embed Frameworks */,
+				80B8D9A239619517B6CF9774 /* _heapq.framework in Embed Frameworks */,
+				7FD42C12A4898832693C3F67 /* _hmac.framework in Embed Frameworks */,
+				64D899192CBD43B2C584AAEE /* _interpchannels.framework in Embed Frameworks */,
+				3F4E8FB9E34E8F18AAB57427 /* _interpqueues.framework in Embed Frameworks */,
+				5547856E6CC38D8AAE06ABF0 /* _interpreters.framework in Embed Frameworks */,
+				7ABD34365E51463BE499B782 /* _json.framework in Embed Frameworks */,
+				B5516AAC86E574F0DAD458CA /* _lsprof.framework in Embed Frameworks */,
+				AB3615E2ECD483A3C6144BA5 /* _lzma.framework in Embed Frameworks */,
+				6C57CBFBCE8680710A37BFAC /* _math_integer.framework in Embed Frameworks */,
+				CB8065727F189FC6F034CEA4 /* _md5.framework in Embed Frameworks */,
+				5D10317219AA52CA3C60FA60 /* _multibytecodec.framework in Embed Frameworks */,
+				0C25F6A6124265740AF1CC13 /* _pickle.framework in Embed Frameworks */,
+				29038B500CA6CFEAE195F39B /* _queue.framework in Embed Frameworks */,
+				09DA5550D64BCB5E57750139 /* _random.framework in Embed Frameworks */,
+				8A8CBB408EA86B5EF6EB67B8 /* _remote_debugging.framework in Embed Frameworks */,
+				0B23AA68115E8CCC81D3A05B /* _sha1.framework in Embed Frameworks */,
+				56690D5D44C1602233D51925 /* _sha2.framework in Embed Frameworks */,
+				319E737219A2B620B4A8D684 /* _sha3.framework in Embed Frameworks */,
+				557118BF53890FC972275EA9 /* _socket.framework in Embed Frameworks */,
+				0BF1920ABFC23A0B2F103DCF /* _sqlite3.framework in Embed Frameworks */,
+				37FD5B2504B10F75ACB2F275 /* _ssl.framework in Embed Frameworks */,
+				7926EB2A7F352C10F099ACCB /* _statistics.framework in Embed Frameworks */,
+				4F5B0FDA0B48AEE84AA1BB83 /* _struct.framework in Embed Frameworks */,
+				145E4E793BBFA1A136C8EDEA /* _testbuffer.framework in Embed Frameworks */,
+				CB1C3BDF0BBC41426746A25E /* _testcapi.framework in Embed Frameworks */,
+				19B614D6482B2CC9818E95B7 /* _testclinic.framework in Embed Frameworks */,
+				D5426C9A8495A81C48EE6F19 /* _testclinic_limited.framework in Embed Frameworks */,
+				06F0A9556C2EE159F65115BD /* _testimportmultiple.framework in Embed Frameworks */,
+				42AD42A2610ACC148A6FD3BB /* _testinternalcapi.framework in Embed Frameworks */,
+				6B415B41B4DE26A98C7A34F4 /* _testlimitedcapi.framework in Embed Frameworks */,
+				A3F5184D7AF08851B50741FD /* _testmultiphase.framework in Embed Frameworks */,
+				481B1044A53ECB1B893E95D6 /* _testsinglephase.framework in Embed Frameworks */,
+				31D8AF87DC83E60E466F29E2 /* _uuid.framework in Embed Frameworks */,
+				DC9445F6413957A13B3161FD /* _xxtestfuzz.framework in Embed Frameworks */,
+				8029535D3B42A8BEBE80D0A9 /* _zoneinfo.framework in Embed Frameworks */,
+				3C10FC2105AB750757315713 /* _zstd.framework in Embed Frameworks */,
+				1177B3A210D393803D9EA4BB /* array.framework in Embed Frameworks */,
+				66CF661D437A3ADF8A0DB5D5 /* binascii.framework in Embed Frameworks */,
+				1EF6200DE5F8C29A524172B5 /* cmath.framework in Embed Frameworks */,
+				923F7FE3D55FC9FFC19A46A4 /* fcntl.framework in Embed Frameworks */,
+				A7B72700A05E4D4D509F3A57 /* math.framework in Embed Frameworks */,
+				B678C1A87E59B9D3BB76E7D4 /* mmap.framework in Embed Frameworks */,
+				0B8A5F14BBA84D8DDB5DA4CA /* pyexpat.framework in Embed Frameworks */,
+				6D5BB7B3AB90014A55FB86E6 /* resource.framework in Embed Frameworks */,
+				44EE1C78848092ADDDE34760 /* select.framework in Embed Frameworks */,
+				8FE1094032A4201507C313C8 /* termios.framework in Embed Frameworks */,
+				42FE8A2128E0A347FAF45F92 /* unicodedata.framework in Embed Frameworks */,
+				4FDC3DCF7698E8B42C597DBB /* xxlimited.framework in Embed Frameworks */,
+				1371E43EC55225787A8631A5 /* xxlimited_35.framework in Embed Frameworks */,
+				633E0058843D8BD84D571E09 /* xxlimited_3_13.framework in Embed Frameworks */,
+				837845F38FF7D962EF85CEE9 /* xxsubtype.framework in Embed Frameworks */,
+				22F99307CC4A07446751CEA6 /* zlib.framework in Embed Frameworks */,
+				30442EA5E538600E7A0A60AC /* Python.xcframework in Embed Frameworks */,
 			);
 			name = "Embed Frameworks";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -490,36 +767,89 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		009E3FE8EB0EA1374DE16896 /* mmap.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = mmap.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/mmap.framework"; sourceTree = SOURCE_ROOT; };
 		0242730B1E228181304627F9 /* Vm.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; name = Vm.cpp; path = "../games/doki-doki-literature-club/src/Vm.cpp"; sourceTree = "<group>"; };
+		03AC09E9C0D0653AF91758F7 /* python */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = folder; name = python; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/python"; sourceTree = SOURCE_ROOT; };
+		057006EE70B2F266897CF831 /* _dbm.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = _dbm.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/_dbm.framework"; sourceTree = SOURCE_ROOT; };
+		08904302FD78EF668F6A5905 /* _testcapi.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = _testcapi.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/_testcapi.framework"; sourceTree = SOURCE_ROOT; };
 		08EFD6BD9770B9CFE023EC0A /* Archive.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; name = Archive.cpp; path = "../games/doki-doki-literature-club/src/Archive.cpp"; sourceTree = "<group>"; };
 		0BDBADE5AA1843BDCBE0381B /* DdlcScriptTest.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; name = DdlcScriptTest.cpp; path = "../games/doki-doki-literature-club/tests/DdlcScriptTest.cpp"; sourceTree = "<group>"; };
+		150B9A2F85BFA37DAFC1DA7D /* termios.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = termios.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/termios.framework"; sourceTree = SOURCE_ROOT; };
+		15E03530E42B12EE24D41B19 /* _multibytecodec.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = _multibytecodec.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/_multibytecodec.framework"; sourceTree = SOURCE_ROOT; };
+		1AFF8E85C8E18A59B741C836 /* _testclinic.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = _testclinic.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/_testclinic.framework"; sourceTree = SOURCE_ROOT; };
+		1B52335E78D2EA2972F15624 /* xxsubtype.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = xxsubtype.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/xxsubtype.framework"; sourceTree = SOURCE_ROOT; };
+		1BE56743BB636E2D4BAB2FCB /* _math_integer.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = _math_integer.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/_math_integer.framework"; sourceTree = SOURCE_ROOT; };
 		1E3DAC86D86C8594D18E1D20 /* imgui_widgets.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; name = imgui_widgets.cpp; path = ../lib/submodules/imgui/imgui_widgets.cpp; sourceTree = "<group>"; };
+		1E4CEF5911A1C476E3336FAE /* _pickle.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = _pickle.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/_pickle.framework"; sourceTree = SOURCE_ROOT; };
+		26BBDF9E8802FDEDBA0D64C5 /* _queue.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = _queue.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/_queue.framework"; sourceTree = SOURCE_ROOT; };
+		26E116FFD2EE4D3012803BA0 /* _interpreters.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = _interpreters.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/_interpreters.framework"; sourceTree = SOURCE_ROOT; };
+		2781D05D07504035F2CFAFEE /* xxlimited.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = xxlimited.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/xxlimited.framework"; sourceTree = SOURCE_ROOT; };
+		2B246E8A7ABD2510133DE376 /* select.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = select.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/select.framework"; sourceTree = SOURCE_ROOT; };
+		2D33FD1A2EB0DFCF3620417D /* _testlimitedcapi.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = _testlimitedcapi.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/_testlimitedcapi.framework"; sourceTree = SOURCE_ROOT; };
+		2F0CCA89023E04A7F84E444E /* _blake2.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = _blake2.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/_blake2.framework"; sourceTree = SOURCE_ROOT; };
 		2F6E483E9694EDC9C9D4B92F /* SvgTestFont.ttf */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = file; name = SvgTestFont.ttf; path = ../lib/tests/fixtures/SvgTestFont.ttf; sourceTree = "<group>"; };
+		31CC9EC35C6984F19D7612B3 /* _ctypes_test.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = _ctypes_test.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/_ctypes_test.framework"; sourceTree = SOURCE_ROOT; };
 		35CBE9E83D4457472483BFC4 /* Script.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; name = Script.cpp; path = "../games/doki-doki-literature-club/src/Script.cpp"; sourceTree = "<group>"; };
 		42D538C486E337F7390CE7EF /* CoreFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreFoundation.framework; path = System/Library/Frameworks/CoreFoundation.framework; sourceTree = SDKROOT; };
 		43B9E4E908D1CC67D291F5F0 /* imgui_tables.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; name = imgui_tables.cpp; path = ../lib/submodules/imgui/imgui_tables.cpp; sourceTree = "<group>"; };
+		440FCF7BEA08D35F90C24775 /* cmath.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = cmath.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/cmath.framework"; sourceTree = SOURCE_ROOT; };
+		44FF0BEABF96805EA3839AC0 /* _remote_debugging.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = _remote_debugging.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/_remote_debugging.framework"; sourceTree = SOURCE_ROOT; };
+		49547D91FA3085FB8F0D0019 /* _xxtestfuzz.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = _xxtestfuzz.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/_xxtestfuzz.framework"; sourceTree = SOURCE_ROOT; };
 		4A9B6E799E2376E8183ADE52 /* Metal.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Metal.framework; path = System/Library/Frameworks/Metal.framework; sourceTree = SDKROOT; };
+		4ACCE709BEC29A304D9378AE /* array.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = array.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/array.framework"; sourceTree = SOURCE_ROOT; };
 		4B570C15B7EBDFAD987CA4C4 /* assets */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = folder; name = assets; path = ../assets; sourceTree = SOURCE_ROOT; };
 		4C0D884F99638CBB5B02A07D /* assets */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = folder; name = assets; path = ../assets; sourceTree = SOURCE_ROOT; };
+		4DA21200322D9F37636CBDFE /* xxlimited_3_13.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = xxlimited_3_13.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/xxlimited_3_13.framework"; sourceTree = SOURCE_ROOT; };
+		4EC023822E779C408544E330 /* fcntl.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = fcntl.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/fcntl.framework"; sourceTree = SOURCE_ROOT; };
 		4FFD1FC9FD3DE0FD18C5D44F /* OpenGLES.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = OpenGLES.framework; path = System/Library/Frameworks/OpenGLES.framework; sourceTree = SDKROOT; };
 		50B9CFE4B3D204CDAEF6EE3C /* SummerRadish.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SummerRadish.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		514697826932CEDC425F9738 /* imgui_draw.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; name = imgui_draw.cpp; path = ../lib/submodules/imgui/imgui_draw.cpp; sourceTree = "<group>"; };
+		516539DFE6567E2E37EA46E7 /* _codecs_cn.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = _codecs_cn.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/_codecs_cn.framework"; sourceTree = SOURCE_ROOT; };
 		528F10C36D905193890E9E1A /* Value.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; name = Value.cpp; path = "../games/doki-doki-literature-club/src/Value.cpp"; sourceTree = "<group>"; };
+		5DE24A4243A60EC5676ED207 /* _statistics.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = _statistics.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/_statistics.framework"; sourceTree = SOURCE_ROOT; };
 		5F688AD0FCE10DF72F51EBE2 /* imgui_stdlib.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; name = imgui_stdlib.cpp; path = ../lib/submodules/imgui/misc/cpp/imgui_stdlib.cpp; sourceTree = "<group>"; };
 		6661193008ED2C99D8F4C85E /* game-assets */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = folder; name = "game-assets"; path = "../games/summer-radish-vacation/game-assets"; sourceTree = SOURCE_ROOT; };
 		6AC33256490759509EFF9BF1 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
+		6C8A0E978D71CD2188E323F1 /* _sha3.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = _sha3.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/_sha3.framework"; sourceTree = SOURCE_ROOT; };
+		6C9806081CEE061BA0F00EE2 /* _lzma.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = _lzma.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/_lzma.framework"; sourceTree = SOURCE_ROOT; };
+		718C36C5C8FC84BA810410C0 /* _testimportmultiple.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = _testimportmultiple.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/_testimportmultiple.framework"; sourceTree = SOURCE_ROOT; };
+		7379F358F50618304E663174 /* _md5.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = _md5.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/_md5.framework"; sourceTree = SOURCE_ROOT; };
 		749E86948BF0AA6831055589 /* imgui.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; name = imgui.cpp; path = ../lib/submodules/imgui/imgui.cpp; sourceTree = "<group>"; };
+		75DF1AA2413B7EC88DBE80BE /* _codecs_hk.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = _codecs_hk.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/_codecs_hk.framework"; sourceTree = SOURCE_ROOT; };
+		76DB86BCBCACA1C30AFF9D09 /* _socket.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = _socket.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/_socket.framework"; sourceTree = SOURCE_ROOT; };
 		7B888328F9DCB92CBAEEB6FE /* Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		83A08D605BAA386DCC00A9FD /* _sqlite3.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = _sqlite3.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/_sqlite3.framework"; sourceTree = SOURCE_ROOT; };
 		84BEEE477A504ECE1C36DCF8 /* imgui_impl_sdl3.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; name = imgui_impl_sdl3.cpp; path = ../lib/submodules/imgui/backends/imgui_impl_sdl3.cpp; sourceTree = "<group>"; };
+		89F9A504E0BB12B1B51786FB /* zlib.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = zlib.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/zlib.framework"; sourceTree = SOURCE_ROOT; };
+		8A47D1B7992DE27916835FAA /* _interpqueues.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = _interpqueues.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/_interpqueues.framework"; sourceTree = SOURCE_ROOT; };
+		8AB7327E13E1B295FA5D4B74 /* unicodedata.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = unicodedata.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/unicodedata.framework"; sourceTree = SOURCE_ROOT; };
+		8E9708F7D6F68BCBB74A8400 /* _hmac.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = _hmac.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/_hmac.framework"; sourceTree = SOURCE_ROOT; };
+		91637AA8D0D342511A804AA1 /* _random.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = _random.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/_random.framework"; sourceTree = SOURCE_ROOT; };
+		92B20B5268D269B4C4535CA0 /* pyexpat.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = pyexpat.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/pyexpat.framework"; sourceTree = SOURCE_ROOT; };
+		958E48A4BF48F7CC5B856624 /* _lsprof.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = _lsprof.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/_lsprof.framework"; sourceTree = SOURCE_ROOT; };
 		9AB15324823089557328B514 /* Python.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; name = Python.cpp; path = "../games/doki-doki-literature-club/src/Python.cpp"; sourceTree = "<group>"; };
-		9BFB8BAF9FC008E6D14042C8 /* Replay.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; name = Replay.cpp; path = "../games/doki-doki-literature-club/src/Replay.cpp"; sourceTree = SOURCE_ROOT; };
+		A5D8C2ABB2F5E427B3B1984D /* _bz2.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = _bz2.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/_bz2.framework"; sourceTree = SOURCE_ROOT; };
+		A9ABFE0CC08D30FF79C20ECA /* _testclinic_limited.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = _testclinic_limited.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/_testclinic_limited.framework"; sourceTree = SOURCE_ROOT; };
+		A9B5CE300F1EA791828A8104 /* binascii.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = binascii.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/binascii.framework"; sourceTree = SOURCE_ROOT; };
+		AAAC6F32B9716B0C6103CE99 /* _hashlib.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = _hashlib.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/_hashlib.framework"; sourceTree = SOURCE_ROOT; };
+		AAFB89E908BDA77D54AABE49 /* _json.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = _json.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/_json.framework"; sourceTree = SOURCE_ROOT; };
 		AD816549C60CF2EB4A36ECE3 /* Display.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; name = Display.cpp; path = "../games/doki-doki-literature-club/src/Display.cpp"; sourceTree = "<group>"; };
 		AE21419FA90F5C4BEEBC3657 /* PlatformSmokeTests.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; name = PlatformSmokeTests.cpp; path = ../lib/tests/PlatformSmokeTests.cpp; sourceTree = "<group>"; };
+		AFE19CE045BB24E291044227 /* _uuid.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = _uuid.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/_uuid.framework"; sourceTree = SOURCE_ROOT; };
+		B0E136854CDBA9F76742A5DA /* _ctypes.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = _ctypes.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/_ctypes.framework"; sourceTree = SOURCE_ROOT; };
+		B1CD58968FC23625B0FCF604 /* _zstd.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = _zstd.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/_zstd.framework"; sourceTree = SOURCE_ROOT; };
+		B287B88F36F9FE7FDE35CCDC /* _decimal.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = _decimal.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/_decimal.framework"; sourceTree = SOURCE_ROOT; };
 		B2FAEAC42A6E7C5EDC4F4A07 /* CoreVideo.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreVideo.framework; path = System/Library/Frameworks/CoreVideo.framework; sourceTree = SDKROOT; };
 		B78DCDBFE541F1854A2A0FFC /* CoreMedia.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreMedia.framework; path = System/Library/Frameworks/CoreMedia.framework; sourceTree = SDKROOT; };
+		BA59560E87AF5E75F6FF6202 /* _codecs_iso2022.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = _codecs_iso2022.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/_codecs_iso2022.framework"; sourceTree = SOURCE_ROOT; };
+		BA84F78900F207073C05F9CC /* _zoneinfo.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = _zoneinfo.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/_zoneinfo.framework"; sourceTree = SOURCE_ROOT; };
+		BE853869404063D285F02AEC /* _elementtree.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = _elementtree.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/_elementtree.framework"; sourceTree = SOURCE_ROOT; };
+		BF419AE62F91C71F47490CB9 /* _codecs_jp.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = _codecs_jp.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/_codecs_jp.framework"; sourceTree = SOURCE_ROOT; };
 		C310110E5F08805A6AAD5858 /* game-assets */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = folder; name = "game-assets"; path = "../games/air/game-assets"; sourceTree = SOURCE_ROOT; };
 		C446DAC72995F2973C600D09 /* VideoToolbox.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = VideoToolbox.framework; path = System/Library/Frameworks/VideoToolbox.framework; sourceTree = SDKROOT; };
+		C493414D30C0DC9E2CB6E56A /* _struct.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = _struct.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/_struct.framework"; sourceTree = SOURCE_ROOT; };
 		C725562FCCDCB4EE087E2805 /* Air.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Air.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		CDE937DF873378DC9B0AA622 /* math.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = math.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/math.framework"; sourceTree = SOURCE_ROOT; };
 		CE1893F63095457700B0DF80 /* KotonohaImGui.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = KotonohaImGui.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		CE1893F83095457F00B0DF80 /* KotonohaEngine.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = KotonohaEngine.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		CE2FEE0130956E3300E7D27F /* game-assets */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "game-assets"; path = "../../games/zero-no-tsukaima/game-assets"; sourceTree = "<group>"; };
@@ -528,6 +858,7 @@
 		CE2FEE0D30956EB700E7D27F /* game-assets */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "game-assets"; path = "../../games/doki-doki-literature-club/game-assets"; sourceTree = "<group>"; };
 		CE2FEE0F30956ECC00E7D27F /* game-assets */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "game-assets"; path = "../../games/school-days/game-assets"; sourceTree = "<group>"; };
 		CE90DB553098CBF100281500 /* Python.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = Python.xcframework; path = "../build/iOS-deps/Python.xcframework"; sourceTree = SOURCE_ROOT; };
+		CEDFC336F4945B9B468438BC /* _sha2.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = _sha2.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/_sha2.framework"; sourceTree = SOURCE_ROOT; };
 		CEFD20A630959029006D0E4E /* SDL_ttf.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = SDL_ttf.xcodeproj; path = ../lib/submodules/SDL_ttf/Xcode/SDL_ttf.xcodeproj; sourceTree = SOURCE_ROOT; };
 		CEFD20AE30959038006D0E4E /* SDL.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = SDL.xcodeproj; path = ../lib/submodules/SDL/Xcode/SDL/SDL.xcodeproj; sourceTree = SOURCE_ROOT; };
 		CEFD20B83095904E006D0E4E /* Kotonoha.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Kotonoha.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -537,9 +868,23 @@
 		CEFD20C930959075006D0E4E /* School Days HQ.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "School Days HQ.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		CEFD20CC30959079006D0E4E /* KotonohaIOSSmoke.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = KotonohaIOSSmoke.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		CEFD20CF3095908D006D0E4E /* DdlcIOSScriptSmoke.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = DdlcIOSScriptSmoke.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		CFDDD60E5D49E74EDC4E2B3C /* python */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = folder; name = python; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/python"; sourceTree = SOURCE_ROOT; };
+		D0AC9EDE4A6864C7406BB72F /* _codecs_tw.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = _codecs_tw.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/_codecs_tw.framework"; sourceTree = SOURCE_ROOT; };
+		DB704E7428F8367E87ED925C /* _ssl.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = _ssl.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/_ssl.framework"; sourceTree = SOURCE_ROOT; };
+		DDFB69DC3775D0311567E1FD /* _testmultiphase.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = _testmultiphase.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/_testmultiphase.framework"; sourceTree = SOURCE_ROOT; };
+		DE6A15AB88BF5B798A0FF869 /* _bisect.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = _bisect.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/_bisect.framework"; sourceTree = SOURCE_ROOT; };
+		DEE02E8227379844A4C2E13C /* _testbuffer.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = _testbuffer.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/_testbuffer.framework"; sourceTree = SOURCE_ROOT; };
 		E3E0EC27DFAF9CC3242B7CFB /* imgui_impl_sdlrenderer3.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; name = imgui_impl_sdlrenderer3.cpp; path = ../lib/submodules/imgui/backends/imgui_impl_sdlrenderer3.cpp; sourceTree = "<group>"; };
+		E61C84D0AC3D59F4A3B6DB36 /* xxlimited_35.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = xxlimited_35.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/xxlimited_35.framework"; sourceTree = SOURCE_ROOT; };
+		E84056C986E173093BCC489F /* _csv.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = _csv.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/_csv.framework"; sourceTree = SOURCE_ROOT; };
+		ED3652828BEF86F94266D8C8 /* resource.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = resource.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/resource.framework"; sourceTree = SOURCE_ROOT; };
+		EFADD430DB01E76F8FEAD591 /* _testsinglephase.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = _testsinglephase.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/_testsinglephase.framework"; sourceTree = SOURCE_ROOT; };
+		F6224B0389359800F5E57E4F /* _heapq.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = _heapq.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/_heapq.framework"; sourceTree = SOURCE_ROOT; };
+		FB7C631042C14C0105BF5715 /* _codecs_kr.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = _codecs_kr.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/_codecs_kr.framework"; sourceTree = SOURCE_ROOT; };
 		FBAC8B3DF93878243BF88A65 /* AudioToolbox.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AudioToolbox.framework; path = System/Library/Frameworks/AudioToolbox.framework; sourceTree = SDKROOT; };
-		FE4FB68934157B4FA11CFF5B /* DdlcAssets.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; name = DdlcAssets.cpp; path = "../games/doki-doki-literature-club/src/DdlcAssets.cpp"; sourceTree = SOURCE_ROOT; };
+		FCFC49BFC93F88983052526E /* _sha1.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = _sha1.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/_sha1.framework"; sourceTree = SOURCE_ROOT; };
+		FD05D4D2301E99063B9B4FFF /* _interpchannels.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = _interpchannels.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/_interpchannels.framework"; sourceTree = SOURCE_ROOT; };
+		FDAFA92165858CF5A6DC4CAB /* _testinternalcapi.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = _testinternalcapi.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/_testinternalcapi.framework"; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -661,6 +1006,7 @@
 				C9AC40427DA745385043977C /* KotonohaImGui.framework in Frameworks */,
 				CEC5DF173095F82B00D4D78B /* SDL3.framework in Frameworks */,
 				CEFD20CD3095908D006D0E4E /* SDL3_ttf.framework in Frameworks */,
+				316F42681A166CD66EF8E008 /* Python.xcframework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -763,6 +1109,83 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		1BDADC699D6C9C04F3DF3F97 /* Bundled Python */ = {
+			isa = PBXGroup;
+			children = (
+				03AC09E9C0D0653AF91758F7 /* python */,
+				DE6A15AB88BF5B798A0FF869 /* _bisect.framework */,
+				2F0CCA89023E04A7F84E444E /* _blake2.framework */,
+				A5D8C2ABB2F5E427B3B1984D /* _bz2.framework */,
+				516539DFE6567E2E37EA46E7 /* _codecs_cn.framework */,
+				75DF1AA2413B7EC88DBE80BE /* _codecs_hk.framework */,
+				BA59560E87AF5E75F6FF6202 /* _codecs_iso2022.framework */,
+				BF419AE62F91C71F47490CB9 /* _codecs_jp.framework */,
+				FB7C631042C14C0105BF5715 /* _codecs_kr.framework */,
+				D0AC9EDE4A6864C7406BB72F /* _codecs_tw.framework */,
+				E84056C986E173093BCC489F /* _csv.framework */,
+				B0E136854CDBA9F76742A5DA /* _ctypes.framework */,
+				31CC9EC35C6984F19D7612B3 /* _ctypes_test.framework */,
+				057006EE70B2F266897CF831 /* _dbm.framework */,
+				B287B88F36F9FE7FDE35CCDC /* _decimal.framework */,
+				BE853869404063D285F02AEC /* _elementtree.framework */,
+				AAAC6F32B9716B0C6103CE99 /* _hashlib.framework */,
+				F6224B0389359800F5E57E4F /* _heapq.framework */,
+				8E9708F7D6F68BCBB74A8400 /* _hmac.framework */,
+				FD05D4D2301E99063B9B4FFF /* _interpchannels.framework */,
+				8A47D1B7992DE27916835FAA /* _interpqueues.framework */,
+				26E116FFD2EE4D3012803BA0 /* _interpreters.framework */,
+				AAFB89E908BDA77D54AABE49 /* _json.framework */,
+				958E48A4BF48F7CC5B856624 /* _lsprof.framework */,
+				6C9806081CEE061BA0F00EE2 /* _lzma.framework */,
+				1BE56743BB636E2D4BAB2FCB /* _math_integer.framework */,
+				7379F358F50618304E663174 /* _md5.framework */,
+				15E03530E42B12EE24D41B19 /* _multibytecodec.framework */,
+				1E4CEF5911A1C476E3336FAE /* _pickle.framework */,
+				26BBDF9E8802FDEDBA0D64C5 /* _queue.framework */,
+				91637AA8D0D342511A804AA1 /* _random.framework */,
+				44FF0BEABF96805EA3839AC0 /* _remote_debugging.framework */,
+				FCFC49BFC93F88983052526E /* _sha1.framework */,
+				CEDFC336F4945B9B468438BC /* _sha2.framework */,
+				6C8A0E978D71CD2188E323F1 /* _sha3.framework */,
+				76DB86BCBCACA1C30AFF9D09 /* _socket.framework */,
+				83A08D605BAA386DCC00A9FD /* _sqlite3.framework */,
+				DB704E7428F8367E87ED925C /* _ssl.framework */,
+				5DE24A4243A60EC5676ED207 /* _statistics.framework */,
+				C493414D30C0DC9E2CB6E56A /* _struct.framework */,
+				DEE02E8227379844A4C2E13C /* _testbuffer.framework */,
+				08904302FD78EF668F6A5905 /* _testcapi.framework */,
+				1AFF8E85C8E18A59B741C836 /* _testclinic.framework */,
+				A9ABFE0CC08D30FF79C20ECA /* _testclinic_limited.framework */,
+				718C36C5C8FC84BA810410C0 /* _testimportmultiple.framework */,
+				FDAFA92165858CF5A6DC4CAB /* _testinternalcapi.framework */,
+				2D33FD1A2EB0DFCF3620417D /* _testlimitedcapi.framework */,
+				DDFB69DC3775D0311567E1FD /* _testmultiphase.framework */,
+				EFADD430DB01E76F8FEAD591 /* _testsinglephase.framework */,
+				AFE19CE045BB24E291044227 /* _uuid.framework */,
+				49547D91FA3085FB8F0D0019 /* _xxtestfuzz.framework */,
+				BA84F78900F207073C05F9CC /* _zoneinfo.framework */,
+				B1CD58968FC23625B0FCF604 /* _zstd.framework */,
+				4ACCE709BEC29A304D9378AE /* array.framework */,
+				A9B5CE300F1EA791828A8104 /* binascii.framework */,
+				440FCF7BEA08D35F90C24775 /* cmath.framework */,
+				4EC023822E779C408544E330 /* fcntl.framework */,
+				CDE937DF873378DC9B0AA622 /* math.framework */,
+				009E3FE8EB0EA1374DE16896 /* mmap.framework */,
+				92B20B5268D269B4C4535CA0 /* pyexpat.framework */,
+				ED3652828BEF86F94266D8C8 /* resource.framework */,
+				2B246E8A7ABD2510133DE376 /* select.framework */,
+				150B9A2F85BFA37DAFC1DA7D /* termios.framework */,
+				8AB7327E13E1B295FA5D4B74 /* unicodedata.framework */,
+				2781D05D07504035F2CFAFEE /* xxlimited.framework */,
+				E61C84D0AC3D59F4A3B6DB36 /* xxlimited_35.framework */,
+				4DA21200322D9F37636CBDFE /* xxlimited_3_13.framework */,
+				1B52335E78D2EA2972F15624 /* xxsubtype.framework */,
+				89F9A504E0BB12B1B51786FB /* zlib.framework */,
+				CFDDD60E5D49E74EDC4E2B3C /* python */,
+			);
+			name = "Bundled Python";
+			sourceTree = "<group>";
+		};
 		1FDB485883E5E4E9F6B124E9 /* ZeroNoTsukaima */ = {
 			isa = PBXGroup;
 			children = (
@@ -872,8 +1295,7 @@
 				CEC5DD2C3095F35400D4D78B /* Games */,
 				D0DAFF547CC8900C1CAA85CC /* DdlcIOSScriptSmoke */,
 				7F3481CB6F8C3B7CB0B6997D /* KotonohaIOSSmoke */,
-				9BFB8BAF9FC008E6D14042C8 /* Replay.cpp */,
-				FE4FB68934157B4FA11CFF5B /* DdlcAssets.cpp */,
+				1BDADC699D6C9C04F3DF3F97 /* Bundled Python */,
 			);
 			sourceTree = "<group>";
 		};
@@ -1390,6 +1812,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B40D382241A078A244A0AE9E /* python in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1408,6 +1831,7 @@
 			files = (
 				CE2FEE0E30956EB700E7D27F /* game-assets in Resources */,
 				CEF8839B3095998500CB6787 /* assets in Resources */,
+				C8BD04563E67AA6C284B3572 /* python in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1492,8 +1916,6 @@
 				9C95B7E6948652E0E273AC9C /* Value.cpp in Sources */,
 				2D2BD1CCA88BA5240E15B020 /* Vm.cpp in Sources */,
 				7504FCC4F6303984EF390FC7 /* DdlcScriptTest.cpp in Sources */,
-				0D41E252FE4369A2E9AE8A7A /* Replay.cpp in Sources */,
-				9F1F7ACA40D3AF645B906942 /* DdlcAssets.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1665,19 +2087,19 @@
 					"$(inherited)",
 					"$(KOTONOHA_ROOT)/games/doki-doki-literature-club/include",
 					"$(KOTONOHA_ROOT)/games/doki-doki-literature-club/src",
-					"$(KOTONOHA_ROOT)/build/ios-deps/Python.xcframework/ios-arm64_x86_64-simulator/Python.framework/Headers",
+					"$(KOTONOHA_ROOT)/build/iOS-deps/Python.xcframework/ios-arm64_x86_64-simulator/Python.framework/Headers",
 				);
 				"HEADER_SEARCH_PATHS[sdk=iphoneos*]" = (
 					"$(inherited)",
 					"$(KOTONOHA_ROOT)/games/doki-doki-literature-club/include",
 					"$(KOTONOHA_ROOT)/games/doki-doki-literature-club/src",
-					"$(KOTONOHA_ROOT)/build/ios-deps/Python.xcframework/ios-arm64/Python.framework/Headers",
+					"$(KOTONOHA_ROOT)/build/iOS-deps/Python.xcframework/ios-arm64/Python.framework/Headers",
 				);
 				"HEADER_SEARCH_PATHS[sdk=iphonesimulator*]" = (
 					"$(inherited)",
 					"$(KOTONOHA_ROOT)/games/doki-doki-literature-club/include",
 					"$(KOTONOHA_ROOT)/games/doki-doki-literature-club/src",
-					"$(KOTONOHA_ROOT)/build/ios-deps/Python.xcframework/ios-arm64_x86_64-simulator/Python.framework/Headers",
+					"$(KOTONOHA_ROOT)/build/iOS-deps/Python.xcframework/ios-arm64_x86_64-simulator/Python.framework/Headers",
 				);
 				INFOPLIST_FILE = "$(PROJECT_DIR)/Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = "$(RECOMMENDED_IPHONEOS_DEPLOYMENT_TARGET)";
@@ -2071,12 +2493,12 @@
 					"$(KOTONOHA_VCPKG_PREFIX)/include/plutovg",
 				);
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
-				KOTONOHA_PYTHON_NATIVE_DIR = "$(KOTONOHA_ROOT)/build/ios-deps/python/native/$(PLATFORM_NAME)";
-				KOTONOHA_PYTHON_XCFRAMEWORK = "../build/ios-deps/Python.xcframework";
+				KOTONOHA_PYTHON_NATIVE_DIR = "$(KOTONOHA_ROOT)/build/iOS-deps/python/native/$(PLATFORM_NAME)";
+				KOTONOHA_PYTHON_XCFRAMEWORK = "../build/iOS-deps/Python.xcframework";
 				KOTONOHA_ROOT = "$(PROJECT_DIR)/..";
 				KOTONOHA_VCPKG_PREFIX = "$(KOTONOHA_VCPKG_ROOT)/$(KOTONOHA_VCPKG_TRIPLET)";
-				"KOTONOHA_VCPKG_ROOT[sdk=iphoneos*]" = "$(KOTONOHA_ROOT)/build/ios-deps/ios";
-				"KOTONOHA_VCPKG_ROOT[sdk=iphonesimulator*]" = "$(KOTONOHA_ROOT)/build/ios-deps/simulator";
+				"KOTONOHA_VCPKG_ROOT[sdk=iphoneos*]" = "$(KOTONOHA_ROOT)/build/iOS-deps/ios";
+				"KOTONOHA_VCPKG_ROOT[sdk=iphonesimulator*]" = "$(KOTONOHA_ROOT)/build/iOS-deps/simulator";
 				"KOTONOHA_VCPKG_TRIPLET[sdk=iphoneos*]" = "arm64-ios";
 				"KOTONOHA_VCPKG_TRIPLET[sdk=iphonesimulator*]" = "arm64-ios-simulator";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -2148,19 +2570,19 @@
 					"$(inherited)",
 					"$(KOTONOHA_ROOT)/games/doki-doki-literature-club/include",
 					"$(KOTONOHA_ROOT)/games/doki-doki-literature-club/src",
-					"$(KOTONOHA_ROOT)/build/ios-deps/Python.xcframework/ios-arm64_x86_64-simulator/Python.framework/Headers",
+					"$(KOTONOHA_ROOT)/build/iOS-deps/Python.xcframework/ios-arm64_x86_64-simulator/Python.framework/Headers",
 				);
 				"HEADER_SEARCH_PATHS[sdk=iphoneos*]" = (
 					"$(inherited)",
 					"$(KOTONOHA_ROOT)/games/doki-doki-literature-club/include",
 					"$(KOTONOHA_ROOT)/games/doki-doki-literature-club/src",
-					"$(KOTONOHA_ROOT)/build/ios-deps/Python.xcframework/ios-arm64/Python.framework/Headers",
+					"$(KOTONOHA_ROOT)/build/iOS-deps/Python.xcframework/ios-arm64/Python.framework/Headers",
 				);
 				"HEADER_SEARCH_PATHS[sdk=iphonesimulator*]" = (
 					"$(inherited)",
 					"$(KOTONOHA_ROOT)/games/doki-doki-literature-club/include",
 					"$(KOTONOHA_ROOT)/games/doki-doki-literature-club/src",
-					"$(KOTONOHA_ROOT)/build/ios-deps/Python.xcframework/ios-arm64_x86_64-simulator/Python.framework/Headers",
+					"$(KOTONOHA_ROOT)/build/iOS-deps/Python.xcframework/ios-arm64_x86_64-simulator/Python.framework/Headers",
 				);
 				INFOPLIST_FILE = "$(PROJECT_DIR)/Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = "$(RECOMMENDED_IPHONEOS_DEPLOYMENT_TARGET)";
@@ -3135,30 +3557,30 @@
 				DEVELOPMENT_TEAM = 64T9B5HFFD;
 				"FRAMEWORK_SEARCH_PATHS[sdk=iphoneos*]" = (
 					"$(inherited)",
-					"$(KOTONOHA_ROOT)/build/ios-deps/Python.xcframework/ios-arm64",
+					"$(KOTONOHA_ROOT)/build/iOS-deps/Python.xcframework/ios-arm64",
 				);
 				"FRAMEWORK_SEARCH_PATHS[sdk=iphonesimulator*]" = (
 					"$(inherited)",
-					"$(KOTONOHA_ROOT)/build/ios-deps/Python.xcframework/ios-arm64_x86_64-simulator",
+					"$(KOTONOHA_ROOT)/build/iOS-deps/Python.xcframework/ios-arm64_x86_64-simulator",
 				);
 				GENERATE_INFOPLIST_FILE = NO;
 				HEADER_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(KOTONOHA_ROOT)/games/doki-doki-literature-club/include",
 					"$(KOTONOHA_ROOT)/games/doki-doki-literature-club/src",
-					"$(KOTONOHA_ROOT)/build/ios-deps/Python.xcframework/ios-arm64_x86_64-simulator/Python.framework/Headers",
+					"$(KOTONOHA_ROOT)/build/iOS-deps/Python.xcframework/ios-arm64_x86_64-simulator/Python.framework/Headers",
 				);
 				"HEADER_SEARCH_PATHS[sdk=iphoneos*]" = (
 					"$(inherited)",
 					"$(KOTONOHA_ROOT)/games/doki-doki-literature-club/include",
 					"$(KOTONOHA_ROOT)/games/doki-doki-literature-club/src",
-					"$(KOTONOHA_ROOT)/build/ios-deps/Python.xcframework/ios-arm64/Python.framework/Headers",
+					"$(KOTONOHA_ROOT)/build/iOS-deps/Python.xcframework/ios-arm64/Python.framework/Headers",
 				);
 				"HEADER_SEARCH_PATHS[sdk=iphonesimulator*]" = (
 					"$(inherited)",
 					"$(KOTONOHA_ROOT)/games/doki-doki-literature-club/include",
 					"$(KOTONOHA_ROOT)/games/doki-doki-literature-club/src",
-					"$(KOTONOHA_ROOT)/build/ios-deps/Python.xcframework/ios-arm64_x86_64-simulator/Python.framework/Headers",
+					"$(KOTONOHA_ROOT)/build/iOS-deps/Python.xcframework/ios-arm64_x86_64-simulator/Python.framework/Headers",
 				);
 				INFOPLIST_FILE = "$(PROJECT_DIR)/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "Doki Doki Literature Club";
@@ -3294,12 +3716,12 @@
 					"$(KOTONOHA_VCPKG_PREFIX)/include/plutovg",
 				);
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
-				KOTONOHA_PYTHON_NATIVE_DIR = "$(KOTONOHA_ROOT)/build/ios-deps/python/native/$(PLATFORM_NAME)";
-				KOTONOHA_PYTHON_XCFRAMEWORK = "../build/ios-deps/Python.xcframework";
+				KOTONOHA_PYTHON_NATIVE_DIR = "$(KOTONOHA_ROOT)/build/iOS-deps/python/native/$(PLATFORM_NAME)";
+				KOTONOHA_PYTHON_XCFRAMEWORK = "../build/iOS-deps/Python.xcframework";
 				KOTONOHA_ROOT = "$(PROJECT_DIR)/..";
 				KOTONOHA_VCPKG_PREFIX = "$(KOTONOHA_VCPKG_ROOT)/$(KOTONOHA_VCPKG_TRIPLET)";
-				"KOTONOHA_VCPKG_ROOT[sdk=iphoneos*]" = "$(KOTONOHA_ROOT)/build/ios-deps/ios";
-				"KOTONOHA_VCPKG_ROOT[sdk=iphonesimulator*]" = "$(KOTONOHA_ROOT)/build/ios-deps/simulator";
+				"KOTONOHA_VCPKG_ROOT[sdk=iphoneos*]" = "$(KOTONOHA_ROOT)/build/iOS-deps/ios";
+				"KOTONOHA_VCPKG_ROOT[sdk=iphonesimulator*]" = "$(KOTONOHA_ROOT)/build/iOS-deps/simulator";
 				"KOTONOHA_VCPKG_TRIPLET[sdk=iphoneos*]" = "arm64-ios";
 				"KOTONOHA_VCPKG_TRIPLET[sdk=iphonesimulator*]" = "arm64-ios-simulator";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -3334,30 +3756,30 @@
 				DEVELOPMENT_TEAM = 64T9B5HFFD;
 				"FRAMEWORK_SEARCH_PATHS[sdk=iphoneos*]" = (
 					"$(inherited)",
-					"$(KOTONOHA_ROOT)/build/ios-deps/Python.xcframework/ios-arm64",
+					"$(KOTONOHA_ROOT)/build/iOS-deps/Python.xcframework/ios-arm64",
 				);
 				"FRAMEWORK_SEARCH_PATHS[sdk=iphonesimulator*]" = (
 					"$(inherited)",
-					"$(KOTONOHA_ROOT)/build/ios-deps/Python.xcframework/ios-arm64_x86_64-simulator",
+					"$(KOTONOHA_ROOT)/build/iOS-deps/Python.xcframework/ios-arm64_x86_64-simulator",
 				);
 				GENERATE_INFOPLIST_FILE = NO;
 				HEADER_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(KOTONOHA_ROOT)/games/doki-doki-literature-club/include",
 					"$(KOTONOHA_ROOT)/games/doki-doki-literature-club/src",
-					"$(KOTONOHA_ROOT)/build/ios-deps/Python.xcframework/ios-arm64_x86_64-simulator/Python.framework/Headers",
+					"$(KOTONOHA_ROOT)/build/iOS-deps/Python.xcframework/ios-arm64_x86_64-simulator/Python.framework/Headers",
 				);
 				"HEADER_SEARCH_PATHS[sdk=iphoneos*]" = (
 					"$(inherited)",
 					"$(KOTONOHA_ROOT)/games/doki-doki-literature-club/include",
 					"$(KOTONOHA_ROOT)/games/doki-doki-literature-club/src",
-					"$(KOTONOHA_ROOT)/build/ios-deps/Python.xcframework/ios-arm64/Python.framework/Headers",
+					"$(KOTONOHA_ROOT)/build/iOS-deps/Python.xcframework/ios-arm64/Python.framework/Headers",
 				);
 				"HEADER_SEARCH_PATHS[sdk=iphonesimulator*]" = (
 					"$(inherited)",
 					"$(KOTONOHA_ROOT)/games/doki-doki-literature-club/include",
 					"$(KOTONOHA_ROOT)/games/doki-doki-literature-club/src",
-					"$(KOTONOHA_ROOT)/build/ios-deps/Python.xcframework/ios-arm64_x86_64-simulator/Python.framework/Headers",
+					"$(KOTONOHA_ROOT)/build/iOS-deps/Python.xcframework/ios-arm64_x86_64-simulator/Python.framework/Headers",
 				);
 				INFOPLIST_FILE = "$(PROJECT_DIR)/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "Doki Doki Literature Club";

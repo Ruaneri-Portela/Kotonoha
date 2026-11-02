@@ -105,9 +105,9 @@ Prepare native dependencies before opening/building:
 
 ```sh
 "$VCPKG_ROOT/vcpkg" install --x-manifest-root="$PWD" \
-  --x-install-root="$PWD/build/ios-deps/ios" --triplet=arm64-ios
+  --x-install-root="$PWD/build/iOS-deps/ios" --triplet=arm64-ios
 "$VCPKG_ROOT/vcpkg" install --x-manifest-root="$PWD" \
-  --x-install-root="$PWD/build/ios-deps/simulator" --triplet=arm64-ios-simulator
+  --x-install-root="$PWD/build/iOS-deps/simulator" --triplet=arm64-ios-simulator
 ```
 
 The simulator setup targets Apple Silicon. Configure equivalent triplets and
@@ -118,10 +118,10 @@ the installed SDK's version.
 DDLC additionally needs BeeWare's CPython iOS SDK:
 
 ```sh
-mkdir -p build/ios-deps/python
+mkdir -p build/iOS-deps/python
 curl -fL https://github.com/beeware/Python-Apple-support/releases/download/3.15-b3/Python-3.15-iOS-support.b3.tar.gz \
-  -o build/ios-deps/python/Python-iOS.tar.gz
-python3 tools/PrepareApplePython.py --archive build/ios-deps/python/Python-iOS.tar.gz
+  -o build/iOS-deps/python/Python-iOS.tar.gz
+python3 tools/PrepareApplePython.py --archive build/iOS-deps/python/Python-iOS.tar.gz
 xcodebuild -project Xcode/Kotonoha.xcodeproj -scheme DokiDoki \
   -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
   -derivedDataPath build/xcode-ios CODE_SIGNING_ALLOWED=NO build

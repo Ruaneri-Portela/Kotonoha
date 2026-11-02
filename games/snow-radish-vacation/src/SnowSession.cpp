@@ -88,9 +88,10 @@ SnowSession::SnowSession(Kotonoha::Engine &engine,
   fontData_ =
       Kotonoha::FileResolver::loadFontMemory(engine_.GetSettings().fontPath);
   if (!fontData_.empty()) {
-    SDL_IOStream *io = SDL_IOFromConstMem(fontData_.data(), fontData_.size());
+    Kotonoha::IOStreamPtr io{
+        SDL_IOFromConstMem(fontData_.data(), fontData_.size())};
     if (io)
-      font_ = TTF_OpenFontIO(io, true, kTextSize);
+      font_ = TTF_OpenFontIO(io.release(), true, kTextSize);
   }
   if (!font_)
     SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "[snow] no CJK font found");

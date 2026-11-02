@@ -18,7 +18,8 @@ namespace Kotonoha {
 namespace {
 
 // Conversão resiliente via JNI (java.lang.String) no Android
-std::string ConvertViaJNI(std::string_view text, const char *fromEncoding) {
+std::string ConvertViaJNI(std::string_view text, const char *fromEncoding,
+                          const char *toEncoding = "UTF-8") {
   if (text.empty())
     return {};
 
@@ -62,12 +63,25 @@ std::string ConvertViaJNI(std::string_view text, const char *fromEncoding) {
         encodingName);
   }
 
-  const char *utf8Bytes = env->GetStringUTFChars(javaString, nullptr);
-  const jsize utf8Length = env->GetStringUTFLength(javaString);
-
-  std::string result(utf8Bytes, static_cast<size_t>(utf8Length));
-
-  env->ReleaseStringUTFChars(javaString, utf8Bytes);
+  const auto getBytes =
+      env->GetMethodID(stringClass, "getBytes", "(Ljava/lang/String;)[B");
+  jstring target = env->NewStringUTF(toEncoding);
+  auto encoded = static_cast<jbyteArray>(
+      env->CallObjectMethod(javaString, getBytes, target));
+  if (env->ExceptionCheck() || !encoded) {
+    env->ExceptionClear();
+    env->DeleteLocalRef(target);
+    env->DeleteLocalRef(javaString);
+    env->DeleteLocalRef(encodingStr);
+    env->DeleteLocalRef(byteArray);
+    env->DeleteLocalRef(stringClass);
+    throw std::runtime_error("Unsupported target text encoding");
+  }
+  std::string result(static_cast<size_t>(env->GetArrayLength(encoded)), '\0');
+  env->GetByteArrayRegion(encoded, 0, static_cast<jsize>(result.size()),
+                          reinterpret_cast<jbyte *>(result.data()));
+  env->DeleteLocalRef(encoded);
+  env->DeleteLocalRef(target);
   env->DeleteLocalRef(javaString);
   env->DeleteLocalRef(encodingStr);
   env->DeleteLocalRef(byteArray);
@@ -214,11 +228,7 @@ namespace Kotonoha {
 std::string ConvertEncoding(std::string_view text, const char *from,
                             const char *to) {
 #if defined(__ANDROID__)
-  if (std::string_view(to) == "UTF-8" || std::string_view(to) == "UTF8") {
-    return ConvertViaJNI(text, from);
-  }
-  throw std::runtime_error("Conversão para encodings diferentes de UTF-8 não "
-                           "suportada no Android via JNI");
+  return ConvertViaJNI(text, from, to);
 #else
   Converter converter(from, to);
   if (!converter.valid())

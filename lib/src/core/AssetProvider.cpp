@@ -15,8 +15,8 @@ namespace Kotonoha {
 namespace {
 constexpr std::uintmax_t maximumAssetSize = 1024ull * 1024 * 1024;
 
-SDL_IOStream *memoryStream(const std::vector<Uint8> &bytes) {
-  SDL_IOStream *stream = SDL_IOFromConstMem(bytes.data(), bytes.size());
+IOStreamPtr memoryStream(const std::vector<Uint8> &bytes) {
+  IOStreamPtr stream{SDL_IOFromConstMem(bytes.data(), bytes.size())};
   if (!stream)
     throw std::runtime_error(SDL_GetError());
   return stream;
@@ -108,7 +108,8 @@ std::string AssetProvider::localPathAsset(const std::string &) const {
 
 SurfacePtr AssetProvider::loadSurfaceAsset(const std::string &id) const {
   const auto bytes = read(id);
-  if (SurfacePtr surface{SDL_LoadSurface_IO(memoryStream(bytes), true)})
+  if (SurfacePtr surface{
+          SDL_LoadSurface_IO(memoryStream(bytes).release(), true)})
     return surface;
   const std::string sdlError = SDL_GetError();
   try {
@@ -136,7 +137,8 @@ AudioClip AssetProvider::loadAudioAsset(const std::string &id) const {
   AudioClip clip;
   Uint8 *data = nullptr;
   Uint32 length = 0;
-  if (SDL_LoadWAV_IO(memoryStream(bytes), true, &clip.spec, &data, &length)) {
+  if (SDL_LoadWAV_IO(memoryStream(bytes).release(), true, &clip.spec, &data,
+                     &length)) {
     SDLMemoryPtr<Uint8> owned(data);
     clip.data.assign(owned.get(), owned.get() + length);
     return clip;
