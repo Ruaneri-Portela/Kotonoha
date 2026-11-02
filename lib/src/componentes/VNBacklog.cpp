@@ -29,16 +29,19 @@ void VNBacklog::onEvent(EventRef event) {
     return;
   }
 
-  if (isOpen && event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat && event.key.key == SDLK_B) {
+  if (isOpen && event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat &&
+      event.key.key == SDLK_B) {
     close();
     return;
   }
 
-  if (isOpen && HandleBacklogScrollEvent(event, targetScroll, scrollVelocity, scrollToBottom, maxScroll)) {
+  if (isOpen && HandleBacklogScrollEvent(event, targetScroll, scrollVelocity,
+                                         scrollToBottom, maxScroll)) {
     return;
   }
 
-  if (isOpen && event.type == SDL_EVENT_MOUSE_BUTTON_DOWN && event.button.button == SDL_BUTTON_LEFT) {
+  if (isOpen && event.type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
+      event.button.button == SDL_BUTTON_LEFT) {
     if (UI::clicked(event, {980, 100, 160, 44})) {
       close();
       return;
@@ -57,7 +60,8 @@ void VNBacklog::onEvent(EventRef event) {
     const float instVel = -(currentY - lastDragY);
     scrollVelocity = scrollVelocity * 0.4f + (instVel * 60.0f) * 0.6f;
     lastDragY = currentY;
-  } else if (isOpen && event.type == SDL_EVENT_MOUSE_BUTTON_UP && event.button.button == SDL_BUTTON_LEFT) {
+  } else if (isOpen && event.type == SDL_EVENT_MOUSE_BUTTON_UP &&
+             event.button.button == SDL_BUTTON_LEFT) {
     isDragging = false;
   }
 
@@ -70,7 +74,8 @@ void VNBacklog::onEvent(EventRef event) {
     lastDragY = fingerY;
     scrollVelocity = 0.0f;
     scrollToBottom = false;
-  } else if (isOpen && event.type == SDL_EVENT_FINGER_MOTION && isDragging && event.tfinger.fingerID == dragTouchId) {
+  } else if (isOpen && event.type == SDL_EVENT_FINGER_MOTION && isDragging &&
+             event.tfinger.fingerID == dragTouchId) {
     const float fingerY = event.tfinger.y * UI::height;
     const float dy = fingerY - dragStartY;
     targetScroll = std::clamp(dragStartScroll - dy, 0.0f, maxScroll);
@@ -78,7 +83,8 @@ void VNBacklog::onEvent(EventRef event) {
     const float instVel = -(fingerY - lastDragY);
     scrollVelocity = scrollVelocity * 0.4f + (instVel * 60.0f) * 0.6f;
     lastDragY = fingerY;
-  } else if (isOpen && event.type == SDL_EVENT_FINGER_UP && isDragging && event.tfinger.fingerID == dragTouchId) {
+  } else if (isOpen && event.type == SDL_EVENT_FINGER_UP && isDragging &&
+             event.tfinger.fingerID == dragTouchId) {
     isDragging = false;
   }
 }
@@ -116,7 +122,7 @@ void VNBacklog::render(RendererRef renderer, float) {
 
 void VNBacklog::renderFrame(RendererRef renderer) {
   auto &ui = engine.GetUI();
-  ui.panel(renderer, {0, 0, UI::width, UI::height}, {0, 0, 0, 160});
+  ui.backdrop(renderer, {0, 0, 0, 160});
   ui.panel(renderer, {120, 80, 1040, 560});
   ui.text(renderer, "Dialogue history", 145, 105, 800, {255, 215, 100, 255});
   ui.button(renderer, {980, 100, 160, 44}, "Close [ESC]");

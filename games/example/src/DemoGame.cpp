@@ -96,8 +96,7 @@ void DemoGame::requestPlayerName() {
         manager.jumpToNode(StoryNode::Greeting);
       },
       [] {
-        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
-                    "Enter a name to continue.");
+        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "Enter a name to continue.");
       });
   AddScene(&dialog);
 }
@@ -105,7 +104,8 @@ void DemoGame::requestPlayerName() {
 std::string DemoGame::savePath() const {
   if (const char *path = SDL_getenv("KOTONOHA_SAVE"))
     return path;
-  return (Kotonoha::preferredDocumentsDirectory("Kotonoha") / "quicksave.vn").string();
+  return (Kotonoha::preferredDocumentsDirectory("Kotonoha") / "quicksave.vn")
+      .string();
 }
 
 void DemoGame::openSaves(bool load) {

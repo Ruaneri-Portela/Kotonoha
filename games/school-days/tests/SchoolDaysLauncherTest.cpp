@@ -1,5 +1,5 @@
-#include "SchoolDaysAssets.hpp"
 #include "SchoolDaysLauncher.hpp"
+#include "SchoolDaysAssets.hpp"
 #include <Kotonoha/script/KtrfScript.hpp>
 
 #include <SDL3/SDL.h>
@@ -66,12 +66,16 @@ int main(int argc, char **argv) {
     fs::copy_file(original, gameAssets / "school-days-hq.ktnroute");
     const auto previousDirectory = fs::current_path();
     fs::current_path(workspace);
-    const auto discoveredGame = fs::absolute(SchoolDays::Assets::defaultDirectory());
-    const auto discoveredRoute = fs::absolute(SchoolDays::Assets::findDefaultRoute());
+    const auto discoveredGame =
+        fs::absolute(SchoolDays::Assets::defaultDirectory());
+    const auto discoveredRoute =
+        fs::absolute(SchoolDays::Assets::findDefaultRoute());
     fs::current_path(previousDirectory);
-    require(fs::is_directory(discoveredGame) && fs::is_regular_file(discoveredRoute) &&
+    require(fs::is_directory(discoveredGame) &&
+                fs::is_regular_file(discoveredRoute) &&
                 fs::equivalent(discoveredGame, gameAssets) &&
-                fs::equivalent(discoveredRoute, gameAssets / "school-days-hq.ktnroute"),
+                fs::equivalent(discoveredRoute,
+                               gameAssets / "school-days-hq.ktnroute"),
             "Source game-assets directory and route were not discovered: " +
                 discoveredGame.string() + ", " + discoveredRoute.string());
 

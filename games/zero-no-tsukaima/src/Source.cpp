@@ -10,25 +10,32 @@
 
 namespace ZeroNoTsukaima {
 
-bool SceneSource::ReadEntry(const Kotonoha::DiscImage::Entry &bin, const std::vector<ArchiveEntry> &index, size_t i,
+bool SceneSource::ReadEntry(const Kotonoha::DiscImage::Entry &bin,
+                            const std::vector<ArchiveEntry> &index, size_t i,
                             std::vector<uint8_t> *out) const {
-  if (i >= index.size()) return false;
+  if (i >= index.size())
+    return false;
   std::vector<uint8_t> blob;
-  if (!disc_->readInto(bin, index[i].offset, index[i].size, blob)) return false;
+  if (!disc_->readInto(bin, index[i].offset, index[i].size, blob))
+    return false;
   std::vector<uint8_t> unpacked;
-  if (Unpack(blob.data(), blob.size(), &unpacked)) *out = std::move(unpacked);
-  else *out = std::move(blob);
+  if (Unpack(blob.data(), blob.size(), &unpacked))
+    *out = std::move(unpacked);
+  else
+    *out = std::move(blob);
   return true;
 }
 
 bool SceneSource::Open(const std::string &discPath, std::string *error) {
-  if (!disc_->tryOpen(discPath, error)) return false;
+  if (!disc_->tryOpen(discPath, error))
+    return false;
   const Kotonoha::DiscImage::Entry *sysBin = disc_->find("SYSTEM.BIN");
   const Kotonoha::DiscImage::Entry *sysHd = disc_->find("SYSTEM.HD");
   sceneBin_ = disc_->find("SCENE_ID.BIN");
   const Kotonoha::DiscImage::Entry *sceneHd = disc_->find("SCENE_ID.HD");
   if (!sysBin || !sysHd || !sceneBin_ || !sceneHd) {
-    if (error) *error = "SYSTEM / SCENE_ID archives not found on the disc";
+    if (error)
+      *error = "SYSTEM / SCENE_ID archives not found on the disc";
     return false;
   }
   std::vector<uint8_t> hd;
@@ -37,69 +44,93 @@ bool SceneSource::Open(const std::string &discPath, std::string *error) {
   pictureBin_ = disc_->find("SCENEDAT.BIN");
   if (const Kotonoha::DiscImage::Entry *h = disc_->find("SCENEDAT.HD")) {
     std::vector<uint8_t> raw;
-    if (pictureBin_ && disc_->readInto(*h, 0, h->size, raw)) pictureIndex_ = ParseArchiveIndex(raw);
+    if (pictureBin_ && disc_->readInto(*h, 0, h->size, raw))
+      pictureIndex_ = ParseArchiveIndex(raw);
   }
   voiceBin_ = disc_->find("VOICE_ID.BIN");
   soundBin_ = disc_->find("SOUND_ID.BIN");
-  for (auto [bin, name, index] : {std::tuple{voiceBin_, "VOICE_ID.HD", &voiceIndex_},
-                                  std::tuple{soundBin_, "SOUND_ID.HD", &soundIndex_}}) {
+  for (auto [bin, name, index] :
+       {std::tuple{voiceBin_, "VOICE_ID.HD", &voiceIndex_},
+        std::tuple{soundBin_, "SOUND_ID.HD", &soundIndex_}}) {
     const Kotonoha::DiscImage::Entry *h = disc_->find(name);
     std::vector<uint8_t> raw;
-    if (bin && h && disc_->readInto(*h, 0, h->size, raw)) *index = ParseArchiveIndex(raw);
+    if (bin && h && disc_->readInto(*h, 0, h->size, raw))
+      *index = ParseArchiveIndex(raw);
   }
   hd.clear();
   disc_->readInto(*sysHd, 0, sysHd->size, hd);
   const auto sysIndex = ParseArchiveIndex(hd);
   std::vector<uint8_t> nut;
-  if (!ReadEntry(*sysBin, sysIndex, 32, &nut) || !ParseSceneNames(nut, &names_)) {
-    if (error) *error = "cannot read the scene name table (SYSTEM #32)";
+  if (!ReadEntry(*sysBin, sysIndex, 32, &nut) ||
+      !ParseSceneNames(nut, &names_)) {
+    if (error)
+      *error = "cannot read the scene name table (SYSTEM #32)";
     return false;
   }
   std::vector<uint8_t> env, main;
-  if (ReadEntry(*sysBin, sysIndex, 31, &env) && ReadEntry(*sysBin, sysIndex, 35, &main)) {
+  if (ReadEntry(*sysBin, sysIndex, 31, &env) &&
+      ReadEntry(*sysBin, sysIndex, 35, &main)) {
     std::vector<uint32_t> sizes;
-    for (const ArchiveEntry &e : pictureIndex_) sizes.push_back(e.size);
+    for (const ArchiveEntry &e : pictureIndex_)
+      sizes.push_back(e.size);
     catalog_.Build(env, main, sizes);
   }
   normalBin_ = disc_->find("NORMAL.BIN");
   if (const Kotonoha::DiscImage::Entry *h = disc_->find("NORMAL.HD")) {
     std::vector<uint8_t> raw;
-    if (normalBin_ && disc_->readInto(*h, 0, h->size, raw)) normalIndex_ = ParseArchiveIndex(raw);
+    if (normalBin_ && disc_->readInto(*h, 0, h->size, raw))
+      normalIndex_ = ParseArchiveIndex(raw);
   }
   std::vector<uint8_t> list;
   if (normalBin_) {
-    for (auto [entry, table] : {std::pair{9, &scenedatNames_}, std::pair{10, &soundNames_}, std::pair{11, &normalNames_}})
-      if (ReadEntry(*normalBin_, normalIndex_, size_t(entry), &list)) *table = ParseNameList(list);
+    for (auto [entry, table] :
+         {std::pair{9, &scenedatNames_}, std::pair{10, &soundNames_},
+          std::pair{11, &normalNames_}})
+      if (ReadEntry(*normalBin_, normalIndex_, size_t(entry), &list))
+        *table = ParseNameList(list);
     if (ReadEntry(*normalBin_, normalIndex_, 247, &list))
       for (size_t o = 0; o + 14 <= list.size(); o += 14) {
         std::string name(reinterpret_cast<const char *>(list.data() + o), 14);
-        name.resize(name.find('\0') == std::string::npos ? name.size() : name.find('\0'));
-        if (name.empty()) break;
+        name.resize(name.find('\0') == std::string::npos ? name.size()
+                                                         : name.find('\0'));
+        if (name.empty())
+          break;
         movies_.push_back(name);
       }
   }
-  // NORMAL #8 is SCENE_ID.LST ("[SCENE_ID]" then "SCENE\\NAME.nut" per entry): the real
-  // entry order. The SCENES.NUT literal pool read above is only hash ordered.
+  // NORMAL #8 is SCENE_ID.LST ("[SCENE_ID]" then "SCENE\\NAME.nut" per entry):
+  // the real entry order. The SCENES.NUT literal pool read above is only hash
+  // ordered.
   if (normalBin_ && ReadEntry(*normalBin_, normalIndex_, 8, &list)) {
     std::vector<std::string> names;
     std::string text(list.begin(), list.end()), line;
     std::istringstream in(text);
     while (std::getline(in, line)) {
-      while (!line.empty() && (line.back() == '\r' || line.back() == '\0')) line.pop_back();
-      if (line.empty() || line[0] == '[') continue;
+      while (!line.empty() && (line.back() == '\r' || line.back() == '\0'))
+        line.pop_back();
+      if (line.empty() || line[0] == '[')
+        continue;
       const size_t slash = line.find_last_of("\\/");
-      std::string name = slash == std::string::npos ? line : line.substr(slash + 1);
+      std::string name =
+          slash == std::string::npos ? line : line.substr(slash + 1);
       const size_t dot = name.rfind('.');
-      if (dot != std::string::npos) name = name.substr(0, dot);
+      if (dot != std::string::npos)
+        name = name.substr(0, dot);
       names.push_back(name + ".KS");
     }
-    if (names.size() == sceneIndex_.size()) names_ = std::move(names);
-    else std::fprintf(stderr, "[zero] SCENE_ID.LST has %zu names for %zu entries; keeping SCENES.NUT\n", names.size(), sceneIndex_.size());
+    if (names.size() == sceneIndex_.size())
+      names_ = std::move(names);
+    else
+      std::fprintf(stderr,
+                   "[zero] SCENE_ID.LST has %zu names for %zu entries; keeping "
+                   "SCENES.NUT\n",
+                   names.size(), sceneIndex_.size());
   }
   if (ReadEntry(*sysBin, sysIndex, 36, &list))
     if (auto table = EvalNutTable(list))
       for (const auto &[k, v] : table->fields)
-        if (v && v->kind == NutValue::Integer) systemVoices_[k] = v->value;
+        if (v && v->kind == NutValue::Integer)
+          systemVoices_[k] = v->value;
   return true;
 }
 
@@ -109,43 +140,58 @@ std::map<std::string, int> ParseNameList(const std::vector<uint8_t> &text) {
   size_t start = 0;
   while (start < text.size()) {
     size_t end = start;
-    while (end < text.size() && text[end] != '\n') ++end;
+    while (end < text.size() && text[end] != '\n')
+      ++end;
     std::string line(text.begin() + long(start), text.begin() + long(end));
     start = end + 1;
-    while (!line.empty() && (line.back() == '\r' || line.back() == ' ' || line.back() == '\t')) line.pop_back();
-    if (line.empty() || line.compare(0, 2, "//") == 0 || line[0] == '[') continue;
-    std::string key = line.substr(line.find_last_of("\\/") == std::string::npos ? 0 : line.find_last_of("\\/") + 1);
+    while (!line.empty() &&
+           (line.back() == '\r' || line.back() == ' ' || line.back() == '\t'))
+      line.pop_back();
+    if (line.empty() || line.compare(0, 2, "//") == 0 || line[0] == '[')
+      continue;
+    std::string key = line.substr(line.find_last_of("\\/") == std::string::npos
+                                      ? 0
+                                      : line.find_last_of("\\/") + 1);
     key = key.substr(0, key.find('.'));
-    for (char &c : key) c = char(std::toupper(static_cast<unsigned char>(c)));
+    for (char &c : key)
+      c = char(std::toupper(static_cast<unsigned char>(c)));
     out.emplace(key, index++);
   }
   return out;
 }
 
-int SceneSource::Lookup(const std::map<std::string, int> &table, const std::string &name) {
+int SceneSource::Lookup(const std::map<std::string, int> &table,
+                        const std::string &name) {
   std::string key = name;
-  for (char &c : key) c = char(std::toupper(static_cast<unsigned char>(c)));
+  for (char &c : key)
+    c = char(std::toupper(static_cast<unsigned char>(c)));
   const auto it = table.find(key);
   return it == table.end() ? -1 : it->second;
 }
 
-bool SceneSource::ReadNormalPicture(int index, std::vector<uint8_t> *out) const {
-  return normalBin_ && index >= 0 && ReadEntry(*normalBin_, normalIndex_, size_t(index), out);
+bool SceneSource::ReadNormalPicture(int index,
+                                    std::vector<uint8_t> *out) const {
+  return normalBin_ && index >= 0 &&
+         ReadEntry(*normalBin_, normalIndex_, size_t(index), out);
 }
 
 bool SceneSource::LoadNormalPicture(int index, Image *out) const {
   std::vector<uint8_t> data;
-  return ReadNormalPicture(index, &data) && DecodeTim2(data.data(), data.size(), out);
+  return ReadNormalPicture(index, &data) &&
+         DecodeTim2(data.data(), data.size(), out);
 }
 
 bool SceneSource::LoadMovie(int number, std::vector<uint8_t> *out) const {
-  if (number < 0 || size_t(number) >= movies_.size()) return false;
-  const Kotonoha::DiscImage::Entry *e = disc_->find("MOVIE/" + movies_[size_t(number)]);
+  if (number < 0 || size_t(number) >= movies_.size())
+    return false;
+  const Kotonoha::DiscImage::Entry *e =
+      disc_->find("MOVIE/" + movies_[size_t(number)]);
   return e != nullptr && disc_->readInto(*e, 0, e->size, *out);
 }
 
 bool SceneSource::ReadPicture(int index, std::vector<uint8_t> *out) const {
-  return pictureBin_ && index >= 0 && ReadEntry(*pictureBin_, pictureIndex_, size_t(index), out);
+  return pictureBin_ && index >= 0 &&
+         ReadEntry(*pictureBin_, pictureIndex_, size_t(index), out);
 }
 
 bool SceneSource::LoadPicture(int index, Image *out) const {
@@ -158,13 +204,17 @@ bool SceneSource::LoadScene(size_t index, std::vector<uint8_t> *out) const {
 }
 
 bool SceneSource::LoadVoice(size_t index, std::vector<uint8_t> *out) const {
-  if (!voiceBin_ || index >= voiceIndex_.size()) return false;
-  return disc_->readInto(*voiceBin_, voiceIndex_[index].offset, voiceIndex_[index].size, *out);
+  if (!voiceBin_ || index >= voiceIndex_.size())
+    return false;
+  return disc_->readInto(*voiceBin_, voiceIndex_[index].offset,
+                         voiceIndex_[index].size, *out);
 }
 
 bool SceneSource::LoadSound(size_t index, std::vector<uint8_t> *out) const {
-  if (!soundBin_ || index >= soundIndex_.size()) return false;
-  return disc_->readInto(*soundBin_, soundIndex_[index].offset, soundIndex_[index].size, *out);
+  if (!soundBin_ || index >= soundIndex_.size())
+    return false;
+  return disc_->readInto(*soundBin_, soundIndex_[index].offset,
+                         soundIndex_[index].size, *out);
 }
 
 } // namespace ZeroNoTsukaima

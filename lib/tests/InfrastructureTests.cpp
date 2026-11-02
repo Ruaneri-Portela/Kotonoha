@@ -9,8 +9,8 @@
 #include <Kotonoha/media/MediaPlayer.hpp>
 #include <Kotonoha/media/upscaling/MetalFXUpscaler.hpp>
 #include <Kotonoha/media/upscaling/OpenGLUpscaler.hpp>
-#include <Kotonoha/script/TimelinePlayer.hpp>
 #include <Kotonoha/script/KtrfScript.hpp>
+#include <Kotonoha/script/TimelinePlayer.hpp>
 
 #include <algorithm>
 #include <atomic>
@@ -94,11 +94,12 @@ void testLog(const std::filesystem::path &directory) {
 }
 
 void testSettings(const std::filesystem::path &directory) {
-  const std::vector<std::string> shaders{
-      "/tmp/custom shaders/first.glsl", "/tmp/colon:name.glsl",
-      "C:\\shaders\\second.glsl"};
-  require(UpscaleShaderFiles(UpscaleShaderFileList(shaders)) == shaders,
-          "Shader lists preserve order, spaces, colons and Windows drive paths");
+  const std::vector<std::string> shaders{"/tmp/custom shaders/first.glsl",
+                                         "/tmp/colon:name.glsl",
+                                         "C:\\shaders\\second.glsl"};
+  require(
+      UpscaleShaderFiles(UpscaleShaderFileList(shaders)) == shaders,
+      "Shader lists preserve order, spaces, colons and Windows drive paths");
   require(UpscaleShaderFiles("first.glsl:second.glsl") ==
               std::vector<std::string>{"first.glsl", "second.glsl"},
           "Legacy colon-separated presets remain supported");
@@ -146,16 +147,28 @@ void testSettings(const std::filesystem::path &directory) {
   rejects([&] { settings.save(file); }, "Validate before overwriting settings");
   require(EngineSettings::load(file).width == 1600,
           "Invalid save leaves file intact");
-  for (const char *invalid :
-       {"[]", "{", "{}garbage", "{\"width\": \"1280\"}",
-        "{\"width\":9223372036854775807}", "{\"mode\":99}", "{\"upscaler\":99}",
-        "{\"preset\":-1}", "{\"version\":2}", "{\"vsync\":1}",
-        "{\"factor\":0.5}", "{\"factor\":1e300}", "{\"refreshRate\":-1}",
-        "{\"logPriority\":0}", "{\"fullscreenWidth\":1920}",
-        "{\"renderer\":\"x\\u0000y\"}", "{\"masterVolume\":-0.1}",
-        "{\"masterVolume\":1.1}", "{\"masterVolume\":1e300}",
-        "{\"masterMuted\":1}", "{\"debugUIScale\":0.9}",
-        "{\"debugUIScale\":3.1}"}) {
+  for (const char *invalid : {"[]",
+                              "{",
+                              "{}garbage",
+                              "{\"width\": \"1280\"}",
+                              "{\"width\":9223372036854775807}",
+                              "{\"mode\":99}",
+                              "{\"upscaler\":99}",
+                              "{\"preset\":-1}",
+                              "{\"version\":2}",
+                              "{\"vsync\":1}",
+                              "{\"factor\":0.5}",
+                              "{\"factor\":1e300}",
+                              "{\"refreshRate\":-1}",
+                              "{\"logPriority\":0}",
+                              "{\"fullscreenWidth\":1920}",
+                              "{\"renderer\":\"x\\u0000y\"}",
+                              "{\"masterVolume\":-0.1}",
+                              "{\"masterVolume\":1.1}",
+                              "{\"masterVolume\":1e300}",
+                              "{\"masterMuted\":1}",
+                              "{\"debugUIScale\":0.9}",
+                              "{\"debugUIScale\":3.1}"}) {
     writeTextFileAtomically(file, invalid);
     rejects([&] { EngineSettings::load(file); },
             "Reject invalid settings JSON/value");
@@ -185,7 +198,7 @@ void testKtrfRuntime(Engine &engine, const std::filesystem::path &directory) {
   manager.startScript();
   const auto listed = engine.debugNodes();
   require(listed.size() == 2 && listed.front().assets ==
-              std::vector<std::string>{"background.bmp"},
+                                    std::vector<std::string>{"background.bmp"},
           "Debug nodes expose scene assets");
   const auto path = (directory / "runtime.json").string();
   engine.dumpKtrf(path);
@@ -193,15 +206,18 @@ void testKtrfRuntime(Engine &engine, const std::filesystem::path &directory) {
   edited.nodes[0].text = "Customized runtime dialogue";
   edited.dump(path);
   engine.loadKtrf(path);
-  require(GetVNTextBoxRuntime(engine, "", "", 30).getText() == "Customized runtime dialogue",
+  require(GetVNTextBoxRuntime(engine, "", "", 30).getText() ==
+              "Customized runtime dialogue",
           "Loaded KTRF changes the live dialogue");
   edited.nodes[0].nextNodeId = 9999;
   rejects([&] { edited.dump(path); }, "Invalid graph cannot replace the file");
-  std::ofstream(path) << "{\"profile\":\"kotonoha.vn\",\"version\":1,\"nodes\":[]}";
+  std::ofstream(path)
+      << "{\"profile\":\"kotonoha.vn\",\"version\":1,\"nodes\":[]}";
   rejects([&] { engine.loadKtrf(path); }, "Invalid loaded graph is rejected");
   require(manager.getCurrentNodeId() == 0,
           "Rejected KTRF preserves the current runtime graph");
-  require(GetVNTextBoxRuntime(engine, "", "", 30).getText() == "Customized runtime dialogue",
+  require(GetVNTextBoxRuntime(engine, "", "", 30).getText() ==
+              "Customized runtime dialogue",
           "Rejected load preserves the visible scene");
   engine.debugJumpToNode("1");
   require(manager.isFinished(), "Debug facade jumps to an engine node");
@@ -388,19 +404,22 @@ void testUpscaler(Engine &engine, UpscaleBackend backend) {
     TemporaryDirectory custom;
     const auto first = custom.path / "first custom shader.glsl";
     const auto second = custom.path / "second custom shader.glsl";
-    std::ofstream(first) <<
-        "//!HOOK MAIN\n//!BIND HOOKED\n"
-        "vec4 hook() { return vec4(0.0, 1.0, 0.0, 1.0); }\n";
-    std::ofstream(second) <<
-        "//!HOOK MAIN\n//!BIND HOOKED\n"
-        "vec4 hook() { return vec4(HOOKED_tex(HOOKED_pos).g, 0.0, 0.0, 1.0); }\n";
-    UpscaleSettings settings{backend, UpscalePreset::Anime4K, 2,
-                             UpscaleShaderFileList({first.string(), second.string()})};
+    std::ofstream(first)
+        << "//!HOOK MAIN\n//!BIND HOOKED\n"
+           "vec4 hook() { return vec4(0.0, 1.0, 0.0, 1.0); }\n";
+    std::ofstream(second)
+        << "//!HOOK MAIN\n//!BIND HOOKED\n"
+           "vec4 hook() { return vec4(HOOKED_tex(HOOKED_pos).g, 0.0, 0.0, "
+           "1.0); }\n";
+    UpscaleSettings settings{
+        backend, UpscalePreset::Anime4K, 2,
+        UpscaleShaderFileList({first.string(), second.string()})};
     upscaler.configure(settings);
     upload({0, 0, 255, 255});
     auto color = readPixel(renderer, upscaler.process(*source, 6), 32, 18);
-    require(color.r > 240 && color.g < 10 && color.b < 10,
-            "Selected absolute shader paths execute in list order, not the preset");
+    require(
+        color.r > 240 && color.g < 10 && color.b < 10,
+        "Selected absolute shader paths execute in list order, not the preset");
     for (const auto &entry : Log::entries())
       require(entry.priority < SDL_LOG_PRIORITY_WARN,
               "GPU presets execute without shader errors or fallback");
@@ -526,15 +545,18 @@ int main(int argc, char **argv) {
       options.rendererOverride = argv[1];
     Engine engine(runtime, options);
     require(engineAssetDirectory() == resourceDirectory() / "assets" &&
-                gameAssetDirectory("example") == resourceDirectory() / "game-assets",
+                gameAssetDirectory("example") ==
+                    resourceDirectory() / "game-assets",
             "Packaged engine and game assets have separate stable directories");
     require(preferredDataDirectory("example") == resourceDirectory(),
             "Desktop data resolves to the package resource directory");
-    require(std::filesystem::is_directory(preferredDocumentsDirectory("example")) &&
-                std::filesystem::path(EngineSettings::defaultPath("example")).parent_path() ==
-                    preferredDocumentsDirectory("example"),
-            "Settings use the writable preferred documents directory");
-    rejects([] { gameAssetDirectory("../game"); }, "Reject invalid game identifiers");
+    require(
+        std::filesystem::is_directory(preferredDocumentsDirectory("example")) &&
+            std::filesystem::path(EngineSettings::defaultPath("example"))
+                    .parent_path() == preferredDocumentsDirectory("example"),
+        "Settings use the writable preferred documents directory");
+    rejects([] { gameAssetDirectory("../game"); },
+            "Reject invalid game identifiers");
     SDL_HideWindow(&engine.GetWindow());
     if (argc == 1) {
       testWindowAndMenu(engine, runtime, options.settingsPath);

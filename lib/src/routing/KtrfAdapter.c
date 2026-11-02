@@ -12,8 +12,7 @@ static void adapter_clear_error(Kotonoha_KtrfError *error) {
   }
 }
 
-static int adapter_fail(Kotonoha_KtrfError *error,
-                        Kotonoha_KtrfErrorCode code,
+static int adapter_fail(Kotonoha_KtrfError *error, Kotonoha_KtrfErrorCode code,
                         const char *format, ...) {
   if (error != NULL) {
     va_list args;
@@ -54,15 +53,12 @@ static int adapter_string_equals(const Kotonoha_KtrfDocument *document,
 static int adapter_on_ending(Kotonoha_KtrfRuntime *runtime,
                              uint32_t ending_index, void *userdata,
                              Kotonoha_KtrfError *error) {
-  Kotonoha_KtrfAdapter *adapter =
-      (Kotonoha_KtrfAdapter *)userdata;
+  Kotonoha_KtrfAdapter *adapter = (Kotonoha_KtrfAdapter *)userdata;
   Kotonoha_KtrfEnding ending;
   (void)runtime;
-  if (!Kotonoha_KtrfGetEnding(adapter->document, ending_index,
-                              &ending, error))
+  if (!Kotonoha_KtrfGetEnding(adapter->document, ending_index, &ending, error))
     return 0;
-  if (!ending.has_code ||
-      ending.code.kind != KOTONOHA_KTRF_SCALAR_INT64)
+  if (!ending.has_code || ending.code.kind != KOTONOHA_KTRF_SCALAR_INT64)
     return adapter_fail(error, KOTONOHA_KTRF_ERROR_FORMAT,
                         "KTRF ending callback has invalid code");
   if (adapter->callbacks.register_ending != NULL)
@@ -71,13 +67,11 @@ static int adapter_on_ending(Kotonoha_KtrfRuntime *runtime,
   return 1;
 }
 
-static int adapter_on_hook(Kotonoha_KtrfRuntime *runtime,
-                           uint32_t hook_index,
+static int adapter_on_hook(Kotonoha_KtrfRuntime *runtime, uint32_t hook_index,
                            const Kotonoha_KtrfRuntimeValue *arguments,
                            uint32_t argument_count, void *userdata,
                            Kotonoha_KtrfError *error) {
-  Kotonoha_KtrfAdapter *adapter =
-      (Kotonoha_KtrfAdapter *)userdata;
+  Kotonoha_KtrfAdapter *adapter = (Kotonoha_KtrfAdapter *)userdata;
   Kotonoha_KtrfHook hook;
   const char *symbol = NULL;
   size_t symbol_length = 0u;
@@ -87,19 +81,18 @@ static int adapter_on_hook(Kotonoha_KtrfRuntime *runtime,
     return adapter_fail(error, KOTONOHA_KTRF_ERROR_FORMAT,
                         "KTRF hook unexpectedly has arguments");
   if (!Kotonoha_KtrfGetHook(adapter->document, hook_index, &hook, error) ||
-      !Kotonoha_KtrfGetString(adapter->document, hook.symbol_str,
-                              &symbol, &symbol_length, error))
+      !Kotonoha_KtrfGetString(adapter->document, hook.symbol_str, &symbol,
+                              &symbol_length, error))
     return 0;
   if (adapter->callbacks.call_hook != NULL)
-    return adapter->callbacks.call_hook(
-        symbol, symbol_length, adapter->callbacks.userdata, error);
+    return adapter->callbacks.call_hook(symbol, symbol_length,
+                                        adapter->callbacks.userdata, error);
   return 1;
 }
 
 static int adapter_on_effect_applied(uint32_t effect_index, void *userdata,
                                      Kotonoha_KtrfError *error) {
-  Kotonoha_KtrfAdapter *adapter =
-      (Kotonoha_KtrfAdapter *)userdata;
+  Kotonoha_KtrfAdapter *adapter = (Kotonoha_KtrfAdapter *)userdata;
   if (adapter == NULL)
     return adapter_fail(error, KOTONOHA_KTRF_ERROR_ARGUMENT,
                         "KTRF effect observer adapter is null");
@@ -109,8 +102,7 @@ static int adapter_on_effect_applied(uint32_t effect_index, void *userdata,
   return 1;
 }
 
-void Kotonoha_KtrfAdapterInit(
-    Kotonoha_KtrfAdapter *adapter) {
+void Kotonoha_KtrfAdapterInit(Kotonoha_KtrfAdapter *adapter) {
   if (adapter == NULL)
     return;
   memset(adapter, 0, sizeof(*adapter));
@@ -118,8 +110,7 @@ void Kotonoha_KtrfAdapterInit(
   adapter->new_game_entry_index = KOTONOHA_KTRF_NULL_INDEX;
 }
 
-void Kotonoha_KtrfAdapterClean(
-    Kotonoha_KtrfAdapter *adapter) {
+void Kotonoha_KtrfAdapterClean(Kotonoha_KtrfAdapter *adapter) {
   if (adapter == NULL)
     return;
   Kotonoha_KtrfRouterClean(&adapter->router);
@@ -127,12 +118,11 @@ void Kotonoha_KtrfAdapterClean(
   adapter->new_game_entry_index = KOTONOHA_KTRF_NULL_INDEX;
 }
 
-int Kotonoha_KtrfAdapterBind(
-    Kotonoha_KtrfAdapter *adapter,
-    const Kotonoha_KtrfDocument *document,
-    const Kotonoha_KtrfProfileConfig *profile,
-    const Kotonoha_KtrfCallbacks *callbacks,
-    Kotonoha_KtrfError *error) {
+int Kotonoha_KtrfAdapterBind(Kotonoha_KtrfAdapter *adapter,
+                             const Kotonoha_KtrfDocument *document,
+                             const Kotonoha_KtrfProfileConfig *profile,
+                             const Kotonoha_KtrfCallbacks *callbacks,
+                             Kotonoha_KtrfError *error) {
   Kotonoha_KtrfRuntimeCallbacks runtime_callbacks;
   uint32_t entry_index = KOTONOHA_KTRF_NULL_INDEX;
 
@@ -159,17 +149,17 @@ int Kotonoha_KtrfAdapterBind(
   runtime_callbacks.call_hook = adapter_on_hook;
   runtime_callbacks.userdata = adapter;
 
-  if (!Kotonoha_KtrfRouterBind(&adapter->router, document,
-                                &runtime_callbacks, error)) {
+  if (!Kotonoha_KtrfRouterBind(&adapter->router, document, &runtime_callbacks,
+                               error)) {
     Kotonoha_KtrfAdapterClean(adapter);
     return 0;
   }
   return 1;
 }
 
-int Kotonoha_KtrfGetNodeView(
-    const Kotonoha_KtrfAdapter *adapter, uint32_t node_index,
-    Kotonoha_KtrfNodeView *out, Kotonoha_KtrfError *error) {
+int Kotonoha_KtrfGetNodeView(const Kotonoha_KtrfAdapter *adapter,
+                             uint32_t node_index, Kotonoha_KtrfNodeView *out,
+                             Kotonoha_KtrfError *error) {
   Kotonoha_KtrfNode node;
   int is_scene;
   int is_dispatcher;
@@ -205,12 +195,11 @@ int Kotonoha_KtrfGetNodeView(
     Kotonoha_KtrfResource resource;
     uint32_t resource_index;
     if (!Kotonoha_KtrfGetNodeResource(adapter->document, node_index, 0u,
-                                       &resource_index, error) ||
-        !Kotonoha_KtrfGetResource(adapter->document, resource_index,
-                                  &resource, error) ||
+                                      &resource_index, error) ||
+        !Kotonoha_KtrfGetResource(adapter->document, resource_index, &resource,
+                                  error) ||
         !Kotonoha_KtrfGetString(adapter->document, resource.value_str,
-                                &out->scene_key, &out->scene_key_length,
-                                error))
+                                &out->scene_key, &out->scene_key_length, error))
       return 0;
     out->kind = KOTONOHA_KTRF_NODE_SCENE;
     out->resource_index = resource_index;
@@ -218,28 +207,28 @@ int Kotonoha_KtrfGetNodeView(
   return 1;
 }
 
-int Kotonoha_KtrfCurrentNodeView(
-    const Kotonoha_KtrfAdapter *adapter,
-    Kotonoha_KtrfNodeView *out, Kotonoha_KtrfError *error) {
+int Kotonoha_KtrfCurrentNodeView(const Kotonoha_KtrfAdapter *adapter,
+                                 Kotonoha_KtrfNodeView *out,
+                                 Kotonoha_KtrfError *error) {
   if (adapter == NULL)
     return adapter_fail(error, KOTONOHA_KTRF_ERROR_ARGUMENT,
                         "KTRF adapter is null");
   if (adapter->router.current_node_index == KOTONOHA_KTRF_NULL_INDEX)
     return adapter_fail(error, KOTONOHA_KTRF_ERROR_FORMAT,
                         "KTRF adapter has no active node");
-  return Kotonoha_KtrfGetNodeView(
-      adapter, adapter->router.current_node_index, out, error);
+  return Kotonoha_KtrfGetNodeView(adapter, adapter->router.current_node_index,
+                                  out, error);
 }
 
-int Kotonoha_KtrfResetNewGame(
-    Kotonoha_KtrfAdapter *adapter,
-    Kotonoha_KtrfNodeView *scene, Kotonoha_KtrfError *error) {
+int Kotonoha_KtrfResetNewGame(Kotonoha_KtrfAdapter *adapter,
+                              Kotonoha_KtrfNodeView *scene,
+                              Kotonoha_KtrfError *error) {
   adapter_clear_error(error);
   if (adapter == NULL || adapter->document == NULL || scene == NULL)
     return adapter_fail(error, KOTONOHA_KTRF_ERROR_ARGUMENT,
                         "KTRF reset argument is null");
-  if (!Kotonoha_KtrfRouterResetEntry(
-          &adapter->router, adapter->new_game_entry_index, error))
+  if (!Kotonoha_KtrfRouterResetEntry(&adapter->router,
+                                     adapter->new_game_entry_index, error))
     return 0;
   if (!Kotonoha_KtrfCurrentNodeView(adapter, scene, error))
     return 0;
@@ -249,9 +238,8 @@ int Kotonoha_KtrfResetNewGame(
   return 1;
 }
 
-int Kotonoha_KtrfCommitChoice(
-    Kotonoha_KtrfAdapter *adapter, int64_t value, int *accepted,
-    Kotonoha_KtrfError *error) {
+int Kotonoha_KtrfCommitChoice(Kotonoha_KtrfAdapter *adapter, int64_t value,
+                              int *accepted, Kotonoha_KtrfError *error) {
   uint32_t count = 0u;
   uint32_t choice_index = KOTONOHA_KTRF_NULL_INDEX;
   Kotonoha_KtrfRuntimeValue runtime_value;
@@ -262,14 +250,13 @@ int Kotonoha_KtrfCommitChoice(
                         "KTRF choice argument is null");
   *accepted = 0;
 
-  if (!Kotonoha_KtrfRouterCurrentChoiceCount(&adapter->router,
-                                              &count, error))
+  if (!Kotonoha_KtrfRouterCurrentChoiceCount(&adapter->router, &count, error))
     return 0;
   if (count != 1u)
     return adapter_fail(error, KOTONOHA_KTRF_ERROR_ARGUMENT,
                         "current KTRF node has %u choices", count);
-  if (!Kotonoha_KtrfRouterCurrentChoiceAt(
-          &adapter->router, 0u, &choice_index, error))
+  if (!Kotonoha_KtrfRouterCurrentChoiceAt(&adapter->router, 0u, &choice_index,
+                                          error))
     return 0;
 
   memset(&runtime_value, 0, sizeof(runtime_value));
@@ -280,8 +267,7 @@ int Kotonoha_KtrfCommitChoice(
       adapter_on_effect_applied, adapter, error);
 }
 
-static void adapter_init_advance_result(
-    Kotonoha_KtrfAdvanceResult *out) {
+static void adapter_init_advance_result(Kotonoha_KtrfAdvanceResult *out) {
   uint32_t i;
   memset(out, 0, sizeof(*out));
   for (i = 0u; i < KOTONOHA_KTRF_MAX_TRANSITION_TRACE; ++i)
@@ -293,9 +279,9 @@ static void adapter_init_advance_result(
   out->scene.resource_index = KOTONOHA_KTRF_NULL_INDEX;
 }
 
-int Kotonoha_KtrfAdvance(
-    Kotonoha_KtrfAdapter *adapter, const char *trigger,
-    Kotonoha_KtrfAdvanceResult *out, Kotonoha_KtrfError *error) {
+int Kotonoha_KtrfAdvance(Kotonoha_KtrfAdapter *adapter, const char *trigger,
+                         Kotonoha_KtrfAdvanceResult *out,
+                         Kotonoha_KtrfError *error) {
   adapter_clear_error(error);
   if (adapter == NULL || adapter->document == NULL || out == NULL)
     return adapter_fail(error, KOTONOHA_KTRF_ERROR_ARGUMENT,
@@ -303,8 +289,8 @@ int Kotonoha_KtrfAdvance(
 
   adapter_init_advance_result(out);
   if (!Kotonoha_KtrfRouterTriggerObserved(
-          &adapter->router, trigger, &out->route,
-          adapter_on_effect_applied, adapter, error))
+          &adapter->router, trigger, &out->route, adapter_on_effect_applied,
+          adapter, error))
     return 0;
   out->hop_count = 1u;
   if (out->route.transition_index != KOTONOHA_KTRF_NULL_INDEX) {
@@ -323,8 +309,7 @@ int Kotonoha_KtrfAdvance(
     out->status = KOTONOHA_KTRF_ADVANCE_TERMINAL;
     return 1;
   case KOTONOHA_KTRF_ROUTE_ADVANCED:
-    if (!Kotonoha_KtrfCurrentNodeView(
-            adapter, &out->scene, error))
+    if (!Kotonoha_KtrfCurrentNodeView(adapter, &out->scene, error))
       return 0;
     out->status = KOTONOHA_KTRF_ADVANCE_ADVANCED;
     return 1;
@@ -335,9 +320,10 @@ int Kotonoha_KtrfAdvance(
   }
 }
 
-int Kotonoha_KtrfAdvanceToScene(
-    Kotonoha_KtrfAdapter *adapter, const char *trigger,
-    Kotonoha_KtrfAdvanceResult *out, Kotonoha_KtrfError *error) {
+int Kotonoha_KtrfAdvanceToScene(Kotonoha_KtrfAdapter *adapter,
+                                const char *trigger,
+                                Kotonoha_KtrfAdvanceResult *out,
+                                Kotonoha_KtrfError *error) {
   const char *next_trigger = trigger;
   uint32_t hops = 0u;
   uint32_t trace_count = 0u;
@@ -355,8 +341,7 @@ int Kotonoha_KtrfAdvanceToScene(
       return adapter_fail(error, KOTONOHA_KTRF_ERROR_RANGE,
                           "KTRF dispatcher chain exceeded %u hops",
                           adapter->max_dispatch_hops);
-    if (!Kotonoha_KtrfAdvance(
-            adapter, next_trigger, &step, error))
+    if (!Kotonoha_KtrfAdvance(adapter, next_trigger, &step, error))
       return 0;
     ++hops;
     if (step.transition_trace_count != 0u) {

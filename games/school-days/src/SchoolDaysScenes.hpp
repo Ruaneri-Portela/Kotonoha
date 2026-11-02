@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Kotonoha/componentes/SubtitleScene.hpp>
+#include <Kotonoha/componentes/SplashScreen.hpp>
 #include <Kotonoha/parsers/Ors.h>
 
 namespace SchoolDays {
@@ -10,7 +11,7 @@ class Runtime;
 // Retail System/SYSTEM/LOGO shown after the engine splash, as the original
 // School Days port did. The logo lives inside System.GPK, so it is decoded
 // through the game's AssetProvider instead of Kotonoha::SplashScreen's files.
-class LogoSplash final : public Kotonoha::Scene {
+class LogoSplash final : public Kotonoha::SplashScreen {
   Assets &assets;
   std::string logo;
   Uint64 started = 0;
@@ -20,10 +21,9 @@ class LogoSplash final : public Kotonoha::Scene {
 public:
   static constexpr double fadeSeconds = 0.8, displaySeconds = 3.0;
   LogoSplash(Kotonoha::Engine &engine, Assets &assets);
-  void restart();
-  bool finished() const { return done; }
+  bool finished() const override { return done; }
   bool available() const { return !logo.empty(); }
-  bool capturesInput() const override { return !done; }
+  void restart() override;
   bool handleEvent(Kotonoha::EventRef event) override;
   void update() override;
   void render(Kotonoha::RendererRef renderer, float scale) override;

@@ -1,7 +1,7 @@
+#include <Kotonoha/core/Config.hpp>
+#include <Kotonoha/core/FileSystem.hpp>
 #include <Kotonoha/core/Launcher.hpp>
 #include <Kotonoha/core/Log.hpp>
-#include <Kotonoha/core/FileSystem.hpp>
-#include <Kotonoha/core/Config.hpp>
 
 #include <imgui.h>
 #include <imgui_impl_sdl3.h>
@@ -31,7 +31,7 @@ constexpr const char *Modes[]{"Windowed", "Borderless fullscreen",
                               "Exclusive fullscreen"};
 constexpr const char *Presets[]{"Anime4K B-S", "ArtCNN C4F16",
                                 "ArtCNN C4F16 DS", "ArtCNN C4F32"};
-constexpr const char *Priorities[]{"Trace",   "Verbose", "Debug",  "Info",
+constexpr const char *Priorities[]{"Trace",   "Verbose", "Debug",   "Info",
                                    "Warning", "Error",   "Critical"};
 constexpr std::pair<int, int> Resolutions[]{
     {1280, 720}, {1600, 900}, {1920, 1080}, {2560, 1440}, {3840, 2160}};
@@ -73,8 +73,7 @@ Launcher::Launcher(std::string name, std::string path, EngineSettings values)
   try {
     draft = EngineSettings::load(settingsPath);
   } catch (const std::exception &error) {
-    setStatus(std::string("Invalid settings, using defaults: ") +
-                  error.what(),
+    setStatus(std::string("Invalid settings, using defaults: ") + error.what(),
               true);
   }
 }
@@ -309,9 +308,8 @@ void Launcher::draw() {
                                 pixelHeight / io.DisplaySize.y};
   const float displayScale = SDL_GetWindowDisplayScale(window.get());
   const float pixelDensity = SDL_GetWindowPixelDensity(window.get());
-  const float scale = displayScale > 0 && pixelDensity > 0
-                          ? displayScale / pixelDensity
-                          : 1.0f;
+  const float scale =
+      displayScale > 0 && pixelDensity > 0 ? displayScale / pixelDensity : 1.0f;
   if (contentScale != scale) {
     ImGuiTheme::apply(scale);
     contentScale = scale;
@@ -413,8 +411,8 @@ void Launcher::drawVideo() {
     if (count > 0) {
       draft.display = std::clamp(draft.display, 0, count - 1);
       const char *name = SDL_GetDisplayName(displays[draft.display]);
-      const std::string current = std::to_string(draft.display + 1) + ": " +
-                                  (name ? name : "Monitor");
+      const std::string current =
+          std::to_string(draft.display + 1) + ": " + (name ? name : "Monitor");
       if (ImGui::BeginCombo("Monitor", current.c_str())) {
         for (int i = 0; i < count; ++i) {
           const char *label = SDL_GetDisplayName(displays[i]);
@@ -484,7 +482,8 @@ void Launcher::drawVideo() {
       SDL_free(displays);
     }
   } else {
-    ImGui::TextDisabled("Display size and monitor settings are managed by Android/iOS.");
+    ImGui::TextDisabled(
+        "Display size and monitor settings are managed by Android/iOS.");
   }
 
   ImGui::Checkbox("VSync", &draft.vsync);
@@ -519,8 +518,7 @@ void Launcher::drawUpscaling() {
     upscaling.factor = 1;
   for (float preset : {1.5f, 2.0f, 3.0f, 4.0f}) {
     ImGui::SameLine();
-    const std::string label =
-        std::to_string(preset).substr(0, 3) + "x";
+    const std::string label = std::to_string(preset).substr(0, 3) + "x";
     if (ImGui::Button(label.c_str()))
       upscaling.factor = preset;
   }
@@ -587,7 +585,8 @@ std::vector<FontOption> getAvailableFonts() {
         if (entry.is_regular_file(ec)) {
           auto ext = entry.path().extension().string();
           std::string lower;
-          for (char c : ext) lower += static_cast<char>(std::tolower(c));
+          for (char c : ext)
+            lower += static_cast<char>(std::tolower(c));
           if (lower == ".ttf" || lower == ".otf" || lower == ".ttc") {
             std::string name = entry.path().filename().string();
             bool cjk = (name.find("JP") != std::string::npos ||
@@ -602,12 +601,14 @@ std::vector<FontOption> getAvailableFonts() {
         }
       }
     }
-  } catch (...) {}
-  std::sort(options.begin(), options.end(), [](const FontOption &a, const FontOption &b) {
-    if (a.isCJK != b.isCJK)
-      return a.isCJK > b.isCJK;
-    return a.filename < b.filename;
-  });
+  } catch (...) {
+  }
+  std::sort(options.begin(), options.end(),
+            [](const FontOption &a, const FontOption &b) {
+              if (a.isCJK != b.isCJK)
+                return a.isCJK > b.isCJK;
+              return a.filename < b.filename;
+            });
   return options;
 }
 } // namespace
@@ -618,7 +619,8 @@ void Launcher::drawTranslation() {
   constexpr const char *Browse = "Browse...";
   constexpr const char *Clear = "Clear";
 
-  const float buttonWidth = ImGui::CalcTextSize(Browse).x + ImGui::CalcTextSize(Clear).x +
+  const float buttonWidth = ImGui::CalcTextSize(Browse).x +
+                            ImGui::CalcTextSize(Clear).x +
                             style.ItemSpacing.x * 2 + style.FramePadding.x * 4;
   ImGui::SetNextItemWidth(-buttonWidth - style.ItemSpacing.x);
   ImGui::InputText("##translationPath", &draft.translationPath);
@@ -627,9 +629,13 @@ void Launcher::drawTranslation() {
     const std::string initial =
         draft.translationPath.empty()
             ? std::string()
-            : std::filesystem::path(draft.translationPath).parent_path().string();
+            : std::filesystem::path(draft.translationPath)
+                  .parent_path()
+                  .string();
     browseFile({{"Translation JSON (*.json)", "json"}, {"All files (*)", "*"}},
-               initial, [this](const std::string &path) { draft.translationPath = path; });
+               initial, [this](const std::string &path) {
+                 draft.translationPath = path;
+               });
   }
   ImGui::SameLine();
   if (ImGui::Button("Clear##translation")) {
@@ -662,7 +668,8 @@ void Launcher::drawTranslation() {
     draft.fontPath = fonts.front().filename;
   }
 
-  std::string currentLabel = draft.fontPath.empty() ? "Default (Noto Sans JP)" : draft.fontPath;
+  std::string currentLabel =
+      draft.fontPath.empty() ? "Default (Noto Sans JP)" : draft.fontPath;
   for (const auto &f : fonts) {
     if (f.filename == draft.fontPath) {
       currentLabel = f.label;
@@ -700,7 +707,8 @@ void Launcher::drawTranslation() {
       ImGui::PopStyleColor();
     }
   } else {
-    ImGui::TextDisabled("Default engine font (Noto Sans JP / CJK & Latin) will be used");
+    ImGui::TextDisabled(
+        "Default engine font (Noto Sans JP / CJK & Latin) will be used");
   }
 }
 

@@ -64,8 +64,8 @@ Kotonoha::VNSaveMenu *browser(Kotonoha::Runtime &game) {
   return nullptr;
 }
 
-void testMultipleSaves(KotonohaExample::DemoGame &game, Kotonoha::Engine &engine,
-                       const SaveSlot &slot) {
+void testMultipleSaves(KotonohaExample::DemoGame &game,
+                       Kotonoha::Engine &engine, const SaveSlot &slot) {
   using namespace Kotonoha;
   VNSaveSlots storage(slot.directory.string());
   const auto originalQuick = VNSave::read(slot.path.string());
@@ -179,8 +179,8 @@ void testMultipleSaves(KotonohaExample::DemoGame &game, Kotonoha::Engine &engine
   require(!empty.isOpen(), "Empty load browser can be closed");
 }
 
-void testSaveManagement(KotonohaExample::DemoGame &game, Kotonoha::Engine &engine,
-                        const SaveSlot &slot) {
+void testSaveManagement(KotonohaExample::DemoGame &game,
+                        Kotonoha::Engine &engine, const SaveSlot &slot) {
   using namespace Kotonoha;
   const auto directory = slot.directory / "management";
   VNSaveSlots storage(directory.string());
@@ -333,8 +333,9 @@ int main() {
     engine.Iterate();
     require(game.GetState() == Kotonoha::GameState::Splash,
             "The splash remains visible before its timeout");
-    const Uint64 waitUntil = SDL_GetTicks() +
-        Uint64(Kotonoha::SplashScreen::displaySeconds * 1000) + 100;
+    const Uint64 waitUntil =
+        SDL_GetTicks() + Uint64(Kotonoha::SplashScreen::displaySeconds * 1000) +
+        100;
     while (SDL_GetTicks() < waitUntil) {
       engine.Iterate();
       SDL_Delay(10);
@@ -355,7 +356,8 @@ int main() {
     press(engine, SDLK_F8);
     press(engine, SDLK_RETURN);
     require(game.GetState() == Kotonoha::GameState::Gameplay &&
-                manager.getCurrentNodeId() == KotonohaExample::StoryNode::Opening,
+                manager.getCurrentNodeId() ==
+                    KotonohaExample::StoryNode::Opening,
             "New Game starts the mixed-mode demo");
     engine.GetTimeline().update(6);
     engine.Iterate();

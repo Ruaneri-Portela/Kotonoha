@@ -38,6 +38,8 @@ public:
   SDL_FPoint textSize(const std::string &value, float width) const;
   void panel(RendererRef renderer, SDL_FRect rect,
              SDL_Color color = {20, 23, 36, 235});
+  // Dim the complete game canvas, independently of a fitted menu viewport.
+  void backdrop(RendererRef renderer, SDL_Color color = {0, 0, 0, 160});
   void button(RendererRef renderer, SDL_FRect rect, const std::string &label,
               bool selected = false);
   static SDL_FRect centered(float width, float height);

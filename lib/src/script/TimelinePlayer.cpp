@@ -1,6 +1,6 @@
 #include <Kotonoha/componentes/ChoiceQuestionScene.hpp>
-#include <Kotonoha/componentes/VNTextBox.hpp>
 #include <Kotonoha/componentes/SubtitleScene.hpp>
+#include <Kotonoha/componentes/VNTextBox.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/UI.hpp>
 #include <Kotonoha/script/TimelinePlayer.hpp>
@@ -77,7 +77,8 @@ void TimelinePlayer::stop() {
   branch.reset();
   resolvedChoices.clear();
   running = false;
-  if (subtitles) subtitles->clear();
+  if (subtitles)
+    subtitles->clear();
 }
 
 void TimelinePlayer::synchronizeMediaPause() {

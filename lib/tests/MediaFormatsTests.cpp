@@ -50,14 +50,17 @@ public:
 void encoding() {
   // "こんにちは" + NEC "①" + CP932 wave dash "～" + half-width "ｱ".
   const std::string sjis =
-      "\x82\xb1\x82\xf1\x82\xc9\x82\xbf\x82\xcd\x87\x40\x81\x60\xb1" "A";
+      "\x82\xb1\x82\xf1\x82\xc9\x82\xbf\x82\xcd\x87\x40\x81\x60\xb1"
+      "A";
   require(ShiftJisToUtf8(sjis) ==
               "\xE3\x81\x93\xE3\x82\x93\xE3\x81\xAB\xE3\x81\xA1\xE3\x81\xAF"
               "\xE2\x91\xA0\xEF\xBD\x9E\xEF\xBD\xB1"
               "A",
           "CP932 to UTF-8");
   // An unmapped pair becomes one '?', and the trail byte is not reused.
-  require(ShiftJisToUtf8("a\x85\x40" "z") == "a?z", "Invalid pair");
+  require(ShiftJisToUtf8("a\x85\x40"
+                         "z") == "a?z",
+          "Invalid pair");
   require(ShiftJisToUtf8("") == "", "Empty text");
   require(ConvertEncoding("caf\xe9", "LATIN1") == "caf\xC3\xA9",
           "Generic conversion");
@@ -277,13 +280,17 @@ void scaling() {
   require(upscaling.activeBackend() == UpscaleBackend::None &&
               !upscaling.getImplementation(),
           "Factor 1.0 disables the backend");
-  upscaling.configure({UpscaleBackend::Auto, UpscalePreset::Anime4K, 1.25f, {}});
+  upscaling.configure(
+      {UpscaleBackend::Auto, UpscalePreset::Anime4K, 1.25f, {}});
   require(upscaling.activeBackend() == UpscaleBackend::Linear &&
               upscaling.resolve(UpscaleBackend::Auto) == UpscaleBackend::Linear,
           "Auto resolves to Linear on the software renderer");
-  rejects([&] {
-    upscaling.configure({UpscaleBackend::Auto, UpscalePreset::Anime4K, 0.5f, {}});
-  }, "Reject factor below 1.0");
+  rejects(
+      [&] {
+        upscaling.configure(
+            {UpscaleBackend::Auto, UpscalePreset::Anime4K, 0.5f, {}});
+      },
+      "Reject factor below 1.0");
   upscaling.configure({UpscaleBackend::Linear, UpscalePreset::Anime4K, 2, {}});
   const SurfacePtr upscaled = assets.surface(*renderer, "pic", 3, &upscaling);
   require(upscaled->w == 12 && upscaled->h == 6, "Upscaled surface size");
@@ -343,8 +350,7 @@ void player() {
           "Letterbox bars");
   media.render(*renderer, SDL_FRect{0, 0, 16, 8}, nullptr, true);
   require(SDL_RenderPresent(renderer.get()), "Present stretched");
-  require(SDL_ReadSurfacePixel(target.get(), 1, 4, &r, &g, &b, &a) &&
-              r == 255,
+  require(SDL_ReadSurfacePixel(target.get(), 1, 4, &r, &g, &b, &a) && r == 255,
           "Stretched frame");
   media.stop();
   require(media.finished(), "Stopped player is finished");

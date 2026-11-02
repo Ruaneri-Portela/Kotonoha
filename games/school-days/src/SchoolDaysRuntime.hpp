@@ -18,7 +18,7 @@
 
 namespace Kotonoha {
 class FadeScene;
-class SplashScreen;
+class SplashChainloader;
 class VNBacklog;
 class VNSaveMenu;
 } // namespace Kotonoha
@@ -43,8 +43,7 @@ class Runtime final : public Kotonoha::Runtime {
   std::unique_ptr<Subtitles> subtitles;
   std::unique_ptr<GameScene> gameScene;
   std::unique_ptr<Kotonoha::FadeScene> fadeScene;
-  std::unique_ptr<Kotonoha::SplashScreen> engineSplash;
-  std::unique_ptr<LogoSplash> logoSplash;
+  std::unique_ptr<Kotonoha::SplashChainloader> splashChain;
   // Engine fallbacks when the retail System artwork is unavailable.
   std::unique_ptr<Kotonoha::VNSaveMenu> saveMenu;
   std::unique_ptr<Kotonoha::VNBacklog> backlogFallback;

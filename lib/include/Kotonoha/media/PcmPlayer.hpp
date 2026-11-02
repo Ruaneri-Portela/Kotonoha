@@ -33,6 +33,8 @@ public:
 
   bool Play(std::shared_ptr<AudioChannel> channel, Clip clip);
   void Stop();
+  // Suspend output and preserve the current playback position.
+  void SetPaused(bool paused);
   // Still producing sound (always while looping).
   bool Playing() const;
   bool Active() const { return stream_ != nullptr; }

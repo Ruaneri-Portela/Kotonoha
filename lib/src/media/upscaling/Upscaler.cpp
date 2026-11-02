@@ -296,9 +296,9 @@ TexturePtr Upscaling::scaled(TextureRef texture, float scale) {
     throw std::invalid_argument("Scale must be in (0, 16]");
   const int w = std::max(1, static_cast<int>(std::lround(texture.w * scale)));
   const int h = std::max(1, static_cast<int>(std::lround(texture.h * scale)));
-  const auto maximum = SDL_GetNumberProperty(
-      SDL_GetRendererProperties(&renderer),
-      SDL_PROP_RENDERER_MAX_TEXTURE_SIZE_NUMBER, 0);
+  const auto maximum =
+      SDL_GetNumberProperty(SDL_GetRendererProperties(&renderer),
+                            SDL_PROP_RENDERER_MAX_TEXTURE_SIZE_NUMBER, 0);
   if (maximum > 0 && (w > maximum || h > maximum))
     throw std::runtime_error("Scaled picture exceeds the texture size limit");
   TexturePtr result(SDL_CreateTexture(&renderer, SDL_PIXELFORMAT_RGBA32,
@@ -361,7 +361,8 @@ SurfacePtr Upscaling::scaled(const SDL_Surface &surface, float scale) {
     throw std::runtime_error("Cannot read scaled pixels: " + error);
   if (pixels->format == SDL_PIXELFORMAT_RGBA32)
     return pixels;
-  SurfacePtr converted(SDL_ConvertSurface(pixels.get(), SDL_PIXELFORMAT_RGBA32));
+  SurfacePtr converted(
+      SDL_ConvertSurface(pixels.get(), SDL_PIXELFORMAT_RGBA32));
   if (!converted)
     throw std::runtime_error(SDL_GetError());
   return converted;

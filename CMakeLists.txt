@@ -13,8 +13,11 @@ include(CTest)
 option(KOTONOHA_BUILD_EXAMPLE "Build the Kotonoha example game" ON)
 option(KOTONOHA_BUILD_ZERO "Build the Zero no Tsukaima (PS2) port" ON)
 option(KOTONOHA_BUILD_SNOW "Build the Snow Radish Vacation!! port" ON)
+option(KOTONOHA_BUILD_SUMMER "Build the Summer Radish Vacation!! port" ON)
 option(KOTONOHA_BUILD_DDLC "Build the Doki Doki Literature Club! port" ON)
 option(KOTONOHA_BUILD_SCHOOL_DAYS "Build the School Days port" ON)
+
+option(KOTONOHA_BUILD_AIR "Build the AIR Standard Edition port" ON)
 
 add_subdirectory(lib)
 
@@ -32,4 +35,11 @@ if(KOTONOHA_BUILD_DDLC)
 endif()
 if(KOTONOHA_BUILD_SCHOOL_DAYS)
     add_subdirectory(games/school-days)
+endif()
+if(KOTONOHA_BUILD_SUMMER)
+    add_subdirectory(games/summer-radish-vacation)
+endif()
+
+if(KOTONOHA_BUILD_AIR)
+    add_subdirectory(games/air)
 endif()

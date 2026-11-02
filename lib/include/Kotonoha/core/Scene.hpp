@@ -19,6 +19,8 @@ public:
     return false;
   }
   virtual bool capturesInput() const { return false; }
+  virtual bool finished() const { return false; }
+  virtual void restart() {}
   virtual bool pausesStory() const { return false; }
   virtual RenderSpace renderSpace() const { return RenderSpace::Novel; }
   virtual RenderLayer renderLayer() const { return RenderLayer::Foreground; }

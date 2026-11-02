@@ -80,7 +80,8 @@ bool IsConfirm(SDL_Keycode k) {
          k == SDLK_Z;
 }
 bool IsCancel(SDL_Keycode k) {
-  return k == SDLK_ESCAPE || k == SDLK_BACKSPACE || k == SDLK_X || k == SDLK_AC_BACK;
+  return k == SDLK_ESCAPE || k == SDLK_BACKSPACE || k == SDLK_X ||
+         k == SDLK_AC_BACK;
 }
 bool IsPrevPage(SDL_Keycode k) { return k == SDLK_PAGEUP || k == SDLK_Q; }
 bool IsNextPage(SDL_Keycode k) { return k == SDLK_PAGEDOWN || k == SDLK_W; }
@@ -1258,7 +1259,8 @@ Frontend::Result Frontend::Tick() {
     break;
   }
   case Phase::Movie:
-    if (movie_) movie_->update(*host_.Renderer());
+    if (movie_)
+      movie_->update(*host_.Renderer());
     if (!movie_ || movie_->finished()) {
       movie_.reset();
       EnterTitle(false);
@@ -1290,8 +1292,8 @@ Frontend::Result Frontend::Tick() {
   return r;
 }
 
-void Frontend::DrawImage(SDL_Renderer *r, Picture *img, float x,
-                         float y, float alpha, float light, float w, float h) {
+void Frontend::DrawImage(SDL_Renderer *r, Picture *img, float x, float y,
+                         float alpha, float light, float w, float h) {
   SDL_Texture *tex = img ? img->Source() : nullptr;
   if (!tex || alpha <= 0.0f)
     return;
@@ -1330,7 +1332,8 @@ void Frontend::DrawPhase(SDL_Renderer *r, Phase phase, float alpha) {
   case Phase::Movie:
     SDL_SetRenderDrawColor(r, 0, 0, 0, 255);
     SDL_RenderFillRect(r, &all);
-    if (movie_) movie_->render(*r, all, host_.Upscaler(), true);
+    if (movie_)
+      movie_->render(*r, all, host_.Upscaler(), true);
     break;
   case Phase::Title: {
     const int stage = phase == phase_ ? titleStage_ : 2;

@@ -1,3 +1,4 @@
+#include <Kotonoha/componentes/SplashChainloader.hpp>
 #include <Kotonoha/componentes/SplashScreen.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/FileSystem.hpp>
@@ -54,7 +55,8 @@ SDL_FPoint Runtime::sceneSize(const Scene &scene) const {
   return {static_cast<float>(view.x), static_cast<float>(view.y)};
 }
 
-void Runtime::renderScene(Scene &scene, RendererRef renderer, float scale) const {
+void Runtime::renderScene(Scene &scene, RendererRef renderer,
+                          float scale) const {
   const auto frame = UI::fit(sceneSize(scene), viewport());
   UI::FrameScope scope(renderer, frame);
   scene.render(renderer, scale * frame.scale);
@@ -67,16 +69,21 @@ bool Runtime::dispatchEvent(Scene &scene, EventRef event) const {
 
 void Runtime::initGlobal(Engine &engine) {}
 std::vector<std::filesystem::path> Runtime::splashPictures() const {
-  if (auto splash = FileResolver::findEngineAsset("SPLASH.PNG"))
-    return {*splash};
+  for (const char *name :
+       {"SPLASH.MP4", "SPLASH.MOV", "SPLASH.WEBM", "SPLASH.PNG"}) {
+    if (auto splash = FileResolver::findEngineAsset(name))
+      return {*splash};
+  }
   return {};
 }
 
 void Runtime::initSplash(Engine &engine) {
   splashEngine = &engine;
-  if (!splash)
-    splash = std::make_unique<SplashScreen>(engine, splashPictures());
-  else
+  if (!splash) {
+    std::vector<std::unique_ptr<Scene>> scenes;
+    scenes.push_back(std::make_unique<SplashScreen>(engine, splashPictures()));
+    splash = std::make_unique<SplashChainloader>(engine, std::move(scenes));
+  } else
     splash->restart();
   AddScene(splash.get(), GameState::Splash);
 }

@@ -6,8 +6,7 @@ namespace Kotonoha {
 GameMenu::GameMenu(Engine &engineRef) : Scene(engineRef) { isOpen = true; }
 
 std::string GameMenu::itemLabel(int index) const {
-  static const char *labels[]{"New Game", "Load Game", "Settings",
-                              "Quit Game"};
+  static const char *labels[]{"New Game", "Load Game", "Settings", "Quit Game"};
   return index >= 0 && index < 4 ? labels[index] : "";
 }
 
@@ -68,6 +67,7 @@ void GameMenu::update() {}
 void GameMenu::render(RendererRef renderer, float) {
   if (!isVisible())
     return;
+  engine.GetUI().backdrop(renderer);
   renderTitle(renderer);
   for (int i = 0; i < itemCount(); ++i)
     renderItem(renderer, i, selected == i);

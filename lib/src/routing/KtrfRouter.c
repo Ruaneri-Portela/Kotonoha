@@ -49,10 +49,8 @@ static int rr_string_equals(const Kotonoha_KtrfDocument *document,
   expected = strlen(text);
   if (!Kotonoha_KtrfGetString(document, string_index, &raw, &size, error))
     return -1;
-  return size == expected &&
-                 (size == 0u || memcmp(raw, text, size) == 0)
-             ? 1
-             : 0;
+  return size == expected && (size == 0u || memcmp(raw, text, size) == 0) ? 1
+                                                                          : 0;
 }
 
 static int rr_is_numeric(uint8_t kind) {
@@ -192,8 +190,7 @@ static int rr_choice_belongs_to_current(const Kotonoha_KtrfRouter *router,
 }
 
 static int rr_apply_choice_effects(Kotonoha_KtrfRouter *router,
-                                   uint32_t choice_index,
-                                   int timeout,
+                                   uint32_t choice_index, int timeout,
                                    uint32_t local_option_index,
                                    Kotonoha_KtrfEffectObserverFn observer,
                                    void *observer_userdata,
@@ -212,14 +209,13 @@ static int rr_apply_choice_effects(Kotonoha_KtrfRouter *router,
     count = outcome.effect_count;
     for (i = 0u; i < count; ++i) {
       uint32_t effect_index;
-      if (!Kotonoha_KtrfGetChoiceTimeoutEffect(
-              router->document, choice_index, i, &effect_index, error))
+      if (!Kotonoha_KtrfGetChoiceTimeoutEffect(router->document, choice_index,
+                                               i, &effect_index, error))
         return 0;
       if (!Kotonoha_KtrfRuntimeApplyEffect(&router->runtime, effect_index,
                                            error))
         return 0;
-      if (observer != NULL &&
-          !observer(effect_index, observer_userdata, error))
+      if (observer != NULL && !observer(effect_index, observer_userdata, error))
         return 0;
     }
     return 1;
@@ -233,15 +229,14 @@ static int rr_apply_choice_effects(Kotonoha_KtrfRouter *router,
     count = option.effect_count;
     for (i = 0u; i < count; ++i) {
       uint32_t effect_index;
-      if (!Kotonoha_KtrfGetChoiceOptionEffect(
-              router->document, choice_index, local_option_index, i,
-              &effect_index, error))
+      if (!Kotonoha_KtrfGetChoiceOptionEffect(router->document, choice_index,
+                                              local_option_index, i,
+                                              &effect_index, error))
         return 0;
       if (!Kotonoha_KtrfRuntimeApplyEffect(&router->runtime, effect_index,
                                            error))
         return 0;
-      if (observer != NULL &&
-          !observer(effect_index, observer_userdata, error))
+      if (observer != NULL && !observer(effect_index, observer_userdata, error))
         return 0;
     }
   }
@@ -254,21 +249,20 @@ static int rr_commit_selected(Kotonoha_KtrfRouter *router,
                               const Kotonoha_KtrfRuntimeValue *value,
                               int timeout, uint32_t local_option_index,
                               Kotonoha_KtrfEffectObserverFn observer,
-                              void *observer_userdata,
-                              int *accepted, Kotonoha_KtrfError *error) {
+                              void *observer_userdata, int *accepted,
+                              Kotonoha_KtrfError *error) {
   if (router->choice_committed[choice_index] != 0u) {
     *accepted = rr_value_equal(&router->choice_values[choice_index], value);
     return 1;
   }
 
-  if (!Kotonoha_KtrfRuntimeSetVariable(&router->runtime,
-                                       choice->result_variable_index, value,
-                                       error))
+  if (!Kotonoha_KtrfRuntimeSetVariable(
+          &router->runtime, choice->result_variable_index, value, error))
     return 0;
 
   if (!rr_apply_choice_effects(router, choice_index, timeout,
-                               local_option_index, observer,
-                               observer_userdata, error))
+                               local_option_index, observer, observer_userdata,
+                               error))
     return 0;
 
   router->choice_values[choice_index] = *value;
@@ -277,9 +271,9 @@ static int rr_commit_selected(Kotonoha_KtrfRouter *router,
   return 1;
 }
 
-static int rr_has_uncommitted_deferred_choice(
-    const Kotonoha_KtrfRouter *router, int *blocked,
-    Kotonoha_KtrfError *error) {
+static int rr_has_uncommitted_deferred_choice(const Kotonoha_KtrfRouter *router,
+                                              int *blocked,
+                                              Kotonoha_KtrfError *error) {
   uint32_t i;
   *blocked = 0;
   for (i = 0u; i < router->choice_count; ++i) {
@@ -289,9 +283,8 @@ static int rr_has_uncommitted_deferred_choice(
       return 0;
     if (choice.node_index != router->current_node_index)
       continue;
-    is_deferred =
-        rr_string_equals(router->document, choice.routing_policy_str,
-                         "ktrf:deferred", error);
+    is_deferred = rr_string_equals(router->document, choice.routing_policy_str,
+                                   "ktrf:deferred", error);
     if (is_deferred < 0)
       return 0;
     if (is_deferred && router->choice_committed[i] == 0u) {
@@ -318,12 +311,11 @@ static int rr_transition_matches_trigger(
   for (i = 0u; i < transition->trigger_count; ++i) {
     uint32_t trigger_string_index;
     int equal;
-    if (!Kotonoha_KtrfGetTransitionTrigger(
-            router->document, transition_index, i, &trigger_string_index,
-            error))
+    if (!Kotonoha_KtrfGetTransitionTrigger(router->document, transition_index,
+                                           i, &trigger_string_index, error))
       return 0;
-    equal = rr_string_equals(router->document, trigger_string_index,
-                             requested, error);
+    equal = rr_string_equals(router->document, trigger_string_index, requested,
+                             error);
     if (equal < 0)
       return 0;
     if (equal) {
@@ -395,8 +387,7 @@ int Kotonoha_KtrfRouterResetEntry(Kotonoha_KtrfRouter *router,
   Kotonoha_KtrfEntryPoint entry;
   rr_clear_error(error);
   if (router == NULL || router->document == NULL)
-    return rr_fail(error, KOTONOHA_KTRF_ERROR_ARGUMENT,
-                   "router is not bound");
+    return rr_fail(error, KOTONOHA_KTRF_ERROR_ARGUMENT, "router is not bound");
   if (!Kotonoha_KtrfGetEntryPoint(router->document, entry_point_index, &entry,
                                   error))
     return 0;
@@ -415,8 +406,7 @@ int Kotonoha_KtrfRouterActivateNode(Kotonoha_KtrfRouter *router,
   Kotonoha_KtrfNode node;
   rr_clear_error(error);
   if (router == NULL || router->document == NULL)
-    return rr_fail(error, KOTONOHA_KTRF_ERROR_ARGUMENT,
-                   "router is not bound");
+    return rr_fail(error, KOTONOHA_KTRF_ERROR_ARGUMENT, "router is not bound");
   if (!Kotonoha_KtrfGetNode(router->document, node_index, &node, error))
     return 0;
   (void)node;
@@ -451,8 +441,7 @@ int Kotonoha_KtrfRouterCurrentChoiceCount(const Kotonoha_KtrfRouter *router,
 }
 
 int Kotonoha_KtrfRouterCurrentChoiceAt(const Kotonoha_KtrfRouter *router,
-                                       uint32_t ordinal,
-                                       uint32_t *choice_index,
+                                       uint32_t ordinal, uint32_t *choice_index,
                                        Kotonoha_KtrfError *error) {
   uint32_t i;
   uint32_t seen = 0u;
@@ -599,35 +588,37 @@ int Kotonoha_KtrfRouterCommitChoiceValueObserved(
   return 1;
 }
 
-int Kotonoha_KtrfRouterCommitChoiceValue(
-    Kotonoha_KtrfRouter *router, uint32_t choice_index,
-    const Kotonoha_KtrfRuntimeValue *value, int *accepted,
-    Kotonoha_KtrfError *error) {
+int Kotonoha_KtrfRouterCommitChoiceValue(Kotonoha_KtrfRouter *router,
+                                         uint32_t choice_index,
+                                         const Kotonoha_KtrfRuntimeValue *value,
+                                         int *accepted,
+                                         Kotonoha_KtrfError *error) {
   return Kotonoha_KtrfRouterCommitChoiceValueObserved(
       router, choice_index, value, accepted, NULL, NULL, error);
 }
 
-int Kotonoha_KtrfRouterCommitChoiceOption(
-    Kotonoha_KtrfRouter *router, uint32_t choice_index,
-    uint32_t local_option_index, int *accepted, Kotonoha_KtrfError *error) {
+int Kotonoha_KtrfRouterCommitChoiceOption(Kotonoha_KtrfRouter *router,
+                                          uint32_t choice_index,
+                                          uint32_t local_option_index,
+                                          int *accepted,
+                                          Kotonoha_KtrfError *error) {
   Kotonoha_KtrfChoiceOption option;
   Kotonoha_KtrfRuntimeValue value;
   rr_clear_error(error);
   if (router == NULL || router->document == NULL)
-    return rr_fail(error, KOTONOHA_KTRF_ERROR_ARGUMENT,
-                   "router is not bound");
+    return rr_fail(error, KOTONOHA_KTRF_ERROR_ARGUMENT, "router is not bound");
   if (!Kotonoha_KtrfGetChoiceOption(router->document, choice_index,
                                     local_option_index, &option, error))
     return 0;
   if (!rr_scalar_to_value(router->document, &option.value, &value, error))
     return 0;
-  return Kotonoha_KtrfRouterCommitChoiceValue(
-      router, choice_index, &value, accepted, error);
+  return Kotonoha_KtrfRouterCommitChoiceValue(router, choice_index, &value,
+                                              accepted, error);
 }
 
-int Kotonoha_KtrfRouterCommitChoiceTimeout(
-    Kotonoha_KtrfRouter *router, uint32_t choice_index, int *accepted,
-    Kotonoha_KtrfError *error) {
+int Kotonoha_KtrfRouterCommitChoiceTimeout(Kotonoha_KtrfRouter *router,
+                                           uint32_t choice_index, int *accepted,
+                                           Kotonoha_KtrfError *error) {
   Kotonoha_KtrfChoiceTimeout timeout;
   Kotonoha_KtrfRuntimeValue value;
   int has_timeout = 0;
@@ -643,14 +634,16 @@ int Kotonoha_KtrfRouterCommitChoiceTimeout(
     return 1;
   if (!rr_scalar_to_value(router->document, &timeout.value, &value, error))
     return 0;
-  return Kotonoha_KtrfRouterCommitChoiceValue(
-      router, choice_index, &value, accepted, error);
+  return Kotonoha_KtrfRouterCommitChoiceValue(router, choice_index, &value,
+                                              accepted, error);
 }
 
-int Kotonoha_KtrfRouterTriggerObserved(
-    Kotonoha_KtrfRouter *router, const char *trigger,
-    Kotonoha_KtrfRouteResult *out, Kotonoha_KtrfEffectObserverFn observer,
-    void *observer_userdata, Kotonoha_KtrfError *error) {
+int Kotonoha_KtrfRouterTriggerObserved(Kotonoha_KtrfRouter *router,
+                                       const char *trigger,
+                                       Kotonoha_KtrfRouteResult *out,
+                                       Kotonoha_KtrfEffectObserverFn observer,
+                                       void *observer_userdata,
+                                       Kotonoha_KtrfError *error) {
   uint32_t transition_count;
   uint32_t i;
   uint32_t selected_index = KOTONOHA_KTRF_NULL_INDEX;
@@ -738,8 +731,7 @@ int Kotonoha_KtrfRouterTriggerObserved(
       return 0;
     if (!Kotonoha_KtrfRuntimeApplyEffect(&router->runtime, effect_index, error))
       return 0;
-    if (observer != NULL &&
-        !observer(effect_index, observer_userdata, error))
+    if (observer != NULL && !observer(effect_index, observer_userdata, error))
       return 0;
   }
 
@@ -757,8 +749,7 @@ int Kotonoha_KtrfRouterTriggerObserved(
   return 1;
 }
 
-int Kotonoha_KtrfRouterTrigger(Kotonoha_KtrfRouter *router,
-                               const char *trigger,
+int Kotonoha_KtrfRouterTrigger(Kotonoha_KtrfRouter *router, const char *trigger,
                                Kotonoha_KtrfRouteResult *out,
                                Kotonoha_KtrfError *error) {
   return Kotonoha_KtrfRouterTriggerObserved(router, trigger, out, NULL, NULL,

@@ -44,7 +44,8 @@ const char *nodeTypeName(NodeType type) {
 } // namespace
 
 DebugOverlay::DebugOverlay(Engine &engine) : engine(engine) {
-  const auto ktrf = preferredDocumentsDirectory(engine.GetRuntime().identify) / "story.ktnroute";
+  const auto ktrf = preferredDocumentsDirectory(engine.GetRuntime().identify) /
+                    "story.ktnroute";
   SDL_strlcpy(ktrfPath, ktrf.string().c_str(), sizeof(ktrfPath));
   shaderPicker = std::make_unique<ImGuiTheme::ShaderFilePicker>();
   IMGUI_CHECKVERSION();
@@ -130,7 +131,8 @@ std::string DebugOverlay::nodeClockText() const {
       std::ostringstream text;
       text << "Node: " << custom << " | Clock: " << std::fixed
            << std::setprecision(2)
-           << engine.GetRuntime().debugNodeSeconds().value_or(runtimeNodeSeconds)
+           << engine.GetRuntime().debugNodeSeconds().value_or(
+                  runtimeNodeSeconds)
            << "s";
       if (engine.isStoryPaused())
         text << " [paused]";
@@ -163,17 +165,28 @@ std::string DebugOverlay::performanceText() const {
 void DebugOverlay::renderHUD(RendererRef renderer) {
   auto &ui = engine.GetUI();
   const auto size = UI::viewSize(renderer);
-  if (settings.showFPS) {
+  if (settings.showFPS)
     ui.text(renderer, performanceText(), 10, 10, 320, {100, 200, 255, 255});
+
+  if (engine.GetRuntime().GetState() != GameState::Gameplay ||
+      !settings.showNodeClock)
+    return;
+
+  std::string node = engine.GetRuntime().debugNode();
+  if (node.empty()) {
+    const auto &manager = GetVNManagerRuntime(engine);
+    const int id = manager.getCurrentNodeId();
+    if (id < 0 || manager.isFinished())
+      return;
+    node = std::to_string(id);
   }
-  if (settings.showNodeClock) {
-    const auto text = nodeClockText();
-    const float width = std::max(1.0f, size.x - 20);
-    const auto measured = ui.textSize(text, width);
-    const float x = std::max(10.0f, size.x - measured.x - 10);
-    ui.text(renderer, text, x, size.x < 1050 ? 44 : 10, width,
-            {255, 215, 100, 255});
-  }
+
+  const std::string text = "Node: " + node;
+  const float width = std::max(1.0f, size.x - 20);
+  const auto measured = ui.textSize(text, width);
+  const float x = std::max(10.0f, size.x - measured.x - 10);
+  ui.text(renderer, text, x, settings.showFPS ? 44 : 10, width,
+          {255, 215, 100, 255});
 }
 
 void DebugOverlay::drawInspector() {
@@ -181,7 +194,8 @@ void DebugOverlay::drawInspector() {
   ImGui::SameLine();
   ImGui::Checkbox("Node / clock", &settings.showNodeClock);
   auto draft = engine.GetSettings();
-  if (ImGui::SliderFloat("Debug UI scale", &draft.debugUIScale, 1, 3, "%.2fx")) {
+  if (ImGui::SliderFloat("Debug UI scale", &draft.debugUIScale, 1, 3,
+                         "%.2fx")) {
     try {
       engine.applySettings(draft);
     } catch (const std::exception &error) {
@@ -280,9 +294,10 @@ void DebugOverlay::drawInspector() {
   }
   ImGui::EndDisabled();
   const auto &nodes = cachedEngineNodes;
-  const auto item = std::find_if(nodes.begin(), nodes.end(), [&](const auto &entry) {
-    return entry.id == std::to_string(selectedNode);
-  });
+  const auto item =
+      std::find_if(nodes.begin(), nodes.end(), [&](const auto &entry) {
+        return entry.id == std::to_string(selectedNode);
+      });
   drawAssets(item == nodes.end() ? std::vector<std::string>{} : item->assets);
   drawTranslationExport();
 }
@@ -324,8 +339,10 @@ void DebugOverlay::drawKtrfTools() {
                      "the graph; native callbacks must already be registered.");
   auto operation = [&](bool load) {
     try {
-      if (load) engine.loadKtrf(ktrfPath);
-      else engine.dumpKtrf(ktrfPath);
+      if (load)
+        engine.loadKtrf(ktrfPath);
+      else
+        engine.dumpKtrf(ktrfPath);
       status = std::string(load ? "Loaded KTRF: " : "Dumped KTRF: ") + ktrfPath;
       statusError = false;
       selectedRuntimeNode.clear();
@@ -338,15 +355,19 @@ void DebugOverlay::drawKtrfTools() {
       SDL_LogError(LogCore, "KTRF: %s", error.what());
     }
   };
-  if (ImGui::Button("Dump current KTRF")) operation(false);
+  if (ImGui::Button("Dump current KTRF"))
+    operation(false);
   ImGui::SameLine();
-  if (ImGui::Button("Load / replace KTRF")) operation(true);
+  if (ImGui::Button("Load / replace KTRF"))
+    operation(true);
 }
 
 void DebugOverlay::drawRuntimeNodes(const std::vector<DebugNode> &nodes) {
   ImGui::TextWrapped("%s", nodeClockText().c_str());
-  ImGui::TextWrapped("Jumping keeps current variables; earlier events are not replayed. "
-                     "Replay-based saves are disabled after a jump until a normal restart/load.");
+  ImGui::TextWrapped(
+      "Jumping keeps current variables; earlier events are not replayed. "
+      "Replay-based saves are disabled after a jump until a normal "
+      "restart/load.");
   if (std::none_of(nodes.begin(), nodes.end(), [&](const auto &node) {
         return node.id == selectedRuntimeNode;
       }))
@@ -374,9 +395,10 @@ void DebugOverlay::drawRuntimeNodes(const std::vector<DebugNode> &nodes) {
       SDL_LogError(LogCore, "Node jump: %s", error.what());
     }
   }
-  const auto node = std::find_if(nodes.begin(), nodes.end(), [&](const auto &item) {
-    return item.id == selectedRuntimeNode;
-  });
+  const auto node =
+      std::find_if(nodes.begin(), nodes.end(), [&](const auto &item) {
+        return item.id == selectedRuntimeNode;
+      });
   drawAssets(node->assets);
 }
 
@@ -396,24 +418,28 @@ void DebugOverlay::drawAssets(const std::vector<std::string> &nodeAssets) {
     if (ImGui::Selectable(id.c_str(), id == assetPath))
       choose(id);
   if (nodeAssets.empty())
-    ImGui::TextDisabled("No asset references on this node. Enter an asset ID below.");
+    ImGui::TextDisabled(
+        "No asset references on this node. Enter an asset ID below.");
   if (ImGui::Button("List provider assets")) {
     try {
       browsedAssets = engine.GetAssets().list();
       if (browsedAssets.empty())
-        previewError = "This provider has no enumerable assets; enter an asset ID.";
+        previewError =
+            "This provider has no enumerable assets; enter an asset ID.";
     } catch (const std::exception &error) {
       previewError = error.what();
       SDL_LogError(LogCore, "Asset enumeration: %s", error.what());
     }
   }
   if (!browsedAssets.empty()) {
-    ImGui::BeginChild("Provider assets", ImVec2(0, 150), ImGuiChildFlags_Borders);
+    ImGui::BeginChild("Provider assets", ImVec2(0, 150),
+                      ImGuiChildFlags_Borders);
     ImGuiListClipper clipper;
     clipper.Begin(static_cast<int>(browsedAssets.size()));
     while (clipper.Step())
       for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; ++i)
-        if (ImGui::Selectable(browsedAssets[i].c_str(), browsedAssets[i] == assetPath))
+        if (ImGui::Selectable(browsedAssets[i].c_str(),
+                              browsedAssets[i] == assetPath))
           choose(browsedAssets[i]);
     ImGui::EndChild();
   }
@@ -423,11 +449,14 @@ void DebugOverlay::drawAssets(const std::vector<std::string> &nodeAssets) {
   if (ImGui::Button("Preview picture / video frame")) {
     try {
       if (!std::isfinite(previewSeconds) || previewSeconds < 0)
-        throw std::invalid_argument("Frame position must be finite and nonnegative");
+        throw std::invalid_argument(
+            "Frame position must be finite and nonnegative");
       previewTexture.reset();
       auto surface = engine.GetAssets().loadFrame(assetPath, previewSeconds);
-      previewTexture.reset(SDL_CreateTextureFromSurface(&engine.GetRenderer(), surface.get()));
-      if (!previewTexture) throw std::runtime_error(SDL_GetError());
+      previewTexture.reset(
+          SDL_CreateTextureFromSurface(&engine.GetRenderer(), surface.get()));
+      if (!previewTexture)
+        throw std::runtime_error(SDL_GetError());
       previewAsset = assetPath;
       previewError.clear();
     } catch (const std::exception &error) {
@@ -441,15 +470,17 @@ void DebugOverlay::drawAssets(const std::vector<std::string> &nodeAssets) {
       stopPreviewAudio();
       const auto clip = engine.GetAssets().loadAudio(assetPath);
       if (clip.data.empty() ||
-          clip.data.size() > static_cast<size_t>(std::numeric_limits<int>::max()))
+          clip.data.size() >
+              static_cast<size_t>(std::numeric_limits<int>::max()))
         throw std::runtime_error("Audio preview is empty or too large");
       previewAudio.reset(SDL_OpenAudioDeviceStream(
           SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &clip.spec, nullptr, nullptr));
-      if (!previewAudio) throw std::runtime_error(SDL_GetError());
+      if (!previewAudio)
+        throw std::runtime_error(SDL_GetError());
       previewChannel = engine.GetAudio().channel("debug-preview");
       previewChannel->attach(previewAudio.get());
       if (!SDL_PutAudioStreamData(previewAudio.get(), clip.data.data(),
-                                 static_cast<int>(clip.data.size())) ||
+                                  static_cast<int>(clip.data.size())) ||
           !SDL_FlushAudioStream(previewAudio.get()) ||
           !SDL_ResumeAudioStreamDevice(previewAudio.get()))
         throw std::runtime_error(SDL_GetError());
@@ -461,13 +492,18 @@ void DebugOverlay::drawAssets(const std::vector<std::string> &nodeAssets) {
     }
   }
   ImGui::SameLine();
-  if (ImGui::Button("Stop audio")) stopPreviewAudio();
+  if (ImGui::Button("Stop audio"))
+    stopPreviewAudio();
   if (previewTexture) {
     float width = 0, height = 0;
-    if (SDL_GetTextureSize(previewTexture.get(), &width, &height) && width > 0 && height > 0) {
-      const float scale = std::min({1.0f, ImGui::GetContentRegionAvail().x / width, 320.0f / height});
-      ImGui::TextWrapped("%s (%.0f x %.0f)", previewAsset.c_str(), width, height);
-      ImGui::Image(ImTextureRef(previewTexture.get()), ImVec2(width * scale, height * scale));
+    if (SDL_GetTextureSize(previewTexture.get(), &width, &height) &&
+        width > 0 && height > 0) {
+      const float scale = std::min(
+          {1.0f, ImGui::GetContentRegionAvail().x / width, 320.0f / height});
+      ImGui::TextWrapped("%s (%.0f x %.0f)", previewAsset.c_str(), width,
+                         height);
+      ImGui::Image(ImTextureRef(previewTexture.get()),
+                   ImVec2(width * scale, height * scale));
     }
   }
   if (!previewError.empty())
@@ -482,26 +518,36 @@ void DebugOverlay::refreshTranslationSources() {
 
     cachedAllNodeKeys.clear();
     const auto addKey = [&](const std::string &k) {
-      if (!k.empty() && std::find(cachedAllNodeKeys.begin(), cachedAllNodeKeys.end(), k) == cachedAllNodeKeys.end())
+      if (!k.empty() &&
+          std::find(cachedAllNodeKeys.begin(), cachedAllNodeKeys.end(), k) ==
+              cachedAllNodeKeys.end())
         cachedAllNodeKeys.push_back(k);
     };
 
-    for (int id : GetVNManagerRuntime(engine).getNodeIds()) addKey(std::to_string(id));
-    for (const auto &[id, _] : cachedManagerSources) addKey(std::to_string(id));
-    for (const auto &[id, _] : cachedRuntimeSources) addKey(std::to_string(id));
-    for (const auto &engNode : cachedEngineNodes) addKey(engNode.id);
-    for (const auto &rtNode : cachedRuntimeNodes) addKey(rtNode.id);
-    for (const auto &[secName, _] : engine.GetTranslation().getSections()) addKey(secName);
+    for (int id : GetVNManagerRuntime(engine).getNodeIds())
+      addKey(std::to_string(id));
+    for (const auto &[id, _] : cachedManagerSources)
+      addKey(std::to_string(id));
+    for (const auto &[id, _] : cachedRuntimeSources)
+      addKey(std::to_string(id));
+    for (const auto &engNode : cachedEngineNodes)
+      addKey(engNode.id);
+    for (const auto &rtNode : cachedRuntimeNodes)
+      addKey(rtNode.id);
+    for (const auto &[secName, _] : engine.GetTranslation().getSections())
+      addKey(secName);
 
-    std::sort(cachedAllNodeKeys.begin(), cachedAllNodeKeys.end(), [](const std::string &a, const std::string &b) {
-      int idA = -1, idB = -1;
-      auto pA = std::from_chars(a.data(), a.data() + a.size(), idA);
-      auto pB = std::from_chars(b.data(), b.data() + b.size(), idB);
-      if (pA.ec == std::errc{} && pB.ec == std::errc{})
-        return idA < idB;
-      return a < b;
-    });
-  } catch (...) {}
+    std::sort(cachedAllNodeKeys.begin(), cachedAllNodeKeys.end(),
+              [](const std::string &a, const std::string &b) {
+                int idA = -1, idB = -1;
+                auto pA = std::from_chars(a.data(), a.data() + a.size(), idA);
+                auto pB = std::from_chars(b.data(), b.data() + b.size(), idB);
+                if (pA.ec == std::errc{} && pB.ec == std::errc{})
+                  return idA < idB;
+                return a < b;
+              });
+  } catch (...) {
+  }
 }
 
 void DebugOverlay::drawTranslationWindow() {
@@ -514,9 +560,10 @@ void DebugOverlay::drawTranslationWindow() {
   auto &io = ImGui::GetIO();
   const float displayScale = SDL_GetWindowDisplayScale(&engine.GetWindow());
   const float pixelDensity = SDL_GetWindowPixelDensity(&engine.GetWindow());
-  const float scale = (displayScale > 0 && pixelDensity > 0)
-                          ? displayScale / pixelDensity * engine.GetSettings().debugUIScale
-                          : 1.0f;
+  const float scale =
+      (displayScale > 0 && pixelDensity > 0)
+          ? displayScale / pixelDensity * engine.GetSettings().debugUIScale
+          : 1.0f;
 
   ImGui::SetNextWindowSize(ImVec2(std::min(760.0f * scale, io.DisplaySize.x),
                                   std::min(600.0f * scale, io.DisplaySize.y)),
@@ -541,15 +588,19 @@ void DebugOverlay::drawTranslationWindow() {
       auto pos = rtDebug.find("scene ");
       if (pos != std::string::npos) {
         int scIdx = -1;
-        std::from_chars(rtDebug.data() + pos + 6, rtDebug.data() + rtDebug.size(), scIdx);
-        if (scIdx >= 0) activeNodeKey = std::to_string(scIdx);
+        std::from_chars(rtDebug.data() + pos + 6,
+                        rtDebug.data() + rtDebug.size(), scIdx);
+        if (scIdx >= 0)
+          activeNodeKey = std::to_string(scIdx);
       }
-      if (activeNodeKey.empty()) activeNodeKey = rtDebug;
+      if (activeNodeKey.empty())
+        activeNodeKey = rtDebug;
     }
   }
 
   ImGui::PushStyleColor(ImGuiCol_Text, ImGuiTheme::accent());
-  ImGui::Text("Active Node: %s", !activeNodeKey.empty() ? activeNodeKey.c_str() : "None / --");
+  ImGui::Text("Active Node: %s",
+              !activeNodeKey.empty() ? activeNodeKey.c_str() : "None / --");
   ImGui::PopStyleColor();
 
   ImGui::SameLine();
@@ -563,20 +614,24 @@ void DebugOverlay::drawTranslationWindow() {
   }
 
   if (selectedTransNodeStr.empty() && !cachedAllNodeKeys.empty()) {
-    selectedTransNodeStr = !activeNodeKey.empty() ? activeNodeKey : cachedAllNodeKeys.front();
+    selectedTransNodeStr =
+        !activeNodeKey.empty() ? activeNodeKey : cachedAllNodeKeys.front();
   }
 
   ImGui::SeparatorText("Script Nodes");
-  ImGui::InputText("Buscar Nodo/Chave", transSearchFilter, sizeof(transSearchFilter));
+  ImGui::InputText("Buscar Nodo/Chave", transSearchFilter,
+                   sizeof(transSearchFilter));
 
   std::string filterStr = transSearchFilter;
-  std::transform(filterStr.begin(), filterStr.end(), filterStr.begin(), ::tolower);
+  std::transform(filterStr.begin(), filterStr.end(), filterStr.begin(),
+                 ::tolower);
 
   ImGui::BeginChild("TransNodeList", ImVec2(0, 160), ImGuiChildFlags_Borders);
   for (const auto &nodeKey : cachedAllNodeKeys) {
     if (!filterStr.empty()) {
       std::string lowerKey = nodeKey;
-      std::transform(lowerKey.begin(), lowerKey.end(), lowerKey.begin(), ::tolower);
+      std::transform(lowerKey.begin(), lowerKey.end(), lowerKey.begin(),
+                     ::tolower);
       if (lowerKey.find(filterStr) == std::string::npos)
         continue;
     }
@@ -603,16 +658,21 @@ void DebugOverlay::drawTranslationWindow() {
   ImGui::EndChild();
 
   if (!selectedTransNodeStr.empty()) {
-    ImGui::SeparatorText(("Node " + selectedTransNodeStr + " Scene Strings").c_str());
+    ImGui::SeparatorText(
+        ("Node " + selectedTransNodeStr + " Scene Strings").c_str());
 
     std::vector<std::string> stringsToTranslate;
     const auto addString = [&](const std::string &s) {
-      if (!s.empty() && std::find(stringsToTranslate.begin(), stringsToTranslate.end(), s) == stringsToTranslate.end())
+      if (!s.empty() &&
+          std::find(stringsToTranslate.begin(), stringsToTranslate.end(), s) ==
+              stringsToTranslate.end())
         stringsToTranslate.push_back(s);
     };
 
     int nodeInt = -1;
-    auto parsed = std::from_chars(selectedTransNodeStr.data(), selectedTransNodeStr.data() + selectedTransNodeStr.size(), nodeInt);
+    auto parsed = std::from_chars(
+        selectedTransNodeStr.data(),
+        selectedTransNodeStr.data() + selectedTransNodeStr.size(), nodeInt);
     if (parsed.ec == std::errc{} && nodeInt >= 0) {
       try {
         const auto &node = manager.getScriptNode(nodeInt);
@@ -624,27 +684,32 @@ void DebugOverlay::drawTranslationWindow() {
           addString(node.choiceQuestion);
         for (const auto &opt : node.choices)
           addString(opt.label);
-      } catch (...) {}
+      } catch (...) {
+      }
 
       for (const auto &engNode : cachedEngineNodes) {
-        if (engNode.id == std::to_string(nodeInt) || engNode.id == selectedTransNodeStr) {
+        if (engNode.id == std::to_string(nodeInt) ||
+            engNode.id == selectedTransNodeStr) {
           addString(engNode.label);
         }
       }
       for (const auto &rtNode : cachedRuntimeNodes) {
-        if (rtNode.id == std::to_string(nodeInt) || rtNode.id == selectedTransNodeStr) {
+        if (rtNode.id == std::to_string(nodeInt) ||
+            rtNode.id == selectedTransNodeStr) {
           addString(rtNode.label);
         }
       }
 
       auto mIt = cachedManagerSources.find(nodeInt);
       if (mIt != cachedManagerSources.end()) {
-        for (const auto &s : mIt->second) addString(s);
+        for (const auto &s : mIt->second)
+          addString(s);
       }
 
       auto rIt = cachedRuntimeSources.find(nodeInt);
       if (rIt != cachedRuntimeSources.end()) {
-        for (const auto &s : rIt->second) addString(s);
+        for (const auto &s : rIt->second)
+          addString(s);
       }
     }
 
@@ -655,7 +720,8 @@ void DebugOverlay::drawTranslationWindow() {
     }
 
     if (stringsToTranslate.empty()) {
-      ImGui::TextDisabled("No scene strings found for Node %s", selectedTransNodeStr.c_str());
+      ImGui::TextDisabled("No scene strings found for Node %s",
+                          selectedTransNodeStr.c_str());
     } else {
       ImGui::BeginChild("StringEntries", ImVec2(0, 0), true);
       int idx = 0;
@@ -669,7 +735,8 @@ void DebugOverlay::drawTranslationWindow() {
         }
         ImGui::SameLine();
 
-        std::string currentVal = translation.text(nodeInt >= 0 ? nodeInt : -1, orig);
+        std::string currentVal =
+            translation.text(nodeInt >= 0 ? nodeInt : -1, orig);
         if (currentVal == orig && secIt != sections.end()) {
           auto foundVal = secIt->second.find(orig);
           if (foundVal != secIt->second.end())
@@ -690,7 +757,8 @@ void DebugOverlay::drawTranslationWindow() {
         ImGui::SameLine();
         ImGui::TextUnformatted("Tradução:");
 
-        if (ImGui::InputTextMultiline("##transInput", inputBuffer, sizeof(inputBuffer), ImVec2(-1, 54))) {
+        if (ImGui::InputTextMultiline("##transInput", inputBuffer,
+                                      sizeof(inputBuffer), ImVec2(-1, 54))) {
           sections[selectedTransNodeStr][orig] = inputBuffer;
         }
 
@@ -757,7 +825,8 @@ void DebugOverlay::renderMenu(RendererRef renderer) {
   const float pixelDensity = SDL_GetWindowPixelDensity(&engine.GetWindow());
   if (displayScale <= 0 || pixelDensity <= 0)
     throw std::runtime_error(SDL_GetError());
-  const float scale = displayScale / pixelDensity * engine.GetSettings().debugUIScale;
+  const float scale =
+      displayScale / pixelDensity * engine.GetSettings().debugUIScale;
   if (contentScale != scale) {
     ImGuiTheme::apply(scale);
     contentScale = scale;
@@ -791,7 +860,8 @@ void DebugOverlay::drawEngineTools() {
   ImGui::SeparatorText("Engine");
   if (ImGui::CollapsingHeader("Audio channels")) {
     auto draft = engine.GetSettings();
-    bool changed = ImGui::SliderFloat("Master volume", &draft.masterVolume, 0, 1, "%.2f");
+    bool changed =
+        ImGui::SliderFloat("Master volume", &draft.masterVolume, 0, 1, "%.2f");
     changed = ImGui::Checkbox("Mute all audio", &draft.masterMuted) || changed;
     if (changed) {
       try {
@@ -856,12 +926,13 @@ void DebugOverlay::drawEngineTools() {
     if (upscaling.resolve(draft.upscaling.backend) == UpscaleBackend::MPV) {
       int preset = static_cast<int>(draft.upscaling.preset);
       if (ImGui::Combo("Preset", &preset,
-                     "Anime4K\0ArtCNN C4F16\0ArtCNN C4F16 DS\0ArtCNN "
-                     "C4F32\0")) {
+                       "Anime4K\0ArtCNN C4F16\0ArtCNN C4F16 DS\0ArtCNN "
+                       "C4F32\0")) {
         draft.upscaling.preset = static_cast<UpscalePreset>(preset);
         changed = true;
       }
-      changed = shaderPicker->draw(&engine.GetWindow(), draft.upscaling) || changed;
+      changed =
+          shaderPicker->draw(&engine.GetWindow(), draft.upscaling) || changed;
     }
     // 1.0 disables upscaling; anything above enables the backend.
     ImGui::SliderFloat("Factor", &upscaleFactor, 1, 4,
@@ -915,14 +986,15 @@ void DebugOverlay::drawEngineTools() {
         const auto &entry = *shown[static_cast<std::size_t>(i)];
         const bool tinted = entry.priority != SDL_LOG_PRIORITY_INFO;
         if (tinted)
-          ImGui::PushStyleColor(ImGuiCol_Text,
-                                entry.priority >= SDL_LOG_PRIORITY_ERROR
-                                    ? ImGuiTheme::error()
-                                : entry.priority == SDL_LOG_PRIORITY_WARN
-                                    ? ImGuiTheme::warning()
-                                    : ImGuiTheme::muted());
-        ImGui::Text("%llu [%d:%d] %s", static_cast<unsigned long long>(entry.milliseconds),
-                    entry.category, static_cast<int>(entry.priority), entry.message.c_str());
+          ImGui::PushStyleColor(
+              ImGuiCol_Text,
+              entry.priority >= SDL_LOG_PRIORITY_ERROR  ? ImGuiTheme::error()
+              : entry.priority == SDL_LOG_PRIORITY_WARN ? ImGuiTheme::warning()
+                                                        : ImGuiTheme::muted());
+        ImGui::Text("%llu [%d:%d] %s",
+                    static_cast<unsigned long long>(entry.milliseconds),
+                    entry.category, static_cast<int>(entry.priority),
+                    entry.message.c_str());
         if (tinted)
           ImGui::PopStyleColor();
       }

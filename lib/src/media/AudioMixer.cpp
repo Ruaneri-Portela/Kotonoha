@@ -25,11 +25,13 @@ void AudioChannel::apply(float value, bool mute, float master) {
         "Audio channel volume must be finite and between 0 and 1");
   std::size_t changed = 0;
   for (const auto &entry : streams) {
-    if (!SDL_SetAudioStreamGain(entry.stream, mute ? 0 : master * value * entry.gain)) {
+    if (!SDL_SetAudioStreamGain(entry.stream,
+                                mute ? 0 : master * value * entry.gain)) {
       const std::string failure = SDL_GetError();
       for (std::size_t i = 0; i < changed; ++i)
-        if (!SDL_SetAudioStreamGain(streams[i].stream,
-                                    muted ? 0 : masterGain * volume * streams[i].gain))
+        if (!SDL_SetAudioStreamGain(
+                streams[i].stream,
+                muted ? 0 : masterGain * volume * streams[i].gain))
           throw std::runtime_error(
               failure + "; audio gain rollback failed: " + SDL_GetError());
       throw std::runtime_error("Cannot set audio channel gain: " + failure);
@@ -65,15 +67,16 @@ void AudioChannel::detach(SDL_AudioStream *stream) noexcept {
 
 void AudioChannel::setStreamGain(SDL_AudioStream *stream, float gain) {
   if (!std::isfinite(gain) || gain < 0 || gain > 1)
-    throw std::invalid_argument("Audio stream gain must be finite and between 0 and 1");
-  const auto found = std::find_if(streams.begin(), streams.end(),
-                                  [stream](const Stream &entry) {
-                                    return entry.stream == stream;
-                                  });
+    throw std::invalid_argument(
+        "Audio stream gain must be finite and between 0 and 1");
+  const auto found = std::find_if(
+      streams.begin(), streams.end(),
+      [stream](const Stream &entry) { return entry.stream == stream; });
   if (found == streams.end())
     throw std::invalid_argument("Audio stream is not attached to this channel");
   if (!SDL_SetAudioStreamGain(stream, muted ? 0 : masterGain * volume * gain))
-    throw std::runtime_error("Cannot set audio stream gain: " + std::string(SDL_GetError()));
+    throw std::runtime_error("Cannot set audio stream gain: " +
+                             std::string(SDL_GetError()));
   found->gain = gain;
 }
 
@@ -84,7 +87,8 @@ AudioMixer::AudioMixer() {
 
 void AudioMixer::applyMaster(float volume, bool muted) {
   if (!std::isfinite(volume) || volume < 0 || volume > 1)
-    throw std::invalid_argument("Master volume must be finite and between 0 and 1");
+    throw std::invalid_argument(
+        "Master volume must be finite and between 0 and 1");
   auto failed = channels.begin();
   try {
     for (; failed != channels.end(); ++failed) {
@@ -95,7 +99,8 @@ void AudioMixer::applyMaster(float volume, bool muted) {
     const std::string failure = error.what();
     for (auto it = channels.begin(); it != failed; ++it) {
       auto &channel = *it->second;
-      channel.apply(channel.volume, channel.muted, masterMuted ? 0 : masterVolume);
+      channel.apply(channel.volume, channel.muted,
+                    masterMuted ? 0 : masterVolume);
     }
     throw std::runtime_error("Cannot set master volume: " + failure);
   }
@@ -103,8 +108,12 @@ void AudioMixer::applyMaster(float volume, bool muted) {
   masterMuted = muted;
 }
 
-void AudioMixer::setMasterVolume(float value) { applyMaster(value, masterMuted); }
-void AudioMixer::setMasterMuted(bool value) { applyMaster(masterVolume, value); }
+void AudioMixer::setMasterVolume(float value) {
+  applyMaster(value, masterMuted);
+}
+void AudioMixer::setMasterMuted(bool value) {
+  applyMaster(masterVolume, value);
+}
 
 std::shared_ptr<AudioChannel> AudioMixer::channel(const std::string &name) {
   validateChannelName(name);

@@ -194,7 +194,8 @@ static int rt_require_bool(const Kotonoha_KtrfRuntimeValue *value, int *out,
                            Kotonoha_KtrfError *error) {
   if (value->kind != KOTONOHA_KTRF_RUNTIME_BOOL)
     return rt_fail(error, KOTONOHA_KTRF_ERROR_FORMAT,
-                   "boolean expression operand has runtime kind %u", value->kind);
+                   "boolean expression operand has runtime kind %u",
+                   value->kind);
   *out = value->as.boolean_value != 0;
   return 1;
 }
@@ -397,9 +398,11 @@ int Kotonoha_KtrfRuntimeEvalValueRef(Kotonoha_KtrfRuntime *runtime,
                                      Kotonoha_KtrfRuntimeValue *out,
                                      Kotonoha_KtrfError *error) {
   rt_clear_error(error);
-  if (runtime == NULL || ref == NULL || out == NULL || runtime->document == NULL)
-    return rt_fail(error, KOTONOHA_KTRF_ERROR_ARGUMENT,
-                   "runtime/value-ref/out argument is null or runtime is unbound");
+  if (runtime == NULL || ref == NULL || out == NULL ||
+      runtime->document == NULL)
+    return rt_fail(
+        error, KOTONOHA_KTRF_ERROR_ARGUMENT,
+        "runtime/value-ref/out argument is null or runtime is unbound");
   switch (ref->kind) {
   case KOTONOHA_KTRF_VALUE_LITERAL:
     return rt_scalar_to_value(runtime->document, &ref->literal, out, error);
@@ -510,7 +513,8 @@ int Kotonoha_KtrfRuntimeEvalExpression(Kotonoha_KtrfRuntime *runtime,
     if (expr.arg_count == 0u) {
       runtime->expression_state[expression_index] = 0u;
       return rt_fail(error, KOTONOHA_KTRF_ERROR_FORMAT,
-                     "boolean expression %u has no arguments", expression_index);
+                     "boolean expression %u has no arguments",
+                     expression_index);
     }
     for (i = 0u; i < expr.arg_count; ++i) {
       Kotonoha_KtrfRuntimeValue value;
@@ -645,7 +649,8 @@ int Kotonoha_KtrfRuntimeApplyEffect(Kotonoha_KtrfRuntime *runtime,
       Kotonoha_KtrfValueRef ref;
       if (!Kotonoha_KtrfGetEffectValue(runtime->document, effect_index, i, &ref,
                                        error) ||
-          !Kotonoha_KtrfRuntimeEvalValueRef(runtime, &ref, &arguments[i], error)) {
+          !Kotonoha_KtrfRuntimeEvalValueRef(runtime, &ref, &arguments[i],
+                                            error)) {
         free(arguments);
         return 0;
       }

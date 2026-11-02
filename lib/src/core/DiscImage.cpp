@@ -62,8 +62,8 @@ bool DiscImage::tryOpen(const std::filesystem::path &file, std::string *error) {
   };
   // Cooked ISO, raw MODE1 (16-byte sync + header), raw MODE2 form 1 (24-byte
   // sync + header + subheader) and MODE2 without the sync pattern.
-  for (const Layout layout : {Layout{2048, 0}, Layout{2352, 16},
-                              Layout{2352, 24}, Layout{2336, 8}}) {
+  for (const Layout layout :
+       {Layout{2048, 0}, Layout{2352, 16}, Layout{2352, 24}, Layout{2336, 8}}) {
     sector = layout.sector;
     dataOffset = layout.offset;
     std::vector<Uint8> pvd;
@@ -177,7 +177,8 @@ bool DiscImage::readInto(const Entry &entry, Uint64 offset, Uint64 size,
     return true;
   }
   const Uint32 first = Uint32(offset / logicalSector);
-  const Uint32 last = Uint32((offset + size + logicalSector - 1) / logicalSector);
+  const Uint32 last =
+      Uint32((offset + size + logicalSector - 1) / logicalSector);
   std::vector<Uint8> sectors;
   if (!readSectors(entry.lba + first, last - first, sectors))
     return false;

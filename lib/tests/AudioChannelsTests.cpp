@@ -145,16 +145,21 @@ void testStreamGain(AudioMixer &mixer) {
   channel->attach(second);
   channel->setStreamGain(first, 0.5f);
   channel->setVolume(0.6f);
-  near(SDL_GetAudioStreamGain(first), 0.3f, "Per-stream gain composes with channel volume");
-  near(SDL_GetAudioStreamGain(second), 0.6f, "Other streams keep their own gain");
+  near(SDL_GetAudioStreamGain(first), 0.3f,
+       "Per-stream gain composes with channel volume");
+  near(SDL_GetAudioStreamGain(second), 0.6f,
+       "Other streams keep their own gain");
   channel->setMuted(true);
   channel->setStreamGain(first, 0.25f);
   near(SDL_GetAudioStreamGain(first), 0, "Mute overrides per-stream gain");
   channel->setMuted(false);
-  near(SDL_GetAudioStreamGain(first), 0.15f, "Unmute restores the per-stream gain");
-  rejects([&] { channel->setStreamGain(first, -1); }, "Reject invalid per-stream gain");
+  near(SDL_GetAudioStreamGain(first), 0.15f,
+       "Unmute restores the per-stream gain");
+  rejects([&] { channel->setStreamGain(first, -1); },
+          "Reject invalid per-stream gain");
   mixer.setMasterVolume(0.4f);
-  near(SDL_GetAudioStreamGain(first), 0.06f, "Master composes with channel and stream gain");
+  near(SDL_GetAudioStreamGain(first), 0.06f,
+       "Master composes with channel and stream gain");
   near(SDL_GetAudioStreamGain(second), 0.24f, "Master affects every stream");
   mixer.setMasterMuted(true);
   near(SDL_GetAudioStreamGain(first), 0, "Master mute affects live streams");
@@ -162,18 +167,23 @@ void testStreamGain(AudioMixer &mixer) {
   auto future = mixer.channel("created-while-master-muted");
   future->setVolume(0.8f);
   future->attach(second);
-  near(SDL_GetAudioStreamGain(second), 0, "Future channels inherit master mute");
+  near(SDL_GetAudioStreamGain(second), 0,
+       "Future channels inherit master mute");
   mixer.setMasterVolume(0.5f);
   near(SDL_GetAudioStreamGain(second), 0, "Volume does not cancel master mute");
   mixer.setMasterMuted(false);
-  near(SDL_GetAudioStreamGain(second), 0.4f, "Unmute restores master and channel volume");
+  near(SDL_GetAudioStreamGain(second), 0.4f,
+       "Unmute restores master and channel volume");
   channel->setMuted(true);
   mixer.setMasterVolume(1);
-  near(SDL_GetAudioStreamGain(first), 0, "Master edits preserve independent channel mute");
+  near(SDL_GetAudioStreamGain(first), 0,
+       "Master edits preserve independent channel mute");
   channel->setMuted(false);
   for (float invalid : {-0.1f, 1.1f, std::numeric_limits<float>::quiet_NaN()})
-    rejects([&] { mixer.setMasterVolume(invalid); }, "Reject invalid master volume");
-  near(SDL_GetAudioStreamGain(first), 0.15f, "Rejected master edits preserve gains");
+    rejects([&] { mixer.setMasterVolume(invalid); },
+            "Reject invalid master volume");
+  near(SDL_GetAudioStreamGain(first), 0.15f,
+       "Rejected master edits preserve gains");
   future->detach(second);
   channel->detach(first);
   channel->detach(second);

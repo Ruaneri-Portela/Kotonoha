@@ -6,9 +6,12 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define KTRF_FEATURE_FLAGS (KOTONOHA_KTRF_FEATURE_REQUIRED | KOTONOHA_KTRF_FEATURE_OPTIONAL)
-#define KTRF_RSRC_FLAGS (KOTONOHA_KTRF_RSRC_REQUIRED | KOTONOHA_KTRF_RSRC_HAS_REQUIRED)
-#define KTRF_TRAN_FLAGS (KOTONOHA_KTRF_TRAN_TERMINAL | KOTONOHA_KTRF_TRAN_HAS_TRIGGERS)
+#define KTRF_FEATURE_FLAGS                                                     \
+  (KOTONOHA_KTRF_FEATURE_REQUIRED | KOTONOHA_KTRF_FEATURE_OPTIONAL)
+#define KTRF_RSRC_FLAGS                                                        \
+  (KOTONOHA_KTRF_RSRC_REQUIRED | KOTONOHA_KTRF_RSRC_HAS_REQUIRED)
+#define KTRF_TRAN_FLAGS                                                        \
+  (KOTONOHA_KTRF_TRAN_TERMINAL | KOTONOHA_KTRF_TRAN_HAS_TRIGGERS)
 
 static void typed_clear(Kotonoha_KtrfError *error) {
   if (error != NULL) {
@@ -24,7 +27,8 @@ static int typed_fail(Kotonoha_KtrfError *error, Kotonoha_KtrfErrorCode code,
     error->code = code;
     va_start(args, format);
 #if defined(_MSC_VER)
-    _vsnprintf_s(error->message, sizeof(error->message), _TRUNCATE, format, args);
+    _vsnprintf_s(error->message, sizeof(error->message), _TRUNCATE, format,
+                 args);
 #else
     vsnprintf(error->message, sizeof(error->message), format, args);
 #endif
@@ -253,8 +257,7 @@ typedef struct TypedPool6View {
 
 static int typed_pool6_view(const Kotonoha_KtrfDocument *document,
                             const char type[4], uint32_t expected_record,
-                            uint32_t expected_pool_record,
-                            TypedPool6View *view,
+                            uint32_t expected_pool_record, TypedPool6View *view,
                             Kotonoha_KtrfError *error) {
   const Kotonoha_KtrfSection *s = typed_section(document, type, error);
   uint32_t count, record_size, pool_count, pool_record_size, records_offset,
@@ -295,8 +298,7 @@ typedef struct TypedChoiceView {
 } TypedChoiceView;
 
 static int typed_choice_view(const Kotonoha_KtrfDocument *document,
-                             TypedChoiceView *view,
-                             Kotonoha_KtrfError *error) {
+                             TypedChoiceView *view, Kotonoha_KtrfError *error) {
   const Kotonoha_KtrfSection *s = typed_section(document, "CHOI", error);
   uint32_t cc, cr, oc, or_, tc, tr, ec, er, co, oo, to, eo;
   uint64_t eoo, eto, eeo, esize;
@@ -321,8 +323,8 @@ static int typed_choice_view(const Kotonoha_KtrfDocument *document,
   eto = eoo + (uint64_t)oc * 36u;
   eeo = eto + (uint64_t)tc * 28u;
   esize = eeo + (uint64_t)ec * 4u;
-  if (cc != s->item_count || cr != 32u || or_ != 36u || tr != 28u ||
-      er != 4u || co != 48u || oo != eoo || to != eto || eo != eeo ||
+  if (cc != s->item_count || cr != 32u || or_ != 36u || tr != 28u || er != 4u ||
+      co != 48u || oo != eoo || to != eto || eo != eeo ||
       s->stored_size != esize)
     return typed_fail(error, KOTONOHA_KTRF_ERROR_FORMAT,
                       "CHOI header/layout mismatch");
@@ -401,9 +403,12 @@ int Kotonoha_KtrfGetMeta(const Kotonoha_KtrfDocument *document,
   out->profile_id_str = typed_u32(p + 12u);
   out->profile_version_str = typed_u32(p + 16u);
   if (!typed_string_index(document, out->format_str, "META.format", error) ||
-      !typed_string_index(document, out->ir_version_str, "META.ir_version", error) ||
-      !typed_string_index(document, out->document_id_str, "META.document_id", error) ||
-      !typed_string_index(document, out->profile_id_str, "META.profile.id", error) ||
+      !typed_string_index(document, out->ir_version_str, "META.ir_version",
+                          error) ||
+      !typed_string_index(document, out->document_id_str, "META.document_id",
+                          error) ||
+      !typed_string_index(document, out->profile_id_str, "META.profile.id",
+                          error) ||
       !typed_string_index(document, out->profile_version_str,
                           "META.profile.version", error))
     return 0;
@@ -509,19 +514,26 @@ int Kotonoha_KtrfGetVariable(const Kotonoha_KtrfDocument *document,
     return 0;
   {
     uint8_t expected_kind = 0u;
-    if (typed_string_equals_literal(document, out->type_str, "ktrf:bool", error))
+    if (typed_string_equals_literal(document, out->type_str, "ktrf:bool",
+                                    error))
       expected_kind = KOTONOHA_KTRF_VAR_BOOL;
-    else if (typed_string_equals_literal(document, out->type_str, "ktrf:int32", error))
+    else if (typed_string_equals_literal(document, out->type_str, "ktrf:int32",
+                                         error))
       expected_kind = KOTONOHA_KTRF_VAR_INT32;
-    else if (typed_string_equals_literal(document, out->type_str, "ktrf:uint32", error))
+    else if (typed_string_equals_literal(document, out->type_str, "ktrf:uint32",
+                                         error))
       expected_kind = KOTONOHA_KTRF_VAR_UINT32;
-    else if (typed_string_equals_literal(document, out->type_str, "ktrf:float32", error))
+    else if (typed_string_equals_literal(document, out->type_str,
+                                         "ktrf:float32", error))
       expected_kind = KOTONOHA_KTRF_VAR_FLOAT32;
-    else if (typed_string_equals_literal(document, out->type_str, "ktrf:float64", error))
+    else if (typed_string_equals_literal(document, out->type_str,
+                                         "ktrf:float64", error))
       expected_kind = KOTONOHA_KTRF_VAR_FLOAT64;
-    else if (typed_string_equals_literal(document, out->type_str, "ktrf:string", error))
+    else if (typed_string_equals_literal(document, out->type_str, "ktrf:string",
+                                         error))
       expected_kind = KOTONOHA_KTRF_VAR_STRING;
-    else if (typed_string_equals_literal(document, out->type_str, "ktrf:bytes", error))
+    else if (typed_string_equals_literal(document, out->type_str, "ktrf:bytes",
+                                         error))
       expected_kind = KOTONOHA_KTRF_VAR_BYTES;
     if (expected_kind == 0u)
       return typed_fail(error, KOTONOHA_KTRF_ERROR_UNSUPPORTED,
@@ -620,9 +632,8 @@ int Kotonoha_KtrfGetResource(const Kotonoha_KtrfDocument *document,
                                      "RSRC.media_type", error);
 }
 
-int Kotonoha_KtrfGetHook(const Kotonoha_KtrfDocument *document,
-                         uint32_t index, Kotonoha_KtrfHook *out,
-                         Kotonoha_KtrfError *error) {
+int Kotonoha_KtrfGetHook(const Kotonoha_KtrfDocument *document, uint32_t index,
+                         Kotonoha_KtrfHook *out, Kotonoha_KtrfError *error) {
   const uint8_t *p;
   typed_clear(error);
   if (out == NULL)
@@ -638,7 +649,8 @@ int Kotonoha_KtrfGetHook(const Kotonoha_KtrfDocument *document,
                       "HOOK reserved field must be zero");
   return typed_string_index(document, out->id_str, "HOOK.id", error) &&
          typed_string_index(document, out->symbol_str, "HOOK.symbol", error) &&
-         typed_string_index(document, out->contract_str, "HOOK.contract", error);
+         typed_string_index(document, out->contract_str, "HOOK.contract",
+                            error);
 }
 
 int Kotonoha_KtrfGetEnding(const Kotonoha_KtrfDocument *document,
@@ -666,7 +678,8 @@ int Kotonoha_KtrfGetEnding(const Kotonoha_KtrfDocument *document,
     return typed_fail(error, KOTONOHA_KTRF_ERROR_FORMAT,
                       "ENDG flags/reserved fields must be zero");
   if (!typed_string_index(document, out->id_str, "ENDG.id", error) ||
-      !typed_optional_string_index(document, out->label_str, "ENDG.label", error))
+      !typed_optional_string_index(document, out->label_str, "ENDG.label",
+                                   error))
     return 0;
   out->has_code = kind != KOTONOHA_KTRF_SCALAR_ABSENT;
   return typed_decode_scalar(document, kind, a, b, 1, &out->code, error);
@@ -676,8 +689,7 @@ static int typed_value_ref_at(const Kotonoha_KtrfDocument *document,
                               const uint8_t *p, uint32_t variable_count,
                               uint32_t expression_count,
                               uint32_t resource_count, uint32_t hook_count,
-                              uint32_t ending_count,
-                              Kotonoha_KtrfValueRef *out,
+                              uint32_t ending_count, Kotonoha_KtrfValueRef *out,
                               Kotonoha_KtrfError *error) {
   uint8_t kind, literal_kind, entity_kind, flags;
   uint32_t a, aux, reserved;
@@ -901,7 +913,8 @@ int Kotonoha_KtrfGetChoice(const Kotonoha_KtrfDocument *document,
                       "CHOI reserved field must be zero");
   if (out->node_index >= nodes->item_count ||
       out->result_variable_index >= vars->item_count ||
-      !typed_range_u32(out->option_start, out->option_count, view.option_count) ||
+      !typed_range_u32(out->option_start, out->option_count,
+                       view.option_count) ||
       (out->timeout_index != KOTONOHA_KTRF_NULL_INDEX &&
        out->timeout_index >= view.timeout_count))
     return typed_fail(error, KOTONOHA_KTRF_ERROR_RANGE,
@@ -941,7 +954,8 @@ static int typed_choice_option_global(const Kotonoha_KtrfDocument *document,
   if (flags || reserved || typed_u32(p + 32u))
     return typed_fail(error, KOTONOHA_KTRF_ERROR_FORMAT,
                       "CHOI option flags/reserved fields must be zero");
-  if (!typed_range_u32(out->effect_start, out->effect_count, view->effect_count))
+  if (!typed_range_u32(out->effect_start, out->effect_count,
+                       view->effect_count))
     return typed_fail(error, KOTONOHA_KTRF_ERROR_RANGE,
                       "CHOI option effect slice is out of range");
   if (!typed_string_index(document, out->id_str, "CHOI option id", error) ||
@@ -968,9 +982,8 @@ int Kotonoha_KtrfGetChoiceOption(const Kotonoha_KtrfDocument *document,
   if (local_option_index >= choice.option_count)
     return typed_fail(error, KOTONOHA_KTRF_ERROR_RANGE,
                       "CHOI local option index out of range");
-  return typed_choice_option_global(document, &view,
-                                    choice.option_start + local_option_index,
-                                    out, error);
+  return typed_choice_option_global(
+      document, &view, choice.option_start + local_option_index, out, error);
 }
 
 static int typed_choice_timeout_global(const Kotonoha_KtrfDocument *document,
@@ -998,7 +1011,8 @@ static int typed_choice_timeout_global(const Kotonoha_KtrfDocument *document,
   if (flags || reserved || typed_u32(p + 24u))
     return typed_fail(error, KOTONOHA_KTRF_ERROR_FORMAT,
                       "CHOI timeout flags/reserved fields must be zero");
-  if (!typed_range_u32(out->effect_start, out->effect_count, view->effect_count))
+  if (!typed_range_u32(out->effect_start, out->effect_count,
+                       view->effect_count))
     return typed_fail(error, KOTONOHA_KTRF_ERROR_RANGE,
                       "CHOI timeout effect slice is out of range");
   return typed_decode_scalar(document, value_kind, a, b, 0, &out->value, error);
@@ -1047,9 +1061,9 @@ int Kotonoha_KtrfGetChoiceOptionEffect(const Kotonoha_KtrfDocument *document,
   if (local_effect_index >= option.effect_count)
     return typed_fail(error, KOTONOHA_KTRF_ERROR_RANGE,
                       "CHOI local option effect index out of range");
-  *effect_index = typed_u32(view.section->payload + view.effects_offset +
-                            (uint64_t)(option.effect_start + local_effect_index) *
-                                4u);
+  *effect_index =
+      typed_u32(view.section->payload + view.effects_offset +
+                (uint64_t)(option.effect_start + local_effect_index) * 4u);
   effects = typed_section(document, "EFFT", error);
   if (effects == NULL || *effect_index >= effects->item_count)
     return typed_fail(error, KOTONOHA_KTRF_ERROR_RANGE,
@@ -1075,14 +1089,13 @@ int Kotonoha_KtrfGetChoiceTimeoutEffect(const Kotonoha_KtrfDocument *document,
                                      &timeout, error))
     return 0;
   if (!has_timeout)
-    return typed_fail(error, KOTONOHA_KTRF_ERROR_RANGE,
-                      "CHOI has no timeout");
+    return typed_fail(error, KOTONOHA_KTRF_ERROR_RANGE, "CHOI has no timeout");
   if (local_effect_index >= timeout.effect_count)
     return typed_fail(error, KOTONOHA_KTRF_ERROR_RANGE,
                       "CHOI local timeout effect index out of range");
-  *effect_index = typed_u32(view.section->payload + view.effects_offset +
-                            (uint64_t)(timeout.effect_start + local_effect_index) *
-                                4u);
+  *effect_index =
+      typed_u32(view.section->payload + view.effects_offset +
+                (uint64_t)(timeout.effect_start + local_effect_index) * 4u);
   effects = typed_section(document, "EFFT", error);
   if (effects == NULL || *effect_index >= effects->item_count)
     return typed_fail(error, KOTONOHA_KTRF_ERROR_RANGE,
@@ -1090,9 +1103,8 @@ int Kotonoha_KtrfGetChoiceTimeoutEffect(const Kotonoha_KtrfDocument *document,
   return 1;
 }
 
-int Kotonoha_KtrfGetNode(const Kotonoha_KtrfDocument *document,
-                         uint32_t index, Kotonoha_KtrfNode *out,
-                         Kotonoha_KtrfError *error) {
+int Kotonoha_KtrfGetNode(const Kotonoha_KtrfDocument *document, uint32_t index,
+                         Kotonoha_KtrfNode *out, Kotonoha_KtrfError *error) {
   TypedPool6View view;
   const uint8_t *p;
   typed_clear(error);
@@ -1141,10 +1153,9 @@ int Kotonoha_KtrfGetNodeResource(const Kotonoha_KtrfDocument *document,
   if (local_resource_index >= node.resource_count)
     return typed_fail(error, KOTONOHA_KTRF_ERROR_RANGE,
                       "NODE local resource index out of range");
-  *resource_index = typed_u32(view.section->payload + view.pool_offset +
-                              (uint64_t)(node.resource_start +
-                                         local_resource_index) *
-                                  4u);
+  *resource_index =
+      typed_u32(view.section->payload + view.pool_offset +
+                (uint64_t)(node.resource_start + local_resource_index) * 4u);
   resources = typed_section(document, "RSRC", error);
   if (resources == NULL || *resource_index >= resources->item_count)
     return typed_fail(error, KOTONOHA_KTRF_ERROR_RANGE,
@@ -1234,10 +1245,9 @@ int Kotonoha_KtrfGetTransitionEffect(const Kotonoha_KtrfDocument *document,
   if (local_effect_index >= transition.effect_count)
     return typed_fail(error, KOTONOHA_KTRF_ERROR_RANGE,
                       "TRAN local effect index out of range");
-  *effect_index = typed_u32(view.section->payload + view.effects_offset +
-                            (uint64_t)(transition.effect_start +
-                                       local_effect_index) *
-                                4u);
+  *effect_index =
+      typed_u32(view.section->payload + view.effects_offset +
+                (uint64_t)(transition.effect_start + local_effect_index) * 4u);
   effects = typed_section(document, "EFFT", error);
   if (effects == NULL || *effect_index >= effects->item_count)
     return typed_fail(error, KOTONOHA_KTRF_ERROR_RANGE,
@@ -1263,9 +1273,9 @@ int Kotonoha_KtrfGetTransitionTrigger(const Kotonoha_KtrfDocument *document,
   if (local_trigger_index >= transition.trigger_count)
     return typed_fail(error, KOTONOHA_KTRF_ERROR_RANGE,
                       "TRAN local trigger index out of range");
-  *trigger_string_index =
-      typed_u32(view.section->payload + view.triggers_offset +
-                (uint64_t)(transition.trigger_start + local_trigger_index) * 4u);
+  *trigger_string_index = typed_u32(
+      view.section->payload + view.triggers_offset +
+      (uint64_t)(transition.trigger_start + local_trigger_index) * 4u);
   return typed_string_index(document, *trigger_string_index, "TRAN.trigger",
                             error);
 }
@@ -1281,9 +1291,9 @@ static int typed_validate_sorted_id(uint32_t previous, uint32_t current,
   return 1;
 }
 
-static int typed_validate_expression_cycles(const Kotonoha_KtrfDocument *document,
-                                            uint32_t count,
-                                            Kotonoha_KtrfError *error) {
+static int
+typed_validate_expression_cycles(const Kotonoha_KtrfDocument *document,
+                                 uint32_t count, Kotonoha_KtrfError *error) {
   uint32_t *indegree = NULL, *queue = NULL;
   uint32_t i, head = 0u, tail = 0u, visited = 0u;
   if (count == 0u)
@@ -1442,19 +1452,19 @@ int Kotonoha_KtrfValidateTypedCore(const Kotonoha_KtrfDocument *document,
     have_previous = 1;
   }
 
-#define VALIDATE_SIMPLE_ID(SECTION_PTR, TYPE_NAME, GETTER, LABEL)                 \
-  do {                                                                            \
-    previous = 0u;                                                                \
-    have_previous = 0;                                                            \
-    for (i = 0u; i < (SECTION_PTR)->item_count; ++i) {                           \
-      TYPE_NAME rec;                                                              \
-      if (!GETTER(document, i, &rec, error) ||                                    \
-          !typed_validate_sorted_id(previous, rec.id_str, have_previous, document,\
-                                    LABEL, error))                                 \
-        return 0;                                                                 \
-      previous = rec.id_str;                                                      \
-      have_previous = 1;                                                          \
-    }                                                                             \
+#define VALIDATE_SIMPLE_ID(SECTION_PTR, TYPE_NAME, GETTER, LABEL)              \
+  do {                                                                         \
+    previous = 0u;                                                             \
+    have_previous = 0;                                                         \
+    for (i = 0u; i < (SECTION_PTR)->item_count; ++i) {                         \
+      TYPE_NAME rec;                                                           \
+      if (!GETTER(document, i, &rec, error) ||                                 \
+          !typed_validate_sorted_id(previous, rec.id_str, have_previous,       \
+                                    document, LABEL, error))                   \
+        return 0;                                                              \
+      previous = rec.id_str;                                                   \
+      have_previous = 1;                                                       \
+    }                                                                          \
   } while (0)
 
   VALIDATE_SIMPLE_ID(vars, Kotonoha_KtrfVariable, Kotonoha_KtrfGetVariable,
@@ -1463,13 +1473,13 @@ int Kotonoha_KtrfValidateTypedCore(const Kotonoha_KtrfDocument *document,
                      "RSRC");
   VALIDATE_SIMPLE_ID(hook, Kotonoha_KtrfHook, Kotonoha_KtrfGetHook, "HOOK");
   VALIDATE_SIMPLE_ID(endg, Kotonoha_KtrfEnding, Kotonoha_KtrfGetEnding, "ENDG");
-  VALIDATE_SIMPLE_ID(expr, Kotonoha_KtrfExpression,
-                     Kotonoha_KtrfGetExpression, "EXPR");
+  VALIDATE_SIMPLE_ID(expr, Kotonoha_KtrfExpression, Kotonoha_KtrfGetExpression,
+                     "EXPR");
   VALIDATE_SIMPLE_ID(efft, Kotonoha_KtrfEffect, Kotonoha_KtrfGetEffect, "EFFT");
   VALIDATE_SIMPLE_ID(choi, Kotonoha_KtrfChoice, Kotonoha_KtrfGetChoice, "CHOI");
   VALIDATE_SIMPLE_ID(node, Kotonoha_KtrfNode, Kotonoha_KtrfGetNode, "NODE");
-  VALIDATE_SIMPLE_ID(tran, Kotonoha_KtrfTransition,
-                     Kotonoha_KtrfGetTransition, "TRAN");
+  VALIDATE_SIMPLE_ID(tran, Kotonoha_KtrfTransition, Kotonoha_KtrfGetTransition,
+                     "TRAN");
 #undef VALIDATE_SIMPLE_ID
 
   if (!typed_pool6_view(document, "EXPR", 32u, 24u, &expr_view, error))

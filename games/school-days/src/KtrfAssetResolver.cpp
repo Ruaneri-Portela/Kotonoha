@@ -12,8 +12,7 @@ static void asset_clear_error(Kotonoha_KtrfError *error) {
   }
 }
 
-static int asset_fail(Kotonoha_KtrfError *error,
-                      Kotonoha_KtrfErrorCode code,
+static int asset_fail(Kotonoha_KtrfError *error, Kotonoha_KtrfErrorCode code,
                       const char *format, ...) {
   if (error != NULL) {
     va_list args;
@@ -31,14 +30,12 @@ static int asset_fail(Kotonoha_KtrfError *error,
   return 0;
 }
 
-static char asset_separator(void) {
-  return '/';
-}
+static char asset_separator(void) { return '/'; }
 
-int SchoolDaysKtrfBuildAssetPath(
-    const char *assets_root, const char *scene_key, size_t scene_key_length,
-    char *out_path, size_t out_capacity, size_t *out_length,
-    Kotonoha_KtrfError *error) {
+int SchoolDaysKtrfBuildAssetPath(const char *assets_root, const char *scene_key,
+                                 size_t scene_key_length, char *out_path,
+                                 size_t out_capacity, size_t *out_length,
+                                 Kotonoha_KtrfError *error) {
   const auto &profile = Kotonoha::SchoolDaysKtrfRuntimeProfile();
   size_t extension_length;
   size_t root_length;
@@ -59,9 +56,8 @@ int SchoolDaysKtrfBuildAssetPath(
   extension_length = strlen(profile.assetExtension);
 
   root_length = strlen(assets_root);
-  needs_separator =
-      assets_root[root_length - 1u] != '/' &&
-      assets_root[root_length - 1u] != '\\';
+  needs_separator = assets_root[root_length - 1u] != '/' &&
+                    assets_root[root_length - 1u] != '\\';
   if (root_length + (needs_separator ? 1u : 0u) + scene_key_length +
           extension_length + 1u >
       out_capacity)
@@ -87,10 +83,10 @@ int SchoolDaysKtrfBuildAssetPath(
   return 1;
 }
 
-int SchoolDaysKtrfResolveNodeAsset(
-    const Kotonoha_KtrfAdapter *adapter, uint32_t node_index,
-    const char *assets_root, SchoolDaysKtrfResolvedAsset *out,
-    Kotonoha_KtrfError *error) {
+int SchoolDaysKtrfResolveNodeAsset(const Kotonoha_KtrfAdapter *adapter,
+                                   uint32_t node_index, const char *assets_root,
+                                   SchoolDaysKtrfResolvedAsset *out,
+                                   Kotonoha_KtrfError *error) {
   Kotonoha_KtrfNodeView view;
 
   asset_clear_error(error);
@@ -124,9 +120,10 @@ int SchoolDaysKtrfResolveNodeAsset(
   return 1;
 }
 
-int SchoolDaysKtrfCurrentAsset(
-    const Kotonoha_KtrfAdapter *adapter, const char *assets_root,
-    SchoolDaysKtrfResolvedAsset *out, Kotonoha_KtrfError *error) {
+int SchoolDaysKtrfCurrentAsset(const Kotonoha_KtrfAdapter *adapter,
+                               const char *assets_root,
+                               SchoolDaysKtrfResolvedAsset *out,
+                               Kotonoha_KtrfError *error) {
   Kotonoha_KtrfNodeView view;
 
   asset_clear_error(error);
@@ -135,14 +132,14 @@ int SchoolDaysKtrfCurrentAsset(
                       "KTRF current-asset argument is null");
   if (!Kotonoha_KtrfCurrentNodeView(adapter, &view, error))
     return 0;
-  return SchoolDaysKtrfResolveNodeAsset(
-      adapter, view.node_index, assets_root, out, error);
+  return SchoolDaysKtrfResolveNodeAsset(adapter, view.node_index, assets_root,
+                                        out, error);
 }
 
-int SchoolDaysKtrfAdvanceToAsset(
-    Kotonoha_KtrfAdapter *adapter, const char *assets_root,
-    const char *trigger, SchoolDaysKtrfAssetAdvanceResult *out,
-    Kotonoha_KtrfError *error) {
+int SchoolDaysKtrfAdvanceToAsset(Kotonoha_KtrfAdapter *adapter,
+                                 const char *assets_root, const char *trigger,
+                                 SchoolDaysKtrfAssetAdvanceResult *out,
+                                 Kotonoha_KtrfError *error) {
   asset_clear_error(error);
   if (adapter == NULL || out == NULL)
     return asset_fail(error, KOTONOHA_KTRF_ERROR_ARGUMENT,
@@ -152,25 +149,22 @@ int SchoolDaysKtrfAdvanceToAsset(
   out->asset.node_index = KOTONOHA_KTRF_NULL_INDEX;
   out->asset.resource_index = KOTONOHA_KTRF_NULL_INDEX;
 
-  if (!Kotonoha_KtrfAdvanceToScene(
-          adapter, trigger, &out->advance, error))
+  if (!Kotonoha_KtrfAdvanceToScene(adapter, trigger, &out->advance, error))
     return 0;
 
   if (out->advance.status == KOTONOHA_KTRF_ADVANCE_ADVANCED) {
     if (out->advance.scene.kind != KOTONOHA_KTRF_NODE_SCENE)
       return asset_fail(error, KOTONOHA_KTRF_ERROR_FORMAT,
                         "AdvanceToScene returned a non-scene destination");
-    if (!SchoolDaysKtrfResolveNodeAsset(
-            adapter, out->advance.scene.node_index, assets_root, &out->asset,
-            error))
+    if (!SchoolDaysKtrfResolveNodeAsset(adapter, out->advance.scene.node_index,
+                                        assets_root, &out->asset, error))
       return 0;
   }
   return 1;
 }
 
-int SchoolDaysKtrfProbeAsset(
-    const SchoolDaysKtrfResolvedAsset *asset, size_t *file_size,
-    Kotonoha_KtrfError *error) {
+int SchoolDaysKtrfProbeAsset(const SchoolDaysKtrfResolvedAsset *asset,
+                             size_t *file_size, Kotonoha_KtrfError *error) {
   FILE *stream;
   long size;
 
