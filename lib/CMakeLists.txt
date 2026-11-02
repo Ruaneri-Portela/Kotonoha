@@ -102,7 +102,7 @@ add_library(KotonohaEngine SHARED
     src/componentes/VNSave.cpp
     src/componentes/VNSaveMenu.cpp
     src/componentes/VNTextBox.cpp
-    src/utils/BackAction.cpp
+    src/events/BackAction.cpp
     src/debug/DebugOverlay.cpp
     src/debug/ImGuiTheme.cpp
     src/localization/Encoding.cpp

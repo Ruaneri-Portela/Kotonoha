@@ -23,8 +23,7 @@ Each flavor has its own application ID and APK under
 `-Pabis=x86_64` for an emulator. Build DDLC for one ABI per APK.
 Run Gradle invocations sequentially: concurrent builds share native `.cxx`
 configuration directories. Multiple assemble tasks may be passed to one invocation.
-Dependencies are installed into `build/vcpkg`; DDLC enables the manifest's
-`android-python` feature. No macOS/iOS Python library is used by Android.
+Dependencies are installed into `build/vcpkg`; DDLC uses CPython provided by vcpkg. No macOS/iOS Python library is used by Android.
 
 SDL is a remote Git dependency, pinned to
 `4bb5020be2a3e3f7a963b84c95f49fe7ef5d35a4` in [app/build.gradle](app/build.gradle).
