@@ -7,9 +7,10 @@
     "harfbuzz",
     "json-c",
     "libass",
+    "libiconv",
     {
       "name": "python3",
-      "platform": "android"
+      "platform": "android | (windows & !mingw)"
     },
     {
       "name": "fontconfig",
