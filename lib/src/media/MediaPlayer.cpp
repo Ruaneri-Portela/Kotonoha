@@ -94,8 +94,8 @@ struct MediaPlayer::State {
 
   static int readMemory(void *opaque, uint8_t *buffer, int size) {
     auto &self = *static_cast<State *>(opaque);
-    const auto count = std::min<std::size_t>(
-        static_cast<std::size_t>(size), self.bytes.size() - self.offset);
+    const auto count = std::min<std::size_t>(static_cast<std::size_t>(size),
+                                             self.bytes.size() - self.offset);
     if (count == 0)
       return AVERROR_EOF;
     std::copy_n(self.bytes.data() + self.offset, count, buffer);
@@ -110,10 +110,16 @@ struct MediaPlayer::State {
       return size;
     int64_t base = 0;
     switch (whence & ~AVSEEK_FORCE) {
-    case SEEK_SET: break;
-    case SEEK_CUR: base = static_cast<int64_t>(self.offset); break;
-    case SEEK_END: base = size; break;
-    default: return AVERROR(EINVAL);
+    case SEEK_SET:
+      break;
+    case SEEK_CUR:
+      base = static_cast<int64_t>(self.offset);
+      break;
+    case SEEK_END:
+      base = size;
+      break;
+    default:
+      return AVERROR(EINVAL);
     }
     const int64_t target = base + position;
     if (target < 0 || target > size)
@@ -245,8 +251,8 @@ struct MediaPlayer::State {
           putAudio(std::vector<float>(silence * 2));
           queuedEnd += silence / 48000.0;
         }
-        const auto skipped = static_cast<std::size_t>(std::max(
-            0.0, std::min(-gap * 48000, static_cast<double>(count))));
+        const auto skipped = static_cast<std::size_t>(
+            std::max(0.0, std::min(-gap * 48000, static_cast<double>(count))));
         putAudio(samples, skipped * 2);
         queuedEnd += (static_cast<std::size_t>(count) - skipped) / 48000.0;
       }
@@ -278,7 +284,8 @@ struct MediaPlayer::State {
       // starves audio in containers whose audio packets follow a video cluster.
       if ((!video || videoReady) && (!audio || audioReady))
         break;
-      // Bound buffering for interleaved streams with severely unequal timestamps.
+      // Bound buffering for interleaved streams with severely unequal
+      // timestamps.
       if (frames.size() > 300 || queuedAudio() > 5)
         throw std::runtime_error(
             "Media stream interleaving exceeds buffer limits");
@@ -320,7 +327,8 @@ struct MediaPlayer::State {
     auto &self = *static_cast<State *>(userdata);
     // Never block the audio thread; the main thread may hold the decoder.
     std::unique_lock<std::mutex> lock(self.mutex, std::try_to_lock);
-    if (!lock.owns_lock() || self.queuedEnd < 0 || self.eof || !self.failure.empty())
+    if (!lock.owns_lock() || self.queuedEnd < 0 || self.eof ||
+        !self.failure.empty())
       return;
     try {
       self.fill(self.playhead(), 0.5);
@@ -423,7 +431,8 @@ void MediaPlayer::start(std::unique_ptr<State> next, const std::string &url,
     next->channel->attach(next->stream.get());
     if (!next->video) {
       next->threaded = true;
-      if (!SDL_SetAudioStreamGetCallback(next->stream.get(), State::feed, next.get()))
+      if (!SDL_SetAudioStreamGetCallback(next->stream.get(), State::feed,
+                                         next.get()))
         throw std::runtime_error(SDL_GetError());
     }
     if (!SDL_ResumeAudioStreamDevice(next->stream.get()))

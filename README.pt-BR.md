@@ -248,6 +248,7 @@ apps separados. `KotonohaIOSSmoke` verifica CP932 e glifos SVG no simulador.
 O executavel demonstrativo chama-se `Kotonoha`; seu namespace C++ e
 `KotonohaExample`, separado do motor. A opcao CMake
 `KOTONOHA_BUILD_SCHOOL_DAYS` controla o port School Days.
+`KOTONOHA_BUILD_AIR` controla o [port inicial de AIR Standard Edition](games/air/README.md), que lê os dados originais com `--air DIRETORIO`.
 Depois de alterar os fontes da biblioteca School Days, execute manualmente
 `python3 Xcode/UpdateGameTargets.py` para sincronizar o target nativo sem
 remover os recursos e modulos Python existentes.
@@ -1295,3 +1296,17 @@ Eventos tambem usam o espaco de cada cena. `handleEvent` pode retornar true
 para consumir a entrada, e `capturesInput()` permite modais. Cliques nas
 barras nao avancam a novel, mas podem acionar elementos Screen. A area de
 entrada IME e convertida para coordenadas da janela apos resize/HiDPI.
+
+### Summer Radish Vacation!! 1.1 (em desenvolvimento)
+
+O novo alvo `SummerRadish` lê os cinco pacotes `.cmp` originais diretamente da
+pasta do disco. Compile com `cmake --build build --target SummerRadish` e execute:
+
+```sh
+build/games/summer-radish-vacation/SummerRadish.app/Contents/MacOS/SummerRadish \
+  --summer "/Volumes/Server/data3/SRV_1_1"
+```
+
+O port ainda não tem equivalência 1:1 comprovada. Recursos implementados,
+evidências da descompilação com REA, testes e pendências estão em
+[PORT_STATUS.md](games/summer-radish-vacation/PORT_STATUS.md).

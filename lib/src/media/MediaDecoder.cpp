@@ -65,10 +65,16 @@ class Input {
       return size;
     int64_t base = 0;
     switch (whence & ~AVSEEK_FORCE) {
-    case SEEK_SET: break;
-    case SEEK_CUR: base = int64_t(self.offset); break;
-    case SEEK_END: base = size; break;
-    default: return AVERROR(EINVAL);
+    case SEEK_SET:
+      break;
+    case SEEK_CUR:
+      base = int64_t(self.offset);
+      break;
+    case SEEK_END:
+      base = size;
+      break;
+    default:
+      return AVERROR(EINVAL);
     }
     const int64_t target = base + position;
     if (target < 0 || target > size)
@@ -261,9 +267,9 @@ AudioClip decodeAudio(const std::vector<Uint8> &bytes) {
     check(av_channel_layout_copy(&target, &source), "Copy channel layout");
   const int rate = codec->sample_rate;
   SwrContext *resampler = nullptr;
-  const int configured = swr_alloc_set_opts2(
-      &resampler, &target, AV_SAMPLE_FMT_FLT, rate, &source,
-      codec->sample_fmt, rate, 0, nullptr);
+  const int configured =
+      swr_alloc_set_opts2(&resampler, &target, AV_SAMPLE_FMT_FLT, rate, &source,
+                          codec->sample_fmt, rate, 0, nullptr);
   av_channel_layout_uninit(&source);
   std::unique_ptr<SwrContext, void (*)(SwrContext *)> owned(
       resampler, [](SwrContext *context) { swr_free(&context); });
@@ -272,7 +278,8 @@ AudioClip decodeAudio(const std::vector<Uint8> &bytes) {
 
   AudioClip clip;
   clip.spec = {SDL_AUDIO_F32, target.nb_channels, rate};
-  const std::size_t frameBytes = sizeof(float) * std::size_t(target.nb_channels);
+  const std::size_t frameBytes =
+      sizeof(float) * std::size_t(target.nb_channels);
   av_channel_layout_uninit(&target);
   auto convert = [&](const uint8_t **data, int samples) {
     const int capacity = swr_get_out_samples(resampler, samples);

@@ -1,5 +1,5 @@
-#include <Kotonoha/core/UI.hpp>
 #include <Kotonoha/core/FileSystem.hpp>
+#include <Kotonoha/core/UI.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -42,10 +42,12 @@ UI::UI(const std::string &fontPath) {
       }
     }
   } catch (const std::exception &error) {
-    SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "UI font memory load error: %s", error.what());
+    SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "UI font memory load error: %s",
+                error.what());
   }
   if (!font) {
-    throw std::runtime_error(std::string("Cannot open font via memory: ") + SDL_GetError());
+    throw std::runtime_error(std::string("Cannot open font via memory: ") +
+                             SDL_GetError());
   }
 }
 
@@ -130,6 +132,27 @@ void UI::panel(RendererRef renderer, SDL_FRect rect, SDL_Color color) {
   SDL_SetRenderDrawBlendMode(&renderer, SDL_BLENDMODE_BLEND);
   SDL_SetRenderDrawColor(&renderer, color.r, color.g, color.b, color.a);
   SDL_RenderFillRect(&renderer, &rect);
+}
+
+void UI::backdrop(RendererRef renderer, SDL_Color color) {
+  float scaleX = 1, scaleY = 1;
+  SDL_Rect viewport{}, clip{};
+  const bool viewportSet = SDL_RenderViewportSet(&renderer);
+  const bool clipEnabled = SDL_RenderClipEnabled(&renderer);
+  SDL_GetRenderScale(&renderer, &scaleX, &scaleY);
+  SDL_GetRenderViewport(&renderer, &viewport);
+  SDL_GetRenderClipRect(&renderer, &clip);
+
+  SDL_SetRenderClipRect(&renderer, nullptr);
+  SDL_SetRenderViewport(&renderer, nullptr);
+  SDL_SetRenderScale(&renderer, 1, 1);
+  SDL_SetRenderDrawBlendMode(&renderer, SDL_BLENDMODE_BLEND);
+  SDL_SetRenderDrawColor(&renderer, color.r, color.g, color.b, color.a);
+  SDL_RenderFillRect(&renderer, nullptr);
+
+  SDL_SetRenderScale(&renderer, scaleX, scaleY);
+  SDL_SetRenderViewport(&renderer, viewportSet ? &viewport : nullptr);
+  SDL_SetRenderClipRect(&renderer, clipEnabled ? &clip : nullptr);
 }
 
 void UI::button(RendererRef renderer, SDL_FRect rect, const std::string &label,

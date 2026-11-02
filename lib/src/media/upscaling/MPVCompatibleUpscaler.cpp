@@ -14,9 +14,9 @@
 #define GL_RGBA16F 0x881A
 #endif
 
-// Executes mpv/libplacebo-style fragment shader chains over floating-point FBOs.
-// The backend is intentionally model-agnostic: Anime4K remains available as a
-// legacy preset and ArtCNN uses the same runner through its LUMA hook.
+// Executes mpv/libplacebo-style fragment shader chains over floating-point
+// FBOs. The backend is intentionally model-agnostic: Anime4K remains available
+// as a legacy preset and ArtCNN uses the same runner through its LUMA hook.
 namespace Kotonoha {
 namespace {
 
@@ -101,14 +101,18 @@ Uint64 PoolTextureBytes(const PoolTex &t) {
 
 void TrimPoolToBudget() {
   Uint64 total = 0;
-  for (const PoolTex &t : g_pool) total += PoolTextureBytes(t);
+  for (const PoolTex &t : g_pool)
+    total += PoolTextureBytes(t);
   while (total > kPoolBudgetBytes) {
     auto victim = g_pool.end();
     for (auto it = g_pool.begin(); it != g_pool.end(); ++it) {
-      if (it->inUse) continue;
-      if (victim == g_pool.end() || it->lastUsed < victim->lastUsed) victim = it;
+      if (it->inUse)
+        continue;
+      if (victim == g_pool.end() || it->lastUsed < victim->lastUsed)
+        victim = it;
     }
-    if (victim == g_pool.end()) break;
+    if (victim == g_pool.end())
+      break;
     total -= PoolTextureBytes(*victim);
     glDeleteTextures(1, &victim->id);
     g_pool.erase(victim);
@@ -162,19 +166,21 @@ std::string LoadAsset(const std::string &filename) {
   const char *assetFolder =
       g_preset == UpscalePreset::Anime4K ? "Anime4K" : "ArtCNN";
   const std::filesystem::path supplied(filename);
-  std::string path = supplied.has_parent_path()
-                         ? supplied.string()
-                         : (Kotonoha::engineAssetDirectory() / assetFolder / supplied).string();
+  std::string path =
+      supplied.has_parent_path()
+          ? supplied.string()
+          : (Kotonoha::engineAssetDirectory() / assetFolder / supplied)
+                .string();
   size_t size = 0;
   void *buffer = SDL_LoadFile(path.c_str(), &size);
   if (buffer == nullptr) {
-    path = (Kotonoha::engineAssetDirectory() / assetFolder / filename)
-               .string();
+    path = (Kotonoha::engineAssetDirectory() / assetFolder / filename).string();
     buffer = SDL_LoadFile(path.c_str(), &size);
   }
   if (buffer == nullptr) {
-    SDL_LogWarn(LogUpscaler, "MPVCompatibleUpscaler: could not load shader '%s'",
-              filename.c_str());
+    SDL_LogWarn(LogUpscaler,
+                "MPVCompatibleUpscaler: could not load shader '%s'",
+                filename.c_str());
     return "";
   }
   std::string text(static_cast<const char *>(buffer), size);
@@ -327,7 +333,8 @@ GLuint CompileShader(GLenum type, const std::string &source) {
     if (len > 1) {
       std::string log((size_t)len, '\0');
       glGetShaderInfoLog(shader, len, NULL, &log[0]);
-      SDL_LogError(LogUpscaler, "MPVCompatibleUpscaler shader error: %s", log.c_str());
+      SDL_LogError(LogUpscaler, "MPVCompatibleUpscaler shader error: %s",
+                   log.c_str());
     }
     glDeleteShader(shader);
     return 0;
@@ -350,7 +357,8 @@ GLuint LinkProgram(GLuint vertex, GLuint fragment) {
     if (len > 1) {
       std::string log((size_t)len, '\0');
       glGetProgramInfoLog(program, len, NULL, &log[0]);
-      SDL_LogError(LogUpscaler, "MPVCompatibleUpscaler link error: %s", log.c_str());
+      SDL_LogError(LogUpscaler, "MPVCompatibleUpscaler link error: %s",
+                   log.c_str());
     }
     glDeleteProgram(program);
     return 0;
@@ -492,12 +500,16 @@ bool InitGLPipeline(SDL_Renderer *renderer) {
     // GL object names are context-owned. Never delete the old pipeline while
     // another context is current: the same numeric names can refer to unrelated
     // objects there. Rebuild against the current context instead.
-    SDL_LogWarn(LogUpscaler, "MPVCompatibleUpscaler OpenGL context changed; rebuilding pipeline.");
+    SDL_LogWarn(
+        LogUpscaler,
+        "MPVCompatibleUpscaler OpenGL context changed; rebuilding pipeline.");
     ForgetPipelineState();
   }
 
   if (!KotonohaOpenGLInit()) {
-    SDL_LogWarn(LogUpscaler, "MPVCompatibleUpscaler requires a current OpenGL renderer context.");
+    SDL_LogWarn(
+        LogUpscaler,
+        "MPVCompatibleUpscaler requires a current OpenGL renderer context.");
     return false;
   }
 
@@ -539,7 +551,8 @@ bool InitGLPipeline(SDL_Renderer *renderer) {
     }
   }
   if (mainPasses.empty() && kernelPasses.empty()) {
-    SDL_LogError(LogUpscaler, "MPVCompatibleUpscaler: no usable shader passes were loaded.");
+    SDL_LogError(LogUpscaler,
+                 "MPVCompatibleUpscaler: no usable shader passes were loaded.");
     return false;
   }
   g_passes = mainPasses;
@@ -599,7 +612,8 @@ bool InitGLPipeline(SDL_Renderer *renderer) {
   glDeleteShader(vertex);
 
   if (!ok) {
-    SDL_LogWarn(LogUpscaler, "MPVCompatibleUpscaler pipeline setup failed; disabling MPVCompatibleUpscaler scaler.");
+    SDL_LogWarn(LogUpscaler, "MPVCompatibleUpscaler pipeline setup failed; "
+                             "disabling MPVCompatibleUpscaler scaler.");
     DestroyPipeline();
     return false;
   }
@@ -623,7 +637,8 @@ bool InitGLPipeline(SDL_Renderer *renderer) {
     ForgetPipelineState();
     return false;
   }
-  SDL_LogInfo(LogUpscaler, "MPVCompatibleUpscaler preset '%s' initialized (%d passes)",
+  SDL_LogInfo(LogUpscaler,
+              "MPVCompatibleUpscaler preset '%s' initialized (%d passes)",
               PresetLogName(g_preset), (int)g_passes.size());
   return true;
 }
@@ -683,8 +698,10 @@ void DebugProbe(const char *label, GLuint tex, int w, int h) {
   if (AttachTarget(tex)) {
     float px[4] = {0, 0, 0, 0};
     glReadPixels(w / 3, h / 3, 1, 1, GL_RGBA, GL_FLOAT, px);
-    SDL_LogInfo(LogUpscaler, "MPVCompatibleUpscaler probe %-28s %4dx%-4d rgba=%.3f %.3f %.3f %.3f",
-              label, w, h, px[0], px[1], px[2], px[3]);
+    SDL_LogInfo(
+        LogUpscaler,
+        "MPVCompatibleUpscaler probe %-28s %4dx%-4d rgba=%.3f %.3f %.3f %.3f",
+        label, w, h, px[0], px[1], px[2], px[3]);
   }
   glBindFramebuffer(GL_FRAMEBUFFER, (GLuint)prevFbo);
 }
@@ -702,8 +719,8 @@ bool RunChain(GLuint inTex, int inW, int inH, GLuint outTex, int outW,
   std::map<std::string, int> remainingUses;
   for (const Pass &pass : g_passes) {
     for (const BindRef &ref : pass.refs) {
-      if (ref.name == "MAIN" || ref.name == "HOOKED" ||
-          ref.name == "NATIVE" || ref.name == "LUMA") {
+      if (ref.name == "MAIN" || ref.name == "HOOKED" || ref.name == "NATIVE" ||
+          ref.name == "LUMA") {
         continue;
       }
       ++remainingUses[ref.name];
@@ -792,17 +809,19 @@ bool RunChain(GLuint inTex, int inW, int inH, GLuint outTex, int outW,
     // saved register as soon as its last consumer has drawn instead of keeping
     // every ArtCNN layer resident until the end of the chain.
     for (const BindRef &ref : pass.refs) {
-      if (ref.name == "MAIN" || ref.name == "HOOKED" ||
-          ref.name == "NATIVE" || ref.name == "LUMA") {
+      if (ref.name == "MAIN" || ref.name == "HOOKED" || ref.name == "NATIVE" ||
+          ref.name == "LUMA") {
         continue;
       }
       auto use = remainingUses.find(ref.name);
-      if (use == remainingUses.end()) continue;
+      if (use == remainingUses.end())
+        continue;
       --use->second;
       if (use->second <= 0) {
         auto saved = reg.find(ref.name);
         if (saved != reg.end()) {
-          if (saved->second.owned) ReleaseTexture(saved->second.id);
+          if (saved->second.owned)
+            ReleaseTexture(saved->second.id);
           reg.erase(saved);
         }
       }
@@ -917,7 +936,9 @@ bool KotonohaMPVUpscalerUpscaleSDLTextureInto(SDL_Renderer *renderer,
       return false;
     }
     if (!SDL_SetRenderTarget(renderer, outputTexture)) {
-      SDL_LogError(LogUpscaler, "MPVCompatibleUpscaler fallback could not activate output texture: %s",
+      SDL_LogError(LogUpscaler,
+                   "MPVCompatibleUpscaler fallback could not activate output "
+                   "texture: %s",
                    SDL_GetError());
       return false;
     }
@@ -925,13 +946,12 @@ bool KotonohaMPVUpscalerUpscaleSDLTextureInto(SDL_Renderer *renderer,
     // image plus an animated overlay patch). Copy with blending disabled and
     // clear the reused output first; otherwise transparent pixels can blend
     // over the previous upscaled frame and expose stale rectangles/ghosting.
-    const bool prepared = SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0) &&
-                          SDL_SetTextureColorModFloat(inputTexture, 1.0f, 1.0f,
-                                                      1.0f) &&
-                          SDL_SetTextureAlphaModFloat(inputTexture, 1.0f) &&
-                          SDL_SetTextureBlendMode(inputTexture,
-                                                  SDL_BLENDMODE_NONE) &&
-                          SDL_RenderClear(renderer);
+    const bool prepared =
+        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0) &&
+        SDL_SetTextureColorModFloat(inputTexture, 1.0f, 1.0f, 1.0f) &&
+        SDL_SetTextureAlphaModFloat(inputTexture, 1.0f) &&
+        SDL_SetTextureBlendMode(inputTexture, SDL_BLENDMODE_NONE) &&
+        SDL_RenderClear(renderer);
     const bool copied =
         prepared && SDL_RenderTexture(renderer, inputTexture, NULL, NULL);
     const bool blendRestored =
@@ -945,11 +965,12 @@ bool KotonohaMPVUpscalerUpscaleSDLTextureInto(SDL_Renderer *renderer,
     const bool restored = SDL_SetRenderTarget(renderer, previousTarget);
     if (!prepared || !copied || !blendRestored || !modRestored ||
         !colorRestored || !restored) {
-      SDL_LogError(LogUpscaler, "MPVCompatibleUpscaler fallback render failed: %s",
+      SDL_LogError(LogUpscaler,
+                   "MPVCompatibleUpscaler fallback render failed: %s",
                    SDL_GetError());
     }
-    return prepared && copied && blendRestored && modRestored && colorRestored &&
-           restored;
+    return prepared && copied && blendRestored && modRestored &&
+           colorRestored && restored;
   };
 
   if (g_filesDirty) {
@@ -974,7 +995,8 @@ bool KotonohaMPVUpscalerUpscaleSDLTextureInto(SDL_Renderer *renderer,
     const Uint64 now = SDL_GetTicks();
     if (!g_initFailed || now >= g_nextInitRetryMs) {
       g_initFailed = !InitGLPipeline(renderer);
-      if (g_initFailed) g_nextInitRetryMs = now + 1000;
+      if (g_initFailed)
+        g_nextInitRetryMs = now + 1000;
     }
     if (g_initFailed) {
       return fallbackCopy();
@@ -1063,7 +1085,9 @@ bool KotonohaMPVUpscalerUpscaleSDLTextureInto(SDL_Renderer *renderer,
   (prevCull ? glEnable : glDisable)(GL_CULL_FACE);
 
   if (!ok) {
-    SDL_LogWarn(LogUpscaler, "MPVCompatibleUpscaler pass failed; falling back to plain copy.");
+    SDL_LogWarn(
+        LogUpscaler,
+        "MPVCompatibleUpscaler pass failed; falling back to plain copy.");
     // A stale/lost GL context or poisoned shader chain must not be retried on
     // every frame. Drop the pipeline only from its owning context, latch the
     // failure briefly, and then allow a clean rebuild.

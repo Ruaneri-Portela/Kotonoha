@@ -4,13 +4,13 @@
 #include <Kotonoha/core/Log.hpp>
 #include <SDL3/SDL.h>
 
+#include <algorithm>
 #include <cstdlib>
+#include <cstring>
 #include <filesystem>
+#include <mutex>
 #include <string>
 #include <vector>
-#include <mutex>
-#include <algorithm>
-#include <cstring>
 
 namespace Kotonoha::ImGuiTheme {
 struct ShaderFilePicker::Result {
@@ -20,7 +20,8 @@ struct ShaderFilePicker::Result {
   std::string error;
 };
 
-void SDLCALL ShaderFilePicker::finished(void *data, const char *const *files, int) {
+void SDLCALL ShaderFilePicker::finished(void *data, const char *const *files,
+                                        int) {
   std::unique_ptr<std::shared_ptr<Result>> owner(
       static_cast<std::shared_ptr<Result> *>(data));
   std::lock_guard lock((*owner)->mutex);
@@ -33,27 +34,31 @@ void SDLCALL ShaderFilePicker::finished(void *data, const char *const *files, in
 }
 
 void ShaderFilePicker::browse(SDL_Window *window) {
-  if (pending) return;
+  if (pending)
+    return;
   failure.clear();
   pending = std::make_shared<Result>();
   static const SDL_DialogFileFilter filters[]{{"MPV GLSL shaders", "glsl"}};
-  SDL_ShowOpenFileDialog(finished, new std::shared_ptr<Result>(pending),
-                        window, filters, 1, nullptr, true);
+  SDL_ShowOpenFileDialog(finished, new std::shared_ptr<Result>(pending), window,
+                         filters, 1, nullptr, true);
 }
 
 bool ShaderFilePicker::poll(UpscaleSettings &settings) {
-  if (!pending) return false;
+  if (!pending)
+    return false;
   std::vector<std::string> files;
   {
     std::lock_guard lock(pending->mutex);
-    if (!pending->done) return false;
+    if (!pending->done)
+      return false;
     files = pending->files;
     failure = pending->error;
   }
   pending.reset();
   if (!failure.empty())
     SDL_LogError(LogConfig, "Shader file dialog: %s", failure.c_str());
-  if (files.empty()) return false; // Cancellation leaves the current list intact.
+  if (files.empty())
+    return false; // Cancellation leaves the current list intact.
   settings.shaderFiles = UpscaleShaderFileList(files);
   return true;
 }
@@ -61,7 +66,8 @@ bool ShaderFilePicker::poll(UpscaleSettings &settings) {
 bool ShaderFilePicker::draw(SDL_Window *window, UpscaleSettings &settings) {
   bool changed = poll(settings);
   ImGui::TextUnformatted("MPV shader files (executed in list order)");
-  if (ImGui::Button("Choose shader files...")) browse(window);
+  if (ImGui::Button("Choose shader files..."))
+    browse(window);
   ImGui::SameLine();
   if (ImGui::Button("Use preset")) {
     settings.shaderFiles.clear();
@@ -101,9 +107,13 @@ bool ShaderFilePicker::draw(SDL_Window *window, UpscaleSettings &settings) {
     for (const auto &path : bundled) {
       const auto found = std::find(files.begin(), files.end(), path);
       bool selected = found != files.end();
-      if (ImGui::Checkbox(std::filesystem::path(path).filename().string().c_str(), &selected)) {
-        if (selected) files.push_back(path);
-        else files.erase(found);
+      if (ImGui::Checkbox(
+              std::filesystem::path(path).filename().string().c_str(),
+              &selected)) {
+        if (selected)
+          files.push_back(path);
+        else
+          files.erase(found);
         settings.shaderFiles = UpscaleShaderFileList(files);
         changed = true;
       }
@@ -111,7 +121,8 @@ bool ShaderFilePicker::draw(SDL_Window *window, UpscaleSettings &settings) {
     ImGui::TreePop();
   }
   ImGui::TextDisabled("One path per line. Empty list uses the preset.");
-  if (!failure.empty()) statusText(failure.c_str(), true);
+  if (!failure.empty())
+    statusText(failure.c_str(), true);
   return changed;
 }
 
@@ -130,9 +141,11 @@ ImFont *addFontMemory(const std::string &fontPath, bool merge) {
     config.OversampleH = 2;
     void *mem = IM_ALLOC(data.size());
     std::memcpy(mem, data.data(), data.size());
-    return ImGui::GetIO().Fonts->AddFontFromMemoryTTF(mem, static_cast<int>(data.size()), FontSize, &config);
+    return ImGui::GetIO().Fonts->AddFontFromMemoryTTF(
+        mem, static_cast<int>(data.size()), FontSize, &config);
   } catch (const std::exception &error) {
-    SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "ImGui font memory load error: %s", error.what());
+    SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                "ImGui font memory load error: %s", error.what());
     return nullptr;
   }
 }

@@ -1,5 +1,5 @@
-#include <Kotonoha/core/SDL.hpp>
 #include <Kotonoha/core/Runtime.hpp>
+#include <Kotonoha/core/SDL.hpp>
 #include <Kotonoha/media/MediaPlayer.hpp>
 #include <algorithm>
 #include <cmath>
@@ -8,16 +8,20 @@
 
 namespace {
 void require(bool ok, const char *message) {
-  if (!ok) throw std::runtime_error(message);
+  if (!ok)
+    throw std::runtime_error(message);
 }
-}
+} // namespace
 int main(int argc, char **argv) {
   try {
-    require(argc == 3, "Expected interleaved video/audio and audio-only fixtures");
-    Kotonoha::Runtime runtime("Audio buffering", "1", "org.kotonoha.audio-buffer.tests");
+    require(argc == 3,
+            "Expected interleaved video/audio and audio-only fixtures");
+    Kotonoha::Runtime runtime("Audio buffering", "1",
+                              "org.kotonoha.audio-buffer.tests");
     Kotonoha::SDLSession session(runtime);
     Kotonoha::WindowPtr window(SDL_CreateWindow("Audio buffer", 320, 180, 0));
-    Kotonoha::RendererPtr renderer(SDL_CreateRenderer(window.get(), "software"));
+    Kotonoha::RendererPtr renderer(
+        SDL_CreateRenderer(window.get(), "software"));
     require(bool(renderer), "Create renderer");
     Kotonoha::MediaPlayer player;
     player.open(argv[1], false);
@@ -50,7 +54,8 @@ int main(int argc, char **argv) {
       const double real = (SDL_GetTicksNS() - start) / 1e9;
       const double jitter = ((i * 37) % 9 - 4) * 0.01; // +/- 40 ms
       game.update(*renderer, std::max(0.0, real + jitter));
-      require(game.bufferedAudioSeconds() > 0.05, "Jittery clock keeps audio queued");
+      require(game.bufferedAudioSeconds() > 0.05,
+              "Jittery clock keeps audio queued");
       SDL_Delay(i % 15 == 0 ? 45 : 16);
     }
     require(game.audioCorrections() == 0,
@@ -66,11 +71,13 @@ int main(int argc, char **argv) {
       SDL_Delay(100); // 1.2 s without update()
       voiceMinimum = std::min(voiceMinimum, voice.bufferedAudioSeconds());
     }
-    require(voiceMinimum > 0.1, "Audio thread keeps audio-only media queued during hitches");
+    require(voiceMinimum > 0.1,
+            "Audio thread keeps audio-only media queued during hitches");
     voice.update(*renderer, (SDL_GetTicksNS() - voiceStart) / 1e9);
     require(voice.audioCorrections() == 0 && voice.bufferedAudioSeconds() > 0.1,
             "Timeline after a hitch matches the audible position");
-    std::cout << "Audio buffering passed; minimum after refill: " << minimum * 1000 << " ms\n";
+    std::cout << "Audio buffering passed; minimum after refill: "
+              << minimum * 1000 << " ms\n";
     return 0;
   } catch (const std::exception &error) {
     std::cerr << "Audio buffering: " << error.what() << '\n';

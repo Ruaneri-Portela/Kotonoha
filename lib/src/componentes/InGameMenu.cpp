@@ -1,8 +1,8 @@
-#include <Kotonoha/events/BackAction.hpp>
 #include <Kotonoha/componentes/InGameMenu.hpp>
 #include <Kotonoha/componentes/VNBacklog.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/UI.hpp>
+#include <Kotonoha/events/BackAction.hpp>
 #include <Kotonoha/script/TimelinePlayer.hpp>
 
 namespace Kotonoha {
@@ -98,7 +98,7 @@ void InGameMenu::render(RendererRef renderer, float) {
 
 void InGameMenu::renderPanel(RendererRef renderer) {
   auto &ui = engine.GetUI();
-  ui.panel(renderer, {0, 0, UI::width, UI::height}, {0, 0, 0, 160});
+  ui.backdrop(renderer, {0, 0, 0, 160});
   ui.panel(renderer, {440, 130, 400, 440});
   ui.text(renderer, "Paused", 460, 150, 360, {255, 215, 100, 255});
 }

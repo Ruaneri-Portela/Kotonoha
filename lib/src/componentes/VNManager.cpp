@@ -4,8 +4,8 @@
 #include <Kotonoha/componentes/VNBacklog.hpp>
 #include <Kotonoha/componentes/VNManager.hpp>
 #include <Kotonoha/componentes/VNTextBox.hpp>
-#include <Kotonoha/script/TimelinePlayer.hpp>
 #include <Kotonoha/script/KtrfScript.hpp>
+#include <Kotonoha/script/TimelinePlayer.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -377,8 +377,10 @@ void VNManager::dumpKtrf(const std::string &path) const {
   document.mode = masterMode;
   for (int id : getNodeIds())
     document.nodes.push_back(scriptNodes.at(id));
-  document.entryNodeId = currentNodeId >= 0 ? currentNodeId :
-      (document.nodes.empty() ? -1 : document.nodes.front().id);
+  document.entryNodeId =
+      currentNodeId >= 0
+          ? currentNodeId
+          : (document.nodes.empty() ? -1 : document.nodes.front().id);
   document.dump(path);
 }
 

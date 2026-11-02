@@ -1,10 +1,10 @@
 #include <Kotonoha/componentes/SubtitleScene.hpp>
-#include <Kotonoha/core/FileSystem.hpp>
 #include <Kotonoha/core/Engine.hpp>
+#include <Kotonoha/core/FileSystem.hpp>
 #include <Kotonoha/core/Log.hpp>
 
-#include <ass/ass.h>
 #include <algorithm>
+#include <ass/ass.h>
 #include <cmath>
 #include <cstdarg>
 #include <iomanip>
@@ -16,17 +16,19 @@ namespace Kotonoha {
 namespace {
 void message(int level, const char *format, va_list args, void *) {
   if (level <= 4)
-    SDL_LogMessageV(LogMedia, level <= 1 ? SDL_LOG_PRIORITY_ERROR :
-                   level <= 2 ? SDL_LOG_PRIORITY_WARN : SDL_LOG_PRIORITY_DEBUG,
-                   format, args);
+    SDL_LogMessageV(LogMedia,
+                    level <= 1   ? SDL_LOG_PRIORITY_ERROR
+                    : level <= 2 ? SDL_LOG_PRIORITY_WARN
+                                 : SDL_LOG_PRIORITY_DEBUG,
+                    format, args);
 }
 
 std::string timestamp(double seconds) {
   const auto cs = static_cast<long long>(std::llround(seconds * 100));
   std::ostringstream result;
   result << cs / 360000 << ':' << std::setfill('0') << std::setw(2)
-         << cs / 6000 % 60 << ':' << std::setw(2) << cs / 100 % 60
-         << '.' << std::setw(2) << cs % 100;
+         << cs / 6000 % 60 << ':' << std::setw(2) << cs / 100 % 60 << '.'
+         << std::setw(2) << cs % 100;
   return result.str();
 }
 
@@ -52,7 +54,8 @@ struct SubtitleScene::State {
       ass_library_init(), ass_library_done};
   std::unique_ptr<ASS_Renderer, decltype(&ass_renderer_done)> renderer{
       nullptr, ass_renderer_done};
-  std::unique_ptr<ASS_Track, decltype(&ass_free_track)> track{nullptr, ass_free_track};
+  std::unique_ptr<ASS_Track, decltype(&ass_free_track)> track{nullptr,
+                                                              ass_free_track};
   TexturePtr glyph;
   std::optional<AssStyle> style;
   int glyphWidth = 0, glyphHeight = 0;
@@ -64,17 +67,21 @@ struct SubtitleScene::State {
     renderer.reset(ass_renderer_init(library.get()));
     if (!renderer)
       throw std::runtime_error("Cannot initialize libass renderer");
-    ass_set_fonts_dir(library.get(), FileResolver::fontDirectory().string().c_str());
+    ass_set_fonts_dir(library.get(),
+                      FileResolver::fontDirectory().string().c_str());
 
     try {
       auto data = FileResolver::loadFontMemory(engine.GetSettings().fontPath);
       if (!data.empty()) {
-        ass_add_font(library.get(), const_cast<char*>("default"),
-                     reinterpret_cast<char*>(data.data()), static_cast<int>(data.size()));
-        ass_add_font(library.get(), const_cast<char*>("Noto Sans JP"),
-                     reinterpret_cast<char*>(data.data()), static_cast<int>(data.size()));
+        ass_add_font(library.get(), const_cast<char *>("default"),
+                     reinterpret_cast<char *>(data.data()),
+                     static_cast<int>(data.size()));
+        ass_add_font(library.get(), const_cast<char *>("Noto Sans JP"),
+                     reinterpret_cast<char *>(data.data()),
+                     static_cast<int>(data.size()));
       }
-    } catch (...) {}
+    } catch (...) {
+    }
 
     const auto font = FileResolver::font(engine.GetSettings().fontPath);
     ass_set_fonts(renderer.get(), font.string().c_str(), "Noto Sans JP",
@@ -96,14 +103,16 @@ void SubtitleScene::loadAss(const std::string &script) {
     throw std::invalid_argument("ASS script must contain 1 byte to 16 MiB");
   std::string bytes = script;
   std::unique_ptr<ASS_Track, decltype(&ass_free_track)> track(
-      ass_read_memory(state->library.get(), bytes.data(), bytes.size(), nullptr),
+      ass_read_memory(state->library.get(), bytes.data(), bytes.size(),
+                      nullptr),
       ass_free_track);
   if (!track || track->n_styles == 0)
     throw std::runtime_error("Invalid ASS subtitle script");
   state->track = std::move(track);
 }
 
-void SubtitleScene::setCues(const std::vector<SubtitleCue> &cues, float fontSize) {
+void SubtitleScene::setCues(const std::vector<SubtitleCue> &cues,
+                            float fontSize) {
   if (!std::isfinite(fontSize) || fontSize < 8 || fontSize > 144)
     throw std::invalid_argument("Subtitle font size must be within 8..144");
   std::ostringstream ass;
@@ -111,20 +120,20 @@ void SubtitleScene::setCues(const std::vector<SubtitleCue> &cues, float fontSize
     ass << state->style->header;
   else
     ass << "[Script Info]\nScriptType: v4.00+\nPlayResX: " << width
-      << "\nPlayResY: " << height << "\nWrapStyle: 0\n"
-      << "[V4+ Styles]\n"
-      << "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, "
-         "OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, "
-         "ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, "
-         "Alignment, MarginL, MarginR, MarginV, Encoding\n"
-      << "Style: Default,Noto Sans JP," << fontSize
-      << ",&H00FFF5F8,&H00FFFFFF,&H00201A2E,"
-         "&H96000000,0,0,0,0,100,100,0,0,1,2.6,1.2,2,48,48,36,1\n";
+        << "\nPlayResY: " << height << "\nWrapStyle: 0\n"
+        << "[V4+ Styles]\n"
+        << "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, "
+           "OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, "
+           "ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, "
+           "Alignment, MarginL, MarginR, MarginV, Encoding\n"
+        << "Style: Default,Noto Sans JP," << fontSize
+        << ",&H00FFF5F8,&H00FFFFFF,&H00201A2E,"
+           "&H96000000,0,0,0,0,100,100,0,0,1,2.6,1.2,2,48,48,36,1\n";
   ass << "[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, "
          "MarginV, Effect, Text\n";
   for (const auto &cue : cues) {
-    if (!std::isfinite(cue.start) || !std::isfinite(cue.end) ||
-        cue.start < 0 || cue.end <= cue.start || cue.end > 24 * 3600 ||
+    if (!std::isfinite(cue.start) || !std::isfinite(cue.end) || cue.start < 0 ||
+        cue.end <= cue.start || cue.end > 24 * 3600 ||
         cue.text.find('\0') != std::string::npos ||
         cue.speaker.find('\0') != std::string::npos)
       throw std::invalid_argument("Invalid subtitle cue");
@@ -137,8 +146,7 @@ void SubtitleScene::setCues(const std::vector<SubtitleCue> &cues, float fontSize
         style = names.front();
     }
     ass << "Dialogue: 0," << timestamp(cue.start) << ',' << timestamp(cue.end)
-        << ',' << style << ",,0,0,0,," << literal(cue.text)
-        << '\n';
+        << ',' << style << ",,0,0,0,," << literal(cue.text) << '\n';
   }
   loadAss(ass.str());
 }
@@ -152,7 +160,8 @@ void SubtitleScene::setStyle(AssStyle style) {
 
 void SubtitleScene::setPosition(double seconds) {
   if (!std::isfinite(seconds) || seconds < 0 || seconds > 24 * 3600)
-    throw std::invalid_argument("Subtitle position must be within 0..86400 seconds");
+    throw std::invalid_argument(
+        "Subtitle position must be within 0..86400 seconds");
   position = seconds;
 }
 
@@ -174,8 +183,9 @@ void SubtitleScene::render(RendererRef renderer, float) {
     if (state->glyphWidth < image->w || state->glyphHeight < image->h) {
       state->glyphWidth = std::max(state->glyphWidth, image->w);
       state->glyphHeight = std::max(state->glyphHeight, image->h);
-      state->glyph.reset(SDL_CreateTexture(&renderer, SDL_PIXELFORMAT_RGBA32,
-          SDL_TEXTUREACCESS_STREAMING, state->glyphWidth, state->glyphHeight));
+      state->glyph.reset(SDL_CreateTexture(
+          &renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STREAMING,
+          state->glyphWidth, state->glyphHeight));
       if (!state->glyph ||
           !SDL_SetTextureBlendMode(state->glyph.get(), SDL_BLENDMODE_BLEND))
         throw std::runtime_error(SDL_GetError());
@@ -197,10 +207,11 @@ void SubtitleScene::render(RendererRef renderer, float) {
     }
     SDL_UnlockTexture(state->glyph.get());
     const SDL_FRect source{0, 0, float(image->w), float(image->h)};
-    const SDL_FRect destination{image->dst_x * float(width) / w,
-        image->dst_y * float(height) / h, image->w * float(width) / w,
-        image->h * float(height) / h};
-    if (!SDL_RenderTexture(&renderer, state->glyph.get(), &source, &destination))
+    const SDL_FRect destination{
+        image->dst_x * float(width) / w, image->dst_y * float(height) / h,
+        image->w * float(width) / w, image->h * float(height) / h};
+    if (!SDL_RenderTexture(&renderer, state->glyph.get(), &source,
+                           &destination))
       throw std::runtime_error(SDL_GetError());
   }
 }

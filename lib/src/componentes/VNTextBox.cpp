@@ -18,7 +18,8 @@ VNTextBox::VNTextBox(Engine &engineRef, std::string speaker,
 }
 
 void VNTextBox::completeDialogue() {
-  visibleChars = static_cast<double>(VNTextBoxUtility::CountUtf8Chars(fullDialogue));
+  visibleChars =
+      static_cast<double>(VNTextBoxUtility::CountUtf8Chars(fullDialogue));
   visibleDialogue = fullDialogue;
   isComplete = true;
 }
@@ -109,11 +110,13 @@ void VNTextBox::renderDialogue(RendererRef renderer) {
     return engine.GetUI().textSize(str, 1140.0f).x;
   };
 
-  const auto lines = VNTextBoxUtility::WrapText(visibleDialogue, measureText, 1140.0f);
-  
+  const auto lines =
+      VNTextBoxUtility::WrapText(visibleDialogue, measureText, 1140.0f);
+
   int yOffset = 550;
   for (const auto &line : lines) {
-    engine.GetUI().text(renderer, line, 60, static_cast<float>(yOffset), 1140.0f);
+    engine.GetUI().text(renderer, line, 60, static_cast<float>(yOffset),
+                        1140.0f);
     yOffset += 28;
   }
 

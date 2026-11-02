@@ -250,7 +250,7 @@ void VNSaveMenu::render(RendererRef renderer, float) {
   if (!opened)
     return;
   auto &ui = engine.GetUI();
-  ui.panel(renderer, {0, 0, UI::width, UI::height}, {0, 0, 0, 190});
+  ui.backdrop(renderer, {0, 0, 0, 190});
   ui.panel(renderer, {210, 60, 880, 610});
   ui.text(renderer, loading ? "Load game" : "Save game", 230, 85, 640,
           {255, 215, 100, 255});

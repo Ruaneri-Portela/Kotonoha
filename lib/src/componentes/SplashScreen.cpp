@@ -1,22 +1,40 @@
 #include <Kotonoha/componentes/SplashScreen.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/media/MediaDecoder.hpp>
+#include <Kotonoha/media/MediaPlayer.hpp>
 
 #include <algorithm>
+#include <cctype>
 #include <fstream>
 #include <iterator>
 
 namespace Kotonoha {
+namespace {
+
+bool isPictureExtension(const std::filesystem::path &path) {
+  std::string extension = path.extension().string();
+  std::transform(extension.begin(), extension.end(), extension.begin(),
+                 [](unsigned char character) {
+                   return static_cast<char>(std::tolower(character));
+                 });
+  return extension == ".apng" || extension == ".avif" || extension == ".bmp" ||
+         extension == ".gif" || extension == ".jpeg" || extension == ".jpg" ||
+         extension == ".png" || extension == ".tga" || extension == ".tif" ||
+         extension == ".tiff" || extension == ".webp";
+}
+
+} // namespace
 
 SplashScreen::SplashScreen(Engine &engine,
-                           std::vector<std::filesystem::path> pictures)
-    : Scene(engine), pictures(std::move(pictures)) {
+                           std::vector<std::filesystem::path> media)
+    : Scene(engine), media(std::move(media)) {
   restart();
 }
 
 void SplashScreen::restart() {
   current = 0;
   texture.reset();
+  video.reset();
   loaded = false;
   startedNs = SDL_GetTicksNS();
 }
@@ -24,8 +42,13 @@ void SplashScreen::restart() {
 void SplashScreen::next() {
   ++current;
   texture.reset();
+  video.reset();
   loaded = false;
   startedNs = SDL_GetTicksNS();
+}
+
+bool SplashScreen::currentIsVideo() const {
+  return !finished() && !isPictureExtension(media[current]);
 }
 
 double SplashScreen::elapsed() const {
@@ -44,13 +67,34 @@ bool SplashScreen::handleEvent(EventRef event) {
 }
 
 void SplashScreen::update() {
-  if (loaded && !finished() && elapsed() >= displaySeconds)
+  if (!loaded || finished())
+    return;
+  if (video) {
+    if (video->finished())
+      next();
+  } else if (elapsed() >= displaySeconds) {
     next();
+  }
 }
 
 void SplashScreen::load(RendererRef renderer) {
   while (!finished() && !loaded) {
-    std::ifstream file(pictures[current], std::ios::binary);
+    if (currentIsVideo()) {
+      try {
+        video = std::make_unique<MediaPlayer>(engine.GetAudio());
+        video->open(media[current].string(), false, "splash");
+        loaded = true;
+        startedNs = SDL_GetTicksNS();
+        return;
+      } catch (const std::exception &error) {
+        SDL_Log("Splash %s: %s", media[current].string().c_str(), error.what());
+        video.reset();
+        next();
+        continue;
+      }
+    }
+
+    std::ifstream file(media[current], std::ios::binary);
     std::vector<Uint8> bytes((std::istreambuf_iterator<char>(file)),
                              std::istreambuf_iterator<char>());
     SurfacePtr surface;
@@ -58,8 +102,7 @@ void SplashScreen::load(RendererRef renderer) {
       try {
         surface = MediaDecoder::decodePicture(bytes);
       } catch (const std::exception &error) {
-        SDL_Log("Splash %s: %s", pictures[current].string().c_str(),
-                error.what());
+        SDL_Log("Splash %s: %s", media[current].string().c_str(), error.what());
       }
     }
     if (surface)
@@ -86,9 +129,20 @@ void SplashScreen::render(RendererRef renderer, float) {
   const SDL_FRect screen{0, 0, float(width), float(height)};
   SDL_SetRenderDrawColor(&renderer, 0, 0, 0, 255);
   SDL_RenderFillRect(&renderer, &screen);
+
+  if (video) {
+    try {
+      video->update(renderer);
+      video->render(renderer, screen);
+    } catch (const std::exception &error) {
+      SDL_Log("Splash %s: %s", media[current].string().c_str(), error.what());
+      next();
+    }
+    return;
+  }
+
   if (!texture)
     return;
-
   float textureWidth = 0, textureHeight = 0;
   SDL_GetTextureSize(texture.get(), &textureWidth, &textureHeight);
   const float fit = std::min(screen.w / textureWidth, screen.h / textureHeight);

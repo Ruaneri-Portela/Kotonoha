@@ -79,10 +79,10 @@ public:
 std::vector<Uint8> bitmap() {
   SurfacePtr surface(SDL_CreateSurface(3, 2, SDL_PIXELFORMAT_RGBA32));
   require(surface != nullptr, "Create bitmap");
-  require(SDL_FillSurfaceRect(surface.get(), nullptr,
-                              SDL_MapSurfaceRGBA(surface.get(), 10, 20, 30,
-                                                 255)),
-          "Fill bitmap");
+  require(
+      SDL_FillSurfaceRect(surface.get(), nullptr,
+                          SDL_MapSurfaceRGBA(surface.get(), 10, 20, 30, 255)),
+      "Fill bitmap");
   SDL_IOStream *stream = SDL_IOFromDynamicMem();
   require(stream != nullptr, "Open bitmap stream");
   require(SDL_SaveBMP_IO(surface.get(), stream, false), "Encode bitmap");
@@ -125,9 +125,9 @@ std::vector<Uint8> wave() {
 }
 
 void fileSystemProvider() {
-  const auto root = std::filesystem::temp_directory_path() /
-                    ("kotonoha-assets-" +
-                     std::to_string(SDL_GetPerformanceCounter()));
+  const auto root =
+      std::filesystem::temp_directory_path() /
+      ("kotonoha-assets-" + std::to_string(SDL_GetPerformanceCounter()));
   std::filesystem::create_directories(root / "pictures");
   writeTextFileAtomically((root / "pictures/a.txt").string(), "hello");
   std::filesystem::create_directories(root.parent_path() / "outside");

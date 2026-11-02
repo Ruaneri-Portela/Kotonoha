@@ -111,10 +111,12 @@ const std::map<std::string, Tool> &tools() {
        {"Jump to an engine or game-specific node by its listed string ID.",
         R"({"type":"object","properties":{"node_id":{"type":"string","minLength":1}},"required":["node_id"],"additionalProperties":false})"}},
       {"load_ktrf",
-       {"Replace the current graph with a compatible KTRF within the MCP file root.",
+       {"Replace the current graph with a compatible KTRF within the MCP file "
+        "root.",
         R"({"type":"object","properties":{"path":{"type":"string","minLength":1}},"required":["path"],"additionalProperties":false})"}},
       {"dump_ktrf",
-       {"Dump the current KTRF within the MCP file root (.json is editable for the VN profile).",
+       {"Dump the current KTRF within the MCP file root (.json is editable for "
+        "the VN profile).",
         R"({"type":"object","properties":{"path":{"type":"string","minLength":1}},"required":["path"],"additionalProperties":false})"}},
       {"advance",
        {"Complete/advance a traditional dialogue; rejects blocked input.",
@@ -314,9 +316,11 @@ struct MCPServer::State {
     put(result.get(), "timeline_playing", timeline.isPlaying());
     put(result.get(), "seconds",
         engine.GetRuntime().debugNodeSeconds().value_or(timeline.seconds()));
-    put(result.get(), "master_volume", double(engine.GetAudio().getMasterVolume()));
+    put(result.get(), "master_volume",
+        double(engine.GetAudio().getMasterVolume()));
     put(result.get(), "master_muted", engine.GetAudio().isMasterMuted());
-    put(result.get(), "debug_ui_scale", double(engine.GetSettings().debugUIScale));
+    put(result.get(), "debug_ui_scale",
+        double(engine.GetSettings().debugUIScale));
     put(result.get(), "waiting_for_choice", choiceVisible);
     bool textInput = false;
     for (auto *scene : engine.GetRuntime().GetActiveScenes())
@@ -367,7 +371,8 @@ struct MCPServer::State {
         json_object_object_add(item.get(), "assets", assets);
         json_object_array_add(nodes, item.release());
       }
-      for (int id : custom.empty() ? manager.getNodeIds() : std::vector<int>{}) {
+      for (int id :
+           custom.empty() ? manager.getNodeIds() : std::vector<int>{}) {
         const auto &node = manager.getScriptNode(id);
         auto item = object();
         put(item.get(), "id", id);
@@ -390,7 +395,8 @@ struct MCPServer::State {
       return result;
     }
     if (engine.GetSettingsMenu().isOpen() && name != "set_paused" &&
-        name != "set_debug" && name != "dump_translation" && name != "dump_ktrf")
+        name != "set_debug" && name != "dump_translation" &&
+        name != "dump_ktrf")
       throw std::logic_error(
           "Close engine settings before controlling the story");
     if (name == "set_paused") {

@@ -88,6 +88,7 @@ void TextInputDialog::update() {
 
 void TextInputDialog::render(RendererRef renderer, float) {
   auto &ui = engine.GetUI();
+  ui.backdrop(renderer);
   ui.panel(renderer, {380, 240, 520, 230});
   ui.text(renderer, promptText, 400, 260, 480, {255, 215, 100, 255});
   ui.panel(renderer, {400, 330, 480, 48}, {45, 50, 70, 255});

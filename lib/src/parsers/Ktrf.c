@@ -6,8 +6,8 @@
 #include <string.h>
 
 #define KTRF_MAX_ALIGNMENT 4096u
-#define KTRF_SECTION_FLAGS_KNOWN                                             \
-  (KOTONOHA_KTRF_SECTION_REQUIRED | KOTONOHA_KTRF_SECTION_COMPRESSED |      \
+#define KTRF_SECTION_FLAGS_KNOWN                                               \
+  (KOTONOHA_KTRF_SECTION_REQUIRED | KOTONOHA_KTRF_SECTION_COMPRESSED |         \
    KOTONOHA_KTRF_SECTION_NON_SEMANTIC)
 
 static const char *const KTRF_SECTION_ORDER[] = {
@@ -119,10 +119,10 @@ static void ktrf_sha256_transform(KtrfSha256 *ctx, const uint8_t block[64]) {
   for (i = 0; i < 16u; ++i)
     w[i] = ktrf_be32(block + i * 4u);
   for (i = 16u; i < 64u; ++i) {
-    uint32_t s0 = ktrf_rotr32(w[i - 15u], 7) ^
-                  ktrf_rotr32(w[i - 15u], 18) ^ (w[i - 15u] >> 3);
-    uint32_t s1 = ktrf_rotr32(w[i - 2u], 17) ^
-                  ktrf_rotr32(w[i - 2u], 19) ^ (w[i - 2u] >> 10);
+    uint32_t s0 = ktrf_rotr32(w[i - 15u], 7) ^ ktrf_rotr32(w[i - 15u], 18) ^
+                  (w[i - 15u] >> 3);
+    uint32_t s1 = ktrf_rotr32(w[i - 2u], 17) ^ ktrf_rotr32(w[i - 2u], 19) ^
+                  (w[i - 2u] >> 10);
     w[i] = w[i - 16u] + s0 + w[i - 7u] + s1;
   }
 
@@ -242,8 +242,7 @@ static int ktrf_type_known(const uint8_t type[4]) {
   return ktrf_type_rank(type) < (int)KTRF_SECTION_ORDER_COUNT;
 }
 
-static int ktrf_type_compare_canonical(const uint8_t a[4],
-                                       const uint8_t b[4]) {
+static int ktrf_type_compare_canonical(const uint8_t a[4], const uint8_t b[4]) {
   int ra = ktrf_type_rank(a);
   int rb = ktrf_type_rank(b);
   if (ra != rb)
@@ -308,8 +307,7 @@ static int ktrf_slice_compare(const uint8_t *a, size_t a_size, const uint8_t *b,
 
 static int ktrf_validate_strs(Kotonoha_KtrfDocument *doc,
                               Kotonoha_KtrfError *error) {
-  const Kotonoha_KtrfSection *section =
-      Kotonoha_KtrfFindSection(doc, "STRS");
+  const Kotonoha_KtrfSection *section = Kotonoha_KtrfFindSection(doc, "STRS");
   const uint8_t *payload;
   uint32_t count, bytes;
   uint64_t table_bytes, data_offset;
@@ -502,34 +500,38 @@ static int ktrf_parse_owned(Kotonoha_KtrfDocument *doc,
         return ktrf_fail(error, KOTONOHA_KTRF_ERROR_FORMAT,
                          "duplicate KTRF section %.4s", (const char *)entry);
     }
-    if (i != 0u &&
-        ktrf_type_compare_canonical((const uint8_t *)doc->sections[i - 1u].type,
-                                    entry) >= 0)
+    if (i != 0u && ktrf_type_compare_canonical(
+                       (const uint8_t *)doc->sections[i - 1u].type, entry) >= 0)
       return ktrf_fail(error, KOTONOHA_KTRF_ERROR_FORMAT,
                        "KTRF section directory is not canonical");
     if ((section_flags & ~KTRF_SECTION_FLAGS_KNOWN) != 0u)
       return ktrf_fail(error, KOTONOHA_KTRF_ERROR_FORMAT,
-                       "KTRF section %.4s has unknown flags", (const char *)entry);
+                       "KTRF section %.4s has unknown flags",
+                       (const char *)entry);
     if ((section_flags & KOTONOHA_KTRF_SECTION_COMPRESSED) != 0u)
       return ktrf_fail(error, KOTONOHA_KTRF_ERROR_UNSUPPORTED,
                        "compressed KTRF sections are unsupported in v0.1");
     if ((section_flags & KOTONOHA_KTRF_SECTION_REQUIRED) != 0u &&
         !ktrf_type_known(entry))
       return ktrf_fail(error, KOTONOHA_KTRF_ERROR_UNSUPPORTED,
-                       "unknown required KTRF section %.4s", (const char *)entry);
+                       "unknown required KTRF section %.4s",
+                       (const char *)entry);
     if (reserved != 0u || !ktrf_is_power_of_two(alignment) ||
         alignment > KTRF_MAX_ALIGNMENT || payload_offset % alignment != 0u)
-      return ktrf_fail(error, KOTONOHA_KTRF_ERROR_FORMAT,
-                       "KTRF section %.4s has invalid reserved/alignment fields",
-                       (const char *)entry);
+      return ktrf_fail(
+          error, KOTONOHA_KTRF_ERROR_FORMAT,
+          "KTRF section %.4s has invalid reserved/alignment fields",
+          (const char *)entry);
     if (decoded_size != stored_size)
-      return ktrf_fail(error, KOTONOHA_KTRF_ERROR_UNSUPPORTED,
-                       "KTRF section %.4s decoded_size differs without compression",
-                       (const char *)entry);
+      return ktrf_fail(
+          error, KOTONOHA_KTRF_ERROR_UNSUPPORTED,
+          "KTRF section %.4s decoded_size differs without compression",
+          (const char *)entry);
     if (payload_offset < directory_end ||
         !ktrf_range_fits(payload_offset, stored_size, size))
       return ktrf_fail(error, KOTONOHA_KTRF_ERROR_FORMAT,
-                       "KTRF section %.4s payload is out of bounds", (const char *)entry);
+                       "KTRF section %.4s payload is out of bounds",
+                       (const char *)entry);
 
     memcpy(dst->type, entry, 4u);
     dst->type[4] = '\0';
@@ -659,15 +661,17 @@ int Kotonoha_KtrfBuild(const Kotonoha_KtrfSection *sections, uint32_t count,
     ktrf_put_le(entry + 32u, sections[i].item_count, 4u);
     ktrf_put_le(entry + 36u, 8u, 4u);
     if (sections[i].stored_size != 0u)
-      memcpy(temp.bytes + offset, sections[i].payload, (size_t)sections[i].stored_size);
-    ktrf_put_le(entry + 40u,
-                 ktrf_crc32(temp.bytes + offset, (size_t)sections[i].stored_size), 4u);
+      memcpy(temp.bytes + offset, sections[i].payload,
+             (size_t)sections[i].stored_size);
+    ktrf_put_le(
+        entry + 40u,
+        ktrf_crc32(temp.bytes + offset, (size_t)sections[i].stored_size), 4u);
     offset += (size_t)sections[i].stored_size;
   }
   ktrf_sha256(temp.bytes + KOTONOHA_KTRF_HEADER_SIZE,
-               size - KOTONOHA_KTRF_HEADER_SIZE, temp.bytes + 48u);
+              size - KOTONOHA_KTRF_HEADER_SIZE, temp.bytes + 48u);
   ktrf_put_le(temp.bytes + 44u,
-               ktrf_crc32(temp.bytes, KOTONOHA_KTRF_HEADER_SIZE), 4u);
+              ktrf_crc32(temp.bytes, KOTONOHA_KTRF_HEADER_SIZE), 4u);
   if (!ktrf_parse_owned(&temp, error)) {
     Kotonoha_KtrfClean(&temp);
     return 0;

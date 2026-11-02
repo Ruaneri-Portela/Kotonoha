@@ -3,8 +3,8 @@
 #include <SDL3/SDL_main.h>
 
 #include "DemoGame.hpp"
-#include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/CommandLine.hpp>
+#include <Kotonoha/core/Engine.hpp>
 #include <cstdio>
 
 #include <exception>
@@ -27,7 +27,10 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
     options.persistSettings = true;
     Kotonoha::CommandLine arguments("Kotonoha", options);
     arguments.parse(argc, argv);
-    if (arguments.wantsHelp()) { std::fputs(arguments.help().c_str(), stdout); return SDL_APP_SUCCESS; }
+    if (arguments.wantsHelp()) {
+      std::fputs(arguments.help().c_str(), stdout);
+      return SDL_APP_SUCCESS;
+    }
     if (options.enableMCP && options.settingsPath.empty())
       options.persistSettings = false;
     auto *app = new Application(std::move(options));

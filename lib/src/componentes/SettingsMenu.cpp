@@ -175,7 +175,7 @@ void SettingsMenu::render(RendererRef renderer) {
           std::to_string(int(std::lround(draft.masterVolume * 100))) +
           "% (Left / Right)",
       std::string("Mute all audio: ") + (draft.masterMuted ? "Yes" : "No")};
-  ui.panel(renderer, {0, 0, UI::width, UI::height}, {0, 0, 0, 210});
+  ui.backdrop(renderer, {0, 0, 0, 210});
   ui.panel(renderer, {330, 30, 620, 650});
   ui.text(renderer, "Settings", 360, 50, 560, {255, 215, 100, 255});
   const auto items = rows();

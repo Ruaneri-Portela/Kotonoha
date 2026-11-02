@@ -65,7 +65,8 @@ void ChoiceQuestionScene::onEvent(EventRef event) {
     if (options[selected].hitBox.y < top)
       scroll += options[selected].hitBox.y - top;
     if (options[selected].hitBox.y + options[selected].hitBox.h > bottom)
-      scroll += options[selected].hitBox.y + options[selected].hitBox.h - bottom;
+      scroll +=
+          options[selected].hitBox.y + options[selected].hitBox.h - bottom;
     scroll = std::max(0.0f, scroll);
   }
   if (event.type == SDL_EVENT_MOUSE_WHEEL) {
@@ -105,8 +106,8 @@ void ChoiceQuestionScene::renderPanel(RendererRef renderer) {
   ui.text(renderer, questionText, 230, 100, 820, {255, 215, 100, 255});
 }
 
-void ChoiceQuestionScene::renderOption(RendererRef renderer,
-                                       std::size_t index, bool focused) {
+void ChoiceQuestionScene::renderOption(RendererRef renderer, std::size_t index,
+                                       bool focused) {
   engine.GetUI().button(renderer, options[index].hitBox, options[index].label,
                         focused);
 }

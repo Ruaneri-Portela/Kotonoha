@@ -28,7 +28,9 @@ bool validSection(const std::string &name) {
 } // namespace
 
 void Translation::load(const std::string &path) {
-  std::ifstream input(FileResolver::findGameAsset("snow-radish-vacation", path).value_or(path), std::ios::binary);
+  std::ifstream input(
+      FileResolver::findGameAsset("snow-radish-vacation", path).value_or(path),
+      std::ios::binary);
   if (!input)
     throw std::runtime_error("Cannot open translation: " + path);
   std::string source((std::istreambuf_iterator<char>(input)), {});

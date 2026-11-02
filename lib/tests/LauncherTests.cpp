@@ -40,8 +40,9 @@ public:
 class TestGameLauncher final : public GameLauncher {
 public:
   TestGameLauncher(const std::string &settings, std::string directory)
-      : GameLauncher("Game", settings,
-                     {"game directory", PathKind::Folder, {}, "game-path.txt", {}}) {
+      : GameLauncher(
+            "Game", settings,
+            {"game directory", PathKind::Folder, {}, "game-path.txt", {}}) {
     loadPath(std::move(directory));
   }
 
@@ -113,8 +114,7 @@ void launcher(const std::filesystem::path &directory) {
   const auto saved = EngineSettings::load(path);
   require(saved.upscaling.factor == 2.5f &&
               saved.upscaling.backend == UpscaleBackend::MetalFX &&
-              saved.width == 1600 &&
-              saved.translationPath == transPath &&
+              saved.width == 1600 && saved.translationPath == transPath &&
               saved.fontPath == "font.ttf",
           "The engine settings file holds the launcher choices");
 

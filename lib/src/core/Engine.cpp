@@ -6,9 +6,9 @@
 #include <Kotonoha/core/FileSystem.hpp>
 #include <Kotonoha/core/UI.hpp>
 #include <Kotonoha/debug/DebugOverlay.hpp>
+#include <Kotonoha/events/BackAction.hpp>
 #include <Kotonoha/mcp/MCPServer.hpp>
 #include <Kotonoha/script/TimelinePlayer.hpp>
-#include <Kotonoha/events/BackAction.hpp>
 
 #include <algorithm>
 #include <charconv>
@@ -28,7 +28,8 @@ std::vector<DebugNode> Engine::debugNodes() {
     const auto &node = manager.getScriptNode(id);
     DebugNode item{std::to_string(id), node.name, {}};
     for (const auto &asset : {node.backgroundAsset, node.characterAsset})
-      if (!asset.empty()) item.assets.push_back(asset);
+      if (!asset.empty())
+        item.assets.push_back(asset);
     for (const auto &cue : node.timeline.cues)
       if ((cue.type == CueType::Video || cue.type == CueType::Audio) &&
           !cue.value.empty())
@@ -47,7 +48,8 @@ void Engine::debugJumpToNode(const std::string &id) {
     runtime.debugJumpToNode(id);
   } else {
     int number = -1;
-    const auto parsed = std::from_chars(id.data(), id.data() + id.size(), number);
+    const auto parsed =
+        std::from_chars(id.data(), id.data() + id.size(), number);
     if (parsed.ec != std::errc{} || parsed.ptr != id.data() + id.size())
       throw std::invalid_argument("Invalid script node ID");
     GetVNManagerRuntime(*this).debugJumpToNode(number);
@@ -61,7 +63,8 @@ void Engine::loadKtrf(const std::string &path) {
     runtime.loadKtrf(path);
   } else {
     if (!runtime.debugNodes().empty())
-      throw std::logic_error("This game's native scripts do not use the VN KTRF profile");
+      throw std::logic_error(
+          "This game's native scripts do not use the VN KTRF profile");
     if (runtime.GetState() != GameState::Gameplay)
       throw std::logic_error("Start gameplay before loading KTRF");
     GetVNManagerRuntime(*this).loadKtrf(path);
@@ -74,7 +77,8 @@ void Engine::dumpKtrf(const std::string &path) {
     runtime.dumpKtrf(path);
   else {
     if (!runtime.debugNodes().empty())
-      throw std::logic_error("This game's native scripts do not use the VN KTRF profile");
+      throw std::logic_error(
+          "This game's native scripts do not use the VN KTRF profile");
     GetVNManagerRuntime(*this).dumpKtrf(path);
   }
   SDL_LogInfo(LogCore, "Dumped KTRF: %s", path.c_str());
@@ -98,7 +102,7 @@ Engine::Engine(Runtime &run, EngineOptions options)
 #else
                                   std::filesystem::path{}
 #endif
-                                  )),
+                                      )),
       settings(options.settings), settingsPath(options.settingsPath) {
   if (!options.subtitleStylePath.empty())
     subtitleStyle = AssStyle::load(options.subtitleStylePath);
@@ -229,7 +233,8 @@ void Engine::applyWindowSettings(const EngineSettings &value) {
   int width = 0, height = 0;
   check(SDL_GetWindowSize(window.get(), &width, &height), "Get window size");
   if ((!fullscreen || modeChanged) &&
-      (width != value.width || height != value.height) && canChangeDisplaySize())
+      (width != value.width || height != value.height) &&
+      canChangeDisplaySize())
     check(SDL_SetWindowSize(window.get(), value.width, value.height),
           "Set window size");
   if (SDL_GetDisplayForWindow(window.get()) != display)
@@ -421,16 +426,20 @@ SDL_AppResult Engine::Event(EventPtr event) {
 
   // Manual mobile menu button click detection
   const SDL_FRect mobileMenuButton{16, 16, 76, 36};
-  if (isMobilePlatform() && runtime.GetState() == GameState::Gameplay && !settingsMenu->isOpen() && !GetInGameMenuRuntime(*this).IsOpen()) {
-    if (logical.type == SDL_EVENT_MOUSE_BUTTON_DOWN && logical.button.button == SDL_BUTTON_LEFT) {
+  if (isMobilePlatform() && runtime.GetState() == GameState::Gameplay &&
+      !settingsMenu->isOpen() && !GetInGameMenuRuntime(*this).IsOpen()) {
+    if (logical.type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
+        logical.button.button == SDL_BUTTON_LEFT) {
       const SDL_FPoint pt{framed.button.x, framed.button.y};
       if (SDL_PointInRectFloat(&pt, &mobileMenuButton)) {
         GetInGameMenuRuntime(*this).open();
         return SDL_APP_CONTINUE;
       }
     } else if (logical.type == SDL_EVENT_FINGER_DOWN) {
-      const SDL_FPoint pt{logical.tfinger.x * view.x, logical.tfinger.y * view.y};
-      const SDL_FPoint designPt{(pt.x - frame.x) / frame.scale, (pt.y - frame.y) / frame.scale};
+      const SDL_FPoint pt{logical.tfinger.x * view.x,
+                          logical.tfinger.y * view.y};
+      const SDL_FPoint designPt{(pt.x - frame.x) / frame.scale,
+                                (pt.y - frame.y) / frame.scale};
       if (SDL_PointInRectFloat(&designPt, &mobileMenuButton)) {
         GetInGameMenuRuntime(*this).open();
         return SDL_APP_CONTINUE;
@@ -471,7 +480,8 @@ SDL_AppResult Engine::Event(EventPtr event) {
     }
   }
 
-  // Back action in-game screen handling for mobile (Android/iOS) and general inGame gameplay
+  // Back action in-game screen handling for mobile (Android/iOS) and general
+  // inGame gameplay
   if (runtime.GetState() == GameState::Gameplay && !settingsMenu->isOpen()) {
     bool sceneCapturingInput = false;
     for (const auto *scene : runtime.GetActiveScenes()) {

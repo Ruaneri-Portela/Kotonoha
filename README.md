@@ -26,6 +26,7 @@ remain out of Git. Supply your own legally obtained data:
 | Snow Radish Vacation | `games/snow-radish-vacation/game-assets/SCRIPT.DAT` and the other DAT archives |
 | DDLC | `games/doki-doki-literature-club/game-assets/game/*.rpa` and `game-assets/characters/*.chr` |
 | School Days | Original game archives in `games/school-days/game-assets/` |
+| [AIR Standard Edition (initial port)](games/air/README.md) | `Seen.txt`, `Gameexe.ini` and original resource folders; `--air DIRECTORY` |
 
 The port does not download or supply commercial game data.
 

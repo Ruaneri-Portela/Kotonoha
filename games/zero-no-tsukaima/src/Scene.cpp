@@ -18,14 +18,21 @@ struct Reader {
   explicit Reader(const std::vector<uint8_t> &d) : b(d) {}
 
   uint32_t U32() {
-    if (p + 4 > b.size()) { ok = false; return 0; }
-    uint32_t v = b[p] | b[p + 1] << 8 | b[p + 2] << 16 | uint32_t(b[p + 3]) << 24;
+    if (p + 4 > b.size()) {
+      ok = false;
+      return 0;
+    }
+    uint32_t v =
+        b[p] | b[p + 1] << 8 | b[p + 2] << 16 | uint32_t(b[p + 3]) << 24;
     p += 4;
     return v;
   }
   int32_t I32() { return int32_t(U32()); }
   void Part() {
-    if (p + 4 > b.size() || std::memcmp(&b[p], "TRAP", 4) != 0) { ok = false; return; }
+    if (p + 4 > b.size() || std::memcmp(&b[p], "TRAP", 4) != 0) {
+      ok = false;
+      return;
+    }
     p += 4;
   }
   NutLiteral Obj() {
@@ -33,9 +40,13 @@ struct Reader {
     const uint32_t t = U32();
     if (t == 0x08000010) {
       const int32_t n = I32();
-      if (n < 0 || p + size_t(n) > b.size()) { ok = false; return lit; }
+      if (n < 0 || p + size_t(n) > b.size()) {
+        ok = false;
+        return lit;
+      }
       lit.kind = NutLiteral::String;
-      lit.text = Kotonoha::ShiftJisToUtf8(std::string(reinterpret_cast<const char *>(&b[p]), size_t(n)));
+      lit.text = Kotonoha::ShiftJisToUtf8(
+          std::string(reinterpret_cast<const char *>(&b[p]), size_t(n)));
       p += size_t(n);
     } else if (t == 0x05000002) {
       lit.kind = NutLiteral::Integer;
@@ -56,39 +67,65 @@ void Proto(Reader &r, NutFunction *fn) {
   r.Obj();
   r.Obj();
   r.Part();
-  const int32_t nl = r.I32(), np = r.I32(), no = r.I32(), nlv = r.I32(), nli = r.I32(), ni = r.I32(), nf = r.I32();
-  if (!r.ok || nl < 0 || np < 0 || no < 0 || nlv < 0 || nli < 0 || ni < 0 || nf < 0) { r.ok = false; return; }
+  const int32_t nl = r.I32(), np = r.I32(), no = r.I32(), nlv = r.I32(),
+                nli = r.I32(), ni = r.I32(), nf = r.I32();
+  if (!r.ok || nl < 0 || np < 0 || no < 0 || nlv < 0 || nli < 0 || ni < 0 ||
+      nf < 0) {
+    r.ok = false;
+    return;
+  }
   r.Part();
   for (int i = 0; i < nl && r.ok; ++i) {
     NutLiteral l = r.Obj();
-    if (fn) fn->literals.push_back(std::move(l));
+    if (fn)
+      fn->literals.push_back(std::move(l));
   }
   r.Part();
-  for (int i = 0; i < np && r.ok; ++i) r.Obj();
+  for (int i = 0; i < np && r.ok; ++i)
+    r.Obj();
   r.Part();
-  for (int i = 0; i < no && r.ok; ++i) { r.U32(); r.Obj(); r.Obj(); }
+  for (int i = 0; i < no && r.ok; ++i) {
+    r.U32();
+    r.Obj();
+    r.Obj();
+  }
   r.Part();
-  for (int i = 0; i < nlv && r.ok; ++i) { r.Obj(); r.U32(); r.U32(); r.U32(); }
+  for (int i = 0; i < nlv && r.ok; ++i) {
+    r.Obj();
+    r.U32();
+    r.U32();
+    r.U32();
+  }
   r.Part();
   r.p += size_t(nli) * 8;
   r.Part();
-  if (!r.ok || r.p + size_t(ni) * 8 > r.b.size()) { r.ok = false; return; }
+  if (!r.ok || r.p + size_t(ni) * 8 > r.b.size()) {
+    r.ok = false;
+    return;
+  }
   for (int i = 0; i < ni; ++i) {
     const uint8_t *q = &r.b[r.p + size_t(i) * 8];
     NutInstruction in;
     in.arg1 = int32_t(q[0] | q[1] << 8 | q[2] << 16 | uint32_t(q[3]) << 24);
-    in.op = q[4]; in.arg0 = q[5]; in.arg2 = q[6]; in.arg3 = q[7];
-    if (fn) fn->code.push_back(in);
+    in.op = q[4];
+    in.arg0 = q[5];
+    in.arg2 = q[6];
+    in.arg3 = q[7];
+    if (fn)
+      fn->code.push_back(in);
   }
   r.p += size_t(ni) * 8;
   r.Part();
-  for (int i = 0; i < nf && r.ok; ++i) Proto(r, nullptr);
+  for (int i = 0; i < nf && r.ok; ++i)
+    Proto(r, nullptr);
 }
 
 } // namespace
 
 bool ParseNut(const std::vector<uint8_t> &data, NutFunction *out) {
-  if (data.size() < 12 || data[0] != 0xFA || data[1] != 0xFA || std::memcmp(&data[2], "RIQS", 4) != 0) return false;
+  if (data.size() < 12 || data[0] != 0xFA || data[1] != 0xFA ||
+      std::memcmp(&data[2], "RIQS", 4) != 0)
+    return false;
   Reader r(data);
   r.p = 6;
   r.I32();
@@ -96,11 +133,14 @@ bool ParseNut(const std::vector<uint8_t> &data, NutFunction *out) {
   return r.ok;
 }
 
-bool ParseSceneTags(const std::vector<uint8_t> &unpacked, std::vector<SceneTag> *out) {
+bool ParseSceneTags(const std::vector<uint8_t> &unpacked,
+                    std::vector<SceneTag> *out) {
   NutFunction fn;
-  if (!ParseNut(unpacked, &fn)) return false;
+  if (!ParseNut(unpacked, &fn))
+    return false;
   auto text = [&](int32_t idx) -> std::string {
-    if (idx < 0 || size_t(idx) >= fn.literals.size()) return {};
+    if (idx < 0 || size_t(idx) >= fn.literals.size())
+      return {};
     const NutLiteral &l = fn.literals[size_t(idx)];
     return l.kind == NutLiteral::Integer ? std::to_string(l.value) : l.text;
   };
@@ -108,19 +148,29 @@ bool ParseSceneTags(const std::vector<uint8_t> &unpacked, std::vector<SceneTag> 
   SceneTag cur;
   for (const NutInstruction &in : fn.code) {
     switch (in.op) {
-    case 30: cur = SceneTag(); break;
-    case 1: regs[in.arg0] = text(in.arg1); break;
-    case 2: regs[in.arg0] = std::to_string(in.arg1); break;
+    case 30:
+      cur = SceneTag();
+      break;
+    case 1:
+      regs[in.arg0] = text(in.arg1);
+      break;
+    case 2:
+      regs[in.arg0] = std::to_string(in.arg1);
+      break;
     case 4:
       regs[in.arg0] = text(in.arg1);
       regs[in.arg2] = text(in.arg3);
       break;
-    case 60: cur.attrs[regs[3]] = regs[4]; break;
+    case 60:
+      cur.attrs[regs[3]] = regs[4];
+      break;
     case 32:
-      if (auto it = cur.attrs.find("tagname"); it != cur.attrs.end()) cur.name = it->second;
+      if (auto it = cur.attrs.find("tagname"); it != cur.attrs.end())
+        cur.name = it->second;
       out->push_back(cur);
       break;
-    default: break;
+    default:
+      break;
     }
   }
   return true;
@@ -128,11 +178,13 @@ bool ParseSceneTags(const std::vector<uint8_t> &unpacked, std::vector<SceneTag> 
 
 std::shared_ptr<NutValue> EvalNutTable(const std::vector<uint8_t> &unpacked) {
   NutFunction fn;
-  if (!ParseNut(unpacked, &fn)) return nullptr;
+  if (!ParseNut(unpacked, &fn))
+    return nullptr;
   using Ptr = std::shared_ptr<NutValue>;
   auto literal = [&](int32_t i) {
     auto v = std::make_shared<NutValue>();
-    if (i < 0 || size_t(i) >= fn.literals.size()) return v;
+    if (i < 0 || size_t(i) >= fn.literals.size())
+      return v;
     const NutLiteral &l = fn.literals[size_t(i)];
     if (l.kind == NutLiteral::Integer) {
       v->kind = NutValue::Integer;
@@ -153,11 +205,14 @@ std::shared_ptr<NutValue> EvalNutTable(const std::vector<uint8_t> &unpacked) {
     auto it = regs.find(i);
     return it == regs.end() ? nullptr : it->second;
   };
-  // Opcodes of this Squirrel build: 1 LOAD, 2 LOADINT, 4 DLOAD, 20 LOADNULLS, 30 NEWTABLE,
-  // 31 NEWARRAY, 32 APPEND, 45 NEG, 60 NEWSLOT (table a1, key a2, value a3).
+  // Opcodes of this Squirrel build: 1 LOAD, 2 LOADINT, 4 DLOAD, 20 LOADNULLS,
+  // 30 NEWTABLE, 31 NEWARRAY, 32 APPEND, 45 NEG, 60 NEWSLOT (table a1, key a2,
+  // value a3).
   for (const NutInstruction &in : fn.code) {
     switch (in.op) {
-    case 1: regs[in.arg0] = literal(in.arg1); break;
+    case 1:
+      regs[in.arg0] = literal(in.arg1);
+      break;
     case 2: {
       auto v = make(NutValue::Integer);
       v->value = in.arg1;
@@ -169,12 +224,18 @@ std::shared_ptr<NutValue> EvalNutTable(const std::vector<uint8_t> &unpacked) {
       regs[in.arg2] = literal(in.arg3);
       break;
     case 20:
-      for (int k = 0; k < in.arg1; ++k) regs[in.arg0 + k] = nullptr;
+      for (int k = 0; k < in.arg1; ++k)
+        regs[in.arg0 + k] = nullptr;
       break;
-    case 30: regs[in.arg0] = make(NutValue::Table); break;
-    case 31: regs[in.arg0] = make(NutValue::Array); break;
+    case 30:
+      regs[in.arg0] = make(NutValue::Table);
+      break;
+    case 31:
+      regs[in.arg0] = make(NutValue::Array);
+      break;
     case 32:
-      if (Ptr a = reg(in.arg0); a && a->kind == NutValue::Array) a->items.push_back(reg(in.arg1));
+      if (Ptr a = reg(in.arg0); a && a->kind == NutValue::Array)
+        a->items.push_back(reg(in.arg1));
       break;
     case 45:
       if (Ptr v = reg(in.arg1)) {
@@ -189,18 +250,22 @@ std::shared_ptr<NutValue> EvalNutTable(const std::vector<uint8_t> &unpacked) {
         t->fields.emplace_back(k ? k->Text() : std::string(), reg(in.arg3));
       }
       break;
-    default: break;
+    default:
+      break;
     }
   }
   Ptr root = reg(1);
   return root && root->kind == NutValue::Table ? root : nullptr;
 }
 
-bool ParseSceneNames(const std::vector<uint8_t> &unpacked, std::vector<std::string> *out) {
+bool ParseSceneNames(const std::vector<uint8_t> &unpacked,
+                     std::vector<std::string> *out) {
   NutFunction fn;
-  if (!ParseNut(unpacked, &fn)) return false;
+  if (!ParseNut(unpacked, &fn))
+    return false;
   for (const NutLiteral &l : fn.literals)
-    if (l.kind == NutLiteral::String && l.text != "next") out->push_back(l.text);
+    if (l.kind == NutLiteral::String && l.text != "next")
+      out->push_back(l.text);
   return !out->empty();
 }
 

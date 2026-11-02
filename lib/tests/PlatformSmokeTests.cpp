@@ -25,15 +25,19 @@ void runTests() {
   const auto resources = Kotonoha::resourceDirectory();
   require(Kotonoha::engineAssetDirectory() == resources / "assets",
           "Engine asset directory");
-  require(Kotonoha::gameAssetDirectory("platform-smoke") == resources / "game-assets",
+  require(Kotonoha::gameAssetDirectory("platform-smoke") ==
+              resources / "game-assets",
           "Game asset directory");
 #if defined(KOTONOHA_IOS_SMOKE)
   require(Kotonoha::preferredDataDirectory("platform-smoke") == resources,
           "iOS preferred data directory");
-  const auto documents = Kotonoha::preferredDocumentsDirectory("platform-smoke");
-  require(documents.filename() == "Documents", "iOS sandbox Documents directory");
-  const auto probe = documents /
-      ("kotonoha-path-smoke-" + std::to_string(SDL_GetPerformanceCounter()) + ".txt");
+  const auto documents =
+      Kotonoha::preferredDocumentsDirectory("platform-smoke");
+  require(documents.filename() == "Documents",
+          "iOS sandbox Documents directory");
+  const auto probe =
+      documents / ("kotonoha-path-smoke-" +
+                   std::to_string(SDL_GetPerformanceCounter()) + ".txt");
   Kotonoha::writeTextFileAtomically(probe.string(), "documents");
   std::ifstream input(probe);
   std::string contents;
@@ -48,7 +52,8 @@ void runTests() {
               "\xe3\x81\x93\xe3\x82\x93\xe3\x81\xab\xe3\x81\xa1\xe3\x81\xaf"
               "\xe2\x91\xa0\xef\xbd\x9e\xef\xbd\xb1",
           "CP932 conversion");
-  require(Kotonoha::ShiftJisToUtf8("a\x85\x40" "z") == "a?z",
+  require(Kotonoha::ShiftJisToUtf8("a\x85\x40"
+                                   "z") == "a?z",
           "Invalid CP932 sequence");
 
 #if defined(KOTONOHA_IOS_SMOKE)
