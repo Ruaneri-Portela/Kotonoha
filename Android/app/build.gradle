@@ -12,7 +12,15 @@ if (!vcpkgRoot) {
     throw new GradleException('Set VCPKG_ROOT to your vcpkg checkout before opening Android.')
 }
 def includeGameAssets = providers.gradleProperty('bundleGameAssets').orElse('true').get().toBoolean()
-def abis = providers.gradleProperty('abis').orElse('arm64-v8a').get().split(',').toList()
+
+def rawAbis = providers.gradleProperty('abis').orElse('arm64-v8a,x86_64').get().split(',').toList()
+def abis = rawAbis.collect { abi ->
+    def cleanAbi = abi.trim().toLowerCase()
+    if (cleanAbi == 'arm64' || cleanAbi == 'aarch64') return 'arm64-v8a'
+    if (cleanAbi == 'amd64' || cleanAbi == 'x64') return 'x86_64'
+    return cleanAbi
+}.unique()
+
 def games = [
         example: ['example', 'Kotonoha', 'me.kotonoha.example', 'Kotonoha'],
         zeroNoTsukaima: ['zero-no-tsukaima', 'ZeroNoTsukaima', 'me.hirameki.kotonoha.zeronotsukaima', 'Zero no Tsukaima'],
@@ -108,18 +116,25 @@ android.applicationVariants.all { variant ->
         doLast {
             new File(staged.get().asFile, 'game-assets').mkdirs()
             if (variant.flavorName == 'dokiDoki') {
-                if (abis.size() != 1) {
-                    throw new GradleException('DDLC APKs must use one ABI each (-Pabis=arm64-v8a or x86_64).')
+                def foundStdlib = false
+                abis.each { abi ->
+                    def triplet = abi == 'arm64-v8a' ? 'arm64-android' : (abi == 'x86_64' ? 'x64-android' : null)
+                    if (triplet != null) {
+                        def prefix = new File(rootProject.projectDir, "build/vcpkg-python/${triplet}")
+                        def libraryRoot = new File(prefix, variant.buildType.name == 'debug' ? 'debug/lib' : 'lib')
+                        def stdlibs = fileTree(libraryRoot).matching { include 'python3.*/**' }.files
+                        if (!stdlibs.empty) {
+                            foundStdlib = true
+                            copy {
+                                from libraryRoot
+                                include 'python3.*/**'
+                                into new File(staged.get().asFile, 'python/lib')
+                            }
+                        }
+                    }
                 }
-                def triplet = abis[0] == 'arm64-v8a' ? 'arm64-android' : 'x64-android'
-                def prefix = new File(rootProject.projectDir, "build/vcpkg-python/${triplet}")
-                def libraryRoot = new File(prefix, variant.buildType.name == 'debug' ? 'debug/lib' : 'lib')
-                def stdlibs = fileTree(libraryRoot).matching { include 'python3.*/**' }.files
-                if (stdlibs.empty) throw new GradleException('Android CPython standard library is missing.')
-                copy {
-                    from libraryRoot
-                    include 'python3.*/**'
-                    into new File(staged.get().asFile, 'python/lib')
+                if (!foundStdlib) {
+                    throw new GradleException('Android CPython standard library is missing for the selected ABIs.')
                 }
             }
             def digest = MessageDigest.getInstance('SHA-256')
