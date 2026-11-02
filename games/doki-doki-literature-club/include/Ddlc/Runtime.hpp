@@ -12,6 +12,7 @@
 #include <map>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <string>
 #include <tuple>
 #include <vector>
@@ -282,6 +283,8 @@ public:
   virtual std::string playing(const std::string &channel) { return {}; }
   virtual double position(const std::string &channel) { return 0; }
   virtual void savePersistent(const std::string &text) {}
+  virtual std::vector<std::string> savedGames() { return {}; }
+  virtual void removeSave(const std::string&) {}
   // Pointer position in the 1280x720 game space (renpy.get_mouse_pos /
   // set_mouse_pos).
   virtual void mousePosition(double &x, double &y) { x = y = 0; }
@@ -315,6 +318,8 @@ public:
   // script addresses outside game/ (characters/*.chr, the easter-egg notes)
   // are real files here. Empty keeps them in the persistent overlay.
   std::filesystem::path userDirectory;
+  // Replay uses an isolated view of basedir; the live filesystem stays intact.
+  std::optional<std::map<std::string,std::string>> virtualRootFiles;
 
   // Clock (seconds). Hosts may override it (headless tests).
   std::function<double()> clock;
@@ -350,6 +355,7 @@ public:
   // Format dialogue without changing script state, callbacks or wait points.
   std::string formatDialogueText(const std::string &text);
   std::string savePersistentText();
+  void restorePersistentText(const std::string&);
   double textCps = 50;
 
 private:

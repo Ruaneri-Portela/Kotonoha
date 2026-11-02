@@ -17,6 +17,10 @@ public:
   void onEvent(Kotonoha::EventRef) override;
   void saveGame(const std::string &) override;
   void loadGame(const std::string &) override;
+  Kotonoha::Translation::SourceTexts translationSources() const override;
+  int translationRoute() const override;
+  std::vector<int> translationRoutes() const override;
+  std::vector<std::string> translationTexts(int route) const override;
   std::string debugNode() const override;
   std::vector<Kotonoha::DebugNode> debugNodes() const override;
   void debugJumpToNode(const std::string &) override;

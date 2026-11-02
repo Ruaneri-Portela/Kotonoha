@@ -12,6 +12,7 @@ class CommandLine {
     std::string name, value, description;
     std::function<void(const std::string &)> action;
   };
+  EngineOptions &engine;
   std::string program;
   std::vector<Option> options;
   bool helpRequested = false;

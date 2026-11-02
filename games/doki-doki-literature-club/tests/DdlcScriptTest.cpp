@@ -119,8 +119,9 @@ int runDdlcScriptTest(int argc, char **argv) {
     std::fprintf(stderr, "DdlcScriptTest: no game directory supplied\n");
     return 1;
   }
-  GameAssets gameAssets(dir,argc>3?argv[3]:"");
-  const auto&assets=gameAssets.source();const auto&script=gameAssets.script();
+  GameAssets gameAssets(dir, argc > 3 ? argv[3] : "");
+  const auto &assets = gameAssets.source();
+  const auto &script = gameAssets.script();
   std::printf("script: %zu files, %zu statements, %zu inits\n",
               script.fileCount(), script.nodeCount(), script.inits().size());
 

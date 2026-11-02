@@ -361,6 +361,29 @@ std::vector<CharacterAnimation> decodeCharacterAnimations(const Bytes &d) {
   return result;
 }
 
+bool selectCharacterAnimationFrame(std::vector<CharacterAnimation> &animations,
+                                   int actor, int selector, int frame) {
+  bool selected = false;
+  for (auto &animation : animations)
+    if (animation.actor == actor && animation.selector == selector &&
+        frame >= 0 && size_t(frame) < animation.frames.size()) {
+      animation.currentFrame = size_t(frame);
+      selected = true;
+    }
+  return selected;
+}
+
+void compositeCharacterAnimations(
+    Image &destination, const std::vector<CharacterAnimation> &animations,
+    int offsetX, int offsetY) {
+  for (const auto &animation : animations) {
+    require(animation.currentFrame < animation.frames.size(),
+            "Invalid active character animation frame");
+    const auto &frame = animation.frames[animation.currentFrame];
+    compositeImage(destination, frame, frame.x + offsetX, frame.y + offsetY);
+  }
+}
+
 void compositeImage(Image &destination, const Image &source, int x, int y) {
   compositeImageRegion(destination, source, x, y, 0, 0, source.width,
                        source.height);

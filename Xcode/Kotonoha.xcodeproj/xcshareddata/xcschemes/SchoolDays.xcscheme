@@ -48,7 +48,6 @@
       ignoresPersistentStateOnLaunch = "NO"
       debugDocumentVersioning = "NO"
       debugServiceExtension = "internal"
-      showGraphicsOverview = "Yes"
       allowLocationSimulation = "NO">
       <BuildableProductRunnable
          runnableDebuggingMode = "0">

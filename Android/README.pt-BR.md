@@ -16,6 +16,8 @@ export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"
 ./gradlew :app:assembleSnowRadishDebug
 ./gradlew :app:assembleDokiDokiDebug
 ./gradlew :app:assembleSchoolDaysDebug
+./gradlew :app:assembleAirDebug
+./gradlew :app:assembleSummerRadishDebug
 ```
 
 Cada flavor tem applicationId e APK proprios em `app/build/outputs/apk/`.

@@ -1,5 +1,6 @@
 #include "SchoolDaysRuntime.hpp"
 #include <Kotonoha/events/BackAction.hpp>
+#include <Kotonoha/media/upscaling/Upscaler.hpp>
 
 #include <Kotonoha/SchoolDaysBgmEventState.hpp>
 #include <Kotonoha/SchoolDaysMovieEventState.hpp>
@@ -572,8 +573,9 @@ void Runtime::renderMenu(Kotonoha::RendererRef renderer, float) {
   const SDL_FRect area{0, 0, 1280, 720};
   if (!titleBackground.empty()) {
     try {
-      SDL_RenderTexture(&renderer, &assets->texture(renderer, titleBackground),
-                        nullptr, &area);
+      Kotonoha::RenderUpscaledTexture(
+          &renderer, &assets->texture(renderer, titleBackground), nullptr,
+          &area);
     } catch (const std::exception &) {
       titleBackground.clear();
     }
@@ -601,8 +603,9 @@ void Runtime::renderMenu(Kotonoha::RendererRef renderer, float) {
                                     sprite.destination.w, sprite.destination.h};
         const SDL_FRect source{sprite.source.x, sprite.source.y,
                                sprite.source.w, sprite.source.h};
-        SDL_RenderTexture(&renderer, &assets->texture(renderer, path),
-                          sprite.hasSource ? &source : nullptr, &destination);
+        Kotonoha::RenderUpscaledTexture(
+            &renderer, &assets->texture(renderer, path),
+            sprite.hasSource ? &source : nullptr, &destination);
       }
     } catch (const std::exception &error) {
       SDL_LogWarn(Kotonoha::LogUI, "School Days title: %s", error.what());
@@ -625,8 +628,8 @@ void Runtime::renderGameplay(Kotonoha::RendererRef renderer, float) {
   const SDL_FRect area{0, 0, 1280, 720};
   if (!background.empty()) {
     try {
-      SDL_RenderTexture(&renderer, &assets->texture(renderer, background),
-                        nullptr, &area);
+      Kotonoha::RenderUpscaledTexture(
+          &renderer, &assets->texture(renderer, background), nullptr, &area);
     } catch (const std::exception &error) {
       setStatus(error.what());
       background.clear();

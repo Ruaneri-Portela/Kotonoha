@@ -71,6 +71,7 @@ public:
   ~Upscaling();
   Upscaling(const Upscaling &) = delete;
   Upscaling &operator=(const Upscaling &) = delete;
+  static Upscaling *forRenderer(RendererRef renderer);
   bool supports(UpscaleBackend backend) const;
   // Concrete backend for `backend` on this renderer (Auto resolved).
   UpscaleBackend resolve(UpscaleBackend backend) const;
@@ -89,5 +90,12 @@ public:
   // scaled() for CPU pixels: returns an RGBA32 surface.
   SurfacePtr scaled(const SDL_Surface &surface, float scale);
 };
+
+// Draw a game image through the renderer’s configured engine pipeline.
+// Increment contentSerial when updating pixels or texture modulation.
+bool RenderUpscaledTexture(SDL_Renderer *renderer, SDL_Texture *texture,
+                           const SDL_FRect *source,
+                           const SDL_FRect *destination,
+                           Uint64 contentSerial = 0);
 
 } // namespace Kotonoha

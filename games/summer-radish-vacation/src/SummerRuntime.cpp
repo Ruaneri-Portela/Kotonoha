@@ -8,7 +8,9 @@
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/FileSystem.hpp>
 #include <Kotonoha/core/UI.hpp>
+#include <Kotonoha/media/MediaPlayer.hpp>
 #include <Kotonoha/media/PcmPlayer.hpp>
+#include <Kotonoha/media/upscaling/Upscaler.hpp>
 #include <SummerRadish/Map.hpp>
 #include <SummerRadish/Native.hpp>
 #include <SummerRadish/Script.hpp>
@@ -269,6 +271,9 @@ public:
 struct Sprite {
   std::string id;
   int x = 0;
+  int32_t requestedPosition = -1;
+  unsigned positionSlot = 0;
+  uint64_t creationOrder = 0;
 };
 std::string stem(std::string name) {
   return name.substr(0, name.find_last_of('.'));
@@ -284,10 +289,14 @@ struct SummerRuntime::Impl {
   std::unique_ptr<SummerChoice> choice;
   std::unique_ptr<VNSaveMenu> saves;
   PcmPlayer bgm, se, voice;
+  std::unique_ptr<MediaPlayer> movie;
   std::string background = "GRAPHIC/黒.BGD", music, pending, byteOverlay;
   std::map<int, Sprite> sprites;
+  uint64_t nextSpriteOrder = 0;
   std::map<std::string, Image> decodedImages;
+  std::map<std::string, std::vector<CharacterAnimation>> characterAnimations;
   TexturePtr canvasTexture;
+  Uint64 canvasContentSerial = 0;
   Image presented, transitionFrom, lastCanvas;
   int transitionType = 0, transitionDuration = 0;
   uint64_t transitionStart = 0;
@@ -470,6 +479,8 @@ struct SummerRuntime::Impl {
     return engine->GetTranslation().text(route(), s);
   }
   void begin(const std::string &script = "START") {
+    if (movie)
+      movie->stop();
     bgm.Stop();
     se.Stop();
     voice.Stop();
@@ -499,6 +510,7 @@ struct SummerRuntime::Impl {
       stage = std::make_unique<Stage>(e);
       text = std::make_unique<SummerText>(e, *assets);
       choice = std::make_unique<SummerChoice>(e);
+      movie = std::make_unique<MediaPlayer>(e.GetAudio());
       choice->nativeSound = [this](const std::string &id) {
         audio(se, "SOUND/" + id + ".ogg", "Se");
       };
@@ -612,10 +624,13 @@ struct SummerRuntime::Impl {
           auto img = assets->picture(id);
           origins[id] = {img.x, img.y};
         }
-        int position = int(number(arg(3))) & 3;
-        int offset = position == 1 ? -200 : position == 2 ? 200 : 0;
-        sprites[int(number(arg(2))) + (name == "LOADADDCHAR" ? 100 : 0)] = {
-            id, offset};
+        auto &sprite =
+            sprites[int(number(arg(2))) + (name == "LOADADDCHAR" ? 100 : 0)];
+        if (sprite.id.empty())
+          sprite.creationOrder = ++nextSpriteOrder;
+        sprite.id = id;
+        sprite.requestedPosition =
+            args.size() > 3 ? int32_t(number(arg(3))) : -1;
       } else
         warn("Missing character: " + id);
       return;
@@ -759,7 +774,10 @@ struct SummerRuntime::Impl {
       return;
     }
     if (name == "PLAYMOVIE") {
-      warn("Movie not present on this disc: " + string(arg(0)));
+      movie->open(assets->moviePath(string(arg(0))).string(), false, "BGM");
+      text->hide();
+      vm.waiting = true;
+      pending = "MOVIE";
       return;
     }
     throw std::runtime_error("Unimplemented native function: " + name);
@@ -767,7 +785,7 @@ struct SummerRuntime::Impl {
   void picture(RendererRef r, const std::string &id, SDL_FRect target,
                const SDL_FRect *source = nullptr) {
     auto &texture = assets->texture(r, id);
-    SDL_RenderTexture(&r, &texture, source, &target);
+    RenderUpscaledTexture(&r, &texture, source, &target);
   }
   const Image &image(const std::string &id) {
     auto it = decodedImages.find(id);
@@ -775,12 +793,47 @@ struct SummerRuntime::Impl {
       it = decodedImages.emplace(id, assets->picture(id)).first;
     return it->second;
   }
+  const std::vector<CharacterAnimation> &animations(const std::string &id) {
+    auto it = characterAnimations.find(id);
+    if (it == characterAnimations.end())
+      it = characterAnimations
+               .emplace(id, decodeCharacterAnimations(assets->read(id)))
+               .first;
+    return it->second;
+  }
   Image composeScene() {
     Image canvas = image(background);
-    for (auto &[slot, sprite] : sprites) {
+    std::vector<std::pair<int, Sprite *>> ordered;
+    for (auto &[slot, sprite] : sprites)
+      if (slot < 100)
+        ordered.emplace_back(slot, &sprite);
+    std::sort(ordered.begin(), ordered.end(), [](const auto &a, const auto &b) {
+      return a.second->creationOrder < b.second->creationOrder;
+    });
+    std::vector<CharacterPlacement> positions;
+    for (const auto &[slot, sprite] : ordered)
+      positions.push_back({sprite->requestedPosition, sprite->positionSlot});
+    assignCharacterPositions(positions);
+    static constexpr int offsets[] = {0, -200, 200};
+    for (size_t i = 0; i < ordered.size(); ++i) {
+      auto &[slot, pointer] = ordered[i];
+      auto &sprite = *pointer;
+      sprite.positionSlot = positions[i].previous;
+      sprite.x = offsets[sprite.positionSlot];
       auto origin = origins.at(sprite.id);
       compositeImage(canvas, image(sprite.id), origin.first + sprite.x,
                      origin.second);
+      compositeCharacterAnimations(canvas, animations(sprite.id), sprite.x);
+      // Native additional characters are attached to their base actor and
+      // rendered immediately after it using the same assigned x offset.
+      const auto added = sprites.find(slot + 100);
+      if (added != sprites.end()) {
+        const auto addOrigin = origins.at(added->second.id);
+        compositeImage(canvas, image(added->second.id),
+                       addOrigin.first + sprite.x, addOrigin.second);
+        compositeCharacterAnimations(canvas, animations(added->second.id),
+                                     sprite.x);
+      }
     }
     return canvas;
   }
@@ -828,11 +881,17 @@ struct SummerRuntime::Impl {
       if (!canvasTexture || !SDL_UpdateTexture(canvasTexture.get(), nullptr,
                                                canvas.rgba.data(), 800 * 4))
         throw std::runtime_error(SDL_GetError());
+      ++canvasContentSerial;
       lastCanvas = std::move(canvas);
       canvasKey = state.str();
     }
     SDL_FRect target{0, 0, 800, 600};
-    SDL_RenderTexture(&r, canvasTexture.get(), nullptr, &target);
+    RenderUpscaledTexture(&r, canvasTexture.get(), nullptr, &target,
+                          canvasContentSerial);
+    if (pending == "MOVIE" && movie && movie->isOpen()) {
+      movie->update(r);
+      movie->render(r, target);
+    }
   }
   void titleAction(int index) {
     if (index == 0) {
@@ -949,6 +1008,8 @@ void SummerRuntime::shutdown() {
     impl->bgm.Stop();
     impl->se.Stop();
     impl->voice.Stop();
+    if (impl->movie)
+      impl->movie->stop();
     impl->saves.reset();
     impl->choice.reset();
     impl->text.reset();
@@ -972,6 +1033,8 @@ void SummerRuntime::update() {
   i.bgm.SetPaused(paused);
   i.se.SetPaused(paused);
   i.voice.SetPaused(paused);
+  if (i.movie)
+    i.movie->setPaused(paused);
   if (paused) {
     if (i.deadline && i.lastUpdate)
       i.deadline += now - i.lastUpdate;
@@ -983,6 +1046,11 @@ void SummerRuntime::update() {
     return;
   }
   i.lastUpdate = now;
+  if (i.pending == "MOVIE" && i.movie && i.movie->finished()) {
+    i.movie->stop();
+    i.pending.clear();
+    i.vm.resume();
+  }
   if (i.bgmFadeDuration > 0) {
     float progress =
         std::min(1.0f, float(now - i.bgmFadeStart) / i.bgmFadeDuration);
@@ -1032,16 +1100,18 @@ void SummerRuntime::onEvent(EventRef e) { Runtime::onEvent(e); }
 void SummerRuntime::saveGame(const std::string &path) {
   auto &i = *impl;
   if (!i.vm.waiting || i.pending == "WAIT" || i.pending == "WIPE" ||
-      i.pending == "BYTEVIEW" || i.title)
+      i.pending == "BYTEVIEW" || i.pending == "MOVIE" || i.title)
     throw std::runtime_error("Save at a dialogue or choice");
   std::ostringstream s;
-  s << "SUMMER-PRESENTATION-1\n"
+  s << "SUMMER-PRESENTATION-2\n"
     << std::quoted(i.vm.save()) << '\n'
     << std::quoted(i.background) << ' ' << std::quoted(i.music) << ' '
     << std::quoted(i.pending) << ' ' << std::quoted(i.choiceTarget) << '\n'
     << i.sprites.size() << '\n';
   for (auto &[slot, picture] : i.sprites)
-    s << slot << ' ' << std::quoted(picture.id) << ' ' << picture.x << '\n';
+    s << slot << ' ' << std::quoted(picture.id) << ' ' << picture.x << ' '
+      << picture.requestedPosition << ' ' << picture.positionSlot << ' '
+      << picture.creationOrder << '\n';
   i.saveSystem();
   VNSave save;
   save.nodeId = 0;
@@ -1061,8 +1131,9 @@ void SummerRuntime::loadGame(const std::string &path) {
   if (!(s >> version >> std::quoted(data) >> std::quoted(background) >>
         std::quoted(music) >> std::quoted(pending) >> std::quoted(target) >>
         count) ||
-      version != "SUMMER-PRESENTATION-1" || count > 64 ||
-      !i.assets->contains(background) ||
+      (version != "SUMMER-PRESENTATION-1" &&
+       version != "SUMMER-PRESENTATION-2") ||
+      count > 64 || !i.assets->contains(background) ||
       (pending != "MESSAGE" && pending != "SELECT" && pending != "UNIFORM" &&
        pending != "MAP"))
     throw std::runtime_error("Invalid Summer presentation save");
@@ -1072,12 +1143,24 @@ void SummerRuntime::loadGame(const std::string &path) {
     if (!key.empty() && key[0] == '$')
       restored.variables[key] = value;
   std::map<int, Sprite> sprites;
+  uint64_t nextOrder = 0;
   while (count--) {
     int slot;
     Sprite sprite;
     if (!(s >> slot >> std::quoted(sprite.id) >> sprite.x) ||
         !i.assets->contains(sprite.id) || std::abs(int64_t(sprite.x)) > 10000)
       throw std::runtime_error("Invalid saved character");
+    if (version == "SUMMER-PRESENTATION-2") {
+      if (!(s >> sprite.requestedPosition >> sprite.positionSlot >>
+            sprite.creationOrder) ||
+          sprite.positionSlot >= 3 || sprite.creationOrder == UINT64_MAX)
+        throw std::runtime_error("Invalid saved character placement");
+    } else {
+      sprite.positionSlot = sprite.x < 0 ? 1 : sprite.x > 0 ? 2 : 0;
+      sprite.requestedPosition = int32_t(sprite.positionSlot);
+      sprite.creationOrder = nextOrder + 1;
+    }
+    nextOrder = std::max(nextOrder, sprite.creationOrder);
     sprites[slot] = sprite;
     auto img = i.assets->picture(sprite.id);
     i.origins[sprite.id] = {img.x, img.y};
@@ -1086,9 +1169,12 @@ void SummerRuntime::loadGame(const std::string &path) {
   if (!s.eof())
     throw std::runtime_error("Trailing presentation data");
   i.vm = std::move(restored);
+  if (i.movie)
+    i.movie->stop();
   i.background = background;
   i.music = music;
   i.sprites = std::move(sprites);
+  i.nextSpriteOrder = nextOrder;
   i.title = false;
   i.pending = pending;
   i.choiceTarget = target;
@@ -1157,6 +1243,8 @@ std::vector<DebugNode> SummerRuntime::debugNodes() const {
   return nodes;
 }
 void SummerRuntime::debugJumpToNode(const std::string &node) {
+  if (impl->movie)
+    impl->movie->stop();
   if (!impl->engine)
     throw std::runtime_error("Runtime has not started");
   impl->begin(node);

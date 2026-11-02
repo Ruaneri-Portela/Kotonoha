@@ -323,6 +323,21 @@ std::string Vm::interpolate(const std::string &text) {
   return out;
 }
 
+void Vm::restorePersistentText(const std::string &persistentText) {
+  persistent.o->attrs.clear();
+  std::istringstream in(persistentText);
+  for (std::string line; std::getline(in, line);) {
+    auto eq = line.find(" = ");
+    if (eq == std::string::npos)
+      continue;
+    try {
+      persistent.o->attrs[line.substr(0, eq)] = py.eval(line.substr(eq + 3));
+    } catch (const PyError &e) {
+      backend.log("persistent " + line.substr(0, eq) + ": " + e.what());
+    }
+  }
+}
+
 std::string Vm::savePersistentText() {
   std::string out;
   if (!persistent.isObj())
@@ -409,6 +424,15 @@ static std::filesystem::path userFile(const Vm &vm, const std::string &key) {
 
 void Vm::setVirtualFile(const std::string &name, const Value &value) {
   const std::string key = fileKey(*this, name);
+  if (isRootKey(key) && virtualRootFiles) {
+    auto logical = key.substr(std::string(kRootPrefix).size());
+    if (value.isNone())
+      virtualRootFiles->erase(logical);
+    else
+      (*virtualRootFiles)[logical] = value.text();
+    return;
+  }
+
   if (isRootKey(key) && !userDirectory.empty()) {
     const auto path = userFile(*this, key);
     std::error_code error;
@@ -510,6 +534,18 @@ Value Vm::fileObject(const std::string &path, std::string content,
 
 std::string Vm::readFile(const std::string &name, bool &ok) {
   const std::string key = fileKey(*this, name);
+  if (isRootKey(key) && virtualRootFiles) {
+    auto logical = key.substr(std::string(kRootPrefix).size());
+    auto found = virtualRootFiles->find(logical);
+    if (found != virtualRootFiles->end()) {
+      ok = true;
+      return found->second;
+    }
+    std::vector<uint8_t> bytes;
+    ok = assets.readOverlayRoot(logical, &bytes);
+    return ok ? std::string(bytes.begin(), bytes.end()) : std::string();
+  }
+
   if (isRootKey(key) && !userDirectory.empty()) {
     const auto path = userFile(*this, key);
     std::error_code error;
@@ -575,17 +611,7 @@ void Vm::init(const std::string &persistentText) {
   ns("build");
   ns("define");
 
-  std::istringstream in(persistentText);
-  for (std::string line; std::getline(in, line);) {
-    auto eq = line.find(" = ");
-    if (eq == std::string::npos)
-      continue;
-    try {
-      persistent.o->attrs[line.substr(0, eq)] = py.eval(line.substr(eq + 3));
-    } catch (const PyError &e) {
-      backend.log("persistent " + line.substr(0, eq) + ": " + e.what());
-    }
-  }
+  restorePersistentText(persistentText);
 
   std::filesystem::path dir(assets.dir());
   std::string base = dir.parent_path().generic_string();
@@ -1428,12 +1454,20 @@ void VmNatives::install(Vm &vm) {
   for (const char *noop : {"archive", "classify", "documentation", "executable",
                            "package", "clear"})
     def(build, noop, [](Interp &, Args &, Kwargs &) { return Value(); });
-  def(renpy, "list_saved_games",
-      [](Interp &, Args &, Kwargs &) { return makeList(); });
+  def(renpy, "list_saved_games", [v](Interp &, Args &, Kwargs &) {
+    std::vector<Value> slots;
+    for (const auto &name : v->backend.savedGames())
+      slots.push_back(makeTuple(
+          {Value::str(name), Value::str(""), Value(), Value::integer(0)}));
+    return makeList(slots);
+  });
+  def(renpy, "unlink_save", [v](Interp &, Args &a, Kwargs &) {
+    v->backend.removeSave(a.at(0).text());
+    return Value();
+  });
   for (const char *noop :
-       {"block_rollback", "unlink_save", "restart_interaction", "notify",
-        "free_memory", "checkpoint", "predict", "take_screenshot",
-        "clear_game_runtime"})
+       {"block_rollback", "restart_interaction", "notify", "free_memory",
+        "checkpoint", "predict", "take_screenshot", "clear_game_runtime"})
     def(renpy, noop, [](Interp &, Args &, Kwargs &) { return Value(); });
   def(renpy, "transition", [v](Interp &, Args &a, Kwargs &) {
     if (auto t = a.empty() ? nullptr : v->toTransition(a[0]))

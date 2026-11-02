@@ -2,6 +2,7 @@
 #include "SchoolDaysRuntime.hpp"
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/UI.hpp>
+#include <Kotonoha/media/upscaling/Upscaler.hpp>
 #include <algorithm>
 #include <array>
 #include <stdexcept>
@@ -115,7 +116,7 @@ void LogoSplash::render(Kotonoha::RendererRef renderer, float) {
   const double alpha =
       std::clamp(std::min(time, displaySeconds - time) / fadeSeconds, 0.0, 1.0);
   SDL_SetTextureAlphaModFloat(texture, float(alpha));
-  SDL_RenderTexture(&renderer, texture, nullptr, &target);
+  Kotonoha::RenderUpscaledTexture(&renderer, texture, nullptr, &target);
   SDL_SetTextureAlphaModFloat(texture, 1.0f);
 }
 
@@ -269,11 +270,12 @@ void GameScene::renderBar(Kotonoha::RendererRef renderer) {
       !SDL_SetTextureAlphaMod(&atlas, alpha))
     throw std::runtime_error(SDL_GetError());
   const auto draw = [&](SDL_FRect source, SDL_FRect destination) {
-    if (!SDL_RenderTexture(&renderer, &atlas, &source, &destination))
+    if (!Kotonoha::RenderUpscaledTexture(&renderer, &atlas, &source,
+                                         &destination))
       throw std::runtime_error(SDL_GetError());
   };
   const SDL_FRect source{0, 0, 800, 75}, destination{0, 0, 1280, 120};
-  if (!SDL_RenderTexture(&renderer, &base, &source, &destination))
+  if (!Kotonoha::RenderUpscaledTexture(&renderer, &base, &source, &destination))
     throw std::runtime_error(SDL_GetError());
   draw({1, 346, 538, 22}, {185.6f, 4.8f, 860.8f, 35.2f});
   draw({1, 183, 106, 19}, controls[0].destination);

@@ -17,7 +17,9 @@ def games = [
         zeroNoTsukaima: ['zero-no-tsukaima', 'ZeroNoTsukaima', 'me.hirameki.kotonoha.zeronotsukaima', 'Zero no Tsukaima'],
         snowRadish: ['snow-radish-vacation', 'SnowRadish', 'me.hirameki.kotonoha.snowradishvacation', 'Snow Radish Vacation!!'],
         dokiDoki: ['doki-doki-literature-club', 'DokiDoki', 'me.hirameki.kotonoha.dokidokiliteratureclub', 'Doki Doki Literature Club!'],
-        schoolDays: ['school-days', 'SchoolDays', 'me.hirameki.kotonoha.schooldays', 'School Days']
+        schoolDays: ['school-days', 'SchoolDays', 'me.hirameki.kotonoha.schooldays', 'School Days'],
+        air: ['air', 'Air', 'me.hirameki.kotonoha.air', 'AIR'],
+        summerRadish: ['summer-radish-vacation', 'SummerRadish', 'me.hirameki.kotonoha.summerradishvacation', 'Summer Radish Vacation!!']
 ]
 
 android {
@@ -110,10 +112,11 @@ android.applicationVariants.all { variant ->
                 }
                 def triplet = abis[0] == 'arm64-v8a' ? 'arm64-android' : 'x64-android'
                 def prefix = new File(rootProject.projectDir, "build/vcpkg-python/${triplet}")
-                def stdlibs = fileTree(new File(prefix, 'lib')).matching { include 'python3.*/**' }.files
+                def libraryRoot = new File(prefix, variant.buildType.name == 'debug' ? 'debug/lib' : 'lib')
+                def stdlibs = fileTree(libraryRoot).matching { include 'python3.*/**' }.files
                 if (stdlibs.empty) throw new GradleException('Android CPython standard library is missing.')
                 copy {
-                    from new File(prefix, 'lib')
+                    from libraryRoot
                     include 'python3.*/**'
                     into new File(staged.get().asFile, 'python/lib')
                 }

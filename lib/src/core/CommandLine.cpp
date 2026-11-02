@@ -8,7 +8,7 @@
 
 namespace Kotonoha {
 CommandLine::CommandLine(std::string program, EngineOptions &engine)
-    : program(std::move(program)) {
+    : engine(engine), program(std::move(program)) {
   flag("--help", "Show engine and game options without opening the game",
        helpRequested);
   alias("--help", "-h");
@@ -32,6 +32,12 @@ CommandLine::CommandLine(std::string program, EngineOptions &engine)
          engine.assetOverlayPath.clear();
          engine.assetOverlaySpecified = true;
        });
+  flag("--launcher", "Open the game selection launcher", engine.launcher);
+  alias("--launcher", "--laucher");
+  flag("--no-launcher", "Start the game directly",
+       [&engine] { engine.launcher = false; });
+  option("--dump-translation", "FILE", "Export original texts and exit",
+         engine.dumpTranslationPath);
   option("--translation", "FILE", "Load a translation dictionary",
          engine.translationPath);
   option("--subtitle-style", "FILE.ass",
@@ -118,6 +124,8 @@ void CommandLine::parse(int argc, char **argv) {
     }
     found->action(value);
   }
+  if (!engine.dumpTranslationPath.empty())
+    engine.launcher = false;
 }
 std::string CommandLine::help() const {
   std::ostringstream result;

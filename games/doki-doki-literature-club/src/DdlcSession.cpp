@@ -1,5 +1,8 @@
 #include "DdlcSession.hpp"
+#include "Ddlc/Replay.hpp"
 #include "Ddlc/Runtime.hpp"
+#include <Kotonoha/componentes/VNSave.hpp>
+#include <iomanip>
 
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/FileSystem.hpp>
@@ -655,6 +658,73 @@ public:
     fading_.clear();
   }
 
+  ReplayInput replayInput(double time, double windowTime, bool skipping) {
+    ReplayInput result;
+    result.time = time;
+    result.windowTime = windowTime;
+    result.skipping = skipping;
+    {
+      std::lock_guard<std::mutex> lock(commandsMutex_);
+      result.positions = positions_;
+      result.playing = requested_;
+    }
+    mousePosition(result.mouseX, result.mouseY);
+    return result;
+  }
+  std::vector<ReplayAudio> replayAudio() {
+    tick();
+    std::vector<ReplayAudio> result;
+    for (auto &[name, channel] : channels_)
+      if (channel.player && !channel.spec.empty() && channel.player->Playing())
+        result.push_back({name, channel.spec, channel.queued, channel.loop,
+                          channel.queuedLoop, position(name),
+                          currentGain(channel)});
+    return result;
+  }
+  void restoreAudio(const std::vector<ReplayAudio> &clips) {
+    stopAll();
+    for (auto &a : clips) {
+      auto parsed = parseSpec(a.spec);
+      std::ostringstream spec;
+      spec << std::setprecision(17) << "<from " << a.position;
+      if (parsed.loop >= 0)
+        spec << " loop " << parsed.loop;
+      spec << ">" << parsed.file;
+      auto &channel = channels_[a.channel];
+      start(a.channel, channel, spec.str(), 0, a.loop);
+      channel.spec = a.spec;
+      channel.queued = a.queued;
+      channel.queuedLoop = a.queuedLoop;
+      channel.fadeFrom = channel.fadeTo = a.gain;
+      if (channel.player)
+        channel.player->SetGain(float(a.gain));
+      std::lock_guard<std::mutex> lock(commandsMutex_);
+      requested_[a.channel] = a.spec;
+      positions_[a.channel] = a.position;
+    }
+  }
+  std::filesystem::path savesDirectory() const { return directory_ / "saves"; }
+  std::vector<std::string> savedGames() override {
+    std::vector<std::string> result;
+    std::error_code error;
+    if (!std::filesystem::exists(savesDirectory(), error))
+      return result;
+    for (auto &entry : std::filesystem::directory_iterator(savesDirectory()))
+      if (entry.is_regular_file() && entry.path().extension() == ".vn")
+        result.push_back(entry.path().filename().string());
+    std::sort(result.begin(), result.end());
+    return result;
+  }
+  void removeSave(const std::string &name) override {
+    auto path = std::filesystem::path(name);
+    if (path.filename() != path || path.extension() != ".vn")
+      throw PyError("ValueError: invalid save slot");
+    std::error_code error;
+    std::filesystem::remove(savesDirectory() / path, error);
+    if (error)
+      throw PyError("OSError: cannot remove save slot");
+  }
+
 private:
   std::set<std::string> muted_;
   std::mutex mouseMutex_;
@@ -722,6 +792,135 @@ private:
   std::map<std::string, double> positions_;
 };
 
+class ReplayBackend final : public Backend {
+  Host &host_;
+
+public:
+  bool replay = false;
+  ReplayInput input;
+  explicit ReplayBackend(Host &host) : host_(host) {}
+  bool imageSize(const std::string &file, int &w, int &h) override {
+    return host_.imageSize(file, w, h);
+  }
+  void textSize(const std::string &text, const TextStyle &style, float &w,
+                float &h) override {
+    host_.textSize(text, style, w, h);
+  }
+  void play(const std::string &channel, const std::string &spec, double fade,
+            bool loop) override {
+    if (replay)
+      input.playing[channel] = spec;
+    else
+      host_.play(channel, spec, fade, loop);
+  }
+  void queue(const std::string &channel, const std::string &spec,
+             bool loop) override {
+    if (replay) {
+      if (input.playing[channel].empty())
+        input.playing[channel] = spec;
+    } else
+      host_.queue(channel, spec, loop);
+  }
+  void stop(const std::string &channel, double fade) override {
+    if (replay)
+      input.playing.erase(channel);
+    else
+      host_.stop(channel, fade);
+  }
+  std::string playing(const std::string &channel) override {
+    if (!replay)
+      return host_.playing(channel);
+    auto i = input.playing.find(channel);
+    return i == input.playing.end() ? std::string() : i->second;
+  }
+  double position(const std::string &channel) override {
+    if (!replay)
+      return host_.position(channel);
+    auto i = input.positions.find(channel);
+    return i == input.positions.end() ? 0 : i->second;
+  }
+  void mousePosition(double &x, double &y) override {
+    if (replay) {
+      x = input.mouseX;
+      y = input.mouseY;
+    } else
+      host_.mousePosition(x, y);
+  }
+  void setMousePosition(double x, double y) override {
+    if (replay) {
+      input.mouseX = x;
+      input.mouseY = y;
+    } else
+      host_.setMousePosition(x, y);
+  }
+  void savePersistent(const std::string &text) override {
+    if (!replay)
+      host_.savePersistent(text);
+  }
+  void log(const std::string &text) override {
+    if (!replay)
+      host_.log(text);
+  }
+  std::vector<std::string> savedGames() override {
+    return replay ? std::vector<std::string>{} : host_.savedGames();
+  }
+  void removeSave(const std::string &name) override {
+    if (!replay)
+      host_.removeSave(name);
+  }
+};
+RootFiles readRootFiles(const std::filesystem::path &root) {
+  RootFiles files;
+  size_t total = 0;
+  std::error_code error;
+  if (!std::filesystem::exists(root, error))
+    return files;
+  for (auto it = std::filesystem::recursive_directory_iterator(root);
+       it != std::filesystem::recursive_directory_iterator(); ++it) {
+    auto relative = it->path().lexically_relative(root);
+    auto first = relative.begin()->string();
+    if (it->is_directory() && (first == "saves" || first == "save")) {
+      it.disable_recursion_pending();
+      continue;
+    }
+    if (!it->is_regular_file() || relative == "persistent.txt")
+      continue;
+    auto actual = std::filesystem::canonical(it->path())
+                      .lexically_relative(std::filesystem::canonical(root));
+    if (actual.empty() || *actual.begin() == "..")
+      throw std::runtime_error("DDLC user file escapes basedir");
+    auto size = std::filesystem::file_size(it->path());
+    if (size > 32 * 1024 * 1024 || total + size > 64 * 1024 * 1024)
+      throw std::runtime_error("DDLC user files exceed replay save limit");
+    total += size;
+    std::ifstream in(it->path(), std::ios::binary);
+    if (!in)
+      throw std::runtime_error("Cannot read DDLC user file");
+    files.emplace(relative.generic_string(),
+                  std::string(std::istreambuf_iterator<char>(in), {}));
+  }
+  return files;
+}
+RootChanges rootChanges(const RootFiles &before, const RootFiles &after) {
+  RootChanges changes;
+  for (auto &[name, data] : after) {
+    auto found = before.find(name);
+    if (found == before.end() || found->second != data)
+      changes[name] = data;
+  }
+  for (auto &[name, data] : before)
+    if (!after.count(name))
+      changes[name] = std::nullopt;
+  return changes;
+}
+void applyRootChanges(RootFiles &files, const RootChanges &changes) {
+  for (auto &[name, data] : changes)
+    if (data)
+      files[name] = *data;
+    else
+      files.erase(name);
+}
+
 struct Rgba {
   int w = 0, h = 0;
   std::vector<uint8_t> px;
@@ -769,7 +968,13 @@ struct Game {
   const Script &script;
   TextEngine text;
   Host host;
+  std::unique_ptr<ReplayBackend> vmBackend;
   std::unique_ptr<Vm> vm;
+  ReplayData replay;
+  RootFiles observedRoot;
+  bool replayRecordable = true;
+  std::string replayError, scriptHash;
+  int savePage = 1;
   Phase phase = Phase::Boot;
   bool quit = false;
 
@@ -1308,9 +1513,9 @@ struct Game {
       if (it.enabled)
         hov = button(
             b,
-            [this, i] {
+            [this, result = it.value] {
               sfx("gui/sfx/select.ogg");
-              resume(Value::integer(int64_t(i)));
+              resume(result);
             },
             "choice" + std::to_string(i), true);
       drawFrame(r,
@@ -1666,16 +1871,170 @@ struct Game {
     vm->errors.clear();
   }
 
+  std::string fingerprint() {
+    if (!scriptHash.empty())
+      return scriptHash;
+    uint64_t hash = 1469598103934665603ull;
+    for (const auto &file : assets->source().names()) {
+      if (!file.ends_with(".rpyc"))
+        continue;
+      for (auto c : file)
+        hash = (hash ^ static_cast<unsigned char>(c)) * 1099511628211ull;
+      for (auto c : assets->source().read(file))
+        hash = (hash ^ c) * 1099511628211ull;
+    }
+    std::ostringstream out;
+    out << std::hex << hash;
+    return scriptHash = out.str();
+  }
+  void saveGame(const std::string &path) {
+    if (phase != Phase::Play || !vm || vm->finished() ||
+        vm->interaction().k == Interaction::K::Transition)
+      throw std::runtime_error("Save during a dialogue, choice or pause");
+    if (!replayRecordable)
+      throw std::runtime_error(replayError.empty()
+                                   ? "This DDLC session cannot be saved"
+                                   : replayError);
+    auto saved = replay;
+    saved.position = replayPosition(*vm);
+    saved.interaction = int(vm->interaction().k);
+    saved.current =
+        host.replayInput(now(), vm->scene.window.t0,
+                         vm->py.getAttr(vm->config, "skipping").truthy());
+    saved.audio = host.replayAudio();
+    Kotonoha::VNSave state;
+    state.nodeId =
+        std::max(0, vm->currentNode() ? vm->currentNode()->route : 0);
+    state.gameData = encodeReplay(saved);
+    if (!std::filesystem::path(path).parent_path().empty())
+      std::filesystem::create_directories(
+          std::filesystem::path(path).parent_path());
+    state.write(path);
+  }
+  void loadGame(const std::string &path) {
+    if (std::filesystem::file_size(path) > 128 * 1024 * 1024)
+      throw std::runtime_error("DDLC save is too large");
+    auto saved = decodeReplay(Kotonoha::VNSave::read(path).gameData);
+    if (saved.fingerprint != fingerprint())
+      throw std::runtime_error(
+          "DDLC save belongs to a different script/translation patch");
+    if (saved.steps.size() > 100000 || !script.hasLabel(saved.label))
+      throw std::runtime_error("Invalid DDLC save replay");
+    auto backend = std::make_unique<ReplayBackend>(host);
+    backend->replay = true;
+    backend->input = saved.initial;
+    auto candidate = std::make_unique<Vm>(assets->source(), script, *backend);
+    candidate->userDirectory = host.directory();
+    candidate->virtualRootFiles = saved.initialFiles;
+    double clock = saved.initial.time;
+    candidate->clock = [&clock] { return clock; };
+    size_t translated = 0;
+    candidate->translate = [&](int route, const std::string &original) {
+      if (translated >= saved.translations.size())
+        throw std::runtime_error("DDLC replay translation tape ended");
+      const auto &entry = saved.translations[translated++];
+      if (entry.route != route || entry.original != original)
+        throw std::runtime_error(
+            "DDLC save translation tape no longer matches");
+      return entry.translated;
+    };
+    candidate->init(saved.persistent);
+    if (!candidate->errors.empty())
+      throw std::runtime_error("DDLC replay init: " +
+                               candidate->errors.front());
+    candidate->start(saved.label);
+    for (const auto &step : saved.steps) {
+      if (candidate->finished() ||
+          replayPosition(*candidate) != step.position ||
+          int(candidate->interaction().k) != step.interaction)
+        throw std::runtime_error("DDLC save replay diverged before " +
+                                 step.position);
+      applyRootChanges(*candidate->virtualRootFiles, step.files);
+      clock = step.input.time;
+      backend->input = step.input;
+      candidate->scene.window.t0 = step.input.windowTime;
+      candidate->py.setAttr(candidate->config, "skipping",
+                            Value::boolean(step.input.skipping));
+      auto reply = decodeReply(step.reply, candidate->interaction());
+      candidate->resume(std::move(reply));
+      if (!candidate->errors.empty())
+        throw std::runtime_error("DDLC replay: " + candidate->errors.front());
+    }
+    if (candidate->finished() || replayPosition(*candidate) != saved.position ||
+        int(candidate->interaction().k) != saved.interaction ||
+        translated != saved.translations.size())
+      throw std::runtime_error(
+          "DDLC save replay did not reach its saved interaction");
+    candidate->scene.window.t0 = saved.current.windowTime;
+    const auto globalPersistent =
+        vm ? vm->savePersistentText() : persistentText;
+    candidate->restorePersistentText(globalPersistent);
+    auto historicalFiles = std::move(*candidate->virtualRootFiles);
+    candidate->virtualRootFiles.reset();
+    candidate->clock = [this] { return now(); };
+    candidate->translate = [this](int route, const std::string &original) {
+      auto value = engine.GetTranslation().text(route, original);
+      replay.translations.push_back({route, original, value});
+      return value;
+    };
+    backend->replay = false;
+    vm = std::move(candidate);
+    vmBackend = std::move(backend);
+    replay = std::move(saved);
+    observedRoot = std::move(historicalFiles);
+    replayRecordable = true;
+    replayError.clear();
+    persistentText = globalPersistent;
+    pausedAt = -1;
+    pausedTotal = realNow() - replay.current.time;
+    phase = Phase::Play;
+    pauseMenu = nameInput = skipToggle = autoMode = ctrl = false;
+    subMenu = SubMenu::None;
+    notice.clear();
+    buttons.clear();
+    drawn.clear();
+    liveNode = nullptr;
+    liveEdits.clear();
+    endInvert();
+    host.restoreAudio(replay.audio);
+    // The current display can use edits made since the save, while the replay
+    // itself retains its original wait points and interpreter state.
+    if (auto *node = vm->currentNode(); node && node->k == Node::K::Say) {
+      auto original = node->str("what");
+      auto resolved = original;
+      for (auto i = replay.translations.rbegin();
+           i != replay.translations.rend(); ++i)
+        if (i->route == node->route && i->original == original) {
+          resolved = i->translated;
+          break;
+        }
+      auto latest = engine.GetTranslation().text(node->route, original);
+      if (latest != resolved)
+        translationChanged(original, resolved, latest);
+    }
+  }
+
   void newVm() {
     if (vm) {
       persistentText = vm->savePersistentText();
       vm.reset();
     }
-    vm = std::make_unique<Vm>(assets->source(), script, host);
+    vmBackend = std::make_unique<ReplayBackend>(host);
+    vm = std::make_unique<Vm>(assets->source(), script, *vmBackend);
+    replay = ReplayData{};
+    replayRecordable = true;
+    replayError.clear();
+    replay.fingerprint = fingerprint();
+    replay.persistent = persistentText;
+    replay.initialFiles = readRootFiles(host.directory());
+    observedRoot = replay.initialFiles;
+    replay.initial = host.replayInput(now(), 0, false);
     vm->userDirectory = host.directory();
     vm->clock = [this] { return now(); };
     vm->translate = [this](int route, const std::string &original) {
-      return engine.GetTranslation().text(route, original);
+      auto translated = engine.GetTranslation().text(route, original);
+      replay.translations.push_back({route, original, translated});
+      return translated;
     };
     vm->init(persistentText);
     reportErrors();
@@ -1684,6 +2043,7 @@ struct Game {
   void startSplash() {
     phase = Phase::Splash;
     newVm();
+    replay.label = "splashscreen";
     vm->start("splashscreen");
     reportErrors();
   }
@@ -1735,6 +2095,7 @@ struct Game {
     host.stop("music", 1.0);
     newVm();
     phase = Phase::Play;
+    replay.label = "start";
     vm->start("start");
     reportErrors();
   }
@@ -2070,6 +2431,21 @@ struct Game {
     const bool poem = vm->scene.hasScreen("poem");
     const bool skip = phase == Phase::Play && skipping();
     vm->py.setAttr(vm->config, "skipping", Value::boolean(skip));
+    if (replayRecordable)
+      try {
+        ReplayStep step;
+        step.position = replayPosition(*vm);
+        step.interaction = int(vm->interaction().k);
+        step.reply = encodeReply(v, vm->interaction());
+        step.input = host.replayInput(now(), vm->scene.window.t0, skip);
+        auto files = readRootFiles(host.directory());
+        step.files = rootChanges(observedRoot, files);
+        observedRoot = std::move(files);
+        replay.steps.push_back(std::move(step));
+      } catch (const std::exception &error) {
+        replayRecordable = false;
+        replayError = error.what();
+      }
     vm->resume(std::move(v));
     // The script stops skipping by clearing config.skipping (Act 3).
     if (skip && vm->running() && !vm->finished() &&
@@ -2338,7 +2714,8 @@ struct Game {
       throw std::runtime_error("Cannot restore render target: " +
                                std::string(SDL_GetError()));
     const SDL_FRect destination{0, 0, kW, kH};
-    if (!SDL_RenderTexture(r, canvas, nullptr, &destination))
+    if (!Kotonoha::RenderUpscaledTexture(r, canvas, nullptr, &destination,
+                                         frame))
       throw std::runtime_error("Cannot present DDLC canvas: " +
                                std::string(SDL_GetError()));
     text.evict();
@@ -2488,6 +2865,12 @@ GameSession::GameSession(Kotonoha::Engine &engine,
 GameSession::~GameSession() = default;
 
 void GameSession::startGame() { impl_->game.startGame(); }
+void GameSession::saveGame(const std::string &path) {
+  impl_->game.saveGame(path);
+}
+void GameSession::loadGame(const std::string &path) {
+  impl_->game.loadGame(path);
+}
 void GameSession::setPaused(bool paused) { impl_->game.openPause(paused); }
 bool GameSession::backAction() { return impl_->game.backAction(); }
 bool GameSession::openHistory() { return impl_->game.openHistory(); }
@@ -2598,6 +2981,8 @@ void GameSession::debugJump(const std::string &label) {
   game.subMenu = Game::SubMenu::None;
   game.skipToggle = game.autoMode = game.ctrl = false;
   game.host.stopAll();
+  game.replayRecordable = false;
+  game.replayError = "Restart or load a game before saving after a debug jump";
   game.vm->start(label);
   game.reportErrors();
 }

@@ -38,11 +38,19 @@ Image decodeImage(const Bytes &, const std::string &extension);
 struct CharacterAnimation {
   int actor = 0;
   int selector = 0;
+  size_t currentFrame = 0;
   std::vector<Image> frames;
 };
 // SubAnime records following the CHR base stream. Frame selection and timing
 // belong to the caller; each frame retains its absolute native x/y position.
 std::vector<CharacterAnimation> decodeCharacterAnimations(const Bytes &);
+// Native SubAnime selection updates every record matching both keys. Invalid
+// indices preserve its previous frame; unmatched records are unchanged.
+bool selectCharacterAnimationFrame(std::vector<CharacterAnimation> &,
+                                   int actor, int selector, int frame);
+void compositeCharacterAnimations(Image &destination,
+                                  const std::vector<CharacterAnimation> &,
+                                  int offsetX = 0, int offsetY = 0);
 // Exact default-colour native compositing onto an opaque image. Coordinates
 // are the absolute destination top-left; Image::x/y are not added implicitly.
 void compositeImage(Image &destination, const Image &source, int x, int y);

@@ -5,6 +5,7 @@
 #include <Kotonoha/componentes/VNTextBox.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/media/PcmPlayer.hpp>
+#include <SummerRadish/Script.hpp>
 #include <iostream>
 #include <stdexcept>
 using namespace Kotonoha;
@@ -146,8 +147,40 @@ int main(int argc, char **argv) {
     check(choice->isActive() && game.debugNode() == mapPosition,
           "Map save restores native choice");
     std::filesystem::remove(save);
+    // A loose retail MPEG used to be silently skipped. Follow the final
+    // prologue block through PLAYMOVIE and verify that playback suspends the
+    // script instead of immediately entering PRORO2.
+    check(std::filesystem::is_regular_file(assets->moviePath("SUMMER_OP.MPG")),
+          "Loose opening movie resolves case-insensitively");
+    SummerRadish::Machine scriptIndex;
+    auto prologue = assets->read("SCRIPT/PRORO.XML");
+    scriptIndex.add("PRORO", std::string(prologue.begin(), prologue.end()));
+    std::size_t moviePC = 0;
+    const auto &code = scriptIndex.programs().at("PRORO").code;
+    for (std::size_t pc = 0; pc < code.size(); ++pc)
+      if (code[pc].node.tag == "FUNCTION" &&
+          code[pc].node.attr("name") == "PLAYMOVIE")
+        moviePC = pc + 1;
+    check(moviePC > 0, "Retail prologue requests its opening movie");
+    game.debugJumpToNode("PRORO::Ｈ");
+    const auto movieNode = "PRORO:" + std::to_string(moviePC);
+    for (int n = 0; n < 500 && game.debugNode() != movieNode; ++n) {
+      text->completeDialogue();
+      press(engine, SDLK_RETURN);
+    }
+    check(game.debugNode() == movieNode && !text->isVisible(),
+          "Opening movie blocks script execution");
+    engine.Iterate();
+    capture(engine, game, "opening-movie");
+    bool movieSaveRejected = false;
+    try {
+      game.saveGame(save.string());
+    } catch (const std::exception &) {
+      movieSaveRejected = true;
+    }
+    check(movieSaveRejected, "Movie playback is not saved as a dialogue");
     std::cout << "Summer engine title, uniform, dialogue, save/load, pause, "
-                 "branch and map passed\n";
+                 "branch, map and opening movie passed\n";
     return 0;
   } catch (const std::exception &e) {
     std::cerr << e.what() << '\n';

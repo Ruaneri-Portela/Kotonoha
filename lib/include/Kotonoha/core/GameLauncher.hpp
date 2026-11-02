@@ -71,4 +71,17 @@ private:
   void drawPathField(PathField &field);
 };
 
+// Common folder launcher for ports that only need a data-directory validator.
+class FolderGameLauncher final : public GameLauncher {
+public:
+  using Validator = std::function<bool(const std::string &, std::string &)>;
+  FolderGameLauncher(std::string title, std::string settingsPath,
+                     std::string path, Validator validator,
+                     EngineSettings defaults = {});
+
+private:
+  Validator validator;
+  bool checkPath(const std::string &path, std::string &info) override;
+};
+
 } // namespace Kotonoha

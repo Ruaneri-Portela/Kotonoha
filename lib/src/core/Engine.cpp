@@ -182,6 +182,10 @@ Engine::Engine(Runtime &run, EngineOptions options)
   debug = std::make_unique<DebugOverlay>(*this);
   configureRenderSpace(RenderSpace::Novel);
   runtime.init(*this);
+  if (!options.dumpTranslationPath.empty()) {
+    dumpTranslation(options.dumpTranslationPath);
+    translationDumpComplete = true;
+  }
   if (options.enableMCP)
     mcp = std::make_unique<MCPServer>(*this, options.mcpFileRoot);
   frameClock.reset();
@@ -522,6 +526,8 @@ SDL_AppResult Engine::Event(EventPtr event) {
 }
 
 SDL_AppResult Engine::Iterate() {
+  if (translationDumpComplete)
+    return SDL_APP_SUCCESS;
   configureRenderSpace(RenderSpace::Novel);
   synchronizeTimeline();
   if (mcp && !mcp->pump())

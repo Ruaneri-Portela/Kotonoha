@@ -306,6 +306,16 @@ void memoryMedia(const char *path) {
 int main(int argc, char **argv) {
   try {
     require(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO), "Initialize SDL");
+    {
+      EngineOptions options;
+      CommandLine cli("test", options);
+      char a0[] = "test", a1[] = "--laucher", a2[] = "--dump-translation",
+           a3[] = "texts.json", a4[] = "--launcher";
+      char *args[] = {a0, a1, a2, a3, a4};
+      cli.parse(5, args);
+      require(options.dumpTranslationPath == "texts.json" && !options.launcher,
+              "Engine export bypasses the launcher regardless of option order");
+    }
     fileSystemProvider();
     decoders();
     overlays();

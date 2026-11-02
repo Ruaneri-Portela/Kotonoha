@@ -16,6 +16,8 @@ export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"
 ./gradlew :app:assembleSnowRadishDebug
 ./gradlew :app:assembleDokiDokiDebug
 ./gradlew :app:assembleSchoolDaysDebug
+./gradlew :app:assembleAirDebug
+./gradlew :app:assembleSummerRadishDebug
 ```
 
 Each flavor has its own application ID and APK under
@@ -25,14 +27,11 @@ Run Gradle invocations sequentially: concurrent builds share native `.cxx`
 configuration directories. Multiple assemble tasks may be passed to one invocation.
 Dependencies are installed into `build/vcpkg`; DDLC uses CPython provided by vcpkg. No macOS/iOS Python library is used by Android.
 
-SDL is a remote Git dependency, pinned to
-`4bb5020be2a3e3f7a963b84c95f49fe7ef5d35a4` in [app/build.gradle](app/build.gradle).
-`prepareSDL` checks out the official SDL repository into ignored `.deps/SDL`.
-Both SDLActivity Java sources and CMake use this checkout. SDL_ttf and ImGui
-use the existing repository submodules; FFmpeg, json-c, libass, iconv, PlutoSVG and
-optional CPython come from vcpkg.
+SDLActivity and native SDL use the checkout in `lib/submodules/SDL`.
+SDL_ttf and ImGui use the other repository submodules; FFmpeg, json-c, libass,
+iconv, PlutoSVG and CPython come from vcpkg.
 DDLC uses a separate `build/vcpkg-python` install tree so other game flavors
-cannot remove its optional CPython dependency during configuration.
+cannot remove its CPython dependency during configuration.
 
 Each APK contains engine `assets/` and its game's `game-assets/`. Gradle
 stages resources, computes a content fingerprint and includes only the selected
@@ -53,3 +52,5 @@ The extracted resources are private, fingerprinted by APK contents.
 Old resource versions remain private to the app; uninstalling removes them.
 Native dialogs may be unavailable on Android; the MPV inspector also offers a
 bundled-shader selection list.
+
+DDLC packages Debug Python extension modules with Debug Python, and Release modules with Release Python.

@@ -78,8 +78,6 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
                      app->startNode);
     arguments.option("--dump-ktrf", "FILE", "Export the active routing graph",
                      app->dump);
-    arguments.flag("--launcher", "Open the game/data selection launcher",
-                   options.launcher);
     arguments.parse(argc, argv);
     if (arguments.wantsHelp()) {
       std::fputs(arguments.help().c_str(), stdout);
@@ -99,7 +97,8 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
         app->options.persistSettings ? app->options.settingsPath : "";
 
     if (app->route.empty())
-      app->route = Kotonoha::GameLauncher::rememberedPath(settings, SchoolDays::Launcher::RouteRememberFile);
+      app->route = Kotonoha::GameLauncher::rememberedPath(
+          settings, SchoolDays::Launcher::RouteRememberFile);
     if (app->route.empty())
       app->route = SchoolDays::Assets::defaultRoute().string();
 

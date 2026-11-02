@@ -2,6 +2,7 @@
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/media/MediaDecoder.hpp>
 #include <Kotonoha/media/MediaPlayer.hpp>
+#include <Kotonoha/media/upscaling/Upscaler.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -151,7 +152,7 @@ void SplashScreen::render(RendererRef renderer, float) {
                          textureWidth * fit, textureHeight * fit};
   const double alpha = std::clamp(elapsed() / fadeSeconds, 0.0, 1.0);
   SDL_SetTextureAlphaModFloat(texture.get(), static_cast<float>(alpha));
-  SDL_RenderTexture(&renderer, texture.get(), nullptr, &target);
+  Kotonoha::RenderUpscaledTexture(&renderer, texture.get(), nullptr, &target);
 }
 
 } // namespace Kotonoha

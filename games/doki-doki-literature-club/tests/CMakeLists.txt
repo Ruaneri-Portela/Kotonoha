@@ -42,3 +42,16 @@ if(DDLC_DATA_DIR)
     add_test(NAME DokiDoki.PatchedPlaythrough COMMAND DdlcPlaythroughTest "${DDLC_DATA_DIR}" "${DDLC_OVERLAY_DIR}")
   endif()
 endif()
+
+if(DDLC_DATA_DIR)
+  add_executable(DdlcPresentationTest DdlcPresentationTest.cpp)
+  target_link_libraries(DdlcPresentationTest PRIVATE doki_doki_literature_club)
+  add_test(NAME DokiDoki.Presentation COMMAND DdlcPresentationTest "${DDLC_DATA_DIR}")
+  set_tests_properties(DokiDoki.Presentation PROPERTIES
+    WORKING_DIRECTORY "${KOTONOHA_PROJECT_ROOT}" ENVIRONMENT "SDL_AUDIODRIVER=dummy" TIMEOUT 60)
+  if(DDLC_OVERLAY_DIR)
+    add_test(NAME DokiDoki.PatchedPresentation COMMAND DdlcPresentationTest "${DDLC_DATA_DIR}" "${DDLC_OVERLAY_DIR}")
+    set_tests_properties(DokiDoki.PatchedPresentation PROPERTIES
+      WORKING_DIRECTORY "${KOTONOHA_PROJECT_ROOT}" ENVIRONMENT "SDL_AUDIODRIVER=dummy" TIMEOUT 60)
+  endif()
+endif()

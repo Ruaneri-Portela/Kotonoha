@@ -250,7 +250,7 @@ O executavel demonstrativo chama-se `Kotonoha`; seu namespace C++ e
 `KOTONOHA_BUILD_SCHOOL_DAYS` controla o port School Days.
 `KOTONOHA_BUILD_AIR` controla o [port inicial de AIR Standard Edition](games/air/README.md), que lê os dados originais com `--air DIRETORIO`.
 Depois de alterar os fontes da biblioteca School Days, execute manualmente
-`python3 Xcode/UpdateGameTargets.py` para sincronizar o target nativo sem
+`ruby Xcode/UpdateGameTargets.rb` para sincronizar o target nativo sem
 remover os recursos e modulos Python existentes.
 `DdlcIOSScriptSmoke` exercita CPython e os scripts reais no simulador.
 O deployment target e iOS 15; MetalFX exige iOS 16 ou superior e nao esta

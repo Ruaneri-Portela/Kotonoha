@@ -545,19 +545,41 @@ bool Session::babel(const CommandElement &c) {
     break;
   case 20:
     babelGlosses_.clear();
+    glossRectangles_.clear();
     break;
   case 21:
+    if (!glossCursor)
+      throw std::runtime_error("AIR glossary requires text layout cursor");
+    glossStart_ = glossCursor();
     break;
-  case 22:
+  case 22: {
+    if (!glossCursor)
+      throw std::runtime_error("AIR glossary requires text layout cursor");
+    auto end = glossCursor(), start = glossStart_;
+    if (start.lineHeight <= 0 || end.y < start.y)
+      throw std::runtime_error("AIR invalid glossary layout");
+    std::vector<GlossRectangle> rectangles;
+    for (int y = start.y; y < end.y; y += start.lineHeight)
+      rectangles.push_back({y == start.y ? start.x : start.left, y, start.right,
+                            y + start.lineHeight});
+    rectangles.push_back({end.y == start.y ? start.x : start.left, end.y, end.x,
+                          end.y + start.lineHeight});
     babelGlosses_.push_back(babelString(a));
+    glossRectangles_.push_back(std::move(rectangles));
     break;
-  // Gloss hit testing needs actual rendered rectangles; let presentation
-  // decide.
-  case 23:
-    if (!babelGlosses_.empty())
-      return false;
+  }
+  case 23: {
     result = 0;
+    for (std::size_t i = 0; i < glossRectangles_.size() && !result; ++i)
+      for (const auto &rect : glossRectangles_[i])
+        if (a >= rect.left && a < rect.right && b >= rect.top &&
+            b < rect.bottom) {
+          babelString(arg(4)) = babelGlosses_[i];
+          result = 1;
+          break;
+        }
     break;
+  }
   case 98:
     break;
   case 100: {
@@ -578,8 +600,17 @@ bool Session::babel(const CommandElement &c) {
     break;
   case 104:
   case 105:
-  case 200:
     return false;
+  case 200: {
+    std::vector<std::string> labels;
+    for (std::size_t i = 3; i < c.GetParamCount(); ++i)
+      if (arg(i))
+        labels.push_back(babelString(arg(i)));
+    if (!selectionText)
+      return false;
+    selectionText(a, labels);
+    break;
+  }
   default:
     return false;
   }
@@ -590,7 +621,7 @@ bool Session::babel(const CommandElement &c) {
 namespace {
 constexpr std::size_t kSaveLimit = 64 * 1024 * 1024;
 struct SaveWriter {
-  std::string bytes = "AIRSES01";
+  std::string bytes = "AIRSES02";
   void number(std::uint32_t v) {
     for (int n = 0; n < 4; ++n)
       bytes += static_cast<char>(v >> (n * 8));
@@ -615,7 +646,7 @@ struct SaveReader {
   std::size_t pos = 8;
   explicit SaveReader(const std::string &b) : bytes(b) {
     if (b.size() > kSaveLimit || b.size() < 8 ||
-        b.compare(0, 8, "AIRSES01") != 0)
+        (b.compare(0, 8, "AIRSES01") != 0 && b.compare(0, 8, "AIRSES02") != 0))
       throw std::runtime_error("Invalid AIR snapshot version or size");
   }
   std::uint32_t number() {
@@ -694,6 +725,24 @@ std::string Session::snapshot() const {
   out.size(babelGlosses_.size());
   for (const auto &gloss : babelGlosses_)
     out.string(gloss);
+  auto cursor = [&](const GlossCursor &p) {
+    out.signedNumber(p.x);
+    out.signedNumber(p.y);
+    out.signedNumber(p.left);
+    out.signedNumber(p.right);
+    out.signedNumber(p.lineHeight);
+  };
+  cursor(glossStart_);
+  out.size(glossRectangles_.size());
+  for (const auto &regions : glossRectangles_) {
+    out.size(regions.size());
+    for (const auto &r : regions) {
+      out.signedNumber(r.left);
+      out.signedNumber(r.top);
+      out.signedNumber(r.right);
+      out.signedNumber(r.bottom);
+    }
+  }
   if (out.bytes.size() > kSaveLimit)
     throw std::runtime_error("AIR snapshot too large");
   return out.bytes;
@@ -756,6 +805,38 @@ void Session::restore(const std::string &data) {
   glosses.reserve(count);
   for (std::size_t n = 0; n < count; ++n)
     glosses.push_back(in.string());
+  GlossCursor glossStart;
+  std::vector<std::vector<GlossRectangle>> rectangles;
+  if (data.compare(0, 8, "AIRSES02") == 0) {
+    glossStart.x = in.signedNumber();
+    glossStart.y = in.signedNumber();
+    glossStart.left = in.signedNumber();
+    glossStart.right = in.signedNumber();
+    glossStart.lineHeight = in.signedNumber();
+    if (glossStart.lineHeight <= 0 || glossStart.lineHeight > 4096)
+      throw std::runtime_error("Invalid AIR glossary line height");
+    auto regionCount = in.size();
+    if (regionCount != glosses.size())
+      throw std::runtime_error("Invalid AIR glossary count");
+    rectangles.resize(regionCount);
+    for (auto &regions : rectangles) {
+      auto n = in.size();
+      if (n > 65536)
+        throw std::runtime_error("Invalid AIR glossary rectangles");
+      for (std::size_t j = 0; j < n; ++j) {
+        GlossRectangle r;
+        r.left = in.signedNumber();
+        r.top = in.signedNumber();
+        r.right = in.signedNumber();
+        r.bottom = in.signedNumber();
+        if (r.right < r.left || r.bottom < r.top)
+          throw std::runtime_error("Invalid AIR glossary rectangle");
+        regions.push_back(r);
+      }
+    }
+  }
+  if (data.compare(0, 8, "AIRSES01") == 0)
+    rectangles.resize(glosses.size());
   if (in.pos != data.size())
     throw std::runtime_error("Trailing AIR snapshot bytes");
   // Loading scenario caches is read-only with respect to interpreter state.
@@ -782,6 +863,8 @@ void Session::restore(const std::string &data) {
   babelItalic_ = italic;
   babelNameModes_.swap(modes);
   babelGlosses_.swap(glosses);
+  glossStart_ = glossStart;
+  glossRectangles_.swap(rectangles);
 }
 void Session::execute(const CommandElement &c) {
   if (flow(c) || strings(c) || memory(c) || babel(c))

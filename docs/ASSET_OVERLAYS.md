@@ -98,3 +98,28 @@ The suite also checks core overlay priority/fallback/listing/decoding, live
 translation without duplicate backlog entries, timed subtitle updates, gestures,
 launchers, native ZNT menus, School Days route persistence, and the AIR/Summer
 integration paths. Proprietary data remains optional and outside source control.
+
+Common startup options are registered by `Kotonoha::CommandLine`:
+`--launcher` (`--laucher` is accepted), `--no-launcher`, and
+`--dump-translation FILE`. Export starts the selected game runtime, writes its
+source dictionary and exits before advancing a story frame. Export bypasses the
+launcher regardless of argument order. AIR and Summer use the engine's common
+folder launcher, including its overlay and renderer settings.
+
+Video rendering automatically uses the renderer's configured `Upscaling`
+pipeline when no explicit pipeline is supplied. Ports render game pictures with
+`RenderUpscaledTexture`; source crops stay in original texture coordinates and
+already processed textures are not processed twice. Dynamic canvases supply a
+content serial. Text rendered directly by the engine retains its native glyph
+rasterization.
+
+Android includes `air` and `summerRadish` flavors. DDLC stages the CPython
+standard library and extension modules from the same Debug/Release installation
+as its linked Python library. Build with Android Studio's bundled JDK when the
+system Java version is newer than supported by Gradle.
+
+The native Xcode project includes Air and SummerRadish schemes. For DDLC,
+`tools/PrepareApplePython.py` verifies and prepares the pinned BeeWare archive;
+`ruby Xcode/UpdateGameTargets.rb` updates the project after preparation (requires
+the `xcodeproj` Ruby gem). The project links `Python.xcframework`, selecting the
+SDK slice, and bundles standard-library resources and extension frameworks.

@@ -91,14 +91,14 @@ target using native Resources phases; frameworks use Embed Frameworks with
 Code Sign on Copy. Each game's `game-assets` directory is copied directly as
 a folder reference, preserving its name without build scripts.
 
-Schemes: `Kotonoha`, `ZeroNoTsukaima`, `SnowRadish`, `DokiDoki`, `SchoolDays`,
+Schemes: `Kotonoha`, `ZeroNoTsukaima`, `SnowRadish`, `DokiDoki`, `SchoolDays`, `Air`, `SummerRadish`,
 `KotonohaIOSSmoke` and `DdlcIOSScriptSmoke`. KotonohaEngine is a static framework;
 apps embed the dynamic KotonohaImGui, SDL3 and SDL3_ttf frameworks.
 
 The example executable/app is `Kotonoha`; its C++ namespace is
 `KotonohaExample`, separate from the engine's `Kotonoha` namespace.
 After changing School Days' library sources, run
-`python3 Xcode/UpdateGameTargets.py` manually to synchronize its native target.
+`ruby Xcode/UpdateGameTargets.rb` manually to synchronize its native target.
 This preserves existing native Python modules and refuses concurrent project edits.
 
 Prepare native dependencies before opening/building:

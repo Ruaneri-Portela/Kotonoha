@@ -49,9 +49,17 @@ alphabetically sorted script route. `--translation FILE` loads engine translatio
 - Native premultiplied integer composition, including CHR preprocessing before
   blending. CHR embedded SubAnime records decode independently: **118** regions,
   each with three frames. Their playback scheduler is still pending.
+- Native automatic character placement: creation-order allocation, retained slots,
+  conditional positions (bit30), centering a sole actor and separating two
+  automatic actors. Additional characters follow their base actor placement.
+  Save version2 retains slot/order/requested-position; version1 remains readable.
 - Boot warning/logo/title, original message-frame atlas, dialogue/history, text
   choices, native three-step uniform screen, day/night/cafe maps. Native map
   result codes, navigation, hit masks, badge placement and cafe previews.
+- Opening MPEG from the original DISC1 loose file: PLAYMOVIE blocks the VM,
+  decodes video and audio through MediaPlayer, pauses with the story, and
+  resumes the following script only after playback drains. Missing movie files
+  report an error instead of silently skipping the command.
 - Ogg voice/SE/BGM through the engine mixer, BGM INTORO intro then loop,
   asynchronous BGM fade, SE waits, timed waits, staged scene changes at WIPE.
   Retail WIPE duration families 0/1/2/3/4/32768 and integer crossfade rendering.
@@ -80,6 +88,8 @@ analysis leaves the original files unchanged. Raw local Evidence lives under
 | BGM fade | Sound.sdll `10004360` | `ev_ebe5f67ee816c34ffadb3567acd6255544a070052b2fe4d96c473149a65744fb` |
 | WIPE dispatch/staging | Graphic.sdll `10003460`, `10004f80` | `rea-0x10003460.json`, `rea-0x10004f80.json` |
 | Crossfade compositor | Wipe_XFade.mod `10001430` | `ev_2bcb1f142915b360f736e60d4b9afe940a5814c3a4c081a50b15bda19e610509` |
+| Character slot allocation | Graphic.sdll `10001c60` | `ev_902fbac1bc07c611b3e357e0d2864b982e023cb02235142ee69b593693f6db91`: retained/conditional slots, collisions, two-actor separation |
+| Movie command dispatch | Graphic.sdll `100060b0`, `10004e10` | `movie-evidence/playmovie.json`, `rea-FUN_10004e10.json`: first filename argument, synchronous playback loop before returning |
 | Filename suffix | Graphic.sdll `100013f0` | Assembly-confirmed packed numeric/letter suffix and bit16 `_H`; REA name lookup for this undiscovered method remains unresolved |
 
 ## Remaining requirements for 1:1
@@ -88,7 +98,7 @@ analysis leaves the original files unchanged. Raw local Evidence lives under
   timing, audio and input-trace comparisons. No claim of exhaustive behavioral
   equivalence follows from the decoder tests or decompilation.
 - Voice-driven mouth/eye scheduling is not connected, although every embedded
-  frame decodes. Exact voice-buffer timing, tint/position flags and animation
+  frame decodes. Exact voice-buffer timing, tint/uncommon rendering flags and animation
   selectors require additional recovery and differential validation.
 - Text typography, original text-choice strips and name-entry UI are incomplete.
   The engine uses its bundled Japanese font, not the Windows fonts named in
@@ -101,7 +111,9 @@ analysis leaves the original files unchanged. Raw local Evidence lives under
   parity, high-bit flags, all transition skip policies and end-credit timing
   still require comparison. Some recovered native configuration settings use
   their original defaults rather than a complete port of the configuration UI.
-- Movie playback is not connected; the supplied DISC1 has no `summer_op.mpg`.
+- Opening playback is connected and the current DISC1 supplies `summer_op.mpg`.
+  Exact original movie skip input, scaling modes and audio/clock parity still
+  require differential validation.
 - Manual saves restore page/choice start and restart BGM; exact audio sample
   positions, current typewriter progress and native UI focus are not serialized.
   Debug jumps are inspection aids and do not reconstruct all route prerequisites.
@@ -117,6 +129,14 @@ control flow; native presentation is not exercised by that route test.
 
 `SummerRadish.Engine` exercises warning/logo/title, uniform selection API,
 first dialogues, native audio paths, save/load, pause, first two-option branch,
-and a native day-map save/load. It does not prove all route outcomes or mouse
+a native day-map save/load, and progression from the final prologue block to
+real opening-movie playback. It does not prove all route outcomes or mouse
 confirmation variants. `SUMMER_CAPTURE_DIR` writes local BMP test captures.
 `SummerRadish.Boot` checks 120 frames. Retail tests require `SUMMER_DATA_DIR`.
+
+Additional retail route audit (`tests/RouteTest.cpp`, standalone): 24 deterministic
+policies across three uniforms reached an ending, visiting 83 scripts, 43,107
+messages and 1,113 choices. Map destinations are selected only from assigned
+FILE_ script variables (cafe uses its native result table). This checks XML
+branching and dynamic calls, not presentation, every route, or every possible
+map input. Compile with the Formats sources; it is not yet a CTest target.
