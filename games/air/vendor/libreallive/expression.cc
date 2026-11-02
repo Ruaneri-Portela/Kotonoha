@@ -38,6 +38,7 @@
 #include <iomanip>
 #include <sstream>
 #include <string>
+#include <cstring>
 
 #include "libreallive/defs.h"
 #include "libreallive/intmemref.h"
