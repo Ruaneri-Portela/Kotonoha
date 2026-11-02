@@ -10,6 +10,8 @@
 #include <iterator>
 
 namespace Kotonoha {
+
+SplashScreen::~SplashScreen() = default;
 namespace {
 
 bool isPictureExtension(const std::filesystem::path &path) {

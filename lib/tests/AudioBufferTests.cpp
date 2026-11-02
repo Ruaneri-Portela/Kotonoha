@@ -38,6 +38,9 @@ int main(int argc, char **argv) {
       SDL_Delay(i % 10 == 0 ? 80 : 16);
     }
     require(minimum >= 0.25, "Interleaved audio buffer must stay above 250 ms");
+    SDL_Delay(650);
+    require(player.bufferedAudioSeconds() > 0.2,
+            "Video audio stays queued during a long render hitch");
     player.setPaused(true);
     const double paused = player.bufferedAudioSeconds();
     SDL_Delay(100);

@@ -1,8 +1,8 @@
 #include <Air/Config.hpp>
 #include <Kotonoha/localization/Encoding.hpp>
+#include <cstdint>
 #include <sstream>
 #include <stdexcept>
-#include <cstdint>
 
 namespace Air {
 

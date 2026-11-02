@@ -5,15 +5,15 @@
 #include <Kotonoha/SchoolDaysSceneTimeline.hpp>
 #include <Kotonoha/core/Runtime.hpp>
 #include <Kotonoha/media/MediaPlayer.hpp>
-#include <Kotonoha/routing/SchoolDaysKtrfGameplayBridge.hpp>
-#include <Kotonoha/routing/SchoolDaysTitleModel.hpp>
-#include <Kotonoha/routing/SchoolDaysEndBackgroundResolver.hpp>
 #include <Kotonoha/routing/SchoolDaysBackLog.hpp>
 #include <Kotonoha/routing/SchoolDaysBackLogPresenter.hpp>
+#include <Kotonoha/routing/SchoolDaysEndBackgroundResolver.hpp>
+#include <Kotonoha/routing/SchoolDaysKtrfGameplayBridge.hpp>
 #include <Kotonoha/routing/SchoolDaysRetailConfigPolicy.hpp>
 #include <Kotonoha/routing/SchoolDaysSaveProfile.hpp>
 #include <Kotonoha/routing/SchoolDaysSaveStorage.hpp>
 #include <Kotonoha/routing/SchoolDaysSystemUi.hpp>
+#include <Kotonoha/routing/SchoolDaysTitleModel.hpp>
 #include <memory>
 
 namespace Kotonoha {
@@ -58,7 +58,8 @@ class Runtime final : public Kotonoha::Runtime {
       Kotonoha::SchoolDaysRetailConfigPolicy::Defaults();
   std::vector<std::unique_ptr<Kotonoha::MediaPlayer>> sounds;
   bool hasProfile = false, saveLoadSaving = false;
-  int saveLoadPage = -1, routeMapMajor = -1, routeMapSubpage = -1, backlogIndex = 0;
+  int saveLoadPage = -1, routeMapMajor = -1, routeMapSubpage = -1,
+      backlogIndex = 0;
   std::string backlogScene;
   Uint64 statusTime = 0;
   std::string titleBackground;
@@ -73,10 +74,12 @@ class Runtime final : public Kotonoha::Runtime {
   std::filesystem::path documents;
   Uint64 lastClock = 0;
   bool paused = false, committed = false;
+  bool consumePanelRelease = false, autoPlay = false;
   double speed = 1.0, elapsed = 0.0;
   Kotonoha_SceneTick tick = 0;
 
-  void openScene(const Kotonoha::SchoolDaysKtrfScene &next, bool restoreChoice = false);
+  void openScene(const Kotonoha::SchoolDaysKtrfScene &next,
+                 bool restoreChoice = false);
   void dispatch(Kotonoha_orsEvent &event);
   void play(Kotonoha_orsEvent &event, const std::string &logical,
             const std::string &channel, const std::string &loop = {});
@@ -105,7 +108,8 @@ class Runtime final : public Kotonoha::Runtime {
   void loadSlot(int slot);
   void handlePanel(const Kotonoha::SchoolDaysSystemUi::Output &output);
   void handleConfig(const Kotonoha::SchoolDaysConfigMenuModel::Action &action);
-  Kotonoha::SchoolDaysConfigMenuRenderPlan::VisualState configVisualState() const;
+  Kotonoha::SchoolDaysConfigMenuRenderPlan::VisualState
+  configVisualState() const;
   void applyConfig();
   void loadConfig();
   void storeConfig() const;
@@ -113,11 +117,13 @@ class Runtime final : public Kotonoha::Runtime {
   void renderPanels(Kotonoha::RendererRef renderer);
   void renderStatus(Kotonoha::RendererRef renderer);
   void finishSplash();
-  static Kotonoha::Gameplay *createPresentation(const char *, Kotonoha_Game *, void *);
+  static Kotonoha::Gameplay *createPresentation(const char *, Kotonoha_Game *,
+                                                void *);
   static void destroyPresentation(Kotonoha::Gameplay *, void *);
 
 public:
-  Runtime(std::shared_ptr<Assets> assets, std::string route, std::filesystem::path documents = {});
+  Runtime(std::shared_ptr<Assets> assets, std::string route,
+          std::filesystem::path documents = {});
   ~Runtime() override;
   void shutdown();
   void init(Kotonoha::Engine &engine) override;
@@ -134,10 +140,12 @@ public:
   const Kotonoha::SchoolDaysSystemUi &panels() const { return systemUi; }
   bool backlogOpen() const { return backlogModel.IsOpen(); }
   bool anyPanelOpen() const { return panelOpen(); }
-  const Kotonoha::SchoolDaysRetailConfigPolicy::State &retailConfig() const { return config; }
+  const Kotonoha::SchoolDaysRetailConfigPolicy::State &retailConfig() const {
+    return config;
+  }
   void openPanel(int control) { activateControl(control); }
   SDL_Point viewport() const override { return {1280, 720}; }
-  int translationRoute()const override;
+  int translationRoute() const override;
   std::string debugNode() const override;
   std::optional<double> debugNodeSeconds() const override { return elapsed; }
   Kotonoha::Translation::SourceTexts translationSources() const override;

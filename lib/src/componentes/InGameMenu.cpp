@@ -108,7 +108,7 @@ void InGameMenu::renderItem(RendererRef renderer, int index, bool focused) {
 }
 
 InGameMenu &GetInGameMenuRuntime(Engine &engineRef) {
-  static InGameMenu menu{engineRef};
+  auto &menu = engineRef.sharedScene<InGameMenu>();
   return menu;
 }
 

@@ -252,6 +252,48 @@ void decoder() {
           "Reject audio without a stream");
 }
 
+void shaderPresets() {
+  const std::vector<std::vector<std::string>> modes{
+      {"Restore_CNN_VL", "Upscale_CNN_x2_VL", "AutoDownscalePre_x2",
+       "AutoDownscalePre_x4", "Upscale_CNN_x2_M"},
+      {"Restore_CNN_Soft_VL", "Upscale_CNN_x2_VL", "AutoDownscalePre_x2",
+       "AutoDownscalePre_x4", "Upscale_CNN_x2_M"},
+      {"Upscale_Denoise_CNN_x2_VL", "AutoDownscalePre_x2",
+       "AutoDownscalePre_x4", "Upscale_CNN_x2_M"},
+      {"Restore_CNN_VL", "Upscale_CNN_x2_VL", "Restore_CNN_M",
+       "AutoDownscalePre_x2", "AutoDownscalePre_x4", "Upscale_CNN_x2_M"},
+      {"Restore_CNN_Soft_VL", "Upscale_CNN_x2_VL", "AutoDownscalePre_x2",
+       "AutoDownscalePre_x4", "Restore_CNN_Soft_M", "Upscale_CNN_x2_M"},
+      {"Upscale_Denoise_CNN_x2_VL", "AutoDownscalePre_x2",
+       "AutoDownscalePre_x4", "Restore_CNN_M", "Upscale_CNN_x2_M"},
+      {"Restore_CNN_M", "Upscale_CNN_x2_M", "AutoDownscalePre_x2",
+       "AutoDownscalePre_x4", "Upscale_CNN_x2_S"},
+      {"Restore_CNN_Soft_M", "Upscale_CNN_x2_M", "AutoDownscalePre_x2",
+       "AutoDownscalePre_x4", "Upscale_CNN_x2_S"},
+      {"Upscale_Denoise_CNN_x2_M", "AutoDownscalePre_x2", "AutoDownscalePre_x4",
+       "Upscale_CNN_x2_S"},
+      {"Restore_CNN_M", "Upscale_CNN_x2_M", "Restore_CNN_S",
+       "AutoDownscalePre_x2", "AutoDownscalePre_x4", "Upscale_CNN_x2_S"},
+      {"Restore_CNN_Soft_M", "Upscale_CNN_x2_M", "AutoDownscalePre_x2",
+       "AutoDownscalePre_x4", "Restore_CNN_Soft_S", "Upscale_CNN_x2_S"},
+      {"Upscale_Denoise_CNN_x2_M", "AutoDownscalePre_x2", "AutoDownscalePre_x4",
+       "Restore_CNN_S", "Upscale_CNN_x2_S"}};
+  for (std::size_t i = 0; i < modes.size(); ++i) {
+    std::vector<std::string> expected{"Anime4K_Clamp_Highlights.glsl"};
+    for (const auto &name : modes[i])
+      expected.push_back("Anime4K_" + name + ".glsl");
+    const auto preset = UpscalePresets()[i];
+    require(UpscalePresetIsAnime4K(preset), "Anime4K preset classification");
+    require(UpscalePresetShaderFiles(preset) == expected,
+            "Anime4K chain matches requested sequence");
+    UpscaleSettings settings{UpscaleBackend::MPV, preset, 2, {}};
+    settings.validate();
+  }
+  require(static_cast<int>(UpscalePreset::ArtCNN) == 1 &&
+              static_cast<int>(UpscalePreset::ArtCNNLarge) == 3,
+          "Existing ArtCNN settings remain compatible");
+}
+
 void scaling() {
   MemoryAssetProvider assets;
   assets.files["pic"] = bitmap(4, 2, {0, 128, 255, 255});
@@ -379,6 +421,7 @@ int main() {
       encoding();
       discImage(directory);
       decoder();
+      shaderPresets();
       scaling();
       player();
     } catch (...) {

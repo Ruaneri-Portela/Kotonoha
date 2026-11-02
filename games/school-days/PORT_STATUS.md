@@ -18,7 +18,8 @@ SchoolDays --school-days /path/to/SchoolDaysHQ/Packs
 The retail path requires the original validated 29-pack GPK set. Extracted data
 must have `Script/English/<directory>/<scene>.ENG.ORS` and its normal media
 directories. Component-wise case-insensitive lookup rejects ambiguous names.
-`--scripts /path/to/translation` retains the original loose `.txt` script override.
+`--asset-overlay /path/to/translation` uses the shared engine overlay.
+`--scripts` remains a compatibility alias.
 
 `SCHOOL_DAYS_DIR`, the remembered launcher path, `preferredDataDirectory` and
 packaged resources provide discovery, in that order. The bundled
@@ -77,7 +78,20 @@ persistent settings are available through the launcher/engine settings.
 - Missing optional media reports a status/log warning without stopping routing.
   Invalid/missing ORS or unresolved routing is not silently treated as success.
 
-No retail data was available for end-to-end verification in this checkout.
+The supplied retail installation has now been exercised: all 29 GPK archives
+open, 1,824 ORS resources parse into 86,414 events, and the native-resource
+splash/title/config/load/route-map/exit/save/backlog panels were rendered locally.
+These are captures of the port, not differential captures of Windows execution.
+The resource audit identifies 32 logical OP1 routing resources without a matching
+physical ORS file; their native dispatch is under investigation and they are not
+silently skipped. Native save comment submission now uses a cancellable text
+form instead of replacing the user's comment with an empty string.
+
+Overflow's visible logo bounds now fit the entire current screen; the built-in
+black image padding no longer limits the displayed logo size. A synthetic pixel
+regression checks both viewport edges with a padded source image.
+
+
 Regression fixtures are synthetic scripts and newly generated PNG/WMV/OGG media,
 never copied game assets. The media test asserts a decoded red WMV frame and
 active BGM/Voice/Movie audio streams over a decoded blue PNG background.

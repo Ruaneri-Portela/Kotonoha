@@ -270,12 +270,16 @@ real-time playback and simulated frame stalls.
 Scale `1.0` disables upscaling; values above `1.0` enable it, up to `4.0`.
 Automatic selects MetalFX on Metal, MPV on OpenGL and Linear elsewhere.
 
-When using MPV, the launcher and F10 inspector expose a preset selector and
-an ordered shader-file list. Choose multiple `.glsl` files using the native
-dialog or select bundled files; remove/reorder items as needed. An empty
-list uses the preset. Full paths are supported and persisted one per line;
-legacy colon-separated lists still work. MetalFX has no method/preset or
-GLSL-file selector, only its applicable backend and scale settings.
+The launcher, F10 inspector and in-game settings offer Anime4K modes A, B,
+C, A+A, B+B and C+A in both HQ and Fast variants, plus the ArtCNN presets.
+The Anime4K profiles use the ordered Clamp/Restore/Upscale/AutoDownscale
+chains supplied for mpv. These GLSL profiles execute on the OpenGL backend;
+selecting one does not change a MetalFX or Linear backend.
+
+On OpenGL, an ordered shader-file list also supports custom `.glsl` files.
+An empty list uses the preset; explicitly selecting a preset clears custom
+files. Full paths are persisted one per line; legacy colon-separated lists
+still work. Scale `1.0` turns processing off without losing the selected profile.
 
 ## Controls and diagnostics
 

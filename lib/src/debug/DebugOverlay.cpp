@@ -983,17 +983,20 @@ void DebugOverlay::drawEngineTools() {
       }
       ImGui::EndCombo();
     }
-    if (upscaling.resolve(draft.upscaling.backend) == UpscaleBackend::MPV) {
-      int preset = static_cast<int>(draft.upscaling.preset);
-      if (ImGui::Combo("Preset", &preset,
-                       "Anime4K\0ArtCNN C4F16\0ArtCNN C4F16 DS\0ArtCNN "
-                       "C4F32\0")) {
-        draft.upscaling.preset = static_cast<UpscalePreset>(preset);
-        changed = true;
-      }
+    if (ImGui::BeginCombo("Preset (OpenGL)",
+                          UpscalePresetName(draft.upscaling.preset))) {
+      for (auto preset : UpscalePresets())
+        if (ImGui::Selectable(UpscalePresetName(preset),
+                              preset == draft.upscaling.preset)) {
+          draft.upscaling.preset = preset;
+          draft.upscaling.shaderFiles.clear();
+          changed = true;
+        }
+      ImGui::EndCombo();
+    }
+    if (upscaling.resolve(draft.upscaling.backend) == UpscaleBackend::MPV)
       changed =
           shaderPicker->draw(&engine.GetWindow(), draft.upscaling) || changed;
-    }
     // 1.0 disables upscaling; anything above enables the backend.
     ImGui::SliderFloat("Factor", &upscaleFactor, 1, 4,
                        upscaleFactor <= 1 ? "Off (1.00x)" : "%.2fx");

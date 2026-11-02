@@ -10,20 +10,63 @@ std::string Node::attr(const std::string &k) const {
   return i == attrs.end() ? "" : i->second;
 }
 namespace {
-std::string unescape(std::string s) {
-  for (auto pair : {std::pair{"&lt;", "<"},
-                    {"&gt;", ">"},
-                    {"&quot;", "\""},
-                    {"&apos;", "'"},
-                    {"&amp;", "&"}}) {
-    size_t p = 0;
-    while ((p = s.find(pair.first, p)) != std::string::npos) {
-      s.replace(p, std::char_traits<char>::length(pair.first), pair.second);
-      p += std::char_traits<char>::length(pair.second);
+std::string unescape(const std::string &source) {
+  std::string result;
+  for (size_t i = 0; i < source.size();) {
+    if (source[i] != '&') {
+      result += source[i++];
+      continue;
     }
+    const auto end = source.find(';', i + 1);
+    if (end == source.npos)
+      throw std::runtime_error("Unterminated XML entity");
+    const auto entity = source.substr(i + 1, end - i - 1);
+    if (entity == "lt")
+      result += '<';
+    else if (entity == "gt")
+      result += '>';
+    else if (entity == "quot")
+      result += '"';
+    else if (entity == "apos")
+      result += char(39);
+    else if (entity == "amp")
+      result += '&';
+    else if (!entity.empty() && entity[0] == '#') {
+      const bool hex = entity.size() > 1 && entity[1] == 'x';
+      const auto digits = entity.substr(hex ? 2 : 1);
+      if (digits.empty() ||
+          digits.find_first_not_of(hex ? "0123456789abcdefABCDEF"
+                                       : "0123456789") != digits.npos)
+        throw std::runtime_error("Invalid numeric XML entity");
+      size_t count = 0;
+      const auto code = std::stoul(digits, &count, hex ? 16 : 10);
+      if (count != digits.size() || code > 0x10ffff ||
+          (code >= 0xd800 && code <= 0xdfff) || code == 0 ||
+          (code < 0x20 && code != 9 && code != 10 && code != 13) ||
+          code == 0xfffe || code == 0xffff)
+        throw std::runtime_error("Invalid XML code point");
+      if (code < 0x80)
+        result += char(code);
+      else if (code < 0x800) {
+        result += char(0xc0 | (code >> 6));
+        result += char(0x80 | (code & 63));
+      } else if (code < 0x10000) {
+        result += char(0xe0 | (code >> 12));
+        result += char(0x80 | ((code >> 6) & 63));
+        result += char(0x80 | (code & 63));
+      } else {
+        result += char(0xf0 | (code >> 18));
+        result += char(0x80 | ((code >> 12) & 63));
+        result += char(0x80 | ((code >> 6) & 63));
+        result += char(0x80 | (code & 63));
+      }
+    } else
+      throw std::runtime_error("Unknown XML entity: " + entity);
+    i = end + 1;
   }
-  return s;
+  return result;
 }
+
 class Parser {
   const std::string &s;
   size_t p = 0;

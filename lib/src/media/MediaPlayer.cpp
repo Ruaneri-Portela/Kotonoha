@@ -13,11 +13,14 @@ extern "C" {
 
 #include <algorithm>
 #include <atomic>
+#include <chrono>
 #include <cmath>
+#include <condition_variable>
 #include <deque>
 #include <filesystem>
 #include <mutex>
 #include <stdexcept>
+#include <thread>
 #include <vector>
 
 namespace Kotonoha {
@@ -66,7 +69,10 @@ struct MediaPlayer::State {
   // Audio-only media is refilled from SDL's audio thread so frame hitches do
   // not starve the device; the mutex guards the decoder state.
   mutable std::mutex mutex;
-  bool threaded = false;
+  bool threaded = false, paused = false, closing = false;
+  double playbackRate = 1;
+  std::condition_variable wake;
+  std::thread decoderThread;
   std::string failure;
   struct VideoFrame {
     double at;
@@ -75,6 +81,13 @@ struct MediaPlayer::State {
   std::deque<VideoFrame> frames;
 
   ~State() {
+    {
+      std::lock_guard<std::mutex> lock(mutex);
+      closing = true;
+    }
+    wake.notify_one();
+    if (decoderThread.joinable())
+      decoderThread.join();
     if (stream)
       SDL_SetAudioStreamGetCallback(stream.get(), nullptr, nullptr);
     if (channel && stream)
@@ -324,17 +337,26 @@ struct MediaPlayer::State {
   }
 
   static void SDLCALL feed(void *userdata, SDL_AudioStream *, int, int) {
-    auto &self = *static_cast<State *>(userdata);
-    // Never block the audio thread; the main thread may hold the decoder.
-    std::unique_lock<std::mutex> lock(self.mutex, std::try_to_lock);
-    if (!lock.owns_lock() || self.queuedEnd < 0 || self.eof ||
-        !self.failure.empty())
-      return;
-    try {
-      self.fill(self.playhead(), 0.5);
-    } catch (const std::exception &error) {
-      self.failure = error.what();
-    }
+    // Audio callbacks only wake the producer: no FFmpeg work or mutex waits
+    // on the real-time device thread, including video with embedded audio.
+    static_cast<State *>(userdata)->wake.notify_one();
+  }
+  void startDecoder() {
+    threaded = true;
+    fill(0, 0.75);
+    decoderThread = std::thread([this] {
+      std::unique_lock<std::mutex> lock(mutex);
+      while (!closing) {
+        if (!paused && !eof && failure.empty()) {
+          try {
+            fill(playhead(), std::min(4.0, 0.75 * playbackRate));
+          } catch (const std::exception &error) {
+            failure = error.what();
+          }
+        }
+        wake.wait_for(lock, std::chrono::milliseconds(10));
+      }
+    });
   }
 
   void upload(RendererRef renderer, AVFrame *image) {
@@ -429,12 +451,10 @@ void MediaPlayer::start(std::unique_ptr<State> next, const std::string &url,
     if (!next->stream)
       throw std::runtime_error(SDL_GetError());
     next->channel->attach(next->stream.get());
-    if (!next->video) {
-      next->threaded = true;
-      if (!SDL_SetAudioStreamGetCallback(next->stream.get(), State::feed,
-                                         next.get()))
-        throw std::runtime_error(SDL_GetError());
-    }
+    next->startDecoder();
+    if (!SDL_SetAudioStreamGetCallback(next->stream.get(), State::feed,
+                                       next.get()))
+      throw std::runtime_error(SDL_GetError());
     if (!SDL_ResumeAudioStreamDevice(next->stream.get()))
       throw std::runtime_error(SDL_GetError());
   }
@@ -442,6 +462,7 @@ void MediaPlayer::start(std::unique_ptr<State> next, const std::string &url,
   state = std::move(next);
   clockStart = SDL_GetTicksNS();
   pausedAt = 0;
+  playbackRate = 1;
 }
 
 void MediaPlayer::openSoundtrack(const AssetProvider &assets,
@@ -467,7 +488,7 @@ double MediaPlayer::elapsed() const {
   if (!state)
     return 0;
   const Uint64 now = pausedAt ? pausedAt : SDL_GetTicksNS();
-  return (now - clockStart) / 1e9;
+  return (now - clockStart) / 1e9 * playbackRate;
 }
 
 void MediaPlayer::update(RendererRef renderer) { update(renderer, elapsed()); }
@@ -511,12 +532,39 @@ void MediaPlayer::setPaused(bool paused) {
   }
   if (soundtrack)
     soundtrack->setPaused(paused);
+  if (state) {
+    std::lock_guard<std::mutex> lock(state->mutex);
+    state->paused = paused;
+    state->wake.notify_one();
+  }
   if (state && state->stream) {
     const bool ok = paused ? SDL_PauseAudioStreamDevice(state->stream.get())
                            : SDL_ResumeAudioStreamDevice(state->stream.get());
     if (!ok)
       throw std::runtime_error(SDL_GetError());
   }
+}
+
+void MediaPlayer::setPlaybackRate(double rate) {
+  if (!std::isfinite(rate) || rate < 0.25 || rate > 32)
+    throw std::invalid_argument(
+        "Media playback rate must be between 0.25 and 32");
+  if (rate == playbackRate)
+    return;
+  const double position = elapsed();
+  if (state) {
+    std::lock_guard<std::mutex> lock(state->mutex);
+    if (state->stream &&
+        !SDL_SetAudioStreamFrequencyRatio(state->stream.get(), float(rate)))
+      throw std::runtime_error(SDL_GetError());
+    state->playbackRate = rate;
+    state->wake.notify_one();
+  }
+  playbackRate = rate;
+  const auto now = pausedAt ? pausedAt : SDL_GetTicksNS();
+  clockStart = now - Uint64(position / rate * 1e9);
+  if (soundtrack)
+    soundtrack->setPlaybackRate(rate);
 }
 
 void MediaPlayer::update(RendererRef renderer, double position) {
@@ -569,10 +617,12 @@ void MediaPlayer::update(RendererRef renderer, double position) {
     s.eof = false;
   }
   s.lastPosition = position;
-  if (s.threaded && s.queuedEnd >= 0)
-    s.fill(s.playhead(), 0.5);
-  else
-    s.fill(position, s.threaded ? 0.5 : 0.35);
+  if (s.threaded) {
+    if (s.queuedEnd < 0)
+      s.fill(position, std::min(4.0, 0.75 * playbackRate));
+    s.wake.notify_one();
+  } else
+    s.fill(position, 0.35);
   Frame latest;
   while (!s.frames.empty() && s.frames.front().at <= position) {
     latest = std::move(s.frames.front().frame);

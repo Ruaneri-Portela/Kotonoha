@@ -19,6 +19,7 @@ public:
   static constexpr double displaySeconds = 3.0;
 
   SplashScreen(Engine &engine, std::vector<std::filesystem::path> media);
+  ~SplashScreen() override;
 
   bool finished() const override { return current >= media.size(); }
   void restart() override;

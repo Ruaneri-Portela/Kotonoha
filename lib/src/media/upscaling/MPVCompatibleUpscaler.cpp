@@ -120,17 +120,7 @@ void TrimPoolToBudget() {
 }
 
 const char *PresetLogName(UpscalePreset preset) {
-  switch (preset) {
-  case UpscalePreset::ArtCNN:
-    return "ArtCNN C4F16";
-  case UpscalePreset::ArtCNNDenoise:
-    return "ArtCNN C4F16 DS";
-  case UpscalePreset::ArtCNNLarge:
-    return "ArtCNN C4F32";
-  case UpscalePreset::Anime4K:
-  default:
-    return "Anime4K B-S";
-  }
+  return Kotonoha::UpscalePresetName(preset);
 }
 
 VertexAttributeState SaveVertexAttribute(GLint index) {
@@ -164,7 +154,7 @@ void RestoreVertexAttribute(const VertexAttributeState &state) {
 
 std::string LoadAsset(const std::string &filename) {
   const char *assetFolder =
-      g_preset == UpscalePreset::Anime4K ? "Anime4K" : "ArtCNN";
+      Kotonoha::UpscalePresetIsAnime4K(g_preset) ? "Anime4K" : "ArtCNN";
   const std::filesystem::path supplied(filename);
   std::string path =
       supplied.has_parent_path()
@@ -519,21 +509,8 @@ bool InitGLPipeline(SDL_Renderer *renderer) {
              SDL_strcasestr(rendererName, "gles") != nullptr;
 
   std::vector<std::string> files = Kotonoha::UpscaleShaderFiles(g_filesSpec);
-  if (files.empty()) {
-    if (g_preset == UpscalePreset::ArtCNN) {
-      files.push_back("ArtCNN_C4F16.glsl");
-    } else if (g_preset == UpscalePreset::ArtCNNDenoise) {
-      files.push_back("ArtCNN_C4F16_DS.glsl");
-    } else if (g_preset == UpscalePreset::ArtCNNLarge) {
-      files.push_back("ArtCNN_C4F32.glsl");
-    } else {
-      // Legacy Anime4K remains the compatibility/fallback preset. Keep its
-      // previous Mode B + S chain exactly as shipped before preset support.
-      files.push_back("Anime4K_Clamp_Highlights.glsl");
-      files.push_back("Anime4K_Restore_CNN_Soft_S.glsl");
-      files.push_back("Anime4K_Upscale_CNN_x2_S.glsl");
-    }
-  }
+  if (files.empty())
+    files = Kotonoha::UpscalePresetShaderFiles(g_preset);
 
   std::vector<Pass> mainPasses;
   std::vector<Pass> kernelPasses;

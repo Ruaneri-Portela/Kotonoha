@@ -1,6 +1,7 @@
 #include "SummerRuntime.hpp"
 #include <Kotonoha/componentes/ChoiceQuestionScene.hpp>
 #include <Kotonoha/componentes/InGameMenu.hpp>
+#include <Kotonoha/componentes/TextInputForm.hpp>
 #include <Kotonoha/componentes/VNBacklog.hpp>
 #include <Kotonoha/componentes/VNSave.hpp>
 #include <Kotonoha/componentes/VNSaveMenu.hpp>
@@ -307,6 +308,72 @@ struct SummerRuntime::Impl {
   std::string canvasKey;
   std::map<std::string, std::pair<int, int>> origins;
   std::vector<std::string> speakers;
+  std::array<std::string, 4> defaultNames{};
+  TextInputForm *nameForm = nullptr;
+  static std::string nameKey(const char *prefix, size_t index) {
+    return std::string("$") + prefix + "0" + char('0' + index);
+  }
+  std::array<std::string, 4> playerNames() const {
+    auto names = defaultNames;
+    for (size_t i = 0; i < 4; ++i) {
+      auto found = vm.variables.find(nameKey("PlayerName", i));
+      if (found != vm.variables.end())
+        names[i] = string(found->second);
+    }
+    return names;
+  }
+  void setDefaultNames() {
+    auto names = defaultNames;
+    for (size_t i = 0; i < 4; ++i) {
+      auto found = vm.variables.find(nameKey("ChangeName", i));
+      if (found != vm.variables.end() && !string(found->second).empty())
+        names[i] = string(found->second);
+      vm.variables[nameKey("PlayerName", i)] = names[i];
+    }
+    vm.variables["$ChangePlayerName"] =
+        int64_t(playerNameChangeMask(names, defaultNames));
+  }
+  void enterNames() {
+    setDefaultNames();
+    auto names = playerNames();
+    std::vector<TextInputForm::Field> fields;
+    const std::array<std::string, 4> labels{"姓", "名", "姓（かな）",
+                                            "名（かな）"};
+    for (size_t i = 0; i < 4; ++i)
+      fields.push_back({labels[i], names[i], defaultNames[i]});
+    nameForm = &engine->sharedScene<TextInputForm>();
+    nameForm->configure(
+        "名前入力", std::move(fields),
+        [this](const auto &values) {
+          std::array<std::string, 4> names;
+          try {
+            for (size_t i = 0; i < 4; ++i)
+              names[i] = normalizePlayerName(values[i]);
+          } catch (const std::invalid_argument &error) {
+            return std::string(error.what());
+          }
+          for (size_t i = 0; i < 4; ++i) {
+            vm.variables[nameKey("PlayerName", i)] = names[i];
+            vm.variables[nameKey("ChangeName", i)] = names[i];
+          }
+          vm.variables["$ChangePlayerName"] =
+              int64_t(playerNameChangeMask(names, defaultNames));
+          nameForm->close();
+          runtime.RemoveScene(nameForm);
+          pending.clear();
+          saveSystem();
+          vm.resume();
+          return std::string();
+        },
+        [this] {
+          runtime.RemoveScene(nameForm);
+          pending.clear();
+          vm.resume();
+        });
+    runtime.AddScene(nameForm);
+    vm.waiting = true;
+    pending = "NAMEENTRY";
+  }
   std::string choiceTarget = "@RESULT";
   uint64_t deadline = 0, lastUpdate = 0, lastSystemWrite = 0;
   bool title = false, autoMode = false, loaded = false, skipHeld = false,
@@ -324,6 +391,21 @@ struct SummerRuntime::Impl {
     std::string line;
     speakers.resize(32);
     while (std::getline(stream, line)) {
+      if (line.rfind("PlayerName0", 0) == 0 && line.size() > 12 &&
+          line[11] >= '0' && line[11] <= '3') {
+        const auto eq = line.find('=');
+        if (eq != line.npos) {
+          auto hex = line.substr(eq + 1);
+          hex.erase(0, hex.find_first_not_of(" \t"));
+          hex.erase(hex.find_last_not_of(" \t\r") + 1);
+          if (hex.size() % 2 ||
+              hex.find_first_not_of("0123456789abcdefABCDEF") != hex.npos)
+            throw std::runtime_error("Invalid native player name");
+          auto &name = defaultNames[size_t(line[11] - '0')];
+          for (size_t at = 0; at < hex.size(); at += 2)
+            name += char(std::stoi(hex.substr(at, 2), nullptr, 16));
+        }
+      }
       if (line.size() > 11 && line.substr(0, 3) == "CHR" &&
           line.substr(6, 4) == "Name") {
         int i = std::stoi(line.substr(3, 3));
@@ -567,8 +649,12 @@ struct SummerRuntime::Impl {
         actor > 0 && actor < int(speakers.size()) ? speakers[actor] : "";
 
     currentRead = vm.hasRead(r[1]);
-    text->setDialogue(translated(speaker),
-                      translated(string(vm.evaluate(r[2]))));
+    const auto names = playerNames();
+    if (actor == 1)
+      speaker = names[1];
+    text->setDialogue(
+        translated(speaker),
+        translated(substitutePlayerNames(string(vm.evaluate(r[2])), names)));
     text->show();
     voice.Stop();
     if (r.size() > 5) {
@@ -754,8 +840,14 @@ struct SummerRuntime::Impl {
         vm.ended = true;
       return;
     }
-    if (name == "SETDEFAULTNAME" || name == "NAMEENTRY")
+    if (name == "SETDEFAULTNAME") {
+      setDefaultNames();
       return;
+    }
+    if (name == "NAMEENTRY") {
+      enterNames();
+      return;
+    }
     if (name == "TOPLADY") {
       vm.variables["@FLAG020"] = int64_t(topLady(
           {number(vm.variables["@FLAG001"]), number(vm.variables["@FLAG002"]),
@@ -1010,6 +1102,11 @@ void SummerRuntime::shutdown() {
     impl->voice.Stop();
     if (impl->movie)
       impl->movie->stop();
+    if (impl->nameForm) {
+      impl->nameForm->close();
+      RemoveScene(impl->nameForm);
+      impl->nameForm = nullptr;
+    }
     impl->saves.reset();
     impl->choice.reset();
     impl->text.reset();

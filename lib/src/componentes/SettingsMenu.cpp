@@ -26,9 +26,9 @@ std::vector<int> SettingsMenu::rows() const {
   }
   result.push_back(4);
   result.push_back(5);
+  result.push_back(6);
   if (engine.GetUpscaler().resolve(draft.upscaling.backend) ==
       UpscaleBackend::MPV) {
-    result.push_back(6);
     result.push_back(10);
   }
   result.insert(result.end(), {7, 11, 12, 8, 9});
@@ -80,10 +80,16 @@ void SettingsMenu::activate(int index, int direction) {
         break;
       }
     }
-  } else if (index == 6)
-    draft.upscaling.preset = static_cast<UpscalePreset>(
-        (static_cast<int>(draft.upscaling.preset) + 1) % 4);
-  else if (index == 7)
+  } else if (index == 6) {
+    const auto &presets = UpscalePresets();
+    const auto current =
+        std::find(presets.begin(), presets.end(), draft.upscaling.preset);
+    draft.upscaling.preset =
+        current == presets.end() || current + 1 == presets.end()
+            ? presets.front()
+            : *(current + 1);
+    draft.upscaling.shaderFiles.clear();
+  } else if (index == 7)
     draft.upscaling.factor =
         draft.upscaling.factor >= 4 ? 1 : draft.upscaling.factor + 0.5f;
   else if (index == 8) {
@@ -150,8 +156,7 @@ void SettingsMenu::render(RendererRef renderer) {
   constexpr const char *backends[]{"Off", "Linear (SDL)",
                                    "Anime4K / ArtCNN (OpenGL)", "MetalFX",
                                    "Automatic"};
-  constexpr const char *presets[]{"Anime4K B-S", "ArtCNN C4F16",
-                                  "ArtCNN C4F16 DS", "ArtCNN C4F32"};
+
   const std::array<std::string, 13> labels{
       std::string("Mode: ") + modes[static_cast<int>(draft.mode)],
       "Resolution: " + std::to_string(draft.width) + " x " +
@@ -162,7 +167,7 @@ void SettingsMenu::render(RendererRef renderer) {
       std::string("Upscaler: ") +
           backends[static_cast<int>(draft.upscaling.backend)],
       std::string("Preset OpenGL: ") +
-          presets[static_cast<int>(draft.upscaling.preset)],
+          UpscalePresetName(draft.upscaling.preset),
       "Factor: " + std::to_string(draft.upscaling.factor).substr(0, 3) + "x" +
           (draft.upscaling.factor <= 1 ? " (off)" : ""),
       "Apply and save",

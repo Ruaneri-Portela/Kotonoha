@@ -49,6 +49,100 @@ public:
 };
 } // namespace
 
+const std::array<UpscalePreset, 15> &UpscalePresets() {
+  static constexpr std::array<UpscalePreset, 15> values{
+      UpscalePreset::Anime4KModeAHQ,
+      UpscalePreset::Anime4KModeBHQ,
+      UpscalePreset::Anime4KModeCHQ,
+      UpscalePreset::Anime4KModeAAHQ,
+      UpscalePreset::Anime4KModeBBHQ,
+      UpscalePreset::Anime4KModeCAHQ,
+      UpscalePreset::Anime4KModeAFast,
+      UpscalePreset::Anime4KModeBFast,
+      UpscalePreset::Anime4KModeCFast,
+      UpscalePreset::Anime4KModeAAFast,
+      UpscalePreset::Anime4KModeBBFast,
+      UpscalePreset::Anime4KModeCAFast,
+      UpscalePreset::ArtCNN,
+      UpscalePreset::ArtCNNDenoise,
+      UpscalePreset::ArtCNNLarge};
+  return values;
+}
+const char *UpscalePresetName(UpscalePreset preset) {
+  switch (preset) {
+  case UpscalePreset::Anime4KModeAHQ:
+    return "Anime4K: Mode A (HQ)";
+  case UpscalePreset::Anime4KModeBHQ:
+    return "Anime4K: Mode B (HQ)";
+  case UpscalePreset::Anime4KModeCHQ:
+    return "Anime4K: Mode C (HQ)";
+  case UpscalePreset::Anime4KModeAAHQ:
+    return "Anime4K: Mode A+A (HQ)";
+  case UpscalePreset::Anime4KModeBBHQ:
+    return "Anime4K: Mode B+B (HQ)";
+  case UpscalePreset::Anime4KModeCAHQ:
+    return "Anime4K: Mode C+A (HQ)";
+  case UpscalePreset::Anime4KModeAFast:
+    return "Anime4K: Mode A (Fast)";
+  case UpscalePreset::Anime4KModeBFast:
+    return "Anime4K: Mode B (Fast)";
+  case UpscalePreset::Anime4KModeCFast:
+    return "Anime4K: Mode C (Fast)";
+  case UpscalePreset::Anime4KModeAAFast:
+    return "Anime4K: Mode A+A (Fast)";
+  case UpscalePreset::Anime4KModeBBFast:
+    return "Anime4K: Mode B+B (Fast)";
+  case UpscalePreset::Anime4KModeCAFast:
+    return "Anime4K: Mode C+A (Fast)";
+  case UpscalePreset::ArtCNN:
+    return "ArtCNN C4F16";
+  case UpscalePreset::ArtCNNDenoise:
+    return "ArtCNN C4F16 DS";
+  case UpscalePreset::ArtCNNLarge:
+    return "ArtCNN C4F32";
+  }
+  return "Unknown";
+}
+bool UpscalePresetIsAnime4K(UpscalePreset preset) {
+  return preset == UpscalePreset::Anime4K ||
+         preset >= UpscalePreset::Anime4KModeBHQ;
+}
+std::vector<std::string> UpscalePresetShaderFiles(UpscalePreset preset) {
+  if (preset == UpscalePreset::ArtCNN)
+    return {"ArtCNN_C4F16.glsl"};
+  if (preset == UpscalePreset::ArtCNNDenoise)
+    return {"ArtCNN_C4F16_DS.glsl"};
+  if (preset == UpscalePreset::ArtCNNLarge)
+    return {"ArtCNN_C4F32.glsl"};
+  const auto &values = UpscalePresets();
+  const auto found = std::find(values.begin(), values.end(), preset);
+  if (found == values.end())
+    throw std::invalid_argument("Unknown upscaler preset");
+  const auto index = std::distance(values.begin(), found);
+  const bool fast = index >= 6;
+  const auto mode = index % 6;
+  const std::string primary = fast ? "M" : "VL", secondary = fast ? "S" : "M";
+  std::vector<std::string> files{"Anime4K_Clamp_Highlights.glsl"};
+  if (mode == 2 || mode == 5)
+    files.push_back("Anime4K_Upscale_Denoise_CNN_x2_" + primary + ".glsl");
+  else {
+    files.push_back(std::string("Anime4K_Restore_CNN_") +
+                    ((mode == 1 || mode == 4) ? "Soft_" : "") + primary +
+                    ".glsl");
+    files.push_back("Anime4K_Upscale_CNN_x2_" + primary + ".glsl");
+  }
+  if (mode == 3)
+    files.push_back("Anime4K_Restore_CNN_" + secondary + ".glsl");
+  files.push_back("Anime4K_AutoDownscalePre_x2.glsl");
+  files.push_back("Anime4K_AutoDownscalePre_x4.glsl");
+  if (mode == 4)
+    files.push_back("Anime4K_Restore_CNN_Soft_" + secondary + ".glsl");
+  if (mode == 5)
+    files.push_back("Anime4K_Restore_CNN_" + secondary + ".glsl");
+  files.push_back("Anime4K_Upscale_CNN_x2_" + secondary + ".glsl");
+  return files;
+}
+
 bool UpscaleSettings::enabled() const {
   return backend != UpscaleBackend::None && factor > 1;
 }
@@ -106,9 +200,9 @@ std::string UpscaleShaderFileList(const std::vector<std::string> &files) {
 
 void UpscaleSettings::validate() const {
   if (backend < UpscaleBackend::None || backend > UpscaleBackend::Auto ||
-      preset < UpscalePreset::Anime4K || preset > UpscalePreset::ArtCNNLarge ||
-      !std::isfinite(factor) || factor < 1 || factor > 4 ||
-      shaderFiles.find('\0') != std::string::npos)
+      preset < UpscalePreset::Anime4K ||
+      preset > UpscalePreset::Anime4KModeCAFast || !std::isfinite(factor) ||
+      factor < 1 || factor > 4 || shaderFiles.find('\0') != std::string::npos)
     throw std::invalid_argument("Invalid upscaler settings (factor: 1..4)");
 }
 

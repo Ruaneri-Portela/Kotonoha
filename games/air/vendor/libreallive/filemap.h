@@ -31,7 +31,6 @@
 //
 // -----------------------------------------------------------------------
 
-
 #ifndef SRC_LIBREALLIVE_FILEMAP_H_
 #define SRC_LIBREALLIVE_FILEMAP_H_
 
@@ -54,35 +53,26 @@
 
 namespace libreallive {
 
-enum Mode {
-  Read,
-  Write
-};
+enum Mode { Read, Write };
 
 class Mapping {
- public:
+public:
   Mapping(string filename, Mode mode, off_t min_size = 0);
   ~Mapping();
 
   // Prevent copying a memory mapping.
-  Mapping(const Mapping&) = delete;
-  Mapping& operator=(const Mapping&) = delete;
+  Mapping(const Mapping &) = delete;
+  Mapping &operator=(const Mapping &) = delete;
 
   // Return a pointer to the mapped memory.
-  char* get() {
-    return static_cast<char*>(mem);
-  }
+  char *get() { return static_cast<char *>(mem); }
 
-  const char* get() const {
-    return static_cast<const char*>(mem);
-  }
+  const char *get() const { return static_cast<const char *>(mem); }
 
   // Return mapping size in bytes.
-  size_t size() const {
-    return len;
-  }
+  size_t size() const { return len; }
 
- private:
+private:
   void mopen();
   void mclose();
 
@@ -92,7 +82,7 @@ class Mapping {
   int fp;
 #endif
 
-  void* mem = nullptr;
+  void *mem = nullptr;
   bool mapped = false;
   size_t len = 0;
 
@@ -101,6 +91,6 @@ class Mapping {
   off_t msz_;
 };
 
-}  // namespace libreallive
+} // namespace libreallive
 
 #endif  // SRC_LIBREALLIVE_FILEMAP_H_

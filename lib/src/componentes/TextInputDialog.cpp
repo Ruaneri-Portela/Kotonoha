@@ -105,7 +105,7 @@ TextInputDialog &
 GetTextInputDialogRuntime(Engine &engineRef, const std::string &prompt,
                           std::function<void(const std::string &)> confirmCb,
                           std::function<void()> cancelCb) {
-  static TextInputDialog dialog{engineRef, "", nullptr, nullptr};
+  auto &dialog = engineRef.sharedScene<TextInputDialog>("", nullptr, nullptr);
   if (!prompt.empty() || confirmCb || cancelCb)
     dialog.configure(prompt, std::move(confirmCb), std::move(cancelCb));
   return dialog;
