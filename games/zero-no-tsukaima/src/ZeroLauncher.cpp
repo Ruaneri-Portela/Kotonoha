@@ -23,6 +23,10 @@ ZeroLauncher::ZeroLauncher(std::string settingsPath, std::string disc)
 }
 
 bool ZeroLauncher::checkPath(const std::string &path, std::string &info) {
+  return validatePath(path, info);
+}
+
+bool ZeroLauncher::validatePath(const std::string &path, std::string &info) {
   Kotonoha::DiscImage image;
   std::string error;
   if (!image.tryOpen(path, &error)) {

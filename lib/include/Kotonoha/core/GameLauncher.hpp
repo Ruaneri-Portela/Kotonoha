@@ -30,6 +30,13 @@ public:
   static std::string rememberedPath(const std::string &settingsPath,
                                     const std::string &rememberFile);
 
+  // Validate every candidate, including standard package/document/source roots.
+  // Empty means no usable data was found; callers should open the chooser.
+  static std::string findGamePath(
+      const std::string &game, const std::vector<std::string> &preferred,
+      const std::function<bool(const std::string &, std::string &)> &validator,
+      const std::vector<std::string> &relative = {""});
+
   const std::string &path() const;
   void setPath(std::string path);
   bool pathValid() const;

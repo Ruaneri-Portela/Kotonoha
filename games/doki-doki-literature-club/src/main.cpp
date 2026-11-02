@@ -94,14 +94,16 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
           Kotonoha::EngineSettings::defaultPath("doki-doki-literature-club");
     const std::string settingsPath =
         options.persistSettings ? options.settingsPath : std::string();
+    const auto env = SDL_getenv("DDLC_DIR");
+    directory = Kotonoha::GameLauncher::findGamePath(
+        "doki-doki-literature-club",
+        {directory, env ? env : "",
+         Kotonoha::GameLauncher::rememberedPath(settingsPath, "dir.txt"),
+         defaultDirectory()},
+        Ddlc::GameLauncher::validatePath, {"", "game"});
     if (directory.empty())
-      if (const char *value = std::getenv("DDLC_DIR"); value && *value)
-        directory = value;
-    if (directory.empty())
-      directory =
-          Kotonoha::GameLauncher::rememberedPath(settingsPath, "dir.txt");
-    if (directory.empty())
-      directory = defaultDirectory();
+      options.launcher = true;
+
     if (options.launcher) {
       app->launcher =
           std::make_unique<Ddlc::GameLauncher>(settingsPath, directory);

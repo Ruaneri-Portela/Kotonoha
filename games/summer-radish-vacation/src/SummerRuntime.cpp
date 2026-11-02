@@ -1,5 +1,6 @@
 #include "SummerRuntime.hpp"
 #include <Kotonoha/componentes/ChoiceQuestionScene.hpp>
+#include <Kotonoha/componentes/ImageButtonBar.hpp>
 #include <Kotonoha/componentes/InGameMenu.hpp>
 #include <Kotonoha/componentes/TextInputForm.hpp>
 #include <Kotonoha/componentes/VNBacklog.hpp>
@@ -9,6 +10,8 @@
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/FileSystem.hpp>
 #include <Kotonoha/core/UI.hpp>
+#include <Kotonoha/events/BackAction.hpp>
+#include <Kotonoha/events/BacklogEvents.hpp>
 #include <Kotonoha/media/MediaPlayer.hpp>
 #include <Kotonoha/media/PcmPlayer.hpp>
 #include <Kotonoha/media/upscaling/Upscaler.hpp>
@@ -28,41 +31,127 @@ using namespace Kotonoha;
 namespace {
 class SummerText final : public VNTextBox {
   SummerAssets &assets;
+  std::unique_ptr<ClickMap> controlMap;
   void renderFrame(RendererRef r) override {
-    // Native premultiplied frame is composited into the stage using /256
-    // arithmetic.
+    // The normal frame is already composited by the stage. Overlay the
+    // original atlas states without rebuilding/upscaling the whole canvas.
+    auto &atlas = assets.texture(r, "GRAPHIC/FRAME/MESSFRAME.TEXB");
+    for (int i = 0; i < 6; ++i) {
+      const int state = controls.state(i);
+      const bool active = (i == 0 && skipActive && skipActive()) ||
+                          (i == 2 && autoActive && autoActive());
+      if (!state && !active)
+        continue;
+      SDL_FRect source{};
+      if (i == 0 || i == 2)
+        source = {float((active ? 192 : 0) + (state ? 96 : 0)),
+                  float(i == 0 ? 250 : 268), 96, 18};
+      else if (i == 1 || i == 3)
+        source = {480, float(i == 1 ? 250 : 268), 96, 18};
+      else if (i == 4)
+        source = {594, 250, 18, 18};
+      else
+        source = {float(612 + state * 46), 224, 46, 62};
+      RenderUpscaledTexture(&r, &atlas, &source, &controls.buttons[i].area);
+    }
   }
   void renderSpeaker(RendererRef r) override {
     engine.GetUI().text(r, speakerName, 24, 400, 650);
   }
   void renderDialogue(RendererRef r) override {
-    engine.GetUI().text(r, visibleDialogue, 20, 444, 710);
+    auto measure = [&](const std::string &value) {
+      return engine.GetUI().textSize(value, 10000).x;
+    };
+    const auto lines = VNTextBoxUtility::RevealLines(
+        fullDialogue, visibleDialogue.size(), measure, 710);
+    for (std::size_t i = 0; i < lines.size(); ++i)
+      engine.GetUI().text(r, lines[i], 20, 444 + i * 28, 710);
   }
   void renderIndicator(RendererRef r) override {
-    engine.GetUI().text(r, "▼", 715, 536, 40);
+    auto &atlas = assets.texture(r, "GRAPHIC/FRAME/MESSFRAME.TEXB");
+    SDL_FRect source{float(256 + ((SDL_GetTicks() / 200) % 4) * 16), 210, 16,
+                     40};
+    SDL_FRect target{719, 526, 16, 40};
+    RenderUpscaledTexture(&r, &atlas, &source, &target);
   }
 
 public:
+  ImageButtonBar controls;
+  bool concealed = false;
+  std::function<bool()> autoActive, skipActive;
+  void update() override {
+    if (concealed)
+      clock.reset();
+    else
+      VNTextBox::update();
+  }
+  void render(RendererRef r, float scale) override {
+    if (!concealed)
+      VNTextBox::render(r, scale);
+  }
   SummerText(Engine &e, SummerAssets &a) : VNTextBox(e, "", "", 40), assets(a) {
     hide();
+    controlMap =
+        std::make_unique<ClickMap>(assets.read("GRAPHIC/FRAME/MESSFRAME.CMAP"));
+    controls.hitTest = [this](SDL_FPoint p) {
+      const int id = controlMap->value(int(p.x), int(p.y) - 391);
+      return id >= 1 && id <= 6 ? id - 1 : -1;
+    };
+    controls.buttons = {{{417, 576, 96, 18}, {}}, {{507, 576, 96, 18}, {}},
+                        {{597, 576, 96, 18}, {}}, {{687, 576, 96, 18}, {}},
+                        {{778, 577, 18, 18}, {}}, {{750, 515, 46, 62}, {}}};
   }
   bool designSpace() const override { return false; }
   bool handleEvent(EventRef e) override {
-    if (!isVisible())
-      return false;
-    if (UI::clicked(e, {687, 576, 96, 18})) {
-      openMenu();
-      return true;
-    }
-    if (UI::clicked(e, {507, 576, 90, 18})) {
-      openBacklog();
-      return true;
-    }
-    return false;
+    return isVisible() && !concealed && controls.handle(e);
   }
 };
 class SummerChoice final : public ChoiceQuestionScene {
-  SDL_FRect listArea() const override { return {80, 145, 640, 420}; }
+  SummerAssets &assets;
+  std::vector<bool> readStates;
+  bool pointerFocus = false, keyboardFocus = false;
+  void layout() override {
+    if (nativeMode >= 0) {
+      ChoiceQuestionScene::layout();
+      return;
+    }
+    float width = 16;
+    for (const auto &option : options)
+      width = std::max(
+          width, engine.GetUI().measureSized(option.label, 10000, 28).x + 16);
+    width = std::min(736.0f, width);
+    const float left = (800 - width) / 2 - 32;
+    float y = 300 - (50 * options.size()) / 2.0f + 4 - scroll;
+    for (auto &option : options) {
+      option.hitBox = {left, y, width + 64, 42};
+      y += 50;
+    }
+  }
+  void renderOption(RendererRef r, std::size_t index, bool focused) override {
+    focused = focused && (pointerFocus || keyboardFocus);
+    const auto &rect = options[index].hitBox;
+    auto &atlas = assets.texture(r, "GRAPHIC/FRAME/SELECT.TEXB");
+    const bool read = index < readStates.size() && readStates[index];
+    const float start = (read ? 160 : 0) + (focused ? 80 : 0);
+    SDL_FRect source{start, 0, 32, 42}, target{rect.x, rect.y, 32, 42};
+    RenderUpscaledTexture(&r, &atlas, &source, &target);
+    source = {start + 32, 0, 16, 42};
+    target = {rect.x + 32, rect.y, rect.w - 64, 42};
+    RenderUpscaledTexture(&r, &atlas, &source, &target);
+    source = {start + 48, 0, 32, 42};
+    target = {rect.x + rect.w - 32, rect.y, 32, 42};
+    RenderUpscaledTexture(&r, &atlas, &source, &target);
+    const auto size =
+        engine.GetUI().measureSized(options[index].label, rect.w - 16, 28);
+    const SDL_Color color = read ? (focused ? SDL_Color{255, 240, 128, 255}
+                                            : SDL_Color{204, 192, 96, 255})
+                                 : (focused ? SDL_Color{240, 240, 240, 255}
+                                            : SDL_Color{192, 192, 192, 255});
+    engine.GetUI().textSized(
+        r, options[index].label, rect.x + (rect.w - size.x) / 2,
+        rect.y + (42 - size.y) / 2, rect.w - 16, 28, color);
+  }
+  SDL_FRect listArea() const override { return {0, 0, 800, 600}; }
   void renderPanel(RendererRef r) override {
     if (!questionText.empty()) {
       engine.GetUI().panel(r, {60, 70, 680, 65});
@@ -75,7 +164,11 @@ class SummerChoice final : public ChoiceQuestionScene {
 
 public:
   std::function<void(const std::string &)> nativeSound;
-  explicit SummerChoice(Engine &e) : ChoiceQuestionScene(e, "", {}, nullptr) {}
+  explicit SummerChoice(Engine &e, SummerAssets &a)
+      : ChoiceQuestionScene(e, "", {}, nullptr), assets(a) {}
+  void setReadStates(std::vector<bool> states) {
+    readStates = std::move(states);
+  }
   bool designSpace() const override { return false; }
   int mode() const { return active ? nativeMode : -1; }
   int focused() const { return focus; }
@@ -87,6 +180,8 @@ public:
   void setQuestion(const std::string &q, const std::vector<ChoiceOption> &o,
                    std::function<void(int, const std::string &)> cb) override {
     nativeMode = -1;
+    readStates.clear();
+    pointerFocus = keyboardFocus = false;
     hitmap.reset();
     ChoiceQuestionScene::setQuestion(q, o, std::move(cb));
   }
@@ -158,7 +253,28 @@ public:
   }
   void onEvent(EventRef e) override {
     if (nativeMode < 0) {
+      if (e.type == SDL_EVENT_MOUSE_MOTION && active) {
+        layout();
+        pointerFocus = false;
+        keyboardFocus = false;
+        SDL_FPoint point{e.motion.x, e.motion.y};
+        for (std::size_t i = 0; i < options.size(); ++i)
+          if (SDL_PointInRectFloat(&point, &options[i].hitBox)) {
+            selected = i;
+            pointerFocus = true;
+          }
+      }
+      if (e.type == SDL_EVENT_KEY_DOWN)
+        keyboardFocus = true;
       ChoiceQuestionScene::onEvent(e);
+      return;
+    }
+    if (BackAction(engine, e)) {
+      if (nativeMode == 3 && uniformPhase) {
+        uniformPhase = 0;
+        focus = uniformIndex;
+      } else
+        openMenu();
       return;
     }
     if (!active)
@@ -291,7 +407,9 @@ struct SummerRuntime::Impl {
   std::unique_ptr<VNSaveMenu> saves;
   PcmPlayer bgm, se, voice;
   std::unique_ptr<MediaPlayer> movie;
-  std::string background = "GRAPHIC/黒.BGD", music, pending, byteOverlay;
+  std::string background = "GRAPHIC/黒.BGD", music, pending, byteOverlay,
+              lastVoice;
+  bool skipMode = false;
   std::map<int, Sprite> sprites;
   uint64_t nextSpriteOrder = 0;
   std::map<std::string, Image> decodedImages;
@@ -570,6 +688,9 @@ struct SummerRuntime::Impl {
     sprites.clear();
     background = "GRAPHIC/黒.BGD";
     pending.clear();
+    autoMode = skipMode = skipHeld = false;
+    text->concealed = false;
+    text->controls.reset();
     title = false;
     deadline = 0;
     runtime.SetState(GameState::Menu);
@@ -591,7 +712,24 @@ struct SummerRuntime::Impl {
     if (!stage) {
       stage = std::make_unique<Stage>(e);
       text = std::make_unique<SummerText>(e, *assets);
-      choice = std::make_unique<SummerChoice>(e);
+      text->autoActive = [this] { return autoMode; };
+      text->skipActive = [this] { return skipMode || skipHeld; };
+      text->controls.buttons[0].action = [this] { skipMode = !skipMode; };
+      text->controls.buttons[1].action = [this] {
+        GetVNBacklogRuntime(*engine).open();
+      };
+      text->controls.buttons[2].action = [this] {
+        autoMode = !autoMode;
+        deadline = 0;
+      };
+      text->controls.buttons[3].action = [this] {
+        GetInGameMenuRuntime(*engine).open();
+      };
+      text->controls.buttons[4].action = [this] { text->concealed = true; };
+      text->controls.buttons[5].action = [this] {
+        runtime.saveGame((saveDirectory() / "quicksave.vn").string());
+      };
+      choice = std::make_unique<SummerChoice>(e, *assets);
       movie = std::make_unique<MediaPlayer>(e.GetAudio());
       choice->nativeSound = [this](const std::string &id) {
         audio(se, "SOUND/" + id + ".ogg", "Se");
@@ -619,20 +757,23 @@ struct SummerRuntime::Impl {
     }
   }
   void options(const std::string &question, std::vector<std::string> labels,
-               const std::string &kind) {
+               const std::string &kind, const std::vector<int> &ids = {}) {
     pending = kind;
     vm.waiting = true;
     text->hide();
     std::vector<ChoiceOption> options;
     for (size_t i = 0; i < labels.size(); ++i)
-      options.push_back({translated(labels[i]), int(i)});
+      options.push_back(
+          {translated(labels[i]), ids.empty() ? int(i) : ids.at(i)});
     choice->setQuestion(question, options,
                         [this, kind](int index, const std::string &) {
                           choice->hide();
                           pending.clear();
-                          if (kind == "SELECT")
+                          if (kind == "SELECT") {
+                            vm.markRead(vm.resource.children.at(1 + index * 2));
                             vm.variables[choiceTarget] = int64_t(index);
-                          else if (kind == "UNIFORM") {
+                            saveSystem();
+                          } else if (kind == "UNIFORM") {
                             vm.variables["@制服番号"] = int64_t(index + 2);
                             vm.variables["@EV制服"] = int64_t(index + 24);
                           } else if (kind == "MAP")
@@ -656,11 +797,15 @@ struct SummerRuntime::Impl {
         translated(speaker),
         translated(substitutePlayerNames(string(vm.evaluate(r[2])), names)));
     text->show();
+    text->concealed = false;
+    if (!currentRead)
+      skipMode = false;
     voice.Stop();
     if (r.size() > 5) {
       auto id = "VOICE/" + string(vm.evaluate(r[5])) + ".ogg";
-      if (assets->contains(id))
+      if (assets->contains(id)) {
         audio(voice, id, "Voice");
+      }
     }
     vm.waiting = true;
     pending = "MESSAGE";
@@ -683,9 +828,23 @@ struct SummerRuntime::Impl {
               : (node.children[0].attr("type") == "GLOBAL" ? "$" : "@") +
                     node.children[0].text;
       std::vector<std::string> labels;
-      for (size_t i = 2; i < vm.resource.children.size(); i += 2)
+      std::vector<int> ids;
+      std::vector<bool> read;
+      for (size_t i = 2; i < vm.resource.children.size() && ids.size() < 32;
+           i += 2) {
+        const auto index = int((i - 2) / 2);
+        if (std::size_t(index + 1) < args.size() && !number(args[index + 1]))
+          continue;
         labels.push_back(string(vm.evaluate(vm.resource.children[i])));
-      options("", std::move(labels), "SELECT");
+        ids.push_back(index);
+        read.push_back(vm.hasRead(vm.resource.children[i - 1]));
+      }
+      if (labels.empty()) {
+        vm.variables[choiceTarget] = int64_t(-1);
+        return;
+      }
+      options("", std::move(labels), "SELECT", ids);
+      choice->setReadStates(std::move(read));
       return;
     }
     if (name == "LOADBACK" || name == "LOADEVENT") {
@@ -936,7 +1095,8 @@ struct SummerRuntime::Impl {
     state << base << byteOverlay << ':' << transitionDuration << ':'
           << (transitionDuration ? (SDL_GetTicks() - transitionStart) / 8 : 0)
           << ':' << title << ':' << titleFocus << ':' << text->isVisible()
-          << ':' << choice->mode() << ':' << choice->focused();
+          << ':' << text->concealed << ':' << choice->mode() << ':'
+          << choice->focused();
     for (auto &[slot, sprite] : sprites)
       state << slot << sprite.id << sprite.x;
     if (choice->mode() >= 0)
@@ -956,7 +1116,7 @@ struct SummerRuntime::Impl {
                            transitionDuration);
       if (!byteOverlay.empty())
         compositeImage(canvas, image(byteOverlay), 216, 161);
-      if (text->isVisible())
+      if (text->isVisible() && !text->concealed)
         compositeImageRegion(canvas, image("GRAPHIC/FRAME/MESSFRAME.TEXB"), 0,
                              391, 0, 0, 800, 209);
       choice->compose(
@@ -1003,6 +1163,14 @@ struct SummerRuntime::Impl {
     }
   }
   bool event(EventRef e) {
+    if (pending == "MESSAGE" && BackAction(*engine, e)) {
+      GetInGameMenuRuntime(*engine).open();
+      return true;
+    }
+    if (pending == "MESSAGE" && ShouldOpenBacklog(*engine, e)) {
+      GetVNBacklogRuntime(*engine).open();
+      return true;
+    }
     if (e.type == SDL_EVENT_KEY_UP &&
         (e.key.key == SDLK_LCTRL || e.key.key == SDLK_RCTRL))
       skipHeld = false;
@@ -1056,6 +1224,13 @@ struct SummerRuntime::Impl {
         runtime.loadGame((saveDirectory() / "quicksave.vn").string());
         return true;
       }
+    }
+    if (pending == "MESSAGE" && text->concealed &&
+        (UI::clicked(e, {0, 0, 800, 600}) ||
+         (e.type == SDL_EVENT_KEY_DOWN &&
+          (e.key.key == SDLK_RETURN || e.key.key == SDLK_SPACE)))) {
+      text->concealed = false;
+      return true;
     }
     if (text->handleEvent(e))
       return true;
@@ -1178,12 +1353,13 @@ void SummerRuntime::update() {
     i.saveSystem();
     i.lastSystemWrite = now;
   }
-  if (i.pending == "MESSAGE" && i.skipHeld && i.currentRead) {
+  if (i.pending == "MESSAGE" && !i.text->concealed &&
+      (i.skipHeld || i.skipMode) && i.currentRead) {
     i.text->completeDialogue();
     i.finishMessage();
   }
-  if (i.pending == "MESSAGE" && i.autoMode && i.text->isDialogueComplete() &&
-      !i.voice.Playing()) {
+  if (i.pending == "MESSAGE" && !i.text->concealed && i.autoMode &&
+      i.text->isDialogueComplete() && !i.voice.Playing()) {
     if (!i.deadline)
       i.deadline = SDL_GetTicks() + 1500;
     if (SDL_GetTicks() >= i.deadline) {
@@ -1273,6 +1449,9 @@ void SummerRuntime::loadGame(const std::string &path) {
   i.sprites = std::move(sprites);
   i.nextSpriteOrder = nextOrder;
   i.title = false;
+  i.autoMode = i.skipMode = i.skipHeld = false;
+  i.text->controls.reset();
+  i.text->concealed = false;
   i.pending = pending;
   i.choiceTarget = target;
   i.deadline = 0;
@@ -1289,10 +1468,14 @@ void SummerRuntime::loadGame(const std::string &path) {
   if (pending == "MESSAGE")
     i.message();
   else if (pending == "SELECT") {
-    std::vector<std::string> labels;
-    for (size_t k = 2; k < i.vm.resource.children.size(); k += 2)
-      labels.push_back(string(i.vm.evaluate(i.vm.resource.children[k])));
-    i.options("", labels, "SELECT");
+    const auto &node = i.vm.programs()
+                           .at(i.vm.position.script)
+                           .code.at(i.vm.position.pc - 1)
+                           .node;
+    std::vector<Value> args;
+    for (const auto &part : node.children)
+      args.push_back(i.vm.evaluate(part));
+    i.function("SELECT", args);
   } else {
     bool uniform = pending == "UNIFORM";
     int mode = uniform ? 3 : int(number(i.vm.variables["@KOTONOHA_MAP_MODE"]));

@@ -4,6 +4,7 @@
 #include <Air/System.hpp>
 #include <Air/Voice.hpp>
 #include <Kotonoha/componentes/ChoiceQuestionScene.hpp>
+#include <Kotonoha/componentes/ImageButtonBar.hpp>
 #include <Kotonoha/componentes/InGameMenu.hpp>
 #include <Kotonoha/componentes/VNBacklog.hpp>
 #include <Kotonoha/componentes/VNSave.hpp>
@@ -12,6 +13,8 @@
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/FileSystem.hpp>
 #include <Kotonoha/core/UI.hpp>
+#include <Kotonoha/events/BackAction.hpp>
+#include <Kotonoha/events/BacklogEvents.hpp>
 #include <Kotonoha/localization/Encoding.hpp>
 #include <Kotonoha/media/MediaPlayer.hpp>
 #include <Kotonoha/media/PcmPlayer.hpp>
@@ -35,12 +38,18 @@ struct Stage : Scene {
 };
 struct Text : VNTextBox {
   AirAssets &assets;
-  SurfacePtr frame, back, cursor;
+  SurfacePtr frame, back, cursor, buttonSurface;
+  Image buttonImage;
+  ImageButtonBar controls;
+  bool concealed = false;
+  std::function<bool()> autoActive, skipActive;
   std::map<SDL_Surface *, TexturePtr> imageTextures;
   std::vector<Uint8> fontData;
   FontPtr font;
   Text(Engine &e, AirAssets &a) : VNTextBox(e, "", "", 40), assets(a) {
     hide();
+    buttonImage = decodeG00(assets.read(assets.graphic("smw00c")));
+    buttonSurface = assets.loadSurface(assets.graphic("smw00c"));
     cursor = assets.loadSurface(assets.graphic("kcur00"));
     frame = assets.loadSurface(assets.graphic("smw00a"));
     back = assets.loadSurface(assets.graphic("smw00b"));
@@ -152,9 +161,39 @@ struct Text : VNTextBox {
     SDL_FRect destination{x, y, surface.w / density, surface.h / density};
     SDL_RenderTexture(&r, texture.get(), nullptr, &destination);
   }
+  void update() override {
+    if (concealed)
+      clock.reset();
+    else
+      VNTextBox::update();
+  }
+  void render(RendererRef r, float scale) override {
+    if (!concealed)
+      VNTextBox::render(r, scale);
+  }
+  bool handleEvent(EventRef event) override {
+    return isVisible() && !concealed && controls.handle(event);
+  }
   void renderFrame(RendererRef r) override {
     image(r, *back, 0, 345);
     image(r, *frame, 0, 345);
+    auto &texture = imageTextures[buttonSurface.get()];
+    if (!texture)
+      texture.reset(SDL_CreateTextureFromSurface(&r, buttonSurface.get()));
+    constexpr int groups[]{8, 24, 32, 112, 104};
+    for (std::size_t i = 0; i < controls.buttons.size(); ++i) {
+      const bool active = (i == 3 && autoActive && autoActive()) ||
+                          (i == 4 && skipActive && skipActive());
+      const int index =
+          groups[i] +
+          (active && controls.state(int(i)) == 0 ? 3 : controls.state(int(i)));
+      const auto &region = buttonImage.regions.at(index);
+      SDL_FRect source{float(region.atlasX), float(region.atlasY),
+                       float(region.x2 - region.x1 + 1),
+                       float(region.y2 - region.y1 + 1)};
+      RenderUpscaledTexture(&r, texture.get(), &source,
+                            &controls.buttons[i].area);
+    }
   }
   void renderSpeaker(RendererRef r) override {
     print(r, speakerName, 33, 315, 500);
@@ -227,6 +266,11 @@ struct AirRuntime::Impl {
   };
   std::map<int, EditField> editFields;
   int focusedEdit = -1;
+  bool autoMode = false, skipMode = false, skipHeld = false;
+  Uint64 autoDeadline = 0;
+  bool ctrlSkipEnabled = true, currentRead = false;
+  std::pair<int, std::size_t> currentPage;
+  std::set<std::pair<int, std::size_t>> readPages;
   bool refreshRequested = false;
   std::string speakerName, musicID, saveName;
   std::map<std::string, std::string> selectionLabels;
@@ -550,6 +594,18 @@ struct AirRuntime::Impl {
     if (!stage) {
       stage = std::make_unique<Stage>(e);
       textbox = std::make_unique<Text>(e, *assets);
+      textbox->autoActive = [this] { return autoMode; };
+      textbox->skipActive = [this] { return skipMode || skipHeld; };
+      textbox->controls.buttons = {
+          {{584, 349, 31, 7}, [this] { textbox->concealed = true; }},
+          {{616, 349, 12, 38}, [this] { GetVNBacklogRuntime(*engine).open(); }},
+          {{616, 388, 12, 38}, [this] { advanceText(); }},
+          {{616, 427, 12, 16},
+           [this] {
+             autoMode = !autoMode;
+             autoDeadline = 0;
+           }},
+          {{616, 444, 12, 16}, [this] { skipMode = !skipMode; }}};
       choice = std::make_unique<ChoiceQuestionScene>(
           e, "", std::vector<ChoiceOption>{}, nullptr);
       stage->draw = [this](auto &r) { draw(r); };
@@ -566,6 +622,10 @@ struct AirRuntime::Impl {
     m.SetOnReturnToMenu([this] {
       GetInGameMenuRuntime(*engine).close();
       vm.jump(9032);
+      autoMode = skipMode = skipHeld = false;
+      autoDeadline = 0;
+      textbox->controls.reset();
+      textbox->concealed = false;
       fg.clear();
       bg.clear();
       dc.clear();
@@ -600,7 +660,57 @@ struct AirRuntime::Impl {
     runtime.RemoveScene(saves.get());
     runtime.AddScene(saves.get());
   }
+  void advanceText() {
+    if (!pause)
+      return;
+    if (!textbox->isDialogueComplete())
+      textbox->completeDialogue();
+    else {
+      readPages.insert(currentPage);
+      pause = false;
+      autoDeadline = 0;
+      if (pauseKind != 205) {
+        dialogue.clear();
+        speakerName.clear();
+        textbox->hide();
+        voice.Stop();
+      }
+    }
+  }
   bool event(EventRef e) {
+    if (pause && BackAction(*engine, e)) {
+      GetInGameMenuRuntime(*engine).open();
+      return true;
+    }
+    if (pause && ShouldOpenBacklog(*engine, e)) {
+      GetVNBacklogRuntime(*engine).open();
+      return true;
+    }
+    if (e.type == SDL_EVENT_WINDOW_FOCUS_LOST)
+      skipHeld = false;
+    if ((e.type == SDL_EVENT_KEY_DOWN || e.type == SDL_EVENT_KEY_UP) &&
+        (e.key.key == SDLK_LCTRL || e.key.key == SDLK_RCTRL)) {
+      skipHeld = e.type == SDL_EVENT_KEY_DOWN;
+      return true;
+    }
+    if (pause && textbox->isVisible()) {
+      if (textbox->concealed) {
+        if ((e.type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
+             e.button.button == SDL_BUTTON_LEFT) ||
+            (e.type == SDL_EVENT_KEY_DOWN &&
+             (e.key.key == SDLK_SPACE || e.key.key == SDLK_RETURN))) {
+          textbox->concealed = false;
+          return true;
+        }
+      } else if (textbox->handleEvent(e))
+        return true;
+      if (e.type == SDL_EVENT_KEY_DOWN && !e.key.repeat &&
+          e.key.key == SDLK_A) {
+        autoMode = !autoMode;
+        autoDeadline = 0;
+        return true;
+      }
+    }
     if (e.type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
         e.button.button == SDL_BUTTON_LEFT) {
       SDL_FPoint point{e.button.x, e.button.y};
@@ -646,23 +756,14 @@ struct AirRuntime::Impl {
       return true;
     }
     bool advance =
-        (e.type == (pauseKind == 205 ? SDL_EVENT_MOUSE_BUTTON_UP
-                                     : SDL_EVENT_MOUSE_BUTTON_DOWN) &&
+        (e.type == (pauseKind == 205 || e.button.which == SDL_TOUCH_MOUSEID
+                        ? SDL_EVENT_MOUSE_BUTTON_UP
+                        : SDL_EVENT_MOUSE_BUTTON_DOWN) &&
          e.button.button == SDL_BUTTON_LEFT) ||
         (e.type == SDL_EVENT_KEY_DOWN &&
          (e.key.key == SDLK_RETURN || e.key.key == SDLK_SPACE));
     if (advance && pause) {
-      if (!textbox->isDialogueComplete())
-        textbox->completeDialogue();
-      else {
-        pause = false;
-        if (pauseKind != 205) {
-          dialogue.clear();
-          speakerName.clear();
-          textbox->hide();
-          voice.Stop();
-        }
-      }
+      advanceText();
       return true;
     }
     return false;
@@ -677,6 +778,12 @@ bool AirRuntime::Impl::command(const libreallive::CommandElement &c) {
     case 17:
     case 205: {
       pauseKind = op;
+      currentPage = {vm.scenario(), vm.index()};
+      currentRead = readPages.count(currentPage) != 0;
+      if (!currentRead)
+        skipMode = false;
+      autoDeadline = 0;
+      textbox->concealed = false;
       pause = true;
       auto translated = engine->GetTranslation().text(vm.scenario(), dialogue);
       if (translated == dialogue && !dialogue.empty() &&
@@ -792,14 +899,23 @@ bool AirRuntime::Impl::command(const libreallive::CommandElement &c) {
     case 205:
       SDL_HideCursor();
       return true;
-    case 350:
     case 332:
+      machine.set_store_register(skipMode);
+      return true;
+    case 333:
+    case 334:
+      skipMode = op == 333;
+      return true;
+    case 350:
+      machine.set_store_register(ctrlSkipEnabled);
+      return true;
     case 353:
     case 354:
       machine.set_store_register(0);
       return true;
     case 351:
     case 352:
+      ctrlSkipEnabled = op == 351;
       return true;
     case 410:
       for (int i = 0; i < c.GetParamCount(); ++i)
@@ -1501,9 +1617,13 @@ void AirRuntime::update() {
   if (!i.engine)
     return;
   bool paused = isStoryPaused();
+  if (paused)
+    i.button1 = i.button2 = 0;
   const auto audioNow = SDL_GetTicks();
   const auto delta = i.audioTick ? audioNow - i.audioTick : 0;
   i.audioTick = audioNow;
+  if (paused && i.autoDeadline)
+    i.autoDeadline += delta;
   if (!paused && i.fadeDuration > 0) {
     i.fadeElapsed =
         int(std::min<Uint64>(i.fadeDuration, Uint64(i.fadeElapsed) + delta));
@@ -1524,6 +1644,30 @@ void AirRuntime::update() {
     s->SetPaused(paused);
   if (i.movie)
     i.movie->setPaused(paused);
+  if (!paused && i.pause && !i.textbox->concealed) {
+    if ((i.skipMode && i.currentRead) || (i.skipHeld && i.ctrlSkipEnabled)) {
+      i.textbox->completeDialogue();
+      i.advanceText();
+    } else if (i.autoMode && i.textbox->isDialogueComplete() &&
+               !i.voice.Playing()) {
+      if (!i.autoDeadline) {
+        const auto &values = i.vm.machine().memory().integers;
+        auto get = [&](int key, const char *name, int fallback) {
+          auto entry = values.find({26, key});
+          return entry == values.end()
+                     ? i.assets->settings().integer(name, fallback)
+                     : entry->second;
+        };
+        const auto duration =
+            std::max(0, get(2352, "MESSAGE_KEY_WAIT_TIME", 1000)) +
+            std::max(0, get(2351, "AUTO_CHAR_TIME", 30)) *
+                VNTextBoxUtility::CountUtf8Chars(i.dialogue);
+        i.autoDeadline = SDL_GetTicks() + duration;
+      }
+      if (SDL_GetTicks() >= i.autoDeadline)
+        i.advanceText();
+    }
+  }
   if (paused || i.pause || i.choice->isActive() || !i.error.empty() ||
       SDL_GetTicks() < i.deadline)
     return;

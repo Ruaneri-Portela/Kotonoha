@@ -90,13 +90,16 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
           Kotonoha::EngineSettings::defaultPath("zero-no-tsukaima");
     const std::string settingsPath =
         options.persistSettings ? options.settingsPath : std::string();
+    const auto env = SDL_getenv("ZERO_DISC");
+    disc = Kotonoha::GameLauncher::findGamePath(
+        "zero-no-tsukaima",
+        {disc, env ? env : "",
+         Kotonoha::GameLauncher::rememberedPath(settingsPath, "disc.txt"),
+         DefaultDisc()},
+        ZeroNoTsukaima::ZeroLauncher::validatePath,
+        {"ZeroNoTsukaima.bin", "ZeroNoTsukaima.iso"});
     if (disc.empty())
-      if (const char *value = std::getenv("ZERO_DISC"); value && *value)
-        disc = value;
-    if (disc.empty())
-      disc = Kotonoha::GameLauncher::rememberedPath(settingsPath, "disc.txt");
-    if (disc.empty())
-      disc = DefaultDisc();
+      options.launcher = true;
 
     if (options.launcher) {
       app->launcher =

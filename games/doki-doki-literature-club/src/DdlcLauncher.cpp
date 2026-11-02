@@ -22,6 +22,10 @@ GameLauncher::GameLauncher(std::string settingsPath, std::string directory)
 }
 
 bool GameLauncher::checkPath(const std::string &path, std::string &info) {
+  return validatePath(path, info);
+}
+
+bool GameLauncher::validatePath(const std::string &path, std::string &info) {
   std::error_code error;
   if (!std::filesystem::is_directory(path, error)) {
     info = "Game folder not found: " + path;

@@ -6,10 +6,11 @@ namespace Ddlc {
 
 class GameLauncher final : public Kotonoha::GameLauncher {
 public:
-    GameLauncher(std::string settingsPath, std::string directory);
+  static bool validatePath(const std::string &path, std::string &info);
+  GameLauncher(std::string settingsPath, std::string directory);
 
 protected:
-    bool checkPath(const std::string& path, std::string& info) override;
+  bool checkPath(const std::string &path, std::string &info) override;
 };
 
 } // namespace Ddlc

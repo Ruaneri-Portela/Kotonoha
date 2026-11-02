@@ -242,13 +242,54 @@ SDL_Event key(SDL_Keycode code) {
 class EventRuntime : public Runtime {
 public:
   int novelEvents = 0, screenEvents = 0;
+  bool touch = false, held = false;
+  int touchDowns = 0, touchUps = 0;
+  bool continuousTouch() const override { return touch; }
   EventRuntime() : Runtime("Infrastructure tests", "1", "org.kotonoha.infra") {}
-  void onEvent(EventRef) override { ++novelEvents; }
+  void onEvent(EventRef event) override {
+    ++novelEvents;
+    if ((event.type == SDL_EVENT_MOUSE_BUTTON_DOWN ||
+         event.type == SDL_EVENT_MOUSE_BUTTON_UP) &&
+        event.button.which == SDL_TOUCH_MOUSEID) {
+      held = event.type == SDL_EVENT_MOUSE_BUTTON_DOWN;
+      if (held)
+        ++touchDowns;
+      else
+        ++touchUps;
+    }
+  }
   bool onScreenEvent(EventRef) override {
     ++screenEvents;
     return false;
   }
 };
+
+void testContinuousTouch(Engine &engine, EventRuntime &runtime) {
+  runtime.touch = true;
+  SDL_Event finger{};
+  finger.type = SDL_EVENT_FINGER_DOWN;
+  finger.tfinger.touchID = 7;
+  finger.tfinger.fingerID = 9;
+  finger.tfinger.x = .5f;
+  finger.tfinger.y = .5f;
+  engine.Event(&finger);
+  require(runtime.held && runtime.touchDowns == 1 && runtime.touchUps == 0,
+          "Native touch exposes held pointer state before the release");
+  engine.Iterate();
+  require(runtime.held, "A native script can poll touch-down on its own frame");
+  finger.type = SDL_EVENT_FINGER_UP;
+  engine.Event(&finger);
+  require(!runtime.held && runtime.touchDowns == 1 && runtime.touchUps == 1,
+          "Native touch releases once without an additional synthesized tap");
+  finger.type = SDL_EVENT_FINGER_DOWN;
+  engine.Event(&finger);
+  SDL_Event lost{};
+  lost.type = SDL_EVENT_WINDOW_FOCUS_LOST;
+  engine.Event(&lost);
+  require(!runtime.held,
+          "Focus loss releases a held native touch outside clickable controls");
+  runtime.touch = false;
+}
 
 void testWindowAndMenu(Engine &engine, EventRuntime &runtime,
                        const std::string &file) {
@@ -624,6 +665,7 @@ int main(int argc, char **argv) {
       testWindowAndMenu(engine, runtime, options.settingsPath);
       testKtrfRuntime(engine, temporary.path);
       testRenderState(engine);
+      testContinuousTouch(engine, runtime);
     } else
       testNativeWindow(engine);
     const auto backend = argc == 1 ? UpscaleBackend::Linear

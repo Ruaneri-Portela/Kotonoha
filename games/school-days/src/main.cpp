@@ -96,19 +96,24 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
     const std::string settings =
         app->options.persistSettings ? app->options.settingsPath : "";
 
-    if (app->route.empty())
-      app->route = Kotonoha::GameLauncher::rememberedPath(
-          settings, SchoolDays::Launcher::RouteRememberFile);
-    if (app->route.empty())
-      app->route = SchoolDays::Assets::defaultRoute().string();
-
-    if (directory.empty())
-      if (const char *env = std::getenv("SCHOOL_DAYS_DIR"))
-        directory = env;
-    if (directory.empty())
-      directory = Kotonoha::GameLauncher::rememberedPath(settings, "dir.txt");
-    if (directory.empty())
-      directory = SchoolDays::Assets::defaultDirectory().string();
+    app->route = Kotonoha::GameLauncher::findGamePath(
+        "school-days",
+        {app->route,
+         Kotonoha::GameLauncher::rememberedPath(
+             settings, SchoolDays::Launcher::RouteRememberFile),
+         SchoolDays::Assets::findDefaultRoute().string()},
+        SchoolDays::Launcher::validateRoute, {"school-days-hq.ktnroute"});
+    const auto env = SDL_getenv("SCHOOL_DAYS_DIR");
+    directory = Kotonoha::GameLauncher::findGamePath(
+        "school-days",
+        {directory, env ? env : "",
+         Kotonoha::GameLauncher::rememberedPath(settings, "dir.txt"),
+         SchoolDays::Assets::defaultDirectory().string()},
+        [](const std::string &path, std::string &info) {
+          return SchoolDays::Assets::checkDirectory(path, info);
+        });
+    if (directory.empty() || app->route.empty())
+      options.launcher = true;
     if (options.launcher) {
       app->launcher = std::make_unique<SchoolDays::Launcher>(
           settings, directory, app->route);

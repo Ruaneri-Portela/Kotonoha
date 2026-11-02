@@ -54,6 +54,27 @@ protected:
   }
 };
 
+void pathDiscovery(const std::filesystem::path &directory) {
+  const auto invalid = directory / "stale-folder";
+  const auto valid = directory / "valid-folder";
+  std::filesystem::create_directory(invalid);
+  std::filesystem::create_directory(valid);
+  std::ofstream(valid / "required.dat").put('x');
+  const auto validator = [](const std::string &path, std::string &) {
+    return std::filesystem::is_regular_file(std::filesystem::path(path) /
+                                            "required.dat");
+  };
+  require(GameLauncher::findGamePath("path-tests",
+                                     {invalid.string(), valid.string()},
+                                     validator) == valid.string(),
+          "Invalid remembered paths are skipped before trying a valid default");
+  require(GameLauncher::findGamePath("path-tests", {invalid.string()},
+                                     [](const auto &, auto &) { return false; })
+              .empty(),
+          "No valid candidate returns an empty chooser instead of launching "
+          "invalid data");
+}
+
 void gameLauncher(const std::filesystem::path &directory) {
   const auto root = directory / "game-launcher";
   std::filesystem::create_directory(root);
@@ -161,6 +182,7 @@ int main() {
   try {
     std::filesystem::create_directories(directory);
     launcher(directory);
+    pathDiscovery(directory);
     gameLauncher(directory);
   } catch (const std::exception &error) {
     std::cerr << "FAIL: " << error.what() << '\n';

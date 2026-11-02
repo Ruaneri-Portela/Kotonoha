@@ -2,6 +2,7 @@
 // base classes keep input routing and state, and call back into the subclass.
 #include <Kotonoha/componentes/ChoiceQuestionScene.hpp>
 #include <Kotonoha/componentes/GameMenu.hpp>
+#include <Kotonoha/componentes/ImageButtonBar.hpp>
 #include <Kotonoha/componentes/InGameMenu.hpp>
 #include <Kotonoha/componentes/TextInputDialog.hpp>
 #include <Kotonoha/componentes/VNBacklog.hpp>
@@ -317,6 +318,34 @@ void testSaveSuggestions(Kotonoha::Engine &engine) {
   std::filesystem::remove_all(directory);
 }
 
+void testNativeButtons() {
+  Kotonoha::ImageButtonBar bar;
+  int activated = 0;
+  bar.buttons = {{{20, 20, 12, 7}, [&] { ++activated; }}};
+  auto down = click(25, 23);
+  require(bar.handle(down) && bar.state(0) == 2 && activated == 0,
+          "Native sprite controls show press state without activating early");
+  auto up = down;
+  up.type = SDL_EVENT_MOUSE_BUTTON_UP;
+  up.button.x = 100;
+  require(bar.handle(up) && activated == 0,
+          "Releasing outside cancels a native control");
+  down.button.which = SDL_TOUCH_MOUSEID;
+  down.button.y = 33;
+  require(bar.handle(down),
+          "Small original controls have a larger touch target");
+  up = down;
+  up.type = SDL_EVENT_MOUSE_BUTTON_UP;
+  require(bar.handle(up) && activated == 1 && bar.hovered == -1,
+          "Touch activates once and releases the sprite hover state");
+  bar.handle(down);
+  SDL_Event lost{};
+  lost.type = SDL_EVENT_WINDOW_FOCUS_LOST;
+  bar.handle(lost);
+  bar.handle(up);
+  require(activated == 1, "Focus loss cancels a pending sprite activation");
+}
+
 void testStableReveal() {
   auto measure = [](const std::string &s) { return float(s.size()); };
   const std::string full = "one lengthyword end";
@@ -335,6 +364,7 @@ int main() {
       EmptyRuntime runtime;
       Kotonoha::Engine engine(runtime);
       testSaveSuggestions(engine);
+      testNativeButtons();
       testStableReveal();
       testTextBox(engine);
       testLiveTranslation(engine);

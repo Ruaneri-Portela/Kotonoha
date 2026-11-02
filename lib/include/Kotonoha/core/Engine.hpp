@@ -70,6 +70,8 @@ private:
   bool agentPaused = false;
   bool translationDumpComplete = false;
   InputActions inputActions;
+  TouchPointer touchPointer;
+  SDL_AppResult dispatchEvent(EventPtr event);
   Clock frameClock;
   Translation translation;
   std::unordered_map<std::type_index, std::unique_ptr<Scene>> sharedScenes;

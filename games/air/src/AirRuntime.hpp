@@ -10,6 +10,7 @@ public:
   explicit AirRuntime(std::shared_ptr<AirAssets>, int scene = -1);
   ~AirRuntime() override;
   void shutdown();
+  bool continuousTouch() const override { return true; }
   std::string diagnostic() const;
   void initMenu(Kotonoha::Engine &) override;
   void initGameplay(Kotonoha::Engine &) override;
