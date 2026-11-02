@@ -1227,10 +1227,12 @@ void Runtime::openBacklog() {
     fontData =
         Kotonoha::FileResolver::loadFontMemory(engine->GetSettings().fontPath);
     if (!fontData.empty()) {
-      SDL_IOStream *io = SDL_IOFromConstMem(fontData.data(), fontData.size());
+      Kotonoha::IOStreamPtr io{
+          SDL_IOFromConstMem(fontData.data(), fontData.size())};
       if (io)
-        font.font = TTF_OpenFontIO(
-            io, true, Kotonoha::SchoolDaysSubtitleTypography::PointSize);
+        font.font =
+            TTF_OpenFontIO(io.release(), true,
+                           Kotonoha::SchoolDaysSubtitleTypography::PointSize);
     }
   } catch (const std::exception &error) {
     failure = error.what();

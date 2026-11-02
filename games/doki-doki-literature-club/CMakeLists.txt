@@ -22,6 +22,7 @@ add_library(DdlcFormats STATIC
     src/Archive.cpp
     src/Display.cpp
     src/Python.cpp
+    src/Replay.cpp
     src/Script.cpp
     src/Value.cpp
     src/Vm.cpp

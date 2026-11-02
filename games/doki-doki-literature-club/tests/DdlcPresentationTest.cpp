@@ -98,6 +98,17 @@ int main(int argc, char **argv) {
     }
     check(!session->dialogueSourceText().empty(), "Native dialogue reached");
     session->completeDialogue();
+    const auto savedNode = game.debugNode();
+    const auto savedLine = session->dialogueSourceText();
+    const auto savePath = directory / "presentation.vn";
+    game.saveGame(savePath.string());
+    key(engine, SDLK_RETURN);
+    engine.Iterate();
+    game.loadGame(savePath.string());
+    check(game.debugNode() == savedNode &&
+              session->dialogueSourceText() == savedLine,
+          "Save/load restores native dialogue and VM position");
+    session->completeDialogue();
     const auto source = session->dialogueSourceText(),
                before = session->dialogueText(), node = game.debugNode();
     const auto route = std::to_string(session->translationRoute());

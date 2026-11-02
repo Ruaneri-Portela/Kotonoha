@@ -31,7 +31,8 @@ changing the story.
 
 Still required:
 
-- Original glossary interaction and custom edit/name controls.
+- Exact native edit-control typography and remaining glossary presentation details.
+  Name-entry commands 1700/1701/1703/1710/1711 now create, edit, focus and read the original scenario 9037 fields; regression covers 9037:118.
 - Original save/config/gallery menus and CG/read/progression persistence beyond
   the current session. Kotonoha dialogue saves are separate from RealLive saves.
 - Remaining composite graphics commands and particle/drift effects.

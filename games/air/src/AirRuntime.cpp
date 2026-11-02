@@ -11,6 +11,7 @@
 #include <Kotonoha/componentes/VNTextBox.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/UI.hpp>
+#include <Kotonoha/localization/Encoding.hpp>
 #include <Kotonoha/media/MediaPlayer.hpp>
 #include <Kotonoha/media/PcmPlayer.hpp>
 #include <Kotonoha/media/upscaling/Upscaler.hpp>
@@ -173,6 +174,13 @@ struct AirRuntime::Impl {
   std::unique_ptr<Text> textbox;
   std::unique_ptr<ChoiceQuestionScene> choice;
   std::unique_ptr<VNSaveMenu> saves;
+  struct EditField {
+    SDL_FRect area{};
+    SDL_Color color{255, 255, 255, 255};
+    std::string raw, text;
+  };
+  std::map<int, EditField> editFields;
+  int focusedEdit = -1;
   std::string speakerName, musicID;
   std::map<std::string, std::string> selectionLabels;
   int selectionWindow = 0;
@@ -387,6 +395,11 @@ struct AirRuntime::Impl {
       movie->update(r);
       movie->render(r, {0, 0, 640, 480});
     }
+    for (const auto &[id, field] : editFields) {
+      engine->GetUI().text(r, field.text + (focusedEdit == id ? "|" : ""),
+                           field.area.x, field.area.y, field.area.w,
+                           field.color);
+    }
     if (!error.empty()) {
       engine->GetUI().panel(r, {12, 15, 616, 155});
       engine->GetUI().text(r, error, 24, 26, 590);
@@ -492,6 +505,35 @@ struct AirRuntime::Impl {
     runtime.AddScene(saves.get());
   }
   bool event(EventRef e) {
+    if (e.type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
+        e.button.button == SDL_BUTTON_LEFT) {
+      SDL_FPoint point{e.button.x, e.button.y};
+      for (const auto &[id, field] : editFields)
+        if (SDL_PointInRectFloat(&point, &field.area)) {
+          focusedEdit = id;
+          SDL_SetTextInputArea(&engine->GetWindow(), nullptr, 0);
+          SDL_StartTextInput(&engine->GetWindow());
+          return true;
+        }
+    }
+    auto edit = editFields.find(focusedEdit);
+    if (edit != editFields.end()) {
+      if (e.type == SDL_EVENT_TEXT_INPUT) {
+        if (edit->second.text.size() + std::strlen(e.text.text) <= 255)
+          edit->second.text += e.text.text;
+        return true;
+      }
+      if (e.type == SDL_EVENT_KEY_DOWN && e.key.key == SDLK_BACKSPACE) {
+        eraseLastCharacter(edit->second.text);
+        return true;
+      }
+      if (e.type == SDL_EVENT_KEY_DOWN && e.key.key == SDLK_TAB) {
+        if (++edit == editFields.end())
+          edit = editFields.begin();
+        focusedEdit = edit->first;
+        return true;
+      }
+    }
     if (e.type == SDL_EVENT_MOUSE_MOTION) {
       mouseX = e.motion.x;
       mouseY = e.motion.y;
@@ -718,6 +760,63 @@ bool AirRuntime::Impl::command(const libreallive::CommandElement &c) {
     case 1504:
       machine.set_store_register(0);
       return true;
+    case 1700: {
+      EditField field;
+      field.area = {float(value(c, 1)), float(value(c, 2)), float(value(c, 3)),
+                    float(value(c, 4))};
+      field.color = {Uint8(value(c, 9, 255)), Uint8(value(c, 10, 255)),
+                     Uint8(value(c, 11, 255)), 255};
+      editFields[value(c, 0)] = std::move(field);
+      return true;
+    }
+    case 1701:
+      editFields.erase(value(c, 0));
+      if (focusedEdit == value(c, 0)) {
+        focusedEdit = -1;
+        SDL_StopTextInput(&engine->GetWindow());
+      }
+      return true;
+    case 1703:
+      if (!editFields.count(value(c, 0)))
+        throw std::runtime_error("AIR edit focus references a missing field");
+      focusedEdit = value(c, 0);
+      SDL_StartTextInput(&engine->GetWindow());
+      return true;
+    case 1710: {
+      auto &field = editFields.at(value(c, 0));
+      field.raw = str(c, 1);
+      field.text =
+          decodeText(field.raw, archive.Scenario(vm.scenario()).encoding());
+      return true;
+    }
+    case 1711: {
+      auto &field = editFields.at(value(c, 0));
+      auto raw = field.raw;
+      const int encoding = archive.Scenario(vm.scenario()).encoding();
+      if (field.text != decodeText(raw, encoding)) {
+        raw = ConvertEncoding(field.text, "UTF-8",
+                              encoding == 0 ? "CP932" : "CP1252");
+        if (encoding == 2) {
+          std::string mapped;
+          for (unsigned char ch : raw) {
+            if (ch < 128)
+              mapped += char(ch);
+            else if (ch <= 191) {
+              mapped += char(0x89);
+              mapped += char(ch);
+            } else if (ch <= 254)
+              mapped += char(ch - 31);
+            else {
+              mapped += char(0x89);
+              mapped += char(0xc0);
+            }
+          }
+          raw = std::move(mapped);
+        }
+      }
+      Parameter(c, 1).SetStringValue(machine, raw);
+      return true;
+    }
     case 2001:
       machine.set_store_register(0);
       return true;
@@ -1584,6 +1683,10 @@ void AirRuntime::debugJumpToNode(const std::string &s) {
     impl->vm.seek(std::stoi(s.substr(0, colon)),
                   std::stoull(s.substr(colon + 1)));
   impl->deadline = 0;
+  impl->editFields.clear();
+  impl->focusedEdit = -1;
+  if (impl->engine)
+    SDL_StopTextInput(&impl->engine->GetWindow());
   impl->error.clear();
   impl->pause = false;
   impl->dialogue.clear();

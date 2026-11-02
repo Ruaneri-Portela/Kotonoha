@@ -1,3 +1,4 @@
+#include <Kotonoha/core/SDL.hpp>
 // Extracts a Zero no Tsukaima (PS2) disc image into plain files:
 //   ZeroExtract <disc.bin|disc.iso> <outdir> [--png]
 // Archives (NAME.HD + NAME.BIN) become <outdir>/NAME/NNNN.{tm2,txt,bin};
@@ -21,12 +22,11 @@ using namespace ZeroNoTsukaima;
 namespace {
 
 bool WriteFile(const fs::path &path, const std::vector<uint8_t> &data) {
-  SDL_IOStream *io = SDL_IOFromFile(path.string().c_str(), "wb");
+  Kotonoha::IOStreamPtr io{SDL_IOFromFile(path.string().c_str(), "wb")};
   if (io == nullptr)
     return false;
-  const bool ok =
-      data.empty() || SDL_WriteIO(io, data.data(), data.size()) == data.size();
-  SDL_CloseIO(io);
+  const bool ok = data.empty() || SDL_WriteIO(io.get(), data.data(),
+                                              data.size()) == data.size();
   return ok;
 }
 

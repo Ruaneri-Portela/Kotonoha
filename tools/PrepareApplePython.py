@@ -12,7 +12,7 @@ SHA256 = '429080dcfab3778b75bbc6548cbfd754dc943cfc6092a92b72022541ff3212a0'
 ROOT = Path(__file__).resolve().parents[1]
 p = argparse.ArgumentParser(description=__doc__)
 p.add_argument('--archive', type=Path, required=True)
-p.add_argument('--output', type=Path, default=ROOT / 'build/ios-deps')
+p.add_argument('--output', type=Path, default=ROOT / 'build/iOS-deps')
 a = p.parse_args()
 with a.archive.open('rb') as f:
     if hashlib.file_digest(f, 'sha256').hexdigest() != SHA256:

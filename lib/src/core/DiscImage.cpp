@@ -29,11 +29,7 @@ std::string normalize(std::string_view path) {
 } // namespace
 
 struct DiscImage::Stream {
-  SDL_IOStream *io = nullptr;
-  ~Stream() {
-    if (io)
-      SDL_CloseIO(io);
-  }
+  IOStreamPtr io;
 };
 
 DiscImage::DiscImage() = default;
@@ -50,7 +46,7 @@ void DiscImage::open(const std::filesystem::path &file) {
 bool DiscImage::tryOpen(const std::filesystem::path &file, std::string *error) {
   close();
   auto next = std::make_unique<Stream>();
-  next->io = SDL_IOFromFile(file.string().c_str(), "rb");
+  next->io.reset(SDL_IOFromFile(file.string().c_str(), "rb"));
   if (!next->io) {
     if (error)
       *error = SDL_GetError();
@@ -123,8 +119,9 @@ bool DiscImage::readSectors(Uint32 lba, Uint32 count,
   out.assign(std::size_t(count) * logicalSector, 0);
   for (Uint32 i = 0; i < count; ++i) {
     const Sint64 at = Sint64(lba + i) * sector + dataOffset;
-    if (SDL_SeekIO(stream->io, at, SDL_IO_SEEK_SET) < 0 ||
-        SDL_ReadIO(stream->io, out.data() + std::size_t(i) * logicalSector,
+    if (SDL_SeekIO(stream->io.get(), at, SDL_IO_SEEK_SET) < 0 ||
+        SDL_ReadIO(stream->io.get(),
+                   out.data() + std::size_t(i) * logicalSector,
                    logicalSector) != logicalSector)
       return false;
   }

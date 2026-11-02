@@ -123,3 +123,15 @@ The native Xcode project includes Air and SummerRadish schemes. For DDLC,
 `ruby Xcode/UpdateGameTargets.rb` updates the project after preparation (requires
 the `xcodeproj` Ruby gem). The project links `Python.xcframework`, selecting the
 SDK slice, and bundles standard-library resources and extension frameworks.
+
+Touch input in ImGui launchers and the debug/translation editor uses the shared
+`TouchPointer` adapter. It tracks one finger, converts normalized positions into
+window coordinates, supports dragging, and releases the pointer after focus
+loss. Game taps and navigation gestures continue to use `InputActions`.
+
+AIR implements the name-entry commands used by scenario 9037: create/remove,
+focus, set and retrieve text (`1700`, `1701`, `1703`, `1710`, `1711`). The retail
+engine regression covers `9037:118` and closing its pause menu with two fingers.
+Native Windows edit-control typography and full presentation parity still need
+reference comparisons. Engine and port code owns SDL streams through
+`IOStreamPtr`; calls that transfer ownership explicitly use `release()`.

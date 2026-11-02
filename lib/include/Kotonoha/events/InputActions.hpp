@@ -1,6 +1,7 @@
 #pragma once
 #include <Kotonoha/core/SDL.hpp>
 #include <map>
+#include <optional>
 namespace Kotonoha {
 class Engine;
 bool HandleNavigation(Engine &, EventRef);
@@ -20,6 +21,13 @@ public:
   bool back(EventRef) const;
   bool backlog(EventRef) const;
   bool tap() const { return tapGesture; }
+};
+// Converts one physical touch to a window-space pointer for mouse-based UIs.
+class TouchPointer {
+  std::optional<std::pair<SDL_TouchID, SDL_FingerID>> active;
+
+public:
+  bool translate(EventRef event, WindowRef window, SDL_Event &pointer);
 };
 // Reusable drag/wheel/keyboard scrolling for touch-aware lists and histories.
 class ScrollGesture {

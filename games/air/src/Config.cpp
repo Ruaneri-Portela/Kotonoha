@@ -1,12 +1,11 @@
 #include <Air/Config.hpp>
 #include <Kotonoha/localization/Encoding.hpp>
-#include <cerrno>
-#include <iconv.h>
 #include <sstream>
 #include <stdexcept>
 #include <cstdint>
 
 namespace Air {
+
 std::string canonical(std::string s) {
   for (auto &c : s) {
     if (c == '\\')
@@ -16,6 +15,7 @@ std::string canonical(std::string s) {
   }
   return s;
 }
+
 Config::Config(const std::string &source) {
   std::istringstream input(source);
   std::string line;
@@ -58,11 +58,13 @@ Config::Config(const std::string &source) {
     values[canonical(key)] = std::move(tokens);
   }
 }
+
 const std::vector<std::string> &Config::get(const std::string &key) const {
   static const std::vector<std::string> empty;
   auto i = values.find(canonical(key));
   return i == values.end() ? empty : i->second;
 }
+
 int Config::integer(const std::string &key, int fallback, size_t item) const {
   const auto &v = get(key);
   if (item >= v.size())
@@ -73,33 +75,21 @@ int Config::integer(const std::string &key, int fallback, size_t item) const {
     return fallback;
   }
 }
+
 std::string Config::text(const std::string &key, const std::string &fallback,
                          size_t item) const {
   const auto &v = get(key);
   return item < v.size() ? v[item] : fallback;
 }
-namespace {
-std::string transcode(std::string input, const char *from) {
-  iconv_t converter = iconv_open("UTF-8", from);
-  if (converter == iconv_t(-1))
-    throw std::runtime_error("Cannot open AIR text encoding");
-  std::string output(input.size() * 4 + 16, '\0');
-  char *src = input.data(), *dst = output.data();
-  size_t left = input.size(), available = output.size();
-  const auto status = iconv(converter, &src, &left, &dst, &available);
-  iconv_close(converter);
-  if (status == size_t(-1))
-    throw std::runtime_error("Invalid AIR text encoding");
-  output.resize(output.size() - available);
-  return output;
-}
-} // namespace
+
 std::string decodeText(const std::string &input, int encoding) {
   if (encoding == 0)
     return Kotonoha::ShiftJisToUtf8(input);
+
   if (encoding != 2)
     throw std::runtime_error("Unsupported AIR script encoding: " +
                              std::to_string(encoding));
+
   // rlBabel's reversible western character mapping, decoded before CP1252.
   std::string western;
   for (size_t i = 0; i < input.size(); ++i) {
@@ -125,6 +115,10 @@ std::string decodeText(const std::string &input, int encoding) {
       c += 0x1f;
     western += char(c);
   }
-  return transcode(western, "CP1252");
+
+  // Utiliza a interface unificada do Kotonoha para conversão de CP1252 para
+  // UTF-8
+  return Kotonoha::ConvertEncoding(western, "CP1252", "UTF-8");
 }
+
 } // namespace Air

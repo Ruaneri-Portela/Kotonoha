@@ -65,9 +65,9 @@ project.build_configurations.each do |config|
   settings = config.build_settings
   settings['HEADER_SEARCH_PATHS'] = Array(settings['HEADER_SEARCH_PATHS']).map { |p| p.gsub('/submodules/SDL3/', '/submodules/SDL/').gsub('/submodules/SDL-ttf/', '/submodules/SDL_ttf/') }
 end
-python = project.files.find { |f| f.path&.include?('Python.xcframework/') && f.path.end_with?('Python.framework') }
+python = project.files.find { |f| f.path&.include?('Python.xcframework') && (f.path.end_with?('Python.framework') || f.path.end_with?('Python.xcframework')) }
 if python
-  python.path = '../build/ios-deps/Python.xcframework'
+  python.path = '../build/iOS-deps/Python.xcframework'
   python.name = 'Python.xcframework'
   python.last_known_file_type = 'wrapper.xcframework'
 end
@@ -79,7 +79,16 @@ project.targets.select { |t| ['DokiDoki', 'DdlcIOSScriptSmoke'].include?(t.name)
     target.resources_build_phase.add_file_reference(resource)
   end
   embed = target.copy_files_build_phases.find { |p| p.name == 'Embed Frameworks' }
-  Dir.glob(root.join('build/ios-deps/python/native/iphoneos/Frameworks/*.framework')).sort.each do |path|
+  if python
+    unless target.frameworks_build_phase.files.any? { |f| f.file_ref == python }
+      target.frameworks_build_phase.add_file_reference(python)
+    end
+    unless embed.files.any? { |f| f.file_ref == python }
+      added = embed.add_file_reference(python)
+      added.settings = {'ATTRIBUTES' => ['CodeSignOnCopy', 'RemoveHeadersOnCopy']}
+    end
+  end
+  Dir.glob(root.join('build/iOS-deps/python/native/iphoneos/Frameworks/*.framework')).sort.each do |path|
     name = File.basename(path)
     logical = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/#{name}"
     next if embed.files.any? { |f| f.file_ref&.path == logical }

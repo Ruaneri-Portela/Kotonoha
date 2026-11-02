@@ -5,6 +5,52 @@
 #include <algorithm>
 #include <cmath>
 namespace Kotonoha {
+bool TouchPointer::translate(EventRef event, WindowRef window,
+                             SDL_Event &pointer) {
+  if (event.type == SDL_EVENT_WINDOW_FOCUS_LOST && active) {
+    active.reset();
+    pointer = {};
+    pointer.type = SDL_EVENT_MOUSE_BUTTON_UP;
+    pointer.button.windowID = SDL_GetWindowID(&window);
+    pointer.button.which = SDL_TOUCH_MOUSEID;
+    pointer.button.button = SDL_BUTTON_LEFT;
+    SDL_GetMouseState(&pointer.button.x, &pointer.button.y);
+    return true;
+  }
+  if (event.type < SDL_EVENT_FINGER_DOWN ||
+      event.type > SDL_EVENT_FINGER_CANCELED)
+    return false;
+  const auto id = std::make_pair(event.tfinger.touchID, event.tfinger.fingerID);
+  if (event.type == SDL_EVENT_FINGER_DOWN && !active)
+    active = id;
+  if (!active || *active != id)
+    return false;
+  int width = 0, height = 0;
+  SDL_GetWindowSize(&window, &width, &height);
+  pointer = {};
+  if (event.type == SDL_EVENT_FINGER_MOTION) {
+    pointer.type = SDL_EVENT_MOUSE_MOTION;
+    pointer.motion.windowID = SDL_GetWindowID(&window);
+    pointer.motion.which = SDL_TOUCH_MOUSEID;
+    pointer.motion.x = event.tfinger.x * width;
+    pointer.motion.y = event.tfinger.y * height;
+    pointer.motion.state = SDL_BUTTON_LMASK;
+  } else {
+    pointer.type = event.type == SDL_EVENT_FINGER_DOWN
+                       ? SDL_EVENT_MOUSE_BUTTON_DOWN
+                       : SDL_EVENT_MOUSE_BUTTON_UP;
+    pointer.button.windowID = SDL_GetWindowID(&window);
+    pointer.button.which = SDL_TOUCH_MOUSEID;
+    pointer.button.button = SDL_BUTTON_LEFT;
+    pointer.button.down = event.type == SDL_EVENT_FINGER_DOWN;
+    pointer.button.x = event.tfinger.x * width;
+    pointer.button.y = event.tfinger.y * height;
+    if (!pointer.button.down)
+      active.reset();
+  }
+  return true;
+}
+
 bool HandleNavigation(Engine &engine, EventRef event) {
   auto &runtime = engine.GetRuntime();
   if (runtime.GetState() != GameState::Gameplay)

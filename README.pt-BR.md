@@ -101,7 +101,7 @@ export VCPKG_ROOT=/caminho/para/vcpkg
 cmake -S . -B build \
   -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \
   -DVCPKG_TARGET_TRIPLET=arm64-osx-dynamic \
-  -DVCPKG_INSTALLED_DIR="$PWD/build/ios-deps/macos"
+  -DVCPKG_INSTALLED_DIR="$PWD/build/iOS-deps/macos"
 cmake --build build
 ctest --test-dir build --output-on-failure
 ./build/games/example/Kotonoha
@@ -262,9 +262,9 @@ prepare os pacotes estaticos para dispositivo e simulador Apple Silicon:
 ```sh
 export VCPKG_ROOT=/caminho/para/vcpkg
 "$VCPKG_ROOT/vcpkg" install --x-manifest-root="$PWD" \
-  --x-install-root="$PWD/build/ios-deps/ios" --triplet=arm64-ios
+  --x-install-root="$PWD/build/iOS-deps/ios" --triplet=arm64-ios
 "$VCPKG_ROOT/vcpkg" install --x-manifest-root="$PWD" \
-  --x-install-root="$PWD/build/ios-deps/simulator" --triplet=arm64-ios-simulator
+  --x-install-root="$PWD/build/iOS-deps/simulator" --triplet=arm64-ios-simulator
 open Xcode/Kotonoha.xcodeproj
 # Ou, sem assinatura, apenas para verificar a compilacao:
 xcodebuild -project Xcode/Kotonoha.xcodeproj -scheme Kotonoha \
@@ -295,11 +295,11 @@ do projeto BeeWare, com as bibliotecas padrao e extensoes para iOS. Exemplo
 da versao testada (o SHA-256 e publicado na release):
 
 ```sh
-mkdir -p build/ios-deps/python
+mkdir -p build/iOS-deps/python
 curl -fL https://github.com/beeware/Python-Apple-support/releases/download/3.15-b3/Python-3.15-iOS-support.b3.tar.gz \
-  -o build/ios-deps/python/Python-iOS.tar.gz
-echo '429080dcfab3778b75bbc6548cbfd754dc943cfc6092a92b72022541ff3212a0  build/ios-deps/python/Python-iOS.tar.gz' | shasum -a 256 -c -
-python3 tools/PrepareApplePython.py --archive build/ios-deps/python/Python-iOS.tar.gz
+  -o build/iOS-deps/python/Python-iOS.tar.gz
+echo '429080dcfab3778b75bbc6548cbfd754dc943cfc6092a92b72022541ff3212a0  build/iOS-deps/python/Python-iOS.tar.gz' | shasum -a 256 -c -
+python3 tools/PrepareApplePython.py --archive build/iOS-deps/python/Python-iOS.tar.gz
 ```
 
 O preparo externo converte as extensoes em frameworks e cria os marcadores
