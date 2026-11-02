@@ -1,6 +1,7 @@
 #include "AirRuntime.hpp"
 #include <Kotonoha/componentes/InGameMenu.hpp>
 #include <Kotonoha/componentes/TextInputDialog.hpp>
+#include <Kotonoha/componentes/VNBacklog.hpp>
 #include <Kotonoha/componentes/VNSaveMenu.hpp>
 #include <Kotonoha/componentes/VNTextBox.hpp>
 #include <Kotonoha/core/Engine.hpp>
@@ -151,6 +152,31 @@ int main(int argc, char **argv) {
     check(game.debugNode().find("9032:") == 0,
           "Original startup did not reach title");
     capture(engine, game, "/tmp/air-title.bmp");
+    const auto titleReady = SDL_GetTicks();
+    while (game.debugNode() != "9032:860" &&
+           SDL_GetTicks() - titleReady < 15000) {
+      engine.Iterate();
+      check(game.diagnostic().empty(), game.diagnostic().c_str());
+      SDL_Delay(1);
+    }
+    check(game.debugNode() == "9032:860",
+          "Original title input loop must be ready");
+    SDL_Event titleFinger{};
+    titleFinger.type = SDL_EVENT_FINGER_DOWN;
+    titleFinger.tfinger.windowID = SDL_GetWindowID(&engine.GetWindow());
+    titleFinger.tfinger.touchID = 77;
+    titleFinger.tfinger.fingerID = 78;
+    titleFinger.tfinger.x = .5f;
+    titleFinger.tfinger.y = 297.0f / 480;
+    engine.Event(&titleFinger);
+    engine.Iterate();
+    titleFinger.type = SDL_EVENT_FINGER_UP;
+    engine.Event(&titleFinger);
+    engine.Iterate();
+    check(game.debugNode() != "9032:860",
+          "A real finger press/release must activate the original AIR title "
+          "button");
+
     // Execute the native date/title setup, then skip its long animation so
     // this test exercises the save UI rather than waiting through the intro.
     game.debugJumpToNode("170:0");
@@ -171,6 +197,31 @@ int main(int argc, char **argv) {
     check(t->getText().find("Eu tava deslizando pelo vento...") !=
               std::string::npos,
           "Original Portuguese text was not preserved");
+    auto nativeButton = [&](float x, float y) {
+      SDL_Event event{};
+      event.type = SDL_EVENT_MOUSE_BUTTON_DOWN;
+      event.button.which = SDL_TOUCH_MOUSEID;
+      event.button.button = SDL_BUTTON_LEFT;
+      event.button.x = x;
+      event.button.y = y;
+      check(t->handleEvent(event), "AIR native control accepts finger-down");
+      event.type = SDL_EVENT_MOUSE_BUTTON_UP;
+      check(t->handleEvent(event), "AIR native control accepts finger-up");
+    };
+    nativeButton(622, 364);
+    check(GetVNBacklogRuntime(engine).isVisible(),
+          "AIR original back button opens the backlog");
+    GetVNBacklogRuntime(engine).close();
+    nativeButton(600, 352);
+    SDL_Event reveal{};
+    reveal.type = SDL_EVENT_MOUSE_BUTTON_DOWN;
+    reveal.button.button = SDL_BUTTON_LEFT;
+    reveal.button.x = reveal.button.y = 75;
+    const auto hiddenNode = game.debugNode();
+    game.onEvent(reveal);
+    check(game.debugNode() == hiddenNode,
+          "Restoring hidden AIR text must not advance the story");
+    nativeButton(622, 402);
     t->completeDialogue();
     const auto node = game.debugNode(), line = t->getText();
     auto path = std::filesystem::temp_directory_path() /

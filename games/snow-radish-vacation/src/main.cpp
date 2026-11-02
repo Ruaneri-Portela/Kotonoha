@@ -92,14 +92,16 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
           Kotonoha::EngineSettings::defaultPath("snow-radish-vacation");
     const std::string settingsPath =
         options.persistSettings ? options.settingsPath : std::string();
+    const auto env = SDL_getenv("SNOW_DIR");
+    directory = Kotonoha::GameLauncher::findGamePath(
+        "snow-radish-vacation",
+        {directory, env ? env : "",
+         Kotonoha::GameLauncher::rememberedPath(settingsPath, "dir.txt"),
+         DefaultDirectory()},
+        SnowRadish::SnowLauncher::validatePath, {""});
     if (directory.empty())
-      if (const char *value = std::getenv("SNOW_DIR"); value && *value)
-        directory = value;
-    if (directory.empty())
-      directory =
-          Kotonoha::GameLauncher::rememberedPath(settingsPath, "dir.txt");
-    if (directory.empty())
-      directory = DefaultDirectory();
+      options.launcher = true;
+
     if (options.launcher) {
       app->launcher =
           std::make_unique<SnowRadish::SnowLauncher>(settingsPath, directory);

@@ -11,6 +11,7 @@ namespace SnowRadish {
 // the settings.
 class SnowLauncher final : public Kotonoha::GameLauncher {
 public:
+  static bool validatePath(const std::string &path, std::string &info);
   // `directory` overrides the remembered folder when not empty.
   SnowLauncher(std::string settingsPath, std::string directory);
 

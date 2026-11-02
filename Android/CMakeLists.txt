@@ -1,3 +1,4 @@
+
 cmake_minimum_required(VERSION 3.22)
 
 # Detectar automaticamente o triplet Android do vcpkg.

@@ -14,7 +14,7 @@ bool TouchPointer::translate(EventRef event, WindowRef window,
     pointer.button.windowID = SDL_GetWindowID(&window);
     pointer.button.which = SDL_TOUCH_MOUSEID;
     pointer.button.button = SDL_BUTTON_LEFT;
-    SDL_GetMouseState(&pointer.button.x, &pointer.button.y);
+    pointer.button.x = pointer.button.y = -1;
     return true;
   }
   if (event.type < SDL_EVENT_FINGER_DOWN ||
@@ -45,8 +45,11 @@ bool TouchPointer::translate(EventRef event, WindowRef window,
     pointer.button.down = event.type == SDL_EVENT_FINGER_DOWN;
     pointer.button.x = event.tfinger.x * width;
     pointer.button.y = event.tfinger.y * height;
-    if (!pointer.button.down)
+    if (!pointer.button.down) {
       active.reset();
+      if (event.type == SDL_EVENT_FINGER_CANCELED)
+        pointer.button.x = pointer.button.y = -1;
+    }
   }
   return true;
 }

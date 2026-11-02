@@ -96,12 +96,17 @@ float UI::rasterDensity(RendererRef renderer) {
 
 float UI::text(RendererRef renderer, const std::string &value, float x, float y,
                float wrap, SDL_Color color) {
+  return textSized(renderer, value, x, y, wrap, 24, color);
+}
+float UI::textSized(RendererRef renderer, const std::string &value, float x,
+                    float y, float wrap, float fontSize, SDL_Color color) {
   if (value.empty())
     return 0;
   const float raster = rasterDensity(renderer);
   const int pixels = std::max(1, static_cast<int>(std::ceil(wrap * raster)));
-  const std::string key =
-      std::to_string(raster) + ":" + std::to_string(pixels) + ":" + value;
+  const std::string key = std::to_string(fontSize) + ":" +
+                          std::to_string(raster) + ":" +
+                          std::to_string(pixels) + ":" + value;
   auto found = cache.find(key);
   if (found == cache.end()) {
     if (cache.size() >= 512)
@@ -112,7 +117,7 @@ float UI::text(RendererRef renderer, const std::string &value, float x, float y,
       float size;
       ~RestoreSize() { TTF_SetFontSize(font, size); }
     } restore{font.get(), oldSize};
-    if (!TTF_SetFontSize(font.get(), 24 * raster))
+    if (!TTF_SetFontSize(font.get(), fontSize * raster))
       throw std::runtime_error(SDL_GetError());
     SurfacePtr surface{TTF_RenderText_Blended_Wrapped(
         font.get(), value.c_str(), value.size(), {255, 255, 255, 255}, pixels)};
@@ -144,6 +149,18 @@ float UI::textHeight(RendererRef renderer, const std::string &value,
 }
 
 SDL_FPoint UI::textSize(const std::string &value, float width) const {
+  return measureSized(value, width, 24);
+}
+SDL_FPoint UI::measureSized(const std::string &value, float width,
+                            float fontSize) const {
+  const float oldSize = TTF_GetFontSize(font.get());
+  struct RestoreSize {
+    TTF_Font *font;
+    float size;
+    ~RestoreSize() { TTF_SetFontSize(font, size); }
+  } restore{font.get(), oldSize};
+  if (!TTF_SetFontSize(font.get(), fontSize * density))
+    throw std::runtime_error(SDL_GetError());
   if (value.empty())
     return {0, 0};
   int w = 0, h = 0;

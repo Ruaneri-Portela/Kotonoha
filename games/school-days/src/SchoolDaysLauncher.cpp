@@ -17,29 +17,31 @@ Launcher::Launcher(std::string settingsPath, std::string directory,
            "directory with Script/English. Data is read in place, never "
            "copied."}) {
   loadPath(std::move(directory));
-  if (route.empty())
-    route = rememberedPath(getSettingsPath(), RouteRememberFile);
-  if (route.empty())
-    route = Assets::findDefaultRoute().string();
-  routeOption = addPathOption(
-      {"Route file (.ktnroute)",
-       PathKind::File,
-       {{"KTRF routes", "ktnroute;ktrf"}, {"All files", "*"}},
-       RouteRememberFile,
-       "Select a compatible School Days HQ KTRF route."},
-      [](const std::string &file, std::string &info) {
-        Kotonoha::SchoolDaysKtrfSession session;
-        Kotonoha_KtrfError error{};
-        // Opening validates the route; scene assets are not accessed until
-        // resolved.
-        if (!session.Open(file.c_str(), ".", &error)) {
-          info = std::string("Invalid School Days route: ") + error.message;
-          return false;
-        }
-        info = "School Days route is valid";
-        return true;
-      },
-      std::move(route));
+  route =
+      findGamePath("school-days",
+                   {route, rememberedPath(getSettingsPath(), RouteRememberFile),
+                    Assets::findDefaultRoute().string()},
+                   validateRoute, {"school-days-hq.ktnroute"});
+  routeOption =
+      addPathOption({"Route file (.ktnroute)",
+                     PathKind::File,
+                     {{"KTRF routes", "ktnroute;ktrf"}, {"All files", "*"}},
+                     RouteRememberFile,
+                     "Select a compatible School Days HQ KTRF route."},
+                    validateRoute, std::move(route));
+  if (!optionPathValid(routeOption))
+    setOptionPath(routeOption, {});
+}
+
+bool Launcher::validateRoute(const std::string &file, std::string &info) {
+  Kotonoha::SchoolDaysKtrfSession session;
+  Kotonoha_KtrfError error{};
+  if (!session.Open(file.c_str(), ".", &error)) {
+    info = std::string("Invalid School Days route: ") + error.message;
+    return false;
+  }
+  info = "School Days route is valid";
+  return true;
 }
 
 bool Launcher::checkPath(const std::string &path, std::string &info) {

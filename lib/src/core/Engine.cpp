@@ -429,9 +429,20 @@ void Engine::configureRenderSpace(RenderSpace space) {
 SDL_AppResult Engine::Event(EventPtr event) {
   if (!event)
     return SDL_APP_CONTINUE;
+  inputActions.process(*event);
+  SDL_Event pointer{};
+  const bool translate = runtime.continuousTouch() &&
+                         touchPointer.translate(*event, *window, pointer);
+  const auto result = dispatchEvent(event);
+  if (translate && result == SDL_APP_CONTINUE)
+    return dispatchEvent(&pointer);
+  return result;
+}
+SDL_AppResult Engine::dispatchEvent(EventPtr event) {
+  if (!event)
+    return SDL_APP_CONTINUE;
   if (event->type == SDL_EVENT_QUIT)
     return SDL_APP_SUCCESS;
-  inputActions.process(*event);
   synchronizeTimeline();
   const bool debugConsumed = debug->handleEvent(*event);
   if (debugConsumed) {
@@ -493,11 +504,10 @@ SDL_AppResult Engine::Event(EventPtr event) {
 
   if (!settingsMenu->isOpen() && HandleNavigation(*this, logical))
     return SDL_APP_CONTINUE;
-  const bool mouseButton = logical.type == SDL_EVENT_MOUSE_BUTTON_DOWN ||
-                           logical.type == SDL_EVENT_MOUSE_BUTTON_UP;
   const bool outsideNovel =
-      mouseButton && (logical.button.x < 0 || logical.button.x >= view.x ||
-                      logical.button.y < 0 || logical.button.y >= view.y);
+      logical.type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
+      (logical.button.x < 0 || logical.button.x >= view.x ||
+       logical.button.y < 0 || logical.button.y >= view.y);
   if (settingsMenu->isOpen())
     settingsMenu->onEvent(UI::toFrame(logical, UI::designFrame(view)));
   else if (!consumed && !outsideNovel)
@@ -506,7 +516,7 @@ SDL_AppResult Engine::Event(EventPtr event) {
   timeline->setPaused(isStoryPaused());
   if (wasPaused != timeline->isPaused())
     frameClock.reset();
-  if (touchTap && !consumed) {
+  if (touchTap && !consumed && !runtime.continuousTouch()) {
     int w = 0, h = 0;
     SDL_GetWindowSize(window.get(), &w, &h);
     SDL_Event tap{};

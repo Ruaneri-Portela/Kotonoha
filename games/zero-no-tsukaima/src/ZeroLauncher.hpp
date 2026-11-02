@@ -10,6 +10,7 @@ namespace ZeroNoTsukaima {
 // (.iso/.bin, never copied), remembered in disc.txt next to the settings.
 class ZeroLauncher final : public Kotonoha::GameLauncher {
 public:
+  static bool validatePath(const std::string &path, std::string &info);
   // `disc` overrides the remembered path when not empty.
   ZeroLauncher(std::string settingsPath, std::string disc);
 

@@ -38,8 +38,10 @@ struct App {
 bool validate(const std::string &path, std::string &info) {
   try {
     if (!std::filesystem::is_regular_file(std::filesystem::path(path) /
-                                          "Seen.txt")) {
-      info = "Seen.txt is missing";
+                                          "Seen.txt") ||
+        !std::filesystem::is_regular_file(std::filesystem::path(path) /
+                                          "Gameexe.ini")) {
+      info = "Seen.txt or Gameexe.ini is missing";
       return false;
     }
     info = "Game data found";
@@ -73,22 +75,20 @@ SDL_AppResult SDL_AppInit(void **state, int argc, char **argv) {
           Kotonoha::EngineSettings::defaultPath("me.hirameki.kotonoha.air");
     const auto settingsPath =
         options.persistSettings ? options.settingsPath : std::string();
+    const auto env = SDL_getenv("AIR_DIR");
+    const auto downloads = SDL_GetUserFolder(SDL_FOLDER_DOWNLOADS);
+    directory = Kotonoha::GameLauncher::findGamePath(
+        "air",
+        {directory, env ? env : "",
+         Kotonoha::GameLauncher::rememberedPath(settingsPath, "dir.txt"),
+         Kotonoha::gameAssetDirectory("air").string(),
+         downloads
+             ? (std::filesystem::path(downloads) / "SekaiVN - AIR [BR - V2.0]")
+                   .string()
+             : ""},
+        validate);
     if (directory.empty())
-      if (const char *value = SDL_getenv("AIR_DIR"); value && *value)
-        directory = value;
-    if (directory.empty())
-      directory =
-          Kotonoha::GameLauncher::rememberedPath(settingsPath, "dir.txt");
-    if (directory.empty())
-      directory = Kotonoha::gameAssetDirectory("air").string();
-    if (!options.launcher && !std::filesystem::is_regular_file(
-                                 std::filesystem::path(directory) / "Seen.txt"))
-      if (const char *downloads = SDL_GetUserFolder(SDL_FOLDER_DOWNLOADS)) {
-        auto fallback =
-            std::filesystem::path(downloads) / "SekaiVN - AIR [BR - V2.0]";
-        if (std::filesystem::is_regular_file(fallback / "Seen.txt"))
-          directory = fallback.string();
-      }
+      options.launcher = true;
     if (options.launcher) {
       app->launcher = std::make_unique<Kotonoha::FolderGameLauncher>(
           "AIR", settingsPath, directory, validate, options.settings);

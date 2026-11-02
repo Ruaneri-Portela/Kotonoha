@@ -35,6 +35,11 @@ public:
   static float rasterDensity(RendererRef renderer);
   float text(RendererRef renderer, const std::string &value, float x, float y,
              float width, SDL_Color color = {240, 240, 245, 255});
+  float textSized(RendererRef renderer, const std::string &value, float x,
+                  float y, float width, float fontSize,
+                  SDL_Color color = {240, 240, 245, 255});
+  SDL_FPoint measureSized(const std::string &value, float width,
+                          float fontSize) const;
   float textHeight(RendererRef renderer, const std::string &value, float width);
   SDL_FPoint textSize(const std::string &value, float width) const;
   void panel(RendererRef renderer, SDL_FRect rect,

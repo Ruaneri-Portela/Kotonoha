@@ -6,6 +6,7 @@ namespace SchoolDays {
 
 class Launcher final : public Kotonoha::GameLauncher {
 public:
+  static bool validateRoute(const std::string &path, std::string &info);
   static constexpr const char *RouteRememberFile = "route.txt";
 
   Launcher(std::string settingsPath, std::string directory,

@@ -46,6 +46,9 @@ private:
 public:
   Runtime(std::string name, std::string version, std::string identify);
   virtual ~Runtime();
+  // Native script menus may poll pointer-down and pointer-up on different
+  // frames.
+  virtual bool continuousTouch() const { return false; }
 
   // Ciclo de inicialização
   virtual void init(Engine &engine);

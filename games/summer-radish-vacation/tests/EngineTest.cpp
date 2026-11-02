@@ -124,6 +124,30 @@ int main(int argc, char **argv) {
     check(text && text->isVisible(), "Story dialogue opens");
     check(!text->getText().empty(), "Dialogue has original text");
     capture(engine, game, "story");
+    auto nativeButton = [&](float x, float y) {
+      SDL_Event event{};
+      event.type = SDL_EVENT_MOUSE_BUTTON_DOWN;
+      event.button.which = SDL_TOUCH_MOUSEID;
+      event.button.button = SDL_BUTTON_LEFT;
+      event.button.x = x;
+      event.button.y = y;
+      check(text->handleEvent(event),
+            "Summer native control accepts touch-down");
+      event.type = SDL_EVENT_MOUSE_BUTTON_UP;
+      check(text->handleEvent(event), "Summer native control accepts touch-up");
+    };
+    nativeButton(770, 540);
+    check(std::filesystem::is_regular_file(prefs / "quicksave.vn"),
+          "Original quicksave control writes a save");
+    nativeButton(550, 585);
+    check(GetVNBacklogRuntime(engine).isVisible(),
+          "Original backlog control opens history");
+    GetVNBacklogRuntime(engine).close();
+    nativeButton(730, 585);
+    check(GetInGameMenuRuntime(engine).IsOpen(),
+          "Original system control opens its menu");
+    GetInGameMenuRuntime(engine).close();
+
     auto save = std::filesystem::temp_directory_path() /
                 ("summer-test-" + std::to_string(SDL_GetTicksNS()) + ".vn");
     game.saveGame(save.string());
@@ -153,6 +177,17 @@ int main(int argc, char **argv) {
     check(choice->isActive() && choice->getOptions().size() == 2,
           "First script choice has two options");
     capture(engine, game, "choice");
+    check(choice->getOptions().front().hitBox.h == 42 &&
+              choice->getOptions().front().hitBox.y == 254,
+          "Summer choices use native 42-pixel strips centered with 8-pixel "
+          "spacing");
+    const auto choiceSave = prefs / "native-choice.vn";
+    game.saveGame(choiceSave.string());
+    choice->chooseOption(1);
+    game.loadGame(choiceSave.string());
+    check(choice->isActive() && choice->getOptions().size() == 2,
+          "A saved native choice restores its visibility and original option "
+          "IDs");
     choice->chooseOption(1);
     check(text->isVisible(), "Choice resumes script");
     game.debugJumpToNode("DAY::昼");

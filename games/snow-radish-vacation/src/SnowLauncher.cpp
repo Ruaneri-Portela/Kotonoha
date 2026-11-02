@@ -37,6 +37,10 @@ SnowLauncher::SnowLauncher(std::string settingsPath, std::string directory)
 }
 
 bool SnowLauncher::checkPath(const std::string &path, std::string &info) {
+  return validatePath(path, info);
+}
+
+bool SnowLauncher::validatePath(const std::string &path, std::string &info) {
   std::error_code ec;
   if (!std::filesystem::is_directory(path, ec)) {
     info = "Folder not found: " + path;
