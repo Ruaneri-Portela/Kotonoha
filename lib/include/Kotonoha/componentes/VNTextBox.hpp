@@ -104,6 +104,26 @@ public:
     return str.substr(0, index);
   }
 
+  static std::vector<std::string>
+  RevealLines(const std::string &text, std::size_t visibleBytes,
+              const std::function<float(const std::string &)> &measure,
+              float width) {
+    const auto lines = WrapText(text, measure, width);
+    std::vector<std::string> visible;
+    std::size_t offset = 0;
+    for (const auto &line : lines) {
+      auto start = text.find(line, offset);
+      if (start == std::string::npos || start >= visibleBytes)
+        break;
+      visible.push_back(
+          line.substr(0, std::min(line.size(), visibleBytes - start)));
+      offset = start + line.size();
+      if (offset < text.size() && text[offset] == '\n')
+        ++offset;
+    }
+    return visible;
+  }
+
   static bool IsCJK(const std::string &ch) {
     if (ch.empty())
       return false;

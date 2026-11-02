@@ -19,19 +19,19 @@ void TextInputDialog::submitText(const std::string &text) {
 TextInputDialog::TextInputDialog(
     Engine &engineRef, std::string prompt,
     std::function<void(const std::string &)> confirmCb,
-    std::function<void()> cancelCb)
+    std::function<void()> cancelCb, const std::string &initialText)
     : Scene(engineRef) {
-  configure(prompt, std::move(confirmCb), std::move(cancelCb));
+  configure(prompt, std::move(confirmCb), std::move(cancelCb), initialText);
 }
 
 void TextInputDialog::configure(
     const std::string &prompt,
     std::function<void(const std::string &)> confirmCb,
-    std::function<void()> cancelCb) {
+    std::function<void()> cancelCb, const std::string &initialText) {
   promptText = prompt;
   onConfirm = std::move(confirmCb);
   onCancel = std::move(cancelCb);
-  input.clear();
+  input = initialText;
   editing = false;
 }
 
@@ -104,10 +104,12 @@ void TextInputDialog::render(RendererRef renderer, float) {
 TextInputDialog &
 GetTextInputDialogRuntime(Engine &engineRef, const std::string &prompt,
                           std::function<void(const std::string &)> confirmCb,
-                          std::function<void()> cancelCb) {
+                          std::function<void()> cancelCb,
+                          const std::string &initialText) {
   auto &dialog = engineRef.sharedScene<TextInputDialog>("", nullptr, nullptr);
   if (!prompt.empty() || confirmCb || cancelCb)
-    dialog.configure(prompt, std::move(confirmCb), std::move(cancelCb));
+    dialog.configure(prompt, std::move(confirmCb), std::move(cancelCb),
+                     initialText);
   return dialog;
 }
 

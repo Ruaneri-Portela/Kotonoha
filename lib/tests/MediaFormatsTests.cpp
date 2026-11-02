@@ -308,7 +308,8 @@ void scaling() {
           "Upscaler defaults to Auto, off at 1.0x");
 
   SDL_Texture &linear = assets.texture(*renderer, "pic", 2.5f, &upscaling);
-  require(linear.w == 10 && linear.h == 5, "Linear scale size");
+  require(linear.w == 4 && linear.h == 2,
+          "Disabled pipeline returns original size");
   require(&assets.texture(*renderer, "pic", 2.5f, &upscaling) == &linear,
           "Scaled texture cache");
   require(&assets.texture(*renderer, "pic", 1, &upscaling) !=

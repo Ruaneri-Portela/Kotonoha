@@ -19,8 +19,24 @@
   full synchronized movie playback has not been compared against RealLive.
 - DC image loads/copies/fills, pending background objects, sprite regions,
   clipping, colour rectangles, basic image filters and configured shake steps.
+- Save-name suggestions follow the original script title command (1:4:0),
+  including dates such as `17 de Julho (Seg)`. The shared save menu pre-fills
+  an editable name, adds suffixes for duplicates, and preserves the title in
+  saved presentation state; older saves recover it from their scenario.
 - Kotonoha pause/backlog, dialogue save/load, script position, call stack,
   memories, rlBabel state, DC pixels, object state and BGM resume position.
+
+- Native refresh (1:31:0) now yields at a complete script frame, preventing the
+  VM instruction budget from presenting intermediate title/button states;
+  regression verifies the title refresh at 9032:859.
+
+- Return to the title clears scene objects, DC buffers, transitions, edit
+  controls and active scene effects before starting SEEN9032. Native menu_save
+  and menu_load (3000/3001) open the shared save menu and suspend the script;
+  regression covers 9032:911 and closing the load menu.
+- Dialogue fonts rasterize at physical output density, including the native
+  640x480 scene transform, with fixed full-text line breaks during reveal.
+  The shared UI also accounts for scene scale when rasterizing fonts.
 
 ## Incomplete — do not claim 100% parity
 
@@ -32,7 +48,8 @@ changing the story.
 Still required:
 
 - Exact native edit-control typography and remaining glossary presentation details.
-  Name-entry commands 1700/1701/1703/1710/1711 now create, edit, focus and read the original scenario 9037 fields; regression covers 9037:118.
+  Name-entry commands 1700/1701/1703/1710/1711 now create, edit, focus and read the original scenario 9037 fields; regression covers 9037:118, dark foreground/white background rendering and field clipping.
+  Opcode 1700 uses arguments 6–8 for text RGB and 9–11 for background RGB.
 - Original save/config/gallery menus and CG/read/progression persistence beyond
   the current session. Kotonoha dialogue saves are separate from RealLive saves.
 - Remaining composite graphics commands and particle/drift effects.

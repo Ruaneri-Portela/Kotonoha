@@ -480,9 +480,8 @@ SDL_Texture *SnowSession::Texture(SDL_Renderer *r, const std::string &id,
     return nullptr;
   try {
     const float scale = UpscaleFactor();
-    SDL_Texture &t =
-        scale > 1 ? assets_->texture(*r, id, scale, &engine_.GetUpscaler())
-                  : assets_->texture(*r, id);
+    auto &original = assets_->texture(*r, id);
+    SDL_Texture &t = engine_.GetUpscaler().process(original, 0);
     SDL_GetTextureSize(&t, &w, &h);
     w = std::round(w / scale);
     h = std::round(h / scale);

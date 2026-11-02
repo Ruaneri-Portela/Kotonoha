@@ -3,11 +3,15 @@
 #include <Kotonoha/componentes/ChoiceQuestionScene.hpp>
 #include <Kotonoha/componentes/GameMenu.hpp>
 #include <Kotonoha/componentes/InGameMenu.hpp>
+#include <Kotonoha/componentes/TextInputDialog.hpp>
 #include <Kotonoha/componentes/VNBacklog.hpp>
+#include <Kotonoha/componentes/VNSave.hpp>
 #include <Kotonoha/componentes/VNTextBox.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/Runtime.hpp>
 #include <Kotonoha/core/UI.hpp>
+#include <filesystem>
+#include <fstream>
 
 #include <iostream>
 #include <map>
@@ -289,11 +293,49 @@ public:
 
 } // namespace
 
+void testSaveSuggestions(Kotonoha::Engine &engine) {
+  const auto directory =
+      std::filesystem::temp_directory_path() /
+      ("kotonoha-save-names-" + std::to_string(SDL_GetTicksNS()));
+  std::filesystem::create_directories(directory);
+  Kotonoha::VNSaveSlots slots(directory.string());
+  const auto first = slots.nextPath("20 de Julho (Qui)");
+  require(std::filesystem::path(first).filename() == "20 de Julho (Qui).vn",
+          "The novel's suggested save name is retained");
+  std::ofstream(first).put('x');
+  const auto second = slots.nextPath("20 de Julho (Qui)");
+  require(std::filesystem::path(second).filename() ==
+              "20 de Julho (Qui) (2).vn",
+          "Suggested names never overwrite an existing save");
+  std::string accepted;
+  Kotonoha::TextInputDialog dialog(
+      engine, "Save name", [&](const auto &name) { accepted = name; }, nullptr,
+      "20 de Julho (Qui)");
+  dialog.onEvent(key(SDLK_RETURN));
+  require(accepted == "20 de Julho (Qui)",
+          "The suggested name pre-fills the editable dialog");
+  std::filesystem::remove_all(directory);
+}
+
+void testStableReveal() {
+  auto measure = [](const std::string &s) { return float(s.size()); };
+  const std::string full = "one lengthyword end";
+  const auto before =
+      Kotonoha::VNTextBoxUtility::RevealLines(full, 7, measure, 10);
+  const auto after =
+      Kotonoha::VNTextBoxUtility::RevealLines(full, 10, measure, 10);
+  require(before.size() == 2 && after.size() == 2 && before[0] == after[0] &&
+              before[1] == "len" && after[1] == "length",
+          "Revealing a word must not move already visible text between lines");
+}
+
 int main() {
   try {
     {
       EmptyRuntime runtime;
       Kotonoha::Engine engine(runtime);
+      testSaveSuggestions(engine);
+      testStableReveal();
       testTextBox(engine);
       testLiveTranslation(engine);
       testChoice(engine);

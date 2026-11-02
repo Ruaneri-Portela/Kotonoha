@@ -89,6 +89,9 @@ void SettingsMenu::activate(int index, int direction) {
             ? presets.front()
             : *(current + 1);
     draft.upscaling.shaderFiles.clear();
+    draft.upscaling.factor = std::max(2.0f, draft.upscaling.factor);
+    if (draft.upscaling.backend == UpscaleBackend::None)
+      draft.upscaling.backend = UpscaleBackend::Auto;
   } else if (index == 7)
     draft.upscaling.factor =
         draft.upscaling.factor >= 4 ? 1 : draft.upscaling.factor + 0.5f;

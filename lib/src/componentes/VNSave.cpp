@@ -66,11 +66,18 @@ std::vector<VNSaveSlot> VNSaveSlots::list() const {
   return slots;
 }
 
-std::string VNSaveSlots::nextPath() const {
+std::string VNSaveSlots::nextPath(const std::string &suggestion) const {
   std::filesystem::create_directories(directory);
+  const auto base =
+      suggestion.empty()
+          ? std::string{}
+          : std::filesystem::path(saveFileName(suggestion)).stem().string();
   for (std::uint64_t id = 1;; ++id) {
-    const auto path = std::filesystem::path(directory) /
-                      ("save-" + std::to_string(id) + ".vn");
+    const auto path =
+        std::filesystem::path(directory) /
+        (base.empty()
+             ? "save-" + std::to_string(id) + ".vn"
+             : base + (id == 1 ? "" : " (" + std::to_string(id) + ")") + ".vn");
     if (!std::filesystem::exists(path))
       return path.string();
     if (id == std::numeric_limits<std::uint64_t>::max())

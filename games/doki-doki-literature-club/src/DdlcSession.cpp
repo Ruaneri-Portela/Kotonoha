@@ -929,7 +929,6 @@ struct Rgba {
 struct Tex {
   SDL_Texture *texture = nullptr; // owned by the asset provider
   int w = 0, h = 0, logicalW = 0, logicalH = 0;
-  float factor = 0;
   uint64_t used = 0;
   bool failed = false;
 };
@@ -1211,23 +1210,18 @@ struct Game {
     t.used = frame;
     if (t.failed)
       return nullptr;
-    const auto &settings = engine.GetUpscaler().getSettings();
-    const float factor = settings.enabled() ? settings.factor : 1;
-    if (t.texture && t.factor == factor)
-      return &t;
     try {
-      if (!host.imageSize(file, t.logicalW, t.logicalH))
+      if ((t.logicalW <= 0 || t.logicalH <= 0) &&
+          !host.imageSize(file, t.logicalW, t.logicalH))
         throw std::runtime_error("Cannot determine image dimensions");
-      SDL_Texture &texture =
-          factor > 1 ? assets->texture(*r, file, factor, &engine.GetUpscaler())
-                     : assets->texture(*r, file);
+      auto &original = assets->texture(*r, file);
+      SDL_Texture &texture = engine.GetUpscaler().process(original, 0);
       float w = 0, h = 0;
       if (!SDL_GetTextureSize(&texture, &w, &h))
         throw std::runtime_error(SDL_GetError());
       t.texture = &texture;
       t.w = int(w);
       t.h = int(h);
-      t.factor = factor;
       SDL_SetTextureBlendMode(t.texture, SDL_BLENDMODE_BLEND);
       SDL_SetTextureScaleMode(t.texture, SDL_SCALEMODE_LINEAR);
     } catch (const std::exception &error) {
@@ -2714,8 +2708,9 @@ struct Game {
       throw std::runtime_error("Cannot restore render target: " +
                                std::string(SDL_GetError()));
     const SDL_FRect destination{0, 0, kW, kH};
-    if (!Kotonoha::RenderUpscaledTexture(r, canvas, nullptr, &destination,
-                                         frame))
+    // Source images already own their cached upscale; presentation and text
+    // animation must not run the CNN over the entire canvas again.
+    if (!SDL_RenderTexture(r, canvas, nullptr, &destination))
       throw std::runtime_error("Cannot present DDLC canvas: " +
                                std::string(SDL_GetError()));
     text.evict();

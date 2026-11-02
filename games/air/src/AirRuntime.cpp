@@ -10,6 +10,7 @@
 #include <Kotonoha/componentes/VNSaveMenu.hpp>
 #include <Kotonoha/componentes/VNTextBox.hpp>
 #include <Kotonoha/core/Engine.hpp>
+#include <Kotonoha/core/FileSystem.hpp>
 #include <Kotonoha/core/UI.hpp>
 #include <Kotonoha/localization/Encoding.hpp>
 #include <Kotonoha/media/MediaPlayer.hpp>
@@ -35,6 +36,8 @@ struct Stage : Scene {
 struct Text : VNTextBox {
   AirAssets &assets;
   SurfacePtr frame, back, cursor;
+  std::map<SDL_Surface *, TexturePtr> imageTextures;
+  std::vector<Uint8> fontData;
   FontPtr font;
   Text(Engine &e, AirAssets &a) : VNTextBox(e, "", "", 40), assets(a) {
     hide();
@@ -55,6 +58,14 @@ struct Text : VNTextBox {
       if (font)
         TTF_SetFontLineSkip(font.get(), 28);
     }
+    if (!font) {
+      fontData = FileResolver::loadFontMemory(e.GetSettings().fontPath);
+      IOStreamPtr stream(SDL_IOFromConstMem(fontData.data(), fontData.size()));
+      if (stream)
+        font.reset(TTF_OpenFontIO(stream.release(), true, 25));
+    }
+    if (font)
+      TTF_SetFontLineSkip(font.get(), 28);
   }
   GlossCursor textCursor(const std::string &value) const {
     GlossCursor p;
@@ -97,10 +108,15 @@ struct Text : VNTextBox {
   bool designSpace() const override { return false; }
   void image(RendererRef r, SurfaceRef s, float x, float y,
              bool upscale = true) {
-    TexturePtr t(SDL_CreateTextureFromSurface(&r, &s));
+    auto &t = imageTextures[&s];
+    if (!t) {
+      t.reset(SDL_CreateTextureFromSurface(&r, &s));
+      if (auto *pipeline = Upscaling::forRenderer(r))
+        pipeline->process(*t, 0);
+    }
     SDL_FRect dest{x, y, float(s.w), float(s.h)};
     if (upscale)
-      RenderUpscaledTexture(&r, t.get(), nullptr, &dest, SDL_GetTicksNS());
+      RenderUpscaledTexture(&r, t.get(), nullptr, &dest);
     else
       SDL_RenderTexture(&r, t.get(), nullptr, &dest);
   }
@@ -112,14 +128,29 @@ struct Text : VNTextBox {
       engine.GetUI().text(r, s, x, y, wrap);
       return;
     }
+    const float density = UI::rasterDensity(r);
+    TTF_SetFontSize(font.get(), 25 * density);
+    struct RestoreFont {
+      TTF_Font *font;
+      ~RestoreFont() { TTF_SetFontSize(font, 25); }
+    } restore{font.get()};
     SurfacePtr shadow(TTF_RenderText_Blended_Wrapped(
-        font.get(), s.data(), s.size(), {0, 0, 0, 255}, wrap));
+        font.get(), s.data(), s.size(), {0, 0, 0, 255},
+        int(std::ceil(wrap * density))));
     SurfacePtr text(TTF_RenderText_Blended_Wrapped(
-        font.get(), s.data(), s.size(), {255, 255, 255, 255}, wrap));
+        font.get(), s.data(), s.size(), {255, 255, 255, 255},
+        int(std::ceil(wrap * density))));
     if (shadow)
-      image(r, *shadow, x + 1, y + 1, false);
+      drawRaster(r, *shadow, x + 1, y + 1, density);
     if (text)
-      image(r, *text, x, y, false);
+      drawRaster(r, *text, x, y, density);
+  }
+  void drawRaster(RendererRef r, SurfaceRef surface, float x, float y,
+                  float density) {
+    TexturePtr texture(SDL_CreateTextureFromSurface(&r, &surface));
+    SDL_SetTextureScaleMode(texture.get(), SDL_SCALEMODE_LINEAR);
+    SDL_FRect destination{x, y, surface.w / density, surface.h / density};
+    SDL_RenderTexture(&r, texture.get(), nullptr, &destination);
   }
   void renderFrame(RendererRef r) override {
     image(r, *back, 0, 345);
@@ -129,13 +160,27 @@ struct Text : VNTextBox {
     print(r, speakerName, 33, 315, 500);
   }
   void renderDialogue(RendererRef r) override {
-    print(r, visibleDialogue, 53, 364);
+    auto measure = [this](const std::string &text) {
+      int w = 0, h = 0;
+      if (font)
+        TTF_GetStringSize(font.get(), text.data(), text.size(), &w, &h);
+      return float(w);
+    };
+    const auto lines = VNTextBoxUtility::RevealLines(
+        fullDialogue, visibleDialogue.size(), measure, 528);
+    for (std::size_t n = 0; n < lines.size(); ++n)
+      print(r, lines[n], 53, 364 + n * 28);
   }
   void renderIndicator(RendererRef r) override {
-    TexturePtr t(SDL_CreateTextureFromSurface(&r, cursor.get()));
+    auto &t = imageTextures[cursor.get()];
+    if (!t) {
+      t.reset(SDL_CreateTextureFromSurface(&r, cursor.get()));
+      if (auto *pipeline = Upscaling::forRenderer(r))
+        pipeline->process(*t, 0);
+    }
     SDL_FRect src{float((SDL_GetTicks() % 850) * 4 / 850 * 16), 0, 16, 16},
         dst{591, 436, 16, 16};
-    RenderUpscaledTexture(&r, t.get(), &src, &dst, SDL_GetTicksNS());
+    RenderUpscaledTexture(&r, t.get(), &src, &dst);
   }
 };
 struct Object {
@@ -176,12 +221,14 @@ struct AirRuntime::Impl {
   std::unique_ptr<VNSaveMenu> saves;
   struct EditField {
     SDL_FRect area{};
-    SDL_Color color{255, 255, 255, 255};
+    SDL_Color color{0, 0, 0, 255};
+    SDL_Color background{255, 255, 255, 255};
     std::string raw, text;
   };
   std::map<int, EditField> editFields;
   int focusedEdit = -1;
-  std::string speakerName, musicID;
+  bool refreshRequested = false;
+  std::string speakerName, musicID, saveName;
   std::map<std::string, std::string> selectionLabels;
   int selectionWindow = 0;
   bool musicLoop = false;
@@ -194,6 +241,9 @@ struct AirRuntime::Impl {
   Uint64 audioTick = 0;
   std::map<int, std::unique_ptr<PcmPlayer>> sounds;
   std::map<std::string, Graphic> graphics;
+  TexturePtr canvasTexture;
+  SurfacePtr canvasPixels;
+  Uint64 canvasSerial = 0;
   std::map<int, SurfacePtr> dc;
   std::map<int, Object> fg, bg;
   std::string dialogue, error, lastGraphic;
@@ -379,7 +429,27 @@ struct AirRuntime::Impl {
       output = std::move(mixed);
     } else
       transitionOld.reset();
-    TexturePtr t(SDL_CreateTextureFromSurface(&r, output.get()));
+    bool changed = !canvasPixels || canvasPixels->w != output->w ||
+                   canvasPixels->h != output->h;
+    for (int y = 0; !changed && y < output->h; ++y)
+      changed =
+          std::memcmp(static_cast<Uint8 *>(canvasPixels->pixels) +
+                          y * canvasPixels->pitch,
+                      static_cast<Uint8 *>(output->pixels) + y * output->pitch,
+                      output->w * 4) != 0;
+    if (changed) {
+      if (!canvasTexture)
+        canvasTexture.reset(SDL_CreateTexture(&r, SDL_PIXELFORMAT_RGBA32,
+                                              SDL_TEXTUREACCESS_STREAMING,
+                                              output->w, output->h));
+      if (!canvasTexture || !SDL_UpdateTexture(canvasTexture.get(), nullptr,
+                                               output->pixels, output->pitch))
+        throw std::runtime_error(SDL_GetError());
+      ++canvasSerial;
+      canvasPixels = std::move(output);
+      if (auto *pipeline = Upscaling::forRenderer(r))
+        pipeline->process(*canvasTexture, canvasSerial);
+    }
     SDL_FRect destination{0, 0, 640, 480};
     auto elapsed = SDL_GetTicks() - shakeStart;
     for (const auto &step : shake) {
@@ -390,15 +460,26 @@ struct AirRuntime::Impl {
       }
       elapsed -= step[2];
     }
-    RenderUpscaledTexture(&r, t.get(), nullptr, &destination, SDL_GetTicksNS());
+    RenderUpscaledTexture(&r, canvasTexture.get(), nullptr, &destination,
+                          canvasSerial);
     if (movie && movie->isOpen()) {
       movie->update(r);
       movie->render(r, {0, 0, 640, 480});
     }
     for (const auto &[id, field] : editFields) {
+      SDL_Rect oldClip{};
+      const bool clipped = SDL_RenderClipEnabled(&r);
+      SDL_GetRenderClipRect(&r, &oldClip);
+      SDL_Rect clip{int(field.area.x), int(field.area.y), int(field.area.w),
+                    int(field.area.h)};
+      if (clipped)
+        SDL_GetRectIntersection(&oldClip, &clip, &clip);
+      SDL_SetRenderClipRect(&r, &clip);
+      engine->GetUI().panel(r, field.area, field.background);
       engine->GetUI().text(r, field.text + (focusedEdit == id ? "|" : ""),
                            field.area.x, field.area.y, field.area.w,
                            field.color);
+      SDL_SetRenderClipRect(&r, clipped ? &oldClip : nullptr);
     }
     if (!error.empty()) {
       engine->GetUI().panel(r, {12, 15, 616, 155});
@@ -485,6 +566,21 @@ struct AirRuntime::Impl {
     m.SetOnReturnToMenu([this] {
       GetInGameMenuRuntime(*engine).close();
       vm.jump(9032);
+      fg.clear();
+      bg.clear();
+      dc.clear();
+      transitionOld.reset();
+      shake.clear();
+      flashDuration = 0;
+      editFields.clear();
+      focusedEdit = -1;
+      SDL_StopTextInput(&engine->GetWindow());
+      deadline = 0;
+      choice->hide();
+      movie->stop();
+      voice.Stop();
+      sounds.clear();
+      runtime.SetState(GameState::Menu);
       pause = false;
       error.clear();
       dialogue.clear();
@@ -500,7 +596,7 @@ struct AirRuntime::Impl {
       throw std::runtime_error(SDL_GetError());
     std::string dir = std::string(pref) + "saves";
     SDL_free(pref);
-    saves->open(dir, load);
+    saves->open(dir, load, load ? "" : saveName);
     runtime.RemoveScene(saves.get());
     runtime.AddScene(saves.get());
   }
@@ -650,6 +746,8 @@ bool AirRuntime::Impl::command(const libreallive::CommandElement &c) {
   if (type == 1 && m == 4) {
     switch (op) {
     case 0:
+      saveName =
+          decodeText(str(c, 0), archive.Scenario(vm.scenario()).encoding());
       SDL_SetWindowTitle(
           &engine->GetWindow(),
           ("AIR — " +
@@ -739,6 +837,11 @@ bool AirRuntime::Impl::command(const libreallive::CommandElement &c) {
       machine.set_store_register(active);
       return true;
     }
+    case 3000:
+    case 3001:
+      openSaves(op == 3001);
+      refreshRequested = true;
+      return true;
     case 1200: {
       SDL_Event quit{};
       quit.type = SDL_EVENT_QUIT;
@@ -770,8 +873,10 @@ bool AirRuntime::Impl::command(const libreallive::CommandElement &c) {
       EditField field;
       field.area = {float(value(c, 1)), float(value(c, 2)), float(value(c, 3)),
                     float(value(c, 4))};
-      field.color = {Uint8(value(c, 9, 255)), Uint8(value(c, 10, 255)),
-                     Uint8(value(c, 11, 255)), 255};
+      field.color = {Uint8(value(c, 6)), Uint8(value(c, 7)), Uint8(value(c, 8)),
+                     255};
+      field.background = {Uint8(value(c, 9, 255)), Uint8(value(c, 10, 255)),
+                          Uint8(value(c, 11, 255)), 255};
       editFields[value(c, 0)] = std::move(field);
       return true;
     }
@@ -1084,8 +1189,10 @@ bool AirRuntime::Impl::command(const libreallive::CommandElement &c) {
   }
   if (type == 1 && m == 30 && (op == 0 || op == 20 || op == 22))
     return true;
-  if (type == 1 && m == 31 && op == 0)
+  if (type == 1 && m == 31 && op == 0) {
+    refreshRequested = true;
     return true;
+  }
   if (type == 1 && m == 33) {
     // Native RealLive FUN_004544b0: flash(R,G,B,duration), sixteen
     // restoration steps, with a snapshot of the old visible framebuffer.
@@ -1425,9 +1532,10 @@ void AirRuntime::update() {
       return;
     i.movie->stop();
   }
+  i.refreshRequested = false;
   for (int n = 0;
-       n < 3000 && !i.pause && !i.choice->isActive() && i.error.empty() &&
-       SDL_GetTicks() >= i.deadline && !i.movie->isOpen();
+       n < 3000 && !i.refreshRequested && !i.pause && !i.choice->isActive() &&
+       i.error.empty() && SDL_GetTicks() >= i.deadline && !i.movie->isOpen();
        ++n)
     try {
       if (!i.vm.step())
@@ -1490,6 +1598,7 @@ void AirRuntime::saveGame(const std::string &path) {
     out << id << ' ' << s->w << ' ' << s->h << ' ' << std::quoted(pixels)
         << '\n';
   }
+  out << std::quoted(i.saveName) << '\n';
   VNSave save;
   save.nodeId = i.vm.scenario();
   save.gameData = out.str();
@@ -1574,17 +1683,37 @@ void AirRuntime::loadGame(const std::string &path) {
     if (!dc.emplace(id, std::move(s)).second)
       invalid();
   }
+  std::string saveName;
   in >> std::ws;
-  if (!in.eof())
-    invalid();
+  if (!in.eof()) {
+    if (!(in >> std::quoted(saveName)))
+      invalid();
+    in >> std::ws;
+    if (!in.eof())
+      invalid();
+  }
   if (!music.empty() && !i.assets->contains(music))
     invalid();
   i.vm.restore(state);
+  if (saveName.empty()) {
+    std::size_t index = 0;
+    for (const auto &element : i.archive.Scenario(i.vm.scenario())) {
+      if (index++ >= i.vm.index())
+        break;
+      auto *command =
+          dynamic_cast<const libreallive::CommandElement *>(element.get());
+      if (command && command->modtype() == 1 && command->module() == 4 &&
+          command->opcode() == 0 && command->GetParamCount() > 0)
+        saveName = decodeText(StringParameter(i.vm.machine(), *command, 0),
+                              i.archive.Scenario(i.vm.scenario()).encoding());
+    }
+  }
   i.fg.swap(fg);
   i.bg.swap(bg);
   i.dc.swap(dc);
   i.dialogue = std::move(dialogue);
   i.speakerName = std::move(speaker);
+  i.saveName = std::move(saveName);
   i.pause = true;
   i.pauseKind = pauseKind;
   i.deadline = 0;
@@ -1721,6 +1850,8 @@ void AirRuntime::debugJumpToNode(const std::string &s) {
     impl->choice->hide();
   if (impl->movie)
     impl->movie->stop();
+  impl->canvasTexture.reset();
+  impl->canvasPixels.reset();
   impl->transitionOld.reset();
   if (impl->textbox)
     impl->textbox->hide();

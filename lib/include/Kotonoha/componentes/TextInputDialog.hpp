@@ -21,12 +21,14 @@ public:
   bool designSpace() const override { return true; }
   TextInputDialog(Engine &engineRef, std::string prompt,
                   std::function<void(const std::string &)> confirmCb,
-                  std::function<void()> cancelCb);
+                  std::function<void()> cancelCb,
+                  const std::string &initialText = {});
 
   ~TextInputDialog() override = default;
   void configure(const std::string &prompt,
                  std::function<void(const std::string &)> confirmCb,
-                 std::function<void()> cancelCb);
+                 std::function<void()> cancelCb,
+                 const std::string &initialText = {});
   bool capturesInput() const override { return true; }
   bool pausesStory() const override { return true; }
   void submitText(const std::string &text);
@@ -39,6 +41,7 @@ public:
 TextInputDialog &
 GetTextInputDialogRuntime(Engine &engineRef, const std::string &prompt,
                           std::function<void(const std::string &)> confirmCb,
-                          std::function<void()> cancelCb);
+                          std::function<void()> cancelCb,
+                          const std::string &initialText = {});
 
 } // namespace Kotonoha

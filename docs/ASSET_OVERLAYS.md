@@ -109,8 +109,15 @@ folder launcher, including its overlay and renderer settings.
 Video rendering automatically uses the renderer's configured `Upscaling`
 pipeline when no explicit pipeline is supplied. Ports render game pictures with
 `RenderUpscaledTexture`; source crops stay in original texture coordinates and
-already processed textures are not processed twice. Dynamic canvases supply a
-content serial. Text rendered directly by the engine retains its native glyph
+already processed textures are not processed twice. Each original texture owns
+its cached upscale. Asset-provider uploads prepare that cache at creation;
+repeated draws and atlas crops reuse it. Changing the profile/factor invalidates
+cached results; disabling upscaling frees them and renders the originals.
+Destroying an original also releases its upscale. Dynamic canvases supply a
+content serial only when pixels change; videos use the decoded frame serial.
+AIR retains its canvas texture and only uploads/processes changed pixels.
+DDLC processes source images once rather than running its whole canvas through
+the CNN again on every render. Text rendered directly by the engine retains its native glyph
 rasterization.
 
 Android includes `air` and `summerRadish` flavors. DDLC stages the CPython

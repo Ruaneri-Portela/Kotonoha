@@ -4,6 +4,7 @@
 #include <Kotonoha/core/CommandLine.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/FileSystem.hpp>
+#include <Kotonoha/core/UI.hpp>
 #include <Kotonoha/debug/DebugOverlay.hpp>
 #include <algorithm>
 #include <cmath>
@@ -178,6 +179,18 @@ void controls(Engine &engine, TestRuntime &runtime) {
   engine.applySettings(settings, false);
   require(engine.GetAudio().getMasterVolume() == 0.35f,
           "Engine applies master volume");
+  const float previousDensity = engine.GetUI().pixelDensity();
+  engine.GetUI().setPixelDensity(1);
+  SDL_SetRenderLogicalPresentation(&engine.GetRenderer(), 0, 0,
+                                   SDL_LOGICAL_PRESENTATION_DISABLED);
+  SDL_SetRenderScale(&engine.GetRenderer(), 2, 2);
+  require(UI::rasterDensity(engine.GetRenderer()) == 2,
+          "Font raster density includes the scene's renderer scale");
+  engine.GetUI().text(engine.GetRenderer(), "High DPI", 0, 0, 400);
+  require(engine.GetUI().rasterFontSize() == 24,
+          "High DPI rendering preserves font metrics used by layout");
+  SDL_SetRenderScale(&engine.GetRenderer(), 1, 1);
+  engine.GetUI().setPixelDensity(previousDensity);
   SettingsMenu menu(engine);
   const auto press = [&](SDL_Keycode key) {
     SDL_Event event{};
@@ -204,6 +217,17 @@ void controls(Engine &engine, TestRuntime &runtime) {
   require(!menu.isOpen() && engine.GetAudio().getMasterVolume() == 0.30f &&
               engine.GetAudio().isMasterMuted(),
           "Generic menu applies volume and master mute");
+  engine.applySettings(settings, false);
+  menu.open();
+  for (int i = 0; i < 6; ++i)
+    press(SDLK_DOWN);
+  press(SDLK_RETURN);
+  for (int i = 0; i < 4; ++i)
+    press(SDLK_DOWN);
+  press(SDLK_RETURN);
+  require(!menu.isOpen() && engine.GetSettings().upscaling.factor >= 2,
+          "Selecting a shader profile enables upscaling instead of leaving it "
+          "at 1x");
   engine.applySettings(settings, false);
   engine.GetDebug().renderMenu(engine.GetRenderer());
   const float padding = ImGui::GetStyle().FramePadding.x;

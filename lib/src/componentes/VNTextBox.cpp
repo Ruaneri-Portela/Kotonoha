@@ -134,8 +134,8 @@ void VNTextBox::renderDialogue(RendererRef renderer) {
     return engine.GetUI().textSize(str, 1140.0f).x;
   };
 
-  const auto lines =
-      VNTextBoxUtility::WrapText(visibleDialogue, measureText, 1140.0f);
+  const auto lines = VNTextBoxUtility::RevealLines(
+      fullDialogue, visibleDialogue.size(), measureText, 1140.0f);
 
   int yOffset = 550;
   for (const auto &line : lines) {

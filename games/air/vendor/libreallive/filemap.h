@@ -93,4 +93,4 @@ private:
 
 } // namespace libreallive
 
-#endif  // SRC_LIBREALLIVE_FILEMAP_H_
+#endif // SRC_LIBREALLIVE_FILEMAP_H_

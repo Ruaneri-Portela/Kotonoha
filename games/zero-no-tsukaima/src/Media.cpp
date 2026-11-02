@@ -1,4 +1,5 @@
 #include "Media.hpp"
+#include <Kotonoha/media/upscaling/Upscaler.hpp>
 
 #include <algorithm>
 #include <utility>
@@ -47,10 +48,10 @@ bool Picture::Draw(SDL_Renderer *renderer, const SDL_FRect *src,
   if (!texture_)
     return false;
   if (!src || scale_ == 1.0f)
-    return SDL_RenderTexture(renderer, texture_, src, dst);
+    return Kotonoha::RenderUpscaledTexture(renderer, texture_, src, dst);
   const SDL_FRect scaled{src->x * scale_, src->y * scale_, src->w * scale_,
                          src->h * scale_};
-  return SDL_RenderTexture(renderer, texture_, &scaled, dst);
+  return Kotonoha::RenderUpscaledTexture(renderer, texture_, &scaled, dst);
 }
 
 } // namespace ZeroNoTsukaima

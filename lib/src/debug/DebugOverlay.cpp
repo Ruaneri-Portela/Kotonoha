@@ -990,6 +990,9 @@ void DebugOverlay::drawEngineTools() {
                               preset == draft.upscaling.preset)) {
           draft.upscaling.preset = preset;
           draft.upscaling.shaderFiles.clear();
+          draft.upscaling.factor = std::max(2.0f, draft.upscaling.factor);
+          if (draft.upscaling.backend == UpscaleBackend::None)
+            draft.upscaling.backend = UpscaleBackend::Auto;
           changed = true;
         }
       ImGui::EndCombo();

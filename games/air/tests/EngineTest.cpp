@@ -1,5 +1,7 @@
 #include "AirRuntime.hpp"
 #include <Kotonoha/componentes/InGameMenu.hpp>
+#include <Kotonoha/componentes/TextInputDialog.hpp>
+#include <Kotonoha/componentes/VNSaveMenu.hpp>
 #include <Kotonoha/componentes/VNTextBox.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <algorithm>
@@ -59,12 +61,84 @@ int main(int argc, char **argv) {
     EngineOptions o;
     o.assets = assets;
     o.persistSettings = false;
+    const bool gpuTest = argc > 2 && std::string(argv[2]) == "--ui-opengl";
+    if (gpuTest) {
+      o.rendererOverride = "opengl";
+      o.settings.upscaling = {
+          UpscaleBackend::MPV, UpscalePreset::Anime4KModeCFast, 2, {}};
+    }
     Engine engine(game, o);
     struct Guard {
       Air::AirRuntime &g;
       ~Guard() { g.shutdown(); }
     } guard{game};
     SDL_SetRenderVSync(&engine.GetRenderer(), 0);
+    // A native refresh presents a complete script frame before executing
+    // the next loop iteration, rather than stopping at an arbitrary VM budget.
+    game.debugJumpToNode("9032:859");
+    game.update();
+    check(game.debugNode() == "9032:860",
+          "AIR refresh did not yield at the frame boundary");
+    game.debugJumpToNode("9037:118");
+    game.update();
+    SDL_Event typed{};
+    typed.type = SDL_EVENT_TEXT_INPUT;
+    typed.text.text = "AIR";
+    game.onEvent(typed);
+    capture(engine, game, "/tmp/air-name-fields.bmp");
+    SurfacePtr fields(SDL_LoadBMP("/tmp/air-name-fields.bmp"));
+    check(bool(fields), "Name field capture failed");
+    int dark = 0, white = 0;
+    for (int y = 201; y < 253; ++y)
+      for (int x = 388; x < 592; ++x) {
+        Uint8 r, g, b, a;
+        SDL_ReadSurfacePixel(fields.get(), x, y, &r, &g, &b, &a);
+        dark += r < 80 && g < 80 && b < 80;
+        white += r > 240 && g > 240 && b > 240;
+      }
+    check(dark > 20 && white > 8000,
+          "Name fields must render dark text on a white background");
+    // Returning to the title must discard every object and edit control
+    // belonging to the previous scene before running the title script.
+    auto &returnMenu = GetInGameMenuRuntime(engine);
+    game.SetState(GameState::Gameplay);
+    returnMenu.open();
+    SDL_Event backToTitle{};
+    backToTitle.type = SDL_EVENT_MOUSE_BUTTON_DOWN;
+    backToTitle.button.button = SDL_BUTTON_LEFT;
+    backToTitle.button.x = 640;
+    backToTitle.button.y = 524;
+    returnMenu.onEvent(backToTitle);
+    check(game.GetState() == GameState::Menu && game.debugNode() == "9032:0",
+          "Returning to title must change the game state and reset the script");
+    capture(engine, game, "/tmp/air-clean-title.bmp");
+    SurfacePtr clean(SDL_LoadBMP("/tmp/air-clean-title.bmp"));
+    for (int y = 0; y < clean->h; y += 16)
+      for (int x = 0; x < clean->w; x += 16) {
+        Uint8 r, g, b, a;
+        SDL_ReadSurfacePixel(clean.get(), x, y, &r, &g, &b, &a);
+        check(r == 0 && g == 0 && b == 0,
+              "Previous scene leaked into the title canvas");
+      }
+    game.debugJumpToNode("9032:911");
+    game.update();
+    VNSaveMenu *loadMenu = nullptr;
+    for (auto *scene : game.GetActiveScenes())
+      if (auto *menu = dynamic_cast<VNSaveMenu *>(scene))
+        loadMenu = menu;
+    check(game.diagnostic().empty() && loadMenu && loadMenu->isOpen(),
+          "AIR menu_load at 9032:911 must open the load menu");
+    const auto loadNode = game.debugNode();
+    game.update();
+    check(game.debugNode() == loadNode,
+          "AIR load menu must pause script execution");
+    loadMenu->close();
+    if (gpuTest || (argc > 2 && std::string(argv[2]) == "--ui-only")) {
+      std::cout
+          << "AIR name-field contrast and refresh frame boundary passed\n";
+      return 0;
+    }
+    game.debugJumpToNode("9030");
     // Run the original boot path, including its timed logo frames.
     auto start = SDL_GetTicks();
     while (SDL_GetTicks() - start < 30000) {
@@ -77,8 +151,13 @@ int main(int argc, char **argv) {
     check(game.debugNode().find("9032:") == 0,
           "Original startup did not reach title");
     capture(engine, game, "/tmp/air-title.bmp");
-    // Debug entry after the long animated date introduction isolates text/VM
-    // tests.
+    // Execute the native date/title setup, then skip its long animation so
+    // this test exercises the save UI rather than waiting through the intro.
+    game.debugJumpToNode("170:0");
+    game.update();
+    check(std::string(SDL_GetWindowTitle(&engine.GetWindow()))
+                  .find("17 de Julho (Seg)") != std::string::npos,
+          "The native script must set the save date title");
     game.debugJumpToNode("170:16");
     start = SDL_GetTicks();
     while (SDL_GetTicks() - start < 6000 &&
@@ -96,9 +175,41 @@ int main(int argc, char **argv) {
     const auto node = game.debugNode(), line = t->getText();
     auto path = std::filesystem::temp_directory_path() /
                 ("air-test-" + std::to_string(SDL_GetTicksNS()) + ".vn");
+    const auto namedDirectory = path.string() + "-names";
+    VNSaveMenu namedSave(engine);
+    game.AddScene(&namedSave);
+    namedSave.open(namedDirectory, false, "17 de Julho (Seg)");
+    SDL_Event confirmName{};
+    confirmName.type = SDL_EVENT_KEY_DOWN;
+    confirmName.key.key = SDLK_RETURN;
+    namedSave.onEvent(confirmName);
+    TextInputDialog *nameDialog = nullptr;
+    for (auto *scene : game.GetActiveScenes())
+      if (auto *dialog = dynamic_cast<TextInputDialog *>(scene))
+        nameDialog = dialog;
+    check(nameDialog, "New save must show the editable novel suggestion");
+    nameDialog->onEvent(confirmName);
+    check(!namedSave.isOpen() && std::filesystem::is_regular_file(
+                                     std::filesystem::path(namedDirectory) /
+                                     "17 de Julho (Seg).vn"),
+          "Accepting the suggestion must create a named AIR save");
+    game.RemoveScene(&namedSave);
+    std::filesystem::remove_all(namedDirectory);
     game.saveGame(path.string());
+    check(VNSave::read(path.string()).gameData.find("17 de Julho (Seg)") !=
+              std::string::npos,
+          "AIR must save the script-provided date title");
+    auto legacy = VNSave::read(path.string());
+    const auto titlePosition = legacy.gameData.rfind("\"17 de Julho (Seg)\"");
+    check(titlePosition != std::string::npos, "AIR date must be serialized");
+    legacy.gameData.erase(titlePosition);
+    legacy.write(path.string());
     game.debugJumpToNode("9032");
     game.loadGame(path.string());
+    game.saveGame(path.string());
+    check(VNSave::read(path.string()).gameData.find("17 de Julho (Seg)") !=
+              std::string::npos,
+          "Older saves recover the date from the original scenario title");
     check(game.debugNode() == node && text(game)->getText() == line,
           "Save restored wrong script or dialogue");
     std::filesystem::remove(path);

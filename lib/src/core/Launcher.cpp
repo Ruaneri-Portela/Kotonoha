@@ -577,6 +577,9 @@ void Launcher::drawUpscaling() {
                             preset == upscaling.preset)) {
         upscaling.preset = preset;
         upscaling.shaderFiles.clear();
+        upscaling.factor = std::max(2.0f, upscaling.factor);
+        if (upscaling.backend == UpscaleBackend::None)
+          upscaling.backend = UpscaleBackend::Auto;
       }
     ImGui::EndCombo();
   }
