@@ -133,6 +133,21 @@ GameRuntime::GameRuntime(std::shared_ptr<GameAssets> assets)
 
 GameRuntime::~GameRuntime() { shutdown(); }
 
+void GameRuntime::saveGame(const std::string &path) {
+  if (!session_)
+    throw std::logic_error("No DDLC session");
+  session_->saveGame(path);
+}
+void GameRuntime::loadGame(const std::string &path) {
+  if (!session_)
+    throw std::logic_error("No DDLC session");
+  session_->loadGame(path);
+  if (currentState != Kotonoha::GameState::Gameplay) {
+    SetState(Kotonoha::GameState::Gameplay);
+    init(*engine_);
+  }
+}
+
 void GameRuntime::shutdown() {
   ClearScenes();
   pause_.reset();

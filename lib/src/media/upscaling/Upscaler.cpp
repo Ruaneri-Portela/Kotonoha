@@ -131,8 +131,16 @@ Upscaling::Upscaling(RendererRef value) : renderer(value) {
     throw std::logic_error(
         "The migrated native backends support one active Upscaler");
   activeUpscaling = this;
+  SDL_SetPointerProperty(SDL_GetRendererProperties(&renderer),
+                         "kotonoha.upscaling", this);
 }
+Upscaling *Upscaling::forRenderer(RendererRef renderer) {
+  return static_cast<Upscaling *>(SDL_GetPointerProperty(
+      SDL_GetRendererProperties(&renderer), "kotonoha.upscaling", nullptr));
+}
+
 Upscaling::~Upscaling() {
+  SDL_ClearProperty(SDL_GetRendererProperties(&renderer), "kotonoha.upscaling");
   implementation.reset();
   activeUpscaling = nullptr;
 }
@@ -283,7 +291,12 @@ void Upscaling::configure(const UpscaleSettings &value) {
 }
 
 SDL_Texture &Upscaling::process(TextureRef texture, Uint64 serial) {
-  return implementation ? implementation->process(texture, serial) : texture;
+  auto &result =
+      implementation ? implementation->process(texture, serial) : texture;
+  if (&result != &texture)
+    SDL_SetBooleanProperty(SDL_GetTextureProperties(&result),
+                           "kotonoha.upscaled", true);
+  return result;
 }
 
 void Upscaling::clear() {
@@ -343,6 +356,9 @@ TexturePtr Upscaling::scaled(TextureRef texture, float scale) {
   requireSDL(SDL_SetTextureScaleMode(result.get(), SDL_SCALEMODE_LINEAR));
   SDL_LogDebug(LogUpscaler, "Scaled still %dx%d -> %dx%d (%s)", texture.w,
                texture.h, w, h, upscale ? "upscaler" : "linear");
+  if (upscale)
+    SDL_SetBooleanProperty(SDL_GetTextureProperties(result.get()),
+                           "kotonoha.upscaled", true);
   return result;
 }
 
@@ -366,6 +382,33 @@ SurfacePtr Upscaling::scaled(const SDL_Surface &surface, float scale) {
   if (!converted)
     throw std::runtime_error(SDL_GetError());
   return converted;
+}
+
+bool RenderUpscaledTexture(SDL_Renderer *renderer, SDL_Texture *texture,
+                           const SDL_FRect *source,
+                           const SDL_FRect *destination, Uint64 contentSerial) {
+  if (!renderer || !texture)
+    return SDL_SetError("Missing renderer or texture");
+  auto *pipeline = Upscaling::forRenderer(*renderer);
+  if (!pipeline || !pipeline->getSettings().enabled() ||
+      SDL_GetBooleanProperty(SDL_GetTextureProperties(texture),
+                             "kotonoha.upscaled", false))
+    return SDL_RenderTexture(renderer, texture, source, destination);
+  if (!contentSerial)
+    contentSerial = SDL_GetTicksNS();
+  auto &processed = pipeline->process(*texture, contentSerial);
+  SDL_BlendMode blend;
+  if (!SDL_GetTextureBlendMode(texture, &blend) ||
+      !SDL_SetTextureBlendMode(&processed, blend))
+    return false;
+  SDL_FRect crop{};
+  if (source) {
+    const float x = static_cast<float>(processed.w) / texture->w;
+    const float y = static_cast<float>(processed.h) / texture->h;
+    crop = {source->x * x, source->y * y, source->w * x, source->h * y};
+  }
+  return SDL_RenderTexture(renderer, &processed, source ? &crop : nullptr,
+                           destination);
 }
 
 } // namespace Kotonoha

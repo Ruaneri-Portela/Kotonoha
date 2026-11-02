@@ -74,14 +74,9 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
     Kotonoha::EngineOptions &options = app->options;
     options.persistSettings = true;
     std::string disc;
-    std::string dumpPath; // export every route and exit
 
     Kotonoha::CommandLine arguments("ZeroNoTsukaima", options);
     arguments.option("--zero", "DISC.bin", "Zero no Tsukaima game disc", disc);
-    arguments.option("--dump-translation", "FILE",
-                     "Export original texts by route and exit", dumpPath);
-    arguments.flag("--launcher", "Open the disc selection launcher",
-                   options.launcher);
     arguments.parse(argc, argv);
     if (arguments.wantsHelp()) {
       std::fputs(arguments.help().c_str(), stdout);
@@ -111,15 +106,6 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
       app->Start(disc);
     }
     *appstate = app.release();
-    if (!dumpPath.empty()) {
-      auto *started = static_cast<App *>(*appstate);
-      if (!started->game)
-        throw std::invalid_argument(
-            "--dump-translation cannot be combined with --launcher");
-      started->game->engine.dumpTranslation(dumpPath);
-      SDL_Log("Translation dictionary written to %s", dumpPath.c_str());
-      return SDL_APP_SUCCESS;
-    }
     return SDL_APP_CONTINUE;
   } catch (const std::exception &error) {
     SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Initialization failed: %s",

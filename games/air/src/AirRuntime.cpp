@@ -13,11 +13,13 @@
 #include <Kotonoha/core/UI.hpp>
 #include <Kotonoha/media/MediaPlayer.hpp>
 #include <Kotonoha/media/PcmPlayer.hpp>
+#include <Kotonoha/media/upscaling/Upscaler.hpp>
 #include <algorithm>
 #include <array>
 #include <cmath>
 #include <cstring>
 #include <iomanip>
+#include <set>
 #include <sstream>
 namespace Air {
 using namespace Kotonoha;
@@ -53,11 +55,53 @@ struct Text : VNTextBox {
         TTF_SetFontLineSkip(font.get(), 28);
     }
   }
+  GlossCursor textCursor(const std::string &value) const {
+    GlossCursor p;
+    std::string line;
+    auto width = [&](const std::string &v) {
+      int w = 0, h = 0;
+      if (font)
+        TTF_GetStringSize(font.get(), v.data(), v.size(), &w, &h);
+      else
+        w = int(v.size()) * 13;
+      return w;
+    };
+    for (std::size_t i = 0; i < value.size();) {
+      if (value[i] == '\n') {
+        p.y += 28;
+        line.clear();
+        ++i;
+        continue;
+      }
+      auto end = i;
+      while (end < value.size() && value[end] != ' ' && value[end] != '\n')
+        ++end;
+      if (end == i)
+        ++end;
+      auto word = value.substr(i, end - i);
+      if (!line.empty() && width(line + word) > 528) {
+        p.y += 28;
+        line.clear();
+        if (word == " ") {
+          i = end;
+          continue;
+        }
+      }
+      line += word;
+      i = end;
+    }
+    p.x = 53 + width(line);
+    return p;
+  }
   bool designSpace() const override { return false; }
-  void image(RendererRef r, SurfaceRef s, float x, float y) {
+  void image(RendererRef r, SurfaceRef s, float x, float y,
+             bool upscale = true) {
     TexturePtr t(SDL_CreateTextureFromSurface(&r, &s));
     SDL_FRect dest{x, y, float(s.w), float(s.h)};
-    SDL_RenderTexture(&r, t.get(), nullptr, &dest);
+    if (upscale)
+      RenderUpscaledTexture(&r, t.get(), nullptr, &dest, SDL_GetTicksNS());
+    else
+      SDL_RenderTexture(&r, t.get(), nullptr, &dest);
   }
   void print(RendererRef r, const std::string &s, float x, float y,
              int wrap = 528) {
@@ -72,9 +116,9 @@ struct Text : VNTextBox {
     SurfacePtr text(TTF_RenderText_Blended_Wrapped(
         font.get(), s.data(), s.size(), {255, 255, 255, 255}, wrap));
     if (shadow)
-      image(r, *shadow, x + 1, y + 1);
+      image(r, *shadow, x + 1, y + 1, false);
     if (text)
-      image(r, *text, x, y);
+      image(r, *text, x, y, false);
   }
   void renderFrame(RendererRef r) override {
     image(r, *back, 0, 345);
@@ -90,7 +134,7 @@ struct Text : VNTextBox {
     TexturePtr t(SDL_CreateTextureFromSurface(&r, cursor.get()));
     SDL_FRect src{float((SDL_GetTicks() % 850) * 4 / 850 * 16), 0, 16, 16},
         dst{591, 436, 16, 16};
-    SDL_RenderTexture(&r, t.get(), &src, &dst);
+    RenderUpscaledTexture(&r, t.get(), &src, &dst, SDL_GetTicksNS());
   }
 };
 struct Object {
@@ -130,10 +174,16 @@ struct AirRuntime::Impl {
   std::unique_ptr<ChoiceQuestionScene> choice;
   std::unique_ptr<VNSaveMenu> saves;
   std::string speakerName, musicID;
+  std::map<std::string, std::string> selectionLabels;
+  int selectionWindow = 0;
   bool musicLoop = false;
   int64_t musicEnd = 0, musicLoopStart = 0, musicFrames = 0;
   std::unique_ptr<MediaPlayer> movie;
   PcmPlayer bgm, voice;
+  float bgmGain = 1, fadeFrom = 1, fadeTo = 1;
+  int fadeElapsed = 0, fadeDuration = 0;
+  bool fadeStops = false;
+  Uint64 audioTick = 0;
   std::map<int, std::unique_ptr<PcmPlayer>> sounds;
   std::map<std::string, Graphic> graphics;
   std::map<int, SurfacePtr> dc;
@@ -151,6 +201,9 @@ struct AirRuntime::Impl {
   SurfacePtr transitionOld;
   Uint64 transitionStart = 0;
   int transitionMs = 0;
+  SDL_Color flashColour{0, 0, 0, 255};
+  Uint64 flashStart = 0;
+  int flashDuration = 0;
   struct Frame {
     int from = 0, to = 0, duration = 0;
     Uint64 start = 0;
@@ -174,6 +227,23 @@ struct AirRuntime::Impl {
       vm.machine().memory().strings[{26, n}] = name;
       vm.machine().memory().strings[{27, n}] = name;
     }
+    vm.glossCursor = [this] {
+      return textbox ? textbox->textCursor(dialogue) : GlossCursor{};
+    };
+    vm.glyphPosition = [this](const std::string &raw) {
+      auto glyph = decodeText(raw, archive.Scenario(vm.scenario()).encoding());
+      return textbox ? textbox->textCursor(dialogue + glyph).x - 53 : 0;
+    };
+    vm.selectionText = [this](int window,
+                              const std::vector<std::string> &labels) {
+      selectionWindow =
+          window < 0 ? assets->settings().integer("DEFAULT_SEL_WINDOW", 0)
+                     : window;
+      selectionLabels.clear();
+      for (const auto &raw : labels)
+        selectionLabels[raw] =
+            decodeText(raw, archive.Scenario(vm.scenario()).encoding());
+    };
     vm.command = [this](auto &c) { return command(c); };
     vm.text = [this](std::string t) {
       dialogue += decodeText(t, archive.Scenario(vm.scenario()).encoding());
@@ -218,7 +288,14 @@ struct AirRuntime::Impl {
       throw std::runtime_error(SDL_GetError());
     SDL_SetSurfaceAlphaMod(&source, 255);
   }
-  void drawObject(const Object &o, SurfaceRef dest) {
+  void drawObject(int id, const Object &o, SurfaceRef dest) {
+    int adjustX = 0, adjustY = 0;
+    for (int slot = 0; slot < 16; ++slot) {
+      adjustX += vm.machine().GetIntValue(
+          libreallive::IntMemRef(27, 0, id * 32 + slot * 2));
+      adjustY += vm.machine().GetIntValue(
+          libreallive::IntMemRef(27, 0, id * 32 + slot * 2 + 1));
+    }
     if (!o.visible)
       return;
     SDL_Rect oldClip;
@@ -235,14 +312,26 @@ struct AirRuntime::Impl {
       SDL_FillSurfaceRect(fill.get(), nullptr,
                           SDL_MapSurfaceRGBA(fill.get(), o.colour.r, o.colour.g,
                                              o.colour.b, o.colour.a));
-      SDL_Rect dst{o.x, o.y, 0, 0};
+      SDL_Rect dst{o.x + adjustX, o.y + adjustY, 0, 0};
       blit(*fill, dest, nullptr, &dst, o.alpha);
+      return;
+    }
+    if (!o.text.empty() && textbox && textbox->font) {
+      auto decoded =
+          decodeText(o.text, archive.Scenario(vm.scenario()).encoding());
+      SurfacePtr rendered(TTF_RenderText_Blended(textbox->font.get(),
+                                                 decoded.data(), decoded.size(),
+                                                 {255, 255, 255, 255}));
+      if (rendered) {
+        SDL_Rect dst{o.x + adjustX, o.y + adjustY, 0, 0};
+        blit(*rendered, dest, nullptr, &dst, o.alpha);
+      }
       return;
     }
     if (!o.file.empty()) {
       auto &g = graphic(o.file);
       SDL_Rect src{0, 0, int(g.image.width), int(g.image.height)},
-          dst{o.x, o.y, 0, 0};
+          dst{o.x + adjustX, o.y + adjustY, 0, 0};
       if (!g.image.regions.empty()) {
         auto &r = g.image.regions.at(
             size_t(std::clamp(o.pattern, 0, int(g.image.regions.size() - 1))));
@@ -257,7 +346,18 @@ struct AirRuntime::Impl {
     auto output = blank();
     blit(surface(0), *output, nullptr, nullptr, 255, false);
     for (auto &[id, o] : fg)
-      drawObject(o, *output);
+      drawObject(id, o, *output);
+    if (flashDuration > 0 &&
+        SDL_GetTicks() - flashStart < Uint64(flashDuration)) {
+      auto colour = blank();
+      SDL_FillSurfaceRect(colour.get(), nullptr,
+                          SDL_MapSurfaceRGBA(colour.get(), flashColour.r,
+                                             flashColour.g, flashColour.b,
+                                             255));
+      const int step =
+          std::min(16, int((SDL_GetTicks() - flashStart) * 16 / flashDuration));
+      blit(*colour, *output, nullptr, nullptr, (16 - step) * 255 / 16, true);
+    }
     return output;
   }
   void draw(RendererRef r) {
@@ -282,7 +382,7 @@ struct AirRuntime::Impl {
       }
       elapsed -= step[2];
     }
-    SDL_RenderTexture(&r, t.get(), nullptr, &destination);
+    RenderUpscaledTexture(&r, t.get(), nullptr, &destination, SDL_GetTicksNS());
     if (movie && movie->isOpen()) {
       movie->update(r);
       movie->render(r, {0, 0, 640, 480});
@@ -312,6 +412,9 @@ struct AirRuntime::Impl {
     if (end > 0 && uint64_t(end) < count)
       clip.samples.resize(size_t(end) * clip.channels);
     if (&p == &bgm) {
+      bgmGain = 1;
+      fadeDuration = fadeElapsed = 0;
+      fadeStops = false;
       musicID = id;
       musicLoop = loop;
       musicEnd = end;
@@ -434,12 +537,20 @@ bool AirRuntime::Impl::command(const libreallive::CommandElement &c) {
   if (type == 0 && m == 3) {
     switch (op) {
     case 17:
-    case 205:
+    case 205: {
       pauseKind = op;
       pause = true;
-      textbox->setDialogue(speakerName, dialogue);
+      auto translated = engine->GetTranslation().text(vm.scenario(), dialogue);
+      if (translated == dialogue && !dialogue.empty() &&
+          dialogue.front() == ' ')
+        translated =
+            engine->GetTranslation().text(vm.scenario(), dialogue.substr(1));
+      textbox->setDialogue(
+          engine->GetTranslation().text(vm.scenario(), speakerName),
+          translated);
       textbox->show();
       return true;
+    }
     case 151:
     case 152:
     case 161:
@@ -475,10 +586,16 @@ bool AirRuntime::Impl::command(const libreallive::CommandElement &c) {
           const char *e = cond.condition.c_str();
           hidden = libreallive::GetExpression(e).GetIntegerValue(machine) != 0;
         }
-      if (!hidden)
+      if (!hidden) {
+        auto raw = libreallive::EvaluatePRINT(machine, p.text);
+        auto cached = selectionLabels.find(raw);
+        auto decoded =
+            cached == selectionLabels.end()
+                ? decodeText(raw, archive.Scenario(vm.scenario()).encoding())
+                : cached->second;
         options.push_back(
-            {decodeText(p.text, archive.Scenario(vm.scenario()).encoding()),
-             id});
+            {engine->GetTranslation().text(vm.scenario(), decoded), id});
+      }
       ++id;
     }
     textbox->hide();
@@ -659,8 +776,24 @@ bool AirRuntime::Impl::command(const libreallive::CommandElement &c) {
       play(bgm, id, "BGM", op == 0, t.from, t.to, t.loop);
       return true;
     }
-    if (op == 5 || op == 105 || op == 106) {
+    if (op == 105 || op == 106) {
+      fadeFrom = bgmGain;
+      fadeTo = 0;
+      fadeElapsed = 0;
+      fadeDuration = std::max(0, value(c, 0, 1000));
+      fadeStops = true;
+      if (!fadeDuration) {
+        bgm.Stop();
+        musicID.clear();
+        bgmGain = 0;
+      }
+      if (op == 106)
+        wait(fadeDuration);
+      return true;
+    }
+    if (op == 5) {
       bgm.Stop();
+      fadeDuration = 0;
       musicID.clear();
       return true;
     }
@@ -747,6 +880,8 @@ bool AirRuntime::Impl::command(const libreallive::CommandElement &c) {
       return true;
     }
     if (op == 1200) {
+      o.file.clear();
+      o.width = o.height = 0;
       o.text = str(c, 1);
       return true;
     }
@@ -759,6 +894,16 @@ bool AirRuntime::Impl::command(const libreallive::CommandElement &c) {
       o.x = value(c, 1);
       o.y = value(c, 2);
       return true;
+    case 1006: {
+      int id = value(c, 0), slot = value(c, 1);
+      if (id < 0 || id > 30000 || slot < 0 || slot >= 16)
+        throw std::out_of_range("AIR object adjustment");
+      machine.SetIntValue(libreallive::IntMemRef(27, 0, id * 32 + slot * 2),
+                          value(c, 2));
+      machine.SetIntValue(libreallive::IntMemRef(27, 0, id * 32 + slot * 2 + 1),
+                          value(c, 3));
+      return true;
+    }
     case 1003:
       o.alpha = value(c, 1);
       return true;
@@ -799,6 +944,12 @@ bool AirRuntime::Impl::command(const libreallive::CommandElement &c) {
     }
     if (op == 1100) {
       int w = o.width, h = o.height;
+      if (!o.text.empty() && textbox->font) {
+        auto decoded =
+            decodeText(o.text, archive.Scenario(vm.scenario()).encoding());
+        TTF_GetStringSize(textbox->font.get(), decoded.data(), decoded.size(),
+                          &w, &h);
+      }
       if (!o.file.empty()) {
         auto &g = graphic(o.file);
         w = g.image.sourceWidth;
@@ -844,6 +995,80 @@ bool AirRuntime::Impl::command(const libreallive::CommandElement &c) {
   if (type == 1 && m == 31 && op == 0)
     return true;
   if (type == 1 && m == 33) {
+    // Native RealLive FUN_004544b0: flash(R,G,B,duration), sixteen
+    // restoration steps, with a snapshot of the old visible framebuffer.
+    if (op == 404 && over == 1) {
+      flashColour = {Uint8(std::clamp(value(c, 0), 0, 255)),
+                     Uint8(std::clamp(value(c, 1), 0, 255)),
+                     Uint8(std::clamp(value(c, 2), 0, 255)), 255};
+      flashStart = SDL_GetTicks();
+      flashDuration = std::max(0, value(c, 3));
+      wait(flashDuration);
+      return true;
+    }
+    if (op == 75 || op == 77) {
+      transitionOld = compose();
+      transitionStart = SDL_GetTicks();
+      std::ostringstream selector;
+      selector << "SEL." << std::setw(3) << std::setfill('0') << value(c, 1);
+      transitionMs = assets->settings().integer(selector.str(), 0, 6);
+      if (op == 75) {
+        auto name = str(c, 0);
+        if (name == "???")
+          name = lastGraphic;
+        if (name != "?")
+          blit(*graphic(name).surface, surface(1), nullptr, nullptr, 255,
+               false);
+      } else if (value(c, 0) != 1)
+        blit(surface(value(c, 0)), surface(1), nullptr, nullptr, 255, false);
+      for (std::size_t i = 2; i < c.GetParamCount(); ++i) {
+        auto raw = c.GetParam(static_cast<int>(i));
+        const char *source = raw.c_str();
+        auto command = libreallive::GetData(source);
+        if (!command.IsSpecialParameter())
+          throw std::runtime_error("AIR grpMulti requires tagged operation");
+        auto &pieces = command.GetContainedPieces();
+        int tag = command.GetOverloadTag();
+        if (pieces.empty() || tag < 0 || tag > 4)
+          throw std::runtime_error("AIR grpMulti invalid operation");
+        auto filename = pieces[0].GetStringValue(machine);
+        auto &image = graphic(filename);
+        SDL_Rect sr{0, 0, image.surface->w, image.surface->h}, dst{0, 0, 0, 0};
+        int alpha = 255;
+        auto n = [&](std::size_t k) {
+          if (k >= pieces.size())
+            throw std::runtime_error("AIR grpMulti missing parameter");
+          return pieces[k].GetIntegerValue(machine);
+        };
+        if (tag == 1 || tag == 2) {
+          std::ostringstream sel;
+          sel << "SEL." << std::setw(3) << std::setfill('0') << n(1);
+          sr = {assets->settings().integer(sel.str(), 0, 0),
+                assets->settings().integer(sel.str(), 0, 1),
+                assets->settings().integer(sel.str(), 639, 2) + 1,
+                assets->settings().integer(sel.str(), 479, 3) + 1};
+          sr.w -= sr.x;
+          sr.h -= sr.y;
+          dst.x = assets->settings().integer(sel.str(), 0, 4);
+          dst.y = assets->settings().integer(sel.str(), 0, 5);
+          if (tag == 2)
+            alpha = n(2);
+        }
+        if (tag == 3 || tag == 4) {
+          sr = {n(1), n(2), n(3) - n(1), n(4) - n(2)};
+          dst = {n(5), n(6), 0, 0};
+          if (tag == 4)
+            alpha = n(7);
+        }
+        blit(*image.surface, surface(1), &sr, &dst, alpha, true);
+      }
+      blit(surface(1), surface(0), nullptr, nullptr, 255, false);
+      fg = std::move(bg);
+      bg.clear();
+      textbox->hide();
+      wait(transitionMs);
+      return true;
+    }
     if (op == 32) {
       std::ostringstream key;
       key << "SHAKE." << std::setw(3) << std::setfill('0') << value(c, 0);
@@ -1043,6 +1268,23 @@ void AirRuntime::update() {
   if (!i.engine)
     return;
   bool paused = isStoryPaused();
+  const auto audioNow = SDL_GetTicks();
+  const auto delta = i.audioTick ? audioNow - i.audioTick : 0;
+  i.audioTick = audioNow;
+  if (!paused && i.fadeDuration > 0) {
+    i.fadeElapsed =
+        int(std::min<Uint64>(i.fadeDuration, Uint64(i.fadeElapsed) + delta));
+    i.bgmGain = i.fadeFrom +
+                (i.fadeTo - i.fadeFrom) * float(i.fadeElapsed) / i.fadeDuration;
+    i.bgm.SetGain(i.bgmGain);
+    if (i.fadeElapsed == i.fadeDuration) {
+      i.fadeDuration = 0;
+      if (i.fadeStops) {
+        i.bgm.Stop();
+        i.musicID.clear();
+      }
+    }
+  }
   i.bgm.SetPaused(paused);
   i.voice.SetPaused(paused);
   for (auto &[n, s] : i.sounds)
@@ -1069,8 +1311,12 @@ void AirRuntime::update() {
       SDL_Log("%s", i.error.c_str());
       break;
     }
- if(i.vm.scenario()<8000&&GetState()==GameState::Menu){if(GetScenes(GameState::Gameplay).empty())for(auto*scene:GetScenes(GameState::Menu))AddScene(scene,GameState::Gameplay);SetState(GameState::Gameplay);}
-
+  if (i.vm.scenario() < 8000 && GetState() == GameState::Menu) {
+    if (GetScenes(GameState::Gameplay).empty())
+      for (auto *scene : GetScenes(GameState::Menu))
+        AddScene(scene, GameState::Gameplay);
+    SetState(GameState::Gameplay);
+  }
 }
 void AirRuntime::saveGame(const std::string &path) {
   auto &i = *impl;
@@ -1078,7 +1324,7 @@ void AirRuntime::saveGame(const std::string &path) {
     throw std::runtime_error(
         "Salve durante uma fala, após terminar a transição.");
   std::ostringstream out;
-  out << "AIR-PRESENTATION-1\n"
+  out << "AIR-PRESENTATION-2\n"
       << std::quoted(i.vm.snapshot()) << '\n'
       << std::quoted(i.dialogue) << ' ' << std::quoted(i.speakerName) << ' '
       << i.pauseKind << '\n';
@@ -1094,6 +1340,8 @@ void AirRuntime::saveGame(const std::string &path) {
         return frame / 44100.;
       }()
       << '\n';
+  out << i.bgmGain << ' ' << i.fadeFrom << ' ' << i.fadeTo << ' '
+      << i.fadeElapsed << ' ' << i.fadeDuration << ' ' << i.fadeStops << '\n';
   auto objects = [&](const std::map<int, Object> &objects) {
     out << objects.size() << '\n';
     for (auto &[id, o] : objects)
@@ -1139,9 +1387,20 @@ void AirRuntime::loadGame(const std::string &path) {
   if (!(in >> version >> std::quoted(state) >> std::quoted(dialogue) >>
         std::quoted(speaker) >> pauseKind >> std::quoted(music) >> loop >>
         end >> loopStart >> position) ||
-      version != "AIR-PRESENTATION-1" ||
+      (version != "AIR-PRESENTATION-1" && version != "AIR-PRESENTATION-2") ||
       (pauseKind != 17 && pauseKind != 205) || position < 0 ||
       !std::isfinite(position))
+    invalid();
+  float gain = 1, fadeFrom = 1, fadeTo = 1;
+  int fadeElapsed = 0, fadeDuration = 0;
+  bool fadeStops = false;
+  if (version == "AIR-PRESENTATION-2" &&
+      (!(in >> gain >> fadeFrom >> fadeTo >> fadeElapsed >> fadeDuration >>
+         fadeStops) ||
+       !std::isfinite(gain) || !std::isfinite(fadeFrom) ||
+       !std::isfinite(fadeTo) || gain < 0 || gain > 1 || fadeFrom < 0 ||
+       fadeFrom > 1 || fadeTo < 0 || fadeTo > 1 || fadeElapsed < 0 ||
+       fadeDuration < 0 || (fadeDuration > 0 && fadeElapsed > fadeDuration)))
     invalid();
   std::map<int, Object> fg, bg;
   std::map<int, SurfacePtr> dc;
@@ -1211,15 +1470,102 @@ void AirRuntime::loadGame(const std::string &path) {
   i.sounds.clear();
   i.bgm.Stop();
   i.musicID.clear();
-  i.textbox->setDialogue(i.speakerName, i.dialogue);
+  auto translated =
+      i.engine->GetTranslation().text(i.vm.scenario(), i.dialogue);
+  if (translated == i.dialogue && !i.dialogue.empty() &&
+      i.dialogue.front() == ' ')
+    translated =
+        i.engine->GetTranslation().text(i.vm.scenario(), i.dialogue.substr(1));
+  i.textbox->setDialogue(
+      i.engine->GetTranslation().text(i.vm.scenario(), i.speakerName),
+      translated);
   i.textbox->completeDialogue();
   i.textbox->show();
   if (!music.empty())
     i.play(i.bgm, music, "BGM", loop, int64_t(position * 44100), end,
            loopStart);
+  i.bgmGain = gain;
+  i.fadeFrom = fadeFrom;
+  i.fadeTo = fadeTo;
+  i.fadeElapsed = fadeElapsed;
+  i.fadeDuration = fadeDuration;
+  i.fadeStops = fadeStops;
+  i.audioTick = SDL_GetTicks();
+  i.bgm.SetGain(gain);
 }
 
 void AirRuntime::onEvent(EventRef e) { Runtime::onEvent(e); }
+int AirRuntime::translationRoute() const { return impl->vm.scenario(); }
+std::vector<int> AirRuntime::translationRoutes() const {
+  return impl->archive.ScenarioNumbers();
+}
+std::vector<std::string> AirRuntime::translationTexts(int route) const {
+  std::vector<std::string> result;
+  std::set<std::string> seen;
+  auto &scene = impl->archive.Scenario(route);
+  RLMachine staticMemory;
+  auto add = [&](const std::string &raw) {
+    if (raw.empty())
+      return;
+    std::string decoded;
+    // Preserve PRINT expressions and native control/name bytes in source keys;
+    // evaluate them only during execution, where the correct memory is known.
+    try {
+      decoded = raw.find(char(0)) != std::string::npos ||
+                        raw.compare(0, 9, "###PRINT(") == 0
+                    ? libreallive::ParsableToPrintableString(raw)
+                    : decodeText(raw, scene.encoding());
+    } catch (const std::exception &) {
+      // Dynamic name references use CP932 codes outside the western alphabet.
+      // Their printable expression form retains the exact bytes for
+      // translators.
+      decoded = libreallive::ParsableToPrintableString(raw);
+    }
+    if (!decoded.empty() && seen.insert(decoded).second)
+      result.push_back(std::move(decoded));
+  };
+  for (const auto &element : scene) {
+    if (auto *text =
+            dynamic_cast<const libreallive::TextoutElement *>(element.get()))
+      add(text->GetText());
+    auto *command =
+        dynamic_cast<const libreallive::CommandElement *>(element.get());
+    if (!command)
+      continue;
+    if (auto *select =
+            dynamic_cast<const libreallive::SelectElement *>(command))
+      for (const auto &option : select->raw_params())
+        add(option.text);
+    int parameter = -1;
+    if (command->modtype() == 1 && command->module() == 10 &&
+        (command->opcode() == 0 || command->opcode() == 2))
+      parameter = 1;
+    if (command->modtype() == 1 && command->module() == 10 &&
+        command->opcode() == 100 && command->overload() == 0)
+      parameter = 0;
+    if (command->modtype() == 1 && command->module() == 4 &&
+        command->opcode() == 0)
+      parameter = 0;
+    if (command->modtype() == 1 && command->module() == 4 &&
+        (command->opcode() == 1301 || command->opcode() == 1311 ||
+         command->opcode() == 1710))
+      parameter = 1;
+    if (parameter >= 0 &&
+        static_cast<std::size_t>(parameter) < command->GetParamCount()) {
+      auto piece = Parameter(*command, parameter);
+      if (!piece.IsMemoryReference() &&
+          piece.GetExpressionValueType() == libreallive::ValueTypeString)
+        add(piece.GetStringValue(staticMemory));
+    }
+  }
+  return result;
+}
+Translation::SourceTexts AirRuntime::translationSources() const {
+  Translation::SourceTexts result;
+  for (int route : translationRoutes())
+    result[route] = translationTexts(route);
+  return result;
+}
 std::string AirRuntime::debugNode() const {
   return std::to_string(impl->vm.scenario()) + ":" +
          std::to_string(impl->vm.index());
@@ -1241,6 +1587,11 @@ void AirRuntime::debugJumpToNode(const std::string &s) {
   impl->error.clear();
   impl->pause = false;
   impl->dialogue.clear();
+  if (impl->choice)
+    impl->choice->hide();
+  if (impl->movie)
+    impl->movie->stop();
+  impl->transitionOld.reset();
   if (impl->textbox)
     impl->textbox->hide();
 }

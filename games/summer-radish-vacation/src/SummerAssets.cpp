@@ -7,6 +7,7 @@ SummerAssets::SummerAssets(std::filesystem::path root) {
     root /= "DISC1/PACK";
   else if (std::filesystem::is_directory(root / "PACK"))
     root /= "PACK";
+  discDirectory = std::filesystem::absolute(root).parent_path();
   for (auto type : {"INI", "SCRIPT", "GRAPHIC", "SOUND", "VOICE"}) {
     std::filesystem::path found;
     for (auto &f : std::filesystem::directory_iterator(root))
@@ -17,6 +18,18 @@ SummerAssets::SummerAssets(std::filesystem::path root) {
                                root.string());
     packs.emplace(type, std::make_unique<Pack>(found));
   }
+}
+std::filesystem::path
+SummerAssets::moviePath(const std::string &filename) const {
+  const std::filesystem::path requested(filename);
+  if (requested.empty() || requested.has_parent_path() ||
+      requested.is_absolute())
+    throw std::runtime_error("Invalid Summer movie filename: " + filename);
+  for (const auto &file : std::filesystem::directory_iterator(discDirectory))
+    if (file.is_regular_file() &&
+        canonical(file.path().filename().string()) == canonical(filename))
+      return file.path();
+  throw std::runtime_error("Missing Summer movie: " + filename);
 }
 bool SummerAssets::containsAsset(const std::string &id) const {
   auto s = canonical(id);

@@ -1,3 +1,4 @@
+#include <Kotonoha/media/upscaling/Upscaler.hpp>
 #include <Kotonoha/routing/SchoolDaysConfigMenuRenderPlan.hpp>
 #include <Kotonoha/routing/SchoolDaysExitViewRenderPlan.hpp>
 #include <Kotonoha/routing/SchoolDaysReplayRenderPlan.hpp>
@@ -1311,7 +1312,8 @@ bool SchoolDaysSystemUi::Render(SDL_Renderer *renderer, std::string *error) {
       const SDL_FRect source = {sprite.source.x, sprite.source.y,
                                 sprite.source.w, sprite.source.h};
       const SDL_FRect *sourcePtr = sprite.hasSource ? &source : nullptr;
-      if (!SDL_RenderTexture(renderer, texture, sourcePtr, &dst)) {
+      if (!Kotonoha::RenderUpscaledTexture(renderer, texture, sourcePtr,
+                                           &dst)) {
         if (error != nullptr)
           *error = SDL_GetError();
         return false;
@@ -1383,7 +1385,8 @@ bool SchoolDaysSystemUi::Render(SDL_Renderer *renderer, std::string *error) {
         const SDL_FRect source = {sprite.source.x, sprite.source.y,
                                   sprite.source.w, sprite.source.h};
         const SDL_FRect *sourcePtr = sprite.hasSource ? &source : nullptr;
-        if (!SDL_RenderTexture(renderer, texture, sourcePtr, &dst)) {
+        if (!Kotonoha::RenderUpscaledTexture(renderer, texture, sourcePtr,
+                                             &dst)) {
           if (error != nullptr)
             *error = SDL_GetError();
           return false;
@@ -1479,7 +1482,8 @@ bool SchoolDaysSystemUi::Render(SDL_Renderer *renderer, std::string *error) {
       const SDL_FRect source = {sprite.source.x, sprite.source.y,
                                 sprite.source.w, sprite.source.h};
       const SDL_FRect *sourcePtr = sprite.hasSource ? &source : nullptr;
-      if (!SDL_RenderTexture(renderer, texture, sourcePtr, &dst)) {
+      if (!Kotonoha::RenderUpscaledTexture(renderer, texture, sourcePtr,
+                                           &dst)) {
         if (error != nullptr)
           *error = SDL_GetError();
         return false;
@@ -1518,7 +1522,8 @@ bool SchoolDaysSystemUi::Render(SDL_Renderer *renderer, std::string *error) {
       const SDL_FRect source = {sprite.source.x, sprite.source.y,
                                 sprite.source.w, sprite.source.h};
       const SDL_FRect *sourcePtr = sprite.hasSource ? &source : nullptr;
-      if (!SDL_RenderTexture(renderer, texture, sourcePtr, &dst)) {
+      if (!Kotonoha::RenderUpscaledTexture(renderer, texture, sourcePtr,
+                                           &dst)) {
         if (error != nullptr)
           *error = SDL_GetError();
         return false;
@@ -1557,7 +1562,8 @@ bool SchoolDaysSystemUi::Render(SDL_Renderer *renderer, std::string *error) {
       const SDL_FRect source = {sprite.source.x, sprite.source.y,
                                 sprite.source.w, sprite.source.h};
       const SDL_FRect *sourcePtr = sprite.hasSource ? &source : nullptr;
-      if (!SDL_RenderTexture(renderer, texture, sourcePtr, &dst)) {
+      if (!Kotonoha::RenderUpscaledTexture(renderer, texture, sourcePtr,
+                                           &dst)) {
         if (error != nullptr)
           *error = SDL_GetError();
         return false;
@@ -1636,7 +1642,7 @@ bool SchoolDaysSystemUi::Render(SDL_Renderer *renderer, std::string *error) {
     const SDL_FRect source = {sprite.source.x, sprite.source.y, sprite.source.w,
                               sprite.source.h};
     const SDL_FRect *sourcePtr = sprite.hasSource ? &source : nullptr;
-    if (!SDL_RenderTexture(renderer, texture, sourcePtr, &dst)) {
+    if (!Kotonoha::RenderUpscaledTexture(renderer, texture, sourcePtr, &dst)) {
       if (error != nullptr)
         *error = SDL_GetError();
       return false;

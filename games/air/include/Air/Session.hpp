@@ -5,6 +5,12 @@
 #include <map>
 #include <vector>
 namespace Air {
+struct GlossCursor {
+  int x = 53, y = 364, left = 53, right = 581, lineHeight = 28;
+};
+struct GlossRectangle {
+  int left = 0, top = 0, right = 0, bottom = 0;
+};
 class Session {
   ScriptArchive &archive_;
   RLMachine machine_;
@@ -32,6 +38,8 @@ class Session {
   bool babelItalic_ = false;
   std::map<int, int> babelNameModes_;
   std::vector<std::string> babelGlosses_;
+  GlossCursor glossStart_;
+  std::vector<std::vector<GlossRectangle>> glossRectangles_;
   void target(const libreallive::CommandElement &, int, bool);
 
 public:
@@ -40,6 +48,8 @@ public:
   std::function<void(std::string)> text;
   std::function<void(int)> babelControl;
   std::function<void(std::string)> speaker;
+  std::function<GlossCursor()> glossCursor;
+  std::function<void(int, const std::vector<std::string> &)> selectionText;
   // Return the horizontal cursor position AFTER the raw encoded glyph.
   std::function<int(const std::string &)> glyphPosition;
   // Return 3 for a new line, or 4 when the page is full.

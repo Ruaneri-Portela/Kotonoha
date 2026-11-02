@@ -90,4 +90,21 @@ void testGraphics() {
   target = canvas(100);
   compositeImage(target, animations[0].frames[0], 0, 0);
   graphicsRequire(target.rgba == Bytes({80, 70, 60, 255}));
+  target = canvas(100);
+  compositeCharacterAnimations(target, animations, -17, -29);
+  graphicsRequire(target.rgba == Bytes({80, 70, 60, 255}));
+  graphicsRequire(selectCharacterAnimationFrame(animations, 3, 0, 1));
+  graphicsRequire(animations[0].currentFrame == 1);
+  target = canvas(100);
+  compositeCharacterAnimations(target, animations, -17, -29);
+  graphicsRequire(target.rgba == Bytes({30, 20, 10, 255}));
+  graphicsRequire(!selectCharacterAnimationFrame(animations, 3, 1, 0));
+  graphicsRequire(!selectCharacterAnimationFrame(animations, 4, 0, 0));
+  graphicsRequire(!selectCharacterAnimationFrame(animations, 3, 0, -1));
+  graphicsRequire(!selectCharacterAnimationFrame(animations, 3, 0, 3));
+  graphicsRequire(animations[0].currentFrame == 1);
+  animations.push_back(animations[0]);
+  graphicsRequire(selectCharacterAnimationFrame(animations, 3, 0, 2));
+  graphicsRequire(animations[0].currentFrame == 2 &&
+                  animations[1].currentFrame == 2);
 }

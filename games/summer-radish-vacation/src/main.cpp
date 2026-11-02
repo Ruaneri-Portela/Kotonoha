@@ -3,85 +3,129 @@
 #include "SummerRuntime.hpp"
 #include <Kotonoha/core/CommandLine.hpp>
 #include <Kotonoha/core/Engine.hpp>
+#include <Kotonoha/core/FileSystem.hpp>
+#include <Kotonoha/core/GameLauncher.hpp>
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
 #include <cstdio>
+#include <filesystem>
 #include <memory>
 namespace {
 Kotonoha::EngineOptions
 withAssets(Kotonoha::EngineOptions options,
-           std::shared_ptr<SummerRadish::SummerAssets> a) {
-  options.assets = std::move(a);
+           std::shared_ptr<SummerRadish::SummerAssets> assets) {
+  options.assets = std::move(assets);
   return options;
 }
-struct App {
-  SummerRadish::SummerRuntime game;
+struct Game {
+  SummerRadish::SummerRuntime runtime;
   Kotonoha::Engine engine;
-  long frames;
-  App(std::shared_ptr<SummerRadish::SummerAssets> a,
-      Kotonoha::EngineOptions options, long frames)
-      : game(a), engine(game, withAssets(std::move(options), a)),
-        frames(frames) {}
-  ~App() { game.shutdown(); }
+  Game(std::shared_ptr<SummerRadish::SummerAssets> assets,
+       Kotonoha::EngineOptions options)
+      : runtime(assets),
+        engine(runtime, withAssets(std::move(options), assets)) {}
+  ~Game() { runtime.shutdown(); }
 };
+struct App {
+  Kotonoha::EngineOptions options;
+  long frames = -1;
+  std::unique_ptr<Kotonoha::FolderGameLauncher> launcher;
+  std::unique_ptr<Game> game;
+  void start(const std::string &directory) {
+    auto assets = std::make_shared<SummerRadish::SummerAssets>(directory);
+    assets->setOverlay(options.assetOverlayDirectory());
+    game = std::make_unique<Game>(assets, options);
+  }
+};
+bool validate(const std::string &path, std::string &info) {
+  try {
+    auto probe = std::make_shared<SummerRadish::SummerAssets>(path);
+    info = "Game data found";
+    return true;
+  } catch (const std::exception &error) {
+    info = error.what();
+    return false;
+  }
+}
 } // namespace
 SDL_AppResult SDL_AppInit(void **state, int argc, char **argv) {
   *state = nullptr;
+  SDL_SetAppMetadata("Summer Radish Vacation!!", "0.1.0",
+                     "me.hirameki.kotonoha.summerradishvacation");
   try {
-    Kotonoha::EngineOptions options;
+    auto app = std::make_unique<App>();
+    auto &options = app->options;
     options.persistSettings = true;
-    std::string directory, dump;
+    std::string directory;
     Kotonoha::CommandLine cli("SummerRadish", options);
-    cli.option("--summer", "DIRECTORY",
-               "Summer Radish disc root, DISC1 or PACK directory", directory);
-    cli.option("--dump-translation", "FILE", "Export original texts and exit",
-               dump);
+    cli.option("--summer", "DIRECTORY", "Game data directory", directory);
     cli.parse(argc, argv);
     if (cli.wantsHelp()) {
       std::fputs(cli.help().c_str(), stdout);
       return SDL_APP_SUCCESS;
     }
+    app->frames = cli.frames;
     if (options.enableMCP && options.settingsPath.empty())
       options.persistSettings = false;
     if (options.persistSettings && options.settingsPath.empty())
       options.settingsPath = Kotonoha::EngineSettings::defaultPath(
           "me.hirameki.kotonoha.summerradishvacation");
-    if (directory.empty()) {
-      const char *env = SDL_getenv("SUMMER_DIR");
-      directory = env ? env : "games/summer-radish-vacation/game-assets";
+    const auto settingsPath =
+        options.persistSettings ? options.settingsPath : std::string();
+    if (directory.empty())
+      if (const char *value = SDL_getenv("SUMMER_DIR"); value && *value)
+        directory = value;
+    if (directory.empty())
+      directory =
+          Kotonoha::GameLauncher::rememberedPath(settingsPath, "dir.txt");
+    if (directory.empty())
+      directory =
+          Kotonoha::gameAssetDirectory("summer-radish-vacation").string();
+
+    if (options.launcher) {
+      app->launcher = std::make_unique<Kotonoha::FolderGameLauncher>(
+          "Summer Radish Vacation!!", settingsPath, directory, validate,
+          options.settings);
+      app->launcher->open();
+    } else {
+      app->start(directory);
     }
-    auto assets = std::make_shared<SummerRadish::SummerAssets>(directory);
-    assets->setOverlay(options.assetOverlayDirectory());
-    if (!dump.empty()) {
-      SummerRadish::SummerRuntime game(assets);
-      Kotonoha::Translation translation;
-      if (!options.translationPath.empty())
-        translation.load(options.translationPath);
-      translation.dump(dump, game.translationSources());
-      return SDL_APP_SUCCESS;
-    }
-    *state = new App(assets, std::move(options), cli.frames);
+    *state = app.release();
     return SDL_APP_CONTINUE;
-  } catch (const std::exception &e) {
-    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Summer Radish: %s", e.what());
+  } catch (const std::exception &error) {
+    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Summer Radish Vacation!!: %s",
+                 error.what());
     return SDL_APP_FAILURE;
   }
 }
 SDL_AppResult SDL_AppEvent(void *state, SDL_Event *event) {
   try {
-    return static_cast<App *>(state)->engine.Event(event);
-  } catch (const std::exception &e) {
-    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Summer event: %s", e.what());
+    auto &app = *static_cast<App *>(state);
+    return app.launcher ? app.launcher->event(*event)
+                        : app.game->engine.Event(event);
+  } catch (const std::exception &error) {
+    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Game event: %s", error.what());
     return SDL_APP_FAILURE;
   }
 }
 SDL_AppResult SDL_AppIterate(void *state) {
   try {
     auto &app = *static_cast<App *>(state);
-    auto result = app.engine.Iterate();
+    if (app.launcher) {
+      app.launcher->iterate();
+      if (app.launcher->state() == Kotonoha::Launcher::State::Quit)
+        return SDL_APP_SUCCESS;
+      if (app.launcher->state() != Kotonoha::Launcher::State::Launch)
+        return SDL_APP_CONTINUE;
+      const auto directory = app.launcher->path();
+      app.options.settings = app.launcher->settings();
+      app.launcher.reset();
+      app.start(directory);
+    }
+    const auto result = app.game->engine.Iterate();
     return app.frames > 0 && --app.frames == 0 ? SDL_APP_SUCCESS : result;
-  } catch (const std::exception &e) {
-    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Summer frame: %s", e.what());
+  } catch (const std::exception &error) {
+    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Game frame: %s", error.what());
     return SDL_APP_FAILURE;
   }
 }

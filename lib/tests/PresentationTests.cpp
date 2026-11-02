@@ -42,14 +42,14 @@ void arguments() {
   options.persistSettings = true;
   CommandLine parser("TestGame", options);
   std::string game;
-  bool launcher = false;
+
   parser.option("--game", "DIRECTORY", "Game-specific data", game);
   parser.alias("--game", "--assets");
-  parser.flag("--launcher", "Game-specific launcher", launcher);
+
   parse(parser,
         {"game", "--assets=data", "--subtitle-style", "style.ass", "--frames",
          "12", "--no-config", "--mcp-root", "/tmp", "--launcher", "-h"});
-  require(game == "data" && launcher && parser.frames == 12 &&
+  require(game == "data" && options.launcher && parser.frames == 12 &&
               options.subtitleStylePath == "style.ass" &&
               !options.persistSettings && options.mcpFileRoot == "/tmp" &&
               parser.wantsHelp(),
@@ -70,7 +70,7 @@ void arguments() {
           "Flag is not a value");
   rejects([&] { parse(parser, {"game", "--mcp=true"}); },
           "Flag does not accept a value");
-  rejects([&] { parser.flag("--mcp", "duplicate", launcher); },
+  rejects([&] { parser.flag("--mcp", "duplicate", options.launcher); },
           "Duplicate registration");
 }
 
@@ -150,9 +150,14 @@ void subtitles(Engine &engine) {
   require(colored(renderer, 1) == 0, "End time is exclusive");
   draw(1.2);
   require(colored(renderer, 1) > 100, "Seeking backwards restores subtitle");
-  auto beforeEdit=colored(renderer,1);engine.GetRuntime().AddScene(&scene);
-  engine.setTranslation("0","NEW CUE","X");scene.render(renderer,1);
-  draw(1.2);require(scene.getPosition()==1.2&&colored(renderer,1)<beforeEdit,"Live subtitle editing keeps the timeline and updates rendered glyphs");
+  auto beforeEdit = colored(renderer, 1);
+  engine.GetRuntime().AddScene(&scene);
+  engine.setTranslation("0", "NEW CUE", "X");
+  scene.render(renderer, 1);
+  draw(1.2);
+  require(
+      scene.getPosition() == 1.2 && colored(renderer, 1) < beforeEdit,
+      "Live subtitle editing keeps the timeline and updates rendered glyphs");
   engine.GetRuntime().RemoveScene(&scene);
 
   SDL_SetRenderScale(&renderer, 0.5f, 0.5f);

@@ -141,6 +141,36 @@ int main(int argc, char **argv) {
   }
   assert(testedStack);
   session.seek(9032, 0);
+  Air::GlossCursor cursor{80, 364, 53, 581, 28};
+  session.glossCursor = [&] { return cursor; };
+  m.SetStringValue(18, 3, "Gloss explanation");
+  assert(call({0, 20}) == 1);
+  assert(call({0, 21}) == 1);
+  cursor.x = 130;
+  assert(call({0, 22, src}) == 1);
+  assert(call({0, 23, 79, 370, out, 0}) == 0);
+  assert(call({0, 23, 90, 370, out, 0}) == 1 &&
+         m.GetStringValue(18, 4) == "Gloss explanation");
+  auto glossaryState = session.snapshot();
+  call({0, 20});
+  assert(call({0, 23, 90, 370, out, 0}) == 0);
+  session.restore(glossaryState);
+  assert(call({0, 23, 90, 370, out, 0}) == 1);
+  cursor = {550, 364, 53, 581, 28};
+  call({0, 21});
+  cursor = {100, 392, 53, 581, 28};
+  call({0, 22, src});
+  assert(call({0, 23, 560, 370, out, 0}) == 1);
+  assert(call({0, 23, 75, 400, out, 0}) == 1);
+  assert(call({0, 23, 110, 400, out, 0}) == 0);
+  bool selected = false;
+  session.selectionText = [&](int window,
+                              const std::vector<std::string> &labels) {
+    selected =
+        window == -1 && labels.size() == 1 && labels[0] == "Gloss explanation";
+  };
+  assert(call({0, 200, -1, src, 0, 0}) == 1 && selected);
+  session.seek(9032, 0);
   std::cout << "startup instructions=" << n << " external=" << external
             << " scene=" << session.scenario() << '\n';
 }

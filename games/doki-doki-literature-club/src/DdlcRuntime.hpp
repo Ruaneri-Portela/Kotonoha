@@ -16,6 +16,8 @@ public:
   ~GameRuntime() override;
 
   void shutdown();
+  void saveGame(const std::string&path)override;
+  void loadGame(const std::string&path)override;
   GameSession *session() { return session_.get(); }
 
   void initGlobal(Kotonoha::Engine &engine) override;

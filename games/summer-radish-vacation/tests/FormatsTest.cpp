@@ -29,6 +29,27 @@ int main() {
     check(graphicSuffix(0).empty() && graphicSuffix(2) == "B" &&
           graphicSuffix(24) == "X" && graphicSuffix(0x10000) == "_H" &&
           graphicSuffix(0x13007) == "007_H");
+    std::vector<CharacterPlacement> placement{{-1, 2}};
+    assignCharacterPositions(placement);
+    check(placement[0].previous == 0); // A sole automatic actor centers.
+    placement = {{-1, 0}, {-1, 0}};
+    assignCharacterPositions(placement);
+    check(placement[0].previous == 1 && placement[1].previous == 2);
+    assignCharacterPositions(placement);
+    check(placement[0].previous == 1 && placement[1].previous == 2);
+    placement = {{int32_t(0x40000002), 0}};
+    assignCharacterPositions(placement);
+    check(placement[0].previous == 0); // Conditional right means center alone.
+    placement.push_back({int32_t(0x40000001), 0});
+    assignCharacterPositions(placement);
+    check(placement[0].previous == 2 && placement[1].previous == 1);
+    placement = {{0, 0}, {-1, 2}};
+    assignCharacterPositions(placement);
+    check(placement[0].previous == 0 && placement[1].previous == 2);
+    rejects([] {
+      std::vector<CharacterPlacement> p;
+      assignCharacterPositions(p, 0);
+    });
     testGraphics();
     testMap();
     check(wipeDuration(1) == 300 && wipeDuration(2) == 1000 &&

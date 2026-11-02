@@ -625,6 +625,8 @@ void MediaPlayer::render(RendererRef renderer, const SDL_FRect &area,
                          Upscaling *upscaler, bool stretch) {
   if (!hasVideoFrame())
     return;
+  if (!upscaler)
+    upscaler = Upscaling::forRenderer(renderer);
   float w = area.w, h = area.w / static_cast<float>(state->aspect);
   if (stretch) {
     h = area.h;

@@ -38,6 +38,7 @@ struct EngineOptions {
   std::string rendererOverride;
   std::string subtitleStylePath;
   bool launcher = defaultLauncherEnabled();
+  std::string dumpTranslationPath;
   // Asset source; defaults to plain files relative to the working directory.
   std::shared_ptr<AssetProvider> assets;
 };
@@ -64,6 +65,7 @@ private:
   std::unique_ptr<DebugOverlay> debug;
   std::unique_ptr<MCPServer> mcp;
   bool agentPaused = false;
+  bool translationDumpComplete = false;
   InputActions inputActions;
   Clock frameClock;
   Translation translation;

@@ -306,6 +306,16 @@ void scaling() {
           "CPU scale without upscaler");
   rejects([&] { assets.texture(*renderer, "pic", 0, &upscaling); },
           "Reject zero scale");
+  require(Upscaling::forRenderer(*renderer) == &upscaling,
+          "Renderer exposes its configured engine pipeline");
+  auto &original = assets.texture(*renderer, "pic");
+  SDL_FRect crop{1, 0, 2, 2}, destination{4, 4, 16, 16};
+  require(RenderUpscaledTexture(renderer.get(), &original, &crop, &destination),
+          "Game images automatically use the renderer pipeline");
+  require(SDL_FlushRenderer(renderer.get()), "Flush automatic upscale draw");
+  require(SDL_ReadSurfacePixel(target.get(), 10, 10, &r, &g, &b, &a) &&
+              r == 0 && g == 128 && b == 255,
+          "Automatic upscale preserves crop and destination");
   assets.clearCache();
 }
 

@@ -188,4 +188,21 @@ void GameLauncher::save() {
     remember(*field);
 }
 
+FolderGameLauncher::FolderGameLauncher(std::string title,
+                                       std::string settingsPath,
+                                       std::string path, Validator check,
+                                       EngineSettings defaults)
+    : GameLauncher(std::move(title), std::move(settingsPath),
+                   {"Game data", PathKind::Folder, {}, "dir.txt", {}},
+                   std::move(defaults)),
+      validator(std::move(check)) {
+  if (!validator)
+    throw std::invalid_argument("A game data validator is required");
+  loadPath(std::move(path));
+}
+
+bool FolderGameLauncher::checkPath(const std::string &path, std::string &info) {
+  return validator(path, info);
+}
+
 } // namespace Kotonoha

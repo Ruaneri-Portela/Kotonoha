@@ -191,8 +191,7 @@ void DebugOverlay::renderHUD(RendererRef renderer) {
   const float width = std::max(1.0f, size.x - 20);
   const auto measured = ui.textSize(text, width);
   const float x = std::max(10.0f, size.x - measured.x - 10);
-  ui.text(renderer, text, x, settings.showFPS ? 44 : 10, width,
-          {255, 215, 100, 255});
+  ui.text(renderer, text, x, 10, width, {255, 215, 100, 255});
 }
 
 void DebugOverlay::drawInspector() {
