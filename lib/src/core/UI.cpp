@@ -78,17 +78,42 @@ SDL_FPoint UI::viewSize(RendererRef renderer) {
   return {static_cast<float>(w), static_cast<float>(h)};
 }
 
+float UI::rasterDensity(RendererRef renderer) {
+  float x = 1, y = 1;
+  SDL_GetRenderScale(&renderer, &x, &y);
+  int w = 0, h = 0;
+  SDL_RendererLogicalPresentation mode;
+  SDL_GetRenderLogicalPresentation(&renderer, &w, &h, &mode);
+  if (mode != SDL_LOGICAL_PRESENTATION_DISABLED && w > 0 && h > 0) {
+    SDL_FRect area{};
+    if (SDL_GetRenderLogicalPresentationRect(&renderer, &area)) {
+      x *= area.w / w;
+      y *= area.h / h;
+    }
+  }
+  return std::max(1.0f, std::max(std::abs(x), std::abs(y)));
+}
+
 float UI::text(RendererRef renderer, const std::string &value, float x, float y,
                float wrap, SDL_Color color) {
   if (value.empty())
     return 0;
-  const int pixels = std::max(1, static_cast<int>(std::ceil(wrap * density)));
+  const float raster = rasterDensity(renderer);
+  const int pixels = std::max(1, static_cast<int>(std::ceil(wrap * raster)));
   const std::string key =
-      std::to_string(density) + ":" + std::to_string(pixels) + ":" + value;
+      std::to_string(raster) + ":" + std::to_string(pixels) + ":" + value;
   auto found = cache.find(key);
   if (found == cache.end()) {
     if (cache.size() >= 512)
       cache.clear();
+    const auto oldSize = TTF_GetFontSize(font.get());
+    struct RestoreSize {
+      TTF_Font *font;
+      float size;
+      ~RestoreSize() { TTF_SetFontSize(font, size); }
+    } restore{font.get(), oldSize};
+    if (!TTF_SetFontSize(font.get(), 24 * raster))
+      throw std::runtime_error(SDL_GetError());
     SurfacePtr surface{TTF_RenderText_Blended_Wrapped(
         font.get(), value.c_str(), value.size(), {255, 255, 255, 255}, pixels)};
     if (!surface)
@@ -99,8 +124,8 @@ float UI::text(RendererRef renderer, const std::string &value, float x, float y,
     found =
         cache
             .emplace(key, CachedText{std::move(texture),
-                                     static_cast<float>(surface->w) / density,
-                                     static_cast<float>(surface->h) / density})
+                                     static_cast<float>(surface->w) / raster,
+                                     static_cast<float>(surface->h) / raster})
             .first;
   }
   auto &entry = found->second;

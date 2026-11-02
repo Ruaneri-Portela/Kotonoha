@@ -32,6 +32,7 @@ public:
   float pixelDensity() const { return density; }
   float rasterFontSize() const { return TTF_GetFontSize(font.get()); }
   static SDL_FPoint viewSize(RendererRef renderer);
+  static float rasterDensity(RendererRef renderer);
   float text(RendererRef renderer, const std::string &value, float x, float y,
              float width, SDL_Color color = {240, 240, 245, 255});
   float textHeight(RendererRef renderer, const std::string &value, float width);

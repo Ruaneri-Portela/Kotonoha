@@ -172,28 +172,16 @@ bool ZeroSession::ReadAsset(const std::string &id,
   }
 }
 
-// Pictures go through the engine upscaler at its factor (1.0 = off); a new
-// factor reloads them.
+// Keep stable original pictures; drawing resolves the engine-owned upscale
+// cache.
 ZeroNoTsukaima::Picture *ZeroSession::Texture(const std::string &id) {
-  const auto &settings = engine_.GetUpscaler().getSettings();
-  const float scale = settings.enabled() ? settings.factor : 1.0f;
-  if (scale != picturesScale_) {
-    pictures_.clear();
-    picturesScale_ = scale;
-  }
   auto it = pictures_.find(id);
   if (it == pictures_.end()) {
     ZeroNoTsukaima::Picture picture;
     auto &assets = engine_.GetAssets();
     if (assets.contains(id)) {
       try {
-        // Cached (and owned) by the engine asset provider.
-        if (scale > 1)
-          picture.Reset(&assets.texture(engine_.GetRenderer(), id, scale,
-                                        &engine_.GetUpscaler()),
-                        false, scale);
-        else
-          picture.Reset(&assets.texture(engine_.GetRenderer(), id), false);
+        picture.Reset(&assets.texture(engine_.GetRenderer(), id), false);
       } catch (const std::exception &e) {
         SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "[zero] %s", e.what());
       }

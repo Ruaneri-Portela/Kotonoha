@@ -30,7 +30,7 @@ class VNSaveSlots {
 public:
   explicit VNSaveSlots(std::string directory);
   std::vector<VNSaveSlot> list() const;
-  std::string nextPath() const;
+  std::string nextPath(const std::string &suggestion = {}) const;
   std::string rename(const std::string &name, const std::string &newName) const;
   void remove(const std::string &name) const;
 };

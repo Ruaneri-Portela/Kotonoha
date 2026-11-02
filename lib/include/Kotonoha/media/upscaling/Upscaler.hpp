@@ -51,6 +51,7 @@ std::string UpscaleShaderFileList(const std::vector<std::string> &files);
 
 // Shared texture allocation, conversion and frame caching for every backend.
 class Upscaler {
+  friend class Upscaling;
   UpscaleSettings settings;
   TexturePtr intermediate, output;
   SDL_Texture *source = nullptr;
@@ -87,6 +88,9 @@ class Upscaling {
   UpscaleSettings settings;
   std::unique_ptr<Upscaler> implementation;
   Uint64 stillSerial = 0;
+  struct TextureCache;
+  std::vector<std::weak_ptr<TextureCache>> textureCaches;
+  void clearTextureCaches();
 
 public:
   explicit Upscaling(RendererRef renderer);
@@ -114,7 +118,8 @@ public:
 };
 
 // Draw a game image through the renderer’s configured engine pipeline.
-// Increment contentSerial when updating pixels or texture modulation.
+// Increment contentSerial only when pixels change; zero denotes a static
+// texture.
 bool RenderUpscaledTexture(SDL_Renderer *renderer, SDL_Texture *texture,
                            const SDL_FRect *source,
                            const SDL_FRect *destination,

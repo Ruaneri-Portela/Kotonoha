@@ -66,10 +66,9 @@ public:
 
   // Texture of loadSurface(id), cached per renderer until clearCache().
   SDL_Texture &texture(RendererRef renderer, const std::string &id);
-  // loadSurface(id) at `scale` x its size. With an upscaling pipeline whose
-  // backend is enabled, scales above 1 go through it (Upscaling::scaled);
-  // otherwise (or with nullptr) the picture is scaled linearly. Cached per
-  // renderer, id and scale.
+  // With a pipeline, returns its per-original cached texture at the configured
+  // factor, or the original while disabled. Without a pipeline, `scale` is an
+  // explicit linear resize cached per renderer/id/scale.
   SDL_Texture &texture(RendererRef renderer, const std::string &id, float scale,
                        Upscaling *upscaling);
   // CPU copy of the same scaled picture (RGBA32), not cached.

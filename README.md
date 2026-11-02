@@ -278,7 +278,7 @@ selecting one does not change a MetalFX or Linear backend.
 
 On OpenGL, an ordered shader-file list also supports custom `.glsl` files.
 An empty list uses the preset; explicitly selecting a preset clears custom
-files. Full paths are persisted one per line; legacy colon-separated lists
+files and enables at least 2× scaling. Full paths are persisted one per line; legacy colon-separated lists
 still work. Scale `1.0` turns processing off without losing the selected profile.
 
 ## Controls and diagnostics

@@ -220,6 +220,21 @@ const Upscaler *Upscaling::getImplementation() const {
   return implementation.get();
 }
 
+struct Upscaling::TextureCache {
+  TexturePtr texture;
+  Uint64 serial = 0, retryAt = 0;
+  bool failed = false;
+};
+
+void Upscaling::clearTextureCaches() {
+  for (auto &weak : textureCaches)
+    if (auto entry = weak.lock()) {
+      entry->texture.reset();
+      entry->failed = false;
+    }
+  textureCaches.clear();
+}
+
 Upscaling::Upscaling(RendererRef value) : renderer(value) {
   if (activeUpscaling)
     throw std::logic_error(
@@ -234,6 +249,7 @@ Upscaling *Upscaling::forRenderer(RendererRef renderer) {
 }
 
 Upscaling::~Upscaling() {
+  clearTextureCaches();
   SDL_ClearProperty(SDL_GetRendererProperties(&renderer), "kotonoha.upscaling");
   implementation.reset();
   activeUpscaling = nullptr;
@@ -350,6 +366,10 @@ SDL_Texture &Upscaler::process(TextureRef texture, Uint64 contentSerial) {
 
 void Upscaling::configure(const UpscaleSettings &value) {
   value.validate();
+  const bool changed = settings.backend != value.backend ||
+                       settings.preset != value.preset ||
+                       settings.factor != value.factor ||
+                       settings.shaderFiles != value.shaderFiles;
   if (!supports(value.backend))
     throw std::invalid_argument(
         "Upscaler is unavailable for the current renderer");
@@ -381,19 +401,87 @@ void Upscaling::configure(const UpscaleSettings &value) {
                 UpscaleBackendName(value.backend),
                 UpscaleBackendName(concrete.backend), value.factor);
   }
+  if (changed)
+    clearTextureCaches();
   settings = value;
 }
 
 SDL_Texture &Upscaling::process(TextureRef texture, Uint64 serial) {
-  auto &result =
-      implementation ? implementation->process(texture, serial) : texture;
-  if (&result != &texture)
-    SDL_SetBooleanProperty(SDL_GetTextureProperties(&result),
+  if (!implementation)
+    return texture;
+  try {
+    constexpr const char *key = "kotonoha.upscale-cache";
+    using Owner = std::shared_ptr<TextureCache>;
+    const auto properties = SDL_GetTextureProperties(&texture);
+    auto *owner =
+        static_cast<Owner *>(SDL_GetPointerProperty(properties, key, nullptr));
+    if (!owner) {
+      auto created = std::make_unique<Owner>(std::make_shared<TextureCache>());
+      if (!SDL_SetPointerPropertyWithCleanup(
+              properties, key, created.get(),
+              [](void *, void *value) { delete static_cast<Owner *>(value); },
+              nullptr))
+        throw std::runtime_error(SDL_GetError());
+      owner = created.release();
+    }
+    auto &entry = **owner;
+    if (entry.failed && entry.serial == serial)
+      return texture;
+    if (entry.texture && entry.serial == serial &&
+        (!entry.retryAt || SDL_GetTicks() < entry.retryAt))
+      return *entry.texture;
+    // Modulation belongs to drawing, rather than to the cached source pixels.
+    Uint8 r, g, b, a;
+    SDL_GetTextureColorMod(&texture, &r, &g, &b);
+    SDL_GetTextureAlphaMod(&texture, &a);
+    struct RestoreMod {
+      SDL_Texture &texture;
+      Uint8 r, g, b, a;
+      ~RestoreMod() {
+        SDL_SetTextureColorMod(&texture, r, g, b);
+        SDL_SetTextureAlphaMod(&texture, a);
+      }
+    } restore{texture, r, g, b, a};
+    SDL_SetTextureColorMod(&texture, 255, 255, 255);
+    SDL_SetTextureAlphaMod(&texture, 255);
+    if (!entry.texture)
+      textureCaches.push_back(*owner);
+    auto &processed = implementation->process(texture, serial);
+    if (!entry.texture || entry.texture->w != processed.w ||
+        entry.texture->h != processed.h) {
+      entry.texture.reset(SDL_CreateTexture(&renderer, SDL_PIXELFORMAT_RGBA32,
+                                            SDL_TEXTUREACCESS_TARGET,
+                                            processed.w, processed.h));
+      if (!entry.texture)
+        throw std::runtime_error(SDL_GetError());
+      textureCaches.erase(
+          std::remove_if(textureCaches.begin(), textureCaches.end(),
+                         [](const auto &weak) { return weak.expired(); }),
+          textureCaches.end());
+    }
+    copy(renderer, processed, *entry.texture);
+    SDL_SetBooleanProperty(SDL_GetTextureProperties(entry.texture.get()),
                            "kotonoha.upscaled", true);
-  return result;
+    entry.failed = false;
+    entry.serial = serial;
+    entry.retryAt = implementation->retryDeadline();
+    return *entry.texture;
+  } catch (const std::exception &error) {
+    auto *owner = static_cast<std::shared_ptr<TextureCache> *>(
+        SDL_GetPointerProperty(SDL_GetTextureProperties(&texture),
+                               "kotonoha.upscale-cache", nullptr));
+    if (owner) {
+      (*owner)->texture.reset();
+      (*owner)->serial = serial;
+      (*owner)->failed = true;
+    }
+    SDL_LogWarn(LogUpscaler, "Cannot upscale texture; using original: %s",
+                error.what());
+    return texture;
+  }
 }
-
 void Upscaling::clear() {
+  clearTextureCaches();
   if (implementation)
     implementation->clear();
 }
@@ -422,10 +510,13 @@ TexturePtr Upscaling::scaled(TextureRef texture, float scale) {
     try {
       implementation->configure(still);
       source = &implementation->process(texture, ++stillSerial);
-    } catch (...) {
+    } catch (const std::exception &error) {
       implementation->configure(active);
       implementation->clear();
-      throw;
+      source = &texture;
+      SDL_LogWarn(LogUpscaler,
+                  "Cannot upscale picture; using original pixels: %s",
+                  error.what());
     }
   }
   SDL_ScaleMode mode = SDL_SCALEMODE_LINEAR;
@@ -488,9 +579,12 @@ bool RenderUpscaledTexture(SDL_Renderer *renderer, SDL_Texture *texture,
       SDL_GetBooleanProperty(SDL_GetTextureProperties(texture),
                              "kotonoha.upscaled", false))
     return SDL_RenderTexture(renderer, texture, source, destination);
-  if (!contentSerial)
-    contentSerial = SDL_GetTicksNS();
   auto &processed = pipeline->process(*texture, contentSerial);
+  Uint8 r, g, b, a;
+  SDL_GetTextureColorMod(texture, &r, &g, &b);
+  SDL_GetTextureAlphaMod(texture, &a);
+  SDL_SetTextureColorMod(&processed, r, g, b);
+  SDL_SetTextureAlphaMod(&processed, a);
   SDL_BlendMode blend;
   if (!SDL_GetTextureBlendMode(texture, &blend) ||
       !SDL_SetTextureBlendMode(&processed, blend))

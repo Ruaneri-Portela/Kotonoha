@@ -362,6 +362,22 @@ void testUpscaler(Engine &engine, UpscaleBackend backend) {
   upscaler.configure({});
   require(&upscaler.process(*source, 1) == source.get(),
           "Disabled upscaler passes through");
+  upscaler.configure({backend, UpscalePreset::Anime4KModeAFast, 2, {}});
+  const auto properties = SDL_GetRendererProperties(&renderer);
+  const auto maximum = SDL_GetNumberProperty(
+      properties, SDL_PROP_RENDERER_MAX_TEXTURE_SIZE_NUMBER, 0);
+  SDL_SetNumberProperty(properties, SDL_PROP_RENDERER_MAX_TEXTURE_SIZE_NUMBER,
+                        16);
+  require(&upscaler.process(*source, 0) == source.get(),
+          "An image that exceeds upscale limits falls back to its original");
+  SDL_SetNumberProperty(properties, SDL_PROP_RENDERER_MAX_TEXTURE_SIZE_NUMBER,
+                        maximum);
+  require(&upscaler.process(*source, 0) == source.get(),
+          "A failed static image is skipped rather than retried every draw");
+  upscaler.clear();
+  // The forced failure above is expected. Shader-profile validation below
+  // checks only logs emitted while executing the real GPU chains.
+  Log::clear();
   const int count = backend == UpscaleBackend::MPV
                         ? static_cast<int>(UpscalePresets().size())
                         : 1;
@@ -388,6 +404,30 @@ void testUpscaler(Engine &engine, UpscaleBackend backend) {
             "Backend renders red without channel swaps");
     require(&upscaler.process(*source, 1) == &output,
             "Unchanged frame reuses cached output");
+    TexturePtr second(SDL_CreateTexture(&renderer, SDL_PIXELFORMAT_RGBA32,
+                                        SDL_TEXTUREACCESS_STREAMING, 32, 18));
+    require(bool(second) &&
+                SDL_UpdateTexture(second.get(), nullptr, pixels.data(), 32 * 4),
+            "Create another cached image");
+    auto &secondOutput = upscaler.process(*second, 1);
+    require(&secondOutput != &output &&
+                &upscaler.process(*source, 1) == &output,
+            "Alternating images retain separate cached upscale textures");
+    bool secondCacheAlive = true;
+    SDL_SetPointerPropertyWithCleanup(
+        SDL_GetTextureProperties(&secondOutput), "test.cache-lifetime",
+        &secondCacheAlive,
+        [](void *, void *value) { *static_cast<bool *>(value) = false; },
+        nullptr);
+    second.reset();
+    require(!secondCacheAlive,
+            "Destroying an original releases its cached upscale");
+    upload({10, 240, 10, 255});
+    const auto retained =
+        readPixel(renderer, upscaler.process(*source, 1), 32, 18);
+    require(retained.r > 150 && retained.r > retained.g + 100,
+            "An unchanged content serial never reprocesses source pixels after "
+            "drawing another image");
     upload({10, 10, 240, 255});
     auto &updated = upscaler.process(*source, 2);
     auto blue = readPixel(renderer, updated, 32, 18);
@@ -406,8 +446,15 @@ void testUpscaler(Engine &engine, UpscaleBackend backend) {
     auto &resized = upscaler.process(*source, 4);
     require(resized.w == 48 && resized.h == 27,
             "Factor change recreates correctly sized output");
+    bool cacheAlive = true;
+    SDL_SetPointerPropertyWithCleanup(
+        SDL_GetTextureProperties(&resized), "test.cache-lifetime", &cacheAlive,
+        [](void *, void *value) { *static_cast<bool *>(value) = false; },
+        nullptr);
     settings.factor = 1;
     upscaler.configure(settings);
+    require(!cacheAlive,
+            "Disabling upscaling immediately releases cached GPU textures");
     require(&upscaler.process(*source, 5) == source.get(),
             "1x disables processing");
   }

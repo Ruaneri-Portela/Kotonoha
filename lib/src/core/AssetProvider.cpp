@@ -165,6 +165,8 @@ SDL_Texture &AssetProvider::texture(RendererRef renderer,
   if (!created)
     throw std::runtime_error("Cannot upload picture " + id + ": " +
                              SDL_GetError());
+  if (auto *pipeline = Upscaling::forRenderer(renderer))
+    pipeline->process(*created, 0);
   SDL_Texture &result = *created;
   textures.emplace(id, std::move(created));
   return result;
@@ -174,6 +176,8 @@ SDL_Texture &AssetProvider::texture(RendererRef renderer, const std::string &id,
                                     float scale, Upscaling *upscaling) {
   if (!std::isfinite(scale) || scale <= 0)
     throw std::invalid_argument("Texture scale must be positive");
+  if (upscaling)
+    return upscaling->process(texture(renderer, id), 0);
   if (scale == 1)
     return texture(renderer, id);
   if (textureRenderer != &renderer) {
@@ -184,9 +188,7 @@ SDL_Texture &AssetProvider::texture(RendererRef renderer, const std::string &id,
   if (auto found = textures.find(key); found != textures.end())
     return *found->second;
   TexturePtr created;
-  if (upscaling) {
-    created = upscaling->scaled(texture(renderer, id), scale);
-  } else {
+  {
     const SurfacePtr source = loadSurface(id);
     SurfacePtr resized(SDL_ScaleSurface(
         source.get(), std::max(1, int(std::lround(source->w * scale))),

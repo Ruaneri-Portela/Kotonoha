@@ -19,7 +19,9 @@ std::size_t VNSaveMenu::count() const {
   return slots.size() + (loading ? 0 : 1);
 }
 
-void VNSaveMenu::open(const std::string &path, bool load) {
+void VNSaveMenu::open(const std::string &path, bool load,
+                      const std::string &suggestion) {
+  suggestedName = suggestion;
   directory = path;
   loading = load;
   opened = true;
@@ -82,6 +84,26 @@ void VNSaveMenu::finishRename() {
   }
 }
 
+void VNSaveMenu::beginCreate() {
+  if (!renameDialog)
+    renameDialog =
+        std::make_unique<TextInputDialog>(engine, "", nullptr, nullptr);
+  renameDialog->configure(
+      "Save name",
+      [this](const std::string &name) {
+        try {
+          const auto path = VNSaveSlots(directory).nextPath(name);
+          engine.GetRuntime().saveGame(path);
+          close();
+        } catch (const std::exception &failure) {
+          reportError(failure.what());
+          finishRename();
+        }
+      },
+      [this] { finishRename(); }, suggestedName);
+  engine.GetRuntime().AddScene(renameDialog.get());
+}
+
 void VNSaveMenu::beginRename() {
   if (!hasSelectedSave())
     return;
@@ -133,6 +155,10 @@ void VNSaveMenu::activate() {
   }
   if (!loading && selected != 0 && confirmation == Confirmation::None) {
     confirmation = Confirmation::Overwrite;
+    return;
+  }
+  if (!loading && selected == 0 && !suggestedName.empty()) {
+    beginCreate();
     return;
   }
   try {
@@ -275,9 +301,11 @@ void VNSaveMenu::render(RendererRef renderer, float) {
   ui.button(renderer, {890, 80, 180, 44}, "Close [ESC]");
   for (std::size_t row = 0; row < pageSize && first + row < count(); ++row) {
     const auto index = first + row;
-    const auto label = !loading && index == 0
-                           ? std::string("+ New save")
-                           : slots.at(index - (loading ? 0 : 1)).name;
+    const auto label =
+        !loading && index == 0
+            ? std::string("+ New save") +
+                  (suggestedName.empty() ? "" : " — " + suggestedName)
+            : slots.at(index - (loading ? 0 : 1)).name;
     const float y = 160.0f + row * 50;
     const SDL_Rect rowClip{230, static_cast<int>(y), 820, 44};
     if (!SDL_SetRenderClipRect(&renderer, &rowClip))

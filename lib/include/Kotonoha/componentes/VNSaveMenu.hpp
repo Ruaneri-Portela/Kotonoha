@@ -2,6 +2,7 @@
 
 #include <Kotonoha/componentes/VNSave.hpp>
 #include <Kotonoha/core/Scene.hpp>
+#include <Kotonoha/events/InputActions.hpp>
 #include <memory>
 
 namespace Kotonoha {
@@ -14,7 +15,8 @@ class VNSaveMenu final : public Scene {
   float listScroll = 0;
   Confirmation confirmation = Confirmation::None;
   std::unique_ptr<TextInputDialog> renameDialog;
-  std::string directory, error;
+  std::string directory, error, suggestedName;
+  void beginCreate();
   std::vector<VNSaveSlot> slots;
   std::size_t selected = 0, first = 0;
   std::size_t count() const;
@@ -32,7 +34,8 @@ public:
   bool designSpace() const override { return true; }
   explicit VNSaveMenu(Engine &engine);
   ~VNSaveMenu() override;
-  void open(const std::string &directory, bool load);
+  void open(const std::string &directory, bool load,
+            const std::string &suggestedName = {});
   void close();
   bool isOpen() const { return opened; }
   bool capturesInput() const override { return opened; }
