@@ -706,3 +706,4 @@ games-assets/*
 !lib/src/debug/**
 !lib/include/Kotonoha/debug
 !lib/include/Kotonoha/debug/**
+/CMakeSettings.json

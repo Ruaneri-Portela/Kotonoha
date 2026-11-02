@@ -31,48 +31,73 @@
 //
 // -----------------------------------------------------------------------
 
+
 #ifndef SRC_LIBREALLIVE_FILEMAP_H_
 #define SRC_LIBREALLIVE_FILEMAP_H_
 
+#include <cstddef>
 #include <cstdio>
 #include <string>
+#include <sys/types.h>
 
-#ifdef WIN32
+#ifdef _WIN32
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
 #include <windows.h>
-#else
-typedef int HANDLE;
 #endif
 
 #include "libreallive/defs.h"
 
 namespace libreallive {
 
-enum Mode { Read, Write };
+enum Mode {
+  Read,
+  Write
+};
 
 class Mapping {
-public:
+ public:
   Mapping(string filename, Mode mode, off_t min_size = 0);
   ~Mapping();
 
-  // Return a pointer to the internal memory.
-  char *get() { return (char *)mem; }
+  // Prevent copying a memory mapping.
+  Mapping(const Mapping&) = delete;
+  Mapping& operator=(const Mapping&) = delete;
 
-  size_t size() const { return len; }
+  // Return a pointer to the mapped memory.
+  char* get() {
+    return static_cast<char*>(mem);
+  }
 
-private:
+  const char* get() const {
+    return static_cast<const char*>(mem);
+  }
+
+  // Return mapping size in bytes.
+  size_t size() const {
+    return len;
+  }
+
+ private:
   void mopen();
   void mclose();
 
+#ifdef _WIN32
   HANDLE fp;
-  void *mem;
-  bool mapped;
-  size_t len;
+#else
+  int fp;
+#endif
+
+  void* mem = nullptr;
+  bool mapped = false;
+  size_t len = 0;
 
   string fn_;
   Mode mode_;
   off_t msz_;
 };
 
-} // namespace libreallive
+}  // namespace libreallive
 
-#endif // SRC_LIBREALLIVE_FILEMAP_H_
+#endif  // SRC_LIBREALLIVE_FILEMAP_H_
