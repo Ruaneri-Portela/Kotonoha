@@ -1,9 +1,10 @@
+import java.security.MessageDigest
+
 plugins {
     id 'com.android.application'
 }
 
 def engineRoot = rootProject.projectDir.parentFile
-// 1. Aponta diretamente para o SDL em lib/submodules/SDL a partir do engineRoot
 def sdlRoot = new File(engineRoot, 'lib/submodules/SDL')
 
 def vcpkgRoot = providers.environmentVariable('VCPKG_ROOT').orNull
@@ -121,7 +122,7 @@ android.applicationVariants.all { variant ->
                     into new File(staged.get().asFile, 'python/lib')
                 }
             }
-            def digest = java.security.MessageDigest.getInstance('SHA-256')
+            def digest = MessageDigest.getInstance('SHA-256')
             fileTree(staged).files.sort { it.path }.each { file ->
                 digest.update(file.toPath().toString().replace(staged.get().asFile.path, '').getBytes('UTF-8'))
                 file.withInputStream { stream ->
