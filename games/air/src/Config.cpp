@@ -4,6 +4,8 @@
 #include <iconv.h>
 #include <sstream>
 #include <stdexcept>
+#include <cstdint>
+
 namespace Air {
 std::string canonical(std::string s) {
   for (auto &c : s) {
