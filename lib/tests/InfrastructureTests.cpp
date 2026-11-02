@@ -9,8 +9,8 @@
 #include <Kotonoha/media/MediaPlayer.hpp>
 #include <Kotonoha/media/upscaling/MetalFXUpscaler.hpp>
 #include <Kotonoha/media/upscaling/OpenGLUpscaler.hpp>
-#include <Kotonoha/script/KtrfScript.hpp>
 #include <Kotonoha/parsers/Documents.hpp>
+#include <Kotonoha/script/KtrfScript.hpp>
 #include <Kotonoha/script/TimelinePlayer.hpp>
 
 #include <algorithm>
@@ -144,6 +144,15 @@ void testSettings(const std::filesystem::path &directory) {
               read.translationPath == "trans.json" &&
               read.fontPath == "font.ttf",
           "Every settings field survives persistence");
+  for (auto preset : UpscalePresets()) {
+    auto profile = settings;
+    profile.upscaling.preset = preset;
+    profile.upscaling.shaderFiles.clear();
+    profile.save(file);
+    require(EngineSettings::load(file).upscaling.preset == preset,
+            "All shader profiles persist across settings reloads");
+  }
+  settings.save(file);
   settings.width = 0;
   rejects([&] { settings.save(file); }, "Validate before overwriting settings");
   require(EngineSettings::load(file).width == 1600,
@@ -283,7 +292,7 @@ void testWindowAndMenu(Engine &engine, EventRuntime &runtime,
           "Cancel does not apply the draft or leak Escape");
   engine.openSettings();
   event = key(SDLK_DOWN);
-  for (int i = 0; i < 9; ++i)
+  for (int i = 0; i < 10; ++i)
     engine.Event(&event);
   event = key(SDLK_RETURN);
   engine.Event(&event);
@@ -353,10 +362,11 @@ void testUpscaler(Engine &engine, UpscaleBackend backend) {
   upscaler.configure({});
   require(&upscaler.process(*source, 1) == source.get(),
           "Disabled upscaler passes through");
-  const int count = backend == UpscaleBackend::MPV ? 4 : 1;
+  const int count = backend == UpscaleBackend::MPV
+                        ? static_cast<int>(UpscalePresets().size())
+                        : 1;
   for (int preset = 0; preset < count; ++preset) {
-    UpscaleSettings settings{
-        backend, static_cast<UpscalePreset>(preset), 2, {}};
+    UpscaleSettings settings{backend, UpscalePresets()[preset], 2, {}};
     upscaler.configure(settings);
     const Upscaler *implementation = upscaler.getImplementation();
     require(implementation && implementation->backend() == backend,
@@ -534,9 +544,10 @@ void testRenderState(Engine &engine) {
 
 int main(int argc, char **argv) {
   try {
-    Kotonoha::OrsDocument emptyOrs(Kotonoha_OrsParserBytes(nullptr,0));
+    Kotonoha::OrsDocument emptyOrs(Kotonoha_OrsParserBytes(nullptr, 0));
     Kotonoha::OrsDocument movedOrs(std::move(emptyOrs));
-    require(emptyOrs.get().data==nullptr&&movedOrs.get().size==0,"Parser resource ownership moves safely");
+    require(emptyOrs.get().data == nullptr && movedOrs.get().size == 0,
+            "Parser resource ownership moves safely");
     TemporaryDirectory temporary;
     if (argc == 1) {
       testLog(temporary.path);

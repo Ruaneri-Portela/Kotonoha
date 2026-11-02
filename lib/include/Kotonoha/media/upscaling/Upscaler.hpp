@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Kotonoha/core/SDL.hpp>
+#include <array>
 #include <string>
 #include <vector>
 
@@ -8,7 +9,28 @@ namespace Kotonoha {
 
 // Auto picks MetalFX on Metal, MPV on OpenGL and Linear otherwise.
 enum class UpscaleBackend { None, Linear, MPV, MetalFX, Auto };
-enum class UpscalePreset { Anime4K, ArtCNN, ArtCNNDenoise, ArtCNNLarge };
+enum class UpscalePreset {
+  Anime4K = 0,
+  Anime4KModeAHQ = Anime4K,
+  ArtCNN = 1,
+  ArtCNNDenoise = 2,
+  ArtCNNLarge = 3,
+  Anime4KModeBHQ = 4,
+  Anime4KModeCHQ,
+  Anime4KModeAAHQ,
+  Anime4KModeBBHQ,
+  Anime4KModeCAHQ,
+  Anime4KModeAFast,
+  Anime4KModeBFast,
+  Anime4KModeCFast,
+  Anime4KModeAAFast,
+  Anime4KModeBBFast,
+  Anime4KModeCAFast
+};
+const std::array<UpscalePreset, 15> &UpscalePresets();
+const char *UpscalePresetName(UpscalePreset preset);
+bool UpscalePresetIsAnime4K(UpscalePreset preset);
+std::vector<std::string> UpscalePresetShaderFiles(UpscalePreset preset);
 
 // factor is the on/off switch, as in Kotonoha: 1.0 disables upscaling (no
 // backend resources, linear SDL scaling), anything above 1.0 (up to 4.0)

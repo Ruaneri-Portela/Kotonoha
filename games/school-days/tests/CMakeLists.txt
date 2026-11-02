@@ -63,3 +63,17 @@ add_test(NAME SchoolDaysUiModelTest COMMAND SchoolDaysUiModelTest)
 add_executable(SchoolDaysPanelCapture SchoolDaysPanelCapture.cpp)
 target_link_libraries(SchoolDaysPanelCapture PRIVATE school_days)
 kotonoha_copy_assets(SchoolDaysPanelCapture)
+
+set(SCHOOL_DAYS_DATA_DIR "" CACHE PATH "User-supplied School Days HQ installation")
+if(SCHOOL_DAYS_DATA_DIR)
+    add_executable(SchoolDaysRetailTest SchoolDaysRetailTest.cpp)
+    target_link_libraries(SchoolDaysRetailTest PRIVATE school_days)
+    add_test(NAME SchoolDays.Retail COMMAND SchoolDaysRetailTest "${SCHOOL_DAYS_DATA_DIR}" "${SCHOOL_DAYS_ROUTE}")
+    set_tests_properties(SchoolDays.Retail PROPERTIES TIMEOUT 180)
+endif()
+
+add_executable(SchoolDaysLogoTest SchoolDaysLogoTest.cpp)
+target_link_libraries(SchoolDaysLogoTest PRIVATE school_days)
+add_test(NAME SchoolDays.Logo COMMAND SchoolDaysLogoTest "${CMAKE_CURRENT_BINARY_DIR}/fixtures")
+set_tests_properties(SchoolDays.Logo PROPERTIES FIXTURES_REQUIRED school_days_assets
+    ENVIRONMENT "SDL_VIDEODRIVER=dummy;SDL_AUDIODRIVER=dummy")

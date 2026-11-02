@@ -102,8 +102,10 @@ analysis leaves the original files unchanged. Raw local Evidence lives under
   selectors require additional recovery and differential validation.
 - Text typography, original text-choice strips and name-entry UI are incomplete.
   The engine uses its bundled Japanese font, not the Windows fonts named in
-  CONFIG.INI. NAMEENTRY currently retains default names. These are explicit
-  fidelity gaps.
+  CONFIG.INI. NAMEENTRY now edits four fields atomically, validates the native
+  six-UTF-16-unit limit, restores defaults, remembers ChangeName00..03 and sets
+  ChangePlayerName bits. Its modal layout uses the shared engine form; native
+  dialog pixel geometry and name-dependent voice policies still need comparison.
 - Original cleared-game extras (CG gallery, sound mode, replay browser), title
   variant unlocks, original settings and original save UI are incomplete. The
   current title exposes Start/Load/Config/Exit; settings/save UI use Kotonoha.
@@ -140,3 +142,12 @@ messages and 1,113 choices. Map destinations are selected only from assigned
 FILE_ script variables (cafe uses its native result table). This checks XML
 branching and dynamic calls, not presentation, every route, or every possible
 map input. Compile with the Formats sources; it is not yet a CTest target.
+
+Native name-entry contract recovered from NameEntry.sdll (SHA-256
+`0650077e49f30a58ebb4f1a48f85184c2f6d064618a21833b9aa5b92e8394037`):
+InitSystem `10001020`, NAMEENTRY `100019b0`, SETDEFAULTNAME `10001ca0`, dialog
+`10001110`. Evidence is under `.research/summer/name-entry-init.json` and the
+corresponding `rea-0x*.json` files. Numeric XML entities now decode before
+substitution of the native U+F8F0/U+F8F1 player-name markers (366 retail uses).
+The engine regression edits actual names, rejects empty names without advancing,
+and verifies that the native name variables enter the dialogue save.

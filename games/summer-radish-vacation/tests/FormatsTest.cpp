@@ -24,6 +24,25 @@ template <class F> void rejects(F f) {
 }
 int main() {
   try {
+    check(normalizePlayerName("あいうえおか") == "あいうえおか");
+    check(normalizePlayerName("\xef\xa3\xb1") == "?");
+    rejects([] { normalizePlayerName(""); });
+    rejects([] { normalizePlayerName("1234567"); });
+    rejects([] { normalizePlayerName("\xc0\xaf"); });
+    const std::array<std::string, 4> names{"間", "瞬", "はじめ", "しゅん"};
+    auto edited = names;
+    check(playerNameChangeMask(edited, names) == 0);
+    edited[0] = "姓";
+    check(playerNameChangeMask(edited, names) == 1);
+    edited[3] = "なまえ";
+    check(playerNameChangeMask(edited, names) == 3);
+    check(substitutePlayerNames("\xef\xa3\xb0 / \xef\xa3\xb1", names) ==
+          "間 / 瞬");
+    check(parseXml("<X>&#xF8F1; &amp;#xF8F1; &#128512;</X>").text ==
+          "\xef\xa3\xb1 &#xF8F1; \xf0\x9f\x98\x80");
+    rejects([] { parseXml("<X>&#xD800;</X>"); });
+    rejects([] { parseXml("<X>&#0;</X>"); });
+
     check(topLady({0, 0, 0, 0}) == 4 && topLady({1, 2, 2, 2}) == 5 &&
           topLady({0, 1, 3, 3}) == 3 && topLady({0, 1, 2, 3}) == 6);
     check(graphicSuffix(0).empty() && graphicSuffix(2) == "B" &&

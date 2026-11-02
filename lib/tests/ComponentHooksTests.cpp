@@ -263,11 +263,23 @@ void testMenuBackdrop(Kotonoha::Engine &engine) {
   SDL_SetRenderTarget(&renderer, previous);
 }
 
-void testLiveTranslation(Kotonoha::Engine&engine){
- HookTextBox text(engine);auto&runtime=engine.GetRuntime();runtime.AddScene(&text);text.setDialogue("Speaker","Original");text.completeDialogue();const auto history=text.calls["record"];
- engine.setTranslation("7","Original","Português ao vivo");require(text.getText()=="Português ao vivo"&&text.getVisibleText()==text.getText(),"Live translation updates the visible VN subclass");
- engine.setTranslation("7","Original","Segunda edição");require(text.getText()=="Segunda edição","Repeated edits retain source binding");
- require(text.calls["record"]==history,"Live editing does not append backlog entries");runtime.RemoveScene(&text);
+void testLiveTranslation(Kotonoha::Engine &engine) {
+  HookTextBox text(engine);
+  auto &runtime = engine.GetRuntime();
+  runtime.AddScene(&text);
+  text.setDialogue("Speaker", "Original");
+  text.completeDialogue();
+  const auto history = text.calls["record"];
+  engine.setTranslation("7", "Original", "Português ao vivo");
+  require(text.getText() == "Português ao vivo" &&
+              text.getVisibleText() == text.getText(),
+          "Live translation updates the visible VN subclass");
+  engine.setTranslation("7", "Original", "Segunda edição");
+  require(text.getText() == "Segunda edição",
+          "Repeated edits retain source binding");
+  require(text.calls["record"] == history,
+          "Live editing does not append backlog entries");
+  runtime.RemoveScene(&text);
 }
 
 class EmptyRuntime : public Kotonoha::Runtime {
@@ -279,13 +291,22 @@ public:
 
 int main() {
   try {
-    EmptyRuntime runtime;
-    Kotonoha::Engine engine(runtime);
-    testTextBox(engine);
-    testLiveTranslation(engine);
-    testChoice(engine);
-    testMenus(engine);
-    testMenuBackdrop(engine);
+    {
+      EmptyRuntime runtime;
+      Kotonoha::Engine engine(runtime);
+      testTextBox(engine);
+      testLiveTranslation(engine);
+      testChoice(engine);
+      testMenus(engine);
+      testMenuBackdrop(engine);
+      Kotonoha::GetInGameMenuRuntime(engine).open();
+    }
+    {
+      EmptyRuntime runtime;
+      Kotonoha::Engine engine(runtime);
+      require(!Kotonoha::GetInGameMenuRuntime(engine).IsOpen(),
+              "A new game session must not inherit a previous engine's menu");
+    }
   } catch (const std::exception &error) {
     std::cerr << "FAILED: " << error.what() << '\n';
     return 1;

@@ -760,6 +760,12 @@ bool AirRuntime::Impl::command(const libreallive::CommandElement &c) {
     case 1504:
       machine.set_store_register(0);
       return true;
+    case 2375:
+      machine.set_store_register(
+          (SDL_GetWindowFlags(&engine->GetWindow()) & SDL_WINDOW_FULLSCREEN)
+              ? 1
+              : 0);
+      return true;
     case 1700: {
       EditField field;
       field.area = {float(value(c, 1)), float(value(c, 2)), float(value(c, 3)),
@@ -817,19 +823,6 @@ bool AirRuntime::Impl::command(const libreallive::CommandElement &c) {
       Parameter(c, 1).SetStringValue(machine, raw);
       return true;
     }
-    case 2001:
-      machine.set_store_register(0);
-      return true;
-    case 2051:
-    case 2224:
-    case 2250:
-    case 2275:
-      settings[{m, op}] = value(c, 0);
-      return true;
-    case 2223:
-    case 2375:
-      machine.set_store_register(0);
-      return true;
     }
   }
   if (type == 2 && m == 1 && op == 12 && value(c, 1) == 104) {
@@ -929,7 +922,7 @@ bool AirRuntime::Impl::command(const libreallive::CommandElement &c) {
       std::string id = "WAV/" + str(c, 0);
       if (!assets->contains(id))
         id += ".WAV";
-      play(*p, id, "Se", op == 2);
+      play(*p, id, "PCM", op == 2);
       return true;
     }
     if (op == 5 || op == 20 || op == 105) {
@@ -1331,8 +1324,42 @@ bool AirRuntime::Impl::command(const libreallive::CommandElement &c) {
   }
   if (systemCommand(machine, c, [this](const std::string &key, int fallback) {
         return assets->settings().integer(key, fallback);
-      }))
+      })) {
+    if (type == 1 && m == 4 &&
+        ((op >= 2230 && op <= 2233) || (op >= 2240 && op <= 2243))) {
+      struct Bank {
+        const char *channel;
+        int volume, enabled;
+        const char *volumeKey;
+        const char *enabledKey;
+      };
+      const Bank banks[]{{"BGM", 2330, 2340, "BGM_VOLUME", "BGM_ENABLED"},
+                         {"Voice", 2331, 2341, "KOE_VOLUME", "KOE_ENABLED"},
+                         {"PCM", 2332, 2342, "PCM_VOLUME", "PCM_ENABLED"},
+                         {"Se", 2333, 2343, "SE_VOLUME", "SE_ENABLED"}};
+      for (const auto &bank : banks) {
+        const auto &values = machine.memory().integers;
+        auto setting = [&](int key, const char *name, int fallback) {
+          auto found = values.find({26, key});
+          return found == values.end()
+                     ? assets->settings().integer(name, fallback)
+                     : found->second;
+        };
+        auto channel = engine->GetAudio().channel(bank.channel);
+        channel->setVolume(
+            std::clamp(setting(bank.volume, bank.volumeKey, 255), 0, 255) /
+            255.0f);
+        channel->setMuted(setting(bank.enabled, bank.enabledKey, 1) == 0);
+      }
+    }
+    if (type == 1 && m == 4 && op == 2275) {
+      auto display = engine->GetSettings();
+      display.mode =
+          value(c, 0) ? WindowMode::Borderless : WindowMode::Windowed;
+      engine->applySettings(display);
+    }
     return true;
+  }
   std::ostringstream message;
   message << "Comando AIR pendente em " << vm.scenario() << ":" << vm.index()
           << " (" << type << ":" << m << ":" << op << "/" << over << ").";

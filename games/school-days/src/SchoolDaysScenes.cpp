@@ -33,7 +33,7 @@ constexpr std::array<Control, 15> controls{{
 }};
 
 bool enabled(int control, bool handoff) {
-  if (control < 1 || (control >= 5 && control <= 9))
+  if (control < 0)
     return false;
   return !handoff || (control >= 10 && control <= 13);
 }
@@ -44,7 +44,8 @@ bool inside(SDL_FPoint point, SDL_FRect area) {
 
 LogoSplash::LogoSplash(Kotonoha::Engine &engine, Assets &source)
     : SplashScreen(engine, {}), assets(source) {
-  for (const char *stem : {"System/SYSTEM/LOGO", "System/System/Logo"})
+  for (const char *stem :
+       {"System/SYSTEM/LOGO.png", "System/SYSTEM/LOGO", "System/System/Logo"})
     try {
       logo = assets.resolve(stem, true);
       break;
@@ -89,7 +90,8 @@ void LogoSplash::update() {
 void LogoSplash::render(Kotonoha::RendererRef renderer, float) {
   if (done)
     return;
-  const SDL_FRect area{0, 0, 1280, 720};
+  const auto view = Kotonoha::UI::viewSize(renderer);
+  const SDL_FRect area{0, 0, view.x, view.y};
   SDL_SetRenderDrawColor(&renderer, 0, 0, 0, 255);
   SDL_RenderFillRect(&renderer, &area);
   SDL_Texture *texture = nullptr;
@@ -108,15 +110,36 @@ void LogoSplash::render(Kotonoha::RendererRef renderer, float) {
   SDL_GetTextureSize(texture, &width, &height);
   if (width <= 0 || height <= 0)
     return;
-  const float fit = std::min(area.w / width, area.h / height);
-  const SDL_FRect target{(area.w - width * fit) / 2,
-                         (area.h - height * fit) / 2, width * fit,
-                         height * fit};
+  if (!contentMeasured) {
+    logoContent = {0, 0, width, height};
+    const auto pixels = assets.loadSurface(logo);
+    int left = pixels->w, top = pixels->h, right = -1, bottom = -1;
+    for (int y = 0; y < pixels->h; ++y)
+      for (int x = 0; x < pixels->w; ++x) {
+        Uint8 red = 0, green = 0, blue = 0, alpha = 0;
+        if (SDL_ReadSurfacePixel(pixels.get(), x, y, &red, &green, &blue,
+                                 &alpha) &&
+            alpha && (red > 8 || green > 8 || blue > 8)) {
+          left = std::min(left, x);
+          top = std::min(top, y);
+          right = std::max(right, x);
+          bottom = std::max(bottom, y);
+        }
+      }
+    if (right >= left && bottom >= top)
+      logoContent = {float(left), float(top), float(right - left + 1),
+                     float(bottom - top + 1)};
+    contentMeasured = true;
+  }
+  const float fit = std::min(area.w / logoContent.w, area.h / logoContent.h);
+  const SDL_FRect target{(area.w - logoContent.w * fit) / 2,
+                         (area.h - logoContent.h * fit) / 2,
+                         logoContent.w * fit, logoContent.h * fit};
   const double time = elapsed();
   const double alpha =
       std::clamp(std::min(time, displaySeconds - time) / fadeSeconds, 0.0, 1.0);
   SDL_SetTextureAlphaModFloat(texture, float(alpha));
-  Kotonoha::RenderUpscaledTexture(&renderer, texture, nullptr, &target);
+  Kotonoha::RenderUpscaledTexture(&renderer, texture, &logoContent, &target);
   SDL_SetTextureAlphaModFloat(texture, 1.0f);
 }
 
@@ -243,6 +266,11 @@ bool GameScene::handleEvent(Kotonoha::EventRef event) {
         runtime.choose(visible[i]);
       return true;
     }
+  if (click && !runtime.bridge.HasPendingHandoff() &&
+      runtime.timeline.ReadyToEnd(runtime.tick)) {
+    runtime.advance();
+    return true;
+  }
   if (click && runtime.bridge.HasPendingHandoff()) {
     runtime.continueHandoff();
     return true;
@@ -278,11 +306,17 @@ void GameScene::renderBar(Kotonoha::RendererRef renderer) {
   if (!Kotonoha::RenderUpscaledTexture(&renderer, &base, &source, &destination))
     throw std::runtime_error(SDL_GetError());
   draw({1, 346, 538, 22}, {185.6f, 4.8f, 860.8f, 35.2f});
-  draw({1, 183, 106, 19}, controls[0].destination);
+  draw({runtime.autoPlay ? 110.0f : 1.0f, runtime.autoPlay ? 70.0f : 183.0f,
+        106, 19},
+       controls[0].destination);
   draw({runtime.paused ? 1.0f : 311.0f, runtime.paused ? 127.0f : 155.0f, 61,
         27},
        controls[1].destination);
   draw({43, 290, 216, 27}, {366.4f, 41.6f, 345.6f, 43.2f});
+  constexpr double rates[]{1, 2, 4, 16, 32};
+  for (int index = 0; index < 5; ++index)
+    if (runtime.speed == rates[index])
+      draw(controls[index + 5].source, controls[index + 5].destination);
   for (int i = 10; i <= 14; ++i)
     draw({float(1 + (i - 10) * 62), 155, 61, 27}, controls[i].destination);
   if (hovered >= 0)

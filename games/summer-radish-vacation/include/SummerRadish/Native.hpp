@@ -6,6 +6,13 @@
 namespace SummerRadish {
 std::string graphicSuffix(uint32_t mode);
 // Native TOPLADY: highest affection wins, with original tie priority 4,5,3,6.
+// Native NameEntry.sdll: four fields, 1..6 UTF-16 units; private-use chars
+// become '?'.
+std::string normalizePlayerName(const std::string &name);
+unsigned playerNameChangeMask(const std::array<std::string, 4> &names,
+                              const std::array<std::string, 4> &defaults);
+std::string substitutePlayerNames(const std::string &text,
+                                  const std::array<std::string, 4> &names);
 int topLady(const std::array<int64_t, 4> &affection);
 struct CharacterPlacement {
   int32_t requested = -1;

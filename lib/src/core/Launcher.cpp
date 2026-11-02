@@ -30,8 +30,7 @@ struct Launcher::Dialog {
 namespace {
 constexpr const char *Modes[]{"Windowed", "Borderless fullscreen",
                               "Exclusive fullscreen"};
-constexpr const char *Presets[]{"Anime4K B-S", "ArtCNN C4F16",
-                                "ArtCNN C4F16 DS", "ArtCNN C4F32"};
+
 constexpr const char *Priorities[]{"Trace",   "Verbose", "Debug",   "Info",
                                    "Warning", "Error",   "Critical"};
 constexpr std::pair<int, int> Resolutions[]{
@@ -571,12 +570,18 @@ void Launcher::drawUpscaling() {
   const bool mpv = upscaling.backend == UpscaleBackend::MPV ||
                    (upscaling.backend == UpscaleBackend::Auto &&
                     draft.renderer.rfind("opengl", 0) == 0);
-  if (mpv) {
-    int preset = static_cast<int>(upscaling.preset);
-    if (ImGui::Combo("Preset (OpenGL)", &preset, Presets, 4))
-      upscaling.preset = static_cast<UpscalePreset>(preset);
-    shaderPicker->draw(window.get(), upscaling);
+  if (ImGui::BeginCombo("Preset (OpenGL)",
+                        UpscalePresetName(upscaling.preset))) {
+    for (auto preset : UpscalePresets())
+      if (ImGui::Selectable(UpscalePresetName(preset),
+                            preset == upscaling.preset)) {
+        upscaling.preset = preset;
+        upscaling.shaderFiles.clear();
+      }
+    ImGui::EndCombo();
   }
+  if (mpv)
+    shaderPicker->draw(window.get(), upscaling);
   if (upscaling.backend == UpscaleBackend::None)
     ImGui::TextDisabled("Backend 'None' keeps upscaling off");
   if (const char *required =

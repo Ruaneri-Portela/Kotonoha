@@ -132,7 +132,7 @@ bool SchoolDaysConfigMenuModel::DecodeAction(Page page, int control,
     case 6:
     case 7:
       action->kind = ActionKind::RequestFull;
-      action->value = control == 6 ? 1 : 0;
+      action->value = control == 7 ? 1 : 0;
       return true;
     case 8:
     case 9:

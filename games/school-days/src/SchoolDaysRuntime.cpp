@@ -1,5 +1,7 @@
 #include "SchoolDaysRuntime.hpp"
+#include <Kotonoha/componentes/TextInputForm.hpp>
 #include <Kotonoha/events/BackAction.hpp>
+#include <Kotonoha/localization/Encoding.hpp>
 #include <Kotonoha/media/upscaling/Upscaler.hpp>
 
 #include <Kotonoha/SchoolDaysBgmEventState.hpp>
@@ -348,6 +350,7 @@ void Runtime::play(Kotonoha_orsEvent &event, const std::string &logical,
     player->open(*assets, assets->resolve(logical), channel != "Movie",
                  channel);
     Playing item;
+    player->setPlaybackRate(speed);
     item.player = std::move(player);
     item.event = &event;
     item.loop = loop;
@@ -565,7 +568,7 @@ void Runtime::update() {
     dispatch(*event);
   if (choice && tick >= choice->endTick)
     choose(-1);
-  if (timeline.ReadyToEnd(tick))
+  if (timeline.ReadyToEnd(tick) && autoPlay)
     advance();
 }
 
@@ -651,6 +654,7 @@ void Runtime::renderGameplay(Kotonoha::RendererRef renderer, float) {
         const auto channel = item.player->getChannel();
         item.player->open(*assets, assets->resolve(item.loop), true,
                           channel ? channel->getName() : "BGM");
+        item.player->setPlaybackRate(speed);
         item.looping = true;
         item.segmentStart = elapsed;
       }
@@ -728,12 +732,23 @@ void Runtime::onEvent(Kotonoha::EventRef event) {
     Kotonoha::Runtime::onEvent(event);
     return;
   }
+  if (event.type == SDL_EVENT_MOUSE_BUTTON_UP &&
+      event.button.button == SDL_BUTTON_LEFT && consumePanelRelease) {
+    consumePanelRelease = false;
+    return;
+  }
   const bool escape = Kotonoha::BackAction(*engine, event);
   if (saveMenu->isOpen()) {
+    if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
+        event.button.button == SDL_BUTTON_LEFT)
+      consumePanelRelease = true;
     dispatchEvent(*saveMenu, event);
     return;
   }
   if (backlogFallback->isVisible()) {
+    if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
+        event.button.button == SDL_BUTTON_LEFT)
+      consumePanelRelease = true;
     dispatchEvent(*backlogFallback, event);
     return;
   }
@@ -757,6 +772,9 @@ void Runtime::onEvent(Kotonoha::EventRef event) {
     return;
   }
   if (systemUi.IsOpen()) {
+    if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
+        event.button.button == SDL_BUTTON_LEFT)
+      consumePanelRelease = true;
     if (escape) {
       playSound(Ui::UiSfxCue::Cancel);
       if (systemUi.IsRouteMapOpen())
@@ -835,6 +853,10 @@ void Runtime::onEvent(Kotonoha::EventRef event) {
       return;
     if (event.key.key == SDLK_SPACE)
       paused = !paused;
+    if (event.key.key == SDLK_A)
+      autoPlay = !autoPlay;
+    if (event.key.key == SDLK_RETURN && timeline.ReadyToEnd(tick))
+      advance();
     if (event.key.key == SDLK_F5)
       saveGame((documents / "QuickSave").string());
     if (event.key.key == SDLK_F6)
@@ -855,7 +877,14 @@ void Runtime::onEvent(Kotonoha::EventRef event) {
 }
 
 void Runtime::activateControl(int control) {
-  if (control == 1)
+  if (control == 0)
+    autoPlay = !autoPlay;
+  else if (control >= 5 && control <= 9) {
+    constexpr double rates[]{1, 2, 4, 16, 32};
+    speed = rates[control - 5];
+    for (auto &item : playing)
+      item.player->setPlaybackRate(speed);
+  } else if (control == 1)
     paused = !paused;
   else if (control == 2)
     back();
@@ -992,7 +1021,7 @@ Runtime::configVisualState() const {
   Kotonoha::SchoolDaysConfigMenuRenderPlan::VisualState state;
   state.defWideCurrent = 4; // NeoStart always presents the 16:9 layout.
   state.defFullCurrent =
-      engine->GetSettings().mode == Kotonoha::WindowMode::Windowed ? 7 : 6;
+      engine->GetSettings().mode == Kotonoha::WindowMode::Windowed ? 6 : 7;
   state.defSkipCurrent = config.skip ? 8 : 9;
   state.defSuperSkipCurrent = config.superSkip ? 10 : 11;
   state.defDrawMessageCurrent = config.textView ? 12 : 13;
@@ -1291,10 +1320,31 @@ void Runtime::handlePanel(const Ui::Output &output) {
     case Action::LoadSlotRequested:
       loadSlot(result.slot);
       break;
-    case Action::CommentInputRequested:
-      // No text-entry overlay: the slot is saved with an empty comment.
-      systemUi.SubmitSaveLoadComment({});
+    case Action::CommentInputRequested: {
+      auto &form = engine->sharedScene<Kotonoha::TextInputForm>();
+      form.configure(
+          "Save comment", {{"Comment", "", ""}},
+          [this, &form](const std::vector<std::string> &values) {
+            const auto bytes =
+                Kotonoha::ConvertEncoding(values[0], "UTF-8", "UTF-16LE");
+            std::u16string comment;
+            for (size_t at = 0; at + 1 < bytes.size(); at += 2)
+              comment += char16_t(
+                  static_cast<unsigned char>(bytes[at]) |
+                  (unsigned(static_cast<unsigned char>(bytes[at + 1])) << 8));
+            if (!systemUi.SubmitSaveLoadComment(comment))
+              return std::string("Save selection is no longer available");
+            form.close();
+            RemoveScene(&form);
+            return std::string();
+          },
+          [this, &form] {
+            systemUi.CancelSaveLoadComment();
+            RemoveScene(&form);
+          });
+      AddScene(&form);
       break;
+    }
     case Action::SaveSlotRequested:
       try {
         saveSlot(result.slot, result.comment);

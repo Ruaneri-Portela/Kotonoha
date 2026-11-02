@@ -185,16 +185,16 @@ void controls(Engine &engine, TestRuntime &runtime) {
     event.key.key = key;
     menu.onEvent(event);
   };
-  // Software rendering has no MPV-only rows: volume follows the scale row.
+  // The preset is selectable on every renderer; volume follows the scale row.
   menu.open();
-  for (int i = 0; i < 7; ++i)
+  for (int i = 0; i < 8; ++i)
     press(SDLK_DOWN);
   press(SDLK_LEFT);
   require(engine.GetAudio().getMasterVolume() == 0.35f,
           "Volume draft does not apply early");
   press(SDLK_ESCAPE);
   menu.open();
-  for (int i = 0; i < 7; ++i)
+  for (int i = 0; i < 8; ++i)
     press(SDLK_DOWN);
   press(SDLK_LEFT);
   press(SDLK_DOWN);

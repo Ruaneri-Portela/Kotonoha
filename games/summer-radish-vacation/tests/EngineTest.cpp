@@ -1,7 +1,9 @@
 #include "SummerRuntime.hpp"
 #include <Kotonoha/componentes/ChoiceQuestionScene.hpp>
 #include <Kotonoha/componentes/InGameMenu.hpp>
+#include <Kotonoha/componentes/TextInputForm.hpp>
 #include <Kotonoha/componentes/VNBacklog.hpp>
+#include <Kotonoha/componentes/VNSave.hpp>
 #include <Kotonoha/componentes/VNTextBox.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/media/PcmPlayer.hpp>
@@ -97,8 +99,21 @@ int main(int argc, char **argv) {
       engine.Iterate();
     check(game.GetState() != GameState::Splash, "Splash exits");
     // Skip warning and logo waits, then press Start and accept uniform A.
-    for (int i = 0; i < 8 && !find<ChoiceQuestionScene>(game)->isActive(); ++i)
-      press(engine, SDLK_RETURN);
+    bool renamed = false;
+    for (int i = 0; i < 12 && !find<ChoiceQuestionScene>(game)->isActive();
+         ++i) {
+      if (auto *form = find<TextInputForm>(game)) {
+        const auto position = game.debugNode();
+        form->submit({"", "瞬", "はじめ", "しゅん"});
+        check(form->capturesInput() && game.debugNode() == position,
+              "Invalid native name must not advance the script");
+        form->submit({"試験", "花子", "しけん", "はなこ"});
+        check(!form->capturesInput(), "Valid native names commit atomically");
+        renamed = true;
+      } else
+        press(engine, SDLK_RETURN);
+    }
+    check(renamed, "Native NAMEENTRY was skipped");
     auto *choice = find<ChoiceQuestionScene>(game);
     check(choice && choice->isActive(), "Uniform selection opens");
     capture(engine, game, "uniform");
@@ -112,6 +127,10 @@ int main(int argc, char **argv) {
     auto save = std::filesystem::temp_directory_path() /
                 ("summer-test-" + std::to_string(SDL_GetTicksNS()) + ".vn");
     game.saveGame(save.string());
+    const auto savedData = VNSave::read(save.string()).gameData;
+    check(savedData.find("$ChangeName00") != std::string::npos &&
+              savedData.find("試験") != std::string::npos,
+          "Native player names are included in the save");
     auto before = game.debugNode();
     auto line = text->getText();
     press(engine, SDLK_RETURN);

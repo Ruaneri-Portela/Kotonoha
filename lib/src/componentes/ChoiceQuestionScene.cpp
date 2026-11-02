@@ -137,7 +137,8 @@ ChoiceQuestionScene &GetChoiceQuestionRuntime(
     Engine &engineRef, const std::string &question,
     const std::vector<ChoiceOption> &options,
     std::function<void(int, const std::string &)> callback) {
-  static ChoiceQuestionScene scene{engineRef, question, options, callback};
+  auto &scene =
+      engineRef.sharedScene<ChoiceQuestionScene>(question, options, callback);
   return scene;
 }
 

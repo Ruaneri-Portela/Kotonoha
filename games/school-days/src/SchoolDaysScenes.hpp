@@ -1,7 +1,7 @@
 #pragma once
 
-#include <Kotonoha/componentes/SubtitleScene.hpp>
 #include <Kotonoha/componentes/SplashScreen.hpp>
+#include <Kotonoha/componentes/SubtitleScene.hpp>
 #include <Kotonoha/parsers/Ors.h>
 
 namespace SchoolDays {
@@ -14,6 +14,8 @@ class Runtime;
 class LogoSplash final : public Kotonoha::SplashScreen {
   Assets &assets;
   std::string logo;
+  SDL_FRect logoContent{};
+  bool contentMeasured = false;
   Uint64 started = 0;
   bool done = false, shown = false;
   double elapsed() const;

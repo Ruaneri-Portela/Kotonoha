@@ -385,7 +385,7 @@ void VNManager::dumpKtrf(const std::string &path) const {
 }
 
 VNManager &GetVNManagerRuntime(Engine &engineRef) {
-  static VNManager manager{engineRef};
+  auto &manager = engineRef.sharedScene<VNManager>();
   return manager;
 }
 

@@ -153,7 +153,7 @@ void VNTextBox::renderIndicator(RendererRef renderer) {
 
 VNTextBox &GetVNTextBoxRuntime(Engine &engineRef, const std::string &speaker,
                                const std::string &dialogue, double cps) {
-  static VNTextBox box{engineRef, speaker, dialogue, cps};
+  auto &box = engineRef.sharedScene<VNTextBox>(speaker, dialogue, cps);
   return box;
 }
 

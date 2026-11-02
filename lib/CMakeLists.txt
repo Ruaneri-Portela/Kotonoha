@@ -83,6 +83,7 @@ add_library(KotonohaEngine SHARED
     src/componentes/SettingsMenu.cpp
     src/componentes/SplashScreen.cpp
     src/componentes/SubtitleScene.cpp
+    src/componentes/TextInputForm.cpp
     src/componentes/TextInputDialog.cpp
     src/componentes/VNBacklog.cpp
     src/componentes/VNManager.cpp

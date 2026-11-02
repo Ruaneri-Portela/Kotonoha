@@ -106,7 +106,7 @@ void VNBacklog::renderEntries(RendererRef renderer) {
 }
 
 VNBacklog &GetVNBacklogRuntime(Engine &engineRef) {
-  static VNBacklog backlog{engineRef};
+  auto &backlog = engineRef.sharedScene<VNBacklog>();
   return backlog;
 }
 

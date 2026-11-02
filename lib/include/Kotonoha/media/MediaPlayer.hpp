@@ -15,6 +15,7 @@ class MediaPlayer {
   struct State;
   std::unique_ptr<State> state;
   std::unique_ptr<MediaPlayer> soundtrack;
+  double playbackRate = 1;
   Uint64 clockStart = 0, pausedAt = 0;
   void start(std::unique_ptr<State> next, const std::string &url,
              bool audioOnly);
@@ -43,6 +44,8 @@ public:
   int audioCorrections() const;
   void stop();
   void setPaused(bool paused);
+  void setPlaybackRate(double rate);
+  double getPlaybackRate() const { return playbackRate; }
   // Timeline-driven: decodes up to `position` seconds (seeks on jumps).
   void update(RendererRef renderer, double position);
   // Self-timed: the position is the wall clock since open(), minus pauses.

@@ -15,6 +15,9 @@
 
 #include <memory>
 #include <string>
+#include <typeindex>
+#include <unordered_map>
+#include <utility>
 
 namespace Kotonoha {
 
@@ -69,6 +72,7 @@ private:
   InputActions inputActions;
   Clock frameClock;
   Translation translation;
+  std::unordered_map<std::type_index, std::unique_ptr<Scene>> sharedScenes;
   float edgeSwipeStartX = -1;
   bool edgeSwipeActive = false;
   void configureRenderSpace(RenderSpace space);
@@ -80,6 +84,15 @@ public:
 
   WindowRef GetWindow() const { return *window; }
   Runtime &GetRuntime() { return runtime; }
+  template <class T, class... Args> T &sharedScene(Args &&...args) {
+    const std::type_index key(typeid(T));
+    auto found = sharedScenes.find(key);
+    if (found == sharedScenes.end()) {
+      auto scene = std::make_unique<T>(*this, std::forward<Args>(args)...);
+      found = sharedScenes.emplace(key, std::move(scene)).first;
+    }
+    return static_cast<T &>(*found->second);
+  }
   UI &GetUI() { return *ui; }
   TimelinePlayer &GetTimeline() { return *timeline; }
   InputActions &GetInputActions() { return inputActions; }
