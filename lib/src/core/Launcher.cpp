@@ -17,6 +17,7 @@
 #include <filesystem>
 #include <mutex>
 #include <stdexcept>
+#include <cmath>
 
 namespace Kotonoha {
 
