@@ -454,6 +454,14 @@ hooks `protected` virtuais que um jogo sobrescreve:
 
 `lib/tests/ComponentHooksTests.cpp` verifica o despacho de cada hook.
 
+## Amagami (PS2) — prólogo jogável
+
+O [port de Amagami](games/amagami/PORT_STATUS.md) lê a ISO japonesa
+(`SLPS_259.18`) com `--amagami DISC.iso`. Compile o alvo `Amagami`;
+`KOTONOHA_BUILD_AMAGAMI` habilita o port. Sem caminho, abre o seletor de disco.
+O prólogo tem diálogo, escolhas, cenários, sprites, áudio e save/load.
+O calendário e as rotas posteriores ainda não formam um jogo completo.
+
 ## Zero no Tsukaima (PS2)
 
 Porta de *Zero no Tsukaima: Muma ga Tsumugu Yokaze no Nocturne* (SLPS 258.30)

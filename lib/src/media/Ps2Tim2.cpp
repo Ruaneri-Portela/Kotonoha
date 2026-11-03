@@ -1,9 +1,9 @@
-#include <ZeroNoTsukaima/Tim2.hpp>
+#include <Kotonoha/media/Ps2Tim2.hpp>
 
 #include <algorithm>
 #include <cstring>
 
-namespace ZeroNoTsukaima {
+namespace Kotonoha {
 
 namespace {
 
@@ -37,8 +37,8 @@ int BytesFor(int type) { return type == 1 ? 2 : type == 2 ? 3 : 4; }
 
 } // namespace
 
-bool DecodeTim2(const uint8_t *data, size_t size, Image *out) {
-  if (size < 64 || std::memcmp(data, "TIM2", 4) != 0)
+bool DecodePs2Tim2(const uint8_t *data, size_t size, Ps2Image *out) {
+  if (!out || !data || size < 64 || std::memcmp(data, "TIM2", 4) != 0)
     return false;
   const uint8_t *pic = data + 16;
   const uint32_t clutSize = U32(pic + 4), imageSize = U32(pic + 8);
@@ -46,7 +46,8 @@ bool DecodeTim2(const uint8_t *data, size_t size, Image *out) {
   const uint8_t cType = pic[18];
   const uint8_t type = pic[19];
   const int width = U16(pic + 20), height = U16(pic + 22);
-  if (width <= 0 || height <= 0)
+  if (width <= 0 || height <= 0 || width > 16384 || height > 16384 ||
+      size_t(width) * height > 16 * 1024 * 1024 || headerSize < 48)
     return false;
   if (static_cast<size_t>(16) + headerSize + imageSize + clutSize > size)
     return false;
@@ -60,6 +61,10 @@ bool DecodeTim2(const uint8_t *data, size_t size, Image *out) {
   if (type == 4 || type == 5) {
     const int count = type == 5 ? 256 : 16;
     const int cBytes = BytesFor(cType & 0x3F);
+    const size_t pixels = size_t(width) * height;
+    if ((type == 5 ? pixels : (pixels + 1) / 2) > imageSize ||
+        size_t(count) * cBytes > clutSize)
+      return false;
     if (clutColors < static_cast<unsigned>(count) &&
         clutSize < static_cast<uint32_t>(count * cBytes)) {
       return false;
@@ -94,4 +99,4 @@ bool DecodeTim2(const uint8_t *data, size_t size, Image *out) {
   return false;
 }
 
-} // namespace ZeroNoTsukaima
+} // namespace Kotonoha

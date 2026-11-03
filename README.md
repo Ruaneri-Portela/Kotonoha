@@ -27,6 +27,7 @@ remain out of Git. Supply your own legally obtained data:
 | DDLC | `games/doki-doki-literature-club/game-assets/game/*.rpa` and `game-assets/characters/*.chr` |
 | School Days | Original game archives in `games/school-days/game-assets/` |
 | [AIR Standard Edition (initial port)](games/air/README.md) | `Seen.txt`, `Gameexe.ini` and original resource folders; `--air DIRECTORY` |
+| [Amagami PS2 (playable prologue)](games/amagami/PORT_STATUS.md) | Original Japan ISO (`SLPS_259.18`); `--amagami DISC.iso`. Calendar and later routes are in development. |
 
 The port does not download or supply commercial game data.
 
@@ -46,7 +47,7 @@ cmake --build build
 ctest --test-dir build --output-on-failure
 ```
 
-Disable individual games with `KOTONOHA_BUILD_EXAMPLE`, `KOTONOHA_BUILD_ZERO`,
+Disable individual games with `KOTONOHA_BUILD_AMAGAMI`, `KOTONOHA_BUILD_EXAMPLE`, `KOTONOHA_BUILD_ZERO`,
 `KOTONOHA_BUILD_SNOW`, `KOTONOHA_BUILD_DDLC` or `KOTONOHA_BUILD_SCHOOL_DAYS`. Each game can also be configured
 independently from its own directory.
 

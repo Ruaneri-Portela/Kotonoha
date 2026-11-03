@@ -1,3 +1,4 @@
+#include "Kotonoha/media/Ps2Tim2.hpp"
 #include <ZeroNoTsukaima/Lz.hpp>
 #include <ZeroNoTsukaima/Scene.hpp>
 #include <ZeroNoTsukaima/Source.hpp>
@@ -175,10 +176,10 @@ bool SceneSource::ReadNormalPicture(int index,
          ReadEntry(*normalBin_, normalIndex_, size_t(index), out);
 }
 
-bool SceneSource::LoadNormalPicture(int index, Image *out) const {
+bool SceneSource::LoadNormalPicture(int index, Kotonoha::Ps2Image *out) const {
   std::vector<uint8_t> data;
   return ReadNormalPicture(index, &data) &&
-         DecodeTim2(data.data(), data.size(), out);
+         Kotonoha::DecodePs2Tim2(data.data(), data.size(), out);
 }
 
 bool SceneSource::LoadMovie(int number, std::vector<uint8_t> *out) const {
@@ -194,9 +195,10 @@ bool SceneSource::ReadPicture(int index, std::vector<uint8_t> *out) const {
          ReadEntry(*pictureBin_, pictureIndex_, size_t(index), out);
 }
 
-bool SceneSource::LoadPicture(int index, Image *out) const {
+bool SceneSource::LoadPicture(int index, Kotonoha::Ps2Image *out) const {
   std::vector<uint8_t> data;
-  return ReadPicture(index, &data) && DecodeTim2(data.data(), data.size(), out);
+  return ReadPicture(index, &data) &&
+         Kotonoha::DecodePs2Tim2(data.data(), data.size(), out);
 }
 
 bool SceneSource::LoadScene(size_t index, std::vector<uint8_t> *out) const {

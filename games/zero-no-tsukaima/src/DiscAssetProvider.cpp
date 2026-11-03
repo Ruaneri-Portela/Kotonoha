@@ -1,7 +1,7 @@
 #include "DiscAssetProvider.hpp"
 
+#include <Kotonoha/media/Ps2Tim2.hpp>
 #include <ZeroNoTsukaima/Pss.hpp>
-#include <ZeroNoTsukaima/Tim2.hpp>
 
 #include <cstring>
 #include <stdexcept>
@@ -189,8 +189,8 @@ DiscAssetProvider::listAsset(const std::string &prefix) const {
 Kotonoha::SurfacePtr
 DiscAssetProvider::loadSurfaceAsset(const std::string &id) const {
   const std::vector<uint8_t> data = read(id);
-  Image image;
-  if (!DecodeTim2(data.data(), data.size(), &image))
+  Kotonoha::Ps2Image image;
+  if (!Kotonoha::DecodePs2Tim2(data.data(), data.size(), &image))
     throw std::runtime_error("Invalid TIM2 picture: " + id);
   Kotonoha::SurfacePtr surface{
       SDL_CreateSurface(image.width, image.height, SDL_PIXELFORMAT_RGBA32)};

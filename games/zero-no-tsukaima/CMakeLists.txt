@@ -16,7 +16,6 @@ endif()
 add_library(ZeroNoTsukaimaFormats STATIC
     src/Archive.cpp
     src/Lz.cpp
-    src/Tim2.cpp
     src/Scene.cpp
     src/Source.cpp
     src/Catalog.cpp

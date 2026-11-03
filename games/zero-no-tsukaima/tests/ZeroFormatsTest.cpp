@@ -1,8 +1,8 @@
+#include <Kotonoha/media/Ps2Tim2.hpp>
 #include <ZeroNoTsukaima/Archive.hpp>
 #include <ZeroNoTsukaima/Lz.hpp>
 #include <ZeroNoTsukaima/Pss.hpp>
 #include <ZeroNoTsukaima/Source.hpp>
-#include <ZeroNoTsukaima/Tim2.hpp>
 
 #include <cstdio>
 #include <string>
@@ -76,12 +76,12 @@ int main() {
   clut[4 * 16 + 1] = 2;
   clut[4 * 16 + 2] = 3;
   clut[4 * 16 + 3] = 0x40;
-  Image img;
-  CHECK(DecodeTim2(tim.data(), tim.size(), &img));
+  Kotonoha::Ps2Image img;
+  CHECK(Kotonoha::DecodePs2Tim2(tim.data(), tim.size(), &img));
   CHECK(img.width == 2 && img.height == 1);
   CHECK(img.rgba[0] == 10 && img.rgba[3] == 255);
   CHECK(img.rgba[4] == 1 && img.rgba[7] == 128);
-  CHECK(!DecodeTim2(tim.data(), 10, &img));
+  CHECK(!Kotonoha::DecodePs2Tim2(tim.data(), 10, &img));
 
   // Name lists: comments/sections skipped, path + extension stripped,
   // upper-cased.
