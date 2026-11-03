@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <filesystem>
 #include <fstream>
+#include <mutex>
 #include <stdexcept>
 #ifdef __APPLE__
 #include <TargetConditionals.h>
