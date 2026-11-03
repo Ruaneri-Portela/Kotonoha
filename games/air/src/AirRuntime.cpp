@@ -18,6 +18,7 @@
 #include <Kotonoha/localization/Encoding.hpp>
 #include <Kotonoha/media/MediaPlayer.hpp>
 #include <Kotonoha/media/PcmPlayer.hpp>
+#include <Kotonoha/media/SurfaceBlend.hpp>
 #include <Kotonoha/media/upscaling/Upscaler.hpp>
 #include <algorithm>
 #include <array>
@@ -130,11 +131,20 @@ struct Text : VNTextBox {
       SDL_RenderTexture(&r, t.get(), nullptr, &dest);
   }
   void print(RendererRef r, const std::string &s, float x, float y,
-             int wrap = 528) {
+             int wrap = 528, bool speaker = false) {
     if (s.empty())
       return;
+    if (!engine.GetSettings().vnFontPath.empty()) {
+      const auto color = engine.GetSettings().vnTextColorOverride
+                             ? (speaker ? engine.GetSettings().vnSpeakerColor
+                                        : engine.GetSettings().vnTextColor)
+                             : SDL_Color{255, 255, 255, 255};
+      engine.GetVNUI().textSized(r, s, x + 1, y + 1, wrap, 25, {0, 0, 0, 255});
+      engine.GetVNUI().textSized(r, s, x, y, wrap, 25, color);
+      return;
+    }
     if (!font) {
-      engine.GetUI().text(r, s, x, y, wrap);
+      engine.GetVNUI().text(r, s, x, y, wrap);
       return;
     }
     const float density = UI::rasterDensity(r);
@@ -147,7 +157,11 @@ struct Text : VNTextBox {
         font.get(), s.data(), s.size(), {0, 0, 0, 255},
         int(std::ceil(wrap * density))));
     SurfacePtr text(TTF_RenderText_Blended_Wrapped(
-        font.get(), s.data(), s.size(), {255, 255, 255, 255},
+        font.get(), s.data(), s.size(),
+        engine.GetSettings().vnTextColorOverride
+            ? (speaker ? engine.GetSettings().vnSpeakerColor
+                       : engine.GetSettings().vnTextColor)
+            : SDL_Color{255, 255, 255, 255},
         int(std::ceil(wrap * density))));
     if (shadow)
       drawRaster(r, *shadow, x + 1, y + 1, density);
@@ -196,11 +210,13 @@ struct Text : VNTextBox {
     }
   }
   void renderSpeaker(RendererRef r) override {
-    print(r, speakerName, 33, 315, 500);
+    print(r, speakerName, 33, 315, 500, true);
   }
   void renderDialogue(RendererRef r) override {
     auto measure = [this](const std::string &text) {
       int w = 0, h = 0;
+      if (!engine.GetSettings().vnFontPath.empty())
+        return engine.GetVNUI().measureSized(text, 10000, 25).x;
       if (font)
         TTF_GetStringSize(font.get(), text.data(), text.size(), &w, &h);
       return float(w);
@@ -383,12 +399,7 @@ struct AirRuntime::Impl {
   }
   void blit(SurfaceRef source, SurfaceRef dest, const SDL_Rect *sr = nullptr,
             SDL_Rect *dr = nullptr, int alpha = 255, bool mask = true) {
-    SDL_SetSurfaceBlendMode(&source,
-                            mask ? SDL_BLENDMODE_BLEND : SDL_BLENDMODE_NONE);
-    SDL_SetSurfaceAlphaMod(&source, Uint8(std::clamp(alpha, 0, 255)));
-    if (!SDL_BlitSurface(&source, sr, &dest, dr))
-      throw std::runtime_error(SDL_GetError());
-    SDL_SetSurfaceAlphaMod(&source, 255);
+    BlitSurfaceOpacity(source, dest, sr, dr, alpha, mask);
   }
   void drawObject(int id, const Object &o, SurfaceRef dest) {
     int adjustX = 0, adjustY = 0;
@@ -639,6 +650,10 @@ struct AirRuntime::Impl {
       choice->hide();
       movie->stop();
       voice.Stop();
+      bgm.Stop();
+      musicID.clear();
+      fadeDuration = fadeElapsed = 0;
+      bgmGain = 1;
       sounds.clear();
       runtime.SetState(GameState::Menu);
       pause = false;

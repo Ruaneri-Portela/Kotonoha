@@ -1,5 +1,6 @@
 #include <Kotonoha/core/FileSystem.hpp>
 #include <Kotonoha/core/Settings.hpp>
+#include <Kotonoha/media/AudioMixer.hpp>
 
 #include <cmath>
 #include <fstream>
@@ -49,6 +50,13 @@ void read(json_object *root, const char *name, std::string &target) {
 
 void EngineSettings::validate() const {
   upscaling.validate();
+  if (vnFontPath.find('\0') != std::string::npos)
+    throw std::invalid_argument("Invalid VN font path");
+  for (const auto &[name, volume] : channelVolumes) {
+    AudioMixer::validateChannelName(name);
+    if (!std::isfinite(volume) || volume < 0 || volume > 1)
+      throw std::invalid_argument("Invalid mixer volume");
+  }
   if (width < 320 || width > 16384 || height < 240 || height > 16384 ||
       display < 0 || mode < WindowMode::Windowed ||
       mode > WindowMode::Exclusive || fullscreenWidth < 0 ||
@@ -120,6 +128,33 @@ EngineSettings EngineSettings::load(const std::string &path) {
   read(root.get(), "translationPath", result.translationPath);
   read(root.get(), "assetOverlayPath", result.assetOverlayPath);
   read(root.get(), "fontPath", result.fontPath);
+  read(root.get(), "vnFontPath", result.vnFontPath);
+  read(root.get(), "vnTextColorOverride", result.vnTextColorOverride);
+  auto color = [&](const char *key, SDL_Color &value) {
+    if (auto *array = member(root.get(), key, json_type_array)) {
+      if (json_object_array_length(array) != 4)
+        throw std::runtime_error("Invalid VN color");
+      Uint8 *components[] = {&value.r, &value.g, &value.b, &value.a};
+      for (int i = 0; i < 4; ++i) {
+        auto *item = json_object_array_get_idx(array, i);
+        if (!json_object_is_type(item, json_type_int) ||
+            json_object_get_int64(item) < 0 ||
+            json_object_get_int64(item) > 255)
+          throw std::runtime_error("Invalid VN color component");
+        *components[i] = Uint8(json_object_get_int(item));
+      }
+    }
+  };
+  color("vnTextColor", result.vnTextColor);
+  color("vnSpeakerColor", result.vnSpeakerColor);
+  if (auto *volumes = member(root.get(), "channelVolumes", json_type_object)) {
+    json_object_object_foreach(volumes, name, value) {
+      if (!json_object_is_type(value, json_type_double) &&
+          !json_object_is_type(value, json_type_int))
+        throw std::runtime_error("Invalid mixer volume");
+      result.channelVolumes[name] = float(json_object_get_double(value));
+    }
+  }
   result.mode = static_cast<WindowMode>(mode);
   result.upscaling.backend = static_cast<UpscaleBackend>(backend);
   result.upscaling.preset = static_cast<UpscalePreset>(preset);
@@ -176,6 +211,23 @@ void EngineSettings::save(const std::string &path) const {
                          json_object_new_string(translationPath.c_str()));
   json_object_object_add(root.get(), "fontPath",
                          json_object_new_string(fontPath.c_str()));
+  json_object_object_add(root.get(), "vnFontPath",
+                         json_object_new_string(vnFontPath.c_str()));
+  json_object_object_add(root.get(), "vnTextColorOverride",
+                         json_object_new_boolean(vnTextColorOverride));
+  auto color = [&](const char *key, SDL_Color value) {
+    auto *array = json_object_new_array();
+    for (int component : {value.r, value.g, value.b, value.a})
+      json_object_array_add(array, json_object_new_int(component));
+    json_object_object_add(root.get(), key, array);
+  };
+  color("vnTextColor", vnTextColor);
+  color("vnSpeakerColor", vnSpeakerColor);
+  auto *volumes = json_object_new_object();
+  for (const auto &[name, volume] : channelVolumes)
+    json_object_object_add(volumes, name.c_str(),
+                           json_object_new_double(volume));
+  json_object_object_add(root.get(), "channelVolumes", volumes);
   writeTextFileAtomically(path, json_object_to_json_string_ext(
                                     root.get(), JSON_C_TO_STRING_PRETTY));
 }

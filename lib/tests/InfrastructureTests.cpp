@@ -6,6 +6,7 @@
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/FileSystem.hpp>
 #include <Kotonoha/core/Log.hpp>
+#include <Kotonoha/events/BackAction.hpp>
 #include <Kotonoha/media/MediaPlayer.hpp>
 #include <Kotonoha/media/upscaling/MetalFXUpscaler.hpp>
 #include <Kotonoha/media/upscaling/OpenGLUpscaler.hpp>
@@ -127,6 +128,10 @@ void testSettings(const std::filesystem::path &directory) {
   settings.logPriority = SDL_LOG_PRIORITY_DEBUG;
   settings.translationPath = "trans.json";
   settings.fontPath = "font.ttf";
+  settings.vnFontPath = "vn.ttf";
+  settings.vnTextColorOverride = true;
+  settings.vnTextColor = {21, 43, 65, 187};
+  settings.channelVolumes = {{"BGM", .3f}, {"Voice", .7f}};
   settings.save(file);
   const auto read = EngineSettings::load(file);
   require(read.width == 1600 && read.height == 900 && read.display == 2 &&
@@ -142,7 +147,10 @@ void testSettings(const std::filesystem::path &directory) {
               read.masterVolume == 0.4f && read.masterMuted &&
               read.debugUIScale == 1.75f &&
               read.translationPath == "trans.json" &&
-              read.fontPath == "font.ttf",
+              read.fontPath == "font.ttf" && read.vnFontPath == "vn.ttf" &&
+              read.vnTextColorOverride && read.vnTextColor.r == 21 &&
+              read.vnTextColor.a == 187 &&
+              read.channelVolumes == settings.channelVolumes,
           "Every settings field survives persistence");
   for (auto preset : UpscalePresets()) {
     auto profile = settings;
@@ -243,6 +251,12 @@ class EventRuntime : public Runtime {
 public:
   int novelEvents = 0, screenEvents = 0;
   bool touch = false, held = false;
+  int backCalls = 0;
+  std::function<bool(EventRef)> screenHandler;
+  bool handleBackAction() override {
+    ++backCalls;
+    return true;
+  }
   int touchDowns = 0, touchUps = 0;
   bool continuousTouch() const override { return touch; }
   EventRuntime() : Runtime("Infrastructure tests", "1", "org.kotonoha.infra") {}
@@ -258,9 +272,9 @@ public:
         ++touchUps;
     }
   }
-  bool onScreenEvent(EventRef) override {
+  bool onScreenEvent(EventRef event) override {
     ++screenEvents;
-    return false;
+    return screenHandler ? screenHandler(event) : false;
   }
 };
 
@@ -288,7 +302,115 @@ void testContinuousTouch(Engine &engine, EventRuntime &runtime) {
   engine.Event(&lost);
   require(!runtime.held,
           "Focus loss releases a held native touch outside clickable controls");
+  finger.type = SDL_EVENT_FINGER_DOWN;
+  engine.Event(&finger);
+  SDL_Event swipe = finger;
+  swipe.type = SDL_EVENT_FINGER_MOTION;
+  swipe.tfinger.y = .3f;
+  engine.Event(&swipe);
+  require(!runtime.held,
+          "A navigation swipe cancels the underlying pointer press");
+  swipe.type = SDL_EVENT_FINGER_UP;
+  engine.Event(&swipe);
+  engine.Event(&finger);
+  finger.tfinger.fingerID = 10;
+  engine.Event(&finger);
+  require(!runtime.held,
+          "A second finger cancels the pending pointer activation");
+  finger.type = SDL_EVENT_FINGER_UP;
+  engine.Event(&finger);
+  finger.tfinger.fingerID = 9;
+  engine.Event(&finger);
+  require(!runtime.held, "Multitouch release cannot generate a fresh click");
   runtime.touch = false;
+  runtime.SetState(GameState::Gameplay);
+  const int before = runtime.backCalls;
+  runtime.screenHandler = [&](EventRef event) {
+    return BackAction(engine, event);
+  };
+  auto back = key(SDLK_ESCAPE);
+  engine.Event(&back);
+  require(
+      runtime.backCalls == before,
+      "Back consumed by screen UI must not be dispatched again to navigation");
+  runtime.screenHandler = {};
+}
+
+void testUnchangedWindowGeometry(Engine &engine) {
+  const auto original = engine.GetSettings();
+  int previousWidth = 0, previousHeight = 0;
+  SDL_GetWindowSize(&engine.GetWindow(), &previousWidth, &previousHeight);
+  require(SDL_SetWindowSize(&engine.GetWindow(), 1000, 620),
+          "Set an external window size");
+  require(SDL_SetWindowPosition(&engine.GetWindow(), 35, 45),
+          "Set an external window position");
+  SDL_SyncWindow(&engine.GetWindow());
+  int x = 0, y = 0;
+  SDL_GetWindowPosition(&engine.GetWindow(), &x, &y);
+  auto edited = original;
+  edited.masterVolume = .42f;
+  edited.vnTextColorOverride = true;
+  edited.vnTextColor = {90, 180, 220, 255};
+  engine.applySettings(edited, false);
+  int width = 0, height = 0, afterX = 0, afterY = 0;
+  SDL_GetWindowSize(&engine.GetWindow(), &width, &height);
+  SDL_GetWindowPosition(&engine.GetWindow(), &afterX, &afterY);
+  require(
+      width == 1000 && height == 620 && x == afterX && y == afterY,
+      "Audio and appearance changes must not resize or reposition the window");
+  engine.applySettings(original, false);
+  SDL_SetWindowSize(&engine.GetWindow(), previousWidth, previousHeight);
+}
+
+void testTouchSettings(Engine &engine, EventRuntime &runtime) {
+  const auto original = engine.GetSettings();
+  engine.openSettings();
+  SDL_FingerID fingerId = 98;
+  auto touch = [&](Uint32 type, float x, float y) {
+    SDL_Event event{};
+    event.type = type;
+    event.tfinger.touchID = 97;
+    event.tfinger.fingerID = fingerId;
+    event.tfinger.x = x / 1280;
+    event.tfinger.y = y / 720;
+    if (type == SDL_EVENT_FINGER_UP)
+      ++fingerId;
+    event.tfinger.windowID = SDL_GetWindowID(&engine.GetWindow());
+    engine.Event(&event);
+  };
+  auto tap = [&](float x, float y) {
+    touch(SDL_EVENT_FINGER_DOWN, x, y);
+    touch(SDL_EVENT_FINGER_UP, x, y);
+  };
+  touch(SDL_EVENT_FINGER_DOWN, 10, 400);
+  touch(SDL_EVENT_FINGER_MOTION, 250, 400);
+  touch(SDL_EVENT_FINGER_UP, 250, 400);
+  require(!engine.GetSettingsMenu().isOpen(),
+          "Edge swipe closes settings without leaving a held pointer");
+  engine.openSettings();
+  tap(600, 105); // Audio tab.
+  touch(SDL_EVENT_FINGER_DOWN, 700, 172);
+  touch(SDL_EVENT_FINGER_MOTION, 945, 172);
+  touch(SDL_EVENT_FINGER_UP, 945, 172);
+  tap(755, 268); // BGM gain (first sorted channel).
+  tap(900, 105); // VN text tab.
+  tap(500, 218); // Override colors.
+  tap(500, 266); // Dialogue color selector.
+  tap(500, 216); // Black, second option.
+  const int before = runtime.novelEvents;
+  tap(400, 646); // Apply.
+  require(!engine.GetSettingsMenu().isOpen(),
+          "Touch applies settings and closes the modal");
+  require(std::abs(engine.GetSettings().masterVolume - .75f) < .01f &&
+              std::abs(engine.GetAudio().channel("BGM")->getUserVolume() -
+                       .25f) < .01f,
+          "Finger drag changes master gain and finger tap sets channel gain");
+  require(engine.GetSettings().vnTextColorOverride &&
+              engine.GetSettings().vnTextColor.r == 0,
+          "Touch selects VN text colors through the shared selection box");
+  require(runtime.novelEvents == before,
+          "Closing settings with touch must not click through to the game");
+  engine.applySettings(original, false);
 }
 
 void testWindowAndMenu(Engine &engine, EventRuntime &runtime,
@@ -333,8 +455,8 @@ void testWindowAndMenu(Engine &engine, EventRuntime &runtime,
           "Cancel does not apply the draft or leak Escape");
   engine.openSettings();
   event = key(SDLK_DOWN);
-  for (int i = 0; i < 10; ++i)
-    engine.Event(&event);
+  event = key(SDLK_END);
+  engine.Event(&event);
   event = key(SDLK_RETURN);
   engine.Event(&event);
   require(!engine.GetSettingsMenu().isOpen(), "Apply/save closes settings");
@@ -666,6 +788,8 @@ int main(int argc, char **argv) {
       testKtrfRuntime(engine, temporary.path);
       testRenderState(engine);
       testContinuousTouch(engine, runtime);
+      testTouchSettings(engine, runtime);
+      testUnchangedWindowGeometry(engine);
     } else
       testNativeWindow(engine);
     const auto backend = argc == 1 ? UpscaleBackend::Linear

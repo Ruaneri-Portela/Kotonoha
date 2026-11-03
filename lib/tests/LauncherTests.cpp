@@ -104,6 +104,29 @@ void launcher(const std::filesystem::path &directory) {
     require(launcher.state() == Launcher::State::Running &&
                 !launcher.settings().upscaling.enabled(),
             "Defaults without a settings file");
+    require(launcher.getAudioChannels().empty(),
+            "A generic launcher does not invent game audio channels");
+    launcher.settings().channelVolumes = {{"other-game", .2f}, {"voice", .6f}};
+    launcher.setAudioChannels({"voice", "bgm", "voice"});
+    require(launcher.getAudioChannels() ==
+                    std::vector<std::string>{"voice", "bgm"} &&
+                launcher.settings().channelVolumes.at("voice") == .6f &&
+                launcher.settings().channelVolumes.at("other-game") == .2f,
+            "Injected channels preserve order and saved gains without exposing "
+            "stale channels");
+    bool rejected = false;
+    try {
+      launcher.setAudioChannels({"se", "invalid\nchannel"});
+    } catch (const std::invalid_argument &) {
+      rejected = true;
+    }
+    require(rejected && launcher.getAudioChannels() ==
+                            std::vector<std::string>{"voice", "bgm"},
+            "Invalid injection leaves the existing channel list intact");
+    launcher.setAudioChannels({"se"});
+    require(launcher.getAudioChannels() == std::vector<std::string>{"se"},
+            "A game replaces the visible channel list instead of accumulating "
+            "every mixer");
     launcher.open();
     for (int i = 0; i < 3; ++i)
       launcher.iterate();

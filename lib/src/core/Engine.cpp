@@ -150,10 +150,20 @@ Engine::Engine(Runtime &run, EngineOptions options)
   }
   if (!options.translationPath.empty())
     translation.load(options.translationPath);
+  SDL_WindowFlags graphicsFlags = 0;
+  if (isMobilePlatform() && settings.upscaling.backend == UpscaleBackend::MPV &&
+      options.rendererOverride.empty())
+    settings.renderer = "opengles2";
+  if (settings.renderer == "opengles2") {
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
+    graphicsFlags = SDL_WINDOW_OPENGL;
+  }
   window.reset(
       SDL_CreateWindow(runtime.name.c_str(), settings.width, settings.height,
                        (settings.resizable ? SDL_WINDOW_RESIZABLE : 0) |
-                           SDL_WINDOW_HIGH_PIXEL_DENSITY));
+                           SDL_WINDOW_HIGH_PIXEL_DENSITY | graphicsFlags));
   if (!window)
     throw std::runtime_error(SDL_GetError());
   renderer.reset(SDL_CreateRenderer(
@@ -178,6 +188,9 @@ Engine::Engine(Runtime &run, EngineOptions options)
     SDL_SetLogPriority(category, settings.logPriority);
   settingsMenu = std::make_unique<SettingsMenu>(*this);
   ui = std::make_unique<UI>(settings.fontPath);
+  vnUI = std::make_unique<UI>(
+      settings.vnFontPath.empty() ? settings.fontPath : settings.vnFontPath);
+  audio.setUserVolumes(settings.channelVolumes);
   timeline = std::make_unique<TimelinePlayer>(*this);
   debug = std::make_unique<DebugOverlay>(*this);
   configureRenderSpace(RenderSpace::Novel);
@@ -203,77 +216,81 @@ Engine::~Engine() {
   }
 }
 
-void Engine::applyWindowSettings(const EngineSettings &value) {
-  int count = 0;
-  SDL_DisplayID *raw = SDL_GetDisplays(&count);
-  std::unique_ptr<SDL_DisplayID, decltype(&SDL_free)> displays(raw, SDL_free);
-  if (!displays || value.display >= count)
-    throw std::runtime_error("Configured display is unavailable");
-  const auto display = displays.get()[value.display];
-  const auto check = [](bool result, const char *operation) {
-    if (!result)
-      throw std::runtime_error(std::string(operation) + ": " + SDL_GetError());
-  };
-  const auto flags = SDL_GetWindowFlags(window.get());
-  const bool fullscreen = flags & SDL_WINDOW_FULLSCREEN;
-  const bool wantsFullscreen = value.mode != WindowMode::Windowed;
-  SDL_DisplayMode exclusive{};
-  const SDL_DisplayMode *desiredMode = nullptr;
-  if (value.mode == WindowMode::Exclusive) {
-    if (value.fullscreenWidth > 0) {
-      check(SDL_GetClosestFullscreenDisplayMode(
-                display, value.fullscreenWidth, value.fullscreenHeight,
-                value.refreshRate, true, &exclusive),
-            "Find fullscreen mode");
-    } else {
-      const auto *desktop = SDL_GetDesktopDisplayMode(display);
-      if (!desktop)
-        throw std::runtime_error(SDL_GetError());
-      exclusive = *desktop;
+void Engine::applyWindowSettings(const EngineSettings &value, bool geometry) {
+  if (geometry) {
+    int count = 0;
+    SDL_DisplayID *raw = SDL_GetDisplays(&count);
+    std::unique_ptr<SDL_DisplayID, decltype(&SDL_free)> displays(raw, SDL_free);
+    if (!displays || value.display >= count)
+      throw std::runtime_error("Configured display is unavailable");
+    const auto display = displays.get()[value.display];
+    const auto check = [](bool result, const char *operation) {
+      if (!result)
+        throw std::runtime_error(std::string(operation) + ": " +
+                                 SDL_GetError());
+    };
+    const auto flags = SDL_GetWindowFlags(window.get());
+    const bool fullscreen = flags & SDL_WINDOW_FULLSCREEN;
+    const bool wantsFullscreen = value.mode != WindowMode::Windowed;
+    SDL_DisplayMode exclusive{};
+    const SDL_DisplayMode *desiredMode = nullptr;
+    if (value.mode == WindowMode::Exclusive) {
+      if (value.fullscreenWidth > 0) {
+        check(SDL_GetClosestFullscreenDisplayMode(
+                  display, value.fullscreenWidth, value.fullscreenHeight,
+                  value.refreshRate, true, &exclusive),
+              "Find fullscreen mode");
+      } else {
+        const auto *desktop = SDL_GetDesktopDisplayMode(display);
+        if (!desktop)
+          throw std::runtime_error(SDL_GetError());
+        exclusive = *desktop;
+      }
+      desiredMode = &exclusive;
     }
-    desiredMode = &exclusive;
-  }
-  const auto *activeMode = SDL_GetWindowFullscreenMode(window.get());
-  const bool sameMode =
-      (!desiredMode && !activeMode) ||
-      (desiredMode && activeMode && desiredMode->w == activeMode->w &&
-       desiredMode->h == activeMode->h &&
-       std::abs(desiredMode->refresh_rate - activeMode->refresh_rate) <
-           0.001f &&
-       desiredMode->pixel_density == activeMode->pixel_density);
-  const bool modeChanged =
-      fullscreen != wantsFullscreen ||
-      (wantsFullscreen &&
-       (SDL_GetDisplayForWindow(window.get()) != display || !sameMode));
-  if (fullscreen && modeChanged) {
-    check(SDL_SetWindowFullscreen(window.get(), false), "Leave fullscreen");
-    check(SDL_SyncWindow(window.get()), "Wait for windowed mode");
-  }
-  if (bool(flags & SDL_WINDOW_RESIZABLE) != value.resizable)
-    check(SDL_SetWindowResizable(window.get(), value.resizable),
-          "Set resizable");
-  int width = 0, height = 0;
-  check(SDL_GetWindowSize(window.get(), &width, &height), "Get window size");
-  if ((!fullscreen || modeChanged) &&
-      (width != value.width || height != value.height) &&
-      canChangeDisplaySize())
-    check(SDL_SetWindowSize(window.get(), value.width, value.height),
-          "Set window size");
-  if (SDL_GetDisplayForWindow(window.get()) != display)
-    check(SDL_SetWindowPosition(window.get(),
-                                SDL_WINDOWPOS_CENTERED_DISPLAY(display),
-                                SDL_WINDOWPOS_CENTERED_DISPLAY(display)),
-          "Move window to display");
-  if (wantsFullscreen && modeChanged) {
-    check(SDL_SetWindowFullscreenMode(window.get(), desiredMode),
-          "Set fullscreen mode");
-    check(SDL_SetWindowFullscreen(window.get(), true), "Enter fullscreen");
-    check(SDL_SyncWindow(window.get()), "Wait for fullscreen mode");
+    const auto *activeMode = SDL_GetWindowFullscreenMode(window.get());
+    const bool sameMode =
+        (!desiredMode && !activeMode) ||
+        (desiredMode && activeMode && desiredMode->w == activeMode->w &&
+         desiredMode->h == activeMode->h &&
+         std::abs(desiredMode->refresh_rate - activeMode->refresh_rate) <
+             0.001f &&
+         desiredMode->pixel_density == activeMode->pixel_density);
+    const bool modeChanged =
+        fullscreen != wantsFullscreen ||
+        (wantsFullscreen &&
+         (SDL_GetDisplayForWindow(window.get()) != display || !sameMode));
+    if (fullscreen && modeChanged) {
+      check(SDL_SetWindowFullscreen(window.get(), false), "Leave fullscreen");
+      check(SDL_SyncWindow(window.get()), "Wait for windowed mode");
+    }
+    if (bool(flags & SDL_WINDOW_RESIZABLE) != value.resizable)
+      check(SDL_SetWindowResizable(window.get(), value.resizable),
+            "Set resizable");
+    int width = 0, height = 0;
+    check(SDL_GetWindowSize(window.get(), &width, &height), "Get window size");
+    if ((!fullscreen || modeChanged) &&
+        (width != value.width || height != value.height) &&
+        canChangeDisplaySize())
+      check(SDL_SetWindowSize(window.get(), value.width, value.height),
+            "Set window size");
+    if (SDL_GetDisplayForWindow(window.get()) != display)
+      check(SDL_SetWindowPosition(window.get(),
+                                  SDL_WINDOWPOS_CENTERED_DISPLAY(display),
+                                  SDL_WINDOWPOS_CENTERED_DISPLAY(display)),
+            "Move window to display");
+    if (wantsFullscreen && modeChanged) {
+      check(SDL_SetWindowFullscreenMode(window.get(), desiredMode),
+            "Set fullscreen mode");
+      check(SDL_SetWindowFullscreen(window.get(), true), "Enter fullscreen");
+      check(SDL_SyncWindow(window.get()), "Wait for fullscreen mode");
+    }
   }
   int vsync = 0;
-  check(SDL_GetRenderVSync(renderer.get(), &vsync), "Get VSync");
-  if (vsync != (value.vsync ? 1 : 0))
-    check(SDL_SetRenderVSync(renderer.get(), value.vsync ? 1 : 0), "Set VSync");
+  if (!SDL_GetRenderVSync(renderer.get(), &vsync) ||
+      (vsync != (value.vsync ? 1 : 0) &&
+       !SDL_SetRenderVSync(renderer.get(), value.vsync ? 1 : 0)))
+    throw std::runtime_error(SDL_GetError());
 }
 
 void Engine::applySettings(const EngineSettings &value, bool persist) {
@@ -284,12 +301,26 @@ void Engine::applySettings(const EngineSettings &value, bool persist) {
   if (!upscaler->supports(value.upscaling.backend))
     throw std::invalid_argument(
         "Upscaler is unavailable for the current renderer");
+  std::unique_ptr<UI> nextVNUI;
+  if (value.vnFontPath != settings.vnFontPath ||
+      value.fontPath != settings.fontPath)
+    nextVNUI = std::make_unique<UI>(
+        value.vnFontPath.empty() ? value.fontPath : value.vnFontPath);
   const auto previous = settings;
+  const bool geometryChanged =
+      value.width != previous.width || value.height != previous.height ||
+      value.display != previous.display || value.mode != previous.mode ||
+      value.resizable != previous.resizable ||
+      value.fullscreenWidth != previous.fullscreenWidth ||
+      value.fullscreenHeight != previous.fullscreenHeight ||
+      value.refreshRate != previous.refreshRate;
   try {
-    applyWindowSettings(value);
+    if (geometryChanged || value.vsync != previous.vsync)
+      applyWindowSettings(value, geometryChanged);
     upscaler->configure(value.upscaling);
     audio.setMasterVolume(value.masterVolume);
     audio.setMasterMuted(value.masterMuted);
+    audio.setUserVolumes(value.channelVolumes);
     settings = value;
     if (persist)
       saveSettings();
@@ -297,16 +328,20 @@ void Engine::applySettings(const EngineSettings &value, bool persist) {
     const std::string failure = error.what();
     settings = previous;
     try {
-      applyWindowSettings(previous);
+      if (geometryChanged || value.vsync != previous.vsync)
+        applyWindowSettings(previous, geometryChanged);
       upscaler->configure(previous.upscaling);
       audio.setMasterVolume(previous.masterVolume);
       audio.setMasterMuted(previous.masterMuted);
+      audio.setUserVolumes(previous.channelVolumes);
     } catch (const std::exception &rollback) {
       throw std::runtime_error(
           failure + "; settings rollback failed: " + rollback.what());
     }
     throw;
   }
+  if (nextVNUI)
+    vnUI = std::move(nextVNUI);
   for (int category : {LogCore, LogConfig, LogMedia, LogUpscaler, LogUI})
     SDL_SetLogPriority(category, settings.logPriority);
   frameClock.reset();
@@ -424,6 +459,7 @@ void Engine::configureRenderSpace(RenderSpace space) {
   if (!SDL_GetRenderLogicalPresentationRect(renderer.get(), &presentation))
     throw std::runtime_error(SDL_GetError());
   ui->setPixelDensity(presentation.w / width);
+  vnUI->setPixelDensity(presentation.w / width);
 }
 
 SDL_AppResult Engine::Event(EventPtr event) {
@@ -431,8 +467,13 @@ SDL_AppResult Engine::Event(EventPtr event) {
     return SDL_APP_CONTINUE;
   inputActions.process(*event);
   SDL_Event pointer{};
-  const bool translate = runtime.continuousTouch() &&
-                         touchPointer.translate(*event, *window, pointer);
+  const bool nativeTouch = runtime.continuousTouch() || settingsMenu->isOpen();
+  const bool pointerEvent = touchPointer.translate(*event, *window, pointer);
+  bool translate = nativeTouch && pointerEvent;
+  if (nativeTouch && event->type >= SDL_EVENT_FINGER_DOWN &&
+      event->type <= SDL_EVENT_FINGER_CANCELED &&
+      (inputActions.back(*event) || inputActions.backlog(*event)))
+    translate = touchPointer.cancel(*window, pointer) || translate;
   const auto result = dispatchEvent(event);
   if (translate && result == SDL_APP_CONTINUE)
     return dispatchEvent(&pointer);
@@ -443,6 +484,8 @@ SDL_AppResult Engine::dispatchEvent(EventPtr event) {
     return SDL_APP_CONTINUE;
   if (event->type == SDL_EVENT_QUIT)
     return SDL_APP_SUCCESS;
+  const bool synthesizeTouch =
+      !runtime.continuousTouch() && !settingsMenu->isOpen();
   synchronizeTimeline();
   const bool debugConsumed = debug->handleEvent(*event);
   if (debugConsumed) {
@@ -502,7 +545,7 @@ SDL_AppResult Engine::dispatchEvent(EventPtr event) {
     }
   }
 
-  if (!settingsMenu->isOpen() && HandleNavigation(*this, logical))
+  if (!consumed && !settingsMenu->isOpen() && HandleNavigation(*this, logical))
     return SDL_APP_CONTINUE;
   const bool outsideNovel =
       logical.type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
@@ -516,7 +559,8 @@ SDL_AppResult Engine::dispatchEvent(EventPtr event) {
   timeline->setPaused(isStoryPaused());
   if (wasPaused != timeline->isPaused())
     frameClock.reset();
-  if (touchTap && !consumed && !runtime.continuousTouch()) {
+  if (touchTap && !consumed && synthesizeTouch &&
+      event->type == SDL_EVENT_FINGER_UP) {
     int w = 0, h = 0;
     SDL_GetWindowSize(window.get(), &w, &h);
     SDL_Event tap{};

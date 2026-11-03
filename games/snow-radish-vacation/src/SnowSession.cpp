@@ -1,4 +1,5 @@
 #include "SnowSession.hpp"
+#include <Kotonoha/core/UI.hpp>
 
 #include <Kotonoha/componentes/VNSave.hpp>
 #include <Kotonoha/componentes/VNTextBox.hpp>
@@ -936,18 +937,32 @@ void SnowSession::DrawMessageWindow(SDL_Renderer *r) {
 
 void SnowSession::DrawMessageText(SDL_Renderer *r, const std::string &speaker,
                                   const std::string &text) {
+  const auto &appearance = engine_.GetSettings();
+  auto draw = [&](const std::string &value, float x, float y, SDL_Color color,
+                  bool measure = false) {
+    if (!appearance.vnFontPath.empty()) {
+      if (measure)
+        return engine_.GetVNUI().measureSized(value, 10000, kTextSize);
+      const auto size = engine_.GetVNUI().measureSized(value, 10000, kTextSize);
+      engine_.GetVNUI().textSized(*r, value, x, y, 10000, kTextSize, color);
+      return size;
+    }
+    return DrawText(r, value, x, y, kTextSize, color, measure);
+  };
   if (!speaker.empty()) {
-    const SDL_FPoint size = DrawText(r, speaker, 0, 0, kTextSize, {}, true);
-    DrawText(r, speaker, kTextBox.x, kTextBox.y - size.y, kTextSize,
-             {255, 230, 140, 255});
+    const SDL_FPoint size = draw(speaker, 0, 0, {}, true);
+    draw(speaker, kTextBox.x, kTextBox.y - size.y,
+         appearance.vnTextColorOverride ? appearance.vnSpeakerColor
+                                        : SDL_Color{255, 230, 140, 255});
   }
 
-  if (text != wrappedKey_) {
-    wrappedKey_ = text;
+  const auto layoutKey = text + "|" + appearance.vnFontPath;
+  if (layoutKey != wrappedKey_) {
+    wrappedKey_ = layoutKey;
 
     // Lambda de medição utilizando o motor de texto interno da SnowSession
-    auto measureText = [this, r](const std::string &str) -> float {
-      return DrawText(r, str, 0, 0, kTextSize, {}, true).x;
+    auto measureText = [&draw](const std::string &str) -> float {
+      return draw(str, 0, 0, {}, true).x;
     };
 
     // Delega o algoritmo de quebra para o utilitário da engine Kotonoha
@@ -959,7 +974,9 @@ void SnowSession::DrawMessageText(SDL_Renderer *r, const std::string &speaker,
   for (const auto &line : wrapped_) {
     if (y + kLineHeight > kTextBox.y + kTextBox.h + 4)
       break;
-    DrawText(r, line, kTextBox.x, y, kTextSize, {255, 255, 255, 255});
+    draw(line, kTextBox.x, y,
+         appearance.vnTextColorOverride ? appearance.vnTextColor
+                                        : SDL_Color{255, 255, 255, 255});
     y += kLineHeight;
   }
 }

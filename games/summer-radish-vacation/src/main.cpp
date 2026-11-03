@@ -86,6 +86,7 @@ SDL_AppResult SDL_AppInit(void **state, int argc, char **argv) {
       app->launcher = std::make_unique<Kotonoha::FolderGameLauncher>(
           "Summer Radish Vacation!!", settingsPath, directory, validate,
           options.settings);
+      app->launcher->setAudioChannels({"BGM", "Voice", "Se"});
       app->launcher->open();
     } else {
       app->start(directory);

@@ -21,8 +21,9 @@ export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"
 ```
 
 Each flavor has its own application ID and APK under
-`app/build/outputs/apk/`. The default ABI is `arm64-v8a`; pass
-`-Pabis=x86_64` for an emulator. Build DDLC for one ABI per APK.
+`app/build/outputs/apk/`. APKs include `arm64-v8a` and `x86_64` by default. Use `-Pabis=x86_64` for an emulator-only build,
+or a comma-separated subset. The vcpkg triplets are `arm64-android` and
+`x64-android`. Build DDLC for one ABI per APK.
 Run Gradle invocations sequentially: concurrent builds share native `.cxx`
 configuration directories. Multiple assemble tasks may be passed to one invocation.
 Dependencies are installed into `build/vcpkg`; DDLC uses CPython provided by vcpkg. No macOS/iOS Python library is used by Android.

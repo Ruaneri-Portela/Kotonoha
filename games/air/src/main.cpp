@@ -92,6 +92,7 @@ SDL_AppResult SDL_AppInit(void **state, int argc, char **argv) {
     if (options.launcher) {
       app->launcher = std::make_unique<Kotonoha::FolderGameLauncher>(
           "AIR", settingsPath, directory, validate, options.settings);
+      app->launcher->setAudioChannels({"BGM", "Voice", "PCM", "Se"});
       app->launcher->open();
     } else {
       app->start(directory);

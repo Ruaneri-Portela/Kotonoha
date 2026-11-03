@@ -1,4 +1,5 @@
 #include "SummerRuntime.hpp"
+#include "SummerBacklog.hpp"
 #include <Kotonoha/componentes/ChoiceQuestionScene.hpp>
 #include <Kotonoha/componentes/ImageButtonBar.hpp>
 #include <Kotonoha/componentes/InGameMenu.hpp>
@@ -56,16 +57,22 @@ class SummerText final : public VNTextBox {
     }
   }
   void renderSpeaker(RendererRef r) override {
-    engine.GetUI().text(r, speakerName, 24, 400, 650);
+    engine.GetVNUI().text(r, speakerName, 24, 400, 650,
+                          engine.GetSettings().vnTextColorOverride
+                              ? engine.GetSettings().vnSpeakerColor
+                              : SDL_Color{240, 240, 245, 255});
   }
   void renderDialogue(RendererRef r) override {
     auto measure = [&](const std::string &value) {
-      return engine.GetUI().textSize(value, 10000).x;
+      return engine.GetVNUI().textSize(value, 10000).x;
     };
     const auto lines = VNTextBoxUtility::RevealLines(
         fullDialogue, visibleDialogue.size(), measure, 710);
     for (std::size_t i = 0; i < lines.size(); ++i)
-      engine.GetUI().text(r, lines[i], 20, 444 + i * 28, 710);
+      engine.GetVNUI().text(r, lines[i], 20, 444 + i * 28, 710,
+                            engine.GetSettings().vnTextColorOverride
+                                ? engine.GetSettings().vnTextColor
+                                : SDL_Color{240, 240, 245, 255});
   }
   void renderIndicator(RendererRef r) override {
     auto &atlas = assets.texture(r, "GRAPHIC/FRAME/MESSFRAME.TEXB");
@@ -710,6 +717,10 @@ struct SummerRuntime::Impl {
   void bind(Engine &e) {
     engine = &e;
     if (!stage) {
+      auto &history = e.configureSharedScene<VNBacklog, SummerBacklog>(*assets);
+      history.setVoiceReplay([this, history = &history](const std::string &id) {
+        audio(history->replay, id, "Voice");
+      });
       stage = std::make_unique<Stage>(e);
       text = std::make_unique<SummerText>(e, *assets);
       text->autoActive = [this] { return autoMode; };
@@ -805,6 +816,7 @@ struct SummerRuntime::Impl {
       auto id = "VOICE/" + string(vm.evaluate(r[5])) + ".ogg";
       if (assets->contains(id)) {
         audio(voice, id, "Voice");
+        GetVNBacklogRuntime(*engine).setLastVoice(id);
       }
     }
     vm.waiting = true;

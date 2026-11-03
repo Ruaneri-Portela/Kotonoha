@@ -1,4 +1,5 @@
 #include "ZeroSession.hpp"
+#include <Kotonoha/core/UI.hpp>
 
 #include <ZeroNoTsukaima/Vag.hpp>
 
@@ -1062,12 +1063,25 @@ void ZeroSession::DrawMessageWindow(SDL_Renderer *r) {
 void ZeroSession::DrawMessageText(SDL_Renderer *r, const std::string &text) {
   constexpr float kX = kMsgX + 44, kY = kMsgY + 52, kWidth = 624 - 44 - 48,
                   kSize = 24, kLine = 32;
-  const SDL_Color black{0, 0, 0, 255};
+  const auto &appearance = engine_.GetSettings();
+  const SDL_Color black = appearance.vnTextColorOverride
+                              ? appearance.vnTextColor
+                              : SDL_Color{0, 0, 0, 255};
+  auto draw = [&](const std::string &value, float x, float y,
+                  bool measure = false) {
+    if (!appearance.vnFontPath.empty()) {
+      const auto size = engine_.GetVNUI().measureSized(value, 10000, kSize);
+      if (!measure)
+        engine_.GetVNUI().textSized(*r, value, x, y, 10000, kSize, black);
+      return size;
+    }
+    return DrawText(r, value, x, y, kSize, black, measure);
+  };
   float y = kY;
   std::string line;
   auto flush = [&] {
     if (!line.empty())
-      DrawText(r, line, kX, y, kSize, black);
+      draw(line, kX, y);
     line.clear();
     y += kLine;
   };
@@ -1079,13 +1093,12 @@ void ZeroSession::DrawMessageText(SDL_Renderer *r, const std::string &text) {
       flush();
       continue;
     }
-    if (!line.empty() &&
-        DrawText(r, line + ch, 0, 0, kSize, black, true).x > kWidth)
+    if (!line.empty() && draw(line + ch, 0, 0, true).x > kWidth)
       flush();
     line += ch;
   }
   if (!line.empty())
-    DrawText(r, line, kX, y, kSize, black);
+    draw(line, kX, y);
 }
 
 // Page cursor at +550,+122 of the frame, blinking while the page waits.

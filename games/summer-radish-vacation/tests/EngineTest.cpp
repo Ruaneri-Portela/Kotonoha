@@ -1,3 +1,4 @@
+#include "SummerBacklog.hpp"
 #include "SummerRuntime.hpp"
 #include <Kotonoha/componentes/ChoiceQuestionScene.hpp>
 #include <Kotonoha/componentes/InGameMenu.hpp>
@@ -142,7 +143,29 @@ int main(int argc, char **argv) {
     nativeButton(550, 585);
     check(GetVNBacklogRuntime(engine).isVisible(),
           "Original backlog control opens history");
-    GetVNBacklogRuntime(engine).close();
+    auto *history = dynamic_cast<SummerRadish::SummerBacklog *>(&GetVNBacklogRuntime(engine));
+    check(history, "Summer installs its original history UI");
+    const auto historyPosition = game.debugNode();
+    capture(engine, game, "backlog");
+    SDL_Event historyEvent{};
+    historyEvent.type = SDL_EVENT_MOUSE_BUTTON_DOWN;
+    historyEvent.button.which = SDL_TOUCH_MOUSEID;
+    historyEvent.button.button = SDL_BUTTON_LEFT;
+    historyEvent.button.x = 770;
+    historyEvent.button.y = 85;
+    const auto last = history->selectedEntry();
+    history->onEvent(historyEvent);
+    historyEvent.type = SDL_EVENT_MOUSE_BUTTON_UP;
+    history->onEvent(historyEvent);
+    check(history->selectedEntry() == (last > 3 ? last - 3 : 0),
+          "Original fast rewind traverses three entries");
+    historyEvent.type = SDL_EVENT_MOUSE_BUTTON_DOWN;
+    historyEvent.button.y = 560;
+    history->onEvent(historyEvent);
+    historyEvent.type = SDL_EVENT_MOUSE_BUTTON_UP;
+    history->onEvent(historyEvent);
+    check(!history->isVisible() && game.debugNode() == historyPosition,
+          "Native return closes history without advancing the story");
     nativeButton(730, 585);
     check(GetInGameMenuRuntime(engine).IsOpen(),
           "Original system control opens its menu");

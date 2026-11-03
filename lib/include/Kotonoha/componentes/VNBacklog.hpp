@@ -12,6 +12,7 @@ namespace Kotonoha {
 struct DialogueEntry {
   std::string speaker;
   std::string text;
+  std::string voice;
 };
 
 // Dialogue history. Subclasses keep their own entries (addEntry/clear),
@@ -33,6 +34,9 @@ protected:
   float scrollVelocity = 0;
   Clock clock;
   ScrollGesture scrollGesture;
+  std::function<void(const std::string &)> voiceReplay;
+  virtual SDL_FRect closeButtonArea() const { return {980, 100, 160, 44}; }
+  virtual float scrollInputHeight() const { return 720; }
 
   virtual void renderFrame(RendererRef renderer);
   virtual void renderEntries(RendererRef renderer);
@@ -43,6 +47,19 @@ public:
 
   virtual void addEntry(const std::string &speaker, const std::string &text);
   virtual void clear();
+  void setLastVoice(std::string id) {
+    if (!entries.empty())
+      entries.back().voice = std::move(id);
+  }
+  void setVoiceReplay(std::function<void(const std::string &)> callback) {
+    voiceReplay = std::move(callback);
+  }
+  bool replayEntry(std::size_t index) {
+    if (index >= entries.size() || entries[index].voice.empty() || !voiceReplay)
+      return false;
+    voiceReplay(entries[index].voice);
+    return true;
+  }
   const std::vector<DialogueEntry> &getEntries() const { return entries; }
 
   virtual void open() {

@@ -11,6 +11,7 @@
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/Runtime.hpp>
 #include <Kotonoha/core/UI.hpp>
+#include <Kotonoha/media/SurfaceBlend.hpp>
 #include <filesystem>
 #include <fstream>
 
@@ -75,6 +76,8 @@ protected:
 };
 
 class HookChoice : public Kotonoha::ChoiceQuestionScene {
+protected:
+  SDL_FRect listArea() const override { return {0, 0, 100, 600}; }
 public:
   Calls calls;
   explicit HookChoice(Kotonoha::Engine &engine)
@@ -184,6 +187,21 @@ void testChoice(Kotonoha::Engine &engine) {
   base.onEvent(key(SDLK_RETURN));
   require(choice.calls["select1"] == 1 && picked == 20 && !base.isActive(),
           "Keyboard picks through select()");
+  picked = -1;
+  base.setQuestion("?", {{"a", 10}, {"b", 20}},
+                   [&](int id, const std::string &) { picked = id; });
+  SDL_Event touch{};
+  touch.type = SDL_EVENT_MOUSE_BUTTON_DOWN;
+  touch.button.which = SDL_TOUCH_MOUSEID;
+  touch.button.button = SDL_BUTTON_LEFT;
+  touch.button.x = 50;
+  touch.button.y = 125;
+  base.onEvent(touch);
+  require(picked == -1 && base.isActive(), "Touch waits for release");
+  touch.type = SDL_EVENT_MOUSE_BUTTON_UP;
+  base.onEvent(touch);
+  require(picked == 20 && !base.isActive(), "Touch release selects the route");
+
 }
 
 void testMenus(Kotonoha::Engine &engine) {
@@ -318,6 +336,50 @@ void testSaveSuggestions(Kotonoha::Engine &engine) {
   std::filesystem::remove_all(directory);
 }
 
+void testSurfaceOpacity() {
+  using namespace Kotonoha;
+  SurfacePtr source(SDL_CreateSurface(1, 1, SDL_PIXELFORMAT_RGBA32));
+  SurfacePtr destination(SDL_CreateSurface(1, 1, SDL_PIXELFORMAT_RGBA32));
+  require(bool(source) && bool(destination), "Create blend fixture");
+  SDL_FillSurfaceRect(source.get(), nullptr,
+                      SDL_MapSurfaceRGBA(source.get(), 255, 0, 0, 0));
+  auto reset = [&] {
+    SDL_FillSurfaceRect(destination.get(), nullptr,
+                        SDL_MapSurfaceRGBA(destination.get(), 0, 0, 255, 255));
+  };
+  Uint8 r, g, b, a;
+  reset();
+  BlitSurfaceOpacity(*source, *destination, nullptr, nullptr, 128, false);
+  SDL_ReadSurfacePixel(destination.get(), 0, 0, &r, &g, &b, &a);
+  require(
+      r >= 126 && r <= 129 && b >= 126 && b <= 129 && a == 255,
+      "RGB copy blends global opacity over background, ignoring source mask");
+  reset();
+  BlitSurfaceOpacity(*source, *destination, nullptr, nullptr, 128, true);
+  SDL_ReadSurfacePixel(destination.get(), 0, 0, &r, &g, &b, &a);
+  require(r == 0 && b == 255, "Masked transparent pixel preserves background");
+  BlitSurfaceOpacity(*source, *destination, nullptr, nullptr, 0, false);
+  SDL_ReadSurfacePixel(destination.get(), 0, 0, &r, &g, &b, &a);
+  require(r == 0 && b == 255, "Zero global opacity preserves background");
+  BlitSurfaceOpacity(*source, *destination, nullptr, nullptr, 255, false);
+  SDL_ReadSurfacePixel(destination.get(), 0, 0, &r, &g, &b, &a);
+  require(r == 255 && b == 0 && a == 0,
+          "Unblended copies preserve alpha for later masked copies");
+  SDL_ReadSurfacePixel(source.get(), 0, 0, &r, &g, &b, &a);
+  require(a == 0, "RGB view preserves original pixels");
+  reset();
+  SDL_FillSurfaceRect(source.get(), nullptr,
+                      SDL_MapSurfaceRGBA(source.get(), 255, 0, 0, 128));
+  BlitSurfaceOpacity(*source, *destination, nullptr, nullptr, 128, true);
+  SDL_ReadSurfacePixel(destination.get(), 0, 0, &r, &g, &b, &a);
+  require(r >= 62 && r <= 66 && b >= 189 && b <= 193,
+          "Masked blits multiply per-pixel alpha by global opacity");
+  BlitSurfaceOpacity(*source, *source, nullptr, nullptr, 255, false);
+  SDL_ReadSurfacePixel(source.get(), 0, 0, &r, &g, &b, &a);
+  require(r == 255 && b == 0 && a == 128,
+          "Aliased unblended copy preserves the source mask");
+}
+
 void testNativeButtons() {
   Kotonoha::ImageButtonBar bar;
   int activated = 0;
@@ -358,13 +420,57 @@ void testStableReveal() {
           "Revealing a word must not move already visible text between lines");
 }
 
+class NativeHistory final : public Kotonoha::VNBacklog {
+public:
+  int marker;
+  NativeHistory(Kotonoha::Engine &engine, int value)
+      : VNBacklog(engine), marker(value) {}
+};
+
+void testNativeHistoryInjection(Kotonoha::Engine &engine) {
+  auto &native =
+      engine.configureSharedScene<Kotonoha::VNBacklog, NativeHistory>(42);
+  require(&Kotonoha::GetVNBacklogRuntime(engine) == &native &&
+              native.marker == 42,
+          "Generic history helpers resolve the game's injected native "
+          "implementation");
+  require(&engine.configureSharedScene<Kotonoha::VNBacklog, NativeHistory>(7) ==
+                  &native &&
+              native.marker == 42,
+          "Repeated native component binding preserves the active component");
+  native.addEntry("Ana", "A voiced native page");
+  native.setLastVoice("voice/page.ogg");
+  std::string replayed;
+  native.setVoiceReplay([&](const std::string &id) { replayed = id; });
+  require(native.replayEntry(0) && replayed == "voice/page.ogg",
+          "History entries retain voice identity for native replay controls");
+  native.addEntry("Ana", "An unvoiced page");
+  require(!native.replayEntry(1) && !native.replayEntry(2),
+          "Voice replay rejects unvoiced and out-of-range pages");
+  native.setVoiceReplay({});
+  native.clear();
+  require(native.getEntries().empty() && !native.replayEntry(0),
+          "Clearing native history also removes voice references");
+  bool rejected = false;
+  try {
+    engine.configureSharedScene<Kotonoha::VNBacklog, HookBacklog>();
+  } catch (const std::logic_error &) {
+    rejected = true;
+  }
+  require(rejected && &Kotonoha::GetVNBacklogRuntime(engine) == &native,
+          "An active shared component cannot be replaced with a dangling "
+          "implementation");
+}
+
 int main() {
   try {
     {
       EmptyRuntime runtime;
       Kotonoha::Engine engine(runtime);
+      testNativeHistoryInjection(engine);
       testSaveSuggestions(engine);
       testNativeButtons();
+      testSurfaceOpacity();
       testStableReveal();
       testTextBox(engine);
       testLiveTranslation(engine);

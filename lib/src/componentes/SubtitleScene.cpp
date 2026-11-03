@@ -2,6 +2,7 @@
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/FileSystem.hpp>
 #include <Kotonoha/core/Log.hpp>
+#include <Kotonoha/core/UI.hpp>
 
 #include <algorithm>
 #include <ass/ass.h>
@@ -59,6 +60,7 @@ struct SubtitleScene::State {
   TexturePtr glyph;
   std::optional<AssStyle> style;
   int glyphWidth = 0, glyphHeight = 0;
+  std::string appearanceKey;
 
   State(Engine &engine) {
     if (!library)
@@ -109,6 +111,7 @@ void SubtitleScene::loadAss(const std::string &script) {
   if (!track || track->n_styles == 0)
     throw std::runtime_error("Invalid ASS subtitle script");
   state->track = std::move(track);
+  state->appearanceKey.clear();
 }
 
 void SubtitleScene::setCues(const std::vector<SubtitleCue> &cues,
@@ -191,6 +194,44 @@ void SubtitleScene::setPosition(double seconds) {
 void SubtitleScene::render(RendererRef renderer, float) {
   if (!state->track)
     return;
+  const auto &appearance = engine.GetSettings();
+  const auto c = appearance.vnTextColor;
+  const auto appearanceKey = appearance.vnFontPath + "|" +
+                             std::to_string(appearance.vnTextColorOverride) +
+                             "|" + std::to_string(c.r) + "," +
+                             std::to_string(c.g) + "," + std::to_string(c.b) +
+                             "," + std::to_string(c.a);
+  if (state->appearanceKey != appearanceKey) {
+    ASS_Style overrideStyle =
+        state->track->n_styles ? state->track->styles[0] : ASS_Style{};
+    int overrideBits = 0;
+    std::string family;
+    const auto font = FileResolver::font(appearance.vnFontPath.empty()
+                                             ? appearance.fontPath
+                                             : appearance.vnFontPath);
+    ass_set_fonts(state->renderer.get(), font.string().c_str(), nullptr,
+                  ASS_FONTPROVIDER_AUTODETECT, nullptr, 1);
+    if (!appearance.vnFontPath.empty()) {
+      auto bytes = FileResolver::loadFontMemory(appearance.vnFontPath);
+      if (!bytes.empty())
+        ass_add_font(state->library.get(), const_cast<char *>("kotonoha-vn"),
+                     reinterpret_cast<char *>(bytes.data()), int(bytes.size()));
+      family =
+          engine.GetVNUI().fontFamily() ? engine.GetVNUI().fontFamily() : "";
+      overrideStyle.FontName = family.data();
+      overrideBits |= ASS_OVERRIDE_BIT_FONT_NAME;
+    }
+    if (appearance.vnTextColorOverride) {
+      overrideStyle.PrimaryColour = (uint32_t(c.r) << 24) |
+                                    (uint32_t(c.g) << 16) |
+                                    (uint32_t(c.b) << 8) | (255 - c.a);
+      overrideBits |= ASS_OVERRIDE_BIT_COLORS;
+    }
+    ass_set_selective_style_override(state->renderer.get(), &overrideStyle);
+    ass_set_selective_style_override_enabled(state->renderer.get(),
+                                             overrideBits);
+    state->appearanceKey = appearanceKey;
+  }
   float sx = 1, sy = 1;
   if (!SDL_GetRenderScale(&renderer, &sx, &sy))
     throw std::runtime_error(SDL_GetError());

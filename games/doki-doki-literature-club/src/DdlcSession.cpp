@@ -167,6 +167,8 @@ public:
     if (it != fonts_.end())
       return it->second;
     auto &data = data_[file];
+    if (data.empty() && file.rfind("kotonoha-vn-font:", 0) == 0)
+      data = Kotonoha::FileResolver::loadFontMemory(file.substr(17));
     if (data.empty() && assets->contains(file))
       data = assets->read(file);
     if (data.empty() && assets->contains("gui/font/Aller_Rg.ttf"))
@@ -1430,7 +1432,15 @@ struct Game {
                 kWinTop + kWinH - float(tb->logicalH));
     if (!w.who.empty()) {
       drawImage(r, "gui/namebox.png", 350 - 84, kWinTop - 3);
-      const TextStyle ls = vm->styleNamed("say_label");
+      TextStyle ls = vm->styleNamed("say_label");
+      const auto &settings = engine.GetSettings();
+      if (!settings.vnFontPath.empty())
+        ls.font = "kotonoha-vn-font:" + settings.vnFontPath;
+      if (settings.vnTextColorOverride) {
+        const auto c = settings.vnSpeakerColor;
+        ls.color = uint32_t(c.r) << 24 | uint32_t(c.g) << 16 |
+                   uint32_t(c.b) << 8 | c.a;
+      }
       const SDL_FPoint sz = textSize(w.who, ls);
       drawText(r, w.who, ls, 350 - sz.x / 2, kWinTop - 3 + (39 - sz.y) / 2);
     }
@@ -1439,9 +1449,23 @@ struct Game {
     TextStyle ds = uiStyle(kAller, 24, 0xffffffff);
     ds.outlines = {{2.f, 0x000000aa}};
     ds.maxWidth = 744;
+    const auto &settings = engine.GetSettings();
+    if (!settings.vnFontPath.empty())
+      ds.font = "kotonoha-vn-font:" + settings.vnFontPath;
+    if (settings.vnTextColorOverride) {
+      const auto c = settings.vnTextColor;
+      ds.color =
+          uint32_t(c.r) << 24 | uint32_t(c.g) << 16 | uint32_t(c.b) << 8 | c.a;
+    }
     const float m[6] = {1, 0, 268, 0, 1, kWinTop + 62};
     const auto mapped = displayVisible(native, t);
-    drawRich(r, w.rich, mapped, ds, m, 1, w.what);
+    if (settings.vnTextColorOverride) {
+      auto rich = w.rich;
+      for (auto &glyph : rich.glyphs)
+        glyph.hasColor = false;
+      drawRich(r, rich, mapped, ds, m, 1, w.what);
+    } else
+      drawRich(r, w.rich, mapped, ds, m, 1, w.what);
   }
 
   void drawQuickMenu(SDL_Renderer *r) {

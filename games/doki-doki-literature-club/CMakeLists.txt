@@ -54,3 +54,7 @@ kotonoha_configure_app(DokiDoki
 if(BUILD_TESTING)
     add_subdirectory(tests)
 endif()
+
+if(ANDROID)
+    target_compile_definitions(DdlcFormats PRIVATE KOTONOHA_ANDROID_ABI="${ANDROID_ABI}")
+endif()
