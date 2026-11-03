@@ -77,6 +77,33 @@ looked up through the engine translation dictionary before display.
   Menus suspend audio and text progression. Original title background and
   message-window textures replace the placeholder title and dialogue panel.
   Character given names and temporary `setName`/`setNameDef` are honored.
+- The text box and answer selector are registered subclasses of
+  `Kotonoha::VNTextBox` and `Kotonoha::ChoiceQuestionScene`. The live translation
+  editor uses the scenario route and original script key, updates the displayed
+  line immediately, and preserves ordinary ASCII in translated text. Removing
+  a translation restores Japanese display text without its control commands.
+- Original title/start/main-menu, normal/choice windows, selection header,
+  selector and continue-indicator textures are read directly from the ISO.
+- Cooperative presentation threads share the original script objects while
+  keeping independent VM call stacks. Scripted sleep, camera pan, zoom,
+  quarter-turn rotation, waits and black/white fades advance on a 60 Hz clock.
+  Creating a new background resets its transform, so the opening sky rotation
+  no longer carries into indoor scenes. Identity opcodes 6/7 now match the
+  original interpreter (inequality/equality respectively).
+- Character body names use uppercase pose and lowercase costume. The original
+  executable table at VA `0x1b7a70` supplies body/face prefixes and face aliases.
+  Fragments are composed at integer coordinates before scaling the whole actor,
+  avoiding seams in hair and clothing. Separate eye/mouth expressions, blinking,
+  audio-driven mouth frames, inline F/E/M/P cues, costume/pose crossfades,
+  actor zoom, scripted nods and position/scale oscillation are supported.
+- Cold breath uses the original three `sysgraph/breath1..3` textures and the
+  `Breath.run` layer drift, scale and fade timings. `Actor.setBreath` controls
+  the amount; voiced lines emit it, using `CharParam` pose directions.
+  Inline W frame waits also pause the text reveal.
+- Backgrounds (including rotation), interface textures, assembled characters
+  and breath particles draw through the shared engine upscaling pipeline.
+  The composed character cache updates only when its pixel content changes,
+  keeping motion/fade-only frames from rerunning the upscaler.
 - Engine `Kotonoha::decryptCriAudio` / `decodeCriAudio` support CRI type-8
   AHX and ADX before FFmpeg decoding. The disc provider supplies Amagami's
   key parameters; engine code contains no game key. Decoding trims to the
@@ -89,15 +116,20 @@ looked up through the engine translation dictionary before display.
 
 ## Presentation limitations
 
-The UI reuses original title/window assets but is not a pixel-accurate recreation
-of the retail title or menus. Character positioning/scale, face selection and
-background framing are approximations. Timed fades, camera moves, shakes, snow,
-threads used for presentation, inline expression/timing commands, sound effects
-and tutorials are not reproduced fully; the host completes these presentation
-calls instantly. Gallery `setAlbum` is accepted without a gallery implementation.
-The classical MIDI soundtrack mode, eye blinking, lip sync, full scrollable
-backlog and controller rumble remain unimplemented. These limitations do not
-establish coverage of later story or calendar logic.
+The presentation is closer to the supplied game's scripts but is not yet a
+verified pixel-perfect PS2 recreation. Fonts, actor origin/projection, arbitrary
+non-quarter-turn rotation under nonuniform scale, vibration waveforms and
+random blink sequences still need comparison against the original renderer.
+Mouth movement follows PCM amplitude rather than the exact PS2 voice-device
+algorithm. Some inline commands (including fractional voice waits), complex
+multi-step actions, lighting/deformation, snow, sound effects and tutorials
+remain incomplete. The pause/backlog screens remain simplified.
+
+Replay saves restore dialogue/decision/costume state and restart music; they do
+not preserve presentation-thread phase or the exact in-flight transition.
+Gallery `setAlbum` has no gallery implementation. The classical MIDI soundtrack
+mode, full scrollable backlog and controller rumble remain unimplemented.
+Coverage of the prologue does not establish coverage of calendar/later routes.
 
 ## Verification
 
@@ -110,14 +142,19 @@ Verified on the supplied Japan ISO on macOS arm64:
 - All three prologue answers reach original `EoS`, each with over 400 dialogue
   pages. Tests cover different answer text and saves before/after selection.
 - MIY1858 encrypted AHX produces exactly 63,459 mono samples at 24 kHz,
-  peak approximately 1.019 and RMS approximately 0.284, compared with the
+  peak approximately 1.019 and RMS approximately 0.286, compared with the
   former encrypted decode peak of 5.758. An independent local vgmstream decode
   agreed after clipping to S16 (RMSE approximately 0.000087). Reference cipher
   behavior: [vgmstream AHX decoder](https://github.com/vgmstream/vgmstream/blob/master/src/coding/mpeg_custom_utils_ahx.c).
   REA found the original key string `mituba` at VA `0x29bc40`, referenced by
   the initialization routines near `0x1ac00c` and `0x1ac3b0`.
+- All three answers also run to the same ending/dialogue count with timed
+  presentation threads enabled. Every visible prologue body/face pair resolves
+  to a real disc asset; camera motion cannot collapse actor scale.
 - Engine checks assert the decrypted voice's sample count, peak and RMS,
-  stereo ADX decoding, and that first confirm completes rather than advances.
+  stereo ADX decoding, first-confirm reveal, camera motion during dialogue,
+  visible sky pixels, live translation edit/removal, 2x engine upscaling,
+  original choice navigation and outdoor cold-breath rendering.
 - Engine software-renderer checks cover title, first dialogue, keyboard choice,
   Miya's fragmented sprite, an AHX voice decode and pause. Optional captures are
   written only when `AMAGAMI_CAPTURE_DIR` is set.
@@ -144,3 +181,15 @@ integer operations `0x11dc34`, ARC lookup/hash `0x1862a0` / `0x186560`,
 background path formatting `0x10a2c0`. REA observations and disc-only probes
 remain under ignored `.research/amagami/`; neither executable bytes nor script
 text are included in this source directory.
+
+Additional REA observations: identity handlers `0x11ef5c` / `0x11efc4`,
+branch handler `0x11e81c`, actor prefix lookup `0x10a1c8`, actor face primitive
+`0x115458`. Presentation parameters are also read from the original `Actor`,
+`ActorPicture`, `Breath`, `CharParam`, `n0_MacroScripts` and event SCF classes.
+
+The expanded regression run also exposed an existing `Kotonoha.AssetProvider`
+check failure: the test expects an exception for a missing overlay directory,
+while the current `AssetOverlay` constructor returns without mounting it. Neither
+that constructor nor that test was changed by this port work. Amagami's seven
+checks and the Infrastructure, ComponentHooks, Presentation and ZNT Formats
+checks pass independently.

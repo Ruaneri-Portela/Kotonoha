@@ -3,6 +3,7 @@
 #include <Kotonoha/componentes/ChoiceQuestionScene.hpp>
 #include <Kotonoha/componentes/VNManager.hpp>
 #include <Kotonoha/componentes/VNTextBox.hpp>
+#include <Kotonoha/core/Appearance.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/FileSystem.hpp>
 #include <Kotonoha/core/Log.hpp>
@@ -590,6 +591,14 @@ void DebugOverlay::refreshTranslationSources() {
   }
 }
 
+void DebugOverlay::trackActiveTranslation() {
+  showTranslationWindow = true;
+  followActiveTranslation = true;
+  trackedTranslationNode.clear();
+  trackedTranslationKey.clear();
+  scrollActiveTranslation = scrollActiveTranslationNode = true;
+  transSearchFilter[0] = 0;
+}
 void DebugOverlay::drawTranslationWindow() {
   if (!showTranslationWindow)
     return;
@@ -640,6 +649,44 @@ void DebugOverlay::drawTranslationWindow() {
     }
   }
 
+  auto activeKeys = engine.GetRuntime().activeTranslationKeys();
+  if (activeKeys.empty() && mgrActiveId >= 0) {
+    try {
+      const auto &node = manager.getScriptNode(mgrActiveId);
+      if (!node.text.empty())
+        activeKeys.push_back(node.text);
+      if (!node.choiceQuestion.empty())
+        activeKeys.push_back(node.choiceQuestion);
+      for (const auto &choice : node.choices)
+        activeKeys.push_back(choice.label);
+    } catch (const std::exception &) {
+    }
+  }
+  if (activeKeys.empty())
+    for (auto *scene : engine.GetRuntime().GetActiveScenes()) {
+      if (auto *box = dynamic_cast<VNTextBox *>(scene);
+          box && box->isVisible() && !box->getText().empty())
+        activeKeys.push_back(box->getText());
+      if (auto *choice = dynamic_cast<ChoiceQuestionScene *>(scene);
+          choice && choice->isActive()) {
+        if (!choice->getQuestion().empty())
+          activeKeys.push_back(choice->getQuestion());
+        for (const auto &option : choice->getOptions())
+          activeKeys.push_back(option.label);
+      }
+    }
+  const auto currentKey =
+      activeKeys.empty() ? std::string() : activeKeys.front();
+  if (followActiveTranslation && !activeNodeKey.empty() &&
+      (trackedTranslationNode != activeNodeKey ||
+       trackedTranslationKey != currentKey ||
+       selectedTransNodeStr != activeNodeKey)) {
+    selectedTransNodeStr = activeNodeKey;
+    scrollActiveTranslationNode = trackedTranslationNode != activeNodeKey;
+    scrollActiveTranslation = true;
+    trackedTranslationNode = activeNodeKey;
+    trackedTranslationKey = currentKey;
+  }
   ImGui::PushStyleColor(ImGuiCol_Text, ImGuiTheme::accent());
   ImGui::Text("Active Node: %s",
               !activeNodeKey.empty() ? activeNodeKey.c_str() : "None / --");
@@ -647,8 +694,11 @@ void DebugOverlay::drawTranslationWindow() {
 
   ImGui::SameLine();
   if (ImGui::Button("Track Active Node") && !activeNodeKey.empty()) {
+    trackActiveTranslation();
     selectedTransNodeStr = activeNodeKey;
   }
+  ImGui::SameLine();
+  ImGui::Checkbox("Follow active string", &followActiveTranslation);
 
   ImGui::SameLine();
   if (ImGui::Button("Refresh Node List")) {
@@ -689,6 +739,11 @@ void DebugOverlay::drawTranslationWindow() {
     bool selected = (selectedTransNodeStr == nodeKey);
     if (ImGui::Selectable(label.c_str(), selected)) {
       selectedTransNodeStr = nodeKey;
+      followActiveTranslation = false;
+    }
+    if (isCurrent && selected && scrollActiveTranslationNode) {
+      ImGui::SetScrollHereY(0.5f);
+      scrollActiveTranslationNode = false;
     }
 
     if (isCurrent) {
@@ -788,8 +843,21 @@ void DebugOverlay::drawTranslationWindow() {
       int idx = 0;
       for (const auto &orig : stringsToTranslate) {
         ImGui::PushID(idx++);
-
+        const bool current =
+            selectedTransNodeStr == activeNodeKey &&
+            std::any_of(activeKeys.begin(), activeKeys.end(),
+                        [&](const std::string &key) {
+                          return orig == key ||
+                                 translation.text(nodeInt, orig) == key;
+                        });
+        ImGui::BeginGroup();
+        if (current) {
+          ImGui::PushStyleColor(ImGuiCol_Text, ImGuiTheme::accent());
+          ImGui::TextUnformatted("CURRENT LINE");
+        }
         ImGui::TextWrapped("Chave (Original): %s", orig.c_str());
+        if (current)
+          ImGui::PopStyleColor();
 
         if (ImGui::Button("Copiar Chave")) {
           SDL_SetClipboardText(orig.c_str());
@@ -822,6 +890,18 @@ void DebugOverlay::drawTranslationWindow() {
           engine.setTranslation(selectedTransNodeStr, orig, inputBuffer);
         }
 
+        ImGui::EndGroup();
+        if (current) {
+          const auto min = ImGui::GetItemRectMin(),
+                     max = ImGui::GetItemRectMax();
+          ImGui::GetWindowDrawList()->AddRect(
+              min, max, ImGui::GetColorU32(ImGuiTheme::accent()), 4.0f, 2.0f,
+              ImDrawFlags_None);
+          if (scrollActiveTranslation) {
+            ImGui::SetScrollHereY(0.25f);
+            scrollActiveTranslation = false;
+          }
+        }
         ImGui::PopID();
         ImGui::Separator();
       }
@@ -967,6 +1047,52 @@ void DebugOverlay::drawEngineTools() {
                 UpscaleBackendName(upscaling.activeBackend()));
     auto draft = settings;
     bool changed = false;
+    if (canChangeDisplaySize()) {
+      int mode = int(draft.mode);
+      const char *modes[]{"Windowed", "Borderless fullscreen",
+                          "Exclusive fullscreen"};
+      if (ImGui::Combo("Window mode", &mode, modes, 3)) {
+        draft.mode = WindowMode(mode);
+        changed = true;
+      }
+      const std::string size =
+          std::to_string(draft.width) + " x " + std::to_string(draft.height);
+      if (ImGui::BeginCombo("Resolution", size.c_str())) {
+        constexpr int sizes[][2]{{960, 540},  {960, 672},   {1280, 720},
+                                 {1600, 900}, {1920, 1080}, {2560, 1440}};
+        for (const auto &resolution : sizes) {
+          const auto label = std::to_string(resolution[0]) + " x " +
+                             std::to_string(resolution[1]);
+          if (ImGui::Selectable(label.c_str(),
+                                draft.width == resolution[0] &&
+                                    draft.height == resolution[1])) {
+            draft.width = draft.fullscreenWidth = resolution[0];
+            draft.height = draft.fullscreenHeight = resolution[1];
+            changed = true;
+          }
+        }
+        ImGui::EndCombo();
+      }
+      int count = 0;
+      SDLMemoryPtr<SDL_DisplayID> displays(SDL_GetDisplays(&count));
+      const auto displayLabel = "Display " + std::to_string(draft.display + 1);
+      if (displays && ImGui::BeginCombo("Display", displayLabel.c_str())) {
+        for (int i = 0; i < count; ++i) {
+          const char *name = SDL_GetDisplayName(displays.get()[i]);
+          const auto label =
+              std::to_string(i + 1) + ": " + (name ? name : "Display");
+          if (ImGui::Selectable(label.c_str(), i == draft.display)) {
+            draft.display = i;
+            changed = true;
+          }
+        }
+        ImGui::EndCombo();
+      }
+      changed =
+          ImGui::Checkbox("Resizable window", &draft.resizable) || changed;
+    }
+    changed = ImGui::Checkbox("VSync", &draft.vsync) || changed;
+    ImGui::SeparatorText("Texture upscaling");
     constexpr UpscaleBackend backends[]{
         UpscaleBackend::Auto, UpscaleBackend::Linear, UpscaleBackend::MPV,
         UpscaleBackend::MetalFX, UpscaleBackend::None};
@@ -1013,7 +1139,7 @@ void DebugOverlay::drawEngineTools() {
     if (changed) {
       try {
         engine.applySettings(draft);
-        status = "Upscaler applied";
+        status = "Display / upscaling settings applied";
         statusError = false;
       } catch (const std::exception &error) {
         status = error.what();
@@ -1027,6 +1153,57 @@ void DebugOverlay::drawEngineTools() {
     }
     ImGui::TextWrapped("Renderer selection requires restart (--renderer). "
                        "F11 / Alt+Enter toggles borderless fullscreen.");
+  }
+  if (ImGui::CollapsingHeader("Dialogue appearance")) {
+    auto draft = engine.GetSettings();
+    bool changed = false;
+    if (availableVNFonts.empty())
+      availableVNFonts = VNFontOptions();
+    const std::string selectedFont = draft.vnFontPath.empty()
+                                         ? "Original / default game font"
+                                         : draft.vnFontPath;
+    if (ImGui::BeginCombo("VN font", selectedFont.c_str())) {
+      for (const auto &font : availableVNFonts) {
+        const auto label =
+            font.empty() ? std::string("Original / default game font") : font;
+        if (ImGui::Selectable(label.c_str(), font == draft.vnFontPath)) {
+          draft.vnFontPath = font;
+          changed = true;
+        }
+      }
+      ImGui::EndCombo();
+    }
+    if (ImGui::SmallButton("Refresh available fonts"))
+      availableVNFonts = VNFontOptions();
+    changed = ImGui::Checkbox("Override dialogue colors",
+                              &draft.vnTextColorOverride) ||
+              changed;
+    auto color = [&](const char *label, SDL_Color &value) {
+      float rgba[]{value.r / 255.f, value.g / 255.f, value.b / 255.f,
+                   value.a / 255.f};
+      if (!ImGui::ColorEdit4(label, rgba))
+        return false;
+      value = {Uint8(std::clamp(rgba[0], 0.f, 1.f) * 255),
+               Uint8(std::clamp(rgba[1], 0.f, 1.f) * 255),
+               Uint8(std::clamp(rgba[2], 0.f, 1.f) * 255),
+               Uint8(std::clamp(rgba[3], 0.f, 1.f) * 255)};
+      return true;
+    };
+    if (draft.vnTextColorOverride) {
+      changed = color("Dialogue text", draft.vnTextColor) || changed;
+      changed = color("Speaker name", draft.vnSpeakerColor) || changed;
+    }
+    if (changed)
+      try {
+        engine.applySettings(draft);
+        status = "Dialogue appearance applied";
+        statusError = false;
+      } catch (const std::exception &error) {
+        status = error.what();
+        statusError = true;
+      }
+    ImGui::TextWrapped("These engine settings are available even when a port "
+                       "has no in-game Settings screen.");
   }
   if (ImGui::CollapsingHeader("Logs")) {
     ImGui::InputText("Filter", logFilter, sizeof(logFilter));

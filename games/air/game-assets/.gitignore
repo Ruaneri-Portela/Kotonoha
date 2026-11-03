@@ -1,3 +1,4 @@
 # Commercial data must be supplied by the user, never packaged here.
 *
-!.gitignore!README.txt
+!.gitignore
+!README.txt

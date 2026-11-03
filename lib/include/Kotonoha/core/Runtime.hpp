@@ -85,6 +85,9 @@ public:
   virtual Translation::SourceTexts translationSources() const { return {}; }
 
   virtual int translationRoute() const;
+  // Original keys currently presented by a native script runtime. Used to
+  // follow the exact dialogue/choice in the live translation editor.
+  virtual std::vector<std::string> activeTranslationKeys() const { return {}; }
   virtual std::vector<int> translationRoutes() const { return {}; }
   virtual std::vector<std::string> translationTexts(int route) const {
     auto sources = translationSources();

@@ -309,9 +309,9 @@ int main(int argc, char **argv) {
     {
       EngineOptions options;
       CommandLine cli("test", options);
-      char a0[] = "test", a1[] = "--laucher", a2[] = "--dump-translation",
-           a3[] = "texts.json", a4[] = "--launcher";
-      char *args[] = {a0, a1, a2, a3, a4};
+      char a0[] = "test", a1[] = "--dump-translation", a2[] = "texts.json",
+           a3[] = "--launcher";
+      char *args[] = {a0, a1, a2, a3};
       cli.parse(5, args);
       require(options.dumpTranslationPath == "texts.json" && !options.launcher,
               "Engine export bypasses the launcher regardless of option order");

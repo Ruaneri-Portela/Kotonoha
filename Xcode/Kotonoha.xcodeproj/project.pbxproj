@@ -239,6 +239,24 @@
 		CE2FEE0C30956EA000E7D27F /* game-assets in Resources */ = {isa = PBXBuildFile; fileRef = CE2FEE0B30956EA000E7D27F /* game-assets */; };
 		CE2FEE0E30956EB700E7D27F /* game-assets in Resources */ = {isa = PBXBuildFile; fileRef = CE2FEE0D30956EB700E7D27F /* game-assets */; };
 		CE2FEE1030956ECD00E7D27F /* game-assets in Resources */ = {isa = PBXBuildFile; fileRef = CE2FEE0F30956ECC00E7D27F /* game-assets */; };
+		CE8CD289309A153D0003D364 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6AC33256490759509EFF9BF1 /* Foundation.framework */; };
+		CE8CD28A309A153D0003D364 /* KotonohaEngine.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CE1893F83095457F00B0DF80 /* KotonohaEngine.framework */; };
+		CE8CD28B309A153D0003D364 /* SDL3_ttf.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEFD20AD3095902A006D0E4E /* SDL3_ttf.framework */; };
+		CE8CD28C309A153D0003D364 /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4A9B6E799E2376E8183ADE52 /* Metal.framework */; };
+		CE8CD28D309A153D0003D364 /* OpenGLES.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4FFD1FC9FD3DE0FD18C5D44F /* OpenGLES.framework */; };
+		CE8CD28E309A153D0003D364 /* SDL3.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEFD20B530959039006D0E4E /* SDL3.framework */; };
+		CE8CD28F309A153D0003D364 /* VideoToolbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C446DAC72995F2973C600D09 /* VideoToolbox.framework */; };
+		CE8CD290309A153D0003D364 /* CoreVideo.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B2FAEAC42A6E7C5EDC4F4A07 /* CoreVideo.framework */; };
+		CE8CD291309A153D0003D364 /* CoreMedia.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B78DCDBFE541F1854A2A0FFC /* CoreMedia.framework */; };
+		CE8CD292309A153D0003D364 /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 42D538C486E337F7390CE7EF /* CoreFoundation.framework */; };
+		CE8CD293309A153D0003D364 /* AudioToolbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FBAC8B3DF93878243BF88A65 /* AudioToolbox.framework */; };
+		CE8CD294309A153D0003D364 /* KotonohaImGui.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CE1893F63095457700B0DF80 /* KotonohaImGui.framework */; };
+		CE8CD296309A153D0003D364 /* assets in Resources */ = {isa = PBXBuildFile; fileRef = 4C0D884F99638CBB5B02A07D /* assets */; };
+		CE8CD299309A153D0003D364 /* SDL3.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = CEFD20B530959039006D0E4E /* SDL3.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		CE8CD29A309A153D0003D364 /* KotonohaEngine.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = CE1893F83095457F00B0DF80 /* KotonohaEngine.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		CE8CD29B309A153D0003D364 /* SDL3_ttf.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = CEFD20AD3095902A006D0E4E /* SDL3_ttf.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		CE8CD29C309A153D0003D364 /* KotonohaImGui.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = CE1893F63095457700B0DF80 /* KotonohaImGui.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		CE8CD2DA309A17080003D364 /* game-assets in Resources */ = {isa = PBXBuildFile; fileRef = CE8CD2D9309A17080003D364 /* game-assets */; };
 		CE90DB563098CBF100281500 /* Python.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = CE90DB553098CBF100281500 /* Python.xcframework */; };
 		CEC5DF0F3095F7EB00D4D78B /* KotonohaEngine.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CE1893F83095457F00B0DF80 /* KotonohaEngine.framework */; };
 		CEC5DF103095F7EB00D4D78B /* KotonohaEngine.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = CE1893F83095457F00B0DF80 /* KotonohaEngine.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
@@ -452,6 +470,20 @@
 			proxyType = 1;
 			remoteGlobalIDString = 4B0417D636D80E1973E6EC48;
 			remoteInfo = KotonohaImGui;
+		};
+		CE8CD284309A153D0003D364 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 1D7F34E45396E7C9086D3FB4 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = D353276E353ED61BDA9316AE;
+			remoteInfo = KotonohaEngine;
+		};
+		CE8CD286309A153D0003D364 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 1D7F34E45396E7C9086D3FB4 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 4B0417D636D80E1973E6EC48;
+			remoteInfo = ImGui;
 		};
 		CEFD20AC3095902A006D0E4E /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -753,6 +785,20 @@
 			name = "Embed Frameworks";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		CE8CD298309A153D0003D364 /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				CE8CD299309A153D0003D364 /* SDL3.framework in Embed Frameworks */,
+				CE8CD29A309A153D0003D364 /* KotonohaEngine.framework in Embed Frameworks */,
+				CE8CD29B309A153D0003D364 /* SDL3_ttf.framework in Embed Frameworks */,
+				CE8CD29C309A153D0003D364 /* KotonohaImGui.framework in Embed Frameworks */,
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		CEFD20BD3095905B006D0E4E /* Embed Frameworks */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
@@ -857,6 +903,8 @@
 		CE2FEE0B30956EA000E7D27F /* game-assets */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "game-assets"; path = "../../games/snow-radish-vacation/game-assets"; sourceTree = "<group>"; };
 		CE2FEE0D30956EB700E7D27F /* game-assets */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "game-assets"; path = "../../games/doki-doki-literature-club/game-assets"; sourceTree = "<group>"; };
 		CE2FEE0F30956ECC00E7D27F /* game-assets */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "game-assets"; path = "../../games/school-days/game-assets"; sourceTree = "<group>"; };
+		CE8CD2A0309A153D0003D364 /* Amagami.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Amagami.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		CE8CD2D9309A17080003D364 /* game-assets */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "game-assets"; path = "../../../games/amagami/game-assets"; sourceTree = "<group>"; };
 		CE90DB553098CBF100281500 /* Python.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = Python.xcframework; path = "../build/iOS-deps/Python.xcframework"; sourceTree = SOURCE_ROOT; };
 		CEDFC336F4945B9B468438BC /* _sha2.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = _sha2.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/_sha2.framework"; sourceTree = SOURCE_ROOT; };
 		CEFD20A630959029006D0E4E /* SDL_ttf.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = SDL_ttf.xcodeproj; path = ../lib/submodules/SDL_ttf/Xcode/SDL_ttf.xcodeproj; sourceTree = SOURCE_ROOT; };
@@ -887,10 +935,44 @@
 		FDAFA92165858CF5A6DC4CAB /* _testinternalcapi.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = _testinternalcapi.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/_testinternalcapi.framework"; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		CE8CD2BA309A168E0003D364 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				AirAssets.cpp,
+				AirRuntime.cpp,
+				Config.cpp,
+				Images.cpp,
+				main.cpp,
+				Script.cpp,
+				Session.cpp,
+				System.cpp,
+				Voice.cpp,
+			);
+			target = CE8CD282309A153D0003D364 /* Amagami */;
+		};
+		CE8CD2BB309A168E0003D364 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				libreallive/.gitignore,
+				libreallive/archive.cc,
+				libreallive/bytecode.cc,
+				libreallive/compression.cc,
+				libreallive/expression.cc,
+				libreallive/filemap.cc,
+				libreallive/ORIGIN.md,
+				libreallive/scenario.cc,
+			);
+			target = CE8CD282309A153D0003D364 /* Amagami */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		33CF72D87ACA703CCC5F6560 /* ../games/air/src */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = ../games/air/src; sourceTree = SOURCE_ROOT; };
-		B958092F9AFFDA5E904BF5DE /* ../games/air/vendor */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = ../games/air/vendor; sourceTree = SOURCE_ROOT; };
+		33CF72D87ACA703CCC5F6560 /* ../games/air/src */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (CE8CD2BA309A168E0003D364 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = ../games/air/src; sourceTree = SOURCE_ROOT; };
+		B958092F9AFFDA5E904BF5DE /* ../games/air/vendor */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (CE8CD2BB309A168E0003D364 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = ../games/air/vendor; sourceTree = SOURCE_ROOT; };
 		C120216BEFDCA69752FC625E /* ../games/summer-radish-vacation/src */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = "../games/summer-radish-vacation/src"; sourceTree = SOURCE_ROOT; };
+		CE8CD2C7309A16A70003D364 /* src */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); name = src; path = ../games/amagami/src; sourceTree = SOURCE_ROOT; };
+		CE8CD2D5309A16B70003D364 /* include */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); name = include; path = ../games/amagami/include; sourceTree = SOURCE_ROOT; };
 		CEC5DD6F3095F3D700D4D78B /* ../lib/src */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = ../lib/src; sourceTree = SOURCE_ROOT; };
 		CEC5DDE23095F3E400D4D78B /* ../lib/include */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = ../lib/include; sourceTree = SOURCE_ROOT; };
 		CEC5DE193095F4B300D4D78B /* ../games/school-days/src */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = "../games/school-days/src"; sourceTree = SOURCE_ROOT; };
@@ -1084,6 +1166,25 @@
 				6D4E7E573D0C19F64FB7DC1F /* CoreFoundation.framework in Frameworks */,
 				5FD58DACF503942DD43372EC /* AudioToolbox.framework in Frameworks */,
 				050A4D0B472931E1890EBB2A /* KotonohaImGui.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CE8CD288309A153D0003D364 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				CE8CD289309A153D0003D364 /* Foundation.framework in Frameworks */,
+				CE8CD28A309A153D0003D364 /* KotonohaEngine.framework in Frameworks */,
+				CE8CD28B309A153D0003D364 /* SDL3_ttf.framework in Frameworks */,
+				CE8CD28C309A153D0003D364 /* Metal.framework in Frameworks */,
+				CE8CD28D309A153D0003D364 /* OpenGLES.framework in Frameworks */,
+				CE8CD28E309A153D0003D364 /* SDL3.framework in Frameworks */,
+				CE8CD28F309A153D0003D364 /* VideoToolbox.framework in Frameworks */,
+				CE8CD290309A153D0003D364 /* CoreVideo.framework in Frameworks */,
+				CE8CD291309A153D0003D364 /* CoreMedia.framework in Frameworks */,
+				CE8CD292309A153D0003D364 /* CoreFoundation.framework in Frameworks */,
+				CE8CD293309A153D0003D364 /* AudioToolbox.framework in Frameworks */,
+				CE8CD294309A153D0003D364 /* KotonohaImGui.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1311,6 +1412,7 @@
 				50B9CFE4B3D204CDAEF6EE3C /* SummerRadish.app */,
 				CEFD20CF3095908D006D0E4E /* DdlcIOSScriptSmoke.app */,
 				CEFD20CC30959079006D0E4E /* KotonohaIOSSmoke.app */,
+				CE8CD2A0309A153D0003D364 /* Amagami.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -1333,9 +1435,20 @@
 			name = "Recovered References";
 			sourceTree = "<group>";
 		};
+		CE8CD2B9309A15980003D364 /* Amagami */ = {
+			isa = PBXGroup;
+			children = (
+				CE8CD2C7309A16A70003D364 /* src */,
+				CE8CD2D5309A16B70003D364 /* include */,
+				CE8CD2D9309A17080003D364 /* game-assets */,
+			);
+			path = Amagami;
+			sourceTree = "<group>";
+		};
 		CEC5DD2C3095F35400D4D78B /* Games */ = {
 			isa = PBXGroup;
 			children = (
+				CE8CD2B9309A15980003D364 /* Amagami */,
 				F72608A62717C49A80B163F3 /* SnowRadish */,
 				4C3DDA454526E9E63A3838DC /* DokiDoki */,
 				77EB89FA83F4679C0B43BB3A /* SchoolDays */,
@@ -1626,6 +1739,31 @@
 			productReference = CEFD20C930959075006D0E4E /* School Days HQ.app */;
 			productType = "com.apple.product-type.application";
 		};
+		CE8CD282309A153D0003D364 /* Amagami */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = CE8CD29D309A153D0003D364 /* Build configuration list for PBXNativeTarget "Amagami" */;
+			buildPhases = (
+				CE8CD287309A153D0003D364 /* Sources */,
+				CE8CD288309A153D0003D364 /* Frameworks */,
+				CE8CD295309A153D0003D364 /* Resources */,
+				CE8CD298309A153D0003D364 /* Embed Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				CE8CD283309A153D0003D364 /* PBXTargetDependency */,
+				CE8CD285309A153D0003D364 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				33CF72D87ACA703CCC5F6560 /* ../games/air/src */,
+				B958092F9AFFDA5E904BF5DE /* ../games/air/vendor */,
+				CE8CD2C7309A16A70003D364 /* src */,
+			);
+			name = Amagami;
+			productName = Air;
+			productReference = CE8CD2A0309A153D0003D364 /* Amagami.app */;
+			productType = "com.apple.product-type.application";
+		};
 		D353276E353ED61BDA9316AE /* KotonohaEngine */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = A172C4EBB4C310171295D52E /* Build configuration list for PBXNativeTarget "KotonohaEngine" */;
@@ -1744,6 +1882,7 @@
 				D353276E353ED61BDA9316AE /* KotonohaEngine */,
 				A867443685C2CE18C7FD8641 /* Kotonoha */,
 				863CA7E46CE7E2CCFE66622E /* Air */,
+				CE8CD282309A153D0003D364 /* Amagami */,
 				520E72353D5BDC48568DB4E5 /* ZeroNoTsukaima */,
 				F406C89377A29563869CE5E8 /* SnowRadish */,
 				A400B29EF272BE64C3491F34 /* DokiDoki */,
@@ -1835,6 +1974,15 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		CE8CD295309A153D0003D364 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				CE8CD2DA309A17080003D364 /* game-assets in Resources */,
+				CE8CD296309A153D0003D364 /* assets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		D4612865B292EF3C8AC0EB21 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -1920,6 +2068,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		C7E65105B2857C707EC90A57 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CE8CD287309A153D0003D364 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -2048,6 +2203,18 @@
 			target = 4B0417D636D80E1973E6EC48 /* ImGui */;
 			targetProxy = C2C2DC3F6FBC1C93A189F3E4 /* PBXContainerItemProxy */;
 		};
+		CE8CD283309A153D0003D364 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = KotonohaEngine;
+			target = D353276E353ED61BDA9316AE /* KotonohaEngine */;
+			targetProxy = CE8CD284309A153D0003D364 /* PBXContainerItemProxy */;
+		};
+		CE8CD285309A153D0003D364 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = ImGui;
+			target = 4B0417D636D80E1973E6EC48 /* ImGui */;
+			targetProxy = CE8CD286309A153D0003D364 /* PBXContainerItemProxy */;
+		};
 		DB0BFC1C75F63B3B7279B926 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			name = KotonohaImGui;
@@ -2169,6 +2336,7 @@
 			buildSettings = {
 				CLANG_ENABLE_OBJC_WEAK = NO;
 				CODE_SIGN_IDENTITY = "Apple Development";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CURRENT_PROJECT_VERSION = 1;
 				DEFINES_MODULE = NO;
 				DEVELOPMENT_TEAM = 64T9B5HFFD;
@@ -2526,6 +2694,7 @@
 			buildSettings = {
 				CLANG_ENABLE_OBJC_WEAK = NO;
 				CODE_SIGN_IDENTITY = "Apple Development";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CURRENT_PROJECT_VERSION = 1;
 				DEFINES_MODULE = NO;
 				DEVELOPMENT_TEAM = 64T9B5HFFD;
@@ -2653,6 +2822,7 @@
 			buildSettings = {
 				CLANG_ENABLE_OBJC_WEAK = NO;
 				CODE_SIGN_IDENTITY = "Apple Development";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CURRENT_PROJECT_VERSION = 1;
 				DEFINES_MODULE = NO;
 				DEVELOPMENT_TEAM = 64T9B5HFFD;
@@ -3222,6 +3392,7 @@
 			buildSettings = {
 				CLANG_ENABLE_OBJC_WEAK = NO;
 				CODE_SIGN_IDENTITY = "Apple Development";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CURRENT_PROJECT_VERSION = 1;
 				DEFINES_MODULE = NO;
 				DEVELOPMENT_TEAM = 64T9B5HFFD;
@@ -3457,6 +3628,171 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha.snowradishvacation;
 				PRODUCT_NAME = "Snow Radish Vacation!!";
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		CE8CD29E309A153D0003D364 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 64T9B5HFFD;
+				GCC_CHAR_IS_UNSIGNED_CHAR = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(KOTONOHA_ROOT)/games/amagami/include",
+					"$(KOTONOHA_ROOT)/games/amagami/src",
+				);
+				INFOPLIST_FILE = Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Amagami;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.games";
+				IPHONEOS_DEPLOYMENT_TARGET = "$(RECOMMENDED_IPHONEOS_DEPLOYMENT_TARGET)";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-lavformat",
+					"-lavcodec",
+					"-lswresample",
+					"-lswscale",
+					"-lavutil",
+					"-ljson-c",
+					"-lz",
+					"-liconv",
+					"-lass",
+					"-lfribidi",
+					"-lunibreak",
+					"-lfontconfig",
+					"-lexpat",
+					"-lharfbuzz",
+					"-lfreetype",
+					"-lpng16",
+					"-lbz2",
+					"-lbrotlidec",
+					"-lbrotlicommon",
+					"-framework",
+					CoreText,
+				);
+				"OTHER_LDFLAGS[sdk=iphoneos*]" = (
+					"$(inherited)",
+					"-lavformat",
+					"-lavcodec",
+					"-lswresample",
+					"-lswscale",
+					"-lavutil",
+					"-ljson-c",
+					"-lz",
+					"-liconv",
+					"-weak_framework",
+					MetalFX,
+					"-lass",
+					"-lfribidi",
+					"-lunibreak",
+					"-lfontconfig",
+					"-lexpat",
+					"-lharfbuzz",
+					"-lfreetype",
+					"-lpng16",
+					"-lbz2",
+					"-lbrotlidec",
+					"-lbrotlicommon",
+					"-framework",
+					CoreText,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		CE8CD29F309A153D0003D364 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 64T9B5HFFD;
+				GCC_CHAR_IS_UNSIGNED_CHAR = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(KOTONOHA_ROOT)/games/amagami/include",
+					"$(KOTONOHA_ROOT)/games/amagami/src",
+				);
+				INFOPLIST_FILE = Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Amagami;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.games";
+				IPHONEOS_DEPLOYMENT_TARGET = "$(RECOMMENDED_IPHONEOS_DEPLOYMENT_TARGET)";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-lavformat",
+					"-lavcodec",
+					"-lswresample",
+					"-lswscale",
+					"-lavutil",
+					"-ljson-c",
+					"-lz",
+					"-liconv",
+					"-lass",
+					"-lfribidi",
+					"-lunibreak",
+					"-lfontconfig",
+					"-lexpat",
+					"-lharfbuzz",
+					"-lfreetype",
+					"-lpng16",
+					"-lbz2",
+					"-lbrotlidec",
+					"-lbrotlicommon",
+					"-framework",
+					CoreText,
+				);
+				"OTHER_LDFLAGS[sdk=iphoneos*]" = (
+					"$(inherited)",
+					"-lavformat",
+					"-lavcodec",
+					"-lswresample",
+					"-lswscale",
+					"-lavutil",
+					"-ljson-c",
+					"-lz",
+					"-liconv",
+					"-weak_framework",
+					MetalFX,
+					"-lass",
+					"-lfribidi",
+					"-lunibreak",
+					"-lfontconfig",
+					"-lexpat",
+					"-lharfbuzz",
+					"-lfreetype",
+					"-lpng16",
+					"-lbz2",
+					"-lbrotlidec",
+					"-lbrotlicommon",
+					"-framework",
+					CoreText,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -4116,6 +4452,15 @@
 			buildConfigurations = (
 				317FE82A16E1A9A4CDFBCC0D /* Release */,
 				04063D398FAE8707BCFDB473 /* Debug */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		CE8CD29D309A153D0003D364 /* Build configuration list for PBXNativeTarget "Amagami" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				CE8CD29E309A153D0003D364 /* Release */,
+				CE8CD29F309A153D0003D364 /* Debug */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

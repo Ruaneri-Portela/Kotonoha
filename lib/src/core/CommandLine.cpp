@@ -33,7 +33,6 @@ CommandLine::CommandLine(std::string program, EngineOptions &engine)
          engine.assetOverlaySpecified = true;
        });
   flag("--launcher", "Open the game selection launcher", engine.launcher);
-  alias("--launcher", "--laucher");
   flag("--no-launcher", "Start the game directly",
        [&engine] { engine.launcher = false; });
   option("--dump-translation", "FILE", "Export original texts and exit",

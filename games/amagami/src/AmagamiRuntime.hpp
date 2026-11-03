@@ -11,6 +11,17 @@ public:
   explicit AmagamiTextBox(Kotonoha::Engine &engine)
       : VNTextBox(engine, "", "", 10.0) {}
   bool designSpace() const override { return false; }
+  void setOriginalKey(const std::string &key);
+  void update() override;
+  void completeDialogue() override;
+  void translationChanged(const std::string &, const std::string &,
+                          const std::string &) override;
+
+private:
+  std::string originalKey_;
+  std::vector<std::pair<size_t, double>> waits_;
+  size_t nextWait_ = 0;
+  double pauseSeconds_ = 0;
 
 protected:
   void recordDialogue(const std::string &, const std::string &) override {}
@@ -49,10 +60,14 @@ public:
   void render(Kotonoha::RendererRef, float) override;
   void onEvent(Kotonoha::EventRef) override;
   void update() override;
+  void updatePresentation(double seconds);
   SDL_Point viewport() const override { return {960, 672}; }
+  SDL_FPoint sceneSize(const Kotonoha::Scene &) const override;
   std::string debugNode() const override;
   std::vector<Kotonoha::DebugNode> debugNodes() const override;
   void debugJumpToNode(const std::string &) override;
+  int translationRoute() const override;
+  std::vector<std::string> activeTranslationKeys() const override;
   std::vector<int> translationRoutes() const override;
   std::vector<std::string> translationTexts(int) const override;
   void saveGame(const std::string &) override;
@@ -70,6 +85,7 @@ private:
   void syncDialogue();
   Kotonoha::Engine *engine_ = nullptr;
   Kotonoha::PcmPlayer music_, voice_;
+  std::vector<float> voiceEnvelope_;
   std::string start_, savePath_, error_, notice_;
   bool paused_ = false, backlog_ = false;
   size_t focus_ = 0, voiced_ = 0;

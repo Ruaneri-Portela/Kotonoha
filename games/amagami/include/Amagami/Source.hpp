@@ -19,6 +19,10 @@ public:
   Script script(size_t index) const;
   int find(const std::string &archive, const std::string &name) const;
   int musicIndex(unsigned number) const;
+  int breathDirection(unsigned character, unsigned pose) const;
+  SDL_FPoint actorOrigin(unsigned character, unsigned pose) const;
+  std::pair<std::string, std::string>
+  actorAssets(unsigned character, unsigned cloth, unsigned pose) const;
   Bytes voice(const std::string &code, unsigned number) const;
   Script systemClass(size_t index) const;
   const std::vector<std::string> &scenarios() const { return scenarios_; }
@@ -31,6 +35,9 @@ private:
   std::vector<std::string> scenarios_;
   std::map<std::string, size_t> scenarioByName_;
   std::vector<ClassFile> classes_;
+  std::vector<std::pair<std::string, std::string>> actorAssets_;
+  std::vector<std::vector<int>> breathDirections_;
+  std::vector<std::vector<SDL_FPoint>> actorOrigins_;
   struct VoiceEntry {
     uint64_t offset, size;
   };

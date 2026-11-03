@@ -125,4 +125,12 @@ bool RenderUpscaledTexture(SDL_Renderer *renderer, SDL_Texture *texture,
                            const SDL_FRect *destination,
                            Uint64 contentSerial = 0);
 
+// The same pipeline and crop mapping, preserving the game's rotation/flip.
+bool RenderUpscaledTextureRotated(SDL_Renderer *renderer, SDL_Texture *texture,
+                                  const SDL_FRect *source,
+                                  const SDL_FRect *destination, double angle,
+                                  const SDL_FPoint *center = nullptr,
+                                  SDL_FlipMode flip = SDL_FLIP_NONE,
+                                  Uint64 contentSerial = 0);
+
 } // namespace Kotonoha
