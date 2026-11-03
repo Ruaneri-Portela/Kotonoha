@@ -1,0 +1,20 @@
+# Original PS2 disc and extracted data stay local.
+*.iso
+*.ISO
+*.bin
+*.cue
+*.afs
+*.AFS
+*.arc
+*.ARC
+*.pac
+*.PAC
+*.scf
+*.tm2
+*.ahx
+*.adx
+/game-assets/*
+!/game-assets/.gitignore
+!/game-assets/README.txt
+# Port documentation is intentionally versioned.
+!README.txt

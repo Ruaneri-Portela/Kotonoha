@@ -1,3 +1,4 @@
 # Game data is supplied locally and must not be committed.
 *
 !.gitignore
+!README.txt

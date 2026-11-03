@@ -2,7 +2,7 @@
 #include <ZeroNoTsukaima/Catalog.hpp>
 #include <Kotonoha/core/DiscImage.hpp>
 #include <ZeroNoTsukaima/Archive.hpp>
-#include <ZeroNoTsukaima/Tim2.hpp>
+#include <Kotonoha/media/Ps2Tim2.hpp>
 
 #include <map>
 #include <memory>
@@ -21,7 +21,7 @@ public:
   const std::vector<std::string> &Names() const { return names_; }
   bool LoadScene(size_t index, std::vector<uint8_t> *out) const;
   // SCENEDAT picture (TIM2) by index; names are resolved through Catalog().
-  bool LoadPicture(int index, Image *out) const;
+  bool LoadPicture(int index, Kotonoha::Ps2Image *out) const;
   const ImageCatalog &Catalog() const { return catalog_; }
   // Raw SPU-ADPCM streams: VOICE_ID (one per spoken line) and SOUND_ID (BGM / effects).
   bool LoadVoice(size_t index, std::vector<uint8_t> *out) const;
@@ -35,7 +35,7 @@ public:
   const std::map<std::string, int> &NormalNames() const { return normalNames_; }
   const std::map<std::string, int> &SoundNames() const { return soundNames_; }
   // NORMAL picture (system UI: title, menus, message window) by index.
-  bool LoadNormalPicture(int index, Image *out) const;
+  bool LoadNormalPicture(int index, Kotonoha::Ps2Image *out) const;
   // SYSVOICES.NUT (SYSTEM #36): system voice name ("RU9Y0005") -> VOICE_ID index.
   int SystemVoice(const std::string &name) const { return Lookup(systemVoices_, name); }
   // MPEG-PS movie number n of the NORMAL #247 table (0 = ZERO2OP.PSS, the opening).

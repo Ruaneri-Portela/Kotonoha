@@ -4,9 +4,9 @@
 // Archives (NAME.HD + NAME.BIN) become <outdir>/NAME/NNNN.{tm2,txt,bin};
 // with --png every TIM2 picture is also written as NNNN.png.
 #include <Kotonoha/core/DiscImage.hpp>
+#include <Kotonoha/media/Ps2Tim2.hpp>
 #include <ZeroNoTsukaima/Archive.hpp>
 #include <ZeroNoTsukaima/Lz.hpp>
-#include <ZeroNoTsukaima/Tim2.hpp>
 
 #include <SDL3/SDL_iostream.h>
 #include <SDL3/SDL_surface.h>
@@ -34,7 +34,7 @@ bool LooksLikeText(const std::vector<uint8_t> &d) {
   return d.size() > 2 && ((d[0] == '/' && (d[1] == '/' || d[1] == '*')));
 }
 
-void SavePng(const fs::path &path, Image &img) {
+void SavePng(const fs::path &path, Kotonoha::Ps2Image &img) {
   SDL_Surface *s =
       SDL_CreateSurfaceFrom(img.width, img.height, SDL_PIXELFORMAT_RGBA32,
                             img.rgba.data(), img.width * 4);
@@ -100,8 +100,8 @@ int main(int argc, char **argv) {
         std::snprintf(name, sizeof(name), "%04zu", i);
         WriteFile(dir / (std::string(name) + suffix), data);
         if (png && std::strcmp(suffix, ".tm2") == 0) {
-          Image img;
-          if (DecodeTim2(data.data(), data.size(), &img)) {
+          Kotonoha::Ps2Image img;
+          if (Kotonoha::DecodePs2Tim2(data.data(), data.size(), &img)) {
             SavePng(dir / (std::string(name) + ".png"), img);
             ++pictures;
           }

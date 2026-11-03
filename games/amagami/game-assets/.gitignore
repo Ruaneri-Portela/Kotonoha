@@ -1,0 +1,4 @@
+# Game data stays local.
+*
+!.gitignore
+!README.txt

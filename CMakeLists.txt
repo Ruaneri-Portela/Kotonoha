@@ -6,6 +6,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 include(CTest)
 
 option(KOTONOHA_BUILD_EXAMPLE "Build the Kotonoha example game" ON)
+option(KOTONOHA_BUILD_AMAGAMI "Build the Amagami (PS2) port in development" ON)
 option(KOTONOHA_BUILD_ZERO "Build the Zero no Tsukaima (PS2) port" ON)
 option(KOTONOHA_BUILD_SNOW "Build the Snow Radish Vacation!! port" ON)
 option(KOTONOHA_BUILD_SUMMER "Build the Summer Radish Vacation!! port" ON)
@@ -37,4 +38,8 @@ endif()
 
 if(KOTONOHA_BUILD_AIR)
     add_subdirectory(games/air)
+endif()
+
+if(KOTONOHA_BUILD_AMAGAMI)
+    add_subdirectory(games/amagami)
 endif()

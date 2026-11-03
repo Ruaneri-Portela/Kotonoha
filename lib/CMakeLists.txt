@@ -101,6 +101,8 @@ add_library(KotonohaEngine SHARED
     src/media/MediaPlayer.cpp
     src/media/AudioMixer.cpp
     src/media/PcmPlayer.cpp
+    src/media/Ps2Tim2.cpp
+    src/media/CriAudio.cpp
     src/media/upscaling/Upscaler.cpp
     src/media/upscaling/MPVCompatibleUpscaler.cpp
     src/media/upscaling/MetalFXUpscaler.mm
