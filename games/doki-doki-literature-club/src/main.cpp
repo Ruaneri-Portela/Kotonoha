@@ -54,16 +54,10 @@ struct App {
 // Game data: <root>/game-assets/game (bundles, OBB, working or executable
 // directory, documents), then <root>/game and the source checkout layouts.
 std::string defaultDirectory() {
-  constexpr const char *game = "doki-doki-literature-club";
   if (auto found =
-          Kotonoha::FileResolver::findGameAsset(game, "game/scripts.rpa"))
+          Kotonoha::FileResolver::findGameAsset({}, "game/scripts.rpa"))
     return found->parent_path().string();
-  for (const char *relative :
-       {"game/scripts.rpa", "doki-doki-literature-club/game/scripts.rpa",
-        "games/doki-doki-literature-club/game-assets/game/scripts.rpa"})
-    if (auto found = Kotonoha::FileResolver::find(relative, game))
-      return found->parent_path().string();
-  return (Kotonoha::gameAssetDirectory(game) / "game").string();
+  return (Kotonoha::gameAssetDirectory({}) / "game").string();
 }
 
 } // namespace

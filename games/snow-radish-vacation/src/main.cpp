@@ -58,11 +58,10 @@ struct App {
 };
 
 std::string DefaultDirectory() {
-  const std::string game = "snow-radish-vacation";
   for (const char *script : {"SCRIPT.DAT", "script.dat"})
-    if (auto found = Kotonoha::FileResolver::findGameAsset(game, script))
+    if (auto found = Kotonoha::FileResolver::findGameAsset({}, script))
       return found->parent_path().string();
-  return Kotonoha::gameAssetDirectory(game).string();
+  return Kotonoha::gameAssetDirectory({}).string();
 }
 
 } // namespace

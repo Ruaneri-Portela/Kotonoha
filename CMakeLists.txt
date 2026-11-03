@@ -2,11 +2,6 @@ cmake_minimum_required(VERSION 3.16)
 
 project(Kotonoha VERSION 0.1.0 LANGUAGES CXX)
 
-# Global 16KiB page support
-if(ANDROID)
-    add_link_options("-Wl,-z,max-page-size=16384")
-endif()
-
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 include(CTest)
 

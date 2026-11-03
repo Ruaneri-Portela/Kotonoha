@@ -186,7 +186,38 @@ const std::string &Launcher::getStatus() const { return status; }
 void Launcher::quit() { current = State::Quit; }
 
 void Launcher::drawGameOptions() {}
-bool Launcher::validate(std::string &) { return true; }
+void Launcher::checkOverlay(bool force) {
+  if (!force && overlayCheckedOnce && overlayChecked == draft.assetOverlayPath)
+    return;
+  overlayCheckedOnce = true;
+  overlayChecked = draft.assetOverlayPath;
+  overlayValid = true;
+  overlayInfo.clear();
+  if (draft.assetOverlayPath.empty()) {
+    overlayInfo = "Optional asset overlay folder";
+    overlayValid = true;
+    return;
+  }
+
+  AssetOverlay validateOverlay(draft.assetOverlayPath);
+  if (validateOverlay.root().empty()) {
+    overlayValid = false;
+    overlayInfo = "Invalid asset overlay path";
+  } else {
+    overlayValid = true;
+    draft.assetOverlayPath = validateOverlay.root().string();
+    overlayInfo = "Asset overlay valid: " + draft.assetOverlayPath;
+  }
+}
+
+bool Launcher::validate(std::string &error) {
+  checkOverlay(true);
+  if (!overlayValid) {
+    error = overlayInfo;
+    return false;
+  }
+  return true;
+}
 void Launcher::save() {}
 
 void Launcher::setStatus(std::string message, bool error) {
@@ -199,9 +230,6 @@ void Launcher::setStatus(std::string message, bool error) {
 bool Launcher::launch() {
   try {
     draft.validate();
-    if (!draft.assetOverlayPath.empty()) {
-      AssetOverlay validateOverlay(draft.assetOverlayPath);
-    }
     std::string error;
     if (!validate(error)) {
       setStatus(error.empty() ? "Invalid settings" : error, true);
@@ -388,14 +416,27 @@ void Launcher::draw() {
     if (ImGui::BeginTabItem("Game")) {
       drawGameOptions();
       ImGui::SeparatorText("Asset overlay (all games)");
-      ImGui::InputText("Overlay folder", &draft.assetOverlayPath);
+      if (ImGui::InputText("Overlay folder", &draft.assetOverlayPath,
+                           ImGuiInputTextFlags_EnterReturnsTrue) ||
+          !ImGui::IsItemActive())
+        checkOverlay();
       if (ImGui::Button("Browse overlay..."))
         browseFolder(draft.assetOverlayPath, [this](const std::string &path) {
           draft.assetOverlayPath = path;
+          checkOverlay(true);
         });
       ImGui::SameLine();
-      if (ImGui::Button("Disable overlay"))
+      if (ImGui::Button("Disable overlay")) {
         draft.assetOverlayPath.clear();
+        checkOverlay(true);
+      }
+
+      checkOverlay();
+      ImGui::PushStyleColor(ImGuiCol_Text, overlayValid
+                                               ? ImGuiTheme::success()
+                                               : ImGuiTheme::warning());
+      ImGui::TextWrapped("%s", overlayInfo.c_str());
+      ImGui::PopStyleColor();
 
       ImGui::EndTabItem();
     }

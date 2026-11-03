@@ -1,5 +1,9 @@
-
 cmake_minimum_required(VERSION 3.22)
+
+# Global 16KiB page support
+if(ANDROID)
+    add_link_options("-Wl,-z,max-page-size=16384")
+endif()
 
 # Detectar automaticamente o triplet Android do vcpkg.
 # Deve executar antes de project().

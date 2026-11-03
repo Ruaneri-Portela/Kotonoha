@@ -93,8 +93,11 @@ std::string EngineOptions::assetOverlayDirectory() const {
     return assetOverlayPath;
   if (!settings.assetOverlayPath.empty())
     return settings.assetOverlayPath;
-  if (!settingsPath.empty() && std::filesystem::exists(settingsPath))
-    return EngineSettings::load(settingsPath).assetOverlayPath;
+  if (!settingsPath.empty() && std::filesystem::exists(settingsPath)) {
+    auto loaded = EngineSettings::load(settingsPath).assetOverlayPath;
+    if (!loaded.empty())
+      return loaded;
+  }
   return {};
 }
 SDLSession::SDLSession(const Runtime &runtime) {

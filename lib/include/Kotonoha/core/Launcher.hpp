@@ -92,6 +92,11 @@ private:
   void drawUpscaling();
   void drawTranslation();
   void drawAdvanced();
+
+  std::string overlayChecked, overlayInfo;
+  bool overlayValid = true;
+  bool overlayCheckedOnce = false;
+  void checkOverlay(bool force = false);
 };
 
 } // namespace Kotonoha
