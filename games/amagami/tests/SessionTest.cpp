@@ -31,6 +31,12 @@ int main(int argc, char **argv) {
         "Cold-breath direction comes from the original CharParam pose table");
     require(source->actorAssets(7, 0, 3).second == "stand/f7_Ax.tm2",
             "Alternate pose reuses original face mapping");
+    const auto event = source->eventPicture(6, 24, 0);
+    require(event == "epi/e6_24a0.tm2" && source->graphic(event).has_value(),
+            "EventPicture uses original epi path and frame suffix");
+    require(source->itemPicture(170) == "item/170.tm2" &&
+                source->graphic("sysgraph/baseitem.tm2").has_value(),
+            "Native ItemView resolves its item and frame on the disc");
     require(!source->voice("MIY", 1858).empty(),
             "Nested AFS voice name lookup");
     require(source->voice("XYZ", 9999).empty(), "Missing voice lookup");
@@ -44,6 +50,91 @@ int main(int argc, char **argv) {
         std::filesystem::remove(p, ec);
       }
     } cleanup{tmp};
+    // Exercise the actual seven-argument macro reported by the runtime.
+    for (int immediate : {0, 1}) {
+      Amagami::Vm probe;
+      for (size_t i = 0; i < source->classes().size(); ++i)
+        probe.add(source->systemClass(i));
+      int positions = 0, actions = 0, moves = 0;
+      Amagami::VmValue action;
+      probe.native = [&](const Amagami::VmValue &receiver,
+                         const std::string &selector,
+                         const std::vector<Amagami::VmValue> &args)
+          -> std::optional<Amagami::VmValue> {
+        if (selector == "move") {
+          ++moves;
+          return receiver;
+        }
+        if (selector == "exsleep" || selector == "println")
+          return receiver;
+        if (selector == "setPos") {
+          ++positions;
+          return receiver;
+        }
+        if (receiver.kind == Amagami::VmValue::Class &&
+            receiver.text == "Thread" && selector == "new")
+          return probe.instance("Thread");
+        if (receiver.object && receiver.object->type == "Thread" &&
+            selector == "start") {
+          require(args.size() == 1 && args[0].object &&
+                      args[0].object->type == "n0_Action",
+                  "laugh starts its original n0_Action coroutine");
+          action = args[0];
+          ++actions;
+          return receiver;
+        }
+        return std::nullopt;
+      };
+      auto flag = [](bool enabled) {
+        auto value = Amagami::VmValue::num(enabled);
+        value.kind = Amagami::VmValue::Boolean;
+        return value;
+      };
+      for (const auto &[slot, enabled] :
+           std::vector<std::pair<int, bool>>{{5, false},
+                                             {6, true},
+                                             {18, false},
+                                             {19, false},
+                                             {20, false},
+                                             {21, false}})
+        probe.classField("GameParam", size_t(slot)) = flag(enabled);
+      probe.call(probe.instance("n0_MacroScripts"), "laugh",
+                 {probe.instance("Actor"), Amagami::VmValue::num(10),
+                  Amagami::VmValue::num(20), Amagami::VmValue::num(1),
+                  Amagami::VmValue::num(2),
+                  Amagami::VmValue::num(immediate ? 0 : 1, true),
+                  Amagami::VmValue::num(1)});
+      probe.run();
+      require(probe.finished() && (immediate ? positions == 1 : actions == 1),
+              "Original laugh macro reaches its immediate and animated paths");
+      if (!immediate) {
+        auto child = probe.fork(action, "run");
+        child.run();
+        require(child.finished() && moves > 0,
+                "Original laugh coroutine executes actor movement");
+      }
+    }
+    Amagami::Session itemScene(source);
+    itemScene.setRealtime(true);
+    itemScene.start("n3nka_st01A");
+    for (int i = 0; i < 100 && !itemScene.visuals().count("ITEM_ICON"); ++i) {
+      itemScene.tick(1);
+      if (!itemScene.waiting())
+        itemScene.advance();
+    }
+    require(itemScene.visuals().count("ITEM_ICON") && itemScene.waiting(),
+            "Retail script opens ItemView and waits for its animation");
+    require(itemScene.visuals().at("ITEM_ICON").file == "item/220.tm2" &&
+                itemScene.visuals().at("ITEM_ICON").scaleX == 0,
+            "ItemView starts with the original small image at zero scale");
+    itemScene.tick(0.1);
+    require(itemScene.visuals().at("ITEM_ICON").scaleX > 0 &&
+                itemScene.visuals().at("ITEM_ICON").scaleX < 1,
+            "ItemView interpolates the opening over twelve frames");
+    itemScene.tick(0.1);
+    require(itemScene.visuals().at("ITEM_ICON").scaleX == 1 &&
+                itemScene.visuals().at("ITEM_BASE").scaleX == 1.5f,
+            "ItemView reaches the native icon and frame scales");
     Amagami::Session timed(source);
     timed.setRealtime(true);
     timed.start();

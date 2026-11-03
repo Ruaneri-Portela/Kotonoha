@@ -91,3 +91,25 @@ REA 6.7.0 with Ghidra 12.1.4 decompiled export `reallive_dll_func_call`
 (0x100112d0), dispatchers 0x10010c20/0x10015120, encoding factory
 0x10013f00 and CP1252 decoder 0x1000e0c0. This verifies static contracts,
 not timing or observable equivalence with the running Windows application.
+
+## Resource and opcode review (2026-11-03)
+
+AIR now extends `Kotonoha::IndexedFileSystemAssetProvider`: indexing,
+case-insensitive path lookup, Windows separator normalization, bounded reads,
+streaming paths and overlays use the engine implementation. The port retains
+only its G00/PDT/NWA decoders and RealLive graphic-name conventions.
+
+Run `AirInspect Seen.txt --opcodes` for a CSV inventory with counts and the
+first scenario/instruction. The supplied edition contains 184 command signatures
+and 669,818 command occurrences. Counts establish presence, not runtime coverage.
+Confirmed commands still missing from the presentation dispatch include:
+
+| Signature | Occurrences | First location | Remaining work |
+|---|---:|---|---|
+| `1:20:1002/0` | 11 | `8994:194` | Opening music command; recover native timing/offset semantics |
+| `1:71:1300/0` | 4 | `8996:77` | Drift/particle object creation |
+| `1:81:1031/0` | 4 | `8996:101` | Drift animation parameters |
+
+Use `AirInspect Seen.txt --find '1:20:1002'` to inspect each actual call.
+These commands continue to stop with an explicit diagnostic; their behavior is
+not approximated by silently consuming them.

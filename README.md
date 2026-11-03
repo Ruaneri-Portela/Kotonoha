@@ -12,7 +12,7 @@ provided by vcpkg.
 
 - [lib/](lib/): public headers, engine implementations, tests and submodules.
 - [assets/](assets/): engine splash, fonts, licenses and bundled GLSL shaders.
-- [games/](games/): example, Zero no Tsukaima, Snow Radish Vacation, DDLC and School Days.
+- [games/](games/): example, Zero no Tsukaima, Amagami, AIR, Radish Vacation, DDLC and School Days.
 - [Xcode/Kotonoha.xcodeproj](Xcode/Kotonoha.xcodeproj): native iOS targets.
 - [Android/](Android/): Android Studio/Gradle project with separate game APKs.
 - [cmake/](cmake/): desktop configuration and `.app` packaging.
@@ -309,3 +309,9 @@ media, scripting and MCP APIs and the existing port limitations. ZNT/SRV
 dialogue translations and DDLC's later acts have not been fully validated.
 
 Shared overlay, gesture and live translation behavior: [documentation](docs/ASSET_OVERLAYS.md).
+
+Port fidelity, remaining commands and verification are tracked in the
+[Amagami](games/amagami/PORT_STATUS.md), [AIR](games/air/PORT_STATUS.md) and
+[School Days](games/school-days/PORT_STATUS.md) status documents. Shared file
+ownership and per-game provider extensions are described in
+[asset management](docs/ASSET_OVERLAYS.md#shared-file-ownership).

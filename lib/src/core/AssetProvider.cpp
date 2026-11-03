@@ -305,4 +305,31 @@ FileSystemAssetProvider::localPathAsset(const std::string &id) const {
   return resolve(id).string();
 }
 
+IndexedFileSystemAssetProvider::IndexedFileSystemAssetProvider(
+    const std::filesystem::path &root)
+    : FileSystemAssetProvider(std::filesystem::canonical(root)),
+      index(root, false) {}
+bool IndexedFileSystemAssetProvider::containsAsset(
+    const std::string &id) const {
+  return !index.resolve(id).empty();
+}
+std::string
+IndexedFileSystemAssetProvider::localPathAsset(const std::string &id) const {
+  const auto path = index.resolve(id);
+  if (path.empty())
+    throw std::runtime_error("Asset not found in " + getRoot().string() + ": " +
+                             id);
+  return path;
+}
+std::vector<Uint8>
+IndexedFileSystemAssetProvider::readAsset(const std::string &id) const {
+  const auto relative =
+      std::filesystem::path(localPathAsset(id)).lexically_relative(getRoot());
+  return FileSystemAssetProvider::readAsset(relative.generic_string());
+}
+std::vector<std::string>
+IndexedFileSystemAssetProvider::listAsset(const std::string &prefix) const {
+  return index.list(prefix);
+}
+
 } // namespace Kotonoha

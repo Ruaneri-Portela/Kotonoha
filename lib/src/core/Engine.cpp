@@ -191,6 +191,7 @@ Engine::Engine(Runtime &run, EngineOptions options)
     SDL_SetLogPriority(category, settings.logPriority);
   settingsMenu = std::make_unique<SettingsMenu>(*this);
   ui = std::make_unique<UI>(settings.fontPath);
+  ui->setTranslation(&translation);
   vnUI = std::make_unique<UI>(
       settings.vnFontPath.empty() ? settings.fontPath : settings.vnFontPath);
   audio.setUserVolumes(settings.channelVolumes);
@@ -386,9 +387,15 @@ void Engine::advanceTimeline(double seconds) {
     throw std::invalid_argument(
         "Timeline step must be between 0 and 60 seconds");
   if (!agentPaused || runtime.isStoryPaused() || debug->isVisible() ||
-      settingsMenu->isOpen() || !timeline->isPlaying())
+      settingsMenu->isOpen())
     throw std::logic_error("Pause via MCP and close game/debug modals before "
                            "stepping an active timeline");
+  if (runtime.advanceStoryTime(seconds)) {
+    frameClock.reset();
+    return;
+  }
+  if (!timeline->isPlaying())
+    throw std::logic_error("No active timeline to step");
   timeline->setPaused(false);
   agentPaused = false;
   try {

@@ -1,5 +1,5 @@
 #include "SchoolDaysRuntime.hpp"
-#include <Kotonoha/componentes/TextInputForm.hpp>
+#include <Kotonoha/componentes/TextInputDialog.hpp>
 #include <Kotonoha/events/BackAction.hpp>
 #include <Kotonoha/localization/Encoding.hpp>
 #include <Kotonoha/media/upscaling/Upscaler.hpp>
@@ -474,6 +474,9 @@ void Runtime::advance() {
     advance();
   } else if (result.kind == Kind::SwappedScene) {
     openScene(result.scene);
+  } else if (result.kind == Kind::PendingHandoff ||
+             result.kind == Kind::Terminal) {
+    openFeel();
   } else if (result.kind == Kind::Unresolved) {
     paused = true;
     setStatus("Unresolved School Days routing transition: " + scene.sceneKey);
@@ -508,6 +511,78 @@ void Runtime::back() {
     setStatus("Beginning of available route history");
 }
 
+void Runtime::openFeel() {
+  closePanels();
+  resumeAfterSave = false;
+  std::string failure;
+  if (systemUi.OpenSaveFeel(&engine->GetRenderer(), assets->root().string(),
+                            WideFull, &failure)) {
+    playSound(Ui::UiSfxCue::View);
+  } else {
+    setStatus("Feeling screen unavailable: " + failure);
+  }
+}
+
+void Runtime::skipToChoice() {
+  if (choice || bridge.HasPendingHandoff())
+    return;
+  for (auto *event = script.data; event; event = event->next)
+    if (event->command == SetSELECT && event->startTick >= tick) {
+      seek(event->startTick);
+      paused = false;
+      return;
+    }
+  playing.clear();
+  Kotonoha_KtrfError error{};
+  Kotonoha::SchoolDaysKtrfGameplayBridge::StepResult result;
+  const bool advanced =
+      bridge.AdvanceToNextChoice(nullptr, config.skip, &result, &error);
+  // The bridge may have replaced several presentations, including on a later
+  // failed transition. Never keep pointers into a freed ORS presentation.
+  openScene(bridge.CurrentScene());
+  Check(advanced, error);
+  if (bridge.HasPendingHandoff()) {
+    openFeel();
+  } else {
+    for (auto *event = script.data; event; event = event->next)
+      if (event->command == SetSELECT) {
+        seek(event->startTick);
+        break;
+      }
+  }
+  flushGlobal();
+}
+
+void Runtime::skipScene() {
+  // Both keyboard and MenuBar use the same transition. Seeking to Next alone
+  // left the scene parked there forever with Auto off (or while paused).
+  if (choice || bridge.HasPendingHandoff())
+    return;
+  if (timeline.ReadyToEnd(tick)) {
+    advance();
+    return;
+  }
+  if (auto target = timeline.ComputeSkipToEndTarget(tick)) {
+    // Repeated Skip must not rewind the final second before a choice.
+    auto destination = *target;
+    if (destination < tick)
+      destination = *timeline.SkipFrameTick();
+    if (destination <= tick) {
+      destination = *timeline.NextTick();
+      for (auto *event = script.data; event; event = event->next)
+        if (event->command == SetSELECT && event->startTick >= tick &&
+            event->startTick < destination) {
+          destination = event->startTick;
+          break;
+        }
+    }
+    seek(destination);
+    paused = false;
+    if (!choice && timeline.ReadyToEnd(tick))
+      advance();
+  }
+}
+
 void Runtime::seek(Kotonoha_SceneTick target) {
   playing.clear();
   caption = choice = nullptr;
@@ -534,9 +609,10 @@ void Runtime::update() {
       finishSplash();
     return;
   }
-  gameScene->update();
-  if (backlogFallback->isVisible())
-    backlogFallback->update();
+  // Registered Kotonoha dialogs need their normal lifecycle even though the
+  // film timeline is custom. Iterate a snapshot: a submit callback can close
+  // it.
+  Kotonoha::Runtime::update();
   if (systemUi.IsOpen()) {
     if (systemUi.IsSaveLoadOpen() && saveLoadPage != systemUi.SaveLoad().Page())
       refreshSaveMetadata();
@@ -545,7 +621,12 @@ void Runtime::update() {
          routeMapSubpage != systemUi.RouteMap().Subpage()))
       refreshRouteMap();
     Ui::Output output;
-    systemUi.Update(static_cast<uint32_t>(now), 0, 0, &output);
+    int64_t feeling001 = 0, feeling002 = 0;
+    Kotonoha_KtrfError feelingError{};
+    bridge.Session().State().ReadSessionInt("001", &feeling001, &feelingError);
+    bridge.Session().State().ReadSessionInt("002", &feeling002, &feelingError);
+    systemUi.Update(static_cast<uint32_t>(now), feeling001, feeling002,
+                    &output);
     handlePanel(output);
   }
   sounds.erase(
@@ -628,7 +709,7 @@ void Runtime::renderMenu(Kotonoha::RendererRef renderer, float) {
 }
 
 void Runtime::renderGameplay(Kotonoha::RendererRef renderer, float) {
-  const SDL_FRect area{0, 0, 1280, 720};
+  const auto area = mediaArea();
   if (!background.empty()) {
     try {
       Kotonoha::RenderUpscaledTexture(
@@ -649,7 +730,7 @@ void Runtime::renderGameplay(Kotonoha::RendererRef renderer, float) {
       if (!halted)
         item.player->update(renderer,
                             std::max(0.0, elapsed - item.segmentStart));
-      item.player->render(renderer, area);
+      item.player->render(renderer, area, nullptr, !widePresentation);
       if (!item.loop.empty() && item.player->finished()) {
         const auto channel = item.player->getChannel();
         item.player->open(*assets, assets->resolve(item.loop), true,
@@ -685,6 +766,12 @@ void Runtime::renderPanels(Kotonoha::RendererRef renderer) {
       setStatus("School Days panel failed: " + failure);
     }
   }
+  if (systemUi.IsConfigOpen()) {
+    auto &ui = engine->GetUI();
+    // Replace the obsolete SOMCON label in both native config skins.
+    ui.panel(renderer, {636.8f, 86.4f, 310.4f, 60.8f}, {24, 36, 53, 255});
+    ui.textSized(renderer, "Kotonoha", 655, 98, 275, 28, {255, 255, 255, 255});
+  }
   if (backlogModel.IsOpen()) {
     std::string failure;
     if (!backlogPresenter.Render(&renderer, backlogModel, &failure)) {
@@ -698,6 +785,10 @@ void Runtime::renderPanels(Kotonoha::RendererRef renderer) {
     renderScene(*saveMenu, renderer, 1);
   if (backlogFallback->isVisible())
     renderScene(*backlogFallback, renderer, 1);
+  for (auto *scene : GetActiveScenes())
+    if (scene && scene != saveMenu.get() && scene != backlogFallback.get() &&
+        scene->capturesInput())
+      renderScene(*scene, renderer, 1);
   renderStatus(renderer);
 }
 
@@ -732,6 +823,13 @@ void Runtime::onEvent(Kotonoha::EventRef event) {
     Kotonoha::Runtime::onEvent(event);
     return;
   }
+  const auto active = GetActiveScenes();
+  for (auto it = active.rbegin(); it != active.rend(); ++it)
+    if (*it && *it != saveMenu.get() && *it != backlogFallback.get() &&
+        (*it)->capturesInput()) {
+      dispatchEvent(**it, event);
+      return;
+    }
   if (event.type == SDL_EVENT_MOUSE_BUTTON_UP &&
       event.button.button == SDL_BUTTON_LEFT && consumePanelRelease) {
     consumePanelRelease = false;
@@ -777,7 +875,13 @@ void Runtime::onEvent(Kotonoha::EventRef event) {
       consumePanelRelease = true;
     if (escape) {
       playSound(Ui::UiSfxCue::Cancel);
-      if (systemUi.IsRouteMapOpen())
+      if (systemUi.IsSaveFeelOpen() && bridge.HasPendingHandoff()) {
+        closePanels();
+        continueHandoff();
+      } else if (systemUi.IsSaveLoadOpen() && resumeAfterSave &&
+                 bridge.HasPendingHandoff()) {
+        openFeel();
+      } else if (systemUi.IsRouteMapOpen())
         openSaveLoad(false);
       else
         closePanels();
@@ -864,8 +968,7 @@ void Runtime::onEvent(Kotonoha::EventRef event) {
     if (event.key.key == SDLK_LEFT)
       back();
     if (event.key.key == SDLK_RIGHT)
-      if (auto target = timeline.ComputeSkipToEndTarget(tick))
-        seek(*target);
+      skipScene();
     if (choice && event.key.key >= SDLK_1 && event.key.key <= SDLK_9) {
       const int value = int(event.key.key - SDLK_1);
       if (value < int(choice->data.set_select->size))
@@ -889,16 +992,9 @@ void Runtime::activateControl(int control) {
   else if (control == 2)
     back();
   else if (control == 3) {
-    if (auto target = timeline.ComputeSkipToEndTarget(tick))
-      seek(*target);
+    skipScene();
   } else if (control == 4) {
-    for (auto *event = script.data; event; event = event->next)
-      if (event->command == SetSELECT && event->startTick > tick) {
-        seek(event->startTick);
-        return;
-      }
-    if (auto target = timeline.NextTick())
-      seek(*target);
+    skipToChoice();
   } else if (control == 10 || control == 11) {
     openSaveLoad(control == 10 &&
                  currentState == Kotonoha::GameState::Gameplay);
@@ -910,6 +1006,8 @@ void Runtime::activateControl(int control) {
     openRouteMap();
   else if (control == 16)
     openExit();
+  else if (control == 17)
+    openFeel();
   else if (control == 14) {
     playing.clear();
     Kotonoha_KtrfError error{};
@@ -929,7 +1027,7 @@ void Runtime::openSaveLoad(bool save) {
           &engine->GetRenderer(), assets->root().string(), WideFull,
           save ? Kotonoha::SchoolDaysSaveLoadModel::Mode::Save
                : Kotonoha::SchoolDaysSaveLoadModel::Mode::Load,
-          profile.textInput, profile.useEnglish, profile.fontData, &failure)) {
+          true, profile.useEnglish, profile.fontData, &failure)) {
     playSound(Ui::UiSfxCue::View);
     refreshSaveMetadata();
     return;
@@ -1019,7 +1117,7 @@ void Runtime::loadSlot(int slot) {
 Kotonoha::SchoolDaysConfigMenuRenderPlan::VisualState
 Runtime::configVisualState() const {
   Kotonoha::SchoolDaysConfigMenuRenderPlan::VisualState state;
-  state.defWideCurrent = 4; // NeoStart always presents the 16:9 layout.
+  state.defWideCurrent = widePresentation ? 4 : 5;
   state.defFullCurrent =
       engine->GetSettings().mode == Kotonoha::WindowMode::Windowed ? 6 : 7;
   state.defSkipCurrent = config.skip ? 8 : 9;
@@ -1055,6 +1153,11 @@ void Runtime::handleConfig(
     closePanels();
     return;
   case Kind::SelectPage:
+    if (action.page == Kotonoha::SchoolDaysConfigMenuModel::Page::Display) {
+      closePanels();
+      engine->openSettings();
+      return;
+    }
     openConfig(action.page);
     return;
   case Kind::SetMenVoice:
@@ -1094,7 +1197,9 @@ void Runtime::handleConfig(
     engine->applySettings(settings);
     break;
   }
-  case Kind::RequestWide: // Only the 16:9 layout exists in this port.
+  case Kind::RequestWide:
+    widePresentation = action.value != 0;
+    break;
   default:
     break;
   }
@@ -1141,6 +1246,8 @@ void Runtime::loadConfig() {
       next.textView = value != 0;
     else if (key == "MenVoice")
       next.menVoice = value != 0;
+    else if (key == "Wide")
+      widePresentation = value != 0;
     else if (key == "Skip")
       next.skip = value != 0;
     else if (key == "SuperSkip")
@@ -1157,8 +1264,9 @@ void Runtime::storeConfig() const {
   out << "BgmVolume=" << config.bgmVolume << "\nSeVolume=" << config.seVolume
       << "\nVoiceVolume=" << config.voiceVolume
       << "\nTextView=" << config.textView << "\nMenVoice=" << config.menVoice
-      << "\nSkip=" << config.skip << "\nSuperSkip=" << config.superSkip
-      << "\nAutoMode=" << config.autoMode << '\n';
+      << "\nWide=" << widePresentation << "\nSkip=" << config.skip
+      << "\nSuperSkip=" << config.superSkip << "\nAutoMode=" << config.autoMode
+      << '\n';
   try {
     Kotonoha::writeTextFileAtomically((documents / ConfigFile).string(),
                                       out.str());
@@ -1287,6 +1395,17 @@ void Runtime::openBacklog() {
 
 void Runtime::handlePanel(const Ui::Output &output) {
   playSound(output.uiSfx);
+  if (output.hasSaveFeelResult) {
+    if (output.saveFeelResult ==
+        Kotonoha::SchoolDaysSaveFeelModel::Result::OpenSave) {
+      resumeAfterSave = bridge.HasPendingHandoff();
+      openSaveLoad(true);
+    } else {
+      closePanels();
+      if (bridge.HasPendingHandoff())
+        continueHandoff();
+    }
+  }
   if (output.hasConfigAction)
     handleConfig(output.configAction);
   if (output.hasExitActivation) {
@@ -1313,6 +1432,8 @@ void Runtime::handlePanel(const Ui::Output &output) {
     switch (result.action) {
     case Action::Close:
       closePanels();
+      if (resumeAfterSave && bridge.HasPendingHandoff())
+        openFeel();
       break;
     case Action::RouteMap:
       openRouteMap();
@@ -1321,27 +1442,27 @@ void Runtime::handlePanel(const Ui::Output &output) {
       loadSlot(result.slot);
       break;
     case Action::CommentInputRequested: {
-      auto &form = engine->sharedScene<Kotonoha::TextInputForm>();
+      auto &form =
+          engine->sharedScene<Kotonoha::TextInputDialog>("", nullptr, nullptr);
       form.configure(
-          "Save comment", {{"Comment", "", ""}},
-          [this, &form](const std::vector<std::string> &values) {
-            const auto bytes =
-                Kotonoha::ConvertEncoding(values[0], "UTF-8", "UTF-16LE");
-            std::u16string comment;
-            for (size_t at = 0; at + 1 < bytes.size(); at += 2)
-              comment += char16_t(
-                  static_cast<unsigned char>(bytes[at]) |
-                  (unsigned(static_cast<unsigned char>(bytes[at + 1])) << 8));
-            if (!systemUi.SubmitSaveLoadComment(comment))
-              return std::string("Save selection is no longer available");
-            form.close();
-            RemoveScene(&form);
-            return std::string();
+          "Save name",
+          [this, &form](const std::string &value) {
+            try {
+              if (!systemUi.SubmitSaveLoadComment(Utf16(value)))
+                throw std::runtime_error(
+                    "Save selection is no longer available");
+              RemoveScene(&form);
+            } catch (const std::exception &error) {
+              systemUi.CancelSaveLoadComment();
+              RemoveScene(&form);
+              setStatus(error.what());
+            }
           },
           [this, &form] {
             systemUi.CancelSaveLoadComment();
             RemoveScene(&form);
-          });
+          },
+          scene.sceneKey);
       AddScene(&form);
       break;
     }
@@ -1349,6 +1470,11 @@ void Runtime::handlePanel(const Ui::Output &output) {
       try {
         saveSlot(result.slot, result.comment);
         setStatus("Saved to slot " + std::to_string(result.slot + 1));
+        if (resumeAfterSave && bridge.HasPendingHandoff()) {
+          resumeAfterSave = false;
+          closePanels();
+          continueHandoff();
+        }
       } catch (const std::exception &error) {
         setStatus(error.what());
       }

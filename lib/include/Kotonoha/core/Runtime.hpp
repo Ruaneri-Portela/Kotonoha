@@ -72,6 +72,10 @@ public:
   virtual void update();
   virtual void onEvent(EventRef event);
   virtual bool onScreenEvent(EventRef event);
+  virtual std::string diagnostic() const { return {}; }
+  virtual bool handleNewGameAction() { return false; }
+  virtual bool handleAdvanceAction() { return false; }
+  virtual bool advanceStoryTime(double) { return false; }
   virtual bool handleBackAction() { return false; }
   virtual bool handleBacklogAction() { return false; }
   virtual void renderScreen(RendererRef renderer, float scale);

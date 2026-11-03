@@ -837,13 +837,16 @@ bool SchoolDaysPersistence::RecordCheckpoint(int route, int scene,
     return false;
 
   size_t checkpointCount = 0u;
+  bool recorded = false;
   for (const auto &record : saveLog_.records) {
     if (record.tag != 3)
       continue;
     ++checkpointCount;
     if (record.secondary == AsciiUtf16(spKey)) {
-      return Fail(error, KOTONOHA_KTRF_ERROR_FORMAT,
-                  "School Days duplicate checkpoint SP key is unsupported");
+      // Checkpoints form an ordered collection keyed by SP. Replaying a
+      // visited scene must reuse its first snapshot, not insert a duplicate
+      // or prevent the route transition. Reapply the read flags below.
+      recorded = true;
     }
   }
   if (checkpointCount >
@@ -867,7 +870,8 @@ bool SchoolDaysPersistence::RecordCheckpoint(int route, int scene,
                        return true;
                      return record.tag == 3 && record.secondary > secondaryKey;
                    });
-  saveLog_.records.insert(insert, std::move(checkpoint));
+  if (!recorded)
+    saveLog_.records.insert(insert, std::move(checkpoint));
   hasSaveLog_ = true;
 
   if (!MarkLocalInteger(spKey, 11, error) ||

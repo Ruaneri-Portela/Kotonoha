@@ -332,6 +332,19 @@ void Session::start(const std::string &name) {
       for (const auto &v : script.classVariables)
         vm_.classField(script.name, v.slot) = vm_.instance(v.name);
     }
+  // GameParam.init's original skip defaults. The full init also opens native
+  // audio/config objects; preserve the Boolean types needed by isSkip/laugh.
+  for (const auto &[slot, enabled] :
+       std::vector<std::pair<size_t, bool>>{{5, false},
+                                            {6, true},
+                                            {18, false},
+                                            {19, false},
+                                            {20, false},
+                                            {21, false}}) {
+    auto flag = VmValue::num(enabled);
+    flag.kind = VmValue::Boolean;
+    vm_.classField("GameParam", slot) = flag;
+  }
   vm_.call(self_, "scriptMain", {VmValue::num(0)});
   pump();
 }
@@ -373,6 +386,12 @@ void Session::choose(size_t i) {
 std::optional<VmValue> Session::native(const VmValue &r, const std::string &s,
                                        const std::vector<VmValue> &a) {
   const auto t = type(r);
+  if (t == "System" && s == "println") {
+    if (!a.empty() && a[0].kind == VmValue::Text)
+      SDL_LogDebug(SDL_LOG_CATEGORY_APPLICATION, "Amagami script: %s",
+                   a[0].text.c_str());
+    return r;
+  }
   if (s == "ToAnswer" && r.object == self_.object) {
     choices_.clear();
     for (size_t i = 0; i < a.size(); ++i)
@@ -434,6 +453,40 @@ std::optional<VmValue> Session::native(const VmValue &r, const std::string &s,
         activeFiber_->wait = remaining;
       else
         waitFrames_ = remaining;
+      executingVm().pause();
+    }
+    return r;
+  }
+  if (t == "WIN" && (s == "openItem" || s == "closeItem" || s == "showItem" ||
+                     s == "hideItem")) {
+    const bool opening = s == "openItem";
+    const bool closing = s == "closeItem";
+    const double frames = opening || closing ? 12 : number(a, 0, 12);
+    if (opening) {
+      const auto file = source_->itemPicture(unsigned(number(a, 0)));
+      for (const auto &key : {"ITEM_BASE", "ITEM_ICON"}) {
+        auto &v = visuals_[key];
+        v = {};
+        v.file =
+            std::string(key) == "ITEM_BASE" ? "sysgraph/baseitem.tm2" : file;
+        v.visible = true;
+        v.scaleX = v.scaleY = v.alpha = 0;
+      }
+    }
+    for (const auto &key : {"ITEM_BASE", "ITEM_ICON"}) {
+      if (!visuals_.count(key))
+        continue;
+      animate(key, Tween::Alpha, closing || s == "hideItem" ? 0 : 1, 0, frames,
+              1);
+      if (opening || closing) {
+        const float size = closing                           ? 0
+                           : std::string(key) == "ITEM_BASE" ? 1.5f
+                                                             : 1;
+        animate(key, Tween::Scale, size, size, frames, 1);
+      }
+    }
+    if (realtime_ && (opening || closing)) {
+      waitFrames_ = frames;
       executingVm().pause();
     }
     return r;
@@ -778,12 +831,10 @@ std::optional<VmValue> Session::native(const VmValue &r, const std::string &s,
   if ((s == "load" || s == "loadE") && (t == "BG" || t == "BG0" || t == "BG1"))
     return r;
   if ((s == "fadeInE" || s == "cutInE") && a.size() >= 3) {
-    char file[64];
-    std::snprintf(file, sizeof(file), "stand/e%x_%02d%c.tm2", int(number(a, 0)),
-                  int(number(a, 1)), 'a' + int(number(a, 2)));
     auto &v = visuals_[t];
     v = {};
-    v.file = file;
+    v.file = source_->eventPicture(
+        unsigned(number(a, 0)), unsigned(number(a, 1)), unsigned(number(a, 2)));
     v.face.clear();
     v.archive = "GRAPH/GRAPH1.ARC";
     v.visible = true;

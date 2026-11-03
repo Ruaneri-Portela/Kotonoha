@@ -1,5 +1,6 @@
 #include "SchoolDaysAssets.hpp"
 #include "SchoolDaysRuntime.hpp"
+#include <Kotonoha/componentes/TextInputDialog.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/debug/DebugOverlay.hpp>
 #include <iostream>
@@ -31,6 +32,14 @@ struct Application {
 int main(int argc, char **argv) {
   try {
     Require(argc == 4, "Usage: SchoolDaysMediaTest route fixtures documents");
+    Require(SchoolDays::Subtitles::dialogueText("A\\nB\\NC\\r\\nD\\tE") ==
+                "A\nB\nC\nD E",
+            "ORS line escapes must become actual line breaks");
+    Require(SchoolDays::Subtitles::dialogueText("A\r\nB") == "A\nB",
+            "CRLF must produce one subtitle line break");
+    Require(SchoolDays::Subtitles::dialogueText("{\\pos(1,2)}") ==
+                "{\\pos(1,2)}",
+            "ASS-like text stays plain text for the shared serializer");
     auto assets = std::make_shared<SchoolDays::Assets>(argv[2]);
     Application app(assets, argv[1], argv[3]);
     app.runtime.SetState(Kotonoha::GameState::Gameplay);
@@ -94,6 +103,57 @@ int main(int argc, char **argv) {
     Require(app.engine.Iterate() == SDL_APP_CONTINUE, "Resume frame failed");
     Require(*app.runtime.debugNodeSeconds() > saveClock,
             "Scene did not resume after closing save panel");
+    // The fallback save UI must ask for a name even without a suggestion.
+    const auto savePath =
+        std::filesystem::path(argv[3]) / "Saves/Regression Save.vn";
+    std::filesystem::remove(savePath);
+    auto saveNameDialog = [&]() -> Kotonoha::TextInputDialog * {
+      for (auto *scene : app.runtime.GetActiveScenes())
+        if (auto *dialog = dynamic_cast<Kotonoha::TextInputDialog *>(scene))
+          return dialog;
+      return nullptr;
+    };
+    app.runtime.openPanel(10);
+    event = {};
+    event.type = SDL_EVENT_KEY_DOWN;
+    event.key.key = SDLK_RETURN;
+    app.runtime.onEvent(event);
+    Require(saveNameDialog() != nullptr, "New save must ask for a name");
+    app.engine.Iterate();
+    event.key.key = SDLK_ESCAPE;
+    app.runtime.onEvent(event);
+    Require(!saveNameDialog() && !std::filesystem::exists(savePath),
+            "Cancelling the name dialog must not create a save");
+    event.key.key = SDLK_RETURN;
+    app.runtime.onEvent(event);
+    Require(saveNameDialog() != nullptr, "Name prompt can be reopened");
+    saveNameDialog()->submitText("Regression Save");
+    Require(std::filesystem::is_regular_file(savePath) && !saveNameDialog(),
+            "Named save must close its dialog without invalidating the scene");
+    const auto savedNode = app.runtime.debugNode();
+    app.runtime.loadGame(savePath.string());
+    Require(app.runtime.debugNode() == savedNode,
+            "Named save reloads the same scene");
+    // Auto is disabled by default: Right must commit the scene transition.
+    app.engine.debugJumpToNode("0");
+    const auto beforeSkip = app.runtime.debugNode();
+    event = {};
+    event.type = SDL_EVENT_KEY_DOWN;
+    event.key.key = SDLK_SPACE;
+    app.runtime.onEvent(event); // Exercise Skip while paused as well.
+    event.key.key = SDLK_RIGHT;
+    app.runtime.onEvent(event);
+    Require(app.runtime.debugNode() != beforeSkip,
+            "Skip parked at Next instead of advancing with Auto disabled");
+    app.engine.debugJumpToNode("0");
+    event = {};
+    event.type = SDL_EVENT_MOUSE_BUTTON_UP;
+    event.button.button = SDL_BUTTON_LEFT;
+    event.button.x = 350;
+    event.button.y = 60; // Fallback bar's Skip button.
+    app.runtime.onEvent(event);
+    Require(app.runtime.debugNode() != beforeSkip,
+            "The visible Skip button must use the same transition as Right");
     app.engine.debugJumpToNode("00/00-00-A03");
     Require(app.engine.Iterate() == SDL_APP_CONTINUE, "Choice frame failed");
     SchoolDays::GameScene *choices = nullptr;
@@ -106,6 +166,11 @@ int main(int argc, char **argv) {
     event.key.key = SDLK_UP;
     Require(choices->handleEvent(event),
             "Custom choice keyboard navigation failed");
+    const auto choiceNode = app.runtime.debugNode();
+    event.key.key = SDLK_RIGHT;
+    app.runtime.onEvent(event);
+    Require(app.runtime.debugNode() == choiceNode,
+            "Skip must not bypass an active choice");
     event.key.key = SDLK_RETURN;
     Require(choices->handleEvent(event), "Custom choice activation failed");
     event.key.key = SDLK_DOWN;

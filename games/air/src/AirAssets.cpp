@@ -3,47 +3,17 @@
 #include <Air/Voice.hpp>
 #include <Kotonoha/media/MediaDecoder.hpp>
 #include <cstring>
-#include <fstream>
 #include <stdexcept>
 namespace Air {
 AirAssets::AirAssets(const std::filesystem::path &directory,
                      const std::filesystem::path &overlay)
-    : root(std::filesystem::canonical(directory)), config("") {
-  for (auto &entry : std::filesystem::recursive_directory_iterator(root))
-    if (entry.is_regular_file())
-      files.emplace(
-          canonical(
-              std::filesystem::relative(entry.path(), root).generic_string()),
-          entry.path());
+    : IndexedFileSystemAssetProvider(directory), config("") {
   setOverlay(overlay);
   const auto ini = read("Gameexe.ini");
   configSource.assign(ini.begin(), ini.end());
   config = Config(configSource);
   if (!contains("Seen.txt"))
     throw std::runtime_error("AIR Seen.txt not found");
-}
-bool AirAssets::containsAsset(const std::string &id) const {
-  return files.count(canonical(id)) != 0;
-}
-std::string AirAssets::localPathAsset(const std::string &id) const {
-  auto i = files.find(canonical(id));
-  if (i == files.end())
-    throw std::runtime_error("AIR asset missing: " + id);
-  return i->second.string();
-}
-std::vector<Uint8> AirAssets::readAsset(const std::string &id) const {
-  std::ifstream input(localPath(id), std::ios::binary);
-  if (!input)
-    throw std::runtime_error("Cannot read AIR asset: " + id);
-  return std::vector<Uint8>((std::istreambuf_iterator<char>(input)), {});
-}
-std::vector<std::string> AirAssets::listAsset(const std::string &prefix) const {
-  std::vector<std::string> result;
-  const auto key = canonical(prefix);
-  for (auto &[id, file] : files)
-    if (id.compare(0, key.size(), key) == 0)
-      result.push_back(id);
-  return result;
 }
 std::string AirAssets::graphic(const std::string &name) const {
   std::string file = name;

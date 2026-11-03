@@ -96,4 +96,19 @@ public:
   std::string localPathAsset(const std::string &id) const override;
 };
 
+// Loose legacy data with case-insensitive, indexed names. Uses the same
+// normalization, collision and symlink policy as overlays, but mounts exactly
+// the supplied data directory (no overlay-folder discovery).
+class IndexedFileSystemAssetProvider : public FileSystemAssetProvider {
+  AssetOverlay index;
+
+public:
+  explicit IndexedFileSystemAssetProvider(const std::filesystem::path &root);
+  bool containsAsset(const std::string &id) const override;
+  std::vector<Uint8> readAsset(const std::string &id) const override;
+  std::vector<std::string>
+  listAsset(const std::string &prefix = {}) const override;
+  std::string localPathAsset(const std::string &id) const override;
+};
+
 } // namespace Kotonoha

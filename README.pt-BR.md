@@ -1320,3 +1320,14 @@ evidências da descompilação com REA, testes e pendências estão em
 [PORT_STATUS.md](games/summer-radish-vacation/PORT_STATUS.md).
 
 Shared overlay, gesture and live translation behavior: [documentation](docs/ASSET_OVERLAYS.md).
+
+## Revisão dos portes
+
+Os relatórios de [Amagami](games/amagami/PORT_STATUS.md),
+[AIR](games/air/PORT_STATUS.md) e [School Days](games/school-days/PORT_STATUS.md)
+registram correções verificadas e comandos ainda pendentes. Os inspetores de
+Amagami e AIR aceitam `--opcodes` para gerar inventários reproduzíveis.
+A [gestão compartilhada de arquivos](docs/ASSET_OVERLAYS.md#shared-file-ownership)
+centraliza leitura, overlays e índices no Kotonoha; formatos próprios ficam nos
+provedores de cada jogo. School Days usa `TextInputDialog` do motor para nomes
+de saves e estende `SubtitleScene` para mostrar uma fala de cada vez.

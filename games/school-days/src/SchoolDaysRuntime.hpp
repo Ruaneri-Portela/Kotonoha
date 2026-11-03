@@ -88,6 +88,11 @@ class Runtime final : public Kotonoha::Runtime {
   void reset();
   void back();
   void seek(Kotonoha_SceneTick target);
+  void skipScene();
+  void skipToChoice();
+  void openFeel();
+  bool resumeAfterSave = false;
+  bool widePresentation = true;
   void flushGlobal();
   void continueHandoff();
   void openTitle();
@@ -145,6 +150,10 @@ public:
   }
   void openPanel(int control) { activateControl(control); }
   SDL_Point viewport() const override { return {1280, 720}; }
+  SDL_FRect mediaArea() const {
+    return widePresentation ? SDL_FRect{0, 0, 1280, 720}
+                            : SDL_FRect{160, 0, 960, 720};
+  }
   int translationRoute() const override;
   std::string debugNode() const override;
   std::optional<double> debugNodeSeconds() const override { return elapsed; }

@@ -92,8 +92,9 @@ looked up through the engine translation dictionary before display.
   original interpreter (inequality/equality respectively).
 - Character body names use uppercase pose and lowercase costume. The original
   executable table at VA `0x1b7a70` supplies body/face prefixes and face aliases.
-  Fragments are composed at integer coordinates before scaling the whole actor,
-  avoiding seams in hair and clothing. Separate eye/mouth expressions, blinking,
+  Body fragments are alpha-composited at integer coordinates into a cached
+  cropped texture. Transparent overlap preserves earlier fragments instead of
+  cutting holes through the face, hair or clothing. Separate eye/mouth expressions, blinking,
   audio-driven mouth frames, inline F/E/M/P cues, costume/pose crossfades,
   actor zoom, scripted nods and position/scale oscillation are supported.
 - Cold breath uses the original three `sysgraph/breath1..3` textures and the
@@ -102,8 +103,9 @@ looked up through the engine translation dictionary before display.
   Inline W frame waits also pause the text reveal.
 - Backgrounds (including rotation), interface textures, assembled characters
   and breath particles draw through the shared engine upscaling pipeline.
-  The composed character cache updates only when its pixel content changes,
-  keeping motion/fade-only frames from rerunning the upscaler.
+  Static body textures and individual facial tiles each retain their cached
+  upscale. Blinks, mouth frames, motion and fades reuse those textures instead
+  of upscaling a reconstructed actor every frame.
 - Engine `Kotonoha::decryptCriAudio` / `decodeCriAudio` support CRI type-8
   AHX and ADX before FFmpeg decoding. The disc provider supplies Amagami's
   key parameters; engine code contains no game key. Decoding trims to the
@@ -193,3 +195,42 @@ while the current `AssetOverlay` constructor returns without mounting it. Neithe
 that constructor nor that test was changed by this port work. Amagami's seven
 checks and the Infrastructure, ComponentHooks, Presentation and ZNT Formats
 checks pass independently.
+
+## Fidelity fixes and opcode audit (2026-11-03)
+
+- Event pictures resolve through `Source::eventPicture` using the original
+  `epi/e%1x_%02d%c0.tm2` convention (ELF format at VA `0x28e4d8`).
+  The reported `stand/e6_24a.tm2` failure now resolves `epi/e6_24a0.tm2`.
+  `Source::graphic` owns archive lookup for both existence checks and reads.
+- Native Boolean AND/OR (`0x0c` / `0x0d`) are implemented and tested against
+  all Boolean combinations. REA handlers: `0x11f1f0` and `0x11f2d8`.
+- `AmagamiInspect DISC --opcodes` scans all 2,308 scenarios and 222 system
+  classes, preserving instruction boundaries. The supplied disc contains 51
+  opcode values across 1,592,565 instructions. The CSV includes support status,
+  occurrence counts and the first class/method/offset for each opcode.
+- Exception operations `0x2a`, `0x68`, `0x69`, `0x6a`, `0x6b` are now
+  implemented: exception slot, clear, relative handler registration, handler
+  removal and throw. Handlers restore the stack and unwind calls, with a
+  thread-wide maximum of 30. Script array/arithmetic faults can enter catch;
+  unsupported native methods and malformed bytecode still fail explicitly.
+  This expands bytecode support, not the implemented calendar/conversation flow.
+- Regression checks decode the event picture and verify opaque face pixels
+  at overlapping mesh boundaries, in addition to the playable prologue checks.
+
+## Portuguese draft and native engine controls
+
+- [Translation files](../../translations/amagami/README.md) cover all 411
+  unique prologue entries plus 22 shared names/menu labels. They are generated
+  drafts, not a translation of the full game or a complete linguistic review.
+- `translationSources()` exports all 2,308 native scenarios (84,414 entries)
+  through the shared engine export path; previously `--dump-translation` failed
+  because only the live-editor route methods were implemented.
+- Native speaker labels, pause/title choices and event-end text honor the shared
+  dictionary. Longer translated dialogue uses cached line/font measurements to
+  fit the native window; source line breaks stay fixed during text reveal.
+- Runtime hooks let MCP start, advance and step Amagami without pretending it
+  uses the generic VNManager timeline. MCP reads the registered textbox/choice
+  instances and exposes `runtime_diagnostic`. Agent pause freezes native clocks
+  and audio. Save replay still does not restore exact animation/audio phase.
+- `Amagami.Translation` loads the shipped Portuguese dictionary in the actual
+  engine and exercises dialogue, choices, live edits and the native clock.

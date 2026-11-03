@@ -11,7 +11,8 @@ class AssetOverlay {
   std::map<std::string, std::filesystem::path> files_;
 
 public:
-  explicit AssetOverlay(const std::filesystem::path &root = {});
+  explicit AssetOverlay(const std::filesystem::path &root = {},
+                        bool discoverOverlay = true);
   static std::string key(std::string id);
   const std::filesystem::path &root() const { return root_; }
   std::string resolve(const std::string &id) const;

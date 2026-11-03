@@ -14,10 +14,10 @@
 #include "../debug/ImGuiTheme.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <filesystem>
 #include <mutex>
 #include <stdexcept>
-#include <cmath>
 
 namespace Kotonoha {
 
