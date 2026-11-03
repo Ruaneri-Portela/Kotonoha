@@ -52,10 +52,12 @@ bool Assets::containsAsset(const std::string &id) const {
     return contains(id.substr(11));
   if (id.rfind("voice/", 0) == 0 || id.rfind("music/", 0) == 0)
     return true;
-  for (const auto &a :
-       {"GRAPH/GRAPH0.ARC", "GRAPH/GRAPH1.ARC", "GRAPH/GRAPH2.ARC"})
-    if (source_->find(a, id) >= 0)
-      return true;
+  if (id.rfind("actor-face/", 0) == 0) {
+    const auto slash = id.rfind('/');
+    return slash > 11 && contains(id.substr(11, slash - 11));
+  }
+  if (source_->graphic(id))
+    return true;
   return DiscImageAssetProvider::containsAsset(id);
 }
 std::vector<Uint8> Assets::readAsset(const std::string &id) const {
@@ -75,12 +77,8 @@ std::vector<Uint8> Assets::readAsset(const std::string &id) const {
       throw std::runtime_error("Unknown Amagami music number");
     return source_->read("SOUND/MUSIC.AFS", index);
   }
-  for (const auto &a :
-       {"GRAPH/GRAPH0.ARC", "GRAPH/GRAPH1.ARC", "GRAPH/GRAPH2.ARC"}) {
-    int n = source_->find(a, id);
-    if (n >= 0)
-      return source_->read(a, n);
-  }
+  if (auto location = source_->graphic(id))
+    return source_->read(location->archive, location->index);
   return DiscImageAssetProvider::readAsset(id);
 }
 Kotonoha::SurfacePtr Assets::loadSurfaceAsset(const std::string &id) const {
@@ -109,7 +107,7 @@ Kotonoha::SurfacePtr Assets::loadSurfaceAsset(const std::string &id) const {
     Kotonoha::SurfacePtr composed(
         SDL_CreateSurface(bounds.w, bounds.h, SDL_PIXELFORMAT_RGBA32));
     if (!composed || !SDL_ClearSurface(composed.get(), 0, 0, 0, 0) ||
-        !SDL_SetSurfaceBlendMode(atlas.get(), SDL_BLENDMODE_NONE))
+        !SDL_SetSurfaceBlendMode(atlas.get(), SDL_BLENDMODE_BLEND))
       throw std::runtime_error(SDL_GetError());
     for (const auto &part : fragments(file)) {
       SDL_Rect src{int(part.source.x), int(part.source.y), int(part.source.w),

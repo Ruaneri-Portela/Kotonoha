@@ -1,9 +1,11 @@
 #include <Amagami/Session.hpp>
 #include <Amagami/Source.hpp>
+#include <Amagami/Vm.hpp>
 #include <Kotonoha/media/Ps2Tim2.hpp>
 #include <SDL3/SDL.h>
 #include <fstream>
 #include <iostream>
+#include <map>
 #include <stdexcept>
 
 namespace {
@@ -43,10 +45,11 @@ size_t number(const char *text) {
 int main(int argc, char **argv) {
   try {
     if (argc < 2 || std::string(argv[1]) == "--help") {
-      std::cout << "AmagamiInspect DISC.iso [--verify | --script NAME | "
-                   "--class NAME |\n"
-                   "  --extract ARCHIVE INDEX OUTPUT | --png GRAPH_ARCHIVE "
-                   "INDEX OUTPUT]\n";
+      std::cout
+          << "AmagamiInspect DISC.iso [--verify | --opcodes | --script NAME | "
+             "--class NAME |\n"
+             "  --extract ARCHIVE INDEX OUTPUT | --png GRAPH_ARCHIVE "
+             "INDEX OUTPUT]\n";
       return argc < 2 ? 1 : 0;
     }
     Amagami::Source source(argv[1]);
@@ -92,6 +95,41 @@ int main(int argc, char **argv) {
       return 0;
     }
     const std::string action = argv[2];
+    if (action == "--opcodes") {
+      struct Entry {
+        size_t count = 0;
+        std::string first;
+      };
+      std::map<uint8_t, Entry> inventory;
+      auto inspect = [&](const Amagami::Script &script) {
+        for (const auto &method : script.methods)
+          for (size_t pc = 0; pc < method.code.size();) {
+            const auto op = method.code[pc];
+            const auto *info = Amagami::Vm::opcodeInfo(op);
+            if (!info || pc + 1 + info->operands > method.code.size())
+              throw std::runtime_error("Invalid instruction in " + script.name +
+                                       ":" + method.name + ":" +
+                                       std::to_string(pc));
+            auto &entry = inventory[op];
+            if (!entry.count)
+              entry.first =
+                  script.name + ":" + method.name + ":" + std::to_string(pc);
+            ++entry.count;
+            pc += 1 + info->operands;
+          }
+      };
+      for (size_t i = 0; i < source.scenarios().size(); ++i)
+        inspect(source.script(i));
+      for (size_t i = 0; i < source.classes().size(); ++i)
+        inspect(source.systemClass(i));
+      std::cout << "opcode,name,supported,count,first_location\n";
+      for (const auto &[op, entry] : inventory) {
+        const auto *info = Amagami::Vm::opcodeInfo(op);
+        std::cout << unsigned(op) << ',' << info->name << ',' << info->supported
+                  << ',' << entry.count << ',' << entry.first << '\n';
+      }
+      return 0;
+    }
     if (argc >= 4 && action == "--play") {
       Amagami::Session session(std::make_shared<Amagami::Source>(argv[1]));
       session.start(argv[3]);

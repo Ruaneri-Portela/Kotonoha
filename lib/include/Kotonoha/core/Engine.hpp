@@ -108,9 +108,11 @@ public:
     if (auto found = sharedScenes.find(key); found != sharedScenes.end()) {
       if (auto *native = dynamic_cast<Native *>(found->second.get()))
         return *native;
-      throw std::logic_error("Shared component already has another implementation");
+      throw std::logic_error(
+          "Shared component already has another implementation");
     }
-    auto component = std::make_unique<Native>(*this, std::forward<Args>(args)...);
+    auto component =
+        std::make_unique<Native>(*this, std::forward<Args>(args)...);
     auto *native = component.get();
     if (!sharedScenes.emplace(key, std::move(component)).second)
       throw std::logic_error("Recursive shared component construction");
@@ -148,6 +150,7 @@ public:
   SettingsMenu &GetSettingsMenu() { return *settingsMenu; }
   bool isStoryPaused() const;
   void setAgentPaused(bool value);
+  bool isAgentPaused() const { return agentPaused; }
   void synchronizeTimeline();
   void advanceTimeline(double seconds);
 

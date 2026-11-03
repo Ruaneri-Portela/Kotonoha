@@ -42,6 +42,12 @@ public:
   Vm fork(const VmValue &receiver, const std::string &method) const;
   void call(const VmValue &receiver, const std::string &name,
             std::vector<VmValue> args = {});
+  struct OpcodeInfo {
+    const char *name;
+    uint8_t operands;
+    bool supported;
+  };
+  static const OpcodeInfo *opcodeInfo(uint8_t opcode);
   void run(size_t budget = 100000);
   void pause() { paused_ = true; }
   void resume(std::optional<VmValue> result = {});
@@ -60,11 +66,16 @@ private:
     VmValue self, result;
     std::vector<VmValue> locals, stack;
     size_t pc = 0;
+    struct Handler {
+      size_t target, stackSize;
+    };
+    std::vector<Handler> handlers;
   };
   std::map<std::string, Script> scripts_;
   std::map<std::string, std::shared_ptr<VmObject>> classes_;
   std::vector<Frame> frames_;
-  VmValue result_;
+  VmValue result_, exception_;
+  void raise(VmValue value);
   bool paused_ = false;
   VmValue constant(const Value &value);
   VmValue field(const VmValue &, size_t slot) const;

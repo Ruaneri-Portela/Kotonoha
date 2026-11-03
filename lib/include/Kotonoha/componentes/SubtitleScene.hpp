@@ -19,6 +19,14 @@ class SubtitleScene : public Scene {
   std::vector<SubtitleCue> sourceCues;
   float cueFontSize = 32;
 
+protected:
+  // Dialogue streams replace the previous line; ordinary ASS timelines may
+  // overlap.
+  virtual bool replacesPreviousCue() const { return false; }
+  virtual std::string displayCueText(const std::string &text) const {
+    return text;
+  }
+
 public:
   explicit SubtitleScene(Engine &engine, int width = 1280, int height = 720);
   ~SubtitleScene() override;

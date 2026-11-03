@@ -110,37 +110,54 @@ void LogoSplash::render(Kotonoha::RendererRef renderer, float) {
   SDL_GetTextureSize(texture, &width, &height);
   if (width <= 0 || height <= 0)
     return;
-  if (!contentMeasured) {
-    logoContent = {0, 0, width, height};
-    const auto pixels = assets.loadSurface(logo);
-    int left = pixels->w, top = pixels->h, right = -1, bottom = -1;
-    for (int y = 0; y < pixels->h; ++y)
-      for (int x = 0; x < pixels->w; ++x) {
-        Uint8 red = 0, green = 0, blue = 0, alpha = 0;
-        if (SDL_ReadSurfacePixel(pixels.get(), x, y, &red, &green, &blue,
-                                 &alpha) &&
-            alpha && (red > 8 || green > 8 || blue > 8)) {
-          left = std::min(left, x);
-          top = std::min(top, y);
-          right = std::max(right, x);
-          bottom = std::max(bottom, y);
-        }
-      }
-    if (right >= left && bottom >= top)
-      logoContent = {float(left), float(top), float(right - left + 1),
-                     float(bottom - top + 1)};
-    contentMeasured = true;
-  }
-  const float fit = std::min(area.w / logoContent.w, area.h / logoContent.h);
-  const SDL_FRect target{(area.w - logoContent.w * fit) / 2,
-                         (area.h - logoContent.h * fit) / 2,
-                         logoContent.w * fit, logoContent.h * fit};
+  // Keep the original image's padding and aspect ratio. Cropping to the ink
+  // bounds enlarged the Overflow lettering to the entire screen.
+  const float fit = std::min(area.w / width, area.h / height);
+  const SDL_FRect target{(area.w - width * fit) / 2,
+                         (area.h - height * fit) / 2, width * fit,
+                         height * fit};
   const double time = elapsed();
   const double alpha =
       std::clamp(std::min(time, displaySeconds - time) / fadeSeconds, 0.0, 1.0);
   SDL_SetTextureAlphaModFloat(texture, float(alpha));
-  Kotonoha::RenderUpscaledTexture(&renderer, texture, &logoContent, &target);
+  Kotonoha::RenderUpscaledTexture(&renderer, texture, nullptr, &target);
   SDL_SetTextureAlphaModFloat(texture, 1.0f);
+}
+
+std::string Subtitles::dialogueText(const std::string &text) {
+  std::string result;
+  for (size_t i = 0; i < text.size(); ++i) {
+    if (text[i] == '\\' && i + 1 < text.size()) {
+      const auto next = text[i + 1];
+      if (next == 'n' || next == 'N') {
+        result += '\n';
+        ++i;
+        continue;
+      }
+      if (next == 'r') {
+        i += 1;
+        if (i + 2 < text.size() && text[i + 1] == '\\' && text[i + 2] == 'n')
+          i += 2;
+        result += '\n';
+        continue;
+      }
+      if (next == 't') {
+        result += ' ';
+        ++i;
+        continue;
+      }
+    }
+    if (text[i] == '\r') {
+      if (i + 1 < text.size() && text[i + 1] == '\n')
+        ++i;
+      result += '\n';
+    } else
+      result += text[i];
+  }
+  return result;
+}
+std::string Subtitles::displayCueText(const std::string &text) const {
+  return dialogueText(text);
 }
 
 void Subtitles::bind(const Kotonoha_orsData &script, int nodeId) {

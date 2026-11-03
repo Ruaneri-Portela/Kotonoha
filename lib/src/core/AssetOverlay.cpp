@@ -22,9 +22,15 @@ std::string AssetOverlay::key(std::string id) {
   return result == "." ? std::string() : result;
 }
 
-AssetOverlay::AssetOverlay(const std::filesystem::path &root) {
-  std::filesystem::path targetRoot = findAssetOverlayDirectory(root);
+AssetOverlay::AssetOverlay(const std::filesystem::path &root,
+                           bool discoverOverlay) {
   std::error_code ec;
+  std::filesystem::path targetRoot =
+      discoverOverlay ? findAssetOverlayDirectory(root) : root;
+  if (!root.empty() &&
+      (targetRoot.empty() || !std::filesystem::is_directory(targetRoot, ec)))
+    throw std::invalid_argument("Asset directory does not exist: " +
+                                root.string());
 
   if (targetRoot.empty() || !std::filesystem::exists(targetRoot, ec) ||
       !std::filesystem::is_directory(targetRoot, ec))

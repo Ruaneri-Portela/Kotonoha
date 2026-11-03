@@ -134,7 +134,22 @@ void SubtitleScene::setCues(const std::vector<SubtitleCue> &cues,
            "&H96000000,0,0,0,0,100,100,0,0,1,2.6,1.2,2,48,48,36,1\n";
   ass << "[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, "
          "MarginV, Effect, Text\n";
-  for (const auto &cue : cues) {
+  for (const auto &cue : cues)
+    if (!std::isfinite(cue.start) || !std::isfinite(cue.end) || cue.start < 0 ||
+        cue.end <= cue.start)
+      throw std::invalid_argument("Invalid subtitle cue");
+  auto timedCues = cues;
+  if (replacesPreviousCue()) {
+    std::stable_sort(
+        timedCues.begin(), timedCues.end(),
+        [](const auto &a, const auto &b) { return a.start < b.start; });
+    for (size_t i = 1; i < timedCues.size(); ++i)
+      timedCues[i - 1].end = std::min(timedCues[i - 1].end, timedCues[i].start);
+  }
+  for (const auto &cue : timedCues) {
+    // Equal-time replacements leave only the last original line visible.
+    if (replacesPreviousCue() && cue.end == cue.start)
+      continue;
     if (!std::isfinite(cue.start) || !std::isfinite(cue.end) || cue.start < 0 ||
         cue.end <= cue.start || cue.end > 24 * 3600 ||
         cue.text.find('\0') != std::string::npos ||
@@ -149,7 +164,8 @@ void SubtitleScene::setCues(const std::vector<SubtitleCue> &cues,
         style = names.front();
     }
     ass << "Dialogue: 0," << timestamp(cue.start) << ',' << timestamp(cue.end)
-        << ',' << style << ",,0,0,0,," << literal(cue.text) << '\n';
+        << ',' << style << ",,0,0,0,," << literal(displayCueText(cue.text))
+        << '\n';
   }
   loadAss(ass.str());
   sourceCues = cues;

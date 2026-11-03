@@ -1,3 +1,4 @@
+#include "FFmpegSupport.hpp"
 #include <Kotonoha/media/MediaDecoder.hpp>
 
 extern "C" {
@@ -111,6 +112,27 @@ public:
       release();
       check(opened, "Open media");
     }
+    detail::initializeMediaLog();
+    // CRI ADX/AHX contains an exact sample count/rate; avoid bitrate guesses.
+    if (bytes.size() >= 20 && bytes[0] == 0x80 &&
+        (bytes[4] == 3 || bytes[4] == 0x10 || bytes[4] == 0x11)) {
+      auto be32 = [&](size_t p) {
+        return uint32_t(bytes[p]) << 24 | uint32_t(bytes[p + 1]) << 16 |
+               uint32_t(bytes[p + 2]) << 8 | uint32_t(bytes[p + 3]);
+      };
+      const auto rate = be32(8), samples = be32(12);
+      if (rate && rate <= 384000 && samples)
+        for (unsigned i = 0; i < format->nb_streams; ++i) {
+          auto *stream = format->streams[i];
+          if (stream->codecpar->codec_type == AVMEDIA_TYPE_AUDIO &&
+              format->iformat &&
+              std::strcmp(format->iformat->name, "adx") == 0) {
+            format->duration = av_rescale(samples, AV_TIME_BASE, rate);
+            stream->duration = av_rescale_q(samples, AVRational{1, int(rate)},
+                                            stream->time_base);
+          }
+        }
+    }
     const int probed = avformat_find_stream_info(format, nullptr);
     if (probed < 0) {
       release();
@@ -146,6 +168,7 @@ public:
     check(avcodec_parameters_to_context(context.get(),
                                         format->streams[index]->codecpar),
           "Read codec parameters");
+    context->pkt_timebase = format->streams[index]->time_base;
     check(avcodec_open2(context.get(), decoder, nullptr), "Open codec");
     return context;
   }

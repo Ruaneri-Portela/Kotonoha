@@ -68,9 +68,9 @@ persistent settings are available through the launcher/engine settings.
 - Character ABC/lip-sync layers, MoveSom spatial transforms, exact ASS styling,
   original glyph rasterization, retail choice geometry/fade tails, top meters and
   complete retail configuration UI remain unsupported.
-- Subtitle content is shown in the accessible game control panel, not the
-  original styled subtitle renderer. Timed choice behavior is retained but its
-  visual layout is generic.
+- Dialogue uses the shared libass subtitle component, with speaker styles and
+  one active utterance at a time. Native glyph metrics and exact styling still
+  need comparison. Timed choice behavior is retained; its layout is simplified.
 - GPK media entries are read into memory through Kotonoha's AssetProvider;
   extracted media streams from disk. Very large packed movies may require more
   memory than the original streaming bridge.
@@ -86,9 +86,10 @@ physical ORS file; their native dispatch is under investigation and they are not
 silently skipped. Native save comment submission now uses a cancellable text
 form instead of replacing the user's comment with an empty string.
 
-Overflow's visible logo bounds now fit the entire current screen; the built-in
-black image padding no longer limits the displayed logo size. A synthetic pixel
-regression checks both viewport edges with a padded source image.
+School Days preserves the Overflow logo's original image margins and aspect
+ratio. Its lettering remains centered rather than being cropped and enlarged
+to fill the viewport. A synthetic pixel regression checks the center and the
+black margins.
 
 
 Regression fixtures are synthetic scripts and newly generated PNG/WMV/OGG media,
@@ -126,3 +127,63 @@ Public headers are under `Kotonoha/parsers`, `Kotonoha/routing` and
 `ZLIB::ZLIB`.
 Shared root/lib CMake and platform projects are intentionally not edited by this
 port.
+
+## Gameplay and save corrections (2026-11-03)
+
+- Skip and Right share one transition path: reaching `Next` commits the scene
+  with Auto disabled. Repeated activation no longer rewinds the last second
+  before `SkipFRAME`; live choices remain interactive and block bypassing.
+  Replaying a visited scene reuses its existing SP checkpoint instead of
+  rejecting the transition as an unsupported duplicate. The regression exercises
+  both Right and the visible button after returning to the same scene.
+- Super Skip now invokes the existing KTRF next-choice bridge across scripts,
+  respecting unread-scene/configuration gates. Runtime ORS pointers are rebound
+  after bridge changes, including failure paths, before rendering resumes.
+- `Subtitles` extends `Kotonoha::SubtitleScene` with exclusive dialogue cues.
+  The next line truncates the prior cue; equal-time cues keep the final line.
+  Generic ASS timelines retain overlapping subtitle support.
+- Chapter/ending callback handoffs open the original `SaveFeel` screen. Its
+  entry animation, 30-second countdown and bars use the original model and
+  current script values `001`/`002`. Save opens the slot menu; successful save
+  or Skip acknowledges the pending bridge handoff. Esc also continues.
+- Save names use `Kotonoha::TextInputDialog`, including cancellation and UTF-16
+  comments in retail slot metadata. The request is enabled even when the retail
+  configuration disabled comment input. No OS dialog is involved.
+- The custom film runtime forwards update, render and input to registered
+  engine dialogs, including those above its own SaveLoad panel. The fallback
+  save menu asks for a name even without a suggested title.
+- `SchoolDaysMediaTest` covers named-save cancellation/write/reload and Skip
+  without Auto. Optional `SchoolDays.Save` uses the original packs with an
+  isolated temporary documents directory, checks retail save/reload, and
+  exercises an authenticated ending's feeling-screen handoff. No test writes
+  into the user's retail installation.
+
+## Subtitle escapes, settings and media diagnostics
+
+- The School Days `SubtitleScene` extension decodes ORS `\n`/`\N`, `\r\n`
+  and `\t` only at presentation time. Translation lookup retains the original
+  source string. The generic subtitle serializer continues to handle plain text.
+- The obsolete SOMCON tab is covered and relabeled **Kotonoha**. Its original
+  hit region now opens the engine's settings component rather than a duplicate
+  page of the original menu. Native BGM/SE/Voice controls remain on Sound.
+- Original wide/non-wide buttons now select 16:9 or centered 4:3 media areas;
+  the setting persists in `SchoolDaysConfig.ini` as `Wide`. The menu/input
+  canvas retains its 1280x720 design space. Video and still media use the same
+  selected content area. Retail hit-map tests exercise both aspect buttons and
+  opening the engine settings from the third tab.
+- Both shared FFmpeg decode paths provide `pkt_timebase` from the source stream,
+  enabling the decoder to adjust timestamps when Vorbis discards padding samples.
+  CRI ADX/AHX duration comes from the exact header sample count and rate before
+  stream probing; the bitrate-duration estimate is no longer needed.
+- The specific WMV3 INFO message for eight trailing zero bits is routed to the
+  engine's debug log. No FFmpeg warning/error level is globally disabled;
+  nonzero trailing data and decoding errors keep their normal diagnostics.
+  A separate `Packet corrupt` warning still occurs at the tail of one Amagami
+  ADX during the integration check; PCM sample-count/signal checks pass, and
+  this warning remains visible for further investigation.
+
+References: FFmpeg's [discarded-sample timestamp handling](https://www.ffmpeg.org/doxygen/9.0/decode_8c_source.html),
+[WMV3 extradata reporting](https://github.com/FFmpeg/FFmpeg/blob/master/libavcodec/vc1dec.c),
+and [duration estimation](https://github.com/FFmpeg/FFmpeg/blob/master/libavformat/demux.c).
+The local Ollama `gemma4:26b` supplied an advisory review; implementation choices
+were checked against the sources and original game data.

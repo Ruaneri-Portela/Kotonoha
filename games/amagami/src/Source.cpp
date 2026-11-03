@@ -191,6 +191,38 @@ Bytes Source::voice(const std::string &code, unsigned number) const {
 } // namespace Amagami
 
 namespace Amagami {
+std::optional<Source::GraphicLocation>
+Source::graphic(const std::string &name) const {
+  for (const auto *archive :
+       {"GRAPH/GRAPH0.ARC", "GRAPH/GRAPH1.ARC", "GRAPH/GRAPH2.ARC"}) {
+    const int index = find(archive, name);
+    if (index >= 0)
+      return GraphicLocation{archive, size_t(index)};
+  }
+  return std::nullopt;
+}
+std::string Source::itemPicture(unsigned number) const {
+  if (number > 999)
+    throw std::out_of_range("Invalid item picture selector");
+  // Native Sprite texture type 9; format string at SLPS_259.18 VA 0x28ce60.
+  char name[32];
+  std::snprintf(name, sizeof(name), "item/%3u.tm2", number);
+  if (!graphic(name))
+    throw std::runtime_error(std::string("Item picture not found: ") + name);
+  return name;
+}
+std::string Source::eventPicture(unsigned character, unsigned number,
+                                 unsigned variant) const {
+  if (character >= 16 || number > 99 || variant >= 26)
+    throw std::out_of_range("Invalid event picture selector");
+  // EventPicture.initialize, SLPS_259.18 format string at VA 0x28e4d8.
+  char name[64];
+  std::snprintf(name, sizeof(name), "epi/e%1x_%02u%c0.tm2", character, number,
+                'a' + variant);
+  if (!graphic(name))
+    throw std::runtime_error(std::string("Event picture not found: ") + name);
+  return name;
+}
 std::pair<std::string, std::string>
 Source::actorAssets(unsigned character, unsigned cloth, unsigned pose) const {
   if (character >= 16 || cloth >= 26 || pose >= 26)

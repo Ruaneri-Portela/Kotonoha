@@ -14,8 +14,6 @@ class Runtime;
 class LogoSplash final : public Kotonoha::SplashScreen {
   Assets &assets;
   std::string logo;
-  SDL_FRect logoContent{};
-  bool contentMeasured = false;
   Uint64 started = 0;
   bool done = false, shown = false;
   double elapsed() const;
@@ -32,8 +30,13 @@ public:
 };
 
 class Subtitles final : public Kotonoha::SubtitleScene {
+protected:
+  bool replacesPreviousCue() const override { return true; }
+  std::string displayCueText(const std::string &text) const override;
+
 public:
   using SubtitleScene::SubtitleScene;
+  static std::string dialogueText(const std::string &text);
   void bind(const Kotonoha_orsData &script, int nodeId = -1);
 };
 

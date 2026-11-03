@@ -142,3 +142,22 @@ engine regression covers `9037:118` and closing its pause menu with two fingers.
 Native Windows edit-control typography and full presentation parity still need
 reference comparisons. Engine and port code owns SDL streams through
 `IOStreamPtr`; calls that transfer ownership explicitly use `release()`.
+
+## Shared file ownership
+
+`FileResolver` locates packaged resources and writable game directories.
+`AssetProvider` owns overlay precedence, decoding entry points and texture
+caches. `FileSystemAssetProvider` reads ordinary rooted files;
+`IndexedFileSystemAssetProvider` adds one-time case-insensitive indexing for
+legacy data such as AIR. It reuses the overlay index without searching for an
+`overlay` subfolder, rejects ambiguous names and escaping symlinks, and preserves
+the actual physical filename for streaming. Explicit missing overlay directories
+fail before replacing the active mount.
+
+Archive providers retain format-specific identifiers: Amagami's `Source`
+resolves graphical archive locations and event filenames, while its `Assets`
+class decodes TIM2/audio and exposes cached body/facial tiles. Consumers use
+`AssetProvider` public methods rather than reimplementing file reads.
+
+Test resource copies use `cmake/CopyAssetDirectory.cmake`, locking each
+shared destination during parallel post-build copies.

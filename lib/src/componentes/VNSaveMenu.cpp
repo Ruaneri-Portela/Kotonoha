@@ -157,7 +157,7 @@ void VNSaveMenu::activate() {
     confirmation = Confirmation::Overwrite;
     return;
   }
-  if (!loading && selected == 0 && !suggestedName.empty()) {
+  if (!loading && selected == 0) {
     beginCreate();
     return;
   }

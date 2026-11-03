@@ -1,15 +1,52 @@
 #include <Air/Script.hpp>
 #include <iostream>
 #include <libreallive/scenario.h>
+#include <map>
 #include <sstream>
+#include <tuple>
 int main(int argc, char **argv) {
   try {
     if (argc < 2)
-      throw std::runtime_error("AirInspect Seen.txt [scenario]");
+      throw std::runtime_error(
+          "AirInspect Seen.txt [scenario | --opcodes | --find text]");
     Air::ScriptArchive a(argv[1]);
     if (argc == 2) {
       std::cout << a.ScenarioNumbers().size() << " scenarios; "
                 << a.ValidateAll() << " elements\n";
+      return 0;
+    }
+    if (std::string(argv[2]) == "--opcodes") {
+      using Opcode = std::tuple<int, int, int, int>;
+      struct Entry {
+        size_t count = 0;
+        int scenario = 0;
+        size_t index = 0;
+      };
+      std::map<Opcode, Entry> inventory;
+      for (int scenario : a.ScenarioNumbers()) {
+        size_t index = 0;
+        for (const auto &element : a.Scenario(scenario)) {
+          if (auto *c = dynamic_cast<const libreallive::CommandElement *>(
+                  element.get())) {
+            auto &entry = inventory[{c->modtype(), c->module(), c->opcode(),
+                                     c->overload()}];
+            if (!entry.count) {
+              entry.scenario = scenario;
+              entry.index = index;
+            }
+            ++entry.count;
+          }
+          ++index;
+        }
+      }
+      std::cout << "type,module,opcode,overload,count,first_scenario,first_"
+                   "instruction\n";
+      for (const auto &[key, entry] : inventory) {
+        const auto &[type, module, opcode, overload] = key;
+        std::cout << type << ',' << module << ',' << opcode << ',' << overload
+                  << ',' << entry.count << ',' << entry.scenario << ','
+                  << entry.index << '\n';
+      }
       return 0;
     }
     if (argc > 3 && std::string(argv[2]) == "--find") {

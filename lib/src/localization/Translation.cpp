@@ -92,6 +92,8 @@ void Translation::load(const std::string &path) {
 }
 
 std::string Translation::text(int nodeId, const std::string &original) const {
+  if (nodeId < 0 && !original.empty())
+    globalSources.insert(original);
   for (const auto &name : {std::to_string(nodeId), std::string("nodo")}) {
     const auto section = sections.find(name);
     if (section == sections.end())
@@ -106,7 +108,13 @@ std::string Translation::text(int nodeId, const std::string &original) const {
 void Translation::dump(const std::string &path,
                        const SourceTexts &texts) const {
   JSON root{json_object_new_object()};
-  for (const auto &node : texts) {
+  auto sources = texts;
+  auto &globals = sources[-1];
+  globals.insert(globals.end(), globalSources.begin(), globalSources.end());
+  if (auto global = sections.find("nodo"); global != sections.end())
+    for (const auto &[original, translated] : global->second)
+      globals.push_back(original);
+  for (const auto &node : sources) {
     JSON dictionary{json_object_new_object()};
     for (const auto &original : node.second) {
       if (original.empty())
@@ -117,8 +125,11 @@ void Translation::dump(const std::string &path,
           json_object_new_string_len(translated.data(),
                                      static_cast<int>(translated.size())));
     }
-    json_object_object_add(root.get(), std::to_string(node.first).c_str(),
-                           dictionary.release());
+    json_object_object_add(
+        root.get(),
+        (node.first < 0 ? std::string("nodo") : std::to_string(node.first))
+            .c_str(),
+        dictionary.release());
   }
   const std::string output =
       std::string(json_object_to_json_string_ext(

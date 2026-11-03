@@ -71,22 +71,44 @@ void AmagamiTextBox::renderSpeaker(Kotonoha::RendererRef r) {
     name = "　" + name + "　";
   else if (n == 2)
     name.insert(Kotonoha::VNTextBoxUtility::NextUtf8Char(name, 0), "　");
-  engine.GetVNUI().textSized(r, name, 44, 288, 90, 24,
+  float nameSize = 24;
+  while (nameSize > 14 &&
+         engine.GetVNUI().measureSized(name, 2000, nameSize).x > 90)
+    nameSize -= 1;
+  engine.GetVNUI().textSized(r, name, 44, 288, 90, nameSize,
                              engine.GetSettings().vnTextColorOverride
                                  ? engine.GetSettings().vnSpeakerColor
                                  : SDL_Color{240, 240, 245, 255});
 }
 void AmagamiTextBox::renderDialogue(Kotonoha::RendererRef r) {
   const float x = speakerName.empty() ? 44 : 136;
+  const auto key = speakerName + '\0' + fullDialogue + '\0' +
+                   engine.GetSettings().vnFontPath + '\0' +
+                   engine.GetSettings().fontPath;
+  if (key != layoutKey_) {
+    layoutKey_ = key;
+    for (layoutFont_ = 24; layoutFont_ >= 14; layoutFont_ -= 2) {
+      auto width = [&](const std::string &text) {
+        return engine.GetVNUI().measureSized(text, 2000, layoutFont_).x;
+      };
+      const auto count = Kotonoha::VNTextBoxUtility::RevealLines(
+                             fullDialogue, fullDialogue.size(), width, 596 - x)
+                             .size();
+      layoutStep_ = count <= 3 ? 44 : 128.0f / float(count);
+      if (layoutStep_ >= layoutFont_ * 1.1f || layoutFont_ == 14)
+        break;
+    }
+  }
   auto measure = [&](const std::string &text) {
-    return engine.GetVNUI().measureSized(text, 2000, 24).x;
+    return engine.GetVNUI().measureSized(text, 2000, layoutFont_).x;
   };
   const auto lines = Kotonoha::VNTextBoxUtility::RevealLines(
       fullDialogue, visibleDialogue.size(), measure, 596 - x);
   SDL_Rect clip{40, 284, 560, 132};
   SDL_SetRenderClipRect(&r, &clip);
   for (size_t i = 0; i < lines.size(); ++i)
-    engine.GetVNUI().textSized(r, lines[i], x, 288 + float(i) * 44, 596 - x, 24,
+    engine.GetVNUI().textSized(r, lines[i], x, 288 + float(i) * layoutStep_,
+                               596 - x, layoutFont_,
                                engine.GetSettings().vnTextColorOverride
                                    ? engine.GetSettings().vnTextColor
                                    : SDL_Color{240, 240, 245, 255});
@@ -148,8 +170,10 @@ void AmagamiRuntime::syncDialogue() {
   auto route = int(assets_->source()->scenarioIndex(session_->name()));
   const auto text = engine_->GetTranslation().text(route, line.original);
   textBox_->setOriginalKey(line.original);
-  textBox_->setDialogue(
-      line.speaker, text == line.original ? DisplayText(line.original) : text);
+  textBox_->setDialogue(engine_->GetTranslation().text(route, line.speaker),
+                        text.empty() || text == line.original
+                            ? DisplayText(line.original)
+                            : text);
 }
 
 AmagamiRuntime::AmagamiRuntime(std::shared_ptr<Assets> assets,
@@ -210,6 +234,9 @@ void AmagamiRuntime::start(const std::string &name) {
   focus_ = 0;
   voiced_ = 0;
   displayed_ = 0;
+  presentationSeconds_ = 0;
+  textBox_->setDialogue("", "");
+  textBox_->hide();
   syncDialogue();
   SetState(Kotonoha::GameState::Gameplay);
 }
@@ -278,6 +305,24 @@ void AmagamiRuntime::audio(const std::string &id, const std::string &channel,
     SDL_LogWarn(SDL_LOG_CATEGORY_AUDIO, "Amagami audio %s: %s", id.c_str(),
                 e.what());
   }
+}
+bool AmagamiRuntime::handleNewGameAction() {
+  start("n0dea_ev01A");
+  return true;
+}
+bool AmagamiRuntime::handleAdvanceAction() {
+  if (!session_ || session_->ended() || session_->waiting() || paused_ ||
+      backlog_ || !session_->choices().empty())
+    throw std::logic_error("Amagami story advance is blocked");
+  advance();
+  return true;
+}
+bool AmagamiRuntime::advanceStoryTime(double seconds) {
+  if (!session_ || paused_ || backlog_)
+    throw std::logic_error("No active Amagami story to step");
+  updatePresentation(seconds);
+  frameClock_.reset();
+  return true;
 }
 void AmagamiRuntime::advance() {
   if (!session_ || session_->ended() || session_->waiting())
@@ -415,11 +460,17 @@ void AmagamiRuntime::render(Kotonoha::RendererRef r, float scale) {
     picture(&r, "sysgraph/copy.tm2", {16, 404, 320, 24});
     if (!titleMenu_) {
       const float alpha = 0.65f + 0.35f * std::sin(float(SDL_GetTicks()) / 500);
-      auto &tex = assets_->texture(r, "sysgraph/txt_start.tm2");
-      SDL_SetTextureAlphaModFloat(&tex, alpha);
-      SDL_FRect dst{196, 320, 248, 32};
-      SDL_RenderTexture(&r, &tex, nullptr, &dst);
-      SDL_SetTextureAlphaModFloat(&tex, 1);
+      const auto prompt = engine_->GetTranslation().text(-1, "PRESS START");
+      if (prompt != "PRESS START")
+        ui.textSized(r, prompt, 196, 320, 248, 24,
+                     {255, 255, 255, Uint8(alpha * 255)});
+      else {
+        auto &tex = assets_->texture(r, "sysgraph/txt_start.tm2");
+        SDL_SetTextureAlphaModFloat(&tex, alpha);
+        SDL_FRect dst{196, 320, 248, 32};
+        SDL_RenderTexture(&r, &tex, nullptr, &dst);
+        SDL_SetTextureAlphaModFloat(&tex, 1);
+      }
     } else {
       picture(&r, "sysgraph/menu_main.tm2", {232, 245, 176, 56});
       for (size_t i = 0; i < 3; ++i) {
@@ -428,14 +479,20 @@ void AmagamiRuntime::render(Kotonoha::RendererRef r, float scale) {
           auto &tex = assets_->texture(r, "sysgraph/cursor_base.tm2");
           Kotonoha::RenderUpscaledTexture(&r, &tex, nullptr, &b);
         }
-        if (i < 2)
-          picture(&r, "sysgraph/menu_main" + std::to_string(i) + ".tm2", b);
+        const std::string original = i == 0   ? "はじめから"
+                                     : i == 1 ? "続きから"
+                                              : "終了";
+        const auto label = engine_->GetTranslation().text(-1, original);
+        if (label != original || i == 2)
+          ui.textSized(r, label, b.x + 6, b.y + 3, 100, 20, {35, 75, 85, 255});
         else
-          ui.textSized(r, "終了", b.x + 32, b.y + 3, 80, 22, {35, 75, 85, 255});
+          picture(&r, "sysgraph/menu_main" + std::to_string(i) + ".tm2", b);
       }
     }
   } else {
     for (const auto &[name, v] : session_->visuals()) {
+      if (name == "ITEM_BASE" || name == "ITEM_ICON")
+        continue;
       if (!v.visible || v.file.empty())
         continue;
       if (v.file.rfind("stand/b", 0) == 0) {
@@ -472,6 +529,21 @@ void AmagamiRuntime::render(Kotonoha::RendererRef r, float scale) {
       ui.panel(r, {0, 0, 640, 448},
                {shade, shade, shade, Uint8(session_->stageFade() * 255)});
     }
+    // ItemView is a foreground overlay, independent of the background camera.
+    for (const auto &key : {"ITEM_BASE", "ITEM_ICON"}) {
+      const auto it = session_->visuals().find(key);
+      if (it == session_->visuals().end() || !it->second.visible)
+        continue;
+      const auto &v = it->second;
+      auto &tex = assets_->texture(r, v.file);
+      float width = 0, height = 0;
+      SDL_GetTextureSize(&tex, &width, &height);
+      SDL_FRect rect{320 - width * v.scaleX / 2, 224 - height * v.scaleY / 2,
+                     width * v.scaleX, height * v.scaleY};
+      SDL_SetTextureAlphaModFloat(&tex, std::clamp(v.alpha, 0.0f, 1.0f));
+      Kotonoha::RenderUpscaledTexture(&r, &tex, nullptr, &rect);
+      SDL_SetTextureAlphaModFloat(&tex, 1);
+    }
     syncChoices();
     if (choices_->isActive())
       choices_->render(r, scale);
@@ -487,19 +559,23 @@ void AmagamiRuntime::render(Kotonoha::RendererRef r, float scale) {
     }
     if (session_->ended()) {
       ui.panel(r, {60, 130, 520, 120});
-      ui.textSized(r, "このイベントは終了しました", 85, 150, 470, 25);
-      ui.textSized(r, "Enter: タイトルへ", 85, 195, 470, 20);
+      ui.textSized(
+          r, engine_->GetTranslation().text(-1, "このイベントは終了しました"),
+          85, 150, 470, 25);
+      ui.textSized(r, engine_->GetTranslation().text(-1, "Enter: タイトルへ"),
+                   85, 195, 470, 20);
     }
     if (paused_) {
       ui.backdrop(r);
       const std::vector<std::string> menu = {"戻る", "セーブ", "ロード",
-                                             "タイトルへ"};
+                                             "タイトルへ", "設定"};
       for (size_t i = 0; i < menu.size(); ++i) {
         SDL_FRect b{180, float(100 + i * 54), 280, 44};
         ui.panel(r, b,
                  i == focus_ ? SDL_Color{133, 58, 110, 255}
                              : SDL_Color{25, 30, 50, 255});
-        ui.textSized(r, menu[i], b.x + 15, b.y + 8, b.w - 30, 24);
+        ui.textSized(r, engine_->GetTranslation().text(-1, menu[i]), b.x + 15,
+                     b.y + 8, b.w - 30, 24);
       }
     }
     if (backlog_) {
@@ -508,18 +584,31 @@ void AmagamiRuntime::render(Kotonoha::RendererRef r, float scale) {
       const auto &history = session_->history();
       size_t begin = history.size() > 4 ? history.size() - 4 : 0;
       for (size_t i = begin; i < history.size(); ++i) {
-        ui.textSized(r, history[i].speaker, 25, y, 590, 16,
-                     {255, 170, 210, 255});
+        ui.textSized(r,
+                     engine_->GetTranslation().text(translationRoute(),
+                                                    history[i].speaker),
+                     25, y, 590, 16, {255, 170, 210, 255});
         y += 22;
-        y += ui.textSized(r, history[i].text, 25, y, 590, 18) + 12;
+        const auto translated = engine_->GetTranslation().text(
+            translationRoute(), history[i].original);
+        y +=
+            ui.textSized(r,
+                         translated.empty() || translated == history[i].original
+                             ? history[i].text
+                             : translated,
+                         25, y, 590, 18) +
+            12;
       }
     }
   }
   if (!notice_.empty())
-    ui.textSized(r, notice_, 10, 5, 620, 14, {255, 235, 150, 255});
+    ui.textSized(r, engine_->GetTranslation().text(-1, notice_), 10, 5, 620, 14,
+                 {255, 235, 150, 255});
   if (!error_.empty()) {
     ui.panel(r, {20, 30, 600, 180}, {60, 15, 25, 250});
-    ui.textSized(r, "Execution stopped: " + error_, 35, 45, 570, 16);
+    ui.textSized(
+        r, engine_->GetTranslation().text(-1, "Execution stopped: ") + error_,
+        35, 45, 570, 16);
   }
 }
 void AmagamiRuntime::activate(size_t i) {
@@ -547,6 +636,8 @@ void AmagamiRuntime::activate(size_t i) {
       saveGame(savePath_);
     else if (i == 2)
       loadGame(savePath_);
+    else if (i == 4)
+      engine_->openSettings();
     else if (i == 3) {
       shutdown();
       SetState(Kotonoha::GameState::Menu);
@@ -589,7 +680,7 @@ void AmagamiRuntime::onEvent(Kotonoha::EventRef event) {
         return;
       }
     }
-    size_t count = !session_ ? 3 : paused_ ? 4 : session_->choices().size();
+    size_t count = !session_ ? 3 : paused_ ? 5 : session_->choices().size();
     if (e.type == SDL_EVENT_KEY_DOWN && !e.key.repeat) {
       if (e.key.key == SDLK_ESCAPE) {
         if (!error_.empty()) {
@@ -667,8 +758,10 @@ void AmagamiRuntime::onEvent(Kotonoha::EventRef event) {
   }
 }
 void AmagamiRuntime::updatePresentation(double seconds) {
-  if (session_ && !paused_ && !backlog_)
+  if (session_ && !paused_ && !backlog_) {
     session_->tick(seconds);
+    presentationSeconds_ += seconds;
+  }
   syncDialogue();
   syncChoices();
 }
@@ -679,7 +772,7 @@ void AmagamiRuntime::update() {
   }
   const double delta = frameClock_.seconds();
   frameClock_.reset();
-  if (session_ && !paused_ && !backlog_) {
+  if (session_ && !paused_ && !backlog_ && !engine_->isAgentPaused()) {
     try {
       updatePresentation(delta);
     } catch (const std::exception &e) {
@@ -699,8 +792,8 @@ void AmagamiRuntime::update() {
       session_->revealDialogue(Kotonoha::VNTextBoxUtility::CountUtf8Chars(
           textBox_->getVisibleText()));
   }
-  music_.SetPaused(paused_ || backlog_);
-  voice_.SetPaused(paused_ || backlog_);
+  music_.SetPaused(paused_ || backlog_ || engine_->isAgentPaused());
+  voice_.SetPaused(paused_ || backlog_ || engine_->isAgentPaused());
   if (session_ && !paused_ && voiced_ != session_->history().size()) {
     voiced_ = session_->history().size();
     const auto &line = session_->dialogue();
@@ -740,14 +833,41 @@ int AmagamiRuntime::translationRoute() const {
   return session_ ? int(assets_->source()->scenarioIndex(session_->name()))
                   : -1;
 }
+Kotonoha::Translation::SourceTexts AmagamiRuntime::translationSources() const {
+  Kotonoha::Translation::SourceTexts sources;
+  sources[-1] = {"はじめから",
+                 "続きから",
+                 "終了",
+                 "戻る",
+                 "セーブ",
+                 "ロード",
+                 "タイトルへ",
+                 "このイベントは終了しました",
+                 "Enter: タイトルへ",
+                 "Saved",
+                 "Loaded",
+                 "Execution stopped: ",
+                 "PRESS START",
+                 "メインメニュー",
+                 "選択肢",
+                 "設定",
+                 "バックログ"};
+  for (size_t i = 0; i < assets_->source()->classes().size(); ++i) {
+    auto texts = assets_->source()->systemClass(i).texts();
+    sources[-1].insert(sources[-1].end(), texts.begin(), texts.end());
+  }
+  for (size_t i = 0; i < assets_->source()->scenarios().size(); ++i)
+    sources.emplace(int(i), assets_->source()->script(i).texts());
+  return sources;
+}
 std::vector<int> AmagamiRuntime::translationRoutes() const {
-  std::vector<int> out;
+  std::vector<int> out{-1};
   for (size_t i = 0; i < assets_->source()->scenarios().size(); ++i)
     out.push_back(int(i));
   return out;
 }
 std::vector<std::string> AmagamiRuntime::translationTexts(int route) const {
-  return route < 0 ? std::vector<std::string>{}
+  return route < 0 ? translationSources().at(-1)
                    : assets_->source()->script(route).texts();
 }
 void AmagamiRuntime::saveGame(const std::string &path) {
@@ -777,8 +897,17 @@ void AmagamiRuntime::loadGame(const std::string &path) {
   music_.SetGain(0.48f * session_->musicGain() / 100.0f);
   SetState(Kotonoha::GameState::Gameplay);
   paused_ = false;
+  backlog_ = false;
+  error_.clear();
+  focus_ = 0;
   voiced_ = 0;
   displayed_ = 0;
+  presentationSeconds_ = 0;
+  textBox_->setDialogue("", "");
+  textBox_->hide();
   syncDialogue();
+  syncChoices();
+  if (session_->messageVisible() && !session_->messageCleared())
+    textBox_->show();
 }
 } // namespace Amagami

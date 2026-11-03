@@ -11,7 +11,7 @@ public:
   ~AirRuntime() override;
   void shutdown();
   bool continuousTouch() const override { return true; }
-  std::string diagnostic() const;
+  std::string diagnostic() const override;
   void initMenu(Kotonoha::Engine &) override;
   void initGameplay(Kotonoha::Engine &) override;
   void update() override;

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <map>
+#include <set>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -10,6 +11,7 @@ namespace Kotonoha {
 class Translation {
   using Dictionary = std::unordered_map<std::string, std::string>;
   std::unordered_map<std::string, Dictionary> sections;
+  mutable std::set<std::string> globalSources;
 
 public:
   using SourceTexts = std::map<int, std::vector<std::string>>;

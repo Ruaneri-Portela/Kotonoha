@@ -4,6 +4,7 @@
 #include <array>
 #include <map>
 #include <memory>
+#include <optional>
 
 namespace Amagami {
 class Source {
@@ -18,6 +19,14 @@ public:
   Bytes read(const std::string &archive, size_t index) const;
   Script script(size_t index) const;
   int find(const std::string &archive, const std::string &name) const;
+  struct GraphicLocation {
+    std::string archive;
+    size_t index;
+  };
+  std::optional<GraphicLocation> graphic(const std::string &name) const;
+  std::string eventPicture(unsigned character, unsigned number,
+                           unsigned variant) const;
+  std::string itemPicture(unsigned number) const;
   int musicIndex(unsigned number) const;
   int breathDirection(unsigned character, unsigned pose) const;
   SDL_FPoint actorOrigin(unsigned character, unsigned pose) const;

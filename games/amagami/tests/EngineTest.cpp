@@ -56,13 +56,31 @@ void capture(Kotonoha::Engine &e, Amagami::AmagamiRuntime &game,
 }
 int main(int argc, char **argv) {
   try {
-    require(argc == 2, "Expected disc");
+    require(argc == 2 || argc == 3,
+            "Expected disc and optional translation dictionary");
     auto source = std::make_shared<Amagami::Source>(argv[1]);
     auto assets = std::make_shared<Amagami::Assets>(source);
+    // Overlapping transparent mesh fragments must preserve the face underneath.
+    auto body = assets->loadSurface("actor-body/stand/b7_Aax.tm2");
+    const auto bounds = assets->bodyBounds("stand/b7_Aax.tm2");
+    for (const SDL_Point p : {SDL_Point{400, 395}, SDL_Point{400, 422}}) {
+      Uint8 r, g, b, a;
+      require(SDL_ReadSurfacePixel(body.get(), p.x - bounds.x, p.y - bounds.y,
+                                   &r, &g, &b, &a),
+              SDL_GetError());
+      require(a > 240 && r > 100, "Transparent overlapping fragments must not "
+                                  "cut holes in Miya's face");
+    }
+    require(assets->contains("epi/e6_24a0.tm2"),
+            "Retail event picture resolves");
+    require(assets->loadSurface("epi/e6_24a0.tm2") != nullptr,
+            "Retail event picture decodes");
     Amagami::AmagamiRuntime game(assets);
     Kotonoha::EngineOptions options;
     options.assets = assets;
     options.persistSettings = false;
+    if (argc == 3)
+      options.translationPath = argv[2];
     Kotonoha::Engine engine(game, options);
     struct Shutdown {
       Amagami::AmagamiRuntime &game;
@@ -105,6 +123,23 @@ int main(int argc, char **argv) {
             "Amagami dialogue is registered as an engine component");
     const auto key = game.session()->dialogue().original;
     const auto route = std::to_string(game.translationRoute());
+    const auto sources = game.translationSources();
+    require(sources.size() == 2309 && sources.at(1227).size() == 411 &&
+                !sources.at(-1).empty(),
+            "Native translation export includes every scenario and original "
+            "prologue key");
+    if (argc == 3) {
+      require(
+          box->getText() == engine.GetTranslation().text(1227, key) &&
+              box->getText() != Amagami::DisplayText(key),
+          "Portuguese dictionary is active in the actual dialogue component");
+    }
+    engine.setAgentPaused(true);
+    const auto beforeNativeStep = *game.debugNodeSeconds();
+    engine.advanceTimeline(0.5);
+    require(*game.debugNodeSeconds() == beforeNativeStep + 0.5,
+            "MCP steps the native clock without a generic VN timeline");
+    engine.setAgentPaused(false);
     const std::string translated = "Live Translation: Fewer bugs, More story!";
     engine.setTranslation(route, key, translated);
     require(box->getText() == translated && box->getVisibleText() == translated,

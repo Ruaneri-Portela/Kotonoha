@@ -9,6 +9,8 @@
 
 namespace Kotonoha {
 
+class Translation;
+
 std::size_t utf8Prefix(const std::string &text, std::size_t characters);
 void eraseLastCharacter(std::string &text);
 
@@ -22,12 +24,14 @@ class UI {
   FontPtr font;
   std::unordered_map<std::string, CachedText> cache;
   float density = 1;
+  Translation *translation = nullptr;
 
 public:
   explicit UI(const std::string &fontPath = {});
   ~UI();
   UI(const UI &) = delete;
   UI &operator=(const UI &) = delete;
+  void setTranslation(Translation *value) { translation = value; }
   void setPixelDensity(float value);
   float pixelDensity() const { return density; }
   const char *fontFamily() const { return TTF_GetFontFamilyName(font.get()); }

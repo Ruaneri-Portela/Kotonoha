@@ -165,6 +165,33 @@ void subtitles(Engine &engine) {
   draw(1.5);
   require(colored(renderer, 1) > 20, "Subtitle resizes with renderer scale");
   SDL_SetRenderScale(&renderer, 1, 1);
+  class DialogueSubtitles : public SubtitleScene {
+  protected:
+    bool replacesPreviousCue() const override { return true; }
+
+  public:
+    using SubtitleScene::SubtitleScene;
+  } dialogue(engine);
+  dialogue.setStyle(style);
+  auto drawDialogue = [&](double seconds) {
+    SDL_SetRenderDrawColor(&renderer, 0, 0, 0, 255);
+    SDL_RenderClear(&renderer);
+    dialogue.setPosition(seconds);
+    dialogue.render(renderer, 1);
+    return colored(renderer, 1);
+  };
+  dialogue.setCues({{1, 5, "X", "Person"}});
+  const auto singleLine = drawDialogue(1.5);
+  dialogue.setCues(
+      {{0, 5, "PREVIOUS LONG DIALOGUE", "Person"}, {1, 5, "X", "Person"}});
+  require(drawDialogue(1.5) == singleLine,
+          "Replacing dialogue must not stack overlapping libass events");
+  require(drawDialogue(0.5) > singleLine,
+          "Seeking backward restores the previous exclusive line");
+  dialogue.setCues(
+      {{1, 5, "REPLACED AT SAME TIME", "Person"}, {1, 5, "X", "Person"}});
+  require(drawDialogue(1.5) == singleLine,
+          "Equal-time dialogue keeps only the last line");
   rejects([&] { scene.setPosition(-1); }, "Reject negative subtitle clock");
   rejects([&] { scene.setCues({{2, 1, "bad", ""}}); }, "Reject reversed cue");
   scene.clear();
@@ -326,6 +353,26 @@ int main() {
     Engine engine(runtime, options);
     require(engine.GetSubtitleStyle().has_value(),
             "Startup loads the selected style file");
+    // Global interface strings share the same live dictionary as game text.
+    const auto originalWidth =
+        engine.GetUI().measureSized("GLOBAL UI", 1000, 24).x;
+    engine.setTranslation("nodo", "GLOBAL UI", "X");
+    require(engine.GetUI().measureSized("GLOBAL UI", 1000, 24).x <
+                originalWidth,
+            "Global UI measurement uses translated labels");
+    auto dump = std::filesystem::temp_directory_path() /
+                ("kotonoha-global-" +
+                 std::to_string(SDL_GetPerformanceCounter()) + ".json");
+    engine.GetTranslation().dump(dump.string(),
+                                 {{7, {"Scene text"}}, {-1, {"Unseen UI"}}});
+    Translation loaded;
+    loaded.load(dump.string());
+    std::filesystem::remove(dump);
+    require(loaded.getSections().count("nodo") &&
+                !loaded.getSections().count("-1") &&
+                loaded.text(7, "GLOBAL UI") == "X" &&
+                loaded.getSections().at("nodo").count("Unseen UI"),
+            "Export separates global interface strings from scene routes");
     subtitles(engine);
     controls(engine, runtime);
     fades(engine);

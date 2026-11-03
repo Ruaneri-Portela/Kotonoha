@@ -1,3 +1,4 @@
+#include "FFmpegSupport.hpp"
 #include <Kotonoha/core/AssetProvider.hpp>
 #include <Kotonoha/core/UI.hpp>
 #include <Kotonoha/media/MediaPlayer.hpp>
@@ -177,6 +178,7 @@ struct MediaPlayer::State {
       check(avcodec_parameters_to_context(context,
                                           format->streams[index]->codecpar),
             "Read codec parameters");
+      context->pkt_timebase = format->streams[index]->time_base;
       check(avcodec_open2(context, codec, nullptr), "Open codec");
     } catch (...) {
       avcodec_free_context(&context);
@@ -428,6 +430,7 @@ void MediaPlayer::start(std::unique_ptr<State> next, const std::string &url,
       &next->format, next->io ? nullptr : url.c_str(), nullptr, &options);
   av_dict_free(&options);
   check(opened, "Open media");
+  detail::initializeMediaLog();
   check(avformat_find_stream_info(next->format, nullptr), "Read media streams");
   if (next->format->start_time != AV_NOPTS_VALUE)
     next->origin = next->format->start_time / static_cast<double>(AV_TIME_BASE);

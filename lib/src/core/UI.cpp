@@ -1,5 +1,6 @@
 #include <Kotonoha/core/FileSystem.hpp>
 #include <Kotonoha/core/UI.hpp>
+#include <Kotonoha/localization/Translation.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -98,8 +99,9 @@ float UI::text(RendererRef renderer, const std::string &value, float x, float y,
                float wrap, SDL_Color color) {
   return textSized(renderer, value, x, y, wrap, 24, color);
 }
-float UI::textSized(RendererRef renderer, const std::string &value, float x,
+float UI::textSized(RendererRef renderer, const std::string &original, float x,
                     float y, float wrap, float fontSize, SDL_Color color) {
+  const auto value = translation ? translation->text(-1, original) : original;
   if (value.empty())
     return 0;
   const float raster = rasterDensity(renderer);
@@ -151,8 +153,9 @@ float UI::textHeight(RendererRef renderer, const std::string &value,
 SDL_FPoint UI::textSize(const std::string &value, float width) const {
   return measureSized(value, width, 24);
 }
-SDL_FPoint UI::measureSized(const std::string &value, float width,
+SDL_FPoint UI::measureSized(const std::string &original, float width,
                             float fontSize) const {
+  const auto value = translation ? translation->text(-1, original) : original;
   const float oldSize = TTF_GetFontSize(font.get());
   struct RestoreSize {
     TTF_Font *font;

@@ -18,7 +18,8 @@ public:
                           const std::string &) override;
 
 private:
-  std::string originalKey_;
+  std::string originalKey_, layoutKey_;
+  float layoutFont_ = 24, layoutStep_ = 44;
   std::vector<std::pair<size_t, double>> waits_;
   size_t nextWait_ = 0;
   double pauseSeconds_ = 0;
@@ -54,11 +55,19 @@ public:
   void shutdown();
   const Session *session() const { return session_.get(); }
   const std::string &error() const { return error_; }
+  std::string diagnostic() const override { return error_; }
+  std::optional<double> debugNodeSeconds() const override {
+    return session_ ? std::optional<double>(presentationSeconds_)
+                    : std::nullopt;
+  }
   void initGlobal(Kotonoha::Engine &) override;
   void initMenu(Kotonoha::Engine &) override;
   void initGameplay(Kotonoha::Engine &) override;
   void render(Kotonoha::RendererRef, float) override;
   void onEvent(Kotonoha::EventRef) override;
+  bool handleNewGameAction() override;
+  bool handleAdvanceAction() override;
+  bool advanceStoryTime(double) override;
   void update() override;
   void updatePresentation(double seconds);
   SDL_Point viewport() const override { return {960, 672}; }
@@ -68,6 +77,7 @@ public:
   void debugJumpToNode(const std::string &) override;
   int translationRoute() const override;
   std::vector<std::string> activeTranslationKeys() const override;
+  Kotonoha::Translation::SourceTexts translationSources() const override;
   std::vector<int> translationRoutes() const override;
   std::vector<std::string> translationTexts(int) const override;
   void saveGame(const std::string &) override;
@@ -82,6 +92,7 @@ private:
   bool titleMenu_ = false;
   void syncChoices();
   size_t displayed_ = 0;
+  double presentationSeconds_ = 0;
   void syncDialogue();
   Kotonoha::Engine *engine_ = nullptr;
   Kotonoha::PcmPlayer music_, voice_;

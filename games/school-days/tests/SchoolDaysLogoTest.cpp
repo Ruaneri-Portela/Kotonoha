@@ -57,13 +57,15 @@ int main(int argc, char **argv) {
     for (const int x : {5, 160, 314}) {
       Uint8 red = 0, green = 0, blue = 0, alpha = 0;
       if (!SDL_ReadSurfacePixel(frame.get(), x, 90, &red, &green, &blue,
-                                &alpha) ||
-          blue < 200 || green < 100 || red > 20)
+                                &alpha))
+        throw std::runtime_error(SDL_GetError());
+      if (x == 160 ? blue < 200 || green < 100 : blue > 8 || green > 8)
         throw std::runtime_error(
-            "Overflow splash does not maximize visible logo bounds");
+            "School Days logo must retain its original padding");
     }
-    std::cout << "Overflow logo uses the full current viewport without "
-                 "internal padding\n";
+    std::cout
+        << "Overflow logo stays centered at its original padded proportions\n";
+
   } catch (const std::exception &error) {
     std::cerr << error.what() << '\n';
     return 1;

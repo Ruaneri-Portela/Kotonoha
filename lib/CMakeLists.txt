@@ -194,8 +194,10 @@ function(kotonoha_copy_assets target)
             VERBATIM)
     else()
         add_custom_command(TARGET ${target} POST_BUILD
-            COMMAND "${CMAKE_COMMAND}" -E copy_directory
-                "${KOTONOHA_ENGINE_ASSETS}" "${destination}/assets"
+            COMMAND "${CMAKE_COMMAND}"
+                "-DASSET_SOURCE=${KOTONOHA_ENGINE_ASSETS}"
+                "-DASSET_DESTINATION=${destination}/assets"
+                -P "${KOTONOHA_PROJECT_ROOT}/cmake/CopyAssetDirectory.cmake"
             VERBATIM)
     endif()
 endfunction()
