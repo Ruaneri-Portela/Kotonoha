@@ -68,6 +68,11 @@ void configureBundledPython(PyConfig &config) {
   const auto pythonVersion = "python" + std::to_string(PY_MAJOR_VERSION) + "." +
                              std::to_string(PY_MINOR_VERSION);
   auto home = resources / "python";
+#if defined(__ANDROID__) && defined(KOTONOHA_ANDROID_ABI)
+  const auto architectureHome = home / KOTONOHA_ANDROID_ABI;
+  if (std::filesystem::is_directory(architectureHome))
+    home = architectureHome;
+#endif
 #if defined(__APPLE__) && !TARGET_OS_IPHONE
   auto baseDirectory = resources;
   if (baseDirectory.filename().empty())

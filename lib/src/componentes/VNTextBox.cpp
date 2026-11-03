@@ -121,8 +121,10 @@ void VNTextBox::renderFrame(RendererRef renderer) {
 }
 
 void VNTextBox::renderSpeaker(RendererRef renderer) {
-  engine.GetUI().text(renderer, speakerName, 60, 510, 810,
-                      {255, 215, 100, 255});
+  engine.GetVNUI().text(renderer, speakerName, 60, 510, 810,
+                        engine.GetSettings().vnTextColorOverride
+                            ? engine.GetSettings().vnSpeakerColor
+                            : SDL_Color{255, 215, 100, 255});
 }
 
 void VNTextBox::renderDialogue(RendererRef renderer) {
@@ -131,7 +133,7 @@ void VNTextBox::renderDialogue(RendererRef renderer) {
 
   // Utiliza textSize(str, width).x para obter a largura em pixels
   auto measureText = [this](const std::string &str) -> float {
-    return engine.GetUI().textSize(str, 1140.0f).x;
+    return engine.GetVNUI().textSize(str, 1140.0f).x;
   };
 
   const auto lines = VNTextBoxUtility::RevealLines(
@@ -139,8 +141,11 @@ void VNTextBox::renderDialogue(RendererRef renderer) {
 
   int yOffset = 550;
   for (const auto &line : lines) {
-    engine.GetUI().text(renderer, line, 60, static_cast<float>(yOffset),
-                        1140.0f);
+    engine.GetVNUI().text(renderer, line, 60, static_cast<float>(yOffset),
+                          1140.0f,
+                          engine.GetSettings().vnTextColorOverride
+                              ? engine.GetSettings().vnTextColor
+                              : SDL_Color{240, 240, 245, 255});
     yOffset += 28;
   }
 

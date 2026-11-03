@@ -1,5 +1,6 @@
 #include "../debug/ImGuiTheme.hpp"
 #include <Kotonoha/componentes/SettingsMenu.hpp>
+#include <Kotonoha/core/Appearance.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/Log.hpp>
 #include <Kotonoha/core/UI.hpp>
@@ -18,26 +19,40 @@ SettingsMenu::~SettingsMenu() = default;
 
 std::vector<int> SettingsMenu::rows() const {
   std::vector<int> result;
-  if (canChangeDisplaySize()) {
-    result.push_back(0);
-    result.push_back(1);
-    result.push_back(2);
-    result.push_back(3);
-  }
-  result.push_back(4);
-  result.push_back(5);
-  result.push_back(6);
-  if (engine.GetUpscaler().resolve(draft.upscaling.backend) ==
-      UpscaleBackend::MPV) {
-    result.push_back(10);
-  }
-  result.insert(result.end(), {7, 11, 12, 8, 9});
+  if (page == 0) {
+    if (canChangeDisplaySize())
+      result.insert(result.end(), {0, 1, 2, 3});
+    result.insert(result.end(), {4, 5});
+    if (engine.GetUpscaler().resolve(draft.upscaling.backend) ==
+        UpscaleBackend::MPV)
+      result.insert(result.end(), {6, 10});
+    result.push_back(7);
+  } else if (page == 1) {
+    result.insert(result.end(), {11, 12});
+    for (int i = 0; i < int(channels.size()); ++i)
+      result.push_back(100 + i);
+  } else
+    result.insert(result.end(), {13, 14, 15, 16});
+  result.insert(result.end(), {8, 9});
   return result;
 }
 
 void SettingsMenu::open() {
   draft = engine.GetSettings();
-  selected = 0;
+  selected = first = page = 0;
+  slider = -1;
+  channels.clear();
+  for (const char *name : {"audio", "video", "BGM", "Voice", "SE", "PCM"})
+    engine.GetAudio().channel(name);
+  for (const auto &channel : engine.GetAudio().getChannels()) {
+    channels.push_back(channel->getName());
+    draft.channelVolumes.try_emplace(channel->getName(),
+                                     channel->getUserVolume());
+  }
+  for (const auto &[name, volume] : draft.channelVolumes)
+    if (std::find(channels.begin(), channels.end(), name) == channels.end())
+      channels.push_back(name);
+  fonts = VNFontOptions();
   error.clear();
   visible = true;
 }
@@ -81,17 +96,19 @@ void SettingsMenu::activate(int index, int direction) {
       }
     }
   } else if (index == 6) {
+    std::vector<std::string> names;
+    int current = 0;
     const auto &presets = UpscalePresets();
-    const auto current =
-        std::find(presets.begin(), presets.end(), draft.upscaling.preset);
-    draft.upscaling.preset =
-        current == presets.end() || current + 1 == presets.end()
-            ? presets.front()
-            : *(current + 1);
-    draft.upscaling.shaderFiles.clear();
-    draft.upscaling.factor = std::max(2.0f, draft.upscaling.factor);
-    if (draft.upscaling.backend == UpscaleBackend::None)
-      draft.upscaling.backend = UpscaleBackend::Auto;
+    for (int i = 0; i < int(presets.size()); ++i) {
+      names.push_back(UpscalePresetName(presets[i]));
+      if (presets[i] == draft.upscaling.preset)
+        current = i;
+    }
+    selectBox.open("OpenGL shader", names, current, [this](int choice) {
+      draft.upscaling.preset = UpscalePresets()[choice];
+      draft.upscaling.shaderFiles.clear();
+      draft.upscaling.factor = std::max(2.f, draft.upscaling.factor);
+    });
   } else if (index == 7)
     draft.upscaling.factor =
         draft.upscaling.factor >= 4 ? 1 : draft.upscaling.factor + 0.5f;
@@ -106,41 +123,133 @@ void SettingsMenu::activate(int index, int direction) {
     draft.masterMuted = !draft.masterMuted;
   else if (index == 10)
     shaderPicker->browse(&engine.GetWindow());
-  else
+  else if (index == 13) {
+    auto labels = fonts;
+    labels.front() = "Original game font";
+    auto found = std::find(fonts.begin(), fonts.end(), draft.vnFontPath);
+    selectBox.open("VN font", labels,
+                   int(found == fonts.end() ? 0 : found - fonts.begin()),
+                   [this](int i) { draft.vnFontPath = fonts[i]; });
+  } else if (index == 14)
+    draft.vnTextColorOverride = !draft.vnTextColorOverride;
+  else if (index == 15 || index == 16) {
+    std::vector<std::string> labels;
+    for (const auto &[name, color] : VNColorOptions)
+      labels.push_back(name);
+    selectBox.open(index == 15 ? "Dialogue color" : "Speaker color", labels, 0,
+                   [this, index](int i) {
+                     (index == 15 ? draft.vnTextColor : draft.vnSpeakerColor) =
+                         VNColorOptions[i].second;
+                     draft.vnTextColorOverride = true;
+                   });
+  } else if (index >= 100) {
+    auto &volume = draft.channelVolumes[channels.at(index - 100)];
+    volume = std::clamp(volume + direction * .05f, 0.f, 1.f);
+  } else
     close();
 }
 
 void SettingsMenu::onEvent(EventRef event) {
   if (!visible)
     return;
-  const auto items = rows();
-
+  if (selectBox.isOpen()) {
+    if (BackAction(engine, event))
+      selectBox.close();
+    else
+      selectBox.onEvent(event);
+    return;
+  }
   if (BackAction(engine, event)) {
     close();
     return;
   }
-
-  if (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat) {
-    if (event.key.key == SDLK_DOWN)
-      selected = (selected + 1) % static_cast<int>(items.size());
-    if (event.key.key == SDLK_UP)
-      selected = (selected + static_cast<int>(items.size()) - 1) %
-                 static_cast<int>(items.size());
+  auto items = rows();
+  auto setSlider = [&](int id, float x) {
+    float value = std::clamp((x - 660) / 380, 0.f, 1.f);
+    if (id == 11)
+      draft.masterVolume = value;
+    else
+      draft.channelVolumes[channels.at(id - 100)] = value;
+  };
+  if (slider >= 0) {
+    if (event.type == SDL_EVENT_MOUSE_MOTION) {
+      setSlider(slider, event.motion.x);
+      return;
+    }
+    if (event.type == SDL_EVENT_MOUSE_BUTTON_UP ||
+        event.type == SDL_EVENT_WINDOW_FOCUS_LOST) {
+      slider = -1;
+      return;
+    }
   }
+  for (int p = 0; p < 3; ++p)
+    if (UI::clicked(event, {200.f + p * 290, 85, 280, 48})) {
+      page = p;
+      selected = first = 0;
+      return;
+    }
+  if (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat) {
+    if (event.key.key == SDLK_TAB) {
+      page = (page + 1) % 3;
+      selected = first = 0;
+      return;
+    }
+    if (event.key.key == SDLK_END)
+      selected = int(items.size()) - 2;
+    if (event.key.key == SDLK_DOWN)
+      selected = (selected + 1) % int(items.size());
+    if (event.key.key == SDLK_UP)
+      selected = (selected + int(items.size()) - 1) % int(items.size());
+    if (selected < int(items.size()) - 2)
+      first = std::clamp(first, std::max(0, selected - 8), selected);
+  }
+  if (slider < 0 && event.type >= SDL_EVENT_FINGER_DOWN &&
+      event.type <= SDL_EVENT_FINGER_CANCELED) {
+    scrollOffset = first * 48.f;
+    if (scrolling.handle(event, 720, scrollOffset, scrollVelocity, scrollFollow,
+                         std::max(0, int(items.size()) - 11) * 48.f))
+      first = int(scrollOffset / 48);
+  }
+  if (event.type == SDL_EVENT_MOUSE_WHEEL)
+    first = std::clamp(first - int(event.wheel.y), 0,
+                       std::max(0, int(items.size()) - 11));
   try {
     if (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat &&
         (event.key.key == SDLK_RETURN || event.key.key == SDLK_SPACE ||
-         event.key.key == SDLK_RIGHT || event.key.key == SDLK_LEFT)) {
-      if (event.key.key != SDLK_LEFT || items[selected] == 11)
-        activate(items[selected], event.key.key == SDLK_LEFT ? -1 : 1);
+         event.key.key == SDLK_LEFT || event.key.key == SDLK_RIGHT)) {
+      selected = std::clamp(selected, 0, int(items.size()) - 1);
+      activate(items[selected], event.key.key == SDLK_LEFT ? -1 : 1);
       return;
     }
-    for (int i = 0; i < static_cast<int>(items.size()); ++i)
-      if (UI::clicked(event, {360, 100.0f + i * 38, 560, 34})) {
+    if (UI::clicked(event, {200, 624, 420, 44})) {
+      activate(8);
+      return;
+    }
+    if (UI::clicked(event, {640, 624, 420, 44})) {
+      close();
+      return;
+    }
+    for (int i = first; i < std::min(first + 9, int(items.size()) - 2); ++i) {
+      const float y = 150 + (i - first) * 48;
+      const int id = items[i];
+      if ((id == 11 || id >= 100) &&
+          event.type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
+          event.button.button == SDL_BUTTON_LEFT) {
+        SDL_FPoint point{event.button.x, event.button.y};
+        SDL_FRect bar{650, y, 410, 44};
+        if (SDL_PointInRectFloat(&point, &bar)) {
+          selected = i;
+          slider = id;
+          setSlider(id, point.x);
+          return;
+        }
+      }
+      if (UI::clicked(event, {200, y, 860, 44})) {
         selected = i;
-        activate(items[i]);
+        activate(id);
         return;
       }
+    }
   } catch (const std::exception &failure) {
     error = failure.what();
     SDL_LogError(LogConfig, "Settings: %s", error.c_str());
@@ -156,41 +265,62 @@ void SettingsMenu::render(RendererRef renderer) {
   auto &ui = engine.GetUI();
   constexpr const char *modes[]{"Windowed", "Borderless fullscreen",
                                 "Exclusive fullscreen"};
-  constexpr const char *backends[]{"Off", "Linear (SDL)",
-                                   "Anime4K / ArtCNN (OpenGL)", "MetalFX",
-                                   "Automatic"};
-
-  const std::array<std::string, 13> labels{
-      std::string("Mode: ") + modes[static_cast<int>(draft.mode)],
+  constexpr const char *backends[]{"Off", "Linear (SDL)", "MPV / OpenGL",
+                                   "MetalFX", "Automatic"};
+  const std::vector<std::string> labels{
+      std::string("Mode: ") + modes[int(draft.mode)],
       "Resolution: " + std::to_string(draft.width) + " x " +
           std::to_string(draft.height),
       "Monitor: " + std::to_string(draft.display + 1),
       std::string("Resizable: ") + (draft.resizable ? "Yes" : "No"),
       std::string("VSync: ") + (draft.vsync ? "Yes" : "No"),
-      std::string("Upscaler: ") +
-          backends[static_cast<int>(draft.upscaling.backend)],
-      std::string("Preset OpenGL: ") +
-          UpscalePresetName(draft.upscaling.preset),
-      "Factor: " + std::to_string(draft.upscaling.factor).substr(0, 3) + "x" +
-          (draft.upscaling.factor <= 1 ? " (off)" : ""),
+      std::string("Upscaler: ") + backends[int(draft.upscaling.backend)],
+      std::string("Shader: ") + UpscalePresetName(draft.upscaling.preset),
+      "Factor: " + std::to_string(draft.upscaling.factor).substr(0, 3) + "x",
       "Apply and save",
-      "Back without applying",
-      "MPV shader files: " +
-          std::to_string(
-              UpscaleShaderFiles(draft.upscaling.shaderFiles).size()) +
-          " (choose...)",
-      "Master volume: " +
-          std::to_string(int(std::lround(draft.masterVolume * 100))) +
-          "% (Left / Right)",
-      std::string("Mute all audio: ") + (draft.masterMuted ? "Yes" : "No")};
-  ui.backdrop(renderer, {0, 0, 0, 210});
-  ui.panel(renderer, {330, 30, 620, 650});
-  ui.text(renderer, "Settings", 360, 50, 560, {255, 215, 100, 255});
-  const auto items = rows();
-  for (int i = 0; i < static_cast<int>(items.size()); ++i)
-    ui.button(renderer, {360, 100.0f + i * 38, 560, 34}, labels[items[i]],
-              selected == i);
+      "Cancel",
+      "Custom GLSL files...",
+      "Master volume",
+      std::string("Mute all: ") + (draft.masterMuted ? "Yes" : "No"),
+      std::string("VN font: ") +
+          (draft.vnFontPath.empty() ? "Original game font" : draft.vnFontPath),
+      std::string("Override text colors: ") +
+          (draft.vnTextColorOverride ? "Yes" : "No"),
+      "Dialogue color...",
+      "Speaker color..."};
+  ui.backdrop(renderer, {0, 0, 0, 220});
+  ui.panel(renderer, {170, 25, 920, 670});
+  ui.text(renderer, "Settings", 200, 36, 860, {255, 215, 100, 255});
+  const char *pages[]{"Display", "Audio", "VN text"};
+  for (int p = 0; p < 3; ++p)
+    ui.button(renderer, {200.f + p * 290, 85, 280, 48}, pages[p], page == p);
+  auto items = rows();
+  selected = std::clamp(selected, 0, int(items.size()) - 1);
+  first = std::clamp(first, 0, std::max(0, int(items.size()) - 11));
+  for (int i = first; i < std::min(first + 9, int(items.size()) - 2); ++i) {
+    const int id = items[i];
+    const float y = 150 + (i - first) * 48;
+    const std::string label = id >= 100 ? channels.at(id - 100) : labels.at(id);
+    if (id == 11 || id >= 100) {
+      const float value = id == 11
+                              ? draft.masterVolume
+                              : draft.channelVolumes[channels.at(id - 100)];
+      ui.text(renderer,
+              label + " " + std::to_string(int(std::lround(value * 100))) + "%",
+              210, y + 8, 430);
+      ui.panel(renderer, {660, y + 17, 380, 10}, {70, 80, 100, 255});
+      ui.panel(renderer, {660, y + 17, 380 * value, 10}, {100, 190, 255, 255});
+      ui.panel(renderer, {654 + 380 * value, y + 6, 12, 32},
+               {240, 240, 255, 255});
+    } else
+      ui.button(renderer, {200, y, 860, 44}, label, selected == i);
+  }
+  ui.button(renderer, {200, 624, 420, 44}, "Apply and save",
+            selected == int(items.size()) - 2);
+  ui.button(renderer, {640, 624, 420, 44}, "Cancel",
+            selected == int(items.size()) - 1);
   if (!error.empty())
-    ui.text(renderer, error, 360, 590, 560, {255, 120, 120, 255});
+    ui.text(renderer, error, 200, 586, 860, {255, 120, 120, 255});
+  selectBox.render(renderer, ui);
 }
 } // namespace Kotonoha

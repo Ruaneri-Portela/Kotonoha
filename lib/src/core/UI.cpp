@@ -264,8 +264,13 @@ UI::FrameScope::~FrameScope() {
 }
 
 bool UI::clicked(EventRef event, SDL_FRect rect) {
-  if (event.type != SDL_EVENT_MOUSE_BUTTON_DOWN ||
-      event.button.button != SDL_BUTTON_LEFT)
+  if (event.type != SDL_EVENT_MOUSE_BUTTON_DOWN &&
+      event.type != SDL_EVENT_MOUSE_BUTTON_UP)
+    return false;
+  const auto activation = event.button.which == SDL_TOUCH_MOUSEID
+                              ? SDL_EVENT_MOUSE_BUTTON_UP
+                              : SDL_EVENT_MOUSE_BUTTON_DOWN;
+  if (event.type != activation || event.button.button != SDL_BUTTON_LEFT)
     return false;
   const SDL_FPoint point{event.button.x, event.button.y};
   return SDL_PointInRectFloat(&point, &rect);

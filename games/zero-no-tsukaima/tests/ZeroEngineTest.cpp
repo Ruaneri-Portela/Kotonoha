@@ -219,6 +219,10 @@ void testGame(const std::string &discPath) {
     Kotonoha::EngineOptions options;
     options.assets = disc;
     Kotonoha::Engine engine(game, options);
+    struct ShutdownGuard {
+      ZeroNoTsukaima::ZeroRuntime &runtime;
+      ~ShutdownGuard() { runtime.Shutdown(); }
+    } guard{game};
     require(&engine.GetAssets() == disc.get(),
             "The disc is the engine AssetProvider");
     skipSplash(engine, game);
@@ -292,8 +296,9 @@ void testGame(const std::string &discPath) {
       float tw = 0, th = 0;
       require(big && SDL_GetTextureSize(big->Source(), &tw, &th),
               "Upscaled message window");
-      require(tw == 2 * w && th == 2 * h && big->Width() == w &&
-                  big->Height() == h,
+      const auto &cached = engine.GetUpscaler().process(*big->Source(), 0);
+      require(tw == w && th == h && cached.w == 2 * w && cached.h == 2 * h &&
+                  big->Width() == w && big->Height() == h,
               "Upscaled pictures keep their game size with 2x texels");
       frames(engine, 2);
       capture(engine, game, "1-message-upscaled");

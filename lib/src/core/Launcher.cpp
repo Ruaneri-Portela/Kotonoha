@@ -1,8 +1,10 @@
+#include <Kotonoha/core/Appearance.hpp>
 #include <Kotonoha/core/AssetOverlay.hpp>
 #include <Kotonoha/core/Config.hpp>
 #include <Kotonoha/core/FileSystem.hpp>
 #include <Kotonoha/core/Launcher.hpp>
 #include <Kotonoha/core/Log.hpp>
+#include <Kotonoha/media/AudioMixer.hpp>
 
 #include <imgui.h>
 #include <imgui_impl_sdl3.h>
@@ -59,7 +61,7 @@ const char *requiredRenderer(UpscaleBackend backend,
       renderer != "metal")
     return "metal";
   if (backend == UpscaleBackend::MPV && renderer.rfind("opengl", 0) != 0)
-    return "opengl";
+    return isMobilePlatform() ? "opengles2" : "opengl";
   return nullptr;
 }
 } // namespace
@@ -168,6 +170,16 @@ void Launcher::close() {
 
 bool Launcher::isOpen() const { return context != nullptr; }
 Launcher::State Launcher::state() const { return current; }
+void Launcher::setAudioChannels(std::vector<std::string> names) {
+  std::vector<std::string> unique;
+  for (auto &name : names) {
+    AudioMixer::validateChannelName(name);
+    if (std::find(unique.begin(), unique.end(), name) == unique.end())
+      unique.push_back(std::move(name));
+  }
+  audioChannels = std::move(unique);
+}
+
 EngineSettings &Launcher::settings() { return draft; }
 const std::string &Launcher::getSettingsPath() const { return settingsPath; }
 const std::string &Launcher::getStatus() const { return status; }
@@ -562,16 +574,19 @@ void Launcher::drawUpscaling() {
         continue;
 #endif
       if (ImGui::Selectable(backendLabel(backend),
-                            backend == upscaling.backend))
+                            backend == upscaling.backend)) {
         upscaling.backend = backend;
+        if (backend == UpscaleBackend::MPV)
+          draft.renderer = isMobilePlatform() ? "opengles2" : "opengl";
+      }
     }
     ImGui::EndCombo();
   }
   const bool mpv = upscaling.backend == UpscaleBackend::MPV ||
                    (upscaling.backend == UpscaleBackend::Auto &&
                     draft.renderer.rfind("opengl", 0) == 0);
-  if (ImGui::BeginCombo("Preset (OpenGL)",
-                        UpscalePresetName(upscaling.preset))) {
+  if (mpv && ImGui::BeginCombo("Shader (OpenGL)",
+                               UpscalePresetName(upscaling.preset))) {
     for (auto preset : UpscalePresets())
       if (ImGui::Selectable(UpscalePresetName(preset),
                             preset == upscaling.preset)) {
@@ -600,6 +615,43 @@ void Launcher::drawUpscaling() {
 void Launcher::drawAdvanced() {
   ImGui::SliderFloat("Master volume", &draft.masterVolume, 0, 1, "%.2f");
   ImGui::Checkbox("Mute all audio", &draft.masterMuted);
+  for (const auto &name : audioChannels) {
+    auto [entry, inserted] = draft.channelVolumes.try_emplace(name, 1.f);
+    ImGui::SliderFloat((name + "##mixer").c_str(), &entry->second, 0, 1,
+                       "%.2f");
+  }
+  ImGui::SeparatorText("VN text");
+  const auto vnFonts = VNFontOptions();
+  if (ImGui::BeginCombo("VN font", draft.vnFontPath.empty()
+                                       ? "Original game font"
+                                       : draft.vnFontPath.c_str())) {
+    for (const auto &font : vnFonts)
+      if (ImGui::Selectable(font.empty() ? "Original game font" : font.c_str(),
+                            draft.vnFontPath == font))
+        draft.vnFontPath = font;
+    ImGui::EndCombo();
+  }
+  ImGui::Checkbox("Override VN text colors", &draft.vnTextColorOverride);
+  auto chooseColor = [&](const char *label, SDL_Color &color) {
+    if (ImGui::BeginCombo(label, label)) {
+      for (const auto &[name, value] : VNColorOptions)
+        if (ImGui::Selectable(name)) {
+          color = value;
+          draft.vnTextColorOverride = true;
+        }
+      ImGui::EndCombo();
+    }
+    float rgba[]{color.r / 255.f, color.g / 255.f, color.b / 255.f,
+                 color.a / 255.f};
+    if (ImGui::ColorEdit4((std::string(label) + "##custom").c_str(), rgba)) {
+      color = {
+          Uint8(std::lround(rgba[0] * 255)), Uint8(std::lround(rgba[1] * 255)),
+          Uint8(std::lround(rgba[2] * 255)), Uint8(std::lround(rgba[3] * 255))};
+      draft.vnTextColorOverride = true;
+    }
+  };
+  chooseColor("Dialogue color", draft.vnTextColor);
+  chooseColor("Speaker color", draft.vnSpeakerColor);
   ImGui::SliderFloat("Debug UI scale", &draft.debugUIScale, 1, 3, "%.2fx");
   ImGui::Separator();
   int priority = static_cast<int>(draft.logPriority) - SDL_LOG_PRIORITY_TRACE;

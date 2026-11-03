@@ -2,6 +2,7 @@
 #include "DdlcSession.hpp"
 #include <Kotonoha/componentes/InGameMenu.hpp>
 #include <Kotonoha/componentes/VNTextBox.hpp>
+#include <Kotonoha/core/Appearance.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/debug/DebugOverlay.hpp>
 #include <SDL3/SDL.h>
@@ -115,6 +116,25 @@ int main(int argc, char **argv) {
     engine.GetDebug().setVisible(true);
     engine.Iterate();
     const auto originalPixels = dialoguePixels(engine, game);
+    const auto originalAppearance = engine.GetSettings();
+    auto appearance = originalAppearance;
+    appearance.vnTextColorOverride = true;
+    appearance.vnTextColor = {255, 50, 50, 255};
+    engine.applySettings(appearance, false);
+    check(dialoguePixels(engine, game) != originalPixels,
+          "VN color settings change actual DDLC glyph pixels");
+    const auto fonts = VNFontOptions();
+    if (fonts.size() > 1) {
+      appearance.vnFontPath = fonts[1];
+      engine.applySettings(appearance, false);
+      check(dialoguePixels(engine, game) != originalPixels,
+            "VN font settings reach the native DDLC renderer");
+    }
+    check(game.debugNode() == node && session->dialogueSourceText() == source,
+          "Appearance changes preserve DDLC VM position and dialogue");
+    engine.applySettings(originalAppearance, false);
+    check(dialoguePixels(engine, game) == originalPixels,
+          "Restoring native appearance restores DDLC pixels");
     size_t streams = 0;
     for (auto &channel : engine.GetAudio().getChannels())
       streams += channel->activeStreams();

@@ -38,6 +38,24 @@
   640x480 scene transform, with fixed full-text line breaks during reveal.
   The shared UI also accounts for scene scale when rasterizing fonts.
 
+## Shared engine behavior verified during the fidelity review
+
+- Global opacity on native `recCopy` (1:33:1100) blends source RGB with the
+  existing DC even when the per-pixel mask is disabled. The shared
+  `BlitSurfaceOpacity` distinguishes these two alpha sources. Unblended buffer
+  copies retain the source mask for later `maskCopy` calls; forcing their alpha
+  to 255 made SEEN8613 text fade into black strips. Source state and aliased
+  surfaces are handled without destroying the mask. Pixel regressions
+  cover transparent, partial, opaque and masked copies. This fixes the intro's
+  intermediate black text strips without hiding frames.
+- Native script input receives a held pointer from finger-down through release.
+  Shared buttons confirm touch on release; a second finger or navigation swipe
+  cancels the underlying pointer. This prevents the first finger selecting a
+  pause-menu item before the two-finger Back gesture is recognized.
+- SMW00C controls use original atlas regions for hide/history/forward/auto/skip.
+  Auto waits for text and voice; the native character/wait settings control its
+  delay. Skip stops on unread pages; read tracking currently lasts one session.
+
 ## Incomplete — do not claim 100% parity
 
 The complete game and all endings have not been played through. Reading every

@@ -19,6 +19,7 @@ ZeroLauncher::ZeroLauncher(std::string settingsPath, std::string disc)
            "The disc is read straight from your image and never copied. Set "
            "video and upscaling in "
            "the other tabs; everything is saved when you click Play."}) {
+  setAudioChannels({"bgm", "voice", "se"});
   loadPath(std::move(disc));
 }
 

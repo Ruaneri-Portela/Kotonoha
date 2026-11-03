@@ -983,7 +983,9 @@ void DebugOverlay::drawEngineTools() {
       }
       ImGui::EndCombo();
     }
-    if (ImGui::BeginCombo("Preset (OpenGL)",
+    if (engine.GetUpscaler().resolve(draft.upscaling.backend) ==
+            UpscaleBackend::MPV &&
+        ImGui::BeginCombo("Preset (OpenGL)",
                           UpscalePresetName(draft.upscaling.preset))) {
       for (auto preset : UpscalePresets())
         if (ImGui::Selectable(UpscalePresetName(preset),

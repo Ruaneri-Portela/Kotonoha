@@ -30,6 +30,7 @@ public:
   UI &operator=(const UI &) = delete;
   void setPixelDensity(float value);
   float pixelDensity() const { return density; }
+  const char *fontFamily() const { return TTF_GetFontFamilyName(font.get()); }
   float rasterFontSize() const { return TTF_GetFontSize(font.get()); }
   static SDL_FPoint viewSize(RendererRef renderer);
   static float rasterDensity(RendererRef renderer);

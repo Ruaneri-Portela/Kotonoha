@@ -29,11 +29,11 @@ void VNBacklog::onEvent(EventRef event) {
   if (BackAction(engine, event) ||
       (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat &&
        event.key.key == SDLK_B) ||
-      UI::clicked(event, {980, 100, 160, 44})) {
+      UI::clicked(event, closeButtonArea())) {
     close();
     return;
   }
-  scrollGesture.handle(event, UI::height, targetScroll, scrollVelocity,
+  scrollGesture.handle(event, scrollInputHeight(), targetScroll, scrollVelocity,
                        scrollToBottom, maxScroll);
   isDragging = scrollGesture.isDragging();
   if (isDragging)

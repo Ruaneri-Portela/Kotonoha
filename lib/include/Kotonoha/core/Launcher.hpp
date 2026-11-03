@@ -42,6 +42,12 @@ public:
   SDL_AppResult iterate();
   State state() const;
   EngineSettings &settings();
+  // Only these game-owned channels appear in the launcher's audio controls.
+  // Stored values for other channels remain untouched and are not displayed.
+  void setAudioChannels(std::vector<std::string> names);
+  const std::vector<std::string> &getAudioChannels() const {
+    return audioChannels;
+  }
   const std::string &getSettingsPath() const;
   const std::string &getStatus() const;
   // Validates and saves, then finishes with State::Launch. On failure keeps
@@ -70,6 +76,7 @@ private:
   std::string title, settingsPath, status;
   bool statusError = false;
   EngineSettings draft, defaults;
+  std::vector<std::string> audioChannels;
   WindowPtr window;
   RendererPtr renderer;
   ImGuiContext *context = nullptr;

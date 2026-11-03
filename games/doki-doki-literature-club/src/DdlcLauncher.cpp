@@ -18,6 +18,7 @@ GameLauncher::GameLauncher(std::string settingsPath, std::string directory)
                               "dir.txt",
                               "Use your own game files. They are read from "
                               "this folder and never modified."}) {
+  setAudioChannels({"DDLC music", "DDLC sound", "DDLC voice", "DDLC ui"});
   loadPath(std::move(directory));
 }
 

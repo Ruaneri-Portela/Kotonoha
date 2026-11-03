@@ -151,3 +151,30 @@ corresponding `rea-0x*.json` files. Numeric XML entities now decode before
 substitution of the native U+F8F0/U+F8F1 player-name markers (366 retail uses).
 The engine regression edits actual names, rejects empty names without advancing,
 and verifies that the native name variables enter the dialogue save.
+
+## Message interface fidelity follow-up
+
+The MESSFRAME.CMAP hit mask and MESSAGE.INI positions now drive the native
+skip/backlog/auto/system/hide/quicksave controls. Text selections use the
+SELECT.TEXB three-slice geometry, 28-pixel font, original read/unread palettes,
+conditional visibility and original result IDs. Selection marks the actual
+native read resource; loading reconstructs the original SELECT arguments.
+These contracts are corroborated by Message.sdll layout/focus routines
+`10008bd0` and `100025a0` retained under `.research/summer/ui-evidence`.
+This is static contract evidence, not differential Windows frame/timing proof.
+
+The backlog now uses BACKLOG.TEXB/CMAP and the original 800x600 MESSAGE.INI
+layout (744-pixel text area, 56-pixel sidebar, 16x8 text margins and
+ARGB A0000040 backdrop). Message.sdll `10009b10` loads these fields;
+`10007ef0` confirms one-entry rewind/forward, three-entry fast navigation,
+selected voice replay and return without advancing the scenario. Evidence:
+`.research/summer/ui-evidence/backlog-code-0x1000a7b4.json` and
+`backlog-code-0x10007ef0.json`, SHA-256
+`bb91bf636351f882a257024d95afe4929cd1411c9ec2a472d747130c6c7bddcc`.
+The engine supports installing a native subclass under the shared history
+component and recording voice IDs per entry. Summer replays history through
+an independent Voice-channel player while story audio is paused; closing the
+history stops replay. Engine tests cover native touch controls and script
+position preservation. Original Windows text metrics, exact list centering
+and differential timing remain unverified; this does not establish full 1:1
+presentation parity.

@@ -5,6 +5,7 @@
 #include <Kotonoha/componentes/VNSaveMenu.hpp>
 #include <Kotonoha/componentes/VNTextBox.hpp>
 #include <Kotonoha/core/Engine.hpp>
+#include <Kotonoha/media/SurfaceBlend.hpp>
 #include <algorithm>
 #include <iostream>
 using namespace Kotonoha;
@@ -34,6 +35,33 @@ int main(int argc, char **argv) {
     if (argc < 2 || !argv[1][0])
       return 77;
     auto assets = std::make_shared<Air::AirAssets>(argv[1]);
+    // SEEN8613 loads MSG_01 without blending, then reveals rows with maskCopy.
+    // The intermediate copy must keep the mask, including zero-alpha RGB.
+    {
+      auto image = assets->loadSurface(assets->graphic("MSG_01"));
+      SurfacePtr buffer(
+          SDL_CreateSurface(image->w, image->h, SDL_PIXELFORMAT_RGBA32));
+      SurfacePtr row(SDL_CreateSurface(500, 30, SDL_PIXELFORMAT_RGBA32));
+      BlitSurfaceOpacity(*image, *buffer, nullptr, nullptr, 255, false);
+      for (int opacity : {0, 128, 255}) {
+        SDL_FillSurfaceRect(row.get(), nullptr,
+                            SDL_MapSurfaceRGBA(row.get(), 255, 255, 255, 255));
+        SDL_Rect source{70, 0, 500, 30};
+        BlitSurfaceOpacity(*buffer, *row, &source, nullptr, opacity, true);
+        int white = 0, ink = 0;
+        for (int y = 0; y < 30; ++y)
+          for (int x = 0; x < 500; ++x) {
+            Uint8 r, g, b, a;
+            SDL_ReadSurfacePixel(row.get(), x, y, &r, &g, &b, &a);
+            white += r > 245 && g > 245 && b > 245;
+            ink += r < 200 && g < 200 && b < 200;
+          }
+        check(white > 10000, "AIR intro mask must preserve the white "
+                             "background throughout the fade");
+        if (opacity == 255)
+          check(ink > 20, "AIR intro row must contain readable text");
+      }
+    }
     Air::AirRuntime game(assets);
     auto sources = game.translationSources();
     std::size_t translationCount = 0;
@@ -74,6 +102,20 @@ int main(int argc, char **argv) {
       ~Guard() { g.shutdown(); }
     } guard{game};
     SDL_SetRenderVSync(&engine.GetRenderer(), 0);
+    if (argc > 2 && std::string(argv[2]) == "--intro-capture") {
+      game.debugJumpToNode(argc > 3 ? argv[3] : "8993:97");
+      for (int n = 0; n < 450; ++n) {
+        engine.Iterate();
+        if (n % 30 == 0) {
+          const auto name = "/tmp/air-intro-" + std::to_string(n) + ".bmp";
+          capture(engine, game, name.c_str());
+          std::cout << n << " " << game.debugNode() << std::endl;
+        }
+        SDL_Delay(16);
+      }
+      return 0;
+    }
+
     // A native refresh presents a complete script frame before executing
     // the next loop iteration, rather than stopping at an arbitrary VM budget.
     game.debugJumpToNode("9032:859");
@@ -103,6 +145,10 @@ int main(int argc, char **argv) {
     // belonging to the previous scene before running the title script.
     auto &returnMenu = GetInGameMenuRuntime(engine);
     game.SetState(GameState::Gameplay);
+    game.debugJumpToNode("170:246");
+    game.update();
+    check(engine.GetAudio().channel("BGM")->activeStreams() > 0,
+          "Scene music starts before testing return to title");
     returnMenu.open();
     SDL_Event backToTitle{};
     backToTitle.type = SDL_EVENT_MOUSE_BUTTON_DOWN;
@@ -112,6 +158,9 @@ int main(int argc, char **argv) {
     returnMenu.onEvent(backToTitle);
     check(game.GetState() == GameState::Menu && game.debugNode() == "9032:0",
           "Returning to title must change the game state and reset the script");
+    check(
+        engine.GetAudio().channel("BGM")->activeStreams() == 0,
+        "Returning to title stops scene music before the native NAMI ambience");
     capture(engine, game, "/tmp/air-clean-title.bmp");
     SurfacePtr clean(SDL_LoadBMP("/tmp/air-clean-title.bmp"));
     for (int y = 0; y < clean->h; y += 16)
@@ -173,6 +222,7 @@ int main(int argc, char **argv) {
     titleFinger.type = SDL_EVENT_FINGER_UP;
     engine.Event(&titleFinger);
     engine.Iterate();
+    engine.Iterate(); // The native refresh yields before the input branch.
     check(game.debugNode() != "9032:860",
           "A real finger press/release must activate the original AIR title "
           "button");

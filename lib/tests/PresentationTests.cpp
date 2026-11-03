@@ -198,21 +198,18 @@ void controls(Engine &engine, TestRuntime &runtime) {
     event.key.key = key;
     menu.onEvent(event);
   };
-  // The preset is selectable on every renderer; volume follows the scale row.
   menu.open();
-  for (int i = 0; i < 8; ++i)
-    press(SDLK_DOWN);
+  press(SDLK_TAB); // Audio.
   press(SDLK_LEFT);
   require(engine.GetAudio().getMasterVolume() == 0.35f,
           "Volume draft does not apply early");
   press(SDLK_ESCAPE);
   menu.open();
-  for (int i = 0; i < 8; ++i)
-    press(SDLK_DOWN);
+  press(SDLK_TAB);
   press(SDLK_LEFT);
   press(SDLK_DOWN);
   press(SDLK_RETURN);
-  press(SDLK_DOWN);
+  press(SDLK_END);
   press(SDLK_RETURN);
   require(!menu.isOpen() && engine.GetAudio().getMasterVolume() == 0.30f &&
               engine.GetAudio().isMasterMuted(),
@@ -221,13 +218,16 @@ void controls(Engine &engine, TestRuntime &runtime) {
   menu.open();
   for (int i = 0; i < 6; ++i)
     press(SDLK_DOWN);
+  press(SDLK_RETURN); // Scale follows backend; no shader row on software.
+  press(SDLK_END);
   press(SDLK_RETURN);
-  for (int i = 0; i < 4; ++i)
-    press(SDLK_DOWN);
-  press(SDLK_RETURN);
-  require(!menu.isOpen() && engine.GetSettings().upscaling.factor >= 2,
-          "Selecting a shader profile enables upscaling instead of leaving it "
-          "at 1x");
+  require(!menu.isOpen() &&
+              engine.GetSettings().upscaling.factor ==
+                  settings.upscaling.factor + .5f &&
+              engine.GetSettings().upscaling.preset ==
+                  settings.upscaling.preset,
+          "Non-MPV settings expose scale while preserving the hidden shader "
+          "selection");
   engine.applySettings(settings, false);
   engine.GetDebug().renderMenu(engine.GetRenderer());
   const float padding = ImGui::GetStyle().FramePadding.x;

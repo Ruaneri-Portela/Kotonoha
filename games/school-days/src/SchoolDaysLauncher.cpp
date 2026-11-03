@@ -16,6 +16,7 @@ Launcher::Launcher(std::string settingsPath, std::string directory,
            "Use your own School Days HQ retail data (29 GPKs), or an extracted "
            "directory with Script/English. Data is read in place, never "
            "copied."}) {
+  setAudioChannels({"BGM", "Voice", "SE", "Movie"});
   loadPath(std::move(directory));
   route =
       findGamePath("school-days",

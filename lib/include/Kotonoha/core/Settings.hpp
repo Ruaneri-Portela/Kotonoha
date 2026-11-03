@@ -2,6 +2,7 @@
 
 #include <Kotonoha/core/Config.hpp>
 #include <Kotonoha/media/upscaling/Upscaler.hpp>
+#include <map>
 #include <string>
 
 namespace Kotonoha {
@@ -16,6 +17,11 @@ struct EngineSettings {
   bool vsync = false;
   float masterVolume = 1;
   bool masterMuted = false;
+  std::map<std::string, float> channelVolumes;
+  std::string vnFontPath;
+  bool vnTextColorOverride = false;
+  SDL_Color vnTextColor{255, 255, 255, 255};
+  SDL_Color vnSpeakerColor{255, 215, 100, 255};
   float debugUIScale = 1;
   std::string renderer;
   UpscaleSettings upscaling;

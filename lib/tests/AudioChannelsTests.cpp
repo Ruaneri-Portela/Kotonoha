@@ -149,6 +149,20 @@ void testStreamGain(AudioMixer &mixer) {
        "Per-stream gain composes with channel volume");
   near(SDL_GetAudioStreamGain(second), 0.6f,
        "Other streams keep their own gain");
+  mixer.setUserVolumes({{"fade-test", .5f}, {"future-channel", .25f}});
+  near(SDL_GetAudioStreamGain(first), .15f,
+       "User volume composes with game and stream gains");
+  channel->setVolume(.8f);
+  near(SDL_GetAudioStreamGain(first), .2f,
+       "Script volume changes preserve the user's mixer limit");
+  near(mixer.channel("future-channel")->getUserVolume(), .25f,
+       "Future channels inherit the user's saved gain");
+  rejects([&] { mixer.setUserVolumes({{"fade-test", 2.f}}); },
+          "Reject invalid user mixer gain");
+  near(channel->getUserVolume(), .5f,
+       "Rejected mixer changes preserve user gain");
+  mixer.setUserVolumes({});
+  channel->setVolume(.6f);
   channel->setMuted(true);
   channel->setStreamGain(first, 0.25f);
   near(SDL_GetAudioStreamGain(first), 0, "Mute overrides per-stream gain");

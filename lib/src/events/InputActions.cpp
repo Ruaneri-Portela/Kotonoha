@@ -5,24 +5,39 @@
 #include <algorithm>
 #include <cmath>
 namespace Kotonoha {
+bool TouchPointer::cancel(WindowRef window, SDL_Event &pointer) {
+  if (!active)
+    return false;
+  active.reset();
+  pointer = {};
+  pointer.type = SDL_EVENT_MOUSE_BUTTON_UP;
+  pointer.button.windowID = SDL_GetWindowID(&window);
+  pointer.button.which = SDL_TOUCH_MOUSEID;
+  pointer.button.button = SDL_BUTTON_LEFT;
+  pointer.button.x = pointer.button.y = -1;
+  return true;
+}
+
 bool TouchPointer::translate(EventRef event, WindowRef window,
                              SDL_Event &pointer) {
-  if (event.type == SDL_EVENT_WINDOW_FOCUS_LOST && active) {
-    active.reset();
-    pointer = {};
-    pointer.type = SDL_EVENT_MOUSE_BUTTON_UP;
-    pointer.button.windowID = SDL_GetWindowID(&window);
-    pointer.button.which = SDL_TOUCH_MOUSEID;
-    pointer.button.button = SDL_BUTTON_LEFT;
-    pointer.button.x = pointer.button.y = -1;
-    return true;
+  if (event.type == SDL_EVENT_WINDOW_FOCUS_LOST) {
+    fingers.clear();
+    return cancel(window, pointer);
   }
   if (event.type < SDL_EVENT_FINGER_DOWN ||
       event.type > SDL_EVENT_FINGER_CANCELED)
     return false;
   const auto id = std::make_pair(event.tfinger.touchID, event.tfinger.fingerID);
-  if (event.type == SDL_EVENT_FINGER_DOWN && !active)
+  if (event.type == SDL_EVENT_FINGER_DOWN) {
+    fingers.insert(id);
+    if (fingers.size() > 1) {
+      return cancel(window, pointer);
+    }
     active = id;
+  } else if (event.type == SDL_EVENT_FINGER_UP ||
+             event.type == SDL_EVENT_FINGER_CANCELED) {
+    fingers.erase(id);
+  }
   if (!active || *active != id)
     return false;
   int width = 0, height = 0;
@@ -127,14 +142,14 @@ void InputActions::process(EventRef e) {
     auto i = fingers.find(key);
     if (i == fingers.end())
       return;
+    i->second.moved |= std::hypot(e.tfinger.x - i->second.x,
+                                  e.tfinger.y - i->second.y) > .025f;
     if (multi && fingers.size() == 2) {
       bool still = true;
       for (auto &[id, f] : fingers)
         still &= !f.moved;
       backGesture = still;
     }
-    i->second.moved |= std::hypot(e.tfinger.x - i->second.x,
-                                  e.tfinger.y - i->second.y) > .025f;
     tapGesture = !multi && !i->second.moved && fingers.size() == 1;
     fingers.erase(i);
     if (fingers.empty())

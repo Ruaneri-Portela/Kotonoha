@@ -95,8 +95,9 @@ void ChoiceQuestionScene::onEvent(EventRef event) {
     scrollGesture.handle(event, UI::height, scroll, velocity, follow,
                          std::max(0.f, last.y + last.h + scroll - bottom));
   }
-  if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN && event.button.y >= top &&
-      event.button.y < bottom) {
+  if ((event.type == SDL_EVENT_MOUSE_BUTTON_DOWN ||
+       event.type == SDL_EVENT_MOUSE_BUTTON_UP) &&
+      event.button.y >= top && event.button.y < bottom) {
     for (std::size_t i = 0; i < options.size(); ++i)
       if (UI::clicked(event, options[i].hitBox)) {
         select(i);

@@ -33,6 +33,7 @@ SnowLauncher::SnowLauncher(std::string settingsPath, std::string directory)
                     "never copied. Set video and "
                     "upscaling in the other tabs; everything is saved when you "
                     "click Play."}) {
+  setAudioChannels({"bgm", "voice", "se"});
   loadPath(std::move(directory));
 }
 
