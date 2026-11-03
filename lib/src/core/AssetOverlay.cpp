@@ -1,6 +1,9 @@
 #include <Kotonoha/core/AssetOverlay.hpp>
+#include <Kotonoha/core/FileSystem.hpp>
 #include <stdexcept>
+
 namespace Kotonoha {
+
 std::string AssetOverlay::key(std::string id) {
   for (auto &c : id) {
     if (c == '\\')
@@ -18,13 +21,19 @@ std::string AssetOverlay::key(std::string id) {
   auto result = p.generic_string();
   return result == "." ? std::string() : result;
 }
+
 AssetOverlay::AssetOverlay(const std::filesystem::path &root) {
-  if (root.empty())
+  std::filesystem::path targetRoot = findAssetOverlayDirectory(root);
+  std::error_code ec;
+
+  if (targetRoot.empty() || !std::filesystem::exists(targetRoot, ec) ||
+      !std::filesystem::is_directory(targetRoot, ec))
     return;
-  root_ = std::filesystem::canonical(root);
-  if (!std::filesystem::is_directory(root_))
-    throw std::invalid_argument("Asset overlay must be a directory: " +
-                                root.string());
+
+  root_ = std::filesystem::canonical(targetRoot, ec);
+  if (ec || !std::filesystem::is_directory(root_, ec))
+    return;
+
   for (const auto &entry :
        std::filesystem::recursive_directory_iterator(root_)) {
     if (!entry.is_regular_file())
@@ -40,10 +49,12 @@ AssetOverlay::AssetOverlay(const std::filesystem::path &root) {
       throw std::invalid_argument("Ambiguous asset overlay name: " + id);
   }
 }
+
 std::string AssetOverlay::resolve(const std::string &id) const {
   auto i = files_.find(key(id));
   return i == files_.end() ? std::string() : i->second.string();
 }
+
 std::vector<std::string> AssetOverlay::list(const std::string &prefix) const {
   std::vector<std::string> result;
   auto start = key(prefix);
@@ -52,4 +63,5 @@ std::vector<std::string> AssetOverlay::list(const std::string &prefix) const {
       result.push_back(id);
   return result;
 }
+
 } // namespace Kotonoha

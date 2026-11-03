@@ -108,6 +108,30 @@ std::filesystem::path gameAssetDirectory(const std::string &game) {
   return resourceDirectory() / "game-assets";
 }
 
+std::optional<std::filesystem::path>
+findAssetsGame(const std::string &game = "") {
+  std::string targetGame = game.empty() ? preferredGameIdentifier() : game;
+  if (!targetGame.empty()) {
+    validateGame(targetGame);
+  }
+
+  std::error_code error;
+  for (const auto &root : FileResolver::roots(targetGame)) {
+    std::vector<std::filesystem::path> candidates = {root / "game-assets"};
+
+    if (!targetGame.empty()) {
+      candidates.push_back(root / "games" / targetGame / "game-assets");
+      candidates.push_back(root / targetGame / "game-assets");
+    }
+
+    for (const auto &candidate : candidates) {
+      if (std::filesystem::is_directory(candidate, error))
+        return candidate;
+    }
+  }
+  return std::nullopt;
+}
+
 std::string preferredGameIdentifier() {
   if (const char *meta =
           SDL_GetAppMetadataProperty(SDL_PROP_APP_METADATA_IDENTIFIER_STRING);
@@ -116,13 +140,54 @@ std::string preferredGameIdentifier() {
   return {};
 }
 
+std::filesystem::path preferredDataDirectory() {
+  return preferredDataDirectory(preferredGameIdentifier());
+}
+
 std::filesystem::path preferredDataDirectory(const std::string &game) {
-  validateGame(game);
+  (void)game;
 #ifdef __ANDROID__
   return androidDirectory("getKotonohaDataDirectory");
 #else
   return resourceDirectory();
 #endif
+}
+
+std::filesystem::path
+findAssetOverlayDirectory(const std::filesystem::path &root) {
+  std::vector<std::filesystem::path> candidates;
+
+  if (const char *env = SDL_getenv("KOTONOHA_OVERLAY")) {
+    if (*env)
+      candidates.push_back(env);
+  }
+
+  if (!root.empty()) {
+    if (root.is_absolute()) {
+      candidates.push_back(root);
+    } else {
+      for (const auto &r : FileResolver::roots()) {
+        candidates.push_back(r / root);
+      }
+    }
+  } else {
+    for (const auto &r : FileResolver::roots()) {
+      candidates.push_back(r / "overlay");
+    }
+  }
+
+  std::error_code error;
+  for (const auto &candidate : candidates) {
+    if (!candidate.empty() && std::filesystem::is_directory(candidate, error)) {
+      return candidate;
+    }
+  }
+
+  return {};
+}
+
+std::filesystem::path preferredDocumentsDirectory() {
+  return preferredDocumentsDirectory(preferredGameIdentifier());
 }
 
 std::filesystem::path preferredDocumentsDirectory(const std::string &game) {
@@ -134,17 +199,11 @@ std::filesystem::path preferredDocumentsDirectory(const std::string &game) {
 #ifdef __ANDROID__
   directory = androidDirectory("getKotonohaDocumentsDirectory");
 #elif defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE
-  // Utiliza o SDL_GetUserFolder para resgatar a pasta Documents oficial do App
-  // no iOS
   const char *path = SDL_GetUserFolder(SDL_FOLDER_DOCUMENTS);
   if (!path)
     throw std::runtime_error(std::string("Cannot locate Documents: ") +
                              SDL_GetError());
-
   directory = path;
-
-  // OPCIONAL: Se quiser separar as subpastas por jogo mantendo visível no Files
-  // app: directory /= game;
 #else
   char *path = SDL_GetPrefPath("Kotonoha", targetGame.c_str());
   if (!path)
@@ -181,16 +240,18 @@ FileResolver::roots(const std::string &game) {
     if (std::find(result.begin(), result.end(), normal) == result.end())
       result.push_back(std::move(normal));
   };
+
   add([] { return resourceDirectory(); });
-  if (!game.empty())
-    add([&] { return preferredDataDirectory(game); });
+  add([&] { return preferredDataDirectory(game); });
   add([] { return std::filesystem::current_path(); });
+
   add([] {
     const char *base = SDL_GetBasePath();
     return base ? std::filesystem::path(base) : std::filesystem::path();
   });
-  if (!game.empty())
-    add([&] { return preferredDocumentsDirectory(game); });
+
+  add([&] { return preferredDocumentsDirectory(game); });
+
   return result;
 }
 
@@ -238,21 +299,28 @@ FileResolver::engineAsset(const std::filesystem::path &relative) {
 std::optional<std::filesystem::path>
 FileResolver::findGameAsset(const std::string &game,
                             const std::filesystem::path &relative) {
-  validateGame(game);
+  std::string targetGame = game;
+  if (targetGame.empty())
+    targetGame = preferredGameIdentifier();
+  if (!targetGame.empty())
+    validateGame(targetGame);
   if (relative.is_absolute())
     return find(relative);
   std::error_code error;
-  for (const auto &root : roots(game))
+  for (const auto &root : roots(targetGame))
     for (const auto &candidate :
          {root / "game-assets" / relative,
-          root / "games" / game / "game-assets" / relative})
+          root / "games" / targetGame / "game-assets" / relative,
+          root / relative})
       if (std::filesystem::exists(candidate, error))
         return candidate;
 #ifdef __ANDROID__
   // OBB data may hold the game files directly.
-  if (auto data = preferredDataDirectory(game) / relative;
-      std::filesystem::exists(data, error))
-    return data;
+  if (!targetGame.empty()) {
+    if (auto data = preferredDataDirectory(targetGame) / relative;
+        std::filesystem::exists(data, error))
+      return data;
+  }
 #endif
   return std::nullopt;
 }
@@ -263,7 +331,10 @@ FileResolver::gameAsset(const std::string &game,
   if (auto found = findGameAsset(game, relative))
     return *found;
   std::string searched;
-  for (const auto &root : roots(game))
+  std::string targetGame = game;
+  if (targetGame.empty())
+    targetGame = preferredGameIdentifier();
+  for (const auto &root : roots(targetGame))
     searched += "\n  " + (root / "game-assets" / relative).string();
   throw std::runtime_error("Game file not found: " + relative.string() +
                            "; searched:" + searched);

@@ -13,12 +13,15 @@ std::filesystem::path resourceDirectory();
 std::filesystem::path engineAssetDirectory();
 std::filesystem::path gameAssetDirectory(const std::string &game);
 // Data is read-only bundle resources on Apple, and Android/obb/<package>.
+std::filesystem::path preferredDataDirectory();
 std::filesystem::path preferredDataDirectory(const std::string &game);
 std::string preferredGameIdentifier();
+std::filesystem::path findAssetOverlayDirectory(const std::filesystem::path &root = {});
 
 // Writable saves/settings/logs: Documents on iOS, Android/data/<package>/files
 // on Android, SDL_GetPrefPath on desktop. Creates the directory or throws.
-std::filesystem::path preferredDocumentsDirectory(const std::string &game = {});
+std::filesystem::path preferredDocumentsDirectory();
+std::filesystem::path preferredDocumentsDirectory(const std::string &game);
 
 // Single lookup policy for every packaged/user file. Roots, in order: bundle
 // resources, preferred data (Android OBB), working directory, executable
@@ -39,9 +42,9 @@ public:
   static std::filesystem::path
   engineAsset(const std::filesystem::path &relative);
   static std::optional<std::filesystem::path>
-  findGameAsset(const std::string &game, const std::filesystem::path &relative);
-  static std::filesystem::path gameAsset(const std::string &game,
-                                         const std::filesystem::path &relative);
+  findGameAsset(const std::string &game = {}, const std::filesystem::path &relative = {});
+  static std::filesystem::path gameAsset(const std::string &game = {},
+                                         const std::filesystem::path &relative = {});
   // Engine fonts live only in assets/fonts.
   static std::filesystem::path fontDirectory();
   static std::filesystem::path
