@@ -28,7 +28,7 @@ navigation are used. Uniform selection includes preview and confirmation.
 
 Saves use the engine `.vn` container with VM positions, call stack, variables,
 choices and scene state. System globals/read flags persist separately in
-`preferredDocumentsDirectory("summer-radish-vacation")/system.dat`.
+`preferredDocumentsDirectory()/system.dat`.
 `SUMMER_SAVE_DIR` overrides that directory for isolated runs. Windows save files
 are not imported. Pausing also suspends the three PCM streams.
 

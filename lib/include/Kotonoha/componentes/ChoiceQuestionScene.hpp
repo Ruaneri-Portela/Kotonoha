@@ -29,6 +29,7 @@ protected:
   ScrollGesture scrollGesture;
   // Area the options scroll and receive clicks in.
   virtual SDL_FRect listArea() const { return {230, 190, 820, 440}; }
+  virtual float scrollInputHeight() const { return 720; }
   virtual void layout();
   virtual void select(std::size_t index);
   virtual void openMenu();

@@ -32,7 +32,7 @@ struct EngineSettings {
   void validate() const;
   static EngineSettings load(const std::string &path);
   // <pref path>/Kotonoha/<identify>/settings.json, as used by the Engine.
-  static std::string defaultPath(const std::string &identify);
+  static std::string defaultPath(const std::string &identify = {});
   void save(const std::string &path) const;
 };
 

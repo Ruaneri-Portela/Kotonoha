@@ -78,6 +78,7 @@ protected:
 class HookChoice : public Kotonoha::ChoiceQuestionScene {
 protected:
   SDL_FRect listArea() const override { return {0, 0, 100, 600}; }
+
 public:
   Calls calls;
   explicit HookChoice(Kotonoha::Engine &engine)
@@ -201,7 +202,6 @@ void testChoice(Kotonoha::Engine &engine) {
   touch.type = SDL_EVENT_MOUSE_BUTTON_UP;
   base.onEvent(touch);
   require(picked == 20 && !base.isActive(), "Touch release selects the route");
-
 }
 
 void testMenus(Kotonoha::Engine &engine) {

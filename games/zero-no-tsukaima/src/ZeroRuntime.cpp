@@ -8,7 +8,8 @@
 
 namespace ZeroNoTsukaima {
 ZeroRuntime::ZeroRuntime(std::shared_ptr<DiscAssetProvider> disc)
-    : Runtime("Zero no Tsukaima", "0.1.0", "zero-no-tsukaima"),
+    : Runtime("Zero no Tsukaima", "0.1.0",
+              "me.hirameki.kotonoha.zeronotsukaima"),
       disc_(std::move(disc)) {
   if (!disc_)
     throw std::invalid_argument("Zero no Tsukaima needs a disc image");

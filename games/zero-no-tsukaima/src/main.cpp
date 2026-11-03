@@ -86,8 +86,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
     if (options.enableMCP && options.settingsPath.empty())
       options.persistSettings = false;
     if (options.settingsPath.empty() && options.persistSettings)
-      options.settingsPath =
-          Kotonoha::EngineSettings::defaultPath("zero-no-tsukaima");
+      options.settingsPath = Kotonoha::EngineSettings::defaultPath();
     const std::string settingsPath =
         options.persistSettings ? options.settingsPath : std::string();
     const auto env = SDL_getenv("ZERO_DISC");

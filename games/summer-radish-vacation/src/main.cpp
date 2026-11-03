@@ -68,8 +68,7 @@ SDL_AppResult SDL_AppInit(void **state, int argc, char **argv) {
     if (options.enableMCP && options.settingsPath.empty())
       options.persistSettings = false;
     if (options.persistSettings && options.settingsPath.empty())
-      options.settingsPath = Kotonoha::EngineSettings::defaultPath(
-          "me.hirameki.kotonoha.summerradishvacation");
+      options.settingsPath = Kotonoha::EngineSettings::defaultPath();
     const auto settingsPath =
         options.persistSettings ? options.settingsPath : std::string();
     const auto env = SDL_getenv("SUMMER_DIR");

@@ -14,9 +14,11 @@ std::filesystem::path engineAssetDirectory();
 std::filesystem::path gameAssetDirectory(const std::string &game);
 // Data is read-only bundle resources on Apple, and Android/obb/<package>.
 std::filesystem::path preferredDataDirectory(const std::string &game);
+std::string preferredGameIdentifier();
+
 // Writable saves/settings/logs: Documents on iOS, Android/data/<package>/files
 // on Android, SDL_GetPrefPath on desktop. Creates the directory or throws.
-std::filesystem::path preferredDocumentsDirectory(const std::string &game);
+std::filesystem::path preferredDocumentsDirectory(const std::string &game = {});
 
 // Single lookup policy for every packaged/user file. Roots, in order: bundle
 // resources, preferred data (Android OBB), working directory, executable
