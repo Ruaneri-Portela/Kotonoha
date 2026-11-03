@@ -107,8 +107,7 @@ ZeroSession::ZeroSession(Kotonoha::Engine &engine,
   if (!disc_)
     throw std::invalid_argument("Zero no Tsukaima needs its disc");
   {
-    const auto documents =
-        Kotonoha::preferredDocumentsDirectory("zero-no-tsukaima");
+    const auto documents = Kotonoha::preferredDocumentsDirectory();
     systemPath_ = (documents / "system.txt").string();
     readPath_ = (documents / "read.txt").string();
     system_.Load(systemPath_);
@@ -408,7 +407,7 @@ SDL_Renderer *ZeroSession::Renderer() { return &engine_.GetRenderer(); }
 // The opening theme belongs to the music, so the "bgm" channel controls it.
 
 std::string ZeroSession::SlotPath(int slot) {
-  return (Kotonoha::preferredDocumentsDirectory("zero-no-tsukaima") /
+  return (Kotonoha::preferredDocumentsDirectory() /
           ("slot" + std::to_string(slot) + ".sav"))
       .string();
 }

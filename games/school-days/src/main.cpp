@@ -91,8 +91,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
     if (app->options.enableMCP && app->options.settingsPath.empty())
       app->options.persistSettings = false;
     if (app->options.persistSettings && app->options.settingsPath.empty())
-      app->options.settingsPath =
-          Kotonoha::EngineSettings::defaultPath("school-days");
+      app->options.settingsPath = Kotonoha::EngineSettings::defaultPath();
     const std::string settings =
         app->options.persistSettings ? app->options.settingsPath : "";
 

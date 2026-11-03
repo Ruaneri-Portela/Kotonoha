@@ -154,7 +154,7 @@ void Runtime::init(Kotonoha::Engine &owner) {
   if (engine != &owner) {
     engine = &owner;
     if (documents.empty())
-      documents = Kotonoha::preferredDocumentsDirectory("school-days");
+      documents = Kotonoha::preferredDocumentsDirectory();
     else
       std::filesystem::create_directories(documents);
     subtitles = std::make_unique<Subtitles>(owner);

@@ -92,7 +92,7 @@ void ChoiceQuestionScene::onEvent(EventRef event) {
     const auto &last = options.back().hitBox;
     float velocity = 0;
     bool follow = false;
-    scrollGesture.handle(event, UI::height, scroll, velocity, follow,
+    scrollGesture.handle(event, scrollInputHeight(), scroll, velocity, follow,
                          std::max(0.f, last.y + last.h + scroll - bottom));
   }
   if ((event.type == SDL_EVENT_MOUSE_BUTTON_DOWN ||

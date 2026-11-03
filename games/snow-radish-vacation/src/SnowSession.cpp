@@ -83,8 +83,7 @@ SnowSession::SnowSession(Kotonoha::Engine &engine,
                          std::shared_ptr<SnowAssets> assets)
     : engine_(engine), assets_(std::move(assets)) {
   script_ = assets_->Script();
-  systemPath_ = Kotonoha::preferredDocumentsDirectory("snow-radish-vacation") /
-                "system.dat";
+  systemPath_ = Kotonoha::preferredDocumentsDirectory() / "system.dat";
   cleared_ = ReadFile(systemPath_) == std::vector<uint8_t>{83, 82, 86, 1, 1};
   fontData_ =
       Kotonoha::FileResolver::loadFontMemory(engine_.GetSettings().fontPath);

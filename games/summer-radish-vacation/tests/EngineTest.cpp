@@ -143,7 +143,8 @@ int main(int argc, char **argv) {
     nativeButton(550, 585);
     check(GetVNBacklogRuntime(engine).isVisible(),
           "Original backlog control opens history");
-    auto *history = dynamic_cast<SummerRadish::SummerBacklog *>(&GetVNBacklogRuntime(engine));
+    auto *history = dynamic_cast<SummerRadish::SummerBacklog *>(
+        &GetVNBacklogRuntime(engine));
     check(history, "Summer installs its original history UI");
     const auto historyPosition = game.debugNode();
     capture(engine, game, "backlog");

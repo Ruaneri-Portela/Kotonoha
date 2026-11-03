@@ -1,4 +1,5 @@
 #include "AirRuntime.hpp"
+#include "AirSelection.hpp"
 #include <Air/Images.hpp>
 #include <Air/Session.hpp>
 #include <Air/System.hpp>
@@ -617,8 +618,7 @@ struct AirRuntime::Impl {
              autoDeadline = 0;
            }},
           {{616, 444, 12, 16}, [this] { skipMode = !skipMode; }}};
-      choice = std::make_unique<ChoiceQuestionScene>(
-          e, "", std::vector<ChoiceOption>{}, nullptr);
+      choice = std::make_unique<AirSelection>(e, *assets);
       stage->draw = [this](auto &r) { draw(r); };
       stage->input = [this](auto &e) { return event(e); };
       movie = std::make_unique<MediaPlayer>(e.GetAudio());
@@ -666,11 +666,7 @@ struct AirRuntime::Impl {
   void openSaves(bool load) {
     if (!saves)
       saves = std::make_unique<VNSaveMenu>(*engine);
-    char *pref = SDL_GetPrefPath("Kotonoha", "AIR");
-    if (!pref)
-      throw std::runtime_error(SDL_GetError());
-    std::string dir = std::string(pref) + "saves";
-    SDL_free(pref);
+    std::string dir = (preferredDocumentsDirectory() / "saves").string();
     saves->open(dir, load, load ? "" : saveName);
     runtime.RemoveScene(saves.get());
     runtime.AddScene(saves.get());
@@ -859,6 +855,7 @@ bool AirRuntime::Impl::command(const libreallive::CommandElement &c) {
       ++id;
     }
     textbox->hide();
+    static_cast<AirSelection &>(*choice).configure(selectionWindow);
     choice->setQuestion("", options, [this](int n, const std::string &) {
       vm.machine().set_store_register(n);
       choice->hide();

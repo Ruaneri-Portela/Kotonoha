@@ -40,7 +40,7 @@ std::filesystem::path userDirectory() {
                                error.message());
     return std::filesystem::absolute(directory);
   }
-  return Kotonoha::preferredDocumentsDirectory("doki-doki-literature-club");
+  return Kotonoha::preferredDocumentsDirectory();
 }
 
 bool seedCharacters(const std::filesystem::path &user,

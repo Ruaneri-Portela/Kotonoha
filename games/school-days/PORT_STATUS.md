@@ -32,7 +32,7 @@ to the engine settings and reused without the launcher. An explicit `--ktrf`
 takes precedence over the remembered route, which takes precedence over the
 bundled route. `--no-config` disables remembering either path.
 
-Saves and GlobalFlag use `preferredDocumentsDirectory("school-days")`; use
+Saves and GlobalFlag use `preferredDocumentsDirectory()`; use
 `--documents directory` for isolated tests. Quick save/load and slots 0–99 use
 the original FlgH/SLog codecs, restarting the saved script as the original did.
 Slot filenames and the generic UI differ from retail; retail save thumbnails,

@@ -5,7 +5,6 @@
 #include <algorithm>
 #include <filesystem>
 #include <fstream>
-#include <mutex>
 #include <stdexcept>
 #ifdef __APPLE__
 #include <TargetConditionals.h>
@@ -109,6 +108,14 @@ std::filesystem::path gameAssetDirectory(const std::string &game) {
   return resourceDirectory() / "game-assets";
 }
 
+std::string preferredGameIdentifier() {
+  if (const char *meta =
+          SDL_GetAppMetadataProperty(SDL_PROP_APP_METADATA_IDENTIFIER_STRING);
+      meta && *meta)
+    return meta;
+  return {};
+}
+
 std::filesystem::path preferredDataDirectory(const std::string &game) {
   validateGame(game);
 #ifdef __ANDROID__
@@ -119,7 +126,10 @@ std::filesystem::path preferredDataDirectory(const std::string &game) {
 }
 
 std::filesystem::path preferredDocumentsDirectory(const std::string &game) {
-  validateGame(game);
+  std::string targetGame = preferredGameIdentifier();
+  if (targetGame.empty())
+    targetGame = game;
+  validateGame(targetGame);
   std::filesystem::path directory;
 #ifdef __ANDROID__
   directory = androidDirectory("getKotonohaDocumentsDirectory");
@@ -136,7 +146,7 @@ std::filesystem::path preferredDocumentsDirectory(const std::string &game) {
   // OPCIONAL: Se quiser separar as subpastas por jogo mantendo visível no Files
   // app: directory /= game;
 #else
-  char *path = SDL_GetPrefPath("Kotonoha", game.c_str());
+  char *path = SDL_GetPrefPath("Kotonoha", targetGame.c_str());
   if (!path)
     throw std::runtime_error(std::string("Cannot locate documents: ") +
                              SDL_GetError());

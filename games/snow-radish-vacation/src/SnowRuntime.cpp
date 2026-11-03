@@ -12,7 +12,8 @@
 
 namespace SnowRadish {
 SnowRuntime::SnowRuntime(std::shared_ptr<SnowAssets> assets)
-    : Runtime("Snow Radish Vacation!!", "0.1.0", "snow-radish-vacation"),
+    : Runtime("Snow Radish Vacation!!", "0.1.0",
+              "me.hirameki.kotonoha.snowradishvacation"),
       assets_(std::move(assets)) {
   if (!assets_)
     throw std::invalid_argument("Snow Radish Vacation needs its DAT directory");

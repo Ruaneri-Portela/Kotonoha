@@ -124,7 +124,7 @@ private:
 
 GameRuntime::GameRuntime(std::shared_ptr<GameAssets> assets)
     : Runtime("Doki Doki Literature Club!", "0.1.0",
-              "doki-doki-literature-club"),
+              "me.hirameki.kotonoha.dokidokiliteratureclub"),
       assets_(std::move(assets)) {
   if (!assets_)
     throw std::invalid_argument(

@@ -556,7 +556,7 @@ struct SummerRuntime::Impl {
   std::filesystem::path saveDirectory() const {
     if (const char *path = SDL_getenv("SUMMER_SAVE_DIR"))
       return path;
-    return preferredDocumentsDirectory("summer-radish-vacation");
+    return preferredDocumentsDirectory();
   }
   void loadSystem() {
     std::ifstream input(saveDirectory() / "system.dat", std::ios::binary);
