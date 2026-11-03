@@ -1,4 +1,5 @@
 #include <Amagami/Vm.hpp>
+#include <cmath>
 #include <iostream>
 #include <stdexcept>
 using namespace Amagami;
@@ -25,6 +26,16 @@ int main() {
   try {
     require(evaluate({0x6c, 0, 0x24, 5, 0x24, 3, 0x11, 3, 2}).number == 2,
             "Integer subtraction operand order");
+    Value floatingOne;
+    floatingOne.type = Value::Float;
+    floatingOne.bits = 0x3f800000;
+    require(std::abs(evaluate({0x50, 0, 0x50, 0, 0x10, 0x24, 3, 0x13, 3, 2},
+                              {floatingOne})
+                         .number -
+                     2.0 / 3) < 0.000001,
+            "Original Float arithmetic retains fractional camera coordinates");
+    require(evaluate({0x24, 5, 0x24, 2, 0x13, 3, 2}).number == 2,
+            "Integer division retains original truncation");
     for (const auto &[op, expected] :
          std::vector<std::pair<uint8_t, bool>>{{0x18, false},
                                                {0x19, true},
@@ -36,6 +47,12 @@ int main() {
       require(v.kind == VmValue::Boolean && v.truth() == expected,
               "Recovered comparison opcode");
     }
+    require(evaluate({0x24, 1, 0x24, 1, 7, 3, 2}).truth(),
+            "Opcode 7 is identity equality");
+    require(!evaluate({0x24, 1, 0x24, 1, 6, 3, 2}).truth(),
+            "Opcode 6 is identity inequality");
+    require(evaluate({0x24, 1, 0x24, 2, 6, 3, 2}).truth(),
+            "Identity inequality of different values");
     // Branch displacement is relative to the opcode, not the following byte.
     require(evaluate({0x6c, 0, 0x29, 0x45, 6, 0, 0x24, 1, 3, 0x24, 2, 3, 2})
                     .number == 2,

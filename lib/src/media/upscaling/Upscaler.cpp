@@ -572,13 +572,29 @@ SurfacePtr Upscaling::scaled(const SDL_Surface &surface, float scale) {
 bool RenderUpscaledTexture(SDL_Renderer *renderer, SDL_Texture *texture,
                            const SDL_FRect *source,
                            const SDL_FRect *destination, Uint64 contentSerial) {
+  return RenderUpscaledTextureRotated(renderer, texture, source, destination, 0,
+                                      nullptr, SDL_FLIP_NONE, contentSerial);
+}
+bool RenderUpscaledTextureRotated(SDL_Renderer *renderer, SDL_Texture *texture,
+                                  const SDL_FRect *source,
+                                  const SDL_FRect *destination, double angle,
+                                  const SDL_FPoint *center, SDL_FlipMode flip,
+                                  Uint64 contentSerial) {
   if (!renderer || !texture)
     return SDL_SetError("Missing renderer or texture");
+  auto draw = [&](SDL_Texture *input, const SDL_FRect *crop) {
+    // Keep the ordinary SDL copy path for atlas crops. Some renderers round
+    // fractional source rectangles differently in the rotated-copy path.
+    return angle == 0 && flip == SDL_FLIP_NONE && !center
+               ? SDL_RenderTexture(renderer, input, crop, destination)
+               : SDL_RenderTextureRotated(renderer, input, crop, destination,
+                                          angle, center, flip);
+  };
   auto *pipeline = Upscaling::forRenderer(*renderer);
   if (!pipeline || !pipeline->getSettings().enabled() ||
       SDL_GetBooleanProperty(SDL_GetTextureProperties(texture),
                              "kotonoha.upscaled", false))
-    return SDL_RenderTexture(renderer, texture, source, destination);
+    return draw(texture, source);
   auto &processed = pipeline->process(*texture, contentSerial);
   Uint8 r, g, b, a;
   SDL_GetTextureColorMod(texture, &r, &g, &b);
@@ -595,8 +611,7 @@ bool RenderUpscaledTexture(SDL_Renderer *renderer, SDL_Texture *texture,
     const float y = static_cast<float>(processed.h) / texture->h;
     crop = {source->x * x, source->y * y, source->w * x, source->h * y};
   }
-  return SDL_RenderTexture(renderer, &processed, source ? &crop : nullptr,
-                           destination);
+  return draw(&processed, source ? &crop : nullptr);
 }
 
 } // namespace Kotonoha

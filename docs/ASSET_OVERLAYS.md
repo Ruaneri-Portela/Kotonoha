@@ -100,7 +100,7 @@ launchers, native ZNT menus, School Days route persistence, and the AIR/Summer
 integration paths. Proprietary data remains optional and outside source control.
 
 Common startup options are registered by `Kotonoha::CommandLine`:
-`--launcher` (`--laucher` is accepted), `--no-launcher`, and
+`--launcher`, `--no-launcher`, and
 `--dump-translation FILE`. Export starts the selected game runtime, writes its
 source dictionary and exits before advancing a story frame. Export bypasses the
 launcher regardless of argument order. AIR and Summer use the engine's common

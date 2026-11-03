@@ -19,7 +19,6 @@ The retail path requires the original validated 29-pack GPK set. Extracted data
 must have `Script/English/<directory>/<scene>.ENG.ORS` and its normal media
 directories. Component-wise case-insensitive lookup rejects ambiguous names.
 `--asset-overlay /path/to/translation` uses the shared engine overlay.
-`--scripts` remains a compatibility alias.
 
 `SCHOOL_DAYS_DIR`, the remembered launcher path, `preferredDataDirectory` and
 packaged resources provide discovery, in that order. The bundled

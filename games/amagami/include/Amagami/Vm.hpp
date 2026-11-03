@@ -19,9 +19,10 @@ struct VmValue {
     Array
   } kind = Nil;
   double number = 0;
+  bool floating = false;
   std::string text;
   std::shared_ptr<VmObject> object;
-  static VmValue num(double n);
+  static VmValue num(double n, bool floating = false);
   static VmValue str(std::string text, Kind kind = Text);
   static VmValue ref(std::shared_ptr<VmObject> o, Kind kind = Object);
   bool truth() const;
@@ -38,6 +39,7 @@ public:
       const VmValue &, const std::string &, const std::vector<VmValue> &)>;
   void add(Script script);
   void reset();
+  Vm fork(const VmValue &receiver, const std::string &method) const;
   void call(const VmValue &receiver, const std::string &name,
             std::vector<VmValue> args = {});
   void run(size_t budget = 100000);

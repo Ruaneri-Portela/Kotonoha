@@ -57,6 +57,10 @@ class DebugOverlay {
   std::vector<std::string> browsedAssets;
   bool showTranslationWindow = false;
   std::string selectedTransNodeStr;
+  bool followActiveTranslation = false;
+  bool scrollActiveTranslation = false, scrollActiveTranslationNode = false;
+  std::string trackedTranslationNode, trackedTranslationKey;
+  std::vector<std::string> availableVNFonts;
   char transSearchFilter[128]{};
   Translation::SourceTexts cachedManagerSources;
   Translation::SourceTexts cachedRuntimeSources;
@@ -87,6 +91,7 @@ public:
   void setVisible(bool value);
   DebugSettings &getSettings() { return settings; }
   const DebugSettings &getSettings() const { return settings; }
+  void trackActiveTranslation();
   std::string nodeClockText() const;
   std::string performanceText() const;
 };

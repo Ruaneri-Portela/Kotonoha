@@ -6,10 +6,11 @@
 #include <stdexcept>
 
 namespace Amagami {
-VmValue VmValue::num(double n) {
+VmValue VmValue::num(double n, bool floating) {
   VmValue v;
   v.kind = Number;
   v.number = n;
+  v.floating = floating || std::trunc(n) != n;
   return v;
 }
 VmValue VmValue::str(std::string s, Kind k) {
@@ -48,6 +49,14 @@ void Vm::add(Script s) {
   const auto key = s.name;
   scripts_.insert_or_assign(key, std::move(s));
 }
+Vm Vm::fork(const VmValue &receiver, const std::string &method) const {
+  Vm child = *this;
+  child.frames_.clear();
+  child.paused_ = false;
+  child.result_ = {};
+  child.call(receiver, method);
+  return child;
+}
 void Vm::reset() {
   frames_.clear();
   classes_.clear();
@@ -79,7 +88,7 @@ VmValue Vm::constant(const Value &c) {
   case Value::Float: {
     float f;
     std::memcpy(&f, &c.bits, 4);
-    return VmValue::num(f);
+    return VmValue::num(f, true);
   }
   case Value::False:
     return boolean(false);
@@ -151,6 +160,13 @@ void Vm::send(VmValue receiver, std::string selector, std::vector<VmValue> args,
   }
   if (selector == "length" && args.empty() && receiver.kind == VmValue::Array) {
     deliver(VmValue::num(receiver.object->fields.size()));
+    return;
+  }
+  if (receiver.kind == VmValue::Number && args.empty() &&
+      (selector == "toInteger" || selector == "toFloat")) {
+    deliver(VmValue::num(selector == "toInteger" ? std::trunc(receiver.number)
+                                                 : receiver.number,
+                         selector == "toFloat"));
     return;
   }
   if (native)
@@ -262,7 +278,7 @@ void Vm::run(size_t budget) {
     case 6:
     case 7: {
       auto b = pop(), a = pop();
-      push(boolean(op == 6 ? equal(a, b) : !equal(a, b)));
+      push(boolean(op == 7 ? equal(a, b) : !equal(a, b)));
       break;
     }
     case 8:
@@ -384,26 +400,27 @@ void Vm::run(size_t budget) {
       if (op >= 0x10 && op <= 0x1d) {
         auto b = pop(), a = pop();
         double x = a.number, y = b.number;
+        const bool floating = a.floating || b.floating;
         VmValue v;
         switch (op) {
         case 0x10:
-          v = VmValue::num(x + y);
+          v = VmValue::num(x + y, floating);
           break;
         case 0x11:
-          v = VmValue::num(x - y);
+          v = VmValue::num(x - y, floating);
           break;
         case 0x12:
-          v = VmValue::num(x * y);
+          v = VmValue::num(x * y, floating);
           break;
         case 0x13:
           if (!y)
             throw std::runtime_error("Division by zero");
-          v = VmValue::num(std::trunc(x / y));
+          v = VmValue::num(floating ? x / y : std::trunc(x / y), floating);
           break;
         case 0x14:
           if (!y)
             throw std::runtime_error("Modulo by zero");
-          v = VmValue::num(std::fmod(x, y));
+          v = VmValue::num(std::fmod(x, y), floating);
           break;
         case 0x15:
           v = VmValue::num(int32_t(x) & int32_t(y));

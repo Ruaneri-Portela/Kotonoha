@@ -15,6 +15,21 @@ Source::Source(const std::string &path)
     : disc_(std::make_shared<Kotonoha::DiscImage>(path)) {
   if (!disc_->find("SLPS_259.18"))
     throw std::runtime_error("Expected Amagami Japan PS2 disc (SLPS_259.18)");
+  // Original pose -> body/face prefix table, SLPS_259.18 VA 0x1b7a70.
+  const auto executable = disc_->read("SLPS_259.18");
+  auto prefix = [&](uint32_t address) {
+    if (address < 0xff000 || address - 0xff000 + 4 >= executable.size())
+      throw std::runtime_error("Invalid actor asset table pointer");
+    const size_t p = address - 0xff000;
+    if (executable[p + 4])
+      throw std::runtime_error("Invalid actor asset prefix");
+    return std::string(executable.begin() + p, executable.begin() + p + 4);
+  };
+  for (size_t i = 0; i < 16 * 26; ++i) {
+    const size_t p = 0x1b7a70 - 0xff000 + i * 8;
+    actorAssets_.emplace_back(prefix(u32(executable, p)),
+                              prefix(u32(executable, p + 4)));
+  }
   for (const auto &name :
        {"SCENARIO.ARC", "GRAPH/GRAPH0.ARC", "GRAPH/GRAPH1.ARC",
         "GRAPH/GRAPH2.ARC", "SOUND/MUSIC.ARC", "SOUND/MUSIC.AFS",
@@ -45,6 +60,46 @@ Source::Source(const std::string &path)
     auto s = ParseScf(entry.bytes);
     if (s.name != entry.name)
       throw std::runtime_error("Class image name mismatch");
+    if (s.name == "ActorPicture")
+      for (const auto &value : s.constants) {
+        if (value.type != Value::Array || value.elements.size() != 16)
+          continue;
+        bool table = true;
+        for (const auto &row : value.elements)
+          if (row.type != Value::Array || row.elements.size() < 27)
+            table = false;
+        if (!table)
+          continue;
+        for (const auto &row : value.elements) {
+          std::vector<SDL_FPoint> offsets;
+          for (const auto &point : row.elements) {
+            if (point.type != Value::Array || point.elements.size() != 2)
+              throw std::runtime_error("Invalid actor origin table");
+            offsets.push_back({float(int32_t(point.elements[0].bits)),
+                               float(int32_t(point.elements[1].bits))});
+          }
+          actorOrigins_.push_back(std::move(offsets));
+        }
+        break;
+      }
+    if (s.name == "CharParam")
+      for (const auto &value : s.constants) {
+        if (value.type != Value::Array || value.elements.size() != 16)
+          continue;
+        bool table = true;
+        for (const auto &row : value.elements)
+          if (row.type != Value::Array || row.elements.size() != 26)
+            table = false;
+        if (!table)
+          continue;
+        for (const auto &row : value.elements) {
+          std::vector<int> directions;
+          for (const auto &cell : row.elements)
+            directions.push_back(int32_t(cell.bits));
+          breathDirections_.push_back(std::move(directions));
+        }
+        break;
+      }
   }
   const auto &music = archive("SOUND/MUSIC.AFS");
   const auto countMusic = music.entries.size();
@@ -136,6 +191,27 @@ Bytes Source::voice(const std::string &code, unsigned number) const {
 } // namespace Amagami
 
 namespace Amagami {
+std::pair<std::string, std::string>
+Source::actorAssets(unsigned character, unsigned cloth, unsigned pose) const {
+  if (character >= 16 || cloth >= 26 || pose >= 26)
+    throw std::out_of_range("Invalid actor costume or pose");
+  const auto &prefix = actorAssets_.at(character * 26 + pose);
+  return {"stand/" + prefix.first + char('a' + cloth) + "x.tm2",
+          "stand/" + prefix.second + "x.tm2"};
+}
+SDL_FPoint Source::actorOrigin(unsigned character, unsigned pose) const {
+  if (character >= actorOrigins_.size() ||
+      pose + 1 >= actorOrigins_[character].size())
+    throw std::out_of_range("Invalid actor origin");
+  const auto &row = actorOrigins_[character];
+  return {row[0].x + row[pose + 1].x, row[0].y + row[pose + 1].y};
+}
+int Source::breathDirection(unsigned character, unsigned pose) const {
+  return character < breathDirections_.size() &&
+                 pose < breathDirections_[character].size()
+             ? breathDirections_[character][pose]
+             : 0;
+}
 int Source::musicIndex(unsigned number) const {
   auto i = music_.find(number);
   return i == music_.end() ? -1 : int(i->second);

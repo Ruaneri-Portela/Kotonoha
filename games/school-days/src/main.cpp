@@ -71,7 +71,6 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
                      "Retail Packs or extracted game directory", directory);
     arguments.alias("--school-days", "--assets");
     arguments.option("--ktrf", "FILE", "School Days routing graph", app->route);
-    arguments.alias("--asset-overlay", "--scripts");
     arguments.option("--documents", "DIRECTORY",
                      "Save-game and GlobalFlag directory", app->documents);
     arguments.option("--node", "ID", "Start at an index or scene key",

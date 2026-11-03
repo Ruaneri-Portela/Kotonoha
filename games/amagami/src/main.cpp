@@ -3,11 +3,14 @@
 #include "AmagamiRuntime.hpp"
 #include <Kotonoha/core/CommandLine.hpp>
 #include <Kotonoha/core/Engine.hpp>
+#include <Kotonoha/core/FileSystem.hpp>
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
 #include <cstdio>
 #include <memory>
 #include <stdexcept>
+#include <string>
+
 namespace {
 struct Application {
   Amagami::AmagamiRuntime game;
@@ -25,6 +28,7 @@ struct Application {
   }
   ~Application() { game.shutdown(); }
 };
+
 struct App {
   std::unique_ptr<Amagami::AmagamiLauncher> launcher;
   std::unique_ptr<Application> game;
@@ -39,7 +43,16 @@ struct App {
     game->frames = frames;
   }
 };
+
+std::string DefaultDisc() {
+  for (const char *disc : {"Amagami.bin", "Amagami.iso", "Amagami (Japan).iso"})
+    if (auto found = Kotonoha::FileResolver::findGameAsset({}, disc))
+      return found->string();
+  return (Kotonoha::gameAssetDirectory({}) / "Amagami.bin").string();
+}
+
 } // namespace
+
 SDL_AppResult SDL_AppInit(void **state, int argc, char **argv) {
   *state = nullptr;
   SDL_SetAppMetadata("Amagami", "0.1.0", "me.hirameki.kotonoha.amagami");
@@ -49,7 +62,7 @@ SDL_AppResult SDL_AppInit(void **state, int argc, char **argv) {
     options.persistSettings = true;
     std::string disc;
     Kotonoha::CommandLine args("Amagami", options);
-    args.option("--amagami", "DISC.iso", "Amagami Japan PS2 disc", disc);
+    args.option("--amagami", "DISC.bin", "Amagami Japan PS2 disc", disc);
     args.option("--start", "SCENARIO", "Start a scenario (default: title)",
                 app->start);
     args.parse(argc, argv);
@@ -68,12 +81,12 @@ SDL_AppResult SDL_AppInit(void **state, int argc, char **argv) {
     disc = Kotonoha::GameLauncher::findGamePath(
         "amagami",
         {disc, env ? env : "",
-         Kotonoha::GameLauncher::rememberedPath(settings, "disc.txt")},
-        Amagami::AmagamiLauncher::validatePath,
-        {"Amagami.iso", "Amagami (Japan).iso"});
+         Kotonoha::GameLauncher::rememberedPath(settings, "disc.txt"),
+         DefaultDisc()},
+        Amagami::AmagamiLauncher::validatePath, {"Amagami.bin"});
     if (disc.empty()) {
       if (args.frames > 0 || options.enableMCP)
-        throw std::runtime_error("No Amagami disc; pass --amagami DISC.iso");
+        throw std::runtime_error("No Amagami disc; pass --amagami DISC.bin");
       options.launcher = true;
     }
     if (options.launcher) {
@@ -90,6 +103,7 @@ SDL_AppResult SDL_AppInit(void **state, int argc, char **argv) {
     return SDL_APP_FAILURE;
   }
 }
+
 SDL_AppResult SDL_AppEvent(void *state, SDL_Event *event) {
   try {
     auto &app = *static_cast<App *>(state);
@@ -100,6 +114,7 @@ SDL_AppResult SDL_AppEvent(void *state, SDL_Event *event) {
     return SDL_APP_FAILURE;
   }
 }
+
 SDL_AppResult SDL_AppIterate(void *state) {
   try {
     auto &app = *static_cast<App *>(state);
@@ -124,6 +139,7 @@ SDL_AppResult SDL_AppIterate(void *state) {
     return SDL_APP_FAILURE;
   }
 }
+
 void SDL_AppQuit(void *state, SDL_AppResult) {
   delete static_cast<App *>(state);
 }

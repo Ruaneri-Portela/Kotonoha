@@ -22,13 +22,14 @@ def abis = rawAbis.collect { abi ->
 }.unique()
 
 def games = [
-        example: ['example', 'Kotonoha', 'me.kotonoha.example', 'Kotonoha'],
-        zeroNoTsukaima: ['zero-no-tsukaima', 'ZeroNoTsukaima', 'me.hirameki.kotonoha.zeronotsukaima', 'Zero no Tsukaima'],
-        snowRadish: ['snow-radish-vacation', 'SnowRadish', 'me.hirameki.kotonoha.snowradishvacation', 'Snow Radish Vacation!!'],
-        dokiDoki: ['doki-doki-literature-club', 'DokiDoki', 'me.hirameki.kotonoha.dokidokiliteratureclub', 'Doki Doki Literature Club!'],
-        schoolDays: ['school-days', 'SchoolDays', 'me.hirameki.kotonoha.schooldays', 'School Days'],
-        air: ['air', 'Air', 'me.hirameki.kotonoha.air', 'AIR'],
-        summerRadish: ['summer-radish-vacation', 'SummerRadish', 'me.hirameki.kotonoha.summerradishvacation', 'Summer Radish Vacation!!']
+  example: ['example', 'Kotonoha', 'me.kotonoha.example', 'Kotonoha'],
+  amagami: ['amagami', 'Amagami', 'me.hirameki.kotonoha.amagami', 'Amagami'],
+  zeroNoTsukaima: ['zero-no-tsukaima', 'ZeroNoTsukaima', 'me.hirameki.kotonoha.zeronotsukaima', 'Zero no Tsukaima'],
+  snowRadish: ['snow-radish-vacation', 'SnowRadish', 'me.hirameki.kotonoha.snowradishvacation', 'Snow Radish Vacation!!'],
+  dokiDoki: ['doki-doki-literature-club', 'DokiDoki', 'me.hirameki.kotonoha.dokidokiliteratureclub', 'Doki Doki Literature Club!'],
+  schoolDays: ['school-days', 'SchoolDays', 'me.hirameki.kotonoha.schooldays', 'School Days'],
+  air: ['air', 'Air', 'me.hirameki.kotonoha.air', 'AIR'],
+  summerRadish: ['summer-radish-vacation', 'SummerRadish', 'me.hirameki.kotonoha.summerradishvacation', 'Summer Radish Vacation!!']
 ]
 
 android {
