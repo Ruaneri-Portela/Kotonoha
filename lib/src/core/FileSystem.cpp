@@ -600,21 +600,21 @@ std::vector<uint8_t> FileResolver::loadFontMemory(const std::string &file) {
 void writeTextFileAtomically(const std::string &path,
                              const std::string &contents) {
   const std::string temporary = path + ".tmp";
-  if (path.empty() || std::filesystem::exists(std::filesystem::u8path(temporary)))
+  if (path.empty() || std::filesystem::exists(std::filesystem::path(temporary)))
     throw std::runtime_error(
         "Invalid output path or existing temporary file: " + temporary);
-  std::ofstream output(std::filesystem::u8path(temporary), std::ios::binary);
+  std::ofstream output(std::filesystem::path(temporary), std::ios::binary);
   if (!output)
     throw std::runtime_error("Cannot create file: " + temporary);
   output.write(contents.data(), static_cast<std::streamsize>(contents.size()));
   output.close();
   if (!output) {
-    std::filesystem::remove(std::filesystem::u8path(temporary));
+    std::filesystem::remove(std::filesystem::path(temporary));
     throw std::runtime_error("Cannot write file: " + path);
   }
   if (!SDL_RenamePath(temporary.c_str(), path.c_str())) {
     const std::string error = SDL_GetError();
-    std::filesystem::remove(std::filesystem::u8path(temporary));
+    std::filesystem::remove(std::filesystem::path(temporary));
     throw std::runtime_error("Cannot replace file: " + path + ": " + error);
   }
 }

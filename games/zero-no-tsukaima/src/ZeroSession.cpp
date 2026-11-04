@@ -66,7 +66,7 @@ std::string FindFont() {
   };
   std::error_code ec;
   for (const char *path : kFonts)
-    if (std::filesystem::exists(std::filesystem::u8path(path), ec))
+    if (std::filesystem::exists(std::filesystem::path(path), ec))
       return path;
   return {};
 }
