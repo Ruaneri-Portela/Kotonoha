@@ -815,8 +815,14 @@ void Launcher::drawTranslation() {
   }
 
   if (!draft.fontPath.empty()) {
-    const auto resolvedFont = FileResolver::font(draft.fontPath);
-    if (std::filesystem::exists(resolvedFont, ec)) {
+    std::filesystem::path resolvedFont;
+    try {
+      resolvedFont = FileResolver::font(draft.fontPath);
+    } catch (const std::exception &) {
+      // Uma fonte configurada que não é encontrada não deve quebrar a UI;
+      // reportamos apenas que não foi localizada.
+    }
+    if (!resolvedFont.empty() && std::filesystem::exists(resolvedFont, ec)) {
       ImGui::PushStyleColor(ImGuiCol_Text, ImGuiTheme::success());
       ImGui::TextUnformatted("Font file found in available fonts");
       ImGui::PopStyleColor();

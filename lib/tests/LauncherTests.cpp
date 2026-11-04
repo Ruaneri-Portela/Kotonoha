@@ -101,7 +101,7 @@ void gameLauncher(const std::filesystem::path &directory) {
   require(GameLauncher::rememberedPath(settings, "game-path.txt") ==
               "game-launcher",
           "The launcher persists a portable name rather than an absolute path");
-  require(reopened.path() == root.string() && reopened.pathValid(),
+  require(std::filesystem::equivalent(reopened.path(), root) && reopened.pathValid(),
           "The original single-path launcher remembers its path");
 }
 

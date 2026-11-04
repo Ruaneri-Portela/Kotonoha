@@ -89,9 +89,15 @@ struct SubtitleScene::State {
     } catch (...) {
     }
 
-    const auto font = FileResolver::font(engine.GetSettings().fontPath);
-    ass_set_fonts(renderer.get(), font.string().c_str(), "Noto Sans JP",
-                  ASS_FONTPROVIDER_NONE, nullptr, 1);
+    std::filesystem::path font;
+    try {
+      font = FileResolver::font(engine.GetSettings().fontPath);
+    } catch (const std::exception &) {
+      // Uma fonte configurada que não é encontrada não deve impedir a
+      // inicialização da cena de legendas; usamos a fonte padrão do motor.
+    }
+    ass_set_fonts(renderer.get(), font.empty() ? nullptr : font.string().c_str(),
+                  "Noto Sans JP", ASS_FONTPROVIDER_NONE, nullptr, 1);
   }
 };
 

@@ -25,10 +25,15 @@ bool contains(const std::vector<fs::path> &paths, const fs::path &path) {
 
 struct Fixture {
   fs::path previous = fs::current_path();
-  fs::path root =
-      fs::temp_directory_path() /
-      ("kotonoha-directories-" + std::to_string(SDL_GetPerformanceCounter()));
-  Fixture() { fs::create_directories(root); }
+  fs::path root;
+  Fixture() {
+    root = fs::temp_directory_path() /
+           ("kotonoha-directories-" + std::to_string(SDL_GetPerformanceCounter()));
+    fs::create_directories(root);
+    // temp_directory_path() pode expor o symlink /var do macOS; canonicamos
+    // para que os caminhos resolvidos pelo engine (via current_path) coincidam.
+    root = fs::canonical(root);
+  }
   ~Fixture() {
     std::error_code error;
     fs::current_path(previous, error);
@@ -128,7 +133,8 @@ void relocation(Fixture &fixture) {
   fs::create_directory("game_assets");
   fs::rename("overlay2", "game_assets/overlay2");
   AssetOverlay moved(restored.assetOverlayPath);
-  require(moved.root() == fixture.root / "game_assets/overlay2" &&
+  require(std::filesystem::equivalent(moved.root(),
+                                      fixture.root / "game_assets/overlay2") &&
               !moved.resolve("scene.txt").empty(),
           "A saved overlay reference resolves again after relocation");
   require(FileResolver::referenceName("C:\\old-machine\\overlay2\\") ==
