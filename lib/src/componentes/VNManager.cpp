@@ -163,6 +163,7 @@ void VNManager::jumpToNode(int nodeId) {
       throw std::out_of_range("Unknown script node: " + std::to_string(nodeId));
     currentNodeId = nodeId;
     isFinishedState = false;
+    engine.resetNodeClock();
     inputBlocked = awaitingChoice = false;
     // Callbacks may mutate the graph or jump to another node.
     const auto node = localizedNode(nodeId);
@@ -296,6 +297,7 @@ void VNManager::restoreSave(const VNSave &state) {
     engine.GetTimeline().setPaused(engine.isStoryPaused());
     currentNodeId = state.nodeId;
     isFinishedState = false;
+    engine.resetNodeClock();
     inputBlocked = true;
     awaitingChoice = GetChoiceQuestionRuntime(engine).isActive();
   } else {

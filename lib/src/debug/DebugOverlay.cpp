@@ -1,6 +1,7 @@
 #include <Kotonoha/debug/DebugOverlay.hpp>
 
 #include <Kotonoha/componentes/ChoiceQuestionScene.hpp>
+#include <Kotonoha/componentes/ForcedSubtitleRenderer.hpp>
 #include <Kotonoha/componentes/VNManager.hpp>
 #include <Kotonoha/componentes/VNTextBox.hpp>
 #include <Kotonoha/core/Appearance.hpp>
@@ -21,6 +22,8 @@
 #include <algorithm>
 #include <charconv>
 #include <cmath>
+#include <fstream>
+#include <filesystem>
 #include <iomanip>
 #include <limits>
 #include <set>
@@ -139,13 +142,6 @@ bool DebugOverlay::handleEvent(EventRef event) {
 void DebugOverlay::update() {
   const double delta = frameClock.seconds();
   frameClock.reset();
-  const auto currentNode = engine.GetRuntime().debugNode();
-  if (currentNode != runtimeNode) {
-    runtimeNode = currentNode;
-    runtimeNodeSeconds = 0;
-  } else if (engine.GetRuntime().GetState() == GameState::Gameplay &&
-             !engine.isStoryPaused())
-    runtimeNodeSeconds += delta;
   elapsed += delta;
   ++frames;
   if (elapsed >= 0.5) {
@@ -155,35 +151,18 @@ void DebugOverlay::update() {
 }
 
 std::string DebugOverlay::nodeClockText() const {
-  const auto &manager = GetVNManagerRuntime(engine);
-  const int node = manager.getCurrentNodeId();
-  if (engine.GetRuntime().GetState() == GameState::Gameplay)
-    if (auto custom = engine.GetRuntime().debugNode(); !custom.empty()) {
-      std::ostringstream text;
-      text << "Node: " << custom << " | Clock: " << std::fixed
-           << std::setprecision(2)
-           << engine.GetRuntime().debugNodeSeconds().value_or(
-                  runtimeNodeSeconds)
-           << "s";
-      if (engine.isStoryPaused())
-        text << " [paused]";
-      return text.str();
-    }
-  if (engine.GetRuntime().GetState() != GameState::Gameplay || node < 0 ||
-      manager.isFinished())
+  const auto node = engine.activeNode();
+  if (node.empty())
     return "Node: --";
-  std::string text = "Node: " + std::to_string(node);
-  if (manager.getMode() == ScriptMode::Timed) {
-    std::ostringstream time;
-    time << std::fixed << std::setprecision(2)
-         << engine.GetTimeline().seconds();
-    text += " | Clock: " + time.str() + "s";
-    if (engine.GetTimeline().isPaused())
-      text += " [paused]";
-  } else {
-    text += " | Standard";
-  }
-  return text;
+  std::ostringstream text;
+  text << "Node: " << node << " | Clock: " << std::fixed
+       << std::setprecision(2) << engine.activeNodeSeconds() << "s";
+  if (engine.isStoryPaused() ||
+      (engine.GetRuntime().debugNode().empty() &&
+       engine.usesTimedNodeClock() &&
+       engine.GetTimeline().isPaused()))
+    text << " [paused]";
+  return text.str();
 }
 
 std::string DebugOverlay::performanceText() const {
@@ -203,16 +182,9 @@ void DebugOverlay::renderHUD(RendererRef renderer) {
       !settings.showNodeClock)
     return;
 
-  std::string node = engine.GetRuntime().debugNode();
-  if (node.empty()) {
-    const auto &manager = GetVNManagerRuntime(engine);
-    const int id = manager.getCurrentNodeId();
-    if (id < 0 || manager.isFinished())
-      return;
-    node = std::to_string(id);
-  }
-
-  const std::string text = "Node: " + node;
+  if (engine.activeNode().empty())
+    return;
+  const std::string text = nodeClockText();
   const float width = std::max(1.0f, size.x - 20);
   const auto measured = ui.textSize(text, width);
   const float x = std::max(10.0f, size.x - measured.x - 10);
@@ -237,6 +209,7 @@ void DebugOverlay::drawInspector() {
     }
   }
   drawKtrfTools();
+  drawForcedSubtitlesGenerator();
   if (nodesStale)
     refreshNodes();
   if (ImGui::SmallButton("Refresh node list"))
@@ -360,6 +333,76 @@ void DebugOverlay::stopPreviewAudio() {
     previewChannel->detach(previewAudio.get());
   previewAudio.reset();
   previewChannel.reset();
+}
+
+void DebugOverlay::drawForcedSubtitlesGenerator() {
+  if (!ImGui::CollapsingHeader("Generate Forced Subtitles (.ass)"))
+    return;
+
+  if (engine.activeNode().empty()) {
+    ImGui::TextDisabled("No active node/event.");
+    return;
+  }
+
+  ImGui::TextWrapped("%s", nodeClockText().c_str());
+  ImGui::TextWrapped("ASS times are relative to this node/event clock. "
+                     "Existing files are never overwritten.");
+
+  if (ImGui::Button("Generate ASS Scaffolding File")) {
+    try {
+      forcedSubsStatus = "Generated: " +
+          engine.GetForcedSubtitles().dumpForActiveNode().string();
+    } catch (const std::exception &error) {
+      forcedSubsStatus = std::string("Error: ") + error.what();
+      SDL_LogError(LogMedia, "Forced subtitle dump: %s", error.what());
+    }
+  }
+
+  ImGui::SameLine();
+  if (ImGui::Button("Reload forced subtitles")) {
+    engine.GetForcedSubtitles().reload();
+    forcedSubsStatus = "Forced subtitles will reload on the next frame.";
+  }
+
+  auto &manager = GetVNManagerRuntime(engine);
+  const int id = manager.getCurrentNodeId();
+  if (engine.GetRuntime().debugNode().empty() && id >= 0 &&
+      !manager.isFinished()) {
+    const auto &node = manager.getScriptNode(id);
+    if (node.type == NodeType::Timeline) {
+      ImGui::SameLine();
+      if (ImGui::Button("Jump to cue..."))
+        ImGui::OpenPopup("SelectCue");
+      if (ImGui::BeginPopupModal("SelectCue", nullptr,
+                                ImGuiWindowFlags_AlwaysAutoResize)) {
+        ImGui::Text("Jump to video cue:");
+        for (size_t i = 0; i < node.timeline.cues.size(); ++i) {
+          const auto &cue = node.timeline.cues[i];
+          if (cue.type != CueType::Video)
+            continue;
+          const auto label = "Cue " + std::to_string(i) + " @ " +
+                             std::to_string(cue.at) + "s";
+          if (ImGui::Button(label.c_str())) {
+            try {
+              engine.GetTimeline().seek(cue.at);
+              forcedSubsStatus = "Jumped to " + std::to_string(cue.at) + "s";
+            } catch (const std::exception &error) {
+              forcedSubsStatus = std::string("Error: ") + error.what();
+              SDL_LogError(LogMedia, "Timeline seek: %s", error.what());
+            }
+            ImGui::CloseCurrentPopup();
+          }
+        }
+        if (ImGui::Button("Cancel"))
+          ImGui::CloseCurrentPopup();
+        ImGui::EndPopup();
+      }
+    }
+  }
+
+  if (!forcedSubsStatus.empty()) {
+    ImGui::TextColored(ImGuiTheme::accent(), "%s", forcedSubsStatus.c_str());
+  }
 }
 
 void DebugOverlay::drawKtrfTools() {

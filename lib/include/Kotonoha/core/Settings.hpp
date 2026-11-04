@@ -32,6 +32,7 @@ struct EngineSettings {
   std::string translationPath;
   std::string assetOverlayPath;
   std::string fontPath;
+  bool enableForcedSubtitles = true;  // Toggle for forced subtitles system
   void validate() const;
   static EngineSettings load(const std::string &path);
   // <pref path>/Kotonoha/<identify>/settings.json, as used by the Engine.
