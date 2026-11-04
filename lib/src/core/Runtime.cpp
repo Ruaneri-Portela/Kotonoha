@@ -166,13 +166,9 @@ void Runtime::update() {
     return;
   }
   const auto activeScenes = GetActiveScenes();
-  for (Scene *scene : activeScenes) {
-    const auto &current = GetActiveScenes();
-    if (scene &&
-        std::find(current.begin(), current.end(), scene) != current.end()) {
+  for (Scene *scene : activeScenes)
+    if (scene)
       scene->update();
-    }
-  }
 }
 
 bool Runtime::onEvent(EventRef event) {
