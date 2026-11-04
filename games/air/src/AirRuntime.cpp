@@ -1,5 +1,6 @@
 #include "AirRuntime.hpp"
 #include "AirSelection.hpp"
+#include "AirTransition.hpp"
 #include "TitleInput.hpp"
 #include <Air/Images.hpp>
 #include <Air/Session.hpp>
@@ -14,6 +15,7 @@
 #include <Kotonoha/componentes/VNTextBox.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/FileSystem.hpp>
+#include <Kotonoha/core/TransformTween.hpp>
 #include <Kotonoha/core/UI.hpp>
 #include <Kotonoha/events/BackAction.hpp>
 #include <Kotonoha/events/BacklogEvents.hpp>
@@ -28,6 +30,8 @@
 #include <cmath>
 #include <cstring>
 #include <iomanip>
+#include <limits>
+#include <optional>
 #include <set>
 #include <sstream>
 namespace Air {
@@ -132,7 +136,8 @@ struct Text : VNTextBox {
         w = int(v.size()) * 13;
       return static_cast<float>(w);
     };
-    const auto lines = Kotonoha::VNTextBoxUtility::WrapText(value, width, 528.0f);
+    const auto lines =
+        Kotonoha::VNTextBoxUtility::WrapText(value, width, 528.0f);
     if (!lines.empty()) {
       p.y = static_cast<float>((lines.size() - 1) * 28);
       p.x = 53.0f + width(lines.back());
@@ -280,10 +285,35 @@ struct Object {
   SDL_Color colour{0, 0, 0, 0};
   bool clipped = false;
   SDL_Rect clip{};
+  std::array<SDL_Point, 16> adjustments{};
+  int frameMs = 0;
+  Uint64 animationElapsed = 0;
+  size_t currentPattern(size_t count) const {
+    return frameMs > 0 ? (animationElapsed / Uint64(frameMs)) % count
+                       : size_t(std::clamp(pattern, 0, int(count - 1)));
+  }
 };
 struct Graphic {
+  struct Raster {
+    TexturePtr original, filtered, display;
+  };
   Image image;
   SurfacePtr surface;
+  std::map<size_t, SurfacePtr> scaledPatterns;
+  std::map<std::array<int, 4>, Raster> crops;
+};
+// Preserve native DC operations for saves and cache each completed raster.
+struct DCImage {
+  enum class Kind { Pixels, Graphic, Copy, Invert, Gray };
+  Kind kind = Kind::Pixels;
+  int width = 0, height = 0, alpha = 255;
+  bool mask = false;
+  SDL_Rect crop{}, destination{};
+  std::string graphic;
+  SurfacePtr native, raster;
+  TexturePtr texture;
+  std::shared_ptr<DCImage> source, previous;
+  size_t generation = 0;
 };
 SurfacePtr blank(int w = 640, int h = 480) {
   if (w <= 0 || h <= 0 || w > 8192 || h > 8192)
@@ -338,8 +368,21 @@ struct AirRuntime::Impl {
   std::map<std::string, Graphic> graphics;
   TexturePtr canvasTexture;
   SurfacePtr canvasPixels;
-  Uint64 canvasSerial = 0;
+  TexturePtr compositionTexture, backgroundTexture;
+  TexturePtr filteredScene;
+  std::string sceneKey;
+  std::shared_ptr<DCImage> sceneBackground;
+  TexturePtr zoomTexture, transitionTexture;
+  TexturePtr ditherTexture, maskedTransitionTexture;
+  std::optional<bool> gpuDither;
+  int ditherStep = -1, ditherStyle = -1;
+  SurfacePtr backgroundPixels;
+  std::map<std::pair<std::string, int>, TexturePtr> objectTextTextures;
+  RenderStats renderStats;
+  UpscaleSettings imageUpscaling;
   std::map<int, SurfacePtr> dc;
+  std::map<int, std::shared_ptr<DCImage>> dcImages;
+  size_t dcGeneration = 1;
   std::map<int, Object> fg, bg;
   std::string dialogue, error, lastGraphic;
   bool pause = false, clearText = true;
@@ -347,6 +390,7 @@ struct AirRuntime::Impl {
   Uint64 deadline = 0;
   float mouseX = -1, mouseY = -1;
   int button1 = 0, button2 = 0;
+  std::array<Uint8, 32> syscomEntries{};
   TitleInput titleInput;
   std::map<std::pair<int, int>, int> settings;
   std::map<int, Uint64> timers;
@@ -355,21 +399,33 @@ struct AirRuntime::Impl {
   SurfacePtr transitionOld;
   Uint64 transitionStart = 0;
   int transitionMs = 0;
+  int transitionStyle = 0;
+  struct ZoomEffect {
+    SurfacePtr source;
+    std::shared_ptr<DCImage> image;
+    SDL_Rect to{}, destinationRect{};
+    TransformAnimation animation;
+    Uint64 start = 0;
+  };
+  std::optional<ZoomEffect> zoom;
   SDL_Color flashColour{0, 0, 0, 255};
   Uint64 flashStart = 0;
   int flashDuration = 0;
   struct Frame {
     int from = 0, to = 0, duration = 0;
     Uint64 start = 0;
+    bool loop = false;
+    double value = 0;
+    Uint64 lastCheck = 0;
   };
   std::map<int, Frame> frames;
   Impl(AirRuntime &r, std::shared_ptr<AirAssets> a, int scene)
-      : runtime(r), assets(std::move(a)),
-        archive(assets->localPath("Seen.txt")),
+      : runtime(r), assets(std::move(a)), archive(assets->scripts()),
         vm(archive,
            scene < 0 ? assets->settings().integer("SEEN_START", 9030) : scene),
-        voices(assets->directory()),
+        voices(assets->list("KOE/")),
         audio(parseAudioConfig(assets->settingsSource())) {
+    syscomEntries.fill(1);
     vm.speaker = [this](std::string t) {
       speakerName = decodeText(t, archive.Scenario(vm.scenario()).encoding());
     };
@@ -416,8 +472,16 @@ struct AirRuntime::Impl {
     if (n <= 1 || (old.w >= w && old.h >= h))
       return;
     auto grown = blank(std::max(old.w, w), std::max(old.h, h));
+    auto image = dcImage(n);
+    const SDL_Rect crop{0, 0, old.w, old.h};
     blit(old, *grown, nullptr, nullptr, 255, false);
     dc[n] = std::move(grown);
+    auto extended = pixelImage(*dc[n]);
+    extended->kind = DCImage::Kind::Copy;
+    extended->source = std::move(image);
+    extended->crop = crop;
+    extended->destination = extended->crop;
+    dcImages[n] = std::move(extended);
   }
   Graphic &graphic(const std::string &name) {
     auto id = assets->graphic(name);
@@ -435,15 +499,537 @@ struct AirRuntime::Impl {
   }
   void blit(SurfaceRef source, SurfaceRef dest, const SDL_Rect *sr = nullptr,
             SDL_Rect *dr = nullptr, int alpha = 255, bool mask = true) {
+    if (alpha <= 0) {
+      BlitSurfaceOpacity(source, dest, sr, dr, alpha, mask);
+      return;
+    }
+    const SDL_Rect requested = sr ? *sr : SDL_Rect{0, 0, source.w, source.h};
+    const SDL_Rect bounds{0, 0, source.w, source.h};
+    SDL_Rect crop{};
+    if (!SDL_GetRectIntersection(&requested, &bounds, &crop)) {
+      BlitSurfaceOpacity(source, dest, sr, dr, alpha, mask);
+      return;
+    }
+    const SDL_Rect destination{(dr ? dr->x : 0) + crop.x - requested.x,
+                               (dr ? dr->y : 0) + crop.y - requested.y, crop.w,
+                               crop.h};
+    for (const auto &[id, pixels] : dc) {
+      if (pixels.get() != &dest)
+        continue;
+      auto result = std::make_shared<DCImage>();
+      result->kind = DCImage::Kind::Copy;
+      result->width = dest.w;
+      result->height = dest.h;
+      result->crop = crop;
+      result->destination = destination;
+      result->alpha = alpha;
+      result->mask = mask;
+      result->previous = dcImage(id);
+      for (const auto &[name, graphic] : graphics)
+        if (graphic.surface.get() == &source) {
+          result->source = std::make_shared<DCImage>();
+          result->source->kind = DCImage::Kind::Graphic;
+          result->source->graphic = name;
+          result->source->crop = crop;
+          result->source->width = crop.w;
+          result->source->height = crop.h;
+          result->crop = {0, 0, crop.w, crop.h};
+          break;
+        }
+      if (!result->source)
+        for (const auto &[sourceID, pixels] : dc)
+          if (pixels.get() == &source) {
+            result->source = dcImage(sourceID);
+            break;
+          }
+      if (!result->source && zoom && zoom->source.get() == &source)
+        result->source = zoom->image;
+      if (!result->source)
+        result->source = pixelImage(source);
+      if (alpha >= 255 && destination.x <= 0 && destination.y <= 0 &&
+          destination.x + destination.w >= dest.w &&
+          destination.y + destination.h >= dest.h) {
+        bool opaque = !mask || source.format == SDL_PIXELFORMAT_RGBX32;
+        if (mask && source.format == SDL_PIXELFORMAT_RGBA32) {
+          opaque = true;
+          for (int y = crop.y; opaque && y < crop.y + crop.h; ++y) {
+            const auto *row =
+                static_cast<const Uint8 *>(source.pixels) + y * source.pitch;
+            for (int x = crop.x; x < crop.x + crop.w; ++x)
+              if (row[x * 4 + 3] != 255) {
+                opaque = false;
+                break;
+              }
+          }
+        }
+        if (opaque)
+          result->previous.reset();
+      }
+      dcImages[id] = std::move(result);
+      break;
+    }
     BlitSurfaceOpacity(source, dest, sr, dr, alpha, mask);
   }
-  void drawObject(int id, const Object &o, SurfaceRef dest) {
+  std::shared_ptr<DCImage> pixelImage(SurfaceRef pixels) {
+    auto image = std::make_shared<DCImage>();
+    image->width = pixels.w;
+    image->height = pixels.h;
+    image->native.reset(SDL_DuplicateSurface(&pixels));
+    if (!image->native)
+      throw std::runtime_error(SDL_GetError());
+    return image;
+  }
+  std::shared_ptr<DCImage> dcImage(int id) {
+    auto &image = dcImages[id];
+    if (!image)
+      image = pixelImage(surface(id));
+    return image;
+  }
+  Graphic::Raster &prepareRaster(Graphic &g, const SDL_Rect &crop) {
+    auto &cached = g.crops[{crop.x, crop.y, crop.w, crop.h}];
+    auto &renderer = engine->GetRenderer();
+    if (!cached.original) {
+      SurfacePtr pixels(
+          SDL_CreateSurface(crop.w, crop.h, SDL_PIXELFORMAT_RGBA32));
+      if (!pixels)
+        throw std::runtime_error(SDL_GetError());
+      BlitSurfaceOpacity(*g.surface, *pixels, &crop, nullptr, 255, false);
+      cached.original.reset(
+          SDL_CreateTextureFromSurface(&renderer, pixels.get()));
+      if (!cached.original ||
+          !SDL_SetTextureScaleMode(cached.original.get(), SDL_SCALEMODE_LINEAR))
+        throw std::runtime_error(SDL_GetError());
+      ++renderStats.textureUploads;
+      ++renderStats.originalImageUploads;
+    }
+    if (presentationScale() > 1 && !cached.filtered) {
+      if (!SDL_SetTextureAlphaMod(cached.original.get(), 255))
+        throw std::runtime_error(SDL_GetError());
+      cached.filtered =
+          engine->GetUpscaler().scaled(*cached.original, imageUpscaling.factor);
+      ++renderStats.filteredPatterns;
+    }
+    return cached;
+  }
+  TextureRef dcTexture(const std::shared_ptr<DCImage> &image,
+                       SurfaceRef native) {
+    refreshImageUpscaling();
+    if (image->texture && image->generation == dcGeneration)
+      return *image->texture;
+    image->raster.reset();
+    auto &renderer = engine->GetRenderer();
+    TexturePtr original(SDL_CreateTextureFromSurface(&renderer, &native));
+    if (!original)
+      throw std::runtime_error(SDL_GetError());
+    ++renderStats.textureUploads;
+    image->texture =
+        engine->GetUpscaler().scaled(*original, imageUpscaling.factor);
+    ++renderStats.filteredDCFrames;
+    const int scale = presentationScale();
+    if (image->texture->w != native.w * scale ||
+        image->texture->h != native.h * scale) {
+      TexturePtr display(SDL_CreateTexture(&renderer, SDL_PIXELFORMAT_RGBA32,
+                                           SDL_TEXTUREACCESS_TARGET,
+                                           native.w * scale, native.h * scale));
+      struct Restore {
+        SDL_Renderer &renderer;
+        SDL_Texture *target;
+        ~Restore() { SDL_SetRenderTarget(&renderer, target); }
+      } restore{renderer, SDL_GetRenderTarget(&renderer)};
+      if (!display ||
+          !SDL_SetTextureBlendMode(image->texture.get(), SDL_BLENDMODE_NONE) ||
+          !SDL_SetTextureScaleMode(image->texture.get(),
+                                   SDL_SCALEMODE_LINEAR) ||
+          !SDL_SetRenderTarget(&renderer, display.get()) ||
+          !SDL_RenderTexture(&renderer, image->texture.get(), nullptr, nullptr))
+        throw std::runtime_error(SDL_GetError());
+      image->texture = std::move(display);
+    }
+    if (!SDL_SetTextureScaleMode(image->texture.get(), SDL_SCALEMODE_LINEAR) ||
+        !SDL_SetTextureBlendMode(image->texture.get(), SDL_BLENDMODE_NONE))
+      throw std::runtime_error(SDL_GetError());
+    image->generation = dcGeneration;
+    for (const auto &child : {image->source, image->previous}) {
+      if (!child || (zoom && zoom->image == child))
+        continue;
+      const bool resident =
+          std::any_of(dcImages.begin(), dcImages.end(),
+                      [&](const auto &entry) { return entry.second == child; });
+      if (!resident) {
+        child->raster.reset();
+        child->texture.reset();
+      }
+    }
+    return *image->texture;
+  }
+  SurfaceRef dcRaster(const std::shared_ptr<DCImage> &image,
+                      SurfaceRef native) {
+    auto &texture = dcTexture(image, native);
+    if (!image->raster) {
+      auto &renderer = engine->GetRenderer();
+      struct Restore {
+        SDL_Renderer &renderer;
+        SDL_Texture *target;
+        ~Restore() { SDL_SetRenderTarget(&renderer, target); }
+      } restore{renderer, SDL_GetRenderTarget(&renderer)};
+      if (!SDL_SetRenderTarget(&renderer, &texture))
+        throw std::runtime_error(SDL_GetError());
+      image->raster.reset(SDL_RenderReadPixels(&renderer, nullptr));
+      if (!image->raster)
+        throw std::runtime_error(SDL_GetError());
+      if (image->raster->format != SDL_PIXELFORMAT_RGBA32) {
+        SurfacePtr converted(
+            SDL_ConvertSurface(image->raster.get(), SDL_PIXELFORMAT_RGBA32));
+        if (!converted)
+          throw std::runtime_error(SDL_GetError());
+        image->raster = std::move(converted);
+      }
+    }
+    return *image->raster;
+  }
+  int presentationScale() const {
+    // AIR script scenes compose natively; only the completed scene is filtered.
+    return 1;
+  }
+  void refreshImageUpscaling() {
+    const auto &settings = engine->GetUpscaler().getSettings();
+    if (settings.backend == imageUpscaling.backend &&
+        settings.preset == imageUpscaling.preset &&
+        settings.factor == imageUpscaling.factor &&
+        settings.shaderFiles == imageUpscaling.shaderFiles)
+      return;
+    for (auto &[id, g] : graphics) {
+      g.scaledPatterns.clear();
+      for (auto &[crop, raster] : g.crops) {
+        raster.filtered.reset();
+        raster.display.reset();
+      }
+    }
+    ++dcGeneration;
+    filteredScene.reset();
+    sceneKey.clear();
+    zoomTexture.reset();
+    imageUpscaling = settings;
+    objectTextTextures.clear();
+  }
+  SDL_Rect patternRect(const Graphic &g, size_t pattern) const {
+    if (g.image.regions.empty())
+      return {0, 0, int(g.image.width), int(g.image.height)};
+    const auto &r = g.image.regions.at(pattern);
+    return {r.atlasX, r.atlasY, r.x2 - r.x1 + 1, r.y2 - r.y1 + 1};
+  }
+  TextureRef patternTexture(Graphic &g, size_t pattern) {
+    const auto crop = patternRect(g, pattern);
+    auto &cached = g.crops.at({crop.x, crop.y, crop.w, crop.h});
+    return presentationScale() == 1 ? *cached.original
+           : cached.display         ? *cached.display
+                                    : *cached.filtered;
+  }
+  void prepareGraphic(Graphic &g) {
+    refreshImageUpscaling();
+    const int scale = presentationScale();
+    const size_t count = std::max(size_t(1), g.image.regions.size());
+    auto &renderer = engine->GetRenderer();
+    for (size_t pattern = 0; pattern < count; ++pattern) {
+      const auto crop = patternRect(g, pattern);
+      auto &cached = prepareRaster(g, crop);
+      if (scale == 1 || cached.display)
+        continue;
+      auto &texture = cached.filtered;
+      if (texture->w != crop.w * scale || texture->h != crop.h * scale) {
+        TexturePtr raster(SDL_CreateTexture(&renderer, SDL_PIXELFORMAT_RGBA32,
+                                            SDL_TEXTUREACCESS_TARGET,
+                                            crop.w * scale, crop.h * scale));
+        if (!raster)
+          throw std::runtime_error(SDL_GetError());
+        struct Restore {
+          SDL_Renderer &renderer;
+          SDL_Texture *target;
+          ~Restore() { SDL_SetRenderTarget(&renderer, target); }
+        } restore{renderer, SDL_GetRenderTarget(&renderer)};
+        if (!SDL_SetTextureBlendMode(texture.get(), SDL_BLENDMODE_NONE) ||
+            !SDL_SetRenderTarget(&renderer, raster.get()) ||
+            !SDL_RenderTexture(&renderer, texture.get(), nullptr, nullptr) ||
+            !SDL_SetTextureScaleMode(raster.get(), SDL_SCALEMODE_LINEAR) ||
+            !SDL_SetTextureBlendMode(raster.get(), SDL_BLENDMODE_BLEND))
+          throw std::runtime_error(SDL_GetError());
+        cached.display = std::move(raster);
+      }
+    }
+  }
+  bool prepareDither(RendererRef renderer) {
+    if (gpuDither)
+      return *gpuDither;
+    ditherTexture.reset(SDL_CreateTexture(&renderer, SDL_PIXELFORMAT_RGBA32,
+                                          SDL_TEXTUREACCESS_STREAMING, 8, 8));
+    if (!ditherTexture)
+      throw std::runtime_error(SDL_GetError());
+    const auto maskBlend = SDL_ComposeCustomBlendMode(
+        SDL_BLENDFACTOR_ZERO, SDL_BLENDFACTOR_ONE, SDL_BLENDOPERATION_ADD,
+        SDL_BLENDFACTOR_ZERO, SDL_BLENDFACTOR_SRC_ALPHA,
+        SDL_BLENDOPERATION_ADD);
+    gpuDither = SDL_SetTextureBlendMode(ditherTexture.get(), maskBlend);
+    if (!*gpuDither) {
+      SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                  "AIR renderer cannot blend dither masks; using native effect "
+                  "pixels: %s",
+                  SDL_GetError());
+      ditherTexture.reset();
+    } else if (!SDL_SetTextureScaleMode(ditherTexture.get(),
+                                        SDL_SCALEMODE_NEAREST)) {
+      throw std::runtime_error(SDL_GetError());
+    }
+    return *gpuDither;
+  }
+  void drawHardware(RendererRef r, int scale) {
+    SDL_Texture *preparedBackground = nullptr;
+    if (scale > 1)
+      preparedBackground = &dcTexture(dcImage(0), surface(0));
+    else {
+      auto &background = surface(0);
+      bool changed = !backgroundPixels || backgroundPixels->w != background.w ||
+                     backgroundPixels->h != background.h;
+      for (int y = 0; !changed && y < background.h; ++y)
+        changed = std::memcmp(static_cast<Uint8 *>(backgroundPixels->pixels) +
+                                  y * backgroundPixels->pitch,
+                              static_cast<Uint8 *>(background.pixels) +
+                                  y * background.pitch,
+                              background.w * 4) != 0;
+      if (changed) {
+        if (!backgroundTexture || backgroundTexture->w != background.w ||
+            backgroundTexture->h != background.h)
+          backgroundTexture.reset(SDL_CreateTexture(
+              &r, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STREAMING,
+              background.w, background.h));
+        if (!backgroundTexture ||
+            !SDL_SetTextureBlendMode(backgroundTexture.get(),
+                                     SDL_BLENDMODE_NONE) ||
+            !SDL_SetTextureScaleMode(backgroundTexture.get(),
+                                     SDL_SCALEMODE_LINEAR) ||
+            !SDL_UpdateTexture(backgroundTexture.get(), nullptr,
+                               background.pixels, background.pitch))
+          throw std::runtime_error(SDL_GetError());
+        backgroundPixels.reset(SDL_DuplicateSurface(&background));
+        if (!backgroundPixels)
+          throw std::runtime_error(SDL_GetError());
+        ++renderStats.textureUploads;
+      }
+      preparedBackground = backgroundTexture.get();
+    }
+    // Prepare all animation patterns before entering the composition target.
+    for (const auto &[id, o] : fg)
+      if (o.visible && !o.file.empty() && o.text.empty() &&
+          !(o.width > 0 && o.height > 0))
+        prepareGraphic(graphic(o.file));
+    if (!compositionTexture || compositionTexture->w != 640 * scale ||
+        compositionTexture->h != 480 * scale) {
+      compositionTexture.reset(SDL_CreateTexture(&r, SDL_PIXELFORMAT_RGBA32,
+                                                 SDL_TEXTUREACCESS_TARGET,
+                                                 640 * scale, 480 * scale));
+      if (!compositionTexture ||
+          !SDL_SetTextureScaleMode(compositionTexture.get(),
+                                   SDL_SCALEMODE_LINEAR))
+        throw std::runtime_error(SDL_GetError());
+    }
+    struct RestoreTarget {
+      SDL_Renderer &renderer;
+      SDL_Texture *target;
+      SDL_Color color{};
+      SDL_BlendMode blend = SDL_BLENDMODE_NONE;
+      ~RestoreTarget() {
+        SDL_SetRenderTarget(&renderer, target);
+        SDL_SetRenderDrawColor(&renderer, color.r, color.g, color.b, color.a);
+        SDL_SetRenderDrawBlendMode(&renderer, blend);
+      }
+    } restore{r, SDL_GetRenderTarget(&r)};
+    if (!SDL_GetRenderDrawColor(&r, &restore.color.r, &restore.color.g,
+                                &restore.color.b, &restore.color.a) ||
+        !SDL_GetRenderDrawBlendMode(&r, &restore.blend) ||
+        !SDL_SetRenderTarget(&r, compositionTexture.get()) ||
+        !SDL_SetRenderScale(&r, 1, 1) || !SDL_SetRenderViewport(&r, nullptr) ||
+        !SDL_SetRenderClipRect(&r, nullptr) ||
+        !SDL_RenderTexture(&r, preparedBackground, nullptr, nullptr))
+      throw std::runtime_error(SDL_GetError());
+    for (const auto &[id, o] : fg) {
+      if (!o.visible || !o.text.empty())
+        continue;
+      int x = o.x, y = o.y;
+      for (const auto &adjustment : o.adjustments) {
+        x += adjustment.x;
+        y += adjustment.y;
+      }
+      const SDL_Rect clip{o.clip.x * scale, o.clip.y * scale, o.clip.w * scale,
+                          o.clip.h * scale};
+      if (!SDL_SetRenderClipRect(&r, o.clipped ? &clip : nullptr))
+        throw std::runtime_error(SDL_GetError());
+      if (o.width > 0 && o.height > 0) {
+        const SDL_FRect area{float(x * scale), float(y * scale),
+                             float(o.width * scale), float(o.height * scale)};
+        if (!SDL_SetRenderDrawBlendMode(&r, SDL_BLENDMODE_BLEND) ||
+            !SDL_SetRenderDrawColor(
+                &r, o.colour.r, o.colour.g, o.colour.b,
+                Uint8(o.colour.a * std::clamp(o.alpha, 0, 255) / 255)) ||
+            !SDL_RenderFillRect(&r, &area))
+          throw std::runtime_error(SDL_GetError());
+      } else if (!o.file.empty() && o.text.empty()) {
+        auto &g = graphic(o.file);
+        const auto pattern = g.image.regions.empty()
+                                 ? 0
+                                 : o.currentPattern(g.image.regions.size());
+        if (!g.image.regions.empty()) {
+          x -= g.image.regions[pattern].originX;
+          y -= g.image.regions[pattern].originY;
+        }
+        auto &texture = patternTexture(g, pattern);
+        const SDL_FRect area{float(x * scale), float(y * scale),
+                             float(texture.w), float(texture.h)};
+        if (!SDL_SetTextureAlphaMod(&texture,
+                                    Uint8(std::clamp(o.alpha, 0, 255))) ||
+            !SDL_RenderTexture(&r, &texture, nullptr, &area))
+          throw std::runtime_error(SDL_GetError());
+      }
+    }
+    if (!SDL_SetRenderClipRect(&r, nullptr))
+      throw std::runtime_error(SDL_GetError());
+    if (flashDuration > 0 &&
+        SDL_GetTicks() - flashStart < Uint64(flashDuration)) {
+      const int step =
+          std::min(16, int((SDL_GetTicks() - flashStart) * 16 / flashDuration));
+      if (!SDL_SetRenderDrawBlendMode(&r, SDL_BLENDMODE_BLEND) ||
+          !SDL_SetRenderDrawColor(&r, flashColour.r, flashColour.g,
+                                  flashColour.b,
+                                  Uint8((16 - step) * 255 / 16)) ||
+          !SDL_RenderFillRect(&r, nullptr))
+        throw std::runtime_error(SDL_GetError());
+    }
+    if (zoom) {
+      if (scale == 1 && !zoomTexture) {
+        zoomTexture.reset(SDL_CreateTextureFromSurface(&r, zoom->source.get()));
+        if (!zoomTexture ||
+            !SDL_SetTextureScaleMode(zoomTexture.get(), SDL_SCALEMODE_LINEAR))
+          throw std::runtime_error(SDL_GetError());
+        ++renderStats.textureUploads;
+      }
+      auto *preparedZoom = scale == 1 ? zoomTexture.get()
+                                      : &dcTexture(zoom->image, *zoom->source);
+      const auto elapsed = SDL_GetTicks() - zoom->start;
+      const auto crop = zoom->animation.sample(double(elapsed));
+      const SDL_FRect source{float(std::lround(crop.x) * scale),
+                             float(std::lround(crop.y) * scale),
+                             float(std::lround(crop.scaleX) * scale),
+                             float(std::lround(crop.scaleY) * scale)};
+      const SDL_FRect destination{float(zoom->destinationRect.x * scale),
+                                  float(zoom->destinationRect.y * scale),
+                                  float(zoom->destinationRect.w * scale),
+                                  float(zoom->destinationRect.h * scale)};
+      if (source.w > 0 && source.h > 0 &&
+          !SDL_RenderTexture(&r, preparedZoom, &source, &destination))
+        throw std::runtime_error(SDL_GetError());
+      if (elapsed >= zoom->animation.duration()) {
+        blit(*zoom->source, surface(0), &zoom->to, &zoom->destinationRect, 255,
+             true);
+        zoom.reset();
+        zoomTexture.reset();
+      }
+    }
+    if (transitionOld) {
+      const auto elapsed = SDL_GetTicks() - transitionStart;
+      if (elapsed < Uint64(transitionMs)) {
+        if (!transitionTexture) {
+          transitionTexture.reset(
+              SDL_CreateTextureFromSurface(&r, transitionOld.get()));
+          if (!transitionTexture ||
+              !SDL_SetTextureScaleMode(transitionTexture.get(),
+                                       SDL_SCALEMODE_LINEAR))
+            throw std::runtime_error(SDL_GetError());
+          ++renderStats.textureUploads;
+        }
+        const double progress = double(elapsed) / transitionMs;
+        if (transitionStyle == 4 || transitionStyle == 5) {
+          const int step = int(std::ceil(progress * 64));
+          if (step != ditherStep || transitionStyle != ditherStyle) {
+            std::array<Uint8, 8 * 8 * 4> mask{};
+            for (int y = 0; y < 8; ++y)
+              for (int x = 0; x < 8; ++x)
+                mask[(y * 8 + x) * 4 + 3] =
+                    transitionRevealsNewPixel(transitionStyle, progress, x, y)
+                        ? 0
+                        : 255;
+            if (!SDL_UpdateTexture(ditherTexture.get(), nullptr, mask.data(),
+                                   8 * 4))
+              throw std::runtime_error(SDL_GetError());
+            ditherStep = step;
+            ditherStyle = transitionStyle;
+          }
+          if (!maskedTransitionTexture ||
+              maskedTransitionTexture->w != compositionTexture->w ||
+              maskedTransitionTexture->h != compositionTexture->h) {
+            maskedTransitionTexture.reset(SDL_CreateTexture(
+                &r, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_TARGET,
+                compositionTexture->w, compositionTexture->h));
+            if (!maskedTransitionTexture ||
+                !SDL_SetTextureBlendMode(maskedTransitionTexture.get(),
+                                         SDL_BLENDMODE_BLEND))
+              throw std::runtime_error(SDL_GetError());
+          }
+          if (!SDL_SetTextureAlphaMod(transitionTexture.get(), 255) ||
+              !SDL_SetTextureBlendMode(transitionTexture.get(),
+                                       SDL_BLENDMODE_NONE) ||
+              !SDL_SetRenderTarget(&r, maskedTransitionTexture.get()) ||
+              !SDL_RenderTexture(&r, transitionTexture.get(), nullptr,
+                                 nullptr) ||
+              !SDL_RenderTextureTiled(&r, ditherTexture.get(), nullptr,
+                                      float(scale), nullptr) ||
+              !SDL_SetRenderTarget(&r, compositionTexture.get()) ||
+              !SDL_RenderTexture(&r, maskedTransitionTexture.get(), nullptr,
+                                 nullptr))
+            throw std::runtime_error(SDL_GetError());
+        } else {
+          const auto alpha = 255 - int(255.0 * progress);
+          if (!SDL_SetTextureBlendMode(transitionTexture.get(),
+                                       SDL_BLENDMODE_BLEND) ||
+              !SDL_SetTextureAlphaMod(transitionTexture.get(), Uint8(alpha)) ||
+              !SDL_RenderTexture(&r, transitionTexture.get(), nullptr, nullptr))
+            throw std::runtime_error(SDL_GetError());
+        }
+      } else {
+        transitionOld.reset();
+        transitionTexture.reset();
+      }
+    }
+    ++renderStats.gpuFrames;
+  }
+  void scaledBlit(SurfaceRef source, SurfaceRef dest, const SDL_Rect *src,
+                  SDL_Rect target, int alpha = 255, bool mask = true) {
+    const int width = src ? src->w : source.w;
+    const int height = src ? src->h : source.h;
+    if (width == target.w && height == target.h) {
+      SDL_Rect point{target.x, target.y, 0, 0};
+      blit(source, dest, src, &point, alpha, mask);
+      return;
+    }
+    SurfacePtr resized(
+        SDL_CreateSurface(target.w, target.h, SDL_PIXELFORMAT_RGBA32));
+    SDL_BlendMode blend;
+    if (!SDL_GetSurfaceBlendMode(&source, &blend))
+      throw std::runtime_error(SDL_GetError());
+    struct RestoreBlend {
+      SDL_Surface &source;
+      SDL_BlendMode blend;
+      ~RestoreBlend() { SDL_SetSurfaceBlendMode(&source, blend); }
+    } restore{source, blend};
+    if (!resized || !SDL_SetSurfaceBlendMode(&source, SDL_BLENDMODE_NONE) ||
+        !SDL_BlitSurfaceScaled(&source, src, resized.get(), nullptr,
+                               SDL_SCALEMODE_LINEAR))
+      throw std::runtime_error(SDL_GetError());
+    SDL_Rect point{target.x, target.y, 0, 0};
+    blit(*resized, dest, nullptr, &point, alpha, mask);
+  }
+  void drawObject(const Object &o, SurfaceRef dest, int scale) {
     int adjustX = 0, adjustY = 0;
-    for (int slot = 0; slot < 16; ++slot) {
-      adjustX += vm.machine().GetIntValue(
-          libreallive::IntMemRef(27, 0, id * 32 + slot * 2));
-      adjustY += vm.machine().GetIntValue(
-          libreallive::IntMemRef(27, 0, id * 32 + slot * 2 + 1));
+    for (const auto &adjustment : o.adjustments) {
+      adjustX += adjustment.x;
+      adjustY += adjustment.y;
     }
     if (!o.visible)
       return;
@@ -454,51 +1040,97 @@ struct AirRuntime::Impl {
       SDL_Rect r;
       ~Restore() { SDL_SetSurfaceClipRect(&s, &r); }
     } restore{dest, oldClip};
-    if (o.clipped)
-      SDL_SetSurfaceClipRect(&dest, &o.clip);
+    if (o.clipped) {
+      SDL_Rect clip{o.clip.x * scale, o.clip.y * scale, o.clip.w * scale,
+                    o.clip.h * scale};
+      SDL_SetSurfaceClipRect(&dest, &clip);
+    }
     if (o.width > 0 && o.height > 0) {
       auto fill = blank(o.width, o.height);
       SDL_FillSurfaceRect(fill.get(), nullptr,
                           SDL_MapSurfaceRGBA(fill.get(), o.colour.r, o.colour.g,
                                              o.colour.b, o.colour.a));
       SDL_Rect dst{o.x + adjustX, o.y + adjustY, 0, 0};
-      blit(*fill, dest, nullptr, &dst, o.alpha);
+      if (scale == 1)
+        blit(*fill, dest, nullptr, &dst, o.alpha);
+      else
+        scaledBlit(
+            *fill, dest, nullptr,
+            {dst.x * scale, dst.y * scale, o.width * scale, o.height * scale},
+            o.alpha);
       return;
     }
     if (!o.text.empty() && textbox && textbox->font) {
       auto decoded =
           decodeText(o.text, archive.Scenario(vm.scenario()).encoding());
+      const auto oldSize = TTF_GetFontSize(textbox->font.get());
+      if (!TTF_SetFontSize(textbox->font.get(), oldSize * scale))
+        throw std::runtime_error(SDL_GetError());
       SurfacePtr rendered(TTF_RenderText_Blended(textbox->font.get(),
                                                  decoded.data(), decoded.size(),
                                                  {255, 255, 255, 255}));
-      if (rendered) {
-        SDL_Rect dst{o.x + adjustX, o.y + adjustY, 0, 0};
-        blit(*rendered, dest, nullptr, &dst, o.alpha);
-      }
+      TTF_SetFontSize(textbox->font.get(), oldSize);
+      if (!rendered)
+        throw std::runtime_error(SDL_GetError());
+      SDL_Rect dst{(o.x + adjustX) * scale, (o.y + adjustY) * scale, 0, 0};
+      blit(*rendered, dest, nullptr, &dst, o.alpha);
       return;
     }
     if (!o.file.empty()) {
       auto &g = graphic(o.file);
       SDL_Rect src{0, 0, int(g.image.width), int(g.image.height)},
           dst{o.x + adjustX, o.y + adjustY, 0, 0};
+      const size_t pattern = g.image.regions.empty()
+                                 ? 0
+                                 : o.currentPattern(g.image.regions.size());
       if (!g.image.regions.empty()) {
-        auto &r = g.image.regions.at(
-            size_t(std::clamp(o.pattern, 0, int(g.image.regions.size() - 1))));
+        auto &r = g.image.regions.at(pattern);
         src = {r.atlasX, r.atlasY, r.x2 - r.x1 + 1, r.y2 - r.y1 + 1};
         dst.x -= r.originX;
         dst.y -= r.originY;
       }
-      blit(*g.surface, dest, &src, &dst, o.alpha);
+      if (scale == 1)
+        blit(*g.surface, dest, &src, &dst, o.alpha);
+      else {
+        auto &pixels = g.scaledPatterns[pattern];
+        if (!pixels) {
+          prepareGraphic(g);
+          auto &renderer = engine->GetRenderer();
+          struct Restore {
+            SDL_Renderer &renderer;
+            SDL_Texture *target;
+            ~Restore() { SDL_SetRenderTarget(&renderer, target); }
+          } restore{renderer, SDL_GetRenderTarget(&renderer)};
+          if (!SDL_SetRenderTarget(&renderer, &patternTexture(g, pattern)))
+            throw std::runtime_error(SDL_GetError());
+          pixels.reset(SDL_RenderReadPixels(&renderer, nullptr));
+          if (!pixels)
+            throw std::runtime_error(SDL_GetError());
+          if (pixels->format != SDL_PIXELFORMAT_RGBA32) {
+            SurfacePtr converted(
+                SDL_ConvertSurface(pixels.get(), SDL_PIXELFORMAT_RGBA32));
+            if (!converted)
+              throw std::runtime_error(SDL_GetError());
+            pixels = std::move(converted);
+          }
+        }
+        scaledBlit(*pixels, dest, nullptr,
+                   {dst.x * scale, dst.y * scale, src.w * scale, src.h * scale},
+                   o.alpha);
+      }
     }
   }
-  SurfacePtr compose() {
-    auto output = blank();
-    blit(surface(0), *output, nullptr, nullptr, 255, false);
+  SurfacePtr compose(int scale) {
+    refreshImageUpscaling();
+    auto output = blank(640 * scale, 480 * scale);
+    scaledBlit(scale == 1 ? surface(0) : dcRaster(dcImage(0), surface(0)),
+               *output, nullptr, {0, 0, output->w, output->h}, 255, false);
     for (auto &[id, o] : fg)
-      drawObject(id, o, *output);
+      if (o.text.empty())
+        drawObject(o, *output, scale);
     if (flashDuration > 0 &&
         SDL_GetTicks() - flashStart < Uint64(flashDuration)) {
-      auto colour = blank();
+      auto colour = blank(output->w, output->h);
       SDL_FillSurfaceRect(colour.get(), nullptr,
                           SDL_MapSurfaceRGBA(colour.get(), flashColour.r,
                                              flashColour.g, flashColour.b,
@@ -507,17 +1139,61 @@ struct AirRuntime::Impl {
           std::min(16, int((SDL_GetTicks() - flashStart) * 16 / flashDuration));
       blit(*colour, *output, nullptr, nullptr, (16 - step) * 255 / 16, true);
     }
+    if (zoom) {
+      const auto elapsed = SDL_GetTicks() - zoom->start;
+      if (elapsed >= zoom->animation.duration()) {
+        blit(*zoom->source, surface(0), &zoom->to, &zoom->destinationRect, 255,
+             true);
+        const SDL_Rect crop{zoom->to.x * scale, zoom->to.y * scale,
+                            zoom->to.w * scale, zoom->to.h * scale};
+        scaledBlit(
+            scale == 1 ? *zoom->source : dcRaster(zoom->image, *zoom->source),
+            *output, &crop,
+            {zoom->destinationRect.x * scale, zoom->destinationRect.y * scale,
+             zoom->destinationRect.w * scale, zoom->destinationRect.h * scale});
+        zoom.reset();
+      } else {
+        const auto source = zoom->animation.sample(double(elapsed));
+        SDL_Rect sourceCrop{int(std::lround(source.x)) * scale,
+                            int(std::lround(source.y)) * scale,
+                            int(std::lround(source.scaleX)) * scale,
+                            int(std::lround(source.scaleY)) * scale};
+        if (sourceCrop.w > 0 && sourceCrop.h > 0)
+          scaledBlit(
+              scale == 1 ? *zoom->source : dcRaster(zoom->image, *zoom->source),
+              *output, &sourceCrop,
+              {zoom->destinationRect.x * scale, zoom->destinationRect.y * scale,
+               zoom->destinationRect.w * scale,
+               zoom->destinationRect.h * scale});
+      }
+    }
     return output;
   }
-  void draw(RendererRef r) {
-    auto output = compose();
+  void drawSoftwareEffects(RendererRef r) {
+    const int scale = presentationScale();
+    auto output = compose(scale);
     if (transitionOld &&
         SDL_GetTicks() - transitionStart < Uint64(transitionMs)) {
-      auto mixed = blank();
-      blit(*transitionOld, *mixed, nullptr, nullptr, 255, false);
-      blit(*output, *mixed, nullptr, nullptr,
-           int(255.0 * (SDL_GetTicks() - transitionStart) / transitionMs));
-      output = std::move(mixed);
+      const double progress =
+          double(SDL_GetTicks() - transitionStart) / transitionMs;
+      auto old = blank(output->w, output->h);
+      scaledBlit(*transitionOld, *old, nullptr, {0, 0, old->w, old->h}, 255,
+                 false);
+      if (transitionStyle == 4 || transitionStyle == 5) {
+        for (int y = 0; y < output->h; ++y) {
+          auto *oldRow = static_cast<Uint8 *>(old->pixels) + y * old->pitch;
+          auto *newRow =
+              static_cast<Uint8 *>(output->pixels) + y * output->pitch;
+          for (int x = 0; x < output->w; ++x)
+            if (!transitionRevealsNewPixel(transitionStyle, progress, x / scale,
+                                           y / scale))
+              std::memcpy(newRow + x * 4, oldRow + x * 4, 4);
+        }
+      } else {
+        auto mixed = std::move(old);
+        blit(*output, *mixed, nullptr, nullptr, int(255.0 * progress));
+        output = std::move(mixed);
+      }
     } else
       transitionOld.reset();
     bool changed = !canvasPixels || canvasPixels->w != output->w ||
@@ -529,6 +1205,9 @@ struct AirRuntime::Impl {
                       static_cast<Uint8 *>(output->pixels) + y * output->pitch,
                       output->w * 4) != 0;
     if (changed) {
+      if (canvasTexture &&
+          (canvasTexture->w != output->w || canvasTexture->h != output->h))
+        canvasTexture.reset();
       if (!canvasTexture)
         canvasTexture.reset(SDL_CreateTexture(&r, SDL_PIXELFORMAT_RGBA32,
                                               SDL_TEXTUREACCESS_STREAMING,
@@ -536,10 +1215,128 @@ struct AirRuntime::Impl {
       if (!canvasTexture || !SDL_UpdateTexture(canvasTexture.get(), nullptr,
                                                output->pixels, output->pitch))
         throw std::runtime_error(SDL_GetError());
-      ++canvasSerial;
       canvasPixels = std::move(output);
-      if (auto *pipeline = Upscaling::forRenderer(r))
-        pipeline->process(*canvasTexture, canvasSerial);
+    }
+    ++renderStats.softwareEffectFrames;
+  }
+  std::string sceneFingerprint() {
+    std::ostringstream key;
+    key << dcGeneration << ' ' << dcImage(0).get();
+    for (const auto &[id, o] : fg) {
+      if (!o.visible || !o.text.empty())
+        continue;
+      key << ' ' << id << ' ' << std::quoted(o.file) << ' '
+          << std::quoted(o.text) << ' ' << o.x << ' ' << o.y << ' ' << o.alpha
+          << ' ' << o.width << ' ' << o.height << ' ' << int(o.colour.r) << ' '
+          << int(o.colour.g) << ' ' << int(o.colour.b) << ' ' << int(o.colour.a)
+          << ' ' << o.clipped << ' ' << o.clip.x << ' ' << o.clip.y << ' '
+          << o.clip.w << ' ' << o.clip.h;
+      for (const auto &adjustment : o.adjustments)
+        key << ' ' << adjustment.x << ' ' << adjustment.y;
+      if (!o.file.empty()) {
+        const auto count = graphic(o.file).image.regions.size();
+        key << ' ' << o.currentPattern(std::max(size_t(1), count));
+      }
+    }
+    const auto now = SDL_GetTicks();
+    if (transitionOld && transitionMs > 0 &&
+        now - transitionStart < Uint64(transitionMs)) {
+      const auto elapsed =
+          std::min<Uint64>(now - transitionStart, transitionMs);
+      const auto step = transitionStyle == 4 || transitionStyle == 5
+                            ? (elapsed * 64 + transitionMs - 1) / transitionMs
+                            : elapsed * 255 / transitionMs;
+      key << " transition " << transitionStart << ' ' << transitionStyle << ' '
+          << step;
+    }
+    if (zoom) {
+      const auto elapsed = double(now - zoom->start);
+      const auto crop = zoom->animation.sample(elapsed);
+      key << " zoom " << zoom->start << ' ' << zoom->image.get() << ' '
+          << zoom->destinationRect.x << ' ' << zoom->destinationRect.y << ' '
+          << zoom->destinationRect.w << ' ' << zoom->destinationRect.h << ' '
+          << std::lround(crop.x) << ' ' << std::lround(crop.y) << ' '
+          << std::lround(crop.scaleX) << ' ' << std::lround(crop.scaleY) << ' '
+          << (elapsed >= zoom->animation.duration());
+    }
+    if (flashDuration > 0)
+      key << " flash " << flashStart << ' ' << int(flashColour.r) << ' '
+          << int(flashColour.g) << ' ' << int(flashColour.b) << ' '
+          << std::min<Uint64>(16, (now - flashStart) * 16 / flashDuration);
+    return key.str();
+  }
+  void drawScriptText(RendererRef r, const SDL_FRect &scene) {
+    if (!textbox || !textbox->font)
+      return;
+    SDL_Rect oldClip{};
+    const bool clipped = SDL_RenderClipEnabled(&r);
+    SDL_GetRenderClipRect(&r, &oldClip);
+    struct RestoreClip {
+      RendererRef renderer;
+      SDL_Rect clip;
+      bool enabled;
+      ~RestoreClip() {
+        SDL_SetRenderClipRect(&renderer, enabled ? &clip : nullptr);
+      }
+    } restore{r, oldClip, clipped};
+    for (const auto &[id, o] : fg) {
+      if (!o.visible || o.text.empty())
+        continue;
+      const auto decoded =
+          decodeText(o.text, archive.Scenario(vm.scenario()).encoding());
+      auto &texture = objectTextTextures[{decoded, 1}];
+      if (!texture) {
+        SurfacePtr pixels(TTF_RenderText_Blended(textbox->font.get(),
+                                                 decoded.data(), decoded.size(),
+                                                 {255, 255, 255, 255}));
+        if (!pixels)
+          throw std::runtime_error(SDL_GetError());
+        texture.reset(SDL_CreateTextureFromSurface(&r, pixels.get()));
+        if (!texture)
+          throw std::runtime_error(SDL_GetError());
+        ++renderStats.textureUploads;
+      }
+      SDL_FRect area{scene.x + o.x, scene.y + o.y, float(texture->w),
+                     float(texture->h)};
+      for (const auto &adjustment : o.adjustments) {
+        area.x += adjustment.x;
+        area.y += adjustment.y;
+      }
+      SDL_Rect clip = oldClip;
+      if (o.clipped) {
+        clip = {int(scene.x) + o.clip.x, int(scene.y) + o.clip.y, o.clip.w,
+                o.clip.h};
+        if (clipped)
+          SDL_GetRectIntersection(&oldClip, &clip, &clip);
+      }
+      if (!SDL_SetRenderClipRect(&r, o.clipped || clipped ? &clip : nullptr) ||
+          !SDL_SetTextureAlphaMod(texture.get(),
+                                  Uint8(std::clamp(o.alpha, 0, 255))) ||
+          !SDL_RenderTexture(&r, texture.get(), nullptr, &area))
+        throw std::runtime_error(SDL_GetError());
+    }
+  }
+  void draw(RendererRef r) {
+    refreshImageUpscaling();
+    const bool softwareEffect =
+        transitionOld && (transitionStyle == 4 || transitionStyle == 5) &&
+        !prepareDither(r);
+    const bool upscale = imageUpscaling.enabled();
+    const auto key = sceneFingerprint();
+    if (!upscale || !filteredScene || sceneKey != key) {
+      if (softwareEffect)
+        drawSoftwareEffects(r);
+      else
+        drawHardware(r, 1);
+      if (upscale) {
+        auto *native =
+            softwareEffect ? canvasTexture.get() : compositionTexture.get();
+        filteredScene =
+            engine->GetUpscaler().scaled(*native, imageUpscaling.factor);
+        ++renderStats.filteredSceneFrames;
+        sceneBackground = dcImage(0);
+        sceneKey = key;
+      }
     }
     SDL_FRect destination{0, 0, 640, 480};
     auto elapsed = SDL_GetTicks() - shakeStart;
@@ -551,8 +1348,12 @@ struct AirRuntime::Impl {
       }
       elapsed -= step[2];
     }
-    RenderUpscaledTexture(&r, canvasTexture.get(), nullptr, &destination,
-                          canvasSerial);
+    auto *display = upscale          ? filteredScene.get()
+                    : softwareEffect ? canvasTexture.get()
+                                     : compositionTexture.get();
+    if (!SDL_RenderTexture(&r, display, nullptr, &destination))
+      throw std::runtime_error(SDL_GetError());
+    drawScriptText(r, destination);
     if (movie && movie->isOpen()) {
       movie->update(r);
       movie->render(r, {0, 0, 640, 480});
@@ -579,7 +1380,7 @@ struct AirRuntime::Impl {
   }
   void play(PcmPlayer &p, const std::string &id, const std::string &channel,
             bool loop = false, int64_t start = 0, int64_t end = 0,
-            int64_t loopStart = 0) {
+            int64_t loopStart = 0, int64_t offsetMilliseconds = 0) {
     auto a = assets->loadAudio(id);
     SDL_AudioSpec target{SDL_AUDIO_S16, a.spec.channels, a.spec.freq};
     Uint8 *converted = nullptr;
@@ -607,8 +1408,14 @@ struct AirRuntime::Impl {
       musicFrames = clip.samples.size() / clip.channels;
     }
     clip.loop = loop;
-    clip.startFrame = std::min<size_t>(std::max<int64_t>(0, start),
-                                       clip.samples.size() / clip.channels);
+    if (offsetMilliseconds < 0)
+      throw std::invalid_argument("Negative AIR music position");
+    const auto offsetFrames = int64_t(offsetMilliseconds) * target.freq / 1000;
+    if (offsetFrames > std::numeric_limits<int64_t>::max() - start)
+      throw std::overflow_error("AIR music position is too large");
+    clip.startFrame =
+        std::min<size_t>(std::max<int64_t>(0, start + offsetFrames),
+                         clip.samples.size() / clip.channels);
     clip.loopStart = std::min<size_t>(std::max<int64_t>(0, loopStart),
                                       clip.samples.size() / clip.channels);
     if (!p.Play(engine->GetAudio().channel(channel), std::move(clip)))
@@ -630,6 +1437,22 @@ struct AirRuntime::Impl {
     if (i == frames.end())
       return 0;
     auto &f = i->second;
+    if (f.loop) {
+      if (f.duration <= 0)
+        return f.to;
+      const int distance = std::abs(f.to - f.from);
+      if (distance == 0)
+        return f.from;
+      const Uint64 now = SDL_GetTicks();
+      const double interval = double(f.duration) / distance;
+      const double elapsed = double(now - f.lastCheck);
+      f.value += (f.to >= f.from ? 1 : -1) * elapsed / interval;
+      if ((f.to >= f.from && f.value >= f.to) ||
+          (f.to < f.from && f.value <= f.to))
+        f.value = f.from;
+      f.lastCheck = now;
+      return int(f.value);
+    }
     double t = f.duration > 0
                    ? std::min(1., double(SDL_GetTicks() - f.start) / f.duration)
                    : 1.;
@@ -654,8 +1477,7 @@ struct AirRuntime::Impl {
                skipMode = false;
              autoDeadline = 0;
            }},
-          {{616, 444, 12, 16},
-           [this] {
+          {{616, 444, 12, 16}, [this] {
              skipMode = !skipMode;
              if (skipMode)
                autoMode = false;
@@ -683,6 +1505,7 @@ struct AirRuntime::Impl {
       bg.clear();
       dc.clear();
       transitionOld.reset();
+      zoom.reset();
       shake.clear();
       flashDuration = 0;
       editFields.clear();
@@ -740,6 +1563,10 @@ struct AirRuntime::Impl {
            runtime.GetState() == GameState::Menu && !pause &&
            !choice->isActive() && error.empty();
   }
+  bool syscomAvailable() const {
+    return std::any_of(syscomEntries.begin(), syscomEntries.end(),
+                       [](Uint8 state) { return state != 0; });
+  }
   // Other loops in SEEN 9032 poll intA and must stay pointer-only; the title
   // menu is the poll that writes the button register intF[1003].
   bool titlePoll(const libreallive::CommandElement &c) {
@@ -754,8 +1581,8 @@ struct AirRuntime::Impl {
       mouseY = titleInput.mouseY();
       return true;
     }
-    if (pause && e.type == SDL_EVENT_KEY_DOWN && !e.key.repeat &&
-        e.key.key == SDLK_ESCAPE) {
+    if (syscomAvailable() && pause && e.type == SDL_EVENT_KEY_DOWN &&
+        !e.key.repeat && e.key.key == SDLK_ESCAPE) {
       GetInGameMenuRuntime(*engine).open();
       return true;
     }
@@ -848,7 +1675,8 @@ struct AirRuntime::Impl {
       b = e.type == SDL_EVENT_MOUSE_BUTTON_DOWN ? 1 : 2;
     }
     if (e.type == SDL_EVENT_KEY_DOWN && e.key.key == SDLK_ESCAPE) {
-      GetInGameMenuRuntime(*engine).toggle();
+      if (syscomAvailable())
+        GetInGameMenuRuntime(*engine).toggle();
       return true;
     }
     bool advance =
@@ -972,11 +1800,15 @@ bool AirRuntime::Impl::command(const libreallive::CommandElement &c) {
     case 116:
       timers[value(c, 1)] = SDL_GetTicks() - value(c, 0);
       return true;
+    case 111:
     case 121: {
-      int target = value(c, 0), timer = value(c, 1) + 256;
-      int elapsed = int(SDL_GetTicks() - timers[timer]);
-      if (elapsed < target)
-        wait(target - elapsed);
+      const int target = value(c, 0);
+      if (target < 0)
+        throw std::runtime_error("Negative AIR timer wait target");
+      const int timer = value(c, 1) + (op == 121 ? 256 : 0);
+      const Uint64 elapsed = SDL_GetTicks() - timers[timer];
+      if (Uint64(target) > elapsed)
+        wait(int(Uint64(target) - elapsed));
       return true;
     }
     case 130:
@@ -1023,6 +1855,7 @@ bool AirRuntime::Impl::command(const libreallive::CommandElement &c) {
         assign(c, i, assets->settings().integer("WINDOW_ATTR", 0, i));
       return true;
     case 600:
+    case 601:
     case 620: {
       for (int i = 0; i < c.GetParamCount(); ++i) {
         auto raw = c.GetParam(i);
@@ -1034,6 +1867,9 @@ bool AirRuntime::Impl::command(const libreallive::CommandElement &c) {
         frames[key] = {p[1].GetIntegerValue(machine),
                        p[2].GetIntegerValue(machine),
                        p[3].GetIntegerValue(machine), SDL_GetTicks()};
+        frames[key].loop = op == 601;
+        frames[key].value = frames[key].from;
+        frames[key].lastCheck = frames[key].start;
       }
       return true;
     }
@@ -1047,9 +1883,12 @@ bool AirRuntime::Impl::command(const libreallive::CommandElement &c) {
         int key = p.at(0).GetIntegerValue(machine) + (op == 630 ? 256 : 0);
         p.at(1).SetIntegerValue(machine, frameValue(key));
         auto f = frames.find(key);
-        if (f != frames.end())
+        if (f != frames.end()) {
+          active |= f->second.loop && f->second.duration > 0;
           active |=
+              !f->second.loop && f->second.duration > 0 &&
               SDL_GetTicks() - f->second.start < Uint64(f->second.duration);
+        }
       }
       machine.set_store_register(active);
       return true;
@@ -1071,8 +1910,24 @@ bool AirRuntime::Impl::command(const libreallive::CommandElement &c) {
       return true;
     case 1211:
     case 1212:
+      if (c.GetParamCount() == 0) {
+        syscomEntries.fill(op == 1211 ? 1 : 0);
+        return true;
+      }
+      for (int i = 0; i < c.GetParamCount(); ++i) {
+        const int entry = value(c, i);
+        if (entry < 0 || entry >= int(syscomEntries.size()))
+          throw std::out_of_range("AIR system menu entry");
+        syscomEntries[entry] = op == 1211 ? 1 : 0;
+      }
+      return true;
     case 3501:
     case 3502:
+      return true;
+    // The port's script-driven title UI replaces these original-only hooks.
+    case 300:
+    case 1231:
+    case 3503:
       return true;
     case 1502:
       machine.set_store_register(0);
@@ -1161,11 +2016,13 @@ bool AirRuntime::Impl::command(const libreallive::CommandElement &c) {
     std::string name = str(c, 0);
     if (name == "???")
       name = lastGraphic;
-    transitionOld = compose();
+    transitionOld = compose(presentationScale());
+    transitionTexture.reset();
     transitionStart = SDL_GetTicks();
     std::ostringstream key;
     key << "SEL." << std::setw(3) << std::setfill('0') << value(c, 1);
     transitionMs = assets->settings().integer(key.str(), 0, 6);
+    transitionStyle = assets->settings().integer(key.str(), 0, 7);
     wait(transitionMs);
     auto &g = graphic(name);
     blit(*g.surface, surface(0));
@@ -1188,6 +2045,21 @@ bool AirRuntime::Impl::command(const libreallive::CommandElement &c) {
       if (!assets->contains(id))
         id += ".NWA";
       play(bgm, id, "BGM", op == 0, t.from, t.to, t.loop);
+      return true;
+    }
+    if (op == 1002) {
+      auto name = str(c, 0);
+      for (auto &ch : name)
+        if (ch >= 'A' && ch <= 'Z')
+          ch += 32;
+      auto track = audio.tracks.find(name);
+      if (track == audio.tracks.end())
+        throw std::runtime_error("AIR BGM missing: " + name);
+      std::string id = "BGM/" + track->second.file;
+      if (!assets->contains(id))
+        id += ".NWA";
+      play(bgm, id, "BGM", false, track->second.from, track->second.to,
+           track->second.loop, value(c, 1));
       return true;
     }
     if (op == 105 || op == 106) {
@@ -1215,9 +2087,7 @@ bool AirRuntime::Impl::command(const libreallive::CommandElement &c) {
   if (type == 1 && m == 23 && op == 0) {
     auto p = voices.find(value(c, 0));
     if (p)
-      play(voice,
-           std::filesystem::relative(*p, assets->directory()).generic_string(),
-           "Voice");
+      play(voice, p->generic_string(), "Voice");
     else
       throw std::runtime_error("AIR voice missing");
     return true;
@@ -1259,13 +2129,31 @@ bool AirRuntime::Impl::command(const libreallive::CommandElement &c) {
     movie->open(*assets, id, false, "BGM");
     return true;
   }
+  if (type == 1 && (m == 73 || m == 74) && op == 2001) {
+    const int object = value(c, 0);
+    if (object < 0 || object > 30000)
+      throw std::out_of_range("AIR animation object");
+    const int frameMs = value(c, 1);
+    if (frameMs <= 0)
+      throw std::out_of_range("AIR animation frame duration");
+    auto &objects = m == 73 ? fg : bg;
+    auto found = objects.find(object);
+    if (found != objects.end() && !found->second.file.empty()) {
+      auto &o = found->second;
+      o.frameMs = frameMs;
+      o.animationElapsed = 0;
+    }
+    return true;
+  }
   if (type == 1 && (m == 71 || m == 72)) {
     auto &objects = m == 71 ? fg : bg;
     auto &o = objects[value(c, 0)];
     if (op == 1000) {
       o.width = o.height = 0;
+      o.frameMs = 0;
+      o.animationElapsed = 0;
       o.file = str(c, 1);
-      graphic(o.file);
+      prepareGraphic(graphic(o.file));
       if (over >= 1)
         o.visible = value(c, 2);
       if (over >= 2) {
@@ -1278,6 +2166,8 @@ bool AirRuntime::Impl::command(const libreallive::CommandElement &c) {
     }
     if (op == 1101 && over == 2) {
       o.file.clear();
+      o.frameMs = 0;
+      o.animationElapsed = 0;
       if (c.GetParamCount() == 6) {
         o.x = value(c, 1);
         o.y = value(c, 2);
@@ -1295,6 +2185,8 @@ bool AirRuntime::Impl::command(const libreallive::CommandElement &c) {
     }
     if (op == 1200) {
       o.file.clear();
+      o.frameMs = 0;
+      o.animationElapsed = 0;
       o.width = o.height = 0;
       o.text = str(c, 1);
       return true;
@@ -1312,10 +2204,7 @@ bool AirRuntime::Impl::command(const libreallive::CommandElement &c) {
       int id = value(c, 0), slot = value(c, 1);
       if (id < 0 || id > 30000 || slot < 0 || slot >= 16)
         throw std::out_of_range("AIR object adjustment");
-      machine.SetIntValue(libreallive::IntMemRef(27, 0, id * 32 + slot * 2),
-                          value(c, 2));
-      machine.SetIntValue(libreallive::IntMemRef(27, 0, id * 32 + slot * 2 + 1),
-                          value(c, 3));
+      o.adjustments[slot] = {value(c, 2), value(c, 3)};
       return true;
     }
     case 1003:
@@ -1369,7 +2258,8 @@ bool AirRuntime::Impl::command(const libreallive::CommandElement &c) {
         w = g.image.sourceWidth;
         h = g.image.sourceHeight;
         if (!g.image.regions.empty()) {
-          auto &r = g.image.regions.at(size_t(o.pattern));
+          auto &r =
+              g.image.regions.at(o.currentPattern(g.image.regions.size()));
           w = r.x2 - r.x1 + 1;
           h = r.y2 - r.y1 + 1;
         }
@@ -1380,8 +2270,17 @@ bool AirRuntime::Impl::command(const libreallive::CommandElement &c) {
     }
   }
   if (type == 1 && m == 60 && op == 2) {
-    int id = value(c, 0);
-    bg[id] = fg[id];
+    const int first = value(c, 0);
+    const int last = c.GetParamCount() > 1 ? value(c, 1) : first;
+    if (first < 0 || last < 0 || first > 30000 || last > 30000)
+      throw std::out_of_range("AIR object copy range");
+    for (int id = first; id <= last; ++id)
+      bg[id] = fg[id];
+    return true;
+  }
+  if (type == 1 && m == 60 && op == 1 && over == 0) {
+    // AIR's objEraseWipeCopy(0) matches the port's default promotion behavior.
+    value(c, 0);
     return true;
   }
   if (type == 1 && m == 62 && op == 2) {
@@ -1423,11 +2322,13 @@ bool AirRuntime::Impl::command(const libreallive::CommandElement &c) {
       return true;
     }
     if (op == 75 || op == 77) {
-      transitionOld = compose();
+      transitionOld = compose(presentationScale());
+      transitionTexture.reset();
       transitionStart = SDL_GetTicks();
       std::ostringstream selector;
       selector << "SEL." << std::setw(3) << std::setfill('0') << value(c, 1);
       transitionMs = assets->settings().integer(selector.str(), 0, 6);
+      transitionStyle = assets->settings().integer(selector.str(), 0, 7);
       if (op == 75) {
         auto name = str(c, 0);
         if (name == "???")
@@ -1485,6 +2386,45 @@ bool AirRuntime::Impl::command(const libreallive::CommandElement &c) {
       wait(transitionMs);
       return true;
     }
+    if (op == 402) {
+      if (c.GetParamCount() < 14)
+        throw std::runtime_error("Malformed AIR grpZoom");
+      const auto bounds = [&](int first) {
+        SDL_Rect rect{value(c, first), value(c, first + 1),
+                      value(c, first + 2) - value(c, first),
+                      value(c, first + 3) - value(c, first + 1)};
+        if (rect.w <= 0 || rect.h <= 0)
+          throw std::runtime_error("Invalid AIR grpZoom rectangle");
+        return rect;
+      };
+      const auto from = bounds(0);
+      const auto to = bounds(4);
+      const int sourceDC = value(c, 8);
+      if (sourceDC < 0 || sourceDC > 15)
+        throw std::out_of_range("AIR grpZoom source DC");
+      const auto sourceRect = bounds(9);
+      auto destinationRect = sourceRect;
+      const int duration = std::max(0, value(c, 13));
+      SurfacePtr source(SDL_DuplicateSurface(&surface(sourceDC)));
+      if (!source)
+        throw std::runtime_error(SDL_GetError());
+      if (!duration) {
+        blit(surface(sourceDC), surface(0), &to, &destinationRect, 255, true);
+        return true;
+      }
+      zoom = ZoomEffect{
+          std::move(source),
+          dcImage(sourceDC),
+          to,
+          destinationRect,
+          TransformAnimation(
+              {float(from.x), float(from.y), float(from.w), float(from.h)},
+              {float(to.x), float(to.y), float(to.w), float(to.h)}, duration),
+          SDL_GetTicks()};
+      zoomTexture.reset();
+      wait(duration);
+      return true;
+    }
     if (op == 32) {
       std::ostringstream key;
       key << "SHAKE." << std::setw(3) << std::setfill('0') << value(c, 0);
@@ -1501,18 +2441,27 @@ bool AirRuntime::Impl::command(const libreallive::CommandElement &c) {
       wait(time);
       return true;
     }
-    if (op == 300 || op == 301 || op == 1300) {
-      auto &s = surface(value(c, 4));
+    if (op == 300 || op == 301 || op == 1300 || op == 1301) {
+      const int id = value(c, 4);
+      auto &s = surface(id);
       SDL_Rect rect{value(c, 0), value(c, 1), value(c, 2), value(c, 3)};
       if (op < 1000) {
         rect.w -= rect.x;
         rect.h -= rect.y;
       }
+      auto image = std::make_shared<DCImage>();
+      image->kind =
+          op == 301 || op == 1301 ? DCImage::Kind::Gray : DCImage::Kind::Invert;
+      image->width = s.w;
+      image->height = s.h;
+      image->crop = rect;
+      image->previous = dcImage(id);
+      dcImages[id] = std::move(image);
       for (int y = std::max(0, rect.y); y < std::min(s.h, rect.y + rect.h); ++y)
         for (int x = std::max(0, rect.x); x < std::min(s.w, rect.x + rect.w);
              ++x) {
           auto *p = static_cast<Uint8 *>(s.pixels) + y * s.pitch + x * 4;
-          if (op == 301) {
+          if (op == 301 || op == 1301) {
             auto gray = (77 * p[0] + 150 * p[1] + 29 * p[2]) >> 8;
             p[0] = p[1] = p[2] = Uint8(gray);
           } else {
@@ -1528,6 +2477,15 @@ bool AirRuntime::Impl::command(const libreallive::CommandElement &c) {
       auto &dest = surface(value(c, 9));
       SDL_Rect sr{value(c, 0), value(c, 1), value(c, 2), value(c, 3)},
           dr{value(c, 5), value(c, 6), value(c, 7), value(c, 8)};
+      auto image = std::make_shared<DCImage>();
+      image->kind = DCImage::Kind::Copy;
+      image->width = dest.w;
+      image->height = dest.h;
+      image->crop = sr;
+      image->destination = dr;
+      image->source = dcImage(value(c, 4));
+      image->previous = dcImage(value(c, 9));
+      dcImages[value(c, 9)] = std::move(image);
       SDL_SetSurfaceBlendMode(&source, SDL_BLENDMODE_NONE);
       SDL_BlitSurfaceScaled(&source, &sr, &dest, &dr, SDL_SCALEMODE_LINEAR);
       return true;
@@ -1538,8 +2496,10 @@ bool AirRuntime::Impl::command(const libreallive::CommandElement &c) {
       int n = value(c, 1);
       if (n < 0 || n > 15)
         throw std::runtime_error("Invalid AIR DC");
-      if (n > 1 && over < 2)
+      if (n > 1 && over < 2) {
         dc[n] = blank(g.image.width, g.image.height);
+        dcImages.erase(n);
+      }
       SDL_Rect source{value(c, 2), value(c, 3), value(c, 4), value(c, 5)},
           dest{value(c, 6), value(c, 7), 0, 0};
       if (over >= 2)
@@ -1573,11 +2533,13 @@ bool AirRuntime::Impl::command(const libreallive::CommandElement &c) {
         throw std::runtime_error("Cannot free AIR display DC");
       if (n == 1) {
         dc[1] = blank();
+        dcImages.erase(1);
         return true;
       }
       if (n < 0 || n > 15)
         throw std::runtime_error("Invalid AIR DC");
       dc.erase(n);
+      dcImages.erase(n);
       return true;
     }
     if (op == 31) {
@@ -1585,21 +2547,27 @@ bool AirRuntime::Impl::command(const libreallive::CommandElement &c) {
       SDL_FillSurfaceRect(
           &s, nullptr,
           SDL_MapSurfaceRGBA(&s, value(c, 1), value(c, 2), value(c, 3), 255));
+      dcImages.erase(value(c, 0));
       return true;
     }
     if (op == 1053 || op == 73 || op == 74) {
       std::string name = str(c, 0);
       if (name == "???")
         name = lastGraphic;
-      transitionOld = compose();
+      transitionOld = compose(presentationScale());
+      transitionTexture.reset();
       transitionStart = SDL_GetTicks();
       std::ostringstream selKey;
       selKey << "SEL." << std::setw(3) << std::setfill('0') << value(c, 1);
       const auto sel = selKey.str();
       transitionMs =
           over == 4 ? value(c, 7) : assets->settings().integer(sel, 500, 6);
+      transitionStyle =
+          over == 4 ? value(c, 8) : assets->settings().integer(sel, 0, 7);
       wait(transitionMs);
-      blit(surface(0), surface(1));
+      // "?" reuses DC1; copying DC0 here would destroy that prepared image.
+      if (name != "?")
+        blit(surface(0), surface(1));
       if (name != "?") {
         if (op != 74)
           lastGraphic = name;
@@ -1621,8 +2589,8 @@ bool AirRuntime::Impl::command(const libreallive::CommandElement &c) {
           dst = {assets->settings().integer(sel, 0, 4),
                  assets->settings().integer(sel, 0, 5), 0, 0};
         }
-        blit(*g.surface, surface(1), &sr, &dst, 255, op == 74);
-      } else {
+        blit(*g.surface, surface(1), &sr, &dst,
+             over == 4 ? value(c, 15, 255) : 255, op == 74);
       }
       blit(surface(1), surface(0), nullptr, nullptr, 255, false);
       fg = std::move(bg);
@@ -1696,6 +2664,9 @@ AirRuntime::AirRuntime(std::shared_ptr<AirAssets> a, int scene)
       impl(std::make_unique<Impl>(*this, std::move(a), scene)) {}
 AirRuntime::~AirRuntime() = default;
 std::string AirRuntime::diagnostic() const { return impl->error; }
+AirRuntime::RenderStats AirRuntime::renderStats() const {
+  return impl->renderStats;
+}
 void AirRuntime::shutdown() {
   impl->bgm.Stop();
   impl->voice.Stop();
@@ -1703,6 +2674,14 @@ void AirRuntime::shutdown() {
   if (impl->movie)
     impl->movie->stop();
   impl->graphics.clear();
+  impl->dcImages.clear();
+  impl->compositionTexture.reset();
+  impl->backgroundTexture.reset();
+  impl->zoomTexture.reset();
+  impl->transitionTexture.reset();
+  impl->ditherTexture.reset();
+  impl->maskedTransitionTexture.reset();
+  impl->objectTextTextures.clear();
   ClearScenes();
   impl->textbox.reset();
   impl->choice.reset();
@@ -1729,6 +2708,15 @@ void AirRuntime::update() {
   const auto audioNow = SDL_GetTicks();
   const auto delta = i.audioTick ? audioNow - i.audioTick : 0;
   i.audioTick = audioNow;
+  if (!paused) {
+    const auto animate = [&](std::map<int, Object> &objects) {
+      for (auto &[id, o] : objects)
+        if (o.frameMs > 0)
+          o.animationElapsed += delta;
+    };
+    animate(i.fg);
+    animate(i.bg);
+  }
   if (paused && i.autoDeadline)
     i.autoDeadline += delta;
   if (!paused && i.fadeDuration > 0) {
@@ -1809,7 +2797,7 @@ void AirRuntime::saveGame(const std::string &path) {
     throw std::runtime_error(
         "Salve durante uma fala, após terminar a transição.");
   std::ostringstream out;
-  out << "AIR-PRESENTATION-2\n"
+  out << "AIR-PRESENTATION-5\n"
       << std::quoted(i.vm.snapshot()) << '\n'
       << std::quoted(i.dialogue) << ' ' << std::quoted(i.speakerName) << ' '
       << i.pauseKind << '\n';
@@ -1829,13 +2817,18 @@ void AirRuntime::saveGame(const std::string &path) {
       << i.fadeElapsed << ' ' << i.fadeDuration << ' ' << i.fadeStops << '\n';
   auto objects = [&](const std::map<int, Object> &objects) {
     out << objects.size() << '\n';
-    for (auto &[id, o] : objects)
+    for (auto &[id, o] : objects) {
       out << id << ' ' << std::quoted(o.file) << ' ' << std::quoted(o.text)
           << ' ' << o.x << ' ' << o.y << ' ' << o.pattern << ' ' << o.alpha
           << ' ' << o.visible << ' ' << o.width << ' ' << o.height << ' '
           << int(o.colour.r) << ' ' << int(o.colour.g) << ' ' << int(o.colour.b)
           << ' ' << int(o.colour.a) << ' ' << o.clipped << ' ' << o.clip.x
-          << ' ' << o.clip.y << ' ' << o.clip.w << ' ' << o.clip.h << '\n';
+          << ' ' << o.clip.y << ' ' << o.clip.w << ' ' << o.clip.h << ' '
+          << o.frameMs << ' ' << o.animationElapsed;
+      for (const auto &adjustment : o.adjustments)
+        out << ' ' << adjustment.x << ' ' << adjustment.y;
+      out << '\n';
+    }
   };
   objects(i.fg);
   objects(i.bg);
@@ -1850,6 +2843,41 @@ void AirRuntime::saveGame(const std::string &path) {
         << '\n';
   }
   out << std::quoted(i.saveName) << '\n';
+  std::map<const DCImage *, size_t> indices;
+  std::vector<std::shared_ptr<DCImage>> images;
+  const auto collect = [&](const auto &self,
+                           const std::shared_ptr<DCImage> &image) -> void {
+    if (!image || indices.count(image.get()))
+      return;
+    self(self, image->source);
+    self(self, image->previous);
+    images.push_back(image);
+    indices.emplace(image.get(), images.size());
+  };
+  for (const auto &[id, pixels] : i.dc)
+    collect(collect, i.dcImage(id));
+  out << images.size() << '\n';
+  for (const auto &image : images) {
+    const auto index = [&](const std::shared_ptr<DCImage> &child) {
+      return child ? indices.at(child.get()) : 0;
+    };
+    std::string pixels;
+    if (image->native)
+      for (int y = 0; y < image->native->h; ++y)
+        pixels.append(static_cast<const char *>(image->native->pixels) +
+                          y * image->native->pitch,
+                      size_t(image->native->w) * 4);
+    out << int(image->kind) << ' ' << image->width << ' ' << image->height
+        << ' ' << image->alpha << ' ' << image->mask << ' ' << image->crop.x
+        << ' ' << image->crop.y << ' ' << image->crop.w << ' ' << image->crop.h
+        << ' ' << image->destination.x << ' ' << image->destination.y << ' '
+        << image->destination.w << ' ' << image->destination.h << ' '
+        << index(image->source) << ' ' << index(image->previous) << ' '
+        << std::quoted(image->graphic) << ' ' << std::quoted(pixels) << '\n';
+  }
+  out << i.dc.size() << '\n';
+  for (const auto &[id, pixels] : i.dc)
+    out << id << ' ' << indices.at(i.dcImage(id).get()) << '\n';
   VNSave save;
   save.nodeId = i.vm.scenario();
   save.gameData = out.str();
@@ -1873,14 +2901,16 @@ void AirRuntime::loadGame(const std::string &path) {
   if (!(in >> version >> std::quoted(state) >> std::quoted(dialogue) >>
         std::quoted(speaker) >> pauseKind >> std::quoted(music) >> loop >>
         end >> loopStart >> position) ||
-      (version != "AIR-PRESENTATION-1" && version != "AIR-PRESENTATION-2") ||
+      (version != "AIR-PRESENTATION-1" && version != "AIR-PRESENTATION-2" &&
+       version != "AIR-PRESENTATION-3" && version != "AIR-PRESENTATION-4" &&
+       version != "AIR-PRESENTATION-5") ||
       (pauseKind != 17 && pauseKind != 205) || position < 0 ||
       !std::isfinite(position))
     invalid();
   float gain = 1, fadeFrom = 1, fadeTo = 1;
   int fadeElapsed = 0, fadeDuration = 0;
   bool fadeStops = false;
-  if (version == "AIR-PRESENTATION-2" &&
+  if (version != "AIR-PRESENTATION-1" &&
       (!(in >> gain >> fadeFrom >> fadeTo >> fadeElapsed >> fadeDuration >>
          fadeStops) ||
        !std::isfinite(gain) || !std::isfinite(fadeFrom) ||
@@ -1906,6 +2936,14 @@ void AirRuntime::loadGame(const std::string &path) {
           g < 0 || g > 255 || b < 0 || b > 255 || a < 0 || a > 255)
         invalid();
       o.colour = {Uint8(r), Uint8(g), Uint8(b), Uint8(a)};
+      if ((version == "AIR-PRESENTATION-3" || version == "AIR-PRESENTATION-4" ||
+           version == "AIR-PRESENTATION-5") &&
+          (!(in >> o.frameMs >> o.animationElapsed) || o.frameMs < 0))
+        invalid();
+      if (version == "AIR-PRESENTATION-4" || version == "AIR-PRESENTATION-5")
+        for (auto &adjustment : o.adjustments)
+          if (!(in >> adjustment.x >> adjustment.y))
+            invalid();
       if (!o.file.empty())
         i.graphic(o.file);
       if (!objects.emplace(id, std::move(o)).second)
@@ -1935,10 +2973,75 @@ void AirRuntime::loadGame(const std::string &path) {
       invalid();
   }
   std::string saveName;
+  std::map<int, std::shared_ptr<DCImage>> dcImages;
   in >> std::ws;
+  if (version == "AIR-PRESENTATION-5" && in.eof())
+    invalid();
   if (!in.eof()) {
     if (!(in >> std::quoted(saveName)))
       invalid();
+    if (version == "AIR-PRESENTATION-5") {
+      size_t count;
+      if (!(in >> count) || count > 65536)
+        invalid();
+      std::vector<std::shared_ptr<DCImage>> images(1);
+      for (size_t n = 0; n < count; ++n) {
+        auto image = std::make_shared<DCImage>();
+        int kind;
+        size_t source, previous;
+        std::string pixels;
+        if (!(in >> kind >> image->width >> image->height >> image->alpha >>
+              image->mask >> image->crop.x >> image->crop.y >> image->crop.w >>
+              image->crop.h >> image->destination.x >> image->destination.y >>
+              image->destination.w >> image->destination.h >> source >>
+              previous >> std::quoted(image->graphic) >> std::quoted(pixels)) ||
+            kind < 0 || kind > int(DCImage::Kind::Gray) || image->width <= 0 ||
+            image->height <= 0 || image->width > 8192 || image->height > 8192 ||
+            image->alpha < 0 || image->alpha > 255 || source >= images.size() ||
+            previous >= images.size())
+          invalid();
+        image->kind = DCImage::Kind(kind);
+        image->source = images[source];
+        image->previous = images[previous];
+        if ((image->kind == DCImage::Kind::Copy && !image->source) ||
+            ((image->kind == DCImage::Kind::Gray ||
+              image->kind == DCImage::Kind::Invert) &&
+             !image->previous) ||
+            (image->kind == DCImage::Kind::Pixels && pixels.empty()))
+          invalid();
+        if (image->kind == DCImage::Kind::Graphic) {
+          if (image->graphic.empty() || image->crop.w != image->width ||
+              image->crop.h != image->height)
+            invalid();
+          i.graphic(image->graphic);
+        }
+        if (!pixels.empty()) {
+          if (pixels.size() != size_t(image->width) * image->height * 4)
+            invalid();
+          total += pixels.size();
+          if (total > 256 * 1024 * 1024)
+            invalid();
+          image->native = blank(image->width, image->height);
+          for (int y = 0; y < image->height; ++y)
+            std::memcpy(static_cast<char *>(image->native->pixels) +
+                            y * image->native->pitch,
+                        pixels.data() + size_t(y) * image->width * 4,
+                        size_t(image->width) * 4);
+        }
+        images.push_back(std::move(image));
+      }
+      if (!(in >> count) || count != dc.size())
+        invalid();
+      for (size_t n = 0; n < count; ++n) {
+        int id;
+        size_t index;
+        if (!(in >> id >> index) || !dc.count(id) || index == 0 ||
+            index >= images.size() || images[index]->width != dc.at(id)->w ||
+            images[index]->height != dc.at(id)->h ||
+            !dcImages.emplace(id, images[index]).second)
+          invalid();
+      }
+    }
     in >> std::ws;
     if (!in.eof())
       invalid();
@@ -1946,6 +3049,19 @@ void AirRuntime::loadGame(const std::string &path) {
   if (!music.empty() && !i.assets->contains(music))
     invalid();
   i.vm.restore(state);
+  if (version != "AIR-PRESENTATION-4" && version != "AIR-PRESENTATION-5") {
+    const auto restoreAdjustments = [&](std::map<int, Object> &objects) {
+      for (auto &[id, o] : objects)
+        for (size_t slot = 0; slot < o.adjustments.size(); ++slot) {
+          o.adjustments[slot].x = i.vm.machine().GetIntValue(
+              libreallive::IntMemRef(27, 0, id * 32 + int(slot) * 2));
+          o.adjustments[slot].y = i.vm.machine().GetIntValue(
+              libreallive::IntMemRef(27, 0, id * 32 + int(slot) * 2 + 1));
+        }
+    };
+    restoreAdjustments(fg);
+    restoreAdjustments(bg);
+  }
   if (saveName.empty()) {
     std::size_t index = 0;
     for (const auto &element : i.archive.Scenario(i.vm.scenario())) {
@@ -1962,6 +3078,7 @@ void AirRuntime::loadGame(const std::string &path) {
   i.fg.swap(fg);
   i.bg.swap(bg);
   i.dc.swap(dc);
+  i.dcImages = std::move(dcImages);
   i.dialogue = std::move(dialogue);
   i.speakerName = std::move(speaker);
   i.saveName = std::move(saveName);
@@ -1970,6 +3087,9 @@ void AirRuntime::loadGame(const std::string &path) {
   i.deadline = 0;
   i.error.clear();
   i.transitionOld.reset();
+  i.transitionTexture.reset();
+  i.zoom.reset();
+  i.zoomTexture.reset();
   i.choice->hide();
   i.movie->stop();
   i.voice.Stop();
@@ -2091,6 +3211,9 @@ std::string AirRuntime::debugNode() const {
   return std::to_string(impl->vm.scenario()) + ":" +
          std::to_string(impl->vm.index());
 }
+std::string AirRuntime::nodeClockKey() const {
+  return std::to_string(impl->vm.scenario());
+}
 std::vector<DebugNode> AirRuntime::debugNodes() const {
   std::vector<DebugNode> nodes;
   for (auto n : impl->archive.ScenarioNumbers())
@@ -2119,8 +3242,21 @@ void AirRuntime::debugJumpToNode(const std::string &s) {
   impl->canvasTexture.reset();
   impl->canvasPixels.reset();
   impl->transitionOld.reset();
+  impl->transitionTexture.reset();
+  impl->zoom.reset();
+  impl->zoomTexture.reset();
   if (impl->textbox)
     impl->textbox->hide();
+}
+bool AirRuntime::debugStep() {
+  auto &i = *impl;
+  try {
+    return i.vm.step();
+  } catch (const std::exception &e) {
+    i.error = "AIR " + debugNode() + ": " + e.what();
+    SDL_Log("%s", i.error.c_str());
+    return false;
+  }
 }
 SDL_FPoint AirRuntime::sceneSize(const Scene &s) const {
   return s.designSpace() ? SDL_FPoint{1280, 720} : SDL_FPoint{640, 480};

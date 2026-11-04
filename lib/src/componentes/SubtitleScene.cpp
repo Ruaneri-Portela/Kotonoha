@@ -264,7 +264,7 @@ void SubtitleScene::render(RendererRef renderer, float) {
   int logicalWidth = 0, logicalHeight = 0;
   SDL_RendererLogicalPresentation presentation;
   if (!SDL_GetRenderLogicalPresentation(&renderer, &logicalWidth,
-                                       &logicalHeight, &presentation))
+                                        &logicalHeight, &presentation))
     throw std::runtime_error(SDL_GetError());
   if (presentation != SDL_LOGICAL_PRESENTATION_DISABLED) {
     SDL_FRect area{};

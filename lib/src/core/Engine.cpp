@@ -1,5 +1,5 @@
-#include <Kotonoha/componentes/InGameMenu.hpp>
 #include <Kotonoha/componentes/ForcedSubtitleRenderer.hpp>
+#include <Kotonoha/componentes/InGameMenu.hpp>
 #include <Kotonoha/componentes/SettingsMenu.hpp>
 #include <Kotonoha/componentes/VNBacklog.hpp>
 #include <Kotonoha/componentes/VNManager.hpp>
@@ -436,20 +436,56 @@ double Engine::activeNodeSeconds() {
   if (usesTimedNodeClock()) {
     return timeline->seconds();
   }
-  return node == clockNode ? nodeSeconds : 0;
+  return activeClockNode() == clockNode ? nodeSeconds : 0;
+}
+
+double Engine::activeEventSeconds() {
+  const auto node = activeNode();
+  if (node.empty())
+    return 0;
+  if (usesTimedNodeClock()) {
+    if (runtime.debugNode().empty())
+      return timeline->seconds();
+    if (runtime.nodeClockKey().empty()) {
+      if (auto seconds = runtime.debugNodeSeconds())
+        return *seconds;
+      throw std::logic_error("Timed native runtime has no node clock");
+    }
+  }
+  return node == clockEvent ? eventSeconds : 0;
+}
+
+std::string Engine::activeClockNode() {
+  const auto node = activeNode();
+  if (node.empty())
+    return {};
+  const auto key = runtime.nodeClockKey();
+  return key.empty() ? node : key;
 }
 
 void Engine::resetNodeClock() {
-  clockNode = activeNode();
+  clockNode = activeClockNode();
   nodeSeconds = 0;
+  clockEvent = activeNode();
+  eventSeconds = 0;
 }
 
 void Engine::synchronizeNodeClock(double delta) {
-  const auto node = activeNode();
-  if (node != clockNode)
-    resetNodeClock();
-  else if (!node.empty() && !isStoryPaused())
+  const auto event = activeNode();
+  if (event != clockEvent) {
+    clockEvent = event;
+    eventSeconds = 0;
+  } else if (!event.empty() && !isStoryPaused()) {
+    eventSeconds += delta;
+  }
+
+  const auto node = activeClockNode();
+  if (node != clockNode) {
+    clockNode = node;
+    nodeSeconds = 0;
+  } else if (!node.empty() && !isStoryPaused()) {
     nodeSeconds += delta;
+  }
 }
 
 void Engine::advanceTimeline(double seconds) {
@@ -461,11 +497,20 @@ void Engine::advanceTimeline(double seconds) {
     throw std::logic_error("Pause via MCP and close game/debug modals before "
                            "stepping an active timeline");
   if (runtime.advanceStoryTime(seconds)) {
-    const auto node = activeNode();
-    if (node == clockNode)
+    const auto event = activeNode();
+    if (!event.empty() && event == clockEvent)
+      eventSeconds += seconds;
+    else {
+      clockEvent = event;
+      eventSeconds = 0;
+    }
+    const auto node = activeClockNode();
+    if (!node.empty() && node == clockNode)
       nodeSeconds += seconds;
-    else
-      resetNodeClock();
+    else {
+      clockNode = node;
+      nodeSeconds = 0;
+    }
     frameClock.reset();
     return;
   }

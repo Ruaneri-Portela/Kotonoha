@@ -14,8 +14,8 @@ Launcher::Launcher(std::string settingsPath, std::string directory,
            {},
            "dir.txt",
            "Use your own School Days HQ retail data (29 GPKs), or an extracted "
-           "directory with Script/English. Data is read in place, never "
-           "copied."}) {
+           "directory with Script/English, or an ISO containing these files. "
+           "ISO data uses a temporary internal mount."}) {
   setAudioChannels({"BGM", "Voice", "SE", "Movie"});
   loadPath(std::move(directory));
   route =

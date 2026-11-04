@@ -29,7 +29,8 @@ void runTests() {
               resources / "game-assets",
           "Game asset directory");
 #if defined(KOTONOHA_IOS_SMOKE)
-  require(Kotonoha::preferredDataDirectory("platform-smoke").filename() == "Documents",
+  require(Kotonoha::preferredDataDirectory("platform-smoke").filename() ==
+              "Documents",
           "iOS external assets directory");
   const auto documents =
       Kotonoha::preferredDocumentsDirectory("platform-smoke");
@@ -105,7 +106,8 @@ bool execute() {
 
 #if defined(KOTONOHA_IOS_SMOKE)
 SDL_AppResult SDL_AppInit(void **, int, char **) {
-  SDL_SetAppMetadata("Kotonoha platform smoke", "1", "org.kotonoha.platform-smoke");
+  SDL_SetAppMetadata("Kotonoha platform smoke", "1",
+                     "org.kotonoha.platform-smoke");
   return execute() ? SDL_APP_SUCCESS : SDL_APP_FAILURE;
 }
 SDL_AppResult SDL_AppEvent(void *, SDL_Event *) { return SDL_APP_CONTINUE; }

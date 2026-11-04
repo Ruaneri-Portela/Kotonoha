@@ -407,8 +407,7 @@ SDL_Renderer *ZeroSession::Renderer() { return &engine_.GetRenderer(); }
 // The opening theme belongs to the music, so the "bgm" channel controls it.
 
 std::string ZeroSession::SlotPath(int slot) {
-  return (Kotonoha::saveDirectory() /
-          ("slot" + std::to_string(slot) + ".sav"))
+  return (Kotonoha::saveDirectory() / ("slot" + std::to_string(slot) + ".sav"))
       .string();
 }
 

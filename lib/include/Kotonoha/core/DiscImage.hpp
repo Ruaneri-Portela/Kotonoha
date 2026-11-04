@@ -8,11 +8,18 @@
 #include <string>
 #include <string_view>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 namespace Kotonoha {
 
-// Read-only ISO9660 file system of a CD/DVD image: a plain .iso (2048-byte
+bool isISOImage(const std::filesystem::path &path);
+// Directory inputs pass through unchanged. ISO images are read internally into
+// a private temporary directory, reused until process exit and then removed.
+// No system mount, shell command or modification of the image is involved.
+std::filesystem::path gameDataDirectory(const std::filesystem::path &source);
+
+// Read-only ISO9660/Joliet file system of a CD/DVD image: a plain .iso (2048-byte
 // sectors) or a raw .bin track (2352-byte MODE1 / MODE2 form 1 sectors, or
 // 2336-byte MODE2 sectors without sync). Lookups ignore case and the ";1"
 // version suffix; subdirectories use '/' ("MOVIE/OPENING.PSS").
@@ -42,6 +49,7 @@ public:
   const std::string &volumeLabel() const;
   Uint32 sectorSize() const;
   const std::vector<Entry> &files() const;
+  const std::vector<std::string> &directories() const;
   const Entry *find(std::string_view path) const;
 
   // Throw std::runtime_error when the entry is missing or the range is
@@ -59,10 +67,13 @@ private:
   mutable std::mutex mutex;
   std::filesystem::path path;
   std::vector<Entry> entries;
+  std::vector<std::string> directoryEntries;
+  std::unordered_set<std::string> paths;
   std::unordered_map<std::string, std::size_t> byName;
   std::string label;
   Uint32 sector = 2048;
   Uint32 dataOffset = 0;
+  bool joliet = false;
 
   bool readSectors(Uint32 lba, Uint32 count, std::vector<Uint8> &out) const;
   void walk(Uint32 lba, Uint64 size, const std::string &prefix, int depth);

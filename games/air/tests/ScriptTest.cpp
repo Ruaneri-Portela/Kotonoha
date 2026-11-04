@@ -12,6 +12,23 @@ int main(int argc, char **argv) {
   assert(machine.GetIntValue(libreallive::IntMemRef(0, 1, 0)) == 1);
   const char *expr = "$\xff\x2a\0\0\0";
   assert(libreallive::GetExpression(expr).GetIntegerValue(machine) == 42);
+  Air::ScriptArchive empty(std::vector<std::uint8_t>(80000));
+  assert(empty.ScenarioNumbers().empty());
+  bool rejected = false;
+  try {
+    Air::ScriptArchive truncated(std::vector<std::uint8_t>(79999));
+  } catch (const std::exception &) {
+    rejected = true;
+  }
+  assert(rejected);
+  rejected = false;
+  try {
+    Air::ScriptArchive invalidOverride(std::vector<std::uint8_t>(80000),
+                                       {{10000, {}}});
+  } catch (const std::exception &) {
+    rejected = true;
+  }
+  assert(rejected);
   if (argc > 1) {
     Air::ScriptArchive a(argv[1]);
     std::cout << "scenarios=" << a.ScenarioNumbers().size()

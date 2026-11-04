@@ -1,4 +1,5 @@
 #include <Kotonoha/core/AssetProvider.hpp>
+#include <Kotonoha/core/DiscImage.hpp>
 #include <Kotonoha/core/FileSystem.hpp>
 #include <Kotonoha/core/Log.hpp>
 #include <Kotonoha/media/MediaDecoder.hpp>
@@ -233,7 +234,9 @@ void AssetProvider::clearCache() {
 }
 
 FileSystemAssetProvider::FileSystemAssetProvider(std::filesystem::path value)
-    : root(value.empty() ? value : std::filesystem::absolute(value)) {}
+    : root(value.empty()
+               ? value
+               : std::filesystem::absolute(gameDataDirectory(value))) {}
 
 const std::filesystem::path &FileSystemAssetProvider::getRoot() const {
   return root;
@@ -322,8 +325,9 @@ FileSystemAssetProvider::localPathAsset(const std::string &id) const {
 
 IndexedFileSystemAssetProvider::IndexedFileSystemAssetProvider(
     const std::filesystem::path &root)
-    : FileSystemAssetProvider(std::filesystem::canonical(root)),
-      index(root, false) {}
+    : FileSystemAssetProvider(
+          std::filesystem::canonical(gameDataDirectory(root))),
+      index(getRoot(), false) {}
 bool IndexedFileSystemAssetProvider::containsAsset(
     const std::string &id) const {
   return !index.resolve(id).empty();

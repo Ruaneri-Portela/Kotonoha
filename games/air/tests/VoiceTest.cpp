@@ -28,6 +28,11 @@ int main(int argc, char **argv) {
     rejected = true;
   }
   assert(rejected);
+  const Air::VoiceIndex assets(std::vector<std::string>{
+      "KOE/000/Z000000123.OGG", "KOE/000/z000000456.ogg", "KOE/other.txt"});
+  assert(assets.size() == 2 &&
+         assets.find(123)->generic_string() == "KOE/000/Z000000123.OGG" &&
+         !assets.find(789));
   if (argc < 2)
     return 0;
   const std::filesystem::path root(argv[1]);

@@ -7,6 +7,7 @@
 #include "SnowRuntime.hpp"
 
 #include <Kotonoha/core/CommandLine.hpp>
+#include <Kotonoha/core/DiscImage.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/FileSystem.hpp>
 #include <cstdio>
@@ -50,7 +51,8 @@ struct App {
   long frames = -1;
 
   void Start(const std::string &directory) {
-    auto assets = std::make_shared<SnowRadish::SnowAssets>(directory);
+    auto assets = std::make_shared<SnowRadish::SnowAssets>(
+        Kotonoha::gameDataDirectory(directory));
     assets->setOverlay(options.assetOverlayDirectory());
     game = std::make_unique<Application>(std::move(assets), options);
     game->framesLeft = frames;
@@ -59,7 +61,8 @@ struct App {
 
 std::string DefaultDirectory() {
   for (const char *script : {"SCRIPT.DAT", "script.dat"})
-    if (auto found = Kotonoha::FileResolver::findGameAsset("snow-radish-vacation", script))
+    if (auto found = Kotonoha::FileResolver::findGameAsset(
+            "snow-radish-vacation", script))
       return found->parent_path().string();
   return Kotonoha::gameAssetDirectory("snow-radish-vacation").string();
 }
@@ -76,8 +79,8 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
     options.persistSettings = true;
     std::string directory;
     Kotonoha::CommandLine arguments("SnowRadish", options);
-    arguments.option("--snow", "DIRECTORY", "Snow Radish DAT directory",
-                     directory);
+    arguments.option("--snow", "DIRECTORY|ISO",
+                     "Snow Radish DAT directory or ISO", directory);
     arguments.parse(argc, argv);
     if (arguments.wantsHelp()) {
       std::fputs(arguments.help().c_str(), stdout);

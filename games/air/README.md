@@ -24,9 +24,27 @@ The launcher locates this edition in Downloads, bundled `game-assets`, or the
 ./games/air/run.command --air '/Users/nero/Downloads/SekaiVN - AIR [BR - V2.0]'
 ```
 
-The application is `build/games/air/Air.app`. Keep the original data directory
+An ISO containing `Seen.txt`, `Gameexe.ini` and the resource folders is also
+accepted, either with the launcher's **ISO...** button or directly:
+
+```sh
+build/games/air/Air.app/Contents/MacOS/Air --air '/Users/nero/Downloads/AIR Standard Edition.ISO'
+```
+
+AIR reads ISO9660/Joliet directly through the engine's disc asset provider.
+No extraction, temporary copy or operating-system mount is used. Scripts,
+images, voices and media are read into memory as requested; overlays still
+replace logical asset paths. Installer-only images are not supported.
+
+The application is `build/games/air/Air.app`. Keep the original directory or ISO
 in place. The application does not modify the game's files or existing saves.
 Kotonoha saves go into its own AIR preference directory.
+
+When enabled, upscaling applies globally to the completed native script scene,
+including the KEY boot logo and AIR menu. Unchanged scenes reuse the filtered
+texture; individual script sprites are not filtered again. Rasterized script
+text is drawn afterward without the image filter. Dialogue UI, subtitles and
+video keep their separate presentation paths; glyphs never enter the upscaler.
 
 Click or Enter/Space advances dialogue. Escape opens the Kotonoha pause menu,
 whose dark background covers the full 4:3 canvas. Save/load is available during

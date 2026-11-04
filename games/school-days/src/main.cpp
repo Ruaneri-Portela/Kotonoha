@@ -6,6 +6,7 @@
 #include "SchoolDaysLauncher.hpp"
 #include "SchoolDaysRuntime.hpp"
 #include <Kotonoha/core/CommandLine.hpp>
+#include <Kotonoha/core/DiscImage.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/FileSystem.hpp>
 #include <cstdio>
@@ -40,7 +41,8 @@ struct App {
   long frames = -1;
   void start(const std::string &directory) {
     auto assets = std::make_shared<SchoolDays::Assets>(
-        directory, options.assetOverlayDirectory());
+        Kotonoha::gameDataDirectory(directory),
+        options.assetOverlayDirectory());
     assets->setOverlay(options.assetOverlayDirectory());
     application = std::make_unique<Application>(std::move(assets), route,
                                                 options, documents);
@@ -67,8 +69,9 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
     Kotonoha::EngineOptions &options = app->options;
 
     Kotonoha::CommandLine arguments("SchoolDays", options);
-    arguments.option("--school-days", "DIRECTORY",
-                     "Retail Packs or extracted game directory", directory);
+    arguments.option("--school-days", "DIRECTORY|ISO",
+                     "Retail Packs, extracted game directory or ISO",
+                     directory);
     arguments.alias("--school-days", "--assets");
     arguments.option("--ktrf", "FILE", "School Days routing graph", app->route);
     arguments.option("--documents", "DIRECTORY",

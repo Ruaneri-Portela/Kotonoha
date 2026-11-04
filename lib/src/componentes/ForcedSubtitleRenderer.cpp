@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <cmath>
 #include <fstream>
+#include <optional>
 #include <sstream>
 #include <stdexcept>
 
@@ -27,16 +28,19 @@ ForcedSubtitleRenderer::~ForcedSubtitleRenderer() = default;
 
 std::string ForcedSubtitleRenderer::fileName(const std::string &nodeId) {
   std::string name = nodeId;
-  std::replace_if(name.begin(), name.end(), [](unsigned char ch) {
-    return ch < 32 || std::string("<>:\"/\\|?*").find(ch) != std::string::npos;
-  }, '-');
+  std::replace_if(
+      name.begin(), name.end(),
+      [](unsigned char ch) {
+        return ch < 32 ||
+               std::string("<>:\"/\\|?*").find(ch) != std::string::npos;
+      },
+      '-');
   return name + ".ass";
 }
 
 void ForcedSubtitleRenderer::buildSubtitleCache() {
   std::map<std::string, std::filesystem::path> cache;
-  if (sourceDirectory_.empty() ||
-      !std::filesystem::exists(sourceDirectory_)) {
+  if (sourceDirectory_.empty() || !std::filesystem::exists(sourceDirectory_)) {
     cacheBuilt = true;
     subtitleCache.clear();
     return;
@@ -58,30 +62,57 @@ void ForcedSubtitleRenderer::updateForActiveNode() {
                         ? engine.activeNode()
                         : std::string();
   loadForNode(node);
-  setPosition(node.empty() ? 0 : engine.activeNodeSeconds());
+  if (node.empty())
+    setPosition(0);
+  else if (useNodeClock)
+    setPosition(engine.activeNodeSeconds());
+  else
+    setPosition(engine.activeEventSeconds());
 }
 
 void ForcedSubtitleRenderer::loadForNode(const std::string &nodeId) {
   if (nodeId == lastLoadedNodeId)
     return;
   lastLoadedNodeId = nodeId;
-  clear();
-  activeFile.clear();
-  if (nodeId.empty())
+  if (nodeId.empty()) {
+    clear();
+    activeFile.clear();
+    useNodeClock = false;
     return;
+  }
   try {
-    std::filesystem::path path;
-    if (const auto dumped = dumpedSubtitles.find(nodeId);
-        dumped != dumpedSubtitles.end()) {
-      path = dumped->second;
-    } else {
-      if (!cacheBuilt)
-        buildSubtitleCache();
-      const auto found = subtitleCache.find(fileName(nodeId));
-      if (found == subtitleCache.end())
-        return;
-      path = found->second;
+    if (!cacheBuilt)
+      buildSubtitleCache();
+    std::string nodeOnlyId = nodeId;
+    if (const auto separator = nodeOnlyId.find(':');
+        separator != std::string::npos)
+      nodeOnlyId.resize(separator);
+    auto findPath =
+        [&](const std::string &id) -> std::optional<std::filesystem::path> {
+      if (const auto dumped = dumpedSubtitles.find(id);
+          dumped != dumpedSubtitles.end())
+        return dumped->second;
+      if (const auto found = subtitleCache.find(fileName(id));
+          found != subtitleCache.end())
+        return found->second;
+      return std::nullopt;
+    };
+    auto selected = findPath(nodeId);
+    const bool eventSpecific = selected.has_value();
+    if (!selected && nodeOnlyId != nodeId)
+      selected = findPath(nodeOnlyId);
+    if (!selected) {
+      clear();
+      activeFile.clear();
+      useNodeClock = false;
+      return;
     }
+    useNodeClock = !eventSpecific;
+    const auto &path = *selected;
+    if (path == activeFile)
+      return;
+    clear();
+    activeFile.clear();
     std::ifstream input(path, std::ios::binary);
     if (!input)
       throw std::runtime_error("Cannot open " + path.string());
@@ -96,6 +127,8 @@ void ForcedSubtitleRenderer::loadForNode(const std::string &nodeId) {
     activeFile = path;
   } catch (const std::exception &error) {
     clear();
+    activeFile.clear();
+    useNodeClock = false;
     SDL_LogError(LogMedia, "Forced subtitles for %s: %s", nodeId.c_str(),
                  error.what());
   }
@@ -106,6 +139,7 @@ void ForcedSubtitleRenderer::reload() {
   lastLoadedNodeId.clear();
   clear();
   activeFile.clear();
+  useNodeClock = false;
 }
 
 std::filesystem::path ForcedSubtitleRenderer::dumpForActiveNode() {
@@ -133,7 +167,8 @@ std::filesystem::path ForcedSubtitleRenderer::dumpForActiveNode() {
       << "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, "
          "Effect, Text\n"
       << "Comment: 0,0:00:00.00,0:00:05.00,Default,,0,0,0,,"
-         "Replace Comment with Dialogue and edit the node-relative times and text.\n";
+         "Replace Comment with Dialogue and edit the node-relative times and "
+         "text.\n";
   writeTextFileAtomically(path.string(), ass.str());
   dumpedSubtitles[node] = path;
   reload();

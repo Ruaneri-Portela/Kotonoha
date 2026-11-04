@@ -73,6 +73,9 @@ private:
   std::unique_ptr<ForcedSubtitleRenderer> forcedSubtitles;
   std::string clockNode;
   double nodeSeconds = 0;
+  std::string clockEvent;
+  double eventSeconds = 0;
+  std::string activeClockNode();
   void synchronizeNodeClock(double delta);
   std::unique_ptr<DebugOverlay> debug;
   std::unique_ptr<MCPServer> mcp;
@@ -132,6 +135,7 @@ public:
   ForcedSubtitleRenderer &GetForcedSubtitles() { return *forcedSubtitles; }
   std::string activeNode();
   bool usesTimedNodeClock();
+  double activeEventSeconds();
   double activeNodeSeconds();
   void resetNodeClock();
   InputActions &GetInputActions() { return inputActions; }

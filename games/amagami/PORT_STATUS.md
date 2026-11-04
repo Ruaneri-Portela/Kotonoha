@@ -57,6 +57,10 @@ looked up through the engine translation dictionary before display.
 
 ## Implemented
 
+- Position, scale, rotation and opacity tweens use the engine's
+  `TransformAnimation`, also used by AIR zoom. Amagami advances it in original
+  60 Hz script-frame units; the engine class owns interpolation, easing,
+  clamped completion and remaining time, not the game's clock or textures.
 - Engine `DiscImage` ISO9660 reader and disc asset provider, following the ZNT
   integration. Read-only ARC/AFS ranges are checked against the disc file size.
 - ARC bucket tables and records; original case-sensitive filename hash

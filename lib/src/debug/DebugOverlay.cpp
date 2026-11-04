@@ -22,8 +22,8 @@
 #include <algorithm>
 #include <charconv>
 #include <cmath>
-#include <fstream>
 #include <filesystem>
+#include <fstream>
 #include <iomanip>
 #include <limits>
 #include <set>
@@ -150,45 +150,76 @@ void DebugOverlay::update() {
   }
 }
 
-std::string DebugOverlay::nodeClockText() const {
+std::string DebugOverlay::nodeClockText(bool eventClock, bool nodeClock) const {
   const auto node = engine.activeNode();
   if (node.empty())
     return "Node: --";
   std::ostringstream text;
-  text << "Node: " << node << " | Clock: " << std::fixed
-       << std::setprecision(2) << engine.activeNodeSeconds() << "s";
+  text << "Node: " << node << std::fixed << std::setprecision(2);
+  if (eventClock)
+    text << " | Event clock: " << engine.activeEventSeconds() << "s";
+  if (nodeClock)
+    text << " | Node clock: " << engine.activeNodeSeconds() << "s";
   if (engine.isStoryPaused() ||
-      (engine.GetRuntime().debugNode().empty() &&
-       engine.usesTimedNodeClock() &&
+      (engine.GetRuntime().debugNode().empty() && engine.usesTimedNodeClock() &&
        engine.GetTimeline().isPaused()))
     text << " [paused]";
   return text.str();
 }
 
-std::string DebugOverlay::performanceText() const {
+std::string DebugOverlay::performanceText(bool milliseconds) const {
   std::ostringstream text;
-  text << "FPS: " << static_cast<int>(fps) << " | " << std::fixed
-       << std::setprecision(2) << (fps > 0 ? 1000 / fps : 0) << " ms";
+  text << "FPS: " << static_cast<int>(fps);
+  if (milliseconds)
+    text << " | " << std::fixed << std::setprecision(2)
+         << (fps > 0 ? 1000 / fps : 0) << " ms";
   return text.str();
+}
+
+std::pair<std::string, std::string> DebugOverlay::hudText(float width) const {
+  const bool showNode = settings.showNodeClock &&
+                        engine.GetRuntime().GetState() == GameState::Gameplay &&
+                        !engine.activeNode().empty();
+  std::pair<std::string, std::string> text{settings.showFPS ? performanceText()
+                                                            : "",
+                                           showNode ? nodeClockText() : ""};
+  const auto fits = [&] {
+    const auto &ui = engine.GetUI();
+    const float gap = !text.first.empty() && !text.second.empty() ? 10 : 0;
+    return ui.textSize(text.first, 65535).x +
+               ui.textSize(text.second, 65535).x + gap <=
+           width;
+  };
+  if (!fits() && showNode)
+    text.second = nodeClockText(true, false);
+  if (!fits() && showNode)
+    text.second = nodeClockText(false, false);
+  if (!fits() && settings.showFPS)
+    text.first = performanceText(false);
+  return text;
 }
 
 void DebugOverlay::renderHUD(RendererRef renderer) {
   auto &ui = engine.GetUI();
   const auto size = UI::viewSize(renderer);
-  if (settings.showFPS)
-    ui.text(renderer, performanceText(), 10, 10, 320, {100, 200, 255, 255});
-
-  if (engine.GetRuntime().GetState() != GameState::Gameplay ||
-      !settings.showNodeClock)
-    return;
-
-  if (engine.activeNode().empty())
-    return;
-  const std::string text = nodeClockText();
   const float width = std::max(1.0f, size.x - 20);
-  const auto measured = ui.textSize(text, width);
-  const float x = std::max(10.0f, size.x - measured.x - 10);
-  ui.text(renderer, text, x, 10, width, {255, 215, 100, 255});
+  const auto [performance, node] = hudText(width);
+  const auto performanceSize = ui.textSize(performance, width);
+  if (!performance.empty())
+    ui.text(renderer, performance, 10, 10, width, {100, 200, 255, 255});
+  if (!node.empty()) {
+    const bool stacked =
+        !performance.empty() &&
+        performanceSize.x + ui.textSize(node, 65535).x + 10 > width;
+    const float nodeWidth =
+        stacked ? width
+                : std::max(1.0f, width - performanceSize.x -
+                                     (performance.empty() ? 0 : 10));
+    const auto measured = ui.textSize(node, nodeWidth);
+    const float x = std::max(10.0f, size.x - measured.x - 10);
+    const float y = stacked ? 10 + performanceSize.y : 10;
+    ui.text(renderer, node, x, y, nodeWidth, {255, 215, 100, 255});
+  }
 }
 
 void DebugOverlay::drawInspector() {
@@ -337,12 +368,12 @@ void DebugOverlay::stopPreviewAudio() {
 
 void DebugOverlay::drawForcedSubtitlesGenerator() {
   const auto &source = engine.GetForcedSubtitles().sourceDirectory();
-  ImGui::TextWrapped("Forced ASS directory: %s",
-                    source.empty() ? "(not found at startup)"
-                                   : source.string().c_str());
+  ImGui::TextWrapped("Forced ASS directory: %s", source.empty()
+                                                     ? "(not found at startup)"
+                                                     : source.string().c_str());
   const auto &activeAss = engine.GetForcedSubtitles().activePath();
   ImGui::TextWrapped("Active forced ASS: %s",
-                    activeAss.empty() ? "(none)" : activeAss.string().c_str());
+                     activeAss.empty() ? "(none)" : activeAss.string().c_str());
   if (!ImGui::CollapsingHeader("Generate Forced Subtitles (.ass)"))
     return;
 
@@ -352,14 +383,15 @@ void DebugOverlay::drawForcedSubtitlesGenerator() {
   }
 
   ImGui::TextWrapped("%s", nodeClockText().c_str());
-  ImGui::TextWrapped("ASS times are relative to this node/event clock. "
-                     "Existing files are never overwritten. Reload uses this "
-                     "node's dump after generation; otherwise its "
-                     "automatically detected original.");
+  ImGui::TextWrapped("ASS times use the event clock for a full node/event "
+                     "file, or the node clock for a node-only fallback. A "
+                     "full node/event file takes precedence; existing files "
+                     "are never overwritten.");
 
   if (ImGui::Button("Generate ASS Scaffolding File")) {
     try {
-      forcedSubsStatus = "Generated: " +
+      forcedSubsStatus =
+          "Generated: " +
           engine.GetForcedSubtitles().dumpForActiveNode().string();
     } catch (const std::exception &error) {
       forcedSubsStatus = std::string("Error: ") + error.what();
@@ -383,14 +415,14 @@ void DebugOverlay::drawForcedSubtitlesGenerator() {
       if (ImGui::Button("Jump to cue..."))
         ImGui::OpenPopup("SelectCue");
       if (ImGui::BeginPopupModal("SelectCue", nullptr,
-                                ImGuiWindowFlags_AlwaysAutoResize)) {
+                                 ImGuiWindowFlags_AlwaysAutoResize)) {
         ImGui::Text("Jump to video cue:");
         for (size_t i = 0; i < node.timeline.cues.size(); ++i) {
           const auto &cue = node.timeline.cues[i];
           if (cue.type != CueType::Video)
             continue;
-          const auto label = "Cue " + std::to_string(i) + " @ " +
-                             std::to_string(cue.at) + "s";
+          const auto label =
+              "Cue " + std::to_string(i) + " @ " + std::to_string(cue.at) + "s";
           if (ImGui::Button(label.c_str())) {
             try {
               engine.GetTimeline().seek(cue.at);

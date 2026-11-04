@@ -62,7 +62,7 @@ SDL_AppResult SDL_AppInit(void **state, int argc, char **argv) {
     options.persistSettings = true;
     std::string disc;
     Kotonoha::CommandLine args("Amagami", options);
-    args.option("--amagami", "DISC.bin", "Amagami Japan PS2 disc", disc);
+    args.option("--amagami", "DISC.iso|bin", "Amagami Japan PS2 disc", disc);
     args.option("--start", "SCENARIO", "Start a scenario (default: title)",
                 app->start);
     args.parse(argc, argv);

@@ -98,7 +98,8 @@ void gameLauncher(const std::filesystem::path &directory) {
     launcher.close();
   }
   TestGameLauncher reopened(settings, "");
-  require(GameLauncher::rememberedPath(settings, "game-path.txt") == "game-launcher",
+  require(GameLauncher::rememberedPath(settings, "game-path.txt") ==
+              "game-launcher",
           "The launcher persists a portable name rather than an absolute path");
   require(reopened.path() == root.string() && reopened.pathValid(),
           "The original single-path launcher remembers its path");
@@ -167,7 +168,8 @@ void launcher(const std::filesystem::path &directory) {
   const auto saved = EngineSettings::load(path);
   require(saved.upscaling.factor == 2.5f &&
               saved.upscaling.backend == UpscaleBackend::MetalFX &&
-              saved.width == 1600 && saved.translationPath == "translation.json" &&
+              saved.width == 1600 &&
+              saved.translationPath == "translation.json" &&
               saved.fontPath == "font.ttf",
           "The engine settings file holds the launcher choices");
 

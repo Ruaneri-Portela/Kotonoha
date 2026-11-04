@@ -24,6 +24,15 @@ canais não acrescentam controles ao launcher.
 A seleção de shaders só aparece para MPV/OpenGL, incluindo Automatic quando
 esse backend é resolvido. Outros upscalers continuam com o fator de escala.
 
+Com upscaling ativado, a logo de boot do motor também recebe o filtro.
+A imagem original é preservada; a textura filtrada é preparada uma vez e
+reutilizada durante o fade, sem filtrar o canvas ou cada quadro. Trocar a
+configuração invalida somente essa textura derivada; desativar restaura a original.
+
+Legendas, diálogos e textos rasterizados não passam pelo upscaler de imagens.
+No AIR, inclusive texto criado pelo roteiro é desenhado depois do filtro global
+da cena, preservando a rasterização original dos glifos.
+
 Os campos opcionais `channelVolumes`, `vnFontPath`, `vnTextColorOverride`,
 `vnTextColor` e `vnSpeakerColor` são persistidos no settings.json do jogo.
 Configurações antigas continuam válidas.
@@ -56,6 +65,9 @@ pausado desde a entrada nessa cena, zerando quando o ID completo muda.
 Um clock global de diagnóstico de um interpretador Standard não é usado
 como clock da cena. Roteiros VN simples sem uma posição nativa usam seu ID.
 O HUD exibe o mesmo clock das legendas; F8 alterna sua visibilidade.
+Quando falta largura para FPS e nodo, o HUD esconde primeiro o clock do nodo,
+depois o clock do evento e, por fim, os milissegundos por frame. FPS e ID do
+nodo continuam visiveis; os detalhes reaparecem ao aumentar a janela.
 As legendas são desenhadas sobre as cenas da novel, mas abaixo de Settings,
 InGameMenu, Backlog, saves, diálogos e painéis nativos. Ao pausar, continuam
 visíveis atrás da UI, com o clock congelado. Sair do gameplay ou desligar o
