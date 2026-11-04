@@ -58,23 +58,29 @@ int main() {
     require(backlog.focusedEntry() == 78 &&
                 backlog.scrollTarget() < newestScroll,
             "Up scrolls the history even when the cursor is already visible");
+    const float afterUpScroll = backlog.scrollTarget();
     SDL_Event wheel{};
     wheel.type = SDL_EVENT_MOUSE_WHEEL;
     wheel.wheel.y = 1;
     wheel.wheel.direction = SDL_MOUSEWHEEL_NORMAL;
     backlog.onEvent(wheel);
     require(backlog.focusedEntry() == 77 &&
-                backlog.scrollTarget() < newestScroll,
-            "Mouse wheel scrolls the history");
+                backlog.scrollTarget() < afterUpScroll,
+            "Mouse wheel scrolls the history on every selection step");
+    const float afterWheelScroll = backlog.scrollTarget();
     SDL_Event pad{};
     pad.type = SDL_EVENT_GAMEPAD_BUTTON_DOWN;
     pad.gbutton.button = SDL_GAMEPAD_BUTTON_DPAD_UP;
     backlog.onEvent(pad);
     require(backlog.focusedEntry() == 76 &&
-                backlog.scrollTarget() < newestScroll,
-            "Analog/directional pad scrolls the history");
+                backlog.scrollTarget() < afterWheelScroll,
+            "Directional pad keeps scrolling as the selection moves upward");
     key(backlog, SDLK_HOME);
     require(backlog.focusedEntry() == 0, "Oldest dialogue remains reachable");
+    key(backlog, SDLK_DOWN);
+    require(backlog.focusedEntry() == 1 && backlog.scrollTarget() > 0,
+            "Moving down scrolls back toward the newer pages");
+    key(backlog, SDLK_HOME);
     key(backlog, SDLK_RETURN);
     require(replay == "voice/MIY/1858" && backlog.isVisible(),
             "Confirm replays selected voice without dismissing the history");

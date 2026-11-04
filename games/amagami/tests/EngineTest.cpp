@@ -1,4 +1,5 @@
 #include "AmagamiRuntime.hpp"
+#include <Kotonoha/componentes/TextInputDialog.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/media/upscaling/Upscaler.hpp>
 #include <cmath>
@@ -101,6 +102,23 @@ int main(int argc, char **argv) {
     require(game.session() && !game.session()->dialogue().text.empty(),
             "First original dialogue");
     auto first = game.session()->history().size();
+    bool named = false;
+    Kotonoha::TextInputDialog nameDialog(engine, "", nullptr, nullptr);
+    nameDialog.configure(
+        "Save name",
+        [&](const std::string &) {
+          named = true;
+          game.RemoveScene(&nameDialog);
+        },
+        nullptr);
+    game.AddScene(&nameDialog);
+    SDL_Event confirmName{};
+    confirmName.type = SDL_EVENT_GAMEPAD_BUTTON_DOWN;
+    confirmName.gbutton.button = SDL_GAMEPAD_BUTTON_EAST;
+    engine.Event(&confirmName);
+    require(named && game.session()->history().size() == first,
+            "Controller confirmation reaches a shared native dialog without "
+            "advancing Amagami");
     press(engine, SDLK_RETURN);
     require(game.session()->history().size() == first,
             "First confirm reveals text without advancing");

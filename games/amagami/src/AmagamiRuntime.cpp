@@ -232,8 +232,9 @@ void AmagamiBacklog::stepFocus(size_t index) {
   focus(index);
   if (focused_ == previous)
     return;
-  // Keep the cursor at the edge it is moving towards. Unlike the plain
-  // ensure-visible check this scrolls on every step, matching LogList.up/down.
+  // Keep navigation visible on each step by following the selected entry.
+  // Original LogPage grouping and its six-frame transition remain separate
+  // work.
   const auto &row = rows_[focused_];
   if (focused_ < previous)
     targetScroll = row.top + row.height - 416;
@@ -243,11 +244,11 @@ void AmagamiBacklog::stepFocus(size_t index) {
   scrollToBottom = false;
 }
 bool AmagamiBacklog::onEvent(Kotonoha::EventRef input) {
+  if (!isVisible())
+    return false;
   if (!touchActivation.accept(input))
     return true;
   const auto event = Kotonoha::MapControllerEvent(input, false, true);
-  if (!isVisible())
-    return false;
   ensureLayout();
   if ((event.type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
        event.button.button == SDL_BUTTON_RIGHT) ||
@@ -421,10 +422,10 @@ void AmagamiEventMap::move(int dx, int dy) {
   layout();
 }
 bool AmagamiEventMap::onEvent(Kotonoha::EventRef input) {
-  if (!touchActivation.accept(input))
-    return true;
   if (!active)
     return false;
+  if (!touchActivation.accept(input))
+    return true;
   const auto event = Kotonoha::MapControllerEvent(input, false);
   layout();
   if (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat) {
@@ -1136,9 +1137,8 @@ void AmagamiRuntime::render(Kotonoha::RendererRef r, float scale) {
       const float alpha = 0.65f + 0.35f * std::sin(float(SDL_GetTicks()) / 500);
       const auto prompt = engine_->GetTranslation().text(-1, "PRESS START");
       if (prompt != "PRESS START") {
-        ui.panel(r, {196, 316, 248, 36}, {18, 22, 32, 230});
         ui.textSized(r, prompt, 196, 322, 248, 22,
-                     {235, 238, 245, Uint8(alpha * 255)});
+                     {20, 25, 35, Uint8(alpha * 255)});
       } else {
         auto &tex = assets_->texture(r, "sysgraph/txt_start.tm2");
         SDL_SetTextureAlphaModFloat(&tex, alpha);
@@ -1151,8 +1151,7 @@ void AmagamiRuntime::render(Kotonoha::RendererRef r, float scale) {
       if (heading == "メインメニュー")
         picture(&r, "sysgraph/menu_main.tm2", {232, 245, 176, 56});
       else {
-        ui.panel(r, {232, 245, 176, 56}, {20, 20, 30, 220});
-        ui.textSized(r, heading, 232, 260, 176, 22, {240, 240, 245, 255});
+        ui.textSized(r, heading, 232, 260, 176, 22, {20, 25, 35, 255});
       }
       for (size_t i = 0; i < 3; ++i) {
         SDL_FRect b{264, float(305 + i * 36), 112, 32};
@@ -1164,8 +1163,6 @@ void AmagamiRuntime::render(Kotonoha::RendererRef r, float scale) {
         if (focus_ == i) {
           auto &tex = assets_->texture(r, "sysgraph/cursor_base.tm2");
           Kotonoha::RenderUpscaledTexture(&r, &tex, nullptr, &b);
-        } else if (isText) {
-          ui.panel(r, b, {225, 225, 230, 220});
         }
         if (isText)
           ui.textSized(r, label, b.x + 6, b.y + 5, 100, 20, {15, 25, 35, 255});
@@ -1326,6 +1323,14 @@ bool AmagamiRuntime::onEvent(Kotonoha::EventRef event) {
   if (GetState() == Kotonoha::GameState::Splash) {
     return Runtime::onEvent(event);
   }
+  // Shared dialogs keep their original input, including controller shortcuts.
+  for (auto *scene : GetActiveScenes())
+    if (scene && scene->capturesInput() && scene != backlogView_.get() &&
+        scene != choices_.get() && scene != eventMap_.get()) {
+      if (session_)
+        session_->setSkipHeld(false);
+      return Runtime::onEvent(event);
+    }
   try {
     auto e = Kotonoha::UI::toFrame(
         Kotonoha::MapControllerEvent(
