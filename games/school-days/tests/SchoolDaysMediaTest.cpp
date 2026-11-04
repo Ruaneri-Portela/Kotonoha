@@ -3,6 +3,7 @@
 #include <Kotonoha/componentes/TextInputDialog.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/debug/DebugOverlay.hpp>
+#include <cstring>
 #include <iostream>
 #include <stdexcept>
 
@@ -27,6 +28,54 @@ struct Application {
       : runtime(assets, route, documents), engine(runtime, Options(assets)) {}
   ~Application() { runtime.shutdown(); }
 };
+
+void RetinaSubtitles(Kotonoha::Engine &engine) {
+  auto &renderer = engine.GetRenderer();
+  Kotonoha::TexturePtr target(SDL_CreateTexture(
+      &renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_TARGET, 2560, 1440));
+  Require(bool(target) && SDL_SetRenderTarget(&renderer, target.get()),
+          "Create School Days Retina target");
+  SchoolDays::Subtitles subtitles(engine);
+  subtitles.setCues({{0, 5, "School Days Retina", ""}});
+  const auto capture = [&] {
+    SDL_SetRenderDrawColor(&renderer, 0, 0, 0, 255);
+    SDL_RenderClear(&renderer);
+    subtitles.render(renderer, 1);
+    return Kotonoha::SurfacePtr(SDL_RenderReadPixels(&renderer, nullptr));
+  };
+  Require(SDL_SetRenderLogicalPresentation(
+              &renderer, 0, 0, SDL_LOGICAL_PRESENTATION_DISABLED) &&
+              SDL_SetRenderScale(&renderer, 2, 2),
+          "Configure School Days physical-pixel reference");
+  const auto physical = capture();
+  Require(SDL_SetRenderScale(&renderer, 1, 1) &&
+              SDL_SetRenderLogicalPresentation(
+                  &renderer, 1280, 720, SDL_LOGICAL_PRESENTATION_LETTERBOX),
+          "Configure School Days Retina logical presentation");
+  const auto retina = capture();
+  Require(physical && retina && physical->w == retina->w &&
+              physical->h == retina->h && physical->format == retina->format,
+          "Read School Days Retina frame");
+  bool visible = false;
+  for (int y = 0; y < physical->h; ++y) {
+    const auto *row =
+        static_cast<const Uint8 *>(physical->pixels) + y * physical->pitch;
+    Require(std::memcmp(row,
+                        static_cast<const Uint8 *>(retina->pixels) +
+                            y * retina->pitch,
+                        physical->w * SDL_BYTESPERPIXEL(physical->format)) == 0,
+            "School Days Retina subtitles must match native pixel rasterization");
+    for (int x = 0; x < physical->w; ++x) {
+      Uint8 r = 0, g = 0, b = 0, a = 0;
+      Require(SDL_ReadSurfacePixel(physical.get(), x, y, &r, &g, &b, &a),
+              "Read School Days subtitle pixel");
+      visible = visible || r > 20 || g > 20 || b > 20;
+    }
+  }
+  Require(visible, "School Days Retina reference must contain rendered glyphs");
+  Require(SDL_SetRenderTarget(&renderer, nullptr),
+          "Restore School Days window target");
+}
 } // namespace
 
 int main(int argc, char **argv) {
@@ -42,6 +91,7 @@ int main(int argc, char **argv) {
             "ASS-like text stays plain text for the shared serializer");
     auto assets = std::make_shared<SchoolDays::Assets>(argv[2]);
     Application app(assets, argv[1], argv[3]);
+    RetinaSubtitles(app.engine);
     app.runtime.SetState(Kotonoha::GameState::Gameplay);
     app.engine.debugJumpToNode("0");
     for (int i = 0; i < 3; ++i)

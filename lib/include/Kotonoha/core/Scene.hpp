@@ -7,7 +7,7 @@ namespace Kotonoha {
 
 class Engine;
 enum class RenderSpace { Novel, Screen };
-enum class RenderLayer { Background, Foreground };
+enum class RenderLayer { Background, Foreground, Overlay };
 
 class Scene {
 public:

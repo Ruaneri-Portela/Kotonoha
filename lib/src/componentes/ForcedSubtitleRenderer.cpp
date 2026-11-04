@@ -4,6 +4,7 @@
 #include <Kotonoha/core/Log.hpp>
 
 #include <algorithm>
+#include <cmath>
 #include <fstream>
 #include <sstream>
 #include <stdexcept>
@@ -11,7 +12,11 @@
 namespace Kotonoha {
 
 ForcedSubtitleRenderer::ForcedSubtitleRenderer(Engine &engine)
-    : SubtitleScene(engine) {}
+    : SubtitleScene(engine) {
+  const auto size = engine.GetRuntime().sceneSize(*this);
+  setLogicalSize(static_cast<int>(std::lround(size.x)),
+                 static_cast<int>(std::lround(size.y)));
+}
 ForcedSubtitleRenderer::~ForcedSubtitleRenderer() = default;
 
 std::string ForcedSubtitleRenderer::fileName(const std::string &nodeId) {
@@ -24,9 +29,7 @@ std::string ForcedSubtitleRenderer::fileName(const std::string &nodeId) {
 
 void ForcedSubtitleRenderer::buildSubtitleCache() {
   std::map<std::string, std::filesystem::path> cache;
-  const auto directory =
-      preferredDocumentsDirectory(engine.GetRuntime().identify) /
-      "forced_subtitles";
+  const auto directory = std::filesystem::current_path() / "forced_subtitles";
   if (!std::filesystem::exists(directory)) {
     cacheBuilt = true;
     subtitleCache.clear();
@@ -94,14 +97,15 @@ std::filesystem::path ForcedSubtitleRenderer::dumpForActiveNode() {
   if (node.empty())
     throw std::logic_error("No active node/event to dump");
   const auto path =
-      preferredDocumentsDirectory(engine.GetRuntime().identify) /
-      "forced_subtitles" / fileName(node);
+      std::filesystem::current_path() / "forced_subtitles" / fileName(node);
   std::filesystem::create_directories(path.parent_path());
   if (std::filesystem::exists(path))
     throw std::runtime_error("Subtitle file already exists: " + path.string());
   std::ostringstream ass;
+  const auto size = logicalSize();
   ass << "[Script Info]\nTitle: " << path.stem().string()
-      << "\nScriptType: v4.00+\nPlayResX: 1280\nPlayResY: 720\nWrapStyle: 0\n\n"
+      << "\nScriptType: v4.00+\nPlayResX: " << size.x
+      << "\nPlayResY: " << size.y << "\nWrapStyle: 0\n\n"
       << "[V4+ Styles]\n"
       << "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, "
          "OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, "

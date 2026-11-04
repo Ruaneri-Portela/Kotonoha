@@ -33,6 +33,7 @@ void capture(Engine &engine, Runtime &game, const char *name) {
                                       SDL_TEXTUREACCESS_TARGET, 960, 720));
   SDL_SetRenderTarget(&r, target.get());
   game.render(r, 1);
+  game.renderOverlay(r, 1);
   SurfacePtr s(SDL_RenderReadPixels(&r, nullptr));
   check(bool(s), "Capture failed");
   SDL_SaveBMP(s.get(), name);

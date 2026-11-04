@@ -80,6 +80,8 @@ public:
   virtual bool handleBacklogAction() { return false; }
   virtual void renderScreen(RendererRef renderer, float scale);
   virtual void renderBackground(RendererRef renderer, float scale);
+  // Novel-space UI, drawn after story content and forced subtitles.
+  virtual void renderOverlay(RendererRef renderer, float scale);
   virtual void saveGame(const std::string &path);
   virtual void loadGame(const std::string &path);
 

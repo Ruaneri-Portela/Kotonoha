@@ -752,8 +752,13 @@ void Runtime::renderGameplay(Kotonoha::RendererRef renderer, float) {
     subtitles->setPosition(elapsed);
     renderScene(*subtitles, renderer, 1);
   }
-  renderScene(*gameScene, renderer, 1);
-  renderPanels(renderer);
+}
+
+void Runtime::renderOverlay(Kotonoha::RendererRef renderer, float) {
+  if (currentState == Kotonoha::GameState::Gameplay) {
+    renderScene(*gameScene, renderer, 1);
+    renderPanels(renderer);
+  }
 }
 
 void Runtime::renderPanels(Kotonoha::RendererRef renderer) {
