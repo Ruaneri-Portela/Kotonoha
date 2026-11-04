@@ -21,6 +21,7 @@ private:
 
 public:
   bool designSpace() const override { return true; }
+  RenderLayer renderLayer() const override { return RenderLayer::Overlay; }
   TextInputDialog(Engine &engineRef, std::string prompt,
                   std::function<void(const std::string &)> confirmCb,
                   std::function<void()> cancelCb,

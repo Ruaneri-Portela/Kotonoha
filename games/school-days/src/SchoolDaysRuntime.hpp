@@ -137,6 +137,7 @@ public:
   void initMenu(Kotonoha::Engine &engine) override;
   void update() override;
   void renderGameplay(Kotonoha::RendererRef renderer, float scale) override;
+  void renderOverlay(Kotonoha::RendererRef renderer, float scale) override;
   void renderMenu(Kotonoha::RendererRef renderer, float scale) override;
   bool onEvent(Kotonoha::EventRef event) override;
   bool handleBackAction() override;

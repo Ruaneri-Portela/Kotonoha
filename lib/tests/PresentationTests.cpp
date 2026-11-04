@@ -5,6 +5,7 @@
 #include <Kotonoha/componentes/SubtitleScene.hpp>
 #include <Kotonoha/componentes/VNManager.hpp>
 #include <Kotonoha/componentes/VNTextBox.hpp>
+#include <Kotonoha/componentes/VNBacklog.hpp>
 #include <Kotonoha/core/CommandLine.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/FileSystem.hpp>
@@ -13,7 +14,9 @@
 #include <Kotonoha/script/TimelinePlayer.hpp>
 #include <algorithm>
 #include <cmath>
+#include <cstring>
 #include <filesystem>
+#include <fstream>
 #include <functional>
 #include <imgui.h>
 #include <iostream>
@@ -109,12 +112,18 @@ struct TestRuntime : Runtime {
   bool timedClock = true;
   bool opaqueGameplay = false;
   std::function<void(RendererRef)> inspectScreen;
+  std::function<void(RendererRef)> inspectBeforeOverlay;
   TestRuntime()
       : Runtime("Presentation tests", "1", "org.kotonoha.presentation.tests." +
                     std::to_string(SDL_GetPerformanceCounter())) {}
   std::string debugNode() const override { return node; }
   bool usesTimedNodeClock() const override { return timedClock; }
   std::optional<double> debugNodeSeconds() const override { return seconds; }
+  SDL_FPoint sceneSize(const Scene &scene) const override {
+    if (dynamic_cast<const ForcedSubtitleRenderer *>(&scene))
+      return {640, 360};
+    return Runtime::sceneSize(scene);
+  }
   void renderGameplay(RendererRef renderer, float scale) override {
     Runtime::renderGameplay(renderer, scale);
     if (opaqueGameplay) {
@@ -126,6 +135,11 @@ struct TestRuntime : Runtime {
     if (inspectScreen)
       inspectScreen(renderer);
     Runtime::renderScreen(renderer, scale);
+  }
+  void renderOverlay(RendererRef renderer, float scale) override {
+    if (inspectBeforeOverlay)
+      inspectBeforeOverlay(renderer);
+    Runtime::renderOverlay(renderer, scale);
   }
 };
 
@@ -226,13 +240,19 @@ void subtitles(Engine &engine) {
 
 void forcedSubtitles(Engine &engine, TestRuntime &runtime) {
   struct SubtitleDirectory {
-    std::filesystem::path path;
+    std::filesystem::path previous = std::filesystem::current_path();
+    std::filesystem::path path = std::filesystem::temp_directory_path() /
+        ("kotonoha-forced-" + std::to_string(SDL_GetPerformanceCounter()));
+    SubtitleDirectory() {
+      std::filesystem::create_directories(path);
+      std::filesystem::current_path(path);
+    }
     ~SubtitleDirectory() {
       std::error_code error;
+      std::filesystem::current_path(previous, error);
       std::filesystem::remove_all(path, error);
-      std::filesystem::remove(path.parent_path(), error);
     }
-  } directory{preferredDocumentsDirectory(runtime.identify) / "forced_subtitles"};
+  } directory;
   auto &forced = engine.GetForcedSubtitles();
   auto &timeline = engine.GetTimeline();
   auto &manager = GetVNManagerRuntime(engine);
@@ -246,6 +266,15 @@ void forcedSubtitles(Engine &engine, TestRuntime &runtime) {
   const auto path = forced.dumpForActiveNode();
   require(path.filename() == "80005.ass",
           "Timed native dump uses only the node ID");
+  require(std::filesystem::equivalent(
+              path.parent_path(), directory.path / "forced_subtitles"),
+          "Forced subtitle dumps go to the current working directory");
+  {
+    std::ifstream input(path);
+    const std::string content((std::istreambuf_iterator<char>(input)), {});
+    require(content.find("PlayResX: 640\nPlayResY: 360\n") != std::string::npos,
+            "ASS dump uses the native logical scene dimensions");
+  }
   rejects([&] { forced.dumpForActiveNode(); },
           "Dump never overwrites existing subtitles");
   const auto header = styleFile().substr(0, styleFile().find("[Events]"));
@@ -277,11 +306,32 @@ void forcedSubtitles(Engine &engine, TestRuntime &runtime) {
   require(frame() > 100, "Returning to a node reloads its subtitles");
   auto &menu = GetInGameMenuRuntime(engine);
   runtime.AddScene(&menu, GameState::Gameplay);
+  int behindUI = 0;
+  runtime.inspectBeforeOverlay = [&](RendererRef renderer) {
+    behindUI = colored(renderer, 1);
+  };
   menu.open();
-  require(frame() == 0, "Forced subtitles never cover native pause menus");
+  frame();
+  require(behindUI > 100 && green < behindUI &&
+              forced.getPosition() == 1.5,
+          "Paused forced subtitles remain visible behind the in-game menu");
   menu.close();
   runtime.RemoveScene(&menu);
   require(frame() > 100, "Closing a native menu restores forced subtitles");
+  auto &backlog = GetVNBacklogRuntime(engine);
+  runtime.AddScene(&backlog, GameState::Gameplay);
+  backlog.open();
+  frame();
+  require(behindUI > 100 && green < behindUI,
+          "Backlog renders after, not underneath, forced subtitles");
+  backlog.close();
+  runtime.RemoveScene(&backlog);
+  engine.openSettings();
+  frame();
+  require(behindUI > 100 && forced.getPosition() == 1.5,
+          "Settings preserve paused subtitles in the underlying scene");
+  engine.GetSettingsMenu().close();
+  runtime.inspectBeforeOverlay = {};
   auto settings = engine.GetSettings();
   settings.enableForcedSubtitles = false;
   engine.applySettings(settings, false);
@@ -378,6 +428,68 @@ void forcedSubtitles(Engine &engine, TestRuntime &runtime) {
   runtime.inspectScreen = {};
   runtime.opaqueGameplay = false;
   engine.setAgentPaused(false);
+}
+
+void subtitleRasterization(Engine &engine) {
+  auto &renderer = engine.GetRenderer();
+  TexturePtr target(SDL_CreateTexture(&renderer, SDL_PIXELFORMAT_RGBA32,
+                                      SDL_TEXTUREACCESS_TARGET, 2560, 1600));
+  require(bool(target), "Create Retina-sized subtitle test target");
+  require(SDL_SetRenderTarget(&renderer, target.get()),
+          "Select subtitle test target");
+  SubtitleScene scene(engine, 640, 360);
+  scene.setStyle(AssStyle::parse(styleFile()));
+  scene.setCues({{0, 5, "RETINA GLYPHS", "Person"}});
+  const auto capture = [&] {
+    SDL_SetRenderDrawColor(&renderer, 0, 0, 0, 255);
+    SDL_RenderClear(&renderer);
+    scene.render(renderer, 1);
+    SurfacePtr pixels(SDL_RenderReadPixels(&renderer, nullptr));
+    require(bool(pixels), "Read Retina subtitle pixels");
+    return pixels;
+  };
+  const auto equalPixels = [](const SDL_Surface &a, const SDL_Surface &b) {
+    if (a.w != b.w || a.h != b.h || a.format != b.format)
+      return false;
+    for (int y = 0; y < a.h; ++y)
+      if (std::memcmp(static_cast<const Uint8 *>(a.pixels) + y * a.pitch,
+                      static_cast<const Uint8 *>(b.pixels) + y * b.pitch,
+                      a.w * SDL_BYTESPERPIXEL(a.format)) != 0)
+        return false;
+    return true;
+  };
+  require(SDL_SetRenderLogicalPresentation(
+              &renderer, 0, 0, SDL_LOGICAL_PRESENTATION_DISABLED) &&
+              SDL_SetRenderScale(&renderer, 4, 4),
+          "Configure a native physical-pixel reference");
+  const SDL_Rect viewport{0, 20, 640, 360};
+  require(SDL_SetRenderViewport(&renderer, &viewport),
+          "Configure letterboxed reference viewport");
+  const auto reference = capture();
+  require(colored(renderer, 1) > 1000, "Reference has visible high-density text");
+  require(SDL_SetRenderViewport(&renderer, nullptr) &&
+              SDL_SetRenderScale(&renderer, 2, 2) &&
+              SDL_SetRenderLogicalPresentation(
+                  &renderer, 1280, 720, SDL_LOGICAL_PRESENTATION_LETTERBOX),
+          "Simulate Retina output with a smaller logical scene");
+  const auto retina = capture();
+  require(equalPixels(*reference, *retina),
+          "Logical presentation rasterizes exactly like native physical pixels");
+
+  require(SDL_SetRenderLogicalPresentation(
+              &renderer, 0, 0, SDL_LOGICAL_PRESENTATION_DISABLED) &&
+              SDL_SetRenderScale(&renderer, 4, 1600.0f / 360),
+          "Configure stretched physical-pixel reference");
+  const auto stretchedReference = capture();
+  require(SDL_SetRenderScale(&renderer, 2, 2) &&
+              SDL_SetRenderLogicalPresentation(
+                  &renderer, 1280, 720, SDL_LOGICAL_PRESENTATION_STRETCH),
+          "Configure nonuniform logical presentation");
+  const auto stretched = capture();
+  require(equalPixels(*stretchedReference, *stretched),
+          "Subtitle rasterization accounts for both physical presentation axes");
+  require(SDL_SetRenderTarget(&renderer, nullptr),
+          "Restore window after subtitle rasterization tests");
 }
 
 void controls(Engine &engine, TestRuntime &runtime) {
@@ -555,6 +667,7 @@ int main() {
                 loaded.getSections().at("nodo").count("Unseen UI"),
             "Export separates global interface strings from scene routes");
     subtitles(engine);
+    subtitleRasterization(engine);
     controls(engine, runtime);
     forcedSubtitles(engine, runtime);
     fades(engine);

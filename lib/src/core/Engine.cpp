@@ -703,10 +703,8 @@ SDL_AppResult Engine::Iterate() {
     timeline->renderSubtitles(*renderer);
   }
   runtime.render(*renderer, ui->pixelDensity());
-  if (!runtime.isStoryPaused()) {
-    UI::FrameScope scope(*renderer, design);
-    forcedSubtitles->render(*renderer, 1);
-  }
+  runtime.renderScene(*forcedSubtitles, *renderer, ui->pixelDensity());
+  runtime.renderOverlay(*renderer, ui->pixelDensity());
   configureRenderSpace(RenderSpace::Screen);
   runtime.renderScreen(*renderer, ui->pixelDensity());
   if (settingsMenu->isOpen()) {

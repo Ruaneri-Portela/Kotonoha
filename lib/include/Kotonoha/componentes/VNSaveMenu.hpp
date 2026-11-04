@@ -34,6 +34,7 @@ class VNSaveMenu final : public Scene {
 
 public:
   bool designSpace() const override { return true; }
+  RenderLayer renderLayer() const override { return RenderLayer::Overlay; }
   explicit VNSaveMenu(Engine &engine);
   ~VNSaveMenu() override;
   void open(const std::string &directory, bool load,

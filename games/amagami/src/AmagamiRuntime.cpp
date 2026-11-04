@@ -1,4 +1,5 @@
 #include "AmagamiRuntime.hpp"
+#include <Kotonoha/componentes/SubtitleScene.hpp>
 #include <Kotonoha/componentes/SettingsMenu.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/FileSystem.hpp>
@@ -1246,7 +1247,14 @@ void AmagamiRuntime::render(Kotonoha::RendererRef r, float scale) {
     syncCampaignMap();
     if (eventMap_->isActive())
       eventMap_->render(r, scale);
-    if (paused_) {
+  }
+}
+
+void AmagamiRuntime::renderOverlay(Kotonoha::RendererRef r, float scale) {
+  {
+    Kotonoha::UI::FrameScope frame(r, Kotonoha::UI::fit({640, 448}, viewport()));
+    auto &ui = engine_->GetUI();
+    if (session_ && paused_) {
       ui.backdrop(r);
       const std::vector<std::string> menu = {"戻る", "セーブ", "ロード",
                                              "タイトルへ", "設定"};
@@ -1259,18 +1267,17 @@ void AmagamiRuntime::render(Kotonoha::RendererRef r, float scale) {
                      b.y + 8, b.w - 30, 24);
       }
     }
-    if (backlogView_ && backlogView_->isVisible())
-      backlogView_->render(r, scale);
+    if (!notice_.empty())
+      ui.textSized(r, engine_->GetTranslation().text(-1, notice_), 10, 5, 620, 14,
+                   {255, 235, 150, 255});
+    if (!error_.empty()) {
+      ui.panel(r, {20, 30, 600, 180}, {60, 15, 25, 250});
+      ui.textSized(
+          r, engine_->GetTranslation().text(-1, "Execution stopped: ") + error_,
+          35, 45, 570, 16);
+    }
   }
-  if (!notice_.empty())
-    ui.textSized(r, engine_->GetTranslation().text(-1, notice_), 10, 5, 620, 14,
-                 {255, 235, 150, 255});
-  if (!error_.empty()) {
-    ui.panel(r, {20, 30, 600, 180}, {60, 15, 25, 250});
-    ui.textSized(
-        r, engine_->GetTranslation().text(-1, "Execution stopped: ") + error_,
-        35, 45, 570, 16);
-  }
+  Runtime::renderOverlay(r, scale);
 }
 void AmagamiRuntime::activate(size_t i) {
   if (!session_) {
@@ -1557,6 +1564,7 @@ void AmagamiRuntime::update() {
 }
 SDL_FPoint AmagamiRuntime::sceneSize(const Kotonoha::Scene &scene) const {
   if (dynamic_cast<const AmagamiTextBox *>(&scene) ||
+      dynamic_cast<const Kotonoha::SubtitleScene *>(&scene) ||
       dynamic_cast<const AmagamiChoices *>(&scene) ||
       dynamic_cast<const AmagamiBacklog *>(&scene) ||
       dynamic_cast<const AmagamiEventMap *>(&scene))

@@ -97,10 +97,16 @@ struct SubtitleScene::State {
 
 SubtitleScene::SubtitleScene(Engine &engine, int width, int height)
     : Scene(engine), width(width), height(height) {
-  if (width <= 0 || height <= 0 || width > 8192 || height > 8192)
-    throw std::invalid_argument("Invalid subtitle scene dimensions");
+  setLogicalSize(width, height);
   state = std::make_unique<State>(engine);
   state->style = engine.GetSubtitleStyle();
+}
+
+void SubtitleScene::setLogicalSize(int width, int height) {
+  if (width <= 0 || height <= 0 || width > 8192 || height > 8192)
+    throw std::invalid_argument("Invalid subtitle scene dimensions");
+  this->width = width;
+  this->height = height;
 }
 SubtitleScene::~SubtitleScene() = default;
 
@@ -255,8 +261,21 @@ void SubtitleScene::render(RendererRef renderer, float) {
   float sx = 1, sy = 1;
   if (!SDL_GetRenderScale(&renderer, &sx, &sy))
     throw std::runtime_error(SDL_GetError());
-  const int w = std::clamp(static_cast<int>(std::lround(width * sx)), 1, 8192);
-  const int h = std::clamp(static_cast<int>(std::lround(height * sy)), 1, 8192);
+  int logicalWidth = 0, logicalHeight = 0;
+  SDL_RendererLogicalPresentation presentation;
+  if (!SDL_GetRenderLogicalPresentation(&renderer, &logicalWidth,
+                                       &logicalHeight, &presentation))
+    throw std::runtime_error(SDL_GetError());
+  if (presentation != SDL_LOGICAL_PRESENTATION_DISABLED) {
+    SDL_FRect area{};
+    if (!SDL_GetRenderLogicalPresentationRect(&renderer, &area))
+      throw std::runtime_error(SDL_GetError());
+    // The presentation rectangle is in output pixels, including Retina.
+    sx *= area.w / logicalWidth;
+    sy *= area.h / logicalHeight;
+  }
+  const int w = std::max(1, static_cast<int>(std::lround(width * sx)));
+  const int h = std::max(1, static_cast<int>(std::lround(height * sy)));
   ass_set_frame_size(state->renderer.get(), w, h);
   int changed = 0;
   auto *image = ass_render_frame(state->renderer.get(), state->track.get(),

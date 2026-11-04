@@ -20,6 +20,7 @@ public:
   void close();
   void submit(const std::vector<std::string> &values);
   bool designSpace() const override { return true; }
+  RenderLayer renderLayer() const override { return RenderLayer::Overlay; }
   bool capturesInput() const override { return active; }
   bool pausesStory() const override { return active; }
   bool handleEvent(EventRef event) override {

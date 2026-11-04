@@ -133,6 +133,7 @@ public:
   void initGameplay(Kotonoha::Engine &) override;
   bool continuousTouch() const override { return true; }
   void render(Kotonoha::RendererRef, float) override;
+  void renderOverlay(Kotonoha::RendererRef, float) override;
   bool onEvent(Kotonoha::EventRef) override;
   bool handleNewGameAction() override;
   bool handleBacklogAction() override;

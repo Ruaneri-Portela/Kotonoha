@@ -46,6 +46,7 @@ protected:
 
 public:
   bool designSpace() const override { return true; }
+  RenderLayer renderLayer() const override { return RenderLayer::Overlay; }
   explicit VNBacklog(Engine &engineRef);
 
   virtual void addEntry(const std::string &speaker, const std::string &text);

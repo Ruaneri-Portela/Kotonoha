@@ -38,6 +38,7 @@ void capture(Kotonoha::Engine &e, Amagami::AmagamiRuntime &game,
   require(texture != nullptr, SDL_GetError());
   SDL_SetRenderTarget(r, texture);
   game.render(*r, 1);
+  game.renderOverlay(*r, 1);
   auto *pixels = SDL_RenderReadPixels(r, nullptr);
   require(pixels != nullptr, SDL_GetError());
   if (name.rfind("prologue", 0) == 0) {

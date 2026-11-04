@@ -1,4 +1,5 @@
 #include "SnowRuntime.hpp"
+#include <Kotonoha/componentes/SubtitleScene.hpp>
 
 #include <Kotonoha/componentes/VNSave.hpp>
 #include <Kotonoha/componentes/VNSaveMenu.hpp>
@@ -97,7 +98,8 @@ void SnowRuntime::OpenSaves(bool load) {
 }
 
 SDL_FPoint SnowRuntime::sceneSize(const Kotonoha::Scene &scene) const {
-  if (IsGameScene(&scene))
+  if (IsGameScene(&scene) ||
+      dynamic_cast<const Kotonoha::SubtitleScene *>(&scene))
     return {float(kGameWidth), float(kGameHeight)};
   return Runtime::sceneSize(scene);
 }

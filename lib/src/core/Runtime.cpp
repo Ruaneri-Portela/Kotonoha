@@ -229,4 +229,11 @@ void Runtime::renderBackground(RendererRef renderer, float scale) {
       renderScene(*scene, renderer, scale);
 }
 
+void Runtime::renderOverlay(RendererRef renderer, float scale) {
+  for (auto *scene : GetActiveScenes())
+    if (scene && scene->renderSpace() == RenderSpace::Novel &&
+        scene->renderLayer() == RenderLayer::Overlay)
+      renderScene(*scene, renderer, scale);
+}
+
 } // namespace Kotonoha

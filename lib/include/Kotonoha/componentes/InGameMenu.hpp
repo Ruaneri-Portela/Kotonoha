@@ -29,6 +29,7 @@ protected:
 
 public:
   bool designSpace() const override { return true; }
+  RenderLayer renderLayer() const override { return RenderLayer::Overlay; }
   explicit InGameMenu(Engine &engineRef);
 
   virtual void open() { touchActivation.reset(); isOpen = true; }

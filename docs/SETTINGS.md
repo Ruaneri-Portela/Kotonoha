@@ -32,8 +32,9 @@ Configurações antigas continuam válidas.
 novels, incluindo interpretadores nativos como AIR e roteiros VN Standard
 ou Timed; não depende de vídeos nem de cues de legenda na timeline.
 
-As legendas `.ass` ficam em `forced_subtitles/`, dentro da pasta de documentos
-do jogo, com busca recursiva. O nome usa o ID completo mostrado no canto:
+As legendas `.ass` ficam em `forced_subtitles/`, dentro do diretório de trabalho
+(`working_dir`), com busca recursiva. Dump e leitura usam essa mesma pasta,
+em vez da pasta de documentos do jogo. O nome usa o ID completo mostrado no canto:
 por exemplo, `80005:66` corresponde a `80005-66.ass`. Caracteres inválidos
 em nomes de arquivo são substituídos por `-`; evite nomes duplicados.
 
@@ -45,13 +46,17 @@ pausado desde a entrada nessa cena, zerando quando o ID completo muda.
 Um clock global de diagnóstico de um interpretador Standard não é usado
 como clock da cena. Roteiros VN simples sem uma posição nativa usam seu ID.
 O HUD exibe o mesmo clock das legendas; F8 alterna sua visibilidade.
-As legendas são desenhadas sobre as cenas da novel e abaixo da interface de
-tela e das configurações da engine. Enquanto um menu/modal nativo pausa a
-história, elas ficam ocultas para não cobrir seus controles. Sair do gameplay
-ou desligar o recurso limpa a legenda atual.
+As legendas são desenhadas sobre as cenas da novel, mas abaixo de Settings,
+InGameMenu, Backlog, saves, diálogos e painéis nativos. Ao pausar, continuam
+visíveis atrás da UI, com o clock congelado. Sair do gameplay ou desligar o
+recurso limpa a legenda atual.
 
 Em F10, **Generate Forced Subtitles (.ass)** gera um modelo para o nodo/evento
 atual usando exatamente o mesmo ID do HUD, sem exigir um nodo Timeline e sem
-sobrescrever arquivos existentes. Edite o modelo, troque `Comment` por
+sobrescrever arquivos existentes. `PlayResX` e `PlayResY` recebem o tamanho
+lógico da cena, não a resolução da tela. A rasterização das legendas usa os
+pixels físicos da área apresentada, incluindo a densidade Retina, tanto nas
+legendas forçadas quanto nas legendas nativas de School Days.
+Edite o modelo, troque `Comment` por
 `Dialogue` e ajuste tempos e texto. Use **Reload forced subtitles** para
 reler arquivos novos ou editados sem reiniciar o jogo.
