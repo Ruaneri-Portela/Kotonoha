@@ -1,10 +1,17 @@
 #pragma once
 
+#include <algorithm>
 #include <Kotonoha/core/SDL.hpp>
 #include <map>
 #include <vector>
 
 namespace Kotonoha {
+
+// C++17 compatible clamp function
+template <typename T>
+constexpr T Clamp(T value, T min, T max) {
+  return value < min ? min : (value > max ? max : value);
+}
 
 // The engine's default layout treats the east face button as confirm and the
 // south face button as cancel. Nintendo-style pads invert that expectation, so
@@ -178,7 +185,7 @@ public:
         active_ = true;
         pressure_ = static_cast<float>(val - kThreshold) /
                     static_cast<float>(32767 - kThreshold);
-        pressure_ = std::clamp(pressure_, 0.0f, 1.0f);
+        pressure_ = Clamp(pressure_, 0.0f, 1.0f);
       } else {
         active_ = false;
         pressure_ = 0.0f;
