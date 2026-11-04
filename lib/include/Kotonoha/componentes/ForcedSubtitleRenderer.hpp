@@ -8,12 +8,15 @@
 namespace Kotonoha {
 
 // Node/event-relative subtitles shared by native interpreters and VN scripts.
+// A file for the full active node takes precedence; a node-only file is the
+// fallback for runtimes whose active node includes an event/position suffix.
 class ForcedSubtitleRenderer final : public SubtitleScene {
   std::filesystem::path sourceDirectory_;
   std::map<std::string, std::filesystem::path> subtitleCache;
   std::map<std::string, std::filesystem::path> dumpedSubtitles;
   std::filesystem::path activeFile;
   std::string lastLoadedNodeId;
+  bool useNodeClock = false;
   bool cacheBuilt = false;
   void buildSubtitleCache();
   static std::string fileName(const std::string &nodeId);

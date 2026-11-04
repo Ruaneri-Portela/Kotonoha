@@ -41,11 +41,34 @@ locais aplicaveis da plataforma: recursos, diretorios de assets, dados privados,
 Files/Documents, dados externos Android e OBB. Nao faz varredura de todo o disco.
 Os candidatos sao testados em ordem; o launcher continua procurando quando um
 candidato nao passa na validacao especifica do jogo.
+Uma ISO informada explicitamente na linha de comando e excecao: se estiver
+ausente, corrompida ou nao contiver os dados do jogo, a inicializacao falha
+com o motivo em vez de abrir silenciosamente outra fonte de dados.
+
+Todo campo de pasta de jogo tambem aceita ISO. AIR usa `DiscImageAssetProvider`
+para ler diretamente a imagem: scripts, vozes, imagens e midia chegam pela
+memoria, sem extracao nem arquivos temporarios. Seu launcher valida a ISO
+original, sem passar por `gameDataDirectory`.
+Nos demais ports baseados em pasta, `gameDataDirectory` resolve
+essas imagens por ISO9660/Joliet em uma pasta temporaria privada, compartilhada
+pelos consumidores durante o processo e removida na saida normal. Pastas
+comuns continuam sendo lidas no lugar, e ports com leitor de disco nativo
+continuam usando diretamente a imagem. A ISO precisa conter os dados ja
+utilizaveis pelo port; nao ha instalacao automatica nem montagem do sistema.
 
 * Campo overlay vazio: descobre a pasta `overlay` automaticamente.
 * Campo preenchido com `overlay2`: procura essa pasta nos locais conhecidos.
 * Uma selecao explicita tem prioridade sobre `KOTONOHA_OVERLAY` e sobre o nome padrao.
 * `--no-asset-overlay` desabilita o overlay para a execucao atual.
+
+A pasta `overlay/` e um patch de **identificadores logicos**, independente de
+o jogo estar aberto por pasta, ISO materializada, disco lido diretamente ou
+recursos avulsos. Por exemplo, `overlay/G00/OP_D00.G00` substitui
+`G00/OP_D00.G00` no AIR em qualquer origem; os demais recursos continuam vindo
+da origem original. A prioridade tambem vale para caminhos locais usados por
+streaming e arquivos mapeados. Os caminhos sao relativos a raiz do patch e
+ignoram maiusculas/minusculas; nao inclua o nome da ISO nem o da pasta temporaria.
+Use **Folder...** ou **ISO...** no launcher para escolher a origem do jogo.
 
 Por exemplo, `overlay2` pode mudar de `Android/obb/<pacote>/overlay2` para
 `Android/data/<pacote>/files/overlay2`, ou para `<dataDir>/files/overlay2`, sem
@@ -54,12 +77,17 @@ automaticamente; no macOS, `Resources/overlay` tambem.
 
 ## Persistencia portavel
 
-O launcher guarda **somente a referencia (nome)**, como `Amagami.iso`, `Packs`,
+Para pastas e recursos comuns, o launcher guarda **somente a referencia (nome)**, como `Packs`,
 `route.ktnroute` ou `overlay2`. Traducoes, fontes e listas ordenadas de shaders
 tambem sao serializadas por nome. Caminhos absolutos selecionados no navegador
 sao aceitos durante a execucao; ao salvar, a parte especifica do dispositivo e removida.
 Para reencontrar esses recursos em outra execucao/dispositivo, coloque-os em um
 dos locais de busca acima. Prefira nomes distintos quando houver varios recursos.
+
+Selecoes de ISO preservam o caminho da imagem original, nunca o da pasta
+temporaria. Isso permite reabrir imagens externas, por exemplo em Downloads,
+sem exigir que sejam copiadas para os diretorios de recursos. Se a imagem
+mudar de dispositivo, a busca por nome nos locais conhecidos continua disponivel.
 
 Arquivos antigos contendo caminhos absolutos continuam sendo tentados; se o
 caminho nao existir, o resolvedor procura pelo nome nos locais atuais.

@@ -146,8 +146,8 @@ std::filesystem::path Assets::defaultDirectory() {
   std::string info;
   for (const auto &candidate :
        Kotonoha::applicationDirectories("school-days").gameAssets)
-      if (checkDirectory(candidate, info))
-        return candidate;
+    if (checkDirectory(candidate, info))
+      return candidate;
   return Kotonoha::gameAssetDirectory("school-days");
 }
 

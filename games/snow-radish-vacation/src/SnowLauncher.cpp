@@ -24,15 +24,16 @@ bool HasFile(const std::filesystem::path &directory, const std::string &name) {
 } // namespace
 
 SnowLauncher::SnowLauncher(std::string settingsPath, std::string directory)
-    : GameLauncher("Snow Radish Vacation!! - Launcher", std::move(settingsPath),
-                   {"game folder (with SCRIPT.DAT)",
-                    PathKind::Folder,
-                    {},
-                    "dir.txt",
-                    "The DAT files are read straight from your folder and "
-                    "never copied. Set video and "
-                    "upscaling in the other tabs; everything is saved when you "
-                    "click Play."}) {
+    : GameLauncher(
+          "Snow Radish Vacation!! - Launcher", std::move(settingsPath),
+          {"game folder (with SCRIPT.DAT)",
+           PathKind::Folder,
+           {},
+           "dir.txt",
+           "Choose a DAT folder or ISO image. Folder data is read "
+           "in place; ISO data uses a temporary internal mount. Set video and "
+           "upscaling in the other tabs; everything is saved when you "
+           "click Play."}) {
   setAudioChannels({"bgm", "voice", "se"});
   loadPath(std::move(directory));
 }

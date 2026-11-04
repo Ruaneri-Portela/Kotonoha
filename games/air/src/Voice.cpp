@@ -40,6 +40,15 @@ VoiceIndex::VoiceIndex(const std::filesystem::path &root) {
       files_.emplace(std::stoi(match[1].str()), entry.path());
   }
 }
+VoiceIndex::VoiceIndex(const std::vector<std::string> &assets) {
+  const std::regex pattern("z([0-9]{9})\\.ogg");
+  for (const auto &id : assets) {
+    std::smatch match;
+    const auto name = lower(std::filesystem::path(id).filename().string());
+    if (std::regex_match(name, match, pattern))
+      files_.emplace(std::stoi(match[1].str()), std::filesystem::u8path(id));
+  }
+}
 std::optional<std::filesystem::path> VoiceIndex::find(int id) const {
   auto it = files_.find(id);
   if (it == files_.end())

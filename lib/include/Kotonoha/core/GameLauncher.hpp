@@ -10,7 +10,9 @@
 namespace Kotonoha {
 
 // Launcher for games that read the user's own data from a disc or folder,
-// never copied. Games can add other required paths with their own validators.
+// Folder ports can opt into direct ISO validation; legacy folder consumers
+// use a temporary internal mount. Games can add other required paths with
+// their own validators.
 class GameLauncher : public Launcher {
 public:
   enum class PathKind { File, Folder };
@@ -20,21 +22,24 @@ public:
     FileFilters filters;      // File only
     std::string rememberFile; // e.g. "disc.txt"; empty = not remembered
     std::string hint;         // help text under the field
+    bool directISO =
+        false; // Validator/port accepts the image without extraction.
   };
 
   GameLauncher(std::string title, std::string settingsPath, PathOptions options,
                EngineSettings defaults = {});
 
-  // The portable reference saved by a previous launch (empty when none).
+  // Saved resource name or original ISO path from a previous launch.
   static std::string rememberedPath(const std::string &settingsPath,
                                     const std::string &rememberFile);
 
   // Validate every candidate, including standard package/document/source roots.
   // Empty means no usable data was found; callers should open the chooser.
+  // An invalid ISO in the first (explicit) slot throws instead of falling back.
   static std::string findGamePath(
       const std::string &game, const std::vector<std::string> &preferred,
       const std::function<bool(const std::string &, std::string &)> &validator,
-      const std::vector<std::string> &relative = {""});
+      const std::vector<std::string> &relative = {""}, bool directISO = false);
 
   const std::string &path() const;
   void setPath(std::string path);
@@ -83,7 +88,7 @@ public:
   using Validator = std::function<bool(const std::string &, std::string &)>;
   FolderGameLauncher(std::string title, std::string settingsPath,
                      std::string path, Validator validator,
-                     EngineSettings defaults = {});
+                     EngineSettings defaults = {}, bool directISO = false);
 
 private:
   Validator validator;

@@ -56,6 +56,9 @@ pausado desde a entrada nessa cena, zerando quando o ID completo muda.
 Um clock global de diagnóstico de um interpretador Standard não é usado
 como clock da cena. Roteiros VN simples sem uma posição nativa usam seu ID.
 O HUD exibe o mesmo clock das legendas; F8 alterna sua visibilidade.
+Quando falta largura para FPS e nodo, o HUD esconde primeiro o clock do nodo,
+depois o clock do evento e, por fim, os milissegundos por frame. FPS e ID do
+nodo continuam visiveis; os detalhes reaparecem ao aumentar a janela.
 As legendas são desenhadas sobre as cenas da novel, mas abaixo de Settings,
 InGameMenu, Backlog, saves, diálogos e painéis nativos. Ao pausar, continuam
 visíveis atrás da UI, com o clock congelado. Sair do gameplay ou desligar o

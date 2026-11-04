@@ -142,8 +142,7 @@ void testSettings(const std::filesystem::path &directory) {
               read.fullscreenWidth == 1920 && read.fullscreenHeight == 1080 &&
               std::abs(read.refreshRate - 59.94f) < 0.001f && read.vsync &&
               read.swapControllerAB && !read.enableForcedSubtitles &&
-              !read.resizable &&
-              read.renderer == "opengl" &&
+              !read.resizable && read.renderer == "opengl" &&
               read.upscaling.backend == UpscaleBackend::MPV &&
               read.upscaling.preset == UpscalePreset::ArtCNNDenoise &&
               read.upscaling.factor == 1.5f &&

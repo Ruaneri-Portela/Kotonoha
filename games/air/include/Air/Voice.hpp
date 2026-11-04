@@ -12,6 +12,7 @@ namespace Air {
 class VoiceIndex {
 public:
   explicit VoiceIndex(const std::filesystem::path &gameRoot);
+  explicit VoiceIndex(const std::vector<std::string> &assets);
   std::optional<std::filesystem::path> find(int id) const;
   std::size_t size() const { return files_.size(); }
 
