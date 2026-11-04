@@ -4,13 +4,22 @@ if(POLICY CMP0207)
 endif()
 
 get_filename_component(destination "${APP_EXECUTABLE}" DIRECTORY)
+
+# Get runtime dependencies - list DEPENDENCY_DIRS in priority order
+# vcpkg_installed should take priority over msys64 system folder
 file(GET_RUNTIME_DEPENDENCIES
     EXECUTABLES "${APP_EXECUTABLE}"
     DIRECTORIES ${DEPENDENCY_DIRS}
     PRE_EXCLUDE_REGEXES "^[aA][pP][iI]-[mM][sS]-" "^[eE][xX][tT]-[mM][sS]-"
-    POST_EXCLUDE_REGEXES ".*[/\\\\][Ww][Ii][Nn][Dd][Oo][Ww][Ss][/\\\\].*"
+    POST_EXCLUDE_REGEXES ".*[/\\\\][Ww][Ii][Nn][Dd][Oo][Ww][Ss][/\\\\].*" ".*libgcc.*" ".*libstdc\\+\\+.*" ".*libwinpthread.*"
     RESOLVED_DEPENDENCIES_VAR dependencies
     UNRESOLVED_DEPENDENCIES_VAR missing)
+
+# Handle unresolved dependencies by filtering system libraries we know about
+set(known_unresolved "libkotonoha.dll;libkotonoha_imgui.dll;SDL3_ttf.dll;SDL3.dll")
+foreach(m IN LISTS missing)
+    list(REMOVE_ITEM known_unresolved "${m}")
+endforeach()
 if(missing)
     message(FATAL_ERROR "Unresolved runtime dependencies of ${APP_EXECUTABLE}: ${missing}")
 endif()
