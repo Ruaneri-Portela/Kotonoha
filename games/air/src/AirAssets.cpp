@@ -1,19 +1,53 @@
 #include "AirAssets.hpp"
 #include <Air/Images.hpp>
 #include <Air/Voice.hpp>
+#include <Kotonoha/core/DiscImage.hpp>
 #include <Kotonoha/media/MediaDecoder.hpp>
 #include <cstring>
 #include <stdexcept>
 namespace Air {
 AirAssets::AirAssets(const std::filesystem::path &directory,
                      const std::filesystem::path &overlay)
-    : IndexedFileSystemAssetProvider(directory), config("") {
+    : root(std::filesystem::canonical(directory)), config("") {
+  if (Kotonoha::isISOImage(root)) {
+    auto disc = std::make_unique<Kotonoha::DiscImageAssetProvider>(root);
+    SDL_Log("Reading AIR ISO directly: %s (%zu files; no extraction)",
+            root.string().c_str(), disc->getDisc().files().size());
+    source = std::move(disc);
+  } else {
+    source = std::make_unique<Kotonoha::IndexedFileSystemAssetProvider>(root);
+  }
+  source->setOverlay({});
   setOverlay(overlay);
   const auto ini = read("Gameexe.ini");
   configSource.assign(ini.begin(), ini.end());
   config = Config(configSource);
   if (!contains("Seen.txt"))
     throw std::runtime_error("AIR Seen.txt not found");
+}
+bool AirAssets::containsAsset(const std::string &id) const {
+  return source->contains(id);
+}
+std::vector<Uint8> AirAssets::readAsset(const std::string &id) const {
+  return source->read(id);
+}
+std::vector<std::string> AirAssets::listAsset(const std::string &prefix) const {
+  return source->list(prefix);
+}
+std::string AirAssets::localPathAsset(const std::string &id) const {
+  return source->localPath(id);
+}
+ScriptArchive AirAssets::scripts() const {
+  std::map<int, std::vector<std::uint8_t>> overrides;
+  for (const auto &id : list()) {
+    const auto name = canonical(id);
+    if (name.size() != 12 || name.substr(0, 4) != "SEEN" ||
+        name.substr(8) != ".TXT" ||
+        name.find_first_not_of("0123456789", 4) != 8)
+      continue;
+    overrides.emplace(std::stoi(name.substr(4, 4)), read(id));
+  }
+  return ScriptArchive(read("Seen.txt"), overrides);
 }
 std::string AirAssets::graphic(const std::string &name) const {
   std::string file = name;

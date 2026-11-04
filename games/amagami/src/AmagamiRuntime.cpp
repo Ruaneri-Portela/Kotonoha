@@ -1,6 +1,6 @@
 #include "AmagamiRuntime.hpp"
-#include <Kotonoha/componentes/SubtitleScene.hpp>
 #include <Kotonoha/componentes/SettingsMenu.hpp>
+#include <Kotonoha/componentes/SubtitleScene.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/FileSystem.hpp>
 #include <Kotonoha/core/UI.hpp>
@@ -1252,7 +1252,8 @@ void AmagamiRuntime::render(Kotonoha::RendererRef r, float scale) {
 
 void AmagamiRuntime::renderOverlay(Kotonoha::RendererRef r, float scale) {
   {
-    Kotonoha::UI::FrameScope frame(r, Kotonoha::UI::fit({640, 448}, viewport()));
+    Kotonoha::UI::FrameScope frame(r,
+                                   Kotonoha::UI::fit({640, 448}, viewport()));
     auto &ui = engine_->GetUI();
     if (session_ && paused_) {
       ui.backdrop(r);
@@ -1268,8 +1269,8 @@ void AmagamiRuntime::renderOverlay(Kotonoha::RendererRef r, float scale) {
       }
     }
     if (!notice_.empty())
-      ui.textSized(r, engine_->GetTranslation().text(-1, notice_), 10, 5, 620, 14,
-                   {255, 235, 150, 255});
+      ui.textSized(r, engine_->GetTranslation().text(-1, notice_), 10, 5, 620,
+                   14, {255, 235, 150, 255});
     if (!error_.empty()) {
       ui.panel(r, {20, 30, 600, 180}, {60, 15, 25, 250});
       ui.textSized(

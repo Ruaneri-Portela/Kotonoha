@@ -161,7 +161,8 @@ std::string LoadAsset(const std::string &filename) {
     resolved = FileResolver::findEngineAsset(
         std::filesystem::path(assetFolder) / supplied);
   size_t size = 0;
-  void *buffer = resolved ? SDL_LoadFile(resolved->string().c_str(), &size) : nullptr;
+  void *buffer =
+      resolved ? SDL_LoadFile(resolved->string().c_str(), &size) : nullptr;
   if (buffer == nullptr) {
     SDL_LogWarn(LogUpscaler,
                 "MPVCompatibleUpscaler: could not load shader '%s'",

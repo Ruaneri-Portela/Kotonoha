@@ -2,6 +2,7 @@
 #include "AirAssets.hpp"
 #include "AirRuntime.hpp"
 #include <Kotonoha/core/CommandLine.hpp>
+#include <Kotonoha/core/DiscImage.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/FileSystem.hpp>
 #include <Kotonoha/core/GameLauncher.hpp>
@@ -10,6 +11,7 @@
 #include <cstdio>
 #include <filesystem>
 #include <memory>
+#include <set>
 namespace {
 Kotonoha::EngineOptions withAssets(Kotonoha::EngineOptions options,
                                    std::shared_ptr<Air::AirAssets> assets) {
@@ -37,10 +39,18 @@ struct App {
 };
 bool validate(const std::string &path, std::string &info) {
   try {
-    if (!std::filesystem::is_regular_file(std::filesystem::path(path) /
-                                          "Seen.txt") ||
-        !std::filesystem::is_regular_file(std::filesystem::path(path) /
-                                          "Gameexe.ini")) {
+    if (Kotonoha::isISOImage(path)) {
+      Kotonoha::DiscImage disc(path);
+      if (!disc.find("Seen.txt") || !disc.find("Gameexe.ini"))
+        throw std::runtime_error("AIR ISO is missing Seen.txt or Gameexe.ini");
+      info = "Game data found (direct ISO access)";
+      return true;
+    }
+    std::set<std::string> files;
+    for (const auto &entry : std::filesystem::directory_iterator(path))
+      if (entry.is_regular_file())
+        files.insert(Air::canonical(entry.path().filename().string()));
+    if (!files.count("SEEN.TXT") || !files.count("GAMEEXE.INI")) {
       info = "Seen.txt or Gameexe.ini is missing";
       return false;
     }
@@ -61,7 +71,8 @@ SDL_AppResult SDL_AppInit(void **state, int argc, char **argv) {
     options.persistSettings = true;
     std::string directory;
     Kotonoha::CommandLine cli("Air", options);
-    cli.option("--air", "DIRECTORY", "Game data directory", directory);
+    cli.option("--air", "DIRECTORY|ISO", "Game data directory or ISO image",
+               directory);
     cli.parse(argc, argv);
     if (cli.wantsHelp()) {
       std::fputs(cli.help().c_str(), stdout);
@@ -85,12 +96,12 @@ SDL_AppResult SDL_AppInit(void **state, int argc, char **argv) {
              ? (std::filesystem::path(downloads) / "SekaiVN - AIR [BR - V2.0]")
                    .string()
              : ""},
-        validate);
+        validate, {""}, true);
     if (directory.empty())
       options.launcher = true;
     if (options.launcher) {
       app->launcher = std::make_unique<Kotonoha::FolderGameLauncher>(
-          "AIR", settingsPath, directory, validate, options.settings);
+          "AIR", settingsPath, directory, validate, options.settings, true);
       app->launcher->setAudioChannels({"BGM", "Voice", "PCM", "Se"});
       app->launcher->open();
     } else {

@@ -7,6 +7,7 @@
 #include "DdlcRuntime.hpp"
 
 #include <Kotonoha/core/CommandLine.hpp>
+#include <Kotonoha/core/DiscImage.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/FileSystem.hpp>
 #include <cstdio>
@@ -44,7 +45,8 @@ struct App {
 
   void start(const std::string &directory) {
     auto assets = std::make_shared<Ddlc::GameAssets>(
-        directory, options.assetOverlayDirectory());
+        Kotonoha::gameDataDirectory(directory),
+        options.assetOverlayDirectory());
     assets->setOverlay(options.assetOverlayDirectory());
     game = std::make_unique<Application>(assets, options);
     game->framesLeft = frames;
@@ -54,10 +56,11 @@ struct App {
 // Game data: <root>/game-assets/game (bundles, OBB, working or executable
 // directory, documents), then <root>/game and the source checkout layouts.
 std::string defaultDirectory() {
-  if (auto found =
-          Kotonoha::FileResolver::findGameAsset("doki-doki-literature-club", "game/scripts.rpa"))
+  if (auto found = Kotonoha::FileResolver::findGameAsset(
+          "doki-doki-literature-club", "game/scripts.rpa"))
     return found->parent_path().string();
-  return (Kotonoha::gameAssetDirectory("doki-doki-literature-club") / "game").string();
+  return (Kotonoha::gameAssetDirectory("doki-doki-literature-club") / "game")
+      .string();
 }
 
 } // namespace
@@ -73,8 +76,8 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
     std::string directory;
 
     Kotonoha::CommandLine arguments("DokiDoki", options);
-    arguments.option("--ddlc", "DIRECTORY",
-                     "DDLC directory containing scripts.rpa", directory);
+    arguments.option("--ddlc", "DIRECTORY|ISO",
+                     "DDLC directory or ISO containing scripts.rpa", directory);
     arguments.parse(argc, argv);
     if (arguments.wantsHelp()) {
       std::fputs(arguments.help().c_str(), stdout);

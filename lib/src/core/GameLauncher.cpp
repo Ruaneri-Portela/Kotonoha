@@ -1,3 +1,4 @@
+#include <Kotonoha/core/DiscImage.hpp>
 #include <Kotonoha/core/FileSystem.hpp>
 #include <Kotonoha/core/GameLauncher.hpp>
 
@@ -49,27 +50,46 @@ std::string GameLauncher::rememberedPath(const std::string &settingsPath,
 std::string GameLauncher::findGamePath(
     const std::string &game, const std::vector<std::string> &preferred,
     const std::function<bool(const std::string &, std::string &)> &validator,
-    const std::vector<std::string> &relative) {
-  auto valid = [&](const std::string &path) {
+    const std::vector<std::string> &relative, bool directISO) {
+  auto valid = [&](const std::string &path, bool required) {
     if (path.empty())
       return false;
     std::string info;
     try {
-      return validator(path, info);
-    } catch (const std::exception &) {
+      if (validator(path, info))
+        return true;
+      if (!directISO && isISOImage(path) &&
+          validator(gameDataDirectory(path).string(), info))
+        return true;
+      if (required)
+        throw std::runtime_error("Invalid game ISO " + path + ": " + info);
+      return false;
+    } catch (const std::exception &error) {
+      if (required)
+        throw;
+      if (isISOImage(path))
+        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "ISO %s: %s", path.c_str(),
+                    error.what());
       return false;
     }
   };
-  for (const auto &reference : preferred)
-    for (const auto &path : FileResolver::candidates(reference, game))
-      if (valid(path.string()))
+  for (std::size_t i = 0; i < preferred.size(); ++i) {
+    const bool required = i == 0 && isISOImage(preferred[i]);
+    for (const auto &path : FileResolver::candidates(preferred[i], game)) {
+      if (required && !std::filesystem::is_regular_file(path))
+        continue;
+      if (valid(path.string(), required))
         return path.string();
+    }
+    if (required)
+      throw std::runtime_error("ISO image not found: " + preferred[i]);
+  }
   for (const auto &root : applicationDirectories(game).gameAssets)
-      for (const auto &tail : relative) {
-        const auto path = (root / tail).lexically_normal().string();
-        if (valid(path))
-          return path;
-      }
+    for (const auto &tail : relative) {
+      const auto path = (root / tail).lexically_normal().string();
+      if (valid(path, false))
+        return path;
+    }
   return {};
 }
 
@@ -140,7 +160,11 @@ void GameLauncher::check(PathField &field, bool force) {
   field.info.clear();
   for (const auto &candidate : FileResolver::candidates(field.current)) {
     try {
-      if (field.validator(candidate.string(), field.info)) {
+      const auto input =
+          field.options.kind == PathKind::Folder && !field.options.directISO
+              ? gameDataDirectory(candidate)
+              : candidate;
+      if (field.validator(input.string(), field.info)) {
         field.valid = true;
         field.resolved = candidate.string();
         break;
@@ -154,11 +178,18 @@ void GameLauncher::check(PathField &field, bool force) {
 }
 
 void GameLauncher::drawPathField(PathField &field) {
-  constexpr const char *Browse = "Browse...";
+  const char *Browse =
+      field.options.kind == PathKind::Folder ? "Folder..." : "Browse...";
   const ImGuiStyle &style = ImGui::GetStyle();
   ImGui::TextUnformatted(field.options.label.c_str());
+  const float isoWidth = field.options.kind == PathKind::Folder
+                             ? ImGui::CalcTextSize("ISO...").x +
+                                   style.FramePadding.x * 2 +
+                                   style.ItemSpacing.x
+                             : 0;
   ImGui::SetNextItemWidth(-ImGui::CalcTextSize(Browse).x -
-                          style.ItemSpacing.x * 2 - style.FramePadding.x * 2);
+                          style.ItemSpacing.x * 2 - style.FramePadding.x * 2 -
+                          isoWidth);
   if (ImGui::InputText("##path", &field.current,
                        ImGuiInputTextFlags_EnterReturnsTrue) ||
       !ImGui::IsItemActive())
@@ -169,13 +200,30 @@ void GameLauncher::drawPathField(PathField &field) {
       setFieldPath(*target, path);
     };
     if (field.options.kind == PathKind::Folder) {
-      browseFolder(field.current, chosen);
+      browseFolder(
+          isISOImage(field.current)
+              ? std::filesystem::path(field.current).parent_path().string()
+              : field.current,
+          chosen);
     } else {
       const std::string initial =
           field.current.empty()
               ? std::string()
               : std::filesystem::path(field.current).parent_path().string();
       browseFile(field.options.filters, initial, chosen);
+    }
+  }
+  if (field.options.kind == PathKind::Folder) {
+    ImGui::SameLine();
+    if (ImGui::Button("ISO...")) {
+      browseFile(
+          {{"ISO disc image", "iso"}, {"All files", "*"}},
+          std::filesystem::is_directory(field.current)
+              ? field.current
+              : std::filesystem::path(field.current).parent_path().string(),
+          [this, target = &field](const std::string &path) {
+            setFieldPath(*target, path);
+          });
     }
   }
   ImGui::PushStyleColor(ImGuiCol_Text, field.valid ? ImGuiTheme::success()
@@ -223,8 +271,12 @@ bool GameLauncher::validate(std::string &error) {
 void GameLauncher::save() {
   const auto remember = [](const PathField &field) {
     if (!field.rememberPath.empty())
-      writeTextFileAtomically(field.rememberPath,
-                             FileResolver::referenceName(field.resolved) + "\n");
+      writeTextFileAtomically(
+          field.rememberPath,
+          (isISOImage(field.resolved)
+               ? field.resolved
+               : FileResolver::referenceName(field.resolved)) +
+              "\n");
   };
   remember(game);
   for (const auto &field : additionalPaths)
@@ -234,10 +286,11 @@ void GameLauncher::save() {
 FolderGameLauncher::FolderGameLauncher(std::string title,
                                        std::string settingsPath,
                                        std::string path, Validator check,
-                                       EngineSettings defaults)
-    : GameLauncher(std::move(title), std::move(settingsPath),
-                   {"Game data", PathKind::Folder, {}, "dir.txt", {}},
-                   std::move(defaults)),
+                                       EngineSettings defaults, bool directISO)
+    : GameLauncher(
+          std::move(title), std::move(settingsPath),
+          {"Game data", PathKind::Folder, {}, "dir.txt", {}, directISO},
+          std::move(defaults)),
       validator(std::move(check)) {
   if (!validator)
     throw std::invalid_argument("A game data validator is required");

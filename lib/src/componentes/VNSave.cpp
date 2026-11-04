@@ -34,7 +34,8 @@ std::filesystem::path existingSlot(const std::string &directory,
                                    const std::string &name) {
   if (saveFileName(name) != name)
     throw std::invalid_argument("Expected the existing .vn save file name");
-  const auto path = std::filesystem::path(directory) / std::filesystem::path(name);
+  const auto path =
+      std::filesystem::path(directory) / std::filesystem::path(name);
   if (std::filesystem::is_symlink(path) ||
       !std::filesystem::is_regular_file(path))
     throw std::runtime_error("Save is missing or is not a regular file: " +
@@ -53,7 +54,8 @@ std::vector<VNSaveSlot> VNSaveSlots::list() const {
   std::vector<VNSaveSlot> slots;
   if (!std::filesystem::exists(std::filesystem::path(directory)))
     return slots;
-  for (const auto &entry : std::filesystem::directory_iterator(std::filesystem::path(directory)))
+  for (const auto &entry :
+       std::filesystem::directory_iterator(std::filesystem::path(directory)))
     if (entry.is_regular_file() && entry.path().extension() == ".vn")
       slots.push_back(
           {entry.path().string(), entry.path().filename().string()});
@@ -75,9 +77,11 @@ std::string VNSaveSlots::nextPath(const std::string &suggestion) const {
   for (std::uint64_t id = 1;; ++id) {
     const auto path =
         std::filesystem::path(directory) /
-        std::filesystem::path(base.empty()
-              ? "save-" + std::to_string(id) + ".vn"
-              : base + (id == 1 ? "" : " (" + std::to_string(id) + ")") + ".vn");
+        std::filesystem::path(
+            base.empty()
+                ? "save-" + std::to_string(id) + ".vn"
+                : base + (id == 1 ? "" : " (" + std::to_string(id) + ")") +
+                      ".vn");
     if (!std::filesystem::exists(path))
       return path.string();
     if (id == std::numeric_limits<std::uint64_t>::max())

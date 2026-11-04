@@ -44,15 +44,17 @@ void RetinaSubtitles(Kotonoha::Engine &engine) {
     subtitles.render(renderer, 1);
     return Kotonoha::SurfacePtr(SDL_RenderReadPixels(&renderer, nullptr));
   };
-  Require(SDL_SetRenderLogicalPresentation(
-              &renderer, 0, 0, SDL_LOGICAL_PRESENTATION_DISABLED) &&
+  Require(SDL_SetRenderLogicalPresentation(&renderer, 0, 0,
+                                           SDL_LOGICAL_PRESENTATION_DISABLED) &&
               SDL_SetRenderScale(&renderer, 2, 2),
           "Configure School Days physical-pixel reference");
   const auto physical = capture();
   auto &upscaler = engine.GetUpscaler();
   const auto previousUpscaling = upscaler.getSettings();
   upscaler.configure({Kotonoha::UpscaleBackend::Linear,
-                      Kotonoha::UpscalePreset::Anime4K, 4, {}});
+                      Kotonoha::UpscalePreset::Anime4K,
+                      4,
+                      {}});
   Require(SDL_SetRenderScale(&renderer, 1, 1) &&
               SDL_SetRenderLogicalPresentation(
                   &renderer, 1280, 720, SDL_LOGICAL_PRESENTATION_LETTERBOX),
@@ -65,11 +67,11 @@ void RetinaSubtitles(Kotonoha::Engine &engine) {
   for (int y = 0; y < physical->h; ++y) {
     const auto *row =
         static_cast<const Uint8 *>(physical->pixels) + y * physical->pitch;
-    Require(std::memcmp(row,
-                        static_cast<const Uint8 *>(retina->pixels) +
-                            y * retina->pitch,
-                        physical->w * SDL_BYTESPERPIXEL(physical->format)) == 0,
-            "School Days Retina subtitles must match native pixel rasterization");
+    Require(
+        std::memcmp(
+            row, static_cast<const Uint8 *>(retina->pixels) + y * retina->pitch,
+            physical->w * SDL_BYTESPERPIXEL(physical->format)) == 0,
+        "School Days Retina subtitles must match native pixel rasterization");
     for (int x = 0; x < physical->w; ++x) {
       Uint8 r = 0, g = 0, b = 0, a = 0;
       Require(SDL_ReadSurfacePixel(physical.get(), x, y, &r, &g, &b, &a),

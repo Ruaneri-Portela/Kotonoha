@@ -6,6 +6,7 @@
 #include <Kotonoha/localization/Translation.hpp>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace Kotonoha {
@@ -94,8 +95,9 @@ public:
   DebugSettings &getSettings() { return settings; }
   const DebugSettings &getSettings() const { return settings; }
   void trackActiveTranslation();
-  std::string nodeClockText() const;
-  std::string performanceText() const;
+  std::string nodeClockText(bool eventClock = true, bool nodeClock = true) const;
+  std::string performanceText(bool milliseconds = true) const;
+  std::pair<std::string, std::string> hudText(float width) const;
 };
 
 } // namespace Kotonoha

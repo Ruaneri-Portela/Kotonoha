@@ -252,12 +252,11 @@ std::string ShiftJisToUtf8(std::string_view text) {
   result.reserve(text.size());
   for (size_t offset = 0; offset < text.size();) {
     const auto first = static_cast<unsigned char>(text[offset]);
-    const int length = IsDBCSLeadByteEx(932, first) && offset + 1 < text.size()
-                           ? 2
-                           : 1;
+    const int length =
+        IsDBCSLeadByteEx(932, first) && offset + 1 < text.size() ? 2 : 1;
     wchar_t wide[2];
-    const int count = MultiByteToWideChar(932, MB_ERR_INVALID_CHARS,
-                                         text.data() + offset, length, wide, 2);
+    const int count = MultiByteToWideChar(
+        932, MB_ERR_INVALID_CHARS, text.data() + offset, length, wide, 2);
     offset += length;
     if (!count) {
       result += '?';
@@ -265,7 +264,7 @@ std::string ShiftJisToUtf8(std::string_view text) {
     }
     char utf8[8];
     const int bytes = WideCharToMultiByte(CP_UTF8, 0, wide, count, utf8,
-                                         sizeof(utf8), nullptr, nullptr);
+                                          sizeof(utf8), nullptr, nullptr);
     if (!bytes)
       throw std::runtime_error("CP932 to UTF-8 conversion failed");
     result.append(utf8, bytes);

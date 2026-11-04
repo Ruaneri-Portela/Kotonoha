@@ -4,6 +4,15 @@
 namespace Air {
 ScriptArchive::ScriptArchive(const std::filesystem::path &seen)
     : archive_(std::make_unique<libreallive::Archive>(seen.string())) {}
+ScriptArchive::ScriptArchive(
+    const std::vector<std::uint8_t> &bytes,
+    const std::map<int, std::vector<std::uint8_t>> &overrides) {
+  std::map<int, std::vector<char>> scripts;
+  for (const auto &[id, data] : overrides)
+    scripts.emplace(id, std::vector<char>(data.begin(), data.end()));
+  archive_ = std::make_unique<libreallive::Archive>(
+      std::vector<char>(bytes.begin(), bytes.end()), std::move(scripts));
+}
 std::vector<int> ScriptArchive::ScenarioNumbers() const {
   std::vector<int> result;
   for (auto it = archive_->begin(); it != archive_->end(); ++it)

@@ -36,6 +36,7 @@
 #include <algorithm>
 #include <cctype>
 #include <filesystem>
+#include <limits>
 #include <cstring>
 #include <string>
 
@@ -47,14 +48,16 @@ namespace fs = std::filesystem;
 namespace libreallive {
 
 Archive::Archive(const std::string& filename)
-    : name_(filename), info_(filename, Read), second_level_xor_key_(NULL) {
+    : name_(filename),
+      info_(std::make_unique<Mapping>(filename, Read)),
+      second_level_xor_key_(NULL) {
   ReadTOC();
   ReadOverrides();
 }
 
 Archive::Archive(const std::string& filename, const std::string& regname)
     : name_(filename),
-      info_(filename, Read),
+      info_(std::make_unique<Mapping>(filename, Read)),
       second_level_xor_key_(NULL),
       regname_(regname) {
   ReadTOC();
@@ -94,6 +97,19 @@ Archive::Archive(const std::string& filename, const std::string& regname)
 
 Archive::~Archive() {}
 
+Archive::Archive(std::vector<char> bytes,
+                 std::map<int, std::vector<char>> overrides)
+    : bytes_(std::move(bytes)), overrides_(std::move(overrides)),
+      second_level_xor_key_(NULL) {
+  ReadTOC();
+  for (const auto& entry : overrides_) {
+    if (entry.first < 0 || entry.first >= 10000 ||
+        entry.second.size() > static_cast<size_t>(std::numeric_limits<int>::max()))
+      throw Error("Invalid SEEN archive override");
+    scenarios_[entry.first] = FilePos(entry.second.data(), entry.second.size());
+  }
+}
+
 Scenario* Archive::GetScenario(int index) {
   accessed_t::const_iterator at = accessed_.find(index);
   if (at != accessed_.end())
@@ -121,14 +137,16 @@ int Archive::GetProbableEncodingType() const {
 }
 
 void Archive::ReadTOC() {
-  if (info_.size() < 80000) throw Error("Truncated SEEN archive index");
-  const char* idx = info_.get();
+  const size_t size = info_ ? info_->size() : bytes_.size();
+  const char* data = info_ ? info_->get() : bytes_.data();
+  if (size < 80000) throw Error("Truncated SEEN archive index");
+  const char* idx = data;
   for (int i = 0; i < 10000; ++i, idx += 8) {
     const int offs = read_i32(idx);
     if (offs) {
       const int length = read_i32(idx + 4);
-      if (offs < 80000 || length < 0 || static_cast<size_t>(offs) > info_.size() || static_cast<size_t>(length) > info_.size()-static_cast<size_t>(offs)) throw Error("Invalid SEEN archive entry");
-      scenarios_[i] = FilePos(info_.get() + offs, length);
+      if (offs < 80000 || length < 0 || static_cast<size_t>(offs) > size || static_cast<size_t>(length) > size-static_cast<size_t>(offs)) throw Error("Invalid SEEN archive entry");
+      scenarios_[i] = FilePos(data + offs, length);
     }
   }
 }
