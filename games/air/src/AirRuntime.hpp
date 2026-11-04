@@ -11,6 +11,7 @@ public:
   struct RenderStats {
     uint64_t filteredPatterns = 0;
     uint64_t filteredDCFrames = 0;
+    uint64_t filteredSceneFrames = 0;
     uint64_t textureUploads = 0;
     uint64_t originalImageUploads = 0;
     uint64_t gpuFrames = 0;

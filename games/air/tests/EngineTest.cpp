@@ -16,6 +16,7 @@
 #include <array>
 #include <cstring>
 #include <fstream>
+#include <iomanip>
 #include <iostream>
 #include <sstream>
 #include <utility>
@@ -417,8 +418,8 @@ void verify8005Walk(std::shared_ptr<Air::AirAssets> assets,
       step();
     start();
     auto actual = capture(engine, game, "/tmp/air-8005-walk-upscaled.bmp");
-    SurfacePtr expected(SDL_CreateSurface(1280, 960, SDL_PIXELFORMAT_RGBA32));
-    check(bool(expected), "Create per-image AIR upscaling reference");
+    SurfacePtr expected(SDL_CreateSurface(640, 480, SDL_PIXELFORMAT_RGBA32));
+    check(bool(expected), "Create native AIR script scene reference");
     SDL_FillSurfaceRect(expected.get(), nullptr,
                         SDL_MapSurfaceRGBA(expected.get(), 255, 255, 255, 255));
     for (const auto &[name, position] :
@@ -433,27 +434,11 @@ void verify8005Walk(std::shared_ptr<Air::AirAssets> assets,
           SDL_CreateSurface(crop.w, crop.h, SDL_PIXELFORMAT_RGBA32));
       check(bool(pattern), "Create isolated walking pattern");
       BlitSurfaceOpacity(*source, *pattern, &crop, nullptr, 255, false);
-      auto scaled = engine.GetUpscaler().scaled(*pattern, factor);
-      auto &renderer = engine.GetRenderer();
-      TexturePtr filtered(
-          SDL_CreateTextureFromSurface(&renderer, scaled.get()));
-      TexturePtr rasterTarget(
-          SDL_CreateTexture(&renderer, SDL_PIXELFORMAT_RGBA32,
-                            SDL_TEXTUREACCESS_TARGET, crop.w * 2, crop.h * 2));
-      auto *previous = SDL_GetRenderTarget(&renderer);
-      check(bool(filtered) && bool(rasterTarget) &&
-                SDL_SetTextureBlendMode(filtered.get(), SDL_BLENDMODE_NONE) &&
-                SDL_SetTextureScaleMode(filtered.get(), SDL_SCALEMODE_LINEAR) &&
-                SDL_SetRenderTarget(&renderer, rasterTarget.get()) &&
-                SDL_RenderTexture(&renderer, filtered.get(), nullptr, nullptr),
-            "Rasterize independently upscaled texture with the GPU sampler");
-      SurfacePtr raster(SDL_RenderReadPixels(&renderer, nullptr));
-      check(bool(raster) && SDL_SetRenderTarget(&renderer, previous),
-            "Read independently sampled pattern");
-      SDL_Rect destination{(position.x - region.originX) * 2,
-                           (position.y - region.originY) * 2, 0, 0};
-      BlitSurfaceOpacity(*raster, *expected, nullptr, &destination, 255, true);
+      SDL_Rect destination{position.x - region.originX,
+                           position.y - region.originY, 0, 0};
+      BlitSurfaceOpacity(*pattern, *expected, nullptr, &destination, 255, true);
     }
+    expected = engine.GetUpscaler().scaled(*expected, factor);
     auto &renderer = engine.GetRenderer();
     TexturePtr texture(SDL_CreateTextureFromSurface(&renderer, expected.get()));
     TexturePtr target(SDL_CreateTexture(&renderer, SDL_PIXELFORMAT_RGBA32,
@@ -466,11 +451,10 @@ void verify8005Walk(std::shared_ptr<Air::AirAssets> assets,
     SurfacePtr reference(SDL_RenderReadPixels(&renderer, nullptr));
     SDL_SetRenderTarget(&renderer, nullptr);
     check(bool(reference) && same(*actual, *reference),
-          "AIR must composite independently upscaled patterns, not upscale the "
-          "canvas");
+          "AIR script animation must filter the completed native scene once");
     const auto prepared = game.renderStats();
-    check(prepared.filteredPatterns > 0, "AIR must prepare isolated animation "
-                                         "textures when upscaling is enabled");
+    check(prepared.filteredPatterns == 0 && prepared.filteredSceneFrames > 0,
+          "Script scenes must not double-filter animation textures");
     TexturePtr cacheTarget(SDL_CreateTexture(
         &renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_TARGET, 960, 720));
     check(bool(cacheTarget) &&
@@ -478,6 +462,9 @@ void verify8005Walk(std::shared_ptr<Air::AirAssets> assets,
           "Create texture cache regression target");
     for (int n = 0; n < 8; ++n)
       game.render(renderer, 1);
+    check(game.renderStats().filteredSceneFrames ==
+              prepared.filteredSceneFrames,
+          "Unchanged script scenes must reuse the global filtered frame");
     SDL_Delay(180);
     game.update();
     game.render(renderer, 1);
@@ -487,10 +474,9 @@ void verify8005Walk(std::shared_ptr<Air::AirAssets> assets,
     check(reused.filteredPatterns == prepared.filteredPatterns &&
               reused.filteredDCFrames == prepared.filteredDCFrames &&
               reused.textureUploads == prepared.textureUploads &&
-              reused.gpuFrames == prepared.gpuFrames + 9 &&
+              reused.filteredSceneFrames == prepared.filteredSceneFrames + 1 &&
               reused.softwareEffectFrames == prepared.softwareEffectFrames,
-          "Unchanged frames and new animation patterns must reuse resident GPU "
-          "textures without re-filtering, re-uploading or CPU composition");
+          "Only a new script animation frame must trigger global filtering");
   }
   if (performance) {
     auto settings = nativeSettings;
@@ -522,8 +508,9 @@ void verify8005Walk(std::shared_ptr<Air::AirAssets> assets,
       check(reused.filteredPatterns == prepared.filteredPatterns &&
                 reused.filteredDCFrames == prepared.filteredDCFrames &&
                 reused.textureUploads == prepared.textureUploads &&
-                reused.gpuFrames == prepared.gpuFrames + count,
-            "Measured frames must not filter or upload resident textures");
+                reused.filteredSceneFrames - prepared.filteredSceneFrames ==
+                    (factor > 1 ? reused.gpuFrames - prepared.gpuFrames : 0),
+            "Each changed script frame filters once without sprite uploads");
       std::cout << "AIR resident textures " << factor << "x: " << ms
                 << " ms/rendered frame\n";
       check(SDL_SetRenderTarget(&renderer, nullptr),
@@ -575,7 +562,8 @@ void verify8005BackgroundUpscaling(std::shared_ptr<Air::AirAssets> assets,
   engine.GetUpscaler().configure(settings);
   const auto before = game.renderStats();
   auto actual = capture(engine, game, "/tmp/air-8005-background-filtered.bmp");
-  check(game.renderStats().filteredDCFrames == before.filteredDCFrames + 1 &&
+  check(game.renderStats().filteredSceneFrames ==
+                before.filteredSceneFrames + 1 &&
             game.renderStats().filteredPatterns == before.filteredPatterns,
         "Script raster must be filtered once as a complete frame, not per "
         "source crop");
@@ -634,6 +622,8 @@ void verify8005BackgroundUpscaling(std::shared_ptr<Air::AirAssets> assets,
   for (int n = 0; n < 8; ++n)
     capture(engine, game, "/tmp/air-8005-background-reused.bmp");
   check(game.renderStats().filteredPatterns == prepared.filteredPatterns &&
+            game.renderStats().filteredSceneFrames ==
+                prepared.filteredSceneFrames &&
             game.renderStats().filteredDCFrames == prepared.filteredDCFrames &&
             game.renderStats().textureUploads == prepared.textureUploads,
         "Repeated background draws must reuse the filtered script frame");
@@ -685,26 +675,22 @@ void verify8005BackgroundUpscaling(std::shared_ptr<Air::AirAssets> assets,
       "Loading an offscreen script raster must not filter intermediate crops");
   const auto start = SDL_GetTicks();
   while (game.debugNode() != "8005:4074" && SDL_GetTicks() - start < 10000) {
-    const auto node = game.debugNode();
-    const auto filters = game.renderStats().filteredDCFrames;
+    const auto filters = game.renderStats().filteredSceneFrames;
     check(game.debugStep(), "Execute the original AIR strip animation");
-    check(game.renderStats().filteredDCFrames ==
-              filters + (node == "8005:4073" ? 1 : 0),
-          "Only the transition's complete old-frame snapshot may filter "
-          "during strip construction");
+    check(game.renderStats().filteredSceneFrames == filters,
+          "Script commands and transition snapshots must remain native");
     check(game.diagnostic().empty(), game.diagnostic().c_str());
     SDL_Delay(1);
   }
   check(game.debugNode() == "8005:4074",
         "The strip sequence must reach its DC1 presentation");
-  check(game.renderStats().filteredDCFrames ==
-            beforeStrips.filteredDCFrames + 1,
-        "Strip construction must filter only the transition's old-frame "
-        "snapshot, not intermediate copies");
+  check(game.renderStats().filteredSceneFrames ==
+            beforeStrips.filteredSceneFrames,
+        "Strip construction must not filter intermediate copies or snapshots");
   SDL_Delay(750);
   capture(engine, game, "/tmp/air-8005-strips-filtered.bmp");
-  check(game.renderStats().filteredDCFrames ==
-                beforeStrips.filteredDCFrames + 2 &&
+  check(game.renderStats().filteredSceneFrames ==
+                beforeStrips.filteredSceneFrames + 1 &&
             game.renderStats().filteredPatterns ==
                 beforeStrips.filteredPatterns,
         "The script strip sequence must filter only its completed displayed "
@@ -712,6 +698,8 @@ void verify8005BackgroundUpscaling(std::shared_ptr<Air::AirAssets> assets,
   const auto afterStrips = game.renderStats();
   capture(engine, game, "/tmp/air-8005-strips-filtered.bmp");
   check(game.renderStats().filteredDCFrames == afterStrips.filteredDCFrames &&
+            game.renderStats().filteredSceneFrames ==
+                afterStrips.filteredSceneFrames &&
             game.renderStats().textureUploads == afterStrips.textureUploads,
         "The same script animation frame must reuse its prepared texture");
   command(150);
@@ -755,20 +743,96 @@ void verify8005BackgroundUpscaling(std::shared_ptr<Air::AirAssets> assets,
         SDL_CreateSurface(crop.w, crop.h, SDL_PIXELFORMAT_RGBA32));
     check(bool(pixels), "Crop the opening logo before filtering");
     BlitSurfaceOpacity(*logoImage, *pixels, &crop, nullptr, 255, false);
-    auto filtered = engine.GetUpscaler().scaled(*pixels, 2);
-    check(SDL_FillSurfaceRect(expected.get(), nullptr,
-                              SDL_MapSurfaceRGBA(expected.get(), 0, 0, 0, 255)),
+    check(SDL_FillSurfaceRect(
+              nativeComposition.get(), nullptr,
+              SDL_MapSurfaceRGBA(nativeComposition.get(), 0, 0, 0, 255)),
           "Clear independent logo composition");
-    SDL_Rect destination{(entry.x - origin.x) * 2, (entry.y - origin.y) * 2, 0,
-                         0};
-    BlitSurfaceOpacity(*filtered, *expected, nullptr, &destination, 255, true);
+    SDL_Rect destination{entry.x - origin.x, entry.y - origin.y, 0, 0};
+    BlitSurfaceOpacity(*pixels, *nativeComposition, nullptr, &destination, 255,
+                       true);
+    expected = engine.GetUpscaler().scaled(*nativeComposition, 2);
     reference = present(*expected);
-    check(same(*logo, *reference), "The opening logo must present its filtered "
-                                   "source pattern at the original position");
+    check(same(*logo, *reference), "The opening logo must filter its complete "
+                                   "script scene at the original position");
     command(entry.hide);
   }
   std::cout << "AIR script-frame upscaling, static logo textures and raster "
                "cache passed\n";
+}
+void verifyScriptTextUpscaling(std::shared_ptr<Air::AirAssets> assets) {
+  Air::AirRuntime game(assets);
+  game.SetState(GameState::Menu);
+  EngineOptions options;
+  options.assets = assets;
+  options.persistSettings = false;
+  options.rendererOverride = "opengl";
+  Engine engine(game, options);
+  struct Guard {
+    Air::AirRuntime &game;
+    std::filesystem::path path;
+    ~Guard() {
+      game.shutdown();
+      std::error_code error;
+      std::filesystem::remove(path, error);
+    }
+  } guard{game, std::filesystem::temp_directory_path() /
+                    ("air-script-text-" +
+                     std::to_string(SDL_GetPerformanceCounter()) + ".sav")};
+  game.debugJumpToNode("170:24");
+  check(game.debugStep(), "Enter a saveable pause for script text fixture");
+  game.saveGame(guard.path.string());
+  auto save = VNSave::read(guard.path.string());
+  std::istringstream input(save.gameData);
+  std::string version, snapshot, dialogue, speaker, music;
+  int pauseKind, elapsed, duration;
+  bool loop, stops;
+  int64_t end, loopStart;
+  double offset, gain, from, to;
+  check(bool(input >> version >> std::quoted(snapshot) >>
+             std::quoted(dialogue) >> std::quoted(speaker) >> pauseKind >>
+             std::quoted(music) >> loop >> end >> loopStart >> offset >> gain >>
+             from >> to >> elapsed >> duration >> stops),
+        "Read native presentation fixture header");
+  const auto begin = size_t(input.tellg());
+  size_t count;
+  check(bool(input >> count) && count == 0,
+        "Script text fixture starts without foreground objects");
+  const auto tail = size_t(input.tellg());
+  std::ostringstream object;
+  object << "\n1\n7 \"\" \"Rasterized text must stay native\""
+         << " 40 80 0 173 1 0 0 255 255 255 255 1 30 70 500 60 0 0";
+  for (int n = 0; n < 16; ++n)
+    object << " 0 0";
+  object << '\n';
+  save.gameData.replace(begin, tail - begin, object.str());
+  save.write(guard.path.string());
+  game.loadGame(guard.path.string());
+  text(game)->hide();
+  auto native = capture(engine, game, "/tmp/air-script-text-native.bmp");
+  auto settings = engine.GetUpscaler().getSettings();
+  settings.backend = UpscaleBackend::MPV;
+  settings.preset = UpscalePreset::Anime4KModeCFast;
+  settings.factor = 2;
+  engine.GetUpscaler().configure(settings);
+  auto filtered = capture(engine, game, "/tmp/air-script-text-filtered.bmp");
+  bool visible = false;
+  for (int y = 0; y < native->h; ++y) {
+    const auto *a = static_cast<Uint8 *>(native->pixels) + y * native->pitch;
+    const auto *b =
+        static_cast<Uint8 *>(filtered->pixels) + y * filtered->pitch;
+    check(std::memcmp(a, b, native->w * 4) == 0,
+          "Rasterized script text must remain pixel-identical with Anime4K");
+    for (int x = 0; x < native->w; ++x)
+      visible = visible || a[x * 4] || a[x * 4 + 1] || a[x * 4 + 2];
+  }
+  check(visible, "Script text exclusion test must draw visible glyphs");
+  const auto prepared = game.renderStats();
+  capture(engine, game, "/tmp/air-script-text-filtered.bmp");
+  check(game.renderStats().filteredSceneFrames ==
+                prepared.filteredSceneFrames &&
+            game.renderStats().textureUploads == prepared.textureUploads,
+        "Text overlays must reuse glyphs without refiltering the script scene");
+  std::cout << "Rasterized script text bypasses global Anime4K filtering\n";
 }
 void verifyBootUpscaling(std::shared_ptr<Air::AirAssets> assets) {
   for (bool key : {false, true}) {
@@ -800,8 +864,8 @@ void verifyBootUpscaling(std::shared_ptr<Air::AirAssets> assets) {
     }
     text(game)->hide();
     const auto prepared = game.renderStats();
-    check(prepared.filteredPatterns > 0,
-          "Boot logos must prepare filtered source textures on first load");
+    check(prepared.filteredPatterns == 0,
+          "Script boot logos must not be filtered separately from their scene");
     auto actual = capture(engine, game, "/tmp/air-boot-logo-upscaled.bmp");
     const auto ready = game.renderStats();
     auto source =
@@ -820,23 +884,27 @@ void verifyBootUpscaling(std::shared_ptr<Air::AirAssets> assets) {
         SDL_CreateSurface(crop.w, crop.h, SDL_PIXELFORMAT_RGBA32));
     check(bool(pixels), "Crop boot logo source");
     BlitSurfaceOpacity(*source, *pixels, &crop, nullptr, 255, false);
-    auto filtered = engine.GetUpscaler().scaled(*pixels, 2);
-    SurfacePtr expected(SDL_CreateSurface(1280, 960, SDL_PIXELFORMAT_RGBA32));
-    check(bool(expected) &&
-              SDL_FillSurfaceRect(
-                  expected.get(), nullptr,
-                  SDL_MapSurfaceRGBA(expected.get(), 0, 0, 0, 255)),
-          "Create boot logo reference");
-    if (key) {
-      SDL_Rect clip{480, 340, 320, 240};
-      check(SDL_SetSurfaceClipRect(expected.get(), &clip),
-            "Apply original KEY logo clipping");
-    }
-    SDL_Rect destination{((key ? 240 : 0) - origin.x) * 2,
-                         ((key ? -190 : 0) - origin.y) * 2, 0, 0};
-    BlitSurfaceOpacity(*filtered, *expected, nullptr, &destination, 255, true);
+    SDL_Rect destination{(key ? 240 : 0) - origin.x,
+                         (key ? -190 : 0) - origin.y, 0, 0};
     auto &renderer = engine.GetRenderer();
-    TexturePtr texture(SDL_CreateTextureFromSurface(&renderer, expected.get()));
+    TexturePtr nativeLogo(
+        SDL_CreateTextureFromSurface(&renderer, pixels.get()));
+    TexturePtr nativeScene(SDL_CreateTexture(
+        &renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_TARGET, 640, 480));
+    check(bool(nativeLogo) && bool(nativeScene) &&
+              SDL_SetRenderTarget(&renderer, nativeScene.get()) &&
+              SDL_SetRenderDrawColor(&renderer, 0, 0, 0, 255) &&
+              SDL_RenderClear(&renderer),
+          "Compose independent native boot scene on GPU");
+    const SDL_Rect clip{240, 170, 160, 120};
+    const SDL_FRect area{float(destination.x), float(destination.y),
+                         float(pixels->w), float(pixels->h)};
+    check(SDL_SetRenderClipRect(&renderer, key ? &clip : nullptr) &&
+              SDL_RenderTexture(&renderer, nativeLogo.get(), nullptr, &area) &&
+              SDL_SetRenderClipRect(&renderer, nullptr) &&
+              SDL_SetRenderTarget(&renderer, nullptr),
+          "Compose original logo with native clipping before filtering");
+    auto texture = engine.GetUpscaler().scaled(*nativeScene, 2);
     TexturePtr target(SDL_CreateTexture(&renderer, SDL_PIXELFORMAT_RGBA32,
                                         SDL_TEXTUREACCESS_TARGET, 960, 720));
     check(bool(texture) && bool(target) &&
@@ -859,13 +927,13 @@ void verifyBootUpscaling(std::shared_ptr<Air::AirAssets> assets) {
             return false;
       return true;
     };
-    // CPU and GPU alpha blending may round the translucent KEY edges apart
-    // by 1.
-    check(same(*actual, *reference, key ? 1 : 0),
-          "Boot logo must use the independently filtered source texture");
+    check(same(*actual, *reference),
+          "Script boot logo must filter its complete native scene");
     for (int n = 0; n < 8; ++n)
       capture(engine, game, "/tmp/air-boot-logo-upscaled.bmp");
     check(game.renderStats().filteredPatterns == ready.filteredPatterns &&
+              game.renderStats().filteredSceneFrames ==
+                  ready.filteredSceneFrames &&
               game.renderStats().filteredDCFrames == ready.filteredDCFrames &&
               game.renderStats().textureUploads == ready.textureUploads,
           "Boot logos must reuse filtered textures without frame filtering");
@@ -904,6 +972,8 @@ void verifyBootUpscaling(std::shared_ptr<Air::AirAssets> assets) {
         capture(engine, game, "/tmp/air-boot-title-upscaled.bmp");
       check(game.renderStats().filteredPatterns ==
                     titleReady.filteredPatterns &&
+                game.renderStats().filteredSceneFrames ==
+                    titleReady.filteredSceneFrames &&
                 game.renderStats().filteredDCFrames ==
                     titleReady.filteredDCFrames &&
                 game.renderStats().textureUploads == titleReady.textureUploads,
@@ -917,7 +987,8 @@ void verifyBootUpscaling(std::shared_ptr<Air::AirAssets> assets) {
           "The menu's AIR logo and title images must retain shader filtering");
     }
   }
-  std::cout << "AIR and KEY startup logos use cached Anime4K source textures\n";
+  std::cout
+      << "AIR and KEY script scenes use cached global Anime4K filtering\n";
 }
 int main(int argc, char **argv) {
   try {
@@ -1098,6 +1169,10 @@ int main(int argc, char **argv) {
       };
       captureAt(344, "/tmp/air-8005-344.bmp");
       captureAt(490, "/tmp/air-8005-490.bmp");
+      return 0;
+    }
+    if (argc > 2 && std::string(argv[2]) == "--script-text-upscaling") {
+      verifyScriptTextUpscaling(std::move(assets));
       return 0;
     }
     if (argc > 2 && std::string(argv[2]) == "--boot-upscaling") {
