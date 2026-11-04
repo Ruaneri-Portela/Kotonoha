@@ -119,10 +119,10 @@ int main() {
     backlog.render(engine.GetRenderer(), 1);
     SDL_Event closePad{};
     closePad.type = SDL_EVENT_GAMEPAD_BUTTON_DOWN;
-    closePad.gbutton.button = SDL_GAMEPAD_BUTTON_LEFT_SHOULDER;
+    closePad.gbutton.button = SDL_GAMEPAD_BUTTON_START;
     backlog.onEvent(closePad);
     require(!backlog.isVisible() && !backlog.capturesInput() && closed == 1,
-            "Shared controller history binding closes the native backlog");
+            "Controller Start closes the native backlog");
     backlog.open();
     key(backlog, SDLK_HOME);
     // A touchscreen contact selects on release, so dragging can scroll before
