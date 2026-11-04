@@ -65,7 +65,26 @@ void TimelinePlayer::play(TimelineScript value, double start,
   synchronizeMediaPause();
 }
 
-void TimelinePlayer::stop() {
+void TimelinePlayer::seek(double targetPosition) {
+  if (!running)
+    throw std::logic_error("Cannot seek an inactive timeline");
+  if (!std::isfinite(targetPosition) || targetPosition < 0 ||
+      targetPosition > script.duration)
+    throw std::invalid_argument("Invalid timeline seek position");
+  resetMedia();
+  resolvedChoices.erase(
+      std::remove_if(resolvedChoices.begin(), resolvedChoices.end(),
+                     [&](std::size_t index) {
+                       return !timelineReached(targetPosition,
+                                               script.cues[index].at);
+                     }),
+      resolvedChoices.end());
+  position = targetPosition;
+  next = 0;
+  applyPosition();
+}
+
+void TimelinePlayer::resetMedia() {
   video.stop();
   audio.clear();
   if (dialogueCue >= 0)
@@ -75,6 +94,10 @@ void TimelinePlayer::stop() {
   videoCue = dialogueCue = choiceCue = -1;
   waitingForChoice = false;
   branch.reset();
+}
+
+void TimelinePlayer::stop() {
+  resetMedia();
   resolvedChoices.clear();
   running = false;
   if (subtitles)

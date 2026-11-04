@@ -24,3 +24,34 @@ esse backend é resolvido. Outros upscalers continuam com o fator de escala.
 Os campos opcionais `channelVolumes`, `vnFontPath`, `vnTextColorOverride`,
 `vnTextColor` e `vnSpeakerColor` são persistidos no settings.json do jogo.
 Configurações antigas continuam válidas.
+
+## Legendas forçadas
+
+`Enable forced subtitles`, no Advanced do launcher, é salvo em
+`enableForcedSubtitles` (ativado por padrão). O recurso vale para todas as
+novels, incluindo interpretadores nativos como AIR e roteiros VN Standard
+ou Timed; não depende de vídeos nem de cues de legenda na timeline.
+
+As legendas `.ass` ficam em `forced_subtitles/`, dentro da pasta de documentos
+do jogo, com busca recursiva. O nome usa o ID completo mostrado no canto:
+por exemplo, `80005:66` corresponde a `80005-66.ass`. Caracteres inválidos
+em nomes de arquivo são substituídos por `-`; evite nomes duplicados.
+
+Em Timed, o nome é somente o nodo (`8000.ass`) e os tempos ASS seguem o
+clock global desse nodo/timeline, preservando seeks e restauração de posição.
+Nos interpretadores Standard, o nome inclui evento e posição
+(`8000:30` no HUD corresponde a `8000-30.ass`), e o clock conta o tempo não
+pausado desde a entrada nessa cena, zerando quando o ID completo muda.
+Um clock global de diagnóstico de um interpretador Standard não é usado
+como clock da cena. Roteiros VN simples sem uma posição nativa usam seu ID.
+O HUD exibe o mesmo clock das legendas; F8 alterna sua visibilidade.
+As legendas são desenhadas sobre as cenas da novel e abaixo da interface de
+tela e das configurações da engine. Enquanto um menu/modal nativo pausa a
+história, elas ficam ocultas para não cobrir seus controles. Sair do gameplay
+ou desligar o recurso limpa a legenda atual.
+
+Em F10, **Generate Forced Subtitles (.ass)** gera um modelo para o nodo/evento
+atual usando exatamente o mesmo ID do HUD, sem exigir um nodo Timeline e sem
+sobrescrever arquivos existentes. Edite o modelo, troque `Comment` por
+`Dialogue` e ajuste tempos e texto. Use **Reload forced subtitles** para
+reler arquivos novos ou editados sem reiniciar o jogo.
