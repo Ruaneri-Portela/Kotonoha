@@ -32,9 +32,13 @@ Configurações antigas continuam válidas.
 novels, incluindo interpretadores nativos como AIR e roteiros VN Standard
 ou Timed; não depende de vídeos nem de cues de legenda na timeline.
 
-As legendas `.ass` ficam em `forced_subtitles/`, dentro do diretório de trabalho
-(`working_dir`), com busca recursiva. Dump e leitura usam essa mesma pasta,
-em vez da pasta de documentos do jogo. O nome usa o ID completo mostrado no canto:
+As legendas `.ass` originais são detectadas recursivamente em
+`forced_subtitles/` na pasta de documentos do jogo. Apenas o dump é salvo em
+`current_path()/forced_subtitles/`. Depois de gerar um dump, o reload desse
+nodo/evento passa a usar o caminho absoluto do dump durante a sessão, mesmo
+se o diretório de trabalho mudar. Nodos sem dump continuam recarregando o
+original detectado automaticamente; um arquivo no diretório de trabalho não
+substitui o original só por existir. O nome usa o ID completo mostrado no canto:
 por exemplo, `80005:66` corresponde a `80005-66.ass`. Caracteres inválidos
 em nomes de arquivo são substituídos por `-`; evite nomes duplicados.
 
@@ -60,3 +64,5 @@ legendas forçadas quanto nas legendas nativas de School Days.
 Edite o modelo, troque `Comment` por
 `Dialogue` e ajuste tempos e texto. Use **Reload forced subtitles** para
 reler arquivos novos ou editados sem reiniciar o jogo.
+O inspetor exibe **Active forced ASS** com o caminho completo do arquivo
+carregado, ou `(none)` quando não há ASS ativo.

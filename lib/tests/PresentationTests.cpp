@@ -253,6 +253,14 @@ void forcedSubtitles(Engine &engine, TestRuntime &runtime) {
       std::filesystem::remove_all(path, error);
     }
   } directory;
+  struct OriginalDirectory {
+    std::filesystem::path path;
+    ~OriginalDirectory() {
+      std::error_code error;
+      std::filesystem::remove_all(path, error);
+      std::filesystem::remove(path.parent_path(), error);
+    }
+  } originals{preferredDocumentsDirectory(runtime.identify) / "forced_subtitles"};
   auto &forced = engine.GetForcedSubtitles();
   auto &timeline = engine.GetTimeline();
   auto &manager = GetVNManagerRuntime(engine);
@@ -262,7 +270,48 @@ void forcedSubtitles(Engine &engine, TestRuntime &runtime) {
   engine.setAgentPaused(true);
   engine.resetNodeClock();
 
-  forced.updateForActiveNode(); // Build the initially empty cache.
+  const auto header = styleFile().substr(0, styleFile().find("[Events]"));
+  const auto script = header +
+      "[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, "
+      "MarginV, Effect, Text\n"
+      "Dialogue: 0,0:00:01.00,0:00:02.00,Person,,0,0,0,,FORCED EARLY\n"
+      "Dialogue: 0,0:00:12.00,0:00:13.00,Person,,0,0,0,,FORCED NATIVE\n";
+  std::filesystem::create_directories(originals.path / "nested");
+  const auto originalPath = originals.path / "nested/80005.ass";
+  const auto otherOriginal = originals.path / "80006.ass";
+  writeTextFileAtomically(originalPath.string(), script);
+  writeTextFileAtomically(otherOriginal.string(), script);
+  forced.reload();
+  forced.updateForActiveNode();
+  require(forced.activePath() == originalPath,
+          "Before dumping, automatic recursive detection loads the original ASS");
+
+  const auto drawForced = [&] {
+    auto &renderer = engine.GetRenderer();
+    SDL_SetRenderDrawColor(&renderer, 0, 0, 0, 255);
+    SDL_RenderClear(&renderer);
+    forced.updateForActiveNode();
+    forced.render(renderer, 1);
+    return colored(renderer, 1);
+  };
+  require(drawForced() > 100, "Automatically detected original renders");
+  writeTextFileAtomically(originalPath.string(), header);
+  forced.reload();
+  require(drawForced() == 0 && forced.activePath() == originalPath,
+          "Reload without a dump reads edits from the original");
+  writeTextFileAtomically(originalPath.string(), script);
+  forced.reload();
+  require(drawForced() > 100, "Original reload restores edited dialogue");
+
+  const auto unrelatedDump = directory.path / "forced_subtitles/80006.ass";
+  std::filesystem::create_directories(unrelatedDump.parent_path());
+  writeTextFileAtomically(unrelatedDump.string(), header);
+  runtime.node = "80006";
+  forced.reload();
+  require(drawForced() > 100 && forced.activePath() == otherOriginal,
+          "An existing working-directory ASS does not replace an undumped original");
+  runtime.node = "80005";
+  forced.updateForActiveNode();
   const auto path = forced.dumpForActiveNode();
   require(path.filename() == "80005.ass",
           "Timed native dump uses only the node ID");
@@ -277,13 +326,34 @@ void forcedSubtitles(Engine &engine, TestRuntime &runtime) {
   }
   rejects([&] { forced.dumpForActiveNode(); },
           "Dump never overwrites existing subtitles");
-  const auto header = styleFile().substr(0, styleFile().find("[Events]"));
-  const auto script = header +
-      "[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, "
-      "MarginV, Effect, Text\n"
-      "Dialogue: 0,0:00:01.00,0:00:02.00,Person,,0,0,0,,FORCED EARLY\n"
-      "Dialogue: 0,0:00:12.00,0:00:13.00,Person,,0,0,0,,FORCED NATIVE\n";
+  require(drawForced() == 0 && forced.activePath() == path,
+          "After dumping, reload selects the dump instead of the original");
   writeTextFileAtomically(path.string(), script);
+  forced.reload();
+  require(drawForced() > 100 && forced.activePath() == path,
+          "Reload follows edits to the dump");
+  const auto newWorkingDirectory = directory.path / "changed-working-directory";
+  std::filesystem::create_directory(newWorkingDirectory);
+  std::filesystem::current_path(newWorkingDirectory);
+  forced.reload();
+  require(drawForced() > 100 && forced.activePath() == path,
+          "Dump reload keeps its absolute path after working directory changes");
+  std::filesystem::current_path(directory.path);
+  std::filesystem::remove(path);
+  forced.reload();
+  require(drawForced() == 0 && forced.activePath().empty(),
+          "A missing selected dump clears the active ASS instead of silently "
+          "falling back to the original");
+  writeTextFileAtomically(path.string(), script);
+  forced.reload();
+  require(drawForced() > 100 && forced.activePath() == path,
+          "Restoring the dump allows reload to recover its active ASS path");
+  runtime.node = "80006";
+  forced.reload();
+  require(drawForced() > 100 && forced.activePath() == otherOriginal,
+          "Dump selection is per node and leaves other originals unchanged");
+  runtime.node = "80005";
+  forced.reload();
   int green = 0;
   runtime.inspectScreen = [&](RendererRef renderer) {
     green = colored(renderer, 1);
@@ -301,7 +371,8 @@ void forcedSubtitles(Engine &engine, TestRuntime &runtime) {
   require(frame() > 100 && forced.getPosition() == 1.5,
           "Native backward seek restores forced subtitles");
   runtime.node = "missing:67";
-  require(frame() == 0, "Node changes clear stale forced subtitles");
+  require(frame() == 0 && forced.activePath().empty(),
+          "Node changes clear stale forced subtitles and the active ASS path");
   runtime.node = "80005";
   require(frame() > 100, "Returning to a node reloads its subtitles");
   auto &menu = GetInGameMenuRuntime(engine);
@@ -335,7 +406,8 @@ void forcedSubtitles(Engine &engine, TestRuntime &runtime) {
   auto settings = engine.GetSettings();
   settings.enableForcedSubtitles = false;
   engine.applySettings(settings, false);
-  require(frame() == 0, "Disabling forced subtitles immediately removes them");
+  require(frame() == 0 && forced.activePath().empty(),
+          "Disabling forced subtitles removes them and clears the active ASS path");
   settings.enableForcedSubtitles = true;
   engine.applySettings(settings, false);
   require(frame() > 100, "Enabling forced subtitles reloads the current node");
