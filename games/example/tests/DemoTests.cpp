@@ -90,7 +90,7 @@ void testMultipleSaves(KotonohaExample::DemoGame &game,
 
   const auto newPath = storage.nextPath();
   press(engine, SDLK_ESCAPE);
-  click(engine, 500, 344); // Pause menu: Save.
+  click(engine, 500, 384); // Pause menu: Save.
   require(browser(game) && browser(game)->isOpen() && engine.isStoryPaused(),
           "Save browser opens as a story-pausing modal");
   press(engine, SDLK_F5);
@@ -116,7 +116,7 @@ void testMultipleSaves(KotonohaExample::DemoGame &game,
               storage.list().size() == 42 && VNSave::read(newPath).nodeId == 1,
           "New save from UI creates another slot without overwriting");
 
-  click(engine, 500, 344);
+  click(engine, 500, 384);
   press(engine, SDLK_DOWN); // First existing save (save-1.vn).
   press(engine, SDLK_RETURN);
   require(VNSave::read(paths[0]).nodeId == 0 && browser(game),
@@ -132,7 +132,7 @@ void testMultipleSaves(KotonohaExample::DemoGame &game,
               VNSave::read(slot.path.string()).nodeId == originalQuick.nodeId,
           "Other manual slots and quicksave stay unchanged");
 
-  click(engine, 500, 398); // Pause menu: Load.
+  click(engine, 500, 438); // Pause menu: Load.
   require(browser(game), "Load browser opens from pause menu");
   for (int i = 0; i < 6; ++i)
     press(engine, SDLK_PAGEDOWN);
@@ -142,7 +142,7 @@ void testMultipleSaves(KotonohaExample::DemoGame &game,
               engine.GetTimeline().seconds() >= originalQuick.timelinePosition,
           "Paging reaches and restores the last save, including its clock");
   press(engine, SDLK_ESCAPE);
-  click(engine, 500, 398);
+  click(engine, 500, 438);
   press(engine, SDLK_PAGEUP);
   press(engine, SDLK_ESCAPE);
   require(!browser(game), "Long list supports paging and cancellation");
