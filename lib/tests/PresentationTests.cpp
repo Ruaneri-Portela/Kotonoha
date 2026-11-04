@@ -646,6 +646,16 @@ void subtitleRasterization(Engine &engine) {
   const auto retina = capture();
   require(equalPixels(*reference, *retina),
           "Logical presentation rasterizes exactly like native physical pixels");
+  auto &upscaler = engine.GetUpscaler();
+  const auto previousUpscaling = upscaler.getSettings();
+  for (const float factor : {2.0f, 4.0f}) {
+    upscaler.configure({UpscaleBackend::Linear, UpscalePreset::Anime4K,
+                        factor, {}});
+    const auto unscaledGlyphs = capture();
+    require(equalPixels(*retina, *unscaledGlyphs),
+            "Enabling image upscaling must not change subtitle pixels");
+  }
+  upscaler.configure(previousUpscaling);
 
   require(SDL_SetRenderLogicalPresentation(
               &renderer, 0, 0, SDL_LOGICAL_PRESENTATION_DISABLED) &&

@@ -73,6 +73,9 @@ sobrescrever arquivos existentes. `PlayResX` e `PlayResY` recebem o tamanho
 lógico da cena, não a resolução da tela. A rasterização das legendas usa os
 pixels físicos da área apresentada, incluindo a densidade Retina, tanto nas
 legendas forçadas quanto nas legendas nativas de School Days.
+As texturas dos glifos são desenhadas diretamente, sem passar pelo upscaler
+de imagens (Anime4K, ArtCNN, MetalFX ou linear), nem aplicar filtragem linear
+à textura da legenda. A nitidez vem da rasterização na resolução física.
 Edite o modelo, troque `Comment` por
 `Dialogue` e ajuste tempos e texto. Use **Reload forced subtitles** para
 reler arquivos novos ou editados sem reiniciar o jogo.

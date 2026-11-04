@@ -3,6 +3,7 @@
 #include <Kotonoha/componentes/TextInputDialog.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/debug/DebugOverlay.hpp>
+#include <Kotonoha/media/upscaling/Upscaler.hpp>
 #include <cstring>
 #include <iostream>
 #include <stdexcept>
@@ -48,6 +49,10 @@ void RetinaSubtitles(Kotonoha::Engine &engine) {
               SDL_SetRenderScale(&renderer, 2, 2),
           "Configure School Days physical-pixel reference");
   const auto physical = capture();
+  auto &upscaler = engine.GetUpscaler();
+  const auto previousUpscaling = upscaler.getSettings();
+  upscaler.configure({Kotonoha::UpscaleBackend::Linear,
+                      Kotonoha::UpscalePreset::Anime4K, 4, {}});
   Require(SDL_SetRenderScale(&renderer, 1, 1) &&
               SDL_SetRenderLogicalPresentation(
                   &renderer, 1280, 720, SDL_LOGICAL_PRESENTATION_LETTERBOX),
@@ -73,6 +78,7 @@ void RetinaSubtitles(Kotonoha::Engine &engine) {
     }
   }
   Require(visible, "School Days Retina reference must contain rendered glyphs");
+  upscaler.configure(previousUpscaling);
   Require(SDL_SetRenderTarget(&renderer, nullptr),
           "Restore School Days window target");
 }
