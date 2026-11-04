@@ -64,6 +64,9 @@ public:
 
   bool handleEvent(Kotonoha::EventRef event) override;
   void update() override;
+  // Stops held/pinned read-skip, e.g. when a controller menu opens or the
+  // controller is disconnected.
+  void CancelSkip();
 
 protected:
   double charactersPerSecond() const override { return 1e9; }
@@ -82,6 +85,10 @@ private:
   SnowLinks &links_;
   std::string pageKey_;
   Uint64 doneAt_ = 0;
+  // SDL_GetModState() never sees gamepad-mapped LCTRL, so track the synthetic
+  // hold explicitly; skipPinned_ is the West/S toggle.
+  bool ctrlHeld_ = false;
+  bool skipPinned_ = false;
 };
 
 // Shared choice behaviour: options come from the script, picking one advances it.

@@ -16,6 +16,13 @@ SDL_Event finger(Uint32 type, int id, float x, float y) {
   e.tfinger.y = y;
   return e;
 }
+SDL_Event pad(SDL_GamepadButton button, bool down = true) {
+  SDL_Event e{};
+  e.type = down ? SDL_EVENT_GAMEPAD_BUTTON_DOWN : SDL_EVENT_GAMEPAD_BUTTON_UP;
+  e.gbutton.button = button;
+  e.gbutton.down = down;
+  return e;
+}
 int main() {
   try {
     InputActions a, b;
@@ -85,6 +92,51 @@ int main() {
           "Returning stick to center releases navigation");
     navigation.process(lost);
     check(navigation.process(axis).empty(), "Focus loss clears analog state");
+    check(MapControllerEvent(pad(SDL_GAMEPAD_BUTTON_EAST)).key.key ==
+                  SDLK_RETURN &&
+              MapControllerEvent(pad(SDL_GAMEPAD_BUTTON_SOUTH)).key.key ==
+                  SDLK_ESCAPE &&
+              MapControllerEvent(pad(SDL_GAMEPAD_BUTTON_SOUTH), true).key.key ==
+                  SDLK_LCTRL,
+          "Controller confirm/cancel mapping honors the dialogue context");
+    check(MapControllerEvent(pad(SDL_GAMEPAD_BUTTON_WEST)).key.key == SDLK_S &&
+              MapControllerEvent(pad(SDL_GAMEPAD_BUTTON_NORTH)).key.key ==
+                  SDLK_ESCAPE &&
+              MapControllerEvent(pad(SDL_GAMEPAD_BUTTON_START)).key.key ==
+                  SDLK_ESCAPE &&
+              MapControllerEvent(pad(SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER))
+                      .key.key == SDLK_A,
+          "Controller shortcuts map to skip, pause and auto");
+    check(MapControllerEvent(pad(SDL_GAMEPAD_BUTTON_BACK)).key.key ==
+                  SDLK_PAGEUP &&
+              MapControllerEvent(pad(SDL_GAMEPAD_BUTTON_LEFT_SHOULDER), true,
+                                 true)
+                      .key.key == SDLK_ESCAPE &&
+              MapControllerEvent(pad(SDL_GAMEPAD_BUTTON_BACK), true, true)
+                      .key.key == SDLK_ESCAPE,
+          "History mapping closes with Back instead of scrolling");
+    check(MapControllerEvent(pad(SDL_GAMEPAD_BUTTON_DPAD_LEFT)).key.key ==
+                  SDLK_LEFT &&
+              MapControllerEvent(pad(SDL_GAMEPAD_BUTTON_MISC1)).type ==
+                  SDL_EVENT_GAMEPAD_BUTTON_DOWN,
+          "Directional mapping keeps menu navigation and unmapped buttons "
+          "intact");
+    check(MapControllerEvent(pad(SDL_GAMEPAD_BUTTON_DPAD_LEFT), true).key.key ==
+                  SDLK_MINUS &&
+              MapControllerEvent(pad(SDL_GAMEPAD_BUTTON_DPAD_RIGHT), true)
+                      .key.key == SDLK_PLUS &&
+              MapControllerEvent(pad(SDL_GAMEPAD_BUTTON_DPAD_UP)).key.key ==
+                  SDLK_UP &&
+              MapControllerEvent(pad(SDL_GAMEPAD_BUTTON_DPAD_DOWN)).key.key ==
+                  SDLK_DOWN &&
+              MapControllerEvent(pad(SDL_GAMEPAD_BUTTON_EAST, false)).type ==
+                  SDL_EVENT_KEY_UP,
+          "D-pad mapping and button releases stay usable in dialogue");
+    SDL_Event keyboard{};
+    keyboard.type = SDL_EVENT_KEY_DOWN;
+    keyboard.key.key = SDLK_ESCAPE;
+    check(MapControllerEvent(keyboard).key.key == SDLK_ESCAPE,
+          "Non-controller events pass through unchanged");
     std::cout << "Input action tests passed\n";
   } catch (std::exception &e) {
     std::cerr << e.what() << '\n';

@@ -840,17 +840,21 @@ bool Runtime::onEvent(Kotonoha::EventRef eventInput) {
   }
   const bool escape = Kotonoha::BackAction(*engine, event);
   if (saveMenu->isOpen()) {
-    if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
-        event.button.button == SDL_BUTTON_LEFT)
+    if (eventInput.type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
+        eventInput.button.button == SDL_BUTTON_LEFT)
       consumePanelRelease = true;
-    dispatchEvent(*saveMenu, event);
+    // The shared save browser maps controller buttons in its own context;
+    // South must cancel even while the script is in gameplay.
+    dispatchEvent(*saveMenu, eventInput);
     return true;
   }
   if (backlogFallback->isVisible()) {
-    if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
-        event.button.button == SDL_BUTTON_LEFT)
+    if (eventInput.type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
+        eventInput.button.button == SDL_BUTTON_LEFT)
       consumePanelRelease = true;
-    dispatchEvent(*backlogFallback, event);
+    // The history uses the "history open" mapping so Back closes it instead
+    // of scrolling.
+    dispatchEvent(*backlogFallback, eventInput);
     return true;
   }
   if (backlogModel.IsOpen()) {

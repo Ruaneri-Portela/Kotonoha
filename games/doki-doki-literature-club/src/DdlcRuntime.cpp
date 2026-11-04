@@ -215,7 +215,15 @@ void GameRuntime::update() {
 }
 
 bool GameRuntime::onEvent(Kotonoha::EventRef event) {
-  auto mapped = Kotonoha::MapControllerEvent(event);
+  if (!session_)
+    return Runtime::onEvent(event);
+  // South holds skip during dialogue, while menus, choices and history need
+  // it as Cancel. Back/left shoulder closes the open history instead of
+  // scrolling.
+  const bool dialogue =
+      session_->playing() && !session_->paused() && !session_->choosing();
+  auto mapped =
+      Kotonoha::MapControllerEvent(event, dialogue, session_->historyOpen());
   return Runtime::onEvent(mapped);
 }
 

@@ -2785,8 +2785,10 @@ struct Game {
     const SDL_Event *e = &event;
     if (Kotonoha::BackAction(engine, event) && phase == Phase::Play)
       return backAction();
-    if (Kotonoha::ShouldOpenBacklog(engine, event) && phase == Phase::Play &&
-        !pauseMenu)
+    if ((Kotonoha::ShouldOpenBacklog(engine, event) ||
+         (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat &&
+          event.key.key == SDLK_PAGEUP)) &&
+        phase == Phase::Play && !pauseMenu)
       return openHistory();
     float velocity = 0;
     bool follow = false;
@@ -2871,11 +2873,16 @@ struct Game {
           advance();
       } else if (k == SDLK_TAB && phase == Phase::Play) {
         skipToggle = !skipToggle;
-      } else if (k == SDLK_A && phase == Phase::Play) {
+      } else if (k == SDLK_S && phase == Phase::Play && !pauseMenu) {
+        skipToggle = !skipToggle;
+      } else if (k == SDLK_A && phase == Phase::Play && !pauseMenu) {
         autoMode = !autoMode;
       }
       break;
     }
+    case SDL_EVENT_GAMEPAD_REMOVED:
+      ctrl = false;
+      break;
     case SDL_EVENT_KEY_UP:
       if (e->key.key == SDLK_LCTRL || e->key.key == SDLK_RCTRL)
         ctrl = false;

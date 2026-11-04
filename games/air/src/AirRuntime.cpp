@@ -230,7 +230,14 @@ struct Text : VNTextBox {
       VNTextBox::render(r, scale);
   }
   bool handleEvent(EventRef event) override {
-    return isVisible() && !concealed && controls.handle(event);
+    if (!isVisible() || concealed)
+      return false;
+    // The sprite toolbar is pointer-only. D-pad and arrow keys belong to the
+    // dialogue/game menus; otherwise a stray D-pad press leaves hidden keyboard
+    // focus on a toolbar button and East activates it instead of advancing.
+    if (event.type == SDL_EVENT_KEY_DOWN || event.type == SDL_EVENT_KEY_UP)
+      return false;
+    return controls.handle(event);
   }
   void renderFrame(RendererRef r) override {
     image(r, *back, 0, 345);
@@ -740,7 +747,16 @@ struct AirRuntime::Impl {
       GetVNBacklogRuntime(*engine).open();
       return true;
     }
-    if (e.type == SDL_EVENT_WINDOW_FOCUS_LOST)
+    // Controller Back/left shoulder maps to PAGEUP (see MapControllerEvent);
+    // the AIR text box overrides the shared VNTextBox handler, so accept it
+    // here as well.
+    if (pause && textbox->isVisible() && e.type == SDL_EVENT_KEY_DOWN &&
+        !e.key.repeat && e.key.key == SDLK_PAGEUP) {
+      GetVNBacklogRuntime(*engine).open();
+      return true;
+    }
+    if (e.type == SDL_EVENT_WINDOW_FOCUS_LOST ||
+        e.type == SDL_EVENT_GAMEPAD_REMOVED)
       skipHeld = false;
     if ((e.type == SDL_EVENT_KEY_DOWN || e.type == SDL_EVENT_KEY_UP) &&
         (e.key.key == SDLK_LCTRL || e.key.key == SDLK_RCTRL)) {
@@ -758,10 +774,15 @@ struct AirRuntime::Impl {
         }
       } else if (textbox->handleEvent(e))
         return true;
-      if (e.type == SDL_EVENT_KEY_DOWN && !e.key.repeat &&
-          e.key.key == SDLK_A) {
+      if (!engine->isStoryPaused() && e.type == SDL_EVENT_KEY_DOWN &&
+          !e.key.repeat && e.key.key == SDLK_A) {
         autoMode = !autoMode;
         autoDeadline = 0;
+        return true;
+      }
+      if (!engine->isStoryPaused() && e.type == SDL_EVENT_KEY_DOWN &&
+          !e.key.repeat && e.key.key == SDLK_S) {
+        skipMode = !skipMode;
         return true;
       }
     }
@@ -1949,9 +1970,20 @@ void AirRuntime::loadGame(const std::string &path) {
 }
 
 bool AirRuntime::onEvent(EventRef e) {
-  auto mapped = Kotonoha::MapControllerEvent(e, impl && impl->textbox &&
-                                                    impl->textbox->isVisible());
-  return Runtime::onEvent(mapped);
+  if (!impl)
+    return Runtime::onEvent(e);
+  // Modal scenes translate controller input in their own context. Pre-mapping
+  // would turn South into held skip while the pause/save menus are open and
+  // would hide the history state from the backlog. Holding South while a modal
+  // opens must also stop skipping in the background.
+  for (auto *scene : GetActiveScenes())
+    if (scene && scene->capturesInput()) {
+      impl->skipHeld = false;
+      return Runtime::onEvent(e);
+    }
+  const bool dialogue =
+      impl->textbox && impl->textbox->isVisible() && !impl->textbox->concealed;
+  return Runtime::onEvent(Kotonoha::MapControllerEvent(e, dialogue));
 }
 int AirRuntime::translationRoute() const { return impl->vm.scenario(); }
 std::vector<int> AirRuntime::translationRoutes() const {

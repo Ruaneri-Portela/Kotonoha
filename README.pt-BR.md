@@ -410,14 +410,15 @@ como padrao. `--ktrf` sobrescreve explicitamente a rota lembrada.
 - Clique esquerdo, Espaco ou Enter: completar a fala / avancar.
 - Escolhas: clique, setas e Enter/Espaco; roda do mouse para listas longas.
 - Controle: direcional ou analogico esquerdo navega; Leste (Circulo/B)
-  confirma; Sul (X/A) cancela nos menus; Start abre pausa. Back/L1 alterna
-  o historico. Nos ajustes nativos, L1/R1 alternam abas.
+  confirma; Sul (X/A) cancela nos menus; Start/Norte abre pausa. Back/L1 abre
+  o historico (e o fecha enquanto aberto). Nos ajustes nativos, L1/R1
+  alternam abas.
 - Toque: tocar ativa; arrastar rola listas e historico. Arraste, cancelamento
   e um segundo dedo impedem a confirmacao de itens. Deslizar da borda ou tocar
   com dois dedos volta; deslizar para cima durante a fala abre o historico.
-- ZNT e Amagami: segurar Sul pula durante a fala; soltar interrompe.
-  R1 alterna Auto e Oeste alterna pular conforme as regras do jogo. Nos menus, os botoes
-  continuam navegando enquanto a fala esta pausada.
+- Durante a fala, segurar Sul pula (soltar interrompe); Oeste alterna pular e
+  R1 alterna Auto nos portes que implementam esses recursos. Nos menus, os
+  botoes continuam navegando e Sul cancela mesmo com a fala visivel por baixo.
 - B: historico. Roda do mouse ou setas: rolar. B/ESC: fechar.
 - ESC: menu de pausa; setas/Enter ou mouse nos menus.
 - Entrada de nome: texto UTF-8, Backspace, Enter e ESC.

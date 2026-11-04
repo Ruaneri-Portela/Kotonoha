@@ -52,6 +52,15 @@ void press(Kotonoha::Engine &engine, SDL_Keycode key) {
   send(engine, event);
 }
 
+SDL_Event pad(SDL_GamepadButton button, bool down = true) {
+  SDL_Event event{};
+  event.type =
+      down ? SDL_EVENT_GAMEPAD_BUTTON_DOWN : SDL_EVENT_GAMEPAD_BUTTON_UP;
+  event.gbutton.button = button;
+  event.gbutton.down = down;
+  return event;
+}
+
 // A left click at an 800x600 game position (960x720 viewport = x * 1.2, y
 // * 1.2).
 void click(Kotonoha::Engine &engine, float x, float y) {
@@ -270,6 +279,16 @@ void testGame(const std::string &directory) {
     frames(engine, 5);
     require(!menu->IsOpen(), "Esc closes the pause menu");
 
+    // Controller: Start opens the pause menu and South cancels it while a
+    // message is on screen instead of turning into held skip.
+    send(engine, pad(SDL_GAMEPAD_BUTTON_START));
+    frames(engine, 5);
+    require(menu->IsOpen(), "Controller Start opens the pause menu");
+    send(engine, pad(SDL_GAMEPAD_BUTTON_SOUTH));
+    frames(engine, 5);
+    require(!menu->IsOpen(), "Controller South cancels the pause menu");
+    send(engine, pad(SDL_GAMEPAD_BUTTON_SOUTH, false));
+
     press(engine, SDLK_B);
     frames(engine, 5);
     require(backlog->isVisible() && engine.isStoryPaused() &&
@@ -279,6 +298,24 @@ void testGame(const std::string &directory) {
     press(engine, SDLK_ESCAPE);
     frames(engine, 5);
     require(!backlog->isVisible(), "Esc closes the backlog");
+
+    // Controller shoulder opens the history; Back and South then close it.
+    send(engine, pad(SDL_GAMEPAD_BUTTON_LEFT_SHOULDER));
+    frames(engine, 5);
+    require(backlog->isVisible(), "Controller left shoulder opens the history");
+    send(engine, pad(SDL_GAMEPAD_BUTTON_LEFT_SHOULDER, false));
+    send(engine, pad(SDL_GAMEPAD_BUTTON_BACK));
+    frames(engine, 5);
+    require(!backlog->isVisible(), "Controller Back closes the history");
+    send(engine, pad(SDL_GAMEPAD_BUTTON_BACK, false));
+    send(engine, pad(SDL_GAMEPAD_BUTTON_LEFT_SHOULDER));
+    frames(engine, 5);
+    require(backlog->isVisible(), "Controller shoulder reopens the history");
+    send(engine, pad(SDL_GAMEPAD_BUTTON_LEFT_SHOULDER, false));
+    send(engine, pad(SDL_GAMEPAD_BUTTON_SOUTH));
+    frames(engine, 5);
+    require(!backlog->isVisible(), "Controller South closes the history");
+    send(engine, pad(SDL_GAMEPAD_BUTTON_SOUTH, false));
 
     // The first map choice is ~1350 pages in: turn several pages per rendered
     // frame.

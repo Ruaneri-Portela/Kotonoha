@@ -82,6 +82,36 @@ std::string Config::text(const std::string &key, const std::string &fallback,
   return item < v.size() ? v[item] : fallback;
 }
 
+namespace {
+// rlBabel's Cp1252::JisDecode: undoes the reversible western glyph mapping.
+// Italic glyphs are stored 0x200 above the normal code, so the mapped value
+// has to be decoded again.
+bool westernGlyph(unsigned c, unsigned &decoded) {
+  if (c <= 0x7f) {
+    decoded = c;
+    return true;
+  }
+  if (c >= 0xa1 && c <= 0xdf) {
+    decoded = c + 0x1f;
+    return true;
+  }
+  if (c >= 0x8980 && c <= 0x89bf) {
+    decoded = c & 0xff;
+    return true;
+  }
+  if (c == 0x89c0) {
+    decoded = 0xff;
+    return true;
+  }
+  if (c > 0x8300 && c < 0x8900) {
+    const unsigned base =
+        c > 0x8700 ? c + 0x200 : c - (c >= 0x8380 ? 0x8320 : 0x831f);
+    return westernGlyph(base & 0xffff, decoded);
+  }
+  return false;
+}
+} // namespace
+
 std::string decodeText(const std::string &input, int encoding) {
   if (encoding == 0)
     return Kotonoha::ShiftJisToUtf8(input);
@@ -98,22 +128,12 @@ std::string decodeText(const std::string &input, int encoding) {
       if (++i == input.size())
         throw std::runtime_error("Truncated AIR western glyph");
       c = (c << 8) | uint8_t(input[i]);
-      if (c > 0x8300 && c < 0x8900) {
-        if (c > 0x8700)
-          c += 0x200;
-        else
-          c -= c >= 0x8380 ? 0x8320 : 0x831f;
-      }
-      if (c >= 0x8980 && c <= 0x89bf)
-        c &= 255;
-      else if (c == 0x89c0)
-        c = 255;
-      else if (c > 127)
-        throw std::runtime_error("Unknown AIR western glyph: " +
-                                 std::to_string(c));
-    } else if (c >= 0xa1 && c <= 0xdf)
-      c += 0x1f;
-    western += char(c);
+    }
+    unsigned decoded = 0;
+    if (!westernGlyph(c, decoded))
+      throw std::runtime_error("Unknown AIR western glyph: " +
+                               std::to_string(c));
+    western += char(decoded);
   }
 
   // Utiliza a interface unificada do Kotonoha para conversão de CP1252 para
