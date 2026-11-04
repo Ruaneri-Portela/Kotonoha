@@ -253,15 +253,13 @@ void forcedSubtitles(Engine &engine, TestRuntime &runtime) {
       std::filesystem::remove_all(path, error);
     }
   } directory;
-  struct OriginalDirectory {
-    std::filesystem::path path;
-    ~OriginalDirectory() {
-      std::error_code error;
-      std::filesystem::remove_all(path, error);
-      std::filesystem::remove(path.parent_path(), error);
-    }
-  } originals{preferredDocumentsDirectory(runtime.identify) / "forced_subtitles"};
   auto &forced = engine.GetForcedSubtitles();
+  const auto originalDirectory = forced.sourceDirectory();
+  require(originalDirectory.is_absolute(),
+          "Forced subtitle source is already resolved before loading any node");
+  require(!std::filesystem::equivalent(originalDirectory.parent_path(),
+                                       directory.path),
+          "Changing the working directory does not change the startup source");
   auto &timeline = engine.GetTimeline();
   auto &manager = GetVNManagerRuntime(engine);
   runtime.SetState(GameState::Gameplay);
@@ -276,9 +274,9 @@ void forcedSubtitles(Engine &engine, TestRuntime &runtime) {
       "MarginV, Effect, Text\n"
       "Dialogue: 0,0:00:01.00,0:00:02.00,Person,,0,0,0,,FORCED EARLY\n"
       "Dialogue: 0,0:00:12.00,0:00:13.00,Person,,0,0,0,,FORCED NATIVE\n";
-  std::filesystem::create_directories(originals.path / "nested");
-  const auto originalPath = originals.path / "nested/80005.ass";
-  const auto otherOriginal = originals.path / "80006.ass";
+  std::filesystem::create_directories(originalDirectory / "nested");
+  const auto originalPath = originalDirectory / "nested/80005.ass";
+  const auto otherOriginal = originalDirectory / "80006.ass";
   writeTextFileAtomically(originalPath.string(), script);
   writeTextFileAtomically(otherOriginal.string(), script);
   forced.reload();
@@ -304,8 +302,16 @@ void forcedSubtitles(Engine &engine, TestRuntime &runtime) {
   require(drawForced() > 100, "Original reload restores edited dialogue");
 
   const auto unrelatedDump = directory.path / "forced_subtitles/80006.ass";
+  ForcedSubtitleRenderer missingSource(engine);
+  require(missingSource.sourceDirectory().empty(),
+          "Startup without a subtitle directory records no automatic source");
   std::filesystem::create_directories(unrelatedDump.parent_path());
   writeTextFileAtomically(unrelatedDump.string(), header);
+  missingSource.reload();
+  missingSource.loadForNode("80006");
+  require(missingSource.sourceDirectory().empty() &&
+              missingSource.activePath().empty(),
+          "Reload does not redetect a directory created after startup");
   runtime.node = "80006";
   forced.reload();
   require(drawForced() > 100 && forced.activePath() == otherOriginal,
@@ -700,6 +706,22 @@ int main() {
   try {
     arguments();
     resolver();
+    struct StartupDirectory {
+      std::filesystem::path previous = std::filesystem::current_path();
+      std::filesystem::path path = std::filesystem::temp_directory_path() /
+          ("kotonoha-subtitle-startup-" +
+           std::to_string(SDL_GetPerformanceCounter()));
+      StartupDirectory() {
+        std::filesystem::create_directories(path / "game-assets/forced_subtitles");
+        std::filesystem::create_directories(path / "forced_subtitles");
+        std::filesystem::current_path(path);
+      }
+      ~StartupDirectory() {
+        std::error_code error;
+        std::filesystem::current_path(previous, error);
+        std::filesystem::remove_all(path, error);
+      }
+    } startup;
     TestRuntime runtime;
     struct StyleFile {
       std::filesystem::path path =
@@ -716,6 +738,10 @@ int main() {
     options.rendererOverride = "software";
     options.subtitleStylePath = style.path.string();
     Engine engine(runtime, options);
+    require(std::filesystem::equivalent(
+                engine.GetForcedSubtitles().sourceDirectory(),
+                startup.path / "game-assets/forced_subtitles"),
+            "Startup resolves forced subtitles using overlay reference-root priority");
     require(engine.GetSubtitleStyle().has_value(),
             "Startup loads the selected style file");
     // Global interface strings share the same live dictionary as game text.

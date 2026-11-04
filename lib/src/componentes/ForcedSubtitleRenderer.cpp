@@ -13,6 +13,12 @@ namespace Kotonoha {
 
 ForcedSubtitleRenderer::ForcedSubtitleRenderer(Engine &engine)
     : SubtitleScene(engine) {
+  for (const auto &candidate : FileResolver::candidates("forced_subtitles")) {
+    if (std::filesystem::is_directory(candidate)) {
+      sourceDirectory_ = std::filesystem::canonical(candidate);
+      break;
+    }
+  }
   const auto size = engine.GetRuntime().sceneSize(*this);
   setLogicalSize(static_cast<int>(std::lround(size.x)),
                  static_cast<int>(std::lround(size.y)));
@@ -29,16 +35,14 @@ std::string ForcedSubtitleRenderer::fileName(const std::string &nodeId) {
 
 void ForcedSubtitleRenderer::buildSubtitleCache() {
   std::map<std::string, std::filesystem::path> cache;
-  const auto directory =
-      preferredDocumentsDirectory(engine.GetRuntime().identify) /
-      "forced_subtitles";
-  if (!std::filesystem::exists(directory)) {
+  if (sourceDirectory_.empty() ||
+      !std::filesystem::exists(sourceDirectory_)) {
     cacheBuilt = true;
     subtitleCache.clear();
     return;
   }
   for (const auto &entry :
-       std::filesystem::recursive_directory_iterator(directory)) {
+       std::filesystem::recursive_directory_iterator(sourceDirectory_)) {
     if (!entry.is_regular_file() || entry.path().extension() != ".ass")
       continue;
     const auto name = entry.path().filename().string();
