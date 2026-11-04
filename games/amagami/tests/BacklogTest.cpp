@@ -75,6 +75,20 @@ int main() {
     require(backlog.focusedEntry() == 76 &&
                 backlog.scrollTarget() < afterWheelScroll,
             "Directional pad keeps scrolling as the selection moves upward");
+    const float afterPadScroll = backlog.scrollTarget();
+    SDL_Event analog{};
+    analog.type = SDL_EVENT_GAMEPAD_AXIS_MOTION;
+    analog.gaxis.which = 9;
+    analog.gaxis.axis = SDL_GAMEPAD_AXIS_LEFTY;
+    analog.gaxis.value = -32768;
+    engine.Event(&analog);
+    require(backlog.focusedEntry() == 75 &&
+                backlog.scrollTarget() < afterPadScroll,
+            "Left analog stick scrolls the backlog through the engine");
+    analog.gaxis.value = 0;
+    engine.Event(&analog);
+    require(backlog.focusedEntry() == 75,
+            "Returning the analog stick to center does not scroll again");
     key(backlog, SDLK_HOME);
     require(backlog.focusedEntry() == 0, "Oldest dialogue remains reachable");
     key(backlog, SDLK_DOWN);
