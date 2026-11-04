@@ -286,7 +286,8 @@ still work. Scale `1.0` turns processing off without losing the selected profile
 ## Controls and diagnostics
 
 - Click / Enter / Space: reveal or advance dialogue.
-- Arrows / mouse: menus and choices; mouse wheel scrolls longer lists.
+- Arrows / mouse: menus and choices; mouse wheel and the left stick scroll
+  longer lists and histories.
 - Gamepad: D-pad or left stick navigates; East (Circle/B) confirms;
   South (Cross/A) cancels in menus; Start/North opens pause. Back/left
   shoulder opens history (and closes it while open). Native settings also
