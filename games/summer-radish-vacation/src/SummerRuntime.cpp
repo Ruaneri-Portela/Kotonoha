@@ -619,6 +619,7 @@ struct SummerRuntime::Impl {
       vm.markRead(vm.resource.children[1]);
     voice.Stop();
     pending.clear();
+    autoMode = skipMode = false;
     vm.resume();
   }
   void openSaves(bool load) {
@@ -730,12 +731,18 @@ struct SummerRuntime::Impl {
       text = std::make_unique<SummerText>(e, *assets);
       text->autoActive = [this] { return autoMode; };
       text->skipActive = [this] { return skipMode || skipHeld; };
-      text->controls.buttons[0].action = [this] { skipMode = !skipMode; };
+      text->controls.buttons[0].action = [this] {
+        skipMode = !skipMode;
+        if (skipMode)
+          autoMode = false;
+      };
       text->controls.buttons[1].action = [this] {
         GetVNBacklogRuntime(*engine).open();
       };
       text->controls.buttons[2].action = [this] {
         autoMode = !autoMode;
+        if (autoMode)
+          skipMode = false;
         deadline = 0;
       };
       text->controls.buttons[3].action = [this] {
@@ -1245,10 +1252,14 @@ struct SummerRuntime::Impl {
       }
       if (e.key.key == SDLK_A) {
         autoMode = !autoMode;
+        if (autoMode)
+          skipMode = false;
         return true;
       }
       if (e.key.key == SDLK_S) {
         skipMode = !skipMode;
+        if (skipMode)
+          autoMode = false;
         return true;
       }
       if (e.key.key == SDLK_F5) {
