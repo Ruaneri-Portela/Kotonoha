@@ -275,7 +275,7 @@ void testSaveManagement(KotonohaExample::DemoGame &game,
   click(engine, 400, 590); // Rename button.
   text("Viagem \xe9\x9b\xaa");
   press(engine, SDLK_RETURN);
-  const auto renamed = directory / std::filesystem::u8path("Viagem \xe9\x9b\xaa.vn");
+  const auto renamed = directory / std::filesystem::path("Viagem \xe9\x9b\xaa.vn");
   require(menu.isOpen() && std::filesystem::exists(renamed) &&
               !std::filesystem::exists(original) &&
               !SDL_TextInputActive(&engine.GetWindow()) &&
