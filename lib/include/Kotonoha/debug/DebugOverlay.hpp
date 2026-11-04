@@ -20,6 +20,7 @@ class ShaderFilePicker;
 struct DebugSettings {
   bool showFPS = true;
   bool showNodeClock = true;
+  bool ignorePause = false;
 };
 
 class DebugOverlay {
@@ -88,6 +89,7 @@ public:
   void renderHUD(RendererRef renderer);
   void renderMenu(RendererRef renderer);
   bool isVisible() const { return visible || showTranslationWindow; }
+  bool pausesStory() const { return isVisible() && !settings.ignorePause; }
   void setVisible(bool value);
   DebugSettings &getSettings() { return settings; }
   const DebugSettings &getSettings() const { return settings; }

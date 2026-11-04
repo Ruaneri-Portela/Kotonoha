@@ -52,6 +52,27 @@ int main() {
             "Native backlog uses engine modal input and story pause");
     require(backlog.focusedEntry() == 79,
             "History initially focuses the newest page");
+    backlog.render(engine.GetRenderer(), 1);
+    const float newestScroll = backlog.scrollTarget();
+    key(backlog, SDLK_UP);
+    require(backlog.focusedEntry() == 78 &&
+                backlog.scrollTarget() < newestScroll,
+            "Up scrolls the history even when the cursor is already visible");
+    SDL_Event wheel{};
+    wheel.type = SDL_EVENT_MOUSE_WHEEL;
+    wheel.wheel.y = 1;
+    wheel.wheel.direction = SDL_MOUSEWHEEL_NORMAL;
+    backlog.onEvent(wheel);
+    require(backlog.focusedEntry() == 77 &&
+                backlog.scrollTarget() < newestScroll,
+            "Mouse wheel scrolls the history");
+    SDL_Event pad{};
+    pad.type = SDL_EVENT_GAMEPAD_BUTTON_DOWN;
+    pad.gbutton.button = SDL_GAMEPAD_BUTTON_DPAD_UP;
+    backlog.onEvent(pad);
+    require(backlog.focusedEntry() == 76 &&
+                backlog.scrollTarget() < newestScroll,
+            "Analog/directional pad scrolls the history");
     key(backlog, SDLK_HOME);
     require(backlog.focusedEntry() == 0, "Oldest dialogue remains reachable");
     key(backlog, SDLK_RETURN);

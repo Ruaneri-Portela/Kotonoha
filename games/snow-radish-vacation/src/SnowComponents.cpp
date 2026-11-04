@@ -232,7 +232,8 @@ void SnowChoice::update() {
   setQuestion("", choices,
               [this](int id, const std::string &) { session_.Advance(id); });
   session_.SetFocus(session_.InitialFocus());
-  selected = std::size_t(std::max(Focused(), 0));
+  focus_ = session_.Focus();
+  selected = std::size_t(std::max(focus_, 0));
   for (const auto &label : labels)
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "[choice] %s", label.c_str());
 }
@@ -246,8 +247,9 @@ int SnowChoice::Hit(float x, float y) {
 }
 
 void SnowChoice::Focus(int index) {
-  if (index >= int(options.size()))
+  if (index < -1 || index >= int(options.size()))
     return;
+  focus_ = index;
   session_.SetFocus(index);
   if (index >= 0)
     selected = std::size_t(index);
@@ -263,16 +265,19 @@ void SnowChoice::select(std::size_t index) {
 bool SnowChoice::onEvent(Kotonoha::EventRef event) {
   if (!active || options.empty())
     return false;
+  if (Blocked())
+    return true;
   layout();
   const int n = int(options.size());
-  auto hit = [&](float x, float y) {
-    const SDL_FPoint pt{x, y};
-    for (int i = 0; i < n; ++i)
-      if (SDL_PointInRectFloat(&pt, &options[std::size_t(i)].hitBox))
-        return i;
-    return -1;
+  auto move = [&](int delta) {
+    const int current = focus_;
+    const int next =
+        current < 0 ? (delta > 0 ? 0 : n - 1) : (current + delta + n) % n;
+    Focus(next);
   };
   if (event.type == SDL_EVENT_KEY_DOWN) {
+    if (Key(event.key.key))
+      return true;
     switch (event.key.key) {
     case SDLK_ESCAPE:
     case SDLK_AC_BACK:
@@ -283,17 +288,19 @@ bool SnowChoice::onEvent(Kotonoha::EventRef event) {
       openBacklog();
       return true;
     case SDLK_UP:
-      Focus(this->focus_ < 0 ? n - 1 : (this->focus_ + n - 1) % n);
+    case SDLK_LEFT:
+      move(-1);
       return true;
     case SDLK_DOWN:
-      Focus(this->focus_ < 0 ? 0 : (this->focus_ + 1) % n);
+    case SDLK_RIGHT:
+      move(1);
       return true;
     case SDLK_RETURN:
     case SDLK_KP_ENTER:
     case SDLK_SPACE:
     case SDLK_Z:
-      if (this->focus_ >= 0) {
-        select(std::size_t(this->focus_));
+      if (focus_ >= 0) {
+        select(std::size_t(focus_));
         return true;
       }
       break;
@@ -304,14 +311,14 @@ bool SnowChoice::onEvent(Kotonoha::EventRef event) {
     openBacklog();
     return true;
   } else if (event.type == SDL_EVENT_MOUSE_MOTION) {
-    Focus(hit(event.motion.x, event.motion.y));
+    Focus(Hit(event.motion.x, event.motion.y));
     return true;
   } else if (RightClick(event)) {
     openMenu();
     return true;
   } else if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
              event.button.button == SDL_BUTTON_LEFT) {
-    if (const int i = hit(event.button.x, event.button.y); i >= 0) {
+    if (const int i = Hit(event.button.x, event.button.y); i >= 0) {
       select(std::size_t(i));
       return true;
     }

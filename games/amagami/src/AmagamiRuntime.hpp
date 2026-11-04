@@ -65,6 +65,7 @@ public:
   std::function<void()> onClose;
   std::function<void(int)> soundEffect;
   size_t focusedEntry() const { return focused_; }
+  float scrollTarget() const { return targetScroll; }
 
 protected:
   SDL_FRect closeButtonArea() const override { return {0, 0, 0, 0}; }
@@ -86,6 +87,7 @@ private:
   std::string fontKey_;
   void ensureLayout();
   void focus(size_t);
+  void stepFocus(size_t);
 };
 // Selects only EventNode.isExecutable entries. The original map assets/grid
 // are retained; full native icon overlays and transition choreography are

@@ -393,7 +393,7 @@ void Engine::openSettings() {
 bool Engine::isStoryPaused() const {
   return agentPaused || runtime.isStoryPaused() ||
          (settingsMenu && settingsMenu->isOpen()) ||
-         (debug && debug->isVisible());
+         (debug && debug->pausesStory());
 }
 
 void Engine::setAgentPaused(bool value) {
@@ -413,7 +413,7 @@ void Engine::advanceTimeline(double seconds) {
   if (!std::isfinite(seconds) || seconds < 0 || seconds > 60)
     throw std::invalid_argument(
         "Timeline step must be between 0 and 60 seconds");
-  if (!agentPaused || runtime.isStoryPaused() || debug->isVisible() ||
+  if (!agentPaused || runtime.isStoryPaused() || debug->pausesStory() ||
       settingsMenu->isOpen())
     throw std::logic_error("Pause via MCP and close game/debug modals before "
                            "stepping an active timeline");

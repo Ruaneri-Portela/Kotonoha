@@ -225,6 +225,23 @@ void AmagamiBacklog::focus(size_t index) {
   targetScroll = std::clamp(targetScroll, 0.0f, maxScroll);
   scrollToBottom = false;
 }
+void AmagamiBacklog::stepFocus(size_t index) {
+  if (entries.empty())
+    return;
+  const size_t previous = focused_;
+  focus(index);
+  if (focused_ == previous)
+    return;
+  // Keep the cursor at the edge it is moving towards. Unlike the plain
+  // ensure-visible check this scrolls on every step, matching LogList.up/down.
+  const auto &row = rows_[focused_];
+  if (focused_ < previous)
+    targetScroll = row.top + row.height - 416;
+  else
+    targetScroll = row.top;
+  targetScroll = std::clamp(targetScroll, 0.0f, maxScroll);
+  scrollToBottom = false;
+}
 bool AmagamiBacklog::onEvent(Kotonoha::EventRef input) {
   if (!touchActivation.accept(input))
     return true;
@@ -243,13 +260,11 @@ bool AmagamiBacklog::onEvent(Kotonoha::EventRef input) {
     const float dy =
         event.wheel.y *
         (event.wheel.direction == SDL_MOUSEWHEEL_FLIPPED ? -1.0f : 1.0f);
-    if (dy > 0 && focused_ > 0) {
-      focus(focused_ - 1);
-      return true;
-    } else if (dy < 0 && focused_ + 1 < entries.size()) {
-      focus(focused_ + 1);
-      return true;
-    }
+    if (dy > 0 && focused_ > 0)
+      stepFocus(focused_ - 1);
+    else if (dy < 0 && focused_ + 1 < entries.size())
+      stepFocus(focused_ + 1);
+    return true;
   }
   if (event.type == SDL_EVENT_MOUSE_MOTION && event.motion.x >= 44 &&
       event.motion.x < 596 && event.motion.y >= 16 && event.motion.y < 432 &&
@@ -266,22 +281,22 @@ bool AmagamiBacklog::onEvent(Kotonoha::EventRef input) {
   if (event.type == SDL_EVENT_KEY_DOWN && !entries.empty()) {
     switch (event.key.key) {
     case SDLK_UP:
-      focus(focused_ ? focused_ - 1 : 0);
+      stepFocus(focused_ ? focused_ - 1 : 0);
       return true;
     case SDLK_DOWN:
-      focus(std::min(focused_ + 1, entries.size() - 1));
+      stepFocus(std::min(focused_ + 1, entries.size() - 1));
       return true;
     case SDLK_HOME:
-      focus(0);
+      stepFocus(0);
       return true;
     case SDLK_END:
-      focus(entries.size() - 1);
+      stepFocus(entries.size() - 1);
       return true;
     case SDLK_PAGEUP:
-      focus(focused_ > 2 ? focused_ - 3 : 0);
+      stepFocus(focused_ > 2 ? focused_ - 3 : 0);
       return true;
     case SDLK_PAGEDOWN:
-      focus(std::min(focused_ + 3, entries.size() - 1));
+      stepFocus(std::min(focused_ + 3, entries.size() - 1));
       return true;
     case SDLK_RETURN:
     case SDLK_SPACE:
@@ -1121,9 +1136,9 @@ void AmagamiRuntime::render(Kotonoha::RendererRef r, float scale) {
       const float alpha = 0.65f + 0.35f * std::sin(float(SDL_GetTicks()) / 500);
       const auto prompt = engine_->GetTranslation().text(-1, "PRESS START");
       if (prompt != "PRESS START") {
-        ui.panel(r, {196, 316, 248, 36}, {225, 225, 230, 220});
+        ui.panel(r, {196, 316, 248, 36}, {18, 22, 32, 230});
         ui.textSized(r, prompt, 196, 322, 248, 22,
-                     {15, 25, 35, Uint8(alpha * 255)});
+                     {235, 238, 245, Uint8(alpha * 255)});
       } else {
         auto &tex = assets_->texture(r, "sysgraph/txt_start.tm2");
         SDL_SetTextureAlphaModFloat(&tex, alpha);
@@ -1527,7 +1542,7 @@ void AmagamiRuntime::update() {
   voice_.SetPaused(pausedAudio);
   const bool externalPause = engine_->isAgentPaused() ||
                              engine_->GetSettingsMenu().isOpen() ||
-                             engine_->GetDebug().isVisible();
+                             engine_->GetDebug().pausesStory();
   for (auto &effect : soundEffects_)
     effect->SetPaused(paused_ || externalPause);
   backlogVoice_.SetPaused(externalPause);
