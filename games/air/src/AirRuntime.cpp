@@ -124,40 +124,22 @@ struct Text : VNTextBox {
   }
   GlossCursor textCursor(const std::string &value) const {
     GlossCursor p;
-    std::string line;
     auto width = [&](const std::string &v) {
       int w = 0, h = 0;
       if (font)
         TTF_GetStringSize(font.get(), v.data(), v.size(), &w, &h);
       else
         w = int(v.size()) * 13;
-      return w;
+      return static_cast<float>(w);
     };
-    for (std::size_t i = 0; i < value.size();) {
-      if (value[i] == '\n') {
-        p.y += 28;
-        line.clear();
-        ++i;
-        continue;
-      }
-      auto end = i;
-      while (end < value.size() && value[end] != ' ' && value[end] != '\n')
-        ++end;
-      if (end == i)
-        ++end;
-      auto word = value.substr(i, end - i);
-      if (!line.empty() && width(line + word) > 528) {
-        p.y += 28;
-        line.clear();
-        if (word == " ") {
-          i = end;
-          continue;
-        }
-      }
-      line += word;
-      i = end;
+    const auto lines = Kotonoha::VNTextBoxUtility::WrapText(value, width, 528.0f);
+    if (!lines.empty()) {
+      p.y = static_cast<float>((lines.size() - 1) * 28);
+      p.x = 53.0f + width(lines.back());
+    } else {
+      p.x = 53.0f;
+      p.y = 0.0f;
     }
-    p.x = 53 + width(line);
     return p;
   }
   bool designSpace() const override { return false; }
@@ -335,7 +317,8 @@ struct AirRuntime::Impl {
   std::map<int, EditField> editFields;
   int focusedEdit = -1;
   bool autoMode = false, skipMode = false, skipHeld = false;
-  Uint64 autoDeadline = 0;
+  ControllerTriggerSkip triggerSkip;
+  Uint64 autoDeadline = 0, skipDeadline = 0;
   bool ctrlSkipEnabled = true, currentRead = false;
   std::pair<int, std::size_t> currentPage;
   std::set<std::pair<int, std::size_t>> readPages;
@@ -667,9 +650,16 @@ struct AirRuntime::Impl {
           {{616, 427, 12, 16},
            [this] {
              autoMode = !autoMode;
+             if (autoMode)
+               skipMode = false;
              autoDeadline = 0;
            }},
-          {{616, 444, 12, 16}, [this] { skipMode = !skipMode; }}};
+          {{616, 444, 12, 16},
+           [this] {
+             skipMode = !skipMode;
+             if (skipMode)
+               autoMode = false;
+           }}};
       choice = std::make_unique<AirSelection>(e, *assets);
       stage->draw = [this](auto &r) { draw(r); };
       stage->input = [this](auto &e) { return event(e); };
@@ -733,6 +723,8 @@ struct AirRuntime::Impl {
       readPages.insert(currentPage);
       pause = false;
       autoDeadline = 0;
+      autoMode = false;
+      skipMode = false;
       if (pauseKind != 205) {
         dialogue.clear();
         speakerName.clear();
@@ -762,7 +754,8 @@ struct AirRuntime::Impl {
       mouseY = titleInput.mouseY();
       return true;
     }
-    if (pause && BackAction(*engine, e)) {
+    if (pause && e.type == SDL_EVENT_KEY_DOWN && !e.key.repeat &&
+        e.key.key == SDLK_ESCAPE) {
       GetInGameMenuRuntime(*engine).open();
       return true;
     }
@@ -778,6 +771,7 @@ struct AirRuntime::Impl {
       GetVNBacklogRuntime(*engine).open();
       return true;
     }
+
     if (e.type == SDL_EVENT_WINDOW_FOCUS_LOST ||
         e.type == SDL_EVENT_GAMEPAD_REMOVED)
       skipHeld = false;
@@ -800,12 +794,16 @@ struct AirRuntime::Impl {
       if (!engine->isStoryPaused() && e.type == SDL_EVENT_KEY_DOWN &&
           !e.key.repeat && e.key.key == SDLK_A) {
         autoMode = !autoMode;
+        if (autoMode)
+          skipMode = false;
         autoDeadline = 0;
         return true;
       }
       if (!engine->isStoryPaused() && e.type == SDL_EVENT_KEY_DOWN &&
           !e.key.repeat && e.key.key == SDLK_S) {
         skipMode = !skipMode;
+        if (skipMode)
+          autoMode = false;
         return true;
       }
     }

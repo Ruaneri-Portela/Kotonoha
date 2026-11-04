@@ -114,14 +114,44 @@ public:
     std::vector<std::string> visible;
     std::size_t offset = 0;
     for (const auto &line : lines) {
+      if (line.empty()) {
+        if (offset >= visibleBytes)
+          break;
+        visible.push_back("");
+        while (offset < text.size()) {
+          if (text.compare(offset, 4, "\\r\\n") == 0) {
+            offset += 4;
+          } else if (text.compare(offset, 2, "\\n") == 0 ||
+                     text.compare(offset, 2, "\\r") == 0 ||
+                     text.compare(offset, 2, "\r\n") == 0) {
+            offset += 2;
+          } else if (text[offset] == '\n' || text[offset] == '\r') {
+            offset += 1;
+          } else {
+            break;
+          }
+        }
+        continue;
+      }
       auto start = text.find(line, offset);
       if (start == std::string::npos || start >= visibleBytes)
         break;
       visible.push_back(
           line.substr(0, std::min(line.size(), visibleBytes - start)));
       offset = start + line.size();
-      if (offset < text.size() && text[offset] == '\n')
-        ++offset;
+      while (offset < text.size()) {
+        if (text.compare(offset, 4, "\\r\\n") == 0) {
+          offset += 4;
+        } else if (text.compare(offset, 2, "\\n") == 0 ||
+                   text.compare(offset, 2, "\\r") == 0 ||
+                   text.compare(offset, 2, "\r\n") == 0) {
+          offset += 2;
+        } else if (text[offset] == '\n' || text[offset] == '\r') {
+          offset += 1;
+        } else {
+          break;
+        }
+      }
     }
     return visible;
   }
@@ -145,17 +175,30 @@ public:
     std::string currentWord;
 
     for (size_t i = 0; i < text.size();) {
-      const size_t next = NextUtf8Char(text, i);
-      const std::string ch = text.substr(i, next - i);
-      i = next;
+      size_t newlineSeqLen = 0;
+      if (text.compare(i, 4, "\\r\\n") == 0) {
+        newlineSeqLen = 4;
+      } else if (text.compare(i, 2, "\\n") == 0 ||
+                 text.compare(i, 2, "\\r") == 0) {
+        newlineSeqLen = 2;
+      } else if (text.compare(i, 2, "\r\n") == 0) {
+        newlineSeqLen = 2;
+      } else if (text[i] == '\n' || text[i] == '\r') {
+        newlineSeqLen = 1;
+      }
 
-      if (ch == "\n") {
+      if (newlineSeqLen > 0) {
         currentLine += currentWord;
         lines.push_back(std::move(currentLine));
         currentLine.clear();
         currentWord.clear();
+        i += newlineSeqLen;
         continue;
       }
+
+      const size_t next = NextUtf8Char(text, i);
+      const std::string ch = text.substr(i, next - i);
+      i = next;
 
       if (IsCJK(ch)) {
         currentLine += currentWord;

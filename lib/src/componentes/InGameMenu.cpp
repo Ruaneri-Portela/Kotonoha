@@ -17,7 +17,7 @@ std::string InGameMenu::itemLabel(int index) const {
 }
 
 SDL_FRect InGameMenu::itemRect(int index) const {
-  return {460, 160.0f + index * 54, 360, 44};
+  return {460, 200.0f + static_cast<float>(index) * 54.0f, 360, 44};
 }
 
 void InGameMenu::openBacklog() { GetVNBacklogRuntime(engine).open(); }
@@ -108,8 +108,8 @@ void InGameMenu::render(RendererRef renderer, float) {
 void InGameMenu::renderPanel(RendererRef renderer) {
   auto &ui = engine.GetUI();
   ui.backdrop(renderer, {0, 0, 0, 160});
-  ui.panel(renderer, {440, 130, 400, 440});
-  ui.text(renderer, "Paused", 460, 150, 360, {255, 215, 100, 255});
+  ui.panel(renderer, {440, 120, 400, 440});
+  ui.text(renderer, "Paused", 460, 140, 360, {255, 215, 100, 255});
 }
 
 void InGameMenu::renderItem(RendererRef renderer, int index, bool focused) {
