@@ -290,7 +290,8 @@ void SubtitleScene::render(RendererRef renderer, float) {
           &renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STREAMING,
           state->glyphWidth, state->glyphHeight));
       if (!state->glyph ||
-          !SDL_SetTextureBlendMode(state->glyph.get(), SDL_BLENDMODE_BLEND))
+          !SDL_SetTextureBlendMode(state->glyph.get(), SDL_BLENDMODE_BLEND) ||
+          !SDL_SetTextureScaleMode(state->glyph.get(), SDL_SCALEMODE_NEAREST))
         throw std::runtime_error(SDL_GetError());
     }
     const SDL_Rect region{0, 0, image->w, image->h};
@@ -313,6 +314,7 @@ void SubtitleScene::render(RendererRef renderer, float) {
     const SDL_FRect destination{
         image->dst_x * float(width) / w, image->dst_y * float(height) / h,
         image->w * float(width) / w, image->h * float(height) / h};
+    // libass already rasterized at output density; bypass the image upscaler.
     if (!SDL_RenderTexture(&renderer, state->glyph.get(), &source,
                            &destination))
       throw std::runtime_error(SDL_GetError());
