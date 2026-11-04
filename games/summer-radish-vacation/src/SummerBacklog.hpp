@@ -84,6 +84,7 @@ public:
   Kotonoha::PcmPlayer replay;
   SummerBacklog(Kotonoha::Engine &e, SummerAssets &a)
       : VNBacklog(e), assets(a), map(a.read("GRAPHIC/FRAME/BACKLOG.CMAP")) {
+    controls.axis = Kotonoha::ImageButtonBar::NavigationAxis::Vertical;
     controls.hitTest = [this](SDL_FPoint p) {
       const int id = map.value(int(p.x) - 744, int(p.y));
       return id >= 1 && id <= 6 ? id - 1 : -1;

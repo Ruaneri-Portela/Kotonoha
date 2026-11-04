@@ -498,7 +498,9 @@ struct SummerRuntime::Impl {
           pending.clear();
           vm.resume();
         });
-    runtime.AddScene(nameForm);
+    // Keep the form above the current main scene in every state: the script
+    // can request the name before GAMESTART switches from Menu to Gameplay.
+    runtime.AddGlobalScene(nameForm);
     vm.waiting = true;
     pending = "NAMEENTRY";
   }
@@ -1001,9 +1003,15 @@ struct SummerRuntime::Impl {
       return;
     }
     if (name == "GAMESTART") {
-      if (runtime.GetScenes(GameState::Gameplay).empty())
-        for (auto *scene : runtime.GetScenes(GameState::Menu))
+      // Global overlays (such as an open name form) may already be registered
+      // for Gameplay; never register the same scene twice or it would receive
+      // every event twice.
+      for (auto *scene : runtime.GetScenes(GameState::Menu)) {
+        const auto &gameplay = runtime.GetScenes(GameState::Gameplay);
+        if (std::find(gameplay.begin(), gameplay.end(), scene) ==
+            gameplay.end())
           runtime.AddScene(scene, GameState::Gameplay);
+      }
       runtime.SetState(GameState::Gameplay);
       return;
     }
@@ -1568,8 +1576,10 @@ void SummerRuntime::debugJumpToNode(const std::string &node) {
     throw std::runtime_error("Runtime has not started");
   impl->begin(node);
   SetState(GameState::Gameplay);
-  if (GetScenes(GameState::Gameplay).empty())
-    for (auto *scene : GetScenes(GameState::Menu))
+  for (auto *scene : GetScenes(GameState::Menu)) {
+    const auto &gameplay = GetScenes(GameState::Gameplay);
+    if (std::find(gameplay.begin(), gameplay.end(), scene) == gameplay.end())
       AddScene(scene, GameState::Gameplay);
+  }
 }
 } // namespace SummerRadish

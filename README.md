@@ -291,7 +291,8 @@ still work. Scale `1.0` turns processing off without losing the selected profile
   South (Cross/A) cancels in menus; Start/North opens pause. Back/left
   shoulder opens history (and closes it while open). Native settings also
   support shoulders to change tabs; while a gamepad is connected, the Input
-  tab exposes a persisted A/B swap.
+  tab exposes a persisted A/B swap. In the Summer Radish message window,
+  Left/Right focus the toolbar, Enter activates it and Up returns to the novel.
 - Touch: tap activates; drag scrolls lists and histories. A canceled touch,
   drag or second finger cannot confirm a list item. Edge swipe or a two-finger
   tap goes back; swipe up during dialogue opens history.
