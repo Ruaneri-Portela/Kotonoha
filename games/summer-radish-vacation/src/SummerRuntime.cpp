@@ -1415,6 +1415,14 @@ bool SummerRuntime::onEvent(EventRef e) {
       return Runtime::onEvent(e);
     }
   const bool dialogue = i.text && i.text->isVisible() && !i.text->concealed;
+  // The message-box toolbar must see raw directions: while dialogue is open
+  // the shared mapping turns Left/Right into text-speed keys, but here they
+  // focus the on-screen buttons and Up releases focus back to the novel.
+  if (dialogue &&
+      (e.type == SDL_EVENT_GAMEPAD_BUTTON_DOWN ||
+       e.type == SDL_EVENT_GAMEPAD_BUTTON_UP) &&
+      i.text->handleEvent(e))
+    return true;
   return Runtime::onEvent(MapControllerEvent(e, dialogue));
 }
 void SummerRuntime::saveGame(const std::string &path) {
