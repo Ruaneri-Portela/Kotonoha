@@ -336,6 +336,9 @@ void DebugOverlay::stopPreviewAudio() {
 }
 
 void DebugOverlay::drawForcedSubtitlesGenerator() {
+  const auto &activeAss = engine.GetForcedSubtitles().activePath();
+  ImGui::TextWrapped("Active forced ASS: %s",
+                    activeAss.empty() ? "(none)" : activeAss.string().c_str());
   if (!ImGui::CollapsingHeader("Generate Forced Subtitles (.ass)"))
     return;
 
@@ -346,7 +349,9 @@ void DebugOverlay::drawForcedSubtitlesGenerator() {
 
   ImGui::TextWrapped("%s", nodeClockText().c_str());
   ImGui::TextWrapped("ASS times are relative to this node/event clock. "
-                     "Existing files are never overwritten.");
+                     "Existing files are never overwritten. Reload uses this "
+                     "node's dump after generation; otherwise its "
+                     "automatically detected original.");
 
   if (ImGui::Button("Generate ASS Scaffolding File")) {
     try {

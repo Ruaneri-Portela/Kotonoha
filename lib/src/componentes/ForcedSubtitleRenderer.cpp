@@ -29,7 +29,9 @@ std::string ForcedSubtitleRenderer::fileName(const std::string &nodeId) {
 
 void ForcedSubtitleRenderer::buildSubtitleCache() {
   std::map<std::string, std::filesystem::path> cache;
-  const auto directory = std::filesystem::current_path() / "forced_subtitles";
+  const auto directory =
+      preferredDocumentsDirectory(engine.GetRuntime().identify) /
+      "forced_subtitles";
   if (!std::filesystem::exists(directory)) {
     cacheBuilt = true;
     subtitleCache.clear();
@@ -60,17 +62,25 @@ void ForcedSubtitleRenderer::loadForNode(const std::string &nodeId) {
     return;
   lastLoadedNodeId = nodeId;
   clear();
+  activeFile.clear();
   if (nodeId.empty())
     return;
   try {
-    if (!cacheBuilt)
-      buildSubtitleCache();
-    const auto found = subtitleCache.find(fileName(nodeId));
-    if (found == subtitleCache.end())
-      return;
-    std::ifstream input(found->second, std::ios::binary);
+    std::filesystem::path path;
+    if (const auto dumped = dumpedSubtitles.find(nodeId);
+        dumped != dumpedSubtitles.end()) {
+      path = dumped->second;
+    } else {
+      if (!cacheBuilt)
+        buildSubtitleCache();
+      const auto found = subtitleCache.find(fileName(nodeId));
+      if (found == subtitleCache.end())
+        return;
+      path = found->second;
+    }
+    std::ifstream input(path, std::ios::binary);
     if (!input)
-      throw std::runtime_error("Cannot open " + found->second.string());
+      throw std::runtime_error("Cannot open " + path.string());
     std::string content(16 * 1024 * 1024 + 1, '\0');
     input.read(content.data(), static_cast<std::streamsize>(content.size()));
     const auto size = input.gcount();
@@ -79,6 +89,7 @@ void ForcedSubtitleRenderer::loadForNode(const std::string &nodeId) {
           "Cannot read forced subtitles or file exceeds 16 MiB");
     content.resize(static_cast<std::size_t>(size));
     loadAss(content);
+    activeFile = path;
   } catch (const std::exception &error) {
     clear();
     SDL_LogError(LogMedia, "Forced subtitles for %s: %s", nodeId.c_str(),
@@ -90,6 +101,7 @@ void ForcedSubtitleRenderer::reload() {
   cacheBuilt = false;
   lastLoadedNodeId.clear();
   clear();
+  activeFile.clear();
 }
 
 std::filesystem::path ForcedSubtitleRenderer::dumpForActiveNode() {
@@ -119,6 +131,7 @@ std::filesystem::path ForcedSubtitleRenderer::dumpForActiveNode() {
       << "Comment: 0,0:00:00.00,0:00:05.00,Default,,0,0,0,,"
          "Replace Comment with Dialogue and edit the node-relative times and text.\n";
   writeTextFileAtomically(path.string(), ass.str());
+  dumpedSubtitles[node] = path;
   reload();
   return path;
 }
