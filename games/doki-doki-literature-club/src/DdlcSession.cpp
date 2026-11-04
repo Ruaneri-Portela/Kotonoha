@@ -995,7 +995,7 @@ struct Game {
   float mx = -1, my = -1;
   bool ctrl = false, skipToggle = false,
        autoMode = SDL_getenv("DDLC_TMP_AUTO") != nullptr; // TMP-SMOKE
-  bool pauseMenu = false, nameInput = false, manualUnpause = false;
+  bool pauseMenu = false, nameInput = false;
   enum class SubMenu { None, Save, Load, History };
   SubMenu subMenu = SubMenu::None;
   std::string nameText, notice;
@@ -2671,11 +2671,9 @@ struct Game {
       drawConfirm(r, notice, {{"OK", [this] { notice.clear(); }}}, nullptr);
       return;
     }
-    std::string pauseToggleLabel =
-        manualUnpause ? "Pause Game: [Off]" : "Pause Game: [On]";
+
     navigation(r,
                {{"Return", [this] { openPause(false); }},
-                {pauseToggleLabel, [this] { manualUnpause = !manualUnpause; }},
                 {"Save Game", [this] { subMenu = SubMenu::Save; }},
                 {"Load Game", [this] { subMenu = SubMenu::Load; }},
                 {"Main Menu", [this] { returnToMenu(); }},
@@ -2989,8 +2987,8 @@ int GameSession::translationRoute() const {
 
 void GameSession::update(bool suspended) {
   auto &game = impl_->game;
-  game.freeze(suspended || (game.pauseMenu && !game.manualUnpause));
-  if (suspended && (!game.pauseMenu || game.manualUnpause))
+  game.freeze(suspended || (game.pauseMenu));
+  if (suspended && (!game.pauseMenu))
     game.host.tick();
   else
     game.update();

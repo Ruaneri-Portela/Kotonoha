@@ -233,22 +233,53 @@ int main(int argc, char **argv) {
     }
     check(game.debugNode() == "9032:860",
           "Original title input loop must be ready");
-    SDL_Event titleFinger{};
-    titleFinger.type = SDL_EVENT_FINGER_DOWN;
-    titleFinger.tfinger.windowID = SDL_GetWindowID(&engine.GetWindow());
-    titleFinger.tfinger.touchID = 77;
-    titleFinger.tfinger.fingerID = 78;
-    titleFinger.tfinger.x = .5f;
-    titleFinger.tfinger.y = 297.0f / 480;
-    engine.Event(&titleFinger);
-    engine.Iterate();
-    titleFinger.type = SDL_EVENT_FINGER_UP;
-    engine.Event(&titleFinger);
-    engine.Iterate();
-    engine.Iterate(); // The native refresh yields before the input branch.
+    // The title script only polls mouse registers. The runtime maps the D-pad
+    // to a virtual cursor over the native hitboxes and turns Enter/East into a
+    // press/release pair, so the title is playable without a pointer.
+    game.onEvent(pad(SDL_GAMEPAD_BUTTON_DPAD_DOWN, true));
+    game.onEvent(pad(SDL_GAMEPAD_BUTTON_DPAD_DOWN, false));
+    game.onEvent(pad(SDL_GAMEPAD_BUTTON_DPAD_DOWN, true));
+    game.onEvent(pad(SDL_GAMEPAD_BUTTON_DPAD_DOWN, false));
+    // Entry 1 is Load. Activating it with the gamepad proves the mapped East
+    // button reaches the same native press/release path.
+    game.onEvent(pad(SDL_GAMEPAD_BUTTON_EAST, true));
+    game.onEvent(pad(SDL_GAMEPAD_BUTTON_EAST, false));
+    VNSaveMenu *titleLoad = nullptr;
+    for (int n = 0; n < 600 && !titleLoad; ++n) {
+      engine.Iterate();
+      check(game.diagnostic().empty(), game.diagnostic().c_str());
+      for (auto *scene : game.GetActiveScenes())
+        if (auto *menu = dynamic_cast<VNSaveMenu *>(scene))
+          if (menu->isOpen())
+            titleLoad = menu;
+    }
+    check(titleLoad, "Gamepad East must activate the AIR title Load entry");
+    titleLoad->close();
+    for (int n = 0; n < 600 && game.debugNode() != "9032:860"; ++n) {
+      engine.Iterate();
+      check(game.diagnostic().empty(), game.diagnostic().c_str());
+    }
+    check(game.debugNode() == "9032:860",
+          "AIR title must return to its input loop after closing Load");
+    SDL_Event titleUp{};
+    titleUp.type = SDL_EVENT_KEY_DOWN;
+    titleUp.key.key = SDLK_UP;
+    titleUp.key.down = true;
+    game.onEvent(titleUp);
+    SDL_Event titleConfirm{};
+    titleConfirm.type = SDL_EVENT_KEY_DOWN;
+    titleConfirm.key.key = SDLK_RETURN;
+    titleConfirm.key.down = true;
+    game.onEvent(titleConfirm);
+    for (int n = 0; n < 600 && game.debugNode() == "9032:860"; ++n) {
+      engine.Iterate();
+      check(game.diagnostic().empty(), game.diagnostic().c_str());
+    }
     check(game.debugNode() != "9032:860",
-          "A real finger press/release must activate the original AIR title "
-          "button");
+          "Keyboard Enter must activate the original AIR title button after "
+          "the gamepad moved its virtual cursor");
+    std::cout << "AIR title keyboard/gamepad activation passed at "
+              << game.debugNode() << '\n';
 
     // Execute the native date/title setup, then skip its long animation so
     // this test exercises the save UI rather than waiting through the intro.

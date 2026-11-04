@@ -1,5 +1,6 @@
 #include "AirRuntime.hpp"
 #include "AirSelection.hpp"
+#include "TitleInput.hpp"
 #include <Air/Images.hpp>
 #include <Air/Session.hpp>
 #include <Air/System.hpp>
@@ -363,6 +364,7 @@ struct AirRuntime::Impl {
   Uint64 deadline = 0;
   float mouseX = -1, mouseY = -1;
   int button1 = 0, button2 = 0;
+  TitleInput titleInput;
   std::map<std::pair<int, int>, int> settings;
   std::map<int, Uint64> timers;
   std::vector<std::array<int, 3>> shake;
@@ -706,6 +708,7 @@ struct AirRuntime::Impl {
       bgmGain = 1;
       sounds.clear();
       runtime.SetState(GameState::Menu);
+      titleInput.reset();
       pause = false;
       error.clear();
       dialogue.clear();
@@ -738,7 +741,27 @@ struct AirRuntime::Impl {
       }
     }
   }
+  // The title front-end idles after the native refresh command, so only then
+  // is the script about to poll the mouse again.
+  bool titleMenu() const {
+    return vm.scenario() == 9032 && vm.index() == 860 &&
+           runtime.GetState() == GameState::Menu && !pause &&
+           !choice->isActive() && error.empty();
+  }
+  // Other loops in SEEN 9032 poll intA and must stay pointer-only; the title
+  // menu is the poll that writes the button register intF[1003].
+  bool titlePoll(const libreallive::CommandElement &c) {
+    if (vm.scenario() != 9032)
+      return false;
+    return Parameter(c, 2).GetIntegerReferenceIterator(vm.machine()) ==
+           IntReferenceIterator(&vm.machine().memory(), 5, 1003);
+  }
   bool event(EventRef e) {
+    if (titleMenu() && titleInput.handle(e)) {
+      mouseX = titleInput.mouseX();
+      mouseY = titleInput.mouseY();
+      return true;
+    }
     if (pause && BackAction(*engine, e)) {
       GetInGameMenuRuntime(*engine).open();
       return true;
@@ -961,14 +984,18 @@ bool AirRuntime::Impl::command(const libreallive::CommandElement &c) {
     case 130:
       button1 = button2 = 0;
       return true;
-    case 133:
+    case 133: {
+      // Keyboard/gamepad title input is injected at the native poll so it
+      // cannot be lost to the script's own 1:4:130 register clear.
+      const int synthetic = titlePoll(c) ? titleInput.poll() : -1;
       assign(c, 0, int(mouseX));
       assign(c, 1, int(mouseY));
-      assign(c, 2, button1);
+      assign(c, 2, synthetic >= 0 ? synthetic : button1);
       assign(c, 3, button2);
       button1 = button1 == 2 ? 0 : button1;
       button2 = button2 == 2 ? 0 : button2;
       return true;
+    }
     case 204:
       SDL_ShowCursor();
       return true;
@@ -1685,8 +1712,14 @@ void AirRuntime::shutdown() {
   impl->stage.reset();
   impl->movie.reset();
 }
-void AirRuntime::initMenu(Engine &e) { impl->bind(e); }
-void AirRuntime::initGameplay(Engine &e) { impl->bind(e); }
+void AirRuntime::initMenu(Engine &e) {
+  impl->bind(e);
+  impl->titleInput.reset();
+}
+void AirRuntime::initGameplay(Engine &e) {
+  impl->bind(e);
+  impl->titleInput.reset();
+}
 void AirRuntime::update() {
   Runtime::update();
   auto &i = *impl;
