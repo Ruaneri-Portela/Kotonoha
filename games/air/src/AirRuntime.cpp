@@ -369,6 +369,9 @@ struct AirRuntime::Impl {
   TexturePtr canvasTexture;
   SurfacePtr canvasPixels;
   TexturePtr compositionTexture, backgroundTexture;
+  TexturePtr filteredScene;
+  std::string sceneKey;
+  std::shared_ptr<DCImage> sceneBackground;
   TexturePtr zoomTexture, transitionTexture;
   TexturePtr ditherTexture, maskedTransitionTexture;
   std::optional<bool> gpuDither;
@@ -685,8 +688,8 @@ struct AirRuntime::Impl {
     return *image->raster;
   }
   int presentationScale() const {
-    const auto &settings = engine->GetUpscaler().getSettings();
-    return settings.enabled() ? int(std::ceil(settings.factor)) : 1;
+    // AIR script scenes compose natively; only the completed scene is filtered.
+    return 1;
   }
   void refreshImageUpscaling() {
     const auto &settings = engine->GetUpscaler().getSettings();
@@ -703,6 +706,8 @@ struct AirRuntime::Impl {
       }
     }
     ++dcGeneration;
+    filteredScene.reset();
+    sceneKey.clear();
     zoomTexture.reset();
     imageUpscaling = settings;
     objectTextTextures.clear();
@@ -846,7 +851,7 @@ struct AirRuntime::Impl {
         !SDL_RenderTexture(&r, preparedBackground, nullptr, nullptr))
       throw std::runtime_error(SDL_GetError());
     for (const auto &[id, o] : fg) {
-      if (!o.visible)
+      if (!o.visible || !o.text.empty())
         continue;
       int x = o.x, y = o.y;
       for (const auto &adjustment : o.adjustments) {
@@ -881,33 +886,6 @@ struct AirRuntime::Impl {
         if (!SDL_SetTextureAlphaMod(&texture,
                                     Uint8(std::clamp(o.alpha, 0, 255))) ||
             !SDL_RenderTexture(&r, &texture, nullptr, &area))
-          throw std::runtime_error(SDL_GetError());
-      } else if (!o.text.empty()) {
-        if (!textbox || !textbox->font)
-          continue;
-        const auto decoded =
-            decodeText(o.text, archive.Scenario(vm.scenario()).encoding());
-        auto &texture = objectTextTextures[{decoded, scale}];
-        if (!texture) {
-          const auto oldSize = TTF_GetFontSize(textbox->font.get());
-          if (!TTF_SetFontSize(textbox->font.get(), oldSize * scale))
-            throw std::runtime_error(SDL_GetError());
-          SurfacePtr pixels(
-              TTF_RenderText_Blended(textbox->font.get(), decoded.data(),
-                                     decoded.size(), {255, 255, 255, 255}));
-          const bool restored = TTF_SetFontSize(textbox->font.get(), oldSize);
-          if (!pixels || !restored)
-            throw std::runtime_error(SDL_GetError());
-          texture.reset(SDL_CreateTextureFromSurface(&r, pixels.get()));
-          if (!texture)
-            throw std::runtime_error(SDL_GetError());
-          ++renderStats.textureUploads;
-        }
-        const SDL_FRect area{float(x * scale), float(y * scale),
-                             float(texture->w), float(texture->h)};
-        if (!SDL_SetTextureAlphaMod(texture.get(),
-                                    Uint8(std::clamp(o.alpha, 0, 255))) ||
-            !SDL_RenderTexture(&r, texture.get(), nullptr, &area))
           throw std::runtime_error(SDL_GetError());
       }
     }
@@ -1148,7 +1126,8 @@ struct AirRuntime::Impl {
     scaledBlit(scale == 1 ? surface(0) : dcRaster(dcImage(0), surface(0)),
                *output, nullptr, {0, 0, output->w, output->h}, 255, false);
     for (auto &[id, o] : fg)
-      drawObject(o, *output, scale);
+      if (o.text.empty())
+        drawObject(o, *output, scale);
     if (flashDuration > 0 &&
         SDL_GetTicks() - flashStart < Uint64(flashDuration)) {
       auto colour = blank(output->w, output->h);
@@ -1240,15 +1219,125 @@ struct AirRuntime::Impl {
     }
     ++renderStats.softwareEffectFrames;
   }
+  std::string sceneFingerprint() {
+    std::ostringstream key;
+    key << dcGeneration << ' ' << dcImage(0).get();
+    for (const auto &[id, o] : fg) {
+      if (!o.visible || !o.text.empty())
+        continue;
+      key << ' ' << id << ' ' << std::quoted(o.file) << ' '
+          << std::quoted(o.text) << ' ' << o.x << ' ' << o.y << ' ' << o.alpha
+          << ' ' << o.width << ' ' << o.height << ' ' << int(o.colour.r) << ' '
+          << int(o.colour.g) << ' ' << int(o.colour.b) << ' ' << int(o.colour.a)
+          << ' ' << o.clipped << ' ' << o.clip.x << ' ' << o.clip.y << ' '
+          << o.clip.w << ' ' << o.clip.h;
+      for (const auto &adjustment : o.adjustments)
+        key << ' ' << adjustment.x << ' ' << adjustment.y;
+      if (!o.file.empty()) {
+        const auto count = graphic(o.file).image.regions.size();
+        key << ' ' << o.currentPattern(std::max(size_t(1), count));
+      }
+    }
+    const auto now = SDL_GetTicks();
+    if (transitionOld && transitionMs > 0 &&
+        now - transitionStart < Uint64(transitionMs)) {
+      const auto elapsed =
+          std::min<Uint64>(now - transitionStart, transitionMs);
+      const auto step = transitionStyle == 4 || transitionStyle == 5
+                            ? (elapsed * 64 + transitionMs - 1) / transitionMs
+                            : elapsed * 255 / transitionMs;
+      key << " transition " << transitionStart << ' ' << transitionStyle << ' '
+          << step;
+    }
+    if (zoom) {
+      const auto elapsed = double(now - zoom->start);
+      const auto crop = zoom->animation.sample(elapsed);
+      key << " zoom " << zoom->start << ' ' << zoom->image.get() << ' '
+          << zoom->destinationRect.x << ' ' << zoom->destinationRect.y << ' '
+          << zoom->destinationRect.w << ' ' << zoom->destinationRect.h << ' '
+          << std::lround(crop.x) << ' ' << std::lround(crop.y) << ' '
+          << std::lround(crop.scaleX) << ' ' << std::lround(crop.scaleY) << ' '
+          << (elapsed >= zoom->animation.duration());
+    }
+    if (flashDuration > 0)
+      key << " flash " << flashStart << ' ' << int(flashColour.r) << ' '
+          << int(flashColour.g) << ' ' << int(flashColour.b) << ' '
+          << std::min<Uint64>(16, (now - flashStart) * 16 / flashDuration);
+    return key.str();
+  }
+  void drawScriptText(RendererRef r, const SDL_FRect &scene) {
+    if (!textbox || !textbox->font)
+      return;
+    SDL_Rect oldClip{};
+    const bool clipped = SDL_RenderClipEnabled(&r);
+    SDL_GetRenderClipRect(&r, &oldClip);
+    struct RestoreClip {
+      RendererRef renderer;
+      SDL_Rect clip;
+      bool enabled;
+      ~RestoreClip() {
+        SDL_SetRenderClipRect(&renderer, enabled ? &clip : nullptr);
+      }
+    } restore{r, oldClip, clipped};
+    for (const auto &[id, o] : fg) {
+      if (!o.visible || o.text.empty())
+        continue;
+      const auto decoded =
+          decodeText(o.text, archive.Scenario(vm.scenario()).encoding());
+      auto &texture = objectTextTextures[{decoded, 1}];
+      if (!texture) {
+        SurfacePtr pixels(TTF_RenderText_Blended(textbox->font.get(),
+                                                 decoded.data(), decoded.size(),
+                                                 {255, 255, 255, 255}));
+        if (!pixels)
+          throw std::runtime_error(SDL_GetError());
+        texture.reset(SDL_CreateTextureFromSurface(&r, pixels.get()));
+        if (!texture)
+          throw std::runtime_error(SDL_GetError());
+        ++renderStats.textureUploads;
+      }
+      SDL_FRect area{scene.x + o.x, scene.y + o.y, float(texture->w),
+                     float(texture->h)};
+      for (const auto &adjustment : o.adjustments) {
+        area.x += adjustment.x;
+        area.y += adjustment.y;
+      }
+      SDL_Rect clip = oldClip;
+      if (o.clipped) {
+        clip = {int(scene.x) + o.clip.x, int(scene.y) + o.clip.y, o.clip.w,
+                o.clip.h};
+        if (clipped)
+          SDL_GetRectIntersection(&oldClip, &clip, &clip);
+      }
+      if (!SDL_SetRenderClipRect(&r, o.clipped || clipped ? &clip : nullptr) ||
+          !SDL_SetTextureAlphaMod(texture.get(),
+                                  Uint8(std::clamp(o.alpha, 0, 255))) ||
+          !SDL_RenderTexture(&r, texture.get(), nullptr, &area))
+        throw std::runtime_error(SDL_GetError());
+    }
+  }
   void draw(RendererRef r) {
     refreshImageUpscaling();
     const bool softwareEffect =
         transitionOld && (transitionStyle == 4 || transitionStyle == 5) &&
         !prepareDither(r);
-    if (softwareEffect)
-      drawSoftwareEffects(r);
-    else
-      drawHardware(r, presentationScale());
+    const bool upscale = imageUpscaling.enabled();
+    const auto key = sceneFingerprint();
+    if (!upscale || !filteredScene || sceneKey != key) {
+      if (softwareEffect)
+        drawSoftwareEffects(r);
+      else
+        drawHardware(r, 1);
+      if (upscale) {
+        auto *native =
+            softwareEffect ? canvasTexture.get() : compositionTexture.get();
+        filteredScene =
+            engine->GetUpscaler().scaled(*native, imageUpscaling.factor);
+        ++renderStats.filteredSceneFrames;
+        sceneBackground = dcImage(0);
+        sceneKey = key;
+      }
+    }
     SDL_FRect destination{0, 0, 640, 480};
     auto elapsed = SDL_GetTicks() - shakeStart;
     for (const auto &step : shake) {
@@ -1259,11 +1348,12 @@ struct AirRuntime::Impl {
       }
       elapsed -= step[2];
     }
-    // Script rasters and sprite patterns are prepared separately, never twice.
-    if (!SDL_RenderTexture(
-            &r, softwareEffect ? canvasTexture.get() : compositionTexture.get(),
-            nullptr, &destination))
+    auto *display = upscale          ? filteredScene.get()
+                    : softwareEffect ? canvasTexture.get()
+                                     : compositionTexture.get();
+    if (!SDL_RenderTexture(&r, display, nullptr, &destination))
       throw std::runtime_error(SDL_GetError());
+    drawScriptText(r, destination);
     if (movie && movie->isOpen()) {
       movie->update(r);
       movie->render(r, {0, 0, 640, 480});

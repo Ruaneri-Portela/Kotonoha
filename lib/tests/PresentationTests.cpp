@@ -2,6 +2,7 @@
 #include <Kotonoha/componentes/ForcedSubtitleRenderer.hpp>
 #include <Kotonoha/componentes/InGameMenu.hpp>
 #include <Kotonoha/componentes/SettingsMenu.hpp>
+#include <Kotonoha/componentes/SplashScreen.hpp>
 #include <Kotonoha/componentes/SubtitleScene.hpp>
 #include <Kotonoha/componentes/VNBacklog.hpp>
 #include <Kotonoha/componentes/VNManager.hpp>
@@ -945,6 +946,85 @@ void resolver() {
   fs::current_path(previous);
   fs::remove_all(root);
 }
+void splashUpscaling(Engine &engine) {
+  const auto path = std::filesystem::temp_directory_path() /
+                    ("kotonoha-boot-logo-" +
+                     std::to_string(SDL_GetPerformanceCounter()) + ".bmp");
+  struct Cleanup {
+    std::filesystem::path path;
+    ~Cleanup() {
+      std::error_code error;
+      std::filesystem::remove(path, error);
+    }
+  } cleanup{path};
+  SurfacePtr pixels(SDL_CreateSurface(7, 5, SDL_PIXELFORMAT_RGBA32));
+  require(bool(pixels), "Create boot logo fixture");
+  for (int y = 0; y < pixels->h; ++y)
+    for (int x = 0; x < pixels->w; ++x)
+      require(SDL_WriteSurfacePixel(pixels.get(), x, y, (x + y) % 2 ? 255 : 0,
+                                    x * 35, y * 50, 255),
+              "Write boot logo pixels");
+  require(SDL_SaveBMP(pixels.get(), path.string().c_str()),
+          "Save boot logo fixture");
+  auto &renderer = engine.GetRenderer();
+  auto &pipeline = engine.GetUpscaler();
+  const auto previous = pipeline.getSettings();
+  const auto previousTarget = SDL_GetRenderTarget(&renderer);
+  TexturePtr target(SDL_CreateTexture(&renderer, SDL_PIXELFORMAT_RGBA32,
+                                      SDL_TEXTUREACCESS_TARGET, 43, 31));
+  require(bool(target), "Create boot logo presentation target");
+  const auto capture = [&](SplashScreen &splash) {
+    require(SDL_SetRenderTarget(&renderer, target.get()),
+            "Select boot logo target");
+    splash.render(renderer, 1);
+    SurfacePtr result(SDL_RenderReadPixels(&renderer, nullptr));
+    require(bool(result), "Read boot logo presentation");
+    return result;
+  };
+  const auto equal = [](SurfaceRef a, SurfaceRef b) {
+    if (a.w != b.w || a.h != b.h)
+      return false;
+    for (int y = 0; y < a.h; ++y)
+      if (std::memcmp(static_cast<Uint8 *>(a.pixels) + y * a.pitch,
+                      static_cast<Uint8 *>(b.pixels) + y * b.pitch, a.w * 4))
+        return false;
+    return true;
+  };
+  UpscaleSettings settings{
+      UpscaleBackend::Linear, UpscalePreset::Anime4K, 2, {}};
+  pipeline.configure(settings);
+  SplashScreen splash(engine, {path});
+  capture(splash);
+  SDL_Delay(820);
+  auto filtered = capture(splash);
+  auto again = capture(splash);
+  require(equal(*filtered, *again),
+          "Boot logo reuses its prepared texture after the fade");
+  settings.factor = 1;
+  pipeline.configure(settings);
+  auto native = capture(splash);
+  settings.factor = 2;
+  pipeline.configure(settings);
+  auto restored = capture(splash);
+  require(equal(*filtered, *restored),
+          "Enabling boot upscaling again restores the filtered logo");
+  require(!equal(*native, *filtered),
+          "Enabled boot logo must use the scaled source, not native drawing");
+  settings.factor = 1;
+  pipeline.configure(settings);
+  splash.restart();
+  capture(splash);
+  settings.factor = 2;
+  pipeline.configure(settings);
+  capture(splash);
+  SDL_Delay(820);
+  auto duringFade = capture(splash);
+  require(equal(*filtered, *duringFade),
+          "Enabling during fade must not bake original alpha into the filter");
+  require(SDL_SetRenderTarget(&renderer, previousTarget),
+          "Restore presentation target after boot logo test");
+  pipeline.configure(previous);
+}
 void fades(Engine &engine) {
   FadeScene::Event out{1, 3, {0, 0, 0, 255}, FadeScene::Direction::Out, true};
   require(FadeScene::alphaAt(out, 0.5) == 0 &&
@@ -1038,6 +1118,7 @@ int main() {
     pauseSources(engine, runtime);
     forcedSubtitles(engine, runtime);
     fades(engine);
+    splashUpscaling(engine);
     std::cout << "Extensible arguments/help, ASS style import/rendering and "
                  "debug scaling passed\n";
     return 0;

@@ -40,6 +40,12 @@ The application is `build/games/air/Air.app`. Keep the original directory or ISO
 in place. The application does not modify the game's files or existing saves.
 Kotonoha saves go into its own AIR preference directory.
 
+When enabled, upscaling applies globally to the completed native script scene,
+including the KEY boot logo and AIR menu. Unchanged scenes reuse the filtered
+texture; individual script sprites are not filtered again. Rasterized script
+text is drawn afterward without the image filter. Dialogue UI, subtitles and
+video keep their separate presentation paths; glyphs never enter the upscaler.
+
 Click or Enter/Space advances dialogue. Escape opens the Kotonoha pause menu,
 whose dark background covers the full 4:3 canvas. Save/load is available during
 dialogue. Original RealLive save files are not compatible.

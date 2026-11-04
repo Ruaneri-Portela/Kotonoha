@@ -68,52 +68,50 @@
   offsets, preventing earlier pans from shifting later 8005 sprites (including
   the walking legs). Copies and promotions retain their own adjustment slots.
   Save versions 4 and 5 store these slots; older saves import their legacy offsets.
-  Static sprites and object animations filter individual G00/PDT patterns before
-  composition. Loading an object prepares every animation pattern once:
-  native pixels and original GPU textures remain resident, alongside derived
-  GPU textures. Backend, preset, factor or shader changes invalidate only the
-  derived textures; disabling upscaling immediately reuses the originals
-  without reloading or uploading them. Atlas patterns are cropped before
-  filtering to avoid sampling adjacent animation frames. Script-generated
-  rasters are the exception: DC copies, masks, opacity and color operations
-  compose at native resolution, then the completed DC frame is filtered once
-  when displayed. Intermediate/offscreen copies are not filtered. The GPU
-  result is cached until the DC or filter configuration changes; unchanged
-  redraws do not upload, read back or filter the frame again. Zoom manipulates
-  the prepared raster instead of filtering each zoom step. Native DC pixels
-  remain untouched for script reads and disabling the filter. Save version 5
-  still preserves the native operation graph for compatibility; older saves
-  load their native DC pixels. Presentation composition uses a
-  GPU render target while preserving native coordinates and dither cell sizes.
-  Movement, animation, clipping, opacity, zoom and fades manipulate prepared
-  textures instead of filtering or rasterizing sprites on every draw.
-  Scripted DC0 reuses its prepared texture until the DC or filter changes. Dither transitions
+  Script-generated AIR scenes use global upscaling: DC copies, sprites,
+  clipping, opacity, zoom, flashes and transitions compose at native 640x480,
+  then the completed scene enters the upscaler once. This includes the KEY
+  logo after the engine splash and the AIR title/menu. Sprite patterns and
+  offscreen DC operations do not receive a second filter. Native pixels and
+  textures remain available for disabling upscaling and for script reads.
+  The filtered GPU scene is cached by background identity, visible object
+  state, animation pattern, effect progress and filter configuration.
+  Unchanged redraws do not compose, read back, upload or filter again; each
+  changed animation/effect frame gets one global filter pass. Engine dialogue
+  UI, subtitles and separate video playback retain their own presentation paths.
+  Rasterized script text is excluded from scene composition and its cache key,
+  then drawn as an unfiltered overlay with native position, clip and opacity.
+  `--script-text-upscaling` verifies pixel-identical glyphs with Anime4K on/off
+  and confirms that repeated text redraws do not refilter the scene.
+  Save version 5 preserves the native operation graph; older saves still load
+  their native DC pixels. Dither transitions
   use a nearest-sampled 8x8 GPU mask; renderers lacking the required custom
   blend mode log a warning and use the native pixel-composition fallback.
-  Snapshots/fallback effects can cache CPU copies of prepared patterns, but
-  never filter the composed scene. Video retains the shared media player's
+  Transition snapshots and fallback effects compose natively before the
+  global filter. Video retains the shared media player's
   decoded-frame serial, so repeated draws reuse the filtered frame.
-  `Air8005Walking` compares independent per-pattern composition at 2x and 1.5x,
+  `Air8005Walking` compares independently composed native scenes filtered at 2x and 1.5x,
   then verifies that disabling upscaling restores native pixels without new
-  uploads. Redraws and animation changes must not increase pattern-filter or
-  texture-upload counters. GPU dither cells are compared pixel-for-pixel at
+  uploads. Unchanged redraws reuse the globally filtered frame; animation
+  changes trigger one new scene filter without sprite uploads.
+  GPU dither cells are compared pixel-for-pixel at
   1x, 2x and 4x, including both transition endpoints.
   `--8005-walk-opengl` runs the same pixel comparison with real Anime4K shaders.
   `AirEngineTests /path/to/AIR --texture-performance` also measures 120 draws
-  at 1x, 2x and 4x after texture preparation, asserting zero filtering/uploads
-  in each measurement. This measures resident-texture rendering, not complete
+  at 1x, 2x and 4x after texture preparation, asserting no sprite filtering/uploads
+  and one global pass per changed frame. This measures scene rendering, not complete
   gameplay FPS, loading time or shader-preparation cost.
   `Air8005UpscalingCompatibility` exercises both reported opening transitions
   with 2x upscaling enabled.
   `Air8005BackgroundUpscaling` independently composes the native OP_A01 crop
   and OP_A03 overlay, then filters the completed raster frame, verifies cache
   reuse, save/load and disabling the filter, compares the OP_A04/OP_A05 opening
-  logos against independently filtered patterns, and exercises the late OP_K00
+  logos against independently composed and filtered scenes, and exercises the late OP_K00
   strip sequence without filtering intermediate copies. Separate counters
   verify pattern filtering and completed script-frame filtering.
   `--8005-background-upscaling-opengl` runs this check with real Anime4K shaders.
   `--boot-upscaling` checks the AIR title image (`S_TT_BG00`) and clipped
-  KEY logo (`KEYLOGO0`) against independently filtered source textures with
+  KEY logo (`KEYLOGO0`) against independently composed full scenes filtered with
   Anime4K, starting with filtering enabled before the first image load.
   It also runs the original 9030/9031 boot to the 9032 title menu, verifies
   that disabling filtering visibly changes the logos/menu, and checks that
