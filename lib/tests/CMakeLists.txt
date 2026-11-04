@@ -89,3 +89,14 @@ target_link_libraries(KotonohaDebugTranslationTests PRIVATE Kotonoha::Engine)
 kotonoha_copy_assets(KotonohaDebugTranslationTests)
 add_test(NAME Kotonoha.DebugTranslation COMMAND KotonohaDebugTranslationTests)
 set_tests_properties(Kotonoha.DebugTranslation PROPERTIES ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_AUDIO_DRIVER=dummy")
+
+add_executable(KotonohaPs2SoundBankTests Ps2SoundBankTests.cpp)
+target_link_libraries(KotonohaPs2SoundBankTests PRIVATE Kotonoha::Engine)
+add_test(NAME Kotonoha.Ps2SoundBank COMMAND KotonohaPs2SoundBankTests)
+
+add_executable(KotonohaNativeInputTests NativeInputTests.cpp)
+target_link_libraries(KotonohaNativeInputTests PRIVATE Kotonoha::Engine)
+kotonoha_copy_assets(KotonohaNativeInputTests)
+add_test(NAME Kotonoha.NativeInput COMMAND KotonohaNativeInputTests)
+set_tests_properties(Kotonoha.NativeInput PROPERTIES
+    ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_AUDIO_DRIVER=dummy")

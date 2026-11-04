@@ -33,6 +33,7 @@ public:
   std::pair<std::string, std::string>
   actorAssets(unsigned character, unsigned cloth, unsigned pose) const;
   Bytes voice(const std::string &code, unsigned number) const;
+  Bytes ambience(unsigned index) const;
   Script systemClass(size_t index) const;
   const std::vector<std::string> &scenarios() const { return scenarios_; }
   const std::vector<ClassFile> &classes() const { return classes_; }
@@ -40,6 +41,9 @@ public:
 
 private:
   std::shared_ptr<Kotonoha::DiscImage> disc_;
+  Bytes scenarioArchive_;
+  mutable std::map<std::string, std::optional<GraphicLocation>>
+      graphicLocations_;
   std::map<std::string, Archive> archives_;
   std::vector<std::string> scenarios_;
   std::map<std::string, size_t> scenarioByName_;

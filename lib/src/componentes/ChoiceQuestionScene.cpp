@@ -3,6 +3,7 @@
 #include <Kotonoha/componentes/VNBacklog.hpp>
 #include <Kotonoha/core/UI.hpp>
 #include <Kotonoha/events/BackAction.hpp>
+#include <Kotonoha/events/ControllerEvent.hpp>
 #include <algorithm>
 #include <stdexcept>
 
@@ -52,24 +53,27 @@ void ChoiceQuestionScene::translationChanged(const std::string &original,
     replace(option.label);
 }
 
-void ChoiceQuestionScene::onEvent(EventRef event) {
+bool ChoiceQuestionScene::onEvent(EventRef rawEvent) {
   if (!active || options.empty())
-    return;
+    return false;
+  const auto event = MapControllerEvent(rawEvent);
+  if (!touchActivation.accept(event))
+    return true;
   layout();
   const auto area = listArea();
   const float top = area.y, bottom = area.y + area.h;
   if (BackAction(engine, event)) {
     openMenu();
-    return;
+    return true;
   }
   if (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat) {
     if (event.key.key == SDLK_B) {
       openBacklog();
-      return;
+      return true;
     }
     if (event.key.key == SDLK_ESCAPE) {
       openMenu();
-      return;
+      return true;
     }
     if (event.key.key == SDLK_DOWN)
       selected = (selected + 1) % options.size();
@@ -77,7 +81,7 @@ void ChoiceQuestionScene::onEvent(EventRef event) {
       selected = (selected + options.size() - 1) % options.size();
     else if (event.key.key == SDLK_RETURN || event.key.key == SDLK_SPACE) {
       select(selected);
-      return;
+      return true;
     }
     if (options[selected].hitBox.y < top)
       scroll += options[selected].hitBox.y - top;
@@ -85,6 +89,7 @@ void ChoiceQuestionScene::onEvent(EventRef event) {
       scroll +=
           options[selected].hitBox.y + options[selected].hitBox.h - bottom;
     scroll = std::max(0.0f, scroll);
+    return true;
   }
   if (event.type == SDL_EVENT_MOUSE_WHEEL ||
       (event.type >= SDL_EVENT_FINGER_DOWN &&
@@ -94,6 +99,7 @@ void ChoiceQuestionScene::onEvent(EventRef event) {
     bool follow = false;
     scrollGesture.handle(event, scrollInputHeight(), scroll, velocity, follow,
                          std::max(0.f, last.y + last.h + scroll - bottom));
+    return true;
   }
   if ((event.type == SDL_EVENT_MOUSE_BUTTON_DOWN ||
        event.type == SDL_EVENT_MOUSE_BUTTON_UP) &&
@@ -101,9 +107,10 @@ void ChoiceQuestionScene::onEvent(EventRef event) {
     for (std::size_t i = 0; i < options.size(); ++i)
       if (UI::clicked(event, options[i].hitBox)) {
         select(i);
-        return;
+        return true;
       }
   }
+  return false;
 }
 
 void ChoiceQuestionScene::update() {}

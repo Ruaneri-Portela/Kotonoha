@@ -4,6 +4,7 @@
 #include <SDL3_ttf/SDL_ttf.h>
 #include <memory>
 #include <stdexcept>
+#include <unordered_map>
 
 namespace Kotonoha {
 
@@ -24,6 +25,7 @@ using WindowPtr = SDLHandle<SDL_Window, SDL_DestroyWindow>;
 using RendererPtr = SDLHandle<SDL_Renderer, SDL_DestroyRenderer>;
 using FontPtr = SDLHandle<TTF_Font, TTF_CloseFont>;
 using AudioStreamPtr = SDLHandle<SDL_AudioStream, SDL_DestroyAudioStream>;
+using GamepadPtr = SDLHandle<SDL_Gamepad, SDL_CloseGamepad>;
 
 using EventPtr = const SDL_Event *;
 using EventRef = const SDL_Event &;
@@ -39,10 +41,15 @@ using AudioStreamRef = SDL_AudioStream &;
 class Runtime;
 
 class SDLSession {
+  std::unordered_map<SDL_JoystickID, GamepadPtr> gamepads;
+  void openGamepad(SDL_JoystickID id);
+
 public:
   explicit SDLSession(const Runtime &runtime);
 
   ~SDLSession();
+  void deviceEvent(EventRef event);
+  size_t gamepadCount() const { return gamepads.size(); }
 
   SDLSession(const SDLSession &) = delete;
   SDLSession &operator=(const SDLSession &) = delete;

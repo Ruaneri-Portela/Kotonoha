@@ -26,10 +26,12 @@ struct VmValue {
   static VmValue str(std::string text, Kind kind = Text);
   static VmValue ref(std::shared_ptr<VmObject> o, Kind kind = Object);
   bool truth() const;
+  const std::string &asText() const;
 };
 struct VmObject {
   std::string type;
   std::vector<VmValue> fields;
+  std::optional<std::string> stringValue;
 };
 // The SCF stack machine, recovered from SLPS_259.18 @ 0x11dfe8.
 // A host implements the native PS2 API; unhandled calls fail with a script PC.
@@ -37,8 +39,18 @@ class Vm {
 public:
   using Native = std::function<std::optional<VmValue>(
       const VmValue &, const std::string &, const std::vector<VmValue> &)>;
+  // Host-provided native primitives, opcode 0x34. The receiver is the running
+  // frame's self; args are the method's declared locals (its arguments).
+  // Returning nullopt signals "not implemented" and fails the call.
+  using Primitive = std::function<std::optional<VmValue>(
+      const VmValue &, unsigned, const std::vector<VmValue> &)>;
+  using ScopedPrimitive = std::function<std::optional<VmValue>(
+      const std::string &owner, const std::string &method, bool classMethod,
+      const VmValue &, unsigned, const std::vector<VmValue> &)>;
   void add(Script script);
   void reset();
+  // Begin another script entry while preserving campaign globals and objects.
+  void resetExecution();
   Vm fork(const VmValue &receiver, const std::string &method) const;
   void call(const VmValue &receiver, const std::string &name,
             std::vector<VmValue> args = {});
@@ -56,7 +68,18 @@ public:
   VmValue result() const { return result_; }
   VmValue instance(const std::string &name);
   VmValue &classField(const std::string &name, size_t slot);
+  VmValue classFieldValue(const std::string &name, size_t slot) const;
+  // Class-name of a value using the SCF class hierarchy (True/False ->
+  // Boolean -> Object).
+  std::string typeOf(const VmValue &v) const;
+  // Walks the script class hierarchy from |type| to root.
+  bool isKindOf(const std::string &type, const std::string &klass) const;
+  bool hasClass(const std::string &name) const {
+    return scripts_.count(name) != 0;
+  }
   Native native;
+  Primitive primitive;
+  ScopedPrimitive scopedPrimitive;
   std::string location() const;
 
 private:
@@ -66,6 +89,7 @@ private:
     VmValue self, result;
     std::vector<VmValue> locals, stack;
     size_t pc = 0;
+    std::optional<VmValue> constructedResult;
     struct Handler {
       size_t target, stackSize;
     };

@@ -1,4 +1,5 @@
 #pragma once
+#include <Kotonoha/componentes/TouchActivation.hpp>
 
 #include <Kotonoha/componentes/SelectBox.hpp>
 #include <Kotonoha/core/Settings.hpp>
@@ -12,6 +13,7 @@ class ShaderFilePicker;
 }
 
 class SettingsMenu {
+  TouchActivation touchActivation;
   Engine &engine;
   EngineSettings draft;
   bool visible = false;
@@ -38,7 +40,7 @@ public:
     slider = -1;
   }
   bool isOpen() const { return visible; }
-  void onEvent(EventRef event);
+  bool onEvent(EventRef event);
   void render(RendererRef renderer);
 };
 } // namespace Kotonoha

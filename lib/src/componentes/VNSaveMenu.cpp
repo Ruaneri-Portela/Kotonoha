@@ -3,6 +3,7 @@
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/UI.hpp>
 #include <Kotonoha/events/BackAction.hpp>
+#include <Kotonoha/events/ControllerEvent.hpp>
 
 #include <algorithm>
 #include <stdexcept>
@@ -21,6 +22,7 @@ std::size_t VNSaveMenu::count() const {
 
 void VNSaveMenu::open(const std::string &path, bool load,
                       const std::string &suggestion) {
+  touchActivation.reset();
   suggestedName = suggestion;
   directory = path;
   loading = load;
@@ -182,31 +184,45 @@ void VNSaveMenu::activate() {
   }
 }
 
-void VNSaveMenu::onEvent(EventRef event) {
+bool VNSaveMenu::onEvent(EventRef rawEvent) {
   if (!opened)
-    return;
+    return false;
+  const auto event = MapControllerEvent(rawEvent);
+  if (!touchActivation.accept(event))
+    return true;
 
+  if (rawEvent.type == SDL_EVENT_GAMEPAD_BUTTON_DOWN &&
+      confirmation == Confirmation::None && hasSelectedSave()) {
+    if (rawEvent.gbutton.button == SDL_GAMEPAD_BUTTON_WEST) {
+      beginRename();
+      return true;
+    }
+    if (rawEvent.gbutton.button == SDL_GAMEPAD_BUTTON_NORTH) {
+      confirmation = Confirmation::Delete;
+      return true;
+    }
+  }
   if (BackAction(engine, event)) {
     if (confirmation != Confirmation::None)
       confirmation = Confirmation::None;
     else
       close();
-    return;
+    return true;
   }
 
   if (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat) {
     if (event.key.key == SDLK_RETURN) {
       activate();
-      return;
+      return true;
     }
     if (confirmation == Confirmation::None && hasSelectedSave()) {
       if (event.key.key == SDLK_F2) {
         beginRename();
-        return;
+        return true;
       }
       if (event.key.key == SDLK_DELETE) {
         confirmation = Confirmation::Delete;
-        return;
+        return true;
       }
     }
     if (confirmation == Confirmation::None && count()) {
@@ -219,27 +235,31 @@ void VNSaveMenu::onEvent(EventRef event) {
       else if (event.key.key == SDLK_PAGEUP)
         selected = selected > pageSize ? selected - pageSize : 0;
       revealSelection();
+      return true;
     }
   }
   if (UI::clicked(event, {890, 80, 180, 44})) {
     close();
-    return;
+    return true;
   }
   if (confirmation != Confirmation::None) {
-    if (UI::clicked(event, {290, 570, 320, 44}))
+    if (UI::clicked(event, {290, 570, 320, 44})) {
       activate();
-    else if (UI::clicked(event, {650, 570, 320, 44}))
+      return true;
+    } else if (UI::clicked(event, {650, 570, 320, 44})) {
       confirmation = Confirmation::None;
-    return;
+      return true;
+    }
+    return false;
   }
   if (hasSelectedSave()) {
     if (UI::clicked(event, {290, 570, 320, 44})) {
       beginRename();
-      return;
+      return true;
     }
     if (UI::clicked(event, {650, 570, 320, 44})) {
       confirmation = Confirmation::Delete;
-      return;
+      return true;
     }
   }
   if (count() && event.type >= SDL_EVENT_FINGER_DOWN &&
@@ -248,7 +268,7 @@ void VNSaveMenu::onEvent(EventRef event) {
       listScroll = float(first * 50);
       if (event.tfinger.y * UI::height < 160 ||
           event.tfinger.y * UI::height > 510)
-        return;
+        return false;
     }
     float velocity = 0;
     bool follow = false;
@@ -256,6 +276,7 @@ void VNSaveMenu::onEvent(EventRef event) {
         event, UI::height, listScroll, velocity, follow,
         float(count() > pageSize ? (count() - pageSize) * 50 : 0));
     first = size_t(listScroll / 50);
+    return true;
   }
   if (event.type == SDL_EVENT_MOUSE_WHEEL && count()) {
     const float delta =
@@ -266,6 +287,7 @@ void VNSaveMenu::onEvent(EventRef event) {
     else if (delta > 0 && selected > 0)
       --selected;
     revealSelection();
+    return true;
   }
   for (std::size_t row = 0; row < pageSize && first + row < count(); ++row) {
     const auto index = first + row;
@@ -274,20 +296,21 @@ void VNSaveMenu::onEvent(EventRef event) {
       if (UI::clicked(event, {780, y, 130, 44})) {
         selected = index;
         beginRename();
-        return;
+        return true;
       }
       if (UI::clicked(event, {920, y, 130, 44})) {
         selected = index;
         confirmation = Confirmation::Delete;
-        return;
+        return true;
       }
     }
     if (UI::clicked(event, {230, y, 540, 44})) {
       selected = first + row;
       activate();
-      return;
+      return true;
     }
   }
+  return false;
 }
 
 void VNSaveMenu::render(RendererRef renderer, float) {

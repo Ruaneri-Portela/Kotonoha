@@ -1,4 +1,5 @@
 #pragma once
+#include <Kotonoha/componentes/TouchActivation.hpp>
 
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/Scene.hpp>
@@ -11,6 +12,7 @@ namespace Kotonoha {
 // Title menu. Subclasses replace the items, their actions and drawing.
 class GameMenu : public Scene {
 protected:
+  TouchActivation touchActivation;
   bool isOpen = false;
   int selected = 0;
   virtual int itemCount() const { return 4; }
@@ -29,7 +31,7 @@ public:
   bool designSpace() const override { return true; }
   explicit GameMenu(Engine &engineRef);
 
-  virtual void open() { isOpen = true; }
+  virtual void open() { touchActivation.reset(); isOpen = true; }
   virtual void close() { isOpen = false; }
   void toggle() { isVisible() ? close() : open(); }
   virtual bool isVisible() const { return isOpen; }
@@ -42,7 +44,7 @@ public:
   void setOnSettings(std::function<void()> cb) { onSettingsCb = std::move(cb); }
   void setOnQuit(std::function<void()> cb) { onQuitCb = std::move(cb); }
 
-  void onEvent(EventRef event) override;
+  bool onEvent(EventRef event) override;
   void update() override;
   void render(RendererRef renderer, float scale) override;
 };

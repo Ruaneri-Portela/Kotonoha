@@ -1,4 +1,5 @@
 #pragma once
+#include <Kotonoha/componentes/TouchActivation.hpp>
 
 #include <Kotonoha/core/Scene.hpp>
 #include <functional>
@@ -10,9 +11,11 @@ namespace Kotonoha {
 // the whole screen (open/close/IsOpen) with a game specific one.
 class InGameMenu : public Scene {
 protected:
+  TouchActivation touchActivation;
   bool isOpen = false;
   int selected = 0;
-  virtual int itemCount() const { return 6; }
+  bool manualUnpause = false;
+  virtual int itemCount() const { return 7; }
   virtual std::string itemLabel(int index) const;
   virtual SDL_FRect itemRect(int index) const;
   virtual void activate(int index);
@@ -29,12 +32,12 @@ public:
   bool designSpace() const override { return true; }
   explicit InGameMenu(Engine &engineRef);
 
-  virtual void open() { isOpen = true; }
+  virtual void open() { touchActivation.reset(); isOpen = true; }
   virtual void close() { isOpen = false; }
   void toggle() { IsOpen() ? close() : open(); }
   virtual bool IsOpen() const { return isOpen; }
   bool capturesInput() const override { return IsOpen(); }
-  bool pausesStory() const override { return IsOpen(); }
+  bool pausesStory() const override { return IsOpen() && !manualUnpause; }
 
   void SetOnResume(std::function<void()> cb) { onResumeCb = std::move(cb); }
   void SetOnReturnToMenu(std::function<void()> cb) {
@@ -44,7 +47,7 @@ public:
   void SetOnSave(std::function<void()> cb) { onSaveCb = std::move(cb); }
   void SetOnLoad(std::function<void()> cb) { onLoadCb = std::move(cb); }
 
-  void onEvent(EventRef event) override;
+  bool onEvent(EventRef event) override;
   void update() override;
   void render(RendererRef renderer, const float scale) override;
 };

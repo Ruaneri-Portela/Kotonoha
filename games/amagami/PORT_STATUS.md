@@ -220,7 +220,7 @@ checks pass independently.
 ## Portuguese draft and native engine controls
 
 - [Translation files](../../translations/amagami/README.md) cover all 411
-  unique prologue entries plus 22 shared names/menu labels. They are generated
+  unique prologue entries plus partial drafts in other scenes and shared labels. They are generated
   drafts, not a translation of the full game or a complete linguistic review.
 - `translationSources()` exports all 2,308 native scenarios (84,414 entries)
   through the shared engine export path; previously `--dump-translation` failed
@@ -234,3 +234,49 @@ checks pass independently.
   and audio. Save replay still does not restore exact animation/audio phase.
 - `Amagami.Translation` loads the shipped Portuguese dictionary in the actual
   engine and exercises dialogue, choices, live edits and the native clock.
+
+## Integrated VM and interface follow-up
+
+- Scalar receivers dispatch through their SCF types (`Integer`, `Float`,
+  `True`/`False`, etc.). `isKindOf` follows the original inheritance tables;
+  `getClass` returns a class value. This fixes `.isKindOf/1` in
+  `K2X_Script_.actTime:36`.
+- `actStart` executes the original bytecode and initializes the animation
+  multiplier to `1.0`; acknowledging it without updating state made camera
+  movement collapse to zero. Real `actTime` and `laugh` bytecode, including
+  the `n0_Action` movement coroutine, have regression coverage.
+- `checkClear` remains a diagnostic-only no-op in the standalone scenario
+  runner: it prints campaign completion statistics whose EventNode totals are
+  not initialized here. Campaign/map initialization is still incomplete.
+- ItemView `openItem`/`closeItem` now render the original small item texture and
+  `baseitem` frame with the script's 12-frame scale/alpha transitions.
+  `showItem`/`hideItem` preserve the item and animate visibility. The original
+  scenario `n3nka_st01A` exercises item 220 in a regression check.
+- Item textures use the engine texture upscaling path and natural dimensions;
+  they are independent of background camera transforms. Broader SD/chibi
+  presentation and the unused timing-minigame prototype are not validated.
+- The pause menu opens Kotonoha settings. Translated title/choice headings,
+  start prompt and backlog use the engine dictionary. Global strings export
+  under `nodo`; the live editor lists those sources even without a dictionary.
+- `ja.json` and `pt-BR.json` have matching corpus keys for all scenarios and
+  original system-class strings. Most values outside the covered draft are
+  still Japanese. The shared UI records global strings it measures/renders;
+  ImGui debug labels are not fully localized.
+- Root-level OpenCode dumps, logs and translation experiments were removed
+  from the project root; recoverable artifacts live in ignored
+  `.research/amagami/opencode-recovery/`. Parallel legacy translation workers
+  were stopped before moving their intermediate files.
+
+Validation of the integrated follow-up: `Amagami.Session`, `Amagami.Engine`,
+`Amagami.Vm` and `Amagami.Translation` passed (4/4). The embedded MCP client
+saved at the prologue choice, restored the save three times, and verified that
+answers 0, 1 and 2 reached distinct original blocks with Portuguese dialogue
+and no runtime diagnostic. Shared Presentation, DebugTranslation and MCP
+regressions also passed before the final Amagami-only dispatch change.
+
+Auxiliary review used the instructions in `.opencode/agents/gemma4-26b.md`
+against the local Gemma endpoint. Suggested changes were checked against the
+SCF class tables: `True`/`False` and class-object reflection were preserved.
+The Jetson review timed out; its analysis is unverified. The OpenCode CLI
+reported a provider routing error for the configured local Gemma model, so
+that review was performed directly through Ollama.

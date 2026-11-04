@@ -1,5 +1,6 @@
 #include <Kotonoha/componentes/GameMenu.hpp>
 #include <Kotonoha/core/UI.hpp>
+#include <Kotonoha/events/ControllerEvent.hpp>
 
 namespace Kotonoha {
 
@@ -39,27 +40,32 @@ void GameMenu::activate(int index) {
   }
 }
 
-void GameMenu::onEvent(EventRef event) {
+bool GameMenu::onEvent(EventRef rawEvent) {
   if (!isVisible())
-    return;
+    return false;
+  const auto event = MapControllerEvent(rawEvent);
+  if (!touchActivation.accept(event))
+    return true;
   const int count = itemCount();
   if (count <= 0)
-    return;
+    return false;
   if (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat) {
     if (event.key.key == SDLK_DOWN)
       selected = (selected + 1) % count;
-    if (event.key.key == SDLK_UP)
+    else if (event.key.key == SDLK_UP)
       selected = (selected + count - 1) % count;
-    if (event.key.key == SDLK_RETURN) {
+    else if (event.key.key == SDLK_RETURN) {
       activate(selected);
-      return;
+      return true;
     }
+    return true;
   }
   for (int i = 0; i < count; ++i)
     if (UI::clicked(event, itemRect(i))) {
       activate(i);
-      return;
+      return true;
     }
+  return false;
 }
 
 void GameMenu::update() {}

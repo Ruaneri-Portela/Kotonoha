@@ -4,6 +4,7 @@
 #include <Kotonoha/componentes/VNSaveMenu.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/UI.hpp>
+#include <Kotonoha/events/ControllerEvent.hpp>
 
 #include <algorithm>
 #include <cstdio>
@@ -135,18 +136,19 @@ void SnowRuntime::update() {
   Runtime::update();
 }
 
-void SnowRuntime::onEvent(Kotonoha::EventRef event) {
+bool SnowRuntime::onEvent(Kotonoha::EventRef event) {
   if (!session_)
-    return;
+    return false;
+  auto mapped = Kotonoha::MapControllerEvent(event, session_->Playing());
   if (EngineSceneCaptures())
-    return Runtime::onEvent(event);
-  if (event.type == SDL_EVENT_MOUSE_MOTION) {
+    return Runtime::onEvent(mapped);
+  if (mapped.type == SDL_EVENT_MOUSE_MOTION) {
     const auto frame =
         Kotonoha::UI::fit({float(kGameWidth), float(kGameHeight)}, viewport());
-    const SDL_Event game = Kotonoha::UI::toFrame(event, frame);
+    const SDL_Event game = Kotonoha::UI::toFrame(mapped, frame);
     session_->SetMouse(game.motion.x, game.motion.y);
   }
-  Runtime::onEvent(event);
+  return Runtime::onEvent(mapped);
 }
 
 Kotonoha::Translation::SourceTexts SnowRuntime::translationSources() const {

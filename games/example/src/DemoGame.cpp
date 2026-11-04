@@ -11,6 +11,7 @@
 #include <Kotonoha/componentes/VNTextBox.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/FileSystem.hpp>
+#include <Kotonoha/events/ControllerEvent.hpp>
 #include <Kotonoha/script/TimelinePlayer.hpp>
 
 #include <filesystem>
@@ -184,17 +185,18 @@ void DemoGame::saveLoadAction(bool load) {
   }
 }
 
-void DemoGame::onEvent(Kotonoha::EventRef event) {
+bool DemoGame::onEvent(Kotonoha::EventRef event) {
+  auto mapped = Kotonoha::MapControllerEvent(event);
   if (GetState() == Kotonoha::GameState::Gameplay &&
       !(saveMenu && saveMenu->isOpen() &&
         std::find(GetActiveScenes().begin(), GetActiveScenes().end(),
                   saveMenu.get()) != GetActiveScenes().end()) &&
-      event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat &&
-      (event.key.key == SDLK_F5 || event.key.key == SDLK_F6)) {
-    saveLoadAction(event.key.key == SDLK_F6);
-    return;
+      mapped.type == SDL_EVENT_KEY_DOWN && !mapped.key.repeat &&
+      (mapped.key.key == SDLK_F5 || mapped.key.key == SDLK_F6)) {
+    saveLoadAction(mapped.key.key == SDLK_F6);
+    return true;
   }
-  Runtime::onEvent(event);
+  return Runtime::onEvent(mapped);
 }
 
 void DemoGame::update() {

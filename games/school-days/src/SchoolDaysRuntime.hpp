@@ -138,7 +138,7 @@ public:
   void update() override;
   void renderGameplay(Kotonoha::RendererRef renderer, float scale) override;
   void renderMenu(Kotonoha::RendererRef renderer, float scale) override;
-  void onEvent(Kotonoha::EventRef event) override;
+  bool onEvent(Kotonoha::EventRef event) override;
   bool handleBackAction() override;
   bool handleBacklogAction() override;
   // Native panel state (tests and the debug tools).

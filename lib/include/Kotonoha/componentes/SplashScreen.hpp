@@ -12,7 +12,7 @@ class MediaPlayer;
 
 // Each image fades in, then advances after a timeout or a click/touch.
 // Videos play through once and include their embedded audio when present.
-// Keys are ignored; missing or undecodable files are skipped.
+// Confirm advances; missing or undecodable files are skipped.
 class SplashScreen : public Scene {
 public:
   static constexpr double fadeSeconds = 0.8;

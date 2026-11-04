@@ -70,7 +70,7 @@ public:
   virtual void renderGameplay(RendererRef renderer, float scale);
 
   virtual void update();
-  virtual void onEvent(EventRef event);
+  virtual bool onEvent(EventRef event);
   virtual bool onScreenEvent(EventRef event);
   virtual std::string diagnostic() const { return {}; }
   virtual bool handleNewGameAction() { return false; }

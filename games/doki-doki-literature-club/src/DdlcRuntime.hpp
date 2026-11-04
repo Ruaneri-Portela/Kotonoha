@@ -24,6 +24,7 @@ public:
   void initMenu(Kotonoha::Engine &engine) override;
   void initGameplay(Kotonoha::Engine &engine) override;
   void update() override;
+  bool onEvent(Kotonoha::EventRef event) override;
   bool handleBackAction() override;
   bool handleBacklogAction() override;
   int translationRoute() const override;

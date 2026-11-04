@@ -258,7 +258,7 @@ public:
                              focus * 100, 90, 100, 28);
     }
   }
-  void onEvent(EventRef e) override {
+  bool onEvent(EventRef e) override {
     if (nativeMode < 0) {
       if (e.type == SDL_EVENT_MOUSE_MOTION && active) {
         layout();
@@ -273,8 +273,7 @@ public:
       }
       if (e.type == SDL_EVENT_KEY_DOWN)
         keyboardFocus = true;
-      ChoiceQuestionScene::onEvent(e);
-      return;
+      return ChoiceQuestionScene::onEvent(e);
     }
     if (BackAction(engine, e)) {
       if (nativeMode == 3 && uniformPhase) {
@@ -282,10 +281,10 @@ public:
         focus = uniformIndex;
       } else
         openMenu();
-      return;
+      return true;
     }
     if (!active)
-      return;
+      return false;
     bool confirm = e.type == SDL_EVENT_KEY_DOWN && !e.key.repeat &&
                    (e.key.key == SDLK_RETURN || e.key.key == SDLK_SPACE);
     bool mouse = e.type == SDL_EVENT_MOUSE_BUTTON_UP &&
@@ -295,10 +294,10 @@ public:
         if (nativeMode == 3 && uniformPhase) {
           uniformPhase = 0;
           focus = uniformIndex;
-          return;
+          return true;
         }
         openMenu();
-        return;
+        return true;
       }
       int direction = e.key.key == SDLK_UP      ? 0
                       : e.key.key == SDLK_DOWN  ? 1
@@ -343,38 +342,40 @@ public:
                                         options.size()) == focus;
     }
     if (!confirm)
-      return;
+      return false;
     if (nativeMode < 3) {
       if (focus >= 0)
         select(size_t(focus));
-      return;
+      return true;
     }
     if (uniformPhase == 0 && focus >= 0) {
       uniformIndex = focus;
       uniformPhase = 1;
       if (nativeSound)
         nativeSound("systemmsg_000" + std::to_string(4 * (uniformIndex + 1)));
-      return;
+      return true;
     }
     if (uniformPhase == 1) {
       uniformPhase = 2;
       focus = -1;
       if (nativeSound)
         nativeSound("systemmsg_0016");
-      return;
+      return true;
     }
     if (uniformPhase == 2 && focus == 0) {
       if (nativeSound)
         nativeSound("systemmsg_0020");
       select(size_t(uniformIndex));
-      return;
+      return true;
     }
     if (uniformPhase == 2 && focus == 1) {
       uniformPhase = 0;
       focus = uniformIndex;
       if (nativeSound)
         nativeSound("systemmsg_0024");
+      return true;
     }
+    return false;
   }
   void render(RendererRef r, float scale) override {
     if (nativeMode < 0)
@@ -1381,7 +1382,7 @@ void SummerRuntime::update() {
   if (i.vm.ended)
     i.begin();
 }
-void SummerRuntime::onEvent(EventRef e) { Runtime::onEvent(e); }
+bool SummerRuntime::onEvent(EventRef e) { return Runtime::onEvent(e); }
 void SummerRuntime::saveGame(const std::string &path) {
   auto &i = *impl;
   if (!i.vm.waiting || i.pending == "WAIT" || i.pending == "WIPE" ||

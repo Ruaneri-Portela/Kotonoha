@@ -1,4 +1,5 @@
 #pragma once
+#include <Kotonoha/componentes/TouchActivation.hpp>
 
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/Scene.hpp>
@@ -20,6 +21,7 @@ struct ChoiceOption {
 // drawing, hit area and selection hooks to restyle it or add choice kinds.
 class ChoiceQuestionScene : public Scene {
 protected:
+  TouchActivation touchActivation;
   std::string questionText;
   std::vector<ChoiceOption> options;
   std::function<void(int optionId, const std::string &label)> onChoiceSelected;
@@ -51,6 +53,7 @@ public:
     if (choices.empty())
       throw std::invalid_argument(
           "Choice component requires at least one option");
+    touchActivation.reset();
     questionText = question;
     options = choices;
     onChoiceSelected = std::move(callback);
@@ -72,7 +75,7 @@ public:
 
   void translationChanged(const std::string &, const std::string &,
                           const std::string &) override;
-  void onEvent(EventRef event) override;
+  bool onEvent(EventRef event) override;
   void update() override;
   void render(RendererRef renderer, float scale) override;
 };

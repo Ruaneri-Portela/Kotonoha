@@ -50,6 +50,40 @@ int main(int argc, char **argv) {
         std::filesystem::remove(p, ec);
       }
     } cleanup{tmp};
+    // Scalar dispatch must preserve SCF classes and their inheritance.
+    {
+      Amagami::Vm probe;
+      for (size_t i = 0; i < source->classes().size(); ++i)
+        probe.add(source->systemClass(i));
+      for (const auto value :
+           {Amagami::VmValue::num(7), Amagami::VmValue::num(7.5, true)}) {
+        probe.call(value, "isKindOf",
+                   {Amagami::VmValue::str("Integer", Amagami::VmValue::Class)});
+        probe.run();
+        require(
+            probe.result().kind == Amagami::VmValue::Boolean &&
+                probe.result().truth() == !value.floating,
+            "isKindOf distinguishes Integer from Float without empty dispatch");
+        probe.call(value, "isKindOf",
+                   {Amagami::VmValue::str("Number", Amagami::VmValue::Class)});
+        probe.run();
+        require(probe.result().truth(), "SCF numeric inheritance is respected");
+      }
+      probe.native = [](const auto &r, const std::string &selector,
+                        const auto &) -> std::optional<Amagami::VmValue> {
+        return selector == "println" ? std::optional<Amagami::VmValue>(r)
+                                     : std::nullopt;
+      };
+      for (const auto value :
+           {Amagami::VmValue::num(7), Amagami::VmValue::num(7.5, true)}) {
+        probe.call(probe.instance("n0_MacroScripts"), "actTime", {value});
+        probe.run();
+        require(probe.result().number == value.number &&
+                    probe.result().floating == value.floating,
+                "Original actTime initializes its multiplier and preserves "
+                "numeric type");
+      }
+    }
     // Exercise the actual seven-argument macro reported by the runtime.
     for (int immediate : {0, 1}) {
       Amagami::Vm probe;

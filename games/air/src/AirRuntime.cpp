@@ -16,6 +16,7 @@
 #include <Kotonoha/core/UI.hpp>
 #include <Kotonoha/events/BackAction.hpp>
 #include <Kotonoha/events/BacklogEvents.hpp>
+#include <Kotonoha/events/ControllerEvent.hpp>
 #include <Kotonoha/localization/Encoding.hpp>
 #include <Kotonoha/media/MediaPlayer.hpp>
 #include <Kotonoha/media/PcmPlayer.hpp>
@@ -31,13 +32,55 @@
 namespace Air {
 using namespace Kotonoha;
 namespace {
-struct Stage : Scene {
+// Keep the composed stage active while the separate presentation scenes are
+// introduced; bind() still supplies its drawing and input callbacks.
+struct Stage final : Scene {
   std::function<void(RendererRef)> draw;
   std::function<bool(EventRef)> input;
-  Stage(Engine &e) : Scene(e) {}
-  void render(RendererRef r, float) override { draw(r); }
-  bool handleEvent(EventRef e) override { return input(e); }
+  explicit Stage(Engine &engine) : Scene(engine) {}
+  void render(RendererRef renderer, float) override {
+    if (draw)
+      draw(renderer);
+  }
+  bool onEvent(EventRef event) override { return input && input(event); }
 };
+namespace Air {
+struct Impl;
+} // namespace Air
+
+namespace {
+struct AirBackgroundScene final : Scene {
+  Air::Impl &impl;
+  AirBackgroundScene(Engine &e, Air::Impl &impl) : Scene(e), impl(impl) {}
+  void render(RendererRef r, float scale) override;
+  bool handleEvent(EventRef e) override;
+  bool designSpace() const override { return false; }
+};
+
+struct AirMovieScene final : Scene {
+  Air::Impl &impl;
+  AirMovieScene(Engine &e, Air::Impl &impl) : Scene(e), impl(impl) {}
+  void render(RendererRef r, float scale) override;
+  bool handleEvent(EventRef e) override { return false; }
+  bool designSpace() const override { return false; }
+};
+
+struct AirEditFieldScene final : Scene {
+  Air::Impl &impl;
+  AirEditFieldScene(Engine &e, Air::Impl &impl) : Scene(e), impl(impl) {}
+  void render(RendererRef r, float scale) override;
+  bool handleEvent(EventRef e) override;
+  bool designSpace() const override { return false; }
+};
+
+struct AirErrorScene final : Scene {
+  Air::Impl &impl;
+  AirErrorScene(Engine &e, Air::Impl &impl) : Scene(e), impl(impl) {}
+  void render(RendererRef r, float scale) override;
+  bool handleEvent(EventRef e) override { return false; }
+  bool designSpace() const override { return false; }
+};
+} // namespace
 struct Text : VNTextBox {
   AirAssets &assets;
   SurfacePtr frame, back, cursor, buttonSurface;
@@ -1905,7 +1948,11 @@ void AirRuntime::loadGame(const std::string &path) {
   i.bgm.SetGain(gain);
 }
 
-void AirRuntime::onEvent(EventRef e) { Runtime::onEvent(e); }
+bool AirRuntime::onEvent(EventRef e) {
+  auto mapped = Kotonoha::MapControllerEvent(e, impl && impl->textbox &&
+                                                    impl->textbox->isVisible());
+  return Runtime::onEvent(mapped);
+}
 int AirRuntime::translationRoute() const { return impl->vm.scenario(); }
 std::vector<int> AirRuntime::translationRoutes() const {
   return impl->archive.ScenarioNumbers();

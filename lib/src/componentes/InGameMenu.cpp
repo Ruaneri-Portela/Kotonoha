@@ -3,6 +3,7 @@
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/UI.hpp>
 #include <Kotonoha/events/BackAction.hpp>
+#include <Kotonoha/events/ControllerEvent.hpp>
 #include <Kotonoha/script/TimelinePlayer.hpp>
 
 namespace Kotonoha {
@@ -12,16 +13,26 @@ InGameMenu::InGameMenu(Engine &engineRef) : Scene(engineRef) {}
 std::string InGameMenu::itemLabel(int index) const {
   static const char *labels[]{"Continue", "History [B]", "Settings",
                               "Save...",  "Load...",     "Main Menu"};
-  return index >= 0 && index < 6 ? labels[index] : "";
+  if (index >= 0 && index < 6)
+    return labels[index];
+  if (index == 6)
+    return manualUnpause ? "Game Pause: [Off]" : "Game Pause: [On]";
+  return "";
 }
 
 SDL_FRect InGameMenu::itemRect(int index) const {
-  return {460, 200.0f + index * 60, 360, 48};
+  if (index == 6)
+    return {460, 500, 360, 44};
+  return {460, 160.0f + index * 54, 360, 44};
 }
 
 void InGameMenu::openBacklog() { GetVNBacklogRuntime(engine).open(); }
 
 void InGameMenu::activate(int index) {
+  if (index == 6) {
+    manualUnpause = !manualUnpause;
+    return;
+  }
   if (index == 0) {
     close();
     if (onResumeCb)
@@ -53,37 +64,45 @@ void InGameMenu::activate(int index) {
   }
 }
 
-void InGameMenu::onEvent(EventRef event) {
+bool InGameMenu::onEvent(EventRef rawEvent) {
+  const auto event = MapControllerEvent(rawEvent);
+  if (!touchActivation.accept(event))
+    return true;
   const int count = itemCount();
 
   if (BackAction(engine, event)) {
     toggle();
-    return;
+    return true;
   }
 
   if (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat) {
     if (!IsOpen() || count <= 0)
-      return;
+      return false;
     if (event.key.key == SDLK_B) {
       activate(1);
-      return;
+      return true;
     }
-    if (event.key.key == SDLK_DOWN)
+    if (event.key.key == SDLK_DOWN) {
       selected = (selected + 1) % count;
-    if (event.key.key == SDLK_UP)
+      return true;
+    }
+    if (event.key.key == SDLK_UP) {
       selected = (selected + count - 1) % count;
-    if (event.key.key == SDLK_RETURN) {
+      return true;
+    }
+    if (event.key.key == SDLK_RETURN || event.key.key == SDLK_SPACE) {
       activate(selected);
-      return;
+      return true;
     }
   }
   if (!IsOpen())
-    return;
+    return false;
   for (int i = 0; i < count; ++i)
     if (UI::clicked(event, itemRect(i))) {
       activate(i);
-      return;
+      return true;
     }
+  return false;
 }
 
 void InGameMenu::update() {}

@@ -12,13 +12,9 @@
 #include <string>
 #include <vector>
 
-// The engine components specialised for Zero no Tsukaima. Each one keeps the
-// engine behaviour (input routing, story pause, state changes) and overrides
-// only the hooks that differ: what is shown, where it is hit and what an item does.
-// Every scene draws and receives events in 640x448 game units (ZeroRuntime).
 namespace ZeroNoTsukaima {
 
-// Title / mode menu / galleries: the retail front end behind the GameMenu
+// The Title / mode menu / galleries: the retail front end behind the GameMenu
 // contract. activate(0) starts the story through GameMenu (Gameplay state).
 class ZeroTitleMenu : public Kotonoha::GameMenu {
 public:
@@ -26,7 +22,7 @@ public:
   ZeroTitleMenu(Kotonoha::Engine &engine, ZeroSession &session);
 
   bool isVisible() const override;
-  void onEvent(Kotonoha::EventRef event) override;
+  bool onEvent(Kotonoha::EventRef event) override;
   void update() override;
 
 protected:
@@ -56,6 +52,7 @@ public:
 
   bool handleEvent(Kotonoha::EventRef event) override;
   void update() override;
+  void cancelHeldSkip() { skipHeld_ = skipToggle_ = false; }
 
 protected:
   double charactersPerSecond() const override;
@@ -74,6 +71,8 @@ private:
   ZeroSession &session_;
   std::string pageKey_;
   Uint64 doneAt_ = 0;
+  bool skipHeld_ = false;
+  bool skipToggle_ = false;
 };
 
 // Shared choice behaviour: options come from the script, picking one advances it.
@@ -82,14 +81,14 @@ public:
   bool designSpace() const override { return false; }
   ZeroChoice(Kotonoha::Engine &engine, ZeroSession &session);
   void update() override;
-  void onEvent(Kotonoha::EventRef event) override;
+  bool onEvent(Kotonoha::EventRef event) override;
 
 protected:
   virtual bool Wanted() const = 0;
   virtual std::vector<std::string> Labels() const = 0;
   virtual int InitialFocus() const { return -1; }
 
-  SDL_FRect listArea() const override { return {0, 0, float(kGameWidth), float(kGameHeight)}; }
+  SDL_FRect listArea() const override { return {0, 0, (float)kGameWidth, (float)kGameHeight}; }
   void select(std::size_t index) override;
   void openMenu() override { session_.OpenCommand(); }
   void openBacklog() override { session_.OpenHistory(); }
@@ -132,7 +131,7 @@ class ZeroRoulette : public Kotonoha::Scene {
 public:
   ZeroRoulette(Kotonoha::Engine &engine, ZeroSession &session) : Scene(engine), session_(session) {}
   bool capturesInput() const override { return session_.RouletteActive(); }
-  void onEvent(Kotonoha::EventRef event) override { session_.RouletteEvent(event); }
+  bool onEvent(Kotonoha::EventRef event) override;
   void render(Kotonoha::RendererRef renderer, float) override { session_.DrawRoulette(&renderer); }
 
 private:
@@ -149,7 +148,7 @@ public:
   void open() override { session_.OpenCommand(); }
   void close() override {}
   bool IsOpen() const override { return session_.ScreenActive() && !session_.HistoryActive(); }
-  void onEvent(Kotonoha::EventRef event) override;
+  bool onEvent(Kotonoha::EventRef event) override;
   void update() override;
 
 protected:
@@ -165,13 +164,13 @@ private:
 class ZeroBacklog : public Kotonoha::VNBacklog {
 public:
   bool designSpace() const override { return false; }
-  ZeroBacklog(Kotonoha::Engine &engine, ZeroSession &session) : VNBacklog(engine), session_(session) {}
+  ZeroBacklog(Kotonoha::Engine &engine, ZeroSession &session);
 
   void addEntry(const std::string &, const std::string &) override {}
   void open() override { session_.OpenHistory(); }
   void close() override {}
   bool isVisible() const override { return session_.HistoryActive(); }
-  void onEvent(Kotonoha::EventRef event) override;
+  bool onEvent(Kotonoha::EventRef event) override;
 
 protected:
   void renderFrame(Kotonoha::RendererRef renderer) override { session_.DrawScreen(&renderer); }

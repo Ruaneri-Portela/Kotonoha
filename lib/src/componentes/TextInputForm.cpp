@@ -2,6 +2,7 @@
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/UI.hpp>
 #include <Kotonoha/events/BackAction.hpp>
+#include <Kotonoha/events/ControllerEvent.hpp>
 #include <stdexcept>
 namespace Kotonoha {
 TextInputForm::~TextInputForm() {
@@ -13,6 +14,7 @@ void TextInputForm::configure(std::string caption, std::vector<Field> values,
   if (values.empty() || values.size() > 4 || !accept)
     throw std::invalid_argument(
         "A text form requires one to four fields and a submit callback");
+  touchActivation.reset();
   title = std::move(caption);
   fields = std::move(values);
   confirm = std::move(accept);
@@ -33,15 +35,18 @@ void TextInputForm::submit(const std::vector<std::string> &values) {
   const auto callback = confirm;
   error = callback(values);
 }
-void TextInputForm::onEvent(EventRef event) {
+bool TextInputForm::onEvent(EventRef rawEvent) {
   if (!active)
-    return;
+    return false;
+  const auto event = MapControllerEvent(rawEvent);
+  if (!touchActivation.accept(event))
+    return true;
   if (BackAction(engine, event) || UI::clicked(event, {850, 565, 180, 48})) {
     const auto callback = cancel;
     close();
     if (callback)
       callback();
-    return;
+    return true;
   }
   for (size_t i = 0; i < fields.size(); ++i)
     if (UI::clicked(event, {510, 230.0f + 70 * i, 500, 48}))
@@ -51,16 +56,27 @@ void TextInputForm::onEvent(EventRef event) {
             std::char_traits<char>::length(event.text.text) <=
         255)
       fields[focus].value += event.text.text;
+    return true;
   }
   if (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat) {
-    if (event.key.key == SDLK_BACKSPACE)
+    if (event.key.key == SDLK_BACKSPACE) {
       eraseLastCharacter(fields[focus].value);
-    if (event.key.key == SDLK_TAB)
+      return true;
+    }
+    if (event.key.key == SDLK_TAB || event.key.key == SDLK_DOWN) {
       focus = (focus + 1) % fields.size();
+      return true;
+    }
+    if (event.key.key == SDLK_UP) {
+      focus = (focus + fields.size() - 1) % fields.size();
+      return true;
+    }
   }
-  if (UI::clicked(event, {250, 565, 210, 48}))
+  if (UI::clicked(event, {250, 565, 210, 48})) {
     for (auto &field : fields)
       field.value = field.defaultValue;
+    return true;
+  }
   if (UI::clicked(event, {630, 565, 190, 48}) ||
       (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_RETURN &&
        !event.key.repeat)) {
@@ -68,7 +84,9 @@ void TextInputForm::onEvent(EventRef event) {
     for (const auto &field : fields)
       values.push_back(field.value);
     submit(values);
+    return true;
   }
+  return false;
 }
 void TextInputForm::update() {
   if (active && !SDL_TextInputActive(&engine.GetWindow()))

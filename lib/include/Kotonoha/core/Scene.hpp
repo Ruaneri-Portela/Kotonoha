@@ -14,10 +14,9 @@ public:
   explicit Scene(Engine &engineRef) : engine(engineRef) {}
   virtual ~Scene() = default;
 
-  virtual void onEvent(EventRef event) {}
+  virtual bool onEvent(EventRef event) { return false; }
   virtual bool handleEvent(EventRef event) {
-    onEvent(event);
-    return false;
+    return onEvent(event);
   }
   virtual bool capturesInput() const { return false; }
   virtual bool finished() const { return false; }
@@ -31,7 +30,7 @@ public:
   virtual bool designSpace() const { return false; }
   virtual void update() {}
   virtual void translationChanged(const std::string &, const std::string &,
-                                  const std::string &) {}
+                                   const std::string &) {}
   virtual void render(RendererRef renderer, float scale) {}
 
 protected:

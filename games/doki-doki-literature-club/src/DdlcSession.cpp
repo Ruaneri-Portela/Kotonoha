@@ -995,7 +995,7 @@ struct Game {
   float mx = -1, my = -1;
   bool ctrl = false, skipToggle = false,
        autoMode = SDL_getenv("DDLC_TMP_AUTO") != nullptr; // TMP-SMOKE
-  bool pauseMenu = false, nameInput = false;
+  bool pauseMenu = false, nameInput = false, manualUnpause = false;
   enum class SubMenu { None, Save, Load, History };
   SubMenu subMenu = SubMenu::None;
   std::string nameText, notice;
@@ -2581,8 +2581,30 @@ struct Game {
   void drawSaveLoadMenu(SDL_Renderer *r) {
     drawn.clear();
     drawImage(r, "gui/overlay/game_menu.png", 0, 0, kW, kH);
-    drawConfirm(r, "Save and load are not available in this port yet.",
-                {{"Back", [this] { subMenu = SubMenu::None; }}}, nullptr);
+    std::vector<std::pair<std::string, std::function<void()>>> slotButtons;
+    for (int i = 1; i <= 6; ++i) {
+      std::string label = "Slot " + std::to_string(i);
+      slotButtons.push_back(
+          {label, [this, i] {
+             std::filesystem::path path =
+                 Kotonoha::preferredDocumentsDirectory() /
+                 ("ddlc_slot" + std::to_string(i) + ".vn");
+             if (subMenu == SubMenu::Save) {
+               saveGame(path.string());
+               notice = "Game saved to Slot " + std::to_string(i);
+               subMenu = SubMenu::None;
+             } else if (subMenu == SubMenu::Load) {
+               if (std::filesystem::exists(path)) {
+                 loadGame(path.string());
+                 openPause(false);
+               } else {
+                 notice = "Slot " + std::to_string(i) + " is empty";
+               }
+             }
+           }});
+    }
+    slotButtons.push_back({"Back", [this] { subMenu = SubMenu::None; }});
+    navigation(r, slotButtons);
   }
 
   void drawMainMenu(SDL_Renderer *r) {
@@ -2649,11 +2671,15 @@ struct Game {
       drawConfirm(r, notice, {{"OK", [this] { notice.clear(); }}}, nullptr);
       return;
     }
-    navigation(r, {{"Return", [this] { openPause(false); }},
-                   {"Save Game", [this] { subMenu = SubMenu::Save; }},
-                   {"Load Game", [this] { subMenu = SubMenu::Load; }},
-                   {"Main Menu", [this] { returnToMenu(); }},
-                   {"Quit", [this] { quit = true; }}});
+    std::string pauseToggleLabel =
+        manualUnpause ? "Pause Game: [Off]" : "Pause Game: [On]";
+    navigation(r,
+               {{"Return", [this] { openPause(false); }},
+                {pauseToggleLabel, [this] { manualUnpause = !manualUnpause; }},
+                {"Save Game", [this] { subMenu = SubMenu::Save; }},
+                {"Load Game", [this] { subMenu = SubMenu::Load; }},
+                {"Main Menu", [this] { returnToMenu(); }},
+                {"Quit", [this] { quit = true; }}});
   }
 
   void beginFrame(SDL_Renderer *r, float pixelScale) {
@@ -2687,7 +2713,8 @@ struct Game {
   }
 
   void drawStage(SDL_Renderer *r) {
-    if (!vm || (phase != Phase::Splash && phase != Phase::Play))
+    if (!vm || (phase != Phase::Splash && phase != Phase::Play) || pauseMenu ||
+        phase == Phase::Menu)
       return;
     const Interaction &interaction = vm->interaction();
     if (interaction.k == Interaction::K::Transition && interaction.trans)
@@ -2955,8 +2982,8 @@ int GameSession::translationRoute() const {
 
 void GameSession::update(bool suspended) {
   auto &game = impl_->game;
-  game.freeze(suspended || game.pauseMenu);
-  if (suspended && !game.pauseMenu)
+  game.freeze(suspended || (game.pauseMenu && !game.manualUnpause));
+  if (suspended && (!game.pauseMenu || game.manualUnpause))
     game.host.tick();
   else
     game.update();

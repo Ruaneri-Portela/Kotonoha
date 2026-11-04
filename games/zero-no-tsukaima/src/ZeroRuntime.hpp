@@ -30,7 +30,7 @@ public:
   SDL_FPoint sceneSize(const Kotonoha::Scene &scene) const override;
   void render(Kotonoha::RendererRef renderer, float scale) override;
   void update() override;
-  void onEvent(Kotonoha::EventRef event) override;
+  bool onEvent(Kotonoha::EventRef event) override;
 
   // Route = SCENE_ID index of each KS script.
   Kotonoha::Translation::SourceTexts translationSources() const override;

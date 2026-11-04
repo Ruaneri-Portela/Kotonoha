@@ -1,4 +1,6 @@
 #pragma once
+#include <Kotonoha/events/ControllerEvent.hpp>
+#include <Kotonoha/componentes/TouchActivation.hpp>
 #include <Kotonoha/core/UI.hpp>
 #include <Kotonoha/events/InputActions.hpp>
 #include <algorithm>
@@ -15,6 +17,7 @@ class SelectBox {
   float scroll = 0, velocity = 0, pressX = 0, pressY = 0;
   bool follow = false, visible = false, dragged = false;
   ScrollGesture gesture;
+  TouchActivation touchActivation;
 
 public:
   bool isOpen() const { return visible; }
@@ -24,6 +27,7 @@ public:
   }
   void open(std::string caption, std::vector<std::string> items, int current,
             std::function<void(int)> action) {
+    touchActivation.reset();
     title = std::move(caption);
     options = std::move(items);
     selected = std::clamp(current, 0, std::max(0, int(options.size()) - 1));
@@ -32,8 +36,11 @@ public:
     visible = true;
     dragged = false;
   }
-  void onEvent(EventRef event) {
+  void onEvent(EventRef input) {
     if (!visible)
+      return;
+    const auto event = MapControllerEvent(input);
+    if (!touchActivation.accept(event))
       return;
     if (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat) {
       if (event.key.key == SDLK_ESCAPE || event.key.key == SDLK_AC_BACK)
