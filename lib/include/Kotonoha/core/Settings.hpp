@@ -14,7 +14,7 @@ struct EngineSettings {
   int fullscreenWidth = 0, fullscreenHeight = 0;
   float refreshRate = 0;
   bool resizable = true;
-  bool vsync = false;
+  bool vsync = true;
   // Swap the controller face buttons used for confirm/cancel. Shown in the
   // settings UI only while at least one gamepad is connected.
   bool swapControllerAB = false;

@@ -111,6 +111,7 @@ struct TestRuntime : Runtime {
   std::optional<double> seconds = 12.375;
   bool timedClock = true;
   bool opaqueGameplay = false;
+  int unpausedUpdates = 0;
   std::function<void(RendererRef)> inspectScreen;
   std::function<void(RendererRef)> inspectBeforeOverlay;
   TestRuntime()
@@ -119,6 +120,11 @@ struct TestRuntime : Runtime {
   std::string debugNode() const override { return node; }
   bool usesTimedNodeClock() const override { return timedClock; }
   std::optional<double> debugNodeSeconds() const override { return seconds; }
+  void update() override {
+    Runtime::update();
+    if (!isStoryPaused())
+      ++unpausedUpdates;
+  }
   SDL_FPoint sceneSize(const Scene &scene) const override {
     if (dynamic_cast<const ForcedSubtitleRenderer *>(&scene))
       return {640, 360};
@@ -236,6 +242,93 @@ void subtitles(Engine &engine) {
   scene.clear();
   draw(1.5);
   require(colored(renderer, 1) == 0, "Clearing removes the track");
+}
+
+void pauseSources(Engine &engine, TestRuntime &runtime) {
+  auto &debug = engine.GetDebug();
+  auto &menu = GetInGameMenuRuntime(engine);
+  auto &timeline = engine.GetTimeline();
+  const auto previousNode = runtime.node;
+  runtime.node = "pause-test";
+  runtime.timedClock = false;
+  runtime.SetState(GameState::Gameplay);
+  runtime.AddScene(&menu);
+  engine.resetNodeClock();
+  TimelineScript script;
+  script.duration = 10;
+  timeline.play(script);
+  const auto checkPaused = [&] {
+    require(engine.isStoryPaused() && runtime.isStoryPaused(),
+            "Engine and native runtime share the same pause state");
+    const auto timelineBefore = timeline.seconds();
+    const auto clockBefore = engine.activeNodeSeconds();
+    const auto updatesBefore = runtime.unpausedUpdates;
+    SDL_Delay(20);
+    engine.synchronizeTimeline();
+    runtime.update();
+    require(timeline.isPaused() && timeline.seconds() == timelineBefore &&
+                engine.activeNodeSeconds() == clockBefore &&
+                runtime.unpausedUpdates == updatesBefore,
+            "All pause sources freeze the timeline, node clock and native updates");
+  };
+  const auto checkRunning = [&] {
+    require(!engine.isStoryPaused() && !runtime.isStoryPaused(),
+            "Engine and native runtime resume together");
+    const auto timelineBefore = timeline.seconds();
+    const auto clockBefore = engine.activeNodeSeconds();
+    const auto updatesBefore = runtime.unpausedUpdates;
+    SDL_Delay(20);
+    engine.synchronizeTimeline();
+    runtime.update();
+    require(!timeline.isPaused() && timeline.seconds() > timelineBefore &&
+                engine.activeNodeSeconds() > clockBefore &&
+                runtime.unpausedUpdates > updatesBefore,
+            "Unpaused timeline, node clock and native updates advance together");
+  };
+  engine.setAgentPaused(false);
+  checkRunning();
+  debug.setVisible(true);
+  require(!runtime.hasPausingScene(),
+          "Debug pause reaches native runtimes without a modal scene");
+  checkPaused();
+  menu.open();
+  debug.setVisible(false);
+  checkPaused();
+  debug.setVisible(true);
+  menu.close();
+  checkPaused();
+  debug.getSettings().ignorePause = true;
+  checkRunning();
+  menu.open();
+  checkPaused();
+  debug.setVisible(false);
+  checkPaused();
+  menu.close();
+  checkRunning();
+  engine.openSettings();
+  checkPaused();
+  engine.GetSettingsMenu().close();
+  engine.setAgentPaused(true);
+  checkPaused();
+  debug.getSettings().ignorePause = false;
+  debug.setVisible(true);
+  rejects([&] { engine.advanceTimeline(0.1); },
+          "MCP stepping cannot bypass debug pause");
+  debug.setVisible(false);
+  menu.open();
+  rejects([&] { engine.advanceTimeline(0.1); },
+          "MCP stepping cannot bypass an in-game menu");
+  menu.close();
+  engine.advanceTimeline(0.1);
+  checkPaused();
+  engine.setAgentPaused(false);
+  checkRunning();
+  debug.getSettings().ignorePause = false;
+  runtime.RemoveScene(&menu);
+  timeline.stop();
+  runtime.node = previousNode;
+  runtime.timedClock = true;
+  engine.resetNodeClock();
 }
 
 void forcedSubtitles(Engine &engine, TestRuntime &runtime) {
@@ -767,6 +860,7 @@ int main() {
     subtitles(engine);
     subtitleRasterization(engine);
     controls(engine, runtime);
+    pauseSources(engine, runtime);
     forcedSubtitles(engine, runtime);
     fades(engine);
     std::cout << "Extensible arguments/help, ASS style import/rendering and "

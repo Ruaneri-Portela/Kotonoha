@@ -3,6 +3,9 @@
 O menu interno da engine tem abas **Display**, **Audio** e **VN text**.
 Use toque ou mouse; Tab troca a aba e End seleciona Aplicar.
 
+VSync vem ativado por padrão em todos os jogos, inclusive ao carregar uma
+configuração sem esse campo. Uma escolha salva de VSync desligado é preservada.
+
 Audio oferece volume geral, mute geral e os canais do mixer. Os controles
 aceitam arrastar o dedo. O ganho escolhido pelo jogador é multiplicado pelo
 volume nativo do roteiro e pelo ganho de cada stream, preservando fades e
@@ -57,6 +60,12 @@ As legendas são desenhadas sobre as cenas da novel, mas abaixo de Settings,
 InGameMenu, Backlog, saves, diálogos e painéis nativos. Ao pausar, continuam
 visíveis atrás da UI, com o clock congelado. Sair do gameplay ou desligar o
 recurso limpa a legenda atual.
+
+A pausa do menu do jogo e da Debug UI usa o mesmo estado do engine,
+consultado também pelos interpretadores nativos. Roteiro, mídia e clock
+permanecem pausados enquanto qualquer fonte de pausa estiver ativa; fechar
+uma UI não remove a pausa da outra. **Ignore pause** ignora apenas a pausa
+da Debug UI, sem liberar um menu, Settings ou pausa via MCP ainda ativos.
 
 Em F10, **Generate Forced Subtitles (.ass)** gera um modelo para o nodo/evento
 atual usando exatamente o mesmo ID do HUD, sem exigir um nodo Timeline e sem

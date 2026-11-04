@@ -189,7 +189,9 @@ public:
     return GetScenes(currentState);
   }
 
-  bool isStoryPaused() const {
+  // Engine-wide pause, including debug, settings, MCP and active scene modals.
+  bool isStoryPaused() const;
+  bool hasPausingScene() const {
     for (const auto *scene : GetActiveScenes())
       if (scene && scene->pausesStory())
         return true;

@@ -110,6 +110,7 @@ void testSettings(const std::filesystem::path &directory) {
           "A drive letter is not a shader separator");
   const auto file = (directory / "settings.json").string();
   EngineSettings settings;
+  require(settings.vsync, "New game settings enable VSync by default");
   settings.width = 1600;
   settings.height = 900;
   settings.display = 2;
@@ -197,8 +198,15 @@ void testSettings(const std::filesystem::path &directory) {
             "Reject invalid settings JSON/value");
   }
   writeTextFileAtomically(file, "{}");
-  require(EngineSettings::load(file).width == 1280,
-          "Partial settings use defaults");
+  require(EngineSettings::load(file).width == 1280 &&
+              EngineSettings::load(file).vsync,
+          "Partial settings use defaults including enabled VSync");
+  writeTextFileAtomically(file, "{\"vsync\":false}");
+  auto vsyncDisabled = EngineSettings::load(file);
+  require(!vsyncDisabled.vsync, "Explicitly disabled VSync remains disabled");
+  vsyncDisabled.save(file);
+  require(!EngineSettings::load(file).vsync,
+          "Disabled VSync survives saving and reloading");
   rejects([&] { EngineSettings::load((directory / "missing.json").string()); },
           "Explicit missing settings load reports an error");
   for (float invalid : {0.0f, 4.1f, std::numeric_limits<float>::quiet_NaN(),
