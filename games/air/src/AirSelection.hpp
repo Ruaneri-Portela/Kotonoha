@@ -142,7 +142,8 @@ public:
       if (controls.handle(event))
         return true;
     }
-    if (event.type == SDL_EVENT_KEY_DOWN)
+    if (event.type == SDL_EVENT_KEY_DOWN ||
+        event.type == SDL_EVENT_GAMEPAD_BUTTON_DOWN)
       keyboardFocus = true;
     return ChoiceQuestionScene::onEvent(event);
   }

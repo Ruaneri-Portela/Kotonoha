@@ -13,6 +13,7 @@
 #include <Kotonoha/core/UI.hpp>
 #include <Kotonoha/events/BackAction.hpp>
 #include <Kotonoha/events/BacklogEvents.hpp>
+#include <Kotonoha/events/ControllerEvent.hpp>
 #include <Kotonoha/media/MediaPlayer.hpp>
 #include <Kotonoha/media/PcmPlayer.hpp>
 #include <Kotonoha/media/upscaling/Upscaler.hpp>
@@ -258,7 +259,8 @@ public:
                              focus * 100, 90, 100, 28);
     }
   }
-  bool onEvent(EventRef e) override {
+  bool onEvent(EventRef input) override {
+    const auto e = MapControllerEvent(input);
     if (nativeMode < 0) {
       if (e.type == SDL_EVENT_MOUSE_MOTION && active) {
         layout();
@@ -1184,8 +1186,16 @@ struct SummerRuntime::Impl {
       GetVNBacklogRuntime(*engine).open();
       return true;
     }
+    // Controller Back/left shoulder maps to PAGEUP; accept it as history too.
+    if (pending == "MESSAGE" && e.type == SDL_EVENT_KEY_DOWN && !e.key.repeat &&
+        e.key.key == SDLK_PAGEUP) {
+      GetVNBacklogRuntime(*engine).open();
+      return true;
+    }
     if (e.type == SDL_EVENT_KEY_UP &&
         (e.key.key == SDLK_LCTRL || e.key.key == SDLK_RCTRL))
+      skipHeld = false;
+    if (e.type == SDL_EVENT_GAMEPAD_REMOVED)
       skipHeld = false;
     if (engine->isStoryPaused() || choice->isActive())
       return false;
@@ -1227,6 +1237,10 @@ struct SummerRuntime::Impl {
       }
       if (e.key.key == SDLK_A) {
         autoMode = !autoMode;
+        return true;
+      }
+      if (e.key.key == SDLK_S) {
+        skipMode = !skipMode;
         return true;
       }
       if (e.key.key == SDLK_F5) {
@@ -1382,7 +1396,19 @@ void SummerRuntime::update() {
   if (i.vm.ended)
     i.begin();
 }
-bool SummerRuntime::onEvent(EventRef e) { return Runtime::onEvent(e); }
+bool SummerRuntime::onEvent(EventRef e) {
+  auto &i = *impl;
+  // Shared modals (pause, save browser, history, name entry) and choices map
+  // controller buttons in their own context. Pre-mapping would turn South into
+  // held skip while a menu is open.
+  for (auto *scene : GetActiveScenes())
+    if (scene && scene->capturesInput()) {
+      i.skipHeld = false;
+      return Runtime::onEvent(e);
+    }
+  const bool dialogue = i.text && i.text->isVisible() && !i.text->concealed;
+  return Runtime::onEvent(MapControllerEvent(e, dialogue));
+}
 void SummerRuntime::saveGame(const std::string &path) {
   auto &i = *impl;
   if (!i.vm.waiting || i.pending == "WAIT" || i.pending == "WIPE" ||

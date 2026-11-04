@@ -19,6 +19,14 @@ VNTextBox *text(Runtime &game) {
       return t;
   return nullptr;
 }
+SDL_Event pad(Uint8 button, bool down) {
+  SDL_Event event{};
+  event.type =
+      down ? SDL_EVENT_GAMEPAD_BUTTON_DOWN : SDL_EVENT_GAMEPAD_BUTTON_UP;
+  event.gbutton.button = button;
+  event.gbutton.down = down;
+  return event;
+}
 void capture(Engine &engine, Runtime &game, const char *name) {
   auto &r = engine.GetRenderer();
   TexturePtr target(SDL_CreateTexture(&r, SDL_PIXELFORMAT_RGBA32,
@@ -145,19 +153,34 @@ int main(int argc, char **argv) {
     // belonging to the previous scene before running the title script.
     auto &returnMenu = GetInGameMenuRuntime(engine);
     game.SetState(GameState::Gameplay);
+    // AIR registers the shared scenes for gameplay by reusing the menu scenes;
+    // mirror that here and keep the menu list intact for the return to title.
+    if (game.GetScenes(GameState::Gameplay).empty())
+      for (auto *scene : game.GetScenes(GameState::Menu))
+        game.AddScene(scene, GameState::Gameplay);
     game.debugJumpToNode("170:246");
     game.update();
     check(engine.GetAudio().channel("BGM")->activeStreams() > 0,
           "Scene music starts before testing return to title");
-    returnMenu.open();
-    SDL_Event backToTitle{};
-    backToTitle.type = SDL_EVENT_MOUSE_BUTTON_DOWN;
-    backToTitle.button.button = SDL_BUTTON_LEFT;
-    backToTitle.button.x = 640;
-    backToTitle.button.y = 524;
-    returnMenu.onEvent(backToTitle);
+    // Start opens the pause menu, South cancels it (even with dialogue on
+    // screen), and the D-pad plus East reach "Main Menu".
+    game.onEvent(pad(SDL_GAMEPAD_BUTTON_START, true));
+    check(returnMenu.IsOpen(), "Gamepad Start must open the pause menu");
+    game.onEvent(pad(SDL_GAMEPAD_BUTTON_START, false));
+    game.onEvent(pad(SDL_GAMEPAD_BUTTON_SOUTH, true));
+    check(!returnMenu.IsOpen(),
+          "Gamepad South must cancel the pause menu while dialogue is visible");
+    game.onEvent(pad(SDL_GAMEPAD_BUTTON_SOUTH, false));
+    game.onEvent(pad(SDL_GAMEPAD_BUTTON_START, true));
+    check(returnMenu.IsOpen(), "Gamepad Start must reopen the pause menu");
+    for (int i = 0; i < 5; ++i) {
+      game.onEvent(pad(SDL_GAMEPAD_BUTTON_DPAD_DOWN, true));
+      game.onEvent(pad(SDL_GAMEPAD_BUTTON_DPAD_DOWN, false));
+    }
+    game.onEvent(pad(SDL_GAMEPAD_BUTTON_EAST, true));
     check(game.GetState() == GameState::Menu && game.debugNode() == "9032:0",
-          "Returning to title must change the game state and reset the script");
+          "Gamepad East must activate Main Menu and reset the script");
+    game.onEvent(pad(SDL_GAMEPAD_BUTTON_EAST, false));
     check(
         engine.GetAudio().channel("BGM")->activeStreams() == 0,
         "Returning to title stops scene music before the native NAMI ambience");
@@ -262,6 +285,20 @@ int main(int argc, char **argv) {
     check(GetVNBacklogRuntime(engine).isVisible(),
           "AIR original back button opens the backlog");
     GetVNBacklogRuntime(engine).close();
+    auto &backlog = GetVNBacklogRuntime(engine);
+    game.onEvent(pad(SDL_GAMEPAD_BUTTON_LEFT_SHOULDER, true));
+    check(backlog.isVisible(),
+          "Gamepad left shoulder must open the AIR history");
+    game.onEvent(pad(SDL_GAMEPAD_BUTTON_LEFT_SHOULDER, false));
+    game.onEvent(pad(SDL_GAMEPAD_BUTTON_BACK, true));
+    check(!backlog.isVisible(), "Gamepad Back must close the AIR history");
+    game.onEvent(pad(SDL_GAMEPAD_BUTTON_BACK, false));
+    game.onEvent(pad(SDL_GAMEPAD_BUTTON_LEFT_SHOULDER, true));
+    check(backlog.isVisible(), "Gamepad left shoulder must reopen the history");
+    game.onEvent(pad(SDL_GAMEPAD_BUTTON_LEFT_SHOULDER, false));
+    game.onEvent(pad(SDL_GAMEPAD_BUTTON_SOUTH, true));
+    check(!backlog.isVisible(), "Gamepad South must close the AIR history");
+    game.onEvent(pad(SDL_GAMEPAD_BUTTON_SOUTH, false));
     nativeButton(600, 352);
     SDL_Event reveal{};
     reveal.type = SDL_EVENT_MOUSE_BUTTON_DOWN;

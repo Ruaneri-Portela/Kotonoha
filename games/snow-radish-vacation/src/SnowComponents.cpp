@@ -134,7 +134,8 @@ void SnowTextBox::update() {
     doneAt_ = now;
     return;
   }
-  if ((SDL_GetModState() & SDL_KMOD_CTRL) != 0 && session_.CanSkip()) {
+  if ((ctrlHeld_ || skipPinned_ || (SDL_GetModState() & SDL_KMOD_CTRL) != 0) &&
+      session_.CanSkip()) {
     if (session_.WaitingForClick())
       session_.Advance(-1);
     else
@@ -150,10 +151,41 @@ void SnowTextBox::update() {
   }
 }
 
+void SnowTextBox::CancelSkip() {
+  ctrlHeld_ = false;
+  skipPinned_ = false;
+}
+
 // The first click completes a page that is still being revealed.
 bool SnowTextBox::handleEvent(Kotonoha::EventRef event) {
-  if (!session_.Playing() || session_.Choosing())
+  // Controller South maps to LCTRL during dialogue but SDL_GetModState() does
+  // not reflect synthetic key events, so keep our own held state. Release is
+  // handled before the Playing/Choosing gate so it cannot get stuck.
+  if ((event.type == SDL_EVENT_KEY_DOWN || event.type == SDL_EVENT_KEY_UP) &&
+      (event.key.key == SDLK_LCTRL || event.key.key == SDLK_RCTRL)) {
+    ctrlHeld_ = event.type == SDL_EVENT_KEY_DOWN;
+    return true;
+  }
+  if (event.type == SDL_EVENT_WINDOW_FOCUS_LOST ||
+      event.type == SDL_EVENT_GAMEPAD_REMOVED) {
+    CancelSkip();
     return false;
+  }
+  if (!session_.Playing() || session_.Choosing()) {
+    CancelSkip();
+    return false;
+  }
+  // The pause menu and history use their own controller mapping; do not let
+  // West/right shoulder toggle skip or Auto behind them.
+  if (engine.isStoryPaused())
+    return false;
+  if (IsKey(event, SDLK_S) && !event.key.repeat) {
+    skipPinned_ = !skipPinned_;
+    if (skipPinned_)
+      session_.SetAuto(false);
+    doneAt_ = SDL_GetTicks();
+    return true;
+  }
   if (IsKey(event, SDLK_PAGEUP) || WheelUp(event)) {
     openBacklog();
     return true;

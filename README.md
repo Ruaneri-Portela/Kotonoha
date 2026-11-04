@@ -288,14 +288,16 @@ still work. Scale `1.0` turns processing off without losing the selected profile
 - Click / Enter / Space: reveal or advance dialogue.
 - Arrows / mouse: menus and choices; mouse wheel scrolls longer lists.
 - Gamepad: D-pad or left stick navigates; East (Circle/B) confirms;
-  South (Cross/A) cancels in menus; Start opens pause. Back/left shoulder
-  toggles history. Native settings also support shoulders to change tabs.
+  South (Cross/A) cancels in menus; Start/North opens pause. Back/left
+  shoulder opens history (and closes it while open). Native settings also
+  support shoulders to change tabs.
 - Touch: tap activates; drag scrolls lists and histories. A canceled touch,
   drag or second finger cannot confirm a list item. Edge swipe or a two-finger
   tap goes back; swipe up during dialogue opens history.
-- ZNT and Amagami: hold South to skip during dialogue, release to stop;
-  right shoulder toggles Auto and West toggles skip under the game’s skip rules. Menus keep their
-  navigation bindings while dialogue is paused.
+- During dialogue, South holds read-skip and releasing stops it; West toggles
+  read-skip and the right shoulder toggles Auto in the ports that implement
+  them. Menus keep their navigation bindings and South cancels regardless of
+  the dialogue visible underneath.
 - Escape: pause/back; B: backlog; F5/F6: quicksave/load.
 - F10: engine inspector; F11 / Alt+Enter: borderless fullscreen.
 - F8/F9: node clock/FPS HUD.
