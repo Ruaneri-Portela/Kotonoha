@@ -8,8 +8,8 @@
 #include <Kotonoha/core/SDL.hpp>
 #include <Kotonoha/core/Scene.hpp>
 #include <Kotonoha/core/Settings.hpp>
-#include <Kotonoha/events/InputActions.hpp>
 #include <Kotonoha/events/ControllerEvent.hpp>
+#include <Kotonoha/events/InputActions.hpp>
 #include <Kotonoha/localization/Translation.hpp>
 #include <Kotonoha/media/AudioMixer.hpp>
 #include <Kotonoha/parsers/AssStyle.hpp>
@@ -91,6 +91,7 @@ public:
 
   WindowRef GetWindow() const { return *window; }
   Runtime &GetRuntime() { return runtime; }
+  std::size_t GamepadCount() const { return session.gamepadCount(); }
   template <class T, class... Args> T &sharedScene(Args &&...args) {
     const std::type_index key(typeid(T));
     auto found = sharedScenes.find(key);

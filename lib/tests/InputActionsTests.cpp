@@ -132,6 +132,23 @@ int main() {
               MapControllerEvent(pad(SDL_GAMEPAD_BUTTON_EAST, false)).type ==
                   SDL_EVENT_KEY_UP,
           "D-pad mapping and button releases stay usable in dialogue");
+    const auto swappedSouth =
+        Kotonoha::NormalizeControllerEvent(pad(SDL_GAMEPAD_BUTTON_SOUTH), true);
+    const auto swappedEast =
+        Kotonoha::NormalizeControllerEvent(pad(SDL_GAMEPAD_BUTTON_EAST), true);
+    check(swappedSouth.gbutton.button == SDL_GAMEPAD_BUTTON_EAST &&
+              MapControllerEvent(swappedSouth).key.key == SDLK_RETURN &&
+              swappedEast.gbutton.button == SDL_GAMEPAD_BUTTON_SOUTH &&
+              MapControllerEvent(swappedEast).key.key == SDLK_ESCAPE,
+          "A/B swap exchanges physical confirm and cancel");
+    check(NormalizeControllerEvent(pad(SDL_GAMEPAD_BUTTON_DPAD_UP), true)
+                      .gbutton.button == SDL_GAMEPAD_BUTTON_DPAD_UP &&
+              NormalizeControllerEvent(pad(SDL_GAMEPAD_BUTTON_WEST), true)
+                      .gbutton.button == SDL_GAMEPAD_BUTTON_WEST &&
+              NormalizeControllerEvent(pad(SDL_GAMEPAD_BUTTON_SOUTH), false)
+                      .gbutton.button == SDL_GAMEPAD_BUTTON_SOUTH,
+          "A/B swap leaves directions, other buttons and the disabled layout "
+          "untouched");
     SDL_Event keyboard{};
     keyboard.type = SDL_EVENT_KEY_DOWN;
     keyboard.key.key = SDLK_ESCAPE;

@@ -502,6 +502,12 @@ void Engine::configureRenderSpace(RenderSpace space) {
 SDL_AppResult Engine::Event(EventPtr event) {
   if (!event)
     return SDL_APP_CONTINUE;
+  // Keep the A/B preference at the outer edge so every component and runtime
+  // sees the same physical layout. Recursive navigation events only carry the
+  // D-pad, which the swap deliberately leaves untouched.
+  const SDL_Event normalized =
+      NormalizeControllerEvent(*event, settings.swapControllerAB);
+  event = &normalized;
   session.deviceEvent(*event);
   const auto navigation = controllerNavigation.process(*event);
   if (event->type == SDL_EVENT_GAMEPAD_AXIS_MOTION &&

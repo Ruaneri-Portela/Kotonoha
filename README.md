@@ -290,7 +290,8 @@ still work. Scale `1.0` turns processing off without losing the selected profile
 - Gamepad: D-pad or left stick navigates; East (Circle/B) confirms;
   South (Cross/A) cancels in menus; Start/North opens pause. Back/left
   shoulder opens history (and closes it while open). Native settings also
-  support shoulders to change tabs.
+  support shoulders to change tabs; while a gamepad is connected, the Input
+  tab exposes a persisted A/B swap.
 - Touch: tap activates; drag scrolls lists and histories. A canceled touch,
   drag or second finger cannot confirm a list item. Edge swipe or a two-finger
   tap goes back; swipe up during dialogue opens history.

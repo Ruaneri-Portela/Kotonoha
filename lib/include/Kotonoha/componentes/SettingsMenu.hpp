@@ -27,6 +27,9 @@ class SettingsMenu {
   bool scrollFollow = false;
   std::string error;
   std::unique_ptr<ImGuiTheme::ShaderFilePicker> shaderPicker;
+  // The input page only exists while a gamepad is connected so the option is
+  // never shown for keyboard/mouse-only setups.
+  int pageCount() const;
   std::vector<int> rows() const;
   void activate(int index, int direction = 1);
 
