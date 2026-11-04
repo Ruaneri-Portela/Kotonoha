@@ -455,7 +455,7 @@ struct MCPServer::State {
           throw std::logic_error("Manual advance is blocked");
         manager.advance();
       } else if (name == "choose") {
-        if (runtime.isStoryPaused() || engine.GetDebug().isVisible())
+        if (runtime.isStoryPaused() || engine.GetDebug().pausesStory())
           throw std::logic_error("Close game/debug modals before choosing");
         ChoiceQuestionScene *active = nullptr;
         for (auto *scene : runtime.GetActiveScenes())
@@ -474,7 +474,7 @@ struct MCPServer::State {
         for (auto *scene : scenes)
           if (auto *input = dynamic_cast<TextInputDialog *>(scene))
             dialog = input;
-        if (!dialog || engine.GetDebug().isVisible())
+        if (!dialog || engine.GetDebug().pausesStory())
           throw std::logic_error("No game text-input modal is available");
         const auto text = stringValue(field(args, "text"));
         if (text.size() > 255 ||

@@ -13,26 +13,16 @@ InGameMenu::InGameMenu(Engine &engineRef) : Scene(engineRef) {}
 std::string InGameMenu::itemLabel(int index) const {
   static const char *labels[]{"Continue", "History [B]", "Settings",
                               "Save...",  "Load...",     "Main Menu"};
-  if (index >= 0 && index < 6)
-    return labels[index];
-  if (index == 6)
-    return manualUnpause ? "Game Pause: [Off]" : "Game Pause: [On]";
-  return "";
+  return index >= 0 && index < 6 ? labels[index] : "";
 }
 
 SDL_FRect InGameMenu::itemRect(int index) const {
-  if (index == 6)
-    return {460, 500, 360, 44};
   return {460, 160.0f + index * 54, 360, 44};
 }
 
 void InGameMenu::openBacklog() { GetVNBacklogRuntime(engine).open(); }
 
 void InGameMenu::activate(int index) {
-  if (index == 6) {
-    manualUnpause = !manualUnpause;
-    return;
-  }
   if (index == 0) {
     close();
     if (onResumeCb)

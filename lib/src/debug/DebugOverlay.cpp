@@ -223,6 +223,8 @@ void DebugOverlay::drawInspector() {
   ImGui::Checkbox("FPS (window corner)", &settings.showFPS);
   ImGui::SameLine();
   ImGui::Checkbox("Node / clock", &settings.showNodeClock);
+  ImGui::Checkbox("Ignore pause (keep the story running)",
+                  &settings.ignorePause);
   auto draft = engine.GetSettings();
   if (ImGui::SliderFloat("Debug UI scale", &draft.debugUIScale, 1, 3,
                          "%.2fx")) {
