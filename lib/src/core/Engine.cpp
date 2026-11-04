@@ -1,4 +1,5 @@
 #include <Kotonoha/componentes/InGameMenu.hpp>
+#include <Kotonoha/componentes/ForcedSubtitleRenderer.hpp>
 #include <Kotonoha/componentes/SettingsMenu.hpp>
 #include <Kotonoha/componentes/VNBacklog.hpp>
 #include <Kotonoha/componentes/VNManager.hpp>
@@ -56,6 +57,7 @@ void Engine::debugJumpToNode(const std::string &id) {
       throw std::invalid_argument("Invalid script node ID");
     GetVNManagerRuntime(*this).debugJumpToNode(number);
   }
+  resetNodeClock();
 }
 
 void Engine::loadKtrf(const std::string &path) {
@@ -217,6 +219,7 @@ Engine::Engine(Runtime &run, EngineOptions options)
       settings.vnFontPath.empty() ? settings.fontPath : settings.vnFontPath);
   audio.setUserVolumes(settings.channelVolumes);
   timeline = std::make_unique<TimelinePlayer>(*this);
+  forcedSubtitles = std::make_unique<ForcedSubtitleRenderer>(*this);
   debug = std::make_unique<DebugOverlay>(*this);
   configureRenderSpace(RenderSpace::Novel);
   runtime.init(*this);
@@ -401,6 +404,52 @@ void Engine::synchronizeTimeline() {
   frameClock.reset();
   timeline->setPaused(isStoryPaused());
   timeline->update(delta);
+  synchronizeNodeClock(delta);
+}
+
+std::string Engine::activeNode() {
+  if (runtime.GetState() != GameState::Gameplay)
+    return {};
+  auto custom = runtime.debugNode();
+  if (!custom.empty())
+    return custom;
+  const auto &manager = GetVNManagerRuntime(*this);
+  const int id = manager.getCurrentNodeId();
+  return id < 0 || manager.isFinished() ? std::string() : std::to_string(id);
+}
+
+bool Engine::usesTimedNodeClock() {
+  return runtime.debugNode().empty()
+             ? GetVNManagerRuntime(*this).getMode() == ScriptMode::Timed
+             : runtime.usesTimedNodeClock();
+}
+
+double Engine::activeNodeSeconds() {
+  const auto node = activeNode();
+  if (node.empty())
+    return 0;
+  if (usesTimedNodeClock() && !runtime.debugNode().empty()) {
+    if (auto seconds = runtime.debugNodeSeconds())
+      return *seconds;
+    throw std::logic_error("Timed native runtime has no node clock");
+  }
+  if (usesTimedNodeClock()) {
+    return timeline->seconds();
+  }
+  return node == clockNode ? nodeSeconds : 0;
+}
+
+void Engine::resetNodeClock() {
+  clockNode = activeNode();
+  nodeSeconds = 0;
+}
+
+void Engine::synchronizeNodeClock(double delta) {
+  const auto node = activeNode();
+  if (node != clockNode)
+    resetNodeClock();
+  else if (!node.empty() && !isStoryPaused())
+    nodeSeconds += delta;
 }
 
 void Engine::advanceTimeline(double seconds) {
@@ -412,6 +461,11 @@ void Engine::advanceTimeline(double seconds) {
     throw std::logic_error("Pause via MCP and close game/debug modals before "
                            "stepping an active timeline");
   if (runtime.advanceStoryTime(seconds)) {
+    const auto node = activeNode();
+    if (node == clockNode)
+      nodeSeconds += seconds;
+    else
+      resetNodeClock();
     frameClock.reset();
     return;
   }
@@ -636,6 +690,8 @@ SDL_AppResult Engine::Iterate() {
   if (mcp && !mcp->pump())
     return SDL_APP_SUCCESS;
   runtime.update();
+  synchronizeNodeClock(0);
+  forcedSubtitles->updateForActiveNode();
   debug->update();
   SDL_SetRenderDrawColor(renderer.get(), 0, 0, 0, 0);
   SDL_RenderClear(renderer.get());
@@ -647,6 +703,10 @@ SDL_AppResult Engine::Iterate() {
     timeline->renderSubtitles(*renderer);
   }
   runtime.render(*renderer, ui->pixelDensity());
+  if (!runtime.isStoryPaused()) {
+    UI::FrameScope scope(*renderer, design);
+    forcedSubtitles->render(*renderer, 1);
+  }
   configureRenderSpace(RenderSpace::Screen);
   runtime.renderScreen(*renderer, ui->pixelDensity());
   if (settingsMenu->isOpen()) {

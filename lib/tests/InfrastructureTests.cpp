@@ -119,6 +119,7 @@ void testSettings(const std::filesystem::path &directory) {
   settings.refreshRate = 59.94f;
   settings.vsync = true;
   settings.swapControllerAB = true;
+  settings.enableForcedSubtitles = false;
   settings.masterVolume = 0.4f;
   settings.masterMuted = true;
   settings.debugUIScale = 1.75f;
@@ -139,7 +140,8 @@ void testSettings(const std::filesystem::path &directory) {
               read.mode == WindowMode::Exclusive &&
               read.fullscreenWidth == 1920 && read.fullscreenHeight == 1080 &&
               std::abs(read.refreshRate - 59.94f) < 0.001f && read.vsync &&
-              read.swapControllerAB && !read.resizable &&
+              read.swapControllerAB && !read.enableForcedSubtitles &&
+              !read.resizable &&
               read.renderer == "opengl" &&
               read.upscaling.backend == UpscaleBackend::MPV &&
               read.upscaling.preset == UpscalePreset::ArtCNNDenoise &&

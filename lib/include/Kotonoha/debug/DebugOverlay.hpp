@@ -30,8 +30,6 @@ class DebugOverlay {
   bool visible = false;
   Clock frameClock;
   double elapsed = 0, frames = 0, fps = 0;
-  double runtimeNodeSeconds = 0;
-  std::string runtimeNode;
   float contentScale = 0;
   float upscaleFactor = 1;
   int selectedNode = -1;
@@ -77,6 +75,8 @@ class DebugOverlay {
   void drawTranslationEditor();
   void drawTranslationWindow();
   void drawEngineTools();
+  void drawForcedSubtitlesGenerator();
+  std::string forcedSubsStatus;
 
 public:
   explicit DebugOverlay(Engine &engine);

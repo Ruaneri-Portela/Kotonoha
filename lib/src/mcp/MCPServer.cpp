@@ -321,12 +321,10 @@ struct MCPServer::State {
     put(result.get(), "node_name",
         gameplay ? engine.GetRuntime().debugNode() : std::string());
     put(result.get(), "mode",
-        std::string(manager.getMode() == ScriptMode::Timed ? "timed"
-                                                           : "standard"));
+        std::string(engine.usesTimedNodeClock() ? "timed" : "standard"));
     put(result.get(), "paused", engine.isStoryPaused() || timeline.isPaused());
     put(result.get(), "timeline_playing", timeline.isPlaying());
-    put(result.get(), "seconds",
-        engine.GetRuntime().debugNodeSeconds().value_or(timeline.seconds()));
+    put(result.get(), "seconds", engine.activeNodeSeconds());
     put(result.get(), "master_volume",
         double(engine.GetAudio().getMasterVolume()));
     put(result.get(), "master_muted", engine.GetAudio().isMasterMuted());
