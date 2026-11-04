@@ -28,6 +28,7 @@ class TimelinePlayer {
   bool waitingForChoice = false;
   std::vector<std::size_t> resolvedChoices;
   std::optional<int> branch;
+  void resetMedia();
   void synchronizeMediaPause();
   void showChoice(std::size_t index);
   void resolveChoice(int target);
@@ -39,6 +40,7 @@ public:
   void play(TimelineScript script, double position = 0,
             std::vector<std::size_t> resolved = {},
             std::optional<int> pendingBranch = std::nullopt);
+  void seek(double targetPosition);
   void stop();
   void setPaused(bool value);
   void update(double delta);

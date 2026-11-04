@@ -689,6 +689,9 @@ void Launcher::drawAdvanced() {
   chooseColor("Dialogue color", draft.vnTextColor);
   chooseColor("Speaker color", draft.vnSpeakerColor);
   ImGui::SliderFloat("Debug UI scale", &draft.debugUIScale, 1, 3, "%.2fx");
+  ImGui::SeparatorText("Subtitles");
+  ImGui::Checkbox("Enable forced subtitles", &draft.enableForcedSubtitles);
+  ImGui::TextWrapped("Load .ass files from \"forced_subtitles\" folder for each node");
   ImGui::Separator();
   int priority = static_cast<int>(draft.logPriority) - SDL_LOG_PRIORITY_TRACE;
   if (ImGui::Combo("Log level", &priority, Priorities, 7))

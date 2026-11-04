@@ -29,6 +29,7 @@ class TimelinePlayer;
 class DebugOverlay;
 class MCPServer;
 class SettingsMenu;
+class ForcedSubtitleRenderer;
 
 struct EngineOptions {
   std::string translationPath;
@@ -69,6 +70,10 @@ private:
   std::unique_ptr<UI> vnUI;
   AudioMixer audio;
   std::unique_ptr<TimelinePlayer> timeline;
+  std::unique_ptr<ForcedSubtitleRenderer> forcedSubtitles;
+  std::string clockNode;
+  double nodeSeconds = 0;
+  void synchronizeNodeClock(double delta);
   std::unique_ptr<DebugOverlay> debug;
   std::unique_ptr<MCPServer> mcp;
   bool agentPaused = false;
@@ -124,6 +129,11 @@ public:
   UI &GetUI() { return *ui; }
   UI &GetVNUI() { return *vnUI; }
   TimelinePlayer &GetTimeline() { return *timeline; }
+  ForcedSubtitleRenderer &GetForcedSubtitles() { return *forcedSubtitles; }
+  std::string activeNode();
+  bool usesTimedNodeClock();
+  double activeNodeSeconds();
+  void resetNodeClock();
   InputActions &GetInputActions() { return inputActions; }
   RendererRef GetRenderer() { return *renderer; }
   SDL_FPoint screenSize() const;

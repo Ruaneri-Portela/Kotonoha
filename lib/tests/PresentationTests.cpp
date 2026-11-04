@@ -1,14 +1,20 @@
 #include <Kotonoha/componentes/FadeScene.hpp>
+#include <Kotonoha/componentes/ForcedSubtitleRenderer.hpp>
+#include <Kotonoha/componentes/InGameMenu.hpp>
 #include <Kotonoha/componentes/SettingsMenu.hpp>
 #include <Kotonoha/componentes/SubtitleScene.hpp>
+#include <Kotonoha/componentes/VNManager.hpp>
+#include <Kotonoha/componentes/VNTextBox.hpp>
 #include <Kotonoha/core/CommandLine.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/FileSystem.hpp>
 #include <Kotonoha/core/UI.hpp>
 #include <Kotonoha/debug/DebugOverlay.hpp>
+#include <Kotonoha/script/TimelinePlayer.hpp>
 #include <algorithm>
 #include <cmath>
 #include <filesystem>
+#include <functional>
 #include <imgui.h>
 #include <iostream>
 #include <limits>
@@ -98,10 +104,29 @@ std::string styleFile() {
 }
 
 struct TestRuntime : Runtime {
+  std::string node = "custom-scene";
+  std::optional<double> seconds = 12.375;
+  bool timedClock = true;
+  bool opaqueGameplay = false;
+  std::function<void(RendererRef)> inspectScreen;
   TestRuntime()
-      : Runtime("Presentation tests", "1", "org.kotonoha.presentation.tests") {}
-  std::string debugNode() const override { return "custom-scene"; }
-  std::optional<double> debugNodeSeconds() const override { return 12.375; }
+      : Runtime("Presentation tests", "1", "org.kotonoha.presentation.tests." +
+                    std::to_string(SDL_GetPerformanceCounter())) {}
+  std::string debugNode() const override { return node; }
+  bool usesTimedNodeClock() const override { return timedClock; }
+  std::optional<double> debugNodeSeconds() const override { return seconds; }
+  void renderGameplay(RendererRef renderer, float scale) override {
+    Runtime::renderGameplay(renderer, scale);
+    if (opaqueGameplay) {
+      SDL_SetRenderDrawColor(&renderer, 0, 0, 0, 255);
+      SDL_RenderFillRect(&renderer, nullptr);
+    }
+  }
+  void renderScreen(RendererRef renderer, float scale) override {
+    if (inspectScreen)
+      inspectScreen(renderer);
+    Runtime::renderScreen(renderer, scale);
+  }
 };
 
 int colored(RendererRef renderer, int color) {
@@ -197,6 +222,162 @@ void subtitles(Engine &engine) {
   scene.clear();
   draw(1.5);
   require(colored(renderer, 1) == 0, "Clearing removes the track");
+}
+
+void forcedSubtitles(Engine &engine, TestRuntime &runtime) {
+  struct SubtitleDirectory {
+    std::filesystem::path path;
+    ~SubtitleDirectory() {
+      std::error_code error;
+      std::filesystem::remove_all(path, error);
+      std::filesystem::remove(path.parent_path(), error);
+    }
+  } directory{preferredDocumentsDirectory(runtime.identify) / "forced_subtitles"};
+  auto &forced = engine.GetForcedSubtitles();
+  auto &timeline = engine.GetTimeline();
+  auto &manager = GetVNManagerRuntime(engine);
+  runtime.SetState(GameState::Gameplay);
+  runtime.node = "80005";
+  runtime.opaqueGameplay = true;
+  engine.setAgentPaused(true);
+  engine.resetNodeClock();
+
+  forced.updateForActiveNode(); // Build the initially empty cache.
+  const auto path = forced.dumpForActiveNode();
+  require(path.filename() == "80005.ass",
+          "Timed native dump uses only the node ID");
+  rejects([&] { forced.dumpForActiveNode(); },
+          "Dump never overwrites existing subtitles");
+  const auto header = styleFile().substr(0, styleFile().find("[Events]"));
+  const auto script = header +
+      "[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, "
+      "MarginV, Effect, Text\n"
+      "Dialogue: 0,0:00:01.00,0:00:02.00,Person,,0,0,0,,FORCED EARLY\n"
+      "Dialogue: 0,0:00:12.00,0:00:13.00,Person,,0,0,0,,FORCED NATIVE\n";
+  writeTextFileAtomically(path.string(), script);
+  int green = 0;
+  runtime.inspectScreen = [&](RendererRef renderer) {
+    green = colored(renderer, 1);
+  };
+  const auto frame = [&] {
+    engine.Iterate();
+    return green;
+  };
+  require(frame() > 100 && forced.getPosition() == 12.375,
+          "Forced subtitles render above opaque native scenes without a timeline");
+
+  runtime.seconds = 2;
+  require(frame() == 0, "Native clock respects exclusive subtitle end");
+  runtime.seconds = 1.5;
+  require(frame() > 100 && forced.getPosition() == 1.5,
+          "Native backward seek restores forced subtitles");
+  runtime.node = "missing:67";
+  require(frame() == 0, "Node changes clear stale forced subtitles");
+  runtime.node = "80005";
+  require(frame() > 100, "Returning to a node reloads its subtitles");
+  auto &menu = GetInGameMenuRuntime(engine);
+  runtime.AddScene(&menu, GameState::Gameplay);
+  menu.open();
+  require(frame() == 0, "Forced subtitles never cover native pause menus");
+  menu.close();
+  runtime.RemoveScene(&menu);
+  require(frame() > 100, "Closing a native menu restores forced subtitles");
+  auto settings = engine.GetSettings();
+  settings.enableForcedSubtitles = false;
+  engine.applySettings(settings, false);
+  require(frame() == 0, "Disabling forced subtitles immediately removes them");
+  settings.enableForcedSubtitles = true;
+  engine.applySettings(settings, false);
+  require(frame() > 100, "Enabling forced subtitles reloads the current node");
+  runtime.SetState(GameState::Menu);
+  require(frame() == 0, "Forced subtitles are cleared outside gameplay");
+  runtime.SetState(GameState::Gameplay);
+
+  // A Standard runtime's global diagnostic clock is not its scene-entry clock.
+  runtime.node = "80005:66";
+  runtime.timedClock = false;
+  runtime.seconds = 123;
+  engine.resetNodeClock();
+  const auto nativePath = forced.dumpForActiveNode();
+  require(nativePath.filename() == "80005-66.ass",
+          "Standard native dump includes both event and position");
+  writeTextFileAtomically(nativePath.string(), script);
+  engine.setAgentPaused(false);
+  engine.synchronizeTimeline();
+  SDL_Delay(1100);
+  engine.synchronizeTimeline();
+  const auto elapsed = engine.activeNodeSeconds();
+  require(elapsed >= 1 && elapsed < 2,
+          "Standard native clock counts scene-entry time, not a global clock");
+  engine.setAgentPaused(true);
+  require(frame() > 100 && forced.getPosition() == elapsed,
+          "Standard native subtitles use event-position file and scene-entry clock");
+  SDL_Delay(25);
+  engine.synchronizeTimeline();
+  require(engine.activeNodeSeconds() == elapsed,
+          "Native fallback clock freezes while paused");
+  runtime.node = "80005:68";
+  engine.synchronizeTimeline();
+  require(engine.activeNodeSeconds() == 0,
+          "Native fallback clock resets on an event ID change");
+
+  runtime.node.clear();
+  ScriptNode dialogue;
+  dialogue.id = 7;
+  dialogue.type = NodeType::Dialogue;
+  dialogue.text = "Standard dialogue";
+  TimelineScript timed;
+  timed.duration = 20;
+  timed.cues.push_back({10, 3, CueType::Dialogue, "Future dialogue"});
+  manager.loadScript({dialogue, ScriptNode(8, timed)});
+  manager.startScript(7);
+  const auto standardPath = forced.dumpForActiveNode();
+  require(standardPath.filename() == "7.ass",
+          "Standard VN nodes can dump ASS without timeline cues");
+  writeTextFileAtomically(standardPath.string(), script);
+  forced.reload();
+  engine.setAgentPaused(false);
+  engine.synchronizeTimeline();
+  SDL_Delay(1100);
+  engine.synchronizeTimeline();
+  require(engine.activeNodeSeconds() >= 0.02 &&
+              engine.GetDebug().nodeClockText().find("Clock: ") !=
+                  std::string::npos,
+          "Standard VN nodes expose an advancing HUD clock");
+  engine.setAgentPaused(true);
+  require(frame() > 100 &&
+              forced.getPosition() == engine.activeNodeSeconds(),
+          "Standard VN forced subtitles render using the shared node clock");
+  manager.jumpToNode(7);
+  require(engine.activeNodeSeconds() == 0,
+          "Re-entering the same standard node resets its clock");
+
+  manager.jumpToNode(8);
+  const auto timedPath = forced.dumpForActiveNode();
+  writeTextFileAtomically(timedPath.string(), script);
+  forced.reload();
+  timeline.seek(12);
+  require(GetVNTextBoxRuntime(engine, "", "", 30).isVisible(),
+          "Seeking forward activates the matching dialogue");
+  timeline.seek(1.5);
+  require(!GetVNTextBoxRuntime(engine, "", "", 30).isVisible(),
+          "Seeking backwards clears dialogue from a future cue");
+  rejects([&] { timeline.seek(-1); }, "Invalid timeline seeks are explicit");
+  require(frame() > 100 && forced.getPosition() == 1.5,
+          "Timeline without normal subtitle cues still renders forced subtitles");
+  auto save = manager.captureSave();
+  timeline.seek(2);
+  require(frame() == 0, "Timeline seek expires forced subtitles");
+  manager.restoreSave(save);
+  require(frame() > 100 && forced.getPosition() == 1.5,
+          "Restoring a timed save restores the forced subtitle clock");
+  timeline.seek(0);
+  require(frame() == 0, "Backward timeline seek hides not-yet-started text");
+  manager.jumpToNode(-1);
+  require(frame() == 0, "Finished scripts clear forced subtitles");
+  runtime.inspectScreen = {};
+  runtime.opaqueGameplay = false;
+  engine.setAgentPaused(false);
 }
 
 void controls(Engine &engine, TestRuntime &runtime) {
@@ -375,6 +556,7 @@ int main() {
             "Export separates global interface strings from scene routes");
     subtitles(engine);
     controls(engine, runtime);
+    forcedSubtitles(engine, runtime);
     fades(engine);
     std::cout << "Extensible arguments/help, ASS style import/rendering and "
                  "debug scaling passed\n";

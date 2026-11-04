@@ -104,6 +104,9 @@ public:
   // label, route...), shown as the node by the debug overlay and MCP. Empty
   // means the engine VNManager node is used.
   virtual std::string debugNode() const { return {}; }
+  // Timed native scripts expose a node-wide clock. Standard interpreters use
+  // engine time since entry into the full debugNode() (event + position).
+  virtual bool usesTimedNodeClock() const { return false; }
   virtual std::optional<double> debugNodeSeconds() const {
     return std::nullopt;
   }

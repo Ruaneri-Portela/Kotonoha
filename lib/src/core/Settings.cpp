@@ -117,6 +117,7 @@ EngineSettings EngineSettings::load(const std::string &path) {
   read(root.get(), "resizable", result.resizable);
   read(root.get(), "vsync", result.vsync);
   read(root.get(), "swapControllerAB", result.swapControllerAB);
+  read(root.get(), "enableForcedSubtitles", result.enableForcedSubtitles);
   read(root.get(), "masterVolume", result.masterVolume);
   read(root.get(), "masterMuted", result.masterMuted);
   read(root.get(), "debugUIScale", result.debugUIScale);
@@ -193,6 +194,7 @@ void EngineSettings::save(const std::string &path) const {
   boolean("resizable", resizable);
   boolean("vsync", vsync);
   boolean("swapControllerAB", swapControllerAB);
+  boolean("enableForcedSubtitles", enableForcedSubtitles);
   json_object_object_add(root.get(), "masterVolume",
                          json_object_new_double(masterVolume));
   boolean("masterMuted", masterMuted);

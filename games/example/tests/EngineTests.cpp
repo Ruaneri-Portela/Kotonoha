@@ -402,8 +402,8 @@ void testDebugTools(Kotonoha::Engine &engine) {
       "Export failure is explicit");
 
   require(debug.nodeClockText().find("Node: 200") != std::string::npos &&
-              debug.nodeClockText().find("Clock:") == std::string::npos,
-          "Standard HUD shows node without a timeline clock");
+              debug.nodeClockText().find("Clock:") != std::string::npos,
+          "Standard HUD shows the scene-entry clock as well as the node");
   auto event = key(SDLK_F10);
   event.key.windowID = SDL_GetWindowID(&engine.GetWindow());
   engine.Event(&event);
