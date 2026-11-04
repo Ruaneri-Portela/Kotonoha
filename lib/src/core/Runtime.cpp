@@ -18,6 +18,10 @@ Runtime::Runtime(std::string name, std::string version, std::string identify)
 
 Runtime::~Runtime() = default;
 
+bool Runtime::isStoryPaused() const {
+  return splashEngine ? splashEngine->isStoryPaused() : hasPausingScene();
+}
+
 int Runtime::translationRoute() const {
   auto node = debugNode();
   size_t start = 0;

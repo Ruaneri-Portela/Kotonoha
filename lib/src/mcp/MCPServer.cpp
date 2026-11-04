@@ -453,7 +453,8 @@ struct MCPServer::State {
           throw std::logic_error("Manual advance is blocked");
         manager.advance();
       } else if (name == "choose") {
-        if (runtime.isStoryPaused() || engine.GetDebug().pausesStory())
+        if (runtime.hasPausingScene() || engine.GetSettingsMenu().isOpen() ||
+            engine.GetDebug().pausesStory())
           throw std::logic_error("Close game/debug modals before choosing");
         ChoiceQuestionScene *active = nullptr;
         for (auto *scene : runtime.GetActiveScenes())
