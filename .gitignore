@@ -708,3 +708,4 @@ games-assets/*
 !lib/include/Kotonoha/debug/**
 /CMakeSettings.json
 .opencode
+forced_subtitles/
