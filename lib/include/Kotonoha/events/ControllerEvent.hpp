@@ -32,6 +32,18 @@ inline SDL_Event NormalizeControllerEvent(EventRef event, bool swapAB) {
 
 inline SDL_Event MapControllerEvent(EventRef event, bool dialogue = false,
                                     bool history = false) {
+  if (event.type == SDL_EVENT_GAMEPAD_AXIS_MOTION &&
+      (event.gaxis.axis == SDL_GAMEPAD_AXIS_LEFT_TRIGGER ||
+       event.gaxis.axis == SDL_GAMEPAD_AXIS_RIGHT_TRIGGER)) {
+    SDL_Event mapped{};
+    mapped.type =
+        (event.gaxis.value > 4000) ? SDL_EVENT_KEY_DOWN : SDL_EVENT_KEY_UP;
+    mapped.key.timestamp = event.gaxis.timestamp;
+    mapped.key.key = SDLK_LCTRL;
+    mapped.key.down = (mapped.type == SDL_EVENT_KEY_DOWN);
+    return mapped;
+  }
+
   if (event.type != SDL_EVENT_GAMEPAD_BUTTON_DOWN &&
       event.type != SDL_EVENT_GAMEPAD_BUTTON_UP)
     return event;
@@ -42,18 +54,20 @@ inline SDL_Event MapControllerEvent(EventRef event, bool dialogue = false,
     key = SDLK_RETURN; // Confirm / Advance
     break;
   case SDL_GAMEPAD_BUTTON_SOUTH:
-    key = dialogue ? SDLK_LCTRL : SDLK_ESCAPE; // Hold skip or Cancel/Back
+    key = dialogue ? SDLK_LCTRL : SDLK_AC_BACK; // Hold skip or Voltar/Cancel
     break;
   case SDL_GAMEPAD_BUTTON_WEST:
     key = SDLK_S; // Toggle read-skip
     break;
   case SDL_GAMEPAD_BUTTON_NORTH:
+    key = SDLK_AC_BACK; // Y button = Voltar (Back / Return)
+    break;
   case SDL_GAMEPAD_BUTTON_START:
-    key = SDLK_ESCAPE; // Pause menu / Back
+    key = SDLK_ESCAPE; // Dedicated Start button = Open InGameMenu
     break;
   case SDL_GAMEPAD_BUTTON_BACK:
   case SDL_GAMEPAD_BUTTON_LEFT_SHOULDER:
-    key = history ? SDLK_ESCAPE : SDLK_PAGEUP; // History / Backlog
+    key = SDLK_PAGEUP; // History / Backlog
     break;
   case SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER:
     key = SDLK_A; // Toggle Auto mode
@@ -136,6 +150,42 @@ public:
       append(direction, true);
     previous = direction;
     return result;
+  }
+};
+
+// Helper to track analog trigger pressure (L2 / R2) for variable skip speed.
+class ControllerTriggerSkip {
+  float pressure_ = 0.0f; // 0.0 to 1.0
+  bool active_ = false;
+
+public:
+  float pressure() const { return pressure_; }
+  bool active() const { return active_; }
+
+  bool process(EventRef event) {
+    if (event.type == SDL_EVENT_WINDOW_FOCUS_LOST ||
+        event.type == SDL_EVENT_GAMEPAD_REMOVED) {
+      active_ = false;
+      pressure_ = 0.0f;
+      return false;
+    }
+    if (event.type == SDL_EVENT_GAMEPAD_AXIS_MOTION &&
+        (event.gaxis.axis == SDL_GAMEPAD_AXIS_LEFT_TRIGGER ||
+         event.gaxis.axis == SDL_GAMEPAD_AXIS_RIGHT_TRIGGER)) {
+      const int val = event.gaxis.value;
+      constexpr int kThreshold = 4000;
+      if (val > kThreshold) {
+        active_ = true;
+        pressure_ = static_cast<float>(val - kThreshold) /
+                    static_cast<float>(32767 - kThreshold);
+        pressure_ = std::clamp(pressure_, 0.0f, 1.0f);
+      } else {
+        active_ = false;
+        pressure_ = 0.0f;
+      }
+      return true;
+    }
+    return false;
   }
 };
 

@@ -83,7 +83,8 @@ bool HandleNavigation(Engine &engine, EventRef event) {
     if (scene && scene->capturesInput())
       return false;
   auto &actions = engine.GetInputActions();
-  if (actions.back(event)) {
+  if (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat &&
+      event.key.key == SDLK_ESCAPE) {
     if (runtime.handleBackAction())
       return true;
     for (auto *scene : runtime.GetActiveScenes())
@@ -91,6 +92,9 @@ bool HandleNavigation(Engine &engine, EventRef event) {
         menu->open();
         return true;
       }
+  } else if (actions.back(event)) {
+    if (runtime.handleBackAction())
+      return true;
   }
   if (actions.backlog(event)) {
     if (runtime.handleBacklogAction())
