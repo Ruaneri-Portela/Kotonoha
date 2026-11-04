@@ -25,8 +25,7 @@ public:
   GameLauncher(std::string title, std::string settingsPath, PathOptions options,
                EngineSettings defaults = {});
 
-  // The path saved by a previous launch (empty when none), so games started
-  // without the launcher reuse it.
+  // The portable reference saved by a previous launch (empty when none).
   static std::string rememberedPath(const std::string &settingsPath,
                                     const std::string &rememberFile);
 
@@ -68,7 +67,7 @@ private:
   struct PathField {
     PathOptions options;
     PathValidator validator;
-    std::string current, checked, info, rememberPath;
+    std::string current, resolved, checked, info, rememberPath;
     bool valid = false, checkedOnce = false;
   };
   PathField game;

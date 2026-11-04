@@ -144,19 +144,11 @@ bool Assets::checkDirectory(const std::filesystem::path &root,
 
 std::filesystem::path Assets::defaultDirectory() {
   std::string info;
-  // FileResolver covers the bundle, OBB data, working/executable directories,
-  // documents and the source tree's games/school-days/game-assets.
-  if (const auto found =
-          Kotonoha::FileResolver::findGameAsset("school-days", {}))
-    if (checkDirectory(*found, info))
-      return *found;
-  for (const auto &root : Kotonoha::FileResolver::roots("school-days"))
-    for (const auto &candidate :
-         {root / "game-assets", root / "games" / "school-days" / "game-assets",
-          root / "school-days" / "game-assets", root / "school-days", root})
+  for (const auto &candidate :
+       Kotonoha::applicationDirectories("school-days").gameAssets)
       if (checkDirectory(candidate, info))
         return candidate;
-  return Kotonoha::preferredDataDirectory("school-days");
+  return Kotonoha::gameAssetDirectory("school-days");
 }
 
 std::filesystem::path Assets::findDefaultRoute() {

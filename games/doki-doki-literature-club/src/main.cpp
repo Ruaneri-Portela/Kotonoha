@@ -55,9 +55,9 @@ struct App {
 // directory, documents), then <root>/game and the source checkout layouts.
 std::string defaultDirectory() {
   if (auto found =
-          Kotonoha::FileResolver::findGameAsset({}, "game/scripts.rpa"))
+          Kotonoha::FileResolver::findGameAsset("doki-doki-literature-club", "game/scripts.rpa"))
     return found->parent_path().string();
-  return (Kotonoha::gameAssetDirectory({}) / "game").string();
+  return (Kotonoha::gameAssetDirectory("doki-doki-literature-club") / "game").string();
 }
 
 } // namespace

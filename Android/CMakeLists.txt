@@ -36,9 +36,28 @@ set(VCPKG_TARGET_TRIPLET
 message(STATUS "Android ABI: ${ANDROID_ABI}")
 message(STATUS "vcpkg triplet: ${VCPKG_TARGET_TRIPLET}")
 
-project(KotonohaAndroid LANGUAGES C CXX)
+# Each manifest install reconciles its entire installed tree. Sharing it
+# between ABIs makes the second configure remove the first ABI's libraries.
+if(KOTONOHA_VCPKG_BASE_DIR)
+    file(TO_CMAKE_PATH "${KOTONOHA_VCPKG_BASE_DIR}" _vcpkg_base)
+    set(VCPKG_INSTALLED_DIR "${_vcpkg_base}/${ANDROID_ABI}"
+        CACHE PATH "Per-ABI vcpkg installation" FORCE)
+endif()
+
+# The vcpkg Android triplets read the NDK from the environment, while Gradle
+# supplies it as a CMake variable (including when Studio is opened from GUI).
+if(CMAKE_ANDROID_NDK)
+    set(ENV{ANDROID_NDK_HOME} "${CMAKE_ANDROID_NDK}")
+elseif(ANDROID_NDK)
+    set(ENV{ANDROID_NDK_HOME} "${ANDROID_NDK}")
+endif()
 
 set(KOTONOHA_ANDROID_GAME "example" CACHE STRING "Game built by this APK")
+if(KOTONOHA_ANDROID_GAME STREQUAL "doki-doki-literature-club")
+    list(APPEND VCPKG_MANIFEST_FEATURES android-python)
+endif()
+
+project(KotonohaAndroid LANGUAGES C CXX)
 
 foreach(game EXAMPLE AMAGAMI ZERO SNOW DDLC SCHOOL_DAYS AIR SUMMER)
     set(KOTONOHA_BUILD_${game} OFF CACHE BOOL "" FORCE)

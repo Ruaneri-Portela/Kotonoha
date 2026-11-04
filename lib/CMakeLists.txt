@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.16)
 
 project(KotonohaEngine VERSION 0.1.0 LANGUAGES CXX)
 enable_language(C)
+include("${CMAKE_CURRENT_SOURCE_DIR}/../cmake/MSVC.cmake")
 
 if(APPLE)
     enable_language(OBJC OBJCXX)
@@ -12,8 +13,8 @@ set(SDL_STATIC OFF CACHE BOOL "Build static SDL3")
 set(SDL_TEST_LIBRARY OFF CACHE BOOL "Disable SDL test library")
 set(SDL_TESTS OFF CACHE BOOL "Disable SDL tests")
 set(SDL_EXAMPLES OFF CACHE BOOL "Disable SDL examples")
-# SDL disables system iconv on Apple/Windows; Kotonoha::ShiftJisToUtf8 needs
-# its CP932 converter, so it is forced on (libc iconv on macOS/Linux).
+# Kotonoha::ShiftJisToUtf8 needs CP932 (libc iconv on macOS/Linux).
+# Windows uses its native CP932 mapping and Iconv::Iconv for other encodings.
 set(SDL_SYSTEM_ICONV ON CACHE BOOL "Use iconv() from system-installed libraries" FORCE)
 set(SDLTTF_SAMPLES OFF CACHE BOOL "Disable SDL_ttf examples")
 set(SDLTTF_VENDORED OFF CACHE BOOL "Use system FreeType/HarfBuzz/PlutoSVG")
@@ -22,7 +23,18 @@ set(SDLTTF_PLUTOSVG ON CACHE BOOL "Optional SVG emoji support")
 set(KOTONOHA_SDL_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/submodules/SDL"
     CACHE PATH "SDL3 sources (Android uses a pinned remote Git checkout)")
 add_subdirectory("${KOTONOHA_SDL_SOURCE_DIR}" "${CMAKE_CURRENT_BINARY_DIR}/SDL" EXCLUDE_FROM_ALL)
+if(ANDROID)
+    # Use vcpkg's CMake target rather than SDL_ttf's pkg-config fallback,
+    # which can resolve -lc++ to the NDK's Windows host library.
+    find_package(harfbuzz CONFIG REQUIRED)
+endif()
 add_subdirectory(submodules/SDL_ttf EXCLUDE_FROM_ALL)
+if(ANDROID)
+    # SDL_ttf is C, but its static HarfBuzz dependency contains C++ code.
+    # Let the NDK C++ driver select the runtime for the active ABI/STL.
+    get_target_property(_ttf_target SDL3_ttf::SDL3_ttf ALIASED_TARGET)
+    set_property(TARGET ${_ttf_target} PROPERTY LINKER_LANGUAGE CXX)
+endif()
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(LIBASS REQUIRED IMPORTED_TARGET libass>=0.17)
 set(kotonoha_ass_target PkgConfig::LIBASS)
@@ -36,6 +48,13 @@ if(ANDROID)
     set(kotonoha_json_target json-c::json-c)
     # libass is a static vcpkg library on Android; include its private
     # FreeType/HarfBuzz/FriBidi dependencies in the final shared engine.
+    # The NDK toolchain supplies the selected C++ runtime. HarfBuzz's .pc
+    # exports -lc++, which FindPkgConfig can resolve to a host archive.
+    get_target_property(_ass_libraries PkgConfig::LIBASS INTERFACE_LINK_LIBRARIES)
+    list(FILTER _ass_libraries EXCLUDE REGEX "(^|[/\\\\])libc\\+\\+\\.(a|so)$|^c\\+\\+$")
+    set_property(TARGET PkgConfig::LIBASS PROPERTY
+        INTERFACE_LINK_LIBRARIES "${_ass_libraries}")
+    list(REMOVE_ITEM LIBASS_STATIC_LIBRARIES c++)
     target_link_directories(PkgConfig::LIBASS INTERFACE ${LIBASS_STATIC_LIBRARY_DIRS})
     target_link_libraries(PkgConfig::LIBASS INTERFACE ${LIBASS_STATIC_LIBRARIES})
     target_link_options(PkgConfig::LIBASS INTERFACE ${LIBASS_STATIC_LDFLAGS_OTHER})
@@ -127,12 +146,25 @@ set_target_properties(KotonohaEngine kotonoha_imgui PROPERTIES
     VERSION ${PROJECT_VERSION}
     SOVERSION ${PROJECT_VERSION_MAJOR}
     WINDOWS_EXPORT_ALL_SYMBOLS ON)
-set_target_properties(KotonohaEngine PROPERTIES OUTPUT_NAME kotonoha)
+if(ANDROID)
+    # Kotonoha (the example app) and kotonoha collide on Windows/macOS
+    # case-insensitive filesystems when both are Android shared libraries.
+    set_target_properties(KotonohaEngine PROPERTIES OUTPUT_NAME kotonoha_engine)
+else()
+    set_target_properties(KotonohaEngine PROPERTIES OUTPUT_NAME kotonoha)
+endif()
 target_include_directories(KotonohaEngine PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
 target_link_libraries(KotonohaEngine PUBLIC SDL3::SDL3 SDL3_ttf::SDL3_ttf
     ${kotonoha_ffmpeg_target} kotonoha_imgui PRIVATE
     ${kotonoha_json_target} ${kotonoha_ass_target})
+
+if(WIN32)
+    # SDL's system-iconv probe does not use vcpkg's imported target/include
+    # directories. ConvertEncoding therefore uses Iconv::Iconv directly.
+    find_package(Iconv REQUIRED)
+    target_link_libraries(KotonohaEngine PRIVATE Iconv::Iconv)
+endif()
 
 if(ANDROID)
     target_link_libraries(KotonohaEngine PRIVATE GLESv2)

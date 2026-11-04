@@ -98,7 +98,7 @@ std::string EngineOptions::assetOverlayDirectory() const {
     if (!loaded.empty())
       return loaded;
   }
-  return {};
+  return findAssetOverlayDirectory().string();
 }
 SDLSession::SDLSession(const Runtime &runtime) {
   SDL_SetHint(SDL_HINT_TOUCH_MOUSE_EVENTS, "0");
@@ -140,13 +140,7 @@ SDLSession::~SDLSession() {
 Engine::Engine(Runtime &run, EngineOptions options)
     : runtime(run), log(options.logPath), session(runtime),
       assets(options.assets ? std::move(options.assets)
-                            : std::make_shared<FileSystemAssetProvider>(
-#ifdef __ANDROID__
-                                  resourceDirectory()
-#else
-                                  std::filesystem::path{}
-#endif
-                                      )),
+                            : std::make_shared<FileSystemAssetProvider>()),
       settings(options.settings), settingsPath(options.settingsPath) {
   if (!options.subtitleStylePath.empty())
     subtitleStyle = AssStyle::load(options.subtitleStylePath);

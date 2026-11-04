@@ -31,26 +31,30 @@ public final class BootstrapActivity extends Activity {
                 if (!fingerprint.matches("[a-f0-9]{64}")) {
                     throw new IOException("Invalid packaged asset fingerprint");
                 }
-                File directory = new File(getFilesDir(), "resources/" + fingerprint);
-                File complete = new File(directory, ".complete");
-                if (!complete.isFile()) {
-                    copyDirectory(getAssets(), "assets", directory);
+                File directory = getFilesDir();
+                File complete = new File(directory, ".kotonoha-assets.sha256");
+                String installed = complete.isFile()
+                        ? new String(Files.readAllBytes(complete.toPath()), StandardCharsets.UTF_8).trim()
+                        : "";
+                if (!fingerprint.equals(installed)) {
+                    Files.deleteIfExists(complete.toPath());
+                    copyDirectory(getAssets(), "assets", directory, "assets");
                     String[] gameFiles = getAssets().list("game-assets");
                     if (gameFiles == null) throw new IOException("Cannot list game-assets");
-                    if (gameFiles.length > 0) copyDirectory(getAssets(), "game-assets", directory);
-                    File gameAssets = new File(directory, "game-assets");
+                    if (gameFiles.length > 0)
+                        copyDirectory(getAssets(), "game-assets", getDataDir(), "game_assets");
+                    File gameAssets = new File(getDataDir(), "game_assets");
                     if (!gameAssets.isDirectory() && !gameAssets.mkdirs()) {
                         throw new IOException("Cannot create game-assets directory");
                     }
                     if (BuildConfig.NATIVE_TARGET.equals("DokiDoki")) {
-                        copyDirectory(getAssets(), "python", directory);
+                        copyDirectory(getAssets(), "python", directory, "python");
                     }
                     Files.write(complete.toPath(), fingerprint.getBytes(StandardCharsets.UTF_8));
                 }
                 runOnUiThread(() -> {
                     if (isFinishing() || isDestroyed()) return;
                     Intent game = new Intent(this, GameActivity.class);
-                    game.putExtra("resources", directory.getAbsolutePath());
                     startActivity(game);
                     finish();
                 });
@@ -69,8 +73,9 @@ public final class BootstrapActivity extends Activity {
         return output.toByteArray();
     }
 
-    private static void copyDirectory(AssetManager assets, String path, File root) throws IOException {
-        File destination = new File(root, path);
+    private static void copyDirectory(AssetManager assets, String path, File root,
+                                      String relative) throws IOException {
+        File destination = new File(root, relative);
         if (!destination.getCanonicalPath().startsWith(root.getCanonicalPath() + File.separator)) {
             throw new IOException("Asset path escapes resource directory");
         }
@@ -80,7 +85,8 @@ public final class BootstrapActivity extends Activity {
             if (!destination.isDirectory() && !destination.mkdirs()) {
                 throw new IOException("Cannot create asset directory: " + destination);
             }
-            for (String child : children) copyDirectory(assets, path + "/" + child, root);
+            for (String child : children)
+                copyDirectory(assets, path + "/" + child, root, relative + "/" + child);
         } else {
             File parent = destination.getParentFile();
             if (!parent.isDirectory() && !parent.mkdirs()) {

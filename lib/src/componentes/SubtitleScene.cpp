@@ -69,8 +69,12 @@ struct SubtitleScene::State {
     renderer.reset(ass_renderer_init(library.get()));
     if (!renderer)
       throw std::runtime_error("Cannot initialize libass renderer");
-    ass_set_fonts_dir(library.get(),
-                      FileResolver::fontDirectory().string().c_str());
+    // libass scans every file in ass_set_fonts_dir(), including OFL.txt.
+    // Register only the font files accepted by the engine's font catalog.
+    for (const auto &[name, bytes] : FileResolver::getFontMap())
+      ass_add_font(library.get(), name.c_str(),
+                   reinterpret_cast<const char *>(bytes.data()),
+                   static_cast<int>(bytes.size()));
 
     try {
       auto data = FileResolver::loadFontMemory(engine.GetSettings().fontPath);

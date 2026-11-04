@@ -205,16 +205,20 @@ void EngineSettings::save(const std::string &path) const {
   integer("preset", static_cast<int>(upscaling.preset));
   json_object_object_add(root.get(), "factor",
                          json_object_new_double(upscaling.factor));
+  auto shaderReferences = UpscaleShaderFiles(upscaling.shaderFiles);
+  for (auto &file : shaderReferences)
+    file = FileResolver::referenceName(file);
   json_object_object_add(root.get(), "shaderFiles",
-                         json_object_new_string(upscaling.shaderFiles.c_str()));
+                          json_object_new_string(UpscaleShaderFileList(shaderReferences).c_str()));
   json_object_object_add(root.get(), "assetOverlayPath",
-                         json_object_new_string(assetOverlayPath.c_str()));
+                          json_object_new_string(
+                              FileResolver::referenceName(assetOverlayPath).c_str()));
   json_object_object_add(root.get(), "translationPath",
-                         json_object_new_string(translationPath.c_str()));
+                          json_object_new_string(FileResolver::referenceName(translationPath).c_str()));
   json_object_object_add(root.get(), "fontPath",
-                         json_object_new_string(fontPath.c_str()));
+                          json_object_new_string(FileResolver::referenceName(fontPath).c_str()));
   json_object_object_add(root.get(), "vnFontPath",
-                         json_object_new_string(vnFontPath.c_str()));
+                          json_object_new_string(FileResolver::referenceName(vnFontPath).c_str()));
   json_object_object_add(root.get(), "vnTextColorOverride",
                          json_object_new_boolean(vnTextColorOverride));
   auto color = [&](const char *key, SDL_Color value) {

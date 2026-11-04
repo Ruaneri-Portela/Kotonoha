@@ -33,6 +33,11 @@ The port does not download or supply commercial game data.
 
 ## Desktop build
 
+Assets, game data and saves have separate roots. Saves use
+`<platform user-data root>/Kotonoha/<package id>`; launcher choices are stored
+as portable resource names and resolved at runtime, including automatic or
+named overlays. See the [directory policy](docs/Directories.pt-BR.md).
+
 Requires CMake, pkg-config, FFmpeg, json-c, libass >= 0.17, FreeType, HarfBuzz, PlutoSVG and
 OpenGL; DDLC also requires CPython development files. SDL3, SDL_ttf and ImGui
 are built from submodules, not vcpkg packages.
@@ -50,6 +55,27 @@ ctest --test-dir build --output-on-failure
 Disable individual games with `KOTONOHA_BUILD_AMAGAMI`, `KOTONOHA_BUILD_EXAMPLE`, `KOTONOHA_BUILD_ZERO`,
 `KOTONOHA_BUILD_SNOW`, `KOTONOHA_BUILD_DDLC` or `KOTONOHA_BUILD_SCHOOL_DAYS`. Each game can also be configured
 independently from its own directory.
+
+### Windows / Visual Studio
+
+Install **Desktop development with C++**, including the Windows SDK, CMake
+and Ninja. Open this directory in Visual Studio and select `x64-Debug`;
+`CMakeSettings.json` builds in `out/build/x64-Debug`. Visual Studio's vcpkg
+integration supplies the dependencies.
+
+From **Developer PowerShell for VS** (x64):
+
+```powershell
+cmake -S . -B out/build/x64-Debug -G Ninja -DCMAKE_BUILD_TYPE=Debug `
+  "-DCMAKE_TOOLCHAIN_FILE=$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake"
+cmake --build out/build/x64-Debug --parallel
+```
+
+The MSVC launcher uses UTF-8 for `/showIncludes` so Ninja tracks headers
+correctly with localized Visual Studio installations, even without the English
+language pack. The first build after this fix automatically recompiles stale objects.
+Linking and DLL deployment are serialized to avoid concurrent access to the
+same DLL; C/C++ compilation remains parallel.
 
 ### macOS `.app` bundles, including the CMake Xcode generator
 

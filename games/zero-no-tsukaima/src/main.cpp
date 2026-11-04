@@ -57,9 +57,9 @@ struct App {
 
 std::string DefaultDisc() {
   for (const char *disc : {"ZeroNoTsukaima.bin", "ZeroNoTsukaima.iso"})
-    if (auto found = Kotonoha::FileResolver::findGameAsset({}, disc))
+    if (auto found = Kotonoha::FileResolver::findGameAsset("zero-no-tsukaima", disc))
       return found->string();
-  return (Kotonoha::gameAssetDirectory({}) / "ZeroNoTsukaima.bin").string();
+  return (Kotonoha::gameAssetDirectory("zero-no-tsukaima") / "ZeroNoTsukaima.bin").string();
 }
 
 } // namespace

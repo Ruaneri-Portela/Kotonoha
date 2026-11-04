@@ -144,7 +144,8 @@ void testSettings(const std::filesystem::path &directory) {
               read.upscaling.backend == UpscaleBackend::MPV &&
               read.upscaling.preset == UpscalePreset::ArtCNNDenoise &&
               read.upscaling.factor == 1.5f &&
-              read.upscaling.shaderFiles == "custom.glsl" &&
+              UpscaleShaderFiles(read.upscaling.shaderFiles) ==
+                  std::vector<std::string>{"custom.glsl"} &&
               read.logPriority == SDL_LOG_PRIORITY_DEBUG &&
               read.masterVolume == 0.4f && read.masterMuted &&
               read.debugUIScale == 1.75f &&

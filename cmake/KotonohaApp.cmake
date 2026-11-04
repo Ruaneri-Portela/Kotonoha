@@ -2,6 +2,11 @@ option(KOTONOHA_BUILD_MACOS_BUNDLES "Build macOS application bundles"
     OFF)
 
 function(kotonoha_add_app target)
+    if(WIN32)
+        # kotonoha_configure_app deploys native targets before scanning the
+        # dependency closure. vcpkg's earlier scan can see stale local DLLs.
+        set(VCPKG_APPLOCAL_DEPS OFF)
+    endif()
     if(ANDROID)
         add_library(${target} SHARED ${ARGN})
     else()
@@ -72,6 +77,13 @@ function(kotonoha_configure_app target)
                     -P "${KOTONOHA_PROJECT_ROOT}/cmake/CheckBundleContents.cmake")
         endif()
     elseif(WIN32)
+        # A DLL can change without changing its import library. Re-run the
+        # deployment step in that case so incremental builds launch new code.
+        set_property(TARGET ${target} APPEND PROPERTY LINK_DEPENDS
+            "$<TARGET_FILE:KotonohaEngine>"
+            "$<TARGET_FILE:kotonoha_imgui>"
+            "$<TARGET_FILE:SDL3::SDL3>"
+            "$<TARGET_FILE:SDL3_ttf::SDL3_ttf>")
         # 1. Copia DLLs de alvos dinamicos nativos do CMake
         add_custom_command(TARGET ${target} POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E copy_if_different
@@ -80,12 +92,29 @@ function(kotonoha_configure_app target)
             COMMAND_EXPAND_LISTS
         )
 
-        # 2. Copia DLLs da pasta bin do vcpkg (se a toolchain do vcpkg estiver ativa)
+        # Scan the executable after copying native targets. The transitive
+        # import graph, not every installed vcpkg package, determines its DLLs.
         if(DEFINED VCPKG_INSTALLED_DIR AND DEFINED VCPKG_TARGET_TRIPLET)
+            get_filename_component(compiler_directory "${CMAKE_CXX_COMPILER}" DIRECTORY)
+            if(MSVC)
+                find_program(KOTONOHA_DUMPBIN dumpbin HINTS "${compiler_directory}" REQUIRED)
+                set(runtime_tool dumpbin)
+                set(runtime_command "${KOTONOHA_DUMPBIN}")
+            else()
+                set(runtime_tool objdump)
+                set(runtime_command "${CMAKE_OBJDUMP}")
+            endif()
+            set_property(TARGET ${target} APPEND PROPERTY LINK_DEPENDS
+                "${KOTONOHA_PROJECT_ROOT}/cmake/CopyRuntimeDependencies.cmake")
             add_custom_command(TARGET ${target} POST_BUILD
-                COMMAND ${CMAKE_COMMAND} -E copy_directory
-                    "$<IF:$<CONFIG:Debug>,${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/debug/bin,${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/bin>"
-                    $<TARGET_FILE_DIR:${target}>
+                COMMAND "${CMAKE_COMMAND}"
+                    "-DAPP_EXECUTABLE=$<TARGET_FILE:${target}>"
+                    "-DDEPENDENCY_DIRS=$<IF:$<CONFIG:Debug>,${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/debug/bin,${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/bin>;${compiler_directory}"
+                    "-DCMAKE_GET_RUNTIME_DEPENDENCIES_PLATFORM=windows+pe"
+                    "-DCMAKE_GET_RUNTIME_DEPENDENCIES_TOOL=${runtime_tool}"
+                    "-DCMAKE_GET_RUNTIME_DEPENDENCIES_COMMAND=${runtime_command}"
+                    -P "${KOTONOHA_PROJECT_ROOT}/cmake/CopyRuntimeDependencies.cmake"
+                VERBATIM
             )
         endif()
     endif()

@@ -23,7 +23,7 @@ std::string saveFileName(std::string name) {
       name == "." || name == ".." || name.back() == '.' || name.back() == ' ')
     throw std::invalid_argument(
         "Invalid save name; use a file name, not a path");
-  if (std::filesystem::path(name).extension() != ".vn")
+  if (std::filesystem::u8path(name).extension() != ".vn")
     name += ".vn";
   if (name.size() > 255)
     throw std::invalid_argument("Save file name exceeds 255 UTF-8 bytes");
@@ -34,7 +34,7 @@ std::filesystem::path existingSlot(const std::string &directory,
                                    const std::string &name) {
   if (saveFileName(name) != name)
     throw std::invalid_argument("Expected the existing .vn save file name");
-  const auto path = std::filesystem::path(directory) / name;
+  const auto path = std::filesystem::u8path(directory) / std::filesystem::u8path(name);
   if (std::filesystem::is_symlink(path) ||
       !std::filesystem::is_regular_file(path))
     throw std::runtime_error("Save is missing or is not a regular file: " +
@@ -51,9 +51,9 @@ VNSaveSlots::VNSaveSlots(std::string directory)
 
 std::vector<VNSaveSlot> VNSaveSlots::list() const {
   std::vector<VNSaveSlot> slots;
-  if (!std::filesystem::exists(directory))
+  if (!std::filesystem::exists(std::filesystem::u8path(directory)))
     return slots;
-  for (const auto &entry : std::filesystem::directory_iterator(directory))
+  for (const auto &entry : std::filesystem::directory_iterator(std::filesystem::u8path(directory)))
     if (entry.is_regular_file() && entry.path().extension() == ".vn")
       slots.push_back(
           {entry.path().string(), entry.path().filename().string()});
@@ -67,17 +67,17 @@ std::vector<VNSaveSlot> VNSaveSlots::list() const {
 }
 
 std::string VNSaveSlots::nextPath(const std::string &suggestion) const {
-  std::filesystem::create_directories(directory);
+  std::filesystem::create_directories(std::filesystem::u8path(directory));
   const auto base =
       suggestion.empty()
           ? std::string{}
-          : std::filesystem::path(saveFileName(suggestion)).stem().string();
+          : std::filesystem::u8path(saveFileName(suggestion)).stem().string();
   for (std::uint64_t id = 1;; ++id) {
     const auto path =
-        std::filesystem::path(directory) /
-        (base.empty()
-             ? "save-" + std::to_string(id) + ".vn"
-             : base + (id == 1 ? "" : " (" + std::to_string(id) + ")") + ".vn");
+        std::filesystem::u8path(directory) /
+        std::filesystem::u8path(base.empty()
+              ? "save-" + std::to_string(id) + ".vn"
+              : base + (id == 1 ? "" : " (" + std::to_string(id) + ")") + ".vn");
     if (!std::filesystem::exists(path))
       return path.string();
     if (id == std::numeric_limits<std::uint64_t>::max())
@@ -88,7 +88,8 @@ std::string VNSaveSlots::nextPath(const std::string &suggestion) const {
 std::string VNSaveSlots::rename(const std::string &name,
                                 const std::string &newName) const {
   const auto source = existingSlot(directory, name);
-  const auto target = std::filesystem::path(directory) / saveFileName(newName);
+  const auto target = std::filesystem::u8path(directory) /
+                      std::filesystem::u8path(saveFileName(newName));
   if (source == target)
     return target.string();
   if (std::filesystem::exists(std::filesystem::symlink_status(target)))
@@ -139,7 +140,7 @@ void VNSave::write(const std::string &path) const {
 }
 
 VNSave VNSave::read(const std::string &path) {
-  std::ifstream input(path, std::ios::binary);
+  std::ifstream input(std::filesystem::u8path(path), std::ios::binary);
   if (!input)
     throw std::runtime_error("Cannot open save: " + path);
   VNSave save;

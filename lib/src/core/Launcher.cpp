@@ -194,20 +194,14 @@ void Launcher::checkOverlay(bool force) {
   overlayChecked = draft.assetOverlayPath;
   overlayValid = true;
   overlayInfo.clear();
-  if (draft.assetOverlayPath.empty()) {
-    overlayInfo = "Optional asset overlay folder";
-    overlayValid = true;
-    return;
-  }
-
-  AssetOverlay validateOverlay(draft.assetOverlayPath);
-  if (validateOverlay.root().empty()) {
+  try {
+    AssetOverlay validateOverlay(draft.assetOverlayPath);
+    overlayInfo = validateOverlay.root().empty()
+                      ? "Automatic overlay: no overlay folder found"
+                      : "Asset overlay: " + validateOverlay.root().string();
+  } catch (const std::exception &error) {
     overlayValid = false;
-    overlayInfo = "Invalid asset overlay path";
-  } else {
-    overlayValid = true;
-    draft.assetOverlayPath = validateOverlay.root().string();
-    overlayInfo = "Asset overlay valid: " + draft.assetOverlayPath;
+    overlayInfo = error.what();
   }
 }
 
@@ -427,7 +421,7 @@ void Launcher::draw() {
           checkOverlay(true);
         });
       ImGui::SameLine();
-      if (ImGui::Button("Disable overlay")) {
+      if (ImGui::Button("Automatic overlay")) {
         draft.assetOverlayPath.clear();
         checkOverlay(true);
       }
@@ -712,28 +706,15 @@ struct FontOption {
 std::vector<FontOption> getAvailableFonts() {
   std::vector<FontOption> options;
   try {
-    auto dir = FileResolver::fontDirectory();
-    std::error_code ec;
-    if (std::filesystem::exists(dir, ec)) {
-      for (const auto &entry : std::filesystem::directory_iterator(dir, ec)) {
-        if (entry.is_regular_file(ec)) {
-          auto ext = entry.path().extension().string();
-          std::string lower;
-          for (char c : ext)
-            lower += static_cast<char>(std::tolower(c));
-          if (lower == ".ttf" || lower == ".otf" || lower == ".ttc") {
-            std::string name = entry.path().filename().string();
-            bool cjk = (name.find("JP") != std::string::npos ||
-                        name.find("Japanese") != std::string::npos ||
-                        name.find("CJK") != std::string::npos ||
-                        name.find("Gothic") != std::string::npos ||
-                        name.find("Mincho") != std::string::npos ||
-                        name.find("NotoSans") != std::string::npos);
-            std::string label = name + (cjk ? " [CJK / JP]" : " [Latin]");
-            options.push_back({name, label, cjk});
-          }
-        }
-      }
+    for (const auto &[name, bytes] : FileResolver::getFontMap()) {
+      bool cjk = (name.find("JP") != std::string::npos ||
+                  name.find("Japanese") != std::string::npos ||
+                  name.find("CJK") != std::string::npos ||
+                  name.find("Gothic") != std::string::npos ||
+                  name.find("Mincho") != std::string::npos ||
+                  name.find("NotoSans") != std::string::npos);
+      std::string label = name + (cjk ? " [CJK / JP]" : " [Latin]");
+      options.push_back({name, label, cjk});
     }
   } catch (...) {
   }

@@ -719,7 +719,7 @@ struct AirRuntime::Impl {
   void openSaves(bool load) {
     if (!saves)
       saves = std::make_unique<VNSaveMenu>(*engine);
-    std::string dir = (preferredDocumentsDirectory() / "saves").string();
+    std::string dir = (Kotonoha::saveDirectory() / "saves").string();
     saves->open(dir, load, load ? "" : saveName);
     runtime.RemoveScene(saves.get());
     runtime.AddScene(saves.get());
