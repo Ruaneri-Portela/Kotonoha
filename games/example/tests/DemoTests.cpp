@@ -302,7 +302,11 @@ void testSaveManagement(KotonohaExample::DemoGame &game,
   press(engine, SDLK_DELETE);
   require(!SDL_TextInputActive(&engine.GetWindow()),
           "New-save placeholder cannot be renamed or deleted");
-  press(engine, SDLK_RETURN);
+  press(engine, SDLK_RETURN); // New save opens the native naming dialog.
+  require(SDL_TextInputActive(&engine.GetWindow()) &&
+              !std::filesystem::exists(original),
+          "Reusing a deleted slot still asks for the new save name");
+  press(engine, SDLK_RETURN); // Accept the default, reusing save-1.vn.
   require(std::filesystem::exists(original),
           "Deleted numbered names are reusable for new saves");
   open(false);

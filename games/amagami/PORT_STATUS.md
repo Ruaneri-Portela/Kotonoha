@@ -1,14 +1,16 @@
 # Amagami — PS2 Japan (SLPS_259.18)
 
-**Playable prologue on Kotonoha; the full game is not yet ported.**
+**Playable prologue and an initial event map on Kotonoha; the full game is not yet ported.**
 
 The original `n0dea_ev01A` event can be played from beginning to end. Its three
 answers execute distinct original blocks and converge back into the story.
-The calendar, event unlocks, conversation mode, affection system, later routes
-and endings are not implemented as a complete game flow. At the end of the
-prologue the application returns to its title when the player presses Enter.
-Other events can be inspected or started for development; unsupported calls
-stop with the method and bytecode position instead of silently inventing a route.
+New Game initializes the original EventNode/NodeTable data and continues into
+an event map after the prologue. This is development functionality: the full
+GameMain calendar flow, conversation mode, later routes and endings still need
+integration and comparison against the PS2 game. A complete 1:1 playthrough
+has not been validated. Individual events can also be started for development;
+unsupported calls stop with the method and bytecode position instead of
+silently inventing a route.
 
 ## Run
 
@@ -32,8 +34,9 @@ the selected ISO and engine settings. `AMAGAMI_DISC` is also supported. The disc
 is read in place; no retail data is packaged or copied into the repository.
 
 Controls: Enter/Space/left click completes the text reveal, then advances; arrows + Enter or 1–3 selects answers;
-Escape opens pause; F5/F9 saves/loads the quick slot; PageUp toggles the last four
-history entries. The quick save is in the SDL preference directory
+Escape opens pause; F5/F9 saves/loads the quick slot; B/PageUp opens the full
+scrollable history. Up/Down, the mouse wheel and controller directions move the
+selected historical page and scroll with it. Circle/East replays its voice. The quick save is in the SDL preference directory
 `Kotonoha/amagami/quick-save.txt` and uses deterministic input replay.
 
 Development entry points:
@@ -130,7 +133,8 @@ remain incomplete. The pause/backlog screens remain simplified.
 Replay saves restore dialogue/decision/costume state and restart music; they do
 not preserve presentation-thread phase or the exact in-flight transition.
 Gallery `setAlbum` has no gallery implementation. The classical MIDI soundtrack
-mode, full scrollable backlog and controller rumble remain unimplemented.
+mode and controller rumble remain unimplemented. Campaign-wide replay saves
+still need a complete journal; current saves replay the selected scenario.
 Coverage of the prologue does not establish coverage of calendar/later routes.
 
 ## Verification
@@ -280,3 +284,29 @@ SCF class tables: `True`/`False` and class-object reflection were preserved.
 The Jetson review timed out; its analysis is unverified. The OpenCode CLI
 reported a provider routing error for the configured local Gemma model, so
 that review was performed directly through Ollama.
+
+
+## Interface and input follow-up — 4 November 2026
+
+Translated title text is drawn directly over the original title artwork. The
+start prompt uses dark lettering with the original blinking alpha; translated
+headings and unselected labels have no added rectangular backgrounds. The
+original selection cursor remains visible.
+
+The history selection scrolls upward on each Up/wheel/controller step, including
+when the selected page was already visible. Moving back down follows newer
+pages. Voice replay remains independent of selection and never triggers after
+a touch drag. Inactive history/map components leave input available to other
+scenes. Shared Kotonoha name/save dialogs take priority over Amagami input and
+receive their original controller events.
+
+Comparison against the original SCF confirms a remaining history difference:
+`LogList.moveCursorU` first moves the item inside `LogPage`; `ScrollList` scrolls
+at the page boundary and animates for six frames. The current component follows
+dialogue entries directly. Original page grouping and that exact transition are
+not yet reproduced.
+
+These changes improve presentation and input fidelity; they do not establish
+pixel-perfect rendering or complete campaign compatibility. Platform build
+commands and generated artifact locations are in
+[BUILD_VALIDATION.md](../../docs/BUILD_VALIDATION.md).

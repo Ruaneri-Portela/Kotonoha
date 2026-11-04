@@ -1,8 +1,22 @@
-# Builds locais — 3 de novembro de 2026
+# Builds locais — 4 de novembro de 2026
 
 As builds desta rodada usam a configuração Debug. Os relatórios completos
 ficam em `.research/build-validation/`; essa pasta e os binários gerados são
 locais e não fazem parte do código versionado.
+
+A rodada final, após os ajustes de interface de Amagami e de entrada,
+concluiu sem erros:
+
+| Plataforma | Build final | Artefatos verificados |
+| --- | --- | --- |
+| Android | Oito jogos, ARM64 e x86_64 | Nove APKs; assinaturas e ABIs verificadas |
+| iOS Simulator | Oito schemes, ARM64 | Oito apps; arquitetura e plataforma verificadas |
+| iOS Device | Oito schemes, ARM64, sem assinatura | Oito apps; arquitetura e plataforma verificadas |
+
+Os resultados por alvo estão em `finish-android-results.json` e
+`finish-ios-results.json`, dentro de `.research/build-validation/`.
+`finish-artifacts-verified.json` registra a conferência dos 25 artefatos;
+`finish-android-artifacts.json` inclui os hashes SHA-256 dos APKs.
 
 ## Android
 
@@ -59,3 +73,29 @@ em hardware real.
 O target Amagami foi corrigido para usar suas próprias fontes, nome de
 produto e bundle ID `me.hirameki.kotonoha.amagami`. Os demais IDs existentes
 foram preservados.
+
+
+## macOS e testes
+
+Os oito aplicativos Debug foram compilados no macOS ARM64 com
+`cmake --build build -j 6`. Os bundles ficam em `build/games/`, no diretório
+de cada jogo; Amagami está em `build/games/amagami/Amagami.app` e ZNT em
+`build/games/zero-no-tsukaima/ZeroNoTsukaima.app`. O empacotamento verificou
+as dependências e aplicou assinatura ad hoc local.
+
+A rodada completa de 66 testes encontrou cinco falhas, corrigidas e verificadas
+por novas execuções dos respectivos testes: Runtime/Media (teclado do diálogo
+e inspetor), Demo (fluxo de nome do save), ZNT Engine (confirmação do splash)
+e School Days Launcher (busca de assets). Dois testes de AIR foram ignorados
+por falta da configuração de dados de integração. Não foi feita uma comparação
+completa de todos os jogos contra seus originais.
+
+Após os últimos ajustes, `Amagami.Engine`, `Amagami.Translation` e
+`Amagami.Backlog` passaram (3/3). `ZeroNoTsukaima.Engine` e `Kotonoha.Demo`
+também passaram (2/2), incluindo os novos testes de controle e diálogo nativo.
+As capturas traduzidas do título e do menu de Amagami foram conferidas em
+`.research/build-validation/amagami-ui/`.
+
+Logs principais: `macos-complete.log`, `macos-tests-final.log`,
+`input-regression-tests2.log`, `amagami-ui-tests.log` e
+`input-validation-final.log`, em `.research/build-validation/`.

@@ -8,6 +8,7 @@
 #include <Kotonoha/componentes/ChoiceQuestionScene.hpp>
 #include <Kotonoha/componentes/GameMenu.hpp>
 #include <Kotonoha/componentes/InGameMenu.hpp>
+#include <Kotonoha/componentes/TextInputDialog.hpp>
 #include <Kotonoha/componentes/VNBacklog.hpp>
 #include <Kotonoha/componentes/VNTextBox.hpp>
 #include <Kotonoha/core/Engine.hpp>
@@ -267,6 +268,37 @@ void testGame(const std::string &discPath) {
     frames(engine, 2);
     require(text->isVisible() && text->getText() == session.Story()->Text(),
             "VNTextBox follows the script page");
+    {
+      const auto originalPage = session.Story()->Text();
+      bool canceled = false, confirmed = false;
+      Kotonoha::TextInputDialog dialog(
+          engine, "Save name", nullptr,
+          [&] {
+            canceled = true;
+            game.RemoveScene(&dialog);
+          },
+          "Controle");
+      game.AddScene(&dialog);
+      SDL_Event controller{};
+      controller.type = SDL_EVENT_GAMEPAD_BUTTON_DOWN;
+      controller.gbutton.down = true;
+      controller.gbutton.button = SDL_GAMEPAD_BUTTON_SOUTH;
+      engine.Event(&controller);
+      require(canceled && session.Story()->Text() == originalPage,
+              "Native dialog cancel takes priority over the game's held skip");
+      dialog.configure(
+          "Save name",
+          [&](const std::string &name) {
+            confirmed = name == "Controle";
+            game.RemoveScene(&dialog);
+          },
+          nullptr, "Controle");
+      game.AddScene(&dialog);
+      controller.gbutton.button = SDL_GAMEPAD_BUTTON_EAST;
+      engine.Event(&controller);
+      require(confirmed && session.Story()->Text() == originalPage,
+              "Native dialog confirmation never advances the underlying page");
+    }
     {
       const int originalSpeed = session.System().charSpeed;
       SDL_Event direction{};
