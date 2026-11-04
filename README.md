@@ -26,17 +26,38 @@ remain out of Git. Supply your own legally obtained data:
 | Snow Radish Vacation | `games/snow-radish-vacation/game-assets/SCRIPT.DAT` and the other DAT archives |
 | DDLC | `games/doki-doki-literature-club/game-assets/game/*.rpa` and `game-assets/characters/*.chr` |
 | School Days | Original game archives in `games/school-days/game-assets/` |
-| [AIR Standard Edition (initial port)](games/air/README.md) | `Seen.txt`, `Gameexe.ini` and original resource folders; `--air DIRECTORY` |
+| [AIR Standard Edition (initial port)](games/air/README.md) | `Seen.txt`, `Gameexe.ini` and original resource folders; `--air DIRECTORY_OR_ISO` |
 | [Amagami PS2 (playable prologue)](games/amagami/PORT_STATUS.md) | Original Japan ISO (`SLPS_259.18`); `--amagami DISC.iso`. Calendar and later routes are in development. |
 
 The port does not download or supply commercial game data.
+
+### Opening ISO images
+
+Every folder-based game also accepts an `.iso` in the same game-data field or
+command-line option: `--air`, `--summer`, `--snow`, `--school-days` and `--ddlc`.
+Use **Folder...** for a folder or **ISO...** for an image in the launcher.
+AIR reads ISO9660/Joliet assets directly, without extraction or temporary
+files, including scripts, voices and overlay replacements. Amagami and Zero
+no Tsukaima retain their direct ISO/raw-disc readers.
+
+For the other folder-based games, the shared engine reads ISO9660/Joliet internally,
+preserving file names, subdirectories and contents in a private temporary
+directory. It does not mount through the operating system or modify the image.
+The first opening can take some time and requires temporary disk space roughly
+equal to the disc's files. The directory is reused during that process and
+removed on normal exit; launcher settings remember the ISO, not the temporary path.
+
+The image must contain the data layout accepted by the corresponding folder
+port (DDLC also accepts a `game/` subfolder). Installer-only images and
+UDF-only images are not supported; installers are never executed.
 
 ## Desktop build
 
 Assets, game data and saves have separate roots. Saves use
 `<platform user-data root>/Kotonoha/<package id>`; launcher choices are stored
 as portable resource names and resolved at runtime, including automatic or
-named overlays. See the [directory policy](docs/Directories.pt-BR.md).
+named overlays. ISO selections retain the original image path so external
+images can be reopened. See the [directory policy](docs/Directories.pt-BR.md).
 
 Requires CMake, pkg-config, FFmpeg, json-c, libass >= 0.17, FreeType, HarfBuzz, PlutoSVG and
 OpenGL; DDLC also requires CPython development files. SDL3, SDL_ttf and ImGui

@@ -2,13 +2,15 @@
 #include <Kotonoha/componentes/ForcedSubtitleRenderer.hpp>
 #include <Kotonoha/componentes/InGameMenu.hpp>
 #include <Kotonoha/componentes/SettingsMenu.hpp>
+#include <Kotonoha/componentes/SplashScreen.hpp>
 #include <Kotonoha/componentes/SubtitleScene.hpp>
+#include <Kotonoha/componentes/VNBacklog.hpp>
 #include <Kotonoha/componentes/VNManager.hpp>
 #include <Kotonoha/componentes/VNTextBox.hpp>
-#include <Kotonoha/componentes/VNBacklog.hpp>
 #include <Kotonoha/core/CommandLine.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/FileSystem.hpp>
+#include <Kotonoha/core/TransformTween.hpp>
 #include <Kotonoha/core/UI.hpp>
 #include <Kotonoha/debug/DebugOverlay.hpp>
 #include <Kotonoha/script/TimelinePlayer.hpp>
@@ -84,6 +86,48 @@ void arguments() {
           "Duplicate registration");
 }
 
+void transformTweens() {
+  const Transform2D from{10, 20, 1, 2, 0, 0};
+  const Transform2D to{30, 60, 3, 4, 1, 1};
+  const auto middle = InterpolateTransform(from, to, 0.5);
+  require(middle.x == 20 && middle.y == 40 && middle.scaleX == 2 &&
+              middle.scaleY == 3 && middle.rotation == 0.5f &&
+              middle.opacity == 0.5f,
+          "Shared transform tween interpolates pan, zoom, rotation and alpha");
+  const auto easeOut = InterpolateTransform(from, to, 0.5, 1);
+  const auto easeIn = InterpolateTransform(from, to, 0.5, 2);
+  require(easeOut.x > middle.x && easeIn.x < middle.x &&
+              InterpolateTransform(from, to, 0, 1).x == from.x &&
+              InterpolateTransform(from, to, 1, 2).x == to.x,
+          "Shared transform tween preserves easing curves and endpoints");
+  TransformAnimation animation(from, to, 60);
+  require(animation.value().x == from.x && !animation.finished() &&
+              animation.remaining() == 60,
+          "Transform animation starts at the original transform");
+  require(animation.advance(30).x == middle.x && animation.remaining() == 30 &&
+              animation.advance(0).x == middle.x,
+          "Delta-driven animations preserve paused time and halfway values");
+  require(animation.sample(45).x == 25 && animation.remaining() == 30,
+          "Absolute clock sampling does not advance delta-driven animations");
+  require(animation.advance(1000).x == to.x && animation.finished() &&
+              animation.remaining() == 0 && animation.advance(1).x == to.x,
+          "Animation completion clamps without overshoot");
+  require(
+      TransformAnimation(from, to, 0).value().x == to.x &&
+          TransformAnimation(from, to, 60, 1).sample(30).x == easeOut.x &&
+          TransformAnimation(from, to, 60, 2).sample(30).x == easeIn.x,
+      "Instant animations and native easing curves share the same endpoints");
+  for (double invalid : {-1.0, std::numeric_limits<double>::infinity(),
+                         std::numeric_limits<double>::quiet_NaN()}) {
+    rejects([&] { TransformAnimation(from, to, invalid); },
+            "Reject invalid animation duration");
+    rejects([&] { animation.advance(invalid); },
+            "Reject invalid animation delta");
+    rejects([&] { animation.sample(invalid); },
+            "Reject invalid animation time");
+  }
+}
+
 std::string styleFile() {
   return "[Script Info]\nScriptType: v4.00+\nPlayResX: 1280\nPlayResY: 720\n"
          "Title: Original script metadata\n[V4+ Styles]\n"
@@ -108,6 +152,7 @@ std::string styleFile() {
 
 struct TestRuntime : Runtime {
   std::string node = "custom-scene";
+  std::string clockKey;
   std::optional<double> seconds = 12.375;
   bool timedClock = true;
   bool opaqueGameplay = false;
@@ -115,9 +160,11 @@ struct TestRuntime : Runtime {
   std::function<void(RendererRef)> inspectScreen;
   std::function<void(RendererRef)> inspectBeforeOverlay;
   TestRuntime()
-      : Runtime("Presentation tests", "1", "org.kotonoha.presentation.tests." +
+      : Runtime("Presentation tests", "1",
+                "org.kotonoha.presentation.tests." +
                     std::to_string(SDL_GetPerformanceCounter())) {}
   std::string debugNode() const override { return node; }
+  std::string nodeClockKey() const override { return clockKey; }
   bool usesTimedNodeClock() const override { return timedClock; }
   std::optional<double> debugNodeSeconds() const override { return seconds; }
   void update() override {
@@ -266,10 +313,11 @@ void pauseSources(Engine &engine, TestRuntime &runtime) {
     SDL_Delay(20);
     engine.synchronizeTimeline();
     runtime.update();
-    require(timeline.isPaused() && timeline.seconds() == timelineBefore &&
-                engine.activeNodeSeconds() == clockBefore &&
-                runtime.unpausedUpdates == updatesBefore,
-            "All pause sources freeze the timeline, node clock and native updates");
+    require(
+        timeline.isPaused() && timeline.seconds() == timelineBefore &&
+            engine.activeNodeSeconds() == clockBefore &&
+            runtime.unpausedUpdates == updatesBefore,
+        "All pause sources freeze the timeline, node clock and native updates");
   };
   const auto checkRunning = [&] {
     require(!engine.isStoryPaused() && !runtime.isStoryPaused(),
@@ -280,10 +328,11 @@ void pauseSources(Engine &engine, TestRuntime &runtime) {
     SDL_Delay(20);
     engine.synchronizeTimeline();
     runtime.update();
-    require(!timeline.isPaused() && timeline.seconds() > timelineBefore &&
-                engine.activeNodeSeconds() > clockBefore &&
-                runtime.unpausedUpdates > updatesBefore,
-            "Unpaused timeline, node clock and native updates advance together");
+    require(
+        !timeline.isPaused() && timeline.seconds() > timelineBefore &&
+            engine.activeNodeSeconds() > clockBefore &&
+            runtime.unpausedUpdates > updatesBefore,
+        "Unpaused timeline, node clock and native updates advance together");
   };
   engine.setAgentPaused(false);
   checkRunning();
@@ -334,7 +383,8 @@ void pauseSources(Engine &engine, TestRuntime &runtime) {
 void forcedSubtitles(Engine &engine, TestRuntime &runtime) {
   struct SubtitleDirectory {
     std::filesystem::path previous = std::filesystem::current_path();
-    std::filesystem::path path = std::filesystem::temp_directory_path() /
+    std::filesystem::path path =
+        std::filesystem::temp_directory_path() /
         ("kotonoha-forced-" + std::to_string(SDL_GetPerformanceCounter()));
     SubtitleDirectory() {
       std::filesystem::create_directories(path);
@@ -362,7 +412,8 @@ void forcedSubtitles(Engine &engine, TestRuntime &runtime) {
   engine.resetNodeClock();
 
   const auto header = styleFile().substr(0, styleFile().find("[Events]"));
-  const auto script = header +
+  const auto script =
+      header +
       "[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, "
       "MarginV, Effect, Text\n"
       "Dialogue: 0,0:00:01.00,0:00:02.00,Person,,0,0,0,,FORCED EARLY\n"
@@ -374,8 +425,9 @@ void forcedSubtitles(Engine &engine, TestRuntime &runtime) {
   writeTextFileAtomically(otherOriginal.string(), script);
   forced.reload();
   forced.updateForActiveNode();
-  require(forced.activePath() == originalPath,
-          "Before dumping, automatic recursive detection loads the original ASS");
+  require(
+      forced.activePath() == originalPath,
+      "Before dumping, automatic recursive detection loads the original ASS");
 
   const auto drawForced = [&] {
     auto &renderer = engine.GetRenderer();
@@ -408,14 +460,15 @@ void forcedSubtitles(Engine &engine, TestRuntime &runtime) {
   runtime.node = "80006";
   forced.reload();
   require(drawForced() > 100 && forced.activePath() == otherOriginal,
-          "An existing working-directory ASS does not replace an undumped original");
+          "An existing working-directory ASS does not replace an undumped "
+          "original");
   runtime.node = "80005";
   forced.updateForActiveNode();
   const auto path = forced.dumpForActiveNode();
   require(path.filename() == "80005.ass",
           "Timed native dump uses only the node ID");
-  require(std::filesystem::equivalent(
-              path.parent_path(), directory.path / "forced_subtitles"),
+  require(std::filesystem::equivalent(path.parent_path(),
+                                      directory.path / "forced_subtitles"),
           "Forced subtitle dumps go to the current working directory");
   {
     std::ifstream input(path);
@@ -435,8 +488,9 @@ void forcedSubtitles(Engine &engine, TestRuntime &runtime) {
   std::filesystem::create_directory(newWorkingDirectory);
   std::filesystem::current_path(newWorkingDirectory);
   forced.reload();
-  require(drawForced() > 100 && forced.activePath() == path,
-          "Dump reload keeps its absolute path after working directory changes");
+  require(
+      drawForced() > 100 && forced.activePath() == path,
+      "Dump reload keeps its absolute path after working directory changes");
   std::filesystem::current_path(directory.path);
   std::filesystem::remove(path);
   forced.reload();
@@ -461,8 +515,9 @@ void forcedSubtitles(Engine &engine, TestRuntime &runtime) {
     engine.Iterate();
     return green;
   };
-  require(frame() > 100 && forced.getPosition() == 12.375,
-          "Forced subtitles render above opaque native scenes without a timeline");
+  require(
+      frame() > 100 && forced.getPosition() == 12.375,
+      "Forced subtitles render above opaque native scenes without a timeline");
 
   runtime.seconds = 2;
   require(frame() == 0, "Native clock respects exclusive subtitle end");
@@ -482,8 +537,7 @@ void forcedSubtitles(Engine &engine, TestRuntime &runtime) {
   };
   menu.open();
   frame();
-  require(behindUI > 100 && green < behindUI &&
-              forced.getPosition() == 1.5,
+  require(behindUI > 100 && green < behindUI && forced.getPosition() == 1.5,
           "Paused forced subtitles remain visible behind the in-game menu");
   menu.close();
   runtime.RemoveScene(&menu);
@@ -505,8 +559,9 @@ void forcedSubtitles(Engine &engine, TestRuntime &runtime) {
   auto settings = engine.GetSettings();
   settings.enableForcedSubtitles = false;
   engine.applySettings(settings, false);
-  require(frame() == 0 && forced.activePath().empty(),
-          "Disabling forced subtitles removes them and clears the active ASS path");
+  require(
+      frame() == 0 && forced.activePath().empty(),
+      "Disabling forced subtitles removes them and clears the active ASS path");
   settings.enableForcedSubtitles = true;
   engine.applySettings(settings, false);
   require(frame() > 100, "Enabling forced subtitles reloads the current node");
@@ -514,33 +569,69 @@ void forcedSubtitles(Engine &engine, TestRuntime &runtime) {
   require(frame() == 0, "Forced subtitles are cleared outside gameplay");
   runtime.SetState(GameState::Gameplay);
 
-  // A Standard runtime's global diagnostic clock is not its scene-entry clock.
-  runtime.node = "80005:66";
+  // Node-only subtitles and a stable node clock span event positions.
+  runtime.node = "80007:66";
+  runtime.clockKey = "80007";
   runtime.timedClock = false;
   runtime.seconds = 123;
   engine.resetNodeClock();
+  const auto nodePath = originalDirectory / "80007.ass";
+  writeTextFileAtomically(nodePath.string(), script);
+  forced.reload();
+  forced.updateForActiveNode();
+  require(forced.activePath() == nodePath,
+          "Node-only ASS is the fallback for a full event-position node");
   const auto nativePath = forced.dumpForActiveNode();
-  require(nativePath.filename() == "80005-66.ass",
+  require(nativePath.filename() == "80007-66.ass",
           "Standard native dump includes both event and position");
   writeTextFileAtomically(nativePath.string(), script);
+  forced.updateForActiveNode();
+  require(forced.activePath() == nativePath,
+          "A full event-position ASS takes precedence over node-only fallback");
   engine.setAgentPaused(false);
   engine.synchronizeTimeline();
   SDL_Delay(1100);
   engine.synchronizeTimeline();
   const auto elapsed = engine.activeNodeSeconds();
-  require(elapsed >= 1 && elapsed < 2,
-          "Standard native clock counts scene-entry time, not a global clock");
+  require(elapsed >= 1 && elapsed < 2 && engine.activeEventSeconds() >= 1 &&
+              engine.activeEventSeconds() < 2,
+          "Node-scoped standard clock advances while the story runs");
   engine.setAgentPaused(true);
   require(frame() > 100 && forced.getPosition() == elapsed,
-          "Standard native subtitles use event-position file and scene-entry clock");
+          "Event-specific ASS uses the event clock");
   SDL_Delay(25);
   engine.synchronizeTimeline();
-  require(engine.activeNodeSeconds() == elapsed,
-          "Native fallback clock freezes while paused");
-  runtime.node = "80005:68";
+  require(engine.activeNodeSeconds() == elapsed &&
+              engine.activeEventSeconds() == elapsed,
+          "Event and node clocks freeze while paused");
+  runtime.node = "80007:68";
+  engine.synchronizeTimeline();
+  forced.updateForActiveNode();
+  require(engine.activeNodeSeconds() == elapsed &&
+              engine.activeEventSeconds() == 0 &&
+              forced.activePath() == nodePath &&
+              forced.getPosition() == elapsed,
+          "Node-only ASS follows the global clock across event positions");
+  runtime.node = "80007:66";
+  engine.synchronizeTimeline();
+  forced.updateForActiveNode();
+  require(forced.activePath() == nativePath && forced.getPosition() == 0,
+          "Event-specific ASS resets when its event changes");
+  runtime.node = "80008:1";
+  runtime.clockKey = "80008";
   engine.synchronizeTimeline();
   require(engine.activeNodeSeconds() == 0,
-          "Native fallback clock resets on an event ID change");
+          "Node clock resets when the scenario/node changes");
+  engine.setAgentPaused(false);
+  SDL_Delay(30);
+  engine.synchronizeTimeline();
+  const auto nodeClockElapsed = engine.activeNodeSeconds();
+  engine.setAgentPaused(true);
+  SDL_Delay(25);
+  engine.synchronizeTimeline();
+  require(engine.activeNodeSeconds() == nodeClockElapsed,
+          "Node-wide clock freezes with the other story clocks");
+  runtime.clockKey.clear();
 
   runtime.node.clear();
   ScriptNode dialogue;
@@ -562,12 +653,13 @@ void forcedSubtitles(Engine &engine, TestRuntime &runtime) {
   SDL_Delay(1100);
   engine.synchronizeTimeline();
   require(engine.activeNodeSeconds() >= 0.02 &&
-              engine.GetDebug().nodeClockText().find("Clock: ") !=
+              engine.GetDebug().nodeClockText().find("Node clock: ") !=
+                  std::string::npos &&
+              engine.GetDebug().nodeClockText().find("Event clock: ") !=
                   std::string::npos,
-          "Standard VN nodes expose an advancing HUD clock");
+          "Standard VN nodes expose both advancing HUD clocks");
   engine.setAgentPaused(true);
-  require(frame() > 100 &&
-              forced.getPosition() == engine.activeNodeSeconds(),
+  require(frame() > 100 && forced.getPosition() == engine.activeNodeSeconds(),
           "Standard VN forced subtitles render using the shared node clock");
   manager.jumpToNode(7);
   require(engine.activeNodeSeconds() == 0,
@@ -584,8 +676,9 @@ void forcedSubtitles(Engine &engine, TestRuntime &runtime) {
   require(!GetVNTextBoxRuntime(engine, "", "", 30).isVisible(),
           "Seeking backwards clears dialogue from a future cue");
   rejects([&] { timeline.seek(-1); }, "Invalid timeline seeks are explicit");
-  require(frame() > 100 && forced.getPosition() == 1.5,
-          "Timeline without normal subtitle cues still renders forced subtitles");
+  require(
+      frame() > 100 && forced.getPosition() == 1.5,
+      "Timeline without normal subtitle cues still renders forced subtitles");
   auto save = manager.captureSave();
   timeline.seek(2);
   require(frame() == 0, "Timeline seek expires forced subtitles");
@@ -609,7 +702,8 @@ void subtitleRasterization(Engine &engine) {
   require(SDL_SetRenderTarget(&renderer, target.get()),
           "Select subtitle test target");
   SubtitleScene scene(engine, 640, 360);
-  scene.setStyle(AssStyle::parse(styleFile()));
+  const auto style = AssStyle::parse(styleFile());
+  scene.setStyle(style);
   scene.setCues({{0, 5, "RETINA GLYPHS", "Person"}});
   const auto capture = [&] {
     SDL_SetRenderDrawColor(&renderer, 0, 0, 0, 255);
@@ -629,36 +723,38 @@ void subtitleRasterization(Engine &engine) {
         return false;
     return true;
   };
-  require(SDL_SetRenderLogicalPresentation(
-              &renderer, 0, 0, SDL_LOGICAL_PRESENTATION_DISABLED) &&
+  require(SDL_SetRenderLogicalPresentation(&renderer, 0, 0,
+                                           SDL_LOGICAL_PRESENTATION_DISABLED) &&
               SDL_SetRenderScale(&renderer, 4, 4),
           "Configure a native physical-pixel reference");
   const SDL_Rect viewport{0, 20, 640, 360};
   require(SDL_SetRenderViewport(&renderer, &viewport),
           "Configure letterboxed reference viewport");
   const auto reference = capture();
-  require(colored(renderer, 1) > 1000, "Reference has visible high-density text");
+  require(colored(renderer, 1) > 1000,
+          "Reference has visible high-density text");
   require(SDL_SetRenderViewport(&renderer, nullptr) &&
               SDL_SetRenderScale(&renderer, 2, 2) &&
               SDL_SetRenderLogicalPresentation(
                   &renderer, 1280, 720, SDL_LOGICAL_PRESENTATION_LETTERBOX),
           "Simulate Retina output with a smaller logical scene");
   const auto retina = capture();
-  require(equalPixels(*reference, *retina),
-          "Logical presentation rasterizes exactly like native physical pixels");
+  require(
+      equalPixels(*reference, *retina),
+      "Logical presentation rasterizes exactly like native physical pixels");
   auto &upscaler = engine.GetUpscaler();
   const auto previousUpscaling = upscaler.getSettings();
   for (const float factor : {2.0f, 4.0f}) {
-    upscaler.configure({UpscaleBackend::Linear, UpscalePreset::Anime4K,
-                        factor, {}});
+    upscaler.configure(
+        {UpscaleBackend::Linear, UpscalePreset::Anime4K, factor, {}});
     const auto unscaledGlyphs = capture();
     require(equalPixels(*retina, *unscaledGlyphs),
             "Enabling image upscaling must not change subtitle pixels");
   }
   upscaler.configure(previousUpscaling);
 
-  require(SDL_SetRenderLogicalPresentation(
-              &renderer, 0, 0, SDL_LOGICAL_PRESENTATION_DISABLED) &&
+  require(SDL_SetRenderLogicalPresentation(&renderer, 0, 0,
+                                           SDL_LOGICAL_PRESENTATION_DISABLED) &&
               SDL_SetRenderScale(&renderer, 4, 1600.0f / 360),
           "Configure stretched physical-pixel reference");
   const auto stretchedReference = capture();
@@ -667,8 +763,32 @@ void subtitleRasterization(Engine &engine) {
                   &renderer, 1280, 720, SDL_LOGICAL_PRESENTATION_STRETCH),
           "Configure nonuniform logical presentation");
   const auto stretched = capture();
-  require(equalPixels(*stretchedReference, *stretched),
-          "Subtitle rasterization accounts for both physical presentation axes");
+  require(
+      equalPixels(*stretchedReference, *stretched),
+      "Subtitle rasterization accounts for both physical presentation axes");
+  scene.loadAss(style.header +
+                "[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, "
+                "MarginR, MarginV, Effect, Text\n"
+                "Dialogue: 0,0:00:00.00,0:00:05.00,Person,,0,0,0,,"
+                "{\\move(80,360,1200,360,0,5000)}MOVING TEXT\n");
+  const auto leftmostGreen = [](SDL_Surface &pixels) {
+    int left = pixels.w;
+    for (int y = 0; y < pixels.h; ++y)
+      for (int x = 0; x < pixels.w; ++x) {
+        Uint8 r = 0, g = 0, b = 0, a = 0;
+        require(SDL_ReadSurfacePixel(&pixels, x, y, &r, &g, &b, &a),
+                "Read moving subtitle pixels");
+        if (g > 140 && r < 80)
+          left = std::min(left, x);
+      }
+    return left;
+  };
+  scene.setPosition(0.1);
+  const auto movingStart = capture();
+  scene.setPosition(4.9);
+  const auto movingEnd = capture();
+  require(leftmostGreen(*movingEnd) > leftmostGreen(*movingStart) + 300,
+          "libass animates ASS move tags on the engine subtitle component");
   require(SDL_SetRenderTarget(&renderer, nullptr),
           "Restore window after subtitle rasterization tests");
 }
@@ -742,6 +862,48 @@ void controls(Engine &engine, TestRuntime &runtime) {
   require(performance.find("FPS: ") == 0 &&
               performance.find(" ms") != std::string::npos,
           "Performance HUD reports both FPS and milliseconds per frame");
+  auto &debug = engine.GetDebug();
+  const auto savedDebugSettings = debug.getSettings();
+  debug.getSettings().showFPS = debug.getSettings().showNodeClock = true;
+  const auto budget = [&](const std::string &left, const std::string &right) {
+    return engine.GetUI().textSize(left, 65535).x +
+           engine.GetUI().textSize(right, 65535).x +
+           (!left.empty() && !right.empty() ? 10 : 0);
+  };
+  const auto fullNode = debug.nodeClockText();
+  const auto eventOnly = debug.nodeClockText(true, false);
+  const auto nodeOnly = debug.nodeClockText(false, false);
+  const auto compactFPS = debug.performanceText(false);
+  require(debug.hudText(budget(performance, fullNode)) ==
+              std::make_pair(performance, fullNode),
+          "HUD preserves both clocks when the complete text fits exactly");
+  require(debug.hudText(budget(performance, fullNode) - 1) ==
+              std::make_pair(performance, eventOnly),
+          "HUD hides the node clock first");
+  require(debug.hudText(budget(performance, eventOnly)) ==
+              std::make_pair(performance, eventOnly),
+          "HUD preserves the event clock at its exact width threshold");
+  require(debug.hudText(budget(performance, eventOnly) - 1) ==
+              std::make_pair(performance, nodeOnly),
+          "HUD hides the event clock before frame milliseconds");
+  require(debug.hudText(budget(performance, nodeOnly) - 1) ==
+              std::make_pair(compactFPS, nodeOnly),
+          "HUD hides FPS milliseconds last, preserving FPS and node ID");
+  require(debug.hudText(1) == std::make_pair(compactFPS, nodeOnly),
+          "Tiny HUD widths preserve the essential indicators");
+  debug.getSettings().showFPS = false;
+  require(debug.hudText(budget("", fullNode)) ==
+              std::make_pair(std::string{}, fullNode),
+          "Disabling FPS makes the full width available to clocks");
+  debug.getSettings().showNodeClock = false;
+  debug.getSettings().showFPS = true;
+  require(debug.hudText(budget(performance, "")) ==
+              std::make_pair(performance, std::string{}),
+          "Disabling node HUD preserves the full FPS indicator");
+  require(debug.hudText(budget(performance, "") - 1) ==
+              std::make_pair(compactFPS, std::string{}),
+          "FPS-only HUD drops milliseconds when space runs out");
+  debug.getSettings() = savedDebugSettings;
 }
 void resolver() {
   namespace fs = std::filesystem;
@@ -784,6 +946,85 @@ void resolver() {
   fs::current_path(previous);
   fs::remove_all(root);
 }
+void splashUpscaling(Engine &engine) {
+  const auto path = std::filesystem::temp_directory_path() /
+                    ("kotonoha-boot-logo-" +
+                     std::to_string(SDL_GetPerformanceCounter()) + ".bmp");
+  struct Cleanup {
+    std::filesystem::path path;
+    ~Cleanup() {
+      std::error_code error;
+      std::filesystem::remove(path, error);
+    }
+  } cleanup{path};
+  SurfacePtr pixels(SDL_CreateSurface(7, 5, SDL_PIXELFORMAT_RGBA32));
+  require(bool(pixels), "Create boot logo fixture");
+  for (int y = 0; y < pixels->h; ++y)
+    for (int x = 0; x < pixels->w; ++x)
+      require(SDL_WriteSurfacePixel(pixels.get(), x, y, (x + y) % 2 ? 255 : 0,
+                                    x * 35, y * 50, 255),
+              "Write boot logo pixels");
+  require(SDL_SaveBMP(pixels.get(), path.string().c_str()),
+          "Save boot logo fixture");
+  auto &renderer = engine.GetRenderer();
+  auto &pipeline = engine.GetUpscaler();
+  const auto previous = pipeline.getSettings();
+  const auto previousTarget = SDL_GetRenderTarget(&renderer);
+  TexturePtr target(SDL_CreateTexture(&renderer, SDL_PIXELFORMAT_RGBA32,
+                                      SDL_TEXTUREACCESS_TARGET, 43, 31));
+  require(bool(target), "Create boot logo presentation target");
+  const auto capture = [&](SplashScreen &splash) {
+    require(SDL_SetRenderTarget(&renderer, target.get()),
+            "Select boot logo target");
+    splash.render(renderer, 1);
+    SurfacePtr result(SDL_RenderReadPixels(&renderer, nullptr));
+    require(bool(result), "Read boot logo presentation");
+    return result;
+  };
+  const auto equal = [](SurfaceRef a, SurfaceRef b) {
+    if (a.w != b.w || a.h != b.h)
+      return false;
+    for (int y = 0; y < a.h; ++y)
+      if (std::memcmp(static_cast<Uint8 *>(a.pixels) + y * a.pitch,
+                      static_cast<Uint8 *>(b.pixels) + y * b.pitch, a.w * 4))
+        return false;
+    return true;
+  };
+  UpscaleSettings settings{
+      UpscaleBackend::Linear, UpscalePreset::Anime4K, 2, {}};
+  pipeline.configure(settings);
+  SplashScreen splash(engine, {path});
+  capture(splash);
+  SDL_Delay(820);
+  auto filtered = capture(splash);
+  auto again = capture(splash);
+  require(equal(*filtered, *again),
+          "Boot logo reuses its prepared texture after the fade");
+  settings.factor = 1;
+  pipeline.configure(settings);
+  auto native = capture(splash);
+  settings.factor = 2;
+  pipeline.configure(settings);
+  auto restored = capture(splash);
+  require(equal(*filtered, *restored),
+          "Enabling boot upscaling again restores the filtered logo");
+  require(!equal(*native, *filtered),
+          "Enabled boot logo must use the scaled source, not native drawing");
+  settings.factor = 1;
+  pipeline.configure(settings);
+  splash.restart();
+  capture(splash);
+  settings.factor = 2;
+  pipeline.configure(settings);
+  capture(splash);
+  SDL_Delay(820);
+  auto duringFade = capture(splash);
+  require(equal(*filtered, *duringFade),
+          "Enabling during fade must not bake original alpha into the filter");
+  require(SDL_SetRenderTarget(&renderer, previousTarget),
+          "Restore presentation target after boot logo test");
+  pipeline.configure(previous);
+}
 void fades(Engine &engine) {
   FadeScene::Event out{1, 3, {0, 0, 0, 255}, FadeScene::Direction::Out, true};
   require(FadeScene::alphaAt(out, 0.5) == 0 &&
@@ -808,14 +1049,17 @@ void fades(Engine &engine) {
 int main() {
   try {
     arguments();
+    transformTweens();
     resolver();
     struct StartupDirectory {
       std::filesystem::path previous = std::filesystem::current_path();
-      std::filesystem::path path = std::filesystem::temp_directory_path() /
+      std::filesystem::path path =
+          std::filesystem::temp_directory_path() /
           ("kotonoha-subtitle-startup-" +
            std::to_string(SDL_GetPerformanceCounter()));
       StartupDirectory() {
-        std::filesystem::create_directories(path / "game-assets/forced_subtitles");
+        std::filesystem::create_directories(path /
+                                            "game-assets/forced_subtitles");
         std::filesystem::create_directories(path / "forced_subtitles");
         std::filesystem::current_path(path);
       }
@@ -844,7 +1088,8 @@ int main() {
     require(std::filesystem::equivalent(
                 engine.GetForcedSubtitles().sourceDirectory(),
                 startup.path / "game-assets/forced_subtitles"),
-            "Startup resolves forced subtitles using overlay reference-root priority");
+            "Startup resolves forced subtitles using overlay reference-root "
+            "priority");
     require(engine.GetSubtitleStyle().has_value(),
             "Startup loads the selected style file");
     // Global interface strings share the same live dictionary as game text.
@@ -873,6 +1118,7 @@ int main() {
     pauseSources(engine, runtime);
     forcedSubtitles(engine, runtime);
     fades(engine);
+    splashUpscaling(engine);
     std::cout << "Extensible arguments/help, ASS style import/rendering and "
                  "debug scaling passed\n";
     return 0;

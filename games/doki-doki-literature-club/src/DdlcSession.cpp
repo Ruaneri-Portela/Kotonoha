@@ -2672,12 +2672,11 @@ struct Game {
       return;
     }
 
-    navigation(r,
-               {{"Return", [this] { openPause(false); }},
-                {"Save Game", [this] { subMenu = SubMenu::Save; }},
-                {"Load Game", [this] { subMenu = SubMenu::Load; }},
-                {"Main Menu", [this] { returnToMenu(); }},
-                {"Quit", [this] { quit = true; }}});
+    navigation(r, {{"Return", [this] { openPause(false); }},
+                   {"Save Game", [this] { subMenu = SubMenu::Save; }},
+                   {"Load Game", [this] { subMenu = SubMenu::Load; }},
+                   {"Main Menu", [this] { returnToMenu(); }},
+                   {"Quit", [this] { quit = true; }}});
   }
 
   void beginFrame(SDL_Renderer *r, float pixelScale) {

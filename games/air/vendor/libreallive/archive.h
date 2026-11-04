@@ -54,6 +54,8 @@ class Archive {
 public:
   // Read an archive, assuming no per-game xor key. (Used in unit testing).
   explicit Archive(const string &filename);
+  Archive(std::vector<char> bytes,
+          std::map<int, std::vector<char>> overrides = {});
 
   // Creates an interface to a SEEN.TXT file. Uses |regname| to look up
   // per-game xor key for newer games.
@@ -82,7 +84,9 @@ private:
   scenarios_t scenarios_;
   accessed_t accessed_;
   string name_;
-  Mapping info_;
+  std::unique_ptr<Mapping> info_;
+  std::vector<char> bytes_;
+  std::map<int, std::vector<char>> overrides_;
 
   // Mappings to unarchived SEEN\d{4}.TXT files on disk.
   std::vector<std::unique_ptr<Mapping>> maps_to_delete_;

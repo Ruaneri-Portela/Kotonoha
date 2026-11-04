@@ -261,6 +261,26 @@ F8 inclui o tempo do no atual, inclusive nos runtimes personalizados. F9
 mostra FPS e milissegundos por quadro. **Debug UI scale**, no inspetor e no
 launcher, amplia os controles de 1x a 3x alem da escala de DPI e tambem persiste.
 
+### Abrir imagens ISO
+
+Todo jogo que aceita pasta tambem aceita um arquivo `.iso` no mesmo campo
+de dados ou argumento: `--air`, `--summer`, `--snow`, `--school-days` e `--ddlc`.
+No launcher, use **Folder...** para pasta ou **ISO...** para imagem.
+AIR le os recursos diretamente de ISO9660/Joliet, sem extracao nem copia
+temporaria, incluindo scripts, vozes e substituicoes por overlay.
+Amagami e Zero no Tsukaima mantem a leitura direta de ISO/disco raw.
+
+Nos demais ports baseados em pasta, o motor le ISO9660/Joliet internamente e
+materializa os arquivos em uma pasta temporaria privada, preservando nomes,
+subpastas e conteudo. Nao usa montagem do sistema nem modifica a ISO.
+A primeira abertura pode demorar e exige espaco temporario aproximadamente
+igual ao tamanho dos arquivos do disco. A pasta e reutilizada durante o
+processo e removida na saida normal. O launcher lembra a ISO original.
+
+A imagem precisa conter o mesmo layout de dados aceito pela pasta do port;
+DDLC tambem aceita a subpasta `game/`. Imagens contendo apenas instaladores,
+ou somente UDF, nao sao suportadas. O motor nao executa instaladores.
+
 ### iOS: projeto Xcode nativo
 
 Abra `Xcode/Kotonoha.xcodeproj`: o projeto e seus targets sao mantidos no
@@ -272,7 +292,7 @@ apps separados. `KotonohaIOSSmoke` verifica CP932 e glifos SVG no simulador.
 O executavel demonstrativo chama-se `Kotonoha`; seu namespace C++ e
 `KotonohaExample`, separado do motor. A opcao CMake
 `KOTONOHA_BUILD_SCHOOL_DAYS` controla o port School Days.
-`KOTONOHA_BUILD_AIR` controla o [port inicial de AIR Standard Edition](games/air/README.md), que lê os dados originais com `--air DIRETORIO`.
+`KOTONOHA_BUILD_AIR` controla o [port inicial de AIR Standard Edition](games/air/README.md), que lê os dados originais com `--air DIRETORIO_OU_ISO`.
 Depois de alterar os fontes da biblioteca School Days, execute manualmente
 `ruby Xcode/UpdateGameTargets.rb` para sincronizar o target nativo sem
 remover os recursos e modulos Python existentes.

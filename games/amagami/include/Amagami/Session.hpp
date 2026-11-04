@@ -2,6 +2,7 @@
 #include <Amagami/Campaign.hpp>
 #include <Amagami/Source.hpp>
 #include <Amagami/Vm.hpp>
+#include <Kotonoha/core/TransformTween.hpp>
 #include <functional>
 #include <list>
 #include <set>
@@ -123,9 +124,7 @@ private:
   struct Tween {
     std::string visual;
     enum Property { Position, Scale, Angle, Alpha } property;
-    float fromX, fromY, toX, toY;
-    double elapsed = 0, frames = 0;
-    int curve = 0;
+    Kotonoha::TransformAnimation animation;
   };
   std::vector<Tween> tweens_;
   struct Fiber {

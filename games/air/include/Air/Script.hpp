@@ -2,7 +2,9 @@
 #pragma once
 #include "libreallive/archive.h"
 #include "machine/rlmachine.h"
+#include <cstdint>
 #include <filesystem>
+#include <map>
 #include <memory>
 #include <vector>
 namespace Air {
@@ -11,6 +13,8 @@ class ScriptArchive {
 
 public:
   explicit ScriptArchive(const std::filesystem::path &seen);
+  ScriptArchive(const std::vector<std::uint8_t> &bytes,
+                const std::map<int, std::vector<std::uint8_t>> &overrides = {});
   std::vector<int> ScenarioNumbers() const;
   libreallive::Scenario &Scenario(int number);
   std::size_t ValidateAll();

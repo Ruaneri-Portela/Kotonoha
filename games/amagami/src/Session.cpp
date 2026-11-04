@@ -183,31 +183,40 @@ void Session::animate(const std::string &name, Tween::Property property,
     b = y;
     return;
   }
-  tweens_.push_back({name, property, a, b, x, y, 0, frames, curve});
+  Kotonoha::Transform2D from{v.x, v.y, v.scaleX, v.scaleY, v.angle, v.alpha};
+  auto to = from;
+  if (property == Tween::Position) {
+    to.x = x;
+    to.y = y;
+  } else if (property == Tween::Scale) {
+    to.scaleX = x;
+    to.scaleY = y;
+  } else if (property == Tween::Alpha) {
+    to.opacity = x;
+  } else {
+    to.rotation = x;
+  }
+  tweens_.push_back({name, property, {from, to, frames, curve}});
 }
 void Session::updateTweens(double frames) {
   for (auto &t : tweens_) {
-    t.elapsed = std::min(t.frames, t.elapsed + frames);
-    double u = t.elapsed / t.frames;
-    if (t.curve == 1)
-      u = std::sin(u * 1.5707963267948966);
-    else if (t.curve == 2)
-      u = 1 - std::cos(u * 1.5707963267948966);
+    const auto value = t.animation.advance(frames);
     auto &v = visuals_[t.visual];
-    float &a = t.property == Tween::Position ? v.x
-               : t.property == Tween::Scale  ? v.scaleX
-               : t.property == Tween::Alpha  ? v.alpha
-                                             : v.angle;
-    float &b = t.property == Tween::Position ? v.y
-               : t.property == Tween::Scale  ? v.scaleY
-               : t.property == Tween::Alpha  ? v.alpha
-                                             : v.angle;
-    a = t.fromX + (t.toX - t.fromX) * float(u);
-    b = t.fromY + (t.toY - t.fromY) * float(u);
+    if (t.property == Tween::Position) {
+      v.x = value.x;
+      v.y = value.y;
+    } else if (t.property == Tween::Scale) {
+      v.scaleX = value.scaleX;
+      v.scaleY = value.scaleY;
+    } else if (t.property == Tween::Alpha) {
+      v.alpha = value.opacity;
+    } else {
+      v.angle = value.rotation;
+    }
   }
   tweens_.erase(
       std::remove_if(tweens_.begin(), tweens_.end(),
-                     [](const Tween &t) { return t.elapsed >= t.frames; }),
+                     [](const Tween &t) { return t.animation.finished(); }),
       tweens_.end());
 }
 void Session::fade(float target, double frames, bool white) {
@@ -607,7 +616,7 @@ std::optional<VmValue> Session::native(const VmValue &r, const std::string &s,
       remaining = transition->second.remaining;
     for (const auto &tween : tweens_)
       if (tween.visual == t && tween.property == Tween::Alpha)
-        remaining = std::max(remaining, tween.frames - tween.elapsed);
+        remaining = std::max(remaining, tween.animation.remaining());
     if (t == "BG" || t == "BG0" || t == "BG1" || t == "STG" ||
         t.rfind("FS", 0) == 0)
       remaining = std::max(remaining, fadeFrames_ - fadeElapsed_);
@@ -1109,7 +1118,7 @@ std::optional<VmValue> Session::native(const VmValue &r, const std::string &s,
     double remaining = 0;
     for (const auto &tween : tweens_)
       if (tween.visual == t)
-        remaining = std::max(remaining, tween.frames - tween.elapsed);
+        remaining = std::max(remaining, tween.animation.remaining());
     if (remaining > 0) {
       if (activeFiber_)
         activeFiber_->wait = remaining;

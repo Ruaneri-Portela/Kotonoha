@@ -2,6 +2,7 @@
 #include "SummerAssets.hpp"
 #include "SummerRuntime.hpp"
 #include <Kotonoha/core/CommandLine.hpp>
+#include <Kotonoha/core/DiscImage.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/FileSystem.hpp>
 #include <Kotonoha/core/GameLauncher.hpp>
@@ -32,7 +33,8 @@ struct App {
   std::unique_ptr<Kotonoha::FolderGameLauncher> launcher;
   std::unique_ptr<Game> game;
   void start(const std::string &directory) {
-    auto assets = std::make_shared<SummerRadish::SummerAssets>(directory);
+    auto assets = std::make_shared<SummerRadish::SummerAssets>(
+        Kotonoha::gameDataDirectory(directory));
     assets->setOverlay(options.assetOverlayDirectory());
     game = std::make_unique<Game>(assets, options);
   }
@@ -58,7 +60,8 @@ SDL_AppResult SDL_AppInit(void **state, int argc, char **argv) {
     options.persistSettings = true;
     std::string directory;
     Kotonoha::CommandLine cli("SummerRadish", options);
-    cli.option("--summer", "DIRECTORY", "Game data directory", directory);
+    cli.option("--summer", "DIRECTORY|ISO", "Game data directory or ISO image",
+               directory);
     cli.parse(argc, argv);
     if (cli.wantsHelp()) {
       std::fputs(cli.help().c_str(), stdout);

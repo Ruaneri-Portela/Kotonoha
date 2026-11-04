@@ -28,6 +28,9 @@ bool GameLauncher::checkPath(const std::string &path, std::string &info) {
 
 bool GameLauncher::validatePath(const std::string &path, std::string &info) {
   std::error_code error;
+  const auto game = std::filesystem::path(path) / "game";
+  if (std::filesystem::is_regular_file(game / "scripts.rpa", error))
+    return validatePath(game.string(), info);
   if (!std::filesystem::is_directory(path, error)) {
     info = "Game folder not found: " + path;
     return false;

@@ -104,10 +104,15 @@ public:
 
   // Current story position of games with their own interpreter (script,
   // label, route...), shown as the node by the debug overlay and MCP. Empty
-  // means the engine VNManager node is used.
+  // means the engine VNManager node is used. The engine's event clock resets
+  // whenever this position changes.
   virtual std::string debugNode() const { return {}; }
-  // Timed native scripts expose a node-wide clock. Standard interpreters use
-  // engine time since entry into the full debugNode() (event + position).
+  // Optional stable identity for the shared node clock. Native interpreters
+  // can keep one clock across multiple instruction positions in a node; an
+  // empty key uses debugNode() as the clock identity.
+  virtual std::string nodeClockKey() const { return {}; }
+  // Timed native scripts expose their own node clock. Standard interpreters
+  // use the engine clock, keyed by debugNode() or nodeClockKey().
   virtual bool usesTimedNodeClock() const { return false; }
   virtual std::optional<double> debugNodeSeconds() const {
     return std::nullopt;
