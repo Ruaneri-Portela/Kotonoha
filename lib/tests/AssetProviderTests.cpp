@@ -162,15 +162,24 @@ void fileSystemProvider() {
             "Indexed data enumerates normalized identifiers");
     require(!indexed.contains("../outside"), "Indexed data rejects escapes");
     rejects([&] { indexed.read("../outside"); }, "Indexed read rejects escape");
+    std::error_code linkError;
     std::filesystem::create_directory_symlink(outside,
-                                              root / "external-directory");
-    writeTextFileAtomically((outside / "leak.txt").string(), "outside");
-    std::filesystem::create_symlink(outside / "leak.txt",
-                                    root / "external.txt");
-    rejects([&] { IndexedFileSystemAssetProvider escaping(root); },
-            "Indexed data rejects symlink escapes");
-    std::filesystem::remove(root / "external.txt");
-    std::filesystem::remove(root / "external-directory");
+                                              root / "external-directory", linkError);
+#ifdef _WIN32
+    if (linkError.value() == 1314) { // ERROR_PRIVILEGE_NOT_HELD
+      std::cout << "SKIP: symlink fixture requires Windows Developer Mode\n";
+    } else
+#endif
+    {
+      if (linkError)
+        throw std::system_error(linkError);
+      writeTextFileAtomically((outside / "leak.txt").string(), "outside");
+      std::filesystem::create_symlink(outside / "leak.txt", root / "external.txt");
+      rejects([&] { IndexedFileSystemAssetProvider escaping(root); },
+              "Indexed data rejects symlink escapes");
+      std::filesystem::remove(root / "external.txt");
+      std::filesystem::remove(root / "external-directory");
+    }
 
     FileSystemAssetProvider plain;
     require(plain.localPath("pictures/a.txt") == "pictures/a.txt",

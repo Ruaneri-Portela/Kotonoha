@@ -391,6 +391,7 @@ void testDebugTools(Kotonoha::Engine &engine) {
           "Exported JSON roundtrips punctuation, escapes and boundary spaces");
   std::ifstream contents(dictionary.path);
   std::string dump((std::istreambuf_iterator<char>(contents)), {});
+  contents.close();
   require(dump.find("do-not-export-this-path") == std::string::npos &&
               dump.find("Separate subtitle") != std::string::npos &&
               dump.find("Subtitle source") != std::string::npos,

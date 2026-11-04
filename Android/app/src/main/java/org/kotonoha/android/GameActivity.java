@@ -8,19 +8,28 @@ public final class GameActivity extends SDLActivity {
     @Override
     protected String[] getLibraries() {
         return new String[]{"c++_shared", "SDL3",
-                            "SDL3_ttf", "kotonoha", "kotonoha_imgui", BuildConfig.NATIVE_TARGET};
+                            "SDL3_ttf", "kotonoha_imgui", "kotonoha_engine", BuildConfig.NATIVE_TARGET};
     }
 
     public String getKotonohaResourceDirectory() {
-        String path = getIntent().getStringExtra("resources");
-        if (path == null || !new File(path, ".complete").isFile()) {
+        File files = getFilesDir();
+        if (!new File(files, ".kotonoha-assets.sha256").isFile()) {
             throw new IllegalStateException("Packaged assets have not been prepared");
         }
-        return path;
+        return files.getAbsolutePath();
+    }
+
+    public String getKotonohaPackageIdentifier() {
+        return getPackageName();
+    }
+
+    public String getKotonohaGameAssetDirectory() {
+        return new File(getDataDir(), "game_assets").getAbsolutePath();
     }
 
     public String getKotonohaDataDirectory() {
-        return directory(getObbDir(), "Android OBB");
+        File obb = getObbDir();
+        return obb == null ? "" : obb.getAbsolutePath();
     }
 
     public String getKotonohaDocumentsDirectory() {

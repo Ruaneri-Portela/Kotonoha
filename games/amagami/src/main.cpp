@@ -46,9 +46,9 @@ struct App {
 
 std::string DefaultDisc() {
   for (const char *disc : {"Amagami.bin", "Amagami.iso", "Amagami (Japan).iso"})
-    if (auto found = Kotonoha::FileResolver::findGameAsset({}, disc))
+    if (auto found = Kotonoha::FileResolver::findGameAsset("amagami", disc))
       return found->string();
-  return (Kotonoha::gameAssetDirectory({}) / "Amagami.bin").string();
+  return (Kotonoha::gameAssetDirectory("amagami") / "Amagami.bin").string();
 }
 
 } // namespace

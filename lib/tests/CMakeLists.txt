@@ -1,4 +1,7 @@
 add_executable(KotonohaInfrastructureTests InfrastructureTests.cpp)
+add_executable(KotonohaDirectoryTests DirectoryTests.cpp)
+target_link_libraries(KotonohaDirectoryTests PRIVATE Kotonoha::Engine)
+add_test(NAME Kotonoha.Directories COMMAND KotonohaDirectoryTests)
 add_executable(KotonohaKtrfScriptTests KtrfScriptTests.cpp)
 target_link_libraries(KotonohaKtrfScriptTests PRIVATE Kotonoha::Engine)
 add_test(NAME Kotonoha.KtrfScript COMMAND KotonohaKtrfScriptTests)

@@ -1,6 +1,7 @@
 #include "AmagamiRuntime.hpp"
 #include <Kotonoha/componentes/SettingsMenu.hpp>
 #include <Kotonoha/core/Engine.hpp>
+#include <Kotonoha/core/FileSystem.hpp>
 #include <Kotonoha/core/UI.hpp>
 #include <Kotonoha/debug/DebugOverlay.hpp>
 #include <Kotonoha/events/ControllerEvent.hpp>
@@ -679,12 +680,7 @@ void AmagamiRuntime::initGlobal(Kotonoha::Engine &e) {
     eventMap_ = std::make_unique<AmagamiEventMap>(e, *assets_);
     AddScene(eventMap_.get(), Kotonoha::GameState::Gameplay);
   }
-  char *p = SDL_GetPrefPath("Kotonoha", "amagami");
-  if (p) {
-    savePath_ = (std::filesystem::path(p) / "quick-save.txt").string();
-    SDL_free(p);
-  } else
-    throw std::runtime_error("Cannot locate Amagami save folder");
+  savePath_ = (Kotonoha::saveDirectory() / "quick-save.txt").string();
 }
 void AmagamiRuntime::initMenu(Kotonoha::Engine &) {
   if (!start_.empty()) {

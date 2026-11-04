@@ -5,6 +5,13 @@
 #include <cstdint>
 #include <stdexcept>
 
+#if defined(_WIN32)
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#endif
+
 // -----------------------------------------------------------------------------
 // SEÇÃO DE SELEÇÃO DA PLATAFORMA DE CONVERSÃO
 // -----------------------------------------------------------------------------
@@ -102,7 +109,7 @@ std::string ConvertViaJNI(std::string_view text, const char *fromEncoding,
 #include <TargetConditionals.h>
 #endif
 
-#if defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE
+#if defined(_WIN32) || (defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE)
 #include <cerrno>
 #include <iconv.h>
 #define KOTONOHA_USE_SYSTEM_ICONV 1
@@ -239,7 +246,32 @@ std::string ConvertEncoding(std::string_view text, const char *from,
 }
 
 std::string ShiftJisToUtf8(std::string_view text) {
-#if defined(__ANDROID__)
+#if defined(_WIN32)
+  // Use Microsoft's CP932 mapping (not GNU iconv's Shift-JIS wave dash).
+  std::string result;
+  result.reserve(text.size());
+  for (size_t offset = 0; offset < text.size();) {
+    const auto first = static_cast<unsigned char>(text[offset]);
+    const int length = IsDBCSLeadByteEx(932, first) && offset + 1 < text.size()
+                           ? 2
+                           : 1;
+    wchar_t wide[2];
+    const int count = MultiByteToWideChar(932, MB_ERR_INVALID_CHARS,
+                                         text.data() + offset, length, wide, 2);
+    offset += length;
+    if (!count) {
+      result += '?';
+      continue;
+    }
+    char utf8[8];
+    const int bytes = WideCharToMultiByte(CP_UTF8, 0, wide, count, utf8,
+                                         sizeof(utf8), nullptr, nullptr);
+    if (!bytes)
+      throw std::runtime_error("CP932 to UTF-8 conversion failed");
+    result.append(utf8, bytes);
+  }
+  return result;
+#elif defined(__ANDROID__)
   // No Android, chama a conversão via JNI diretamente com o alias
   // CP932/Shift_JIS
   return ConvertViaJNI(text, "Shift_JIS");

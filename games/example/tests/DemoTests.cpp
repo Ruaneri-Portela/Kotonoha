@@ -14,6 +14,7 @@
 #include <iostream>
 #include <stdexcept>
 
+
 namespace {
 void require(bool condition, const char *message) {
   if (!condition)
@@ -223,12 +224,22 @@ void testSaveManagement(KotonohaExample::DemoGame &game,
   require(storage.rename("save-1.vn", "save-1.vn") == original,
           "Renaming a save to its own name is safe");
   const auto linked = directory / "linked.vn";
-  std::filesystem::create_symlink(original, linked);
-  rejects([&] { storage.remove("linked.vn"); });
-  rejects([&] { storage.rename("linked.vn", "moved"); });
-  require(std::filesystem::exists(original),
-          "File management never follows symbolic links");
-  std::filesystem::remove(linked);
+  std::error_code linkError;
+  std::filesystem::create_symlink(original, linked, linkError);
+#ifdef _WIN32
+  if (linkError.value() == 1314) { // ERROR_PRIVILEGE_NOT_HELD
+    std::cout << "SKIP: symlink fixture requires Windows Developer Mode\n";
+  } else
+#endif
+  {
+    if (linkError)
+      throw std::system_error(linkError);
+    rejects([&] { storage.remove("linked.vn"); });
+    rejects([&] { storage.rename("linked.vn", "moved"); });
+    require(std::filesystem::exists(original),
+            "File management never follows symbolic links");
+    std::filesystem::remove(linked);
+  }
   require(storage.list().size() == 2 &&
               VNSave::read(original).gameData == saved.gameData,
           "Invalid names and collisions preserve all save files");
@@ -264,7 +275,7 @@ void testSaveManagement(KotonohaExample::DemoGame &game,
   click(engine, 400, 590); // Rename button.
   text("Viagem \xe9\x9b\xaa");
   press(engine, SDLK_RETURN);
-  const auto renamed = directory / "Viagem \xe9\x9b\xaa.vn";
+  const auto renamed = directory / std::filesystem::u8path("Viagem \xe9\x9b\xaa.vn");
   require(menu.isOpen() && std::filesystem::exists(renamed) &&
               !std::filesystem::exists(original) &&
               !SDL_TextInputActive(&engine.GetWindow()) &&

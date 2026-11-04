@@ -156,17 +156,12 @@ std::string LoadAsset(const std::string &filename) {
   const char *assetFolder =
       Kotonoha::UpscalePresetIsAnime4K(g_preset) ? "Anime4K" : "ArtCNN";
   const std::filesystem::path supplied(filename);
-  std::string path =
-      supplied.has_parent_path()
-          ? supplied.string()
-          : (Kotonoha::engineAssetDirectory() / assetFolder / supplied)
-                .string();
+  auto resolved = FileResolver::findAsset(supplied);
+  if (!resolved)
+    resolved = FileResolver::findEngineAsset(
+        std::filesystem::path(assetFolder) / supplied);
   size_t size = 0;
-  void *buffer = SDL_LoadFile(path.c_str(), &size);
-  if (buffer == nullptr) {
-    path = (Kotonoha::engineAssetDirectory() / assetFolder / filename).string();
-    buffer = SDL_LoadFile(path.c_str(), &size);
-  }
+  void *buffer = resolved ? SDL_LoadFile(resolved->string().c_str(), &size) : nullptr;
   if (buffer == nullptr) {
     SDL_LogWarn(LogUpscaler,
                 "MPVCompatibleUpscaler: could not load shader '%s'",

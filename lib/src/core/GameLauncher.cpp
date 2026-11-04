@@ -60,16 +60,13 @@ std::string GameLauncher::findGamePath(
       return false;
     }
   };
-  for (const auto &path : preferred)
-    if (valid(path))
-      return path;
-  for (const auto &root : FileResolver::roots(game))
-    for (const auto &base :
-         {std::filesystem::path("game-assets"),
-          std::filesystem::path("games") / game / "game-assets",
-          std::filesystem::path()})
+  for (const auto &reference : preferred)
+    for (const auto &path : FileResolver::candidates(reference, game))
+      if (valid(path.string()))
+        return path.string();
+  for (const auto &root : applicationDirectories(game).gameAssets)
       for (const auto &tail : relative) {
-        const auto path = (root / base / tail).lexically_normal().string();
+        const auto path = (root / tail).lexically_normal().string();
         if (valid(path))
           return path;
       }
@@ -82,7 +79,7 @@ void GameLauncher::loadPath(std::string path) {
     setPath({});
 }
 
-const std::string &GameLauncher::path() const { return game.current; }
+const std::string &GameLauncher::path() const { return game.resolved; }
 
 void GameLauncher::setPath(std::string path) {
   setFieldPath(game, std::move(path));
@@ -109,7 +106,7 @@ std::size_t GameLauncher::addPathOption(PathOptions options,
 }
 
 const std::string &GameLauncher::optionPath(std::size_t index) const {
-  return additionalPaths.at(index)->current;
+  return additionalPaths.at(index)->resolved;
 }
 
 void GameLauncher::setOptionPath(std::size_t index, std::string path) {
@@ -135,17 +132,23 @@ void GameLauncher::check(PathField &field, bool force) {
   field.checkedOnce = true;
   field.checked = field.current;
   field.valid = false;
+  field.resolved.clear();
   if (field.current.empty()) {
     field.info = "Choose the " + field.options.label;
     return;
   }
   field.info.clear();
-  std::filesystem::path fullPath = field.current;
-  std::error_code ec;
-  auto absPath = std::filesystem::absolute(field.current, ec);
-  if (!ec)
-    fullPath = absPath;
-  field.valid = field.validator(fullPath.string(), field.info);
+  for (const auto &candidate : FileResolver::candidates(field.current)) {
+    try {
+      if (field.validator(candidate.string(), field.info)) {
+        field.valid = true;
+        field.resolved = candidate.string();
+        break;
+      }
+    } catch (const std::exception &error) {
+      field.info = error.what();
+    }
+  }
   if (!field.valid && field.info.empty())
     field.info = "Invalid " + field.options.label;
 }
@@ -202,7 +205,7 @@ void GameLauncher::drawGameOptions() {
 bool GameLauncher::validate(std::string &error) {
   if (!Launcher::validate(error))
     return false;
-  check(game);
+  check(game, true);
   if (!game.valid) {
     error = game.info;
     return false;
@@ -220,7 +223,8 @@ bool GameLauncher::validate(std::string &error) {
 void GameLauncher::save() {
   const auto remember = [](const PathField &field) {
     if (!field.rememberPath.empty())
-      writeTextFileAtomically(field.rememberPath, field.current + "\n");
+      writeTextFileAtomically(field.rememberPath,
+                             FileResolver::referenceName(field.resolved) + "\n");
   };
   remember(game);
   for (const auto &field : additionalPaths)

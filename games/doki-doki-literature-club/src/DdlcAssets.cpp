@@ -40,7 +40,7 @@ std::filesystem::path userDirectory() {
                                error.message());
     return std::filesystem::absolute(directory);
   }
-  return Kotonoha::preferredDocumentsDirectory();
+  return Kotonoha::saveDirectory();
 }
 
 bool seedCharacters(const std::filesystem::path &user,

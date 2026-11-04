@@ -29,7 +29,7 @@ bool validSection(const std::string &name) {
 
 void Translation::load(const std::string &path) {
   std::ifstream input(
-      FileResolver::findGameAsset("snow-radish-vacation", path).value_or(path),
+      FileResolver::findAsset(path).value_or(path),
       std::ios::binary);
   if (!input)
     throw std::runtime_error("Cannot open translation: " + path);

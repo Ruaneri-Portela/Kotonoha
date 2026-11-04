@@ -1,4 +1,5 @@
 #include <Kotonoha/core/AssetProvider.hpp>
+#include <Kotonoha/core/FileSystem.hpp>
 #include <Kotonoha/core/Log.hpp>
 #include <Kotonoha/media/MediaDecoder.hpp>
 #include <Kotonoha/media/upscaling/Upscaler.hpp>
@@ -26,7 +27,7 @@ IOStreamPtr memoryStream(const std::vector<Uint8> &bytes) {
 AssetProvider::AssetProvider() = default;
 AssetProvider::~AssetProvider() = default;
 void AssetProvider::setOverlay(const std::filesystem::path &directory) {
-  AssetOverlay mounted(directory);
+  AssetOverlay mounted(directory, !directory.empty());
   overlay = std::move(mounted);
   clearCache();
 }
@@ -247,8 +248,11 @@ FileSystemAssetProvider::resolve(const std::string &id) const {
   if (id.empty() || id.find('\0') != std::string::npos)
     throw std::invalid_argument("Invalid asset identifier");
   const std::filesystem::path path(id);
-  if (root.empty())
+  if (root.empty()) {
+    if (auto found = FileResolver::findAsset(path))
+      return *found;
     return path;
+  }
   if (path.is_absolute() || path.has_root_name())
     throw std::invalid_argument("Asset must be relative to its root: " + id);
   const auto resolved = (root / path).lexically_normal();
@@ -286,16 +290,27 @@ FileSystemAssetProvider::readAsset(const std::string &id) const {
 
 std::vector<std::string>
 FileSystemAssetProvider::listAsset(const std::string &prefix) const {
-  const auto base = root.empty() ? std::filesystem::current_path() : root;
   std::vector<std::string> result;
-  std::error_code error;
-  for (std::filesystem::recursive_directory_iterator it(base, error), end;
-       !error && it != end; it.increment(error)) {
-    if (!it->is_regular_file(error))
-      continue;
-    auto id = it->path().lexically_relative(base).generic_string();
-    if (id.compare(0, prefix.size(), prefix) == 0)
-      result.push_back(std::move(id));
+  const auto collect = [&](const std::filesystem::path &base,
+                           const std::string &mount) {
+    std::error_code error;
+    for (std::filesystem::recursive_directory_iterator it(base, error), end;
+         !error && it != end; it.increment(error)) {
+      if (!it->is_regular_file(error))
+        continue;
+      auto id = mount + it->path().lexically_relative(base).generic_string();
+      if (id.compare(0, prefix.size(), prefix) == 0)
+        result.push_back(std::move(id));
+    }
+  };
+  if (!root.empty()) {
+    collect(root, "");
+  } else {
+    const auto directories = applicationDirectories();
+    for (const auto &base : directories.engineAssets)
+      collect(base, "assets/");
+    for (const auto &base : directories.gameAssets)
+      collect(base, "game-assets/");
   }
   return result;
 }

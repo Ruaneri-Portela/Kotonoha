@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.16)
 
 project(Kotonoha VERSION 0.1.0 LANGUAGES CXX)
+include(cmake/MSVC.cmake)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 include(CTest)

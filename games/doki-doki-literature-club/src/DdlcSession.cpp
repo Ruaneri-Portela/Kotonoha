@@ -2587,7 +2587,7 @@ struct Game {
       slotButtons.push_back(
           {label, [this, i] {
              std::filesystem::path path =
-                 Kotonoha::preferredDocumentsDirectory() /
+                 Kotonoha::saveDirectory() /
                  ("ddlc_slot" + std::to_string(i) + ".vn");
              if (subMenu == SubMenu::Save) {
                saveGame(path.string());

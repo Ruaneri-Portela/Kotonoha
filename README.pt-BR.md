@@ -107,6 +107,28 @@ ctest --test-dir build --output-on-failure
 ./build/games/example/Kotonoha
 ```
 
+### Windows / Visual Studio
+
+Instale a carga de trabalho **Desenvolvimento para desktop com C++**, incluindo
+o SDK Windows, CMake e Ninja. Abra esta pasta no Visual Studio e selecione
+`x64-Debug`; `CMakeSettings.json` usa `out/build/x64-Debug` como diretorio de
+build. A integracao vcpkg do Visual Studio fornece as dependencias.
+
+Pelo **Developer PowerShell for VS** (x64), o equivalente e:
+
+```powershell
+cmake -S . -B out/build/x64-Debug -G Ninja -DCMAKE_BUILD_TYPE=Debug `
+  "-DCMAKE_TOOLCHAIN_FILE=$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake"
+cmake --build out/build/x64-Debug --parallel
+```
+
+O launcher MSVC usa UTF-8 em `/showIncludes` para que o Ninja rastreie
+headers corretamente mesmo com o Visual Studio em portugues e sem o pacote
+de idioma ingles. A primeira
+compilacao apos essa correcao recompila os objetos antigos automaticamente.
+O link e a copia de DLLs sao serializados para evitar acessos concorrentes
+ao mesmo arquivo; a compilacao C/C++ continua paralela.
+
 O manifesto [vcpkg.json](vcpkg.json) instala `plutosvg[freetype]` e sua
 dependencia PlutoVG. SDL_ttf usa `SDLTTF_PLUTOSVG=ON` por padrao e falha na
 configuracao se uma dependencia habilitada nao for encontrada. Para um build
@@ -138,9 +160,11 @@ SDL_ttf, ImGui e libass usam somente as fontes de `assets/fonts`
 para fontes do sistema.
 
 Todo caminho empacotado ou do usuario passa pelo
-[FileResolver](lib/include/Kotonoha/core/FileSystem.hpp), que procura, nesta
-ordem: bundle, pasta de dados preferida (OBB no Android), diretorio de
-trabalho, diretorio do executavel e pasta de documentos do jogo.
+[FileResolver](lib/include/Kotonoha/core/FileSystem.hpp), com regras separadas
+para assets da engine, assets do jogo, referencias de overlay e saves.
+Os saves usam sempre `<base da plataforma>/Kotonoha/<id do pacote>`;
+preferencias do launcher guardam nomes, resolvidos a cada execucao.
+Veja a [politica de diretorios e exemplos por plataforma](docs/Directories.pt-BR.md).
 `engineAsset("fonts/...")` procura em `assets/`; `gameAsset(jogo, ...)` procura
 em `game-assets/` e em `games/<jogo>/game-assets/`. `resolve` lanca um erro
 listando todos os locais procurados.

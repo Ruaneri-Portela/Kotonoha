@@ -2,6 +2,13 @@
   "name": "kotonoha",
   "version-string": "0.1.0",
   "builtin-baseline": "9a5dfef5d1a0438a7d24856a85bd60f309d355e9",
+  "overrides": [
+    {
+      "name": "vcpkg-tool-meson",
+      "version": "1.9.0",
+      "port-version": 10
+    }
+  ],
   "dependencies": [
     "freetype",
     "harfbuzz",
@@ -10,7 +17,7 @@
     "libiconv",
     {
       "name": "python3",
-      "platform": "android | (windows & !mingw)"
+      "platform": "windows & !mingw"
     },
     {
       "name": "fontconfig",
@@ -41,5 +48,16 @@
       "name": "pkgconf",
       "host": true
     }
-  ]
+  ],
+  "features": {
+    "android-python": {
+      "description": "CPython runtime for the Android DDLC flavor",
+      "dependencies": [
+        {
+          "name": "python3",
+          "platform": "android"
+        }
+      ]
+    }
+  }
 }
