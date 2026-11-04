@@ -18,6 +18,8 @@ SettingsMenu::SettingsMenu(Engine &engine)
       shaderPicker(std::make_unique<ImGuiTheme::ShaderFilePicker>()) {}
 SettingsMenu::~SettingsMenu() = default;
 
+int SettingsMenu::pageCount() const { return engine.GamepadCount() ? 4 : 3; }
+
 std::vector<int> SettingsMenu::rows() const {
   std::vector<int> result;
   if (page == 0) {
@@ -32,8 +34,10 @@ std::vector<int> SettingsMenu::rows() const {
     result.insert(result.end(), {11, 12});
     for (int i = 0; i < int(channels.size()); ++i)
       result.push_back(100 + i);
-  } else
+  } else if (page == 2)
     result.insert(result.end(), {13, 14, 15, 16});
+  else
+    result.push_back(17);
   result.insert(result.end(), {8, 9});
   return result;
 }
@@ -145,7 +149,9 @@ void SettingsMenu::activate(int index, int direction) {
                          VNColorOptions[i].second;
                      draft.vnTextColorOverride = true;
                    });
-  } else if (index >= 100) {
+  } else if (index == 17)
+    draft.swapControllerAB = !draft.swapControllerAB;
+  else if (index >= 100) {
     auto &volume = draft.channelVolumes[channels.at(index - 100)];
     volume = std::clamp(volume + direction * .05f, 0.f, 1.f);
   } else
@@ -155,6 +161,7 @@ void SettingsMenu::activate(int index, int direction) {
 bool SettingsMenu::onEvent(EventRef rawEvent) {
   if (!visible)
     return false;
+  page = std::min(page, pageCount() - 1);
   const auto event = MapControllerEvent(rawEvent);
   if (!touchActivation.accept(event)) {
     slider = -1;
@@ -177,9 +184,9 @@ bool SettingsMenu::onEvent(EventRef rawEvent) {
       (rawEvent.gbutton.button == SDL_GAMEPAD_BUTTON_LEFT_SHOULDER ||
        rawEvent.gbutton.button == SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER)) {
     page = (page + (rawEvent.gbutton.button == SDL_GAMEPAD_BUTTON_LEFT_SHOULDER
-                        ? 2
+                        ? pageCount() - 1
                         : 1)) %
-           3;
+           pageCount();
     selected = first = 0;
     return true;
   }
@@ -202,15 +209,18 @@ bool SettingsMenu::onEvent(EventRef rawEvent) {
       return false;
     }
   }
-  for (int p = 0; p < 3; ++p)
-    if (UI::clicked(event, {200.f + p * 290, 85, 280, 48})) {
+  const int tabs = pageCount();
+  const float tabWidth = tabs == 4 ? 205.f : 280.f;
+  const float tabStep = tabs == 4 ? 220.f : 290.f;
+  for (int p = 0; p < tabs; ++p)
+    if (UI::clicked(event, {200.f + p * tabStep, 85, tabWidth, 48})) {
       page = p;
       selected = first = 0;
       return true;
     }
   if (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat) {
     if (event.key.key == SDLK_TAB) {
-      page = (page + 1) % 3;
+      page = (page + 1) % tabs;
       selected = first = 0;
       return true;
     }
@@ -320,13 +330,21 @@ void SettingsMenu::render(RendererRef renderer) {
       std::string("Override text colors: ") +
           (draft.vnTextColorOverride ? "Yes" : "No"),
       "Dialogue color...",
-      "Speaker color..."};
+      "Speaker color...",
+      std::string("Controller A/B: ") + (draft.swapControllerAB
+                                             ? "Swapped (South confirms)"
+                                             : "Standard (East confirms)")};
   ui.backdrop(renderer, {0, 0, 0, 220});
   ui.panel(renderer, {170, 25, 920, 670});
   ui.text(renderer, "Settings", 200, 36, 860, {255, 215, 100, 255});
-  const char *pages[]{"Display", "Audio", "VN text"};
-  for (int p = 0; p < 3; ++p)
-    ui.button(renderer, {200.f + p * 290, 85, 280, 48}, pages[p], page == p);
+  const int tabs = pageCount();
+  const float tabWidth = tabs == 4 ? 205.f : 280.f;
+  const float tabStep = tabs == 4 ? 220.f : 290.f;
+  page = std::min(page, tabs - 1);
+  const char *pages[]{"Display", "Audio", "VN text", "Input"};
+  for (int p = 0; p < tabs; ++p)
+    ui.button(renderer, {200.f + p * tabStep, 85, tabWidth, 48}, pages[p],
+              page == p);
   auto items = rows();
   selected = std::clamp(selected, 0, int(items.size()) - 1);
   first = std::clamp(first, 0, std::max(0, int(items.size()) - 11));

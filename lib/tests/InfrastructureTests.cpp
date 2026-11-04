@@ -118,6 +118,7 @@ void testSettings(const std::filesystem::path &directory) {
   settings.fullscreenHeight = 1080;
   settings.refreshRate = 59.94f;
   settings.vsync = true;
+  settings.swapControllerAB = true;
   settings.masterVolume = 0.4f;
   settings.masterMuted = true;
   settings.debugUIScale = 1.75f;
@@ -138,7 +139,8 @@ void testSettings(const std::filesystem::path &directory) {
               read.mode == WindowMode::Exclusive &&
               read.fullscreenWidth == 1920 && read.fullscreenHeight == 1080 &&
               std::abs(read.refreshRate - 59.94f) < 0.001f && read.vsync &&
-              !read.resizable && read.renderer == "opengl" &&
+              read.swapControllerAB && !read.resizable &&
+              read.renderer == "opengl" &&
               read.upscaling.backend == UpscaleBackend::MPV &&
               read.upscaling.preset == UpscalePreset::ArtCNNDenoise &&
               read.upscaling.factor == 1.5f &&
@@ -316,6 +318,21 @@ void testControllerNavigation(Engine &engine, EventRuntime &runtime) {
   engine.Event(&cancel);
   require(!engine.GetSettingsMenu().isOpen() && runtime.novelEvents == novel,
           "Controller cancels engine settings without reaching the story");
+  const auto original = engine.GetSettings();
+  auto swapped = original;
+  swapped.swapControllerAB = true;
+  engine.applySettings(swapped, false);
+  SDL_Event physicalSouth{};
+  physicalSouth.type = SDL_EVENT_GAMEPAD_BUTTON_DOWN;
+  physicalSouth.gbutton.button = SDL_GAMEPAD_BUTTON_SOUTH;
+  physicalSouth.gbutton.down = true;
+  engine.Event(&physicalSouth);
+  require(runtime.lastControllerButton == SDL_GAMEPAD_BUTTON_EAST,
+          "Engine applies the A/B swap before dispatching to a runtime");
+  physicalSouth.type = SDL_EVENT_GAMEPAD_BUTTON_UP;
+  physicalSouth.gbutton.down = false;
+  engine.Event(&physicalSouth);
+  engine.applySettings(original, false);
 }
 
 void testModalInputRouting(Engine &engine) {
@@ -468,7 +485,7 @@ void testTouchSettings(Engine &engine, EventRuntime &runtime) {
   touch(SDL_EVENT_FINGER_MOTION, 945, 172);
   touch(SDL_EVENT_FINGER_UP, 945, 172);
   tap(755, 268); // BGM gain (first sorted channel).
-  tap(900, 105); // VN text tab.
+  tap(800, 105); // VN text tab (valid with and without the Input tab).
   tap(500, 218); // Override colors.
   tap(500, 266); // Dialogue color selector.
   tap(500, 216); // Black, second option.

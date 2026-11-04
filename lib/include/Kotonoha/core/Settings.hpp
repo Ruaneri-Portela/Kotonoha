@@ -15,6 +15,9 @@ struct EngineSettings {
   float refreshRate = 0;
   bool resizable = true;
   bool vsync = false;
+  // Swap the controller face buttons used for confirm/cancel. Shown in the
+  // settings UI only while at least one gamepad is connected.
+  bool swapControllerAB = false;
   float masterVolume = 1;
   bool masterMuted = false;
   std::map<std::string, float> channelVolumes;

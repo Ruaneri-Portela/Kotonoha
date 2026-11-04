@@ -1,7 +1,7 @@
 #pragma once
+#include <Kotonoha/componentes/TouchActivation.hpp>
 #include <Kotonoha/core/SDL.hpp>
 #include <Kotonoha/events/ControllerEvent.hpp>
-#include <Kotonoha/componentes/TouchActivation.hpp>
 #include <algorithm>
 #include <functional>
 #include <vector>
@@ -12,12 +12,18 @@ namespace Kotonoha {
 class ImageButtonBar {
   TouchActivation touchActivation;
   bool keyboardFocus = false;
+
 public:
+  // Sprite toolbars are usually a horizontal row, while native side panels
+  // stack their buttons vertically. Directional keys must follow the visual
+  // layout instead of treating every axis as a horizontal step.
+  enum class NavigationAxis { Horizontal, Vertical };
   struct Button {
     SDL_FRect area;
     std::function<void()> action;
   };
   std::vector<Button> buttons;
+  NavigationAxis axis = NavigationAxis::Horizontal;
   std::function<int(SDL_FPoint)> hitTest;
   int hovered = -1, pressed = -1;
   int hit(SDL_FPoint point) const {
@@ -64,18 +70,38 @@ public:
       pressed = -1;
       return true;
     }
-    if (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat && !buttons.empty()) {
+    if (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat &&
+        !buttons.empty()) {
       const auto key = event.key.key;
-      if (key == SDLK_LEFT || key == SDLK_UP ||
-          key == SDLK_RIGHT || key == SDLK_DOWN) {
+      const bool backward = axis == NavigationAxis::Horizontal
+                                ? key == SDLK_LEFT
+                                : key == SDLK_UP;
+      const bool forward = axis == NavigationAxis::Horizontal
+                               ? key == SDLK_RIGHT
+                               : key == SDLK_DOWN;
+      if (backward || forward) {
         const int count = int(buttons.size());
-        const int direction = (key == SDLK_LEFT || key == SDLK_UP) ? -1 : 1;
+        const int direction = backward ? -1 : 1;
         hovered = hovered < 0 ? (direction < 0 ? count - 1 : 0)
                               : (hovered + direction + count) % count;
         pressed = -1;
         keyboardFocus = true;
         return true;
       }
+      // Up leaves a horizontal toolbar and returns input to the novel; the
+      // perpendicular keys never move focus sideways.
+      if (axis == NavigationAxis::Horizontal && key == SDLK_UP) {
+        if (!keyboardFocus)
+          return false;
+        keyboardFocus = false;
+        hovered = pressed = -1;
+        return true;
+      }
+      if (axis == NavigationAxis::Horizontal && key == SDLK_DOWN)
+        return keyboardFocus;
+      if (axis == NavigationAxis::Vertical &&
+          (key == SDLK_LEFT || key == SDLK_RIGHT))
+        return keyboardFocus;
       if (keyboardFocus && hovered >= 0 && hovered < int(buttons.size()) &&
           (key == SDLK_RETURN || key == SDLK_SPACE)) {
         const auto action = buttons[hovered].action;

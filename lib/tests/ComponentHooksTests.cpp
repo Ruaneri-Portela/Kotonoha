@@ -420,6 +420,44 @@ void testNativeButtons() {
   confirm.type = SDL_EVENT_GAMEPAD_BUTTON_UP;
   require(!bar.handle(confirm) && activated == 2,
           "Controller release never activates sprite controls twice");
+
+  auto button = [](SDL_GamepadButton value) {
+    SDL_Event event{};
+    event.type = SDL_EVENT_GAMEPAD_BUTTON_DOWN;
+    event.gbutton.button = value;
+    return event;
+  };
+  Kotonoha::ImageButtonBar toolbar;
+  int hits = 0;
+  toolbar.buttons = {{{0, 0, 10, 10}, [&] { ++hits; }},
+                     {{20, 0, 10, 10}, [&] { ++hits; }}};
+  require(toolbar.handle(button(SDL_GAMEPAD_BUTTON_DPAD_RIGHT)) &&
+              toolbar.hovered == 0,
+          "Horizontal toolbars navigate with left/right");
+  require(toolbar.handle(button(SDL_GAMEPAD_BUTTON_DPAD_DOWN)) &&
+              toolbar.hovered == 0,
+          "Down never moves focus sideways on a horizontal toolbar");
+  require(toolbar.handle(button(SDL_GAMEPAD_BUTTON_DPAD_UP)) &&
+              toolbar.hovered == -1,
+          "Up leaves a horizontal toolbar and returns input to the novel");
+  require(!toolbar.handle(button(SDL_GAMEPAD_BUTTON_DPAD_DOWN)) &&
+              toolbar.hovered == -1,
+          "An unfocused horizontal toolbar leaves directions to the story");
+  toolbar.handle(button(SDL_GAMEPAD_BUTTON_DPAD_RIGHT));
+  toolbar.handle(button(SDL_GAMEPAD_BUTTON_DPAD_RIGHT));
+  require(toolbar.hovered == 1, "Horizontal focus wraps across its buttons");
+  toolbar.axis = Kotonoha::ImageButtonBar::NavigationAxis::Vertical;
+  toolbar.handle(button(SDL_GAMEPAD_BUTTON_DPAD_DOWN));
+  require(toolbar.hovered == 0,
+          "Vertical panels navigate with up/down and wrap");
+  require(toolbar.handle(button(SDL_GAMEPAD_BUTTON_DPAD_LEFT)) &&
+              toolbar.hovered == 0,
+          "Left/right never move focus sideways on a vertical panel");
+  require(toolbar.handle(button(SDL_GAMEPAD_BUTTON_DPAD_UP)) &&
+              toolbar.hovered == 1,
+          "Vertical panels move upward without horizontal duplication");
+  require(toolbar.handle(button(SDL_GAMEPAD_BUTTON_EAST)) && hits == 1,
+          "Vertical panels confirm the focused button");
 }
 
 void testStableReveal() {
