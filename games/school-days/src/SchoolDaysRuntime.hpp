@@ -8,6 +8,7 @@
 #include <Kotonoha/routing/SchoolDaysBackLog.hpp>
 #include <Kotonoha/routing/SchoolDaysBackLogPresenter.hpp>
 #include <Kotonoha/routing/SchoolDaysEndBackgroundResolver.hpp>
+#include <Kotonoha/routing/SchoolDaysExitTransition.hpp>
 #include <Kotonoha/routing/SchoolDaysKtrfGameplayBridge.hpp>
 #include <Kotonoha/routing/SchoolDaysRetailConfigPolicy.hpp>
 #include <Kotonoha/routing/SchoolDaysSaveProfile.hpp>
@@ -49,6 +50,8 @@ class Runtime final : public Kotonoha::Runtime {
   std::unique_ptr<Kotonoha::VNBacklog> backlogFallback;
   // Native School Days panels (SaveLoad, Config, Exit, RouteMap, BackLog).
   Kotonoha::SchoolDaysSystemUi systemUi;
+  Kotonoha::SchoolDaysExitTransition exitTransition;
+  Uint64 titleRevealUntil = 0;
   Kotonoha::SchoolDaysBackLogStore backlogStore;
   Kotonoha::SchoolDaysBackLogModel backlogModel;
   Kotonoha::SchoolDaysBackLogPresenter backlogPresenter;
@@ -106,6 +109,11 @@ class Runtime final : public Kotonoha::Runtime {
   void openConfig(Kotonoha::SchoolDaysConfigMenuModel::Page page);
   void openRouteMap();
   void openExit();
+  void openMainMenuConfirm();
+  void openExitDialog(bool returnToTitle);
+  void updateExitTransition(uint64_t nowMs);
+  void renderExitTransition(Kotonoha::RendererRef renderer, uint64_t nowMs);
+  void finishMainMenuReturn();
   void openBacklog();
   void refreshSaveMetadata();
   void refreshRouteMap();

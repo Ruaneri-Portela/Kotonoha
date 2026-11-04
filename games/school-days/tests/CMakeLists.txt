@@ -25,6 +25,14 @@ add_executable(SchoolDaysSceneTimelineTest SchoolDaysSceneTimelineTest.cpp)
 target_link_libraries(SchoolDaysSceneTimelineTest PRIVATE school_days)
 add_test(NAME SchoolDaysSceneTimelineTest COMMAND SchoolDaysSceneTimelineTest)
 
+add_executable(SchoolDaysExitTransitionTest SchoolDaysExitTransitionTest.cpp)
+target_link_libraries(SchoolDaysExitTransitionTest PRIVATE school_days)
+add_test(NAME SchoolDaysExitTransitionTest COMMAND SchoolDaysExitTransitionTest)
+if(WIN32)
+    set_tests_properties(SchoolDaysExitTransitionTest PROPERTIES
+        ENVIRONMENT_MODIFICATION "PATH=path_list_prepend:$<TARGET_FILE_DIR:KotonohaEngine>")
+endif()
+
 add_test(NAME SchoolDaysRuntimeSmoke COMMAND SchoolDays
     --school-days "${CMAKE_CURRENT_BINARY_DIR}/fixtures"
     --documents "${CMAKE_CURRENT_BINARY_DIR}/documents"
@@ -66,6 +74,17 @@ kotonoha_copy_assets(SchoolDaysPanelCapture)
 
 set(SCHOOL_DAYS_DATA_DIR "" CACHE PATH "User-supplied School Days HQ installation")
 if(SCHOOL_DAYS_DATA_DIR)
+    add_executable(SchoolDaysExitRuntimeTest SchoolDaysExitRuntimeTest.cpp)
+    target_link_libraries(SchoolDaysExitRuntimeTest PRIVATE school_days)
+    kotonoha_copy_assets(SchoolDaysExitRuntimeTest)
+    add_test(NAME SchoolDays.ExitRuntime COMMAND SchoolDaysExitRuntimeTest
+        "${SCHOOL_DAYS_DATA_DIR}" "${SCHOOL_DAYS_ROUTE}")
+    set_tests_properties(SchoolDays.ExitRuntime PROPERTIES TIMEOUT 180
+        ENVIRONMENT "SDL_VIDEODRIVER=dummy;SDL_AUDIODRIVER=dummy")
+    if(WIN32)
+        set_property(TEST SchoolDays.ExitRuntime APPEND PROPERTY
+            ENVIRONMENT_MODIFICATION "PATH=path_list_prepend:$<TARGET_FILE_DIR:KotonohaEngine>")
+    endif()
     add_executable(SchoolDaysSaveTest SchoolDaysSaveTest.cpp)
     target_link_libraries(SchoolDaysSaveTest PRIVATE school_days)
     kotonoha_copy_assets(SchoolDaysSaveTest)
