@@ -336,6 +336,10 @@ void DebugOverlay::stopPreviewAudio() {
 }
 
 void DebugOverlay::drawForcedSubtitlesGenerator() {
+  const auto &source = engine.GetForcedSubtitles().sourceDirectory();
+  ImGui::TextWrapped("Forced ASS directory: %s",
+                    source.empty() ? "(not found at startup)"
+                                   : source.string().c_str());
   const auto &activeAss = engine.GetForcedSubtitles().activePath();
   ImGui::TextWrapped("Active forced ASS: %s",
                     activeAss.empty() ? "(none)" : activeAss.string().c_str());
