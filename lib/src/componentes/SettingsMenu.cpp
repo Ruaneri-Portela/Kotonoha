@@ -5,6 +5,7 @@
 #include <Kotonoha/core/Log.hpp>
 #include <Kotonoha/core/UI.hpp>
 #include <Kotonoha/events/BackAction.hpp>
+#include <Kotonoha/events/ControllerEvent.hpp>
 
 #include <algorithm>
 #include <array>
@@ -38,9 +39,11 @@ std::vector<int> SettingsMenu::rows() const {
 }
 
 void SettingsMenu::open() {
+  touchActivation.reset();
   draft = engine.GetSettings();
   selected = first = page = 0;
   slider = -1;
+  scrolling.reset();
   channels.clear();
   for (const char *name : {"audio", "video", "BGM", "Voice", "SE", "PCM"})
     engine.GetAudio().channel(name);
@@ -149,19 +152,36 @@ void SettingsMenu::activate(int index, int direction) {
     close();
 }
 
-void SettingsMenu::onEvent(EventRef event) {
+bool SettingsMenu::onEvent(EventRef rawEvent) {
   if (!visible)
-    return;
+    return false;
+  const auto event = MapControllerEvent(rawEvent);
+  if (!touchActivation.accept(event)) {
+    slider = -1;
+    return true;
+  }
   if (selectBox.isOpen()) {
-    if (BackAction(engine, event))
+    if (BackAction(engine, event)) {
       selectBox.close();
-    else
+      return true;
+    } else {
       selectBox.onEvent(event);
-    return;
+      return true;
+    }
   }
   if (BackAction(engine, event)) {
     close();
-    return;
+    return true;
+  }
+  if (rawEvent.type == SDL_EVENT_GAMEPAD_BUTTON_DOWN && !selectBox.isOpen() &&
+      (rawEvent.gbutton.button == SDL_GAMEPAD_BUTTON_LEFT_SHOULDER ||
+       rawEvent.gbutton.button == SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER)) {
+    page = (page + (rawEvent.gbutton.button == SDL_GAMEPAD_BUTTON_LEFT_SHOULDER
+                        ? 2
+                        : 1)) %
+           3;
+    selected = first = 0;
+    return true;
   }
   auto items = rows();
   auto setSlider = [&](int id, float x) {
@@ -174,60 +194,72 @@ void SettingsMenu::onEvent(EventRef event) {
   if (slider >= 0) {
     if (event.type == SDL_EVENT_MOUSE_MOTION) {
       setSlider(slider, event.motion.x);
-      return;
+      return true;
     }
     if (event.type == SDL_EVENT_MOUSE_BUTTON_UP ||
         event.type == SDL_EVENT_WINDOW_FOCUS_LOST) {
       slider = -1;
-      return;
+      return false;
     }
   }
   for (int p = 0; p < 3; ++p)
     if (UI::clicked(event, {200.f + p * 290, 85, 280, 48})) {
       page = p;
       selected = first = 0;
-      return;
+      return true;
     }
   if (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat) {
     if (event.key.key == SDLK_TAB) {
       page = (page + 1) % 3;
       selected = first = 0;
-      return;
+      return true;
     }
+    const bool navigation =
+        event.key.key == SDLK_END || event.key.key == SDLK_HOME ||
+        event.key.key == SDLK_DOWN || event.key.key == SDLK_UP;
     if (event.key.key == SDLK_END)
       selected = int(items.size()) - 2;
-    if (event.key.key == SDLK_DOWN)
+    else if (event.key.key == SDLK_HOME)
+      selected = 0;
+    else if (event.key.key == SDLK_DOWN)
       selected = (selected + 1) % int(items.size());
-    if (event.key.key == SDLK_UP)
+    else if (event.key.key == SDLK_UP)
       selected = (selected + int(items.size()) - 1) % int(items.size());
-    if (selected < int(items.size()) - 2)
-      first = std::clamp(first, std::max(0, selected - 8), selected);
+    if (navigation) {
+      if (selected < int(items.size()) - 2)
+        first = std::clamp(first, std::max(0, selected - 8), selected);
+      return true;
+    }
   }
   if (slider < 0 && event.type >= SDL_EVENT_FINGER_DOWN &&
       event.type <= SDL_EVENT_FINGER_CANCELED) {
     scrollOffset = first * 48.f;
     if (scrolling.handle(event, 720, scrollOffset, scrollVelocity, scrollFollow,
-                         std::max(0, int(items.size()) - 11) * 48.f))
+                         std::max(0, int(items.size()) - 11) * 48.f)) {
       first = int(scrollOffset / 48);
+      return true;
+    }
   }
-  if (event.type == SDL_EVENT_MOUSE_WHEEL)
+  if (event.type == SDL_EVENT_MOUSE_WHEEL) {
     first = std::clamp(first - int(event.wheel.y), 0,
                        std::max(0, int(items.size()) - 11));
+    return true;
+  }
   try {
     if (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat &&
         (event.key.key == SDLK_RETURN || event.key.key == SDLK_SPACE ||
          event.key.key == SDLK_LEFT || event.key.key == SDLK_RIGHT)) {
       selected = std::clamp(selected, 0, int(items.size()) - 1);
       activate(items[selected], event.key.key == SDLK_LEFT ? -1 : 1);
-      return;
+      return true;
     }
     if (UI::clicked(event, {200, 624, 420, 44})) {
       activate(8);
-      return;
+      return true;
     }
     if (UI::clicked(event, {640, 624, 420, 44})) {
       close();
-      return;
+      return true;
     }
     for (int i = first; i < std::min(first + 9, int(items.size()) - 2); ++i) {
       const float y = 150 + (i - first) * 48;
@@ -241,19 +273,20 @@ void SettingsMenu::onEvent(EventRef event) {
           selected = i;
           slider = id;
           setSlider(id, point.x);
-          return;
+          return true;
         }
       }
       if (UI::clicked(event, {200, y, 860, 44})) {
         selected = i;
         activate(id);
-        return;
+        return true;
       }
     }
   } catch (const std::exception &failure) {
     error = failure.what();
     SDL_LogError(LogConfig, "Settings: %s", error.c_str());
   }
+  return false;
 }
 
 void SettingsMenu::render(RendererRef renderer) {

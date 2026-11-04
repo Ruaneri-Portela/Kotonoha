@@ -92,7 +92,7 @@ target using native Resources phases; frameworks use Embed Frameworks with
 Code Sign on Copy. Each game's `game-assets` directory is copied directly as
 a folder reference, preserving its name without build scripts.
 
-Schemes: `Kotonoha`, `ZeroNoTsukaima`, `SnowRadish`, `DokiDoki`, `SchoolDays`, `Air`, `SummerRadish`,
+Schemes: `Kotonoha`, `ZeroNoTsukaima`, `SnowRadish`, `DokiDoki`, `SchoolDays`, `Air`, `SummerRadish`, `Amagami`,
 `KotonohaIOSSmoke` and `DdlcIOSScriptSmoke`. KotonohaEngine is a static framework;
 apps embed the dynamic KotonohaImGui, SDL3 and SDL3_ttf frameworks.
 
@@ -134,13 +134,14 @@ resources, extension frameworks and `.fwork` markers for both SDKs. It runs
 Downloaded/prepared dependencies remain under ignored build directories.
 Choose your signing team for device installation.
 
-The native game bundle IDs match their Android application IDs:
-`me.hirameki.kotonoha.zeronotsukaima`, `.snowradish`, `.ddlc` and `.schooldays`.
-The example uses `org.kotonoha.example`. The platform's selected bundle ID or
+The native game bundle IDs match their Android application IDs under
+`me.hirameki.kotonoha`: `.zeronotsukaima`, `.snowradishvacation`,
+`.dokidokiliteratureclub`, `.schooldays`, `.air`, `.summerradishvacation` and
+`.amagami`. The example uses `me.hirameki.kotonoha` on iOS and
+`me.kotonoha.example` on Android. The platform's selected bundle ID or
 application ID determines the installed app's sandbox, preferences and external
 storage identity; C++ SDL metadata does not override Xcode/Gradle settings.
-Earlier IDs (including `me.hirameki.kotonoha`, `me.hirameki.kotonoha.*` and
-the previous `me.kotonoha.*` iOS IDs) identify separate installations.
+Earlier IDs identify separate installations.
 Existing preferences/saves are not migrated automatically. Export needed saves
 before uninstalling an older app, and update provisioning profiles for new IDs.
 
@@ -286,6 +287,15 @@ still work. Scale `1.0` turns processing off without losing the selected profile
 
 - Click / Enter / Space: reveal or advance dialogue.
 - Arrows / mouse: menus and choices; mouse wheel scrolls longer lists.
+- Gamepad: D-pad or left stick navigates; East (Circle/B) confirms;
+  South (Cross/A) cancels in menus; Start opens pause. Back/left shoulder
+  toggles history. Native settings also support shoulders to change tabs.
+- Touch: tap activates; drag scrolls lists and histories. A canceled touch,
+  drag or second finger cannot confirm a list item. Edge swipe or a two-finger
+  tap goes back; swipe up during dialogue opens history.
+- ZNT and Amagami: hold South to skip during dialogue, release to stop;
+  right shoulder toggles Auto and West toggles skip under the game’s skip rules. Menus keep their
+  navigation bindings while dialogue is paused.
 - Escape: pause/back; B: backlog; F5/F6: quicksave/load.
 - F10: engine inspector; F11 / Alt+Enter: borderless fullscreen.
 - F8/F9: node clock/FPS HUD.

@@ -3,7 +3,7 @@
 English | [Portugues (Brasil)](README.pt-BR.md)
 
 Open this directory in Android Studio. Requirements: JDK 17 or newer
-compatible with Gradle 8.14.5 (Android Studio's bundled JDK works), SDK 36,
+compatible with Gradle 8.14.6 (Android Studio's bundled JDK works), SDK 36,
 CMake 3.22.1, NDK 28.2.13676358, Git and a vcpkg checkout.
 
 ```sh
@@ -12,9 +12,10 @@ export ANDROID_HOME=/path/to/Android/sdk
 export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/28.2.13676358"
 export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"
 ./gradlew :app:assembleExampleDebug
+./gradlew :app:assembleAmagamiDebug
 ./gradlew :app:assembleZeroNoTsukaimaDebug
 ./gradlew :app:assembleSnowRadishDebug
-./gradlew :app:assembleDokiDokiDebug
+./gradlew :app:assembleDokiDokiDebug -Pabis=arm64-v8a
 ./gradlew :app:assembleSchoolDaysDebug
 ./gradlew :app:assembleAirDebug
 ./gradlew :app:assembleSummerRadishDebug

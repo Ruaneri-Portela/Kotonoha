@@ -3,7 +3,7 @@
 [English](README.md) | Portugues (Brasil)
 
 Abra esta pasta no Android Studio. Requisitos: JDK 17 ou mais recente
-compativel com Gradle 8.14.5 (o JDK do Android Studio funciona), SDK 36,
+compativel com Gradle 8.14.6 (o JDK do Android Studio funciona), SDK 36,
 CMake 3.22.1, NDK 28.2.13676358, Git e um checkout vcpkg.
 
 ```sh
@@ -12,9 +12,10 @@ export ANDROID_HOME=/caminho/para/Android/sdk
 export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/28.2.13676358"
 export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"
 ./gradlew :app:assembleExampleDebug
+./gradlew :app:assembleAmagamiDebug
 ./gradlew :app:assembleZeroNoTsukaimaDebug
 ./gradlew :app:assembleSnowRadishDebug
-./gradlew :app:assembleDokiDokiDebug
+./gradlew :app:assembleDokiDokiDebug -Pabis=arm64-v8a
 ./gradlew :app:assembleSchoolDaysDebug
 ./gradlew :app:assembleAirDebug
 ./gradlew :app:assembleSummerRadishDebug
@@ -26,10 +27,8 @@ Execute as invocacoes Gradle sequencialmente: builds simultaneos compartilham
 os diretorios nativos `.cxx`. Uma invocacao pode receber varios targets assemble.
 Compile DDLC com uma ABI por APK. As dependencias ficam em `build/vcpkg`; DDLC usa CPython fornecido pelo vcpkg. Nenhuma biblioteca Python macOS/iOS e usada no Android.
 
-SDL e dependencia remota do Git, fixada na revisao
-`4bb5020be2a3e3f7a963b84c95f49fe7ef5d35a4` em [app/build.gradle](app/build.gradle).
-`prepareSDL` obtem o repositorio oficial em `.deps/SDL`, ignorado pelo Git.
-Os fontes Java SDLActivity e a biblioteca nativa usam o mesmo checkout.
+Os fontes Java SDLActivity e a biblioteca nativa SDL usam o mesmo checkout
+em `lib/submodules/SDL`.
 SDL_ttf e ImGui continuam nos submodulos; FFmpeg, json-c, libass, iconv, PlutoSVG e
 CPython opcional sao fornecidos pelo vcpkg.
 DDLC usa uma instalacao separada em `build/vcpkg-python` para que configurar

@@ -32,3 +32,16 @@ if(TARGET AmagamiEngineTest)
     set_tests_properties(Amagami.Translation PROPERTIES
         ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_AUDIO_DRIVER=dummy")
 endif()
+
+add_executable(AmagamiBacklogTest BacklogTest.cpp)
+target_link_libraries(AmagamiBacklogTest PRIVATE amagami)
+kotonoha_copy_assets(AmagamiBacklogTest)
+add_test(NAME Amagami.Backlog COMMAND AmagamiBacklogTest)
+set_tests_properties(Amagami.Backlog PROPERTIES
+    ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_AUDIO_DRIVER=dummy")
+
+if(AMAGAMI_DISC_IMAGE AND EXISTS "${AMAGAMI_DISC_IMAGE}")
+    add_executable(AmagamiCampaignTest CampaignTest.cpp)
+    target_link_libraries(AmagamiCampaignTest PRIVATE AmagamiFormats)
+    add_test(NAME Amagami.Campaign COMMAND AmagamiCampaignTest "${AMAGAMI_DISC_IMAGE}")
+endif()

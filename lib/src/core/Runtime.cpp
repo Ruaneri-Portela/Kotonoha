@@ -171,27 +171,29 @@ void Runtime::update() {
   }
 }
 
-void Runtime::onEvent(EventRef event) {
+bool Runtime::onEvent(EventRef event) {
   if (splashEngine && HandleNavigation(*splashEngine, event))
-    return;
+    return true;
   const auto activeScenes = GetActiveScenes();
   for (auto it = activeScenes.rbegin(); it != activeScenes.rend(); ++it) {
     if (*it && (*it)->renderSpace() == RenderSpace::Novel &&
         (*it)->capturesInput()) {
       dispatchEvent(**it, event);
-      return;
+      // A modal owns the input even when it has no binding for this event.
+      return true;
     }
   }
   const auto state = currentState;
   for (auto it = activeScenes.rbegin(); it != activeScenes.rend(); ++it) {
     if (*it && (*it)->renderSpace() == RenderSpace::Novel &&
         dispatchEvent(**it, event))
-      return;
+      return true;
     if (state != currentState)
-      return;
+      return true;
     if (isStoryPaused())
-      return;
+      return true;
   }
+  return false;
 }
 
 bool Runtime::onScreenEvent(EventRef event) {

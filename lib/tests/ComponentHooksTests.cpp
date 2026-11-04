@@ -406,6 +406,20 @@ void testNativeButtons() {
   bar.handle(lost);
   bar.handle(up);
   require(activated == 1, "Focus loss cancels a pending sprite activation");
+  SDL_Event confirm{};
+  confirm.type = SDL_EVENT_GAMEPAD_BUTTON_DOWN;
+  confirm.gbutton.button = SDL_GAMEPAD_BUTTON_EAST;
+  require(!bar.handle(confirm),
+          "An unfocused sprite bar leaves dialogue confirmation to the story");
+  SDL_Event navigate = confirm;
+  navigate.gbutton.button = SDL_GAMEPAD_BUTTON_DPAD_RIGHT;
+  require(bar.handle(navigate) && bar.hovered == 0,
+          "Controller navigation focuses native sprite controls");
+  require(bar.handle(confirm) && activated == 2,
+          "Controller confirmation activates the focused sprite control once");
+  confirm.type = SDL_EVENT_GAMEPAD_BUTTON_UP;
+  require(!bar.handle(confirm) && activated == 2,
+          "Controller release never activates sprite controls twice");
 }
 
 void testStableReveal() {

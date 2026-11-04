@@ -935,41 +935,11 @@
 		FDAFA92165858CF5A6DC4CAB /* _testinternalcapi.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = _testinternalcapi.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/_testinternalcapi.framework"; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
-/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		CE8CD2BA309A168E0003D364 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				AirAssets.cpp,
-				AirRuntime.cpp,
-				Config.cpp,
-				Images.cpp,
-				main.cpp,
-				Script.cpp,
-				Session.cpp,
-				System.cpp,
-				Voice.cpp,
-			);
-			target = CE8CD282309A153D0003D364 /* Amagami */;
-		};
-		CE8CD2BB309A168E0003D364 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				libreallive/.gitignore,
-				libreallive/archive.cc,
-				libreallive/bytecode.cc,
-				libreallive/compression.cc,
-				libreallive/expression.cc,
-				libreallive/filemap.cc,
-				libreallive/ORIGIN.md,
-				libreallive/scenario.cc,
-			);
-			target = CE8CD282309A153D0003D364 /* Amagami */;
-		};
-/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		33CF72D87ACA703CCC5F6560 /* ../games/air/src */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (CE8CD2BA309A168E0003D364 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = ../games/air/src; sourceTree = SOURCE_ROOT; };
-		B958092F9AFFDA5E904BF5DE /* ../games/air/vendor */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (CE8CD2BB309A168E0003D364 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = ../games/air/vendor; sourceTree = SOURCE_ROOT; };
+		33CF72D87ACA703CCC5F6560 /* ../games/air/src */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = ../games/air/src; sourceTree = SOURCE_ROOT; };
+		B958092F9AFFDA5E904BF5DE /* ../games/air/vendor */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = ../games/air/vendor; sourceTree = SOURCE_ROOT; };
 		C120216BEFDCA69752FC625E /* ../games/summer-radish-vacation/src */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = "../games/summer-radish-vacation/src"; sourceTree = SOURCE_ROOT; };
 		CE8CD2C7309A16A70003D364 /* src */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); name = src; path = ../games/amagami/src; sourceTree = SOURCE_ROOT; };
 		CE8CD2D5309A16B70003D364 /* include */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); name = include; path = ../games/amagami/include; sourceTree = SOURCE_ROOT; };
@@ -1755,12 +1725,10 @@
 				CE8CD285309A153D0003D364 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				33CF72D87ACA703CCC5F6560 /* ../games/air/src */,
-				B958092F9AFFDA5E904BF5DE /* ../games/air/vendor */,
 				CE8CD2C7309A16A70003D364 /* src */,
 			);
 			name = Amagami;
-			productName = Air;
+			productName = Amagami;
 			productReference = CE8CD2A0309A153D0003D364 /* Amagami.app */;
 			productType = "com.apple.product-type.application";
 		};
@@ -3707,7 +3675,7 @@
 					"-framework",
 					CoreText,
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha;
+				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha.amagami;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = iphoneos;
@@ -3790,7 +3758,7 @@
 					"-framework",
 					CoreText,
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha;
+				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha.amagami;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = iphoneos;

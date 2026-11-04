@@ -1,4 +1,5 @@
 #pragma once
+#include <Kotonoha/componentes/TouchActivation.hpp>
 
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/Scene.hpp>
@@ -9,6 +10,7 @@
 namespace Kotonoha {
 
 class TextInputDialog final : public Scene {
+  TouchActivation touchActivation;
 private:
   std::string promptText;
   std::string input;
@@ -33,7 +35,7 @@ public:
   bool pausesStory() const override { return true; }
   void submitText(const std::string &text);
 
-  void onEvent(EventRef event) override;
+  bool onEvent(EventRef event) override;
   void update() override;
   void render(RendererRef renderer, float scale) override;
 };

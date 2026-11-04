@@ -1,6 +1,7 @@
 #include "SchoolDaysRuntime.hpp"
 #include <Kotonoha/componentes/TextInputDialog.hpp>
 #include <Kotonoha/events/BackAction.hpp>
+#include <Kotonoha/events/ControllerEvent.hpp>
 #include <Kotonoha/localization/Encoding.hpp>
 #include <Kotonoha/media/upscaling/Upscaler.hpp>
 
@@ -818,22 +819,24 @@ bool Runtime::handleBacklogAction() {
   openBacklog();
   return true;
 }
-void Runtime::onEvent(Kotonoha::EventRef event) {
+bool Runtime::onEvent(Kotonoha::EventRef eventInput) {
+  auto event = Kotonoha::MapControllerEvent(
+      eventInput, currentState == Kotonoha::GameState::Gameplay,
+      backlogFallback && backlogFallback->isVisible());
   if (currentState == Kotonoha::GameState::Splash) {
-    Kotonoha::Runtime::onEvent(event);
-    return;
+    return Kotonoha::Runtime::onEvent(event);
   }
   const auto active = GetActiveScenes();
   for (auto it = active.rbegin(); it != active.rend(); ++it)
     if (*it && *it != saveMenu.get() && *it != backlogFallback.get() &&
         (*it)->capturesInput()) {
       dispatchEvent(**it, event);
-      return;
+      return true;
     }
   if (event.type == SDL_EVENT_MOUSE_BUTTON_UP &&
       event.button.button == SDL_BUTTON_LEFT && consumePanelRelease) {
     consumePanelRelease = false;
-    return;
+    return true;
   }
   const bool escape = Kotonoha::BackAction(*engine, event);
   if (saveMenu->isOpen()) {
@@ -841,14 +844,14 @@ void Runtime::onEvent(Kotonoha::EventRef event) {
         event.button.button == SDL_BUTTON_LEFT)
       consumePanelRelease = true;
     dispatchEvent(*saveMenu, event);
-    return;
+    return true;
   }
   if (backlogFallback->isVisible()) {
     if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
         event.button.button == SDL_BUTTON_LEFT)
       consumePanelRelease = true;
     dispatchEvent(*backlogFallback, event);
-    return;
+    return true;
   }
   if (backlogModel.IsOpen()) {
     if (escape) {
@@ -867,7 +870,7 @@ void Runtime::onEvent(Kotonoha::EventRef event) {
         closePanels();
       }
     }
-    return;
+    return true;
   }
   if (systemUi.IsOpen()) {
     if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
@@ -885,7 +888,7 @@ void Runtime::onEvent(Kotonoha::EventRef event) {
         openSaveLoad(false);
       else
         closePanels();
-      return;
+      return true;
     }
     Ui::Output output;
     try {
@@ -894,20 +897,24 @@ void Runtime::onEvent(Kotonoha::EventRef event) {
     } catch (const std::exception &error) {
       setStatus(error.what());
     }
-    return;
+    return true;
   }
   if (modal())
-    return;
+    return true;
   try {
     if (currentState == Kotonoha::GameState::Gameplay &&
         gameScene->handleEvent(event))
-      return;
+      return true;
     if (currentState == Kotonoha::GameState::Menu && !titleArtwork) {
       if (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat) {
-        if (event.key.key == SDLK_UP)
+        if (event.key.key == SDLK_UP) {
           titleSelection = (titleSelection + 3) % 4;
-        if (event.key.key == SDLK_DOWN)
+          return true;
+        }
+        if (event.key.key == SDLK_DOWN) {
           titleSelection = (titleSelection + 1) % 4;
+          return true;
+        }
       }
       for (int i = 0; i < 4; ++i)
         if (Kotonoha::UI::clicked(event, {400, 250.0f + i * 70, 480, 55}) ||
@@ -921,11 +928,13 @@ void Runtime::onEvent(Kotonoha::EventRef event) {
             openConfig(Kotonoha::SchoolDaysConfigMenuModel::Page::Def);
           if (i == 3)
             openExit();
-          return;
+          return true;
         }
     } else if (currentState == Kotonoha::GameState::Menu && title.IsOpen()) {
-      if (event.type == SDL_EVENT_MOUSE_MOTION)
+      if (event.type == SDL_EVENT_MOUSE_MOTION) {
         title.SetSelectionFromPointer(int(event.motion.x), int(event.motion.y));
+        return true;
+      }
       if (event.type == SDL_EVENT_MOUSE_BUTTON_UP &&
           event.button.button == SDL_BUTTON_LEFT) {
         title.SetSelectionFromPointer(int(event.button.x), int(event.button.y));
@@ -944,39 +953,57 @@ void Runtime::onEvent(Kotonoha::EventRef event) {
                       "route map from Load.");
           else if (action.result == Result::Exit)
             openExit();
+          return true;
         }
       }
     }
     if (event.type != SDL_EVENT_KEY_DOWN || event.key.repeat)
-      return;
+      return false;
     if (event.key.key == SDLK_ESCAPE) {
       openConfig(Kotonoha::SchoolDaysConfigMenuModel::Page::Def);
-      return;
+      return true;
     }
     if (currentState != Kotonoha::GameState::Gameplay)
-      return;
-    if (event.key.key == SDLK_SPACE)
+      return false;
+    switch (event.key.key) {
+    case SDLK_SPACE:
       paused = !paused;
-    if (event.key.key == SDLK_A)
+      return true;
+    case SDLK_A:
       autoPlay = !autoPlay;
-    if (event.key.key == SDLK_RETURN && timeline.ReadyToEnd(tick))
+      return true;
+    case SDLK_RETURN:
+      if (!timeline.ReadyToEnd(tick))
+        return false;
       advance();
-    if (event.key.key == SDLK_F5)
+      return true;
+    case SDLK_F5:
       saveGame((documents / "QuickSave").string());
-    if (event.key.key == SDLK_F6)
+      return true;
+    case SDLK_F6:
       loadGame((documents / "QuickSave").string());
-    if (event.key.key == SDLK_LEFT)
+      return true;
+    case SDLK_LEFT:
       back();
-    if (event.key.key == SDLK_RIGHT)
+      return true;
+    case SDLK_RIGHT:
       skipScene();
+      return true;
+    default:
+      break;
+    }
     if (choice && event.key.key >= SDLK_1 && event.key.key <= SDLK_9) {
       const int value = int(event.key.key - SDLK_1);
-      if (value < int(choice->data.set_select->size))
+      if (value < int(choice->data.set_select->size)) {
         choose(value);
+        return true;
+      }
     }
   } catch (const std::exception &error) {
     setStatus(error.what());
+    return true;
   }
+  return false;
 }
 
 void Runtime::activateControl(int control) {

@@ -1,10 +1,12 @@
 #include <Amagami/Session.hpp>
+#include <Kotonoha/core/FileSystem.hpp>
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <fstream>
 #include <iomanip>
 #include <set>
+#include <sstream>
 #include <stdexcept>
 
 namespace Amagami {
@@ -88,6 +90,17 @@ Session::Session(std::shared_ptr<Source> source) : source_(std::move(source)) {
   vm_.native = [this](const auto &r, const auto &s, const auto &a) {
     return native(r, s, a);
   };
+  vm_.scopedPrimitive = [this](const std::string &owner,
+                               const std::string &method, bool classMethod,
+                               const auto &r, unsigned n, const auto &a) {
+    return primitive(owner, method, classMethod, r, n, a);
+  };
+}
+std::string Session::actorTag(const VmValue &r) const {
+  if (r.object)
+    if (auto it = placeholderTags_.find(r.object); it != placeholderTags_.end())
+      return it->second;
+  return type(r);
 }
 void Session::revealDialogue(size_t characters) {
   while (revealedCues_ < dialogue_.cues.size() &&
@@ -101,7 +114,8 @@ void Session::revealDialogue(size_t characters) {
       if (cue.pose >= 0)
         v.pose = cue.pose;
       static const std::vector<std::string> codes{
-          "", "TUK", "RIH", "CAO", "SAE", "HAR", "AII", "MIY", "RIS", "MAY"};
+          "PLY", "TUK", "RIH", "CAO", "SAE", "AII", "HAR", "MIY",
+          "RIS", "UME", "MAY", "KAN", "MAN", "KAO", "AYU", "YUK"};
       auto id = std::find(codes.begin(), codes.end(), cue.actor);
       if (id != codes.end()) {
         auto files =
@@ -299,10 +313,120 @@ void Session::tick(double seconds) {
     pump();
   }
 }
+
+int Session::messageSpeed() const {
+  return std::clamp(int(vm_.classFieldValue("GameParam", 4).number), 0, 3);
+}
+bool Session::autoMode() const {
+  return vm_.classFieldValue("GameParam", 7).truth();
+}
+bool Session::skipMode() const {
+  return vm_.classFieldValue("GameParam", 5).truth();
+}
+bool Session::skipping() const {
+  const auto flag = [this](size_t slot) {
+    return vm_.classFieldValue("GameParam", slot).truth();
+  };
+  return (((flag(5) && flag(19)) || ((flag(6) || flag(19)) && flag(20))) &&
+          flag(18)) ||
+         flag(21);
+}
+void Session::setSkipHeld(bool held) {
+  auto flag = VmValue::num(held);
+  flag.kind = VmValue::Boolean;
+  vm_.classField("GameParam", 20) = flag;
+  auto allowed = VmValue::num(true);
+  allowed.kind = VmValue::Boolean;
+  vm_.classField("GameParam", 18) = allowed;
+}
+int Session::autoWait() const {
+  return std::clamp(int(vm_.classFieldValue("GameParam", 9).number), 0, 3);
+}
+bool Session::autoSync() const {
+  return vm_.classFieldValue("GameParam", 8).truth();
+}
+void Session::setAutoMode(bool enabled) {
+  auto value = VmValue::num(enabled);
+  value.kind = VmValue::Boolean;
+  vm_.classField("GameParam", 7) = value;
+  if (enabled)
+    setSkipMode(false);
+}
+void Session::setSkipMode(bool enabled) {
+  auto value = VmValue::num(enabled);
+  value.kind = VmValue::Boolean;
+  vm_.classField("GameParam", 5) = value;
+  // Native TextWindow normally toggles skipEnable. The port owns this UI.
+  auto allowed = VmValue::num(true);
+  allowed.kind = VmValue::Boolean;
+  vm_.classField("GameParam", 18) = allowed;
+  if (enabled)
+    setAutoMode(false);
+}
+void Session::setMessageSpeed(int speed) {
+  vm_.classField("GameParam", 4) = VmValue::num(std::clamp(speed, 0, 3));
+}
+void Session::startCampaign() {
+  campaignActive_ = true;
+  campaign_ = std::make_unique<Campaign>(source_);
+  campaignActions_.clear();
+  if (!replaying_)
+    seenLines_.clear();
+  start("n0dea_ev01A");
+}
+int Session::campaignDate() const {
+  return campaign_ && campaign_->initialized() ? campaign_->date(vm_) : 0;
+}
+int Session::campaignPeriod() const {
+  return campaign_ && campaign_->initialized() ? campaign_->period(vm_) : 0;
+}
+std::vector<Campaign::Event> Session::availableEvents() const {
+  return campaign_ && campaign_->initialized() ? campaign_->available(vm_)
+                                               : std::vector<Campaign::Event>{};
+}
+std::vector<Campaign::Event> Session::campaignMapEvents() const {
+  return campaign_ && campaign_->initialized() ? campaign_->mapEvents(vm_)
+                                               : std::vector<Campaign::Event>{};
+}
+void Session::selectCampaignEvent(const std::string &name) {
+  if (!campaignActive_ || !ended_)
+    throw std::logic_error("Campaign is not at its map");
+  const auto events = availableEvents();
+  if (std::none_of(events.begin(), events.end(),
+                   [&](const auto &event) { return event.name == name; }))
+    throw std::logic_error("Campaign event is not executable: " + name);
+  campaign_->recordSelection(vm_, name);
+  if (!replaying_)
+    campaignActions_.push_back({"event", name});
+  start(name);
+}
+void Session::nextCampaignPeriod() {
+  if (!campaignActive_ || !ended_)
+    throw std::logic_error("Campaign is not at its map");
+  if (campaignDate() >= 42 && campaignPeriod() >= 13)
+    throw std::logic_error("End of the original campaign calendar");
+  campaign_->advancePeriod(vm_);
+  campaign_->applyRequests(vm_);
+  if (!replaying_)
+    campaignActions_.push_back({"period", ""});
+}
+void Session::completeCampaignEvent() {
+  campaign_->queueCompletion(vm_, scenario_);
+  campaign_->finishPeriod(vm_);
+  campaign_->applyRequests(vm_);
+  if (scenario_ == "n0dea_ev01A")
+    campaign_->completePrologue(vm_);
+  campaign_->capture(vm_);
+}
 void Session::start(const std::string &name) {
   auto s = source_->script(source_->scenarioIndex(name));
   vm_.add(std::move(s));
-  vm_.reset();
+  const bool continuing =
+      campaignActive_ && campaign_ && campaign_->initialized();
+  if (continuing)
+    vm_.resetExecution();
+  else
+    vm_.reset();
   fibers_.clear();
   tweens_.clear();
   nods_.clear();
@@ -310,8 +434,9 @@ void Session::start(const std::string &name) {
   presentationFrames_ = 0;
   scenario_ = name;
   block_ = 0;
-  musicTrack_ = -1;
+  musicTrack_ = ambienceTrack_ = -1;
   musicGain_ = 100;
+  ambienceGain_ = 80;
   ended_ = false;
   waitFrames_ = fadeFrames_ = fadeElapsed_ = 0;
   fadeAlpha_ = fadeFrom_ = fadeTarget_ = 0;
@@ -319,31 +444,54 @@ void Session::start(const std::string &name) {
   messageCleared_ = true;
   dialogue_ = {};
   choices_.clear();
-  history_.clear();
+  if (!continuing)
+    history_.clear();
   visuals_.clear();
   actorTransitions_.clear();
   breathAmount_ = 0;
   displayNames_.clear();
   inputs_.clear();
   self_ = vm_.instance(name);
-  for (const auto &entry : source_->classes())
-    if (entry.name == "K2X_Script") {
-      const auto script = ParseScf(entry.bytes);
-      for (const auto &v : script.classVariables)
-        vm_.classField(script.name, v.slot) = vm_.instance(v.name);
+  if (!continuing) {
+    initializeGameState();
+    // GameParam.init's original skip defaults. The full init also opens native
+    // audio/config objects; preserve the Boolean types needed by isSkip/laugh.
+    for (const auto &[slot, enabled] :
+         std::vector<std::pair<size_t, bool>>{{5, false},
+                                              {6, true},
+                                              {18, false},
+                                              {19, false},
+                                              {20, false},
+                                              {21, false}}) {
+      auto flag = VmValue::num(enabled);
+      flag.kind = VmValue::Boolean;
+      vm_.classField("GameParam", slot) = flag;
     }
-  // GameParam.init's original skip defaults. The full init also opens native
-  // audio/config objects; preserve the Boolean types needed by isSkip/laugh.
-  for (const auto &[slot, enabled] :
-       std::vector<std::pair<size_t, bool>>{{5, false},
-                                            {6, true},
-                                            {18, false},
-                                            {19, false},
-                                            {20, false},
-                                            {21, false}}) {
-    auto flag = VmValue::num(enabled);
-    flag.kind = VmValue::Boolean;
-    vm_.classField("GameParam", slot) = flag;
+    vm_.classField("GameParam", 4) = VmValue::num(0);
+    auto autoMode = VmValue::num(false);
+    autoMode.kind = VmValue::Boolean;
+    vm_.classField("GameParam", 7) = autoMode;
+    auto autoSync = VmValue::num(true);
+    autoSync.kind = VmValue::Boolean;
+    vm_.classField("GameParam", 8) = autoSync;
+    vm_.classField("GameParam", 9) = VmValue::num(1);
+    // Native bootstrap replaces K2X_Script.initialize's PS2 device setup.
+    // Preserve its actual completion flag, otherwise helper constructors rerun
+    // the whole hardware initialization during ordinary scenario calls.
+    auto booted = VmValue::num(true);
+    booted.kind = VmValue::Boolean;
+    vm_.classField("K2X_Script", 57) = booted;
+    vm_.call(VmValue::str("GameParam", VmValue::Class), "initMiyaFlag");
+    vm_.run();
+  }
+  if (campaignActive_) {
+    if (!campaign_)
+      campaign_ = std::make_unique<Campaign>(source_);
+    if (!campaign_->initialized()) {
+      campaign_->initialize(vm_);
+      campaign_->open(vm_, "n0dea_ev01A");
+    }
+    campaign_->beginEvent(vm_, name);
   }
   vm_.call(self_, "scriptMain", {VmValue::num(0)});
   pump();
@@ -356,8 +504,32 @@ void Session::pump() {
     if (!vm_.finished())
       throw std::runtime_error("SCF did not yield");
     const auto result = vm_.result();
+    if (campaignActive_ && campaign_) {
+      campaign_->recordBlock(vm_, scenario_, block_);
+      if (result.kind == VmValue::Text) {
+        // execEventChain preserves the stage and pending actions between
+        // script-returned event names; no artificial period boundary here.
+        const auto next = result.asText();
+        campaign_->queueCompletion(vm_, scenario_);
+        vm_.add(source_->script(source_->scenarioIndex(next)));
+        scenario_ = next;
+        block_ = 0;
+        self_ = vm_.instance(next);
+        ended_ = false;
+        campaign_->beginEvent(vm_, next);
+        vm_.call(self_, "scriptMain", {VmValue::num(0)});
+        continue;
+      }
+    }
+    if (ended_) {
+      if (campaignActive_)
+        completeCampaignEvent();
+      return;
+    }
     if (result.kind != VmValue::Number) {
       ended_ = true;
+      if (campaignActive_)
+        completeCampaignEvent();
       return;
     }
     block_ = int(result.number);
@@ -371,6 +543,8 @@ void Session::advance() {
     return;
   revealDialogue(SIZE_MAX);
   inputs_.push_back(-1);
+  if (campaignActive_ && !replaying_)
+    campaignActions_.push_back({"advance", ""});
   vm_.resume();
   pump();
 }
@@ -379,17 +553,19 @@ void Session::choose(size_t i) {
     throw std::out_of_range("Invalid Amagami answer");
   auto result = VmValue::num(choices_[i].value);
   inputs_.push_back(int(i));
+  if (campaignActive_ && !replaying_)
+    campaignActions_.push_back({"choose", std::to_string(i)});
   choices_.clear();
   vm_.resume(result);
   pump();
 }
 std::optional<VmValue> Session::native(const VmValue &r, const std::string &s,
                                        const std::vector<VmValue> &a) {
-  const auto t = type(r);
+  const auto t = actorTag(r);
   if (t == "System" && s == "println") {
     if (!a.empty() && a[0].kind == VmValue::Text)
       SDL_LogDebug(SDL_LOG_CATEGORY_APPLICATION, "Amagami script: %s",
-                   a[0].text.c_str());
+                   a[0].asText().c_str());
     return r;
   }
   if (s == "ToAnswer" && r.object == self_.object) {
@@ -399,7 +575,7 @@ std::optional<VmValue> Session::native(const VmValue &r, const std::string &s,
         int result = i + 1 < a.size() && a[i + 1].kind == VmValue::Number
                          ? int(a[i + 1].number)
                          : int(choices_.size());
-        choices_.push_back({DisplayText(a[i].text), result});
+        choices_.push_back({DisplayText(a[i].asText()), result});
       }
     if (choices_.empty())
       throw std::runtime_error("Empty answer list at " + location());
@@ -410,27 +586,14 @@ std::optional<VmValue> Session::native(const VmValue &r, const std::string &s,
     ended_ = true;
     return VmValue{};
   }
+  // checkClear is exclusively a diagnostic dump (System.println), not a
+  // state mutation. Its campaign-wide EventNode totals are not initialized by
+  // the standalone scenario runner; do not evaluate that debug-only dump.
   if (s == "checkClear" && r.object == self_.object)
     return r;
-  if (s == "actTime" && !a.empty())
-    return VmValue::num(a[0].number, a[0].floating);
-  if (s == "actStart" || s == "actInit")
-    return r;
-  if (s == "actEnd") {
-    if (!activeFiber_) {
-      for (auto &fiber : fibers_)
-        fiber.killed = true;
-      updateTweens(1e12);
-    }
-    return r;
-  }
   if (realtime_ && (s == "sleep" || s == "actSleep" || s == "exsleep") &&
       !a.empty() && number(a, 0) > 0) {
-    if (activeFiber_)
-      activeFiber_->wait = number(a, 0);
-    else
-      waitFrames_ = number(a, 0);
-    executingVm().pause();
+    sleepFrames(number(a, 0));
     return r;
   }
   if (s == "fadeBlack" || s == "fadeWhite") {
@@ -499,7 +662,7 @@ std::optional<VmValue> Session::native(const VmValue &r, const std::string &s,
     return r;
   }
   if (s == "setName" && !a.empty() && a[0].kind == VmValue::Text) {
-    displayNames_[t] = a[0].text;
+    displayNames_[t] = a[0].asText();
     return r;
   }
   if (s == "setNameDef") {
@@ -510,8 +673,13 @@ std::optional<VmValue> Session::native(const VmValue &r, const std::string &s,
     messageVisible_ = true;
     messageCleared_ = false;
     dialogue_ = {};
-    dialogue_.original = a[0].text;
-    dialogue_.text = DisplayText(a[0].text);
+    dialogue_.original = a[0].asText();
+    const auto seenKey = scenario_ + "\n" + dialogue_.original;
+    auto known = VmValue::num(seenLines_.count(seenKey) != 0);
+    known.kind = VmValue::Boolean;
+    vm_.classField("GameParam", 19) = known;
+    seenLines_.insert(seenKey);
+    dialogue_.text = DisplayText(a[0].asText());
     auto sp = speakers.find(t);
     if (sp != speakers.end())
       dialogue_.speaker = sp->second;
@@ -520,10 +688,10 @@ std::optional<VmValue> Session::native(const VmValue &r, const std::string &s,
     // SYS is narration; PLY uses the configured protagonist name.
     if (t == "SYS")
       dialogue_.speaker.clear();
-    auto pos = a[0].text.find('V');
-    if (pos != std::string::npos && pos + 4 < a[0].text.size()) {
+    auto pos = a[0].asText().find('V');
+    if (pos != std::string::npos && pos + 4 < a[0].asText().size()) {
       try {
-        dialogue_.voice = std::stoi(a[0].text.substr(pos + 1, 4));
+        dialogue_.voice = std::stoi(a[0].asText().substr(pos + 1, 4));
         dialogue_.voiceCode = t;
       } catch (const std::exception &) {
       }
@@ -535,7 +703,8 @@ std::optional<VmValue> Session::native(const VmValue &r, const std::string &s,
     // inlineComF/inlineComE. They must not change the entire page at once.
     const auto &original = dialogue_.original;
     static const std::vector<std::string> codes{
-        "", "TUK", "RIH", "CAO", "SAE", "HAR", "AII", "MIY", "RIS", "MAY"};
+        "PLY", "TUK", "RIH", "CAO", "SAE", "AII", "HAR", "MIY",
+        "RIS", "UME", "MAY", "KAN", "MAN", "KAO", "AYU", "YUK"};
     for (size_t i = 0; i < original.size(); ++i) {
       if (original[i] != 'F' && original[i] != 'E' && original[i] != 'M' &&
           original[i] != 'P')
@@ -626,6 +795,35 @@ std::optional<VmValue> Session::native(const VmValue &r, const std::string &s,
     vm_.pause();
     return r;
   }
+  if (t == "Sound" && (s == "play" || s == "playPrim")) {
+    const int index = int(number(a, 0));
+    if (index < 0 ||
+        size_t(index) >= source_->archive("SOUND/SOUND.AFS").entries.size())
+      throw std::out_of_range("Ambient sound index outside SOUND.AFS");
+    ambienceTrack_ = index;
+    ambienceGain_ = a.size() > 1 ? std::clamp(int(number(a, 1)), 0, 100) : 80;
+    vm_.classField("Sound", 6) = VmValue::num(1);
+    if (sound && !replaying_) {
+      sound("ambience", index);
+      sound("ambience-gain",
+            a.size() > 1 ? std::clamp(int(number(a, 1)), 0, 100) : 80);
+    }
+    return r;
+  }
+  if (t == "Sound" && (s == "stop" || s == "stopPrim")) {
+    ambienceTrack_ = -1;
+    vm_.classField("Sound", 6) = VmValue::num(0);
+    if (sound && !replaying_)
+      sound("ambience", -1);
+    return r;
+  }
+  if (t == "Sound" && (s == "setVolume" || s == "setVolumePrim")) {
+    ambienceGain_ = std::clamp(int(number(a, 0)), 0, 100);
+    vm_.classField("Sound", 7) = VmValue::num(ambienceGain_);
+    if (sound && !replaying_)
+      sound("ambience-gain", std::clamp(int(number(a, 0)), 0, 100));
+    return r;
+  }
   if (t == "Music" && s == "play") {
     musicTrack_ = int(number(a, 0));
     musicGain_ = 100;
@@ -677,8 +875,10 @@ std::optional<VmValue> Session::native(const VmValue &r, const std::string &s,
     return r;
   }
   const std::map<std::string, int> actorIds = {
-      {"TUK", 1}, {"RIH", 2}, {"CAO", 3}, {"SAE", 4}, {"HAR", 5},
-      {"AII", 6}, {"MIY", 7}, {"RIS", 8}, {"MAY", 9}};
+      {"PLY", 0},  {"TUK", 1},  {"RIH", 2},  {"CAO", 3},
+      {"SAE", 4},  {"AII", 5},  {"HAR", 6},  {"MIY", 7},
+      {"RIS", 8},  {"UME", 9},  {"MAY", 10}, {"KAN", 11},
+      {"MAN", 12}, {"KAO", 13}, {"AYU", 14}, {"YUK", 15}};
   auto updateActor = [&](const std::string &code) {
     auto id = actorIds.find(code);
     if (id == actorIds.end())
@@ -710,7 +910,7 @@ std::optional<VmValue> Session::native(const VmValue &r, const std::string &s,
     return r;
   }
   if (s == "una" && !a.empty()) {
-    const auto actor = type(a[0]);
+    const auto actor = actorTag(a[0]);
     if (realtime_ && visuals_.count(actor)) {
       const float x = a.size() == 6 ? number(a, 3) : number(a, 1, 5);
       const float y = a.size() == 6 ? number(a, 4) : number(a, 2, 10);
@@ -808,8 +1008,9 @@ std::optional<VmValue> Session::native(const VmValue &r, const std::string &s,
     updateActor(t);
     return r;
   }
-  if (s.rfind("chFace", 0) == 0 && !a.empty() && actorIds.count(type(a[0]))) {
-    auto code = type(a[0]);
+  if (s.rfind("chFace", 0) == 0 && !a.empty() &&
+      actorIds.count(actorTag(a[0]))) {
+    auto code = actorTag(a[0]);
     auto &v = visuals_[code];
     const int expression = int(number(a, 1));
     if (expression >= 0 && expression < 9)
@@ -927,14 +1128,13 @@ std::optional<VmValue> Session::native(const VmValue &r, const std::string &s,
   // These calls affect presentation/timing, not route state. The native PS2
   // frame animations are presented instantly while the VM preserves decisions.
   static const std::set<std::string> presentation = {
-      "sleep",     "fadeWait",  "wait",       "actEnd",   "actStart",
-      "spin",      "move",      "zoom",       "fade",     "fadeBlack",
-      "fadeWhite", "fadeColor", "setDist",    "setLight", "setWhite",
-      "setBlack",  "fadeOutW",  "waitVoice",  "preLoad",  "setAmount",
-      "destruct",  "setName",   "setNameDef", "step",     "stepEnd",
-      "chFace",    "chFaceC",   "chFaceO",    "chFaceHo", "vibPos",
-      "vibScale",  "vibAlpha",  "fadeLight",  "zoomWait", "moveWait",
-      "lightWait"};
+      "sleep",     "fadeWait",   "wait",     "actEnd",    "spin",
+      "move",      "zoom",       "fade",     "fadeBlack", "fadeWhite",
+      "fadeColor", "setDist",    "setLight", "setWhite",  "setBlack",
+      "fadeOutW",  "waitVoice",  "preLoad",  "setAmount", "destruct",
+      "setName",   "setNameDef", "step",     "stepEnd",   "chFace",
+      "chFaceC",   "chFaceO",    "chFaceHo", "vibPos",    "vibScale",
+      "vibAlpha",  "fadeLight",  "zoomWait", "moveWait",  "lightWait"};
   static const std::set<std::string> extraPresentation = {
       "una",       "chFaceH",    "walk",      "waitAndLaugh",
       "actBlush",  "setEyeHalf", "howTo",     "loadHasamu",
@@ -945,15 +1145,212 @@ std::optional<VmValue> Session::native(const VmValue &r, const std::string &s,
     return r;
   return std::nullopt;
 }
+void Session::initializeGameState() {
+  // Recreate the original object graph natively instead of running the PS2
+  // boot path (SystemStartup -> Application -> GameMain), which owns the
+  // title/menu/memory-card flow outside the ported scenarios. The objects
+  // match the ones created by K2X_Script::setup, so unmodified SCF bytecode
+  // (getClear/isComplete/...) runs against a compatible game state. Field
+  // writes mirror Character/Actor/Heroine.initialize; registries are the
+  // classes' alist/hlist/Character-slot-5 arrays.
+  struct CharacterDef {
+    const char *klass, *code, *kanji, *name;
+    int id; // -1 serializes as nil
+    int a4, a5, a6;
+    size_t slot;
+  };
+  static const CharacterDef characters[] = {
+      {"Character", "SYS", nullptr, nullptr, -1, 0, 0, 0, 15},
+      {"Actor", "PLY", "橘", "純一", 0, 0, 0, 16, 16},
+      {"Heroine", "TUK", "絢辻", "詞", 1, 0, 2, 14, 17},
+      {"Heroine", "RIH", "桜井", "梨穂子", 2, 0, 2, 14, 18},
+      {"Heroine", "CAO", "棚町", "薫", 3, 0, 2, 15, 19},
+      {"Heroine", "SAE", "中多", "紗江", 4, 0, 2, 13, 20},
+      {"Heroine", "AII", "七咲", "逢", 5, 0, 2, 14, 21},
+      {"Heroine", "HAR", "森島", "はるか", 6, 0, 2, 14, 22},
+      {"Heroine", "MIY", "橘", "美也", 7, 1, 2, 13, 23},
+      {"Heroine", "RIS", "上崎", "裡沙", 8, 0, 2, 14, 24},
+      {"Actor", "UME", "梅原", "正吉", 9, 0, 1, 16, 25},
+      {"Actor", "MAY", "高橋", "麻耶", 10, 0, 2, 15, 26},
+      {"Actor", "KAN", "伊藤", "香苗", 11, 0, 2, 14, 27},
+      {"Actor", "MAN", "飛羽", "愛歌", 12, 0, 2, 14, 28},
+      {"Actor", "KAO", "夕月", "琉璃子", 13, 0, 2, 15, 29},
+      {"Actor", "AYU", "山口", "亜弓", 14, 0, 2, 15, 30},
+      {"Actor", "YUK", "絢辻", "縁", 15, 1, 2, 14, 31},
+      {"Actor", "NOR", "黒沢", "典子", 16, 0, 2, 14, 32},
+      {"Actor", "KEI", "田中", "恵子", 17, 0, 2, 14, 33},
+      {"Actor", "HIB", "塚原", "響", 18, 0, 2, 15, 34},
+      {"Actor", "IKU", "七咲", "郁夫", 19, 1, 1, 14, 35},
+      {"Actor", "MIK", "御木本", "久遠", 20, 0, 1, 16, 36},
+      {"Actor", "HAN", "花園", "聖治", 21, 0, 1, 15, 37},
+      {"Actor", "KIS", "樹里", "路美雄", 22, 0, 1, 14, 38},
+      {"Actor", "MKA", "蒔原", "美佳", 23, 0, 2, 14, 39},
+      {"Actor", "MIC", "キッド", "マイク", 24, 1, 1, 16, 40},
+      {"Character", "EB0", "男子Ａ", "男子Ａ", 24, 0, 1, 16, 41},
+      {"Character", "EB1", "男子Ｂ", "男子Ｂ", 25, 0, 1, 16, 42},
+      {"Character", "EB2", "男子Ｃ", "男子Ｃ", 26, 0, 1, 16, 43},
+      {"Character", "EG0", "女子Ａ", "女子Ａ", 27, 0, 2, 14, 44},
+      {"Character", "EG1", "女子Ｂ", "女子Ｂ", 28, 0, 2, 15, 45},
+      {"Character", "EG2", "女子Ｃ", "女子Ｃ", 29, 0, 2, 13, 46},
+      {"Character", "ETC", "？？？", "？？？", 30, 0, 0, 15, 47},
+  };
+  auto num = [](int n) { return VmValue::num(n); };
+  auto flt = [](double d) { return VmValue::num(d, true); };
+  auto boolean = [](bool b) {
+    auto v = VmValue::num(b);
+    v.kind = VmValue::Boolean;
+    return v;
+  };
+  auto text = [](const char *s) { return s ? VmValue::str(s) : VmValue{}; };
+  auto arrayOf = [](std::vector<VmValue> items) {
+    auto o = std::make_shared<VmObject>();
+    o->type = "Array";
+    o->fields = std::move(items);
+    return VmValue::ref(std::move(o), VmValue::Array);
+  };
+  auto emptyArray = [&] { return arrayOf({}); };
+  auto zeroArray = [&](size_t n) {
+    return arrayOf(std::vector<VmValue>(n, VmValue::num(0)));
+  };
+  placeholderTags_.clear();
+  std::vector<VmValue> alist, hlist;
+  alist.reserve(26);
+  hlist.reserve(8);
+  std::vector<VmValue> cregistry(40); // sparse; indexed by character id
+  auto tag = [&](const VmValue &inst, const std::string &name) {
+    placeholderTags_[inst.object] = name;
+  };
+  for (const auto &c : characters) {
+    const bool isActor = std::string(c.klass) != "Character";
+    const bool isHeroine = std::string(c.klass) == "Heroine";
+    auto inst = vm_.instance(c.klass);
+    auto &f = inst.object->fields;
+    f[0] = c.id >= 0 ? num(c.id) : VmValue{};
+    f[1] = text(c.code);
+    f[2] = text(c.kanji);
+    f[3] = text(c.name);
+    f[4] = num(c.a4);
+    f[5] = boolean(false);
+    f[6] = num(c.a5);
+    f[8] = num(2);
+    f[9] = flt(0);
+    f[10] = num(c.a6);
+    f[11] = boolean(false);
+    if (isActor) {
+      f[12] = num(int(alist.size()));
+      f[13] = num(0);
+      f[14] = num(0);
+      f[17] = flt(20);
+      f[18] = flt(20);
+      f[19] = flt(1);
+      f[20] = flt(2);
+      f[21] = boolean(false);
+      alist.push_back(inst);
+    }
+    if (isHeroine) {
+      f[27] = num(int(hlist.size()));
+      f[28] = {};
+      f[29] = zeroArray(3);
+      f[30] = num(0);
+      f[31] = num(0);
+      f[32] = num(0);
+      f[33] = boolean(false);
+      f[34] = num(1);
+      f[35] = num(0);
+      f[36] = num(0);
+      f[37] = num(0);
+      f[38] = zeroArray(3);
+      f[39] = zeroArray(3);
+      f[40] = zeroArray(3);
+      f[41] = {};
+      f[42] = emptyArray();
+      f[43] = emptyArray();
+      f[44] = zeroArray(6);
+      f[45] = zeroArray(4);
+      hlist.push_back(inst);
+    }
+    if (c.id >= 0 && c.id < int(cregistry.size()))
+      cregistry[size_t(c.id)] = inst;
+    tag(inst, c.code);
+    vm_.classField("K2X_Script", c.slot) = inst;
+  }
+  vm_.classField("Actor", 7) = arrayOf(std::move(alist));
+  vm_.classField("Heroine", 5) = arrayOf(std::move(hlist));
+  vm_.classField("Character", 5) = arrayOf(std::move(cregistry));
+  vm_.classField("Extra", 7) = emptyArray();
+  // Heroine.init owns three Vector registries, not three interchangeable
+  // arrays. Run its non-device initialization unchanged so affection, holiday,
+  // conversation and map-parameter state keep their original data layouts.
+  const auto heroines = vm_.classField("Heroine", 5).object->fields;
+  vm_.call(VmValue::str("Heroine", VmValue::Class), "init");
+  vm_.run();
+  for (const auto &heroine : heroines) {
+    vm_.call(vm_.classField("Heroine", 5), "put", {heroine});
+    vm_.run();
+    vm_.call(heroine, "initLevel");
+    vm_.run();
+    vm_.call(heroine, "initKaiwa");
+    vm_.run();
+  }
+  // BG/UI objects keep their native-dispatch tags; scenarios dispatch on the
+  // real classes, the engine's presentation layer on the tags.
+  const std::pair<size_t, std::pair<const char *, const char *>> simple[] = {
+      {5, {"TextWindow", "WIN"}},  {9, {"BackGround", "BG"}},
+      {10, {"BackGround", "BG0"}}, {11, {"StageSet", "BG1"}},
+      {12, {"StageSet", "FS0"}},   {13, {"StageSet", "FS1"}},
+      {14, {"StageSet", "WIP"}},   {6, {"Calender", "CAL"}},
+      {7, {"NodeMap", "NMN"}},     {8, {"NodeMapNavi", "MAP"}},
+  };
+  for (const auto &[slot, def] : simple) {
+    auto inst = vm_.instance(def.first);
+    tag(inst, def.second);
+    vm_.classField("K2X_Script", slot) = inst;
+  }
+  for (size_t slot = 48; slot <= 55; ++slot) {
+    auto inst = vm_.instance("Extra");
+    tag(inst, "EX" + std::to_string(slot - 48));
+    vm_.classField("K2X_Script", slot) = inst;
+  }
+}
+void Session::sleepFrames(double frames) {
+  if (activeFiber_)
+    activeFiber_->wait = frames;
+  else
+    waitFrames_ = frames;
+  executingVm().pause();
+}
+std::optional<VmValue> Session::primitive(const std::string &owner,
+                                          const std::string &method,
+                                          bool classMethod, const VmValue &r,
+                                          unsigned n,
+                                          const std::vector<VmValue> &a) {
+  // Primitive indices are local to the DECLARING class, never global.
+  if (owner == "Object" && method == "sleep" && n == 1) {
+    if (realtime_ && !a.empty() && number(a, 0) > 0)
+      sleepFrames(number(a, 0));
+    return r;
+  }
+  // C++ owns the lifetime of the script objects; these original maintenance
+  // operations need no PS2 heap/collector and must not pause story time.
+  if (owner == "System" && (method == "gc" || method == "FullGC"))
+    return r;
+  if (owner == "Sound")
+    return native(r, method, a);
+  return std::nullopt;
+}
 void Session::save(const std::string &path) const {
-  std::ofstream out(path, std::ios::binary);
-  out << "AMAGAMI_REPLAY 1\n"
+  std::ostringstream out;
+  out << "AMAGAMI_REPLAY 2\n"
       << std::quoted(scenario_) << '\n'
       << inputs_.size() << '\n';
   for (int i : inputs_)
     out << i << '\n';
-  if (!out)
-    throw std::runtime_error("Cannot save Amagami session");
+  out << "STATE " << messageSpeed() << ' ' << autoMode() << ' ' << skipMode()
+      << '\n';
+  out << "READ " << seenLines_.size() << '\n';
+  for (const auto &line : seenLines_)
+    out << std::quoted(line) << '\n';
+  Kotonoha::writeTextFileAtomically(path, out.str());
 }
 void Session::load(const std::string &path) {
   std::ifstream in(path, std::ios::binary);
@@ -961,16 +1358,37 @@ void Session::load(const std::string &path) {
   unsigned version = 0;
   size_t count = 0;
   if (!(in >> magic >> version >> std::quoted(name) >> count) ||
-      magic != "AMAGAMI_REPLAY" || version != 1 || count > 1000000)
+      magic != "AMAGAMI_REPLAY" || (version != 1 && version != 2) ||
+      count > 1000000)
     throw std::runtime_error("Invalid Amagami save");
   std::vector<int> inputs(count);
   for (auto &i : inputs)
     if (!(in >> i) || i < -1 || i > 32)
       throw std::runtime_error("Invalid save input");
+  int speed = 0, automatic = 0, skip = 0;
+  std::set<std::string> seen;
+  if (version >= 2) {
+    std::string marker;
+    size_t number = 0;
+    if (!(in >> marker >> speed >> automatic >> skip) || marker != "STATE" ||
+        speed < 0 || speed > 3 || automatic < 0 || automatic > 1 || skip < 0 ||
+        skip > 1 || !(in >> marker >> number) || marker != "READ" ||
+        number > 100000)
+      throw std::runtime_error("Invalid Amagami save settings");
+    size_t bytes = 0;
+    for (size_t i = 0; i < number; ++i) {
+      std::string line;
+      if (!(in >> std::quoted(line)) || line.empty() || line.size() > 65536 ||
+          (bytes += line.size()) > 32 * 1024 * 1024)
+        throw std::runtime_error("Invalid Amagami read registry");
+      seen.insert(std::move(line));
+    }
+  }
   // Replay into a candidate first so malformed or divergent saves leave the
   // running session intact. Map nodes keep VM method pointers valid on move.
   Session candidate(source_);
   candidate.replaying_ = true;
+  candidate.seenLines_ = std::move(seen);
   candidate.start(name);
   for (int i : inputs) {
     if (candidate.ended_ || (i == -1 && !candidate.choices_.empty()) ||
@@ -981,6 +1399,9 @@ void Session::load(const std::string &path) {
     else
       candidate.choose(size_t(i));
   }
+  candidate.setMessageSpeed(speed);
+  candidate.setAutoMode(automatic != 0);
+  candidate.setSkipMode(skip != 0);
   fibers_.clear();
   tweens_.clear();
   nods_.clear();
@@ -989,10 +1410,19 @@ void Session::load(const std::string &path) {
   vm_.native = [this](const auto &r, const auto &s, const auto &a) {
     return native(r, s, a);
   };
+  vm_.scopedPrimitive = [this](const std::string &owner,
+                               const std::string &method, bool classMethod,
+                               const auto &r, unsigned n, const auto &a) {
+    return primitive(owner, method, classMethod, r, n, a);
+  };
+  placeholderTags_ = std::move(candidate.placeholderTags_);
   self_ = std::move(candidate.self_);
   block_ = candidate.block_;
   musicTrack_ = candidate.musicTrack_;
   musicGain_ = candidate.musicGain_;
+  ambienceTrack_ = candidate.ambienceTrack_;
+  ambienceGain_ = candidate.ambienceGain_;
+  seenLines_ = std::move(candidate.seenLines_);
   ended_ = candidate.ended_;
   scenario_ = std::move(candidate.scenario_);
   dialogue_ = std::move(candidate.dialogue_);

@@ -1,8 +1,10 @@
 #pragma once
+#include <Amagami/Campaign.hpp>
 #include <Amagami/Source.hpp>
 #include <Amagami/Vm.hpp>
 #include <functional>
 #include <list>
+#include <set>
 
 namespace Amagami {
 struct Vibration {
@@ -49,6 +51,14 @@ class Session {
 public:
   explicit Session(std::shared_ptr<Source> source);
   void start(const std::string &name = "n0dea_ev01A");
+  void startCampaign();
+  bool campaignActive() const { return campaignActive_; }
+  int campaignDate() const;
+  int campaignPeriod() const;
+  std::vector<Campaign::Event> availableEvents() const;
+  std::vector<Campaign::Event> campaignMapEvents() const;
+  void selectCampaignEvent(const std::string &name);
+  void nextCampaignPeriod();
   void advance();
   void setRealtime(bool enabled) { realtime_ = enabled; }
   void tick(double seconds);
@@ -71,17 +81,38 @@ public:
   bool ended() const { return ended_; }
   int musicTrack() const { return musicTrack_; }
   int musicGain() const { return musicGain_; }
+  int ambienceTrack() const { return ambienceTrack_; }
+  int ambienceGain() const { return ambienceGain_; }
   const std::string &name() const { return scenario_; }
   std::string location() const { return scenario_ + " | " + vm_.location(); }
   std::function<void(const std::string &, int)> sound;
   const std::vector<Dialogue> &history() const { return history_; }
+  int messageSpeed() const;
+  bool autoMode() const;
+  bool skipMode() const;
+  bool skipping() const;
+  void setSkipHeld(bool held);
+  int autoWait() const;
+  bool autoSync() const;
+  void setAutoMode(bool enabled);
+  void setSkipMode(bool enabled);
+  void setMessageSpeed(int speed);
 
 private:
   std::shared_ptr<Source> source_;
   Vm vm_;
   VmValue self_;
+  std::unique_ptr<Campaign> campaign_;
+  bool campaignActive_ = false;
+  struct CampaignAction {
+    std::string kind, value;
+  };
+  std::vector<CampaignAction> campaignActions_;
+  void completeCampaignEvent();
   int block_ = 0;
   int musicTrack_ = -1, musicGain_ = 100;
+  int ambienceTrack_ = -1, ambienceGain_ = 80;
+  std::set<std::string> seenLines_;
   bool ended_ = true, replaying_ = false;
   bool realtime_ = false, messageVisible_ = false, messageCleared_ = true,
        fadeWhite_ = false;
@@ -129,6 +160,16 @@ private:
   std::vector<int> inputs_;
   std::optional<VmValue> native(const VmValue &, const std::string &,
                                 const std::vector<VmValue> &);
+  std::optional<VmValue> primitive(const std::string &, const std::string &,
+                                   bool, const VmValue &, unsigned,
+                                   const std::vector<VmValue> &);
+  // The Kotonoha presentation layer dispatches on the original variable names
+  // (TUK, MIY, BG, ...); keep the object -> variable-name tag so scripts can
+  // run their original class methods while natives stay unchanged.
+  std::map<std::shared_ptr<VmObject>, std::string> placeholderTags_;
+  std::string actorTag(const VmValue &r) const;
+  void sleepFrames(double frames);
+  void initializeGameState();
   void pump();
 };
 std::string DisplayText(const std::string &text);

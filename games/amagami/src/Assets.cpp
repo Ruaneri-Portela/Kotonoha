@@ -52,6 +52,16 @@ bool Assets::containsAsset(const std::string &id) const {
     return contains(id.substr(11));
   if (id.rfind("voice/", 0) == 0 || id.rfind("music/", 0) == 0)
     return true;
+  if (id.rfind("sound/", 0) == 0) {
+    try {
+      size_t used = 0;
+      const auto index = std::stoul(id.substr(6), &used);
+      return used == id.size() - 6 &&
+             index < source_->archive("SOUND/SOUND.AFS").entries.size();
+    } catch (const std::exception &) {
+      return false;
+    }
+  }
   if (id.rfind("actor-face/", 0) == 0) {
     const auto slash = id.rfind('/');
     return slash > 11 && contains(id.substr(11, slash - 11));
@@ -70,6 +80,13 @@ std::vector<Uint8> Assets::readAsset(const std::string &id) const {
     if (result.empty())
       throw std::runtime_error("Voice not found: " + id);
     return result;
+  }
+  if (id.rfind("sound/", 0) == 0) {
+    size_t used = 0;
+    const auto index = std::stoul(id.substr(6), &used);
+    if (used != id.size() - 6)
+      throw std::runtime_error("Invalid ambient sound ID");
+    return source_->ambience(unsigned(index));
   }
   if (id.rfind("music/", 0) == 0) {
     int index = source_->musicIndex(std::stoul(id.substr(6)));
@@ -142,7 +159,8 @@ Kotonoha::SurfacePtr Assets::loadSurfaceAsset(const std::string &id) const {
 
 namespace Amagami {
 Kotonoha::AudioClip Assets::loadAudioAsset(const std::string &id) const {
-  if (id.rfind("voice/", 0) == 0 || id.rfind("music/", 0) == 0)
+  if (id.rfind("voice/", 0) == 0 || id.rfind("music/", 0) == 0 ||
+      id.rfind("sound/", 0) == 0)
     return Kotonoha::decodeCriAudio(readAsset(id), {0x5a17, 0x509f, 0x5bfd});
   return Kotonoha::AssetProvider::loadAudioAsset(id);
 }

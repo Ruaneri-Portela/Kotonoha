@@ -104,11 +104,38 @@ SDLSession::SDLSession(const Runtime &runtime) {
   SDL_SetHint(SDL_HINT_TOUCH_MOUSE_EVENTS, "0");
   if (!SDL_SetAppMetadata(runtime.name.c_str(), runtime.version.c_str(),
                           runtime.identify.c_str()) ||
-      !SDL_Init(SDL_INIT_AUDIO | SDL_INIT_VIDEO | SDL_INIT_EVENTS))
+      !SDL_Init(SDL_INIT_AUDIO | SDL_INIT_VIDEO | SDL_INIT_EVENTS |
+                SDL_INIT_GAMEPAD))
     throw std::runtime_error(SDL_GetError());
+  int count = 0;
+  SDLMemoryPtr<SDL_JoystickID> ids{SDL_GetGamepads(&count)};
+  for (int i = 0; ids && i < count; ++i)
+    openGamepad(ids.get()[i]);
 }
-
-SDLSession::~SDLSession() { SDL_Quit(); }
+void SDLSession::openGamepad(SDL_JoystickID id) {
+  if (gamepads.count(id))
+    return;
+  GamepadPtr gamepad{SDL_OpenGamepad(id)};
+  if (gamepad)
+    gamepads.emplace(id, std::move(gamepad));
+  else
+    SDL_LogWarn(SDL_LOG_CATEGORY_INPUT, "Cannot open gamepad: %s",
+                SDL_GetError());
+}
+void SDLSession::deviceEvent(EventRef event) {
+  if (event.type == SDL_EVENT_GAMEPAD_ADDED)
+    openGamepad(event.gdevice.which);
+  else if (event.type == SDL_EVENT_GAMEPAD_REMOVED)
+    gamepads.erase(event.gdevice.which);
+  else if (event.type == SDL_EVENT_JOYSTICK_ADDED)
+    openGamepad(event.jdevice.which);
+  else if (event.type == SDL_EVENT_JOYSTICK_REMOVED)
+    gamepads.erase(event.jdevice.which);
+}
+SDLSession::~SDLSession() {
+  gamepads.clear();
+  SDL_Quit();
+}
 
 Engine::Engine(Runtime &run, EngineOptions options)
     : runtime(run), log(options.logPath), session(runtime),
@@ -475,6 +502,18 @@ void Engine::configureRenderSpace(RenderSpace space) {
 SDL_AppResult Engine::Event(EventPtr event) {
   if (!event)
     return SDL_APP_CONTINUE;
+  session.deviceEvent(*event);
+  const auto navigation = controllerNavigation.process(*event);
+  if (event->type == SDL_EVENT_GAMEPAD_AXIS_MOTION &&
+      (event->gaxis.axis == SDL_GAMEPAD_AXIS_LEFTX ||
+       event->gaxis.axis == SDL_GAMEPAD_AXIS_LEFTY)) {
+    for (auto button : navigation) {
+      const auto result = Event(&button);
+      if (result != SDL_APP_CONTINUE)
+        return result;
+    }
+    return SDL_APP_CONTINUE;
+  }
   inputActions.process(*event);
   SDL_Event pointer{};
   const bool nativeTouch = runtime.continuousTouch() || settingsMenu->isOpen();
@@ -581,10 +620,10 @@ SDL_AppResult Engine::dispatchEvent(EventPtr event) {
     tap.button.down = true;
     tap.button.x = event->tfinger.x * w;
     tap.button.y = event->tfinger.y * h;
-    Event(&tap);
+    dispatchEvent(&tap);
     tap.type = SDL_EVENT_MOUSE_BUTTON_UP;
     tap.button.down = false;
-    Event(&tap);
+    dispatchEvent(&tap);
   }
   return SDL_APP_CONTINUE;
 }

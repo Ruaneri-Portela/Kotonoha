@@ -1,5 +1,6 @@
 #include <Kotonoha/componentes/SplashScreen.hpp>
 #include <Kotonoha/core/Engine.hpp>
+#include <Kotonoha/events/ControllerEvent.hpp>
 #include <Kotonoha/media/MediaDecoder.hpp>
 #include <Kotonoha/media/MediaPlayer.hpp>
 #include <Kotonoha/media/upscaling/Upscaler.hpp>
@@ -58,13 +59,17 @@ double SplashScreen::elapsed() const {
   return static_cast<double>(SDL_GetTicksNS() - startedNs) / SDL_NS_PER_SECOND;
 }
 
-bool SplashScreen::handleEvent(EventRef event) {
+bool SplashScreen::handleEvent(EventRef rawEvent) {
+  const auto event = MapControllerEvent(rawEvent);
   if (finished())
     return false;
   // Touches also arrive as synthetic mouse events; count them once.
   const bool click = event.type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
                      event.button.which != SDL_TOUCH_MOUSEID;
-  if (click || event.type == SDL_EVENT_FINGER_DOWN)
+  const bool confirm =
+      event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat &&
+      (event.key.key == SDLK_RETURN || event.key.key == SDLK_SPACE);
+  if (click || event.type == SDL_EVENT_FINGER_DOWN || confirm)
     next();
   return true;
 }

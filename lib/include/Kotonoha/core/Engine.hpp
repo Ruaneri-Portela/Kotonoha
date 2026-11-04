@@ -9,6 +9,7 @@
 #include <Kotonoha/core/Scene.hpp>
 #include <Kotonoha/core/Settings.hpp>
 #include <Kotonoha/events/InputActions.hpp>
+#include <Kotonoha/events/ControllerEvent.hpp>
 #include <Kotonoha/localization/Translation.hpp>
 #include <Kotonoha/media/AudioMixer.hpp>
 #include <Kotonoha/parsers/AssStyle.hpp>
@@ -74,6 +75,7 @@ private:
   bool translationDumpComplete = false;
   InputActions inputActions;
   TouchPointer touchPointer;
+  ControllerNavigation controllerNavigation;
   SDL_AppResult dispatchEvent(EventPtr event);
   Clock frameClock;
   Translation translation;

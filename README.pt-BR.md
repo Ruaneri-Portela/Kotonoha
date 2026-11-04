@@ -243,7 +243,7 @@ Abra `Xcode/Kotonoha.xcodeproj`: o projeto e seus targets sao mantidos no
 Xcode e **nao exigem CMake para compilar**. `KotonohaEngine` e um framework
 estatico; SDL3, SDL3_ttf e Dear ImGui sao frameworks dinamicos. O target SDL3 usa o projeto
 Xcode do proprio submodulo; SDL_ttf compila com HarfBuzz e PlutoSVG.
-Os schemes `Kotonoha`, `ZeroNoTsukaima`, `SnowRadish`, `DokiDoki` e `SchoolDays` geram
+Os schemes `Kotonoha`, `ZeroNoTsukaima`, `SnowRadish`, `DokiDoki`, `SchoolDays`, `Air`, `SummerRadish` e `Amagami` geram
 apps separados. `KotonohaIOSSmoke` verifica CP932 e glifos SVG no simulador.
 O executavel demonstrativo chama-se `Kotonoha`; seu namespace C++ e
 `KotonohaExample`, separado do motor. A opcao CMake
@@ -280,8 +280,10 @@ Para instalar em dispositivo, selecione sua equipe de assinatura e altere os
 identificadores de bundle quando necessario.
 
 Os IDs nativos dos jogos correspondem aos applicationIds Android:
-`me.hirameki.kotonoha.zeronotsukaima`, `.snowradish`, `.ddlc` e `.schooldays`.
-O exemplo usa `org.kotonoha.example`. O bundle ID/applicationId selecionado
+`me.hirameki.kotonoha.zeronotsukaima`, `.snowradishvacation`,
+`.dokidokiliteratureclub`, `.schooldays`, `.air`, `.summerradishvacation` e `.amagami`.
+O exemplo usa `me.hirameki.kotonoha` no iOS e `me.kotonoha.example` no Android.
+O bundle ID/applicationId selecionado
 na plataforma determina a identidade da instalacao, sandbox, preferencias
 e armazenamento externo; metadados SDL em C++ nao substituem Xcode/Gradle.
 IDs antigos, como `org.kotonoha.neostart`, `me.hirameki.neostart.*` e os
@@ -407,6 +409,15 @@ como padrao. `--ktrf` sobrescreve explicitamente a rota lembrada.
 
 - Clique esquerdo, Espaco ou Enter: completar a fala / avancar.
 - Escolhas: clique, setas e Enter/Espaco; roda do mouse para listas longas.
+- Controle: direcional ou analogico esquerdo navega; Leste (Circulo/B)
+  confirma; Sul (X/A) cancela nos menus; Start abre pausa. Back/L1 alterna
+  o historico. Nos ajustes nativos, L1/R1 alternam abas.
+- Toque: tocar ativa; arrastar rola listas e historico. Arraste, cancelamento
+  e um segundo dedo impedem a confirmacao de itens. Deslizar da borda ou tocar
+  com dois dedos volta; deslizar para cima durante a fala abre o historico.
+- ZNT e Amagami: segurar Sul pula durante a fala; soltar interrompe.
+  R1 alterna Auto e Oeste alterna pular conforme as regras do jogo. Nos menus, os botoes
+  continuam navegando enquanto a fala esta pausada.
 - B: historico. Roda do mouse ou setas: rolar. B/ESC: fechar.
 - ESC: menu de pausa; setas/Enter ou mouse nos menus.
 - Entrada de nome: texto UTF-8, Backspace, Enter e ESC.

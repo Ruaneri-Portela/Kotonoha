@@ -1,3 +1,4 @@
+#include <Kotonoha/events/ControllerEvent.hpp>
 #include <Kotonoha/events/InputActions.hpp>
 #include <iostream>
 #include <stdexcept>
@@ -52,6 +53,38 @@ int main() {
     lost.type = SDL_EVENT_WINDOW_FOCUS_LOST;
     a.process(lost);
     check(!a.tap() && !a.backlog(up), "Focus loss resets gestures");
+    scroll.handle(finger(SDL_EVENT_FINGER_CANCELED, 1, .5f, .6f), 720, target,
+                  velocity, follow, 500);
+    check(!scroll.isDragging(), "Canceled touch releases scroll drag");
+    ControllerNavigation navigation;
+    SDL_Event axis{};
+    axis.type = SDL_EVENT_GAMEPAD_AXIS_MOTION;
+    axis.gaxis.which = 7;
+    axis.gaxis.axis = SDL_GAMEPAD_AXIS_LEFTY;
+    axis.gaxis.value = 20000;
+    auto buttons = navigation.process(axis);
+    check(buttons.size() == 1 && buttons[0].gbutton.down &&
+              MapControllerEvent(buttons[0]).key.key == SDLK_DOWN,
+          "Left stick navigates through the shared controller mapping");
+    axis.gaxis.value = 15000;
+    check(navigation.process(axis).empty(),
+          "Analog hysteresis avoids duplicate focus movement");
+    axis.gaxis.value = -20000;
+    buttons = navigation.process(axis);
+    check(buttons.size() == 2 && !buttons[0].gbutton.down &&
+              buttons[1].gbutton.down &&
+              MapControllerEvent(buttons[1]).key.key == SDLK_UP,
+          "Crossing stick direction releases the previous button first");
+    axis.gaxis.which = 8;
+    check(navigation.process(axis).size() == 1,
+          "Controller axes are independent per device");
+    axis.gaxis.which = 7;
+    axis.gaxis.value = 0;
+    buttons = navigation.process(axis);
+    check(buttons.size() == 1 && !buttons[0].gbutton.down,
+          "Returning stick to center releases navigation");
+    navigation.process(lost);
+    check(navigation.process(axis).empty(), "Focus loss clears analog state");
     std::cout << "Input action tests passed\n";
   } catch (std::exception &e) {
     std::cerr << e.what() << '\n';

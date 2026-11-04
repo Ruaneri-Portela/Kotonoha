@@ -6,6 +6,7 @@
 #include <Kotonoha/componentes/InGameMenu.hpp>
 #include <Kotonoha/componentes/VNTextBox.hpp>
 #include <Kotonoha/core/Engine.hpp>
+#include <Kotonoha/events/ControllerEvent.hpp>
 
 #include <stdexcept>
 
@@ -86,9 +87,12 @@ public:
   bool capturesInput() const override {
     return session_.choosing() && !session_.paused();
   }
-  void onEvent(Kotonoha::EventRef event) override {
-    if (capturesInput())
+  bool onEvent(Kotonoha::EventRef event) override {
+    if (capturesInput()) {
       session_.event(event);
+      return true;
+    }
+    return false;
   }
   void render(Kotonoha::RendererRef renderer, float) override {
     session_.drawChoices(renderer);
@@ -105,9 +109,12 @@ public:
   bool IsOpen() const override { return session_.paused(); }
   void open() override { session_.setPaused(true); }
   void close() override { session_.setPaused(false); }
-  void onEvent(Kotonoha::EventRef event) override {
-    if (IsOpen())
+  bool onEvent(Kotonoha::EventRef event) override {
+    if (IsOpen()) {
       session_.event(event);
+      return true;
+    }
+    return false;
   }
 
 protected:
@@ -205,6 +212,11 @@ void GameRuntime::update() {
     }
   }
   Runtime::update();
+}
+
+bool GameRuntime::onEvent(Kotonoha::EventRef event) {
+  auto mapped = Kotonoha::MapControllerEvent(event);
+  return Runtime::onEvent(mapped);
 }
 
 void GameRuntime::render(Kotonoha::RendererRef renderer, float scale) {

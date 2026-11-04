@@ -49,15 +49,17 @@ SDL_Event NativeNavigation(Kotonoha::Engine &engine, Kotonoha::EventRef event) {
 } // namespace
 
 // ---------------------------------------------------------------- title
-
 ZeroTitleMenu::ZeroTitleMenu(Kotonoha::Engine &engine, ZeroSession &session)
     : GameMenu(engine), session_(session) {}
 
 bool ZeroTitleMenu::isVisible() const { return !session_.Playing(); }
 
-void ZeroTitleMenu::onEvent(Kotonoha::EventRef event) {
-  if (isVisible())
+bool ZeroTitleMenu::onEvent(Kotonoha::EventRef event) {
+  if (isVisible()) {
     session_.FrontendEvent(NativeNavigation(engine, event));
+    return true;
+  }
+  return false;
 }
 
 void ZeroTitleMenu::update() {
@@ -90,13 +92,11 @@ void ZeroTitleMenu::renderTitle(Kotonoha::RendererRef renderer) {
 }
 
 // ---------------------------------------------------------------- stage
-
 void ZeroStage::render(Kotonoha::RendererRef renderer, float) {
   session_.DrawStage(&renderer);
 }
 
 // ---------------------------------------------------------------- text box
-
 ZeroTextBox::ZeroTextBox(Kotonoha::Engine &engine, ZeroSession &session)
     : VNTextBox(engine, "", ""), session_(session) {
   hide();
@@ -144,12 +144,16 @@ void ZeroTextBox::update() {
   if (!session_.Playing())
     return;
   const bool idle = !session_.ScreenActive() && !session_.Choosing() &&
-                    !engine.isStoryPaused();
+                    !session_.RouletteActive() && !engine.isStoryPaused();
   if (!idle) {
+    cancelHeldSkip();
     doneAt_ = now;
     return;
   }
-  if ((SDL_GetModState() & SDL_KMOD_CTRL) != 0 && session_.CanSkip()) {
+  if (skipToggle_ && !session_.CanSkip())
+    skipToggle_ = false;
+  if ((skipToggle_ || skipHeld_ || (SDL_GetModState() & SDL_KMOD_CTRL) != 0) &&
+      session_.CanSkip()) {
     completeDialogue();
     if (session_.WaitingForClick())
       session_.Advance(-1);
@@ -177,8 +181,25 @@ void ZeroTextBox::Click() {
 }
 
 bool ZeroTextBox::handleEvent(Kotonoha::EventRef event) {
+  if (event.type == SDL_EVENT_WINDOW_FOCUS_LOST ||
+      event.type == SDL_EVENT_GAMEPAD_REMOVED) {
+    cancelHeldSkip();
+    return false;
+  }
+  if (event.type == SDL_EVENT_KEY_UP &&
+      (event.key.key == SDLK_LCTRL || event.key.key == SDLK_RCTRL)) {
+    cancelHeldSkip();
+    return true;
+  }
   if (!session_.Playing())
     return false;
+  if ((IsKey(event, SDLK_LCTRL) || IsKey(event, SDLK_RCTRL)) &&
+      !session_.Choosing() && !session_.ScreenActive() &&
+      !session_.RouletteActive()) {
+    skipHeld_ = true;
+    session_.SetAuto(false);
+    return true;
+  }
   if (IsKey(event, SDLK_PAGEUP) || WheelUp(event)) {
     openBacklog();
     return true;
@@ -189,7 +210,25 @@ bool ZeroTextBox::handleEvent(Kotonoha::EventRef event) {
   }
   if (session_.Choosing())
     return false;
+  if ((IsKey(event, SDLK_MINUS) || IsKey(event, SDLK_PLUS) ||
+       IsKey(event, SDLK_EQUALS)) &&
+      !event.key.repeat) {
+    auto &speed = session_.System().charSpeed;
+    const int next =
+        std::clamp(speed + (event.key.key == SDLK_MINUS ? -1 : 1), 0, 10);
+    if (next != speed) {
+      speed = next;
+      session_.SystemChanged();
+    }
+    return true;
+  }
+  if (IsKey(event, SDLK_S) && !event.key.repeat) {
+    skipToggle_ = !skipToggle_ && session_.CanSkip();
+    session_.SetAuto(false);
+    return true;
+  }
   if (IsKey(event, SDLK_A) && !event.key.repeat) {
+    cancelHeldSkip();
     session_.SetAuto(!session_.Auto());
     doneAt_ = SDL_GetTicks();
     return true;
@@ -202,6 +241,7 @@ bool ZeroTextBox::handleEvent(Kotonoha::EventRef event) {
                         event.button.button != SDL_BUTTON_RIGHT);
   if (!advance)
     return false;
+  cancelHeldSkip();
   // Any click stops auto mode (KAG cancelAuto).
   if (session_.Auto())
     session_.SetAuto(false);
@@ -223,7 +263,6 @@ void ZeroTextBox::renderIndicator(Kotonoha::RendererRef renderer) {
 }
 
 // ---------------------------------------------------------------- choices
-
 ZeroChoice::ZeroChoice(Kotonoha::Engine &engine, ZeroSession &session)
     : ChoiceQuestionScene(engine, "", {}, nullptr), session_(session) {}
 
@@ -266,9 +305,11 @@ void ZeroChoice::select(std::size_t index) {
 
 // No initial focus on the select window: the first UP picks the last button,
 // the first DOWN the first one. Circle = Enter / Space / Z.
-void ZeroChoice::onEvent(Kotonoha::EventRef event) {
+bool ZeroChoice::onEvent(Kotonoha::EventRef event) {
+  if (!touchActivation.accept(event))
+    return true;
   if (!active || options.empty())
-    return;
+    return false;
   layout();
   const int n = int(options.size());
   auto hit = [&](float x, float y) {
@@ -283,38 +324,49 @@ void ZeroChoice::onEvent(Kotonoha::EventRef event) {
     case SDLK_ESCAPE:
     case SDLK_AC_BACK:
       openMenu();
-      break;
+      return true;
     case SDLK_B:
     case SDLK_PAGEUP:
       openBacklog();
-      break;
+      return true;
     case SDLK_UP:
       Focus(focus_ < 0 ? n - 1 : (focus_ + n - 1) % n);
-      break;
+      return true;
     case SDLK_DOWN:
       Focus(focus_ < 0 ? 0 : (focus_ + 1) % n);
-      break;
+      return true;
     case SDLK_RETURN:
     case SDLK_KP_ENTER:
     case SDLK_SPACE:
     case SDLK_Z:
-      if (focus_ >= 0)
+      if (focus_ >= 0) {
         select(std::size_t(focus_));
+        return true;
+      }
       break;
     default:
       break;
     }
   } else if (WheelUp(event)) {
     openBacklog();
+    return true;
   } else if (event.type == SDL_EVENT_MOUSE_MOTION) {
     Focus(hit(event.motion.x, event.motion.y));
+    return true;
   } else if (RightClick(event)) {
     openMenu();
-  } else if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
+    return true;
+  } else if ((event.type == SDL_EVENT_MOUSE_BUTTON_DOWN ||
+              event.type == SDL_EVENT_MOUSE_BUTTON_UP) &&
              event.button.button == SDL_BUTTON_LEFT) {
-    if (const int i = hit(event.button.x, event.button.y); i >= 0)
+    if (const int i = hit(event.button.x, event.button.y);
+        i >= 0 &&
+        Kotonoha::UI::clicked(event, options[std::size_t(i)].hitBox)) {
       select(std::size_t(i));
+      return true;
+    }
   }
+  return false;
 }
 
 // SelectWindow (ENVINIT selectopt): main_select-off / -on, 400x50, centred;
@@ -346,9 +398,9 @@ void ZeroSelectChoice::renderOption(Kotonoha::RendererRef renderer,
                                     std::size_t index, bool focused) {
   const auto &option = options[index];
   const SDL_FRect &b = option.hitBox;
-  session_.DrawNormal(
-      &renderer, focused && focus_ >= 0 ? "MAIN_SELECT-ON" : "MAIN_SELECT-OFF",
-      b.x, b.y);
+  const bool on = focused && focus_ >= 0;
+  session_.DrawNormal(&renderer, on ? "MAIN_SELECT-ON" : "MAIN_SELECT-OFF", b.x,
+                      b.y);
   const SDL_Color black{0, 0, 0, 255};
   const SDL_FPoint size =
       session_.DrawText(&renderer, option.label, 0, 0, 24, black, true);
@@ -405,17 +457,27 @@ void ZeroMoveChoice::renderOption(Kotonoha::RendererRef renderer,
   DrawCentered(&renderer, session_.NormalPicture(name), option.hitBox, -2);
 }
 
+// ---------------------------------------------------------------- roulette
+bool ZeroRoulette::onEvent(Kotonoha::EventRef event) {
+  if (!session_.RouletteActive())
+    return false;
+  session_.RouletteEvent(event);
+  return true;
+}
+
 // ---------------------------------------------------------------- in-game
 // screens
-
 ZeroCommandMenu::ZeroCommandMenu(Kotonoha::Engine &engine, ZeroSession &session)
     : InGameMenu(engine), session_(session) {}
 
-void ZeroCommandMenu::onEvent(Kotonoha::EventRef event) {
-  if (IsOpen())
+bool ZeroCommandMenu::onEvent(Kotonoha::EventRef event) {
+  if (IsOpen()) {
     session_.ScreenEvent(NativeNavigation(engine, event));
-  else if (session_.Playing())
-    InGameMenu::onEvent(event); // Esc opens CommandState
+    return true;
+  } else if (session_.Playing()) {
+    return InGameMenu::onEvent(event);
+  }
+  return false;
 }
 
 // "Title" in CommandState and the end of the story leave through InGameMenu.
@@ -424,11 +486,17 @@ void ZeroCommandMenu::update() {
     activate(5);
 }
 
-void ZeroBacklog::onEvent(Kotonoha::EventRef event) {
-  if (isVisible())
+ZeroBacklog::ZeroBacklog(Kotonoha::Engine &engine, ZeroSession &session)
+    : VNBacklog(engine), session_(session) {}
+
+bool ZeroBacklog::onEvent(Kotonoha::EventRef event) {
+  if (isVisible()) {
     session_.ScreenEvent(NativeNavigation(engine, event));
-  else if (session_.Playing() && !session_.ScreenActive())
-    VNBacklog::onEvent(event); // B opens HistoryState
+    return true;
+  } else if (session_.Playing() && !session_.ScreenActive()) {
+    return VNBacklog::onEvent(event);
+  }
+  return false;
 }
 
 } // namespace ZeroNoTsukaima

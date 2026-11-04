@@ -152,7 +152,8 @@ std::filesystem::path Assets::defaultDirectory() {
       return *found;
   for (const auto &root : Kotonoha::FileResolver::roots("school-days"))
     for (const auto &candidate :
-         {root / "game-assets", root / "school-days", root})
+         {root / "game-assets", root / "games" / "school-days" / "game-assets",
+          root / "school-days" / "game-assets", root / "school-days", root})
       if (checkDirectory(candidate, info))
         return candidate;
   return Kotonoha::preferredDataDirectory("school-days");

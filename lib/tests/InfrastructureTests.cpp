@@ -258,10 +258,17 @@ public:
     return true;
   }
   int touchDowns = 0, touchUps = 0;
+  int controllerButtons = 0;
+  Uint8 lastControllerButton = 0;
   bool continuousTouch() const override { return touch; }
   EventRuntime() : Runtime("Infrastructure tests", "1", "org.kotonoha.infra") {}
-  void onEvent(EventRef event) override {
+  bool onEvent(EventRef event) override {
     ++novelEvents;
+    if (event.type == SDL_EVENT_GAMEPAD_BUTTON_DOWN ||
+        event.type == SDL_EVENT_GAMEPAD_BUTTON_UP) {
+      ++controllerButtons;
+      lastControllerButton = event.gbutton.button;
+    }
     if ((event.type == SDL_EVENT_MOUSE_BUTTON_DOWN ||
          event.type == SDL_EVENT_MOUSE_BUTTON_UP) &&
         event.button.which == SDL_TOUCH_MOUSEID) {
@@ -270,13 +277,81 @@ public:
         ++touchDowns;
       else
         ++touchUps;
+      return true;
     }
+    return false;
   }
   bool onScreenEvent(EventRef event) override {
     ++screenEvents;
     return screenHandler ? screenHandler(event) : false;
   }
 };
+
+void testControllerNavigation(Engine &engine, EventRuntime &runtime) {
+  SDL_Event axis{};
+  axis.type = SDL_EVENT_GAMEPAD_AXIS_MOTION;
+  axis.gaxis.which = 999;
+  axis.gaxis.axis = SDL_GAMEPAD_AXIS_LEFTY;
+  axis.gaxis.value = 24000;
+  const int before = runtime.controllerButtons;
+  engine.Event(&axis);
+  require(
+      runtime.controllerButtons == before + 1 &&
+          runtime.lastControllerButton == SDL_GAMEPAD_BUTTON_DPAD_DOWN,
+      "Engine routes left-stick movement through the normal controller path");
+  axis.gaxis.value = 14000;
+  engine.Event(&axis);
+  require(runtime.controllerButtons == before + 1,
+          "Analog jitter does not repeat menu navigation");
+  axis.gaxis.value = 0;
+  engine.Event(&axis);
+  require(runtime.controllerButtons == before + 2,
+          "Engine delivers stick release on returning to the dead zone");
+  engine.openSettings();
+  SDL_Event cancel{};
+  cancel.type = SDL_EVENT_GAMEPAD_BUTTON_DOWN;
+  cancel.gbutton.button = SDL_GAMEPAD_BUTTON_SOUTH;
+  cancel.gbutton.down = true;
+  const int novel = runtime.novelEvents;
+  engine.Event(&cancel);
+  require(!engine.GetSettingsMenu().isOpen() && runtime.novelEvents == novel,
+          "Controller cancels engine settings without reaching the story");
+}
+
+void testModalInputRouting(Engine &engine) {
+  struct RoutingRuntime : Runtime {
+    RoutingRuntime() : Runtime("Routing", "1", "org.kotonoha.routing") {
+      SetState(GameState::Gameplay);
+    }
+    void add(Scene &scene) { gameplayScenes.push_back(&scene); }
+  } runtime;
+  struct CountingScene : Scene {
+    int calls = 0;
+    bool modal = false, consume = false;
+    CountingScene(Engine &engine) : Scene(engine) {}
+    bool capturesInput() const override { return modal; }
+    bool onEvent(EventRef) override {
+      ++calls;
+      return consume;
+    }
+  } story(engine), modal(engine);
+  modal.modal = true;
+  runtime.add(story);
+  runtime.add(modal);
+  require(
+      runtime.onEvent(key(SDLK_F7)) && modal.calls == 1 && story.calls == 0,
+      "An unbound modal event is delivered once and never reaches the story");
+  modal.consume = true;
+  require(runtime.onEvent(key(SDLK_RETURN)) && modal.calls == 2 &&
+              story.calls == 0,
+          "A consumed modal confirmation cannot advance the underlying story");
+  modal.modal = false;
+  modal.consume = false;
+  story.consume = true;
+  require(runtime.onEvent(key(SDLK_RETURN)) && modal.calls == 3 &&
+              story.calls == 1,
+          "Non-modal scenes pass unbound input to the next scene exactly once");
+}
 
 void testContinuousTouch(Engine &engine, EventRuntime &runtime) {
   runtime.touch = true;
@@ -787,6 +862,8 @@ int main(int argc, char **argv) {
       testWindowAndMenu(engine, runtime, options.settingsPath);
       testKtrfRuntime(engine, temporary.path);
       testRenderState(engine);
+      testControllerNavigation(engine, runtime);
+      testModalInputRouting(engine);
       testContinuousTouch(engine, runtime);
       testTouchSettings(engine, runtime);
       testUnchangedWindowGeometry(engine);

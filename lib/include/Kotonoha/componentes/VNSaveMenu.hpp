@@ -1,4 +1,5 @@
 #pragma once
+#include <Kotonoha/componentes/TouchActivation.hpp>
 
 #include <Kotonoha/componentes/VNSave.hpp>
 #include <Kotonoha/core/Scene.hpp>
@@ -9,6 +10,7 @@ namespace Kotonoha {
 class TextInputDialog;
 
 class VNSaveMenu final : public Scene {
+  TouchActivation touchActivation;
   enum class Confirmation { None, Overwrite, Delete };
   bool opened = false, loading = false;
   ScrollGesture scrollGesture;
@@ -40,7 +42,7 @@ public:
   bool isOpen() const { return opened; }
   bool capturesInput() const override { return opened; }
   bool pausesStory() const override { return opened; }
-  void onEvent(EventRef event) override;
+  bool onEvent(EventRef event) override;
   void render(RendererRef renderer, float scale) override;
 };
 

@@ -1,5 +1,7 @@
 #pragma once
 #include <Kotonoha/core/SDL.hpp>
+#include <Kotonoha/events/ControllerEvent.hpp>
+#include <Kotonoha/componentes/TouchActivation.hpp>
 #include <algorithm>
 #include <functional>
 #include <vector>
@@ -8,6 +10,8 @@ namespace Kotonoha {
 // Input/state for native sprite controls. Ports provide their own atlas and
 // optional pixel hitmap; mouse and synthesized touch use the same path.
 class ImageButtonBar {
+  TouchActivation touchActivation;
+  bool keyboardFocus = false;
 public:
   struct Button {
     SDL_FRect area;
@@ -24,7 +28,11 @@ public:
         return int(i);
     return -1;
   }
-  void reset() { hovered = pressed = -1; }
+  void reset() {
+    hovered = pressed = -1;
+    keyboardFocus = false;
+    touchActivation.reset();
+  }
   int state(int index) const {
     return pressed == index && hovered == index ? 2 : hovered == index ? 1 : 0;
   }
@@ -50,12 +58,38 @@ public:
     }
     return closest;
   }
-  bool handle(EventRef event) {
+  bool handle(EventRef rawEvent) {
+    const auto event = MapControllerEvent(rawEvent);
+    if (!touchActivation.accept(event)) {
+      pressed = -1;
+      return true;
+    }
+    if (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat && !buttons.empty()) {
+      const auto key = event.key.key;
+      if (key == SDLK_LEFT || key == SDLK_UP ||
+          key == SDLK_RIGHT || key == SDLK_DOWN) {
+        const int count = int(buttons.size());
+        const int direction = (key == SDLK_LEFT || key == SDLK_UP) ? -1 : 1;
+        hovered = hovered < 0 ? (direction < 0 ? count - 1 : 0)
+                              : (hovered + direction + count) % count;
+        pressed = -1;
+        keyboardFocus = true;
+        return true;
+      }
+      if (keyboardFocus && hovered >= 0 && hovered < int(buttons.size()) &&
+          (key == SDLK_RETURN || key == SDLK_SPACE)) {
+        const auto action = buttons[hovered].action;
+        if (action)
+          action();
+        return true;
+      }
+    }
     if (event.type == SDL_EVENT_WINDOW_FOCUS_LOST) {
       reset();
       return false;
     }
     if (event.type == SDL_EVENT_MOUSE_MOTION) {
+      keyboardFocus = false;
       hovered = hit({event.motion.x, event.motion.y});
       return pressed >= 0;
     }
@@ -63,6 +97,7 @@ public:
          event.type != SDL_EVENT_MOUSE_BUTTON_UP) ||
         event.button.button != SDL_BUTTON_LEFT)
       return false;
+    keyboardFocus = false;
     hovered = event.button.which == SDL_TOUCH_MOUSEID
                   ? touchHit({event.button.x, event.button.y})
                   : hit({event.button.x, event.button.y});

@@ -121,14 +121,19 @@ bool DebugOverlay::handleEvent(EventRef event) {
       return true;
     }
   }
+  const bool wantCapture = ImGui::GetIO().WantCaptureMouse ||
+                           ImGui::GetIO().WantCaptureKeyboard ||
+                           ImGui::IsAnyItemActive() ||
+                           ImGui::IsWindowFocused(ImGuiFocusedFlags_AnyWindow);
   const bool input = (event.type >= SDL_EVENT_KEY_DOWN &&
                       event.type <= SDL_EVENT_TEXT_INPUT) ||
                      (event.type >= SDL_EVENT_MOUSE_MOTION &&
-                      event.type <= SDL_EVENT_MOUSE_WHEEL);
-  // The inspector is modal for game input, including its opening/closing click.
-  const bool touch = event.type >= SDL_EVENT_FINGER_DOWN &&
-                     event.type <= SDL_EVENT_FINGER_CANCELED;
-  return (visible || showTranslationWindow) && (input || touch);
+                      event.type <= SDL_EVENT_MOUSE_WHEEL) ||
+                     (event.type >= SDL_EVENT_FINGER_DOWN &&
+                      event.type <= SDL_EVENT_FINGER_CANCELED) ||
+                     event.type == SDL_EVENT_GAMEPAD_BUTTON_DOWN ||
+                     event.type == SDL_EVENT_GAMEPAD_BUTTON_UP;
+  return (visible || showTranslationWindow) && input && wantCapture;
 }
 
 void DebugOverlay::update() {
@@ -562,7 +567,7 @@ void DebugOverlay::refreshTranslationSources() {
     for (const auto &[id, _] : cachedManagerSources)
       addKey(std::to_string(id));
     for (int id : engine.GetRuntime().translationRoutes())
-      addKey(std::to_string(id));
+      addKey(id < 0 ? "nodo" : std::to_string(id));
     for (const auto &[id, _] : cachedRuntimeSources)
       addKey(std::to_string(id));
     for (const auto &engNode : cachedEngineNodes)
@@ -766,6 +771,9 @@ void DebugOverlay::drawTranslationWindow() {
         stringsToTranslate.push_back(s);
     };
 
+    if (selectedTransNodeStr == "nodo")
+      for (const auto &text : engine.GetRuntime().translationTexts(-1))
+        addString(text);
     int nodeInt = -1;
     auto parsed = std::from_chars(
         selectedTransNodeStr.data(),

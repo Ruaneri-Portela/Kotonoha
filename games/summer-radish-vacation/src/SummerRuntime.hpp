@@ -13,7 +13,7 @@ public:
   void initMenu(Kotonoha::Engine &) override;
   void initGameplay(Kotonoha::Engine &) override;
   void update() override;
-  void onEvent(Kotonoha::EventRef) override;
+  bool onEvent(Kotonoha::EventRef) override;
   void saveGame(const std::string &) override;
   void loadGame(const std::string &) override;
   Kotonoha::Translation::SourceTexts translationSources() const override;
@@ -21,6 +21,7 @@ public:
   std::string debugNode() const override;
   std::vector<Kotonoha::DebugNode> debugNodes() const override;
   void debugJumpToNode(const std::string &) override;
+  [[nodiscard]] bool continuousTouch() const override { return true; }
   SDL_Point viewport() const override { return {960, 720}; }
   SDL_FPoint sceneSize(const Kotonoha::Scene &) const override;
 };

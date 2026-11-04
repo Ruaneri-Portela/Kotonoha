@@ -113,11 +113,11 @@ public:
     selected = 0;
     VNBacklog::clear();
   }
-  void onEvent(Kotonoha::EventRef event) override {
+  bool onEvent(Kotonoha::EventRef event) override {
     if (!isVisible())
-      return;
+      return false;
     if (controls.handle(event))
-      return;
+      return true;
     if (event.type == SDL_EVENT_MOUSE_BUTTON_UP &&
         event.button.button == SDL_BUTTON_LEFT && event.button.x < 744) {
       const SDL_FPoint point{event.button.x, event.button.y + scroll};
@@ -125,10 +125,10 @@ public:
         if (SDL_PointInRectFloat(&point, &rows[i])) {
           selected = i;
           replayEntry(i);
-          break;
+          return true;
         }
     }
-    VNBacklog::onEvent(event);
+    return VNBacklog::onEvent(event);
   }
 };
 } // namespace SummerRadish

@@ -1,4 +1,5 @@
 #pragma once
+#include <Kotonoha/componentes/TouchActivation.hpp>
 
 #include <Kotonoha/localization/Translation.hpp>
 
@@ -14,6 +15,7 @@ namespace Kotonoha {
 
 class VNManager final : public Scene {
 private:
+  TouchActivation touchActivation;
   std::unordered_map<int, ScriptNode> scriptNodes;
   int currentNodeId = -1;
   bool isFinishedState = false;
@@ -44,7 +46,7 @@ public:
   void setInputBlocked(bool blocked) { inputBlocked = blocked; }
   bool isInputBlocked() const { return inputBlocked; }
 
-  void onEvent(EventRef event) override;
+  bool onEvent(EventRef event) override;
   void update() override;
 
   bool isFinished() const { return isFinishedState; }

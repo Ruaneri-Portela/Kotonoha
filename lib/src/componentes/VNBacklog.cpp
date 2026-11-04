@@ -2,6 +2,7 @@
 #include <Kotonoha/core/UI.hpp>
 #include <Kotonoha/events/BackAction.hpp>
 #include <Kotonoha/events/BacklogEvents.hpp>
+#include <Kotonoha/events/ControllerEvent.hpp>
 #include <algorithm>
 #include <cmath>
 
@@ -23,21 +24,27 @@ void VNBacklog::clear() {
   scrollVelocity = 0;
 }
 
-void VNBacklog::onEvent(EventRef event) {
+bool VNBacklog::onEvent(EventRef rawEvent) {
   if (!isOpen)
-    return;
+    return false;
+  const auto event = MapControllerEvent(rawEvent, false, true);
+  if (!touchActivation.accept(event))
+    return true;
   if (BackAction(engine, event) ||
       (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat &&
        event.key.key == SDLK_B) ||
       UI::clicked(event, closeButtonArea())) {
     close();
-    return;
+    return true;
   }
-  scrollGesture.handle(event, scrollInputHeight(), targetScroll, scrollVelocity,
-                       scrollToBottom, maxScroll);
-  isDragging = scrollGesture.isDragging();
-  if (isDragging)
-    scroll = targetScroll;
+  if (scrollGesture.handle(event, scrollInputHeight(), targetScroll,
+                           scrollVelocity, scrollToBottom, maxScroll)) {
+    isDragging = scrollGesture.isDragging();
+    if (isDragging)
+      scroll = targetScroll;
+    return true;
+  }
+  return false;
 }
 
 void VNBacklog::update() {

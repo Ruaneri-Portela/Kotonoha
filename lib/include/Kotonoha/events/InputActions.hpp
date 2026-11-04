@@ -35,6 +35,7 @@ public:
 // Reusable drag/wheel/keyboard scrolling for touch-aware lists and histories.
 class ScrollGesture {
   bool dragging = false, touch = false;
+  SDL_TouchID device = 0;
   SDL_FingerID finger = 0;
   float lastY = 0;
 

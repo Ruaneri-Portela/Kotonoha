@@ -1,6 +1,7 @@
 #include <Kotonoha/componentes/TextInputDialog.hpp>
 #include <Kotonoha/core/UI.hpp>
 #include <Kotonoha/events/BackAction.hpp>
+#include <Kotonoha/events/ControllerEvent.hpp>
 #include <cmath>
 #include <stdexcept>
 
@@ -28,6 +29,7 @@ void TextInputDialog::configure(
     const std::string &prompt,
     std::function<void(const std::string &)> confirmCb,
     std::function<void()> cancelCb, const std::string &initialText) {
+  touchActivation.reset();
   promptText = prompt;
   onConfirm = std::move(confirmCb);
   onCancel = std::move(cancelCb);
@@ -35,29 +37,44 @@ void TextInputDialog::configure(
   editing = false;
 }
 
-void TextInputDialog::onEvent(EventRef event) {
+bool TextInputDialog::onEvent(EventRef rawEvent) {
+  const auto event = MapControllerEvent(rawEvent);
+  if (!touchActivation.accept(event))
+    return true;
   if (event.type == SDL_EVENT_TEXT_INPUT) {
     if (input.size() + std::char_traits<char>::length(event.text.text) <= 255)
       input += event.text.text;
     else
       SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
                   "Text input limit is 255 bytes");
+    return true;
   }
-  if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_BACKSPACE)
+  if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_BACKSPACE) {
     eraseLastCharacter(input);
+    return true;
+  }
   const bool key = event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat;
   if ((key && event.key.key == SDLK_RETURN) ||
       UI::clicked(event, {400, 402, 200, 48})) {
-    if (onConfirm) {
-      const auto callback = onConfirm;
-      const auto value = input;
+    // Stop this editor before calling user code: the callback can destroy this
+    // dialog, reconfigure it, or start text input for a different modal.
+    const auto callback = onConfirm;
+    const auto value = input;
+    if (!SDL_StopTextInput(&engine.GetWindow()))
+      throw std::runtime_error(SDL_GetError());
+    editing = false;
+    if (callback)
       callback(value);
-    }
+    return true;
   } else if (BackAction(engine, event) ||
              UI::clicked(event, {620, 402, 240, 48})) {
     const auto callback = onCancel;
+    if (!SDL_StopTextInput(&engine.GetWindow()))
+      throw std::runtime_error(SDL_GetError());
+    editing = false;
     if (callback)
       callback();
+    return true;
   }
   const auto &scenes = engine.GetRuntime().GetActiveScenes();
   if (std::find(scenes.begin(), scenes.end(), this) == scenes.end()) {
@@ -65,6 +82,7 @@ void TextInputDialog::onEvent(EventRef event) {
       throw std::runtime_error(SDL_GetError());
     editing = false;
   }
+  return false;
 }
 
 void TextInputDialog::update() {

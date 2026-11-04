@@ -33,7 +33,7 @@ public:
   void init(Kotonoha::Engine &engine) override;
   void initMenu(Kotonoha::Engine &engine) override;
   void initGameplay(Kotonoha::Engine &engine) override;
-  void onEvent(Kotonoha::EventRef event) override;
+  bool onEvent(Kotonoha::EventRef event) override;
   void update() override;
   void saveGame(const std::string &path) override;
   void loadGame(const std::string &path) override;

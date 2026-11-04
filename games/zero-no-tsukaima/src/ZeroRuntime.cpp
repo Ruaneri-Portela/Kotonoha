@@ -2,6 +2,7 @@
 
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/UI.hpp>
+#include <Kotonoha/events/ControllerEvent.hpp>
 
 #include <algorithm>
 #include <stdexcept>
@@ -88,28 +89,51 @@ void ZeroRuntime::update() {
   Runtime::update();
 }
 
-void ZeroRuntime::onEvent(Kotonoha::EventRef event) {
+bool ZeroRuntime::onEvent(Kotonoha::EventRef event) {
   if (!session_)
-    return;
-  if (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat) {
-    switch (event.key.key) {
+    return false;
+  // Menu, map choices and roulette keep navigation controls; dialogue-only
+  // shortcuts must never turn Cancel into a held skip inside those screens.
+  if (textBox_ && (event.type == SDL_EVENT_WINDOW_FOCUS_LOST ||
+                   event.type == SDL_EVENT_GAMEPAD_REMOVED ||
+                   (event.type == SDL_EVENT_GAMEPAD_BUTTON_UP &&
+                    event.gbutton.button == SDL_GAMEPAD_BUTTON_SOUTH)))
+    textBox_->cancelHeldSkip();
+  // Shared save/name dialogs own their original controller events (including
+  // rename/delete shortcuts); only this game's retail scenes use its mapping.
+  for (auto *scene : GetActiveScenes())
+    if (scene && scene->capturesInput() && scene != select_.get() &&
+        scene != move_.get() && scene != roulette_.get() &&
+        scene != command_.get() && scene != backlog_.get()) {
+      if (textBox_)
+        textBox_->cancelHeldSkip();
+      return Runtime::onEvent(event);
+    }
+  const bool dialogue = currentState == Kotonoha::GameState::Gameplay &&
+                        session_->Playing() && !session_->ScreenActive() &&
+                        !session_->Choosing() && !session_->RouletteActive() &&
+                        !engine_->isStoryPaused();
+  auto mapped =
+      Kotonoha::MapControllerEvent(event, dialogue, session_->HistoryActive());
+  if (mapped.type == SDL_EVENT_KEY_DOWN && !mapped.key.repeat) {
+    switch (mapped.key.key) {
     case SDLK_F2:
       session_->StepRate(false, -1);
-      return;
+      return true;
     case SDLK_F3:
       session_->StepRate(false, +1);
-      return;
+      return true;
     case SDLK_F4:
       session_->StepRate(true, -1);
-      return;
+      return true;
     case SDLK_F5:
       session_->StepRate(true, +1);
-      return;
+      return true;
     default:
       break;
     }
   }
-  Runtime::onEvent(event);
+  return Runtime::onEvent(mapped);
 }
 
 std::vector<int> ZeroRuntime::translationRoutes() const {

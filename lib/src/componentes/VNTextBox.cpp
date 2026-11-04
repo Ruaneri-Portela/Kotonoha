@@ -2,6 +2,8 @@
 #include <Kotonoha/componentes/VNBacklog.hpp>
 #include <Kotonoha/componentes/VNTextBox.hpp>
 #include <Kotonoha/core/UI.hpp>
+#include <Kotonoha/events/BackAction.hpp>
+#include <Kotonoha/events/ControllerEvent.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -73,21 +75,26 @@ void VNTextBox::recordDialogue(const std::string &speaker,
 void VNTextBox::openMenu() { GetInGameMenuRuntime(engine).open(); }
 void VNTextBox::openBacklog() { GetVNBacklogRuntime(engine).open(); }
 
-void VNTextBox::onEvent(EventRef) {}
-
-bool VNTextBox::handleEvent(EventRef event) {
+bool VNTextBox::onEvent(EventRef rawEvent) {
   if (!visible)
     return false;
-  if (UI::clicked(event, {900, 506, 160, 44})) {
+  const auto event = MapControllerEvent(rawEvent);
+  if (!touchActivation.accept(event))
+    return true;
+  if (BackAction(engine, event) || UI::clicked(event, {900, 506, 160, 44})) {
     openMenu();
     return true;
   }
-  if (UI::clicked(event, {1070, 506, 160, 44})) {
+  if ((event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat &&
+       (event.key.key == SDLK_B || event.key.key == SDLK_PAGEUP)) ||
+      UI::clicked(event, {1070, 506, 160, 44})) {
     openBacklog();
     return true;
   }
   return false;
 }
+
+bool VNTextBox::handleEvent(EventRef event) { return onEvent(event); }
 
 void VNTextBox::update() {
   const double delta = clock.seconds();

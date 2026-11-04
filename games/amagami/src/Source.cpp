@@ -48,7 +48,13 @@ Source::Source(const std::string &path)
                       Archive{*entry, afs ? ParseAfs(header, entry->size)
                                           : ParseArc(header, entry->size)});
   }
-  const auto count = archive("SCENARIO.ARC").entries.size();
+  // Keep the script archive in memory: scanning 2,308 scenes otherwise issues
+  // thousands of small seeks, particularly costly when the disc is on SMB.
+  const auto &scenario = archive("SCENARIO.ARC");
+  if (scenario.file.size > 256 * 1024 * 1024)
+    throw std::runtime_error("Scenario archive exceeds memory limit");
+  scenarioArchive_ = disc_->read(scenario.file, 0, scenario.file.size);
+  const auto count = scenario.entries.size();
   for (size_t i = 0; i < count; ++i) {
     auto s = script(i);
     if (!scenarioByName_.emplace(s.name, i).second)
@@ -150,6 +156,13 @@ const Source::Archive &Source::archive(const std::string &name) const {
 Bytes Source::read(const std::string &name, size_t index) const {
   const auto &a = archive(name);
   const auto &entry = a.entries.at(index);
+  if (name == "SCENARIO.ARC") {
+    if (entry.offset > scenarioArchive_.size() ||
+        entry.size > scenarioArchive_.size() - entry.offset)
+      throw std::runtime_error("Scenario outside cached archive");
+    return Bytes(scenarioArchive_.begin() + entry.offset,
+                 scenarioArchive_.begin() + entry.offset + entry.size);
+  }
   return disc_->read(a.file, entry.offset, entry.size);
 }
 Script Source::script(size_t index) const {
@@ -179,6 +192,12 @@ int Source::find(const std::string &archiveName,
       return int(i);
   return -1;
 }
+Bytes Source::ambience(unsigned index) const {
+  const auto &a = archive("SOUND/SOUND.AFS");
+  if (index >= a.entries.size())
+    throw std::out_of_range("Ambient sound index outside SOUND.AFS");
+  return read("SOUND/SOUND.AFS", index);
+}
 Bytes Source::voice(const std::string &code, unsigned number) const {
   char id[16];
   std::snprintf(id, sizeof(id), "%s%04u", code.c_str(), number);
@@ -193,12 +212,19 @@ Bytes Source::voice(const std::string &code, unsigned number) const {
 namespace Amagami {
 std::optional<Source::GraphicLocation>
 Source::graphic(const std::string &name) const {
+  if (auto cached = graphicLocations_.find(name);
+      cached != graphicLocations_.end())
+    return cached->second;
   for (const auto *archive :
        {"GRAPH/GRAPH0.ARC", "GRAPH/GRAPH1.ARC", "GRAPH/GRAPH2.ARC"}) {
     const int index = find(archive, name);
-    if (index >= 0)
-      return GraphicLocation{archive, size_t(index)};
+    if (index >= 0) {
+      GraphicLocation location{archive, size_t(index)};
+      graphicLocations_.emplace(name, location);
+      return location;
+    }
   }
+  graphicLocations_.emplace(name, std::nullopt);
   return std::nullopt;
 }
 std::string Source::itemPicture(unsigned number) const {

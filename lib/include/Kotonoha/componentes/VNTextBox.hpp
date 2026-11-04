@@ -1,4 +1,5 @@
 #pragma once
+#include <Kotonoha/componentes/TouchActivation.hpp>
 
 #include <Kotonoha/core/Clock.hpp>
 #include <Kotonoha/core/Engine.hpp>
@@ -12,6 +13,7 @@ namespace Kotonoha {
 // hooks to change how the box looks, paces text or reaches the menus.
 class VNTextBox : public Scene {
 protected:
+  TouchActivation touchActivation;
   Clock clock;
 
   std::string speakerName;
@@ -51,7 +53,7 @@ public:
   void setTextSpeed(double charsPerSecond);
   double getTextSpeed() const { return cps; }
 
-  void onEvent(EventRef event) override;
+  bool onEvent(EventRef event) override;
   bool handleEvent(EventRef event) override;
   void update() override;
   void render(RendererRef renderer, float scale) override;
