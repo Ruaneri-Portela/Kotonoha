@@ -332,6 +332,15 @@ bool Session::autoMode() const {
 bool Session::skipMode() const {
   return vm_.classFieldValue("GameParam", 5).truth();
 }
+bool Session::campaignCleared() const {
+  if (!campaignActive_ || !campaign_ || !campaign_->initialized())
+    return false;
+  // A campaign is clear when every EventNode in the original NodeTable has been
+  // marked passed by the original interpreter.
+  auto vm = Campaign::workerPublic(vm_);
+  return campaign_->campaignCleared(vm);
+}
+
 bool Session::skipping() const {
   const auto flag = [this](size_t slot) {
     return vm_.classFieldValue("GameParam", slot).truth();
@@ -595,11 +604,15 @@ std::optional<VmValue> Session::native(const VmValue &r, const std::string &s,
     ended_ = true;
     return VmValue{};
   }
-  // checkClear is exclusively a diagnostic dump (System.println), not a
-  // state mutation. Its campaign-wide EventNode totals are not initialized by
-  // the standalone scenario runner; do not evaluate that debug-only dump.
-  if (s == "checkClear" && r.object == self_.object)
-    return r;
+  // checkClear asks the original campaign whether every EventNode has been
+  // passed; it returns a Boolean the SCF bytecode can branch on. When the
+  // campaign is not active or not initialized, report not-clear so scripts do
+  // not skip past unplayed content.
+  if (s == "checkClear" && r.object == self_.object) {
+    auto cleared = VmValue::num(campaignCleared());
+    cleared.kind = VmValue::Boolean;
+    return cleared;
+  }
   if (realtime_ && (s == "sleep" || s == "actSleep" || s == "exsleep") &&
       !a.empty() && number(a, 0) > 0) {
     sleepFrames(number(a, 0));

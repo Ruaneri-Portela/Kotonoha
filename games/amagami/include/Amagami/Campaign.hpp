@@ -67,6 +67,14 @@ public:
   void save(const Vm &vm, std::ostream &out) const;
   void load(Vm &vm, std::istream &in);
 
+  // True when every EventNode in the original NodeTable has been marked passed
+  // by the original interpreter (isPass on each node).
+  bool campaignCleared(Vm &vm) const;
+
+  // Independent call stack sharing the live VM's class/object state, used to
+  // query original EventNode methods without mutating presentation state.
+  static Vm workerPublic(const Vm &live) { return worker(live); }
+
 private:
   std::shared_ptr<Source> source_;
   bool initialized_ = false;
