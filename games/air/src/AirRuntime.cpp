@@ -1690,7 +1690,7 @@ struct AirRuntime::Impl {
     runtime.RemoveScene(saves.get());
     runtime.AddScene(saves.get());
   }
-  void advanceText() {
+  void advanceText(bool manual = true) {
     if (!pause)
       return;
     if (!textbox->isDialogueComplete())
@@ -1699,8 +1699,12 @@ struct AirRuntime::Impl {
       readPages.insert(currentPage);
       pause = false;
       autoDeadline = 0;
-      autoMode = false;
-      skipMode = false;
+      if (manual) {
+        autoMode = false;
+        skipMode = false;
+      } else {
+        skipMode = false;
+      }
       if (pauseKind != 205) {
         dialogue.clear();
         speakerName.clear();
@@ -3173,7 +3177,7 @@ void AirRuntime::update() {
         i.autoDeadline = SDL_GetTicks() + duration;
       }
       if (SDL_GetTicks() >= i.autoDeadline)
-        i.advanceText();
+        i.advanceText(false);
     }
   }
   if (paused || i.pause || i.choice->isActive() || !i.error.empty() ||
