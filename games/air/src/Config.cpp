@@ -141,4 +141,18 @@ std::string decodeText(const std::string &input, int encoding) {
   return Kotonoha::ConvertEncoding(western, "CP1252", "UTF-8");
 }
 
+Config::Resolution Config::detectResolution() const {
+  Resolution res;
+  const auto &novelback = get("WINDOW.000.NOVELBACK");
+  if (novelback.size() >= 4) {
+    int x0 = integer("WINDOW.000.NOVELBACK", 0, 0);
+    int y0 = integer("WINDOW.000.NOVELBACK", 0, 1);
+    int x1 = integer("WINDOW.000.NOVELBACK", 640, 2);
+    int y1 = integer("WINDOW.000.NOVELBACK", 480, 3);
+    res.width = x1 - x0 + 1;
+    res.height = y1 - y0 + 1;
+  }
+  return res;
+}
+
 } // namespace Air

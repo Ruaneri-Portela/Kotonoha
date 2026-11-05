@@ -6,14 +6,15 @@
 
 namespace {
 void check(bool condition, const char *message) {
-  if (!condition) throw std::runtime_error(message);
+  if (!condition)
+    throw std::runtime_error(message);
 }
 
 struct Application {
   SchoolDays::Runtime runtime;
   Kotonoha::Engine engine;
-  static Kotonoha::EngineOptions options(
-      const std::shared_ptr<SchoolDays::Assets> &assets) {
+  static Kotonoha::EngineOptions
+  options(const std::shared_ptr<SchoolDays::Assets> &assets) {
     Kotonoha::EngineOptions result;
     result.assets = assets;
     result.persistSettings = false;
@@ -32,7 +33,8 @@ void clickChoice(SchoolDays::Runtime &runtime, int choice) {
   const int height = static_cast<int>(view.Cmap().Height());
   for (int y = 0; y < height; y += 2) {
     for (int x = 0; x < width; x += 2) {
-      if (view.HitChoice(x, y) != choice) continue;
+      if (view.HitChoice(x, y) != choice)
+        continue;
       const float displayX = static_cast<float>(x) * 1280.0f / width;
       const float displayY = static_cast<float>(y) * 720.0f / height;
       SDL_Event event{};
@@ -56,7 +58,8 @@ void clickChoice(SchoolDays::Runtime &runtime, int choice) {
 int main(int argc, char **argv) {
   try {
     check(argc == 3, "Expected retail assets and route");
-    const auto documents = std::filesystem::temp_directory_path() /
+    const auto documents =
+        std::filesystem::temp_directory_path() /
         ("school-days-exit-" + std::to_string(SDL_GetPerformanceCounter()));
     auto assets = std::make_shared<SchoolDays::Assets>(argv[1]);
     std::cerr << "ExitRuntime: initialize retail data\n";
@@ -115,8 +118,7 @@ int main(int argc, char **argv) {
     app.runtime.openPanel(16);
     SDL_Delay(520);
     app.runtime.update();
-    check(app.runtime.panels().IsExitOpen(),
-          "Menu quit popup did not reopen");
+    check(app.runtime.panels().IsExitOpen(), "Menu quit popup did not reopen");
     clickChoice(app.runtime, 0);
     SDL_Delay(770);
     app.runtime.update();

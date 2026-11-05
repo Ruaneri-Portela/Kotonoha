@@ -139,9 +139,9 @@ bool Session::flow(const CommandElement &c) {
     seek(f.scene, f.pc);
     return true;
   }
-  if (op == 11 || op == 12) {
+  if (op == 11 || op == 12 || op == 18) {
     int n = value(0), entry = c.GetParamCount() > 1 ? value(1) : 0;
-    if (op == 12)
+    if (op == 12 || op == 18)
       stack_.push_back({scene_, pc_ + 1});
     jump(n, entry);
     return true;
