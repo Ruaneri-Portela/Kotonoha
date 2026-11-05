@@ -3021,6 +3021,15 @@ std::string GameSession::debugNode() const {
          std::to_string(node.route);
 }
 
+std::string GameSession::nodeClockKey() const {
+  const auto &game = impl_->game;
+  if (!game.vm || !game.vm->currentNode())
+    return {};
+  // All positions within the same script file share the node clock; only the
+  // event clock resets between lines/events of a file.
+  return game.vm->currentNode()->file;
+}
+
 void GameSession::debugJump(const std::string &label) {
   auto &game = impl_->game;
   if (!game.vm || game.phase != Phase::Play)

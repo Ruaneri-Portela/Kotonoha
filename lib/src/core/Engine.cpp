@@ -43,8 +43,6 @@ std::vector<DebugNode> Engine::debugNodes() {
 }
 
 void Engine::debugJumpToNode(const std::string &id) {
-  if (runtime.GetState() != GameState::Gameplay)
-    throw std::logic_error("Start gameplay before jumping to a node");
   if (settingsMenu->isOpen())
     throw std::logic_error("Close engine settings before jumping to a node");
   if (!runtime.debugNodes().empty()) {

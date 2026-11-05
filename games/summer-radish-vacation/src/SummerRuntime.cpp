@@ -1579,6 +1579,11 @@ int SummerRuntime::translationRoute() const { return impl->route(); }
 std::string SummerRuntime::debugNode() const {
   return impl->vm.position.script + ":" + std::to_string(impl->vm.position.pc);
 }
+std::string SummerRuntime::nodeClockKey() const {
+  // All positions within the same script share the node clock; only the
+  // event clock resets between PCs of a script.
+  return impl->vm.position.script;
+}
 std::vector<DebugNode> SummerRuntime::debugNodes() const {
   std::vector<DebugNode> nodes;
   for (auto &[name, s] : impl->vm.programs()) {

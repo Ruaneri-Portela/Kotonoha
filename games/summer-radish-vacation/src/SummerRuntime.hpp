@@ -19,6 +19,7 @@ public:
   Kotonoha::Translation::SourceTexts translationSources() const override;
   int translationRoute()const override;
   std::string debugNode() const override;
+  std::string nodeClockKey() const override;
   std::vector<Kotonoha::DebugNode> debugNodes() const override;
   void debugJumpToNode(const std::string &) override;
   [[nodiscard]] bool continuousTouch() const override { return true; }

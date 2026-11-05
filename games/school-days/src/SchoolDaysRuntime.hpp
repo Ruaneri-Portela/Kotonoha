@@ -165,6 +165,7 @@ public:
   }
   int translationRoute() const override;
   std::string debugNode() const override;
+  std::string nodeClockKey() const override;
   bool usesTimedNodeClock() const override { return true; }
   std::optional<double> debugNodeSeconds() const override { return elapsed; }
   Kotonoha::Translation::SourceTexts translationSources() const override;

@@ -144,6 +144,7 @@ public:
   SDL_Point viewport() const override { return {960, 672}; }
   SDL_FPoint sceneSize(const Kotonoha::Scene &) const override;
   std::string debugNode() const override;
+  std::string nodeClockKey() const override;
   std::vector<Kotonoha::DebugNode> debugNodes() const override;
   void debugJumpToNode(const std::string &) override;
   int translationRoute() const override;

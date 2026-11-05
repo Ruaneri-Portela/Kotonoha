@@ -315,7 +315,6 @@ void DebugOverlay::drawInspector() {
       }
     }
   }
-  ImGui::BeginDisabled(engine.GetRuntime().GetState() != GameState::Gameplay);
   if (ImGuiTheme::primaryButton("Jump to selected node")) {
     try {
       manager.debugJumpToNode(selectedNode);
@@ -328,7 +327,6 @@ void DebugOverlay::drawInspector() {
                    error.what());
     }
   }
-  ImGui::EndDisabled();
   const auto &nodes = cachedEngineNodes;
   const auto item =
       std::find_if(nodes.begin(), nodes.end(), [&](const auto &entry) {

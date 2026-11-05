@@ -39,6 +39,7 @@ public:
   // Route = 12-bit script object id (texts in Shift-JIS converted to UTF-8).
   Kotonoha::Translation::SourceTexts translationSources() const override;
   std::string debugNode() const override;
+  std::string nodeClockKey() const override;
   std::vector<Kotonoha::DebugNode> debugNodes() const override;
   void debugJumpToNode(const std::string &id) override;
 

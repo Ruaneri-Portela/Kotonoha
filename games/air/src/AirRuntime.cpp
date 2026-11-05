@@ -28,6 +28,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <vector>
 #include <cstring>
 #include <iomanip>
 #include <limits>
@@ -288,6 +289,28 @@ struct Object {
   std::array<SDL_Point, 16> adjustments{};
   int frameMs = 0;
   Uint64 animationElapsed = 0;
+  enum class Kind { Sprite, Drift };
+  Kind kind = Kind::Sprite;
+  // Drift / particle object parameters (objDriftOfFile + objDriftOpts).
+  int driftCount = 1;
+  bool driftUseAnimation = false;
+  int driftStartPattern = 0;
+  int driftEndPattern = 0;
+  int driftAnimationTime = 0;
+  int driftYSpeed = 0;
+  int driftPeriod = 0;
+  int driftAmplitude = 0;
+  bool driftUseDrift = false;
+  int driftUnknown = 3;
+  int driftDriftSpeed = 0;
+  SDL_Rect driftArea{-1, -1, -1, -1};
+  // Drift particle instances (lazily spawned, persisted while object lives).
+  struct DriftParticle {
+    int x = 0, y = 0, alpha = 255;
+    Uint64 startTime = 0;
+  };
+  std::vector<DriftParticle> driftParticles;
+  Uint64 driftLastSpawn = 0;
   size_t currentPattern(size_t count) const {
     return frameMs > 0 ? (animationElapsed / Uint64(frameMs)) % count
                        : size_t(std::clamp(pattern, 0, int(count - 1)));
@@ -1025,7 +1048,95 @@ struct AirRuntime::Impl {
     SDL_Rect point{target.x, target.y, 0, 0};
     blit(*resized, dest, nullptr, &point, alpha, mask);
   }
-  void drawObject(const Object &o, SurfaceRef dest, int scale) {
+  void drawDriftObject(Object &o, SurfaceRef dest, int scale) {
+    if (o.file.empty())
+      return;
+    auto &g = graphic(o.file);
+    const auto surface = g.surface.get();
+    if (!surface)
+      return;
+
+    SDL_Rect bb = o.driftArea;
+    if (bb.w < 0 || bb.h < 0)
+      bb = {0, 0, 640, 480};
+    const int bw = std::max(1, bb.w * scale), bh = std::max(1, bb.h * scale);
+
+    const Uint64 now = SDL_GetTicks();
+    // Lazily spawn particles up to driftCount, persisting while the object
+    // lives (they are re-seeded on each object creation via 1300).
+    while (o.driftParticles.size() < size_t(o.driftCount)) {
+      Object::DriftParticle p;
+      p.x = rand() % bw;
+      p.y = rand() % bh;
+      p.alpha = 255;
+      p.startTime = now;
+      o.driftParticles.push_back(p);
+    }
+
+    const Uint64 elapsedBase = now - o.driftLastSpawn;
+    o.driftLastSpawn = now;
+
+    for (auto &p : o.driftParticles) {
+      const Uint64 elapsed = now - p.startTime;
+
+      int pattern = o.driftStartPattern;
+      if (o.driftUseAnimation && o.driftEndPattern > o.driftStartPattern) {
+        const int numPatterns = o.driftEndPattern - o.driftStartPattern + 1;
+        const int frameTime =
+            o.driftAnimationTime > 0 ? o.driftAnimationTime / numPatterns : 0;
+        if (frameTime > 0)
+          pattern = o.driftStartPattern +
+                    int((elapsed / frameTime) % numPatterns);
+      }
+
+      SDL_Rect src{0, 0, int(g.image.width), int(g.image.height)};
+      if (!g.image.regions.empty() && pattern < g.image.regions.size()) {
+        const auto &r = g.image.regions.at(pattern);
+        src = {r.atlasX, r.atlasY, r.x2 - r.x1 + 1, r.y2 - r.y1 + 1};
+      }
+
+      int destX = p.x;
+      int destY = p.y;
+
+      // Base vertical drift (top -> bottom over yspeed ms).
+      if (o.driftYSpeed > 0)
+        destY += bh * int((elapsed % Uint64(o.driftYSpeed)) /
+                          Uint64(o.driftYSpeed));
+
+      // Sine wave horizontal offset.
+      if (o.driftPeriod > 0 && o.driftAmplitude != 0) {
+        const double scaledAmplitude =
+            bw * (1.0 / std::max(1, o.driftAmplitude / 100));
+        const double result =
+            std::sin((double(elapsed) / double(o.driftPeriod)) * (2.0 * 3.14159));
+        destX += int(scaledAmplitude * result);
+      }
+
+      // Leftward drift.
+      if (o.driftUseDrift && o.driftDriftSpeed > 0)
+        destX -= bw * int((elapsed % Uint64(o.driftDriftSpeed)) /
+                          Uint64(o.driftDriftSpeed));
+
+      // Wrap around.
+      if (destX < 0)
+        destX += bw;
+      else
+        destX %= bw;
+      if (destY < 0)
+        destY += bh;
+      else
+        destY %= bh;
+
+      SDL_Rect dst{bb.x * scale + destX, bb.y * scale + destY, src.w, src.h};
+      blit(*surface, dest, &src, &dst, std::clamp(p.alpha, 0, 255));
+    }
+  }
+
+  void drawObject(Object &o, SurfaceRef dest, int scale) {
+    if (o.kind == Object::Kind::Drift) {
+      drawDriftObject(o, dest, scale);
+      return;
+    }
     int adjustX = 0, adjustY = 0;
     for (const auto &adjustment : o.adjustments) {
       adjustX += adjustment.x;
@@ -2153,6 +2264,7 @@ bool AirRuntime::Impl::command(const libreallive::CommandElement &c) {
       o.frameMs = 0;
       o.animationElapsed = 0;
       o.file = str(c, 1);
+      o.kind = Object::Kind::Sprite;
       prepareGraphic(graphic(o.file));
       if (over >= 1)
         o.visible = value(c, 2);
@@ -2166,6 +2278,7 @@ bool AirRuntime::Impl::command(const libreallive::CommandElement &c) {
     }
     if (op == 1101 && over == 2) {
       o.file.clear();
+      o.kind = Object::Kind::Sprite;
       o.frameMs = 0;
       o.animationElapsed = 0;
       if (c.GetParamCount() == 6) {
@@ -2185,10 +2298,29 @@ bool AirRuntime::Impl::command(const libreallive::CommandElement &c) {
     }
     if (op == 1200) {
       o.file.clear();
+      o.kind = Object::Kind::Sprite;
       o.frameMs = 0;
       o.animationElapsed = 0;
       o.width = o.height = 0;
       o.text = str(c, 1);
+      return true;
+    }
+    if (op == 1300) {
+      o.kind = Object::Kind::Drift;
+      o.file = str(c, 1);
+      o.driftCount = 1;
+      o.driftUseAnimation = false;
+      o.driftStartPattern = 0;
+      o.driftEndPattern = 0;
+      o.driftAnimationTime = 0;
+      o.driftYSpeed = 0;
+      o.driftPeriod = 0;
+      o.driftAmplitude = 0;
+      o.driftUseDrift = false;
+      o.driftUnknown = 3;
+      o.driftDriftSpeed = 0;
+      o.driftArea = {-1, -1, -1, -1};
+      o.visible = true;
       return true;
     }
   }
@@ -2216,6 +2348,24 @@ bool AirRuntime::Impl::command(const libreallive::CommandElement &c) {
     case 1039:
       o.pattern = value(c, 1);
       return true;
+    case 1031: {
+      // objDriftOpts: configure particle/drift behaviour on an existing object.
+      o.driftCount = value(c, 1);
+      o.driftUseAnimation = value(c, 2) != 0;
+      o.driftStartPattern = value(c, 3);
+      o.driftEndPattern = value(c, 4);
+      o.driftAnimationTime = value(c, 5);
+      o.driftYSpeed = value(c, 6);
+      o.driftPeriod = value(c, 7);
+      o.driftAmplitude = value(c, 8);
+      o.driftUseDrift = value(c, 9) != 0;
+      o.driftUnknown = value(c, 10);
+      o.driftDriftSpeed = value(c, 11);
+      if (c.GetParamCount() >= 16) {
+        o.driftArea = {value(c, 12), value(c, 13), value(c, 14), value(c, 15)};
+      }
+      return true;
+    }
     case 1034:
       o.clipped = over == 1;
       o.clip = {value(c, 1), value(c, 2), value(c, 3), value(c, 4)};
