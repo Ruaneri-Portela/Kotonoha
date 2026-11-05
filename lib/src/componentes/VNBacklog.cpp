@@ -88,11 +88,24 @@ void VNBacklog::renderFrame(RendererRef renderer) {
 
 void VNBacklog::renderEntries(RendererRef renderer) {
   auto &ui = engine.GetUI();
-  float total = 0;
-  for (const auto &entry : entries)
-    total += ui.textHeight(renderer, entry.speaker, 960) +
-             ui.textHeight(renderer, entry.text, 960) + 24;
-  maxScroll = std::max(0.0f, total - 450);
+
+  constexpr float viewTop = 165.0f;
+  constexpr float viewHeight = 450.0f;
+  constexpr float viewBottom = viewTop + viewHeight;
+  constexpr float textWidth = 960.0f;
+  constexpr float spacing = 24.0f;
+
+  // Calcula a altura total das entradas.
+  float total = 0.0f;
+
+  for (const auto &entry : entries) {
+    total += ui.textHeight(renderer, entry.speaker, textWidth);
+    total += ui.textHeight(renderer, entry.text, textWidth);
+    total += spacing;
+  }
+
+  maxScroll = std::max(0.0f, total - viewHeight);
+
   if (scrollToBottom) {
     targetScroll = scroll = maxScroll;
     scrollToBottom = false;
@@ -100,15 +113,49 @@ void VNBacklog::renderEntries(RendererRef renderer) {
     targetScroll = std::clamp(targetScroll, 0.0f, maxScroll);
     scroll = std::clamp(scroll, 0.0f, maxScroll);
   }
+
   SDL_Rect clip{145, 165, 990, 450};
   SDL_SetRenderClipRect(&renderer, &clip);
-  float y = 165 - scroll;
-  if (entries.empty())
-    ui.text(renderer, "No dialogue yet.", 145, y, 960);
-  for (const auto &entry : entries) {
-    y += ui.text(renderer, entry.speaker, 145, y, 960, {255, 215, 100, 255});
-    y += ui.text(renderer, entry.text, 145, y, 960) + 24;
+
+  float y = viewTop - scroll;
+
+  if (entries.empty()) {
+    ui.text(renderer, "No dialogue yet.", 145, y, textWidth);
   }
+
+  for (const auto &entry : entries) {
+    const float speakerHeight =
+        ui.textHeight(renderer, entry.speaker, textWidth);
+
+    const float textHeight = ui.textHeight(renderer, entry.text, textWidth);
+
+    const float entryHeight = speakerHeight + textHeight + spacing;
+
+    // Entrada completamente acima da área visível.
+    if (y + entryHeight <= viewTop) {
+      y += entryHeight;
+      continue;
+    }
+
+    // Entrada completamente abaixo da área visível.
+    // Como as entradas estão ordenadas, podemos parar.
+    if (y >= viewBottom)
+      break;
+
+    // Renderiza apenas os textos que intersectam a área visível.
+    if (y + speakerHeight > viewTop && y < viewBottom) {
+      ui.text(renderer, entry.speaker, 145, y, textWidth, {255, 215, 100, 255});
+    }
+
+    const float textY = y + speakerHeight;
+
+    if (textY + textHeight > viewTop && textY < viewBottom) {
+      ui.text(renderer, entry.text, 145, textY, textWidth);
+    }
+
+    y += entryHeight;
+  }
+
   SDL_SetRenderClipRect(&renderer, nullptr);
 }
 
