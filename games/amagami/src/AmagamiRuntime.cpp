@@ -1316,6 +1316,13 @@ void AmagamiRuntime::activate(size_t i) {
     return;
   }
   if (session_->ended()) {
+    if (session_->campaignActive()) {
+      // Keep the campaign session alive: syncCampaignMap() will show the
+      // event map on the next update so the player can pick the next event
+      // or advance the calendar period. Returning to the menu here would end
+      // the campaign prematurely.
+      return;
+    }
     shutdown();
     SetState(Kotonoha::GameState::Menu);
     focus_ = 0;
