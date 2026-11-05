@@ -137,8 +137,7 @@ remain incomplete. The pause/backlog screens remain simplified.
 Replay saves restore dialogue/decision/costume state and restart music; they do
 not preserve presentation-thread phase or the exact in-flight transition.
 Gallery `setAlbum` has no gallery implementation. The classical MIDI soundtrack
-mode and controller rumble remain unimplemented. Campaign-wide replay saves
-still need a complete journal; current saves replay the selected scenario.
+mode and controller rumble remain unimplemented. **Campaign-wide replay action journaling (`AMAGAMI_CAMPAIGN_REPLAY`) is fully implemented**, allowing campaign states and event sequences to be saved and replayed.
 Coverage of the prologue does not establish coverage of calendar/later routes.
 
 ## Verification

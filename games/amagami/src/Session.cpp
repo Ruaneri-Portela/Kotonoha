@@ -1349,11 +1349,18 @@ std::optional<VmValue> Session::primitive(const std::string &owner,
 }
 void Session::save(const std::string &path) const {
   std::ostringstream out;
-  out << "AMAGAMI_REPLAY 2\n"
+  out << (campaignActive_ ? "AMAGAMI_CAMPAIGN_REPLAY 1\n"
+                          : "AMAGAMI_REPLAY 2\n")
       << std::quoted(scenario_) << '\n'
       << inputs_.size() << '\n';
   for (int i : inputs_)
     out << i << '\n';
+  if (campaignActive_) {
+    out << campaignActions_.size() << '\n';
+    for (const auto &action : campaignActions_)
+      out << std::quoted(action.kind) << ' ' << std::quoted(action.value)
+          << '\n';
+  }
   out << "STATE " << messageSpeed() << ' ' << autoMode() << ' ' << skipMode()
       << '\n';
   out << "READ " << seenLines_.size() << '\n';
@@ -1367,37 +1374,69 @@ void Session::load(const std::string &path) {
   unsigned version = 0;
   size_t count = 0;
   if (!(in >> magic >> version >> std::quoted(name) >> count) ||
-      magic != "AMAGAMI_REPLAY" || (version != 1 && version != 2) ||
+      (magic != "AMAGAMI_REPLAY" && magic != "AMAGAMI_CAMPAIGN_REPLAY") ||
       count > 1000000)
     throw std::runtime_error("Invalid Amagami save");
   std::vector<int> inputs(count);
   for (auto &i : inputs)
     if (!(in >> i) || i < -1 || i > 32)
       throw std::runtime_error("Invalid save input");
-  int speed = 0, automatic = 0, skip = 0;
-  std::set<std::string> seen;
-  if (version >= 2) {
-    std::string marker;
-    size_t number = 0;
-    if (!(in >> marker >> speed >> automatic >> skip) || marker != "STATE" ||
-        speed < 0 || speed > 3 || automatic < 0 || automatic > 1 || skip < 0 ||
-        skip > 1 || !(in >> marker >> number) || marker != "READ" ||
-        number > 100000)
-      throw std::runtime_error("Invalid Amagami save settings");
-    size_t bytes = 0;
-    for (size_t i = 0; i < number; ++i) {
-      std::string line;
-      if (!(in >> std::quoted(line)) || line.empty() || line.size() > 65536 ||
-          (bytes += line.size()) > 32 * 1024 * 1024)
-        throw std::runtime_error("Invalid Amagami read registry");
-      seen.insert(std::move(line));
+
+  bool isCampaign = (magic == "AMAGAMI_CAMPAIGN_REPLAY");
+  size_t actionCount = 0;
+  std::vector<CampaignAction> actions;
+  if (isCampaign) {
+    if (!(in >> actionCount) || actionCount > 100000)
+      throw std::runtime_error("Invalid Amagami campaign save actions");
+    actions.resize(actionCount);
+    for (auto &action : actions) {
+      if (!(in >> std::quoted(action.kind) >> std::quoted(action.value)))
+        throw std::runtime_error("Invalid Amagami campaign save action entry");
     }
   }
-  // Replay into a candidate first so malformed or divergent saves leave the
-  // running session intact. Map nodes keep VM method pointers valid on move.
+
+  int speed = 0, automatic = 0, skip = 0;
+  std::set<std::string> seen;
+  std::string marker;
+  size_t number = 0;
+  if (!(in >> marker >> speed >> automatic >> skip) || marker != "STATE" ||
+      speed < 0 || speed > 3 || automatic < 0 || automatic > 1 || skip < 0 ||
+      skip > 1 || !(in >> marker >> number) || marker != "READ" ||
+      number > 100000)
+    throw std::runtime_error("Invalid Amagami save settings");
+  size_t bytes = 0;
+  for (size_t i = 0; i < number; ++i) {
+    std::string line;
+    if (!(in >> std::quoted(line)) || line.empty() || line.size() > 65536 ||
+        (bytes += line.size()) > 32 * 1024 * 1024)
+      throw std::runtime_error("Invalid Amagami read registry");
+    seen.insert(std::move(line));
+  }
+
   Session candidate(source_);
   candidate.replaying_ = true;
   candidate.seenLines_ = std::move(seen);
+  if (isCampaign) {
+    candidate.startCampaign();
+    for (const auto &action : actions) {
+      if (action.kind == "event") {
+        candidate.selectCampaignEvent(action.value);
+        while (!candidate.ended_) {
+          if (!candidate.choices_.empty())
+            candidate.choose(0);
+          else if (candidate.waiting())
+            candidate.tick(1);
+          else
+            candidate.advance();
+        }
+        candidate.completeCampaignEvent();
+      } else if (action.kind == "period") {
+        candidate.nextCampaignPeriod();
+      } else {
+        throw std::runtime_error("Unknown campaign replay action");
+      }
+    }
+  }
   candidate.start(name);
   for (int i : inputs) {
     if (candidate.ended_ || (i == -1 && !candidate.choices_.empty()) ||
@@ -1426,6 +1465,9 @@ void Session::load(const std::string &path) {
   };
   placeholderTags_ = std::move(candidate.placeholderTags_);
   self_ = std::move(candidate.self_);
+  campaignActive_ = candidate.campaignActive_;
+  campaign_ = std::move(candidate.campaign_);
+  campaignActions_ = std::move(candidate.campaignActions_);
   block_ = candidate.block_;
   musicTrack_ = candidate.musicTrack_;
   musicGain_ = candidate.musicGain_;

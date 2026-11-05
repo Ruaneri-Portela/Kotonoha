@@ -81,7 +81,8 @@ bool SnowSession::AlphaHit::hit(float px, float py) const {
 
 SnowSession::SnowSession(Kotonoha::Engine &engine,
                          std::shared_ptr<SnowAssets> assets)
-    : engine_(engine), assets_(std::move(assets)) {
+    : engine_(engine), assets_(std::move(assets)),
+      movie_(std::make_unique<Kotonoha::MediaPlayer>(engine_.GetAudio())) {
   script_ = assets_->Script();
   systemPath_ = Kotonoha::saveDirectory() / "system.dat";
   cleared_ = ReadFile(systemPath_) == std::vector<uint8_t>{83, 82, 86, 1, 1};
@@ -142,6 +143,26 @@ void SnowSession::StopAll() {
   bgm_.Stop();
   se_.Stop();
   voice_.Stop();
+  if (movie_)
+    movie_->stop();
+}
+
+void SnowSession::PlayMovie(const std::string &name) {
+  if (!movie_)
+    movie_ = std::make_unique<Kotonoha::MediaPlayer>(engine_.GetAudio());
+  std::string id = name;
+  if (!assets_->contains(id)) {
+    if (assets_->contains(id + ".mpg"))
+      id += ".mpg";
+    else if (assets_->contains(id + ".avi"))
+      id += ".avi";
+  }
+  try {
+    movie_->open(*assets_, id, false, "BGM");
+  } catch (const std::exception &e) {
+    SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "Cannot play movie %s: %s",
+                name.c_str(), e.what());
+  }
 }
 
 void SnowSession::PlaySound(const std::string &kind, const std::string &name,
@@ -256,6 +277,7 @@ bool SnowSession::Start() {
   game_ = std::make_unique<Game>(script_);
   game_->sound = [this](const std::string &kind, const std::string &name,
                         bool loop) { PlaySound(kind, name, loop); };
+  game_->movie = [this](const std::string &name) { PlayMovie(name); };
   if (SDL_getenv("SNOW_TRACE"))
     game_->trace = [](const std::string &t) {
       SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "[vm] %s", t.c_str());
@@ -356,6 +378,11 @@ void SnowSession::Replay(const std::vector<int> &inputs) {
 }
 
 void SnowSession::Frame() {
+  if (movie_ && movie_->isOpen()) {
+    movie_->update(engine_.GetRenderer());
+    if (movie_->finished())
+      movie_->stop();
+  }
   if (!playing_ || !game_)
     return;
   Game &g = *game_;
@@ -584,6 +611,10 @@ void SnowSession::DrawStage(SDL_Renderer *r) {
 }
 
 void SnowSession::DrawScene(SDL_Renderer *r) {
+  if (movie_ && movie_->isOpen()) {
+    movie_->render(*r);
+    return;
+  }
   if (game_ && game_->uniformChoosing()) {
     DrawUniformSelect(r);
     return;

@@ -4,6 +4,7 @@
 #include "SnowRadish/Game.hpp"
 
 #include <Kotonoha/core/SDL.hpp>
+#include <Kotonoha/media/MediaPlayer.hpp>
 #include <Kotonoha/media/PcmPlayer.hpp>
 
 #include <SDL3/SDL.h>
@@ -141,6 +142,7 @@ private:
 
   // audio
   void PlaySound(const std::string &kind, const std::string &name, bool loop);
+  void PlayMovie(const std::string &name);
   bool StartChannel(Kotonoha::PcmPlayer &player, const char *channel, std::vector<int16_t> first,
                     const std::vector<int16_t> &loop, int channels, bool looping);
   void StopAll();
@@ -188,6 +190,7 @@ private:
 
   // audio
   Kotonoha::PcmPlayer voice_, bgm_, se_;
+  std::unique_ptr<Kotonoha::MediaPlayer> movie_;
   std::string lastBgm_, resumeBgm_;
   bool lastBgmLoop_ = true, muted_ = false;
   std::vector<int16_t> voiceSamples_;

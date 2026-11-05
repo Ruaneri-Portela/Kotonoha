@@ -27,8 +27,9 @@ struct Fixture {
   fs::path previous = fs::current_path();
   fs::path root;
   Fixture() {
-    root = fs::temp_directory_path() /
-           ("kotonoha-directories-" + std::to_string(SDL_GetPerformanceCounter()));
+    root =
+        fs::temp_directory_path() /
+        ("kotonoha-directories-" + std::to_string(SDL_GetPerformanceCounter()));
     fs::create_directories(root);
     // temp_directory_path() pode expor o symlink /var do macOS; canonicamos
     // para que os caminhos resolvidos pelo engine (via current_path) coincidam.
