@@ -614,6 +614,7 @@ void Runtime::update() {
   // film timeline is custom. Iterate a snapshot: a submit callback can close
   // it.
   Kotonoha::Runtime::update();
+  updateExitTransition(now);
   if (systemUi.IsOpen()) {
     if (systemUi.IsSaveLoadOpen() && saveLoadPage != systemUi.SaveLoad().Page())
       refreshSaveMetadata();
@@ -707,6 +708,7 @@ void Runtime::renderMenu(Kotonoha::RendererRef renderer, float) {
                 titleSelection == i);
   }
   renderPanels(renderer);
+  renderExitTransition(renderer, SDL_GetTicks());
 }
 
 void Runtime::renderGameplay(Kotonoha::RendererRef renderer, float) {
@@ -758,6 +760,7 @@ void Runtime::renderOverlay(Kotonoha::RendererRef renderer, float) {
   if (currentState == Kotonoha::GameState::Gameplay) {
     renderScene(*gameScene, renderer, 1);
     renderPanels(renderer);
+    renderExitTransition(renderer, SDL_GetTicks());
   }
 }
 
@@ -831,6 +834,7 @@ bool Runtime::onEvent(Kotonoha::EventRef eventInput) {
   if (currentState == Kotonoha::GameState::Splash) {
     return Kotonoha::Runtime::onEvent(event);
   }
+  if (exitTransition.InputLocked()) return true;
   const auto active = GetActiveScenes();
   for (auto it = active.rbegin(); it != active.rend(); ++it)
     if (*it && *it != saveMenu.get() && *it != backlogFallback.get() &&
@@ -887,7 +891,10 @@ bool Runtime::onEvent(Kotonoha::EventRef eventInput) {
       consumePanelRelease = true;
     if (escape) {
       playSound(Ui::UiSfxCue::Cancel);
-      if (systemUi.IsSaveFeelOpen() && bridge.HasPendingHandoff()) {
+      if (systemUi.IsExitOpen() && exitTransition.Active()) {
+        closePanels();
+        exitTransition.Cancel(SDL_GetTicks());
+      } else if (systemUi.IsSaveFeelOpen() && bridge.HasPendingHandoff()) {
         closePanels();
         continueHandoff();
       } else if (systemUi.IsSaveLoadOpen() && resumeAfterSave &&
@@ -1045,12 +1052,7 @@ void Runtime::activateControl(int control) {
   else if (control == 17)
     openFeel();
   else if (control == 14) {
-    playing.clear();
-    Kotonoha_KtrfError error{};
-    Check(bridge.ReleaseCurrentGameplayForFrontend(&error), error);
-    script = {};
-    flushGlobal();
-    openTitle();
+    openMainMenuConfirm();
   }
 }
 
@@ -1378,17 +1380,124 @@ void Runtime::refreshRouteMap() {
 
 void Runtime::openExit() {
   closePanels();
+  titleRevealUntil = 0;
+  exitTransition.Begin(Kotonoha::SchoolDaysExitTransition::Target::Quit,
+                       SDL_GetTicks());
+}
+
+void Runtime::openMainMenuConfirm() {
+  if (currentState != Kotonoha::GameState::Gameplay) return;
+  closePanels();
+  titleRevealUntil = 0;
+  exitTransition.Begin(Kotonoha::SchoolDaysExitTransition::Target::Title,
+                       SDL_GetTicks());
+}
+
+void Runtime::openExitDialog(bool returnToTitle) {
   std::string failure;
   if (systemUi.OpenExit(&engine->GetRenderer(), assets->root().string(),
                         Kotonoha::SchoolDaysExitViewModel::Variant::WideFull,
-                        Kotonoha::SchoolDaysExitViewModel::BaseArtwork::Exit,
+                        returnToTitle
+                            ? Kotonoha::SchoolDaysExitViewModel::BaseArtwork::Title
+                            : Kotonoha::SchoolDaysExitViewModel::BaseArtwork::Exit,
                         &failure)) {
     playSound(Ui::UiSfxCue::View);
     return;
   }
-  SDL_Event quit{};
-  quit.type = SDL_EVENT_QUIT;
-  SDL_PushEvent(&quit);
+  exitTransition.Reset();
+  setStatus(std::string(returnToTitle ? "Main Menu" : "Exit") +
+            " confirmation unavailable: " + failure);
+}
+
+void Runtime::finishMainMenuReturn() {
+  playing.clear();
+  Kotonoha_KtrfError error{};
+  Kotonoha::KtrfStateStore::Snapshot before;
+  Check(bridge.Session().State().Capture(&before, &error), error);
+  const auto persistenceBefore = bridge.Session().Persistence();
+  Check(bridge.Session().Persistence().WriteGlobalInteger(
+            "FLAG_LOGO", 11, -1, &bridge.Session().State(), &error), error);
+  if (!bridge.ReleaseCurrentGameplayForFrontend(&error)) {
+    Kotonoha_KtrfError ignored{};
+    (void)bridge.Session().State().Restore(before, &ignored);
+    bridge.Session().Persistence() = persistenceBefore;
+    Check(false, error);
+  }
+  script = {};
+  backlogStore.ResetTransient();
+  if (backlogFallback) backlogFallback->clear();
+  backlogIndex = 0;
+  backlogScene.clear();
+  flushGlobal();
+  openTitle();
+}
+
+void Runtime::updateExitTransition(uint64_t nowMs) {
+  using Transition = Kotonoha::SchoolDaysExitTransition;
+  const auto target = exitTransition.CurrentTarget();
+  switch (exitTransition.Update(nowMs)) {
+  case Transition::Event::None:
+  case Transition::Event::Closed:
+    return;
+  case Transition::Event::OpenDialog:
+    openExitDialog(target == Transition::Target::Title);
+    return;
+  case Transition::Event::Confirmed:
+    if (target == Transition::Target::Title) {
+      finishMainMenuReturn();
+      titleRevealUntil = nowMs + 500u;
+    } else {
+      closePanels();
+      SDL_Event quit{};
+      quit.type = SDL_EVENT_QUIT;
+      SDL_PushEvent(&quit);
+    }
+    return;
+  }
+}
+
+void Runtime::renderExitTransition(Kotonoha::RendererRef renderer,
+                                   uint64_t nowMs) {
+  using Phase = Kotonoha::SchoolDaysExitTransition::Phase;
+  const Phase phase = exitTransition.CurrentPhase();
+  if (phase == Phase::Idle &&
+      (currentState != Kotonoha::GameState::Menu || nowMs >= titleRevealUntil))
+    return;
+  if (phase == Phase::Dialog) return;
+
+  const SDL_FRect area{0, 0, 1280, 720};
+  if (phase == Phase::Opening || phase == Phase::Closing) {
+    try {
+      auto &texture = assets->texture(
+          renderer, assets->resolve("System/SYSTEM/SYSBASE", true));
+      Uint8 oldAlpha = 255;
+      (void)SDL_GetTextureAlphaMod(&texture, &oldAlpha);
+      (void)SDL_SetTextureAlphaMod(&texture, exitTransition.Alpha(nowMs));
+      const float reveal = exitTransition.RevealedFraction(nowMs);
+      const SDL_FRect source{0, 0, 800.0f, 450.0f * reveal};
+      const SDL_FRect destination{area.x, area.y, area.w, area.h * reveal};
+      (void)SDL_RenderTexture(&renderer, &texture, &source, &destination);
+      (void)SDL_SetTextureAlphaMod(&texture, oldAlpha);
+    } catch (const std::exception &error) {
+      SDL_LogWarn(Kotonoha::LogUI, "School Days SYSBASE transition: %s",
+                  error.what());
+    }
+    return;
+  }
+
+  Uint8 alpha = exitTransition.Alpha(nowMs);
+  if (phase == Phase::Idle)
+    alpha = static_cast<Uint8>(
+        std::min<Uint64>(255u, (titleRevealUntil - nowMs) * 255u / 500u));
+  SDL_BlendMode oldBlend = SDL_BLENDMODE_NONE;
+  Uint8 r = 0, g = 0, b = 0, a = 0;
+  (void)SDL_GetRenderDrawBlendMode(&renderer, &oldBlend);
+  (void)SDL_GetRenderDrawColor(&renderer, &r, &g, &b, &a);
+  (void)SDL_SetRenderDrawBlendMode(&renderer, SDL_BLENDMODE_BLEND);
+  (void)SDL_SetRenderDrawColor(&renderer, 0, 0, 0, alpha);
+  (void)SDL_RenderFillRect(&renderer, &area);
+  (void)SDL_SetRenderDrawColor(&renderer, r, g, b, a);
+  (void)SDL_SetRenderDrawBlendMode(&renderer, oldBlend);
 }
 
 void Runtime::openBacklog() {
@@ -1447,11 +1556,12 @@ void Runtime::handlePanel(const Ui::Output &output) {
   if (output.hasExitActivation) {
     if (output.exitActivation.outcome ==
         Kotonoha::SchoolDaysExitViewModel::Outcome::ConfirmExit) {
-      SDL_Event quit{};
-      quit.type = SDL_EVENT_QUIT;
-      SDL_PushEvent(&quit);
+      exitTransition.Confirm(SDL_GetTicks());
+    } else {
+      closePanels();
+      exitTransition.Cancel(SDL_GetTicks());
     }
-    closePanels();
+    return;
   }
   if (output.hasRouteMapAction) {
     using Kind = Kotonoha::SchoolDaysRouteMapModel::ActionKind;
