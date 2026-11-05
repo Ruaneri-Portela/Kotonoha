@@ -142,12 +142,17 @@ void AmagamiChoices::renderOption(Kotonoha::RendererRef r, size_t i,
                                   bool focused) {
   auto b = options[i].hitBox;
   if (focused) {
-    auto &tex = assets_.texture(r, "sysgraph/cursor_base.tm2");
-    SDL_SetTextureColorMod(&tex, 255, 145, 165);
-    SDL_SetTextureAlphaMod(&tex, 140);
-    Kotonoha::RenderUpscaledTexture(&r, &tex, nullptr, &b);
-    SDL_SetTextureColorMod(&tex, 255, 255, 255);
-    SDL_SetTextureAlphaMod(&tex, 255);
+    // Seletor programático (triângulo à esquerda) em vez da textura
+    // cursor_base.tm2, que pode não estar adequada no disco.
+    SDL_SetRenderDrawColor(&r, 255, 145, 165, 255);
+    const float cx = b.x + 8;
+    const float cy = b.y + b.h / 2;
+    SDL_RenderLine(&r, cx - 6, cy - 4, cx, cy);
+    SDL_RenderLine(&r, cx - 6, cy + 4, cx, cy);
+    SDL_RenderLine(&r, cx - 6, cy - 4, cx - 6, cy + 4);
+    SDL_SetRenderDrawColor(&r, 255, 145, 165, 60);
+    SDL_FRect highlight{b.x, b.y, b.w, b.h};
+    SDL_RenderFillRect(&r, &highlight);
   }
   engine.GetVNUI().textSized(r, options[i].label, b.x + 4, b.y + 3, b.w - 8,
                              24);
