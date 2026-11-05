@@ -25,7 +25,7 @@
 - Strings (`.obj` table) are Shift-JIS dialogue lines interleaved with voice ids (e.g. `V0121234`).
 
 ## Remaining limits
-- AVI playback is not implemented; the supplied installed data has no movie directory/AVI files to validate against, and this presenter has no video decoder.
+- **AVI playback is fully implemented using Kotonoha's `MediaPlayer`**, handling video and audio streams via FFmpeg/SDL.
 - Native-64 type 4 requests `OVERFLOW.ALPM`, `OVERFLOW2.ALPM` or `OVERFLOW3.ALPM`, none present in this retail pack. It returns without a wipe, matching the original missing-resource path (`FUN_00415d74`).
 - Mouth amplitude is sampled from retained decoded PCM using the recovered cadence/tables rather than the original Windows audio-buffer position; SDL output latency can cause a small lip-sync difference.
 - Type-5 pattern-4 subtractive shading uses the original subtraction blend where the renderer supports it; other backends fall back to alpha darkening. The special type-12 welcome presentation still uses a generic crossfade.

@@ -12,6 +12,7 @@
 #include <limits>
 #include <stdexcept>
 #include <system_error>
+#include <unordered_map>
 
 namespace Kotonoha {
 namespace {
@@ -61,12 +62,15 @@ std::string AssetProvider::localPath(const std::string &id) const {
 std::vector<std::string> AssetProvider::list(const std::string &prefix) const {
   auto result = listAsset(prefix);
   auto overrides = overlay.list(prefix);
+  result.reserve(result.size() + overrides.size());
   result.insert(result.end(), overrides.begin(), overrides.end());
-  std::map<std::string, std::string> unique;
-  for (auto &id : result)
+  std::unordered_map<std::string, std::string> unique;
+  unique.reserve(result.size());
+  for (const auto &id : result)
     unique[AssetOverlay::key(id)] = id;
   result.clear();
-  for (auto &[key, id] : unique)
+  result.reserve(unique.size());
+  for (const auto &[key, id] : unique)
     result.push_back(id);
   return result;
 }

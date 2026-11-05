@@ -258,6 +258,20 @@ void Game::native(Vm &vm, int id, const std::vector<Arg> &args) {
     trace(t + ")");
   }
 
+  for (const Arg &a : args) {
+    if (a.tag() == 2) {
+      std::string s = vm.text(a);
+      if (s.size() > 4) {
+        std::string ext = s.substr(s.size() - 4);
+        for (auto &c : ext)
+          c = char(std::tolower(c));
+        if ((ext == ".mpg" || ext == ".avi") && movie) {
+          movie(s);
+        }
+      }
+    }
+  }
+
   std::vector<int> ints;
   for (const Arg &a : args)
     if (a.tag() == 0)

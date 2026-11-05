@@ -96,7 +96,8 @@ struct SubtitleScene::State {
       // Uma fonte configurada que não é encontrada não deve impedir a
       // inicialização da cena de legendas; usamos a fonte padrão do motor.
     }
-    ass_set_fonts(renderer.get(), font.empty() ? nullptr : font.string().c_str(),
+    ass_set_fonts(renderer.get(),
+                  font.empty() ? nullptr : font.string().c_str(),
                   "Noto Sans JP", ASS_FONTPROVIDER_NONE, nullptr, 1);
   }
 };
