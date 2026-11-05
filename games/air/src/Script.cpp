@@ -37,18 +37,38 @@ std::size_t ScriptArchive::ValidateAll() {
 }
 libreallive::ExpressionPiece Parameter(const libreallive::CommandElement &c,
                                        std::size_t i) {
-  if (i >= c.GetParamCount())
-    throw std::out_of_range("AIR command parameter");
+  if (i >= c.GetParamCount()) {
+    throw std::out_of_range(
+        "AIR command parameter index " + std::to_string(i) +
+        " out of range (max: " + std::to_string(c.GetParamCount()) + ")");
+  }
   auto raw = c.GetParam(static_cast<int>(i));
   const char *p = raw.c_str();
-  return libreallive::GetData(p);
+  try {
+    return libreallive::GetData(p);
+  } catch (const std::exception &e) {
+    throw std::runtime_error("Failed to parse parameter " + std::to_string(i) +
+                             ": " + std::string(e.what()));
+  }
 }
 int IntegerParameter(RLMachine &m, const libreallive::CommandElement &c,
                      std::size_t i) {
-  return Parameter(c, i).GetIntegerValue(m);
+  try {
+    auto piece = Parameter(c, i);
+    return piece.GetIntegerValue(m);
+  } catch (const std::exception &e) {
+    throw std::runtime_error("Cannot get integer value from parameter " +
+                             std::to_string(i) + ": " + std::string(e.what()));
+  }
 }
 std::string StringParameter(RLMachine &m, const libreallive::CommandElement &c,
                             std::size_t i) {
-  return Parameter(c, i).GetStringValue(m);
+  try {
+    auto piece = Parameter(c, i);
+    return piece.GetStringValue(m);
+  } catch (const std::exception &e) {
+    throw std::runtime_error("Cannot get string value from parameter " +
+                             std::to_string(i) + ": " + std::string(e.what()));
+  }
 }
 } // namespace Air

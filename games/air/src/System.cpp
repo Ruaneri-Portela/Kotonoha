@@ -119,8 +119,15 @@ bool systemCommand(RLMachine &m, const libreallive::CommandElement &c,
     int fallback;
   };
   static constexpr Setting settings[] = {
+      {2050, 2000, "SYS_CONFIG_2000", 0},
       {2051, 2001, "SKIP_ANIMATIONS", 0},
       {2052, 2002, "LOW_PRIORITY", 0},
+      {2053, 2003, "SYS_CONFIG_2003", 0},
+      {2054, 2004, "SYS_CONFIG_2004", 0},
+      {2055, 2005, "SYS_CONFIG_2005", 0},
+      {2056, 2006, "SYS_CONFIG_2006", 0},
+      {2057, 2007, "SYS_CONFIG_2007", 0},
+      {2059, 2009, "SYS_CONFIG_2009", 0},
       {2221, 2321, "INIT_ORIGINALSETING1_MOD", 0},
       {2222, 2322, "INIT_ORIGINALSETING2_MOD", 0},
       {2223, 2323, "INIT_MESSAGE_SPEED", 30},
@@ -140,10 +147,18 @@ bool systemCommand(RLMachine &m, const libreallive::CommandElement &c,
       {2251, 2351, "AUTO_CHAR_TIME", 30},
       {2252, 2352, "MESSAGE_KEY_WAIT_TIME", 1000},
       {2256, 2356, "FONT_WEIGHT", 0},
-      {2275, 2375, "SCREEN_MODE", 0}};
+      {2207, 2207, "SYS_CONFIG_2207", 0},
+      {2374, 2374, "SYS_CONFIG_2374", 0},
+      {2375, 2375, "SYS_CONFIG_2375", 0},
+      {2367, 2367, "SYS_CONFIG_2367", 0},
+      {2275, 2375, "SCREEN_MODE", 0},
+      {2370, 2370, "SYS_CONFIG_2370", 0}};
   for (const auto &setting : settings) {
     if (op == setting.setter) {
-      set(setting.getter, num(0));
+      if (c.GetParamCount() == 0)
+        set(setting.getter, 0);
+      else
+        set(setting.getter, num(0));
       return true;
     }
     if (op == setting.getter) {

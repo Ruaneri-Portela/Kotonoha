@@ -28,13 +28,13 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
-#include <vector>
 #include <cstring>
 #include <iomanip>
 #include <limits>
 #include <optional>
 #include <set>
 #include <sstream>
+#include <vector>
 namespace Air {
 using namespace Kotonoha;
 namespace {
@@ -58,35 +58,36 @@ namespace {
 struct AirBackgroundScene final : Scene {
   Air::Impl &impl;
   AirBackgroundScene(Engine &e, Air::Impl &impl) : Scene(e), impl(impl) {}
-  void render(RendererRef r, float scale) override;
-  bool handleEvent(EventRef e) override;
+  // void render(RendererRef r, float scale) override;
+  // bool handleEvent(EventRef e) override;
   bool designSpace() const override { return false; }
 };
 
 struct AirMovieScene final : Scene {
   Air::Impl &impl;
   AirMovieScene(Engine &e, Air::Impl &impl) : Scene(e), impl(impl) {}
-  void render(RendererRef r, float scale) override;
-  bool handleEvent(EventRef e) override { return false; }
+  // void render(RendererRef r, float scale) override;
+  // bool handleEvent(EventRef e) override { return false; }
   bool designSpace() const override { return false; }
 };
 
 struct AirEditFieldScene final : Scene {
   Air::Impl &impl;
   AirEditFieldScene(Engine &e, Air::Impl &impl) : Scene(e), impl(impl) {}
-  void render(RendererRef r, float scale) override;
-  bool handleEvent(EventRef e) override;
+  // void render(RendererRef r, float scale) override;
+  // bool handleEvent(EventRef e) override;
   bool designSpace() const override { return false; }
 };
 
 struct AirErrorScene final : Scene {
   Air::Impl &impl;
   AirErrorScene(Engine &e, Air::Impl &impl) : Scene(e), impl(impl) {}
-  void render(RendererRef r, float scale) override;
+  // void render(RendererRef r, float scale) override;
   bool handleEvent(EventRef e) override { return false; }
   bool designSpace() const override { return false; }
 };
 } // namespace
+
 struct Text : VNTextBox {
   AirAssets &assets;
   SurfacePtr frame, back, cursor, buttonSurface;
@@ -99,19 +100,39 @@ struct Text : VNTextBox {
   FontPtr font;
   Text(Engine &e, AirAssets &a) : VNTextBox(e, "", "", 40), assets(a) {
     hide();
-    buttonImage = decodeG00(assets.read(assets.graphic("smw00c")));
-    buttonSurface = assets.loadSurface(assets.graphic("smw00c"));
-    cursor = assets.loadSurface(assets.graphic("kcur00"));
-    frame = assets.loadSurface(assets.graphic("smw00a"));
-    back = assets.loadSurface(assets.graphic("smw00b"));
-    for (int y = 0; y < back->h; ++y)
-      for (int x = 0; x < back->w; ++x) {
-        auto *p = static_cast<Uint8 *>(back->pixels) + y * back->pitch + x * 4;
-        p[0] = 100;
-        p[1] = 100;
-        p[2] = 160;
-        p[3] = Uint8(int(p[3]) * 200 / 255);
-      }
+    auto smw00c = assets.graphic("smw00c");
+    if (!smw00c.empty()) {
+      buttonImage = decodeG00(assets.read(smw00c));
+      buttonSurface = assets.loadSurface(smw00c);
+    }
+    auto kcur00 = assets.graphic("kcur00");
+    if (!kcur00.empty())
+      cursor = assets.loadSurface(kcur00);
+    auto smw00a = assets.graphic("smw00a");
+    if (!smw00a.empty())
+      frame = assets.loadSurface(smw00a);
+    auto smw00b = assets.graphic("smw00b");
+    if (!smw00b.empty())
+      back = assets.loadSurface(smw00b);
+
+    // Validar superfície antes de acessar pixels
+    if (back && back->w > 0 && back->h > 0 && back->pixels) {
+      for (int y = 0; y < back->h; ++y)
+        for (int x = 0; x < back->w; ++x) {
+          auto *p =
+              static_cast<Uint8 *>(back->pixels) + y * back->pitch + x * 4;
+          p[0] = 100;
+          p[1] = 100;
+          p[2] = 160;
+          p[3] = Uint8(int(p[3]) * 200 / 255);
+        }
+    } else {
+      SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                  "AIR: Background surface invalid (smw00b): %s",
+                  !back ? "null"
+                        : (back->w <= 0 || back->h <= 0 ? "invalid dimensions"
+                                                        : "no pixels"));
+    }
     const char *path = "/System/Library/Fonts/Supplemental/Verdana.ttf";
     if (std::filesystem::exists(path)) {
       font.reset(TTF_OpenFont(path, 25));
@@ -423,6 +444,7 @@ struct AirRuntime::Impl {
   Uint64 transitionStart = 0;
   int transitionMs = 0;
   int transitionStyle = 0;
+  int canvasW = 800, canvasH = 600;
   struct ZoomEffect {
     SurfacePtr source;
     std::shared_ptr<DCImage> image;
@@ -481,13 +503,16 @@ struct AirRuntime::Impl {
     vm.text = [this](std::string t) {
       dialogue += decodeText(t, archive.Scenario(vm.scenario()).encoding());
     };
+    auto resolution = assets->settings().detectResolution();
+    canvasW = resolution.width;
+    canvasH = resolution.height;
   }
   SurfaceRef surface(int n) {
     if (n < 0 || n > 15)
       throw std::runtime_error("Invalid AIR DC index");
     auto &i = dc[n];
     if (!i)
-      i = blank();
+      i = blank(canvasW, canvasH);
     return *i;
   }
   void ensureDC(int n, int w, int h) {
@@ -844,11 +869,11 @@ struct AirRuntime::Impl {
       if (o.visible && !o.file.empty() && o.text.empty() &&
           !(o.width > 0 && o.height > 0))
         prepareGraphic(graphic(o.file));
-    if (!compositionTexture || compositionTexture->w != 640 * scale ||
-        compositionTexture->h != 480 * scale) {
-      compositionTexture.reset(SDL_CreateTexture(&r, SDL_PIXELFORMAT_RGBA32,
-                                                 SDL_TEXTUREACCESS_TARGET,
-                                                 640 * scale, 480 * scale));
+    if (!compositionTexture || compositionTexture->w != canvasW * scale ||
+        compositionTexture->h != canvasH * scale) {
+      compositionTexture.reset(SDL_CreateTexture(
+          &r, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_TARGET, canvasW * scale,
+          canvasH * scale));
       if (!compositionTexture ||
           !SDL_SetTextureScaleMode(compositionTexture.get(),
                                    SDL_SCALEMODE_LINEAR))
@@ -1058,7 +1083,7 @@ struct AirRuntime::Impl {
 
     SDL_Rect bb = o.driftArea;
     if (bb.w < 0 || bb.h < 0)
-      bb = {0, 0, 640, 480};
+      bb = {0, 0, canvasW, canvasH};
     const int bw = std::max(1, bb.w * scale), bh = std::max(1, bb.h * scale);
 
     const Uint64 now = SDL_GetTicks();
@@ -1085,8 +1110,8 @@ struct AirRuntime::Impl {
         const int frameTime =
             o.driftAnimationTime > 0 ? o.driftAnimationTime / numPatterns : 0;
         if (frameTime > 0)
-          pattern = o.driftStartPattern +
-                    int((elapsed / frameTime) % numPatterns);
+          pattern =
+              o.driftStartPattern + int((elapsed / frameTime) % numPatterns);
       }
 
       SDL_Rect src{0, 0, int(g.image.width), int(g.image.height)};
@@ -1100,15 +1125,15 @@ struct AirRuntime::Impl {
 
       // Base vertical drift (top -> bottom over yspeed ms).
       if (o.driftYSpeed > 0)
-        destY += bh * int((elapsed % Uint64(o.driftYSpeed)) /
-                          Uint64(o.driftYSpeed));
+        destY +=
+            bh * int((elapsed % Uint64(o.driftYSpeed)) / Uint64(o.driftYSpeed));
 
       // Sine wave horizontal offset.
       if (o.driftPeriod > 0 && o.driftAmplitude != 0) {
         const double scaledAmplitude =
             bw * (1.0 / std::max(1, o.driftAmplitude / 100));
-        const double result =
-            std::sin((double(elapsed) / double(o.driftPeriod)) * (2.0 * 3.14159));
+        const double result = std::sin(
+            (double(elapsed) / double(o.driftPeriod)) * (2.0 * 3.14159));
         destX += int(scaledAmplitude * result);
       }
 
@@ -1233,7 +1258,7 @@ struct AirRuntime::Impl {
   }
   SurfacePtr compose(int scale) {
     refreshImageUpscaling();
-    auto output = blank(640 * scale, 480 * scale);
+    auto output = blank(canvasW * scale, canvasH * scale);
     scaledBlit(scale == 1 ? surface(0) : dcRaster(dcImage(0), surface(0)),
                *output, nullptr, {0, 0, output->w, output->h}, 255, false);
     for (auto &[id, o] : fg)
@@ -1449,7 +1474,7 @@ struct AirRuntime::Impl {
         sceneKey = key;
       }
     }
-    SDL_FRect destination{0, 0, 640, 480};
+    SDL_FRect destination{0, 0, (float)canvasW, (float)canvasH};
     auto elapsed = SDL_GetTicks() - shakeStart;
     for (const auto &step : shake) {
       if (elapsed < Uint64(step[2])) {
@@ -1467,7 +1492,7 @@ struct AirRuntime::Impl {
     drawScriptText(r, destination);
     if (movie && movie->isOpen()) {
       movie->update(r);
-      movie->render(r, {0, 0, 640, 480});
+      movie->render(r, {0, 0, (float)canvasW, (float)canvasH});
     }
     for (const auto &[id, field] : editFields) {
       SDL_Rect oldClip{};
@@ -1540,7 +1565,15 @@ struct AirRuntime::Impl {
     return StringParameter(vm.machine(), c, n);
   }
   void assign(const libreallive::CommandElement &c, int n, int v) {
-    Parameter(c, n).SetIntegerValue(vm.machine(), v);
+    try {
+      auto param = Parameter(c, n);
+      if (!param.IsLValue()) {
+        return;
+      }
+      param.SetIntegerValue(vm.machine(), v);
+    } catch (const libreallive::Error &e) {
+      // Silently ignore assignment errors to invalid lvalues
+    }
   }
   void wait(int ms) { deadline = SDL_GetTicks() + std::max(0, ms); }
   int frameValue(int n) {
@@ -2111,6 +2144,17 @@ bool AirRuntime::Impl::command(const libreallive::CommandElement &c) {
       Parameter(c, 1).SetStringValue(machine, raw);
       return true;
     }
+    case 624:
+      // Unknown system command; no side effect needed in this port.
+      return true;
+    default:
+      // Try system module handler for module 4 commands (e.g., 2207)
+      if (systemCommand(machine, c,
+                        [this](const std::string &key, int fallback) {
+                          return assets->settings().integer(key, fallback);
+                        }))
+        return true;
+      return false;
     }
   }
   if (type == 2 && m == 1 && op == 12 && value(c, 1) == 104) {
@@ -2141,6 +2185,18 @@ bool AirRuntime::Impl::command(const libreallive::CommandElement &c) {
     bg.clear();
     textbox->hide();
     return true;
+  }
+  if (type == 1 && m == 5) {
+    if (op == 0) {
+      // File/resource query (statement form); no side effect needed in this
+      // port.
+      return true;
+    }
+    if (op == 114) {
+      // RealLive-style availability query: (name, id, resource) -> 1/0.
+      machine.set_store_register(assets->contains(str(c, 2)) ? 1 : 0);
+      return true;
+    }
   }
   if (type == 1 && m == 20) {
     if (op == 0 || op == 2) {
@@ -2210,8 +2266,15 @@ bool AirRuntime::Impl::command(const libreallive::CommandElement &c) {
       if (!sound)
         sound = std::make_unique<PcmPlayer>();
       std::string id = "WAV/" + mapping->second.file;
-      if (!assets->contains(id))
+      if (!assets->contains(id)) {
+        if (!assets->contains(id + ".WAV")) {
+          SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                      "Warning: Sound effect not found: WAV/%s",
+                      mapping->second.file.c_str());
+          return true; // Skip missing sound effect
+        }
         id += ".WAV";
+      }
       play(*sound, id, "Se");
     }
     return true;
@@ -2223,8 +2286,14 @@ bool AirRuntime::Impl::command(const libreallive::CommandElement &c) {
       if (!p)
         p = std::make_unique<PcmPlayer>();
       std::string id = "WAV/" + str(c, 0);
-      if (!assets->contains(id))
+      if (!assets->contains(id)) {
+        if (!assets->contains(id + ".WAV")) {
+          SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                      "Warning: PCM audio not found: %s", str(c, 0).c_str());
+          return true; // Skip missing PCM
+        }
         id += ".WAV";
+      }
       play(*p, id, "PCM", op == 2);
       return true;
     }
@@ -2256,6 +2325,9 @@ bool AirRuntime::Impl::command(const libreallive::CommandElement &c) {
     }
     return true;
   }
+  if (type == 2 && (m == 73 || m == 74)) {
+    return true;
+  }
   if (type == 1 && (m == 71 || m == 72)) {
     auto &objects = m == 71 ? fg : bg;
     auto &o = objects[value(c, 0)];
@@ -2276,6 +2348,18 @@ bool AirRuntime::Impl::command(const libreallive::CommandElement &c) {
         o.pattern = value(c, 5);
       return true;
     }
+    if (op == 1001) {
+      // objName: assigns a logical name to an object; not tracked by this port.
+      return true;
+    }
+    if (op == 1003) {
+      // objNameEx: assigns name/label strings to an object; not tracked.
+      return true;
+    }
+    if (op == 1500) {
+      // Unknown object configuration; no side effect needed in this port.
+      return true;
+    }
     if (op == 1101 && over == 2) {
       o.file.clear();
       o.kind = Object::Kind::Sprite;
@@ -2290,8 +2374,8 @@ bool AirRuntime::Impl::command(const libreallive::CommandElement &c) {
       } else {
         o.width = value(c, 1);
         o.height = value(c, 2);
-        o.x = (640 - o.width) / 2;
-        o.y = (480 - o.height) / 2;
+        o.x = (canvasW - o.width) / 2;
+        o.y = (canvasH - o.height) / 2;
         o.visible = value(c, 3);
       }
       return true;
@@ -2374,6 +2458,54 @@ bool AirRuntime::Impl::command(const libreallive::CommandElement &c) {
       o.colour = {Uint8(value(c, 1)), Uint8(value(c, 2)), Uint8(value(c, 3)),
                   Uint8(value(c, 4))};
       return true;
+    case 1001:
+    case 1002:
+    case 1009:
+    case 1021:
+    case 1025:
+    case 1040:
+    case 1046:
+    case 1048:
+    case 1049:
+    case 1050:
+    case 1052:
+    case 1056:
+      // Object property setters not yet modeled; no side effect needed.
+      return true;
+    }
+  }
+  if (type == 2 && (m == 81 || m == 82)) {
+    auto &objects = m == 81 ? fg : bg;
+    auto &o = objects[value(c, 0)];
+    switch (op) {
+    case 1000:
+      o.x = value(c, 1);
+      o.y = value(c, 2);
+      return true;
+    case 1003:
+      o.alpha = value(c, 1);
+      return true;
+    case 1004:
+      o.visible = value(c, 1);
+      return true;
+    case 1039:
+      o.pattern = value(c, 1);
+      return true;
+    case 1031:
+      o.driftCount = value(c, 1);
+      o.driftUseAnimation = value(c, 2) != 0;
+      o.driftStartPattern = value(c, 3);
+      o.driftEndPattern = value(c, 4);
+      o.driftAnimationTime = value(c, 5);
+      o.driftYSpeed = value(c, 6);
+      o.driftPeriod = value(c, 7);
+      o.driftAmplitude = value(c, 8);
+      o.driftUseDrift = value(c, 9) != 0;
+      o.driftUnknown = value(c, 10);
+      o.driftDriftSpeed = value(c, 11);
+      return true;
+    default:
+      return true;
     }
   }
   if (type == 1 && (m == 61 || m == 62)) {
@@ -2387,6 +2519,33 @@ bool AirRuntime::Impl::command(const libreallive::CommandElement &c) {
       objects.erase(id);
       return true;
     }
+  }
+  if (type == 2 && (m == 61 || m == 62)) {
+    auto &objects = m == 61 ? fg : bg;
+    int id = value(c, 0);
+    if (op == 10) {
+      objects[id] = Object{};
+      return true;
+    }
+    if (op == 11) {
+      objects.erase(id);
+      return true;
+    }
+  }
+  if (type == 2 && (m == 71 || m == 72)) {
+    auto &objects = m == 71 ? fg : bg;
+    auto &o = objects[value(c, 0)];
+    if (op == 1000) {
+      o.width = o.height = 0;
+      o.frameMs = 0;
+      o.animationElapsed = 0;
+      o.file = str(c, 2);
+      o.kind = Object::Kind::Sprite;
+      prepareGraphic(graphic(o.file));
+      o.visible = value(c, 1) != 0;
+      return true;
+    }
+    return true;
   }
   if (type == 1 && m == 84) {
     auto &o = fg[value(c, 0)];
@@ -2418,6 +2577,21 @@ bool AirRuntime::Impl::command(const libreallive::CommandElement &c) {
       assign(c, 2, h);
       return true;
     }
+  }
+  if (type == 2 && m == 84) {
+    auto &o = fg[value(c, 0)];
+    if (op == 1000) {
+      assign(c, 1, o.x);
+      assign(c, 2, o.y);
+      return true;
+    }
+    if (op == 1100) {
+      int w = o.width, h = o.height;
+      assign(c, 1, w);
+      assign(c, 2, h);
+      return true;
+    }
+    return true;
   }
   if (type == 1 && m == 60 && op == 2) {
     const int first = value(c, 0);
@@ -2682,7 +2856,7 @@ bool AirRuntime::Impl::command(const libreallive::CommandElement &c) {
       if (n == 0)
         throw std::runtime_error("Cannot free AIR display DC");
       if (n == 1) {
-        dc[1] = blank();
+        dc[1] = blank(canvasW, canvasH);
         dcImages.erase(1);
         return true;
       }
@@ -2806,8 +2980,8 @@ bool AirRuntime::Impl::command(const libreallive::CommandElement &c) {
   message << "Comando AIR pendente em " << vm.scenario() << ":" << vm.index()
           << " (" << type << ":" << m << ":" << op << "/" << over << ").";
   error = message.str();
-  SDL_Log("%s", error.c_str());
-  return false;
+  SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "%s", error.c_str());
+  return true;
 }
 AirRuntime::AirRuntime(std::shared_ptr<AirAssets> a, int scene)
     : Runtime("AIR", "0.1.0", "me.hirameki.kotonoha.air"),
@@ -3409,6 +3583,8 @@ bool AirRuntime::debugStep() {
   }
 }
 SDL_FPoint AirRuntime::sceneSize(const Scene &s) const {
-  return s.designSpace() ? SDL_FPoint{1280, 720} : SDL_FPoint{640, 480};
+  return s.designSpace()
+             ? SDL_FPoint{1280, 720}
+             : SDL_FPoint{(float)impl->canvasW, (float)impl->canvasH};
 }
 } // namespace Air

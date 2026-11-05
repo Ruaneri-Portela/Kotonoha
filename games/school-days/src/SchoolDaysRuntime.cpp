@@ -834,7 +834,8 @@ bool Runtime::onEvent(Kotonoha::EventRef eventInput) {
   if (currentState == Kotonoha::GameState::Splash) {
     return Kotonoha::Runtime::onEvent(event);
   }
-  if (exitTransition.InputLocked()) return true;
+  if (exitTransition.InputLocked())
+    return true;
   const auto active = GetActiveScenes();
   for (auto it = active.rbegin(); it != active.rend(); ++it)
     if (*it && *it != saveMenu.get() && *it != backlogFallback.get() &&
@@ -1386,7 +1387,8 @@ void Runtime::openExit() {
 }
 
 void Runtime::openMainMenuConfirm() {
-  if (currentState != Kotonoha::GameState::Gameplay) return;
+  if (currentState != Kotonoha::GameState::Gameplay)
+    return;
   closePanels();
   titleRevealUntil = 0;
   exitTransition.Begin(Kotonoha::SchoolDaysExitTransition::Target::Title,
@@ -1395,12 +1397,12 @@ void Runtime::openMainMenuConfirm() {
 
 void Runtime::openExitDialog(bool returnToTitle) {
   std::string failure;
-  if (systemUi.OpenExit(&engine->GetRenderer(), assets->root().string(),
-                        Kotonoha::SchoolDaysExitViewModel::Variant::WideFull,
-                        returnToTitle
-                            ? Kotonoha::SchoolDaysExitViewModel::BaseArtwork::Title
-                            : Kotonoha::SchoolDaysExitViewModel::BaseArtwork::Exit,
-                        &failure)) {
+  if (systemUi.OpenExit(
+          &engine->GetRenderer(), assets->root().string(),
+          Kotonoha::SchoolDaysExitViewModel::Variant::WideFull,
+          returnToTitle ? Kotonoha::SchoolDaysExitViewModel::BaseArtwork::Title
+                        : Kotonoha::SchoolDaysExitViewModel::BaseArtwork::Exit,
+          &failure)) {
     playSound(Ui::UiSfxCue::View);
     return;
   }
@@ -1416,7 +1418,8 @@ void Runtime::finishMainMenuReturn() {
   Check(bridge.Session().State().Capture(&before, &error), error);
   const auto persistenceBefore = bridge.Session().Persistence();
   Check(bridge.Session().Persistence().WriteGlobalInteger(
-            "FLAG_LOGO", 11, -1, &bridge.Session().State(), &error), error);
+            "FLAG_LOGO", 11, -1, &bridge.Session().State(), &error),
+        error);
   if (!bridge.ReleaseCurrentGameplayForFrontend(&error)) {
     Kotonoha_KtrfError ignored{};
     (void)bridge.Session().State().Restore(before, &ignored);
@@ -1425,7 +1428,8 @@ void Runtime::finishMainMenuReturn() {
   }
   script = {};
   backlogStore.ResetTransient();
-  if (backlogFallback) backlogFallback->clear();
+  if (backlogFallback)
+    backlogFallback->clear();
   backlogIndex = 0;
   backlogScene.clear();
   flushGlobal();
@@ -1463,7 +1467,8 @@ void Runtime::renderExitTransition(Kotonoha::RendererRef renderer,
   if (phase == Phase::Idle &&
       (currentState != Kotonoha::GameState::Menu || nowMs >= titleRevealUntil))
     return;
-  if (phase == Phase::Dialog) return;
+  if (phase == Phase::Dialog)
+    return;
 
   const SDL_FRect area{0, 0, 1280, 720};
   if (phase == Phase::Opening || phase == Phase::Closing) {

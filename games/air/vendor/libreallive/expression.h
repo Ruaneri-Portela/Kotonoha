@@ -116,6 +116,14 @@ public:
 
   bool is_valid() const { return piece_type != TYPE_INVALID; }
 
+  // Returns true if this expression can be used as an lvalue (left-hand side
+  // of assignment). Only memory references and store registers are assignable.
+  bool IsLValue() const {
+    return piece_type == TYPE_STORE_REGISTER ||
+           piece_type == TYPE_MEMORY_REFERENCE ||
+           piece_type == TYPE_SIMPLE_MEMORY_REFERENCE;
+  }
+
   // Capability method; returns false by default. Override when
   // ExpressionPiece subclass accesses a piece of memory.
   bool IsMemoryReference() const;
