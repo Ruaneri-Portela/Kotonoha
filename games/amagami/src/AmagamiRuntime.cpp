@@ -1587,6 +1587,11 @@ SDL_FPoint AmagamiRuntime::sceneSize(const Kotonoha::Scene &scene) const {
 std::string AmagamiRuntime::debugNode() const {
   return session_ ? session_->location() : "title";
 }
+std::string AmagamiRuntime::nodeClockKey() const {
+  // All positions within the same scenario share the node clock; only the
+  // event clock resets between blocks/events of a scenario.
+  return session_ ? session_->name() : "title";
+}
 std::vector<Kotonoha::DebugNode> AmagamiRuntime::debugNodes() const {
   std::vector<Kotonoha::DebugNode> out;
   for (const auto &name : assets_->source()->scenarios())

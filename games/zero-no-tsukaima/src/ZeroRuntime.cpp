@@ -177,6 +177,13 @@ std::string ZeroRuntime::debugNode() const {
   return text + " | scene " + std::to_string(game->SceneIndex()) + " | tag " +
          std::to_string(game->Pc());
 }
+std::string ZeroRuntime::nodeClockKey() const {
+  if (!session_ || !session_->Playing())
+    return {};
+  // All positions within the same script share the node clock; only the
+  // event clock resets between scenes/tags of a script.
+  return session_->Story()->ScriptName();
+}
 
 void ZeroRuntime::saveGame(const std::string &path) {
   if (!session_ || !session_->Playing())

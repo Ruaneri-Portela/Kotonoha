@@ -246,6 +246,9 @@ Kotonoha::Translation::SourceTexts GameRuntime::translationSources() const {
 std::string GameRuntime::debugNode() const {
   return session_ ? session_->debugNode() : std::string();
 }
+std::string GameRuntime::nodeClockKey() const {
+  return session_ ? session_->nodeClockKey() : std::string();
+}
 
 std::vector<Kotonoha::DebugNode> GameRuntime::debugNodes() const {
   std::vector<Kotonoha::DebugNode> result;

@@ -192,6 +192,17 @@ std::string SnowRuntime::debugNode() const {
   return object->name + " | route " + std::to_string(object->id & 0xfff) +
          " | pc " + pc;
 }
+std::string SnowRuntime::nodeClockKey() const {
+  if (!session_ || !session_->Playing() || !session_->Story())
+    return {};
+  auto &vm = session_->Story()->vm();
+  const auto object = vm.current();
+  if (!object)
+    return session_->Story()->currentScript();
+  // All positions within the same script object share the node clock; only
+  // the event clock resets between PCs of an object.
+  return object->name;
+}
 
 void SnowRuntime::saveGame(const std::string &path) {
   if (!session_ || !session_->Playing())

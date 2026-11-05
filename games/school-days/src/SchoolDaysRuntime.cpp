@@ -1729,6 +1729,16 @@ int Runtime::translationRoute() const {
 std::string Runtime::debugNode() const {
   return bridge.CurrentScene().sceneKey;
 }
+std::string Runtime::nodeClockKey() const {
+  const auto &sceneKey = bridge.CurrentScene().sceneKey;
+  // Scene keys look like "00/00-00-A00": strip the last position segment
+  // (after the final dash) so all positions of a scene share the node clock;
+  // only the event clock resets between positions of a scene.
+  const auto dash = sceneKey.rfind('-');
+  if (dash == std::string::npos)
+    return sceneKey;
+  return sceneKey.substr(0, dash);
+}
 
 std::vector<Kotonoha::DebugNode> Runtime::debugNodes() const {
   const auto *document = bridge.Session().Adapter()->document;

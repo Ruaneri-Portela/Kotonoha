@@ -48,6 +48,7 @@ public:
   bool choosing() const;
   bool showingDialogue() const;
   std::string debugNode() const;
+  std::string nodeClockKey() const;
   void debugJump(const std::string &label);
 
   void beginFrame(Kotonoha::RendererRef renderer, float pixelScale);
