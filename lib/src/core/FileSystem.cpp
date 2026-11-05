@@ -191,7 +191,10 @@ DirectoryLayout directoryLayout(const StorageLocations &locations,
       addGame(locations.workingDirectory, true);
     }
   }
-  if (!locations.packageIdentifier.empty()) {
+  if (locations.platform == StoragePlatform::IOS) {
+    if (!locations.userData.empty())
+      result.saves = locations.userData;
+  } else if (!locations.packageIdentifier.empty()) {
     validateGame(locations.packageIdentifier);
     if (!locations.userData.empty())
       result.saves =

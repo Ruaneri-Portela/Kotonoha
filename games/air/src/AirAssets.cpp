@@ -78,8 +78,17 @@ Kotonoha::SurfacePtr AirAssets::loadSurfaceAsset(const std::string &id) const {
   if (extension != ".G00" && extension != ".PDT")
     return AssetProvider::loadSurfaceAsset(id);
   try {
+    const auto bytes = read(id);
+    if (bytes.empty()) {
+      Kotonoha::SurfacePtr fallback(
+          SDL_CreateSurface(1, 1, SDL_PIXELFORMAT_RGBA32));
+      if (fallback)
+        SDL_FillSurfaceRect(fallback.get(), nullptr,
+                            SDL_MapSurfaceRGB(fallback.get(), 0, 0, 0));
+      return fallback;
+    }
     const auto image =
-        extension == ".PDT" ? decodePDT(read(id)) : decodeG00(read(id));
+        extension == ".PDT" ? decodePDT(bytes) : decodeG00(bytes);
 
     // Validar dimensões da imagem decodificada
     if (image.width == 0 || image.height == 0 || image.rgba.empty()) {

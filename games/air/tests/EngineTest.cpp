@@ -278,6 +278,73 @@ void verify8005Commands(std::shared_ptr<Air::AirAssets> assets) {
   std::cout << "AIR 8005 dispatched " << exercised
             << " original command call sites\n";
 }
+void verifyAllOpcodes(std::shared_ptr<Air::AirAssets> assets) {
+  Air::AirRuntime game(assets);
+  game.SetState(GameState::Menu);
+  EngineOptions options;
+  options.assets = assets;
+  options.persistSettings = false;
+  Engine engine(game, options);
+  struct Guard {
+    Air::AirRuntime &game;
+    ~Guard() { game.shutdown(); }
+  } guard{game};
+
+  auto archive = assets->scripts();
+  using OpcodeKey = std::tuple<int, int, int, int>;
+  struct OpcodeInfo {
+    const libreallive::CommandElement *cmd = nullptr;
+    int scenario = 0;
+    std::size_t index = 0;
+    size_t count = 0;
+  };
+  std::map<OpcodeKey, OpcodeInfo> inventory;
+
+  for (int scenarioNum : archive.ScenarioNumbers()) {
+    const auto &scenario = archive.Scenario(scenarioNum);
+    std::size_t index = 0;
+    for (const auto &element : scenario) {
+      if (const auto *command =
+              dynamic_cast<const libreallive::CommandElement *>(
+                  element.get())) {
+        OpcodeKey key{command->modtype(), command->module(), command->opcode(),
+                      command->overload()};
+        auto &info = inventory[key];
+        if (!info.count) {
+          info.cmd = command;
+          info.scenario = scenarioNum;
+          info.index = index;
+        }
+        ++info.count;
+      }
+      ++index;
+    }
+  }
+
+  std::cout << "Inventory contains " << inventory.size()
+            << " unique opcode signatures across "
+            << archive.ScenarioNumbers().size() << " scenarios.\n";
+
+  std::vector<std::pair<OpcodeKey, std::string>> pending;
+  for (const auto &[key, info] : inventory) {
+    game.debugJumpToNode(std::to_string(info.scenario) + ":" +
+                         std::to_string(info.index));
+    game.debugStep();
+    std::string diag = game.diagnostic();
+    if (diag.find("Comando AIR pendente") != std::string::npos) {
+      pending.push_back({key, diag});
+    }
+  }
+
+  std::cout << "FOUND " << pending.size() << " PENDING / UNHANDLED OPCODES:\n";
+  for (const auto &[key, diag] : pending) {
+    const auto &[type, mod, op, over] = key;
+    const auto &info = inventory[key];
+    std::cout << "  - " << type << ":" << mod << ":" << op << "/" << over
+              << " (count: " << info.count << ", first at " << info.scenario
+              << ":" << info.index << ") -> " << diag << "\n";
+  }
+}
 void verify8005Walk(std::shared_ptr<Air::AirAssets> assets,
                     bool shaders = false, bool performance = false) {
   Air::AirRuntime game(assets);
@@ -1189,6 +1256,10 @@ int main(int argc, char **argv) {
     }
     if (argc > 2 && std::string(argv[2]) == "--8005-all-calls") {
       verify8005Commands(std::move(assets));
+      return 0;
+    }
+    if (argc > 2 && std::string(argv[2]) == "--check-all-opcodes") {
+      verifyAllOpcodes(std::move(assets));
       return 0;
     }
     // SEEN8613 loads MSG_01 without blending, then reveals rows with maskCopy.

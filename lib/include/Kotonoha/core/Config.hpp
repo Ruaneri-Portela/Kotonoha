@@ -23,6 +23,7 @@ inline WindowMode defaultWindowMode() {
 
 // Default launcher state: Enabled on Linux, Windows, and Mobile
 inline bool defaultLauncherEnabled() {
+  return true;
 #if defined(__linux__) || defined(_WIN32) || defined(__ANDROID__) ||           \
     (defined(__APPLE__) && TARGET_OS_IOS)
   return true;

@@ -114,6 +114,13 @@ std::string AssetProvider::localPathAsset(const std::string &) const {
 
 SurfacePtr AssetProvider::loadSurfaceAsset(const std::string &id) const {
   const auto bytes = read(id);
+  if (bytes.empty()) {
+    SurfacePtr fallback(SDL_CreateSurface(1, 1, SDL_PIXELFORMAT_RGBA32));
+    if (fallback)
+      SDL_FillSurfaceRect(fallback.get(), nullptr,
+                          SDL_MapSurfaceRGB(fallback.get(), 0, 0, 0));
+    return fallback;
+  }
   if (SurfacePtr surface{
           SDL_LoadSurface_IO(memoryStream(bytes).release(), true)})
     return surface;
