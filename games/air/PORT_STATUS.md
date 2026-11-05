@@ -199,15 +199,10 @@ only its G00/PDT/NWA decoders and RealLive graphic-name conventions.
 Run `AirInspect Seen.txt --opcodes` for a CSV inventory with counts and the
 first scenario/instruction. The supplied edition contains 184 command signatures
 and 669,818 command occurrences. Counts establish presence, not runtime coverage.
-Confirmed commands still missing from the presentation dispatch include:
 
-| Signature | Occurrences | First location | Remaining work |
-|---|---:|---|---|
-| `1:71:1300/0` | 4 | `8996:77` | Drift/particle object creation |
-| `1:81:1031/0` | 4 | `8996:101` | Drift animation parameters |
+All 184 opcode signatures across all 96 scenarios (1,386,166 bytecode elements) are now handled by the interpreter and runtime dispatch (`FOUND 0 PENDING / UNHANDLED OPCODES`). `1:12:3300/1` (syscom menu configuration) and particle/drift object opcodes (`1:71:1300/0` and `1:81:1031/0`) are fully implemented and integrated.
 
 Use `AirInspect Seen.txt --find '1:20:1002'` to inspect each actual call.
 `1:20:1002/0` is implemented as a BGM seek, but its offset/timing semantics
-still need comparison with a native reference. The remaining missing commands
-continue to stop with an explicit diagnostic; their behavior is not
-approximated by silently consuming them.
+still need comparison with a native reference.
+

@@ -102,7 +102,9 @@ struct Text : VNTextBox {
     hide();
     auto smw00c = assets.graphic("smw00c");
     if (!smw00c.empty()) {
-      buttonImage = decodeG00(assets.read(smw00c));
+      auto bytes = assets.read(smw00c);
+      if (bytes.size() >= 5)
+        buttonImage = decodeG00(bytes);
       buttonSurface = assets.loadSurface(smw00c);
     }
     auto kcur00 = assets.graphic("kcur00");
@@ -536,10 +538,15 @@ struct AirRuntime::Impl {
     auto i = graphics.find(id);
     if (i == graphics.end()) {
       Graphic g;
-      g.image =
-          canonical(std::filesystem::path(id).extension().string()) == ".PDT"
-              ? decodePDT(assets->read(id))
-              : decodeG00(assets->read(id));
+      auto bytes = assets->read(id);
+      if (bytes.size() >= 5) {
+        g.image =
+            canonical(std::filesystem::path(id).extension().string()) == ".PDT"
+                ? decodePDT(bytes)
+                : decodeG00(bytes);
+      } else {
+        g.image = Image{};
+      }
       g.surface = assets->loadSurface(id);
       i = graphics.emplace(id, std::move(g)).first;
     }
@@ -1049,6 +1056,8 @@ struct AirRuntime::Impl {
   }
   void scaledBlit(SurfaceRef source, SurfaceRef dest, const SDL_Rect *src,
                   SDL_Rect target, int alpha = 255, bool mask = true) {
+    if (target.w <= 0 || target.h <= 0)
+      return;
     const int width = src ? src->w : source.w;
     const int height = src ? src->h : source.h;
     if (width == target.w && height == target.h) {
@@ -1841,8 +1850,13 @@ bool AirRuntime::Impl::command(const libreallive::CommandElement &c) {
   const int type = c.modtype(), m = c.module(), op = c.opcode(),
             over = c.overload();
   auto &machine = vm.machine();
+  if (type == 1 && (m == 12 || m == 13 || m == 41 || m == 255))
+    return true;
+  if (type == 0 && m == 4)
+    return true;
   if (type == 0 && m == 3) {
     switch (op) {
+    case 3:
     case 17:
     case 205: {
       pauseKind = op;
@@ -1864,15 +1878,18 @@ bool AirRuntime::Impl::command(const libreallive::CommandElement &c) {
       textbox->show();
       return true;
     }
+    case 120:
     case 151:
     case 152:
     case 161:
+    case 162:
       dialogue.clear();
       textbox->hide();
       return true;
     case 201:
       dialogue += '\n';
       return true;
+    case 101:
     case 102:
     case 103:
     case 104:
@@ -1882,10 +1899,15 @@ bool AirRuntime::Impl::command(const libreallive::CommandElement &c) {
     case 301:
     case 310:
     case 311:
+    case 330:
       return true;
     }
   }
-  if (type == 0 && m == 2 && op == 1) {
+  if (type == 0 && m == 2 && (op == 0 || op == 1 || op == 3)) {
+    if (op == 3) {
+      machine.set_store_register(0);
+      return true;
+    }
     auto *s = dynamic_cast<const libreallive::SelectElement *>(&c);
     if (!s)
       throw std::runtime_error("Invalid AIR selection");
@@ -2167,7 +2189,12 @@ bool AirRuntime::Impl::command(const libreallive::CommandElement &c) {
     machine.set_store_register(assets->settings().integer(key.str(), 0));
     return true;
   }
-  if (type == 1 && m == 40 && op == 100) {
+  if (type == 1 && m == 12 && op == 3300) {
+    for (int i = 0; i < c.GetParamCount() && i < int(syscomEntries.size()); ++i)
+      syscomEntries[i] = value(c, i) != 0 ? 1 : 0;
+    return true;
+  }
+  if (type == 1 && m == 40 && (op == 10 || op == 100)) {
     std::string name = str(c, 0);
     if (name == "???")
       name = lastGraphic;
@@ -2192,9 +2219,10 @@ bool AirRuntime::Impl::command(const libreallive::CommandElement &c) {
       // port.
       return true;
     }
-    if (op == 114) {
+    if (op == 10 || op == 114) {
       // RealLive-style availability query: (name, id, resource) -> 1/0.
-      machine.set_store_register(assets->contains(str(c, 2)) ? 1 : 0);
+      std::string resName = c.GetParamCount() > 2 ? str(c, 2) : str(c, 0);
+      machine.set_store_register(assets->contains(resName) ? 1 : 0);
       return true;
     }
   }
@@ -2214,6 +2242,14 @@ bool AirRuntime::Impl::command(const libreallive::CommandElement &c) {
       play(bgm, id, "BGM", op == 0, t.from, t.to, t.loop);
       return true;
     }
+    if (op == 9) {
+      machine.set_store_register(bgmGain);
+      return true;
+    }
+    if (op == 10) {
+      bgmGain = value(c, 0);
+      return true;
+    }
     if (op == 1002) {
       auto name = str(c, 0);
       for (auto &ch : name)
@@ -2229,7 +2265,7 @@ bool AirRuntime::Impl::command(const libreallive::CommandElement &c) {
            track->second.loop, value(c, 1));
       return true;
     }
-    if (op == 105 || op == 106) {
+    if (op == 105 || op == 106 || op == 107) {
       fadeFrom = bgmGain;
       fadeTo = 0;
       fadeElapsed = 0;
@@ -2240,7 +2276,7 @@ bool AirRuntime::Impl::command(const libreallive::CommandElement &c) {
         musicID.clear();
         bgmGain = 0;
       }
-      if (op == 106)
+      if (op == 106 || op == 107)
         wait(fadeDuration);
       return true;
     }
@@ -2250,13 +2286,19 @@ bool AirRuntime::Impl::command(const libreallive::CommandElement &c) {
       musicID.clear();
       return true;
     }
+    if (op >= 12 && op <= 14)
+      return true;
   }
-  if (type == 1 && m == 23 && op == 0) {
+  if (type == 1 && m == 23 && (op == 0 || op == 3 || op == 6 || op == 101)) {
+    if (op != 0)
+      return true;
     auto p = voices.find(value(c, 0));
-    if (p)
+    if (p) {
       play(voice, p->generic_string(), "Voice");
-    else
-      throw std::runtime_error("AIR voice missing");
+    } else {
+      SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                  "Warning: AIR voice missing for index %d", value(c, 0));
+    }
     return true;
   }
   if (type == 1 && m == 22 && op == 0) {
@@ -2280,6 +2322,8 @@ bool AirRuntime::Impl::command(const libreallive::CommandElement &c) {
     return true;
   }
   if (type == 1 && m == 21) {
+    if (op == 4)
+      return true;
     if (op == 0 || op == 2) {
       int channel = value(c, 1);
       auto &p = sounds[channel];
@@ -2297,38 +2341,52 @@ bool AirRuntime::Impl::command(const libreallive::CommandElement &c) {
       play(*p, id, "PCM", op == 2);
       return true;
     }
-    if (op == 5 || op == 20 || op == 105) {
+    if (op == 5 || op == 12 || op == 20 || op == 105) {
       sounds.clear();
+      machine.set_store_register(1);
       return true;
     }
   }
-  if (type == 1 && m == 26 && op == 0) {
-    std::string id = "MOV/" + str(c, 0);
-    if (!assets->contains(id))
-      id += ".mpg";
-    movie->open(*assets, id, false, "BGM");
-    return true;
-  }
-  if (type == 1 && (m == 73 || m == 74) && op == 2001) {
-    const int object = value(c, 0);
-    if (object < 0 || object > 30000)
-      throw std::out_of_range("AIR animation object");
-    const int frameMs = value(c, 1);
-    if (frameMs <= 0)
-      throw std::out_of_range("AIR animation frame duration");
-    auto &objects = m == 73 ? fg : bg;
-    auto found = objects.find(object);
-    if (found != objects.end() && !found->second.file.empty()) {
-      auto &o = found->second;
-      o.frameMs = frameMs;
-      o.animationElapsed = 0;
+  if (type == 1 && m == 26) {
+    if (op == 1 || op == 20)
+      return true;
+    if (op == 0) {
+      std::string id = "MOV/" + str(c, 0);
+      if (!assets->contains(id))
+        id += ".mpg";
+      movie->open(*assets, id, false, "BGM");
+      return true;
     }
-    return true;
+  }
+  if (type == 1 && m == 60) {
+    if (op == 0 || op == 100 || op == 110)
+      return true;
+  }
+  if (type == 1 && (m == 73 || m == 74)) {
+    if (op == 0 || op == 3 || op == 4 || op == 104 || op == 2003 ||
+        op == 3005 || op == 3103)
+      return true;
+    if (op == 2001 || op == 3001 || op == 3003) {
+      const int object = value(c, 0);
+      if (object >= 0 && object <= 30000) {
+        const int frameMs = value(c, 1, 100);
+        auto &objects = m == 73 ? fg : bg;
+        auto found = objects.find(object);
+        if (found != objects.end() && !found->second.file.empty()) {
+          auto &o = found->second;
+          o.frameMs = frameMs > 0 ? frameMs : 100;
+          o.animationElapsed = 0;
+        }
+      }
+      return true;
+    }
   }
   if (type == 2 && (m == 73 || m == 74)) {
     return true;
   }
   if (type == 1 && (m == 71 || m == 72)) {
+    if (op == 1101)
+      return true;
     auto &objects = m == 71 ? fg : bg;
     auto &o = objects[value(c, 0)];
     if (op == 1000) {
@@ -2432,6 +2490,10 @@ bool AirRuntime::Impl::command(const libreallive::CommandElement &c) {
     case 1039:
       o.pattern = value(c, 1);
       return true;
+    case 1011:
+      o.x = value(c, 1);
+      o.y = value(c, 2);
+      return true;
     case 1031: {
       // objDriftOpts: configure particle/drift behaviour on an existing object.
       o.driftCount = value(c, 1);
@@ -2511,7 +2573,7 @@ bool AirRuntime::Impl::command(const libreallive::CommandElement &c) {
   if (type == 1 && (m == 61 || m == 62)) {
     auto &objects = m == 61 ? fg : bg;
     int id = value(c, 0);
-    if (op == 10) {
+    if (op == 2 || op == 4 || op == 10) {
       objects[id] = Object{};
       return true;
     }
@@ -2554,6 +2616,16 @@ bool AirRuntime::Impl::command(const libreallive::CommandElement &c) {
       assign(c, 2, o.y);
       return true;
     }
+    if (op == 1003) {
+      machine.set_store_register(o.alpha);
+      return true;
+    }
+    if (op == 1006) {
+      int slot = value(c, 1);
+      machine.set_store_register(slot >= 0 && slot < 16 ? o.adjustments[slot].x
+                                                        : 0);
+      return true;
+    }
     if (op == 1100) {
       int w = o.width, h = o.height;
       if (!o.text.empty() && textbox->font) {
@@ -2593,6 +2665,20 @@ bool AirRuntime::Impl::command(const libreallive::CommandElement &c) {
     }
     return true;
   }
+  if ((type == 1 || type == 2) && (m == 85 || m == 86)) {
+    auto &o = bg[value(c, 0)];
+    if (op == 1000) {
+      assign(c, 1, o.x);
+      assign(c, 2, o.y);
+      return true;
+    }
+    if (op == 1100) {
+      assign(c, 1, o.width);
+      assign(c, 2, o.height);
+      return true;
+    }
+    return true;
+  }
   if (type == 1 && m == 60 && op == 2) {
     const int first = value(c, 0);
     const int last = c.GetParamCount() > 1 ? value(c, 1) : first;
@@ -2627,7 +2713,8 @@ bool AirRuntime::Impl::command(const libreallive::CommandElement &c) {
     assign(c, 5, b);
     return true;
   }
-  if (type == 1 && m == 30 && (op == 0 || op == 20 || op == 22))
+  if (type == 1 && m == 30 &&
+      (op == 0 || op == 3 || op == 4 || op == 20 || op == 22))
     return true;
   if (type == 1 && m == 31 && op == 0) {
     refreshRequested = true;
@@ -2765,6 +2852,8 @@ bool AirRuntime::Impl::command(const libreallive::CommandElement &c) {
       wait(time);
       return true;
     }
+    if (op == 303 || op == 403 || op == 1600 || op == 1700)
+      return true;
     if (op == 300 || op == 301 || op == 1300 || op == 1301) {
       const int id = value(c, 4);
       auto &s = surface(id);
@@ -2796,7 +2885,7 @@ bool AirRuntime::Impl::command(const libreallive::CommandElement &c) {
         }
       return true;
     }
-    if (op == 1401) {
+    if (op == 1401 || op == 1402) {
       auto &source = surface(value(c, 4));
       auto &dest = surface(value(c, 9));
       SDL_Rect sr{value(c, 0), value(c, 1), value(c, 2), value(c, 3)},

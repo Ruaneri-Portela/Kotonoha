@@ -139,11 +139,14 @@ bool Session::flow(const CommandElement &c) {
     seek(f.scene, f.pc);
     return true;
   }
-  if (op == 11 || op == 12 || op == 18) {
+  if (op == 11 || op == 12 || op == 16 || op == 18) {
     int n = value(0), entry = c.GetParamCount() > 1 ? value(1) : 0;
     if (op == 12 || op == 18)
       stack_.push_back({scene_, pc_ + 1});
-    jump(n, entry);
+    if (op == 16)
+      target(c, 0, false);
+    else
+      jump(n, entry);
     return true;
   }
   return false;
@@ -198,6 +201,9 @@ bool Session::strings(const CommandElement &c) {
     break;
   case 4:
     machine_.set_store_register(std::strcmp(str(0).c_str(), str(1).c_str()));
+    break;
+  case 15:
+    write(c.overload() ? 1 : 0, str(0));
     break;
   case 5:
   case 6: {
@@ -365,6 +371,20 @@ bool Session::memory(const CommandElement &c) {
     }
     total += int(*b);
     machine_.set_store_register(static_cast<std::int32_t>(total));
+    break;
+  }
+  case 101: {
+    auto a = ref(0), b = ref(1);
+    int count = 0;
+    std::size_t n = 0;
+    while (a != b) {
+      if (++n > 1000000)
+        throw std::runtime_error("AIR invalid memory range");
+      ++count;
+      ++a;
+    }
+    ++count;
+    machine_.set_store_register(count);
     break;
   }
   default:
