@@ -403,6 +403,20 @@ int Campaign::period(const Vm &live) const {
   auto vm = worker(live);
   return integer(call(vm, klass("GameParam"), "getTime"));
 }
+bool Campaign::campaignCleared(Vm &live) const {
+  if (!initialized_)
+    return false;
+  auto vm = worker(live);
+  for (const auto &event : events_) {
+    auto node = this->node(event.name);
+    if (!node.object)
+      return false;
+    if (!call(vm, node, "isPass").truth())
+      return false;
+  }
+  return true;
+}
+
 void Campaign::save(const Vm &live, std::ostream &out) const {
   auto vm = worker(live);
   const auto body = call(vm, klass("EventNode"), "makeShioriBody");

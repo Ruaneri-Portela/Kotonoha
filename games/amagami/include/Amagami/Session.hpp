@@ -98,6 +98,10 @@ public:
   void setAutoMode(bool enabled);
   void setSkipMode(bool enabled);
   void setMessageSpeed(int speed);
+  // Returns true when every campaign EventNode reachable from the current
+  // calendar position has been marked passed; used by checkClear to decide
+  // whether the campaign has reached its end.
+  bool campaignCleared() const;
 
 private:
   std::shared_ptr<Source> source_;
