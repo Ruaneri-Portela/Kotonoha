@@ -80,6 +80,25 @@ public:
   virtual bool handleBacklogAction() { return false; }
   virtual void renderScreen(RendererRef renderer, float scale);
   virtual void renderBackground(RendererRef renderer, float scale);
+  // Games with scene transactions can retain the fully composed Novel raster
+  // in an engine-owned target. Readiness means a primary image/video drew.
+  virtual bool useOwnedNarrativeTarget() const { return false; }
+  // Optional game-authored vertical presentation inside the normal Novel
+  // canvas. 1.0 fills the fitted canvas; e.g. 0.75 keeps the whole frame but
+  // compresses it into the centered 75%, leaving black bands above/below.
+  // The physical window and generic engine Settings UI remain unchanged.
+  virtual float narrativePresentationHeightScale() const { return 1.0f; }
+  virtual bool narrativeFrameDrawable() const { return false; }
+  virtual bool narrativeBoundaryFrame() const { return false; }
+  virtual std::string narrativeVisualOwner() const { return {}; }
+  // Called on the Novel target after an outgoing frame has been composed.
+  // Native/modal overlays stay above a retained narrative surface.
+  virtual void renderNarrativeOverlay(RendererRef, float) {}
+  virtual bool devPauseRequested() const { return false; }
+  virtual bool devConsumeStep() { return false; }
+  virtual void devIdle() {}
+  virtual void devControlPump(RendererRef) {}
+  virtual void devInputProcessed(EventRef) {}
   // Novel-space UI, drawn after story content and forced subtitles.
   virtual void renderOverlay(RendererRef renderer, float scale);
   virtual void saveGame(const std::string &path);

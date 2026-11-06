@@ -31,7 +31,11 @@ public:
     title = std::move(caption);
     options = std::move(items);
     selected = std::clamp(current, 0, std::max(0, int(options.size()) - 1));
-    scroll = float(std::max(0, selected - 5) * 44);
+    scroll = std::clamp(float(std::max(0, selected - 5) * 44), 0.f,
+                        std::max(0.f, float(options.size()) * 44 - 440));
+    velocity = 0;
+    follow = false;
+    gesture.reset();
     changed = std::move(action);
     visible = true;
     dragged = false;
@@ -45,10 +49,22 @@ public:
     if (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat) {
       if (event.key.key == SDLK_ESCAPE || event.key.key == SDLK_AC_BACK)
         return close();
-      if (event.key.key == SDLK_UP || event.key.key == SDLK_DOWN) {
-        selected = std::clamp(selected + (event.key.key == SDLK_UP ? -1 : 1), 0,
-                              std::max(0, int(options.size()) - 1));
-        scroll = float(std::max(0, selected - 5) * 44);
+      const int maximum = std::max(0, int(options.size()) - 1);
+      if (event.key.key == SDLK_UP || event.key.key == SDLK_DOWN ||
+          event.key.key == SDLK_PAGEUP || event.key.key == SDLK_PAGEDOWN ||
+          event.key.key == SDLK_HOME || event.key.key == SDLK_END) {
+        if (event.key.key == SDLK_HOME) selected = 0;
+        else if (event.key.key == SDLK_END) selected = maximum;
+        else {
+          const int step = (event.key.key == SDLK_PAGEUP ||
+                            event.key.key == SDLK_PAGEDOWN) ? 10 : 1;
+          const bool reverse = event.key.key == SDLK_UP ||
+                               event.key.key == SDLK_PAGEUP;
+          selected = std::clamp(selected + (reverse ? -step : step), 0, maximum);
+        }
+        scroll = std::min(std::max(0.0f, float(int(options.size()) * 44 - 440)),
+                          float(std::max(0, selected - 5) * 44));
+        return;
       } else if (event.key.key == SDLK_RETURN && !options.empty()) {
         auto action = changed;
         close();
@@ -66,6 +82,16 @@ public:
       dragged = true;
     gesture.handle(event, 720, scroll, velocity, follow,
                    std::max(0.f, float(options.size()) * 44 - 440));
+    if (event.type == SDL_EVENT_MOUSE_BUTTON_UP &&
+        event.button.button == SDL_BUTTON_LEFT &&
+        event.button.x >= 936 && event.button.x <= 953 &&
+        event.button.y >= 150 && event.button.y <= 590) {
+      // Clicking the visible scrollbar track jumps directly through long
+      // lists, useful when a monitor exposes dozens of refresh-rate modes.
+      const float maximum = std::max(0.f, float(options.size()) * 44 - 440);
+      scroll = std::clamp((event.button.y - 150.f) / 440.f, 0.f, 1.f) * maximum;
+      return;
+    }
     if (UI::clicked(event, {350, 620, 580, 44}))
       return close();
     if (dragged && event.type == SDL_EVENT_MOUSE_BUTTON_UP)
@@ -96,6 +122,18 @@ public:
         ui.button(renderer, {350, y, 580, 42}, options[i], selected == i);
     }
     SDL_SetRenderClipRect(&renderer, nullptr);
+    const float maximum = std::max(0.f, float(options.size()) * 44 - 440);
+    if (maximum > 0) {
+      ui.panel(renderer, {938, 150, 9, 440}, {50, 60, 76, 255});
+      const float thumb = std::max(24.f, 440.f * 440.f /
+                                       (float(options.size()) * 44.f));
+      ui.panel(renderer, {938, 150 + scroll / maximum * (440 - thumb), 9, thumb},
+               {130, 190, 245, 255});
+    }
+    ui.text(renderer, std::to_string(selected + 1) + "/" +
+                std::to_string(options.size()) +
+                "  Wheel / swipe / PgUp / PgDn / Home / End",
+            350, 593, 580, {215, 220, 235, 255});
     ui.button(renderer, {350, 620, 580, 44}, "Cancel");
   }
 };

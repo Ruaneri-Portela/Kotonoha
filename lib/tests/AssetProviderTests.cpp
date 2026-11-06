@@ -8,6 +8,7 @@
 #include <fstream>
 #include <iostream>
 #include <map>
+#include <memory>
 #include <stdexcept>
 
 namespace {
@@ -74,6 +75,48 @@ public:
                                    (color >> 8) & 255, color & 255, 255)),
             "Fill solid surface");
     return surface;
+  }
+};
+
+class VectorAssetStream final : public AssetStream {
+  std::vector<Uint8> bytes;
+  std::size_t offset = 0;
+
+public:
+  explicit VectorAssetStream(std::vector<Uint8> data) : bytes(std::move(data)) {}
+  std::uint64_t size() const override { return bytes.size(); }
+  std::uint64_t tell() const override { return offset; }
+  std::size_t read(Uint8 *buffer, std::size_t count) override {
+    const auto available = bytes.size() - offset;
+    count = std::min(count, available);
+    std::copy_n(bytes.data() + offset, count, buffer);
+    offset += count;
+    return count;
+  }
+  bool seek(std::uint64_t position) override {
+    if (position > bytes.size())
+      return false;
+    offset = static_cast<std::size_t>(position);
+    return true;
+  }
+};
+
+class StreamingAssetProvider final : public AssetProvider {
+public:
+  std::vector<Uint8> bytes;
+  mutable int reads = 0, streams = 0;
+
+  std::string name() const override { return "Streaming"; }
+  bool containsAsset(const std::string &id) const override { return id == "image.bmp"; }
+  std::vector<Uint8> readAsset(const std::string &id) const override {
+    ++reads;
+    if (id != "image.bmp") throw std::runtime_error("Missing " + id);
+    return bytes;
+  }
+  std::unique_ptr<AssetStream> openStream(const std::string &id) const override {
+    if (id != "image.bmp") return {};
+    ++streams;
+    return std::make_unique<VectorAssetStream>(bytes);
   }
 };
 
@@ -314,6 +357,34 @@ void engineProvider() {
   require(engine.GetAssets().name() == "Files", "Keep provider on failure");
 }
 
+void seekableMediaProvider() {
+  StreamingAssetProvider assets;
+  assets.bytes = bitmap();
+  auto stream = assets.openStream("image.bmp");
+  require(stream && stream->size() == assets.bytes.size(), "Open seekable asset");
+  Uint8 probe[4]{};
+  require(stream->read(probe, sizeof(probe)) == sizeof(probe) &&
+              stream->tell() == sizeof(probe),
+          "Read seekable asset");
+  require(stream->seek(8) && stream->tell() == 8 &&
+              !stream->seek(stream->size() + 1),
+          "Seek asset range");
+
+  AudioMixer mixer;
+  MediaPlayer player(mixer);
+  player.open(assets, "image.bmp", false, "stream");
+  require(player.isOpen() && assets.streams == 2 && assets.reads == 0,
+          "MediaPlayer did not prefer provider stream");
+  player.stop();
+
+  MemoryAssetProvider fallback;
+  fallback.files["image.bmp"] = assets.bytes;
+  player.open(fallback, "image.bmp", false, "memory");
+  require(player.isOpen() && fallback.reads == 1,
+          "MediaPlayer memory fallback changed");
+  player.stop();
+}
+
 void memoryMedia(const char *path) {
   std::ifstream input(path, std::ios::binary);
   require(static_cast<bool>(input), "Open test media");
@@ -354,6 +425,7 @@ int main(int argc, char **argv) {
     overlays();
     if (argc > 1)
       memoryMedia(argv[1]);
+    seekableMediaProvider();
     // Engines own the SDL session and quit SDL when destroyed.
     engineProvider();
   } catch (const std::exception &error) {

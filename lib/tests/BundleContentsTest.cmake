@@ -46,11 +46,13 @@ file(MAKE_DIRECTORY "${contents}/Resources/python")
 check_layout(doki-doki-literature-club "3.13" FALSE)
 file(REMOVE_RECURSE "${contents}/Resources/python" "${contents}/Frameworks/python")
 
-set(framework "${contents}/Frameworks/Python.framework/Versions")
-file(MAKE_DIRECTORY "${framework}/3.13/lib/python3.13/encodings")
-file(WRITE "${framework}/3.13/lib/python3.13/encodings/__init__.py" "")
-file(CREATE_LINK "3.13" "${framework}/Current" SYMBOLIC)
-check_layout(doki-doki-literature-club "3.13" TRUE)
+if(NOT WIN32)
+    set(framework "${contents}/Frameworks/Python.framework/Versions")
+    file(MAKE_DIRECTORY "${framework}/3.13/lib/python3.13/encodings")
+    file(WRITE "${framework}/3.13/lib/python3.13/encodings/__init__.py" "")
+    file(CREATE_LINK "3.13" "${framework}/Current" SYMBOLIC)
+    check_layout(doki-doki-literature-club "3.13" TRUE)
+endif()
 
 execute_process(COMMAND "${CMAKE_COMMAND}"
     "-DAPP_EXECUTABLE=${contents}/MacOS/Example"

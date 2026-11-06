@@ -37,6 +37,8 @@ public:
   // Coverage and color of the most recent event affecting the position.
   float alpha() const;
   SDL_Color color() const;
+  // A fully opaque authored fade hides the primary image at this instant.
+  bool fullyCoveredByFade() const;
   // True while a fade is in progress (not counting a held color).
   bool active() const;
   bool finished() const override { return !active(); }

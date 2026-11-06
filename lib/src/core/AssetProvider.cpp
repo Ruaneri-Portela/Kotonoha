@@ -3,6 +3,7 @@
 #include <Kotonoha/core/FileSystem.hpp>
 #include <Kotonoha/core/Log.hpp>
 #include <Kotonoha/media/MediaDecoder.hpp>
+#include <Kotonoha/media/TextureAlpha.hpp>
 #include <Kotonoha/media/upscaling/Upscaler.hpp>
 
 #include <cmath>
@@ -23,6 +24,18 @@ IOStreamPtr memoryStream(const std::vector<Uint8> &bytes) {
   if (!stream)
     throw std::runtime_error(SDL_GetError());
   return stream;
+}
+
+void prepareLinearSurface(SDL_Surface *surface) {
+  if (!surface || surface->format != SDL_PIXELFORMAT_RGBA32)
+    return;
+  const bool lock = SDL_MUSTLOCK(surface);
+  if (lock && !SDL_LockSurface(surface))
+    return;
+  prepareStraightAlphaForLinearFiltering(
+      static_cast<Uint8 *>(surface->pixels), surface->w, surface->h, surface->pitch);
+  if (lock)
+    SDL_UnlockSurface(surface);
 }
 } // namespace
 
@@ -112,8 +125,14 @@ std::string AssetProvider::localPathAsset(const std::string &) const {
   return {};
 }
 
+std::unique_ptr<AssetStream> AssetProvider::openStream(const std::string &) const {
+  return {};
+}
+
 SurfacePtr AssetProvider::loadSurfaceAsset(const std::string &id) const {
-  const auto bytes = read(id);
+  const auto bytes = readAsset(id);
+  // Retain upstream's empty-asset fallback for runtimes that intentionally
+  // request an empty picture (e.g. AIR state transitions).
   if (bytes.empty()) {
     SurfacePtr fallback(SDL_CreateSurface(1, 1, SDL_PIXELFORMAT_RGBA32));
     if (fallback)
@@ -136,9 +155,9 @@ SurfacePtr AssetProvider::loadSurfaceAsset(const std::string &id) const {
 SurfacePtr AssetProvider::loadFrameAsset(const std::string &id,
                                          double seconds) const {
   if (seconds <= 0)
-    return loadSurface(id);
+    return loadSurfaceAsset(id);
   try {
-    return MediaDecoder::decodePicture(read(id), seconds);
+    return MediaDecoder::decodePicture(readAsset(id), seconds);
   } catch (const std::exception &error) {
     throw std::runtime_error("Cannot decode frame of " + id + ": " +
                              error.what());
@@ -146,7 +165,7 @@ SurfacePtr AssetProvider::loadFrameAsset(const std::string &id,
 }
 
 AudioClip AssetProvider::loadAudioAsset(const std::string &id) const {
-  const auto bytes = read(id);
+  const auto bytes = readAsset(id);
   AudioClip clip;
   Uint8 *data = nullptr;
   Uint32 length = 0;
@@ -173,7 +192,20 @@ SDL_Texture &AssetProvider::texture(RendererRef renderer,
   }
   if (auto found = textures.find(id); found != textures.end())
     return *found->second;
-  const SurfacePtr surface = loadSurface(id);
+  return stageTexture(renderer, id, loadSurface(id));
+}
+
+SDL_Texture &AssetProvider::stageTexture(RendererRef renderer,
+                                         const std::string &id,
+                                         SurfacePtr surface) {
+  if (textureRenderer != &renderer) {
+    textures.clear();
+    textureRenderer = &renderer;
+  }
+  if (auto found = textures.find(id); found != textures.end())
+    return *found->second;
+  if (!surface) throw std::invalid_argument("Staged asset surface is empty");
+  prepareLinearSurface(surface.get());
   TexturePtr created(SDL_CreateTextureFromSurface(&renderer, surface.get()));
   if (!created)
     throw std::runtime_error("Cannot upload picture " + id + ": " +
@@ -203,6 +235,7 @@ SDL_Texture &AssetProvider::texture(RendererRef renderer, const std::string &id,
   TexturePtr created;
   {
     const SurfacePtr source = loadSurface(id);
+    prepareLinearSurface(source.get());
     SurfacePtr resized(SDL_ScaleSurface(
         source.get(), std::max(1, int(std::lround(source->w * scale))),
         std::max(1, int(std::lround(source->h * scale))),
@@ -225,6 +258,7 @@ SurfacePtr AssetProvider::surface(RendererRef renderer, const std::string &id,
   if (!std::isfinite(scale) || scale <= 0)
     throw std::invalid_argument("Surface scale must be positive");
   const SurfacePtr source = loadSurface(id);
+  prepareLinearSurface(source.get());
   if (upscaling)
     return upscaling->scaled(*source, scale);
   (void)renderer;

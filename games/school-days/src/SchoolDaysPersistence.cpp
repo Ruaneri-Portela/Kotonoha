@@ -253,6 +253,14 @@ bool SchoolDaysPersistence::WriteGlobalInteger(const std::string &key,
   return UpsertGlobalInteger(key, type, value, state, error);
 }
 
+bool SchoolDaysPersistence::GlobalIntegerIsSet(const std::string &key) const {
+  if (!hasGlobalFlag_ || key.empty())
+    return false;
+  const SchoolDaysFlgHEntry *entry = FindEntry(globalFlag_, AsciiUtf16(key));
+  return entry != nullptr && (entry->type == 3 || entry->type == 11) &&
+         entry->integer != 0;
+}
+
 bool SchoolDaysPersistence::LoadGlobalFlag(const std::vector<uint8_t> &bytes,
                                            KtrfStateStore *state,
                                            Kotonoha_KtrfError *error) {

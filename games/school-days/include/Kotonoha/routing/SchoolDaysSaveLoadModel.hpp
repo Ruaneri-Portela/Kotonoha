@@ -46,6 +46,9 @@ public:
     bool IsOpen() const { return open_; }
     int Page() const { return page_; }
     int Selection() const { return selection_; }
+    void RestoreSelection(int selection) {
+        if (open_ && selection >= -1 && selection <= 31) selection_ = selection;
+    }
     bool SavePending() const { return pendingRow_ >= 0; }
     bool CommentInputPending() const { return commentRow_ >= 0; }
     // Host +0xD8 (TextInput) is a capability shared by SAVE and LOAD display:
