@@ -1,4 +1,6 @@
 #include <Kotonoha/SchoolDaysSceneTimeline.hpp>
+#include <Kotonoha/routing/SchoolDaysOrsFadeBoundary.hpp>
+#include <Kotonoha/routing/SchoolDaysOrsFadeFrame.hpp>
 
 #include <chrono>
 #include <filesystem>
@@ -161,6 +163,84 @@ void TestEqualMarkersAndSeek() {
   Require(timeline.AdvanceTo(101).size() == 1,
           "scene restart did not reset cursor");
 }
+
+void TestRetailOrsFadePresentationBoundary() {
+  // Original Script.GPK 01/01-00-C03 has an authored BlackFade OUT from tick72
+  // through endTick96 and Next at exactly tick96. Retail expires the fade at
+  // 96, but the v3 runtime owns one additional outgoing frame before Advance.
+  Fixture fixture("[BlackFade]=00:03:00\tOUT\t00:04:00;\n"
+                  "[Next]=00:04:00;\n");
+  SchoolDaysSceneTimeline timeline;
+  timeline.Bind(&fixture.events);
+  const auto *fade = fixture.events.data;
+  Require(fade->command == BLACK_FADE && fade->startTick == 72 &&
+              fade->endTick == 96 && timeline.NextTick() == 96,
+          "retail boundary fixture did not preserve authored 24 fps ticks");
+  using Policy = Kotonoha::SchoolDaysOrsFadeBoundary;
+  Require(!Policy::CoversDeferredNext(*fade, 95, 96, true) &&
+              !Policy::CoversDeferredNext(*fade, 96, 96, false) &&
+              Policy::CoversDeferredNext(*fade, 96, 96, true),
+          "deferred one-frame black boundary cover is missing or premature");
+
+  Fixture gap("[BlackFade]=00:03:00\tOUT\t00:03:23;\n"
+              "[Next]=00:04:00;\n");
+  Require(!Policy::CoversDeferredNext(*gap.events.data, 96, 96, true),
+          "a genuine authored gap was lengthened beyond its retail fade end");
+  Fixture fadeIn("[WhiteFade]=00:03:00\tIN\t00:04:00;\n"
+                 "[Next]=00:04:00;\n");
+  Require(!Policy::CoversDeferredNext(*fadeIn.events.data, 96, 96, true),
+          "an IN fade was incorrectly converted into a terminal cover");
+  Fixture whiteOut("[WhiteFade]=00:03:00\tOUT\t00:04:00;\n"
+                   "[Next]=00:04:00;\n");
+  Require(Policy::CoversDeferredNext(*whiteOut.events.data, 96, 96, true),
+          "white terminal OUT frame lost the same native scene-boundary rule");
+}
+
+void TestRetailOrsFadeIntegerAlpha() {
+  // Authenticated A00 commercial EXE sample (FADE_RE.md): 12-tick IN,
+  // floor integer alpha at fixed 24fps; endTick is EXCLUSIVE.
+  Fixture intro("[BlackFade]=00:04:05\tIN\t00:04:17;\n"
+                "[Next]=00:05:00;\n");
+  auto *fade = intro.events.data;
+  using Model = Kotonoha::SchoolDaysOrsFadeFrame;
+  Require(!Model::AtTick(intro.events, 101, 120, false).drawable,
+          "a fade which has not been dispatched must remain hidden");
+  fade->eventTouched = true;
+  const int nativeAlpha[] = {255, 234, 213, 192, 170, 149,
+                             128, 107, 85, 64, 43, 22};
+  for (int i = 0; i < 12; ++i) {
+    const auto sample = Model::AtTick(intro.events, 101 + i, 120, false);
+    Require(sample.drawable && !sample.deferredNextCover &&
+                sample.color == 0 && sample.alpha == nativeAlpha[i],
+            "retail A00 integer-tick fade IN alpha drifted");
+  }
+  Require(!Model::AtTick(intro.events, 113, 120, false).drawable,
+          "fade IN must vanish precisely at its exclusive endTick");
+
+  Fixture outbound("[WhiteFade]=00:03:00\tOUT\t00:04:00;\n"
+                   "[Next]=00:04:00;\n");
+  outbound.events.data->eventTouched = true;
+  const auto half = Model::AtTick(outbound.events, 84, 96, false);
+  const auto last = Model::AtTick(outbound.events, 94, 96, false);
+  Require(half.drawable && half.color == 255 && half.alpha == 127 &&
+              last.alpha == 233,
+          "24fps fade OUT must truncate integer coverage, not round/lerp fractional ticks");
+  Require(!Model::AtTick(outbound.events, 96, 96, false).drawable,
+          "native OUT fade may not continue at the exclusive terminal tick");
+  const auto retired = Model::AtTick(outbound.events, 96, 96, true);
+  Require(retired.drawable && retired.deferredNextCover &&
+              retired.color == 255 && retired.alpha == 255,
+          "synthetic deferred Next frame must retain authored white terminal color");
+
+  // Retail 01/01-00-E06 OUT expires tick1005, while Next occurs tick1006;
+  // the authored 1-tick gap MUST NOT be filled in by our scene-boundary fix.
+  Fixture gap("[BlackFade]=00:40:21\tOUT\t00:41:21;\n"
+              "[Next]=00:41:22;\n");
+  gap.events.data->eventTouched = true;
+  Require(!Model::AtTick(gap.events, 1005, 1006, false).drawable &&
+              !Model::AtTick(gap.events, 1006, 1006, true).drawable,
+          "scripted gaps must stay visible after an expired fade OUT");
+}
 } // namespace
 
 int main() {
@@ -168,6 +248,8 @@ int main() {
     TestTicks();
     TestA03MarkersAndSkipTarget();
     TestEqualMarkersAndSeek();
+    TestRetailOrsFadePresentationBoundary();
+    TestRetailOrsFadeIntegerAlpha();
     std::cout << "SchoolDaysSceneTimelineTest PASS\n";
     return 0;
   } catch (const std::exception &error) {

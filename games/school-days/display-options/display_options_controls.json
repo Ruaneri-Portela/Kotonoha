@@ -1,0 +1,244 @@
+[
+  {
+    "id": 0,
+    "region": 1,
+    "label": "General Options",
+    "box_800x450": [
+      10,
+      55,
+      202,
+      90
+    ]
+  },
+  {
+    "id": 1,
+    "region": 2,
+    "label": "Sound Options",
+    "box_800x450": [
+      204,
+      55,
+      396,
+      90
+    ]
+  },
+  {
+    "id": 2,
+    "region": 3,
+    "label": "Display Options",
+    "box_800x450": [
+      398,
+      55,
+      592,
+      90
+    ]
+  },
+  {
+    "id": 3,
+    "region": 4,
+    "label": "Close",
+    "box_800x450": [
+      707,
+      9,
+      799,
+      43
+    ]
+  },
+  {
+    "id": 4,
+    "region": 5,
+    "label": "Resolution / refresh",
+    "box_800x450": [
+      245,
+      115,
+      753,
+      140
+    ]
+  },
+  {
+    "id": 5,
+    "region": 6,
+    "label": "Resizable On",
+    "box_800x450": [
+      245,
+      149,
+      360,
+      174
+    ]
+  },
+  {
+    "id": 6,
+    "region": 7,
+    "label": "Resizable Off",
+    "box_800x450": [
+      371,
+      149,
+      486,
+      174
+    ]
+  },
+  {
+    "id": 7,
+    "region": 8,
+    "label": "VSync On",
+    "box_800x450": [
+      245,
+      181,
+      360,
+      206
+    ]
+  },
+  {
+    "id": 8,
+    "region": 9,
+    "label": "VSync Off",
+    "box_800x450": [
+      371,
+      181,
+      486,
+      206
+    ]
+  },
+  {
+    "id": 9,
+    "region": 10,
+    "label": "Upscaler",
+    "box_800x450": [
+      245,
+      214,
+      753,
+      240
+    ]
+  },
+  {
+    "id": 10,
+    "region": 11,
+    "label": "Shader preset",
+    "box_800x450": [
+      245,
+      247,
+      753,
+      274
+    ]
+  },
+  {
+    "id": 11,
+    "region": 12,
+    "label": "GLSL path/editor",
+    "box_800x450": [
+      245,
+      281,
+      640,
+      306
+    ]
+  },
+  {
+    "id": 12,
+    "region": 13,
+    "label": "GLSL Browse",
+    "box_800x450": [
+      649,
+      281,
+      754,
+      306
+    ]
+  },
+  {
+    "id": 13,
+    "region": 14,
+    "label": "Factor 1x",
+    "box_800x450": [
+      245,
+      317,
+      313,
+      344
+    ]
+  },
+  {
+    "id": 14,
+    "region": 15,
+    "label": "Factor 1.5x",
+    "box_800x450": [
+      318,
+      317,
+      385,
+      344
+    ]
+  },
+  {
+    "id": 15,
+    "region": 16,
+    "label": "Factor 2x",
+    "box_800x450": [
+      391,
+      317,
+      458,
+      344
+    ]
+  },
+  {
+    "id": 16,
+    "region": 17,
+    "label": "Factor 2.5x",
+    "box_800x450": [
+      466,
+      317,
+      532,
+      344
+    ]
+  },
+  {
+    "id": 17,
+    "region": 18,
+    "label": "Factor 3x",
+    "box_800x450": [
+      539,
+      317,
+      607,
+      344
+    ]
+  },
+  {
+    "id": 18,
+    "region": 19,
+    "label": "Factor 3.5x",
+    "box_800x450": [
+      612,
+      317,
+      681,
+      344
+    ]
+  },
+  {
+    "id": 19,
+    "region": 20,
+    "label": "Factor 4x",
+    "box_800x450": [
+      689,
+      317,
+      756,
+      344
+    ]
+  },
+  {
+    "id": 20,
+    "region": 21,
+    "label": "Default",
+    "box_800x450": [
+      441,
+      380,
+      599,
+      411
+    ]
+  },
+  {
+    "id": 21,
+    "region": 22,
+    "label": "Apply",
+    "box_800x450": [
+      613,
+      380,
+      774,
+      411
+    ]
+  }
+]

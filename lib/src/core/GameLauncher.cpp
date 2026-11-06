@@ -270,13 +270,20 @@ bool GameLauncher::validate(std::string &error) {
 
 void GameLauncher::save() {
   const auto remember = [](const PathField &field) {
-    if (!field.rememberPath.empty())
-      writeTextFileAtomically(
-          field.rememberPath,
-          (isISOImage(field.resolved)
-               ? field.resolved
-               : FileResolver::referenceName(field.resolved)) +
-              "\n");
+    if (field.rememberPath.empty()) return;
+    std::string reference = field.resolved;
+    if (!isISOImage(field.resolved)) {
+      const auto portable = FileResolver::referenceName(field.resolved);
+      for (const auto &candidate : FileResolver::candidates(portable)) {
+        std::error_code error;
+        if (std::filesystem::equivalent(candidate, field.resolved, error) &&
+            !error) {
+          reference = portable;
+          break;
+        }
+      }
+    }
+    writeTextFileAtomically(field.rememberPath, reference + "\n");
   };
   remember(game);
   for (const auto &field : additionalPaths)

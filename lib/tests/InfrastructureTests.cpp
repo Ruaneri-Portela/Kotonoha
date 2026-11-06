@@ -552,6 +552,9 @@ void testWindowAndMenu(Engine &engine, EventRuntime &runtime,
           "Settings capture input in both render spaces");
   event = key(SDLK_ESCAPE);
   engine.Event(&event);
+  // Resolution now opens the shared scrollable selection modal rather than
+  // cycling a fixed set of four sizes. Escape closes that modal first.
+  if (engine.GetSettingsMenu().isOpen()) engine.Event(&event);
   require(!engine.GetSettingsMenu().isOpen() && !engine.isStoryPaused() &&
               engine.GetSettings().width == 960,
           "Cancel does not apply the draft or leak Escape");

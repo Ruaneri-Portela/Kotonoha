@@ -1,59 +1,55 @@
 #include "SchoolDaysScenes.hpp"
 #include "SchoolDaysRuntime.hpp"
 #include <Kotonoha/core/Engine.hpp>
+#include <Kotonoha/core/FileSystem.hpp>
 #include <Kotonoha/core/UI.hpp>
-#include <Kotonoha/media/upscaling/Upscaler.hpp>
+#include <Kotonoha/routing/SchoolDaysChoiceTextPlan.hpp>
+#include <Kotonoha/routing/SchoolDaysSubtitleTypography.hpp>
 #include <algorithm>
-#include <array>
+#include <limits>
 #include <stdexcept>
 
 namespace SchoolDays {
 namespace {
-struct Control {
-  SDL_FRect hit, destination, source;
-};
-
-// WideFull hit masks and MenuBar_Chip atlas coordinates from the existing port.
-constexpr std::array<Control, 15> controls{{
-    {{10, 5, 169, 30}, {9.6f, 4.8f, 169.6f, 30.4f}, {1, 67, 106, 19}},
-    {{12, 41, 98, 44}, {12.8f, 41.6f, 97.6f, 43.2f}, {1, 1, 61, 27}},
-    {{127, 41, 67, 44}, {128, 41.6f, 65.6f, 43.2f}, {63, 1, 41, 27}},
-    {{199, 41, 65, 44}, {198.4f, 41.6f, 65.6f, 43.2f}, {105, 1, 41, 27}},
-    {{281, 41, 66, 44}, {281.6f, 41.6f, 65.6f, 43.2f}, {147, 1, 41, 27}},
-    {{366, 41, 66, 44}, {366.4f, 41.6f, 65.6f, 43.2f}, {189, 1, 41, 27}},
-    {{436, 41, 66, 44}, {436.8f, 41.6f, 65.6f, 43.2f}, {231, 1, 41, 27}},
-    {{505, 41, 66, 44}, {505.6f, 41.6f, 65.6f, 43.2f}, {273, 1, 41, 27}},
-    {{576, 41, 65, 44}, {576, 41.6f, 65.6f, 43.2f}, {314, 1, 41, 27}},
-    {{646, 41, 66, 44}, {646.4f, 41.6f, 65.6f, 43.2f}, {356, 1, 41, 27}},
-    {{760, 41, 97, 44}, {760, 41.6f, 97.6f, 43.2f}, {1, 29, 61, 27}},
-    {{862, 41, 98, 44}, {862.4f, 41.6f, 97.6f, 43.2f}, {63, 29, 61, 27}},
-    {{965, 41, 97, 44}, {964.8f, 41.6f, 97.6f, 43.2f}, {125, 29, 61, 27}},
-    {{1067, 41, 98, 44}, {1067.2f, 41.6f, 97.6f, 43.2f}, {187, 29, 61, 27}},
-    {{1170, 41, 97, 44}, {1169.6f, 41.6f, 97.6f, 43.2f}, {249, 29, 61, 27}},
-}};
-
-bool enabled(int control, bool handoff) {
-  if (control < 0)
-    return false;
-  return !handoff || (control >= 10 && control <= 13);
+std::u16string Utf8ToUtf16(const std::string &text) {
+  if (text.empty()) return {};
+  char *converted = SDL_iconv_string("UTF-16LE", "UTF-8", text.c_str(),
+                                    text.size() + 1u);
+  if (!converted) return {};
+  std::u16string result(reinterpret_cast<const char16_t *>(converted));
+  SDL_free(converted);
+  return result;
 }
-bool inside(SDL_FPoint point, SDL_FRect area) {
-  return SDL_PointInRectFloat(&point, &area);
+
+std::string Utf16ToUtf8(const std::u16string &text) {
+  if (text.empty()) return {};
+  char *converted = SDL_iconv_string(
+      "UTF-8", "UTF-16LE", reinterpret_cast<const char *>(text.c_str()),
+      (text.size() + 1u) * sizeof(char16_t));
+  if (!converted) return {};
+  std::string result(converted);
+  SDL_free(converted);
+  return result;
 }
 } // namespace
 
 LogoSplash::LogoSplash(Kotonoha::Engine &engine, Assets &source)
-    : SplashScreen(engine, {}), assets(source) {
-  for (const char *stem :
-       {"System/SYSTEM/LOGO.png", "System/SYSTEM/LOGO", "System/System/Logo"})
+    : Scene(engine), assets(source) {
+  for (const char *stem : {"System/SYSTEM/LOGO", "System/System/Logo"})
     try {
+      // A loose game overlay may supply the logo even when the retail
+      // installation and synthetic fixtures have no matching archive entry.
+      const std::string overlayLogo = std::string(stem) + ".png";
+      if (!assets.overlayPath(overlayLogo).empty()) {
+        logo = overlayLogo;
+        break;
+      }
       logo = assets.resolve(stem, true);
       break;
     } catch (const std::exception &) {
     }
   if (logo.empty())
-    SDL_LogWarn(Kotonoha::LogUI,
-                "School Days logo System/SYSTEM/LOGO.png is unavailable");
+    SDL_LogWarn(Kotonoha::LogUI, "School Days logo System/SYSTEM/LOGO.png is unavailable");
   restart();
 }
 
@@ -68,36 +64,33 @@ double LogoSplash::elapsed() const {
 }
 
 bool LogoSplash::handleEvent(Kotonoha::EventRef event) {
-  if (done)
-    return false;
+  if (done) return false;
   const bool click = event.type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
                      event.button.which != SDL_TOUCH_MOUSEID;
-  const bool key =
-      event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat &&
-      (event.key.key == SDLK_RETURN || event.key.key == SDLK_SPACE ||
-       event.key.key == SDLK_ESCAPE);
-  if (click || key || event.type == SDL_EVENT_FINGER_DOWN)
-    done = true;
+  const bool key = event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat;
+  if (click || key || event.type == SDL_EVENT_FINGER_DOWN) done = true;
   return true;
 }
 
 void LogoSplash::update() {
   // The timeout also covers a logo that never decodes.
-  if (!done && elapsed() >= displaySeconds + (shown ? 0.0 : fadeSeconds))
-    done = true;
+  if (!done && elapsed() >= displaySeconds + (shown ? 0.0 : fadeSeconds)) done = true;
 }
 
 void LogoSplash::render(Kotonoha::RendererRef renderer, float) {
-  if (done)
-    return;
-  const auto view = Kotonoha::UI::viewSize(renderer);
-  const SDL_FRect area{0, 0, view.x, view.y};
+  if (done) return;
+  int outputWidth = 0, outputHeight = 0;
+  SDL_RendererLogicalPresentation mode{};
+  SDL_GetRenderLogicalPresentation(&renderer, &outputWidth, &outputHeight, &mode);
+  if (outputWidth <= 0 || outputHeight <= 0)
+    SDL_GetCurrentRenderOutputSize(&renderer, &outputWidth, &outputHeight);
+  const SDL_FRect area{0, 0, static_cast<float>(std::max(outputWidth, 1)),
+                       static_cast<float>(std::max(outputHeight, 1))};
   SDL_SetRenderDrawColor(&renderer, 0, 0, 0, 255);
   SDL_RenderFillRect(&renderer, &area);
   SDL_Texture *texture = nullptr;
-  try {
-    texture = &assets.texture(renderer, logo);
-  } catch (const std::exception &error) {
+  try { texture = &assets.texture(renderer, logo); }
+  catch (const std::exception &error) {
     SDL_LogWarn(Kotonoha::LogUI, "School Days logo: %s", error.what());
     done = true;
     return;
@@ -106,71 +99,34 @@ void LogoSplash::render(Kotonoha::RendererRef renderer, float) {
     shown = true;
     started = SDL_GetTicksNS();
   }
+  // The retail host explicitly enabled blending for every splash texture.
+  // An opaque source PNG otherwise ignores the animated alpha modulation.
+  SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
   float width = 0, height = 0;
   SDL_GetTextureSize(texture, &width, &height);
-  if (width <= 0 || height <= 0)
-    return;
-  // Keep the original image's padding and aspect ratio. Cropping to the ink
-  // bounds enlarged the Overflow lettering to the entire screen.
+  if (width <= 0 || height <= 0) return;
   const float fit = std::min(area.w / width, area.h / height);
-  const SDL_FRect target{(area.w - width * fit) / 2,
-                         (area.h - height * fit) / 2, width * fit,
-                         height * fit};
+  const SDL_FRect target{(area.w - width * fit) / 2, (area.h - height * fit) / 2,
+                         width * fit, height * fit};
   const double time = elapsed();
-  const double alpha =
-      std::clamp(std::min(time, displaySeconds - time) / fadeSeconds, 0.0, 1.0);
+  const double alpha = std::clamp(std::min(time, displaySeconds - time) / fadeSeconds, 0.0, 1.0);
   SDL_SetTextureAlphaModFloat(texture, float(alpha));
-  Kotonoha::RenderUpscaledTexture(&renderer, texture, nullptr, &target);
+  SDL_RenderTexture(&renderer, texture, nullptr, &target);
   SDL_SetTextureAlphaModFloat(texture, 1.0f);
 }
 
-std::string Subtitles::dialogueText(const std::string &text) {
-  std::string result;
-  for (size_t i = 0; i < text.size(); ++i) {
-    if (text[i] == '\\' && i + 1 < text.size()) {
-      const auto next = text[i + 1];
-      if (next == 'n' || next == 'N') {
-        result += '\n';
-        ++i;
-        continue;
-      }
-      if (next == 'r') {
-        i += 1;
-        if (i + 2 < text.size() && text[i + 1] == '\\' && text[i + 2] == 'n')
-          i += 2;
-        result += '\n';
-        continue;
-      }
-      if (next == 't') {
-        result += ' ';
-        ++i;
-        continue;
-      }
-    }
-    if (text[i] == '\r') {
-      if (i + 1 < text.size() && text[i + 1] == '\n')
-        ++i;
-      result += '\n';
-    } else
-      result += text[i];
-  }
-  return result;
-}
 std::string Subtitles::displayCueText(const std::string &text) const {
-  return dialogueText(text);
+  return text;
 }
 
-void Subtitles::bind(const Kotonoha_orsData &script, int nodeId) {
+void Subtitles::bind(const Kotonoha_orsData &script) {
   std::vector<Kotonoha::SubtitleCue> cues;
-  const auto &translation = engine.GetTranslation();
   for (auto *event = script.data; event; event = event->next)
     if (event->command == PRINT_TEXT && event->data.print_text &&
         event->data.print_text->text && event->endTick > event->startTick) {
       const auto &text = *event->data.print_text;
-      std::string original = text.text ? text.text : "";
-      std::string translated = translation.text(nodeId, original);
       cues.push_back({event->startTick / 24.0, event->endTick / 24.0,
-                      translated, text.character ? text.character : ""});
+          text.text, text.character ? text.character : "", true});
     }
   setCues(cues, 46);
   setPosition(0);
@@ -179,26 +135,70 @@ void Subtitles::bind(const Kotonoha_orsData &script, int nodeId) {
 GameScene::GameScene(Kotonoha::Engine &engine, Runtime &runtime)
     : Scene(engine), runtime(runtime) {
   try {
-    bar = runtime.assets->resolve("System/MenuBar/MenuBar", true);
-    chips = runtime.assets->resolve("System/MenuBar/MenuBar_Chip", true);
+    const auto &fontKey = engine.GetSettings().fontPath;
+    const auto fontPath = fontKey.empty() ? Kotonoha::FileResolver::font()
+                                          : Kotonoha::FileResolver::font(fontKey);
+    choiceFont.reset(TTF_OpenFont(
+        fontPath.string().c_str(),
+        Kotonoha::SchoolDaysSubtitleTypography::PointSize));
+    if (!choiceFont)
+      SDL_LogWarn(Kotonoha::LogUI, "School Days choice font unavailable: %s",
+                  SDL_GetError());
   } catch (const std::exception &error) {
-    bar.clear();
-    chips.clear();
-    SDL_LogWarn(Kotonoha::LogUI, "School Days menu artwork unavailable: %s",
+    SDL_LogWarn(Kotonoha::LogUI, "School Days choice font unavailable: %s",
                 error.what());
   }
+}
+
+bool GameScene::ensureMenuBar() {
+  if (menuBar.IsOpen() && menuBarVariant == runtime.uiVariant) return true;
+  if (menuBar.IsOpen()) {
+    menuBar.Close();
+    menuBarAttempted = false;
+  }
+  if (menuBarAttempted || runtime.currentState != Kotonoha::GameState::Gameplay)
+    return false;
+  menuBarAttempted = true;
+
+  int64_t feeling001 = 0;
+  int64_t feeling002 = 0;
+  Kotonoha_KtrfError stateError{};
+  if (!runtime.bridge.Session().State().ReadSessionInt("001", &feeling001, &stateError) ||
+      !runtime.bridge.Session().State().ReadSessionInt("002", &feeling002, &stateError) ||
+      feeling001 < std::numeric_limits<int>::min() ||
+      feeling001 > std::numeric_limits<int>::max() ||
+      feeling002 < std::numeric_limits<int>::min() ||
+      feeling002 > std::numeric_limits<int>::max()) {
+    SDL_LogWarn(Kotonoha::LogUI, "School Days MenuBar feeling state unavailable: %s",
+                stateError.message);
+    return false;
+  }
+
+  std::string error;
+  if (!menuBar.Open(&engine.GetRenderer(), runtime.assets.get(),
+                    runtime.assets->root().string(),
+                    runtime.uiVariant,
+                    static_cast<int>(feeling001), static_cast<int>(feeling002),
+                    &error)) {
+    SDL_LogWarn(Kotonoha::LogUI, "School Days MenuBar unavailable: %s", error.c_str());
+    return false;
+  }
+  menuBarVariant = runtime.uiVariant;
+  return true;
 }
 
 void GameScene::syncChoice() {
   if (runtime.choice != lastChoice) {
     lastChoice = runtime.choice;
-    selectedChoice = -1;
+    choiceScratch.reset();
+    choiceScratchEvent = nullptr;
   }
 }
 std::vector<int> GameScene::choices() const {
   std::vector<int> result;
-  if (runtime.choice && !runtime.committed &&
-      runtime.tick < runtime.choice->endTick)
+  if (runtime.choice &&
+      (runtime.choicePresentation.exitActive ||
+       runtime.choiceInteraction.VisibleAtTick(runtime.tick)))
     for (Uint64 i = 0; i < runtime.choice->data.set_select->size; ++i) {
       const char *text = runtime.choice->data.set_select->options[i];
       if (text && *text)
@@ -206,172 +206,242 @@ std::vector<int> GameScene::choices() const {
     }
   return result;
 }
-SDL_FRect GameScene::choiceArea(int index, int count) const {
-  // The retail English selector uses top/bottom choices, not a dialog list.
-  const float center = count == 1 ? 360 : 720.0f * (index + 0.5f) / count;
-  return {100, center - 55, 1080, 110};
+
+bool GameScene::normalizedPointer(float windowX, float windowY, float *x,
+                                  float *y) const {
+  if (x == nullptr || y == nullptr) return false;
+  // Engine::Event already converts scene events into Novel coordinates.
+  const auto view = Kotonoha::UI::viewSize(engine.GetRenderer());
+  if (!(view.x > 0.0f) || !(view.y > 0.0f)) return false;
+  *x = windowX / view.x;
+  *y = windowY / view.y;
+  return true;
+}
+
+bool GameScene::ensureChoiceScratch(Kotonoha::RendererRef renderer,
+                                    const std::vector<int> &visible) {
+  if (choiceScratch && choiceScratchEvent == runtime.choice) return true;
+  choiceScratch.reset();
+  choiceScratchEvent = nullptr;
+  if (!choiceFont || runtime.choice == nullptr || visible.empty() ||
+      visible.size() > 2u)
+    return false;
+
+  Kotonoha::SurfacePtr scratch{
+      SDL_CreateSurface(1024, 512, SDL_PIXELFORMAT_RGBA32)};
+  if (!scratch || !SDL_FillSurfaceRect(scratch.get(), nullptr, 0u)) return false;
+
+  using Plan = Kotonoha::SchoolDaysChoiceTextPlan;
+  for (std::size_t slot = 0; slot < visible.size(); ++slot) {
+    const char *raw = runtime.choice->data.set_select->options[visible[slot]];
+    const auto lines = Plan::WrapRetailEnglish(Utf8ToUtf16(raw ? raw : ""));
+    if (lines.size() > 5u) return false;
+    for (std::size_t lineIndex = 0; lineIndex < lines.size(); ++lineIndex) {
+      const std::string utf8 = Utf16ToUtf8(lines[lineIndex].text);
+      if (utf8.empty()) continue;
+      Kotonoha::SurfacePtr rendered{Kotonoha::SchoolDaysSubtitleTypography::Render(
+          choiceFont.get(), utf8.c_str(), utf8.size())};
+      if (!rendered) return false;
+      const int measuredWidth = std::max(1, Plan::Measure(lines[lineIndex].text));
+      SDL_Rect destination{0,
+                           static_cast<int>(slot) * 256 +
+                               static_cast<int>(lineIndex) * Plan::kGlyphHeight,
+                           std::min(measuredWidth, 1024), Plan::kGlyphHeight};
+      if (!SDL_BlitSurfaceScaled(rendered.get(), nullptr, scratch.get(),
+                                 &destination, SDL_SCALEMODE_LINEAR))
+        return false;
+    }
+  }
+
+  choiceScratch.reset(SDL_CreateTextureFromSurface(&renderer, scratch.get()));
+  if (!choiceScratch ||
+      !SDL_SetTextureBlendMode(choiceScratch.get(), SDL_BLENDMODE_BLEND)) {
+    choiceScratch.reset();
+    return false;
+  }
+  choiceScratchEvent = runtime.choice;
+  return true;
+}
+
+void GameScene::renderChoices(Kotonoha::RendererRef renderer) {
+  using Plan = Kotonoha::SchoolDaysChoiceTextPlan;
+  const auto visible = choices();
+  if (visible.empty()) return;
+
+  if (!runtime.committed && !runtime.choiceInteraction.Seeded()) {
+    float mx = 0.0f, my = 0.0f, nx = 0.0f, ny = 0.0f;
+    SDL_GetMouseState(&mx, &my);
+    float renderX = 0.0f, renderY = 0.0f;
+    if (SDL_RenderCoordinatesFromWindow(&renderer, mx, my, &renderX, &renderY)) {
+      // The first-hover seed reads the physical cursor directly, bypassing
+      // Engine's normal mouse-event mapping. Apply the exact inverse of the
+      // Standard/FULL vertical presentation to keep the initial option hover
+      // aligned with later clicks and with the compressed choice artwork.
+      const float heightScale = runtime.narrativePresentationHeightScale();
+      const auto view = Kotonoha::UI::viewSize(renderer);
+      if (heightScale > 0.0f && heightScale < 1.0f)
+        renderY = (renderY - view.y * (1.0f - heightScale) * 0.5f) /
+                  heightScale;
+      if (normalizedPointer(renderX, renderY, &nx, &ny))
+        runtime.choiceInteraction.SeedPointer(nx, ny, runtime.tick);
+    }
+  }
+
+  const bool finalFrame = runtime.choiceNeedsFinalFrame();
+  if (!ensureChoiceScratch(renderer, visible)) {
+    if (finalFrame) runtime.choicePresentation.finalFrameRendered = true;
+    return;
+  }
+
+  const auto view = Kotonoha::UI::viewSize(renderer);
+  constexpr float kAspect = 16.0f / 9.0f;
+  SDL_FRect content{0.0f, 0.0f, view.x, view.y};
+  const float outputAspect = view.x / view.y;
+  if (outputAspect > kAspect) {
+    content.w = content.h * kAspect;
+    content.x = (view.x - content.w) * 0.5f;
+  } else if (outputAspect < kAspect) {
+    content.h = content.w / kAspect;
+    content.y = (view.y - content.h) * 0.5f;
+  }
+
+  const uint32_t elapsed =
+      runtime.choicePresentation.exitActive &&
+              runtime.tick >= runtime.choicePresentation.exitStartTick
+          ? static_cast<uint32_t>(std::min<Kotonoha_SceneTick>(
+                runtime.tick - runtime.choicePresentation.exitStartTick,
+                UINT32_MAX))
+          : 0u;
+
+  bool rendered = true;
+  for (std::size_t slot = 0; slot < visible.size(); ++slot) {
+    const int originalIndex = visible[slot];
+    const bool selected = runtime.choicePresentation.exitActive &&
+                          originalIndex == runtime.choicePresentation.exitSelected;
+    const Uint32 argb = runtime.choicePresentation.exitActive
+                            ? Plan::ExitArgb(selected, elapsed)
+                            : runtime.choiceInteraction.StoredSelection() ==
+                                      static_cast<int>(slot)
+                                  ? Plan::kSelectedArgb
+                                  : Plan::kNormalArgb;
+    const Uint8 alpha = static_cast<Uint8>((argb >> 24u) & 0xffu);
+    if (alpha == 0u && !finalFrame) continue;
+    SDL_SetTextureColorMod(choiceScratch.get(),
+                           static_cast<Uint8>((argb >> 16u) & 0xffu),
+                           static_cast<Uint8>((argb >> 8u) & 0xffu),
+                           static_cast<Uint8>(argb & 0xffu));
+    SDL_SetTextureAlphaMod(choiceScratch.get(), alpha);
+
+    const char *raw = runtime.choice->data.set_select->options[originalIndex];
+    const auto lines = Plan::WrapRetailEnglish(Utf8ToUtf16(raw ? raw : ""));
+    for (std::size_t lineIndex = 0; lineIndex < lines.size(); ++lineIndex) {
+      const auto source = Plan::SourceForLine(static_cast<int>(slot),
+                                              static_cast<int>(lineIndex));
+      const auto destination = Plan::DestinationForLine(
+          static_cast<int>(visible.size()), static_cast<int>(slot),
+          static_cast<int>(lineIndex), static_cast<int>(lines.size()),
+          lines[lineIndex].horizontalOffset);
+      const SDL_FRect src{source.x, source.y, source.w, source.h};
+      const SDL_FRect dst{content.x + destination.x * content.w,
+                          content.y + destination.y * content.h,
+                          destination.w * content.w,
+                          destination.h * content.h};
+      rendered = SDL_RenderTexture(&renderer, choiceScratch.get(), &src, &dst) &&
+                 rendered;
+    }
+  }
+  SDL_SetTextureColorMod(choiceScratch.get(), 255, 255, 255);
+  SDL_SetTextureAlphaMod(choiceScratch.get(), 255);
+  if (finalFrame && rendered) {
+    runtime.choicePresentation.finalFrameRendered = true;
+    runtime.traceDev("ChoiceFinalFrame");
+    // Engine::Iterate snapshots the complete owned Novel target before Present.
+  }
 }
 
 void GameScene::update() {
-  const Uint64 now = SDL_GetTicks();
-  const float delta = lastUpdate ? (now - lastUpdate) / 200.0f : 0;
-  lastUpdate = now;
-  barAlpha = std::clamp(barAlpha + (pointerInBar ? delta : -delta), 0.0f, 1.0f);
   syncChoice();
+  if (ensureMenuBar())
+    runtime.updateMenuBar(menuBar, static_cast<uint32_t>(SDL_GetTicks()));
 }
 
 bool GameScene::handleEvent(Kotonoha::EventRef event) {
   syncChoice();
   if (runtime.modal())
     return false;
+
   const auto visible = choices();
-  if (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat &&
-      !visible.empty()) {
-    if (event.key.key >= SDLK_1 && event.key.key <= SDLK_9) {
-      const auto index = static_cast<std::size_t>(event.key.key - SDLK_1);
-      if (index < visible.size())
-        runtime.choose(visible[index]);
-      return true;
-    }
-    if (event.key.key == SDLK_UP || event.key.key == SDLK_DOWN) {
-      if (selectedChoice < 0)
-        selectedChoice = event.key.key == SDLK_UP ? int(visible.size()) - 1 : 0;
-      else
-        selectedChoice = (selectedChoice + int(visible.size()) +
-                          (event.key.key == SDLK_UP ? -1 : 1)) %
-                         int(visible.size());
-      return true;
-    }
-    if ((event.key.key == SDLK_RETURN || event.key.key == SDLK_SPACE) &&
-        selectedChoice >= 0) {
-      runtime.choose(visible[selectedChoice]);
-      return true;
-    }
-  }
-  if (event.type != SDL_EVENT_MOUSE_MOTION &&
-      event.type != SDL_EVENT_MOUSE_BUTTON_UP)
-    return false;
-  const SDL_FPoint point = event.type == SDL_EVENT_MOUSE_MOTION
-                               ? SDL_FPoint{event.motion.x, event.motion.y}
-                               : SDL_FPoint{event.button.x, event.button.y};
-  const bool click = event.type == SDL_EVENT_MOUSE_BUTTON_UP &&
-                     event.button.button == SDL_BUTTON_LEFT;
-  pointerInBar =
-      point.y >= 0 && point.y < 120 && point.x >= 0 && point.x < 1280;
-  hovered = -1;
-  if (pointerInBar) {
-    if (bar.empty()) {
-      constexpr int indices[]{1, 2, 3, 10, 11, 12, 13, 14};
-      for (int i = 0; i < 8; ++i)
-        if (enabled(indices[i], runtime.bridge.HasPendingHandoff()) &&
-            inside(point, {float(i * 160), 41, 154, 44}))
-          hovered = indices[i];
+#if defined(__ANDROID__) || defined(ANDROID)
+  const bool choiceTouch = event.type == SDL_EVENT_FINGER_MOTION ||
+                           event.type == SDL_EVENT_FINGER_DOWN;
+#else
+  const bool choiceTouch = false;
+#endif
+  if (!visible.empty() && !runtime.committed &&
+      (Kotonoha::SchoolDaysPromptInteraction::AcceptsEventType(event.type) ||
+       choiceTouch)) {
+    float windowX = 0.0f, windowY = 0.0f;
+    if (choiceTouch) {
+      windowX = event.tfinger.x;
+      windowY = event.tfinger.y;
+    } else if (event.type == SDL_EVENT_MOUSE_MOTION) {
+      windowX = event.motion.x;
+      windowY = event.motion.y;
     } else {
-      for (int i = 0; i < int(controls.size()); ++i)
-        if (enabled(i, runtime.bridge.HasPendingHandoff()) &&
-            inside(point, controls[i].hit))
-          hovered = i;
+      if (event.button.button != SDL_BUTTON_LEFT) return false;
+      windowX = event.button.x;
+      windowY = event.button.y;
     }
-    if (click && hovered >= 0)
-      runtime.activateControl(hovered);
-    return true;
-  }
-  for (int i = 0; i < int(visible.size()); ++i)
-    if (inside(point, choiceArea(i, int(visible.size())))) {
-      selectedChoice = i;
-      if (click)
-        runtime.choose(visible[i]);
+    float x = 0.0f, y = 0.0f;
+    if (!normalizedPointer(windowX, windowY, &x, &y)) return false;
+    if (event.type == SDL_EVENT_MOUSE_MOTION ||
+        event.type == SDL_EVENT_FINGER_MOTION) {
+      runtime.choiceInteraction.PointerMotion(x, y, runtime.tick);
       return true;
     }
-  if (click && !runtime.bridge.HasPendingHandoff() &&
-      runtime.timeline.ReadyToEnd(runtime.tick)) {
-    runtime.advance();
+
+    runtime.backAtSceneStart = false;
+    int result = runtime.choicePresentation.result;
+    if (runtime.choiceInteraction.LeftClick(x, y, runtime.tick, &result)) {
+      runtime.choicePresentation.result = result;
+      if (result >= 0 && static_cast<std::size_t>(result) < visible.size())
+        runtime.choose(visible[static_cast<std::size_t>(result)]);
+      else
+        runtime.choose(result);
+    }
+    // A stale click is still a prompt click; native does not leak it through to
+    // narrative handlers or synthesize a new hover selection from button-down.
     return true;
   }
-  if (click && runtime.bridge.HasPendingHandoff()) {
-    runtime.continueHandoff();
-    return true;
-  }
+
+  const bool handoffClick = event.type == SDL_EVENT_MOUSE_BUTTON_UP &&
+                            event.button.button == SDL_BUTTON_LEFT;
+  if (handoffClick) runtime.backAtSceneStart = false;
   return false;
 }
 
-void GameScene::renderBar(Kotonoha::RendererRef renderer) {
-  if (barAlpha <= 0)
-    return;
-  auto &ui = engine.GetUI();
-  if (bar.empty()) {
-    constexpr const char *labels[]{"Pause", "Back",    "Skip",   "Save",
-                                   "Load",  "Backlog", "Config", "Title"};
-    constexpr int indices[]{1, 2, 3, 10, 11, 12, 13, 14};
-    for (int i = 0; i < 8; ++i)
-      ui.button(renderer, {float(i * 160), 41, 154, 44}, labels[i],
-                hovered == indices[i]);
-    return;
-  }
-  auto &base = runtime.assets->texture(renderer, bar);
-  auto &atlas = runtime.assets->texture(renderer, chips);
-  const auto alpha = static_cast<Uint8>(barAlpha * 255);
-  if (!SDL_SetTextureAlphaMod(&base, alpha) ||
-      !SDL_SetTextureAlphaMod(&atlas, alpha))
-    throw std::runtime_error(SDL_GetError());
-  const auto draw = [&](SDL_FRect source, SDL_FRect destination) {
-    if (!Kotonoha::RenderUpscaledTexture(&renderer, &atlas, &source,
-                                         &destination))
-      throw std::runtime_error(SDL_GetError());
-  };
-  const SDL_FRect source{0, 0, 800, 75}, destination{0, 0, 1280, 120};
-  if (!Kotonoha::RenderUpscaledTexture(&renderer, &base, &source, &destination))
-    throw std::runtime_error(SDL_GetError());
-  draw({1, 346, 538, 22}, {185.6f, 4.8f, 860.8f, 35.2f});
-  draw({runtime.autoPlay ? 110.0f : 1.0f, runtime.autoPlay ? 70.0f : 183.0f,
-        106, 19},
-       controls[0].destination);
-  draw({runtime.paused ? 1.0f : 311.0f, runtime.paused ? 127.0f : 155.0f, 61,
-        27},
-       controls[1].destination);
-  draw({43, 290, 216, 27}, {366.4f, 41.6f, 345.6f, 43.2f});
-  constexpr double rates[]{1, 2, 4, 16, 32};
-  for (int index = 0; index < 5; ++index)
-    if (runtime.speed == rates[index])
-      draw(controls[index + 5].source, controls[index + 5].destination);
-  for (int i = 10; i <= 14; ++i)
-    draw({float(1 + (i - 10) * 62), 155, 61, 27}, controls[i].destination);
-  if (hovered >= 0)
-    draw(controls[hovered].source, controls[hovered].destination);
-  if (!SDL_SetTextureAlphaMod(&base, 255) ||
-      !SDL_SetTextureAlphaMod(&atlas, 255))
-    throw std::runtime_error(SDL_GetError());
+void GameScene::render(Kotonoha::RendererRef renderer, float) {
+  renderChoices(renderer);
 }
 
-void GameScene::render(Kotonoha::RendererRef renderer, float) {
-  auto &ui = engine.GetUI();
-  const auto visible = choices();
-  for (int i = 0; i < int(visible.size()); ++i) {
-    const auto area = choiceArea(i, int(visible.size()));
-    ui.panel(renderer, area,
-             selectedChoice == i ? SDL_Color{56, 70, 105, 175}
-                                 : SDL_Color{10, 16, 28, 110});
-    const auto &rawText = runtime.choice->data.set_select->options[visible[i]];
-    const std::string text = engine.GetTranslation().text(
-        runtime.scene.nodeIndex, rawText ? rawText : "");
-    const std::string label = std::to_string(i + 1) + ". " + text;
-    const float height = ui.textHeight(renderer, label, area.w - 48);
-    ui.text(renderer, label, area.x + 24, area.y + (area.h - height) / 2,
-            area.w - 48);
+bool GameScene::handleMenuBarEvent(Kotonoha::EventRef event) {
+  if (runtime.modal() || !ensureMenuBar()) return false;
+  Kotonoha::SchoolDaysMenuBarPresenter::Action action;
+  const bool consumed = menuBar.HandleEvent(&engine.GetRenderer(), &event, &action);
+  if (action.kind != Kotonoha::SchoolDaysMenuBarPresenter::ActionKind::None) {
+    runtime.activateMenuAction(action);
+    return true;
   }
-  if (!visible.empty()) {
-    const float duration =
-        float(runtime.choice->endTick - runtime.choice->startTick);
-    const float remaining = std::clamp(
-        float(runtime.choice->endTick - runtime.tick) / duration, 0.0f, 1.0f);
-    ui.panel(renderer, {100, 680, 1080, 6}, {15, 20, 35, 180});
-    ui.panel(renderer, {100, 680, 1080 * remaining, 6}, {200, 220, 255, 220});
+  return consumed;
+}
+
+void GameScene::renderMenuBar(Kotonoha::RendererRef renderer) {
+  if (menuBar.IsOpen()) {
+    std::string error;
+    if (!menuBar.Render(&renderer, &error)) {
+      SDL_LogWarn(Kotonoha::LogUI, "School Days MenuBar render failed: %s", error.c_str());
+      menuBar.Close();
+    }
   }
-  if (runtime.bridge.HasPendingHandoff()) {
-    ui.panel(renderer, {350, 290, 580, 120});
-    ui.text(renderer, "Chapter complete. Click to continue.", 380, 330, 520);
-  } else if (runtime.paused && visible.empty())
-    ui.text(renderer, "Paused - Space to resume", 460, 340, 420);
-  renderBar(renderer);
 }
 } // namespace SchoolDays

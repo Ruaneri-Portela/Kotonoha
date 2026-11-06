@@ -37,6 +37,9 @@ public:
         SetMenVoice,
         SetMute,
         SetSoundLevel,
+        // Custom Display Options CHIP controls 4..21. The host applies the
+        // requested setting; the CMAP model only reports the control ID.
+        DisplayControl,
     };
 
     struct Action {
@@ -62,8 +65,11 @@ public:
     static std::string BaseRelativePath(Page page);
     static std::string ChipRelativePath(Page page);
 
+    // Android keeps the native Display controls but uses the original General
+    // artwork/CMAP: the Windows-only Option_Display overlay is not shipped.
     bool Open(const std::string& assetsRoot, Variant variant, Page page,
-              std::string* error = nullptr);
+              std::string* error = nullptr,
+              bool retailDisplayArtworkFallback = false);
     void Close();
 
     // MENU's shared CMAP helper returns raw region id - 1.  Background and
@@ -76,6 +82,7 @@ public:
     int Selection() const { return selection_; }
     Variant CurrentVariant() const { return variant_; }
     Page CurrentPage() const { return page_; }
+    Page ArtworkPage() const { return artworkPage_; }
     const SchoolDaysCmap& Cmap() const { return cmap_; }
 
 private:
@@ -84,6 +91,7 @@ private:
     SchoolDaysCmap cmap_;
     Variant variant_ = Variant::Standard;
     Page page_ = Page::Def;
+    Page artworkPage_ = Page::Def;
     int selection_ = -1;
     bool open_ = false;
 };

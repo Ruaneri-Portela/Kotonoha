@@ -381,7 +381,7 @@ void discImage(const std::filesystem::path &directory) {
   write(directory / "unicode.iso", unicode);
   const auto unicodeRoot = gameDataDirectory(directory / "unicode.iso");
   require(std::filesystem::is_regular_file(
-              unicodeRoot / std::filesystem::u8path("Read \u96e8e.txt")),
+              unicodeRoot / std::filesystem::u8path(u8"Read \u96e8e.txt")),
           "Joliet UTF-16 names materialize as native Unicode paths");
   name[10] = name[11] = 0;
   write(directory / "nul.iso", unicode);

@@ -26,7 +26,11 @@ int main(int argc, char **argv) {
     Kotonoha::MediaPlayer player;
     player.open(argv[1], false);
     player.setPaused(true);
-    player.update(*renderer, 0);
+    for (int attempt = 0; attempt < 100 &&
+         player.bufferedAudioSeconds() < 0.3; ++attempt) {
+      player.update(*renderer, 0);
+      SDL_Delay(10);
+    }
     require(player.bufferedAudioSeconds() >= 0.3,
             "Video readiness must not stop audio preroll before 300 ms");
     player.setPaused(false);
@@ -46,12 +50,26 @@ int main(int argc, char **argv) {
     SDL_Delay(100);
     require(std::abs(player.bufferedAudioSeconds() - paused) < 0.02,
             "Pause preserves queued audio");
-    player.update(*renderer, 0.5);
+    for (int attempt = 0; attempt < 100 &&
+         player.bufferedAudioSeconds() < 0.3; ++attempt) {
+      player.update(*renderer, 0.5);
+      SDL_Delay(10);
+    }
     require(player.bufferedAudioSeconds() >= 0.3, "Seek refills audio preroll");
     // A game-driven clock (millisecond ticks plus frame jitter) must not
     // insert silence or drop samples in the continuous audio stream.
     Kotonoha::MediaPlayer game;
     game.open(argv[1], false);
+    game.setPaused(true);
+    for (int attempt = 0; attempt < 100 &&
+         game.bufferedAudioSeconds() < 0.3; ++attempt) {
+      game.update(*renderer, 0);
+      SDL_Delay(10);
+    }
+    require(game.bufferedAudioSeconds() >= 0.3,
+            "Jitter fixture prepares audio before clock jitter");
+    game.setPaused(false);
+    const auto correctionsBeforeJitter = game.audioCorrections();
     const Uint64 start = SDL_GetTicksNS();
     for (int i = 0; i < 90; ++i) {
       const double real = (SDL_GetTicksNS() - start) / 1e9;
@@ -61,7 +79,7 @@ int main(int argc, char **argv) {
               "Jittery clock keeps audio queued");
       SDL_Delay(i % 15 == 0 ? 45 : 16);
     }
-    require(game.audioCorrections() == 0,
+    require(game.audioCorrections() == correctionsBeforeJitter,
             "Clock jitter must not realign (chop) the audio stream");
     // Audio-only media is refilled by the audio thread: a long frame hitch
     // (no update calls) must neither starve nor resync the stream.

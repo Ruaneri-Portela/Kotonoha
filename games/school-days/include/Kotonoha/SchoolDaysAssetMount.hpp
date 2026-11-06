@@ -4,11 +4,14 @@
 
 #include <cstdint>
 #include <filesystem>
+#include <memory>
 #include <string>
 #include <string_view>
 #include <vector>
 
 namespace Kotonoha {
+
+class AssetStream;
 
 // Process-wide School Days retail resource mount.  KTRF has one outer game
 // session at a time, while media decoders may read concurrently; the
@@ -33,6 +36,11 @@ SchoolDaysGpkLookupStatus LookupMountedSchoolDaysAsset(
 bool ReadMountedSchoolDaysAsset(std::string_view logicalPath,
                                std::vector<uint8_t>* out,
                                std::string* error = nullptr);
+// Opens raw (uncompressed) GPK entries as direct seekable streams. Compressed
+// entries intentionally return null so callers can use the normal decoded
+// memory path instead.
+std::unique_ptr<AssetStream> OpenMountedSchoolDaysAssetStream(
+    std::string_view logicalPath);
 
 // Existing render/audio/video plumbing carries string references.  A mounted
 // GPK resource is represented by an engine-private URI rather than materialized

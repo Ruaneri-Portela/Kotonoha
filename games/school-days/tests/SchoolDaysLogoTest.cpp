@@ -28,6 +28,7 @@ int main(int argc, char **argv) {
     EngineOptions options;
     options.assets = assets;
     options.rendererOverride = "software";
+    options.persistSettings = false;
     Engine engine(runtime, options);
     SurfacePtr surface(SDL_CreateSurface(64, 48, SDL_PIXELFORMAT_RGBA32));
     SDL_FillSurfaceRect(surface.get(), nullptr,

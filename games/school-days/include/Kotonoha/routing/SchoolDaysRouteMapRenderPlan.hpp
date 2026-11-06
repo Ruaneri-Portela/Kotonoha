@@ -45,10 +45,10 @@ public:
     };
 
     // Native table layout is exactly 33 common records followed by four N-wide
-    // node bands.  Band0 is identified in the authenticated table as the hover
-    // record family; the traced draw paths do not prove when it supersedes the
-    // locked/available/current passes, so Build() deliberately does not invent
-    // such precedence.
+    // node bands. The historical labels below identify source ranges, not a
+    // proven display condition. Retail title LOAD samples show: no overlay for
+    // an absent global SP, band 1 for a present SP. Band 3 still needs a
+    // separate runtime trigger before its use can be reconstructed.
     enum class NodeBand : uint8_t {
         Hover = 0,
         Locked = 1,
@@ -97,7 +97,7 @@ public:
     static constexpr bool NodeHoverPrecedenceProven() { return false; }
 
     // Draw order follows SysMenuSDHQ.dll FUN_1000CE40/FUN_1000F330:
-    // base, per-node locked/available pass, common 0..10, optional current
+    // base, per-node unlocked pass, visible common 0..10, optional current
     // node, current-major records 11+major and 17+major, optional alternate
     // host records 23..28, then records 29..32.
     static std::vector<Sprite> Build(const SchoolDaysRouteMapModel& model);

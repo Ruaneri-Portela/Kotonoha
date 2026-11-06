@@ -73,6 +73,12 @@ SDL_Color FadeScene::color() const {
   return event ? event->color : SDL_Color{0, 0, 0, 0};
 }
 
+bool FadeScene::fullyCoveredByFade() const {
+  const auto *event = current();
+  return event && event->color.a == 255 &&
+         alphaAt(*event, position()) >= 0.999f;
+}
+
 bool FadeScene::active() const {
   const double at = position();
   return std::any_of(events.begin(), events.end(), [&](const Event &event) {

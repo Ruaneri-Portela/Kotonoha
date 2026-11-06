@@ -15,6 +15,7 @@ extern "C" {
 #include <algorithm>
 #include <atomic>
 #include <chrono>
+#include <climits>
 #include <cmath>
 #include <condition_variable>
 #include <deque>
@@ -44,7 +45,13 @@ using Frame = std::unique_ptr<AVFrame, FrameDeleter>;
 } // namespace
 
 struct MediaPlayer::State {
+  std::shared_ptr<std::atomic_bool> cancelled;
+  static int interrupt(void *opaque) {
+    const auto *self = static_cast<const State *>(opaque);
+    return self->cancelled && self->cancelled->load() ? 1 : 0;
+  }
   std::vector<Uint8> bytes;
+  std::unique_ptr<AssetStream> assetStream;
   std::size_t offset = 0;
   AVIOContext *io = nullptr;
   AVFormatContext *format = nullptr;
@@ -67,11 +74,11 @@ struct MediaPlayer::State {
   // Media time at the end of the queued audio; negative until aligned.
   double queuedEnd = -1;
   int audioCorrections = 0;
-  // Audio-only media is refilled from SDL's audio thread so frame hitches do
-  // not starve the device; the mutex guards the decoder state.
+  // Audio-bearing media is decoded by a producer, never by SDL's audio
+  // callback.  The mutex also serializes explicit timeline seeks.
   mutable std::mutex mutex;
-  bool threaded = false, paused = false, closing = false;
-  double playbackRate = 1;
+  bool threaded = false, paused = true, closing = false;
+  double decodeRate = 1.0, targetBuffer = 0.5;
   std::condition_variable wake;
   std::thread decoderThread;
   std::string failure;
@@ -82,15 +89,15 @@ struct MediaPlayer::State {
   std::deque<VideoFrame> frames;
 
   ~State() {
+    if (cancelled) cancelled->store(true);
+    if (stream)
+      SDL_SetAudioStreamGetCallback(stream.get(), nullptr, nullptr);
     {
       std::lock_guard<std::mutex> lock(mutex);
       closing = true;
     }
     wake.notify_one();
-    if (decoderThread.joinable())
-      decoderThread.join();
-    if (stream)
-      SDL_SetAudioStreamGetCallback(stream.get(), nullptr, nullptr);
+    if (decoderThread.joinable()) decoderThread.join();
     if (channel && stream)
       channel->detach(stream.get());
     stream.reset();
@@ -108,8 +115,10 @@ struct MediaPlayer::State {
 
   static int readMemory(void *opaque, uint8_t *buffer, int size) {
     auto &self = *static_cast<State *>(opaque);
-    const auto count = std::min<std::size_t>(static_cast<std::size_t>(size),
-                                             self.bytes.size() - self.offset);
+    if (!buffer || size <= 0 || self.offset > self.bytes.size())
+      return AVERROR(EINVAL);
+    const auto count = std::min<std::size_t>(
+        static_cast<std::size_t>(size), self.bytes.size() - self.offset);
     if (count == 0)
       return AVERROR_EOF;
     std::copy_n(self.bytes.data() + self.offset, count, buffer);
@@ -119,6 +128,8 @@ struct MediaPlayer::State {
 
   static int64_t seekMemory(void *opaque, int64_t position, int whence) {
     auto &self = *static_cast<State *>(opaque);
+    if (self.bytes.size() > static_cast<std::size_t>(INT64_MAX))
+      return AVERROR(EINVAL);
     const auto size = static_cast<int64_t>(self.bytes.size());
     if (whence & AVSEEK_SIZE)
       return size;
@@ -135,11 +146,64 @@ struct MediaPlayer::State {
     default:
       return AVERROR(EINVAL);
     }
+    if ((position > 0 && base > INT64_MAX - position) ||
+        (position < 0 && base < INT64_MIN - position))
+      return AVERROR(EINVAL);
     const int64_t target = base + position;
     if (target < 0 || target > size)
       return AVERROR(EINVAL);
     self.offset = static_cast<std::size_t>(target);
     return target;
+  }
+
+  static int readAssetStream(void *opaque, uint8_t *buffer, int size) {
+    auto &self = *static_cast<State *>(opaque);
+    if (!self.assetStream || !buffer || size <= 0)
+      return AVERROR(EINVAL);
+    try {
+      const auto count = self.assetStream->read(buffer, static_cast<std::size_t>(size));
+      if (count == 0)
+        return AVERROR_EOF;
+      if (count > static_cast<std::size_t>(size) || count > static_cast<std::size_t>(INT_MAX))
+        return AVERROR(EIO);
+      return static_cast<int>(count);
+    } catch (...) {
+      return AVERROR(EIO);
+    }
+  }
+
+  static int64_t seekAssetStream(void *opaque, int64_t position, int whence) {
+    auto &self = *static_cast<State *>(opaque);
+    if (!self.assetStream)
+      return AVERROR(EINVAL);
+    try {
+      const std::uint64_t size = self.assetStream->size();
+      if (whence & AVSEEK_SIZE) {
+        if (size > static_cast<std::uint64_t>(INT64_MAX))
+          return AVERROR(EINVAL);
+        return static_cast<int64_t>(size);
+      }
+      std::uint64_t base = 0;
+      switch (whence & ~AVSEEK_FORCE) {
+      case SEEK_SET: break;
+      case SEEK_CUR: base = self.assetStream->tell(); break;
+      case SEEK_END: base = size; break;
+      default: return AVERROR(EINVAL);
+      }
+      if (base > static_cast<std::uint64_t>(INT64_MAX))
+        return AVERROR(EINVAL);
+      const auto signedBase = static_cast<int64_t>(base);
+      if ((position > 0 && signedBase > INT64_MAX - position) ||
+          (position < 0 && signedBase < INT64_MIN - position))
+        return AVERROR(EINVAL);
+      const int64_t target = signedBase + position;
+      if (target < 0 || static_cast<std::uint64_t>(target) > size ||
+          !self.assetStream->seek(static_cast<std::uint64_t>(target)))
+        return AVERROR(EINVAL);
+      return target;
+    } catch (...) {
+      return AVERROR(EIO);
+    }
   }
 
   void attachMemory(std::vector<Uint8> data) {
@@ -150,6 +214,27 @@ struct MediaPlayer::State {
       throw std::bad_alloc();
     io = avio_alloc_context(buffer, bufferSize, 0, this, readMemory, nullptr,
                             seekMemory);
+    if (!io) {
+      av_free(buffer);
+      throw std::bad_alloc();
+    }
+    format = avformat_alloc_context();
+    if (!format)
+      throw std::bad_alloc();
+    format->pb = io;
+    format->flags |= AVFMT_FLAG_CUSTOM_IO;
+  }
+
+  void attachAssetStream(std::unique_ptr<AssetStream> stream) {
+    constexpr int bufferSize = 64 * 1024;
+    if (!stream)
+      throw std::invalid_argument("Seekable media stream is null");
+    assetStream = std::move(stream);
+    auto *buffer = static_cast<uint8_t *>(av_malloc(bufferSize));
+    if (!buffer)
+      throw std::bad_alloc();
+    io = avio_alloc_context(buffer, bufferSize, 0, this, readAssetStream, nullptr,
+                            seekAssetStream);
     if (!io) {
       av_free(buffer);
       throw std::bad_alloc();
@@ -249,16 +334,24 @@ struct MediaPlayer::State {
                                       input.data(), frame->nb_samples);
         check(count, "Resample audio");
         samples.resize(static_cast<std::size_t>(count) * 2);
-        // Keep the queue continuous: realign only on open/seek or real drift,
-        // never on per-frame clock jitter, which would chop the waveform.
+        // Establish the queue origin on open/seek. Once PCM is queued, its
+        // position follows the number of samples sent to SDL; resetting that
+        // origin after a render hitch splices the following packet against a
+        // different clock and produces a click at loud sample boundaries.
         const double expected = position + queuedAudio();
-        if (queuedEnd < 0 || std::abs(queuedEnd - expected) > 0.15) {
-          if (queuedEnd >= 0)
-            ++audioCorrections;
+        if (queuedEnd < 0) {
           queuedEnd = expected;
         }
         const double gap = at - queuedEnd;
-        if (gap > 0.002) {
+        // Container packet timestamps can differ slightly from the number of
+        // PCM frames emitted by the resampler. The old playback path queued
+        // each decoded frame contiguously; splicing silence or dropping PCM
+        // for a few milliseconds here creates an audible edge at loud peaks.
+        // Only repair a real timeline discontinuity or a seek offset.
+        constexpr double timestampDiscontinuitySeconds = 0.05;
+        if (std::abs(gap) > timestampDiscontinuitySeconds)
+          ++audioCorrections;
+        if (gap > timestampDiscontinuitySeconds) {
           // Preserve stream offsets without allocating unbounded silence.
           if (gap > 30)
             throw std::runtime_error("Audio timestamp gap exceeds 30 seconds");
@@ -266,8 +359,10 @@ struct MediaPlayer::State {
           putAudio(std::vector<float>(silence * 2));
           queuedEnd += silence / 48000.0;
         }
-        const auto skipped = static_cast<std::size_t>(
-            std::max(0.0, std::min(-gap * 48000, static_cast<double>(count))));
+        const auto skipped = gap < -timestampDiscontinuitySeconds
+            ? static_cast<std::size_t>(std::max(
+                  0.0, std::min(-gap * 48000, static_cast<double>(count))))
+            : 0u;
         putAudio(samples, skipped * 2);
         queuedEnd += (static_cast<std::size_t>(count) - skipped) / 48000.0;
       }
@@ -339,19 +434,21 @@ struct MediaPlayer::State {
   }
 
   static void SDLCALL feed(void *userdata, SDL_AudioStream *, int, int) {
-    // Audio callbacks only wake the producer: no FFmpeg work or mutex waits
-    // on the real-time device thread, including video with embedded audio.
+    // The real-time callback only wakes the decoder; it does no FFmpeg work.
     static_cast<State *>(userdata)->wake.notify_one();
   }
+
   void startDecoder() {
     threaded = true;
-    fill(0, 0.75);
     decoderThread = std::thread([this] {
       std::unique_lock<std::mutex> lock(mutex);
       while (!closing) {
-        if (!paused && !eof && failure.empty()) {
+        // Prime a prepared input while the audio device is paused.  After a
+        // seek, nextAudioTime identifies the new queue origin.
+        if ((!paused || queuedEnd < 0) && !eof && failure.empty()) {
           try {
-            fill(playhead(), std::min(4.0, 0.75 * playbackRate));
+            const double position = queuedEnd < 0 ? nextAudioTime : playhead();
+            fill(position, std::min(4.0, targetBuffer * decodeRate));
           } catch (const std::exception &error) {
             failure = error.what();
           }
@@ -406,7 +503,7 @@ void MediaPlayer::open(const std::string &path, bool audioOnly,
     throw std::runtime_error("Media must be a local file: " + path);
   auto next = std::make_unique<State>();
   next->channel = std::move(channel);
-  start(std::move(next), path, audioOnly);
+  start(std::move(next), path, audioOnly, false);
 }
 
 void MediaPlayer::open(const AssetProvider &assets, const std::string &id,
@@ -417,55 +514,126 @@ void MediaPlayer::open(const AssetProvider &assets, const std::string &id,
   auto next = std::make_unique<State>();
   next->channel = mixer.channel(
       channelName.empty() ? (audioOnly ? "audio" : "video") : channelName);
-  next->attachMemory(assets.read(id));
-  start(std::move(next), {}, audioOnly);
+  if (auto stream = assets.openStream(id))
+    next->attachAssetStream(std::move(stream));
+  else
+    next->attachMemory(assets.read(id));
+  start(std::move(next), {}, audioOnly, false);
 }
 
-void MediaPlayer::start(std::unique_ptr<State> next, const std::string &url,
-                        bool audioOnly) {
+void MediaPlayer::prepare(const AssetProvider &assets, const std::string &id,
+                          bool audioOnly, const std::string &channelName) {
+  const std::string path = assets.localPath(id);
+  auto next = std::make_unique<State>();
+  next->channel = mixer.channel(
+      channelName.empty() ? (audioOnly ? "audio" : "video") : channelName);
+  if (!path.empty() && std::filesystem::is_regular_file(path)) {
+    start(std::move(next), path, audioOnly, true);
+    return;
+  }
+  if (auto stream = assets.openStream(id))
+    next->attachAssetStream(std::move(stream));
+  else
+    next->attachMemory(assets.read(id));
+  start(std::move(next), {}, audioOnly, true);
+}
+
+MediaPlayer::PreparedInput::PreparedInput(std::unique_ptr<State> value)
+    : state(std::move(value)) {}
+MediaPlayer::PreparedInput::~PreparedInput() = default;
+
+void MediaPlayer::openDecoder(State &next, const std::string &url,
+                              bool audioOnly) {
+  if (!next.format) next.format = avformat_alloc_context();
+  if (!next.format) throw std::bad_alloc();
+  next.format->interrupt_callback = {State::interrupt, &next};
   AVDictionary *options = nullptr;
   check(av_dict_set(&options, "protocol_whitelist", "file", 0),
         "Configure local media access");
   const int opened = avformat_open_input(
-      &next->format, next->io ? nullptr : url.c_str(), nullptr, &options);
+      &next.format, next.io ? nullptr : url.c_str(), nullptr, &options);
   av_dict_free(&options);
   check(opened, "Open media");
   detail::initializeMediaLog();
-  check(avformat_find_stream_info(next->format, nullptr), "Read media streams");
-  if (next->format->start_time != AV_NOPTS_VALUE)
-    next->origin = next->format->start_time / static_cast<double>(AV_TIME_BASE);
+  check(avformat_find_stream_info(next.format, nullptr), "Read media streams");
+  if (next.format->start_time != AV_NOPTS_VALUE)
+    next.origin = next.format->start_time / static_cast<double>(AV_TIME_BASE);
   if (!audioOnly)
-    next->video = next->decoder(next->videoIndex, AVMEDIA_TYPE_VIDEO, true);
-  next->audio = next->decoder(next->audioIndex, AVMEDIA_TYPE_AUDIO, audioOnly);
-  next->packet = av_packet_alloc();
-  if (!next->packet || !next->frame)
+    next.video = next.decoder(next.videoIndex, AVMEDIA_TYPE_VIDEO, true);
+  next.audio = next.decoder(next.audioIndex, AVMEDIA_TYPE_AUDIO, audioOnly);
+  next.packet = av_packet_alloc();
+  if (!next.packet || !next.frame)
     throw std::bad_alloc();
-  if (next->audio) {
+  if (next.audio) {
     AVChannelLayout stereo = AV_CHANNEL_LAYOUT_STEREO;
-    check(swr_alloc_set_opts2(&next->resampler, &stereo, AV_SAMPLE_FMT_FLT,
-                              48000, &next->audio->ch_layout,
-                              next->audio->sample_fmt, next->audio->sample_rate,
+    check(swr_alloc_set_opts2(&next.resampler, &stereo, AV_SAMPLE_FMT_FLT,
+                              48000, &next.audio->ch_layout,
+                              next.audio->sample_fmt, next.audio->sample_rate,
                               0, nullptr),
           "Configure audio conversion");
-    check(swr_init(next->resampler), "Initialize audio conversion");
+    check(swr_init(next.resampler), "Initialize audio conversion");
+  }
+}
+
+std::unique_ptr<MediaPlayer::PreparedInput> MediaPlayer::prepareInput(
+    const AssetProvider &assets, const std::string &id, bool audioOnly,
+    std::shared_ptr<std::atomic_bool> cancelled) {
+  auto next = std::make_unique<State>();
+  next->cancelled = std::move(cancelled);
+  const std::string path = assets.localPath(id);
+  if (!path.empty() && std::filesystem::is_regular_file(path)) {
+    openDecoder(*next, path, audioOnly);
+  } else {
+    if (auto stream = assets.openStream(id))
+      next->attachAssetStream(std::move(stream));
+    else
+      next->attachMemory(assets.read(id));
+    openDecoder(*next, {}, audioOnly);
+  }
+  return std::unique_ptr<PreparedInput>(new PreparedInput(std::move(next)));
+}
+
+void MediaPlayer::adoptPreparedInput(std::unique_ptr<PreparedInput> input,
+                                     const std::string &channelName) {
+  if (!input || !input->state) throw std::invalid_argument("Prepared media is empty");
+  auto next = std::move(input->state);
+  // The speculative cancellation token belongs to the scene worker.  Once
+  // adopted, the player owns a fresh token that interrupts FFmpeg on stop.
+  next->cancelled = std::make_shared<std::atomic_bool>(false);
+  next->channel = mixer.channel(channelName.empty() ?
+                                (next->video ? "video" : "audio") : channelName);
+  if (next->audio) {
     const SDL_AudioSpec spec{SDL_AUDIO_F32, 2, 48000};
     next->stream.reset(SDL_OpenAudioDeviceStream(
         SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &spec, nullptr, nullptr));
     if (!next->stream)
       throw std::runtime_error(SDL_GetError());
+    if (!SDL_SetAudioStreamFrequencyRatio(next->stream.get(),
+                                          static_cast<float>(playbackRate_)))
+      throw std::runtime_error(SDL_GetError());
     next->channel->attach(next->stream.get());
+    next->decodeRate = playbackRate_;
+    next->targetBuffer = bufferSeconds_ > 0.0 ? bufferSeconds_ : 0.5;
     next->startDecoder();
     if (!SDL_SetAudioStreamGetCallback(next->stream.get(), State::feed,
                                        next.get()))
-      throw std::runtime_error(SDL_GetError());
-    if (!SDL_ResumeAudioStreamDevice(next->stream.get()))
       throw std::runtime_error(SDL_GetError());
   }
   soundtrack.reset();
   state = std::move(next);
   clockStart = SDL_GetTicksNS();
-  pausedAt = 0;
-  playbackRate = 1;
+  pausedAt = clockStart;
+  clockOffset = 0.0;
+}
+
+void MediaPlayer::start(std::unique_ptr<State> next, const std::string &url,
+                        bool audioOnly, bool prepared) {
+  openDecoder(*next, url, audioOnly);
+  auto input = std::unique_ptr<PreparedInput>(new PreparedInput(std::move(next)));
+  const std::string channelName = input->state->channel ?
+      input->state->channel->getName() : std::string();
+  adoptPreparedInput(std::move(input), channelName);
+  if (!prepared) setPaused(false);
 }
 
 void MediaPlayer::openSoundtrack(const AssetProvider &assets,
@@ -474,6 +642,8 @@ void MediaPlayer::openSoundtrack(const AssetProvider &assets,
   if (!state)
     throw std::logic_error("Open media before its soundtrack");
   auto next = std::make_unique<MediaPlayer>(mixer);
+  next->setPlaybackRate(playbackRate_);
+  if (bufferSeconds_ > 0.0) next->setBufferSeconds(bufferSeconds_);
   next->open(assets, id, true,
              channelName.empty() ? state->channel->getName() : channelName);
   if (pausedAt)
@@ -485,13 +655,14 @@ void MediaPlayer::stop() {
   soundtrack.reset();
   state.reset();
   pausedAt = 0;
+  clockOffset = 0.0;
 }
 
 double MediaPlayer::elapsed() const {
   if (!state)
     return 0;
   const Uint64 now = pausedAt ? pausedAt : SDL_GetTicksNS();
-  return (now - clockStart) / 1e9 * playbackRate;
+  return clockOffset + (now - clockStart) / 1e9 * playbackRate_;
 }
 
 void MediaPlayer::update(RendererRef renderer) { update(renderer, elapsed()); }
@@ -503,8 +674,20 @@ void MediaPlayer::setChannel(const std::string &name) {
   if (state->channel == channel)
     return;
   if (state->stream) {
+#ifdef KOTONOHA_DEV_CONTROL
+    // A logical SDL audio device has one postmix callback. Detaching the old
+    // channel after attaching the new one would unregister the new observer.
+    state->channel->detach(state->stream.get());
+    try {
+      channel->attach(state->stream.get());
+    } catch (...) {
+      state->channel->attach(state->stream.get());
+      throw;
+    }
+#else
     channel->attach(state->stream.get());
     state->channel->detach(state->stream.get());
+#endif
   }
   state->channel = std::move(channel);
   if (soundtrack)
@@ -535,9 +718,11 @@ void MediaPlayer::setPaused(bool paused) {
   }
   if (soundtrack)
     soundtrack->setPaused(paused);
-  if (state) {
-    std::lock_guard<std::mutex> lock(state->mutex);
-    state->paused = paused;
+  if (state && state->threaded) {
+    {
+      std::lock_guard<std::mutex> lock(state->mutex);
+      state->paused = paused;
+    }
     state->wake.notify_one();
   }
   if (state && state->stream) {
@@ -549,25 +734,48 @@ void MediaPlayer::setPaused(bool paused) {
 }
 
 void MediaPlayer::setPlaybackRate(double rate) {
-  if (!std::isfinite(rate) || rate < 0.25 || rate > 32)
-    throw std::invalid_argument(
-        "Media playback rate must be between 0.25 and 32");
-  if (rate == playbackRate)
+  if (!std::isfinite(rate) || rate < 0.01 || rate > 100.0)
+    throw std::invalid_argument("Media playback rate must be between 0.01 and 100");
+  if (rate == playbackRate_)
     return;
-  const double position = elapsed();
+
+  // Close the previous self-timed clock segment before changing its slope so
+  // live rate changes never jump the visual/media position.
   if (state) {
-    std::lock_guard<std::mutex> lock(state->mutex);
+    const Uint64 now = pausedAt ? pausedAt : SDL_GetTicksNS();
+    clockOffset += (now - clockStart) / 1e9 * playbackRate_;
+    clockStart = now;
+    if (pausedAt)
+      pausedAt = now;
     if (state->stream &&
-        !SDL_SetAudioStreamFrequencyRatio(state->stream.get(), float(rate)))
+        !SDL_SetAudioStreamFrequencyRatio(state->stream.get(),
+                                          static_cast<float>(rate)))
       throw std::runtime_error(SDL_GetError());
-    state->playbackRate = rate;
-    state->wake.notify_one();
+    if (state->threaded) {
+      {
+        std::lock_guard<std::mutex> lock(state->mutex);
+        state->decodeRate = rate;
+      }
+      state->wake.notify_one();
+    }
   }
-  playbackRate = rate;
-  const auto now = pausedAt ? pausedAt : SDL_GetTicksNS();
-  clockStart = now - Uint64(position / rate * 1e9);
   if (soundtrack)
     soundtrack->setPlaybackRate(rate);
+  playbackRate_ = rate;
+}
+
+void MediaPlayer::setBufferSeconds(double seconds) {
+  if (!std::isfinite(seconds) || seconds < 0.05 || seconds > 60.0)
+    throw std::invalid_argument("Media buffer target must be between 0.05 and 60 seconds");
+  bufferSeconds_ = seconds;
+  if (state && state->threaded) {
+    {
+      std::lock_guard<std::mutex> lock(state->mutex);
+      state->targetBuffer = seconds;
+    }
+    state->wake.notify_one();
+  }
+  if (soundtrack) soundtrack->setBufferSeconds(seconds);
 }
 
 void MediaPlayer::update(RendererRef renderer, double position) {
@@ -587,16 +795,19 @@ void MediaPlayer::update(RendererRef renderer, double position) {
     throw std::runtime_error(failure);
   }
   bool jump;
+  bool forwardCatchup = false;
   if (s.threaded && s.queuedEnd >= 0) {
     // The audio thread keeps playing through frame hitches; resync only when
     // the timeline really diverges from the audible position.
     const double head = s.playhead();
     jump = position < head - 0.3 || (!s.eof && position > head + 0.3);
+    forwardCatchup = position > head + 0.3;
   } else {
     // Small offsets catch up by dropping frames/samples instead of seeking.
     jump = (s.lastPosition < 0 && position > 0.5) ||
            (s.lastPosition >= 0 &&
             (position < s.lastPosition || position - s.lastPosition > 0.5));
+    forwardCatchup = position > s.lastPosition;
   }
   if (jump) {
     const auto target =
@@ -614,18 +825,30 @@ void MediaPlayer::update(RendererRef renderer, double position) {
     }
     av_packet_unref(s.packet);
     s.frames.clear();
-    s.texture.reset();
+    // A forward catch-up seek can briefly have no decoded replacement frame.
+    // Keep the last drawable texture until upload() replaces it, matching the
+    // old Canvas WAITING/DRAW_LAST retention during video starvation.  A
+    // backward seek still invalidates the old visual immediately.
+    if (!forwardCatchup)
+      s.texture.reset();
     s.nextVideoTime = s.nextAudioTime = position;
     s.queuedEnd = -1;
     s.eof = false;
   }
   s.lastPosition = position;
+  const double lookAhead =
+      bufferSeconds_ > 0.0 ? bufferSeconds_ : (s.threaded ? 0.5 : 0.35);
   if (s.threaded) {
-    if (s.queuedEnd < 0)
-      s.fill(position, std::min(4.0, 0.75 * playbackRate));
+    // An audio/video decoder thread may not have run before the first render
+    // update. Preserve the original first-frame contract: bootstrap a bounded
+    // buffer synchronously once, under the same mutex as the producer, rather
+    // than briefly showing an empty frame or relying on scheduler timing.
+    if (s.video && s.queuedEnd < 0 && !s.eof)
+      s.fill(position, std::min(4.0, 0.75 * playbackRate_));
     s.wake.notify_one();
-  } else
-    s.fill(position, 0.35);
+  } else {
+    s.fill(position, lookAhead);
+  }
   Frame latest;
   while (!s.frames.empty() && s.frames.front().at <= position) {
     latest = std::move(s.frames.front().frame);

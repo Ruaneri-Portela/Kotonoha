@@ -8,6 +8,7 @@
 #include <Kotonoha/core/SDL.hpp>
 #include <Kotonoha/core/Scene.hpp>
 #include <Kotonoha/core/Settings.hpp>
+#include <Kotonoha/core/VisualTransition.hpp>
 #include <Kotonoha/events/ControllerEvent.hpp>
 #include <Kotonoha/events/InputActions.hpp>
 #include <Kotonoha/localization/Translation.hpp>
@@ -58,11 +59,15 @@ private:
 
   WindowPtr window;
   RendererPtr renderer;
+  TexturePtr novelTarget;
+  int novelTargetWidth = 0, novelTargetHeight = 0;
+  VisualTransition visualTransition;
   // Declared after the renderer so cached textures are released first.
   std::shared_ptr<AssetProvider> assets;
   std::unique_ptr<Upscaling> upscaler;
   EngineSettings settings;
   std::string settingsPath;
+  bool settingsLoadedFromDisk = false;
   std::optional<AssStyle> subtitleStyle;
   std::unique_ptr<SettingsMenu> settingsMenu;
 
@@ -85,6 +90,9 @@ private:
   TouchPointer touchPointer;
   ControllerNavigation controllerNavigation;
   SDL_AppResult dispatchEvent(EventPtr event);
+  // A screen-space control owns both edges of a mouse press, even if the
+  // pressed edge opens a modal before the release event arrives.
+  Uint32 screenCapturedMouseButtons = 0;
   Clock frameClock;
   Translation translation;
   std::unordered_map<std::type_index, std::unique_ptr<Scene>> sharedScenes;
@@ -140,6 +148,7 @@ public:
   void resetNodeClock();
   InputActions &GetInputActions() { return inputActions; }
   RendererRef GetRenderer() { return *renderer; }
+  SDL_Texture *GetNovelTarget() const { return novelTarget.get(); }
   SDL_FPoint screenSize() const;
   const Translation &GetTranslation() const { return translation; }
   void setTranslation(const std::string &section, const std::string &original,
@@ -158,9 +167,9 @@ public:
   AssetProvider &GetAssets() { return *assets; }
   void SetAssetProvider(std::shared_ptr<AssetProvider> provider);
   const EngineSettings &GetSettings() const { return settings; }
-  const std::optional<AssStyle> &GetSubtitleStyle() const {
-    return subtitleStyle;
-  }
+  VisualTransition &GetVisualTransition() { return visualTransition; }
+  bool HasStoredSettings() const { return settingsLoadedFromDisk; }
+  const std::optional<AssStyle> &GetSubtitleStyle() const { return subtitleStyle; }
   void applySettings(const EngineSettings &value, bool persist = true);
   void saveSettings() const;
   void openSettings();
