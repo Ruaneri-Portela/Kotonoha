@@ -32,8 +32,9 @@ void prepareLinearSurface(SDL_Surface *surface) {
   const bool lock = SDL_MUSTLOCK(surface);
   if (lock && !SDL_LockSurface(surface))
     return;
-  prepareStraightAlphaForLinearFiltering(
-      static_cast<Uint8 *>(surface->pixels), surface->w, surface->h, surface->pitch);
+  prepareStraightAlphaForLinearFiltering(static_cast<Uint8 *>(surface->pixels),
+                                         surface->w, surface->h,
+                                         surface->pitch);
   if (lock)
     SDL_UnlockSurface(surface);
 }
@@ -125,7 +126,8 @@ std::string AssetProvider::localPathAsset(const std::string &) const {
   return {};
 }
 
-std::unique_ptr<AssetStream> AssetProvider::openStream(const std::string &) const {
+std::unique_ptr<AssetStream>
+AssetProvider::openStream(const std::string &) const {
   return {};
 }
 
@@ -204,7 +206,8 @@ SDL_Texture &AssetProvider::stageTexture(RendererRef renderer,
   }
   if (auto found = textures.find(id); found != textures.end())
     return *found->second;
-  if (!surface) throw std::invalid_argument("Staged asset surface is empty");
+  if (!surface)
+    throw std::invalid_argument("Staged asset surface is empty");
   prepareLinearSurface(surface.get());
   TexturePtr created(SDL_CreateTextureFromSurface(&renderer, surface.get()));
   if (!created)

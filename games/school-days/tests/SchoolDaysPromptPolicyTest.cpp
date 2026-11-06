@@ -12,9 +12,9 @@ void Check(bool condition, const char *message) {
   }
 }
 
-Kotonoha::SchoolDaysPromptPolicy Policy(
-    Kotonoha::SchoolDaysPromptOrientation orientation =
-        Kotonoha::SchoolDaysPromptOrientation::Unconfigured) {
+Kotonoha::SchoolDaysPromptPolicy
+Policy(Kotonoha::SchoolDaysPromptOrientation orientation =
+           Kotonoha::SchoolDaysPromptOrientation::Unconfigured) {
   Kotonoha::SchoolDaysPromptPolicy policy{};
   policy.enabled = true;
   policy.twoChoiceOrientation = orientation;
@@ -79,8 +79,7 @@ int main() {
   Check(!lr.LeftClick(0.75f, 0.5f, 10, &result) && result == -2,
         "stale click must not activate a different hit region");
   lr.PointerMotion(0.75f, 0.5f, 10);
-  Check(lr.StoredSelection() == 1,
-        "mouse motion must update stored selection");
+  Check(lr.StoredSelection() == 1, "mouse motion must update stored selection");
   Check(lr.LeftClick(0.75f, 0.5f, 10, &result) && result == 1,
         "left click must activate only hit==stored selection");
 
@@ -101,7 +100,8 @@ int main() {
   SchoolDaysPromptInteraction timeout;
   timeout.Configure(Policy(SchoolDaysPromptOrientation::LeftRight), 2);
   result = -2;
-  Check(!timeout.InputOpenAtTick(9), "input must stay closed before start tick");
+  Check(!timeout.InputOpenAtTick(9),
+        "input must stay closed before start tick");
   Check(!timeout.VisibleAtTick(9) && timeout.VisibleAtTick(10) &&
             timeout.VisibleAtTick(19) && !timeout.VisibleAtTick(20),
         "choice visual tick interval must be exact [start,end)");
@@ -128,7 +128,7 @@ int main() {
   SchoolDaysPromptInteraction preconfiguredAuto;
   preconfiguredAuto.SetAutoMode(true);
   preconfiguredAuto.SetAutoChoiceRandomSource(&NextFixedRandom,
-                                               &preconfiguredRandom);
+                                              &preconfiguredRandom);
   preconfiguredAuto.Configure(Policy(), 1);
   result = -2;
   Check(preconfiguredAuto.AutoMode() &&

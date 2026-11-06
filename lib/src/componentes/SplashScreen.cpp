@@ -176,8 +176,8 @@ void SplashScreen::render(RendererRef renderer, float) {
                          (screen.h - textureHeight * fit) / 2,
                          textureWidth * fit, textureHeight * fit};
   const double time = elapsed();
-  const double alpha = std::clamp(
-      std::min(time, displaySeconds - time) / fadeSeconds, 0.0, 1.0);
+  const double alpha =
+      std::clamp(std::min(time, displaySeconds - time) / fadeSeconds, 0.0, 1.0);
   if (!SDL_SetTextureAlphaModFloat(display, static_cast<float>(alpha)) ||
       !SDL_RenderTexture(&renderer, display, nullptr, &target))
     throw std::runtime_error(SDL_GetError());

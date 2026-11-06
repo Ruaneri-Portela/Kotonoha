@@ -27,66 +27,77 @@ std::shared_ptr<const SchoolDaysGpkAssetStore> CurrentMount() {
 }
 
 class MountedRawAssetStream final : public AssetStream {
-    std::shared_ptr<const SchoolDaysGpkAssetStore> mount_;
-    std::ifstream file_;
-    std::vector<uint8_t> prefix_;
-    uint64_t bodyOffset_ = 0u;
-    uint64_t logicalSize_ = 0u;
-    uint64_t position_ = 0u;
+  std::shared_ptr<const SchoolDaysGpkAssetStore> mount_;
+  std::ifstream file_;
+  std::vector<uint8_t> prefix_;
+  uint64_t bodyOffset_ = 0u;
+  uint64_t logicalSize_ = 0u;
+  uint64_t position_ = 0u;
 
 public:
-    MountedRawAssetStream(std::shared_ptr<const SchoolDaysGpkAssetStore> mount,
-                          const std::filesystem::path& path,
-                          std::vector<uint8_t> prefix, uint64_t bodyOffset,
-                          uint64_t logicalSize)
-        : mount_(std::move(mount)), file_(path, std::ios::binary),
-          prefix_(std::move(prefix)), bodyOffset_(bodyOffset),
-          logicalSize_(logicalSize) {
-        if (!file_) throw std::runtime_error("School Days GPK raw stream could not open archive");
-    }
+  MountedRawAssetStream(std::shared_ptr<const SchoolDaysGpkAssetStore> mount,
+                        const std::filesystem::path &path,
+                        std::vector<uint8_t> prefix, uint64_t bodyOffset,
+                        uint64_t logicalSize)
+      : mount_(std::move(mount)), file_(path, std::ios::binary),
+        prefix_(std::move(prefix)), bodyOffset_(bodyOffset),
+        logicalSize_(logicalSize) {
+    if (!file_)
+      throw std::runtime_error(
+          "School Days GPK raw stream could not open archive");
+  }
 
-    uint64_t size() const override { return logicalSize_; }
-    uint64_t tell() const override { return position_; }
+  uint64_t size() const override { return logicalSize_; }
+  uint64_t tell() const override { return position_; }
 
-    std::size_t read(Uint8* buffer, std::size_t size) override {
-        if (size == 0u || position_ >= logicalSize_) return 0u;
-        if (buffer == nullptr) throw std::invalid_argument("School Days GPK raw stream buffer is null");
-        const uint64_t requested = std::min<uint64_t>(
-            static_cast<uint64_t>(size), logicalSize_ - position_);
-        uint64_t done = 0u;
-        if (position_ < prefix_.size()) {
-            const uint64_t prefixBytes = std::min<uint64_t>(
-                requested, prefix_.size() - static_cast<std::size_t>(position_));
-            std::memcpy(buffer, prefix_.data() + static_cast<std::size_t>(position_),
-                        static_cast<std::size_t>(prefixBytes));
-            position_ += prefixBytes;
-            done += prefixBytes;
-        }
-        const uint64_t remaining = requested - done;
-        if (remaining == 0u) return static_cast<std::size_t>(done);
-        const uint64_t bodyPosition = position_ - prefix_.size();
-        const uint64_t physical = bodyOffset_ + bodyPosition;
-        if (physical > static_cast<uint64_t>(std::numeric_limits<std::streamoff>::max()) ||
-            remaining > static_cast<uint64_t>(std::numeric_limits<std::streamsize>::max())) {
-            throw std::runtime_error("School Days GPK raw stream range exceeds host I/O limits");
-        }
-        file_.clear();
-        file_.seekg(static_cast<std::streamoff>(physical), std::ios::beg);
-        if (!file_) throw std::runtime_error("School Days GPK raw stream seek failed");
-        file_.read(reinterpret_cast<char*>(buffer + done),
-                   static_cast<std::streamsize>(remaining));
-        const std::streamsize got = file_.gcount();
-        if (got <= 0) throw std::runtime_error("School Days GPK raw stream read failed");
-        position_ += static_cast<uint64_t>(got);
-        done += static_cast<uint64_t>(got);
-        return static_cast<std::size_t>(done);
+  std::size_t read(Uint8 *buffer, std::size_t size) override {
+    if (size == 0u || position_ >= logicalSize_)
+      return 0u;
+    if (buffer == nullptr)
+      throw std::invalid_argument("School Days GPK raw stream buffer is null");
+    const uint64_t requested = std::min<uint64_t>(static_cast<uint64_t>(size),
+                                                  logicalSize_ - position_);
+    uint64_t done = 0u;
+    if (position_ < prefix_.size()) {
+      const uint64_t prefixBytes = std::min<uint64_t>(
+          requested, prefix_.size() - static_cast<std::size_t>(position_));
+      std::memcpy(buffer, prefix_.data() + static_cast<std::size_t>(position_),
+                  static_cast<std::size_t>(prefixBytes));
+      position_ += prefixBytes;
+      done += prefixBytes;
     }
+    const uint64_t remaining = requested - done;
+    if (remaining == 0u)
+      return static_cast<std::size_t>(done);
+    const uint64_t bodyPosition = position_ - prefix_.size();
+    const uint64_t physical = bodyOffset_ + bodyPosition;
+    if (physical >
+            static_cast<uint64_t>(std::numeric_limits<std::streamoff>::max()) ||
+        remaining > static_cast<uint64_t>(
+                        std::numeric_limits<std::streamsize>::max())) {
+      throw std::runtime_error(
+          "School Days GPK raw stream range exceeds host I/O limits");
+    }
+    file_.clear();
+    file_.seekg(static_cast<std::streamoff>(physical), std::ios::beg);
+    if (!file_)
+      throw std::runtime_error("School Days GPK raw stream seek failed");
+    file_.read(reinterpret_cast<char *>(buffer + done),
+               static_cast<std::streamsize>(remaining));
+    const std::streamsize got = file_.gcount();
+    if (got <= 0)
+      throw std::runtime_error("School Days GPK raw stream read failed");
+    position_ += static_cast<uint64_t>(got);
+    done += static_cast<uint64_t>(got);
+    return static_cast<std::size_t>(done);
+  }
 
-    bool seek(uint64_t position) override {
-        if (position > logicalSize_) return false;
-        position_ = position;
-        return true;
-    }
+  bool seek(uint64_t position) override {
+    if (position > logicalSize_)
+      return false;
+    position_ = position;
+    return true;
+  }
 };
 
 std::shared_ptr<const AssetOverlay> CurrentOverlay() {
@@ -282,16 +293,34 @@ bool ResolveSchoolDaysOverlayFile(std::string_view logical,
     auto key = AssetOverlay::key(std::string(logical));
     const std::string prefix = "script/english/";
     if (key.compare(0, prefix.size(), prefix) == 0) {
-      std::filesystem::path relative(key.substr(prefix.size()));
-      auto name = relative.filename().string();
-      name.resize(name.find('.') == name.npos ? name.size() : name.find('.'));
-      auto stem = (relative.parent_path() / name).generic_string();
-      for (const auto &candidate : overlay->list(stem)) {
-        std::filesystem::path path(candidate);
-        if (path.parent_path() == relative.parent_path() &&
-            path.extension() == ".txt") {
-          file = overlay->resolve(candidate);
+      // Translated scripts shipped in the overlay may live under
+      // Script/ENGLISH/<n>/<name>.PT.txt while the game looks up
+      // Script/English/<name>.ENG.ORS. Match case-insensitively by bare file
+      // name, trying both .ENG.ORS and .ORS targets.
+      std::string bare = std::filesystem::path(key).filename().generic_string();
+      // Strip every extension (e.g. 04-SA-E05.PT.ENG.ORS -> 04-SA-E05.PT).
+      // Guard against stem() being a no-op on names such as ".DS_Store".
+      while (bare.find('.') != std::string::npos) {
+        const auto next = std::filesystem::path(bare).stem().generic_string();
+        if (next == bare)
           break;
+        bare = next;
+      }
+
+      for (const auto &candidate : overlay->list("")) {
+        std::filesystem::path cp(candidate);
+        std::string cname = cp.filename().generic_string();
+        while (cname.find('.') != std::string::npos) {
+          const auto next =
+              std::filesystem::path(cname).stem().generic_string();
+          if (next == cname)
+            break;
+          cname = next;
+        }
+        if (cname == bare) {
+          file = overlay->resolve(candidate);
+          if (!file.empty())
+            break;
         }
       }
     }
@@ -353,35 +382,39 @@ bool ReadMountedSchoolDaysAsset(std::string_view logicalPath,
   return mount->Read(CanonicalGpkLogical(logicalPath), out, error);
 }
 
-std::unique_ptr<AssetStream> OpenMountedSchoolDaysAssetStream(
-    std::string_view logicalPath) {
-    if (ResolveSchoolDaysOverlayFile(logicalPath, nullptr)) return {};
-    const auto mount = CurrentMount();
-    if (mount == nullptr) return {};
-    size_t archiveIndex = 0u;
-    size_t entryIndex = 0u;
-    const std::string canonical = CanonicalGpkLogical(logicalPath);
-    if (mount->Lookup(canonical, &archiveIndex, &entryIndex) !=
-        SchoolDaysGpkLookupStatus::Present) {
-        return {};
-    }
-    const SchoolDaysGpkArchive* archive = mount->Archive(archiveIndex);
-    if (archive == nullptr || entryIndex >= archive->Index().Entries().size()) return {};
-    const auto& entry = archive->Index().Entries()[entryIndex];
-    if (!entry.IsRaw()) return {};
-    const uint64_t bodySize = static_cast<uint64_t>(entry.PhysicalBodyLength());
-    const uint64_t physicalEnd = static_cast<uint64_t>(entry.offset) + bodySize;
-    if (physicalEnd < entry.offset || physicalEnd > archive->PidxOffset() ||
-        entry.inlinePrefix.size() > entry.storedLength) {
-        return {};
-    }
-    try {
-        return std::make_unique<MountedRawAssetStream>(
-            mount, archive->Path(), entry.inlinePrefix, entry.offset,
-            static_cast<uint64_t>(entry.storedLength));
-    } catch (...) {
-        return {};
-    }
+std::unique_ptr<AssetStream>
+OpenMountedSchoolDaysAssetStream(std::string_view logicalPath) {
+  if (ResolveSchoolDaysOverlayFile(logicalPath, nullptr))
+    return {};
+  const auto mount = CurrentMount();
+  if (mount == nullptr)
+    return {};
+  size_t archiveIndex = 0u;
+  size_t entryIndex = 0u;
+  const std::string canonical = CanonicalGpkLogical(logicalPath);
+  if (mount->Lookup(canonical, &archiveIndex, &entryIndex) !=
+      SchoolDaysGpkLookupStatus::Present) {
+    return {};
+  }
+  const SchoolDaysGpkArchive *archive = mount->Archive(archiveIndex);
+  if (archive == nullptr || entryIndex >= archive->Index().Entries().size())
+    return {};
+  const auto &entry = archive->Index().Entries()[entryIndex];
+  if (!entry.IsRaw())
+    return {};
+  const uint64_t bodySize = static_cast<uint64_t>(entry.PhysicalBodyLength());
+  const uint64_t physicalEnd = static_cast<uint64_t>(entry.offset) + bodySize;
+  if (physicalEnd < entry.offset || physicalEnd > archive->PidxOffset() ||
+      entry.inlinePrefix.size() > entry.storedLength) {
+    return {};
+  }
+  try {
+    return std::make_unique<MountedRawAssetStream>(
+        mount, archive->Path(), entry.inlinePrefix, entry.offset,
+        static_cast<uint64_t>(entry.storedLength));
+  } catch (...) {
+    return {};
+  }
 }
 
 std::string MakeSchoolDaysGpkUri(std::string_view logicalPath) {

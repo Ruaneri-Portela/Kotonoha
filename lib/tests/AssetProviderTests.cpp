@@ -83,7 +83,8 @@ class VectorAssetStream final : public AssetStream {
   std::size_t offset = 0;
 
 public:
-  explicit VectorAssetStream(std::vector<Uint8> data) : bytes(std::move(data)) {}
+  explicit VectorAssetStream(std::vector<Uint8> data)
+      : bytes(std::move(data)) {}
   std::uint64_t size() const override { return bytes.size(); }
   std::uint64_t tell() const override { return offset; }
   std::size_t read(Uint8 *buffer, std::size_t count) override {
@@ -107,14 +108,19 @@ public:
   mutable int reads = 0, streams = 0;
 
   std::string name() const override { return "Streaming"; }
-  bool containsAsset(const std::string &id) const override { return id == "image.bmp"; }
+  bool containsAsset(const std::string &id) const override {
+    return id == "image.bmp";
+  }
   std::vector<Uint8> readAsset(const std::string &id) const override {
     ++reads;
-    if (id != "image.bmp") throw std::runtime_error("Missing " + id);
+    if (id != "image.bmp")
+      throw std::runtime_error("Missing " + id);
     return bytes;
   }
-  std::unique_ptr<AssetStream> openStream(const std::string &id) const override {
-    if (id != "image.bmp") return {};
+  std::unique_ptr<AssetStream>
+  openStream(const std::string &id) const override {
+    if (id != "image.bmp")
+      return {};
     ++streams;
     return std::make_unique<VectorAssetStream>(bytes);
   }
@@ -361,7 +367,8 @@ void seekableMediaProvider() {
   StreamingAssetProvider assets;
   assets.bytes = bitmap();
   auto stream = assets.openStream("image.bmp");
-  require(stream && stream->size() == assets.bytes.size(), "Open seekable asset");
+  require(stream && stream->size() == assets.bytes.size(),
+          "Open seekable asset");
   Uint8 probe[4]{};
   require(stream->read(probe, sizeof(probe)) == sizeof(probe) &&
               stream->tell() == sizeof(probe),

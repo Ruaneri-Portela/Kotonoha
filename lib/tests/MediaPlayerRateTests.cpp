@@ -7,7 +7,8 @@
 
 namespace {
 void require(bool ok, const char *message) {
-  if (!ok) throw std::runtime_error(message);
+  if (!ok)
+    throw std::runtime_error(message);
 }
 
 bool rejected(Kotonoha::MediaPlayer &player, double rate) {
@@ -23,10 +24,12 @@ bool rejected(Kotonoha::MediaPlayer &player, double rate) {
 int main() {
   try {
     Kotonoha::MediaPlayer player;
-    require(player.playbackRate() == 1.0, "Media playback rate must default to 1x");
+    require(player.playbackRate() == 1.0,
+            "Media playback rate must default to 1x");
     for (double rate : {0.01, 1.0, 2.0, 4.0, 12.0, 24.0, 100.0}) {
       player.setPlaybackRate(rate);
-      require(player.playbackRate() == rate, "Media playback rate did not latch");
+      require(player.playbackRate() == rate,
+              "Media playback rate did not latch");
     }
     require(rejected(player, 0.0) && rejected(player, 0.009) &&
                 rejected(player, 100.001) &&

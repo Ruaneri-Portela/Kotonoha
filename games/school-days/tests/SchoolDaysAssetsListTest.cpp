@@ -51,7 +51,8 @@ bool fakeList(const std::string &reference, std::vector<std::string> *children,
 } // namespace
 
 int main() {
-  const fs::path root = fs::temp_directory_path() / "kotonoha-school-days-list-test";
+  const fs::path root =
+      fs::temp_directory_path() / "kotonoha-school-days-list-test";
   try {
     std::error_code ec;
     fs::remove_all(root, ec);
@@ -67,22 +68,26 @@ int main() {
                 root / "Voice03/03-BK/03-BK-H00/03-BK-H00-0410.OGG",
             "retail ORS voice typo did not resolve to the existing asset");
     put(root / "Voice03/03-BK/03-BK-H00/03-B K-H00-0410.OGG");
-    require(fs::path(assets.resolve(mistypedVoice)) ==
-                root / "Voice03/03-BK/03-BK-H00/03-B K-H00-0410.OGG",
-            "exact scripted asset did not take priority over voice typo fallback");
+    require(
+        fs::path(assets.resolve(mistypedVoice)) ==
+            root / "Voice03/03-BK/03-BK-H00/03-B K-H00-0410.OGG",
+        "exact scripted asset did not take priority over voice typo fallback");
     const auto loose = assets.listAsset("Event00/Scene/");
     require(loose.size() == 2, "loose recursive enumeration count drifted");
     require(fs::path(loose[0]) == root / "Event00" / "Scene" / "face.png" &&
-                fs::path(loose[1]) == root / "Event00" / "Scene" / "nested" / "mouth.png",
+                fs::path(loose[1]) ==
+                    root / "Event00" / "Scene" / "nested" / "mouth.png",
             "loose enumeration did not preserve readable physical references");
 
-    Kotonoha::InstallSchoolDaysVirtualAssetIo(&fakeIsReference, &fakeRead, &fakeList);
+    Kotonoha::InstallSchoolDaysVirtualAssetIo(&fakeIsReference, &fakeRead,
+                                              &fakeList);
     const auto packed = assets.listAsset("sdgpk://Event00/Scene/");
     Kotonoha::InstallSchoolDaysVirtualAssetIo(nullptr, nullptr, nullptr);
-    require(packed == std::vector<std::string>{
-                          "sdgpk://Event00/Scene/face.png",
-                          "sdgpk://Event00/Scene/nested/mouth.png"},
-            "GPK directory-reference enumeration drifted");
+    require(
+        packed ==
+            std::vector<std::string>{"sdgpk://Event00/Scene/face.png",
+                                     "sdgpk://Event00/Scene/nested/mouth.png"},
+        "GPK directory-reference enumeration drifted");
 
     // The user's revised General and Sound artwork has the exact four retail
     // logical names, but must be read from the standalone display-options
@@ -90,8 +95,8 @@ int main() {
     // The original four CMAPs intentionally remain in their existing mount.
     const fs::path optionOverlay = root / "external-display-options";
     const std::vector<std::string> optionArtwork{
-        "Option_Def.png", "Option_Def_Chip.png",
-        "Option_Sound.png", "Option_Sound_Chip.png"};
+        "Option_Def.png", "Option_Def_Chip.png", "Option_Sound.png",
+        "Option_Sound_Chip.png"};
     for (const auto &name : optionArtwork) {
       put(root / "System/Option" / name);
       put(optionOverlay / "System/Option" / name);
@@ -105,7 +110,8 @@ int main() {
       const auto replacement =
           Kotonoha::ResolveSchoolDaysAssetPath(root.string().c_str(), logical);
       require(replacement.present && !replacement.collision &&
-                  fs::path(replacement.physical) == optionOverlay / "System/Option" / name,
+                  fs::path(replacement.physical) ==
+                      optionOverlay / "System/Option" / name,
               "General/Sound PNG did not resolve to the external override");
     }
     Kotonoha::UninstallMountedSchoolDaysAssetResolver();

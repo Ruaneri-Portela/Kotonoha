@@ -205,6 +205,19 @@ void Launcher::checkOverlay(bool force) {
   }
 }
 
+void Launcher::selectOverlayFolder(const std::string &path) {
+  draft.assetOverlayPath = path;
+  std::error_code ec;
+  if (std::filesystem::is_directory(path, ec)) {
+    std::filesystem::path p(path);
+    auto name =
+        p.filename().empty() ? std::string("overlay") : p.filename().string();
+    draft.assetOverlays[name] = path;
+    draft.assetOverlayName = name;
+  }
+  checkOverlay(true);
+}
+
 bool Launcher::validate(std::string &error) {
   checkOverlay(true);
   if (!overlayValid) {
@@ -411,18 +424,22 @@ void Launcher::draw() {
     if (ImGui::BeginTabItem("Game")) {
       drawGameOptions();
       ImGui::SeparatorText("Asset overlay (all games)");
+      // The text input holds the absolute path. When confirmed it is stored as
+      // a (name -> absolute path) pair; the display always shows the absolute
+      // path. The persisted absolute is tried first, otherwise the name is
+      // resolved through the standard overlay folder search.
       if (ImGui::InputText("Overlay folder", &draft.assetOverlayPath,
                            ImGuiInputTextFlags_EnterReturnsTrue) ||
           !ImGui::IsItemActive())
-        checkOverlay();
+        selectOverlayFolder(draft.assetOverlayPath);
       if (ImGui::Button("Browse overlay..."))
         browseFolder(draft.assetOverlayPath, [this](const std::string &path) {
-          draft.assetOverlayPath = path;
-          checkOverlay(true);
+          selectOverlayFolder(path);
         });
       ImGui::SameLine();
       if (ImGui::Button("Automatic overlay")) {
         draft.assetOverlayPath.clear();
+        draft.assetOverlayName.clear();
         checkOverlay(true);
       }
 

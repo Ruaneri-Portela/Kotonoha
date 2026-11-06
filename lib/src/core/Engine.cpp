@@ -90,15 +90,21 @@ void Engine::dumpKtrf(const std::string &path) {
 std::string EngineOptions::assetOverlayDirectory() const {
   if (assetOverlaySpecified)
     return assetOverlayPath;
-  if (!assetOverlayPath.empty())
-    return assetOverlayPath;
+  if (!settings.assetOverlayName.empty()) {
+    const auto &overlays = settings.assetOverlays;
+    auto i = overlays.find(settings.assetOverlayName);
+    if (i != overlays.end() && !i->second.empty() &&
+        std::filesystem::is_directory(i->second))
+      return i->second;
+    // Persisted absolute path no longer exists: resolve by name through the
+    // standard overlay folder search.
+    auto found = findAssetOverlayDirectory(settings.assetOverlayName);
+    if (!found.empty())
+      return found.string();
+    return {};
+  }
   if (!settings.assetOverlayPath.empty())
     return settings.assetOverlayPath;
-  if (!settingsPath.empty() && std::filesystem::exists(settingsPath)) {
-    auto loaded = EngineSettings::load(settingsPath).assetOverlayPath;
-    if (!loaded.empty())
-      return loaded;
-  }
   return findAssetOverlayDirectory().string();
 }
 SDLSession::SDLSession(const Runtime &runtime) {
@@ -320,11 +326,12 @@ void Engine::applyWindowSettings(const EngineSettings &value, bool geometry) {
   if (value.fullscreenWidth > 0 && value.fullscreenHeight > 0 &&
       value.refreshRate > 0.0f) {
     const auto modes = AndroidEnumerateDisplayModes();
-    const auto match = std::find_if(modes.begin(), modes.end(), [&](const auto &mode) {
-      return mode.width == value.fullscreenWidth &&
-             mode.height == value.fullscreenHeight &&
-             std::abs(mode.refreshRate - value.refreshRate) < 0.05f;
-    });
+    const auto match =
+        std::find_if(modes.begin(), modes.end(), [&](const auto &mode) {
+          return mode.width == value.fullscreenWidth &&
+                 mode.height == value.fullscreenHeight &&
+                 std::abs(mode.refreshRate - value.refreshRate) < 0.05f;
+        });
     if (match != modes.end() && !AndroidRequestDisplayMode(match->modeId))
       throw std::runtime_error("Request Android display mode failed");
   }
@@ -655,13 +662,13 @@ SDL_AppResult Engine::dispatchEvent(EventPtr event) {
   SDL_Event screenEvent = *event;
   if (!SDL_ConvertEventToRenderCoordinates(renderer.get(), &screenEvent))
     throw std::runtime_error(SDL_GetError());
-  bool consumed =
-      !settingsMenu->isOpen() && runtime.onScreenEvent(screenEvent);
+  bool consumed = !settingsMenu->isOpen() && runtime.onScreenEvent(screenEvent);
   if (event->type == SDL_EVENT_MOUSE_BUTTON_DOWN ||
       event->type == SDL_EVENT_MOUSE_BUTTON_UP) {
     const Uint32 buttonMask = SDL_BUTTON_MASK(event->button.button);
     if (event->type == SDL_EVENT_MOUSE_BUTTON_DOWN) {
-      if (consumed) screenCapturedMouseButtons |= buttonMask;
+      if (consumed)
+        screenCapturedMouseButtons |= buttonMask;
     } else {
       consumed = consumed || (screenCapturedMouseButtons & buttonMask) != 0;
       screenCapturedMouseButtons &= ~buttonMask;
@@ -742,8 +749,7 @@ SDL_AppResult Engine::dispatchEvent(EventPtr event) {
     // tab underneath the same screen coordinate (e.g. SOMCON -> VN text).
     if (!consumed)
       settingsMenu->onEvent(UI::toFrame(logical, UI::designFrame(view)));
-  }
-  else if (!consumed && !outsideNovel)
+  } else if (!consumed && !outsideNovel)
     runtime.onEvent(logical);
   const bool wasPaused = timeline->isPaused();
   timeline->setPaused(isStoryPaused());
@@ -776,8 +782,10 @@ SDL_AppResult Engine::Iterate() {
   synchronizeTimeline();
   if (mcp && !mcp->pump())
     return SDL_APP_SUCCESS;
-  if (!runtime.devPauseRequested() || runtime.devConsumeStep()) runtime.update();
-  else runtime.devIdle();
+  if (!runtime.devPauseRequested() || runtime.devConsumeStep())
+    runtime.update();
+  else
+    runtime.devIdle();
   synchronizeNodeClock(0);
   forcedSubtitles->updateForActiveNode();
   debug->update();
@@ -796,9 +804,11 @@ SDL_AppResult Engine::Iterate() {
     if (!SDL_GetRenderLogicalPresentationRect(renderer.get(), &presentation))
       throw std::runtime_error(SDL_GetError());
     const int targetWidth = std::max(
-        1, static_cast<int>(std::lround(presentation.w * settings.renderScale)));
+        1,
+        static_cast<int>(std::lround(presentation.w * settings.renderScale)));
     const int targetHeight = std::max(
-        1, static_cast<int>(std::lround(presentation.h * settings.renderScale)));
+        1,
+        static_cast<int>(std::lround(presentation.h * settings.renderScale)));
     if (!novelTarget || novelTargetWidth != targetWidth ||
         novelTargetHeight != targetHeight) {
       TexturePtr next(SDL_CreateTexture(renderer.get(), SDL_PIXELFORMAT_RGBA32,
@@ -815,12 +825,13 @@ SDL_AppResult Engine::Iterate() {
         !SDL_SetRenderViewport(renderer.get(), nullptr) ||
         !SDL_SetRenderClipRect(renderer.get(), nullptr) ||
         !SDL_SetRenderScale(renderer.get(), 1, 1) ||
-        !SDL_SetRenderLogicalPresentation(renderer.get(), novelView.x, novelView.y,
+        !SDL_SetRenderLogicalPresentation(renderer.get(), novelView.x,
+                                          novelView.y,
                                           SDL_LOGICAL_PRESENTATION_STRETCH))
       throw std::runtime_error(SDL_GetError());
-    ui->setPixelDensity(std::min(
-        static_cast<float>(targetWidth) / novelView.x,
-        static_cast<float>(targetHeight) / novelView.y));
+    ui->setPixelDensity(
+        std::min(static_cast<float>(targetWidth) / novelView.x,
+                 static_cast<float>(targetHeight) / novelView.y));
     SDL_SetRenderDrawColor(renderer.get(), 0, 0, 0, 0);
     if (!SDL_RenderClear(renderer.get()))
       throw std::runtime_error(SDL_GetError());
@@ -838,10 +849,9 @@ SDL_AppResult Engine::Iterate() {
   runtime.renderOverlay(*renderer, ui->pixelDensity());
   if (ownedNovel) {
     if (runtime.useOwnedNarrativeTarget() &&
-        !visualTransition.compose(*renderer, *novelTarget,
-                                  runtime.narrativeFrameDrawable(),
-                                  runtime.narrativeBoundaryFrame(),
-                                  runtime.narrativeVisualOwner()))
+        !visualTransition.compose(
+            *renderer, *novelTarget, runtime.narrativeFrameDrawable(),
+            runtime.narrativeBoundaryFrame(), runtime.narrativeVisualOwner()))
       throw std::runtime_error(SDL_GetError());
     runtime.renderNarrativeOverlay(*renderer, ui->pixelDensity());
     if (!SDL_SetRenderTarget(renderer.get(), nullptr))
@@ -851,12 +861,12 @@ SDL_AppResult Engine::Iterate() {
     // This copy only maps the reduced Novel raster back to the fitted physical
     // presentation, avoiding a second upscaler pass over the whole frame.
     const float heightScale = runtime.narrativePresentationHeightScale();
-    if (!std::isfinite(heightScale) || heightScale <= 0.0f || heightScale > 1.0f)
+    if (!std::isfinite(heightScale) || heightScale <= 0.0f ||
+        heightScale > 1.0f)
       throw std::invalid_argument("Invalid Novel presentation height scale");
-    const SDL_FRect presentedNovel{0.0f,
-                                   novelView.y * (1.0f - heightScale) * 0.5f,
-                                   static_cast<float>(novelView.x),
-                                   novelView.y * heightScale};
+    const SDL_FRect presentedNovel{
+        0.0f, novelView.y * (1.0f - heightScale) * 0.5f,
+        static_cast<float>(novelView.x), novelView.y * heightScale};
     if (!SDL_RenderTexture(renderer.get(), novelTarget.get(), nullptr,
                            &presentedNovel))
       throw std::runtime_error(SDL_GetError());

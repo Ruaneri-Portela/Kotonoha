@@ -26,8 +26,8 @@ int main(int argc, char **argv) {
     Kotonoha::MediaPlayer player;
     player.open(argv[1], false);
     player.setPaused(true);
-    for (int attempt = 0; attempt < 100 &&
-         player.bufferedAudioSeconds() < 0.3; ++attempt) {
+    for (int attempt = 0; attempt < 100 && player.bufferedAudioSeconds() < 0.3;
+         ++attempt) {
       player.update(*renderer, 0);
       SDL_Delay(10);
     }
@@ -50,8 +50,8 @@ int main(int argc, char **argv) {
     SDL_Delay(100);
     require(std::abs(player.bufferedAudioSeconds() - paused) < 0.02,
             "Pause preserves queued audio");
-    for (int attempt = 0; attempt < 100 &&
-         player.bufferedAudioSeconds() < 0.3; ++attempt) {
+    for (int attempt = 0; attempt < 100 && player.bufferedAudioSeconds() < 0.3;
+         ++attempt) {
       player.update(*renderer, 0.5);
       SDL_Delay(10);
     }
@@ -61,8 +61,8 @@ int main(int argc, char **argv) {
     Kotonoha::MediaPlayer game;
     game.open(argv[1], false);
     game.setPaused(true);
-    for (int attempt = 0; attempt < 100 &&
-         game.bufferedAudioSeconds() < 0.3; ++attempt) {
+    for (int attempt = 0; attempt < 100 && game.bufferedAudioSeconds() < 0.3;
+         ++attempt) {
       game.update(*renderer, 0);
       SDL_Delay(10);
     }

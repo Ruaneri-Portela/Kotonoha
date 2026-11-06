@@ -25,7 +25,8 @@ namespace {
 }
 
 void Check(bool value, const std::string &message) {
-  if (!value) Fail(message);
+  if (!value)
+    Fail(message);
 }
 
 void Put(const fs::path &path, const std::string &data) {
@@ -97,9 +98,9 @@ struct CmapFixture {
 };
 
 struct TemporaryDirectory {
-  fs::path path = fs::temp_directory_path() /
-                  ("school-days-replay-ui-" +
-                   std::to_string(SDL_GetPerformanceCounter()));
+  fs::path path =
+      fs::temp_directory_path() /
+      ("school-days-replay-ui-" + std::to_string(SDL_GetPerformanceCounter()));
   TemporaryDirectory() {
     Check(fs::create_directory(path), "cannot create temporary directory");
   }
@@ -111,7 +112,8 @@ struct TemporaryDirectory {
 
 Kotonoha::SchoolDaysFlgHEntry IntegerEntry(const char *key, int32_t value) {
   Kotonoha::SchoolDaysFlgHEntry entry;
-  while (*key) entry.key.push_back(static_cast<char16_t>(*key++));
+  while (*key)
+    entry.key.push_back(static_cast<char16_t>(*key++));
   entry.type = 11;
   entry.integer = value;
   return entry;
@@ -132,21 +134,20 @@ void WriteFixtures(const fs::path &root, const fs::path &documents) {
       "[SkipFRAME]=00:01:00;\n"
       "[Next]=00:02:00;\n");
 
-  Put(root / "ini/FILMENGINE.INI",
-      "[UseEnglish]=\"1\"\n"
-      "[TextInput]=\"1\"\n"
-      "[FontData]=\"System/FONTDATA.DAT\"\n"
-      "[SaveFolder]=\"Save\"\n"
-      "[SaveFileName]=\"Save/SaveFile%d.DAT\"\n"
-      "[FlagFileName]=\"Save/GlobalFlag.DAT\"\n"
-      "[SaveConfig]=\"FILMEngine/SaveFile%d\"\n"
-      "[SeCancel]=\"Music/System/Cancel\"\n"
-      "[SeSelect]=\"Music/System/Select\"\n"
-      "[SeClick]=\"Music/System/Click\"\n"
-      "[SeUp]=\"Music/System/Up\"\n"
-      "[SeDown]=\"Music/System/Down\"\n"
-      "[SeView]=\"Music/System/View\"\n"
-      "[SeOpen]=\"Music/System/Open\"\n");
+  Put(root / "ini/FILMENGINE.INI", "[UseEnglish]=\"1\"\n"
+                                   "[TextInput]=\"1\"\n"
+                                   "[FontData]=\"System/FONTDATA.DAT\"\n"
+                                   "[SaveFolder]=\"Save\"\n"
+                                   "[SaveFileName]=\"Save/SaveFile%d.DAT\"\n"
+                                   "[FlagFileName]=\"Save/GlobalFlag.DAT\"\n"
+                                   "[SaveConfig]=\"FILMEngine/SaveFile%d\"\n"
+                                   "[SeCancel]=\"Music/System/Cancel\"\n"
+                                   "[SeSelect]=\"Music/System/Select\"\n"
+                                   "[SeClick]=\"Music/System/Click\"\n"
+                                   "[SeUp]=\"Music/System/Up\"\n"
+                                   "[SeDown]=\"Music/System/Down\"\n"
+                                   "[SeView]=\"Music/System/View\"\n"
+                                   "[SeOpen]=\"Music/System/Open\"\n");
 
   CmapFixture title;
   title.Rect(540, 550, 220, 100, 3); // title item 2: REPLAY
@@ -190,12 +191,12 @@ void WriteFixtures(const fs::path &root, const fs::path &documents) {
   Kotonoha::SchoolDaysFlgH global;
   global.entries.push_back(IntegerEntry("EndClear", -1));
   for (int i = 0; i < Kotonoha::SchoolDaysReplayModel::HSceneUnlockCount(); ++i)
-    global.entries.push_back(IntegerEntry(
-        Kotonoha::SchoolDaysReplayModel::HSceneUnlockKey(i), -1));
-  global.entries.push_back(StringEntry(u"FILMEngine/SaveFile10",
-                                       u"2026/11/01 07:2205"));
-  global.entries.push_back(StringEntry(u"FILMEngine/SaveFile10_Sub",
-                                       u"Replay slot ten"));
+    global.entries.push_back(
+        IntegerEntry(Kotonoha::SchoolDaysReplayModel::HSceneUnlockKey(i), -1));
+  global.entries.push_back(
+      StringEntry(u"FILMEngine/SaveFile10", u"2026/11/01 07:2205"));
+  global.entries.push_back(
+      StringEntry(u"FILMEngine/SaveFile10_Sub", u"Replay slot ten"));
   std::vector<uint8_t> globalBytes;
   std::string error;
   Check(Kotonoha::SchoolDaysPersistenceCodec::SerializeFlgH(
@@ -204,7 +205,8 @@ void WriteFixtures(const fs::path &root, const fs::path &documents) {
   Put(documents / "Save/GlobalFlag.DAT", globalBytes);
 }
 
-std::vector<uint8_t> BuildPlayDataSave(const char *route, const fs::path &root) {
+std::vector<uint8_t> BuildPlayDataSave(const char *route,
+                                       const fs::path &root) {
   Kotonoha::SchoolDaysKtrfSession source;
   Kotonoha_KtrfError error{};
   Check(source.Open(route, (root / "Script/English").string().c_str(), &error),
@@ -220,8 +222,8 @@ std::vector<uint8_t> BuildPlayDataSave(const char *route, const fs::path &root) 
   return bytes;
 }
 
-Kotonoha::EngineOptions Options(
-    const std::shared_ptr<SchoolDays::Assets> &assets) {
+Kotonoha::EngineOptions
+Options(const std::shared_ptr<SchoolDays::Assets> &assets) {
   Kotonoha::EngineOptions options;
   options.assets = assets;
   options.persistSettings = false;
@@ -296,20 +298,21 @@ public:
   }
 
   static void FinishInitialTitleFade(Runtime &runtime) {
-    runtime.updateFrontendTransition(static_cast<uint64_t>(SDL_GetTicks()) + 1000u);
+    runtime.updateFrontendTransition(static_cast<uint64_t>(SDL_GetTicks()) +
+                                     1000u);
   }
 
   static void FinishTitleChildFade(Runtime &runtime) {
-    runtime.updateFrontendTransition(static_cast<uint64_t>(SDL_GetTicks()) + 500u);
+    runtime.updateFrontendTransition(static_cast<uint64_t>(SDL_GetTicks()) +
+                                     500u);
   }
 
   static void FinishFrontendIncoming(Runtime &runtime) {
-    runtime.updateFrontendTransition(static_cast<uint64_t>(SDL_GetTicks()) + 1000u);
+    runtime.updateFrontendTransition(static_cast<uint64_t>(SDL_GetTicks()) +
+                                     1000u);
   }
 
-  static void ReturnToTitle(Runtime &runtime) {
-    runtime.openTitle();
-  }
+  static void ReturnToTitle(Runtime &runtime) { runtime.openTitle(); }
 
   static bool PlayDataOpen(const Runtime &runtime) {
     return runtime.playDataPlayback && runtime.playDataPlayback->IsOpen();
@@ -339,15 +342,20 @@ public:
   }
 
   static Kotonoha::Gameplay *PlayDataGameplay(const Runtime &runtime) {
-    return runtime.playDataPlayback ? runtime.playDataPlayback->CurrentGameplay() : nullptr;
+    return runtime.playDataPlayback
+               ? runtime.playDataPlayback->CurrentGameplay()
+               : nullptr;
   }
 
   static std::string PlayDataScene(const Runtime &runtime) {
-    return runtime.playDataPlayback ? runtime.playDataPlayback->CurrentScene().sceneKey
-                                    : std::string();
+    return runtime.playDataPlayback
+               ? runtime.playDataPlayback->CurrentScene().sceneKey
+               : std::string();
   }
 
-  static void SetPaused(Runtime &runtime, bool value) { runtime.paused = value; }
+  static void SetPaused(Runtime &runtime, bool value) {
+    runtime.paused = value;
+  }
   static bool Paused(const Runtime &runtime) { return runtime.paused; }
 
   static void OpenSave(Runtime &runtime) { runtime.openSaveLoad(true); }
@@ -397,7 +405,9 @@ public:
     return runtime.saveLoadPage;
   }
 
-  static const std::string &Status(const Runtime &runtime) { return runtime.status; }
+  static const std::string &Status(const Runtime &runtime) {
+    return runtime.status;
+  }
 };
 
 } // namespace SchoolDays
@@ -417,14 +427,16 @@ int main(int argc, char **argv) {
 
   SchoolDays::RuntimeReplayUiTestAccess::FinishInitialTitleFade(app.runtime);
   TitleClick(app.runtime, 600.0f, 590.0f);
-  Check(!app.runtime.panels().IsReplayOpen() &&
-            SchoolDays::RuntimeReplayUiTestAccess::HasTitleBgmOwner(app.runtime),
-        "Title->Replay changed child/BGM ownership before the 500ms fade handoff");
+  Check(
+      !app.runtime.panels().IsReplayOpen() &&
+          SchoolDays::RuntimeReplayUiTestAccess::HasTitleBgmOwner(app.runtime),
+      "Title->Replay changed child/BGM ownership before the 500ms fade "
+      "handoff");
   SchoolDays::RuntimeReplayUiTestAccess::FinishTitleChildFade(app.runtime);
   Check(app.runtime.panels().IsReplayOpen(),
         "100% title REPLAY activation did not open SceneView");
   Check(app.runtime.panels().Replay().CurrentView() ==
-            Kotonoha::SchoolDaysReplayModel::View::HScene &&
+                Kotonoha::SchoolDaysReplayModel::View::HScene &&
             app.runtime.panels().Replay().IsHSceneAvailable(0) &&
             app.runtime.panels().Replay().IsHSceneAvailable(40),
         "HScene unlock globals were not projected into Replay UI");
@@ -433,14 +445,15 @@ int main(int argc, char **argv) {
   SchoolDays::RuntimeReplayUiTestAccess::FinishFrontendIncoming(app.runtime);
 
   SchoolDays::RuntimeReplayUiTestAccess::FinishToReplay(app.runtime);
-  Check(app.runtime.panels().IsReplayOpen() &&
-            SchoolDays::RuntimeReplayUiTestAccess::HasSystemBgmOwner(app.runtime),
-        "temporary playback return did not restore Replay SystemBGM ownership");
+  Check(
+      app.runtime.panels().IsReplayOpen() &&
+          SchoolDays::RuntimeReplayUiTestAccess::HasSystemBgmOwner(app.runtime),
+      "temporary playback return did not restore Replay SystemBGM ownership");
   RenderMenu(app, "HScene page 0");
 
   PanelClick(app.runtime, 400.0f, 110.0f);
   Check(app.runtime.panels().Replay().CurrentView() ==
-            Kotonoha::SchoolDaysReplayModel::View::PlayData &&
+                Kotonoha::SchoolDaysReplayModel::View::PlayData &&
             app.runtime.panels().Replay().Page() == 0,
         "Replay did not navigate to PlayData");
   RenderMenu(app, "PlayData page 0");
@@ -457,31 +470,39 @@ int main(int argc, char **argv) {
   PanelClick(app.runtime, 200.0f, 200.0f);
   using Access = SchoolDays::RuntimeReplayUiTestAccess;
   using SaveAction = Kotonoha::SchoolDaysSaveLoadModel::Action;
-  Check(Access::ReplayDataLoading(app.runtime) &&
-            !Access::PlayDataOpen(app.runtime) &&
-            app.runtime.panels().IsReplayOpen(),
-        "Replay Data must show retail loading card before constructing PlayData");
+  Check(
+      Access::ReplayDataLoading(app.runtime) &&
+          !Access::PlayDataOpen(app.runtime) &&
+          app.runtime.panels().IsReplayOpen(),
+      "Replay Data must show retail loading card before constructing PlayData");
   Access::CompleteReplayDataLoading(app.runtime);
-  Check(Access::PlayDataOpen(app.runtime) && !app.runtime.panels().IsReplayOpen(),
+  Check(Access::PlayDataOpen(app.runtime) &&
+            !app.runtime.panels().IsReplayOpen(),
         "Replay Data row did not start isolated PlayData playback");
   Check(Access::PlayDataMenuBarProjectionExact(app.runtime),
-        "PlayData MenuBar projection did not expose Save/Load/BackLog + replay indicator");
+        "PlayData MenuBar projection did not expose Save/Load/BackLog + replay "
+        "indicator");
 
   auto *privateGameplay = Access::PlayDataGameplay(app.runtime);
   const std::string privateScene = Access::PlayDataScene(app.runtime);
   Access::SetPaused(app.runtime, true);
   Access::OpenSave(app.runtime);
-  Check(app.runtime.panels().IsSaveLoadOpen() && Access::SaveLoadOwnedByPlayData(app.runtime),
+  Check(app.runtime.panels().IsSaveLoadOpen() &&
+            Access::SaveLoadOwnedByPlayData(app.runtime),
         "PlayData SAVE did not open the retail SaveLoad host");
   Access::SaveLoadAction(app.runtime, SaveAction::Close);
-  Check(!app.runtime.panels().IsSaveLoadOpen() && Access::PlayDataOpen(app.runtime) &&
-            Access::PlayDataGameplay(app.runtime) == privateGameplay &&
-            Access::PlayDataScene(app.runtime) == privateScene && Access::Paused(app.runtime),
-        "closing nested PlayData SaveLoad changed playback owner or user pause");
+  Check(
+      !app.runtime.panels().IsSaveLoadOpen() &&
+          Access::PlayDataOpen(app.runtime) &&
+          Access::PlayDataGameplay(app.runtime) == privateGameplay &&
+          Access::PlayDataScene(app.runtime) == privateScene &&
+          Access::Paused(app.runtime),
+      "closing nested PlayData SaveLoad changed playback owner or user pause");
   Access::SetPaused(app.runtime, false);
 
   Access::OpenLoad(app.runtime);
-  Check(app.runtime.panels().IsSaveLoadOpen() && Access::SaveLoadOwnedByPlayData(app.runtime),
+  Check(app.runtime.panels().IsSaveLoadOpen() &&
+            Access::SaveLoadOwnedByPlayData(app.runtime),
         "PlayData LOAD did not open the retail SaveLoad host");
   Access::SaveLoadAction(app.runtime, SaveAction::RouteMap);
   Check(app.runtime.panels().IsSaveLoadOpen() &&
@@ -489,22 +510,29 @@ int main(int argc, char **argv) {
             Access::SaveLoadOwnedByPlayData(app.runtime),
         "nested PlayData LOAD leaked into RouteMap");
   Access::SaveLoadAction(app.runtime, SaveAction::LoadSlotRequested, 99);
-  Check(app.runtime.panels().IsSaveLoadOpen() && Access::SaveLoadOwnedByPlayData(app.runtime),
+  Check(app.runtime.panels().IsSaveLoadOpen() &&
+            Access::SaveLoadOwnedByPlayData(app.runtime),
         "invalid nested PlayData LOAD closed its modal");
 
-  Access::AppendPlayDataBackLog(app.runtime, 1, u"private before oracle-only load");
-  const size_t privateBackLogBeforeLoad = Access::PlayDataBackLogSize(app.runtime);
+  Access::AppendPlayDataBackLog(app.runtime, 1,
+                                u"private before oracle-only load");
+  const size_t privateBackLogBeforeLoad =
+      Access::PlayDataBackLogSize(app.runtime);
   Access::SaveLoadAction(app.runtime, SaveAction::LoadSlotRequested, 10);
   Check(!app.runtime.panels().IsSaveLoadOpen() &&
             Access::PlayDataGameplay(app.runtime) == privateGameplay &&
             Access::PlayDataScene(app.runtime) == privateScene &&
-            Access::PlayDataBackLogSize(app.runtime) == privateBackLogBeforeLoad,
-        "armed PlayData LOAD changed checkpoint/gameplay or reset private BackLog");
+            Access::PlayDataBackLogSize(app.runtime) ==
+                privateBackLogBeforeLoad,
+        "armed PlayData LOAD changed checkpoint/gameplay or reset private "
+        "BackLog");
 
   Access::AppendNarrativeBackLog(app.runtime, 7, u"retained narrative entry");
-  const size_t narrativeBackLogBefore = Access::NarrativeBackLogSize(app.runtime);
+  const size_t narrativeBackLogBefore =
+      Access::NarrativeBackLogSize(app.runtime);
   Access::OpenBackLog(app.runtime);
-  Check(app.runtime.backlogOpen() && Access::BackLogOwnedByPlayData(app.runtime),
+  Check(app.runtime.backlogOpen() &&
+            Access::BackLogOwnedByPlayData(app.runtime),
         "PlayData BackLog did not bind the private store");
   Access::SaveLoadAction(app.runtime, SaveAction::None);
   SDL_Event escape{};
@@ -516,7 +544,8 @@ int main(int argc, char **argv) {
         "PlayData BackLog close mutated retained narrative BackLog");
 
   Access::OpenSave(app.runtime);
-  Check(app.runtime.panels().IsSaveLoadOpen() && Access::SaveLoadOwnedByPlayData(app.runtime),
+  Check(app.runtime.panels().IsSaveLoadOpen() &&
+            Access::SaveLoadOwnedByPlayData(app.runtime),
         "PlayData SAVE reopen failed");
   Motion(app.runtime, 120.0f, 180.0f);
   PanelClick(app.runtime, 120.0f, 180.0f);
@@ -531,16 +560,20 @@ int main(int argc, char **argv) {
                          u"PlayData private save");
   Check(app.runtime.panels().IsSaveLoadOpen() &&
             Access::SaveLoadOwnedByPlayData(app.runtime),
-        "PlayData SAVE closed its modal after slot request: " + Access::Status(app.runtime));
+        "PlayData SAVE closed its modal after slot request: " +
+            Access::Status(app.runtime));
   Check(Access::SaveLoadPageRefreshMarker(app.runtime) == -1,
-        "PlayData SAVE did not invalidate metadata page: " + Access::Status(app.runtime));
+        "PlayData SAVE did not invalidate metadata page: " +
+            Access::Status(app.runtime));
   Check(fs::is_regular_file(documents / "Save/SaveFile11.DAT"),
-        "PlayData SAVE did not write SaveFile11: " + Access::Status(app.runtime));
+        "PlayData SAVE did not write SaveFile11: " +
+            Access::Status(app.runtime));
 
   SchoolDays::RuntimeReplayUiTestAccess::ReturnToTitle(app.runtime);
-  Check(!app.runtime.panels().IsReplayOpen() &&
-            SchoolDays::RuntimeReplayUiTestAccess::HasTitleBgmOwner(app.runtime),
-        "return to Title did not restore TitleBGM ownership");
+  Check(
+      !app.runtime.panels().IsReplayOpen() &&
+          SchoolDays::RuntimeReplayUiTestAccess::HasTitleBgmOwner(app.runtime),
+      "return to Title did not restore TitleBGM ownership");
 
   std::cout << "SchoolDaysReplayRuntimeUiTest PASS\n";
   return 0;
