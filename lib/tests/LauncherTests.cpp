@@ -104,6 +104,33 @@ void gameLauncher(const std::filesystem::path &directory) {
   require(std::filesystem::equivalent(reopened.path(), root) &&
               reopened.pathValid(),
           "The original single-path launcher remembers its path");
+
+  const auto external = directory.parent_path() /
+                        (directory.filename().string() + "-external-game");
+  struct RemoveExternal {
+    std::filesystem::path path;
+    ~RemoveExternal() {
+      std::error_code error;
+      std::filesystem::remove_all(path, error);
+    }
+  } cleanup{external};
+  std::filesystem::create_directory(external);
+  const auto externalSettings = (directory / "external-settings.json").string();
+  {
+    TestGameLauncher selected(externalSettings, external.string());
+    selected.open();
+    selected.iterate();
+    require(selected.pathValid() && selected.launch(),
+            "External game root is valid");
+    selected.close();
+  }
+  require(GameLauncher::rememberedPath(externalSettings, "game-path.txt") ==
+              external.string(),
+          "External game roots keep their full path");
+  TestGameLauncher externalReopened(externalSettings, "");
+  require(externalReopened.path() == external.string() &&
+              externalReopened.pathValid(),
+          "External game root reopens after saving");
 }
 
 void launcher(const std::filesystem::path &directory) {
@@ -192,6 +219,9 @@ void launcher(const std::filesystem::path &directory) {
   EngineOptions options;
   options.settingsPath = path;
   options.rendererOverride = "software";
+  std::filesystem::create_directories(directory / "assets/fonts");
+  std::filesystem::copy_file(KOTONOHA_TEST_FONT,
+                             directory / "assets/fonts/font.ttf");
   {
     Engine engine(runtime, options);
     require(engine.GetSettings().upscaling.factor == 2.5f &&

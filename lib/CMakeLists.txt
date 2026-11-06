@@ -14,7 +14,7 @@ set(SDL_TEST_LIBRARY OFF CACHE BOOL "Disable SDL test library")
 set(SDL_TESTS OFF CACHE BOOL "Disable SDL tests")
 set(SDL_EXAMPLES OFF CACHE BOOL "Disable SDL examples")
 # Kotonoha::ShiftJisToUtf8 needs CP932 (libc iconv on macOS/Linux).
-# Windows uses its native CP932 mapping and Iconv::Iconv for other encodings.
+# Windows uses its native CP932 mapping and SDL's converter for other encodings.
 set(SDL_SYSTEM_ICONV ON CACHE BOOL "Use iconv() from system-installed libraries" FORCE)
 set(SDLTTF_SAMPLES OFF CACHE BOOL "Disable SDL_ttf examples")
 set(SDLTTF_VENDORED OFF CACHE BOOL "Use system FreeType/HarfBuzz/PlutoSVG")
@@ -22,6 +22,29 @@ set(SDLTTF_STRICT ON CACHE BOOL "Require enabled SDL_ttf dependencies")
 set(SDLTTF_PLUTOSVG ON CACHE BOOL "Optional SVG emoji support")
 set(KOTONOHA_SDL_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/submodules/SDL"
     CACHE PATH "SDL3 sources (Android uses a pinned remote Git checkout)")
+
+# SDL_ttf discovers HarfBuzz through pkg-config while its subdirectory is
+# configured.  In Android manifest mode vcpkg installs pkgconf for the build
+# host under <installed>/<host-triplet>/tools/pkgconf, which is not guaranteed
+# to be on CMAKE_PROGRAM_PATH.  Find it before adding SDL_ttf so HarfBuzz's
+# required C++ runtime is propagated as -lc++ instead of being omitted.
+if(ANDROID AND NOT PKG_CONFIG_EXECUTABLE AND VCPKG_INSTALLED_DIR)
+    if(CMAKE_HOST_WIN32)
+        set(kotonoha_pkgconf_name "pkgconf.exe")
+    else()
+        set(kotonoha_pkgconf_name "pkgconf")
+    endif()
+    file(GLOB kotonoha_pkgconf_candidates LIST_DIRECTORIES FALSE
+        "${VCPKG_INSTALLED_DIR}/*/tools/pkgconf/${kotonoha_pkgconf_name}")
+    foreach(kotonoha_pkgconf_candidate IN LISTS kotonoha_pkgconf_candidates)
+        if(NOT kotonoha_pkgconf_candidate MATCHES "[/\\]android[/\\]")
+            set(PKG_CONFIG_EXECUTABLE "${kotonoha_pkgconf_candidate}" CACHE FILEPATH
+                "pkg-config compatible executable" FORCE)
+            break()
+        endif()
+    endforeach()
+endif()
+
 add_subdirectory("${KOTONOHA_SDL_SOURCE_DIR}" "${CMAKE_CURRENT_BINARY_DIR}/SDL" EXCLUDE_FROM_ALL)
 if(ANDROID)
     # Use vcpkg's CMake target rather than SDL_ttf's pkg-config fallback,
@@ -36,9 +59,41 @@ if(ANDROID)
     set_property(TARGET ${_ttf_target} PROPERTY LINKER_LANGUAGE CXX)
 endif()
 find_package(PkgConfig REQUIRED)
-pkg_check_modules(LIBASS REQUIRED IMPORTED_TARGET libass>=0.17)
-set(kotonoha_ass_target PkgConfig::LIBASS)
 if(ANDROID)
+    # FindPkgConfig resolves HarfBuzz's `-lc++` to the NDK host archive
+    # (prebuilt/windows-x86_64/lib/libc++.a) when an IMPORTED_TARGET is
+    # created while cross-compiling.  That archive is not an Android ELF
+    # library and makes the final libkotonoha.so link fail.  Use pkg-config
+    # only for libass metadata on Android, then bind the static Android
+    # libraries and their CMake targets explicitly.  The Android clang++
+    # driver remains responsible for selecting c++_shared.
+    pkg_check_modules(LIBASS REQUIRED libass>=0.17)
+    find_package(harfbuzz CONFIG REQUIRED)
+    find_package(Freetype CONFIG REQUIRED)
+    find_package(Threads REQUIRED)
+
+    if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+        set(kotonoha_vcpkg_library_dir
+            "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/debug/lib")
+    else()
+        set(kotonoha_vcpkg_library_dir
+            "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/lib")
+    endif()
+    find_library(KOTONOHA_LIBASS_LIBRARY NAMES ass
+        PATHS "${kotonoha_vcpkg_library_dir}" NO_DEFAULT_PATH REQUIRED)
+    find_library(KOTONOHA_FRIBIDI_LIBRARY NAMES fribidi
+        PATHS "${kotonoha_vcpkg_library_dir}" NO_DEFAULT_PATH REQUIRED)
+    add_library(kotonoha_ass INTERFACE)
+    target_include_directories(kotonoha_ass INTERFACE ${LIBASS_INCLUDE_DIRS})
+    target_link_libraries(kotonoha_ass INTERFACE
+        "${KOTONOHA_LIBASS_LIBRARY}"
+        "${KOTONOHA_FRIBIDI_LIBRARY}"
+        harfbuzz::harfbuzz
+        Freetype::Freetype
+        Threads::Threads
+        m)
+    set(kotonoha_ass_target kotonoha_ass)
+
     find_package(FFMPEG REQUIRED)
     find_package(json-c CONFIG REQUIRED)
     add_library(kotonoha_ffmpeg INTERFACE)
@@ -46,20 +101,13 @@ if(ANDROID)
     target_link_libraries(kotonoha_ffmpeg INTERFACE ${FFMPEG_LIBRARIES})
     set(kotonoha_ffmpeg_target kotonoha_ffmpeg)
     set(kotonoha_json_target json-c::json-c)
-    # libass is a static vcpkg library on Android; include its private
-    # FreeType/HarfBuzz/FriBidi dependencies in the final shared engine.
-    # The NDK toolchain supplies the selected C++ runtime. HarfBuzz's .pc
-    # exports -lc++, which FindPkgConfig can resolve to a host archive.
-    get_target_property(_ass_libraries PkgConfig::LIBASS INTERFACE_LINK_LIBRARIES)
-    list(FILTER _ass_libraries EXCLUDE REGEX "(^|[/\\\\])libc\\+\\+\\.(a|so)$|^c\\+\\+$")
-    set_property(TARGET PkgConfig::LIBASS PROPERTY
-        INTERFACE_LINK_LIBRARIES "${_ass_libraries}")
-    list(REMOVE_ITEM LIBASS_STATIC_LIBRARIES c++)
-    target_link_directories(PkgConfig::LIBASS INTERFACE ${LIBASS_STATIC_LIBRARY_DIRS})
-    target_link_libraries(PkgConfig::LIBASS INTERFACE ${LIBASS_STATIC_LIBRARIES})
-    target_link_options(PkgConfig::LIBASS INTERFACE ${LIBASS_STATIC_LDFLAGS_OTHER})
+    # Android uses the kotonoha_ass INTERFACE target above, which already
+    # links the static libass and all explicit private dependencies. Do not
+    # touch PkgConfig::LIBASS here: the metadata-only pkg_check_modules call
+    # deliberately does not create an IMPORTED_TARGET in this branch.
 else()
-    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(LIBASS REQUIRED IMPORTED_TARGET libass>=0.17)
+    set(kotonoha_ass_target PkgConfig::LIBASS)
     pkg_check_modules(FFMPEG REQUIRED IMPORTED_TARGET
         libavformat libavcodec libavutil libswscale libswresample)
     pkg_check_modules(JSON_C REQUIRED IMPORTED_TARGET json-c>=0.15)
@@ -92,10 +140,13 @@ add_library(KotonohaEngine SHARED
     src/core/FileSystem.cpp
     src/core/Log.cpp
     src/core/OpenGL.cpp
+    src/core/PresentedFrame.cpp
+    src/core/VisualTransition.cpp
     src/core/Settings.cpp
     src/core/Runtime.cpp
     src/core/UI.cpp
     src/componentes/ChoiceQuestionScene.cpp
+    src/componentes/DisplayModeCatalog.cpp
     src/componentes/FadeScene.cpp
     src/componentes/GameMenu.cpp
     src/componentes/InGameMenu.cpp
@@ -121,12 +172,14 @@ add_library(KotonohaEngine SHARED
     src/media/MediaPlayer.cpp
     src/media/AudioMixer.cpp
     src/media/PcmPlayer.cpp
+    src/media/TextureAlpha.cpp
     src/media/Ps2Tim2.cpp
     src/media/CriAudio.cpp
     src/media/Ps2SoundBank.cpp
     src/media/upscaling/Upscaler.cpp
     src/media/upscaling/MPVCompatibleUpscaler.cpp
     src/media/upscaling/MetalFXUpscaler.mm
+    src/mobile/AndroidDisplay.cpp
     src/mcp/MCPServer.cpp
     src/script/Timeline.cpp
     src/script/TimelinePlayer.cpp
@@ -154,17 +207,16 @@ if(ANDROID)
 else()
     set_target_properties(KotonohaEngine PROPERTIES OUTPUT_NAME kotonoha)
 endif()
+if(KOTONOHA_DEV_CONTROL AND WIN32 AND NOT ANDROID)
+    target_compile_definitions(KotonohaEngine PRIVATE KOTONOHA_DEV_CONTROL=1)
+endif()
 target_include_directories(KotonohaEngine PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
 target_link_libraries(KotonohaEngine PUBLIC SDL3::SDL3 SDL3_ttf::SDL3_ttf
     ${kotonoha_ffmpeg_target} kotonoha_imgui PRIVATE
     ${kotonoha_json_target} ${kotonoha_ass_target})
-
-if(WIN32)
-    # SDL's system-iconv probe does not use vcpkg's imported target/include
-    # directories. ConvertEncoding therefore uses Iconv::Iconv directly.
-    find_package(Iconv REQUIRED)
-    target_link_libraries(KotonohaEngine PRIVATE Iconv::Iconv)
+if(WIN32 AND NOT ANDROID)
+    target_link_libraries(KotonohaEngine PRIVATE user32)
 endif()
 
 if(ANDROID)

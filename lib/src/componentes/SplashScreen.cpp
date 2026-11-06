@@ -123,6 +123,7 @@ void SplashScreen::load(RendererRef renderer) {
       continue;
     }
     SDL_SetTextureScaleMode(texture.get(), SDL_SCALEMODE_LINEAR);
+    SDL_SetTextureBlendMode(texture.get(), SDL_BLENDMODE_BLEND);
     loaded = true;
     startedNs = SDL_GetTicksNS();
   }
@@ -174,9 +175,13 @@ void SplashScreen::render(RendererRef renderer, float) {
   const SDL_FRect target{(screen.w - textureWidth * fit) / 2,
                          (screen.h - textureHeight * fit) / 2,
                          textureWidth * fit, textureHeight * fit};
-  const double alpha = std::clamp(elapsed() / fadeSeconds, 0.0, 1.0);
+  const double time = elapsed();
+  const double alpha = std::clamp(
+      std::min(time, displaySeconds - time) / fadeSeconds, 0.0, 1.0);
   if (!SDL_SetTextureAlphaModFloat(display, static_cast<float>(alpha)) ||
       !SDL_RenderTexture(&renderer, display, nullptr, &target))
+    throw std::runtime_error(SDL_GetError());
+  if (!SDL_SetTextureAlphaModFloat(display, 1.0f))
     throw std::runtime_error(SDL_GetError());
 }
 

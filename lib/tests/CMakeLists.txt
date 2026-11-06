@@ -1,4 +1,7 @@
 add_executable(KotonohaInfrastructureTests InfrastructureTests.cpp)
+add_executable(KotonohaDisplayModeCatalogTests DisplayModeCatalogTests.cpp)
+target_link_libraries(KotonohaDisplayModeCatalogTests PRIVATE Kotonoha::Engine)
+add_test(NAME Kotonoha.DisplayModeCatalog COMMAND KotonohaDisplayModeCatalogTests)
 add_executable(KotonohaDirectoryTests DirectoryTests.cpp)
 target_link_libraries(KotonohaDirectoryTests PRIVATE Kotonoha::Engine)
 add_test(NAME Kotonoha.Directories COMMAND KotonohaDirectoryTests)
@@ -19,6 +22,11 @@ kotonoha_copy_assets(KotonohaInfrastructureTests)
 add_test(NAME Kotonoha.Infrastructure COMMAND KotonohaInfrastructureTests)
 set_tests_properties(Kotonoha.Infrastructure PROPERTIES
     ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_AUDIO_DRIVER=dummy")
+if(WIN32)
+    set_tests_properties(Kotonoha.Infrastructure PROPERTIES
+        ENVIRONMENT_MODIFICATION
+            "PATH=path_list_prepend:$<TARGET_FILE_DIR:KotonohaEngine>")
+endif()
 
 if(SDLTTF_PLUTOSVG)
     add_executable(KotonohaPlatformSmokeTests PlatformSmokeTests.cpp)
@@ -39,6 +47,11 @@ target_link_libraries(KotonohaAssetProviderTests PRIVATE Kotonoha::Engine)
 add_test(NAME Kotonoha.AssetProvider COMMAND KotonohaAssetProviderTests)
 set_tests_properties(Kotonoha.AssetProvider PROPERTIES
     ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_AUDIO_DRIVER=dummy")
+if(WIN32)
+    set_tests_properties(Kotonoha.AssetProvider PROPERTIES
+        ENVIRONMENT_MODIFICATION
+            "PATH=path_list_prepend:$<TARGET_FILE_DIR:KotonohaEngine>")
+endif()
 
 add_executable(KotonohaComponentHooksTests ComponentHooksTests.cpp)
 target_link_libraries(KotonohaComponentHooksTests PRIVATE Kotonoha::Engine)
@@ -52,8 +65,29 @@ add_test(NAME Kotonoha.MediaFormats COMMAND KotonohaMediaFormatsTests)
 set_tests_properties(Kotonoha.MediaFormats PROPERTIES
     ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_AUDIO_DRIVER=dummy")
 
+add_executable(KotonohaMediaAnalysisTests MediaAnalysisTests.cpp)
+target_link_libraries(KotonohaMediaAnalysisTests PRIVATE Kotonoha::Engine)
+add_test(NAME Kotonoha.MediaAnalysis COMMAND KotonohaMediaAnalysisTests)
+if(WIN32)
+    set_tests_properties(Kotonoha.MediaAnalysis PROPERTIES
+        ENVIRONMENT_MODIFICATION
+            "PATH=path_list_prepend:$<TARGET_FILE_DIR:KotonohaEngine>")
+endif()
+
+add_executable(KotonohaMediaPlayerRateTests MediaPlayerRateTests.cpp)
+target_link_libraries(KotonohaMediaPlayerRateTests PRIVATE Kotonoha::Engine)
+add_test(NAME Kotonoha.MediaPlayerRate COMMAND KotonohaMediaPlayerRateTests)
+if(WIN32)
+    set_tests_properties(Kotonoha.MediaPlayerRate PROPERTIES
+        ENVIRONMENT_MODIFICATION
+            "PATH=path_list_prepend:$<TARGET_FILE_DIR:KotonohaEngine>")
+endif()
+
 add_executable(KotonohaLauncherTests LauncherTests.cpp)
 target_link_libraries(KotonohaLauncherTests PRIVATE Kotonoha::Engine)
+kotonoha_copy_assets(KotonohaLauncherTests)
+target_compile_definitions(KotonohaLauncherTests PRIVATE
+    KOTONOHA_TEST_FONT="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/SvgTestFont.ttf")
 add_test(NAME Kotonoha.Launcher COMMAND KotonohaLauncherTests)
 set_tests_properties(Kotonoha.Launcher PROPERTIES
     ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_AUDIO_DRIVER=dummy")
@@ -103,3 +137,16 @@ kotonoha_copy_assets(KotonohaNativeInputTests)
 add_test(NAME Kotonoha.NativeInput COMMAND KotonohaNativeInputTests)
 set_tests_properties(Kotonoha.NativeInput PROPERTIES
     ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_AUDIO_DRIVER=dummy")
+
+# The Windows loader does not search the engine DLL output directory when CTest
+# launches test executables from lib/tests/Release. Apply the same runtime path
+# to every executable test; the CMake script fixtures do not load the engine.
+if(WIN32)
+    get_property(_kotonoha_tests DIRECTORY PROPERTY TESTS)
+    foreach(_test IN LISTS _kotonoha_tests)
+        if(NOT _test MATCHES "^Kotonoha\\.(PackageAssets|BundleContents|AudioBufferFixture)$")
+            set_property(TEST "${_test}" APPEND PROPERTY ENVIRONMENT_MODIFICATION
+                "PATH=path_list_prepend:$<TARGET_FILE_DIR:KotonohaEngine>")
+        endif()
+    endforeach()
+endif()

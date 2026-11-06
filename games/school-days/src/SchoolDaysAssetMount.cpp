@@ -1,6 +1,6 @@
 #include <Kotonoha/SchoolDaysAssetMount.hpp>
 #include <Kotonoha/SchoolDaysImageAssetResolver.hpp>
-#include <Kotonoha/core/AssetOverlay.hpp>
+#include <Kotonoha/core/AssetProvider.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -12,6 +12,7 @@
 #include <memory>
 #include <mutex>
 #include <new>
+#include <stdexcept>
 
 namespace Kotonoha {
 namespace {
@@ -24,6 +25,69 @@ std::shared_ptr<const SchoolDaysGpkAssetStore> CurrentMount() {
   std::lock_guard<std::mutex> guard(gMountMutex);
   return gMount;
 }
+
+class MountedRawAssetStream final : public AssetStream {
+    std::shared_ptr<const SchoolDaysGpkAssetStore> mount_;
+    std::ifstream file_;
+    std::vector<uint8_t> prefix_;
+    uint64_t bodyOffset_ = 0u;
+    uint64_t logicalSize_ = 0u;
+    uint64_t position_ = 0u;
+
+public:
+    MountedRawAssetStream(std::shared_ptr<const SchoolDaysGpkAssetStore> mount,
+                          const std::filesystem::path& path,
+                          std::vector<uint8_t> prefix, uint64_t bodyOffset,
+                          uint64_t logicalSize)
+        : mount_(std::move(mount)), file_(path, std::ios::binary),
+          prefix_(std::move(prefix)), bodyOffset_(bodyOffset),
+          logicalSize_(logicalSize) {
+        if (!file_) throw std::runtime_error("School Days GPK raw stream could not open archive");
+    }
+
+    uint64_t size() const override { return logicalSize_; }
+    uint64_t tell() const override { return position_; }
+
+    std::size_t read(Uint8* buffer, std::size_t size) override {
+        if (size == 0u || position_ >= logicalSize_) return 0u;
+        if (buffer == nullptr) throw std::invalid_argument("School Days GPK raw stream buffer is null");
+        const uint64_t requested = std::min<uint64_t>(
+            static_cast<uint64_t>(size), logicalSize_ - position_);
+        uint64_t done = 0u;
+        if (position_ < prefix_.size()) {
+            const uint64_t prefixBytes = std::min<uint64_t>(
+                requested, prefix_.size() - static_cast<std::size_t>(position_));
+            std::memcpy(buffer, prefix_.data() + static_cast<std::size_t>(position_),
+                        static_cast<std::size_t>(prefixBytes));
+            position_ += prefixBytes;
+            done += prefixBytes;
+        }
+        const uint64_t remaining = requested - done;
+        if (remaining == 0u) return static_cast<std::size_t>(done);
+        const uint64_t bodyPosition = position_ - prefix_.size();
+        const uint64_t physical = bodyOffset_ + bodyPosition;
+        if (physical > static_cast<uint64_t>(std::numeric_limits<std::streamoff>::max()) ||
+            remaining > static_cast<uint64_t>(std::numeric_limits<std::streamsize>::max())) {
+            throw std::runtime_error("School Days GPK raw stream range exceeds host I/O limits");
+        }
+        file_.clear();
+        file_.seekg(static_cast<std::streamoff>(physical), std::ios::beg);
+        if (!file_) throw std::runtime_error("School Days GPK raw stream seek failed");
+        file_.read(reinterpret_cast<char*>(buffer + done),
+                   static_cast<std::streamsize>(remaining));
+        const std::streamsize got = file_.gcount();
+        if (got <= 0) throw std::runtime_error("School Days GPK raw stream read failed");
+        position_ += static_cast<uint64_t>(got);
+        done += static_cast<uint64_t>(got);
+        return static_cast<std::size_t>(done);
+    }
+
+    bool seek(uint64_t position) override {
+        if (position > logicalSize_) return false;
+        position_ = position;
+        return true;
+    }
+};
 
 std::shared_ptr<const AssetOverlay> CurrentOverlay() {
   std::lock_guard<std::mutex> guard(gMountMutex);
@@ -287,6 +351,37 @@ bool ReadMountedSchoolDaysAsset(std::string_view logicalPath,
   if (mount == nullptr)
     return Fail(error, "School Days retail GPKs are not mounted");
   return mount->Read(CanonicalGpkLogical(logicalPath), out, error);
+}
+
+std::unique_ptr<AssetStream> OpenMountedSchoolDaysAssetStream(
+    std::string_view logicalPath) {
+    if (ResolveSchoolDaysOverlayFile(logicalPath, nullptr)) return {};
+    const auto mount = CurrentMount();
+    if (mount == nullptr) return {};
+    size_t archiveIndex = 0u;
+    size_t entryIndex = 0u;
+    const std::string canonical = CanonicalGpkLogical(logicalPath);
+    if (mount->Lookup(canonical, &archiveIndex, &entryIndex) !=
+        SchoolDaysGpkLookupStatus::Present) {
+        return {};
+    }
+    const SchoolDaysGpkArchive* archive = mount->Archive(archiveIndex);
+    if (archive == nullptr || entryIndex >= archive->Index().Entries().size()) return {};
+    const auto& entry = archive->Index().Entries()[entryIndex];
+    if (!entry.IsRaw()) return {};
+    const uint64_t bodySize = static_cast<uint64_t>(entry.PhysicalBodyLength());
+    const uint64_t physicalEnd = static_cast<uint64_t>(entry.offset) + bodySize;
+    if (physicalEnd < entry.offset || physicalEnd > archive->PidxOffset() ||
+        entry.inlinePrefix.size() > entry.storedLength) {
+        return {};
+    }
+    try {
+        return std::make_unique<MountedRawAssetStream>(
+            mount, archive->Path(), entry.inlinePrefix, entry.offset,
+            static_cast<uint64_t>(entry.storedLength));
+    } catch (...) {
+        return {};
+    }
 }
 
 std::string MakeSchoolDaysGpkUri(std::string_view logicalPath) {

@@ -65,6 +65,13 @@ public:
         int soundMenVoiceCurrent = 11; // native pair 10/11
         int soundMuteCurrent = 13;     // native pair 12/13
         std::array<int, 3> soundLevels{{0, 0, 0}}; // native range 0..10
+
+        // Custom Display CHIP highlights use the corrected CMAP IDs, not
+        // boolean flags: 5/6 Resizable, 7/8 VSync, 13..19 Scale factor.
+        // -1 means the host has not supplied a selected value yet.
+        int displayResizable = -1;
+        int displayVsync = -1;
+        int displayFactor = -1;
     };
 
     static Layout LayoutFor(SchoolDaysConfigMenuModel::Variant variant);

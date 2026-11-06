@@ -9,6 +9,8 @@ namespace Kotonoha {
 struct SubtitleCue {
   double start = 0, end = 0;
   std::string text, speaker;
+  // The source is already ASS event text (for example retail ORS \N breaks).
+  bool assText = false;
 };
 
 class SubtitleScene : public Scene {

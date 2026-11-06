@@ -63,32 +63,24 @@ std::filesystem::path androidDirectory(const char *method) {
     throw std::runtime_error("Android storage requires an SDL activity");
 
   jclass type = env->GetObjectClass(activity);
-  jmethodID id =
-      type ? env->GetMethodID(type, method, "()Ljava/lang/String;") : nullptr;
-
-  // A chamada precisa acontecer ENQUANTO activity ainda é um local ref válido
-  auto value =
-      id ? static_cast<jstring>(env->CallObjectMethod(activity, id)) : nullptr;
-
+  jmethodID id = type ? env->GetMethodID(type, method, "()Ljava/lang/String;") : nullptr;
+  auto value = id ? static_cast<jstring>(env->CallObjectMethod(activity, id)) : nullptr;
   if (env->ExceptionCheck() || !value) {
     if (env->ExceptionCheck()) {
       env->ExceptionDescribe();
       env->ExceptionClear();
     }
-    if (value)
-      env->DeleteLocalRef(value);
-    if (type)
-      env->DeleteLocalRef(type);
-    env->DeleteLocalRef(activity); // Libera o activity aqui
-    throw std::runtime_error(std::string("Cannot locate Android directory: ") +
-                             method);
+    if (value) env->DeleteLocalRef(value);
+    if (type) env->DeleteLocalRef(type);
+    env->DeleteLocalRef(activity);
+    throw std::runtime_error(std::string("Cannot locate Android directory: ") + method);
   }
 
   const char *text = env->GetStringUTFChars(value, nullptr);
   if (!text) {
     env->DeleteLocalRef(value);
     env->DeleteLocalRef(type);
-    env->DeleteLocalRef(activity); // Libera o activity aqui
+    env->DeleteLocalRef(activity);
     throw std::runtime_error("Cannot read Android storage path");
   }
 
@@ -96,8 +88,7 @@ std::filesystem::path androidDirectory(const char *method) {
   env->ReleaseStringUTFChars(value, text);
   env->DeleteLocalRef(value);
   env->DeleteLocalRef(type);
-  env->DeleteLocalRef(activity); // Libera o activity ao final de tudo
-
+  env->DeleteLocalRef(activity);
   if (result.empty())
     throw std::runtime_error(std::string("Empty Android directory: ") + method);
   return result;
@@ -447,6 +438,21 @@ FileResolver::findGameAsset(const std::string &game,
   if (auto found =
           findInDirectories(applicationDirectories(game).gameAssets, relative))
     return found;
+  std::error_code error;
+  for (const auto &root : roots(game))
+    for (const auto &candidate : {root / "game-assets" / relative,
+                                  root / "games" / game / "game-assets" / relative,
+                                  root / relative})
+      if (std::filesystem::exists(candidate, error))
+        return candidate;
+#ifdef __ANDROID__
+  // OBB data may hold the game files directly.
+  if (!targetGame.empty()) {
+    if (auto data = preferredDataDirectory(targetGame) / relative;
+        std::filesystem::exists(data, error))
+      return data;
+  }
+#endif
   return std::nullopt;
 }
 

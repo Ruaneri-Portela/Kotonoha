@@ -109,6 +109,9 @@ public:
                             Kotonoha_KtrfError* error);
 
     bool HasGlobalFlag() const { return hasGlobalFlag_; }
+    // RouteMap unlocks use the sparse persisted FlagsHash. KTRF global
+    // defaults are not evidence that a checkpoint was visited.
+    bool GlobalIntegerIsSet(const std::string& key) const;
     bool HasSaveLog() const { return hasSaveLog_; }
     const SchoolDaysFlgH& GlobalFlagDocument() const { return globalFlag_; }
     const SchoolDaysSLog& SaveLogDocument() const { return saveLog_; }

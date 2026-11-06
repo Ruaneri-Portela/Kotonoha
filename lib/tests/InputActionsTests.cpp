@@ -95,13 +95,13 @@ int main() {
     check(MapControllerEvent(pad(SDL_GAMEPAD_BUTTON_EAST)).key.key ==
                   SDLK_RETURN &&
               MapControllerEvent(pad(SDL_GAMEPAD_BUTTON_SOUTH)).key.key ==
-                  SDLK_ESCAPE &&
+                  SDLK_AC_BACK &&
               MapControllerEvent(pad(SDL_GAMEPAD_BUTTON_SOUTH), true).key.key ==
                   SDLK_LCTRL,
           "Controller confirm/cancel mapping honors the dialogue context");
     check(MapControllerEvent(pad(SDL_GAMEPAD_BUTTON_WEST)).key.key == SDLK_S &&
               MapControllerEvent(pad(SDL_GAMEPAD_BUTTON_NORTH)).key.key ==
-                  SDLK_ESCAPE &&
+                  SDLK_AC_BACK &&
               MapControllerEvent(pad(SDL_GAMEPAD_BUTTON_START)).key.key ==
                   SDLK_ESCAPE &&
               MapControllerEvent(pad(SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER))
@@ -139,7 +139,7 @@ int main() {
     check(swappedSouth.gbutton.button == SDL_GAMEPAD_BUTTON_EAST &&
               MapControllerEvent(swappedSouth).key.key == SDLK_RETURN &&
               swappedEast.gbutton.button == SDL_GAMEPAD_BUTTON_SOUTH &&
-              MapControllerEvent(swappedEast).key.key == SDLK_ESCAPE,
+              MapControllerEvent(swappedEast).key.key == SDLK_AC_BACK,
           "A/B swap exchanges physical confirm and cancel");
     check(NormalizeControllerEvent(pad(SDL_GAMEPAD_BUTTON_DPAD_UP), true)
                       .gbutton.button == SDL_GAMEPAD_BUTTON_DPAD_UP &&

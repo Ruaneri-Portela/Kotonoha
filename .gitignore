@@ -1,4 +1,4 @@
-# Created by https://www.toptal.com/developers/gitignore/api/visualstudio,visualstudiocode,androidstudio,c++,java,macos,vcpkg,cmake
+﻿# Created by https://www.toptal.com/developers/gitignore/api/visualstudio,visualstudiocode,androidstudio,c++,java,macos,vcpkg,cmake
 # Edit at https://www.toptal.com/developers/gitignore?templates=visualstudio,visualstudiocode,androidstudio,c++,java,macos,vcpkg,cmake
 
 ### C++ ###
@@ -292,7 +292,10 @@ mono_crash.*
 !src/runtime/debug/
 !src/runtime/debug/**
 ![Ii]nclude/Kotonoha/[Dd]ebug/
-![Gg]ames/school-days/include/Kotonoha/[Dd]ebug/
+!lib/src/debug/
+!lib/src/debug/**
+!lib/include/Kotonoha/debug/
+!lib/include/Kotonoha/debug/**![Gg]ames/school-days/include/Kotonoha/[Dd]ebug/
 ![Gg]ames/school-days/include/Kotonoha/[Dd]ebug/**
 [Dd]ebugPublic/
 [Rr]elease/
@@ -679,6 +682,7 @@ games-assets/*
 !assets/ArtCNN/
 !assets/icon.ico
 !assets/icon.png
+!assets/SPLASH.PNG
 .research/
 *.ini
 .vscode
@@ -702,6 +706,7 @@ games-assets/*
 /Android/app/build/
 /Android/app/.cxx/
 /Android/local.properties
+Xcode/Python.xcframework
 !lib/src/debug/
 !lib/src/debug/**
 !lib/include/Kotonoha/debug

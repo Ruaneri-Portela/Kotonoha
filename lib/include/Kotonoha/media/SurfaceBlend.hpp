@@ -22,18 +22,18 @@ inline void BlitSurfaceOpacity(SurfaceRef source, SurfaceRef destination,
     input = converted.get();
   }
   if (!useMask && opacity < 255) {
-    if (input->format != SDL_PIXELFORMAT_RGBA32 &&
-        input->format != SDL_PIXELFORMAT_RGBX32) {
-      converted.reset(SDL_ConvertSurface(input, SDL_PIXELFORMAT_RGBA32));
-      if (!converted)
-        throw std::runtime_error(SDL_GetError());
-      input = converted.get();
-    }
-    opaqueView.reset(SDL_CreateSurfaceFrom(input->w, input->h,
-                                           SDL_PIXELFORMAT_RGBX32,
-                                           input->pixels, input->pitch));
+    opaqueView.reset(SDL_ConvertSurface(input, SDL_PIXELFORMAT_RGBA32));
     if (!opaqueView)
       throw std::runtime_error(SDL_GetError());
+    // A legacy RGB copy ignores the source mask. Make the temporary pixels
+    // opaque before applying the requested global alpha through SDL.
+    const auto *format = SDL_GetPixelFormatDetails(SDL_PIXELFORMAT_RGBA32);
+    for (int y = 0; y < opaqueView->h; ++y) {
+      auto *row = reinterpret_cast<Uint32 *>(
+          static_cast<Uint8 *>(opaqueView->pixels) + y * opaqueView->pitch);
+      for (int x = 0; x < opaqueView->w; ++x)
+        row[x] |= format->Amask;
+    }
     input = opaqueView.get();
   }
   struct Restore {

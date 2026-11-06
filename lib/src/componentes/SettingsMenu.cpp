@@ -1,4 +1,5 @@
 #include "../debug/ImGuiTheme.hpp"
+#include <Kotonoha/componentes/DisplayModeCatalog.hpp>
 #include <Kotonoha/componentes/SettingsMenu.hpp>
 #include <Kotonoha/core/Appearance.hpp>
 #include <Kotonoha/core/Engine.hpp>
@@ -10,6 +11,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <optional>
 #include <stdexcept>
 
 namespace Kotonoha {
@@ -70,25 +72,58 @@ void SettingsMenu::activate(int index, int direction) {
     draft.mode =
         static_cast<WindowMode>((static_cast<int>(draft.mode) + 1) % 3);
   else if (index == 1) {
-    constexpr int sizes[][2]{
-        {960, 540}, {1280, 720}, {1600, 900}, {1920, 1080}};
-    int next = 0;
-    for (int i = 0; i < 4; ++i)
-      if (sizes[i][0] == draft.width && sizes[i][1] == draft.height)
-        next = (i + 1) % 4;
-    draft.width = sizes[next][0];
-    draft.height = sizes[next][1];
-    draft.fullscreenWidth = draft.width;
-    draft.fullscreenHeight = draft.height;
+    int count = 0;
+    SDL_DisplayID *displays = SDL_GetDisplays(&count);
+    if (!displays || count < 1) {
+      if (displays) SDL_free(displays);
+      throw std::runtime_error("No displays available");
+    }
+    const SDL_DisplayID display = displays[std::clamp(draft.display, 0, count - 1)];
+    SDL_free(displays);
+    const auto available = DisplayModeCatalog::Enumerate(display);
+    if (available.empty())
+      throw std::runtime_error("No supported resolutions for this monitor");
+    const SDL_DisplayMode *desktop = SDL_GetDesktopDisplayMode(display);
+    const bool nativeBorderless = draft.mode == WindowMode::Borderless && desktop;
+    const int width = nativeBorderless ? desktop->w :
+                      (draft.mode == WindowMode::Windowed || draft.fullscreenWidth <= 0
+                           ? draft.width : draft.fullscreenWidth);
+    const int height = nativeBorderless ? desktop->h :
+                       (draft.mode == WindowMode::Windowed || draft.fullscreenHeight <= 0
+                            ? draft.height : draft.fullscreenHeight);
+    const float refreshRate = nativeBorderless ? desktop->refresh_rate : draft.refreshRate;
+    const int current = DisplayModeCatalog::FindSelected(
+        available, width, height, refreshRate);
+    std::vector<std::string> labels;
+    labels.reserve(available.size());
+    for (const auto &mode : available)
+      labels.push_back(DisplayModeCatalog::Label(mode));
+    // The shared selector supports wheel, touch, controller/keyboard and a
+    // scroll thumb; do not truncate the driver's list to a fixed preset array.
+    selectBox.open("Monitor resolutions / refresh rates", std::move(labels),
+                   current, [this, available, desktopMode = desktop ?
+                   std::optional<SDL_DisplayMode>(*desktop) : std::nullopt](int choice) {
+      DisplayModeCatalog::Select(draft, available.at(choice),
+                                 desktopMode ? &*desktopMode : nullptr);
+    });
   } else if (index == 2) {
     int count = 0;
     auto *displays = SDL_GetDisplays(&count);
     if (!displays)
       throw std::runtime_error(SDL_GetError());
-    SDL_free(displays);
-    if (count < 1)
+    if (count < 1) {
+      SDL_free(displays);
       throw std::runtime_error("No displays available");
+    }
     draft.display = (draft.display + 1) % count;
+    if (const SDL_DisplayMode *desktop = SDL_GetDesktopDisplayMode(displays[draft.display])) {
+      // Fullscreen modes are monitor-specific; don't carry an unsupported
+      // exclusive tuple to the next monitor when the player switches it.
+      draft.fullscreenWidth = desktop->w;
+      draft.fullscreenHeight = desktop->h;
+      draft.refreshRate = desktop->refresh_rate;
+    }
+    SDL_free(displays);
   } else if (index == 3)
     draft.resizable = !draft.resizable;
   else if (index == 4)
@@ -310,10 +345,27 @@ void SettingsMenu::render(RendererRef renderer) {
                                 "Exclusive fullscreen"};
   constexpr const char *backends[]{"Off", "Linear (SDL)", "MPV / OpenGL",
                                    "MetalFX", "Automatic"};
+  DisplayModeChoice shown{draft.width, draft.height, draft.refreshRate};
+  if (draft.mode != WindowMode::Windowed && draft.fullscreenWidth > 0 &&
+      draft.fullscreenHeight > 0) {
+    shown.width = draft.fullscreenWidth;
+    shown.height = draft.fullscreenHeight;
+  }
+  if (draft.mode == WindowMode::Borderless) {
+    int count = 0;
+    SDL_DisplayID *displays = SDL_GetDisplays(&count);
+    if (displays && draft.display >= 0 && draft.display < count) {
+      if (const auto *desktop = SDL_GetDesktopDisplayMode(displays[draft.display]))
+        shown = {desktop->w, desktop->h, desktop->refresh_rate};
+    }
+    if (displays) SDL_free(displays);
+  }
+  const std::string resolutionLabel = shown.refreshRate > 0.0f
+      ? DisplayModeCatalog::Label(shown)
+      : std::to_string(shown.width) + " x " + std::to_string(shown.height);
   const std::vector<std::string> labels{
       std::string("Mode: ") + modes[int(draft.mode)],
-      "Resolution: " + std::to_string(draft.width) + " x " +
-          std::to_string(draft.height),
+      "Resolution: " + resolutionLabel + "  (select...) ",
       "Monitor: " + std::to_string(draft.display + 1),
       std::string("Resizable: ") + (draft.resizable ? "Yes" : "No"),
       std::string("VSync: ") + (draft.vsync ? "Yes" : "No"),

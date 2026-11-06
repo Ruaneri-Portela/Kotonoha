@@ -1,11 +1,10 @@
-#include <Kotonoha/media/upscaling/Upscaler.hpp>
+#include <Kotonoha/routing/SchoolDaysSystemUi.hpp>
+#include <Kotonoha/routing/SchoolDaysSaveFeelRenderPlan.hpp>
+#include <Kotonoha/routing/SchoolDaysSaveLoadRenderPlan.hpp>
 #include <Kotonoha/routing/SchoolDaysConfigMenuRenderPlan.hpp>
 #include <Kotonoha/routing/SchoolDaysExitViewRenderPlan.hpp>
 #include <Kotonoha/routing/SchoolDaysReplayRenderPlan.hpp>
 #include <Kotonoha/routing/SchoolDaysRouteMapRenderPlan.hpp>
-#include <Kotonoha/routing/SchoolDaysSaveFeelRenderPlan.hpp>
-#include <Kotonoha/routing/SchoolDaysSaveLoadRenderPlan.hpp>
-#include <Kotonoha/routing/SchoolDaysSystemUi.hpp>
 
 #include <Kotonoha/SchoolDaysImageAssetResolver.hpp>
 
@@ -19,1636 +18,1992 @@
 #include <limits>
 
 namespace Kotonoha {
+namespace {
 
-SDL_Texture *
-SchoolDaysSystemUi::LoadTexture(SDL_Renderer *renderer,
-                                const std::string &physical) const {
-  if (renderer == nullptr || assets_ == nullptr) {
-    SDL_SetError("School Days SystemUi has no asset provider");
-    return nullptr;
-  }
-  try {
-    const SurfacePtr surface = assets_->loadSurface(physical);
-    return SDL_CreateTextureFromSurface(renderer, surface.get());
-  } catch (const std::exception &error) {
-    SDL_SetError("%s", error.what());
-    return nullptr;
-  }
+// The old host dialog paints FONTDATA into a physical-pixel field roughly
+// 872 px wide at a 26/48 glyph scale.  2048 source pixels retain that full
+// field width without horizontally compressing long comments.
+constexpr int kCommentTextureWidth = 2048;
+constexpr int kCommentTextureHeight = 192;
+constexpr float kCommentTextHeight = 26.0f;
+
+bool IsHighSurrogate(char16_t value) {
+    return value >= 0xd800u && value <= 0xdbffu;
 }
 
-SchoolDaysSystemUi::~SchoolDaysSystemUi() { Close(); }
+bool IsLowSurrogate(char16_t value) {
+    return value >= 0xdc00u && value <= 0xdfffu;
+}
 
-SchoolDaysSystemUi::Layout
-SchoolDaysSystemUi::LayoutForVariant(SchoolDaysSaveFeelModel::Variant variant) {
-  const auto planLayout = SchoolDaysSaveFeelRenderPlan::LayoutFor(variant);
-  return {variant, planLayout.scale, planLayout.yOffset};
+void PopUtf16CodePoint(std::u16string* text) {
+    if (text == nullptr || text->empty()) return;
+    const char16_t tail = text->back();
+    text->pop_back();
+    if (IsLowSurrogate(tail) && !text->empty() && IsHighSurrogate(text->back())) {
+        text->pop_back();
+    }
+}
+
+void DropFirstUtf16CodePoint(std::u16string* text) {
+    if (text == nullptr || text->empty()) return;
+    size_t count = 1u;
+    if (IsHighSurrogate((*text)[0]) && text->size() > 1u &&
+        IsLowSurrogate((*text)[1])) {
+        count = 2u;
+    }
+    text->erase(0u, count);
+}
+
+std::u16string TruncateUtf16(std::u16string text, size_t limit) {
+    if (text.size() <= limit) return text;
+    text.resize(limit);
+    if (!text.empty() && IsHighSurrogate(text.back())) text.pop_back();
+    return text;
+}
+
+void AppendUtf8Limited(std::u16string* text, const char* utf8, size_t limit) {
+    if (text == nullptr || utf8 == nullptr || text->size() >= limit) return;
+    const char* cursor = utf8;
+    size_t left = std::char_traits<char>::length(utf8);
+    while (left > 0u) {
+        uint32_t codepoint = SDL_StepUTF8(&cursor, &left);
+        if (codepoint == 0u) break;
+        if (codepoint > 0x10ffffu) continue;
+        const size_t units = codepoint >= 0x10000u ? 2u : 1u;
+        if (text->size() + units > limit) break;
+        if (units == 2u) {
+            codepoint -= 0x10000u;
+            text->push_back(static_cast<char16_t>(0xd800u + (codepoint >> 10u)));
+            text->push_back(static_cast<char16_t>(0xdc00u + (codepoint & 0x3ffu)));
+        } else if (codepoint < 0xd800u || codepoint > 0xdfffu) {
+            text->push_back(static_cast<char16_t>(codepoint));
+        }
+    }
+}
+
+int MeasureCommentText(const std::u16string& text, bool useEnglish) {
+    int width = 0;
+    for (size_t i = 0u; i < text.size(); ++i) {
+        const char16_t glyph = text[i];
+        if (IsHighSurrogate(glyph) && i + 1u < text.size() &&
+            IsLowSurrogate(text[i + 1u])) {
+            ++i;
+            continue;
+        }
+        if (IsHighSurrogate(glyph) || IsLowSurrogate(glyph)) continue;
+        width += SchoolDaysSaveLoadRenderPlan::GlyphAdvance(
+            static_cast<uint16_t>(glyph), useEnglish);
+    }
+    return width;
+}
+
+bool DrawCommentTextPixels(const SchoolDaysFontData& font, bool useEnglish,
+                           const std::u16string& text, int startX, int startY,
+                           std::vector<uint32_t>* pixels, std::string* error) {
+    if (pixels == nullptr || pixels->size() !=
+            static_cast<size_t>(kCommentTextureWidth) * kCommentTextureHeight) {
+        if (error != nullptr) *error = "School Days comment text pixel buffer is invalid";
+        return false;
+    }
+    int x = startX;
+    SchoolDaysFontData::Glyph decoded;
+    for (size_t i = 0u; i < text.size(); ++i) {
+        const char16_t glyph = text[i];
+        if (IsHighSurrogate(glyph) && i + 1u < text.size() &&
+            IsLowSurrogate(text[i + 1u])) {
+            ++i;
+            continue;
+        }
+        if (IsHighSurrogate(glyph) || IsLowSurrogate(glyph)) continue;
+        const uint16_t code = static_cast<uint16_t>(glyph);
+        if (!font.DecodeGlyph(code, &decoded, error)) return false;
+        if (startY >= 0 && startY + SchoolDaysFontData::kGlyphHeight <=
+                               kCommentTextureHeight &&
+            x < kCommentTextureWidth) {
+            for (int gy = 0; gy < SchoolDaysFontData::kGlyphHeight; ++gy) {
+                for (int gx = 0; gx < SchoolDaysFontData::kGlyphWidth; ++gx) {
+                    const int destinationX = x + gx;
+                    if (destinationX < 0 || destinationX >= kCommentTextureWidth) continue;
+                    const size_t source = static_cast<size_t>(gy) *
+                                              SchoolDaysFontData::kGlyphWidth +
+                                          static_cast<size_t>(gx);
+                    const uint8_t alpha = decoded.alpha[source];
+                    const uint8_t gray = decoded.gray[source];
+                    const uint32_t packed = (static_cast<uint32_t>(alpha) << 24u) |
+                                            (static_cast<uint32_t>(gray) << 16u) |
+                                            (static_cast<uint32_t>(gray) << 8u) |
+                                            static_cast<uint32_t>(gray);
+                    uint32_t& destination = (*pixels)[
+                        static_cast<size_t>(startY + gy) * kCommentTextureWidth +
+                        static_cast<size_t>(destinationX)];
+                    if (destination < packed) destination = packed;
+                }
+            }
+        }
+        x += SchoolDaysSaveLoadRenderPlan::GlyphAdvance(code, useEnglish);
+    }
+    return true;
+}
+
+struct CommentEditorLayout {
+    SDL_FRect box{};
+    SDL_FRect field{};
+    SDL_FRect ok{};
+    SDL_FRect cancel{};
+};
+
+CommentEditorLayout BuildCommentEditorLayout(SDL_Point area) {
+    const float width = static_cast<float>(std::max(area.x, 1));
+    const float height = static_cast<float>(std::max(area.y, 1));
+    const float boxWidth = std::min(width * 0.94f, 900.0f);
+    constexpr float boxHeight = 170.0f;
+    CommentEditorLayout layout;
+    layout.box = {(width - boxWidth) * 0.5f, (height - boxHeight) * 0.5f,
+                  boxWidth, boxHeight};
+    layout.field = {layout.box.x + 14.0f, layout.box.y + 50.0f,
+                    boxWidth - 28.0f, 38.0f};
+    layout.ok = {layout.box.x + boxWidth - 230.0f,
+                 layout.box.y + boxHeight - 50.0f, 100.0f, 38.0f};
+    layout.cancel = {layout.box.x + boxWidth - 120.0f,
+                     layout.box.y + boxHeight - 50.0f, 110.0f, 38.0f};
+    return layout;
+}
+
+std::u16string VisibleCommentEditorText(const std::u16string& text,
+                                        bool useEnglish, int maxSourceWidth,
+                                        bool cursorVisible) {
+    std::u16string shown = text;
+    if (cursorVisible) shown.push_back(u'_');
+    while (!shown.empty() &&
+           MeasureCommentText(shown, useEnglish) > maxSourceWidth) {
+        DropFirstUtf16CodePoint(&shown);
+    }
+    return shown;
+}
+
+} // namespace
+
+SDL_Texture* SchoolDaysSystemUi::LoadTexture(SDL_Renderer* renderer,
+                                             const std::string& physical) const {
+    if (renderer == nullptr || assets_ == nullptr) {
+        SDL_SetError("School Days SystemUi has no asset provider");
+        return nullptr;
+    }
+    try {
+        const SurfacePtr surface = assets_->loadSurface(physical);
+        return SDL_CreateTextureFromSurface(renderer, surface.get());
+    } catch (const std::exception& error) {
+        SDL_SetError("%s", error.what());
+        return nullptr;
+    }
+}
+
+SchoolDaysSystemUi::~SchoolDaysSystemUi() {
+    Close();
+}
+
+SchoolDaysSystemUi::Layout SchoolDaysSystemUi::LayoutForVariant(
+    SchoolDaysSaveFeelModel::Variant variant) {
+    const auto planLayout = SchoolDaysSaveFeelRenderPlan::LayoutFor(variant);
+    return {variant, planLayout.scale, planLayout.yOffset};
 }
 
 void SchoolDaysSystemUi::DestroyTextures() {
-  if (baseTexture_ != nullptr) {
-    SDL_DestroyTexture(baseTexture_);
-    baseTexture_ = nullptr;
-  }
-  if (chipTexture_ != nullptr) {
-    SDL_DestroyTexture(chipTexture_);
-    chipTexture_ = nullptr;
-  }
-  if (saveLoadTextTexture_ != nullptr) {
-    SDL_DestroyTexture(saveLoadTextTexture_);
-    saveLoadTextTexture_ = nullptr;
-  }
-  if (routeMapTextTexture_ != nullptr) {
-    SDL_DestroyTexture(routeMapTextTexture_);
-    routeMapTextTexture_ = nullptr;
-  }
-  if (replayTextTexture_ != nullptr) {
-    SDL_DestroyTexture(replayTextTexture_);
-    replayTextTexture_ = nullptr;
-  }
-  if (replayThumbnailTexture_ != nullptr) {
-    SDL_DestroyTexture(replayThumbnailTexture_);
-    replayThumbnailTexture_ = nullptr;
-  }
-  if (replayPopupBaseTexture_ != nullptr) {
-    SDL_DestroyTexture(replayPopupBaseTexture_);
-    replayPopupBaseTexture_ = nullptr;
-  }
-  if (replayPopupChipTexture_ != nullptr) {
-    SDL_DestroyTexture(replayPopupChipTexture_);
-    replayPopupChipTexture_ = nullptr;
-  }
-  saveLoadFont_.Clear();
-  routeMapFont_.Clear();
-  replayFont_.Clear();
-  saveLoadTextPixels_.clear();
-  routeMapTextPixels_.clear();
-  replayTextPixels_.clear();
-  saveLoadMetadata_.clear();
-  replayMetadata_.clear();
-  saveLoadCommentAdvances_.clear();
-  saveLoadUseEnglish_ = false;
-  routeMapUseEnglish_ = false;
-  replayTextInputEnabled_ = false;
-  replayUseEnglish_ = false;
-  replayAssetsRoot_.clear();
-  replayLoadedPage_ = -1;
-  replayTextLoadedPage_ = -1;
-  replayLoadedSceneCheckCount_ = -1;
-  routeMapAssetsRoot_.clear();
-  routeMapLoadedMajor_ = -1;
-  routeMapLoadedSubpage_ = -1;
+    if (baseTexture_ != nullptr) {
+        SDL_DestroyTexture(baseTexture_);
+        baseTexture_ = nullptr;
+    }
+    if (chipTexture_ != nullptr) {
+        SDL_DestroyTexture(chipTexture_);
+        chipTexture_ = nullptr;
+    }
+    if (saveLoadTextTexture_ != nullptr) {
+        SDL_DestroyTexture(saveLoadTextTexture_);
+        saveLoadTextTexture_ = nullptr;
+    }
+    if (saveLoadCommentTextTexture_ != nullptr) {
+        SDL_DestroyTexture(saveLoadCommentTextTexture_);
+        saveLoadCommentTextTexture_ = nullptr;
+    }
+    if (routeMapTextTexture_ != nullptr) {
+        SDL_DestroyTexture(routeMapTextTexture_);
+        routeMapTextTexture_ = nullptr;
+    }
+    if (replayTextTexture_ != nullptr) {
+        SDL_DestroyTexture(replayTextTexture_);
+        replayTextTexture_ = nullptr;
+    }
+    if (replayThumbnailTexture_ != nullptr) {
+        SDL_DestroyTexture(replayThumbnailTexture_);
+        replayThumbnailTexture_ = nullptr;
+    }
+    if (replayPopupBaseTexture_ != nullptr) {
+        SDL_DestroyTexture(replayPopupBaseTexture_);
+        replayPopupBaseTexture_ = nullptr;
+    }
+    if (replayPopupChipTexture_ != nullptr) {
+        SDL_DestroyTexture(replayPopupChipTexture_);
+        replayPopupChipTexture_ = nullptr;
+    }
+    saveLoadFont_.Clear();
+    routeMapFont_.Clear();
+    replayFont_.Clear();
+    saveLoadTextPixels_.clear();
+    saveLoadCommentTextPixels_.clear();
+    routeMapTextPixels_.clear();
+    replayTextPixels_.clear();
+    saveLoadMetadata_.clear();
+    replayMetadata_.clear();
+    saveLoadCommentAdvances_.clear();
+    saveLoadCommentEditorOpen_ = false;
+    saveLoadCommentSlot_ = -1;
+    saveLoadCommentText_.clear();
+    saveLoadCommentWindow_ = nullptr;
+    saveLoadCommentTextDirty_ = false;
+    saveLoadCommentCursorPhase_ = UINT32_MAX;
+    saveLoadUseEnglish_ = false;
+    routeMapUseEnglish_ = false;
+    replayTextInputEnabled_ = false;
+    replayUseEnglish_ = false;
+    replayAssetsRoot_.clear();
+    replayLoadedPage_ = -1;
+    replayTextLoadedPage_ = -1;
+    replayLoadedSceneCheckCount_ = -1;
+    routeMapAssetsRoot_.clear();
+    routeMapLoadedMajor_ = -1;
+    routeMapLoadedSubpage_ = -1;
 }
 
 void SchoolDaysSystemUi::Close() {
-  DestroyTextures();
-  saveFeel_.Close();
-  saveLoad_.Close();
-  configMenu_.Close();
-  exitView_.Close();
-  replay_.Close();
-  routeMap_.Close();
-  configVisualState_ = {};
-  layout_ = {};
-  resultEmitted_ = false;
+    EndSaveLoadCommentEditorTextInput();
+    DestroyTextures();
+    saveFeel_.Close();
+    saveLoad_.Close();
+    configMenu_.Close();
+    exitView_.Close();
+    replay_.Close();
+    routeMap_.Close();
+    configVisualState_ = {};
+    layout_ = {};
+    resultEmitted_ = false;
 }
 
-bool SchoolDaysSystemUi::OpenRouteMap(SDL_Renderer *renderer,
-                                      const std::string &assetsRoot,
-                                      SchoolDaysRouteMapModel::Variant variant,
-                                      int initialMajor, int initialSubpage,
-                                      bool alternateHost, int completionPercent,
-                                      bool useEnglish,
-                                      const std::string &fontDataLogicalPath,
-                                      std::string *error) {
-  Close();
-  if (renderer == nullptr) {
-    if (error != nullptr)
-      *error = "School Days RouteMap renderer is null";
-    return false;
-  }
-  if (!routeMap_.Open(assetsRoot, variant, initialMajor, initialSubpage,
-                      alternateHost, error)) {
-    return false;
-  }
-  routeMap_.SetCompletionPercent(completionPercent);
-  routeMapAssetsRoot_ = assetsRoot;
-  routeMapLoadedMajor_ = -1;
-  routeMapLoadedSubpage_ = -1;
-  if (!EnsureRouteMapTextures(renderer, error)) {
+bool SchoolDaysSystemUi::OpenRouteMap(
+    SDL_Renderer* renderer, const std::string& assetsRoot,
+    SchoolDaysRouteMapModel::Variant variant, int initialMajor,
+    int initialSubpage, bool alternateHost, int completionPercent,
+    bool useEnglish, const std::string& fontDataLogicalPath, std::string* error) {
     Close();
-    return false;
-  }
-
-  namespace fs = std::filesystem;
-  fs::path fontLogical(fontDataLogicalPath);
-  if (fontLogical.empty() || fontLogical.is_absolute()) {
-    if (error != nullptr)
-      *error = "School Days RouteMap FONTDATA logical path is invalid";
-    Close();
-    return false;
-  }
-  if (useEnglish) {
-    const auto ext = fontLogical.extension().string();
-    const auto stem = fontLogical.stem().string();
-    fontLogical.replace_filename(stem + "_eng" + ext);
-  }
-  std::string fontPhysical;
-  if (!ResolveSchoolDaysRequiredAssetPath(
-          assetsRoot.c_str(), fontLogical.generic_string(), &fontPhysical,
-          error, "RouteMap FONTDATA") ||
-      !routeMapFont_.LoadFile(fontPhysical, error)) {
-    Close();
-    return false;
-  }
-  routeMapTextTexture_ =
-      SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888,
-                        SDL_TEXTUREACCESS_STREAMING, 512, 128);
-  if (routeMapTextTexture_ == nullptr ||
-      !SDL_SetTextureBlendMode(routeMapTextTexture_, SDL_BLENDMODE_BLEND)) {
-    if (error != nullptr)
-      *error =
-          std::string("School Days RouteMap FONTDATA texture setup failed: ") +
-          SDL_GetError();
-    Close();
-    return false;
-  }
-  routeMapUseEnglish_ = useEnglish;
-  routeMapTextPixels_.assign(static_cast<size_t>(512) * 128u, 0u);
-  if (!UpdateRouteMapCompletionTexture(error)) {
-    Close();
-    return false;
-  }
-  resultEmitted_ = false;
-  return true;
-}
-
-bool SchoolDaysSystemUi::UpdateRouteMapCompletionTexture(std::string *error) {
-  if (routeMapTextTexture_ == nullptr || !routeMapFont_.IsLoaded() ||
-      routeMapTextPixels_.size() != static_cast<size_t>(512) * 128u) {
-    if (error != nullptr)
-      *error = "School Days RouteMap FONTDATA presenter is not ready";
-    return false;
-  }
-  std::fill(routeMapTextPixels_.begin(), routeMapTextPixels_.end(), 0u);
-  const auto text = SchoolDaysRouteMapRenderPlan::CompletionTextFor(
-      routeMap_, routeMapUseEnglish_);
-  int x = 0;
-  SchoolDaysFontData::Glyph glyph;
-  for (char16_t unit : text.text) {
-    const uint16_t code = static_cast<uint16_t>(unit);
-    if (!routeMapFont_.DecodeGlyph(code, &glyph, error))
-      return false;
-    if (x < 0 || x + SchoolDaysFontData::kGlyphWidth > 512) {
-      if (error != nullptr)
-        *error = "School Days RouteMap FONTDATA text exceeds backing";
-      return false;
-    }
-    for (int gy = 0; gy < SchoolDaysFontData::kGlyphHeight; ++gy) {
-      for (int gx = 0; gx < SchoolDaysFontData::kGlyphWidth; ++gx) {
-        const size_t source =
-            static_cast<size_t>(gy) * SchoolDaysFontData::kGlyphWidth +
-            static_cast<size_t>(gx);
-        const uint8_t alpha = glyph.alpha[source];
-        const uint8_t gray = glyph.gray[source];
-        const uint32_t packed = (static_cast<uint32_t>(alpha) << 24u) |
-                                (static_cast<uint32_t>(gray) << 16u) |
-                                (static_cast<uint32_t>(gray) << 8u) |
-                                static_cast<uint32_t>(gray);
-        uint32_t &destination =
-            routeMapTextPixels_[static_cast<size_t>(gy) * 512u +
-                                static_cast<size_t>(x + gx)];
-        if (destination < packed)
-          destination = packed;
-      }
-    }
-    x += SchoolDaysRouteMapRenderPlan::CompletionGlyphAdvance(code);
-  }
-  if (!SDL_UpdateTexture(routeMapTextTexture_, nullptr,
-                         routeMapTextPixels_.data(),
-                         512 * static_cast<int>(sizeof(uint32_t)))) {
-    if (error != nullptr)
-      *error = std::string("School Days RouteMap FONTDATA upload failed: ") +
-               SDL_GetError();
-    return false;
-  }
-  const uint8_t a = static_cast<uint8_t>(text.color >> 24u);
-  const uint8_t r = static_cast<uint8_t>(text.color >> 16u);
-  const uint8_t g = static_cast<uint8_t>(text.color >> 8u);
-  const uint8_t b = static_cast<uint8_t>(text.color);
-  return SDL_SetTextureColorMod(routeMapTextTexture_, r, g, b) &&
-         SDL_SetTextureAlphaMod(routeMapTextTexture_, a);
-}
-
-bool SchoolDaysSystemUi::EnsureRouteMapTextures(SDL_Renderer *renderer,
-                                                std::string *error) {
-  if (!routeMap_.IsOpen() || renderer == nullptr)
-    return false;
-  const int major = routeMap_.Major();
-  const int subpage = routeMap_.Subpage();
-  if (routeMapLoadedMajor_ == major && routeMapLoadedSubpage_ == subpage &&
-      baseTexture_ != nullptr && chipTexture_ != nullptr) {
-    return true;
-  }
-
-  if (baseTexture_ != nullptr) {
-    SDL_DestroyTexture(baseTexture_);
-    baseTexture_ = nullptr;
-  }
-  if (chipTexture_ != nullptr) {
-    SDL_DestroyTexture(chipTexture_);
-    chipTexture_ = nullptr;
-  }
-
-  const auto base = ResolveSchoolDaysAssetPath(
-      routeMapAssetsRoot_.c_str(),
-      SchoolDaysRouteMapModel::BaseRelativePath(major, subpage));
-  const auto chip = ResolveSchoolDaysAssetPath(
-      routeMapAssetsRoot_.c_str(),
-      SchoolDaysRouteMapModel::ChipRelativePath(major, subpage));
-  if (!base.present || base.collision || !chip.present || chip.collision) {
-    if (error != nullptr)
-      *error = "School Days RouteMap base/CHIP resources could not be resolved";
-    return false;
-  }
-  baseTexture_ = LoadTexture(renderer, base.physical);
-  chipTexture_ = LoadTexture(renderer, chip.physical);
-  if (baseTexture_ == nullptr || chipTexture_ == nullptr) {
-    if (error != nullptr)
-      *error = std::string("School Days RouteMap texture load failed: ") +
-               SDL_GetError();
-    return false;
-  }
-  SDL_SetTextureBlendMode(baseTexture_, SDL_BLENDMODE_NONE);
-  SDL_SetTextureBlendMode(chipTexture_, SDL_BLENDMODE_BLEND);
-  routeMapLoadedMajor_ = major;
-  routeMapLoadedSubpage_ = subpage;
-  return true;
-}
-
-bool SchoolDaysSystemUi::OpenReplay(SDL_Renderer *renderer,
-                                    const std::string &assetsRoot,
-                                    SchoolDaysReplayModel::Variant variant,
-                                    bool textInputEnabled, bool useEnglish,
-                                    const std::string &fontDataLogicalPath,
-                                    std::string *error) {
-  Close();
-  if (renderer == nullptr) {
-    if (error != nullptr)
-      *error = "School Days Replay renderer is null";
-    return false;
-  }
-  if (!replay_.Open(assetsRoot, variant, SchoolDaysReplayModel::View::HScene,
-                    error)) {
-    return false;
-  }
-
-  std::filesystem::path fontLogical(fontDataLogicalPath);
-  if (fontLogical.empty() || fontLogical.is_absolute()) {
-    if (error != nullptr)
-      *error = "School Days Replay FONTDATA logical path is invalid";
-    Close();
-    return false;
-  }
-  if (useEnglish) {
-    const auto ext = fontLogical.extension().string();
-    const auto stem = fontLogical.stem().string();
-    fontLogical.replace_filename(stem + "_eng" + ext);
-  }
-  std::string fontPhysical;
-  if (!ResolveSchoolDaysRequiredAssetPath(
-          assetsRoot.c_str(), fontLogical.generic_string(), &fontPhysical,
-          error, "Replay FONTDATA") ||
-      !replayFont_.LoadFile(fontPhysical, error)) {
-    Close();
-    return false;
-  }
-  replayTextTexture_ =
-      SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888,
-                        SDL_TEXTUREACCESS_STREAMING, 2048, 1024);
-  if (replayTextTexture_ == nullptr ||
-      !SDL_SetTextureBlendMode(replayTextTexture_, SDL_BLENDMODE_BLEND)) {
-    if (error != nullptr)
-      *error =
-          std::string("School Days Replay FONTDATA texture setup failed: ") +
-          SDL_GetError();
-    Close();
-    return false;
-  }
-  replayTextPixels_.assign(static_cast<size_t>(2048) * 1024u, 0u);
-  replayMetadata_.assign(100u, SchoolDaysSaveService::SlotMetadata{});
-  replayTextInputEnabled_ = textInputEnabled;
-  replayUseEnglish_ = useEnglish;
-  replayTextLoadedPage_ = -1;
-  if (!SDL_UpdateTexture(replayTextTexture_, nullptr, replayTextPixels_.data(),
-                         2048 * static_cast<int>(sizeof(uint32_t)))) {
-    if (error != nullptr)
-      *error =
-          std::string("School Days Replay FONTDATA texture clear failed: ") +
-          SDL_GetError();
-    Close();
-    return false;
-  }
-  replayAssetsRoot_ = assetsRoot;
-  replayLoadedPage_ = -1;
-  replayLoadedSceneCheckCount_ = -1;
-  if (!EnsureReplayTextures(renderer, error)) {
-    Close();
-    return false;
-  }
-  resultEmitted_ = false;
-  return true;
-}
-
-bool SchoolDaysSystemUi::SetReplayPlayDataMetadata(
-    const std::vector<SchoolDaysSaveService::SlotMetadata> &slots,
-    std::string *error) {
-  if (error != nullptr)
-    error->clear();
-  if (!replay_.IsOpen() || replayTextTexture_ == nullptr ||
-      !replayFont_.IsLoaded() || slots.size() != 100u) {
-    if (error != nullptr)
-      *error = "School Days Replay metadata presenter is not ready";
-    return false;
-  }
-  replayMetadata_ = slots;
-  for (int slot = 0; slot < 100; ++slot) {
-    replay_.SetPlayDataAvailable(
-        slot, replayMetadata_[static_cast<size_t>(slot)].occupied);
-  }
-  replayTextLoadedPage_ = -1;
-  return true;
-}
-
-bool SchoolDaysSystemUi::UpdateReplayMetadataTexture(std::string *error) {
-  if (error != nullptr)
-    error->clear();
-  if (!replay_.IsOpen() || replayTextTexture_ == nullptr ||
-      !replayFont_.IsLoaded() || replayMetadata_.size() != 100u) {
-    if (error != nullptr)
-      *error = "School Days Replay metadata texture is not ready";
-    return false;
-  }
-  const int page = replay_.Page();
-  if (page < 0 || page >= 10) {
-    if (error != nullptr)
-      *error = "School Days Replay metadata page is invalid";
-    return false;
-  }
-  std::fill(replayTextPixels_.begin(), replayTextPixels_.end(), 0u);
-
-  auto drawText = [&](const std::u16string &text, int startX,
-                      int startY) -> bool {
-    int x = startX;
-    const size_t count = std::min(text.size(), size_t{20});
-    SchoolDaysFontData::Glyph glyph;
-    for (size_t i = 0u; i < count; ++i) {
-      const uint16_t code = static_cast<uint16_t>(text[i]);
-      if (!replayFont_.DecodeGlyph(code, &glyph, error))
+    if (renderer == nullptr) {
+        if (error != nullptr) *error = "School Days RouteMap renderer is null";
         return false;
-      if (x < 0 || startY < 0 || x + SchoolDaysFontData::kGlyphWidth > 2048 ||
-          startY + SchoolDaysFontData::kGlyphHeight > 1024) {
+    }
+    if (!routeMap_.Open(assetsRoot, variant, initialMajor, initialSubpage,
+                        alternateHost, error)) {
+        return false;
+    }
+    routeMap_.SetCompletionPercent(completionPercent);
+    routeMapAssetsRoot_ = assetsRoot;
+    routeMapLoadedMajor_ = -1;
+    routeMapLoadedSubpage_ = -1;
+    if (!EnsureRouteMapTextures(renderer, error)) {
+        Close();
+        return false;
+    }
+
+    namespace fs = std::filesystem;
+    fs::path fontLogical(fontDataLogicalPath);
+    if (fontLogical.empty() || fontLogical.is_absolute()) {
+        if (error != nullptr) *error = "School Days RouteMap FONTDATA logical path is invalid";
+        Close();
+        return false;
+    }
+    if (useEnglish) {
+        const auto ext = fontLogical.extension().string();
+        const auto stem = fontLogical.stem().string();
+        fontLogical.replace_filename(stem + "_eng" + ext);
+    }
+    std::string fontPhysical;
+    if (!ResolveSchoolDaysRequiredAssetPath(
+            assetsRoot.c_str(), fontLogical.generic_string(), &fontPhysical,
+            error, "RouteMap FONTDATA") ||
+        !routeMapFont_.LoadFile(fontPhysical, error)) {
+        Close();
+        return false;
+    }
+    routeMapTextTexture_ = SDL_CreateTexture(
+        renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, 512, 128);
+    if (routeMapTextTexture_ == nullptr ||
+        !SDL_SetTextureBlendMode(routeMapTextTexture_, SDL_BLENDMODE_BLEND)) {
         if (error != nullptr)
-          *error = "School Days Replay FONTDATA glyph exceeds atlas";
+            *error = std::string("School Days RouteMap FONTDATA texture setup failed: ") +
+                     SDL_GetError();
+        Close();
         return false;
-      }
-      for (int gy = 0; gy < SchoolDaysFontData::kGlyphHeight; ++gy) {
-        for (int gx = 0; gx < SchoolDaysFontData::kGlyphWidth; ++gx) {
-          const size_t source =
-              static_cast<size_t>(gy) * SchoolDaysFontData::kGlyphWidth +
-              static_cast<size_t>(gx);
-          const uint8_t alpha = glyph.alpha[source];
-          const uint8_t gray = glyph.gray[source];
-          const uint32_t packed = (static_cast<uint32_t>(alpha) << 24u) |
-                                  (static_cast<uint32_t>(gray) << 16u) |
-                                  (static_cast<uint32_t>(gray) << 8u) |
-                                  static_cast<uint32_t>(gray);
-          uint32_t &destination =
-              replayTextPixels_[static_cast<size_t>(startY + gy) * 2048u +
-                                static_cast<size_t>(x + gx)];
-          if (destination < packed)
-            destination = packed;
-        }
-      }
-      x += SchoolDaysReplayRenderPlan::MetadataGlyphAdvance(code);
     }
+    routeMapUseEnglish_ = useEnglish;
+    routeMapTextPixels_.assign(static_cast<size_t>(512) * 128u, 0u);
+    if (!UpdateRouteMapCompletionTexture(error)) {
+        Close();
+        return false;
+    }
+    resultEmitted_ = false;
     return true;
-  };
-
-  for (int row = 0; row < 10; ++row) {
-    const int slot = page * 10 + row;
-    const auto &metadata = replayMetadata_[static_cast<size_t>(slot)];
-    if (!metadata.occupied)
-      continue;
-    if (!drawText(metadata.date, 0, 48 * row) ||
-        !drawText(metadata.story, 1024, 48 * row) ||
-        (replayTextInputEnabled_ &&
-         !drawText(metadata.comment, 0, 512 + 48 * row))) {
-      return false;
-    }
-  }
-  if (!SDL_UpdateTexture(replayTextTexture_, nullptr, replayTextPixels_.data(),
-                         2048 * static_cast<int>(sizeof(uint32_t)))) {
-    if (error != nullptr)
-      *error =
-          std::string("School Days Replay FONTDATA atlas upload failed: ") +
-          SDL_GetError();
-    return false;
-  }
-  replayTextLoadedPage_ = page;
-  return true;
 }
 
-bool SchoolDaysSystemUi::EnsureReplayTextures(SDL_Renderer *renderer,
-                                              std::string *error) {
-  if (!replay_.IsOpen() || renderer == nullptr)
-    return false;
-  const bool sceneCheck = replay_.SceneCheckOpen();
-  const int sceneCheckCount = sceneCheck ? replay_.SceneCheckChoiceCount() : 0;
-  const auto view = replay_.CurrentView();
-  const int page = replay_.Page();
-  const bool needsThumbnail = view == SchoolDaysReplayModel::View::HScene;
-  const bool parentMatches =
-      replayLoadedView_ == view && replayLoadedPage_ == page &&
-      baseTexture_ != nullptr && chipTexture_ != nullptr &&
-      (!needsThumbnail || replayThumbnailTexture_ != nullptr);
+bool SchoolDaysSystemUi::UpdateRouteMapCompletionTexture(std::string* error) {
+    if (routeMapTextTexture_ == nullptr || !routeMapFont_.IsLoaded() ||
+        routeMapTextPixels_.size() != static_cast<size_t>(512) * 128u) {
+        if (error != nullptr) *error = "School Days RouteMap FONTDATA presenter is not ready";
+        return false;
+    }
+    std::fill(routeMapTextPixels_.begin(), routeMapTextPixels_.end(), 0u);
+    const auto text = SchoolDaysRouteMapRenderPlan::CompletionTextFor(
+        routeMap_, routeMapUseEnglish_);
+    int x = 0;
+    SchoolDaysFontData::Glyph glyph;
+    for (char16_t unit : text.text) {
+        const uint16_t code = static_cast<uint16_t>(unit);
+        if (!routeMapFont_.DecodeGlyph(code, &glyph, error)) return false;
+        if (x < 0 || x + SchoolDaysFontData::kGlyphWidth > 512) {
+            if (error != nullptr) *error = "School Days RouteMap FONTDATA text exceeds backing";
+            return false;
+        }
+        for (int gy = 0; gy < SchoolDaysFontData::kGlyphHeight; ++gy) {
+            for (int gx = 0; gx < SchoolDaysFontData::kGlyphWidth; ++gx) {
+                const size_t source = static_cast<size_t>(gy) *
+                                          SchoolDaysFontData::kGlyphWidth +
+                                      static_cast<size_t>(gx);
+                const uint8_t alpha = glyph.alpha[source];
+                const uint8_t gray = glyph.gray[source];
+                const uint32_t packed = (static_cast<uint32_t>(alpha) << 24u) |
+                                        (static_cast<uint32_t>(gray) << 16u) |
+                                        (static_cast<uint32_t>(gray) << 8u) |
+                                        static_cast<uint32_t>(gray);
+                uint32_t& destination = routeMapTextPixels_[
+                    static_cast<size_t>(gy) * 512u + static_cast<size_t>(x + gx)];
+                if (destination < packed) destination = packed;
+            }
+        }
+        x += SchoolDaysRouteMapRenderPlan::CompletionGlyphAdvance(code);
+    }
+    if (!SDL_UpdateTexture(routeMapTextTexture_, nullptr,
+                           routeMapTextPixels_.data(),
+                           512 * static_cast<int>(sizeof(uint32_t)))) {
+        if (error != nullptr)
+            *error = std::string("School Days RouteMap FONTDATA upload failed: ") +
+                     SDL_GetError();
+        return false;
+    }
+    const uint8_t a = static_cast<uint8_t>(text.color >> 24u);
+    const uint8_t r = static_cast<uint8_t>(text.color >> 16u);
+    const uint8_t g = static_cast<uint8_t>(text.color >> 8u);
+    const uint8_t b = static_cast<uint8_t>(text.color);
+    return SDL_SetTextureColorMod(routeMapTextTexture_, r, g, b) &&
+           SDL_SetTextureAlphaMod(routeMapTextTexture_, a);
+}
 
-  if (!parentMatches) {
+bool SchoolDaysSystemUi::EnsureRouteMapTextures(SDL_Renderer* renderer,
+                                                std::string* error) {
+    if (!routeMap_.IsOpen() || renderer == nullptr) return false;
+    const int major = routeMap_.Major();
+    const int subpage = routeMap_.Subpage();
+    if (routeMapLoadedMajor_ == major && routeMapLoadedSubpage_ == subpage &&
+        baseTexture_ != nullptr && chipTexture_ != nullptr) {
+        return true;
+    }
+
     if (baseTexture_ != nullptr) {
-      SDL_DestroyTexture(baseTexture_);
-      baseTexture_ = nullptr;
+        SDL_DestroyTexture(baseTexture_);
+        baseTexture_ = nullptr;
     }
     if (chipTexture_ != nullptr) {
-      SDL_DestroyTexture(chipTexture_);
-      chipTexture_ = nullptr;
-    }
-    if (replayThumbnailTexture_ != nullptr) {
-      SDL_DestroyTexture(replayThumbnailTexture_);
-      replayThumbnailTexture_ = nullptr;
+        SDL_DestroyTexture(chipTexture_);
+        chipTexture_ = nullptr;
     }
 
-    const std::string baseLogical =
-        SchoolDaysReplayModel::BaseRelativePath(view);
-    const std::string chipLogical =
-        SchoolDaysReplayModel::ChipRelativePath(view);
-    const auto base = ResolveSchoolDaysAssetPath(replayAssetsRoot_.c_str(),
-                                                 baseLogical.c_str());
-    const auto chip = ResolveSchoolDaysAssetPath(replayAssetsRoot_.c_str(),
-                                                 chipLogical.c_str());
+    const auto base = ResolveSchoolDaysAssetPath(
+        routeMapAssetsRoot_.c_str(),
+        SchoolDaysRouteMapModel::BaseRelativePath(major, subpage));
+    const auto chip = ResolveSchoolDaysAssetPath(
+        routeMapAssetsRoot_.c_str(),
+        SchoolDaysRouteMapModel::ChipRelativePath(major, subpage));
     if (!base.present || base.collision || !chip.present || chip.collision) {
-      if (error != nullptr)
-        *error = "School Days Replay base/CHIP resources could not be resolved";
-      return false;
+        if (error != nullptr)
+            *error = "School Days RouteMap base/CHIP resources could not be resolved";
+        return false;
     }
     baseTexture_ = LoadTexture(renderer, base.physical);
     chipTexture_ = LoadTexture(renderer, chip.physical);
     if (baseTexture_ == nullptr || chipTexture_ == nullptr) {
-      if (error != nullptr)
-        *error = std::string("School Days Replay texture load failed: ") +
-                 SDL_GetError();
-      return false;
+        if (error != nullptr)
+            *error = std::string("School Days RouteMap texture load failed: ") + SDL_GetError();
+        return false;
     }
     SDL_SetTextureBlendMode(baseTexture_, SDL_BLENDMODE_NONE);
     SDL_SetTextureBlendMode(chipTexture_, SDL_BLENDMODE_BLEND);
+    routeMapLoadedMajor_ = major;
+    routeMapLoadedSubpage_ = subpage;
+    return true;
+}
 
-    if (needsThumbnail) {
-      const std::string thumbLogical =
-          SchoolDaysReplayRenderPlan::ThumbnailRelativePath(page);
-      const auto thumb = ResolveSchoolDaysAssetPath(replayAssetsRoot_.c_str(),
-                                                    thumbLogical.c_str());
-      if (!thumb.present || thumb.collision) {
-        if (error != nullptr)
-          *error =
-              "School Days Replay thumbnail resource could not be resolved";
+bool SchoolDaysSystemUi::OpenReplay(SDL_Renderer* renderer,
+                                    const std::string& assetsRoot,
+                                    SchoolDaysReplayModel::Variant variant,
+                                    bool textInputEnabled, bool useEnglish,
+                                    const std::string& fontDataLogicalPath,
+                                    std::string* error) {
+    Close();
+    if (renderer == nullptr) {
+        if (error != nullptr) *error = "School Days Replay renderer is null";
         return false;
-      }
-      replayThumbnailTexture_ = LoadTexture(renderer, thumb.physical);
-      if (replayThumbnailTexture_ == nullptr) {
-        if (error != nullptr)
-          *error = std::string("School Days Replay thumbnail load failed: ") +
-                   SDL_GetError();
-        return false;
-      }
-      SDL_SetTextureBlendMode(replayThumbnailTexture_, SDL_BLENDMODE_BLEND);
     }
-    replayLoadedView_ = view;
-    replayLoadedPage_ = page;
-  }
+    if (!replay_.Open(assetsRoot, variant, SchoolDaysReplayModel::View::HScene,
+                      error)) {
+        return false;
+    }
 
-  if (view == SchoolDaysReplayModel::View::PlayData &&
-      replayTextLoadedPage_ != page && !UpdateReplayMetadataTexture(error)) {
-    return false;
-  }
-
-  if (sceneCheck) {
-    const bool popupMatches = replayLoadedSceneCheckCount_ == sceneCheckCount &&
-                              replayPopupBaseTexture_ != nullptr &&
-                              replayPopupChipTexture_ != nullptr;
-    if (!popupMatches) {
-      if (replayPopupBaseTexture_ != nullptr) {
-        SDL_DestroyTexture(replayPopupBaseTexture_);
-        replayPopupBaseTexture_ = nullptr;
-      }
-      if (replayPopupChipTexture_ != nullptr) {
-        SDL_DestroyTexture(replayPopupChipTexture_);
-        replayPopupChipTexture_ = nullptr;
-      }
-      const std::string popupBaseLogical =
-          SchoolDaysReplayModel::SceneCheckBaseRelativePath(sceneCheckCount);
-      const std::string popupChipLogical =
-          SchoolDaysReplayModel::SceneCheckChipRelativePath(sceneCheckCount);
-      const auto popupBase = ResolveSchoolDaysAssetPath(
-          replayAssetsRoot_.c_str(), popupBaseLogical.c_str());
-      const auto popupChip = ResolveSchoolDaysAssetPath(
-          replayAssetsRoot_.c_str(), popupChipLogical.c_str());
-      if (!popupBase.present || popupBase.collision || !popupChip.present ||
-          popupChip.collision) {
-        if (error != nullptr)
-          *error = "School Days SceneCheck resources could not be resolved";
+    std::filesystem::path fontLogical(fontDataLogicalPath);
+    if (fontLogical.empty() || fontLogical.is_absolute()) {
+        if (error != nullptr) *error = "School Days Replay FONTDATA logical path is invalid";
+        Close();
         return false;
-      }
-      replayPopupBaseTexture_ = LoadTexture(renderer, popupBase.physical);
-      replayPopupChipTexture_ = LoadTexture(renderer, popupChip.physical);
-      if (replayPopupBaseTexture_ == nullptr ||
-          replayPopupChipTexture_ == nullptr) {
-        if (error != nullptr)
-          *error = std::string("School Days SceneCheck texture load failed: ") +
-                   SDL_GetError();
+    }
+    if (useEnglish) {
+        const auto ext = fontLogical.extension().string();
+        const auto stem = fontLogical.stem().string();
+        fontLogical.replace_filename(stem + "_eng" + ext);
+    }
+    std::string fontPhysical;
+    if (!ResolveSchoolDaysRequiredAssetPath(
+            assetsRoot.c_str(), fontLogical.generic_string(), &fontPhysical, error,
+            "Replay FONTDATA") ||
+        !replayFont_.LoadFile(fontPhysical, error)) {
+        Close();
         return false;
-      }
-      // Pop_Replay base artwork is authored translucent.  Native
-      // SceneCheck is layered over the retained SceneView parent.
-      SDL_SetTextureBlendMode(replayPopupBaseTexture_, SDL_BLENDMODE_BLEND);
-      SDL_SetTextureBlendMode(replayPopupChipTexture_, SDL_BLENDMODE_BLEND);
-      replayLoadedSceneCheckCount_ = sceneCheckCount;
     }
-  } else {
-    if (replayPopupBaseTexture_ != nullptr) {
-      SDL_DestroyTexture(replayPopupBaseTexture_);
-      replayPopupBaseTexture_ = nullptr;
+    replayTextTexture_ = SDL_CreateTexture(
+        renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, 2048, 1024);
+    if (replayTextTexture_ == nullptr ||
+        !SDL_SetTextureBlendMode(replayTextTexture_, SDL_BLENDMODE_BLEND)) {
+        if (error != nullptr)
+            *error = std::string("School Days Replay FONTDATA texture setup failed: ") +
+                     SDL_GetError();
+        Close();
+        return false;
     }
-    if (replayPopupChipTexture_ != nullptr) {
-      SDL_DestroyTexture(replayPopupChipTexture_);
-      replayPopupChipTexture_ = nullptr;
+    replayTextPixels_.assign(static_cast<size_t>(2048) * 1024u, 0u);
+    replayMetadata_.assign(100u, SchoolDaysSaveService::SlotMetadata{});
+    replayTextInputEnabled_ = textInputEnabled;
+    replayUseEnglish_ = useEnglish;
+    replayTextLoadedPage_ = -1;
+    if (!SDL_UpdateTexture(replayTextTexture_, nullptr, replayTextPixels_.data(),
+                           2048 * static_cast<int>(sizeof(uint32_t)))) {
+        if (error != nullptr)
+            *error = std::string("School Days Replay FONTDATA texture clear failed: ") +
+                     SDL_GetError();
+        Close();
+        return false;
     }
+    replayAssetsRoot_ = assetsRoot;
+    replayLoadedPage_ = -1;
     replayLoadedSceneCheckCount_ = -1;
-  }
-  return true;
+    if (!EnsureReplayTextures(renderer, error)) {
+        Close();
+        return false;
+    }
+    resultEmitted_ = false;
+    return true;
+}
+
+bool SchoolDaysSystemUi::SetReplayPlayDataMetadata(
+    const std::vector<SchoolDaysSaveService::SlotMetadata>& slots,
+    std::string* error) {
+    if (error != nullptr) error->clear();
+    if (!replay_.IsOpen() || replayTextTexture_ == nullptr ||
+        !replayFont_.IsLoaded() || slots.size() != 100u) {
+        if (error != nullptr)
+            *error = "School Days Replay metadata presenter is not ready";
+        return false;
+    }
+    replayMetadata_ = slots;
+    for (int slot = 0; slot < 100; ++slot) {
+        replay_.SetPlayDataAvailable(
+            slot, replayMetadata_[static_cast<size_t>(slot)].occupied);
+    }
+    replayTextLoadedPage_ = -1;
+    return true;
+}
+
+bool SchoolDaysSystemUi::UpdateReplayMetadataTexture(std::string* error) {
+    if (error != nullptr) error->clear();
+    if (!replay_.IsOpen() || replayTextTexture_ == nullptr ||
+        !replayFont_.IsLoaded() || replayMetadata_.size() != 100u) {
+        if (error != nullptr)
+            *error = "School Days Replay metadata texture is not ready";
+        return false;
+    }
+    const int page = replay_.Page();
+    if (page < 0 || page >= 10) {
+        if (error != nullptr) *error = "School Days Replay metadata page is invalid";
+        return false;
+    }
+    std::fill(replayTextPixels_.begin(), replayTextPixels_.end(), 0u);
+
+    auto drawText = [&](const std::u16string& text, int startX, int startY) -> bool {
+        int x = startX;
+        const size_t count = std::min(text.size(), size_t{20});
+        SchoolDaysFontData::Glyph glyph;
+        for (size_t i = 0u; i < count; ++i) {
+            const uint16_t code = static_cast<uint16_t>(text[i]);
+            if (!replayFont_.DecodeGlyph(code, &glyph, error)) return false;
+            if (x < 0 || startY < 0 || x + SchoolDaysFontData::kGlyphWidth > 2048 ||
+                startY + SchoolDaysFontData::kGlyphHeight > 1024) {
+                if (error != nullptr)
+                    *error = "School Days Replay FONTDATA glyph exceeds atlas";
+                return false;
+            }
+            for (int gy = 0; gy < SchoolDaysFontData::kGlyphHeight; ++gy) {
+                for (int gx = 0; gx < SchoolDaysFontData::kGlyphWidth; ++gx) {
+                    const size_t source = static_cast<size_t>(gy) *
+                                              SchoolDaysFontData::kGlyphWidth +
+                                          static_cast<size_t>(gx);
+                    const uint8_t alpha = glyph.alpha[source];
+                    const uint8_t gray = glyph.gray[source];
+                    const uint32_t packed = (static_cast<uint32_t>(alpha) << 24u) |
+                                            (static_cast<uint32_t>(gray) << 16u) |
+                                            (static_cast<uint32_t>(gray) << 8u) |
+                                            static_cast<uint32_t>(gray);
+                    uint32_t& destination = replayTextPixels_[
+                        static_cast<size_t>(startY + gy) * 2048u +
+                        static_cast<size_t>(x + gx)];
+                    if (destination < packed) destination = packed;
+                }
+            }
+            x += SchoolDaysReplayRenderPlan::MetadataGlyphAdvance(code);
+        }
+        return true;
+    };
+
+    for (int row = 0; row < 10; ++row) {
+        const int slot = page * 10 + row;
+        const auto& metadata = replayMetadata_[static_cast<size_t>(slot)];
+        if (!metadata.occupied) continue;
+        if (!drawText(metadata.date, 0, 48 * row) ||
+            !drawText(metadata.story, 1024, 48 * row) ||
+            (replayTextInputEnabled_ &&
+             !drawText(metadata.comment, 0, 512 + 48 * row))) {
+            return false;
+        }
+    }
+    if (!SDL_UpdateTexture(replayTextTexture_, nullptr, replayTextPixels_.data(),
+                           2048 * static_cast<int>(sizeof(uint32_t)))) {
+        if (error != nullptr)
+            *error = std::string("School Days Replay FONTDATA atlas upload failed: ") +
+                     SDL_GetError();
+        return false;
+    }
+    replayTextLoadedPage_ = page;
+    return true;
+}
+
+bool SchoolDaysSystemUi::EnsureReplayTextures(SDL_Renderer* renderer,
+                                              std::string* error) {
+    if (!replay_.IsOpen() || renderer == nullptr) return false;
+    const bool sceneCheck = replay_.SceneCheckOpen();
+    const int sceneCheckCount = sceneCheck ? replay_.SceneCheckChoiceCount() : 0;
+    const auto view = replay_.CurrentView();
+    const int page = replay_.Page();
+    const bool needsThumbnail = view == SchoolDaysReplayModel::View::HScene;
+    const bool parentMatches = replayLoadedView_ == view &&
+                               replayLoadedPage_ == page &&
+                               baseTexture_ != nullptr && chipTexture_ != nullptr &&
+                               (!needsThumbnail || replayThumbnailTexture_ != nullptr);
+
+    if (!parentMatches) {
+        if (baseTexture_ != nullptr) { SDL_DestroyTexture(baseTexture_); baseTexture_ = nullptr; }
+        if (chipTexture_ != nullptr) { SDL_DestroyTexture(chipTexture_); chipTexture_ = nullptr; }
+        if (replayThumbnailTexture_ != nullptr) {
+            SDL_DestroyTexture(replayThumbnailTexture_);
+            replayThumbnailTexture_ = nullptr;
+        }
+
+        const std::string baseLogical = SchoolDaysReplayModel::BaseRelativePath(view);
+        const std::string chipLogical = SchoolDaysReplayModel::ChipRelativePath(view);
+        const auto base = ResolveSchoolDaysAssetPath(replayAssetsRoot_.c_str(),
+                                                    baseLogical.c_str());
+        const auto chip = ResolveSchoolDaysAssetPath(replayAssetsRoot_.c_str(),
+                                                    chipLogical.c_str());
+        if (!base.present || base.collision || !chip.present || chip.collision) {
+            if (error != nullptr)
+                *error = "School Days Replay base/CHIP resources could not be resolved";
+            return false;
+        }
+        baseTexture_ = LoadTexture(renderer, base.physical);
+        chipTexture_ = LoadTexture(renderer, chip.physical);
+        if (baseTexture_ == nullptr || chipTexture_ == nullptr) {
+            if (error != nullptr)
+                *error = std::string("School Days Replay texture load failed: ") + SDL_GetError();
+            return false;
+        }
+        SDL_SetTextureBlendMode(baseTexture_, SDL_BLENDMODE_NONE);
+        SDL_SetTextureBlendMode(chipTexture_, SDL_BLENDMODE_BLEND);
+
+        if (needsThumbnail) {
+            const std::string thumbLogical =
+                SchoolDaysReplayRenderPlan::ThumbnailRelativePath(page);
+            const auto thumb = ResolveSchoolDaysAssetPath(replayAssetsRoot_.c_str(),
+                                                          thumbLogical.c_str());
+            if (!thumb.present || thumb.collision) {
+                if (error != nullptr)
+                    *error = "School Days Replay thumbnail resource could not be resolved";
+                return false;
+            }
+            replayThumbnailTexture_ =
+                LoadTexture(renderer, thumb.physical);
+            if (replayThumbnailTexture_ == nullptr) {
+                if (error != nullptr)
+                    *error = std::string("School Days Replay thumbnail load failed: ") + SDL_GetError();
+                return false;
+            }
+            SDL_SetTextureBlendMode(replayThumbnailTexture_, SDL_BLENDMODE_BLEND);
+        }
+        replayLoadedView_ = view;
+        replayLoadedPage_ = page;
+    }
+
+    if (view == SchoolDaysReplayModel::View::PlayData &&
+        replayTextLoadedPage_ != page && !UpdateReplayMetadataTexture(error)) {
+        return false;
+    }
+
+    if (sceneCheck) {
+        const bool popupMatches = replayLoadedSceneCheckCount_ == sceneCheckCount &&
+                                  replayPopupBaseTexture_ != nullptr &&
+                                  replayPopupChipTexture_ != nullptr;
+        if (!popupMatches) {
+            if (replayPopupBaseTexture_ != nullptr) {
+                SDL_DestroyTexture(replayPopupBaseTexture_);
+                replayPopupBaseTexture_ = nullptr;
+            }
+            if (replayPopupChipTexture_ != nullptr) {
+                SDL_DestroyTexture(replayPopupChipTexture_);
+                replayPopupChipTexture_ = nullptr;
+            }
+            const std::string popupBaseLogical =
+                SchoolDaysReplayModel::SceneCheckBaseRelativePath(sceneCheckCount);
+            const std::string popupChipLogical =
+                SchoolDaysReplayModel::SceneCheckChipRelativePath(sceneCheckCount);
+            const auto popupBase = ResolveSchoolDaysAssetPath(
+                replayAssetsRoot_.c_str(), popupBaseLogical.c_str());
+            const auto popupChip = ResolveSchoolDaysAssetPath(
+                replayAssetsRoot_.c_str(), popupChipLogical.c_str());
+            if (!popupBase.present || popupBase.collision ||
+                !popupChip.present || popupChip.collision) {
+                if (error != nullptr)
+                    *error = "School Days SceneCheck resources could not be resolved";
+                return false;
+            }
+            replayPopupBaseTexture_ = LoadTexture(renderer, popupBase.physical);
+            replayPopupChipTexture_ = LoadTexture(renderer, popupChip.physical);
+            if (replayPopupBaseTexture_ == nullptr ||
+                replayPopupChipTexture_ == nullptr) {
+                if (error != nullptr)
+                    *error = std::string("School Days SceneCheck texture load failed: ") +
+                             SDL_GetError();
+                return false;
+            }
+            // Pop_Replay base artwork is authored translucent.  Native
+            // SceneCheck is layered over the retained SceneView parent.
+            SDL_SetTextureBlendMode(replayPopupBaseTexture_, SDL_BLENDMODE_BLEND);
+            SDL_SetTextureBlendMode(replayPopupChipTexture_, SDL_BLENDMODE_BLEND);
+            replayLoadedSceneCheckCount_ = sceneCheckCount;
+        }
+    } else {
+        if (replayPopupBaseTexture_ != nullptr) {
+            SDL_DestroyTexture(replayPopupBaseTexture_);
+            replayPopupBaseTexture_ = nullptr;
+        }
+        if (replayPopupChipTexture_ != nullptr) {
+            SDL_DestroyTexture(replayPopupChipTexture_);
+            replayPopupChipTexture_ = nullptr;
+        }
+        replayLoadedSceneCheckCount_ = -1;
+    }
+    return true;
 }
 
 bool SchoolDaysSystemUi::OpenConfig(
-    SDL_Renderer *renderer, const std::string &assetsRoot,
+    SDL_Renderer* renderer, const std::string& assetsRoot,
     SchoolDaysConfigMenuModel::Variant variant,
     SchoolDaysConfigMenuModel::Page page,
-    const SchoolDaysConfigMenuRenderPlan::VisualState &visualState,
-    std::string *error) {
-  Close();
-  if (renderer == nullptr) {
-    if (error != nullptr)
-      *error = "School Days ConfigMenu renderer is null";
-    return false;
-  }
-  if (!configMenu_.Open(assetsRoot, variant, page, error))
-    return false;
-  configVisualState_ = visualState;
+    const SchoolDaysConfigMenuRenderPlan::VisualState& visualState,
+    std::string* error) {
+    Close();
+    if (renderer == nullptr) {
+        if (error != nullptr) *error = "School Days ConfigMenu renderer is null";
+        return false;
+    }
+#if defined(__ANDROID__) || defined(ANDROID)
+    // No customized Option_Display atlas is packaged for Android. Keep the
+    // logical Display page (native FPS/render-scale overlay), but reuse the
+    // retail General image, CHIP and CMAP for its shared tab navigation.
+    constexpr bool useRetailDisplayArtwork = true;
+#else
+    constexpr bool useRetailDisplayArtwork = false;
+#endif
+    if (!configMenu_.Open(assetsRoot, variant, page, error,
+                          useRetailDisplayArtwork)) return false;
+    configVisualState_ = visualState;
 
-  const auto base = ResolveSchoolDaysAssetPath(
-      assetsRoot.c_str(),
-      SchoolDaysConfigMenuRenderPlan::BaseRelativePath(configMenu_));
-  const auto chip = ResolveSchoolDaysAssetPath(
-      assetsRoot.c_str(), SchoolDaysConfigMenuModel::ChipRelativePath(page));
-  if (!base.present || base.collision || !chip.present || chip.collision) {
-    if (error != nullptr)
-      *error =
-          "School Days ConfigMenu base/CHIP resources could not be resolved";
-    Close();
-    return false;
-  }
+    const auto base = ResolveSchoolDaysAssetPath(
+        assetsRoot.c_str(), SchoolDaysConfigMenuRenderPlan::BaseRelativePath(configMenu_));
+    const auto chip = ResolveSchoolDaysAssetPath(
+        assetsRoot.c_str(), SchoolDaysConfigMenuModel::ChipRelativePath(
+            configMenu_.ArtworkPage()));
+    if (!base.present || base.collision || !chip.present || chip.collision) {
+        if (error != nullptr)
+            *error = "School Days ConfigMenu base/CHIP resources could not be resolved";
+        Close();
+        return false;
+    }
 
-  baseTexture_ = LoadTexture(renderer, base.physical);
-  chipTexture_ = LoadTexture(renderer, chip.physical);
-  if (baseTexture_ == nullptr || chipTexture_ == nullptr) {
-    if (error != nullptr)
-      *error = std::string("School Days ConfigMenu texture load failed: ") +
-               SDL_GetError();
-    Close();
-    return false;
-  }
-  SDL_SetTextureBlendMode(baseTexture_, SDL_BLENDMODE_NONE);
-  if (!SDL_SetTextureBlendMode(chipTexture_, SDL_BLENDMODE_BLEND)) {
-    if (error != nullptr)
-      *error = std::string("School Days ConfigMenu CHIP blend setup failed: ") +
-               SDL_GetError();
-    Close();
-    return false;
-  }
-  resultEmitted_ = false;
-  return true;
+    baseTexture_ =
+        LoadTexture(renderer, base.physical);
+    chipTexture_ =
+        LoadTexture(renderer, chip.physical);
+    if (baseTexture_ == nullptr || chipTexture_ == nullptr) {
+        if (error != nullptr)
+            *error = std::string("School Days ConfigMenu texture load failed: ") +
+                     SDL_GetError();
+        Close();
+        return false;
+    }
+    SDL_SetTextureBlendMode(baseTexture_, SDL_BLENDMODE_NONE);
+    if (!SDL_SetTextureBlendMode(chipTexture_, SDL_BLENDMODE_BLEND)) {
+        if (error != nullptr)
+            *error = std::string("School Days ConfigMenu CHIP blend setup failed: ") +
+                     SDL_GetError();
+        Close();
+        return false;
+    }
+    resultEmitted_ = false;
+    return true;
 }
 
 bool SchoolDaysSystemUi::SetConfigVisualState(
-    const SchoolDaysConfigMenuRenderPlan::VisualState &visualState,
-    std::string *error) {
-  if (error != nullptr)
-    error->clear();
-  if (!configMenu_.IsOpen() || baseTexture_ == nullptr) {
-    if (error != nullptr)
-      *error = "School Days ConfigMenu visual presenter is not ready";
-    return false;
-  }
-  configVisualState_ = visualState;
-  return true;
+    const SchoolDaysConfigMenuRenderPlan::VisualState& visualState,
+    std::string* error) {
+    if (error != nullptr) error->clear();
+    if (!configMenu_.IsOpen() || baseTexture_ == nullptr) {
+        if (error != nullptr)
+            *error = "School Days ConfigMenu visual presenter is not ready";
+        return false;
+    }
+    configVisualState_ = visualState;
+    return true;
 }
 
-bool SchoolDaysSystemUi::OpenExit(SDL_Renderer *renderer,
-                                  const std::string &assetsRoot,
-                                  SchoolDaysExitViewModel::Variant variant,
-                                  SchoolDaysExitViewModel::BaseArtwork artwork,
-                                  std::string *error) {
-  Close();
-  if (renderer == nullptr) {
-    if (error != nullptr)
-      *error = "School Days ExitView renderer is null";
-    return false;
-  }
-  if (!exitView_.Open(assetsRoot, variant, error))
-    return false;
+bool SchoolDaysSystemUi::OpenExit(
+    SDL_Renderer* renderer, const std::string& assetsRoot,
+    SchoolDaysExitViewModel::Variant variant,
+    SchoolDaysExitViewModel::BaseArtwork artwork, std::string* error) {
+    Close();
+    if (renderer == nullptr) {
+        if (error != nullptr) *error = "School Days ExitView renderer is null";
+        return false;
+    }
+    if (!exitView_.Open(assetsRoot, variant, error)) return false;
 
-  const auto base = ResolveSchoolDaysAssetPath(
-      assetsRoot.c_str(), SchoolDaysExitViewModel::BaseRelativePath(artwork));
-  const auto chip = ResolveSchoolDaysAssetPath(
-      assetsRoot.c_str(), SchoolDaysExitViewModel::ChipRelativePath());
-  if (!base.present || base.collision || !chip.present || chip.collision) {
-    if (error != nullptr)
-      *error = "School Days ExitView base/CHIP resources could not be resolved";
-    Close();
-    return false;
-  }
+    const auto base = ResolveSchoolDaysAssetPath(
+        assetsRoot.c_str(), SchoolDaysExitViewModel::BaseRelativePath(artwork));
+    const auto chip = ResolveSchoolDaysAssetPath(
+        assetsRoot.c_str(), SchoolDaysExitViewModel::ChipRelativePath());
+    if (!base.present || base.collision || !chip.present || chip.collision) {
+        if (error != nullptr)
+            *error = "School Days ExitView base/CHIP resources could not be resolved";
+        Close();
+        return false;
+    }
 
-  baseTexture_ = LoadTexture(renderer, base.physical);
-  chipTexture_ = LoadTexture(renderer, chip.physical);
-  if (baseTexture_ == nullptr || chipTexture_ == nullptr) {
-    if (error != nullptr)
-      *error = std::string("School Days ExitView texture load failed: ") +
-               SDL_GetError();
-    Close();
-    return false;
-  }
-  SDL_SetTextureBlendMode(baseTexture_, SDL_BLENDMODE_NONE);
-  if (!SDL_SetTextureBlendMode(chipTexture_, SDL_BLENDMODE_BLEND)) {
-    if (error != nullptr)
-      *error = std::string("School Days ExitView CHIP blend setup failed: ") +
-               SDL_GetError();
-    Close();
-    return false;
-  }
-  resultEmitted_ = false;
-  return true;
+    baseTexture_ =
+        LoadTexture(renderer, base.physical);
+    chipTexture_ =
+        LoadTexture(renderer, chip.physical);
+    if (baseTexture_ == nullptr || chipTexture_ == nullptr) {
+        if (error != nullptr)
+            *error = std::string("School Days ExitView texture load failed: ") +
+                     SDL_GetError();
+        Close();
+        return false;
+    }
+    // The retail popup base carries a translucent dark veil (alpha 221).
+    // Compositing it over the retained title/gameplay frame is part of the
+    // confirmation view; SDL_BLENDMODE_NONE turns the veil opaque black.
+    SDL_SetTextureBlendMode(baseTexture_, SDL_BLENDMODE_BLEND);
+    if (!SDL_SetTextureBlendMode(chipTexture_, SDL_BLENDMODE_BLEND)) {
+        if (error != nullptr)
+            *error = std::string("School Days ExitView CHIP blend setup failed: ") +
+                     SDL_GetError();
+        Close();
+        return false;
+    }
+    resultEmitted_ = false;
+    return true;
 }
 
-bool SchoolDaysSystemUi::OpenSaveLoad(SDL_Renderer *renderer,
-                                      const std::string &assetsRoot,
-                                      SchoolDaysSaveLoadModel::Variant variant,
-                                      SchoolDaysSaveLoadModel::Mode mode,
-                                      bool textInputEnabled, bool useEnglish,
-                                      const std::string &fontDataLogicalPath,
-                                      std::string *error) {
-  Close();
-  if (renderer == nullptr) {
-    if (error != nullptr)
-      *error = "School Days SaveLoad renderer is null";
-    return false;
-  }
+bool SchoolDaysSystemUi::OpenSaveLoad(
+    SDL_Renderer* renderer, const std::string& assetsRoot,
+    SchoolDaysSaveLoadModel::Variant variant, SchoolDaysSaveLoadModel::Mode mode,
+    bool textInputEnabled,
+    bool useEnglish, const std::string& fontDataLogicalPath,
+    std::string* error) {
+    Close();
+    if (renderer == nullptr) {
+        if (error != nullptr) *error = "School Days SaveLoad renderer is null";
+        return false;
+    }
 
-  namespace fs = std::filesystem;
-  std::string saveLoadCmap;
-  if (!ResolveSchoolDaysRequiredAssetPath(
-          assetsRoot.c_str(),
-          SchoolDaysSaveLoadModel::CmapRelativePath(variant), &saveLoadCmap,
-          error, "SaveLoad CMAP")) {
-    return false;
-  }
-  if (!saveLoad_.Open(saveLoadCmap, variant, mode, textInputEnabled, error)) {
-    return false;
-  }
+    namespace fs = std::filesystem;
+    std::string saveLoadCmap;
+    if (!ResolveSchoolDaysRequiredAssetPath(
+            assetsRoot.c_str(), SchoolDaysSaveLoadModel::CmapRelativePath(variant),
+            &saveLoadCmap, error, "SaveLoad CMAP")) {
+        return false;
+    }
+    if (!saveLoad_.Open(saveLoadCmap, variant, mode, textInputEnabled, error)) {
+        return false;
+    }
 
-  const auto base = ResolveSchoolDaysImageAsset(
-      assetsRoot.c_str(), mode == SchoolDaysSaveLoadModel::Mode::Load
-                              ? "System/SaveLoad/Load"
-                              : "System/SaveLoad/Save");
-  const auto chip = ResolveSchoolDaysImageAsset(
-      assetsRoot.c_str(), "System/SaveLoad/SaveLoad_Chip");
-  if (!base.present || base.collision || !chip.present || chip.collision) {
-    if (error != nullptr)
-      *error = "School Days SaveLoad base/CHIP resources could not be resolved";
-    Close();
-    return false;
-  }
+    const auto base = ResolveSchoolDaysImageAsset(
+        assetsRoot.c_str(), mode == SchoolDaysSaveLoadModel::Mode::Load
+                                ? "System/SaveLoad/Load"
+                                : "System/SaveLoad/Save");
+    const auto chip = ResolveSchoolDaysImageAsset(
+        assetsRoot.c_str(), "System/SaveLoad/SaveLoad_Chip");
+    if (!base.present || base.collision || !chip.present || chip.collision) {
+        if (error != nullptr) *error = "School Days SaveLoad base/CHIP resources could not be resolved";
+        Close();
+        return false;
+    }
 
-  fs::path fontLogical(fontDataLogicalPath);
-  if (fontLogical.empty() || fontLogical.is_absolute()) {
-    if (error != nullptr)
-      *error = "School Days FONTDATA logical path is invalid";
-    Close();
-    return false;
-  }
-  if (useEnglish) {
-    const auto ext = fontLogical.extension().string();
-    const auto stem = fontLogical.stem().string();
-    fontLogical.replace_filename(stem + "_eng" + ext);
-  }
-  std::string fontPhysical;
-  if (!ResolveSchoolDaysRequiredAssetPath(assetsRoot.c_str(),
-                                          fontLogical.generic_string(),
-                                          &fontPhysical, error, "FONTDATA")) {
-    Close();
-    return false;
-  }
-  if (!saveLoadFont_.LoadFile(fontPhysical, error)) {
-    Close();
-    return false;
-  }
+    fs::path fontLogical(fontDataLogicalPath);
+    if (fontLogical.empty() || fontLogical.is_absolute()) {
+        if (error != nullptr) *error = "School Days FONTDATA logical path is invalid";
+        Close();
+        return false;
+    }
+    if (useEnglish) {
+        const auto ext = fontLogical.extension().string();
+        const auto stem = fontLogical.stem().string();
+        fontLogical.replace_filename(stem + "_eng" + ext);
+    }
+    std::string fontPhysical;
+    if (!ResolveSchoolDaysRequiredAssetPath(
+            assetsRoot.c_str(), fontLogical.generic_string(), &fontPhysical, error,
+            "FONTDATA")) {
+        Close();
+        return false;
+    }
+    if (!saveLoadFont_.LoadFile(fontPhysical, error)) {
+        Close();
+        return false;
+    }
 
-  baseTexture_ = LoadTexture(renderer, base.physical);
-  chipTexture_ = LoadTexture(renderer, chip.physical);
-  if (baseTexture_ == nullptr || chipTexture_ == nullptr) {
-    if (error != nullptr)
-      *error = std::string("School Days SaveLoad texture load failed: ") +
-               SDL_GetError();
-    Close();
-    return false;
-  }
-  saveLoadTextTexture_ =
-      SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888,
-                        SDL_TEXTUREACCESS_STREAMING, 2048, 1024);
-  if (saveLoadTextTexture_ == nullptr ||
-      !SDL_SetTextureBlendMode(saveLoadTextTexture_, SDL_BLENDMODE_BLEND)) {
-    if (error != nullptr)
-      *error =
-          std::string("School Days SaveLoad FONTDATA texture setup failed: ") +
-          SDL_GetError();
-    Close();
-    return false;
-  }
-  saveLoadTextPixels_.assign(static_cast<size_t>(2048) * 1024u, 0u);
-  saveLoadMetadata_.assign(10u, SchoolDaysSaveService::SlotMetadata{});
-  saveLoadCommentAdvances_.assign(10u, 0);
-  saveLoadUseEnglish_ = useEnglish;
-  if (!SDL_UpdateTexture(saveLoadTextTexture_, nullptr,
-                         saveLoadTextPixels_.data(),
-                         2048 * static_cast<int>(sizeof(uint32_t)))) {
-    if (error != nullptr)
-      *error =
-          std::string("School Days SaveLoad FONTDATA texture clear failed: ") +
-          SDL_GetError();
-    Close();
-    return false;
-  }
-  SDL_SetTextureBlendMode(baseTexture_, SDL_BLENDMODE_NONE);
-  if (!SDL_SetTextureBlendMode(chipTexture_, SDL_BLENDMODE_BLEND)) {
-    if (error != nullptr)
-      *error = std::string("School Days SaveLoad CHIP blend setup failed: ") +
-               SDL_GetError();
-    Close();
-    return false;
-  }
-  layout_ = LayoutForVariant(variant);
-  resultEmitted_ = false;
-  return true;
+    baseTexture_ = LoadTexture(renderer, base.physical);
+    chipTexture_ = LoadTexture(renderer, chip.physical);
+    if (baseTexture_ == nullptr || chipTexture_ == nullptr) {
+        if (error != nullptr) *error = std::string("School Days SaveLoad texture load failed: ") + SDL_GetError();
+        Close();
+        return false;
+    }
+    saveLoadTextTexture_ = SDL_CreateTexture(
+        renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, 2048, 1024);
+    if (saveLoadTextTexture_ == nullptr ||
+        !SDL_SetTextureBlendMode(saveLoadTextTexture_, SDL_BLENDMODE_BLEND)) {
+        if (error != nullptr) *error = std::string("School Days SaveLoad FONTDATA texture setup failed: ") + SDL_GetError();
+        Close();
+        return false;
+    }
+    if (textInputEnabled) {
+        saveLoadCommentTextTexture_ = SDL_CreateTexture(
+            renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING,
+            kCommentTextureWidth, kCommentTextureHeight);
+        if (saveLoadCommentTextTexture_ == nullptr ||
+            !SDL_SetTextureBlendMode(saveLoadCommentTextTexture_, SDL_BLENDMODE_BLEND)) {
+            if (error != nullptr)
+                *error = std::string("School Days comment FONTDATA texture setup failed: ") +
+                         SDL_GetError();
+            Close();
+            return false;
+        }
+        saveLoadCommentTextPixels_.assign(
+            static_cast<size_t>(kCommentTextureWidth) * kCommentTextureHeight, 0u);
+    }
+    saveLoadTextPixels_.assign(static_cast<size_t>(2048) * 1024u, 0u);
+    saveLoadMetadata_.assign(10u, SchoolDaysSaveService::SlotMetadata{});
+    saveLoadCommentAdvances_.assign(10u, 0);
+    saveLoadUseEnglish_ = useEnglish;
+    if (!SDL_UpdateTexture(saveLoadTextTexture_, nullptr, saveLoadTextPixels_.data(),
+                           2048 * static_cast<int>(sizeof(uint32_t)))) {
+        if (error != nullptr) *error = std::string("School Days SaveLoad FONTDATA texture clear failed: ") + SDL_GetError();
+        Close();
+        return false;
+    }
+    SDL_SetTextureBlendMode(baseTexture_, SDL_BLENDMODE_NONE);
+    if (!SDL_SetTextureBlendMode(chipTexture_, SDL_BLENDMODE_BLEND)) {
+        if (error != nullptr) *error = std::string("School Days SaveLoad CHIP blend setup failed: ") + SDL_GetError();
+        Close();
+        return false;
+    }
+    layout_ = LayoutForVariant(variant);
+    resultEmitted_ = false;
+    return true;
 }
 
 bool SchoolDaysSystemUi::SetSaveLoadMetadata(
-    const std::vector<SchoolDaysSaveService::SlotMetadata> &rows,
-    std::string *error) {
-  if (error != nullptr)
-    error->clear();
-  if (!saveLoad_.IsOpen() || saveLoadTextTexture_ == nullptr ||
-      !saveLoadFont_.IsLoaded() || rows.size() != 10u) {
-    if (error != nullptr)
-      *error = "School Days SaveLoad metadata presenter is not ready";
-    return false;
-  }
-  std::fill(saveLoadTextPixels_.begin(), saveLoadTextPixels_.end(), 0u);
-  saveLoadCommentAdvances_.assign(10u, 0);
+    const std::vector<SchoolDaysSaveService::SlotMetadata>& rows,
+    std::string* error) {
+    if (error != nullptr) error->clear();
+    if (!saveLoad_.IsOpen() || saveLoadTextTexture_ == nullptr ||
+        !saveLoadFont_.IsLoaded() || rows.size() != 10u) {
+        if (error != nullptr) *error = "School Days SaveLoad metadata presenter is not ready";
+        return false;
+    }
+    std::fill(saveLoadTextPixels_.begin(), saveLoadTextPixels_.end(), 0u);
+    saveLoadCommentAdvances_.assign(10u, 0);
 
-  auto drawText = [&](const std::u16string &text, int limit, int startX,
-                      int startY, int *renderedAdvance) -> bool {
-    int x = startX;
-    const size_t count = std::min(text.size(), static_cast<size_t>(limit));
-    SchoolDaysFontData::Glyph glyph;
-    for (size_t i = 0u; i < count; ++i) {
-      const uint16_t code = static_cast<uint16_t>(text[i]);
-      if (!saveLoadFont_.DecodeGlyph(code, &glyph, error))
-        return false;
-      if (x < 0 || startY < 0 || x + SchoolDaysFontData::kGlyphWidth > 2048 ||
-          startY + SchoolDaysFontData::kGlyphHeight > 1024) {
-        if (error != nullptr)
-          *error = "School Days FONTDATA glyph exceeds SaveLoad atlas";
-        return false;
-      }
-      for (int gy = 0; gy < SchoolDaysFontData::kGlyphHeight; ++gy) {
-        for (int gx = 0; gx < SchoolDaysFontData::kGlyphWidth; ++gx) {
-          const size_t source =
-              static_cast<size_t>(gy) * SchoolDaysFontData::kGlyphWidth +
-              static_cast<size_t>(gx);
-          const uint8_t alpha = glyph.alpha[source];
-          const uint8_t gray = glyph.gray[source];
-          const uint32_t packed = (static_cast<uint32_t>(alpha) << 24u) |
-                                  (static_cast<uint32_t>(gray) << 16u) |
-                                  (static_cast<uint32_t>(gray) << 8u) |
-                                  static_cast<uint32_t>(gray);
-          uint32_t &destination =
-              saveLoadTextPixels_[static_cast<size_t>(startY + gy) * 2048u +
-                                  static_cast<size_t>(x + gx)];
-          if (destination < packed)
-            destination = packed;
+    auto drawText = [&](const std::u16string& text, int limit, int startX,
+                        int startY, int* renderedAdvance) -> bool {
+        int x = startX;
+        const size_t count = std::min(text.size(), static_cast<size_t>(limit));
+        SchoolDaysFontData::Glyph glyph;
+        for (size_t i = 0u; i < count; ++i) {
+            const uint16_t code = static_cast<uint16_t>(text[i]);
+            if (!saveLoadFont_.DecodeGlyph(code, &glyph, error)) return false;
+            if (x < 0 || startY < 0 || x + SchoolDaysFontData::kGlyphWidth > 2048 ||
+                startY + SchoolDaysFontData::kGlyphHeight > 1024) {
+                if (error != nullptr) *error = "School Days FONTDATA glyph exceeds SaveLoad atlas";
+                return false;
+            }
+            for (int gy = 0; gy < SchoolDaysFontData::kGlyphHeight; ++gy) {
+                for (int gx = 0; gx < SchoolDaysFontData::kGlyphWidth; ++gx) {
+                    const size_t source = static_cast<size_t>(gy) *
+                                              SchoolDaysFontData::kGlyphWidth +
+                                          static_cast<size_t>(gx);
+                    const uint8_t alpha = glyph.alpha[source];
+                    const uint8_t gray = glyph.gray[source];
+                    const uint32_t packed = (static_cast<uint32_t>(alpha) << 24u) |
+                                            (static_cast<uint32_t>(gray) << 16u) |
+                                            (static_cast<uint32_t>(gray) << 8u) |
+                                            static_cast<uint32_t>(gray);
+                    uint32_t& destination = saveLoadTextPixels_[
+                        static_cast<size_t>(startY + gy) * 2048u +
+                        static_cast<size_t>(x + gx)];
+                    if (destination < packed) destination = packed;
+                }
+            }
+            x += SchoolDaysSaveLoadRenderPlan::GlyphAdvance(code, saveLoadUseEnglish_);
         }
-      }
-      x +=
-          SchoolDaysSaveLoadRenderPlan::GlyphAdvance(code, saveLoadUseEnglish_);
+        if (renderedAdvance != nullptr) *renderedAdvance = x - startX;
+        return true;
+    };
+
+    for (int row = 0; row < 10; ++row) {
+        const auto& metadata = rows[static_cast<size_t>(row)];
+        if (!metadata.occupied) continue;
+        const int y = 2 + 48 * row;
+        if (!drawText(metadata.date,
+                      SchoolDaysSaveLoadRenderPlan::PrimaryCharacterLimit(saveLoadUseEnglish_),
+                      0, y, nullptr) ||
+            !drawText(metadata.story,
+                      SchoolDaysSaveLoadRenderPlan::SecondaryCharacterLimit(),
+                      1024, y, nullptr)) {
+            return false;
+        }
+        if (saveLoad_.TextInputEnabled() &&
+            !drawText(metadata.comment,
+                      SchoolDaysSaveLoadRenderPlan::CommentCharacterLimit(saveLoadUseEnglish_),
+                      0, 514 + 48 * row,
+                      &saveLoadCommentAdvances_[static_cast<size_t>(row)])) {
+            return false;
+        }
     }
-    if (renderedAdvance != nullptr)
-      *renderedAdvance = x - startX;
+    if (!SDL_UpdateTexture(saveLoadTextTexture_, nullptr, saveLoadTextPixels_.data(),
+                           2048 * static_cast<int>(sizeof(uint32_t)))) {
+        if (error != nullptr) *error = std::string("School Days SaveLoad FONTDATA atlas upload failed: ") + SDL_GetError();
+        return false;
+    }
+    saveLoadMetadata_ = rows;
+    std::array<bool, 10> occupancy{};
+    for (size_t i = 0; i < occupancy.size(); ++i) {
+        occupancy[i] = rows[i].occupied;
+    }
+    saveLoad_.SetRowOccupancy(occupancy);
     return true;
-  };
-
-  for (int row = 0; row < 10; ++row) {
-    const auto &metadata = rows[static_cast<size_t>(row)];
-    if (!metadata.occupied)
-      continue;
-    const int y = 2 + 48 * row;
-    if (!drawText(metadata.date,
-                  SchoolDaysSaveLoadRenderPlan::PrimaryCharacterLimit(
-                      saveLoadUseEnglish_),
-                  0, y, nullptr) ||
-        !drawText(metadata.story,
-                  SchoolDaysSaveLoadRenderPlan::SecondaryCharacterLimit(), 1024,
-                  y, nullptr)) {
-      return false;
-    }
-    if (saveLoad_.TextInputEnabled() &&
-        !drawText(metadata.comment,
-                  SchoolDaysSaveLoadRenderPlan::CommentCharacterLimit(
-                      saveLoadUseEnglish_),
-                  0, 514 + 48 * row,
-                  &saveLoadCommentAdvances_[static_cast<size_t>(row)])) {
-      return false;
-    }
-  }
-  if (!SDL_UpdateTexture(saveLoadTextTexture_, nullptr,
-                         saveLoadTextPixels_.data(),
-                         2048 * static_cast<int>(sizeof(uint32_t)))) {
-    if (error != nullptr)
-      *error =
-          std::string("School Days SaveLoad FONTDATA atlas upload failed: ") +
-          SDL_GetError();
-    return false;
-  }
-  saveLoadMetadata_ = rows;
-  std::array<bool, 10> occupancy{};
-  for (size_t i = 0; i < occupancy.size(); ++i) {
-    occupancy[i] = rows[i].occupied;
-  }
-  saveLoad_.SetRowOccupancy(occupancy);
-  return true;
 }
 
-bool SchoolDaysSystemUi::OpenSaveFeel(SDL_Renderer *renderer,
-                                      const std::string &assetsRoot,
-                                      SchoolDaysSaveFeelModel::Variant variant,
-                                      std::string *error) {
-  Close();
-  if (renderer == nullptr) {
-    if (error != nullptr)
-      *error = "School Days SystemUi renderer is null";
-    return false;
-  }
-
-  if (!saveFeel_.Open(assetsRoot, variant, error))
-    return false;
-  layout_ = LayoutForVariant(variant);
-
-  const auto base = ResolveSchoolDaysImageAsset(
-      assetsRoot.c_str(), "System/SaveLoad/Pop_Save_Feel");
-  const auto chip = ResolveSchoolDaysImageAsset(
-      assetsRoot.c_str(), "System/SaveLoad/Pop_Save_Feel_Chip");
-  if (!base.present || base.collision || !chip.present || chip.collision) {
-    if (error != nullptr) {
-      *error = "School Days SaveFeel PNG/CHIP asset could not be resolved";
-    }
+bool SchoolDaysSystemUi::OpenSaveFeel(
+    SDL_Renderer* renderer, const std::string& assetsRoot,
+    SchoolDaysSaveFeelModel::Variant variant, std::string* error) {
     Close();
-    return false;
-  }
-
-  baseTexture_ = LoadTexture(renderer, base.physical);
-  chipTexture_ = LoadTexture(renderer, chip.physical);
-  if (baseTexture_ == nullptr || chipTexture_ == nullptr) {
-    if (error != nullptr) {
-      *error = std::string("School Days SaveFeel texture load failed: ") +
-               SDL_GetError();
+    if (renderer == nullptr) {
+        if (error != nullptr) *error = "School Days SystemUi renderer is null";
+        return false;
     }
-    Close();
-    return false;
-  }
 
-  // Base is intentionally opaque in the shipped asset. CHIP carries alpha.
-  SDL_SetTextureBlendMode(baseTexture_, SDL_BLENDMODE_NONE);
-  if (!SDL_SetTextureBlendMode(chipTexture_, SDL_BLENDMODE_BLEND)) {
-    if (error != nullptr) {
-      *error = std::string("School Days SaveFeel CHIP blend setup failed: ") +
-               SDL_GetError();
+    if (!saveFeel_.Open(assetsRoot, variant, error)) return false;
+    layout_ = LayoutForVariant(variant);
+
+    const auto base = ResolveSchoolDaysImageAsset(
+        assetsRoot.c_str(), "System/SaveLoad/Pop_Save_Feel");
+    const auto chip = ResolveSchoolDaysImageAsset(
+        assetsRoot.c_str(), "System/SaveLoad/Pop_Save_Feel_Chip");
+    if (!base.present || base.collision || !chip.present || chip.collision) {
+        if (error != nullptr) {
+            *error = "School Days SaveFeel PNG/CHIP asset could not be resolved";
+        }
+        Close();
+        return false;
     }
-    Close();
-    return false;
-  }
-  resultEmitted_ = false;
-  return true;
+
+    baseTexture_ = LoadTexture(renderer, base.physical);
+    chipTexture_ = LoadTexture(renderer, chip.physical);
+    if (baseTexture_ == nullptr || chipTexture_ == nullptr) {
+        if (error != nullptr) {
+            *error = std::string("School Days SaveFeel texture load failed: ") +
+                     SDL_GetError();
+        }
+        Close();
+        return false;
+    }
+
+    // Base is intentionally opaque in the shipped asset. CHIP carries alpha.
+    SDL_SetTextureBlendMode(baseTexture_, SDL_BLENDMODE_NONE);
+    if (!SDL_SetTextureBlendMode(chipTexture_, SDL_BLENDMODE_BLEND)) {
+        if (error != nullptr) {
+            *error = std::string("School Days SaveFeel CHIP blend setup failed: ") +
+                     SDL_GetError();
+        }
+        Close();
+        return false;
+    }
+    resultEmitted_ = false;
+    return true;
 }
 
-SchoolDaysSystemUi::Viewport
-SchoolDaysSystemUi::ComputeViewport(int outputWidth, int outputHeight,
-                                    int virtualWidth, int virtualHeight) {
-  Viewport viewport;
-  if (outputWidth <= 0 || outputHeight <= 0 || virtualWidth <= 0 ||
-      virtualHeight <= 0) {
-    viewport.scale = 0.0f;
+SchoolDaysSystemUi::Viewport SchoolDaysSystemUi::ComputeViewport(
+    int outputWidth, int outputHeight, int virtualWidth, int virtualHeight) {
+    Viewport viewport;
+    if (outputWidth <= 0 || outputHeight <= 0 || virtualWidth <= 0 ||
+        virtualHeight <= 0) {
+        viewport.scale = 0.0f;
+        return viewport;
+    }
+    const float sx = static_cast<float>(outputWidth) /
+                     static_cast<float>(virtualWidth);
+    const float sy = static_cast<float>(outputHeight) /
+                     static_cast<float>(virtualHeight);
+    viewport.scale = std::min(sx, sy);
+    viewport.scaleY = viewport.scale;
+    viewport.x = (static_cast<float>(outputWidth) -
+                  static_cast<float>(virtualWidth) * viewport.scale) *
+                 0.5f;
+    viewport.y = (static_cast<float>(outputHeight) -
+                  static_cast<float>(virtualHeight) * viewport.scale) *
+                 0.5f;
     return viewport;
-  }
-  const float sx =
-      static_cast<float>(outputWidth) / static_cast<float>(virtualWidth);
-  const float sy =
-      static_cast<float>(outputHeight) / static_cast<float>(virtualHeight);
-  viewport.scale = std::min(sx, sy);
-  viewport.x = (static_cast<float>(outputWidth) -
-                static_cast<float>(virtualWidth) * viewport.scale) *
-               0.5f;
-  viewport.y = (static_cast<float>(outputHeight) -
-                static_cast<float>(virtualHeight) * viewport.scale) *
-               0.5f;
-  return viewport;
 }
 
-SDL_FRect SchoolDaysSystemUi::TransformRect(const SDL_FRect &native,
-                                            const Viewport &viewport) {
-  return {viewport.x + native.x * viewport.scale,
-          viewport.y + native.y * viewport.scale, native.w * viewport.scale,
-          native.h * viewport.scale};
+SchoolDaysSystemUi::Viewport SchoolDaysSystemUi::ComputeConfigViewport(
+    int outputWidth, int outputHeight, int virtualWidth, int virtualHeight) const {
+    auto viewport = ComputeViewport(outputWidth, outputHeight,
+                                    virtualWidth, virtualHeight);
+    if (!configStandardFullscreenStretch_ || !configMenu_.IsOpen() ||
+        configMenu_.CurrentVariant() != SchoolDaysConfigMenuModel::Variant::Standard ||
+        viewport.scale <= 0.0f) return viewport;
+    viewport.x = 0.0f;
+    viewport.y = 0.0f;
+    viewport.scale = static_cast<float>(outputWidth) / virtualWidth;
+    viewport.scaleY = static_cast<float>(outputHeight) / virtualHeight;
+    return viewport;
 }
 
-bool SchoolDaysSystemUi::PointerToVirtual(SDL_Renderer *renderer, float x,
-                                          float y, int *virtualX,
-                                          int *virtualY) const {
-  if (renderer == nullptr || virtualX == nullptr || virtualY == nullptr ||
-      (!saveFeel_.IsOpen() && !saveLoad_.IsOpen() && !configMenu_.IsOpen() &&
-       !exitView_.IsOpen() && !replay_.IsOpen() && !routeMap_.IsOpen())) {
-    return false;
-  }
+SDL_FRect SchoolDaysSystemUi::TransformRect(const SDL_FRect& native,
+                                            const Viewport& viewport) {
+    return {viewport.x + native.x * viewport.scale,
+            viewport.y + native.y * viewport.scaleY,
+            native.w * viewport.scale, native.h * viewport.scaleY};
+}
 
-  // NeoStart delivers pointer events already in the game's logical frame.
-  const float renderX = x;
-  const float renderY = y;
-  const int width = area_.x;
-  const int height = area_.y;
-  const SchoolDaysCmap &cmap =
-      saveFeel_.IsOpen()
-          ? saveFeel_.Cmap()
-          : (saveLoad_.IsOpen()
-                 ? saveLoad_.Cmap()
-                 : (configMenu_.IsOpen()
-                        ? configMenu_.Cmap()
-                        : (exitView_.IsOpen()
-                               ? exitView_.Cmap()
-                               : (replay_.IsOpen() ? replay_.Cmap()
-                                                   : routeMap_.Cmap()))));
-  const auto viewport =
-      ComputeViewport(width, height, static_cast<int>(cmap.Width()),
-                      static_cast<int>(cmap.Height()));
-  if (viewport.scale <= 0.0f)
-    return false;
-  const float vx = (renderX - viewport.x) / viewport.scale;
-  const float vy = (renderY - viewport.y) / viewport.scale;
-  if (vx < 0.0f || vy < 0.0f || vx >= static_cast<float>(cmap.Width()) ||
-      vy >= static_cast<float>(cmap.Height())) {
-    // A valid window->render conversion outside the logical CMAP is still
-    // meaningful input: native hover clears selection to -1.  Reserve a
-    // false return for actual transform/query failures so HandleEvent can
-    // distinguish letterbox/background from an SDL error.
-    *virtualX = -1;
-    *virtualY = -1;
+bool SchoolDaysSystemUi::PointerToVirtual(SDL_Renderer* renderer, float x, float y,
+                                          int* virtualX, int* virtualY) const {
+    if (renderer == nullptr || virtualX == nullptr || virtualY == nullptr ||
+        (!saveFeel_.IsOpen() && !saveLoad_.IsOpen() &&
+         !configMenu_.IsOpen() && !exitView_.IsOpen() && !replay_.IsOpen() &&
+         !routeMap_.IsOpen())) {
+        return false;
+    }
+
+    // NeoStart delivers pointer events already in the game's logical frame.
+    const float renderX = x;
+    const float renderY = y;
+    const int width = area_.x;
+    const int height = area_.y;
+    const SchoolDaysCmap& cmap = saveFeel_.IsOpen()
+        ? saveFeel_.Cmap()
+        : (saveLoad_.IsOpen()
+               ? saveLoad_.Cmap()
+               : (configMenu_.IsOpen() ? configMenu_.Cmap()
+                                       : (exitView_.IsOpen()
+                                              ? exitView_.Cmap()
+                                              : (replay_.IsOpen()
+                                                     ? replay_.Cmap()
+                                                     : routeMap_.Cmap()))));
+    const auto viewport = configMenu_.IsOpen()
+        ? ComputeConfigViewport(width, height,
+                                static_cast<int>(cmap.Width()),
+                                static_cast<int>(cmap.Height()))
+        : ComputeViewport(width, height,
+                          static_cast<int>(cmap.Width()),
+                          static_cast<int>(cmap.Height()));
+    if (viewport.scale <= 0.0f) return false;
+    const float vx = (renderX - viewport.x) / viewport.scale;
+    const float vy = (renderY - viewport.y) / viewport.scaleY;
+    if (vx < 0.0f || vy < 0.0f ||
+        vx >= static_cast<float>(cmap.Width()) ||
+        vy >= static_cast<float>(cmap.Height())) {
+        // A valid window->render conversion outside the logical CMAP is still
+        // meaningful input: native hover clears selection to -1.  Reserve a
+        // false return for actual transform/query failures so HandleEvent can
+        // distinguish letterbox/background from an SDL error.
+        *virtualX = -1;
+        *virtualY = -1;
+        return true;
+    }
+    *virtualX = static_cast<int>(std::floor(vx));
+    *virtualY = static_cast<int>(std::floor(vy));
     return true;
-  }
-  *virtualX = static_cast<int>(std::floor(vx));
-  *virtualY = static_cast<int>(std::floor(vy));
-  return true;
 }
 
 bool SchoolDaysSystemUi::EmitModelResult(SchoolDaysSaveFeelModel::Result result,
-                                         Output *output) {
-  if (output == nullptr || resultEmitted_)
-    return false;
-  output->hasSaveFeelResult = true;
-  output->saveFeelResult = result;
-  resultEmitted_ = true;
-  return true;
+                                         Output* output) {
+    if (output == nullptr || resultEmitted_) return false;
+    output->hasSaveFeelResult = true;
+    output->saveFeelResult = result;
+    resultEmitted_ = true;
+    return true;
 }
 
-bool SchoolDaysSystemUi::SubmitSaveLoadComment(const std::u16string &comment) {
-  return saveLoad_.SubmitComment(comment);
+bool SchoolDaysSystemUi::BeginSaveLoadCommentEditor(SDL_Renderer* renderer,
+                                                    int slot) {
+    if (renderer == nullptr || !saveLoad_.IsOpen() ||
+        !saveLoad_.CommentInputPending() || saveLoadCommentEditorOpen_ ||
+        saveLoadCommentTextTexture_ == nullptr || slot < 0 || slot >= 100 ||
+        slot / 10 != saveLoad_.Page()) {
+        return false;
+    }
+    const int row = slot % 10;
+    if (row < 0 || static_cast<size_t>(row) >= saveLoadMetadata_.size()) return false;
+
+    SDL_Window* window = SDL_GetRenderWindow(renderer);
+    if (window == nullptr) return false;
+
+    const size_t limit = saveLoadUseEnglish_ ? 120u : 60u;
+    saveLoadCommentText_ = TruncateUtf16(
+        saveLoadMetadata_[static_cast<size_t>(row)].occupied
+            ? saveLoadMetadata_[static_cast<size_t>(row)].comment
+            : std::u16string{},
+        limit);
+    saveLoadCommentSlot_ = slot;
+    saveLoadCommentWindow_ = window;
+    saveLoadCommentTextDirty_ = true;
+    saveLoadCommentCursorPhase_ = UINT32_MAX;
+
+    if (!SDL_StartTextInput(window)) {
+        saveLoadCommentSlot_ = -1;
+        saveLoadCommentWindow_ = nullptr;
+        saveLoadCommentText_.clear();
+        saveLoadCommentTextDirty_ = false;
+        return false;
+    }
+    saveLoadCommentEditorOpen_ = true;
+
+    // Keep IME composition anchored to the same field rendered below. Failure
+    // to publish the hint is non-fatal; SDL text events are already active.
+    const auto layout = BuildCommentEditorLayout(area_);
+    float left = 0.0f, top = 0.0f, right = 0.0f, bottom = 0.0f;
+    if (SDL_RenderCoordinatesToWindow(renderer, layout.field.x, layout.field.y,
+                                      &left, &top) &&
+        SDL_RenderCoordinatesToWindow(renderer,
+                                      layout.field.x + layout.field.w,
+                                      layout.field.y + layout.field.h,
+                                      &right, &bottom)) {
+        const SDL_Rect area{
+            static_cast<int>(std::floor(left)),
+            static_cast<int>(std::floor(top)),
+            std::max(1, static_cast<int>(std::ceil(right - left))),
+            std::max(1, static_cast<int>(std::ceil(bottom - top)))};
+        (void)SDL_SetTextInputArea(window, &area, 0);
+    }
+    return true;
+}
+
+void SchoolDaysSystemUi::EndSaveLoadCommentEditorTextInput() {
+    if (saveLoadCommentWindow_ != nullptr &&
+        SDL_TextInputActive(saveLoadCommentWindow_)) {
+        if (!SDL_StopTextInput(saveLoadCommentWindow_)) {
+            SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                        "School Days comment text input stop failed: %s",
+                        SDL_GetError());
+        }
+    }
+    saveLoadCommentWindow_ = nullptr;
+}
+
+bool SchoolDaysSystemUi::HandleSaveLoadCommentEditorEvent(const SDL_Event* event) {
+    if (!saveLoadCommentEditorOpen_ || event == nullptr) return false;
+    const size_t limit = saveLoadUseEnglish_ ? 120u : 60u;
+    if (event->type == SDL_EVENT_TEXT_INPUT) {
+        AppendUtf8Limited(&saveLoadCommentText_, event->text.text, limit);
+        saveLoadCommentTextDirty_ = true;
+        return true;
+    }
+    if (event->type == SDL_EVENT_KEY_DOWN) {
+        if (event->key.key == SDLK_BACKSPACE) {
+            PopUtf16CodePoint(&saveLoadCommentText_);
+            saveLoadCommentTextDirty_ = true;
+        } else if (event->key.key == SDLK_RETURN ||
+                   event->key.key == SDLK_KP_ENTER) {
+            const std::u16string comment = saveLoadCommentText_;
+            if (!SubmitSaveLoadComment(comment)) {
+                SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
+                             "School Days comment submit was rejected");
+            }
+        } else if (event->key.key == SDLK_ESCAPE) {
+            if (!CancelSaveLoadComment()) {
+                SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
+                             "School Days comment cancel was rejected");
+            }
+        }
+        return true;
+    }
+    if (event->type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
+        event->button.button == SDL_BUTTON_LEFT) {
+        const auto layout = BuildCommentEditorLayout(area_);
+        const SDL_FPoint point{event->button.x, event->button.y};
+        if (SDL_PointInRectFloat(&point, &layout.ok)) {
+            const std::u16string comment = saveLoadCommentText_;
+            if (!SubmitSaveLoadComment(comment)) {
+                SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
+                             "School Days comment mouse submit was rejected");
+            }
+        } else if (SDL_PointInRectFloat(&point, &layout.cancel)) {
+            if (!CancelSaveLoadComment()) {
+                SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
+                             "School Days comment mouse cancel was rejected");
+            }
+        }
+        return true;
+    }
+    // The editor is modal to the SaveLoad model. Swallow pointer/gamepad input
+    // so the retained page cannot change underneath the pending comment slot.
+    return true;
+}
+
+bool SchoolDaysSystemUi::UpdateSaveLoadCommentEditorTexture(std::string* error) {
+    if (!saveLoadCommentEditorOpen_) return true;
+    if (saveLoadCommentTextTexture_ == nullptr || !saveLoadFont_.IsLoaded()) {
+        if (error != nullptr) *error = "School Days comment FONTDATA presenter is unavailable";
+        return false;
+    }
+    const uint32_t cursorPhase = (SDL_GetTicks() / 500u) & 1u;
+    if (!saveLoadCommentTextDirty_ && cursorPhase == saveLoadCommentCursorPhase_) {
+        return true;
+    }
+
+    std::fill(saveLoadCommentTextPixels_.begin(),
+              saveLoadCommentTextPixels_.end(), 0u);
+    const std::u16string title = saveLoadUseEnglish_
+        ? u"Insert comments (120 characters or less)"
+        : u"Insert comments (60 characters or less)";
+    const auto layout = BuildCommentEditorLayout(area_);
+    const int inputWidth = std::max(
+        1, static_cast<int>(std::floor((layout.field.w - 16.0f) *
+                                      SchoolDaysFontData::kGlyphHeight /
+                                      kCommentTextHeight)));
+    const std::u16string shown = VisibleCommentEditorText(
+        saveLoadCommentText_, saveLoadUseEnglish_,
+        std::min(inputWidth, kCommentTextureWidth), cursorPhase == 0u);
+    if (!DrawCommentTextPixels(saveLoadFont_, saveLoadUseEnglish_, title,
+                               0, 0, &saveLoadCommentTextPixels_, error) ||
+        !DrawCommentTextPixels(saveLoadFont_, saveLoadUseEnglish_, shown,
+                               0, 48, &saveLoadCommentTextPixels_, error) ||
+        !DrawCommentTextPixels(saveLoadFont_, saveLoadUseEnglish_, u"OK",
+                               0, 96, &saveLoadCommentTextPixels_, error) ||
+        !DrawCommentTextPixels(saveLoadFont_, saveLoadUseEnglish_, u"Cancel",
+                               0, 144, &saveLoadCommentTextPixels_, error)) {
+        return false;
+    }
+    if (!SDL_UpdateTexture(saveLoadCommentTextTexture_, nullptr,
+                           saveLoadCommentTextPixels_.data(),
+                           kCommentTextureWidth *
+                               static_cast<int>(sizeof(uint32_t)))) {
+        if (error != nullptr) *error = SDL_GetError();
+        return false;
+    }
+    saveLoadCommentTextDirty_ = false;
+    saveLoadCommentCursorPhase_ = cursorPhase;
+    return true;
+}
+
+bool SchoolDaysSystemUi::RenderSaveLoadCommentEditor(SDL_Renderer* renderer,
+                                                     std::string* error) {
+    if (!saveLoadCommentEditorOpen_) return true;
+    if (renderer == nullptr || !UpdateSaveLoadCommentEditorTexture(error)) return false;
+
+    const auto layout = BuildCommentEditorLayout(area_);
+    SDL_BlendMode oldBlend = SDL_BLENDMODE_NONE;
+    Uint8 oldR = 0, oldG = 0, oldB = 0, oldA = 0;
+    (void)SDL_GetRenderDrawBlendMode(renderer, &oldBlend);
+    (void)SDL_GetRenderDrawColor(renderer, &oldR, &oldG, &oldB, &oldA);
+    (void)SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+    (void)SDL_SetRenderDrawColor(renderer, 0, 0, 0, 150);
+    (void)SDL_RenderFillRect(renderer, nullptr);
+    (void)SDL_SetRenderDrawColor(renderer, 24, 26, 40, 245);
+    (void)SDL_RenderFillRect(renderer, &layout.box);
+    (void)SDL_SetRenderDrawColor(renderer, 200, 210, 235, 255);
+    (void)SDL_RenderRect(renderer, &layout.box);
+    (void)SDL_SetRenderDrawColor(renderer, 8, 9, 18, 255);
+    (void)SDL_RenderFillRect(renderer, &layout.field);
+    (void)SDL_SetRenderDrawColor(renderer, 200, 210, 235, 255);
+    (void)SDL_RenderRect(renderer, &layout.field);
+    (void)SDL_SetRenderDrawColor(renderer, 60, 80, 130, 255);
+    (void)SDL_RenderFillRect(renderer, &layout.ok);
+    (void)SDL_SetRenderDrawColor(renderer, 70, 70, 80, 255);
+    (void)SDL_RenderFillRect(renderer, &layout.cancel);
+    (void)SDL_SetRenderDrawColor(renderer, 200, 210, 235, 255);
+    (void)SDL_RenderRect(renderer, &layout.ok);
+    (void)SDL_RenderRect(renderer, &layout.cancel);
+
+    const float textScale = kCommentTextHeight /
+                            static_cast<float>(SchoolDaysFontData::kGlyphHeight);
+    const std::u16string title = saveLoadUseEnglish_
+        ? u"Insert comments (120 characters or less)"
+        : u"Insert comments (60 characters or less)";
+    const int inputWidth = std::max(
+        1, static_cast<int>(std::floor((layout.field.w - 16.0f) /
+                                      textScale)));
+    const bool cursorVisible = saveLoadCommentCursorPhase_ == 0u;
+    const std::u16string shown = VisibleCommentEditorText(
+        saveLoadCommentText_, saveLoadUseEnglish_,
+        std::min(inputWidth, kCommentTextureWidth), cursorVisible);
+    auto drawRow = [&](int sourceY, const std::u16string& text, float x,
+                       float y) -> bool {
+        const int measured = std::max(1, std::min(
+            MeasureCommentText(text, saveLoadUseEnglish_), kCommentTextureWidth));
+        const SDL_FRect source{0.0f, static_cast<float>(sourceY),
+                               static_cast<float>(measured),
+                               static_cast<float>(SchoolDaysFontData::kGlyphHeight)};
+        const SDL_FRect destination{x, y, measured * textScale,
+                                    kCommentTextHeight};
+        return SDL_RenderTexture(renderer, saveLoadCommentTextTexture_,
+                                 &source, &destination);
+    };
+    const int okWidth = MeasureCommentText(u"OK", saveLoadUseEnglish_);
+    const int cancelWidth = MeasureCommentText(u"Cancel", saveLoadUseEnglish_);
+    const bool rendered =
+        drawRow(0, title, layout.box.x + 14.0f, layout.box.y + 12.0f) &&
+        drawRow(48, shown, layout.field.x + 8.0f, layout.field.y + 6.0f) &&
+        drawRow(96, u"OK",
+                layout.ok.x + (layout.ok.w - okWidth * textScale) * 0.5f,
+                layout.ok.y + 5.0f) &&
+        drawRow(144, u"Cancel",
+                layout.cancel.x +
+                    (layout.cancel.w - cancelWidth * textScale) * 0.5f,
+                layout.cancel.y + 5.0f);
+
+    (void)SDL_SetRenderDrawColor(renderer, oldR, oldG, oldB, oldA);
+    (void)SDL_SetRenderDrawBlendMode(renderer, oldBlend);
+    if (!rendered) {
+        if (error != nullptr) *error = SDL_GetError();
+        return false;
+    }
+    return true;
+}
+
+bool SchoolDaysSystemUi::SubmitSaveLoadComment(const std::u16string& comment) {
+    if (!saveLoad_.SubmitComment(comment)) return false;
+    if (saveLoadCommentEditorOpen_) {
+        EndSaveLoadCommentEditorTextInput();
+        saveLoadCommentEditorOpen_ = false;
+        saveLoadCommentSlot_ = -1;
+        saveLoadCommentText_.clear();
+        saveLoadCommentTextDirty_ = false;
+        saveLoadCommentCursorPhase_ = UINT32_MAX;
+    }
+    return true;
 }
 
 bool SchoolDaysSystemUi::CancelSaveLoadComment() {
-  return saveLoad_.CancelComment();
+    if (!saveLoad_.CancelComment()) return false;
+    if (saveLoadCommentEditorOpen_) {
+        EndSaveLoadCommentEditorTextInput();
+        saveLoadCommentEditorOpen_ = false;
+        saveLoadCommentSlot_ = -1;
+        saveLoadCommentText_.clear();
+        saveLoadCommentTextDirty_ = false;
+        saveLoadCommentCursorPhase_ = UINT32_MAX;
+    }
+    return true;
 }
 
-bool SchoolDaysSystemUi::Activate(Output *output) {
-  SchoolDaysSaveFeelModel::Result result{};
-  if (!saveFeel_.Activate(&result))
-    return false;
-  return EmitModelResult(result, output);
+bool SchoolDaysSystemUi::Activate(Output* output) {
+    SchoolDaysSaveFeelModel::Result result{};
+    if (!saveFeel_.Activate(&result)) return false;
+    return EmitModelResult(result, output);
 }
 
-void SchoolDaysSystemUi::Previous() { saveFeel_.Previous(); }
+void SchoolDaysSystemUi::Previous() {
+    saveFeel_.Previous();
+}
 
-void SchoolDaysSystemUi::Next() { saveFeel_.Next(); }
+void SchoolDaysSystemUi::Next() {
+    saveFeel_.Next();
+}
 
-bool SchoolDaysSystemUi::HandleEvent(SDL_Renderer *renderer,
-                                     const SDL_Event *event, Output *output) {
-  if (output != nullptr)
-    *output = {};
-  if ((!saveFeel_.IsOpen() && !saveLoad_.IsOpen() && !configMenu_.IsOpen() &&
-       !exitView_.IsOpen() && !replay_.IsOpen() && !routeMap_.IsOpen()) ||
-      event == nullptr || (resultEmitted_ && !saveLoad_.IsOpen()))
-    return false;
+bool SchoolDaysSystemUi::HandleEvent(SDL_Renderer* renderer,
+                                     const SDL_Event* event, Output* output) {
+    if (output != nullptr) *output = {};
+    if ((!saveFeel_.IsOpen() && !saveLoad_.IsOpen() &&
+         !configMenu_.IsOpen() && !exitView_.IsOpen() && !replay_.IsOpen() &&
+         !routeMap_.IsOpen()) ||
+        event == nullptr || (resultEmitted_ && !saveLoad_.IsOpen())) return false;
 
-  float x = 0.0f;
-  float y = 0.0f;
-  bool pointerMoved = false;
-  bool pointerActivated = false;
-  if (event->type == SDL_EVENT_MOUSE_MOTION) {
-    x = event->motion.x;
-    y = event->motion.y;
-    pointerMoved = true;
-  } else if (event->type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
-             event->button.button == SDL_BUTTON_LEFT) {
-    x = event->button.x;
-    y = event->button.y;
-    pointerMoved = true;
-    pointerActivated = true;
-  } else {
-    return false;
-  }
+    if (saveLoadCommentEditorOpen_) {
+        return HandleSaveLoadCommentEditorEvent(event);
+    }
 
-  int virtualX = 0;
-  int virtualY = 0;
-  if (!PointerToVirtual(renderer, x, y, &virtualX, &virtualY))
+    float x = 0.0f;
+    float y = 0.0f;
+    bool pointerMoved = false;
+    bool pointerActivated = false;
+    if (event->type == SDL_EVENT_MOUSE_MOTION) {
+        x = event->motion.x;
+        y = event->motion.y;
+        pointerMoved = true;
+    } else if (event->type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
+               event->button.button == SDL_BUTTON_LEFT) {
+        x = event->button.x;
+        y = event->button.y;
+        pointerMoved = true;
+        pointerActivated = true;
+    } else {
+        return false;
+    }
+
+    int virtualX = 0;
+    int virtualY = 0;
+    if (!PointerToVirtual(renderer, x, y, &virtualX, &virtualY)) return false;
+    // Activation can cross the presentation/semantic boundary (SaveFeel result,
+    // SaveLoad close/comment/save request).  A null output sink must never make
+    // those transitions disappear while still mutating the model.  Hover is
+    // safe without a sink, so only fail closed for activation.
+    if (pointerActivated && output == nullptr) return false;
+    if (replay_.IsOpen()) {
+        if (pointerActivated) {
+            const int hit = replay_.HitControl(virtualX, virtualY);
+            const int selected = replay_.SceneCheckOpen()
+                ? replay_.SceneCheckSelection() : replay_.Selection();
+            if (hit < 0 || hit != selected) return false;
+            SchoolDaysReplayModel::Action action;
+            if (!replay_.Activate(&action)) return false;
+            if (action.kind != SchoolDaysReplayModel::ActionKind::None) {
+                output->hasReplayAction = true;
+                output->replayAction = action;
+            }
+            // Retail pointer clicks, including CLOSE, use SeClick_01.
+            output->uiSfx = UiSfxCue::Click;
+            return true;
+        }
+        if (!pointerMoved) return false;
+        const bool changed = replay_.SetSelectionFromPointer(virtualX, virtualY);
+        if (changed && output != nullptr && !replay_.SceneCheckOpen() &&
+            replay_.CurrentView() == SchoolDaysReplayModel::View::PlayData &&
+            replay_.Selection() >= 23 && replay_.Selection() <= 32) {
+            // 0x1001EB16..0x1001EB62: secondary PlayData row-hit transition.
+            output->uiSfx = UiSfxCue::Open;
+        }
+        return changed;
+    }
+    if (routeMap_.IsOpen()) {
+        if (pointerActivated) {
+            const int hit = routeMap_.HitControl(virtualX, virtualY);
+            if (hit < 0 || hit != routeMap_.Selection()) return false;
+            const int oldMajor = routeMap_.Major();
+            const int oldSubpage = routeMap_.Subpage();
+            SchoolDaysRouteMapModel::Action action;
+            std::string routeError;
+            if (!routeMap_.Activate(&action, &routeError)) return false;
+            if ((routeMap_.Major() != oldMajor || routeMap_.Subpage() != oldSubpage) &&
+                !EnsureRouteMapTextures(renderer, &routeError)) {
+                SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
+                             "School Days RouteMap page resource reload failed: %s",
+                             routeError.c_str());
+                return false;
+            }
+            if (action.kind != SchoolDaysRouteMapModel::ActionKind::None) {
+                output->hasRouteMapAction = true;
+                output->routeMapAction = action;
+            }
+            output->uiSfx = UiSfxCue::Click;
+            return true;
+        }
+        return pointerMoved && routeMap_.SetSelectionFromPointer(virtualX, virtualY);
+    }
+    if (configMenu_.IsOpen()) {
+        if (pointerActivated) {
+            const int hit = configMenu_.HitControl(virtualX, virtualY);
+            if (hit < 0 || hit != configMenu_.Selection()) return false;
+            SchoolDaysConfigMenuModel::Action action;
+            if (!configMenu_.Activate(&action)) return false;
+            output->hasConfigAction = true;
+            output->configAction = action;
+            output->uiSfx = UiSfxCue::Click;
+            return true;
+        }
+        return pointerMoved &&
+               configMenu_.SetSelectionFromPointer(virtualX, virtualY);
+    }
+    if (exitView_.IsOpen()) {
+        if (pointerActivated) {
+            const int hit = exitView_.HitChoice(virtualX, virtualY);
+            if (hit < 0 || hit != exitView_.Selection()) return false;
+            SchoolDaysExitViewModel::Activation activation;
+            if (!exitView_.Activate(&activation)) return false;
+            output->hasExitActivation = true;
+            output->exitActivation = activation;
+            output->uiSfx = UiSfxCue::Click;
+            return true;
+        }
+        return pointerMoved && exitView_.SetSelectionFromPointer(virtualX, virtualY);
+    }
+    if (saveLoad_.IsOpen()) {
+        if (pointerActivated) {
+            const int hit = saveLoad_.HitControl(virtualX, virtualY);
+            if (hit < 0 || hit != saveLoad_.Selection() || saveLoad_.SavePending()) {
+                return false;
+            }
+            SchoolDaysSaveLoadModel::Output modelOutput;
+            if (!saveLoad_.Activate(&modelOutput)) return false;
+            if (modelOutput.action ==
+                SchoolDaysSaveLoadModel::Action::CommentInputRequested) {
+                if (!BeginSaveLoadCommentEditor(renderer, modelOutput.slot)) {
+                    (void)saveLoad_.CancelComment();
+                    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
+                                 "School Days comment editor could not start: %s",
+                                 SDL_GetError());
+                }
+                output->uiSfx = UiSfxCue::Click;
+                return true;
+            }
+            if (modelOutput.action != SchoolDaysSaveLoadModel::Action::None &&
+                output != nullptr) {
+                output->hasSaveLoadOutput = true;
+                output->saveLoadOutput = modelOutput;
+            }
+            output->uiSfx = UiSfxCue::Click;
+            return true;
+        }
+        if (!pointerMoved) return false;
+        const bool changed = saveLoad_.SetSelectionFromPointer(virtualX, virtualY);
+        if (changed && output != nullptr && saveLoad_.Selection() >= 22 &&
+            saveLoad_.Selection() <= 31) {
+            // 0x10015061..0x10015095: secondary SaveLoad row-hit transition.
+            output->uiSfx = UiSfxCue::Open;
+        }
+        return changed;
+    }
+    if (pointerActivated) {
+        // Native coordinate activation recomputes the CMAP hit and accepts only
+        // when it already matches the current selection.  Do not turn a click
+        // on a different control into an implicit hover+activate operation.
+        const int hit = saveFeel_.HitChoice(virtualX, virtualY);
+        if (saveFeel_.Interactive() && hit >= 0 &&
+            hit == saveFeel_.Selection()) {
+            return Activate(output);
+        }
+        return false;
+    }
+    if (pointerMoved) {
+        return saveFeel_.SetSelectionFromPointer(virtualX, virtualY);
+    }
     return false;
-  // Activation can cross the presentation/semantic boundary (SaveFeel result,
-  // SaveLoad close/comment/save request).  A null output sink must never make
-  // those transitions disappear while still mutating the model.  Hover is
-  // safe without a sink, so only fail closed for activation.
-  if (pointerActivated && output == nullptr)
-    return false;
-  if (replay_.IsOpen()) {
-    if (pointerActivated) {
-      const int hit = replay_.HitControl(virtualX, virtualY);
-      const int selected = replay_.SceneCheckOpen()
-                               ? replay_.SceneCheckSelection()
-                               : replay_.Selection();
-      if (hit < 0 || hit != selected)
-        return false;
-      SchoolDaysReplayModel::Action action;
-      if (!replay_.Activate(&action))
-        return false;
-      if (action.kind != SchoolDaysReplayModel::ActionKind::None) {
-        output->hasReplayAction = true;
-        output->replayAction = action;
-      }
-      // SceneView ordinary activation calls id2; its explicit close path
-      // calls the shared cancel preset id0.
-      output->uiSfx = action.kind == SchoolDaysReplayModel::ActionKind::Close
-                          ? UiSfxCue::Cancel
-                          : UiSfxCue::Click;
-      return true;
-    }
-    if (!pointerMoved)
-      return false;
-    const bool changed = replay_.SetSelectionFromPointer(virtualX, virtualY);
-    if (changed && output != nullptr && !replay_.SceneCheckOpen() &&
-        replay_.CurrentView() == SchoolDaysReplayModel::View::PlayData &&
-        replay_.Selection() >= 23 && replay_.Selection() <= 32) {
-      // 0x1001EB16..0x1001EB62: secondary PlayData row-hit transition.
-      output->uiSfx = UiSfxCue::Open;
-    }
-    return changed;
-  }
-  if (routeMap_.IsOpen()) {
-    if (pointerActivated) {
-      const int hit = routeMap_.HitControl(virtualX, virtualY);
-      if (hit < 0 || hit != routeMap_.Selection())
-        return false;
-      const int oldMajor = routeMap_.Major();
-      const int oldSubpage = routeMap_.Subpage();
-      SchoolDaysRouteMapModel::Action action;
-      std::string routeError;
-      if (!routeMap_.Activate(&action, &routeError))
-        return false;
-      if ((routeMap_.Major() != oldMajor ||
-           routeMap_.Subpage() != oldSubpage) &&
-          !EnsureRouteMapTextures(renderer, &routeError)) {
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
-                     "School Days RouteMap page resource reload failed: %s",
-                     routeError.c_str());
-        return false;
-      }
-      if (action.kind != SchoolDaysRouteMapModel::ActionKind::None) {
-        output->hasRouteMapAction = true;
-        output->routeMapAction = action;
-      }
-      return true;
-    }
-    return pointerMoved &&
-           routeMap_.SetSelectionFromPointer(virtualX, virtualY);
-  }
-  if (configMenu_.IsOpen()) {
-    if (pointerActivated) {
-      const int hit = configMenu_.HitControl(virtualX, virtualY);
-      if (hit < 0 || hit != configMenu_.Selection())
-        return false;
-      SchoolDaysConfigMenuModel::Action action;
-      if (!configMenu_.Activate(&action))
-        return false;
-      output->hasConfigAction = true;
-      output->configAction = action;
-      // ConfigMenu ordinary activation uses id2; close/back uses id0.
-      output->uiSfx =
-          action.kind == SchoolDaysConfigMenuModel::ActionKind::Close
-              ? UiSfxCue::Cancel
-              : UiSfxCue::Click;
-      return true;
-    }
-    return pointerMoved &&
-           configMenu_.SetSelectionFromPointer(virtualX, virtualY);
-  }
-  if (exitView_.IsOpen()) {
-    if (pointerActivated) {
-      const int hit = exitView_.HitChoice(virtualX, virtualY);
-      if (hit < 0 || hit != exitView_.Selection())
-        return false;
-      SchoolDaysExitViewModel::Activation activation;
-      if (!exitView_.Activate(&activation))
-        return false;
-      output->hasExitActivation = true;
-      output->exitActivation = activation;
-      return true;
-    }
-    return pointerMoved &&
-           exitView_.SetSelectionFromPointer(virtualX, virtualY);
-  }
-  if (saveLoad_.IsOpen()) {
-    if (pointerActivated) {
-      const int hit = saveLoad_.HitControl(virtualX, virtualY);
-      if (hit < 0 || hit != saveLoad_.Selection() || saveLoad_.SavePending()) {
-        return false;
-      }
-      SchoolDaysSaveLoadModel::Output modelOutput;
-      if (!saveLoad_.Activate(&modelOutput))
-        return false;
-      if (modelOutput.action != SchoolDaysSaveLoadModel::Action::None &&
-          output != nullptr) {
-        output->hasSaveLoadOutput = true;
-        output->saveLoadOutput = modelOutput;
-      }
-      // SaveLoad ordinary activation uses id2; its explicit close/back
-      // path uses the shared cancel preset id0.
-      output->uiSfx =
-          modelOutput.action == SchoolDaysSaveLoadModel::Action::Close
-              ? UiSfxCue::Cancel
-              : UiSfxCue::Click;
-      return true;
-    }
-    if (!pointerMoved)
-      return false;
-    const bool changed = saveLoad_.SetSelectionFromPointer(virtualX, virtualY);
-    if (changed && output != nullptr && saveLoad_.Selection() >= 22 &&
-        saveLoad_.Selection() <= 31) {
-      // 0x10015061..0x10015095: secondary SaveLoad row-hit transition.
-      output->uiSfx = UiSfxCue::Open;
-    }
-    return changed;
-  }
-  if (pointerActivated) {
-    // Native coordinate activation recomputes the CMAP hit and accepts only
-    // when it already matches the current selection.  Do not turn a click
-    // on a different control into an implicit hover+activate operation.
-    const int hit = saveFeel_.HitChoice(virtualX, virtualY);
-    if (saveFeel_.Interactive() && hit >= 0 && hit == saveFeel_.Selection()) {
-      return Activate(output);
-    }
-    return false;
-  }
-  if (pointerMoved) {
-    return saveFeel_.SetSelectionFromPointer(virtualX, virtualY);
-  }
-  return false;
 }
 
 void SchoolDaysSystemUi::Update(uint32_t nowMs, int64_t feeling001,
-                                int64_t feeling002, Output *output) {
-  if (output != nullptr)
-    *output = {};
-  if (saveLoad_.IsOpen()) {
-    // Tick consumes the deferred native SAVE request.  Do not dequeue it
-    // unless the caller supplied somewhere to publish the resulting slot.
-    if (output == nullptr)
-      return;
-    SchoolDaysSaveLoadModel::Output modelOutput;
-    if (saveLoad_.Tick(&modelOutput) &&
-        modelOutput.action != SchoolDaysSaveLoadModel::Action::None &&
-        output != nullptr) {
-      output->hasSaveLoadOutput = true;
-      output->saveLoadOutput = modelOutput;
+                                int64_t feeling002, Output* output) {
+    if (output != nullptr) *output = {};
+    if (saveLoad_.IsOpen()) {
+        // Tick consumes the deferred native SAVE request.  Do not dequeue it
+        // unless the caller supplied somewhere to publish the resulting slot.
+        if (output == nullptr) return;
+        SchoolDaysSaveLoadModel::Output modelOutput;
+        if (saveLoad_.Tick(&modelOutput) &&
+            modelOutput.action != SchoolDaysSaveLoadModel::Action::None &&
+            output != nullptr) {
+            output->hasSaveLoadOutput = true;
+            output->saveLoadOutput = modelOutput;
+        }
+        return;
     }
-    return;
-  }
-  if (!saveFeel_.IsOpen() || resultEmitted_)
-    return;
-  saveFeel_.SetFeelings(feeling001, feeling002);
-  saveFeel_.Tick(nowMs);
+    if (!saveFeel_.IsOpen() || resultEmitted_) return;
+    saveFeel_.SetFeelings(feeling001, feeling002);
+    saveFeel_.Tick(nowMs);
 
-  SchoolDaysSaveFeelModel::Result result{};
-  if (saveFeel_.CountdownResult(&result)) {
-    EmitModelResult(result, output);
-  }
+    SchoolDaysSaveFeelModel::Result result{};
+    if (saveFeel_.CountdownResult(&result)) {
+        EmitModelResult(result, output);
+    }
 }
 
-bool SchoolDaysSystemUi::Render(SDL_Renderer *renderer, std::string *error) {
-  if (routeMap_.IsOpen()) {
-    if (renderer == nullptr || baseTexture_ == nullptr ||
-        chipTexture_ == nullptr) {
-      if (error != nullptr)
-        *error = "School Days RouteMap presenter is not open";
-      return false;
+bool SchoolDaysSystemUi::Render(SDL_Renderer* renderer, std::string* error) {
+    if (routeMap_.IsOpen()) {
+        if (renderer == nullptr || baseTexture_ == nullptr || chipTexture_ == nullptr) {
+            if (error != nullptr) *error = "School Days RouteMap presenter is not open";
+            return false;
+        }
+        int outputWidth = 0;
+        int outputHeight = 0;
+        outputWidth = area_.x;
+        outputHeight = area_.y;
+        const auto viewport = ComputeViewport(
+            outputWidth, outputHeight, static_cast<int>(routeMap_.Cmap().Width()),
+            static_cast<int>(routeMap_.Cmap().Height()));
+        if (viewport.scale <= 0.0f) {
+            if (error != nullptr) *error = "School Days RouteMap viewport is invalid";
+            return false;
+        }
+        const auto plan = SchoolDaysRouteMapRenderPlan::Build(routeMap_);
+        for (const auto& sprite : plan) {
+            SDL_Texture* texture =
+                sprite.texture == SchoolDaysRouteMapRenderPlan::Texture::Base
+                    ? baseTexture_ : chipTexture_;
+            const SDL_FRect nativeDst = {sprite.destination.x, sprite.destination.y,
+                                         sprite.destination.w, sprite.destination.h};
+            const SDL_FRect dst = TransformRect(nativeDst, viewport);
+            const SDL_FRect source = {sprite.source.x, sprite.source.y,
+                                      sprite.source.w, sprite.source.h};
+            const SDL_FRect* sourcePtr = sprite.hasSource ? &source : nullptr;
+            if (!SDL_RenderTexture(renderer, texture, sourcePtr, &dst)) {
+                if (error != nullptr) *error = SDL_GetError();
+                return false;
+            }
+        }
+        if (routeMapTextTexture_ == nullptr) {
+            if (error != nullptr) *error = "School Days RouteMap FONTDATA texture is unavailable";
+            return false;
+        }
+        const auto text = SchoolDaysRouteMapRenderPlan::CompletionTextFor(
+            routeMap_, routeMapUseEnglish_);
+        const SDL_FRect nativeTextDst = {text.destination.x, text.destination.y,
+                                         text.destination.w, text.destination.h};
+        const SDL_FRect textDst = TransformRect(nativeTextDst, viewport);
+        const SDL_FRect textSource = {0.0f, 0.0f, 512.0f, 48.0f};
+        if (!SDL_RenderTexture(renderer, routeMapTextTexture_, &textSource,
+                               &textDst)) {
+            if (error != nullptr) *error = SDL_GetError();
+            return false;
+        }
+        return true;
     }
-    int outputWidth = 0;
-    int outputHeight = 0;
-    outputWidth = area_.x;
-    outputHeight = area_.y;
-    const auto viewport = ComputeViewport(
-        outputWidth, outputHeight, static_cast<int>(routeMap_.Cmap().Width()),
-        static_cast<int>(routeMap_.Cmap().Height()));
-    if (viewport.scale <= 0.0f) {
-      if (error != nullptr)
-        *error = "School Days RouteMap viewport is invalid";
-      return false;
+    if (replay_.IsOpen()) {
+        if (renderer == nullptr || !EnsureReplayTextures(renderer, error)) {
+            if (error != nullptr && error->empty())
+                *error = "School Days Replay presenter is not open";
+            return false;
+        }
+        int outputWidth = 0;
+        int outputHeight = 0;
+        outputWidth = area_.x;
+        outputHeight = area_.y;
+        const auto viewport = ComputeViewport(
+            outputWidth, outputHeight, static_cast<int>(replay_.Cmap().Width()),
+            static_cast<int>(replay_.Cmap().Height()));
+        if (viewport.scale <= 0.0f) {
+            if (error != nullptr) *error = "School Days Replay viewport is invalid";
+            return false;
+        }
+
+        auto drawReplayPlan = [&](
+            const std::vector<SchoolDaysReplayRenderPlan::Sprite>& plan,
+            bool popupTextures) -> bool {
+            for (const auto& sprite : plan) {
+                SDL_Texture* texture = nullptr;
+                switch (sprite.texture) {
+                case SchoolDaysReplayRenderPlan::Texture::Base:
+                    texture = popupTextures ? replayPopupBaseTexture_ : baseTexture_;
+                    break;
+                case SchoolDaysReplayRenderPlan::Texture::Chip:
+                    texture = popupTextures ? replayPopupChipTexture_ : chipTexture_;
+                    break;
+                case SchoolDaysReplayRenderPlan::Texture::Thumbnail:
+                    texture = replayThumbnailTexture_;
+                    break;
+                }
+                if (texture == nullptr) {
+                    if (error != nullptr) *error = "School Days Replay texture is unavailable";
+                    return false;
+                }
+                const SDL_FRect nativeDst = {
+                    sprite.destination.x, sprite.destination.y,
+                    sprite.destination.w, sprite.destination.h};
+                const SDL_FRect dst = TransformRect(nativeDst, viewport);
+                const SDL_FRect source = {
+                    sprite.source.x, sprite.source.y,
+                    sprite.source.w, sprite.source.h};
+                const SDL_FRect* sourcePtr = sprite.hasSource ? &source : nullptr;
+                if (!SDL_RenderTexture(renderer, texture, sourcePtr, &dst)) {
+                    if (error != nullptr) *error = SDL_GetError();
+                    return false;
+                }
+            }
+            return true;
+        };
+
+        // SceneCheck is a nested modal: the retained SceneView stays visible
+        // underneath the translucent Pop_Replay artwork.
+        const auto parentPlan = SchoolDaysReplayRenderPlan::Build(replay_);
+        if (!drawReplayPlan(parentPlan, false)) return false;
+
+        if (replay_.CurrentView() == SchoolDaysReplayModel::View::PlayData) {
+            if (replayTextTexture_ == nullptr || replayMetadata_.size() != 100u) {
+                if (error != nullptr)
+                    *error = "School Days Replay Data text texture is unavailable";
+                return false;
+            }
+            const int page = replay_.Page();
+            const auto metadataLayout =
+                SchoolDaysReplayRenderPlan::MetadataLayout(replay_.CurrentVariant());
+            for (const auto& row : metadataLayout) {
+                const int slot = page * 10 + row.row;
+                if (slot < 0 || slot >= 100 ||
+                    !replayMetadata_[static_cast<size_t>(slot)].occupied) {
+                    continue;
+                }
+                auto drawTextRegion = [&](const SchoolDaysReplayRenderPlan::Rect& src,
+                                          const SchoolDaysReplayRenderPlan::Rect& nativeDst) {
+                    const SDL_FRect source = {src.x, src.y, src.w, src.h};
+                    const SDL_FRect native = {
+                        nativeDst.x, nativeDst.y, nativeDst.w, nativeDst.h};
+                    const SDL_FRect dst = TransformRect(native, viewport);
+                    return SDL_RenderTexture(renderer, replayTextTexture_, &source, &dst);
+                };
+                if (!drawTextRegion(row.dateSource, row.date) ||
+                    !drawTextRegion(row.storySource, row.story) ||
+                    (replayTextInputEnabled_ &&
+                     !drawTextRegion(row.commentSource, row.comment))) {
+                    if (error != nullptr) *error = SDL_GetError();
+                    return false;
+                }
+            }
+        }
+
+        if (replay_.SceneCheckOpen()) {
+            SchoolDaysReplayRenderPlan::SceneCheckVisualState visual;
+            visual.previewRecord = replay_.SceneCheckPreviewRecord();
+            for (int i = 0; i < 4; ++i)
+                visual.enabled[static_cast<size_t>(i)] =
+                    replay_.IsSceneCheckChoiceAvailable(i);
+            const auto popupPlan =
+                SchoolDaysReplayRenderPlan::BuildSceneCheck(replay_, visual);
+            if (!drawReplayPlan(popupPlan, true)) return false;
+        }
+        return true;
     }
-    const auto plan = SchoolDaysRouteMapRenderPlan::Build(routeMap_);
-    for (const auto &sprite : plan) {
-      SDL_Texture *texture =
-          sprite.texture == SchoolDaysRouteMapRenderPlan::Texture::Base
-              ? baseTexture_
-              : chipTexture_;
-      const SDL_FRect nativeDst = {sprite.destination.x, sprite.destination.y,
-                                   sprite.destination.w, sprite.destination.h};
-      const SDL_FRect dst = TransformRect(nativeDst, viewport);
-      const SDL_FRect source = {sprite.source.x, sprite.source.y,
-                                sprite.source.w, sprite.source.h};
-      const SDL_FRect *sourcePtr = sprite.hasSource ? &source : nullptr;
-      if (!Kotonoha::RenderUpscaledTexture(renderer, texture, sourcePtr,
-                                           &dst)) {
-        if (error != nullptr)
-          *error = SDL_GetError();
-        return false;
-      }
+    if (configMenu_.IsOpen()) {
+        if (renderer == nullptr || baseTexture_ == nullptr || chipTexture_ == nullptr) {
+            if (error != nullptr) *error = "School Days ConfigMenu presenter is not open";
+            return false;
+        }
+        int outputWidth = 0;
+        int outputHeight = 0;
+        outputWidth = area_.x;
+        outputHeight = area_.y;
+        const auto viewport = ComputeConfigViewport(
+            outputWidth, outputHeight,
+            static_cast<int>(configMenu_.Cmap().Width()),
+            static_cast<int>(configMenu_.Cmap().Height()));
+        if (viewport.scale <= 0.0f) {
+            if (error != nullptr) *error = "School Days ConfigMenu viewport is invalid";
+            return false;
+        }
+        const auto plan =
+            SchoolDaysConfigMenuRenderPlan::Build(configMenu_, configVisualState_);
+        for (const auto& sprite : plan) {
+            SDL_Texture* texture =
+                sprite.texture == SchoolDaysConfigMenuRenderPlan::Texture::Chip
+                    ? chipTexture_
+                    : baseTexture_;
+            const SDL_FRect nativeDst = {sprite.destination.x, sprite.destination.y,
+                                         sprite.destination.w, sprite.destination.h};
+            const SDL_FRect dst = TransformRect(nativeDst, viewport);
+            const SDL_FRect source = {sprite.source.x, sprite.source.y,
+                                      sprite.source.w, sprite.source.h};
+            const SDL_FRect* sourcePtr = sprite.hasSource ? &source : nullptr;
+            // Retail bank level0 has an intentionally empty strip. SDL
+            // must not be asked to render its 0-width source/destination;
+            // that is not a UI failure and the Sound page must stay open.
+            if ((sprite.hasSource && (source.w <= 0.0f || source.h <= 0.0f)) ||
+                dst.w <= 0.0f || dst.h <= 0.0f)
+                continue;
+            if (!SDL_RenderTexture(renderer, texture, sourcePtr, &dst)) {
+                if (error != nullptr) *error = SDL_GetError();
+                return false;
+            }
+        }
+        return true;
     }
-    if (routeMapTextTexture_ == nullptr) {
-      if (error != nullptr)
-        *error = "School Days RouteMap FONTDATA texture is unavailable";
-      return false;
+    if (exitView_.IsOpen()) {
+        if (renderer == nullptr || baseTexture_ == nullptr || chipTexture_ == nullptr) {
+            if (error != nullptr) *error = "School Days ExitView presenter is not open";
+            return false;
+        }
+        int outputWidth = 0;
+        int outputHeight = 0;
+        outputWidth = area_.x;
+        outputHeight = area_.y;
+        const auto viewport = ComputeViewport(
+            outputWidth, outputHeight, static_cast<int>(exitView_.Cmap().Width()),
+            static_cast<int>(exitView_.Cmap().Height()));
+        if (viewport.scale <= 0.0f) {
+            if (error != nullptr) *error = "School Days ExitView viewport is invalid";
+            return false;
+        }
+        const auto plan = SchoolDaysExitViewRenderPlan::Build(exitView_);
+        for (const auto& sprite : plan) {
+            SDL_Texture* texture =
+                sprite.texture == SchoolDaysExitViewRenderPlan::Texture::Base
+                    ? baseTexture_ : chipTexture_;
+            const SDL_FRect nativeDst = {sprite.destination.x, sprite.destination.y,
+                                         sprite.destination.w, sprite.destination.h};
+            const SDL_FRect dst = TransformRect(nativeDst, viewport);
+            const SDL_FRect source = {sprite.source.x, sprite.source.y,
+                                      sprite.source.w, sprite.source.h};
+            const SDL_FRect* sourcePtr = sprite.hasSource ? &source : nullptr;
+            if (!SDL_RenderTexture(renderer, texture, sourcePtr, &dst)) {
+                if (error != nullptr) *error = SDL_GetError();
+                return false;
+            }
+        }
+        return true;
     }
-    const auto text = SchoolDaysRouteMapRenderPlan::CompletionTextFor(
-        routeMap_, routeMapUseEnglish_);
-    const SDL_FRect nativeTextDst = {text.destination.x, text.destination.y,
-                                     text.destination.w, text.destination.h};
-    const SDL_FRect textDst = TransformRect(nativeTextDst, viewport);
-    const SDL_FRect textSource = {0.0f, 0.0f, 512.0f, 48.0f};
-    if (!SDL_RenderTexture(renderer, routeMapTextTexture_, &textSource,
-                           &textDst)) {
-      if (error != nullptr)
-        *error = SDL_GetError();
-      return false;
-    }
-    return true;
-  }
-  if (replay_.IsOpen()) {
-    if (renderer == nullptr || !EnsureReplayTextures(renderer, error)) {
-      if (error != nullptr && error->empty())
-        *error = "School Days Replay presenter is not open";
-      return false;
-    }
-    int outputWidth = 0;
-    int outputHeight = 0;
-    outputWidth = area_.x;
-    outputHeight = area_.y;
-    const auto viewport = ComputeViewport(
-        outputWidth, outputHeight, static_cast<int>(replay_.Cmap().Width()),
-        static_cast<int>(replay_.Cmap().Height()));
-    if (viewport.scale <= 0.0f) {
-      if (error != nullptr)
-        *error = "School Days Replay viewport is invalid";
-      return false;
+    if (saveLoad_.IsOpen()) {
+        if (renderer == nullptr || baseTexture_ == nullptr || chipTexture_ == nullptr) {
+            if (error != nullptr) *error = "School Days SaveLoad presenter is not open";
+            return false;
+        }
+        int outputWidth = 0;
+        int outputHeight = 0;
+        outputWidth = area_.x;
+        outputHeight = area_.y;
+        const auto viewport = ComputeViewport(
+            outputWidth, outputHeight, static_cast<int>(saveLoad_.Cmap().Width()),
+            static_cast<int>(saveLoad_.Cmap().Height()));
+        if (viewport.scale <= 0.0f) {
+            if (error != nullptr) *error = "School Days SaveLoad viewport is invalid";
+            return false;
+        }
+        const auto plan = SchoolDaysSaveLoadRenderPlan::Build(saveLoad_);
+        for (const auto& sprite : plan) {
+            SDL_Texture* texture =
+                sprite.texture == SchoolDaysSaveLoadRenderPlan::Texture::Base
+                    ? baseTexture_ : chipTexture_;
+            const SDL_FRect nativeDst = {sprite.destination.x, sprite.destination.y,
+                                         sprite.destination.w, sprite.destination.h};
+            const SDL_FRect dst = TransformRect(nativeDst, viewport);
+            const SDL_FRect source = {sprite.source.x, sprite.source.y,
+                                      sprite.source.w, sprite.source.h};
+            const SDL_FRect* sourcePtr = sprite.hasSource ? &source : nullptr;
+            if (!SDL_RenderTexture(renderer, texture, sourcePtr, &dst)) {
+                if (error != nullptr) *error = SDL_GetError();
+                return false;
+            }
+        }
+        if (saveLoadTextTexture_ == nullptr || saveLoadMetadata_.size() != 10u) {
+            if (error != nullptr) *error = "School Days SaveLoad FONTDATA atlas is unavailable";
+            return false;
+        }
+        const auto metadataLayout = SchoolDaysSaveLoadRenderPlan::MetadataLayout(
+            saveLoad_.CurrentVariant(), saveLoadUseEnglish_,
+            &saveLoadCommentAdvances_);
+        for (size_t row = 0u; row < metadataLayout.size(); ++row) {
+            if (!saveLoadMetadata_[row].occupied) continue;
+            const auto drawMetadata = [&] (
+                const SchoolDaysSaveLoadRenderPlan::Rect& sourceRect,
+                const SchoolDaysSaveLoadRenderPlan::Rect& destinationRect) {
+                const SDL_FRect source = {sourceRect.x, sourceRect.y,
+                                          sourceRect.w, sourceRect.h};
+                const SDL_FRect nativeDestination = {
+                    destinationRect.x, destinationRect.y,
+                    destinationRect.w, destinationRect.h};
+                const SDL_FRect destination =
+                    TransformRect(nativeDestination, viewport);
+                return SDL_RenderTexture(renderer, saveLoadTextTexture_, &source,
+                                         &destination);
+            };
+            const auto& metadata = metadataLayout[row];
+            if (!drawMetadata(metadata.primarySource, metadata.primary) ||
+                !drawMetadata(metadata.secondarySource, metadata.secondary) ||
+                (saveLoad_.TextInputEnabled() &&
+                 !drawMetadata(metadata.optionalThirdSource,
+                               metadata.optionalThird))) {
+                if (error != nullptr) *error = SDL_GetError();
+                return false;
+            }
+        }
+        if (!RenderSaveLoadCommentEditor(renderer, error)) return false;
+        return true;
     }
 
-    auto drawReplayPlan =
-        [&](const std::vector<SchoolDaysReplayRenderPlan::Sprite> &plan,
-            bool popupTextures) -> bool {
-      for (const auto &sprite : plan) {
-        SDL_Texture *texture = nullptr;
-        switch (sprite.texture) {
-        case SchoolDaysReplayRenderPlan::Texture::Base:
-          texture = popupTextures ? replayPopupBaseTexture_ : baseTexture_;
-          break;
-        case SchoolDaysReplayRenderPlan::Texture::Chip:
-          texture = popupTextures ? replayPopupChipTexture_ : chipTexture_;
-          break;
-        case SchoolDaysReplayRenderPlan::Texture::Thumbnail:
-          texture = replayThumbnailTexture_;
-          break;
-        }
-        if (texture == nullptr) {
-          if (error != nullptr)
-            *error = "School Days Replay texture is unavailable";
-          return false;
-        }
+    if (!saveFeel_.IsOpen() || renderer == nullptr || baseTexture_ == nullptr ||
+        chipTexture_ == nullptr) {
+        if (error != nullptr) *error = "School Days SaveFeel presenter is not open";
+        return false;
+    }
+
+    int outputWidth = 0;
+    int outputHeight = 0;
+    outputWidth = area_.x;
+    outputHeight = area_.y;
+    const auto viewport = ComputeViewport(
+        outputWidth, outputHeight, static_cast<int>(saveFeel_.Cmap().Width()),
+        static_cast<int>(saveFeel_.Cmap().Height()));
+    if (viewport.scale <= 0.0f) {
+        if (error != nullptr) *error = "School Days SaveFeel viewport is invalid";
+        return false;
+    }
+
+    const auto plan = SchoolDaysSaveFeelRenderPlan::Build(saveFeel_);
+    for (const auto& sprite : plan) {
+        SDL_Texture* texture =
+            sprite.texture == SchoolDaysSaveFeelRenderPlan::Texture::Base
+                ? baseTexture_
+                : chipTexture_;
         const SDL_FRect nativeDst = {sprite.destination.x, sprite.destination.y,
-                                     sprite.destination.w,
-                                     sprite.destination.h};
+                                     sprite.destination.w, sprite.destination.h};
         const SDL_FRect dst = TransformRect(nativeDst, viewport);
+        if (dst.w <= 0.0f || dst.h <= 0.0f) continue;
+
         const SDL_FRect source = {sprite.source.x, sprite.source.y,
                                   sprite.source.w, sprite.source.h};
-        const SDL_FRect *sourcePtr = sprite.hasSource ? &source : nullptr;
-        if (!Kotonoha::RenderUpscaledTexture(renderer, texture, sourcePtr,
-                                             &dst)) {
-          if (error != nullptr)
-            *error = SDL_GetError();
-          return false;
+        const SDL_FRect* sourcePtr = sprite.hasSource ? &source : nullptr;
+        if (!SDL_RenderTexture(renderer, texture, sourcePtr, &dst)) {
+            if (error != nullptr) *error = SDL_GetError();
+            return false;
         }
-      }
-      return true;
-    };
-
-    // SceneCheck is a nested modal: the retained SceneView stays visible
-    // underneath the translucent Pop_Replay artwork.
-    const auto parentPlan = SchoolDaysReplayRenderPlan::Build(replay_);
-    if (!drawReplayPlan(parentPlan, false))
-      return false;
-
-    if (replay_.CurrentView() == SchoolDaysReplayModel::View::PlayData) {
-      if (replayTextTexture_ == nullptr || replayMetadata_.size() != 100u) {
-        if (error != nullptr)
-          *error = "School Days Replay Data text texture is unavailable";
-        return false;
-      }
-      const int page = replay_.Page();
-      const auto metadataLayout =
-          SchoolDaysReplayRenderPlan::MetadataLayout(replay_.CurrentVariant());
-      for (const auto &row : metadataLayout) {
-        const int slot = page * 10 + row.row;
-        if (slot < 0 || slot >= 100 ||
-            !replayMetadata_[static_cast<size_t>(slot)].occupied) {
-          continue;
-        }
-        auto drawTextRegion =
-            [&](const SchoolDaysReplayRenderPlan::Rect &src,
-                const SchoolDaysReplayRenderPlan::Rect &nativeDst) {
-              const SDL_FRect source = {src.x, src.y, src.w, src.h};
-              const SDL_FRect native = {nativeDst.x, nativeDst.y, nativeDst.w,
-                                        nativeDst.h};
-              const SDL_FRect dst = TransformRect(native, viewport);
-              return SDL_RenderTexture(renderer, replayTextTexture_, &source,
-                                       &dst);
-            };
-        if (!drawTextRegion(row.dateSource, row.date) ||
-            !drawTextRegion(row.storySource, row.story) ||
-            (replayTextInputEnabled_ &&
-             !drawTextRegion(row.commentSource, row.comment))) {
-          if (error != nullptr)
-            *error = SDL_GetError();
-          return false;
-        }
-      }
-    }
-
-    if (replay_.SceneCheckOpen()) {
-      SchoolDaysReplayRenderPlan::SceneCheckVisualState visual;
-      visual.previewRecord = replay_.SceneCheckPreviewRecord();
-      for (int i = 0; i < 4; ++i)
-        visual.enabled[static_cast<size_t>(i)] =
-            replay_.IsSceneCheckChoiceAvailable(i);
-      const auto popupPlan =
-          SchoolDaysReplayRenderPlan::BuildSceneCheck(replay_, visual);
-      if (!drawReplayPlan(popupPlan, true))
-        return false;
     }
     return true;
-  }
-  if (configMenu_.IsOpen()) {
-    if (renderer == nullptr || baseTexture_ == nullptr ||
-        chipTexture_ == nullptr) {
-      if (error != nullptr)
-        *error = "School Days ConfigMenu presenter is not open";
-      return false;
-    }
-    int outputWidth = 0;
-    int outputHeight = 0;
-    outputWidth = area_.x;
-    outputHeight = area_.y;
-    const auto viewport = ComputeViewport(
-        outputWidth, outputHeight, static_cast<int>(configMenu_.Cmap().Width()),
-        static_cast<int>(configMenu_.Cmap().Height()));
-    if (viewport.scale <= 0.0f) {
-      if (error != nullptr)
-        *error = "School Days ConfigMenu viewport is invalid";
-      return false;
-    }
-    const auto plan =
-        SchoolDaysConfigMenuRenderPlan::Build(configMenu_, configVisualState_);
-    for (const auto &sprite : plan) {
-      SDL_Texture *texture =
-          sprite.texture == SchoolDaysConfigMenuRenderPlan::Texture::Chip
-              ? chipTexture_
-              : baseTexture_;
-      const SDL_FRect nativeDst = {sprite.destination.x, sprite.destination.y,
-                                   sprite.destination.w, sprite.destination.h};
-      const SDL_FRect dst = TransformRect(nativeDst, viewport);
-      const SDL_FRect source = {sprite.source.x, sprite.source.y,
-                                sprite.source.w, sprite.source.h};
-      const SDL_FRect *sourcePtr = sprite.hasSource ? &source : nullptr;
-      if (!Kotonoha::RenderUpscaledTexture(renderer, texture, sourcePtr,
-                                           &dst)) {
-        if (error != nullptr)
-          *error = SDL_GetError();
-        return false;
-      }
-    }
-    return true;
-  }
-  if (exitView_.IsOpen()) {
-    if (renderer == nullptr || baseTexture_ == nullptr ||
-        chipTexture_ == nullptr) {
-      if (error != nullptr)
-        *error = "School Days ExitView presenter is not open";
-      return false;
-    }
-    int outputWidth = 0;
-    int outputHeight = 0;
-    outputWidth = area_.x;
-    outputHeight = area_.y;
-    const auto viewport = ComputeViewport(
-        outputWidth, outputHeight, static_cast<int>(exitView_.Cmap().Width()),
-        static_cast<int>(exitView_.Cmap().Height()));
-    if (viewport.scale <= 0.0f) {
-      if (error != nullptr)
-        *error = "School Days ExitView viewport is invalid";
-      return false;
-    }
-    const auto plan = SchoolDaysExitViewRenderPlan::Build(exitView_);
-    for (const auto &sprite : plan) {
-      SDL_Texture *texture =
-          sprite.texture == SchoolDaysExitViewRenderPlan::Texture::Base
-              ? baseTexture_
-              : chipTexture_;
-      const SDL_FRect nativeDst = {sprite.destination.x, sprite.destination.y,
-                                   sprite.destination.w, sprite.destination.h};
-      const SDL_FRect dst = TransformRect(nativeDst, viewport);
-      const SDL_FRect source = {sprite.source.x, sprite.source.y,
-                                sprite.source.w, sprite.source.h};
-      const SDL_FRect *sourcePtr = sprite.hasSource ? &source : nullptr;
-      if (!Kotonoha::RenderUpscaledTexture(renderer, texture, sourcePtr,
-                                           &dst)) {
-        if (error != nullptr)
-          *error = SDL_GetError();
-        return false;
-      }
-    }
-    return true;
-  }
-  if (saveLoad_.IsOpen()) {
-    if (renderer == nullptr || baseTexture_ == nullptr ||
-        chipTexture_ == nullptr) {
-      if (error != nullptr)
-        *error = "School Days SaveLoad presenter is not open";
-      return false;
-    }
-    int outputWidth = 0;
-    int outputHeight = 0;
-    outputWidth = area_.x;
-    outputHeight = area_.y;
-    const auto viewport = ComputeViewport(
-        outputWidth, outputHeight, static_cast<int>(saveLoad_.Cmap().Width()),
-        static_cast<int>(saveLoad_.Cmap().Height()));
-    if (viewport.scale <= 0.0f) {
-      if (error != nullptr)
-        *error = "School Days SaveLoad viewport is invalid";
-      return false;
-    }
-    const auto plan = SchoolDaysSaveLoadRenderPlan::Build(saveLoad_);
-    for (const auto &sprite : plan) {
-      SDL_Texture *texture =
-          sprite.texture == SchoolDaysSaveLoadRenderPlan::Texture::Base
-              ? baseTexture_
-              : chipTexture_;
-      const SDL_FRect nativeDst = {sprite.destination.x, sprite.destination.y,
-                                   sprite.destination.w, sprite.destination.h};
-      const SDL_FRect dst = TransformRect(nativeDst, viewport);
-      const SDL_FRect source = {sprite.source.x, sprite.source.y,
-                                sprite.source.w, sprite.source.h};
-      const SDL_FRect *sourcePtr = sprite.hasSource ? &source : nullptr;
-      if (!Kotonoha::RenderUpscaledTexture(renderer, texture, sourcePtr,
-                                           &dst)) {
-        if (error != nullptr)
-          *error = SDL_GetError();
-        return false;
-      }
-    }
-    if (saveLoadTextTexture_ == nullptr || saveLoadMetadata_.size() != 10u) {
-      if (error != nullptr)
-        *error = "School Days SaveLoad FONTDATA atlas is unavailable";
-      return false;
-    }
-    const auto metadataLayout = SchoolDaysSaveLoadRenderPlan::MetadataLayout(
-        saveLoad_.CurrentVariant(), saveLoadUseEnglish_,
-        &saveLoadCommentAdvances_);
-    for (size_t row = 0u; row < metadataLayout.size(); ++row) {
-      if (!saveLoadMetadata_[row].occupied)
-        continue;
-      const auto drawMetadata =
-          [&](const SchoolDaysSaveLoadRenderPlan::Rect &sourceRect,
-              const SchoolDaysSaveLoadRenderPlan::Rect &destinationRect) {
-            const SDL_FRect source = {sourceRect.x, sourceRect.y, sourceRect.w,
-                                      sourceRect.h};
-            const SDL_FRect nativeDestination = {
-                destinationRect.x, destinationRect.y, destinationRect.w,
-                destinationRect.h};
-            const SDL_FRect destination =
-                TransformRect(nativeDestination, viewport);
-            return SDL_RenderTexture(renderer, saveLoadTextTexture_, &source,
-                                     &destination);
-          };
-      const auto &metadata = metadataLayout[row];
-      if (!drawMetadata(metadata.primarySource, metadata.primary) ||
-          !drawMetadata(metadata.secondarySource, metadata.secondary) ||
-          (saveLoad_.TextInputEnabled() &&
-           !drawMetadata(metadata.optionalThirdSource,
-                         metadata.optionalThird))) {
-        if (error != nullptr)
-          *error = SDL_GetError();
-        return false;
-      }
-    }
-    return true;
-  }
-
-  if (!saveFeel_.IsOpen() || renderer == nullptr || baseTexture_ == nullptr ||
-      chipTexture_ == nullptr) {
-    if (error != nullptr)
-      *error = "School Days SaveFeel presenter is not open";
-    return false;
-  }
-
-  int outputWidth = 0;
-  int outputHeight = 0;
-  outputWidth = area_.x;
-  outputHeight = area_.y;
-  const auto viewport = ComputeViewport(
-      outputWidth, outputHeight, static_cast<int>(saveFeel_.Cmap().Width()),
-      static_cast<int>(saveFeel_.Cmap().Height()));
-  if (viewport.scale <= 0.0f) {
-    if (error != nullptr)
-      *error = "School Days SaveFeel viewport is invalid";
-    return false;
-  }
-
-  const auto plan = SchoolDaysSaveFeelRenderPlan::Build(saveFeel_);
-  for (const auto &sprite : plan) {
-    SDL_Texture *texture =
-        sprite.texture == SchoolDaysSaveFeelRenderPlan::Texture::Base
-            ? baseTexture_
-            : chipTexture_;
-    const SDL_FRect nativeDst = {sprite.destination.x, sprite.destination.y,
-                                 sprite.destination.w, sprite.destination.h};
-    const SDL_FRect dst = TransformRect(nativeDst, viewport);
-    if (dst.w <= 0.0f || dst.h <= 0.0f)
-      continue;
-
-    const SDL_FRect source = {sprite.source.x, sprite.source.y, sprite.source.w,
-                              sprite.source.h};
-    const SDL_FRect *sourcePtr = sprite.hasSource ? &source : nullptr;
-    if (!Kotonoha::RenderUpscaledTexture(renderer, texture, sourcePtr, &dst)) {
-      if (error != nullptr)
-        *error = SDL_GetError();
-      return false;
-    }
-  }
-  return true;
 }
 
 } // namespace Kotonoha
