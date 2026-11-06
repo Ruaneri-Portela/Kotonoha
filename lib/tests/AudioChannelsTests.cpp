@@ -157,6 +157,14 @@ void testStreamGain(AudioMixer &mixer) {
        "Script volume changes preserve the user's mixer limit");
   near(mixer.channel("future-channel")->getUserVolume(), .25f,
        "Future channels inherit the user's saved gain");
+  SDL_AudioStream *third = SDL_CreateAudioStream(&spec, &spec);
+  require(third != nullptr, "Create future user-volume test stream");
+  auto savedVolumeChannel = mixer.channel("future-channel");
+  savedVolumeChannel->attach(third, .8f);
+  near(SDL_GetAudioStreamGain(third), .2f,
+       "Newly attached stream must apply previously saved user volume");
+  savedVolumeChannel->detach(third);
+  SDL_DestroyAudioStream(third);
   rejects([&] { mixer.setUserVolumes({{"fade-test", 2.f}}); },
           "Reject invalid user mixer gain");
   near(channel->getUserVolume(), .5f,

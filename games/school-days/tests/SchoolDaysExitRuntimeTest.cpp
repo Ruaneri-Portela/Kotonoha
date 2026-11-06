@@ -27,6 +27,30 @@ struct Application {
   ~Application() { runtime.shutdown(); }
 };
 
+void checkFontLifetimeAcrossEngineConstructorException(
+    const std::shared_ptr<SchoolDays::Assets> &assets, const char *route,
+    const std::filesystem::path &documents) {
+  // Engine creates two UI-owned TTF sessions, then invokes Runtime::init,
+  // which creates GameScene's choice font. A constructor exception *after*
+  // Runtime::init destroys those UI sessions before Runtime's destructor.
+  // This must not close the shared FreeType library while the choice font
+  // remains alive. No retail saves or assets are modified by this test.
+  const auto failingDocuments = documents / "ctor-unwind";
+  SchoolDays::Runtime failingRuntime(assets, route, failingDocuments);
+  auto settings = Application::options(assets);
+  // After Runtime::init, translation dump to an existing directory throws.
+  // Either an empty source set or an invalid output file ensures failure.
+  settings.dumpTranslationPath = failingDocuments.string();
+  bool threw = false;
+  try {
+    Kotonoha::Engine failingEngine(failingRuntime, settings);
+  } catch (const std::exception &) {
+    threw = true;
+  }
+  check(threw, "Expected an Engine constructor exception after Runtime::init");
+  // failingRuntime leaves this scope *after* Engine UI's partial destruction.
+}
+
 void clickChoice(SchoolDays::Runtime &runtime, int choice) {
   const auto &view = runtime.panels().ExitView();
   const int width = static_cast<int>(view.Cmap().Width());
@@ -62,6 +86,8 @@ int main(int argc, char **argv) {
         std::filesystem::temp_directory_path() /
         ("school-days-exit-" + std::to_string(SDL_GetPerformanceCounter()));
     auto assets = std::make_shared<SchoolDays::Assets>(argv[1]);
+    std::cerr << "ExitRuntime: verify constructor exception font lifecycle\n";
+    checkFontLifetimeAcrossEngineConstructorException(assets, argv[2], documents);
     std::cerr << "ExitRuntime: initialize retail data\n";
     Application app(assets, argv[2], documents);
     std::cerr << "ExitRuntime: enter gameplay\n";
@@ -69,7 +95,10 @@ int main(int argc, char **argv) {
     app.runtime.debugJumpToNode("0");
 
     std::cerr << "ExitRuntime: open quit popup\n";
-    app.runtime.openPanel(16);
+    check(app.runtime.handleNativeQuitRequest(),
+          "WM_CLOSE must be consumed by the retail quit confirmation");
+    check(app.runtime.handleNativeQuitRequest(),
+          "duplicate WM_CLOSE must not force shutdown during the exit fade");
     check(!app.runtime.panels().IsExitOpen(),
           "Quit popup appeared before the entry transition");
     SDL_Delay(520);
@@ -127,6 +156,8 @@ int main(int argc, char **argv) {
     while (SDL_PollEvent(&event))
       sawQuit |= event.type == SDL_EVENT_QUIT;
     check(sawQuit, "Menu quit confirmation did not request shutdown");
+    check(!app.runtime.handleNativeQuitRequest(),
+          "confirmed YES must allow the native SDL_QUIT to terminate the app");
     std::cout << "Retail exit and title transition runtime passed\n";
     return 0;
   } catch (const std::exception &error) {

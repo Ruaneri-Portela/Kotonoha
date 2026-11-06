@@ -1,0 +1,19 @@
+{
+  "mcpServers": {
+    "schooldays-kotonoha": {
+      "command": "py",
+      "args": ["-3", "-m", "schooldays_parity.server", "--mode", "kotonoha", "--port", "47321"],
+      "cwd": "D:\\Dev\\Kotonoha-v3\\tools"
+    },
+    "schooldays-original": {
+      "command": "py",
+      "args": ["-3", "-m", "schooldays_parity.server", "--mode", "original"],
+      "cwd": "D:\\Dev\\Kotonoha-v3\\tools"
+    },
+    "schooldays-parity": {
+      "command": "py",
+      "args": ["-3", "-m", "schooldays_parity.server", "--mode", "parity", "--port", "47321"],
+      "cwd": "D:\\Dev\\Kotonoha-v3\\tools"
+    }
+  }
+}

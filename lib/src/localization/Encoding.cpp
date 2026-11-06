@@ -1,5 +1,4 @@
-#include <Kotonoha/core/Config.hpp>
-#include <Kotonoha/localization/Encoding.hpp>
+﻿#include <Kotonoha/localization/Encoding.hpp>
 
 #include <algorithm>
 #include <cstdint>
@@ -109,7 +108,7 @@ std::string ConvertViaJNI(std::string_view text, const char *fromEncoding,
 #include <TargetConditionals.h>
 #endif
 
-#if defined(_WIN32) || (defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE)
+#if defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE
 #include <cerrno>
 #include <iconv.h>
 #define KOTONOHA_USE_SYSTEM_ICONV 1
@@ -117,8 +116,55 @@ std::string ConvertViaJNI(std::string_view text, const char *fromEncoding,
 #define KOTONOHA_USE_SYSTEM_ICONV 0
 #endif
 
+#include <algorithm>
+#include <stdexcept>
+
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#endif
+
 namespace Kotonoha {
 namespace {
+
+#ifdef _WIN32
+std::string WindowsCp932ToUtf8(std::string_view text) {
+  std::string out;
+  out.reserve(text.size() * 3);
+
+  const auto append = [&](const char *bytes, int count) -> bool {
+    wchar_t wide[2]{};
+    const int wideCount = MultiByteToWideChar(932, MB_ERR_INVALID_CHARS, bytes,
+                                               count, wide, 2);
+    if (wideCount <= 0)
+      return false;
+    char utf8[8]{};
+    const int utf8Count = WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS,
+                                               wide, wideCount, utf8,
+                                               int(sizeof utf8), nullptr, nullptr);
+    if (utf8Count <= 0)
+      return false;
+    out.append(utf8, size_t(utf8Count));
+    return true;
+  };
+
+  for (size_t i = 0; i < text.size();) {
+    const unsigned char first = static_cast<unsigned char>(text[i]);
+    if (first < 0x80) {
+      out.push_back(char(first));
+      ++i;
+      continue;
+    }
+    const bool lead = (first >= 0x81 && first <= 0x9f) ||
+                      (first >= 0xe0 && first <= 0xfc);
+    const size_t count = lead && i + 1 < text.size() ? 2 : 1;
+    if (!append(text.data() + i, int(count)))
+      out.push_back('?');
+    i += count;
+  }
+  return out;
+}
+#endif
 
 class Converter {
 #if KOTONOHA_USE_SYSTEM_ICONV
@@ -237,6 +283,10 @@ std::string ConvertEncoding(std::string_view text, const char *from,
 #if defined(__ANDROID__)
   return ConvertViaJNI(text, from, to);
 #else
+  // SDL's built-in iconv accepts the IANA spelling but not iconv's LATIN1
+  // alias, which is used by game metadata and public callers.
+  if (std::string_view(from) == "LATIN1") from = "ISO-8859-1";
+  if (std::string_view(to) == "LATIN1") to = "ISO-8859-1";
   Converter converter(from, to);
   if (!converter.valid())
     throw std::runtime_error(std::string("Unsupported text encoding ") + from +
@@ -275,7 +325,7 @@ std::string ShiftJisToUtf8(std::string_view text) {
   // CP932/Shift_JIS
   return ConvertViaJNI(text, "Shift_JIS");
 #else
-  // No iOS (System iconv) e Desktop (SDL_iconv)
+  // CP932 first: plain SHIFT_JIS lacks the NEC row 13 extension symbols.
   for (const char *name : {"CP932", "WINDOWS-31J", "SHIFT_JIS", "SJIS"}) {
     Converter converter(name, "UTF-8");
     if (!converter.valid())

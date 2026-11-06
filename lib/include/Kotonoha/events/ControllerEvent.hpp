@@ -61,20 +61,20 @@ inline SDL_Event MapControllerEvent(EventRef event, bool dialogue = false,
     key = SDLK_RETURN; // Confirm / Advance
     break;
   case SDL_GAMEPAD_BUTTON_SOUTH:
-    key = dialogue ? SDLK_LCTRL : SDLK_ESCAPE; // Hold skip or Cancel/Back
+    key = dialogue ? SDLK_LCTRL : SDLK_AC_BACK; // Hold skip or Voltar/Cancel
     break;
   case SDL_GAMEPAD_BUTTON_WEST:
     key = SDLK_S; // Toggle read-skip
     break;
   case SDL_GAMEPAD_BUTTON_NORTH:
-    key = SDLK_ESCAPE; // Y button = Voltar (Back / Return)
+    key = SDLK_AC_BACK; // Y button = Voltar (Back / Return)
     break;
   case SDL_GAMEPAD_BUTTON_START:
     key = SDLK_ESCAPE; // Dedicated Start button = Open InGameMenu
     break;
   case SDL_GAMEPAD_BUTTON_BACK:
   case SDL_GAMEPAD_BUTTON_LEFT_SHOULDER:
-    key = history ? SDLK_ESCAPE : SDLK_PAGEUP; // History / Backlog
+    key = history ? SDLK_ESCAPE : SDLK_PAGEUP; // Open or close history
     break;
   case SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER:
     key = SDLK_A; // Toggle Auto mode

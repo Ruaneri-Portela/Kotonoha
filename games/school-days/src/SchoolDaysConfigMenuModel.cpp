@@ -42,7 +42,7 @@ const char *SchoolDaysConfigMenuModel::PageToken(Page page) {
   case Page::Sound:
     return "Sound";
   case Page::Display:
-    return "Def";
+    return "Display";
   }
   return "Def";
 }
@@ -63,11 +63,14 @@ std::string SchoolDaysConfigMenuModel::ChipRelativePath(Page page) {
 
 bool SchoolDaysConfigMenuModel::Open(const std::string &assetsRoot,
                                      Variant variant, Page page,
-                                     std::string *error) {
+                                     std::string *error,
+                                     bool retailDisplayArtworkFallback) {
   Close();
+  const Page artworkPage = retailDisplayArtworkFallback && page == Page::Display
+                               ? Page::Def : page;
   std::string physical;
   if (!ResolveSchoolDaysRequiredAssetPath(
-          assetsRoot.c_str(), CmapRelativePath(page, variant), &physical, error,
+          assetsRoot.c_str(), CmapRelativePath(artworkPage, variant), &physical, error,
           "ConfigMenu CMAP")) {
     return false;
   }
@@ -76,6 +79,7 @@ bool SchoolDaysConfigMenuModel::Open(const std::string &assetsRoot,
 
   variant_ = variant;
   page_ = page;
+  artworkPage_ = artworkPage;
   selection_ = -1;
   open_ = true;
   return true;
@@ -85,6 +89,7 @@ void SchoolDaysConfigMenuModel::Close() {
   cmap_.Clear();
   variant_ = Variant::Standard;
   page_ = Page::Def;
+  artworkPage_ = Page::Def;
   selection_ = -1;
   open_ = false;
 }
@@ -93,7 +98,11 @@ int SchoolDaysConfigMenuModel::HitControl(int x, int y) const {
   if (!open_)
     return -1;
   const int region = cmap_.RegionAt(x, y);
-  return region > 0 ? region - 1 : -1;
+  const int control = region > 0 ? region - 1 : -1;
+  // Def's configuration controls are not Display actions. Only its original
+  // shared navigation and CLOSE hotspots apply under Android's native panel.
+  return page_ == Page::Display && artworkPage_ != page_ && control > 3
+             ? -1 : control;
 }
 
 bool SchoolDaysConfigMenuModel::SetSelectionFromPointer(int x, int y) {
@@ -132,7 +141,7 @@ bool SchoolDaysConfigMenuModel::DecodeAction(Page page, int control,
     case 6:
     case 7:
       action->kind = ActionKind::RequestFull;
-      action->value = control == 7 ? 1 : 0;
+      action->value = control == 6 ? 1 : 0;
       return true;
     case 8:
     case 9:
@@ -178,6 +187,18 @@ bool SchoolDaysConfigMenuModel::DecodeAction(Page page, int control,
       action->kind = ActionKind::SetSoundLevel;
       action->soundBank = (control - 14) / 10;
       action->value = ((control - 14) % 10) + 1;
+      return true;
+    }
+    return false;
+  }
+
+  if (page == Page::Display) {
+    // Corrected custom Display CMAP reserves regions 1..22 for control IDs
+    // 0..21. Navigation/Close are handled above; the remaining controls are
+    // forwarded without imposing any physical display policy in the model.
+    if (control >= 4 && control <= 21) {
+      action->kind = ActionKind::DisplayControl;
+      action->value = control;
       return true;
     }
     return false;

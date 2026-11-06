@@ -71,11 +71,17 @@ void EngineSettings::validate() const {
       translationPath.find('\0') != std::string::npos ||
       fontPath.find('\0') != std::string::npos ||
       !std::isfinite(masterVolume) || masterVolume < 0 || masterVolume > 1 ||
-      !std::isfinite(debugUIScale) || debugUIScale < 1 || debugUIScale > 3)
+      !std::isfinite(debugUIScale) || debugUIScale < 1 || debugUIScale > 3 ||
+      !std::isfinite(renderScale) || renderScale < 0.25f || renderScale > 1.0f)
     throw std::invalid_argument("Invalid engine/window settings");
 }
 
 EngineSettings EngineSettings::load(const std::string &path) {
+  return load(path, EngineSettings{});
+}
+
+EngineSettings EngineSettings::load(const std::string &path,
+                                    const EngineSettings &defaults) {
   std::ifstream input(path, std::ios::binary);
   if (!input)
     throw std::runtime_error("Cannot open settings: " + path);
@@ -101,9 +107,11 @@ EngineSettings EngineSettings::load(const std::string &path) {
       (end < text.size() &&
        text.find_first_not_of(" \t\r\n", end) != std::string::npos))
     throw std::runtime_error("Invalid settings JSON: " + path);
-  EngineSettings result;
-  int version = 1, mode = 0, backend = 0, preset = 0;
-  int priority = SDL_LOG_PRIORITY_INFO;
+  EngineSettings result = defaults;
+  int version = 1, mode = static_cast<int>(result.mode);
+  int backend = static_cast<int>(result.upscaling.backend);
+  int preset = static_cast<int>(result.upscaling.preset);
+  int priority = result.logPriority;
   read(root.get(), "version", version);
   if (version != 1)
     throw std::runtime_error("Unsupported settings version: " + path);
@@ -121,6 +129,7 @@ EngineSettings EngineSettings::load(const std::string &path) {
   read(root.get(), "masterVolume", result.masterVolume);
   read(root.get(), "masterMuted", result.masterMuted);
   read(root.get(), "debugUIScale", result.debugUIScale);
+  read(root.get(), "renderScale", result.renderScale);
   read(root.get(), "renderer", result.renderer);
   read(root.get(), "logPriority", priority);
   read(root.get(), "upscaler", backend);
@@ -200,6 +209,8 @@ void EngineSettings::save(const std::string &path) const {
   boolean("masterMuted", masterMuted);
   json_object_object_add(root.get(), "debugUIScale",
                          json_object_new_double(debugUIScale));
+  json_object_object_add(root.get(), "renderScale",
+                         json_object_new_double(renderScale));
   json_object_object_add(root.get(), "renderer",
                          json_object_new_string(renderer.c_str()));
   integer("logPriority", static_cast<int>(logPriority));

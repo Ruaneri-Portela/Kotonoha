@@ -55,6 +55,16 @@ std::string literal(const std::string &text) {
   }
   return result;
 }
+
+std::string assEventText(const std::string &text) {
+  std::string result;
+  for (char ch : text) {
+    if (ch == '\r') continue;
+    if (ch == '\n') result += "\\N";
+    else result += ch;
+  }
+  return result;
+}
 } // namespace
 
 struct SubtitleScene::State {
@@ -265,7 +275,8 @@ void SubtitleScene::setCues(const std::vector<SubtitleCue> &cues,
         style = names.front();
     }
     ass << "Dialogue: 0," << timestamp(cue.start) << ',' << timestamp(cue.end)
-        << ',' << style << ",,0,0,0,," << literal(displayCueText(cue.text))
+        << ',' << style << ",,0,0,0,,"
+        << (cue.assText ? assEventText(cue.text) : literal(cue.text))
         << '\n';
   }
   loadAss(ass.str());

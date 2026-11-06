@@ -156,6 +156,14 @@ public:
     bool Render(SDL_Renderer* renderer, std::string* error = nullptr);
     // Logical size events and rendering use (defaults to 1280x720).
     void SetArea(SDL_Point area) { area_ = area; }
+    // In FULL+STANDARD, stretch the 800x600 authored host canvas across the
+    // physical presentation: its opaque 800x450 image still occupies only the
+    // centered 75% height, leaving black bars like the original screenshot.
+    // This affects only Config, not the engine-wide SettingsMenu or other
+    // School Days panels; CMAP hit-testing uses the identical transform.
+    void SetConfigStandardFullscreenStretch(bool enabled) {
+        configStandardFullscreenStretch_ = enabled;
+    }
     void SetAssetProvider(const AssetProvider* assets) { assets_ = assets; }
     bool IsOpen() const {
         return saveFeel_.IsOpen() || saveLoad_.IsOpen() || configMenu_.IsOpen() ||
@@ -168,8 +176,15 @@ public:
     bool IsExitOpen() const { return exitView_.IsOpen(); }
     bool IsReplayOpen() const { return replay_.IsOpen(); }
     bool IsRouteMapOpen() const { return routeMap_.IsOpen(); }
+    bool IsSaveLoadCommentEditorOpen() const { return saveLoadCommentEditorOpen_; }
+    const std::u16string& SaveLoadCommentEditorText() const {
+        return saveLoadCommentText_;
+    }
     const SchoolDaysSaveFeelModel& SaveFeel() const { return saveFeel_; }
     const SchoolDaysSaveLoadModel& SaveLoad() const { return saveLoad_; }
+    void RestoreSaveLoadSelection(int selection) {
+        saveLoad_.RestoreSelection(selection);
+    }
     const SchoolDaysConfigMenuModel& ConfigMenu() const { return configMenu_; }
     const SchoolDaysExitViewModel& ExitView() const { return exitView_; }
     const SchoolDaysReplayModel& Replay() const { return replay_; }
@@ -180,15 +195,24 @@ private:
         float x = 0.0f;
         float y = 0.0f;
         float scale = 1.0f;
+        float scaleY = 1.0f;
     };
 
     static Viewport ComputeViewport(int outputWidth, int outputHeight,
                                     int virtualWidth, int virtualHeight);
+    Viewport ComputeConfigViewport(int outputWidth, int outputHeight,
+                                   int virtualWidth, int virtualHeight) const;
     bool PointerToVirtual(SDL_Renderer* renderer, float x, float y,
                           int* virtualX, int* virtualY) const;
     static SDL_FRect TransformRect(const SDL_FRect& native,
                                    const Viewport& viewport);
     bool EmitModelResult(SchoolDaysSaveFeelModel::Result result, Output* output);
+    bool BeginSaveLoadCommentEditor(SDL_Renderer* renderer, int slot);
+    void EndSaveLoadCommentEditorTextInput();
+    bool HandleSaveLoadCommentEditorEvent(const SDL_Event* event);
+    bool UpdateSaveLoadCommentEditorTexture(std::string* error);
+    bool RenderSaveLoadCommentEditor(SDL_Renderer* renderer,
+                                     std::string* error);
     void DestroyTextures();
     SDL_Texture* LoadTexture(SDL_Renderer* renderer,
                              const std::string& physical) const;
@@ -209,7 +233,9 @@ private:
     SDL_Texture* chipTexture_ = nullptr;
     const AssetProvider* assets_ = nullptr;
     SDL_Point area_{1280, 720};
+    bool configStandardFullscreenStretch_ = false;
     SDL_Texture* saveLoadTextTexture_ = nullptr;
+    SDL_Texture* saveLoadCommentTextTexture_ = nullptr;
     SDL_Texture* routeMapTextTexture_ = nullptr;
     SDL_Texture* replayTextTexture_ = nullptr;
     SDL_Texture* replayThumbnailTexture_ = nullptr;
@@ -228,11 +254,18 @@ private:
     SchoolDaysFontData routeMapFont_;
     SchoolDaysFontData replayFont_;
     std::vector<uint32_t> saveLoadTextPixels_;
+    std::vector<uint32_t> saveLoadCommentTextPixels_;
     std::vector<uint32_t> routeMapTextPixels_;
     std::vector<uint32_t> replayTextPixels_;
     std::vector<SchoolDaysSaveService::SlotMetadata> saveLoadMetadata_;
     std::vector<SchoolDaysSaveService::SlotMetadata> replayMetadata_;
     std::vector<int> saveLoadCommentAdvances_;
+    bool saveLoadCommentEditorOpen_ = false;
+    int saveLoadCommentSlot_ = -1;
+    std::u16string saveLoadCommentText_;
+    SDL_Window* saveLoadCommentWindow_ = nullptr;
+    bool saveLoadCommentTextDirty_ = false;
+    uint32_t saveLoadCommentCursorPhase_ = UINT32_MAX;
     bool saveLoadUseEnglish_ = false;
     bool routeMapUseEnglish_ = false;
     bool replayTextInputEnabled_ = false;
