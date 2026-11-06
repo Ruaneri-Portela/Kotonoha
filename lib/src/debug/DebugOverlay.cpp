@@ -81,6 +81,11 @@ DebugOverlay::~DebugOverlay() {
   ImGui::DestroyContext();
 }
 
+void DebugOverlay::reloadFonts(const std::string &fontPath) {
+  ImGui::SetCurrentContext(ImGui::GetCurrentContext());
+  ImGuiTheme::loadFonts(fontPath);
+}
+
 bool DebugOverlay::handleEvent(EventRef event) {
   ImGui_ImplSDL3_ProcessEvent(&event);
   SDL_Event pointer{};
@@ -153,13 +158,16 @@ void DebugOverlay::update() {
 std::string DebugOverlay::nodeClockText(bool eventClock, bool nodeClock) const {
   const auto node = engine.activeNode();
   if (node.empty())
-    return "Node: --";
+    return settings.nodeLabel + ": --";
   std::ostringstream text;
-  text << "Node: " << node << std::fixed << std::setprecision(2);
+  text << settings.nodeLabel << ": " << node << std::fixed
+       << std::setprecision(2);
   if (eventClock)
-    text << " | Event clock: " << engine.activeEventSeconds() << "s";
+    text << " | " << settings.clockLabel << ": " << engine.activeEventSeconds()
+         << "s";
   if (nodeClock)
-    text << " | Node clock: " << engine.activeNodeSeconds() << "s";
+    text << " | " << settings.nodeLabel
+         << " clock: " << engine.activeNodeSeconds() << "s";
   if (engine.isStoryPaused() ||
       (engine.GetRuntime().debugNode().empty() && engine.usesTimedNodeClock() &&
        engine.GetTimeline().isPaused()))
@@ -169,7 +177,7 @@ std::string DebugOverlay::nodeClockText(bool eventClock, bool nodeClock) const {
 
 std::string DebugOverlay::performanceText(bool milliseconds) const {
   std::ostringstream text;
-  text << "FPS: " << static_cast<int>(fps);
+  text << settings.fpsLabel << ": " << static_cast<int>(fps);
   if (milliseconds)
     text << " | " << std::fixed << std::setprecision(2)
          << (fps > 0 ? 1000 / fps : 0) << " ms";
@@ -223,6 +231,7 @@ void DebugOverlay::renderHUD(RendererRef renderer) {
 }
 
 void DebugOverlay::drawInspector() {
+  ImGuiTheme::sectionHeader("Display");
   ImGui::Checkbox("FPS (window corner)", &settings.showFPS);
   ImGui::SameLine();
   ImGui::Checkbox("Node / clock", &settings.showNodeClock);
@@ -239,12 +248,15 @@ void DebugOverlay::drawInspector() {
       SDL_LogError(LogConfig, "Debug UI scale: %s", error.what());
     }
   }
+  ImGuiTheme::sectionHeader("KTRF / custom nodes");
   drawKtrfTools();
   drawForcedSubtitlesGenerator();
   if (nodesStale)
     refreshNodes();
   if (ImGui::SmallButton("Refresh node list"))
     refreshNodes();
+
+  ImGuiTheme::sectionHeader("Script nodes");
   const auto &custom = cachedRuntimeNodes;
   if (!custom.empty()) {
     drawRuntimeNodes(custom);
@@ -626,6 +638,10 @@ void DebugOverlay::drawAssets(const std::vector<std::string> &nodeAssets) {
 
 void DebugOverlay::refreshTranslationSources() {
   transSourcesStale = false;
+  // Garante que os nodos de runtime (ex: School Days KTRF) estejam carregados
+  // antes de listar as chaves de tradução.
+  if (nodesStale)
+    refreshNodes();
   try {
     cachedManagerSources = GetVNManagerRuntime(engine).translationSources();
     cachedRuntimeSources.clear();
@@ -633,12 +649,7 @@ void DebugOverlay::refreshTranslationSources() {
     cachedAllNodeKeys.clear();
     std::unordered_set<std::string> uniqueKeys;
     const auto addKey = [&](const std::string &key) {
-      int number = -1;
-      auto parsed =
-          std::from_chars(key.data(), key.data() + key.size(), number);
-      if (key != "nodo" &&
-          (parsed.ec != std::errc{} || parsed.ptr != key.data() + key.size() ||
-           number < 0))
+      if (key.empty())
         return;
       if (uniqueKeys.insert(key).second)
         cachedAllNodeKeys.push_back(key);
@@ -799,7 +810,7 @@ void DebugOverlay::drawTranslationWindow() {
         !activeNodeKey.empty() ? activeNodeKey : cachedAllNodeKeys.front();
   }
 
-  ImGui::SeparatorText("Script Nodes");
+  ImGuiTheme::sectionHeader("Script Nodes");
   ImGui::InputText("Buscar Nodo/Chave", transSearchFilter,
                    sizeof(transSearchFilter));
 
@@ -844,7 +855,7 @@ void DebugOverlay::drawTranslationWindow() {
   ImGui::EndChild();
 
   if (!selectedTransNodeStr.empty()) {
-    ImGui::SeparatorText(
+    ImGuiTheme::sectionHeader(
         ("Node " + selectedTransNodeStr + " Scene Strings").c_str());
 
     std::vector<std::string> stringsToTranslate;
@@ -903,7 +914,33 @@ void DebugOverlay::drawTranslationWindow() {
         for (const auto &s : rIt->second)
           addString(s);
       }
+    } else {
+      // Chave não numérica (ex: School Days scene key
+      // "sdhq:node:00/00-00-A05"). Mostra as legendas da cena atual quando a
+      // chave corresponde ao nodo ativo.
+      if (selectedTransNodeStr == engine.GetRuntime().debugNode()) {
+        auto texts = engine.GetRuntime().translationTexts(0);
+        for (const auto &s : texts)
+          addString(s);
+      }
+      // Também expõe rótulos dos nodos de runtime que correspondam à chave.
+      for (const auto &rtNode : cachedRuntimeNodes) {
+        if (rtNode.id == selectedTransNodeStr ||
+            rtNode.label == selectedTransNodeStr)
+          addString(rtNode.label);
+      }
+      for (const auto &engNode : cachedEngineNodes) {
+        if (engNode.id == selectedTransNodeStr ||
+            engNode.label == selectedTransNodeStr)
+          addString(engNode.label);
+      }
     }
+
+    // Always include the currently displayed subtitle/scene strings so live
+    // translation can find and update them even for runtimes without a VN
+    // manager (e.g. School Days).
+    for (const auto &key : activeKeys)
+      addString(key);
 
     if (stringsToTranslate.empty() &&
         nodeInt == engine.GetRuntime().translationRoute()) {
@@ -1104,27 +1141,48 @@ void DebugOverlay::drawEngineTools() {
         SDL_LogError(LogMedia, "Master volume: %s", error.what());
       }
     }
-    for (const auto &channel : engine.GetAudio().getChannels()) {
-      ImGui::PushID(channel->getName().c_str());
-      ImGui::TextColored(ImGuiTheme::accent(), "%s",
-                         channel->getName().c_str());
-      ImGui::SameLine();
-      ImGui::TextDisabled("%zu streams", channel->activeStreams());
-      float volume = channel->getVolume();
-      bool muted = channel->isMuted();
-      try {
-        if (ImGui::SliderFloat("Volume", &volume, 0, 1, "%.2f"))
+    if (ImGui::BeginTable("audio channels", 4,
+                          ImGuiTableFlags_RowBg | ImGuiTableFlags_Borders |
+                              ImGuiTableFlags_NoSavedSettings |
+                              ImGuiTableFlags_SizingFixedFit)) {
+      ImGui::TableSetupColumn("Channel", ImGuiTableColumnFlags_WidthFixed,
+                              0.3f);
+      ImGui::TableSetupColumn("Streams", ImGuiTableColumnFlags_WidthFixed,
+                              0.15f);
+      ImGui::TableSetupColumn("Volume", ImGuiTableColumnFlags_WidthFixed,
+                              0.35f);
+      ImGui::TableSetupColumn("Mute", ImGuiTableColumnFlags_WidthFixed, 0.2f);
+      ImGui::TableHeadersRow();
+      for (const auto &channel : engine.GetAudio().getChannels()) {
+        ImGui::TableNextRow();
+        ImGui::TableSetColumnIndex(0);
+        ImGui::PushID(channel->getName().c_str());
+        ImGui::PushStyleColor(ImGuiCol_Text, ImGuiTheme::accent());
+        ImGui::TextUnformatted(channel->getName().c_str());
+        ImGui::PopStyleColor();
+        ImGui::TableSetColumnIndex(1);
+        ImGui::TextDisabled("%zu streams", channel->activeStreams());
+        ImGui::TableSetColumnIndex(2);
+        float volume = channel->getVolume();
+        if (ImGui::SliderFloat("##volume", &volume, 0, 1, "%.2f"))
           channel->setVolume(volume);
-        ImGui::SameLine();
-        if (ImGui::Checkbox("Mute", &muted))
+        ImGui::TableSetColumnIndex(3);
+        bool muted = channel->isMuted();
+        if (ImGui::Checkbox("##mute", &muted))
           channel->setMuted(muted);
-      } catch (const std::exception &error) {
-        status = error.what();
-        statusError = true;
-        SDL_LogError(LogMedia, "Audio channel '%s': %s",
-                     channel->getName().c_str(), error.what());
+        try {
+          // Re-read in case the channel mutated state externally.
+          volume = channel->getVolume();
+          muted = channel->isMuted();
+        } catch (const std::exception &error) {
+          status = error.what();
+          statusError = true;
+          SDL_LogError(LogMedia, "Audio channel '%s': %s",
+                       channel->getName().c_str(), error.what());
+        }
+        ImGui::PopID();
       }
-      ImGui::PopID();
+      ImGui::EndTable();
     }
   }
   if (ImGui::CollapsingHeader("Window / renderer / upscaler")) {
@@ -1308,36 +1366,62 @@ void DebugOverlay::drawEngineTools() {
     ImGui::SameLine();
     if (ImGui::Button("Clear logs"))
       Log::clear();
-    ImGui::BeginChild("Engine logs", ImVec2(0, 230), ImGuiChildFlags_Borders);
-    const auto entries = Log::entries();
-    std::vector<const LogEntry *> shown;
-    shown.reserve(entries.size());
-    for (const auto &entry : entries)
-      if (entry.priority >= minimumLogPriority &&
-          (!*logFilter || entry.message.find(logFilter) != std::string::npos))
-        shown.push_back(&entry);
-    ImGuiListClipper logClipper;
-    logClipper.Begin(static_cast<int>(shown.size()));
-    while (logClipper.Step())
-      for (int i = logClipper.DisplayStart; i < logClipper.DisplayEnd; ++i) {
-        const auto &entry = *shown[static_cast<std::size_t>(i)];
-        const bool tinted = entry.priority != SDL_LOG_PRIORITY_INFO;
-        if (tinted)
-          ImGui::PushStyleColor(
-              ImGuiCol_Text,
-              entry.priority >= SDL_LOG_PRIORITY_ERROR  ? ImGuiTheme::error()
-              : entry.priority == SDL_LOG_PRIORITY_WARN ? ImGuiTheme::warning()
-                                                        : ImGuiTheme::muted());
-        ImGui::Text("%llu [%d:%d] %s",
-                    static_cast<unsigned long long>(entry.milliseconds),
-                    entry.category, static_cast<int>(entry.priority),
-                    entry.message.c_str());
-        if (tinted)
-          ImGui::PopStyleColor();
-      }
-    if (followLogs)
-      ImGui::SetScrollHereY(1);
-    ImGui::EndChild();
+    if (ImGui::BeginTable("engine logs", 4,
+                          ImGuiTableFlags_RowBg | ImGuiTableFlags_Borders |
+                              ImGuiTableFlags_NoSavedSettings |
+                              ImGuiTableFlags_ScrollY,
+                          ImVec2(0, 300))) {
+      ImGui::TableSetupScrollFreeze(0, 1);
+      ImGui::TableSetupColumn("Time", ImGuiTableColumnFlags_WidthFixed, 60.0f);
+      ImGui::TableSetupColumn("Priority", ImGuiTableColumnFlags_WidthFixed,
+                              80.0f);
+      ImGui::TableSetupColumn("Category", ImGuiTableColumnFlags_WidthFixed,
+                              70.0f);
+      ImGui::TableSetupColumn("Message", ImGuiTableColumnFlags_WidthStretch);
+      ImGui::TableHeadersRow();
+      const auto entries = Log::entries();
+      std::vector<const LogEntry *> shown;
+      shown.reserve(entries.size());
+      for (const auto &entry : entries)
+        if (entry.priority >= minimumLogPriority &&
+            (!*logFilter || entry.message.find(logFilter) != std::string::npos))
+          shown.push_back(&entry);
+      ImGuiListClipper logClipper;
+      logClipper.Begin(static_cast<int>(shown.size()));
+      while (logClipper.Step())
+        for (int i = logClipper.DisplayStart; i < logClipper.DisplayEnd; ++i) {
+          const auto &entry = *shown[static_cast<std::size_t>(i)];
+          ImGui::TableNextRow();
+          ImGui::TableSetColumnIndex(0);
+          ImGui::TextDisabled("%llu ms", entry.milliseconds);
+          ImGui::TableSetColumnIndex(1);
+          const bool tinted = entry.priority != SDL_LOG_PRIORITY_INFO;
+          if (tinted)
+            ImGui::PushStyleColor(ImGuiCol_Text,
+                                  entry.priority >= SDL_LOG_PRIORITY_ERROR
+                                      ? ImGuiTheme::error()
+                                  : entry.priority == SDL_LOG_PRIORITY_WARN
+                                      ? ImGuiTheme::warning()
+                                      : ImGuiTheme::muted());
+          const char *priorityName =
+              entry.priority <= SDL_LOG_PRIORITY_TRACE   ? "Trace"
+              : entry.priority == SDL_LOG_PRIORITY_DEBUG ? "Debug"
+              : entry.priority == SDL_LOG_PRIORITY_INFO  ? "Info"
+              : entry.priority == SDL_LOG_PRIORITY_WARN  ? "Warning"
+              : entry.priority == SDL_LOG_PRIORITY_ERROR ? "Error"
+                                                         : "Critical";
+          ImGui::TextUnformatted(priorityName);
+          if (tinted)
+            ImGui::PopStyleColor();
+          ImGui::TableSetColumnIndex(2);
+          ImGui::TextDisabled("%d", entry.category);
+          ImGui::TableSetColumnIndex(3);
+          ImGui::TextWrapped("%s", entry.message.c_str());
+        }
+      if (followLogs)
+        ImGui::SetScrollHereY(1);
+      ImGui::EndTable();
+    }
   }
 }
 

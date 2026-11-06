@@ -22,6 +22,9 @@ struct DebugSettings {
   bool showFPS = true;
   bool showNodeClock = true;
   bool ignorePause = false;
+  std::string fpsLabel = "FPS";
+  std::string nodeLabel = "Node";
+  std::string clockLabel = "Clock";
 };
 
 class DebugOverlay {
@@ -98,6 +101,7 @@ public:
   std::string nodeClockText(bool eventClock = true, bool nodeClock = true) const;
   std::string performanceText(bool milliseconds = true) const;
   std::pair<std::string, std::string> hudText(float width) const;
+  void reloadFonts(const std::string &fontPath);
 };
 
 } // namespace Kotonoha

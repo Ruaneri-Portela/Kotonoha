@@ -582,6 +582,17 @@ int CurrentDisplayPreset(const Kotonoha::EngineSettings &settings) {
   case Kotonoha::UpscalePreset::ArtCNNLarge:
     return 3;
   case Kotonoha::UpscalePreset::Anime4K:
+  case Kotonoha::UpscalePreset::Anime4KModeBHQ:
+  case Kotonoha::UpscalePreset::Anime4KModeCHQ:
+  case Kotonoha::UpscalePreset::Anime4KModeAAHQ:
+  case Kotonoha::UpscalePreset::Anime4KModeBBHQ:
+  case Kotonoha::UpscalePreset::Anime4KModeCAHQ:
+  case Kotonoha::UpscalePreset::Anime4KModeAFast:
+  case Kotonoha::UpscalePreset::Anime4KModeBFast:
+  case Kotonoha::UpscalePreset::Anime4KModeCFast:
+  case Kotonoha::UpscalePreset::Anime4KModeAAFast:
+  case Kotonoha::UpscalePreset::Anime4KModeBBFast:
+  case Kotonoha::UpscalePreset::Anime4KModeCAFast:
     return 4;
   }
   return 4;
@@ -6799,6 +6810,27 @@ std::vector<Kotonoha::DebugNode> Runtime::debugNodes() const {
     nodes.push_back(std::move(output));
   }
   return nodes;
+}
+
+std::vector<std::string> Runtime::activeTranslationKeys() const {
+  std::vector<std::string> keys;
+  if (subtitles) {
+    auto texts = subtitles->currentCueTexts();
+    keys.reserve(texts.size());
+    for (auto &text : texts)
+      keys.push_back(std::move(text));
+  }
+  return keys;
+}
+
+Kotonoha::Translation::SourceTexts Runtime::translationSources() const {
+  Kotonoha::Translation::SourceTexts sources;
+  if (subtitles) {
+    auto texts = subtitles->currentCueTexts();
+    if (!texts.empty())
+      sources[0] = std::move(texts);
+  }
+  return sources;
 }
 
 void Runtime::debugJumpToNode(const std::string &id) {

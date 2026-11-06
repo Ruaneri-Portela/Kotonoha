@@ -7,6 +7,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include <Kotonoha/componentes/VNBacklog.hpp>
 #include <Kotonoha/routing/SchoolDaysCmap.hpp>
 
 namespace Kotonoha {

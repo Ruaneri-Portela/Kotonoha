@@ -310,6 +310,14 @@ void SubtitleScene::clear() {
   sourceCues.clear();
 }
 
+std::vector<std::string> SubtitleScene::currentCueTexts() const {
+  std::vector<std::string> texts;
+  texts.reserve(sourceCues.size());
+  for (const auto &cue : sourceCues)
+    texts.push_back(cue.text);
+  return texts;
+}
+
 void SubtitleScene::setStyle(AssStyle style) {
   state->style = AssStyle::parse(style.header);
   clear();
