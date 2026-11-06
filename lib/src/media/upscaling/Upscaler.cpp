@@ -227,8 +227,8 @@ struct Upscaling::TextureCache {
 };
 
 void Upscaling::clearTextureCaches() {
-  for (auto &weak : textureCaches)
-    if (auto entry = weak.lock()) {
+  for (auto &pair : textureCaches)
+    if (auto entry = pair.second.lock()) {
       entry->texture.reset();
       entry->failed = false;
     }
@@ -445,7 +445,7 @@ SDL_Texture &Upscaling::process(TextureRef texture, Uint64 serial) {
     SDL_SetTextureColorMod(&texture, 255, 255, 255);
     SDL_SetTextureAlphaMod(&texture, 255);
     if (!entry.texture)
-      textureCaches.push_back(*owner);
+      textureCaches.emplace(&texture, *owner);
     auto &processed = implementation->process(texture, serial);
     if (!entry.texture || entry.texture->w != processed.w ||
         entry.texture->h != processed.h) {
@@ -454,10 +454,12 @@ SDL_Texture &Upscaling::process(TextureRef texture, Uint64 serial) {
                                             processed.w, processed.h));
       if (!entry.texture)
         throw std::runtime_error(SDL_GetError());
-      textureCaches.erase(
-          std::remove_if(textureCaches.begin(), textureCaches.end(),
-                         [](const auto &weak) { return weak.expired(); }),
-          textureCaches.end());
+      for (auto it = textureCaches.begin(); it != textureCaches.end();) {
+        if (it->second.expired())
+          it = textureCaches.erase(it);
+        else
+          ++it;
+      }
     }
     copy(renderer, processed, *entry.texture);
     SDL_SetBooleanProperty(SDL_GetTextureProperties(entry.texture.get()),

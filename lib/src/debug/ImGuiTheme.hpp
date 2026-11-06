@@ -18,6 +18,8 @@ ImVec4 error();
 ImVec4 muted();
 void statusText(const char *text, bool error);
 bool primaryButton(const char *label, ImVec2 size = {});
+// Draws a section header with a small accent mark.
+void sectionHeader(const char *label);
 
 class ShaderFilePicker {
   struct State;

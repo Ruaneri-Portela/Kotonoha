@@ -346,11 +346,15 @@ void Engine::applySettings(const EngineSettings &value, bool persist) {
   if (!upscaler->supports(value.upscaling.backend))
     throw std::invalid_argument(
         "Upscaler is unavailable for the current renderer");
-  std::unique_ptr<UI> nextVNUI;
-  if (value.vnFontPath != settings.vnFontPath ||
-      value.fontPath != settings.fontPath)
+  std::unique_ptr<UI> nextUI, nextVNUI;
+  if (value.fontPath != settings.fontPath) {
+    nextUI = std::make_unique<UI>(value.fontPath);
     nextVNUI = std::make_unique<UI>(
         value.vnFontPath.empty() ? value.fontPath : value.vnFontPath);
+  } else if (value.vnFontPath != settings.vnFontPath) {
+    nextVNUI = std::make_unique<UI>(
+        value.vnFontPath.empty() ? value.fontPath : value.vnFontPath);
+  }
   const auto previous = settings;
   const bool geometryChanged =
       value.width != previous.width || value.height != previous.height ||
@@ -387,6 +391,10 @@ void Engine::applySettings(const EngineSettings &value, bool persist) {
   }
   if (nextVNUI)
     vnUI = std::move(nextVNUI);
+  if (nextUI) {
+    ui = std::move(nextUI);
+    debug->reloadFonts(settings.fontPath);
+  }
   for (int category : {LogCore, LogConfig, LogMedia, LogUpscaler, LogUI})
     SDL_SetLogPriority(category, settings.logPriority);
   frameClock.reset();

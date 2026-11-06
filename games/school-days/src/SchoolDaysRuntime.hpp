@@ -470,6 +470,10 @@ public:
   void dumpKtrf(const std::string &path) const override;
   void saveGame(const std::string &path) override;
   void loadGame(const std::string &path) override;
+  // Live translation: expose the currently displayed subtitle texts so the
+  // debug editor can find and translate them, and reload them on change.
+  std::vector<std::string> activeTranslationKeys() const override;
+  Kotonoha::Translation::SourceTexts translationSources() const override;
 };
 
 } // namespace SchoolDays

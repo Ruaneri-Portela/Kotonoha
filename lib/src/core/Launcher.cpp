@@ -423,7 +423,7 @@ void Launcher::draw() {
   if (ImGui::BeginTabBar("##tabs")) {
     if (ImGui::BeginTabItem("Game")) {
       drawGameOptions();
-      ImGui::SeparatorText("Asset overlay (all games)");
+      ImGuiTheme::sectionHeader("Asset overlay");
       // The text input holds the absolute path. When confirmed it is stored as
       // a (name -> absolute path) pair; the display always shows the absolute
       // path. The persisted absolute is tried first, otherwise the name is
@@ -498,6 +498,7 @@ void Launcher::draw() {
 
 void Launcher::drawVideo() {
   if (canChangeDisplaySize()) {
+    ImGuiTheme::sectionHeader("Display");
     int mode = static_cast<int>(draft.mode);
     if (ImGui::Combo("Mode", &mode, Modes, 3))
       draft.mode = static_cast<WindowMode>(mode);
@@ -588,6 +589,7 @@ void Launcher::drawVideo() {
     ImGui::Checkbox("Resizable window", &draft.resizable);
   }
 
+  ImGuiTheme::sectionHeader("Renderer");
   const std::string renderer =
       draft.renderer.empty() ? "Automatic" : draft.renderer;
   if (ImGui::BeginCombo("Renderer", renderer.c_str())) {
@@ -604,6 +606,7 @@ void Launcher::drawVideo() {
 
 void Launcher::drawUpscaling() {
   auto &upscaling = draft.upscaling;
+  ImGuiTheme::sectionHeader("Scale");
   // Same rule as Kotonoha: 1.0 is off, anything above turns it on.
   ImGui::SliderFloat("Scale", &upscaling.factor, 1.0f, 4.0f,
                      upscaling.factor <= 1 ? "Off (1.00x)" : "%.2fx");
@@ -619,6 +622,7 @@ void Launcher::drawUpscaling() {
       upscaling.factor = preset;
   }
 
+  ImGuiTheme::sectionHeader("Backend");
   if (ImGui::BeginCombo("Backend", backendLabel(upscaling.backend))) {
     for (auto backend : {UpscaleBackend::Auto, UpscaleBackend::Linear,
                          UpscaleBackend::MPV, UpscaleBackend::MetalFX}) {
@@ -673,7 +677,7 @@ void Launcher::drawAdvanced() {
     ImGui::SliderFloat((name + "##mixer").c_str(), &entry->second, 0, 1,
                        "%.2f");
   }
-  ImGui::SeparatorText("VN text");
+  ImGuiTheme::sectionHeader("VN text");
   const auto vnFonts = VNFontOptions();
   if (ImGui::BeginCombo("VN font", draft.vnFontPath.empty()
                                        ? "Original game font"
@@ -706,7 +710,7 @@ void Launcher::drawAdvanced() {
   chooseColor("Dialogue color", draft.vnTextColor);
   chooseColor("Speaker color", draft.vnSpeakerColor);
   ImGui::SliderFloat("Debug UI scale", &draft.debugUIScale, 1, 3, "%.2fx");
-  ImGui::SeparatorText("Subtitles");
+  ImGuiTheme::sectionHeader("Subtitles");
   ImGui::Checkbox("Enable forced subtitles", &draft.enableForcedSubtitles);
   ImGui::TextWrapped(
       "Load .ass files from \"forced_subtitles\" folder for each node");
