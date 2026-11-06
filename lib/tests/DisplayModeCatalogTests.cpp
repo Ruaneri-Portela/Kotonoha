@@ -52,26 +52,31 @@ void ProbeDriverCatalog() {
     for (DWORD index = 0;; ++index) {
       DEVMODEW mode{};
       mode.dmSize = sizeof(mode);
-      if (!EnumDisplaySettingsExW(info.szDevice, index, &mode, 0)) break;
+      if (!EnumDisplaySettingsExW(info.szDevice, index, &mode, 0))
+        break;
       if (mode.dmBitsPerPel != 32 || mode.dmPelsWidth < 320 ||
-          mode.dmPelsHeight < 240 || mode.dmDisplayFrequency == 0) continue;
-      uniqueNative.insert({static_cast<int>(mode.dmPelsWidth),
-                           static_cast<int>(mode.dmPelsHeight),
-                           static_cast<int>(std::lround(
-                               Kotonoha::DisplayModeCatalog::NormalizeWindowsRefresh(
-                                   mode.dmDisplayFrequency) * 100.0f))});
+          mode.dmPelsHeight < 240 || mode.dmDisplayFrequency == 0)
+        continue;
+      uniqueNative.insert(
+          {static_cast<int>(mode.dmPelsWidth),
+           static_cast<int>(mode.dmPelsHeight),
+           static_cast<int>(std::lround(
+               Kotonoha::DisplayModeCatalog::NormalizeWindowsRefresh(
+                   mode.dmDisplayFrequency) *
+               100.0f))});
       const int found = Kotonoha::DisplayModeCatalog::FindSelected(
           catalog, static_cast<int>(mode.dmPelsWidth),
           static_cast<int>(mode.dmPelsHeight),
           Kotonoha::DisplayModeCatalog::NormalizeWindowsRefresh(
               mode.dmDisplayFrequency));
-      Require(found >= 0 &&
-                  catalog[found].width == static_cast<int>(mode.dmPelsWidth) &&
-                  catalog[found].height == static_cast<int>(mode.dmPelsHeight) &&
-                  std::abs(catalog[found].refreshRate -
-                           Kotonoha::DisplayModeCatalog::NormalizeWindowsRefresh(
-                               mode.dmDisplayFrequency)) < 0.02f,
-              "Win32 mode missing from the generic selection catalog");
+      Require(
+          found >= 0 &&
+              catalog[found].width == static_cast<int>(mode.dmPelsWidth) &&
+              catalog[found].height == static_cast<int>(mode.dmPelsHeight) &&
+              std::abs(catalog[found].refreshRate -
+                       Kotonoha::DisplayModeCatalog::NormalizeWindowsRefresh(
+                           mode.dmDisplayFrequency)) < 0.02f,
+          "Win32 mode missing from the generic selection catalog");
       ++checked;
     }
     Require(checked > 0, "Win32 enumeration produced no modern display modes");
@@ -118,16 +123,16 @@ int main() {
   std::vector<DisplayModeChoice> modes;
   // One monitor can expose many resolution * refresh combinations; none may
   // be replaced by a fixed four-size preset list or deduped merely by size.
-  const struct { int w, h; } sizes[] = {
-    {1920, 1080}, {1366, 768}, {1360, 768}, {1280, 768},
-    {1280, 720}, {1176, 664}, {1024, 768}, {800, 600},
-    {720, 576}, {720, 480}, {640, 480}
-  };
+  const struct {
+    int w, h;
+  } sizes[] = {{1920, 1080}, {1366, 768}, {1360, 768}, {1280, 768},
+               {1280, 720},  {1176, 664}, {1024, 768}, {800, 600},
+               {720, 576},   {720, 480},  {640, 480}};
   for (const auto &size : sizes)
     Require(DisplayModeCatalog::AddUnique(modes, {size.w, size.h, 60.0f}),
             "a Windows-supported resolution was discarded");
-  for (float refresh : {23.0f, 24.0f, 25.0f, 29.97003f,
-                        30.0f, 50.0f, 59.94006f})
+  for (float refresh :
+       {23.0f, 24.0f, 25.0f, 29.97003f, 30.0f, 50.0f, 59.94006f})
     Require(DisplayModeCatalog::AddUnique(modes, {1920, 1080, refresh}),
             "an alternate supported refresh was discarded");
   Require(modes.size() == 18, "all distinct resolution/refresh tuples survive");
@@ -135,11 +140,11 @@ int main() {
           "two representations of the same refresh were duplicated");
   Require(!DisplayModeCatalog::AddUnique(modes, {1366, 768, 60.0f}),
           "identical resolution and refresh were duplicated");
-  Require(std::abs(DisplayModeCatalog::NormalizeWindowsRefresh(59) - 59.94006f)
-              < 0.001f &&
-          std::abs(DisplayModeCatalog::NormalizeWindowsRefresh(29) - 29.97003f)
-              < 0.001f &&
-          DisplayModeCatalog::NormalizeWindowsRefresh(60) == 60.0f,
+  Require(std::abs(DisplayModeCatalog::NormalizeWindowsRefresh(59) -
+                   59.94006f) < 0.001f &&
+              std::abs(DisplayModeCatalog::NormalizeWindowsRefresh(29) -
+                       29.97003f) < 0.001f &&
+              DisplayModeCatalog::NormalizeWindowsRefresh(60) == 60.0f,
           "Windows fractional refresh normalization mismatches SDL");
   Require(!DisplayModeCatalog::AddUnique(modes, {0, 0, 60.0f}) &&
               !DisplayModeCatalog::AddUnique(modes, {320, 240, 0.0f}),
@@ -148,15 +153,15 @@ int main() {
   DisplayModeCatalog::Sort(modes);
   Require(modes.front().width == 1920 && modes.front().height == 1080,
           "resolutions must be sorted by descending pixel area");
-  const int fractional = DisplayModeCatalog::FindSelected(
-      modes, 1920, 1080, 59.94006f);
+  const int fractional =
+      DisplayModeCatalog::FindSelected(modes, 1920, 1080, 59.94006f);
   const int integer = DisplayModeCatalog::FindSelected(modes, 1920, 1080, 60);
   Require(fractional >= 0 && integer >= 0 && fractional != integer,
           "59.94 and 60 must be selectable separately");
   Require(DisplayModeCatalog::Label(modes[fractional]).find("59.94 Hz") !=
-              std::string::npos &&
-          DisplayModeCatalog::Label(modes[integer]).find("60 Hz") !=
-              std::string::npos,
+                  std::string::npos &&
+              DisplayModeCatalog::Label(modes[integer]).find("60 Hz") !=
+                  std::string::npos,
           "frequency is missing or incorrectly rounded on the UI");
   Require(DisplayModeCatalog::FindSelected(modes, 1366, 768, 60) >= 0 &&
               DisplayModeCatalog::FindSelected({}, 1366, 768, 60) == -1,
@@ -172,18 +177,18 @@ int main() {
   settings.width = 960;
   settings.height = 540;
   Require(DisplayModeCatalog::Select(settings, {1024, 768, 75}, &desktop) &&
-              settings.mode == WindowMode::Windowed &&
-              settings.width == 1024 && settings.height == 768 &&
-              settings.fullscreenWidth == 1024 &&
+              settings.mode == WindowMode::Windowed && settings.width == 1024 &&
+              settings.height == 768 && settings.fullscreenWidth == 1024 &&
               settings.fullscreenHeight == 768 && settings.refreshRate == 75,
           "windowed resolution was not saved as real window geometry");
   settings.mode = WindowMode::Borderless;
   Require(DisplayModeCatalog::Select(settings, {1366, 768, 60}, &desktop) &&
               settings.mode == WindowMode::Borderless,
           "native borderless resolution should remain borderless");
-  Require(DisplayModeCatalog::Select(settings, {1366, 768, 59.94006f}, &desktop) &&
-              settings.mode == WindowMode::Exclusive,
-          "refresh-only change was silently ignored in borderless mode");
+  Require(
+      DisplayModeCatalog::Select(settings, {1366, 768, 59.94006f}, &desktop) &&
+          settings.mode == WindowMode::Exclusive,
+      "refresh-only change was silently ignored in borderless mode");
   settings.mode = WindowMode::Borderless;
   Require(DisplayModeCatalog::Select(settings, {1920, 1080, 60}, &desktop) &&
               settings.mode == WindowMode::Exclusive,

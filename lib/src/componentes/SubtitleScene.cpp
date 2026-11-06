@@ -59,9 +59,12 @@ std::string literal(const std::string &text) {
 std::string assEventText(const std::string &text) {
   std::string result;
   for (char ch : text) {
-    if (ch == '\r') continue;
-    if (ch == '\n') result += "\\N";
-    else result += ch;
+    if (ch == '\r')
+      continue;
+    if (ch == '\n')
+      result += "\\N";
+    else
+      result += ch;
   }
   return result;
 }
@@ -276,8 +279,7 @@ void SubtitleScene::setCues(const std::vector<SubtitleCue> &cues,
     }
     ass << "Dialogue: 0," << timestamp(cue.start) << ',' << timestamp(cue.end)
         << ',' << style << ",,0,0,0,,"
-        << (cue.assText ? assEventText(cue.text) : literal(cue.text))
-        << '\n';
+        << (cue.assText ? assEventText(cue.text) : literal(cue.text)) << '\n';
   }
   loadAss(ass.str());
   sourceCues = cues;

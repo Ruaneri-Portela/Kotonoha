@@ -8,19 +8,24 @@ namespace Kotonoha {
 
 #ifdef KOTONOHA_DEV_CONTROL
 void SDLCALL AudioChannel::postmix(void *userdata, const SDL_AudioSpec *spec,
-                                    float *buffer, int buflen) {
+                                   float *buffer, int buflen) {
   auto *self = static_cast<AudioChannel *>(userdata);
-  if (!self || !spec || !buffer || buflen <= 0) return;
+  if (!self || !spec || !buffer || buflen <= 0)
+    return;
   const int count = buflen / static_cast<int>(sizeof(float));
   double energy = 0.0, peak = 0.0;
   uint64_t clipped = 0;
   for (int i = 0; i < count; ++i) {
-    const double value = std::isfinite(buffer[i]) ? std::abs(static_cast<double>(buffer[i])) : 1.0;
+    const double value = std::isfinite(buffer[i])
+                             ? std::abs(static_cast<double>(buffer[i]))
+                             : 1.0;
     peak = std::max(peak, value);
     energy += value * value;
-    if (value >= 0.999999) ++clipped;
+    if (value >= 0.999999)
+      ++clipped;
   }
-  self->observedSamples_.fetch_add(static_cast<uint64_t>(count), std::memory_order_relaxed);
+  self->observedSamples_.fetch_add(static_cast<uint64_t>(count),
+                                   std::memory_order_relaxed);
   self->clippedSamples_.fetch_add(clipped, std::memory_order_relaxed);
   if (peak == 0.0 && self->activeStreams_.load(std::memory_order_relaxed) > 0 &&
       self->audible_.load(std::memory_order_relaxed))
@@ -29,19 +34,22 @@ void SDLCALL AudioChannel::postmix(void *userdata, const SDL_AudioSpec *spec,
   self->observedChannels_.store(spec->channels, std::memory_order_relaxed);
   double previous = self->energy_.load(std::memory_order_relaxed);
   while (!self->energy_.compare_exchange_weak(previous, previous + energy,
-                                               std::memory_order_relaxed)) {}
+                                              std::memory_order_relaxed)) {
+  }
   previous = self->peak_.load(std::memory_order_relaxed);
-  while (previous < peak &&
-         !self->peak_.compare_exchange_weak(previous, peak,
-                                            std::memory_order_relaxed)) {}
+  while (previous < peak && !self->peak_.compare_exchange_weak(
+                                previous, peak, std::memory_order_relaxed)) {
+  }
 }
 
 AudioMetricsSnapshot AudioChannel::metrics() const {
   AudioMetricsSnapshot result;
   result.samples = observedSamples_.load(std::memory_order_relaxed);
   result.peak = peak_.load(std::memory_order_relaxed);
-  result.rms = result.samples ?
-      std::sqrt(energy_.load(std::memory_order_relaxed) / result.samples) : 0.0;
+  result.rms =
+      result.samples
+          ? std::sqrt(energy_.load(std::memory_order_relaxed) / result.samples)
+          : 0.0;
   result.clippedSamples = clippedSamples_.load(std::memory_order_relaxed);
   result.underrunCandidates = silentBlocks_.load(std::memory_order_relaxed);
   result.sampleRate = sampleRate_.load(std::memory_order_relaxed);
@@ -145,11 +153,13 @@ void AudioChannel::attach(SDL_AudioStream *stream, float sourceGain) {
 #ifdef KOTONOHA_DEV_CONTROL
   const SDL_AudioDeviceID device = SDL_GetAudioStreamDevice(stream);
   if (device != 0 && !SDL_SetAudioPostmixCallback(device, postmix, this))
-    SDL_LogWarn(SDL_LOG_CATEGORY_AUDIO, "DEV audio postmix unavailable: %s", SDL_GetError());
+    SDL_LogWarn(SDL_LOG_CATEGORY_AUDIO, "DEV audio postmix unavailable: %s",
+                SDL_GetError());
 #endif
   streams.push_back({stream, sourceGain});
 #ifdef KOTONOHA_DEV_CONTROL
-  activeStreams_.store(static_cast<unsigned>(streams.size()), std::memory_order_relaxed);
+  activeStreams_.store(static_cast<unsigned>(streams.size()),
+                       std::memory_order_relaxed);
 #endif
 }
 
@@ -157,7 +167,8 @@ void AudioChannel::detach(SDL_AudioStream *stream) noexcept {
 #ifdef KOTONOHA_DEV_CONTROL
   if (stream) {
     const SDL_AudioDeviceID device = SDL_GetAudioStreamDevice(stream);
-    if (device != 0) (void)SDL_SetAudioPostmixCallback(device, nullptr, nullptr);
+    if (device != 0)
+      (void)SDL_SetAudioPostmixCallback(device, nullptr, nullptr);
   }
 #endif
   streams.erase(std::remove_if(streams.begin(), streams.end(),
@@ -166,7 +177,8 @@ void AudioChannel::detach(SDL_AudioStream *stream) noexcept {
                                }),
                 streams.end());
 #ifdef KOTONOHA_DEV_CONTROL
-  activeStreams_.store(static_cast<unsigned>(streams.size()), std::memory_order_relaxed);
+  activeStreams_.store(static_cast<unsigned>(streams.size()),
+                       std::memory_order_relaxed);
 #endif
 }
 

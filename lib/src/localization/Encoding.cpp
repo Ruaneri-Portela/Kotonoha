@@ -134,14 +134,14 @@ std::string WindowsCp932ToUtf8(std::string_view text) {
 
   const auto append = [&](const char *bytes, int count) -> bool {
     wchar_t wide[2]{};
-    const int wideCount = MultiByteToWideChar(932, MB_ERR_INVALID_CHARS, bytes,
-                                               count, wide, 2);
+    const int wideCount =
+        MultiByteToWideChar(932, MB_ERR_INVALID_CHARS, bytes, count, wide, 2);
     if (wideCount <= 0)
       return false;
     char utf8[8]{};
-    const int utf8Count = WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS,
-                                               wide, wideCount, utf8,
-                                               int(sizeof utf8), nullptr, nullptr);
+    const int utf8Count =
+        WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, wide, wideCount,
+                            utf8, int(sizeof utf8), nullptr, nullptr);
     if (utf8Count <= 0)
       return false;
     out.append(utf8, size_t(utf8Count));
@@ -155,8 +155,8 @@ std::string WindowsCp932ToUtf8(std::string_view text) {
       ++i;
       continue;
     }
-    const bool lead = (first >= 0x81 && first <= 0x9f) ||
-                      (first >= 0xe0 && first <= 0xfc);
+    const bool lead =
+        (first >= 0x81 && first <= 0x9f) || (first >= 0xe0 && first <= 0xfc);
     const size_t count = lead && i + 1 < text.size() ? 2 : 1;
     if (!append(text.data() + i, int(count)))
       out.push_back('?');
@@ -285,8 +285,10 @@ std::string ConvertEncoding(std::string_view text, const char *from,
 #else
   // SDL's built-in iconv accepts the IANA spelling but not iconv's LATIN1
   // alias, which is used by game metadata and public callers.
-  if (std::string_view(from) == "LATIN1") from = "ISO-8859-1";
-  if (std::string_view(to) == "LATIN1") to = "ISO-8859-1";
+  if (std::string_view(from) == "LATIN1")
+    from = "ISO-8859-1";
+  if (std::string_view(to) == "LATIN1")
+    to = "ISO-8859-1";
   Converter converter(from, to);
   if (!converter.valid())
     throw std::runtime_error(std::string("Unsupported text encoding ") + from +

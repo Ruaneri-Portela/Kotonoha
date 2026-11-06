@@ -23,6 +23,7 @@ option(KOTONOHA_BUILD_SCHOOL_DAYS "Build the School Days port" ON)
 option(KOTONOHA_DEV_CONTROL "Enable local School Days automation bridge" OFF)
 
 option(KOTONOHA_BUILD_AIR "Build the AIR Standard Edition port" ON)
+option(KOTONOHA_BUILD_MACOS_BUNDLES "Build macOS application bundles" ON)
 
 add_subdirectory(lib)
 

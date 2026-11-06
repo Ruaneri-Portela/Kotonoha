@@ -270,7 +270,8 @@ bool GameLauncher::validate(std::string &error) {
 
 void GameLauncher::save() {
   const auto remember = [](const PathField &field) {
-    if (field.rememberPath.empty()) return;
+    if (field.rememberPath.empty())
+      return;
     std::string reference = field.resolved;
     if (!isISOImage(field.resolved)) {
       const auto portable = FileResolver::referenceName(field.resolved);

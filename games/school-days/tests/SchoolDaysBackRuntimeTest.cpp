@@ -12,7 +12,8 @@ namespace fs = std::filesystem;
 namespace {
 
 void Require(bool ok, const std::string &message) {
-  if (!ok) throw std::runtime_error(message);
+  if (!ok)
+    throw std::runtime_error(message);
 }
 
 void Put(const fs::path &path, const std::string &data) {
@@ -23,9 +24,9 @@ void Put(const fs::path &path, const std::string &data) {
 }
 
 struct TemporaryDirectory {
-  fs::path path = fs::temp_directory_path() /
-                  ("school-days-back-" +
-                   std::to_string(SDL_GetPerformanceCounter()));
+  fs::path path =
+      fs::temp_directory_path() /
+      ("school-days-back-" + std::to_string(SDL_GetPerformanceCounter()));
   TemporaryDirectory() {
     Require(fs::create_directory(path), "Cannot create temporary directory");
   }
@@ -35,8 +36,8 @@ struct TemporaryDirectory {
   }
 };
 
-Kotonoha::EngineOptions Options(
-    const std::shared_ptr<SchoolDays::Assets> &assets) {
+Kotonoha::EngineOptions
+Options(const std::shared_ptr<SchoolDays::Assets> &assets) {
   Kotonoha::EngineOptions options;
   options.assets = assets;
   options.persistSettings = false;

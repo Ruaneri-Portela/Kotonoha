@@ -24,7 +24,9 @@ std::vector<Uint8> wave(int samples) {
     bytes.push_back(Uint8(value));
     bytes.push_back(Uint8(value >> 8));
   };
-  const auto tag = [&](const char *text) { bytes.insert(bytes.end(), text, text + 4); };
+  const auto tag = [&](const char *text) {
+    bytes.insert(bytes.end(), text, text + 4);
+  };
   tag("RIFF");
   u32(36 + Uint32(samples) * 4);
   tag("WAVE");
@@ -53,15 +55,17 @@ void pcmDecode() {
   require(pcm.size() >= 4400 && pcm.size() <= 4420,
           "analysis decode did not normalize to 44.1 kHz");
 
-  require(Kotonoha::MediaDecoder::decodeMonoS16At44100(source, pcm, nullptr, 20),
-          "bounded analysis decode failed");
+  require(
+      Kotonoha::MediaDecoder::decodeMonoS16At44100(source, pcm, nullptr, 20),
+      "bounded analysis decode failed");
   require(!pcm.empty() && pcm.size() <= 882,
           "authored duration cap did not bound PCM samples");
 
   std::atomic_bool cancelled{true};
-  require(!Kotonoha::MediaDecoder::decodeMonoS16At44100(source, pcm, &cancelled) &&
-              pcm.empty(),
-          "cancelled analysis decode retained PCM");
+  require(
+      !Kotonoha::MediaDecoder::decodeMonoS16At44100(source, pcm, &cancelled) &&
+          pcm.empty(),
+      "cancelled analysis decode retained PCM");
 
   require(!Kotonoha::MediaDecoder::decodeMonoS16At44100({1, 2, 3}, pcm) &&
               pcm.empty(),
@@ -77,22 +81,23 @@ void straightAlphaEdges() {
   rgba[center + 3] = 128;
   const auto original = rgba;
 
-  require(Kotonoha::prepareStraightAlphaForLinearFiltering(
-              rgba.data(), 5, 5, 5 * 4) == 8,
+  require(Kotonoha::prepareStraightAlphaForLinearFiltering(rgba.data(), 5, 5,
+                                                           5 * 4) == 8,
           "straight-alpha edge prep did not fill the one-pixel margin");
   for (int y = 0; y < 5; ++y) {
     for (int x = 0; x < 5; ++x) {
       const std::size_t p = std::size_t(y * 5 + x) * 4;
-      const bool neighbor = x >= 1 && x <= 3 && y >= 1 && y <= 3 &&
-                            !(x == 2 && y == 2);
+      const bool neighbor =
+          x >= 1 && x <= 3 && y >= 1 && y <= 3 && !(x == 2 && y == 2);
       require(rgba[p + 3] == original[p + 3],
               "straight-alpha edge prep changed alpha");
       if (x == 2 && y == 2) {
         require(rgba[p] == 90 && rgba[p + 1] == 120 && rgba[p + 2] == 150,
                 "straight-alpha edge prep changed a visible texel");
       } else if (neighbor) {
-        require(rgba[p] == 90 && rgba[p + 1] == 120 && rgba[p + 2] == 150,
-                "straight-alpha edge prep missed an adjacent transparent texel");
+        require(
+            rgba[p] == 90 && rgba[p + 1] == 120 && rgba[p + 2] == 150,
+            "straight-alpha edge prep missed an adjacent transparent texel");
       } else {
         require(rgba[p] == 0 && rgba[p + 1] == 0 && rgba[p + 2] == 0,
                 "straight-alpha edge prep spread beyond one pixel");

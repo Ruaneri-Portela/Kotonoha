@@ -4,8 +4,9 @@
 
 namespace Kotonoha {
 
-std::size_t prepareStraightAlphaForLinearFiltering(
-    std::uint8_t *rgba, int width, int height, int pitch) {
+std::size_t prepareStraightAlphaForLinearFiltering(std::uint8_t *rgba,
+                                                   int width, int height,
+                                                   int pitch) {
   if (!rgba || width <= 0 || height <= 0 ||
       width > std::numeric_limits<int>::max() / 4 || pitch < width * 4)
     return 0;

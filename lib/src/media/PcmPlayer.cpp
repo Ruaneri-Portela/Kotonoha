@@ -40,7 +40,9 @@ void SDLCALL PcmPlayer::Feed(void *user, SDL_AudioStream *stream,
 
 bool PcmPlayer::Play(std::shared_ptr<AudioChannel> channel, Clip clip) {
   Stop();
-  if (clip.channels <= 0 || clip.rate <= 0 || clip.samples.size() < size_t(clip.channels)) return false;
+  if (clip.channels <= 0 || clip.rate <= 0 ||
+      clip.samples.size() < size_t(clip.channels))
+    return false;
   // Keep source PCM untouched. Amplifying S16 here clips loud peaks before
   // SDL can convert/mix in float; the old converter applied this gain after
   // sample format conversion.
@@ -58,7 +60,8 @@ bool PcmPlayer::Play(std::shared_ptr<AudioChannel> channel, Clip clip) {
     return false;
   }
   try {
-    if (channel) channel->attach(stream, voice->clip.gain);
+    if (channel)
+      channel->attach(stream, voice->clip.gain);
     else if (voice->clip.gain != 1.0f &&
              !SDL_SetAudioStreamGain(stream, voice->clip.gain))
       throw std::runtime_error(SDL_GetError());

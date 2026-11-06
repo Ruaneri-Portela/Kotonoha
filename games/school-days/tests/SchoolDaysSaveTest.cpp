@@ -1,8 +1,8 @@
 #include "SchoolDaysAssets.hpp"
 #include "SchoolDaysRuntime.hpp"
+#include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/routing/SchoolDaysConfigMenuRenderPlan.hpp>
 #include <Kotonoha/routing/SchoolDaysSaveLoadRenderPlan.hpp>
-#include <Kotonoha/core/Engine.hpp>
 #include <algorithm>
 #include <iostream>
 #include <stdexcept>
@@ -31,7 +31,8 @@ struct Application {
 } // namespace
 int main(int argc, char **argv) {
   try {
-    check(argc == 4, "Expected retail data, route and remaster display overlay");
+    check(argc == 4,
+          "Expected retail data, route and remaster display overlay");
     struct Directory {
       std::filesystem::path path =
           std::filesystem::temp_directory_path() /
@@ -96,9 +97,12 @@ int main(int argc, char **argv) {
     openPanel(10);
     const auto saveSprites = Kotonoha::SchoolDaysSaveLoadRenderPlan::Build(
         app.runtime.panels().SaveLoad());
-    check(std::none_of(saveSprites.begin(), saveSprites.end(), [](const auto& sprite) {
-            return sprite.role == Kotonoha::SchoolDaysSaveLoadRenderPlan::Role::RouteMap;
-          }),
+    check(std::none_of(
+              saveSprites.begin(), saveSprites.end(),
+              [](const auto &sprite) {
+                return sprite.role ==
+                       Kotonoha::SchoolDaysSaveLoadRenderPlan::Role::RouteMap;
+              }),
           "Retail SAVE must not render Open Route Map");
     row();
     check(app.runtime.panels().IsSaveLoadCommentEditorOpen(),
@@ -138,9 +142,12 @@ int main(int argc, char **argv) {
     openPanel(11);
     const auto loadSprites = Kotonoha::SchoolDaysSaveLoadRenderPlan::Build(
         app.runtime.panels().SaveLoad());
-    check(std::any_of(loadSprites.begin(), loadSprites.end(), [](const auto& sprite) {
-            return sprite.role == Kotonoha::SchoolDaysSaveLoadRenderPlan::Role::RouteMap;
-          }),
+    check(std::any_of(
+              loadSprites.begin(), loadSprites.end(),
+              [](const auto &sprite) {
+                return sprite.role ==
+                       Kotonoha::SchoolDaysSaveLoadRenderPlan::Role::RouteMap;
+              }),
           "Retail LOAD must retain Open Route Map");
     row();
     // Retail LOAD now dims SaveLoad, presents POPUP_LOAD, fades the card to

@@ -22,7 +22,8 @@ namespace {
 }
 
 void Check(bool value, const std::string &message) {
-  if (!value) Fail(message);
+  if (!value)
+    Fail(message);
 }
 
 std::vector<uint8_t> ReadBytes(const fs::path &path) {
@@ -48,9 +49,9 @@ void WriteBytes(const fs::path &path, const std::vector<uint8_t> &bytes) {
 }
 
 struct TemporaryDirectory {
-  fs::path path = fs::temp_directory_path() /
-                  ("school-days-runtime-config-" +
-                   std::to_string(SDL_GetPerformanceCounter()));
+  fs::path path =
+      fs::temp_directory_path() / ("school-days-runtime-config-" +
+                                   std::to_string(SDL_GetPerformanceCounter()));
   TemporaryDirectory() {
     Check(fs::create_directory(path), "cannot create temporary directory");
   }
@@ -60,8 +61,8 @@ struct TemporaryDirectory {
   }
 };
 
-Kotonoha::EngineOptions Options(
-    const std::shared_ptr<SchoolDays::Assets> &assets) {
+Kotonoha::EngineOptions
+Options(const std::shared_ptr<SchoolDays::Assets> &assets) {
   Kotonoha::EngineOptions options;
   options.assets = assets;
   options.persistSettings = false;
@@ -87,24 +88,23 @@ struct Application {
   ~Application() { runtime.shutdown(); }
 };
 
-const std::string kLogical =
-    "< Config.dat >\n"
-    "[DisplayType]=\"1\"\n"
-    "[TypeMiniNote]=\"0\"\n"
-    "[WindowMode]=\"1\"\n"
-    "[MasterVolume]=\"-7.000000\"\n"
-    "[VoiceVolume]=\"8\"\n"
-    "[BgmVolume]=\"6\"\n"
-    "[SeVolume]=\"4\"\n"
-    "[TextView]=\"1\"\n"
-    "[MenVoice]=\"0\"\n"
-    "[Mute]=\"1\"\n"
-    "[Skip]=\"1\"\n"
-    "[AutoDraw]=\"0\"\n"
-    "[AutoMode]=\"1\"\n"
-    "[SuperSkip]=\"0\"\n"
-    "Skip]=\"malformed-opaque\"\n"
-    "[OpaqueFuture]=\"keep-me\"\n";
+const std::string kLogical = "< Config.dat >\n"
+                             "[DisplayType]=\"1\"\n"
+                             "[TypeMiniNote]=\"0\"\n"
+                             "[WindowMode]=\"1\"\n"
+                             "[MasterVolume]=\"-7.000000\"\n"
+                             "[VoiceVolume]=\"8\"\n"
+                             "[BgmVolume]=\"6\"\n"
+                             "[SeVolume]=\"4\"\n"
+                             "[TextView]=\"1\"\n"
+                             "[MenVoice]=\"0\"\n"
+                             "[Mute]=\"1\"\n"
+                             "[Skip]=\"1\"\n"
+                             "[AutoDraw]=\"0\"\n"
+                             "[AutoMode]=\"1\"\n"
+                             "[SuperSkip]=\"0\"\n"
+                             "Skip]=\"malformed-opaque\"\n"
+                             "[OpaqueFuture]=\"keep-me\"\n";
 
 } // namespace
 
@@ -112,7 +112,8 @@ namespace SchoolDays {
 
 class RuntimeConfigStorageTestAccess {
 public:
-  static const Kotonoha::SchoolDaysConfigStorage &Storage(const Runtime &runtime) {
+  static const Kotonoha::SchoolDaysConfigStorage &
+  Storage(const Runtime &runtime) {
     return runtime.configStorage;
   }
 
@@ -129,7 +130,8 @@ public:
 
   static void SetPlaybackSpeed(Runtime &runtime, int index) {
     Kotonoha::SchoolDaysMenuBarPresenter::Action action;
-    action.kind = Kotonoha::SchoolDaysMenuBarPresenter::ActionKind::SetPlaybackSpeed;
+    action.kind =
+        Kotonoha::SchoolDaysMenuBarPresenter::ActionKind::SetPlaybackSpeed;
     action.value = index;
     runtime.activateMenuAction(action);
   }
@@ -137,7 +139,8 @@ public:
   static void AddActivePlayer(Runtime &runtime, Kotonoha_orsEvent &event,
                               double rate) {
     Runtime::Playing item;
-    item.player = std::make_unique<Kotonoha::MediaPlayer>(runtime.engine->GetAudio());
+    item.player =
+        std::make_unique<Kotonoha::MediaPlayer>(runtime.engine->GetAudio());
     item.player->setPlaybackRate(rate);
     item.event = &event;
     runtime.playing.push_back(std::move(item));
@@ -145,24 +148,26 @@ public:
 
   static int SpeedIndex(const Runtime &runtime) { return runtime.speedIndex; }
   static double Speed(const Runtime &runtime) { return runtime.speed; }
-  static const Kotonoha::SchoolDaysDisplayPolicy::RetailBackendState &DisplayBackend(
-      const Runtime &runtime) {
+  static const Kotonoha::SchoolDaysDisplayPolicy::RetailBackendState &
+  DisplayBackend(const Runtime &runtime) {
     return runtime.displayBackend;
   }
-  static const Kotonoha::SchoolDaysDisplayPolicy::RetailState &DisplayState(
-      const Runtime &runtime) {
+  static const Kotonoha::SchoolDaysDisplayPolicy::RetailState &
+  DisplayState(const Runtime &runtime) {
     return runtime.displayState;
   }
-  static Kotonoha::SchoolDaysDisplayPolicy::Variant UiVariant(const Runtime &runtime) {
+  static Kotonoha::SchoolDaysDisplayPolicy::Variant
+  UiVariant(const Runtime &runtime) {
     return runtime.uiVariant;
   }
-  static Kotonoha::SchoolDaysConfigMenuRenderPlan::VisualState VisualState(
-      const Runtime &runtime) {
+  static Kotonoha::SchoolDaysConfigMenuRenderPlan::VisualState
+  VisualState(const Runtime &runtime) {
     return runtime.configVisualState();
   }
   static double FirstPlayerRate(const Runtime &runtime) {
-    return runtime.playing.empty() ? -1.0
-                                   : runtime.playing.front().player->playbackRate();
+    return runtime.playing.empty()
+               ? -1.0
+               : runtime.playing.front().player->playbackRate();
   }
 };
 
@@ -191,9 +196,10 @@ int main(int argc, char **argv) {
   {
     Application app(assets, argv[1], untouchedDocs);
     const auto &state = app.runtime.retailConfig();
-    Check(state.voiceVolume == 8 && state.bgmVolume == 6 && state.seVolume == 4 &&
-              state.textView && !state.menVoice && state.mute && state.skip &&
-              !state.autoDraw && state.autoMode && !state.superSkip,
+    Check(state.voiceVolume == 8 && state.bgmVolume == 6 &&
+              state.seVolume == 4 && state.textView && !state.menVoice &&
+              state.mute && state.skip && !state.autoDraw && state.autoMode &&
+              !state.superSkip,
           "Runtime did not project Config.DAT retail state");
     Check(state.masterVolume == -1.0f,
           "Runtime loaded opaque persisted MasterVolume");
@@ -202,22 +208,31 @@ int main(int argc, char **argv) {
     Check(!app.engine.GetDebug().getSettings().showFPS &&
               !app.engine.GetDebug().getSettings().showNodeClock,
           "School Days normal runtime debug HUD defaults are visible");
-    const auto &display = SchoolDays::RuntimeConfigStorageTestAccess::DisplayBackend(app.runtime);
-    const auto &projected = SchoolDays::RuntimeConfigStorageTestAccess::DisplayState(app.runtime);
+    const auto &display =
+        SchoolDays::RuntimeConfigStorageTestAccess::DisplayBackend(app.runtime);
+    const auto &projected =
+        SchoolDays::RuntimeConfigStorageTestAccess::DisplayState(app.runtime);
     Check(display.baseDisplayType == 1 && display.deviceDisplayType == 1 &&
               display.windowMode == 1 && display.typeMiniNote == 0 &&
-              projected.effectiveDisplayType == 1 && projected.windowMode == 1 &&
-              projected.typeMiniNote == 0 &&
-              SchoolDays::RuntimeConfigStorageTestAccess::UiVariant(app.runtime) ==
+              projected.effectiveDisplayType == 1 &&
+              projected.windowMode == 1 && projected.typeMiniNote == 0 &&
+              SchoolDays::RuntimeConfigStorageTestAccess::UiVariant(
+                  app.runtime) ==
                   Kotonoha::SchoolDaysDisplayPolicy::Variant::WideFull,
-          "Runtime did not preserve the authored Config.DAT WindowMode over the physical host");
-    const auto visuals = SchoolDays::RuntimeConfigStorageTestAccess::VisualState(app.runtime);
+          "Runtime did not preserve the authored Config.DAT WindowMode over "
+          "the physical host");
+    const auto visuals =
+        SchoolDays::RuntimeConfigStorageTestAccess::VisualState(app.runtime);
     Check(visuals.defWideCurrent == 4 && visuals.defFullCurrent == 7,
           "Config visual ids do not reflect effective DisplayType/WindowMode");
-    const auto &storage = SchoolDays::RuntimeConfigStorageTestAccess::Storage(app.runtime);
-    Check(storage.Path() == fs::absolute(untouchedDocs / "Config.DAT").lexically_normal() &&
-              storage.IsLoaded() && !storage.IsDirty(),
-          "Runtime ConfigStorage did not bind isolated documents/Config.DAT cleanly");
+    const auto &storage =
+        SchoolDays::RuntimeConfigStorageTestAccess::Storage(app.runtime);
+    Check(
+        storage.Path() ==
+                fs::absolute(untouchedDocs / "Config.DAT").lexically_normal() &&
+            storage.IsLoaded() && !storage.IsDirty(),
+        "Runtime ConfigStorage did not bind isolated documents/Config.DAT "
+        "cleanly");
   }
   Check(ReadBytes(untouchedDocs / "Config.DAT") == untouchedBefore,
         "untouched Runtime mutated Config.DAT");
@@ -234,41 +249,59 @@ int main(int argc, char **argv) {
     const auto physical = app.engine.GetSettings();
     Check(physical.mode == Kotonoha::WindowMode::Windowed,
           "display test requires the default physical Windowed mode");
-    SchoolDays::RuntimeConfigStorageTestAccess::Apply(app.runtime, Kind::RequestFull, 1);
+    SchoolDays::RuntimeConfigStorageTestAccess::Apply(app.runtime,
+                                                      Kind::RequestFull, 1);
     const auto windowFamily =
         SchoolDays::RuntimeConfigStorageTestAccess::DisplayBackend(app.runtime);
     Check(windowFamily.windowMode == 0 &&
-              SchoolDays::RuntimeConfigStorageTestAccess::UiVariant(app.runtime) ==
+              SchoolDays::RuntimeConfigStorageTestAccess::UiVariant(
+                  app.runtime) ==
                   Kotonoha::SchoolDaysDisplayPolicy::Variant::Wide,
           "General Full->Window did not update only retail projection");
-    SchoolDays::RuntimeConfigStorageTestAccess::Apply(app.runtime, Kind::RequestFull, 0);
-    const auto &full = SchoolDays::RuntimeConfigStorageTestAccess::DisplayBackend(app.runtime);
-    const auto fullVisuals = SchoolDays::RuntimeConfigStorageTestAccess::VisualState(app.runtime);
+    SchoolDays::RuntimeConfigStorageTestAccess::Apply(app.runtime,
+                                                      Kind::RequestFull, 0);
+    const auto &full =
+        SchoolDays::RuntimeConfigStorageTestAccess::DisplayBackend(app.runtime);
+    const auto fullVisuals =
+        SchoolDays::RuntimeConfigStorageTestAccess::VisualState(app.runtime);
     Check(full.windowMode == 1 &&
-              SchoolDays::RuntimeConfigStorageTestAccess::UiVariant(app.runtime) ==
+              SchoolDays::RuntimeConfigStorageTestAccess::UiVariant(
+                  app.runtime) ==
                   Kotonoha::SchoolDaysDisplayPolicy::Variant::WideFull &&
-              fullVisuals.defWideCurrent == 4 && fullVisuals.defFullCurrent == 7,
+              fullVisuals.defWideCurrent == 4 &&
+              fullVisuals.defFullCurrent == 7,
           "RequestFull did not apply the authenticated W transition");
     const auto afterFull = app.engine.GetSettings();
     const auto *desktop = SDL_GetDesktopDisplayMode(SDL_GetPrimaryDisplay());
     Check(desktop && afterFull.mode == Kotonoha::WindowMode::Borderless &&
               afterFull.width == desktop->w && afterFull.height == desktop->h,
           "General/Full did not enter borderless at desktop-native geometry");
-    Check(SchoolDays::RuntimeConfigStorageTestAccess::Storage(app.runtime).IsDirty() &&
+    Check(SchoolDays::RuntimeConfigStorageTestAccess::Storage(app.runtime)
+                  .IsDirty() &&
               ReadBytes(displayDocs / "Config.DAT") == displayBefore,
-          "General/Full did not cache its explicit WindowMode choice until shutdown");
+          "General/Full did not cache its explicit WindowMode choice until "
+          "shutdown");
 
-    SchoolDays::RuntimeConfigStorageTestAccess::Apply(app.runtime, Kind::RequestWide, 0);
-    const auto &wide = SchoolDays::RuntimeConfigStorageTestAccess::DisplayBackend(app.runtime);
-    const auto wideVisuals = SchoolDays::RuntimeConfigStorageTestAccess::VisualState(app.runtime);
-    Check(wide.baseDisplayType == 0 && wide.deviceDisplayType == 0 && wide.windowMode == 1 &&
-              SchoolDays::RuntimeConfigStorageTestAccess::UiVariant(app.runtime) ==
+    SchoolDays::RuntimeConfigStorageTestAccess::Apply(app.runtime,
+                                                      Kind::RequestWide, 0);
+    const auto &wide =
+        SchoolDays::RuntimeConfigStorageTestAccess::DisplayBackend(app.runtime);
+    const auto wideVisuals =
+        SchoolDays::RuntimeConfigStorageTestAccess::VisualState(app.runtime);
+    Check(wide.baseDisplayType == 0 && wide.deviceDisplayType == 0 &&
+              wide.windowMode == 1 &&
+              SchoolDays::RuntimeConfigStorageTestAccess::UiVariant(
+                  app.runtime) ==
                   Kotonoha::SchoolDaysDisplayPolicy::Variant::Standard &&
-              wideVisuals.defWideCurrent == 5 && wideVisuals.defFullCurrent == 7,
+              wideVisuals.defWideCurrent == 5 &&
+              wideVisuals.defFullCurrent == 7,
           "RequestWide did not update B/D and project Standard");
-    Check(std::abs(app.runtime.narrativePresentationHeightScale() - 0.75f) < 0.001f,
-          "Standard FULL did not compress the authored Novel picture to 75 percent");
-    Check(SchoolDays::RuntimeConfigStorageTestAccess::Storage(app.runtime).IsDirty(),
+    Check(std::abs(app.runtime.narrativePresentationHeightScale() - 0.75f) <
+              0.001f,
+          "Standard FULL did not compress the authored Novel picture to 75 "
+          "percent");
+    Check(SchoolDays::RuntimeConfigStorageTestAccess::Storage(app.runtime)
+              .IsDirty(),
           "accepted RequestWide did not cache DisplayType");
     const auto afterWide = app.engine.GetSettings();
     Check(afterWide.mode == afterFull.mode && afterWide.width == desktop->w &&
@@ -292,33 +325,48 @@ int main(int argc, char **argv) {
   fs::copy_file(fixture, persistentDocs / "Config.DAT");
   {
     Application app(assets, argv[1], persistentDocs, true);
-    SchoolDays::RuntimeConfigStorageTestAccess::Apply(app.runtime, Kind::RequestWide, 1);
+    SchoolDays::RuntimeConfigStorageTestAccess::Apply(app.runtime,
+                                                      Kind::RequestWide, 1);
     {
       std::ifstream aspectFile(persistentDocs / "Kotonoha.ini");
       const std::string aspect((std::istreambuf_iterator<char>(aspectFile)),
                                std::istreambuf_iterator<char>());
       Check(aspect.find("ContentAspectPreference=2") != std::string::npos,
-            "Selecting already-active WIDE did not set explicit Display 16:9 instead of Auto");
+            "Selecting already-active WIDE did not set explicit Display 16:9 "
+            "instead of Auto");
     }
-    SchoolDays::RuntimeConfigStorageTestAccess::Apply(app.runtime, Kind::RequestFull, 1);
+    SchoolDays::RuntimeConfigStorageTestAccess::Apply(app.runtime,
+                                                      Kind::RequestFull, 1);
     Check(app.engine.GetSettings().mode == Kotonoha::WindowMode::Windowed,
           "General Window did not select host Windowed");
-    SchoolDays::RuntimeConfigStorageTestAccess::Apply(app.runtime, Kind::RequestFull, 0);
+    SchoolDays::RuntimeConfigStorageTestAccess::Apply(app.runtime,
+                                                      Kind::RequestFull, 0);
     Check(app.engine.GetSettings().mode == Kotonoha::WindowMode::Borderless &&
-              SchoolDays::RuntimeConfigStorageTestAccess::DisplayBackend(app.runtime).windowMode == 1,
+              SchoolDays::RuntimeConfigStorageTestAccess::DisplayBackend(
+                  app.runtime)
+                      .windowMode == 1,
           "General Full did not change both physical mode and native W");
     // Exercise minus/plus rather than silently assigning all sound channels.
     for (int i = 0; i < 6; ++i)
-      SchoolDays::RuntimeConfigStorageTestAccess::Apply(app.runtime, Kind::StepSoundBank, 0, 0, 1);
+      SchoolDays::RuntimeConfigStorageTestAccess::Apply(
+          app.runtime, Kind::StepSoundBank, 0, 0, 1);
     for (int i = 0; i < 6; ++i)
-      SchoolDays::RuntimeConfigStorageTestAccess::Apply(app.runtime, Kind::StepSoundBank, 0, 1, 0);
-    SchoolDays::RuntimeConfigStorageTestAccess::Apply(app.runtime, Kind::SetSoundLevel, 2, 2);
-    SchoolDays::RuntimeConfigStorageTestAccess::Apply(app.runtime, Kind::SetMenVoice, 1);
-    SchoolDays::RuntimeConfigStorageTestAccess::Apply(app.runtime, Kind::SetMute, 0);
-    SchoolDays::RuntimeConfigStorageTestAccess::Apply(app.runtime, Kind::SetSkip, 0);
-    SchoolDays::RuntimeConfigStorageTestAccess::Apply(app.runtime, Kind::SetSuperSkip, 1);
-    SchoolDays::RuntimeConfigStorageTestAccess::Apply(app.runtime, Kind::SetDrawMessage, 0);
-    SchoolDays::RuntimeConfigStorageTestAccess::Apply(app.runtime, Kind::RequestWide, 0);
+      SchoolDays::RuntimeConfigStorageTestAccess::Apply(
+          app.runtime, Kind::StepSoundBank, 0, 1, 0);
+    SchoolDays::RuntimeConfigStorageTestAccess::Apply(
+        app.runtime, Kind::SetSoundLevel, 2, 2);
+    SchoolDays::RuntimeConfigStorageTestAccess::Apply(app.runtime,
+                                                      Kind::SetMenVoice, 1);
+    SchoolDays::RuntimeConfigStorageTestAccess::Apply(app.runtime,
+                                                      Kind::SetMute, 0);
+    SchoolDays::RuntimeConfigStorageTestAccess::Apply(app.runtime,
+                                                      Kind::SetSkip, 0);
+    SchoolDays::RuntimeConfigStorageTestAccess::Apply(app.runtime,
+                                                      Kind::SetSuperSkip, 1);
+    SchoolDays::RuntimeConfigStorageTestAccess::Apply(app.runtime,
+                                                      Kind::SetDrawMessage, 0);
+    SchoolDays::RuntimeConfigStorageTestAccess::Apply(app.runtime,
+                                                      Kind::RequestWide, 0);
     Check(SchoolDays::RuntimeConfigStorageTestAccess::UiVariant(app.runtime) ==
               Kotonoha::SchoolDaysDisplayPolicy::Variant::Standard,
           "General STANDARD did not select the Display 4:3 authored layout");
@@ -327,12 +375,13 @@ int main(int argc, char **argv) {
       const std::string aspect((std::istreambuf_iterator<char>(aspectFile)),
                                std::istreambuf_iterator<char>());
       Check(aspect.find("ContentAspectPreference=1") != std::string::npos,
-            "General STANDARD did not save the corresponding Display 4:3 preference");
+            "General STANDARD did not save the corresponding Display 4:3 "
+            "preference");
     }
     const auto &sound = app.runtime.retailConfig();
-    Check(sound.bgmVolume == 0 && sound.seVolume == 10 && sound.voiceVolume == 2 &&
-              sound.menVoice && !sound.mute && !sound.skip && sound.superSkip &&
-              !sound.textView,
+    Check(sound.bgmVolume == 0 && sound.seVolume == 10 &&
+              sound.voiceVolume == 2 && sound.menVoice && !sound.mute &&
+              !sound.skip && sound.superSkip && !sound.textView,
           "General/Sound immediate actions did not update all selected values");
   }
   Check(fs::is_regular_file(persistentDocs / "settings.json"),
@@ -341,34 +390,44 @@ int main(int argc, char **argv) {
     Application app(assets, argv[1], persistentDocs, true);
     const auto &state = app.runtime.retailConfig();
     Check(app.engine.GetSettings().mode == Kotonoha::WindowMode::Borderless &&
-              SchoolDays::RuntimeConfigStorageTestAccess::DisplayBackend(app.runtime).windowMode == 1,
+              SchoolDays::RuntimeConfigStorageTestAccess::DisplayBackend(
+                  app.runtime)
+                      .windowMode == 1,
           "General Full did not survive a real settings.json reload");
     Check(SchoolDays::RuntimeConfigStorageTestAccess::UiVariant(app.runtime) ==
               Kotonoha::SchoolDaysDisplayPolicy::Variant::Standard,
           "General 4:3 aspect did not survive remaster preference reload");
-    Check(state.bgmVolume == 0 && state.seVolume == 10 && state.voiceVolume == 2 &&
-              state.menVoice && !state.mute && !state.skip && state.superSkip &&
-              !state.textView,
+    Check(state.bgmVolume == 0 && state.seVolume == 10 &&
+              state.voiceVolume == 2 && state.menVoice && !state.mute &&
+              !state.skip && state.superSkip && !state.textView,
           "General/Sound values did not survive Config.DAT reload");
-    const auto visuals = SchoolDays::RuntimeConfigStorageTestAccess::VisualState(app.runtime);
+    const auto visuals =
+        SchoolDays::RuntimeConfigStorageTestAccess::VisualState(app.runtime);
     Check(visuals.defFullCurrent == 7 && visuals.soundLevels[0] == 0 &&
               visuals.soundLevels[1] == 10 && visuals.soundLevels[2] == 2 &&
-              visuals.soundMenVoiceCurrent == 10 && visuals.soundMuteCurrent == 13,
-          "Reopened General/Sound UI selected chips do not match persisted choices");
-    SchoolDays::RuntimeConfigStorageTestAccess::Apply(app.runtime, Kind::RequestFull, 1);
+              visuals.soundMenVoiceCurrent == 10 &&
+              visuals.soundMuteCurrent == 13,
+          "Reopened General/Sound UI selected chips do not match persisted "
+          "choices");
+    SchoolDays::RuntimeConfigStorageTestAccess::Apply(app.runtime,
+                                                      Kind::RequestFull, 1);
     Check(app.engine.GetSettings().mode == Kotonoha::WindowMode::Windowed,
           "General Window did not leave fullscreen after reopening");
   }
   {
     Application app(assets, argv[1], persistentDocs, true);
     Check(app.engine.GetSettings().mode == Kotonoha::WindowMode::Windowed &&
-              SchoolDays::RuntimeConfigStorageTestAccess::DisplayBackend(app.runtime).windowMode == 0,
+              SchoolDays::RuntimeConfigStorageTestAccess::DisplayBackend(
+                  app.runtime)
+                      .windowMode == 0,
           "General Window choice did not persist after the second restart");
-    SchoolDays::RuntimeConfigStorageTestAccess::Apply(app.runtime, Kind::RequestWide, 1);
+    SchoolDays::RuntimeConfigStorageTestAccess::Apply(app.runtime,
+                                                      Kind::RequestWide, 1);
     Check(SchoolDays::RuntimeConfigStorageTestAccess::UiVariant(app.runtime) ==
               Kotonoha::SchoolDaysDisplayPolicy::Variant::Wide,
           "General WIDE did not restore the Display 16:9 authored layout");
-    Check(std::abs(app.runtime.narrativePresentationHeightScale() - 1.0f) < 0.001f,
+    Check(std::abs(app.runtime.narrativePresentationHeightScale() - 1.0f) <
+              0.001f,
           "General WIDE did not restore the uncompressed Novel picture");
   }
   {
@@ -379,8 +438,9 @@ int main(int argc, char **argv) {
     std::ifstream aspectFile(persistentDocs / "Kotonoha.ini");
     const std::string aspect((std::istreambuf_iterator<char>(aspectFile)),
                              std::istreambuf_iterator<char>());
-    Check(aspect.find("ContentAspectPreference=2") != std::string::npos,
-          "General WIDE did not save the corresponding Display 16:9 preference");
+    Check(
+        aspect.find("ContentAspectPreference=2") != std::string::npos,
+        "General WIDE did not save the corresponding Display 16:9 preference");
   }
 
   // A proven SysMenu state mutation changes only the cache until shutdown,
@@ -391,28 +451,40 @@ int main(int argc, char **argv) {
   const auto changedBefore = ReadBytes(changedDocs / "Config.DAT");
   {
     Application app(assets, argv[1], changedDocs);
-    SchoolDays::RuntimeConfigStorageTestAccess::SetPlaybackSpeed(app.runtime, 4);
+    SchoolDays::RuntimeConfigStorageTestAccess::SetPlaybackSpeed(app.runtime,
+                                                                 4);
     Kotonoha_orsEvent voice{};
     voice.command = PLAY_VOICE;
     voice.startTick = 0;
     voice.endTick = 48;
-    SchoolDays::RuntimeConfigStorageTestAccess::AddActivePlayer(app.runtime, voice, 24.0);
-    Check(SchoolDays::RuntimeConfigStorageTestAccess::SpeedIndex(app.runtime) == 4 &&
-              SchoolDays::RuntimeConfigStorageTestAccess::Speed(app.runtime) == 24.0 &&
-              SchoolDays::RuntimeConfigStorageTestAccess::FirstPlayerRate(app.runtime) == 24.0,
+    SchoolDays::RuntimeConfigStorageTestAccess::AddActivePlayer(app.runtime,
+                                                                voice, 24.0);
+    Check(SchoolDays::RuntimeConfigStorageTestAccess::SpeedIndex(app.runtime) ==
+                  4 &&
+              SchoolDays::RuntimeConfigStorageTestAccess::Speed(app.runtime) ==
+                  24.0 &&
+              SchoolDays::RuntimeConfigStorageTestAccess::FirstPlayerRate(
+                  app.runtime) == 24.0,
           "precondition: accelerated active media did not reach 24x");
-    SchoolDays::RuntimeConfigStorageTestAccess::Apply(app.runtime, Kind::SetSkip, 0);
-    Check(SchoolDays::RuntimeConfigStorageTestAccess::SpeedIndex(app.runtime) == 0 &&
-              SchoolDays::RuntimeConfigStorageTestAccess::Speed(app.runtime) == 1.0 &&
-              SchoolDays::RuntimeConfigStorageTestAccess::FirstPlayerRate(app.runtime) == 1.0,
+    SchoolDays::RuntimeConfigStorageTestAccess::Apply(app.runtime,
+                                                      Kind::SetSkip, 0);
+    Check(SchoolDays::RuntimeConfigStorageTestAccess::SpeedIndex(app.runtime) ==
+                  0 &&
+              SchoolDays::RuntimeConfigStorageTestAccess::Speed(app.runtime) ==
+                  1.0 &&
+              SchoolDays::RuntimeConfigStorageTestAccess::FirstPlayerRate(
+                  app.runtime) == 1.0,
           "SetSkip(false) did not force index0/rate1.0 into active media");
-    const auto &storage = SchoolDays::RuntimeConfigStorageTestAccess::Storage(app.runtime);
-    Check(storage.IsDirty(), "proven Config action did not dirty Runtime cache");
+    const auto &storage =
+        SchoolDays::RuntimeConfigStorageTestAccess::Storage(app.runtime);
+    Check(storage.IsDirty(),
+          "proven Config action did not dirty Runtime cache");
     Check(ReadBytes(changedDocs / "Config.DAT") == changedBefore,
           "Config action wrote Config.DAT before shutdown flush");
   }
   const auto changedAfter = ReadBytes(changedDocs / "Config.DAT");
-  Check(changedAfter != changedBefore, "shutdown did not flush changed Config.DAT");
+  Check(changedAfter != changedBefore,
+        "shutdown did not flush changed Config.DAT");
   std::string decoded;
   Check(Storage::DecodeDocument(changedAfter, &decoded, &error), error);
   Check(decoded.find("[Skip]=\"0\"") != std::string::npos &&
@@ -426,7 +498,8 @@ int main(int argc, char **argv) {
   Check(roundtrip.Initialize(changedDocs, &error) &&
             roundtrip.Load(&reloaded, &error) && !reloaded.state.skip &&
             reloaded.state.masterVolume == -1.0f,
-        "Runtime-flushed Config.DAT did not round-trip through authenticated storage");
+        "Runtime-flushed Config.DAT did not round-trip through authenticated "
+        "storage");
 
   // Missing Config.DAT stays absent through startup/shutdown and through an
   // idempotent UI request. Only an actual proven state change may create it.
@@ -437,33 +510,44 @@ int main(int argc, char **argv) {
     Check(!fs::exists(missingDocs / "Config.DAT"),
           "Runtime created missing Config.DAT at startup");
     int outputWidth = 0, outputHeight = 0;
-    Check(SDL_GetRenderOutputSize(&app.engine.GetRenderer(), &outputWidth, &outputHeight),
+    Check(SDL_GetRenderOutputSize(&app.engine.GetRenderer(), &outputWidth,
+                                  &outputHeight),
           "cannot query render output for auto display-profile test");
     Kotonoha::SchoolDaysDisplayPolicy::Decision expected;
-    Check(Kotonoha::SchoolDaysDisplayPolicy::SelectAuto(outputWidth, outputHeight, &expected),
+    Check(Kotonoha::SchoolDaysDisplayPolicy::SelectAuto(
+              outputWidth, outputHeight, &expected),
           "cannot derive automatic logical display profile");
     const auto canonical =
-        Kotonoha::SchoolDaysDisplayPolicy::CanonicalRetailStateForVariant(expected.variant);
+        Kotonoha::SchoolDaysDisplayPolicy::CanonicalRetailStateForVariant(
+            expected.variant);
     Kotonoha::SchoolDaysDisplayPolicy::RetailBackendState expectedBackend;
     expectedBackend.baseDisplayType = canonical.effectiveDisplayType;
     expectedBackend.deviceDisplayType = canonical.effectiveDisplayType;
     expectedBackend.windowMode =
         app.engine.GetSettings().mode == Kotonoha::WindowMode::Windowed ? 0 : 1;
     expectedBackend.typeMiniNote = canonical.typeMiniNote;
-    const auto expectedVariant = Kotonoha::SchoolDaysDisplayPolicy::SelectRetailVariant(
-        Kotonoha::SchoolDaysDisplayPolicy::ProjectRetailState(expectedBackend));
-    Check(SchoolDays::RuntimeConfigStorageTestAccess::UiVariant(app.runtime) == expectedVariant,
-          "missing Config.DAT did not combine SelectAuto with physical host mode");
-    SchoolDays::RuntimeConfigStorageTestAccess::Apply(app.runtime, Kind::SetSkip, 0);
-    Check(!SchoolDays::RuntimeConfigStorageTestAccess::Storage(app.runtime).IsDirty(),
+    const auto expectedVariant =
+        Kotonoha::SchoolDaysDisplayPolicy::SelectRetailVariant(
+            Kotonoha::SchoolDaysDisplayPolicy::ProjectRetailState(
+                expectedBackend));
+    Check(SchoolDays::RuntimeConfigStorageTestAccess::UiVariant(app.runtime) ==
+              expectedVariant,
+          "missing Config.DAT did not combine SelectAuto with physical host "
+          "mode");
+    SchoolDays::RuntimeConfigStorageTestAccess::Apply(app.runtime,
+                                                      Kind::SetSkip, 0);
+    Check(!SchoolDays::RuntimeConfigStorageTestAccess::Storage(app.runtime)
+               .IsDirty(),
           "idempotent Config action dirtied first-run cache");
   }
   Check(!fs::exists(missingDocs / "Config.DAT"),
         "clean first-run shutdown created Config.DAT");
   {
     Application app(assets, argv[1], missingDocs);
-    SchoolDays::RuntimeConfigStorageTestAccess::Apply(app.runtime, Kind::SetSkip, 1);
-    Check(SchoolDays::RuntimeConfigStorageTestAccess::Storage(app.runtime).IsDirty() &&
+    SchoolDays::RuntimeConfigStorageTestAccess::Apply(app.runtime,
+                                                      Kind::SetSkip, 1);
+    Check(SchoolDays::RuntimeConfigStorageTestAccess::Storage(app.runtime)
+                  .IsDirty() &&
               !fs::exists(missingDocs / "Config.DAT"),
           "changed first-run state did not remain deferred in cache");
   }

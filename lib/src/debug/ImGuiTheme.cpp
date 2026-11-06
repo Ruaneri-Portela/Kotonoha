@@ -13,7 +13,7 @@ constexpr ImVec4 Accent{0.75f, 0.43f, 0.95f, 1.0f};
 constexpr ImVec4 Success{0.36f, 0.84f, 0.55f, 1.0f};
 constexpr ImVec4 Warning{1.00f, 0.62f, 0.34f, 1.0f};
 constexpr ImVec4 Error{1.00f, 0.38f, 0.42f, 1.0f};
-}
+} // namespace
 
 void loadFonts(const std::string &fontPath) {
   ImGuiIO &io = ImGui::GetIO();
@@ -72,8 +72,10 @@ void statusText(const char *text, bool error) {
 
 bool primaryButton(const char *label, ImVec2 size) {
   ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.38f, 0.18f, 0.52f, 1.0f));
-  ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.50f, 0.25f, 0.67f, 1.0f));
-  ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.60f, 0.32f, 0.77f, 1.0f));
+  ImGui::PushStyleColor(ImGuiCol_ButtonHovered,
+                        ImVec4(0.50f, 0.25f, 0.67f, 1.0f));
+  ImGui::PushStyleColor(ImGuiCol_ButtonActive,
+                        ImVec4(0.60f, 0.32f, 0.77f, 1.0f));
   const bool pressed = ImGui::Button(label, size);
   ImGui::PopStyleColor(3);
   return pressed;
@@ -86,8 +88,10 @@ struct ShaderFilePicker::State {
   std::string error;
 };
 
-void SDLCALL ShaderFilePicker::finished(void *userdata, const char *const *files, int) {
-  std::unique_ptr<std::shared_ptr<State>> owner(static_cast<std::shared_ptr<State> *>(userdata));
+void SDLCALL ShaderFilePicker::finished(void *userdata,
+                                        const char *const *files, int) {
+  std::unique_ptr<std::shared_ptr<State>> owner(
+      static_cast<std::shared_ptr<State> *>(userdata));
   auto state = *owner;
   std::lock_guard lock(state->mutex);
   if (!files) {

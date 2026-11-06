@@ -9,9 +9,11 @@
 
 namespace {
 void Require(bool ok, const char *message) {
-  if (!ok) throw std::runtime_error(message);
+  if (!ok)
+    throw std::runtime_error(message);
 }
-Kotonoha::EngineOptions Options(const std::shared_ptr<SchoolDays::Assets> &assets) {
+Kotonoha::EngineOptions
+Options(const std::shared_ptr<SchoolDays::Assets> &assets) {
   Kotonoha::EngineOptions options;
   options.assets = assets;
   options.persistSettings = false;
@@ -21,7 +23,8 @@ Kotonoha::EngineOptions Options(const std::shared_ptr<SchoolDays::Assets> &asset
 struct Application {
   SchoolDays::Runtime runtime;
   Kotonoha::Engine engine;
-  Application(const std::shared_ptr<SchoolDays::Assets> &assets, const char *route, const char *documents)
+  Application(const std::shared_ptr<SchoolDays::Assets> &assets,
+              const char *route, const char *documents)
       : runtime(assets, route, documents), engine(runtime, Options(assets)) {}
   ~Application() { runtime.shutdown(); }
 };
@@ -94,10 +97,11 @@ public:
            " playing=" + std::to_string(runtime.playing.size()) +
            " handoff=" + std::to_string(runtime.bridge.HasPendingHandoff()) +
            " saveMenu=" + std::to_string(runtime.saveMenu->isOpen()) +
-           " visualTransition=" + std::to_string(runtime.frontendTransition.Active(SDL_GetTicks())) +
-           " systemTransition=" + std::to_string(runtime.systemPanelTransition.Active());
+           " visualTransition=" +
+           std::to_string(runtime.frontendTransition.Active(SDL_GetTicks())) +
+           " systemTransition=" +
+           std::to_string(runtime.systemPanelTransition.Active());
   }
-
 };
 
 } // namespace SchoolDays
@@ -111,27 +115,35 @@ int main(int argc, char **argv) {
     app.runtime.SetState(Kotonoha::GameState::Gameplay);
     app.engine.debugJumpToNode("0");
     for (int i = 0; i < 3; ++i)
-      Require(app.engine.Iterate() == SDL_APP_CONTINUE, "Engine media frame failed");
+      Require(app.engine.Iterate() == SDL_APP_CONTINUE,
+              "Engine media frame failed");
     bool subtitleScene = false, gameScene = false;
     for (const auto *scene : app.runtime.GetActiveScenes()) {
-      subtitleScene = subtitleScene || dynamic_cast<const SchoolDays::Subtitles *>(scene) != nullptr;
-      gameScene = gameScene || dynamic_cast<const SchoolDays::GameScene *>(scene) != nullptr;
+      subtitleScene =
+          subtitleScene ||
+          dynamic_cast<const SchoolDays::Subtitles *>(scene) != nullptr;
+      gameScene = gameScene ||
+                  dynamic_cast<const SchoolDays::GameScene *>(scene) != nullptr;
     }
-    Require(subtitleScene && gameScene, "School Days must register its custom presentation scenes");
+    Require(subtitleScene && gameScene,
+            "School Days must register its custom presentation scenes");
     const double before = *app.runtime.debugNodeSeconds();
-    for (int attempts = 0; attempts < 150 &&
-         *app.runtime.debugNodeSeconds() <= before; ++attempts) {
+    for (int attempts = 0;
+         attempts < 150 && *app.runtime.debugNodeSeconds() <= before;
+         ++attempts) {
       SDL_Delay(20);
       Require(app.engine.Iterate() == SDL_APP_CONTINUE, "Clock frame failed");
     }
     Require(*app.runtime.debugNodeSeconds() > before,
             ("Runtime node clock did not advance: before=" +
-             std::to_string(before) + " after=" +
-             std::to_string(*app.runtime.debugNodeSeconds()) +
+             std::to_string(before) +
+             " after=" + std::to_string(*app.runtime.debugNodeSeconds()) +
              " enginePaused=" + std::to_string(app.engine.isStoryPaused()) +
              " panelOpen=" + std::to_string(app.runtime.anyPanelOpen()) +
-             SchoolDays::RuntimeMediaParityTestAccess::State(app.runtime)).c_str());
-    Require(app.engine.GetDebug().nodeClockText().find("Node clock:") != std::string::npos,
+             SchoolDays::RuntimeMediaParityTestAccess::State(app.runtime))
+                .c_str());
+    Require(app.engine.GetDebug().nodeClockText().find("Node clock:") !=
+                std::string::npos,
             "School Days node has no debug clock");
     Require(assets->cachedTextures() > 0, "ORS background was not decoded");
     for (const char *channel : {"BGM", "Voice", "Movie"})
@@ -139,11 +151,14 @@ int main(int argc, char **argv) {
               "ORS audio/movie did not attach its channel stream");
     Uint8 r = 0, g = 0, b = 0, a = 0;
     for (int attempt = 0; attempt < 150; ++attempt) {
-      Kotonoha::SurfacePtr frame(SDL_RenderReadPixels(&app.engine.GetRenderer(), nullptr));
+      Kotonoha::SurfacePtr frame(
+          SDL_RenderReadPixels(&app.engine.GetRenderer(), nullptr));
       Require(bool(frame), "Cannot inspect rendered movie");
-      Require(SDL_ReadSurfacePixel(frame.get(), frame->w * 3 / 4, frame->h * 4 / 5,
-                                  &r, &g, &b, &a), "Cannot inspect movie pixel");
-      if (r > 180 && g < 80 && b < 80) break;
+      Require(SDL_ReadSurfacePixel(frame.get(), frame->w * 3 / 4,
+                                   frame->h * 4 / 5, &r, &g, &b, &a),
+              "Cannot inspect movie pixel");
+      if (r > 180 && g < 80 && b < 80)
+        break;
       SDL_Delay(20);
       Require(app.engine.Iterate() == SDL_APP_CONTINUE, "Movie frame failed");
     }
@@ -151,7 +166,8 @@ int main(int argc, char **argv) {
             ("WMV frame was not presented over the blue background: rgb=" +
              std::to_string(r) + "," + std::to_string(g) + "," +
              std::to_string(b) +
-             SchoolDays::RuntimeMediaParityTestAccess::State(app.runtime)).c_str());
+             SchoolDays::RuntimeMediaParityTestAccess::State(app.runtime))
+                .c_str());
     // This fixture intentionally does not ship the retail MenuBar artwork, so
     // exercise the Save control semantically instead of relying on coordinates
     // from a presenter that is unavailable in this synthetic media corpus.
@@ -160,19 +176,23 @@ int main(int argc, char **argv) {
     SDL_Event event{};
     const double saveClock = *app.runtime.debugNodeSeconds();
     SDL_Delay(35);
-    Require(app.engine.Iterate() == SDL_APP_CONTINUE, "Save panel frame failed");
-    Require(*app.runtime.debugNodeSeconds() == saveClock, "Save panel must pause the scene");
+    Require(app.engine.Iterate() == SDL_APP_CONTINUE,
+            "Save panel frame failed");
+    Require(*app.runtime.debugNodeSeconds() == saveClock,
+            "Save panel must pause the scene");
     event = {};
     event.type = SDL_EVENT_KEY_DOWN;
     event.key.key = SDLK_RIGHT;
     app.runtime.onEvent(event);
-    Require(*app.runtime.debugNodeSeconds() == saveClock, "Save panel leaked gameplay input");
+    Require(*app.runtime.debugNodeSeconds() == saveClock,
+            "Save panel leaked gameplay input");
     event.key.key = SDLK_ESCAPE;
     app.runtime.onEvent(event);
     Require(!app.runtime.anyPanelOpen(), "Escape did not close the save panel");
     SDL_Delay(25);
     Require(app.engine.Iterate() == SDL_APP_CONTINUE, "Resume frame failed");
-    Require(*app.runtime.debugNodeSeconds() > saveClock, "Scene did not resume after closing save panel");
+    Require(*app.runtime.debugNodeSeconds() > saveClock,
+            "Scene did not resume after closing save panel");
     Require(*app.runtime.debugNodeSeconds() > saveClock,
             "Scene did not resume after closing save panel");
     // The fallback save UI must ask for a name even without a suggestion.
@@ -219,14 +239,15 @@ int main(int argc, char **argv) {
     app.runtime.onEvent(event);
     event.key.key = SDLK_SPACE;
     app.runtime.onEvent(event); // Resume after the paused seek.
-    for (int attempt = 0; attempt < 200 &&
-         app.runtime.debugNode() == beforeSkip; ++attempt) {
+    for (int attempt = 0;
+         attempt < 200 && app.runtime.debugNode() == beforeSkip; ++attempt) {
       SDL_Delay(10);
       Require(app.engine.Iterate() == SDL_APP_CONTINUE, "Skip frame failed");
     }
     Require(app.runtime.debugNode() != beforeSkip,
             ("Skip parked at Next instead of advancing with Auto disabled: " +
-             SchoolDays::RuntimeMediaParityTestAccess::State(app.runtime)).c_str());
+             SchoolDays::RuntimeMediaParityTestAccess::State(app.runtime))
+                .c_str());
     app.engine.debugJumpToNode("0");
     event = {};
     event.type = SDL_EVENT_MOUSE_BUTTON_UP;
@@ -234,10 +255,11 @@ int main(int argc, char **argv) {
     event.button.x = 350;
     event.button.y = 60; // Fallback bar's Skip button.
     app.runtime.onEvent(event);
-    for (int attempt = 0; attempt < 200 &&
-         app.runtime.debugNode() == beforeSkip; ++attempt) {
+    for (int attempt = 0;
+         attempt < 200 && app.runtime.debugNode() == beforeSkip; ++attempt) {
       SDL_Delay(10);
-      Require(app.engine.Iterate() == SDL_APP_CONTINUE, "Button skip frame failed");
+      Require(app.engine.Iterate() == SDL_APP_CONTINUE,
+              "Button skip frame failed");
     }
     Require(app.runtime.debugNode() != beforeSkip,
             "The visible Skip button must use the same transition as Right");
@@ -245,25 +267,30 @@ int main(int argc, char **argv) {
     Require(app.engine.Iterate() == SDL_APP_CONTINUE, "Choice frame failed");
     SchoolDays::GameScene *choices = nullptr;
     for (auto *scene : app.runtime.GetActiveScenes())
-      if (auto *game = dynamic_cast<SchoolDays::GameScene *>(scene)) choices = game;
+      if (auto *game = dynamic_cast<SchoolDays::GameScene *>(scene))
+        choices = game;
     Require(choices != nullptr, "Custom choice scene is missing");
     event = {};
     event.type = SDL_EVENT_KEY_DOWN;
     event.key.key = SDLK_1;
-    Require(!choices->handleEvent(event), "Retail choice accepted keyboard input");
+    Require(!choices->handleEvent(event),
+            "Retail choice accepted keyboard input");
     event = {};
     event.type = SDL_EVENT_MOUSE_MOTION;
     event.motion.x = 640.0f;
     event.motion.y = 540.0f;
-    Require(choices->handleEvent(event), "Custom choice mouse navigation failed");
+    Require(choices->handleEvent(event),
+            "Custom choice mouse navigation failed");
     event = {};
     event.type = SDL_EVENT_MOUSE_BUTTON_DOWN;
     event.button.button = SDL_BUTTON_LEFT;
     event.button.x = 640.0f;
     event.button.y = 540.0f;
     Require(choices->handleEvent(event), "Custom choice activation failed");
-    Require(!choices->handleEvent(event), "Committed choices are still interactive");
-    std::cout << "SchoolDaysMediaTest: media, custom scenes, modal pause and choices passed\n";
+    Require(!choices->handleEvent(event),
+            "Committed choices are still interactive");
+    std::cout << "SchoolDaysMediaTest: media, custom scenes, modal pause and "
+                 "choices passed\n";
     return 0;
   } catch (const std::exception &error) {
     std::cerr << "SchoolDaysMediaTest: " << error.what() << '\n';

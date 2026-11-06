@@ -3,6 +3,7 @@
 #include <Kotonoha/media/AudioMixer.hpp>
 
 #include <cmath>
+#include <filesystem>
 #include <fstream>
 #include <json-c/json.h>
 #include <limits>
@@ -137,7 +138,23 @@ EngineSettings EngineSettings::load(const std::string &path,
   read(root.get(), "factor", result.upscaling.factor);
   read(root.get(), "shaderFiles", result.upscaling.shaderFiles);
   read(root.get(), "translationPath", result.translationPath);
-  read(root.get(), "assetOverlayPath", result.assetOverlayPath);
+  if (auto *overlays = member(root.get(), "assetOverlays", json_type_object)) {
+    json_object_object_foreach(overlays, name, value) {
+      if (json_object_is_type(value, json_type_string))
+        result.assetOverlays.emplace(name, json_object_get_string(value));
+    }
+  }
+  read(root.get(), "assetOverlayName", result.assetOverlayName);
+  // Legacy single-path settings: promote to a named overlay.
+  if (result.assetOverlays.empty() && result.assetOverlayName.empty()) {
+    std::string legacy;
+    read(root.get(), "assetOverlayPath", legacy);
+    if (!legacy.empty()) {
+      result.assetOverlayName = "legacy";
+      result.assetOverlays.emplace("legacy", legacy);
+    }
+  }
+  result.assetOverlayPath = result.resolvedOverlayPath();
   read(root.get(), "fontPath", result.fontPath);
   read(root.get(), "vnFontPath", result.vnFontPath);
   read(root.get(), "vnTextColorOverride", result.vnTextColorOverride);
@@ -178,6 +195,22 @@ EngineSettings EngineSettings::load(const std::string &path,
 
 std::string EngineSettings::defaultPath(const std::string &identify) {
   return (preferredDocumentsDirectory(identify) / "settings.json").string();
+}
+
+std::string EngineSettings::resolvedOverlayPath() const {
+  if (!assetOverlayName.empty()) {
+    auto i = assetOverlays.find(assetOverlayName);
+    if (i != assetOverlays.end() && !i->second.empty() &&
+        std::filesystem::is_directory(i->second))
+      return i->second;
+    // The persisted absolute path no longer exists: resolve by name through
+    // the standard overlay folder search (e.g. KOTONOHA_OVERLAY / "overlay").
+    auto found = findAssetOverlayDirectory(assetOverlayName);
+    if (!found.empty())
+      return found.string();
+    return {};
+  }
+  return {};
 }
 
 void EngineSettings::save(const std::string &path) const {
@@ -224,10 +257,13 @@ void EngineSettings::save(const std::string &path) const {
   json_object_object_add(
       root.get(), "shaderFiles",
       json_object_new_string(UpscaleShaderFileList(shaderReferences).c_str()));
-  json_object_object_add(
-      root.get(), "assetOverlayPath",
-      json_object_new_string(
-          FileResolver::referenceName(assetOverlayPath).c_str()));
+  auto *overlays = json_object_new_object();
+  for (const auto &[name, absolute] : assetOverlays)
+    json_object_object_add(overlays, name.c_str(),
+                           json_object_new_string(absolute.c_str()));
+  json_object_object_add(root.get(), "assetOverlays", overlays);
+  json_object_object_add(root.get(), "assetOverlayName",
+                         json_object_new_string(assetOverlayName.c_str()));
   json_object_object_add(
       root.get(), "translationPath",
       json_object_new_string(

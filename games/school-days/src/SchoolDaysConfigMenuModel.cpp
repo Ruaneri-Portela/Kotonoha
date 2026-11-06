@@ -66,12 +66,12 @@ bool SchoolDaysConfigMenuModel::Open(const std::string &assetsRoot,
                                      std::string *error,
                                      bool retailDisplayArtworkFallback) {
   Close();
-  const Page artworkPage = retailDisplayArtworkFallback && page == Page::Display
-                               ? Page::Def : page;
+  const Page artworkPage =
+      retailDisplayArtworkFallback && page == Page::Display ? Page::Def : page;
   std::string physical;
   if (!ResolveSchoolDaysRequiredAssetPath(
-          assetsRoot.c_str(), CmapRelativePath(artworkPage, variant), &physical, error,
-          "ConfigMenu CMAP")) {
+          assetsRoot.c_str(), CmapRelativePath(artworkPage, variant), &physical,
+          error, "ConfigMenu CMAP")) {
     return false;
   }
   if (!cmap_.LoadFile(physical, error))
@@ -102,7 +102,8 @@ int SchoolDaysConfigMenuModel::HitControl(int x, int y) const {
   // Def's configuration controls are not Display actions. Only its original
   // shared navigation and CLOSE hotspots apply under Android's native panel.
   return page_ == Page::Display && artworkPage_ != page_ && control > 3
-             ? -1 : control;
+             ? -1
+             : control;
 }
 
 bool SchoolDaysConfigMenuModel::SetSelectionFromPointer(int x, int y) {

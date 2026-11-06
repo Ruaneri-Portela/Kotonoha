@@ -15,24 +15,26 @@ namespace {
 constexpr float kRefreshEquality = 0.02f;
 
 bool Valid(DisplayModeChoice mode) {
-  return mode.width >= 320 && mode.height >= 240 &&
-         mode.width <= 16384 && mode.height <= 16384 &&
-         std::isfinite(mode.refreshRate) && mode.refreshRate > 0.0f &&
-         mode.refreshRate <= 1000.0f;
+  return mode.width >= 320 && mode.height >= 240 && mode.width <= 16384 &&
+         mode.height <= 16384 && std::isfinite(mode.refreshRate) &&
+         mode.refreshRate > 0.0f && mode.refreshRate <= 1000.0f;
 }
 
 } // namespace
 
 bool DisplayModeCatalog::AddUnique(std::vector<DisplayModeChoice> &modes,
                                    DisplayModeChoice mode) {
-  if (!Valid(mode)) return false;
-  const auto duplicate = std::find_if(modes.begin(), modes.end(),
-                                     [&](const DisplayModeChoice &candidate) {
-    return candidate.width == mode.width &&
-           candidate.height == mode.height &&
-           std::abs(candidate.refreshRate - mode.refreshRate) < kRefreshEquality;
-  });
-  if (duplicate != modes.end()) return false;
+  if (!Valid(mode))
+    return false;
+  const auto duplicate = std::find_if(
+      modes.begin(), modes.end(), [&](const DisplayModeChoice &candidate) {
+        return candidate.width == mode.width &&
+               candidate.height == mode.height &&
+               std::abs(candidate.refreshRate - mode.refreshRate) <
+                   kRefreshEquality;
+      });
+  if (duplicate != modes.end())
+    return false;
   modes.push_back(mode);
   return true;
 }
@@ -46,7 +48,8 @@ float DisplayModeCatalog::NormalizeWindowsRefresh(unsigned int frequency) {
   case 59:
   case 119:
     return static_cast<float>((frequency + 1) * 1000.0 / 1001.0);
-  default: return static_cast<float>(frequency);
+  default:
+    return static_cast<float>(frequency);
   }
 }
 
@@ -55,19 +58,25 @@ void DisplayModeCatalog::Sort(std::vector<DisplayModeChoice> &modes) {
             [](const DisplayModeChoice &a, const DisplayModeChoice &b) {
               const auto areaA = static_cast<long long>(a.width) * a.height;
               const auto areaB = static_cast<long long>(b.width) * b.height;
-              if (areaA != areaB) return areaA > areaB;
-              if (a.width != b.width) return a.width > b.width;
-              if (a.height != b.height) return a.height > b.height;
+              if (areaA != areaB)
+                return areaA > areaB;
+              if (a.width != b.width)
+                return a.width > b.width;
+              if (a.height != b.height)
+                return a.height > b.height;
               return a.refreshRate > b.refreshRate;
             });
 }
 
-int DisplayModeCatalog::FindSelected(const std::vector<DisplayModeChoice> &modes,
-                                     int width, int height, float refreshRate) {
+int DisplayModeCatalog::FindSelected(
+    const std::vector<DisplayModeChoice> &modes, int width, int height,
+    float refreshRate) {
   int sameSize = -1;
   for (size_t i = 0; i < modes.size(); ++i) {
-    if (modes[i].width != width || modes[i].height != height) continue;
-    if (sameSize < 0) sameSize = static_cast<int>(i);
+    if (modes[i].width != width || modes[i].height != height)
+      continue;
+    if (sameSize < 0)
+      sameSize = static_cast<int>(i);
     if (std::abs(modes[i].refreshRate - refreshRate) < kRefreshEquality)
       return static_cast<int>(i);
   }
@@ -85,15 +94,19 @@ std::string DisplayModeCatalog::Label(const DisplayModeChoice &mode) {
   return label;
 }
 
-bool DisplayModeCatalog::Select(EngineSettings &settings, DisplayModeChoice mode,
+bool DisplayModeCatalog::Select(EngineSettings &settings,
+                                DisplayModeChoice mode,
                                 const SDL_DisplayMode *desktop) {
-  if (!Valid(mode)) return false;
+  if (!Valid(mode))
+    return false;
   if (settings.mode == WindowMode::Windowed) {
     settings.width = mode.width;
     settings.height = mode.height;
   } else if (settings.mode == WindowMode::Borderless &&
-             (!desktop || desktop->w != mode.width || desktop->h != mode.height ||
-              std::abs(desktop->refresh_rate - mode.refreshRate) >= kRefreshEquality)) {
+             (!desktop || desktop->w != mode.width ||
+              desktop->h != mode.height ||
+              std::abs(desktop->refresh_rate - mode.refreshRate) >=
+                  kRefreshEquality)) {
     // Borderless cannot switch the physical display mode. Explicitly choosing
     // another resolution/Hz requests Exclusive, not a silent no-op.
     settings.mode = WindowMode::Exclusive;
@@ -104,9 +117,11 @@ bool DisplayModeCatalog::Select(EngineSettings &settings, DisplayModeChoice mode
   return true;
 }
 
-std::vector<DisplayModeChoice> DisplayModeCatalog::Enumerate(SDL_DisplayID display) {
+std::vector<DisplayModeChoice>
+DisplayModeCatalog::Enumerate(SDL_DisplayID display) {
   std::vector<DisplayModeChoice> result;
-  if (!display) return result;
+  if (!display)
+    return result;
 
 #if defined(_WIN32) && !defined(__ANDROID__)
   // Use the selected SDL monitor's Win32 mode table, NOT a union with the
@@ -124,8 +139,10 @@ std::vector<DisplayModeChoice> DisplayModeCatalog::Enumerate(SDL_DisplayID displ
       for (DWORD index = 0;; ++index) {
         DEVMODEW native{};
         native.dmSize = sizeof(native);
-        if (!EnumDisplaySettingsExW(info.szDevice, index, &native, 0)) break;
-        if (native.dmBitsPerPel != 32) continue;
+        if (!EnumDisplaySettingsExW(info.szDevice, index, &native, 0))
+          break;
+        if (native.dmBitsPerPel != 32)
+          continue;
         AddUnique(result, {static_cast<int>(native.dmPelsWidth),
                            static_cast<int>(native.dmPelsHeight),
                            NormalizeWindowsRefresh(native.dmDisplayFrequency)});

@@ -97,6 +97,9 @@ private:
   bool overlayValid = true;
   bool overlayCheckedOnce = false;
   void checkOverlay(bool force = false);
+  // Stores an absolute overlay choice as a (name -> absolute path) pair and
+  // re-validates it. The name is derived from the folder's own name.
+  void selectOverlayFolder(const std::string &path);
 };
 
 } // namespace Kotonoha

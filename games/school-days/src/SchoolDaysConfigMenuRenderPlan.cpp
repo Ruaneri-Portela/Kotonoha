@@ -85,31 +85,32 @@ struct DisplayRecord {
 // The first screenshot is the CHIP atlas; the second screenshot is the
 // untouched official 800x450 base. Do not synthesize or repaint either.
 static constexpr DisplayRecord kDisplay[] = {
-    {10, 55, 192, 35, 2, 2, 192, 36},     // 0 General
-    {204, 55, 192, 35, 197, 2, 192, 36},  // 1 Sound
-    {398, 55, 194, 35, 392, 2, 192, 36},  // 2 Display
-    {707, 9, 92, 34, 590, 8, 94, 29},    // 3 Close (glowing glyph only)
-    {245, 115, 508, 25, 4, 48, 558, 32}, // 4 Resolution / refresh
-    {245, 149, 115, 25, 4, 90, 158, 32},  // 5 Resizable ON
-    {371, 149, 115, 25, 172, 90, 158, 32},// 6 Resizable OFF
-    {245, 181, 115, 25, 4, 133, 158, 33}, // 7 VSync ON
-    {371, 181, 115, 25, 172, 133, 158, 33},// 8 VSync OFF
-    {245, 214, 508, 26, 4, 175, 558, 32}, // 9 Upscaler
-    {245, 247, 508, 27, 4, 218, 558, 33}, // 10 Shader preset
-    {245, 281, 395, 25, 4, 259, 426, 29},// 11 GLSL path
-    {649, 281, 105, 25, 441, 259, 121, 29},// 12 Browse
-    {245, 317, 68, 27, 4, 300, 71, 33},  // 13 1x
-    {318, 317, 67, 27, 85, 300, 71, 33}, // 14 1.5x
-    {391, 317, 67, 27, 166, 300, 71, 33},// 15 2x
-    {466, 317, 66, 27, 247, 300, 71, 33},// 16 2.5x
-    {539, 317, 68, 27, 328, 300, 71, 33},// 17 3x
-    {612, 317, 69, 27, 409, 300, 71, 33},// 18 3.5x
-    {689, 317, 67, 27, 490, 300, 72, 33},// 19 4x
-    {441, 380, 158, 31, 222, 344, 157, 32},// 20 Default
-    {613, 380, 161, 31, 402, 344, 157, 32},// 21 Apply
+    {10, 55, 192, 35, 2, 2, 192, 36},       // 0 General
+    {204, 55, 192, 35, 197, 2, 192, 36},    // 1 Sound
+    {398, 55, 194, 35, 392, 2, 192, 36},    // 2 Display
+    {707, 9, 92, 34, 590, 8, 94, 29},       // 3 Close (glowing glyph only)
+    {245, 115, 508, 25, 4, 48, 558, 32},    // 4 Resolution / refresh
+    {245, 149, 115, 25, 4, 90, 158, 32},    // 5 Resizable ON
+    {371, 149, 115, 25, 172, 90, 158, 32},  // 6 Resizable OFF
+    {245, 181, 115, 25, 4, 133, 158, 33},   // 7 VSync ON
+    {371, 181, 115, 25, 172, 133, 158, 33}, // 8 VSync OFF
+    {245, 214, 508, 26, 4, 175, 558, 32},   // 9 Upscaler
+    {245, 247, 508, 27, 4, 218, 558, 33},   // 10 Shader preset
+    {245, 281, 395, 25, 4, 259, 426, 29},   // 11 GLSL path
+    {649, 281, 105, 25, 441, 259, 121, 29}, // 12 Browse
+    {245, 317, 68, 27, 4, 300, 71, 33},     // 13 1x
+    {318, 317, 67, 27, 85, 300, 71, 33},    // 14 1.5x
+    {391, 317, 67, 27, 166, 300, 71, 33},   // 15 2x
+    {466, 317, 66, 27, 247, 300, 71, 33},   // 16 2.5x
+    {539, 317, 68, 27, 328, 300, 71, 33},   // 17 3x
+    {612, 317, 69, 27, 409, 300, 71, 33},   // 18 3.5x
+    {689, 317, 67, 27, 490, 300, 72, 33},   // 19 4x
+    {441, 380, 158, 31, 222, 344, 157, 32}, // 20 Default
+    {613, 380, 161, 31, 402, 344, 157, 32}, // 21 Apply
 };
 
-static_assert(std::size(kDisplay) == 22, "Display CMAP and CHIP must share 22 controls");
+static_assert(std::size(kDisplay) == 22,
+              "Display CMAP and CHIP must share 22 controls");
 
 enum class DisplayBand { Normal, Selected, Hover };
 
@@ -121,17 +122,21 @@ Plan::Sprite DisplaySprite(int control, DisplayBand band, Plan::Role role,
   // the third band start 7-12 pixels later than a naive +798 offset. A single
   // offset clipped the hover factor chip and caused a second, displaced 2x
   // glyph to appear below the selected button. Keep per-row authored offsets.
-  const float selectedOffset = control <= 2 ? 405.0f :
-                               control <= 6 ? 404.0f :
-                               control <= 9 ? 403.0f :
-                               control == 10 ? 402.0f :
-                               control <= 12 ? 403.0f : 404.0f;
-  const float hoverOffset = control <= 2 ? 796.0f :
-                            control <= 6 ? 808.0f :
-                            control <= 9 ? 807.0f :
-                            control == 10 ? 806.0f : 807.0f + (control >= 13 ? 1.0f : 0.0f);
-  const float bandOffset = band == DisplayBand::Selected ? selectedOffset :
-                           band == DisplayBand::Hover ? hoverOffset : 0.0f;
+  const float selectedOffset = control <= 2    ? 405.0f
+                               : control <= 6  ? 404.0f
+                               : control <= 9  ? 403.0f
+                               : control == 10 ? 402.0f
+                               : control <= 12 ? 403.0f
+                                               : 404.0f;
+  const float hoverOffset = control <= 2   ? 796.0f
+                            : control <= 6 ? 808.0f
+                            : control <= 9 ? 807.0f
+                            : control == 10
+                                ? 806.0f
+                                : 807.0f + (control >= 13 ? 1.0f : 0.0f);
+  const float bandOffset = band == DisplayBand::Selected ? selectedOffset
+                           : band == DisplayBand::Hover  ? hoverOffset
+                                                         : 0.0f;
   Plan::Sprite sprite;
   sprite.texture = Plan::Texture::Chip;
   sprite.role = role;
@@ -141,8 +146,9 @@ Plan::Sprite DisplaySprite(int control, DisplayBand band, Plan::Role role,
                         (r.dy - 0.5f + layout.yOffset) * layout.scale,
                         (r.dw + 1.0f) * layout.scale,
                         (r.dh + 1.0f) * layout.scale};
-  sprite.recordIndex = control + (band == DisplayBand::Normal ? 0 :
-                                  band == DisplayBand::Selected ? 22 : 44);
+  sprite.recordIndex = control + (band == DisplayBand::Normal     ? 0
+                                  : band == DisplayBand::Selected ? 22
+                                                                  : 44);
   sprite.control = control;
   return sprite;
 }
@@ -352,7 +358,8 @@ SchoolDaysConfigMenuRenderPlan::Build(const SchoolDaysConfigMenuModel &model,
     // Android presents its own scale/FPS UI over the retail Def background.
     // Its fallback CHIP is only 684x436, so never crop the desktop-only
     // Display selections/hover bands from that texture.
-    if (model.ArtworkPage() != page) return out;
+    if (model.ArtworkPage() != page)
+      return out;
     // A dedicated Display Options art family, not the retail Def CHIP or
     // engine-wide SettingsMenu. The official base already paints the normal
     // controls, including a NORMAL white/silver Display tab. Never apply the
@@ -375,7 +382,8 @@ SchoolDaysConfigMenuRenderPlan::Build(const SchoolDaysConfigMenuModel &model,
     const int control = model.Selection();
     if (control >= 0 && control < static_cast<int>(std::size(kDisplay)) &&
         control != 3)
-      out.push_back(DisplaySprite(control, DisplayBand::Hover, Role::Hover, layout));
+      out.push_back(
+          DisplaySprite(control, DisplayBand::Hover, Role::Hover, layout));
     return out;
   }
   return out;

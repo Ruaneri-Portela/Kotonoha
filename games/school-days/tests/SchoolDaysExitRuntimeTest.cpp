@@ -87,7 +87,8 @@ int main(int argc, char **argv) {
         ("school-days-exit-" + std::to_string(SDL_GetPerformanceCounter()));
     auto assets = std::make_shared<SchoolDays::Assets>(argv[1]);
     std::cerr << "ExitRuntime: verify constructor exception font lifecycle\n";
-    checkFontLifetimeAcrossEngineConstructorException(assets, argv[2], documents);
+    checkFontLifetimeAcrossEngineConstructorException(assets, argv[2],
+                                                      documents);
     std::cerr << "ExitRuntime: initialize retail data\n";
     Application app(assets, argv[2], documents);
     std::cerr << "ExitRuntime: enter gameplay\n";

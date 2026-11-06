@@ -207,11 +207,11 @@ void TestRetailOrsFadeIntegerAlpha() {
           "a fade which has not been dispatched must remain hidden");
   fade->eventTouched = true;
   const int nativeAlpha[] = {255, 234, 213, 192, 170, 149,
-                             128, 107, 85, 64, 43, 22};
+                             128, 107, 85,  64,  43,  22};
   for (int i = 0; i < 12; ++i) {
     const auto sample = Model::AtTick(intro.events, 101 + i, 120, false);
-    Require(sample.drawable && !sample.deferredNextCover &&
-                sample.color == 0 && sample.alpha == nativeAlpha[i],
+    Require(sample.drawable && !sample.deferredNextCover && sample.color == 0 &&
+                sample.alpha == nativeAlpha[i],
             "retail A00 integer-tick fade IN alpha drifted");
   }
   Require(!Model::AtTick(intro.events, 113, 120, false).drawable,
@@ -224,13 +224,15 @@ void TestRetailOrsFadeIntegerAlpha() {
   const auto last = Model::AtTick(outbound.events, 94, 96, false);
   Require(half.drawable && half.color == 255 && half.alpha == 127 &&
               last.alpha == 233,
-          "24fps fade OUT must truncate integer coverage, not round/lerp fractional ticks");
+          "24fps fade OUT must truncate integer coverage, not round/lerp "
+          "fractional ticks");
   Require(!Model::AtTick(outbound.events, 96, 96, false).drawable,
           "native OUT fade may not continue at the exclusive terminal tick");
   const auto retired = Model::AtTick(outbound.events, 96, 96, true);
   Require(retired.drawable && retired.deferredNextCover &&
               retired.color == 255 && retired.alpha == 255,
-          "synthetic deferred Next frame must retain authored white terminal color");
+          "synthetic deferred Next frame must retain authored white terminal "
+          "color");
 
   // Retail 01/01-00-E06 OUT expires tick1005, while Next occurs tick1006;
   // the authored 1-tick gap MUST NOT be filled in by our scene-boundary fix.

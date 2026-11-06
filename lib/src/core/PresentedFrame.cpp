@@ -24,12 +24,12 @@ bool PresentedFrame::capture(RendererRef renderer) {
                            backbuffer->w);
   const int y = std::clamp(static_cast<int>(std::floor(presentation.y)), 0,
                            backbuffer->h);
-  const int right = std::clamp(
-      static_cast<int>(std::ceil(presentation.x + presentation.w)), x,
-      backbuffer->w);
-  const int bottom = std::clamp(
-      static_cast<int>(std::ceil(presentation.y + presentation.h)), y,
-      backbuffer->h);
+  const int right =
+      std::clamp(static_cast<int>(std::ceil(presentation.x + presentation.w)),
+                 x, backbuffer->w);
+  const int bottom =
+      std::clamp(static_cast<int>(std::ceil(presentation.y + presentation.h)),
+                 y, backbuffer->h);
   const int width = right - x;
   const int height = bottom - y;
   if (width <= 0 || height <= 0)
@@ -53,7 +53,8 @@ bool PresentedFrame::capture(RendererRef renderer) {
 }
 
 bool PresentedFrame::present(RendererRef renderer) const {
-  return texture && SDL_RenderTexture(&renderer, texture.get(), nullptr, nullptr);
+  return texture &&
+         SDL_RenderTexture(&renderer, texture.get(), nullptr, nullptr);
 }
 
 void PresentedFrame::reset() { texture.reset(); }

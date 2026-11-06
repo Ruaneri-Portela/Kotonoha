@@ -75,37 +75,47 @@ void SettingsMenu::activate(int index, int direction) {
     int count = 0;
     SDL_DisplayID *displays = SDL_GetDisplays(&count);
     if (!displays || count < 1) {
-      if (displays) SDL_free(displays);
+      if (displays)
+        SDL_free(displays);
       throw std::runtime_error("No displays available");
     }
-    const SDL_DisplayID display = displays[std::clamp(draft.display, 0, count - 1)];
+    const SDL_DisplayID display =
+        displays[std::clamp(draft.display, 0, count - 1)];
     SDL_free(displays);
     const auto available = DisplayModeCatalog::Enumerate(display);
     if (available.empty())
       throw std::runtime_error("No supported resolutions for this monitor");
     const SDL_DisplayMode *desktop = SDL_GetDesktopDisplayMode(display);
-    const bool nativeBorderless = draft.mode == WindowMode::Borderless && desktop;
-    const int width = nativeBorderless ? desktop->w :
-                      (draft.mode == WindowMode::Windowed || draft.fullscreenWidth <= 0
-                           ? draft.width : draft.fullscreenWidth);
-    const int height = nativeBorderless ? desktop->h :
-                       (draft.mode == WindowMode::Windowed || draft.fullscreenHeight <= 0
-                            ? draft.height : draft.fullscreenHeight);
-    const float refreshRate = nativeBorderless ? desktop->refresh_rate : draft.refreshRate;
-    const int current = DisplayModeCatalog::FindSelected(
-        available, width, height, refreshRate);
+    const bool nativeBorderless =
+        draft.mode == WindowMode::Borderless && desktop;
+    const int width = nativeBorderless ? desktop->w
+                                       : (draft.mode == WindowMode::Windowed ||
+                                                  draft.fullscreenWidth <= 0
+                                              ? draft.width
+                                              : draft.fullscreenWidth);
+    const int height = nativeBorderless ? desktop->h
+                                        : (draft.mode == WindowMode::Windowed ||
+                                                   draft.fullscreenHeight <= 0
+                                               ? draft.height
+                                               : draft.fullscreenHeight);
+    const float refreshRate =
+        nativeBorderless ? desktop->refresh_rate : draft.refreshRate;
+    const int current =
+        DisplayModeCatalog::FindSelected(available, width, height, refreshRate);
     std::vector<std::string> labels;
     labels.reserve(available.size());
     for (const auto &mode : available)
       labels.push_back(DisplayModeCatalog::Label(mode));
     // The shared selector supports wheel, touch, controller/keyboard and a
     // scroll thumb; do not truncate the driver's list to a fixed preset array.
-    selectBox.open("Monitor resolutions / refresh rates", std::move(labels),
-                   current, [this, available, desktopMode = desktop ?
-                   std::optional<SDL_DisplayMode>(*desktop) : std::nullopt](int choice) {
-      DisplayModeCatalog::Select(draft, available.at(choice),
-                                 desktopMode ? &*desktopMode : nullptr);
-    });
+    selectBox.open(
+        "Monitor resolutions / refresh rates", std::move(labels), current,
+        [this, available,
+         desktopMode = desktop ? std::optional<SDL_DisplayMode>(*desktop)
+                               : std::nullopt](int choice) {
+          DisplayModeCatalog::Select(draft, available.at(choice),
+                                     desktopMode ? &*desktopMode : nullptr);
+        });
   } else if (index == 2) {
     int count = 0;
     auto *displays = SDL_GetDisplays(&count);
@@ -116,7 +126,8 @@ void SettingsMenu::activate(int index, int direction) {
       throw std::runtime_error("No displays available");
     }
     draft.display = (draft.display + 1) % count;
-    if (const SDL_DisplayMode *desktop = SDL_GetDesktopDisplayMode(displays[draft.display])) {
+    if (const SDL_DisplayMode *desktop =
+            SDL_GetDesktopDisplayMode(displays[draft.display])) {
       // Fullscreen modes are monitor-specific; don't carry an unsupported
       // exclusive tuple to the next monitor when the player switches it.
       draft.fullscreenWidth = desktop->w;
@@ -355,14 +366,17 @@ void SettingsMenu::render(RendererRef renderer) {
     int count = 0;
     SDL_DisplayID *displays = SDL_GetDisplays(&count);
     if (displays && draft.display >= 0 && draft.display < count) {
-      if (const auto *desktop = SDL_GetDesktopDisplayMode(displays[draft.display]))
+      if (const auto *desktop =
+              SDL_GetDesktopDisplayMode(displays[draft.display]))
         shown = {desktop->w, desktop->h, desktop->refresh_rate};
     }
-    if (displays) SDL_free(displays);
+    if (displays)
+      SDL_free(displays);
   }
-  const std::string resolutionLabel = shown.refreshRate > 0.0f
-      ? DisplayModeCatalog::Label(shown)
-      : std::to_string(shown.width) + " x " + std::to_string(shown.height);
+  const std::string resolutionLabel =
+      shown.refreshRate > 0.0f
+          ? DisplayModeCatalog::Label(shown)
+          : std::to_string(shown.width) + " x " + std::to_string(shown.height);
   const std::vector<std::string> labels{
       std::string("Mode: ") + modes[int(draft.mode)],
       "Resolution: " + resolutionLabel + "  (select...) ",

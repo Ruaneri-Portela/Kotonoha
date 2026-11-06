@@ -33,6 +33,14 @@ struct EngineSettings {
   UpscaleSettings upscaling;
   SDL_LogPriority logPriority = SDL_LOG_PRIORITY_INFO;
   std::string translationPath;
+  // Asset overlays kept by name: friendly name -> absolute path. The absolute
+  // path is always tried first; if it no longer exists, the name is resolved
+  // through the standard overlay folder search.
+  std::map<std::string, std::string> assetOverlays;
+  std::string assetOverlayName;
+  // Absolute path of the overlay currently in effect (derived from
+  // assetOverlays[assetOverlayName] or from a direct command-line/path choice).
+  // Not persisted on its own; it is recomputed from the persisted map.
   std::string assetOverlayPath;
   std::string fontPath;
   bool enableForcedSubtitles = true;  // Toggle for forced subtitles system
@@ -43,6 +51,9 @@ struct EngineSettings {
   // <pref path>/Kotonoha/<identify>/settings.json, as used by the Engine.
   static std::string defaultPath(const std::string &identify = {});
   void save(const std::string &path) const;
+  // Absolute path currently in effect: persisted absolute for the selected
+  // name if it still exists, otherwise a name-based overlay search.
+  std::string resolvedOverlayPath() const;
 };
 
 } // namespace Kotonoha

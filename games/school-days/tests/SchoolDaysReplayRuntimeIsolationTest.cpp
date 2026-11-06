@@ -18,23 +18,28 @@ namespace {
 }
 
 void Check(bool value, const std::string &message) {
-  if (!value) Fail(message);
+  if (!value)
+    Fail(message);
 }
 
 bool SameHistory(const std::vector<Kotonoha::SchoolDaysHistory::Entry> &a,
                  const std::vector<Kotonoha::SchoolDaysHistory::Entry> &b) {
-  if (a.size() != b.size()) return false;
+  if (a.size() != b.size())
+    return false;
   for (size_t i = 0; i < a.size(); ++i) {
-    if (!(a[i].source == b[i].source) || !(a[i].destination == b[i].destination) ||
+    if (!(a[i].source == b[i].source) ||
+        !(a[i].destination == b[i].destination) ||
         a[i].inverseFeeling != b[i].inverseFeeling)
       return false;
   }
   return true;
 }
 
-bool SameBackLog(const std::vector<Kotonoha::SchoolDaysBackLogStore::Entry> &a,
-                 const std::vector<Kotonoha::SchoolDaysBackLogStore::Entry> &b) {
-  if (a.size() != b.size()) return false;
+bool SameBackLog(
+    const std::vector<Kotonoha::SchoolDaysBackLogStore::Entry> &a,
+    const std::vector<Kotonoha::SchoolDaysBackLogStore::Entry> &b) {
+  if (a.size() != b.size())
+    return false;
   for (size_t i = 0; i < a.size(); ++i) {
     if (a[i].nativeType != b[i].nativeType ||
         a[i].historyIndex != b[i].historyIndex ||
@@ -78,9 +83,12 @@ public:
     Kotonoha_KtrfError error{};
     out.sceneKey = runtime.bridge.CurrentScene().sceneKey;
     out.gameplay = runtime.bridge.CurrentGameplay();
-    Check(session.State().EnumerateSessionInts(&out.sessionState, &error), error.message);
-    Check(session.State().EnumerateGlobalInts(&out.globalState, &error), error.message);
-    Check(session.Persistence().SerializeSaveLog(&out.saveLog, &error), error.message);
+    Check(session.State().EnumerateSessionInts(&out.sessionState, &error),
+          error.message);
+    Check(session.State().EnumerateGlobalInts(&out.globalState, &error),
+          error.message);
+    Check(session.Persistence().SerializeSaveLog(&out.saveLog, &error),
+          error.message);
     Check(session.SerializeGlobalFlag(&out.globalFlag, &error), error.message);
     out.hasPresented = session.History().HasPresented();
     out.presented = session.History().Presented();
@@ -98,12 +106,13 @@ public:
               Kotonoha::SchoolDaysFlgH{}, &emptyGlobal, &codecError),
           codecError);
     Check(session.LoadGlobalFlag(emptyGlobal, &error), error.message);
-    Check(session.Persistence().WriteGlobalInteger(
-              "EndClear", 11, 0, &session.State(), &error),
+    Check(session.Persistence().WriteGlobalInteger("EndClear", 11, 0,
+                                                   &session.State(), &error),
           error.message);
 
     Kotonoha::SchoolDaysKtrfGameplayBridge::StepResult liveForward;
-    Check(runtime.bridge.Advance("ktrf:next", &liveForward, &error), error.message);
+    Check(runtime.bridge.Advance("ktrf:next", &liveForward, &error),
+          error.message);
     Check(liveForward.kind ==
               Kotonoha::SchoolDaysKtrfGameplayBridge::StepKind::SwappedScene,
           "live fixture did not advance to a second physical scene");
@@ -141,12 +150,14 @@ public:
           "debug node did not return to live bridge ownership");
 
     const Snapshot after = Capture(runtime);
-    Check(before.sceneKey == after.sceneKey && before.gameplay == after.gameplay,
+    Check(before.sceneKey == after.sceneKey &&
+              before.gameplay == after.gameplay,
           "temporary Replay replaced the live bridge scene/Gameplay");
     Check(before.sessionState == after.sessionState &&
               before.globalState == after.globalState,
           "temporary Replay mutated live StateStore");
-    Check(before.saveLog == after.saveLog && before.globalFlag == after.globalFlag,
+    Check(before.saveLog == after.saveLog &&
+              before.globalFlag == after.globalFlag,
           "temporary Replay mutated live SaveLog/GlobalFlag");
     Check(before.hasPresented == after.hasPresented &&
               before.presented == after.presented &&
@@ -156,8 +167,9 @@ public:
           "temporary Replay mutated/truncated live BackLog");
 
     // Exercise the nested PlayData host against the same retained narrative
-    // owner. The private SaveFile may update its own SLog and publish SaveConfig
-    // through GlobalFlag, but it must never replace retained scene/session/history.
+    // owner. The private SaveFile may update its own SLog and publish
+    // SaveConfig through GlobalFlag, but it must never replace retained
+    // scene/session/history.
     const auto temp = std::filesystem::temp_directory_path() /
                       ("school-days-playdata-isolation-" +
                        std::to_string(SDL_GetPerformanceCounter()));
@@ -169,19 +181,23 @@ public:
     runtime.profile.flagFileName = "Save/GlobalFlag.DAT";
     runtime.profile.saveConfig = "FILMEngine/SaveFile%d";
     std::string storageError;
-    Check(runtime.storage.Initialize(temp, runtime.profile, &storageError), storageError);
+    Check(runtime.storage.Initialize(temp, runtime.profile, &storageError),
+          storageError);
 
     std::vector<uint8_t> oracleBytes;
-    Check(session.Persistence().SerializeSaveLog(&oracleBytes, &error), error.message);
+    Check(session.Persistence().SerializeSaveLog(&oracleBytes, &error),
+          error.message);
     WriteBytes(temp / "Save/SaveFile0.DAT", oracleBytes);
 
     const Snapshot retainedBeforePlayData = Capture(runtime);
     runtime.startPlayDataPlayback(0);
     Check(runtime.playDataPlayback && runtime.playDataPlayback->IsOpen(),
           "PlayData isolation fixture did not start");
-    runtime.playDataBacklogStore.AppendLogMessage(1, u"Private", u"Keep private history");
+    runtime.playDataBacklogStore.AppendLogMessage(1, u"Private",
+                                                  u"Keep private history");
     const auto *privateGameplay = runtime.playDataPlayback->CurrentGameplay();
-    const std::string privateScene = runtime.playDataPlayback->CurrentScene().sceneKey;
+    const std::string privateScene =
+        runtime.playDataPlayback->CurrentScene().sceneKey;
 
     runtime.saveLoadOwner = Runtime::SaveLoadOwner::PlayData;
     runtime.saveLoadSaving = true;
@@ -189,14 +205,20 @@ public:
     const Snapshot retainedAfterSave = Capture(runtime);
     Check(retainedBeforePlayData.sceneKey == retainedAfterSave.sceneKey &&
               retainedBeforePlayData.gameplay == retainedAfterSave.gameplay &&
-              retainedBeforePlayData.sessionState == retainedAfterSave.sessionState &&
-              retainedBeforePlayData.globalState == retainedAfterSave.globalState &&
+              retainedBeforePlayData.sessionState ==
+                  retainedAfterSave.sessionState &&
+              retainedBeforePlayData.globalState ==
+                  retainedAfterSave.globalState &&
               retainedBeforePlayData.saveLog == retainedAfterSave.saveLog &&
-              retainedBeforePlayData.hasPresented == retainedAfterSave.hasPresented &&
+              retainedBeforePlayData.hasPresented ==
+                  retainedAfterSave.hasPresented &&
               retainedBeforePlayData.presented == retainedAfterSave.presented &&
-              SameHistory(retainedBeforePlayData.history, retainedAfterSave.history) &&
-              SameBackLog(retainedBeforePlayData.backlog, retainedAfterSave.backlog),
-          "PlayData SAVE contaminated retained narrative route/session/history/SLog/BackLog");
+              SameHistory(retainedBeforePlayData.history,
+                          retainedAfterSave.history) &&
+              SameBackLog(retainedBeforePlayData.backlog,
+                          retainedAfterSave.backlog),
+          "PlayData SAVE contaminated retained narrative "
+          "route/session/history/SLog/BackLog");
     Check(retainedBeforePlayData.globalFlag != retainedAfterSave.globalFlag,
           "PlayData SAVE did not publish its committed GlobalFlag image");
     Check(std::filesystem::is_regular_file(temp / "Save/SaveFile1.DAT") &&
@@ -209,18 +231,24 @@ public:
     runtime.loadSlot(0);
     Check(runtime.playDataPlayback && runtime.playDataPlayback->IsOpen() &&
               runtime.playDataPlayback->CurrentGameplay() == privateGameplay &&
-              runtime.playDataPlayback->CurrentScene().sceneKey == privateScene &&
+              runtime.playDataPlayback->CurrentScene().sceneKey ==
+                  privateScene &&
               runtime.playDataBacklogStore.Size() == privateBackLogBeforeLoad,
           "armed PlayData LOAD changed private checkpoint/gameplay/BackLog");
     const Snapshot retainedAfterOracleLoad = Capture(runtime);
     Check(retainedAfterSave.sceneKey == retainedAfterOracleLoad.sceneKey &&
               retainedAfterSave.gameplay == retainedAfterOracleLoad.gameplay &&
-              retainedAfterSave.sessionState == retainedAfterOracleLoad.sessionState &&
-              retainedAfterSave.globalState == retainedAfterOracleLoad.globalState &&
+              retainedAfterSave.sessionState ==
+                  retainedAfterOracleLoad.sessionState &&
+              retainedAfterSave.globalState ==
+                  retainedAfterOracleLoad.globalState &&
               retainedAfterSave.saveLog == retainedAfterOracleLoad.saveLog &&
-              retainedAfterSave.globalFlag == retainedAfterOracleLoad.globalFlag &&
-              SameHistory(retainedAfterSave.history, retainedAfterOracleLoad.history) &&
-              SameBackLog(retainedAfterSave.backlog, retainedAfterOracleLoad.backlog),
+              retainedAfterSave.globalFlag ==
+                  retainedAfterOracleLoad.globalFlag &&
+              SameHistory(retainedAfterSave.history,
+                          retainedAfterOracleLoad.history) &&
+              SameBackLog(retainedAfterSave.backlog,
+                          retainedAfterOracleLoad.backlog),
           "armed PlayData LOAD contaminated retained narrative owner");
 
     runtime.playDataPlayback.reset();
@@ -234,7 +262,8 @@ public:
 } // namespace SchoolDays
 
 int main(int argc, char **argv) {
-  Check(argc == 3, "usage: SchoolDaysReplayRuntimeIsolationTest <route> <fixture-root>");
+  Check(argc == 3,
+        "usage: SchoolDaysReplayRuntimeIsolationTest <route> <fixture-root>");
   auto assets = std::make_shared<SchoolDays::Assets>(argv[2]);
   SchoolDays::Runtime runtime(assets, argv[1]);
   SchoolDays::RuntimeReplayIsolationTestAccess::Run(runtime);

@@ -334,9 +334,9 @@ AudioClip decodeAudio(const std::vector<Uint8> &bytes) {
 }
 
 bool decodeMonoS16At44100(const std::vector<Uint8> &bytes,
-                         std::vector<std::int16_t> &output,
-                         const std::atomic_bool *cancelled,
-                         std::uint64_t maxDurationMs) {
+                          std::vector<std::int16_t> &output,
+                          const std::atomic_bool *cancelled,
+                          std::uint64_t maxDurationMs) {
   constexpr std::uint64_t sampleRate = 44100;
   constexpr std::uint64_t absoluteMaxDurationMs = 10ull * 60ull * 1000ull;
   constexpr std::uint64_t durationGuardMs = 2000;
@@ -349,21 +349,23 @@ bool decodeMonoS16At44100(const std::vector<Uint8> &bytes,
     std::uint64_t boundedDurationMs = maxDurationMs;
     if (boundedDurationMs == 0 && input.format->duration != AV_NOPTS_VALUE &&
         input.format->duration > 0) {
-      boundedDurationMs = static_cast<std::uint64_t>(input.format->duration) / 1000ull;
-      if (boundedDurationMs <= std::numeric_limits<std::uint64_t>::max() -
-                                   durationGuardMs)
+      boundedDurationMs =
+          static_cast<std::uint64_t>(input.format->duration) / 1000ull;
+      if (boundedDurationMs <=
+          std::numeric_limits<std::uint64_t>::max() - durationGuardMs)
         boundedDurationMs += durationGuardMs;
     }
     if (boundedDurationMs == 0 || boundedDurationMs > absoluteMaxDurationMs)
       boundedDurationMs = absoluteMaxDurationMs;
     const std::uint64_t maxSamples64 =
         (boundedDurationMs * sampleRate + 999ull) / 1000ull;
-    const std::size_t maxSamples = static_cast<std::size_t>(
-        std::min<std::uint64_t>(maxSamples64,
-                                static_cast<std::uint64_t>(
-                                    std::numeric_limits<std::size_t>::max())));
+    const std::size_t maxSamples =
+        static_cast<std::size_t>(std::min<std::uint64_t>(
+            maxSamples64, static_cast<std::uint64_t>(
+                              std::numeric_limits<std::size_t>::max())));
     const std::uint64_t maxPacketReads =
-        std::min<std::uint64_t>(std::numeric_limits<std::uint64_t>::max() - 4096ull,
+        std::min<std::uint64_t>(std::numeric_limits<std::uint64_t>::max() -
+                                    4096ull,
                                 boundedDurationMs * 4ull) +
         4096ull;
 
@@ -400,7 +402,8 @@ bool decodeMonoS16At44100(const std::vector<Uint8> &bytes,
           return true;
         if (received < 0)
           return false;
-        const int capacity = swr_get_out_samples(resampler.get(), frame->nb_samples);
+        const int capacity =
+            swr_get_out_samples(resampler.get(), frame->nb_samples);
         if (capacity < 0)
           return false;
         if (output.size() >= maxSamples) {
@@ -409,22 +412,25 @@ bool decodeMonoS16At44100(const std::vector<Uint8> &bytes,
           return true;
         }
         const std::size_t remaining = maxSamples - output.size();
-        const int boundedCapacity = static_cast<int>(
-            std::min<std::size_t>(static_cast<std::size_t>(capacity), remaining));
+        const int boundedCapacity = static_cast<int>(std::min<std::size_t>(
+            static_cast<std::size_t>(capacity), remaining));
         if (boundedCapacity <= 0) {
           reachedLimit = true;
           av_frame_unref(frame.get());
           return true;
         }
-        std::vector<std::int16_t> converted(static_cast<std::size_t>(boundedCapacity));
+        std::vector<std::int16_t> converted(
+            static_cast<std::size_t>(boundedCapacity));
         auto *data = reinterpret_cast<std::uint8_t *>(converted.data());
-        const int count = swr_convert(
-            resampler.get(), &data, boundedCapacity,
-            const_cast<const std::uint8_t **>(frame->extended_data), frame->nb_samples);
+        const int count =
+            swr_convert(resampler.get(), &data, boundedCapacity,
+                        const_cast<const std::uint8_t **>(frame->extended_data),
+                        frame->nb_samples);
         av_frame_unref(frame.get());
         if (count < 0)
           return false;
-        output.insert(output.end(), converted.begin(), converted.begin() + count);
+        output.insert(output.end(), converted.begin(),
+                      converted.begin() + count);
         if (output.size() >= maxSamples) {
           reachedLimit = true;
           return true;
@@ -466,7 +472,8 @@ bool decodeMonoS16At44100(const std::vector<Uint8> &bytes,
           std::min<std::size_t>(static_cast<std::size_t>(capacity), remaining));
       if (boundedCapacity <= 0)
         break;
-      std::vector<std::int16_t> converted(static_cast<std::size_t>(boundedCapacity));
+      std::vector<std::int16_t> converted(
+          static_cast<std::size_t>(boundedCapacity));
       auto *data = reinterpret_cast<std::uint8_t *>(converted.data());
       const int count =
           swr_convert(resampler.get(), &data, boundedCapacity, nullptr, 0);

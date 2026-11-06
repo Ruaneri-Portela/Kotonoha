@@ -63,17 +63,22 @@ std::filesystem::path androidDirectory(const char *method) {
     throw std::runtime_error("Android storage requires an SDL activity");
 
   jclass type = env->GetObjectClass(activity);
-  jmethodID id = type ? env->GetMethodID(type, method, "()Ljava/lang/String;") : nullptr;
-  auto value = id ? static_cast<jstring>(env->CallObjectMethod(activity, id)) : nullptr;
+  jmethodID id =
+      type ? env->GetMethodID(type, method, "()Ljava/lang/String;") : nullptr;
+  auto value =
+      id ? static_cast<jstring>(env->CallObjectMethod(activity, id)) : nullptr;
   if (env->ExceptionCheck() || !value) {
     if (env->ExceptionCheck()) {
       env->ExceptionDescribe();
       env->ExceptionClear();
     }
-    if (value) env->DeleteLocalRef(value);
-    if (type) env->DeleteLocalRef(type);
+    if (value)
+      env->DeleteLocalRef(value);
+    if (type)
+      env->DeleteLocalRef(type);
     env->DeleteLocalRef(activity);
-    throw std::runtime_error(std::string("Cannot locate Android directory: ") + method);
+    throw std::runtime_error(std::string("Cannot locate Android directory: ") +
+                             method);
   }
 
   const char *text = env->GetStringUTFChars(value, nullptr);
@@ -440,9 +445,9 @@ FileResolver::findGameAsset(const std::string &game,
     return found;
   std::error_code error;
   for (const auto &root : roots(game))
-    for (const auto &candidate : {root / "game-assets" / relative,
-                                  root / "games" / game / "game-assets" / relative,
-                                  root / relative})
+    for (const auto &candidate :
+         {root / "game-assets" / relative,
+          root / "games" / game / "game-assets" / relative, root / relative})
       if (std::filesystem::exists(candidate, error))
         return candidate;
 #ifdef __ANDROID__

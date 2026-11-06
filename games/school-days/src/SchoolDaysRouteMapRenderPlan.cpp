@@ -277,7 +277,8 @@ SchoolDaysRouteMapRenderPlan::Build(const SchoolDaysRouteMapModel &model) {
   // leaves the node as drawn by the base image; a present SP adds band 1.
   // Band 3 is a separate state and must not stand in for an unlock.
   for (int i = 0; i < page->count; ++i) {
-    if (!model.NodeAvailable(i)) continue;
+    if (!model.NodeAvailable(i))
+      continue;
     constexpr NodeBand band = NodeBand::Locked;
     out.push_back(FromRecord(Role::NodeAvailable, i,
                              NodeRecordIndex(major, subpage, i, band),
@@ -288,7 +289,8 @@ SchoolDaysRouteMapRenderPlan::Build(const SchoolDaysRouteMapModel &model) {
   // their objects alive but makes only the hovered episode visible; drawing
   // all six gives every tab a blue border even with the pointer elsewhere.
   for (int record = 0; record <= 10; ++record) {
-    if (record < 6 && model.Selection() != record) continue;
+    if (record < 6 && model.Selection() != record)
+      continue;
     out.push_back(FromRecord(Role::CommonControl, record, record,
                              CommonRecord(record), layout));
   }

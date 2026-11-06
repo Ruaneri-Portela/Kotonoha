@@ -15,7 +15,8 @@ namespace fs = std::filesystem;
 namespace {
 
 void Require(bool value, const std::string &message) {
-  if (!value) throw std::runtime_error(message);
+  if (!value)
+    throw std::runtime_error(message);
 }
 
 void Put(const fs::path &path, const std::string &data) {
@@ -42,12 +43,13 @@ void WriteCmap(const fs::path &path) {
 }
 
 void WritePng(const fs::path &path) {
-  static constexpr std::array<uint8_t, 70> png{{
-      0x89,0x50,0x4e,0x47,0x0d,0x0a,0x1a,0x0a,0x00,0x00,0x00,0x0d,0x49,0x48,
-      0x44,0x52,0x00,0x00,0x00,0x01,0x00,0x00,0x00,0x01,0x08,0x06,0x00,0x00,
-      0x00,0x1f,0x15,0xc4,0x89,0x00,0x00,0x00,0x0d,0x49,0x44,0x41,0x54,0x78,
-      0x9c,0x63,0x60,0x60,0x60,0x60,0x00,0x00,0x00,0x05,0x00,0x01,0xa5,0xf6,
-      0x45,0x40,0x00,0x00,0x00,0x00,0x49,0x45,0x4e,0x44,0xae,0x42,0x60,0x82}};
+  static constexpr std::array<uint8_t, 70> png{
+      {0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d,
+       0x49, 0x48, 0x44, 0x52, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
+       0x08, 0x06, 0x00, 0x00, 0x00, 0x1f, 0x15, 0xc4, 0x89, 0x00, 0x00, 0x00,
+       0x0d, 0x49, 0x44, 0x41, 0x54, 0x78, 0x9c, 0x63, 0x60, 0x60, 0x60, 0x60,
+       0x00, 0x00, 0x00, 0x05, 0x00, 0x01, 0xa5, 0xf6, 0x45, 0x40, 0x00, 0x00,
+       0x00, 0x00, 0x49, 0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82}};
   PutBytes(path, std::vector<uint8_t>(png.begin(), png.end()));
 }
 
@@ -97,9 +99,9 @@ void WriteSystemUiAssets(const fs::path &root) {
 }
 
 struct TemporaryDirectory {
-  fs::path path = fs::temp_directory_path() /
-                  ("school-days-handoff-" +
-                   std::to_string(SDL_GetPerformanceCounter()));
+  fs::path path =
+      fs::temp_directory_path() /
+      ("school-days-handoff-" + std::to_string(SDL_GetPerformanceCounter()));
   TemporaryDirectory() {
     Require(fs::create_directory(path), "Cannot create temporary directory");
   }
@@ -109,7 +111,8 @@ struct TemporaryDirectory {
   }
 };
 
-Kotonoha::EngineOptions Options(const std::shared_ptr<SchoolDays::Assets> &assets) {
+Kotonoha::EngineOptions
+Options(const std::shared_ptr<SchoolDays::Assets> &assets) {
   Kotonoha::EngineOptions options;
   options.assets = assets;
   options.persistSettings = false;
@@ -166,36 +169,41 @@ public:
     const auto *adapter = runtime.bridge.Session().Adapter();
     uint32_t count = 0;
     Kotonoha_KtrfError error{};
-    Require(Kotonoha_KtrfRouterCurrentChoiceCount(&adapter->router, &count, &error),
-            error.message);
+    Require(
+        Kotonoha_KtrfRouterCurrentChoiceCount(&adapter->router, &count, &error),
+        error.message);
     if (count != 0u) {
       uint32_t choiceIndex = KOTONOHA_KTRF_NULL_INDEX;
-      Require(count == 1u &&
-                  Kotonoha_KtrfRouterCurrentChoiceAt(&adapter->router, 0u,
-                                                     &choiceIndex, &error),
+      Require(count == 1u && Kotonoha_KtrfRouterCurrentChoiceAt(
+                                 &adapter->router, 0u, &choiceIndex, &error),
               "deterministic terminal path choice lookup failed");
       Kotonoha_KtrfChoice choice{};
       Kotonoha_KtrfChoiceOption option{};
-      Require(Kotonoha_KtrfGetChoice(adapter->document, choiceIndex, &choice, &error) &&
+      Require(Kotonoha_KtrfGetChoice(adapter->document, choiceIndex, &choice,
+                                     &error) &&
                   choice.option_count > 0u &&
-                  Kotonoha_KtrfGetChoiceOption(adapter->document, choiceIndex, 0u,
-                                               &option, &error) &&
+                  Kotonoha_KtrfGetChoiceOption(adapter->document, choiceIndex,
+                                               0u, &option, &error) &&
                   option.value.kind == KOTONOHA_KTRF_SCALAR_INT64,
               "deterministic terminal path first choice is unavailable");
       int accepted = 0;
-      Require(runtime.bridge.CommitChoice(option.value.as.int64_value, &accepted, &error) &&
+      Require(runtime.bridge.CommitChoice(option.value.as.int64_value,
+                                          &accepted, &error) &&
                   accepted != 0,
               "deterministic terminal path choice commit failed");
     }
     Kotonoha::SchoolDaysKtrfGameplayBridge::StepResult result;
-    Require(runtime.bridge.Advance("ktrf:next", &result, &error), error.message);
+    Require(runtime.bridge.Advance("ktrf:next", &result, &error),
+            error.message);
     using Kind = Kotonoha::SchoolDaysKtrfGameplayBridge::StepKind;
     if (result.kind == Kind::SwappedScene) {
       runtime.openScene(result.scene);
-    } else if (result.kind == Kind::PendingHandoff || result.kind == Kind::Terminal) {
+    } else if (result.kind == Kind::PendingHandoff ||
+               result.kind == Kind::Terminal) {
       runtime.armHandoff();
     } else {
-      Require(false, "deterministic terminal path returned unexpected bridge result");
+      Require(false,
+              "deterministic terminal path returned unexpected bridge result");
     }
   }
 
@@ -215,12 +223,14 @@ public:
     return runtime.handoffUiState == Runtime::HandoffUiState::Idle;
   }
 
-  static bool Pending(const Runtime &runtime) { return runtime.bridge.HasPendingHandoff(); }
+  static bool Pending(const Runtime &runtime) {
+    return runtime.bridge.HasPendingHandoff();
+  }
   static bool PendingTerminal(const Runtime &runtime) {
     return runtime.bridge.PendingHandoffIsTerminal();
   }
-  static Kotonoha::SchoolDaysDisplayPolicy::Variant UiVariant(
-      const Runtime &runtime) {
+  static Kotonoha::SchoolDaysDisplayPolicy::Variant
+  UiVariant(const Runtime &runtime) {
     return runtime.uiVariant;
   }
   static bool HasGameplay(const Runtime &runtime) {
@@ -233,10 +243,12 @@ public:
 
   static void SetFeelings(Runtime &runtime, int64_t one, int64_t two) {
     Kotonoha_KtrfError error{};
-    Require(runtime.bridge.Session().State().WriteSessionInt("001", one, &error),
-            error.message);
-    Require(runtime.bridge.Session().State().WriteSessionInt("002", two, &error),
-            error.message);
+    Require(
+        runtime.bridge.Session().State().WriteSessionInt("001", one, &error),
+        error.message);
+    Require(
+        runtime.bridge.Session().State().WriteSessionInt("002", two, &error),
+        error.message);
   }
 
   static void OpenDeferred(Runtime &runtime) { runtime.updateHandoffUi(); }
@@ -253,10 +265,12 @@ public:
     int64_t one = 0;
     int64_t two = 0;
     Kotonoha_KtrfError error{};
-    Require(runtime.bridge.Session().State().ReadSessionInt("001", &one, &error),
-            error.message);
-    Require(runtime.bridge.Session().State().ReadSessionInt("002", &two, &error),
-            error.message);
+    Require(
+        runtime.bridge.Session().State().ReadSessionInt("001", &one, &error),
+        error.message);
+    Require(
+        runtime.bridge.Session().State().ReadSessionInt("002", &two, &error),
+        error.message);
     Kotonoha::SchoolDaysSystemUi::Output output;
     runtime.systemUi.Update(now, one, two, &output);
     runtime.handlePanel(output);
@@ -336,13 +350,13 @@ public:
     runtime.updateFrontendTransition(now);
   }
 
-  static Kotonoha::SchoolDaysFrontendTransition::Phase FrontendPhase(
-      Runtime &runtime, uint64_t now) {
+  static Kotonoha::SchoolDaysFrontendTransition::Phase
+  FrontendPhase(Runtime &runtime, uint64_t now) {
     return runtime.frontendTransition.CurrentPhase(now);
   }
 
-  static Kotonoha::SchoolDaysFrontendTransition::Color FrontendColor(
-      const Runtime &runtime) {
+  static Kotonoha::SchoolDaysFrontendTransition::Color
+  FrontendColor(const Runtime &runtime) {
     return runtime.frontendTransition.CurrentColor();
   }
 
@@ -407,7 +421,8 @@ void TestSaveFeelAndSaveLoad(const char *route, const fs::path &root) {
               app.runtime.panels().SaveLoad().CurrentMode() ==
                   Kotonoha::SchoolDaysSaveLoadModel::Mode::Save &&
               SchoolDays::RuntimeHandoffTestAccess::Pending(app.runtime),
-          "OpenSave did not enter retail SaveLoad SAVE while bridge stayed pending");
+          "OpenSave did not enter retail SaveLoad SAVE while bridge stayed "
+          "pending");
 
   auto motion = MotionEvent();
   auto click = ClickEvent();
@@ -427,7 +442,8 @@ void TestSaveFeelAndSaveLoad(const char *route, const fs::path &root) {
           "outer Escape closed/stranded handoff SaveLoad");
 
   SchoolDays::RuntimeHandoffTestAccess::SubmitSaveLoad(
-      app.runtime, Kotonoha::SchoolDaysSaveLoadModel::Action::SaveSlotRequested, 0);
+      app.runtime, Kotonoha::SchoolDaysSaveLoadModel::Action::SaveSlotRequested,
+      0);
   Require(app.runtime.panels().IsSaveLoadOpen() &&
               SchoolDays::RuntimeHandoffTestAccess::SaveLoad(app.runtime) &&
               SchoolDays::RuntimeHandoffTestAccess::Pending(app.runtime),
@@ -437,11 +453,12 @@ void TestSaveFeelAndSaveLoad(const char *route, const fs::path &root) {
 
   SchoolDays::RuntimeHandoffTestAccess::SubmitSaveLoad(
       app.runtime, Kotonoha::SchoolDaysSaveLoadModel::Action::Close);
-  Require(!SchoolDays::RuntimeHandoffTestAccess::Pending(app.runtime) &&
-              SchoolDays::RuntimeHandoffTestAccess::Idle(app.runtime) &&
-              !app.runtime.anyPanelOpen() &&
-              app.runtime.debugNode() == "01/01-00-A00",
-          "explicit handoff SaveLoad Close did not continue exactly to Episode 2");
+  Require(
+      !SchoolDays::RuntimeHandoffTestAccess::Pending(app.runtime) &&
+          SchoolDays::RuntimeHandoffTestAccess::Idle(app.runtime) &&
+          !app.runtime.anyPanelOpen() &&
+          app.runtime.debugNode() == "01/01-00-A00",
+      "explicit handoff SaveLoad Close did not continue exactly to Episode 2");
   SchoolDays::RuntimeHandoffTestAccess::ContinueAgain(app.runtime);
   Require(app.runtime.debugNode() == "01/01-00-A00",
           "duplicate ContinueHandoff changed scene after completion");
@@ -476,7 +493,8 @@ void TestMainMenuConfirmNarrative(const char *route, const fs::path &root) {
   auto assets = std::make_shared<SchoolDays::Assets>(root);
   Application app(assets, route, documents);
   app.runtime.debugJumpToNode("00/00-00-A00");
-  auto *owner = SchoolDays::RuntimeHandoffTestAccess::GameplayOwner(app.runtime);
+  auto *owner =
+      SchoolDays::RuntimeHandoffTestAccess::GameplayOwner(app.runtime);
   const std::string node = app.runtime.debugNode();
   Require(owner != nullptr, "narrative MainMenu fixture has no Gameplay owner");
 
@@ -484,32 +502,41 @@ void TestMainMenuConfirmNarrative(const char *route, const fs::path &root) {
   using Outcome = Kotonoha::SchoolDaysExitViewModel::Outcome;
   SchoolDays::RuntimeHandoffTestAccess::ApplyMenu(
       app.runtime, MenuKind::OpenMainMenuConfirm);
-  SchoolDays::RuntimeHandoffTestAccess::TickExit(app.runtime, SDL_GetTicks() + 500u);
+  SchoolDays::RuntimeHandoffTestAccess::TickExit(app.runtime,
+                                                 SDL_GetTicks() + 500u);
   Require(app.runtime.panels().IsExitOpen() &&
-              SchoolDays::RuntimeHandoffTestAccess::GameplayOwner(app.runtime) == owner &&
+              SchoolDays::RuntimeHandoffTestAccess::GameplayOwner(
+                  app.runtime) == owner &&
               app.runtime.debugNode() == node &&
               app.runtime.GetState() == Kotonoha::GameState::Gameplay,
           "MainMenu confirmation destroyed narrative owner before a result");
-  SchoolDays::RuntimeHandoffTestAccess::SubmitExit(
-      app.runtime, Outcome::ReturnToTitle);
+  SchoolDays::RuntimeHandoffTestAccess::SubmitExit(app.runtime,
+                                                   Outcome::ReturnToTitle);
   Require(!app.runtime.anyPanelOpen() &&
-              SchoolDays::RuntimeHandoffTestAccess::GameplayOwner(app.runtime) == owner &&
+              SchoolDays::RuntimeHandoffTestAccess::GameplayOwner(
+                  app.runtime) == owner &&
               app.runtime.debugNode() == node &&
               app.runtime.GetState() == Kotonoha::GameState::Gameplay,
           "MainMenu NO did not resume the same narrative owner");
-  SchoolDays::RuntimeHandoffTestAccess::TickExit(app.runtime, SDL_GetTicks() + 500u);
+  SchoolDays::RuntimeHandoffTestAccess::TickExit(app.runtime,
+                                                 SDL_GetTicks() + 500u);
 
   SchoolDays::RuntimeHandoffTestAccess::ApplyMenu(
       app.runtime, MenuKind::OpenMainMenuConfirm);
-  SchoolDays::RuntimeHandoffTestAccess::TickExit(app.runtime, SDL_GetTicks() + 500u);
-  SchoolDays::RuntimeHandoffTestAccess::SubmitExit(
-      app.runtime, Outcome::ConfirmExit);
-  Require(SchoolDays::RuntimeHandoffTestAccess::GameplayOwner(app.runtime) == owner,
+  SchoolDays::RuntimeHandoffTestAccess::TickExit(app.runtime,
+                                                 SDL_GetTicks() + 500u);
+  SchoolDays::RuntimeHandoffTestAccess::SubmitExit(app.runtime,
+                                                   Outcome::ConfirmExit);
+  Require(SchoolDays::RuntimeHandoffTestAccess::GameplayOwner(app.runtime) ==
+              owner,
           "MainMenu YES released narrative Gameplay before fade completed");
-  SchoolDays::RuntimeHandoffTestAccess::TickExit(app.runtime, SDL_GetTicks() + 500u);
-  Require(SchoolDays::RuntimeHandoffTestAccess::GameplayOwner(app.runtime) == nullptr &&
-              app.runtime.GetState() == Kotonoha::GameState::Menu,
-          "MainMenu YES did not release narrative Gameplay and return to Title");
+  SchoolDays::RuntimeHandoffTestAccess::TickExit(app.runtime,
+                                                 SDL_GetTicks() + 500u);
+  Require(
+      SchoolDays::RuntimeHandoffTestAccess::GameplayOwner(app.runtime) ==
+              nullptr &&
+          app.runtime.GetState() == Kotonoha::GameState::Menu,
+      "MainMenu YES did not release narrative Gameplay and return to Title");
 }
 
 void TestMainMenuConfirmTemporary(const char *route, const fs::path &root) {
@@ -518,7 +545,8 @@ void TestMainMenuConfirmTemporary(const char *route, const fs::path &root) {
   auto assets = std::make_shared<SchoolDays::Assets>(root);
   Application app(assets, route, documents);
   app.runtime.debugJumpToNode("00/00-00-A00");
-  auto *liveOwner = SchoolDays::RuntimeHandoffTestAccess::GameplayOwner(app.runtime);
+  auto *liveOwner =
+      SchoolDays::RuntimeHandoffTestAccess::GameplayOwner(app.runtime);
   SchoolDays::RuntimeHandoffTestAccess::StartReplay(app.runtime, 1);
   Require(SchoolDays::RuntimeHandoffTestAccess::Temporary(app.runtime),
           "temporary Replay fixture did not start");
@@ -528,29 +556,35 @@ void TestMainMenuConfirmTemporary(const char *route, const fs::path &root) {
   using Outcome = Kotonoha::SchoolDaysExitViewModel::Outcome;
   SchoolDays::RuntimeHandoffTestAccess::ApplyMenu(
       app.runtime, MenuKind::OpenMainMenuConfirm);
-  SchoolDays::RuntimeHandoffTestAccess::TickExit(app.runtime, SDL_GetTicks() + 500u);
+  SchoolDays::RuntimeHandoffTestAccess::TickExit(app.runtime,
+                                                 SDL_GetTicks() + 500u);
   Require(app.runtime.panels().IsExitOpen() &&
               SchoolDays::RuntimeHandoffTestAccess::Temporary(app.runtime) &&
               app.runtime.debugNode() == replayNode,
           "MainMenu confirmation ended temporary playback before a result");
-  SchoolDays::RuntimeHandoffTestAccess::SubmitExit(
-      app.runtime, Outcome::ReturnToTitle);
+  SchoolDays::RuntimeHandoffTestAccess::SubmitExit(app.runtime,
+                                                   Outcome::ReturnToTitle);
   Require(!app.runtime.anyPanelOpen() &&
               SchoolDays::RuntimeHandoffTestAccess::Temporary(app.runtime) &&
               app.runtime.debugNode() == replayNode,
           "MainMenu NO did not resume the same temporary playback owner");
-  SchoolDays::RuntimeHandoffTestAccess::TickExit(app.runtime, SDL_GetTicks() + 500u);
+  SchoolDays::RuntimeHandoffTestAccess::TickExit(app.runtime,
+                                                 SDL_GetTicks() + 500u);
 
   SchoolDays::RuntimeHandoffTestAccess::ApplyMenu(
       app.runtime, MenuKind::OpenMainMenuConfirm);
-  SchoolDays::RuntimeHandoffTestAccess::TickExit(app.runtime, SDL_GetTicks() + 500u);
-  SchoolDays::RuntimeHandoffTestAccess::SubmitExit(
-      app.runtime, Outcome::ConfirmExit);
-  SchoolDays::RuntimeHandoffTestAccess::TickExit(app.runtime, SDL_GetTicks() + 500u);
-  Require(!SchoolDays::RuntimeHandoffTestAccess::Temporary(app.runtime) &&
-              app.runtime.GetState() == Kotonoha::GameState::Menu &&
-              SchoolDays::RuntimeHandoffTestAccess::GameplayOwner(app.runtime) == liveOwner,
-          "MainMenu YES did not end only temporary playback and return to Title");
+  SchoolDays::RuntimeHandoffTestAccess::TickExit(app.runtime,
+                                                 SDL_GetTicks() + 500u);
+  SchoolDays::RuntimeHandoffTestAccess::SubmitExit(app.runtime,
+                                                   Outcome::ConfirmExit);
+  SchoolDays::RuntimeHandoffTestAccess::TickExit(app.runtime,
+                                                 SDL_GetTicks() + 500u);
+  Require(
+      !SchoolDays::RuntimeHandoffTestAccess::Temporary(app.runtime) &&
+          app.runtime.GetState() == Kotonoha::GameState::Menu &&
+          SchoolDays::RuntimeHandoffTestAccess::GameplayOwner(app.runtime) ==
+              liveOwner,
+      "MainMenu YES did not end only temporary playback and return to Title");
 }
 
 void TestMissingExitPopupDoesNotQuit(const char *route, const fs::path &root) {
@@ -563,11 +597,14 @@ void TestMissingExitPopupDoesNotQuit(const char *route, const fs::path &root) {
   app.runtime.debugJumpToNode("00/00-00-A00");
   SDL_FlushEvent(SDL_EVENT_QUIT);
   app.runtime.openPanel(16);
-  SchoolDays::RuntimeHandoffTestAccess::TickExit(app.runtime, SDL_GetTicks() + 500u);
-  Require(!app.runtime.panels().IsExitOpen() &&
-              SchoolDays::RuntimeHandoffTestAccess::ExitFailureReported(app.runtime) &&
-              !SDL_HasEvent(SDL_EVENT_QUIT),
-          "missing EXIT popup bypassed confirmation and queued process shutdown");
+  SchoolDays::RuntimeHandoffTestAccess::TickExit(app.runtime,
+                                                 SDL_GetTicks() + 500u);
+  Require(
+      !app.runtime.panels().IsExitOpen() &&
+          SchoolDays::RuntimeHandoffTestAccess::ExitFailureReported(
+              app.runtime) &&
+          !SDL_HasEvent(SDL_EVENT_QUIT),
+      "missing EXIT popup bypassed confirmation and queued process shutdown");
 }
 
 void TestFrontendTransitions(const char *route, const fs::path &root) {
@@ -583,12 +620,12 @@ void TestFrontendTransitions(const char *route, const fs::path &root) {
 
   SchoolDays::RuntimeHandoffTestAccess::OpenFirstVisibleTitle(app.runtime);
   const uint64_t firstTitleNow = SDL_GetTicks();
-  Require(SchoolDays::RuntimeHandoffTestAccess::FrontendPhase(app.runtime,
-                                                              firstTitleNow) ==
-              Transition::Phase::Incoming &&
-              SchoolDays::RuntimeHandoffTestAccess::FrontendColor(app.runtime) ==
-                  Transition::Color::Black,
-          "first Title presentation did not start the authenticated black incoming fade");
+  Require(SchoolDays::RuntimeHandoffTestAccess::FrontendPhase(
+              app.runtime, firstTitleNow) == Transition::Phase::Incoming &&
+              SchoolDays::RuntimeHandoffTestAccess::FrontendColor(
+                  app.runtime) == Transition::Color::Black,
+          "first Title presentation did not start the authenticated black "
+          "incoming fade");
   SchoolDays::RuntimeHandoffTestAccess::TickFrontend(app.runtime,
                                                      firstTitleNow + 1000u);
 
@@ -597,21 +634,24 @@ void TestFrontendTransitions(const char *route, const fs::path &root) {
   SchoolDays::RuntimeHandoffTestAccess::BeginTitleLoad(app.runtime, loadStart);
   Require(app.runtime.GetState() == Kotonoha::GameState::Menu &&
               !app.runtime.panels().IsSaveLoadOpen() &&
-              SchoolDays::RuntimeHandoffTestAccess::FrontendPhase(app.runtime,
-                                                                  loadStart) ==
-                  Transition::Phase::Outgoing,
+              SchoolDays::RuntimeHandoffTestAccess::FrontendPhase(
+                  app.runtime, loadStart) == Transition::Phase::Outgoing,
           "Title->Load changed ownership before the white outgoing fade");
-  SchoolDays::RuntimeHandoffTestAccess::TickFrontend(app.runtime, loadStart + 499u);
+  SchoolDays::RuntimeHandoffTestAccess::TickFrontend(app.runtime,
+                                                     loadStart + 499u);
   Require(!app.runtime.panels().IsSaveLoadOpen(),
           "Title->Load opened child before 500ms opacity boundary");
-  SchoolDays::RuntimeHandoffTestAccess::TickFrontend(app.runtime, loadStart + 500u);
-  Require(app.runtime.panels().IsSaveLoadOpen() &&
-              SchoolDays::RuntimeHandoffTestAccess::FrontendChildLoad(app.runtime) &&
-              SchoolDays::RuntimeHandoffTestAccess::FrontendHandoffIdle(app.runtime) &&
-              SchoolDays::RuntimeHandoffTestAccess::FrontendPhase(app.runtime,
-                                                                  loadStart + 500u) ==
-                  Transition::Phase::Incoming,
-          "Title->Load did not hand off exactly at 500ms and begin incoming fade");
+  SchoolDays::RuntimeHandoffTestAccess::TickFrontend(app.runtime,
+                                                     loadStart + 500u);
+  Require(
+      app.runtime.panels().IsSaveLoadOpen() &&
+          SchoolDays::RuntimeHandoffTestAccess::FrontendChildLoad(
+              app.runtime) &&
+          SchoolDays::RuntimeHandoffTestAccess::FrontendHandoffIdle(
+              app.runtime) &&
+          SchoolDays::RuntimeHandoffTestAccess::FrontendPhase(
+              app.runtime, loadStart + 500u) == Transition::Phase::Incoming,
+      "Title->Load did not hand off exactly at 500ms and begin incoming fade");
 
   // Runtime input uses the real SDL clock. The synthetic incoming phase starts
   // in the future relative to it, so clock-regression clamping keeps the fade
@@ -619,54 +659,58 @@ void TestFrontendTransitions(const char *route, const fs::path &root) {
   auto escape = EscapeEvent();
   app.runtime.onEvent(escape);
   Require(app.runtime.panels().IsSaveLoadOpen() &&
-              SchoolDays::RuntimeHandoffTestAccess::FrontendHandoffIdle(app.runtime),
+              SchoolDays::RuntimeHandoffTestAccess::FrontendHandoffIdle(
+                  app.runtime),
           "keyboard shortcut bypassed active frontend incoming fade");
-  SchoolDays::RuntimeHandoffTestAccess::TickFrontend(app.runtime, loadStart + 1000u);
-  Require(SchoolDays::RuntimeHandoffTestAccess::FrontendPhase(app.runtime,
-                                                              loadStart + 1000u) ==
-              Transition::Phase::Idle,
+  SchoolDays::RuntimeHandoffTestAccess::TickFrontend(app.runtime,
+                                                     loadStart + 1000u);
+  Require(SchoolDays::RuntimeHandoffTestAccess::FrontendPhase(
+              app.runtime, loadStart + 1000u) == Transition::Phase::Idle,
           "Title->Load incoming fade did not finish at 500ms");
 
   const uint64_t backStart = loadStart + 1100u;
-  SchoolDays::RuntimeHandoffTestAccess::BeginChildReturn(app.runtime, backStart);
-  SchoolDays::RuntimeHandoffTestAccess::TickFrontend(app.runtime, backStart + 499u);
+  SchoolDays::RuntimeHandoffTestAccess::BeginChildReturn(app.runtime,
+                                                         backStart);
+  SchoolDays::RuntimeHandoffTestAccess::TickFrontend(app.runtime,
+                                                     backStart + 499u);
   Require(app.runtime.panels().IsSaveLoadOpen(),
           "Load->Title released child before outgoing fade reached opacity");
-  SchoolDays::RuntimeHandoffTestAccess::TickFrontend(app.runtime, backStart + 500u);
+  SchoolDays::RuntimeHandoffTestAccess::TickFrontend(app.runtime,
+                                                     backStart + 500u);
   Require(!app.runtime.panels().IsSaveLoadOpen() &&
               app.runtime.GetState() == Kotonoha::GameState::Menu &&
-              SchoolDays::RuntimeHandoffTestAccess::FrontendPhase(app.runtime,
-                                                                  backStart + 500u) ==
-                  Transition::Phase::Incoming,
+              SchoolDays::RuntimeHandoffTestAccess::FrontendPhase(
+                  app.runtime, backStart + 500u) == Transition::Phase::Incoming,
           "Load->Title did not swap to Title at the 500ms opacity boundary");
-  SchoolDays::RuntimeHandoffTestAccess::TickFrontend(app.runtime, backStart + 1000u);
-  Require(SchoolDays::RuntimeHandoffTestAccess::FrontendPhase(app.runtime,
-                                                              backStart + 1000u) ==
-              Transition::Phase::Idle,
+  SchoolDays::RuntimeHandoffTestAccess::TickFrontend(app.runtime,
+                                                     backStart + 1000u);
+  Require(SchoolDays::RuntimeHandoffTestAccess::FrontendPhase(
+              app.runtime, backStart + 1000u) == Transition::Phase::Idle,
           "Load->Title incoming fade did not finish at 500ms");
 
   SchoolDays::RuntimeHandoffTestAccess::PrepareTitle(app.runtime);
   const uint64_t startAt = backStart + 2000u;
   SchoolDays::RuntimeHandoffTestAccess::BeginTitleStart(app.runtime, startAt);
-  SchoolDays::RuntimeHandoffTestAccess::TickFrontend(app.runtime, startAt + 999u);
+  SchoolDays::RuntimeHandoffTestAccess::TickFrontend(app.runtime,
+                                                     startAt + 999u);
   Require(app.runtime.GetState() == Kotonoha::GameState::Menu,
           "Title->Start entered Gameplay before 1000ms black opacity boundary");
-  SchoolDays::RuntimeHandoffTestAccess::TickFrontend(app.runtime, startAt + 1000u);
+  SchoolDays::RuntimeHandoffTestAccess::TickFrontend(app.runtime,
+                                                     startAt + 1000u);
   Require(app.runtime.GetState() == Kotonoha::GameState::Gameplay &&
-              SchoolDays::RuntimeHandoffTestAccess::FrontendPhase(app.runtime,
-                                                                  startAt + 1000u) ==
-                  Transition::Phase::Idle,
+              SchoolDays::RuntimeHandoffTestAccess::FrontendPhase(
+                  app.runtime, startAt + 1000u) == Transition::Phase::Idle,
           "Title->Start did not hand off at 1000ms with no incoming phase");
 
   SchoolDays::RuntimeHandoffTestAccess::PrepareTitle(app.runtime);
   app.runtime.openPanel(16);
   Require(!app.runtime.panels().IsExitOpen(),
           "Title Exit opened before the SYSBASE wipe completed");
-  SchoolDays::RuntimeHandoffTestAccess::TickExit(app.runtime, SDL_GetTicks() + 500u);
+  SchoolDays::RuntimeHandoffTestAccess::TickExit(app.runtime,
+                                                 SDL_GetTicks() + 500u);
   Require(app.runtime.panels().IsExitOpen() &&
-              SchoolDays::RuntimeHandoffTestAccess::FrontendPhase(app.runtime,
-                                                                  SDL_GetTicks()) ==
-                  Transition::Phase::Idle,
+              SchoolDays::RuntimeHandoffTestAccess::FrontendPhase(
+                  app.runtime, SDL_GetTicks()) == Transition::Phase::Idle,
           "Title Exit did not open after its game-owned SYSBASE wipe");
 }
 
@@ -683,10 +727,11 @@ void TestTimeoutSkip(const char *route, const fs::path &root) {
   SchoolDays::RuntimeHandoffTestAccess::TickSaveFeel(app.runtime, 1000u);
   SchoolDays::RuntimeHandoffTestAccess::TickSaveFeel(app.runtime, 31000u);
   SchoolDays::RuntimeHandoffTestAccess::TickSaveFeel(app.runtime, 31000u);
-  Require(!SchoolDays::RuntimeHandoffTestAccess::Pending(app.runtime) &&
-              SchoolDays::RuntimeHandoffTestAccess::Idle(app.runtime) &&
-              app.runtime.debugNode() == "01/01-00-A00",
-          "SaveFeel timeout did not take the authenticated Skip continuation once");
+  Require(
+      !SchoolDays::RuntimeHandoffTestAccess::Pending(app.runtime) &&
+          SchoolDays::RuntimeHandoffTestAccess::Idle(app.runtime) &&
+          app.runtime.debugNode() == "01/01-00-A00",
+      "SaveFeel timeout did not take the authenticated Skip continuation once");
 }
 
 void TestExplicitSkip(const char *route, const fs::path &root) {
@@ -721,7 +766,8 @@ void TestTerminalRelease(const char *route, const fs::path &root) {
   // depending on state warmed by other bridge-test scenarios.
   for (int step = 0; step < 256 && !foundTerminal; ++step) {
     SchoolDays::RuntimeHandoffTestAccess::AdvanceDeterministic(app.runtime);
-    if (!SchoolDays::RuntimeHandoffTestAccess::Pending(app.runtime)) continue;
+    if (!SchoolDays::RuntimeHandoffTestAccess::Pending(app.runtime))
+      continue;
     if (SchoolDays::RuntimeHandoffTestAccess::PendingTerminal(app.runtime)) {
       foundTerminal = true;
       break;
