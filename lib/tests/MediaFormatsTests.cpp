@@ -6,6 +6,7 @@
 #include <Kotonoha/media/MediaPlayer.hpp>
 #include <Kotonoha/media/upscaling/Upscaler.hpp>
 
+#include <algorithm>
 #include <cmath>
 #include <cstring>
 #include <filesystem>
