@@ -31,6 +31,7 @@ public:
   void initGameplay(Kotonoha::Engine &engine) override;
 
   SDL_Point viewport() const override { return {kViewWidth, kViewHeight}; }
+  bool continuousTouch() const override { return true; }
   SDL_FPoint sceneSize(const Kotonoha::Scene &scene) const override;
   void render(Kotonoha::RendererRef renderer, float scale) override;
   void update() override;

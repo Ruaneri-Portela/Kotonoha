@@ -2,6 +2,7 @@
 
 #include "DdlcAssets.hpp"
 
+#include <Kotonoha/componentes/VNBacklog.hpp>
 #include <Kotonoha/core/Runtime.hpp>
 
 #include <memory>
@@ -30,6 +31,7 @@ public:
   int translationRoute() const override;
   void render(Kotonoha::RendererRef renderer, float scale) override;
   SDL_Point viewport() const override { return {1280, 720}; }
+  bool continuousTouch() const override { return true; }
   Kotonoha::Translation::SourceTexts translationSources() const override;
   std::string debugNode() const override;
   std::string nodeClockKey() const override;
@@ -42,6 +44,7 @@ private:
   Kotonoha::Engine *engine_ = nullptr;
   std::unique_ptr<GameSession> session_;
   std::unique_ptr<Kotonoha::Scene> stage_, menu_, dialogue_, choices_, pause_;
+  std::unique_ptr<Kotonoha::VNBacklog> backlog_;
 };
 
 } // namespace Ddlc

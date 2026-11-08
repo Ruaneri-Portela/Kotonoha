@@ -822,8 +822,8 @@ void controls(Engine &engine, TestRuntime &runtime) {
   menu.open();
   press(SDLK_TAB); // Audio.
   press(SDLK_LEFT);
-  require(engine.GetAudio().getMasterVolume() == 0.35f,
-          "Volume draft does not apply early");
+  require(engine.GetAudio().getMasterVolume() == 0.30f,
+          "Volume changes apply immediately");
   press(SDLK_ESCAPE);
   menu.open();
   press(SDLK_TAB);
@@ -832,9 +832,9 @@ void controls(Engine &engine, TestRuntime &runtime) {
   press(SDLK_RETURN);
   press(SDLK_END);
   press(SDLK_RETURN);
-  require(!menu.isOpen() && engine.GetAudio().getMasterVolume() == 0.30f &&
+  require(!menu.isOpen() && engine.GetAudio().getMasterVolume() == 0.25f &&
               engine.GetAudio().isMasterMuted(),
-          "Generic menu applies volume and master mute");
+          "Audio menu applies volume and mute live and closes");
   engine.applySettings(settings, false);
   menu.open();
   for (int i = 0; i < 6; ++i)

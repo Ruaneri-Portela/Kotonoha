@@ -51,8 +51,8 @@ void SettingsMenu::open() {
   slider = -1;
   scrolling.reset();
   channels.clear();
-  for (const char *name : {"audio", "video", "BGM", "Voice", "SE", "PCM"})
-    engine.GetAudio().channel(name);
+  // Lista apenas os canais de áudio reais; não cria canais novos apenas para
+  // exibição no mixer.
   for (const auto &channel : engine.GetAudio().getChannels()) {
     channels.push_back(channel->getName());
     draft.channelVolumes.try_emplace(channel->getName(),
@@ -64,6 +64,36 @@ void SettingsMenu::open() {
   fonts = VNFontOptions();
   error.clear();
   visible = true;
+}
+
+void SettingsMenu::applyAudioDraft() {
+  auto next = engine.GetSettings();
+  next.masterVolume = draft.masterVolume;
+  next.masterMuted = draft.masterMuted;
+  next.channelVolumes = draft.channelVolumes;
+  try {
+    // Audio is applied live: no apply/save step is required for the mixer.
+    engine.applySettings(next, false);
+  } catch (const std::exception &failure) {
+    error = failure.what();
+    SDL_LogError(LogConfig, "Settings audio: %s", error.c_str());
+  }
+}
+
+void SettingsMenu::persistAudio() {
+  try {
+    engine.saveSettings();
+  } catch (const std::exception &failure) {
+    error = failure.what();
+    SDL_LogError(LogConfig, "Settings save: %s", error.c_str());
+  }
+}
+
+void SettingsMenu::close() {
+  persistAudio();
+  visible = false;
+  selectBox.close();
+  slider = -1;
 }
 
 void SettingsMenu::activate(int index, int direction) {
@@ -166,15 +196,19 @@ void SettingsMenu::activate(int index, int direction) {
     draft.upscaling.factor =
         draft.upscaling.factor >= 4 ? 1 : draft.upscaling.factor + 0.5f;
   else if (index == 8) {
-    engine.applySettings(draft);
+    // On the Audio page everything is already live; just close the menu.
+    if (page != 1)
+      engine.applySettings(draft);
     close();
-  } else if (index == 11)
+  } else if (index == 11) {
     draft.masterVolume = std::clamp(
         std::round((draft.masterVolume + direction * 0.05f) * 100) / 100, 0.0f,
         1.0f);
-  else if (index == 12)
+    applyAudioDraft();
+  } else if (index == 12) {
     draft.masterMuted = !draft.masterMuted;
-  else if (index == 10)
+    applyAudioDraft();
+  } else if (index == 10)
     shaderPicker->browse(&engine.GetWindow());
   else if (index == 13) {
     auto labels = fonts;
@@ -200,6 +234,7 @@ void SettingsMenu::activate(int index, int direction) {
   else if (index >= 100) {
     auto &volume = draft.channelVolumes[channels.at(index - 100)];
     volume = std::clamp(volume + direction * .05f, 0.f, 1.f);
+    applyAudioDraft();
   } else
     close();
 }
@@ -243,6 +278,7 @@ bool SettingsMenu::onEvent(EventRef rawEvent) {
       draft.masterVolume = value;
     else
       draft.channelVolumes[channels.at(id - 100)] = value;
+    applyAudioDraft();
   };
   if (slider >= 0) {
     if (event.type == SDL_EVENT_MOUSE_MOTION) {
@@ -252,6 +288,7 @@ bool SettingsMenu::onEvent(EventRef rawEvent) {
     if (event.type == SDL_EVENT_MOUSE_BUTTON_UP ||
         event.type == SDL_EVENT_WINDOW_FOCUS_LOST) {
       slider = -1;
+      persistAudio();
       return false;
     }
   }
@@ -403,6 +440,9 @@ void SettingsMenu::render(RendererRef renderer) {
   ui.backdrop(renderer, {0, 0, 0, 220});
   ui.panel(renderer, {170, 25, 920, 670});
   ui.text(renderer, "Settings", 200, 36, 860, {255, 215, 100, 255});
+  if (page == 1)
+    ui.text(renderer, "Audio applies immediately", 780, 44, 280,
+            {150, 165, 190, 255});
   const int tabs = pageCount();
   const float tabWidth = tabs == 4 ? 205.f : 280.f;
   const float tabStep = tabs == 4 ? 220.f : 290.f;
@@ -424,15 +464,16 @@ void SettingsMenu::render(RendererRef renderer) {
                               : draft.channelVolumes[channels.at(id - 100)];
       ui.text(renderer,
               label + " " + std::to_string(int(std::lround(value * 100))) + "%",
-              210, y + 8, 430);
-      ui.panel(renderer, {660, y + 17, 380, 10}, {70, 80, 100, 255});
-      ui.panel(renderer, {660, y + 17, 380 * value, 10}, {100, 190, 255, 255});
-      ui.panel(renderer, {654 + 380 * value, y + 6, 12, 32},
+              210, y + 12, 430);
+      ui.panel(renderer, {660, y + 14, 380, 16}, {70, 80, 100, 255});
+      ui.panel(renderer, {660, y + 14, 380 * value, 16}, {100, 190, 255, 255});
+      ui.panel(renderer, {654 + 380 * value, y + 4, 14, 36},
                {240, 240, 255, 255});
     } else
       ui.button(renderer, {200, y, 860, 44}, label, selected == i);
   }
-  ui.button(renderer, {200, 624, 420, 44}, "Apply and save",
+  ui.button(renderer, {200, 624, 420, 44},
+            page == 1 ? "Close" : "Apply and save",
             selected == int(items.size()) - 2);
   ui.button(renderer, {640, 624, 420, 44}, "Cancel",
             selected == int(items.size()) - 1);

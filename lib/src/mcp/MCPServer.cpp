@@ -339,6 +339,14 @@ struct MCPServer::State {
     put(result.get(), "textbox_visible", boxVisible);
     put(result.get(), "dialogue", boxVisible ? box->getText() : "");
     put(result.get(), "speaker", boxVisible ? box->getSpeaker() : "");
+    // KirikiriRuntime stores dialogue in its own members (set via KAG script
+    // parser callbacks); prefer those when available so MCP reflects the
+    // current node text even when the VNTextBox is not updated in real time.
+    // TODO: Kirikiri header not available in this build configuration
+    // if (!runtime.dialogueText().empty())
+    //   put(result.get(), "dialogue", runtime.dialogueText());
+    // if (!runtime.dialogueSpeaker().empty())
+    //   put(result.get(), "speaker", runtime.dialogueSpeaker());
     put(result.get(), "subtitle", timeline.activeSubtitleText());
     put(result.get(), "question", choiceVisible ? choice->getQuestion() : "");
     put(result.get(), "debug_visible", engine.GetDebug().isVisible());

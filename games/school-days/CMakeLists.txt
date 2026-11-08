@@ -1,4 +1,5 @@
-cmake_minimum_required(VERSION 3.18)
+cmake_minimum_required(VERSION 3.16)
+
 project(SchoolDays VERSION 0.1.0 LANGUAGES C CXX)
 
 if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
@@ -60,6 +61,7 @@ add_library(school_days STATIC
     src/SchoolDaysSaveService.cpp
     src/SchoolDaysSaveServiceRead.cpp
     src/SchoolDaysBackLog.cpp
+    src/SchoolDaysBackLogEngine.cpp
     src/SchoolDaysBackLogPresenter.cpp
     src/SchoolDaysSubtitleTypography.cpp
     src/SchoolDaysSystemUi.cpp
@@ -69,8 +71,8 @@ add_library(school_days STATIC
     src/SchoolDaysLauncher.cpp
 )
 target_include_directories(school_days PUBLIC include src)
-target_link_libraries(school_days PUBLIC Kotonoha::Engine PRIVATE ZLIB::ZLIB)
 target_compile_features(school_days PUBLIC cxx_std_17)
+target_link_libraries(school_days PUBLIC Kotonoha::Engine PRIVATE ZLIB::ZLIB)
 set_target_properties(school_days PROPERTIES CXX_EXTENSIONS OFF)
 if(KOTONOHA_DEV_CONTROL AND WIN32 AND NOT ANDROID)
     find_package(json-c CONFIG REQUIRED)
@@ -85,6 +87,7 @@ kotonoha_add_app(SchoolDays src/main.cpp)
 target_link_libraries(SchoolDays PRIVATE school_days)
 kotonoha_configure_app(SchoolDays
     BUNDLE_ID me.hirameki.kotonoha.schooldays GAME school-days)
+set_target_properties(SchoolDays PROPERTIES CXX_EXTENSIONS OFF)
 
 # Ship the user's replacement General, Sound and Display Options artwork outside
 # the commercial System.GPK. The School Days-only overlay is mounted by default

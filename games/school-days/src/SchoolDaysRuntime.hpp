@@ -17,6 +17,7 @@
 #include <Kotonoha/routing/SchoolDaysEndBackgroundResolver.hpp>
 #include <Kotonoha/routing/SchoolDaysEpisodeOverlay.hpp>
 #include <Kotonoha/routing/SchoolDaysBackLog.hpp>
+#include <Kotonoha/routing/SchoolDaysBackLogEngine.hpp>
 #include <Kotonoha/routing/SchoolDaysBackLogPresenter.hpp>
 #include <Kotonoha/routing/SchoolDaysConfigStorage.hpp>
 #include <Kotonoha/routing/SchoolDaysDisplayPolicy.hpp>
@@ -129,7 +130,7 @@ class Runtime final : public Kotonoha::Runtime {
   std::unique_ptr<LogoSplash> logoSplash;
   // Engine fallbacks when the retail System artwork is unavailable.
   std::unique_ptr<Kotonoha::VNSaveMenu> saveMenu;
-  std::unique_ptr<Kotonoha::VNBacklog> backlogFallback;
+  std::unique_ptr<Kotonoha::SchoolDaysBackLogEngine> backlogFallback;
   // Native School Days panels (SaveLoad, Config, Exit, RouteMap, BackLog).
   Kotonoha::SchoolDaysSystemUi systemUi;
   Kotonoha::SchoolDaysBackLogStore backlogStore;
@@ -391,6 +392,7 @@ class Runtime final : public Kotonoha::Runtime {
   void openExit();
   void openMainMenuConfirm();
   void openBacklog(bool playView = true);
+  bool handleBacklogAction() override;
   void refreshSaveMetadata();
   void refreshRouteMap();
   void saveSlot(int slot, const std::u16string &comment);
@@ -459,6 +461,7 @@ public:
   const Kotonoha::SchoolDaysRetailConfigPolicy::State &retailConfig() const { return config; }
   void openPanel(int control) { activateControl(control); }
   SDL_Point viewport() const override { return {1280, 720}; }
+  bool continuousTouch() const override { return true; }
   std::string debugNode() const override;
   std::string nodeClockKey() const override;
   bool usesTimedNodeClock() const override { return true; }

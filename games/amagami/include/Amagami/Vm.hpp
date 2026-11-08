@@ -80,7 +80,14 @@ public:
   Native native;
   Primitive primitive;
   ScopedPrimitive scopedPrimitive;
+  // Callback chamado periodicamente durante run(). Se retornar true, a VM
+  // pausa e devolve controle ao caller (usado pelo Session para avançar o
+  // input sintetico entre instrucoes SCF).
+  std::function<bool()> shouldYield;
   std::string location() const;
+  // PC do frame atual (0 se nao houver frames). Usado para detectar loops
+  // de sleep no mesmo ponto do script.
+  size_t pc() const;
 
 private:
   struct Frame {

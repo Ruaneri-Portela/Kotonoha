@@ -126,6 +126,11 @@ public:
   // means the engine VNManager node is used. The engine's event clock resets
   // whenever this position changes.
   virtual std::string debugNode() const { return {}; }
+  // Optional dialogue text spoken by the current node (set by KAG script
+  // parser callbacks). Used by the MCP engine_state tool to reflect the
+  // current dialogue even when the VNTextBox is not updated in real time.
+  virtual std::string dialogueText() const { return {}; }
+  virtual std::string dialogueSpeaker() const { return {}; }
   // Optional stable identity for the shared node clock. Native interpreters
   // can keep one clock across multiple instruction positions in a node; an
   // empty key uses debugNode() as the clock identity.

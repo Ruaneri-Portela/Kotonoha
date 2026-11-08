@@ -14,4 +14,7 @@ std::string ConvertEncoding(std::string_view text, const char *from,
 // games) to UTF-8.
 std::string ShiftJisToUtf8(std::string_view text);
 
+// UTF-8 to UTF-16 (used by native backlog/stores that keep u16string text).
+std::u16string Utf8ToUtf16(std::string_view text);
+
 } // namespace Kotonoha

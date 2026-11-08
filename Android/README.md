@@ -17,7 +17,7 @@ export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"
 ./gradlew :app:assembleSnowRadishDebug
 ./gradlew :app:assembleDokiDokiDebug -Pabis=arm64-v8a
 ./gradlew :app:assembleSchoolDaysDebug
-./gradlew :app:assembleAirDebug
+./gradlew :app:assembleRealLiveDebug
 ./gradlew :app:assembleSummerRadishDebug
 ```
 

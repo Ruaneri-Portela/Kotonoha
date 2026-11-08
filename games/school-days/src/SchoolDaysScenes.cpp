@@ -3,6 +3,7 @@
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/FileSystem.hpp>
 #include <Kotonoha/core/UI.hpp>
+#include <Kotonoha/localization/Encoding.hpp>
 #include <Kotonoha/routing/SchoolDaysChoiceTextPlan.hpp>
 #include <Kotonoha/routing/SchoolDaysSubtitleTypography.hpp>
 #include <algorithm>
@@ -11,17 +12,6 @@
 
 namespace SchoolDays {
 namespace {
-std::u16string Utf8ToUtf16(const std::string &text) {
-  if (text.empty())
-    return {};
-  char *converted =
-      SDL_iconv_string("UTF-16LE", "UTF-8", text.c_str(), text.size() + 1u);
-  if (!converted)
-    return {};
-  std::u16string result(reinterpret_cast<const char16_t *>(converted));
-  SDL_free(converted);
-  return result;
-}
 
 std::string Utf16ToUtf8(const std::u16string &text) {
   if (text.empty())
@@ -256,7 +246,8 @@ bool GameScene::ensureChoiceScratch(Kotonoha::RendererRef renderer,
   using Plan = Kotonoha::SchoolDaysChoiceTextPlan;
   for (std::size_t slot = 0; slot < visible.size(); ++slot) {
     const char *raw = runtime.choice->data.set_select->options[visible[slot]];
-    const auto lines = Plan::WrapRetailEnglish(Utf8ToUtf16(raw ? raw : ""));
+    const auto lines =
+        Plan::WrapRetailEnglish(Kotonoha::Utf8ToUtf16(raw ? raw : ""));
     if (lines.size() > 5u)
       return false;
     for (std::size_t lineIndex = 0; lineIndex < lines.size(); ++lineIndex) {
@@ -365,7 +356,8 @@ void GameScene::renderChoices(Kotonoha::RendererRef renderer) {
     SDL_SetTextureAlphaMod(choiceScratch.get(), alpha);
 
     const char *raw = runtime.choice->data.set_select->options[originalIndex];
-    const auto lines = Plan::WrapRetailEnglish(Utf8ToUtf16(raw ? raw : ""));
+    const auto lines =
+        Plan::WrapRetailEnglish(Kotonoha::Utf8ToUtf16(raw ? raw : ""));
     for (std::size_t lineIndex = 0; lineIndex < lines.size(); ++lineIndex) {
       const auto source = Plan::SourceForLine(static_cast<int>(slot),
                                               static_cast<int>(lineIndex));

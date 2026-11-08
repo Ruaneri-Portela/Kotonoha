@@ -64,6 +64,9 @@ class DebugOverlay {
   bool scrollActiveTranslation = false, scrollActiveTranslationNode = false;
   std::string trackedTranslationNode, trackedTranslationKey;
   std::vector<std::string> availableVNFonts;
+  std::vector<std::string> availableUIFonts;
+  std::string uiFontDraft;
+  bool uiFontDraftReady = false;
   char transSearchFilter[128]{};
   Translation::SourceTexts cachedManagerSources;
   Translation::SourceTexts cachedRuntimeSources;
@@ -78,7 +81,13 @@ class DebugOverlay {
   void drawTranslationExport();
   void drawTranslationEditor();
   void drawTranslationWindow();
-  void drawEngineTools();
+  void drawMenuBar();
+  void drawInterfaceTools();
+  void drawAudioTools();
+  void drawDisplayTools();
+  void drawDialogueTools();
+  void drawLogs();
+  void applyUIFont(const std::string &fontPath);
   void drawForcedSubtitlesGenerator();
   std::string forcedSubsStatus;
 

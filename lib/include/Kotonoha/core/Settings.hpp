@@ -42,7 +42,7 @@ struct EngineSettings {
   // assetOverlays[assetOverlayName] or from a direct command-line/path choice).
   // Not persisted on its own; it is recomputed from the persisted map.
   std::string assetOverlayPath;
-  std::string fontPath;
+  std::string fontPath = "NotoSansJP-Regular.ttf";
   bool enableForcedSubtitles = true;  // Toggle for forced subtitles system
   void validate() const;
   static EngineSettings load(const std::string &path);

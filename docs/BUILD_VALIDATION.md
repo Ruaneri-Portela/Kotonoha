@@ -21,7 +21,7 @@ Os resultados por alvo estão em `finish-android-results.json` e
 ## Android
 
 Os oito sabores são `example`, `amagami`, `zeroNoTsukaima`, `snowRadish`,
-`dokiDoki`, `schoolDays`, `air` e `summerRadish`. Os APKs consolidados ficam
+`dokiDoki`, `schoolDays`, `reallive` e `summerRadish`. Os APKs consolidados ficam
 em `build/artifacts/android/`. Sete sabores incluem ARM64 e x86_64 no mesmo
 APK; DDLC tem um APK separado para cada ABI, identificado no nome do arquivo.
 Nesta validação foi usado `-PbundleGameAssets=false`.
@@ -32,7 +32,7 @@ Execute os comandos a partir de `Android/`, com `JAVA_HOME`, `VCPKG_ROOT` e
 ```sh
 ./gradlew :app:assembleExampleDebug :app:assembleAmagamiDebug \
   :app:assembleZeroNoTsukaimaDebug :app:assembleSnowRadishDebug \
-  :app:assembleSchoolDaysDebug :app:assembleAirDebug \
+  :app:assembleSchoolDaysDebug :app:assembleRealLiveDebug \
   :app:assembleSummerRadishDebug \
   -Pabis=arm64-v8a,x86_64 -PbundleGameAssets=false
 ./gradlew :app:assembleDokiDokiDebug -Pabis=arm64-v8a -PbundleGameAssets=false
@@ -45,7 +45,7 @@ pois as duas ABIs usam o mesmo caminho de saída do Gradle.
 ## iOS
 
 Os oito schemes de aplicativos são `Kotonoha`, `Amagami`, `ZeroNoTsukaima`,
-`SnowRadish`, `DokiDoki`, `SchoolDays`, `Air` e `SummerRadish`. A matriz local
+`SnowRadish`, `DokiDoki`, `SchoolDays`, `RealLive` e `SummerRadish`. A matriz local
 compila cada scheme para ARM64 no simulador e em dispositivo, com Xcode 27.2.
 As dependências vcpkg e o SDK Python de DDLC devem ser preparados antes,
 conforme o [README principal](../README.md#native-ios-xcode-project).
@@ -86,7 +86,7 @@ as dependências e aplicou assinatura ad hoc local.
 A rodada completa de 66 testes encontrou cinco falhas, corrigidas e verificadas
 por novas execuções dos respectivos testes: Runtime/Media (teclado do diálogo
 e inspetor), Demo (fluxo de nome do save), ZNT Engine (confirmação do splash)
-e School Days Launcher (busca de assets). Dois testes de AIR foram ignorados
+e School Days Launcher (busca de assets). Dois testes de RealLive foram ignorados
 por falta da configuração de dados de integração. Não foi feita uma comparação
 completa de todos os jogos contra seus originais.
 

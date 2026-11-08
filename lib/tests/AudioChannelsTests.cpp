@@ -106,12 +106,26 @@ void testDebug(Engine &engine) {
   frame();
   auto *window = ImGui::FindWindowByName("Kotonoha Debug [F10]");
   require(window != nullptr, "Find debug inspector");
-  window->StateStorage.SetInt(window->GetID("Audio channels"), 1);
+  // The audio mixer lives in the "Audio" tab; select it explicitly.
+  const auto tabBarID = ImHashStr("##debug-tabs", 0, window->ID);
+  const auto audioTabID = ImHashStr("Audio", 0, tabBarID);
+  auto *tabBar = ImGui::GetCurrentContext()->TabBars.GetByKey(tabBarID);
+  require(tabBar != nullptr, "Find debug tab bar");
+  tabBar->NextSelectedTabId = audioTabID;
   frame();
   frame();
-  const auto channelID = ImHashStr("audio", 0, window->ID);
-  const auto muteID = ImHashStr("Mute", 0, channelID);
-  const auto volumeID = ImHashStr("Volume", 0, channelID);
+  const auto cardID = ImHashStr("card_audio", 0, audioTabID);
+  ImGuiWindow *cardWindow = nullptr;
+  for (ImGuiWindow *candidate : ImGui::GetCurrentContext()->Windows)
+    if (candidate->ParentWindow == window && candidate->ChildId == cardID) {
+      cardWindow = candidate;
+      break;
+    }
+  require(cardWindow != nullptr, "Find debug audio card");
+  const auto tableID = ImHashStr("audio channels", 0, cardWindow->ID);
+  const auto channelID = ImHashStr("audio", 0, tableID);
+  const auto muteID = ImHashStr("##mute", 0, channelID);
+  const auto volumeID = ImHashStr("##volume", 0, channelID);
   ImGui::ActivateItemByID(muteID);
   frame();
   require(channel->isMuted(), "Debug UI mute checkbox controls named channel");

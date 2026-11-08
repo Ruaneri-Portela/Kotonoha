@@ -264,9 +264,9 @@ launcher, amplia os controles de 1x a 3x alem da escala de DPI e tambem persiste
 ### Abrir imagens ISO
 
 Todo jogo que aceita pasta tambem aceita um arquivo `.iso` no mesmo campo
-de dados ou argumento: `--air`, `--summer`, `--snow`, `--school-days` e `--ddlc`.
+de dados ou argumento: `--reallive`, `--summer`, `--snow`, `--school-days` e `--ddlc`.
 No launcher, use **Folder...** para pasta ou **ISO...** para imagem.
-AIR le os recursos diretamente de ISO9660/Joliet, sem extracao nem copia
+RealLive le os recursos diretamente de ISO9660/Joliet, sem extracao nem copia
 temporaria, incluindo scripts, vozes e substituicoes por overlay.
 Amagami e Zero no Tsukaima mantem a leitura direta de ISO/disco raw.
 
@@ -287,12 +287,12 @@ Abra `Xcode/Kotonoha.xcodeproj`: o projeto e seus targets sao mantidos no
 Xcode e **nao exigem CMake para compilar**. `KotonohaEngine` e um framework
 estatico; SDL3, SDL3_ttf e Dear ImGui sao frameworks dinamicos. O target SDL3 usa o projeto
 Xcode do proprio submodulo; SDL_ttf compila com HarfBuzz e PlutoSVG.
-Os schemes `Kotonoha`, `ZeroNoTsukaima`, `SnowRadish`, `DokiDoki`, `SchoolDays`, `Air`, `SummerRadish` e `Amagami` geram
+Os schemes `Kotonoha`, `ZeroNoTsukaima`, `SnowRadish`, `DokiDoki`, `SchoolDays`, `RealLive`, `SummerRadish` e `Amagami` geram
 apps separados. `KotonohaIOSSmoke` verifica CP932 e glifos SVG no simulador.
 O executavel demonstrativo chama-se `Kotonoha`; seu namespace C++ e
 `KotonohaExample`, separado do motor. A opcao CMake
 `KOTONOHA_BUILD_SCHOOL_DAYS` controla o port School Days.
-`KOTONOHA_BUILD_AIR` controla o [port inicial de AIR Standard Edition](games/air/README.md), que lê os dados originais com `--air DIRETORIO_OU_ISO`.
+`KOTONOHA_BUILD_REALLIVE` controla o [port inicial de RealLive Standard Edition](games/reallive/README.md), que lê os dados originais com `--reallive DIRETORIO_OU_ISO`.
 Depois de alterar os fontes da biblioteca School Days, execute manualmente
 `ruby Xcode/UpdateGameTargets.rb` para sincronizar o target nativo sem
 remover os recursos e modulos Python existentes.
@@ -325,7 +325,7 @@ identificadores de bundle quando necessario.
 
 Os IDs nativos dos jogos correspondem aos applicationIds Android:
 `me.hirameki.kotonoha.zeronotsukaima`, `.snowradishvacation`,
-`.dokidokiliteratureclub`, `.schooldays`, `.air`, `.summerradishvacation` e `.amagami`.
+`.dokidokiliteratureclub`, `.schooldays`, `.reallive`, `.summerradishvacation` e `.amagami`.
 O exemplo usa `me.hirameki.kotonoha` no iOS e `me.kotonoha.example` no Android.
 O bundle ID/applicationId selecionado
 na plataforma determina a identidade da instalacao, sandbox, preferencias
@@ -1380,9 +1380,9 @@ Shared overlay, gesture and live translation behavior: [documentation](docs/ASSE
 ## Revisão dos portes
 
 Os relatórios de [Amagami](games/amagami/PORT_STATUS.md),
-[AIR](games/air/PORT_STATUS.md) e [School Days](games/school-days/PORT_STATUS.md)
+[RealLive](games/reallive/PORT_STATUS.md) e [School Days](games/school-days/PORT_STATUS.md)
 registram correções verificadas e comandos ainda pendentes. Os inspetores de
-Amagami e AIR aceitam `--opcodes` para gerar inventários reproduzíveis.
+Amagami e RealLive aceitam `--opcodes` para gerar inventários reproduzíveis.
 A [gestão compartilhada de arquivos](docs/ASSET_OVERLAYS.md#shared-file-ownership)
 centraliza leitura, overlays e índices no Kotonoha; formatos próprios ficam nos
 provedores de cada jogo. School Days usa `TextInputDialog` do motor para nomes

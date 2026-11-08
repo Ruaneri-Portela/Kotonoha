@@ -313,3 +313,100 @@ These changes improve presentation and input fidelity; they do not establish
 pixel-perfect rendering or complete campaign compatibility. Platform build
 commands and generated artifact locations are in
 [BUILD_VALIDATION.md](../../docs/BUILD_VALIDATION.md).
+
+## Recent SCF compatibility fixes (open-amagami reference)
+
+Compared against `.research/open-amagami/docs/technical/` (scf-bytecode.md,
+objects.md, natives.md) and `port/src/` (vm.cpp, natives.cpp, gfx.cpp,
+audio.cpp):
+
+- **SCF `and`/`or` (opcodes `0x0c`/`0x0d`)**: PS2-exact semantics — special
+  constants (nil/true/false) compute directly, integers/objects fall back to
+  sending `&&`/`||`; `nil` is not false. Covered in `Amagami.Vm`.
+- **Tween easing**: curve 1 = `2p - p²` (fast first), curve 2 = `p²` (slow
+  first), matching `objects.md`.
+- **`Number.rnd`/`Integer.rnd`**: deterministic LCG
+  `seed = (seed*1103515245+12345)&0x7FFFFFFF` per session, `seed % max`.
+- **`Thread.killall`**: ends every script fiber except the caller.
+- **Scenario ancestor loading**: `Session::start` loads a scenario class and
+  its scenario-class ancestors (e.g. `EncountReady` from `n0_MacroScripts`)
+  so inherited methods resolve in standalone event entry.
+- **Presentation no-op primitives**: `setLayer`/`Balloon`/`LightBall`/
+  `CutInWindow`/`ClockIcon`/`NodeMapNaviBase`/`StandExt`/`StructPicture`/
+  `SnowEffect`/`ActorPicture`/`FontChar2` return self (or success for
+  class-method loaders) so original wrappers keep chaining.
+- **`Sound.playSEPrim` (primitive 0)**: plays a one-shot SE note, guarded so
+  headless/audit runs without an audio device.
+- **`field()`/`setField()`**: acesso fora de bounds em não-Arrays retorna nil
+  em vez de lançar (Arrays mantêm `ArrayIndexOutOfBoundsException` tipado para
+  o script catch), tolerando scripts que lêem slots ausentes.
+- **Aritmética em operandos não-numéricos**: envia o operador como mensagem ao
+  operando esquerdo (open-amagami `port/src/vm.cpp` arith), em vez de lançar
+  `Numeric operands required`.
+- **Catch-all no `Vm::run()`**: exceções SCF não capturadas (`raise()` sem
+  handler) entregam nil e pausam a VM, permitindo que cenários headless
+  continuem em vez de abortar.
+- **`Vm::shouldYield` callback**: chamado a cada 1000 instruções SCF durante
+  `run()`; o `Session` usa para avançar o `tick()` (input sintetico e tempo)
+  sem pausar a VM, evitando loops apertados que nunca devolvem controle ao
+  runner.
+- **Input sintetico do ControlPad**: `syntheticInputTick_` avança a cada
+  `tick()`; `trig`/`held` retornam confirm (256) na maioria dos ticks, com
+  outros botoes (16=Up, 32=Right, 4, 512, 2048, 4096, 16384) ocasionalmente
+  para navegar menus. `rapid` retorna 61440 em ticks pares. Isso desbloqueia
+  loops de espera de input (ex.: `KaiwaMain.wadaiSelect`) em `--play` /
+  auditoria. Menus que requerem navegacao específica de pad ainda travam no
+  modo headless.
+- **MemoryCard primitives (0-11)**: stubs que retornam valores padrao
+  (sem cartao: `isChanged`=false, `status`=6, outras operacoes=0/self/false),
+  permitindo scripts de save prosseguirem sem cartao fisico.
+- **`Voice` primitives**: `length` (prim 5) retorna 0 frames; device
+  primitives (0-4, 6-10) retornam self (sem dispositivo de voz no port).
+- **`Sprite` primitives (2, 3, 7-18)**: attach, destruct, update, animate,
+  spin, vibrate, skip, pause -- todos retornam self (no-ops sem modelo de
+  objetos de tela do PS2).
+- **`ActorPicture` primitives (1-4, 6-24)**: initialize, setters/getters,
+  animate, vibrate, skip, pause -- todos retornam self.
+- **`ExtraPicture` primitives (1-4, 6-15)**: initialize, setters/getters,
+  animate, vibrate, skip, pause -- todos retornam self.
+- **`FontChar` primitives (1-10)**: destruct, update, animate, vibrate -- todos
+  retornam self.
+- **`FontChar2` primitives (2-19)**: diversos -- todos retornam self.
+- **`Music` primitives**: `setup` (prim 0), `pause` (prim 3),
+  `setVolumePrim` (prim 4) retornam self; `isBusy` (prim 5) retorna false.
+- **`K2X_Script` primitives (2-5)**: `findClass`=nil, `isEnabled`=true,
+  `getTick`=0, `getClock`=[mes, dia, hora, minuto] do tempo local do PC.
+- **Catch-all em `Vm::run()`**: excecoes SCF nao capturadas (`raise()` sem
+  handler, `Unhandled SCF call`) entregam nil e pausam a VM, permitindo que
+  cenarios headless continuem em vez de abortar.
+
+Campaign audit (`AmagamiInspect DISC --audit`, standalone-headless,
+first-answer), measured on the supplied Japan ISO:
+
+| Audit | Total | Ended | Note |
+|---|---|---|---|
+| v3 (2026-11-06) | 2,308 | 956 | Before `playSEPrim`/ControlPad/presentation primitives |
+| v4 (2026-11-07) | 2,308 | 1,089 | +133 scenarios ended |
+| v29 (2026-11-07) | 2,308 | 1,227 | +271 total vs v3; +nil field/arith tolerance, +synthetic input |
+| v31 (2026-11-07) | 2,308 | 1,837 | +881 total vs v3; +rotating ControlPad input bit masks |
+| v34 (2026-11-07) | 2,308 | 1,898 | +942 total vs v3; +ControlPad input rotation, +Music/Voice primitives |
+| v36 (2026-11-07) | 2,308 | 1,902 | +946 total vs v3; +sleep loop detection for headless standalone |
+
+`build/CMakeCache.txt` is configured with
+`-DAMAGAMI_DISC_IMAGE='/Volumes/Nero 256GB/KotonohaAssets/Amagami.bin'`.
+
+All 10 Amagami tests pass:
+`Amagami.Formats`, `Amagami.Disc`, `Amagami.Session`, `Amagami.Engine`,
+`Amagami.Boot` (`--no-launcher --frames 5`), `Amagami.Vm`,
+`Amagami.Translation`, `Amagami.Backlog`, `Amagami.Campaign`.
+
+Remaining headless limitations (not port bugs — the real runtime has a pad and
+an encounter system):
+- `KaiwaMain.wadaiSelect` and `ControlPad.trig`/`rapid` poll for player input
+  that never arrives headless. Input sintetico rotaciona entre mascaras de
+  bits (256, 4, 16, 32) a cada tick, o que ajuda muitos cenarios a avançar,
+  mas menus de topico que requerem navegacao específica de pad ainda travam
+  no orcamento de instrucoes SCF.
+- `n0dea_ev02A.scriptMain:1043` waits on instance field 4, a flag set by the
+  campaign/encounter system, which is absent in standalone scenario entry.
+- Missing event picture asset `epi/e3_12c0.tm2` (1 scenario).

@@ -97,6 +97,26 @@ int main() {
                   "GameParam.isSkip");
         }
       }
+    // Special constants (nil/true/false) compute directly in the original
+    // handlers; only integers/objects fall back to `&&`/`||`. `and` answers
+    // the left operand when the right is true, else false; `or` answers the
+    // left operand when the right is false, else true.
+    require(evaluate({0x25, 0x28, 0x0c, 3, 2}).kind == VmValue::Nil,
+            "nil and true returns the left operand");
+    require(evaluate({0x25, 0x29, 0x0c, 3, 2}).kind == VmValue::Boolean &&
+                !evaluate({0x25, 0x29, 0x0c, 3, 2}).truth(),
+            "nil and false returns false");
+    require(evaluate({0x28, 0x25, 0x0c, 3, 2}).kind == VmValue::Boolean &&
+                !evaluate({0x28, 0x25, 0x0c, 3, 2}).truth(),
+            "true and nil returns false");
+    require(evaluate({0x25, 0x29, 0x0d, 3, 2}).kind == VmValue::Nil,
+            "nil or false returns the left operand");
+    require(evaluate({0x25, 0x28, 0x0d, 3, 2}).kind == VmValue::Boolean &&
+                evaluate({0x25, 0x28, 0x0d, 3, 2}).truth(),
+            "nil or true returns true");
+    require(evaluate({0x29, 0x25, 0x0d, 3, 2}).kind == VmValue::Boolean &&
+                evaluate({0x29, 0x25, 0x0d, 3, 2}).truth(),
+            "false or nil returns true, matching the PS2 handler");
     require(
         evaluate({0x69, 8, 0, 0x24, 7, 0x6b, 0, 0, 0x2a, 3, 2}).number == 7,
         "Caught throw preserves its original value and relative handler PC");

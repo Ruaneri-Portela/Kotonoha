@@ -1,5 +1,6 @@
 ﻿#include "ImGuiTheme.hpp"
 
+#include <Kotonoha/core/Config.hpp>
 #include <Kotonoha/core/FileSystem.hpp>
 
 #include <algorithm>
@@ -9,41 +10,51 @@
 
 namespace Kotonoha::ImGuiTheme {
 namespace {
-// Paleta "noir" com acento roxo-violeta — coesa, baixa saturação nos fundos
-// e contraste alto no texto/acentos.
-constexpr ImVec4 Accent{0.85f, 0.55f, 1.00f, 1.00f};
+// Paleta "noir" moderna com acento violeta-vivo — fundos profundos de baixa
+// saturação, contraste alto no texto e acentos vibrantes. Bordas arredondadas
+// e sombreamento sutil dão aspecto de interface contemporânea.
+constexpr ImVec4 Accent{0.90f, 0.60f, 1.00f, 1.00f};
 constexpr ImVec4 AccentDim{0.55f, 0.30f, 0.70f, 1.00f};
+constexpr ImVec4 AccentHover{1.00f, 0.75f, 1.00f, 1.00f};
 constexpr ImVec4 Success{0.40f, 0.88f, 0.60f, 1.00f};
 constexpr ImVec4 Warning{1.00f, 0.70f, 0.35f, 1.00f};
 constexpr ImVec4 Error{1.00f, 0.45f, 0.50f, 1.00f};
-constexpr ImVec4 WindowBg{0.085f, 0.075f, 0.115f, 1.00f};
-constexpr ImVec4 ChildBg{0.105f, 0.095f, 0.140f, 1.00f};
+constexpr ImVec4 WindowBg{0.070f, 0.060f, 0.095f, 1.00f};
+constexpr ImVec4 ChildBg{0.090f, 0.080f, 0.120f, 1.00f};
 constexpr ImVec4 PopupBg{0.085f, 0.075f, 0.115f, 1.00f};
-constexpr ImVec4 Border{0.24f, 0.19f, 0.32f, 1.00f};
-constexpr ImVec4 BorderHovered{0.42f, 0.32f, 0.52f, 1.00f};
-constexpr ImVec4 FrameBg{0.15f, 0.13f, 0.20f, 1.00f};
-constexpr ImVec4 FrameBgHovered{0.22f, 0.18f, 0.28f, 1.00f};
-constexpr ImVec4 FrameBgActive{0.30f, 0.24f, 0.36f, 1.00f};
-constexpr ImVec4 TitleBg{0.115f, 0.100f, 0.155f, 1.00f};
-constexpr ImVec4 TitleBgActive{0.15f, 0.125f, 0.20f, 1.00f};
-constexpr ImVec4 TitleBgCollapsed{0.085f, 0.075f, 0.115f, 1.00f};
-constexpr ImVec4 MenuBarBg{0.105f, 0.095f, 0.140f, 1.00f};
-constexpr ImVec4 ScrollbarBg{0.105f, 0.095f, 0.140f, 1.00f};
-constexpr ImVec4 ScrollbarGrab{0.30f, 0.24f, 0.38f, 1.00f};
-constexpr ImVec4 ScrollbarGrabHovered{0.44f, 0.34f, 0.52f, 1.00f};
-constexpr ImVec4 ScrollbarGrabActive{0.58f, 0.44f, 0.68f, 1.00f};
-constexpr ImVec4 Header{0.19f, 0.15f, 0.26f, 1.00f};
-constexpr ImVec4 HeaderHovered{0.30f, 0.23f, 0.38f, 1.00f};
-constexpr ImVec4 HeaderActive{0.42f, 0.30f, 0.52f, 1.00f};
-constexpr ImVec4 Separator{0.24f, 0.19f, 0.32f, 1.00f};
-constexpr ImVec4 SeparatorHovered{0.40f, 0.30f, 0.48f, 1.00f};
-constexpr ImVec4 SeparatorActive{0.52f, 0.40f, 0.60f, 1.00f};
+constexpr ImVec4 Border{0.18f, 0.15f, 0.24f, 1.00f};
+constexpr ImVec4 BorderHovered{0.35f, 0.28f, 0.45f, 1.00f};
+constexpr ImVec4 FrameBg{0.12f, 0.10f, 0.16f, 1.00f};
+constexpr ImVec4 FrameBgHovered{0.18f, 0.15f, 0.24f, 1.00f};
+constexpr ImVec4 FrameBgActive{0.26f, 0.20f, 0.34f, 1.00f};
+constexpr ImVec4 TitleBg{0.090f, 0.080f, 0.120f, 1.00f};
+constexpr ImVec4 TitleBgActive{0.12f, 0.10f, 0.16f, 1.00f};
+constexpr ImVec4 TitleBgCollapsed{0.070f, 0.060f, 0.095f, 1.00f};
+constexpr ImVec4 MenuBarBg{0.090f, 0.080f, 0.120f, 1.00f};
+constexpr ImVec4 ScrollbarBg{0.090f, 0.080f, 0.120f, 1.00f};
+constexpr ImVec4 ScrollbarGrab{0.24f, 0.20f, 0.30f, 1.00f};
+constexpr ImVec4 ScrollbarGrabHovered{0.38f, 0.30f, 0.45f, 1.00f};
+constexpr ImVec4 ScrollbarGrabActive{0.52f, 0.40f, 0.60f, 1.00f};
+constexpr ImVec4 Header{0.14f, 0.11f, 0.19f, 1.00f};
+constexpr ImVec4 HeaderHovered{0.22f, 0.18f, 0.28f, 1.00f};
+constexpr ImVec4 HeaderActive{0.32f, 0.25f, 0.42f, 1.00f};
+constexpr ImVec4 Separator{0.18f, 0.15f, 0.24f, 1.00f};
+constexpr ImVec4 SeparatorHovered{0.35f, 0.28f, 0.45f, 1.00f};
+constexpr ImVec4 SeparatorActive{0.48f, 0.38f, 0.58f, 1.00f};
 constexpr ImVec4 Text{0.96f, 0.96f, 1.00f, 1.00f};
 constexpr ImVec4 TextDisabled{0.55f, 0.55f, 0.65f, 1.00f};
 constexpr ImVec4 TextSelectedBg{0.45f, 0.30f, 0.60f, 0.35f};
-constexpr ImVec4 Button{0.22f, 0.14f, 0.32f, 1.00f};
-constexpr ImVec4 ButtonHovered{0.36f, 0.24f, 0.50f, 1.00f};
-constexpr ImVec4 ButtonActive{0.52f, 0.34f, 0.68f, 1.00f};
+constexpr ImVec4 Button{0.20f, 0.12f, 0.30f, 1.00f};
+constexpr ImVec4 ButtonHovered{0.34f, 0.22f, 0.48f, 1.00f};
+constexpr ImVec4 ButtonActive{0.50f, 0.32f, 0.66f, 1.00f};
+
+// Card background (slightly lighter than window bg, subtle border).
+constexpr ImVec4 CardBg{0.10f, 0.09f, 0.14f, 1.00f};
+constexpr ImVec4 CardBorder{0.16f, 0.14f, 0.22f, 1.00f};
+
+// Tab bar colors.
+constexpr ImVec4 TabBg{0.090f, 0.080f, 0.120f, 1.00f};
+constexpr ImVec4 TabHovered{0.16f, 0.13f, 0.22f, 1.00f};
 } // namespace
 
 void loadFonts(const std::string &fontPath) {
@@ -53,6 +64,15 @@ void loadFonts(const std::string &fontPath) {
   if (!fontPath.empty()) {
     try {
       const auto resolved = FileResolver::font(fontPath);
+      if (std::filesystem::exists(resolved))
+        font = io.Fonts->AddFontFromFileTTF(resolved.string().c_str(), 18.0f);
+    } catch (...) {
+      // A bad optional UI font must not make the engine unusable.
+    }
+  }
+  if (!font) {
+    try {
+      const auto resolved = FileResolver::font(defaultFontName());
       if (std::filesystem::exists(resolved))
         font = io.Fonts->AddFontFromFileTTF(resolved.string().c_str(), 18.0f);
     } catch (...) {
@@ -71,25 +91,25 @@ void apply(float value) {
 
   // Geometry (scales with UI scale).
   style.WindowPadding = {16.0f * scale, 14.0f * scale};
-  style.WindowRounding = 10.0f * scale;
+  style.WindowRounding = 12.0f * scale;
   style.WindowBorderSize = 1.0f * scale;
-  style.ChildRounding = 8.0f * scale;
+  style.ChildRounding = 10.0f * scale;
   style.ChildBorderSize = 1.0f * scale;
-  style.PopupRounding = 8.0f * scale;
+  style.PopupRounding = 10.0f * scale;
   style.PopupBorderSize = 1.0f * scale;
-  style.FramePadding = {14.0f * scale, 7.0f * scale};
-  style.FrameRounding = 6.0f * scale;
+  style.FramePadding = {14.0f * scale, 8.0f * scale};
+  style.FrameRounding = 8.0f * scale;
   style.FrameBorderSize = 0.0f;
-  style.ItemSpacing = {10.0f * scale, 7.0f * scale};
-  style.ItemInnerSpacing = {7.0f * scale, 5.0f * scale};
-  style.IndentSpacing = 16.0f * scale;
+  style.ItemSpacing = {12.0f * scale, 8.0f * scale};
+  style.ItemInnerSpacing = {8.0f * scale, 6.0f * scale};
+  style.IndentSpacing = 20.0f * scale;
   style.ScrollbarSize = 14.0f * scale;
   style.ScrollbarRounding = 7.0f * scale;
   style.GrabMinSize = 14.0f * scale;
   style.GrabRounding = 4.0f * scale;
-  style.TabRounding = 6.0f * scale;
+  style.TabRounding = 8.0f * scale;
   style.SeparatorTextBorderSize = 1.0f * scale;
-  style.SeparatorTextPadding = {24.0f * scale, 4.0f * scale};
+  style.SeparatorTextPadding = {28.0f * scale, 4.0f * scale};
   style.ButtonTextAlign = {0.5f, 0.5f};
   style.DisplayWindowPadding = {24.0f * scale, 24.0f * scale};
   style.DisplaySafeAreaPadding = {4.0f * scale, 4.0f * scale};
@@ -103,7 +123,7 @@ void apply(float value) {
   style.Colors[ImGuiCol_ChildBg] = ChildBg;
   style.Colors[ImGuiCol_PopupBg] = PopupBg;
   style.Colors[ImGuiCol_Border] = Border;
-  style.Colors[ImGuiCol_BorderShadow] = {0.0f, 0.0f, 0.0f, 0.45f};
+  style.Colors[ImGuiCol_BorderShadow] = {0.0f, 0.0f, 0.0f, 0.50f};
   style.Colors[ImGuiCol_FrameBg] = FrameBg;
   style.Colors[ImGuiCol_FrameBgHovered] = FrameBgHovered;
   style.Colors[ImGuiCol_FrameBgActive] = FrameBgActive;
@@ -117,7 +137,7 @@ void apply(float value) {
   style.Colors[ImGuiCol_ScrollbarGrabActive] = ScrollbarGrabActive;
   style.Colors[ImGuiCol_CheckMark] = Accent;
   style.Colors[ImGuiCol_SliderGrab] = Accent;
-  style.Colors[ImGuiCol_SliderGrabActive] = AccentDim;
+  style.Colors[ImGuiCol_SliderGrabActive] = AccentHover;
   style.Colors[ImGuiCol_Button] = Button;
   style.Colors[ImGuiCol_ButtonHovered] = ButtonHovered;
   style.Colors[ImGuiCol_ButtonActive] = ButtonActive;
@@ -130,8 +150,8 @@ void apply(float value) {
   style.Colors[ImGuiCol_ResizeGrip] = {0.30f, 0.24f, 0.38f, 0.60f};
   style.Colors[ImGuiCol_ResizeGripHovered] = {0.44f, 0.34f, 0.52f, 0.70f};
   style.Colors[ImGuiCol_ResizeGripActive] = {0.58f, 0.44f, 0.68f, 0.80f};
-  style.Colors[ImGuiCol_Tab] = Header;
-  style.Colors[ImGuiCol_TabHovered] = HeaderHovered;
+  style.Colors[ImGuiCol_Tab] = TabBg;
+  style.Colors[ImGuiCol_TabHovered] = TabHovered;
   style.Colors[ImGuiCol_PlotLines] = AccentDim;
   style.Colors[ImGuiCol_PlotLinesHovered] = Accent;
   style.Colors[ImGuiCol_PlotHistogram] = Accent;
@@ -140,7 +160,7 @@ void apply(float value) {
   style.Colors[ImGuiCol_TableBorderStrong] = BorderHovered;
   style.Colors[ImGuiCol_TableBorderLight] = Border;
   style.Colors[ImGuiCol_TableRowBg] = {0.0f, 0.0f, 0.0f, 0.0f};
-  style.Colors[ImGuiCol_TableRowBgAlt] = {0.15f, 0.12f, 0.20f, 0.30f};
+  style.Colors[ImGuiCol_TableRowBgAlt] = {0.15f, 0.12f, 0.20f, 0.20f};
 }
 
 ImVec4 accent() { return Accent; }
@@ -186,6 +206,111 @@ struct LabeledGroup {
   }
   ~LabeledGroup() { ImGui::EndGroup(); }
 };
+
+// --- Modern UI helpers ---
+
+void cardBegin(const char *id, bool collapsible, bool *open) {
+  ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 10.0f);
+  ImGui::PushStyleVar(ImGuiStyleVar_ChildBorderSize, 1.0f);
+  ImGui::PushStyleColor(ImGuiCol_ChildBg, CardBg);
+  ImGui::PushStyleColor(ImGuiCol_Border, CardBorder);
+  ImGuiWindowFlags flags = ImGuiChildFlags_Borders | ImGuiChildFlags_FrameStyle;
+  if (collapsible && open)
+    flags |= ImGuiChildFlags_None;
+  ImGui::BeginChild(id, ImVec2(0, 0), flags);
+}
+
+void cardEnd() {
+  ImGui::EndChild();
+  ImGui::PopStyleColor(2);
+  ImGui::PopStyleVar(2);
+}
+
+void badge(const char *label, ImVec4 color) {
+  ImGui::PushStyleColor(ImGuiCol_Text, {1.f, 1.f, 1.f, 1.f});
+  ImGui::PushStyleColor(ImGuiCol_FrameBg, color);
+  ImGui::PushStyleColor(ImGuiCol_Border, {0.f, 0.f, 0.f, 0.f});
+  ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 6.0f);
+  ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, {6.0f, 2.0f});
+  ImGui::TextUnformatted(label);
+  ImGui::PopStyleVar(2);
+  ImGui::PopStyleColor(3);
+}
+
+void valueRow(const char *label, const char *value, ImVec4 valueColor) {
+  ImGui::PushStyleColor(ImGuiCol_Text, TextDisabled);
+  ImGui::TextUnformatted(label);
+  ImGui::PopStyleColor();
+  ImGui::SameLine();
+  if (valueColor.x == 0.f && valueColor.y == 0.f && valueColor.z == 0.f &&
+      valueColor.w == 0.f)
+    ImGui::TextUnformatted(value);
+  else
+    ImGui::TextColored(valueColor, "%s", value);
+}
+
+bool toggleSwitch(const char *label, bool *v) {
+  ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, {0.f, 0.f});
+  const float height = 20.f;
+  const float width = 40.f;
+  const float thumbSize = 16.f;
+  const ImVec2 labelSize = ImGui::CalcTextSize(label);
+  const bool hovered = ImGui::IsItemHovered();
+  ImVec2 cursor = ImGui::GetCursorScreenPos();
+  ImDrawList *draw = ImGui::GetWindowDrawList();
+
+  ImGui::InvisibleButton(label, ImVec2(width + 10.f + labelSize.x, height));
+  const bool clicked = ImGui::IsItemHovered() && ImGui::IsMouseClicked(0);
+  if (clicked)
+    *v = !*v;
+
+  const ImVec4 bgColor = *v ? Accent : ImVec4{0.20f, 0.18f, 0.26f, 1.f};
+  const ImVec4 thumbColor = {0.95f, 0.95f, 1.00f, 1.f};
+
+  draw->AddRectFilled(cursor, {cursor.x + width, cursor.y + height},
+                      ImGui::GetColorU32(bgColor), height * 0.5f);
+  const float thumbX = cursor.x + (*v ? width - thumbSize - 2.f : 2.f);
+  draw->AddRectFilled({thumbX, cursor.y + 2.f},
+                      {thumbX + thumbSize, cursor.y + height - 2.f},
+                      ImGui::GetColorU32(thumbColor), (height - 4.f) * 0.5f);
+
+  ImGui::SetCursorScreenPos({cursor.x + width + 10.f, cursor.y - 2.f});
+  ImGui::TextUnformatted(label);
+  ImGui::PopStyleVar();
+  return clicked;
+}
+
+bool iconButton(const char *icon, const char *label, ImVec2 size) {
+  ImGui::PushStyleColor(ImGuiCol_Button, Button);
+  ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ButtonHovered);
+  ImGui::PushStyleColor(ImGuiCol_ButtonActive, ButtonActive);
+  std::string fullLabel = std::string(icon) + "  " + label;
+  const bool pressed = ImGui::Button(fullLabel.c_str(), size);
+  ImGui::PopStyleColor(3);
+  return pressed;
+}
+
+void kotonohaHeader(const char *title, const char *subtitle, float scale) {
+  const float band = 80.f * scale;
+  const ImVec2 origin = ImGui::GetWindowPos();
+  auto *draw = ImGui::GetWindowDrawList();
+  // Gradient background band.
+  draw->AddRectFilledMultiColor(
+      origin, {origin.x + ImGui::GetWindowSize().x, origin.y + band},
+      IM_COL32(45, 20, 70, 255), IM_COL32(25, 12, 45, 255),
+      IM_COL32(20, 10, 30, 255), IM_COL32(20, 10, 30, 255));
+  draw->AddRectFilled({origin.x, origin.y + band - 2.f * scale},
+                      {origin.x + ImGui::GetWindowSize().x, origin.y + band},
+                      ImGui::GetColorU32(Accent));
+  ImGui::PushFont(nullptr, ImGui::GetStyle().FontSizeBase * 1.6f);
+  ImGui::TextColored(ImGuiTheme::accent(), "%s", title);
+  ImGui::PopFont();
+  ImGui::TextDisabled("%s", subtitle ? subtitle : "");
+  ImGui::SetCursorScreenPos(
+      {ImGui::GetCursorScreenPos().x,
+       std::max(ImGui::GetCursorScreenPos().y, origin.y + band) +
+           10.f * scale});
+}
 
 struct ShaderFilePicker::State {
   std::mutex mutex;

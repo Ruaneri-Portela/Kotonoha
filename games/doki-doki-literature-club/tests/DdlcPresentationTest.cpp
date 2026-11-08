@@ -1,10 +1,12 @@
 #include "DdlcRuntime.hpp"
 #include "DdlcSession.hpp"
+
 #include <Kotonoha/componentes/InGameMenu.hpp>
 #include <Kotonoha/componentes/VNTextBox.hpp>
 #include <Kotonoha/core/Appearance.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/debug/DebugOverlay.hpp>
+
 #include <SDL3/SDL.h>
 #include <filesystem>
 #include <iostream>

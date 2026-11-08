@@ -891,7 +891,7 @@
 		BA84F78900F207073C05F9CC /* _zoneinfo.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = _zoneinfo.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/_zoneinfo.framework"; sourceTree = SOURCE_ROOT; };
 		BE853869404063D285F02AEC /* _elementtree.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = _elementtree.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/_elementtree.framework"; sourceTree = SOURCE_ROOT; };
 		BF419AE62F91C71F47490CB9 /* _codecs_jp.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = _codecs_jp.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/_codecs_jp.framework"; sourceTree = SOURCE_ROOT; };
-		C310110E5F08805A6AAD5858 /* game-assets */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = folder; name = "game-assets"; path = "../games/air/game-assets"; sourceTree = SOURCE_ROOT; };
+		C310110E5F08805A6AAD5858 /* game-assets */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = folder; name = "game-assets"; path = "../games/reallive/game-assets"; sourceTree = SOURCE_ROOT; };
 		C446DAC72995F2973C600D09 /* VideoToolbox.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = VideoToolbox.framework; path = System/Library/Frameworks/VideoToolbox.framework; sourceTree = SDKROOT; };
 		C493414D30C0DC9E2CB6E56A /* _struct.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = _struct.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/_struct.framework"; sourceTree = SOURCE_ROOT; };
 		C725562FCCDCB4EE087E2805 /* Air.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Air.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -936,8 +936,8 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		33CF72D87ACA703CCC5F6560 /* ../games/air/src */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = ../games/air/src; sourceTree = SOURCE_ROOT; };
-		B958092F9AFFDA5E904BF5DE /* ../games/air/vendor */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = ../games/air/vendor; sourceTree = SOURCE_ROOT; };
+		33CF72D87ACA703CCC5F6560 /* ../games/reallive/src */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = ../games/reallive/src; sourceTree = SOURCE_ROOT; };
+		B958092F9AFFDA5E904BF5DE /* ../games/reallive/vendor */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = ../games/reallive/vendor; sourceTree = SOURCE_ROOT; };
 		C120216BEFDCA69752FC625E /* ../games/summer-radish-vacation/src */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = "../games/summer-radish-vacation/src"; sourceTree = SOURCE_ROOT; };
 		CE8CD2C7309A16A70003D364 /* src */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); name = src; path = ../games/amagami/src; sourceTree = SOURCE_ROOT; };
 		CE8CD2D5309A16B70003D364 /* include */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); name = include; path = ../games/amagami/include; sourceTree = SOURCE_ROOT; };
@@ -1422,7 +1422,7 @@
 				77EB89FA83F4679C0B43BB3A /* SchoolDays */,
 				1FDB485883E5E4E9F6B124E9 /* ZeroNoTsukaima */,
 				8ACF7B9780997A33BB40E3EE /* Kotonoha */,
-				E7740E26BFFF021FFE2236E3 /* AIR */,
+				E7740E26BFFF021FFE2236E3 /* RealLive */,
 				EA9CC600BAB79C5E78200607 /* Summer Radish Vacation!! */,
 			);
 			path = Games;
@@ -1458,15 +1458,15 @@
 			name = DdlcIOSScriptSmoke;
 			sourceTree = "<group>";
 		};
-		E7740E26BFFF021FFE2236E3 /* AIR */ = {
+		E7740E26BFFF021FFE2236E3 /* RealLive */ = {
 			isa = PBXGroup;
 			children = (
-				33CF72D87ACA703CCC5F6560 /* ../games/air/src */,
+				33CF72D87ACA703CCC5F6560 /* ../games/reallive/src */,
 				4C0D884F99638CBB5B02A07D /* assets */,
 				C310110E5F08805A6AAD5858 /* game-assets */,
-				B958092F9AFFDA5E904BF5DE /* ../games/air/vendor */,
+				B958092F9AFFDA5E904BF5DE /* ../games/reallive/vendor */,
 			);
-			name = AIR;
+			name = RealLive;
 			sourceTree = "<group>";
 		};
 		EA9CC600BAB79C5E78200607 /* Summer Radish Vacation!! */ = {
@@ -1551,9 +1551,9 @@
 			productReference = CEFD20C030959062006D0E4E /* Zero No Tsukaima.app */;
 			productType = "com.apple.product-type.application";
 		};
-		863CA7E46CE7E2CCFE66622E /* Air */ = {
+		863CA7E46CE7E2CCFE66622E /* RealLive */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = C49FE70FED20DC1A51C52C15 /* Build configuration list for PBXNativeTarget "Air" */;
+			buildConfigurationList = C49FE70FED20DC1A51C52C15 /* Build configuration list for PBXNativeTarget "RealLive" */;
 			buildPhases = (
 				1B0B3351BDB8A5DF77176286 /* Sources */,
 				53AF5A1A53E239B2CC39BB62 /* Frameworks */,
@@ -1567,10 +1567,10 @@
 				C04FE8D167B21B24EEC539CD /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				33CF72D87ACA703CCC5F6560 /* ../games/air/src */,
-				B958092F9AFFDA5E904BF5DE /* ../games/air/vendor */,
+				33CF72D87ACA703CCC5F6560 /* ../games/reallive/src */,
+				B958092F9AFFDA5E904BF5DE /* ../games/reallive/vendor */,
 			);
-			name = Air;
+			name = RealLive;
 			productName = Air;
 			productReference = C725562FCCDCB4EE087E2805 /* Air.app */;
 			productType = "com.apple.product-type.application";
@@ -1847,7 +1847,7 @@
 				4B0417D636D80E1973E6EC48 /* ImGui */,
 				D353276E353ED61BDA9316AE /* KotonohaEngine */,
 				A867443685C2CE18C7FD8641 /* Kotonoha */,
-				863CA7E46CE7E2CCFE66622E /* Air */,
+				863CA7E46CE7E2CCFE66622E /* RealLive */,
 				CE8CD282309A153D0003D364 /* Amagami */,
 				520E72353D5BDC48568DB4E5 /* ZeroNoTsukaima */,
 				F406C89377A29563869CE5E8 /* SnowRadish */,
@@ -3121,12 +3121,12 @@
 				GENERATE_INFOPLIST_FILE = NO;
 				HEADER_SEARCH_PATHS = (
 					"$(inherited)",
-					"$(KOTONOHA_ROOT)/games/air/include",
-					"$(KOTONOHA_ROOT)/games/air/src",
-					"$(KOTONOHA_ROOT)/games/air/vendor",
+					"$(KOTONOHA_ROOT)/games/reallive/include",
+					"$(KOTONOHA_ROOT)/games/reallive/src",
+					"$(KOTONOHA_ROOT)/games/reallive/vendor",
 				);
 				INFOPLIST_FILE = "$(PROJECT_DIR)/Info.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = AIR;
+				INFOPLIST_KEY_CFBundleDisplayName = RealLive;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.games";
 				IPHONEOS_DEPLOYMENT_TARGET = "$(RECOMMENDED_IPHONEOS_DEPLOYMENT_TARGET)";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -3183,7 +3183,7 @@
 					"-framework",
 					CoreText,
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha.air;
+				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha.reallive;
 				PRODUCT_NAME = Air;
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = iphoneos;
@@ -3673,7 +3673,7 @@
 					"-framework",
 					CoreText,
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha;
+				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha.amagami;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = iphoneos;
@@ -3756,7 +3756,7 @@
 					"-framework",
 					CoreText,
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha;
+				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha.amagami;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = iphoneos;
@@ -3777,12 +3777,12 @@
 				GENERATE_INFOPLIST_FILE = NO;
 				HEADER_SEARCH_PATHS = (
 					"$(inherited)",
-					"$(KOTONOHA_ROOT)/games/air/include",
-					"$(KOTONOHA_ROOT)/games/air/src",
-					"$(KOTONOHA_ROOT)/games/air/vendor",
+					"$(KOTONOHA_ROOT)/games/reallive/include",
+					"$(KOTONOHA_ROOT)/games/reallive/src",
+					"$(KOTONOHA_ROOT)/games/reallive/vendor",
 				);
 				INFOPLIST_FILE = "$(PROJECT_DIR)/Info.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = AIR;
+				INFOPLIST_KEY_CFBundleDisplayName = RealLive;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.games";
 				IPHONEOS_DEPLOYMENT_TARGET = "$(RECOMMENDED_IPHONEOS_DEPLOYMENT_TARGET)";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -3839,7 +3839,7 @@
 					"-framework",
 					CoreText,
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha.air;
+				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha.reallive;
 				PRODUCT_NAME = Air;
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = iphoneos;
@@ -4404,7 +4404,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		C49FE70FED20DC1A51C52C15 /* Build configuration list for PBXNativeTarget "Air" */ = {
+		C49FE70FED20DC1A51C52C15 /* Build configuration list for PBXNativeTarget "RealLive" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				CFD56D9A67683911BB4362E9 /* Release */,

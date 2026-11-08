@@ -27,6 +27,13 @@ AssetOverlay::AssetOverlay(const std::filesystem::path &root,
   std::error_code ec;
   std::filesystem::path targetRoot =
       discoverOverlay ? findAssetOverlayDirectory(root) : root;
+  // Absolute paths that exist on disk should be accepted directly even when
+  // discovery (e.g. through reference roots or KOTONOHA_OVERLAY) fails to
+  // locate them — this covers network volumes and paths with special
+  // characters that may not resolve through the standard search.
+  if (targetRoot.empty() && !root.empty() && root.is_absolute() &&
+      std::filesystem::is_directory(root, ec))
+    targetRoot = root;
   if (!root.empty() &&
       (targetRoot.empty() || !std::filesystem::is_directory(targetRoot, ec)))
     throw std::invalid_argument("Asset directory does not exist: " +

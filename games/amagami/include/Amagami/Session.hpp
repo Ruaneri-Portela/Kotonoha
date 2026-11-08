@@ -66,6 +66,9 @@ public:
   void revealDialogue(size_t characters);
   double presentationSeconds() const { return presentationFrames_ / 60; }
   bool waiting() const { return waitFrames_ > 0; }
+  // Verdadeiro quando a VM esta pausada (por sleep ou por shouldYield).
+  // O runner deve chamar tick() para avançar o tempo e o input sintetico.
+  bool vmPaused() const { return vm_.paused(); }
   bool messageVisible() const { return messageVisible_; }
   bool messageCleared() const { return messageCleared_; }
   float stageFade() const { return fadeAlpha_; }
@@ -121,7 +124,22 @@ private:
   bool ended_ = true, replaying_ = false;
   bool realtime_ = false, messageVisible_ = false, messageCleared_ = true,
        fadeWhite_ = false;
+  // Input sintetico para modo headless: alterna pressionar/soltar o botao
+  // confirm (256) a cada tick para que loops de ControlPad.trig/rapid/held
+  // avancem em vez de girar para sempre no orcamento de instrucoes SCF.
+  int syntheticInputTick_ = 0;
+  // Contador de loops de sleep consecutivos no mesmo PC: usado para
+  // detectar quando um script esta esperando por uma condicao externa (ex.:
+  // flag de encontro/campanha) que nao existe no modo standalone. Quando
+  // excede o limite, permite que o script continue em vez de travar para
+  // sempre.
   double presentationFrames_ = 0;
+  // Contador de loops de sleep consecutivos no mesmo bloco: quando excede o
+  // limite, define campos numéricos do self como 1 para permitir que loops de
+  // espera de flag externa (ex.: flag de encontro/campanha ausente no modo
+  // standalone) saiam.
+  int sleepLoopCount_ = 0;
+  int sleepLoopBlock_ = 0;
   double waitFrames_ = 0, fadeFrames_ = 0, fadeElapsed_ = 0;
   float fadeAlpha_ = 0, fadeFrom_ = 0, fadeTarget_ = 0;
   void fade(float target, double frames, bool white = false);
@@ -161,8 +179,15 @@ private:
   void putBreath(const std::string &, float = 0, float = 0, float = 0);
   std::map<std::string, std::string> displayNames_;
   std::vector<int> inputs_;
+  // Original Number.rnd sequence: an LCG seeded per session, so scenes that
+  // randomise their staging (mahjong deals, steam timers) stay reproducible.
+  long long rngSeed_ = 12345;
   std::optional<VmValue> native(const VmValue &, const std::string &,
                                 const std::vector<VmValue> &);
+  // Registers a scenario class and its scenario-class ancestors so methods
+  // inherited across scenario classes (e.g. EncountReady from n0_MacroScripts
+  // via a meeting class) resolve in standalone event entry.
+  void loadScenarioClass(const std::string &name);
   std::optional<VmValue> primitive(const std::string &, const std::string &,
                                    bool, const VmValue &, unsigned,
                                    const std::vector<VmValue> &);

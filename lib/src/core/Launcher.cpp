@@ -710,6 +710,8 @@ void Launcher::drawAdvanced() {
   chooseColor("Dialogue color", draft.vnTextColor);
   chooseColor("Speaker color", draft.vnSpeakerColor);
   ImGui::SliderFloat("Debug UI scale", &draft.debugUIScale, 1, 3, "%.2fx");
+  ImGuiTheme::sectionHeader("UI font");
+  drawFontSelector(draft.fontPath);
   ImGuiTheme::sectionHeader("Subtitles");
   ImGui::Checkbox("Enable forced subtitles", &draft.enableForcedSubtitles);
   ImGui::TextWrapped(
@@ -801,28 +803,41 @@ void Launcher::drawTranslation() {
   ImGui::Separator();
   ImGui::Spacing();
 
-  ImGui::TextUnformatted("Default Font (SDL_ttf, ImGui, libass)");
+  ImGui::TextDisabled("The default UI font is chosen in Advanced → UI font "
+                      "(applies to UI, ImGui and Debug UI).");
+}
+
+void Launcher::drawFontSelector(std::string &fontPath) {
+  const ImGuiStyle &style = ImGui::GetStyle();
+  constexpr const char *Browse = "Browse...";
+  constexpr const char *Clear = "Clear";
+
+  const float buttonWidth = ImGui::CalcTextSize(Browse).x +
+                            ImGui::CalcTextSize(Clear).x +
+                            style.ItemSpacing.x * 2 + style.FramePadding.x * 4;
+  ImGui::SetNextItemWidth(-buttonWidth - style.ItemSpacing.x);
+  ImGui::InputText("##fontPath", &fontPath);
 
   auto fonts = getAvailableFonts();
-  if (draft.fontPath.empty() && !fonts.empty()) {
-    draft.fontPath = fonts.front().filename;
-  }
 
   std::string currentLabel =
-      draft.fontPath.empty() ? "Default (Noto Sans JP)" : draft.fontPath;
+      fontPath.empty() ? std::string(defaultFontName()) : fontPath;
   for (const auto &f : fonts) {
-    if (f.filename == draft.fontPath) {
+    if (f.filename == fontPath) {
       currentLabel = f.label;
       break;
     }
   }
 
+  const bool fontChanged = fontPath != defaults.fontPath;
   ImGui::SetNextItemWidth(-buttonWidth - style.ItemSpacing.x);
   if (ImGui::BeginCombo("##fontCombo", currentLabel.c_str())) {
     for (const auto &f : fonts) {
-      bool selected = (f.filename == draft.fontPath);
+      bool selected = (f.filename == fontPath);
       if (ImGui::Selectable(f.label.c_str(), selected)) {
-        draft.fontPath = f.filename;
+        fontPath = f.filename;
+        ImGuiTheme::loadFonts(fontPath);
+        ImGuiTheme::apply(contentScale);
       }
       if (selected) {
         ImGui::SetItemDefaultFocus();
@@ -832,24 +847,24 @@ void Launcher::drawTranslation() {
   }
   ImGui::SameLine();
   if (ImGui::Button("Clear##font")) {
-    draft.fontPath.clear();
+    fontPath = defaults.fontPath;
+    ImGuiTheme::loadFonts(fontPath);
+    ImGuiTheme::apply(contentScale);
   }
 
-  if (!draft.fontPath.empty()) {
+  if (!fontPath.empty()) {
     std::filesystem::path resolvedFont;
     try {
-      resolvedFont = FileResolver::font(draft.fontPath);
+      resolvedFont = FileResolver::font(fontPath);
     } catch (const std::exception &) {
-      // Uma fonte configurada que não é encontrada não deve quebrar a UI;
-      // reportamos apenas que não foi localizada.
     }
-    if (!resolvedFont.empty() && std::filesystem::exists(resolvedFont, ec)) {
+    if (!resolvedFont.empty() && std::filesystem::exists(resolvedFont)) {
       ImGui::PushStyleColor(ImGuiCol_Text, ImGuiTheme::success());
-      ImGui::TextUnformatted("Font file found in available fonts");
+      ImGui::TextUnformatted("UI font file found");
       ImGui::PopStyleColor();
     } else {
       ImGui::PushStyleColor(ImGuiCol_Text, ImGuiTheme::warning());
-      ImGui::TextUnformatted("Font file not found");
+      ImGui::TextUnformatted("UI font file not found");
       ImGui::PopStyleColor();
     }
   } else {

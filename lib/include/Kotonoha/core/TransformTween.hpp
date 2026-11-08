@@ -19,10 +19,12 @@ inline Transform2D InterpolateTransform(const Transform2D &from,
                                         const Transform2D &to, double progress,
                                         int curve = 0) {
   progress = std::clamp(progress, 0.0, 1.0);
+  // PS2 tween modes (objects.md, start/advance): mode 1 is fast first and
+  // slowing down (2p - p^2); mode 2 is slow first and speeding up (p^2).
   if (curve == 1)
-    progress = std::sin(progress * 1.5707963267948966);
+    progress = 2.0 * progress - progress * progress;
   else if (curve == 2)
-    progress = 1 - std::cos(progress * 1.5707963267948966);
+    progress = progress * progress;
   const auto interpolate = [progress](float start, float end) {
     return start + (end - start) * static_cast<float>(progress);
   };

@@ -12,7 +12,7 @@ provided by vcpkg.
 
 - [lib/](lib/): public headers, engine implementations, tests and submodules.
 - [assets/](assets/): engine splash, fonts, licenses and bundled GLSL shaders.
-- [games/](games/): example, Zero no Tsukaima, Amagami, AIR, Radish Vacation, DDLC and School Days.
+- [games/](games/): example, Zero no Tsukaima, Amagami, RealLive, Radish Vacation, DDLC and School Days.
 - [Xcode/Kotonoha.xcodeproj](Xcode/Kotonoha.xcodeproj): native iOS targets.
 - [Android/](Android/): Android Studio/Gradle project with separate game APKs.
 - [cmake/](cmake/): desktop configuration and `.app` packaging.
@@ -26,7 +26,7 @@ remain out of Git. Supply your own legally obtained data:
 | Snow Radish Vacation | `games/snow-radish-vacation/game-assets/SCRIPT.DAT` and the other DAT archives |
 | DDLC | `games/doki-doki-literature-club/game-assets/game/*.rpa` and `game-assets/characters/*.chr` |
 | School Days | Original game archives in `games/school-days/game-assets/` |
-| [AIR Standard Edition (initial port)](games/air/README.md) | `Seen.txt`, `Gameexe.ini` and original resource folders; `--air DIRECTORY_OR_ISO` |
+| [RealLive Standard Edition (initial port)](games/reallive/README.md) | `Seen.txt`, `Gameexe.ini` and original resource folders; `--reallive DIRECTORY_OR_ISO` |
 | [Amagami PS2 (playable prologue)](games/amagami/PORT_STATUS.md) | Original Japan ISO (`SLPS_259.18`); `--amagami DISC.iso`. Calendar and later routes are in development. |
 
 The port does not download or supply commercial game data.
@@ -34,9 +34,9 @@ The port does not download or supply commercial game data.
 ### Opening ISO images
 
 Every folder-based game also accepts an `.iso` in the same game-data field or
-command-line option: `--air`, `--summer`, `--snow`, `--school-days` and `--ddlc`.
+command-line option: `--reallive`, `--summer`, `--snow`, `--school-days` and `--ddlc`.
 Use **Folder...** for a folder or **ISO...** for an image in the launcher.
-AIR reads ISO9660/Joliet assets directly, without extraction or temporary
+RealLive reads ISO9660/Joliet assets directly, without extraction or temporary
 files, including scripts, voices and overlay replacements. Amagami and Zero
 no Tsukaima retain their direct ISO/raw-disc readers.
 
@@ -139,7 +139,7 @@ target using native Resources phases; frameworks use Embed Frameworks with
 Code Sign on Copy. Each game's `game-assets` directory is copied directly as
 a folder reference, preserving its name without build scripts.
 
-Schemes: `Kotonoha`, `ZeroNoTsukaima`, `SnowRadish`, `DokiDoki`, `SchoolDays`, `Air`, `SummerRadish`, `Amagami`,
+Schemes: `Kotonoha`, `ZeroNoTsukaima`, `SnowRadish`, `DokiDoki`, `SchoolDays`, `RealLive`, `SummerRadish`, `Amagami`,
 `KotonohaIOSSmoke` and `DdlcIOSScriptSmoke`. KotonohaEngine is a static framework;
 apps embed the dynamic KotonohaImGui, SDL3 and SDL3_ttf frameworks.
 
@@ -183,7 +183,7 @@ Choose your signing team for device installation.
 
 The native game bundle IDs match their Android application IDs under
 `me.hirameki.kotonoha`: `.zeronotsukaima`, `.snowradishvacation`,
-`.dokidokiliteratureclub`, `.schooldays`, `.air`, `.summerradishvacation` and
+`.dokidokiliteratureclub`, `.schooldays`, `.reallive`, `.summerradishvacation` and
 `.amagami`. The example uses `me.hirameki.kotonoha` on iOS and
 `me.kotonoha.example` on Android. The platform's selected bundle ID or
 application ID determines the installed app's sandbox, preferences and external
@@ -373,7 +373,7 @@ dialogue translations and DDLC's later acts have not been fully validated.
 Shared overlay, gesture and live translation behavior: [documentation](docs/ASSET_OVERLAYS.md).
 
 Port fidelity, remaining commands and verification are tracked in the
-[Amagami](games/amagami/PORT_STATUS.md), [AIR](games/air/PORT_STATUS.md) and
+[Amagami](games/amagami/PORT_STATUS.md), [RealLive](games/reallive/PORT_STATUS.md) and
 [School Days](games/school-days/PORT_STATUS.md) status documents. Shared file
 ownership and per-game provider extensions are described in
 [asset management](docs/ASSET_OVERLAYS.md#shared-file-ownership).
