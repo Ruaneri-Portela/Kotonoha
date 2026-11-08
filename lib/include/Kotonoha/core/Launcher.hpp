@@ -92,6 +92,8 @@ private:
   void drawUpscaling();
   void drawTranslation();
   void drawAdvanced();
+  // Draws the shared UI/ImGui font selector bound to settings.fontPath.
+  void drawFontSelector(std::string &fontPath);
 
   std::string overlayChecked, overlayInfo;
   bool overlayValid = true;

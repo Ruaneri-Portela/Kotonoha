@@ -28,7 +28,7 @@ Examples:
 - DDLC: `bgm/1.ogg`, `gui/logo.png`, `script-ch0.rpyc`.
 - ZNT: `script/START.KS`, `scenedat/12`, `sound/BGMA01`.
 - Snow: `script` (SCRIPT.DAT data), `graphic/name.evd`.
-- AIR: `Seen.txt`, `g00/name.g00`, `bgm/name.nwa`.
+- RealLive: `Seen.txt`, `g00/name.g00`, `bgm/name.nwa`.
 - School Days: `Script/English/00/00-00-A00.ENG.ORS`, `System/...`,
   `BGM/SD_BGM/...`. `--scripts` remains an alias for `--asset-overlay`.
   Legacy flat translated `.txt` names are adapted through the shared index;
@@ -96,14 +96,14 @@ not a guarantee for other hardware.
 
 The suite also checks core overlay priority/fallback/listing/decoding, live
 translation without duplicate backlog entries, timed subtitle updates, gestures,
-launchers, native ZNT menus, School Days route persistence, and the AIR/Summer
+launchers, native ZNT menus, School Days route persistence, and the RealLive/Summer
 integration paths. Proprietary data remains optional and outside source control.
 
 Common startup options are registered by `Kotonoha::CommandLine`:
 `--launcher`, `--no-launcher`, and
 `--dump-translation FILE`. Export starts the selected game runtime, writes its
 source dictionary and exits before advancing a story frame. Export bypasses the
-launcher regardless of argument order. AIR and Summer use the engine's common
+launcher regardless of argument order. RealLive and Summer use the engine's common
 folder launcher, including its overlay and renderer settings.
 
 Video rendering automatically uses the renderer's configured `Upscaling`
@@ -115,17 +115,17 @@ repeated draws and atlas crops reuse it. Changing the profile/factor invalidates
 cached results; disabling upscaling frees them and renders the originals.
 Destroying an original also releases its upscale. Dynamic canvases supply a
 content serial only when pixels change; videos use the decoded frame serial.
-AIR retains its canvas texture and only uploads/processes changed pixels.
+RealLive retains its canvas texture and only uploads/processes changed pixels.
 DDLC processes source images once rather than running its whole canvas through
 the CNN again on every render. Text rendered directly by the engine retains its native glyph
 rasterization.
 
-Android includes `air` and `summerRadish` flavors. DDLC stages the CPython
+Android includes `reallive` and `summerRadish` flavors. DDLC stages the CPython
 standard library and extension modules from the same Debug/Release installation
 as its linked Python library. Build with Android Studio's bundled JDK when the
 system Java version is newer than supported by Gradle.
 
-The native Xcode project includes Air and SummerRadish schemes. For DDLC,
+The native Xcode project includes RealLive and SummerRadish schemes. For DDLC,
 `tools/PrepareApplePython.py` verifies and prepares the pinned BeeWare archive;
 `ruby Xcode/UpdateGameTargets.rb` updates the project after preparation (requires
 the `xcodeproj` Ruby gem). The project links `Python.xcframework`, selecting the
@@ -136,7 +136,7 @@ Touch input in ImGui launchers and the debug/translation editor uses the shared
 window coordinates, supports dragging, and releases the pointer after focus
 loss. Game taps and navigation gestures continue to use `InputActions`.
 
-AIR implements the name-entry commands used by scenario 9037: create/remove,
+RealLive implements the name-entry commands used by scenario 9037: create/remove,
 focus, set and retrieve text (`1700`, `1701`, `1703`, `1710`, `1711`). The retail
 engine regression covers `9037:118` and closing its pause menu with two fingers.
 Native Windows edit-control typography and full presentation parity still need
@@ -149,7 +149,7 @@ reference comparisons. Engine and port code owns SDL streams through
 `AssetProvider` owns overlay precedence, decoding entry points and texture
 caches. `FileSystemAssetProvider` reads ordinary rooted files;
 `IndexedFileSystemAssetProvider` adds one-time case-insensitive indexing for
-legacy data such as AIR. It reuses the overlay index without searching for an
+legacy data such as RealLive. It reuses the overlay index without searching for an
 `overlay` subfolder, rejects ambiguous names and escaping symlinks, and preserves
 the actual physical filename for streaming. Explicit missing overlay directories
 fail before replacing the active mount.

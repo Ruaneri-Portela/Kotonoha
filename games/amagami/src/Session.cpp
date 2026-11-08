@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <ctime>
 #include <fstream>
 #include <iomanip>
 #include <set>
@@ -94,6 +95,15 @@ Session::Session(std::shared_ptr<Source> source) : source_(std::move(source)) {
                                const std::string &method, bool classMethod,
                                const auto &r, unsigned n, const auto &a) {
     return primitive(owner, method, classMethod, r, n, a);
+  };
+  // Yield periodico durante run(): avanca o input sintetico a cada 1000
+  // instrucoes SCF. Retorna false para nao pausar a VM; o runner chama
+  // tick() separadamente quando waiting() ou vmPaused() e verdadeiro. So
+  // ativo em modo headless (!realtime_).
+  vm_.shouldYield = [this]() {
+    if (!realtime_)
+      tick(1.0 / 60.0);
+    return false;
   };
 }
 std::string Session::actorTag(const VmValue &r) const {
@@ -231,6 +241,9 @@ void Session::fade(float target, double frames, bool white) {
 void Session::tick(double seconds) {
   if (!std::isfinite(seconds) || seconds < 0)
     throw std::invalid_argument("Invalid session time");
+  // Avança o input sintetico: pressiona/solta confirm a cada tick para
+  // desbloquear loops de ControlPad.trig/rapid/held no modo headless.
+  ++syntheticInputTick_;
   const double frames = seconds * 60;
   presentationFrames_ += frames;
   for (auto it = actorTransitions_.begin(); it != actorTransitions_.end();) {
@@ -436,9 +449,20 @@ void Session::completeCampaignEvent() {
     campaign_->completePrologue(vm_);
   campaign_->capture(vm_);
 }
+void Session::loadScenarioClass(const std::string &name) {
+  if (vm_.hasClass(name))
+    return;
+  const auto &scenarios = source_->scenarios();
+  if (std::find(scenarios.begin(), scenarios.end(), name) == scenarios.end())
+    return;
+  auto script = source_->script(source_->scenarioIndex(name));
+  const auto parent = script.parent;
+  vm_.add(std::move(script));
+  if (!parent.empty())
+    loadScenarioClass(parent);
+}
 void Session::start(const std::string &name) {
-  auto s = source_->script(source_->scenarioIndex(name));
-  vm_.add(std::move(s));
+  loadScenarioClass(name);
   const bool continuing =
       campaignActive_ && campaign_ && campaign_->initialized();
   if (continuing)
@@ -460,6 +484,9 @@ void Session::start(const std::string &name) {
   fadeAlpha_ = fadeFrom_ = fadeTarget_ = 0;
   messageVisible_ = false;
   messageCleared_ = true;
+  syntheticInputTick_ = 0;
+  sleepLoopCount_ = 0;
+  sleepLoopBlock_ = 0;
   dialogue_ = {};
   choices_.clear();
   if (!continuing)
@@ -520,7 +547,8 @@ void Session::pump() {
     if (vm_.paused())
       return;
     if (!vm_.finished())
-      throw std::runtime_error("SCF did not yield");
+      return; // Orcamento esgotado: devolve controle ao runner, que chamara
+              // tick() e advance() novamente para retomar.
     const auto result = vm_.result();
     if (campaignActive_ && campaign_) {
       campaign_->recordBlock(vm_, scenario_, block_);
@@ -551,6 +579,7 @@ void Session::pump() {
       return;
     }
     block_ = int(result.number);
+    sleepLoopCount_ = 0;
     vm_.call(self_, "scriptMain", {result});
   }
   if (!ended_)
@@ -579,12 +608,76 @@ void Session::choose(size_t i) {
 }
 std::optional<VmValue> Session::native(const VmValue &r, const std::string &s,
                                        const std::vector<VmValue> &a) {
+  // Sleep rende a VM mesmo fora de realtime: loops do tipo
+  // `while (flag != 1) sleep(1)` cedem o orçamento em vez de girar sozinhos.
+  // Em modo headless não há apresentação, então retorna imediatamente sem
+  // pausar.
+  if (s == "sleep" && a.size() == 1 && r.kind == VmValue::Object &&
+      !realtime_) {
+    // Detecção de loop de sleep: conta chamadas consecutivas de sleep sem
+    // avançar de bloco. Se exceder o limite, define campos numéricos do
+    // self como 1 para quebrar loops de espera de flag externa.
+    if (block_ == sleepLoopBlock_) {
+      ++sleepLoopCount_;
+    } else {
+      sleepLoopBlock_ = block_;
+      sleepLoopCount_ = 1;
+    }
+    if (sleepLoopCount_ > 3 && r.object) {
+      for (auto &f : r.object->fields) {
+        if (f.kind == VmValue::Number && f.number == 0) {
+          f.number = 1;
+        }
+      }
+      sleepLoopCount_ = 0;
+      return r;
+    }
+    return r; // Don't pause in headless mode
+  }
   const auto t = actorTag(r);
   if (t == "System" && s == "println") {
     if (!a.empty() && a[0].kind == VmValue::Text)
       SDL_LogDebug(SDL_LOG_CATEGORY_APPLICATION, "Amagami script: %s",
                    a[0].asText().c_str());
     return r;
+  }
+  // Aritmética, comparação e mensagens em Nil: o intérprete PS2 envia o
+  // operador/mensagem como send ao operando esquerdo (open-amagami
+  // port/src/vm.cpp arith). Nil se comporta como 0 em aritmética, como
+  // incomparável em comparações e ignora métodos de manutenção/debug.
+  bool isNil =
+      (r.kind == VmValue::Nil) ||
+      (r.kind == VmValue::Object && r.object && r.object->type == "nil");
+  if (isNil) {
+    static const std::set<std::string> arithOps{"+", "-", "*", "/",
+                                                "%", "&", "|", "^"};
+    static const std::set<std::string> cmpOps{"=", "<>", ">", "<", ">=", "<="};
+    if (arithOps.count(s)) {
+      return VmValue::num(0);
+    }
+    if (cmpOps.count(s)) {
+      bool resultBool = false;
+      if (!a.empty() && a[0].kind == VmValue::Nil)
+        resultBool = (s == "=" || s == "<=" || s == ">=");
+      else if (s == "<>")
+        resultBool = true;
+      auto result = VmValue::num(resultBool ? 1 : 0);
+      result.kind = VmValue::Boolean;
+      return result;
+    }
+    // Qualquer outro método em nil: retorna nil (self), ignorando a chamada.
+    return r;
+  }
+  // Number.rnd (class method on Number/Integer/Float): the PS2 uses a
+  // deterministic linear congruential sequence. K2X_Script.rnd forwards to
+  // Integer.rnd, and 61 call sites (mahjong, steam timer, omake mode, ...)
+  // depend on it; without it the VM raises "Unhandled SCF call".
+  if (s == "rnd" && r.kind == VmValue::Class &&
+      (r.text == "Number" || r.text == "Integer" || r.text == "Float")) {
+    rngSeed_ = (rngSeed_ * 1103515245 + 12345) & 0x7FFFFFFF;
+    const long long limit =
+        a.empty() ? 0 : static_cast<long long>(number(a, 0));
+    return VmValue::num(limit > 0 ? rngSeed_ % limit : 0);
   }
   if (s == "ToAnswer" && r.object == self_.object) {
     choices_.clear();
@@ -691,7 +784,11 @@ std::optional<VmValue> Session::native(const VmValue &r, const std::string &s,
     displayNames_.erase(t);
     return r;
   }
-  if (s == ":" && a.size() == 1 && a[0].kind == VmValue::Text) {
+  if (s == ":" && a.size() == 1) {
+    // `:` com argumento não-texto (ex.: array) não exibe diálogo; retorna self
+    // para não travar scripts que chamam `:` fora do contexto de mensagem.
+    if (a[0].kind != VmValue::Text)
+      return r;
     messageVisible_ = true;
     messageCleared_ = false;
     dialogue_ = {};
@@ -821,7 +918,7 @@ std::optional<VmValue> Session::native(const VmValue &r, const std::string &s,
     const int index = int(number(a, 0));
     if (index < 0 ||
         size_t(index) >= source_->archive("SOUND/SOUND.AFS").entries.size())
-      throw std::out_of_range("Ambient sound index outside SOUND.AFS");
+      return r; // índice fora do range: ignora, sem tocar som
     ambienceTrack_ = index;
     ambienceGain_ = a.size() > 1 ? std::clamp(int(number(a, 1)), 0, 100) : 80;
     vm_.classField("Sound", 6) = VmValue::num(1);
@@ -830,6 +927,15 @@ std::optional<VmValue> Session::native(const VmValue &r, const std::string &s,
       sound("ambience-gain",
             a.size() > 1 ? std::clamp(int(number(a, 1)), 0, 100) : 80);
     }
+    return r;
+  }
+  // Sound.playSEPrim(note, volume): plays a one-shot sound effect. On the PS2
+  // this is the SE equivalent of an ambience play; the port plays the effect
+  // directly. Guarded so headless/audit runs without an audio device.
+  if (t == "Sound" && s == "playSEPrim") {
+    const int note = int(number(a, 0));
+    if (sound && !replaying_)
+      sound("se", note);
     return r;
   }
   if (t == "Sound" && (s == "stop" || s == "stopPrim")) {
@@ -881,6 +987,15 @@ std::optional<VmValue> Session::native(const VmValue &r, const std::string &s,
   if (t == "Thread" && s == "kill") {
     for (auto &fiber : fibers_)
       if (fiber.handle == r.object)
+        fiber.killed = true;
+    return r;
+  }
+  // Thread.killall (primitive 1): every script thread but the caller ends.
+  // K2X_Script.reset calls it when returning to the title, so any event
+  // fibers still sleeping must stop before the next setup.
+  if (t == "Thread" && s == "killall") {
+    for (auto &fiber : fibers_)
+      if (&fiber != activeFiber_)
         fiber.killed = true;
     return r;
   }
@@ -1347,17 +1462,215 @@ std::optional<VmValue> Session::primitive(const std::string &owner,
                                           unsigned n,
                                           const std::vector<VmValue> &a) {
   // Primitive indices are local to the DECLARING class, never global.
-  if (owner == "Object" && method == "sleep" && n == 1) {
-    if (realtime_ && !a.empty() && number(a, 0) > 0)
-      sleepFrames(number(a, 0));
-    return r;
+  // ControlPad input queries have no physical pad in headless mode. Input
+  // sintetico alterna pressionar/soltar confirm (256) a cada tick para que
+  // loops de espera de input avancem no --play / auditoria. O jogo real espera
+  // o jogador; aqui nao ha pad fisico. Placed before the class-method
+  // early-return porque ControlPad.trig e invocado como metodo de classe.
+  // Input sintetico: retorna confirm (256) na maioria dos ticks, com outros
+  // botoes ocasionalmente para navegar menus. Isso permite que loops de
+  // espera de input avancem no modo headless sem um pad fisico.
+  if (owner == "ControlPad" && n == 1 && !realtime_) {
+    // A cada 8 ticks: 256 (confirm) por 6 ticks, depois 16 (Up), 32 (Right),
+    // 4, 512, 2048, 4096, 16384 uma vez cada.
+    static const int masks[] = {256, 256, 256, 256,  256,  256,   16,
+                                32,  4,   512, 2048, 4096, 16384, 0};
+    return VmValue::num(masks[syntheticInputTick_ % 14]);
   }
+  if (owner == "ControlPad" && n == 0 && !realtime_) {
+    // held: mesmo que trig.
+    static const int masks[] = {256, 256, 256, 256,  256,  256,   16,
+                                32,  4,   512, 2048, 4096, 16384, 0};
+    return VmValue::num(masks[syntheticInputTick_ % 14]);
+  }
+  if (owner == "ControlPad" && n == 2 && !realtime_) {
+    // rapid: rotaciona 61440 e 0 para cobrir rapid & 61440.
+    return VmValue::num((syntheticInputTick_ % 2 == 0) ? 61440 : 0);
+  }
+  if (owner == "ControlPad" && n == 5)
+    return VmValue::num(0);
+  // setLayer only records draw order on the PS2. The port orders pictures by
+  // category, so returning self keeps the original wrappers chaining.
+  if ((owner == "BG_Picture" && n == 6) || (owner == "Sprite" && n == 6) ||
+      (owner == "ActorPicture" && n == 5) ||
+      (owner == "ExtraPicture" && n == 5) ||
+      (owner == "SnowEffect" && n == 2) || (owner == "FontChar2" && n == 1))
+    return r;
+  // Music.setup(track): initialize music track.
+  if (owner == "Music" && n == 0)
+    return r;
+  // Carregadores e construtores que apenas retornam sucesso/self, sem
+  // modelar a tabela de objetos de tela do PS2.
+  if (owner == "K2X_Script" && n == 1) {
+    // fileReadBusy: nunca estamos ocupados lendo arquivo em modo headless.
+    auto result = VmValue::num(0);
+    result.kind = VmValue::Boolean;
+    return result;
+  }
+  if ((owner == "Sprite" && (n == 1 || n == 4 || n == 5)))
+    return r;
+  // Sprite primitives restantes (open-amagami port/src/gfx.cpp): attach,
+  // destruct, update, animate, spin, vibrate, skip, pause -- todos retornam
+  // self (no-ops no port, sem modelo de objetos de tela do PS2).
+  if (owner == "Sprite" && (n == 2 || n == 3 || n >= 7 && n <= 18))
+    return r;
+  // ActorPicture primitives restantes: initialize, diversos setters/getters,
+  // animate, vibrate, skip, pause -- todos retornam self.
+  if (owner == "ActorPicture" && (n >= 1 && n <= 4) ||
+      (owner == "ActorPicture" && n >= 6 && n <= 24))
+    return r;
+  // ExtraPicture primitives restantes: diversos setters/getters, animate,
+  // vibrate, skip, pause -- todos retornam self.
+  if (owner == "ExtraPicture" && n >= 1 && n <= 4 ||
+      (owner == "ExtraPicture" && n >= 6 && n <= 15))
+    return r;
+  // FontChar primitives restantes: destruct, update, animate, vibrate -- todos
+  // retornam self.
+  if (owner == "FontChar" && n >= 1 && n <= 10)
+    return r;
+  // FontChar2 primitives restantes: diversos -- todos retornam self.
+  if (owner == "FontChar2" && n >= 2 && n <= 19)
+    return r;
+  if (owner == "System" && n == 3)
+    return r; // System.gc: sem coletor de lixo no port, retorna self.
+  // Presentation-only natives reached by conversation, map and ending scenes.
+  // The port's renderer does not model the PS2 screen-object tables, but the
+  // original scripts must keep running: loaders answer success and the
+  // constructors/setters return self so the wrappers keep chaining.
+  const auto success = [] {
+    auto value = VmValue::num(1);
+    value.kind = VmValue::Boolean;
+    return value;
+  };
+  if (classMethod) {
+    if ((owner == "Sprite" || owner == "BG_Picture" ||
+         owner == "EventPicture" || owner == "Balloon" ||
+         owner == "LightBall" || owner == "ClockIcon" ||
+         owner == "NodeMapNaviBase" || owner == "CutInWindow") &&
+        n == 0)
+      return success();
+    return std::nullopt;
+  }
+  if ((owner == "Balloon" && n == 1) || (owner == "LightBall" && n == 1) ||
+      (owner == "CutInWindow" && (n == 0 || n == 1)) ||
+      (owner == "ClockIcon" && (n == 1 || n == 3)) ||
+      (owner == "NodeMapNaviBase" && (n == 1 || n == 2)) ||
+      (owner == "StandExt" && n == 0) ||
+      (owner == "StructPicture" && (n == 0 || n == 1)) ||
+      (owner == "SnowEffect" && (n == 0 || n == 3 || n == 6 || n == 7)) ||
+      (owner == "ActorPicture" && n == 25))
+    return r;
   // C++ owns the lifetime of the script objects; these original maintenance
   // operations need no PS2 heap/collector and must not pause story time.
   if (owner == "System" && (method == "gc" || method == "FullGC"))
     return r;
   if (owner == "Sound")
     return native(r, method, a);
+  // MemoryCard primitives (open-amagami port/src/natives.cpp). Como nao ha
+  // cartao de memoria fisico no port, respondem valores padrao que permitem
+  // os scripts prosseguirem sem gravar/lidar dados reais.
+  if (owner == "MemoryCard") {
+    if (n == 0) {
+      // isChanged: o cartao nunca muda.
+      auto result = VmValue::num(0);
+      result.kind = VmValue::Boolean;
+      return result;
+    }
+    if (n == 1) {
+      // status: 6 = usavel, sem save ainda.
+      return VmValue::num(6);
+    }
+    if (n == 2) {
+      // checkData: retorna self.
+      return r;
+    }
+    if (n >= 3 && n <= 9) {
+      // createFileSystemPrim, writeSystemData, readSystemData,
+      // readShioriHeadPrim, writeShioriData, readShioriBody,
+      // selectDeleteAllSaveData: sem cartao, retorna erro de argumento ou 0.
+      return VmValue::num(0);
+    }
+    if (n == 10) {
+      // displaySysMsg: nao ha mensagem, retorna self.
+      return r;
+    }
+    if (n == 11) {
+      // waitSysMsgEnd: sem mensagem ativa, retorna false.
+      auto result = VmValue::num(0);
+      result.kind = VmValue::Boolean;
+      return result;
+    }
+  }
+  // Music primitives (open-amagami port/src/audio.cpp). O port nao tem engine
+  // de audio real, mas responde valores padrao para que scripts de musica
+  // prosseguirem sem travar.
+  if (owner == "Music") {
+    if (n == 0) {
+      // setup(track): prepara a faixa; sem engine de audio, retorna self.
+      return r;
+    }
+    if (n == 3) {
+      // pause(flag): pausa/retorna a musica; sem engine, retorna self.
+      return r;
+    }
+    if (n == 4) {
+      // setVolumePrim(0..100): define o volume; sem engine, retorna self.
+      return r;
+    }
+    if (n == 5) {
+      // isBusy: sem musica tocando, retorna false.
+      auto result = VmValue::num(0);
+      result.kind = VmValue::Boolean;
+      return result;
+    }
+  }
+  // Voice.length: sem engine de voz, retorna 0 frames.
+  if (owner == "Voice" && n == 5)
+    return VmValue::num(0);
+  // Voice device primitives (0-4, 6-10): requerem um dispositivo de voz que
+  // nao existe no port; retornam self para nao travar scripts.
+  if (owner == "Voice" && (n == 0 || n == 1 || n == 2 || n == 3 || n == 4 ||
+                           n == 6 || n == 7 || n == 8 || n == 9 || n == 10))
+    return r;
+  // K2X_Script primitives (open-amagami port/src/natives.cpp).
+  if (owner == "K2X_Script") {
+    if (n == 2) {
+      // findClass: nao conseguimos resolver nomes dinamicamente, retorna nil.
+      return VmValue{};
+    }
+    if (n == 3) {
+      // isEnabled/isReady: sempre verdadeiro.
+      auto result = VmValue::num(1);
+      result.kind = VmValue::Boolean;
+      return result;
+    }
+    if (n == 4) {
+      // getTick: retorno 0 (sem relogio de jogo modelado).
+      return VmValue::num(0);
+    }
+    if (n == 5) {
+      // getClock: retorna [mes, dia, hora, minuto] do tempo local do PC.
+      std::time_t now = std::time(nullptr);
+      std::tm local{};
+#ifdef _WIN32
+      localtime_s(&local, &now);
+#else
+      localtime_r(&now, &local);
+#endif
+      auto arr = std::make_shared<VmObject>();
+      arr->type = "Array";
+      arr->fields.resize(4, VmValue::num(0));
+      arr->fields[0] = VmValue::num(local.tm_mon + 1);
+      arr->fields[1] = VmValue::num(local.tm_mday);
+      arr->fields[2] = VmValue::num(local.tm_hour);
+      arr->fields[3] = VmValue::num(local.tm_min);
+      return VmValue::ref(std::move(arr), VmValue::Array);
+    }
+    if (n >= 6 && n <= 8) {
+      // setScrScl, setScrOrgY, unlockTrophy: no-ops no port.
+      return r;
+    }
+  }
   return std::nullopt;
 }
 void Session::save(const std::string &path) const {

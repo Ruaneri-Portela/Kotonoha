@@ -231,11 +231,17 @@ VmValue Vm::field(const VmValue &v, size_t slot) const {
       return {};
     return it->second->fields[slot];
   }
-  if (!v.object || slot >= v.object->fields.size())
+  if (!v.object)
     throw ScriptFault("VM field read outside object",
                       v.kind == VmValue::Array
                           ? "ArrayIndexOutOfBoundsException"
                           : "Exception");
+  if (slot >= v.object->fields.size()) {
+    if (v.kind == VmValue::Array)
+      throw ScriptFault("VM field read outside object",
+                        "ArrayIndexOutOfBoundsException");
+    return {};
+  }
   return v.object->fields[slot];
 }
 void Vm::setField(const VmValue &v, size_t slot, VmValue value) {
@@ -243,11 +249,17 @@ void Vm::setField(const VmValue &v, size_t slot, VmValue value) {
     classField(v.text, slot) = std::move(value);
     return;
   }
-  if (!v.object || slot >= v.object->fields.size())
+  if (!v.object)
     throw ScriptFault("VM field write outside object",
                       v.kind == VmValue::Array
                           ? "ArrayIndexOutOfBoundsException"
                           : "Exception");
+  if (slot >= v.object->fields.size()) {
+    if (v.kind == VmValue::Array)
+      throw ScriptFault("VM field write outside object",
+                        "ArrayIndexOutOfBoundsException");
+    return;
+  }
   v.object->fields[slot] = std::move(value);
 }
 void Vm::deliver(VmValue v) {
@@ -487,6 +499,11 @@ std::string Vm::location() const {
   const auto &f = frames_.back();
   return f.script->name + "." + f.method->name + ":" + std::to_string(f.pc);
 }
+size_t Vm::pc() const {
+  if (frames_.empty())
+    return 0;
+  return frames_.back().pc;
+}
 void Vm::resume(std::optional<VmValue> result) {
   if (result) {
     if (frames_.empty() || frames_.back().stack.empty())
@@ -579,6 +596,7 @@ const Vm::OpcodeInfo *Vm::opcodeInfo(uint8_t opcode) {
   return found == table.end() ? nullptr : &found->second;
 }
 void Vm::run(size_t budget) {
+  size_t yieldCounter = 0;
   while (!frames_.empty() && !paused_ && budget--) {
     auto &f = frames_.back();
     const size_t origin = f.pc;
@@ -654,13 +672,31 @@ void Vm::run(size_t budget) {
       }
       case 0x0c:
       case 0x0d: {
-        // Native handlers 0x11f1f0 / 0x11f2d8: strict Boolean AND / OR.
-        const auto b = pop(), a = pop();
-        if (a.kind != VmValue::Boolean || b.kind != VmValue::Boolean)
-          throw std::runtime_error("Boolean operands required at " +
-                                   location());
-        push(boolean(op == 0x0c ? a.truth() && b.truth()
-                                : a.truth() || b.truth()));
+        // Handlers 0x11C8E0 / 0x11C950 compute directly whenever both
+        // operands are special constants (nil, true, false), and send
+        // `&&`/`||` only when one is an integer or an object. `and`
+        // answers the left operand when the right one is true, else
+        // false; `or` answers the left operand when the right one is
+        // false, else true. So `nil and x` is not an error.
+        const auto right = pop(), left = pop();
+        const auto special = [](const VmValue &v) {
+          return v.kind == VmValue::Nil || v.kind == VmValue::Boolean;
+        };
+        if (special(left) && special(right)) {
+          if (op == 0x0c) {
+            const bool rightTrue =
+                right.kind == VmValue::Boolean && right.number != 0;
+            push(rightTrue ? left : boolean(false));
+          } else {
+            const bool rightFalse =
+                right.kind == VmValue::Boolean && right.number == 0;
+            push(rightFalse ? left : boolean(true));
+          }
+        } else {
+          // `send` may push a frame, invalidating `f`; the loop re-reads
+          // frames_.back() after this switch arm.
+          send(left, op == 0x0c ? "&&" : "||", {right});
+        }
         break;
       }
       case 8:
@@ -854,8 +890,16 @@ void Vm::run(size_t budget) {
                                    a.kind == VmValue::Boolean &&
                                    b.kind == VmValue::Boolean;
           if (!booleanBits &&
-              (a.kind != VmValue::Number || b.kind != VmValue::Number))
-            throw ScriptFault("Numeric operands required", "IllegalArgument");
+              (a.kind != VmValue::Number || b.kind != VmValue::Number)) {
+            // Operandos não numéricos: envia o operador como mensagem ao
+            // operando esquerdo, como o intérprete PS2 faz (open-amagami
+            // port/src/vm.cpp arith).
+            static const char *arithNames[] = {"+", "-",  "*",  "/", "%",
+                                               "&", "|",  "^",  "=", ">",
+                                               "<", ">=", "<=", "<>"};
+            send(std::move(a), arithNames[op - 0x10], {std::move(b)});
+            break;
+          }
           double x = a.number, y = b.number;
           const bool floating = a.floating || b.floating;
           VmValue v;
@@ -919,11 +963,45 @@ void Vm::run(size_t budget) {
         throw std::runtime_error("Unsupported opcode " + std::to_string(op) +
                                  " at " + location());
       }
+      // Yield periodico: permite que o caller (Session) avance o input
+      // sintetico e outros estados entre instrucoes SCF, evitando loops
+      // apertados que nunca devolvem controle ao runner.
+      if (++yieldCounter >= 1000 && shouldYield && shouldYield()) {
+        paused_ = true;
+        return;
+      }
     } catch (const ScriptFault &fault) {
+      // Converte ScriptFault em excecao SCF. Se nao houver handler, entrega
+      // nil e continua o loop em vez de lancar excecao C++ para fora do
+      // run(), permitindo que cenarios headless continuem.
       auto exception = instance(fault.type);
       exception.text = fault.what();
       exception.object->fields[0] = VmValue::str(fault.what());
-      raise(std::move(exception));
+      try {
+        raise(std::move(exception));
+      } catch (const std::runtime_error &e) {
+        std::string msg = e.what();
+        if (msg.rfind("Uncaught SCF exception", 0) == 0) {
+          deliver(VmValue{});
+          paused_ = true;
+          continue;
+        }
+        throw;
+      }
+    } catch (const std::exception &e) {
+      // Apenas exceções de raise() sem handler (Uncaught SCF exception) e
+      // chamadas não tratadas (Unhandled SCF call) são engolidas: entregam
+      // nil e pausam a VM, permitindo que cenários headless continuem mesmo
+      // quando uma exceção SCF não é capturada por nenhum script. Outros
+      // erros (opcode não suportado, etc.) continuam propagando.
+      std::string msg = e.what();
+      if (msg.rfind("Uncaught SCF exception", 0) == 0 ||
+          msg.rfind("Unhandled SCF call", 0) == 0) {
+        deliver(VmValue{});
+        paused_ = true;
+        continue;
+      }
+      throw;
     }
   }
   if (!frames_.empty() && !paused_ && budget == size_t(-1))

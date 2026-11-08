@@ -37,6 +37,7 @@ public:
   void update() override;
   void saveGame(const std::string &path) override;
   void loadGame(const std::string &path) override;
+  bool continuousTouch() const override { return true; }
 };
 
 } // namespace KotonohaExample

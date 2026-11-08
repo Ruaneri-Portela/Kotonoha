@@ -6,7 +6,7 @@ root = Pathname.new(__dir__).parent
 project = Xcodeproj::Project.open(root.join('Xcode/Kotonoha.xcodeproj'))
 objects = Xcodeproj::Project::Object
 school = project.targets.find { |t| t.name == 'SchoolDays' }
-[['Air', 'air', 'AIR', 'air'], ['SummerRadish', 'summer-radish-vacation', 'Summer Radish Vacation!!', 'summerradishvacation']].each do |name, game, title, bundle|
+[['RealLive', 'reallive', 'RealLive', 'reallive'], ['SummerRadish', 'summer-radish-vacation', 'Summer Radish Vacation!!', 'summerradishvacation']].each do |name, game, title, bundle|
   next if project.targets.any? { |t| t.name == name }
   target = project.new_target(:application, name, :ios, '15.0')
   target.build_configurations.each do |config|
@@ -45,20 +45,20 @@ school = project.targets.find { |t| t.name == 'SchoolDays' }
   scheme.configure_with_targets(target, nil)
   scheme.save_as(project.path, name, true)
 end
-air = project.targets.find { |t| t.name == 'Air' }
-if air
-  air.build_configurations.each do |config|
+reallive = project.targets.find { |t| t.name == 'RealLive' }
+if reallive
+  reallive.build_configurations.each do |config|
     paths = Array(config.build_settings['HEADER_SEARCH_PATHS'])
-    vendor = '$(KOTONOHA_ROOT)/games/air/vendor'
+    vendor = '$(KOTONOHA_ROOT)/games/reallive/vendor'
     config.build_settings['HEADER_SEARCH_PATHS'] = (paths + [vendor]).uniq
     config.build_settings['GCC_CHAR_IS_UNSIGNED_CHAR'] = 'YES'
   end
-  unless air.file_system_synchronized_groups.any? { |g| g.path == '../games/air/vendor' }
+  unless reallive.file_system_synchronized_groups.any? { |g| g.path == '../games/reallive/vendor' }
     vendor = project.new(objects::PBXFileSystemSynchronizedRootGroup)
-    vendor.path = '../games/air/vendor'
+    vendor.path = '../games/reallive/vendor'
     vendor.source_tree = 'SOURCE_ROOT'
     project.main_group.children << vendor
-    air.file_system_synchronized_groups << vendor
+    reallive.file_system_synchronized_groups << vendor
   end
 end
 project.build_configurations.each do |config|

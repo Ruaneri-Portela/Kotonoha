@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.16)
+
 project(Amagami VERSION 0.1.0 LANGUAGES C CXX)
+
 if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
     include(CTest)
 endif()
@@ -17,6 +19,7 @@ target_link_libraries(amagami PUBLIC AmagamiFormats Kotonoha::Engine)
 kotonoha_add_app(Amagami src/main.cpp)
 target_link_libraries(Amagami PRIVATE amagami)
 kotonoha_configure_app(Amagami BUNDLE_ID me.hirameki.kotonoha.amagami GAME amagami)
+set_target_properties(Amagami PROPERTIES CXX_EXTENSIONS OFF)
 if(NOT ANDROID)
     add_executable(AmagamiInspect tools/Inspect.cpp)
     find_package(PkgConfig REQUIRED)

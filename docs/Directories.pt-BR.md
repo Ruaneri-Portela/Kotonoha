@@ -45,7 +45,7 @@ Uma ISO informada explicitamente na linha de comando e excecao: se estiver
 ausente, corrompida ou nao contiver os dados do jogo, a inicializacao falha
 com o motivo em vez de abrir silenciosamente outra fonte de dados.
 
-Todo campo de pasta de jogo tambem aceita ISO. AIR usa `DiscImageAssetProvider`
+Todo campo de pasta de jogo tambem aceita ISO. RealLive usa `DiscImageAssetProvider`
 para ler diretamente a imagem: scripts, vozes, imagens e midia chegam pela
 memoria, sem extracao nem arquivos temporarios. Seu launcher valida a ISO
 original, sem passar por `gameDataDirectory`.
@@ -64,7 +64,7 @@ utilizaveis pelo port; nao ha instalacao automatica nem montagem do sistema.
 A pasta `overlay/` e um patch de **identificadores logicos**, independente de
 o jogo estar aberto por pasta, ISO materializada, disco lido diretamente ou
 recursos avulsos. Por exemplo, `overlay/G00/OP_D00.G00` substitui
-`G00/OP_D00.G00` no AIR em qualquer origem; os demais recursos continuam vindo
+`G00/OP_D00.G00` no RealLive em qualquer origem; os demais recursos continuam vindo
 da origem original. A prioridade tambem vale para caminhos locais usados por
 streaming e arquivos mapeados. Os caminhos sao relativos a raiz do patch e
 ignoram maiusculas/minusculas; nao inclua o nome da ISO nem o da pasta temporaria.

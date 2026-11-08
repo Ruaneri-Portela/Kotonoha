@@ -490,11 +490,15 @@ void testTouchSettings(Engine &engine, EventRuntime &runtime) {
   require(!engine.GetSettingsMenu().isOpen(),
           "Edge swipe closes settings without leaving a held pointer");
   engine.openSettings();
+  const auto audioChannels = engine.GetAudio().getChannels();
+  require(!audioChannels.empty(),
+          "Settings exposes at least one real audio channel");
+  const std::string firstChannel = audioChannels.front()->getName();
   tap(600, 105); // Audio tab.
   touch(SDL_EVENT_FINGER_DOWN, 700, 172);
   touch(SDL_EVENT_FINGER_MOTION, 945, 172);
   touch(SDL_EVENT_FINGER_UP, 945, 172);
-  tap(755, 268); // BGM gain (first sorted channel).
+  tap(755, 268); // First audio channel gain.
   tap(800, 105); // VN text tab (valid with and without the Input tab).
   tap(500, 218); // Override colors.
   tap(500, 266); // Dialogue color selector.
@@ -503,10 +507,11 @@ void testTouchSettings(Engine &engine, EventRuntime &runtime) {
   tap(400, 646); // Apply.
   require(!engine.GetSettingsMenu().isOpen(),
           "Touch applies settings and closes the modal");
-  require(std::abs(engine.GetSettings().masterVolume - .75f) < .01f &&
-              std::abs(engine.GetAudio().channel("BGM")->getUserVolume() -
-                       .25f) < .01f,
-          "Finger drag changes master gain and finger tap sets channel gain");
+  require(
+      std::abs(engine.GetSettings().masterVolume - .75f) < .01f &&
+          std::abs(engine.GetAudio().channel(firstChannel)->getUserVolume() -
+                   .25f) < .01f,
+      "Finger drag changes master gain and finger tap sets channel gain");
   require(engine.GetSettings().vnTextColorOverride &&
               engine.GetSettings().vnTextColor.r == 0,
           "Touch selects VN text colors through the shared selection box");

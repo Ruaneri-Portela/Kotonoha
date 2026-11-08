@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <cstring>
 #include <stdexcept>
 
 #if defined(_WIN32)
@@ -340,6 +341,32 @@ std::string ShiftJisToUtf8(std::string_view text) {
   }
   throw std::runtime_error(
       "Shift-JIS conversion is unavailable (no compatible iconv converter)");
+#endif
+}
+
+std::u16string Utf8ToUtf16(std::string_view text) {
+#if defined(_WIN32)
+  int wide = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, text.data(),
+                                 int(text.size()), nullptr, 0);
+  if (wide <= 0)
+    return {};
+  std::u16string result(size_t(wide), char16_t{});
+  if (MultiByteToWideChar(
+          CP_UTF8, MB_ERR_INVALID_CHARS, text.data(), int(text.size()),
+          reinterpret_cast<wchar_t *>(result.data()), wide) != wide)
+    return {};
+  return result;
+#else
+  Converter converter("UTF-8", "UTF-16LE");
+  if (!converter.valid())
+    return {};
+  std::string converted =
+      converter.run(text, [](const unsigned char *, size_t) { return 1; });
+  if (converted.size() % 2 != 0)
+    return {};
+  std::u16string result(converted.size() / 2, char16_t{});
+  std::memcpy(result.data(), converted.data(), converted.size());
+  return result;
 #endif
 }
 

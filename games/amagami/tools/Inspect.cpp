@@ -358,7 +358,9 @@ int main(int argc, char **argv) {
         std::string error;
         try {
           session.start(name);
-          while (!session.ended() && steps++ < 5000) {
+          while (!session.ended() && steps++ < 10000) {
+            if (session.waiting() || session.vmPaused())
+              session.tick(1.0 / 60.0);
             if (session.choices().empty())
               session.advance();
             else {
@@ -427,6 +429,11 @@ int main(int argc, char **argv) {
         } else {
           std::cout << session.dialogue().speaker << ": "
                     << session.dialogue().text << '\n';
+          // A VM pausada por sleep (Object.sleep rende em qualquer modo) ou
+          // por shouldYield (input sintetico) precisa que o tempo avance para
+          // prosseguir.
+          if (session.waiting() || session.vmPaused())
+            session.tick(1.0 / 60.0);
           session.advance();
         }
       }

@@ -10,11 +10,13 @@ Audio oferece volume geral, mute geral e os canais do mixer. Os controles
 aceitam arrastar o dedo. O ganho escolhido pelo jogador é multiplicado pelo
 volume nativo do roteiro e pelo ganho de cada stream, preservando fades e
 comandos de áudio do jogo. Canais criados depois herdam os valores salvos.
+As mudanças de áudio são aplicadas na hora: o botão da aba Audio apenas fecha o
+menu, sem exigir Aplicar e salvar.
 
 VN text permite selecionar uma fonte TTF/OTF/TTC da pasta de fontes da engine,
 ou voltar à fonte original. Diálogo e nome têm seletores de cor separados;
 desligar a substituição recupera as cores originais. A mudança ocorre ao aplicar,
-sem reiniciar a novel. AIR, DDLC, Summer, Snow, Zero e legendas libass usam essas
+sem reiniciar a novel. RealLive, DDLC, Summer, Snow, Zero e legendas libass usam essas
 preferências na apresentação nativa, sem reescrever o texto ou o estado da VM.
 
 O launcher expõe volumes, fonte e cores em Advanced, incluindo edição RGBA.
@@ -30,7 +32,7 @@ reutilizada durante o fade, sem filtrar o canvas ou cada quadro. Trocar a
 configuração invalida somente essa textura derivada; desativar restaura a original.
 
 Legendas, diálogos e textos rasterizados não passam pelo upscaler de imagens.
-No AIR, inclusive texto criado pelo roteiro é desenhado depois do filtro global
+No RealLive, inclusive texto criado pelo roteiro é desenhado depois do filtro global
 da cena, preservando a rasterização original dos glifos.
 
 Os campos opcionais `channelVolumes`, `vnFontPath`, `vnTextColorOverride`,
@@ -41,7 +43,7 @@ Configurações antigas continuam válidas.
 
 `Enable forced subtitles`, no Advanced do launcher, é salvo em
 `enableForcedSubtitles` (ativado por padrão). O recurso vale para todas as
-novels, incluindo interpretadores nativos como AIR e roteiros VN Standard
+novels, incluindo interpretadores nativos como RealLive e roteiros VN Standard
 ou Timed; não depende de vídeos nem de cues de legenda na timeline.
 
 Ao construir o renderer, a pasta `forced_subtitles/` é resolvida pela mesma

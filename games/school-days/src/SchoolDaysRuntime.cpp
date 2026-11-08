@@ -23,6 +23,7 @@
 #include <Kotonoha/media/MediaDecoder.hpp>
 #include <Kotonoha/media/TextureAlpha.hpp>
 #include <Kotonoha/mobile/AndroidDisplay.hpp>
+#include <Kotonoha/routing/SchoolDaysBackLogEngine.hpp>
 #include <Kotonoha/routing/SchoolDaysChoiceTextPlan.hpp>
 #include <Kotonoha/routing/SchoolDaysDesktopStartupProfile.hpp>
 #include <Kotonoha/routing/SchoolDaysOrsFadeBoundary.hpp>
@@ -1216,7 +1217,8 @@ void Runtime::init(Kotonoha::Engine &owner) {
     gameScene = std::make_unique<GameScene>(owner, *this);
     logoSplash = std::make_unique<LogoSplash>(owner, *assets);
     saveMenu = std::make_unique<Kotonoha::VNSaveMenu>(owner);
-    backlogFallback = std::make_unique<Kotonoha::VNBacklog>(owner);
+    backlogFallback =
+        std::make_unique<Kotonoha::SchoolDaysBackLogEngine>(owner, *assets);
 #if defined(KOTONOHA_DEV_CONTROL) && defined(_WIN32)
     unsigned short port = 47321;
     if (const char *value = std::getenv("KOTONOHA_DEV_PORT")) {
@@ -2999,16 +3001,18 @@ void Runtime::dispatch(Kotonoha_orsEvent &event) {
     caption = &event;
     if (!temporaryPlaybackActive()) {
       backlogStore.AppendLogMessage(
-          backlogIndex++, Utf16(Text(event.data.print_text->character)),
-          Utf16(Text(event.data.print_text->text)));
+          backlogIndex++,
+          Kotonoha::Utf8ToUtf16(Text(event.data.print_text->character)),
+          Kotonoha::Utf8ToUtf16(Text(event.data.print_text->text)));
       backlogFallback->addEntry(Text(event.data.print_text->character),
                                 Text(event.data.print_text->text));
     } else if (playDataPlayback && playDataPlayback->IsOpen() &&
                !systemUi.IsOpen() && !backlogModel.IsOpen() &&
                !(backlogFallback && backlogFallback->isVisible())) {
       playDataBacklogStore.AppendLogMessage(
-          playDataBacklogIndex++, Utf16(Text(event.data.print_text->character)),
-          Utf16(Text(event.data.print_text->text)));
+          playDataBacklogIndex++,
+          Kotonoha::Utf8ToUtf16(Text(event.data.print_text->character)),
+          Kotonoha::Utf8ToUtf16(Text(event.data.print_text->text)));
     }
     break;
   case SetSELECT: {
@@ -6535,6 +6539,11 @@ void Runtime::openBacklog(bool playView) {
   }
   backlogOwner = BackLogOwner::Narrative;
   backlogFallback->open();
+}
+
+bool Runtime::handleBacklogAction() {
+  openBacklog();
+  return true;
 }
 
 void Runtime::handlePanel(const Ui::Output &output) {

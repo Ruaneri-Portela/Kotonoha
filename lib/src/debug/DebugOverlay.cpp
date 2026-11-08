@@ -5,6 +5,7 @@
 #include <Kotonoha/componentes/VNManager.hpp>
 #include <Kotonoha/componentes/VNTextBox.hpp>
 #include <Kotonoha/core/Appearance.hpp>
+#include <Kotonoha/core/Config.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/FileSystem.hpp>
 #include <Kotonoha/core/Log.hpp>
@@ -20,6 +21,7 @@
 #include <unordered_set>
 
 #include <algorithm>
+#include <cfloat>
 #include <charconv>
 #include <cmath>
 #include <filesystem>
@@ -48,6 +50,38 @@ const char *nodeTypeName(NodeType type) {
     return "End";
   }
   return "Unknown";
+}
+} // namespace
+
+namespace {
+bool isCJKFont(const std::string &name) {
+  return name.find("JP") != std::string::npos ||
+         name.find("Japanese") != std::string::npos ||
+         name.find("CJK") != std::string::npos ||
+         name.find("Gothic") != std::string::npos ||
+         name.find("Mincho") != std::string::npos ||
+         name.find("NotoSans") != std::string::npos;
+}
+
+std::vector<std::string> uiFontNames() {
+  std::vector<std::string> names;
+  try {
+    for (const auto &[name, bytes] : FileResolver::getFontMap()) {
+      (void)bytes;
+      names.push_back(name);
+    }
+  } catch (...) {
+  }
+  std::sort(names.begin(), names.end(),
+            [](const std::string &left, const std::string &right) {
+              const bool leftCJK = isCJKFont(left), rightCJK = isCJKFont(right);
+              if (leftCJK != rightCJK)
+                return leftCJK > rightCJK;
+              return left < right;
+            });
+  if (std::find(names.begin(), names.end(), defaultFontName()) == names.end())
+    names.insert(names.begin(), defaultFontName());
+  return names;
 }
 } // namespace
 
@@ -231,23 +265,6 @@ void DebugOverlay::renderHUD(RendererRef renderer) {
 }
 
 void DebugOverlay::drawInspector() {
-  ImGuiTheme::sectionHeader("Display");
-  ImGui::Checkbox("FPS (window corner)", &settings.showFPS);
-  ImGui::SameLine();
-  ImGui::Checkbox("Node / clock", &settings.showNodeClock);
-  ImGui::Checkbox("Ignore pause (keep the story running)",
-                  &settings.ignorePause);
-  auto draft = engine.GetSettings();
-  if (ImGui::SliderFloat("Debug UI scale", &draft.debugUIScale, 1, 3,
-                         "%.2fx")) {
-    try {
-      engine.applySettings(draft);
-    } catch (const std::exception &error) {
-      status = error.what();
-      statusError = true;
-      SDL_LogError(LogConfig, "Debug UI scale: %s", error.what());
-    }
-  }
   ImGuiTheme::sectionHeader("KTRF / custom nodes");
   drawKtrfTools();
   drawForcedSubtitlesGenerator();
@@ -1069,8 +1086,33 @@ void DebugOverlay::drawTranslationExport() {
                    "Translation export failed: %s", error.what());
     }
   }
-  if (!status.empty())
-    ImGuiTheme::statusText(status.c_str(), statusError);
+}
+
+void DebugOverlay::drawMenuBar() {
+  if (!ImGui::BeginMenuBar())
+    return;
+  if (ImGui::BeginMenu("System")) {
+    if (ImGui::MenuItem("Open system menu")) {
+      setVisible(false);
+      engine.openSettings();
+    }
+    if (ImGui::MenuItem("Close debug UI", "F10"))
+      setVisible(false);
+    ImGui::EndMenu();
+  }
+  if (ImGui::BeginMenu("View")) {
+    ImGui::MenuItem("FPS", "F9", &settings.showFPS);
+    ImGui::MenuItem("Node / clock", "F8", &settings.showNodeClock);
+    ImGui::MenuItem("Ignore pause", nullptr, &settings.ignorePause);
+    ImGui::EndMenu();
+  }
+  if (ImGui::BeginMenu("Help")) {
+    ImGui::MenuItem("F10 toggles this debug UI", nullptr, false, false);
+    ImGui::MenuItem("F7 opens the translation editor", nullptr, false, false);
+    ImGui::MenuItem("Esc closes the debug UI", nullptr, false, false);
+    ImGui::EndMenu();
+  }
+  ImGui::EndMenuBar();
 }
 
 void DebugOverlay::renderMenu(RendererRef renderer) {
@@ -1102,12 +1144,47 @@ void DebugOverlay::renderMenu(RendererRef renderer) {
   }
   ImGui::NewFrame();
   if (visible) {
-    ImGui::SetNextWindowSize(ImVec2(std::min(650 * scale, io.DisplaySize.x),
-                                    std::min(650 * scale, io.DisplaySize.y)),
+    ImGui::SetNextWindowSize(ImVec2(std::min(760 * scale, io.DisplaySize.x),
+                                    std::min(720 * scale, io.DisplaySize.y)),
                              ImGuiCond_FirstUseEver);
-    if (ImGui::Begin("Kotonoha Debug [F10]", &visible)) {
-      drawInspector();
-      drawEngineTools();
+    if (ImGui::Begin("Kotonoha Debug [F10]", &visible,
+                     ImGuiWindowFlags_MenuBar)) {
+      drawMenuBar();
+      if (ImGuiTheme::primaryButton("Open system menu")) {
+        setVisible(false);
+        engine.openSettings();
+      }
+      ImGui::SameLine();
+      ImGui::TextDisabled("F10 debug | F7 translation | Esc close");
+      if (ImGui::BeginTabBar("##debug-tabs", ImGuiTabBarFlags_Reorderable)) {
+        if (ImGui::BeginTabItem("Inspector")) {
+          drawInspector();
+          ImGui::EndTabItem();
+        }
+        if (ImGui::BeginTabItem("Interface")) {
+          drawInterfaceTools();
+          ImGui::EndTabItem();
+        }
+        if (ImGui::BeginTabItem("Audio")) {
+          drawAudioTools();
+          ImGui::EndTabItem();
+        }
+        if (ImGui::BeginTabItem("Display")) {
+          drawDisplayTools();
+          ImGui::EndTabItem();
+        }
+        if (ImGui::BeginTabItem("Dialogue")) {
+          drawDialogueTools();
+          ImGui::EndTabItem();
+        }
+        if (ImGui::BeginTabItem("Logs")) {
+          drawLogs();
+          ImGui::EndTabItem();
+        }
+        ImGui::EndTabBar();
+      }
+      if (!status.empty())
+        ImGuiTheme::statusText(status.c_str(), statusError);
     }
     ImGui::End();
   }
@@ -1125,9 +1202,83 @@ void DebugOverlay::renderMenu(RendererRef renderer) {
   ImGui_ImplSDLRenderer3_RenderDrawData(ImGui::GetDrawData(), &renderer);
 }
 
-void DebugOverlay::drawEngineTools() {
-  ImGui::SeparatorText("Engine");
-  if (ImGui::CollapsingHeader("Audio channels")) {
+void DebugOverlay::applyUIFont(const std::string &fontPath) {
+  auto draft = engine.GetSettings();
+  draft.fontPath = fontPath.empty() ? defaultFontName() : fontPath;
+  try {
+    engine.applySettings(draft);
+    status = "UI font applied: " + draft.fontPath;
+    statusError = false;
+  } catch (const std::exception &error) {
+    status = error.what();
+    statusError = true;
+    SDL_LogError(LogConfig, "UI font: %s", error.what());
+  }
+}
+
+void DebugOverlay::drawInterfaceTools() {
+  ImGuiTheme::cardBegin("card_interface", false, nullptr);
+  {
+    ImGuiTheme::sectionHeader("UI font");
+    if (availableUIFonts.empty())
+      availableUIFonts = uiFontNames();
+    auto draft = engine.GetSettings();
+    const std::string current = draft.fontPath.empty()
+                                    ? std::string(defaultFontName())
+                                    : draft.fontPath;
+    ImGui::SetNextItemWidth(-FLT_MIN);
+    if (ImGui::BeginCombo("##uiFontCombo", current.c_str())) {
+      for (const auto &font : availableUIFonts) {
+        const auto label =
+            isCJKFont(font) ? font + " [CJK / JP]" : font + " [Latin]";
+        const bool selected =
+            font == draft.fontPath ||
+            (draft.fontPath.empty() && font == defaultFontName());
+        if (ImGui::Selectable(label.c_str(), selected)) {
+          applyUIFont(font);
+          uiFontDraft = font;
+        }
+      }
+      ImGui::EndCombo();
+    }
+    ImGui::SetNextItemWidth(-FLT_MIN);
+    if (!uiFontDraftReady) {
+      uiFontDraft = current;
+      uiFontDraftReady = true;
+    }
+    ImGui::InputText("##uiFontPath", &uiFontDraft);
+    if (ImGui::Button("Apply font"))
+      applyUIFont(uiFontDraft);
+    ImGui::SameLine();
+    if (ImGui::Button("Reset to NotoSansJP")) {
+      uiFontDraft = defaultFontName();
+      applyUIFont(defaultFontName());
+    }
+    ImGui::SameLine();
+    if (ImGui::SmallButton("Refresh list"))
+      availableUIFonts.clear();
+    ImGui::TextWrapped(
+        "Applies immediately to the SDL UI, ImGui, Debug UI and the "
+        "FPS / node / clock HUD. Empty uses the engine default (%s).",
+        defaultFontName());
+    ImGui::SeparatorText("Debug UI scale");
+    if (ImGui::SliderFloat("Scale", &draft.debugUIScale, 1, 3, "%.2fx")) {
+      try {
+        engine.applySettings(draft);
+      } catch (const std::exception &error) {
+        status = error.what();
+        statusError = true;
+        SDL_LogError(LogConfig, "Debug UI scale: %s", error.what());
+      }
+    }
+  }
+  ImGuiTheme::cardEnd();
+}
+
+void DebugOverlay::drawAudioTools() {
+  ImGuiTheme::cardBegin("card_audio", false, nullptr);
+  {
+    ImGuiTheme::sectionHeader("Audio channels");
     auto draft = engine.GetSettings();
     bool changed =
         ImGui::SliderFloat("Master volume", &draft.masterVolume, 0, 1, "%.2f");
@@ -1145,13 +1296,13 @@ void DebugOverlay::drawEngineTools() {
                           ImGuiTableFlags_RowBg | ImGuiTableFlags_Borders |
                               ImGuiTableFlags_NoSavedSettings |
                               ImGuiTableFlags_SizingFixedFit)) {
-      ImGui::TableSetupColumn("Channel", ImGuiTableColumnFlags_WidthFixed,
-                              0.3f);
+      ImGui::TableSetupColumn("Channel", ImGuiTableColumnFlags_WidthStretch,
+                              1.0f);
       ImGui::TableSetupColumn("Streams", ImGuiTableColumnFlags_WidthFixed,
-                              0.15f);
-      ImGui::TableSetupColumn("Volume", ImGuiTableColumnFlags_WidthFixed,
-                              0.35f);
-      ImGui::TableSetupColumn("Mute", ImGuiTableColumnFlags_WidthFixed, 0.2f);
+                              90.0f);
+      ImGui::TableSetupColumn("Volume", ImGuiTableColumnFlags_WidthStretch,
+                              2.0f);
+      ImGui::TableSetupColumn("Mute", ImGuiTableColumnFlags_WidthFixed, 60.0f);
       ImGui::TableHeadersRow();
       for (const auto &channel : engine.GetAudio().getChannels()) {
         ImGui::TableNextRow();
@@ -1164,6 +1315,7 @@ void DebugOverlay::drawEngineTools() {
         ImGui::TextDisabled("%zu streams", channel->activeStreams());
         ImGui::TableSetColumnIndex(2);
         float volume = channel->getVolume();
+        ImGui::SetNextItemWidth(-FLT_MIN);
         if (ImGui::SliderFloat("##volume", &volume, 0, 1, "%.2f"))
           channel->setVolume(volume);
         ImGui::TableSetColumnIndex(3);
@@ -1185,7 +1337,13 @@ void DebugOverlay::drawEngineTools() {
       ImGui::EndTable();
     }
   }
-  if (ImGui::CollapsingHeader("Window / renderer / upscaler")) {
+  ImGuiTheme::cardEnd();
+}
+
+void DebugOverlay::drawDisplayTools() {
+  ImGuiTheme::cardBegin("card_display", false, nullptr);
+  {
+    ImGuiTheme::sectionHeader("Window / renderer / upscaler");
     const auto &settings = engine.GetSettings();
     ImGui::Text("Window: %dx%d | display: %d | VSync: %s", settings.width,
                 settings.height, settings.display + 1,
@@ -1304,7 +1462,13 @@ void DebugOverlay::drawEngineTools() {
     ImGui::TextWrapped("Renderer selection requires restart (--renderer). "
                        "F11 / Alt+Enter toggles borderless fullscreen.");
   }
-  if (ImGui::CollapsingHeader("Dialogue appearance")) {
+  ImGuiTheme::cardEnd();
+}
+
+void DebugOverlay::drawDialogueTools() {
+  ImGuiTheme::cardBegin("card_dialogue", false, nullptr);
+  {
+    ImGuiTheme::sectionHeader("Dialogue appearance");
     auto draft = engine.GetSettings();
     bool changed = false;
     if (availableVNFonts.empty())
@@ -1355,7 +1519,12 @@ void DebugOverlay::drawEngineTools() {
     ImGui::TextWrapped("These engine settings are available even when a port "
                        "has no in-game Settings screen.");
   }
-  if (ImGui::CollapsingHeader("Logs")) {
+  ImGuiTheme::cardEnd();
+}
+
+void DebugOverlay::drawLogs() {
+  ImGuiTheme::cardBegin("card_logs", false, nullptr);
+  {
     ImGui::InputText("Filter", logFilter, sizeof(logFilter));
     const char *priorities[]{"Trace",   "Verbose", "Debug",   "Info",
                              "Warning", "Error",   "Critical"};
@@ -1423,6 +1592,7 @@ void DebugOverlay::drawEngineTools() {
       ImGui::EndTable();
     }
   }
+  ImGuiTheme::cardEnd();
 }
 
 } // namespace Kotonoha

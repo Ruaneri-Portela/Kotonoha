@@ -2,7 +2,6 @@
 #include "Ddlc/Replay.hpp"
 #include "Ddlc/Runtime.hpp"
 #include <Kotonoha/componentes/VNSave.hpp>
-#include <iomanip>
 
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/FileSystem.hpp>
@@ -24,6 +23,7 @@
 #include <filesystem>
 #include <fstream>
 #include <functional>
+#include <iomanip>
 #include <map>
 #include <memory>
 #include <mutex>

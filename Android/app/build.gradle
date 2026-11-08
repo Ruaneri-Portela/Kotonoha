@@ -28,7 +28,7 @@ def games = [
   snowRadish: ['snow-radish-vacation', 'SnowRadish', 'me.hirameki.kotonoha.snowradishvacation', 'Snow Radish Vacation!!'],
   dokiDoki: ['doki-doki-literature-club', 'DokiDoki', 'me.hirameki.kotonoha.dokidokiliteratureclub', 'Doki Doki Literature Club!'],
   schoolDays: ['school-days', 'SchoolDays', 'me.hirameki.kotonoha.schooldays', 'School Days'],
-  air: ['air', 'Air', 'me.hirameki.kotonoha.air', 'AIR'],
+  reallive: ['reallive', 'RealLive', 'me.hirameki.kotonoha.reallive', 'RealLive'],
   summerRadish: ['summer-radish-vacation', 'SummerRadish', 'me.hirameki.kotonoha.summerradishvacation', 'Summer Radish Vacation!!']
 ]
 

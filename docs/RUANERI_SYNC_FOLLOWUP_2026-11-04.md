@@ -44,7 +44,7 @@ which Ruaneri merged into `main`. It was limited to `games/school-days`.
   transition test and retail-asset runtime test both passed, covering EXIT
   cancel and confirmation, TOPMENU confirmation, and the delayed quit event.
 
-AIR configuration remains unverified here because its CMake configuration
+RealLive configuration remains unverified here because its CMake configuration
 requires an Iconv installation not present in this Windows environment.
 Amagami's Visual Studio project reports a case-insensitive target dependency
 cycle between `Amagami` and `amagami`; it was not rebuilt. These are build
@@ -67,5 +67,5 @@ assets were used only locally and are not included in either branch.
   the short smoke run; the media test in the 57-test suite passed.
 - The final merged revision also compiled the Release executables for Zero no
   Tsukaima, Snow Radish, Summer Radish, Doki Doki, the example and School Days
-  in a separate multi-game configuration. AIR and Amagami retain the Windows
+  in a separate multi-game configuration. RealLive and Amagami retain the Windows
   configuration limits described above.
