@@ -6,6 +6,7 @@
 #include <Kotonoha/debug/DebugOverlay.hpp>
 #include <iostream>
 #include <stdexcept>
+#include <cstring>
 
 namespace {
 void Require(bool ok, const char *message) {

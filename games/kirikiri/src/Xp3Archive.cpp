@@ -7,6 +7,7 @@
 #include <cstring>
 #include <fstream>
 #include <stdexcept>
+#include <algorithm>
 
 namespace Kirikiri {
 
