@@ -22,6 +22,12 @@ int main() {
          "\xC3\xBF"); // ÿ
   assert(RealLive::decodeText(std::string("\x89\xBF", 2), 2) ==
          "\xC2\xBF"); // ¿
+  assert(RealLive::decodeText(std::string("A\x81\x68"
+                                          "B",
+                                          4),
+                              2) ==
+         "A\xE2\x80\x9D"
+         "B"); // mixed rlBabel + Shift-JIS closing quote
 
   // CP932 name references are not western glyphs and must be rejected so the
   // translator can keep their printable expression form.

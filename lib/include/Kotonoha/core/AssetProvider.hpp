@@ -3,8 +3,11 @@
 #include <Kotonoha/core/AssetOverlay.hpp>
 #include <Kotonoha/core/SDL.hpp>
 
+#include <deque>
 #include <filesystem>
 #include <memory>
+#include <mutex>
+#include <optional>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -38,6 +41,9 @@ class AssetProvider {
   std::unordered_map<std::string, TexturePtr> textures;
   SDL_Renderer *textureRenderer = nullptr;
   AssetOverlay overlay;
+  mutable std::deque<std::string> recentAudio_;
+  mutable std::unordered_map<std::string, AudioClip> originalAudio_;
+  mutable std::mutex debugAudioMutex_;
 
 public:
   AssetProvider();
@@ -51,6 +57,10 @@ public:
     return overlay.root();
   }
   std::string overlayPath(const std::string &id) const;
+  bool hasOverlay(const std::string &id) const;
+  bool discardOverlay(const std::string &id);
+  // Normalized provider-specific ID to use when creating an overlay file.
+  std::string overlayWriteId(const std::string &id) const;
 
 protected:
   virtual std::string overlayId(const std::string &id) const { return id; }
@@ -77,7 +87,18 @@ public:
   // Default decoders: SDL first (BMP/PNG/JPG, WAV), then FFmpeg for every
   // other picture, video (first frame) or audio format it can probe.
   SurfacePtr loadSurface(const std::string &id) const;
-  AudioClip loadAudio(const std::string &id) const;
+  // `forceOriginal` bypasses the mounted engine overlay. This is primarily
+  // useful to compare the retail voice with a live dubbing replacement.
+  AudioClip loadAudio(const std::string &id, bool forceOriginal = false) const;
+  // Decode the game/archive asset while deliberately bypassing the mounted
+  // overlay. Virtual archive IDs may supply their original through noteAudio.
+  AudioClip loadOriginalAudio(const std::string &id) const;
+  // Logical audio IDs recently requested by the running game. The debug
+  // dubbing applet uses this engine-wide feed, including archive providers.
+  void noteAudio(const std::string &id) const;
+  void noteAudio(const std::string &id, const AudioClip &clip) const;
+  std::vector<std::string> recentAudio() const;
+  std::optional<AudioClip> originalAudio(const std::string &id) const;
   // The video frame shown at `seconds` (a picture for still images).
   SurfacePtr loadFrame(const std::string &id, double seconds) const;
 
@@ -91,8 +112,8 @@ public:
   // backend is enabled, scales above 1 go through it (Upscaling::scaled);
   // otherwise (or with nullptr) the picture is scaled linearly. Cached per
   // renderer, id and scale.
-  SDL_Texture &texture(RendererRef renderer, const std::string &id,
-                       float scale, Upscaling *upscaling);
+  SDL_Texture &texture(RendererRef renderer, const std::string &id, float scale,
+                       Upscaling *upscaling);
   // CPU copy of the same scaled picture (RGBA32), not cached.
   SurfacePtr surface(RendererRef renderer, const std::string &id, float scale,
                      Upscaling *upscaling) const;

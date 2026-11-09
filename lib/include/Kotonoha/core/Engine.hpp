@@ -161,6 +161,9 @@ public:
   void dumpTranslation(const std::string &path);
   std::vector<DebugNode> debugNodes();
   void debugJumpToNode(const std::string &id);
+  void debugRestartScene();
+  void debugAdvanceScene(double seconds);
+  void debugAdvanceEvent();
   void loadKtrf(const std::string &path);
   void dumpKtrf(const std::string &path);
   DebugOverlay &GetDebug() { return *debug; }
@@ -168,10 +171,15 @@ public:
   AudioMixer &GetAudio() { return audio; }
   AssetProvider &GetAssets() { return *assets; }
   void SetAssetProvider(std::shared_ptr<AssetProvider> provider);
+  // Return the mounted engine overlay, creating and remembering a writable
+  // per-game Documents/overlay folder when none exists yet.
+  std::filesystem::path ensureAssetOverlay();
   const EngineSettings &GetSettings() const { return settings; }
   VisualTransition &GetVisualTransition() { return visualTransition; }
   bool HasStoredSettings() const { return settingsLoadedFromDisk; }
-  const std::optional<AssStyle> &GetSubtitleStyle() const { return subtitleStyle; }
+  const std::optional<AssStyle> &GetSubtitleStyle() const {
+    return subtitleStyle;
+  }
   void applySettings(const EngineSettings &value, bool persist = true);
   void saveSettings() const;
   void openSettings();

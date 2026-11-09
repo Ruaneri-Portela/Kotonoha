@@ -121,7 +121,13 @@ std::string decodeText(const std::string &input, int encoding) {
                              std::to_string(encoding));
 
   // rlBabel's reversible western character mapping, decoded before CP1252.
-  std::string western;
+  std::string western, result;
+  const auto flushWestern = [&] {
+    if (western.empty())
+      return;
+    result += Kotonoha::ConvertEncoding(western, "CP1252", "UTF-8");
+    western.clear();
+  };
   for (size_t i = 0; i < input.size(); ++i) {
     unsigned c = uint8_t(input[i]);
     if ((c >= 0x81 && c <= 0x9f) || (c >= 0xe0 && c <= 0xef)) {
@@ -130,15 +136,24 @@ std::string decodeText(const std::string &input, int encoding) {
       c = (c << 8) | uint8_t(input[i]);
     }
     unsigned decoded = 0;
-    if (!westernGlyph(c, decoded))
+    if (!westernGlyph(c, decoded)) {
+      // rlBabel scenarios occasionally retain Shift-JIS punctuation among
+      // their reversible CP1252 glyphs (Clannad uses 0x8167/0x8168 quotes in
+      // selection strings). Decode that punctuation without accepting the
+      // CP932 name-reference/control range as ordinary text.
+      if (c >= 0x8140 && c <= 0x81ac) {
+        flushWestern();
+        std::string sjis{char(c >> 8), char(c)};
+        result += Kotonoha::ShiftJisToUtf8(sjis);
+        continue;
+      }
       throw std::runtime_error("Unknown REALLIVE western glyph: " +
                                std::to_string(c));
+    }
     western += char(decoded);
   }
-
-  // Utiliza a interface unificada do Kotonoha para conversão de CP1252 para
-  // UTF-8
-  return Kotonoha::ConvertEncoding(western, "CP1252", "UTF-8");
+  flushWestern();
+  return result;
 }
 
 Config::Resolution Config::detectResolution() const {

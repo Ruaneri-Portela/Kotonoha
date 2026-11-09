@@ -52,8 +52,10 @@ void layouts(const fs::path &root) {
         root / ".local/share"}) {
     locations.userData = base;
     auto layout = directoryLayout(locations, "amagami");
-    require(layout.saves == base / "Kotonoha/com.example.game",
-            "Every desktop uses Kotonoha/package, never the game slug");
+    require(layout.documents == base / "Kotonoha/com.example.game",
+            "Desktop Documents root excludes the save directory");
+    require(layout.saves == base / "Kotonoha/com.example.game/save",
+            "Every desktop uses the package's singular save directory");
     require(layout.engineAssets.front() == locations.resources / "assets",
             "Bundle engine assets take precedence over the working directory");
     require(layout.gameAssets.front() == locations.resources / "game-assets",
@@ -78,7 +80,8 @@ void layouts(const fs::path &root) {
               contains(android.gameAssets, locations.obb) &&
               contains(android.gameAssets, locations.obb / "game_assets"),
           "Android accepts private game_assets and OBB data");
-  require(android.saves == locations.userData / "Kotonoha/com.example.game",
+  require(android.saves ==
+              locations.userData / "Kotonoha/com.example.game/save",
           "Android saves use external app data, not internal APK resources");
   for (const auto &base :
        {locations.resources, locations.privateGameAssets.parent_path(),
@@ -96,7 +99,9 @@ void layouts(const fs::path &root) {
   locations.obb.clear();
   locations.privateGameAssets.clear();
   auto ios = directoryLayout(locations);
-  require(ios.saves == locations.userData / "Kotonoha/com.example.game",
+  require(ios.documents == locations.userData / "Kotonoha/com.example.game",
+          "iOS Documents root excludes the save directory");
+  require(ios.saves == locations.userData / "Kotonoha/com.example.game/save",
           "iOS saves are namespaced inside Files-accessible Documents");
   require(contains(ios.engineAssets, locations.resources / "assets") &&
               contains(ios.engineAssets, locations.userData / "assets") &&
@@ -186,9 +191,12 @@ void relocation(Fixture &fixture) {
           "same name");
   require(!gameAssetDirectory().empty(),
           "Empty game argument is valid before a launcher opens");
-  require(saveDirectory().filename() == "org.kotonoha.directories" &&
-              saveDirectory().parent_path().filename() == "Kotonoha",
-          "Runtime save directory uses application package metadata");
+  require(saveDirectory().filename() == "save" &&
+              saveDirectory().parent_path().filename() ==
+                  "org.kotonoha.directories" &&
+              saveDirectory().parent_path().parent_path().filename() ==
+                  "Kotonoha",
+          "Runtime save directory uses metadata and the singular save folder");
   fs::create_directories("assets/fonts");
   std::ofstream("assets/fonts/OFL.txt") << "font license";
   std::ofstream("assets/fonts/invalid.ttf") << "not a font";

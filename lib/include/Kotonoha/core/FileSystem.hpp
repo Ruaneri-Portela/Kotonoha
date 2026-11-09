@@ -26,6 +26,7 @@ struct DirectoryLayout {
   std::vector<std::filesystem::path> engineAssets;
   std::vector<std::filesystem::path> gameAssets;
   std::vector<std::filesystem::path> references;
+  std::filesystem::path documents;
   std::filesystem::path saves;
 };
 
@@ -46,13 +47,18 @@ std::filesystem::path gameAssetDirectory(const std::string &game = {});
 std::filesystem::path preferredDataDirectory();
 std::filesystem::path preferredDataDirectory(const std::string &game);
 std::string preferredGameIdentifier();
-std::filesystem::path findAssetOverlayDirectory(const std::filesystem::path &root = {});
+std::filesystem::path
+findAssetOverlayDirectory(const std::filesystem::path &root = {});
 
 // <platform user-data root>/Kotonoha/<package id>. The game slug/display name
 // is never used as the save identity. Creates the directory or throws.
 std::filesystem::path saveDirectory();
-// Compatibility API for settings and existing ports. A nonempty argument
-// is an explicit package id, or a game slug when app metadata is available.
+// Writable per-game Documents root. Configuration, overlays and authoring
+// tools belong here; only game save data belongs in its `save` child.
+std::filesystem::path documentsDirectory();
+std::filesystem::path documentsDirectory(const std::string &game);
+// Compatibility save API used by existing ports. A nonempty argument is an
+// explicit package id, or a game slug when app metadata is available.
 std::filesystem::path preferredDocumentsDirectory();
 std::filesystem::path preferredDocumentsDirectory(const std::string &game);
 
@@ -64,9 +70,11 @@ public:
   // path. Existing absolute selections are accepted for the current session.
   static std::string referenceName(const std::filesystem::path &path);
   static std::vector<std::filesystem::path>
-  candidates(const std::filesystem::path &reference, const std::string &game = {});
+  candidates(const std::filesystem::path &reference,
+             const std::string &game = {});
   static std::optional<std::filesystem::path>
-  findAsset(const std::filesystem::path &reference, const std::string &game = {});
+  findAsset(const std::filesystem::path &reference,
+            const std::string &game = {});
   static std::vector<std::filesystem::path> roots(const std::string &game = {});
   // First existing <root>/relative; absolute paths are returned when present.
   static std::optional<std::filesystem::path>
@@ -81,9 +89,11 @@ public:
   static std::filesystem::path
   engineAsset(const std::filesystem::path &relative);
   static std::optional<std::filesystem::path>
-  findGameAsset(const std::string &game = {}, const std::filesystem::path &relative = {});
-  static std::filesystem::path gameAsset(const std::string &game = {},
-                                         const std::filesystem::path &relative = {});
+  findGameAsset(const std::string &game = {},
+                const std::filesystem::path &relative = {});
+  static std::filesystem::path
+  gameAsset(const std::string &game = {},
+            const std::filesystem::path &relative = {});
   // Engine fonts live only in assets/fonts.
   static bool isFontFile(const std::filesystem::path &path);
   static std::filesystem::path fontDirectory();

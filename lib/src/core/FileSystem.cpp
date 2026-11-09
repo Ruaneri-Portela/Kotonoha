@@ -149,11 +149,16 @@ std::string preferredGameIdentifier() {
 
 DirectoryLayout directoryLayout(const StorageLocations &locations,
                                 const std::string &game) {
-  if (locations.resources.empty())
+  if (locations.resources.empty()) {
     throw std::invalid_argument("A resource directory is required");
-  if (!game.empty())
+  }
+  if (!game.empty()) {
     validateGame(game);
+  }
+
   DirectoryLayout result;
+  addDirectory(result.engineAssets, locations.resources / "assets");
+
   const auto addGame = [&](const std::filesystem::path &root, bool sourceTree) {
     if (root.empty())
       return;
@@ -165,52 +170,90 @@ DirectoryLayout directoryLayout(const StorageLocations &locations,
       addDirectory(result.gameAssets, root / game / "game-assets");
     }
   };
-  addDirectory(result.engineAssets, locations.resources / "assets");
-  if (locations.platform == StoragePlatform::Android) {
+
+  // Every port writes into one explicitly named, singular save directory.
+  // Keeping this policy here prevents individual games from leaking writable
+  // state into their installation/data directory.
+  if (!locations.packageIdentifier.empty() && !locations.userData.empty()) {
+    validateGame(locations.packageIdentifier);
+    result.documents =
+        locations.userData / "Kotonoha" / locations.packageIdentifier;
+    result.saves = result.documents / "save";
+  }
+
+  // --- Platform Configuration ---
+  switch (locations.platform) {
+  case StoragePlatform::Android: {
+    // Game assets go to OBB or private assets, saves go to Android/data
+    // (userData)
     if (!locations.obb.empty()) {
       addGame(locations.obb, false);
       addDirectory(result.gameAssets, locations.obb);
     }
     addDirectory(result.gameAssets, locations.privateGameAssets);
     addGame(locations.resources, false);
-  } else if (locations.platform == StoragePlatform::IOS) {
+
+    break;
+  }
+  case StoragePlatform::IOS: {
+    // Game assets can be in the bundle OR in documents
     addGame(locations.resources, false);
     if (!locations.userData.empty()) {
       addDirectory(result.engineAssets, locations.userData / "assets");
       addGame(locations.userData, true);
       addDirectory(result.gameAssets, locations.userData);
+      // Fonts can also be inside a 'fonts' directory in documents
+      addDirectory(result.engineAssets, locations.userData / "fonts");
     }
-  } else {
+
+    break;
+  }
+  case StoragePlatform::Desktop:
+  default: {
     addGame(locations.resources, true);
     if (!locations.workingDirectory.empty()) {
       addDirectory(result.engineAssets, locations.workingDirectory / "assets");
       addGame(locations.workingDirectory, true);
     }
+    break;
   }
-  if (!locations.packageIdentifier.empty()) {
-    validateGame(locations.packageIdentifier);
-    if (!locations.userData.empty())
-      result.saves =
-          locations.userData / "Kotonoha" / locations.packageIdentifier;
   }
-  // Named selections (overlays, game folders/discs, scripts) share this
-  // policy. Merely looking them up never creates a writable save directory.
+
+  // --- Reference Search Paths ---
   addDirectory(result.references, locations.obb);
-  if (!locations.privateGameAssets.empty())
+
+  if (!locations.privateGameAssets.empty()) {
     addDirectory(result.references, locations.privateGameAssets.parent_path());
+  }
+
   addDirectory(result.references, locations.resources);
   addDirectory(result.references, locations.userData);
-  for (const auto &path : result.gameAssets)
+
+  for (const auto &path : result.gameAssets) {
     addDirectory(result.references, path);
+  }
+
   for (const auto &path : result.engineAssets) {
     addDirectory(result.references, path);
     addDirectory(result.references, path / "fonts");
     addDirectory(result.references, path / "Anime4K");
     addDirectory(result.references, path / "ArtCNN");
   }
-  addDirectory(result.references, result.saves);
-  if (locations.platform == StoragePlatform::Desktop)
+
+  if (!result.documents.empty()) {
+    addDirectory(result.references, result.documents);
+  }
+  if (!result.saves.empty()) {
+    addDirectory(result.references, result.saves);
+    // Ensure document fonts folder is scanned for iOS/Desktop if applicable
+    addDirectory(result.references, result.saves / "fonts");
+  }
+
+  if (locations.platform == StoragePlatform::Desktop &&
+      !locations.workingDirectory.empty()) {
     addDirectory(result.references, locations.workingDirectory);
+  }
+
   return result;
 }
 
@@ -356,6 +399,26 @@ findAssetOverlayDirectory(const std::filesystem::path &root) {
 
 std::filesystem::path preferredDocumentsDirectory() { return saveDirectory(); }
 
+std::filesystem::path documentsDirectory() {
+  return documentsDirectory(std::string{});
+}
+
+std::filesystem::path documentsDirectory(const std::string &game) {
+  if (!game.empty())
+    validateGame(game);
+  auto locations = storageLocations();
+#ifndef __ANDROID__
+  if (game.find('.') != std::string::npos)
+    locations.packageIdentifier = game;
+#endif
+  auto directory = directoryLayout(locations).documents;
+  if (directory.empty())
+    throw std::runtime_error(
+        "Set the application package identifier before accessing Documents");
+  std::filesystem::create_directories(directory);
+  return normalizeDirectory(directory);
+}
+
 std::filesystem::path preferredDocumentsDirectory(const std::string &game) {
   if (!game.empty())
     validateGame(game);
@@ -370,7 +433,21 @@ std::filesystem::path preferredDocumentsDirectory(const std::string &game) {
   if (directory.empty())
     throw std::runtime_error(
         "Set the application package identifier before accessing saves");
+
   std::filesystem::create_directories(directory);
+
+#if defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE
+  // Cria um arquivo stub nos documentos para forçar o iOS a exibir a pasta no
+  // aplicativo "Files"
+  std::error_code ec;
+  auto stubFile = directory / "staged.txt";
+  if (!std::filesystem::exists(stubFile, ec)) {
+    std::ofstream stub(stubFile);
+    // Opcional: escrever uma mensagem informativa ou deixar vazio
+    stub << "Kotonoha Documents\n";
+  }
+#endif
+
   return normalizeDirectory(directory);
 }
 

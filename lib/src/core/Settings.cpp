@@ -194,7 +194,7 @@ EngineSettings EngineSettings::load(const std::string &path,
 }
 
 std::string EngineSettings::defaultPath(const std::string &identify) {
-  return (preferredDocumentsDirectory(identify) / "settings.json").string();
+  return (documentsDirectory(identify) / "settings.json").string();
 }
 
 std::string EngineSettings::resolvedOverlayPath() const {

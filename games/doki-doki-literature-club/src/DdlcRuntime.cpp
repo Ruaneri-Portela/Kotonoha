@@ -4,7 +4,6 @@
 #include <Kotonoha/componentes/ChoiceQuestionScene.hpp>
 #include <Kotonoha/componentes/GameMenu.hpp>
 #include <Kotonoha/componentes/InGameMenu.hpp>
-#include <Kotonoha/componentes/VNBacklog.hpp>
 #include <Kotonoha/componentes/VNTextBox.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/events/ControllerEvent.hpp>
@@ -52,9 +51,8 @@ private:
 
 class Dialogue final : public Kotonoha::VNTextBox {
 public:
-  Dialogue(Kotonoha::Engine &engine, GameSession &session,
-           Kotonoha::VNBacklog &backlog)
-      : VNTextBox(engine, "", ""), session_(session), backlog_(backlog) {}
+  Dialogue(Kotonoha::Engine &engine, GameSession &session)
+      : VNTextBox(engine, "", ""), session_(session) {}
   bool handleEvent(Kotonoha::EventRef event) override {
     return !session_.inMenu() && session_.event(event);
   }
@@ -62,10 +60,6 @@ public:
     session_.showingDialogue() ? show() : hide();
     const auto speaker = session_.dialogueSpeaker();
     const auto text = session_.dialogueText();
-    if (!text.empty() && text != lastDialogue_) {
-      backlog_.addEntry(speaker, text);
-      lastDialogue_ = text;
-    }
     speakerName = speaker;
     fullDialogue = text;
     visibleDialogue = session_.visibleDialogueText();
@@ -77,6 +71,7 @@ public:
   }
 
 protected:
+  void openBacklog() override { session_.openHistory(); }
   void renderFrame(Kotonoha::RendererRef renderer) override {
     session_.drawDialogue(renderer);
   }
@@ -86,8 +81,6 @@ protected:
 
 private:
   GameSession &session_;
-  Kotonoha::VNBacklog &backlog_;
-  std::string lastDialogue_;
 };
 
 class Choices final : public Kotonoha::ChoiceQuestionScene {
@@ -167,7 +160,6 @@ void GameRuntime::loadGame(const std::string &path) {
 
 void GameRuntime::shutdown() {
   ClearScenes();
-  backlog_.reset();
   pause_.reset();
   choices_.reset();
   dialogue_.reset();
@@ -186,16 +178,14 @@ void GameRuntime::initGlobal(Kotonoha::Engine &engine) {
   session_ = std::make_unique<GameSession>(engine, assets_);
   stage_ = std::make_unique<Stage>(engine, *session_);
   menu_ = std::make_unique<Frontend>(engine, *session_);
-  backlog_ = std::make_unique<Kotonoha::VNBacklog>(engine);
-  dialogue_ = std::make_unique<Dialogue>(engine, *session_, *backlog_);
+  dialogue_ = std::make_unique<Dialogue>(engine, *session_);
   choices_ = std::make_unique<Choices>(engine, *session_);
   pause_ = std::make_unique<Pause>(engine, *session_);
 }
 
 void GameRuntime::addGameScenes() {
-  for (Kotonoha::Scene *scene :
-       {stage_.get(), menu_.get(), dialogue_.get(), choices_.get(),
-        pause_.get(), static_cast<Kotonoha::Scene *>(backlog_.get())})
+  for (Kotonoha::Scene *scene : {stage_.get(), menu_.get(), dialogue_.get(),
+                                 choices_.get(), pause_.get()})
     AddScene(scene);
 }
 void GameRuntime::initMenu(Kotonoha::Engine &) { addGameScenes(); }
@@ -208,11 +198,12 @@ bool GameRuntime::handleBackAction() {
   return session_ && session_->backAction();
 }
 bool GameRuntime::handleBacklogAction() {
-  if (backlog_ && !backlog_->isVisible()) {
-    backlog_->open();
-    return true;
-  }
-  return session_ && session_->openHistory();
+  // DDLC owns its History screen. Always consume the engine backlog action so
+  // HandleNavigation never falls through to a generic VNBacklog scene when
+  // the native screen is temporarily unavailable (pause, menu or choice).
+  if (session_)
+    session_->openHistory();
+  return true;
 }
 int GameRuntime::translationRoute() const {
   return session_ ? session_->translationRoute() : -1;

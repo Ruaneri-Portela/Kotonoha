@@ -4,9 +4,9 @@
 #include <Kotonoha/componentes/VNSaveMenu.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/debug/DebugOverlay.hpp>
+#include <cstring>
 #include <iostream>
 #include <stdexcept>
-#include <cstring>
 
 namespace {
 void Require(bool ok, const char *message) {

@@ -165,6 +165,7 @@ add_library(KotonohaEngine SHARED
     src/events/BacklogEvents.cpp
     src/events/InputActions.cpp
     src/debug/DebugOverlay.cpp
+    src/debug/VoiceDubbingApplet.cpp
     src/debug/ImGuiTheme.cpp
     src/localization/Encoding.cpp
     src/localization/Translation.cpp

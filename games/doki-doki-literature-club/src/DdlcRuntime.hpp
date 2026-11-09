@@ -2,7 +2,6 @@
 
 #include "DdlcAssets.hpp"
 
-#include <Kotonoha/componentes/VNBacklog.hpp>
 #include <Kotonoha/core/Runtime.hpp>
 
 #include <memory>
@@ -44,7 +43,6 @@ private:
   Kotonoha::Engine *engine_ = nullptr;
   std::unique_ptr<GameSession> session_;
   std::unique_ptr<Kotonoha::Scene> stage_, menu_, dialogue_, choices_, pause_;
-  std::unique_ptr<Kotonoha::VNBacklog> backlog_;
 };
 
 } // namespace Ddlc

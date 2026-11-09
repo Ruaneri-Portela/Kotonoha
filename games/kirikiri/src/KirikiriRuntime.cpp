@@ -213,9 +213,8 @@ bool KirikiriRuntime::onEvent(Kotonoha::EventRef event) {
 void KirikiriRuntime::saveGame(const std::string &path) {
   auto &impl = *impl_;
   std::ostringstream data;
-  data << impl.currentScenario << '\n';
-  if (impl.runner)
-    data << impl.runner->isFinished() << '\n';
+  data << "KIRIKIRI_SAVE_2\n" << impl.currentScenario << '\n';
+  data << (impl.runner ? impl.runner->position() : 0) << '\n';
   Kotonoha::GetVNManagerRuntime(*impl.engine).save(path, data.str());
 }
 
@@ -223,15 +222,22 @@ void KirikiriRuntime::loadGame(const std::string &path) {
   auto &impl = *impl_;
   auto saved = Kotonoha::VNSave::read(path);
   std::istringstream data(saved.gameData);
-  std::string scenario;
-  bool finished = false;
-  std::getline(data, scenario);
-  data >> finished;
+  std::string header, scenario;
+  std::size_t position = 0;
+  std::getline(data, header);
+  if (header == "KIRIKIRI_SAVE_2") {
+    std::getline(data, scenario);
+    data >> position;
+  } else {
+    // Version 1 only stored the scenario name and always resumed at its start.
+    scenario = std::move(header);
+  }
   if (!scenario.empty())
-    startScenario(scenario);
+    startScenario(scenario, position);
 }
 
-bool KirikiriRuntime::startScenario(const std::string &name) {
+bool KirikiriRuntime::startScenario(const std::string &name,
+                                    std::size_t position) {
   SDL_Log("Kirikiri: startScenario ENTRY name='%s'", name.c_str());
   auto &impl = *impl_;
   auto files = impl.assets->scenarioFiles();
@@ -337,6 +343,7 @@ bool KirikiriRuntime::startScenario(const std::string &name) {
               },
           .getVar = [this](std::string name) -> std::string { return {}; },
       });
+  impl.runner->restorePosition(position);
   impl.running = true;
   impl.runner->run();
   return true;
@@ -346,9 +353,9 @@ bool KirikiriRuntime::debugJumpToLabel(const std::string &label) {
   auto &impl = *impl_;
   if (!impl.runner)
     return false;
-  // Restart runner at the label: simplest approach is to re-parse and set pc.
-  // Here we just mark it; full implementation re-runs from label index.
-  SDL_Log("Kirikiri: jump to label %s", label.c_str());
+  if (!impl.runner->jumpToLabel(label))
+    return false;
+  impl.runner->run();
   return true;
 }
 
@@ -357,6 +364,11 @@ std::string KirikiriRuntime::debugNode() const {
   return impl.currentScenario.empty()
              ? std::string()
              : ("kirikiri | scenario " + impl.currentScenario);
+}
+
+void KirikiriRuntime::debugRestartScene() {
+  if (impl_->currentScenario.empty() || !startScenario(impl_->currentScenario))
+    throw std::runtime_error("There is no active Kirikiri scene to restart");
 }
 
 } // namespace Kirikiri

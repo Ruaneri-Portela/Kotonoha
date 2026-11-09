@@ -1,8 +1,8 @@
 #pragma once
 
-#include <Kotonoha/core/Runtime.hpp>
-#include <Kirikiri/KirikiriAssets.hpp>
 #include <Kirikiri/KagScript.hpp>
+#include <Kirikiri/KirikiriAssets.hpp>
+#include <Kotonoha/core/Runtime.hpp>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -33,7 +33,7 @@ public:
   void loadGame(const std::string &path) override;
 
   // Starts a scenario script by file name (e.g. "first.ks").
-  bool startScenario(const std::string &name);
+  bool startScenario(const std::string &name, std::size_t position = 0);
   // Debug jump to a labeled position inside the current scenario.
   bool debugJumpToLabel(const std::string &label);
 
@@ -45,6 +45,7 @@ public:
   std::string dialogueSpeaker_;
 
   std::string debugNode() const override;
+  void debugRestartScene() override;
   std::string dialogueText() const override { return dialogueText_; }
   std::string dialogueSpeaker() const override { return dialogueSpeaker_; }
   bool continuousTouch() const override { return true; }

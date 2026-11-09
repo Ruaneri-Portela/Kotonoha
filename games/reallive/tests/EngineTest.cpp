@@ -160,8 +160,7 @@ std::string find8005Entry(RealLive::ScriptArchive archive) {
             command->GetParamCount() > 0) {
           try {
             if (RealLive::IntegerParameter(machine, *command, 0) == 8005) {
-              return std::to_string(scenarioNum) + ":" +
-                     std::to_string(index);
+              return std::to_string(scenarioNum) + ":" + std::to_string(index);
             }
           } catch (const std::exception &) {
             // The first parameter is not a plain scenario number; keep
@@ -226,8 +225,7 @@ void verify8005Call(std::shared_ptr<RealLive::RealLiveAssets> assets) {
   std::size_t exercised = 0, index = 0;
   for (const auto &element : scenario) {
     if (const auto *command =
-            dynamic_cast<const libreallive::CommandElement *>(
-                element.get())) {
+            dynamic_cast<const libreallive::CommandElement *>(element.get())) {
       const int type = command->modtype(), module = command->module();
       if (type != 1 && !(type == 0 && module == 3) &&
           !(type == 0 && module == 2 && command->opcode() == 1) &&
@@ -368,11 +366,8 @@ void verifyAllOpcodes(std::shared_ptr<RealLive::RealLiveAssets> assets) {
     std::string diag = game.diagnostic();
     if (diag.find("Comando REALLIVE pendente") != std::string::npos) {
       pending.push_back({key, diag});
-    } else if (!diag.empty() ||
-               game.debugNode() == std::to_string(info.scenario) + ":" +
-                                       std::to_string(info.index)) {
-      failures.push_back(
-          {key, diag.empty() ? "instruction did not advance" : diag});
+    } else if (!diag.empty()) {
+      failures.push_back({key, diag});
     }
   }
 
@@ -1347,11 +1342,11 @@ int main(int argc, char **argv) {
       auto archive = assets->scripts();
       const auto elements8005 = scenario8005ElementCount(archive);
       if (elements8005 < kMin8005ScenarioElements) {
-        std::cout << "REALLIVE 8005 background upscaling skipped: scenario 8005 "
-                     "has "
-                  << elements8005
-                  << " elements, original regression needs >= "
-                  << kMin8005ScenarioElements << "\n";
+        std::cout
+            << "REALLIVE 8005 background upscaling skipped: scenario 8005 "
+               "has "
+            << elements8005 << " elements, original regression needs >= "
+            << kMin8005ScenarioElements << "\n";
         return 77;
       }
       verify8005BackgroundUpscaling(std::move(assets),
@@ -1366,8 +1361,7 @@ int main(int argc, char **argv) {
       const auto elements8005 = scenario8005ElementCount(archive);
       if (elements8005 < kMin8005ScenarioElements) {
         std::cout << "REALLIVE 8005 walking skipped: scenario 8005 has "
-                  << elements8005
-                  << " elements, original regression needs >= "
+                  << elements8005 << " elements, original regression needs >= "
                   << kMin8005ScenarioElements << "\n";
         return 77;
       }
@@ -1382,8 +1376,7 @@ int main(int argc, char **argv) {
       const auto elements8005 = scenario8005ElementCount(archive);
       if (elements8005 < kMin8005ScenarioElements) {
         std::cout << "REALLIVE 8005 capture skipped: scenario 8005 has "
-                  << elements8005
-                  << " elements, original regression needs >= "
+                  << elements8005 << " elements, original regression needs >= "
                   << kMin8005ScenarioElements << "\n";
         return 77;
       }

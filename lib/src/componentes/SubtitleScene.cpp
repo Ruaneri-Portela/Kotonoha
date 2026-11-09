@@ -312,6 +312,14 @@ void SubtitleScene::clear() {
 
 std::vector<std::string> SubtitleScene::currentCueTexts() const {
   std::vector<std::string> texts;
+  for (const auto &cue : sourceCues)
+    if (cue.start <= position && position < cue.end)
+      texts.push_back(cue.text);
+  return texts;
+}
+
+std::vector<std::string> SubtitleScene::sourceCueTexts() const {
+  std::vector<std::string> texts;
   texts.reserve(sourceCues.size());
   for (const auto &cue : sourceCues)
     texts.push_back(cue.text);

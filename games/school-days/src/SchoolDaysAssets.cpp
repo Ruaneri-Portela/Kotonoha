@@ -128,6 +128,14 @@ std::string Assets::overlayId(const std::string &id) const {
   }
   return id;
 }
+
+Kotonoha::AudioClip Assets::loadAudioAsset(const std::string &id) const {
+  // Runtime playback resolves logical ORS paths before handing them to the
+  // media player. Debug/audio tools operate on the logical ID, so normalize it
+  // through the exact same resolver before the base decoder reads GPK bytes.
+  return Kotonoha::AssetProvider::loadAudioAsset(resolve(id));
+}
+
 bool Assets::containsAsset(const std::string &id) const {
   if (Kotonoha::IsSchoolDaysGpkUri(id)) {
     std::string logical;

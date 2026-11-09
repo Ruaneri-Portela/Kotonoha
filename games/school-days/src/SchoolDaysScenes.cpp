@@ -123,17 +123,41 @@ std::string Subtitles::displayCueText(const std::string &text) const {
   return text;
 }
 
-void Subtitles::bind(const Kotonoha_orsData &script) {
+void Subtitles::bind(const Kotonoha_orsData &script,
+                     const std::string &section) {
   std::vector<Kotonoha::SubtitleCue> cues;
+  originalCues.clear();
   for (auto *event = script.data; event; event = event->next)
     if (event->command == PRINT_TEXT && event->data.print_text &&
         event->data.print_text->text && event->endTick > event->startTick) {
       const auto &text = *event->data.print_text;
-      cues.push_back({event->startTick / 24.0, event->endTick / 24.0, text.text,
-                      text.character ? text.character : "", true});
+      const std::string original = text.text;
+      Kotonoha::SubtitleCue cue{event->startTick / 24.0, event->endTick / 24.0,
+                                original, text.character ? text.character : "",
+                                true};
+      originalCues.push_back(cue);
+      cue.text = engine.GetTranslation().text(section, original);
+      cues.push_back(std::move(cue));
     }
   setCues(cues, 46);
   setPosition(0);
+}
+
+std::vector<std::string> Subtitles::originalCueTexts() const {
+  std::vector<std::string> result;
+  result.reserve(originalCues.size());
+  for (const auto &cue : originalCues)
+    result.push_back(cue.text);
+  return result;
+}
+
+std::vector<std::string> Subtitles::currentOriginalCueTexts() const {
+  std::vector<std::string> result;
+  const double position = getPosition();
+  for (const auto &cue : originalCues)
+    if (cue.start <= position && position < cue.end)
+      result.push_back(cue.text);
+  return result;
 }
 
 GameScene::GameScene(Kotonoha::Engine &engine, Runtime &runtime)

@@ -37,7 +37,29 @@ KagScript::Script KagScript::parse(const std::string &text,
 
   while (i < n) {
     char c = text[i];
-    if (c == '[') {
+    if (c == '*' && column == 1) {
+      // KAG labels are normally bare lines (`*label|caption`), not bracketed
+      // command tags.  Keep the label as a no-op tag so saved PCs stay stable.
+      const auto labelLine = line;
+      ++i;
+      ++column;
+      std::string label;
+      while (i < n && text[i] != '|' && text[i] != '\r' && text[i] != '\n') {
+        label.push_back(text[i++]);
+        ++column;
+      }
+      while (i < n && text[i] != '\r' && text[i] != '\n') {
+        ++i;
+        ++column;
+      }
+      Tag tag;
+      tag.type = TagType::Command;
+      tag.name = "*" + label;
+      tag.line = labelLine;
+      tag.column = 1;
+      script.labels.emplace(label, script.tags.size());
+      script.tags.push_back(std::move(tag));
+    } else if (c == '[') {
       // Command tag
       ++i;
       ++column;
@@ -108,15 +130,15 @@ KagScript::Script KagScript::parse(const std::string &text,
         ++i;
         ++column;
       }
-      script.tags.push_back(std::move(tag));
       // Register label if this tag is a label (name "l" or "*labelname")
       if (tag.name == "l" || tag.name == "*") {
         if (auto it = tag.attrs.find("name");
             it != tag.attrs.end() && !it->second.empty())
-          script.labels.emplace(it->second, script.tags.size() - 1);
+          script.labels.emplace(it->second, script.tags.size());
       } else if (!tag.name.empty() && tag.name[0] == '*') {
-        script.labels.emplace(tag.name.substr(1), script.tags.size() - 1);
+        script.labels.emplace(tag.name.substr(1), script.tags.size());
       }
+      script.tags.push_back(std::move(tag));
     } else if (c == '\n') {
       nextLine();
       ++i;
@@ -161,6 +183,23 @@ KagScript::Script KagScript::parse(const std::string &text,
 
 KagScript::Runner::Runner(Script script, const Callbacks &cb)
     : script_(std::move(script)), cb_(cb) {}
+
+void KagScript::Runner::restorePosition(std::size_t position) {
+  if (position > script_.tags.size())
+    throw std::out_of_range("KAG save position exceeds scenario length");
+  pc_ = position;
+  blocked_ = false;
+  finished_ = pc_ == script_.tags.size();
+  pendingResume_ = nullptr;
+}
+
+bool KagScript::Runner::jumpToLabel(const std::string &label) {
+  auto position = findLabel(label);
+  if (position == script_.tags.size())
+    return false;
+  restorePosition(position);
+  return true;
+}
 
 void KagScript::Runner::run() {
   SDL_Log("KagScript: run() start pc_=%zu size=%zu blocked=%d", pc_,
@@ -212,8 +251,10 @@ bool KagScript::Runner::executeTag(const Tag &tag) {
     if (cb_.jump) {
       auto target = getAttr(tag, "storage", std::string());
       auto label = getAttr(tag, "target", std::string());
-      if (!label.empty())
-        cb_.jump(label);
+      if (!label.empty() && target.empty())
+        jumpToLabel(label);
+      else if (!label.empty())
+        cb_.jump(target + "#" + label);
       else if (!target.empty())
         cb_.jump(target);
     }
@@ -336,7 +377,7 @@ bool KagScript::Runner::executeTag(const Tag &tag) {
 
   // Unknown tag: log and skip.
   SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
-              "Kirikiri: unknown tag '%s' at %s:%d:%d", name.c_str(), tag.line,
+              "Kirikiri: unknown tag '%s' at %d:%d", name.c_str(), tag.line,
               tag.column);
   return false;
 }

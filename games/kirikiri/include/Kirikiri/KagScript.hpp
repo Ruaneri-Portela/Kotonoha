@@ -83,7 +83,10 @@ public:
     // (choice/wait) and false when it has finished or reached the end.
     bool isBlocked() const { return blocked_; }
     bool isFinished() const { return finished_; }
+    std::size_t position() const { return pc_; }
     void setBlocked(bool value) { blocked_ = value; }
+    void restorePosition(std::size_t position);
+    bool jumpToLabel(const std::string &label);
     // Pump the runner: continue executing non-blocking tags. The host calls
     // resumeChoice()/resumeWait() to unblock after a blocking op completes.
     void run();
