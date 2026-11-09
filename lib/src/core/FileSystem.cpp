@@ -171,16 +171,6 @@ DirectoryLayout directoryLayout(const StorageLocations &locations,
     }
   };
 
-  // Every port writes into one explicitly named, singular save directory.
-  // Keeping this policy here prevents individual games from leaking writable
-  // state into their installation/data directory.
-  if (!locations.packageIdentifier.empty() && !locations.userData.empty()) {
-    validateGame(locations.packageIdentifier);
-    result.documents =
-        locations.userData / "Kotonoha" / locations.packageIdentifier;
-    result.saves = result.documents / "save";
-  }
-
   // --- Platform Configuration ---
   switch (locations.platform) {
   case StoragePlatform::Android: {
@@ -193,6 +183,7 @@ DirectoryLayout directoryLayout(const StorageLocations &locations,
     addDirectory(result.gameAssets, locations.privateGameAssets);
     addGame(locations.resources, false);
 
+    result.documents = locations.userData;
     break;
   }
   case StoragePlatform::IOS: {
@@ -205,7 +196,7 @@ DirectoryLayout directoryLayout(const StorageLocations &locations,
       // Fonts can also be inside a 'fonts' directory in documents
       addDirectory(result.engineAssets, locations.userData / "fonts");
     }
-
+    result.documents = locations.userData;
     break;
   }
   case StoragePlatform::Desktop:
@@ -215,8 +206,19 @@ DirectoryLayout directoryLayout(const StorageLocations &locations,
       addDirectory(result.engineAssets, locations.workingDirectory / "assets");
       addGame(locations.workingDirectory, true);
     }
+
+    result.documents =
+        locations.userData / "Kotonoha" / locations.packageIdentifier;
     break;
   }
+  }
+
+  // Every port writes into one explicitly named, singular save directory.
+  // Keeping this policy here prevents individual games from leaking writable
+  // state into their installation/data directory.
+  if (!locations.packageIdentifier.empty() && !locations.userData.empty()) {
+    validateGame(locations.packageIdentifier);
+    result.saves = result.documents / "save";
   }
 
   // --- Reference Search Paths ---

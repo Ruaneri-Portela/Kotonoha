@@ -332,6 +332,9 @@ void overlays() {
           "Overlay precedes archive and ignores case");
   require(provider.read("untouched") == std::vector<Uint8>({'o', 'k'}),
           "Missing overlay falls back to archive");
+  require(provider.read("script.ks", AssetSource::Original) ==
+              std::vector<Uint8>({'b', 'a', 's', 'e'}),
+          "Standard original source bypasses the overlay");
   require(!provider.localPath("Images/Scene.bmp").empty(),
           "Streaming opens the overlay file");
   require(provider.hasOverlay("voice.wav"),
