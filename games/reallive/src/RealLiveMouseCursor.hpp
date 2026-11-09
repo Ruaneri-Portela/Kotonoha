@@ -50,8 +50,7 @@ inline MouseCursorFrame mouseCursorFrame(SDL_Surface *atlas) {
   for (int y = 0; y < size; ++y)
     for (int x = 0; x < size; ++x) {
       Uint8 r, g, b, a;
-      if (!SDL_ReadSurfacePixel(atlas, x + border, y + border, &r, &g, &b,
-                                &a))
+      if (!SDL_ReadSurfacePixel(atlas, x + border, y + border, &r, &g, &b, &a))
         return {};
       const auto colour =
           (std::uint32_t(r) << 16) | (std::uint32_t(g) << 8) | b;
@@ -61,8 +60,7 @@ inline MouseCursorFrame mouseCursorFrame(SDL_Surface *atlas) {
     }
 
   // The lower strip stores the hotspot of each frame as a single white pixel.
-  for (int y = 0; y < size && result.hotspotX == 0 && result.hotspotY == 0;
-       ++y)
+  for (int y = 0; y < size && result.hotspotX == 0 && result.hotspotY == 0; ++y)
     for (int x = 0; x < size; ++x) {
       Uint8 r, g, b, a;
       if (SDL_ReadSurfacePixel(atlas, x + border, y + 48, &r, &g, &b, &a) &&

@@ -32,7 +32,10 @@ public:
   RenderLayer renderLayer() const override { return RenderLayer::Overlay; }
   explicit InGameMenu(Engine &engineRef);
 
-  virtual void open() { touchActivation.reset(); isOpen = true; }
+  virtual void open() {
+    touchActivation.reset();
+    isOpen = true;
+  }
   virtual void close() { isOpen = false; }
   void toggle() { IsOpen() ? close() : open(); }
   virtual bool IsOpen() const { return isOpen; }

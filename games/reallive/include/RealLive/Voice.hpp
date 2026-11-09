@@ -32,8 +32,8 @@ private:
   Reader reader_;
 };
 // Converts uncompressed NWA PCM (-1 compression) to a standard RIFF WAV.
-// Throws for invalid data or compressed NWA, which this REALLIVE edition does not
-// use.
+// Throws for invalid data or compressed NWA, which this REALLIVE edition does
+// not use.
 std::vector<std::uint8_t> nwaToWav(const std::vector<std::uint8_t> &bytes);
 struct AudioTrack {
   std::string name, file;

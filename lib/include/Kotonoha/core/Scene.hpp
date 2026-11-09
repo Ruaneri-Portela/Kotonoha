@@ -15,9 +15,7 @@ public:
   virtual ~Scene() = default;
 
   virtual bool onEvent(EventRef event) { return false; }
-  virtual bool handleEvent(EventRef event) {
-    return onEvent(event);
-  }
+  virtual bool handleEvent(EventRef event) { return onEvent(event); }
   virtual bool capturesInput() const { return false; }
   virtual bool finished() const { return false; }
   virtual void restart() {}
@@ -30,7 +28,7 @@ public:
   virtual bool designSpace() const { return false; }
   virtual void update() {}
   virtual void translationChanged(const std::string &, const std::string &,
-                                   const std::string &) {}
+                                  const std::string &) {}
   virtual void render(RendererRef renderer, float scale) {}
 
 protected:

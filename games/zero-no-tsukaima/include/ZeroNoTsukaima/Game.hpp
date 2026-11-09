@@ -22,15 +22,19 @@ namespace ZeroNoTsukaima {
 class Game {
 public:
   // Returns the unpacked bytes of entry `index` of SCENE_ID.
-  using SceneLoader = std::function<bool(size_t index, std::vector<uint8_t> *out)>;
+  using SceneLoader =
+      std::function<bool(size_t index, std::vector<uint8_t> *out)>;
 
   Game(std::vector<std::string> sceneNames, SceneLoader loader);
 
-  // Character tags ("ルイズ {学生服 怒り 左 出}") are resolved through this table; without it
-  // they are ignored.
+  // Character tags ("ルイズ {学生服 怒り 左 出}") are resolved through this
+  // table; without it they are ignored.
   void SetCharacterTable(const CharacterTable *table) { table_ = table; }
-  // Stage names (ENVINIT "stages", e.g. 黒 / 白 / サイトの居間) also work as bare tags.
-  void SetStageNames(std::set<std::string> names) { stageNames_ = std::move(names); }
+  // Stage names (ENVINIT "stages", e.g. 黒 / 白 / サイトの居間) also work as
+  // bare tags.
+  void SetStageNames(std::set<std::string> names) {
+    stageNames_ = std::move(names);
+  }
 
   struct Sprite {
     std::string character;
@@ -41,16 +45,18 @@ public:
   // One drawable of the scene at the current clock.
   struct Element {
     enum Kind { Stage, Event, Character, Layer } kind = Stage;
-    std::string image; // stage words ("サイトの居間 昼", "黒"), event CG, sprite image or layer file
+    std::string image;  // stage words ("サイトの居間 昼", "黒"), event CG,
+                        // sprite image or layer file
     float x = 0, y = 0; // Character: centre offset; others: top-left offset
     float alpha = 1;
-    // Character light of the time of day (ENVINIT times 夕 / 夜 / 夜闇), a colour modulation.
+    // Character light of the time of day (ENVINIT times 夕 / 夜 / 夜闇), a
+    // colour modulation.
     float tint[3] = {1, 1, 1};
   };
 
   // What the story is blocked on.
-  // Coffee: the `coffee` tag opened the coffee-break menu (CommandState "coffee");
-  // the host ends it with FinishWait() when the player picks NEXT.
+  // Coffee: the `coffee` tag opened the coffee-break menu (CommandState
+  // "coffee"); the host ends it with FinishWait() when the player picks NEXT.
   enum class Block { None, Click, Choice, Time, Voice, Se, Movie, Coffee, End };
 
   // Requests for the host, in script order (see TakeCues).
@@ -84,7 +90,9 @@ public:
   int Voice() const { return voice_; }
   const std::vector<std::string> &Choices() const { return choiceText_; }
   std::string Stage() const;
-  std::string Event() const { return event_.visible ? event_.image : std::string(); }
+  std::string Event() const {
+    return event_.visible ? event_.image : std::string();
+  }
   const std::string &Bgm() const { return bgm_; }
   int Movie() const { return movie_; }
   std::vector<Cue> TakeCues() { return std::move(cues_); }
@@ -117,13 +125,16 @@ public:
   // MoveState (moveinit / moveadd / move): while Moving() the choices are the
   // map destinations; Choose(i) goes to the i-th one.
   struct MoveDestination {
-    std::string text;  // "図書室" (movePositions key)
-    std::string pose;  // character shown next to the focused button ("TCG05_1A1"), may be empty
+    std::string text; // "図書室" (movePositions key)
+    std::string pose; // character shown next to the focused button
+                      // ("TCG05_1A1"), may be empty
     std::string storage;
   };
   bool Moving() const { return choosing_ && moving_; }
   const std::string &MoveBack() const { return moveBack_; }
-  const std::vector<MoveDestination> &MoveDestinations() const { return moveShown_; }
+  const std::vector<MoveDestination> &MoveDestinations() const {
+    return moveShown_;
+  }
   // Overlays of OVERRIDE.NUT shown during a timed wait: LikeMeter (好感度
   // action=up/down name=RU..) and TndlMeter (ツンデレパラメータ param=n, the
   // needle moves from `from` to `to` = f.prm_tundere_eval).
@@ -134,7 +145,10 @@ public:
     int from = 0, to = 0;
     int64_t start = 0, end = 0;
   };
-  const Meter *ActiveMeter() const { return meter_.kind != Meter::None && clock_ < meter_.end ? &meter_ : nullptr; }
+  const Meter *ActiveMeter() const {
+    return meter_.kind != Meter::None && clock_ < meter_.end ? &meter_
+                                                             : nullptr;
+  }
   // RouletteState (tndlslot [tun=true]): a choice whose index is the
   // f.prm_tundere_boot the slot stopped at (0..17, +18 for the tsun slot).
   bool Roulette() const { return choosing_ && roulette_; }
@@ -142,7 +156,10 @@ public:
   // selopt: the area the select window spreads its buttons over.
   SDL_Rect SelectArea() const { return selectArea_; }
   // Identifies the page waiting for a click (read marks for skip mode "既読").
-  std::string PageId() const { return waiting_ ? scriptName_ + "@" + std::to_string(pagePc_) : std::string(); }
+  std::string PageId() const {
+    return waiting_ ? scriptName_ + "@" + std::to_string(pagePc_)
+                    : std::string();
+  }
   // String variables (f.title, the save title).
   std::string StringVar(const std::string &name) const {
     auto it = strings_.find(name);
@@ -161,7 +178,10 @@ private:
     bool decel = false;
     float At(int64_t t) const;
     int64_t End() const { return start + duration; }
-    void Set(float value) { from = to = value; duration = 0; }
+    void Set(float value) {
+      from = to = value;
+      duration = 0;
+    }
     void To(int64_t now, float target, int ms, bool decelerate = false);
   };
   struct Props {
@@ -206,7 +226,8 @@ private:
   size_t sceneIndex_ = 0, pc_ = 0;
   std::string scriptName_;
   std::map<std::string, int64_t> flags_;
-  std::map<std::string, std::string> strings_; // string variables (f.prm_tundere_next = "st05_00.ks")
+  std::map<std::string, std::string>
+      strings_; // string variables (f.prm_tundere_next = "st05_00.ks")
   std::set<std::string> stageNames_;
 
   std::string text_, speaker_, bgm_;

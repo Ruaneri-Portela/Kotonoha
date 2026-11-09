@@ -24,8 +24,7 @@ public:
   void open() override;
   void close() override;
   bool isVisible() const override { return isOpen_ || VNBacklog::isVisible(); }
-  void addEntry(const std::string &speaker,
-                const std::string &text) override;
+  void addEntry(const std::string &speaker, const std::string &text) override;
   void clear() override;
   bool onEvent(EventRef event) override;
   void update() override;

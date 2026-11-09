@@ -11,6 +11,7 @@ namespace Kotonoha {
 
 class TextInputDialog final : public Scene {
   TouchActivation touchActivation;
+
 private:
   std::string promptText;
   std::string input;

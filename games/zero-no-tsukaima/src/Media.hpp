@@ -6,11 +6,14 @@
 
 namespace ZeroNoTsukaima {
 
-// A texture the game draws; owns it unless it comes from the engine asset cache.
+// A texture the game draws; owns it unless it comes from the engine asset
+// cache.
 class Picture {
 public:
   Picture() = default;
-  explicit Picture(SDL_Texture *texture, bool owned = true) { Reset(texture, owned); }
+  explicit Picture(SDL_Texture *texture, bool owned = true) {
+    Reset(texture, owned);
+  }
   ~Picture() { Reset(nullptr); }
   Picture(const Picture &) = delete;
   Picture &operator=(const Picture &) = delete;

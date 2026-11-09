@@ -13,7 +13,10 @@ class TouchActivation {
   bool observed = false, canceled = false;
 
 public:
-  void reset() { contacts.clear(); observed = canceled = false; }
+  void reset() {
+    contacts.clear();
+    observed = canceled = false;
+  }
   bool accept(EventRef event) {
     if (event.type == SDL_EVENT_WINDOW_FOCUS_LOST) {
       contacts.clear();
@@ -39,8 +42,7 @@ public:
         canceled |= event.type == SDL_EVENT_FINGER_CANCELED;
       }
     }
-    return !(observed && canceled &&
-             event.type == SDL_EVENT_MOUSE_BUTTON_UP &&
+    return !(observed && canceled && event.type == SDL_EVENT_MOUSE_BUTTON_UP &&
              event.button.which == SDL_TOUCH_MOUSEID);
   }
 };

@@ -19,10 +19,10 @@ bool isISOImage(const std::filesystem::path &path);
 // No system mount, shell command or modification of the image is involved.
 std::filesystem::path gameDataDirectory(const std::filesystem::path &source);
 
-// Read-only ISO9660/Joliet file system of a CD/DVD image: a plain .iso (2048-byte
-// sectors) or a raw .bin track (2352-byte MODE1 / MODE2 form 1 sectors, or
-// 2336-byte MODE2 sectors without sync). Lookups ignore case and the ";1"
-// version suffix; subdirectories use '/' ("MOVIE/OPENING.PSS").
+// Read-only ISO9660/Joliet file system of a CD/DVD image: a plain .iso
+// (2048-byte sectors) or a raw .bin track (2352-byte MODE1 / MODE2 form 1
+// sectors, or 2336-byte MODE2 sectors without sync). Lookups ignore case and
+// the ";1" version suffix; subdirectories use '/' ("MOVIE/OPENING.PSS").
 class DiscImage {
 public:
   struct Entry {

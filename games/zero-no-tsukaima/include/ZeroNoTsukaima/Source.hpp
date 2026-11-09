@@ -1,8 +1,8 @@
 #pragma once
-#include <ZeroNoTsukaima/Catalog.hpp>
 #include <Kotonoha/core/DiscImage.hpp>
-#include <ZeroNoTsukaima/Archive.hpp>
 #include <Kotonoha/media/Ps2Tim2.hpp>
+#include <ZeroNoTsukaima/Archive.hpp>
+#include <ZeroNoTsukaima/Catalog.hpp>
 
 #include <map>
 #include <memory>
@@ -23,22 +23,34 @@ public:
   // SCENEDAT picture (TIM2) by index; names are resolved through Catalog().
   bool LoadPicture(int index, Kotonoha::Ps2Image *out) const;
   const ImageCatalog &Catalog() const { return catalog_; }
-  // Raw SPU-ADPCM streams: VOICE_ID (one per spoken line) and SOUND_ID (BGM / effects).
+  // Raw SPU-ADPCM streams: VOICE_ID (one per spoken line) and SOUND_ID (BGM /
+  // effects).
   bool LoadVoice(size_t index, std::vector<uint8_t> *out) const;
   bool LoadSound(size_t index, std::vector<uint8_t> *out) const;
 
   // Archive entry names from the *.LST tables (NORMAL entries 7..11), keyed by
-  // upper-case base name without extension ("TITLE_TITLEBG", "BGMA01"); -1 if unknown.
-  int NormalIndex(const std::string &name) const { return Lookup(normalNames_, name); }
-  int ScenedatIndex(const std::string &name) const { return Lookup(scenedatNames_, name); }
-  int SoundIndex(const std::string &name) const { return Lookup(soundNames_, name); }
+  // upper-case base name without extension ("TITLE_TITLEBG", "BGMA01"); -1 if
+  // unknown.
+  int NormalIndex(const std::string &name) const {
+    return Lookup(normalNames_, name);
+  }
+  int ScenedatIndex(const std::string &name) const {
+    return Lookup(scenedatNames_, name);
+  }
+  int SoundIndex(const std::string &name) const {
+    return Lookup(soundNames_, name);
+  }
   const std::map<std::string, int> &NormalNames() const { return normalNames_; }
   const std::map<std::string, int> &SoundNames() const { return soundNames_; }
   // NORMAL picture (system UI: title, menus, message window) by index.
   bool LoadNormalPicture(int index, Kotonoha::Ps2Image *out) const;
-  // SYSVOICES.NUT (SYSTEM #36): system voice name ("RU9Y0005") -> VOICE_ID index.
-  int SystemVoice(const std::string &name) const { return Lookup(systemVoices_, name); }
-  // MPEG-PS movie number n of the NORMAL #247 table (0 = ZERO2OP.PSS, the opening).
+  // SYSVOICES.NUT (SYSTEM #36): system voice name ("RU9Y0005") -> VOICE_ID
+  // index.
+  int SystemVoice(const std::string &name) const {
+    return Lookup(systemVoices_, name);
+  }
+  // MPEG-PS movie number n of the NORMAL #247 table (0 = ZERO2OP.PSS, the
+  // opening).
   bool LoadMovie(int number, std::vector<uint8_t> *out) const;
   // Undecoded TIM2 files (what LoadPicture / LoadNormalPicture decode).
   bool ReadPicture(int index, std::vector<uint8_t> *out) const;
@@ -51,11 +63,14 @@ public:
   const std::vector<std::string> &Movies() const { return movies_; }
 
 private:
-  static int Lookup(const std::map<std::string, int> &table, const std::string &name);
-  bool ReadEntry(const Kotonoha::DiscImage::Entry &bin, const std::vector<ArchiveEntry> &index, size_t i,
+  static int Lookup(const std::map<std::string, int> &table,
+                    const std::string &name);
+  bool ReadEntry(const Kotonoha::DiscImage::Entry &bin,
+                 const std::vector<ArchiveEntry> &index, size_t i,
                  std::vector<uint8_t> *out) const;
 
-  std::shared_ptr<Kotonoha::DiscImage> disc_ = std::make_shared<Kotonoha::DiscImage>();
+  std::shared_ptr<Kotonoha::DiscImage> disc_ =
+      std::make_shared<Kotonoha::DiscImage>();
   const Kotonoha::DiscImage::Entry *pictureBin_ = nullptr;
   std::vector<ArchiveEntry> pictureIndex_;
   ImageCatalog catalog_;
@@ -66,12 +81,15 @@ private:
   std::vector<std::string> names_;
   const Kotonoha::DiscImage::Entry *normalBin_ = nullptr;
   std::vector<ArchiveEntry> normalIndex_;
-  std::map<std::string, int> normalNames_, scenedatNames_, soundNames_, systemVoices_;
+  std::map<std::string, int> normalNames_, scenedatNames_, soundNames_,
+      systemVoices_;
   std::vector<std::string> movies_;
 };
 
-// Parses a *.LST name table: "[NAME]" header, one archive path per line, "[END]";
-// "//" lines are comments, not entries. Keys are upper-case base names without extension.
+// Parses a *.LST name table: "[NAME]" header, one archive path per line,
+// "[END]";
+// "//" lines are comments, not entries. Keys are upper-case base names without
+// extension.
 std::map<std::string, int> ParseNameList(const std::vector<uint8_t> &text);
 
 } // namespace ZeroNoTsukaima

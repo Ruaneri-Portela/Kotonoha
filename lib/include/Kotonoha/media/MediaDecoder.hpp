@@ -24,9 +24,9 @@ AudioClip decodeAudio(const std::vector<Uint8> &bytes);
 // returns false and clears `output`; reaching an authored safety cap succeeds
 // when at least one sample was decoded.
 bool decodeMonoS16At44100(const std::vector<Uint8> &bytes,
-                         std::vector<std::int16_t> &output,
-                         const std::atomic_bool *cancelled = nullptr,
-                         std::uint64_t maxDurationMs = 0);
+                          std::vector<std::int16_t> &output,
+                          const std::atomic_bool *cancelled = nullptr,
+                          std::uint64_t maxDurationMs = 0);
 // Container duration in seconds, or a negative value when unknown.
 double duration(const std::vector<Uint8> &bytes);
 

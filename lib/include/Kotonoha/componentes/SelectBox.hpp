@@ -1,7 +1,7 @@
 #pragma once
-#include <Kotonoha/events/ControllerEvent.hpp>
 #include <Kotonoha/componentes/TouchActivation.hpp>
 #include <Kotonoha/core/UI.hpp>
+#include <Kotonoha/events/ControllerEvent.hpp>
 #include <Kotonoha/events/InputActions.hpp>
 #include <algorithm>
 #include <cmath>
@@ -53,14 +53,19 @@ public:
       if (event.key.key == SDLK_UP || event.key.key == SDLK_DOWN ||
           event.key.key == SDLK_PAGEUP || event.key.key == SDLK_PAGEDOWN ||
           event.key.key == SDLK_HOME || event.key.key == SDLK_END) {
-        if (event.key.key == SDLK_HOME) selected = 0;
-        else if (event.key.key == SDLK_END) selected = maximum;
+        if (event.key.key == SDLK_HOME)
+          selected = 0;
+        else if (event.key.key == SDLK_END)
+          selected = maximum;
         else {
-          const int step = (event.key.key == SDLK_PAGEUP ||
-                            event.key.key == SDLK_PAGEDOWN) ? 10 : 1;
-          const bool reverse = event.key.key == SDLK_UP ||
-                               event.key.key == SDLK_PAGEUP;
-          selected = std::clamp(selected + (reverse ? -step : step), 0, maximum);
+          const int step =
+              (event.key.key == SDLK_PAGEUP || event.key.key == SDLK_PAGEDOWN)
+                  ? 10
+                  : 1;
+          const bool reverse =
+              event.key.key == SDLK_UP || event.key.key == SDLK_PAGEUP;
+          selected =
+              std::clamp(selected + (reverse ? -step : step), 0, maximum);
         }
         scroll = std::min(std::max(0.0f, float(int(options.size()) * 44 - 440)),
                           float(std::max(0, selected - 5) * 44));
@@ -83,9 +88,9 @@ public:
     gesture.handle(event, 720, scroll, velocity, follow,
                    std::max(0.f, float(options.size()) * 44 - 440));
     if (event.type == SDL_EVENT_MOUSE_BUTTON_UP &&
-        event.button.button == SDL_BUTTON_LEFT &&
-        event.button.x >= 936 && event.button.x <= 953 &&
-        event.button.y >= 150 && event.button.y <= 590) {
+        event.button.button == SDL_BUTTON_LEFT && event.button.x >= 936 &&
+        event.button.x <= 953 && event.button.y >= 150 &&
+        event.button.y <= 590) {
       // Clicking the visible scrollbar track jumps directly through long
       // lists, useful when a monitor exposes dozens of refresh-rate modes.
       const float maximum = std::max(0.f, float(options.size()) * 44 - 440);
@@ -125,12 +130,14 @@ public:
     const float maximum = std::max(0.f, float(options.size()) * 44 - 440);
     if (maximum > 0) {
       ui.panel(renderer, {938, 150, 9, 440}, {50, 60, 76, 255});
-      const float thumb = std::max(24.f, 440.f * 440.f /
-                                       (float(options.size()) * 44.f));
-      ui.panel(renderer, {938, 150 + scroll / maximum * (440 - thumb), 9, thumb},
+      const float thumb =
+          std::max(24.f, 440.f * 440.f / (float(options.size()) * 44.f));
+      ui.panel(renderer,
+               {938, 150 + scroll / maximum * (440 - thumb), 9, thumb},
                {130, 190, 245, 255});
     }
-    ui.text(renderer, std::to_string(selected + 1) + "/" +
+    ui.text(renderer,
+            std::to_string(selected + 1) + "/" +
                 std::to_string(options.size()) +
                 "  Wheel / swipe / PgUp / PgDn / Home / End",
             350, 593, 580, {215, 220, 235, 255});

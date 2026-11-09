@@ -13,94 +13,94 @@ namespace Kotonoha {
 // physical output sizing belongs to the presenter/viewport layer.
 class SchoolDaysRouteMapRenderPlan {
 public:
-    struct Rect {
-        float x = 0.0f;
-        float y = 0.0f;
-        float w = 0.0f;
-        float h = 0.0f;
-    };
+  struct Rect {
+    float x = 0.0f;
+    float y = 0.0f;
+    float w = 0.0f;
+    float h = 0.0f;
+  };
 
-    struct Record {
-        Rect source{};
-        Rect destination{};
-    };
+  struct Record {
+    Rect source{};
+    Rect destination{};
+  };
 
-    struct Size {
-        int width = 0;
-        int height = 0;
-    };
+  struct Size {
+    int width = 0;
+    int height = 0;
+  };
 
-    enum class Texture : uint8_t { Base, Chip };
+  enum class Texture : uint8_t { Base, Chip };
 
-    enum class Role : uint8_t {
-        Base,
-        NodeLocked,
-        NodeAvailable,
-        CommonControl,
-        NodeCurrent,
-        CurrentMajorPrimary,
-        CurrentMajorSecondary,
-        AlternateHostMajorMask,
-        NavigationOverlay,
-    };
+  enum class Role : uint8_t {
+    Base,
+    NodeLocked,
+    NodeAvailable,
+    CommonControl,
+    NodeCurrent,
+    CurrentMajorPrimary,
+    CurrentMajorSecondary,
+    AlternateHostMajorMask,
+    NavigationOverlay,
+  };
 
-    // Native table layout is exactly 33 common records followed by four N-wide
-    // node bands. The historical labels below identify source ranges, not a
-    // proven display condition. Retail title LOAD samples show: no overlay for
-    // an absent global SP, band 1 for a present SP. Band 3 still needs a
-    // separate runtime trigger before its use can be reconstructed.
-    enum class NodeBand : uint8_t {
-        Hover = 0,
-        Locked = 1,
-        Current = 2,
-        Available = 3,
-    };
+  // Native table layout is exactly 33 common records followed by four N-wide
+  // node bands. The historical labels below identify source ranges, not a
+  // proven display condition. Retail title LOAD samples show: no overlay for
+  // an absent global SP, band 1 for a present SP. Band 3 still needs a
+  // separate runtime trigger before its use can be reconstructed.
+  enum class NodeBand : uint8_t {
+    Hover = 0,
+    Locked = 1,
+    Current = 2,
+    Available = 3,
+  };
 
-    struct Sprite {
-        Texture texture = Texture::Base;
-        Role role = Role::Base;
-        int index = -1;
-        int recordIndex = -1;
-        bool hasSource = false;
-        Rect source{};
-        Rect destination{};
-    };
+  struct Sprite {
+    Texture texture = Texture::Base;
+    Role role = Role::Base;
+    int index = -1;
+    int recordIndex = -1;
+    bool hasSource = false;
+    Rect source{};
+    Rect destination{};
+  };
 
-    struct Layout {
-        float scale = 1.0f;
-        float yOffset = 75.0f;
-        int logicalWidth = 800;
-        int logicalHeight = 600;
-    };
+  struct Layout {
+    float scale = 1.0f;
+    float yOffset = 75.0f;
+    int logicalWidth = 800;
+    int logicalHeight = 600;
+  };
 
-    struct CompletionText {
-        std::u16string text;
-        Rect destination{};
-        uint32_t color = UINT32_C(0xFFFFFFFF);
-        int displayedPercent = 0;
-    };
+  struct CompletionText {
+    std::u16string text;
+    Rect destination{};
+    uint32_t color = UINT32_C(0xFFFFFFFF);
+    int displayedPercent = 0;
+  };
 
-    static Layout LayoutFor(SchoolDaysRouteMapModel::Variant variant);
-    static Size ChipSizeForPage(int major, int subpage);
-    static Record CommonRecord(int recordIndex);
-    static Record NodeRecord(int major, int subpage, int localIndex,
+  static Layout LayoutFor(SchoolDaysRouteMapModel::Variant variant);
+  static Size ChipSizeForPage(int major, int subpage);
+  static Record CommonRecord(int recordIndex);
+  static Record NodeRecord(int major, int subpage, int localIndex,
+                           NodeBand band);
+  static int NodeRecordIndex(int major, int subpage, int localIndex,
                              NodeBand band);
-    static int NodeRecordIndex(int major, int subpage, int localIndex,
-                               NodeBand band);
-    static CompletionText CompletionTextFor(const SchoolDaysRouteMapModel& model,
-                                            bool useEnglish);
-    static int CompletionGlyphAdvance(uint16_t code) {
-        return code < UINT16_C(0x80) ? 24 : 45;
-    }
+  static CompletionText CompletionTextFor(const SchoolDaysRouteMapModel &model,
+                                          bool useEnglish);
+  static int CompletionGlyphAdvance(uint16_t code) {
+    return code < UINT16_C(0x80) ? 24 : 45;
+  }
 
-    // This remains false until a native path proves band0 composition order.
-    static constexpr bool NodeHoverPrecedenceProven() { return false; }
+  // This remains false until a native path proves band0 composition order.
+  static constexpr bool NodeHoverPrecedenceProven() { return false; }
 
-    // Draw order follows SysMenuSDHQ.dll FUN_1000CE40/FUN_1000F330:
-    // base, per-node unlocked pass, visible common 0..10, optional current
-    // node, current-major records 11+major and 17+major, optional alternate
-    // host records 23..28, then records 29..32.
-    static std::vector<Sprite> Build(const SchoolDaysRouteMapModel& model);
+  // Draw order follows SysMenuSDHQ.dll FUN_1000CE40/FUN_1000F330:
+  // base, per-node unlocked pass, visible common 0..10, optional current
+  // node, current-major records 11+major and 17+major, optional alternate
+  // host records 23..28, then records 29..32.
+  static std::vector<Sprite> Build(const SchoolDaysRouteMapModel &model);
 };
 
 } // namespace Kotonoha

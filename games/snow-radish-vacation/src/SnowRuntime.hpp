@@ -47,7 +47,8 @@ public:
   void saveGame(const std::string &path) override;
   void loadGame(const std::string &path) override;
 
-  static constexpr int kViewWidth = kGameWidth * 6 / 5, kViewHeight = kGameHeight * 6 / 5;
+  static constexpr int kViewWidth = kGameWidth * 6 / 5,
+                       kViewHeight = kGameHeight * 6 / 5;
 
 private:
   bool IsGameScene(const Kotonoha::Scene *scene) const;

@@ -45,10 +45,10 @@ public:
   void saveGame(const std::string &path) override;
   void loadGame(const std::string &path) override;
 
-  static constexpr int kViewWidth = kGameWidth * 3 / 2, kViewHeight = kGameHeight * 3 / 2;
+  static constexpr int kViewWidth = kGameWidth * 3 / 2,
+                       kViewHeight = kGameHeight * 3 / 2;
 
 private:
-
   std::shared_ptr<DiscAssetProvider> disc_;
   Kotonoha::Engine *engine_ = nullptr;
   std::unique_ptr<ZeroSession> session_;

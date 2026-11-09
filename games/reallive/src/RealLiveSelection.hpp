@@ -1,10 +1,10 @@
 #pragma once
 #include "RealLiveAssets.hpp"
-#include <RealLive/Images.hpp>
 #include <Kotonoha/componentes/ChoiceQuestionScene.hpp>
 #include <Kotonoha/componentes/ImageButtonBar.hpp>
 #include <Kotonoha/core/UI.hpp>
 #include <Kotonoha/media/upscaling/Upscaler.hpp>
+#include <RealLive/Images.hpp>
 #include <iomanip>
 #include <sstream>
 

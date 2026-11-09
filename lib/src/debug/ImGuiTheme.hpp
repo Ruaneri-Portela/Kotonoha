@@ -24,8 +24,9 @@ void sectionHeader(const char *label);
 
 // --- Modern UI helpers ---
 
-// Pushes a rounded card background (call ImGui::EndChild() or ImGui::PopStyleVar
-// after content). Returns true when the card is open/collapsible and hovered.
+// Pushes a rounded card background (call ImGui::EndChild() or
+// ImGui::PopStyleVar after content). Returns true when the card is
+// open/collapsible and hovered.
 void cardBegin(const char *id, bool collapsible = false, bool *open = nullptr);
 void cardEnd();
 
@@ -48,7 +49,8 @@ class ShaderFilePicker {
   struct State;
   std::shared_ptr<State> state;
   std::string error;
-  static void SDLCALL finished(void *userdata, const char *const *files, int filter);
+  static void SDLCALL finished(void *userdata, const char *const *files,
+                               int filter);
 
 public:
   ShaderFilePicker() = default;

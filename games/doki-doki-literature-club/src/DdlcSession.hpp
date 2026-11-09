@@ -24,8 +24,8 @@ public:
 
   void update(bool suspended);
   void startGame();
-  void saveGame(const std::string&path);
-  void loadGame(const std::string&path);
+  void saveGame(const std::string &path);
+  void loadGame(const std::string &path);
   void setPaused(bool);
   bool backAction();
   bool openHistory();

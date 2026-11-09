@@ -11,7 +11,12 @@ namespace Kotonoha {
 // texture until the incoming owner actually draws a primary visual.
 class VisualTransition {
 public:
-  enum class State { Idle, OutgoingCaptured, PreparingIncoming, IncomingDrawable };
+  enum class State {
+    Idle,
+    OutgoingCaptured,
+    PreparingIncoming,
+    IncomingDrawable
+  };
 
   bool begin(std::string reason, std::string outgoingOwner);
   void arm(std::string incomingOwner);
@@ -33,7 +38,8 @@ public:
   const std::string &incomingOwner() const { return incomingOwner_; }
 
 private:
-  static bool copy(RendererRef renderer, SDL_Texture &source, TexturePtr *destination);
+  static bool copy(RendererRef renderer, SDL_Texture &source,
+                   TexturePtr *destination);
   TexturePtr lastPresented_;
   TexturePtr outgoing_;
   State state_ = State::Idle;

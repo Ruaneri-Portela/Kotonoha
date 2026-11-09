@@ -118,7 +118,8 @@ public:
   DebugSettings &getSettings() { return settings; }
   const DebugSettings &getSettings() const { return settings; }
   void trackActiveTranslation();
-  std::string nodeClockText(bool eventClock = true, bool nodeClock = true) const;
+  std::string nodeClockText(bool eventClock = true,
+                            bool nodeClock = true) const;
   std::string performanceText(bool milliseconds = true) const;
   std::pair<std::string, std::string> hudText(float width) const;
   void reloadFonts(const std::string &fontPath);

@@ -32,7 +32,8 @@ public:
   static constexpr Uint32 NormalArgb = 0xFFF0F0F0u;
   static constexpr Uint32 SelectedArgb = 0xFFFE4A1Fu;
 
-  void Configure(const SchoolDaysPromptPolicy &policy, std::size_t choiceCount) {
+  void Configure(const SchoolDaysPromptPolicy &policy,
+                 std::size_t choiceCount) {
     policy_ = policy;
     choiceCount_ = choiceCount;
     storedSelection_ = -1;
@@ -103,12 +104,13 @@ public:
   }
 
   int HitNormalized(float x, float y) const {
-    if (!policy_.enabled || x < 0.0f || x >= 1.0f || y < 0.0f ||
-        y >= 1.0f) {
+    if (!policy_.enabled || x < 0.0f || x >= 1.0f || y < 0.0f || y >= 1.0f) {
       return -1;
     }
-    if (choiceCount_ == 1) return 0;
-    if (choiceCount_ != 2) return -1;
+    if (choiceCount_ == 1)
+      return 0;
+    if (choiceCount_ != 2)
+      return -1;
     if (policy_.twoChoiceOrientation ==
         SchoolDaysPromptOrientation::LeftRight) {
       return x < 0.5f ? 0 : 1;
@@ -121,13 +123,15 @@ public:
   }
 
   void SeedPointer(float x, float y, Kotonoha_SceneTick tick) {
-    if (!InputOpenAtTick(tick)) return;
+    if (!InputOpenAtTick(tick))
+      return;
     storedSelection_ = HitNormalized(x, y);
     seeded_ = true;
   }
 
   void PointerMotion(float x, float y, Kotonoha_SceneTick tick) {
-    if (!InputOpenAtTick(tick)) return;
+    if (!InputOpenAtTick(tick))
+      return;
     storedSelection_ = HitNormalized(x, y);
     seeded_ = true;
   }
@@ -137,7 +141,8 @@ public:
       return false;
     }
     const int hit = HitNormalized(x, y);
-    if (hit < 0 || hit != storedSelection_) return false;
+    if (hit < 0 || hit != storedSelection_)
+      return false;
     *result = hit;
     return true;
   }
@@ -154,7 +159,8 @@ public:
 
 private:
   int ResolveTimeoutResult() const {
-    if (!autoMode_ || (choiceCount_ != 1 && choiceCount_ != 2)) return -1;
+    if (!autoMode_ || (choiceCount_ != 1 && choiceCount_ != 2))
+      return -1;
     Uint32 randomValue = 0;
     if (autoChoiceRandomSource_ != nullptr) {
       randomValue = autoChoiceRandomSource_(autoChoiceRandomUserdata_);

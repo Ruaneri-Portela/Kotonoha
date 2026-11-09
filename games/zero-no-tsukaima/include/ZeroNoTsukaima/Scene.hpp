@@ -45,15 +45,19 @@ struct NutValue {
   enum Kind { Null, String, Integer, Table, Array } kind = Null;
   std::string text;
   int32_t value = 0;
-  std::vector<std::pair<std::string, std::shared_ptr<NutValue>>> fields; // Table (keys as text)
-  std::vector<std::shared_ptr<NutValue>> items;                          // Array
+  std::vector<std::pair<std::string, std::shared_ptr<NutValue>>>
+      fields;                                   // Table (keys as text)
+  std::vector<std::shared_ptr<NutValue>> items; // Array
 
   const NutValue *Get(const std::string &key) const {
     for (const auto &[k, v] : fields)
-      if (k == key) return v.get();
+      if (k == key)
+        return v.get();
     return nullptr;
   }
-  std::string Text() const { return kind == Integer ? std::to_string(value) : text; }
+  std::string Text() const {
+    return kind == Integer ? std::to_string(value) : text;
+  }
 };
 
 // Runs the table-building opcodes of the main function and returns the table
@@ -61,10 +65,12 @@ struct NutValue {
 std::shared_ptr<NutValue> EvalNutTable(const std::vector<uint8_t> &unpacked);
 
 // Rebuilds the sequence of tag tables a scene function creates.
-bool ParseSceneTags(const std::vector<uint8_t> &unpacked, std::vector<SceneTag> *out);
+bool ParseSceneTags(const std::vector<uint8_t> &unpacked,
+                    std::vector<SceneTag> *out);
 
 // SCENES.NUT (SYSTEM entry 32): script names ("ST01_00.KS", ...), where the
 // position in the list is the SCENE_ID archive index.
-bool ParseSceneNames(const std::vector<uint8_t> &unpacked, std::vector<std::string> *out);
+bool ParseSceneNames(const std::vector<uint8_t> &unpacked,
+                     std::vector<std::string> *out);
 
 } // namespace ZeroNoTsukaima

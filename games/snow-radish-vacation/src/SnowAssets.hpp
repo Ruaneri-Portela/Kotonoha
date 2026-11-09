@@ -14,10 +14,9 @@ namespace SnowRadish {
 // The four retail packs (SCRIPT / GRAPHIC / SOUND / VOICE.DAT, any case) as the
 // engine AssetProvider. Identifiers:
 //   script                 raw SCRIPT.DAT
-//   graphic/<name.ext>     GRAPHIC.DAT entry (evd, img, chd, anm, alpf, alpa, snw)
-//   graphic/<name>.anm#<n> frame n of an animation
-//   sound/<stem>           SOUND.DAT ADPS track (BGM / SE)
-//   voice/<stem>           VOICE.DAT ADP4 voice
+//   graphic/<name.ext>     GRAPHIC.DAT entry (evd, img, chd, anm, alpf, alpa,
+//   snw) graphic/<name>.anm#<n> frame n of an animation sound/<stem> SOUND.DAT
+//   ADPS track (BGM / SE) voice/<stem>           VOICE.DAT ADP4 voice
 // The decoders turn EVD / IMG / CHD / ANM into RGBA surfaces and ADPS / ADP4
 // into 16-bit PCM, so engine consumers (textures, upscaling, audio) just work.
 class SnowAssets : public Kotonoha::AssetProvider {
@@ -40,7 +39,8 @@ public:
   std::string name() const override;
   bool containsAsset(const std::string &id) const override;
   std::vector<Uint8> readAsset(const std::string &id) const override;
-  std::vector<std::string> listAsset(const std::string &prefix = {}) const override;
+  std::vector<std::string>
+  listAsset(const std::string &prefix = {}) const override;
   Kotonoha::SurfacePtr loadSurfaceAsset(const std::string &id) const override;
   Kotonoha::AudioClip loadAudioAsset(const std::string &id) const override;
 
