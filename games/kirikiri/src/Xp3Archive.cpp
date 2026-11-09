@@ -172,13 +172,6 @@ std::string extractPsbScript(const std::vector<std::uint8_t> &psbData) {
 
 } // namespace
 
-KirikiriAssets::KirikiriAssets(const std::filesystem::path &directory,
-                               const std::filesystem::path &overlay)
-    : root(std::filesystem::canonical(directory)), overlayDir(overlay) {
-  base = std::make_shared<Kotonoha::IndexedFileSystemAssetProvider>(root);
-  base->setOverlay({});
-}
-
 bool KirikiriAssets::containsAsset(const std::string &id) const {
   if (base->contains(id))
     return true;
