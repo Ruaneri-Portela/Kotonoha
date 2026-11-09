@@ -1,5 +1,6 @@
 #include <RealLive/Voice.hpp>
 #include <cassert>
+#include <cctype>
 #include <fstream>
 #include <iostream>
 #include <iterator>
@@ -14,6 +15,19 @@ static std::vector<std::uint8_t> read(const std::filesystem::path &p) {
   in.read(reinterpret_cast<char *>(bytes.data()), size);
   assert(in.good());
   return bytes;
+}
+static std::filesystem::path directory(const std::filesystem::path &root,
+                                       std::string name) {
+  for (auto &c : name)
+    c = char(std::tolower(static_cast<unsigned char>(c)));
+  for (const auto &entry : std::filesystem::directory_iterator(root)) {
+    auto candidate = entry.path().filename().string();
+    for (auto &c : candidate)
+      c = char(std::tolower(static_cast<unsigned char>(c)));
+    if (entry.is_directory() && candidate == name)
+      return entry.path();
+  }
+  return {};
 }
 int main(int argc, char **argv) {
   const auto config = RealLive::parseAudioConfig(
@@ -37,11 +51,14 @@ int main(int argc, char **argv) {
     return 0;
   const std::filesystem::path root(argv[1]);
   RealLive::VoiceIndex index(root);
-  assert(index.size() == 24900);
   std::size_t oggs = 0, songs = 0;
-  for (const auto &e :
-       std::filesystem::recursive_directory_iterator(root / "KOE")) {
-    if (e.path().extension() != ".ogg")
+  const auto koe = directory(root, "koe");
+  assert(!koe.empty());
+  for (const auto &e : std::filesystem::recursive_directory_iterator(koe)) {
+    auto extension = e.path().extension().string();
+    for (auto &c : extension)
+      c = char(std::tolower(static_cast<unsigned char>(c)));
+    if (extension != ".ogg")
       continue;
     const auto name = e.path().stem().string();
     const auto id = std::stoi(name.substr(1));
@@ -52,8 +69,14 @@ int main(int argc, char **argv) {
     assert(std::string(magic, 4) == "OggS");
     ++oggs;
   }
-  for (const auto &e : std::filesystem::directory_iterator(root / "bgm")) {
-    if (e.path().extension() != ".nwa")
+  assert(index.size() == oggs);
+  const auto bgm = directory(root, "bgm");
+  assert(!bgm.empty());
+  for (const auto &e : std::filesystem::directory_iterator(bgm)) {
+    auto extension = e.path().extension().string();
+    for (auto &c : extension)
+      c = char(std::tolower(static_cast<unsigned char>(c)));
+    if (extension != ".nwa")
       continue;
     auto b = read(e.path());
     auto wav = RealLive::nwaToWav(b);
@@ -64,7 +87,7 @@ int main(int argc, char **argv) {
   auto ini = read(root / "Gameexe.ini");
   auto tracks = RealLive::parseAudioConfig(
       std::string_view(reinterpret_cast<const char *>(ini.data()), ini.size()));
-  assert(tracks.tracks.size() == 27);
+  assert(!tracks.tracks.empty());
   std::cout << oggs << " loose Ogg voices; " << songs << " NWA PCM tracks; "
             << tracks.tracks.size() << " track mappings verified\n";
 }

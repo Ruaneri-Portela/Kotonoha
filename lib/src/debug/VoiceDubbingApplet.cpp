@@ -234,7 +234,8 @@ void VoiceDubbingApplet::select(const std::string &id) {
   try {
     // Prefer the provider's explicit original-only route. It knows how to
     // bypass both filesystem overlays and archive-level/global resolvers.
-    original_ = asFloat(engine_.GetAssets().loadAudio(id, true));
+    original_ =
+        asFloat(engine_.GetAssets().loadAudio(id, AssetSource::Original));
   } catch (const std::exception &) {
     // A few virtual runtimes own voice bytes outside AssetProvider. Their
     // native hook is a fallback, never the first source for ordinary assets.

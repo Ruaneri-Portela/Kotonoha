@@ -15,6 +15,7 @@ class Assets final : public Kotonoha::AssetProvider {
   std::string resolveOriginal(const std::string &logical) const;
 
 public:
+  using Kotonoha::AssetProvider::openStream;
   explicit Assets(std::filesystem::path root, const std::string &scripts = {});
   ~Assets() override;
   const std::filesystem::path &root() const { return directory; }

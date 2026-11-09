@@ -3213,7 +3213,13 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
     }
 
     if (op == 70 || op == 1050 || op == 1051) {
-      auto &g = graphic(str(c, 0));
+      const auto graphicName = str(c, 0);
+      // Dynamic graphic variables can be empty before their surrounding
+      // scenario initializes them (notably AIR 163:1330). RealLive treats an
+      // empty source as a completed no-op; do not manufacture a 0x0 DC.
+      if (graphicName.empty())
+        return true;
+      auto &g = graphic(graphicName);
       int n = value(c, 1);
       if (n < 0 || n > 15)
         throw std::runtime_error("Invalid REALLIVE DC");

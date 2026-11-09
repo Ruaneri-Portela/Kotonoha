@@ -143,11 +143,13 @@ int main() {
     Require(!Kotonoha::IsSchoolDaysGpkUri(effective) &&
                 fs::equivalent(effective, overlay / "BGM/RAW.BIN"),
             "Normal lookup did not continue to use the overlay");
-    const auto forcedOriginal = assets.read(rawId);
+    const auto forcedOriginal =
+        assets.read("BGM/RAW.BIN", Kotonoha::AssetSource::Original);
     Require(std::string(forcedOriginal.begin(), forcedOriginal.end()) ==
                 "PREFIX-RAW-BODY",
             "Explicit GPK URI was redirected through the overlay");
-    auto stream = assets.openStream(rawId);
+    auto stream =
+        assets.openStream("BGM/RAW.BIN", Kotonoha::AssetSource::Original);
     Require(stream && stream->size() == 15u,
             "Raw GPK entry did not expose seekable stream");
     std::array<Uint8, 8> buffer{};
