@@ -43,7 +43,7 @@ struct EngineSettings {
   // Not persisted on its own; it is recomputed from the persisted map.
   std::string assetOverlayPath;
   std::string fontPath = "NotoSansJP-Regular.ttf";
-  bool enableForcedSubtitles = true;  // Toggle for forced subtitles system
+  bool enableForcedSubtitles = true; // Toggle for forced subtitles system
   std::string customCursorPath = "";
   void validate() const;
   static EngineSettings load(const std::string &path);

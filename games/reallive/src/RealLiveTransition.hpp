@@ -4,7 +4,8 @@
 #include <array>
 
 namespace RealLive {
-inline bool transitionRevealsNewPixel(int style, double progress, int x, int y) {
+inline bool transitionRevealsNewPixel(int style, double progress, int x,
+                                      int y) {
   static constexpr std::array<std::array<unsigned char, 8>, 8> bayer{{
       {{0, 48, 12, 60, 3, 51, 15, 63}},
       {{32, 16, 44, 28, 35, 19, 47, 31}},

@@ -27,7 +27,9 @@ public:
   void updateForActiveNode();
   void loadForNode(const std::string &nodeId);
   void reload();
-  const std::filesystem::path &sourceDirectory() const { return sourceDirectory_; }
+  const std::filesystem::path &sourceDirectory() const {
+    return sourceDirectory_;
+  }
   const std::filesystem::path &activePath() const { return activeFile; }
   std::filesystem::path dumpForActiveNode();
 };

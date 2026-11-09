@@ -42,20 +42,25 @@ public:
 
   // Execute a parsed script against a Kotonoha engine. The callbacks let the
   // host (KirikiriRuntime) perform presentation (bgm, sprites, textbox).
-  using ShowTextCallback = std::function<void(std::string speaker, std::string text)>;
-  using ShowChoiceCallback = std::function<void(std::string question,
-                                                std::vector<std::string> options,
-                                                std::function<void(int)> onChoose)>;
+  using ShowTextCallback =
+      std::function<void(std::string speaker, std::string text)>;
+  using ShowChoiceCallback =
+      std::function<void(std::string question, std::vector<std::string> options,
+                         std::function<void(int)> onChoose)>;
   using JumpCallback = std::function<void(std::string label)>;
-  using WaitCallback = std::function<void(int milliseconds, std::function<void()> onDone)>;
-  using ShowBgCallback = std::function<void(std::string file, int transitionMs)>;
-  using ShowCharCallback = std::function<void(std::string layer, std::string file,
-                                              int x, int y, int transitionMs)>;
-  using HideCharCallback = std::function<void(std::string layer, int transitionMs)>;
+  using WaitCallback =
+      std::function<void(int milliseconds, std::function<void()> onDone)>;
+  using ShowBgCallback =
+      std::function<void(std::string file, int transitionMs)>;
+  using ShowCharCallback = std::function<void(
+      std::string layer, std::string file, int x, int y, int transitionMs)>;
+  using HideCharCallback =
+      std::function<void(std::string layer, int transitionMs)>;
   using PlayBgmCallback = std::function<void(std::string file, bool loop)>;
   using PlaySeCallback = std::function<void(std::string file)>;
   using StopBgmCallback = std::function<void()>;
-  using SetVarCallback = std::function<void(std::string name, std::string value)>;
+  using SetVarCallback =
+      std::function<void(std::string name, std::string value)>;
   using GetVarCallback = std::function<std::string(std::string name)>;
 
   struct Callbacks {
@@ -94,7 +99,7 @@ public:
     void resumeWait();
 
   private:
-    Script script_;        // owned copy; the source Script may go out of scope
+    Script script_; // owned copy; the source Script may go out of scope
     const Callbacks &cb_;
     std::size_t pc_ = 0;
     bool blocked_ = false;

@@ -16,7 +16,9 @@ std::vector<AndroidDisplayMode> AndroidEnumerateDisplayModes();
 int AndroidCurrentDisplayModeId();
 bool AndroidRequestDisplayMode(int modeId);
 #else
-inline std::vector<AndroidDisplayMode> AndroidEnumerateDisplayModes() { return {}; }
+inline std::vector<AndroidDisplayMode> AndroidEnumerateDisplayModes() {
+  return {};
+}
 inline int AndroidCurrentDisplayModeId() { return 0; }
 inline bool AndroidRequestDisplayMode(int) { return false; }
 #endif

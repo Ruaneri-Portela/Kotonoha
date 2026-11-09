@@ -30,14 +30,17 @@ struct SnowLinks {
 class SnowTitleMenu : public Kotonoha::GameMenu {
 public:
   bool designSpace() const override { return false; }
-  SnowTitleMenu(Kotonoha::Engine &engine, SnowSession &session, SnowLinks &links);
+  SnowTitleMenu(Kotonoha::Engine &engine, SnowSession &session,
+                SnowLinks &links);
 
   bool isVisible() const override;
   bool onEvent(Kotonoha::EventRef event) override;
   void update() override;
 
 protected:
-  int itemCount() const override { return 0; } // the title picture has its own items
+  int itemCount() const override {
+    return 0;
+  } // the title picture has its own items
   void activate(int index) override;
   void renderTitle(Kotonoha::RendererRef renderer) override;
 
@@ -49,7 +52,8 @@ private:
 // Background, sprites with tint and lip sync, uniform select and wipes.
 class SnowStage : public Kotonoha::Scene {
 public:
-  SnowStage(Kotonoha::Engine &engine, SnowSession &session) : Scene(engine), session_(session) {}
+  SnowStage(Kotonoha::Engine &engine, SnowSession &session)
+      : Scene(engine), session_(session) {}
   void render(Kotonoha::RendererRef renderer, float scale) override;
 
 private:
@@ -70,11 +74,13 @@ public:
 
 protected:
   double charactersPerSecond() const override { return 1e9; }
-  void recordDialogue(const std::string &speaker, const std::string &text) override;
+  void recordDialogue(const std::string &speaker,
+                      const std::string &text) override;
   void openMenu() override { links_.openMenu(); }
   void openBacklog() override { links_.openBacklog(); }
   void renderFrame(Kotonoha::RendererRef renderer) override;
-  void renderSpeaker(Kotonoha::RendererRef) override {} // drawn with the dialogue
+  void renderSpeaker(Kotonoha::RendererRef) override {
+  } // drawn with the dialogue
   void renderDialogue(Kotonoha::RendererRef renderer) override;
   void renderIndicator(Kotonoha::RendererRef renderer) override;
 
@@ -91,16 +97,20 @@ private:
   bool skipPinned_ = false;
 };
 
-// Shared choice behaviour: options come from the script, picking one advances it.
+// Shared choice behaviour: options come from the script, picking one advances
+// it.
 class SnowChoice : public Kotonoha::ChoiceQuestionScene {
 public:
   bool designSpace() const override { return false; }
-  SnowChoice(Kotonoha::Engine &engine, SnowSession &session, SnowLinks &links, SnowSession::ChoiceKind kind);
+  SnowChoice(Kotonoha::Engine &engine, SnowSession &session, SnowLinks &links,
+             SnowSession::ChoiceKind kind);
   void update() override;
   bool onEvent(Kotonoha::EventRef event) override;
 
 protected:
-  SDL_FRect listArea() const override { return {0, 0, float(kGameWidth), float(kGameHeight)}; }
+  SDL_FRect listArea() const override {
+    return {0, 0, float(kGameWidth), float(kGameHeight)};
+  }
   void select(std::size_t index) override;
   void openMenu() override { links_.openMenu(); }
   void openBacklog() override { links_.openBacklog(); }
@@ -126,31 +136,37 @@ private:
 // Text choices: SELH strips centred on the scene; a-i focus, Up/Down, Enter.
 class SnowTextChoice : public SnowChoice {
 public:
-  SnowTextChoice(Kotonoha::Engine &engine, SnowSession &session, SnowLinks &links)
+  SnowTextChoice(Kotonoha::Engine &engine, SnowSession &session,
+                 SnowLinks &links)
       : SnowChoice(engine, session, links, SnowSession::ChoiceKind::Text) {}
 
 protected:
   void layout() override;
   bool Key(SDL_Keycode key) override;
-  void renderOption(Kotonoha::RendererRef renderer, std::size_t index, bool focused) override;
+  void renderOption(Kotonoha::RendererRef renderer, std::size_t index,
+                    bool focused) override;
 };
 
 // The map: destination hotspots, clock, character badges and a preview.
 class SnowMapChoice : public SnowChoice {
 public:
-  SnowMapChoice(Kotonoha::Engine &engine, SnowSession &session, SnowLinks &links)
+  SnowMapChoice(Kotonoha::Engine &engine, SnowSession &session,
+                SnowLinks &links)
       : SnowChoice(engine, session, links, SnowSession::ChoiceKind::Map) {}
 
 protected:
   void layout() override;
   void select(std::size_t index) override;
-  void renderPanel(Kotonoha::RendererRef renderer) override { session_.DrawMap(&renderer); }
+  void renderPanel(Kotonoha::RendererRef renderer) override {
+    session_.DrawMap(&renderer);
+  }
 };
 
 // Uniform select: the stage draws it; the hit test uses the STSEL alpha.
 class SnowUniformChoice : public SnowChoice {
 public:
-  SnowUniformChoice(Kotonoha::Engine &engine, SnowSession &session, SnowLinks &links)
+  SnowUniformChoice(Kotonoha::Engine &engine, SnowSession &session,
+                    SnowLinks &links)
       : SnowChoice(engine, session, links, SnowSession::ChoiceKind::Uniform) {}
 
 protected:
@@ -159,12 +175,13 @@ protected:
   bool Blocked() const override { return session_.Fading(); }
 };
 
-// Pause menu drawn in game units with the CJK font. Item 5 returns to the title,
-// which is also where the end of the story leaves.
+// Pause menu drawn in game units with the CJK font. Item 5 returns to the
+// title, which is also where the end of the story leaves.
 class SnowPauseMenu : public Kotonoha::InGameMenu {
 public:
   bool designSpace() const override { return false; }
-  SnowPauseMenu(Kotonoha::Engine &engine, SnowSession &session, SnowLinks &links);
+  SnowPauseMenu(Kotonoha::Engine &engine, SnowSession &session,
+                SnowLinks &links);
   bool onEvent(Kotonoha::EventRef event) override;
   void update() override;
 
@@ -173,7 +190,8 @@ protected:
   SDL_FRect itemRect(int index) const override;
   void openBacklog() override { links_.openBacklog(); }
   void renderPanel(Kotonoha::RendererRef renderer) override;
-  void renderItem(Kotonoha::RendererRef renderer, int index, bool focused) override;
+  void renderItem(Kotonoha::RendererRef renderer, int index,
+                  bool focused) override;
 
 private:
   SnowSession &session_;
@@ -184,7 +202,8 @@ private:
 class SnowBacklog : public Kotonoha::VNBacklog {
 public:
   bool designSpace() const override { return false; }
-  SnowBacklog(Kotonoha::Engine &engine, SnowSession &session) : VNBacklog(engine), session_(session) {}
+  SnowBacklog(Kotonoha::Engine &engine, SnowSession &session)
+      : VNBacklog(engine), session_(session) {}
   bool onEvent(Kotonoha::EventRef event) override;
 
 protected:
@@ -192,7 +211,8 @@ protected:
   void renderEntries(Kotonoha::RendererRef renderer) override;
 
 private:
-  std::vector<std::string> Wrap(SDL_Renderer *r, const std::string &text, float width);
+  std::vector<std::string> Wrap(SDL_Renderer *r, const std::string &text,
+                                float width);
 
   SnowSession &session_;
 };

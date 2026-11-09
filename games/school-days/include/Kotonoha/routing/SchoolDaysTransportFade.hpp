@@ -13,14 +13,21 @@ namespace Kotonoha {
 class SchoolDaysTransportFade final {
 public:
   enum class Operation : uint8_t { Rewind, SkipToEnd };
-  enum class Phase : uint8_t { Idle, FadeOut, AwaitNavigation, AwaitReady, FadeIn };
+  enum class Phase : uint8_t {
+    Idle,
+    FadeOut,
+    AwaitNavigation,
+    AwaitReady,
+    FadeIn
+  };
   enum class Event : uint8_t { None, Navigate };
 
   static constexpr uint32_t FadeOutMs = 500u;
   static constexpr uint32_t FadeInMs = 1000u;
 
   bool Begin(Operation operation, uint64_t nowMs) {
-    if (Active()) return false;
+    if (Active())
+      return false;
     operation_ = operation;
     phase_ = Phase::FadeOut;
     phaseStartMs_ = nowMs;
@@ -38,11 +45,13 @@ public:
   }
 
   void Navigated() {
-    if (phase_ == Phase::AwaitNavigation) phase_ = Phase::AwaitReady;
+    if (phase_ == Phase::AwaitNavigation)
+      phase_ = Phase::AwaitReady;
   }
 
   void Reveal(uint64_t nowMs) {
-    if (phase_ != Phase::AwaitReady) return;
+    if (phase_ != Phase::AwaitReady)
+      return;
     phase_ = Phase::FadeIn;
     phaseStartMs_ = nowMs;
   }
@@ -55,20 +64,27 @@ public:
   uint8_t BlackAlpha(uint64_t nowMs) const {
     const uint64_t elapsed = Elapsed(nowMs);
     const auto fraction = [](uint64_t value, uint32_t duration) {
-      return static_cast<uint8_t>(std::min<uint64_t>(255u, value * 255u / duration));
+      return static_cast<uint8_t>(
+          std::min<uint64_t>(255u, value * 255u / duration));
     };
     switch (phase_) {
-    case Phase::FadeOut: return fraction(elapsed, FadeOutMs);
+    case Phase::FadeOut:
+      return fraction(elapsed, FadeOutMs);
     case Phase::AwaitNavigation:
-    case Phase::AwaitReady: return 255u;
+    case Phase::AwaitReady:
+      return 255u;
     case Phase::FadeIn:
       return static_cast<uint8_t>(255u - fraction(elapsed, FadeInMs));
-    case Phase::Idle: return 0u;
+    case Phase::Idle:
+      return 0u;
     }
     return 0u;
   }
 
-  void Reset() { phase_ = Phase::Idle; phaseStartMs_ = 0; }
+  void Reset() {
+    phase_ = Phase::Idle;
+    phaseStartMs_ = 0;
+  }
 
 private:
   uint64_t Elapsed(uint64_t nowMs) const {

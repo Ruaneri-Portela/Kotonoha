@@ -11,18 +11,18 @@ namespace Kotonoha {
 // and remain allowed for the modern resizable/HiDPI viewport.
 class SchoolDaysInputPolicy final {
 public:
-    static bool AcceptsGameplayEventType(Uint32 type) {
-        switch (type) {
-        case SDL_EVENT_MOUSE_MOTION:
-        case SDL_EVENT_MOUSE_BUTTON_DOWN:
-        case SDL_EVENT_WINDOW_RESIZED:
-        case SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED:
-        case SDL_EVENT_WINDOW_DISPLAY_CHANGED:
-            return true;
-        default:
-            return false;
-        }
+  static bool AcceptsGameplayEventType(Uint32 type) {
+    switch (type) {
+    case SDL_EVENT_MOUSE_MOTION:
+    case SDL_EVENT_MOUSE_BUTTON_DOWN:
+    case SDL_EVENT_WINDOW_RESIZED:
+    case SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED:
+    case SDL_EVENT_WINDOW_DISPLAY_CHANGED:
+      return true;
+    default:
+      return false;
     }
+  }
 };
 
 } // namespace Kotonoha

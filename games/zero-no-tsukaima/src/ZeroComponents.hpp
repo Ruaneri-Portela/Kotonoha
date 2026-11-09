@@ -26,7 +26,9 @@ public:
   void update() override;
 
 protected:
-  int itemCount() const override { return 0; } // the front end draws its own items
+  int itemCount() const override {
+    return 0;
+  } // the front end draws its own items
   void activate(int index) override;
   void renderTitle(Kotonoha::RendererRef renderer) override;
 
@@ -37,14 +39,16 @@ private:
 // Backgrounds, sprites, event CGs, transitions, movies and meters.
 class ZeroStage : public Kotonoha::Scene {
 public:
-  ZeroStage(Kotonoha::Engine &engine, ZeroSession &session) : Scene(engine), session_(session) {}
+  ZeroStage(Kotonoha::Engine &engine, ZeroSession &session)
+      : Scene(engine), session_(session) {}
   void render(Kotonoha::RendererRef renderer, float scale) override;
 
 private:
   ZeroSession &session_;
 };
 
-// MAIN_MESSAGEBASE window with the original typewriter, auto mode and Ctrl skip.
+// MAIN_MESSAGEBASE window with the original typewriter, auto mode and Ctrl
+// skip.
 class ZeroTextBox : public Kotonoha::VNTextBox {
 public:
   bool designSpace() const override { return false; }
@@ -56,11 +60,13 @@ public:
 
 protected:
   double charactersPerSecond() const override;
-  void recordDialogue(const std::string &, const std::string &) override {} // HistoryState keeps the log
+  void recordDialogue(const std::string &, const std::string &) override {
+  } // HistoryState keeps the log
   void openMenu() override { session_.OpenCommand(); }
   void openBacklog() override { session_.OpenHistory(); }
   void renderFrame(Kotonoha::RendererRef renderer) override;
-  void renderSpeaker(Kotonoha::RendererRef) override {} // the name plate is a picture of the frame
+  void renderSpeaker(Kotonoha::RendererRef) override {
+  } // the name plate is a picture of the frame
   void renderDialogue(Kotonoha::RendererRef renderer) override;
   void renderIndicator(Kotonoha::RendererRef renderer) override;
 
@@ -75,7 +81,8 @@ private:
   bool skipToggle_ = false;
 };
 
-// Shared choice behaviour: options come from the script, picking one advances it.
+// Shared choice behaviour: options come from the script, picking one advances
+// it.
 class ZeroChoice : public Kotonoha::ChoiceQuestionScene {
 public:
   bool designSpace() const override { return false; }
@@ -88,7 +95,9 @@ protected:
   virtual std::vector<std::string> Labels() const = 0;
   virtual int InitialFocus() const { return -1; }
 
-  SDL_FRect listArea() const override { return {0, 0, (float)kGameWidth, (float)kGameHeight}; }
+  SDL_FRect listArea() const override {
+    return {0, 0, (float)kGameWidth, (float)kGameHeight};
+  }
   void select(std::size_t index) override;
   void openMenu() override { session_.OpenCommand(); }
   void openBacklog() override { session_.OpenHistory(); }
@@ -109,7 +118,8 @@ protected:
   bool Wanted() const override;
   std::vector<std::string> Labels() const override;
   void layout() override;
-  void renderOption(Kotonoha::RendererRef renderer, std::size_t index, bool focused) override;
+  void renderOption(Kotonoha::RendererRef renderer, std::size_t index,
+                    bool focused) override;
 };
 
 // MoveState: the map with destination buttons and the focused character pose.
@@ -123,16 +133,20 @@ protected:
   int InitialFocus() const override { return 0; }
   void layout() override;
   void renderPanel(Kotonoha::RendererRef renderer) override;
-  void renderOption(Kotonoha::RendererRef renderer, std::size_t index, bool focused) override;
+  void renderOption(Kotonoha::RendererRef renderer, std::size_t index,
+                    bool focused) override;
 };
 
 // RouletteState (tndlslot) over the story.
 class ZeroRoulette : public Kotonoha::Scene {
 public:
-  ZeroRoulette(Kotonoha::Engine &engine, ZeroSession &session) : Scene(engine), session_(session) {}
+  ZeroRoulette(Kotonoha::Engine &engine, ZeroSession &session)
+      : Scene(engine), session_(session) {}
   bool capturesInput() const override { return session_.RouletteActive(); }
   bool onEvent(Kotonoha::EventRef event) override;
-  void render(Kotonoha::RendererRef renderer, float) override { session_.DrawRoulette(&renderer); }
+  void render(Kotonoha::RendererRef renderer, float) override {
+    session_.DrawRoulette(&renderer);
+  }
 
 private:
   ZeroSession &session_;
@@ -147,14 +161,20 @@ public:
 
   void open() override { session_.OpenCommand(); }
   void close() override {}
-  bool IsOpen() const override { return session_.ScreenActive() && !session_.HistoryActive(); }
+  bool IsOpen() const override {
+    return session_.ScreenActive() && !session_.HistoryActive();
+  }
   bool onEvent(Kotonoha::EventRef event) override;
   void update() override;
 
 protected:
-  int itemCount() const override { return 0; } // CommandState draws its own buttons
+  int itemCount() const override {
+    return 0;
+  } // CommandState draws its own buttons
   void openBacklog() override { session_.OpenHistory(); }
-  void renderPanel(Kotonoha::RendererRef renderer) override { session_.DrawScreen(&renderer); }
+  void renderPanel(Kotonoha::RendererRef renderer) override {
+    session_.DrawScreen(&renderer);
+  }
 
 private:
   ZeroSession &session_;
@@ -173,7 +193,9 @@ public:
   bool onEvent(Kotonoha::EventRef event) override;
 
 protected:
-  void renderFrame(Kotonoha::RendererRef renderer) override { session_.DrawScreen(&renderer); }
+  void renderFrame(Kotonoha::RendererRef renderer) override {
+    session_.DrawScreen(&renderer);
+  }
   void renderEntries(Kotonoha::RendererRef) override {}
 
 private:

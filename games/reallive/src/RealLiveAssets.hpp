@@ -1,7 +1,7 @@
 #pragma once
+#include <Kotonoha/core/AssetProvider.hpp>
 #include <RealLive/Config.hpp>
 #include <RealLive/Script.hpp>
-#include <Kotonoha/core/AssetProvider.hpp>
 #include <filesystem>
 #include <map>
 namespace RealLive {
@@ -13,7 +13,7 @@ class RealLiveAssets final : public Kotonoha::AssetProvider {
 
 public:
   explicit RealLiveAssets(const std::filesystem::path &directory,
-                     const std::filesystem::path &overlay = {});
+                          const std::filesystem::path &overlay = {});
   std::string name() const override { return "REALLIVE RealLive data"; }
   Kotonoha::SurfacePtr loadSurfaceAsset(const std::string &) const override;
   Kotonoha::AudioClip loadAudioAsset(const std::string &) const override;

@@ -14,15 +14,15 @@ namespace Kotonoha {
 // duration, intermediate frames, IN fades, and real authored gaps are intact.
 class SchoolDaysOrsFadeBoundary final {
 public:
-    static bool CoversDeferredNext(const Kotonoha_orsEvent &fade,
-                                   Kotonoha_SceneTick atTick,
-                                   Kotonoha_SceneTick nextTick,
-                                   bool sceneAdvancePending) {
-        return sceneAdvancePending && atTick >= nextTick &&
-               fade.endTick == nextTick &&
-               (fade.command == BLACK_FADE || fade.command == WHITE_FADE) &&
-               fade.data.fade != nullptr && fade.data.fade->a == 0;
-    }
+  static bool CoversDeferredNext(const Kotonoha_orsEvent &fade,
+                                 Kotonoha_SceneTick atTick,
+                                 Kotonoha_SceneTick nextTick,
+                                 bool sceneAdvancePending) {
+    return sceneAdvancePending && atTick >= nextTick &&
+           fade.endTick == nextTick &&
+           (fade.command == BLACK_FADE || fade.command == WHITE_FADE) &&
+           fade.data.fade != nullptr && fade.data.fade->a == 0;
+  }
 };
 
 } // namespace Kotonoha

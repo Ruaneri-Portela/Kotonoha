@@ -16,41 +16,42 @@ class AssetProvider;
 // the physical aspect-fit viewport.
 class SchoolDaysBackLogPresenter {
 public:
-    explicit SchoolDaysBackLogPresenter(const AssetProvider* assets = nullptr)
-        : assets_(assets) {}
-    ~SchoolDaysBackLogPresenter();
+  explicit SchoolDaysBackLogPresenter(const AssetProvider *assets = nullptr)
+      : assets_(assets) {}
+  ~SchoolDaysBackLogPresenter();
 
-    SchoolDaysBackLogPresenter(const SchoolDaysBackLogPresenter&) = delete;
-    SchoolDaysBackLogPresenter& operator=(const SchoolDaysBackLogPresenter&) = delete;
+  SchoolDaysBackLogPresenter(const SchoolDaysBackLogPresenter &) = delete;
+  SchoolDaysBackLogPresenter &
+  operator=(const SchoolDaysBackLogPresenter &) = delete;
 
-    bool Open(SDL_Renderer* renderer, const std::string& assetsRoot,
-              SchoolDaysBackLogModel::Orientation orientation,
-              bool useEnglish, TTF_Font* primaryFont, TTF_Font* japaneseFallback,
-              std::string* error = nullptr);
-    void Close();
+  bool Open(SDL_Renderer *renderer, const std::string &assetsRoot,
+            SchoolDaysBackLogModel::Orientation orientation, bool useEnglish,
+            TTF_Font *primaryFont, TTF_Font *japaneseFallback,
+            std::string *error = nullptr);
+  void Close();
 
-    bool Render(SDL_Renderer* renderer, const SchoolDaysBackLogModel& model,
-                std::string* error = nullptr);
-    bool IsOpen() const { return opened_; }
-    // Logical size Render() fits the 16:9 skin into (the game viewport).
-    void SetArea(SDL_Point area) { area_ = area; }
+  bool Render(SDL_Renderer *renderer, const SchoolDaysBackLogModel &model,
+              std::string *error = nullptr);
+  bool IsOpen() const { return opened_; }
+  // Logical size Render() fits the 16:9 skin into (the game viewport).
+  void SetArea(SDL_Point area) { area_ = area; }
 
 private:
-    static bool Fail(std::string* error, const char* text);
+  static bool Fail(std::string *error, const char *text);
 
-    SchoolDaysBackLogModel::Orientation orientation_ =
-        SchoolDaysBackLogModel::Orientation::Vertical;
-    SDL_Texture* base_ = nullptr;
-    SDL_Texture* chip_ = nullptr;
-    SDL_Texture* text_ = nullptr;
-    // Dedicated copies keep BackLog point-size/fallback state isolated from
-    // Prompt and other UI users of the shared engine font map.
-    TTF_Font* font_ = nullptr;
-    TTF_Font* fallbackFont_ = nullptr;
-    bool useEnglish_ = false;
-    bool opened_ = false;
-    const AssetProvider* assets_ = nullptr;
-    SDL_Point area_{1280, 720};
+  SchoolDaysBackLogModel::Orientation orientation_ =
+      SchoolDaysBackLogModel::Orientation::Vertical;
+  SDL_Texture *base_ = nullptr;
+  SDL_Texture *chip_ = nullptr;
+  SDL_Texture *text_ = nullptr;
+  // Dedicated copies keep BackLog point-size/fallback state isolated from
+  // Prompt and other UI users of the shared engine font map.
+  TTF_Font *font_ = nullptr;
+  TTF_Font *fallbackFont_ = nullptr;
+  bool useEnglish_ = false;
+  bool opened_ = false;
+  const AssetProvider *assets_ = nullptr;
+  SDL_Point area_{1280, 720};
 };
 
 } // namespace Kotonoha

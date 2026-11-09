@@ -14,8 +14,7 @@ class MediaPlayer {
   std::unique_ptr<AudioMixer> ownedMixer;
   AudioMixer &mixer;
   struct State;
-  static void openDecoder(State &next, const std::string &url,
-                          bool audioOnly);
+  static void openDecoder(State &next, const std::string &url, bool audioOnly);
   std::unique_ptr<State> state;
   std::unique_ptr<MediaPlayer> soundtrack;
   Uint64 clockStart = 0, pausedAt = 0;
@@ -29,6 +28,7 @@ public:
     ~PreparedInput();
     PreparedInput(const PreparedInput &) = delete;
     PreparedInput &operator=(const PreparedInput &) = delete;
+
   private:
     friend class MediaPlayer;
     explicit PreparedInput(std::unique_ptr<State> value);
@@ -36,9 +36,10 @@ public:
   };
   // CPU/I/O-only demux and decoder preparation. Safe for a bounded worker;
   // no SDL renderer, audio stream or mixer is touched until adoption.
-  static std::unique_ptr<PreparedInput> prepareInput(
-      const AssetProvider &assets, const std::string &id, bool audioOnly,
-      std::shared_ptr<std::atomic_bool> cancelled = {});
+  static std::unique_ptr<PreparedInput>
+  prepareInput(const AssetProvider &assets, const std::string &id,
+               bool audioOnly,
+               std::shared_ptr<std::atomic_bool> cancelled = {});
   void adoptPreparedInput(std::unique_ptr<PreparedInput> input,
                           const std::string &channelName);
   MediaPlayer();
@@ -57,8 +58,8 @@ public:
   // starting the audio device. Call setPaused(false) at the semantic start.
   // This is intentionally generic so game runtimes can warm authored media
   // before an event boundary without inventing per-game decoder plumbing.
-  void prepare(const AssetProvider &assets, const std::string &id, bool audioOnly,
-               const std::string &channelName = {});
+  void prepare(const AssetProvider &assets, const std::string &id,
+               bool audioOnly, const std::string &channelName = {});
   // Plays a separate audio asset in sync with the open media (formats whose
   // soundtrack FFmpeg cannot demux, or dubbed tracks). Replaced by open().
   void openSoundtrack(const AssetProvider &assets, const std::string &id,

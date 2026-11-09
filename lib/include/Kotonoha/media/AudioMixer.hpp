@@ -37,7 +37,8 @@ class AudioChannel {
   float masterGain = 1;
   std::vector<Stream> streams;
 #ifdef KOTONOHA_DEV_CONTROL
-  std::atomic<uint64_t> observedSamples_{0}, clippedSamples_{0}, silentBlocks_{0};
+  std::atomic<uint64_t> observedSamples_{0}, clippedSamples_{0},
+      silentBlocks_{0};
   std::atomic<double> energy_{0.0}, peak_{0.0};
   std::atomic<unsigned> activeStreams_{0};
   std::atomic<bool> audible_{true};

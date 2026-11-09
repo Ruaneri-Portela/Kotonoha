@@ -8,6 +8,7 @@ namespace Kotonoha {
 // Shared touch/keyboard form; submission is atomic across all fields.
 class TextInputForm final : public Scene {
   TouchActivation touchActivation;
+
 public:
   struct Field {
     std::string label, value, defaultValue;

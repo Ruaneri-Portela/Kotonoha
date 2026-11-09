@@ -16,8 +16,8 @@
 #include <memory>
 #include <set>
 #include <string>
-#include <vector>
 #include <utility>
+#include <vector>
 
 namespace Kotonoha {
 class Engine;
@@ -35,7 +35,8 @@ constexpr int kSaveSlots = 64; // SaveState: 16 pages x 4
 // the replay saves. The engine components (ZeroComponents.hpp) drive it.
 class ZeroSession : public FrontendHost {
 public:
-  ZeroSession(Kotonoha::Engine &engine, std::shared_ptr<DiscAssetProvider> disc);
+  ZeroSession(Kotonoha::Engine &engine,
+              std::shared_ptr<DiscAssetProvider> disc);
   ~ZeroSession() override;
   ZeroSession(const ZeroSession &) = delete;
   ZeroSession &operator=(const ZeroSession &) = delete;
@@ -52,7 +53,8 @@ public:
   bool HasPendingLoad() const { return pendingLoad_ >= 0; }
 
   // ---- Story ----
-  // New game, a scene / voice replay picked in the galleries, or the pending load.
+  // New game, a scene / voice replay picked in the galleries, or the pending
+  // load.
   bool Start();
   void DebugJump(const std::string &script);
   bool Playing() const { return playing_ && game_; }
@@ -66,9 +68,13 @@ public:
   const Game *Story() const { return game_.get(); }
   // Translation of a text of the running script (route = its scene index).
   std::string Translate(const std::string &text) const;
-  bool HasMessage() const { return Playing() && game_->MessageVisible() && MovieFinished(); }
+  bool HasMessage() const {
+    return Playing() && game_->MessageVisible() && MovieFinished();
+  }
   bool Choosing() const { return Playing() && game_->Choosing(); }
-  bool WaitingForClick() const { return Playing() && game_->WaitingForClick() && !frontend_.InGame(); }
+  bool WaitingForClick() const {
+    return Playing() && game_->WaitingForClick() && !frontend_.InGame();
+  }
   bool MovieFinished() const { return !movie_ || movie_->finished(); }
   int TextDelayMs() const;
   int AutoDelayMs() const;
@@ -90,7 +96,8 @@ public:
   void RouletteEvent(const SDL_Event &e);
   void DrawRoulette(SDL_Renderer *r);
 
-  // ---- Saves: label line + replay inputs, compatible with Kotonoha SaveStore ----
+  // ---- Saves: label line + replay inputs, compatible with Kotonoha SaveStore
+  // ----
   bool SaveSlot(int slot);
   bool LoadSlot(int slot);
   bool SaveTo(const std::string &path) const;
@@ -104,7 +111,8 @@ public:
   void DrawMessageWindow(SDL_Renderer *r);
   void DrawMessageText(SDL_Renderer *r, const std::string &text);
   void DrawMessageCursor(SDL_Renderer *r);
-  void DrawNormal(SDL_Renderer *r, const std::string &name, float x, float y, float alpha = 1.0f);
+  void DrawNormal(SDL_Renderer *r, const std::string &name, float x, float y,
+                  float alpha = 1.0f);
   ZeroNoTsukaima::Picture *SceneIndexPicture(int index);
   ZeroNoTsukaima::Picture *NamedScene(const std::string &name);
   const DiscAssetProvider &Disc() const { return *disc_; }
@@ -117,7 +125,8 @@ public:
 
   // ---- FrontendHost ----
   ZeroNoTsukaima::Picture *Picture(const std::string &name) override;
-  SDL_FPoint DrawText(SDL_Renderer *r, const std::string &text, float x, float y, float size, SDL_Color color,
+  SDL_FPoint DrawText(SDL_Renderer *r, const std::string &text, float x,
+                      float y, float size, SDL_Color color,
                       bool measureOnly = false) override;
   SystemData &System() override { return system_; }
   void SystemChanged() override;
@@ -148,7 +157,8 @@ private:
 
   ZeroNoTsukaima::Picture *Texture(const std::string &id);
   bool ReadAsset(const std::string &id, std::vector<uint8_t> *out) const;
-  bool PlayStream(PcmPlayer &out, const char *channel, const std::vector<uint8_t> &raw, int rate, bool loop);
+  bool PlayStream(PcmPlayer &out, const char *channel,
+                  const std::vector<uint8_t> &raw, int rate, bool loop);
   void PlayVoiceIndex(int index);
   void PlayBgm(const std::string &name);
   void PlaySe(const std::string &name);
@@ -196,7 +206,8 @@ private:
   int snapW_ = 0, snapH_ = 0;
   uint32_t snapSerial_ = 0;
 
-  bool booted_ = false, playing_ = false, replaying_ = false, auto_ = false, titleRequest_ = false;
+  bool booted_ = false, playing_ = false, replaying_ = false, auto_ = false,
+       titleRequest_ = false;
   std::vector<int> inputs_;
   int pendingLoad_ = -1;
   int64_t playMs_ = 0, pendingPlayMs_ = 0;

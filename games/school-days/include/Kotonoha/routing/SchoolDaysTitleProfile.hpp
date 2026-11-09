@@ -10,9 +10,9 @@ namespace Kotonoha {
 // original title/end-background path: STARTSCRIPT.INI and ENDLIST.INI.
 class SchoolDaysTitleProfile {
 public:
-    static bool Load(const std::string& assetsRoot,
-                     SchoolDaysEndBackgroundResolver::Profile* out,
-                     std::string* error = nullptr);
+  static bool Load(const std::string &assetsRoot,
+                   SchoolDaysEndBackgroundResolver::Profile *out,
+                   std::string *error = nullptr);
 };
 
 } // namespace Kotonoha

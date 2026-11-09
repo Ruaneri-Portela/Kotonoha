@@ -18,27 +18,26 @@ struct SchoolDaysPlaybackPolicy final {
 
   static bool SelectionForIndex(int index, Selection *selection) {
     static constexpr Selection kSelections[] = {
-        {1, 1.0, false}, {2, 2.0, false}, {4, 4.0, false},
+        {1, 1.0, false},  {2, 2.0, false},  {4, 4.0, false},
         {16, 12.0, true}, {32, 24.0, true},
     };
-    if (selection == nullptr || index < 0 || index >= 5) return false;
+    if (selection == nullptr || index < 0 || index >= 5)
+      return false;
     *selection = kSelections[index];
     return true;
   }
 
   // Direct threshold for callers that have the already-selected internal rate.
   // Muting affects output gain only: do not pause media/decoder or the clock.
-  static bool SuppressesNarrativeAudioAtRate(double rate) {
-    return rate > 4.0;
-  }
+  static bool SuppressesNarrativeAudioAtRate(double rate) { return rate > 4.0; }
 
   static bool RateForIndex(int index, double *rate) {
     Selection selection;
-    if (rate == nullptr || !SelectionForIndex(index, &selection)) return false;
+    if (rate == nullptr || !SelectionForIndex(index, &selection))
+      return false;
     *rate = selection.internalRate;
     return true;
   }
-
 };
 
 } // namespace Kotonoha

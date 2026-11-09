@@ -14,70 +14,70 @@ namespace Kotonoha {
 // presenter maps that logical surface to the current physical output.
 class SchoolDaysConfigMenuRenderPlan {
 public:
-    struct Rect {
-        float x = 0.0f;
-        float y = 0.0f;
-        float w = 0.0f;
-        float h = 0.0f;
-    };
+  struct Rect {
+    float x = 0.0f;
+    float y = 0.0f;
+    float w = 0.0f;
+    float h = 0.0f;
+  };
 
-    enum class Texture : uint8_t {
-        Base,
-        Chip,
-    };
+  enum class Texture : uint8_t {
+    Base,
+    Chip,
+  };
 
-    enum class Role : uint8_t {
-        Base,
-        ActiveTab,
-        CurrentState,
-        Hover,
-        SoundLevel,
-    };
+  enum class Role : uint8_t {
+    Base,
+    ActiveTab,
+    CurrentState,
+    Hover,
+    SoundLevel,
+  };
 
-    struct Sprite {
-        Texture texture = Texture::Base;
-        Role role = Role::Base;
-        bool hasSource = false;
-        Rect source{};
-        Rect destination{};
-        int recordIndex = -1;
-        int control = -1;
-        int soundBank = -1;
-    };
+  struct Sprite {
+    Texture texture = Texture::Base;
+    Role role = Role::Base;
+    bool hasSource = false;
+    Rect source{};
+    Rect destination{};
+    int recordIndex = -1;
+    int control = -1;
+    int soundBank = -1;
+  };
 
-    struct Layout {
-        float scale = 1.0f;
-        float yOffset = 75.0f;
-        int logicalWidth = 800;
-        int logicalHeight = 600;
-    };
+  struct Layout {
+    float scale = 1.0f;
+    float yOffset = 75.0f;
+    int logicalWidth = 800;
+    int logicalHeight = 600;
+  };
 
-    // These are visual inputs only. Control ids deliberately preserve the
-    // native pair orientation instead of translating host getters into new
-    // display/audio policy.
-    struct VisualState {
-        int defWideCurrent = 5;        // native pair 4/5
-        int defFullCurrent = 6;        // native pair 6/7
-        int defSkipCurrent = 9;        // native pair 8/9
-        int defSuperSkipCurrent = 11;  // native pair 10/11
-        int defDrawMessageCurrent = 13;// native pair 12/13
+  // These are visual inputs only. Control ids deliberately preserve the
+  // native pair orientation instead of translating host getters into new
+  // display/audio policy.
+  struct VisualState {
+    int defWideCurrent = 5;         // native pair 4/5
+    int defFullCurrent = 6;         // native pair 6/7
+    int defSkipCurrent = 9;         // native pair 8/9
+    int defSuperSkipCurrent = 11;   // native pair 10/11
+    int defDrawMessageCurrent = 13; // native pair 12/13
 
-        int soundMenVoiceCurrent = 11; // native pair 10/11
-        int soundMuteCurrent = 13;     // native pair 12/13
-        std::array<int, 3> soundLevels{{0, 0, 0}}; // native range 0..10
+    int soundMenVoiceCurrent = 11;             // native pair 10/11
+    int soundMuteCurrent = 13;                 // native pair 12/13
+    std::array<int, 3> soundLevels{{0, 0, 0}}; // native range 0..10
 
-        // Custom Display CHIP highlights use the corrected CMAP IDs, not
-        // boolean flags: 5/6 Resizable, 7/8 VSync, 13..19 Scale factor.
-        // -1 means the host has not supplied a selected value yet.
-        int displayResizable = -1;
-        int displayVsync = -1;
-        int displayFactor = -1;
-    };
+    // Custom Display CHIP highlights use the corrected CMAP IDs, not
+    // boolean flags: 5/6 Resizable, 7/8 VSync, 13..19 Scale factor.
+    // -1 means the host has not supplied a selected value yet.
+    int displayResizable = -1;
+    int displayVsync = -1;
+    int displayFactor = -1;
+  };
 
-    static Layout LayoutFor(SchoolDaysConfigMenuModel::Variant variant);
-    static std::string BaseRelativePath(const SchoolDaysConfigMenuModel& model);
-    static std::vector<Sprite> Build(const SchoolDaysConfigMenuModel& model,
-                                     const VisualState& state);
+  static Layout LayoutFor(SchoolDaysConfigMenuModel::Variant variant);
+  static std::string BaseRelativePath(const SchoolDaysConfigMenuModel &model);
+  static std::vector<Sprite> Build(const SchoolDaysConfigMenuModel &model,
+                                   const VisualState &state);
 };
 
 } // namespace Kotonoha

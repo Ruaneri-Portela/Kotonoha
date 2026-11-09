@@ -7,8 +7,8 @@
 
 namespace ZeroNoTsukaima {
 
-// Character definitions of ENVINIT.NUT (KAGEX style): every character has poses,
-// each pose maps dress / face names to the codes of its image name
+// Character definitions of ENVINIT.NUT (KAGEX style): every character has
+// poses, each pose maps dress / face names to the codes of its image name
 // "TCGnn_DRESSFACELEVEL" (e.g. ルイズ 学生服 怒り -> TCG01_1D3).
 struct CharacterPose {
   std::string prefix; // "TCG01"
@@ -36,30 +36,34 @@ struct CharacterTable {
 // the SYSTEM tables.
 class ImageCatalog {
 public:
-  // systemEnv: SYSTEM entry 31 (ENVINIT.NUT, stage + character tables); systemMain: SYSTEM entry
-  // 35 (CG list); pictureSizes: byte size of every SCENEDAT entry (sprite groups start with an
-  // empty entry).
-  bool Build(const std::vector<uint8_t> &systemEnv, const std::vector<uint8_t> &systemMain,
+  // systemEnv: SYSTEM entry 31 (ENVINIT.NUT, stage + character tables);
+  // systemMain: SYSTEM entry 35 (CG list); pictureSizes: byte size of every
+  // SCENEDAT entry (sprite groups start with an empty entry).
+  bool Build(const std::vector<uint8_t> &systemEnv,
+             const std::vector<uint8_t> &systemMain,
              const std::vector<uint32_t> &pictureSizes = {});
 
   const CharacterTable &Characters() const { return characters_; }
   // Sprite picture of a character, e.g. "TCG01_1D3". Returns -1 when unknown.
   int ResolveSprite(const std::string &image) const;
 
-  // `stage` is the space-separated attribute list of a stage tag, e.g. "昼 ルイズの部屋".
-  // Returns -1 when no background applies.
+  // `stage` is the space-separated attribute list of a stage tag, e.g. "昼
+  // ルイズの部屋". Returns -1 when no background applies.
   int ResolveStage(const std::string &stage) const;
   // Every stage name of the ENVINIT table (サイトの居間, 黒, 白 ...).
   std::set<std::string> StageNames() const;
-  // Picture name of a stage that is not a BG background ("黒" -> "black", "萌えル" -> "MOERU").
+  // Picture name of a stage that is not a BG background ("黒" -> "black",
+  // "萌えル" -> "MOERU").
   std::string SpecialStage(const std::string &stage) const;
-  // Name plate picture of a speaker (ENVINIT nameImageMap, "ルイズ" -> "names_nameruizu").
+  // Name plate picture of a speaker (ENVINIT nameImageMap, "ルイズ" ->
+  // "names_nameruizu").
   const std::string *NameImage(const std::string &speaker) const;
   // Event CG name (cg05a, ECG48B, ...). Returns -1 when unknown.
   int ResolveEvent(const std::string &name) const;
 
 private:
-  void BuildCharacters(const std::vector<uint8_t> &systemEnv, const std::vector<uint32_t> &pictureSizes,
+  void BuildCharacters(const std::vector<uint8_t> &systemEnv,
+                       const std::vector<uint32_t> &pictureSizes,
                        int firstSprite);
 
   struct Stage {
@@ -70,7 +74,8 @@ private:
   std::map<std::string, std::string> specialStages_, nameImages_;
   std::map<std::string, int> events_;
   CharacterTable characters_;
-  std::map<std::string, std::pair<int, int>> spriteGroups_; // "TCG01_1D" -> (empty entry, face count)
+  std::map<std::string, std::pair<int, int>>
+      spriteGroups_; // "TCG01_1D" -> (empty entry, face count)
 };
 
 } // namespace ZeroNoTsukaima

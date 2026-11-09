@@ -91,7 +91,8 @@ public:
 
   // ---- message window
   void DrawMessageWindow(SDL_Renderer *r);
-  void DrawMessageText(SDL_Renderer *r, const std::string &speaker, const std::string &text);
+  void DrawMessageText(SDL_Renderer *r, const std::string &speaker,
+                       const std::string &text);
   void DrawMessageCursor(SDL_Renderer *r);
   WindowClick MessageWindowClick(float x, float y);
 
@@ -113,7 +114,8 @@ public:
   void DrawFrontend(SDL_Renderer *r);
 
   // ---- helpers
-  SDL_FPoint DrawText(SDL_Renderer *r, const std::string &text, float x, float y, float size, SDL_Color color,
+  SDL_FPoint DrawText(SDL_Renderer *r, const std::string &text, float x,
+                      float y, float size, SDL_Color color,
                       bool measureOnly = false);
   void SetPixelScale(float scale) { pixelScale_ = scale; }
   void SetMouse(float x, float y) { mouse_ = {x, y}; }
@@ -143,23 +145,30 @@ private:
   // audio
   void PlaySound(const std::string &kind, const std::string &name, bool loop);
   void PlayMovie(const std::string &name);
-  bool StartChannel(Kotonoha::PcmPlayer &player, const char *channel, std::vector<int16_t> first,
-                    const std::vector<int16_t> &loop, int channels, bool looping);
+  bool StartChannel(Kotonoha::PcmPlayer &player, const char *channel,
+                    std::vector<int16_t> first,
+                    const std::vector<int16_t> &loop, int channels,
+                    bool looping);
   void StopAll();
   void SetMuted(bool muted);
   void PersistCleared(bool flag);
 
   // drawing
   float UpscaleFactor() const;
-  SDL_Texture *Texture(SDL_Renderer *r, const std::string &id, float &w, float &h);
-  void DrawPicture(SDL_Renderer *r, const std::string &file, float x, float y, float alpha = 1);
-  void DrawSprite(SDL_Renderer *r, const std::string &name, float dx = 0, float dy = 0, const int *tint = nullptr);
-  void DrawFrame(SDL_Renderer *r, const std::string &animation, size_t frame, float x, float y,
-                 const int *tint = nullptr);
-  void DrawTexture(SDL_Renderer *r, SDL_Texture *t, float x, float y, float w, float h, const int *tint);
+  SDL_Texture *Texture(SDL_Renderer *r, const std::string &id, float &w,
+                       float &h);
+  void DrawPicture(SDL_Renderer *r, const std::string &file, float x, float y,
+                   float alpha = 1);
+  void DrawSprite(SDL_Renderer *r, const std::string &name, float dx = 0,
+                  float dy = 0, const int *tint = nullptr);
+  void DrawFrame(SDL_Renderer *r, const std::string &animation, size_t frame,
+                 float x, float y, const int *tint = nullptr);
+  void DrawTexture(SDL_Renderer *r, SDL_Texture *t, float x, float y, float w,
+                   float h, const int *tint);
   void SyncScene();
   void DrawScene(SDL_Renderer *r);
-  void DrawAnimation(SDL_Renderer *r, const std::string &name, float dx, float dy, const int *tint);
+  void DrawAnimation(SDL_Renderer *r, const std::string &name, float dx,
+                     float dy, const int *tint);
   void DrawUniformSelect(SDL_Renderer *r);
 
   // wipes
@@ -198,7 +207,8 @@ private:
   int voiceActor_ = 0;
 
   // story
-  bool playing_ = false, booting_ = false, ended_ = false, cleared_ = false, auto_ = false, booted_ = false;
+  bool playing_ = false, booting_ = false, ended_ = false, cleared_ = false,
+       auto_ = false, booted_ = false;
   std::vector<int> inputs_;
 
   // scene snapshot
@@ -213,7 +223,8 @@ private:
   uint64_t toClock_ = ~uint64_t(0), fadeStart_ = 0, fadeMs_ = 0;
   std::vector<uint8_t> fromPixels_;
   AlphaMask wipeMask_, flashMask_;
-  int fadeType_ = 1, fadePattern_ = 0, maskEdge_ = 128, fadeRange_ = 256, fadeStep_ = 4;
+  int fadeType_ = 1, fadePattern_ = 0, maskEdge_ = 128, fadeRange_ = 256,
+      fadeStep_ = 4;
   bool keepFrom_ = false;
 
   // choices

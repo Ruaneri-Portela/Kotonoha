@@ -22,9 +22,9 @@ namespace ZeroNoTsukaima {
 struct SystemData {
   int charSpeed = 6, autoWait = 3, skipMode = 0, vibration = 1;
   int voiceVol = 10, seVol = 10, bgmVol = 6, stereo = 1;
-  std::map<std::string, int> voiceOn;    // VOICES.NUT code -> 0 / 1 (missing = on)
-  std::map<std::string, int64_t> flags;  // "sf.clear_ru", "sf.ri_appear", ...
-  std::set<std::string> seen;            // SCENEDAT pictures shown in play
+  std::map<std::string, int> voiceOn; // VOICES.NUT code -> 0 / 1 (missing = on)
+  std::map<std::string, int64_t> flags; // "sf.clear_ru", "sf.ri_appear", ...
+  std::set<std::string> seen;           // SCENEDAT pictures shown in play
 
   void ResetOptions(); // initOption()
   bool VoiceOn(const std::string &code) const;
@@ -43,7 +43,8 @@ struct HistoryEntry {
   int voice = 0; // VOICE_ID index, 0 = none
 };
 
-// Save slot metadata kept in the slot label: f.title, play time and getMaxLike().
+// Save slot metadata kept in the slot label: f.title, play time and
+// getMaxLike().
 struct SlotInfo {
   std::string title;
   int64_t playMs = 0;
@@ -56,10 +57,12 @@ struct SlotInfo {
 class FrontendHost {
 public:
   virtual ~FrontendHost() = default;
-  // Any picture by name: NORMAL first, then SCENEDAT; null (quietly) if missing.
+  // Any picture by name: NORMAL first, then SCENEDAT; null (quietly) if
+  // missing.
   virtual ZeroNoTsukaima::Picture *Picture(const std::string &name) = 0;
   // Menu text (TextLayer) in logical coordinates; returns the logical size.
-  virtual SDL_FPoint DrawText(SDL_Renderer *r, const std::string &text, float x, float y, float size, SDL_Color color,
+  virtual SDL_FPoint DrawText(SDL_Renderer *r, const std::string &text, float x,
+                              float y, float size, SDL_Color color,
                               bool measureOnly = false) = 0;
   virtual SystemData &System() = 0;
   virtual void SystemChanged() = 0; // apply volumes and write the system save
@@ -71,12 +74,14 @@ public:
   virtual int SystemVoice(const std::string &name) = 0;
   virtual void StopVoice() = 0;
   virtual void SystemSe(const std::string &name) = 0;
-  virtual void Music(const std::string &name) = 0; // looping SOUND_ID stream, e.g. "BGMA01"
+  virtual void
+  Music(const std::string &name) = 0; // looping SOUND_ID stream, e.g. "BGMA01"
   virtual void StopMusic() = 0;
   // Disc movie `number` playing on an engine MediaPlayer (self-timed, with the
   // PSS soundtrack); null when the movie is missing or cannot be decoded.
   virtual std::unique_ptr<Kotonoha::MediaPlayer> OpenMovie(int number) = 0;
-  virtual Kotonoha::Upscaling *Upscaler() = 0; // engine pipeline for movie frames
+  virtual Kotonoha::Upscaling *
+  Upscaler() = 0; // engine pipeline for movie frames
   virtual SDL_Renderer *Renderer() = 0;
   // Save slot `slot` (0..63): false when empty.
   virtual bool Slot(int slot, SlotInfo *info) = 0;
@@ -101,13 +106,23 @@ public:
   // PlayScene: start Scene() (scene replay or special voice drama).
   // Save / LoadSlot: write / load Slot(); Title: back to the title; Next: the
   // coffee break ended (NEXT); Resume: an in-game screen closed.
-  enum class Result { None, NewGame, PlayScene, Save, LoadSlot, Title, Next, Resume };
+  enum class Result {
+    None,
+    NewGame,
+    PlayScene,
+    Save,
+    LoadSlot,
+    Title,
+    Next,
+    Resume
+  };
   enum class Replay { None, Scene, Voice };
 
   explicit Frontend(FrontendHost &host) : host_(host) {}
 
   void Enter(bool boot);
-  // After a story ends: a replay goes back to its gallery, the story to the logo (sceneend).
+  // After a story ends: a replay goes back to its gallery, the story to the
+  // logo (sceneend).
   void Return(Replay from);
   const std::string &Scene() const { return scene_; }
   Replay ReplayKind() const { return replay_; }
@@ -125,8 +140,23 @@ public:
 
 private:
   // Game: no screen, the story shows (in-game screens close to it).
-  enum class Phase { Warning, Logo, Movie, Title, Menu, Option, VoiceOption, Gallery, CgView, Sound,
-                     Command, Character, Files, History, Game };
+  enum class Phase {
+    Warning,
+    Logo,
+    Movie,
+    Title,
+    Menu,
+    Option,
+    VoiceOption,
+    Gallery,
+    CgView,
+    Sound,
+    Command,
+    Character,
+    Files,
+    History,
+    Game
+  };
   // Confirm dialogs (ConfirmDialog YESNO / OK).
   enum class Ask { None, Reset, Title, Next, Save, Overwrite, Load, Loaded };
   enum class Step { FadeIn, Hold, FadeOut };
@@ -149,7 +179,8 @@ private:
   void SoundKey(SDL_Keycode k);
   void SoundPage(int dir, bool wrapped);
   void Back(Phase to);
-  void MenuEvent(const SDL_Event &e, SDL_Keycode key, bool click, SDL_FPoint pt);
+  void MenuEvent(const SDL_Event &e, SDL_Keycode key, bool click,
+                 SDL_FPoint pt);
   bool GalleryUnlocked(int n) const;
   int GalleryCount() const;
   int SoundCount() const;
@@ -178,8 +209,8 @@ private:
   void DrawHistory(SDL_Renderer *r, float alpha);
   Picture *Img(const std::string &name) { return host_.Picture(name); }
   void DrawPhase(SDL_Renderer *r, Phase phase, float alpha);
-  void DrawImage(SDL_Renderer *r, Picture *img, float x, float y, float alpha, float light = 1.0f, float w = 0,
-                 float h = 0);
+  void DrawImage(SDL_Renderer *r, Picture *img, float x, float y, float alpha,
+                 float light = 1.0f, float w = 0, float h = 0);
   uint64_t Since() const { return SDL_GetTicks() - stepStart_; }
 
   FrontendHost &host_;
@@ -190,7 +221,8 @@ private:
   bool transition_ = false;
   int voiceChoice_ = 0;
   int holdMs_ = 0;
-  // Title: 0 = background fading in, 1 = logo fading in, 2 = blinking start button.
+  // Title: 0 = background fading in, 1 = logo fading in, 2 = blinking start
+  // button.
   int titleStage_ = 2;
   uint64_t titleIdleStart_ = 0;
   int focus_ = 0; // menu cursor (kept like the original `curpos`)

@@ -46,8 +46,8 @@ struct CharacterAnimation {
 std::vector<CharacterAnimation> decodeCharacterAnimations(const Bytes &);
 // Native SubAnime selection updates every record matching both keys. Invalid
 // indices preserve its previous frame; unmatched records are unchanged.
-bool selectCharacterAnimationFrame(std::vector<CharacterAnimation> &,
-                                   int actor, int selector, int frame);
+bool selectCharacterAnimationFrame(std::vector<CharacterAnimation> &, int actor,
+                                   int selector, int frame);
 void compositeCharacterAnimations(Image &destination,
                                   const std::vector<CharacterAnimation> &,
                                   int offsetX = 0, int offsetY = 0);
