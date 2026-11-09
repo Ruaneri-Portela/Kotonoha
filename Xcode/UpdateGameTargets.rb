@@ -6,7 +6,7 @@ root = Pathname.new(__dir__).parent
 project = Xcodeproj::Project.open(root.join('Xcode/Kotonoha.xcodeproj'))
 objects = Xcodeproj::Project::Object
 school = project.targets.find { |t| t.name == 'SchoolDays' }
-[['RealLive', 'reallive', 'RealLive', 'reallive'], ['SummerRadish', 'summer-radish-vacation', 'Summer Radish Vacation!!', 'summerradishvacation']].each do |name, game, title, bundle|
+[['RealLive', 'reallive', 'RealLive', 'reallive'], ['SummerRadish', 'summer-radish-vacation', 'Summer Radish Vacation!!', 'summerradishvacation'], ['Kirikiri', 'kirikiri', 'Kirikiri', 'kirikiri']].each do |name, game, title, bundle|
   next if project.targets.any? { |t| t.name == name }
   target = project.new_target(:application, name, :ios, '15.0')
   target.build_configurations.each do |config|

@@ -16,6 +16,7 @@
 		040512B9F35D75B5BB9768EC /* AudioToolbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FBAC8B3DF93878243BF88A65 /* AudioToolbox.framework */; };
 		050A4D0B472931E1890EBB2A /* KotonohaImGui.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CE1893F63095457700B0DF80 /* KotonohaImGui.framework */; };
 		06F0A9556C2EE159F65115BD /* _testimportmultiple.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 718C36C5C8FC84BA810410C0 /* _testimportmultiple.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		079755B06897A5F8CD41E2B1 /* KotonohaImGui.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = CE1893F63095457700B0DF80 /* KotonohaImGui.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		07A049B4976F891C254A94F9 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6AC33256490759509EFF9BF1 /* Foundation.framework */; };
 		08CC5FE5B95F7BA5901515EE /* termios.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 150B9A2F85BFA37DAFC1DA7D /* termios.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		08CF1D0B2CB3907037A419E5 /* _hashlib.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = AAAC6F32B9716B0C6103CE99 /* _hashlib.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
@@ -54,6 +55,7 @@
 		23318CCC38F24025FC81E818 /* assets in Resources */ = {isa = PBXBuildFile; fileRef = 4C0D884F99638CBB5B02A07D /* assets */; };
 		2494734C10F3C34093F68DF0 /* _bz2.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = A5D8C2ABB2F5E427B3B1984D /* _bz2.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		24D9F733B5F5C03EC97C0E8F /* CoreMedia.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B78DCDBFE541F1854A2A0FFC /* CoreMedia.framework */; };
+		27148F52F5090E54B4B1C56A /* SDL3_ttf.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEFD20AD3095902A006D0E4E /* SDL3_ttf.framework */; };
 		28397863F12D36A2790D35B4 /* KotonohaImGui.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = CE1893F63095457700B0DF80 /* KotonohaImGui.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		29038B500CA6CFEAE195F39B /* _queue.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 26BBDF9E8802FDEDBA0D64C5 /* _queue.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		2C92212412D75B19AD0605F3 /* _hmac.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 8E9708F7D6F68BCBB74A8400 /* _hmac.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
@@ -74,6 +76,7 @@
 		3693C2D22F6819A6E92D41D1 /* _random.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 91637AA8D0D342511A804AA1 /* _random.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		376FB2AC718F267584F93F2F /* _codecs_hk.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 75DF1AA2413B7EC88DBE80BE /* _codecs_hk.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		37FD5B2504B10F75ACB2F275 /* _ssl.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = DB704E7428F8367E87ED925C /* _ssl.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		38BB9CE470AAA172F0D6A30E /* CoreVideo.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B2FAEAC42A6E7C5EDC4F4A07 /* CoreVideo.framework */; };
 		3C10FC2105AB750757315713 /* _zstd.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = B1CD58968FC23625B0FCF604 /* _zstd.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		3DCC3FE48DEC316ECF9B16E6 /* imgui_tables.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 43B9E4E908D1CC67D291F5F0 /* imgui_tables.cpp */; };
 		3F4E8FB9E34E8F18AAB57427 /* _interpqueues.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 8A47D1B7992DE27916835FAA /* _interpqueues.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
@@ -87,6 +90,7 @@
 		463A4157B20BF5BEB9A27158 /* _uuid.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = AFE19CE045BB24E291044227 /* _uuid.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		481B1044A53ECB1B893E95D6 /* _testsinglephase.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = EFADD430DB01E76F8FEAD591 /* _testsinglephase.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		48454109453FDFF168A748C2 /* AudioToolbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FBAC8B3DF93878243BF88A65 /* AudioToolbox.framework */; };
+		48D6AE0930BB1E31512A57B7 /* game-assets in Resources */ = {isa = PBXBuildFile; fileRef = E4A2A890FA0C4227EC47A0D8 /* game-assets */; };
 		4C5650FAC0545D18E1B55B5E /* _socket.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 76DB86BCBCACA1C30AFF9D09 /* _socket.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		4DDF89379F25E3A29D895DAD /* _md5.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 7379F358F50618304E663174 /* _md5.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		4F5B0FDA0B48AEE84AA1BB83 /* _struct.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = C493414D30C0DC9E2CB6E56A /* _struct.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
@@ -112,6 +116,7 @@
 		5FD58DACF503942DD43372EC /* AudioToolbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FBAC8B3DF93878243BF88A65 /* AudioToolbox.framework */; };
 		607CC8B072956D4E9CF0B885 /* binascii.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = A9B5CE300F1EA791828A8104 /* binascii.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		60A0CF2EB40CCE0868E90DAE /* imgui_impl_sdlrenderer3.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E3E0EC27DFAF9CC3242B7CFB /* imgui_impl_sdlrenderer3.cpp */; };
+		60E980AFBA2961E0F5010662 /* SDL3.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEFD20B530959039006D0E4E /* SDL3.framework */; };
 		61AC687593A11ABD62A926BA /* _testsinglephase.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = EFADD430DB01E76F8FEAD591 /* _testsinglephase.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		6271E50E94A21DA67FD87B83 /* _codecs_tw.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = D0AC9EDE4A6864C7406BB72F /* _codecs_tw.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		62DCD5E25DA7DD5725F20D17 /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4A9B6E799E2376E8183ADE52 /* Metal.framework */; };
@@ -153,8 +158,10 @@
 		82FE432053F731C949333CD2 /* SDL3.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEFD20B530959039006D0E4E /* SDL3.framework */; };
 		837845F38FF7D962EF85CEE9 /* xxsubtype.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 1B52335E78D2EA2972F15624 /* xxsubtype.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		8387BC2F1541AEDAF3B7E149 /* CoreVideo.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B2FAEAC42A6E7C5EDC4F4A07 /* CoreVideo.framework */; };
+		856D0DF482D533C0C35783ED /* KotonohaImGui.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CE1893F63095457700B0DF80 /* KotonohaImGui.framework */; };
 		85A76F761FE62E10C86C36C1 /* KotonohaImGui.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CE1893F63095457700B0DF80 /* KotonohaImGui.framework */; };
 		86FD5EBA38E52E963C531676 /* _testclinic_limited.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = A9ABFE0CC08D30FF79C20ECA /* _testclinic_limited.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		87EF8C13793481C0FD4BC263 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6AC33256490759509EFF9BF1 /* Foundation.framework */; };
 		8A8CBB408EA86B5EF6EB67B8 /* _remote_debugging.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 44FF0BEABF96805EA3839AC0 /* _remote_debugging.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		8DE0B9E6A7EAE72191C3C08D /* VideoToolbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C446DAC72995F2973C600D09 /* VideoToolbox.framework */; };
 		8E34834EE2585F154A85F58B /* _zstd.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = B1CD58968FC23625B0FCF604 /* _zstd.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
@@ -162,6 +169,7 @@
 		8FD10C1CB72DE555CBC113C4 /* KotonohaImGui.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CE1893F63095457700B0DF80 /* KotonohaImGui.framework */; };
 		8FE1094032A4201507C313C8 /* termios.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 150B9A2F85BFA37DAFC1DA7D /* termios.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		8FE20EDE4E8732164C00EA2B /* _testclinic.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 1AFF8E85C8E18A59B741C836 /* _testclinic.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		90C35AB95A33FA80035D263F /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 42D538C486E337F7390CE7EF /* CoreFoundation.framework */; };
 		91A50DE1D021BF91FBE3647D /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 42D538C486E337F7390CE7EF /* CoreFoundation.framework */; };
 		91E035C9F22737E3F9A22549 /* _remote_debugging.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 44FF0BEABF96805EA3839AC0 /* _remote_debugging.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		923F7FE3D55FC9FFC19A46A4 /* fcntl.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 4EC023822E779C408544E330 /* fcntl.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
@@ -170,6 +178,7 @@
 		953B1C44BA57226DD925B36B /* SDL3.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = CEFD20B530959039006D0E4E /* SDL3.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		95C29BC1C6D52AD2764F8DD4 /* KotonohaImGui.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CE1893F63095457700B0DF80 /* KotonohaImGui.framework */; };
 		98261791889246CE2BAD8448 /* CoreMedia.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B78DCDBFE541F1854A2A0FFC /* CoreMedia.framework */; };
+		98E7E53AA22D54C6F127BCD8 /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4A9B6E799E2376E8183ADE52 /* Metal.framework */; };
 		99641A082B7C25DE5A37EF86 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6AC33256490759509EFF9BF1 /* Foundation.framework */; };
 		9BE58CFA8F60C35094AD7D80 /* _interpreters.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 26E116FFD2EE4D3012803BA0 /* _interpreters.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		9C95B7E6948652E0E273AC9C /* Value.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 528F10C36D905193890E9E1A /* Value.cpp */; };
@@ -193,6 +202,7 @@
 		AB3615E2ECD483A3C6144BA5 /* _lzma.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 6C9806081CEE061BA0F00EE2 /* _lzma.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		ABBE584881C50C0E6F5635C7 /* AudioToolbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FBAC8B3DF93878243BF88A65 /* AudioToolbox.framework */; };
 		ABEFE38E96ACB442C93A3DE9 /* CoreMedia.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B78DCDBFE541F1854A2A0FFC /* CoreMedia.framework */; };
+		ADBBA18CA2BB11B5EB3864A1 /* SDL3_ttf.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = CEFD20AD3095902A006D0E4E /* SDL3_ttf.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		AF89A64A11DD17958B8C602C /* cmath.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 440FCF7BEA08D35F90C24775 /* cmath.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		B0187C77DBF8A368436B4DF8 /* KotonohaImGui.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CE1893F63095457700B0DF80 /* KotonohaImGui.framework */; };
 		B0B70F6B7CDA5AAE47B11A1F /* KotonohaImGui.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = CE1893F63095457700B0DF80 /* KotonohaImGui.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
@@ -221,6 +231,7 @@
 		C9AC40427DA745385043977C /* KotonohaImGui.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CE1893F63095457700B0DF80 /* KotonohaImGui.framework */; };
 		CB1C3BDF0BBC41426746A25E /* _testcapi.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 08904302FD78EF668F6A5905 /* _testcapi.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		CB8065727F189FC6F034CEA4 /* _md5.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 7379F358F50618304E663174 /* _md5.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		CC64B30B4CD8F76221B24924 /* Replay.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 122AD73C1FEF1FCFC5CA772E /* Replay.cpp */; };
 		CDD51E6399F925D7880A972C /* _testbuffer.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = DEE02E8227379844A4C2E13C /* _testbuffer.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		CE1893FF30954CF000B0DF80 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6AC33256490759509EFF9BF1 /* Foundation.framework */; };
 		CE18940030954CF000B0DF80 /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4A9B6E799E2376E8183ADE52 /* Metal.framework */; };
@@ -310,6 +321,8 @@
 		CEFD20DC3095909C006D0E4E /* SDL3_ttf.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = CEFD20AD3095902A006D0E4E /* SDL3_ttf.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		CEFD20DD3095909F006D0E4E /* SDL3_ttf.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEFD20AD3095902A006D0E4E /* SDL3_ttf.framework */; };
 		CEFD20DE3095909F006D0E4E /* SDL3_ttf.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = CEFD20AD3095902A006D0E4E /* SDL3_ttf.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		CF4AEFBAC59CD2D996860205 /* KotonohaEngine.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CE1893F83095457F00B0DF80 /* KotonohaEngine.framework */; };
+		D0A3BBD338F234E27556BC7B /* KotonohaEngine.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = CE1893F83095457F00B0DF80 /* KotonohaEngine.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		D0E726613E02562BB97436D1 /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 42D538C486E337F7390CE7EF /* CoreFoundation.framework */; };
 		D1D07C592ADAC2BC2B68C612 /* CoreVideo.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B2FAEAC42A6E7C5EDC4F4A07 /* CoreVideo.framework */; };
 		D359EE0EA775E5C03FC2B529 /* _ctypes_test.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 31CC9EC35C6984F19D7612B3 /* _ctypes_test.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
@@ -322,9 +335,11 @@
 		D8DC687A01BF7CFA1E2463F8 /* _hashlib.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = AAAC6F32B9716B0C6103CE99 /* _hashlib.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		D9039BE17B8168D74C1A3C68 /* CoreMedia.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B78DCDBFE541F1854A2A0FFC /* CoreMedia.framework */; };
 		D93AB727AA38217D72F47245 /* CoreMedia.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B78DCDBFE541F1854A2A0FFC /* CoreMedia.framework */; };
+		D9AAA7FCAADEA2DDBFC40A3D /* CoreMedia.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B78DCDBFE541F1854A2A0FFC /* CoreMedia.framework */; };
 		DC9445F6413957A13B3161FD /* _xxtestfuzz.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 49547D91FA3085FB8F0D0019 /* _xxtestfuzz.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		DCD02DF66CDECCBEB4709AA2 /* CoreVideo.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B2FAEAC42A6E7C5EDC4F4A07 /* CoreVideo.framework */; };
 		DCE5859CDAFE38345890B137 /* OpenGLES.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4FFD1FC9FD3DE0FD18C5D44F /* OpenGLES.framework */; };
+		DFE0E87F6F6814FE0DA9BF32 /* DdlcAssets.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 86A60415F3DDCB26D5855426 /* DdlcAssets.cpp */; };
 		E201393195443303D237CF41 /* KotonohaImGui.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = CE1893F63095457700B0DF80 /* KotonohaImGui.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		E35016335D4071C074943DF2 /* KotonohaImGui.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = CE1893F63095457700B0DF80 /* KotonohaImGui.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		E4DAA69952E60E69599BDBBF /* _decimal.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = B287B88F36F9FE7FDE35CCDC /* _decimal.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
@@ -333,7 +348,9 @@
 		E6FD1D975FBB91BE04384D7D /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4A9B6E799E2376E8183ADE52 /* Metal.framework */; };
 		E78A3D2619C3D4725967C9F1 /* _blake2.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 2F0CCA89023E04A7F84E444E /* _blake2.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		EA5FCB8C425E60C6312097BD /* OpenGLES.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4FFD1FC9FD3DE0FD18C5D44F /* OpenGLES.framework */; };
+		EB6F207EE835C75FF9333719 /* OpenGLES.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4FFD1FC9FD3DE0FD18C5D44F /* OpenGLES.framework */; };
 		EC13B4C789762B363921420B /* OpenGLES.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4FFD1FC9FD3DE0FD18C5D44F /* OpenGLES.framework */; };
+		EC1FFFD38CFF180FB67CDA7D /* SDL3.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = CEFD20B530959039006D0E4E /* SDL3.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		EE2A2FF17BF4A4DB52BA3D8C /* _queue.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 26BBDF9E8802FDEDBA0D64C5 /* _queue.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		EE545567FFB86122F791AFB7 /* _codecs_jp.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = BF419AE62F91C71F47490CB9 /* _codecs_jp.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		EE918BAF9BB671D70411D6C3 /* _zoneinfo.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = BA84F78900F207073C05F9CC /* _zoneinfo.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
@@ -346,11 +363,13 @@
 		F4B068DC6AEC13E173931970 /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 42D538C486E337F7390CE7EF /* CoreFoundation.framework */; };
 		F5D0CEDC42B78DAE0F9243CC /* _codecs_jp.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = BF419AE62F91C71F47490CB9 /* _codecs_jp.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		F7FCF7B7563994211343C198 /* KotonohaEngine.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = CE1893F83095457F00B0DF80 /* KotonohaEngine.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		F860C1C01CE3B7911C1ED33B /* VideoToolbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C446DAC72995F2973C600D09 /* VideoToolbox.framework */; };
 		F8C44FAF4C88BABECDD7E74C /* CoreVideo.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B2FAEAC42A6E7C5EDC4F4A07 /* CoreVideo.framework */; };
 		F9211F4F9D28F0CE9CF4052F /* _codecs_iso2022.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = BA59560E87AF5E75F6FF6202 /* _codecs_iso2022.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		FA056BF695F93AE290705FB8 /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 42D538C486E337F7390CE7EF /* CoreFoundation.framework */; };
 		FABF92E8ADBAE676428C1DA1 /* CoreVideo.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B2FAEAC42A6E7C5EDC4F4A07 /* CoreVideo.framework */; };
 		FBC37707E15D5F0D78065FF0 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6AC33256490759509EFF9BF1 /* Foundation.framework */; };
+		FBC5207899BCDAB5F663771F /* AudioToolbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FBAC8B3DF93878243BF88A65 /* AudioToolbox.framework */; };
 		FBCD96D861D873A302B5347D /* _sqlite3.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 83A08D605BAA386DCC00A9FD /* _sqlite3.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		FDA1599DA4BD8492F7A2721F /* OpenGLES.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4FFD1FC9FD3DE0FD18C5D44F /* OpenGLES.framework */; };
 		FDE0C671E26D9A7B3CAB8221 /* KotonohaImGui.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = CE1893F63095457700B0DF80 /* KotonohaImGui.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
@@ -373,6 +392,13 @@
 			remoteGlobalIDString = 4B0417D636D80E1973E6EC48;
 			remoteInfo = KotonohaImGui;
 		};
+		0A7B293D5B03311540966819 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 1D7F34E45396E7C9086D3FB4 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = D353276E353ED61BDA9316AE;
+			remoteInfo = KotonohaEngine;
+		};
 		14771AACDB6EC34D1110B863 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 1D7F34E45396E7C9086D3FB4 /* Project object */;
@@ -381,6 +407,13 @@
 			remoteInfo = KotonohaEngine;
 		};
 		2F2E029BD95B9D5D8CF679F2 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 1D7F34E45396E7C9086D3FB4 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 4B0417D636D80E1973E6EC48;
+			remoteInfo = ImGui;
+		};
+		30A79BE3080A3C473CEB2900 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 1D7F34E45396E7C9086D3FB4 /* Project object */;
 			proxyType = 1;
@@ -509,6 +542,20 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
+		03C1A99ABB72CE97E4D585D3 /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				EC1FFFD38CFF180FB67CDA7D /* SDL3.framework in Embed Frameworks */,
+				D0A3BBD338F234E27556BC7B /* KotonohaEngine.framework in Embed Frameworks */,
+				ADBBA18CA2BB11B5EB3864A1 /* SDL3_ttf.framework in Embed Frameworks */,
+				079755B06897A5F8CD41E2B1 /* KotonohaImGui.framework in Embed Frameworks */,
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		0E48296832DEADC8678B45DD /* Embed Frameworks */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
@@ -820,6 +867,7 @@
 		08904302FD78EF668F6A5905 /* _testcapi.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = _testcapi.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/_testcapi.framework"; sourceTree = SOURCE_ROOT; };
 		08EFD6BD9770B9CFE023EC0A /* Archive.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; name = Archive.cpp; path = "../games/doki-doki-literature-club/src/Archive.cpp"; sourceTree = "<group>"; };
 		0BDBADE5AA1843BDCBE0381B /* DdlcScriptTest.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; name = DdlcScriptTest.cpp; path = "../games/doki-doki-literature-club/tests/DdlcScriptTest.cpp"; sourceTree = "<group>"; };
+		122AD73C1FEF1FCFC5CA772E /* Replay.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; name = Replay.cpp; path = "../games/doki-doki-literature-club/src/Replay.cpp"; sourceTree = SOURCE_ROOT; };
 		150B9A2F85BFA37DAFC1DA7D /* termios.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = termios.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/termios.framework"; sourceTree = SOURCE_ROOT; };
 		15E03530E42B12EE24D41B19 /* _multibytecodec.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = _multibytecodec.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/_multibytecodec.framework"; sourceTree = SOURCE_ROOT; };
 		1AFF8E85C8E18A59B741C836 /* _testclinic.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = _testclinic.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/_testclinic.framework"; sourceTree = SOURCE_ROOT; };
@@ -863,8 +911,11 @@
 		75DF1AA2413B7EC88DBE80BE /* _codecs_hk.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = _codecs_hk.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/_codecs_hk.framework"; sourceTree = SOURCE_ROOT; };
 		76DB86BCBCACA1C30AFF9D09 /* _socket.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = _socket.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/_socket.framework"; sourceTree = SOURCE_ROOT; };
 		7B888328F9DCB92CBAEEB6FE /* Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		7F3CF535C2D88E9A15B1F243 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
+		82207DA31B2E7F0D2FFC9933 /* Kirikiri.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Kirikiri.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		83A08D605BAA386DCC00A9FD /* _sqlite3.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = _sqlite3.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/_sqlite3.framework"; sourceTree = SOURCE_ROOT; };
 		84BEEE477A504ECE1C36DCF8 /* imgui_impl_sdl3.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; name = imgui_impl_sdl3.cpp; path = ../lib/submodules/imgui/backends/imgui_impl_sdl3.cpp; sourceTree = "<group>"; };
+		86A60415F3DDCB26D5855426 /* DdlcAssets.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; name = DdlcAssets.cpp; path = "../games/doki-doki-literature-club/src/DdlcAssets.cpp"; sourceTree = SOURCE_ROOT; };
 		89F9A504E0BB12B1B51786FB /* zlib.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = zlib.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/zlib.framework"; sourceTree = SOURCE_ROOT; };
 		8A47D1B7992DE27916835FAA /* _interpqueues.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = _interpqueues.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/_interpqueues.framework"; sourceTree = SOURCE_ROOT; };
 		8AB7327E13E1B295FA5D4B74 /* unicodedata.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = unicodedata.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/unicodedata.framework"; sourceTree = SOURCE_ROOT; };
@@ -892,20 +943,20 @@
 		BF419AE62F91C71F47490CB9 /* _codecs_jp.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = _codecs_jp.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/_codecs_jp.framework"; sourceTree = SOURCE_ROOT; };
 		C446DAC72995F2973C600D09 /* VideoToolbox.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = VideoToolbox.framework; path = System/Library/Frameworks/VideoToolbox.framework; sourceTree = SDKROOT; };
 		C493414D30C0DC9E2CB6E56A /* _struct.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = _struct.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/_struct.framework"; sourceTree = SOURCE_ROOT; };
-		C725562FCCDCB4EE087E2805 /* Air.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Air.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		C725562FCCDCB4EE087E2805 /* RealLive.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; name = RealLive.app; path = RealLive.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		CDE937DF873378DC9B0AA622 /* math.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = math.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/math.framework"; sourceTree = SOURCE_ROOT; };
 		CE1893F63095457700B0DF80 /* KotonohaImGui.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = KotonohaImGui.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		CE1893F83095457F00B0DF80 /* KotonohaEngine.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = KotonohaEngine.framework; sourceTree = BUILT_PRODUCTS_DIR; };
-		CE2FEE0330956E6100E7D27F /* assets */ = {isa = PBXFileReference; lastKnownFileType = folder; name = assets; path = ../assets; sourceTree = "<group>"; };
+		CE2FEE0330956E6100E7D27F /* assets */ = {isa = PBXFileReference; lastKnownFileType = folder; name = assets; path = ../assets; sourceTree = SOURCE_ROOT; };
 		CE8CD2A0309A153D0003D364 /* Amagami.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Amagami.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		CE90DB553098CBF100281500 /* Python.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = Python.xcframework; path = "../build/iOS-deps/Python.xcframework"; sourceTree = SOURCE_ROOT; };
-		CEDC78D530A0B91D0088E9B5 /* game-assets */ = {isa = PBXFileReference; name = "game-assets"; path = "../games/amagami/game-assets"; sourceTree = "<group>"; };
-		CEDC7B7930A0BC160088E9B5 /* game-assets */ = {isa = PBXFileReference; name = "game-assets"; path = "../games/reallive/game-assets"; sourceTree = "<group>"; };
-		CEDC7B7B30A0BC370088E9B5 /* game-assets */ = {isa = PBXFileReference; name = "game-assets"; path = "../games/zero-no-tsukaima/game-assets"; sourceTree = "<group>"; };
-		CEDC7B7D30A0BC5B0088E9B5 /* game-assets */ = {isa = PBXFileReference; name = "game-assets"; path = "../games/snow-radish-vacation/game-assets"; sourceTree = "<group>"; };
-		CEDC7B7F30A0BC6F0088E9B5 /* game-assets */ = {isa = PBXFileReference; name = "game-assets"; path = "../games/doki-doki-literature-club/game-assets"; sourceTree = "<group>"; };
-		CEDC7B8130A0BC850088E9B5 /* game-assets */ = {isa = PBXFileReference; name = "game-assets"; path = "../games/school-days/game-assets"; sourceTree = "<group>"; };
-		CEDC7B8330A0BCA00088E9B5 /* game-assets */ = {isa = PBXFileReference; name = "game-assets"; path = "../games/summer-radish-vacation/game-assets"; sourceTree = "<group>"; };
+		CEDC78D530A0B91D0088E9B5 /* game-assets */ = {isa = PBXFileReference; name = "game-assets"; path = "../games/amagami/game-assets"; sourceTree = SOURCE_ROOT; };
+		CEDC7B7930A0BC160088E9B5 /* game-assets */ = {isa = PBXFileReference; name = "game-assets"; path = "../games/reallive/game-assets"; sourceTree = SOURCE_ROOT; };
+		CEDC7B7B30A0BC370088E9B5 /* game-assets */ = {isa = PBXFileReference; name = "game-assets"; path = "../games/zero-no-tsukaima/game-assets"; sourceTree = SOURCE_ROOT; };
+		CEDC7B7D30A0BC5B0088E9B5 /* game-assets */ = {isa = PBXFileReference; name = "game-assets"; path = "../games/snow-radish-vacation/game-assets"; sourceTree = SOURCE_ROOT; };
+		CEDC7B7F30A0BC6F0088E9B5 /* game-assets */ = {isa = PBXFileReference; name = "game-assets"; path = "../games/doki-doki-literature-club/game-assets"; sourceTree = SOURCE_ROOT; };
+		CEDC7B8130A0BC850088E9B5 /* game-assets */ = {isa = PBXFileReference; name = "game-assets"; path = "../games/school-days/game-assets"; sourceTree = SOURCE_ROOT; };
+		CEDC7B8330A0BCA00088E9B5 /* game-assets */ = {isa = PBXFileReference; name = "game-assets"; path = "../games/summer-radish-vacation/game-assets"; sourceTree = SOURCE_ROOT; };
 		CEDFC336F4945B9B468438BC /* _sha2.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = _sha2.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/_sha2.framework"; sourceTree = SOURCE_ROOT; };
 		CEFD20A630959029006D0E4E /* SDL_ttf.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = SDL_ttf.xcodeproj; path = ../lib/submodules/SDL_ttf/Xcode/SDL_ttf.xcodeproj; sourceTree = SOURCE_ROOT; };
 		CEFD20AE30959038006D0E4E /* SDL.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = SDL.xcodeproj; path = ../lib/submodules/SDL/Xcode/SDL/SDL.xcodeproj; sourceTree = SOURCE_ROOT; };
@@ -923,6 +974,7 @@
 		DE6A15AB88BF5B798A0FF869 /* _bisect.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = _bisect.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/_bisect.framework"; sourceTree = SOURCE_ROOT; };
 		DEE02E8227379844A4C2E13C /* _testbuffer.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = _testbuffer.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/_testbuffer.framework"; sourceTree = SOURCE_ROOT; };
 		E3E0EC27DFAF9CC3242B7CFB /* imgui_impl_sdlrenderer3.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; name = imgui_impl_sdlrenderer3.cpp; path = ../lib/submodules/imgui/backends/imgui_impl_sdlrenderer3.cpp; sourceTree = "<group>"; };
+		E4A2A890FA0C4227EC47A0D8 /* game-assets */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = folder; name = "game-assets"; path = "../games/kirikiri/game-assets"; sourceTree = SOURCE_ROOT; };
 		E61C84D0AC3D59F4A3B6DB36 /* xxlimited_35.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = xxlimited_35.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/xxlimited_35.framework"; sourceTree = SOURCE_ROOT; };
 		E84056C986E173093BCC489F /* _csv.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = _csv.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/_csv.framework"; sourceTree = SOURCE_ROOT; };
 		ED3652828BEF86F94266D8C8 /* resource.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = resource.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/resource.framework"; sourceTree = SOURCE_ROOT; };
@@ -936,23 +988,207 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		33CF72D87ACA703CCC5F6560 /* ../games/reallive/src */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = ../games/reallive/src; sourceTree = SOURCE_ROOT; };
-		B958092F9AFFDA5E904BF5DE /* ../games/reallive/vendor */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = ../games/reallive/vendor; sourceTree = SOURCE_ROOT; };
-		C120216BEFDCA69752FC625E /* ../games/summer-radish-vacation/src */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = "../games/summer-radish-vacation/src"; sourceTree = SOURCE_ROOT; };
-		CE8CD2C7309A16A70003D364 /* src */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); name = src; path = ../games/amagami/src; sourceTree = SOURCE_ROOT; };
-		CE8CD2D5309A16B70003D364 /* include */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); name = include; path = ../games/amagami/include; sourceTree = SOURCE_ROOT; };
-		CEC5DD6F3095F3D700D4D78B /* ../lib/src */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = ../lib/src; sourceTree = SOURCE_ROOT; };
-		CEC5DDE23095F3E400D4D78B /* ../lib/include */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = ../lib/include; sourceTree = SOURCE_ROOT; };
-		CEC5DE193095F4B300D4D78B /* ../games/school-days/src */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = "../games/school-days/src"; sourceTree = SOURCE_ROOT; };
-		CEC5DE7A3095F4BD00D4D78B /* ../games/school-days/include */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = "../games/school-days/include"; sourceTree = SOURCE_ROOT; };
-		CEC5DE8A3095F4E900D4D78B /* ../games/snow-radish-vacation/src */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = "../games/snow-radish-vacation/src"; sourceTree = SOURCE_ROOT; };
-		CEC5DE993095F4F200D4D78B /* ../games/snow-radish-vacation/include */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = "../games/snow-radish-vacation/include"; sourceTree = SOURCE_ROOT; };
-		CEC5DEAA3095F50700D4D78B /* ../games/doki-doki-literature-club/src */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = "../games/doki-doki-literature-club/src"; sourceTree = SOURCE_ROOT; };
-		CEC5DEBC3095F50E00D4D78B /* ../games/doki-doki-literature-club/include */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = "../games/doki-doki-literature-club/include"; sourceTree = SOURCE_ROOT; };
-		CEC5DED63095F52200D4D78B /* ../games/zero-no-tsukaima/src */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = "../games/zero-no-tsukaima/src"; sourceTree = SOURCE_ROOT; };
-		CEC5DEF33095F52A00D4D78B /* ../games/zero-no-tsukaima/include */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = "../games/zero-no-tsukaima/include"; sourceTree = SOURCE_ROOT; };
-		CEC5DF023095F56000D4D78B /* ../games/example/game-assets */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = "../games/example/game-assets"; sourceTree = SOURCE_ROOT; };
-		CEC5DF0A3095F6F000D4D78B /* ../games/example/src */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = ../games/example/src; sourceTree = SOURCE_ROOT; };
+		33CF72D87ACA703CCC5F6560 /* ../games/reallive/src */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
+			explicitFileTypes = {
+			};
+			explicitFolders = (
+			);
+			path = ../games/reallive/src;
+			sourceTree = SOURCE_ROOT;
+		};
+		72E07856AC768F7C8E7FCEC8 /* ../games/kirikiri/include */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
+			path = ../games/kirikiri/include;
+			sourceTree = SOURCE_ROOT;
+		};
+		B958092F9AFFDA5E904BF5DE /* ../games/reallive/vendor */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
+			explicitFileTypes = {
+			};
+			explicitFolders = (
+			);
+			path = ../games/reallive/vendor;
+			sourceTree = SOURCE_ROOT;
+		};
+		C120216BEFDCA69752FC625E /* ../games/summer-radish-vacation/src */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
+			explicitFileTypes = {
+			};
+			explicitFolders = (
+			);
+			path = "../games/summer-radish-vacation/src";
+			sourceTree = SOURCE_ROOT;
+		};
+		C939F3DF3CBBC3BEC019D544 /* ../games/kirikiri/src */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
+			path = ../games/kirikiri/src;
+			sourceTree = SOURCE_ROOT;
+		};
+		CE8CD2C7309A16A70003D364 /* ../games/amagami/src */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
+			explicitFileTypes = {
+			};
+			explicitFolders = (
+			);
+			path = ../games/amagami/src;
+			sourceTree = SOURCE_ROOT;
+		};
+		CE8CD2D5309A16B70003D364 /* ../games/amagami/include */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
+			explicitFileTypes = {
+			};
+			explicitFolders = (
+			);
+			path = ../games/amagami/include;
+			sourceTree = SOURCE_ROOT;
+		};
+		CEC5DD6F3095F3D700D4D78B /* ../lib/src */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
+			explicitFileTypes = {
+			};
+			explicitFolders = (
+			);
+			path = ../lib/src;
+			sourceTree = SOURCE_ROOT;
+		};
+		CEC5DDE23095F3E400D4D78B /* ../lib/include */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
+			explicitFileTypes = {
+			};
+			explicitFolders = (
+			);
+			path = ../lib/include;
+			sourceTree = SOURCE_ROOT;
+		};
+		CEC5DE193095F4B300D4D78B /* ../games/school-days/src */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
+			explicitFileTypes = {
+			};
+			explicitFolders = (
+			);
+			path = "../games/school-days/src";
+			sourceTree = SOURCE_ROOT;
+		};
+		CEC5DE7A3095F4BD00D4D78B /* ../games/school-days/include */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
+			explicitFileTypes = {
+			};
+			explicitFolders = (
+			);
+			path = "../games/school-days/include";
+			sourceTree = SOURCE_ROOT;
+		};
+		CEC5DE8A3095F4E900D4D78B /* ../games/snow-radish-vacation/src */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
+			explicitFileTypes = {
+			};
+			explicitFolders = (
+			);
+			path = "../games/snow-radish-vacation/src";
+			sourceTree = SOURCE_ROOT;
+		};
+		CEC5DE993095F4F200D4D78B /* ../games/snow-radish-vacation/include */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
+			explicitFileTypes = {
+			};
+			explicitFolders = (
+			);
+			path = "../games/snow-radish-vacation/include";
+			sourceTree = SOURCE_ROOT;
+		};
+		CEC5DEAA3095F50700D4D78B /* ../games/doki-doki-literature-club/src */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
+			explicitFileTypes = {
+			};
+			explicitFolders = (
+			);
+			path = "../games/doki-doki-literature-club/src";
+			sourceTree = SOURCE_ROOT;
+		};
+		CEC5DEBC3095F50E00D4D78B /* ../games/doki-doki-literature-club/include */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
+			explicitFileTypes = {
+			};
+			explicitFolders = (
+			);
+			path = "../games/doki-doki-literature-club/include";
+			sourceTree = SOURCE_ROOT;
+		};
+		CEC5DED63095F52200D4D78B /* ../games/zero-no-tsukaima/src */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
+			explicitFileTypes = {
+			};
+			explicitFolders = (
+			);
+			path = "../games/zero-no-tsukaima/src";
+			sourceTree = SOURCE_ROOT;
+		};
+		CEC5DEF33095F52A00D4D78B /* ../games/zero-no-tsukaima/include */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
+			explicitFileTypes = {
+			};
+			explicitFolders = (
+			);
+			path = "../games/zero-no-tsukaima/include";
+			sourceTree = SOURCE_ROOT;
+		};
+		CEC5DF023095F56000D4D78B /* ../games/example/game-assets */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
+			explicitFileTypes = {
+			};
+			explicitFolders = (
+			);
+			path = "../games/example/game-assets";
+			sourceTree = SOURCE_ROOT;
+		};
+		CEC5DF0A3095F6F000D4D78B /* ../games/example/src */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
+			explicitFileTypes = {
+			};
+			explicitFolders = (
+			);
+			path = ../games/example/src;
+			sourceTree = SOURCE_ROOT;
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -1137,6 +1373,25 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		BDC34194D99F2DF39EFA6308 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				87EF8C13793481C0FD4BC263 /* Foundation.framework in Frameworks */,
+				CF4AEFBAC59CD2D996860205 /* KotonohaEngine.framework in Frameworks */,
+				27148F52F5090E54B4B1C56A /* SDL3_ttf.framework in Frameworks */,
+				98E7E53AA22D54C6F127BCD8 /* Metal.framework in Frameworks */,
+				EB6F207EE835C75FF9333719 /* OpenGLES.framework in Frameworks */,
+				60E980AFBA2961E0F5010662 /* SDL3.framework in Frameworks */,
+				F860C1C01CE3B7911C1ED33B /* VideoToolbox.framework in Frameworks */,
+				38BB9CE470AAA172F0D6A30E /* CoreVideo.framework in Frameworks */,
+				D9AAA7FCAADEA2DDBFC40A3D /* CoreMedia.framework in Frameworks */,
+				90C35AB95A33FA80035D263F /* CoreFoundation.framework in Frameworks */,
+				FBC5207899BCDAB5F663771F /* AudioToolbox.framework in Frameworks */,
+				856D0DF482D533C0C35783ED /* KotonohaImGui.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		CE8CD288309A153D0003D364 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -1284,6 +1539,14 @@
 			name = DokiDoki;
 			sourceTree = "<group>";
 		};
+		4DA542F9EBC9C4DD81D37764 /* iOS */ = {
+			isa = PBXGroup;
+			children = (
+				7F3CF535C2D88E9A15B1F243 /* Foundation.framework */,
+			);
+			name = iOS;
+			sourceTree = "<group>";
+		};
 		5F48FF1401F6941033C84B00 /* KotonohaEngine */ = {
 			isa = PBXGroup;
 			children = (
@@ -1306,6 +1569,7 @@
 				FBAC8B3DF93878243BF88A65 /* AudioToolbox.framework */,
 				B2FAEAC42A6E7C5EDC4F4A07 /* CoreVideo.framework */,
 				CE90DB553098CBF100281500 /* Python.xcframework */,
+				4DA542F9EBC9C4DD81D37764 /* iOS */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -1365,6 +1629,11 @@
 				D0DAFF547CC8900C1CAA85CC /* DdlcIOSScriptSmoke */,
 				7F3481CB6F8C3B7CB0B6997D /* KotonohaIOSSmoke */,
 				1BDADC699D6C9C04F3DF3F97 /* Bundled Python */,
+				C939F3DF3CBBC3BEC019D544 /* ../games/kirikiri/src */,
+				72E07856AC768F7C8E7FCEC8 /* ../games/kirikiri/include */,
+				E4A2A890FA0C4227EC47A0D8 /* game-assets */,
+				122AD73C1FEF1FCFC5CA772E /* Replay.cpp */,
+				86A60415F3DDCB26D5855426 /* DdlcAssets.cpp */,
 			);
 			sourceTree = "<group>";
 		};
@@ -1376,11 +1645,12 @@
 				CEFD20C330959068006D0E4E /* Snow Radish Vacation!!.app */,
 				CEFD20C630959070006D0E4E /* Doki Doki Literature Club.app */,
 				CEFD20C930959075006D0E4E /* School Days HQ.app */,
-				C725562FCCDCB4EE087E2805 /* Air.app */,
+				C725562FCCDCB4EE087E2805 /* RealLive.app */,
 				50B9CFE4B3D204CDAEF6EE3C /* SummerRadish.app */,
 				CEFD20CF3095908D006D0E4E /* DdlcIOSScriptSmoke.app */,
 				CEFD20CC30959079006D0E4E /* KotonohaIOSSmoke.app */,
 				CE8CD2A0309A153D0003D364 /* Amagami.app */,
+				82207DA31B2E7F0D2FFC9933 /* Kirikiri.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -1406,8 +1676,8 @@
 		CE8CD2B9309A15980003D364 /* Amagami */ = {
 			isa = PBXGroup;
 			children = (
-				CE8CD2C7309A16A70003D364 /* src */,
-				CE8CD2D5309A16B70003D364 /* include */,
+				CE8CD2C7309A16A70003D364 /* ../games/amagami/src */,
+				CE8CD2D5309A16B70003D364 /* ../games/amagami/include */,
 				CEDC78D530A0B91D0088E9B5 /* game-assets */,
 			);
 			path = Amagami;
@@ -1509,6 +1779,30 @@
 /* End PBXHeadersBuildPhase section */
 
 /* Begin PBXNativeTarget section */
+		2F232DD8554632C7F03F3FD5 /* Kirikiri */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 8973D24C2F258625B464D0DF /* Build configuration list for PBXNativeTarget "Kirikiri" */;
+			buildPhases = (
+				F3B50AC9FD92A331B6898C4A /* Sources */,
+				BDC34194D99F2DF39EFA6308 /* Frameworks */,
+				71AC14137A25FDCFF76F2477 /* Resources */,
+				03C1A99ABB72CE97E4D585D3 /* Embed Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				2CBFD50672539916E78A4996 /* PBXTargetDependency */,
+				6A225DAF468A4BC2F7B7D9DB /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				C939F3DF3CBBC3BEC019D544 /* ../games/kirikiri/src */,
+				72E07856AC768F7C8E7FCEC8 /* ../games/kirikiri/include */,
+			);
+			name = Kirikiri;
+			productName = Kirikiri;
+			productReference = 82207DA31B2E7F0D2FFC9933 /* Kirikiri.app */;
+			productType = "com.apple.product-type.application";
+		};
 		4B0417D636D80E1973E6EC48 /* ImGui */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = CD845DF72523912C4152CA3C /* Build configuration list for PBXNativeTarget "ImGui" */;
@@ -1572,7 +1866,7 @@
 			);
 			name = RealLive;
 			productName = Air;
-			productReference = C725562FCCDCB4EE087E2805 /* Air.app */;
+			productReference = C725562FCCDCB4EE087E2805 /* RealLive.app */;
 			productType = "com.apple.product-type.application";
 		};
 		949A01BF0095966CB485B790 /* DdlcIOSScriptSmoke */ = {
@@ -1723,7 +2017,7 @@
 				CE8CD285309A153D0003D364 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				CE8CD2C7309A16A70003D364 /* src */,
+				CE8CD2C7309A16A70003D364 /* ../games/amagami/src */,
 			);
 			name = Amagami;
 			productName = Amagami;
@@ -1856,6 +2150,7 @@
 				9F1B2FE3D05CB0F830B9F1E6 /* SummerRadish */,
 				B2AA2CDDA40EC4CA2D8F5581 /* KotonohaIOSSmoke */,
 				949A01BF0095966CB485B790 /* DdlcIOSScriptSmoke */,
+				2F232DD8554632C7F03F3FD5 /* Kirikiri */,
 			);
 		};
 /* End PBXProject section */
@@ -1910,6 +2205,14 @@
 			files = (
 				CEDC7B7A30A0BC160088E9B5 /* game-assets in Resources */,
 				23318CCC38F24025FC81E818 /* assets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		71AC14137A25FDCFF76F2477 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				48D6AE0930BB1E31512A57B7 /* game-assets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -2030,6 +2333,8 @@
 				9C95B7E6948652E0E273AC9C /* Value.cpp in Sources */,
 				2D2BD1CCA88BA5240E15B020 /* Vm.cpp in Sources */,
 				7504FCC4F6303984EF390FC7 /* DdlcScriptTest.cpp in Sources */,
+				CC64B30B4CD8F76221B24924 /* Replay.cpp in Sources */,
+				DFE0E87F6F6814FE0DA9BF32 /* DdlcAssets.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -2068,6 +2373,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		F3B50AC9FD92A331B6898C4A /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		F4F7219F0DD3F13683F73E5E /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -2085,6 +2397,12 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		2CBFD50672539916E78A4996 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = KotonohaEngine;
+			target = D353276E353ED61BDA9316AE /* KotonohaEngine */;
+			targetProxy = 0A7B293D5B03311540966819 /* PBXContainerItemProxy */;
+		};
 		35436405B40E5D31404F4813 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			name = KotonohaEngine;
@@ -2120,6 +2438,12 @@
 			name = KotonohaEngine;
 			target = D353276E353ED61BDA9316AE /* KotonohaEngine */;
 			targetProxy = AC6CA98CA3652A5A3DA1EDE7 /* PBXContainerItemProxy */;
+		};
+		6A225DAF468A4BC2F7B7D9DB /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = ImGui;
+			target = 4B0417D636D80E1973E6EC48 /* ImGui */;
+			targetProxy = 30A79BE3080A3C473CEB2900 /* PBXContainerItemProxy */;
 		};
 		735090528A053C8B7DF6DC98 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
@@ -3184,12 +3508,94 @@
 					CoreText,
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha.reallive;
-				PRODUCT_NAME = Air;
+				PRODUCT_NAME = RealLive;
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;
+		};
+		A63E7A6234B25C74A36A071A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 64T9B5HFFD;
+				GENERATE_INFOPLIST_FILE = NO;
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(KOTONOHA_ROOT)/games/kirikiri/include",
+					"$(KOTONOHA_ROOT)/games/kirikiri/src",
+				);
+				INFOPLIST_FILE = "$(PROJECT_DIR)/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = Kirikiri;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.games";
+				IPHONEOS_DEPLOYMENT_TARGET = "$(RECOMMENDED_IPHONEOS_DEPLOYMENT_TARGET)";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-lavformat",
+					"-lavcodec",
+					"-lswresample",
+					"-lswscale",
+					"-lavutil",
+					"-ljson-c",
+					"-lz",
+					"-liconv",
+					"-lass",
+					"-lfribidi",
+					"-lunibreak",
+					"-lfontconfig",
+					"-lexpat",
+					"-lharfbuzz",
+					"-lfreetype",
+					"-lpng16",
+					"-lbz2",
+					"-lbrotlidec",
+					"-lbrotlicommon",
+					"-framework",
+					CoreText,
+				);
+				"OTHER_LDFLAGS[sdk=iphoneos*]" = (
+					"$(inherited)",
+					"-lavformat",
+					"-lavcodec",
+					"-lswresample",
+					"-lswscale",
+					"-lavutil",
+					"-ljson-c",
+					"-lz",
+					"-liconv",
+					"-weak_framework",
+					MetalFX,
+					"-lass",
+					"-lfribidi",
+					"-lunibreak",
+					"-lfontconfig",
+					"-lexpat",
+					"-lharfbuzz",
+					"-lfreetype",
+					"-lpng16",
+					"-lbz2",
+					"-lbrotlidec",
+					"-lbrotlicommon",
+					"-framework",
+					CoreText,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha.kirikiri;
+				PRODUCT_NAME = Kirikiri;
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
 		};
 		A73D3D35F8F97B6F28DCA1B2 /* Release */ = {
 			isa = XCBuildConfiguration;
@@ -3599,6 +4005,87 @@
 			};
 			name = Debug;
 		};
+		CA03FCAA0B7879EA4B26980B /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 64T9B5HFFD;
+				GENERATE_INFOPLIST_FILE = NO;
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(KOTONOHA_ROOT)/games/kirikiri/include",
+					"$(KOTONOHA_ROOT)/games/kirikiri/src",
+				);
+				INFOPLIST_FILE = "$(PROJECT_DIR)/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = Kirikiri;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.games";
+				IPHONEOS_DEPLOYMENT_TARGET = "$(RECOMMENDED_IPHONEOS_DEPLOYMENT_TARGET)";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-lavformat",
+					"-lavcodec",
+					"-lswresample",
+					"-lswscale",
+					"-lavutil",
+					"-ljson-c",
+					"-lz",
+					"-liconv",
+					"-lass",
+					"-lfribidi",
+					"-lunibreak",
+					"-lfontconfig",
+					"-lexpat",
+					"-lharfbuzz",
+					"-lfreetype",
+					"-lpng16",
+					"-lbz2",
+					"-lbrotlidec",
+					"-lbrotlicommon",
+					"-framework",
+					CoreText,
+				);
+				"OTHER_LDFLAGS[sdk=iphoneos*]" = (
+					"$(inherited)",
+					"-lavformat",
+					"-lavcodec",
+					"-lswresample",
+					"-lswscale",
+					"-lavutil",
+					"-ljson-c",
+					"-lz",
+					"-liconv",
+					"-weak_framework",
+					MetalFX,
+					"-lass",
+					"-lfribidi",
+					"-lunibreak",
+					"-lfontconfig",
+					"-lexpat",
+					"-lharfbuzz",
+					"-lfreetype",
+					"-lpng16",
+					"-lbz2",
+					"-lbrotlidec",
+					"-lbrotlicommon",
+					"-framework",
+					CoreText,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha.kirikiri;
+				PRODUCT_NAME = Kirikiri;
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
 		CE8CD29E309A153D0003D364 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -3840,7 +4327,7 @@
 					CoreText,
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha.reallive;
-				PRODUCT_NAME = Air;
+				PRODUCT_NAME = RealLive;
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -4373,6 +4860,15 @@
 			buildConfigurations = (
 				A73D3D35F8F97B6F28DCA1B2 /* Release */,
 				B6277E6420F2468AB7B016F4 /* Debug */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		8973D24C2F258625B464D0DF /* Build configuration list for PBXNativeTarget "Kirikiri" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A63E7A6234B25C74A36A071A /* Release */,
+				CA03FCAA0B7879EA4B26980B /* Debug */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
