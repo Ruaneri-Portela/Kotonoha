@@ -25,10 +25,13 @@ class VoiceDubbingApplet {
   std::vector<DebugAudioAsset> sceneAudio_;
   std::string characterFilter_;
   char manualId_[1024]{};
-  AudioClip original_, overlay_, take_;
+  AudioClip original_, overlay_, take_, sourceTake_, undoTake_;
   std::vector<float> originalPeaks_, overlayPeaks_, takePeaks_;
+  float undoSelectionStart_ = 0, undoSelectionEnd_ = 0;
+  bool hasUndo_ = false;
   float selectionStart_ = 0, selectionEnd_ = 0;
   bool lockOriginalDuration_ = true;
+  float pitchSemitones_ = 0;
   std::string status_;
   bool statusError_ = false;
   std::vector<SDL_AudioDeviceID> devices_;
@@ -49,6 +52,12 @@ class VoiceDubbingApplet {
   void stopPreview();
   void save();
   void discardOverlay();
+  void rememberEdit();
+  void undoEdit();
+  void resetTake();
+  void cropToSelection();
+  void fitSelection(bool stretch);
+  void applyPitch();
   void drawWaveform(const char *id, const std::vector<float> &peaks,
                     float duration, bool selection);
 

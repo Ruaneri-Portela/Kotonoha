@@ -337,6 +337,9 @@ void overlays() {
   require(provider.hasOverlay("voice.wav"),
           "Provider reports an effective audio overlay");
   const auto effectiveVoice = provider.loadAudio("voice.wav");
+  // Simulate a cache warmed by a runtime which supplied already-resolved PCM.
+  // forceOriginal must still decode the provider/archive source.
+  provider.noteAudio("voice.wav", effectiveVoice);
   const auto originalVoice = provider.loadAudio("voice.wav", true);
   require(effectiveVoice.data != originalVoice.data &&
               originalVoice.data ==

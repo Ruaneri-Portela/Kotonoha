@@ -78,6 +78,10 @@ std::string AssetProvider::overlayWriteId(const std::string &id) const {
 bool AssetProvider::contains(const std::string &id) const {
   return !overlayPath(id).empty() || containsAsset(id);
 }
+bool AssetProvider::contains(const std::string &id, AssetSource source) const {
+  return source == AssetSource::Original ? containsOriginalAsset(id)
+                                         : contains(id);
+}
 std::vector<Uint8> AssetProvider::read(const std::string &id) const {
   const auto file = overlayPath(id);
   if (file.empty())
@@ -94,9 +98,17 @@ std::vector<Uint8> AssetProvider::read(const std::string &id) const {
     throw std::runtime_error("Cannot read overlay asset: " + id);
   return bytes;
 }
+std::vector<Uint8> AssetProvider::read(const std::string &id,
+                                       AssetSource source) const {
+  return source == AssetSource::Original ? readOriginalAsset(id) : read(id);
+}
 std::string AssetProvider::localPath(const std::string &id) const {
   auto file = overlayPath(id);
   return file.empty() ? localPathAsset(id) : file;
+}
+std::string AssetProvider::localPath(const std::string &id,
+                                     AssetSource source) const {
+  return source == AssetSource::Original ? localPathAsset(id) : localPath(id);
 }
 std::vector<std::string> AssetProvider::list(const std::string &prefix) const {
   auto result = listAsset(prefix);
@@ -150,10 +162,16 @@ AudioClip AssetProvider::loadAudio(const std::string &id,
   noteAudio(id, clip);
   return clip;
 }
+AudioClip AssetProvider::loadAudio(const std::string &id,
+                                   AssetSource source) const {
+  return loadAudio(id, source == AssetSource::Original);
+}
 
 AudioClip AssetProvider::loadOriginalAudio(const std::string &id) const {
-  if (auto cached = originalAudio(id))
-    return std::move(*cached);
+  // A force-original request must not trust the normal playback cache. Some
+  // runtimes resolve a logical ID before loading it, and an older/cache-warm
+  // session may therefore have associated overlay PCM with that ID. Decode
+  // through the provider's original-only path every time.
   auto clip = loadAudioAsset(id);
   noteAudio(id, clip);
   return clip;
@@ -217,6 +235,15 @@ std::string AssetProvider::localPathAsset(const std::string &) const {
 std::unique_ptr<AssetStream>
 AssetProvider::openStream(const std::string &) const {
   return {};
+}
+std::unique_ptr<AssetStream>
+AssetProvider::openOriginalStream(const std::string &id) const {
+  return openStream(id);
+}
+std::unique_ptr<AssetStream>
+AssetProvider::openStream(const std::string &id, AssetSource source) const {
+  return source == AssetSource::Original ? openOriginalStream(id)
+                                         : openStream(id);
 }
 
 SurfacePtr AssetProvider::loadSurfaceAsset(const std::string &id) const {

@@ -37,6 +37,40 @@ bool HasAsciiCaseInsensitivePrefix(const std::string &value,
                     });
 }
 
+std::filesystem::path ResolveLooseOriginal(const std::filesystem::path &root,
+                                           const std::string &logical) {
+  const std::filesystem::path requested(logical);
+  if (requested.empty() || requested.is_absolute())
+    return {};
+
+  std::filesystem::path current = root;
+  std::error_code ec;
+  for (const auto &part : requested) {
+    const auto name = part.string();
+    if (name.empty() || name == ".")
+      continue;
+    if (name == "..")
+      return {};
+    std::filesystem::path match;
+    for (const auto &entry : std::filesystem::directory_iterator(current, ec)) {
+      if (ec)
+        return {};
+      if (!Kotonoha::SchoolDaysAsciiCaseEqual(entry.path().filename().string(),
+                                              name))
+        continue;
+      if (!match.empty())
+        return {};
+      match = entry.path();
+    }
+    if (match.empty())
+      return {};
+    current = std::move(match);
+  }
+  return std::filesystem::is_regular_file(current, ec) && !ec
+             ? current
+             : std::filesystem::path{};
+}
+
 } // namespace
 
 Assets::Assets(std::filesystem::path root, const std::string &overlay)
@@ -133,7 +167,44 @@ Kotonoha::AudioClip Assets::loadAudioAsset(const std::string &id) const {
   // Runtime playback resolves logical ORS paths before handing them to the
   // media player. Debug/audio tools operate on the logical ID, so normalize it
   // through the exact same resolver before the base decoder reads GPK bytes.
-  return Kotonoha::AssetProvider::loadAudioAsset(resolve(id));
+  return Kotonoha::AssetProvider::loadAudioAsset(resolveOriginal(id));
+}
+
+std::string Assets::resolveOriginal(const std::string &logical) const {
+  if (Kotonoha::IsSchoolDaysGpkUri(logical))
+    return logical;
+
+  const std::filesystem::path supplied(logical);
+  if (supplied.is_absolute()) {
+    std::error_code ec;
+    const auto relative = supplied.lexically_relative(directory);
+    if (!relative.empty() && *relative.begin() != ".." &&
+        std::filesystem::is_regular_file(supplied, ec) && !ec)
+      return supplied.string();
+    throw std::runtime_error("Invalid original School Days asset: " + logical);
+  }
+
+  // Never call ResolveSchoolDaysAssetPath here: its process-wide resolver is
+  // intentionally overlay-aware. Debug dubbing needs the immutable retail
+  // side even while an overlay is mounted.
+  if (mounted) {
+    auto originalLogical = logical;
+    if (Kotonoha::LookupMountedSchoolDaysAsset(originalLogical, true) !=
+            Kotonoha::SchoolDaysGpkLookupStatus::Present &&
+        originalLogical == "Voice03/03-BK/03-BK-H00/03-B K-H00-0410.OGG")
+      originalLogical = "Voice03/03-BK/03-BK-H00/03-BK-H00-0410.OGG";
+    if (Kotonoha::LookupMountedSchoolDaysAsset(originalLogical, true) ==
+        Kotonoha::SchoolDaysGpkLookupStatus::Present)
+      return Kotonoha::MakeSchoolDaysGpkUri(originalLogical);
+  }
+
+  auto file = ResolveLooseOriginal(directory, logical);
+  if (file.empty() && logical == "Voice03/03-BK/03-BK-H00/03-B K-H00-0410.OGG")
+    file = ResolveLooseOriginal(directory,
+                                "Voice03/03-BK/03-BK-H00/03-BK-H00-0410.OGG");
+  if (!file.empty())
+    return file.string();
+  throw std::runtime_error("Missing original School Days asset: " + logical);
 }
 
 bool Assets::containsAsset(const std::string &id) const {
@@ -147,12 +218,24 @@ bool Assets::containsAsset(const std::string &id) const {
   return std::filesystem::is_regular_file(id, ec);
 }
 
+bool Assets::containsOriginalAsset(const std::string &id) const {
+  try {
+    return containsAsset(resolveOriginal(id));
+  } catch (const std::exception &) {
+    return false;
+  }
+}
+
 std::vector<Uint8> Assets::readAsset(const std::string &id) const {
   std::vector<Uint8> bytes;
   std::string error;
   if (!Kotonoha::ReadSchoolDaysAssetRef(id, &bytes, &error))
     throw std::runtime_error(error + ": " + id);
   return bytes;
+}
+
+std::vector<Uint8> Assets::readOriginalAsset(const std::string &id) const {
+  return readAsset(resolveOriginal(id));
 }
 
 std::vector<std::string> Assets::listAsset(const std::string &prefix) const {
@@ -278,7 +361,18 @@ Assets::openStream(const std::string &id) const {
   std::string logical;
   if (!Kotonoha::SchoolDaysLogicalFromGpkUri(id, &logical))
     return {};
-  return Kotonoha::OpenMountedSchoolDaysAssetStream(logical);
+  // A GPK URI denotes the immutable retail archive entry. Overlay-aware
+  // logical resolution happens before a URI is produced.
+  return Kotonoha::OpenMountedSchoolDaysAssetStream(logical, true);
+}
+
+std::unique_ptr<Kotonoha::AssetStream>
+Assets::openOriginalStream(const std::string &id) const {
+  const auto original = resolveOriginal(id);
+  std::string logical;
+  if (!Kotonoha::SchoolDaysLogicalFromGpkUri(original, &logical))
+    return {};
+  return Kotonoha::OpenMountedSchoolDaysAssetStream(logical, true);
 }
 
 bool Assets::checkDirectory(const std::filesystem::path &root,

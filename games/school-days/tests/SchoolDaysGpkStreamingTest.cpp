@@ -133,6 +133,20 @@ int main() {
     const std::string rawId = assets.resolve("BGM/RAW.BIN");
     Require(Kotonoha::IsSchoolDaysGpkUri(rawId),
             "Raw fixture did not resolve to GPK URI");
+    const auto overlay = root / "overlay";
+    fs::create_directories(overlay / "BGM");
+    Write(overlay / "BGM/RAW.BIN", {'O', 'V', 'E', 'R', 'L', 'A', 'Y'});
+    std::string overlayError;
+    Require(Kotonoha::SetSchoolDaysAssetOverlay(overlay, &overlayError),
+            "Synthetic overlay could not be mounted: " + overlayError);
+    const auto effective = assets.resolve("BGM/RAW.BIN");
+    Require(!Kotonoha::IsSchoolDaysGpkUri(effective) &&
+                fs::equivalent(effective, overlay / "BGM/RAW.BIN"),
+            "Normal lookup did not continue to use the overlay");
+    const auto forcedOriginal = assets.read(rawId);
+    Require(std::string(forcedOriginal.begin(), forcedOriginal.end()) ==
+                "PREFIX-RAW-BODY",
+            "Explicit GPK URI was redirected through the overlay");
     auto stream = assets.openStream(rawId);
     Require(stream && stream->size() == 15u,
             "Raw GPK entry did not expose seekable stream");
