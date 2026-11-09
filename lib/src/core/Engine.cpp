@@ -59,6 +59,48 @@ void Engine::debugJumpToNode(const std::string &id) {
   resetNodeClock();
 }
 
+void Engine::debugRestartScene() {
+  if (settingsMenu->isOpen())
+    throw std::logic_error("Close engine settings before restarting the scene");
+  if (!runtime.debugNode().empty()) {
+    runtime.debugRestartScene();
+  } else {
+    auto &manager = GetVNManagerRuntime(*this);
+    const int current = manager.getCurrentNodeId();
+    if (current < 0 || manager.isFinished())
+      throw std::logic_error("There is no active scene to restart");
+    manager.debugJumpToNode(current);
+  }
+  resetNodeClock();
+}
+
+void Engine::debugAdvanceScene(double seconds) {
+  if (!std::isfinite(seconds) || seconds <= 0 || seconds > 60)
+    throw std::invalid_argument("Scene step must be within 0..60 seconds");
+  if (runtime.advanceStoryTime(seconds)) {
+    frameClock.reset();
+    return;
+  }
+  if (!timeline->isPlaying())
+    throw std::logic_error("The active scene has no time-based timeline");
+  timeline->setPaused(false);
+  timeline->update(seconds);
+  runtime.update();
+  timeline->setPaused(isStoryPaused());
+  frameClock.reset();
+}
+
+void Engine::debugAdvanceEvent() {
+  if (!runtime.handleAdvanceAction()) {
+    auto &manager = GetVNManagerRuntime(*this);
+    if (manager.getCurrentNodeId() >= 0 && !manager.isFinished())
+      manager.advance();
+    else if (!runtime.advanceStoryTime(1.0 / 24.0))
+      throw std::logic_error("The active runtime cannot advance an event");
+  }
+  frameClock.reset();
+}
+
 void Engine::loadKtrf(const std::string &path) {
   if (settingsMenu->isOpen())
     throw std::logic_error("Close engine settings before loading KTRF");
@@ -612,6 +654,23 @@ void Engine::SetAssetProvider(std::shared_ptr<AssetProvider> provider) {
     provider->setOverlay(settings.assetOverlayPath);
   assets = std::move(provider);
   SDL_LogInfo(LogCore, "Asset provider: %s", assets->name().c_str());
+}
+
+std::filesystem::path Engine::ensureAssetOverlay() {
+  auto root = assets->overlayDirectory();
+  if (!root.empty())
+    return root;
+  root = documentsDirectory(runtime.identify) / "overlay";
+  std::filesystem::create_directories(root);
+  assets->setOverlay(root);
+  constexpr const char *name = "Dubbing";
+  settings.assetOverlays[name] = root.string();
+  settings.assetOverlayName = name;
+  settings.assetOverlayPath = root.string();
+  saveSettings();
+  SDL_LogInfo(LogCore, "Created engine asset overlay: %s",
+              root.string().c_str());
+  return assets->overlayDirectory();
 }
 
 SDL_FPoint Engine::screenSize() const {

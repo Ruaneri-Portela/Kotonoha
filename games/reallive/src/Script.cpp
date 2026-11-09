@@ -45,6 +45,17 @@ libreallive::ExpressionPiece Parameter(const libreallive::CommandElement &c,
   auto raw = c.GetParam(static_cast<int>(i));
   const char *p = raw.c_str();
   try {
+    // Command parameters can contain an untagged complex tuple. A normal
+    // scalar can use the same bytecode wrapper, e.g. `(310)`. Parse the
+    // wrapper structurally: one contained expression is a scalar, while two
+    // or more remain a complex range (used by sums).
+    if (*p == '(') {
+      auto complex = libreallive::GetComplexParam(p);
+      const auto &parts = complex.GetContainedPieces();
+      if (parts.size() == 1)
+        return parts.front();
+      return complex;
+    }
     return libreallive::GetData(p);
   } catch (const std::exception &e) {
     throw std::runtime_error("Failed to parse parameter " + std::to_string(i) +

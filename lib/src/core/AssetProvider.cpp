@@ -50,6 +50,31 @@ void AssetProvider::setOverlay(const std::filesystem::path &directory) {
 std::string AssetProvider::overlayPath(const std::string &id) const {
   return overlay.resolve(overlayId(id));
 }
+bool AssetProvider::hasOverlay(const std::string &id) const {
+  return !overlayPath(id).empty();
+}
+bool AssetProvider::discardOverlay(const std::string &id) {
+  const auto resolved = overlayPath(id);
+  if (resolved.empty())
+    return false;
+  const auto root = overlay.root();
+  if (root.empty())
+    return false;
+  std::error_code error;
+  const auto canonical = std::filesystem::weakly_canonical(resolved, error);
+  if (error || canonical.parent_path().empty() ||
+      canonical.lexically_relative(root).empty() ||
+      *canonical.lexically_relative(root).begin() == "..")
+    throw std::runtime_error("Overlay asset escapes its mounted directory");
+  if (!std::filesystem::remove(canonical, error) || error)
+    throw std::runtime_error("Cannot discard overlay asset: " +
+                             error.message());
+  setOverlay(root);
+  return true;
+}
+std::string AssetProvider::overlayWriteId(const std::string &id) const {
+  return AssetOverlay::key(overlayId(id));
+}
 bool AssetProvider::contains(const std::string &id) const {
   return !overlayPath(id).empty() || containsAsset(id);
 }
@@ -108,14 +133,77 @@ SurfacePtr AssetProvider::loadFrame(const std::string &id,
   }
   return loadFrameAsset(id, seconds);
 }
-AudioClip AssetProvider::loadAudio(const std::string &id) const {
-  if (!overlayPath(id).empty()) {
+AudioClip AssetProvider::loadAudio(const std::string &id,
+                                   bool forceOriginal) const {
+  if (forceOriginal)
+    return loadOriginalAudio(id);
+  AudioClip clip;
+  if (hasOverlay(id)) {
     try {
-      return MediaDecoder::decodeAudio(read(id));
+      clip = MediaDecoder::decodeAudio(read(id));
+      noteAudio(id);
+      return clip;
     } catch (const std::exception &) {
     }
   }
-  return loadAudioAsset(id);
+  clip = loadAudioAsset(id);
+  noteAudio(id, clip);
+  return clip;
+}
+
+AudioClip AssetProvider::loadOriginalAudio(const std::string &id) const {
+  if (auto cached = originalAudio(id))
+    return std::move(*cached);
+  auto clip = loadAudioAsset(id);
+  noteAudio(id, clip);
+  return clip;
+}
+
+void AssetProvider::noteAudio(const std::string &id,
+                              const AudioClip &clip) const {
+  if (id.empty())
+    return;
+  std::lock_guard lock(debugAudioMutex_);
+  auto recent = std::find(recentAudio_.begin(), recentAudio_.end(), id);
+  if (recent != recentAudio_.end())
+    recentAudio_.erase(recent);
+  recentAudio_.push_front(id);
+  if (recentAudio_.size() > 64)
+    recentAudio_.pop_back();
+  // Voice lines are cheap to retain for waveform editing. Large music tracks
+  // remain discoverable but are reloaded on selection instead of duplicated.
+  if (clip.data.size() <= 128u * 1024u * 1024u)
+    originalAudio_[id] = clip;
+  if (originalAudio_.size() > 64)
+    for (auto i = recentAudio_.rbegin(); i != recentAudio_.rend(); ++i)
+      if (*i != id && originalAudio_.erase(*i))
+        break;
+}
+
+void AssetProvider::noteAudio(const std::string &id) const {
+  if (id.empty())
+    return;
+  std::lock_guard lock(debugAudioMutex_);
+  auto found = std::find(recentAudio_.begin(), recentAudio_.end(), id);
+  if (found != recentAudio_.end())
+    recentAudio_.erase(found);
+  recentAudio_.push_front(id);
+  if (recentAudio_.size() > 64)
+    recentAudio_.pop_back();
+}
+
+std::vector<std::string> AssetProvider::recentAudio() const {
+  std::lock_guard lock(debugAudioMutex_);
+  return {recentAudio_.begin(), recentAudio_.end()};
+}
+
+std::optional<AudioClip>
+AssetProvider::originalAudio(const std::string &id) const {
+  std::lock_guard lock(debugAudioMutex_);
+  auto found = originalAudio_.find(id);
+  return found == originalAudio_.end()
+             ? std::nullopt
+             : std::optional<AudioClip>(found->second);
 }
 
 std::vector<std::string> AssetProvider::listAsset(const std::string &) const {

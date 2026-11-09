@@ -1,5 +1,6 @@
 #pragma once
 
+#include <Kotonoha/core/AssetProvider.hpp>
 #include <Kotonoha/core/Scene.hpp>
 #include <Kotonoha/localization/Translation.hpp>
 
@@ -23,6 +24,12 @@ struct DebugNode {
   std::string id;
   std::string label;
   std::vector<std::string> assets;
+};
+
+struct DebugAudioAsset {
+  std::string id;
+  std::string character;
+  std::string text;
 };
 
 class Runtime {
@@ -142,8 +149,23 @@ public:
     return std::nullopt;
   }
   virtual std::vector<DebugNode> debugNodes() const { return {}; }
+  // Logical audio IDs belonging to the active scene. Archive runtimes can
+  // expose virtual IDs that do not exist as loose files.
+  virtual std::vector<DebugAudioAsset> debugSceneAudio() { return {}; }
+  virtual std::optional<AudioClip> debugOriginalAudio(const std::string &) {
+    return std::nullopt;
+  }
+  // Lets runtimes discard media prepared before a debug tool changed the
+  // engine's mounted overlay.
+  virtual void debugOverlayAssetChanged(const std::string &) {}
   virtual void debugJumpToNode(const std::string &) {
     throw std::runtime_error("This runtime does not support node jumps");
+  }
+  virtual void debugRestartScene() {
+    const auto current = debugNode();
+    if (current.empty())
+      throw std::runtime_error("There is no active scene to restart");
+    debugJumpToNode(current);
   }
   virtual bool hasCustomKtrf() const { return false; }
   virtual void loadKtrf(const std::string &) {

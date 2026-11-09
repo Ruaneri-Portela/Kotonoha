@@ -104,6 +104,21 @@ std::string Translation::text(int nodeId, const std::string &original) const {
   return original;
 }
 
+std::string Translation::text(const std::string &section,
+                              const std::string &original) const {
+  if (section.empty() && !original.empty())
+    globalSources.insert(original);
+  for (const auto &name : {section, std::string("nodo")}) {
+    const auto foundSection = sections.find(name);
+    if (foundSection == sections.end())
+      continue;
+    const auto entry = foundSection->second.find(original);
+    if (entry != foundSection->second.end())
+      return entry->second;
+  }
+  return original;
+}
+
 void Translation::dump(const std::string &path,
                        const SourceTexts &texts) const {
   JSON root{json_object_new_object()};

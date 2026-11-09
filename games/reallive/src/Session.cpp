@@ -4,6 +4,7 @@
 #include <cctype>
 #include <cstring>
 #include <iomanip>
+#include <optional>
 #include <sstream>
 #include <stdexcept>
 namespace RealLive {
@@ -91,6 +92,35 @@ bool Session::flow(const CommandElement &c) {
     const char *p = raw.c_str();
     return libreallive::GetExpression(p).GetIntegerValue(machine_);
   };
+  auto withData = [&](std::size_t first) {
+    std::vector<int> integers;
+    std::vector<std::string> strings;
+    for (std::size_t i = first; i < c.GetParamCount(); ++i) {
+      auto raw = c.GetParam(static_cast<int>(i));
+      const char *p = raw.c_str();
+      auto special = libreallive::GetData(p);
+      if (!special.IsSpecialParameter() ||
+          special.GetContainedPieces().size() != 1)
+        throw std::runtime_error("REALLIVE malformed *_with parameter");
+      const auto &piece = special.GetContainedPieces().front();
+      if (special.GetOverloadTag() == 0)
+        integers.push_back(piece.GetIntegerValue(machine_));
+      else if (special.GetOverloadTag() == 1)
+        strings.push_back(piece.GetStringValue(machine_));
+      else
+        throw std::runtime_error("REALLIVE unknown *_with parameter type");
+    }
+    return std::pair(std::move(integers), std::move(strings));
+  };
+  auto writeWithData = [&](const auto &data) {
+    for (std::size_t i = 0; i < data.first.size() && i < 40; ++i)
+      machine_.SetIntValue(
+          libreallive::IntMemRef(libreallive::INTL_LOCATION, 0, int(i)),
+          data.first[i]);
+    for (std::size_t i = 0; i < data.second.size(); ++i)
+      machine_.SetStringValue(libreallive::STRK_LOCATION, int(i),
+                              data.second[i]);
+  };
   if (op == 0 || op == 5) {
     target(c, 0, op == 5);
     return true;
@@ -139,14 +169,22 @@ bool Session::flow(const CommandElement &c) {
     seek(f.scene, f.pc);
     return true;
   }
-  if (op == 11 || op == 12 || op == 16 || op == 18) {
+  if (op == 16) {
+    auto data = withData(0);
+    target(c, 0, true);
+    writeWithData(data);
+    return true;
+  }
+  if (op == 11 || op == 12 || op == 18) {
     int n = value(0), entry = c.GetParamCount() > 1 ? value(1) : 0;
+    std::optional<std::pair<std::vector<int>, std::vector<std::string>>> data;
+    if (op == 18)
+      data = withData(2);
     if (op == 12 || op == 18)
       stack_.push_back({scene_, pc_ + 1});
-    if (op == 16)
-      target(c, 0, false);
-    else
-      jump(n, entry);
+    jump(n, entry);
+    if (data)
+      writeWithData(*data);
     return true;
   }
   return false;
@@ -374,17 +412,24 @@ bool Session::memory(const CommandElement &c) {
     break;
   }
   case 101: {
-    auto a = ref(0), b = ref(1);
-    int count = 0;
-    std::size_t n = 0;
-    while (a != b) {
-      if (++n > 1000000)
-        throw std::runtime_error("REALLIVE invalid memory range");
-      ++count;
-      ++a;
+    std::uint32_t total = 0;
+    for (std::size_t i = 0; i < c.GetParamCount(); ++i) {
+      auto range = p(static_cast<int>(i));
+      const auto &parts = range.GetContainedPieces();
+      if (!range.IsComplexParameter() || parts.size() != 2)
+        throw std::runtime_error("REALLIVE malformed sums range");
+      auto first = parts[0].GetIntegerReferenceIterator(machine_);
+      auto last = parts[1].GetIntegerReferenceIterator(machine_);
+      std::size_t n = 0;
+      while (first != last) {
+        if (++n > 1000000)
+          throw std::runtime_error("REALLIVE invalid sums range");
+        total += int(*first);
+        ++first;
+      }
+      total += int(*last);
     }
-    ++count;
-    machine_.set_store_register(count);
+    machine_.set_store_register(static_cast<std::int32_t>(total));
     break;
   }
   default:

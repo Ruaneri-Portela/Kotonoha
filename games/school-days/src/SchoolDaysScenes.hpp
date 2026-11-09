@@ -36,13 +36,17 @@ public:
 };
 
 class Subtitles final : public Kotonoha::SubtitleScene {
+  std::vector<Kotonoha::SubtitleCue> originalCues;
+
 protected:
   bool replacesPreviousCue() const override { return true; }
   std::string displayCueText(const std::string &text) const override;
 
 public:
   using SubtitleScene::SubtitleScene;
-  void bind(const Kotonoha_orsData &script);
+  void bind(const Kotonoha_orsData &script, const std::string &section);
+  std::vector<std::string> originalCueTexts() const;
+  std::vector<std::string> currentOriginalCueTexts() const;
 };
 
 class GameScene final : public Kotonoha::Scene {
@@ -63,7 +67,8 @@ class GameScene final : public Kotonoha::Scene {
   void syncChoice();
   bool ensureMenuBar();
   std::vector<int> choices() const;
-  bool normalizedPointer(float windowX, float windowY, float *x, float *y) const;
+  bool normalizedPointer(float windowX, float windowY, float *x,
+                         float *y) const;
   bool ensureChoiceScratch(Kotonoha::RendererRef renderer,
                            const std::vector<int> &visible);
   void renderChoices(Kotonoha::RendererRef renderer);

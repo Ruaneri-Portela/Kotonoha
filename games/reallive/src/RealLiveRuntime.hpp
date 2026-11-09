@@ -36,7 +36,11 @@ public:
   std::vector<std::string> translationTexts(int route) const override;
   std::string debugNode() const override;
   std::vector<Kotonoha::DebugNode> debugNodes() const override;
+  std::vector<Kotonoha::DebugAudioAsset> debugSceneAudio() override;
+  std::optional<Kotonoha::AudioClip>
+  debugOriginalAudio(const std::string &) override;
   void debugJumpToNode(const std::string &) override;
+  void debugRestartScene() override;
   bool debugStep();
   SDL_Point viewport() const override { return {960, 720}; }
   SDL_FPoint sceneSize(const Kotonoha::Scene &) const override;

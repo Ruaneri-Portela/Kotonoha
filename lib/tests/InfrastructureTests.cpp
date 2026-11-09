@@ -889,8 +889,10 @@ int main(int argc, char **argv) {
     require(
         std::filesystem::is_directory(preferredDocumentsDirectory("example")) &&
             std::filesystem::path(EngineSettings::defaultPath("example"))
-                    .parent_path() == preferredDocumentsDirectory("example"),
-        "Settings use the writable preferred documents directory");
+                    .parent_path() == documentsDirectory("example") &&
+            preferredDocumentsDirectory("example").parent_path() ==
+                documentsDirectory("example"),
+        "Settings use Documents while saves use its save child");
     rejects([] { gameAssetDirectory("../game"); },
             "Reject invalid game identifiers");
     SDL_HideWindow(&engine.GetWindow());

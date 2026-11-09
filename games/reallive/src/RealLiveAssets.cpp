@@ -56,7 +56,7 @@ ScriptArchive RealLiveAssets::scripts() const {
   }
   return ScriptArchive(read("Seen.txt"), overrides);
 }
-std::string RealLiveAssets::graphic(const std::string &name) const {
+std::string RealLiveAssets::graphic(const std::string &name, bool warn) const {
   std::string file = name;
   auto question = file.find('?');
   if (question != file.npos)
@@ -69,10 +69,19 @@ std::string RealLiveAssets::graphic(const std::string &name) const {
       if (contains(id))
         return canonical(id);
     }
-  SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
-              "Warning: REALLIVE graphic missing: %s (attempted: "
-              "G00/%s.{G00,PDT,PNG,BMP}, PDT/%s.{G00,PDT}, %s.{G00,PDT})",
-              name.c_str(), file.c_str(), file.c_str(), file.c_str());
+  // HIK backgrounds use numbered G00 frames. Until the timed HIK layer is
+  // active, resolve its first frame instead of treating the script name as a
+  // missing still image.
+  if (contains("HIK/" + file + ".HIK")) {
+    auto first = "G00/" + file + "_00.G00";
+    if (contains(first))
+      return canonical(first);
+  }
+  if (warn)
+    SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                "Warning: REALLIVE graphic missing: %s (attempted: "
+                "G00/%s.{G00,PDT,PNG,BMP}, PDT/%s.{G00,PDT}, %s.{G00,PDT})",
+                name.c_str(), file.c_str(), file.c_str(), file.c_str());
   return "";
 }
 std::string RealLiveAssets::animation(const std::string &name) const {

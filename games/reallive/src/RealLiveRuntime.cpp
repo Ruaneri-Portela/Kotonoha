@@ -18,6 +18,7 @@
 #include <Kotonoha/events/BacklogEvents.hpp>
 #include <Kotonoha/events/ControllerEvent.hpp>
 #include <Kotonoha/localization/Encoding.hpp>
+#include <Kotonoha/media/MediaDecoder.hpp>
 #include <Kotonoha/media/MediaPlayer.hpp>
 #include <Kotonoha/media/PcmPlayer.hpp>
 #include <Kotonoha/media/SurfaceBlend.hpp>
@@ -28,6 +29,7 @@
 #include <RealLive/Voice.hpp>
 #include <algorithm>
 #include <array>
+#include <charconv>
 #include <cmath>
 #include <cstring>
 #include <iomanip>
@@ -103,20 +105,20 @@ struct Text : VNTextBox {
   FontPtr font;
   Text(Engine &e, RealLiveAssets &a) : VNTextBox(e, "", "", 40), assets(a) {
     hide();
-    auto smw00c = assets.graphic("smw00c");
+    auto smw00c = assets.graphic("smw00c", false);
     if (!smw00c.empty()) {
       auto bytes = assets.read(smw00c);
       if (bytes.size() >= 5)
         buttonImage = decodeG00(bytes);
       buttonSurface = assets.loadSurface(smw00c);
     }
-    auto kcur00 = assets.graphic("kcur00");
+    auto kcur00 = assets.graphic("kcur00", false);
     if (!kcur00.empty())
       cursor = assets.loadSurface(kcur00);
-    auto smw00a = assets.graphic("smw00a");
+    auto smw00a = assets.graphic("smw00a", false);
     if (!smw00a.empty())
       frame = assets.loadSurface(smw00a);
-    auto smw00b = assets.graphic("smw00b");
+    auto smw00b = assets.graphic("smw00b", false);
     if (!smw00b.empty())
       back = assets.loadSurface(smw00b);
 
@@ -131,7 +133,7 @@ struct Text : VNTextBox {
           p[2] = 160;
           p[3] = Uint8(int(p[3]) * 200 / 255);
         }
-    } else {
+    } else if (!smw00b.empty()) {
       SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
                   "REALLIVE: Background surface invalid (smw00b): %s",
                   !back ? "null"
@@ -480,7 +482,10 @@ struct RealLiveRuntime::Impl {
       : runtime(r), assets(std::move(a)), archive(assets->scripts()),
         vm(archive,
            scene < 0 ? assets->settings().integer("SEEN_START", 9030) : scene),
-        voices(assets->list("KOE/")),
+        voices(
+            assets->list("KOE/"),
+            [this](const std::string &id) { return assets->read(id); },
+            [this](const std::string &id) { return assets->localPath(id); }),
         audio(parseAudioConfig(assets->settingsSource())) {
     syscomEntries.fill(1);
     vm.speaker = [this](std::string t) {
@@ -609,12 +614,11 @@ struct RealLiveRuntime::Impl {
     }
     return total;
   }
-  const AnmFrame *anmCurrentFrame(Object &o) {
+  const AnmFrame *anmCurrentFrame(const Object &o) {
     if (!o.anm || !o.anmPlaying || o.anm->sets.empty())
       return nullptr;
     const Anm &anm = *o.anm;
-    const int set =
-        std::clamp(o.anmSet, 0, int(anm.sets.size()) - 1);
+    const int set = std::clamp(o.anmSet, 0, int(anm.sets.size()) - 1);
     const Uint64 elapsed = SDL_GetTicks() - o.anmStart;
     const AnmFrame *last = nullptr;
     Uint64 t = 0;
@@ -861,9 +865,13 @@ struct RealLiveRuntime::Impl {
   TextureRef patternTexture(Graphic &g, size_t pattern) {
     const auto crop = patternRect(g, pattern);
     auto &cached = g.crops.at({crop.x, crop.y, crop.w, crop.h});
-    return presentationScale() == 1 ? *cached.original
-           : cached.display         ? *cached.display
-                                    : *cached.filtered;
+    SDL_Texture *texture = presentationScale() == 1 ? cached.original.get()
+                           : cached.display         ? cached.display.get()
+                                                    : cached.filtered.get();
+    if (!texture)
+      throw std::runtime_error(
+          "REALLIVE graphic pattern has no prepared texture");
+    return *texture;
   }
   void prepareGraphic(Graphic &g) {
     refreshImageUpscaling();
@@ -958,10 +966,19 @@ struct RealLiveRuntime::Impl {
       preparedBackground = backgroundTexture.get();
     }
     // Prepare all animation patterns before entering the composition target.
-    for (const auto &[id, o] : fg)
+    for (auto &[id, o] : fg)
       if (o.visible && !o.file.empty() && o.text.empty() &&
-          !(o.width > 0 && o.height > 0))
-        prepareGraphic(graphic(o.file));
+          !(o.width > 0 && o.height > 0)) {
+        if (o.anm) {
+          if (const auto *frame = anmCurrentFrame(o)) {
+            auto &g = graphic(o.anm->image);
+            prepareRaster(g, {frame->x1, frame->y1, frame->x2 - frame->x1 + 1,
+                              frame->y2 - frame->y1 + 1});
+          }
+        } else {
+          prepareGraphic(graphic(o.file));
+        }
+      }
     if (!compositionTexture || compositionTexture->w != canvasW * scale ||
         compositionTexture->h != canvasH * scale) {
       compositionTexture.reset(SDL_CreateTexture(
@@ -1003,7 +1020,24 @@ struct RealLiveRuntime::Impl {
                           o.clip.h * scale};
       if (!SDL_SetRenderClipRect(&r, o.clipped ? &clip : nullptr))
         throw std::runtime_error(SDL_GetError());
-      if (o.width > 0 && o.height > 0) {
+      if (o.anm) {
+        const auto *frame = anmCurrentFrame(o);
+        if (!frame)
+          continue;
+        auto &g = graphic(o.anm->image);
+        const SDL_Rect source{frame->x1, frame->y1, frame->x2 - frame->x1 + 1,
+                              frame->y2 - frame->y1 + 1};
+        auto &raster = prepareRaster(g, source);
+        if (!raster.original)
+          continue;
+        const SDL_FRect area{float(frame->destX * scale),
+                             float(frame->destY * scale),
+                             float(source.w * scale), float(source.h * scale)};
+        if (!SDL_SetTextureAlphaMod(raster.original.get(),
+                                    Uint8(std::clamp(o.alpha, 0, 255))) ||
+            !SDL_RenderTexture(&r, raster.original.get(), nullptr, &area))
+          throw std::runtime_error(SDL_GetError());
+      } else if (o.width > 0 && o.height > 0) {
         const SDL_FRect area{float(x * scale), float(y * scale),
                              float(o.width * scale), float(o.height * scale)};
         if (!SDL_SetRenderDrawBlendMode(&r, SDL_BLENDMODE_BLEND) ||
@@ -1283,8 +1317,8 @@ struct RealLiveRuntime::Impl {
         auto &g = graphic(o.anm->image);
         SDL_Rect src{frame->x1, frame->y1, frame->x2 - frame->x1 + 1,
                      frame->y2 - frame->y1 + 1};
-        SDL_Rect dst{frame->destX * scale, frame->destY * scale,
-                     src.w * scale, src.h * scale};
+        SDL_Rect dst{frame->destX * scale, frame->destY * scale, src.w * scale,
+                     src.h * scale};
         blit(*g.surface, dest, &src, &dst, o.alpha);
         return;
       }
@@ -1622,10 +1656,10 @@ struct RealLiveRuntime::Impl {
       engine->GetUI().text(r, error, 24, 26, 590);
     }
   }
-  void play(PcmPlayer &p, const std::string &id, const std::string &channel,
-            bool loop = false, int64_t start = 0, int64_t end = 0,
-            int64_t loopStart = 0, int64_t offsetMilliseconds = 0) {
-    auto a = assets->loadAudio(id);
+  void playClip(PcmPlayer &p, Kotonoha::AudioClip a, const std::string &id,
+                const std::string &channel, bool loop = false,
+                int64_t start = 0, int64_t end = 0, int64_t loopStart = 0,
+                int64_t offsetMilliseconds = 0) {
     SDL_AudioSpec target{SDL_AUDIO_S16, a.spec.channels, a.spec.freq};
     Uint8 *converted = nullptr;
     int size = 0;
@@ -1664,6 +1698,12 @@ struct RealLiveRuntime::Impl {
                                       clip.samples.size() / clip.channels);
     if (!p.Play(engine->GetAudio().channel(channel), std::move(clip)))
       throw std::runtime_error(SDL_GetError());
+  }
+  void play(PcmPlayer &p, const std::string &id, const std::string &channel,
+            bool loop = false, int64_t start = 0, int64_t end = 0,
+            int64_t loopStart = 0, int64_t offsetMilliseconds = 0) {
+    playClip(p, assets->loadAudio(id), id, channel, loop, start, end, loopStart,
+             offsetMilliseconds);
   }
   int value(const libreallive::CommandElement &c, int n, int fallback = 0) {
     return n < c.GetParamCount() ? IntegerParameter(vm.machine(), c, n)
@@ -1805,7 +1845,7 @@ struct RealLiveRuntime::Impl {
   void openSaves(bool load) {
     if (!saves)
       saves = std::make_unique<VNSaveMenu>(*engine);
-    std::string dir = (Kotonoha::saveDirectory() / "saves").string();
+    std::string dir = Kotonoha::saveDirectory().string();
     saves->open(dir, load, load ? "" : saveName);
     runtime.RemoveScene(saves.get());
     runtime.AddScene(saves.get());
@@ -1974,6 +2014,14 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
   const int type = c.modtype(), m = c.module(), op = c.opcode(),
             over = c.overload();
   auto &machine = vm.machine();
+  auto audioAsset = [this](const std::string &base) {
+    if (assets->contains(base))
+      return base;
+    for (const char *extension : {".WAV", ".OGG", ".NWA"})
+      if (assets->contains(base + extension))
+        return base + extension;
+    return std::string();
+  };
   if (type == 1 && (m == 12 || m == 13 || m == 41 || m == 255))
     return true;
   if (type == 0 && m == 4)
@@ -2250,21 +2298,22 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
       }
       return true;
     case 1703:
-      if (!editFields.count(value(c, 0)))
-        throw std::runtime_error(
-            "REALLIVE edit focus references a missing field");
       focusedEdit = value(c, 0);
+      // A debug jump or an old save can enter after the matching 1700. Native
+      // RealLive tolerates this; retain the text in a default field until the
+      // script supplies its geometry.
+      editFields.try_emplace(focusedEdit);
       SDL_StartTextInput(&engine->GetWindow());
       return true;
     case 1710: {
-      auto &field = editFields.at(value(c, 0));
+      auto &field = editFields[value(c, 0)];
       field.raw = str(c, 1);
       field.text =
           decodeText(field.raw, archive.Scenario(vm.scenario()).encoding());
       return true;
     }
     case 1711: {
-      auto &field = editFields.at(value(c, 0));
+      auto &field = editFields[value(c, 0)];
       auto raw = field.raw;
       const int encoding = archive.Scenario(vm.scenario()).encoding();
       if (field.text != decodeText(raw, encoding)) {
@@ -2320,19 +2369,29 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
     return true;
   }
   if (type == 1 && m == 40 && (op == 10 || op == 100)) {
-    std::string name = str(c, 0);
+    const bool blankBackground = op == 10 && over == 0;
+    std::string name = blankBackground ? std::string() : str(c, 0);
     if (name == "???")
       name = lastGraphic;
     transitionOld = compose(presentationScale());
     transitionTexture.reset();
     transitionStart = SDL_GetTicks();
     std::ostringstream key;
-    key << "SEL." << std::setw(3) << std::setfill('0') << value(c, 1);
+    const int sel = blankBackground ? value(c, 0) : value(c, 1);
+    key << "SEL." << std::setw(3) << std::setfill('0') << sel;
     transitionMs = assets->settings().integer(key.str(), 0, 6);
     transitionStyle = assets->settings().integer(key.str(), 0, 7);
     wait(transitionMs);
-    auto &g = graphic(name);
-    blit(*g.surface, surface(0));
+    if (blankBackground) {
+      auto &destination = surface(0);
+      SDL_FillSurfaceRect(&destination, nullptr,
+                          SDL_MapSurfaceRGBA(&destination, 0, 0, 0, 0));
+      lastGraphic.clear();
+    } else {
+      auto &g = graphic(name);
+      blit(*g.surface, surface(0));
+      lastGraphic = name;
+    }
     fg = std::move(bg);
     bg.clear();
     textbox->hide();
@@ -2417,12 +2476,29 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
   if (type == 1 && m == 23 && (op == 0 || op == 3 || op == 6 || op == 101)) {
     if (op != 0)
       return true;
-    auto p = voices.find(value(c, 0));
-    if (p) {
-      play(voice, p->generic_string(), "Voice");
-    } else {
+    const int voiceId = value(c, 0);
+    const std::string overlayVoice =
+        "voice/" + std::to_string(voiceId) + ".wav";
+    if (!assets->overlayPath(overlayVoice).empty()) {
+      auto clip = assets->loadAudio(overlayVoice);
+      playClip(voice, std::move(clip), "voice:" + std::to_string(voiceId),
+               "Voice");
+      return true;
+    }
+    auto bytes = voices.read(voiceId);
+    if (bytes) {
+      auto encoded = bytes->size() >= 4 && (*bytes)[0] == 'O' &&
+                             (*bytes)[1] == 'g' && (*bytes)[2] == 'g' &&
+                             (*bytes)[3] == 'S'
+                         ? std::move(*bytes)
+                         : nwaToWav(*bytes);
+      auto clip = Kotonoha::MediaDecoder::decodeAudio(encoded);
+      assets->noteAudio(overlayVoice, clip);
+      playClip(voice, std::move(clip), "voice:" + std::to_string(voiceId),
+               "Voice");
+    } else if (voiceId > 0) {
       SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
-                  "Warning: REALLIVE voice missing for index %d", value(c, 0));
+                  "Warning: REALLIVE voice missing for index %d", voiceId);
     }
     return true;
   }
@@ -2432,15 +2508,12 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
       auto &sound = sounds[mapping->second.channel];
       if (!sound)
         sound = std::make_unique<PcmPlayer>();
-      std::string id = "WAV/" + mapping->second.file;
-      if (!assets->contains(id)) {
-        if (!assets->contains(id + ".WAV")) {
-          SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
-                      "Warning: Sound effect not found: WAV/%s",
-                      mapping->second.file.c_str());
-          return true; // Skip missing sound effect
-        }
-        id += ".WAV";
+      std::string id = audioAsset("WAV/" + mapping->second.file);
+      if (id.empty()) {
+        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                    "Warning: Sound effect not found: WAV/%s",
+                    mapping->second.file.c_str());
+        return true; // Skip missing sound effect
       }
       play(*sound, id, "Se");
     }
@@ -2454,14 +2527,11 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
       auto &p = sounds[channel];
       if (!p)
         p = std::make_unique<PcmPlayer>();
-      std::string id = "WAV/" + str(c, 0);
-      if (!assets->contains(id)) {
-        if (!assets->contains(id + ".WAV")) {
-          SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
-                      "Warning: PCM audio not found: %s", str(c, 0).c_str());
-          return true; // Skip missing PCM
-        }
-        id += ".WAV";
+      std::string id = audioAsset("WAV/" + str(c, 0));
+      if (id.empty()) {
+        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                    "Warning: PCM audio not found: %s", str(c, 0).c_str());
+        return true; // Skip missing PCM
       }
       play(*p, id, "PCM", op == 2);
       return true;
@@ -3041,8 +3111,8 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
       if (c.GetParamCount() < 14)
         throw std::runtime_error("Malformed REALLIVE recZoom");
       const auto bounds = [&](int first) {
-        SDL_Rect rect{value(c, first), value(c, first + 1),
-                      value(c, first + 2), value(c, first + 3)};
+        SDL_Rect rect{value(c, first), value(c, first + 1), value(c, first + 2),
+                      value(c, first + 3)};
         if (rect.w <= 0 || rect.h <= 0)
           throw std::runtime_error("Invalid REALLIVE recZoom rectangle");
         return rect;
@@ -3882,6 +3952,55 @@ std::vector<DebugNode> RealLiveRuntime::debugNodes() const {
     nodes.push_back({std::to_string(n), "SEEN " + std::to_string(n), {}});
   return nodes;
 }
+std::vector<DebugAudioAsset> RealLiveRuntime::debugSceneAudio() {
+  std::vector<DebugAudioAsset> result;
+  for (const auto &element : impl->archive.Scenario(impl->vm.scenario())) {
+    const auto *command =
+        dynamic_cast<const libreallive::CommandElement *>(element.get());
+    if (!command || command->modtype() != 1 || command->module() != 23 ||
+        command->opcode() != 0 || command->GetParamCount() == 0)
+      continue;
+    try {
+      const int voice = IntegerParameter(impl->vm.machine(), *command, 0);
+      if (voice <= 0)
+        continue;
+      auto id = "voice/" + std::to_string(voice) + ".wav";
+      if (std::none_of(result.begin(), result.end(),
+                       [&](const auto &item) { return item.id == id; }))
+        result.push_back({std::move(id), {}});
+    } catch (const std::exception &) {
+      // Dynamic voice expressions still appear when actually played through
+      // AssetProvider::noteAudio; static scene enumeration remains safe.
+    }
+  }
+  return result;
+}
+std::optional<Kotonoha::AudioClip>
+RealLiveRuntime::debugOriginalAudio(const std::string &id) {
+  constexpr std::string_view prefix = "voice/";
+  constexpr std::string_view suffix = ".wav";
+  if (id.size() <= prefix.size() + suffix.size() ||
+      id.compare(0, prefix.size(), prefix) != 0 ||
+      id.compare(id.size() - suffix.size(), suffix.size(), suffix) != 0)
+    return std::nullopt;
+  int voice = 0;
+  const auto first = id.data() + prefix.size();
+  const auto last = id.data() + id.size() - suffix.size();
+  auto parsed = std::from_chars(first, last, voice);
+  if (parsed.ec != std::errc{} || parsed.ptr != last || voice <= 0)
+    return std::nullopt;
+  auto bytes = impl->voices.read(voice);
+  if (!bytes)
+    return std::nullopt;
+  auto encoded = bytes->size() >= 4 && (*bytes)[0] == 'O' &&
+                         (*bytes)[1] == 'g' && (*bytes)[2] == 'g' &&
+                         (*bytes)[3] == 'S'
+                     ? std::move(*bytes)
+                     : nwaToWav(*bytes);
+  auto clip = Kotonoha::MediaDecoder::decodeAudio(encoded);
+  impl->assets->noteAudio(id, clip);
+  return clip;
+}
 void RealLiveRuntime::debugJumpToNode(const std::string &s) {
   auto colon = s.find(':');
   if (colon == s.npos)
@@ -3909,6 +4028,9 @@ void RealLiveRuntime::debugJumpToNode(const std::string &s) {
   impl->zoomTexture.reset();
   if (impl->textbox)
     impl->textbox->hide();
+}
+void RealLiveRuntime::debugRestartScene() {
+  debugJumpToNode(std::to_string(impl->vm.scenario()));
 }
 bool RealLiveRuntime::debugStep() {
   auto &i = *impl;

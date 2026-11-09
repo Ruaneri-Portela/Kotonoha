@@ -55,8 +55,8 @@ void testDensity(Kotonoha::Engine &engine, float density) {
               presentation == SDL_LOGICAL_PRESENTATION_DISABLED,
           "ImGui does not inherit novel letterboxing");
 
-  auto *window = ImGui::FindWindowByName("Kotonoha Debug [F10]");
-  require(window != nullptr, "Find rendered inspector");
+  auto *window = ImGui::FindWindowByName("Kotonoha Debug Applets [F10]");
+  require(window != nullptr, "Find rendered applet hub");
   const float logicalRight = window->Pos.x + window->Size.x;
   const float logicalBottom = window->Pos.y + window->Size.y;
   Kotonoha::SurfacePtr image{SDL_RenderReadPixels(&renderer, nullptr)};

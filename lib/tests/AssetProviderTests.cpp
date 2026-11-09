@@ -314,9 +314,16 @@ void overlays() {
     std::ofstream file(dir.path / "script.ks");
     file << "translated";
   }
+  auto dubbed = wave();
+  dubbed.back() = 99;
+  {
+    std::ofstream file(dir.path / "voice.wav", std::ios::binary);
+    file.write(reinterpret_cast<const char *>(dubbed.data()), dubbed.size());
+  }
   MemoryAssetProvider provider;
   provider.files["script.ks"] = {'b', 'a', 's', 'e'};
   provider.files["untouched"] = {'o', 'k'};
+  provider.files["voice.wav"] = wave();
   provider.setOverlay(dir.path);
   require(provider.contains("images/scene.bmp"),
           "Overlay-only asset is visible");
@@ -327,9 +334,21 @@ void overlays() {
           "Missing overlay falls back to archive");
   require(!provider.localPath("Images/Scene.bmp").empty(),
           "Streaming opens the overlay file");
+  require(provider.hasOverlay("voice.wav"),
+          "Provider reports an effective audio overlay");
+  const auto effectiveVoice = provider.loadAudio("voice.wav");
+  const auto originalVoice = provider.loadAudio("voice.wav", true);
+  require(effectiveVoice.data != originalVoice.data &&
+              originalVoice.data ==
+                  provider.loadOriginalAudio("voice.wav").data,
+          "Forced-original audio bypasses the overlay");
+  require(provider.discardOverlay("voice.wav") &&
+              !provider.hasOverlay("voice.wav") &&
+              provider.loadAudio("voice.wav").data == originalVoice.data,
+          "Discarding an overlay immediately restores original audio");
   require(provider.loadSurface("images/scene.bmp")->w == 3,
           "Overlay image decoder");
-  require(provider.list().size() == 3,
+  require(provider.list().size() == 4,
           "Overlay and archive listings merge without duplicates");
   require(provider.overlayPath("../script.ks").empty() &&
               provider.overlayPath((dir.path / "script.ks").string()).empty(),

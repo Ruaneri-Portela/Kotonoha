@@ -1,3 +1,4 @@
+#include <Kirikiri/KagScript.hpp>
 #include <Kirikiri/KirikiriAssets.hpp>
 
 #include <cstdio>
@@ -196,6 +197,33 @@ int main() {
     ++failures;
   } else {
     std::printf("PASS: scenarioFiles found scenario/first.ks\n");
+  }
+
+  // Save restoration resumes after the already-presented dialogue, and label
+  // jumps alter the actual runner rather than being a logging-only stub.
+  {
+    auto script = Kirikiri::KagScript::parse(
+        "[cm text=\"first\"]\n*later\n[cm text=\"second\"]", "state.ks");
+    std::vector<std::string> shown;
+    Kirikiri::KagScript::Callbacks callbacks;
+    callbacks.showText = [&shown](std::string, std::string text) {
+      shown.push_back(std::move(text));
+    };
+    Kirikiri::KagScript::Runner runner(script, callbacks);
+    runner.run();
+    const auto savedPosition = runner.position();
+    Kirikiri::KagScript::Runner restored(script, callbacks);
+    restored.restorePosition(savedPosition);
+    restored.run();
+    if (shown.size() != 2 || shown.back() != "second") {
+      std::printf("FAIL: restored KAG runner did not resume after dialogue\n");
+      ++failures;
+    }
+    Kirikiri::KagScript::Runner jumped(script, callbacks);
+    if (!jumped.jumpToLabel("later")) {
+      std::printf("FAIL: KAG label jump was not resolved\n");
+      ++failures;
+    }
   }
 
   std::filesystem::remove_all(tempDir);

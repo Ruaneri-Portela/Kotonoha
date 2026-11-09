@@ -2169,7 +2169,7 @@ void Runtime::bindScene(const Kotonoha::SchoolDaysKtrfScene &next,
   for (auto *event = script.data; event != nullptr; event = event->next)
     event->eventPrepared = false;
   if (subtitles)
-    subtitles->bind(script);
+    subtitles->bind(script, scene.sceneKey);
   // Native ScriptChange truncates abandoned-branch BackLog messages. Replay
   // Data owns an isolated transient history; ordinary HScene Replay owns none.
   const bool playData = playDataPlayback && playDataPlayback->IsOpen();
@@ -6828,10 +6828,48 @@ std::vector<Kotonoha::DebugNode> Runtime::debugNodes() const {
   return nodes;
 }
 
+std::vector<Kotonoha::DebugAudioAsset> Runtime::debugSceneAudio() {
+  std::vector<Kotonoha::DebugAudioAsset> result;
+  for (auto *voice = script.data; voice; voice = voice->next) {
+    if (voice->command != PLAY_VOICE || !voice->data.play_voice ||
+        !voice->data.play_voice->path)
+      continue;
+    Kotonoha::DebugAudioAsset audio{
+        std::string(Text(voice->data.play_voice->path)) + ".OGG",
+        Text(voice->data.play_voice->character_short),
+        {}};
+    // ORS voice and subtitle events normally overlap. Prefer the full subtitle
+    // speaker name and retain its text for the dubbing booth.
+    for (auto *line = script.data; line; line = line->next) {
+      if (line->command != PRINT_TEXT || !line->data.print_text ||
+          line->startTick >= voice->endTick ||
+          line->endTick <= voice->startTick)
+        continue;
+      audio.character = Text(line->data.print_text->character);
+      audio.text = Text(line->data.print_text->text);
+      break;
+    }
+    auto duplicate =
+        std::find_if(result.begin(), result.end(),
+                     [&](const auto &item) { return item.id == audio.id; });
+    if (duplicate == result.end())
+      result.push_back(std::move(audio));
+    else if (duplicate->character.empty() && !audio.character.empty())
+      *duplicate = std::move(audio);
+  }
+  return result;
+}
+
+void Runtime::debugOverlayAssetChanged(const std::string &) {
+  // Voices are prepared ahead of their authored start. Discard prepared
+  // originals so the next playback resolves the freshly written overlay.
+  resetPreparedMedia();
+}
+
 std::vector<std::string> Runtime::activeTranslationKeys() const {
   std::vector<std::string> keys;
   if (subtitles) {
-    auto texts = subtitles->currentCueTexts();
+    auto texts = subtitles->currentOriginalCueTexts();
     keys.reserve(texts.size());
     for (auto &text : texts)
       keys.push_back(std::move(text));
@@ -6842,7 +6880,7 @@ std::vector<std::string> Runtime::activeTranslationKeys() const {
 Kotonoha::Translation::SourceTexts Runtime::translationSources() const {
   Kotonoha::Translation::SourceTexts sources;
   if (subtitles) {
-    auto texts = subtitles->currentCueTexts();
+    auto texts = subtitles->originalCueTexts();
     if (!texts.empty())
       sources[0] = std::move(texts);
   }
@@ -6869,6 +6907,23 @@ void Runtime::debugJumpToNode(const std::string &id) {
   Kotonoha::SchoolDaysKtrfGameplayBridge::StepResult result;
   Check(bridge.DebugJumpToNode(index, &result, &error), error);
   openScene(result.scene);
+}
+
+void Runtime::debugRestartScene() {
+  if (temporaryPlaybackActive())
+    throw std::runtime_error(
+        "School Days scene restart is unavailable during Replay playback");
+  debugJumpToNode(debugNode());
+}
+
+bool Runtime::advanceStoryTime(double seconds) {
+  if (!std::isfinite(seconds) || seconds <= 0)
+    throw std::invalid_argument("School Days scene step must be positive");
+  const auto amount = static_cast<Kotonoha_SceneTick>(
+      std::max(1.0, std::round(seconds * 24.0)));
+  const auto maximum = std::numeric_limits<Kotonoha_SceneTick>::max();
+  seek(tick > maximum - amount ? maximum : tick + amount);
+  return true;
 }
 
 void Runtime::loadKtrf(const std::string &path) {

@@ -705,7 +705,9 @@ public:
       positions_[a.channel] = a.position;
     }
   }
-  std::filesystem::path savesDirectory() const { return directory_ / "saves"; }
+  // directory_ is the engine-wide singular `save` directory.  DDLC slots
+  // belong directly there instead of creating the old save/saves nesting.
+  std::filesystem::path savesDirectory() const { return directory_; }
   std::vector<std::string> savedGames() override {
     std::vector<std::string> result;
     std::error_code error;

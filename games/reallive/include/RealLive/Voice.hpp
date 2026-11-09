@@ -1,6 +1,7 @@
 #pragma once
 #include <cstdint>
 #include <filesystem>
+#include <functional>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -11,13 +12,24 @@ namespace RealLive {
 // Indexes the edition's unpacked KOE voices without copying game assets.
 class VoiceIndex {
 public:
+  using Reader = std::function<std::vector<std::uint8_t>(const std::string &)>;
+  using LocalPath = std::function<std::string(const std::string &)>;
   explicit VoiceIndex(const std::filesystem::path &gameRoot);
   explicit VoiceIndex(const std::vector<std::string> &assets);
+  VoiceIndex(const std::vector<std::string> &assets, Reader reader,
+             LocalPath localPath);
   std::optional<std::filesystem::path> find(int id) const;
+  std::optional<std::vector<std::uint8_t>> read(int id) const;
   std::size_t size() const { return files_.size(); }
 
 private:
-  std::unordered_map<int, std::filesystem::path> files_;
+  struct Entry {
+    std::string asset;
+    std::filesystem::path local;
+    std::uint64_t offset = 0, size = 0;
+  };
+  std::unordered_map<int, Entry> files_;
+  Reader reader_;
 };
 // Converts uncompressed NWA PCM (-1 compression) to a standard RIFF WAV.
 // Throws for invalid data or compressed NWA, which this REALLIVE edition does not
