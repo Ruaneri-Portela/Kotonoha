@@ -1,7 +1,4 @@
 #include "SchoolDaysRuntime.hpp"
-#if defined(KOTONOHA_DEV_CONTROL) && defined(_WIN32)
-#include "SchoolDaysDevBridge.hpp"
-#endif
 #include <Kotonoha/componentes/DisplayModeCatalog.hpp>
 #include <Kotonoha/componentes/TextInputDialog.hpp>
 #include <Kotonoha/events/BackAction.hpp>
@@ -984,9 +981,6 @@ bool Runtime::resolveReplayScene(const char *sceneKey,
 }
 
 void Runtime::shutdown() {
-#if defined(KOTONOHA_DEV_CONTROL) && defined(_WIN32)
-  devBridge.reset();
-#endif
   // Join before the asset mount and decoder dependencies are released.
   abcAnalysisWorker.reset();
   resetPreparedMedia();
@@ -1069,70 +1063,17 @@ void Runtime::resetCarryFrame() {
     engine->GetVisualTransition().reset();
 }
 
-bool Runtime::devPauseRequested() const {
-#if defined(KOTONOHA_DEV_CONTROL) && defined(_WIN32)
-  return devPaused;
-#else
-  return false;
-#endif
-}
+bool Runtime::devPauseRequested() const { return false; }
 
-bool Runtime::devConsumeStep() {
-#if defined(KOTONOHA_DEV_CONTROL) && defined(_WIN32)
-  if (devStepBudget == 0)
-    return false;
-  --devStepBudget;
-  devStepping = true;
-  return true;
-#else
-  return false;
-#endif
-}
+bool Runtime::devConsumeStep() { return false; }
 
 void Runtime::devIdle() { lastClock = SDL_GetTicks(); }
 
-void Runtime::devControlPump(Kotonoha::RendererRef renderer) {
-#if defined(KOTONOHA_DEV_CONTROL) && defined(_WIN32)
-  ++devFrameIndex;
-  devStepping = false;
-  const bool active = engine && engine->GetVisualTransition().active();
-  if (devLastTransitionActive && !active)
-    traceDev("SceneTransitionCommit");
-  devLastTransitionActive = active;
-  if (devBridge)
-    devBridge->poll(*this, renderer);
-#else
-  (void)renderer;
-#endif
-}
+void Runtime::devControlPump(Kotonoha::RendererRef renderer) { (void)renderer; }
 
-void Runtime::devInputProcessed(Kotonoha::EventRef event) {
-#if defined(KOTONOHA_DEV_CONTROL) && defined(_WIN32)
-  if (event.common.reserved == 0 ||
-      (event.type != SDL_EVENT_MOUSE_BUTTON_DOWN &&
-       event.type != SDL_EVENT_MOUSE_BUTTON_UP &&
-       event.type != SDL_EVENT_MOUSE_MOTION &&
-       event.type != SDL_EVENT_KEY_DOWN && event.type != SDL_EVENT_KEY_UP))
-    return;
-  devLastActionId = event.common.reserved;
-  devLastActionFrame = devFrameIndex + 1;
-  devLastActionTimestampNs = SDL_GetTicksNS();
-  devLastActionScene = scene.sceneKey;
-  devLastActionNode = scene.nodeIndex;
-  traceDev("ActionInputProcessed");
-#else
-  (void)event;
-#endif
-}
+void Runtime::devInputProcessed(Kotonoha::EventRef event) { (void)event; }
 
-void Runtime::traceDev(const char *event) {
-#if defined(KOTONOHA_DEV_CONTROL) && defined(_WIN32)
-  if (devBridge)
-    devBridge->trace(event, *this);
-#else
-  (void)event;
-#endif
-}
+void Runtime::traceDev(const char *event) { (void)event; }
 
 void Runtime::init(Kotonoha::Engine &owner) {
   if (engine != &owner) {
@@ -1219,15 +1160,6 @@ void Runtime::init(Kotonoha::Engine &owner) {
     saveMenu = std::make_unique<Kotonoha::VNSaveMenu>(owner);
     backlogFallback =
         std::make_unique<Kotonoha::SchoolDaysBackLogEngine>(owner, *assets);
-#if defined(KOTONOHA_DEV_CONTROL) && defined(_WIN32)
-    unsigned short port = 47321;
-    if (const char *value = std::getenv("KOTONOHA_DEV_PORT")) {
-      const long parsed = std::strtol(value, nullptr, 10);
-      if (parsed > 0 && parsed <= 65535)
-        port = static_cast<unsigned short>(parsed);
-    }
-    devBridge = std::make_unique<DevBridge>(port);
-#endif
 
     // FILMENGINE.INI drives the retail save layout, FONTDATA and system SFX.
     std::string failure;
@@ -3497,9 +3429,6 @@ void Runtime::skipToNextChoice() {
 }
 
 void Runtime::update() {
-#if defined(KOTONOHA_DEV_CONTROL) && defined(_WIN32)
-  ++devUpdateIndex;
-#endif
   const Uint64 now = SDL_GetTicks();
   const double delta = (now - lastClock) / 1000.0;
   lastClock = now;
@@ -3759,9 +3688,6 @@ void Runtime::renderGameplay(Kotonoha::RendererRef renderer, float) {
   }
   const bool halted =
       pendingSeek.has_value() || paused || modal() ||
-#if defined(KOTONOHA_DEV_CONTROL) && defined(_WIN32)
-      (devPaused && !devStepping) ||
-#endif
       (!temporaryPlaybackActive() && bridge.HasPendingHandoff());
   for (auto it = playing.begin(); it != playing.end();) {
     if (!it->movie && tick >= it->event->endTick) {
@@ -3897,12 +3823,6 @@ void Runtime::renderGameplay(Kotonoha::RendererRef renderer, float) {
       authoredFade.drawable && authoredFade.alpha == 255;
   framePrimaryReady =
       primaryReady && !visualCoveredByFade && !pendingSeek && !modal();
-#if defined(KOTONOHA_DEV_CONTROL) && defined(_WIN32)
-  if (framePrimaryReady && !devLastPrimaryReady)
-    traceDev(background.empty() ? "IncomingMovieFrameReady"
-                                : "IncomingBackgroundReady");
-  devLastPrimaryReady = framePrimaryReady;
-#endif
   frameBoundary =
       (pendingSceneAdvance || choicePresentation.finalFrameRendered) &&
       !modal();

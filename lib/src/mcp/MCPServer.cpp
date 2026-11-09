@@ -30,10 +30,20 @@
 #include <fcntl.h>
 #include <io.h>
 #include <windows.h>
+#include <winsock2.h>
+#include <ws2tcpip.h>
 #else
+#include <arpa/inet.h>
 #include <csignal>
+#include <fcntl.h>
+#include <netinet/in.h>
 #include <poll.h>
+#include <sys/socket.h>
 #include <unistd.h>
+#endif
+
+#ifndef INVALID_SOCKET
+#define INVALID_SOCKET (-1)
 #endif
 
 namespace Kotonoha {
@@ -223,31 +233,62 @@ struct MCPServer::State {
   std::filesystem::path root;
   std::string buffer;
   bool initialized = false, ready = false, eof = false;
+  enum class Transport { Stdio, Socket } transport = Transport::Stdio;
 #ifndef _WIN32
   using SignalHandler = void (*)(int);
   SignalHandler previousPipeHandler;
 #endif
+  // Socket transport members (only used when transport == Transport::Socket).
+#ifdef _WIN32
+  SOCKET listenSocket = INVALID_SOCKET;
+  SOCKET clientSocket = INVALID_SOCKET;
+#else
+  int listenSocket = -1;
+  int clientSocket = -1;
+#endif
 
   State(Engine &engine, const std::string &fileRoot)
-      : engine(engine), root(std::filesystem::canonical(fileRoot)) {
+      : State(engine, fileRoot, 0) {}
+
+  State(Engine &engine, const std::string &fileRoot, int port)
+      : engine(engine), root(std::filesystem::canonical(fileRoot)),
+        transport(port > 0 ? Transport::Socket : Transport::Stdio) {
     if (!std::filesystem::is_directory(root))
       throw std::invalid_argument("MCP file root must be a directory");
+    if (transport == Transport::Socket) {
+      initSocket(port);
+    } else {
 #ifdef _WIN32
-    if (_setmode(_fileno(stdin), _O_BINARY) < 0 ||
-        _setmode(_fileno(stdout), _O_BINARY) < 0)
-      throw std::runtime_error("Cannot configure MCP binary stdio");
+      if (_setmode(_fileno(stdin), _O_BINARY) < 0 ||
+          _setmode(_fileno(stdout), _O_BINARY) < 0)
+        throw std::runtime_error("Cannot configure MCP binary stdio");
 #else
-    previousPipeHandler = std::signal(SIGPIPE, SIG_IGN);
-    if (previousPipeHandler == SIG_ERR)
-      throw std::runtime_error("Cannot configure MCP pipe handling");
+      previousPipeHandler = std::signal(SIGPIPE, SIG_IGN);
+      if (previousPipeHandler == SIG_ERR)
+        throw std::runtime_error("Cannot configure MCP pipe handling");
 #endif
+    }
   }
 
   ~State() {
+    if (clientSocket != INVALID_SOCKET && clientSocket >= 0)
+      closeSocket(clientSocket);
+    if (listenSocket != INVALID_SOCKET && listenSocket >= 0)
+      closeSocket(listenSocket);
 #ifndef _WIN32
     std::signal(SIGPIPE, previousPipeHandler);
 #endif
   }
+
+  // --- socket transport -------------------------------------------------
+  void initSocket(int port);
+  void closeSocket(int &fd);
+#ifdef _WIN32
+  void closeSocket(SOCKET &fd);
+#endif
+  bool tryAcceptClient();
+  bool tryReadClient();
+  void sendRaw(const std::string &line);
 
   std::string filePath(json_object *arguments) const {
     const auto requested = stringValue(field(arguments, "path"));
@@ -266,9 +307,7 @@ struct MCPServer::State {
     const std::string line = std::string(json_object_to_json_string_ext(
                                  message, JSON_C_TO_STRING_PLAIN)) +
                              "\n";
-    if (std::fwrite(line.data(), 1, line.size(), stdout) != line.size() ||
-        std::fflush(stdout) != 0)
-      throw std::runtime_error("Cannot write MCP stdout response");
+    sendRaw(line);
   }
 
   void reply(json_object *id, JSON result, int error = 0,
@@ -617,6 +656,15 @@ struct MCPServer::State {
 
   void readInput() {
     char chunk[4096];
+    if (transport == Transport::Socket) {
+      // Accept a client if none is connected yet.
+      if (!tryAcceptClient())
+        return;
+      // Read available data (non-blocking).
+      if (!tryReadClient())
+        return;
+      return;
+    }
     for (int count = 0; count < 16 && !eof; ++count) {
 #ifdef _WIN32
       const HANDLE input = GetStdHandle(STD_INPUT_HANDLE);
@@ -663,8 +711,150 @@ struct MCPServer::State {
   }
 };
 
+void MCPServer::State::initSocket(int port) {
+#ifdef _WIN32
+  WSADATA wsaData;
+  if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0)
+    throw std::runtime_error("Cannot initialize Winsock");
+#endif
+  listenSocket = socket(AF_INET, SOCK_STREAM, 0);
+#ifdef _WIN32
+  if (listenSocket == INVALID_SOCKET)
+#else
+  if (listenSocket < 0)
+#endif
+    throw std::runtime_error("Cannot create MCP listen socket");
+  int one = 1;
+#ifdef _WIN32
+  setsockopt(listenSocket, SOL_SOCKET, SO_REUSEADDR, (char *)&one, sizeof(one));
+#else
+  setsockopt(listenSocket, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(one));
+#endif
+  sockaddr_in addr{};
+  addr.sin_family = AF_INET;
+  addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+  addr.sin_port = htons(static_cast<unsigned short>(port));
+  if (bind(listenSocket, reinterpret_cast<sockaddr *>(&addr), sizeof(addr)) < 0)
+    throw std::runtime_error("Cannot bind MCP listen socket");
+  if (listen(listenSocket, 1) < 0)
+    throw std::runtime_error("Cannot listen on MCP socket");
+#ifdef _WIN32
+  u_long nonblock = 1;
+  ioctlsocket(listenSocket, FIONBIO, &nonblock);
+#else
+  int flags = fcntl(listenSocket, F_GETFL, 0);
+  fcntl(listenSocket, F_SETFL, flags | O_NONBLOCK);
+#endif
+}
+
+void MCPServer::State::closeSocket(int &fd) {
+  if (fd >= 0) {
+    close(fd);
+    fd = -1;
+  }
+}
+
+#ifdef _WIN32
+void MCPServer::State::closeSocket(SOCKET &fd) {
+  if (fd != INVALID_SOCKET) {
+    closesocket(fd);
+    fd = INVALID_SOCKET;
+  }
+}
+#endif
+
+bool MCPServer::State::tryAcceptClient() {
+  if (clientSocket != INVALID_SOCKET && clientSocket >= 0)
+    return true;
+#ifdef _WIN32
+  SOCKET client = accept(listenSocket, nullptr, nullptr);
+  if (client == INVALID_SOCKET) {
+    int err = WSAGetLastError();
+    if (err == WSAEWOULDBLOCK || err == WSAECONNABORTED)
+      return false;
+    throw std::runtime_error("Cannot accept MCP socket connection");
+  }
+#else
+  int client = accept(listenSocket, nullptr, nullptr);
+  if (client < 0) {
+    if (errno == EAGAIN || errno == EWOULDBLOCK || errno == ECONNABORTED)
+      return false;
+    throw std::runtime_error("Cannot accept MCP socket connection");
+  }
+#endif
+  clientSocket = client;
+#ifdef _WIN32
+  u_long nonblock = 1;
+  ioctlsocket(clientSocket, FIONBIO, &nonblock);
+#else
+  int flags = fcntl(clientSocket, F_GETFL, 0);
+  fcntl(clientSocket, F_SETFL, flags | O_NONBLOCK);
+#endif
+  return true;
+}
+
+bool MCPServer::State::tryReadClient() {
+  if (clientSocket == INVALID_SOCKET || clientSocket < 0)
+    return false;
+  char chunk[4096];
+  int received = 0;
+#ifdef _WIN32
+  received = recv(clientSocket, chunk, (int)sizeof(chunk), 0);
+  if (received == SOCKET_ERROR) {
+    int err = WSAGetLastError();
+    if (err == WSAEWOULDBLOCK)
+      return false;
+    throw std::runtime_error("Cannot read MCP socket");
+  }
+  if (received == 0) {
+    eof = true;
+    return false;
+  }
+#else
+  ssize_t n = read(clientSocket, chunk, sizeof(chunk));
+  if (n < 0) {
+    if (errno == EAGAIN || errno == EWOULDBLOCK)
+      return false;
+    throw std::runtime_error("Cannot read MCP socket");
+  }
+  if (n == 0) {
+    eof = true;
+    return false;
+  }
+  received = static_cast<int>(n);
+#endif
+  buffer.append(chunk, static_cast<std::size_t>(received));
+  if (buffer.size() > 1024 * 1024)
+    throw std::runtime_error("MCP input buffer exceeds 1 MiB");
+  return true;
+}
+
+void MCPServer::State::sendRaw(const std::string &line) {
+  if (transport == Transport::Socket) {
+    if (clientSocket == INVALID_SOCKET || clientSocket < 0)
+      throw std::runtime_error("MCP socket client not connected");
+#ifdef _WIN32
+    int sent = send(clientSocket, line.data(), (int)line.size(), 0);
+    if (sent == SOCKET_ERROR)
+      throw std::runtime_error("Cannot write MCP socket response");
+#else
+    ssize_t sent = write(clientSocket, line.data(), line.size());
+    if (sent < 0)
+      throw std::runtime_error("Cannot write MCP socket response");
+#endif
+    if (static_cast<std::size_t>(sent) != line.size())
+      throw std::runtime_error("MCP socket write was incomplete");
+  } else {
+    if (std::fwrite(line.data(), 1, line.size(), stdout) != line.size() ||
+        std::fflush(stdout) != 0)
+      throw std::runtime_error("Cannot write MCP stdout response");
+  }
+}
+
 MCPServer::MCPServer(Engine &engine, const std::string &root)
     : state(std::make_unique<State>(engine, root)) {}
+MCPServer::MCPServer(Engine &engine, const std::string &root, int port)
+    : state(std::make_unique<State>(engine, root, port)) {}
 MCPServer::~MCPServer() = default;
 
 bool MCPServer::pump() {

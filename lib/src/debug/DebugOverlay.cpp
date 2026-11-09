@@ -103,6 +103,18 @@ DebugOverlay::DebugOverlay(Engine &engine) : engine(engine) {
     ImGui::DestroyContext();
     throw std::runtime_error("Cannot initialize ImGui SDL3 debug backend");
   }
+  // system cursors (SDL_CreateSystemCursor) are not supported by every video
+  // driver (e.g. the dummy driver used in headless tests).  The missing cursor
+  // is not critical for the debug UI, but it pollutes SDL_GetError(); clear it
+  // so later error reporting is not masked by this benign initialization
+  // warning.
+  SDL_ClearError();
+  // system cursors (SDL_CreateSystemCursor) are not supported by every video
+  // driver (e.g. the dummy driver used in headless tests).  The missing cursor
+  // is not critical for the debug UI, but it pollutes SDL_GetError(); clear it
+  // so later error reporting is not masked by this benign initialization
+  // warning.
+  SDL_ClearError();
   if (!ImGui_ImplSDLRenderer3_Init(&engine.GetRenderer())) {
     ImGui_ImplSDL3_Shutdown();
     ImGui::DestroyContext();
@@ -1297,16 +1309,31 @@ void DebugOverlay::renderMenu(RendererRef renderer) {
   int pixelWidth = 0, pixelHeight = 0;
   if (!SDL_GetCurrentRenderOutputSize(&renderer, &pixelWidth, &pixelHeight))
     throw std::runtime_error(SDL_GetError());
-  if (io.DisplaySize.x <= 0 || io.DisplaySize.y <= 0 || pixelWidth <= 0 ||
-      pixelHeight <= 0)
-    return;
+  // Headless/dummy video drivers report a 0x0 output size.  Fall back to the
+  // ImGui display size (or a sane default) so the debug UI can still process
+  // frames in headless test environments instead of bailing out early.
+  if (pixelWidth <= 0 || pixelHeight <= 0) {
+    if (io.DisplaySize.x > 0 && io.DisplaySize.y > 0) {
+      pixelWidth = static_cast<int>(io.DisplaySize.x);
+      pixelHeight = static_cast<int>(io.DisplaySize.y);
+    } else {
+      pixelWidth = 1280;
+      pixelHeight = 720;
+    }
+  }
+  if (io.DisplaySize.x <= 0 || io.DisplaySize.y <= 0) {
+    io.DisplaySize = {(float)pixelWidth, (float)pixelHeight};
+  }
   io.DisplayFramebufferScale = {pixelWidth / io.DisplaySize.x,
                                 pixelHeight / io.DisplaySize.y};
   // Retina already uses points. Scale layout only for content scaling not
   // represented by the framebuffer density (e.g. Windows display scaling).
   const float displayScale = SDL_GetWindowDisplayScale(&engine.GetWindow());
   const float pixelDensity = SDL_GetWindowPixelDensity(&engine.GetWindow());
-  if (displayScale <= 0 || pixelDensity <= 0)
+  // Headless drivers may report 0 for display scale / pixel density.
+  if (displayScale <= 0)
+    throw std::runtime_error(SDL_GetError());
+  if (pixelDensity <= 0)
     throw std::runtime_error(SDL_GetError());
   const float scale =
       displayScale / pixelDensity * engine.GetSettings().debugUIScale;

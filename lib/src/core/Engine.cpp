@@ -271,8 +271,13 @@ Engine::Engine(Runtime &run, EngineOptions options)
     dumpTranslation(options.dumpTranslationPath);
     translationDumpComplete = true;
   }
-  if (options.enableMCP)
-    mcp = std::make_unique<MCPServer>(*this, options.mcpFileRoot);
+  if (options.enableMCP) {
+    if (options.mcpPort > 0)
+      mcp = std::make_unique<MCPServer>(*this, options.mcpFileRoot,
+                                        options.mcpPort);
+    else
+      mcp = std::make_unique<MCPServer>(*this, options.mcpFileRoot);
+  }
   frameClock.reset();
   SDL_LogInfo(LogCore, "Engine started (%s renderer)",
               SDL_GetRendererName(renderer.get()));
