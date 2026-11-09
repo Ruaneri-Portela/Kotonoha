@@ -543,11 +543,8 @@ struct RealLiveRuntime::Impl {
     extended->destination = extended->crop;
     dcImages[n] = std::move(extended);
   }
-  Graphic emptyGraphic;
   Graphic &graphic(const std::string &name) {
     auto id = assets->graphic(name);
-    if (id.empty())
-      return emptyGraphic;
     auto i = graphics.find(id);
     if (i == graphics.end()) {
       Graphic g;
@@ -595,6 +592,47 @@ struct RealLiveRuntime::Impl {
       o.anm.reset();
       o.file.clear();
     }
+  }
+  Uint64 anmSetDuration(const Anm &anm, int set) const {
+    Uint64 total = 0;
+    if (set < 0 || set >= int(anm.sets.size()))
+      return 0;
+    for (int listIdx : anm.sets[set]) {
+      if (listIdx < 0 || listIdx >= int(anm.frameLists.size()))
+        continue;
+      for (int frameIdx : anm.frameLists[listIdx]) {
+        if (frameIdx < 0 || frameIdx >= int(anm.frames.size()))
+          continue;
+        const int frameTime = anm.frames[frameIdx].time;
+        total += frameTime > 0 ? Uint64(frameTime) : 0;
+      }
+    }
+    return total;
+  }
+  const AnmFrame *anmCurrentFrame(Object &o) {
+    if (!o.anm || !o.anmPlaying || o.anm->sets.empty())
+      return nullptr;
+    const Anm &anm = *o.anm;
+    const int set =
+        std::clamp(o.anmSet, 0, int(anm.sets.size()) - 1);
+    const Uint64 elapsed = SDL_GetTicks() - o.anmStart;
+    const AnmFrame *last = nullptr;
+    Uint64 t = 0;
+    for (int listIdx : anm.sets[set]) {
+      if (listIdx < 0 || listIdx >= int(anm.frameLists.size()))
+        continue;
+      for (int frameIdx : anm.frameLists[listIdx]) {
+        if (frameIdx < 0 || frameIdx >= int(anm.frames.size()))
+          continue;
+        const AnmFrame &frame = anm.frames[frameIdx];
+        last = &frame;
+        const Uint64 frameTime = frame.time > 0 ? Uint64(frame.time) : 0;
+        if (elapsed < t + frameTime)
+          return &frame;
+        t += frameTime;
+      }
+    }
+    return last;
   }
   void blit(SurfaceRef source, SurfaceRef dest, const SDL_Rect *sr = nullptr,
             SDL_Rect *dr = nullptr, int alpha = 255, bool mask = true) {
@@ -1237,6 +1275,19 @@ struct RealLiveRuntime::Impl {
       SDL_Rect clip{o.clip.x * scale, o.clip.y * scale, o.clip.w * scale,
                     o.clip.h * scale};
       SDL_SetSurfaceClipRect(&dest, &clip);
+    }
+    // ANM file objects ignore o.x/o.y and draw timed frame crops at their
+    // absolute destination coordinates.
+    if (o.anm) {
+      if (const AnmFrame *frame = anmCurrentFrame(o)) {
+        auto &g = graphic(o.anm->image);
+        SDL_Rect src{frame->x1, frame->y1, frame->x2 - frame->x1 + 1,
+                     frame->y2 - frame->y1 + 1};
+        SDL_Rect dst{frame->destX * scale, frame->destY * scale,
+                     src.w * scale, src.h * scale};
+        blit(*g.surface, dest, &src, &dst, o.alpha);
+        return;
+      }
     }
     if (o.width > 0 && o.height > 0) {
       auto fill = blank(o.width, o.height);
@@ -2438,9 +2489,21 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
   }
   if (type == 1 && (m == 73 || m == 74)) {
     if (op == 1006 && over == 0) {
-      // ganPlayEx blocks only when the object contains GAN animation data.
-      // Kanon's call follows objOfFile("KAN_MOJA"), a static file object;
-      // the native implementation returns immediately for such objects.
+      // ganPlayEx(object, set): plays an ANM object's set and blocks for the
+      // total set duration; static file objects are unaffected.
+      const int object = value(c, 0);
+      const int set = value(c, 1, 0);
+      auto &objects = m == 73 ? fg : bg;
+      auto found = objects.find(object);
+      if (found != objects.end() && found->second.anm &&
+          !found->second.anm->sets.empty()) {
+        auto &o = found->second;
+        o.anmSet = std::clamp(set, 0, int(o.anm->sets.size()) - 1);
+        o.anmStart = SDL_GetTicks();
+        o.anmPlaying = true;
+        wait(anmSetDuration(*o.anm, o.anmSet));
+        return true;
+      }
       value(c, 0);
       value(c, 1);
       return true;
@@ -2475,9 +2538,12 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
       o.width = o.height = 0;
       o.frameMs = 0;
       o.animationElapsed = 0;
+      o.anm.reset();
+      o.anmStart = 0;
+      o.anmPlaying = false;
       o.file = str(c, 1);
       o.kind = Object::Kind::Sprite;
-      prepareGraphic(graphic(o.file));
+      loadObjectFile(o);
       if (over >= 1)
         o.visible = value(c, 2);
       if (over >= 2) {
@@ -2855,7 +2921,7 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
     }
     // Native RealLive FUN_004544b0: flash(R,G,B,duration), sixteen
     // restoration steps, with a snapshot of the old visible framebuffer.
-    if (op == 404 && over == 1) {
+    if ((op == 404 || op == 405) && over == 1) {
       flashColour = {Uint8(std::clamp(value(c, 0), 0, 255)),
                      Uint8(std::clamp(value(c, 1), 0, 255)),
                      Uint8(std::clamp(value(c, 2), 0, 255)), 255};
@@ -2969,6 +3035,45 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
       wait(duration);
       return true;
     }
+    if (op == 1402) {
+      // recZoom: same zoom as grpZoom, but rectangles are REC (x, y, w, h),
+      // with no coordinate subtraction.
+      if (c.GetParamCount() < 14)
+        throw std::runtime_error("Malformed REALLIVE recZoom");
+      const auto bounds = [&](int first) {
+        SDL_Rect rect{value(c, first), value(c, first + 1),
+                      value(c, first + 2), value(c, first + 3)};
+        if (rect.w <= 0 || rect.h <= 0)
+          throw std::runtime_error("Invalid REALLIVE recZoom rectangle");
+        return rect;
+      };
+      const auto from = bounds(0);
+      const auto to = bounds(4);
+      const int sourceDC = value(c, 8);
+      if (sourceDC < 0 || sourceDC > 15)
+        throw std::out_of_range("REALLIVE recZoom source DC");
+      SDL_Rect destinationRect = bounds(9);
+      const int duration = std::max(0, value(c, 13));
+      SurfacePtr source(SDL_DuplicateSurface(&surface(sourceDC)));
+      if (!source)
+        throw std::runtime_error(SDL_GetError());
+      if (!duration) {
+        blit(surface(sourceDC), surface(0), &to, &destinationRect, 255, true);
+        return true;
+      }
+      zoom = ZoomEffect{
+          std::move(source),
+          dcImage(sourceDC),
+          to,
+          destinationRect,
+          TransformAnimation(
+              {float(from.x), float(from.y), float(from.w), float(from.h)},
+              {float(to.x), float(to.y), float(to.w), float(to.h)}, duration),
+          SDL_GetTicks()};
+      zoomTexture.reset();
+      wait(duration);
+      return true;
+    }
     if (op == 32) {
       std::ostringstream key;
       key << "SHAKE." << std::setw(3) << std::setfill('0') << value(c, 0);
@@ -3018,7 +3123,7 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
         }
       return true;
     }
-    if (op == 1401 || op == 1402) {
+    if (op == 1401) {
       auto &source = surface(value(c, 4));
       auto &dest = surface(value(c, 9));
       SDL_Rect sr{value(c, 0), value(c, 1), value(c, 2), value(c, 3)},
