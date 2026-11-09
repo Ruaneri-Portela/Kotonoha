@@ -76,7 +76,6 @@ target_link_libraries(school_days PUBLIC Kotonoha::Engine PRIVATE ZLIB::ZLIB)
 set_target_properties(school_days PROPERTIES CXX_EXTENSIONS OFF)
 if(KOTONOHA_DEV_CONTROL AND WIN32 AND NOT ANDROID)
     find_package(json-c CONFIG REQUIRED)
-    target_sources(school_days PRIVATE src/SchoolDaysDevBridge.cpp)
     # SchoolDaysRuntime.hpp adds DEV members to the class layout. Every
     # consumer that constructs Runtime must see the same definition.
     target_compile_definitions(school_days PUBLIC KOTONOHA_DEV_CONTROL=1)

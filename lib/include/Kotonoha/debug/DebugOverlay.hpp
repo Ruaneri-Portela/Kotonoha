@@ -109,6 +109,7 @@ public:
   void update();
   void renderHUD(RendererRef renderer);
   void renderMenu(RendererRef renderer);
+  void openOptions() { showOptionsWindow = true; }
   bool isVisible() const {
     return visible || showOptionsWindow || showTranslationWindow ||
            showDubbingWindow;

@@ -47,10 +47,8 @@ class VNSaveMenu;
 namespace SchoolDays {
 
 class AbcAnalysisWorker;
-class DevBridge;
 
 class Runtime final : public Kotonoha::Runtime {
-  friend class DevBridge;
   friend class GameScene;
   friend class RuntimeReplayIsolationTestAccess;
   friend class RuntimeReplayUiTestAccess;
@@ -281,21 +279,6 @@ class Runtime final : public Kotonoha::Runtime {
 #endif
   bool framePrimaryReady = false;
   bool frameBoundary = false;
-#if defined(KOTONOHA_DEV_CONTROL) && defined(_WIN32)
-  std::unique_ptr<DevBridge> devBridge;
-  bool devPaused = false;
-  bool devStepping = false;
-  unsigned devStepBudget = 0;
-  uint64_t devFrameIndex = 0;
-  uint64_t devUpdateIndex = 0;
-  uint64_t devLastActionId = 0;
-  uint64_t devLastActionFrame = 0;
-  Uint64 devLastActionTimestampNs = 0;
-  std::string devLastActionScene;
-  uint32_t devLastActionNode = 0;
-  bool devLastTransitionActive = false;
-  bool devLastPrimaryReady = false;
-#endif
   bool pendingSceneAdvance = false;
   bool pendingBackCapture = false;
   std::optional<Kotonoha_SceneTick> pendingSeek;

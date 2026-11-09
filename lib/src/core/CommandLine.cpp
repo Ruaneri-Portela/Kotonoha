@@ -22,6 +22,11 @@ CommandLine::CommandLine(std::string program, EngineOptions &engine)
   flag("--mcp", "Enable the stdio MCP interface", engine.enableMCP);
   option("--mcp-root", "DIRECTORY", "Restrict MCP files to this root",
          engine.mcpFileRoot);
+  option("--mcp-port", "PORT",
+         "TCP loopback port for the MCP socket interface (0 = stdio)",
+         [&engine](const std::string &value) {
+           engine.mcpPort = std::stoi(value);
+         });
   option("--asset-overlay", "DIRECTORY", "Override game assets from a folder",
          [&engine](const std::string &path) {
            engine.assetOverlayPath = path;
