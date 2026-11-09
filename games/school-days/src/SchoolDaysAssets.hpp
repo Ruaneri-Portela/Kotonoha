@@ -10,6 +10,9 @@ class Assets final : public Kotonoha::AssetProvider {
   bool mounted = false;
   std::string overlayId(const std::string &) const override;
   Kotonoha::AudioClip loadAudioAsset(const std::string &id) const override;
+  bool containsOriginalAsset(const std::string &id) const override;
+  std::vector<Uint8> readOriginalAsset(const std::string &id) const override;
+  std::string resolveOriginal(const std::string &logical) const;
 
 public:
   explicit Assets(std::filesystem::path root, const std::string &scripts = {});
@@ -25,6 +28,8 @@ public:
   std::string localPathAsset(const std::string &id) const override;
   std::unique_ptr<Kotonoha::AssetStream>
   openStream(const std::string &id) const override;
+  std::unique_ptr<Kotonoha::AssetStream>
+  openOriginalStream(const std::string &id) const override;
   static bool checkDirectory(const std::filesystem::path &root,
                              std::string &info);
   static std::filesystem::path defaultDirectory();

@@ -43,11 +43,17 @@ public:
   // Current dialogue text (set by KAG script parser via MCP-safe callback).
   std::string dialogueText_;
   std::string dialogueSpeaker_;
+  std::string originalDialogueText_;
+  std::string originalDialogueSpeaker_;
+  std::vector<std::string> originalActiveKeys_;
+  std::vector<std::string> scenarioTexts_;
 
   std::string debugNode() const override;
   void debugRestartScene() override;
   std::string dialogueText() const override { return dialogueText_; }
   std::string dialogueSpeaker() const override { return dialogueSpeaker_; }
+  std::vector<std::string> activeTranslationKeys() const override;
+  Kotonoha::Translation::SourceTexts translationSources() const override;
   bool continuousTouch() const override { return true; }
 
 private:

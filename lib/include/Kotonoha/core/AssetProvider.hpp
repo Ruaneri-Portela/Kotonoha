@@ -14,6 +14,7 @@
 
 namespace Kotonoha {
 class Upscaling;
+enum class AssetSource { Effective, Original };
 
 // Decoded PCM in the layout described by `spec`.
 struct AudioClip {
@@ -66,6 +67,12 @@ protected:
   virtual std::string overlayId(const std::string &id) const { return id; }
   virtual bool containsAsset(const std::string &) const = 0;
   virtual std::vector<Uint8> readAsset(const std::string &) const = 0;
+  virtual bool containsOriginalAsset(const std::string &id) const {
+    return containsAsset(id);
+  }
+  virtual std::vector<Uint8> readOriginalAsset(const std::string &id) const {
+    return readAsset(id);
+  }
   virtual std::vector<std::string> listAsset(const std::string &) const;
   virtual std::string localPathAsset(const std::string &) const;
   virtual SurfacePtr loadSurfaceAsset(const std::string &) const;
@@ -74,22 +81,30 @@ protected:
 
 public:
   bool contains(const std::string &id) const;
+  bool contains(const std::string &id, AssetSource source) const;
   // Raw bytes of an asset; throws when it does not exist.
   std::vector<Uint8> read(const std::string &id) const;
+  std::vector<Uint8> read(const std::string &id, AssetSource source) const;
   // Identifiers under a prefix, when the provider can enumerate them.
   std::vector<std::string> list(const std::string &prefix = {}) const;
   // A file streaming consumers may open directly; empty for in-memory assets.
   virtual std::string localPath(const std::string &id) const;
+  std::string localPath(const std::string &id, AssetSource source) const;
   // Optional seekable source for archived/disc-backed media. Returning null
   // asks consumers to fall back to read(id), preserving providers that only
   // expose complete in-memory assets.
   virtual std::unique_ptr<AssetStream> openStream(const std::string &id) const;
+  virtual std::unique_ptr<AssetStream>
+  openOriginalStream(const std::string &id) const;
+  std::unique_ptr<AssetStream> openStream(const std::string &id,
+                                          AssetSource source) const;
   // Default decoders: SDL first (BMP/PNG/JPG, WAV), then FFmpeg for every
   // other picture, video (first frame) or audio format it can probe.
   SurfacePtr loadSurface(const std::string &id) const;
   // `forceOriginal` bypasses the mounted engine overlay. This is primarily
   // useful to compare the retail voice with a live dubbing replacement.
   AudioClip loadAudio(const std::string &id, bool forceOriginal = false) const;
+  AudioClip loadAudio(const std::string &id, AssetSource source) const;
   // Decode the game/archive asset while deliberately bypassing the mounted
   // overlay. Virtual archive IDs may supply their original through noteAudio.
   AudioClip loadOriginalAudio(const std::string &id) const;

@@ -156,7 +156,9 @@ RealLiveAssets::loadAudioAsset(const std::string &id) const {
   try {
     const auto ext = canonical(std::filesystem::path(id).extension().string());
     if (ext == ".NWA") {
-      return Kotonoha::MediaDecoder::decodeAudio(nwaToWav(read(id)));
+      // loadAudioAsset is also the force-original path; never route it through
+      // public read(), which intentionally prefers the mounted overlay.
+      return Kotonoha::MediaDecoder::decodeAudio(nwaToWav(readAsset(id)));
     }
     if (ext == ".OGG" || ext == ".WAV" || ext == ".FLAC" || ext == ".MP3") {
       return AssetProvider::loadAudioAsset(id);

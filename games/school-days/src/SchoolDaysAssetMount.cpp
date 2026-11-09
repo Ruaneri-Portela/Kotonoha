@@ -148,7 +148,7 @@ MountedResolverLookup(const std::string &logicalPath, std::string *reference) {
       *reference = physical;
     return SchoolDaysAssetResolutionStatus::Present;
   }
-  const auto status = LookupMountedSchoolDaysAsset(logicalPath);
+  const auto status = LookupMountedSchoolDaysAsset(logicalPath, true);
   switch (status) {
   case SchoolDaysGpkLookupStatus::Present:
     if (reference != nullptr)
@@ -173,7 +173,7 @@ bool MountedResolverRead(const std::string &reference,
   std::string logical;
   if (!SchoolDaysLogicalFromGpkUri(reference, &logical))
     return Fail(error, "School Days GPK reference is invalid");
-  return ReadMountedSchoolDaysAsset(logical, bytes, error);
+  return ReadMountedSchoolDaysAsset(logical, bytes, error, true);
 }
 
 bool MountedResolverListDirectory(const std::string &directoryReference,
@@ -363,8 +363,8 @@ size_t MountedSchoolDaysGpkEntryCount() {
 }
 
 SchoolDaysGpkLookupStatus
-LookupMountedSchoolDaysAsset(std::string_view logicalPath) {
-  if (ResolveSchoolDaysOverlayFile(logicalPath, nullptr))
+LookupMountedSchoolDaysAsset(std::string_view logicalPath, bool ignoreOverlay) {
+  if (!ignoreOverlay && ResolveSchoolDaysOverlayFile(logicalPath, nullptr))
     return SchoolDaysGpkLookupStatus::Present;
   const auto mount = CurrentMount();
   return mount != nullptr ? mount->Lookup(CanonicalGpkLogical(logicalPath))
@@ -372,9 +372,10 @@ LookupMountedSchoolDaysAsset(std::string_view logicalPath) {
 }
 
 bool ReadMountedSchoolDaysAsset(std::string_view logicalPath,
-                                std::vector<uint8_t> *out, std::string *error) {
+                                std::vector<uint8_t> *out, std::string *error,
+                                bool ignoreOverlay) {
   std::string physical;
-  if (ResolveSchoolDaysOverlayFile(logicalPath, &physical))
+  if (!ignoreOverlay && ResolveSchoolDaysOverlayFile(logicalPath, &physical))
     return ReadFilesystem(physical, out, error);
   const auto mount = CurrentMount();
   if (mount == nullptr)
@@ -383,8 +384,9 @@ bool ReadMountedSchoolDaysAsset(std::string_view logicalPath,
 }
 
 std::unique_ptr<AssetStream>
-OpenMountedSchoolDaysAssetStream(std::string_view logicalPath) {
-  if (ResolveSchoolDaysOverlayFile(logicalPath, nullptr))
+OpenMountedSchoolDaysAssetStream(std::string_view logicalPath,
+                                 bool ignoreOverlay) {
+  if (!ignoreOverlay && ResolveSchoolDaysOverlayFile(logicalPath, nullptr))
     return {};
   const auto mount = CurrentMount();
   if (mount == nullptr)
@@ -445,7 +447,7 @@ bool ReadSchoolDaysAssetRef(std::string_view reference,
     error->clear();
   std::string logical;
   if (SchoolDaysLogicalFromGpkUri(reference, &logical))
-    return ReadMountedSchoolDaysAsset(logical, out, error);
+    return ReadMountedSchoolDaysAsset(logical, out, error, true);
   return ReadFilesystem(reference, out, error);
 }
 

@@ -25,6 +25,36 @@ void put(const fs::path &path) {
   require(bool(file), "fixture create failed");
 }
 
+void putWave(const fs::path &path, unsigned char sample) {
+  fs::create_directories(path.parent_path());
+  std::ofstream file(path, std::ios::binary);
+  const auto word = [&file](std::uint16_t value) {
+    file.put(static_cast<char>(value));
+    file.put(static_cast<char>(value >> 8));
+  };
+  const auto dword = [&file](std::uint32_t value) {
+    file.put(static_cast<char>(value));
+    file.put(static_cast<char>(value >> 8));
+    file.put(static_cast<char>(value >> 16));
+    file.put(static_cast<char>(value >> 24));
+  };
+  file.write("RIFF", 4);
+  dword(40);
+  file.write("WAVEfmt ", 8);
+  dword(16);
+  word(1);
+  word(1);
+  dword(8000);
+  dword(8000);
+  word(1);
+  word(8);
+  file.write("data", 4);
+  dword(4);
+  for (int i = 0; i < 4; ++i)
+    file.put(static_cast<char>(sample));
+  require(bool(file), "wave fixture create failed");
+}
+
 bool fakeIsReference(const std::string &reference) {
   return Kotonoha::IsSchoolDaysGpkUri(reference);
 }
@@ -61,8 +91,17 @@ int main() {
     put(root / "Event00/Scene/nested/mouth.png");
     put(root / "Event01/other.png");
     put(root / "Voice03/03-BK/03-BK-H00/03-BK-H00-0410.OGG");
+    const fs::path dubbingOverlay = root / "dubbing-overlay";
+    const std::string voice = "Voice00/Test/original.wav";
+    putWave(root / voice, 0x20);
+    putWave(dubbingOverlay / voice, 0xe0);
 
-    SchoolDays::Assets assets(root);
+    SchoolDays::Assets assets(root, dubbingOverlay.string());
+    const auto replacement = assets.loadAudio(voice);
+    const auto original = assets.loadAudio(voice, true);
+    require(!replacement.data.empty() && !original.data.empty() &&
+                replacement.data.front() != original.data.front(),
+            "force-original audio lookup was contaminated by the overlay");
     const auto mistypedVoice = "Voice03/03-BK/03-BK-H00/03-B K-H00-0410.OGG";
     require(fs::path(assets.resolve(mistypedVoice)) ==
                 root / "Voice03/03-BK/03-BK-H00/03-BK-H00-0410.OGG",

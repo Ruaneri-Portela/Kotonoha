@@ -203,6 +203,9 @@ void VoiceDubbingApplet::refreshSceneAudio() {
   original_ = {};
   overlay_ = {};
   take_ = {};
+  sourceTake_ = {};
+  undoTake_ = {};
+  hasUndo_ = false;
   originalPeaks_.clear();
   overlayPeaks_.clear();
   takePeaks_.clear();
@@ -228,10 +231,18 @@ void VoiceDubbingApplet::refreshSceneAudio() {
 void VoiceDubbingApplet::select(const std::string &id) {
   selectedId_ = id;
   SDL_strlcpy(manualId_, id.c_str(), sizeof(manualId_));
-  if (auto runtimeOriginal = engine_.GetRuntime().debugOriginalAudio(id))
-    original_ = asFloat(std::move(*runtimeOriginal));
-  else
+  try {
+    // Prefer the provider's explicit original-only route. It knows how to
+    // bypass both filesystem overlays and archive-level/global resolvers.
     original_ = asFloat(engine_.GetAssets().loadAudio(id, true));
+  } catch (const std::exception &) {
+    // A few virtual runtimes own voice bytes outside AssetProvider. Their
+    // native hook is a fallback, never the first source for ordinary assets.
+    auto runtimeOriginal = engine_.GetRuntime().debugOriginalAudio(id);
+    if (!runtimeOriginal)
+      throw;
+    original_ = asFloat(std::move(*runtimeOriginal));
+  }
   originalPeaks_ = peaks(original_);
   overlay_ = {};
   overlayPeaks_.clear();
@@ -241,11 +252,15 @@ void VoiceDubbingApplet::select(const std::string &id) {
     overlay_ = asFloat(engine_.GetAssets().loadAudio(id));
     overlayPeaks_ = peaks(overlay_);
     take_ = overlay_;
+    sourceTake_ = take_;
     takePeaks_ = overlayPeaks_;
   } else {
     take_ = {};
+    sourceTake_ = {};
     takePeaks_.clear();
   }
+  undoTake_ = {};
+  hasUndo_ = false;
   selectionStart_ = 0;
   if (!take_.data.empty())
     selectionEnd_ = lockOriginalDuration_ ? std::min(float(duration(take_)),
@@ -267,6 +282,9 @@ void VoiceDubbingApplet::importFile(const std::filesystem::path &path) {
   if (size && !input.read(reinterpret_cast<char *>(bytes.data()), size))
     throw std::runtime_error("Cannot read imported audio");
   take_ = asFloat(MediaDecoder::decodeAudio(bytes));
+  sourceTake_ = take_;
+  undoTake_ = {};
+  hasUndo_ = false;
   takePeaks_ = peaks(take_);
   selectionStart_ = 0;
   selectionEnd_ =
@@ -310,6 +328,9 @@ void VoiceDubbingApplet::startRecording() {
   stopPreview();
   stopRecording();
   take_ = {{SDL_AUDIO_F32, 1, 48000}, {}};
+  sourceTake_ = {};
+  undoTake_ = {};
+  hasUndo_ = false;
   takePeaks_.clear();
   SDL_AudioDeviceID device = devices_.empty()
                                  ? SDL_AUDIO_DEVICE_DEFAULT_RECORDING
@@ -354,6 +375,9 @@ void VoiceDubbingApplet::stopRecording() {
   if (lockOriginalDuration_ && !original_.data.empty())
     selectionEnd_ =
         std::min(float(duration(take_)), float(duration(original_)));
+  sourceTake_ = take_;
+  undoTake_ = {};
+  hasUndo_ = false;
   status_ = "Recording stopped";
 }
 
@@ -444,6 +468,182 @@ void VoiceDubbingApplet::discardOverlay() {
   overlayPeaks_.clear();
   status_ = "Discarded overlay audio; game playback restored the original: " +
             logical;
+  statusError_ = false;
+}
+
+void VoiceDubbingApplet::rememberEdit() {
+  undoTake_ = take_;
+  undoSelectionStart_ = selectionStart_;
+  undoSelectionEnd_ = selectionEnd_;
+  hasUndo_ = true;
+}
+
+void VoiceDubbingApplet::undoEdit() {
+  if (!hasUndo_)
+    throw std::runtime_error("There is no dubbing edit to undo");
+  take_ = std::move(undoTake_);
+  selectionStart_ = undoSelectionStart_;
+  selectionEnd_ = undoSelectionEnd_;
+  takePeaks_ = peaks(take_);
+  hasUndo_ = false;
+  status_ = "Undid the last take edit";
+  statusError_ = false;
+}
+
+void VoiceDubbingApplet::resetTake() {
+  if (sourceTake_.data.empty())
+    throw std::runtime_error("There is no imported or recorded take to reset");
+  rememberEdit();
+  take_ = sourceTake_;
+  takePeaks_ = peaks(take_);
+  selectionStart_ = 0;
+  selectionEnd_ =
+      lockOriginalDuration_ && !original_.data.empty()
+          ? std::min(float(duration(take_)), float(duration(original_)))
+          : float(duration(take_));
+  status_ = "Reset all edits to the imported/recorded take";
+  statusError_ = false;
+}
+
+void VoiceDubbingApplet::cropToSelection() {
+  if (take_.data.empty())
+    throw std::runtime_error("Import or record a take first");
+  const std::size_t frame = sizeof(float) * take_.spec.channels;
+  const std::size_t frames = take_.data.size() / frame;
+  const std::size_t first =
+      std::min(frames, std::size_t(selectionStart_ * take_.spec.freq));
+  const std::size_t last =
+      std::min(frames, std::size_t(selectionEnd_ * take_.spec.freq));
+  if (last <= first)
+    throw std::runtime_error("Select a non-empty audio window first");
+  rememberEdit();
+  std::vector<Uint8> cropped(
+      take_.data.begin() + static_cast<std::ptrdiff_t>(first * frame),
+      take_.data.begin() + static_cast<std::ptrdiff_t>(last * frame));
+  take_.data = std::move(cropped);
+  takePeaks_ = peaks(take_);
+  selectionStart_ = 0;
+  selectionEnd_ = float(duration(take_));
+  status_ = "Cropped the selected window into the complete take";
+  statusError_ = false;
+}
+
+namespace {
+AudioClip resampleFrames(const AudioClip &source, std::size_t outputFrames) {
+  const std::size_t channels = source.spec.channels;
+  const std::size_t inputFrames =
+      source.data.size() / (sizeof(float) * channels);
+  if (!inputFrames || !outputFrames)
+    throw std::runtime_error("Cannot resample empty audio");
+  AudioClip result{source.spec, {}};
+  result.data.resize(outputFrames * channels * sizeof(float));
+  const auto *input = reinterpret_cast<const float *>(source.data.data());
+  auto *output = reinterpret_cast<float *>(result.data.data());
+  const double scale =
+      outputFrames > 1 ? double(inputFrames - 1) / double(outputFrames - 1) : 0;
+  for (std::size_t frame = 0; frame < outputFrames; ++frame) {
+    const double position = frame * scale;
+    const auto first = std::min(inputFrames - 1, std::size_t(position));
+    const auto second = std::min(inputFrames - 1, first + 1);
+    const float mix = float(position - first);
+    for (std::size_t channel = 0; channel < channels; ++channel)
+      output[frame * channels + channel] =
+          input[first * channels + channel] * (1 - mix) +
+          input[second * channels + channel] * mix;
+  }
+  return result;
+}
+
+AudioClip pitchShiftFrames(const AudioClip &source, double factor) {
+  const std::size_t channels = source.spec.channels;
+  const std::size_t frames = source.data.size() / (sizeof(float) * channels);
+  if (!frames)
+    throw std::runtime_error("Cannot pitch-shift empty audio");
+  constexpr std::size_t grain = 1024;
+  constexpr std::size_t hop = 256;
+  AudioClip result{source.spec,
+                   std::vector<Uint8>(source.data.size(), Uint8{0})};
+  const auto *input = reinterpret_cast<const float *>(source.data.data());
+  auto *output = reinterpret_cast<float *>(result.data.data());
+  std::vector<float> weights(frames, 0);
+  for (std::size_t center = 0; center < frames + hop; center += hop) {
+    for (std::size_t j = 0; j < grain; ++j) {
+      const long outputFrame = long(center) + long(j) - long(grain / 2);
+      if (outputFrame < 0 || std::size_t(outputFrame) >= frames)
+        continue;
+      const double inputPosition =
+          double(center) + (double(j) - double(grain) / 2.0) * factor;
+      if (inputPosition < 0 || inputPosition >= double(frames - 1))
+        continue;
+      const auto first = std::size_t(inputPosition);
+      const auto second = std::min(frames - 1, first + 1);
+      const float mix = float(inputPosition - first);
+      constexpr double pi = 3.14159265358979323846;
+      const float window =
+          0.5f - 0.5f * std::cos(float(2.0 * pi * j / (grain - 1)));
+      for (std::size_t channel = 0; channel < channels; ++channel)
+        output[std::size_t(outputFrame) * channels + channel] +=
+            (input[first * channels + channel] * (1 - mix) +
+             input[second * channels + channel] * mix) *
+            window;
+      weights[std::size_t(outputFrame)] += window;
+    }
+  }
+  for (std::size_t frame = 0; frame < frames; ++frame)
+    if (weights[frame] > 0.0001f)
+      for (std::size_t channel = 0; channel < channels; ++channel)
+        output[frame * channels + channel] /= weights[frame];
+  return result;
+}
+} // namespace
+
+void VoiceDubbingApplet::fitSelection(bool stretch) {
+  if (original_.data.empty())
+    throw std::runtime_error("Load an original audio target first");
+  cropToSelection();
+  const std::size_t channels = take_.spec.channels;
+  const std::size_t frameBytes = sizeof(float) * channels;
+  const std::size_t targetFrames = std::max<std::size_t>(
+      1, std::llround(duration(original_) * take_.spec.freq));
+  const std::size_t currentFrames = take_.data.size() / frameBytes;
+  if (stretch) {
+    const double speed = double(currentFrames) / double(targetFrames);
+    take_ = resampleFrames(take_, targetFrames);
+    // Resampling changes duration and pitch together. Compensate the pitch so
+    // accelerating/slowing remains independent from the explicit Tone tool.
+    if (std::abs(speed - 1.0) > 0.001)
+      take_ = pitchShiftFrames(take_, 1.0 / speed);
+    status_ = speed > 1.0 ? "Accelerated take to fit the original (" +
+                                std::to_string(speed) + "x, pitch preserved)"
+                          : "Slowed take to fit the original (" +
+                                std::to_string(speed) + "x, pitch preserved)";
+  } else if (currentFrames > targetFrames) {
+    take_.data.resize(targetFrames * frameBytes);
+  } else if (currentFrames < targetFrames) {
+    // Underrun: preserve the recording and fill the remainder with silence.
+    take_.data.resize(targetFrames * frameBytes, 0);
+  }
+  takePeaks_ = peaks(take_);
+  selectionStart_ = 0;
+  selectionEnd_ = float(duration(take_));
+  if (!stretch)
+    status_ = "Resolved under/overrun with silence or trimming";
+  statusError_ = false;
+}
+
+void VoiceDubbingApplet::applyPitch() {
+  if (std::abs(pitchSemitones_) < 0.001f)
+    throw std::runtime_error("Choose a non-zero tone adjustment first");
+  cropToSelection();
+  const double factor = std::pow(2.0, pitchSemitones_ / 12.0);
+  // Windowed overlap-add changes pitch while preserving the take duration, so
+  // fitting and tone remain independent editing operations.
+  take_ = pitchShiftFrames(take_, factor);
+  takePeaks_ = peaks(take_);
+  selectionStart_ = 0;
+  selectionEnd_ = float(duration(take_));
+  status_ =
+      "Applied pitch shift: " + std::to_string(pitchSemitones_) + " semitones";
   statusError_ = false;
 }
 
@@ -700,6 +900,47 @@ void VoiceDubbingApplet::draw() {
       if (ImGui::Button("Play selected window"))
         play(take_, true);
       ImGui::SameLine();
+      if (ImGui::Button("Crop to selected window"))
+        cropToSelection();
+      ImGui::SameLine();
+      ImGui::BeginDisabled(!hasUndo_);
+      if (ImGui::Button("Undo edit"))
+        undoEdit();
+      ImGui::EndDisabled();
+      ImGui::SameLine();
+      ImGui::BeginDisabled(sourceTake_.data.empty());
+      if (ImGui::Button("Reset take"))
+        resetTake();
+      ImGui::EndDisabled();
+      ImGui::BeginDisabled(original_.data.empty());
+      if (ImGui::Button("Fit under/overrun"))
+        fitSelection(false);
+      ImGui::EndDisabled();
+      ImGui::SameLine();
+      const double selectedDuration = selectionEnd_ - selectionStart_;
+      const double originalDuration = duration(original_);
+      const double fitSpeed =
+          originalDuration > 0 ? selectedDuration / originalDuration : 1.0;
+      const char *speedAction = fitSpeed > 1.001   ? "Accelerate to fit"
+                                : fitSpeed < 0.999 ? "Slow down to fit"
+                                                   : "Already fits";
+      ImGui::BeginDisabled(original_.data.empty() ||
+                           std::abs(fitSpeed - 1.0) <= 0.001);
+      if (ImGui::Button(speedAction))
+        fitSelection(true);
+      ImGui::EndDisabled();
+      if (!original_.data.empty())
+        ImGui::Text("Fit speed: %.3fx (%s)", fitSpeed,
+                    fitSpeed > 1.001   ? "faster"
+                    : fitSpeed < 0.999 ? "slower"
+                                       : "unchanged");
+      ImGui::TextDisabled(
+          "Under/overrun pads short takes with silence or trims long takes; "
+          "speed fit accelerates or slows the selection to the exact original "
+          "duration while preserving pitch.");
+      ImGui::SliderFloat("Tone", &pitchSemitones_, -12, 12, "%+.1f semitone");
+      if (ImGui::Button("Apply tone (keep duration)"))
+        applyPitch();
       if (ImGui::Button("Save to overlay"))
         save();
       if (engine_.GetAssets().hasOverlay(selectedId_.empty() ? manualId_

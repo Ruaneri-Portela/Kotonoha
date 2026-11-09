@@ -8,9 +8,11 @@
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/FileSystem.hpp>
 #include <Kotonoha/events/ControllerEvent.hpp>
+#include <Kotonoha/media/PcmPlayer.hpp>
 #include <SDL3/SDL.h>
 
 #include <algorithm>
+#include <cstring>
 #include <filesystem>
 #include <iostream>
 #include <memory>
@@ -51,6 +53,8 @@ struct KirikiriRuntime::Impl {
   bool running = false;
   bool waitingChoice = false;
   bool waitingWait = false;
+  Kotonoha::PcmPlayer bgm;
+  Kotonoha::PcmPlayer sound;
 
   Impl(KirikiriRuntime &r, std::shared_ptr<KirikiriAssets> a)
       : runtime(r), assets(std::move(a)) {}
@@ -262,27 +266,79 @@ bool KirikiriRuntime::startScenario(const std::string &name,
   SDL_Log("Kirikiri: parsed %zu tags", script.tags.size());
 
   impl.currentScenario = target;
+  scenarioTexts_.clear();
+  for (const auto &tag : script.tags)
+    if (tag.type == KagScript::TagType::Text && !tag.text.empty() &&
+        std::find(scenarioTexts_.begin(), scenarioTexts_.end(), tag.text) ==
+            scenarioTexts_.end())
+      scenarioTexts_.push_back(tag.text);
+  const auto playAudio = [this](Kotonoha::PcmPlayer &player,
+                                const std::string &file,
+                                const std::string &channel, bool loop) {
+    auto decoded = impl_->assets->loadAudio(file);
+    SDL_AudioSpec targetSpec{SDL_AUDIO_S16, decoded.spec.channels,
+                             decoded.spec.freq};
+    Uint8 *converted = nullptr;
+    int size = 0;
+    if (!SDL_ConvertAudioSamples(&decoded.spec, decoded.data.data(),
+                                 int(decoded.data.size()), &targetSpec,
+                                 &converted, &size))
+      throw std::runtime_error(SDL_GetError());
+    Kotonoha::SDLMemoryPtr<Uint8> owner(converted);
+    Kotonoha::PcmPlayer::Clip clip;
+    clip.channels = targetSpec.channels;
+    clip.rate = targetSpec.freq;
+    clip.loop = loop;
+    clip.samples.resize(size / sizeof(int16_t));
+    std::memcpy(clip.samples.data(), converted, size);
+    if (!player.Play(impl_->engine->GetAudio().channel(channel),
+                     std::move(clip)))
+      throw std::runtime_error(SDL_GetError());
+  };
   impl.runner = std::make_unique<KagScript::Runner>(
       script,
       KagScript::Callbacks{
           .showText =
               [this](std::string speaker, std::string text) {
-                dialogueSpeaker_ = std::move(speaker);
-                dialogueText_ = std::move(text);
+                originalDialogueSpeaker_ = speaker;
+                originalDialogueText_ = text;
+                originalActiveKeys_.clear();
+                if (!speaker.empty())
+                  originalActiveKeys_.push_back(speaker);
+                if (!text.empty())
+                  originalActiveKeys_.push_back(text);
+                dialogueSpeaker_ =
+                    impl_->engine->GetTranslation().text(debugNode(), speaker);
+                dialogueText_ =
+                    impl_->engine->GetTranslation().text(debugNode(), text);
                 auto &impl = *impl_;
                 impl.dialogueVisible = true;
+                impl.textbox->setDialogue(dialogueSpeaker_, dialogueText_);
+                impl.textbox->show();
               },
           .showChoice =
               [this](std::string question, std::vector<std::string> options,
                      std::function<void(int)> onChoose) {
                 auto &impl = *impl_;
                 impl.waitingChoice = true;
+                originalActiveKeys_.clear();
+                if (!question.empty())
+                  originalActiveKeys_.push_back(question);
+                originalActiveKeys_.insert(originalActiveKeys_.end(),
+                                           options.begin(), options.end());
+                const auto translate = [&](const std::string &value) {
+                  if (!value.empty() &&
+                      std::find(scenarioTexts_.begin(), scenarioTexts_.end(),
+                                value) == scenarioTexts_.end())
+                    scenarioTexts_.push_back(value);
+                  return impl.engine->GetTranslation().text(debugNode(), value);
+                };
                 std::vector<Kotonoha::ChoiceOption> choiceOptions;
                 int id = 0;
                 for (auto &opt : options)
-                  choiceOptions.push_back({opt, id++});
+                  choiceOptions.push_back({translate(opt), id++});
                 impl.choiceScene->setQuestion(
-                    question, choiceOptions,
+                    translate(question), choiceOptions,
                     [this, onChoose = std::move(onChoose)](
                         int optionId, const std::string &) {
                       auto &impl = *impl_;
@@ -329,14 +385,14 @@ bool KirikiriRuntime::startScenario(const std::string &name,
                 SDL_Log("Kirikiri: chara_hide layer=%s", layer.c_str());
               },
           .playBgm =
-              [this](std::string file, bool loop) {
-                SDL_Log("Kirikiri: playbgm %s loop=%d", file.c_str(), loop);
+              [this, playAudio](std::string file, bool loop) {
+                playAudio(impl_->bgm, file, "BGM", loop);
               },
           .playSe =
-              [this](std::string file) {
-                SDL_Log("Kirikiri: playse %s", file.c_str());
+              [this, playAudio](std::string file) {
+                playAudio(impl_->sound, file, "SE", false);
               },
-          .stopBgm = [this]() { SDL_Log("Kirikiri: stopbgm"); },
+          .stopBgm = [this]() { impl_->bgm.Stop(); },
           .setVar =
               [this](std::string name, std::string value) {
                 SDL_Log("Kirikiri: set %s=%s", name.c_str(), value.c_str());
@@ -369,6 +425,16 @@ std::string KirikiriRuntime::debugNode() const {
 void KirikiriRuntime::debugRestartScene() {
   if (impl_->currentScenario.empty() || !startScenario(impl_->currentScenario))
     throw std::runtime_error("There is no active Kirikiri scene to restart");
+}
+
+std::vector<std::string> KirikiriRuntime::activeTranslationKeys() const {
+  return originalActiveKeys_;
+}
+
+Kotonoha::Translation::SourceTexts KirikiriRuntime::translationSources() const {
+  return scenarioTexts_.empty()
+             ? Kotonoha::Translation::SourceTexts{}
+             : Kotonoha::Translation::SourceTexts{{0, scenarioTexts_}};
 }
 
 } // namespace Kirikiri
