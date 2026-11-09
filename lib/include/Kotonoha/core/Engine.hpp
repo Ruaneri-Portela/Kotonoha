@@ -102,6 +102,8 @@ private:
   void applyWindowSettings(const EngineSettings &value, bool geometry = true);
 
 public:
+  void updateCursor(const std::string &path);
+  CursorPtr customCursor;
   explicit Engine(Runtime &run, EngineOptions options = {});
   ~Engine();
 

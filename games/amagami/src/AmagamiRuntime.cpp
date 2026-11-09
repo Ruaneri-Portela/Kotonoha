@@ -315,14 +315,7 @@ bool AmagamiBacklog::onEvent(Kotonoha::EventRef input) {
       break;
     }
   }
-  const bool isLeftClick = (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN ||
-                            event.type == SDL_EVENT_MOUSE_BUTTON_UP) &&
-                           event.button.button == SDL_BUTTON_LEFT;
-  const bool isTouchAct = event.button.which == SDL_TOUCH_MOUSEID
-                              ? event.type == SDL_EVENT_MOUSE_BUTTON_UP
-                              : event.type == SDL_EVENT_MOUSE_BUTTON_DOWN;
-  if (isLeftClick && isTouchAct && event.button.x >= 44 &&
-      event.button.x < 596 && event.button.y >= 16 && event.button.y < 432) {
+  if (Kotonoha::UI::clicked(event, {44, 16, 552, 416})) {
     const float y = event.button.y - 16 + scroll;
     for (size_t i = 0; i < rows_.size(); ++i)
       if (y >= rows_[i].top && y < rows_[i].top + rows_[i].height) {
@@ -464,13 +457,8 @@ bool AmagamiEventMap::onEvent(Kotonoha::EventRef input) {
       return false;
     }
   }
-  const bool isLeftClick = (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN ||
-                            event.type == SDL_EVENT_MOUSE_BUTTON_UP) &&
-                           event.button.button == SDL_BUTTON_LEFT;
-  const bool isTouchAct = event.button.which == SDL_TOUCH_MOUSEID
-                              ? event.type == SDL_EVENT_MOUSE_BUTTON_UP
-                              : event.type == SDL_EVENT_MOUSE_BUTTON_DOWN;
-  if (isLeftClick && isTouchAct) {
+  if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN ||
+      event.type == SDL_EVENT_MOUSE_BUTTON_UP) {
     for (size_t i = 0; i < options.size(); ++i)
       if (Kotonoha::UI::clicked(event, options[i].hitBox)) {
         if (selected == i)
@@ -1481,14 +1469,7 @@ bool AmagamiRuntime::onEvent(Kotonoha::EventRef event) {
         return true;
       }
     }
-    const bool isLeftClick = (e.type == SDL_EVENT_MOUSE_BUTTON_DOWN ||
-                              e.type == SDL_EVENT_MOUSE_BUTTON_UP) &&
-                             e.button.button == SDL_BUTTON_LEFT;
-    const bool isTouchAct = e.button.which == SDL_TOUCH_MOUSEID
-                                ? e.type == SDL_EVENT_MOUSE_BUTTON_UP
-                                : e.type == SDL_EVENT_MOUSE_BUTTON_DOWN;
-    if (isLeftClick && isTouchAct && error_.empty() && e.button.x >= 0 &&
-        e.button.x < 640 && e.button.y >= 0 && e.button.y < 448) {
+    if (error_.empty() && Kotonoha::UI::clicked(e, {0, 0, 640, 448})) {
       if (backlog_) {
         backlog_ = false;
         return true;

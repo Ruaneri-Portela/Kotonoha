@@ -1,5 +1,5 @@
 #pragma once
-#include <Kotonoha/SceneTime.h>
+#include <Kotonoha/utils/SceneTime.h>
 #include <SDL3/SDL.h>
 #include <stdio.h>
 #include <stdlib.h>

@@ -46,7 +46,6 @@
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "863CA7E46CE7E2CCFE66622E"
             BuildableName = "Air.app"
-            BlueprintName = "RealLive"
             ReferencedContainer = "container:Kotonoha.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>

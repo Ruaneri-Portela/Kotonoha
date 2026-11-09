@@ -61,6 +61,8 @@ std::string RealLiveAssets::graphic(const std::string &name) const {
   auto question = file.find('?');
   if (question != file.npos)
     file.resize(question);
+  if (file.empty())
+    return "";
   for (auto prefix : {"G00/", "PDT/", ""})
     for (auto suffix : {"", ".G00", ".PDT", ".PNG", ".BMP"}) {
       auto id = std::string(prefix) + file + suffix;
@@ -71,6 +73,21 @@ std::string RealLiveAssets::graphic(const std::string &name) const {
               "Warning: REALLIVE graphic missing: %s (attempted: "
               "G00/%s.{G00,PDT,PNG,BMP}, PDT/%s.{G00,PDT}, %s.{G00,PDT})",
               name.c_str(), file.c_str(), file.c_str(), file.c_str());
+  return "";
+}
+std::string RealLiveAssets::animation(const std::string &name) const {
+  std::string file = name;
+  auto question = file.find('?');
+  if (question != file.npos)
+    file.resize(question);
+  if (file.empty())
+    return "";
+  for (auto prefix : {"ANM/", ""})
+    for (auto suffix : {".ANM", ".ANM"}) {
+      auto id = std::string(prefix) + file + suffix;
+      if (contains(id))
+        return canonical(id);
+    }
   return "";
 }
 Kotonoha::SurfacePtr

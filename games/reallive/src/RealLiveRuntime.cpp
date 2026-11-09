@@ -1,4 +1,5 @@
 #include "RealLiveRuntime.hpp"
+#include "RealLiveMouseCursor.hpp"
 #include "RealLiveSelection.hpp"
 #include "RealLiveTransition.hpp"
 #include "TitleInput.hpp"
@@ -314,6 +315,12 @@ struct Object {
   std::array<SDL_Point, 16> adjustments{};
   int frameMs = 0;
   Uint64 animationElapsed = 0;
+  // ANM file objects (objOfFile on an .Anm): unlike sprites they ignore the
+  // object position and draw a timed sequence of crops at absolute positions.
+  std::shared_ptr<Anm> anm;
+  Uint64 anmStart = 0;
+  int anmSet = 0;
+  bool anmPlaying = false;
   enum class Kind { Sprite, Drift };
   Kind kind = Kind::Sprite;
   // Drift / particle object parameters (objDriftOfFile + objDriftOpts).
@@ -382,6 +389,7 @@ struct RealLiveRuntime::Impl {
   VoiceIndex voices;
   AudioConfig audio;
   Engine *engine = nullptr;
+  SDL_Cursor *mouseCursor = nullptr;
   std::unique_ptr<Stage> stage;
   std::unique_ptr<Text> textbox;
   std::unique_ptr<ChoiceQuestionScene> choice;
@@ -535,8 +543,11 @@ struct RealLiveRuntime::Impl {
     extended->destination = extended->crop;
     dcImages[n] = std::move(extended);
   }
+  Graphic emptyGraphic;
   Graphic &graphic(const std::string &name) {
     auto id = assets->graphic(name);
+    if (id.empty())
+      return emptyGraphic;
     auto i = graphics.find(id);
     if (i == graphics.end()) {
       Graphic g;
@@ -553,6 +564,37 @@ struct RealLiveRuntime::Impl {
       i = graphics.emplace(id, std::move(g)).first;
     }
     return i->second;
+  }
+  // objOfFile can name either a graphic (G00/PDT) or an ANM animation that
+  // references one. Resolve the ANM up front so a missing animation never
+  // reaches the blitter with a null surface.
+  void loadObjectFile(Object &o) {
+    if (o.file.empty())
+      return;
+    if (!assets->graphic(o.file).empty()) {
+      prepareGraphic(graphic(o.file));
+      return;
+    }
+    const auto anmId = assets->animation(o.file);
+    if (anmId.empty()) {
+      o.file.clear();
+      return;
+    }
+    try {
+      auto bytes = assets->read(anmId);
+      auto anm = std::make_shared<Anm>(decodeANM(bytes));
+      const auto imageId = assets->graphic(anm->image);
+      if (imageId.empty())
+        throw std::runtime_error("ANM: referenced image not found");
+      prepareGraphic(graphic(imageId));
+      o.anm = std::move(anm);
+    } catch (const std::exception &e) {
+      SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                  "Warning: REALLIVE ANM %s unavailable: %s", o.file.c_str(),
+                  e.what());
+      o.anm.reset();
+      o.file.clear();
+    }
   }
   void blit(SurfaceRef source, SurfaceRef dest, const SDL_Rect *sr = nullptr,
             SDL_Rect *dr = nullptr, int alpha = 255, bool mask = true) {
@@ -644,6 +686,8 @@ struct RealLiveRuntime::Impl {
   }
   Graphic::Raster &prepareRaster(Graphic &g, const SDL_Rect &crop) {
     auto &cached = g.crops[{crop.x, crop.y, crop.w, crop.h}];
+    if (!g.surface || crop.w <= 0 || crop.h <= 0)
+      return cached;
     auto &renderer = engine->GetRenderer();
     if (!cached.original) {
       SurfacePtr pixels(
@@ -1618,6 +1662,27 @@ struct RealLiveRuntime::Impl {
   bool command(const libreallive::CommandElement &c);
   void bind(Engine &e) {
     engine = &e;
+    if (!mouseCursor) {
+      const int number = assets->settings().integer("MOUSE_CURSOR", -1);
+      if (number >= 0 && number <= 999) {
+        std::ostringstream key;
+        key << "MOUSE_CURSOR." << std::setw(3) << std::setfill('0') << number;
+        const auto name = assets->settings().text(key.str() + ".NAME");
+        if (!name.empty()) {
+          const auto id = assets->graphic(name);
+          if (!id.empty()) {
+            auto atlas = assets->loadSurface(id);
+            auto frame = mouseCursorFrame(atlas.get());
+            if (frame.surface) {
+              mouseCursor = SDL_CreateColorCursor(
+                  frame.surface.get(), frame.hotspotX, frame.hotspotY);
+              if (mouseCursor)
+                SDL_SetCursor(mouseCursor);
+            }
+          }
+        }
+      }
+    }
     if (!stage) {
       stage = std::make_unique<Stage>(e);
       textbox = std::make_unique<Text>(e, *assets);
@@ -2372,6 +2437,14 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
       return true;
   }
   if (type == 1 && (m == 73 || m == 74)) {
+    if (op == 1006 && over == 0) {
+      // ganPlayEx blocks only when the object contains GAN animation data.
+      // Kanon's call follows objOfFile("KAN_MOJA"), a static file object;
+      // the native implementation returns immediately for such objects.
+      value(c, 0);
+      value(c, 1);
+      return true;
+    }
     if (op == 0 || op == 3 || op == 4 || op == 104 || op == 2003 ||
         op == 3005 || op == 3103)
       return true;
@@ -2712,6 +2785,10 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
     bg.clear();
     return true;
   }
+  if (type == 1 && m == 61 && op == 111) {
+    fg.clear(); // objFgFreeInitAll does not affect background objects.
+    return true;
+  }
   if (type == 1 && m == 30 && op == 31) {
     auto &image = surface(value(c, 2));
     Uint8 r = 0, g = 0, b = 0, a = 0;
@@ -2723,6 +2800,12 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
     assign(c, 5, b);
     return true;
   }
+  if (type == 1 && m == 30 && op == 2) {
+    // stackPop removes replay history, not the displayed DC. We save DC
+    // pixels directly, without replaying the original graphics stack.
+    value(c, 0);
+    return true;
+  }
   if (type == 1 && m == 30 &&
       (op == 0 || op == 3 || op == 4 || op == 20 || op == 22))
     return true;
@@ -2731,6 +2814,45 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
     return true;
   }
   if (type == 1 && m == 33) {
+    if (op == 201 && over == 3) {
+      const int dcIndex = value(c, 4);
+      auto &s = surface(dcIndex);
+      SDL_Rect rect{value(c, 0), value(c, 1), value(c, 2) - value(c, 0) + 1,
+                    value(c, 3) - value(c, 1) + 1};
+      if (rect.w > 0 && rect.h > 0) {
+        SDL_FillSurfaceRect(
+            &s, &rect,
+            SDL_MapSurfaceRGBA(&s, Uint8(value(c, 5)), Uint8(value(c, 6)),
+                               Uint8(value(c, 7)), Uint8(value(c, 8))));
+        dcImages.erase(dcIndex);
+      }
+      return true;
+    }
+    if (op == 1056 && over == 4) {
+      std::string name = str(c, 0);
+      if (name == "???")
+        name = lastGraphic;
+      transitionOld = compose(presentationScale());
+      transitionTexture.reset();
+      transitionStart = SDL_GetTicks();
+      transitionMs = std::max(0, value(c, 7));
+      transitionStyle = value(c, 8);
+      // '?' presents the already prepared DC1; it is not a filename.
+      if (name != "?") {
+        blit(surface(0), surface(1));
+        lastGraphic = name;
+        auto &image = graphic(name);
+        SDL_Rect source{value(c, 1), value(c, 2), value(c, 3), value(c, 4)};
+        SDL_Rect dest{value(c, 5), value(c, 6), 0, 0};
+        blit(*image.surface, surface(1), &source, &dest, value(c, 15), false);
+      }
+      blit(surface(1), surface(0), nullptr, nullptr, 255, false);
+      fg = std::move(bg);
+      bg.clear();
+      textbox->hide();
+      wait(transitionMs);
+      return true;
+    }
     // Native RealLive FUN_004544b0: flash(R,G,B,duration), sixteen
     // restoration steps, with a snapshot of the old visible framebuffer.
     if (op == 404 && over == 1) {
@@ -3093,6 +3215,11 @@ RealLiveRuntime::RenderStats RealLiveRuntime::renderStats() const {
   return impl->renderStats;
 }
 void RealLiveRuntime::shutdown() {
+  if (impl->mouseCursor) {
+    SDL_SetCursor(SDL_GetDefaultCursor());
+    SDL_DestroyCursor(impl->mouseCursor);
+    impl->mouseCursor = nullptr;
+  }
   impl->bgm.Stop();
   impl->voice.Stop();
   impl->sounds.clear();

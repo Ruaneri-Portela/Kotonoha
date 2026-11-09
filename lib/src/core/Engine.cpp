@@ -373,6 +373,7 @@ void Engine::applySettings(const EngineSettings &value, bool persist) {
     settings = value;
     if (persist)
       saveSettings();
+    updateCursor(settings.customCursorPath);
   } catch (const std::exception &error) {
     const std::string failure = error.what();
     settings = previous;
@@ -383,6 +384,7 @@ void Engine::applySettings(const EngineSettings &value, bool persist) {
       audio.setMasterVolume(previous.masterVolume);
       audio.setMasterMuted(previous.masterMuted);
       audio.setUserVolumes(previous.channelVolumes);
+      updateCursor(previous.customCursorPath);
     } catch (const std::exception &rollback) {
       throw std::runtime_error(
           failure + "; settings rollback failed: " + rollback.what());
@@ -399,6 +401,35 @@ void Engine::applySettings(const EngineSettings &value, bool persist) {
     SDL_SetLogPriority(category, settings.logPriority);
   frameClock.reset();
   SDL_LogInfo(LogConfig, "Applied window/render settings");
+}
+
+void Engine::updateCursor(const std::string &id) {
+  if (id.empty()) {
+    customCursor.reset();
+    SDL_SetCursor(nullptr);
+    return;
+  }
+
+  SurfacePtr surface = assets->loadSurface(id);
+  if (!surface) {
+    SDL_LogWarn(LogConfig, "Failed to load custom cursor: %s", id.c_str());
+    customCursor.reset();
+    SDL_SetCursor(nullptr);
+    return;
+  }
+
+  SDL_Cursor *cursor = SDL_CreateColorCursor(surface.get(), 0, 0);
+  if (!cursor) {
+    SDL_LogWarn(LogConfig, "Failed to create custom cursor: %s",
+                SDL_GetError());
+    customCursor.reset();
+    SDL_SetCursor(nullptr);
+    return;
+  }
+
+  customCursor.reset(cursor);
+  SDL_SetCursor(customCursor.get());
+  SDL_LogInfo(LogConfig, "Custom cursor applied: %s", id.c_str());
 }
 
 void Engine::saveSettings() const {

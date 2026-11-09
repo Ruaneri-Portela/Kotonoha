@@ -6023,6 +6023,7 @@ Runtime::configVisualState() const {
 
 void Runtime::openConfig(Kotonoha::SchoolDaysConfigMenuModel::Page page,
                          bool playView) {
+#if defined(_WIN32) && !defined(__ANDROID__)
   if (engine) {
     // The shared SettingsMenu may have changed the host's physical window
     // mode while the School Days native panel was closed. Reflect it in the
@@ -6035,6 +6036,7 @@ void Runtime::openConfig(Kotonoha::SchoolDaysConfigMenuModel::Page page,
       refreshDisplayProjection();
     }
   }
+#endif
   closePanels();
   std::string failure;
   if (systemUi.OpenConfig(&engine->GetRenderer(), assets->root().string(),
@@ -6298,12 +6300,17 @@ void Runtime::loadConfig() {
   if (loaded.display.hasTypeMiniNote)
     displayBackend.typeMiniNote = loaded.display.typeMiniNote;
 
-  // Once a physical mode is saved, it is the effective Window/Full selection
-  // shared by General and Display. A legacy Config.DAT W still seeds a clean
-  // profile without a saved physical preference.
-  if (engine && (engine->HasStoredSettings() || !loaded.display.hasWindowMode))
+  // On Windows the stored physical mode takes precedence over retail W.
+  // Elsewhere General Full changes only the retail projection; a persisted
+  // host Windowed default must not erase the user's Config.DAT selection.
+  if (engine && !loaded.display.hasWindowMode)
     displayBackend.windowMode =
         engine->GetSettings().mode == Kotonoha::WindowMode::Windowed ? 0 : 1;
+#if defined(_WIN32) && !defined(__ANDROID__)
+  else if (engine && engine->HasStoredSettings())
+    displayBackend.windowMode =
+        engine->GetSettings().mode == Kotonoha::WindowMode::Windowed ? 0 : 1;
+#endif
   refreshDisplayProjection();
 
   displayAspectPreference = LoadRemasterAspectPreference(documents);

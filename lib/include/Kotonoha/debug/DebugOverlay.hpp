@@ -24,7 +24,7 @@ struct DebugSettings {
   bool ignorePause = false;
   std::string fpsLabel = "FPS";
   std::string nodeLabel = "Node";
-  std::string clockLabel = "Clock";
+  std::string clockLabel = "Event clock";
 };
 
 class DebugOverlay {

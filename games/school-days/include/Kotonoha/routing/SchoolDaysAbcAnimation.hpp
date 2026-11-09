@@ -1,6 +1,6 @@
 #pragma once
 
-#include <Kotonoha/SceneTime.h>
+#include <Kotonoha/utils/SceneTime.h>
 
 #include <algorithm>
 #include <array>

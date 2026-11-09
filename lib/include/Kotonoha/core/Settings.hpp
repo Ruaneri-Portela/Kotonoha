@@ -44,6 +44,7 @@ struct EngineSettings {
   std::string assetOverlayPath;
   std::string fontPath = "NotoSansJP-Regular.ttf";
   bool enableForcedSubtitles = true;  // Toggle for forced subtitles system
+  std::string customCursorPath = "";
   void validate() const;
   static EngineSettings load(const std::string &path);
   static EngineSettings load(const std::string &path,

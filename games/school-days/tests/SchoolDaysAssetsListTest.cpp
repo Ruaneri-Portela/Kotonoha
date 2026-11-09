@@ -110,9 +110,12 @@ int main() {
       const auto replacement =
           Kotonoha::ResolveSchoolDaysAssetPath(root.string().c_str(), logical);
       require(replacement.present && !replacement.collision &&
-                  fs::path(replacement.physical) ==
-                      optionOverlay / "System/Option" / name,
-              "General/Sound PNG did not resolve to the external override");
+                  fs::equivalent(replacement.physical,
+                                 optionOverlay / "System/Option" / name),
+              ("General/Sound PNG did not resolve to the external override: " +
+               logical + " -> " + replacement.physical + " (status " +
+               std::to_string(static_cast<int>(replacement.status)) + ")")
+                  .c_str());
     }
     Kotonoha::UninstallMountedSchoolDaysAssetResolver();
     require(Kotonoha::SetSchoolDaysAssetOverlay({}, &overlayError),
@@ -120,8 +123,8 @@ int main() {
     for (const auto &name : optionArtwork) {
       const auto fallback = Kotonoha::ResolveSchoolDaysAssetPath(
           root.string().c_str(), "System/Option/" + name);
-      require(fallback.present &&
-                  fs::path(fallback.physical) == root / "System/Option" / name,
+      require(fallback.present && fs::equivalent(fallback.physical,
+                                                 root / "System/Option" / name),
               "removing the overlay did not restore the original asset path");
     }
 
