@@ -138,8 +138,8 @@ void relocation(Fixture &fixture) {
           UpscaleShaderFiles(restored.upscaling.shaderFiles) ==
               std::vector<std::string>{"first.glsl", "second.glsl"},
       "Translations, fonts and ordered shaders also persist portable names");
-  fs::create_directory("game_assets");
-  fs::rename("overlay2", "game_assets/overlay2");
+  fs::create_directory("relocated");
+  fs::rename("overlay2", "relocated/overlay2");
   // The persisted absolute no longer exists; without a matching name-based
   // candidate the overlay resolves to nothing.
   auto relocated = EngineSettings::load(config.string());

@@ -79,32 +79,46 @@ void testDensity(Kotonoha::Engine &engine, float density) {
                        std::min(logicalBottom * density,
                                 static_cast<float>(height))) <= 3,
           "Visible inspector bounds match logical bounds at 1x/1.5x/2x");
-  // The FPS checkbox is the first item after the window title and padding.
+  // FPS lives in View > FPS, not at the top of the inspector panel. Test
+  // window-space input against the actual menu bar and its popup.
   const auto &style = ImGui::GetStyle();
-  const float x = window->Pos.x + style.WindowPadding.x + 5;
-  const float y =
-      window->Pos.y + window->TitleBarHeight + style.WindowPadding.y + 5;
-  SDL_Event motion{};
-  motion.type = SDL_EVENT_MOUSE_MOTION;
-  motion.motion.windowID = SDL_GetWindowID(&engine.GetWindow());
-  motion.motion.x = x;
-  motion.motion.y = y;
-  debug.handleEvent(motion);
-  frame();
+  const auto menu = window->MenuBarRect();
+  const float viewX =
+      menu.Min.x + style.WindowPadding.x + ImGui::CalcTextSize("System").x +
+      2 * style.FramePadding.x + style.ItemSpacing.x + style.FramePadding.x + 3;
+  const float viewY = (menu.Min.y + menu.Max.y) / 2;
+  auto click = [&](float x, float y) {
+    SDL_Event motion{};
+    motion.type = SDL_EVENT_MOUSE_MOTION;
+    motion.motion.windowID = SDL_GetWindowID(&engine.GetWindow());
+    motion.motion.x = x;
+    motion.motion.y = y;
+    debug.handleEvent(motion);
+    frame();
+    SDL_Event button{};
+    button.type = SDL_EVENT_MOUSE_BUTTON_DOWN;
+    button.button.windowID = motion.motion.windowID;
+    button.button.button = SDL_BUTTON_LEFT;
+    button.button.x = x;
+    button.button.y = y;
+    debug.handleEvent(button);
+    frame();
+    button.type = SDL_EVENT_MOUSE_BUTTON_UP;
+    debug.handleEvent(button);
+    frame();
+  };
+  click(viewX, viewY);
+  const auto &popups = ImGui::GetCurrentContext()->OpenPopupStack;
+  require(!popups.empty() && popups.back().Window,
+          "Window-coordinate click opens the View menu");
+  const auto *popup = popups.back().Window;
   const bool before = debug.getSettings().showFPS;
-  SDL_Event button{};
-  button.type = SDL_EVENT_MOUSE_BUTTON_DOWN;
-  button.button.windowID = motion.motion.windowID;
-  button.button.button = SDL_BUTTON_LEFT;
-  button.button.x = x;
-  button.button.y = y;
-  debug.handleEvent(button);
-  frame();
-  button.type = SDL_EVENT_MOUSE_BUTTON_UP;
-  debug.handleEvent(button);
-  frame();
-  require(debug.getSettings().showFPS != before,
-          "Window-coordinate click activates the visually aligned checkbox");
+  click(popup->Pos.x + style.WindowPadding.x + 10,
+        popup->Pos.y + style.WindowPadding.y + style.FramePadding.y +
+            ImGui::GetFontSize() / 2);
+  require(
+      debug.getSettings().showFPS != before,
+      "Window-coordinate click activates the visually aligned FPS menu item");
   require(SDL_SetRenderTarget(&renderer, nullptr),
           "Restore window framebuffer");
 }

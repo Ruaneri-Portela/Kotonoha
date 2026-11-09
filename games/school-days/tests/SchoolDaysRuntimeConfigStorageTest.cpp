@@ -237,10 +237,16 @@ int main(int argc, char **argv) {
   Check(ReadBytes(untouchedDocs / "Config.DAT") == untouchedBefore,
         "untouched Runtime mutated Config.DAT");
 
-  // The retail W selector still changes its authored UI family. The remaster
-  // additionally mirrors General Window/Full to the physical host and writes
-  // W only on explicit user action, so it persists alongside settings.json.
+  // The retail W selector still changes its authored UI family. On Windows
+  // the remaster also mirrors General Window/Full to the physical host; on
+  // other platforms it must not overwrite the retail selection with the
+  // unchanged host mode after a restart.
   const fs::path displayDocs = temporary.path / "display";
+#if defined(_WIN32) && !defined(__ANDROID__)
+  constexpr auto expectedFullMode = Kotonoha::WindowMode::Borderless;
+#else
+  constexpr auto expectedFullMode = Kotonoha::WindowMode::Windowed;
+#endif
   fs::create_directories(displayDocs);
   fs::copy_file(fixture, displayDocs / "Config.DAT");
   const auto displayBefore = ReadBytes(displayDocs / "Config.DAT");
@@ -272,10 +278,15 @@ int main(int argc, char **argv) {
               fullVisuals.defFullCurrent == 7,
           "RequestFull did not apply the authenticated W transition");
     const auto afterFull = app.engine.GetSettings();
+#if defined(_WIN32) && !defined(__ANDROID__)
     const auto *desktop = SDL_GetDesktopDisplayMode(SDL_GetPrimaryDisplay());
     Check(desktop && afterFull.mode == Kotonoha::WindowMode::Borderless &&
               afterFull.width == desktop->w && afterFull.height == desktop->h,
           "General/Full did not enter borderless at desktop-native geometry");
+#else
+    Check(afterFull.mode == Kotonoha::WindowMode::Windowed,
+          "Retail Full must not change the host window outside Windows");
+#endif
     Check(SchoolDays::RuntimeConfigStorageTestAccess::Storage(app.runtime)
                   .IsDirty() &&
               ReadBytes(displayDocs / "Config.DAT") == displayBefore,
@@ -296,16 +307,23 @@ int main(int argc, char **argv) {
               wideVisuals.defWideCurrent == 5 &&
               wideVisuals.defFullCurrent == 7,
           "RequestWide did not update B/D and project Standard");
+#if defined(_WIN32) && !defined(__ANDROID__)
     Check(std::abs(app.runtime.narrativePresentationHeightScale() - 0.75f) <
               0.001f,
           "Standard FULL did not compress the authored Novel picture to 75 "
           "percent");
+#else
+    Check(std::abs(app.runtime.narrativePresentationHeightScale() - 1.0f) <
+              0.001f,
+          "Non-Windows platforms must retain the authored Novel height");
+#endif
     Check(SchoolDays::RuntimeConfigStorageTestAccess::Storage(app.runtime)
               .IsDirty(),
           "accepted RequestWide did not cache DisplayType");
     const auto afterWide = app.engine.GetSettings();
-    Check(afterWide.mode == afterFull.mode && afterWide.width == desktop->w &&
-              afterWide.height == desktop->h,
+    Check(afterWide.mode == afterFull.mode &&
+              afterWide.width == afterFull.width &&
+              afterWide.height == afterFull.height,
           "RequestWide mutated physical Engine/SDL display settings");
   }
   std::string displayDecoded;
@@ -316,10 +334,9 @@ int main(int argc, char **argv) {
             displayDecoded.find("[WindowMode]=\"1\"") != std::string::npos,
         "display cache did not persist DisplayType/WindowMode independently");
 
-  // Full/Window is a physical remaster option as well as a native W/skin
-  // selector. The real profile uses settings.json for SDL mode and Config.DAT
-  // for retail W; both must agree after closing/reopening. All files are in
-  // this test's temporary documents directory, never in a user save folder.
+  // Full/Window selects native W/skin everywhere and changes physical SDL mode
+  // on Windows only. Keep both preferences consistent across restarts. All
+  // files live in temporary Documents, never in a user save folder.
   const fs::path persistentDocs = temporary.path / "persistent-general-sound";
   fs::create_directories(persistentDocs);
   fs::copy_file(fixture, persistentDocs / "Config.DAT");
@@ -341,7 +358,7 @@ int main(int argc, char **argv) {
           "General Window did not select host Windowed");
     SchoolDays::RuntimeConfigStorageTestAccess::Apply(app.runtime,
                                                       Kind::RequestFull, 0);
-    Check(app.engine.GetSettings().mode == Kotonoha::WindowMode::Borderless &&
+    Check(app.engine.GetSettings().mode == expectedFullMode &&
               SchoolDays::RuntimeConfigStorageTestAccess::DisplayBackend(
                   app.runtime)
                       .windowMode == 1,
@@ -384,16 +401,27 @@ int main(int argc, char **argv) {
               !sound.skip && sound.superSkip && !sound.textView,
           "General/Sound immediate actions did not update all selected values");
   }
+#if defined(_WIN32) && !defined(__ANDROID__)
   Check(fs::is_regular_file(persistentDocs / "settings.json"),
         "General Full did not write physical settings.json");
+#endif
   {
     Application app(assets, argv[1], persistentDocs, true);
     const auto &state = app.runtime.retailConfig();
-    Check(app.engine.GetSettings().mode == Kotonoha::WindowMode::Borderless &&
+    Check(app.engine.GetSettings().mode == expectedFullMode &&
               SchoolDays::RuntimeConfigStorageTestAccess::DisplayBackend(
                   app.runtime)
                       .windowMode == 1,
-          "General Full did not survive a real settings.json reload");
+          "General Full did not survive a real settings.json reload (mode " +
+              std::to_string(static_cast<int>(app.engine.GetSettings().mode)) +
+              ", expected " +
+              std::to_string(static_cast<int>(expectedFullMode)) +
+              ", retail W " +
+              std::to_string(
+                  SchoolDays::RuntimeConfigStorageTestAccess::DisplayBackend(
+                      app.runtime)
+                      .windowMode) +
+              ")");
     Check(SchoolDays::RuntimeConfigStorageTestAccess::UiVariant(app.runtime) ==
               Kotonoha::SchoolDaysDisplayPolicy::Variant::Standard,
           "General 4:3 aspect did not survive remaster preference reload");

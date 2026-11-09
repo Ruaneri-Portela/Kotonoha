@@ -1,3 +1,4 @@
+#include "RealLiveMouseCursor.hpp"
 #include "RealLiveRuntime.hpp"
 #include "RealLiveTransition.hpp"
 #include <Kotonoha/componentes/InGameMenu.hpp>
@@ -328,7 +329,7 @@ void verifyAllOpcodes(std::shared_ptr<RealLive::RealLiveAssets> assets) {
             << " unique opcode signatures across "
             << archive.ScenarioNumbers().size() << " scenarios.\n";
 
-  std::vector<std::pair<OpcodeKey, std::string>> pending;
+  std::vector<std::pair<OpcodeKey, std::string>> pending, failures;
   for (const auto &[key, info] : inventory) {
     game.debugJumpToNode(std::to_string(info.scenario) + ":" +
                          std::to_string(info.index));
@@ -336,6 +337,11 @@ void verifyAllOpcodes(std::shared_ptr<RealLive::RealLiveAssets> assets) {
     std::string diag = game.diagnostic();
     if (diag.find("Comando REALLIVE pendente") != std::string::npos) {
       pending.push_back({key, diag});
+    } else if (!diag.empty() ||
+               game.debugNode() == std::to_string(info.scenario) + ":" +
+                                       std::to_string(info.index)) {
+      failures.push_back(
+          {key, diag.empty() ? "instruction did not advance" : diag});
     }
   }
 
@@ -346,7 +352,22 @@ void verifyAllOpcodes(std::shared_ptr<RealLive::RealLiveAssets> assets) {
     std::cout << "  - " << type << ":" << mod << ":" << op << "/" << over
               << " (count: " << info.count << ", first at " << info.scenario
               << ":" << info.index << ") -> " << diag << "\n";
+    RLMachine machine;
+    info.cmd->PrintSourceRepresentation(&machine, std::cout);
+    std::cout << '\n';
   }
+  std::cout << "FOUND " << failures.size()
+            << " INCONCLUSIVE / FAILED OPCODE PROBES (isolated execution may "
+               "lack script context):\n";
+  for (const auto &[key, diag] : failures) {
+    const auto &[type, mod, op, over] = key;
+    const auto &info = inventory[key];
+    std::cout << "  - " << type << ":" << mod << ":" << op << "/" << over
+              << " at " << info.scenario << ":" << info.index << " -> " << diag
+              << '\n';
+  }
+  if (!pending.empty() || !failures.empty())
+    throw std::runtime_error("REALLIVE opcode audit is incomplete");
 }
 void verify8005Walk(std::shared_ptr<RealLive::RealLiveAssets> assets,
                     bool shaders = false, bool performance = false) {
@@ -1109,6 +1130,101 @@ int main(int argc, char **argv) {
     if (argc < 2 || !argv[1][0])
       return 77;
     auto assets = std::make_shared<RealLive::RealLiveAssets>(argv[1]);
+    if (argc > 4 && std::string(argv[2]) == "--inspect-scene") {
+      RLMachine machine;
+      auto archive = assets->scripts();
+      const auto &scenario = archive.Scenario(std::stoi(argv[3]));
+      size_t index = 0;
+      const size_t first = std::stoull(argv[4]);
+      const size_t last = argc > 5 ? std::stoull(argv[5]) : first + 30;
+      for (const auto &element : scenario) {
+        if (index >= first && index <= last) {
+          std::cout << index << ' ';
+          element->PrintSourceRepresentation(&machine, std::cout);
+          std::cout << '\n';
+        }
+        ++index;
+      }
+      return 0;
+    }
+    if (argc > 2 && std::string(argv[2]) == "--cursor-check") {
+      RealLive::RealLiveRuntime game(assets);
+      game.SetState(GameState::Menu);
+      EngineOptions options;
+      options.assets = assets;
+      options.persistSettings = false;
+      Engine engine(game, options);
+      const int selected = assets->settings().integer("MOUSE_CURSOR", -1);
+      std::ostringstream key;
+      key << "MOUSE_CURSOR." << std::setw(3) << std::setfill('0') << selected
+          << ".NAME";
+      const auto name = assets->settings().text(key.str());
+      if (selected >= 0 && !name.empty() && !assets->graphic(name).empty()) {
+        check(SDL_GetCursor() != SDL_GetDefaultCursor(),
+              "Configured RealLive mouse cursor was not installed");
+        auto atlas = assets->loadSurface(assets->graphic(name));
+        auto frame = RealLive::mouseCursorFrame(atlas.get());
+        check(frame.surface && frame.surface->w == 32 && frame.surface->h == 32,
+              "RealLive mouse cursor must exclude atlas border and mask");
+        Uint8 r, g, b, a;
+        check(SDL_ReadSurfacePixel(frame.surface.get(), 0, 0, &r, &g, &b, &a) &&
+                  a == 0 &&
+                  SDL_ReadSurfacePixel(frame.surface.get(), 20, 15, &r, &g, &b,
+                                       &a) &&
+                  a == 255,
+              "RealLive cursor mask must hide the border but keep the image");
+      }
+      game.shutdown();
+      check(SDL_GetCursor() == SDL_GetDefaultCursor(),
+            "RealLive cursor was not restored on shutdown");
+      std::cout << "REALLIVE cursor "
+                << (name.empty() ? "system default" : name) << " checked\n";
+      return 0;
+    }
+    if (argc > 2 && std::string(argv[2]) == "--boot-probe") {
+      RealLive::RealLiveRuntime game(assets);
+      game.SetState(GameState::Menu);
+      EngineOptions options;
+      options.assets = assets;
+      options.persistSettings = false;
+      Engine engine(game, options);
+      struct Guard {
+        RealLive::RealLiveRuntime &game;
+        ~Guard() { game.shutdown(); }
+      } guard{game};
+      SDL_SetRenderVSync(&engine.GetRenderer(), 0);
+      const auto start = SDL_GetTicks();
+      std::string previous;
+      bool clicked = false;
+      while (SDL_GetTicks() - start < (argc > 4 ? 60000 : 30000)) {
+        if (argc > 4 && !clicked && SDL_GetTicks() - start > 27000) {
+          SDL_Event event{};
+          event.type = SDL_EVENT_MOUSE_MOTION;
+          event.motion.x = std::stof(argv[3]);
+          event.motion.y = std::stof(argv[4]);
+          game.onEvent(event);
+          event.type = SDL_EVENT_MOUSE_BUTTON_DOWN;
+          event.button.button = SDL_BUTTON_LEFT;
+          event.button.x = std::stof(argv[3]);
+          event.button.y = std::stof(argv[4]);
+          game.onEvent(event);
+          engine.Iterate();
+          event.type = SDL_EVENT_MOUSE_BUTTON_UP;
+          game.onEvent(event);
+          clicked = true;
+        }
+        engine.Iterate();
+        check(game.diagnostic().empty(), game.diagnostic().c_str());
+        if (game.debugNode() != previous) {
+          previous = game.debugNode();
+          std::cout << SDL_GetTicks() - start << " " << previous << '\n';
+        }
+        SDL_Delay(16);
+      }
+      capture(engine, game, "build/reallive-boot-probe.bmp");
+      std::cout << "Boot probe completed at " << game.debugNode() << '\n';
+      return 0;
+    }
     if (argc > 2 && std::string(argv[2]) == "--direct-iso") {
       check(isISOImage(assets->directory()) &&
                 std::filesystem::equivalent(assets->directory(), argv[1]) &&

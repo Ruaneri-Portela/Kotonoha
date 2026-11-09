@@ -18,6 +18,7 @@ public:
   Kotonoha::SurfacePtr loadSurfaceAsset(const std::string &) const override;
   Kotonoha::AudioClip loadAudioAsset(const std::string &) const override;
   std::string graphic(const std::string &name) const;
+  std::string animation(const std::string &name) const;
   bool containsAsset(const std::string &id) const override;
   std::vector<Uint8> readAsset(const std::string &id) const override;
   std::vector<std::string> listAsset(const std::string &prefix) const override;

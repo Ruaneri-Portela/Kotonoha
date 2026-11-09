@@ -123,9 +123,11 @@ int main(int argc, char **argv) {
             "The selected route was not remembered");
     SchoolDays::Launcher explicitRoute(settings, fixtures.string(),
                                        original.string());
-    require(explicitRoute.routePath() == original.string() &&
+    require(fs::equivalent(explicitRoute.routePath(), original) &&
                 explicitRoute.routeValid(),
-            "An explicit route must override the remembered route");
+            "An explicit route must override the remembered route: " +
+                explicitRoute.routePath() + " (expected " + original.string() +
+                "; " + explicitRoute.routeInfo() + ")");
 
     const auto documents = (temporary.path / "documents").string();
     const auto rememberedDump =

@@ -9,6 +9,7 @@
 #include <Kotonoha/SchoolDaysImageAssetResolver.hpp>
 
 #include <Kotonoha/core/AssetProvider.hpp>
+#include <Kotonoha/core/UI.hpp>
 
 #include <algorithm>
 #include <array>
@@ -1389,17 +1390,16 @@ bool SchoolDaysSystemUi::HandleSaveLoadCommentEditorEvent(
     }
     return true;
   }
-  if (event->type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
-      event->button.button == SDL_BUTTON_LEFT) {
+  if (event->type == SDL_EVENT_MOUSE_BUTTON_DOWN ||
+      event->type == SDL_EVENT_MOUSE_BUTTON_UP) {
     const auto layout = BuildCommentEditorLayout(area_);
-    const SDL_FPoint point{event->button.x, event->button.y};
-    if (SDL_PointInRectFloat(&point, &layout.ok)) {
+    if (UI::clicked(*event, layout.ok)) {
       const std::u16string comment = saveLoadCommentText_;
       if (!SubmitSaveLoadComment(comment)) {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
                      "School Days comment mouse submit was rejected");
       }
-    } else if (SDL_PointInRectFloat(&point, &layout.cancel)) {
+    } else if (UI::clicked(*event, layout.cancel)) {
       if (!CancelSaveLoadComment()) {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
                      "School Days comment mouse cancel was rejected");

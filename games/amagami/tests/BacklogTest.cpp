@@ -140,6 +140,14 @@ int main() {
     touch.type = SDL_EVENT_MOUSE_BUTTON_UP;
     backlog.onEvent(touch);
     require(replays == 1, "Touch release replays the selected entry once");
+    touch.button.which = 0;
+    backlog.onEvent(touch);
+    require(replays == 1, "Physical mouse release does not replay an entry");
+    touch.type = SDL_EVENT_MOUSE_BUTTON_DOWN;
+    backlog.onEvent(touch);
+    require(replays == 2, "Physical mouse press replays an entry immediately");
+    touch.button.which = SDL_TOUCH_MOUSEID;
+    touch.type = SDL_EVENT_MOUSE_BUTTON_UP;
     SDL_Event drag{};
     drag.type = SDL_EVENT_FINGER_DOWN;
     drag.tfinger.touchID = 1;
@@ -153,7 +161,7 @@ int main() {
     drag.type = SDL_EVENT_FINGER_UP;
     backlog.onEvent(drag);
     backlog.onEvent(touch);
-    require(replays == 1,
+    require(replays == 2,
             "Scrolling history never replays a voice on synthetic release");
     key(backlog, SDLK_ESCAPE);
     backlog.setHistory({}, 1227);

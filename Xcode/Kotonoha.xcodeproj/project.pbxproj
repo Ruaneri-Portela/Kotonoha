@@ -165,7 +165,6 @@
 		91A50DE1D021BF91FBE3647D /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 42D538C486E337F7390CE7EF /* CoreFoundation.framework */; };
 		91E035C9F22737E3F9A22549 /* _remote_debugging.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 44FF0BEABF96805EA3839AC0 /* _remote_debugging.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		923F7FE3D55FC9FFC19A46A4 /* fcntl.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 4EC023822E779C408544E330 /* fcntl.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
-		940977A82A62E27D1F5BF92F /* game-assets in Resources */ = {isa = PBXBuildFile; fileRef = 6661193008ED2C99D8F4C85E /* game-assets */; };
 		951714C2518E026491F167D1 /* CoreVideo.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B2FAEAC42A6E7C5EDC4F4A07 /* CoreVideo.framework */; };
 		953762127BABEA9F41912A01 /* _sha2.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = CEDFC336F4945B9B468438BC /* _sha2.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		953B1C44BA57226DD925B36B /* SDL3.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = CEFD20B530959039006D0E4E /* SDL3.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
@@ -235,10 +234,6 @@
 		CE2FEE0630956E7600E7D27F /* assets in Resources */ = {isa = PBXBuildFile; fileRef = CE2FEE0330956E6100E7D27F /* assets */; };
 		CE2FEE0730956E7700E7D27F /* assets in Resources */ = {isa = PBXBuildFile; fileRef = CE2FEE0330956E6100E7D27F /* assets */; };
 		CE2FEE0930956E8300E7D27F /* assets in Resources */ = {isa = PBXBuildFile; fileRef = CE2FEE0330956E6100E7D27F /* assets */; };
-		CE2FEE0A30956E9400E7D27F /* game-assets in Resources */ = {isa = PBXBuildFile; fileRef = CE2FEE0130956E3300E7D27F /* game-assets */; };
-		CE2FEE0C30956EA000E7D27F /* game-assets in Resources */ = {isa = PBXBuildFile; fileRef = CE2FEE0B30956EA000E7D27F /* game-assets */; };
-		CE2FEE0E30956EB700E7D27F /* game-assets in Resources */ = {isa = PBXBuildFile; fileRef = CE2FEE0D30956EB700E7D27F /* game-assets */; };
-		CE2FEE1030956ECD00E7D27F /* game-assets in Resources */ = {isa = PBXBuildFile; fileRef = CE2FEE0F30956ECC00E7D27F /* game-assets */; };
 		CE8CD289309A153D0003D364 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6AC33256490759509EFF9BF1 /* Foundation.framework */; };
 		CE8CD28A309A153D0003D364 /* KotonohaEngine.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CE1893F83095457F00B0DF80 /* KotonohaEngine.framework */; };
 		CE8CD28B309A153D0003D364 /* SDL3_ttf.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEFD20AD3095902A006D0E4E /* SDL3_ttf.framework */; };
@@ -256,7 +251,6 @@
 		CE8CD29A309A153D0003D364 /* KotonohaEngine.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = CE1893F83095457F00B0DF80 /* KotonohaEngine.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		CE8CD29B309A153D0003D364 /* SDL3_ttf.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = CEFD20AD3095902A006D0E4E /* SDL3_ttf.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		CE8CD29C309A153D0003D364 /* KotonohaImGui.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = CE1893F63095457700B0DF80 /* KotonohaImGui.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
-		CE8CD2DA309A17080003D364 /* game-assets in Resources */ = {isa = PBXBuildFile; fileRef = CE8CD2D9309A17080003D364 /* game-assets */; };
 		CE90DB563098CBF100281500 /* Python.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = CE90DB553098CBF100281500 /* Python.xcframework */; };
 		CEC5DF0F3095F7EB00D4D78B /* KotonohaEngine.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CE1893F83095457F00B0DF80 /* KotonohaEngine.framework */; };
 		CEC5DF103095F7EB00D4D78B /* KotonohaEngine.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = CE1893F83095457F00B0DF80 /* KotonohaEngine.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
@@ -275,6 +269,13 @@
 		CEC5DF1D3095F83D00D4D78B /* KotonohaEngine.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CE1893F83095457F00B0DF80 /* KotonohaEngine.framework */; };
 		CEC5DF1E3095F83D00D4D78B /* KotonohaEngine.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = CE1893F83095457F00B0DF80 /* KotonohaEngine.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		CEDBE52417C8631E50248464 /* _json.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = AAFB89E908BDA77D54AABE49 /* _json.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		CEDC78D630A0B91D0088E9B5 /* game-assets in Resources */ = {isa = PBXBuildFile; fileRef = CEDC78D530A0B91D0088E9B5 /* game-assets */; };
+		CEDC7B7A30A0BC160088E9B5 /* game-assets in Resources */ = {isa = PBXBuildFile; fileRef = CEDC7B7930A0BC160088E9B5 /* game-assets */; };
+		CEDC7B7C30A0BC370088E9B5 /* game-assets in Resources */ = {isa = PBXBuildFile; fileRef = CEDC7B7B30A0BC370088E9B5 /* game-assets */; };
+		CEDC7B7E30A0BC5B0088E9B5 /* game-assets in Resources */ = {isa = PBXBuildFile; fileRef = CEDC7B7D30A0BC5B0088E9B5 /* game-assets */; };
+		CEDC7B8030A0BC6F0088E9B5 /* game-assets in Resources */ = {isa = PBXBuildFile; fileRef = CEDC7B7F30A0BC6F0088E9B5 /* game-assets */; };
+		CEDC7B8230A0BC850088E9B5 /* game-assets in Resources */ = {isa = PBXBuildFile; fileRef = CEDC7B8130A0BC850088E9B5 /* game-assets */; };
+		CEDC7B8430A0BCA00088E9B5 /* game-assets in Resources */ = {isa = PBXBuildFile; fileRef = CEDC7B8330A0BCA00088E9B5 /* game-assets */; };
 		CEF8839B3095998500CB6787 /* assets in Resources */ = {isa = PBXBuildFile; fileRef = CE2FEE0330956E6100E7D27F /* assets */; };
 		CEFD20B63095904E006D0E4E /* SDL3.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEFD20B530959039006D0E4E /* SDL3.framework */; };
 		CEFD20B73095904E006D0E4E /* SDL3.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = CEFD20B530959039006D0E4E /* SDL3.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
@@ -316,7 +317,6 @@
 		D5426C9A8495A81C48EE6F19 /* _testclinic_limited.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = A9ABFE0CC08D30FF79C20ECA /* _testclinic_limited.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		D5503602DDAF33D053DB64C6 /* _codecs_kr.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = FB7C631042C14C0105BF5715 /* _codecs_kr.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		D5C93F7C6866ABDE2F7B3C92 /* KotonohaImGui.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CE1893F63095457700B0DF80 /* KotonohaImGui.framework */; };
-		D65279F819A39074B3FBFE5C /* game-assets in Resources */ = {isa = PBXBuildFile; fileRef = C310110E5F08805A6AAD5858 /* game-assets */; };
 		D80EC2D025530A5FED57C43E /* _dbm.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 057006EE70B2F266897CF831 /* _dbm.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		D86023A902907AE397697254 /* CoreMedia.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B78DCDBFE541F1854A2A0FFC /* CoreMedia.framework */; };
 		D8DC687A01BF7CFA1E2463F8 /* _hashlib.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = AAAC6F32B9716B0C6103CE99 /* _hashlib.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
@@ -854,7 +854,6 @@
 		528F10C36D905193890E9E1A /* Value.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; name = Value.cpp; path = "../games/doki-doki-literature-club/src/Value.cpp"; sourceTree = "<group>"; };
 		5DE24A4243A60EC5676ED207 /* _statistics.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = _statistics.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/_statistics.framework"; sourceTree = SOURCE_ROOT; };
 		5F688AD0FCE10DF72F51EBE2 /* imgui_stdlib.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; name = imgui_stdlib.cpp; path = ../lib/submodules/imgui/misc/cpp/imgui_stdlib.cpp; sourceTree = "<group>"; };
-		6661193008ED2C99D8F4C85E /* game-assets */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = folder; name = "game-assets"; path = "../games/summer-radish-vacation/game-assets"; sourceTree = SOURCE_ROOT; };
 		6AC33256490759509EFF9BF1 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
 		6C8A0E978D71CD2188E323F1 /* _sha3.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = _sha3.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/_sha3.framework"; sourceTree = SOURCE_ROOT; };
 		6C9806081CEE061BA0F00EE2 /* _lzma.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = _lzma.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/_lzma.framework"; sourceTree = SOURCE_ROOT; };
@@ -891,21 +890,22 @@
 		BA84F78900F207073C05F9CC /* _zoneinfo.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = _zoneinfo.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/_zoneinfo.framework"; sourceTree = SOURCE_ROOT; };
 		BE853869404063D285F02AEC /* _elementtree.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = _elementtree.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/_elementtree.framework"; sourceTree = SOURCE_ROOT; };
 		BF419AE62F91C71F47490CB9 /* _codecs_jp.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = _codecs_jp.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/_codecs_jp.framework"; sourceTree = SOURCE_ROOT; };
-		C310110E5F08805A6AAD5858 /* game-assets */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = folder; name = "game-assets"; path = "../games/reallive/game-assets"; sourceTree = SOURCE_ROOT; };
 		C446DAC72995F2973C600D09 /* VideoToolbox.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = VideoToolbox.framework; path = System/Library/Frameworks/VideoToolbox.framework; sourceTree = SDKROOT; };
 		C493414D30C0DC9E2CB6E56A /* _struct.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = _struct.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/_struct.framework"; sourceTree = SOURCE_ROOT; };
 		C725562FCCDCB4EE087E2805 /* Air.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Air.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		CDE937DF873378DC9B0AA622 /* math.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = math.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/math.framework"; sourceTree = SOURCE_ROOT; };
 		CE1893F63095457700B0DF80 /* KotonohaImGui.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = KotonohaImGui.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		CE1893F83095457F00B0DF80 /* KotonohaEngine.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = KotonohaEngine.framework; sourceTree = BUILT_PRODUCTS_DIR; };
-		CE2FEE0130956E3300E7D27F /* game-assets */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "game-assets"; path = "../../games/zero-no-tsukaima/game-assets"; sourceTree = "<group>"; };
 		CE2FEE0330956E6100E7D27F /* assets */ = {isa = PBXFileReference; lastKnownFileType = folder; name = assets; path = ../assets; sourceTree = "<group>"; };
-		CE2FEE0B30956EA000E7D27F /* game-assets */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "game-assets"; path = "../../games/snow-radish-vacation/game-assets"; sourceTree = "<group>"; };
-		CE2FEE0D30956EB700E7D27F /* game-assets */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "game-assets"; path = "../../games/doki-doki-literature-club/game-assets"; sourceTree = "<group>"; };
-		CE2FEE0F30956ECC00E7D27F /* game-assets */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "game-assets"; path = "../../games/school-days/game-assets"; sourceTree = "<group>"; };
 		CE8CD2A0309A153D0003D364 /* Amagami.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Amagami.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		CE8CD2D9309A17080003D364 /* game-assets */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "game-assets"; path = "../../../games/amagami/game-assets"; sourceTree = "<group>"; };
 		CE90DB553098CBF100281500 /* Python.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = Python.xcframework; path = "../build/iOS-deps/Python.xcframework"; sourceTree = SOURCE_ROOT; };
+		CEDC78D530A0B91D0088E9B5 /* game-assets */ = {isa = PBXFileReference; name = "game-assets"; path = "../games/amagami/game-assets"; sourceTree = "<group>"; };
+		CEDC7B7930A0BC160088E9B5 /* game-assets */ = {isa = PBXFileReference; name = "game-assets"; path = "../games/reallive/game-assets"; sourceTree = "<group>"; };
+		CEDC7B7B30A0BC370088E9B5 /* game-assets */ = {isa = PBXFileReference; name = "game-assets"; path = "../games/zero-no-tsukaima/game-assets"; sourceTree = "<group>"; };
+		CEDC7B7D30A0BC5B0088E9B5 /* game-assets */ = {isa = PBXFileReference; name = "game-assets"; path = "../games/snow-radish-vacation/game-assets"; sourceTree = "<group>"; };
+		CEDC7B7F30A0BC6F0088E9B5 /* game-assets */ = {isa = PBXFileReference; name = "game-assets"; path = "../games/doki-doki-literature-club/game-assets"; sourceTree = "<group>"; };
+		CEDC7B8130A0BC850088E9B5 /* game-assets */ = {isa = PBXFileReference; name = "game-assets"; path = "../games/school-days/game-assets"; sourceTree = "<group>"; };
+		CEDC7B8330A0BCA00088E9B5 /* game-assets */ = {isa = PBXFileReference; name = "game-assets"; path = "../games/summer-radish-vacation/game-assets"; sourceTree = "<group>"; };
 		CEDFC336F4945B9B468438BC /* _sha2.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = _sha2.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/_sha2.framework"; sourceTree = SOURCE_ROOT; };
 		CEFD20A630959029006D0E4E /* SDL_ttf.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = SDL_ttf.xcodeproj; path = ../lib/submodules/SDL_ttf/Xcode/SDL_ttf.xcodeproj; sourceTree = SOURCE_ROOT; };
 		CEFD20AE30959038006D0E4E /* SDL.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = SDL.xcodeproj; path = ../lib/submodules/SDL/Xcode/SDL/SDL.xcodeproj; sourceTree = SOURCE_ROOT; };
@@ -1258,9 +1258,9 @@
 		1FDB485883E5E4E9F6B124E9 /* ZeroNoTsukaima */ = {
 			isa = PBXGroup;
 			children = (
-				CE2FEE0130956E3300E7D27F /* game-assets */,
 				CEC5DED63095F52200D4D78B /* ../games/zero-no-tsukaima/src */,
 				CEC5DEF33095F52A00D4D78B /* ../games/zero-no-tsukaima/include */,
+				CEDC7B7B30A0BC370088E9B5 /* game-assets */,
 			);
 			name = ZeroNoTsukaima;
 			sourceTree = "<group>";
@@ -1277,9 +1277,9 @@
 		4C3DDA454526E9E63A3838DC /* DokiDoki */ = {
 			isa = PBXGroup;
 			children = (
-				CE2FEE0D30956EB700E7D27F /* game-assets */,
 				CEC5DEAA3095F50700D4D78B /* ../games/doki-doki-literature-club/src */,
 				CEC5DEBC3095F50E00D4D78B /* ../games/doki-doki-literature-club/include */,
+				CEDC7B7F30A0BC6F0088E9B5 /* game-assets */,
 			);
 			name = DokiDoki;
 			sourceTree = "<group>";
@@ -1327,9 +1327,9 @@
 		77EB89FA83F4679C0B43BB3A /* SchoolDays */ = {
 			isa = PBXGroup;
 			children = (
-				CE2FEE0F30956ECC00E7D27F /* game-assets */,
 				CEC5DE193095F4B300D4D78B /* ../games/school-days/src */,
 				CEC5DE7A3095F4BD00D4D78B /* ../games/school-days/include */,
+				CEDC7B8130A0BC850088E9B5 /* game-assets */,
 			);
 			name = SchoolDays;
 			sourceTree = "<group>";
@@ -1408,7 +1408,7 @@
 			children = (
 				CE8CD2C7309A16A70003D364 /* src */,
 				CE8CD2D5309A16B70003D364 /* include */,
-				CE8CD2D9309A17080003D364 /* game-assets */,
+				CEDC78D530A0B91D0088E9B5 /* game-assets */,
 			);
 			path = Amagami;
 			sourceTree = "<group>";
@@ -1463,8 +1463,8 @@
 			children = (
 				33CF72D87ACA703CCC5F6560 /* ../games/reallive/src */,
 				4C0D884F99638CBB5B02A07D /* assets */,
-				C310110E5F08805A6AAD5858 /* game-assets */,
 				B958092F9AFFDA5E904BF5DE /* ../games/reallive/vendor */,
+				CEDC7B7930A0BC160088E9B5 /* game-assets */,
 			);
 			name = RealLive;
 			sourceTree = "<group>";
@@ -1474,7 +1474,7 @@
 			children = (
 				C120216BEFDCA69752FC625E /* ../games/summer-radish-vacation/src */,
 				4B570C15B7EBDFAD987CA4C4 /* assets */,
-				6661193008ED2C99D8F4C85E /* game-assets */,
+				CEDC7B8330A0BCA00088E9B5 /* game-assets */,
 			);
 			name = "Summer Radish Vacation!!";
 			sourceTree = "<group>";
@@ -1482,9 +1482,9 @@
 		F72608A62717C49A80B163F3 /* SnowRadish */ = {
 			isa = PBXGroup;
 			children = (
-				CE2FEE0B30956EA000E7D27F /* game-assets */,
 				CEC5DE8A3095F4E900D4D78B /* ../games/snow-radish-vacation/src */,
 				CEC5DE993095F4F200D4D78B /* ../games/snow-radish-vacation/include */,
+				CEDC7B7D30A0BC5B0088E9B5 /* game-assets */,
 			);
 			name = SnowRadish;
 			sourceTree = "<group>";
@@ -1890,8 +1890,8 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				CEDC7B7C30A0BC370088E9B5 /* game-assets in Resources */,
 				CE2FEE0630956E7600E7D27F /* assets in Resources */,
-				CE2FEE0A30956E9400E7D27F /* game-assets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1899,8 +1899,8 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				CEDC7B8430A0BCA00088E9B5 /* game-assets in Resources */,
 				0B65256FA7D60FD62D1D4089 /* assets in Resources */,
-				940977A82A62E27D1F5BF92F /* game-assets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1908,8 +1908,8 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				CEDC7B7A30A0BC160088E9B5 /* game-assets in Resources */,
 				23318CCC38F24025FC81E818 /* assets in Resources */,
-				D65279F819A39074B3FBFE5C /* game-assets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1925,7 +1925,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				CE2FEE0C30956EA000E7D27F /* game-assets in Resources */,
+				CEDC7B7E30A0BC5B0088E9B5 /* game-assets in Resources */,
 				CE2FEE0730956E7700E7D27F /* assets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -1934,7 +1934,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				CE2FEE0E30956EB700E7D27F /* game-assets in Resources */,
+				CEDC7B8030A0BC6F0088E9B5 /* game-assets in Resources */,
 				CEF8839B3095998500CB6787 /* assets in Resources */,
 				C8BD04563E67AA6C284B3572 /* python in Resources */,
 			);
@@ -1944,7 +1944,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				CE8CD2DA309A17080003D364 /* game-assets in Resources */,
+				CEDC78D630A0B91D0088E9B5 /* game-assets in Resources */,
 				CE8CD296309A153D0003D364 /* assets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -1953,7 +1953,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				CE2FEE1030956ECD00E7D27F /* game-assets in Resources */,
+				CEDC7B8230A0BC850088E9B5 /* game-assets in Resources */,
 				CE2FEE0930956E8300E7D27F /* assets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

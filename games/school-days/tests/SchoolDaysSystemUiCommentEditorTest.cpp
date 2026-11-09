@@ -266,6 +266,31 @@ void TestMouseButtons(Kotonoha::SchoolDaysSystemUi &ui, SDL_Renderer *renderer,
           "comment Cancel mouse button armed a save");
   Require(!SDL_TextInputActive(window),
           "comment Cancel mouse button retained text input");
+
+  ConfigureSaveLoad(ui, renderer, root, true, u"touch", true);
+  OpenEditor(ui, renderer);
+  auto touch = Click(910.0f, 414.0f);
+  touch.button.which = SDL_TOUCH_MOUSEID;
+  Require(ui.HandleEvent(renderer, &touch, &ignored) &&
+              ui.IsSaveLoadCommentEditorOpen() && !ui.SaveLoad().SavePending(),
+          "touch press must not confirm the comment before release");
+  touch.type = SDL_EVENT_MOUSE_BUTTON_UP;
+  Require(ui.HandleEvent(renderer, &touch, &ignored) &&
+              !ui.IsSaveLoadCommentEditorOpen() && ui.SaveLoad().SavePending(),
+          "touch release confirms the comment through engine click policy");
+  ui.Update(0u, 0, 0, &save);
+  Require(save.hasSaveLoadOutput && save.saveLoadOutput.comment == u"touch",
+          "touch release did not publish the edited comment");
+
+  ConfigureSaveLoad(ui, renderer, root, true, u"release", true);
+  OpenEditor(ui, renderer);
+  auto mouseRelease = Click(910.0f, 414.0f);
+  mouseRelease.type = SDL_EVENT_MOUSE_BUTTON_UP;
+  Require(ui.HandleEvent(renderer, &mouseRelease, &ignored) &&
+              ui.IsSaveLoadCommentEditorOpen(),
+          "physical mouse release must not confirm a comment twice");
+  auto dismiss = Key(SDLK_ESCAPE);
+  ui.HandleEvent(renderer, &dismiss, &ignored);
 }
 
 } // namespace

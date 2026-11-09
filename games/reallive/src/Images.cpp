@@ -1,6 +1,7 @@
 #include "RealLive/Images.hpp"
 
 #include <algorithm>
+#include <cstring>
 #include <limits>
 #include <stdexcept>
 
@@ -282,5 +283,60 @@ Image decodePDT(const Bytes &bytes) {
   im.regions.push_back({0, 0, static_cast<std::int32_t>(im.width) - 1,
                         static_cast<std::int32_t>(im.height) - 1, 0, 0, 0, 0});
   return im;
+}
+Anm decodeANM(const Bytes &bytes) {
+  static constexpr std::uint8_t magic[12] = {'A', 'N', 'M', '3', '2', 0,
+                                             0,   0,   0,   1,   0,   0};
+  if (bytes.size() < 0xb8)
+    bad("ANM: truncated header");
+  if (std::memcmp(bytes.data(), magic, sizeof(magic)) != 0)
+    bad("ANM: invalid signature");
+
+  Anm anm;
+  const char *name = reinterpret_cast<const char *>(bytes.data() + 0x1c);
+  const std::size_t nameLimit =
+      std::min<std::size_t>(0x8c - 0x1c, bytes.size() - 0x1c);
+  std::size_t nameLength = 0;
+  while (nameLength < nameLimit && name[nameLength])
+    ++nameLength;
+  if (!nameLength)
+    bad("ANM: missing image name");
+  anm.image.assign(name, nameLength);
+
+  const auto framesLen = s32(bytes, 0x8c);
+  const auto listLen = s32(bytes, 0x90);
+  const auto setLen = s32(bytes, 0x94);
+  if (framesLen < 0 || framesLen > 4096 || listLen < 0 || listLen > 4096 ||
+      setLen < 0 || setLen > 4096)
+    bad("ANM: invalid table size");
+  const std::size_t frameBase = 0xb8;
+  const std::size_t listBase = frameBase + std::size_t(framesLen) * 0x60;
+  const std::size_t setBase = listBase + std::size_t(listLen) * 0x68;
+  const std::size_t end = setBase + std::size_t(setLen) * 0x78;
+  if (end > bytes.size())
+    bad("ANM: truncated tables");
+
+  for (std::int32_t i = 0; i < framesLen; ++i) {
+    const std::size_t p = frameBase + std::size_t(i) * 0x60;
+    anm.frames.push_back({s32(bytes, p), s32(bytes, p + 4), s32(bytes, p + 8),
+                          s32(bytes, p + 12), s32(bytes, p + 16),
+                          s32(bytes, p + 20), s32(bytes, p + 0x38)});
+  }
+  auto readList = [&](std::size_t base, std::size_t stride,
+                      std::vector<std::vector<int>> &out) {
+    const auto length = s32(bytes, base + 4);
+    if (length < 0 || std::size_t(length) * 4 > stride - 8)
+      bad("ANM: invalid list length");
+    std::vector<int> values;
+    values.reserve(std::size_t(length));
+    for (std::int32_t j = 0; j < length; ++j)
+      values.push_back(s32(bytes, base + 8 + std::size_t(j) * 4));
+    out.push_back(std::move(values));
+  };
+  for (std::int32_t i = 0; i < listLen; ++i)
+    readList(listBase + std::size_t(i) * 0x68, 0x68, anm.frameLists);
+  for (std::int32_t i = 0; i < setLen; ++i)
+    readList(setBase + std::size_t(i) * 0x78, 0x78, anm.sets);
+  return anm;
 }
 } // namespace RealLive
