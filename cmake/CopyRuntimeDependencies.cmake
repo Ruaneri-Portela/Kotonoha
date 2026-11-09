@@ -15,6 +15,11 @@ file(GET_RUNTIME_DEPENDENCIES
     RESOLVED_DEPENDENCIES_VAR dependencies
     UNRESOLVED_DEPENDENCIES_VAR missing)
 
+# Filtrar dependências opcionais do Windows que o dumpbin relata mas que não são erros reais
+if(missing)
+    list(FILTER missing EXCLUDE REGEX "^(?i)(AzureAttestManager|AzureAttestNormal|HvsiFileTrust|PdmUtilities|wpaxholder)\\.dll$")
+endif()
+
 # Handle unresolved dependencies by filtering system libraries we know about
 set(known_unresolved "libkotonoha.dll;libkotonoha_imgui.dll;SDL3_ttf.dll;SDL3.dll")
 foreach(m IN LISTS missing)
