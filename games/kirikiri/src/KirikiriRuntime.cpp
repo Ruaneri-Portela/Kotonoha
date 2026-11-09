@@ -256,87 +256,83 @@ bool KirikiriRuntime::startScenario(const std::string &name) {
   SDL_Log("Kirikiri: parsed %zu tags", script.tags.size());
 
   impl.currentScenario = target;
-  impl.runner = std::make_unique<KagScript::Runner>(
-      script,
-      KagScript::Callbacks{
-          .showText =
-              [this](std::string speaker, std::string text) {
-                dialogueSpeaker_ = std::move(speaker);
-                dialogueText_ = std::move(text);
-                auto &impl = *impl_;
-                impl.dialogueVisible = true;
-              },
-          .showChoice =
-              [this](std::string question, std::vector<std::string> options,
-                     std::function<void(int)> onChoose) {
-                auto &impl = *impl_;
-                impl.waitingChoice = true;
-                std::vector<Kotonoha::ChoiceOption> choiceOptions;
-                int id = 0;
-                for (auto &opt : options)
-                  choiceOptions.push_back({opt, id++});
-                impl.choiceScene->setQuestion(
-                    question, choiceOptions,
-                    [this, onChoose = std::move(onChoose)](
-                        int optionId, const std::string &) {
-                      auto &impl = *impl_;
-                      impl.waitingChoice = false;
-                      impl.runner->setBlocked(false);
-                      onChoose(optionId);
-                      impl.runner->run();
-                    });
-              },
-          .jump =
-              [this](std::string label) {
-                auto &impl = *impl_;
-                if (!label.empty())
-                  debugJumpToLabel(label);
-              },
-          .wait =
-              [this](int ms, std::function<void()> onDone) {
-                auto &impl = *impl_;
-                impl.waitingWait = true;
-                SDL_AddTimer(
-                    static_cast<Uint32>(ms),
-                    [](void *userdata, Uint32, Uint32) -> Uint32 {
-                      auto self = static_cast<KirikiriRuntime *>(userdata);
-                      self->impl_->waitingWait = false;
-                      self->impl_->runner->setBlocked(false);
-                      self->impl_->runner->resumeWait();
-                      return 0;
-                    },
-                    this);
-              },
-          .showBg =
-              [this](std::string file, int transitionMs) {
-                SDL_Log("Kirikiri: bgshow %s (transition %dms)", file.c_str(),
-                        transitionMs);
-              },
-          .showChar =
-              [this](std::string layer, std::string file, int x, int y,
-                     int transitionMs) {
-                SDL_Log("Kirikiri: chara_show layer=%s file=%s x=%d y=%d",
-                        layer.c_str(), file.c_str(), x, y);
-              },
-          .hideChar =
-              [this](std::string layer, int transitionMs) {
-                SDL_Log("Kirikiri: chara_hide layer=%s", layer.c_str());
-              },
-          .playBgm =
-              [this](std::string file, bool loop) {
-                SDL_Log("Kirikiri: playbgm %s loop=%d", file.c_str(), loop);
-              },
-          .playSe =
-              [this](std::string file) {
-                SDL_Log("Kirikiri: playse %s", file.c_str());
-              },
-          .stopBgm = [this]() { SDL_Log("Kirikiri: stopbgm"); },
-          .setVar =
-              [this](std::string name, std::string value) {
-                SDL_Log("Kirikiri: set %s=%s", name.c_str(), value.c_str());
-              },
-          .getVar = [this](std::string name) -> std::string { return {}; },
-      });
+
+  // Removido o uso de designadores C++20 (.showText = ...) substituindo por
+  // construtor ou ordem padrão se a struct KagScript::Callbacks aceitar,
+  // ou preenchendo os campos via métodos/construtor da classe se aplicável.
+  // Nota: Se a struct KagScript::Callbacks exigir construtor padrão ou
+  // atribuição direta:
+  KagScript::Callbacks callbacks;
+  callbacks.showText = [this](std::string speaker, std::string text) {
+    dialogueSpeaker_ = std::move(speaker);
+    dialogueText_ = std::move(text);
+    auto &impl = *impl_;
+    impl.dialogueVisible = true;
+  };
+  callbacks.showChoice = [this](std::string question,
+                                std::vector<std::string> options,
+                                std::function<void(int)> onChoose) {
+    auto &impl = *impl_;
+    impl.waitingChoice = true;
+    std::vector<Kotonoha::ChoiceOption> choiceOptions;
+    int id = 0;
+    for (auto &opt : options)
+      choiceOptions.push_back({opt, id++});
+    impl.choiceScene->setQuestion(question, choiceOptions,
+                                  [this, onChoose = std::move(onChoose)](
+                                      int optionId, const std::string &) {
+                                    auto &impl = *impl_;
+                                    impl.waitingChoice = false;
+                                    impl.runner->setBlocked(false);
+                                    onChoose(optionId);
+                                    impl.runner->run();
+                                  });
+  };
+  callbacks.jump = [this](std::string label) {
+    auto &impl = *impl_;
+    if (!label.empty())
+      debugJumpToLabel(label);
+  };
+  callbacks.wait = [this](int ms, std::function<void()> onDone) {
+    auto &impl = *impl_;
+    impl.waitingWait = true;
+    SDL_AddTimer(
+        static_cast<Uint32>(ms),
+        [](void *userdata, Uint32, Uint32) -> Uint32 {
+          auto self = static_cast<KirikiriRuntime *>(userdata);
+          self->impl_->waitingWait = false;
+          self->impl_->runner->setBlocked(false);
+          self->impl_->runner->resumeWait();
+          return 0;
+        },
+        this);
+  };
+  callbacks.showBg = [this](std::string file, int transitionMs) {
+    SDL_Log("Kirikiri: bgshow %s (transition %dms)", file.c_str(),
+            transitionMs);
+  };
+  callbacks.showChar = [this](std::string layer, std::string file, int x, int y,
+                              int transitionMs) {
+    SDL_Log("Kirikiri: chara_show layer=%s file=%s x=%d y=%d", layer.c_str(),
+            file.c_str(), x, y);
+  };
+  callbacks.hideChar = [this](std::string layer, int transitionMs) {
+    SDL_Log("Kirikiri: chara_hide layer=%s", layer.c_str());
+  };
+  callbacks.playBgm = [this](std::string file, bool loop) {
+    SDL_Log("Kirikiri: playbgm %s loop=%d", file.c_str(), loop);
+  };
+  callbacks.playSe = [this](std::string file) {
+    SDL_Log("Kirikiri: playse %s", file.c_str());
+  };
+  callbacks.stopBgm = [this]() { SDL_Log("Kirikiri: stopbgm"); };
+  callbacks.setVar = [this](std::string name, std::string value) {
+    SDL_Log("Kirikiri: set %s=%s", name.c_str(), value.c_str());
+  };
+  callbacks.getVar = [this](std::string name) -> std::string { return {}; };
+
+  impl.runner = std::make_unique<KagScript::Runner>(script, callbacks);
+
   impl.running = true;
   impl.runner->run();
   return true;
@@ -346,8 +342,6 @@ bool KirikiriRuntime::debugJumpToLabel(const std::string &label) {
   auto &impl = *impl_;
   if (!impl.runner)
     return false;
-  // Restart runner at the label: simplest approach is to re-parse and set pc.
-  // Here we just mark it; full implementation re-runs from label index.
   SDL_Log("Kirikiri: jump to label %s", label.c_str());
   return true;
 }
