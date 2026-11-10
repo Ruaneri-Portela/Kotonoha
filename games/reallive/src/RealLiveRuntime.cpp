@@ -3535,24 +3535,22 @@ void RealLiveRuntime::update() {
       auto it = mem.find({location, key});
       return it == mem.end() ? -9999 : it->second;
     };
-    SDL_Log("RLTRACE node=%s pause=%d storyPaused=%d choice=%d deadline=%llu "
-            "refresh=%d ready=%d blocked=%d stack=%zu m1001=%d m1002=%d m1003=%d "
-            "m1006=%d m1008=%d m1009=%d m1012=%d m1013=%d "
-            "a1000=%d a1001=%d a1002=%d a1003=%d "
-            "m1200=%d m1201=%d m1202=%d m1204=%d m1206=%d m1210=%d g1037=%d "
-            "hits=%zu targets=%zu objects=[%s] scenes=[%s] err=%s",
-            debugNode().c_str(), int(i.pause), int(isStoryPaused()),
-            int(i.choice->isActive()),
-            static_cast<unsigned long long>(i.deadline),
-            int(i.refreshRequested), int(i.titleReady), int(i.vm.blocked()),
-            i.vm.stackDepth(), get(5, 1001), get(5, 1002), get(5, 1003),
-            get(5, 1006), get(5, 1008), get(5, 1009), get(5, 1012),
-            get(5, 1013), get(0, 1000),
-            get(0, 1001), get(0, 1002), get(0, 1003), get(5, 1200),
-            get(5, 1201), get(5, 1202), get(5, 1204), get(5, 1206),
-            get(5, 1210), get(6, 1037), i.titleHitObjects.size(),
-            i.titleInput.targetCount(), objects.c_str(), scenes.c_str(),
-            i.error.c_str());
+    SDL_Log(
+        "RLTRACE node=%s pause=%d storyPaused=%d choice=%d deadline=%llu "
+        "refresh=%d ready=%d blocked=%d stack=%zu m1001=%d m1002=%d m1003=%d "
+        "m1006=%d m1008=%d m1009=%d m1012=%d m1013=%d "
+        "a1000=%d a1001=%d a1002=%d a1003=%d "
+        "m1200=%d m1201=%d m1202=%d m1204=%d m1206=%d m1210=%d g1037=%d "
+        "hits=%zu targets=%zu objects=[%s] scenes=[%s] err=%s",
+        debugNode().c_str(), int(i.pause), int(isStoryPaused()),
+        int(i.choice->isActive()), static_cast<unsigned long long>(i.deadline),
+        int(i.refreshRequested), int(i.titleReady), int(i.vm.blocked()),
+        i.vm.stackDepth(), get(5, 1001), get(5, 1002), get(5, 1003),
+        get(5, 1006), get(5, 1008), get(5, 1009), get(5, 1012), get(5, 1013),
+        get(0, 1000), get(0, 1001), get(0, 1002), get(0, 1003), get(5, 1200),
+        get(5, 1201), get(5, 1202), get(5, 1204), get(5, 1206), get(5, 1210),
+        get(6, 1037), i.titleHitObjects.size(), i.titleInput.targetCount(),
+        objects.c_str(), scenes.c_str(), i.error.c_str());
   }
   bool paused = isStoryPaused();
   if (paused)

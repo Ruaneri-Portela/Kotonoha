@@ -96,20 +96,54 @@ Pack::Pack(const std::filesystem::path &file) : path(file) {
   const auto length = std::filesystem::file_size(path);
   require(length >= 12 && length <= UINT32_MAX, "Invalid CMP size");
   auto footer = readRange(path, length - 8, 8);
-  constexpr std::array<uint8_t, 16> key{0x0f, 0x25, 0x3e, 0x5c, 0x2a, 0x4b,
-                                        0x77, 0x90, 0x05, 0x8a, 0x8e, 0x46,
-                                        0xeb, 0x3d, 0x11, 0x43};
-  for (size_t i = 0; i < 4; ++i)
-    require((footer[i] ^ key[i]) == uint8_t("PACK"[i]),
-            "Invalid CMP signature/key");
-  size_t start = word(footer, 4);
-  require(start <= length - 12, "Invalid CMP directory offset");
-  auto encoded = readRange(path, start, length - 8 - start);
-  size_t raw = word(encoded, 0);
-  require(raw <= (16u << 20), "CMP directory too large");
-  for (size_t i = 4; i < encoded.size(); ++i)
-    encoded[i] ^= key[(i - 4) % 16];
-  auto data = decompress(encoded, raw, 4);
+
+  // O Summer Radish Vacation usa duas chaves de cifragem CMP distintas:
+  // a chave original e uma chave alternativa usada por uma segunda
+  // instalação (descoberta no executável original do jogo). Tentar ambas
+  // até uma validar.
+  constexpr std::array<uint8_t, 16> key1{0x0f, 0x25, 0x3e, 0x5c, 0x2a, 0x4b,
+                                         0x77, 0x90, 0x05, 0x8a, 0x8e, 0x46,
+                                         0xeb, 0x3d, 0x11, 0x43};
+  constexpr std::array<uint8_t, 16> key2{0x6c, 0x14, 0xf2, 0x03, 0xe3, 0x62,
+                                         0x32, 0xac, 0x03, 0x04, 0xac, 0xf2,
+                                         0xd3, 0x84, 0xf8, 0xca};
+  const std::array<const std::array<uint8_t, 16> *, 2> keys = {&key1, &key2};
+
+  std::vector<uint8_t> data;
+  size_t start = 0;
+  bool parsed = false;
+  std::string lastError;
+  for (const auto *key : keys) {
+    bool signatureOk = true;
+    for (size_t i = 0; i < 4; ++i) {
+      if ((footer[i] ^ (*key)[i]) != uint8_t("PACK"[i])) {
+        signatureOk = false;
+        break;
+      }
+    }
+    if (!signatureOk)
+      continue;
+    size_t candidateStart = word(footer, 4);
+    if (candidateStart > length - 12)
+      continue;
+    auto encoded = readRange(path, candidateStart, length - 8 - candidateStart);
+    size_t raw = word(encoded, 0);
+    if (raw > (16u << 20))
+      continue;
+    for (size_t i = 4; i < encoded.size(); ++i)
+      encoded[i] ^= (*key)[(i - 4) % 16];
+    try {
+      data = decompress(encoded, raw, 4);
+      start = candidateStart;
+      parsed = true;
+      break;
+    } catch (const std::exception &error) {
+      lastError = error.what();
+      continue;
+    }
+  }
+  require(parsed, "Invalid CMP signature/key or undecryptable directory");
+
   size_t p = 0;
   std::vector<Entry> list;
   while (p < data.size()) {

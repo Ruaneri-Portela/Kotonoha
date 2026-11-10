@@ -23,11 +23,9 @@ bool HasFile(const std::filesystem::path &directory, const std::string &name) {
 }
 
 std::filesystem::path PackDirectory(const std::filesystem::path &root) {
-  for (const auto &candidate :
-       {root, root / "pack", root / "PACK", root / "data" / "pack",
-        root / "DATA" / "PACK"})
-    if (HasFile(candidate, "SCRIPT.DAT") &&
-        HasFile(candidate, "GRAPHIC.DAT"))
+  for (const auto &candidate : {root, root / "pack", root / "PACK",
+                                root / "data" / "pack", root / "DATA" / "PACK"})
+    if (HasFile(candidate, "SCRIPT.DAT") && HasFile(candidate, "GRAPHIC.DAT"))
       return candidate;
   return root;
 }
@@ -64,8 +62,7 @@ bool SnowLauncher::validatePath(const std::string &path, std::string &info) {
     if (!HasFile(directory, pack))
       missing += std::string(missing.empty() ? "" : ", ") + pack;
   // SCRIPT and GRAPHIC are required; without SOUND / VOICE the game is silent.
-  if (!HasFile(directory, "SCRIPT.DAT") ||
-      !HasFile(directory, "GRAPHIC.DAT")) {
+  if (!HasFile(directory, "SCRIPT.DAT") || !HasFile(directory, "GRAPHIC.DAT")) {
     info = "Folder without the game packs (missing " + missing + ")";
     return false;
   }

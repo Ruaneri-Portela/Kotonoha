@@ -34,6 +34,7 @@ class ClickMap {
   Bytes pixels;
 
 public:
+  ClickMap() = default;
   explicit ClickMap(const Bytes &);
   // Original ClickableMap::GetPoint returns zero for empty area, -1 outside.
   int value(int x, int y) const;

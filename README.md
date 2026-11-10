@@ -28,6 +28,7 @@ remain out of Git. Supply your own legally obtained data:
 | School Days | Original game archives in `games/school-days/game-assets/` |
 | [RealLive Standard Edition (initial port)](games/reallive/README.md) | `Seen.txt`, `Gameexe.ini` and original resource folders; `--reallive DIRECTORY_OR_ISO` |
 | [Amagami PS2 (playable prologue)](games/amagami/PORT_STATUS.md) | Original Japan ISO (`SLPS_259.18`); `--amagami DISC.iso`. Calendar and later routes are in development. |
+| [LucaSystem (new port)](games/luca-system/README.md) | `PARAM.PAK`, `SCRIPT.PAK` and `SYSSE.PAK`; `--luca-system DIRECTORY_OR_ISO`. Reference test: AIR (`/Volumes/Nero 2TB/SteamLibrary/steamapps/common/AIR/files`). |
 
 The port does not download or supply commercial game data.
 

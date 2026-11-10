@@ -204,9 +204,8 @@ int main() {
   // UTF-8 instead of producing one NUL byte between every character.
   {
     const std::vector<std::uint8_t> utf16 = {
-        0xff, 0xfe, '[', 0, 'c', 0, 'm', 0, ' ', 0, 't', 0, 'e', 0,
-        'x',  0,    't', 0, '=', 0, '"', 0, 'O', 0, 'K', 0, '"', 0,
-        ']',  0};
+        0xff, 0xfe, '[', 0, 'c', 0, 'm', 0, ' ', 0, 't', 0, 'e', 0, 'x', 0,
+        't',  0,    '=', 0, '"', 0, 'O', 0, 'K', 0, '"', 0, ']', 0};
     const auto path = tempDir / "utf16.ks";
     std::ofstream out(path, std::ios::binary);
     out.write(reinterpret_cast<const char *>(utf16.data()),

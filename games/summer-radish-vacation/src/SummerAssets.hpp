@@ -12,6 +12,9 @@ public:
   std::string name() const override { return "Summer Radish CMP"; }
   bool containsAsset(const std::string &) const override;
   Bytes readAsset(const std::string &) const override;
+  // Lê o asset se existir; retorna nullopt quando ausente (útil para ativos
+  // opcionais que diferem entre instalações do jogo).
+  std::optional<Bytes> tryReadAsset(const std::string &) const;
   std::vector<std::string>
   listAsset(const std::string &prefix = {}) const override;
   Kotonoha::SurfacePtr loadSurfaceAsset(const std::string &) const override;

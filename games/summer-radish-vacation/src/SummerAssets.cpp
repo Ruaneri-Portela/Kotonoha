@@ -1,5 +1,6 @@
 #include "SummerAssets.hpp"
 #include <cstring>
+#include <optional>
 #include <stdexcept>
 namespace SummerRadish {
 SummerAssets::SummerAssets(std::filesystem::path root) {
@@ -46,6 +47,16 @@ Bytes SummerAssets::readAsset(const std::string &id) const {
   if (slash == s.npos || pack == packs.end())
     throw std::runtime_error("Unknown Summer asset: " + id);
   return pack->second->read(s.substr(slash + 1));
+}
+
+std::optional<Bytes> SummerAssets::tryReadAsset(const std::string &id) const {
+  if (!containsAsset(id))
+    return std::nullopt;
+  try {
+    return readAsset(id);
+  } catch (...) {
+    return std::nullopt;
+  }
 }
 std::vector<std::string>
 SummerAssets::listAsset(const std::string &prefix) const {
