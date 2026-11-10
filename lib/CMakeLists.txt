@@ -67,7 +67,8 @@ if(ANDROID)
     # only for libass metadata on Android, then bind the static Android
     # libraries and their CMake targets explicitly.  The Android clang++
     # driver remains responsible for selecting c++_shared.
-    pkg_check_modules(LIBASS REQUIRED libass>=0.17)
+    find_path(LIBASS_INCLUDE_DIRS NAMES ass/ass.h
+        PATHS "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/include" NO_DEFAULT_PATH REQUIRED)
     find_package(harfbuzz CONFIG REQUIRED)
     find_package(Freetype CONFIG REQUIRED)
     find_package(Threads REQUIRED)
@@ -83,11 +84,20 @@ if(ANDROID)
         PATHS "${kotonoha_vcpkg_library_dir}" NO_DEFAULT_PATH REQUIRED)
     find_library(KOTONOHA_FRIBIDI_LIBRARY NAMES fribidi
         PATHS "${kotonoha_vcpkg_library_dir}" NO_DEFAULT_PATH REQUIRED)
+    find_library(KOTONOHA_UNIBREAK_LIBRARY NAMES unibreak
+        PATHS "${kotonoha_vcpkg_library_dir}" NO_DEFAULT_PATH REQUIRED)
+    find_library(KOTONOHA_FONTCONFIG_LIBRARY NAMES fontconfig
+        PATHS "${kotonoha_vcpkg_library_dir}" NO_DEFAULT_PATH REQUIRED)
+    find_library(KOTONOHA_EXPAT_LIBRARY NAMES expat
+        PATHS "${kotonoha_vcpkg_library_dir}" NO_DEFAULT_PATH REQUIRED)
     add_library(kotonoha_ass INTERFACE)
     target_include_directories(kotonoha_ass INTERFACE ${LIBASS_INCLUDE_DIRS})
     target_link_libraries(kotonoha_ass INTERFACE
         "${KOTONOHA_LIBASS_LIBRARY}"
         "${KOTONOHA_FRIBIDI_LIBRARY}"
+        "${KOTONOHA_UNIBREAK_LIBRARY}"
+        "${KOTONOHA_FONTCONFIG_LIBRARY}"
+        "${KOTONOHA_EXPAT_LIBRARY}"
         harfbuzz::harfbuzz
         Freetype::Freetype
         Threads::Threads

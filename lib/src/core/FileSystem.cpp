@@ -528,8 +528,8 @@ FileResolver::findGameAsset(const std::string &game,
         return candidate;
 #ifdef __ANDROID__
   // OBB data may hold the game files directly.
-  if (!targetGame.empty()) {
-    if (auto data = preferredDataDirectory(targetGame) / relative;
+  if (!game.empty()) {
+    if (auto data = preferredDataDirectory(game) / relative;
         std::filesystem::exists(data, error))
       return data;
   }
