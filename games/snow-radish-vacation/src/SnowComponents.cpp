@@ -89,7 +89,12 @@ void SnowTitleMenu::renderTitle(Kotonoha::RendererRef renderer) {
 
 // ---------------------------------------------------------------- stage
 void SnowStage::render(Kotonoha::RendererRef renderer, float) {
-  session_.DrawStage(&renderer);
+  try {
+    session_.DrawStage(&renderer);
+  } catch (...) {
+    // Pure Mail uses a different script bytecode than Snow Radish: tolerate
+    // render errors instead of aborting.
+  }
 }
 
 // ---------------------------------------------------------------- text box

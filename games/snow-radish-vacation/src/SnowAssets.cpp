@@ -156,7 +156,23 @@ bool SnowAssets::containsAsset(const std::string &id) const {
     const int frame = std::atoi(key.c_str() + hash + 1);
     return frame >= 0 && size_t(frame) < info.frames.size();
   }
-  return pack->index.count(key) != 0;
+  return pack->index.count(key) != 0 ||
+         tryAltGraphicExt(pack, key);
+}
+
+bool SnowAssets::tryAltGraphicExt(const Pack *pack, const std::string &key) const {
+  // Pure Mail uses .CRGB where Snow Radish uses .evd/.img: try the alternate
+  // extension before giving up.
+  const std::string lower = SnowAssets::Lower(key);
+  const std::string ext = lower.substr(lower.rfind('.'));
+  if ((ext == ".evd" || ext == ".img") && pack == &graphic_) {
+    const std::string stem = lower.substr(0, lower.size() - ext.size());
+    for (const char *cext : {".CRGB", ".crgb"}) {
+      if (pack->index.count(stem + cext) != 0)
+        return true;
+    }
+  }
+  return false;
 }
 
 std::vector<uint8_t> SnowAssets::Extract(const Pack &pack,
@@ -183,6 +199,34 @@ std::vector<uint8_t> SnowAssets::Extract(const Pack &pack,
   return out;
 }
 
+std::vector<uint8_t> SnowAssets::readGraphicWithAltExt(const Pack *pack,
+                                                       const std::string &key) const {
+  const std::string lower = SnowAssets::Lower(key);
+  const std::string ext = lower.substr(lower.rfind('.'));
+  if ((ext == ".evd" || ext == ".img") && pack == &graphic_) {
+    const std::string stem = lower.substr(0, lower.size() - ext.size());
+    for (const char *cext : {".CRGB", ".crgb"}) {
+      const auto alt = pack->index.find(stem + cext);
+      if (alt != pack->index.end()) {
+        auto bytes = Extract(*pack, alt->second);
+        // CRGB files are raw EVD type-3 delta data without the 12-byte
+        // header: prepend a fake EVD header (type=3, 800x600) so the EVD
+        // decoder can process them unchanged.
+        std::vector<uint8_t> withHeader(12 + bytes.size());
+        struct {
+          uint32_t type = 3;
+          uint32_t width = 800;
+          uint32_t height = 600;
+        } hdr;
+        std::memcpy(withHeader.data(), &hdr, 12);
+        std::memcpy(withHeader.data() + 12, bytes.data(), bytes.size());
+        return withHeader;
+      }
+    }
+  }
+  return {};
+}
+
 std::vector<Uint8> SnowAssets::readAsset(const std::string &id) const {
   if (id == "script") {
     auto bytes = ReadFile(scriptPath_);
@@ -194,8 +238,13 @@ std::vector<Uint8> SnowAssets::readAsset(const std::string &id) const {
   const Pack *pack = PackOf(id, key);
   const auto it =
       pack ? pack->index.find(key) : decltype(graphic_.index)::const_iterator{};
-  if (!pack || it == pack->index.end())
+  if (!pack || it == pack->index.end()) {
+    // Pure Mail uses .CRGB where Snow Radish uses .evd/.img: try the alternate
+    // extension before giving up.
+    if (auto alt = readGraphicWithAltExt(pack, key); !alt.empty())
+      return alt;
     throw std::runtime_error("Snow Radish asset not found: " + id);
+  }
   return Extract(*pack, it->second);
 }
 

@@ -96,12 +96,24 @@ std::vector<uint8_t> extractEntry(const std::vector<uint8_t> &pack,
   return out;
 }
 
-bool decodeEvd(const std::vector<uint8_t> &d, Image &img) {
-  if (d.size() < 12 || (rd32(&d[0]) != 3 && rd32(&d[0]) != 0))
-    return false;
-  const uint32_t w = rd32(&d[4]), h = rd32(&d[8]);
-  if (w == 0 || h == 0 || w > 8192 || h > 8192)
-    return false;
+bool decodeEvd(const std::vector<uint8_t> &d, Image &img, bool hasHeader) {
+  uint32_t w = 0, h = 0;
+  size_t p = 0;
+  if (hasHeader) {
+    if (d.size() < 12 || (rd32(&d[0]) != 3 && rd32(&d[0]) != 0))
+      return false;
+    w = rd32(&d[4]);
+    h = rd32(&d[8]);
+    p = 12;
+    if (w == 0 || h == 0 || w > 8192 || h > 8192)
+      return false;
+  } else {
+    // Pure Mail CRGB files are EVD type-3 delta data without the 12-byte
+    // header. Assume 800x600, the standard Snow Radish resolution.
+    w = 800;
+    h = 600;
+    p = 0;
+  }
 
   static const std::vector<uint32_t> table = [] {
     std::vector<uint32_t> t(0x8000);
@@ -120,7 +132,7 @@ bool decodeEvd(const std::vector<uint8_t> &d, Image &img) {
 
   const size_t total = static_cast<size_t>(w) * h;
   std::vector<uint8_t> bgr(total * 3);
-  size_t p = 12, px = 0;
+  size_t px = 0;
   uint32_t cur = 0;
   auto put = [&](uint32_t c) {
     bgr[px * 3] = c & 255;
@@ -128,7 +140,7 @@ bool decodeEvd(const std::vector<uint8_t> &d, Image &img) {
     bgr[px * 3 + 2] = (c >> 16) & 255;
     ++px;
   };
-  const bool raw = rd32(&d[0]) == 0; // type 0: uncompressed BGR
+  const bool raw = hasHeader && rd32(&d[0]) == 0; // type 0: uncompressed BGR
   if (raw) {
     if (d.size() < 12 + total * 3)
       return false;
