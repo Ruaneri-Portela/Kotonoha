@@ -27,6 +27,16 @@ std::vector<uint8_t> ReadFile(const std::filesystem::path &path) {
   return std::vector<uint8_t>((std::istreambuf_iterator<char>(in)), {});
 }
 
+std::filesystem::path FindPackDirectory(const std::filesystem::path &root) {
+  for (const auto &candidate :
+       {root, root / "pack", root / "PACK", root / "data" / "pack",
+        root / "DATA" / "PACK"})
+    if (!FindIgnoreCase(candidate, "SCRIPT.DAT").empty() &&
+        !FindIgnoreCase(candidate, "GRAPHIC.DAT").empty())
+      return candidate;
+  return root;
+}
+
 // The directory sits at the start of the pack: scan the first 2 MB, then all of
 // it.
 std::map<std::string, PackEntry>
@@ -92,7 +102,7 @@ std::string SnowAssets::Lower(std::string s) {
 }
 
 SnowAssets::SnowAssets(std::filesystem::path directory)
-    : directory_(std::move(directory)) {
+    : directory_(FindPackDirectory(directory)) {
   std::error_code ec;
   if (!std::filesystem::is_directory(directory_, ec))
     throw std::runtime_error("Snow Radish data directory not found: " +

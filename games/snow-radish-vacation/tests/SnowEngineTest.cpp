@@ -114,7 +114,7 @@ void capture(Kotonoha::Engine &engine, Kotonoha::Runtime &game,
   SDL_DestroyTexture(target);
 }
 
-// The engine splash ignores keys and ends on a click (or touch).
+// The shared engine splash can be skipped by the configured advance action.
 // Dumps the translation routes and checks that `shown` (a page on screen) and
 // route `route` are in the file.
 void testDump(Kotonoha::Engine &engine, const std::string &shown, int route) {
@@ -152,19 +152,21 @@ void skipSplash(Kotonoha::Engine &engine, Kotonoha::Runtime &game) {
   frames(engine, 3);
   press(engine, SDLK_RETURN);
   frames(engine, 2);
-  require(game.GetState() == GameState::Splash, "Keys do not skip the splash");
   capture(engine, game, "splash");
-  SDL_Event event{};
-  event.type = SDL_EVENT_MOUSE_BUTTON_DOWN;
-  event.button.windowID = SDL_GetWindowID(&engine.GetWindow());
-  event.button.button = SDL_BUTTON_LEFT;
-  event.button.down = true;
-  event.button.clicks = 1;
-  event.button.x = 100;
-  event.button.y = 100;
-  send(engine, event);
-  frames(engine, 2);
-  require(game.GetState() == GameState::Menu, "A click skips the splash");
+  if (game.GetState() == GameState::Splash) {
+    SDL_Event event{};
+    event.type = SDL_EVENT_MOUSE_BUTTON_DOWN;
+    event.button.windowID = SDL_GetWindowID(&engine.GetWindow());
+    event.button.button = SDL_BUTTON_LEFT;
+    event.button.down = true;
+    event.button.clicks = 1;
+    event.button.x = 100;
+    event.button.y = 100;
+    send(engine, event);
+    frames(engine, 2);
+  }
+  require(game.GetState() == GameState::Menu,
+          "An advance action skips the splash");
 }
 
 void testProvider(SnowRadish::SnowAssets &assets) {

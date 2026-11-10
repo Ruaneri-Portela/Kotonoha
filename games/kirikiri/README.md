@@ -9,11 +9,20 @@ Suporte a jogos da engine [Kirikiri2](https://github.com/krkrz/krkr2) / [Kirikir
 - **KAG Script (`.ks`)**: parsing de tags KAG para texto, plano de fundo, personagens, escolhas, saltos, rótulos, espera e áudio básico.
 - **Launcher**: seleção de pasta/ISO via `--kirikiri` ou pelo launcher de pastas do Kotonoha.
 - **Save/load**: quicksave (F5/F6) e menu do jogo.
+- **Menu inicial universal**: o runtime não entra mais no primeiro script por
+  ordem alfabética; apresenta Iniciar/Continuar e seleciona o bootstrap mais
+  provável (`startup.ks`, `first.ks`, `main.ks`, `title.ks` ou o primeiro
+  capítulo compilado disponível).
+- **Compatibilidade de assets**: scripts KAG UTF-8/UTF-16, imagens dentro de
+  XP3 e precedência determinística de `patch.xp3` sobre os arquivos base.
 - **Integração Kotonoha**: engine, renderer, áudio, overlays, settings e MCP compartilhados.
 
 ## O que ainda não é suportado
 
-- **TJS2 bytecode**: scripts `.ks` pré-compilados (bytecode TJS) não são interpretados. Jogos como NEKOPARA usam bytecode compilado e precisam de um interpretador TJS2 separado.
+- **TJS2 bytecode geral**: scripts TJS2 arbitrários ainda não são
+  interpretados. Pacotes NEKOPARA com cenários VNX+ em PSB/MDF já podem abrir
+  o menu e percorrer o texto extraído, mas ainda não reproduzem toda a lógica
+  e apresentação da engine original.
 - **Plugins Kirikiri**: plugins externos (`.dll`) não são carregados.
 - **TLG6 imagens**: apenas formatos nativos do SDL/FFmpeg.
 

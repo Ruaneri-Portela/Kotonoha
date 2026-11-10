@@ -30,7 +30,10 @@ public:
   int translationRoute() const override;
   void render(Kotonoha::RendererRef renderer, float scale) override;
   SDL_Point viewport() const override { return {1280, 720}; }
-  bool continuousTouch() const override { return true; }
+  // DDLC advances on a completed tap. Continuous pointer translation turns a
+  // finger-down into an immediate mouse click, which also makes a two-finger
+  // Back gesture accidentally advance the story before it opens the menu.
+  bool continuousTouch() const override { return false; }
   Kotonoha::Translation::SourceTexts translationSources() const override;
   std::string debugNode() const override;
   std::string nodeClockKey() const override;

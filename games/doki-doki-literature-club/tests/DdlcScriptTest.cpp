@@ -134,9 +134,10 @@ int runDdlcScriptTest(int argc, char **argv) {
     Vm vm(assets, script, backend);
     vm.init("");
     const auto game = std::filesystem::absolute(dir).lexically_normal();
-    const auto virtualPath =
-        game.parent_path() / "kotonoha-ddlc-virtual-test.tmp";
-    const auto sourcePath = game / "scripts.rpa";
+    const auto virtualPath = game / "kotonoha-ddlc-virtual-test.tmp";
+    const auto sourcePath = std::filesystem::exists(game / "scripts.rpa")
+                                ? game / "scripts.rpa"
+                                : game / "game" / "scripts.rpa";
     if (std::filesystem::exists(virtualPath) ||
         !std::filesystem::exists(sourcePath))
       throw std::runtime_error("Cannot safely exercise the virtual filesystem");

@@ -211,7 +211,15 @@ int main(int argc, char **argv) {
       std::ifstream in(path, std::ios::binary);
       return std::vector<uint8_t>((std::istreambuf_iterator<char>(in)), {});
     };
-    const std::filesystem::path root(argv[1]);
+    std::filesystem::path root(argv[1]);
+    for (const auto &candidate :
+         {root, root / "pack", root / "PACK", root / "data" / "pack",
+          root / "DATA" / "PACK"})
+      if (std::filesystem::is_regular_file(candidate / "graphic.dat") ||
+          std::filesystem::is_regular_file(candidate / "GRAPHIC.DAT")) {
+        root = candidate;
+        break;
+      }
     auto gfx = read(root / "graphic.dat");
     size_t animations = 0, cursors = 0, masks = 0;
     for (const auto &entry : SnowRadish::readDirectory(gfx)) {

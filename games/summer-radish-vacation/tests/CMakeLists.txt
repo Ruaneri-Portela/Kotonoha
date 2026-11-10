@@ -5,7 +5,7 @@ set(SUMMER_DATA_DIR "" CACHE PATH "Summer Radish retail disc root or PACK direct
 if(SUMMER_DATA_DIR AND NOT ANDROID)
     add_test(NAME SummerRadish.Retail COMMAND SummerInspect "${SUMMER_DATA_DIR}" --validate)
     set_tests_properties(SummerRadish.Retail PROPERTIES TIMEOUT 120)
-    add_test(NAME SummerRadish.Boot COMMAND SummerRadish --summer "${SUMMER_DATA_DIR}" --no-config --frames 120)
+    add_test(NAME SummerRadish.Boot COMMAND SummerRadish --summer "${SUMMER_DATA_DIR}" --no-config --no-launcher --frames 120)
     set_tests_properties(SummerRadish.Boot PROPERTIES TIMEOUT 120 ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_AUDIO_DRIVER=dummy")
 endif()
 if(SUMMER_DATA_DIR AND NOT ANDROID)

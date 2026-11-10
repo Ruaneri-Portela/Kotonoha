@@ -43,11 +43,13 @@ zero-run). Verified on every compressed entry of the disc (size matches).
   identical to the old table on all 285,869 disc strings).
 - `ZeroExtract <disc> <outdir> [--png]` dumps archives and PNGs.
 
-## Remaining
+## Historical baseline (completed by the sections below)
 
-1. Scene bytecode VM (`SCENE_ID`) and the Squirrel `SYSTEM` scripts.
-2. PS2 ADPCM (VAG) decoding for `SOUND_ID` / `VOICE_ID`.
-3. Engine integration: text/choice presentation and a `Main` for the game.
+The original three blockers were the scene VM, PS2 ADPCM and engine/frontend
+integration. They are now implemented and covered by the format, engine,
+node-debug and boot tests described below. Remaining work is fidelity work:
+native pixel/timing comparison, broader route playthroughs and the explicitly
+listed presentation gaps—not basic playability.
 
 ## Atualização: scripts de cena
 
