@@ -1,6 +1,7 @@
 // Copyright 2026 Kotonoha contributors. SPDX-License-Identifier: MIT
 #pragma once
 #include <SDL3/SDL.h>
+#include <vector>
 
 namespace RealLive {
 
@@ -15,16 +16,34 @@ public:
   // Native hitboxes from SEEN 9032: five main entries in a column at
   // x 220..420 plus the exit entry at x 552..630. A point safely inside each
   // box is enough; the script compares the polled integer coordinates.
-  static constexpr int kTargetCount = 6;
+  static constexpr int kTargetCount = 16;
   struct Target {
     int x, y;
   };
   static Target target(int index) {
-    static constexpr Target targets[kTargetCount] = {
+    static constexpr Target targets[6] = {
         {320, 296}, {320, 324}, {320, 352}, {320, 380}, {320, 408}, {591, 463},
     };
     return targets[index];
   }
+  // The title scripts of different RealLive releases place their menu entries
+  // at different coordinates. The runtime records the native hit boxes while
+  // the script polls them and installs their centres here.
+  void setTargets(std::vector<Target> targets) {
+    if (targets.empty())
+      return;
+    targets_ = std::move(targets);
+    focus(focus_ < 0 ? 0 : focus_);
+  }
+  // Places the virtual pointer on the first entry as soon as the title is
+  // ready. The native script records the hovered entry on a loop before the
+  // click, so a press without a prior hover would not activate anything.
+  void ensureFocus() {
+    if (targets_.empty())
+      return;
+    focus(focus_ < 0 ? 0 : focus_);
+  }
+  std::size_t targetCount() const { return targets_.size(); }
 
   // Handles a keyboard event already mapped from a gamepad. Returns true when
   // the event belongs to the virtual cursor. Pointer and touch events release
@@ -63,16 +82,49 @@ public:
     }
   }
 
+  // Records a real pointer press/release on the title screen. The script
+  // clears the native button register at the start of every poll loop, so a
+  // queued SDL mouse event can otherwise be lost before 1:4:133 samples it.
+  // Keeping press and release separate guarantees both frames are seen even
+  // when a click is delivered between two polls.
+  void pointer(bool down, int x, int y) {
+    x_ = x;
+    y_ = y;
+    if (down)
+      pointerPress_ = true;
+    else
+      pointerRelease_ = true;
+  }
+  void hover(int x, int y) {
+    x_ = x;
+    y_ = y;
+  }
+
   // Returns the value the script should read for the polled button register on
   // this 1:4:133 poll: 1 on the press frame, 2 on the release frame, or -1 to
   // leave the real mouse button register untouched. Called once per poll.
   int poll() {
-    if (pending_ == 1) {
-      pending_ = 2;
+    if (pointerPress_ || pending_ == 1) {
+      const bool keyboard = pending_ == 1;
+      pointerPress_ = false;
+      pending_ = 0;
+      pointerHeld_ = true;
+      // The title state machine records the hovered entry on the first loop
+      // after the press. Native hardware keeps the button down for several
+      // polls, so hold the synthetic button for two extra polls before
+      // releasing; releasing on the immediately following poll loses the
+      // selection.
+      holdPolls_ = 2;
+      keyboardRelease_ = keyboard;
       return 1;
     }
-    if (pending_ == 2) {
-      pending_ = 0;
+    if (pointerHeld_ && (pointerRelease_ || keyboardRelease_)) {
+      if (holdPolls_ > 0) {
+        --holdPolls_;
+        return -1;
+      }
+      pointerRelease_ = keyboardRelease_ = false;
+      pointerHeld_ = false;
       return 2;
     }
     return -1;
@@ -87,12 +139,16 @@ public:
     focus_ = -1;
     x_ = y_ = -1;
     pending_ = 0;
+    pointerPress_ = pointerRelease_ = pointerHeld_ = keyboardRelease_ = false;
+    holdPolls_ = 0;
   }
 
 private:
   void focus(int index) {
-    focus_ = index;
-    const auto point = target(index);
+    if (targets_.empty())
+      return;
+    focus_ = index % int(targets_.size());
+    const auto point = targets_[focus_];
     x_ = point.x;
     y_ = point.y;
   }
@@ -103,12 +159,21 @@ private:
       focus(0);
       return;
     }
-    focus((focus_ + delta + kTargetCount) % kTargetCount);
+    focus(focus_ + delta);
   }
 
   int focus_ = -1;
   int x_ = -1, y_ = -1;
   int pending_ = 0; // 0 idle, 1 press pending, 2 release pending
+  bool pointerPress_ = false, pointerRelease_ = false, pointerHeld_ = false,
+       keyboardRelease_ = false;
+  int holdPolls_ = 0;
+  std::vector<Target> targets_ = [] {
+    std::vector<Target> targets;
+    for (int i = 0; i < 6; ++i)
+      targets.push_back(target(i));
+    return targets;
+  }();
 };
 
 } // namespace RealLive

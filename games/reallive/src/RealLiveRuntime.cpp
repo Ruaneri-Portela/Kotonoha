@@ -450,6 +450,12 @@ struct RealLiveRuntime::Impl {
   int button1 = 0, button2 = 0;
   std::array<Uint8, 32> syscomEntries{};
   TitleInput titleInput;
+  // Set by the native refresh command while the title script is in the menu
+  // state. Planetarian and CLANNAD idle at different script indices than the
+  // AIR title, so input readiness follows the refresh instead of a hardcoded
+  // instruction offset.
+  bool titleReady = false;
+  std::vector<int> titleHitObjects;
   std::map<std::pair<int, int>, int> settings;
   std::map<int, Uint64> timers;
   std::vector<std::array<int, 3>> shake;
@@ -1874,9 +1880,11 @@ struct RealLiveRuntime::Impl {
     }
   }
   // The title front-end idles after the native refresh command, so only then
-  // is the script about to poll the mouse again.
+  // is the script about to poll the mouse again. Different RealLive titles
+  // stop at different instruction indices (AIR at 860, planetarian at 587),
+  // therefore readiness is tracked from the refresh command itself.
   bool titleMenu() const {
-    return vm.scenario() == 9032 && vm.index() == 860 &&
+    return titleReady && vm.scenario() == 9032 &&
            runtime.GetState() == GameState::Menu && !pause &&
            !choice->isActive() && error.empty();
   }
@@ -1886,17 +1894,70 @@ struct RealLiveRuntime::Impl {
   }
   // Other loops in SEEN 9032 poll intA and must stay pointer-only; the title
   // menu is the poll that writes the button register intF[1003].
+  // The title script enumerates its native clickable regions through 1:84
+  // before every menu poll. Record those object ids and derive keyboard /
+  // gamepad targets from their live positions, so each RealLive release keeps
+  // its own layout instead of sharing AIR's hardcoded coordinates.
+  void installTitleTargets() {
+    std::vector<TitleInput::Target> targets;
+    for (int id : titleHitObjects) {
+      auto found = fg.find(id);
+      if (found == fg.end())
+        continue;
+      auto &o = found->second;
+      if (!o.visible)
+        continue;
+      int w = o.width, h = o.height;
+      if (!o.file.empty()) {
+        auto &g = graphic(o.file);
+        w = g.image.sourceWidth;
+        h = g.image.sourceHeight;
+        if (!g.image.regions.empty()) {
+          auto &r =
+              g.image.regions.at(o.currentPattern(g.image.regions.size()));
+          w = r.x2 - r.x1 + 1;
+          h = r.y2 - r.y1 + 1;
+        }
+      }
+      if (w <= 0 || h <= 0)
+        continue;
+      targets.push_back({o.x + w / 2, o.y + h / 2});
+    }
+    titleInput.setTargets(std::move(targets));
+  }
   bool titlePoll(const libreallive::CommandElement &c) {
-    if (vm.scenario() != 9032)
+    if (vm.scenario() != 9032 || c.GetParamCount() < 3)
       return false;
-    return Parameter(c, 2).GetIntegerReferenceIterator(vm.machine()) ==
-           IntReferenceIterator(&vm.machine().memory(), 5, 1003);
+    // The menu poll stores the button state in an intF register. AIR uses
+    // intF[1003], CLANNAD uses intF[1202] and planetarian intF[1003]; the
+    // temporary intA polls elsewhere in the title script must not consume the
+    // synthetic press.
+    const auto reference =
+        Parameter(c, 2).GetIntegerReferenceIterator(vm.machine());
+    return reference.bank() == libreallive::INTF_LOCATION;
   }
   bool event(EventRef e) {
-    if (titleMenu() && titleInput.handle(e)) {
-      mouseX = titleInput.mouseX();
-      mouseY = titleInput.mouseY();
-      return true;
+    if (titleMenu()) {
+      if (e.type == SDL_EVENT_MOUSE_MOTION) {
+        mouseX = e.motion.x;
+        mouseY = e.motion.y;
+        titleInput.hover(int(mouseX), int(mouseY));
+        return true;
+      }
+      if ((e.type == SDL_EVENT_MOUSE_BUTTON_DOWN ||
+           e.type == SDL_EVENT_MOUSE_BUTTON_UP) &&
+          e.button.button == SDL_BUTTON_LEFT) {
+        mouseX = e.button.x;
+        mouseY = e.button.y;
+        titleInput.pointer(e.type == SDL_EVENT_MOUSE_BUTTON_DOWN, int(mouseX),
+                           int(mouseY));
+        return true;
+      }
+      if (titleInput.handle(e)) {
+        mouseX = titleInput.mouseX();
+        mouseY = titleInput.mouseY();
+        return true;
+      }
     }
     if (syscomAvailable() && pause && e.type == SDL_EVENT_KEY_DOWN &&
         !e.key.repeat && e.key.key == SDLK_ESCAPE) {
@@ -2830,6 +2891,12 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
   if (type == 1 && m == 84) {
     auto &o = fg[value(c, 0)];
     if (op == 1000) {
+      if (vm.scenario() == 9032 && runtime.GetState() == GameState::Menu) {
+        const int id = value(c, 0);
+        if (std::find(titleHitObjects.begin(), titleHitObjects.end(), id) ==
+            titleHitObjects.end())
+          titleHitObjects.push_back(id);
+      }
       assign(c, 1, o.x);
       assign(c, 2, o.y);
       return true;
@@ -2871,6 +2938,12 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
   if (type == 2 && m == 84) {
     auto &o = fg[value(c, 0)];
     if (op == 1000) {
+      if (vm.scenario() == 9032 && runtime.GetState() == GameState::Menu) {
+        const int id = value(c, 0);
+        if (std::find(titleHitObjects.begin(), titleHitObjects.end(), id) ==
+            titleHitObjects.end())
+          titleHitObjects.push_back(id);
+      }
       assign(c, 1, o.x);
       assign(c, 2, o.y);
       return true;
@@ -2946,6 +3019,10 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
       (op == 0 || op == 3 || op == 4 || op == 20 || op == 22))
     return true;
   if (type == 1 && m == 31 && op == 0) {
+    if (vm.scenario() == 9032 && runtime.GetState() == GameState::Menu) {
+      installTitleTargets();
+      titleReady = true;
+    }
     refreshRequested = true;
     return true;
   }
@@ -3435,6 +3512,48 @@ void RealLiveRuntime::update() {
   auto &i = *impl;
   if (!i.engine)
     return;
+  static const bool trace = SDL_getenv("KOTONOHA_REALLIVE_TRACE") != nullptr;
+  if (trace) {
+    std::string scenes;
+    for (auto *scene : GetActiveScenes())
+      if (scene)
+        scenes += (scenes.empty() ? "" : ",") +
+                  std::string(typeid(*scene).name()) +
+                  (scene->capturesInput() ? "(capture)" : "");
+    std::string objects;
+    for (int id : {10, 11, 12, 13, 14, 15}) {
+      auto found = i.fg.find(id);
+      if (found == i.fg.end())
+        continue;
+      const auto &o = found->second;
+      objects += " o" + std::to_string(id) + "=" + std::to_string(o.x) + "," +
+                 std::to_string(o.y) + "," + std::to_string(o.width) + "x" +
+                 std::to_string(o.height) + (o.visible ? "v" : "-");
+    }
+    const auto &mem = i.vm.machine().memory().integers;
+    auto get = [&](int location, int key) {
+      auto it = mem.find({location, key});
+      return it == mem.end() ? -9999 : it->second;
+    };
+    SDL_Log("RLTRACE node=%s pause=%d storyPaused=%d choice=%d deadline=%llu "
+            "refresh=%d ready=%d blocked=%d stack=%zu m1001=%d m1002=%d m1003=%d "
+            "m1006=%d m1008=%d m1009=%d m1012=%d m1013=%d "
+            "a1000=%d a1001=%d a1002=%d a1003=%d "
+            "m1200=%d m1201=%d m1202=%d m1204=%d m1206=%d m1210=%d g1037=%d "
+            "hits=%zu targets=%zu objects=[%s] scenes=[%s] err=%s",
+            debugNode().c_str(), int(i.pause), int(isStoryPaused()),
+            int(i.choice->isActive()),
+            static_cast<unsigned long long>(i.deadline),
+            int(i.refreshRequested), int(i.titleReady), int(i.vm.blocked()),
+            i.vm.stackDepth(), get(5, 1001), get(5, 1002), get(5, 1003),
+            get(5, 1006), get(5, 1008), get(5, 1009), get(5, 1012),
+            get(5, 1013), get(0, 1000),
+            get(0, 1001), get(0, 1002), get(0, 1003), get(5, 1200),
+            get(5, 1201), get(5, 1202), get(5, 1204), get(5, 1206),
+            get(5, 1210), get(6, 1037), i.titleHitObjects.size(),
+            i.titleInput.targetCount(), objects.c_str(), scenes.c_str(),
+            i.error.c_str());
+  }
   bool paused = isStoryPaused();
   if (paused)
     i.button1 = i.button2 = 0;
@@ -3518,6 +3637,8 @@ void RealLiveRuntime::update() {
       break;
     }
   if (i.vm.scenario() < 8000 && GetState() == GameState::Menu) {
+    i.titleReady = false;
+    i.titleInput.reset();
     if (GetScenes(GameState::Gameplay).empty())
       for (auto *scene : GetScenes(GameState::Menu))
         AddScene(scene, GameState::Gameplay);

@@ -1167,6 +1167,12 @@ int main(int argc, char **argv) {
         if (index >= first && index <= last) {
           std::cout << index << ' ';
           element->PrintSourceRepresentation(&machine, std::cout);
+          if (const auto *command =
+                  dynamic_cast<const libreallive::CommandElement *>(
+                      element.get()))
+            std::cout << " [" << command->modtype() << ':' << command->module()
+                      << ':' << command->opcode() << '/' << command->overload()
+                      << "]";
           std::cout << '\n';
         }
         ++index;
@@ -1250,6 +1256,61 @@ int main(int argc, char **argv) {
       capture(engine, game, "build/reallive-boot-probe.bmp");
       std::cout << "Boot probe completed at " << game.debugNode() << '\n';
       return 0;
+    }
+    if (argc > 2 && std::string(argv[2]) == "--story-probe") {
+      RealLive::RealLiveRuntime game(assets);
+      game.SetState(GameState::Menu);
+      EngineOptions options;
+      options.assets = assets;
+      options.persistSettings = false;
+      Engine engine(game, options);
+      struct Guard {
+        RealLive::RealLiveRuntime &game;
+        ~Guard() { game.shutdown(); }
+      } guard{game};
+      SDL_SetRenderVSync(&engine.GetRenderer(), 0);
+      const int seconds = argc > 3 ? std::stoi(argv[3]) : 45;
+      if (argc > 4)
+        game.debugJumpToNode(argv[4]);
+      const auto start = SDL_GetTicks();
+      std::string previous;
+      int transitions = 0;
+      int presses = 0;
+      bool failed = false;
+      auto press = [&](bool down) {
+        SDL_Event event{};
+        event.type =
+            down ? SDL_EVENT_KEY_DOWN : SDL_EVENT_KEY_UP;
+        event.key.key = SDLK_RETURN;
+        event.key.scancode = SDL_SCANCODE_RETURN;
+        game.onEvent(event);
+      };
+      while (SDL_GetTicks() - start < Uint64(seconds) * 1000) {
+        if (SDL_GetTicks() - start > 1000 && (transitions + presses) % 2 == 0) {
+          press(true);
+          engine.Iterate();
+          press(false);
+          ++presses;
+        }
+        engine.Iterate();
+        if (!game.diagnostic().empty()) {
+          std::cout << "STORY ERROR " << game.debugNode() << ": "
+                    << game.diagnostic() << std::endl;
+          failed = true;
+          break;
+        }
+        if (game.debugNode() != previous) {
+          previous = game.debugNode();
+          ++transitions;
+          std::cout << SDL_GetTicks() - start << " " << previous << '\n';
+        }
+        SDL_Delay(16);
+      }
+      capture(engine, game, "build/reallive-story-probe.bmp");
+      std::cout << "Story probe " << (failed ? "FAILED" : "completed")
+                << " at " << game.debugNode() << " after " << transitions
+                << " nodes and " << presses << " advances\n";
+      return failed ? 1 : 0;
     }
     if (argc > 2 && std::string(argv[2]) == "--direct-iso") {
       check(isISOImage(assets->directory()) &&

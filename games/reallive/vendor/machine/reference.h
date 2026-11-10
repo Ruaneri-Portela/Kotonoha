@@ -68,6 +68,10 @@ public:
   explicit IntReferenceIterator(int *p) : direct_(p) {}
   IntReferenceIterator(RLMemory *m, int b, int i)
       : memory_(m), bank_(b), index_(i) {}
+  // Identifies the destination bank/index so ports can recognise the native
+  // input registers without hardcoding a title-specific slot.
+  int bank() const { return memory_ ? bank_ : -1; }
+  int index() const { return memory_ ? index_ : -1; }
   Reference operator*() const {
     return Reference(memory_, direct_, bank_, index_);
   }
