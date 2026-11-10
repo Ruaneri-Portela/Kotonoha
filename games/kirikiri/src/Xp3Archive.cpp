@@ -53,6 +53,30 @@ std::string readUtf16Le(const std::uint8_t *buf, std::size_t &pos,
   return out;
 }
 
+std::vector<std::uint8_t> decodeUtf16Text(const std::vector<std::uint8_t> &in) {
+  if (in.size() < 2 || !((in[0] == 0xff && in[1] == 0xfe) ||
+                         (in[0] == 0xfe && in[1] == 0xff)))
+    return in;
+  const bool littleEndian = in[0] == 0xff;
+  std::string out;
+  for (std::size_t i = 2; i + 1 < in.size(); i += 2) {
+    const std::uint16_t wc = littleEndian
+                                 ? std::uint16_t(in[i] | (in[i + 1] << 8))
+                                 : std::uint16_t((in[i] << 8) | in[i + 1]);
+    if (wc < 0x80)
+      out.push_back(static_cast<char>(wc));
+    else if (wc < 0x800) {
+      out.push_back(static_cast<char>(0xc0 | (wc >> 6)));
+      out.push_back(static_cast<char>(0x80 | (wc & 0x3f)));
+    } else {
+      out.push_back(static_cast<char>(0xe0 | (wc >> 12)));
+      out.push_back(static_cast<char>(0x80 | ((wc >> 6) & 0x3f)));
+      out.push_back(static_cast<char>(0x80 | (wc & 0x3f)));
+    }
+  }
+  return {out.begin(), out.end()};
+}
+
 std::vector<std::uint8_t> readFileBytes(const std::filesystem::path &path) {
   std::ifstream in(path, std::ios::binary);
   if (!in)
@@ -179,7 +203,8 @@ bool KirikiriAssets::containsAsset(const std::string &id) const {
   if (resolved != id && base->contains(resolved))
     return true;
   // Check XP3 archives.
-  for (const auto &[name, entries] : archives) {
+  for (auto archive = archives.rbegin(); archive != archives.rend(); ++archive) {
+    const auto &entries = archive->second;
     for (const auto &e : entries)
       if (e.name == id || e.name == resolved)
         return true;
@@ -198,7 +223,9 @@ KirikiriAssets::readAsset(const std::string &id) const {
       data = base->read(resolved);
     else {
       // Search XP3 archives.
-      for (const auto &[name, entries] : archives) {
+      for (auto archive = archives.rbegin(); archive != archives.rend();
+           ++archive) {
+        const auto &entries = archive->second;
         for (const auto &e : entries) {
           if (e.name == id || e.name == resolved) {
             data = extractXp3Entry(e);
@@ -213,15 +240,26 @@ KirikiriAssets::readAsset(const std::string &id) const {
   if (data.empty())
     throw std::runtime_error("Asset not found: " + id);
 
+  // KAG scripts are frequently stored as UTF-16 (including loose patches).
+  if (id.size() >= 3) {
+    auto lower = id;
+    std::transform(lower.begin(), lower.end(), lower.begin(), [](char c) {
+      return static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    });
+    if (lower.size() >= 3 && lower.substr(lower.size() - 3) == ".ks")
+      data = decodeUtf16Text(data);
+  }
+
   // MDF container: "mdf\0" + zlib-compressed PSB.  Decompress for any source.
   if (data.size() >= 8 && std::memcmp(data.data(), kMdfMagic, 4) == 0)
     data = decompressMdf(data.data(), data.size());
 
   // PSB scenario (.scn): extract readable KAG/script text from E-Mote PSB.
   if (data.size() >= 4 && std::memcmp(data.data(), kPsbMagic, 4) == 0 &&
-      id.size() >= 4 && id.substr(id.size() - 4) == ".scn")
-    return std::vector<std::uint8_t>(extractPsbScript(data).begin(),
-                                     extractPsbScript(data).end());
+      id.size() >= 4 && id.substr(id.size() - 4) == ".scn") {
+    const auto text = extractPsbScript(data);
+    return {text.begin(), text.end()};
+  }
 
   return data;
 }
@@ -248,7 +286,9 @@ std::string KirikiriAssets::localPathAsset(const std::string &id) const {
 
 Kotonoha::SurfacePtr
 KirikiriAssets::loadSurfaceAsset(const std::string &id) const {
-  return base->loadSurface(id);
+  // AssetProvider's default implementation decodes from readAsset(), which is
+  // required for pictures living in XP3 archives.
+  return AssetProvider::loadSurfaceAsset(id);
 }
 
 std::string KirikiriAssets::resolveId(const std::string &id) const {
@@ -264,7 +304,9 @@ void KirikiriAssets::mountXp3(const std::filesystem::path &path) {
   if (!archivePath.is_absolute())
     archivePath = root / archivePath;
   auto name = archivePath.filename().string();
-  if (archives.count(name))
+  if (std::any_of(archives.begin(), archives.end(), [&](const auto &archive) {
+        return archive.first == name;
+      }))
     return; // already mounted
   if (!readXp3(archivePath)) {
     SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
@@ -288,6 +330,28 @@ std::vector<std::string> KirikiriAssets::scenarioFiles() const {
   }
   std::sort(result.begin(), result.end());
   return result;
+}
+
+std::string KirikiriAssets::startupScenario() const {
+  const auto files = scenarioFiles();
+  if (files.empty())
+    return {};
+  static const std::vector<std::string> preferred = {
+      "startup.ks", "start.ks", "first.ks", "main.ks", "title.ks",
+      "scenario/startup.ks", "scenario/first.ks", "scenario/main.ks"};
+  for (const auto &wanted : preferred)
+    for (const auto &file : files) {
+      auto lower = file;
+      std::transform(lower.begin(), lower.end(), lower.begin(), [](char c) {
+        return static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+      });
+      if (lower == wanted ||
+          std::filesystem::path(lower).filename().string() == wanted)
+        return file;
+    }
+  // Translation packs such as VNX+ expose numbered .ks.scn chapters. The
+  // first numbered chapter is the best playable entry after the title menu.
+  return files.front();
 }
 
 bool KirikiriAssets::readXp3(const std::filesystem::path &path) {
@@ -470,7 +534,7 @@ bool KirikiriAssets::readXp3(const std::filesystem::path &path) {
     }
   }
 
-  archives.emplace(path.filename().string(), std::move(entries));
+  archives.emplace_back(path.filename().string(), std::move(entries));
   return true;
 }
 

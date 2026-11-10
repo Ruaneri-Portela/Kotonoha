@@ -19,7 +19,9 @@ if(SNOW_DATA_DIR AND EXISTS "${SNOW_DATA_DIR}")
         ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_AUDIO_DRIVER=dummy")
     add_test(NAME SnowRadish.Retail COMMAND SnowPackTest "${SNOW_DATA_DIR}")
     add_test(NAME SnowRadish.Boot
-        COMMAND SnowRadish --snow "${SNOW_DATA_DIR}" --no-config --frames 120)
+        COMMAND SnowRadish --snow "${SNOW_DATA_DIR}" --no-config
+            --no-launcher --frames 120)
+    set_tests_properties(SnowRadish.Boot PROPERTIES TIMEOUT 120)
     set_tests_properties(SnowRadish.Boot PROPERTIES
         ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_AUDIO_DRIVER=dummy")
 endif()

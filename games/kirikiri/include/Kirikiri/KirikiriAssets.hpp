@@ -33,6 +33,10 @@ public:
   // case-insensitive), sorted by name.
   std::vector<std::string> scenarioFiles() const;
 
+  // Chooses the most likely game entry point instead of relying on the
+  // alphabetical order of scenario files.
+  std::string startupScenario() const;
+
   // Mounts an XP3 archive by path (relative to the game root or absolute).
   // Only the file table is parsed; entry data is read on demand.
   void mountXp3(const std::filesystem::path &path);
@@ -51,7 +55,9 @@ private:
   std::filesystem::path overlayDir;
   std::shared_ptr<Kotonoha::AssetProvider> base;
   // XP3 archives mounted by the game, keyed by archive file name.
-  std::map<std::string, std::vector<Xp3Entry>> archives;
+  // Mount order is significant: later archives override earlier ones. This
+  // is how the usual data.xp3 -> patch.xp3 stack behaves in Kirikiri.
+  std::vector<std::pair<std::string, std::vector<Xp3Entry>>> archives;
 
   std::string resolveId(const std::string &id) const;
   bool readXp3(const std::filesystem::path &path);

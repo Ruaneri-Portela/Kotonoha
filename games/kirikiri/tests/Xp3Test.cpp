@@ -199,6 +199,28 @@ int main() {
     std::printf("PASS: scenarioFiles found scenario/first.ks\n");
   }
 
+  // Loose KAG patches commonly use a UTF-16 BOM (the NEKOPARA VNX+
+  // sysmenu.ks is one real-world example). They must reach the parser as
+  // UTF-8 instead of producing one NUL byte between every character.
+  {
+    const std::vector<std::uint8_t> utf16 = {
+        0xff, 0xfe, '[', 0, 'c', 0, 'm', 0, ' ', 0, 't', 0, 'e', 0,
+        'x',  0,    't', 0, '=', 0, '"', 0, 'O', 0, 'K', 0, '"', 0,
+        ']',  0};
+    const auto path = tempDir / "utf16.ks";
+    std::ofstream out(path, std::ios::binary);
+    out.write(reinterpret_cast<const char *>(utf16.data()),
+              std::streamsize(utf16.size()));
+    out.close();
+    Kirikiri::KirikiriAssets looseAssets(tempDir);
+    auto decoded = looseAssets.readAsset("utf16.ks");
+    const std::string text(decoded.begin(), decoded.end());
+    if (text != "[cm text=\"OK\"]") {
+      std::printf("FAIL: UTF-16 KAG script was not decoded\n");
+      ++failures;
+    }
+  }
+
   // Save restoration resumes after the already-presented dialogue, and label
   // jumps alter the actual runner rather than being a logging-only stub.
   {

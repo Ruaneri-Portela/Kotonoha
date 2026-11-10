@@ -18,7 +18,9 @@ if(ZERO_DISC_IMAGE AND EXISTS "${ZERO_DISC_IMAGE}")
     set_tests_properties(ZeroNoTsukaima.Engine PROPERTIES
         ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_AUDIO_DRIVER=dummy;ZERO_START=")
     add_test(NAME ZeroNoTsukaima.Boot
-        COMMAND ZeroNoTsukaima --zero "${ZERO_DISC_IMAGE}" --no-config --frames 120)
+        COMMAND ZeroNoTsukaima --zero "${ZERO_DISC_IMAGE}" --no-config
+            --no-launcher --frames 120)
+    set_tests_properties(ZeroNoTsukaima.Boot PROPERTIES TIMEOUT 120)
     set_tests_properties(ZeroNoTsukaima.Boot PROPERTIES
         ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_AUDIO_DRIVER=dummy")
 endif()

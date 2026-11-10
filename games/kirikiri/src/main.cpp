@@ -9,12 +9,14 @@
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
 
+#include <algorithm>
 #include <cctype>
 #include <cstdio>
 #include <filesystem>
 #include <memory>
 #include <set>
 #include <string>
+#include <vector>
 
 namespace {
 
@@ -41,16 +43,34 @@ struct App {
     auto assets =
         std::shared_ptr<Kirikiri::KirikiriAssets>(new Kirikiri::KirikiriAssets(
             directory, options.assetOverlayDirectory()));
-    // Auto-mount any XP3 archives found at the game root.
+    // Auto-mount XP3 archives in deterministic override order. Patch archives
+    // sort after the base data and are searched in reverse mount order.
+    std::vector<std::filesystem::path> xp3Archives;
     for (const auto &entry : std::filesystem::directory_iterator(directory)) {
       if (entry.is_regular_file()) {
         auto ext = entry.path().extension().string();
         for (auto &c : ext)
           c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
         if (ext == ".xp3")
-          assets->mountXp3(entry.path());
+          xp3Archives.push_back(entry.path());
       }
     }
+    std::sort(xp3Archives.begin(), xp3Archives.end(),
+              [](const auto &a, const auto &b) {
+                auto an = a.filename().string(), bn = b.filename().string();
+                std::transform(an.begin(), an.end(), an.begin(), ::tolower);
+                std::transform(bn.begin(), bn.end(), bn.begin(), ::tolower);
+                const auto rank = [](const std::string &name) {
+                  if (name.find("patch") != std::string::npos)
+                    return 2;
+                  if (name == "data.xp3")
+                    return 0;
+                  return 1;
+                };
+                return std::pair(rank(an), an) < std::pair(rank(bn), bn);
+              });
+    for (const auto &archive : xp3Archives)
+      assets->mountXp3(archive);
     game = std::make_unique<Game>(std::move(assets), std::move(options));
   }
 };

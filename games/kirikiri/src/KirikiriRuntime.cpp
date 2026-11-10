@@ -51,6 +51,7 @@ struct KirikiriRuntime::Impl {
   Kotonoha::VNSaveMenu *saveMenu = nullptr;
 
   bool running = false;
+  bool titleShown = false;
   bool waitingChoice = false;
   bool waitingWait = false;
   Kotonoha::PcmPlayer bgm;
@@ -127,13 +128,34 @@ void KirikiriRuntime::initGameplay(Kotonoha::Engine &engine) {
     impl.running = true;
     impl.runner->run();
   } else if (impl.currentScenario.empty()) {
-    // Auto-start the first scenario found in the data.
+    // Present a real entry menu. Older builds jumped straight into the first
+    // alphabetically sorted script, which skipped Kirikiri title flow and was
+    // especially visible with NEKOPARA translation packs.
     auto scenarios = impl.assets->scenarioFiles();
     SDL_Log("Kirikiri: found %zu scenarios", scenarios.size());
     for (const auto &s : scenarios)
       SDL_Log("Kirikiri: scenario: %s", s.c_str());
-    if (!scenarios.empty())
-      startScenario(scenarios.front());
+    if (!scenarios.empty() && !impl.titleShown) {
+      impl.titleShown = true;
+      std::vector<Kotonoha::ChoiceOption> options{{"Iniciar", 0}};
+      const auto savePath =
+          Kotonoha::preferredDocumentsDirectory("kirikiri") / "quicksave.kns";
+      if (std::filesystem::exists(savePath))
+        options.push_back({"Continuar", 1});
+      impl.choiceScene->setQuestion(
+          "Kirikiri", options,
+          [this, savePath](int option, const std::string &) {
+            auto &state = *impl_;
+            state.choiceScene->hide();
+            if (option == 1) {
+              loadGame(savePath.string());
+              return;
+            }
+            const auto startup = state.assets->startupScenario();
+            if (!startup.empty())
+              startScenario(startup);
+          });
+    }
   } else {
     startScenario(impl.currentScenario);
   }
