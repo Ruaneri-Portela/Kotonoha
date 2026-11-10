@@ -5,14 +5,7 @@ if(ANDROID)
     add_link_options("-Wl,-z,max-page-size=16384")
 endif()
 
-# Enable Link-Time Optimization (LTO / IPO) for Release builds
-include(CheckIPOSupported)
-check_ipo_supported(RESULT ipo_supported OUTPUT ipo_error)
-if(ipo_supported)
-    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE TRUE)
-else()
-    message(STATUS "IPO is not supported: ${ipo_error}")
-endif()
+
 
 # Detectar automaticamente o triplet Android do vcpkg.
 # Deve executar antes de project().
@@ -67,6 +60,17 @@ if(KOTONOHA_ANDROID_GAME STREQUAL "doki-doki-literature-club")
 endif()
 
 project(KotonohaAndroid LANGUAGES C CXX)
+
+# Enable Link-Time Optimization (LTO / IPO) for Release builds (skipped on Android due to NDK LLD requirement)
+if(NOT ANDROID)
+    include(CheckIPOSupported)
+    check_ipo_supported(RESULT ipo_supported OUTPUT ipo_error)
+    if(ipo_supported)
+        set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE TRUE)
+    else()
+        message(STATUS "IPO is not supported: ${ipo_error}")
+    endif()
+endif()
 
 foreach(game EXAMPLE AMAGAMI ZERO SNOW DDLC SCHOOL_DAYS REALLIVE SUMMER)
     set(KOTONOHA_BUILD_${game} OFF CACHE BOOL "" FORCE)

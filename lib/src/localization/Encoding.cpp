@@ -356,6 +356,13 @@ std::u16string Utf8ToUtf16(std::string_view text) {
           reinterpret_cast<wchar_t *>(result.data()), wide) != wide)
     return {};
   return result;
+#elif defined(__ANDROID__)
+  std::string converted = ConvertViaJNI(text, "UTF-8", "UTF-16LE");
+  if (converted.size() % 2 != 0)
+    return {};
+  std::u16string result(converted.size() / 2, char16_t{});
+  std::memcpy(result.data(), converted.data(), converted.size());
+  return result;
 #else
   Converter converter("UTF-8", "UTF-16LE");
   if (!converter.valid())
