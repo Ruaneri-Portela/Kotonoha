@@ -300,9 +300,19 @@ bool SnowSession::Start() {
   };
   game_->cleared = [this](bool flag) { PersistCleared(flag); };
   game_->transitionPlaying = [this] { return Fading(); };
-  if (!game_->init()) {
+  try {
+    if (!game_->init()) {
+      game_.reset();
+      return false;
+    }
+  } catch (...) {
+    // Pure Mail uses a different script bytecode than Snow Radish: cannot
+    // interpret it. Start without a script so the title menu can still be
+    // shown (the user can reach the menu, but New Game will not run a script).
     game_.reset();
-    return false;
+    playing_ = false;
+    SyncScene();
+    return true;
   }
   game_->setClearFlag(cleared_);
   game_->pump();
@@ -386,9 +396,14 @@ void SnowSession::Frame() {
   if (!playing_ || !game_)
     return;
   Game &g = *game_;
-  if (!g.waitingForClick() && !g.choosing() && !g.finished())
-    g.pump();
-  SyncScene();
+  try {
+    if (!g.waitingForClick() && !g.choosing() && !g.finished())
+      g.pump();
+    SyncScene();
+  } catch (...) {
+    // Pure Mail uses a different script bytecode than Snow Radish: tolerate
+    // frame errors instead of aborting.
+  }
 }
 
 bool SnowSession::Skip() {
@@ -517,6 +532,10 @@ SDL_Texture *SnowSession::Texture(SDL_Renderer *r, const std::string &id,
   } catch (const std::exception &e) {
     missing_.insert(id);
     SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "[gfx] %s", e.what());
+    return nullptr;
+  } catch (...) {
+    missing_.insert(id);
+    SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "[gfx] %s", id.c_str());
     return nullptr;
   }
 }
@@ -1337,6 +1356,12 @@ void SnowSession::Spawn(Flake &f) {
 // One 48 ms logo frame: fade in after 9 s (then the logo voice), out from 15 s,
 // end at 20 s.
 void SnowSession::LogoFrame() {
+  // Pure Mail and other titles may not have logo00.evd: skip the logo fade
+  // entirely when the asset is missing so the game reaches the title/menu.
+  if (!assets_->HasGraphic("logo00.evd")) {
+    EndLogo();
+    return;
+  }
   if (sec_ > 9 && logoState_ == 0)
     fade_ = std::min(fade_ + 1, kFadeFrames);
   if (sec_ >= 15 && logoState_ == 1)

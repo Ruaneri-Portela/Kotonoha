@@ -42,7 +42,10 @@ struct Image {
 
 // Decodes an .EVD picture (type 3: u32 type, width, height + delta/run/literal
 // tokens in BGR, stored bottom-up). Returns false on malformed data.
-bool decodeEvd(const std::vector<uint8_t> &data, Image &out);
+// When hasHeader is false (Pure Mail CRGB files), the data is raw EVD type-3
+// delta data without the 12-byte header; 800x600 is assumed.
+bool decodeEvd(const std::vector<uint8_t> &data, Image &out,
+               bool hasHeader = true);
 
 struct AlphaMask {
   uint32_t width = 0, height = 0;

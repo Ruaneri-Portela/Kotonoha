@@ -63,6 +63,10 @@ private:
   };
   const Pack *PackOf(const std::string &id, std::string &key) const;
   static std::vector<uint8_t> Extract(const Pack &pack, const PackEntry &entry);
+  // Pure Mail uses .CRGB where Snow Radish uses .evd/.img.
+  bool tryAltGraphicExt(const Pack *pack, const std::string &key) const;
+  std::vector<uint8_t> readGraphicWithAltExt(const Pack *pack,
+                                             const std::string &key) const;
 
   std::filesystem::path directory_;
   std::filesystem::path scriptPath_;

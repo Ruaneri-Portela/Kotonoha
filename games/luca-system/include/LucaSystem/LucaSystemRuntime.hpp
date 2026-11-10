@@ -3,6 +3,7 @@
 #include <LucaSystem/LucaSystemAssets.hpp>
 #include <Kotonoha/core/Runtime.hpp>
 
+#include <cstdint>
 #include <filesystem>
 #include <memory>
 #include <string>
@@ -16,9 +17,11 @@ namespace LucaSystem {
 // extracted dialogue through Kotonoha scenes (textbox, choices, backlog,
 // menu).
 //
-// Full gameplay VM execution requires the game-specific OPCODE.txt parameter
-// semantics; this port decodes the archive and script structure and presents
-// the embedded Shift-JIS dialogue strings. See PORT_STATUS.md.
+// The VM implements the opcode semantics recovered by reverse engineering
+// the original AIR.exe binaries (via rizin/REA) and analysis of the
+// SCRIPT.PAK bytecode: MESSAGE, FADE, IMAGELOAD, DRAW, WAIT, INIT,
+// HAIKIE_SET, EQUN/EQU, BGM, VOICE, SE, JUMP, CALL, RETURN, CLOSE_WINDOW,
+// WIPE, IMAGEUPDATE and object animation opcodes.
 class LucaSystemRuntime : public Kotonoha::Runtime {
 public:
   LucaSystemRuntime(std::shared_ptr<LucaSystemAssets> assets);
