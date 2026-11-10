@@ -75,14 +75,20 @@ SDL_AppResult SDL_AppInit(void **state, int argc, char **argv) {
     const auto settingsPath =
         options.persistSettings ? options.settingsPath : std::string();
     const auto env = SDL_getenv("SUMMER_DIR");
+    const bool hadSummer = !directory.empty();
     directory = Kotonoha::GameLauncher::findGamePath(
         "summer-radish-vacation",
         {directory, env ? env : "",
          Kotonoha::GameLauncher::rememberedPath(settingsPath, "dir.txt"),
          Kotonoha::gameAssetDirectory("summer-radish-vacation").string()},
         validate);
-    if (directory.empty())
+    if (directory.empty()) {
+      if (!options.launcher)
+        throw std::runtime_error(
+            "No game directory specified; use --summer DIRECTORY|ISO");
       options.launcher = true;
+    } else if (hadSummer || !options.launcher)
+      options.launcher = false;
 
     if (options.launcher) {
       app->launcher = std::make_unique<Kotonoha::FolderGameLauncher>(

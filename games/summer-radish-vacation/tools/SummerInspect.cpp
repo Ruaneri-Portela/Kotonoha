@@ -8,7 +8,8 @@ using namespace SummerRadish;
 int main(int argc, char **argv) {
   try {
     if (argc < 2) {
-      std::cout << "Usage: SummerInspect PACK-DIRECTORY [--validate]\n";
+      std::cout << "Usage: SummerInspect PACK-DIRECTORY [--validate | --list | "
+                   "--read PACK/ASSET]\n";
       return 0;
     }
     auto root = std::filesystem::path(argv[1]);
@@ -17,8 +18,25 @@ int main(int argc, char **argv) {
     else if (std::filesystem::exists(root / "PACK"))
       root /= "PACK";
     Machine vm;
+    const std::string mode = argc > 2 ? argv[2] : "";
     for (auto type : {"INI", "SCRIPT", "GRAPHIC", "SOUND", "VOICE"}) {
       Pack pack(root / (std::string(type) + ".cmp"));
+      if (mode == "--read" && argc > 3) {
+        const auto id = canonical(argv[3]);
+        const auto prefix = std::string(type) + "/";
+        if (id.compare(0, prefix.size(), prefix) == 0) {
+          const auto data = pack.read(id.substr(prefix.size()));
+          std::cout.write(reinterpret_cast<const char *>(data.data()),
+                          data.size());
+          return 0;
+        }
+        continue;
+      }
+      if (mode == "--list") {
+        for (const auto &[name, entry] : pack.entries())
+          std::cout << type << '/' << name << '\n';
+        continue;
+      }
       std::cout << type << ": " << pack.entries().size() << " entries\n";
       if (std::string(type) == "SCRIPT")
         for (auto &[name, e] : pack.entries()) {
@@ -26,7 +44,7 @@ int main(int argc, char **argv) {
           vm.add(name.substr(0, name.size() - 4),
                  std::string(d.begin(), d.end()));
         }
-      if (argc > 2 && std::string(type) == "GRAPHIC") {
+      if (mode == "--validate" && std::string(type) == "GRAPHIC") {
         size_t count = 0, regions = 0;
         for (auto &[name, e] : pack.entries()) {
           auto ext = name.substr(name.find_last_of('.') + 1);
@@ -56,6 +74,10 @@ int main(int argc, char **argv) {
                   << " animation regions\n";
       }
     }
+    if (mode == "--list")
+      return 0;
+    if (mode == "--read")
+      throw std::runtime_error("Expected an existing PACK/ASSET identifier");
     std::cout << "Parsed " << vm.programs().size() << " scripts\n";
     size_t messages = 0, choices = 0, functions = 0;
     std::string last;

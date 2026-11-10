@@ -37,24 +37,26 @@ class SummerText final : public VNTextBox {
   void renderFrame(RendererRef r) override {
     // The normal frame is already composited by the stage. Overlay the
     // original atlas states without rebuilding/upscaling the whole canvas.
-    auto &atlas = assets.texture(r, "GRAPHIC/FRAME/MESSFRAME.TEXB");
-    for (int i = 0; i < 6; ++i) {
-      const int state = controls.state(i);
-      const bool active = (i == 0 && skipActive && skipActive()) ||
-                          (i == 2 && autoActive && autoActive());
-      if (!state && !active)
-        continue;
-      SDL_FRect source{};
-      if (i == 0 || i == 2)
-        source = {float((active ? 192 : 0) + (state ? 96 : 0)),
-                  float(i == 0 ? 250 : 268), 96, 18};
-      else if (i == 1 || i == 3)
-        source = {480, float(i == 1 ? 250 : 268), 96, 18};
-      else if (i == 4)
-        source = {594, 250, 18, 18};
-      else
-        source = {float(612 + state * 46), 224, 46, 62};
-      RenderUpscaledTexture(&r, &atlas, &source, &controls.buttons[i].area);
+    if (assets.containsAsset("GRAPHIC/FRAME/MESSFRAME.TEXB")) {
+      auto &atlas = assets.texture(r, "GRAPHIC/FRAME/MESSFRAME.TEXB");
+      for (int i = 0; i < 6; ++i) {
+        const int state = controls.state(i);
+        const bool active = (i == 0 && skipActive && skipActive()) ||
+                            (i == 2 && autoActive && autoActive());
+        if (!state && !active)
+          continue;
+        SDL_FRect source{};
+        if (i == 0 || i == 2)
+          source = {float((active ? 192 : 0) + (state ? 96 : 0)),
+                    float(i == 0 ? 250 : 268), 96, 18};
+        else if (i == 1 || i == 3)
+          source = {480, float(i == 1 ? 250 : 268), 96, 18};
+        else if (i == 4)
+          source = {594, 250, 18, 18};
+        else
+          source = {float(612 + state * 46), 224, 46, 62};
+        RenderUpscaledTexture(&r, &atlas, &source, &controls.buttons[i].area);
+      }
     }
   }
   void renderSpeaker(RendererRef r) override {
@@ -76,11 +78,13 @@ class SummerText final : public VNTextBox {
                                 : SDL_Color{240, 240, 245, 255});
   }
   void renderIndicator(RendererRef r) override {
-    auto &atlas = assets.texture(r, "GRAPHIC/FRAME/MESSFRAME.TEXB");
-    SDL_FRect source{float(256 + ((SDL_GetTicks() / 200) % 4) * 16), 210, 16,
-                     40};
-    SDL_FRect target{719, 526, 16, 40};
-    RenderUpscaledTexture(&r, &atlas, &source, &target);
+    if (assets.containsAsset("GRAPHIC/FRAME/MESSFRAME.TEXB")) {
+      auto &atlas = assets.texture(r, "GRAPHIC/FRAME/MESSFRAME.TEXB");
+      SDL_FRect source{float(256 + ((SDL_GetTicks() / 200) % 4) * 16), 210, 16,
+                       40};
+      SDL_FRect target{719, 526, 16, 40};
+      RenderUpscaledTexture(&r, &atlas, &source, &target);
+    }
   }
 
 public:
@@ -99,10 +103,11 @@ public:
   }
   SummerText(Engine &e, SummerAssets &a) : VNTextBox(e, "", "", 40), assets(a) {
     hide();
-    controlMap =
-        std::make_unique<ClickMap>(assets.read("GRAPHIC/FRAME/MESSFRAME.CMAP"));
+    if (auto cmap = assets.tryReadAsset("GRAPHIC/FRAME/MESSFRAME.CMAP"))
+      controlMap = std::make_unique<ClickMap>(std::move(*cmap));
     controls.hitTest = [this](SDL_FPoint p) {
-      const int id = controlMap->value(int(p.x), int(p.y) - 391);
+      const int id =
+          controlMap ? controlMap->value(int(p.x), int(p.y) - 391) : -1;
       return id >= 1 && id <= 6 ? id - 1 : -1;
     };
     controls.buttons = {{{417, 576, 96, 18}, {}}, {{507, 576, 96, 18}, {}},
@@ -138,17 +143,19 @@ class SummerChoice final : public ChoiceQuestionScene {
   void renderOption(RendererRef r, std::size_t index, bool focused) override {
     focused = focused && (pointerFocus || keyboardFocus);
     const auto &rect = options[index].hitBox;
-    auto &atlas = assets.texture(r, "GRAPHIC/FRAME/SELECT.TEXB");
     const bool read = index < readStates.size() && readStates[index];
     const float start = (read ? 160 : 0) + (focused ? 80 : 0);
-    SDL_FRect source{start, 0, 32, 42}, target{rect.x, rect.y, 32, 42};
-    RenderUpscaledTexture(&r, &atlas, &source, &target);
-    source = {start + 32, 0, 16, 42};
-    target = {rect.x + 32, rect.y, rect.w - 64, 42};
-    RenderUpscaledTexture(&r, &atlas, &source, &target);
-    source = {start + 48, 0, 32, 42};
-    target = {rect.x + rect.w - 32, rect.y, 32, 42};
-    RenderUpscaledTexture(&r, &atlas, &source, &target);
+    if (assets.containsAsset("GRAPHIC/FRAME/SELECT.TEXB")) {
+      auto &atlas = assets.texture(r, "GRAPHIC/FRAME/SELECT.TEXB");
+      SDL_FRect source{start, 0, 32, 42}, target{rect.x, rect.y, 32, 42};
+      RenderUpscaledTexture(&r, &atlas, &source, &target);
+      source = {start + 32, 0, 16, 42};
+      target = {rect.x + 32, rect.y, rect.w - 64, 42};
+      RenderUpscaledTexture(&r, &atlas, &source, &target);
+      source = {start + 48, 0, 32, 42};
+      target = {rect.x + rect.w - 32, rect.y, 32, 42};
+      RenderUpscaledTexture(&r, &atlas, &source, &target);
+    }
     const auto size =
         engine.GetUI().measureSized(options[index].label, rect.w - 16, 28);
     const SDL_Color color = read ? (focused ? SDL_Color{255, 240, 128, 255}
@@ -215,10 +222,16 @@ public:
       nativeSound("systemmsg_0000");
   }
   std::string nativeBackground() const {
-    if (nativeMode == 3)
-      return uniformPhase ? std::string("GRAPHIC/UNIFORM/KAKUNIN_") +
-                                char('A' + uniformIndex) + ".CGD"
-                          : "GRAPHIC/UNIFORM/UNICHOICE.CGD";
+    if (nativeMode == 3) {
+      if (uniformPhase) {
+        const std::string kakunin = std::string("GRAPHIC/UNIFORM/KAKUNIN_") +
+                                    char('A' + uniformIndex) + ".CGD";
+        if (assets.containsAsset(kakunin))
+          return kakunin;
+        return "GRAPHIC/UNIFORM/UNICHOICE.CGD";
+      }
+      return "GRAPHIC/UNIFORM/UNICHOICE.CGD";
+    }
     return nativeMode >= 0 ? mapLayout(nativeMode).background : "";
   }
   void compose(Image &canvas,
@@ -252,11 +265,14 @@ public:
                              x[focus], 52, focus * 362, 0, 361, 547);
       }
     } else if (uniformPhase == 2) {
-      const auto &texture = image("GRAPHIC/UNIFORM/KAKUNIN.TEXB");
-      compositeImageRegion(canvas, texture, 208, 362, 0, 0, 386, 90);
-      if (focus >= 0)
-        compositeImageRegion(canvas, texture, focus == 0 ? 288 : 414, 413,
-                             focus * 100, 90, 100, 28);
+      const std::string kakuninTex = "GRAPHIC/UNIFORM/KAKUNIN.TEXB";
+      if (assets.containsAsset(kakuninTex)) {
+        const auto &texture = image(kakuninTex);
+        compositeImageRegion(canvas, texture, 208, 362, 0, 0, 386, 90);
+        if (focus >= 0)
+          compositeImageRegion(canvas, texture, focus == 0 ? 288 : 414, 413,
+                               focus * 100, 90, 100, 28);
+      }
     }
   }
   bool onEvent(EventRef input) override {
@@ -507,8 +523,18 @@ struct SummerRuntime::Impl {
   std::string choiceTarget = "@RESULT";
   uint64_t deadline = 0, lastUpdate = 0, lastSystemWrite = 0;
   bool title = false, autoMode = false, loaded = false, skipHeld = false,
-       currentRead = false;
+       currentRead = false, openingPlayed = false;
   int titleFocus = 0;
+  std::string pendingScript;
+  // Per-edition title layout loaded from EASYTITLE.INI.
+  struct TitleChip {
+    std::string name;
+    int atlasX = 0, atlasY = 0, atlasW = 0, atlasH = 0; // Source rect in atlas
+  };
+  int titleBaseX = 0, titleBaseY = 0; // Screen base position from [TITLE000]
+  int titleChipSpacing = 40;          // Vertical spacing between chips
+  std::string titleChipTexture;       // TEMPLATENAME or fallback
+  std::vector<TitleChip> titleChips;
   std::set<std::string> warned;
   explicit Impl(SummerRuntime &r, std::shared_ptr<SummerAssets> a)
       : runtime(r), assets(std::move(a)) {
@@ -691,6 +717,124 @@ struct SummerRuntime::Impl {
   std::string translated(const std::string &s) const {
     return engine->GetTranslation().text(route(), s);
   }
+  // Reads EASYTITLE.INI (UTF-16 LE) and extracts the per-edition title chip
+  // layout: which texture to use and where each chip is drawn. Strips a
+  // leading '@' from the path (the original engine's INI pack marker).
+  void loadEasyTitle(const std::string &iniPath) {
+    titleChipTexture.clear();
+    titleChips.clear();
+    titleBaseX = 0;
+    titleBaseY = 0;
+    titleChipSpacing = 40;
+    auto inipath = iniPath;
+    if (!inipath.empty() && inipath[0] == '@')
+      inipath.erase(0, 1);
+    std::string data;
+    try {
+      data = std::string(assets->read(inipath).begin(),
+                         assets->read(inipath).end());
+    } catch (const std::exception &) {
+      return;
+    }
+    auto decode = [](const std::string &s) {
+      if (s.size() >= 2 && s[1] == '\0') {
+        Bytes bytes(s.begin(), s.end());
+        try {
+          return utf16(bytes, 0, s.size() / 2);
+        } catch (const std::exception &) {
+          // Some INI files have mixed or invalid UTF-16 sequences. Strip null
+          // bytes and treat as single-byte text.
+          std::string result;
+          result.reserve(s.size() / 2);
+          for (size_t i = 0; i < s.size(); i += 2)
+            result += s[i];
+          return result;
+        }
+      }
+      return s;
+    };
+    std::string text = decode(data);
+    std::istringstream stream(text);
+    std::string line;
+    std::string section;
+    int chipIndex = -1;
+    while (std::getline(stream, line)) {
+      size_t start = line.find_first_not_of(" \t\r\n");
+      if (start == std::string::npos)
+        continue;
+      line = line.substr(start);
+      if (line.empty() || line[0] == '#' || line[0] == ';')
+        continue;
+      if (line.front() == '[' && line.back() == ']') {
+        section = line.substr(1, line.size() - 2);
+        if (section.rfind("CHIP", 0) == 0) {
+          chipIndex = std::stoi(section.substr(4));
+          if (chipIndex >= 0)
+            titleChips.resize(
+                std::max(titleChips.size(), size_t(chipIndex + 1)));
+        }
+        continue;
+      }
+      auto eq = line.find('=');
+      if (eq == std::string::npos)
+        continue;
+      auto key = line.substr(0, eq);
+      auto val = line.substr(eq + 1);
+      key.erase(0, key.find_first_not_of(" \t"));
+      key.erase(key.find_last_not_of(" \t") + 1);
+      val.erase(0, val.find_first_not_of(" \t"));
+      val.erase(val.find_last_not_of(" \t\r") + 1);
+      if (section == "TOTAL") {
+        if (key == "TEMPLATENAME")
+          titleChipTexture = val;
+      } else if (section.rfind("TITLE", 0) == 0) {
+        if (key == "DRAWAREA") {
+          std::istringstream v(val);
+          int a, b, c, d, e;
+          if (v >> a >> b >> c >> d >> e) {
+            titleBaseX = b;
+            titleBaseY = a;
+          }
+        }
+      } else if (section.rfind("CHIP", 0) == 0 && chipIndex >= 0 &&
+                 chipIndex < int(titleChips.size())) {
+        auto &chip = titleChips[size_t(chipIndex)];
+        if (key == "NAME")
+          chip.name = val;
+        else if (key == "SIZE") {
+          titleChipSpacing = std::stoi(val);
+        } else if (key == "AREA" || key == "DRAWAREA") {
+          std::istringstream v(val);
+          int a, b, c, d, e;
+          if (v >> a >> b >> c >> d >> e) {
+            chip.atlasX = b;
+            chip.atlasY = a;
+            chip.atlasW = c;
+            chip.atlasH = d;
+          }
+        }
+      }
+    }
+    if (titleChipTexture.empty())
+      titleChipTexture = assets->containsAsset("GRAPHIC/TITLE/TITLECHIP.TEXB")
+                             ? "GRAPHIC/TITLE/TITLECHIP.TEXB"
+                             : "GRAPHIC/TITLE/TITLE.TEXB";
+    if (titleChips.empty()) {
+      // Hardcoded fallback: four chips at the classic positions.
+      titleChips.resize(4);
+      static const char *names[4] = {"START", "LOAD", "CONFIG", "QUIT"};
+      for (int i = 0; i < 4; ++i) {
+        titleChips[i].name = names[i];
+        titleChips[i].atlasX = 0;
+        titleChips[i].atlasY = i * 32;
+        titleChips[i].atlasW = 230;
+        titleChips[i].atlasH = 32;
+      }
+      titleBaseX = 285;
+      titleBaseY = 342;
+      titleChipSpacing = 40;
+    }
+  }
   void begin(const std::string &script = "START") {
     if (movie)
       movie->stop();
@@ -715,6 +859,29 @@ struct SummerRuntime::Impl {
     canvasKey.clear();
     GetVNBacklogRuntime(*engine).clear();
     saveSystem();
+    pendingScript = script;
+    // Reproduz o vídeo de abertura (se existir) apenas na primeira
+    // inicialização, antes do título, igual ao jogo original. Tenta nomes
+    // conhecidos em cada instalação. Não inicia o script enquanto o filme
+    // estiver tocando; ele começa quando o filme termina (tratado em update()).
+    if (!openingPlayed) {
+      std::vector<std::string> openingCandidates{
+          "DISC1/opening.mpg", "DISC1/summer_op.mpg", "opening.mpg",
+          "summer_op.mpg"};
+      for (const auto &candidate : openingCandidates) {
+        try {
+          movie->open(assets->moviePath(candidate).string(), false, "BGM");
+          text->hide();
+          vm.waiting = true;
+          pending = "OPENING";
+          openingPlayed = true;
+          return; // Não inicia o script ainda; espera o filme terminar.
+        } catch (const std::exception &) {
+          // Candidate não existe nesta instalação; tenta o próximo.
+        }
+      }
+      openingPlayed = true; // Não há vídeo; não tentará novamente.
+    }
     vm.start(script);
     // Keep the original boot warnings/logos; globals absent on first boot are
     // zero.
@@ -963,6 +1130,7 @@ struct SummerRuntime::Impl {
       background = "GRAPHIC/TITLE/TITLE.CGD";
       sprites.clear();
       text->hide();
+      loadEasyTitle(string(arg(0)));
       return;
     }
     if (name == "UNISELECT" || name == "MAPSELECT") {
@@ -1146,17 +1314,25 @@ struct SummerRuntime::Impl {
                            transitionDuration);
       if (!byteOverlay.empty())
         compositeImage(canvas, image(byteOverlay), 216, 161);
-      if (text->isVisible() && !text->concealed)
+      if (text->isVisible() && !text->concealed &&
+          assets->containsAsset("GRAPHIC/FRAME/MESSFRAME.TEXB"))
         compositeImageRegion(canvas, image("GRAPHIC/FRAME/MESSFRAME.TEXB"), 0,
                              391, 0, 0, 800, 209);
       choice->compose(
           canvas, [this](const auto &id) -> const Image & { return image(id); },
           vm);
-      if (title)
-        for (int i = 0; i < 4; ++i)
-          compositeImageRegion(canvas, image("GRAPHIC/TITLE/TITLECHIP.TEXB"),
-                               285, 342 + i * 40, i == titleFocus ? 230 : 0,
-                               i * 32, 230, 32);
+      if (title) {
+        if (assets->containsAsset(titleChipTexture))
+          for (size_t i = 0; i < titleChips.size(); ++i) {
+            const auto &chip = titleChips[i];
+            const bool focused = i == size_t(titleFocus);
+            compositeImageRegion(canvas, image(titleChipTexture), titleBaseX,
+                                 titleBaseY + int(i) * titleChipSpacing,
+                                 focused ? chip.atlasW : 0,
+                                 int(i) * chip.atlasH, chip.atlasW,
+                                 chip.atlasH);
+          }
+      }
       if (!canvasTexture)
         canvasTexture.reset(SDL_CreateTexture(
             &r, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STREAMING, 800, 600));
@@ -1171,6 +1347,10 @@ struct SummerRuntime::Impl {
     RenderUpscaledTexture(&r, canvasTexture.get(), nullptr, &target,
                           canvasContentSerial);
     if (pending == "MOVIE" && movie && movie->isOpen()) {
+      movie->update(r);
+      movie->render(r, target);
+    }
+    if (pending == "OPENING" && movie && movie->isOpen()) {
       movie->update(r);
       movie->render(r, target);
     }
@@ -1216,25 +1396,55 @@ struct SummerRuntime::Impl {
       return false;
     if (title) {
       if (e.type == SDL_EVENT_KEY_DOWN && !e.key.repeat) {
+        const auto chipCount = titleChips.empty() ? 4 : titleChips.size();
         if (e.key.key == SDLK_DOWN)
-          titleFocus = (titleFocus + 1) % 4;
+          titleFocus = (titleFocus + 1) % int(chipCount);
         else if (e.key.key == SDLK_UP)
-          titleFocus = (titleFocus + 3) % 4;
+          titleFocus = (titleFocus + 3) % int(chipCount);
         else if (e.key.key == SDLK_RETURN || e.key.key == SDLK_SPACE)
           titleAction(titleFocus);
       }
       if (e.type == SDL_EVENT_MOUSE_MOTION)
-        for (int i = 0; i < 4; ++i) {
-          SDL_FRect rect{285, float(342 + i * 40), 230, 32};
+        for (size_t i = 0; i < titleChips.size(); ++i) {
+          const auto &chip = titleChips[i];
+          SDL_FRect rect{float(titleBaseX),
+                         float(titleBaseY + int(i) * titleChipSpacing),
+                         float(chip.atlasW), float(chip.atlasH)};
           SDL_FPoint point{e.motion.x, e.motion.y};
           if (SDL_PointInRectFloat(&point, &rect))
-            titleFocus = i;
+            titleFocus = int(i);
         }
-      for (int i = 0; i < 4; ++i)
-        if (UI::clicked(e, {285, float(342 + i * 40), 230, 32})) {
-          titleAction(i);
+      for (size_t i = 0; i < titleChips.size(); ++i) {
+        const auto &chip = titleChips[i];
+        if (UI::clicked(e, {float(titleBaseX),
+                            float(titleBaseY + int(i) * titleChipSpacing),
+                            float(chip.atlasW), float(chip.atlasH)})) {
+          titleAction(int(i));
           break;
         }
+      }
+      return true;
+    }
+    // The opening video plays once before the title. Pressing confirm or
+    // clicking skips it and starts the script, matching the original behavior
+    // where the opening can be bypassed.
+    if (pending == "OPENING") {
+      if (e.type == SDL_EVENT_KEY_DOWN && !e.key.repeat &&
+          (e.key.key == SDLK_RETURN || e.key.key == SDLK_SPACE)) {
+        movie->stop();
+        pending.clear();
+        vm.start(pendingScript);
+        vm.run();
+        return true;
+      }
+      if (e.type == SDL_EVENT_MOUSE_BUTTON_UP &&
+          e.button.button == SDL_BUTTON_LEFT) {
+        movie->stop();
+        pending.clear();
+        vm.start(pendingScript);
+        vm.run();
+        return true;
+      }
       return true;
     }
     if (e.type == SDL_EVENT_KEY_DOWN && !e.key.repeat) {
@@ -1368,6 +1578,17 @@ void SummerRuntime::update() {
     i.movie->stop();
     i.pending.clear();
     i.vm.resume();
+  }
+  if (i.pending == "OPENING" && i.movie && i.movie->finished()) {
+    i.movie->stop();
+    i.pending.clear();
+    i.title = true;
+    i.titleFocus = 0;
+    i.background = "GRAPHIC/TITLE/TITLE.CGD";
+    i.sprites.clear();
+    i.text->hide();
+    i.vm.start(i.pendingScript);
+    i.vm.run();
   }
   if (i.bgmFadeDuration > 0) {
     float progress =

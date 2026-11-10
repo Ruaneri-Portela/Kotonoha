@@ -54,8 +54,8 @@ std::string readUtf16Le(const std::uint8_t *buf, std::size_t &pos,
 }
 
 std::vector<std::uint8_t> decodeUtf16Text(const std::vector<std::uint8_t> &in) {
-  if (in.size() < 2 || !((in[0] == 0xff && in[1] == 0xfe) ||
-                         (in[0] == 0xfe && in[1] == 0xff)))
+  if (in.size() < 2 ||
+      !((in[0] == 0xff && in[1] == 0xfe) || (in[0] == 0xfe && in[1] == 0xff)))
     return in;
   const bool littleEndian = in[0] == 0xff;
   std::string out;
@@ -203,7 +203,8 @@ bool KirikiriAssets::containsAsset(const std::string &id) const {
   if (resolved != id && base->contains(resolved))
     return true;
   // Check XP3 archives.
-  for (auto archive = archives.rbegin(); archive != archives.rend(); ++archive) {
+  for (auto archive = archives.rbegin(); archive != archives.rend();
+       ++archive) {
     const auto &entries = archive->second;
     for (const auto &e : entries)
       if (e.name == id || e.name == resolved)
@@ -304,9 +305,8 @@ void KirikiriAssets::mountXp3(const std::filesystem::path &path) {
   if (!archivePath.is_absolute())
     archivePath = root / archivePath;
   auto name = archivePath.filename().string();
-  if (std::any_of(archives.begin(), archives.end(), [&](const auto &archive) {
-        return archive.first == name;
-      }))
+  if (std::any_of(archives.begin(), archives.end(),
+                  [&](const auto &archive) { return archive.first == name; }))
     return; // already mounted
   if (!readXp3(archivePath)) {
     SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
@@ -337,8 +337,9 @@ std::string KirikiriAssets::startupScenario() const {
   if (files.empty())
     return {};
   static const std::vector<std::string> preferred = {
-      "startup.ks", "start.ks", "first.ks", "main.ks", "title.ks",
-      "scenario/startup.ks", "scenario/first.ks", "scenario/main.ks"};
+      "startup.ks",        "start.ks",        "first.ks",
+      "main.ks",           "title.ks",        "scenario/startup.ks",
+      "scenario/first.ks", "scenario/main.ks"};
   for (const auto &wanted : preferred)
     for (const auto &file : files) {
       auto lower = file;

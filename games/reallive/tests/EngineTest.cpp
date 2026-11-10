@@ -1279,8 +1279,7 @@ int main(int argc, char **argv) {
       bool failed = false;
       auto press = [&](bool down) {
         SDL_Event event{};
-        event.type =
-            down ? SDL_EVENT_KEY_DOWN : SDL_EVENT_KEY_UP;
+        event.type = down ? SDL_EVENT_KEY_DOWN : SDL_EVENT_KEY_UP;
         event.key.key = SDLK_RETURN;
         event.key.scancode = SDL_SCANCODE_RETURN;
         game.onEvent(event);
@@ -1307,9 +1306,9 @@ int main(int argc, char **argv) {
         SDL_Delay(16);
       }
       capture(engine, game, "build/reallive-story-probe.bmp");
-      std::cout << "Story probe " << (failed ? "FAILED" : "completed")
-                << " at " << game.debugNode() << " after " << transitions
-                << " nodes and " << presses << " advances\n";
+      std::cout << "Story probe " << (failed ? "FAILED" : "completed") << " at "
+                << game.debugNode() << " after " << transitions << " nodes and "
+                << presses << " advances\n";
       return failed ? 1 : 0;
     }
     if (argc > 2 && std::string(argv[2]) == "--direct-iso") {

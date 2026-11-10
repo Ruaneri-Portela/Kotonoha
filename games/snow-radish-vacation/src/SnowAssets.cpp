@@ -28,9 +28,8 @@ std::vector<uint8_t> ReadFile(const std::filesystem::path &path) {
 }
 
 std::filesystem::path FindPackDirectory(const std::filesystem::path &root) {
-  for (const auto &candidate :
-       {root, root / "pack", root / "PACK", root / "data" / "pack",
-        root / "DATA" / "PACK"})
+  for (const auto &candidate : {root, root / "pack", root / "PACK",
+                                root / "data" / "pack", root / "DATA" / "PACK"})
     if (!FindIgnoreCase(candidate, "SCRIPT.DAT").empty() &&
         !FindIgnoreCase(candidate, "GRAPHIC.DAT").empty())
       return candidate;

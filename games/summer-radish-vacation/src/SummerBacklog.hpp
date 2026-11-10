@@ -6,12 +6,17 @@
 #include <Kotonoha/media/PcmPlayer.hpp>
 #include <Kotonoha/media/upscaling/Upscaler.hpp>
 #include <SummerRadish/Map.hpp>
+#include <optional>
 
 namespace SummerRadish {
 // MESSAGE.INI [BackLog], with the original atlas and pixel hit map.
+// Some installations (e.g. a second retail disc) ship a different asset set
+// that omits the FRAME/ directory entirely; those optional assets are loaded
+// only when present.
 class SummerBacklog final : public Kotonoha::VNBacklog {
   SummerAssets &assets;
   ClickMap map;
+  bool hasCmap = false;
   Kotonoha::ImageButtonBar controls;
   std::vector<SDL_FRect> rows;
   std::size_t selected = 0;
@@ -68,22 +73,26 @@ class SummerBacklog final : public Kotonoha::VNBacklog {
                   : SDL_Color{240, 240, 245, 255});
     }
     SDL_SetRenderClipRect(&r, clipped ? &previous : nullptr);
-    auto &atlas = assets.texture(r, "GRAPHIC/FRAME/BACKLOG.TEXB");
-    SDL_FRect source{0, 0, 56, 600}, target{744, 0, 56, 600};
-    Kotonoha::RenderUpscaledTexture(&r, &atlas, &source, &target);
-    constexpr SDL_FRect sources[] = {{56, 0, 36, 32},   {56, 32, 36, 22},
-                                     {56, 54, 38, 38},  {56, 92, 36, 22},
-                                     {56, 114, 36, 32}, {56, 146, 32, 32}};
-    for (int i = 0; i < 6; ++i)
-      if (controls.state(i))
-        Kotonoha::RenderUpscaledTexture(&r, &atlas, &sources[i],
-                                        &controls.buttons[i].area);
+    if (assets.containsAsset("GRAPHIC/FRAME/BACKLOG.TEXB")) {
+      auto &atlas = assets.texture(r, "GRAPHIC/FRAME/BACKLOG.TEXB");
+      SDL_FRect source{0, 0, 56, 600}, target{744, 0, 56, 600};
+      Kotonoha::RenderUpscaledTexture(&r, &atlas, &source, &target);
+      constexpr SDL_FRect sources[] = {{56, 0, 36, 32},   {56, 32, 36, 22},
+                                       {56, 54, 38, 38},  {56, 92, 36, 22},
+                                       {56, 114, 36, 32}, {56, 146, 32, 32}};
+      for (int i = 0; i < 6; ++i)
+        if (controls.state(i))
+          Kotonoha::RenderUpscaledTexture(&r, &atlas, &sources[i],
+                                          &controls.buttons[i].area);
+    }
   }
 
 public:
   Kotonoha::PcmPlayer replay;
   SummerBacklog(Kotonoha::Engine &e, SummerAssets &a)
-      : VNBacklog(e), assets(a), map(a.read("GRAPHIC/FRAME/BACKLOG.CMAP")) {
+      : VNBacklog(e), assets(a), map() {
+    if (auto cmap = assets.tryReadAsset("GRAPHIC/FRAME/BACKLOG.CMAP"))
+      map = ClickMap(std::move(*cmap)), hasCmap = true;
     controls.axis = Kotonoha::ImageButtonBar::NavigationAxis::Vertical;
     controls.hitTest = [this](SDL_FPoint p) {
       const int id = map.value(int(p.x) - 744, int(p.y));

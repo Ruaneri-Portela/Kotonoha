@@ -24,6 +24,7 @@ option(KOTONOHA_DEV_CONTROL "Enable local School Days automation bridge" OFF)
 
 option(KOTONOHA_BUILD_REALLIVE "Build the RealLive port" ON)
 option(KOTONOHA_BUILD_KIRIKIRI "Build the Kirikiri2/KirikiriZ port" ON)
+option(KOTONOHA_BUILD_LUCA_SYSTEM "Build the LucaSystem (Visual Art's / Key) port" ON)
 option(KOTONOHA_BUILD_MACOS_BUNDLES "Build macOS application bundles" ON)
 
 add_subdirectory(lib)
@@ -47,12 +48,16 @@ if(KOTONOHA_BUILD_SUMMER)
     add_subdirectory(games/summer-radish-vacation)
 endif()
 
-if(KOTONOHA_BUILD_REALLIVE)
-    add_subdirectory(games/reallive)
-endif()
-
 if(KOTONOHA_BUILD_KIRIKIRI)
     add_subdirectory(games/kirikiri)
+endif()
+
+if(KOTONOHA_BUILD_LUCA_SYSTEM)
+    add_subdirectory(games/luca-system)
+endif()
+
+if(KOTONOHA_BUILD_REALLIVE)
+    add_subdirectory(games/reallive)
 endif()
 
 if(KOTONOHA_BUILD_AMAGAMI)
