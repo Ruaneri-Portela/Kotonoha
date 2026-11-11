@@ -1,7 +1,7 @@
 #pragma once
 
 #include "DemoStory.hpp"
-#include <Kotonoha/componentes/VNSave.hpp>
+#include <Kotonoha/components/VNSave.hpp>
 #include <Kotonoha/core/Runtime.hpp>
 #include <memory>
 #include <optional>

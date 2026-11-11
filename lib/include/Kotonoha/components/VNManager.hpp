@@ -1,9 +1,9 @@
 #pragma once
-#include <Kotonoha/componentes/TouchActivation.hpp>
+#include <Kotonoha/components/TouchActivation.hpp>
 
 #include <Kotonoha/localization/Translation.hpp>
 
-#include <Kotonoha/componentes/VNSave.hpp>
+#include <Kotonoha/components/VNSave.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/Scene.hpp>
 #include <Kotonoha/script/VNScript.hpp>

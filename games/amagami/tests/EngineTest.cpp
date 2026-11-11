@@ -1,5 +1,5 @@
 #include "AmagamiRuntime.hpp"
-#include <Kotonoha/componentes/TextInputDialog.hpp>
+#include <Kotonoha/components/TextInputDialog.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/media/upscaling/Upscaler.hpp>
 #include <cmath>

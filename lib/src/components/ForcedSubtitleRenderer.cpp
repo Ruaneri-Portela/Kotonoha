@@ -1,4 +1,4 @@
-#include <Kotonoha/componentes/ForcedSubtitleRenderer.hpp>
+#include <Kotonoha/components/ForcedSubtitleRenderer.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/FileSystem.hpp>
 #include <Kotonoha/core/Log.hpp>

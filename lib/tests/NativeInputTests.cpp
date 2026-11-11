@@ -1,10 +1,10 @@
-#include <Kotonoha/componentes/ChoiceQuestionScene.hpp>
-#include <Kotonoha/componentes/SettingsMenu.hpp>
-#include <Kotonoha/componentes/SplashScreen.hpp>
-#include <Kotonoha/componentes/TextInputDialog.hpp>
-#include <Kotonoha/componentes/TextInputForm.hpp>
-#include <Kotonoha/componentes/VNManager.hpp>
-#include <Kotonoha/componentes/VNTextBox.hpp>
+#include <Kotonoha/components/ChoiceQuestionScene.hpp>
+#include <Kotonoha/components/SettingsMenu.hpp>
+#include <Kotonoha/components/SplashScreen.hpp>
+#include <Kotonoha/components/TextInputDialog.hpp>
+#include <Kotonoha/components/TextInputForm.hpp>
+#include <Kotonoha/components/VNManager.hpp>
+#include <Kotonoha/components/VNTextBox.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/Runtime.hpp>
 #include <cmath>

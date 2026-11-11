@@ -1,4 +1,4 @@
-#include <Kotonoha/componentes/FadeScene.hpp>
+#include <Kotonoha/components/FadeScene.hpp>
 #include <Kotonoha/core/UI.hpp>
 
 #include <algorithm>

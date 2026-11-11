@@ -1,7 +1,7 @@
 #include "DemoStage.hpp"
 #include "DemoStory.hpp"
 
-#include <Kotonoha/componentes/VNManager.hpp>
+#include <Kotonoha/components/VNManager.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/UI.hpp>
 #include <Kotonoha/script/TimelinePlayer.hpp>

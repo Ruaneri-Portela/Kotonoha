@@ -1,6 +1,3 @@
-cmake_minimum_required(VERSION 3.16)
-project(KotonohaProviderGPK LANGUAGES C CXX)
-
 if(TARGET Kotonoha::ProviderGPK)
   return()
 endif()

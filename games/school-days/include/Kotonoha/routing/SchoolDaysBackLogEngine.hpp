@@ -4,7 +4,7 @@
 
 #include <SDL3_ttf/SDL_ttf.h>
 
-#include <Kotonoha/componentes/VNBacklog.hpp>
+#include <Kotonoha/components/VNBacklog.hpp>
 #include <Kotonoha/routing/SchoolDaysBackLog.hpp>
 #include <Kotonoha/routing/SchoolDaysBackLogPresenter.hpp>
 #include <Kotonoha/routing/SchoolDaysCmap.hpp>

@@ -1,6 +1,6 @@
 #include "SchoolDaysRuntime.hpp"
-#include <Kotonoha/componentes/TextInputDialog.hpp>
-#include <Kotonoha/componentes/VNSaveMenu.hpp>
+#include <Kotonoha/components/TextInputDialog.hpp>
+#include <Kotonoha/components/VNSaveMenu.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/debug/DebugOverlay.hpp>
 #include <SchoolDays/SchoolDaysAssets.hpp>

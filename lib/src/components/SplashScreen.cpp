@@ -1,4 +1,4 @@
-#include <Kotonoha/componentes/SplashScreen.hpp>
+#include <Kotonoha/components/SplashScreen.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/events/ControllerEvent.hpp>
 #include <Kotonoha/media/MediaDecoder.hpp>

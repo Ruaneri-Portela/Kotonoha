@@ -1,4 +1,4 @@
-#include <Kotonoha/componentes/SubtitleScene.hpp>
+#include <Kotonoha/components/SubtitleScene.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/FileSystem.hpp>
 #include <Kotonoha/core/Log.hpp>

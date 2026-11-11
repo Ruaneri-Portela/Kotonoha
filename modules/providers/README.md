@@ -1,48 +1,48 @@
-# Providers de assets
+# Asset providers
 
-Os providers implementam `Kotonoha::AssetProvider`. O jogo usa a API pública;
-os métodos terminados em `Asset` são pontos de implementação dos formatos.
+Providers implement `Kotonoha::AssetProvider`. The game uses the public API;
+methods ending in `Asset` are format implementation points.
 
-| Operação | API pública |
+| Operation | Public API |
 | --- | --- |
-| Textura (cache do renderer) | `texture(renderer, id)` |
-| Surface RGBA | `loadSurface(id)` |
-| Áudio PCM + formato | `loadAudio(id)` |
-| Texto UTF-8 | `loadTextUtf8(id, encoding)` |
-| Bytes do asset descompactado, sem conversão textual | `read(id)` |
+| Texture (renderer cache) | `texture(renderer, id)` |
+| RGBA Surface | `loadSurface(id)` |
+| PCM audio + format | `loadAudio(id)` |
+| UTF-8 text | `loadTextUtf8(id, encoding)` |
+| Raw decompressed asset bytes, no text conversion | `read(id)` |
 
-`contains`, `list`, `openStream` e `localPath` complementam a interface.
-Use a API pública para preservar overlays, seleção do original e cache.
-O renderer é obrigatório para texturas; surfaces e raw não precisam dele.
-Os formatos de imagem/áudio disponíveis dependem do provider e dos codecs.
+`contains`, `list`, `openStream` and `localPath` complement the interface.
+Use the public API to preserve overlays, original selection, and cache.
+The renderer is required for textures; surfaces and raw do not need it.
+Available image/audio formats depend on the provider and codecs.
 
-Texto reconhece BOM UTF-8, UTF-16LE/BE e UTF-32LE/BE. Sem BOM, a codificação
-é explícita (padrão `UTF-8`; exemplos: `CP932`, `CP1252`, `UTF-16LE`).
-Não trate bytecode, tabelas binárias ou scripts com codificação mista como
-texto: nesses casos o parser continua recebendo `read(id)`.
-Conversões usam a política de `ConvertEncoding`: sequências inválidas viram `?`.
+Text recognizes UTF-8, UTF-16LE/BE and UTF-32LE/BE BOMs. Without a BOM, the
+encoding is explicit (default `UTF-8`; examples: `CP932`, `CP1252`, `UTF-16LE`).
+Do not treat bytecode, binary tables, or mixed-encoding scripts as text:
+in those cases the parser keeps receiving `read(id)`.
+Conversions use the `ConvertEncoding` policy: invalid sequences become `?`.
 
-## Módulos CMake
+## CMake modules
 
-Todos os providers vivem em `Kotonoha::Providers::`.
+All providers live under `Kotonoha::Providers::`.
 
-| Pasta | Alvo | Provider / dependência de formatos |
+| Folder | Target | Provider / format dependency |
 | --- | --- | --- |
 | `cmp` | `Kotonoha::ProviderCMP` | `Kotonoha::Providers::SummerAssets` (Summer `.cmp`) |
 | `adv` | `Kotonoha::ProviderADV` | `Kotonoha::Providers::SnowAssets` (Overflow `.dat`) |
-| `gpk` | `Kotonoha::ProviderGPK` | `Kotonoha::Providers::SchoolDaysAssets`, leitor GPK e montagem retail |
+| `gpk` | `Kotonoha::ProviderGPK` | `Kotonoha::Providers::SchoolDaysAssets`, GPK reader and retail mount |
 | `xp3` | `Kotonoha::ProviderXP3` | `Kotonoha::Providers::KirikiriAssets` |
-| `pak` | `Kotonoha::ProviderPAK` | `Kotonoha::Providers::LucaSystemAssets`, codec CZ |
+| `pak` | `Kotonoha::ProviderPAK` | `Kotonoha::Providers::LucaSystemAssets`, CZ codec |
 | `reallive` | `Kotonoha::ProviderRealLive` | `Kotonoha::Providers::RealLiveAssets`; `RealLiveFormats` |
 | `rpa` | `Kotonoha::ProviderRPA` | `Kotonoha::Providers::DdlcAssets`; `DdlcFormats` |
 | `amagami` | `Kotonoha::ProviderAmagami` | `Kotonoha::Providers::AmagamiAssets`; `AmagamiFormats` |
 | `zero` | `Kotonoha::ProviderZero` | `Kotonoha::Providers::ZeroDiscAssets`; `ZeroNoTsukaimaFormats` |
 
-Os módulos CMP, ADV, GPK, XP3 e PAK podem ser adicionados diretamente:
+The CMP, ADV, GPK, XP3 and PAK modules can be added directly:
 
 ```cmake
 add_subdirectory(path/to/Kotonoha/modules/providers/cmp providers/cmp)
-target_link_libraries(MeuJogo PRIVATE Kotonoha::ProviderCMP)
+target_link_libraries(MyGame PRIVATE Kotonoha::ProviderCMP)
 ```
 
 ```cpp
@@ -52,14 +52,14 @@ auto raw = assets.read("INI/CONFIG.INI");
 auto text = assets.loadTextUtf8("INI/CONFIG.INI", "UTF-16LE");
 ```
 
-Os adaptadores RealLive, RPA, Amagami e Zero ainda dependem dos respectivos
-alvos de formatos definidos pelos projetos dos jogos. Eles não incluem o
-runtime gráfico, mas não são pacotes autossuficientes para copiar isoladamente.
-Providers de filesystem e disco genérico permanecem no núcleo do motor.
+The RealLive, RPA, Amagami and Zero adapters still depend on the respective
+format targets defined by the game projects. They do not include the graphics
+runtime, but they are not self-contained packages to copy in isolation.
+Filesystem and generic disk providers remain in the engine core.
 
 ## Xcode
 
-`ruby Xcode/UpdateGameTargets.rb` sincroniza os sources dos módulos e seus
-include paths com os targets dos jogos (incluindo o smoke target DDLC).
-O script é idempotente. No Xcode cada app compila o módulo que utiliza;
-no CMake cada módulo é uma biblioteca separada.
+`ruby Xcode/UpdateGameTargets.rb` syncs module sources and their include paths
+with the game targets (including the DDLC smoke target). The script is
+idempotent. In Xcode each app compiles the module it uses; in CMake each module
+is a separate library.

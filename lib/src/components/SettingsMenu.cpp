@@ -1,6 +1,6 @@
 #include "../debug/ImGuiTheme.hpp"
-#include <Kotonoha/componentes/DisplayModeCatalog.hpp>
-#include <Kotonoha/componentes/SettingsMenu.hpp>
+#include <Kotonoha/components/DisplayModeCatalog.hpp>
+#include <Kotonoha/components/SettingsMenu.hpp>
 #include <Kotonoha/core/Appearance.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/Log.hpp>

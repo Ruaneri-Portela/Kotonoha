@@ -1,4 +1,4 @@
-#include <Kotonoha/componentes/GameMenu.hpp>
+#include <Kotonoha/components/GameMenu.hpp>
 #include <Kotonoha/core/UI.hpp>
 #include <Kotonoha/events/ControllerEvent.hpp>
 

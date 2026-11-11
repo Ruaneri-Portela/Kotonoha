@@ -1,10 +1,10 @@
 #include "DemoGame.hpp"
-#include <Kotonoha/componentes/InGameMenu.hpp>
-#include <Kotonoha/componentes/SplashScreen.hpp>
-#include <Kotonoha/componentes/TextInputDialog.hpp>
-#include <Kotonoha/componentes/VNManager.hpp>
-#include <Kotonoha/componentes/VNSave.hpp>
-#include <Kotonoha/componentes/VNSaveMenu.hpp>
+#include <Kotonoha/components/InGameMenu.hpp>
+#include <Kotonoha/components/SplashScreen.hpp>
+#include <Kotonoha/components/TextInputDialog.hpp>
+#include <Kotonoha/components/VNManager.hpp>
+#include <Kotonoha/components/VNSave.hpp>
+#include <Kotonoha/components/VNSaveMenu.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/debug/DebugOverlay.hpp>
 #include <Kotonoha/script/TimelinePlayer.hpp>

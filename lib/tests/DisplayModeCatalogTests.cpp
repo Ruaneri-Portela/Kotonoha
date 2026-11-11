@@ -1,5 +1,5 @@
-#include <Kotonoha/componentes/DisplayModeCatalog.hpp>
-#include <Kotonoha/componentes/SelectBox.hpp>
+#include <Kotonoha/components/DisplayModeCatalog.hpp>
+#include <Kotonoha/components/SelectBox.hpp>
 #include <SDL3/SDL.h>
 
 #include <cmath>

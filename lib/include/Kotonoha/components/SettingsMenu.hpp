@@ -1,7 +1,7 @@
 #pragma once
-#include <Kotonoha/componentes/TouchActivation.hpp>
+#include <Kotonoha/components/TouchActivation.hpp>
 
-#include <Kotonoha/componentes/SelectBox.hpp>
+#include <Kotonoha/components/SelectBox.hpp>
 #include <Kotonoha/core/Settings.hpp>
 #include <memory>
 #include <vector>
