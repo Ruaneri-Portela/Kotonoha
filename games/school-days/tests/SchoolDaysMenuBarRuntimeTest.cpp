@@ -1,4 +1,4 @@
-#include "SchoolDaysAssets.hpp"
+#include <SchoolDays/SchoolDaysAssets.hpp>
 #include "SchoolDaysRuntime.hpp"
 
 #include <Kotonoha/core/Engine.hpp>
@@ -37,7 +37,7 @@ struct TemporaryDirectory {
 };
 
 Kotonoha::EngineOptions
-Options(const std::shared_ptr<SchoolDays::Assets> &assets) {
+Options(const std::shared_ptr<Kotonoha::Providers::SchoolDaysAssets> &assets) {
   Kotonoha::EngineOptions options;
   options.assets = assets;
   options.persistSettings = false;
@@ -49,7 +49,7 @@ struct Application {
   SchoolDays::Runtime runtime;
   Kotonoha::Engine engine;
 
-  Application(const std::shared_ptr<SchoolDays::Assets> &assets,
+  Application(const std::shared_ptr<Kotonoha::Providers::SchoolDaysAssets> &assets,
               const char *route, const fs::path &documents)
       : runtime(assets, route, documents), engine(runtime, Options(assets)) {
     runtime.SetState(Kotonoha::GameState::Gameplay);
@@ -82,7 +82,7 @@ void CheckMeterSfxHostCodes(Application &app, const fs::path &scratchRoot) {
     Check(static_cast<bool>(out),
           "could not create isolated meter PNG fixture");
   }
-  auto sprites = std::make_shared<SchoolDays::Assets>(pictureRoot);
+  auto sprites = std::make_shared<Kotonoha::Providers::SchoolDaysAssets>(pictureRoot);
   Kotonoha::SchoolDaysMenuBarPresenter meter;
   std::string error;
   using Variant = Kotonoha::SchoolDaysMenuBarPresenter::Variant;
@@ -205,7 +205,7 @@ int main(int argc, char **argv) {
     TemporaryDirectory temporary;
     const auto documents = temporary.path / "documents";
     fs::create_directories(documents);
-    auto assets = std::make_shared<SchoolDays::Assets>(argv[2]);
+    auto assets = std::make_shared<Kotonoha::Providers::SchoolDaysAssets>(argv[2]);
 
     using Access = SchoolDays::RuntimeMenuBarTestAccess;
     using Kind = Kotonoha::SchoolDaysMenuBarPresenter::ActionKind;

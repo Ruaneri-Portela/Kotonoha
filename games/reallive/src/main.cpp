@@ -1,5 +1,5 @@
 #define SDL_MAIN_USE_CALLBACKS 1
-#include "RealLiveAssets.hpp"
+#include <RealLive/RealLiveAssets.hpp>
 #include "RealLiveRuntime.hpp"
 #include <Kotonoha/core/CommandLine.hpp>
 #include <Kotonoha/core/DiscImage.hpp>
@@ -15,14 +15,14 @@
 namespace {
 Kotonoha::EngineOptions
 withAssets(Kotonoha::EngineOptions options,
-           std::shared_ptr<RealLive::RealLiveAssets> assets) {
+           std::shared_ptr<Kotonoha::Providers::RealLiveAssets> assets) {
   options.assets = std::move(assets);
   return options;
 }
 struct Game {
   RealLive::RealLiveRuntime runtime;
   Kotonoha::Engine engine;
-  Game(std::shared_ptr<RealLive::RealLiveAssets> assets,
+  Game(std::shared_ptr<Kotonoha::Providers::RealLiveAssets> assets,
        Kotonoha::EngineOptions options)
       : runtime(assets),
         engine(runtime, withAssets(std::move(options), assets)) {}
@@ -34,7 +34,7 @@ struct App {
   std::unique_ptr<Kotonoha::FolderGameLauncher> launcher;
   std::unique_ptr<Game> game;
   void start(const std::string &directory) {
-    auto assets = std::make_shared<RealLive::RealLiveAssets>(
+    auto assets = std::make_shared<Kotonoha::Providers::RealLiveAssets>(
         directory, options.assetOverlayDirectory());
     game = std::make_unique<Game>(assets, options);
   }

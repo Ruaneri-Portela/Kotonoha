@@ -1,6 +1,6 @@
 #pragma once
 
-#include "SchoolDaysAssets.hpp"
+#include <SchoolDays/SchoolDaysAssets.hpp>
 #include "SchoolDaysScenes.hpp"
 #include <Kotonoha/SchoolDaysMoveSomState.hpp>
 #include <Kotonoha/SchoolDaysMovieEventState.hpp>
@@ -112,7 +112,7 @@ class Runtime final : public Kotonoha::Runtime {
     bool fullBarSuppressed = false;
     bool replayIndicator = false;
   };
-  std::shared_ptr<Assets> assets;
+  std::shared_ptr<Kotonoha::Providers::SchoolDaysAssets> assets;
   Kotonoha::Engine *engine = nullptr;
   Kotonoha::SchoolDaysKtrfGameplayBridge bridge;
   Kotonoha::SchoolDaysTitleModel title;
@@ -420,7 +420,7 @@ class Runtime final : public Kotonoha::Runtime {
                                  void *, Kotonoha_KtrfError *);
 
 public:
-  Runtime(std::shared_ptr<Assets> assets, std::string route,
+  Runtime(std::shared_ptr<Kotonoha::Providers::SchoolDaysAssets> assets, std::string route,
           std::filesystem::path documents = {});
   ~Runtime() override;
   void shutdown();

@@ -145,7 +145,7 @@ int main() {
               std::streamsize(data.size()));
   }
 
-  Kirikiri::KirikiriAssets assets(tempDir);
+  Kotonoha::Providers::KirikiriAssets assets(tempDir);
   assets.mountXp3("data.xp3");
 
   int failures = 0;
@@ -211,9 +211,12 @@ int main() {
     out.write(reinterpret_cast<const char *>(utf16.data()),
               std::streamsize(utf16.size()));
     out.close();
-    Kirikiri::KirikiriAssets looseAssets(tempDir);
-    auto decoded = looseAssets.readAsset("utf16.ks");
-    const std::string text(decoded.begin(), decoded.end());
+    Kotonoha::Providers::KirikiriAssets looseAssets(tempDir);
+    const auto text = looseAssets.loadTextUtf8("utf16.ks");
+    if (looseAssets.read("utf16.ks") != utf16) {
+      std::printf("FAIL: raw read changed the UTF-16 asset\n");
+      ++failures;
+    }
     if (text != "[cm text=\"OK\"]") {
       std::printf("FAIL: UTF-16 KAG script was not decoded\n");
       ++failures;

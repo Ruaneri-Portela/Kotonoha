@@ -1,4 +1,4 @@
-#include "SchoolDaysAssets.hpp"
+#include <SchoolDays/SchoolDaysAssets.hpp>
 #include "SchoolDaysRuntime.hpp"
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/routing/SchoolDaysConfigStorage.hpp>
@@ -53,7 +53,7 @@ struct TemporaryDirectory {
 };
 
 Kotonoha::EngineOptions
-Options(const std::shared_ptr<SchoolDays::Assets> &assets) {
+Options(const std::shared_ptr<Kotonoha::Providers::SchoolDaysAssets> &assets) {
   Kotonoha::EngineOptions options;
   options.assets = assets;
   options.persistSettings = false;
@@ -65,7 +65,7 @@ struct Application {
   SchoolDays::Runtime runtime;
   Kotonoha::Engine engine;
 
-  Application(const std::shared_ptr<SchoolDays::Assets> &assets,
+  Application(const std::shared_ptr<Kotonoha::Providers::SchoolDaysAssets> &assets,
               const char *route, const fs::path &documents)
       : runtime(assets, route, documents), engine(runtime, Options(assets)) {
     runtime.SetState(Kotonoha::GameState::Gameplay);
@@ -92,7 +92,7 @@ void WriteScripts(const fs::path &root) {
 void TestCurrentScriptChoiceSeek(const char *route, const fs::path &root) {
   const auto documents = root / "documents-current";
   fs::create_directories(documents);
-  auto assets = std::make_shared<SchoolDays::Assets>(root);
+  auto assets = std::make_shared<Kotonoha::Providers::SchoolDaysAssets>(root);
   Application app(assets, route, documents);
   app.runtime.debugJumpToNode("00/00-00-A03");
   Require(app.runtime.debugNode() == "00/00-00-A03",
@@ -113,7 +113,7 @@ void TestCrossScriptSkipOn(const char *route, const fs::path &root) {
   const auto documents = root / "documents-skip-on";
   fs::create_directories(documents);
   PutConfig(documents / "Config.DAT", "< Config.dat >\n[Skip]=\"1\"\n");
-  auto assets = std::make_shared<SchoolDays::Assets>(root);
+  auto assets = std::make_shared<Kotonoha::Providers::SchoolDaysAssets>(root);
   Application app(assets, route, documents);
   Require(app.runtime.retailConfig().skip, "Skip=1 was not loaded");
   Require(app.runtime.debugNode() == "00/00-00-A00",
@@ -130,7 +130,7 @@ void TestCrossScriptSkipOn(const char *route, const fs::path &root) {
 void TestUnreadStopSkipOff(const char *route, const fs::path &root) {
   const auto documents = root / "documents-skip-off";
   fs::create_directories(documents);
-  auto assets = std::make_shared<SchoolDays::Assets>(root);
+  auto assets = std::make_shared<Kotonoha::Providers::SchoolDaysAssets>(root);
   Application app(assets, route, documents);
   Require(!app.runtime.retailConfig().skip, "default Skip state is not off");
   Require(app.runtime.debugNode() == "00/00-00-A00",
@@ -276,7 +276,7 @@ SDL_Event GamepadDown() {
 void TestRetailChoiceSelectedTail(const char *route, const fs::path &root) {
   const auto documents = root / "documents-choice-selected";
   fs::create_directories(documents);
-  auto assets = std::make_shared<SchoolDays::Assets>(root);
+  auto assets = std::make_shared<Kotonoha::Providers::SchoolDaysAssets>(root);
   Application app(assets, route, documents);
   using Access = SchoolDays::RuntimeChoiceTestAccess;
 
@@ -331,7 +331,7 @@ void TestRetailChoiceSelectedTail(const char *route, const fs::path &root) {
 void TestRetailChoiceTimeoutTail(const char *route, const fs::path &root) {
   const auto documents = root / "documents-choice-timeout";
   fs::create_directories(documents);
-  auto assets = std::make_shared<SchoolDays::Assets>(root);
+  auto assets = std::make_shared<Kotonoha::Providers::SchoolDaysAssets>(root);
   Application app(assets, route, documents);
   using Access = SchoolDays::RuntimeChoiceTestAccess;
 
@@ -362,7 +362,7 @@ void TestTurboStopsAtChoiceAndRestores(const char *route,
                                        const fs::path &root) {
   const auto documents = root / "documents-turbo-choice";
   fs::create_directories(documents);
-  auto assets = std::make_shared<SchoolDays::Assets>(root);
+  auto assets = std::make_shared<Kotonoha::Providers::SchoolDaysAssets>(root);
   Application app(assets, route, documents);
   using Access = SchoolDays::RuntimeChoiceTestAccess;
 
@@ -401,7 +401,7 @@ void TestTurboCannotCrossChoiceWithLongFrame(const char *route,
                                              const fs::path &root) {
   const auto documents = root / "documents-turbo-longframe";
   fs::create_directories(documents);
-  auto assets = std::make_shared<SchoolDays::Assets>(root);
+  auto assets = std::make_shared<Kotonoha::Providers::SchoolDaysAssets>(root);
   Application app(assets, route, documents);
   using Access = SchoolDays::RuntimeChoiceTestAccess;
   app.runtime.debugJumpToNode("00/00-00-A03");
@@ -419,7 +419,7 @@ void TestTurboCannotCrossChoiceWithLongFrame(const char *route,
 void TestTransportFadeBeforeSeek(const char *route, const fs::path &root) {
   const auto documents = root / "documents-transport-fades";
   fs::create_directories(documents);
-  auto assets = std::make_shared<SchoolDays::Assets>(root);
+  auto assets = std::make_shared<Kotonoha::Providers::SchoolDaysAssets>(root);
   Application app(assets, route, documents);
   using Access = SchoolDays::RuntimeChoiceTestAccess;
   using Fade = Kotonoha::SchoolDaysTransportFade;

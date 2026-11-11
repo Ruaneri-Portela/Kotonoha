@@ -2,6 +2,7 @@
 #include <Kotonoha/core/DiscImage.hpp>
 #include <Kotonoha/core/FileSystem.hpp>
 #include <Kotonoha/core/Log.hpp>
+#include <Kotonoha/localization/Encoding.hpp>
 #include <Kotonoha/media/MediaDecoder.hpp>
 #include <Kotonoha/media/TextureAlpha.hpp>
 #include <Kotonoha/media/upscaling/Upscaler.hpp>
@@ -105,6 +106,43 @@ std::vector<Uint8> AssetProvider::read(const std::string &id,
 std::string AssetProvider::localPath(const std::string &id) const {
   auto file = overlayPath(id);
   return file.empty() ? localPathAsset(id) : file;
+}
+std::string AssetProvider::loadTextUtf8(const std::string &id,
+                                       const char *encoding,
+                                       AssetSource source) const {
+  if (!encoding || !*encoding)
+    throw std::invalid_argument("Text encoding must not be empty");
+  return decodeTextAsset(id, read(id, source), encoding);
+}
+std::string AssetProvider::decodeTextAsset(const std::string &,
+                                         const std::vector<Uint8> &bytes,
+                                         const char *encoding) const {
+  if (bytes.empty())
+    return {};
+  size_t offset = 0;
+  // UTF-32 must precede UTF-16: their LE BOMs share a prefix.
+  if (bytes.size() >= 4 && bytes[0] == 0xff && bytes[1] == 0xfe &&
+      bytes[2] == 0 && bytes[3] == 0) {
+    offset = 4;
+    encoding = "UTF-32LE";
+  } else if (bytes.size() >= 4 && bytes[0] == 0 && bytes[1] == 0 &&
+             bytes[2] == 0xfe && bytes[3] == 0xff) {
+    offset = 4;
+    encoding = "UTF-32BE";
+  } else if (bytes.size() >= 3 && bytes[0] == 0xef && bytes[1] == 0xbb &&
+             bytes[2] == 0xbf) {
+    offset = 3;
+    encoding = "UTF-8";
+  } else if (bytes.size() >= 2 && bytes[0] == 0xff && bytes[1] == 0xfe) {
+    offset = 2;
+    encoding = "UTF-16LE";
+  } else if (bytes.size() >= 2 && bytes[0] == 0xfe && bytes[1] == 0xff) {
+    offset = 2;
+    encoding = "UTF-16BE";
+  }
+  return ConvertEncoding(
+      std::string_view(reinterpret_cast<const char *>(bytes.data() + offset),
+                       bytes.size() - offset), encoding);
 }
 std::string AssetProvider::localPath(const std::string &id,
                                      AssetSource source) const {

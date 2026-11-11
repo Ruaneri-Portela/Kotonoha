@@ -1,5 +1,5 @@
 #define SDL_MAIN_USE_CALLBACKS 1
-#include "SummerAssets.hpp"
+#include <SummerRadish/SummerAssets.hpp>
 #include "SummerRuntime.hpp"
 #include <Kotonoha/core/CommandLine.hpp>
 #include <Kotonoha/core/DiscImage.hpp>
@@ -14,14 +14,14 @@
 namespace {
 Kotonoha::EngineOptions
 withAssets(Kotonoha::EngineOptions options,
-           std::shared_ptr<SummerRadish::SummerAssets> assets) {
+           std::shared_ptr<Kotonoha::Providers::SummerAssets> assets) {
   options.assets = std::move(assets);
   return options;
 }
 struct Game {
   SummerRadish::SummerRuntime runtime;
   Kotonoha::Engine engine;
-  Game(std::shared_ptr<SummerRadish::SummerAssets> assets,
+  Game(std::shared_ptr<Kotonoha::Providers::SummerAssets> assets,
        Kotonoha::EngineOptions options)
       : runtime(assets),
         engine(runtime, withAssets(std::move(options), assets)) {}
@@ -33,7 +33,7 @@ struct App {
   std::unique_ptr<Kotonoha::FolderGameLauncher> launcher;
   std::unique_ptr<Game> game;
   void start(const std::string &directory) {
-    auto assets = std::make_shared<SummerRadish::SummerAssets>(
+    auto assets = std::make_shared<Kotonoha::Providers::SummerAssets>(
         Kotonoha::gameDataDirectory(directory));
     assets->setOverlay(options.assetOverlayDirectory());
     game = std::make_unique<Game>(assets, options);
@@ -41,7 +41,7 @@ struct App {
 };
 bool validate(const std::string &path, std::string &info) {
   try {
-    auto probe = std::make_shared<SummerRadish::SummerAssets>(path);
+    auto probe = std::make_shared<Kotonoha::Providers::SummerAssets>(path);
     info = "Game data found";
     return true;
   } catch (const std::exception &error) {

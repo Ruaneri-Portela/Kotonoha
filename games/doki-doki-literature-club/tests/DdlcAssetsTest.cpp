@@ -1,4 +1,4 @@
-#include "DdlcAssets.hpp"
+#include <Ddlc/DdlcAssets.hpp>
 #include <Ddlc/Runtime.hpp>
 
 #include <SDL3/SDL.h>
@@ -134,7 +134,7 @@ struct HeadlessBackend : Ddlc::Backend {
   }
   void log(const std::string &) override {}
 };
-void runtimeTests(const Ddlc::GameAssets &game,
+void runtimeTests(const Kotonoha::Providers::DdlcAssets &game,
                   const std::filesystem::path &user) {
   HeadlessBackend backend;
   Ddlc::Vm vm(game.source(), game.script(), backend);
@@ -282,13 +282,13 @@ int main(int argc, char **argv) {
             "Without originals the characters folder starts empty");
 
     if (argc > 1) {
-      Ddlc::GameAssets vanilla(argv[1]);
+      Kotonoha::Providers::DdlcAssets vanilla(argv[1]);
       require(vanilla.script().hasLabel("start"), "Vanilla start label");
       require(vanilla.contains("gui/menu_bg.png"), "Vanilla images present");
       runtimeTests(vanilla, temporary.path / "vanilla-user");
       std::cout << "vanilla scripts=" << vanilla.script().fileCount() << '\n';
       if (argc > 2) {
-        Ddlc::GameAssets translated(argv[1], argv[2]);
+        Kotonoha::Providers::DdlcAssets translated(argv[1], argv[2]);
         require(translated.script().hasLabel("start"),
                 "Translated start label");
         require(translated.script().fileCount() > vanilla.script().fileCount(),

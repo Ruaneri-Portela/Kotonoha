@@ -1,5 +1,5 @@
 #include "SchoolDaysLauncher.hpp"
-#include "SchoolDaysAssets.hpp"
+#include <SchoolDays/SchoolDaysAssets.hpp>
 
 #include <Kotonoha/routing/SchoolDaysKtrfSession.hpp>
 
@@ -21,7 +21,7 @@ Launcher::Launcher(std::string settingsPath, std::string directory,
   route =
       findGamePath("school-days",
                    {route, rememberedPath(getSettingsPath(), RouteRememberFile),
-                    Assets::findDefaultRoute().string()},
+                    Kotonoha::Providers::SchoolDaysAssets::findDefaultRoute().string()},
                    validateRoute, {"school-days-hq.ktnroute"});
   routeOption =
       addPathOption({"Route file (.ktnroute)",
@@ -46,7 +46,7 @@ bool Launcher::validateRoute(const std::string &file, std::string &info) {
 }
 
 bool Launcher::checkPath(const std::string &path, std::string &info) {
-  return Assets::checkDirectory(path, info);
+  return Kotonoha::Providers::SchoolDaysAssets::checkDirectory(path, info);
 }
 
 const std::string &Launcher::routePath() const {

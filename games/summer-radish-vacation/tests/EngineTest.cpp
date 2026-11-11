@@ -70,7 +70,7 @@ int main(int argc, char **argv) {
     auto prefs = std::filesystem::temp_directory_path() /
                  ("summer-system-" + std::to_string(SDL_GetTicksNS()));
     SDL_setenv_unsafe("SUMMER_SAVE_DIR", prefs.string().c_str(), 1);
-    auto assets = std::make_shared<SummerRadish::SummerAssets>(argv[1]);
+    auto assets = std::make_shared<Kotonoha::Providers::SummerAssets>(argv[1]);
     SummerRadish::SummerRuntime game(assets);
     EngineOptions options;
     options.assets = assets;

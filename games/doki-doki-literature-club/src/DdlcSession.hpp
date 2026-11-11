@@ -1,6 +1,6 @@
 #pragma once
 
-#include "DdlcAssets.hpp"
+#include <Ddlc/DdlcAssets.hpp>
 
 #include <Kotonoha/core/SDL.hpp>
 
@@ -17,7 +17,7 @@ namespace Ddlc {
 // Coordinates the Ren'Py VM, presentation and audio for the engine scenes.
 class GameSession {
 public:
-  GameSession(Kotonoha::Engine &engine, std::shared_ptr<GameAssets> assets);
+  GameSession(Kotonoha::Engine &engine, std::shared_ptr<Kotonoha::Providers::DdlcAssets> assets);
   ~GameSession();
   GameSession(const GameSession &) = delete;
   GameSession &operator=(const GameSession &) = delete;

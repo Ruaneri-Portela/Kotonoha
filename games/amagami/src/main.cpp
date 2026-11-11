@@ -16,13 +16,13 @@ struct Application {
   Amagami::AmagamiRuntime game;
   Kotonoha::Engine engine;
   long frames = -1;
-  Application(std::shared_ptr<Amagami::Assets> assets,
+  Application(std::shared_ptr<Kotonoha::Providers::AmagamiAssets> assets,
               Kotonoha::EngineOptions options, std::string start)
       : game(assets, std::move(start)),
         engine(game, withAssets(std::move(options), assets)) {}
   static Kotonoha::EngineOptions
   withAssets(Kotonoha::EngineOptions options,
-             std::shared_ptr<Amagami::Assets> assets) {
+             std::shared_ptr<Kotonoha::Providers::AmagamiAssets> assets) {
     options.assets = std::move(assets);
     return options;
   }
@@ -37,7 +37,7 @@ struct App {
   long frames = -1;
   void launch(const std::string &disc) {
     auto source = std::make_shared<Amagami::Source>(disc);
-    auto assets = std::make_shared<Amagami::Assets>(source);
+    auto assets = std::make_shared<Kotonoha::Providers::AmagamiAssets>(source);
     assets->setOverlay(options.assetOverlayDirectory());
     game = std::make_unique<Application>(assets, options, start);
     game->frames = frames;

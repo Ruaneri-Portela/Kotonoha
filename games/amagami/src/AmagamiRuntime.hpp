@@ -1,5 +1,5 @@
 #pragma once
-#include "Assets.hpp"
+#include <Amagami/Assets.hpp>
 #include <Amagami/Campaign.hpp>
 #include <Amagami/Session.hpp>
 #include <Kotonoha/componentes/ChoiceQuestionScene.hpp>
@@ -35,7 +35,7 @@ protected:
 };
 class AmagamiChoices final : public Kotonoha::ChoiceQuestionScene {
 public:
-  AmagamiChoices(Kotonoha::Engine &engine, Assets &assets)
+  AmagamiChoices(Kotonoha::Engine &engine, Kotonoha::Providers::AmagamiAssets &assets)
       : ChoiceQuestionScene(engine, "", {}, nullptr), assets_(assets) {}
   bool designSpace() const override { return false; }
 
@@ -47,7 +47,7 @@ protected:
   void renderOption(Kotonoha::RendererRef, size_t, bool) override;
 
 private:
-  Assets &assets_;
+  Kotonoha::Providers::AmagamiAssets &assets_;
 };
 // Original BackLog/LogLine presentation backed by Kotonoha's scroll gestures.
 class AmagamiBacklog final : public Kotonoha::VNBacklog {
@@ -94,7 +94,7 @@ private:
 // still separate presentation work, not inferred replacement route rules.
 class AmagamiEventMap final : public Kotonoha::ChoiceQuestionScene {
 public:
-  AmagamiEventMap(Kotonoha::Engine &engine, Assets &assets)
+  AmagamiEventMap(Kotonoha::Engine &engine, Kotonoha::Providers::AmagamiAssets &assets)
       : ChoiceQuestionScene(engine, "", {}, nullptr), assets_(assets) {}
   bool designSpace() const override { return false; }
   void setEvents(std::vector<Campaign::Event> available,
@@ -109,7 +109,7 @@ protected:
   void layout() override;
 
 private:
-  Assets &assets_;
+  Kotonoha::Providers::AmagamiAssets &assets_;
   std::vector<Campaign::Event> events_, map_;
   int day_ = 0, period_ = 0;
   int originX_ = 0, originY_ = 0;
@@ -117,7 +117,7 @@ private:
 };
 class AmagamiRuntime final : public Kotonoha::Runtime {
 public:
-  explicit AmagamiRuntime(std::shared_ptr<Assets> assets,
+  explicit AmagamiRuntime(std::shared_ptr<Kotonoha::Providers::AmagamiAssets> assets,
                           std::string start = {});
   ~AmagamiRuntime() override;
   void shutdown();
@@ -156,7 +156,7 @@ public:
   void loadGame(const std::string &) override;
 
 private:
-  std::shared_ptr<Assets> assets_;
+  std::shared_ptr<Kotonoha::Providers::AmagamiAssets> assets_;
   std::unique_ptr<Session> session_;
   std::unique_ptr<AmagamiTextBox> textBox_;
   std::unique_ptr<AmagamiChoices> choices_;

@@ -99,7 +99,7 @@ float Decel(float t) { return 1 - (1 - t) * (1 - t); }
 } // namespace
 
 ZeroSession::ZeroSession(Kotonoha::Engine &engine,
-                         std::shared_ptr<DiscAssetProvider> disc)
+                         std::shared_ptr<Kotonoha::Providers::ZeroDiscAssets> disc)
     : engine_(engine), disc_(std::move(disc)), frontend_(*this),
       voiceRate_(RateFromEnv("ZERO_VOICE_RATE", 22050)),
       bgmRate_(RateFromEnv("ZERO_BGM_RATE", 44100)),

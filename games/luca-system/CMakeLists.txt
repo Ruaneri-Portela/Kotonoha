@@ -13,14 +13,14 @@ endif()
 
 # LucaSystem (Visual Art's / Key) archive + script format support.
 # Implemented from the format decoded by wetor/LuckSystem (pak.go / script.go).
+add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../modules/providers/pak"
+    "${CMAKE_CURRENT_BINARY_DIR}/providers/pak")
 add_library(luca_system_formats STATIC
-  src/CzImage.cpp
-  src/LucaSystemAssets.cpp
   src/LucaSystemScript.cpp
   src/LucaSystemRuntime.cpp
 )
 target_include_directories(luca_system_formats PUBLIC src include)
-target_link_libraries(luca_system_formats PUBLIC Kotonoha::Engine)
+target_link_libraries(luca_system_formats PUBLIC Kotonoha::Engine Kotonoha::ProviderPAK)
 target_compile_features(luca_system_formats PUBLIC cxx_std_17)
 
 add_executable(LucaInspect tools/LucaInspect.cpp)

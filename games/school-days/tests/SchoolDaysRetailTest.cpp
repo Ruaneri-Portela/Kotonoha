@@ -1,5 +1,5 @@
 // Validate actual user-supplied archives; never writes the installation.
-#include "SchoolDaysAssets.hpp"
+#include <SchoolDays/SchoolDaysAssets.hpp>
 #include <Kotonoha/SchoolDaysGpkArchive.hpp>
 #include <Kotonoha/parsers/Documents.hpp>
 #include <algorithm>
@@ -85,7 +85,7 @@ int main(int argc, char **argv) {
               << " routing resources have retail ORS files\n";
     // The installed retail script has an embedded space in this one path.
     // Exercise the actual game resolver and virtual read against Voice03.GPK.
-    SchoolDays::Assets assets(argv[1]);
+    Kotonoha::Providers::SchoolDaysAssets assets(argv[1]);
     const auto recovered = assets.readAsset(
         assets.resolve("Voice03/03-BK/03-BK-H00/03-B K-H00-0410.OGG"));
     if (recovered.size() < 4 ||

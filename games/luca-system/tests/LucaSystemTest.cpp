@@ -313,7 +313,7 @@ int main() {
     const auto root = std::filesystem::path(air).filename() == "files"
                           ? std::filesystem::path(air).parent_path()
                           : std::filesystem::path(air);
-    LucaSystem::LucaSystemAssets assets(root, {});
+    Kotonoha::Providers::LucaSystemAssets assets(root, {});
     check(assets.containsAsset("seen163"),
           "AIR root path resolves files/SCRIPT.PAK");
     check(assets.containsAsset("CANCEL"),

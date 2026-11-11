@@ -1,4 +1,4 @@
-#include "SchoolDaysAssets.hpp"
+#include <SchoolDays/SchoolDaysAssets.hpp>
 #include "SchoolDaysScenes.hpp"
 #include <Kotonoha/core/Engine.hpp>
 #include <filesystem>
@@ -23,7 +23,7 @@ int main(int argc, char **argv) {
   try {
     if (argc != 2)
       throw std::runtime_error("Expected fixture data directory");
-    auto assets = std::make_shared<SchoolDays::Assets>(argv[1]);
+    auto assets = std::make_shared<Kotonoha::Providers::SchoolDaysAssets>(argv[1]);
     LogoRuntime runtime;
     EngineOptions options;
     options.assets = assets;

@@ -2,7 +2,7 @@
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
 
-#include "SnowAssets.hpp"
+#include <SnowRadish/SnowAssets.hpp>
 #include "SnowLauncher.hpp"
 #include "SnowRuntime.hpp"
 
@@ -34,7 +34,7 @@ struct Application {
   Kotonoha::Engine engine;
   long framesLeft = -1; // --frames: smoke runs quit by themselves
 
-  Application(std::shared_ptr<SnowRadish::SnowAssets> assets,
+  Application(std::shared_ptr<Kotonoha::Providers::SnowAssets> assets,
               Kotonoha::EngineOptions options)
       : game(assets), engine(game, WithAssets(std::move(options), assets)) {}
   // The engine (renderer, mixer) goes before the runtime: free the session
@@ -51,7 +51,7 @@ struct App {
   long frames = -1;
 
   void Start(const std::string &directory) {
-    auto assets = std::make_shared<SnowRadish::SnowAssets>(
+    auto assets = std::make_shared<Kotonoha::Providers::SnowAssets>(
         Kotonoha::gameDataDirectory(directory));
     assets->setOverlay(options.assetOverlayDirectory());
     game = std::make_unique<Application>(std::move(assets), options);

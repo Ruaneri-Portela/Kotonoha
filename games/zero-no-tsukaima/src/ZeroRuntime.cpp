@@ -8,7 +8,7 @@
 #include <stdexcept>
 
 namespace ZeroNoTsukaima {
-ZeroRuntime::ZeroRuntime(std::shared_ptr<DiscAssetProvider> disc)
+ZeroRuntime::ZeroRuntime(std::shared_ptr<Kotonoha::Providers::ZeroDiscAssets> disc)
     : Runtime("Zero no Tsukaima", "0.1.0",
               "me.hirameki.kotonoha.zeronotsukaima"),
       disc_(std::move(disc)) {

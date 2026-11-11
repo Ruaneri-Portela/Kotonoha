@@ -1,4 +1,4 @@
-#include "SchoolDaysAssets.hpp"
+#include <SchoolDays/SchoolDaysAssets.hpp>
 #include "SchoolDaysRuntime.hpp"
 
 #include <Kotonoha/core/Engine.hpp>
@@ -112,7 +112,7 @@ struct TemporaryDirectory {
 };
 
 Kotonoha::EngineOptions
-Options(const std::shared_ptr<SchoolDays::Assets> &assets) {
+Options(const std::shared_ptr<Kotonoha::Providers::SchoolDaysAssets> &assets) {
   Kotonoha::EngineOptions options;
   options.assets = assets;
   options.persistSettings = false;
@@ -124,7 +124,7 @@ struct Application {
   SchoolDays::Runtime runtime;
   Kotonoha::Engine engine;
 
-  Application(const std::shared_ptr<SchoolDays::Assets> &assets,
+  Application(const std::shared_ptr<Kotonoha::Providers::SchoolDaysAssets> &assets,
               const char *route, const fs::path &documents)
       : runtime(assets, route, documents), engine(runtime, Options(assets)) {
     runtime.SetState(Kotonoha::GameState::Gameplay);
@@ -395,7 +395,7 @@ void ArmFirstEpisodeHandoff(SchoolDays::Runtime &runtime) {
 void TestSaveFeelAndSaveLoad(const char *route, const fs::path &root) {
   const auto documents = root / "documents-normal";
   fs::create_directories(documents);
-  auto assets = std::make_shared<SchoolDays::Assets>(root);
+  auto assets = std::make_shared<Kotonoha::Providers::SchoolDaysAssets>(root);
   Application app(assets, route, documents);
   SchoolDays::RuntimeHandoffTestAccess::SetFeelings(app.runtime, 73, 21);
 
@@ -467,7 +467,7 @@ void TestSaveFeelAndSaveLoad(const char *route, const fs::path &root) {
 void TestOrdinaryCommentEscape(const char *route, const fs::path &root) {
   const auto documents = root / "documents-comment-ordinary";
   fs::create_directories(documents);
-  auto assets = std::make_shared<SchoolDays::Assets>(root);
+  auto assets = std::make_shared<Kotonoha::Providers::SchoolDaysAssets>(root);
   Application app(assets, route, documents);
   app.runtime.debugJumpToNode("00/00-00-A00");
   app.runtime.openPanel(10);
@@ -490,7 +490,7 @@ void TestOrdinaryCommentEscape(const char *route, const fs::path &root) {
 void TestMainMenuConfirmNarrative(const char *route, const fs::path &root) {
   const auto documents = root / "documents-mainmenu-narrative";
   fs::create_directories(documents);
-  auto assets = std::make_shared<SchoolDays::Assets>(root);
+  auto assets = std::make_shared<Kotonoha::Providers::SchoolDaysAssets>(root);
   Application app(assets, route, documents);
   app.runtime.debugJumpToNode("00/00-00-A00");
   auto *owner =
@@ -542,7 +542,7 @@ void TestMainMenuConfirmNarrative(const char *route, const fs::path &root) {
 void TestMainMenuConfirmTemporary(const char *route, const fs::path &root) {
   const auto documents = root / "documents-mainmenu-replay";
   fs::create_directories(documents);
-  auto assets = std::make_shared<SchoolDays::Assets>(root);
+  auto assets = std::make_shared<Kotonoha::Providers::SchoolDaysAssets>(root);
   Application app(assets, route, documents);
   app.runtime.debugJumpToNode("00/00-00-A00");
   auto *liveOwner =
@@ -592,7 +592,7 @@ void TestMissingExitPopupDoesNotQuit(const char *route, const fs::path &root) {
   // later frontend test. A failed confirmation must not bypass the question.
   const auto documents = root / "documents-missing-exit-popup";
   fs::create_directories(documents);
-  auto assets = std::make_shared<SchoolDays::Assets>(root);
+  auto assets = std::make_shared<Kotonoha::Providers::SchoolDaysAssets>(root);
   Application app(assets, route, documents);
   app.runtime.debugJumpToNode("00/00-00-A00");
   SDL_FlushEvent(SDL_EVENT_QUIT);
@@ -614,7 +614,7 @@ void TestFrontendTransitions(const char *route, const fs::path &root) {
   // confirmation uses Popup_Title. This scenario exercises ordinary Title Exit
   // itself, so add the missing base only after that protection has run.
   WritePng(root / "System" / "Exit" / "Popup_Exit.PNG");
-  auto assets = std::make_shared<SchoolDays::Assets>(root);
+  auto assets = std::make_shared<Kotonoha::Providers::SchoolDaysAssets>(root);
   Application app(assets, route, documents);
   using Transition = Kotonoha::SchoolDaysFrontendTransition;
 
@@ -717,7 +717,7 @@ void TestFrontendTransitions(const char *route, const fs::path &root) {
 void TestTimeoutSkip(const char *route, const fs::path &root) {
   const auto documents = root / "documents-timeout";
   fs::create_directories(documents);
-  auto assets = std::make_shared<SchoolDays::Assets>(root);
+  auto assets = std::make_shared<Kotonoha::Providers::SchoolDaysAssets>(root);
   Application app(assets, route, documents);
   SchoolDays::RuntimeHandoffTestAccess::SetFeelings(app.runtime, 100, 50);
   ArmFirstEpisodeHandoff(app.runtime);
@@ -737,7 +737,7 @@ void TestTimeoutSkip(const char *route, const fs::path &root) {
 void TestExplicitSkip(const char *route, const fs::path &root) {
   const auto documents = root / "documents-explicit-skip";
   fs::create_directories(documents);
-  auto assets = std::make_shared<SchoolDays::Assets>(root);
+  auto assets = std::make_shared<Kotonoha::Providers::SchoolDaysAssets>(root);
   Application app(assets, route, documents);
   ArmFirstEpisodeHandoff(app.runtime);
   app.runtime.update();
@@ -756,7 +756,7 @@ void TestExplicitSkip(const char *route, const fs::path &root) {
 void TestTerminalRelease(const char *route, const fs::path &root) {
   const auto documents = root / "documents-terminal";
   fs::create_directories(documents);
-  auto assets = std::make_shared<SchoolDays::Assets>(root);
+  auto assets = std::make_shared<Kotonoha::Providers::SchoolDaysAssets>(root);
   Application app(assets, route, documents);
 
   bool foundTerminal = false;

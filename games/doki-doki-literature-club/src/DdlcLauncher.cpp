@@ -1,5 +1,5 @@
 #include "DdlcLauncher.hpp"
-#include "DdlcAssets.hpp"
+#include <Ddlc/DdlcAssets.hpp>
 
 #include <algorithm>
 #include <cctype>

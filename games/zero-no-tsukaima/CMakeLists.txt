@@ -30,17 +30,18 @@ set_target_properties(ZeroNoTsukaimaFormats PROPERTIES CXX_EXTENSIONS OFF)
 
 # The game on the Kotonoha engine: disc AssetProvider, session and the
 # polymorphic engine components.
+add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../modules/providers/zero"
+    "${CMAKE_CURRENT_BINARY_DIR}/providers/zero")
 add_library(zero_no_tsukaima STATIC
     src/Media.cpp
     src/Frontend.cpp
-    src/DiscAssetProvider.cpp
     src/ZeroSession.cpp
     src/ZeroComponents.cpp
     src/ZeroRuntime.cpp
     src/ZeroLauncher.cpp
 )
 target_include_directories(zero_no_tsukaima PUBLIC src)
-target_link_libraries(zero_no_tsukaima PUBLIC Kotonoha::Engine ZeroNoTsukaimaFormats)
+target_link_libraries(zero_no_tsukaima PUBLIC Kotonoha::Engine ZeroNoTsukaimaFormats Kotonoha::ProviderZero)
 set_target_properties(zero_no_tsukaima PROPERTIES CXX_EXTENSIONS OFF)
 
 kotonoha_add_app(ZeroNoTsukaima src/main.cpp)

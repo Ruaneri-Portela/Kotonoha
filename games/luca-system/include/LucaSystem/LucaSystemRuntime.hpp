@@ -24,7 +24,7 @@ namespace LucaSystem {
 // WIPE, IMAGEUPDATE and object animation opcodes.
 class LucaSystemRuntime : public Kotonoha::Runtime {
 public:
-  LucaSystemRuntime(std::shared_ptr<LucaSystemAssets> assets);
+  LucaSystemRuntime(std::shared_ptr<Kotonoha::Providers::LucaSystemAssets> assets);
   ~LucaSystemRuntime() override;
 
   void init(Kotonoha::Engine &engine) override;
@@ -55,7 +55,7 @@ public:
   Kotonoha::Translation::SourceTexts translationSources() const override;
   bool continuousTouch() const override { return true; }
 
-  const LucaSystemAssets &assets() const { return *assets_; }
+  const Kotonoha::Providers::LucaSystemAssets &assets() const { return *assets_; }
 
   // Current dialogue state (filled by the script interpreter).
   std::string dialogueText_;
@@ -66,7 +66,7 @@ public:
 private:
   struct Impl;
   std::unique_ptr<Impl> impl_;
-  std::shared_ptr<LucaSystemAssets> assets_;
+  std::shared_ptr<Kotonoha::Providers::LucaSystemAssets> assets_;
 };
 
 } // namespace LucaSystem

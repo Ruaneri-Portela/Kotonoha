@@ -417,6 +417,27 @@ void seekableMediaProvider() {
   player.stop();
 }
 
+void textApi() {
+  MemoryAssetProvider assets;
+  assets.files["sjis"] = {0x82, 0xa0};
+  assets.files["utf16"] = {0xff, 0xfe, 0x42, 0x30, 0x3d, 0xd8, 0x00, 0xde};
+  assets.files["utf32"] = {0xff, 0xfe, 0, 0, 0x42, 0x30, 0, 0};
+  assets.files["utf16be"] = {0xfe, 0xff, 0x30, 0x42};
+  assets.files["bom"] = {0xef, 0xbb, 0xbf, 'O', 'K'};
+  assets.files["western"] = {0xe7};
+  assets.files["empty"] = {};
+  require(assets.loadTextUtf8("sjis", "CP932") == "あ", "Decode CP932 text");
+  require(assets.loadTextUtf8("utf16") == "あ😀", "Decode UTF-16 surrogate pair");
+  require(assets.loadTextUtf8("utf32") == "あ", "Distinguish UTF-32 BOM");
+  require(assets.loadTextUtf8("utf16be") == "あ", "Decode big-endian UTF-16");
+  require(assets.loadTextUtf8("bom", "CP932") == "OK", "BOM overrides legacy encoding");
+  require(assets.loadTextUtf8("western", "CP1252") == "ç", "Decode Portuguese text");
+  require(assets.loadTextUtf8("empty").empty(), "Empty text");
+  require(assets.read("sjis") == std::vector<Uint8>({0x82, 0xa0}), "Raw bytes preserved");
+  rejects([&] { assets.loadTextUtf8("missing"); }, "Missing text is an error");
+  rejects([&] { assets.loadTextUtf8("empty", nullptr); }, "Reject null encoding");
+}
+
 void memoryMedia(const char *path) {
   std::ifstream input(path, std::ios::binary);
   require(static_cast<bool>(input), "Open test media");
@@ -454,6 +475,7 @@ int main(int argc, char **argv) {
     }
     fileSystemProvider();
     decoders();
+    textApi();
     overlays();
     if (argc > 1)
       memoryMedia(argv[1]);

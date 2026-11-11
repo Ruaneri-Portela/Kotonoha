@@ -85,7 +85,7 @@ int main(int argc, char **argv) {
     }
     SDL_setenv_unsafe("DDLC_SAVE_DIR", directory.string().c_str(), 1);
     auto assets =
-        std::make_shared<Ddlc::GameAssets>(argv[1], argc > 2 ? argv[2] : "");
+        std::make_shared<Kotonoha::Providers::DdlcAssets>(argv[1], argc > 2 ? argv[2] : "");
     Ddlc::GameRuntime game(assets);
     game.SetState(GameState::Gameplay);
     EngineOptions options;

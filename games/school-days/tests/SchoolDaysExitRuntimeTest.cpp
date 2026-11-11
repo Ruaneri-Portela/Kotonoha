@@ -1,4 +1,4 @@
-#include "SchoolDaysAssets.hpp"
+#include <SchoolDays/SchoolDaysAssets.hpp>
 #include "SchoolDaysRuntime.hpp"
 #include <Kotonoha/core/Engine.hpp>
 #include <iostream>
@@ -14,21 +14,21 @@ struct Application {
   SchoolDays::Runtime runtime;
   Kotonoha::Engine engine;
   static Kotonoha::EngineOptions
-  options(const std::shared_ptr<SchoolDays::Assets> &assets) {
+  options(const std::shared_ptr<Kotonoha::Providers::SchoolDaysAssets> &assets) {
     Kotonoha::EngineOptions result;
     result.assets = assets;
     result.persistSettings = false;
     result.rendererOverride = "software";
     return result;
   }
-  Application(const std::shared_ptr<SchoolDays::Assets> &assets,
+  Application(const std::shared_ptr<Kotonoha::Providers::SchoolDaysAssets> &assets,
               const char *route, const std::filesystem::path &documents)
       : runtime(assets, route, documents), engine(runtime, options(assets)) {}
   ~Application() { runtime.shutdown(); }
 };
 
 void checkFontLifetimeAcrossEngineConstructorException(
-    const std::shared_ptr<SchoolDays::Assets> &assets, const char *route,
+    const std::shared_ptr<Kotonoha::Providers::SchoolDaysAssets> &assets, const char *route,
     const std::filesystem::path &documents) {
   // Engine creates two UI-owned TTF sessions, then invokes Runtime::init,
   // which creates GameScene's choice font. A constructor exception *after*
@@ -85,7 +85,7 @@ int main(int argc, char **argv) {
     const auto documents =
         std::filesystem::temp_directory_path() /
         ("school-days-exit-" + std::to_string(SDL_GetPerformanceCounter()));
-    auto assets = std::make_shared<SchoolDays::Assets>(argv[1]);
+    auto assets = std::make_shared<Kotonoha::Providers::SchoolDaysAssets>(argv[1]);
     std::cerr << "ExitRuntime: verify constructor exception font lifecycle\n";
     checkFontLifetimeAcrossEngineConstructorException(assets, argv[2],
                                                       documents);

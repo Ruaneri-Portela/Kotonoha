@@ -19,7 +19,7 @@ namespace SnowRadish {
 // dialogs) in the 1280x720 design space, both fitted into the viewport.
 class SnowRuntime : public Kotonoha::Runtime {
 public:
-  explicit SnowRuntime(std::shared_ptr<SnowAssets> assets);
+  explicit SnowRuntime(std::shared_ptr<Kotonoha::Providers::SnowAssets> assets);
   ~SnowRuntime() override;
 
   // Releases session textures and audio; call before the Engine is destroyed.
@@ -55,7 +55,7 @@ private:
   bool EngineSceneCaptures() const;
   void OpenSaves(bool load);
 
-  std::shared_ptr<SnowAssets> assets_;
+  std::shared_ptr<Kotonoha::Providers::SnowAssets> assets_;
   Kotonoha::Engine *engine_ = nullptr;
   SnowLinks links_;
   std::unique_ptr<SnowSession> session_;

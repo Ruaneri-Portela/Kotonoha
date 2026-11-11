@@ -9,7 +9,7 @@ Status: **playable on Kotonoha** (`games/zero-no-tsukaima`, see the root README)
 > subclasses of the engine `VNTextBox`, `ChoiceQuestionScene`, `GameMenu`,
 > `InGameMenu` and `VNBacklog`; `CanvasImage` / `PcmPlayer` on the `Voice`,
 > `BGM`, `Se` channels -> `Picture` / `PcmPlayer` (`Media.hpp`) on the mixer
-> channels `voice`, `bgm`, `se`; disc reads -> `DiscAssetProvider : Kotonoha::DiscImageAssetProvider`;
+> channels `voice`, `bgm`, `se`; disc reads -> `Kotonoha::Providers::ZeroDiscAssets : Kotonoha::DiscImageAssetProvider`;
 > `MoviePlayer` -> engine `MediaPlayer`.
 
 Assets are never stored in the repository; tools read the user's own disc image

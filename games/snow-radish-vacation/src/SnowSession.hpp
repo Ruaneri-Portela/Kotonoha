@@ -1,6 +1,6 @@
 #pragma once
 
-#include "SnowAssets.hpp"
+#include <SnowRadish/SnowAssets.hpp>
 #include "SnowRadish/Game.hpp"
 
 #include <Kotonoha/core/SDL.hpp>
@@ -38,7 +38,7 @@ public:
   enum class WindowClick { None, Consumed, ToggleAuto };
   using ChoiceKind = Game::ChoiceKind;
 
-  SnowSession(Kotonoha::Engine &engine, std::shared_ptr<SnowAssets> assets);
+  SnowSession(Kotonoha::Engine &engine, std::shared_ptr<Kotonoha::Providers::SnowAssets> assets);
   ~SnowSession();
   SnowSession(const SnowSession &) = delete;
   SnowSession &operator=(const SnowSession &) = delete;
@@ -119,7 +119,7 @@ public:
                       bool measureOnly = false);
   void SetPixelScale(float scale) { pixelScale_ = scale; }
   void SetMouse(float x, float y) { mouse_ = {x, y}; }
-  SnowAssets &Assets() { return *assets_; }
+  Kotonoha::Providers::SnowAssets &Assets() { return *assets_; }
   Game *Story() { return game_.get(); }
   bool TitleShown() const { return phase_ == Phase::Title; }
 
@@ -192,7 +192,7 @@ private:
   void SelectTitle(TitleAction action);
 
   Kotonoha::Engine &engine_;
-  std::shared_ptr<SnowAssets> assets_;
+  std::shared_ptr<Kotonoha::Providers::SnowAssets> assets_;
   std::vector<uint8_t> script_;
   std::unique_ptr<Game> game_;
   std::filesystem::path systemPath_;

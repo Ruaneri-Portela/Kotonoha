@@ -1,4 +1,4 @@
-#include "SchoolDaysAssets.hpp"
+#include <SchoolDays/SchoolDaysAssets.hpp>
 #include "SchoolDaysRuntime.hpp"
 
 #include <Kotonoha/core/Engine.hpp>
@@ -223,7 +223,7 @@ std::vector<uint8_t> BuildPlayDataSave(const char *route,
 }
 
 Kotonoha::EngineOptions
-Options(const std::shared_ptr<SchoolDays::Assets> &assets) {
+Options(const std::shared_ptr<Kotonoha::Providers::SchoolDaysAssets> &assets) {
   Kotonoha::EngineOptions options;
   options.assets = assets;
   options.persistSettings = false;
@@ -236,7 +236,7 @@ struct Application {
   SchoolDays::Runtime runtime;
   std::unique_ptr<Kotonoha::Engine> engine;
 
-  Application(const std::shared_ptr<SchoolDays::Assets> &assets,
+  Application(const std::shared_ptr<Kotonoha::Providers::SchoolDaysAssets> &assets,
               const char *route, const fs::path &documents)
       : runtime(assets, route, documents) {
     runtime.SetState(Kotonoha::GameState::Menu);
@@ -420,7 +420,7 @@ int main(int argc, char **argv) {
   WriteFixtures(root, documents);
   Put(documents / "Save/SaveFile10.DAT", BuildPlayDataSave(argv[1], root));
 
-  auto assets = std::make_shared<SchoolDays::Assets>(root);
+  auto assets = std::make_shared<Kotonoha::Providers::SchoolDaysAssets>(root);
   Application app(assets, argv[1], documents);
   Check(app.runtime.GetState() == Kotonoha::GameState::Menu,
         "runtime did not initialize at title");

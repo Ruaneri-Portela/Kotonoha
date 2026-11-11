@@ -61,7 +61,7 @@ int main(int argc, char **argv) {
     require(argc == 2 || argc == 3,
             "Expected disc and optional translation dictionary");
     auto source = std::make_shared<Amagami::Source>(argv[1]);
-    auto assets = std::make_shared<Amagami::Assets>(source);
+    auto assets = std::make_shared<Kotonoha::Providers::AmagamiAssets>(source);
     // Overlapping transparent mesh fragments must preserve the face underneath.
     auto body = assets->loadSurface("actor-body/stand/b7_Aax.tm2");
     const auto bounds = assets->bodyBounds("stand/b7_Aax.tm2");

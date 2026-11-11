@@ -6,15 +6,16 @@
 #include <Kotonoha/routing/SchoolDaysMenuBarPresenter.hpp>
 #include <SDL3_ttf/SDL_ttf.h>
 
+#include <SchoolDays/SchoolDaysAssets.hpp>
+
 namespace SchoolDays {
-class Assets;
 class Runtime;
 
 // Retail System/SYSTEM/LOGO shown after the engine splash, as the original
 // School Days port did. The logo lives inside System.GPK, so it is decoded
 // through the game's AssetProvider instead of Kotonoha::SplashScreen's files.
 class LogoSplash final : public Kotonoha::Scene {
-  Assets &assets;
+  Kotonoha::Providers::SchoolDaysAssets &assets;
   std::string logo;
   Uint64 started = 0;
   bool done = false, shown = false;
@@ -22,7 +23,7 @@ class LogoSplash final : public Kotonoha::Scene {
 
 public:
   static constexpr double fadeSeconds = 0.8, displaySeconds = 3.0;
-  LogoSplash(Kotonoha::Engine &engine, Assets &assets);
+  LogoSplash(Kotonoha::Engine &engine, Kotonoha::Providers::SchoolDaysAssets &assets);
   void restart() override;
   bool finished() const override { return done; }
   bool available() const { return !logo.empty(); }

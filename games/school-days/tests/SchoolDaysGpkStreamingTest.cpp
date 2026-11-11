@@ -1,4 +1,4 @@
-#include "SchoolDaysAssets.hpp"
+#include <SchoolDays/SchoolDaysAssets.hpp>
 
 #include <Kotonoha/SchoolDaysAssetMount.hpp>
 #include <Kotonoha/SchoolDaysGpkArchive.hpp>
@@ -128,7 +128,7 @@ int main() {
   fs::remove_all(root, ec);
   try {
     BuildRetailSet(root);
-    SchoolDays::Assets assets(root);
+    Kotonoha::Providers::SchoolDaysAssets assets(root);
 
     const std::string rawId = assets.resolve("BGM/RAW.BIN");
     Require(Kotonoha::IsSchoolDaysGpkUri(rawId),

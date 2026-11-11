@@ -118,7 +118,7 @@ void verifyDitherSampling(RendererRef renderer) {
           "Restore dither comparison target");
   }
 }
-void verifyCompatibilityNode(std::shared_ptr<RealLive::RealLiveAssets> assets,
+void verifyCompatibilityNode(std::shared_ptr<Kotonoha::Providers::RealLiveAssets> assets,
                              const std::string &node) {
   RealLive::RealLiveRuntime game(assets);
   game.SetState(GameState::Menu);
@@ -192,7 +192,7 @@ std::size_t scenario8005ElementCount(RealLive::ScriptArchive &archive) {
 // Seen.txt may replace that scenario with a much smaller one, so skip the
 // tests when the data set does not contain the original scenario.
 constexpr std::size_t kMin8005ScenarioElements = 4213;
-void verify8005Call(std::shared_ptr<RealLive::RealLiveAssets> assets) {
+void verify8005Call(std::shared_ptr<Kotonoha::Providers::RealLiveAssets> assets) {
   RealLive::RealLiveRuntime game(assets);
   game.SetState(GameState::Menu);
   EngineOptions options;
@@ -244,7 +244,7 @@ void verify8005Call(std::shared_ptr<RealLive::RealLiveAssets> assets) {
   std::cout << "REALLIVE 8005 dispatched " << exercised
             << " command call sites from scenario 8005\n";
 }
-void verify8005Commands(std::shared_ptr<RealLive::RealLiveAssets> assets) {
+void verify8005Commands(std::shared_ptr<Kotonoha::Providers::RealLiveAssets> assets) {
   RealLive::RealLiveRuntime game(assets);
   game.SetState(GameState::Menu);
   EngineOptions options;
@@ -311,7 +311,7 @@ void verify8005Commands(std::shared_ptr<RealLive::RealLiveAssets> assets) {
   std::cout << "REALLIVE 8005 dispatched " << exercised
             << " original command call sites\n";
 }
-void verifyAllOpcodes(std::shared_ptr<RealLive::RealLiveAssets> assets) {
+void verifyAllOpcodes(std::shared_ptr<Kotonoha::Providers::RealLiveAssets> assets) {
   RealLive::RealLiveRuntime game(assets);
   game.SetState(GameState::Menu);
   EngineOptions options;
@@ -395,7 +395,7 @@ void verifyAllOpcodes(std::shared_ptr<RealLive::RealLiveAssets> assets) {
   if (!pending.empty() || !failures.empty())
     throw std::runtime_error("REALLIVE opcode audit is incomplete");
 }
-void verify8005Walk(std::shared_ptr<RealLive::RealLiveAssets> assets,
+void verify8005Walk(std::shared_ptr<Kotonoha::Providers::RealLiveAssets> assets,
                     bool shaders = false, bool performance = false) {
   RealLive::RealLiveRuntime game(assets);
   game.SetState(GameState::Menu);
@@ -658,7 +658,7 @@ void verify8005Walk(std::shared_ptr<RealLive::RealLiveAssets> assets,
       << "REALLIVE 8005 walking loop, pause and save restoration passed\n";
 }
 void verify8005BackgroundUpscaling(
-    std::shared_ptr<RealLive::RealLiveAssets> assets, bool shaders) {
+    std::shared_ptr<Kotonoha::Providers::RealLiveAssets> assets, bool shaders) {
   RealLive::RealLiveRuntime game(assets);
   game.SetState(GameState::Menu);
   EngineOptions options;
@@ -892,7 +892,7 @@ void verify8005BackgroundUpscaling(
          "cache passed\n";
 }
 void verifyScriptTextUpscaling(
-    std::shared_ptr<RealLive::RealLiveAssets> assets) {
+    std::shared_ptr<Kotonoha::Providers::RealLiveAssets> assets) {
   RealLive::RealLiveRuntime game(assets);
   game.SetState(GameState::Menu);
   EngineOptions options;
@@ -968,7 +968,7 @@ void verifyScriptTextUpscaling(
         "Text overlays must reuse glyphs without refiltering the script scene");
   std::cout << "Rasterized script text bypasses global Anime4K filtering\n";
 }
-void verifyBootUpscaling(std::shared_ptr<RealLive::RealLiveAssets> assets) {
+void verifyBootUpscaling(std::shared_ptr<Kotonoha::Providers::RealLiveAssets> assets) {
   for (bool key : {false, true}) {
     RealLive::RealLiveRuntime game(assets);
     game.SetState(GameState::Menu);
@@ -1155,7 +1155,7 @@ int main(int argc, char **argv) {
     }
     if (argc < 2 || !argv[1][0])
       return 77;
-    auto assets = std::make_shared<RealLive::RealLiveAssets>(argv[1]);
+    auto assets = std::make_shared<Kotonoha::Providers::RealLiveAssets>(argv[1]);
     if (argc > 4 && std::string(argv[2]) == "--inspect-scene") {
       RLMachine machine;
       auto archive = assets->scripts();

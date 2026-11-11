@@ -157,7 +157,7 @@ int main(int argc, char **argv) {
     std::cerr << "Usage: LucaInspect DATA_DIR SCRIPT [OPCODE]\n";
     return 2;
   }
-  LucaSystem::LucaSystemAssets assets(argv[1], {});
+  Kotonoha::Providers::LucaSystemAssets assets(argv[1], {});
   if (std::string(argv[2]) == "--dump-image") {
     if (argc != 5) {
       std::cerr

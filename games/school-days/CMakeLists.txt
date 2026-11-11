@@ -11,6 +11,10 @@ if(NOT TARGET Kotonoha::Engine)
 endif()
 
 find_package(ZLIB REQUIRED)
+if(NOT TARGET Kotonoha::ProviderGPK)
+    add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../modules/providers/gpk"
+        "${CMAKE_CURRENT_BINARY_DIR}/providers/gpk")
+endif()
 add_library(school_days STATIC
     src/KtrfAssetResolver.cpp
     src/KtrfStateStore.cpp
@@ -21,9 +25,6 @@ add_library(school_days STATIC
     src/SchoolDaysKtrfProfile.cpp
     src/SchoolDaysKtrfSession.cpp
     src/SchoolDaysKtrfGameplayBridge.cpp
-    src/SchoolDaysGpkArchive.cpp
-    src/SchoolDaysGpkIndex.cpp
-    src/SchoolDaysAssetMount.cpp
     src/SchoolDaysCmap.cpp
     src/SchoolDaysTitleModel.cpp
     src/SchoolDaysTitleRenderPlan.cpp
@@ -65,14 +66,13 @@ add_library(school_days STATIC
     src/SchoolDaysBackLogPresenter.cpp
     src/SchoolDaysSubtitleTypography.cpp
     src/SchoolDaysSystemUi.cpp
-    src/SchoolDaysAssets.cpp
     src/SchoolDaysRuntime.cpp
     src/SchoolDaysScenes.cpp
     src/SchoolDaysLauncher.cpp
 )
 target_include_directories(school_days PUBLIC include src)
 target_compile_features(school_days PUBLIC cxx_std_17)
-target_link_libraries(school_days PUBLIC Kotonoha::Engine PRIVATE ZLIB::ZLIB)
+target_link_libraries(school_days PUBLIC Kotonoha::Engine Kotonoha::ProviderGPK PRIVATE ZLIB::ZLIB)
 set_target_properties(school_days PROPERTIES CXX_EXTENSIONS OFF)
 if(KOTONOHA_DEV_CONTROL AND WIN32 AND NOT ANDROID)
     find_package(json-c CONFIG REQUIRED)

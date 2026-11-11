@@ -1,6 +1,6 @@
 #pragma once
 
-#include "SchoolDaysAssets.hpp"
+#include <SchoolDays/SchoolDaysAssets.hpp>
 
 #include <SDL3_ttf/SDL_ttf.h>
 
@@ -18,7 +18,7 @@ class Engine;
 
 class SchoolDaysBackLogEngine final : public VNBacklog {
 public:
-  SchoolDaysBackLogEngine(Engine &engine, SchoolDays::Assets &assets);
+  SchoolDaysBackLogEngine(Engine &engine, Kotonoha::Providers::SchoolDaysAssets &assets);
   ~SchoolDaysBackLogEngine() override;
 
   void open() override;
@@ -37,7 +37,7 @@ public:
 
 private:
   Engine &engine_;
-  SchoolDays::Assets &assets_;
+  Kotonoha::Providers::SchoolDaysAssets &assets_;
   SchoolDaysBackLogStore backlogStore_;
   SchoolDaysBackLogModel backlogModel_;
   SchoolDaysBackLogPresenter backlogPresenter_;

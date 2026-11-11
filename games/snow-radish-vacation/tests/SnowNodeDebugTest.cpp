@@ -7,7 +7,7 @@ int main(int argc, char **argv) {
   if (argc != 2)
     return 2;
   try {
-    auto assets = std::make_shared<SnowRadish::SnowAssets>(argv[1]);
+    auto assets = std::make_shared<Kotonoha::Providers::SnowAssets>(argv[1]);
     SnowRadish::SnowRuntime runtime(assets);
     Kotonoha::EngineOptions options;
     options.assets = assets;

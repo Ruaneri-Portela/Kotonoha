@@ -14,7 +14,7 @@ namespace Kirikiri {
 // characters, textbox, choices).
 class KirikiriRuntime : public Kotonoha::Runtime {
 public:
-  KirikiriRuntime(std::shared_ptr<KirikiriAssets> assets);
+  KirikiriRuntime(std::shared_ptr<Kotonoha::Providers::KirikiriAssets> assets);
   ~KirikiriRuntime() override;
 
   void init(Kotonoha::Engine &engine) override;

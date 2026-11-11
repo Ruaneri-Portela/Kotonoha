@@ -1,4 +1,4 @@
-#include "SchoolDaysAssets.hpp"
+#include <SchoolDays/SchoolDaysAssets.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/FileSystem.hpp>
 #include <Kotonoha/core/UI.hpp>
@@ -24,7 +24,7 @@ SchoolDaysBackLogModel::Variant BackLogVariant() {
 } // namespace
 
 SchoolDaysBackLogEngine::SchoolDaysBackLogEngine(Engine &engine,
-                                                 SchoolDays::Assets &assets)
+                                                 Kotonoha::Providers::SchoolDaysAssets &assets)
     : VNBacklog(engine), engine_(engine), assets_(assets) {}
 
 SchoolDaysBackLogEngine::~SchoolDaysBackLogEngine() { close(); }

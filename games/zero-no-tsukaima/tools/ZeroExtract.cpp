@@ -1,6 +1,6 @@
 #include <Kotonoha/core/SDL.hpp>
 // Extracts a Zero no Tsukaima (PS2) disc image into plain files:
-//   ZeroExtract <disc.bin|disc.iso> <outdir> [--png]
+//   ZeroExtract <disc.bin|disc.iso> <outdir> [--png] [--archive NAME]
 // Archives (NAME.HD + NAME.BIN) become <outdir>/NAME/NNNN.{tm2,txt,bin};
 // with --png every TIM2 picture is also written as NNNN.png.
 #include <Kotonoha/core/DiscImage.hpp>
@@ -48,11 +48,22 @@ void SavePng(const fs::path &path, Kotonoha::Ps2Image &img) {
 
 int main(int argc, char **argv) {
   if (argc < 3) {
-    std::fprintf(stderr, "usage: %s <disc.bin|iso> <outdir> [--png]\n",
+    std::fprintf(stderr, "usage: %s <disc.bin|iso> <outdir> [--png] [--archive NAME]\n",
                  argv[0]);
     return 2;
   }
-  const bool png = argc > 3 && std::strcmp(argv[3], "--png") == 0;
+  bool png = false;
+  std::string archive;
+  for (int i = 3; i < argc; ++i) {
+    if (std::strcmp(argv[i], "--png") == 0)
+      png = true;
+    else if (std::strcmp(argv[i], "--archive") == 0 && i + 1 < argc)
+      archive = argv[++i];
+    else {
+      std::fprintf(stderr, "invalid option: %s\n", argv[i]);
+      return 2;
+    }
+  }
   Kotonoha::DiscImage disc;
   std::string error;
   if (!disc.tryOpen(argv[1], &error)) {
@@ -62,11 +73,18 @@ int main(int argc, char **argv) {
   std::printf("volume %s, %zu files\n", disc.volumeLabel().c_str(),
               disc.files().size());
   const fs::path out = argv[2];
+  if (!archive.empty() &&
+      (!disc.find(archive + ".HD") || !disc.find(archive + ".BIN"))) {
+    std::fprintf(stderr, "archive not found: %s\n", archive.c_str());
+    return 1;
+  }
   fs::create_directories(out);
 
   for (const auto &entry : disc.files()) {
     const auto dot = entry.path.rfind('.');
     const std::string stem = entry.path.substr(0, dot);
+    if (!archive.empty() && stem != archive)
+      continue;
     const std::string ext =
         dot == std::string::npos ? "" : entry.path.substr(dot);
     if (ext == ".BIN" && disc.find(stem + ".HD") != nullptr) {

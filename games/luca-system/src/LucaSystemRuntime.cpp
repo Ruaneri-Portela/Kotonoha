@@ -171,17 +171,17 @@ protected:
   }
 
 public:
-  AirTextBox(Kotonoha::Engine &engine, const LucaSystemAssets &assets)
+  AirTextBox(Kotonoha::Engine &engine, const Kotonoha::Providers::LucaSystemAssets &assets)
       : VNTextBox(engine, "", "", 30),
-        frame_(DecodeCzImage(assets.readAsset("MWIN1280_0"))),
-        cursor_(DecodeCzImage(assets.readAsset("MWIN_CURSOR"))) {}
+        frame_(DecodeCzImage(assets.read("MWIN1280_0"))),
+        cursor_(DecodeCzImage(assets.read("MWIN_CURSOR"))) {}
 };
 
 } // namespace
 
 struct LucaSystemRuntime::Impl {
   LucaSystemRuntime &runtime;
-  std::shared_ptr<LucaSystemAssets> assets;
+  std::shared_ptr<Kotonoha::Providers::LucaSystemAssets> assets;
   Kotonoha::Engine *engine = nullptr;
 
   Kotonoha::VNTextBox *textbox = nullptr;
@@ -225,7 +225,7 @@ struct LucaSystemRuntime::Impl {
   Kotonoha::PcmPlayer voice;
   Kotonoha::PcmPlayer se;
 
-  explicit Impl(LucaSystemRuntime &r, std::shared_ptr<LucaSystemAssets> a)
+  explicit Impl(LucaSystemRuntime &r, std::shared_ptr<Kotonoha::Providers::LucaSystemAssets> a)
       : runtime(r), assets(std::move(a)) {}
 
   std::vector<std::string> scenarioFiles() const {
@@ -257,7 +257,6 @@ struct LucaSystemRuntime::Impl {
 
   void playVoice(uint32_t id) {
     try {
-      auto bytes = assets->readAsset(id);
       // LucaSystem voice entries are raw PCM/Ogg; decode via the asset system.
       voice.Stop();
       // We push decoded PCM through the shared PcmPlayer on the Voice channel.
@@ -642,7 +641,7 @@ struct LucaSystemRuntime::Impl {
   std::vector<ObjectPlacement> objectPlacements_;
 };
 
-LucaSystemRuntime::LucaSystemRuntime(std::shared_ptr<LucaSystemAssets> assets)
+LucaSystemRuntime::LucaSystemRuntime(std::shared_ptr<Kotonoha::Providers::LucaSystemAssets> assets)
     : Runtime("LucaSystem", "0.1.0", "me.hirameki.kotonoha.luca_system"),
       impl_(std::make_unique<Impl>(*this, std::move(assets))),
       assets_(impl_->assets) {}
@@ -700,8 +699,8 @@ void LucaSystemRuntime::initGameplay(Kotonoha::Engine &engine) {
   impl.backlog->close();
 
   if (impl.originalTitle) {
-    impl.titleBackground = DecodeCzImage(impl.assets->readAsset("title1a"));
-    impl.titleMenu = DecodeCzImage(impl.assets->readAsset("title_menu"));
+    impl.titleBackground = DecodeCzImage(impl.assets->read("title1a"));
+    impl.titleMenu = DecodeCzImage(impl.assets->read("title_menu"));
     impl.titleShown = true;
     return;
   }
@@ -985,7 +984,7 @@ bool LucaSystemRuntime::startScenario(const std::string &name,
   if (!entry)
     return false;
 
-  auto bytes = impl.assets->readAsset(name);
+  auto bytes = impl.assets->read(name);
   Script script(name, std::vector<std::uint8_t>(bytes.begin(), bytes.end()));
   if (!script.valid()) {
     SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,

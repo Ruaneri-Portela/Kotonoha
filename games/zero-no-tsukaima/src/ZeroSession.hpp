@@ -1,6 +1,6 @@
 #pragma once
 
-#include "DiscAssetProvider.hpp"
+#include <ZeroNoTsukaima/DiscAssetProvider.hpp>
 #include "Frontend.hpp"
 #include "Media.hpp"
 #include <Kotonoha/media/MediaPlayer.hpp>
@@ -36,7 +36,7 @@ constexpr int kSaveSlots = 64; // SaveState: 16 pages x 4
 class ZeroSession : public FrontendHost {
 public:
   ZeroSession(Kotonoha::Engine &engine,
-              std::shared_ptr<DiscAssetProvider> disc);
+              std::shared_ptr<Kotonoha::Providers::ZeroDiscAssets> disc);
   ~ZeroSession() override;
   ZeroSession(const ZeroSession &) = delete;
   ZeroSession &operator=(const ZeroSession &) = delete;
@@ -115,7 +115,7 @@ public:
                   float alpha = 1.0f);
   ZeroNoTsukaima::Picture *SceneIndexPicture(int index);
   ZeroNoTsukaima::Picture *NamedScene(const std::string &name);
-  const DiscAssetProvider &Disc() const { return *disc_; }
+  const Kotonoha::Providers::ZeroDiscAssets &Disc() const { return *disc_; }
 
   // F2-F5: voice / BGM sample rate presets (live).
   void StepRate(bool bgm, int dir);
@@ -185,7 +185,7 @@ private:
   SDL_Texture *Snapshot(SDL_Renderer *r, const Game::Transition &t);
 
   Kotonoha::Engine &engine_;
-  std::shared_ptr<DiscAssetProvider> disc_;
+  std::shared_ptr<Kotonoha::Providers::ZeroDiscAssets> disc_;
   Frontend frontend_;
   std::unique_ptr<Game> game_;
   std::unique_ptr<Kotonoha::MediaPlayer> movie_;

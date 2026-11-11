@@ -22,7 +22,7 @@ namespace {
 
 Kotonoha::EngineOptions
 withAssets(Kotonoha::EngineOptions options,
-           std::shared_ptr<Kirikiri::KirikiriAssets> assets) {
+           std::shared_ptr<Kotonoha::Providers::KirikiriAssets> assets) {
   options.assets = std::move(assets);
   return options;
 }
@@ -34,14 +34,14 @@ struct App {
   struct Game {
     Kirikiri::KirikiriRuntime runtime;
     Kotonoha::Engine engine;
-    Game(std::shared_ptr<Kirikiri::KirikiriAssets> a, Kotonoha::EngineOptions o)
+    Game(std::shared_ptr<Kotonoha::Providers::KirikiriAssets> a, Kotonoha::EngineOptions o)
         : runtime(std::move(a)), engine(runtime, std::move(o)) {}
   };
   std::unique_ptr<Game> game;
 
   void start(const std::string &directory) {
     auto assets =
-        std::shared_ptr<Kirikiri::KirikiriAssets>(new Kirikiri::KirikiriAssets(
+        std::shared_ptr<Kotonoha::Providers::KirikiriAssets>(new Kotonoha::Providers::KirikiriAssets(
             directory, options.assetOverlayDirectory()));
     // Auto-mount XP3 archives in deterministic override order. Patch archives
     // sort after the base data and are searched in reverse mount order.

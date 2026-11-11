@@ -625,7 +625,7 @@ void AmagamiRuntime::syncDialogue() {
                             : text);
 }
 
-AmagamiRuntime::AmagamiRuntime(std::shared_ptr<Assets> assets,
+AmagamiRuntime::AmagamiRuntime(std::shared_ptr<Kotonoha::Providers::AmagamiAssets> assets,
                                std::string start)
     : Runtime("Amagami", "0.1.0", "me.hirameki.kotonoha.amagami"),
       assets_(std::move(assets)), start_(std::move(start)) {}
