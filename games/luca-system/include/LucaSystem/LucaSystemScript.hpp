@@ -25,10 +25,10 @@ namespace LucaSystem {
 
 // One decoded LucaSystem script instruction.
 struct ScriptInstruction {
-  uint64_t pos = 0;              // file offset of the instruction
+  uint64_t pos = 0; // file offset of the instruction
   uint8_t opcode = 0;
   uint8_t fixedFlag = 0;
-  uint16_t len = 0;              // total instruction length (incl. header)
+  uint16_t len = 0; // total instruction length (incl. header)
   std::vector<std::uint8_t> fixedParam; // 0-2 little-endian uint16 values
   std::vector<std::uint8_t> paramBytes; // remaining parameter bytes
   std::vector<std::uint8_t> rawBytes;   // all parameter bytes

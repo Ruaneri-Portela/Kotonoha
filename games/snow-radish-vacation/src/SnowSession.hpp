@@ -1,7 +1,7 @@
 #pragma once
 
-#include <SnowRadish/SnowAssets.hpp>
 #include "SnowRadish/Game.hpp"
+#include <SnowRadish/SnowAssets.hpp>
 
 #include <Kotonoha/core/SDL.hpp>
 #include <Kotonoha/media/MediaPlayer.hpp>
@@ -38,7 +38,8 @@ public:
   enum class WindowClick { None, Consumed, ToggleAuto };
   using ChoiceKind = Game::ChoiceKind;
 
-  SnowSession(Kotonoha::Engine &engine, std::shared_ptr<Kotonoha::Providers::SnowAssets> assets);
+  SnowSession(Kotonoha::Engine &engine,
+              std::shared_ptr<Kotonoha::Providers::SnowAssets> assets);
   ~SnowSession();
   SnowSession(const SnowSession &) = delete;
   SnowSession &operator=(const SnowSession &) = delete;

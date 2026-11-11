@@ -52,7 +52,6 @@
 #include <thread>
 #if defined(_WIN32) && !defined(__ANDROID__)
 #define WIN32_LEAN_AND_MEAN
-#define NOMINMAX
 #include <windows.h>
 #endif
 

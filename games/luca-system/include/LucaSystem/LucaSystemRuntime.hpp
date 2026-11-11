@@ -1,7 +1,7 @@
 #pragma once
 
-#include <LucaSystem/LucaSystemAssets.hpp>
 #include <Kotonoha/core/Runtime.hpp>
+#include <LucaSystem/LucaSystemAssets.hpp>
 
 #include <cstdint>
 #include <filesystem>
@@ -24,7 +24,8 @@ namespace LucaSystem {
 // WIPE, IMAGEUPDATE and object animation opcodes.
 class LucaSystemRuntime : public Kotonoha::Runtime {
 public:
-  LucaSystemRuntime(std::shared_ptr<Kotonoha::Providers::LucaSystemAssets> assets);
+  LucaSystemRuntime(
+      std::shared_ptr<Kotonoha::Providers::LucaSystemAssets> assets);
   ~LucaSystemRuntime() override;
 
   void init(Kotonoha::Engine &engine) override;
@@ -55,7 +56,9 @@ public:
   Kotonoha::Translation::SourceTexts translationSources() const override;
   bool continuousTouch() const override { return true; }
 
-  const Kotonoha::Providers::LucaSystemAssets &assets() const { return *assets_; }
+  const Kotonoha::Providers::LucaSystemAssets &assets() const {
+    return *assets_;
+  }
 
   // Current dialogue state (filled by the script interpreter).
   std::string dialogueText_;

@@ -24,9 +24,6 @@
 
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
-#ifndef NOMINMAX
-#define NOMINMAX
-#endif
 #include <fcntl.h>
 #include <io.h>
 #include <windows.h>
@@ -834,7 +831,7 @@ void MCPServer::State::sendRaw(const std::string &line) {
     if (clientSocket == INVALID_SOCKET || clientSocket < 0)
       throw std::runtime_error("MCP socket client not connected");
 #ifdef _WIN32
-    int sent = send(clientSocket, line.data(), (int)line.size(), 0);
+    int sent = ::send(clientSocket, line.data(), (int)line.size(), 0);
     if (sent == SOCKET_ERROR)
       throw std::runtime_error("Cannot write MCP socket response");
 #else

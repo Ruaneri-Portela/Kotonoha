@@ -1,10 +1,10 @@
 #pragma once
-#include <RealLive/RealLiveAssets.hpp>
 #include <Kotonoha/components/ChoiceQuestionScene.hpp>
 #include <Kotonoha/components/ImageButtonBar.hpp>
 #include <Kotonoha/core/UI.hpp>
 #include <Kotonoha/media/upscaling/Upscaler.hpp>
 #include <RealLive/Images.hpp>
+#include <RealLive/RealLiveAssets.hpp>
 #include <iomanip>
 #include <sstream>
 
@@ -77,7 +77,8 @@ class RealLiveSelection final : public Kotonoha::ChoiceQuestionScene {
   }
 
 public:
-  explicit RealLiveSelection(Kotonoha::Engine &e, Kotonoha::Providers::RealLiveAssets &a)
+  explicit RealLiveSelection(Kotonoha::Engine &e,
+                             Kotonoha::Providers::RealLiveAssets &a)
       : ChoiceQuestionScene(e, "", {}, nullptr), assets(a) {}
   bool designSpace() const override { return false; }
   void configure(int number) {

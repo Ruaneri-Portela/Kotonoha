@@ -1,11 +1,11 @@
 #pragma once
-#include <SummerRadish/SummerAssets.hpp>
 #include <Kotonoha/components/ImageButtonBar.hpp>
 #include <Kotonoha/components/VNBacklog.hpp>
 #include <Kotonoha/core/UI.hpp>
 #include <Kotonoha/media/PcmPlayer.hpp>
 #include <Kotonoha/media/upscaling/Upscaler.hpp>
 #include <SummerRadish/Map.hpp>
+#include <SummerRadish/SummerAssets.hpp>
 #include <optional>
 
 namespace SummerRadish {

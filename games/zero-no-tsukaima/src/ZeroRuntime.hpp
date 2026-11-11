@@ -15,7 +15,8 @@ namespace ZeroNoTsukaima {
 // into the viewport.
 class ZeroRuntime : public Kotonoha::Runtime {
 public:
-  explicit ZeroRuntime(std::shared_ptr<Kotonoha::Providers::ZeroDiscAssets> disc);
+  explicit ZeroRuntime(
+      std::shared_ptr<Kotonoha::Providers::ZeroDiscAssets> disc);
   ~ZeroRuntime() override;
 
   // Releases session textures and audio; call before the Engine is destroyed.

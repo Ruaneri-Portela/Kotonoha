@@ -35,7 +35,8 @@ protected:
 };
 class AmagamiChoices final : public Kotonoha::ChoiceQuestionScene {
 public:
-  AmagamiChoices(Kotonoha::Engine &engine, Kotonoha::Providers::AmagamiAssets &assets)
+  AmagamiChoices(Kotonoha::Engine &engine,
+                 Kotonoha::Providers::AmagamiAssets &assets)
       : ChoiceQuestionScene(engine, "", {}, nullptr), assets_(assets) {}
   bool designSpace() const override { return false; }
 
@@ -94,7 +95,8 @@ private:
 // still separate presentation work, not inferred replacement route rules.
 class AmagamiEventMap final : public Kotonoha::ChoiceQuestionScene {
 public:
-  AmagamiEventMap(Kotonoha::Engine &engine, Kotonoha::Providers::AmagamiAssets &assets)
+  AmagamiEventMap(Kotonoha::Engine &engine,
+                  Kotonoha::Providers::AmagamiAssets &assets)
       : ChoiceQuestionScene(engine, "", {}, nullptr), assets_(assets) {}
   bool designSpace() const override { return false; }
   void setEvents(std::vector<Campaign::Event> available,
@@ -117,8 +119,9 @@ private:
 };
 class AmagamiRuntime final : public Kotonoha::Runtime {
 public:
-  explicit AmagamiRuntime(std::shared_ptr<Kotonoha::Providers::AmagamiAssets> assets,
-                          std::string start = {});
+  explicit AmagamiRuntime(
+      std::shared_ptr<Kotonoha::Providers::AmagamiAssets> assets,
+      std::string start = {});
   ~AmagamiRuntime() override;
   void shutdown();
   const Session *session() const { return session_.get(); }

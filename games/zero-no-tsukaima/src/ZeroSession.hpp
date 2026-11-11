@@ -1,9 +1,9 @@
 #pragma once
 
-#include <ZeroNoTsukaima/DiscAssetProvider.hpp>
 #include "Frontend.hpp"
 #include "Media.hpp"
 #include <Kotonoha/media/MediaPlayer.hpp>
+#include <ZeroNoTsukaima/DiscAssetProvider.hpp>
 
 #include <ZeroNoTsukaima/Game.hpp>
 
@@ -124,7 +124,9 @@ public:
   static constexpr float kMsgX = 8, kMsgY = 276;
 
   // ---- FrontendHost ----
-  SceneSource::Edition GameEdition() const override { return disc_->Source().GameEdition(); }
+  SceneSource::Edition GameEdition() const override {
+    return disc_->Source().GameEdition();
+  }
   ZeroNoTsukaima::Picture *Picture(const std::string &name) override;
   SDL_FPoint DrawText(SDL_Renderer *r, const std::string &text, float x,
                       float y, float size, SDL_Color color,

@@ -79,8 +79,8 @@ protected:
   virtual SurfacePtr loadFrameAsset(const std::string &, double) const;
   virtual AudioClip loadAudioAsset(const std::string &) const;
   virtual std::string decodeTextAsset(const std::string &id,
-                                     const std::vector<Uint8> &bytes,
-                                     const char *encoding) const;
+                                      const std::vector<Uint8> &bytes,
+                                      const char *encoding) const;
 
 public:
   bool contains(const std::string &id) const;
