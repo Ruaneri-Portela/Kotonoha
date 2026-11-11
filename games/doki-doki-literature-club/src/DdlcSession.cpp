@@ -416,7 +416,8 @@ struct Fading {
 
 class Host : public Backend {
 public:
-  Host(Kotonoha::Engine &engine, const Kotonoha::Providers::DdlcAssets &assets, TextEngine &text)
+  Host(Kotonoha::Engine &engine, const Kotonoha::Providers::DdlcAssets &assets,
+       TextEngine &text)
       : engine_(engine), assets_(assets), text_(text) {
     directory_ = userDirectory();
     seedCharacters(directory_, assets.source().dir(), &assets.source());
@@ -1032,7 +1033,8 @@ struct Game {
   SDL_Texture *maskTex = nullptr;
   int canvasW = 0, canvasH = 0, rtW = 0, rtH = 0, maskW = 0, maskH = 0;
 
-  Game(Kotonoha::Engine &engine, std::shared_ptr<Kotonoha::Providers::DdlcAssets> assets)
+  Game(Kotonoha::Engine &engine,
+       std::shared_ptr<Kotonoha::Providers::DdlcAssets> assets)
       : engine(engine), assets(std::move(assets)),
         script(this->assets->script()), host(engine, *this->assets, text) {
     text.assets = this->assets.get();
@@ -2906,12 +2908,14 @@ namespace Ddlc {
 
 struct GameSession::Impl {
   Game game;
-  Impl(Kotonoha::Engine &engine, std::shared_ptr<Kotonoha::Providers::DdlcAssets> assets)
+  Impl(Kotonoha::Engine &engine,
+       std::shared_ptr<Kotonoha::Providers::DdlcAssets> assets)
       : game(engine, std::move(assets)) {}
 };
 
-GameSession::GameSession(Kotonoha::Engine &engine,
-                         std::shared_ptr<Kotonoha::Providers::DdlcAssets> assets)
+GameSession::GameSession(
+    Kotonoha::Engine &engine,
+    std::shared_ptr<Kotonoha::Providers::DdlcAssets> assets)
     : impl_(std::make_unique<Impl>(engine, std::move(assets))) {}
 
 GameSession::~GameSession() = default;

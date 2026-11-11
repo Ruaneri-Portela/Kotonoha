@@ -1,7 +1,7 @@
-#include <RealLive/RealLiveAssets.hpp>
 #include <Kotonoha/core/DiscImage.hpp>
 #include <Kotonoha/media/MediaDecoder.hpp>
 #include <RealLive/Images.hpp>
+#include <RealLive/RealLiveAssets.hpp>
 #include <RealLive/Voice.hpp>
 #include <cstring>
 #include <stdexcept>

@@ -1,5 +1,5 @@
-#include <SchoolDays/SchoolDaysAssets.hpp>
 #include "SchoolDaysRuntime.hpp"
+#include <SchoolDays/SchoolDaysAssets.hpp>
 
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/routing/SchoolDaysKtrfSession.hpp>
@@ -236,8 +236,9 @@ struct Application {
   SchoolDays::Runtime runtime;
   std::unique_ptr<Kotonoha::Engine> engine;
 
-  Application(const std::shared_ptr<Kotonoha::Providers::SchoolDaysAssets> &assets,
-              const char *route, const fs::path &documents)
+  Application(
+      const std::shared_ptr<Kotonoha::Providers::SchoolDaysAssets> &assets,
+      const char *route, const fs::path &documents)
       : runtime(assets, route, documents) {
     runtime.SetState(Kotonoha::GameState::Menu);
     engine = std::make_unique<Kotonoha::Engine>(runtime, Options(assets));

@@ -1,4 +1,3 @@
-#include <SchoolDays/SchoolDaysAssets.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/FileSystem.hpp>
 #include <Kotonoha/core/UI.hpp>
@@ -7,6 +6,7 @@
 #include <Kotonoha/localization/Encoding.hpp>
 #include <Kotonoha/routing/SchoolDaysBackLogEngine.hpp>
 #include <Kotonoha/routing/SchoolDaysSubtitleTypography.hpp>
+#include <SchoolDays/SchoolDaysAssets.hpp>
 
 #include <SDL3_ttf/SDL_ttf.h>
 
@@ -23,8 +23,8 @@ SchoolDaysBackLogModel::Variant BackLogVariant() {
 
 } // namespace
 
-SchoolDaysBackLogEngine::SchoolDaysBackLogEngine(Engine &engine,
-                                                 Kotonoha::Providers::SchoolDaysAssets &assets)
+SchoolDaysBackLogEngine::SchoolDaysBackLogEngine(
+    Engine &engine, Kotonoha::Providers::SchoolDaysAssets &assets)
     : VNBacklog(engine), engine_(engine), assets_(assets) {}
 
 SchoolDaysBackLogEngine::~SchoolDaysBackLogEngine() { close(); }

@@ -2,9 +2,9 @@
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
 
-#include <SnowRadish/SnowAssets.hpp>
 #include "SnowLauncher.hpp"
 #include "SnowRuntime.hpp"
+#include <SnowRadish/SnowAssets.hpp>
 
 #include <Kotonoha/core/CommandLine.hpp>
 #include <Kotonoha/core/DiscImage.hpp>

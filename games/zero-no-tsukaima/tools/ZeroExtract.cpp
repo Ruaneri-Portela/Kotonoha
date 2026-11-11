@@ -48,7 +48,8 @@ void SavePng(const fs::path &path, Kotonoha::Ps2Image &img) {
 
 int main(int argc, char **argv) {
   if (argc < 3) {
-    std::fprintf(stderr, "usage: %s <disc.bin|iso> <outdir> [--png] [--archive NAME]\n",
+    std::fprintf(stderr,
+                 "usage: %s <disc.bin|iso> <outdir> [--png] [--archive NAME]\n",
                  argv[0]);
     return 2;
   }

@@ -86,14 +86,14 @@ ZeroDiscAssets::ZeroDiscAssets(const std::string &discPath)
     : ZeroDiscAssets(OpenSource(discPath), discPath) {}
 
 ZeroDiscAssets::ZeroDiscAssets(std::shared_ptr<SceneSource> source,
-                                     const std::string &discPath)
+                               const std::string &discPath)
     : Kotonoha::DiscImageAssetProvider(source->Disc()),
       source_(std::move(source)), path_(discPath) {}
 
 std::string ZeroDiscAssets::name() const { return "zero-no-tsukaima-disc"; }
 
 bool ZeroDiscAssets::Read(const std::string &id,
-                             std::vector<uint8_t> *out) const {
+                          std::vector<uint8_t> *out) const {
   std::string kind, key;
   int n = -1;
   if (!Split(id, &kind, &key))

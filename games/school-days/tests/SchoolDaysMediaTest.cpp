@@ -1,9 +1,9 @@
-#include <SchoolDays/SchoolDaysAssets.hpp>
 #include "SchoolDaysRuntime.hpp"
 #include <Kotonoha/componentes/TextInputDialog.hpp>
 #include <Kotonoha/componentes/VNSaveMenu.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/debug/DebugOverlay.hpp>
+#include <SchoolDays/SchoolDaysAssets.hpp>
 #include <cstring>
 #include <iostream>
 #include <stdexcept>
@@ -24,8 +24,9 @@ Options(const std::shared_ptr<Kotonoha::Providers::SchoolDaysAssets> &assets) {
 struct Application {
   SchoolDays::Runtime runtime;
   Kotonoha::Engine engine;
-  Application(const std::shared_ptr<Kotonoha::Providers::SchoolDaysAssets> &assets,
-              const char *route, const char *documents)
+  Application(
+      const std::shared_ptr<Kotonoha::Providers::SchoolDaysAssets> &assets,
+      const char *route, const char *documents)
       : runtime(assets, route, documents), engine(runtime, Options(assets)) {}
   ~Application() { runtime.shutdown(); }
 };
@@ -110,7 +111,8 @@ public:
 int main(int argc, char **argv) {
   try {
     Require(argc == 4, "Usage: SchoolDaysMediaTest route fixtures documents");
-    auto assets = std::make_shared<Kotonoha::Providers::SchoolDaysAssets>(argv[2]);
+    auto assets =
+        std::make_shared<Kotonoha::Providers::SchoolDaysAssets>(argv[2]);
     Application app(assets, argv[1], argv[3]);
     RetinaSubtitles(app.engine);
     app.runtime.SetState(Kotonoha::GameState::Gameplay);

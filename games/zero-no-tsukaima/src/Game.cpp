@@ -188,8 +188,8 @@ const ActionDef *FindAction(const std::string &key) {
 
 // ENVINIT "times".
 bool IsTime(const std::string &w) {
-  return w == "昼" || w == "夕" || w == "夕方" || w == "夜" || w == "夜闇" || w == "夕室内" ||
-         w == "夜室内" || w == "特殊背景" || w == "特殊背景２";
+  return w == "昼" || w == "夕" || w == "夕方" || w == "夜" || w == "夜闇" ||
+         w == "夕室内" || w == "夜室内" || w == "特殊背景" || w == "特殊背景２";
 }
 
 // Tag attributes that are parameters rather than names.
@@ -640,16 +640,19 @@ void Game::Execute(const SceneTag &tag) {
     WaitFor(ms);
   } else if (n == "concerto_sound") {
     if (attr("name") == "bgm") {
-      if (tag.Get("stop")) bgm_.clear();
-      if (tag.Get("play")) bgm_ = attr("play");
+      if (tag.Get("stop"))
+        bgm_.clear();
+      if (tag.Get("play"))
+        bgm_ = attr("play");
     } else if (tag.Get("play")) {
       cues_.push_back({Cue::Se, attr("play"), 0});
     } else if (tag.Get("stop")) {
       cues_.push_back({Cue::Se, "", 0});
     }
   } else if (n == "concerto_layer") {
-    auto it = std::find_if(concertoLayers_.begin(), concertoLayers_.end(),
-                           [&](const LayerState &l) { return l.name == attr("name"); });
+    auto it = std::find_if(
+        concertoLayers_.begin(), concertoLayers_.end(),
+        [&](const LayerState &l) { return l.name == attr("name"); });
     if (it == concertoLayers_.end()) {
       concertoLayers_.push_back({});
       it = concertoLayers_.end() - 1;
@@ -657,12 +660,16 @@ void Game::Execute(const SceneTag &tag) {
       it->visible = false;
     }
     auto &l = *it;
-    if (tag.Get("image")) l.file = attr("image");
-    if (tag.Get("level")) l.level = IntAttr(tag, "level", 0);
-    if (tag.Get("show")) l.visible = IntAttr(tag, "show", 0) != 0;
+    if (tag.Get("image"))
+      l.file = attr("image");
+    if (tag.Get("level"))
+      l.level = IntAttr(tag, "level", 0);
+    if (tag.Get("show"))
+      l.visible = IntAttr(tag, "show", 0) != 0;
     const auto animate = [&](Anim &a, const char *key, const char *from,
                              const char *duration, float scale) {
-      if (tag.Get(from)) a.Set(float(IntAttr(tag, from, 0)) * scale);
+      if (tag.Get(from))
+        a.Set(float(IntAttr(tag, from, 0)) * scale);
       if (tag.Get(key))
         a.To(clock_, float(IntAttr(tag, key, 0)) * scale,
              IntAttr(tag, duration, 0));
@@ -675,7 +682,8 @@ void Game::Execute(const SceneTag &tag) {
     }
     if (tag.Get("action")) {
       if (unsupportedCommands_.insert("layer action: " + attr("action")).second)
-        std::fprintf(stderr, "[zero] unsupported Concerto layer action: %s\n", attr("action").c_str());
+        std::fprintf(stderr, "[zero] unsupported Concerto layer action: %s\n",
+                     attr("action").c_str());
     }
     ++version_;
   } else if (n == "ch")
@@ -1069,10 +1077,12 @@ std::vector<Game::Element> Game::SceneAt(int64_t t) const {
   if (!concertoLayers_.empty()) {
     std::vector<const LayerState *> sorted;
     for (const auto &l : concertoLayers_)
-      if (l.visible && !l.file.empty()) sorted.push_back(&l);
-    std::stable_sort(sorted.begin(), sorted.end(), [](const auto *a, const auto *b) {
-      return a->level > b->level; // PS2: lower depth is nearer the viewer.
-    });
+      if (l.visible && !l.file.empty())
+        sorted.push_back(&l);
+    std::stable_sort(
+        sorted.begin(), sorted.end(), [](const auto *a, const auto *b) {
+          return a->level > b->level; // PS2: lower depth is nearer the viewer.
+        });
     for (const auto *l : sorted)
       place({Element::Layer, l->file}, l->p);
     return out;

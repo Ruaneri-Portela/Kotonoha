@@ -73,7 +73,8 @@ std::filesystem::path ResolveLooseOriginal(const std::filesystem::path &root,
 
 } // namespace
 
-SchoolDaysAssets::SchoolDaysAssets(std::filesystem::path root, const std::string &overlay)
+SchoolDaysAssets::SchoolDaysAssets(std::filesystem::path root,
+                                   const std::string &overlay)
     : directory(std::move(root)) {
   const std::string effectiveOverlay = overlay;
   if (!effectiveOverlay.empty() &&
@@ -113,7 +114,8 @@ SchoolDaysAssets::~SchoolDaysAssets() {
   Kotonoha::SetSchoolDaysAssetOverlay({});
 }
 
-std::string SchoolDaysAssets::resolve(const std::string &logical, bool image) const {
+std::string SchoolDaysAssets::resolve(const std::string &logical,
+                                      bool image) const {
   if (Kotonoha::IsSchoolDaysGpkUri(logical))
     return logical;
   auto found = image ? Kotonoha::ResolveSchoolDaysImageAsset(
@@ -163,14 +165,16 @@ std::string SchoolDaysAssets::overlayId(const std::string &id) const {
   return id;
 }
 
-Kotonoha::AudioClip SchoolDaysAssets::loadAudioAsset(const std::string &id) const {
+Kotonoha::AudioClip
+SchoolDaysAssets::loadAudioAsset(const std::string &id) const {
   // Runtime playback resolves logical ORS paths before handing them to the
   // media player. Debug/audio tools operate on the logical ID, so normalize it
   // through the exact same resolver before the base decoder reads GPK bytes.
   return Kotonoha::AssetProvider::loadAudioAsset(resolveOriginal(id));
 }
 
-std::string SchoolDaysAssets::resolveOriginal(const std::string &logical) const {
+std::string
+SchoolDaysAssets::resolveOriginal(const std::string &logical) const {
   if (Kotonoha::IsSchoolDaysGpkUri(logical))
     return logical;
 
@@ -234,11 +238,13 @@ std::vector<Uint8> SchoolDaysAssets::readAsset(const std::string &id) const {
   return bytes;
 }
 
-std::vector<Uint8> SchoolDaysAssets::readOriginalAsset(const std::string &id) const {
+std::vector<Uint8>
+SchoolDaysAssets::readOriginalAsset(const std::string &id) const {
   return readAsset(resolveOriginal(id));
 }
 
-std::vector<std::string> SchoolDaysAssets::listAsset(const std::string &prefix) const {
+std::vector<std::string>
+SchoolDaysAssets::listAsset(const std::string &prefix) const {
   std::vector<std::string> result;
 
   const auto appendVirtualTree = [&result](const std::string &root,
@@ -376,7 +382,7 @@ SchoolDaysAssets::openOriginalStream(const std::string &id) const {
 }
 
 bool SchoolDaysAssets::checkDirectory(const std::filesystem::path &root,
-                            std::string &info) {
+                                      std::string &info) {
   std::error_code ec;
   if (!std::filesystem::is_directory(root, ec)) {
     info = "School Days directory not found: " + root.string();

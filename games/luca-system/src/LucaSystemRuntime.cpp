@@ -22,12 +22,12 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstring>
 #include <filesystem>
 #include <memory>
 #include <sstream>
 #include <stdexcept>
 #include <string>
-#include <cstring>
 #include <unordered_map>
 #include <vector>
 
@@ -86,7 +86,7 @@ enum Opcode : uint8_t {
   OP_IFY = 32,
   OP_IFN = 33,
   OP_RETURN = 34,
-  OP_CALL = 31,   // GOSUB
+  OP_CALL = 31, // GOSUB
   OP_VARSTR = 26,
   OP_SET = 27,
   OP_ARFLAGSET = 45,
@@ -104,7 +104,7 @@ enum Opcode : uint8_t {
   OP_PRIORITY = 112,
   OP_FACE = 103,
   OP_EX = 135,
-  OP_TASK = 138,  // placeholder
+  OP_TASK = 138, // placeholder
 };
 
 class AirTextBox final : public Kotonoha::VNTextBox {
@@ -171,7 +171,8 @@ protected:
   }
 
 public:
-  AirTextBox(Kotonoha::Engine &engine, const Kotonoha::Providers::LucaSystemAssets &assets)
+  AirTextBox(Kotonoha::Engine &engine,
+             const Kotonoha::Providers::LucaSystemAssets &assets)
       : VNTextBox(engine, "", "", 30),
         frame_(DecodeCzImage(assets.read("MWIN1280_0"))),
         cursor_(DecodeCzImage(assets.read("MWIN_CURSOR"))) {}
@@ -206,7 +207,7 @@ struct LucaSystemRuntime::Impl {
   std::unordered_map<uint32_t, Kotonoha::TexturePtr> objectTextures;
   CzImage background;
   Kotonoha::TexturePtr backgroundTexture;
-  std::unordered_map<uint32_t, int32_t> numericVars;   // EQUN variables
+  std::unordered_map<uint32_t, int32_t> numericVars;    // EQUN variables
   std::unordered_map<uint32_t, std::string> stringVars; // EQU string variables
   std::unordered_map<uint32_t, bool> flags;             // ARFLAG
   std::vector<size_t> callStack;
@@ -225,7 +226,8 @@ struct LucaSystemRuntime::Impl {
   Kotonoha::PcmPlayer voice;
   Kotonoha::PcmPlayer se;
 
-  explicit Impl(LucaSystemRuntime &r, std::shared_ptr<Kotonoha::Providers::LucaSystemAssets> a)
+  explicit Impl(LucaSystemRuntime &r,
+                std::shared_ptr<Kotonoha::Providers::LucaSystemAssets> a)
       : runtime(r), assets(std::move(a)) {}
 
   std::vector<std::string> scenarioFiles() const {
@@ -277,8 +279,8 @@ struct LucaSystemRuntime::Impl {
       SDL_free(converted);
       voice.Play(engine->GetAudio().channel("Voice"), std::move(clip));
     } catch (const std::exception &e) {
-      SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
-                  "LucaSystem: voice %u: %s", id, e.what());
+      SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "LucaSystem: voice %u: %s", id,
+                  e.what());
     }
   }
 
@@ -301,8 +303,8 @@ struct LucaSystemRuntime::Impl {
       SDL_free(converted);
       bgm.Play(engine->GetAudio().channel("BGM"), std::move(clip));
     } catch (const std::exception &e) {
-      SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
-                  "LucaSystem: bgm %u: %s", id, e.what());
+      SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "LucaSystem: bgm %u: %s", id,
+                  e.what());
     }
   }
 
@@ -325,8 +327,8 @@ struct LucaSystemRuntime::Impl {
       SDL_free(converted);
       se.Play(engine->GetAudio().channel("Se"), std::move(clip));
     } catch (const std::exception &e) {
-      SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
-                  "LucaSystem: se %u: %s", id, e.what());
+      SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "LucaSystem: se %u: %s", id,
+                  e.what());
     }
   }
 
@@ -337,13 +339,12 @@ struct LucaSystemRuntime::Impl {
       objectImages[id] = DecodeCzImage(assets->readImageAsset(id));
       objectTextures[id].reset();
     } catch (const std::exception &e) {
-      SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
-                  "LucaSystem: image %u: %s", id, e.what());
+      SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "LucaSystem: image %u: %s", id,
+                  e.what());
     }
   }
 
-  void renderObject(Kotonoha::RendererRef renderer, uint32_t id,
-                    int x, int y) {
+  void renderObject(Kotonoha::RendererRef renderer, uint32_t id, int x, int y) {
     auto it = objectImages.find(id);
     if (it == objectImages.end())
       return;
@@ -607,8 +608,8 @@ struct LucaSystemRuntime::Impl {
         }
       }
     }
-    SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
-                "LucaSystem: label not found: %s", label.c_str());
+    SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "LucaSystem: label not found: %s",
+                label.c_str());
   }
 
   void advanceDialogue() {
@@ -641,7 +642,8 @@ struct LucaSystemRuntime::Impl {
   std::vector<ObjectPlacement> objectPlacements_;
 };
 
-LucaSystemRuntime::LucaSystemRuntime(std::shared_ptr<Kotonoha::Providers::LucaSystemAssets> assets)
+LucaSystemRuntime::LucaSystemRuntime(
+    std::shared_ptr<Kotonoha::Providers::LucaSystemAssets> assets)
     : Runtime("LucaSystem", "0.1.0", "me.hirameki.kotonoha.luca_system"),
       impl_(std::make_unique<Impl>(*this, std::move(assets))),
       assets_(impl_->assets) {}
@@ -1034,13 +1036,12 @@ std::string LucaSystemRuntime::debugNode() const {
   auto &impl = *impl_;
   return impl.currentScenario.empty()
              ? std::string()
-             : ("luca_system | scenario " + impl.currentScenario +
-                " @" + std::to_string(impl.instructionIndex));
+             : ("luca_system | scenario " + impl.currentScenario + " @" +
+                std::to_string(impl.instructionIndex));
 }
 
 void LucaSystemRuntime::debugRestartScene() {
-  if (impl_->currentScenario.empty() ||
-      !startScenario(impl_->currentScenario))
+  if (impl_->currentScenario.empty() || !startScenario(impl_->currentScenario))
     throw std::runtime_error("There is no active LucaSystem scene to restart");
 }
 

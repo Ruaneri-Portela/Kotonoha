@@ -1,4 +1,4 @@
-#include  <Kotonoha/media/FFmpegSupport.hpp>
+#include <Kotonoha/media/FFmpegSupport.hpp>
 #include <Kotonoha/media/MediaDecoder.hpp>
 
 extern "C" {

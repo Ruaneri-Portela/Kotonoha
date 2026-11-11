@@ -1,5 +1,5 @@
-#include <SchoolDays/SchoolDaysAssets.hpp>
 #include "SchoolDaysRuntime.hpp"
+#include <SchoolDays/SchoolDaysAssets.hpp>
 
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/debug/DebugOverlay.hpp>
@@ -74,9 +74,10 @@ struct Application {
   SchoolDays::Runtime runtime;
   Kotonoha::Engine engine;
 
-  Application(const std::shared_ptr<Kotonoha::Providers::SchoolDaysAssets> &assets,
-              const char *route, const fs::path &documents,
-              bool persistPhysicalSettings = false)
+  Application(
+      const std::shared_ptr<Kotonoha::Providers::SchoolDaysAssets> &assets,
+      const char *route, const fs::path &documents,
+      bool persistPhysicalSettings = false)
       : runtime(assets, route, documents), engine(runtime, [&] {
           auto options = Options(assets);
           if (persistPhysicalSettings) {
@@ -180,7 +181,8 @@ int main(int argc, char **argv) {
   using Kind = Kotonoha::SchoolDaysConfigMenuModel::ActionKind;
 
   TemporaryDirectory temporary;
-  auto assets = std::make_shared<Kotonoha::Providers::SchoolDaysAssets>(argv[2]);
+  auto assets =
+      std::make_shared<Kotonoha::Providers::SchoolDaysAssets>(argv[2]);
   std::string error;
   std::vector<uint8_t> encoded;
   Check(Storage::EncodeDocument(kLogical, &encoded, &error), error);

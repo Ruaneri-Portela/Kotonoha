@@ -1,5 +1,5 @@
-#include <ZeroNoTsukaima/Scene.hpp>
 #include <Kotonoha/localization/Encoding.hpp>
+#include <ZeroNoTsukaima/Scene.hpp>
 
 #include <cctype>
 #include <cstdio>
@@ -45,11 +45,20 @@ Tokens Lex(const std::string &s) {
             throw std::runtime_error("unterminated escape");
           c = s[p++];
           switch (c) {
-          case 'n': c = '\n'; break;
-          case 'r': c = '\r'; break;
-          case 't': c = '\t'; break;
-          case '\\': case '"': break;
-          default: throw std::runtime_error("unsupported string escape");
+          case 'n':
+            c = '\n';
+            break;
+          case 'r':
+            c = '\r';
+            break;
+          case 't':
+            c = '\t';
+            break;
+          case '\\':
+          case '"':
+            break;
+          default:
+            throw std::runtime_error("unsupported string escape");
           }
         }
         value += c;
@@ -66,8 +75,8 @@ Tokens Lex(const std::string &s) {
       out.push_back({s.substr(start, p - start), false});
     } else {
       std::string op = s.substr(p, 2);
-      if (op == "==" || op == "!=" || op == "<=" || op == ">=" ||
-          op == "&&" || op == "||" || op == "+=" || op == "-=")
+      if (op == "==" || op == "!=" || op == "<=" || op == ">=" || op == "&&" ||
+          op == "||" || op == "+=" || op == "-=")
         p += 2;
       else
         op = s.substr(p++, 1);
@@ -139,7 +148,8 @@ struct Parser {
   }
   void Need(const std::string &s) {
     if (!Eat(s))
-      throw std::runtime_error("expected " + s + " at token " + std::to_string(p));
+      throw std::runtime_error("expected " + s + " at token " +
+                               std::to_string(p));
   }
   Tokens Group() {
     Need("(");
@@ -214,8 +224,7 @@ struct Parser {
       if (v == "(" || v == "{" || v == "[")
         brackets.push_back(v);
       else if (v == ")" || v == "}" || v == "]") {
-        if (brackets.empty() ||
-            (v == ")" && brackets.back() != "(") ||
+        if (brackets.empty() || (v == ")" && brackets.back() != "(") ||
             (v == "}" && brackets.back() != "{") ||
             (v == "]" && brackets.back() != "["))
           throw std::runtime_error("mismatched argument brackets");
@@ -253,9 +262,9 @@ struct Parser {
         operand = false;
       } else if (s == ")" && depth > 0) {
         --depth;
-      } else if (s == "+" || s == "-" || s == "*" || s == "/" ||
-                 s == "%" || s == "==" || s == "!=" || s == "<" ||
-                 s == ">" || s == "<=" || s == ">=" || s == "&&" || s == "||") {
+      } else if (s == "+" || s == "-" || s == "*" || s == "/" || s == "%" ||
+                 s == "==" || s == "!=" || s == "<" || s == ">" || s == "<=" ||
+                 s == ">=" || s == "&&" || s == "||") {
         operand = true;
       } else {
         throw std::runtime_error("unsupported expression operator");
@@ -297,7 +306,8 @@ struct Parser {
       count(2);
       const auto target = text(0);
       const Tokens &table = a[1];
-      if (table.size() < 2 || table.front().text != "{" || table.back().text != "}")
+      if (table.size() < 2 || table.front().text != "{" ||
+          table.back().text != "}")
         throw std::runtime_error("expected set property table");
       std::map<std::string, std::string> props{{"name", target}};
       size_t i = 1;
@@ -309,10 +319,14 @@ struct Parser {
         int depth = 0;
         while (i + 1 < table.size()) {
           if (!table[i].string) {
-            if (table[i].text == "(") ++depth;
-            if (table[i].text == ")") --depth;
-            if (depth < 0) throw std::runtime_error("unbalanced property expression");
-            if (table[i].text == "," && depth == 0) break;
+            if (table[i].text == "(")
+              ++depth;
+            if (table[i].text == ")")
+              --depth;
+            if (depth < 0)
+              throw std::runtime_error("unbalanced property expression");
+            if (table[i].text == "," && depth == 0)
+              break;
           }
           ++i;
         }
@@ -325,10 +339,12 @@ struct Parser {
           props[key] = DiscId(value, 0x03000000);
         else
           props[key] = Value(value);
-        if (i + 1 < table.size()) ++i;
+        if (i + 1 < table.size())
+          ++i;
       }
-      Add(target == "bgm" || target.compare(0, 2, "se") == 0
-              ? "concerto_sound" : "concerto_layer", std::move(props));
+      Add(target == "bgm" || target.compare(0, 2, "se") == 0 ? "concerto_sound"
+                                                             : "concerto_layer",
+          std::move(props));
     } else if (name == "reset" || name == "back") {
       count(0);
       Add("concerto_" + name);
@@ -376,8 +392,10 @@ struct Parser {
       count(4);
       const auto expression = text(2);
       ValidateAssignment(expression);
-      Add("seladd", {{"text", text(0)}, {"storage", SceneName(a[1], true)},
-                     {"exp", expression}, {"if", Condition(a[3])}});
+      Add("seladd", {{"text", text(0)},
+                     {"storage", SceneName(a[1], true)},
+                     {"exp", expression},
+                     {"if", Condition(a[3])}});
     } else if (name == "select" || name == "msgon" || name == "msgoff") {
       count(0);
       Add(name);

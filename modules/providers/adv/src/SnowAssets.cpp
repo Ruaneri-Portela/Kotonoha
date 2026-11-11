@@ -157,11 +157,11 @@ bool SnowAssets::containsAsset(const std::string &id) const {
     const int frame = std::atoi(key.c_str() + hash + 1);
     return frame >= 0 && size_t(frame) < info.frames.size();
   }
-  return pack->index.count(key) != 0 ||
-         tryAltGraphicExt(pack, key);
+  return pack->index.count(key) != 0 || tryAltGraphicExt(pack, key);
 }
 
-bool SnowAssets::tryAltGraphicExt(const Pack *pack, const std::string &key) const {
+bool SnowAssets::tryAltGraphicExt(const Pack *pack,
+                                  const std::string &key) const {
   // Pure Mail uses .CRGB where Snow Radish uses .evd/.img: try the alternate
   // extension before giving up.
   const std::string lower = SnowAssets::Lower(key);
@@ -203,8 +203,9 @@ std::vector<uint8_t> SnowAssets::Extract(const Pack &pack,
   return out;
 }
 
-std::vector<uint8_t> SnowAssets::readGraphicWithAltExt(const Pack *pack,
-                                                       const std::string &key) const {
+std::vector<uint8_t>
+SnowAssets::readGraphicWithAltExt(const Pack *pack,
+                                  const std::string &key) const {
   const std::string lower = SnowAssets::Lower(key);
   const auto dot = lower.rfind('.');
   if (pack != &graphic_ || dot == std::string::npos)

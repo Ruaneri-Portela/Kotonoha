@@ -101,7 +101,8 @@ public:
     if (!concealed)
       VNTextBox::render(r, scale);
   }
-  SummerText(Engine &e, Kotonoha::Providers::SummerAssets &a) : VNTextBox(e, "", "", 40), assets(a) {
+  SummerText(Engine &e, Kotonoha::Providers::SummerAssets &a)
+      : VNTextBox(e, "", "", 40), assets(a) {
     hide();
     if (auto cmap = assets.tryReadAsset("GRAPHIC/FRAME/MESSFRAME.CMAP"))
       controlMap = std::make_unique<ClickMap>(std::move(*cmap));
@@ -536,13 +537,15 @@ struct SummerRuntime::Impl {
   std::string titleChipTexture;       // TEMPLATENAME or fallback
   std::vector<TitleChip> titleChips;
   std::set<std::string> warned;
-  explicit Impl(SummerRuntime &r, std::shared_ptr<Kotonoha::Providers::SummerAssets> a)
+  explicit Impl(SummerRuntime &r,
+                std::shared_ptr<Kotonoha::Providers::SummerAssets> a)
       : runtime(r), assets(std::move(a)) {
     for (auto &id : assets->list("SCRIPT/")) {
       auto bytes = assets->read(id);
       vm.add(stem(id.substr(7)), std::string(bytes.begin(), bytes.end()));
     }
-    std::istringstream stream(assets->loadTextUtf8("INI/CONFIG.INI", "UTF-16LE"));
+    std::istringstream stream(
+        assets->loadTextUtf8("INI/CONFIG.INI", "UTF-16LE"));
     std::string line;
     speakers.resize(32);
     while (std::getline(stream, line)) {
@@ -1514,7 +1517,8 @@ struct SummerRuntime::Impl {
     return false;
   }
 };
-SummerRuntime::SummerRuntime(std::shared_ptr<Kotonoha::Providers::SummerAssets> a)
+SummerRuntime::SummerRuntime(
+    std::shared_ptr<Kotonoha::Providers::SummerAssets> a)
     : Runtime("Summer Radish Vacation!!", "0.1.0",
               "me.hirameki.kotonoha.summerradishvacation"),
       impl(std::make_unique<Impl>(*this, std::move(a))) {}

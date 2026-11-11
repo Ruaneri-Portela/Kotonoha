@@ -66,7 +66,8 @@ constexpr Uint64 StatusMilliseconds = 6000;
 constexpr double SchoolDaysMediaCacheSeconds = 2.0;
 
 Kotonoha::SchoolDaysBgmResources
-BgmResourcesForPlayback(const Kotonoha::Providers::SchoolDaysAssets &assets, const std::string &path) {
+BgmResourcesForPlayback(const Kotonoha::Providers::SchoolDaysAssets &assets,
+                        const std::string &path) {
   auto resources = Kotonoha::SchoolDaysBgmResources::Normal(path);
   try {
     (void)assets.resolve(resources.intro);
@@ -724,7 +725,8 @@ public:
     std::vector<std::pair<std::string, Kotonoha::SurfacePtr>>
         backgroundAbcSurfaces;
   };
-  explicit AbcAnalysisWorker(Kotonoha::Providers::SchoolDaysAssets &source, uint64_t generation)
+  explicit AbcAnalysisWorker(Kotonoha::Providers::SchoolDaysAssets &source,
+                             uint64_t generation)
       : assets(source), currentGeneration(generation),
         worker([this] { run(); }) {}
   ~AbcAnalysisWorker() {
@@ -934,8 +936,8 @@ private:
   std::thread worker;
 };
 
-Runtime::Runtime(std::shared_ptr<Kotonoha::Providers::SchoolDaysAssets> source, std::string route,
-                 std::filesystem::path saveDirectory)
+Runtime::Runtime(std::shared_ptr<Kotonoha::Providers::SchoolDaysAssets> source,
+                 std::string route, std::filesystem::path saveDirectory)
     : Kotonoha::Runtime("School Days HQ", "0.1.0",
                         "me.hirameki.kotonoha.schooldays"),
       assets(std::move(source)), systemUi(assets.get()),

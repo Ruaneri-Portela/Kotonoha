@@ -57,11 +57,13 @@ struct KirikiriRuntime::Impl {
   Kotonoha::PcmPlayer bgm;
   Kotonoha::PcmPlayer sound;
 
-  Impl(KirikiriRuntime &r, std::shared_ptr<Kotonoha::Providers::KirikiriAssets> a)
+  Impl(KirikiriRuntime &r,
+       std::shared_ptr<Kotonoha::Providers::KirikiriAssets> a)
       : runtime(r), assets(std::move(a)) {}
 };
 
-KirikiriRuntime::KirikiriRuntime(std::shared_ptr<Kotonoha::Providers::KirikiriAssets> assets)
+KirikiriRuntime::KirikiriRuntime(
+    std::shared_ptr<Kotonoha::Providers::KirikiriAssets> assets)
     : Runtime("Kirikiri", "0.1.0", "me.hirameki.kotonoha.kirikiri"),
       impl_(std::make_unique<Impl>(*this, std::move(assets))) {}
 

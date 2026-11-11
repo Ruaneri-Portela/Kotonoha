@@ -108,15 +108,15 @@ std::string AssetProvider::localPath(const std::string &id) const {
   return file.empty() ? localPathAsset(id) : file;
 }
 std::string AssetProvider::loadTextUtf8(const std::string &id,
-                                       const char *encoding,
-                                       AssetSource source) const {
+                                        const char *encoding,
+                                        AssetSource source) const {
   if (!encoding || !*encoding)
     throw std::invalid_argument("Text encoding must not be empty");
   return decodeTextAsset(id, read(id, source), encoding);
 }
 std::string AssetProvider::decodeTextAsset(const std::string &,
-                                         const std::vector<Uint8> &bytes,
-                                         const char *encoding) const {
+                                           const std::vector<Uint8> &bytes,
+                                           const char *encoding) const {
   if (bytes.empty())
     return {};
   size_t offset = 0;
@@ -142,7 +142,8 @@ std::string AssetProvider::decodeTextAsset(const std::string &,
   }
   return ConvertEncoding(
       std::string_view(reinterpret_cast<const char *>(bytes.data() + offset),
-                       bytes.size() - offset), encoding);
+                       bytes.size() - offset),
+      encoding);
 }
 std::string AssetProvider::localPath(const std::string &id,
                                      AssetSource source) const {

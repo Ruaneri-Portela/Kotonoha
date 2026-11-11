@@ -1,9 +1,9 @@
 // Zero no Tsukaima on the Kotonoha engine, against the user's disc image:
 // the disc AssetProvider and the polymorphic components through their engine
 // base classes (title -> story -> menus -> choice -> save / load).
-#include <ZeroNoTsukaima/DiscAssetProvider.hpp>
 #include "ZeroLauncher.hpp"
 #include "ZeroRuntime.hpp"
+#include <ZeroNoTsukaima/DiscAssetProvider.hpp>
 
 #include <Kotonoha/componentes/ChoiceQuestionScene.hpp>
 #include <Kotonoha/componentes/GameMenu.hpp>

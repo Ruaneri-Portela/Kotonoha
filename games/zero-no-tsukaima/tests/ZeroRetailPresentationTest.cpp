@@ -7,11 +7,13 @@
 
 using namespace ZeroNoTsukaima;
 static void Require(bool ok, const std::string &why) {
-  if (!ok) throw std::runtime_error(why);
+  if (!ok)
+    throw std::runtime_error(why);
 }
 
 int main(int argc, char **argv) {
-  if (argc != 2) return 2;
+  if (argc != 2)
+    return 2;
   try {
     auto disc = std::make_shared<Kotonoha::Providers::ZeroDiscAssets>(argv[1]);
     ZeroRuntime runtime(disc);
@@ -23,15 +25,20 @@ int main(int argc, char **argv) {
       ~Shutdown() { runtime.Shutdown(); }
     } shutdown{runtime};
     ZeroSession session(engine, disc);
-    const bool concerto = session.GameEdition() == SceneSource::Edition::Concerto;
+    const bool concerto =
+        session.GameEdition() == SceneSource::Edition::Concerto;
     const std::string edition = concerto ? "concerto" : "symphony";
     auto *renderer = &engine.GetRenderer();
     SDL_Texture *target = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA32,
                                             SDL_TEXTUREACCESS_TARGET, 640, 448);
     Require(target != nullptr, SDL_GetError());
     struct Target {
-      SDL_Renderer *r; SDL_Texture *t;
-      ~Target() { SDL_SetRenderTarget(r, nullptr); SDL_DestroyTexture(t); }
+      SDL_Renderer *r;
+      SDL_Texture *t;
+      ~Target() {
+        SDL_SetRenderTarget(r, nullptr);
+        SDL_DestroyTexture(t);
+      }
     } targetGuard{renderer, target};
     SDL_SetRenderTarget(renderer, target);
     auto capture = [&](const char *name, const std::function<void()> &draw) {
@@ -40,25 +47,34 @@ int main(int argc, char **argv) {
       draw();
       Kotonoha::SurfacePtr raw{SDL_RenderReadPixels(renderer, nullptr)};
       Require(raw != nullptr, SDL_GetError());
-      Kotonoha::SurfacePtr pixels{SDL_ConvertSurface(raw.get(), SDL_PIXELFORMAT_RGBA32)};
+      Kotonoha::SurfacePtr pixels{
+          SDL_ConvertSurface(raw.get(), SDL_PIXELFORMAT_RGBA32)};
       Require(pixels != nullptr, SDL_GetError());
       size_t colored = 0;
-      // Gameplay checks only the image area, not a text panel masking a black scene.
+      // Gameplay checks only the image area, not a text panel masking a black
+      // scene.
       for (int y = 0; y < 270; ++y) {
-        const auto *row = static_cast<const uint8_t *>(pixels->pixels) + y * pixels->pitch;
+        const auto *row =
+            static_cast<const uint8_t *>(pixels->pixels) + y * pixels->pitch;
         for (int x = 0; x < 640; ++x)
           if (row[x * 4] > 20 || row[x * 4 + 1] > 20 || row[x * 4 + 2] > 20)
             ++colored;
       }
-      Require(colored > 15000, std::string(name) + " renders a nonblank image area");
+      Require(colored > 15000,
+              std::string(name) + " renders a nonblank image area");
       if (const char *dir = SDL_getenv("ZERO_CAPTURE_DIR")) {
         std::filesystem::create_directories(dir);
         Require(SDL_SavePNG(pixels.get(), (std::filesystem::path(dir) /
-                    (edition + "-" + name + ".png")).string().c_str()), SDL_GetError());
+                                           (edition + "-" + name + ".png"))
+                                              .string()
+                                              .c_str()),
+                SDL_GetError());
       }
-      std::cout << edition << " " << name << ": " << colored << " visible pixels\n";
+      std::cout << edition << " " << name << ": " << colored
+                << " visible pixels\n";
     };
-    Require(session.ScenePicture("MMV_LOGO") != nullptr, "retail boot logo resolves");
+    Require(session.ScenePicture("MMV_LOGO") != nullptr,
+            "retail boot logo resolves");
     capture("logo", [&] {
       const SDL_FRect screen{0, 0, 640, 448};
       session.ScenePicture("MMV_LOGO")->Draw(renderer, nullptr, &screen);
@@ -81,7 +97,8 @@ int main(int argc, char **argv) {
     enter.type = SDL_EVENT_KEY_DOWN;
     enter.key.key = SDLK_RETURN;
     enter.key.down = true;
-    frontend.Event(enter); // Reveal the entire title without waiting for its animation.
+    frontend.Event(
+        enter); // Reveal the entire title without waiting for its animation.
     capture("title", [&] { frontend.Draw(renderer); });
     frontend.Event(enter);
     SDL_Delay(550); // End the real title -> menu crossfade.
@@ -89,7 +106,8 @@ int main(int argc, char **argv) {
     if (!concerto) {
       for (const char *name : {"NEW", "LOAD", "OPTI", "GALL", "SCEE", "SOUND"})
         for (const char *state : {"ON", "OFF"})
-          Require(session.NormalPicture(std::string("GAMEMODE_GAME_") + name + "_" + state),
+          Require(session.NormalPicture(std::string("GAMEMODE_GAME_") + name +
+                                        "_" + state),
                   std::string("retail button ") + name + "_" + state);
     }
     capture("menu", [&] { frontend.Draw(renderer); });
@@ -102,12 +120,17 @@ int main(int argc, char **argv) {
     Require(!session.Story()->Scene().empty(), "story has image layers");
     for (const auto &layer : session.Story()->Scene())
       std::cout << edition << " layer " << int(layer.kind) << " " << layer.image
-                << " at " << layer.x << "," << layer.y << " alpha=" << layer.alpha << '\n';
+                << " at " << layer.x << "," << layer.y
+                << " alpha=" << layer.alpha << '\n';
     if (!concerto) {
-      Require(session.Story()->Stage() == "ルイズの部屋 昼", "retail background tag executed");
-      const int stage = disc->Source().Catalog().ResolveStage(session.Story()->Stage());
-      Require(stage == disc->Source().ScenedatIndex("BGA01A"), "background uses the authoritative SCENEDAT table");
-      Require(stage >= 0 && session.SceneIndexPicture(stage), "background texture resolves");
+      Require(session.Story()->Stage() == "ルイズの部屋 昼",
+              "retail background tag executed");
+      const int stage =
+          disc->Source().Catalog().ResolveStage(session.Story()->Stage());
+      Require(stage == disc->Source().ScenedatIndex("BGA01A"),
+              "background uses the authoritative SCENEDAT table");
+      Require(stage >= 0 && session.SceneIndexPicture(stage),
+              "background texture resolves");
       capture("background", [&] {
         const SDL_FRect screen{0, 0, 640, 448};
         session.SceneIndexPicture(stage)->Draw(renderer, nullptr, &screen);

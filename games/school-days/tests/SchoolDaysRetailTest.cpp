@@ -1,7 +1,7 @@
 // Validate actual user-supplied archives; never writes the installation.
-#include <SchoolDays/SchoolDaysAssets.hpp>
 #include <Kotonoha/SchoolDaysGpkArchive.hpp>
 #include <Kotonoha/parsers/Documents.hpp>
+#include <SchoolDays/SchoolDaysAssets.hpp>
 #include <algorithm>
 #include <filesystem>
 #include <iostream>

@@ -42,8 +42,8 @@ struct App {
 
   void start(const std::string &directory) {
     auto assets = std::shared_ptr<Kotonoha::Providers::LucaSystemAssets>(
-        new Kotonoha::Providers::LucaSystemAssets(directory,
-                                         options.assetOverlayDirectory()));
+        new Kotonoha::Providers::LucaSystemAssets(
+            directory, options.assetOverlayDirectory()));
     game = std::make_unique<Game>(std::move(assets), std::move(options));
   }
 };

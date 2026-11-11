@@ -98,8 +98,9 @@ float Decel(float t) { return 1 - (1 - t) * (1 - t); }
 
 } // namespace
 
-ZeroSession::ZeroSession(Kotonoha::Engine &engine,
-                         std::shared_ptr<Kotonoha::Providers::ZeroDiscAssets> disc)
+ZeroSession::ZeroSession(
+    Kotonoha::Engine &engine,
+    std::shared_ptr<Kotonoha::Providers::ZeroDiscAssets> disc)
     : engine_(engine), disc_(std::move(disc)), frontend_(*this),
       voiceRate_(RateFromEnv("ZERO_VOICE_RATE", 22050)),
       bgmRate_(RateFromEnv("ZERO_BGM_RATE", 44100)),
@@ -133,7 +134,8 @@ ZeroSession::ZeroSession(Kotonoha::Engine &engine,
     const std::string fallback = FindFont();
     if (!fallback.empty()) {
       if (TTF_Font *cjk = TTF_OpenFont(fallback.c_str(), 24)) {
-        if (font_) TTF_CloseFont(font_);
+        if (font_)
+          TTF_CloseFont(font_);
         font_ = cjk;
       }
     }
@@ -172,14 +174,14 @@ bool ZeroSession::ReadAsset(const std::string &id,
   auto &assets = engine_.GetAssets();
   if (!assets.contains(id)) {
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
-                 "[zero] audio asset not contained: %s", id.c_str());
+                "[zero] audio asset not contained: %s", id.c_str());
     return false;
   }
   try {
     *out = assets.read(id);
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
-                 "[zero] audio asset read: %s (%zu bytes)", id.c_str(),
-                 out->size());
+                "[zero] audio asset read: %s (%zu bytes)", id.c_str(),
+                out->size());
     return true;
   } catch (const std::exception &e) {
     SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "[zero] %s", e.what());
@@ -263,8 +265,8 @@ bool ZeroSession::PlayStream(PcmPlayer &out, const char *channel,
   } else {
     clip.samples = DecodeVag(raw.data(), raw.size());
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
-                 "[zero] %s: decoded %zu samples from %zu bytes", channel,
-                 clip.samples.size(), raw.size());
+                "[zero] %s: decoded %zu samples from %zu bytes", channel,
+                clip.samples.size(), raw.size());
   }
   if (clip.samples.size() < 256) {
     SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
@@ -276,7 +278,8 @@ bool ZeroSession::PlayStream(PcmPlayer &out, const char *channel,
   clip.rate = rate;
   clip.loop = loop;
   SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
-              "[zero] PlayStream calling PcmPlayer::Play on %s rate=%d loop=%d samples=%zu",
+              "[zero] PlayStream calling PcmPlayer::Play on %s rate=%d loop=%d "
+              "samples=%zu",
               channel, rate, loop ? 1 : 0, samples);
   if (!out.Play(engine_.GetAudio().channel(channel), std::move(clip))) {
     SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
@@ -318,8 +321,7 @@ void ZeroSession::PlayBgm(const std::string &name) {
                   "[zero] bgm %s: PlayStream failed", name.c_str());
   } else {
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
-                "[zero] bgm %s: ReadAsset failed or empty name",
-                name.c_str());
+                "[zero] bgm %s: ReadAsset failed or empty name", name.c_str());
   }
 }
 
@@ -524,7 +526,7 @@ bool ZeroSession::Start() {
   const std::string script = replay_ != Frontend::Replay::None
                                  ? frontend_.Scene() + ".KS"
                              : dev && *dev ? std::string(dev)
-                                            : disc_->Source().StartupScene();
+                                           : disc_->Source().StartupScene();
   frontend_.Leave();
   movie_.reset();
   const SceneSource &source = disc_->Source();
@@ -1035,8 +1037,8 @@ void ZeroSession::DrawElements(SDL_Renderer *r,
       Fill(r, image == "white" ? 255 : 0, e.alpha);
       continue;
     }
-    DrawPicture(r, index >= 0 ? SceneIndexPicture(index) : Picture(image),
-                e.x, e.y, e.alpha);
+    DrawPicture(r, index >= 0 ? SceneIndexPicture(index) : Picture(image), e.x,
+                e.y, e.alpha);
   }
 }
 
