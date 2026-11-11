@@ -2,9 +2,9 @@
 // directory: the AssetProvider and the polymorphic components through their
 // engine base classes (logo -> title -> story -> menus -> choice -> save /
 // load).
-#include <SnowRadish/SnowAssets.hpp>
 #include "SnowLauncher.hpp"
 #include "SnowRuntime.hpp"
+#include <SnowRadish/SnowAssets.hpp>
 
 #include <Kotonoha/componentes/ChoiceQuestionScene.hpp>
 #include <Kotonoha/componentes/GameMenu.hpp>

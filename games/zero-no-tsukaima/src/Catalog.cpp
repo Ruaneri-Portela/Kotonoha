@@ -101,7 +101,8 @@ bool ImageCatalog::Build(const std::vector<uint8_t> &systemEnv,
   if (stages && stages->kind == NutValue::Table) {
     for (const auto &[name, value] : stages->fields) {
       if (value && value->kind == NutValue::Table) {
-        if (const auto *image = value->Get("image"); image && image->kind == NutValue::String)
+        if (const auto *image = value->Get("image");
+            image && image->kind == NutValue::String)
           addStage(name, image->text);
       }
       if (value && value->kind == NutValue::String)
@@ -109,8 +110,10 @@ bool ImageCatalog::Build(const std::vector<uint8_t> &systemEnv,
     }
   } else {
     auto begin = std::find(env.begin(), env.end(), "stages");
-    if (begin == env.end()) return false;
-    for (auto it = begin + 1; it + 1 < env.end() && *it != "charDispTrans"; it += 2)
+    if (begin == env.end())
+      return false;
+    for (auto it = begin + 1; it + 1 < env.end() && *it != "charDispTrans";
+         it += 2)
       addStage(*it, *(it + 1));
   }
   int next = 0;
@@ -252,7 +255,8 @@ void ImageCatalog::BuildCharacters(const std::vector<uint8_t> &systemEnv,
 
 int ImageCatalog::ResolveSprite(const std::string &image) const {
   std::string key = image;
-  std::transform(key.begin(), key.end(), key.begin(), [](unsigned char c) { return char(std::toupper(c)); });
+  std::transform(key.begin(), key.end(), key.begin(),
+                 [](unsigned char c) { return char(std::toupper(c)); });
   if (!archiveNames_.empty()) {
     auto it = archiveNames_.find(key);
     return it == archiveNames_.end() ? -1 : it->second;
@@ -286,7 +290,8 @@ int ImageCatalog::ResolveStage(const std::string &stage) const {
   if (!found)
     return -1;
   if (!archiveNames_.empty()) {
-    const std::string file = found->base + (found->timed ? std::string(1, char('A' + offset)) : "");
+    const std::string file =
+        found->base + (found->timed ? std::string(1, char('A' + offset)) : "");
     auto it = archiveNames_.find(file);
     if (it == archiveNames_.end() && !found->timed)
       it = archiveNames_.find(file + "A");
@@ -321,9 +326,11 @@ std::string ImageCatalog::SpecialStage(const std::string &stage) const {
 int ImageCatalog::ResolveEvent(const std::string &name) const {
   if (!archiveNames_.empty()) {
     std::string key = name;
-    std::transform(key.begin(), key.end(), key.begin(), [](unsigned char c) { return char(std::toupper(c)); });
+    std::transform(key.begin(), key.end(), key.begin(),
+                   [](unsigned char c) { return char(std::toupper(c)); });
     auto it = archiveNames_.find(key);
-    if (it == archiveNames_.end()) it = archiveNames_.find(key + "A");
+    if (it == archiveNames_.end())
+      it = archiveNames_.find(key + "A");
     return it == archiveNames_.end() ? -1 : it->second;
   }
   const std::string l = Lower(name);

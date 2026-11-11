@@ -2,13 +2,13 @@
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
 
-#include <SchoolDays/SchoolDaysAssets.hpp>
 #include "SchoolDaysLauncher.hpp"
 #include "SchoolDaysRuntime.hpp"
 #include <Kotonoha/core/CommandLine.hpp>
 #include <Kotonoha/core/DiscImage.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/FileSystem.hpp>
+#include <SchoolDays/SchoolDaysAssets.hpp>
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
@@ -46,9 +46,9 @@ void DevStartupLog(const char *phase, const std::string &detail = {}) noexcept {
 #endif
 }
 
-Kotonoha::EngineOptions
-WithAssets(Kotonoha::EngineOptions options,
-           const std::shared_ptr<Kotonoha::Providers::SchoolDaysAssets> &assets) {
+Kotonoha::EngineOptions WithAssets(
+    Kotonoha::EngineOptions options,
+    const std::shared_ptr<Kotonoha::Providers::SchoolDaysAssets> &assets) {
   options.assets = assets;
   return options;
 }
@@ -182,7 +182,8 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
     if (app->route.empty())
       app->route = rememberedValidRoute(settings);
     if (app->route.empty())
-      app->route = Kotonoha::Providers::SchoolDaysAssets::defaultRoute().string();
+      app->route =
+          Kotonoha::Providers::SchoolDaysAssets::defaultRoute().string();
 
     if (directory.empty())
       if (const char *env = std::getenv("SCHOOL_DAYS_DIR"))
@@ -193,14 +194,17 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
       const auto path =
           Kotonoha::GameLauncher::rememberedPath(settingsPath, "dir.txt");
       std::string info;
-      return !path.empty() && Kotonoha::Providers::SchoolDaysAssets::checkDirectory(path, info)
+      return !path.empty() &&
+                     Kotonoha::Providers::SchoolDaysAssets::checkDirectory(path,
+                                                                           info)
                  ? path
                  : std::string{};
     };
     if (directory.empty())
       directory = rememberedValidDirectory(settings);
     if (directory.empty())
-      directory = Kotonoha::Providers::SchoolDaysAssets::defaultDirectory().string();
+      directory =
+          Kotonoha::Providers::SchoolDaysAssets::defaultDirectory().string();
     DevStartupLog("data-directory-selected", directory);
     if (app->options.launcher) {
       app->launcher = std::make_unique<SchoolDays::Launcher>(

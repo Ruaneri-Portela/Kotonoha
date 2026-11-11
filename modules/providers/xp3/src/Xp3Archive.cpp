@@ -222,8 +222,8 @@ KirikiriAssets::readAsset(const std::string &id) const {
 }
 
 std::string KirikiriAssets::decodeTextAsset(const std::string &id,
-                                           const std::vector<Uint8> &bytes,
-                                           const char *encoding) const {
+                                            const std::vector<Uint8> &bytes,
+                                            const char *encoding) const {
   auto data = bytes;
   // MDF container: "mdf\0" + zlib-compressed PSB.  Decompress for any source.
   if (data.size() >= 8 && std::memcmp(data.data(), kMdfMagic, 4) == 0)

@@ -18,11 +18,11 @@ Launcher::Launcher(std::string settingsPath, std::string directory,
            "ISO data uses a temporary internal mount."}) {
   setAudioChannels({"BGM", "Voice", "SE", "Movie"});
   loadPath(std::move(directory));
-  route =
-      findGamePath("school-days",
-                   {route, rememberedPath(getSettingsPath(), RouteRememberFile),
-                    Kotonoha::Providers::SchoolDaysAssets::findDefaultRoute().string()},
-                   validateRoute, {"school-days-hq.ktnroute"});
+  route = findGamePath(
+      "school-days",
+      {route, rememberedPath(getSettingsPath(), RouteRememberFile),
+       Kotonoha::Providers::SchoolDaysAssets::findDefaultRoute().string()},
+      validateRoute, {"school-days-hq.ktnroute"});
   routeOption =
       addPathOption({"Route file (.ktnroute)",
                      PathKind::File,

@@ -427,15 +427,20 @@ void textApi() {
   assets.files["western"] = {0xe7};
   assets.files["empty"] = {};
   require(assets.loadTextUtf8("sjis", "CP932") == "あ", "Decode CP932 text");
-  require(assets.loadTextUtf8("utf16") == "あ😀", "Decode UTF-16 surrogate pair");
+  require(assets.loadTextUtf8("utf16") == "あ😀",
+          "Decode UTF-16 surrogate pair");
   require(assets.loadTextUtf8("utf32") == "あ", "Distinguish UTF-32 BOM");
   require(assets.loadTextUtf8("utf16be") == "あ", "Decode big-endian UTF-16");
-  require(assets.loadTextUtf8("bom", "CP932") == "OK", "BOM overrides legacy encoding");
-  require(assets.loadTextUtf8("western", "CP1252") == "ç", "Decode Portuguese text");
+  require(assets.loadTextUtf8("bom", "CP932") == "OK",
+          "BOM overrides legacy encoding");
+  require(assets.loadTextUtf8("western", "CP1252") == "ç",
+          "Decode Portuguese text");
   require(assets.loadTextUtf8("empty").empty(), "Empty text");
-  require(assets.read("sjis") == std::vector<Uint8>({0x82, 0xa0}), "Raw bytes preserved");
+  require(assets.read("sjis") == std::vector<Uint8>({0x82, 0xa0}),
+          "Raw bytes preserved");
   rejects([&] { assets.loadTextUtf8("missing"); }, "Missing text is an error");
-  rejects([&] { assets.loadTextUtf8("empty", nullptr); }, "Reject null encoding");
+  rejects([&] { assets.loadTextUtf8("empty", nullptr); },
+          "Reject null encoding");
 }
 
 void memoryMedia(const char *path) {

@@ -2,9 +2,9 @@
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
 
-#include <ZeroNoTsukaima/DiscAssetProvider.hpp>
 #include "ZeroLauncher.hpp"
 #include "ZeroRuntime.hpp"
+#include <ZeroNoTsukaima/DiscAssetProvider.hpp>
 
 #include <Kotonoha/core/CommandLine.hpp>
 #include <Kotonoha/core/Engine.hpp>

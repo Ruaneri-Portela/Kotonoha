@@ -103,7 +103,8 @@ struct Text : VNTextBox {
   std::map<SDL_Surface *, TexturePtr> imageTextures;
   std::vector<Uint8> fontData;
   FontPtr font;
-  Text(Engine &e, Kotonoha::Providers::RealLiveAssets &a) : VNTextBox(e, "", "", 40), assets(a) {
+  Text(Engine &e, Kotonoha::Providers::RealLiveAssets &a)
+      : VNTextBox(e, "", "", 40), assets(a) {
     hide();
     auto smw00c = assets.graphic("smw00c", false);
     if (!smw00c.empty()) {
@@ -484,7 +485,8 @@ struct RealLiveRuntime::Impl {
     Uint64 lastCheck = 0;
   };
   std::map<int, Frame> frames;
-  Impl(RealLiveRuntime &r, std::shared_ptr<Kotonoha::Providers::RealLiveAssets> a, int scene)
+  Impl(RealLiveRuntime &r,
+       std::shared_ptr<Kotonoha::Providers::RealLiveAssets> a, int scene)
       : runtime(r), assets(std::move(a)), archive(assets->scripts()),
         vm(archive,
            scene < 0 ? assets->settings().integer("SEEN_START", 9030) : scene),
@@ -3464,7 +3466,8 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
   SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "%s", error.c_str());
   return true;
 }
-RealLiveRuntime::RealLiveRuntime(std::shared_ptr<Kotonoha::Providers::RealLiveAssets> a, int scene)
+RealLiveRuntime::RealLiveRuntime(
+    std::shared_ptr<Kotonoha::Providers::RealLiveAssets> a, int scene)
     : Runtime("REALLIVE", "0.1.0", "me.hirameki.kotonoha.reallive"),
       impl(std::make_unique<Impl>(*this, std::move(a), scene)) {}
 RealLiveRuntime::~RealLiveRuntime() = default;

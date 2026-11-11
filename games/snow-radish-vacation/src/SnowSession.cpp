@@ -79,8 +79,9 @@ bool SnowSession::AlphaHit::hit(float px, float py) const {
          alpha[size_t(iy) * size_t(w) + size_t(ix)] != 0;
 }
 
-SnowSession::SnowSession(Kotonoha::Engine &engine,
-                         std::shared_ptr<Kotonoha::Providers::SnowAssets> assets)
+SnowSession::SnowSession(
+    Kotonoha::Engine &engine,
+    std::shared_ptr<Kotonoha::Providers::SnowAssets> assets)
     : engine_(engine), assets_(std::move(assets)),
       movie_(std::make_unique<Kotonoha::MediaPlayer>(engine_.GetAudio())) {
   script_ = assets_->Script();

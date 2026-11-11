@@ -53,10 +53,11 @@ bool PcmPlayer::Play(std::shared_ptr<AudioChannel> channel, Clip clip) {
   voice->cursor = std::min(clip.startFrame, voice->frames);
   const SDL_AudioSpec spec{SDL_AUDIO_S16, clip.channels, clip.rate};
   voice->clip = std::move(clip);
-  SDL_LogInfo(SDL_LOG_CATEGORY_AUDIO,
-              "[audio] PcmPlayer::Play opening stream %dch %dHz %zu frames on %s",
-              clip.channels, clip.rate, clip.samples.size() / clip.channels,
-              channel ? channel->getName().c_str() : "(none)");
+  SDL_LogInfo(
+      SDL_LOG_CATEGORY_AUDIO,
+      "[audio] PcmPlayer::Play opening stream %dch %dHz %zu frames on %s",
+      clip.channels, clip.rate, clip.samples.size() / clip.channels,
+      channel ? channel->getName().c_str() : "(none)");
   SDL_AudioStream *stream = SDL_OpenAudioDeviceStream(
       SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &spec, Feed, voice.get());
   if (!stream) {

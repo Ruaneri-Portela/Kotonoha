@@ -1,5 +1,5 @@
-#include <SchoolDays/SchoolDaysAssets.hpp>
 #include "SchoolDaysRuntime.hpp"
+#include <SchoolDays/SchoolDaysAssets.hpp>
 
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/routing/SchoolDaysConfigStorage.hpp>
@@ -49,8 +49,9 @@ struct Application {
   SchoolDays::Runtime runtime;
   Kotonoha::Engine engine;
 
-  Application(const std::shared_ptr<Kotonoha::Providers::SchoolDaysAssets> &assets,
-              const char *route, const fs::path &documents)
+  Application(
+      const std::shared_ptr<Kotonoha::Providers::SchoolDaysAssets> &assets,
+      const char *route, const fs::path &documents)
       : runtime(assets, route, documents), engine(runtime, Options(assets)) {
     runtime.SetState(Kotonoha::GameState::Gameplay);
   }
@@ -82,7 +83,8 @@ void CheckMeterSfxHostCodes(Application &app, const fs::path &scratchRoot) {
     Check(static_cast<bool>(out),
           "could not create isolated meter PNG fixture");
   }
-  auto sprites = std::make_shared<Kotonoha::Providers::SchoolDaysAssets>(pictureRoot);
+  auto sprites =
+      std::make_shared<Kotonoha::Providers::SchoolDaysAssets>(pictureRoot);
   Kotonoha::SchoolDaysMenuBarPresenter meter;
   std::string error;
   using Variant = Kotonoha::SchoolDaysMenuBarPresenter::Variant;
@@ -205,7 +207,8 @@ int main(int argc, char **argv) {
     TemporaryDirectory temporary;
     const auto documents = temporary.path / "documents";
     fs::create_directories(documents);
-    auto assets = std::make_shared<Kotonoha::Providers::SchoolDaysAssets>(argv[2]);
+    auto assets =
+        std::make_shared<Kotonoha::Providers::SchoolDaysAssets>(argv[2]);
 
     using Access = SchoolDays::RuntimeMenuBarTestAccess;
     using Kind = Kotonoha::SchoolDaysMenuBarPresenter::ActionKind;

@@ -1,6 +1,6 @@
 // Copyright 2026 Kotonoha contributors. SPDX-License-Identifier: MIT
-#include <LucaSystem/LucaSystemAssets.hpp>
 #include <LucaSystem/CzImage.hpp>
+#include <LucaSystem/LucaSystemAssets.hpp>
 // PAK asset provider module.
 
 #include <Kotonoha/core/FileSystem.hpp>
@@ -15,7 +15,8 @@
 namespace Kotonoha::Providers {
 using namespace LucaSystem;
 
-Kotonoha::SurfacePtr LucaSystemAssets::loadSurfaceAsset(const std::string &id) const {
+Kotonoha::SurfacePtr
+LucaSystemAssets::loadSurfaceAsset(const std::string &id) const {
   const auto bytes = read(id);
   if (bytes.size() < 3 || bytes[0] != 'C' || bytes[1] != 'Z')
     return AssetProvider::loadSurfaceAsset(id);
@@ -25,8 +26,10 @@ Kotonoha::SurfacePtr LucaSystemAssets::loadSurfaceAsset(const std::string &id) c
   if (!surface)
     throw std::runtime_error(SDL_GetError());
   for (int y = 0; y < image.height; ++y)
-    std::memcpy(static_cast<Uint8 *>(surface->pixels) + size_t(y) * surface->pitch,
-                image.rgba.data() + size_t(y) * image.width * 4, size_t(image.width) * 4);
+    std::memcpy(static_cast<Uint8 *>(surface->pixels) +
+                    size_t(y) * surface->pitch,
+                image.rgba.data() + size_t(y) * image.width * 4,
+                size_t(image.width) * 4);
   return surface;
 }
 

@@ -1,6 +1,6 @@
-#include <SchoolDays/SchoolDaysAssets.hpp>
 #include "SchoolDaysRuntime.hpp"
 #include <Kotonoha/routing/SchoolDaysPersistenceCodec.hpp>
+#include <SchoolDays/SchoolDaysAssets.hpp>
 
 #include <cstdlib>
 #include <filesystem>
@@ -264,7 +264,8 @@ public:
 int main(int argc, char **argv) {
   Check(argc == 3,
         "usage: SchoolDaysReplayRuntimeIsolationTest <route> <fixture-root>");
-  auto assets = std::make_shared<Kotonoha::Providers::SchoolDaysAssets>(argv[2]);
+  auto assets =
+      std::make_shared<Kotonoha::Providers::SchoolDaysAssets>(argv[2]);
   SchoolDays::Runtime runtime(assets, argv[1]);
   SchoolDays::RuntimeReplayIsolationTestAccess::Run(runtime);
   std::cout << "SchoolDaysReplayRuntimeIsolationTest PASS\n";

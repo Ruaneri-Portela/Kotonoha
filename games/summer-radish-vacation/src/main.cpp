@@ -1,5 +1,4 @@
 #define SDL_MAIN_USE_CALLBACKS 1
-#include <SummerRadish/SummerAssets.hpp>
 #include "SummerRuntime.hpp"
 #include <Kotonoha/core/CommandLine.hpp>
 #include <Kotonoha/core/DiscImage.hpp>
@@ -8,6 +7,7 @@
 #include <Kotonoha/core/GameLauncher.hpp>
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
+#include <SummerRadish/SummerAssets.hpp>
 #include <cstdio>
 #include <filesystem>
 #include <memory>

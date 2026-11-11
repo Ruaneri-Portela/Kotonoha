@@ -27,7 +27,8 @@ std::string Utf16ToUtf8(const std::u16string &text) {
 }
 } // namespace
 
-LogoSplash::LogoSplash(Kotonoha::Engine &engine, Kotonoha::Providers::SchoolDaysAssets &source)
+LogoSplash::LogoSplash(Kotonoha::Engine &engine,
+                       Kotonoha::Providers::SchoolDaysAssets &source)
     : Scene(engine), assets(source) {
   for (const char *stem : {"System/SYSTEM/LOGO", "System/System/Logo"})
     try {

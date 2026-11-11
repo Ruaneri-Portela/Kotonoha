@@ -2,9 +2,9 @@
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
 
-#include <Ddlc/DdlcAssets.hpp>
 #include "DdlcLauncher.hpp"
 #include "DdlcRuntime.hpp"
+#include <Ddlc/DdlcAssets.hpp>
 
 #include <Kotonoha/core/CommandLine.hpp>
 #include <Kotonoha/core/DiscImage.hpp>

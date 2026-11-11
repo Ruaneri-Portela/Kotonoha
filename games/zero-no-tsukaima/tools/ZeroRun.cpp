@@ -27,7 +27,8 @@ int main(int argc, char **argv) {
   }
   if (argc > 2 && std::strcmp(argv[2], "--catalog") == 0) {
     for (const auto &name : src.Catalog().StageNames())
-      std::printf("%s -> %d (%s)\n", name.c_str(), src.Catalog().ResolveStage(name),
+      std::printf("%s -> %d (%s)\n", name.c_str(),
+                  src.Catalog().ResolveStage(name),
                   src.Catalog().SpecialStage(name).c_str());
     return 0;
   }

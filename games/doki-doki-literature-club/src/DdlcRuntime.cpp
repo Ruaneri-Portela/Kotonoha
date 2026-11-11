@@ -132,7 +132,8 @@ private:
 
 } // namespace
 
-GameRuntime::GameRuntime(std::shared_ptr<Kotonoha::Providers::DdlcAssets> assets)
+GameRuntime::GameRuntime(
+    std::shared_ptr<Kotonoha::Providers::DdlcAssets> assets)
     : Runtime("Doki Doki Literature Club!", "0.1.0",
               "me.hirameki.kotonoha.dokidokiliteratureclub"),
       assets_(std::move(assets)) {

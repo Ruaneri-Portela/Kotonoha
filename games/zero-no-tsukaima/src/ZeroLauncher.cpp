@@ -6,7 +6,8 @@ namespace ZeroNoTsukaima {
 
 namespace {
 // Retail executables supported on the Zero no Tsukaima discs.
-constexpr const char *Executables[] = {"SLPS_257.09", "SLPS_258.98", "SLPS_258.30"};
+constexpr const char *Executables[] = {"SLPS_257.09", "SLPS_258.98",
+                                       "SLPS_258.30"};
 constexpr size_t NumExecutables = sizeof(Executables) / sizeof(Executables[0]);
 } // namespace
 
@@ -43,7 +44,8 @@ bool ZeroLauncher::validatePath(const std::string &path, std::string &info) {
     }
   }
   if (!found) {
-    info = "Disc '" + image.volumeLabel() + "' is not Zero no Tsukaima (no supported executable)";
+    info = "Disc '" + image.volumeLabel() +
+           "' is not Zero no Tsukaima (no supported executable)";
     return false;
   }
   info = "Zero no Tsukaima (" + std::string(found) + "), volume '" +

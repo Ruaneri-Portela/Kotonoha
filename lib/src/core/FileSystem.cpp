@@ -183,8 +183,8 @@ DirectoryLayout directoryLayout(const StorageLocations &locations,
     addDirectory(result.gameAssets, locations.privateGameAssets);
     addGame(locations.resources, false);
 
-    result.documents =
-        locations.userData / "Kotonoha" / locations.packageIdentifier;
+    // Documents directory for Android is the userData path.
+    result.documents = locations.userData;
     break;
   }
   case StoragePlatform::IOS: {
@@ -197,8 +197,9 @@ DirectoryLayout directoryLayout(const StorageLocations &locations,
       // Fonts can also be inside a 'fonts' directory in documents
       addDirectory(result.engineAssets, locations.userData / "fonts");
     }
-    result.documents =
-        locations.userData / "Kotonoha" / locations.packageIdentifier;
+
+    // Documents directory for iOS is the userData path.
+    result.documents = locations.userData;
     break;
   }
   case StoragePlatform::Desktop:
@@ -209,6 +210,8 @@ DirectoryLayout directoryLayout(const StorageLocations &locations,
       addGame(locations.workingDirectory, true);
     }
 
+    // Documents directory for Desktop is the userData with Kotonoha
+    // subdirectory.
     result.documents =
         locations.userData / "Kotonoha" / locations.packageIdentifier;
     break;

@@ -13,7 +13,8 @@
 #include <stdexcept>
 
 namespace SnowRadish {
-SnowRuntime::SnowRuntime(std::shared_ptr<Kotonoha::Providers::SnowAssets> assets)
+SnowRuntime::SnowRuntime(
+    std::shared_ptr<Kotonoha::Providers::SnowAssets> assets)
     : Runtime("Snow Radish Vacation!!", "0.1.0",
               "me.hirameki.kotonoha.snowradishvacation"),
       assets_(std::move(assets)) {

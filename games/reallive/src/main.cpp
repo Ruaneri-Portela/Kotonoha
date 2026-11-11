@@ -1,11 +1,11 @@
 #define SDL_MAIN_USE_CALLBACKS 1
-#include <RealLive/RealLiveAssets.hpp>
 #include "RealLiveRuntime.hpp"
 #include <Kotonoha/core/CommandLine.hpp>
 #include <Kotonoha/core/DiscImage.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/FileSystem.hpp>
 #include <Kotonoha/core/GameLauncher.hpp>
+#include <RealLive/RealLiveAssets.hpp>
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
 #include <cstdio>

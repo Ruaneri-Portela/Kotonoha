@@ -1,6 +1,6 @@
 #include "SchoolDaysLauncher.hpp"
-#include <SchoolDays/SchoolDaysAssets.hpp>
 #include <Kotonoha/script/KtrfScript.hpp>
+#include <SchoolDays/SchoolDaysAssets.hpp>
 
 #include <SDL3/SDL.h>
 

@@ -99,7 +99,8 @@ std::vector<Uint8> AmagamiAssets::readAsset(const std::string &id) const {
     return source_->read(location->archive, location->index);
   return DiscImageAssetProvider::readAsset(id);
 }
-Kotonoha::SurfacePtr AmagamiAssets::loadSurfaceAsset(const std::string &id) const {
+Kotonoha::SurfacePtr
+AmagamiAssets::loadSurfaceAsset(const std::string &id) const {
   if (id.rfind("actor-face/", 0) == 0) {
     const auto slash = id.rfind('/');
     if (slash <= 11)

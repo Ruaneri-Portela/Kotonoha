@@ -49,8 +49,9 @@ bool SceneSource::Open(const std::string &discPath, std::string *error) {
   // from Nocturne even though both use the same compiled Squirrel format.
   const bool symphony = disc_->find("SLPS_258.98") != nullptr;
   const bool concerto = disc_->find("SLPS_257.09") != nullptr;
-  edition_ = concerto ? Edition::Concerto : symphony ? Edition::Symphony
-                                                   : Edition::Nocturne;
+  edition_ = concerto   ? Edition::Concerto
+             : symphony ? Edition::Symphony
+                        : Edition::Nocturne;
   const Kotonoha::DiscImage::Entry *sysBin = disc_->find("SYSTEM.BIN");
   const Kotonoha::DiscImage::Entry *sysHd = disc_->find("SYSTEM.HD");
   sceneBin_ = disc_->find("SCENE_ID.BIN");
@@ -112,11 +113,15 @@ bool SceneSource::Open(const std::string &discPath, std::string *error) {
     numberEntries(pictureIndex_.size(), scenedatNames_);
     numberEntries(soundIndex_.size(), soundNames_);
     // Concerto's standalone UI images (the remaining controls use atlases).
-    for (const auto &[name, index] : std::map<std::string, int>{
-             {"MMV_LOGO", 16}, {"TITLE_COPYRIGHT", 17},
-             {"TITLE_TITLELOGO", 18}, {"TITLE_STARTBUTTON", 19},
-             {"TITLE_TITLEBG", 13}, {"SYSTEM_BG02", 13},
-             {"SYSTEM_BG00", 14}, {"MAIN_MESSAGEBASE", 66}})
+    for (const auto &[name, index] :
+         std::map<std::string, int>{{"MMV_LOGO", 16},
+                                    {"TITLE_COPYRIGHT", 17},
+                                    {"TITLE_TITLELOGO", 18},
+                                    {"TITLE_STARTBUTTON", 19},
+                                    {"TITLE_TITLEBG", 13},
+                                    {"SYSTEM_BG02", 13},
+                                    {"SYSTEM_BG00", 14},
+                                    {"MAIN_MESSAGEBASE", 66}})
       normalNames_[name] = index;
     return true;
   }
@@ -143,11 +148,13 @@ bool SceneSource::Open(const std::string &discPath, std::string *error) {
     for (auto [entry, table] :
          {std::pair{9, &scenedatNames_}, std::pair{10, &soundNames_},
           std::pair{11, &normalNames_}})
-      if (ReadEntry(*normalBin_, normalIndex_, size_t(entry + (symphony ? 1 : 0)), &list))
+      if (ReadEntry(*normalBin_, normalIndex_,
+                    size_t(entry + (symphony ? 1 : 0)), &list))
         *table = ParseNameList(list);
     const size_t movieRecordSize = symphony ? 20 : 14;
     if (ReadEntry(*normalBin_, normalIndex_, symphony ? 13 : 247, &list))
-      for (size_t o = 0; o + movieRecordSize <= list.size(); o += movieRecordSize) {
+      for (size_t o = 0; o + movieRecordSize <= list.size();
+           o += movieRecordSize) {
         std::string name(reinterpret_cast<const char *>(list.data() + o), 14);
         name.resize(name.find('\0') == std::string::npos ? name.size()
                                                          : name.find('\0'));
@@ -159,7 +166,8 @@ bool SceneSource::Open(const std::string &discPath, std::string *error) {
   // NORMAL #8 is SCENE_ID.LST ("[SCENE_ID]" then "SCENE\\NAME.nut" per entry):
   // the real entry order. The SCENES.NUT literal pool read above is only hash
   // ordered.
-  if (normalBin_ && ReadEntry(*normalBin_, normalIndex_, symphony ? 9 : 8, &list)) {
+  if (normalBin_ &&
+      ReadEntry(*normalBin_, normalIndex_, symphony ? 9 : 8, &list)) {
     std::vector<std::string> names;
     std::string text(list.begin(), list.end()), line;
     std::istringstream in(text);

@@ -1,9 +1,9 @@
-#include <SchoolDays/SchoolDaysAssets.hpp>
 #include "SchoolDaysRuntime.hpp"
 #include <Kotonoha/SchoolDaysAssetMount.hpp>
 #include <Kotonoha/SchoolDaysImageAssetResolver.hpp>
 #include <Kotonoha/SchoolDaysMovieEventState.hpp>
 #include <Kotonoha/routing/SchoolDaysKtrfProfile.hpp>
+#include <SchoolDays/SchoolDaysAssets.hpp>
 #include <fstream>
 #include <iostream>
 #include <stdexcept>
@@ -53,7 +53,8 @@ int main(int argc, char **argv) {
     Kotonoha_KtrfClean(&document);
     Put(root / "Movie/CaseTest.WMV", "synthetic");
     std::string info;
-    Require(Kotonoha::Providers::SchoolDaysAssets::checkDirectory(root, info), info);
+    Require(Kotonoha::Providers::SchoolDaysAssets::checkDirectory(root, info),
+            info);
     auto assets = std::make_shared<Kotonoha::Providers::SchoolDaysAssets>(root);
     const auto caseResolved = assets->resolve("movie/casetest.wmv");
     const auto caseExpected = (root / "Movie/CaseTest.WMV").string();
@@ -147,7 +148,8 @@ int main(int argc, char **argv) {
         Kotonoha::SchoolDaysMovieKind::PlayMovie, "Movie/test", 24, 48, 0);
     Require(movie.resource == "Movie/test.wmv" && movie.Supported(),
             "Movie resource rule changed");
-    Require(!Kotonoha::Providers::SchoolDaysAssets::checkDirectory(root / "missing", info),
+    Require(!Kotonoha::Providers::SchoolDaysAssets::checkDirectory(
+                root / "missing", info),
             "Missing root accepted");
     std::cout << "SchoolDaysPortTest: discovery, binary compatibility, debug "
                  "nodes, save/load passed\n";
