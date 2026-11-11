@@ -1,2 +1,2 @@
-vcpkg-overlays/libiconv/*.patch whitespace=-blank-at-eol,-blank-at-eof
-assets/Anime4K/*.glsl whitespace=-blank-at-eol,-blank-at-eof
+assets/Anime4K/*.glsl linguist-detectable=false
+assets/ArtCNN/*.glsl linguist-detectable=false

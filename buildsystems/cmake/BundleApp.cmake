@@ -102,7 +102,6 @@ endif()
 fixup_bundle("${APP_EXECUTABLE}" "${plugins}" "${DEPENDENCY_DIRS}")
 
 include("${CMAKE_CURRENT_LIST_DIR}/CheckBundleContents.cmake")
-
 foreach(plugin IN LISTS plugins)
     execute_process(COMMAND codesign --force --sign - "${plugin}"
         RESULT_VARIABLE plugin_sign_result)

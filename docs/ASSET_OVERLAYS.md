@@ -127,7 +127,7 @@ system Java version is newer than supported by Gradle.
 
 The native Xcode project includes RealLive and SummerRadish schemes. For DDLC,
 `tools/PrepareApplePython.py` verifies and prepares the pinned BeeWare archive;
-`ruby Xcode/UpdateGameTargets.rb` updates the project after preparation (requires
+`ruby buildsystems/xcode/UpdateGameTargets.rb` updates the project after preparation (requires
 the `xcodeproj` Ruby gem). The project links `Python.xcframework`, selecting the
 SDK slice, and bundles standard-library resources and extension frameworks.
 
@@ -159,5 +159,5 @@ resolves graphical archive locations and event filenames, while its `Assets`
 class decodes TIM2/audio and exposes cached body/facial tiles. Consumers use
 `AssetProvider` public methods rather than reimplementing file reads.
 
-Test resource copies use `cmake/CopyAssetDirectory.cmake`, locking each
+Test resource copies use `buildsystems/cmake/CopyAssetDirectory.cmake`, locking each
 shared destination during parallel post-build copies.

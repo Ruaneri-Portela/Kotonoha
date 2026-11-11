@@ -25,7 +25,7 @@ function(kotonoha_configure_app target)
     if(APPLE AND CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND KOTONOHA_BUILD_MACOS_BUNDLES)
         set_target_properties(${target} PROPERTIES
             MACOSX_BUNDLE TRUE
-            MACOSX_BUNDLE_INFO_PLIST "${KOTONOHA_PROJECT_ROOT}/cmake/Info.plist.in"
+            MACOSX_BUNDLE_INFO_PLIST "${KOTONOHA_PROJECT_ROOT}/buildsystems/cmake/Info.plist.in"
             MACOSX_BUNDLE_BUNDLE_NAME "${target}"
             MACOSX_BUNDLE_GUI_IDENTIFIER "${APP_BUNDLE_ID}"
             MACOSX_BUNDLE_BUNDLE_VERSION "${PROJECT_VERSION}"
@@ -80,16 +80,16 @@ function(kotonoha_configure_app target)
                 "-DAPP_EXECUTABLE=$<TARGET_FILE:${target}>"
                 "-DAPP_DESTINATION=$<TARGET_FILE_DIR:${target}>"
                 "-DDEPENDENCY_DIRS=${windows_dependency_dirs}"
-                -P "${KOTONOHA_PROJECT_ROOT}/cmake/PackageWindowsRuntime.cmake"
+                -P "${KOTONOHA_PROJECT_ROOT}/buildsystems/cmake/PackageWindowsRuntime.cmake"
             VERBATIM)
     endif()
 
     if(APPLE AND CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND KOTONOHA_BUILD_MACOS_BUNDLES)
         set_property(TARGET ${target} APPEND PROPERTY LINK_DEPENDS
-            "${KOTONOHA_PROJECT_ROOT}/cmake/BundleApp.cmake"
-            "${KOTONOHA_PROJECT_ROOT}/cmake/CheckBundleContents.cmake"
-            "${KOTONOHA_PROJECT_ROOT}/cmake/PackageAssets.cmake"
-            "${KOTONOHA_PROJECT_ROOT}/cmake/CheckBundledAssets.cmake")
+            "${KOTONOHA_PROJECT_ROOT}/buildsystems/cmake/BundleApp.cmake"
+            "${KOTONOHA_PROJECT_ROOT}/buildsystems/cmake/CheckBundleContents.cmake"
+            "${KOTONOHA_PROJECT_ROOT}/buildsystems/cmake/PackageAssets.cmake"
+            "${KOTONOHA_PROJECT_ROOT}/buildsystems/cmake/CheckBundledAssets.cmake")
         set(search_dirs
             "$<TARGET_FILE_DIR:KotonohaEngine>"
             "$<TARGET_FILE_DIR:kotonoha_imgui>"
@@ -109,7 +109,7 @@ function(kotonoha_configure_app target)
                 "-DDEPENDENCY_DIRS=${search_dirs}"
                 "-DPYTHON_STDLIB=${APP_PYTHON_STDLIB}"
                 "-DPYTHON_VERSION=${APP_PYTHON_VERSION}"
-                -P "${KOTONOHA_PROJECT_ROOT}/cmake/BundleApp.cmake"
+                -P "${KOTONOHA_PROJECT_ROOT}/buildsystems/cmake/BundleApp.cmake"
             VERBATIM)
         if(BUILD_TESTING)
             add_test(NAME "Kotonoha.BundleLayout.${target}"
@@ -117,7 +117,7 @@ function(kotonoha_configure_app target)
                     "-DBUNDLE_CONTENTS=$<TARGET_BUNDLE_CONTENT_DIR:${target}>"
                     "-DAPP_GAME=${APP_GAME}"
                     "-DPYTHON_VERSION=${APP_PYTHON_VERSION}"
-                    -P "${KOTONOHA_PROJECT_ROOT}/cmake/CheckBundleContents.cmake")
+                    -P "${KOTONOHA_PROJECT_ROOT}/buildsystems/cmake/CheckBundleContents.cmake")
         endif()
     elseif(WIN32)
         # A DLL can change without changing its import library. Re-run the
@@ -148,7 +148,7 @@ function(kotonoha_configure_app target)
                 set(runtime_command "${CMAKE_OBJDUMP}")
             endif()
             set_property(TARGET ${target} APPEND PROPERTY LINK_DEPENDS
-                "${KOTONOHA_PROJECT_ROOT}/cmake/CopyRuntimeDependencies.cmake")
+                "${KOTONOHA_PROJECT_ROOT}/buildsystems/cmake/CopyRuntimeDependencies.cmake")
             add_custom_command(TARGET ${target} POST_BUILD
                 COMMAND "${CMAKE_COMMAND}"
                     "-DAPP_EXECUTABLE=$<TARGET_FILE:${target}>"
@@ -156,7 +156,7 @@ function(kotonoha_configure_app target)
                     "-DCMAKE_GET_RUNTIME_DEPENDENCIES_PLATFORM=windows+pe"
                     "-DCMAKE_GET_RUNTIME_DEPENDENCIES_TOOL=${runtime_tool}"
                     "-DCMAKE_GET_RUNTIME_DEPENDENCIES_COMMAND=${runtime_command}"
-                    -P "${KOTONOHA_PROJECT_ROOT}/cmake/CopyRuntimeDependencies.cmake"
+                    -P "${KOTONOHA_PROJECT_ROOT}/buildsystems/cmake/CopyRuntimeDependencies.cmake"
                 VERBATIM
             )
         endif()

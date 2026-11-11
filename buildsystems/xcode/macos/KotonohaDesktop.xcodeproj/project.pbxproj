@@ -1,0 +1,220 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 70;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		MAC0001 /* main.cpp in Sources */ = {isa = PBXBuildFile; fileRef = MAC0011 /* main.cpp */; };
+		MAC0002 /* KotonohaEngine.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = MAC0012 /* KotonohaEngine.framework */; };
+		MAC0003 /* KotonohaImGui.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = MAC0013 /* KotonohaImGui.framework */; };
+		MAC0004 /* assets in Resources */ = {isa = PBXBuildFile; fileRef = MAC0014 /* assets */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		MAC0020 /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				MAC0002 /* KotonohaEngine.framework in Frameworks */,
+				MAC0003 /* KotonohaImGui.framework in Frameworks */,
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		MAC0011 /* main.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; path = ../../../games/example/src/main.cpp; sourceTree = "<group>"; };
+		MAC0012 /* KotonohaEngine.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = KotonohaEngine.framework; path = ../../modules/build/KotonohaEngine.framework; sourceTree = "<group>"; };
+		MAC0013 /* KotonohaImGui.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = KotonohaImGui.framework; path = ../../modules/build/KotonohaImGui.framework; sourceTree = "<group>"; };
+		MAC0014 /* assets */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = folder; path = ../../../assets; sourceTree = "<group>"; };
+		MAC0015 /* Kotonoha.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Kotonoha.app; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		MAC0030 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				MAC0002 /* KotonohaEngine.framework in Frameworks */,
+				MAC0003 /* KotonohaImGui.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		A26AC0FB19398B931B700335 = {
+			isa = PBXGroup;
+			children = (
+				MAC0040 /* Kotonoha */,
+				MAC0015 /* Kotonoha.app */,
+				A54782C73AB6DBA8C72202DE /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		MAC0040 /* Kotonoha */ = {
+			isa = PBXGroup;
+			children = (
+				MAC0011 /* main.cpp */,
+				MAC0014 /* assets */,
+			);
+			path = Kotonoha;
+			sourceTree = "<group>";
+		};
+		A54782C73AB6DBA8C72202DE /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				MAC0015 /* Kotonoha.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		MAC0050 /* Kotonoha */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = MAC0060 /* Build configuration list for PBXNativeTarget "Kotonoha" */;
+			buildPhases = (
+				MAC0031 /* Sources */,
+				MAC0030 /* Frameworks */,
+				MAC0020 /* Embed Frameworks */,
+				MAC0032 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = Kotonoha;
+			productName = Kotonoha;
+			productReference = MAC0015 /* Kotonoha.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		1D7F34E45396E7C9086D3FB4 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				LastSwiftUpdateCheck = 1320;
+				LastUpgradeCheck = 1320;
+			};
+			buildConfigurationList = MAC0070 /* Build configuration list for PBXProject "KotonohaDesktop" */;
+			compatibilityVersion = "Xcode 3.2";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = A26AC0FB19398B931B700335;
+			productRefGroup = A54782C73AB6DBA8C72202DE /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				MAC0050 /* Kotonoha */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		MAC0032 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				MAC0004 /* assets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		MAC0031 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				MAC0001 /* main.cpp in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		MAC0061 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_CXX_LANGUAGE_STANDARD = "c++17";
+				CODE_SIGN_STYLE = Automatic;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 10.15;
+				PRODUCT_BUNDLE_IDENTIFIER = me.kotonoha.example.macos;
+				PRODUCT_NAME = Kotonoha;
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		MAC0062 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_CXX_LANGUAGE_STANDARD = "c++17";
+				CODE_SIGN_STYLE = Automatic;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 10.15;
+				PRODUCT_BUNDLE_IDENTIFIER = me.kotonoha.example.macos;
+				PRODUCT_NAME = Kotonoha;
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+		MAC0071 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_CXX_LANGUAGE_STANDARD = "c++17";
+				MACOSX_DEPLOYMENT_TARGET = 10.15;
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		MAC0072 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_CXX_LANGUAGE_STANDARD = "c++17";
+				MACOSX_DEPLOYMENT_TARGET = 10.15;
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		MAC0060 /* Build configuration list for PBXNativeTarget "Kotonoha" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				MAC0062 /* Release */,
+				MAC0061 /* Debug */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		MAC0070 /* Build configuration list for PBXProject "KotonohaDesktop" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				MAC0072 /* Release */,
+				MAC0071 /* Debug */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+/* Begin PBXSourceTree section */
+/* End PBXSourceTree section */
+	};
+	rootObject = 1D7F34E45396E7C9086D3FB4 /* Project object */;
+}

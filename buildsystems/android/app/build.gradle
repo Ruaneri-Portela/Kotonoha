@@ -1,0 +1,247 @@
+import java.security.MessageDigest
+
+plugins {
+  id 'com.android.application'
+}
+
+// ------------------------------------------------------------
+// Project paths and configuration
+// ------------------------------------------------------------
+
+def engineRoot = rootProject.projectDir.parentFile.parentFile
+def sdlRoot = new File(engineRoot, 'lib/submodules/SDL')
+def vcpkgRoot = providers.environmentVariable('VCPKG_ROOT').orNull
+
+if (!vcpkgRoot) {
+  throw new GradleException('Set VCPKG_ROOT to your vcpkg checkout before opening Android.')
+}
+
+if (!new File(vcpkgRoot, 'scripts/buildsystems/vcpkg.cmake').isFile()) {
+  throw new GradleException("Invalid VCPKG_ROOT: ${vcpkgRoot}")
+}
+
+def includeGameAssets = providers.gradleProperty('bundleGameAssets')
+  .orElse('true').get().toBoolean()
+
+def rawAbis = providers.gradleProperty('abis')
+  .orElse('arm64-v8a,x86_64').get().split(',').toList()
+
+def abis = rawAbis.collect { abi ->
+  def cleanAbi = abi.trim().toLowerCase(Locale.ROOT)
+  if (cleanAbi == 'arm64' || cleanAbi == 'aarch64') return 'arm64-v8a'
+  if (cleanAbi == 'amd64' || cleanAbi == 'x64') return 'x86_64'
+  return cleanAbi
+}.unique()
+
+def supportedAbis = ['arm64-v8a', 'armeabi-v7a', 'x86', 'x86_64']
+if (abis.isEmpty() || !supportedAbis.containsAll(abis)) {
+  throw new GradleException("Unsupported Android ABIs: ${abis}. Supported: ${supportedAbis}")
+}
+
+// Format: CMake game ID, native target, application ID, display name.
+def games = [
+  example       : ['example', 'Kotonoha', 'me.kotonoha.example', 'Kotonoha'],
+  amagami       : ['amagami', 'Amagami', 'me.hirameki.kotonoha.amagami', 'Amagami'],
+  zeroNoTsukaima: ['zero-no-tsukaima', 'ZeroNoTsukaima', 'me.hirameki.kotonoha.zeronotsukaima', 'Zero no Tsukaima'],
+  snowRadish    : ['snow-radish-vacation', 'SnowRadish', 'me.hirameki.kotonoha.snowradishvacation', 'Snow Radish Vacation!!'],
+  dokiDoki      : ['doki-doki-literature-club', 'DokiDoki', 'me.hirameki.kotonoha.dokidokiliteratureclub', 'Doki Doki Literature Club!'],
+  schoolDays    : ['school-days', 'SchoolDays', 'me.hirameki.kotonoha.schooldays', 'School Days'],
+  reallive      : ['reallive', 'RealLive', 'me.hirameki.kotonoha.reallive', 'RealLive'],
+  summerRadish  : ['summer-radish-vacation', 'SummerRadish', 'me.hirameki.kotonoha.summerradishvacation', 'Summer Radish Vacation!!'],
+  kirikiri      : ['kirikiri', 'KiriKiri', 'me.hirameki.kotonoha.kirikiri', 'KiriKiri'],
+  lucaSystem    : ['luca-system', 'LucaSystem', 'me.hirameki.kotonoha.lucasystem', 'Luca System']
+]
+
+android {
+  namespace 'org.kotonoha.android'
+  compileSdk 36
+  ndkVersion '28.2.13676358'
+
+  defaultConfig {
+    minSdk 28
+    targetSdk 34
+    versionCode 1
+    versionName '0.1.0'
+
+    ndk {
+      abiFilters.addAll(abis)
+    }
+
+    externalNativeBuild {
+      cmake {
+        arguments "-DCMAKE_TOOLCHAIN_FILE=${vcpkgRoot}/scripts/buildsystems/vcpkg.cmake",
+          "-DVCPKG_MANIFEST_DIR=${engineRoot}",
+          "-DVCPKG_CHAINLOAD_TOOLCHAIN_FILE=${android.ndkDirectory}/build/cmake/android.toolchain.cmake",
+          "-DKOTONOHA_SDL_SOURCE_DIR=${sdlRoot}",
+          '-DANDROID_PLATFORM=android-28',
+          '-DANDROID_STL=c++_shared'
+      }
+    }
+  }
+
+  flavorDimensions += 'game'
+
+  productFlavors {
+    games.each { flavor, game ->
+      create(flavor) {
+        dimension 'game'
+        applicationId game[2]
+        manifestPlaceholders.appName = game[3]
+        buildConfigField 'String', 'NATIVE_TARGET', "\"${game[1]}\""
+
+        externalNativeBuild {
+          cmake {
+            // Must match the variable consumed by the root CMakeLists.txt.
+            arguments "-DKOTONOHA_BUILD_GAME=${game[0]}",
+              "-DKOTONOHA_VCPKG_BASE_DIR=${rootProject.projectDir}/build/vcpkg${flavor == 'dokiDoki' ? '-python' : ''}"
+            targets game[1]
+          }
+        }
+      }
+    }
+  }
+
+  buildTypes {
+    release {
+      minifyEnabled true
+      shrinkResources true
+      proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'),
+        'proguard-rules.pro',
+        file("${sdlRoot}/android-project/app/proguard-rules.pro")
+    }
+  }
+
+  buildFeatures {
+    buildConfig true
+  }
+
+  compileOptions {
+    sourceCompatibility JavaVersion.VERSION_17
+    targetCompatibility JavaVersion.VERSION_17
+  }
+
+  externalNativeBuild {
+    cmake {
+      path '../../../CMakeLists.txt'
+      version '3.22.1'
+    }
+  }
+
+  sourceSets {
+    main {
+      java.srcDirs += new File(sdlRoot, 'android-project/app/src/main/java')
+    }
+  }
+
+  packaging {
+    jniLibs {
+      useLegacyPackaging = true
+    }
+  }
+}
+
+// ------------------------------------------------------------
+// Stage game assets and produce a SHA-256 manifest
+// ------------------------------------------------------------
+
+android.applicationVariants.all { variant ->
+  def game = games[variant.flavorName]
+  def taskSuffix = variant.name.capitalize()
+  def staged = layout.buildDirectory.dir("generated/assets/${variant.name}")
+  def gameAssets = new File(engineRoot, "games/${game[0]}/game-assets")
+  def includeThisGame = includeGameAssets || variant.flavorName == 'example'
+
+  def assets = tasks.register("stage${taskSuffix}Assets", Sync) {
+    from(new File(engineRoot, 'assets')) {
+      into 'assets'
+    }
+
+    if (includeThisGame) {
+      from(gameAssets) {
+        into 'game-assets'
+      }
+    }
+
+    into staged
+
+    doFirst {
+      if (includeThisGame && !gameAssets.isDirectory()) {
+        throw new GradleException("Game asset source directory is missing: ${gameAssets}")
+      }
+    }
+
+    doLast {
+      def stagedDir = staged.get().asFile
+      new File(stagedDir, 'game-assets').mkdirs()
+
+      if (variant.flavorName == 'dokiDoki') {
+        def foundStdlib = false
+
+        abis.each { abi ->
+          def triplet = [
+            'arm64-v8a': 'arm64-android',
+            'x86_64'   : 'x64-android',
+            'x86'      : 'x86-android',
+            'armeabi-v7a': 'arm-android'
+          ][abi]
+
+          if (triplet != null) {
+            def prefix = new File(rootProject.projectDir,
+              "build/vcpkg-python/${abi}/${triplet}")
+            def libraryRoot = new File(prefix,
+              variant.buildType.name == 'debug' ? 'debug/lib' : 'lib')
+            def stdlibs = fileTree(libraryRoot).matching {
+              include 'python3.*/**'
+            }.files
+
+            if (!stdlibs.empty) {
+              foundStdlib = true
+              copy {
+                from libraryRoot
+                include 'python3.*/**'
+                into new File(stagedDir, 'python/lib')
+              }
+            }
+          }
+        }
+
+        if (!foundStdlib) {
+          throw new GradleException(
+            'Android CPython standard library is missing for the selected ABIs.')
+        }
+      }
+
+      def digest = MessageDigest.getInstance('SHA-256')
+      fileTree(stagedDir).files
+        .findAll { it.isFile() && it.name != 'packaged-assets.sha256' }
+        .sort { it.path }
+        .each { assetFile ->
+          def relativePath = stagedDir.toPath().relativize(assetFile.toPath())
+            .toString().replace('\\', '/')
+          digest.update(relativePath.getBytes('UTF-8'))
+          assetFile.withInputStream { stream ->
+            byte[] buffer = new byte[65536]
+            int count
+            while ((count = stream.read(buffer)) != -1) {
+              digest.update(buffer, 0, count)
+            }
+          }
+        }
+
+      new File(stagedDir, 'packaged-assets.sha256').text =
+        digest.digest().encodeHex().toString() + '\n'
+    }
+  }
+
+  variant.mergeAssetsProvider.configure {
+    dependsOn assets
+    inputs.dir staged
+  }
+  android.sourceSets[variant.name].assets.srcDir staged
+
+  if (variant.flavorName == 'dokiDoki') {
+    assets.configure {
+      dependsOn variant.externalNativeBuildProviders
+    }
+  }
+}

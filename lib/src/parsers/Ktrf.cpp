@@ -616,65 +616,111 @@ int Kotonoha_KtrfBuild(const Kotonoha_KtrfSection *sections, uint32_t count,
   Kotonoha_KtrfDocument temp;
   size_t size, offset;
   uint32_t i;
+
   ktrf_clear_error(error);
-  if (sections == NULL || out == NULL || count == 0u ||
-      count > (SIZE_MAX - KOTONOHA_KTRF_HEADER_SIZE) /
-                  KOTONOHA_KTRF_SECTION_ENTRY_SIZE)
+
+  if (sections == NULL || out == NULL || count == 0u)
     return ktrf_fail(error, KOTONOHA_KTRF_ERROR_ARGUMENT,
                      "invalid KTRF section arguments");
+
+  // Verifica overflow sem comparar uint32_t com constantes fora do seu alcance.
+  // Também funciona quando size_t possui apenas 32 bits.
+  const size_t maxSections =
+      (SIZE_MAX - KOTONOHA_KTRF_HEADER_SIZE) / KOTONOHA_KTRF_SECTION_ENTRY_SIZE;
+
+  if (sizeof(size_t) < sizeof(uint32_t) &&
+      (uint64_t)count > (uint64_t)maxSections)
+    return ktrf_fail(error, KOTONOHA_KTRF_ERROR_RANGE,
+                     "KTRF section table exceeds addressable memory");
+
   size = KOTONOHA_KTRF_HEADER_SIZE +
          (size_t)count * KOTONOHA_KTRF_SECTION_ENTRY_SIZE;
+
   for (i = 0; i < count; ++i) {
-    if (size > SIZE_MAX - 7u ||
-        sections[i].stored_size > SIZE_MAX - size - 7u ||
-        (sections[i].stored_size != 0u && sections[i].payload == NULL))
+    // Confirma que o payload pode ser representado por size_t.
+    if (sections[i].stored_size > (uint64_t)SIZE_MAX)
+      return ktrf_fail(error, KOTONOHA_KTRF_ERROR_RANGE,
+                       "KTRF section size exceeds addressable memory");
+
+    // Verifica se o alinhamento para 8 bytes pode causar overflow.
+    if (size > SIZE_MAX - 7u)
+      return ktrf_fail(error, KOTONOHA_KTRF_ERROR_RANGE,
+                       "KTRF section alignment overflow");
+
+    const size_t alignedSize = (size + 7u) & ~(size_t)7u;
+    const size_t payloadSize = (size_t)sections[i].stored_size;
+
+    if (payloadSize > SIZE_MAX - alignedSize)
       return ktrf_fail(error, KOTONOHA_KTRF_ERROR_RANGE,
                        "KTRF section exceeds available memory");
-    size = ((size + 7u) & ~(size_t)7u) + (size_t)sections[i].stored_size;
+
+    if (payloadSize != 0u && sections[i].payload == NULL)
+      return ktrf_fail(error, KOTONOHA_KTRF_ERROR_ARGUMENT,
+                       "KTRF section payload is null");
+
+    size = alignedSize + payloadSize;
   }
+
   memset(&temp, 0, sizeof(temp));
+
   temp.bytes = (uint8_t *)calloc(size, 1u);
   if (temp.bytes == NULL)
     return ktrf_fail(error, KOTONOHA_KTRF_ERROR_MEMORY,
                      "out of memory building KTRF");
+
   temp.size = size;
+
   memcpy(temp.bytes, "KTRF", 4u);
+
   ktrf_put_le(temp.bytes + 6u, KOTONOHA_KTRF_FORMAT_MINOR, 2u);
   ktrf_put_le(temp.bytes + 8u, KOTONOHA_KTRF_HEADER_SIZE, 2u);
   ktrf_put_le(temp.bytes + 10u, KOTONOHA_KTRF_SECTION_ENTRY_SIZE, 2u);
   ktrf_put_le(temp.bytes + 16u, count, 4u);
   ktrf_put_le(temp.bytes + 24u, KOTONOHA_KTRF_HEADER_SIZE, 8u);
   ktrf_put_le(temp.bytes + 32u, size, 8u);
-  temp.bytes[40] = temp.bytes[41] = 1u;
+
+  temp.bytes[40] = 1u;
+  temp.bytes[41] = 1u;
+
   offset = KOTONOHA_KTRF_HEADER_SIZE +
            (size_t)count * KOTONOHA_KTRF_SECTION_ENTRY_SIZE;
+
   for (i = 0; i < count; ++i) {
     uint8_t *entry = temp.bytes + KOTONOHA_KTRF_HEADER_SIZE +
                      (size_t)i * KOTONOHA_KTRF_SECTION_ENTRY_SIZE;
+
     offset = (offset + 7u) & ~(size_t)7u;
+
+    const size_t payloadSize = (size_t)sections[i].stored_size;
+
     memcpy(entry, sections[i].type, 4u);
+
     ktrf_put_le(entry + 4u, sections[i].flags, 4u);
     ktrf_put_le(entry + 8u, offset, 8u);
     ktrf_put_le(entry + 16u, sections[i].stored_size, 8u);
     ktrf_put_le(entry + 24u, sections[i].stored_size, 8u);
     ktrf_put_le(entry + 32u, sections[i].item_count, 4u);
     ktrf_put_le(entry + 36u, 8u, 4u);
-    if (sections[i].stored_size != 0u)
-      memcpy(temp.bytes + offset, sections[i].payload,
-             (size_t)sections[i].stored_size);
-    ktrf_put_le(
-        entry + 40u,
-        ktrf_crc32(temp.bytes + offset, (size_t)sections[i].stored_size), 4u);
-    offset += (size_t)sections[i].stored_size;
+
+    if (payloadSize != 0u)
+      memcpy(temp.bytes + offset, sections[i].payload, payloadSize);
+
+    ktrf_put_le(entry + 40u, ktrf_crc32(temp.bytes + offset, payloadSize), 4u);
+
+    offset += payloadSize;
   }
+
   ktrf_sha256(temp.bytes + KOTONOHA_KTRF_HEADER_SIZE,
               size - KOTONOHA_KTRF_HEADER_SIZE, temp.bytes + 48u);
+
   ktrf_put_le(temp.bytes + 44u,
               ktrf_crc32(temp.bytes, KOTONOHA_KTRF_HEADER_SIZE), 4u);
+
   if (!ktrf_parse_owned(&temp, error)) {
     Kotonoha_KtrfClean(&temp);
     return 0;
   }
+
   *out = temp;
   return 1;
 }
