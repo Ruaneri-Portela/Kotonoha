@@ -44,8 +44,8 @@ public:
 
 private:
   std::string decodeTextAsset(const std::string &id,
-                             const std::vector<Uint8> &bytes,
-                             const char *encoding) const override;
+                              const std::vector<Uint8> &bytes,
+                              const char *encoding) const override;
   struct Xp3Entry {
     std::string name;
     std::filesystem::path archivePath; // path to the XP3 file on disk

@@ -1,4 +1,4 @@
-if(TARGET Kotonoha::ProviderGPK)
+if(TARGET Kotonoha::Modules::Providers::GPK)
     return()
 endif()
 
@@ -15,6 +15,7 @@ add_library(kotonoha_provider_gpk STATIC
     src/SchoolDaysAssets.cpp
     src/SchoolDaysAssetMount.cpp
 )
+add_library(Kotonoha::Modules::Providers::GPK ALIAS kotonoha_provider_gpk)
 add_library(Kotonoha::ProviderGPK ALIAS kotonoha_provider_gpk)
 
 target_include_directories(kotonoha_provider_gpk PUBLIC include)

@@ -1,6 +1,6 @@
 # Ren'Py (DDLC) virtual machine. Reads Ddlc/Python.hpp and Ddlc/Script.hpp
 # from the DDLC format library and embeds Python; cxx_std_20.
-if(TARGET Kotonoha::Vmrenpy)
+if(TARGET Kotonoha::Modules::VMs::Renpy)
     return()
 endif()
 
@@ -10,6 +10,7 @@ if(NOT TARGET Kotonoha::Engine)
 endif()
 
 add_library(kotonoha_vm_renpy STATIC "${CMAKE_CURRENT_LIST_DIR}/src/Vm.cpp")
+add_library(Kotonoha::Modules::VMs::Renpy ALIAS kotonoha_vm_renpy)
 add_library(Kotonoha::Vmrenpy ALIAS kotonoha_vm_renpy)
 
 target_include_directories(kotonoha_vm_renpy PUBLIC "${CMAKE_CURRENT_LIST_DIR}/include")

@@ -56,10 +56,3 @@ The RealLive, RPA, Amagami and Zero adapters still depend on the respective
 format targets defined by the game projects. They do not include the graphics
 runtime, but they are not self-contained packages to copy in isolation.
 Filesystem and generic disk providers remain in the engine core.
-
-## Xcode
-
-`ruby buildsystems/xcode/UpdateGameTargets.rb` syncs module sources and their include paths
-with the game targets (including the DDLC smoke target). The script is
-idempotent. In Xcode each app compiles the module it uses; in CMake each module
-is a separate library.

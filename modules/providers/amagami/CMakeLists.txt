@@ -1,4 +1,4 @@
-if(TARGET Kotonoha::ProviderAmagami)
+if(TARGET Kotonoha::Modules::Providers::Amagami)
     return()
 endif()
 
@@ -8,6 +8,7 @@ if(NOT TARGET Kotonoha::Engine)
 endif()
 
 add_library(kotonoha_provider_amagami STATIC src/Assets.cpp)
+add_library(Kotonoha::Modules::Providers::Amagami ALIAS kotonoha_provider_amagami)
 add_library(Kotonoha::ProviderAmagami ALIAS kotonoha_provider_amagami)
 
 target_include_directories(kotonoha_provider_amagami PUBLIC include)

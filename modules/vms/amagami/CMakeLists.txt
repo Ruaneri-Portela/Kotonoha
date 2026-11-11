@@ -1,7 +1,7 @@
 # Amagami SCF virtual machine. The VM reads the Amagami format declarations
 # (<Amagami/Formats.hpp>), so it links the format library privately; consumers
-# that run the VM (game runtime, tests) link Kotonoha::Vmamagami directly.
-if(TARGET Kotonoha::Vmamagami)
+# that run the VM (game runtime, tests) link Kotonoha::Modules::VMs::Amagami directly.
+if(TARGET Kotonoha::Modules::VMs::Amagami)
     return()
 endif()
 
@@ -11,6 +11,7 @@ if(NOT TARGET Kotonoha::Engine)
 endif()
 
 add_library(kotonoha_vm_amagami STATIC "${CMAKE_CURRENT_LIST_DIR}/src/Vm.cpp")
+add_library(Kotonoha::Modules::VMs::Amagami ALIAS kotonoha_vm_amagami)
 add_library(Kotonoha::Vmamagami ALIAS kotonoha_vm_amagami)
 
 target_include_directories(kotonoha_vm_amagami PUBLIC "${CMAKE_CURRENT_LIST_DIR}/include")

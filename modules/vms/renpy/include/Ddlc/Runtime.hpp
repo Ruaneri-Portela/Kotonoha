@@ -361,7 +361,10 @@ public:
 
 protected:
   // This engine yields at interactions, not at individual bytecodes.
-  void dispatch(std::size_t) override { if (!finished()) resume(); }
+  void dispatch(std::size_t) override {
+    if (!finished())
+      resume();
+  }
 
 private:
   friend struct VmNatives;

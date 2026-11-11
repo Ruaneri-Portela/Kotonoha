@@ -35,7 +35,7 @@ public:
 
 private:
   ZeroDiscAssets(std::shared_ptr<SceneSource> source,
-                    const std::string &discPath);
+                 const std::string &discPath);
   bool Read(const std::string &id, std::vector<uint8_t> *out) const;
 
   std::shared_ptr<SceneSource> source_;

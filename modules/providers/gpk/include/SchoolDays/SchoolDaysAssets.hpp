@@ -17,7 +17,8 @@ class SchoolDaysAssets final : public Kotonoha::AssetProvider {
 
 public:
   using Kotonoha::AssetProvider::openStream;
-  explicit SchoolDaysAssets(std::filesystem::path root, const std::string &scripts = {});
+  explicit SchoolDaysAssets(std::filesystem::path root,
+                            const std::string &scripts = {});
   ~SchoolDaysAssets() override;
   const std::filesystem::path &root() const { return directory; }
   std::filesystem::path orsRoot() const;

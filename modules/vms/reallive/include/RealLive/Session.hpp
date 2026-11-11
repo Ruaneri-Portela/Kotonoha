@@ -1,7 +1,7 @@
 // Copyright 2026 Kotonoha contributors. SPDX-License-Identifier: MIT
 #pragma once
-#include <Kotonoha/core/Vm.hpp>
 #include "RealLive/Script.hpp"
+#include <Kotonoha/core/Vm.hpp>
 #include <functional>
 #include <map>
 #include <vector>
@@ -25,6 +25,7 @@ class Session : public Kotonoha::Vm {
   std::size_t pc_ = 0;
   bool blocked_ = false, finished_ = false;
   const std::vector<const libreallive::BytecodeElement *> &script(int);
+
 protected:
   void dispatch(std::size_t budget) override { run(budget); }
   virtual void execute(const libreallive::CommandElement &);

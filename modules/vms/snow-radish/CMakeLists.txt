@@ -1,6 +1,6 @@
 # Snow Radish ADV3 virtual machine. Only depends on Kotonoha::Engine; the game
-# session that drives it links Kotonoha::Vmsnow-radish directly.
-if(TARGET Kotonoha::Vmsnow-radish)
+# session that drives it links Kotonoha::Modules::VMs::SnowRadish directly.
+if(TARGET Kotonoha::Modules::VMs::SnowRadish)
     return()
 endif()
 
@@ -10,6 +10,7 @@ if(NOT TARGET Kotonoha::Engine)
 endif()
 
 add_library(kotonoha_vm_snow-radish STATIC "${CMAKE_CURRENT_LIST_DIR}/src/Vm.cpp")
+add_library(Kotonoha::Modules::VMs::SnowRadish ALIAS kotonoha_vm_snow-radish)
 add_library(Kotonoha::Vmsnow-radish ALIAS kotonoha_vm_snow-radish)
 
 target_include_directories(kotonoha_vm_snow-radish PUBLIC "${CMAKE_CURRENT_LIST_DIR}/include")

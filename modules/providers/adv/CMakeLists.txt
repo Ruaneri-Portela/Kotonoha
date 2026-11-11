@@ -1,4 +1,4 @@
-if(TARGET Kotonoha::ProviderADV)
+if(TARGET Kotonoha::Modules::Providers::ADV)
     return()
 endif()
 
@@ -8,6 +8,7 @@ if(NOT TARGET Kotonoha::Engine)
 endif()
 
 add_library(kotonoha_provider_adv STATIC src/Pack.cpp src/SnowAssets.cpp)
+add_library(Kotonoha::Modules::Providers::ADV ALIAS kotonoha_provider_adv)
 add_library(Kotonoha::ProviderADV ALIAS kotonoha_provider_adv)
 
 target_include_directories(kotonoha_provider_adv PUBLIC include)
