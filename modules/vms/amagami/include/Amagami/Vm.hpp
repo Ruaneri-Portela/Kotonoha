@@ -1,6 +1,6 @@
 #pragma once
-#include <Kotonoha/core/Vm.hpp>
 #include <Amagami/Formats.hpp>
+#include <Kotonoha/core/Vm.hpp>
 #include <functional>
 #include <map>
 #include <memory>

@@ -1,5 +1,39 @@
-option(KOTONOHA_BUILD_MACOS_BUNDLES "Build macOS application bundles"
-    OFF)
+option(KOTONOHA_BUILD_MACOS_BUNDLES "Build macOS application bundles" OFF)
+
+# Tests and ordinary executables use the same resource layout as app bundles.
+function(kotonoha_copy_assets target)
+    if(ANDROID)
+        return() # Gradle packages assets and game-assets in the APK.
+    endif()
+    cmake_parse_arguments(ASSETS "" "GAME" "" ${ARGN})
+    get_target_property(is_bundle ${target} MACOSX_BUNDLE)
+    if(APPLE AND is_bundle)
+        set(destination "$<TARGET_BUNDLE_CONTENT_DIR:${target}>/Resources")
+    else()
+        set(destination "$<TARGET_FILE_DIR:${target}>")
+    endif()
+    if(ASSETS_GAME)
+        set(include_game ON)
+        if(APPLE AND is_bundle AND NOT ASSETS_GAME STREQUAL "example")
+            set(include_game "${KOTONOHA_BUNDLE_LOCAL_GAME_ASSETS}")
+        endif()
+        add_custom_command(TARGET ${target} POST_BUILD
+            COMMAND "${CMAKE_COMMAND}"
+                "-DRESOURCE_SOURCE=${KOTONOHA_ENGINE_ASSETS}"
+                "-DGAME_SOURCE=${KOTONOHA_PROJECT_ROOT}/games/${ASSETS_GAME}/game-assets"
+                "-DRESOURCE_DESTINATION=${destination}"
+                "-DINCLUDE_GAME_ASSETS=${include_game}"
+                -P "${KOTONOHA_PROJECT_ROOT}/buildsystems/cmake/PackageAssets.cmake"
+            VERBATIM)
+    else()
+        add_custom_command(TARGET ${target} POST_BUILD
+            COMMAND "${CMAKE_COMMAND}"
+                "-DASSET_SOURCE=${KOTONOHA_ENGINE_ASSETS}"
+                "-DASSET_DESTINATION=${destination}/assets"
+                -P "${KOTONOHA_PROJECT_ROOT}/buildsystems/cmake/CopyAssetDirectory.cmake"
+            VERBATIM)
+    endif()
+endfunction()
 
 function(kotonoha_add_app target)
     if(WIN32)
@@ -16,11 +50,6 @@ endfunction()
 
 function(kotonoha_configure_app target)
     cmake_parse_arguments(APP "" "BUNDLE_ID;GAME;PYTHON_STDLIB;PYTHON_VERSION" "" ${ARGN})
-
-    if((APP_PYTHON_STDLIB OR APP_PYTHON_VERSION) AND
-       NOT APP_GAME STREQUAL "doki-doki-literature-club")
-        message(FATAL_ERROR "Only Doki Doki Literature Club may bundle Python")
-    endif()
 
     if(APPLE AND CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND KOTONOHA_BUILD_MACOS_BUNDLES)
         set_target_properties(${target} PROPERTIES

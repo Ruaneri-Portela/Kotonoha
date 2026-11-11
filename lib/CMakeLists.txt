@@ -264,41 +264,6 @@ set(KOTONOHA_ENGINE_ASSETS "${KOTONOHA_PROJECT_ROOT}/assets"
 option(KOTONOHA_BUNDLE_LOCAL_GAME_ASSETS
     "Include locally supplied game assets in application bundles" ON)
 
-# Tests and ordinary executables use the same resource layout as app bundles.
-function(kotonoha_copy_assets target)
-    if(ANDROID)
-        return() # Gradle packages assets and game-assets in the APK.
-    endif()
-    cmake_parse_arguments(ASSETS "" "GAME" "" ${ARGN})
-    get_target_property(is_bundle ${target} MACOSX_BUNDLE)
-    if(APPLE AND is_bundle)
-        set(destination "$<TARGET_BUNDLE_CONTENT_DIR:${target}>/Resources")
-    else()
-        set(destination "$<TARGET_FILE_DIR:${target}>")
-    endif()
-    if(ASSETS_GAME)
-        set(include_game ON)
-        if(APPLE AND is_bundle AND NOT ASSETS_GAME STREQUAL "example")
-            set(include_game "${KOTONOHA_BUNDLE_LOCAL_GAME_ASSETS}")
-        endif()
-        add_custom_command(TARGET ${target} POST_BUILD
-            COMMAND "${CMAKE_COMMAND}"
-                "-DRESOURCE_SOURCE=${KOTONOHA_ENGINE_ASSETS}"
-                "-DGAME_SOURCE=${KOTONOHA_PROJECT_ROOT}/games/${ASSETS_GAME}/game-assets"
-                "-DRESOURCE_DESTINATION=${destination}"
-                "-DINCLUDE_GAME_ASSETS=${include_game}"
-                -P "${KOTONOHA_PROJECT_ROOT}/buildsystems/cmake/PackageAssets.cmake"
-            VERBATIM)
-    else()
-        add_custom_command(TARGET ${target} POST_BUILD
-            COMMAND "${CMAKE_COMMAND}"
-                "-DASSET_SOURCE=${KOTONOHA_ENGINE_ASSETS}"
-                "-DASSET_DESTINATION=${destination}/assets"
-                -P "${KOTONOHA_PROJECT_ROOT}/buildsystems/cmake/CopyAssetDirectory.cmake"
-            VERBATIM)
-    endif()
-endfunction()
-
 include("${KOTONOHA_PROJECT_ROOT}/buildsystems/cmake/KotonohaApp.cmake")
 
 if(BUILD_TESTING)

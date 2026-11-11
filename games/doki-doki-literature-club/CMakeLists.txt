@@ -28,28 +28,29 @@ add_library(DdlcFormats STATIC
 )
 target_include_directories(DdlcFormats PUBLIC include)
 target_compile_features(DdlcFormats PUBLIC cxx_std_20)
-target_link_libraries(DdlcFormats PUBLIC SDL3::SDL3 ZLIB::ZLIB
-    PRIVATE Python3::Python)
+target_link_libraries(DdlcFormats PUBLIC SDL3::SDL3 ZLIB::ZLIB PRIVATE Python3::Python)
+
 include("${CMAKE_CURRENT_SOURCE_DIR}/../../modules/vms/renpy/CMakeLists.txt")
-# DdlcFormats' session/runtime drive the Ren'Py VM, so consumers get it
-# transitively.
-target_link_libraries(DdlcFormats PUBLIC Kotonoha::Vmrenpy)
-# DdlcFormats sources include Ddlc/Runtime.hpp, which now lives in the VM
-# module. Pull the VM's include directory without linking it (no link cycle:
-# the VM links DdlcFormats privately for Ddlc/Python.hpp and friends).
+target_link_libraries(DdlcFormats PUBLIC Kotonoha::Modules::VMs::Renpy)
 target_include_directories(DdlcFormats PUBLIC
-    $<TARGET_PROPERTY:Kotonoha::Vmrenpy,INTERFACE_INCLUDE_DIRECTORIES>)
+    $<TARGET_PROPERTY:Kotonoha::Modules::VMs::Renpy,INTERFACE_INCLUDE_DIRECTORIES>)
 set_target_properties(DdlcFormats PROPERTIES CXX_EXTENSIONS OFF)
 
 add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../modules/providers/rpa"
     "${CMAKE_CURRENT_BINARY_DIR}/providers/rpa")
+
 add_library(doki_doki_literature_club STATIC
     src/DdlcLauncher.cpp
     src/DdlcRuntime.cpp
     src/DdlcSession.cpp
 )
 target_include_directories(doki_doki_literature_club PUBLIC src)
-target_link_libraries(doki_doki_literature_club PUBLIC Kotonoha::Engine DdlcFormats Kotonoha::ProviderRPA Kotonoha::Vmrenpy)
+target_link_libraries(doki_doki_literature_club PUBLIC
+    Kotonoha::Engine
+    DdlcFormats
+    Kotonoha::Modules::Providers::RPA
+    Kotonoha::Modules::VMs::Renpy
+)
 set_target_properties(doki_doki_literature_club PROPERTIES CXX_EXTENSIONS OFF)
 
 kotonoha_add_app(DokiDoki src/main.cpp)

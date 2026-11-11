@@ -1,4 +1,4 @@
-if(TARGET Kotonoha::ProviderZero)
+if(TARGET Kotonoha::Modules::Providers::Zero)
     return()
 endif()
 
@@ -8,6 +8,7 @@ if(NOT TARGET Kotonoha::Engine)
 endif()
 
 add_library(kotonoha_provider_zero STATIC src/DiscAssetProvider.cpp)
+add_library(Kotonoha::Modules::Providers::Zero ALIAS kotonoha_provider_zero)
 add_library(Kotonoha::ProviderZero ALIAS kotonoha_provider_zero)
 
 target_include_directories(kotonoha_provider_zero PUBLIC include)

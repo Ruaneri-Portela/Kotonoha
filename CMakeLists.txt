@@ -72,7 +72,9 @@ if(ANDROID OR CMAKE_SYSTEM_NAME STREQUAL "Android")
         set(ENV{ANDROID_NDK_HOME} "${ANDROID_NDK}")
     endif()
 
-    set(KOTONOHA_BUILD_GAME "example" CACHE STRING "Game built by this Android APK")
+    if(NOT DEFINED KOTONOHA_BUILD_GAME)
+        set(KOTONOHA_BUILD_GAME "example" CACHE STRING "Game built by this Android APK")
+    endif()
 
     # vcpkg manifest features must be set before project().
     if(KOTONOHA_BUILD_GAME STREQUAL "doki-doki-literature-club")

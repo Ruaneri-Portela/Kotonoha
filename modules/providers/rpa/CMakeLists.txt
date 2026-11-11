@@ -1,4 +1,4 @@
-if(TARGET Kotonoha::ProviderRPA)
+if(TARGET Kotonoha::Modules::Providers::RPA)
     return()
 endif()
 
@@ -8,6 +8,7 @@ if(NOT TARGET Kotonoha::Engine)
 endif()
 
 add_library(kotonoha_provider_rpa STATIC src/DdlcAssets.cpp)
+add_library(Kotonoha::Modules::Providers::RPA ALIAS kotonoha_provider_rpa)
 add_library(Kotonoha::ProviderRPA ALIAS kotonoha_provider_rpa)
 
 target_include_directories(kotonoha_provider_rpa PUBLIC include)

@@ -48,7 +48,7 @@ def games = [
   schoolDays    : ['school-days', 'SchoolDays', 'me.hirameki.kotonoha.schooldays', 'School Days'],
   reallive      : ['reallive', 'RealLive', 'me.hirameki.kotonoha.reallive', 'RealLive'],
   summerRadish  : ['summer-radish-vacation', 'SummerRadish', 'me.hirameki.kotonoha.summerradishvacation', 'Summer Radish Vacation!!'],
-  kirikiri      : ['kirikiri', 'KiriKiri', 'me.hirameki.kotonoha.kirikiri', 'KiriKiri'],
+  kirikiri      : ['kirikiri', 'Kirikiri', 'me.hirameki.kotonoha.kirikiri', 'KiriKiri'],
   lucaSystem    : ['luca-system', 'LucaSystem', 'me.hirameki.kotonoha.lucasystem', 'Luca System']
 ]
 

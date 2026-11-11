@@ -1,4 +1,4 @@
-if(TARGET Kotonoha::ProviderPAK)
+if(TARGET Kotonoha::Modules::Providers::PAK)
     return()
 endif()
 
@@ -8,6 +8,7 @@ if(NOT TARGET Kotonoha::Engine)
 endif()
 
 add_library(kotonoha_provider_pak STATIC src/LucaSystemAssets.cpp src/CzImage.cpp)
+add_library(Kotonoha::Modules::Providers::PAK ALIAS kotonoha_provider_pak)
 add_library(Kotonoha::ProviderPAK ALIAS kotonoha_provider_pak)
 
 target_include_directories(kotonoha_provider_pak PUBLIC include)
