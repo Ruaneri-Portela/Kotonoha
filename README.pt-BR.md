@@ -52,7 +52,6 @@ games/zero-no-tsukaima/
   include/ZeroNoTsukaima/    Arquivos .HD/.BIN, LZ, TIM2, VAG, PSS, catalogo e KAG
   src/
     main.cpp                 Callbacks SDL; --zero / ZERO_DISC
-    DiscAssetProvider.*      DiscImageAssetProvider do motor + formatos do jogo
     ZeroSession.*            Interprete, audio nos canais, saves e desenho
     ZeroComponents.*         Subclasses dos componentes do motor
     ZeroRuntime.*            Runtime: estados, 640x448 dentro da novel
@@ -64,7 +63,6 @@ games/snow-radish-vacation/
   include/SnowRadish/        Pacotes .DAT (LZSS), VM .obj e estado do jogo
   src/
     main.cpp                 Callbacks SDL; --snow / SNOW_DIR
-    SnowAssets.*             AssetProvider dos DAT (EVD/CHD/ADPS)
     SnowSession.*            VM, audio nos canais, transicoes, logo e titulo
     SnowComponents.*         Subclasses dos componentes do motor
     SnowRuntime.*            Runtime: estados, 800x600 dentro da novel
@@ -557,7 +555,7 @@ ajuda) e o jogo implementa apenas `checkPath(path, info)`.
 usado quando o jogo inicia sem launcher. Toda a interface do motor e dos jogos
 (launcher, menus, configuracoes, F10) e em ingles.
 
-`DiscAssetProvider` e o `AssetProvider` do motor (`EngineOptions::assets`).
+`Kotonoha::Providers::ZeroDiscAssets` e o `AssetProvider` do motor (`EngineOptions::assets`).
 Ids: `scenedat/<n>`, `normal/<NOME>`, `voice/<n>`, `sound/<NOME>`,
 `movie/<n>` (PSS bruto), `movie/<n>.wav` (PCM SShd/SSbd do PSS),
 `script/<NOME.KS>` e qualquer caminho ISO (`SYSTEM.CNF`, `MOVIE/MOVE00.PSS`);
@@ -615,7 +613,7 @@ Porta de *Snow Radish Vacation!!* (Overflow, ADV3, 800x600) sobre o motor. Os
 cmake -S . -B build -DSNOW_DATA_DIR=/caminho/DATA/PACK  # habilita os testes com os DAT
 ```
 
-`SnowAssets` e o `AssetProvider` do motor: ids `script`, `graphic/<nome>`,
+`Kotonoha::Providers::SnowAssets` e o `AssetProvider` do motor: ids `script`, `graphic/<nome>`,
 `sound/<nome>` e `voice/<nome>`; `loadSurface` decodifica EVD/IMG/CHD. O
 viewport do jogo e 960x720 (800x600 x1.2); o `SnowRuntime` converte as
 coordenadas do mouse. Voz, BGM e efeitos usam `Kotonoha::PcmPlayer` nos canais

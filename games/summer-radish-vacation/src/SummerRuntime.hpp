@@ -1,5 +1,5 @@
 #pragma once
-#include "SummerAssets.hpp"
+#include <SummerRadish/SummerAssets.hpp>
 #include <Kotonoha/core/Runtime.hpp>
 namespace SummerRadish {
 class SummerRuntime final : public Kotonoha::Runtime {
@@ -7,7 +7,7 @@ class SummerRuntime final : public Kotonoha::Runtime {
   std::unique_ptr<Impl> impl;
 
 public:
-  explicit SummerRuntime(std::shared_ptr<SummerAssets>);
+  explicit SummerRuntime(std::shared_ptr<Kotonoha::Providers::SummerAssets>);
   ~SummerRuntime() override;
   void shutdown();
   void initMenu(Kotonoha::Engine &) override;

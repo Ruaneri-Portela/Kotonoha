@@ -6,7 +6,7 @@ root = Pathname.new(__dir__).parent
 project = Xcodeproj::Project.open(root.join('Xcode/Kotonoha.xcodeproj'))
 objects = Xcodeproj::Project::Object
 school = project.targets.find { |t| t.name == 'SchoolDays' }
-[['RealLive', 'reallive', 'RealLive', 'reallive'], ['SummerRadish', 'summer-radish-vacation', 'Summer Radish Vacation!!', 'summerradishvacation'], ['Kirikiri', 'kirikiri', 'Kirikiri', 'kirikiri']].each do |name, game, title, bundle|
+[['RealLive', 'reallive', 'RealLive', 'reallive'], ['SummerRadish', 'summer-radish-vacation', 'Summer Radish Vacation!!', 'summerradishvacation'], ['Kirikiri', 'kirikiri', 'Kirikiri', 'kirikiri'], ['LucaSystem', 'luca-system', 'LucaSystem', 'luca_system']].each do |name, game, title, bundle|
   next if project.targets.any? { |t| t.name == name }
   target = project.new_target(:application, name, :ios, '15.0')
   target.build_configurations.each do |config|
@@ -100,12 +100,41 @@ project.targets.select { |t| ['DokiDoki', 'DdlcIOSScriptSmoke'].include?(t.name)
 end
 smoke = project.targets.find { |t| t.name == 'DdlcIOSScriptSmoke' }
 if smoke
-  ['Replay.cpp', 'DdlcAssets.cpp'].each do |name|
+  ['Replay.cpp'].each do |name|
     path = "../games/doki-doki-literature-club/src/#{name}"
     unless smoke.source_build_phase.files.any? { |f| f.file_ref&.path == path }
       ref = project.main_group.new_file(path, 'SOURCE_ROOT')
       smoke.source_build_phase.add_file_reference(ref)
     end
   end
+end
+
+# Keep reusable provider implementations out of the game source trees. The
+# native project compiles the selected module in each app target; CMake uses
+# the equivalent Kotonoha::Provider* libraries.
+provider_modules = {
+  'RealLive' => 'reallive', 'Amagami' => 'amagami',
+  'ZeroNoTsukaima' => 'zero', 'SnowRadish' => 'adv',
+  'SummerRadish' => 'cmp', 'SchoolDays' => 'gpk',
+  'DokiDoki' => 'rpa', 'DdlcIOSScriptSmoke' => 'rpa',
+  'Kirikiri' => 'xp3', 'LucaSystem' => 'pak'
+}
+providers_group = project.main_group.groups.find { |g| g.display_name == 'Providers' } || project.main_group.new_group('Providers')
+provider_modules.each do |name, mod|
+  target = project.targets.find { |t| t.name == name }
+  next unless target
+  target.build_configurations.each do |config|
+    paths = Array(config.build_settings['HEADER_SEARCH_PATHS'])
+    config.build_settings['HEADER_SEARCH_PATHS'] = (paths + ["$(KOTONOHA_ROOT)/modules/providers/#{mod}/include"]).uniq
+  end
+  path = "../modules/providers/#{mod}/src"
+  sync = project.objects.grep(objects::PBXFileSystemSynchronizedRootGroup).find { |g| g.path == path }
+  unless sync
+    sync = project.new(objects::PBXFileSystemSynchronizedRootGroup)
+    sync.path = path
+    sync.source_tree = 'SOURCE_ROOT'
+    providers_group.children << sync
+  end
+  target.file_system_synchronized_groups << sync unless target.file_system_synchronized_groups.include?(sync)
 end
 project.save

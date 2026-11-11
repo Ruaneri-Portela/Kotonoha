@@ -63,7 +63,7 @@ wipes and the original front end; the player-facing parts are subclasses of the 
 | Read text history | `SnowBacklog : VNBacklog` |
 | Background, sprites, mouths, wipes | `SnowStage : Scene` |
 
-- The DAT directory is the engine `AssetProvider` (`SnowAssets`): ids `script`, `graphic/<name>`, `sound/<name>`,
+- The DAT directory is the engine `AssetProvider` (`Kotonoha::Providers::SnowAssets`): ids `script`, `graphic/<name>`, `sound/<name>`,
   `voice/<name>`; `loadSurface` decodes EVD/IMG/CHD.
 - The game viewport is 960x720 (`SnowRuntime::viewport()`): game scenes draw in 800x600 scaled by 1.2, engine
   components (save menu, settings) in the 1280x720 design space fitted to it; `SnowRuntime` converts mouse

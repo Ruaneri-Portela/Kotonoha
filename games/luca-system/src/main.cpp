@@ -22,7 +22,7 @@ namespace {
 
 Kotonoha::EngineOptions
 withAssets(Kotonoha::EngineOptions options,
-           std::shared_ptr<LucaSystem::LucaSystemAssets> assets) {
+           std::shared_ptr<Kotonoha::Providers::LucaSystemAssets> assets) {
   options.assets = std::move(assets);
   return options;
 }
@@ -34,15 +34,15 @@ struct App {
   struct Game {
     LucaSystem::LucaSystemRuntime runtime;
     Kotonoha::Engine engine;
-    Game(std::shared_ptr<LucaSystem::LucaSystemAssets> a,
+    Game(std::shared_ptr<Kotonoha::Providers::LucaSystemAssets> a,
          Kotonoha::EngineOptions o)
         : runtime(std::move(a)), engine(runtime, std::move(o)) {}
   };
   std::unique_ptr<Game> game;
 
   void start(const std::string &directory) {
-    auto assets = std::shared_ptr<LucaSystem::LucaSystemAssets>(
-        new LucaSystem::LucaSystemAssets(directory,
+    auto assets = std::shared_ptr<Kotonoha::Providers::LucaSystemAssets>(
+        new Kotonoha::Providers::LucaSystemAssets(directory,
                                          options.assetOverlayDirectory()));
     game = std::make_unique<Game>(std::move(assets), std::move(options));
   }

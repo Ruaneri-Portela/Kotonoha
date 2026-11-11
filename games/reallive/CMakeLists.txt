@@ -8,7 +8,7 @@ endif()
 if(NOT TARGET Kotonoha::Engine)
   add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../lib" "${CMAKE_CURRENT_BINARY_DIR}/kotonoha")
 endif()
-add_library(RealLiveFormats STATIC src/Images.cpp src/Voice.cpp src/Script.cpp src/Session.cpp src/System.cpp
+add_library(RealLiveFormats STATIC src/Config.cpp src/Images.cpp src/Voice.cpp src/Script.cpp src/Session.cpp src/System.cpp
   vendor/libreallive/archive.cc vendor/libreallive/bytecode.cc
   vendor/libreallive/compression.cc vendor/libreallive/expression.cc
   vendor/libreallive/filemap.cc vendor/libreallive/scenario.cc)
@@ -24,10 +24,14 @@ if(NOT ANDROID)
   add_executable(RealLiveInspect tools/RealLiveInspect.cpp)
   target_link_libraries(RealLiveInspect PRIVATE RealLiveFormats)
 endif()
-add_library(reallive_port STATIC src/Config.cpp src/RealLiveAssets.cpp src/RealLiveRuntime.cpp)
+find_package(Iconv REQUIRED)
+target_link_libraries(RealLiveFormats PUBLIC Kotonoha::Engine Iconv::Iconv)
+add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../modules/providers/reallive"
+    "${CMAKE_CURRENT_BINARY_DIR}/providers/reallive")
+add_library(reallive_port STATIC src/RealLiveRuntime.cpp)
 target_include_directories(reallive_port PUBLIC src)
 find_package(Iconv REQUIRED)
-target_link_libraries(reallive_port PUBLIC RealLiveFormats Kotonoha::Engine Iconv::Iconv)
+target_link_libraries(reallive_port PUBLIC RealLiveFormats Kotonoha::Engine Iconv::Iconv Kotonoha::ProviderRealLive)
 if(BUILD_TESTING)
   foreach(format Images Voice Script Session System)
     add_executable(RealLive${format}Tests tests/${format}Test.cpp)

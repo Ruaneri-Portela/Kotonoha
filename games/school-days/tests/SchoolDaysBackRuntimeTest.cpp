@@ -1,4 +1,4 @@
-#include "SchoolDaysAssets.hpp"
+#include <SchoolDays/SchoolDaysAssets.hpp>
 #include "SchoolDaysRuntime.hpp"
 #include <Kotonoha/core/Engine.hpp>
 
@@ -37,7 +37,7 @@ struct TemporaryDirectory {
 };
 
 Kotonoha::EngineOptions
-Options(const std::shared_ptr<SchoolDays::Assets> &assets) {
+Options(const std::shared_ptr<Kotonoha::Providers::SchoolDaysAssets> &assets) {
   Kotonoha::EngineOptions options;
   options.assets = assets;
   options.persistSettings = false;
@@ -49,7 +49,7 @@ struct Application {
   SchoolDays::Runtime runtime;
   Kotonoha::Engine engine;
 
-  Application(const std::shared_ptr<SchoolDays::Assets> &assets,
+  Application(const std::shared_ptr<Kotonoha::Providers::SchoolDaysAssets> &assets,
               const char *route, const fs::path &documents)
       : runtime(assets, route, documents), engine(runtime, Options(assets)) {
     runtime.SetState(Kotonoha::GameState::Gameplay);
@@ -70,7 +70,7 @@ void WriteScripts(const fs::path &root) {
 void TestTwoStageBack(const char *route, const fs::path &root) {
   const auto documents = root / "documents";
   fs::create_directories(documents);
-  auto assets = std::make_shared<SchoolDays::Assets>(root);
+  auto assets = std::make_shared<Kotonoha::Providers::SchoolDaysAssets>(root);
   Application app(assets, route, documents);
 
   app.runtime.debugJumpToNode("00/00-00-A02");

@@ -1,5 +1,5 @@
 #pragma once
-#include "SummerAssets.hpp"
+#include <SummerRadish/SummerAssets.hpp>
 #include <Kotonoha/componentes/ImageButtonBar.hpp>
 #include <Kotonoha/componentes/VNBacklog.hpp>
 #include <Kotonoha/core/UI.hpp>
@@ -14,7 +14,7 @@ namespace SummerRadish {
 // that omits the FRAME/ directory entirely; those optional assets are loaded
 // only when present.
 class SummerBacklog final : public Kotonoha::VNBacklog {
-  SummerAssets &assets;
+  Kotonoha::Providers::SummerAssets &assets;
   ClickMap map;
   bool hasCmap = false;
   Kotonoha::ImageButtonBar controls;
@@ -89,7 +89,7 @@ class SummerBacklog final : public Kotonoha::VNBacklog {
 
 public:
   Kotonoha::PcmPlayer replay;
-  SummerBacklog(Kotonoha::Engine &e, SummerAssets &a)
+  SummerBacklog(Kotonoha::Engine &e, Kotonoha::Providers::SummerAssets &a)
       : VNBacklog(e), assets(a), map() {
     if (auto cmap = assets.tryReadAsset("GRAPHIC/FRAME/BACKLOG.CMAP"))
       map = ClickMap(std::move(*cmap)), hasCmap = true;

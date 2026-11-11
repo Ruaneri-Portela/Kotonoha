@@ -4,7 +4,7 @@
 // as the player does to leave Act 3).
 // Usage: DdlcPlaythroughTest <game dir> [overlay directory] [cycles]
 #include "Ddlc/Runtime.hpp"
-#include "DdlcAssets.hpp"
+#include <Ddlc/DdlcAssets.hpp>
 
 #include <algorithm>
 #include <chrono>
@@ -146,7 +146,7 @@ int main(int argc, char **argv) {
   try {
     std::filesystem::remove_all(user);
     std::filesystem::create_directories(user);
-    GameAssets gameAssets(argv[1], overlay);
+    Kotonoha::Providers::DdlcAssets gameAssets(argv[1], overlay);
     const auto &assets = gameAssets.source();
     const auto &script = gameAssets.script();
 

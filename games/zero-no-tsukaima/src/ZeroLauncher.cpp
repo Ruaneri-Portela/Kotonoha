@@ -5,8 +5,9 @@
 namespace ZeroNoTsukaima {
 
 namespace {
-// SLPS-25830, the retail executable on the disc.
-constexpr const char *Executable = "SLPS_258.30";
+// Retail executables supported on the Zero no Tsukaima discs.
+constexpr const char *Executables[] = {"SLPS_257.09", "SLPS_258.98", "SLPS_258.30"};
+constexpr size_t NumExecutables = sizeof(Executables) / sizeof(Executables[0]);
 } // namespace
 
 ZeroLauncher::ZeroLauncher(std::string settingsPath, std::string disc)
@@ -34,12 +35,18 @@ bool ZeroLauncher::validatePath(const std::string &path, std::string &info) {
     info = "Cannot open: " + error;
     return false;
   }
-  if (!image.find(Executable)) {
-    info = "Disc '" + image.volumeLabel() + "' is not Zero no Tsukaima (no " +
-           Executable + ")";
+  const char *found = nullptr;
+  for (size_t i = 0; i < NumExecutables; ++i) {
+    if (image.find(Executables[i])) {
+      found = Executables[i];
+      break;
+    }
+  }
+  if (!found) {
+    info = "Disc '" + image.volumeLabel() + "' is not Zero no Tsukaima (no supported executable)";
     return false;
   }
-  info = "Zero no Tsukaima (" + std::string(Executable) + "), volume '" +
+  info = "Zero no Tsukaima (" + std::string(found) + "), volume '" +
          image.volumeLabel() + "', " + std::to_string(image.files().size()) +
          " files, sector " + std::to_string(image.sectorSize());
   return true;

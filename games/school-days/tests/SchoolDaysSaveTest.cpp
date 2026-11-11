@@ -1,4 +1,4 @@
-#include "SchoolDaysAssets.hpp"
+#include <SchoolDays/SchoolDaysAssets.hpp>
 #include "SchoolDaysRuntime.hpp"
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/routing/SchoolDaysConfigMenuRenderPlan.hpp>
@@ -16,14 +16,14 @@ struct Application {
   SchoolDays::Runtime runtime;
   Kotonoha::Engine engine;
   static Kotonoha::EngineOptions
-  options(const std::shared_ptr<SchoolDays::Assets> &assets) {
+  options(const std::shared_ptr<Kotonoha::Providers::SchoolDaysAssets> &assets) {
     Kotonoha::EngineOptions result;
     result.assets = assets;
     result.persistSettings = false;
     result.rendererOverride = "software";
     return result;
   }
-  Application(const std::shared_ptr<SchoolDays::Assets> &assets,
+  Application(const std::shared_ptr<Kotonoha::Providers::SchoolDaysAssets> &assets,
               const char *route, const std::filesystem::path &documents)
       : runtime(assets, route, documents), engine(runtime, options(assets)) {}
   ~Application() { runtime.shutdown(); }
@@ -45,7 +45,7 @@ int main(int argc, char **argv) {
     // The original System.GPK has SOMCON, not Display Options. Mount the
     // user's separate authored overlay just as the bundled Windows game does,
     // never mutate or replace the commercial GPK.
-    auto assets = std::make_shared<SchoolDays::Assets>(argv[1], argv[3]);
+    auto assets = std::make_shared<Kotonoha::Providers::SchoolDaysAssets>(argv[1], argv[3]);
     Application app(assets, argv[2], documents.path);
     app.runtime.SetState(Kotonoha::GameState::Gameplay);
     app.runtime.debugJumpToNode("0");

@@ -66,7 +66,7 @@ constexpr Uint64 StatusMilliseconds = 6000;
 constexpr double SchoolDaysMediaCacheSeconds = 2.0;
 
 Kotonoha::SchoolDaysBgmResources
-BgmResourcesForPlayback(const Assets &assets, const std::string &path) {
+BgmResourcesForPlayback(const Kotonoha::Providers::SchoolDaysAssets &assets, const std::string &path) {
   auto resources = Kotonoha::SchoolDaysBgmResources::Normal(path);
   try {
     (void)assets.resolve(resources.intro);
@@ -724,7 +724,7 @@ public:
     std::vector<std::pair<std::string, Kotonoha::SurfacePtr>>
         backgroundAbcSurfaces;
   };
-  explicit AbcAnalysisWorker(Assets &source, uint64_t generation)
+  explicit AbcAnalysisWorker(Kotonoha::Providers::SchoolDaysAssets &source, uint64_t generation)
       : assets(source), currentGeneration(generation),
         worker([this] { run(); }) {}
   ~AbcAnalysisWorker() {
@@ -853,7 +853,7 @@ private:
                                        ? std::string()
                                        : resolved.substr(0, slash + 1u);
             result.backgroundGroups = Kotonoha::SchoolDaysGroupAbcSiblings(
-                resolved, assets.listAsset(directory));
+                resolved, assets.list(directory));
             result.backgroundGroups.erase(
                 std::remove_if(
                     result.backgroundGroups.begin(),
@@ -922,7 +922,7 @@ private:
         completed.push_back(std::move(result));
     }
   }
-  Assets &assets;
+  Kotonoha::Providers::SchoolDaysAssets &assets;
   std::mutex mutex;
   std::condition_variable wake;
   std::deque<Job> pending;
@@ -934,7 +934,7 @@ private:
   std::thread worker;
 };
 
-Runtime::Runtime(std::shared_ptr<Assets> source, std::string route,
+Runtime::Runtime(std::shared_ptr<Kotonoha::Providers::SchoolDaysAssets> source, std::string route,
                  std::filesystem::path saveDirectory)
     : Kotonoha::Runtime("School Days HQ", "0.1.0",
                         "me.hirameki.kotonoha.schooldays"),
@@ -2553,7 +2553,7 @@ void Runtime::discoverAbcForBackground() {
   try {
     // School Days GPK references and extracted absolute paths must retain
     // every sibling. The generic overlay list normalizes both to an empty key.
-    siblings = assets->listAsset(directory);
+    siblings = assets->list(directory);
   } catch (const std::exception &error) {
     SDL_LogWarn(Kotonoha::LogUI, "School Days ABC sibling listing failed: %s",
                 error.what());

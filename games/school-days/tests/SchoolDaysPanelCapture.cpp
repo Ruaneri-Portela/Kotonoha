@@ -1,7 +1,7 @@
 // Renders the native School Days screens with retail data and saves BMP
 // captures for visual comparison with the original layout. Not a ctest: it
 // needs user-supplied game data.
-#include "SchoolDaysAssets.hpp"
+#include <SchoolDays/SchoolDaysAssets.hpp>
 #include "SchoolDaysRuntime.hpp"
 #include <Kotonoha/core/Engine.hpp>
 #include <filesystem>
@@ -10,7 +10,7 @@
 
 namespace {
 Kotonoha::EngineOptions
-Options(const std::shared_ptr<SchoolDays::Assets> &assets) {
+Options(const std::shared_ptr<Kotonoha::Providers::SchoolDaysAssets> &assets) {
   Kotonoha::EngineOptions options;
   options.assets = assets;
   options.persistSettings = false;
@@ -21,7 +21,7 @@ Options(const std::shared_ptr<SchoolDays::Assets> &assets) {
 struct Application {
   SchoolDays::Runtime runtime;
   Kotonoha::Engine engine;
-  Application(const std::shared_ptr<SchoolDays::Assets> &assets,
+  Application(const std::shared_ptr<Kotonoha::Providers::SchoolDaysAssets> &assets,
               const std::string &route, const std::string &documents)
       : runtime(assets, route, documents), engine(runtime, Options(assets)) {}
   ~Application() { runtime.shutdown(); }
@@ -59,7 +59,7 @@ int main(int argc, char **argv) {
           "Usage: SchoolDaysPanelCapture route data scripts documents output");
     const std::filesystem::path output = argv[5];
     std::filesystem::create_directories(output);
-    auto assets = std::make_shared<SchoolDays::Assets>(argv[2], argv[3]);
+    auto assets = std::make_shared<Kotonoha::Providers::SchoolDaysAssets>(argv[2], argv[3]);
     Application app(assets, argv[1], argv[4]);
     Frame(app, 30);
     Capture(app, output / "01-engine-splash.bmp");

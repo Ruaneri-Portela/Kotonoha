@@ -78,6 +78,9 @@ protected:
   virtual SurfacePtr loadSurfaceAsset(const std::string &) const;
   virtual SurfacePtr loadFrameAsset(const std::string &, double) const;
   virtual AudioClip loadAudioAsset(const std::string &) const;
+  virtual std::string decodeTextAsset(const std::string &id,
+                                     const std::vector<Uint8> &bytes,
+                                     const char *encoding) const;
 
 public:
   bool contains(const std::string &id) const;
@@ -85,6 +88,11 @@ public:
   // Raw bytes of an asset; throws when it does not exist.
   std::vector<Uint8> read(const std::string &id) const;
   std::vector<Uint8> read(const std::string &id, AssetSource source) const;
+  // BOM-aware UTF-8 text. Pass CP932, CP1252, UTF-16LE, etc. for BOM-less
+  // legacy text. Raw read() does not perform text conversion.
+  std::string loadTextUtf8(const std::string &id,
+                           const char *encoding = "UTF-8",
+                           AssetSource source = AssetSource::Effective) const;
   // Identifiers under a prefix, when the provider can enumerate them.
   std::vector<std::string> list(const std::string &prefix = {}) const;
   // A file streaming consumers may open directly; empty for in-memory assets.

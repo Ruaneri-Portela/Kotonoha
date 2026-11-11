@@ -32,7 +32,7 @@ std::string scenarioTitle(const std::string &fileName) {
 
 struct KirikiriRuntime::Impl {
   KirikiriRuntime &runtime;
-  std::shared_ptr<KirikiriAssets> assets;
+  std::shared_ptr<Kotonoha::Providers::KirikiriAssets> assets;
   Kotonoha::Engine *engine = nullptr;
 
   // Presentation state
@@ -57,11 +57,11 @@ struct KirikiriRuntime::Impl {
   Kotonoha::PcmPlayer bgm;
   Kotonoha::PcmPlayer sound;
 
-  Impl(KirikiriRuntime &r, std::shared_ptr<KirikiriAssets> a)
+  Impl(KirikiriRuntime &r, std::shared_ptr<Kotonoha::Providers::KirikiriAssets> a)
       : runtime(r), assets(std::move(a)) {}
 };
 
-KirikiriRuntime::KirikiriRuntime(std::shared_ptr<KirikiriAssets> assets)
+KirikiriRuntime::KirikiriRuntime(std::shared_ptr<Kotonoha::Providers::KirikiriAssets> assets)
     : Runtime("Kirikiri", "0.1.0", "me.hirameki.kotonoha.kirikiri"),
       impl_(std::make_unique<Impl>(*this, std::move(assets))) {}
 
@@ -280,8 +280,7 @@ bool KirikiriRuntime::startScenario(const std::string &name,
   if (!found)
     return false;
 
-  auto bytes = impl.assets->readAsset(target);
-  std::string text(bytes.begin(), bytes.end());
+  auto text = impl.assets->loadTextUtf8(target);
   SDL_Log("Kirikiri: startScenario '%s' read %zu bytes", target.c_str(),
           text.size());
   auto script = KagScript::parse(text, target);

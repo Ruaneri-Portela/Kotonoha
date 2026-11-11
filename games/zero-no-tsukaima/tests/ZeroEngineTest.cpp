@@ -1,7 +1,7 @@
 // Zero no Tsukaima on the Kotonoha engine, against the user's disc image:
 // the disc AssetProvider and the polymorphic components through their engine
 // base classes (title -> story -> menus -> choice -> save / load).
-#include "DiscAssetProvider.hpp"
+#include <ZeroNoTsukaima/DiscAssetProvider.hpp>
 #include "ZeroLauncher.hpp"
 #include "ZeroRuntime.hpp"
 
@@ -153,7 +153,7 @@ void skipSplash(Kotonoha::Engine &engine, Kotonoha::Runtime &game) {
   require(game.GetState() == GameState::Menu, "A click skips the splash");
 }
 
-void testProvider(ZeroNoTsukaima::DiscAssetProvider &disc) {
+void testProvider(Kotonoha::Providers::ZeroDiscAssets &disc) {
   require(disc.name().find("zero") != std::string::npos || !disc.name().empty(),
           "Provider name");
   require(disc.contains("scenedat/0"), "scenedat/0 is on the disc");
@@ -171,7 +171,7 @@ void testProvider(ZeroNoTsukaima::DiscAssetProvider &disc) {
 // The opening PSS through the engine MediaPlayer (FFmpeg video) with the
 // demuxed SShd/SSbd PCM as its WAV soundtrack.
 void testMovie(Kotonoha::Engine &engine,
-               ZeroNoTsukaima::DiscAssetProvider &disc) {
+               Kotonoha::Providers::ZeroDiscAssets &disc) {
   require(disc.contains("movie/0") && disc.contains("movie/0.wav"),
           "Opening movie is on the disc");
   const Kotonoha::AudioClip pcm = disc.loadAudio("movie/0.wav");
@@ -214,7 +214,7 @@ void testMovie(Kotonoha::Engine &engine,
 }
 
 void testGame(const std::string &discPath) {
-  auto disc = std::make_shared<ZeroNoTsukaima::DiscAssetProvider>(discPath);
+  auto disc = std::make_shared<Kotonoha::Providers::ZeroDiscAssets>(discPath);
   testProvider(*disc);
 
   ZeroNoTsukaima::ZeroRuntime game(disc);

@@ -11,16 +11,19 @@ if(NOT TARGET Kotonoha::Engine)
       "${CMAKE_CURRENT_BINARY_DIR}/kotonoha")
 endif()
 
+if(NOT TARGET Kotonoha::ProviderXP3)
+  add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../modules/providers/xp3"
+      "${CMAKE_CURRENT_BINARY_DIR}/providers/xp3")
+endif()
+
 add_library(kirikiri_formats STATIC
-  src/Xp3Archive.cpp
   src/KagScript.cpp
-  src/KirikiriAssets.cpp
   src/KirikiriRuntime.cpp
 )
 target_include_directories(kirikiri_formats PUBLIC src include)
 set_target_properties(kirikiri_formats PROPERTIES CXX_EXTENSIONS OFF)
 find_package(ZLIB REQUIRED)
-target_link_libraries(kirikiri_formats PUBLIC Kotonoha::Engine ZLIB::ZLIB)
+target_link_libraries(kirikiri_formats PUBLIC Kotonoha::Engine Kotonoha::ProviderXP3 ZLIB::ZLIB)
 target_compile_features(kirikiri_formats PUBLIC cxx_std_17)
 
 kotonoha_add_app(Kirikiri src/main.cpp)

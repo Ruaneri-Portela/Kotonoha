@@ -2,7 +2,7 @@
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
 
-#include "DdlcAssets.hpp"
+#include <Ddlc/DdlcAssets.hpp>
 #include "DdlcLauncher.hpp"
 #include "DdlcRuntime.hpp"
 
@@ -21,7 +21,7 @@ namespace {
 
 Kotonoha::EngineOptions
 withAssets(Kotonoha::EngineOptions options,
-           const std::shared_ptr<Ddlc::GameAssets> &assets) {
+           const std::shared_ptr<Kotonoha::Providers::DdlcAssets> &assets) {
   options.assets = assets;
   return options;
 }
@@ -31,7 +31,7 @@ struct Application {
   Kotonoha::Engine engine;
   long framesLeft = -1;
 
-  Application(const std::shared_ptr<Ddlc::GameAssets> &assets,
+  Application(const std::shared_ptr<Kotonoha::Providers::DdlcAssets> &assets,
               Kotonoha::EngineOptions options)
       : game(assets), engine(game, withAssets(std::move(options), assets)) {}
   ~Application() { game.shutdown(); }
@@ -44,7 +44,7 @@ struct App {
   long frames = -1;
 
   void start(const std::string &directory) {
-    auto assets = std::make_shared<Ddlc::GameAssets>(
+    auto assets = std::make_shared<Kotonoha::Providers::DdlcAssets>(
         Kotonoha::gameDataDirectory(directory),
         options.assetOverlayDirectory());
     assets->setOverlay(options.assetOverlayDirectory());

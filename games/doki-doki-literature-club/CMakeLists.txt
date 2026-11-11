@@ -33,14 +33,15 @@ target_link_libraries(DdlcFormats PUBLIC SDL3::SDL3 ZLIB::ZLIB
     PRIVATE Python3::Python)
 set_target_properties(DdlcFormats PROPERTIES CXX_EXTENSIONS OFF)
 
+add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../modules/providers/rpa"
+    "${CMAKE_CURRENT_BINARY_DIR}/providers/rpa")
 add_library(doki_doki_literature_club STATIC
-    src/DdlcAssets.cpp
     src/DdlcLauncher.cpp
     src/DdlcRuntime.cpp
     src/DdlcSession.cpp
 )
 target_include_directories(doki_doki_literature_club PUBLIC src)
-target_link_libraries(doki_doki_literature_club PUBLIC Kotonoha::Engine DdlcFormats)
+target_link_libraries(doki_doki_literature_club PUBLIC Kotonoha::Engine DdlcFormats Kotonoha::ProviderRPA)
 set_target_properties(doki_doki_literature_club PROPERTIES CXX_EXTENSIONS OFF)
 
 kotonoha_add_app(DokiDoki src/main.cpp)

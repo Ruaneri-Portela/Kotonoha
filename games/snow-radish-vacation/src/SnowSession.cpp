@@ -68,7 +68,7 @@ size_t NextChar(const std::string &s, size_t i) {
 }
 
 std::string Graphic(const std::string &file) {
-  return "graphic/" + SnowAssets::Lower(file);
+  return "graphic/" + Kotonoha::Providers::SnowAssets::Lower(file);
 }
 
 } // namespace
@@ -80,7 +80,7 @@ bool SnowSession::AlphaHit::hit(float px, float py) const {
 }
 
 SnowSession::SnowSession(Kotonoha::Engine &engine,
-                         std::shared_ptr<SnowAssets> assets)
+                         std::shared_ptr<Kotonoha::Providers::SnowAssets> assets)
     : engine_(engine), assets_(std::move(assets)),
       movie_(std::make_unique<Kotonoha::MediaPlayer>(engine_.GetAudio())) {
   script_ = assets_->Script();
@@ -577,7 +577,7 @@ void SnowSession::DrawPicture(SDL_Renderer *r, const std::string &file, float x,
 void SnowSession::DrawSprite(SDL_Renderer *r, const std::string &name, float dx,
                              float dy, const int *tint) {
   std::string file = name;
-  SnowAssets::Placement at = assets_->Sprite(file);
+  Kotonoha::Providers::SnowAssets::Placement at = assets_->Sprite(file);
   if (!at.valid) {
     if (missing_.insert("sprite:" + name).second)
       SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "[gfx] missing sprite %s",

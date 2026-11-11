@@ -2,7 +2,7 @@
 // directory: the AssetProvider and the polymorphic components through their
 // engine base classes (logo -> title -> story -> menus -> choice -> save /
 // load).
-#include "SnowAssets.hpp"
+#include <SnowRadish/SnowAssets.hpp>
 #include "SnowLauncher.hpp"
 #include "SnowRuntime.hpp"
 
@@ -169,7 +169,7 @@ void skipSplash(Kotonoha::Engine &engine, Kotonoha::Runtime &game) {
           "An advance action skips the splash");
 }
 
-void testProvider(SnowRadish::SnowAssets &assets) {
+void testProvider(Kotonoha::Providers::SnowAssets &assets) {
   require(assets.contains("script") && !assets.Script().empty(),
           "SCRIPT.DAT is readable");
   require(assets.contains("graphic/logo00.evd"),
@@ -189,7 +189,7 @@ void testProvider(SnowRadish::SnowAssets &assets) {
 }
 
 void testGame(const std::string &directory) {
-  auto assets = std::make_shared<SnowRadish::SnowAssets>(directory);
+  auto assets = std::make_shared<Kotonoha::Providers::SnowAssets>(directory);
   testProvider(*assets);
 
   const auto saves = std::filesystem::temp_directory_path() /

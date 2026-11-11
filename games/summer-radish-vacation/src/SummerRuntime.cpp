@@ -32,12 +32,12 @@ namespace SummerRadish {
 using namespace Kotonoha;
 namespace {
 class SummerText final : public VNTextBox {
-  SummerAssets &assets;
+  Kotonoha::Providers::SummerAssets &assets;
   std::unique_ptr<ClickMap> controlMap;
   void renderFrame(RendererRef r) override {
     // The normal frame is already composited by the stage. Overlay the
     // original atlas states without rebuilding/upscaling the whole canvas.
-    if (assets.containsAsset("GRAPHIC/FRAME/MESSFRAME.TEXB")) {
+    if (assets.contains("GRAPHIC/FRAME/MESSFRAME.TEXB")) {
       auto &atlas = assets.texture(r, "GRAPHIC/FRAME/MESSFRAME.TEXB");
       for (int i = 0; i < 6; ++i) {
         const int state = controls.state(i);
@@ -78,7 +78,7 @@ class SummerText final : public VNTextBox {
                                 : SDL_Color{240, 240, 245, 255});
   }
   void renderIndicator(RendererRef r) override {
-    if (assets.containsAsset("GRAPHIC/FRAME/MESSFRAME.TEXB")) {
+    if (assets.contains("GRAPHIC/FRAME/MESSFRAME.TEXB")) {
       auto &atlas = assets.texture(r, "GRAPHIC/FRAME/MESSFRAME.TEXB");
       SDL_FRect source{float(256 + ((SDL_GetTicks() / 200) % 4) * 16), 210, 16,
                        40};
@@ -101,7 +101,7 @@ public:
     if (!concealed)
       VNTextBox::render(r, scale);
   }
-  SummerText(Engine &e, SummerAssets &a) : VNTextBox(e, "", "", 40), assets(a) {
+  SummerText(Engine &e, Kotonoha::Providers::SummerAssets &a) : VNTextBox(e, "", "", 40), assets(a) {
     hide();
     if (auto cmap = assets.tryReadAsset("GRAPHIC/FRAME/MESSFRAME.CMAP"))
       controlMap = std::make_unique<ClickMap>(std::move(*cmap));
@@ -120,7 +120,7 @@ public:
   }
 };
 class SummerChoice final : public ChoiceQuestionScene {
-  SummerAssets &assets;
+  Kotonoha::Providers::SummerAssets &assets;
   std::vector<bool> readStates;
   bool pointerFocus = false, keyboardFocus = false;
   void layout() override {
@@ -145,7 +145,7 @@ class SummerChoice final : public ChoiceQuestionScene {
     const auto &rect = options[index].hitBox;
     const bool read = index < readStates.size() && readStates[index];
     const float start = (read ? 160 : 0) + (focused ? 80 : 0);
-    if (assets.containsAsset("GRAPHIC/FRAME/SELECT.TEXB")) {
+    if (assets.contains("GRAPHIC/FRAME/SELECT.TEXB")) {
       auto &atlas = assets.texture(r, "GRAPHIC/FRAME/SELECT.TEXB");
       SDL_FRect source{start, 0, 32, 42}, target{rect.x, rect.y, 32, 42};
       RenderUpscaledTexture(&r, &atlas, &source, &target);
@@ -179,7 +179,7 @@ class SummerChoice final : public ChoiceQuestionScene {
 
 public:
   std::function<void(const std::string &)> nativeSound;
-  explicit SummerChoice(Engine &e, SummerAssets &a)
+  explicit SummerChoice(Engine &e, Kotonoha::Providers::SummerAssets &a)
       : ChoiceQuestionScene(e, "", {}, nullptr), assets(a) {}
   void setReadStates(std::vector<bool> states) {
     readStates = std::move(states);
@@ -200,7 +200,7 @@ public:
     hitmap.reset();
     ChoiceQuestionScene::setQuestion(q, o, std::move(cb));
   }
-  void setNative(int mode, SummerAssets &assets,
+  void setNative(int mode, Kotonoha::Providers::SummerAssets &assets,
                  std::function<void(int, const std::string &)> cb) {
     nativeMode = mode;
     focus = mode == 3 ? 0 : -1;
@@ -226,7 +226,7 @@ public:
       if (uniformPhase) {
         const std::string kakunin = std::string("GRAPHIC/UNIFORM/KAKUNIN_") +
                                     char('A' + uniformIndex) + ".CGD";
-        if (assets.containsAsset(kakunin))
+        if (assets.contains(kakunin))
           return kakunin;
         return "GRAPHIC/UNIFORM/UNICHOICE.CGD";
       }
@@ -266,7 +266,7 @@ public:
       }
     } else if (uniformPhase == 2) {
       const std::string kakuninTex = "GRAPHIC/UNIFORM/KAKUNIN.TEXB";
-      if (assets.containsAsset(kakuninTex)) {
+      if (assets.contains(kakuninTex)) {
         const auto &texture = image(kakuninTex);
         compositeImageRegion(canvas, texture, 208, 362, 0, 0, 386, 90);
         if (focus >= 0)
@@ -424,7 +424,7 @@ std::string stem(std::string name) {
 } // namespace
 struct SummerRuntime::Impl {
   SummerRuntime &runtime;
-  std::shared_ptr<SummerAssets> assets;
+  std::shared_ptr<Kotonoha::Providers::SummerAssets> assets;
   Engine *engine = nullptr;
   Machine vm;
   std::unique_ptr<Stage> stage;
@@ -536,14 +536,13 @@ struct SummerRuntime::Impl {
   std::string titleChipTexture;       // TEMPLATENAME or fallback
   std::vector<TitleChip> titleChips;
   std::set<std::string> warned;
-  explicit Impl(SummerRuntime &r, std::shared_ptr<SummerAssets> a)
+  explicit Impl(SummerRuntime &r, std::shared_ptr<Kotonoha::Providers::SummerAssets> a)
       : runtime(r), assets(std::move(a)) {
     for (auto &id : assets->list("SCRIPT/")) {
       auto bytes = assets->read(id);
       vm.add(stem(id.substr(7)), std::string(bytes.begin(), bytes.end()));
     }
-    auto config = assets->read("INI/CONFIG.INI");
-    std::istringstream stream(utf16(config, 0, config.size() / 2));
+    std::istringstream stream(assets->loadTextUtf8("INI/CONFIG.INI", "UTF-16LE"));
     std::string line;
     speakers.resize(32);
     while (std::getline(stream, line)) {
@@ -731,8 +730,8 @@ struct SummerRuntime::Impl {
       inipath.erase(0, 1);
     std::string data;
     try {
-      data = std::string(assets->read(inipath).begin(),
-                         assets->read(inipath).end());
+      const auto bytes = assets->read(inipath);
+      data.assign(bytes.begin(), bytes.end());
     } catch (const std::exception &) {
       return;
     }
@@ -816,7 +815,7 @@ struct SummerRuntime::Impl {
       }
     }
     if (titleChipTexture.empty())
-      titleChipTexture = assets->containsAsset("GRAPHIC/TITLE/TITLECHIP.TEXB")
+      titleChipTexture = assets->contains("GRAPHIC/TITLE/TITLECHIP.TEXB")
                              ? "GRAPHIC/TITLE/TITLECHIP.TEXB"
                              : "GRAPHIC/TITLE/TITLE.TEXB";
     if (titleChips.empty()) {
@@ -1315,14 +1314,14 @@ struct SummerRuntime::Impl {
       if (!byteOverlay.empty())
         compositeImage(canvas, image(byteOverlay), 216, 161);
       if (text->isVisible() && !text->concealed &&
-          assets->containsAsset("GRAPHIC/FRAME/MESSFRAME.TEXB"))
+          assets->contains("GRAPHIC/FRAME/MESSFRAME.TEXB"))
         compositeImageRegion(canvas, image("GRAPHIC/FRAME/MESSFRAME.TEXB"), 0,
                              391, 0, 0, 800, 209);
       choice->compose(
           canvas, [this](const auto &id) -> const Image & { return image(id); },
           vm);
       if (title) {
-        if (assets->containsAsset(titleChipTexture))
+        if (assets->contains(titleChipTexture))
           for (size_t i = 0; i < titleChips.size(); ++i) {
             const auto &chip = titleChips[i];
             const bool focused = i == size_t(titleFocus);
@@ -1515,7 +1514,7 @@ struct SummerRuntime::Impl {
     return false;
   }
 };
-SummerRuntime::SummerRuntime(std::shared_ptr<SummerAssets> a)
+SummerRuntime::SummerRuntime(std::shared_ptr<Kotonoha::Providers::SummerAssets> a)
     : Runtime("Summer Radish Vacation!!", "0.1.0",
               "me.hirameki.kotonoha.summerradishvacation"),
       impl(std::make_unique<Impl>(*this, std::move(a))) {}

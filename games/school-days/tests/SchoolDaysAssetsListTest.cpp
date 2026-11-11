@@ -1,4 +1,4 @@
-#include "SchoolDaysAssets.hpp"
+#include <SchoolDays/SchoolDaysAssets.hpp>
 
 #include <Kotonoha/SchoolDaysAssetMount.hpp>
 #include <Kotonoha/SchoolDaysImageAssetResolver.hpp>
@@ -96,7 +96,7 @@ int main() {
     putWave(root / voice, 0x20);
     putWave(dubbingOverlay / voice, 0xe0);
 
-    SchoolDays::Assets assets(root, dubbingOverlay.string());
+    Kotonoha::Providers::SchoolDaysAssets assets(root, dubbingOverlay.string());
     const auto replacement = assets.loadAudio(voice);
     const auto original = assets.loadAudio(voice, true);
     require(!replacement.data.empty() && !original.data.empty() &&

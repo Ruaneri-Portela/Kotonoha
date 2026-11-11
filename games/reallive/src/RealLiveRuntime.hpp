@@ -1,5 +1,5 @@
 #pragma once
-#include "RealLiveAssets.hpp"
+#include <RealLive/RealLiveAssets.hpp>
 #include <Kotonoha/core/Runtime.hpp>
 #include <cstdint>
 namespace RealLive {
@@ -17,7 +17,7 @@ public:
     uint64_t gpuFrames = 0;
     uint64_t softwareEffectFrames = 0;
   };
-  explicit RealLiveRuntime(std::shared_ptr<RealLiveAssets>, int scene = -1);
+  explicit RealLiveRuntime(std::shared_ptr<Kotonoha::Providers::RealLiveAssets>, int scene = -1);
   ~RealLiveRuntime() override;
   void shutdown();
   bool continuousTouch() const override { return true; }

@@ -13,20 +13,22 @@ endif()
 
 # Overflow ADV3 formats (packs, pictures, ADPCM, script VM). Assets stay in the
 # user's DAT directory and are never copied into the repository.
+if(NOT TARGET Kotonoha::ProviderADV)
+    add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../modules/providers/adv"
+        "${CMAKE_CURRENT_BINARY_DIR}/providers/adv")
+endif()
 add_library(SnowRadishFormats STATIC
-    src/Pack.cpp
     src/Vm.cpp
     src/Game.cpp
 )
 target_include_directories(SnowRadishFormats PUBLIC include)
-target_link_libraries(SnowRadishFormats PUBLIC Kotonoha::Engine)
+target_link_libraries(SnowRadishFormats PUBLIC Kotonoha::Engine Kotonoha::ProviderADV)
 target_compile_features(SnowRadishFormats PUBLIC cxx_std_17)
 set_target_properties(SnowRadishFormats PROPERTIES CXX_EXTENSIONS OFF)
 
 # The game on the Kotonoha engine: DAT AssetProvider, session and the
 # polymorphic engine components.
 add_library(snow_radish_vacation STATIC
-    src/SnowAssets.cpp
     src/SnowSession.cpp
     src/SnowComponents.cpp
     src/SnowRuntime.cpp

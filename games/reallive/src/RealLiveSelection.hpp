@@ -1,5 +1,5 @@
 #pragma once
-#include "RealLiveAssets.hpp"
+#include <RealLive/RealLiveAssets.hpp>
 #include <Kotonoha/componentes/ChoiceQuestionScene.hpp>
 #include <Kotonoha/componentes/ImageButtonBar.hpp>
 #include <Kotonoha/core/UI.hpp>
@@ -11,7 +11,7 @@
 namespace RealLive {
 // RealLive selections share the configured text window, not a separate panel.
 class RealLiveSelection final : public Kotonoha::ChoiceQuestionScene {
-  RealLiveAssets &assets;
+  Kotonoha::Providers::RealLiveAssets &assets;
   Kotonoha::ImageButtonBar controls;
   Kotonoha::SurfacePtr backing;
   Kotonoha::TexturePtr backingTexture;
@@ -77,7 +77,7 @@ class RealLiveSelection final : public Kotonoha::ChoiceQuestionScene {
   }
 
 public:
-  explicit RealLiveSelection(Kotonoha::Engine &e, RealLiveAssets &a)
+  explicit RealLiveSelection(Kotonoha::Engine &e, Kotonoha::Providers::RealLiveAssets &a)
       : ChoiceQuestionScene(e, "", {}, nullptr), assets(a) {}
   bool designSpace() const override { return false; }
   void configure(int number) {

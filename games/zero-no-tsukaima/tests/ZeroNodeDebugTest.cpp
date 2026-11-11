@@ -9,7 +9,7 @@ int main(int argc, char **argv) {
   if (argc != 2)
     return 2;
   try {
-    auto disc = std::make_shared<ZeroNoTsukaima::DiscAssetProvider>(argv[1]);
+    auto disc = std::make_shared<Kotonoha::Providers::ZeroDiscAssets>(argv[1]);
     ZeroNoTsukaima::ZeroRuntime runtime(disc);
     Kotonoha::EngineOptions options;
     options.assets = disc;

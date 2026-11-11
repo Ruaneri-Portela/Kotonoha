@@ -2,7 +2,7 @@
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
 
-#include "DiscAssetProvider.hpp"
+#include <ZeroNoTsukaima/DiscAssetProvider.hpp>
 #include "ZeroLauncher.hpp"
 #include "ZeroRuntime.hpp"
 
@@ -32,7 +32,7 @@ struct Application {
   Kotonoha::Engine engine;
   long framesLeft = -1; // --frames: smoke runs quit by themselves
 
-  Application(std::shared_ptr<ZeroNoTsukaima::DiscAssetProvider> disc,
+  Application(std::shared_ptr<Kotonoha::Providers::ZeroDiscAssets> disc,
               Kotonoha::EngineOptions options)
       : game(disc), engine(game, WithAssets(std::move(options), disc)) {}
   // The engine (renderer, mixer) goes before the runtime: free the session
@@ -48,7 +48,7 @@ struct App {
   long frames = -1;
 
   void Start(const std::string &disc) {
-    auto provider = std::make_shared<ZeroNoTsukaima::DiscAssetProvider>(disc);
+    auto provider = std::make_shared<Kotonoha::Providers::ZeroDiscAssets>(disc);
     provider->setOverlay(options.assetOverlayDirectory());
     game = std::make_unique<Application>(std::move(provider), options);
     game->framesLeft = frames;

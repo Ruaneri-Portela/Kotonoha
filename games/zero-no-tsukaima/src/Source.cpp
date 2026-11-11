@@ -30,6 +30,9 @@ bool SceneSource::ReadEntry(const Kotonoha::DiscImage::Entry &bin,
 bool SceneSource::Open(const std::string &discPath, std::string *error) {
   if (!disc_->tryOpen(discPath, error))
     return false;
+  // Symphony inserted ENVIMAGE and a SYSTEM list; its archive indices differ
+  // from Nocturne even though both use the same compiled Squirrel format.
+  const bool symphony = disc_->find("SLPS_258.98") != nullptr;
   const Kotonoha::DiscImage::Entry *sysBin = disc_->find("SYSTEM.BIN");
   const Kotonoha::DiscImage::Entry *sysHd = disc_->find("SYSTEM.HD");
   sceneBin_ = disc_->find("SCENE_ID.BIN");
@@ -62,15 +65,15 @@ bool SceneSource::Open(const std::string &discPath, std::string *error) {
   disc_->readInto(*sysHd, 0, sysHd->size, hd);
   const auto sysIndex = ParseArchiveIndex(hd);
   std::vector<uint8_t> nut;
-  if (!ReadEntry(*sysBin, sysIndex, 32, &nut) ||
+  if (!ReadEntry(*sysBin, sysIndex, symphony ? 33 : 32, &nut) ||
       !ParseSceneNames(nut, &names_)) {
     if (error)
       *error = "cannot read the scene name table (SYSTEM #32)";
     return false;
   }
   std::vector<uint8_t> env, main;
-  if (ReadEntry(*sysBin, sysIndex, 31, &env) &&
-      ReadEntry(*sysBin, sysIndex, 35, &main)) {
+  if (ReadEntry(*sysBin, sysIndex, symphony ? 32 : 31, &env) &&
+      ReadEntry(*sysBin, sysIndex, symphony ? 36 : 35, &main)) {
     std::vector<uint32_t> sizes;
     for (const ArchiveEntry &e : pictureIndex_)
       sizes.push_back(e.size);
@@ -87,10 +90,11 @@ bool SceneSource::Open(const std::string &discPath, std::string *error) {
     for (auto [entry, table] :
          {std::pair{9, &scenedatNames_}, std::pair{10, &soundNames_},
           std::pair{11, &normalNames_}})
-      if (ReadEntry(*normalBin_, normalIndex_, size_t(entry), &list))
+      if (ReadEntry(*normalBin_, normalIndex_, size_t(entry + (symphony ? 1 : 0)), &list))
         *table = ParseNameList(list);
-    if (ReadEntry(*normalBin_, normalIndex_, 247, &list))
-      for (size_t o = 0; o + 14 <= list.size(); o += 14) {
+    const size_t movieRecordSize = symphony ? 20 : 14;
+    if (ReadEntry(*normalBin_, normalIndex_, symphony ? 13 : 247, &list))
+      for (size_t o = 0; o + movieRecordSize <= list.size(); o += movieRecordSize) {
         std::string name(reinterpret_cast<const char *>(list.data() + o), 14);
         name.resize(name.find('\0') == std::string::npos ? name.size()
                                                          : name.find('\0'));
@@ -102,7 +106,7 @@ bool SceneSource::Open(const std::string &discPath, std::string *error) {
   // NORMAL #8 is SCENE_ID.LST ("[SCENE_ID]" then "SCENE\\NAME.nut" per entry):
   // the real entry order. The SCENES.NUT literal pool read above is only hash
   // ordered.
-  if (normalBin_ && ReadEntry(*normalBin_, normalIndex_, 8, &list)) {
+  if (normalBin_ && ReadEntry(*normalBin_, normalIndex_, symphony ? 9 : 8, &list)) {
     std::vector<std::string> names;
     std::string text(list.begin(), list.end()), line;
     std::istringstream in(text);
@@ -127,7 +131,7 @@ bool SceneSource::Open(const std::string &discPath, std::string *error) {
                    "SCENES.NUT\n",
                    names.size(), sceneIndex_.size());
   }
-  if (ReadEntry(*sysBin, sysIndex, 36, &list))
+  if (ReadEntry(*sysBin, sysIndex, symphony ? 40 : 36, &list))
     if (auto table = EvalNutTable(list))
       for (const auto &[k, v] : table->fields)
         if (v && v->kind == NutValue::Integer)

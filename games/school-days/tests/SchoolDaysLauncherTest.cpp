@@ -1,5 +1,5 @@
 #include "SchoolDaysLauncher.hpp"
-#include "SchoolDaysAssets.hpp"
+#include <SchoolDays/SchoolDaysAssets.hpp>
 #include <Kotonoha/script/KtrfScript.hpp>
 
 #include <SDL3/SDL.h>
@@ -67,9 +67,9 @@ int main(int argc, char **argv) {
     const auto previousDirectory = fs::current_path();
     fs::current_path(workspace);
     const auto discoveredGame =
-        fs::absolute(SchoolDays::Assets::defaultDirectory());
+        fs::absolute(Kotonoha::Providers::SchoolDaysAssets::defaultDirectory());
     const auto discoveredRoute =
-        fs::absolute(SchoolDays::Assets::findDefaultRoute());
+        fs::absolute(Kotonoha::Providers::SchoolDaysAssets::findDefaultRoute());
     fs::current_path(previousDirectory);
     require(fs::is_directory(discoveredGame) &&
                 fs::is_regular_file(discoveredRoute) &&

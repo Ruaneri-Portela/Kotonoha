@@ -1,4 +1,4 @@
-#include "SchoolDaysAssets.hpp"
+#include <SchoolDays/SchoolDaysAssets.hpp>
 #include "SchoolDaysRuntime.hpp"
 
 #include <Kotonoha/core/Engine.hpp>
@@ -62,7 +62,7 @@ struct TemporaryDirectory {
 };
 
 Kotonoha::EngineOptions
-Options(const std::shared_ptr<SchoolDays::Assets> &assets) {
+Options(const std::shared_ptr<Kotonoha::Providers::SchoolDaysAssets> &assets) {
   Kotonoha::EngineOptions options;
   options.assets = assets;
   options.persistSettings = false;
@@ -74,7 +74,7 @@ struct Application {
   SchoolDays::Runtime runtime;
   Kotonoha::Engine engine;
 
-  Application(const std::shared_ptr<SchoolDays::Assets> &assets,
+  Application(const std::shared_ptr<Kotonoha::Providers::SchoolDaysAssets> &assets,
               const char *route, const fs::path &documents,
               bool persistPhysicalSettings = false)
       : runtime(assets, route, documents), engine(runtime, [&] {
@@ -180,7 +180,7 @@ int main(int argc, char **argv) {
   using Kind = Kotonoha::SchoolDaysConfigMenuModel::ActionKind;
 
   TemporaryDirectory temporary;
-  auto assets = std::make_shared<SchoolDays::Assets>(argv[2]);
+  auto assets = std::make_shared<Kotonoha::Providers::SchoolDaysAssets>(argv[2]);
   std::string error;
   std::vector<uint8_t> encoded;
   Check(Storage::EncodeDocument(kLogical, &encoded, &error), error);
