@@ -129,6 +129,15 @@ ZeroSession::ZeroSession(Kotonoha::Engine &engine,
                 "[zero] loaded font from memory (%zu bytes)", fontData_.size());
   else
     SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "[zero] no font found in memory");
+  if (!font_ || !TTF_FontHasGlyph(font_, 0x3042)) {
+    const std::string fallback = FindFont();
+    if (!fallback.empty()) {
+      if (TTF_Font *cjk = TTF_OpenFont(fallback.c_str(), 24)) {
+        if (font_) TTF_CloseFont(font_);
+        font_ = cjk;
+      }
+    }
+  }
   ApplyVolumes();
 }
 
@@ -161,10 +170,16 @@ void ZeroSession::Shutdown() {
 bool ZeroSession::ReadAsset(const std::string &id,
                             std::vector<uint8_t> *out) const {
   auto &assets = engine_.GetAssets();
-  if (!assets.contains(id))
+  if (!assets.contains(id)) {
+    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
+                 "[zero] audio asset not contained: %s", id.c_str());
     return false;
+  }
   try {
     *out = assets.read(id);
+    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
+                 "[zero] audio asset read: %s (%zu bytes)", id.c_str(),
+                 out->size());
     return true;
   } catch (const std::exception &e) {
     SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "[zero] %s", e.what());
@@ -208,6 +223,9 @@ ZeroNoTsukaima::Picture *ZeroSession::NormalPicture(const std::string &name) {
 }
 
 ZeroNoTsukaima::Picture *ZeroSession::ScenePicture(const std::string &name) {
+  // The two later layouts store boot logos in NORMAL, not SCENEDAT.
+  if (disc_->Source().NormalIndex(name) >= 0)
+    return NormalPicture(name);
   return NamedScene(name);
 }
 
@@ -244,14 +262,28 @@ bool ZeroSession::PlayStream(PcmPlayer &out, const char *channel,
     clip.channels = 2;
   } else {
     clip.samples = DecodeVag(raw.data(), raw.size());
+    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
+                 "[zero] %s: decoded %zu samples from %zu bytes", channel,
+                 clip.samples.size(), raw.size());
   }
-  if (clip.samples.size() < 256)
+  if (clip.samples.size() < 256) {
+    SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                "[zero] %s: decoded VAG produced too few samples (%zu)",
+                channel, clip.samples.size());
     return false;
+  }
   const size_t samples = clip.samples.size();
   clip.rate = rate;
   clip.loop = loop;
-  if (!out.Play(engine_.GetAudio().channel(channel), std::move(clip)))
+  SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
+              "[zero] PlayStream calling PcmPlayer::Play on %s rate=%d loop=%d samples=%zu",
+              channel, rate, loop ? 1 : 0, samples);
+  if (!out.Play(engine_.GetAudio().channel(channel), std::move(clip))) {
+    SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                "[zero] PlayStream: PcmPlayer::Play returned false on %s",
+                channel);
     return false;
+  }
   SDL_LogDebug(SDL_LOG_CATEGORY_APPLICATION,
                "[audio] %zu samples @%d Hz on \"%s\"", samples, rate, channel);
   return true;
@@ -260,8 +292,16 @@ bool ZeroSession::PlayStream(PcmPlayer &out, const char *channel,
 void ZeroSession::PlayVoiceIndex(int index) {
   voice_.Stop();
   std::vector<uint8_t> raw;
-  if (index > 0 && ReadAsset("voice/" + std::to_string(index), &raw))
-    PlayStream(voice_, "voice", raw, voiceRate_, false);
+  if (index > 0 && ReadAsset("voice/" + std::to_string(index), &raw)) {
+    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
+                "[zero] PlayVoiceIndex %d read %zu bytes", index, raw.size());
+    if (!PlayStream(voice_, "voice", raw, voiceRate_, false))
+      SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                  "[zero] voice %d: PlayStream failed", index);
+  } else {
+    SDL_LogDebug(SDL_LOG_CATEGORY_APPLICATION,
+                 "[zero] voice %d: ReadAsset failed or index == 0", index);
+  }
 }
 
 // Music by SOUND_ID.LST name: "bgm04" -> SOUND\BGM04.STV, "BGMA01" ->
@@ -272,15 +312,28 @@ void ZeroSession::PlayBgm(const std::string &name) {
   lastBgm_ = name;
   bgm_.Stop();
   std::vector<uint8_t> raw;
-  if (!name.empty() && ReadAsset("sound/" + name, &raw))
-    PlayStream(bgm_, "bgm", raw, bgmRate_, true);
+  if (!name.empty() && ReadAsset("sound/" + name, &raw)) {
+    if (!PlayStream(bgm_, "bgm", raw, bgmRate_, true))
+      SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
+                  "[zero] bgm %s: PlayStream failed", name.c_str());
+  } else {
+    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
+                "[zero] bgm %s: ReadAsset failed or empty name",
+                name.c_str());
+  }
 }
 
 void ZeroSession::PlaySe(const std::string &name) {
   se_.Stop();
   std::vector<uint8_t> raw;
-  if (!name.empty() && ReadAsset("sound/" + name, &raw))
-    PlayStream(se_, "se", raw, seRate_, false);
+  if (!name.empty() && ReadAsset("sound/" + name, &raw)) {
+    if (!PlayStream(se_, "se", raw, seRate_, false))
+      SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
+                  "[zero] se %s: PlayStream failed", name.c_str());
+  } else {
+    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
+                "[zero] se %s: ReadAsset failed or empty name", name.c_str());
+  }
 }
 
 // Option volumes (0..10) drive the engine "voice" / "se" / "bgm" channels.
@@ -471,7 +524,7 @@ bool ZeroSession::Start() {
   const std::string script = replay_ != Frontend::Replay::None
                                  ? frontend_.Scene() + ".KS"
                              : dev && *dev ? std::string(dev)
-                                           : "START.KS";
+                                            : disc_->Source().StartupScene();
   frontend_.Leave();
   movie_.reset();
   const SceneSource &source = disc_->Source();
@@ -958,6 +1011,10 @@ void ZeroSession::DrawElements(SDL_Renderer *r,
   const auto &catalog = disc_->Source().Catalog();
   for (const E &e : scene) {
     std::string image = e.image;
+    if (image.compare(0, 9, "scenedat/") == 0) {
+      DrawPicture(r, Texture(image), e.x, e.y, e.alpha, e.tint);
+      continue;
+    }
     int index = -1;
     if (e.kind == E::Stage) {
       const std::string special = catalog.SpecialStage(e.image);
@@ -978,7 +1035,7 @@ void ZeroSession::DrawElements(SDL_Renderer *r,
       Fill(r, image == "white" ? 255 : 0, e.alpha);
       continue;
     }
-    DrawPicture(r, index >= 0 ? SceneIndexPicture(index) : NamedScene(image),
+    DrawPicture(r, index >= 0 ? SceneIndexPicture(index) : Picture(image),
                 e.x, e.y, e.alpha);
   }
 }
@@ -1048,6 +1105,14 @@ void ZeroSession::DrawStage(SDL_Renderer *r) {
 void ZeroSession::DrawMessageWindow(SDL_Renderer *r) {
   if (!HasMessage())
     return;
+  if (GameEdition() != SceneSource::Edition::Nocturne) {
+    if (auto *panel = NormalPicture("MAIN_MESSAGEBASE")) {
+      const SDL_FRect dst{kMsgX, kMsgY, 624, 164};
+      panel->Draw(r, nullptr, &dst);
+    }
+    DrawText(r, game_->Speaker(), kMsgX + 50, kMsgY + 8, 22, {30, 15, 10, 255});
+    return;
+  }
   DrawNormal(r, "MAIN_MESSAGEBASE", kMsgX, kMsgY);
   if (const std::string *plate =
           disc_->Source().Catalog().NameImage(game_->Speaker()))

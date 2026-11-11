@@ -18,13 +18,18 @@ if(NOT TARGET Kotonoha::ProviderADV)
         "${CMAKE_CURRENT_BINARY_DIR}/providers/adv")
 endif()
 add_library(SnowRadishFormats STATIC
-    src/Vm.cpp
     src/Game.cpp
 )
 target_include_directories(SnowRadishFormats PUBLIC include)
 target_link_libraries(SnowRadishFormats PUBLIC Kotonoha::Engine Kotonoha::ProviderADV)
 target_compile_features(SnowRadishFormats PUBLIC cxx_std_17)
 set_target_properties(SnowRadishFormats PROPERTIES CXX_EXTENSIONS OFF)
+include("${CMAKE_CURRENT_SOURCE_DIR}/../../modules/vms/snow-radish/CMakeLists.txt")
+# SnowRadishFormats' Game drives the VM, so consumers get the VM transitively.
+target_link_libraries(SnowRadishFormats PUBLIC Kotonoha::Vmsnow-radish)
+# SnowRadishFormats sources include SnowRadish/Vm.hpp, now in the VM module.
+target_include_directories(SnowRadishFormats PUBLIC
+    $<TARGET_PROPERTY:Kotonoha::Vmsnow-radish,INTERFACE_INCLUDE_DIRECTORIES>)
 
 # The game on the Kotonoha engine: DAT AssetProvider, session and the
 # polymorphic engine components.
@@ -35,7 +40,7 @@ add_library(snow_radish_vacation STATIC
     src/SnowLauncher.cpp
 )
 target_include_directories(snow_radish_vacation PUBLIC src)
-target_link_libraries(snow_radish_vacation PUBLIC Kotonoha::Engine SnowRadishFormats)
+target_link_libraries(snow_radish_vacation PUBLIC Kotonoha::Engine SnowRadishFormats Kotonoha::Vmsnow-radish)
 set_target_properties(snow_radish_vacation PROPERTIES CXX_EXTENSIONS OFF)
 
 kotonoha_add_app(SnowRadish src/main.cpp)

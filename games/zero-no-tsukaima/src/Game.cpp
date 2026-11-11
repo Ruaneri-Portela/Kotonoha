@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cstdio>
 #include <cstdlib>
 
 namespace ZeroNoTsukaima {
@@ -187,7 +188,7 @@ const ActionDef *FindAction(const std::string &key) {
 
 // ENVINIT "times".
 bool IsTime(const std::string &w) {
-  return w == "昼" || w == "夕" || w == "夜" || w == "夜闇" || w == "夕室内" ||
+  return w == "昼" || w == "夕" || w == "夕方" || w == "夜" || w == "夜闇" || w == "夕室内" ||
          w == "夜室内" || w == "特殊背景" || w == "特殊背景２";
 }
 
@@ -378,6 +379,8 @@ bool Game::DebugJump(const std::string &scriptName) {
   transition_ = {};
   choiceText_.clear();
   choiceTarget_.clear();
+  choiceStorage_.clear();
+  choiceExpression_.clear();
   cues_.clear();
   text_.clear();
   return true;
@@ -437,6 +440,8 @@ int64_t Game::ActionsEnd() const {
   for (const CharacterState &c : characters_)
     add(c.p);
   for (const LayerState &l : layers_)
+    add(l.p);
+  for (const LayerState &l : concertoLayers_)
     add(l.p);
   return end;
 }
@@ -620,7 +625,60 @@ void Game::Execute(const SceneTag &tag) {
     return v ? *v : std::string();
   };
 
-  if (n == "ch")
+  if (n == "concerto_reset") {
+    concertoLayers_.clear();
+    bgm_.clear();
+    ++version_;
+  } else if (n == "concerto_back") {
+    transFrom_ = SceneAt(clock_);
+  } else if (n == "concerto_trans") {
+    const int ms = IntAttr(tag, "time", 0);
+    transition_.from = transFrom_;
+    transition_.start = clock_;
+    transition_.duration = ms;
+    ++transition_.serial;
+    WaitFor(ms);
+  } else if (n == "concerto_sound") {
+    if (attr("name") == "bgm") {
+      if (tag.Get("stop")) bgm_.clear();
+      if (tag.Get("play")) bgm_ = attr("play");
+    } else if (tag.Get("play")) {
+      cues_.push_back({Cue::Se, attr("play"), 0});
+    } else if (tag.Get("stop")) {
+      cues_.push_back({Cue::Se, "", 0});
+    }
+  } else if (n == "concerto_layer") {
+    auto it = std::find_if(concertoLayers_.begin(), concertoLayers_.end(),
+                           [&](const LayerState &l) { return l.name == attr("name"); });
+    if (it == concertoLayers_.end()) {
+      concertoLayers_.push_back({});
+      it = concertoLayers_.end() - 1;
+      it->name = attr("name");
+      it->visible = false;
+    }
+    auto &l = *it;
+    if (tag.Get("image")) l.file = attr("image");
+    if (tag.Get("level")) l.level = IntAttr(tag, "level", 0);
+    if (tag.Get("show")) l.visible = IntAttr(tag, "show", 0) != 0;
+    const auto animate = [&](Anim &a, const char *key, const char *from,
+                             const char *duration, float scale) {
+      if (tag.Get(from)) a.Set(float(IntAttr(tag, from, 0)) * scale);
+      if (tag.Get(key))
+        a.To(clock_, float(IntAttr(tag, key, 0)) * scale,
+             IntAttr(tag, duration, 0));
+    };
+    animate(l.p.x, "x", "xFrom", "moveTime", 1);
+    animate(l.p.y, "y", "yFrom", "moveTime", 1);
+    animate(l.p.alpha, "opacity", "opacityFrom", "opacityTime", 0.01f);
+    if (tag.Get("hide") && IntAttr(tag, "hide", 0)) {
+      l.p.alpha.To(clock_, 0, IntAttr(tag, "opacityTime", 0));
+    }
+    if (tag.Get("action")) {
+      if (unsupportedCommands_.insert("layer action: " + attr("action")).second)
+        std::fprintf(stderr, "[zero] unsupported Concerto layer action: %s\n", attr("action").c_str());
+    }
+    ++version_;
+  } else if (n == "ch")
     text_ += translate ? translate(sceneIndex_, attr("text")) : attr("text");
   else if (n == "r")
     text_ += "\n";
@@ -741,9 +799,20 @@ void Game::Execute(const SceneTag &tag) {
       if (!LoadByName(done))
         finished_ = true;
     }
+  } else if (n == "concerto_unsupported") {
+    if (unsupportedCommands_.insert(attr("command")).second)
+      std::fprintf(stderr, "[zero] unsupported Concerto command: %s\n",
+                   attr("command").c_str());
+  } else if (n == "selclear") {
+    choiceText_.clear();
+    choiceTarget_.clear();
+    choiceStorage_.clear();
+    choiceExpression_.clear();
   } else if (n == "seladd") {
     choiceText_.push_back(attr("text"));
     choiceTarget_.push_back(attr("target"));
+    choiceStorage_.push_back(attr("storage"));
+    choiceExpression_.push_back(attr("exp"));
   } else if (n == "select") {
     if (!choiceText_.empty())
       choosing_ = true;
@@ -997,6 +1066,17 @@ std::vector<Game::Element> Game::SceneAt(int64_t t) const {
       if (l.visible && l.level >= minLevel && l.level <= maxLevel)
         place({Element::Layer, l.file}, l.p);
   };
+  if (!concertoLayers_.empty()) {
+    std::vector<const LayerState *> sorted;
+    for (const auto &l : concertoLayers_)
+      if (l.visible && !l.file.empty()) sorted.push_back(&l);
+    std::stable_sort(sorted.begin(), sorted.end(), [](const auto *a, const auto *b) {
+      return a->level > b->level; // PS2: lower depth is nearer the viewer.
+    });
+    for (const auto *l : sorted)
+      place({Element::Layer, l->file}, l->p);
+    return out;
+  }
   if (stage_.visible)
     place({Element::Stage, stage_.image}, stage_.p);
   layersAt(-100, 4);
@@ -1020,7 +1100,7 @@ std::vector<Game::Element> Game::SceneAt(int64_t t) const {
                 float(c.xpos), 0, 1};
       // charLightColor / charBrightness approximated as a multiply: 夕
       // 0x40B67F71 (warm, light), 夜 / 夜闇 0xFF42457B (blue, darker).
-      if (stage_.visible && stageTime_ == "夕") {
+      if (stage_.visible && (stageTime_ == "夕" || stageTime_ == "夕方")) {
         e.tint[0] = 0.92f, e.tint[1] = 0.86f, e.tint[2] = 0.84f;
       } else if (stage_.visible &&
                  (stageTime_ == "夜" || stageTime_ == "夜闇")) {
@@ -1125,10 +1205,21 @@ bool Game::Choose(size_t index) {
   if (!choosing_ || index >= choiceTarget_.size())
     return false;
   const std::string target = choiceTarget_[index];
+  const std::string storage = choiceStorage_[index];
+  const std::string expression = choiceExpression_[index];
   choiceText_.clear();
   choiceTarget_.clear();
+  choiceStorage_.clear();
+  choiceExpression_.clear();
   choosing_ = false;
-  Jump(target);
+  if (!expression.empty())
+    Assign(expression);
+  if (!storage.empty() && !LoadByName(storage)) {
+    finished_ = true;
+    return false;
+  }
+  if (!target.empty())
+    return Jump(target);
   return true;
 }
 

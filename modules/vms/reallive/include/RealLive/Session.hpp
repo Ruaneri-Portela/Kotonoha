@@ -1,5 +1,6 @@
 // Copyright 2026 Kotonoha contributors. SPDX-License-Identifier: MIT
 #pragma once
+#include <Kotonoha/core/Vm.hpp>
 #include "RealLive/Script.hpp"
 #include <functional>
 #include <map>
@@ -11,7 +12,7 @@ struct GlossCursor {
 struct GlossRectangle {
   int left = 0, top = 0, right = 0, bottom = 0;
 };
-class Session {
+class Session : public Kotonoha::Vm {
   ScriptArchive &archive_;
   RLMachine machine_;
   struct Frame {
@@ -24,7 +25,11 @@ class Session {
   std::size_t pc_ = 0;
   bool blocked_ = false, finished_ = false;
   const std::vector<const libreallive::BytecodeElement *> &script(int);
-  void execute(const libreallive::CommandElement &);
+protected:
+  void dispatch(std::size_t budget) override { run(budget); }
+  virtual void execute(const libreallive::CommandElement &);
+
+private:
   bool flow(const libreallive::CommandElement &);
   bool strings(const libreallive::CommandElement &);
   bool memory(const libreallive::CommandElement &);

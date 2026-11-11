@@ -68,6 +68,12 @@ std::shared_ptr<NutValue> EvalNutTable(const std::vector<uint8_t> &unpacked);
 bool ParseSceneTags(const std::vector<uint8_t> &unpacked,
                     std::vector<SceneTag> *out);
 
+// Concerto's CP932 source subset. Unsupported calls remain diagnostic tags;
+// unsupported syntax fails atomically instead of flattening control flow.
+bool ParseConcertoScene(const std::vector<uint8_t> &source,
+                        std::vector<SceneTag> *out,
+                        std::string *error = nullptr);
+
 // SCENES.NUT (SYSTEM entry 32): script names ("ST01_00.KS", ...), where the
 // position in the list is the SCENE_ID archive index.
 bool ParseSceneNames(const std::vector<uint8_t> &unpacked,

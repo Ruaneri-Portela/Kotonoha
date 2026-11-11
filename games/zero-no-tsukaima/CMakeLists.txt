@@ -17,6 +17,7 @@ add_library(ZeroNoTsukaimaFormats STATIC
     src/Archive.cpp
     src/Lz.cpp
     src/Scene.cpp
+    src/ConcertoScene.cpp
     src/Source.cpp
     src/Catalog.cpp
     src/Vag.cpp

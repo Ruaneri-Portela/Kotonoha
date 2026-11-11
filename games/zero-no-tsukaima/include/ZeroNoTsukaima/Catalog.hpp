@@ -60,6 +60,9 @@ public:
   const std::string *NameImage(const std::string &speaker) const;
   // Event CG name (cg05a, ECG48B, ...). Returns -1 when unknown.
   int ResolveEvent(const std::string &name) const;
+  void BindArchiveNames(const std::map<std::string, int> &names) {
+    archiveNames_ = names;
+  }
 
 private:
   void BuildCharacters(const std::vector<uint8_t> &systemEnv,
@@ -69,8 +72,10 @@ private:
   struct Stage {
     int first = -1; // index of the daytime picture
     bool timed = false;
+    std::string base;
   };
   std::map<std::string, Stage> stages_;
+  std::map<std::string, int> archiveNames_;
   std::map<std::string, std::string> specialStages_, nameImages_;
   std::map<std::string, int> events_;
   CharacterTable characters_;

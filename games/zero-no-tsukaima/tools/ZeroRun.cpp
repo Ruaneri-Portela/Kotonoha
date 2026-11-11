@@ -3,6 +3,7 @@
 //   ZeroRun <disc.bin> [maxSteps] [START.KS]
 //   ZeroRun <disc.bin> --tags <SCRIPT.KS>   (prints the raw tags of one scene,
 //   ALL = every scene)
+//   ZeroRun <disc.bin> --inspect         (checks archive access, not execution)
 #include <ZeroNoTsukaima/Game.hpp>
 #include <ZeroNoTsukaima/Scene.hpp>
 #include <ZeroNoTsukaima/Source.hpp>
@@ -23,6 +24,29 @@ int main(int argc, char **argv) {
   if (!src.Open(argv[1], &error)) {
     std::fprintf(stderr, "error: %s\n", error.c_str());
     return 1;
+  }
+  if (argc > 2 && std::strcmp(argv[2], "--catalog") == 0) {
+    for (const auto &name : src.Catalog().StageNames())
+      std::printf("%s -> %d (%s)\n", name.c_str(), src.Catalog().ResolveStage(name),
+                  src.Catalog().SpecialStage(name).c_str());
+    return 0;
+  }
+  if (argc > 2 && std::strcmp(argv[2], "--inspect") == 0) {
+    std::printf("scenes=%zu pictures=%zu normal=%zu sounds=%zu voices=%zu\n",
+                src.Names().size(), src.PictureCount(), src.NormalCount(),
+                src.SoundCount(), src.VoiceCount());
+    size_t empty = 0;
+    for (size_t i = 0; i < src.Names().size(); ++i) {
+      std::vector<uint8_t> data;
+      if (!src.LoadScene(i, &data)) {
+        std::fprintf(stderr, "cannot read scene %zu\n", i);
+        return 1;
+      }
+      if (data.empty())
+        ++empty;
+    }
+    std::printf("all scene entries readable (%zu empty slots)\n", empty);
+    return 0;
   }
   if (argc > 3 && std::strcmp(argv[2], "--tags") == 0) {
     const bool all = std::strcmp(argv[3], "ALL") == 0;
@@ -56,7 +80,7 @@ int main(int argc, char **argv) {
   });
   game.SetCharacterTable(&src.Catalog().Characters());
   game.SetStageNames(src.Catalog().StageNames());
-  if (!game.Start(argc > 3 ? argv[3] : "START.KS")) {
+  if (!game.Start(argc > 3 ? argv[3] : src.StartupScene())) {
     std::fprintf(stderr, "cannot start\n");
     return 1;
   }

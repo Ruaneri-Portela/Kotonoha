@@ -1,4 +1,5 @@
 #pragma once
+#include <Kotonoha/core/Vm.hpp>
 #include <Amagami/Formats.hpp>
 #include <functional>
 #include <map>
@@ -35,7 +36,7 @@ struct VmObject {
 };
 // The SCF stack machine, recovered from SLPS_259.18 @ 0x11dfe8.
 // A host implements the native PS2 API; unhandled calls fail with a script PC.
-class Vm {
+class Vm : public Kotonoha::Vm {
 public:
   using Native = std::function<std::optional<VmValue>(
       const VmValue &, const std::string &, const std::vector<VmValue> &)>;
@@ -88,6 +89,9 @@ public:
   // PC do frame atual (0 se nao houver frames). Usado para detectar loops
   // de sleep no mesmo ponto do script.
   size_t pc() const;
+
+protected:
+  void dispatch(std::size_t budget) override { run(budget); }
 
 private:
   struct Frame {

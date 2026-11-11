@@ -110,11 +110,9 @@ public:
       pending_ = 0;
       pointerHeld_ = true;
       // The title state machine records the hovered entry on the first loop
-      // after the press. Native hardware keeps the button down for several
-      // polls, so hold the synthetic button for two extra polls before
-      // releasing; releasing on the immediately following poll loses the
-      // selection.
-      holdPolls_ = 2;
+      // after the press. Release on the immediately following poll so the
+      // script sees press (1) then release (2) on consecutive polls.
+      holdPolls_ = 0;
       keyboardRelease_ = keyboard;
       return 1;
     }
@@ -147,7 +145,8 @@ private:
   void focus(int index) {
     if (targets_.empty())
       return;
-    focus_ = index % int(targets_.size());
+    const int n = int(targets_.size());
+    focus_ = ((index % n) + n) % n;
     const auto point = targets_[focus_];
     x_ = point.x;
     y_ = point.y;

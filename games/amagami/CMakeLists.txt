@@ -8,16 +8,24 @@ endif()
 if(NOT TARGET Kotonoha::Engine)
     add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../lib" "${CMAKE_CURRENT_BINARY_DIR}/kotonoha")
 endif()
-add_library(AmagamiFormats STATIC src/Formats.cpp src/Source.cpp src/Vm.cpp src/Session.cpp src/Campaign.cpp)
+add_library(AmagamiFormats STATIC src/Formats.cpp src/Source.cpp src/Session.cpp src/Campaign.cpp)
 target_include_directories(AmagamiFormats PUBLIC include)
 target_link_libraries(AmagamiFormats PUBLIC Kotonoha::Engine)
 target_compile_features(AmagamiFormats PUBLIC cxx_std_17)
 set_target_properties(AmagamiFormats PROPERTIES CXX_EXTENSIONS OFF)
+include("${CMAKE_CURRENT_SOURCE_DIR}/../../modules/vms/amagami/CMakeLists.txt")
+# The format library's Session/Campaign drive the VM, so consumers of
+# AmagamiFormats get the VM transitively (as when the VM was an OBJECT lib
+# linked into the format target).
+target_link_libraries(AmagamiFormats PUBLIC Kotonoha::Vmamagami)
+# AmagamiFormats sources include Amagami/Vm.hpp, now in the VM module.
+target_include_directories(AmagamiFormats PUBLIC
+    $<TARGET_PROPERTY:Kotonoha::Vmamagami,INTERFACE_INCLUDE_DIRECTORIES>)
 add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../modules/providers/amagami"
     "${CMAKE_CURRENT_BINARY_DIR}/providers/amagami")
 add_library(amagami STATIC src/AmagamiRuntime.cpp src/AmagamiLauncher.cpp )
 target_include_directories(amagami PUBLIC src)
-target_link_libraries(amagami PUBLIC AmagamiFormats Kotonoha::Engine Kotonoha::ProviderAmagami)
+target_link_libraries(amagami PUBLIC AmagamiFormats Kotonoha::Engine Kotonoha::ProviderAmagami Kotonoha::Vmamagami)
 kotonoha_add_app(Amagami src/main.cpp)
 target_link_libraries(Amagami PRIVATE amagami)
 kotonoha_configure_app(Amagami BUNDLE_ID me.hirameki.kotonoha.amagami GAME amagami)

@@ -3,13 +3,26 @@ target_link_libraries(DdlcPythonTest PRIVATE DdlcFormats)
 add_test(NAME DokiDoki.Python COMMAND DdlcPythonTest)
 
 if(APPLE AND CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND KOTONOHA_BUILD_MACOS_BUNDLES)
+    # Collect every directory that holds a shared library the test executable
+    # depends on, so fixup_bundle can resolve all @rpath entries.
+    set(_ddlc_dep_dirs
+        $<TARGET_FILE_DIR:SDL3::SDL3>
+        $<TARGET_FILE_DIR:Kotonoha::Engine>
+        $<TARGET_FILE_DIR:SDL3_ttf::SDL3_ttf>
+        $<TARGET_FILE_DIR:kotonoha_imgui>)
+    # Homebrew libraries (brotli, harfbuzz, freetype, plutosvg, etc.) are
+    # transitive dependencies of SDL3_ttf and may live outside the build tree.
+    if(EXISTS "/opt/homebrew/lib")
+        list(APPEND _ddlc_dep_dirs "/opt/homebrew/lib")
+    endif()
+    list(JOIN _ddlc_dep_dirs ";" _ddlc_dep_dirs)
     add_test(NAME DokiDoki.BundledPython
         COMMAND "${CMAKE_COMMAND}"
             "-DTEST_DIRECTORY=${CMAKE_CURRENT_BINARY_DIR}"
             "-DTEST_EXECUTABLE=$<TARGET_FILE:DdlcPythonTest>"
             "-DAPP_CONTENTS=$<TARGET_BUNDLE_CONTENT_DIR:DokiDoki>"
             "-DBUNDLE_SCRIPT=${KOTONOHA_PROJECT_ROOT}/cmake/BundleApp.cmake"
-            "-DDEPENDENCY_DIRS=$<TARGET_FILE_DIR:SDL3::SDL3>"
+            "-DDEPENDENCY_DIRS=${_ddlc_dep_dirs}"
             "-DPYTHON_STDLIB=${Python3_STDLIB}"
             "-DPYTHON_VERSION=${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR}"
             -P "${CMAKE_CURRENT_SOURCE_DIR}/BundledPythonTest.cmake")

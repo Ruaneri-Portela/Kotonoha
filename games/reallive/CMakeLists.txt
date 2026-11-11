@@ -8,7 +8,7 @@ endif()
 if(NOT TARGET Kotonoha::Engine)
   add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../lib" "${CMAKE_CURRENT_BINARY_DIR}/kotonoha")
 endif()
-add_library(RealLiveFormats STATIC src/Config.cpp src/Images.cpp src/Voice.cpp src/Script.cpp src/Session.cpp src/System.cpp
+add_library(RealLiveFormats STATIC src/Config.cpp src/Images.cpp src/Voice.cpp src/Script.cpp src/System.cpp
   vendor/libreallive/archive.cc vendor/libreallive/bytecode.cc
   vendor/libreallive/compression.cc vendor/libreallive/expression.cc
   vendor/libreallive/filemap.cc vendor/libreallive/scenario.cc)
@@ -20,6 +20,10 @@ if(MSVC)
 else()
   target_compile_options(RealLiveFormats PUBLIC -funsigned-char)
 endif()
+include("${CMAKE_CURRENT_SOURCE_DIR}/../../modules/vms/reallive/CMakeLists.txt")
+# RealLiveFormats' scripts drive the Session VM, so consumers get it
+# transitively.
+target_link_libraries(RealLiveFormats PUBLIC Kotonoha::Vmreallive)
 if(NOT ANDROID)
   add_executable(RealLiveInspect tools/RealLiveInspect.cpp)
   target_link_libraries(RealLiveInspect PRIVATE RealLiveFormats)
@@ -31,11 +35,11 @@ add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../modules/providers/reallive"
 add_library(reallive_port STATIC src/RealLiveRuntime.cpp)
 target_include_directories(reallive_port PUBLIC src)
 find_package(Iconv REQUIRED)
-target_link_libraries(reallive_port PUBLIC RealLiveFormats Kotonoha::Engine Iconv::Iconv Kotonoha::ProviderRealLive)
+target_link_libraries(reallive_port PUBLIC RealLiveFormats Kotonoha::Engine Iconv::Iconv Kotonoha::ProviderRealLive Kotonoha::Vmreallive)
 if(BUILD_TESTING)
   foreach(format Images Voice Script Session System)
     add_executable(RealLive${format}Tests tests/${format}Test.cpp)
-    target_link_libraries(RealLive${format}Tests PRIVATE RealLiveFormats)
+    target_link_libraries(RealLive${format}Tests PRIVATE RealLiveFormats Kotonoha::Vmreallive)
     if(format STREQUAL "Session" AND REALLIVE_TEST_DATA)
       add_test(NAME RealLive${format} COMMAND RealLive${format}Tests "${REALLIVE_TEST_DATA}/Seen.txt")
     else()
@@ -60,7 +64,7 @@ if(BUILD_TESTING)
 endif()
 
 set(REALLIVE_TEST_DATA "" CACHE PATH "REALLIVE translated data for integration tests")
-set(REALLIVE_TEST_DATA_8005 "/Volumes/AIR_SE" CACHE PATH "Original REALLIVE ISO data for 8005 visual regression tests")
+set(REALLIVE_TEST_DATA_8005 "/Volumes/Nero 256GB/KotonohaAssets/AIR-SE.ISO" CACHE PATH "Original REALLIVE ISO data for 8005 visual regression tests")
 if(BUILD_TESTING)
   set_tests_properties(RealLiveSession PROPERTIES SKIP_RETURN_CODE 77)
   add_test(NAME RealLiveEngine COMMAND RealLiveEngineTests "${REALLIVE_TEST_DATA}")

@@ -59,7 +59,7 @@ bool ParseCg(const std::string &name, bool *ecg, int *num, char *letter) {
 int TimeOffset(const std::string &word) {
   if (word == "昼")
     return 0;
-  if (word == "夕" || word == "夕室内")
+  if (word == "夕" || word == "夕室内" || word == "夕方")
     return 1;
   if (word == "夜" || word == "夜室内" || word == "夜闇")
     return 2;
@@ -79,29 +79,48 @@ bool ImageCatalog::Build(const std::vector<uint8_t> &systemEnv,
   // ending in TIME has three pictures (day, evening, night). Pictures are
   // stored sorted by base name, BG before BGN.
   const auto env = Tokens(systemEnv);
-  auto begin = std::find(env.begin(), env.end(), "stages");
-  if (begin == env.end())
-    return false;
   std::map<std::string, std::pair<std::string, bool>>
       byBase; // base -> (stage name, timed)
-  for (auto it = begin + 1; it + 1 < env.end() && *it != "charDispTrans";
-       it += 2) {
-    std::string base = *(it + 1);
+  std::map<std::string, std::pair<std::string, bool>> stageBases;
+  const auto addStage = [&](const std::string &name, std::string base) {
     const bool timed =
         base.size() > 4 && base.compare(base.size() - 4, 4, "TIME") == 0;
     if (timed)
       base.resize(base.size() - 4);
     if (base.compare(0, 2, "BG") != 0) {
-      specialStages_[*it] = base; // black, white, MOERU, ECG09D ...
-      continue;
+      specialStages_[name] = base; // black, white, MOERU, ECG09D ...
+      return;
     }
-    byBase[base] = {*it, timed};
+    byBase[base] = {name, timed};
+    stageBases[name] = {base, timed};
+  };
+  // Literal-pool scanning can shift key/value pairs whenever a string length
+  // contains a printable byte. Symphony hit this (notably ルイズの部屋).
+  const auto root = EvalNutTable(systemEnv);
+  const auto *stages = root ? root->Get("stages") : nullptr;
+  if (stages && stages->kind == NutValue::Table) {
+    for (const auto &[name, value] : stages->fields) {
+      if (value && value->kind == NutValue::Table) {
+        if (const auto *image = value->Get("image"); image && image->kind == NutValue::String)
+          addStage(name, image->text);
+      }
+      if (value && value->kind == NutValue::String)
+        addStage(name, value->text);
+    }
+  } else {
+    auto begin = std::find(env.begin(), env.end(), "stages");
+    if (begin == env.end()) return false;
+    for (auto it = begin + 1; it + 1 < env.end() && *it != "charDispTrans"; it += 2)
+      addStage(*it, *(it + 1));
   }
   int next = 0;
+  std::map<std::string, int> firstByBase;
   for (const auto &[base, info] : byBase) {
-    stages_[info.first] = {next, info.second};
+    firstByBase[base] = next;
     next += info.second ? 3 : 1;
   }
+  for (const auto &[name, info] : stageBases)
+    stages_[name] = {firstByBase.at(info.first), info.second, info.first};
 
   // Event CGs follow the backgrounds, ordered by number; the gallery list omits
   // a few variants.
@@ -232,6 +251,12 @@ void ImageCatalog::BuildCharacters(const std::vector<uint8_t> &systemEnv,
 }
 
 int ImageCatalog::ResolveSprite(const std::string &image) const {
+  std::string key = image;
+  std::transform(key.begin(), key.end(), key.begin(), [](unsigned char c) { return char(std::toupper(c)); });
+  if (!archiveNames_.empty()) {
+    auto it = archiveNames_.find(key);
+    return it == archiveNames_.end() ? -1 : it->second;
+  }
   // "TCG01_1D3": base "TCG01_1D", face 3.
   size_t end = image.size();
   while (end > 0 && std::isdigit((unsigned char)image[end - 1]))
@@ -260,6 +285,13 @@ int ImageCatalog::ResolveStage(const std::string &stage) const {
   }
   if (!found)
     return -1;
+  if (!archiveNames_.empty()) {
+    const std::string file = found->base + (found->timed ? std::string(1, char('A' + offset)) : "");
+    auto it = archiveNames_.find(file);
+    if (it == archiveNames_.end() && !found->timed)
+      it = archiveNames_.find(file + "A");
+    return it == archiveNames_.end() ? -1 : it->second;
+  }
   return found->first + (found->timed ? offset : 0);
 }
 
@@ -287,6 +319,13 @@ std::string ImageCatalog::SpecialStage(const std::string &stage) const {
 }
 
 int ImageCatalog::ResolveEvent(const std::string &name) const {
+  if (!archiveNames_.empty()) {
+    std::string key = name;
+    std::transform(key.begin(), key.end(), key.begin(), [](unsigned char c) { return char(std::toupper(c)); });
+    auto it = archiveNames_.find(key);
+    if (it == archiveNames_.end()) it = archiveNames_.find(key + "A");
+    return it == archiveNames_.end() ? -1 : it->second;
+  }
   const std::string l = Lower(name);
   if (auto it = events_.find(l); it != events_.end())
     return it->second;
