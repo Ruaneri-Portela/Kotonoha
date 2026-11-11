@@ -183,7 +183,8 @@ DirectoryLayout directoryLayout(const StorageLocations &locations,
     addDirectory(result.gameAssets, locations.privateGameAssets);
     addGame(locations.resources, false);
 
-    result.documents = locations.userData;
+    result.documents =
+        locations.userData / "Kotonoha" / locations.packageIdentifier;
     break;
   }
   case StoragePlatform::IOS: {
@@ -196,7 +197,8 @@ DirectoryLayout directoryLayout(const StorageLocations &locations,
       // Fonts can also be inside a 'fonts' directory in documents
       addDirectory(result.engineAssets, locations.userData / "fonts");
     }
-    result.documents = locations.userData;
+    result.documents =
+        locations.userData / "Kotonoha" / locations.packageIdentifier;
     break;
   }
   case StoragePlatform::Desktop:

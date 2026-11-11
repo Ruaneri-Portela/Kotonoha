@@ -13,12 +13,17 @@ namespace ZeroNoTsukaima {
 
 // Scene scripts straight from the disc image: SYSTEM entry 32 (SCENES.NUT)
 // gives the script names, SCENE_ID entry i is the compiled scene i.
+// Concerto instead contains Squirrel source without SYSTEM; its names are
+// synthetic numeric identifiers (0000.KS, ...), not compiled KAG scripts.
 class SceneSource {
 public:
+  enum class Edition { Nocturne, Concerto, Symphony };
+  Edition GameEdition() const { return edition_; }
   bool Open(const std::string &discPath, std::string *error);
   // The engine disc reader the archives are read through.
   const std::shared_ptr<Kotonoha::DiscImage> &Disc() const { return disc_; }
   const std::vector<std::string> &Names() const { return names_; }
+  const std::string &StartupScene() const { return startupScene_; }
   bool LoadScene(size_t index, std::vector<uint8_t> *out) const;
   // SCENEDAT picture (TIM2) by index; names are resolved through Catalog().
   bool LoadPicture(int index, Kotonoha::Ps2Image *out) const;
@@ -63,6 +68,7 @@ public:
   const std::vector<std::string> &Movies() const { return movies_; }
 
 private:
+  Edition edition_ = Edition::Nocturne;
   static int Lookup(const std::map<std::string, int> &table,
                     const std::string &name);
   bool ReadEntry(const Kotonoha::DiscImage::Entry &bin,
@@ -79,6 +85,7 @@ private:
   const Kotonoha::DiscImage::Entry *voiceBin_ = nullptr, *soundBin_ = nullptr;
   std::vector<ArchiveEntry> voiceIndex_, soundIndex_;
   std::vector<std::string> names_;
+  std::string startupScene_ = "START.KS";
   const Kotonoha::DiscImage::Entry *normalBin_ = nullptr;
   std::vector<ArchiveEntry> normalIndex_;
   std::map<std::string, int> normalNames_, scenedatNames_, soundNames_,

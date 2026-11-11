@@ -1,4 +1,5 @@
 #pragma once
+#include <Kotonoha/core/Vm.hpp>
 #include <SummerRadish/Pack.hpp>
 #include <functional>
 #include <map>
@@ -27,10 +28,13 @@ struct Position {
   std::string script;
   size_t pc = 0;
 };
-class Machine {
+class Machine : public Kotonoha::Vm {
   std::map<std::string, Script> scripts;
   std::vector<Position> calls;
   void branch(const std::string &, bool call);
+
+protected:
+  void dispatch(std::size_t budget) override { run(budget); }
 
 public:
   std::map<std::string, Value> variables;

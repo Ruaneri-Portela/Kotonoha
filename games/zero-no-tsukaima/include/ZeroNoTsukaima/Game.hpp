@@ -89,6 +89,9 @@ public:
   const std::string &Speaker() const { return speaker_; }
   int Voice() const { return voice_; }
   const std::vector<std::string> &Choices() const { return choiceText_; }
+  const std::set<std::string> &UnsupportedCommands() const {
+    return unsupportedCommands_;
+  }
   std::string Stage() const;
   std::string Event() const {
     return event_.visible ? event_.image : std::string();
@@ -242,6 +245,7 @@ private:
   const CharacterTable *table_ = nullptr;
   std::vector<CharacterState> characters_;
   std::vector<LayerState> layers_;
+  std::vector<LayerState> concertoLayers_;
   std::vector<Cue> cues_;
   int voice_ = 0, entryVoice_ = 0, movie_ = -1;
   bool msgOn_ = false, waiting_ = false, choosing_ = false, finished_ = false;
@@ -252,6 +256,8 @@ private:
   std::vector<Element> transFrom_;
   Transition transition_;
   std::vector<std::string> choiceText_, choiceTarget_;
+  std::vector<std::string> choiceStorage_, choiceExpression_;
+  std::set<std::string> unsupportedCommands_;
   bool moving_ = false;
   bool roulette_ = false, rouletteTsun_ = false;
   Meter meter_;

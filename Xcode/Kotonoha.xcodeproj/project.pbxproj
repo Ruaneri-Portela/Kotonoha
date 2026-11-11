@@ -137,7 +137,6 @@
 		6A756F65C2FA1ECFA4E0366C /* _csv.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = E84056C986E173093BCC489F /* _csv.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		6B415B41B4DE26A98C7A34F4 /* _testlimitedcapi.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 2D33FD1A2EB0DFCF3620417D /* _testlimitedcapi.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		6C57CBFBCE8680710A37BFAC /* _math_integer.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 1BE56743BB636E2D4BAB2FCB /* _math_integer.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
-		6D00562942346149DDD52AD6 /* Replay.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D90D6F258F3C614DFCA59EF7 /* Replay.cpp */; };
 		6D4E7E573D0C19F64FB7DC1F /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 42D538C486E337F7390CE7EF /* CoreFoundation.framework */; };
 		6D5BB7B3AB90014A55FB86E6 /* resource.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = ED3652828BEF86F94266D8C8 /* resource.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		6DDBCA94A5B26FEE2F1B5945 /* _interpqueues.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 8A47D1B7992DE27916835FAA /* _interpqueues.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
@@ -145,6 +144,7 @@
 		715954B1D713C94F31C91DA7 /* _math_integer.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 1BE56743BB636E2D4BAB2FCB /* _math_integer.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		73254F43B14942E9DB2E9D7C /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4A9B6E799E2376E8183ADE52 /* Metal.framework */; };
 		73B9B8F56AA2E552ED6E70DF /* _dbm.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 057006EE70B2F266897CF831 /* _dbm.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		747390DC4D07AFE99407DE90 /* Replay.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4E118F4CA83AEC779FD4DDF7 /* Replay.cpp */; };
 		74A4D38972F6167E3B967D0E /* KotonohaImGui.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = CE1893F63095457700B0DF80 /* KotonohaImGui.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		7504FCC4F6303984EF390FC7 /* DdlcScriptTest.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0BDBADE5AA1843BDCBE0381B /* DdlcScriptTest.cpp */; };
 		77876D52DDD72D3C142D973D /* _ctypes.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = B0E136854CDBA9F76742A5DA /* _ctypes.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
@@ -364,7 +364,6 @@
 		EC1FFFD38CFF180FB67CDA7D /* SDL3.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = CEFD20B530959039006D0E4E /* SDL3.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		ED472E8363C19FA9D93047F1 /* SDL3_ttf.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEFD20AD3095902A006D0E4E /* SDL3_ttf.framework */; };
 		EE2A2FF17BF4A4DB52BA3D8C /* _queue.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 26BBDF9E8802FDEDBA0D64C5 /* _queue.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
-		EE37962E29FB6F06BBABBC9A /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 686998B2357811F5B8DADA4C /* Foundation.framework */; };
 		EE545567FFB86122F791AFB7 /* _codecs_jp.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = BF419AE62F91C71F47490CB9 /* _codecs_jp.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		EE918BAF9BB671D70411D6C3 /* _zoneinfo.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = BA84F78900F207073C05F9CC /* _zoneinfo.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		EF2AB0D8E753C3C32DF19315 /* _interpchannels.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = FD05D4D2301E99063B9B4FFF /* _interpchannels.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
@@ -901,7 +900,7 @@
 
 /* Begin PBXFileReference section */
 		009E3FE8EB0EA1374DE16896 /* mmap.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = mmap.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/mmap.framework"; sourceTree = SOURCE_ROOT; };
-		0242730B1E228181304627F9 /* Vm.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; name = Vm.cpp; path = "../games/doki-doki-literature-club/src/Vm.cpp"; sourceTree = "<group>"; };
+		0242730B1E228181304627F9 /* Vm.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; name = Vm.cpp; path = ../modules/vms/renpy/src/Vm.cpp; sourceTree = "<group>"; };
 		03AC09E9C0D0653AF91758F7 /* python */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = folder; name = python; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/python"; sourceTree = SOURCE_ROOT; };
 		057006EE70B2F266897CF831 /* _dbm.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = _dbm.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/_dbm.framework"; sourceTree = SOURCE_ROOT; };
 		08904302FD78EF668F6A5905 /* _testcapi.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = _testcapi.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/_testcapi.framework"; sourceTree = SOURCE_ROOT; };
@@ -934,6 +933,7 @@
 		4B570C15B7EBDFAD987CA4C4 /* assets */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = folder; name = assets; path = ../assets; sourceTree = SOURCE_ROOT; };
 		4C0D884F99638CBB5B02A07D /* assets */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = folder; name = assets; path = ../assets; sourceTree = SOURCE_ROOT; };
 		4DA21200322D9F37636CBDFE /* xxlimited_3_13.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = xxlimited_3_13.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/xxlimited_3_13.framework"; sourceTree = SOURCE_ROOT; };
+		4E118F4CA83AEC779FD4DDF7 /* Replay.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; name = Replay.cpp; path = "../games/doki-doki-literature-club/src/Replay.cpp"; sourceTree = SOURCE_ROOT; };
 		4EC023822E779C408544E330 /* fcntl.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = fcntl.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/fcntl.framework"; sourceTree = SOURCE_ROOT; };
 		4FFD1FC9FD3DE0FD18C5D44F /* OpenGLES.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = OpenGLES.framework; path = System/Library/Frameworks/OpenGLES.framework; sourceTree = SDKROOT; };
 		50B9CFE4B3D204CDAEF6EE3C /* SummerRadish.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SummerRadish.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -942,7 +942,6 @@
 		528F10C36D905193890E9E1A /* Value.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; name = Value.cpp; path = "../games/doki-doki-literature-club/src/Value.cpp"; sourceTree = "<group>"; };
 		5DE24A4243A60EC5676ED207 /* _statistics.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = _statistics.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/_statistics.framework"; sourceTree = SOURCE_ROOT; };
 		5F688AD0FCE10DF72F51EBE2 /* imgui_stdlib.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; name = imgui_stdlib.cpp; path = ../lib/submodules/imgui/misc/cpp/imgui_stdlib.cpp; sourceTree = "<group>"; };
-		686998B2357811F5B8DADA4C /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
 		6AC33256490759509EFF9BF1 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
 		6C8A0E978D71CD2188E323F1 /* _sha3.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = _sha3.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/_sha3.framework"; sourceTree = SOURCE_ROOT; };
 		6C9806081CEE061BA0F00EE2 /* _lzma.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = _lzma.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/_lzma.framework"; sourceTree = SOURCE_ROOT; };
@@ -1010,7 +1009,6 @@
 		CEFD20CF3095908D006D0E4E /* DdlcIOSScriptSmoke.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = DdlcIOSScriptSmoke.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		CFDDD60E5D49E74EDC4E2B3C /* python */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = folder; name = python; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/python"; sourceTree = SOURCE_ROOT; };
 		D0AC9EDE4A6864C7406BB72F /* _codecs_tw.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = _codecs_tw.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/_codecs_tw.framework"; sourceTree = SOURCE_ROOT; };
-		D90D6F258F3C614DFCA59EF7 /* Replay.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; name = Replay.cpp; path = "../games/doki-doki-literature-club/src/Replay.cpp"; sourceTree = SOURCE_ROOT; };
 		DB704E7428F8367E87ED925C /* _ssl.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = _ssl.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/_ssl.framework"; sourceTree = SOURCE_ROOT; };
 		DDFB69DC3775D0311567E1FD /* _testmultiphase.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = _testmultiphase.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/_testmultiphase.framework"; sourceTree = SOURCE_ROOT; };
 		DE6A15AB88BF5B798A0FF869 /* _bisect.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = _bisect.framework; path = "$(KOTONOHA_PYTHON_NATIVE_DIR)/Frameworks/_bisect.framework"; sourceTree = SOURCE_ROOT; };
@@ -1034,12 +1032,27 @@
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
 			);
+			explicitFileTypes = {
+			};
+			explicitFolders = (
+			);
 			path = ../modules/providers/adv/src;
+			sourceTree = SOURCE_ROOT;
+		};
+		1C41254CE908755BCC2A3D97 /* ../modules/vms/summer-radish/src */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
+			path = "../modules/vms/summer-radish/src";
 			sourceTree = SOURCE_ROOT;
 		};
 		1F2149D5CEA0D7065B6D4A4A /* ../modules/providers/gpk/src */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
+			);
+			explicitFileTypes = {
+			};
+			explicitFolders = (
 			);
 			path = ../modules/providers/gpk/src;
 			sourceTree = SOURCE_ROOT;
@@ -1055,16 +1068,45 @@
 			path = ../games/reallive/src;
 			sourceTree = SOURCE_ROOT;
 		};
+		37D212FBDCEE3A386268742A /* ../modules/vms/snow-radish/src */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
+			path = "../modules/vms/snow-radish/src";
+			sourceTree = SOURCE_ROOT;
+		};
 		432251627716838832BF0F45 /* ../modules/providers/reallive/src */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
 			);
+			explicitFileTypes = {
+			};
+			explicitFolders = (
+			);
 			path = ../modules/providers/reallive/src;
+			sourceTree = SOURCE_ROOT;
+		};
+		4A2E097D1B48EE9E2C276D65 /* ../modules/vms/kag/src */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
+			path = ../modules/vms/kag/src;
+			sourceTree = SOURCE_ROOT;
+		};
+		5B6C7F08E4F327FC865495C2 /* ../modules/vms/amagami/src */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
+			path = ../modules/vms/amagami/src;
 			sourceTree = SOURCE_ROOT;
 		};
 		66B4321815CF3490C35A39A7 /* ../games/luca-system/src */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
+			);
+			explicitFileTypes = {
+			};
+			explicitFolders = (
 			);
 			path = "../games/luca-system/src";
 			sourceTree = SOURCE_ROOT;
@@ -1084,12 +1126,27 @@
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
 			);
+			explicitFileTypes = {
+			};
+			explicitFolders = (
+			);
 			path = ../modules/providers/rpa/src;
+			sourceTree = SOURCE_ROOT;
+		};
+		7AFA65D2C8C3DE2871357EE7 /* ../modules/vms/reallive/src */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
+			path = ../modules/vms/reallive/src;
 			sourceTree = SOURCE_ROOT;
 		};
 		8EE6E39E7362D67B82FC5616 /* ../modules/providers/xp3/src */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
+			);
+			explicitFileTypes = {
+			};
+			explicitFolders = (
 			);
 			path = ../modules/providers/xp3/src;
 			sourceTree = SOURCE_ROOT;
@@ -1098,6 +1155,10 @@
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
 			);
+			explicitFileTypes = {
+			};
+			explicitFolders = (
+			);
 			path = ../modules/providers/amagami/src;
 			sourceTree = SOURCE_ROOT;
 		};
@@ -1105,12 +1166,20 @@
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
 			);
+			explicitFileTypes = {
+			};
+			explicitFolders = (
+			);
 			path = ../modules/providers/zero/src;
 			sourceTree = SOURCE_ROOT;
 		};
 		AD0B4EB34278B2BAF05D9ADB /* ../modules/providers/pak/src */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
+			);
+			explicitFileTypes = {
+			};
+			explicitFolders = (
 			);
 			path = ../modules/providers/pak/src;
 			sourceTree = SOURCE_ROOT;
@@ -1305,6 +1374,10 @@
 		E41093EE8C5E0C6D49C5F596 /* ../modules/providers/cmp/src */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
+			);
+			explicitFileTypes = {
+			};
+			explicitFolders = (
 			);
 			path = ../modules/providers/cmp/src;
 			sourceTree = SOURCE_ROOT;
@@ -1535,7 +1608,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				EE37962E29FB6F06BBABBC9A /* Foundation.framework in Frameworks */,
 				D325767C669BE5850BC5BFA3 /* Foundation.framework in Frameworks */,
 				F1D3875269F8530ADAC898BC /* KotonohaEngine.framework in Frameworks */,
 				ED472E8363C19FA9D93047F1 /* SDL3_ttf.framework in Frameworks */,
@@ -1660,14 +1732,6 @@
 			name = ZeroNoTsukaima;
 			sourceTree = "<group>";
 		};
-		22015023AD125559E294906C /* iOS */ = {
-			isa = PBXGroup;
-			children = (
-				686998B2357811F5B8DADA4C /* Foundation.framework */,
-			);
-			name = iOS;
-			sourceTree = "<group>";
-		};
 		258B80D5F638661DCFAE5ADA /* LucaSystem */ = {
 			isa = PBXGroup;
 			children = (
@@ -1720,7 +1784,6 @@
 				FBAC8B3DF93878243BF88A65 /* AudioToolbox.framework */,
 				B2FAEAC42A6E7C5EDC4F4A07 /* CoreVideo.framework */,
 				CE90DB553098CBF100281500 /* Python.xcframework */,
-				22015023AD125559E294906C /* iOS */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -1779,9 +1842,9 @@
 				D0DAFF547CC8900C1CAA85CC /* DdlcIOSScriptSmoke */,
 				7F3481CB6F8C3B7CB0B6997D /* KotonohaIOSSmoke */,
 				1BDADC699D6C9C04F3DF3F97 /* Bundled Python */,
-				258B80D5F638661DCFAE5ADA /* LucaSystem */,
-				D90D6F258F3C614DFCA59EF7 /* Replay.cpp */,
 				A3D558BCA57C7A8468F9A521 /* Providers */,
+				4E118F4CA83AEC779FD4DDF7 /* Replay.cpp */,
+				A42BBE852AD91DD99F391CBD /* VMs */,
 			);
 			sourceTree = "<group>";
 		};
@@ -1799,6 +1862,18 @@
 				AD0B4EB34278B2BAF05D9ADB /* ../modules/providers/pak/src */,
 			);
 			name = Providers;
+			sourceTree = "<group>";
+		};
+		A42BBE852AD91DD99F391CBD /* VMs */ = {
+			isa = PBXGroup;
+			children = (
+				5B6C7F08E4F327FC865495C2 /* ../modules/vms/amagami/src */,
+				37D212FBDCEE3A386268742A /* ../modules/vms/snow-radish/src */,
+				1C41254CE908755BCC2A3D97 /* ../modules/vms/summer-radish/src */,
+				7AFA65D2C8C3DE2871357EE7 /* ../modules/vms/reallive/src */,
+				4A2E097D1B48EE9E2C276D65 /* ../modules/vms/kag/src */,
+			);
+			name = VMs;
 			sourceTree = "<group>";
 		};
 		A54782C73AB6DBA8C72202DE /* Products */ = {
@@ -1850,6 +1925,7 @@
 				8ACF7B9780997A33BB40E3EE /* Kotonoha */,
 				E7740E26BFFF021FFE2236E3 /* RealLive */,
 				EA9CC600BAB79C5E78200607 /* Summer Radish Vacation!! */,
+				258B80D5F638661DCFAE5ADA /* LucaSystem */,
 			);
 			path = Games;
 			sourceTree = "<group>";
@@ -1972,8 +2048,9 @@
 			);
 			fileSystemSynchronizedGroups = (
 				72E07856AC768F7C8E7FCEC8 /* ../games/kirikiri/include */,
-				C939F3DF3CBBC3BEC019D544 /* ../games/kirikiri/src */,
 				8EE6E39E7362D67B82FC5616 /* ../modules/providers/xp3/src */,
+				C939F3DF3CBBC3BEC019D544 /* ../games/kirikiri/src */,
+				4A2E097D1B48EE9E2C276D65 /* ../modules/vms/kag/src */,
 			);
 			name = Kirikiri;
 			productName = Kirikiri;
@@ -2015,8 +2092,8 @@
 				BA2C1703D25945801FF65758 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				CEC5DED63095F52200D4D78B /* ../games/zero-no-tsukaima/src */,
 				A8EC4D7FA568539E18FFCAA5 /* ../modules/providers/zero/src */,
+				CEC5DED63095F52200D4D78B /* ../games/zero-no-tsukaima/src */,
 			);
 			name = ZeroNoTsukaima;
 			productName = ZeroNoTsukaima;
@@ -2040,8 +2117,9 @@
 			);
 			fileSystemSynchronizedGroups = (
 				33CF72D87ACA703CCC5F6560 /* ../games/reallive/src */,
-				B958092F9AFFDA5E904BF5DE /* ../games/reallive/vendor */,
 				432251627716838832BF0F45 /* ../modules/providers/reallive/src */,
+				B958092F9AFFDA5E904BF5DE /* ../games/reallive/vendor */,
+				7AFA65D2C8C3DE2871357EE7 /* ../modules/vms/reallive/src */,
 			);
 			name = RealLive;
 			productName = Air;
@@ -2089,6 +2167,7 @@
 			fileSystemSynchronizedGroups = (
 				C120216BEFDCA69752FC625E /* ../games/summer-radish-vacation/src */,
 				E41093EE8C5E0C6D49C5F596 /* ../modules/providers/cmp/src */,
+				1C41254CE908755BCC2A3D97 /* ../modules/vms/summer-radish/src */,
 			);
 			name = SummerRadish;
 			productName = SummerRadish;
@@ -2111,8 +2190,8 @@
 				DB0BFC1C75F63B3B7279B926 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				CEC5DEAA3095F50700D4D78B /* ../games/doki-doki-literature-club/src */,
 				7899E671EEEE5D5A5ADB2C28 /* ../modules/providers/rpa/src */,
+				CEC5DEAA3095F50700D4D78B /* ../games/doki-doki-literature-club/src */,
 			);
 			name = DokiDoki;
 			productName = DokiDoki;
@@ -2178,8 +2257,8 @@
 				ACB1BBD81F6B45339578C363 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				CEC5DE193095F4B300D4D78B /* ../games/school-days/src */,
 				1F2149D5CEA0D7065B6D4A4A /* ../modules/providers/gpk/src */,
+				CEC5DE193095F4B300D4D78B /* ../games/school-days/src */,
 			);
 			name = SchoolDays;
 			productName = SchoolDays;
@@ -2202,8 +2281,9 @@
 				CE8CD285309A153D0003D364 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				CE8CD2C7309A16A70003D364 /* ../games/amagami/src */,
 				99BCA2FA63BE54ABF74E56E3 /* ../modules/providers/amagami/src */,
+				CE8CD2C7309A16A70003D364 /* ../games/amagami/src */,
+				5B6C7F08E4F327FC865495C2 /* ../modules/vms/amagami/src */,
 			);
 			name = Amagami;
 			productName = Amagami;
@@ -2273,8 +2353,9 @@
 				E2652F6A678720220E7C2573 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				CEC5DE8A3095F4E900D4D78B /* ../games/snow-radish-vacation/src */,
 				169AFF10E03D920806B60967 /* ../modules/providers/adv/src */,
+				CEC5DE8A3095F4E900D4D78B /* ../games/snow-radish-vacation/src */,
+				37D212FBDCEE3A386268742A /* ../modules/vms/snow-radish/src */,
 			);
 			name = SnowRadish;
 			productName = SnowRadish;
@@ -2360,9 +2441,9 @@
 				BE0392014335264F35BE50B4 /* SchoolDays */,
 				9F1B2FE3D05CB0F830B9F1E6 /* SummerRadish */,
 				2F232DD8554632C7F03F3FD5 /* Kirikiri */,
+				E27729B68B82BC79B9F4953F /* LucaSystem */,
 				B2AA2CDDA40EC4CA2D8F5581 /* KotonohaIOSSmoke */,
 				949A01BF0095966CB485B790 /* DdlcIOSScriptSmoke */,
-				E27729B68B82BC79B9F4953F /* LucaSystem */,
 			);
 		};
 /* End PBXProject section */
@@ -2554,7 +2635,7 @@
 				9C95B7E6948652E0E273AC9C /* Value.cpp in Sources */,
 				2D2BD1CCA88BA5240E15B020 /* Vm.cpp in Sources */,
 				7504FCC4F6303984EF390FC7 /* DdlcScriptTest.cpp in Sources */,
-				6D00562942346149DDD52AD6 /* Replay.cpp in Sources */,
+				747390DC4D07AFE99407DE90 /* Replay.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -2782,6 +2863,7 @@
 				HEADER_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(KOTONOHA_ROOT)/games/doki-doki-literature-club/include",
+					"$(KOTONOHA_ROOT)/modules/vms/renpy/include",
 					"$(KOTONOHA_ROOT)/games/doki-doki-literature-club/src",
 					"$(KOTONOHA_ROOT)/build/iOS-deps/Python.xcframework/ios-arm64_x86_64-simulator/Python.framework/Headers",
 					"$(KOTONOHA_ROOT)/modules/providers/rpa/include",
@@ -2789,12 +2871,14 @@
 				"HEADER_SEARCH_PATHS[sdk=iphoneos*]" = (
 					"$(inherited)",
 					"$(KOTONOHA_ROOT)/games/doki-doki-literature-club/include",
+					"$(KOTONOHA_ROOT)/modules/vms/renpy/include",
 					"$(KOTONOHA_ROOT)/games/doki-doki-literature-club/src",
 					"$(KOTONOHA_ROOT)/build/iOS-deps/Python.xcframework/ios-arm64/Python.framework/Headers",
 				);
 				"HEADER_SEARCH_PATHS[sdk=iphonesimulator*]" = (
 					"$(inherited)",
 					"$(KOTONOHA_ROOT)/games/doki-doki-literature-club/include",
+					"$(KOTONOHA_ROOT)/modules/vms/renpy/include",
 					"$(KOTONOHA_ROOT)/games/doki-doki-literature-club/src",
 					"$(KOTONOHA_ROOT)/build/iOS-deps/Python.xcframework/ios-arm64_x86_64-simulator/Python.framework/Headers",
 				);
@@ -3062,6 +3146,7 @@
 					"$(KOTONOHA_ROOT)/games/summer-radish-vacation/include",
 					"$(KOTONOHA_ROOT)/games/summer-radish-vacation/src",
 					"$(KOTONOHA_ROOT)/modules/providers/cmp/include",
+					"$(KOTONOHA_ROOT)/modules/vms/summer-radish/include",
 				);
 				INFOPLIST_FILE = "$(PROJECT_DIR)/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "Summer Radish Vacation!!";
@@ -3351,6 +3436,7 @@
 				HEADER_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(KOTONOHA_ROOT)/games/doki-doki-literature-club/include",
+					"$(KOTONOHA_ROOT)/modules/vms/renpy/include",
 					"$(KOTONOHA_ROOT)/games/doki-doki-literature-club/src",
 					"$(KOTONOHA_ROOT)/build/iOS-deps/Python.xcframework/ios-arm64_x86_64-simulator/Python.framework/Headers",
 					"$(KOTONOHA_ROOT)/modules/providers/rpa/include",
@@ -3358,12 +3444,14 @@
 				"HEADER_SEARCH_PATHS[sdk=iphoneos*]" = (
 					"$(inherited)",
 					"$(KOTONOHA_ROOT)/games/doki-doki-literature-club/include",
+					"$(KOTONOHA_ROOT)/modules/vms/renpy/include",
 					"$(KOTONOHA_ROOT)/games/doki-doki-literature-club/src",
 					"$(KOTONOHA_ROOT)/build/iOS-deps/Python.xcframework/ios-arm64/Python.framework/Headers",
 				);
 				"HEADER_SEARCH_PATHS[sdk=iphonesimulator*]" = (
 					"$(inherited)",
 					"$(KOTONOHA_ROOT)/games/doki-doki-literature-club/include",
+					"$(KOTONOHA_ROOT)/modules/vms/renpy/include",
 					"$(KOTONOHA_ROOT)/games/doki-doki-literature-club/src",
 					"$(KOTONOHA_ROOT)/build/iOS-deps/Python.xcframework/ios-arm64_x86_64-simulator/Python.framework/Headers",
 				);
@@ -3776,6 +3864,7 @@
 					"$(KOTONOHA_ROOT)/games/reallive/src",
 					"$(KOTONOHA_ROOT)/games/reallive/vendor",
 					"$(KOTONOHA_ROOT)/modules/providers/reallive/include",
+					"$(KOTONOHA_ROOT)/modules/vms/reallive/include",
 				);
 				INFOPLIST_FILE = "$(PROJECT_DIR)/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = RealLive;
@@ -3858,6 +3947,7 @@
 					"$(KOTONOHA_ROOT)/games/kirikiri/include",
 					"$(KOTONOHA_ROOT)/games/kirikiri/src",
 					"$(KOTONOHA_ROOT)/modules/providers/xp3/include",
+					"$(KOTONOHA_ROOT)/modules/vms/kag/include",
 				);
 				INFOPLIST_FILE = "$(PROJECT_DIR)/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = Kirikiri;
@@ -3940,6 +4030,7 @@
 					"$(KOTONOHA_ROOT)/games/snow-radish-vacation/include",
 					"$(KOTONOHA_ROOT)/games/snow-radish-vacation/src",
 					"$(KOTONOHA_ROOT)/modules/providers/adv/include",
+					"$(KOTONOHA_ROOT)/modules/vms/snow-radish/include",
 				);
 				INFOPLIST_FILE = "$(PROJECT_DIR)/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "Snow Radish Vacation!!";
@@ -4190,6 +4281,7 @@
 					"$(KOTONOHA_ROOT)/games/summer-radish-vacation/include",
 					"$(KOTONOHA_ROOT)/games/summer-radish-vacation/src",
 					"$(KOTONOHA_ROOT)/modules/providers/cmp/include",
+					"$(KOTONOHA_ROOT)/modules/vms/summer-radish/include",
 				);
 				INFOPLIST_FILE = "$(PROJECT_DIR)/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "Summer Radish Vacation!!";
@@ -4271,6 +4363,7 @@
 					"$(KOTONOHA_ROOT)/games/snow-radish-vacation/include",
 					"$(KOTONOHA_ROOT)/games/snow-radish-vacation/src",
 					"$(KOTONOHA_ROOT)/modules/providers/adv/include",
+					"$(KOTONOHA_ROOT)/modules/vms/snow-radish/include",
 				);
 				INFOPLIST_FILE = "$(PROJECT_DIR)/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "Snow Radish Vacation!!";
@@ -4435,6 +4528,7 @@
 					"$(KOTONOHA_ROOT)/games/kirikiri/include",
 					"$(KOTONOHA_ROOT)/games/kirikiri/src",
 					"$(KOTONOHA_ROOT)/modules/providers/xp3/include",
+					"$(KOTONOHA_ROOT)/modules/vms/kag/include",
 				);
 				INFOPLIST_FILE = "$(PROJECT_DIR)/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = Kirikiri;
@@ -4518,6 +4612,7 @@
 					"$(KOTONOHA_ROOT)/games/amagami/include",
 					"$(KOTONOHA_ROOT)/games/amagami/src",
 					"$(KOTONOHA_ROOT)/modules/providers/amagami/include",
+					"$(KOTONOHA_ROOT)/modules/vms/amagami/include",
 				);
 				INFOPLIST_FILE = Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Amagami;
@@ -4602,6 +4697,7 @@
 					"$(KOTONOHA_ROOT)/games/amagami/include",
 					"$(KOTONOHA_ROOT)/games/amagami/src",
 					"$(KOTONOHA_ROOT)/modules/providers/amagami/include",
+					"$(KOTONOHA_ROOT)/modules/vms/amagami/include",
 				);
 				INFOPLIST_FILE = Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Amagami;
@@ -4686,6 +4782,7 @@
 					"$(KOTONOHA_ROOT)/games/reallive/src",
 					"$(KOTONOHA_ROOT)/games/reallive/vendor",
 					"$(KOTONOHA_ROOT)/modules/providers/reallive/include",
+					"$(KOTONOHA_ROOT)/modules/vms/reallive/include",
 				);
 				INFOPLIST_FILE = "$(PROJECT_DIR)/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = RealLive;

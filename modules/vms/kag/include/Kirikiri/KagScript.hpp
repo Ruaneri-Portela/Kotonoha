@@ -1,4 +1,5 @@
 #pragma once
+#include <Kotonoha/core/Vm.hpp>
 
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/script/VNScript.hpp>
@@ -81,7 +82,7 @@ public:
   // Runs the script from the first tag until a blocking operation (choice,
   // wait, or end of script) is reached. `onBlocked` is invoked when the
   // script yields control to the host.
-  class Runner {
+  class Runner : public Kotonoha::Vm {
   public:
     Runner(Script script, const Callbacks &cb);
     // Returns true while the runner is blocked waiting for the host
@@ -98,6 +99,11 @@ public:
     void resumeChoice(int index);
     void resumeWait();
 
+  protected:
+    // KAG yields at host interactions rather than bytecode budgets.
+    void dispatch(std::size_t) override { run(); }
+    virtual bool executeTag(const Tag &tag);
+
   private:
     Script script_; // owned copy; the source Script may go out of scope
     const Callbacks &cb_;
@@ -107,7 +113,6 @@ public:
     std::function<void()> pendingResume_;
     std::map<std::string, std::string> vars_;
 
-    bool executeTag(const Tag &tag); // returns true if tag blocks player
     bool executeTagBlocking(const Tag &tag); // returns true if tag blocks
     std::size_t findLabel(const std::string &name);
     bool getAttrBool(const Tag &tag, const std::string &key, bool def) const;

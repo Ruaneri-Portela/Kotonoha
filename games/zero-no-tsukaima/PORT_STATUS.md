@@ -2,6 +2,46 @@
 
 Status: **playable on Kotonoha** (`games/zero-no-tsukaima`, see the root README).
 
+## Three-disc validation: Concerto archive support
+
+The status above describes Nocturne, not full support for all three games.
+Concerto (`SLPS_257.09`) now opens without SYSTEM and exposes numeric scene
+names (`0000.KS`–`1920.KS`) and numeric NORMAL/SCENEDAT/SOUND lookups.
+`ZeroRun <disc> --inspect` verified all 1921 scene slots (one intentionally empty),
+1184 scene images, 360 NORMAL slots, 106 sounds and 16192 voice slots.
+`ZeroConcertoSourceTest` additionally decoded a scene image and UI atlas, read
+sound/voice data and reopened the same source without retaining stale tables.
+Enable it with `-DZERO_CONCERTO_DISC_IMAGE=<path>` when configuring CMake.
+Symphony archive regression: all 600 scene slots remain readable.
+
+Concerto now has a **partial narrative interpreter**, not a complete Squirrel VM:
+CP932 strings/escapes/comments, nested if/else, talk/voice, numeric next targets,
+choices with conditions and assignments, direct image layers (depth, position,
+opacity/movement), crossfades and waits. Unsupported syntax fails parsing;
+unsupported calls are retained as diagnostic tags and reported at execution.
+The real-disc test verifies all three branches of scene 0006: 30 pages, choice,
+0007/0008/0009, then next() to 0010. The default story entry is prologue 0005.
+Opening/end movie IDs 0/1 resolve ZERO.PSS/ZEROED.PSS; battle movie IDs remain
+unmapped. Items, affinity, battles, maps and specialized actions are incomplete.
+
+### Rendering regression coverage (Concerto and Symphony)
+
+- Boot logos resolve NORMAL as well as SCENEDAT. Opening movies are decoded and
+  rendered by the real media player in the presentation tests.
+- Symphony uses its actual menu filenames and SCENEDAT.LST indices, not the
+  reconstructed Nocturne image numbering. Stage tables are evaluated as tables,
+  including aliases, rather than guessed from the binary literal pool.
+- Concerto numeric image layers reach the renderer; the narrative test covers
+  depth ordering and an animated fade. Japanese font fallback covers missing
+  glyphs in the configured UI font.
+- `ZeroRetailPresentationTest` captures logo, opening, title, main menu and
+  gameplay using each real disc and the software renderer. Set
+  `ZERO_CAPTURE_DIR` to retain PNGs. Configure with
+  `ZERO_CONCERTO_DISC_IMAGE` / `ZERO_SYMPHONY_DISC_IMAGE`.
+- **Not pixel-perfect:** Concerto's main menu uses readable text controls over
+  its retail background, not its native text atlas; its message panel is adapted.
+  Secondary menus and game-specific presentation/gameplay still need validation.
+
 > Migrated layout. The notes below were written for the original Kotonoha port; their
 > names map as follows: `ZeroMain.cpp` -> `ZeroSession.cpp` (story, audio,
 > drawing, saves) + `ZeroComponents.cpp` (input and pacing) + `ZeroRuntime.cpp`
@@ -24,7 +64,7 @@ Assets are never stored in the repository; tools read the user's own disc image
 | `NORMAL`, `SCENEDAT` | Archives of packed TIM2 pictures (backgrounds 640x448, 8bpp) |
 | `SCENE_ID` | Archive of packed scene bytecode (not decoded yet) |
 | `SYSTEM` | Archive of plain-text Squirrel scripts (Shift-JIS) |
-| `SOUND_ID`, `VOICE_ID` | Audio archives (PS2 ADPCM, not decoded yet) |
+| `SOUND_ID`, `VOICE_ID` | Audio archives (PS2 ADPCM, decoded via `DecodeVag`) |
 
 Every `NAME.HD` is an array of u32 entry sizes; entry *i* of `NAME.BIN` starts at
 the next 2048-byte boundary after entry *i-1*.
@@ -56,7 +96,7 @@ listed presentation gaps—not basic playability.
 - O descompactador tem um segundo estágio (de-interleave por stride, campo `mode`), já compilado; `ZeroFormatsTest` passa.
 - `SCENE_ID` são scripts Squirrel 2.x compilados (775 arquivos, 775 funções main). Todos usam apenas 9 opcodes (1,2,4,19,20,30,31,32,60): são tabelas de chamadas estilo KAG (tags `label`, `tagname`, `msgwin`...), logo uma VM mínima basta, sem VM Squirrel completa.
 - Os scripts `SYSTEM` (fonte Squirrel) ainda exigem uma VM/interpretador completo ou reescrita das classes.
-- Ainda NÃO jogável: faltam interpretador dos scripts, camadas/texto, áudio VAG e o `Main` do jogo.
+- Ainda NÃO jogável: faltam interpretador dos scripts SYSTEM (fonte Squirrel) e o `Main` do jogo. Áudio VAG/BGM/SE já é decodificado e tocado via `PcmPlayer`.
 
 ## Jogável (cena/texto) — `ZeroNoTsukaima --zero <disc.bin>`
 - `SceneSource` lê SCENE_ID/SYSTEM direto do disco; `Game` interpreta as cenas (tags estilo KAG):
@@ -73,8 +113,10 @@ listed presentation gaps—not basic playability.
 
 ## Audio (added)
 - `VOICE_ID` / `SOUND_ID` entries are headerless mono PS2 SPU-ADPCM (`DecodeVag`). `dispname voice=N` is the `VOICE_ID` index
-  (entries of ~12 bytes are silent). Voices play at 32000 Hz and BGM at 44100 Hz (rates estimated from line lengths, unverified).
-- `bgmNN` is mapped to `SOUND_ID[NN]` (guess); `bgmaNN` series and SE tags are not mapped yet.
+  (entries of ~12 bytes are silent). Voices play at 22050 Hz (overridable with `ZERO_VOICE_RATE`), BGM at 44100 Hz (`ZERO_BGM_RATE`), SE at 22050 Hz (`ZERO_SE_RATE`).
+- `bgmNN` is mapped to `SOUND_ID[NN]`; `bgmaNN` series and SE tags are mapped by name through the SOUND_ID.LST table. System voices come from SYSTEM 36.
+
+- Audio plays through `Kotonoha::PcmPlayer` on the engine `Voice`, `BGM` and `Se` channels, controllable from the debug Audio Mixer.
 
 ## Images (added)
 - `Catalog.cpp` rebuilds SCENEDAT name order from SYSTEM entries 31 (stage table) and 35 (CG list): backgrounds 0-147 (3 time variants for TIME stages), event CGs from 148.

@@ -17,13 +17,13 @@ if(NOT TARGET Kotonoha::ProviderXP3)
 endif()
 
 add_library(kirikiri_formats STATIC
-  src/KagScript.cpp
   src/KirikiriRuntime.cpp
 )
 target_include_directories(kirikiri_formats PUBLIC src include)
 set_target_properties(kirikiri_formats PROPERTIES CXX_EXTENSIONS OFF)
+include("${CMAKE_CURRENT_SOURCE_DIR}/../../modules/vms/kag/CMakeLists.txt")
 find_package(ZLIB REQUIRED)
-target_link_libraries(kirikiri_formats PUBLIC Kotonoha::Engine Kotonoha::ProviderXP3 ZLIB::ZLIB)
+target_link_libraries(kirikiri_formats PUBLIC Kotonoha::Engine Kotonoha::ProviderXP3 ZLIB::ZLIB Kotonoha::Vmkag)
 target_compile_features(kirikiri_formats PUBLIC cxx_std_17)
 
 kotonoha_add_app(Kirikiri src/main.cpp)

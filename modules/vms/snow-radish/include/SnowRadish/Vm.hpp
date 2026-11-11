@@ -1,4 +1,5 @@
 #pragma once
+#include <Kotonoha/core/Vm.hpp>
 #include <cstdint>
 #include <functional>
 #include <map>
@@ -55,7 +56,7 @@ public:
   virtual void log(const std::string &) {}
 };
 
-class Vm {
+class Vm : public Kotonoha::Vm {
 public:
   explicit Vm(Host &host);
 
@@ -102,6 +103,9 @@ public:
   void jumpTo(const ObjectPtr &obj, uint32_t pc);
 
   size_t stackDepth() const { return stack_.size(); }
+
+protected:
+  void dispatch(std::size_t budget) override { run(budget); }
 
 private:
   struct Entry {

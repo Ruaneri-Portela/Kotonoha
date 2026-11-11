@@ -1,4 +1,5 @@
 #pragma once
+#include <Kotonoha/core/Vm.hpp>
 // The Ren'Py 6.99 runtime of the port: displayables, ATL transforms,
 // transitions, the scene lists and the script executor. Rendering produces
 // draw lists (no SDL); the app turns them into textured quads.
@@ -292,7 +293,7 @@ public:
   virtual void log(const std::string &line);
 };
 
-class Vm {
+class Vm : public Kotonoha::Vm {
 public:
   Vm(const Assets &assets, const Script &script, Backend &backend);
   ~Vm();
@@ -357,6 +358,10 @@ public:
   std::string savePersistentText();
   void restorePersistentText(const std::string &);
   double textCps = 50;
+
+protected:
+  // This engine yields at interactions, not at individual bytecodes.
+  void dispatch(std::size_t) override { if (!finished()) resume(); }
 
 private:
   friend struct VmNatives;

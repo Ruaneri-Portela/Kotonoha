@@ -1324,9 +1324,12 @@ void Frontend::DrawPhase(SDL_Renderer *r, Phase phase, float alpha) {
       else if (step_ == Step::FadeOut)
         f = 1.0f - Ramp(Since(), phase == Phase::Warning ? 2000 : 1000);
     }
-    DrawImage(
-        r, host_.ScenePicture(phase == Phase::Warning ? "WARNING" : "MMV_LOGO"),
-        0, 0, alpha * f);
+    auto *picture = host_.ScenePicture(phase == Phase::Warning ? "WARNING" : "MMV_LOGO");
+    DrawImage(r, picture, 0, 0, alpha * f);
+    if (!picture && phase == Phase::Warning &&
+        host_.GameEdition() == SceneSource::Edition::Concerto)
+      host_.DrawText(r, "長時間のプレイにはご注意ください。", 70, 206, 24,
+                     {255, 255, 255, Uint8(alpha * f * 255)});
     break;
   }
   case Phase::Movie:
@@ -1336,37 +1339,60 @@ void Frontend::DrawPhase(SDL_Renderer *r, Phase phase, float alpha) {
       movie_->render(*r, all, host_.Upscaler(), true);
     break;
   case Phase::Title: {
+    const bool adapted = host_.GameEdition() != SceneSource::Edition::Nocturne;
     const int stage = phase == phase_ ? titleStage_ : 2;
     const float bg = stage == 0 ? Ramp(Since(), 1000) : 1.0f;
-    DrawImage(r, host_.NormalPicture("TITLE_TITLEBG"), 0, 0, alpha * bg);
+    if (auto *p = host_.NormalPicture("TITLE_TITLEBG")) {
+      SDL_SetTextureAlphaModFloat(p->Source(), alpha * bg);
+      p->Draw(r, nullptr, &all);
+      SDL_SetTextureAlphaModFloat(p->Source(), 1);
+    }
     if (stage >= 1)
-      DrawImage(r, host_.NormalPicture("TITLE_TITLELOGO"), 16, 61,
+      DrawImage(r, host_.NormalPicture("TITLE_TITLELOGO"), adapted ? 24 : 16, 61,
                 alpha * (stage == 1 ? Ramp(Since(), 1000) : 1.0f));
     if (stage >= 2) {
-      DrawImage(r, host_.NormalPicture("TITLE_COPYRIGHT"), 80, 374, alpha);
+      auto *copy = host_.NormalPicture("TITLE_COPYRIGHT");
+      DrawImage(r, copy, adapted && copy ? (kW - copy->Width()) / 2 : 80, adapted ? 390 : 374, alpha);
       // Focused start button: TriangleAction on the opacity, 0 -> 255 in 1500
       // ms and back in 800 ms.
       const uint64_t t = (SDL_GetTicks() - titleIdleStart_) % 2300;
       const float blink =
           t < 1500 ? float(t) / 1500.0f : 1.0f - float(t - 1500) / 800.0f;
-      DrawImage(r, host_.NormalPicture("TITLE_STARTBUTTON"), 166, 293,
+      auto *start = host_.NormalPicture("TITLE_STARTBUTTON");
+      DrawImage(r, start, adapted && start ? (kW - start->Width()) / 2 : 166, 293,
                 alpha * blink);
     }
     break;
   }
-  case Phase::Menu:
-    DrawImage(r, host_.NormalPicture("SYSTEM_BG02"), 0, 0, alpha);
-    DrawImage(r, host_.NormalPicture("GAMEMODE_TITLE_GAMEMODE"), 0, 24, alpha,
+  case Phase::Menu: {
+    const bool adapted = host_.GameEdition() != SceneSource::Edition::Nocturne;
+    if (auto *p = host_.NormalPicture("SYSTEM_BG02")) {
+      SDL_SetTextureAlphaModFloat(p->Source(), alpha);
+      p->Draw(r, nullptr, &all);
+      SDL_SetTextureAlphaModFloat(p->Source(), 1);
+    }
+    auto *heading = host_.NormalPicture("GAMEMODE_TITLE_GAMEMODE");
+    DrawImage(r, heading, adapted && heading ? (kW - heading->Width()) / 2 : 0, 24, alpha,
               1.0f, 640, 46);
     for (int i = 0; i < kMenuCount; ++i) {
       const bool on = i == focus_;
-      DrawImage(r,
-                host_.NormalPicture(std::string("GAMEMODE_") + kMenu[i].name +
-                                    (on ? "_ON" : "_OFF")),
-                kMenuX, kMenu[i].y, alpha, on ? 1.0f : kDarkLevel, kMenuW,
-                kMenuH);
+      auto *button = host_.NormalPicture(std::string("GAMEMODE_") + kMenu[i].name +
+                                    (on ? "_ON" : "_OFF"));
+      DrawImage(r, button,
+                kMenuX, kMenu[i].y, alpha, on ? 1.0f : kDarkLevel,
+                adapted ? 0 : kMenuW, adapted ? 0 : kMenuH);
+      if (!button && adapted) {
+        static const char *labels[] = {"ニューゲーム", "ロード", "オプション", "ギャラリー", "シーン", "サウンド", "ボイス設定"};
+        SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_BLEND);
+        SDL_SetRenderDrawColor(r, 45, 25, 15, Uint8(alpha * (on ? 230 : 170)));
+        const SDL_FRect row{kMenuX, kMenu[i].y, kMenuW, kMenuH - 2};
+        SDL_RenderFillRect(r, &row);
+        host_.DrawText(r, labels[i], kMenuX + 16, kMenu[i].y + 9, 22,
+                       {255, 245, 220, Uint8(alpha * 255)});
+      }
     }
     break;
+  }
   case Phase::Option:
     DrawOption(r, alpha);
     break;

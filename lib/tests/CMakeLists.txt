@@ -1,4 +1,7 @@
 add_executable(KotonohaInfrastructureTests InfrastructureTests.cpp)
+add_executable(KotonohaVmTests VmTests.cpp)
+target_link_libraries(KotonohaVmTests PRIVATE Kotonoha::Engine)
+add_test(NAME Kotonoha.Vm COMMAND KotonohaVmTests)
 add_executable(KotonohaDisplayModeCatalogTests DisplayModeCatalogTests.cpp)
 target_link_libraries(KotonohaDisplayModeCatalogTests PRIVATE Kotonoha::Engine)
 add_test(NAME Kotonoha.DisplayModeCatalog COMMAND KotonohaDisplayModeCatalogTests)

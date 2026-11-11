@@ -137,4 +137,34 @@ provider_modules.each do |name, mod|
   end
   target.file_system_synchronized_groups << sync unless target.file_system_synchronized_groups.include?(sync)
 end
+
+# Keep reusable VM implementations out of the game source trees. The native
+# project compiles the selected VM module in each app target; CMake uses the
+# equivalent Kotonoha::Vm* libraries. Ren'Py (DokiDoki) is wired manually in
+# the project and is intentionally left out of this loop.
+vm_modules = {
+  'Amagami' => 'amagami',
+  'SnowRadish' => 'snow-radish',
+  'SummerRadish' => 'summer-radish',
+  'RealLive' => 'reallive',
+  'Kirikiri' => 'kag'
+}
+vms_group = project.main_group.groups.find { |g| g.display_name == 'VMs' } || project.main_group.new_group('VMs')
+vm_modules.each do |name, mod|
+  target = project.targets.find { |t| t.name == name }
+  next unless target
+  target.build_configurations.each do |config|
+    paths = Array(config.build_settings['HEADER_SEARCH_PATHS'])
+    config.build_settings['HEADER_SEARCH_PATHS'] = (paths + ["$(KOTONOHA_ROOT)/modules/vms/#{mod}/include"]).uniq
+  end
+  path = "../modules/vms/#{mod}/src"
+  sync = project.objects.grep(objects::PBXFileSystemSynchronizedRootGroup).find { |g| g.path == path }
+  unless sync
+    sync = project.new(objects::PBXFileSystemSynchronizedRootGroup)
+    sync.path = path
+    sync.source_tree = 'SOURCE_ROOT'
+    vms_group.children << sync
+  end
+  target.file_system_synchronized_groups << sync unless target.file_system_synchronized_groups.include?(sync)
+end
 project.save

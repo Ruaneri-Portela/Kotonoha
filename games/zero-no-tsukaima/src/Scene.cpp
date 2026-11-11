@@ -135,6 +135,8 @@ bool ParseNut(const std::vector<uint8_t> &data, NutFunction *out) {
 
 bool ParseSceneTags(const std::vector<uint8_t> &unpacked,
                     std::vector<SceneTag> *out) {
+  if (!unpacked.empty() && unpacked[0] != 0xFA)
+    return ParseConcertoScene(unpacked, out);
   NutFunction fn;
   if (!ParseNut(unpacked, &fn))
     return false;

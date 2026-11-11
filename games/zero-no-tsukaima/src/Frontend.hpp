@@ -1,5 +1,6 @@
 #pragma once
 #include "Media.hpp"
+#include <ZeroNoTsukaima/Source.hpp>
 
 #include <Kotonoha/media/MediaPlayer.hpp>
 
@@ -56,6 +57,7 @@ struct SlotInfo {
 // What the front end needs from the application (textures, audio, disc).
 class FrontendHost {
 public:
+  virtual SceneSource::Edition GameEdition() const { return SceneSource::Edition::Nocturne; }
   virtual ~FrontendHost() = default;
   // Any picture by name: NORMAL first, then SCENEDAT; null (quietly) if
   // missing.
