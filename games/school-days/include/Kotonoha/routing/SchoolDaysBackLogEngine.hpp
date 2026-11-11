@@ -18,7 +18,8 @@ class Engine;
 
 class SchoolDaysBackLogEngine final : public VNBacklog {
 public:
-  SchoolDaysBackLogEngine(Engine &engine, Kotonoha::Providers::SchoolDaysAssets &assets);
+  SchoolDaysBackLogEngine(Engine &engine,
+                          Kotonoha::Providers::SchoolDaysAssets &assets);
   ~SchoolDaysBackLogEngine() override;
 
   void open() override;

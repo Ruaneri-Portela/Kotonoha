@@ -6,58 +6,6 @@
 
 namespace Kotonoha {
 
-#ifdef KOTONOHA_DEV_CONTROL
-void SDLCALL AudioChannel::postmix(void *userdata, const SDL_AudioSpec *spec,
-                                   float *buffer, int buflen) {
-  auto *self = static_cast<AudioChannel *>(userdata);
-  if (!self || !spec || !buffer || buflen <= 0)
-    return;
-  const int count = buflen / static_cast<int>(sizeof(float));
-  double energy = 0.0, peak = 0.0;
-  uint64_t clipped = 0;
-  for (int i = 0; i < count; ++i) {
-    const double value = std::isfinite(buffer[i])
-                             ? std::abs(static_cast<double>(buffer[i]))
-                             : 1.0;
-    peak = std::max(peak, value);
-    energy += value * value;
-    if (value >= 0.999999)
-      ++clipped;
-  }
-  self->observedSamples_.fetch_add(static_cast<uint64_t>(count),
-                                   std::memory_order_relaxed);
-  self->clippedSamples_.fetch_add(clipped, std::memory_order_relaxed);
-  if (peak == 0.0 && self->activeStreams_.load(std::memory_order_relaxed) > 0 &&
-      self->audible_.load(std::memory_order_relaxed))
-    self->silentBlocks_.fetch_add(1, std::memory_order_relaxed);
-  self->sampleRate_.store(spec->freq, std::memory_order_relaxed);
-  self->observedChannels_.store(spec->channels, std::memory_order_relaxed);
-  double previous = self->energy_.load(std::memory_order_relaxed);
-  while (!self->energy_.compare_exchange_weak(previous, previous + energy,
-                                              std::memory_order_relaxed)) {
-  }
-  previous = self->peak_.load(std::memory_order_relaxed);
-  while (previous < peak && !self->peak_.compare_exchange_weak(
-                                previous, peak, std::memory_order_relaxed)) {
-  }
-}
-
-AudioMetricsSnapshot AudioChannel::metrics() const {
-  AudioMetricsSnapshot result;
-  result.samples = observedSamples_.load(std::memory_order_relaxed);
-  result.peak = peak_.load(std::memory_order_relaxed);
-  result.rms =
-      result.samples
-          ? std::sqrt(energy_.load(std::memory_order_relaxed) / result.samples)
-          : 0.0;
-  result.clippedSamples = clippedSamples_.load(std::memory_order_relaxed);
-  result.underrunCandidates = silentBlocks_.load(std::memory_order_relaxed);
-  result.sampleRate = sampleRate_.load(std::memory_order_relaxed);
-  result.channels = observedChannels_.load(std::memory_order_relaxed);
-  return result;
-}
-#endif
-
 AudioChannel::AudioChannel(std::string value, float master)
     : name(std::move(value)), masterGain(master) {}
 

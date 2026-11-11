@@ -272,36 +272,6 @@ if(WIN32)
       "PATH=path_list_prepend:$<TARGET_FILE_DIR:KotonohaEngine>")
 endif()
 
-# Parallel CTest may launch several independent School Days Runtime hosts.
-# DevBridge normally listens on 127.0.0.1:47321, so without a per-test port
-# these unrelated tests can fail Engine construction with a socket bind error.
-# An exception after GameScene construction also used to expose an SDL_ttf
-# teardown lifetime bug. Keep the normal DEV default for interactive sessions;
-# isolate test processes (including the LauncherTest's child SchoolDays.exe)
-# without serializing otherwise independent CTest cases.
-if(WIN32 AND KOTONOHA_DEV_CONTROL)
-  set(_school_days_dev_port 47520)
-  foreach(_school_days_runtime_test IN ITEMS
-      SchoolDaysPortTest
-      SchoolDaysMenuBarRuntimeTest
-      SchoolDaysNextChoiceRuntimeTest
-      SchoolDaysBackRuntimeTest
-      SchoolDaysRuntimeConfigStorageTest
-      SchoolDaysHandoffRuntimeTest
-      SchoolDaysReplayRuntimeIsolationTest
-      SchoolDaysReplayRuntimeUiTest
-      SchoolDaysRuntimeSmoke
-      SchoolDaysLauncherTest
-      SchoolDaysMediaTest
-      SchoolDays.Save
-      SchoolDays.ExitRuntime)
-    if(TEST ${_school_days_runtime_test})
-      set_property(TEST ${_school_days_runtime_test} APPEND PROPERTY ENVIRONMENT
-          "KOTONOHA_DEV_PORT=${_school_days_dev_port}")
-      math(EXPR _school_days_dev_port "${_school_days_dev_port} + 1")
-    endif()
-  endforeach()
-endif()
 
 set_property(TEST SchoolDaysMediaTest APPEND PROPERTY FAIL_REGULAR_EXPRESSION
     "Could not update timestamps for discarded samples" "Extra data: 8 bits left, value: 0")

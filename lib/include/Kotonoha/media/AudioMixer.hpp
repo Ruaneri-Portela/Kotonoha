@@ -10,18 +10,6 @@
 
 namespace Kotonoha {
 
-#ifdef KOTONOHA_DEV_CONTROL
-struct AudioMetricsSnapshot {
-  double peak = 0.0;
-  double rms = 0.0;
-  uint64_t samples = 0;
-  uint64_t clippedSamples = 0;
-  uint64_t underrunCandidates = 0;
-  int sampleRate = 0;
-  int channels = 0;
-};
-#endif
-
 class MediaPlayer;
 
 // Control API belongs to the engine thread; SDL applies gain during mixing.
@@ -36,16 +24,6 @@ class AudioChannel {
   bool muted = false;
   float masterGain = 1;
   std::vector<Stream> streams;
-#ifdef KOTONOHA_DEV_CONTROL
-  std::atomic<uint64_t> observedSamples_{0}, clippedSamples_{0},
-      silentBlocks_{0};
-  std::atomic<double> energy_{0.0}, peak_{0.0};
-  std::atomic<unsigned> activeStreams_{0};
-  std::atomic<bool> audible_{true};
-  std::atomic<int> sampleRate_{0}, observedChannels_{0};
-  static void SDLCALL postmix(void *userdata, const SDL_AudioSpec *spec,
-                              float *buffer, int buflen);
-#endif
   void apply(float value, bool mute, float master);
   explicit AudioChannel(std::string name, float master);
   friend class AudioMixer;
@@ -58,9 +36,6 @@ public:
   void setUserVolume(float value);
   bool isMuted() const { return muted; }
   std::size_t activeStreams() const { return streams.size(); }
-#ifdef KOTONOHA_DEV_CONTROL
-  AudioMetricsSnapshot metrics() const;
-#endif
   void setVolume(float value);
   void setMuted(bool value);
   // Streams a game plays itself (e.g. a custom PCM player) join the channel

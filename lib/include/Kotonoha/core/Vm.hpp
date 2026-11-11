@@ -6,7 +6,10 @@ namespace Kotonoha {
 class Vm {
 public:
   virtual ~Vm() = default;
-  void execute(std::size_t budget = 10000) { if (budget) dispatch(budget); }
+  void execute(std::size_t budget = 10000) {
+    if (budget)
+      dispatch(budget);
+  }
 
 protected:
   virtual void dispatch(std::size_t budget) = 0;

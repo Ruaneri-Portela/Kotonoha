@@ -1,6 +1,6 @@
 #pragma once
-#include <SummerRadish/SummerAssets.hpp>
 #include <Kotonoha/core/Runtime.hpp>
+#include <SummerRadish/SummerAssets.hpp>
 namespace SummerRadish {
 class SummerRuntime final : public Kotonoha::Runtime {
   struct Impl;

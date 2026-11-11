@@ -692,20 +692,8 @@ void MediaPlayer::setChannel(const std::string &name) {
   if (state->channel == channel)
     return;
   if (state->stream) {
-#ifdef KOTONOHA_DEV_CONTROL
-    // A logical SDL audio device has one postmix callback. Detaching the old
-    // channel after attaching the new one would unregister the new observer.
-    state->channel->detach(state->stream.get());
-    try {
-      channel->attach(state->stream.get());
-    } catch (...) {
-      state->channel->attach(state->stream.get());
-      throw;
-    }
-#else
     channel->attach(state->stream.get());
     state->channel->detach(state->stream.get());
-#endif
   }
   state->channel = std::move(channel);
   if (soundtrack)

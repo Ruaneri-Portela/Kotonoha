@@ -1,6 +1,5 @@
 #pragma once
 
-#include <SchoolDays/SchoolDaysAssets.hpp>
 #include "SchoolDaysScenes.hpp"
 #include <Kotonoha/SchoolDaysMoveSomState.hpp>
 #include <Kotonoha/SchoolDaysMovieEventState.hpp>
@@ -32,6 +31,7 @@
 #include <Kotonoha/routing/SchoolDaysSystemUi.hpp>
 #include <Kotonoha/routing/SchoolDaysTitleModel.hpp>
 #include <Kotonoha/routing/SchoolDaysTransportFade.hpp>
+#include <SchoolDays/SchoolDaysAssets.hpp>
 #include <memory>
 #include <optional>
 #include <unordered_map>
@@ -420,8 +420,8 @@ class Runtime final : public Kotonoha::Runtime {
                                  void *, Kotonoha_KtrfError *);
 
 public:
-  Runtime(std::shared_ptr<Kotonoha::Providers::SchoolDaysAssets> assets, std::string route,
-          std::filesystem::path documents = {});
+  Runtime(std::shared_ptr<Kotonoha::Providers::SchoolDaysAssets> assets,
+          std::string route, std::filesystem::path documents = {});
   ~Runtime() override;
   void shutdown();
   // SDL close/quit requests are routed through the retail EXIT confirmation.

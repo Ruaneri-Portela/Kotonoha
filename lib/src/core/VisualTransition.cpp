@@ -108,16 +108,6 @@ bool VisualTransition::compose(RendererRef renderer, SDL_Texture &novelTarget,
   }
   if (active()) {
     ++framesHeld_;
-#ifdef KOTONOHA_DEV_CONTROL
-    if (!outgoing_ && !drawable && !reportedEmpty_) {
-      reportedEmpty_ = true;
-      SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
-                   "DEV invariant: transition %llu (%s) has no outgoing or "
-                   "incoming drawable frame",
-                   static_cast<unsigned long long>(generation_),
-                   reason_.c_str());
-    }
-#endif
     if (outgoing_) {
       // Replace the authored clear/early fade on the owned Novel target. The
       // backbuffer is never sampled, including after SDL_RenderPresent.
@@ -128,12 +118,6 @@ bool VisualTransition::compose(RendererRef renderer, SDL_Texture &novelTarget,
           !SDL_SetRenderClipRect(&renderer, nullptr) ||
           !SDL_SetRenderScale(&renderer, 1, 1) ||
           !SDL_RenderTexture(&renderer, outgoing_.get(), nullptr, nullptr)) {
-#ifdef KOTONOHA_DEV_CONTROL
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
-                     "DEV invariant: outgoing Novel frame could not replace an "
-                     "empty transition frame: %s",
-                     SDL_GetError());
-#endif
         return false;
       }
     }

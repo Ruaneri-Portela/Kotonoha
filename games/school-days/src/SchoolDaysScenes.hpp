@@ -23,7 +23,8 @@ class LogoSplash final : public Kotonoha::Scene {
 
 public:
   static constexpr double fadeSeconds = 0.8, displaySeconds = 3.0;
-  LogoSplash(Kotonoha::Engine &engine, Kotonoha::Providers::SchoolDaysAssets &assets);
+  LogoSplash(Kotonoha::Engine &engine,
+             Kotonoha::Providers::SchoolDaysAssets &assets);
   void restart() override;
   bool finished() const override { return done; }
   bool available() const { return !logo.empty(); }

@@ -30,8 +30,7 @@ GDI remains available if WGC cannot initialize or produce a fresh frame.
 
 In the original local QA setup, the Kotonoha DEV binary was
 `D:\Dev\Kotonoha-v3\build\school-days-dev-control4\games\school-days\Release\SchoolDays.exe`.
-Its build cache has `KOTONOHA_DEV_CONTROL=ON`; the normal release build has
-this flag OFF. The original path is
+
 `D:\SCHOOL DAYS HQ\Overflow\SCHOOLDAYS HQ\SCHOOLDAYS HQ.exe`.
 The Kotonoha controller passes `--school-days` with the original directory
 so both processes read the same retail Packs. Kotonoha writes its own

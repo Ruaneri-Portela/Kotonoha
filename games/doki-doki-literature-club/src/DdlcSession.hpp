@@ -17,7 +17,8 @@ namespace Ddlc {
 // Coordinates the Ren'Py VM, presentation and audio for the engine scenes.
 class GameSession {
 public:
-  GameSession(Kotonoha::Engine &engine, std::shared_ptr<Kotonoha::Providers::DdlcAssets> assets);
+  GameSession(Kotonoha::Engine &engine,
+              std::shared_ptr<Kotonoha::Providers::DdlcAssets> assets);
   ~GameSession();
   GameSession(const GameSession &) = delete;
   GameSession &operator=(const GameSession &) = delete;
