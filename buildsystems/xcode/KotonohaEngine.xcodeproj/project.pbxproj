@@ -37,20 +37,20 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		MOD0011 /* imgui.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; path = ../../../lib/submodules/imgui/imgui.cpp; sourceTree = "<group>"; };
-		MOD0012 /* imgui_draw.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; path = ../../../lib/submodules/imgui/imgui_draw.cpp; sourceTree = "<group>"; };
-		MOD0013 /* imgui_tables.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; path = ../../../lib/submodules/imgui/imgui_tables.cpp; sourceTree = "<group>"; };
-		MOD0014 /* imgui_widgets.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; path = ../../../lib/submodules/imgui/imgui_widgets.cpp; sourceTree = "<group>"; };
-		MOD0015 /* imgui_impl_sdl3.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; path = ../../../lib/submodules/imgui/backends/imgui_impl_sdl3.cpp; sourceTree = "<group>"; };
-		MOD0016 /* imgui_impl_sdlrenderer3.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; path = ../../../lib/submodules/imgui/backends/imgui_impl_sdlrenderer3.cpp; sourceTree = "<group>"; };
-		MOD0017 /* imgui_stdlib.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; path = ../../../lib/submodules/imgui/misc/cpp/imgui_stdlib.cpp; sourceTree = "<group>"; };
-		MOD0018 /* AssetProvider.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; path = ../../../lib/src/core/AssetProvider.cpp; sourceTree = "<group>"; };
-		MOD0019 /* AssetOverlay.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; path = ../../../lib/src/core/AssetOverlay.cpp; sourceTree = "<group>"; };
-		MOD0020 /* Clock.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; path = ../../../lib/src/core/Clock.cpp; sourceTree = "<group>"; };
+		MOD0011 /* imgui.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; path = ../../../../../lib/submodules/imgui/imgui.cpp; sourceTree = "<group>"; };
+		MOD0012 /* imgui_draw.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; path = ../../../../../lib/submodules/imgui/imgui_draw.cpp; sourceTree = "<group>"; };
+		MOD0013 /* imgui_tables.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; path = ../../../../../lib/submodules/imgui/imgui_tables.cpp; sourceTree = "<group>"; };
+		MOD0014 /* imgui_widgets.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; path = ../../../../../lib/submodules/imgui/imgui_widgets.cpp; sourceTree = "<group>"; };
+		MOD0015 /* imgui_impl_sdl3.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; path = ../../../../../lib/submodules/imgui/backends/imgui_impl_sdl3.cpp; sourceTree = "<group>"; };
+		MOD0016 /* imgui_impl_sdlrenderer3.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; path = ../../../../../lib/submodules/imgui/backends/imgui_impl_sdlrenderer3.cpp; sourceTree = "<group>"; };
+		MOD0017 /* imgui_stdlib.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; path = ../../../../../lib/submodules/imgui/misc/cpp/imgui_stdlib.cpp; sourceTree = "<group>"; };
+		MOD0018 /* AssetProvider.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; path = ../../../../../lib/src/core/AssetProvider.cpp; sourceTree = "<group>"; };
+		MOD0019 /* AssetOverlay.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; path = ../../../../../lib/src/core/AssetOverlay.cpp; sourceTree = "<group>"; };
+		MOD0020 /* Clock.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; path = ../../../../../lib/src/core/Clock.cpp; sourceTree = "<group>"; };
 		CE1893F63095457700B0DF80 /* KotonohaImGui.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = KotonohaImGui.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		CE1893F83095457F00B0DF80 /* KotonohaEngine.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = KotonohaEngine.framework; sourceTree = BUILT_PRODUCTS_DIR; };
-		MOD0201 /* SDL.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = SDL.xcodeproj; path = ../../../lib/submodules/SDL/Xcode/SDL/SDL.xcodeproj; sourceTree = SOURCE_ROOT; };
-		MOD0202 /* SDL_ttf.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = SDL_ttf.xcodeproj; path = ../../../lib/submodules/SDL_ttf/Xcode/SDL_ttf.xcodeproj; sourceTree = SOURCE_ROOT; };
+		MOD0201 /* SDL.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = SDL.xcodeproj; path = ../../../../../lib/submodules/SDL/Xcode/SDL/SDL.xcodeproj; sourceTree = SOURCE_ROOT; };
+		MOD0202 /* SDL_ttf.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = SDL_ttf.xcodeproj; path = ../../../../../lib/submodules/SDL_ttf/Xcode/SDL_ttf.xcodeproj; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -60,8 +60,6 @@
 				MOD0201 /* SDL.xcodeproj */,
 				MOD0202 /* SDL_ttf.xcodeproj */,
 				MOD0030 /* ImGui */,
-				CE1893F83095457F00B0DF80 /* KotonohaEngine.framework */,
-				CE1893F63095457700B0DF80 /* KotonohaImGui.framework */,
 				A54782C73AB6DBA8C72202DE /* Products */,
 			);
 			sourceTree = "<group>";
@@ -83,8 +81,6 @@
 		A54782C73AB6DBA8C72202DE /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				CE1893F83095457F00B0DF80 /* KotonohaEngine.framework */,
-				CE1893F63095457700B0DF80 /* KotonohaImGui.framework */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -201,12 +197,12 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
-		MOD0060 /* Debug */ = {
+		MOD0062 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CLANG_CXX_LANGUAGE_STANDARD = "c++17";
 				GENERATE_INFOPLIST_FILE = NO;
-				MACOSX_DEPLOYMENT_TARGET = 10.15;
+				MACOSX_DEPLOYMENT_TARGET = 12.0;
 				SDKROOT = macosx;
 			};
 			name = Debug;
@@ -216,7 +212,7 @@
 			buildSettings = {
 				CLANG_CXX_LANGUAGE_STANDARD = "c++17";
 				GENERATE_INFOPLIST_FILE = NO;
-				MACOSX_DEPLOYMENT_TARGET = 10.15;
+				MACOSX_DEPLOYMENT_TARGET = 12.0;
 				SDKROOT = macosx;
 			};
 			name = Release;
@@ -231,7 +227,7 @@
 				DYLIB_INSTALL_NAME_BASE = "@rpath";
 				GENERATE_INFOPLIST_FILE = YES;
 				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
-				MACOSX_DEPLOYMENT_TARGET = 10.15;
+				MACOSX_DEPLOYMENT_TARGET = 12.0;
 				MACH_O_TYPE = mh_dylib;
 				PRODUCT_BUNDLE_IDENTIFIER = me.kotonoha.imgui;
 				PRODUCT_NAME = KotonohaImGui;
@@ -253,7 +249,7 @@
 				DYLIB_INSTALL_NAME_BASE = "@rpath";
 				GENERATE_INFOPLIST_FILE = YES;
 				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
-				MACOSX_DEPLOYMENT_TARGET = 10.15;
+				MACOSX_DEPLOYMENT_TARGET = 12.0;
 				MACH_O_TYPE = mh_dylib;
 				PRODUCT_BUNDLE_IDENTIFIER = me.kotonoha.imgui;
 				PRODUCT_NAME = KotonohaImGui;
@@ -275,7 +271,7 @@
 				DYLIB_INSTALL_NAME_BASE = "@rpath";
 				GENERATE_INFOPLIST_FILE = YES;
 				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
-				MACOSX_DEPLOYMENT_TARGET = 10.15;
+				MACOSX_DEPLOYMENT_TARGET = 12.0;
 				MACH_O_TYPE = mh_dylib;
 				PRODUCT_BUNDLE_IDENTIFIER = me.kotonoha.engine;
 				PRODUCT_NAME = KotonohaEngine;
@@ -297,7 +293,7 @@
 				DYLIB_INSTALL_NAME_BASE = "@rpath";
 				GENERATE_INFOPLIST_FILE = YES;
 				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
-				MACOSX_DEPLOYMENT_TARGET = 10.15;
+				MACOSX_DEPLOYMENT_TARGET = 12.0;
 				MACH_O_TYPE = mh_dylib;
 				PRODUCT_BUNDLE_IDENTIFIER = me.kotonoha.engine;
 				PRODUCT_NAME = KotonohaEngine;
@@ -334,7 +330,7 @@
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				MOD0061 /* Release */,
-				MOD0060 /* Debug */,
+				MOD0062 /* Debug */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
