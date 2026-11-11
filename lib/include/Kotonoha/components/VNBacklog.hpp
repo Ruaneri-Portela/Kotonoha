@@ -1,5 +1,5 @@
 #pragma once
-#include <Kotonoha/componentes/TouchActivation.hpp>
+#include <Kotonoha/components/TouchActivation.hpp>
 
 #include <Kotonoha/core/Clock.hpp>
 #include <Kotonoha/core/Engine.hpp>

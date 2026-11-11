@@ -2,9 +2,9 @@
 #include <Amagami/Assets.hpp>
 #include <Amagami/Campaign.hpp>
 #include <Amagami/Session.hpp>
-#include <Kotonoha/componentes/ChoiceQuestionScene.hpp>
-#include <Kotonoha/componentes/VNBacklog.hpp>
-#include <Kotonoha/componentes/VNTextBox.hpp>
+#include <Kotonoha/components/ChoiceQuestionScene.hpp>
+#include <Kotonoha/components/VNBacklog.hpp>
+#include <Kotonoha/components/VNTextBox.hpp>
 #include <Kotonoha/core/Runtime.hpp>
 #include <Kotonoha/media/PcmPlayer.hpp>
 namespace Amagami {

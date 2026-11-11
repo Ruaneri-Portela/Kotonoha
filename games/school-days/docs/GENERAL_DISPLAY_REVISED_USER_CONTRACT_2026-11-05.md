@@ -29,8 +29,8 @@
 
 ## Code boundaries and implementation
 
-- Engine-wide: `lib/include/Kotonoha/componentes/DisplayModeCatalog.hpp` and
-  `lib/src/componentes/DisplayModeCatalog.cpp` find modes from the selected
+- Engine-wide: `lib/include/Kotonoha/components/DisplayModeCatalog.hpp` and
+  `lib/src/components/DisplayModeCatalog.cpp` find modes from the selected
   SDL display ID's Windows `HMONITOR`. On Windows, use the driver
   `EnumDisplaySettingsExW` 32bpp table as authority; normalize NTSC 29/59/119
   Hz values to 29.97/59.94/119.88 as SDL does, preserve genuine 60 separately,

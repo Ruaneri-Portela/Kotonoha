@@ -261,12 +261,12 @@ from the original style resource using the standard `.ass` extension and
 the bundled Noto Sans JP font. A cue's speaker selects the identically named
 style, falling back to `Default` or the first imported style.
 
-The reusable [SubtitleScene](lib/include/Kotonoha/componentes/SubtitleScene.hpp)
+The reusable [SubtitleScene](lib/include/Kotonoha/components/SubtitleScene.hpp)
 renders cues with libass and inherits the engine's selected style. Use
 `setCues`, `setPosition` and, optionally, `setStyle`. Shared timeline subtitles
 use this scene too; School Days extends it for ORS dialogue.
 
-[FadeScene](lib/include/Kotonoha/componentes/FadeScene.hpp), ported from
+[FadeScene](lib/include/Kotonoha/components/FadeScene.hpp), ported from
 Kotonoha, fades the frame to or from a color. Drive events from an external
 timeline (`add` + `setPosition`) or its own clock (`play`); `hold` keeps the
 color after a fade-out. Games reuse it instead of ad-hoc fades.

@@ -1,8 +1,8 @@
 #include "SnowRuntime.hpp"
-#include <Kotonoha/componentes/SubtitleScene.hpp>
+#include <Kotonoha/components/SubtitleScene.hpp>
 
-#include <Kotonoha/componentes/VNSave.hpp>
-#include <Kotonoha/componentes/VNSaveMenu.hpp>
+#include <Kotonoha/components/VNSave.hpp>
+#include <Kotonoha/components/VNSaveMenu.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/UI.hpp>
 #include <Kotonoha/events/ControllerEvent.hpp>

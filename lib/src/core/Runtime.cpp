@@ -1,5 +1,5 @@
-#include <Kotonoha/componentes/SplashChainloader.hpp>
-#include <Kotonoha/componentes/SplashScreen.hpp>
+#include <Kotonoha/components/SplashChainloader.hpp>
+#include <Kotonoha/components/SplashScreen.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/FileSystem.hpp>
 #include <Kotonoha/core/Runtime.hpp>

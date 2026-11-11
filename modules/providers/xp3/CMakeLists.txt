@@ -1,6 +1,3 @@
-cmake_minimum_required(VERSION 3.16)
-project(KotonohaProviderXP3 LANGUAGES C CXX)
-
 if(TARGET Kotonoha::ProviderXP3)
   return()
 endif()

@@ -1,7 +1,7 @@
 #pragma once
 #include <SummerRadish/SummerAssets.hpp>
-#include <Kotonoha/componentes/ImageButtonBar.hpp>
-#include <Kotonoha/componentes/VNBacklog.hpp>
+#include <Kotonoha/components/ImageButtonBar.hpp>
+#include <Kotonoha/components/VNBacklog.hpp>
 #include <Kotonoha/core/UI.hpp>
 #include <Kotonoha/media/PcmPlayer.hpp>
 #include <Kotonoha/media/upscaling/Upscaler.hpp>

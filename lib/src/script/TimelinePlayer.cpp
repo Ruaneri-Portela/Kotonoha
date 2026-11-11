@@ -1,6 +1,6 @@
-#include <Kotonoha/componentes/ChoiceQuestionScene.hpp>
-#include <Kotonoha/componentes/SubtitleScene.hpp>
-#include <Kotonoha/componentes/VNTextBox.hpp>
+#include <Kotonoha/components/ChoiceQuestionScene.hpp>
+#include <Kotonoha/components/SubtitleScene.hpp>
+#include <Kotonoha/components/VNTextBox.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/UI.hpp>
 #include <Kotonoha/script/TimelinePlayer.hpp>

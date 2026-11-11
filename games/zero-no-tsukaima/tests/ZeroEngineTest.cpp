@@ -5,12 +5,12 @@
 #include "ZeroRuntime.hpp"
 #include <ZeroNoTsukaima/DiscAssetProvider.hpp>
 
-#include <Kotonoha/componentes/ChoiceQuestionScene.hpp>
-#include <Kotonoha/componentes/GameMenu.hpp>
-#include <Kotonoha/componentes/InGameMenu.hpp>
-#include <Kotonoha/componentes/TextInputDialog.hpp>
-#include <Kotonoha/componentes/VNBacklog.hpp>
-#include <Kotonoha/componentes/VNTextBox.hpp>
+#include <Kotonoha/components/ChoiceQuestionScene.hpp>
+#include <Kotonoha/components/GameMenu.hpp>
+#include <Kotonoha/components/InGameMenu.hpp>
+#include <Kotonoha/components/TextInputDialog.hpp>
+#include <Kotonoha/components/VNBacklog.hpp>
+#include <Kotonoha/components/VNTextBox.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/debug/DebugOverlay.hpp>
 #include <Kotonoha/localization/Translation.hpp>

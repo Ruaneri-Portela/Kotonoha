@@ -24,7 +24,7 @@ lib/
   include/Kotonoha/
     core/                    Engine, Runtime, Scene, Clock, UI, Settings, Log,
                              AssetProvider e DiscImage (.iso/.bin)
-    componentes/             Componentes SDL_ttf, VNManager e VNSave
+    components/             Componentes SDL_ttf, VNManager e VNSave
     debug/                   HUD e inspetor ImGui mantidos pelo motor
     localization/            Dicionario JSON, exportacao e Shift-JIS (iconv)
     media/                   FFmpeg (MediaPlayer, MediaDecoder), saida SDL
@@ -76,7 +76,7 @@ build/                       Saida gerada (nao faz parte do codigo-fonte)
 ```
 
 Pastas de modulos usam minusculas; arquivos/tipos C++ usam PascalCase.
-`core` e `componentes` preservam os nomes escolhidos para o projeto. Nomes
+`core` e `components` preservam os nomes escolhidos para o projeto. Nomes
 como `DemoGame`, `DemoStory` e `DebugOverlay` indicam a responsabilidade.
 A API CMake para integrar o motor e `Kotonoha::Engine`; o executavel continua
 `Kotonoha`. ImGui e uma dependencia privada do motor; cabecalhos publicos nao
@@ -169,8 +169,8 @@ listando todos os locais procurados.
 
 O fundo padrao do motor e preto transparente (`0,0,0,0`).
 
-Os fontes `VN*.cpp` e seus headers ficam em `componentes`. Inclua, por exemplo,
-`<Kotonoha/componentes/VNManager.hpp>` ou `<Kotonoha/core/Engine.hpp>`.
+Os fontes `VN*.cpp` e seus headers ficam em `components`. Inclua, por exemplo,
+`<Kotonoha/components/VNManager.hpp>` ou `<Kotonoha/core/Engine.hpp>`.
 `clang-format` usa a configuracao versionada em `.clang-format`.
 
 ### Depuracao nativa de cenas e rotas editaveis
@@ -208,13 +208,13 @@ original com a extensao padrao `.ass` e a fonte incluida Noto Sans JP.
 O nome do personagem seleciona o estilo de mesmo nome; sem correspondencia,
 usa `Default` ou o primeiro estilo importado.
 
-A cena compartilhada [SubtitleScene](lib/include/Kotonoha/componentes/SubtitleScene.hpp)
+A cena compartilhada [SubtitleScene](lib/include/Kotonoha/components/SubtitleScene.hpp)
 usa libass e herda o estilo configurado no motor. `setCues` recebe as falas;
 `setPosition` atualiza o tempo e `setStyle` permite substituir o estilo.
 As legendas das timelines tambem usam essa cena. School Days a estende
 para apresentar as falas ORS.
 
-A cena [FadeScene](lib/include/Kotonoha/componentes/FadeScene.hpp), portada do
+A cena [FadeScene](lib/include/Kotonoha/components/FadeScene.hpp), portada do
 Kotonoha, faz fade in/out para uma cor. Use eventos numa timeline externa
 (`add` + `setPosition`) ou o relogio proprio (`play`); `hold` mantem a cor ao
 fim de um fade out. Os jogos a reutilizam em vez de fades proprios.
@@ -1158,7 +1158,7 @@ quando a politica e Pause. Frames longos nao pulam os timeouts.
 
 ## Saves
 
-[VNSave.cpp](src/componentes/VNSave.cpp) grava um formato versionado e substitui
+[VNSave.cpp](src/components/VNSave.cpp) grava um formato versionado e substitui
 o slot por rename de um arquivo temporario no mesmo diretorio.
 
 ```cpp

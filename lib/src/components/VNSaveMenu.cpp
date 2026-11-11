@@ -1,5 +1,5 @@
-#include <Kotonoha/componentes/TextInputDialog.hpp>
-#include <Kotonoha/componentes/VNSaveMenu.hpp>
+#include <Kotonoha/components/TextInputDialog.hpp>
+#include <Kotonoha/components/VNSaveMenu.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/UI.hpp>
 #include <Kotonoha/events/BackAction.hpp>

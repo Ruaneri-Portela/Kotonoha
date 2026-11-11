@@ -1,8 +1,8 @@
 #include "SnowSession.hpp"
 #include <Kotonoha/core/UI.hpp>
 
-#include <Kotonoha/componentes/VNSave.hpp>
-#include <Kotonoha/componentes/VNTextBox.hpp>
+#include <Kotonoha/components/VNSave.hpp>
+#include <Kotonoha/components/VNTextBox.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/FileSystem.hpp>
 #include <Kotonoha/media/upscaling/Upscaler.hpp>

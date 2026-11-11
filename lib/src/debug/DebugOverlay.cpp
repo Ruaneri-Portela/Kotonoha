@@ -1,10 +1,10 @@
 #include <Kotonoha/debug/DebugOverlay.hpp>
 #include <Kotonoha/debug/VoiceDubbingApplet.hpp>
 
-#include <Kotonoha/componentes/ChoiceQuestionScene.hpp>
-#include <Kotonoha/componentes/ForcedSubtitleRenderer.hpp>
-#include <Kotonoha/componentes/VNManager.hpp>
-#include <Kotonoha/componentes/VNTextBox.hpp>
+#include <Kotonoha/components/ChoiceQuestionScene.hpp>
+#include <Kotonoha/components/ForcedSubtitleRenderer.hpp>
+#include <Kotonoha/components/VNManager.hpp>
+#include <Kotonoha/components/VNTextBox.hpp>
 #include <Kotonoha/core/Appearance.hpp>
 #include <Kotonoha/core/Config.hpp>
 #include <Kotonoha/core/Engine.hpp>

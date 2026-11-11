@@ -155,22 +155,22 @@ add_library(KotonohaEngine SHARED
     src/core/Settings.cpp
     src/core/Runtime.cpp
     src/core/UI.cpp
-    src/componentes/ChoiceQuestionScene.cpp
-    src/componentes/DisplayModeCatalog.cpp
-    src/componentes/FadeScene.cpp
-    src/componentes/GameMenu.cpp
-    src/componentes/InGameMenu.cpp
-    src/componentes/SettingsMenu.cpp
-    src/componentes/SplashScreen.cpp
-    src/componentes/SubtitleScene.cpp
-    src/componentes/ForcedSubtitleRenderer.cpp
-    src/componentes/TextInputForm.cpp
-    src/componentes/TextInputDialog.cpp
-    src/componentes/VNBacklog.cpp
-    src/componentes/VNManager.cpp
-    src/componentes/VNSave.cpp
-    src/componentes/VNSaveMenu.cpp
-    src/componentes/VNTextBox.cpp
+    src/components/ChoiceQuestionScene.cpp
+    src/components/DisplayModeCatalog.cpp
+    src/components/FadeScene.cpp
+    src/components/GameMenu.cpp
+    src/components/InGameMenu.cpp
+    src/components/SettingsMenu.cpp
+    src/components/SplashScreen.cpp
+    src/components/SubtitleScene.cpp
+    src/components/ForcedSubtitleRenderer.cpp
+    src/components/TextInputForm.cpp
+    src/components/TextInputDialog.cpp
+    src/components/VNBacklog.cpp
+    src/components/VNManager.cpp
+    src/components/VNSave.cpp
+    src/components/VNSaveMenu.cpp
+    src/components/VNTextBox.cpp
     src/events/BackAction.cpp
     src/events/BacklogEvents.cpp
     src/events/InputActions.cpp

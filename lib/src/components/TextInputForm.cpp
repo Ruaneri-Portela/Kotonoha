@@ -1,4 +1,4 @@
-#include <Kotonoha/componentes/TextInputForm.hpp>
+#include <Kotonoha/components/TextInputForm.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/UI.hpp>
 #include <Kotonoha/events/BackAction.hpp>

@@ -1,11 +1,11 @@
 #include "RealLiveMouseCursor.hpp"
 #include "RealLiveRuntime.hpp"
 #include "RealLiveTransition.hpp"
-#include <Kotonoha/componentes/InGameMenu.hpp>
-#include <Kotonoha/componentes/TextInputDialog.hpp>
-#include <Kotonoha/componentes/VNBacklog.hpp>
-#include <Kotonoha/componentes/VNSaveMenu.hpp>
-#include <Kotonoha/componentes/VNTextBox.hpp>
+#include <Kotonoha/components/InGameMenu.hpp>
+#include <Kotonoha/components/TextInputDialog.hpp>
+#include <Kotonoha/components/VNBacklog.hpp>
+#include <Kotonoha/components/VNSaveMenu.hpp>
+#include <Kotonoha/components/VNTextBox.hpp>
 #include <Kotonoha/core/DiscImage.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/media/SurfaceBlend.hpp>

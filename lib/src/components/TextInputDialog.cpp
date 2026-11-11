@@ -1,4 +1,4 @@
-#include <Kotonoha/componentes/TextInputDialog.hpp>
+#include <Kotonoha/components/TextInputDialog.hpp>
 #include <Kotonoha/core/UI.hpp>
 #include <Kotonoha/events/BackAction.hpp>
 #include <Kotonoha/events/ControllerEvent.hpp>

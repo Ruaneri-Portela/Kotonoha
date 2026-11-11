@@ -1,4 +1,4 @@
-#include <Kotonoha/componentes/DisplayModeCatalog.hpp>
+#include <Kotonoha/components/DisplayModeCatalog.hpp>
 
 #include <algorithm>
 #include <cmath>

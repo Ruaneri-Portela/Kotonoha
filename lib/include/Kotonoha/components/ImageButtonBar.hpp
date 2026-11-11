@@ -1,5 +1,5 @@
 #pragma once
-#include <Kotonoha/componentes/TouchActivation.hpp>
+#include <Kotonoha/components/TouchActivation.hpp>
 #include <Kotonoha/core/SDL.hpp>
 #include <Kotonoha/events/ControllerEvent.hpp>
 #include <algorithm>

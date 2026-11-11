@@ -1,7 +1,7 @@
 #include "DdlcSession.hpp"
 #include "Ddlc/Replay.hpp"
 #include "Ddlc/Runtime.hpp"
-#include <Kotonoha/componentes/VNSave.hpp>
+#include <Kotonoha/components/VNSave.hpp>
 
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/FileSystem.hpp>

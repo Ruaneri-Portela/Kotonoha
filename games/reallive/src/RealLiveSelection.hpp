@@ -1,7 +1,7 @@
 #pragma once
 #include <RealLive/RealLiveAssets.hpp>
-#include <Kotonoha/componentes/ChoiceQuestionScene.hpp>
-#include <Kotonoha/componentes/ImageButtonBar.hpp>
+#include <Kotonoha/components/ChoiceQuestionScene.hpp>
+#include <Kotonoha/components/ImageButtonBar.hpp>
 #include <Kotonoha/core/UI.hpp>
 #include <Kotonoha/media/upscaling/Upscaler.hpp>
 #include <RealLive/Images.hpp>

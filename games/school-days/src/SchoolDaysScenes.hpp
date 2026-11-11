@@ -1,6 +1,6 @@
 #pragma once
 
-#include <Kotonoha/componentes/SubtitleScene.hpp>
+#include <Kotonoha/components/SubtitleScene.hpp>
 #include <Kotonoha/core/SDL.hpp>
 #include <Kotonoha/parsers/Ors.h>
 #include <Kotonoha/routing/SchoolDaysMenuBarPresenter.hpp>

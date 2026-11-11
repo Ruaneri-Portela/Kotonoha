@@ -1,6 +1,6 @@
 #pragma once
 
-#include <Kotonoha/componentes/SubtitleScene.hpp>
+#include <Kotonoha/components/SubtitleScene.hpp>
 #include <filesystem>
 #include <map>
 #include <string>
