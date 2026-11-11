@@ -26,8 +26,8 @@ em `build/artifacts/android/`. Sete sabores incluem ARM64 e x86_64 no mesmo
 APK; DDLC tem um APK separado para cada ABI, identificado no nome do arquivo.
 Nesta validação foi usado `-PbundleGameAssets=false`.
 
-Execute os comandos a partir de `Android/`, com `JAVA_HOME`, `VCPKG_ROOT` e
-`ANDROID_HOME` configurados conforme o [README Android](../Android/README.md):
+Execute os comandos a partir de `buildsystems/android/`, com `JAVA_HOME`, `VCPKG_ROOT` e
+`ANDROID_HOME` configurados conforme o [README Android](../buildsystems/android/README.md):
 
 ```sh
 ./gradlew :app:assembleExampleDebug :app:assembleAmagamiDebug \
@@ -51,10 +51,10 @@ As dependências vcpkg e o SDK Python de DDLC devem ser preparados antes,
 conforme o [README principal](../README.md#native-ios-xcode-project).
 
 ```sh
-xcodebuild -project Xcode/Kotonoha.xcodeproj -scheme Amagami \
+xcodebuild -project buildsystems/xcode/Kotonoha.xcodeproj -scheme Amagami \
   -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
   -derivedDataPath build/xcode-ios ARCHS=arm64 CODE_SIGNING_ALLOWED=NO build
-xcodebuild -project Xcode/Kotonoha.xcodeproj -scheme Amagami \
+xcodebuild -project buildsystems/xcode/Kotonoha.xcodeproj -scheme Amagami \
   -sdk iphoneos -destination 'generic/platform=iOS' \
   -derivedDataPath build/xcode-ios ARCHS=arm64 CODE_SIGNING_ALLOWED=NO build
 ```

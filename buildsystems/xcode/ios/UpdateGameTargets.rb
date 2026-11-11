@@ -1,9 +1,9 @@
 #!/usr/bin/env ruby
-# Run with: ruby Xcode/UpdateGameTargets.rb (gem install --user-install xcodeproj)
+# Run with: ruby buildsystems/xcode/UpdateGameTargets.rb (gem install --user-install xcodeproj)
 require 'xcodeproj'
 require 'pathname'
-root = Pathname.new(__dir__).parent
-project = Xcodeproj::Project.open(root.join('Xcode/Kotonoha.xcodeproj'))
+root = Pathname.new(__dir__).parent.parent
+project = Xcodeproj::Project.open(root.join('buildsystems/xcode/Kotonoha.xcodeproj'))
 objects = Xcodeproj::Project::Object
 school = project.targets.find { |t| t.name == 'SchoolDays' }
 [['RealLive', 'reallive', 'RealLive', 'reallive'], ['SummerRadish', 'summer-radish-vacation', 'Summer Radish Vacation!!', 'summerradishvacation'], ['Kirikiri', 'kirikiri', 'Kirikiri', 'kirikiri'], ['LucaSystem', 'luca-system', 'LucaSystem', 'luca_system']].each do |name, game, title, bundle|

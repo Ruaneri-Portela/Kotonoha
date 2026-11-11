@@ -17,8 +17,8 @@ de `lib/include/Kotonoha` espelham os modulos de `lib/src`:
 CMakeLists.txt               Agrega motor e jogos; pode desativar o exemplo
 vcpkg.json                   Dependencias externas, incluindo PlutoSVG
 assets/                      Splash, shaders e fonte compartilhados
-Xcode/Kotonoha.xcodeproj     Projeto iOS nativo e schemes compartilhados
-Android/                    Projeto Gradle; SDL remoto do Git
+buildsystems/xcode/Kotonoha.xcodeproj     Projeto iOS nativo e schemes compartilhados
+buildsystems/android/                    Projeto Gradle; SDL remoto do Git
 lib/
   CMakeLists.txt             Biblioteca independente Kotonoha::Engine
   include/Kotonoha/
@@ -281,7 +281,7 @@ ou somente UDF, nao sao suportadas. O motor nao executa instaladores.
 
 ### iOS: projeto Xcode nativo
 
-Abra `Xcode/Kotonoha.xcodeproj`: o projeto e seus targets sao mantidos no
+Abra `buildsystems/xcode/Kotonoha.xcodeproj`: o projeto e seus targets sao mantidos no
 Xcode e **nao exigem CMake para compilar**. `KotonohaEngine` e um framework
 estatico; SDL3, SDL3_ttf e Dear ImGui sao frameworks dinamicos. O target SDL3 usa o projeto
 Xcode do proprio submodulo; SDL_ttf compila com HarfBuzz e PlutoSVG.
@@ -292,7 +292,7 @@ O executavel demonstrativo chama-se `Kotonoha`; seu namespace C++ e
 `KOTONOHA_BUILD_SCHOOL_DAYS` controla o port School Days.
 `KOTONOHA_BUILD_REALLIVE` controla o [port inicial de RealLive Standard Edition](games/reallive/README.md), que lê os dados originais com `--reallive DIRETORIO_OU_ISO`.
 Depois de alterar os fontes da biblioteca School Days, execute manualmente
-`ruby Xcode/UpdateGameTargets.rb` para sincronizar o target nativo sem
+`ruby buildsystems/xcode/UpdateGameTargets.rb` para sincronizar o target nativo sem
 remover os recursos e modulos Python existentes.
 `DdlcIOSScriptSmoke` exercita CPython e os scripts reais no simulador.
 O deployment target e iOS 15; MetalFX exige iOS 16 ou superior e nao esta
@@ -307,9 +307,9 @@ export VCPKG_ROOT=/caminho/para/vcpkg
   --x-install-root="$PWD/build/iOS-deps/ios" --triplet=arm64-ios
 "$VCPKG_ROOT/vcpkg" install --x-manifest-root="$PWD" \
   --x-install-root="$PWD/build/iOS-deps/simulator" --triplet=arm64-ios-simulator
-open Xcode/Kotonoha.xcodeproj
+open buildsystems/xcode/Kotonoha.xcodeproj
 # Ou, sem assinatura, apenas para verificar a compilacao:
-xcodebuild -project Xcode/Kotonoha.xcodeproj -scheme Kotonoha \
+xcodebuild -project buildsystems/xcode/Kotonoha.xcodeproj -scheme Kotonoha \
   -destination 'generic/platform=iOS' CODE_SIGNING_ALLOWED=NO build
 ```
 
@@ -385,12 +385,12 @@ saves e estado persistente usam os documentos, nunca o pacote somente leitura.
 
 ### Android
 
-Abra [Android/](Android/) no Android Studio. Ha APKs separados para exemplo,
+Abra [buildsystems/android/](buildsystems/android/) no Android Studio. Ha APKs separados para exemplo,
 Zero, Snow e DDLC. SDL3 vem de um checkout remoto do Git com revisao fixa;
 SDL_ttf e ImGui continuam nos submodulos. O NDK compila o motor e o jogo como
 shared libraries carregadas pela SDLActivity. FFmpeg, json-c, PlutoSVG e
 CPython de DDLC sao dependencias vcpkg para Android.
-Veja [o guia Android em portugues](Android/README.pt-BR.md).
+Veja [o guia Android em portugues](buildsystems/android/README.pt-BR.md).
 
 ### Shaders MPV e MetalFX
 
@@ -407,7 +407,7 @@ uma instalacao local confiavel com `game/` e `characters/` e copie os arquivos
 para o container isolado do teste:
 
 ```sh
-xcodebuild -project Xcode/Kotonoha.xcodeproj -scheme DdlcIOSScriptSmoke \
+xcodebuild -project buildsystems/xcode/Kotonoha.xcodeproj -scheme DdlcIOSScriptSmoke \
   -configuration Debug -sdk iphonesimulator \
   -destination 'platform=iOS Simulator,name=iPhone 18 Pro Max' \
   -derivedDataPath build/xcode-ios-simulator CODE_SIGNING_ALLOWED=NO build

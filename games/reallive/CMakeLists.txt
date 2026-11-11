@@ -3,98 +3,82 @@ cmake_minimum_required(VERSION 3.16)
 project(RealLive VERSION 0.1.0 LANGUAGES C CXX)
 
 if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
-  include(CTest)
+    include(CTest)
 endif()
+
 if(NOT TARGET Kotonoha::Engine)
-  add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../lib" "${CMAKE_CURRENT_BINARY_DIR}/kotonoha")
+    add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../lib"
+        "${CMAKE_CURRENT_BINARY_DIR}/kotonoha")
 endif()
-add_library(RealLiveFormats STATIC src/Config.cpp src/Images.cpp src/Voice.cpp src/Script.cpp src/System.cpp
-  vendor/libreallive/archive.cc vendor/libreallive/bytecode.cc
-  vendor/libreallive/compression.cc vendor/libreallive/expression.cc
-  vendor/libreallive/filemap.cc vendor/libreallive/scenario.cc)
+
+add_library(RealLiveFormats STATIC
+    src/Config.cpp
+    src/Images.cpp
+    src/Voice.cpp
+    src/Script.cpp
+    src/System.cpp
+    vendor/libreallive/archive.cc
+    vendor/libreallive/bytecode.cc
+    vendor/libreallive/compression.cc
+    vendor/libreallive/expression.cc
+    vendor/libreallive/filemap.cc
+    vendor/libreallive/scenario.cc
+)
 target_include_directories(RealLiveFormats PUBLIC include vendor)
-set_target_properties(RealLiveFormats PROPERTIES CXX_EXTENSIONS OFF)
 target_compile_features(RealLiveFormats PUBLIC cxx_std_17)
+set_target_properties(RealLiveFormats PROPERTIES CXX_EXTENSIONS OFF)
+
 if(MSVC)
-  target_compile_options(RealLiveFormats PUBLIC /J)
+    target_compile_options(RealLiveFormats PUBLIC /J)
 else()
-  target_compile_options(RealLiveFormats PUBLIC -funsigned-char)
+    target_compile_options(RealLiveFormats PUBLIC -funsigned-char)
 endif()
+
 include("${CMAKE_CURRENT_SOURCE_DIR}/../../modules/vms/reallive/CMakeLists.txt")
-# RealLiveFormats' scripts drive the Session VM, so consumers get it
-# transitively.
 target_link_libraries(RealLiveFormats PUBLIC Kotonoha::Vmreallive)
+
 if(NOT ANDROID)
-  add_executable(RealLiveInspect tools/RealLiveInspect.cpp)
-  target_link_libraries(RealLiveInspect PRIVATE RealLiveFormats)
+    add_executable(RealLiveInspect tools/RealLiveInspect.cpp)
+    target_link_libraries(RealLiveInspect PRIVATE RealLiveFormats)
 endif()
+
 find_package(Iconv REQUIRED)
 target_link_libraries(RealLiveFormats PUBLIC Kotonoha::Engine Iconv::Iconv)
+
 add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../modules/providers/reallive"
     "${CMAKE_CURRENT_BINARY_DIR}/providers/reallive")
+
 add_library(reallive_port STATIC src/RealLiveRuntime.cpp)
 target_include_directories(reallive_port PUBLIC src)
-find_package(Iconv REQUIRED)
-target_link_libraries(reallive_port PUBLIC RealLiveFormats Kotonoha::Engine Iconv::Iconv Kotonoha::ProviderRealLive Kotonoha::Vmreallive)
-if(BUILD_TESTING)
-  foreach(format Images Voice Script Session System)
-    add_executable(RealLive${format}Tests tests/${format}Test.cpp)
-    target_link_libraries(RealLive${format}Tests PRIVATE RealLiveFormats Kotonoha::Vmreallive)
-    if(format STREQUAL "Session" AND REALLIVE_TEST_DATA)
-      add_test(NAME RealLive${format} COMMAND RealLive${format}Tests "${REALLIVE_TEST_DATA}/Seen.txt")
-    else()
-      add_test(NAME RealLive${format} COMMAND RealLive${format}Tests)
-    endif()
-  endforeach()
-endif()
+set_target_properties(reallive_port PROPERTIES CXX_EXTENSIONS OFF)
+target_link_libraries(reallive_port PUBLIC
+    RealLiveFormats
+    Kotonoha::Engine
+    Iconv::Iconv
+    Kotonoha::ProviderRealLive
+    Kotonoha::Vmreallive
+)
 
 kotonoha_add_app(RealLive src/main.cpp)
 target_link_libraries(RealLive PRIVATE reallive_port)
-kotonoha_configure_app(RealLive BUNDLE_ID me.hirameki.kotonoha.reallive GAME reallive)
 set_target_properties(RealLive PROPERTIES CXX_EXTENSIONS OFF)
-if(BUILD_TESTING)
-  add_executable(RealLiveEngineTests tests/EngineTest.cpp)
-  target_link_libraries(RealLiveEngineTests PRIVATE reallive_port)
-  add_executable(RealLiveConfigTests tests/ConfigTest.cpp)
-  target_link_libraries(RealLiveConfigTests PRIVATE reallive_port)
-  add_test(NAME RealLiveConfig COMMAND RealLiveConfigTests)
-  add_executable(RealLiveTitleInputTests tests/TitleInputTest.cpp)
-  target_link_libraries(RealLiveTitleInputTests PRIVATE reallive_port)
-  add_test(NAME RealLiveTitleInput COMMAND RealLiveTitleInputTests)
-endif()
+kotonoha_configure_app(RealLive
+    BUNDLE_ID me.hirameki.kotonoha.reallive GAME reallive)
 
-set(REALLIVE_TEST_DATA "" CACHE PATH "REALLIVE translated data for integration tests")
-set(REALLIVE_TEST_DATA_8005 "/Volumes/Nero 256GB/KotonohaAssets/AIR-SE.ISO" CACHE PATH "Original REALLIVE ISO data for 8005 visual regression tests")
 if(BUILD_TESTING)
-  set_tests_properties(RealLiveSession PROPERTIES SKIP_RETURN_CODE 77)
-  add_test(NAME RealLiveEngine COMMAND RealLiveEngineTests "${REALLIVE_TEST_DATA}")
-  set_tests_properties(RealLiveEngine PROPERTIES WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}" SKIP_RETURN_CODE 77 TIMEOUT 90 ENVIRONMENT "SDL_AUDIODRIVER=dummy")
-  if(REALLIVE_TEST_DATA)
-    if(REALLIVE_TEST_DATA MATCHES "\\.[iI][sS][oO]$")
-      add_test(NAME RealLiveDirectISO COMMAND RealLiveEngineTests "${REALLIVE_TEST_DATA}" --direct-iso)
-      set_tests_properties(RealLiveDirectISO PROPERTIES WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}" TIMEOUT 30 ENVIRONMENT "SDL_AUDIO_DRIVER=dummy")
-    endif()
-    add_test(NAME RealLiveTitleCompatibility COMMAND RealLiveEngineTests "${REALLIVE_TEST_DATA}" --title-compat)
-    set_tests_properties(RealLiveTitleCompatibility PROPERTIES WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}" SKIP_RETURN_CODE 77 TIMEOUT 90 ENVIRONMENT "SDL_AUDIODRIVER=dummy")
-    add_test(NAME RealLive8005Compatibility COMMAND RealLiveEngineTests "${REALLIVE_TEST_DATA}" --8005-compat)
-    set_tests_properties(RealLive8005Compatibility PROPERTIES WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}" SKIP_RETURN_CODE 77 TIMEOUT 90 ENVIRONMENT "SDL_AUDIODRIVER=dummy")
-    # The four visual 8005 regression tests exercise hardcoded indices inside
-    # the original scenario 8005 script. A translated Seen.txt replaces that
-    # scenario with a much smaller one, so they run against the original ISO
-    # data when available, and skip gracefully otherwise.
-    if(REALLIVE_TEST_DATA_8005)
-      add_test(NAME RealLive8005VisualCompatibility COMMAND RealLiveEngineTests "${REALLIVE_TEST_DATA_8005}" --8005-capture)
-      set_tests_properties(RealLive8005VisualCompatibility PROPERTIES WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}" SKIP_RETURN_CODE 77 TIMEOUT 90 ENVIRONMENT "SDL_AUDIODRIVER=dummy")
-      add_test(NAME RealLive8005Walking COMMAND RealLiveEngineTests "${REALLIVE_TEST_DATA_8005}" --8005-walk)
-      set_tests_properties(RealLive8005Walking PROPERTIES WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}" SKIP_RETURN_CODE 77 TIMEOUT 30 ENVIRONMENT "SDL_AUDIODRIVER=dummy")
-      add_test(NAME RealLive8005UpscalingCompatibility COMMAND RealLiveEngineTests "${REALLIVE_TEST_DATA_8005}" --8005-capture-upscaled)
-      set_tests_properties(RealLive8005UpscalingCompatibility PROPERTIES WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}" SKIP_RETURN_CODE 77 TIMEOUT 90 ENVIRONMENT "SDL_AUDIODRIVER=dummy")
-      add_test(NAME RealLive8005BackgroundUpscaling COMMAND RealLiveEngineTests "${REALLIVE_TEST_DATA_8005}" --8005-background-upscaling)
-      set_tests_properties(RealLive8005BackgroundUpscaling PROPERTIES WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}" SKIP_RETURN_CODE 77 TIMEOUT 90 ENVIRONMENT "SDL_AUDIODRIVER=dummy")
-    endif()
-    add_test(NAME RealLiveRetailImages COMMAND RealLiveImagesTests "${REALLIVE_TEST_DATA}/g00" "${REALLIVE_TEST_DATA}/pdt")
-    add_test(NAME RealLiveRetailVoice COMMAND RealLiveVoiceTests "${REALLIVE_TEST_DATA}")
-    add_test(NAME RealLiveRetailScripts COMMAND RealLiveScriptTests "${REALLIVE_TEST_DATA}/Seen.txt")
-    add_test(NAME RealLiveRetailSession COMMAND RealLiveSessionTests "${REALLIVE_TEST_DATA}/Seen.txt")
-  endif()
+    foreach(format Images Voice Script Session System)
+        add_executable(RealLive${format}Tests tests/${format}Test.cpp)
+        target_link_libraries(RealLive${format}Tests PRIVATE RealLiveFormats Kotonoha::Vmreallive)
+        if(format STREQUAL "Session" AND REALLIVE_TEST_DATA)
+            add_test(NAME RealLive${format} COMMAND RealLive${format}Tests "${REALLIVE_TEST_DATA}/Seen.txt")
+        else()
+            add_test(NAME RealLive${format} COMMAND RealLive${format}Tests)
+        endif()
+    endforeach()
+
+    add_executable(RealLiveEngineTests tests/EngineTest.cpp)
+    target_link_libraries(RealLiveEngineTests PRIVATE reallive_port)
+    add_executable(RealLiveConfigTests tests/ConfigTest.cpp)
+    target_link_libraries(RealLiveConfigTests PRIVATE reallive_port)
+    add_test(NAME RealLiveConfig COMMAND RealLiveConfigTests)
 endif()

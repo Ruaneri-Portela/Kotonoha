@@ -13,9 +13,9 @@ provided by vcpkg.
 - [lib/](lib/): public headers, engine implementations, tests and submodules.
 - [assets/](assets/): engine splash, fonts, licenses and bundled GLSL shaders.
 - [games/](games/): example, Zero no Tsukaima, Amagami, RealLive, Radish Vacation, DDLC and School Days.
-- [Xcode/Kotonoha.xcodeproj](Xcode/Kotonoha.xcodeproj): native iOS targets.
-- [Android/](Android/): Android Studio/Gradle project with separate game APKs.
-- [cmake/](cmake/): desktop configuration and `.app` packaging.
+- [buildsystems/xcode/Kotonoha.xcodeproj](buildsystems/xcode/Kotonoha.xcodeproj): native iOS targets.
+- [buildsystems/android/](buildsystems/android/): Android Studio/Gradle project with separate game APKs.
+- [buildsystems/cmake/](buildsystems/cmake/): desktop configuration and `.app` packaging.
 
 Game assets live in `games/<game>/game-assets/`. Commercial data is local and must
 remain out of Git. Supply your own legally obtained data:
@@ -134,7 +134,7 @@ defaults to the bundled one. `--ktrf` explicitly overrides the remembered route.
 
 ## Native iOS Xcode project
 
-Open [Xcode/Kotonoha.xcodeproj](Xcode/Kotonoha.xcodeproj). This project does not
+Open [buildsystems/xcode/Kotonoha.xcodeproj](buildsystems/xcode/Kotonoha.xcodeproj). This project does not
 run CMake or shell scripts during its build. Resources are assigned to each
 target using native Resources phases; frameworks use Embed Frameworks with
 Code Sign on Copy. Each game's `game-assets` directory is copied directly as
@@ -147,7 +147,7 @@ apps embed the dynamic KotonohaImGui, SDL3 and SDL3_ttf frameworks.
 The example executable/app is `Kotonoha`; its C++ namespace is
 `KotonohaExample`, separate from the engine's `Kotonoha` namespace.
 After changing School Days' library sources, run
-`ruby Xcode/UpdateGameTargets.rb` manually to synchronize its native target.
+`ruby buildsystems/xcode/UpdateGameTargets.rb` manually to synchronize its native target.
 This preserves existing native Python modules and refuses concurrent project edits.
 
 Prepare native dependencies before opening/building:
@@ -171,7 +171,7 @@ mkdir -p build/iOS-deps/python
 curl -fL https://github.com/beeware/Python-Apple-support/releases/download/3.15-b3/Python-3.15-iOS-support.b3.tar.gz \
   -o build/iOS-deps/python/Python-iOS.tar.gz
 python3 tools/PrepareApplePython.py --archive build/iOS-deps/python/Python-iOS.tar.gz
-xcodebuild -project Xcode/Kotonoha.xcodeproj -scheme DokiDoki \
+xcodebuild -project buildsystems/xcode/Kotonoha.xcodeproj -scheme DokiDoki \
   -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
   -derivedDataPath build/xcode-ios CODE_SIGNING_ALLOWED=NO build
 ```
@@ -221,7 +221,7 @@ back to the working directory.
 
 ## Android
 
-See [the Android guide](Android/README.md). SDL3 is fetched from the official
+See [the Android guide](buildsystems/android/README.md). SDL3 is fetched from the official
 Git repository at a pinned revision; the Java SDLActivity and native SDL
 library use that same checkout. Gradle builds separate example, Zero, Snow
 DDLC and School Days flavors, and embeds the engine as shared native libraries.

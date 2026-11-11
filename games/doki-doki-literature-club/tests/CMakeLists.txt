@@ -21,7 +21,7 @@ if(APPLE AND CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND KOTONOHA_BUILD_MACOS_BUNDLE
             "-DTEST_DIRECTORY=${CMAKE_CURRENT_BINARY_DIR}"
             "-DTEST_EXECUTABLE=$<TARGET_FILE:DdlcPythonTest>"
             "-DAPP_CONTENTS=$<TARGET_BUNDLE_CONTENT_DIR:DokiDoki>"
-            "-DBUNDLE_SCRIPT=${KOTONOHA_PROJECT_ROOT}/cmake/BundleApp.cmake"
+            "-DBUNDLE_SCRIPT=${KOTONOHA_PROJECT_ROOT}/buildsystems/cmake/BundleApp.cmake"
             "-DDEPENDENCY_DIRS=${_ddlc_dep_dirs}"
             "-DPYTHON_STDLIB=${Python3_STDLIB}"
             "-DPYTHON_VERSION=${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR}"

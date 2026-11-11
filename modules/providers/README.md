@@ -59,7 +59,7 @@ Filesystem and generic disk providers remain in the engine core.
 
 ## Xcode
 
-`ruby Xcode/UpdateGameTargets.rb` syncs module sources and their include paths
+`ruby buildsystems/xcode/UpdateGameTargets.rb` syncs module sources and their include paths
 with the game targets (including the DDLC smoke target). The script is
 idempotent. In Xcode each app compiles the module it uses; in CMake each module
 is a separate library.

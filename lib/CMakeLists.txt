@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.16)
 
 project(KotonohaEngine VERSION 0.1.0 LANGUAGES CXX)
 enable_language(C)
-include("${CMAKE_CURRENT_SOURCE_DIR}/../cmake/MSVC.cmake")
+include("${CMAKE_CURRENT_SOURCE_DIR}/../buildsystems/cmake/MSVC.cmake")
 
 if(APPLE)
     enable_language(OBJC OBJCXX)
@@ -287,19 +287,19 @@ function(kotonoha_copy_assets target)
                 "-DGAME_SOURCE=${KOTONOHA_PROJECT_ROOT}/games/${ASSETS_GAME}/game-assets"
                 "-DRESOURCE_DESTINATION=${destination}"
                 "-DINCLUDE_GAME_ASSETS=${include_game}"
-                -P "${KOTONOHA_PROJECT_ROOT}/cmake/PackageAssets.cmake"
+                -P "${KOTONOHA_PROJECT_ROOT}/buildsystems/cmake/PackageAssets.cmake"
             VERBATIM)
     else()
         add_custom_command(TARGET ${target} POST_BUILD
             COMMAND "${CMAKE_COMMAND}"
                 "-DASSET_SOURCE=${KOTONOHA_ENGINE_ASSETS}"
                 "-DASSET_DESTINATION=${destination}/assets"
-                -P "${KOTONOHA_PROJECT_ROOT}/cmake/CopyAssetDirectory.cmake"
+                -P "${KOTONOHA_PROJECT_ROOT}/buildsystems/cmake/CopyAssetDirectory.cmake"
             VERBATIM)
     endif()
 endfunction()
 
-include("${KOTONOHA_PROJECT_ROOT}/cmake/KotonohaApp.cmake")
+include("${KOTONOHA_PROJECT_ROOT}/buildsystems/cmake/KotonohaApp.cmake")
 
 if(BUILD_TESTING)
     add_subdirectory(tests)

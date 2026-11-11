@@ -28,9 +28,9 @@ target_link_libraries(LucaInspect PRIVATE luca_system_formats)
 
 kotonoha_add_app(LucaSystem src/main.cpp)
 target_link_libraries(LucaSystem PRIVATE luca_system_formats)
-kotonoha_configure_app(LucaSystem
-    BUNDLE_ID me.hirameki.kotonoha.luca_system GAME luca-system)
 set_target_properties(LucaSystem PROPERTIES CXX_EXTENSIONS OFF)
+kotonoha_configure_app(LucaSystem
+    BUNDLE_ID me.hirameki.kotonoha.lucasystem GAME luca-system)
 
 set(LUCA_SYSTEM_TEST_DATA "" CACHE PATH "LucaSystem original data for integration tests")
 
