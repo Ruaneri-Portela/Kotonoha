@@ -715,3 +715,4 @@ Xcode/Python.xcframework
 .opencode
 forced_subtitles/
 CMakePresets.json
+buildsystems/xcode/vcpkg
