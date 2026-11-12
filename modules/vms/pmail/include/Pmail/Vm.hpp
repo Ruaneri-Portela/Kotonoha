@@ -22,7 +22,7 @@ struct ScriptObject {
   uint32_t codeOffset = 0;
   size_t codeWords = 0;
 
-  bool parse(const std::string &objName, std::vector<uint8_t> bytes);
+  size_t parse(const std::string &objName, std::vector<uint8_t> bytes);
   uint32_t word(size_t pc) const;
   const std::string &str(size_t idx) const;
 };

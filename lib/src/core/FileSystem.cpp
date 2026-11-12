@@ -185,10 +185,10 @@ DirectoryLayout directoryLayout(const StorageLocations &locations,
 
     // Documents directory for Android is the userData path, namespaced by the
     // package so multiple Kotonoha games can share external app storage.
-    result.documents = locations.packageIdentifier.empty()
-                           ? locations.userData
-                           : locations.userData / "Kotonoha" /
-                                 locations.packageIdentifier;
+    result.documents =
+        locations.packageIdentifier.empty()
+            ? locations.userData
+            : locations.userData / "Kotonoha" / locations.packageIdentifier;
     break;
   }
   case StoragePlatform::IOS: {
@@ -204,10 +204,10 @@ DirectoryLayout directoryLayout(const StorageLocations &locations,
 
     // Documents directory for iOS is the userData path, namespaced by the
     // package so the save folder never collides with user documents.
-    result.documents = locations.packageIdentifier.empty()
-                           ? locations.userData
-                           : locations.userData / "Kotonoha" /
-                                 locations.packageIdentifier;
+    result.documents =
+        locations.packageIdentifier.empty()
+            ? locations.userData
+            : locations.userData / "Kotonoha" / locations.packageIdentifier;
     break;
   }
   case StoragePlatform::Desktop:
