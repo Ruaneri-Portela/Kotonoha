@@ -287,39 +287,90 @@ void PmailGame::native(::Pmail::Vm &vm, int id,
   if (onNative)
     onNative(id, args);
 
+  auto argStr = [&](size_t i) -> std::string {
+    return i < args.size() ? vm.text(args[i]) : std::string();
+  };
+  auto argInt = [&](size_t i) -> int {
+    return i < args.size() ? int(vm.value(args[i])) : 0;
+  };
+
   // Conservative defaults: do not block forever on unknown natives.
-  // Specific PMAIL syscalls (text, wait, graphics, sound, choices, etc.)
-  // must be implemented from RE for full playability.
+  // Specific PMAIL syscalls must be implemented from RE for full playability.
   switch (id) {
   case 1:
-  case 7:
+  case 4:
+  case 7: {
     flushLines();
+    std::string text;
+    // sys 4 seen as (type, text, ?, ?) - collect string args as message.
+    for (size_t i = 0; i < args.size(); ++i) {
+      if (args[i].tag() == 2) {
+        std::string s = vm.text(args[i]);
+        if (!s.empty()) {
+          if (!text.empty()) text += "\n";
+          text += s;
+        }
+      }
+    }
+    if (!text.empty()) {
+      std::string utf = text;
+      try { utf = ::Kotonoha::ShiftJisToUtf8(text); } catch (...) {}
+      messageQueue_.push_back(utf);
+      if (message_.empty()) {
+        message_ = std::move(messageQueue_.front());
+        messageQueue_.pop_front();
+      }
+    }
     if (!message_.empty()) {
       waiting_ = true;
       vm.block();
     }
+    break;
+  }
+  case 2:
+  case 3:
+  case 23:
+  case 131:
+  case 133:
+    // text/window control (best-effort no-op for now)
+    message_.clear();
     break;
   case 16:
     for (const auto &arg : args)
       if (arg.tag() == 2 && loadScript(vm.text(arg), true))
         break;
     break;
-  case 33:
-    if (!args.empty()) {
-      const int duration = vm.value(args.front());
-      if (duration > 0) {
-        waitUntil_ = SDL_GetTicks() + uint64_t(std::min(duration, 60000));
-        waitingForTime_ = true;
-        vm.block();
-      }
+  case 17:
+  case 18:
+  case 19:
+    // title/menu related markers
+    break;
+  case 33: {
+    int duration = argInt(0);
+    if (duration > 0) {
+      waitUntil_ = SDL_GetTicks() + uint64_t(std::min(duration, 60000));
+      waitingForTime_ = true;
+      vm.block();
     }
     break;
+  }
   case 48:
     for (const auto &arg : args)
       if (arg.tag() == 2) {
         background_ = vm.text(arg);
         break;
       }
+    break;
+  case 64:
+  case 69:
+    // transition/effect (visual sync not fully implemented)
+    break;
+  case 99:
+  case 100:
+  case 115:
+  case 116:
+  case 132:
+    // stop audio channels (handled via onNative/runtime hooks too)
     break;
   case 101:
     if (sePlaying && sePlaying()) {
@@ -331,9 +382,14 @@ void PmailGame::native(::Pmail::Vm &vm, int id,
     for (const auto &arg : args)
       if (arg.tag() == 1)
         titleChoiceVar_ = arg.value();
+    // Default to "Start" (1) so the script can progress; real UI can override.
+    vm_.setVar(titleChoiceVar_, 1);
     title_ = true;
     waiting_ = true;
     vm.block();
+    break;
+  case 214:
+    // sprite/image registration (resource preload) - not yet implemented
     break;
   default:
     break;

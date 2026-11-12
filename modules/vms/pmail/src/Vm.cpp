@@ -496,9 +496,8 @@ bool Vm::step() {
 
 size_t Vm::run(size_t maxSteps) {
   size_t n = 0;
-  while (n < maxSteps && !blocked_ && step()) {
+  while (n < maxSteps && !blocked_ && step())
     ++n;
-  }
   return n;
 }
 

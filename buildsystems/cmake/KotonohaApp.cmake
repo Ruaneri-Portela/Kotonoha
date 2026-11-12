@@ -37,6 +37,11 @@ endfunction()
 
 # Copia DLLs (.dll) via vcpkg / CMake para o diretório do executável.
 function(kotonoha_copy_game_dependencies target)
+    # Não copiar DLLs/libs quando fora do bundle (macOS) e fora do vcpkg.
+    if(NOT DEFINED VCPKG_TARGET_TRIPLET AND NOT CMAKE_TOOLCHAIN_FILE MATCHES "vcpkg")
+        return()
+    endif()
+
     if(WIN32 AND NOT ANDROID)
         # Habilita a cópia automática do vcpkg para o executável deste target
         set_target_properties(${target} PROPERTIES VS_GLOBAL_VcpkgEnabled "true")
@@ -63,6 +68,10 @@ function(kotonoha_copy_runtime_libraries target dependency_dirs)
         return()
     endif()
     if(APPLE AND KOTONOHA_BUILD_MACOS_BUNDLES)
+        return()
+    endif()
+    # Não copiar DLLs/libs quando fora do bundle (macOS) e fora do vcpkg.
+    if(NOT DEFINED VCPKG_TARGET_TRIPLET AND NOT CMAKE_TOOLCHAIN_FILE MATCHES "vcpkg")
         return()
     endif()
 
