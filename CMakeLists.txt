@@ -38,7 +38,7 @@ set(KOTONOHA_GAMES
         "REALLIVE|reallive|games/reallive"
         "KIRIKIRI|kirikiri|games/kirikiri"
         "LUCA_SYSTEM|luca-system|games/luca-system"
-        "PMAIL_PORT|pmail_port|games/pmail_port"
+        "PMAIL|pmail|games/pmail"
 )
 
 # ------------------------------------------------------------

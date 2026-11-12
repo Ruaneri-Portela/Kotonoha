@@ -1,11 +1,13 @@
-# Centralised runtime output layout.
+# Centralised runtime output layout for final application targets.
 #
-# Desktop builds place every generated target under <build>/outputs:
-#   * Windows: executables and DLLs next to each other.
+# Desktop application targets are placed under <build>/outputs:
+#   * Windows: executables and runtime DLLs next to each other in per-target folders.
 #   * Linux/macOS without bundles: executables in per-target folders and
 #     shared libraries in an adjacent "libs" directory.
 #   * macOS bundles: each application is a self-contained ".app" folder.
 #
+# Non-application targets (tests, tools, core libraries) keep their default
+# build-tree locations (e.g. bin/lib), unless explicitly configured otherwise.
 # Android keeps the Gradle/NDK layout because its native libraries are packaged
 # into APKs rather than run from the build tree.
 
@@ -30,11 +32,12 @@ set(KOTONOHA_OUTPUT_LIB_DIR "${KOTONOHA_OUTPUT_CONFIG_DIR}/libs")
 set(KOTONOHA_OUTPUT_ARCHIVE_DIR "${KOTONOHA_OUTPUT_CONFIG_DIR}/lib")
 
 if(NOT ANDROID)
-    # Defaults for every target, including tools and tests. Application targets
-    # override the runtime directory below so each game owns its assets.
-    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${KOTONOHA_OUTPUT_CONFIG_DIR}")
-    set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${KOTONOHA_OUTPUT_LIB_DIR}")
-    set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${KOTONOHA_OUTPUT_ARCHIVE_DIR}")
+    # Defaults for non-application targets (tests, tools, core libraries).
+    # Final application targets override the runtime directory below so each
+    # game/app owns its outputs under the outputs tree.
+    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
+    set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
+    set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
 endif()
 
 # Select the output directory for an application target. macOS bundles are

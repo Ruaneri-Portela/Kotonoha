@@ -14,19 +14,15 @@ endif ()
 include("${CMAKE_CURRENT_SOURCE_DIR}/../buildsystems/cmake/MSVC.cmake")
 include("${CMAKE_CURRENT_SOURCE_DIR}/../buildsystems/cmake/KotonohaOutputs.cmake")
 
-# These targets (Engine, Imgui, etc.) and their tests are part of the core
-# and should NOT go to the 'outputs/' directory.
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
-
 # Propagate the output layout to the parent directory so game, tool and test
-# targets added after add_subdirectory(lib) also use the outputs tree.
+# targets added after add_subdirectory(lib) use the same outputs tree.
+# KotonohaOutputs.cmake sets CMAKE_*_OUTPUT_DIRECTORY defaults for non-Android.
 if(NOT ANDROID)
     foreach(_kotonoha_output_variable IN ITEMS
             KOTONOHA_OUTPUT_DIR
             KOTONOHA_OUTPUT_CONFIG_DIR
             KOTONOHA_OUTPUT_LIB_DIR
+            KOTONOHA_OUTPUT_ARCHIVE_DIR
             CMAKE_RUNTIME_OUTPUT_DIRECTORY
             CMAKE_LIBRARY_OUTPUT_DIRECTORY
             CMAKE_ARCHIVE_OUTPUT_DIRECTORY)

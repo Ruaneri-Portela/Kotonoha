@@ -9,16 +9,14 @@
 
 namespace Pmail {
 
-// Compiled script object (*.obj in script.dat):
-//   [Magic: kPM7\0 or pm7\0][Filename][Nulls][Metadata][Content]
-//   Metadata format: [length of metadata in bytes] (wait, I need to confirm this)
-// Or metadata for 01m1.obj: cravis_,02&m3jlyn$1.3509 1 =)= .o2vp10Xp
-// For 03e1.obj: 16 bytes before filename.
+// Compiled script object (*.obj in script.dat).
+// PMAIL shares the SnowRadish-style bytecode VM; object layout/metadata parsing
+// is handled heuristically for now while reverse-engineering continues.
 struct ScriptObject {
   std::string name;
   std::vector<uint8_t> data;
   uint16_t id = 0;
-  std::vector<std::string> strings; // Not sure if Pmail has strings, maybe in the metadata?
+  std::vector<std::string> strings;
   uint32_t codeOffset = 0;
   size_t codeWords = 0;
 
@@ -28,8 +26,8 @@ struct ScriptObject {
 };
 using ObjectPtr = std::shared_ptr<ScriptObject>;
 
-// A VM word that crosses the native boundary.
-// Based on SnowRadish, but let's see if Pmail is different if we need it.
+// A VM word that crosses the native boundary: value | tag << 16 | object << 20.
+// tag 0 = integer, 1 = variable reference, 2 = string reference, 4 = frame.
 struct Arg {
   uint32_t raw = 0;
   uint16_t value() const { return raw & 0xffff; }
@@ -79,6 +77,7 @@ public:
 
   ObjectPtr current() const { return cur_; }
   uint32_t pc() const { return pc_; }
+  uint32_t returnPc() const { return curFramePc_; }
 
   void jumpTo(const ObjectPtr &obj, uint32_t pc);
 
@@ -93,8 +92,6 @@ private:
     ObjectPtr obj;
   };
 
-  // We'll need to store usr functions too if any.
-  // For now, let's assume they are handled by the host or in a table.
   struct UsrSlot {
     bool valid = false;
     ObjectPtr obj;
@@ -103,6 +100,8 @@ private:
   };
 
   ObjectPtr findObject(uint32_t id12);
+  int32_t evalExpr(const std::string &e);
+  uint32_t peek(size_t n) const;
 
   Host &host_;
   std::vector<uint32_t> vars_;
