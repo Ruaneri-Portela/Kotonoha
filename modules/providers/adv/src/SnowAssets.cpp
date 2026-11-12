@@ -37,8 +37,6 @@ std::filesystem::path FindPackDirectory(const std::filesystem::path &root) {
   return root;
 }
 
-// The directory sits at the start of the pack: scan the first 2 MB, then all of
-// it.
 std::map<std::string, PackEntry>
 ReadDirectory(const std::filesystem::path &path, bool byStem) {
   std::map<std::string, PackEntry> index;
@@ -46,17 +44,39 @@ ReadDirectory(const std::filesystem::path &path, bool byStem) {
   if (!in)
     return index;
   const size_t size = size_t(in.tellg());
-  std::vector<uint8_t> head(std::min<size_t>(size, 2 * 1024 * 1024));
-  in.seekg(0);
-  in.read(reinterpret_cast<char *>(head.data()), std::streamsize(head.size()));
-  auto entries = readDirectory(head);
-  if (entries.empty() && head.size() < size) {
-    head.resize(size);
-    in.seekg(0);
-    in.read(reinterpret_cast<char *>(head.data()), std::streamsize(size));
-    entries = readDirectory(head);
-  }
-  for (auto &entry : entries) {
+  if (size < 12)
+    return index;
+  uint8_t footer[12];
+  in.seekg(std::streamoff(size - 12));
+  if (!in.read(reinterpret_cast<char *>(footer), sizeof(footer)))
+    return index;
+  auto word = [](const uint8_t *p) {
+    return uint32_t(p[0]) | (uint32_t(p[1]) << 8) |
+           (uint32_t(p[2]) << 16) | (uint32_t(p[3]) << 24);
+  };
+  const uint32_t packedSize = word(footer) ^ 0xf0f0f0f0u;
+  const uint32_t rawSize = word(footer + 4) ^ 0xf0f0f0f0u;
+  if (!packedSize || packedSize > size - 12 || rawSize < 80 ||
+      rawSize > (64u << 20))
+    return index;
+  const size_t directoryOffset = size - 12 - packedSize;
+  std::vector<uint8_t> packed(packedSize), raw(rawSize);
+  in.seekg(std::streamoff(directoryOffset));
+  if (!in.read(reinterpret_cast<char *>(packed.data()), packed.size()))
+    return index;
+  lzssDecode(packed.data(), packed.size(), raw.data(), raw.size());
+  for (size_t i = 0; i + 80 <= raw.size(); i += 80) {
+    const uint8_t *record = raw.data() + i;
+    PackEntry entry;
+    entry.id = word(record);
+    entry.name.assign(reinterpret_cast<const char *>(record + 4),
+                      strnlen(reinterpret_cast<const char *>(record + 4), 64));
+    entry.offset = word(record + 68);
+    entry.compressedSize = word(record + 72);
+    entry.rawSize = word(record + 76);
+    if (entry.offset > directoryOffset ||
+        entry.compressedSize > directoryOffset - entry.offset)
+      continue;
     std::string key = SnowAssets::Lower(entry.name);
     if (byStem)
       key = key.substr(0, key.find('.'));

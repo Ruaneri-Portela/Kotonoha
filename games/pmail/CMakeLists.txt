@@ -20,10 +20,15 @@ if(NOT TARGET Kotonoha::ProviderPmail)
     add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../modules/providers/pmail"
         "${CMAKE_CURRENT_BINARY_DIR}/modules/providers/pmail")
 endif()
+if(NOT TARGET Kotonoha::ProviderADV)
+    add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../modules/providers/adv"
+        "${CMAKE_CURRENT_BINARY_DIR}/modules/providers/adv")
+endif()
 
 add_library(PmailPort STATIC
     src/PmailGame.cpp
     src/PmailRuntime.cpp
+    src/PmailPack.cpp
 )
 target_include_directories(PmailPort PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/include"
@@ -33,6 +38,7 @@ target_link_libraries(PmailPort PUBLIC
     Kotonoha::Engine
     Kotonoha::Modules::VMs::Pmail
     Kotonoha::ProviderPmail
+    Kotonoha::ProviderADV
 )
 target_compile_features(PmailPort PUBLIC cxx_std_17)
 set_target_properties(PmailPort PROPERTIES CXX_EXTENSIONS OFF)

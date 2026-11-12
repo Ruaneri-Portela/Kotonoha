@@ -1,6 +1,8 @@
 #include "Pmail/Port.hpp"
+#include "PmailPack.hpp"
 
 #include <Kotonoha/localization/Encoding.hpp>
+#include <SDL3/SDL.h>
 
 #include <algorithm>
 #include <cctype>
@@ -22,10 +24,20 @@ bool isMagicAt(const std::vector<uint8_t> &d, size_t i, const char *m,
 }
 } // namespace
 
-PmailGame::PmailGame(std::vector<uint8_t> scriptPack)
-    : pack_(std::move(scriptPack)), vm_(*this) {
+PmailGame::PmailGame(std::vector<uint8_t> scriptPack, std::string packPath)
+    : pack_(std::move(scriptPack)), packPath_(std::move(packPath)), vm_(*this) {
+  if (!packPath_.empty()) {
+    packReader_ = std::make_unique<PmailPack>();
+    if (!packReader_->open(packPath_)) {
+      std::cerr << "[PmailPort] PmailPack open failed, falling back to scan: "
+                << packPath_ << std::endl;
+      packReader_.reset();
+    }
+  }
   indexPack();
 }
+
+PmailGame::~PmailGame() = default;
 
 void PmailGame::indexPack() {
   entries_.clear();
@@ -83,6 +95,31 @@ void PmailGame::indexPack() {
   auto it = byName_.find(name);
   if (it != byName_.end())
     return it->second;
+
+  // Prefer decoded PACK reader (correct container extraction).
+  if (packReader_) {
+    std::vector<uint8_t> bytes = packReader_->read(name);
+    if (!bytes.empty()) {
+      auto obj = std::make_shared<::Pmail::ScriptObject>();
+      const size_t decodedSize = bytes.size();
+      if (!obj->parse(rawName, std::move(bytes)))
+        return nullptr;
+      byName_[name] = obj;
+      if (obj->id)
+        byId_.emplace(obj->id & 0xfff, obj);
+      std::cout << "[PmailPort] Loaded from pack index: " << rawName
+                << " (codeWords=" << obj->codeWords << ", id=0x" << std::hex
+                << obj->id << std::dec << ", bytes=" << decodedSize << ")"
+                << std::endl;
+      return obj;
+    } else {
+      std::cout << "[PmailPort] Pack miss for: " << name << std::endl;
+    }
+  } else {
+    std::cout << "[PmailPort] No packReader for: " << name << std::endl;
+  }
+
+  // Fallback: signature-scan indexed chunks from raw pack buffer.
   for (const auto &e : entries_) {
     if (lower(e.name) != name)
       continue;
@@ -104,7 +141,15 @@ void PmailGame::indexPack() {
   auto it = byId_.find(id12 & 0xfff);
   if (it != byId_.end())
     return it->second;
-  // Lazy index by loading names
+  // The signature scan sees only a small fraction of compressed objects.
+  // Resolve IDs through the decoded pack index before falling back to it.
+  if (packReader_) {
+    for (const auto &entry : packReader_->entries()) {
+      if ((entry.id & 0xfff) == (id12 & 0xfff))
+        return loadByName(entry.name);
+    }
+  }
+  // Fallback for packs whose index cannot be decoded.
   for (const auto &e : entries_)
     (void)loadByName(e.name);
   it = byId_.find(id12 & 0xfff);
@@ -151,6 +196,9 @@ bool PmailGame::init() {
   vm_.registerObject(main_);
   vm_.start(start, 0);
   waiting_ = false;
+  title_ = false;
+  message_.clear();
+  messageQueue_.clear();
   return true;
 }
 
@@ -167,20 +215,33 @@ void PmailGame::flushLines() {
         utf = ::Kotonoha::ShiftJisToUtf8(s);
       } catch (...) {
       }
-      if (!message_.empty())
-        message_ += "\n";
-      message_ += utf;
+      messageQueue_.push_back(utf);
       std::cout << "[PmailPort] TEXT: " << utf << std::endl;
     }
   }
   lines.clear();
+  if (!messageQueue_.empty()) {
+    message_ = std::move(messageQueue_.front());
+    messageQueue_.pop_front();
+  }
 }
 
 void PmailGame::pump(size_t maxSteps) {
   if (waiting_)
     return;
+  if (waitingForSe_) {
+    if (sePlaying && sePlaying())
+      return;
+    waitingForSe_ = false;
+    vm_.unblock();
+  }
+  if (waitingForTime_) {
+    if (SDL_GetTicks() < waitUntil_)
+      return;
+    waitingForTime_ = false;
+    vm_.unblock();
+  }
   vm_.run(maxSteps);
-  flushLines();
   if (vm_.ended()) {
     // End of script: stop waiting.
     waiting_ = false;
@@ -190,6 +251,17 @@ void PmailGame::pump(size_t maxSteps) {
 bool PmailGame::click() {
   if (!waiting_)
     return false;
+  if (title_) {
+    vm_.setVar(titleChoiceVar_, 1); // original title: Start
+    title_ = false;
+  } else {
+    if (!messageQueue_.empty()) {
+      message_ = std::move(messageQueue_.front());
+      messageQueue_.pop_front();
+      return true;
+    }
+    message_.clear();
+  }
   waiting_ = false;
   vm_.unblock();
   return true;
@@ -202,13 +274,16 @@ void PmailGame::native(::Pmail::Vm &vm, int id,
     for (size_t i = 0; i < args.size(); ++i) {
       if (i)
         t += ", ";
-      t += std::to_string(args[i].raw);
+      if (args[i].tag() == 2)
+        t += '"' + vm.text(args[i]) + '"';
+      else if (args[i].tag() == 1)
+        t += "v" + std::to_string(args[i].value());
+      else
+        t += std::to_string(vm.value(args[i]));
     }
     t += ")";
     trace(t);
   }
-  std::cout << "[PmailPort] native sys id=" << id << " argc=" << args.size()
-            << std::endl;
   if (onNative)
     onNative(id, args);
 
@@ -216,7 +291,49 @@ void PmailGame::native(::Pmail::Vm &vm, int id,
   // Specific PMAIL syscalls (text, wait, graphics, sound, choices, etc.)
   // must be implemented from RE for full playability.
   switch (id) {
-  case 0:
+  case 1:
+  case 7:
+    flushLines();
+    if (!message_.empty()) {
+      waiting_ = true;
+      vm.block();
+    }
+    break;
+  case 16:
+    for (const auto &arg : args)
+      if (arg.tag() == 2 && loadScript(vm.text(arg), true))
+        break;
+    break;
+  case 33:
+    if (!args.empty()) {
+      const int duration = vm.value(args.front());
+      if (duration > 0) {
+        waitUntil_ = SDL_GetTicks() + uint64_t(std::min(duration, 60000));
+        waitingForTime_ = true;
+        vm.block();
+      }
+    }
+    break;
+  case 48:
+    for (const auto &arg : args)
+      if (arg.tag() == 2) {
+        background_ = vm.text(arg);
+        break;
+      }
+    break;
+  case 101:
+    if (sePlaying && sePlaying()) {
+      waitingForSe_ = true;
+      vm.block();
+    }
+    break;
+  case 213:
+    for (const auto &arg : args)
+      if (arg.tag() == 1)
+        titleChoiceVar_ = arg.value();
+    title_ = true;
+    waiting_ = true;
+    vm.block();
     break;
   default:
     break;
@@ -224,7 +341,6 @@ void PmailGame::native(::Pmail::Vm &vm, int id,
 }
 
 void PmailGame::log(const std::string &s) {
-  std::cout << "[PmailPort][VM] " << s << std::endl;
   if (trace)
     trace("! " + s);
 }

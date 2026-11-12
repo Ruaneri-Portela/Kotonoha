@@ -1,11 +1,18 @@
 #include "Pmail/Vm.hpp"
 #include <algorithm>
 #include <cctype>
+#include <cstring>
 #include <cstdlib>
 #include <iomanip>
 #include <iostream>
 #include <sstream>
 #include <vector>
+
+#ifdef PMAIL_VM_TRACE
+#define PMAIL_VM_DEBUG std::cout
+#else
+#define PMAIL_VM_DEBUG if (false) std::cout
+#endif
 
 namespace Pmail {
 
@@ -15,117 +22,62 @@ uint32_t rd32(const std::vector<uint8_t> &d, size_t o) {
                                  (uint32_t(d[o + 3]) << 24)
                            : 0;
 }
+uint16_t rd16(const std::vector<uint8_t> &d, size_t o) {
+  return o + 2 <= d.size() ? uint16_t(d[o] | (d[o + 1] << 8)) : 0;
+}
 } // namespace
 
 size_t ScriptObject::parse(const std::string &objName,
                            std::vector<uint8_t> bytes) {
   name = objName;
   data = std::move(bytes);
-  if (data.size() < 12)
-    return 0;
-
-  const uint8_t kpm7[] = {'k', 'P', 'M', '7'};
-  const uint8_t pm7[] = {'p', 'm', '7'};
-  auto it_k =
-      std::search(data.begin(), data.end(), std::begin(kpm7), std::end(kpm7));
-  auto it_p =
-      std::search(data.begin(), data.end(), std::begin(pm7), std::end(pm7));
-  auto it_magic = (it_k != data.end()) ? it_k : it_p;
-
-  if (it_magic == data.end())
-    return 0;
-
-  size_t magic_pos = std::distance(data.begin(), it_magic);
-
-  // Find filename (after magic, could be preceded by a null)
-  size_t start_search = magic_pos + 4;
-
-  // Skip any leading nulls after magic
-  while (start_search < data.size() && data[start_search] == 0) {
-    start_search++;
-  }
-
-  size_t name_start = start_search;
-  size_t end_of_name = name_start;
-
-  // Find the end of the name (the first null after the name starts)
-  while (end_of_name < data.size() && data[end_of_name] != 0) {
-    end_of_name++;
-  }
-
-  if (name_start < end_of_name) {
-    name = std::string(data.begin() + name_start, data.begin() + end_of_name);
-  } else {
-    name = "";
-    end_of_name = magic_pos + 4;
-  }
-
-  // Extract strings from metadata (between end_of_name and code_start)
+  codeOffset = 0;
+  codeWords = 0;
   strings.clear();
-  size_t metadata_start = end_of_name;
-
-  // Skip any nulls after filename
-  while (metadata_start < data.size() && data[metadata_start] == 0) {
-    metadata_start++;
-  }
-
-  // Find the end of the metadata by looking for the last printable character
-  size_t last_string_end = metadata_start;
-  std::string current_string;
-  for (size_t i = metadata_start; i < data.size(); ++i) {
-    if (data[i] >= 32 && data[i] <= 126) {
-      current_string += static_cast<char>(data[i]);
-    } else {
-      if (!current_string.empty()) {
-        strings.push_back(current_string);
-        last_string_end = i;
-        current_string.clear();
-      }
-    }
-  }
-  if (!current_string.empty()) {
-    strings.push_back(current_string);
-    last_string_end = metadata_start + current_string.size();
-  }
-
-  // The code start is the first 4-byte aligned index after the last string.
-  size_t code_start = last_string_end;
-  if (code_start % 4 != 0) {
-    code_start += (4 - (code_start % 4));
-  }
-
-  // If this heuristic fails (e.g. code_start is too small), fall back to
-  // searching for opcodes.
-  if (code_start >= data.size() || code_start < metadata_start) {
-    std::vector<uint8_t> potential_opcodes = {0x73, 0x03, 0x7b, 0x7d,
-                                              0x7f, 0x80, 0x71};
-    code_start = data.size();
-    for (size_t i = metadata_start; i + 3 < data.size(); ++i) {
-      for (auto op : potential_opcodes) {
-        if (data[i] == op) {
-          code_start = i;
-          goto found_fallback;
-        }
-      }
-    }
-  found_fallback:;
-  }
-
-  if (code_start >= data.size())
-    return 0;
-
-  std::cout << "[PmailVm Debug] ScriptObject::parse: name=" << name
-            << ", code_start=" << code_start << ", data_size=" << data.size()
-            << std::endl;
-
-  codeOffset = code_start;
-  codeWords = (data.size() - codeOffset) / 4;
   id = 0;
-  if (data.size() >= 4) {
-    // Best-effort: PMAIL object IDs are not fully reversed yet.
-    // Keep a stable 12-bit-ish value if tail bytes look plausible.
-    id = data[data.size() - 4] | (uint16_t(data[data.size() - 3]) << 8);
+
+  // The decoded PMAIL object begins with a 16-bit user-table offset and a
+  // 16-bit string count. Each string descriptor is {offset, length}, both
+  // little-endian 16-bit values. start.obj has 251 descriptors (0x3f0 bytes).
+  size_t base = 0;
+  if (data.size() >= 0x20 && std::memcmp(data.data(), "STACKFile:", 10) == 0)
+    base = 0x20;
+  if (data.size() < base + 8)
+    return 0;
+  const uint16_t usrOff = rd16(data, base);
+  const uint16_t count = rd16(data, base + 2);
+  if (usrOff < 4 || base + usrOff + 4 > data.size() ||
+      size_t(count) * 4 + 4 > usrOff)
+    return 0;
+  const uint32_t tableSize = rd32(data, base + usrOff);
+  if (tableSize < 4 || tableSize > data.size() - base - usrOff)
+    return 0;
+  codeOffset = uint32_t(base + usrOff + tableSize);
+  codeWords = (data.size() - codeOffset) / 4;
+  if (codeWords == 0)
+    return 0;
+  id = rd16(data, data.size() - 4);
+  strings.reserve(count);
+  for (uint16_t i = 0; i < count; ++i) {
+    const size_t descriptor = base + 4 + size_t(i) * 4;
+    const size_t offset = base + rd16(data, descriptor);
+    const size_t length = rd16(data, descriptor + 2);
+    if (offset > data.size() || length > data.size() - offset) {
+      strings.emplace_back();
+      continue;
+    }
+    size_t actual = 0;
+    while (actual < length && data[offset + actual] != 0)
+      ++actual;
+    strings.emplace_back(reinterpret_cast<const char *>(data.data() + offset),
+                         actual);
   }
+
+  PMAIL_VM_DEBUG << "[PmailVm Debug] ScriptObject::parse: name=" << name
+            << ", id=0x" << std::hex << id << std::dec
+            << ", base=" << base << ", codeOffset=" << codeOffset
+            << ", codeWords=" << codeWords << ", data_size=" << data.size()
+            << std::endl;
 
   return data.size();
 }
@@ -142,8 +94,34 @@ const std::string &ScriptObject::str(size_t idx) const {
 Vm::Vm(Host &host) : host_(host), vars_(0x10000, 0) {}
 
 void Vm::registerObject(const ObjectPtr &obj) {
-  if (obj)
-    known_[obj->id & 0xfff] = obj;
+  if (!obj)
+    return;
+  known_[obj->id & 0xfff] = obj;
+
+  // pmail.exe:0x402066-0x40210f copies each 8-byte user function record
+  // into a 256-entry dispatch table. The first byte is the slot, followed
+  // by three signed 16-bit values (argument count and entry PC among them).
+  const auto &data = obj->data;
+  if (data.size() < 8)
+    return;
+  size_t base = 0;
+  if (data.size() >= 0x20 && std::memcmp(data.data(), "STACKFile:", 10) == 0)
+    base = 0x20;
+  const size_t table = base + rd16(data, base);
+  if (table + 4 > data.size())
+    return;
+  const uint32_t tableSize = rd32(data, table);
+  if (tableSize < 4 || tableSize > data.size() - table ||
+      (tableSize - 4) % 8 != 0)
+    return;
+  for (size_t p = table + 4; p + 8 <= table + tableSize; p += 8) {
+    const uint8_t slot = data[p];
+    UsrSlot &u = usr_[slot];
+    u.valid = true;
+    u.obj = obj;
+    u.argc = int16_t(rd16(data, p + 2));
+    u.pc = int16_t(rd16(data, p + 4));
+  }
 }
 
 void Vm::unregisterObject(const ObjectPtr &obj) {
@@ -154,7 +132,7 @@ void Vm::unregisterObject(const ObjectPtr &obj) {
 }
 
 void Vm::start(const ObjectPtr &obj, uint32_t pc) {
-  std::cout << "[PmailVm Debug] start called: obj="
+  PMAIL_VM_DEBUG << "[PmailVm Debug] start called: obj="
             << (obj ? obj->name : "null") << ", pc=" << pc
             << ", size=" << (obj ? obj->data.size() : 0) << std::endl;
   cur_ = obj;
@@ -210,7 +188,7 @@ ObjectPtr Vm::findObject(uint32_t id12) {
     return it->second;
   ObjectPtr o = host_.loadById(id12);
   if (o)
-    known_[id12] = o;
+    registerObject(o);
   return o;
 }
 
@@ -316,14 +294,14 @@ bool Vm::step() {
     w = rd32(cur_->data, pc_);
     pc_ += 4;
   } else {
-    std::cout << "[PmailVm Debug] step: PC out of bounds! pc=" << pc_
+    PMAIL_VM_DEBUG << "[PmailVm Debug] step: PC out of bounds! pc=" << pc_
               << ", codeWords=" << cur_->codeWords
               << ", dataSize=" << cur_->data.size() << std::endl;
     ended_ = true;
     return false;
   }
 
-  std::cout << "[PmailVm Debug] instruction pc(word)=" << (pc_ - 1) << ": 0x"
+  PMAIL_VM_DEBUG << "[PmailVm Debug] instruction pc(word)=" << (pc_ - 1) << ": 0x"
             << std::hex << std::setw(8) << std::setfill('0') << w << std::dec
             << std::endl;
 
@@ -396,7 +374,7 @@ bool Vm::step() {
 
   switch (op) {
   case 0x00:
-    std::cout << "[PmailVm Debug] HALT/END" << std::endl;
+    PMAIL_VM_DEBUG << "[PmailVm Debug] HALT/END" << std::endl;
     pc_ = 0;
     acc_ = 0;
     ended_ = true;
@@ -426,7 +404,7 @@ bool Vm::step() {
     break;
   }
   case 0x05: { // native/sys call
-    std::cout << "[PmailVm Debug] CALL_NATIVE(sys) id=" << val
+    PMAIL_VM_DEBUG << "[PmailVm Debug] CALL_NATIVE(sys) id=" << val
               << " argc=" << argc << std::endl;
     stack_.push_back({pc_ | 0x40000, cur_});
     curFramePc_ = pc_;
@@ -447,7 +425,7 @@ bool Vm::step() {
     break;
   }
   case 0x06: { // usr call
-    std::cout << "[PmailVm Debug] CALL_USR id=" << (val & 0xff) << std::endl;
+    PMAIL_VM_DEBUG << "[PmailVm Debug] CALL_USR id=" << (val & 0xff) << std::endl;
     UsrSlot &s = usr_[val & 0xff];
     if (!s.valid) {
       host_.log("usr " + std::to_string(val) + " missing");
@@ -469,13 +447,13 @@ bool Vm::step() {
     lines_.clear();
     break;
   case 0x10: // store to var (when kind==1)
-    std::cout << "[PmailVm Debug] STORE op=0x10 kind=" << kind << " val=" << v16
+    PMAIL_VM_DEBUG << "[PmailVm Debug] STORE op=0x10 kind=" << kind << " val=" << v16
               << " acc=" << acc16 << std::endl;
     if (kind == 1)
       setVar(v16, acc16);
     break;
   case 0x11: // load/set accumulator based on kind
-    std::cout << "[PmailVm Debug] LOAD_ACC op=0x11 kind=" << kind
+    PMAIL_VM_DEBUG << "[PmailVm Debug] LOAD_ACC op=0x11 kind=" << kind
               << " val=" << v16 << std::endl;
     switch (kind) {
     case 0:
@@ -495,19 +473,19 @@ bool Vm::step() {
     }
     break;
   case 0x20:
-    std::cout << "[PmailVm Debug] PUSH_STACK op=0x20 acc=0x" << std::hex << acc_
+    PMAIL_VM_DEBUG << "[PmailVm Debug] PUSH_STACK op=0x20 acc=0x" << std::hex << acc_
               << std::dec << std::endl;
     stack_.push_back({acc_, nullptr});
     break;
   case 0x21:
-    std::cout << "[PmailVm Debug] POP_STACK op=0x21 count=" << v16 << std::endl;
+    PMAIL_VM_DEBUG << "[PmailVm Debug] POP_STACK op=0x21 count=" << v16 << std::endl;
     for (uint32_t i = 0; i < v16 && !stack_.empty(); ++i) {
       acc_ = stack_.back().word;
       stack_.pop_back();
     }
     break;
   default:
-    std::cout << "[PmailVm Debug] NOP (Unknown Opcode Bypass) op=0x" << std::hex
+    PMAIL_VM_DEBUG << "[PmailVm Debug] NOP (Unknown Opcode Bypass) op=0x" << std::hex
               << int(op) << " mode=0x" << int(mode) << " imm=0x" << imm
               << std::dec << " kind=" << kind << " val=" << val << std::endl;
     break;
