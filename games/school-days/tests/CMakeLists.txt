@@ -78,7 +78,6 @@ set_tests_properties(SchoolDaysNextChoiceRuntimeTest PROPERTIES
 
 add_executable(SchoolDaysBackRuntimeTest SchoolDaysBackRuntimeTest.cpp)
 target_link_libraries(SchoolDaysBackRuntimeTest PRIVATE school_days)
-kotonoha_copy_assets(SchoolDaysBackRuntimeTest)
 add_test(NAME SchoolDaysBackRuntimeTest COMMAND SchoolDaysBackRuntimeTest
     "${SCHOOL_DAYS_ROUTE}")
 set_tests_properties(SchoolDaysBackRuntimeTest PROPERTIES
@@ -159,7 +158,6 @@ set_tests_properties(SchoolDaysLauncherTest PROPERTIES
 
 add_executable(SchoolDaysMediaTest SchoolDaysMediaTest.cpp)
 target_link_libraries(SchoolDaysMediaTest PRIVATE school_days)
-kotonoha_copy_assets(SchoolDaysMediaTest)
 add_test(NAME SchoolDaysMediaTest COMMAND SchoolDaysMediaTest
     "${SCHOOL_DAYS_ROUTE}"
     "${CMAKE_CURRENT_SOURCE_DIR}/fixtures"
@@ -225,13 +223,12 @@ endif()
 # Manual visual check with retail data (see SchoolDaysPanelCapture.cpp).
 add_executable(SchoolDaysPanelCapture SchoolDaysPanelCapture.cpp)
 target_link_libraries(SchoolDaysPanelCapture PRIVATE school_days)
-kotonoha_copy_assets(SchoolDaysPanelCapture)
+
 
 set(SCHOOL_DAYS_DATA_DIR "" CACHE PATH "User-supplied School Days HQ installation")
 if(SCHOOL_DAYS_DATA_DIR)
     add_executable(SchoolDaysExitRuntimeTest SchoolDaysExitRuntimeTest.cpp)
     target_link_libraries(SchoolDaysExitRuntimeTest PRIVATE school_days)
-    kotonoha_copy_assets(SchoolDaysExitRuntimeTest)
     add_test(NAME SchoolDays.ExitRuntime COMMAND SchoolDaysExitRuntimeTest
         "${SCHOOL_DAYS_DATA_DIR}" "${SCHOOL_DAYS_ROUTE}")
     set_tests_properties(SchoolDays.ExitRuntime PROPERTIES TIMEOUT 180
@@ -242,7 +239,6 @@ if(SCHOOL_DAYS_DATA_DIR)
     endif()
     add_executable(SchoolDaysSaveTest SchoolDaysSaveTest.cpp)
     target_link_libraries(SchoolDaysSaveTest PRIVATE school_days)
-    kotonoha_copy_assets(SchoolDaysSaveTest)
     add_test(NAME SchoolDays.Save COMMAND SchoolDaysSaveTest
       "${SCHOOL_DAYS_DATA_DIR}" "${SCHOOL_DAYS_ROUTE}"
       "${CMAKE_CURRENT_SOURCE_DIR}/../display-options")

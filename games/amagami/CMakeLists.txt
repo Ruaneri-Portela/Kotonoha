@@ -51,8 +51,14 @@ if(NOT ANDROID)
     find_package(PkgConfig REQUIRED)
     pkg_check_modules(AMAGAMI_JSON REQUIRED IMPORTED_TARGET json-c>=0.15)
     target_link_libraries(AmagamiInspect PRIVATE AmagamiFormats PkgConfig::AMAGAMI_JSON)
+    add_custom_command(TARGET AmagamiInspect POST_BUILD 
+        COMMAND ${CMAKE_COMMAND} -E echo "HELLO WORLD"
+    )
 endif()
 
 if(BUILD_TESTING)
-    add_subdirectory(tests)
+    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
+add_subdirectory(tests)
 endif()

@@ -11,7 +11,7 @@ if(AMAGAMI_DISC_IMAGE AND EXISTS "${AMAGAMI_DISC_IMAGE}")
     add_test(NAME Amagami.Session COMMAND AmagamiSessionTest "${AMAGAMI_DISC_IMAGE}")
     add_executable(AmagamiEngineTest EngineTest.cpp)
     target_link_libraries(AmagamiEngineTest PRIVATE amagami)
-    kotonoha_copy_assets(AmagamiEngineTest)
+
     add_test(NAME Amagami.Engine COMMAND AmagamiEngineTest "${AMAGAMI_DISC_IMAGE}")
     set_tests_properties(Amagami.Engine PROPERTIES ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_AUDIO_DRIVER=dummy")
     add_test(NAME Amagami.Boot COMMAND Amagami --amagami "${AMAGAMI_DISC_IMAGE}" --no-config --no-launcher --frames 5)
@@ -35,7 +35,6 @@ endif()
 
 add_executable(AmagamiBacklogTest BacklogTest.cpp)
 target_link_libraries(AmagamiBacklogTest PRIVATE amagami)
-kotonoha_copy_assets(AmagamiBacklogTest)
 add_test(NAME Amagami.Backlog COMMAND AmagamiBacklogTest)
 set_tests_properties(Amagami.Backlog PROPERTIES
     ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_AUDIO_DRIVER=dummy")

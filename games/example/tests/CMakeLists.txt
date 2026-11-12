@@ -5,7 +5,6 @@ set_tests_properties(Kotonoha.Runtime PROPERTIES
     ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_AUDIO_DRIVER=dummy")
 
 add_executable(KotonohaDemoTests DemoTests.cpp)
-kotonoha_copy_assets(KotonohaDemoTests)
 target_link_libraries(KotonohaDemoTests PRIVATE kotonoha_demo)
 add_test(NAME Kotonoha.Demo COMMAND KotonohaDemoTests)
 set_tests_properties(Kotonoha.Demo PROPERTIES

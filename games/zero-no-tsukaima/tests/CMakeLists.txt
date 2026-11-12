@@ -8,7 +8,6 @@ add_test(NAME ZeroNoTsukaima.ConcertoScript COMMAND ZeroConcertoScriptTest)
 
 add_executable(ZeroRetailPresentationTest ZeroRetailPresentationTest.cpp)
 target_link_libraries(ZeroRetailPresentationTest PRIVATE zero_no_tsukaima)
-kotonoha_copy_assets(ZeroRetailPresentationTest)
 set(ZERO_SYMPHONY_DISC_IMAGE "" CACHE FILEPATH "Symphony disc image for presentation tests")
 foreach(edition CONCERTO SYMPHONY)
     if(ZERO_${edition}_DISC_IMAGE AND EXISTS "${ZERO_${edition}_DISC_IMAGE}")
@@ -32,12 +31,10 @@ set(ZERO_DISC_IMAGE "" CACHE FILEPATH "Zero no Tsukaima disc image for the smoke
 if(ZERO_DISC_IMAGE AND EXISTS "${ZERO_DISC_IMAGE}")
     add_executable(ZeroNodeDebugTest ZeroNodeDebugTest.cpp)
     target_link_libraries(ZeroNodeDebugTest PRIVATE zero_no_tsukaima)
-    kotonoha_copy_assets(ZeroNodeDebugTest)
     add_test(NAME ZeroNoTsukaima.NodeDebug COMMAND ZeroNodeDebugTest "${ZERO_DISC_IMAGE}")
     set_tests_properties(ZeroNoTsukaima.NodeDebug PROPERTIES
         ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_AUDIO_DRIVER=dummy;ZERO_START=")
     add_executable(ZeroEngineTest ZeroEngineTest.cpp)
-    kotonoha_copy_assets(ZeroEngineTest)
     target_link_libraries(ZeroEngineTest PRIVATE zero_no_tsukaima)
     add_test(NAME ZeroNoTsukaima.Engine COMMAND ZeroEngineTest "${ZERO_DISC_IMAGE}")
     set_tests_properties(ZeroNoTsukaima.Engine PROPERTIES
