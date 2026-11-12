@@ -99,18 +99,20 @@ module XcodeProjectCommon
       File.join(ROOT, 'buildsystems/xcode/KotonohaEngine.xcodeproj')
     end
 
-    def self.sdl_products_search_path(project_dir)
-      rel_abs = File.join(File.dirname(sdl_abs_path), 'build/$(CONFIGURATION)')
-      ProjectHelpers.get_rel_path(rel_abs, project_dir)
+    def self.sdl_products_search_path_macos(project_dir, sdl_abs_path, sdl_ttf_abs_path)
+      sdl_rel = ProjectHelpers.get_rel_path(File.join(File.dirname(sdl_abs_path), 'build/$(CONFIGURATION)'), project_dir)
+      sdl_ttf_rel = ProjectHelpers.get_rel_path(File.join(File.dirname(sdl_ttf_abs_path), 'build/$(CONFIGURATION)'), project_dir)
+      [sdl_rel, sdl_ttf_rel]
     end
 
-    def self.sdl_ttf_products_search_path(project_dir)
-      rel_abs = File.join(File.dirname(sdl_ttf_abs_path), 'build/$(CONFIGURATION)')
-      ProjectHelpers.get_rel_path(rel_abs, project_dir)
+    def self.sdl_products_search_path_ios(project_dir, sdl_abs_path, sdl_ttf_abs_path)
+      sdl_rel = ProjectHelpers.get_rel_path(File.join(File.dirname(sdl_abs_path), 'build/Debug-iphoneos'), project_dir)
+      sdl_ttf_rel = ProjectHelpers.get_rel_path(File.join(File.dirname(sdl_ttf_abs_path), 'build/Debug-iphoneos'), project_dir)
+      [sdl_rel, sdl_ttf_rel]
     end
 
     def self.engine_products_search_path(project_dir)
-      rel_abs = File.join(File.dirname(engine_abs_path), 'build/$(CONFIGURATION)/$(CONFIGURATION)')
+      rel_abs = File.join(File.dirname(engine_abs_path), 'build/$(CONFIGURATION)')
       ProjectHelpers.get_rel_path(rel_abs, project_dir)
     end
   end
@@ -152,23 +154,42 @@ sdl_ttf_products_search_path = XcodeProjectCommon::ProjectHelpers.get_rel_path(F
 
 sdl_ref = XcodeProjectCommon::ProjectHelpers.add_project_ref(project, sdl_abs_path, 'SDL.xcodeproj', PROJECT_DIR)
 sdl_ttf_ref = XcodeProjectCommon::ProjectHelpers.add_project_ref(project, sdl_ttf_abs_path, 'SDL_ttf.xcodeproj', PROJECT_DIR)
-sdl_ttf_rel_path = XcodeProjectCommon::ProjectHelpers.get_rel_path(sdl_ttf_abs_path, PROJECT_DIR)
-sdl_ttf_products_search_path = XcodeProjectCommon::ProjectHelpers.get_rel_path(File.join(File.dirname(sdl_ttf_abs_path), 'build/$(CONFIGURATION)'), PROJECT_DIR)
 
 dependencies_group = project.main_group.new_group('Dependencies')
-sdl_products_group = dependencies_group.new_group('SDL Products')
-sdl_ttf_products_group = dependencies_group.new_group('SDL_ttf Products')
+sdl_products_group_macos = dependencies_group.new_group('SDL Products (macOS)')
+sdl_ttf_products_group_macos = dependencies_group.new_group('SDL_ttf Products (macOS)')
+sdl_products_group_ios = dependencies_group.new_group('SDL Products (iOS)')
+sdl_ttf_products_group_ios = dependencies_group.new_group('SDL_ttf Products (iOS)')
 
-sdl_framework_search_paths = ["$(inherited)", sdl_products_search_path, sdl_ttf_products_search_path]
+sdl_mac_search_paths = XcodeProjectCommon::Dependencies.sdl_products_search_path_macos(PROJECT_DIR, sdl_abs_path, sdl_ttf_abs_path)
+sdl_ios_search_paths = XcodeProjectCommon::Dependencies.sdl_products_search_path_ios(PROJECT_DIR, sdl_abs_path, sdl_ttf_abs_path)
 
-XcodeProjectCommon::ProjectHelpers.add_project_dependency(project, sdl_ref, sdl_products_group)
-XcodeProjectCommon::ProjectHelpers.add_project_dependency(project, sdl_ttf_ref, sdl_ttf_products_group)
+sdl_framework_search_paths = ["$(inherited)", sdl_mac_search_paths[0], sdl_mac_search_paths[1]]
+sdl_framework_search_paths_iphoneos = ["$(inherited)", sdl_ios_search_paths[0], sdl_ios_search_paths[1]]
+
+# Compatibility for line 349
+sdl_products_search_path = sdl_mac_search_paths[0]
+sdl_ttf_products_search_path = sdl_mac_search_paths[1]
+
+XcodeProjectCommon::ProjectHelpers.add_project_dependency(project, sdl_ref, sdl_products_group_macos)
+XcodeProjectCommon::ProjectHelpers.add_project_dependency(project, sdl_ttf_ref, sdl_ttf_products_group_macos)
+XcodeProjectCommon::ProjectHelpers.add_project_dependency(project, sdl_ref, sdl_products_group_ios)
+XcodeProjectCommon::ProjectHelpers.add_project_dependency(project, sdl_ttf_ref, sdl_ttf_products_group_ios)
 
 SDL3_TARGET_ID = 'BECDF5FE0761BA81005FE872'
 SDL3_TTF_TARGET_ID = 'BE48FD5D07AFA17000BB41DA'
 
-sdl_product = XcodeProjectCommon::ProjectHelpers.create_subproject_product_ref(project, 'SDL3.framework', 'wrapper.framework', sdl_products_group)
-sdl_ttf_product = XcodeProjectCommon::ProjectHelpers.create_subproject_product_ref(project, 'SDL3_ttf.framework', 'wrapper.framework', sdl_ttf_products_group)
+# macOS products
+sdl_product_macos = XcodeProjectCommon::ProjectHelpers.create_file_ref(project, File.join(File.dirname(sdl_abs_path), 'build/$(CONFIGURATION)/SDL3.framework'), 'SDL3.framework', PROJECT_DIR, 'wrapper.framework')
+sdl_products_group_macos.children << sdl_product_macos
+sdl_ttf_product_macos = XcodeProjectCommon::ProjectHelpers.create_file_ref(project, File.join(File.dirname(sdl_ttf_abs_path), 'build/$(CONFIGURATION)/SDL3_ttf.framework'), 'SDL3_ttf.framework', PROJECT_DIR, 'wrapper.framework')
+sdl_ttf_products_group_macos.children << sdl_ttf_product_macos
+
+# iOS products
+sdl_product_ios = XcodeProjectCommon::ProjectHelpers.create_file_ref(project, File.join(File.dirname(sdl_abs_path), 'build/Debug-iphoneos/SDL3.framework'), 'SDL3.framework', PROJECT_DIR, 'wrapper.framework')
+sdl_products_group_ios.children << sdl_product_ios
+sdl_ttf_product_ios = XcodeProjectCommon::ProjectHelpers.create_file_ref(project, File.join(File.dirname(sdl_ttf_abs_path), 'build/Debug-iphoneos/SDL3_ttf.framework'), 'SDL3_ttf.framework', PROJECT_DIR, 'wrapper.framework')
+sdl_ttf_products_group_ios.children << sdl_ttf_product_ios
 
 # ---------------------------------------------------------------------------
 # Source groups
@@ -276,9 +297,9 @@ end
       'ENABLE_USER_SCRIPT_SANDBOXING' => 'NO',
       'GCC_C_LANGUAGE_STANDARD' => 'gnu11',
       'KOTONOHA_ROOT' => '$(PROJECT_DIR)/../..',
-      'KOTONOHA_VCPKG_ROOT[sdk=iphoneos*]' => '$(KOTONOHA_ROOT)/build/iOS-deps/ios',
-      'KOTONOHA_VCPKG_ROOT[sdk=iphonesimulator*]' => '$(KOTONOHA_ROOT)/build/iOS-deps/simulator',
-      'KOTONOHA_VCPKG_ROOT[sdk=macosx*]' => '$(KOTONOHA_ROOT)/build/xcode-deps/macos',
+      'KOTONOHA_VCPKG_ROOT[sdk=iphoneos*]' => '$(PROJECT_DIR)/vcpkg/ios',
+      'KOTONOHA_VCPKG_ROOT[sdk=iphonesimulator*]' => '$(PROJECT_DIR)/vcpkg/simulator',
+      'KOTONOHA_VCPKG_ROOT[sdk=macosx*]' => '$(PROJECT_DIR)/vcpkg/macos',
       'KOTONOHA_VCPKG_TRIPLET[sdk=iphoneos*]' => 'arm64-ios',
       'KOTONOHA_VCPKG_TRIPLET[sdk=iphonesimulator*]' => 'arm64-ios-simulator',
       'KOTONOHA_VCPKG_TRIPLET[sdk=macosx*]' => 'arm64-osx',
@@ -314,37 +335,24 @@ end
   end
 
 # ---------------------------------------------------------------------------
-# KotonohaImGui (dynamic framework)
+# KotonohaImGui (static library)
 # ---------------------------------------------------------------------------
-imgui_target = project.new_target(:framework, 'KotonohaImGui', :ios, '15.0')
+imgui_target = project.new_target(:static_library, 'KotonohaImGui', :ios, '15.0')
 imgui_refs.each { |file| imgui_target.source_build_phase.add_file_reference(file) }
-imgui_target.frameworks_build_phase.add_file_reference(sdl_product)
 imgui_target.dependencies << project.new(Xcodeproj::Project::Object::PBXTargetDependency).tap do |dep|
   dep.name = 'SDL3'
   proxy = project.new(Xcodeproj::Project::Object::PBXContainerItemProxy)
   proxy.container_portal = sdl_ref.uuid
-  proxy.proxy_type = '1'
-  proxy.remote_global_id_string = SDL3_TARGET_ID
-  proxy.remote_info = 'SDL3'
   dep.target_proxy = proxy
 end
 imgui_target.build_configurations.each do |config|
   XcodeProjectCommon::ProjectHelpers.apply_settings(config, {
     'CLANG_CXX_LANGUAGE_STANDARD' => 'c++17',
     'DEFINES_MODULE' => 'NO',
-    'GENERATE_INFOPLIST_FILE' => 'YES',
-    'MACH_O_TYPE' => 'mh_dylib',
-    'PRODUCT_BUNDLE_IDENTIFIER' => 'me.kotonoha.imgui',
-    'PRODUCT_NAME' => 'KotonohaImGui',
+    'GENERATE_INFOPLIST_FILE' => 'NO',
     'SKIP_INSTALL' => 'YES',
-    'VERSIONING_SYSTEM' => 'apple-generic',
-    'VERSION_INFO_PREFIX' => '',
-    'DYLIB_COMPATIBILITY_VERSION' => '1',
-    'DYLIB_CURRENT_VERSION' => '1',
-    'INSTALL_PATH' => '$(LOCAL_LIBRARY_DIR)/Frameworks',
-    'LD_RUNPATH_SEARCH_PATHS' => ['$(inherited)', '@executable_path/Frameworks', '@loader_path/Frameworks'],
-    'FRAMEWORK_SEARCH_PATHS' => sdl_framework_search_paths + ['$(SRCROOT)'],
-    'HEADER_SEARCH_PATHS' => ['$(inherited)', '$(KOTONOHA_ROOT)/lib/submodules/imgui', '$(KOTONOHA_ROOT)/lib/include']
+    'HEADER_SEARCH_PATHS' => ['$(inherited)', '$(KOTONOHA_ROOT)/lib/submodules/imgui', '$(KOTONOHA_ROOT)/lib/include', '$(KOTONOHA_VCPKG_PREFIX)/include'],
+    'LIBRARY_SEARCH_PATHS' => ['$(inherited)', '$(KOTONOHA_VCPKG_PREFIX)/lib']
   })
 end
 
@@ -356,30 +364,21 @@ engine_target = project.new_target(:framework, 'KotonohaEngine', :ios, '15.0')
 XcodeProjectCommon::ProjectHelpers.add_files_to_build_phase(engine_target, engine_src_refs, 'PBXSourcesBuildPhase')
 XcodeProjectCommon::ProjectHelpers.add_files_to_build_phase(engine_target, engine_header_refs, 'PBXHeadersBuildPhase')
 
-engine_target.frameworks_build_phase.add_file_reference(sdl_product)
-engine_target.frameworks_build_phase.add_file_reference(sdl_ttf_product)
+engine_target.frameworks_build_phase.add_file_reference(sdl_product_ios)
+engine_target.frameworks_build_phase.add_file_reference(sdl_ttf_product_ios)
 
-imgui_product = XcodeProjectCommon::ProjectHelpers.create_file_ref(project, File.join(PROJECT_DIR, 'KotonohaImGui.framework'), 'KotonohaImGui.framework', PROJECT_DIR, 'wrapper.framework')
-engine_target.frameworks_build_phase.add_file_reference(imgui_product)
+# Link ImGui as a library
+engine_target.build_configurations.each do |config|
+  config.build_settings['OTHER_LDFLAGS'] ||= []
+  config.build_settings['OTHER_LDFLAGS'] << '-lKotonohaImGui'
+  config.build_settings['LIBRARY_SEARCH_PATHS'] ||= []
+  config.build_settings['LIBRARY_SEARCH_PATHS'] << '$(BUILT_PRODUCTS_DIR)'
+end
+
+engine_target.add_dependency(imgui_target)
 
 XcodeProjectCommon::ProjectHelpers.add_system_frameworks(project, engine_target, SYSTEM_FRAMEWORKS)
-engine_target.add_dependency(imgui_target)
-engine_target.dependencies << project.new(Xcodeproj::Project::Object::PBXTargetDependency).tap do |dep|
-  dep.name = 'SDL3'
-  proxy = project.new(Xcodeproj::Project::Object::PBXContainerItemProxy)
-  proxy.container_portal = sdl_ref.uuid
-  proxy.remote_global_id_string = SDL3_TARGET_ID
-  proxy.remote_info = 'SDL3'
-  dep.target_proxy = proxy
-end
-engine_target.dependencies << project.new(Xcodeproj::Project::Object::PBXTargetDependency).tap do |dep|
-  dep.name = 'SDL3_ttf'
-  proxy = project.new(Xcodeproj::Project::Object::PBXContainerItemProxy)
-  proxy.container_portal = sdl_ttf_ref.uuid
-  proxy.remote_global_id_string = SDL3_TTF_TARGET_ID
-  proxy.remote_info = 'SDL3_ttf'
-  dep.target_proxy = proxy
-end
+
 engine_target.build_configurations.each do |config|
   XcodeProjectCommon::ProjectHelpers.apply_settings(config, {
     'CLANG_CXX_LANGUAGE_STANDARD' => 'c++17',
@@ -397,7 +396,9 @@ engine_target.build_configurations.each do |config|
     'INSTALL_PATH' => '$(LOCAL_LIBRARY_DIR)/Frameworks',
     'GCC_PREPROCESSOR_DEFINITIONS[sdk=iphoneos*]' => ['$(inherited)', 'KOTONOHA_HAS_METALFX=1'],
     'FRAMEWORK_SEARCH_PATHS' => sdl_framework_search_paths + ['$(SRCROOT)'],
-    'HEADER_SEARCH_PATHS' => ['$(inherited)', '$(KOTONOHA_ROOT)/lib/submodules/imgui', '$(KOTONOHA_ROOT)/lib/include']
+    'FRAMEWORK_SEARCH_PATHS[sdk=iphoneos*]' => sdl_framework_search_paths_iphoneos + ['$(SRCROOT)'],
+    'HEADER_SEARCH_PATHS' => ['$(inherited)', '$(KOTONOHA_ROOT)/lib/submodules/imgui', '$(KOTONOHA_ROOT)/lib/include', '$(KOTONOHA_VCPKG_PREFIX)/include'],
+    'LIBRARY_SEARCH_PATHS' => ['$(inherited)', '$(KOTONOHA_VCPKG_PREFIX)/lib']
   })
 end
 

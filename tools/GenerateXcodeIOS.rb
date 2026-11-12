@@ -108,7 +108,7 @@ module XcodeProjectCommon
     end
 
     def self.engine_products_search_path(project_dir)
-      rel_abs = File.join(File.dirname(engine_abs_path), 'build/$(CONFIGURATION)/$(CONFIGURATION)')
+      rel_abs = File.join(File.dirname(engine_abs_path), 'build/$(CONFIGURATION)')
       ProjectHelpers.get_rel_path(rel_abs, project_dir)
     end
   end
@@ -154,18 +154,19 @@ XcodeProjectCommon::ProjectHelpers.add_project_dependency(project, sdl_ttf_ref, 
 XcodeProjectCommon::ProjectHelpers.add_project_dependency(project, engine_ref, engine_products_group)
 
 # SDL3 and SDL_ttf products
-sdl_products_abs_path = File.join(File.dirname(XcodeProjectCommon::Dependencies.sdl_abs_path), 'build/$(CONFIGURATION)')
-sdl_ttf_products_abs_path = File.join(File.dirname(XcodeProjectCommon::Dependencies.sdl_ttf_abs_path), 'build/$(CONFIGURATION)')
+sdl_products_abs_path = File.join(File.dirname(XcodeProjectCommon::Dependencies.sdl_abs_path), "build/$(CONFIGURATION)")
+sdl_ttf_products_abs_path = File.join(File.dirname(XcodeProjectCommon::Dependencies.sdl_ttf_abs_path), "build/$(CONFIGURATION)")
+engine_products_abs_path = File.join(File.dirname(XcodeProjectCommon::Dependencies.engine_abs_path), "build/$(CONFIGURATION)")
+
+sdl_product = XcodeProjectCommon::ProjectHelpers.create_file_ref(project, File.join(sdl_products_abs_path, "SDL3.framework"), "SDL3.framework", PROJECT_DIR, "wrapper.framework")
+sdl_products_group.children << sdl_product
+
+sdl_ttf_product = XcodeProjectCommon::ProjectHelpers.create_file_ref(project, File.join(sdl_ttf_products_abs_path, "SDL3_ttf.framework"), "SDL3_ttf.framework", PROJECT_DIR, "wrapper.framework")
+sdl_ttf_products_group.children << sdl_ttf_product
 
 # Engine products
-engine_products_abs_path = File.join(File.dirname(XcodeProjectCommon::Dependencies.engine_abs_path), 'build/$(CONFIGURATION)/$(CONFIGURATION)')
-
-sdl_product = XcodeProjectCommon::ProjectHelpers.create_subproject_product_ref(project, 'SDL3.framework', 'wrapper.framework', sdl_products_group)
-sdl_ttf_product = XcodeProjectCommon::ProjectHelpers.create_subproject_product_ref(project, 'SDL3_ttf.framework', 'wrapper.framework', sdl_ttf_products_group)
-
-# Engine products
-engine_framework = XcodeProjectCommon::ProjectHelpers.create_file_ref(project, File.join(engine_products_abs_path, 'KotonohaEngine.framework'), 'KotonohaEngine.framework', PROJECT_DIR, 'wrapper.framework')
-imgui_framework = XcodeProjectCommon::ProjectHelpers.create_file_ref(project, File.join(engine_products_abs_path, 'KotonohaImGui.framework'), 'KotonohaImGui.framework', PROJECT_DIR, 'wrapper.framework')
+engine_framework = XcodeProjectCommon::ProjectHelpers.create_file_ref(project, File.join(engine_products_abs_path, "KotonohaEngine.framework"), "KotonohaEngine.framework", PROJECT_DIR, "wrapper.framework")
+imgui_framework = XcodeProjectCommon::ProjectHelpers.create_file_ref(project, File.join(engine_products_abs_path, "KotonohaImGui.framework"), "KotonohaImGui.framework", PROJECT_DIR, "wrapper.framework")
 
 # Search Paths
 sdl_products_search_path = XcodeProjectCommon::Dependencies.sdl_products_search_path(PROJECT_DIR)
@@ -190,9 +191,6 @@ target.product_type = 'com.apple.product-type.application'
 
 # Frameworks
 target.frameworks_build_phase.add_file_reference(engine_framework)
-target.frameworks_build_phase.add_file_reference(imgui_framework)
-target.frameworks_build_phase.add_file_reference(sdl_product)
-target.frameworks_build_phase.add_file_reference(sdl_ttf_product)
 
 XcodeProjectCommon::ProjectHelpers.add_system_frameworks(project, target, ['AudioToolbox', 'CoreMedia', 'CoreVideo', 'VideoToolbox', 'UIKit', 'Metal'])
 
@@ -200,11 +198,28 @@ XcodeProjectCommon::ProjectHelpers.add_system_frameworks(project, target, ['Audi
 embed_phase = target.new_copy_files_build_phase('Embed Frameworks')
 embed_phase.dst_path = ""
 embed_phase.dst_subfolder_spec = "10"
-embed_phase.add_file_reference(imgui_framework)
 embed_phase.add_file_reference(sdl_product)
 embed_phase.add_file_reference(sdl_ttf_product)
 
-# Resources
+# Flatten Frameworks Script
+flatten_script = target.new_shell_script_build_phase('Flatten Frameworks')
+flatten_script.shell_script = <<~SHELL
+  for fw in "SDL3.framework" "SDL3_ttf.framework"; do
+    FW_PATH="$BUILT_PRODUCTS_DIR/Kotonoha.app/Frameworks/$fw"
+    if [ -d "$FW_PATH/Versions" ]; then
+      echo "Flattening $fw"
+      FLAT_DIR="$FW_PATH.flat"
+      rm -rf "$FLAT_DIR"
+      mkdir -p "$FLAT_DIR"
+      cp -a "$FW_PATH/Versions/Current/." "$FLAT_DIR/"
+      if [ -f "$FLAT_DIR/Resources/Info.plist" ]; then
+        mv "$FLAT_DIR/Resources/Info.plist" "$FLAT_DIR/Info.plist"
+      fi
+      rm -rf "$FW_PATH"
+      mv "$FLAT_DIR" "$FW_PATH"
+    fi
+  done
+SHELL
 target.resources_build_phase.add_file_reference(assets_ref)
 
 # Build Settings
@@ -218,26 +233,30 @@ target.build_configurations.each do |config|
     'PRODUCT_NAME' => 'Kotonoha',
     'SDKROOT' => 'iphoneos',
     'HEADER_SEARCH_PATHS' => [
-      '\$(inherited)',
-      "\$(KOTONOHA_ROOT)/lib/include",
-      "\$(KOTONOHA_ROOT)/lib/submodules/SDL/include",
-      "\$(KOTONOHA_ROOT)/lib/submodules/SDL_ttf/include",
-      "\$(KOTONOHA_VCPKG_PREFIX)/include",
+      '$(inherited)',
+      '$(KOTONOHA_ROOT)/lib/include',
+      '$(KOTONOHA_ROOT)/lib/submodules/SDL/include',
+      '$(KOTONOHA_ROOT)/lib/submodules/SDL_ttf/include',
+      '$(KOTONOHA_VCPKG_PREFIX)/include',
     ],
     'FRAMEWORK_SEARCH_PATHS' => [
-      '\$(inherited)',
+      '$(inherited)',
       engine_products_search_path,
       sdl_products_search_path,
       sdl_ttf_products_search_path,
-      "\$(KOTONOHA_VCPKG_PREFIX)/lib"
+      '$(KOTONOHA_VCPKG_PREFIX)/lib'
     ],
     'LIBRARY_SEARCH_PATHS' => [
-      '\$(inherited)',
-      "\$(KOTONOHA_VCPKG_PREFIX)/lib"
+      '$(inherited)',
+      engine_products_search_path,
+      '$(KOTONOHA_VCPKG_PREFIX)/lib'
     ],
     'OTHER_LDFLAGS' => [
-      '\$(inherited)',
+      '$(inherited)',
+      '-lKotonohaImGui',
       '-framework Metal',
+      '-framework SDL3',
+      '-framework SDL3_ttf',
       '-lavcodec',
       '-lavformat',
       '-lavutil',
@@ -261,13 +280,12 @@ target.build_configurations.each do |config|
   }
   
   # VCPKG integration for iOS
-  settings['KOTONOHA_ROOT'] = '\$(PROJECT_DIR)/../..'
-  settings['KOTONOHA_VCPKG_ROOT[sdk=iphoneos*]'] = '\$(KOTONOHA_ROOT)/build/iOS-deps/ios'
-  settings['KOTONOHA_VCPKG_ROOT[sdk=iphonesimulator*]'] = '\$(KOTONOHA_ROOT)/build/iOS-deps/simulator'
+  settings['KOTONOHA_ROOT'] = '$(PROJECT_DIR)/../..'
+  settings['KOTONOHA_VCPKG_ROOT[sdk=iphoneos*]'] = '$(PROJECT_DIR)/vcpkg/ios'
+  settings['KOTONOHA_VCPKG_ROOT[sdk=iphonesimulator*]'] = '$(PROJECT_DIR)/vcpkg/simulator'
   settings['KOTONOHA_VCPKG_TRIPLET[sdk=iphoneos*]'] = 'arm64-ios'
   settings['KOTONOHA_VCPKG_TRIPLET[sdk=iphonesimulator*]'] = 'arm64-ios-simulator'
-  settings['KOTONOHA_VCPKG_PREFIX[sdk=iphoneos*]'] = '\$(KOTONOHA_VCPKG_ROOT)/\$(KOTONOHA_VCPKG_TRIPLET)'
-  settings['KOTONOHA_VCPKG_PREFIX[sdk=iphonesimulator*]'] = '\$(KOTONOHA_VCPKG_ROOT)/\$(KOTONOHA_VCPKG_TRIPLET)'
+  settings['KOTONOHA_VCPKG_PREFIX'] = '$(KOTONOHA_VCPKG_ROOT)/$(KOTONOHA_VCPKG_TRIPLET)'
 
   XcodeProjectCommon::ProjectHelpers.apply_settings(config, settings)
 end
