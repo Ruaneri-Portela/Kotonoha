@@ -21,11 +21,11 @@
     },
     {
       "name": "fontconfig",
-      "platform": "android | ios"
+      "platform": "android | ios | macosx"
     },
     {
       "name": "libunibreak",
-      "platform": "android | ios"
+      "platform": "android | ios | macosx"
     },
     {
       "name": "libiconv",

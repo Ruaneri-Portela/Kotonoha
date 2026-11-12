@@ -35,9 +35,9 @@ function(kotonoha_copy_assets target)
     endif()
 endfunction()
 
-# Copia DLLs (.dll) e Bibliotecas Compartilhadas (.so / .dylib) via vcpkg / CMake
+# Copia DLLs (.dll) via vcpkg / CMake para o diretório do executável.
 function(kotonoha_copy_game_dependencies target)
-    if(WIN32)
+    if(WIN32 AND NOT ANDROID)
         # Habilita a cópia automática do vcpkg para o executável deste target
         set_target_properties(${target} PROPERTIES VS_GLOBAL_VcpkgEnabled "true")
         set_target_properties(${target} PROPERTIES VS_GLOBAL_VcpkgApplocalDeps "true")
@@ -49,21 +49,31 @@ function(kotonoha_copy_game_dependencies target)
                 "$<TARGET_FILE_DIR:${target}>"
             COMMAND_EXPAND_LISTS
             VERBATIM)
-    elseif(UNIX AND NOT APPLE AND NOT ANDROID)
-        # No Linux, copia bibliotecas compartilhadas (.so) que estejam como dependência em runtime
-        add_custom_command(TARGET ${target} POST_BUILD
-            COMMAND "${CMAKE_COMMAND}" -E copy_if_different
-                $<TARGET_RUNTIME_DLLS:${target}>
-                "$<TARGET_FILE_DIR:${target}>"
-            COMMAND_EXPAND_LISTS
-            VERBATIM)
-            
-        # Garante que o executável encontre as .so na própria pasta ($ORIGIN)
-        set_target_properties(${target} PROPERTIES
-            BUILD_RPATH "\$ORIGIN"
-            INSTALL_RPATH "\$ORIGIN"
-        )
     endif()
+endfunction()
+
+# Copia as bibliotecas compartilhadas para <target>/libs no Linux e no macOS
+# sem bundle. No macOS os install names também são reescritos para @loader_path.
+function(kotonoha_copy_runtime_libraries target dependency_dirs)
+    message(STATUS "KOTONOHA_DEBUG: kotonoha_copy_runtime_libraries called for ${target}")
+    if(ANDROID OR WIN32)
+        return()
+    endif()
+    if(APPLE AND NOT CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+        return()
+    endif()
+    if(APPLE AND KOTONOHA_BUILD_MACOS_BUNDLES)
+        return()
+    endif()
+
+    add_custom_command(TARGET ${target} POST_BUILD
+        COMMAND "${CMAKE_COMMAND}"
+            "-DEXECUTABLE=$<TARGET_FILE:${target}>"
+            "-DLIBRARY_DIR=$<TARGET_FILE_DIR:${target}>/libs"
+            "-DSEARCH_DIRS=${dependency_dirs}"
+            -P "${KOTONOHA_PROJECT_ROOT}/buildsystems/cmake/CopyRuntimeLibraries.cmake"
+        VERBATIM)
+    message(STATUS "KOTONOHA_DEBUG: add_custom_command called for ${target}")
 endfunction()
 
 # Cria o executável ou biblioteca compartilhada (Android)
@@ -78,9 +88,40 @@ function(kotonoha_add_app target)
     set_target_properties(${target} PROPERTIES VCPKG_APPLOCAL_DEPS ON)
 endfunction()
 
+# Helper to get the default dependency directories for tools/apps
+function(kotonoha_get_default_dependency_dirs _out_dirs)
+    if(ANDROID)
+        set(${_out_dirs} "" PARENT_SCOPE)
+        return()
+    endif()
+
+    set(_dirs)
+    list(APPEND _dirs
+        "$<TARGET_FILE_DIR:KotonohaEngine>"
+        "$<TARGET_FILE_DIR:kotonoha_imgui>"
+        "$<TARGET_FILE_DIR:SDL3::SDL3>"
+        "$<TARGET_FILE_DIR:SDL3_ttf::SDL3_ttf>"
+        ${LIBASS_LIBRARY_DIRS}
+        ${FFMPEG_LIBRARY_DIRS}
+        ${FFMPEG_STATIC_LIBRARY_DIRS}
+        ${JSON_C_LIBRARY_DIRS}
+    )
+
+    if(FREETYPE_LIBRARY_RELEASE)
+        get_filename_component(freetype_directory "${FREETYPE_LIBRARY_RELEASE}" DIRECTORY)
+        list(APPEND _dirs "${freetype_directory}")
+    endif()
+
+    list(REMOVE_DUPLICATES _dirs)
+    set(${_out_dirs} "${_dirs}" PARENT_SCOPE)
+endfunction()
+
 # Configurações gerais do app por plataforma
 function(kotonoha_configure_app target)
     cmake_parse_arguments(APP "" "BUNDLE_ID;GAME;PYTHON_STDLIB;PYTHON_VERSION" "" ${ARGN})
+
+    # Diretórios usados para localizar dependências de runtime.
+    kotonoha_get_default_dependency_dirs(_kotonoha_dependency_dirs)
 
     # 1. Configuração específica para macOS (.app bundle)
     if(APPLE AND CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND KOTONOHA_BUILD_MACOS_BUNDLES)
@@ -96,6 +137,8 @@ function(kotonoha_configure_app target)
             XCODE_ATTRIBUTE_CODE_SIGNING_ALLOWED NO
         )
 
+        kotonoha_configure_app_output(${target})
+
         set(icon "${KOTONOHA_ENGINE_ASSETS}/icon.icns")
         set_source_files_properties("${icon}" PROPERTIES
             MACOSX_PACKAGE_LOCATION Resources 
@@ -110,27 +153,15 @@ function(kotonoha_configure_app target)
             "${KOTONOHA_PROJECT_ROOT}/buildsystems/cmake/CheckBundledAssets.cmake"
         )
 
-        set(search_dirs
-            "$<TARGET_FILE_DIR:KotonohaEngine>"
-            "$<TARGET_FILE_DIR:kotonoha_imgui>"
-            "$<TARGET_FILE_DIR:SDL3::SDL3>"
-            "$<TARGET_FILE_DIR:SDL3_ttf::SDL3_ttf>"
-            ${FFMPEG_LIBRARY_DIRS} 
-            ${FFMPEG_STATIC_LIBRARY_DIRS}
-            ${JSON_C_LIBRARY_DIRS}
-        )
-
-        if(FREETYPE_LIBRARY_RELEASE)
-            get_filename_component(freetype_directory "${FREETYPE_LIBRARY_RELEASE}" DIRECTORY)
-            list(APPEND search_dirs "${freetype_directory}")
-        endif()
+        # Assets must be in place before BundleApp validates the bundle.
+        kotonoha_copy_assets(${target} GAME "${APP_GAME}")
 
         add_custom_command(TARGET ${target} POST_BUILD
             COMMAND "${CMAKE_COMMAND}"
                 "-DAPP_EXECUTABLE=$<TARGET_FILE:${target}>"
                 "-DBUNDLE_CONTENTS=$<TARGET_BUNDLE_CONTENT_DIR:${target}>"
                 "-DAPP_GAME=${APP_GAME}"
-                "-DDEPENDENCY_DIRS=${search_dirs}"
+                "-DDEPENDENCY_DIRS=${_kotonoha_dependency_dirs}"
                 "-DPYTHON_STDLIB=${APP_PYTHON_STDLIB}"
                 "-DPYTHON_VERSION=${APP_PYTHON_VERSION}"
                 -P "${KOTONOHA_PROJECT_ROOT}/buildsystems/cmake/BundleApp.cmake"
@@ -147,9 +178,10 @@ function(kotonoha_configure_app target)
         endif()
     else()
         # 2. Configuração para plataformas fora do macOS Bundle (Windows/Linux/Executáveis padrão)
+        kotonoha_configure_app_output(${target})
         kotonoha_copy_game_dependencies(${target})
+        kotonoha_copy_runtime_libraries(${target} "${_kotonoha_dependency_dirs}")
+        kotonoha_copy_assets(${target} GAME "${APP_GAME}")
     endif()
-
-    # Copia os assets do jogo para o diretório final do binário
-    kotonoha_copy_assets(${target} GAME "${APP_GAME}")
 endfunction()
+
