@@ -108,7 +108,7 @@ module XcodeProjectCommon
     end
 
     def self.engine_products_search_path(project_dir)
-      rel_abs = File.join(File.dirname(engine_abs_path), 'build/$(CONFIGURATION)/$(CONFIGURATION)')
+      rel_abs = File.join(File.dirname(engine_abs_path), 'build/$(CONFIGURATION)')
       ProjectHelpers.get_rel_path(rel_abs, project_dir)
     end
   end
@@ -154,12 +154,18 @@ XcodeProjectCommon::ProjectHelpers.add_project_dependency(project, sdl_ttf_ref, 
 XcodeProjectCommon::ProjectHelpers.add_project_dependency(project, engine_ref, engine_products_group)
 
 # SDL3 and SDL_ttf products
-sdl_product = XcodeProjectCommon::ProjectHelpers.create_subproject_product_ref(project, 'SDL3.framework', 'wrapper.framework', sdl_products_group)
-sdl_ttf_product = XcodeProjectCommon::ProjectHelpers.create_subproject_product_ref(project, 'SDL3_ttf.framework', 'wrapper.framework', sdl_ttf_products_group)
+sdl_abs_path = XcodeProjectCommon::Dependencies.sdl_abs_path
+sdl_ttf_abs_path = XcodeProjectCommon::Dependencies.sdl_ttf_abs_path
+
+sdl_product = XcodeProjectCommon::ProjectHelpers.create_file_ref(project, File.join(File.dirname(sdl_abs_path), 'build/$(CONFIGURATION)/SDL3.framework'), 'SDL3.framework', PROJECT_DIR, 'wrapper.framework')
+sdl_products_group.children << sdl_product
+
+sdl_ttf_product = XcodeProjectCommon::ProjectHelpers.create_file_ref(project, File.join(File.dirname(sdl_ttf_abs_path), 'build/$(CONFIGURATION)/SDL3_ttf.framework'), 'SDL3_ttf.framework', PROJECT_DIR, 'wrapper.framework')
+sdl_ttf_products_group.children << sdl_ttf_product
 
 # Engine products
-engine_framework = XcodeProjectCommon::ProjectHelpers.create_file_ref(project, File.join(File.dirname(XcodeProjectCommon::Dependencies.engine_abs_path), 'build/$(CONFIGURATION)/$(CONFIGURATION)/KotonohaEngine.framework'), 'KotonohaEngine.framework', PROJECT_DIR, 'wrapper.framework')
-imgui_framework = XcodeProjectCommon::ProjectHelpers.create_file_ref(project, File.join(File.dirname(XcodeProjectCommon::Dependencies.engine_abs_path), 'build/$(CONFIGURATION)/$(CONFIGURATION)/KotonohaImGui.framework'), 'KotonohaImGui.framework', PROJECT_DIR, 'wrapper.framework')
+engine_framework = XcodeProjectCommon::ProjectHelpers.create_file_ref(project, File.join(File.dirname(XcodeProjectCommon::Dependencies.engine_abs_path), 'build/$(CONFIGURATION)/KotonohaEngine.framework'), 'KotonohaEngine.framework', PROJECT_DIR, 'wrapper.framework')
+imgui_framework = XcodeProjectCommon::ProjectHelpers.create_file_ref(project, File.join(File.dirname(XcodeProjectCommon::Dependencies.engine_abs_path), 'build/$(CONFIGURATION)/KotonohaImGui.framework'), 'KotonohaImGui.framework', PROJECT_DIR, 'wrapper.framework')
 
 # Search Paths
 sdl_products_search_path = XcodeProjectCommon::Dependencies.sdl_products_search_path(PROJECT_DIR)
@@ -197,9 +203,6 @@ XcodeProjectCommon::ProjectHelpers.add_files_to_build_phase(target, game_group.c
 
 # Frameworks
 target.frameworks_build_phase.add_file_reference(engine_framework)
-target.frameworks_build_phase.add_file_reference(imgui_framework)
-target.frameworks_build_phase.add_file_reference(sdl_product)
-target.frameworks_build_phase.add_file_reference(sdl_ttf_product)
 
 XcodeProjectCommon::ProjectHelpers.add_system_frameworks(project, target, ['AudioToolbox', 'CoreMedia', 'CoreVideo', 'VideoToolbox'])
 
@@ -207,7 +210,6 @@ XcodeProjectCommon::ProjectHelpers.add_system_frameworks(project, target, ['Audi
 embed_phase = target.new_copy_files_build_phase('Embed Frameworks')
 embed_phase.dst_path = ""
 embed_phase.dst_subfolder_spec = "10"
-embed_phase.add_file_reference(imgui_framework)
 embed_phase.add_file_reference(sdl_product)
 embed_phase.add_file_reference(sdl_ttf_product)
 
@@ -225,26 +227,30 @@ target.build_configurations.each do |config|
     'PRODUCT_NAME' => 'Kotonoha',
     'SDKROOT' => 'macosx',
     'HEADER_SEARCH_PATHS' => [
-      '\$(inherited)',
-      "\$(KOTONOHA_ROOT)/lib/include",
-      "\$(KOTONOHA_ROOT)/lib/submodules/SDL/include",
-      "\$(KOTONOHA_ROOT)/lib/submodules/SDL_ttf/include",
-      "\$(KOTONOHA_VCPKG_PREFIX)/include",
+      '$(inherited)',
+      '$(KOTONOHA_ROOT)/lib/include',
+      '$(KOTONOHA_ROOT)/lib/submodules/SDL/include',
+      '$(KOTONOHA_ROOT)/lib/submodules/SDL_ttf/include',
+      '$(KOTONOHA_VCPKG_PREFIX)/include',
     ],
     'FRAMEWORK_SEARCH_PATHS' => [
-      '\$(inherited)',
+      '$(inherited)',
       engine_products_search_path,
       sdl_products_search_path,
       sdl_ttf_products_search_path,
-      "\$(KOTONOHA_VCPKG_PREFIX)/lib"
+      '$(KOTONOHA_VCPKG_PREFIX)/lib'
     ],
     'LIBRARY_SEARCH_PATHS' => [
-      '\$(inherited)',
-      "\$(KOTONOHA_VCPKG_PREFIX)/lib"
+      '$(inherited)',
+      engine_products_search_path,
+      '$(KOTONOHA_VCPKG_PREFIX)/lib'
     ],
     'OTHER_LDFLAGS' => [
-      '\$(inherited)',
+      '$(inherited)',
+      '-lKotonohaImGui',
       '-framework OpenGL',
+      '-framework SDL3',
+      '-framework SDL3_ttf',
       '-lavcodec',
       '-lavformat',
       '-lavutil',
@@ -268,10 +274,10 @@ target.build_configurations.each do |config|
   }
   
   # VCPKG integration
-  settings['KOTONOHA_ROOT'] = '\$(PROJECT_DIR)/../..'
-  settings['KOTONOHA_VCPKG_ROOT[sdk=macosx*]'] = '\$(KOTONOHA_ROOT)/build/xcode-deps/macos'
+  settings['KOTONOHA_ROOT'] = '$(PROJECT_DIR)/../..'
+  settings['KOTONOHA_VCPKG_ROOT[sdk=macosx*]'] = '$(PROJECT_DIR)/vcpkg/macos'
   settings['KOTONOHA_VCPKG_TRIPLET[sdk=macosx*]'] = 'arm64-osx'
-  settings['KOTONOHA_VCPKG_PREFIX[sdk=macosx*]'] = '\$(KOTONOHA_VCPKG_ROOT)/\$(KOTONOHA_VCPKG_TRIPLET)'
+  settings['KOTONOHA_VCPKG_PREFIX[sdk=macosx*]'] = '$(KOTONOHA_VCPKG_ROOT)/$(KOTONOHA_VCPKG_TRIPLET)'
 
   XcodeProjectCommon::ProjectHelpers.apply_settings(config, settings)
 end
