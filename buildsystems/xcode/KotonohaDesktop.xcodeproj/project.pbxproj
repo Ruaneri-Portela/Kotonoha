@@ -7,31 +7,31 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		1734D043AA3E3511F5341067 /* DemoStage.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AF12BE85F30BDB6142610319 /* DemoStage.cpp */; };
-		46202CB1FF2E93DD94969433 /* SDL3_ttf.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 54805554E2650FD7EC1018CF /* SDL3_ttf.framework */; };
-		4A94977F7814FC22FFB271E6 /* VideoToolbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C81CF22DDCC36438FFC94A71 /* VideoToolbox.framework */; };
-		91B7F3135D7E2A6571A3DF83 /* assets in Resources */ = {isa = PBXBuildFile; fileRef = 90032BFABB7849EB4FF8CDC7 /* assets */; };
-		9801B740C2BBCE6BBCE3A099 /* AudioToolbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AF3D0AE01A9270BCF59CC90E /* AudioToolbox.framework */; };
-		9EB323FA87E888DDD120D78B /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 9E3806971CEB68341DE30336 /* Cocoa.framework */; };
-		AC5925D837B6BA1EB3CC979A /* main.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 94BAD05C0A5236976DE2426A /* main.cpp */; };
-		B4DC23CF5F231273E19C4ABB /* KotonohaEngine.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2087126E53EC33BB7DB5DAA6 /* KotonohaEngine.framework */; };
-		CDDC4F0B2DF1333FDE987CF4 /* CoreVideo.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CEA921F94CFCA57D8C1FD1E7 /* CoreVideo.framework */; };
-		D28F1E9A081CBA0D9E641064 /* DemoStory.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E297DE0DA1C3CB1BF7A355A0 /* DemoStory.cpp */; };
-		D8EB9020A1B500600DE4A9A0 /* CoreMedia.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CC337EDC2DB64A3AD3D7B9CC /* CoreMedia.framework */; };
-		E92E90E809D77A967FE2E81F /* DemoGame.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4C444AE8D9FB12908C4CBEE6 /* DemoGame.cpp */; };
-		EF58E03AC53716C81FF03A60 /* assets in Sources */ = {isa = PBXBuildFile; fileRef = 90032BFABB7849EB4FF8CDC7 /* assets */; };
-		FDC31DC8C4E2B8685FC117DE /* SDL3.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 8A3F9CBB8D1BFE2551DDE41C /* SDL3.framework */; };
+		01D1B8F2766DA386B8513698 /* CoreMedia.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2286DB4B3413404992FC5DB9 /* CoreMedia.framework */; };
+		08373A21422A7D5877674F48 /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6ACD0EF9CA58CFFE21D4C1F1 /* Cocoa.framework */; };
+		09878D121125F06D23E9DA6C /* SDL3_ttf.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 2A0FCE1A96C9312AA732C042 /* SDL3_ttf.framework */; };
+		1B383C0881F20534C95766B7 /* VideoToolbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 59D93557211801698493869E /* VideoToolbox.framework */; };
+		1BAE76097D2F9D3474C783D9 /* CoreVideo.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 95A43C4DB464AD1A6BE4A563 /* CoreVideo.framework */; };
+		3CBD5324A33459940BB0C47C /* DemoStage.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D4068859C7E779EDAEA903B8 /* DemoStage.cpp */; };
+		467FEE7B6FD8F74D98F13410 /* DemoStory.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F04D90E1DCFAAFBEA6399AF1 /* DemoStory.cpp */; };
+		78DE3B4F80C2D81CDDD26DA5 /* main.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 46DD0F4171C59FAC11756AD5 /* main.cpp */; };
+		A7F876A6EDC11CDC3EDDA10F /* AudioToolbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2F4D198A2C98955BC92A9B56 /* AudioToolbox.framework */; };
+		CCB411013B5F7D61F1F0B6D6 /* SDL3.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 74C9CF4519B8F2D501AE4B75 /* SDL3.framework */; };
+		CCCFA4C6BE52F4E3DB5E4935 /* assets in Sources */ = {isa = PBXBuildFile; fileRef = 686ED9EB26CEFAAC04F6F809 /* assets */; };
+		DF04F6CC086CDB0A8A067DE3 /* DemoGame.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AC793CF9B133C711460ED5BA /* DemoGame.cpp */; };
+		E1ABFEFC24157F7E508A441D /* KotonohaEngine.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 7264BA505711C6BE1F857794 /* KotonohaEngine.framework */; };
+		F82D024FF9DC5E728AB93990 /* assets in Resources */ = {isa = PBXBuildFile; fileRef = 686ED9EB26CEFAAC04F6F809 /* assets */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
-		3941BF0BBE06965F72B996D1 /* Embed Frameworks */ = {
+		5A03BECF29A9348DAC4A29EA /* Embed Frameworks */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
 			dstPath = "";
 			dstSubfolderSpec = 10;
 			files = (
-				FDC31DC8C4E2B8685FC117DE /* SDL3.framework in Embed Frameworks */,
-				46202CB1FF2E93DD94969433 /* SDL3_ttf.framework in Embed Frameworks */,
+				CCB411013B5F7D61F1F0B6D6 /* SDL3.framework in Embed Frameworks */,
+				09878D121125F06D23E9DA6C /* SDL3_ttf.framework in Embed Frameworks */,
 			);
 			name = "Embed Frameworks";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -39,124 +39,124 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		2087126E53EC33BB7DB5DAA6 /* KotonohaEngine.framework */ = {isa = PBXFileReference; includeInIndex = 1; name = KotonohaEngine.framework; path = "build/$(CONFIGURATION)/KotonohaEngine.framework"; sourceTree = wrapper.framework; };
-		4C444AE8D9FB12908C4CBEE6 /* DemoGame.cpp */ = {isa = PBXFileReference; includeInIndex = 1; name = DemoGame.cpp; path = ../../games/example/src/DemoGame.cpp; sourceTree = SRCROOT; };
-		54805554E2650FD7EC1018CF /* SDL3_ttf.framework */ = {isa = PBXFileReference; includeInIndex = 1; name = SDL3_ttf.framework; path = "../../lib/submodules/SDL_ttf/Xcode/build/$(CONFIGURATION)/SDL3_ttf.framework"; sourceTree = wrapper.framework; };
-		5AE05732A2DC08258686FB3D /* KotonohaEngine.xcodeproj */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = "wrapper.pb-project"; name = KotonohaEngine.xcodeproj; path = KotonohaEngine.xcodeproj; sourceTree = SRCROOT; };
-		8A3F9CBB8D1BFE2551DDE41C /* SDL3.framework */ = {isa = PBXFileReference; includeInIndex = 1; name = SDL3.framework; path = "../../lib/submodules/SDL/Xcode/SDL/build/$(CONFIGURATION)/SDL3.framework"; sourceTree = wrapper.framework; };
-		90032BFABB7849EB4FF8CDC7 /* assets */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = folder; name = assets; path = ../../assets; sourceTree = SRCROOT; };
-		94BAD05C0A5236976DE2426A /* main.cpp */ = {isa = PBXFileReference; includeInIndex = 1; name = main.cpp; path = ../../games/example/src/main.cpp; sourceTree = SRCROOT; };
-		9E3806971CEB68341DE30336 /* Cocoa.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Cocoa.framework; path = Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.0.sdk/System/Library/Frameworks/Cocoa.framework; sourceTree = DEVELOPER_DIR; };
-		A25E5DDE2B836A39D8989114 /* SDL.xcodeproj */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = "wrapper.pb-project"; name = SDL.xcodeproj; path = ../../lib/submodules/SDL/Xcode/SDL/SDL.xcodeproj; sourceTree = SRCROOT; };
-		AF12BE85F30BDB6142610319 /* DemoStage.cpp */ = {isa = PBXFileReference; includeInIndex = 1; name = DemoStage.cpp; path = ../../games/example/src/DemoStage.cpp; sourceTree = SRCROOT; };
-		AF3D0AE01A9270BCF59CC90E /* AudioToolbox.framework */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = wrapper.framework; name = AudioToolbox.framework; path = System/Library/Frameworks/AudioToolbox.framework; sourceTree = SDKROOT; };
-		C81CF22DDCC36438FFC94A71 /* VideoToolbox.framework */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = wrapper.framework; name = VideoToolbox.framework; path = System/Library/Frameworks/VideoToolbox.framework; sourceTree = SDKROOT; };
-		CA927384F566125EB5575962 /* SDL_ttf.xcodeproj */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = "wrapper.pb-project"; name = SDL_ttf.xcodeproj; path = ../../lib/submodules/SDL_ttf/Xcode/SDL_ttf.xcodeproj; sourceTree = SRCROOT; };
-		CC337EDC2DB64A3AD3D7B9CC /* CoreMedia.framework */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = wrapper.framework; name = CoreMedia.framework; path = System/Library/Frameworks/CoreMedia.framework; sourceTree = SDKROOT; };
-		CEA921F94CFCA57D8C1FD1E7 /* CoreVideo.framework */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = wrapper.framework; name = CoreVideo.framework; path = System/Library/Frameworks/CoreVideo.framework; sourceTree = SDKROOT; };
-		E297DE0DA1C3CB1BF7A355A0 /* DemoStory.cpp */ = {isa = PBXFileReference; includeInIndex = 1; name = DemoStory.cpp; path = ../../games/example/src/DemoStory.cpp; sourceTree = SRCROOT; };
-		E3E3769F1D5CD67C836A797D /* Kotonoha */ = {isa = PBXFileReference; includeInIndex = 0; path = Kotonoha; sourceTree = BUILT_PRODUCTS_DIR; };
+		2286DB4B3413404992FC5DB9 /* CoreMedia.framework */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = wrapper.framework; name = CoreMedia.framework; path = System/Library/Frameworks/CoreMedia.framework; sourceTree = SDKROOT; };
+		2A0FCE1A96C9312AA732C042 /* SDL3_ttf.framework */ = {isa = PBXFileReference; includeInIndex = 1; name = SDL3_ttf.framework; path = "../../lib/submodules/SDL_ttf/Xcode/build/$(CONFIGURATION)/SDL3_ttf.framework"; sourceTree = wrapper.framework; };
+		2F4D198A2C98955BC92A9B56 /* AudioToolbox.framework */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = wrapper.framework; name = AudioToolbox.framework; path = System/Library/Frameworks/AudioToolbox.framework; sourceTree = SDKROOT; };
+		31AC081293E0A9AD04FB1A77 /* SDL_ttf.xcodeproj */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = "wrapper.pb-project"; name = SDL_ttf.xcodeproj; path = ../../lib/submodules/SDL_ttf/Xcode/SDL_ttf.xcodeproj; sourceTree = SRCROOT; };
+		46DD0F4171C59FAC11756AD5 /* main.cpp */ = {isa = PBXFileReference; includeInIndex = 1; name = main.cpp; path = ../../games/example/src/main.cpp; sourceTree = SRCROOT; };
+		59D93557211801698493869E /* VideoToolbox.framework */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = wrapper.framework; name = VideoToolbox.framework; path = System/Library/Frameworks/VideoToolbox.framework; sourceTree = SDKROOT; };
+		686ED9EB26CEFAAC04F6F809 /* assets */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = folder; name = assets; path = ../../assets; sourceTree = SRCROOT; };
+		6ACD0EF9CA58CFFE21D4C1F1 /* Cocoa.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Cocoa.framework; path = Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.0.sdk/System/Library/Frameworks/Cocoa.framework; sourceTree = DEVELOPER_DIR; };
+		7264BA505711C6BE1F857794 /* KotonohaEngine.framework */ = {isa = PBXFileReference; includeInIndex = 1; name = KotonohaEngine.framework; path = "build/$(CONFIGURATION)/KotonohaEngine.framework"; sourceTree = wrapper.framework; };
+		74C9CF4519B8F2D501AE4B75 /* SDL3.framework */ = {isa = PBXFileReference; includeInIndex = 1; name = SDL3.framework; path = "../../lib/submodules/SDL/Xcode/SDL/build/$(CONFIGURATION)/SDL3.framework"; sourceTree = wrapper.framework; };
+		95A43C4DB464AD1A6BE4A563 /* CoreVideo.framework */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = wrapper.framework; name = CoreVideo.framework; path = System/Library/Frameworks/CoreVideo.framework; sourceTree = SDKROOT; };
+		A605DFBA90575A18A3FB4734 /* SDL.xcodeproj */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = "wrapper.pb-project"; name = SDL.xcodeproj; path = ../../lib/submodules/SDL/Xcode/SDL/SDL.xcodeproj; sourceTree = SRCROOT; };
+		AC793CF9B133C711460ED5BA /* DemoGame.cpp */ = {isa = PBXFileReference; includeInIndex = 1; name = DemoGame.cpp; path = ../../games/example/src/DemoGame.cpp; sourceTree = SRCROOT; };
+		BC626AF54533AC40F12FE65D /* KotonohaEngine.xcodeproj */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = "wrapper.pb-project"; name = KotonohaEngine.xcodeproj; path = KotonohaEngine.xcodeproj; sourceTree = SRCROOT; };
+		D4068859C7E779EDAEA903B8 /* DemoStage.cpp */ = {isa = PBXFileReference; includeInIndex = 1; name = DemoStage.cpp; path = ../../games/example/src/DemoStage.cpp; sourceTree = SRCROOT; };
+		E006E48A0A06098ED5916A5C /* Kotonoha */ = {isa = PBXFileReference; includeInIndex = 0; path = Kotonoha; sourceTree = BUILT_PRODUCTS_DIR; };
+		F04D90E1DCFAAFBEA6399AF1 /* DemoStory.cpp */ = {isa = PBXFileReference; includeInIndex = 1; name = DemoStory.cpp; path = ../../games/example/src/DemoStory.cpp; sourceTree = SRCROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
-		C5EEF2690EAE97A280AE77A0 /* Frameworks */ = {
+		409D747106CE9718C5D8A040 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				9EB323FA87E888DDD120D78B /* Cocoa.framework in Frameworks */,
-				B4DC23CF5F231273E19C4ABB /* KotonohaEngine.framework in Frameworks */,
-				9801B740C2BBCE6BBCE3A099 /* AudioToolbox.framework in Frameworks */,
-				D8EB9020A1B500600DE4A9A0 /* CoreMedia.framework in Frameworks */,
-				CDDC4F0B2DF1333FDE987CF4 /* CoreVideo.framework in Frameworks */,
-				4A94977F7814FC22FFB271E6 /* VideoToolbox.framework in Frameworks */,
+				08373A21422A7D5877674F48 /* Cocoa.framework in Frameworks */,
+				E1ABFEFC24157F7E508A441D /* KotonohaEngine.framework in Frameworks */,
+				A7F876A6EDC11CDC3EDDA10F /* AudioToolbox.framework in Frameworks */,
+				01D1B8F2766DA386B8513698 /* CoreMedia.framework in Frameworks */,
+				1BAE76097D2F9D3474C783D9 /* CoreVideo.framework in Frameworks */,
+				1B383C0881F20534C95766B7 /* VideoToolbox.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		0967D1D360D145F7773E89DC /* OS X */ = {
-			isa = PBXGroup;
-			children = (
-				9E3806971CEB68341DE30336 /* Cocoa.framework */,
-			);
-			name = "OS X";
-			sourceTree = "<group>";
-		};
-		194A76912259EC0EDEF5EC16 = {
-			isa = PBXGroup;
-			children = (
-				7775201C675B7D61CFEA6FE9 /* Products */,
-				1C87C468CE5AA13015DD13FA /* Frameworks */,
-				5AE05732A2DC08258686FB3D /* KotonohaEngine.xcodeproj */,
-				A25E5DDE2B836A39D8989114 /* SDL.xcodeproj */,
-				CA927384F566125EB5575962 /* SDL_ttf.xcodeproj */,
-				BDADB790AB4B9BFF6CB861D3 /* Dependencies */,
-				CD8E3B9E3AF31472F928FF39 /* Kotonoha */,
-			);
-			sourceTree = "<group>";
-		};
-		1C87C468CE5AA13015DD13FA /* Frameworks */ = {
-			isa = PBXGroup;
-			children = (
-				0967D1D360D145F7773E89DC /* OS X */,
-				AF3D0AE01A9270BCF59CC90E /* AudioToolbox.framework */,
-				CC337EDC2DB64A3AD3D7B9CC /* CoreMedia.framework */,
-				CEA921F94CFCA57D8C1FD1E7 /* CoreVideo.framework */,
-				C81CF22DDCC36438FFC94A71 /* VideoToolbox.framework */,
-			);
-			name = Frameworks;
-			sourceTree = "<group>";
-		};
-		5CFBE316049940C89987973B /* SDL Products */ = {
-			isa = PBXGroup;
-			children = (
-				8A3F9CBB8D1BFE2551DDE41C /* SDL3.framework */,
-			);
-			name = "SDL Products";
-			sourceTree = "<group>";
-		};
-		7775201C675B7D61CFEA6FE9 /* Products */ = {
-			isa = PBXGroup;
-			children = (
-				E3E3769F1D5CD67C836A797D /* Kotonoha */,
-			);
-			name = Products;
-			sourceTree = "<group>";
-		};
-		80944003A526B2C3CAB3793B /* Engine Products */ = {
+		2AC2C13A4749566E931B04AB /* Engine Products */ = {
 			isa = PBXGroup;
 			children = (
 			);
 			name = "Engine Products";
 			sourceTree = "<group>";
 		};
-		AF3AAC32008818F335C290A8 /* SDL_ttf Products */ = {
+		2B5CF498F3F0092794E184C3 /* SDL_ttf Products */ = {
 			isa = PBXGroup;
 			children = (
-				54805554E2650FD7EC1018CF /* SDL3_ttf.framework */,
+				2A0FCE1A96C9312AA732C042 /* SDL3_ttf.framework */,
 			);
 			name = "SDL_ttf Products";
 			sourceTree = "<group>";
 		};
-		BDADB790AB4B9BFF6CB861D3 /* Dependencies */ = {
+		2FB192FCC0CB0B816D2C6ED9 /* SDL Products */ = {
 			isa = PBXGroup;
 			children = (
-				5CFBE316049940C89987973B /* SDL Products */,
-				AF3AAC32008818F335C290A8 /* SDL_ttf Products */,
-				80944003A526B2C3CAB3793B /* Engine Products */,
+				74C9CF4519B8F2D501AE4B75 /* SDL3.framework */,
+			);
+			name = "SDL Products";
+			sourceTree = "<group>";
+		};
+		397BA0E3A87DB05015F24652 /* Dependencies */ = {
+			isa = PBXGroup;
+			children = (
+				2FB192FCC0CB0B816D2C6ED9 /* SDL Products */,
+				2B5CF498F3F0092794E184C3 /* SDL_ttf Products */,
+				2AC2C13A4749566E931B04AB /* Engine Products */,
 			);
 			name = Dependencies;
 			sourceTree = "<group>";
 		};
-		CD8E3B9E3AF31472F928FF39 /* Kotonoha */ = {
+		989ADFB46084F68FB340B32D /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				94BAD05C0A5236976DE2426A /* main.cpp */,
-				4C444AE8D9FB12908C4CBEE6 /* DemoGame.cpp */,
-				AF12BE85F30BDB6142610319 /* DemoStage.cpp */,
-				E297DE0DA1C3CB1BF7A355A0 /* DemoStory.cpp */,
-				90032BFABB7849EB4FF8CDC7 /* assets */,
+				E006E48A0A06098ED5916A5C /* Kotonoha */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		BCB3E64568FA67C25AE68FCE /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				D57B404982316C57F06E1DFC /* OS X */,
+				2F4D198A2C98955BC92A9B56 /* AudioToolbox.framework */,
+				2286DB4B3413404992FC5DB9 /* CoreMedia.framework */,
+				95A43C4DB464AD1A6BE4A563 /* CoreVideo.framework */,
+				59D93557211801698493869E /* VideoToolbox.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		BD872F7E1349E7EB83A76270 = {
+			isa = PBXGroup;
+			children = (
+				989ADFB46084F68FB340B32D /* Products */,
+				BCB3E64568FA67C25AE68FCE /* Frameworks */,
+				BC626AF54533AC40F12FE65D /* KotonohaEngine.xcodeproj */,
+				A605DFBA90575A18A3FB4734 /* SDL.xcodeproj */,
+				31AC081293E0A9AD04FB1A77 /* SDL_ttf.xcodeproj */,
+				397BA0E3A87DB05015F24652 /* Dependencies */,
+				EFB410D6EAA8A436DC1E6966 /* Kotonoha */,
+			);
+			sourceTree = "<group>";
+		};
+		D57B404982316C57F06E1DFC /* OS X */ = {
+			isa = PBXGroup;
+			children = (
+				6ACD0EF9CA58CFFE21D4C1F1 /* Cocoa.framework */,
+			);
+			name = "OS X";
+			sourceTree = "<group>";
+		};
+		EFB410D6EAA8A436DC1E6966 /* Kotonoha */ = {
+			isa = PBXGroup;
+			children = (
+				46DD0F4171C59FAC11756AD5 /* main.cpp */,
+				AC793CF9B133C711460ED5BA /* DemoGame.cpp */,
+				D4068859C7E779EDAEA903B8 /* DemoStage.cpp */,
+				F04D90E1DCFAAFBEA6399AF1 /* DemoStory.cpp */,
+				686ED9EB26CEFAAC04F6F809 /* assets */,
 			);
 			name = Kotonoha;
 			sourceTree = "<group>";
@@ -164,14 +164,14 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		EC7DB105E681AF428D973E83 /* Kotonoha */ = {
+		7B9CD9E8D23EB86C5332F0D2 /* Kotonoha */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 71F1508720A9A95FA0AE446D /* Build configuration list for PBXNativeTarget "Kotonoha" */;
+			buildConfigurationList = EBBA04CBE5DFEA4BF6CDDB04 /* Build configuration list for PBXNativeTarget "Kotonoha" */;
 			buildPhases = (
-				3B2562A2E230248C38DC8801 /* Sources */,
-				C5EEF2690EAE97A280AE77A0 /* Frameworks */,
-				8ACC26F0B22771DA7A191A55 /* Resources */,
-				3941BF0BBE06965F72B996D1 /* Embed Frameworks */,
+				7ED8EA57B589AFDC2E3D1B35 /* Sources */,
+				409D747106CE9718C5D8A040 /* Frameworks */,
+				0BABE7100856D642863A6068 /* Resources */,
+				5A03BECF29A9348DAC4A29EA /* Embed Frameworks */,
 			);
 			buildRules = (
 			);
@@ -179,19 +179,19 @@
 			);
 			name = Kotonoha;
 			productName = Kotonoha;
-			productReference = E3E3769F1D5CD67C836A797D /* Kotonoha */;
+			productReference = E006E48A0A06098ED5916A5C /* Kotonoha */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
-		E7AB574EE54CF215DF924BD9 /* Project object */ = {
+		435DFF44562F8960CFE46F1A /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
 				LastSwiftUpdateCheck = 1600;
 				LastUpgradeCheck = 1500;
 			};
-			buildConfigurationList = A3F7837FDD816B0E5E4CCFEA /* Build configuration list for PBXProject "KotonohaDesktop" */;
+			buildConfigurationList = 55B201F29324F28106D6B6FF /* Build configuration list for PBXProject "KotonohaDesktop" */;
 			compatibilityVersion = "Xcode 16.0";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
@@ -199,184 +199,60 @@
 				en,
 				Base,
 			);
-			mainGroup = 194A76912259EC0EDEF5EC16;
+			mainGroup = BD872F7E1349E7EB83A76270;
 			minimizedProjectReferenceProxies = 0;
 			preferredProjectObjectVersion = 100;
-			productRefGroup = 7775201C675B7D61CFEA6FE9 /* Products */;
+			productRefGroup = 989ADFB46084F68FB340B32D /* Products */;
 			projectDirPath = "";
 			projectReferences = (
 				{
-					ProductGroup = 5CFBE316049940C89987973B /* SDL Products */;
-					ProjectRef = A25E5DDE2B836A39D8989114 /* SDL.xcodeproj */;
+					ProductGroup = 2FB192FCC0CB0B816D2C6ED9 /* SDL Products */;
+					ProjectRef = A605DFBA90575A18A3FB4734 /* SDL.xcodeproj */;
 				},
 				{
-					ProductGroup = AF3AAC32008818F335C290A8 /* SDL_ttf Products */;
-					ProjectRef = CA927384F566125EB5575962 /* SDL_ttf.xcodeproj */;
+					ProductGroup = 2B5CF498F3F0092794E184C3 /* SDL_ttf Products */;
+					ProjectRef = 31AC081293E0A9AD04FB1A77 /* SDL_ttf.xcodeproj */;
 				},
 				{
-					ProductGroup = 80944003A526B2C3CAB3793B /* Engine Products */;
-					ProjectRef = 5AE05732A2DC08258686FB3D /* KotonohaEngine.xcodeproj */;
+					ProductGroup = 2AC2C13A4749566E931B04AB /* Engine Products */;
+					ProjectRef = BC626AF54533AC40F12FE65D /* KotonohaEngine.xcodeproj */;
 				},
 			);
 			projectRoot = "";
 			targets = (
-				EC7DB105E681AF428D973E83 /* Kotonoha */,
+				7B9CD9E8D23EB86C5332F0D2 /* Kotonoha */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
-		8ACC26F0B22771DA7A191A55 /* Resources */ = {
+		0BABE7100856D642863A6068 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				91B7F3135D7E2A6571A3DF83 /* assets in Resources */,
+				F82D024FF9DC5E728AB93990 /* assets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
-		3B2562A2E230248C38DC8801 /* Sources */ = {
+		7ED8EA57B589AFDC2E3D1B35 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				AC5925D837B6BA1EB3CC979A /* main.cpp in Sources */,
-				E92E90E809D77A967FE2E81F /* DemoGame.cpp in Sources */,
-				1734D043AA3E3511F5341067 /* DemoStage.cpp in Sources */,
-				D28F1E9A081CBA0D9E641064 /* DemoStory.cpp in Sources */,
-				EF58E03AC53716C81FF03A60 /* assets in Sources */,
+				78DE3B4F80C2D81CDDD26DA5 /* main.cpp in Sources */,
+				DF04F6CC086CDB0A8A067DE3 /* DemoGame.cpp in Sources */,
+				3CBD5324A33459940BB0C47C /* DemoStage.cpp in Sources */,
+				467FEE7B6FD8F74D98F13410 /* DemoStory.cpp in Sources */,
+				CCCFA4C6BE52F4E3DB5E4935 /* assets in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin XCBuildConfiguration section */
-		04BE14847A5F136C718C79F2 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CLANG_CXX_LANGUAGE_STANDARD = "c++17";
-				CODE_SIGN_STYLE = Automatic;
-				FRAMEWORK_SEARCH_PATHS = (
-					"$(inherited)",
-					"build/$(CONFIGURATION)",
-					"../../lib/submodules/SDL/Xcode/SDL/build/$(CONFIGURATION)",
-					"../../lib/submodules/SDL_ttf/Xcode/build/$(CONFIGURATION)",
-					"$(KOTONOHA_VCPKG_PREFIX)/lib",
-				);
-				GENERATE_INFOPLIST_FILE = YES;
-				HEADER_SEARCH_PATHS = (
-					"$(inherited)",
-					"$(KOTONOHA_ROOT)/lib/include",
-					"$(KOTONOHA_ROOT)/lib/submodules/SDL/include",
-					"$(KOTONOHA_ROOT)/lib/submodules/SDL_ttf/include",
-					"$(KOTONOHA_VCPKG_PREFIX)/include",
-				);
-				KOTONOHA_ROOT = "$(PROJECT_DIR)/../..";
-				"KOTONOHA_VCPKG_PREFIX[sdk=macosx*]" = "$(KOTONOHA_VCPKG_ROOT)/$(KOTONOHA_VCPKG_TRIPLET)";
-				"KOTONOHA_VCPKG_ROOT[sdk=macosx*]" = "$(PROJECT_DIR)/vcpkg/macos";
-				"KOTONOHA_VCPKG_TRIPLET[sdk=macosx*]" = "arm64-osx";
-				LIBRARY_SEARCH_PATHS = (
-					"$(inherited)",
-					"build/$(CONFIGURATION)",
-					"$(KOTONOHA_VCPKG_PREFIX)/lib",
-				);
-				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				OTHER_LDFLAGS = (
-					"$(inherited)",
-					"-lKotonohaImGui",
-					"-framework OpenGL",
-					"-framework SDL3",
-					"-framework SDL3_ttf",
-					"-lavcodec",
-					"-lavformat",
-					"-lavutil",
-					"-lswresample",
-					"-lswscale",
-					"-ljson-c",
-					"-lass",
-					"-lz",
-					"-lharfbuzz",
-					"-lfribidi",
-					"-lfreetype",
-					"-lfontconfig",
-					"-liconv",
-					"-lbz2",
-					"-lbrotlidec",
-					"-lbrotlicommon",
-					"-lexpat",
-					"-lpng",
-					"-lunibreak",
-				);
-				PRODUCT_BUNDLE_IDENTIFIER = me.kotonoha.example.macos;
-				PRODUCT_NAME = Kotonoha;
-				SDKROOT = macosx;
-			};
-			name = Debug;
-		};
-		58B058F8784142598EB5A8AE /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CLANG_CXX_LANGUAGE_STANDARD = "c++17";
-				CODE_SIGN_STYLE = Automatic;
-				FRAMEWORK_SEARCH_PATHS = (
-					"$(inherited)",
-					"build/$(CONFIGURATION)",
-					"../../lib/submodules/SDL/Xcode/SDL/build/$(CONFIGURATION)",
-					"../../lib/submodules/SDL_ttf/Xcode/build/$(CONFIGURATION)",
-					"$(KOTONOHA_VCPKG_PREFIX)/lib",
-				);
-				GENERATE_INFOPLIST_FILE = YES;
-				HEADER_SEARCH_PATHS = (
-					"$(inherited)",
-					"$(KOTONOHA_ROOT)/lib/include",
-					"$(KOTONOHA_ROOT)/lib/submodules/SDL/include",
-					"$(KOTONOHA_ROOT)/lib/submodules/SDL_ttf/include",
-					"$(KOTONOHA_VCPKG_PREFIX)/include",
-				);
-				KOTONOHA_ROOT = "$(PROJECT_DIR)/../..";
-				"KOTONOHA_VCPKG_PREFIX[sdk=macosx*]" = "$(KOTONOHA_VCPKG_ROOT)/$(KOTONOHA_VCPKG_TRIPLET)";
-				"KOTONOHA_VCPKG_ROOT[sdk=macosx*]" = "$(PROJECT_DIR)/vcpkg/macos";
-				"KOTONOHA_VCPKG_TRIPLET[sdk=macosx*]" = "arm64-osx";
-				LIBRARY_SEARCH_PATHS = (
-					"$(inherited)",
-					"build/$(CONFIGURATION)",
-					"$(KOTONOHA_VCPKG_PREFIX)/lib",
-				);
-				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				OTHER_LDFLAGS = (
-					"$(inherited)",
-					"-lKotonohaImGui",
-					"-framework OpenGL",
-					"-framework SDL3",
-					"-framework SDL3_ttf",
-					"-lavcodec",
-					"-lavformat",
-					"-lavutil",
-					"-lswresample",
-					"-lswscale",
-					"-ljson-c",
-					"-lass",
-					"-lz",
-					"-lharfbuzz",
-					"-lfribidi",
-					"-lfreetype",
-					"-lfontconfig",
-					"-liconv",
-					"-lbz2",
-					"-lbrotlidec",
-					"-lbrotlicommon",
-					"-lexpat",
-					"-lpng",
-					"-lunibreak",
-				);
-				PRODUCT_BUNDLE_IDENTIFIER = me.kotonoha.example.macos;
-				PRODUCT_NAME = Kotonoha;
-				SDKROOT = macosx;
-			};
-			name = Release;
-		};
-		62CC9A22E547ABA9DCF4A3EE /* Debug */ = {
+		40BAD53B8E2A5505DB01D4AB /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -437,7 +313,131 @@
 			};
 			name = Debug;
 		};
-		69AE8357C7F0D1FEB9196293 /* Release */ = {
+		4C1E363BA2652714F58119B2 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_CXX_LANGUAGE_STANDARD = "c++17";
+				CODE_SIGN_STYLE = Automatic;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"build/$(CONFIGURATION)",
+					"../../lib/submodules/SDL/Xcode/SDL/build/$(CONFIGURATION)",
+					"../../lib/submodules/SDL_ttf/Xcode/build/$(CONFIGURATION)",
+					"$(KOTONOHA_VCPKG_PREFIX)/lib",
+				);
+				GENERATE_INFOPLIST_FILE = YES;
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(KOTONOHA_ROOT)/lib/include",
+					"$(KOTONOHA_ROOT)/lib/submodules/SDL/include",
+					"$(KOTONOHA_ROOT)/lib/submodules/SDL_ttf/include",
+					"$(KOTONOHA_VCPKG_PREFIX)/include",
+				);
+				KOTONOHA_ROOT = "$(PROJECT_DIR)/../..";
+				"KOTONOHA_VCPKG_PREFIX[sdk=macosx*]" = "$(KOTONOHA_VCPKG_ROOT)/$(KOTONOHA_VCPKG_TRIPLET)";
+				"KOTONOHA_VCPKG_ROOT[sdk=macosx*]" = "$(PROJECT_DIR)/vcpkg/macos";
+				"KOTONOHA_VCPKG_TRIPLET[sdk=macosx*]" = "arm64-osx";
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"build/$(CONFIGURATION)",
+					"$(KOTONOHA_VCPKG_PREFIX)/lib",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-lKotonohaImGui",
+					"-framework OpenGL",
+					"-framework SDL3",
+					"-framework SDL3_ttf",
+					"-lavcodec",
+					"-lavformat",
+					"-lavutil",
+					"-lswresample",
+					"-lswscale",
+					"-ljson-c",
+					"-lass",
+					"-lz",
+					"-lharfbuzz",
+					"-lfribidi",
+					"-lfreetype",
+					"-lfontconfig",
+					"-liconv",
+					"-lbz2",
+					"-lbrotlidec",
+					"-lbrotlicommon",
+					"-lexpat",
+					"-lpng",
+					"-lunibreak",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = me.kotonoha.example.macos;
+				PRODUCT_NAME = Kotonoha;
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+		A0827CDA04F168F7A7C35B78 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_CXX_LANGUAGE_STANDARD = "c++17";
+				CODE_SIGN_STYLE = Automatic;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"build/$(CONFIGURATION)",
+					"../../lib/submodules/SDL/Xcode/SDL/build/$(CONFIGURATION)",
+					"../../lib/submodules/SDL_ttf/Xcode/build/$(CONFIGURATION)",
+					"$(KOTONOHA_VCPKG_PREFIX)/lib",
+				);
+				GENERATE_INFOPLIST_FILE = YES;
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(KOTONOHA_ROOT)/lib/include",
+					"$(KOTONOHA_ROOT)/lib/submodules/SDL/include",
+					"$(KOTONOHA_ROOT)/lib/submodules/SDL_ttf/include",
+					"$(KOTONOHA_VCPKG_PREFIX)/include",
+				);
+				KOTONOHA_ROOT = "$(PROJECT_DIR)/../..";
+				"KOTONOHA_VCPKG_PREFIX[sdk=macosx*]" = "$(KOTONOHA_VCPKG_ROOT)/$(KOTONOHA_VCPKG_TRIPLET)";
+				"KOTONOHA_VCPKG_ROOT[sdk=macosx*]" = "$(PROJECT_DIR)/vcpkg/macos";
+				"KOTONOHA_VCPKG_TRIPLET[sdk=macosx*]" = "arm64-osx";
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"build/$(CONFIGURATION)",
+					"$(KOTONOHA_VCPKG_PREFIX)/lib",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-lKotonohaImGui",
+					"-framework OpenGL",
+					"-framework SDL3",
+					"-framework SDL3_ttf",
+					"-lavcodec",
+					"-lavformat",
+					"-lavutil",
+					"-lswresample",
+					"-lswscale",
+					"-ljson-c",
+					"-lass",
+					"-lz",
+					"-lharfbuzz",
+					"-lfribidi",
+					"-lfreetype",
+					"-lfontconfig",
+					"-liconv",
+					"-lbz2",
+					"-lbrotlidec",
+					"-lbrotlicommon",
+					"-lexpat",
+					"-lpng",
+					"-lunibreak",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = me.kotonoha.example.macos;
+				PRODUCT_NAME = Kotonoha;
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		F4EFB615DF508DD8797DD659 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -494,25 +494,25 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		71F1508720A9A95FA0AE446D /* Build configuration list for PBXNativeTarget "Kotonoha" */ = {
+		55B201F29324F28106D6B6FF /* Build configuration list for PBXProject "KotonohaDesktop" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				58B058F8784142598EB5A8AE /* Release */,
-				04BE14847A5F136C718C79F2 /* Debug */,
+				40BAD53B8E2A5505DB01D4AB /* Debug */,
+				F4EFB615DF508DD8797DD659 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		A3F7837FDD816B0E5E4CCFEA /* Build configuration list for PBXProject "KotonohaDesktop" */ = {
+		EBBA04CBE5DFEA4BF6CDDB04 /* Build configuration list for PBXNativeTarget "Kotonoha" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				62CC9A22E547ABA9DCF4A3EE /* Debug */,
-				69AE8357C7F0D1FEB9196293 /* Release */,
+				4C1E363BA2652714F58119B2 /* Release */,
+				A0827CDA04F168F7A7C35B78 /* Debug */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
 	};
-	rootObject = E7AB574EE54CF215DF924BD9 /* Project object */;
+	rootObject = 435DFF44562F8960CFE46F1A /* Project object */;
 }
