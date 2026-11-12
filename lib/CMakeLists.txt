@@ -153,9 +153,9 @@ else ()
 endif ()
 
 # ==============================================================================
-# Target: kotonoha_imgui
+# Target: imgui
 # ==============================================================================
-add_library(kotonoha_imgui SHARED
+add_library(imgui SHARED
         submodules/imgui/imgui.cpp
         submodules/imgui/imgui_draw.cpp
         submodules/imgui/imgui_tables.cpp
@@ -165,13 +165,13 @@ add_library(kotonoha_imgui SHARED
         submodules/imgui/misc/cpp/imgui_stdlib.cpp
 )
 
-target_include_directories(kotonoha_imgui PUBLIC
+target_include_directories(imgui PUBLIC
         submodules/imgui
         submodules/imgui/backends
         submodules/imgui/misc/cpp
 )
 
-target_link_libraries(kotonoha_imgui PUBLIC SDL3::SDL3)
+target_link_libraries(imgui PUBLIC SDL3::SDL3)
 
 # ==============================================================================
 # Target principal: KotonohaEngine
@@ -191,7 +191,7 @@ add_library(kotonoha ALIAS KotonohaEngine)
 # Propriedades do target
 target_compile_features(KotonohaEngine PUBLIC cxx_std_17)
 
-set_target_properties(KotonohaEngine kotonoha_imgui PROPERTIES
+set_target_properties(KotonohaEngine imgui PROPERTIES
         CXX_EXTENSIONS OFF
         VERSION ${PROJECT_VERSION}
         SOVERSION ${PROJECT_VERSION_MAJOR}
@@ -213,7 +213,7 @@ target_link_libraries(KotonohaEngine
         SDL3::SDL3
         SDL3_ttf::SDL3_ttf
         ${kotonoha_ffmpeg_target}
-        kotonoha_imgui
+        imgui
         PRIVATE
         ${kotonoha_json_target}
         ${kotonoha_ass_target}

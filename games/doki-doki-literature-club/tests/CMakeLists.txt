@@ -9,7 +9,7 @@ if(APPLE AND CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND KOTONOHA_BUILD_MACOS_BUNDLE
         $<TARGET_FILE_DIR:SDL3::SDL3>
         $<TARGET_FILE_DIR:Kotonoha::Engine>
         $<TARGET_FILE_DIR:SDL3_ttf::SDL3_ttf>
-        $<TARGET_FILE_DIR:kotonoha_imgui>)
+        $<TARGET_FILE_DIR:imgui>)
     # Homebrew libraries (brotli, harfbuzz, freetype, plutosvg, etc.) are
     # transitive dependencies of SDL3_ttf and may live outside the build tree.
     if(EXISTS "/opt/homebrew/lib")

@@ -11,7 +11,7 @@ set_tests_properties(Kotonoha.Demo PROPERTIES
     ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_AUDIO_DRIVER=dummy")
 
 add_executable(KotonohaImGuiTests ImGuiTests.cpp)
-target_link_libraries(KotonohaImGuiTests PRIVATE Kotonoha::Engine kotonoha_imgui)
+target_link_libraries(KotonohaImGuiTests PRIVATE Kotonoha::Engine imgui)
 add_test(NAME Kotonoha.ImGuiHiDPI COMMAND KotonohaImGuiTests)
 set_tests_properties(Kotonoha.ImGuiHiDPI PROPERTIES
     ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_AUDIO_DRIVER=dummy")
