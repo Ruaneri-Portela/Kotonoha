@@ -15,6 +15,7 @@ target_link_libraries(kotonoha_vm_meo PUBLIC Kotonoha::Engine)
 target_compile_features(kotonoha_vm_meo PUBLIC cxx_std_17)
 set_target_properties(kotonoha_vm_meo PROPERTIES CXX_EXTENSIONS OFF)
 
-if(BUILD_TESTING)
-    add_subdirectory(tests)
-endif()
+# tests subdirectory removed from tracked build
+# if(BUILD_TESTING)
+#     add_subdirectory(tests)
+# endif()

@@ -13,16 +13,19 @@ std::string PmailAssets::name() const { return "Pmail"; }
 
 bool PmailAssets::containsAsset(const std::string &id) const {
   std::filesystem::path full_path = root_ / id;
-  std::cerr << "[PmailAssets Debug] checking for: " << full_path.string() << std::endl;
+  std::cerr << "[PmailAssets Debug] checking for: " << full_path.string()
+            << std::endl;
   return std::filesystem::exists(full_path);
 }
 
 std::vector<Uint8> PmailAssets::readAsset(const std::string &id) const {
   std::filesystem::path full_path = root_ / id;
-  std::cerr << "[PmailAssets Debug] reading asset: " << full_path.string() << std::endl;
+  std::cerr << "[PmailAssets Debug] reading asset: " << full_path.string()
+            << std::endl;
   std::ifstream file(full_path, std::ios::binary | std::ios::ate);
   if (!file) {
-    std::cerr << "[PmailAssets Debug] FAILED to open file: " << full_path.string() << std::endl;
+    std::cerr << "[PmailAssets Debug] FAILED to open file: "
+              << full_path.string() << std::endl;
     return {};
   }
   std::streamsize size = file.tellg();
