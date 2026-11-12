@@ -380,7 +380,8 @@ void PmailRuntime::render(Kotonoha::RendererRef renderer, float) {
 void PmailRuntime::update() {
   if (!game_ || !running_)
     return;
-  if (moviePipe_) { updateMovie(); return; }
+  if (moviePipe_)
+    updateMovie();
   game_->pump(50000);
   if (game_->atTitle() && !sawTitle_) {
     titleShownAt_ = SDL_GetTicks();
@@ -388,8 +389,22 @@ void PmailRuntime::update() {
   } else if (!game_->atTitle()) {
     sawTitle_ = false;
   }
+  // Auto-advance waits/title in unattended runs so scripts can progress.
+  if (game_->waitingForClick()) {
+    if (game_->atTitle()) {
+      if (sawTitle_ && SDL_GetTicks() - titleShownAt_ > 1500)
+        game_->click();
+    } else {
+      // advance dialogue after a short pause
+      static uint64_t msgSince = 0;
+      if (msgSince == 0) msgSince = SDL_GetTicks();
+      if (SDL_GetTicks() - msgSince > 200) {
+        game_->click();
+        msgSince = 0;
+      }
+    }
+  }
   if (!game_->message().empty()) {
-    // Keep latest message in status for debugNode/overlay use.
     status_ = game_->currentScript();
   }
   if (game_->ended()) {

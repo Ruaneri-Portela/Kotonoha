@@ -243,6 +243,7 @@ std::vector<uint8_t> PmailPack::read(const PackEntry &e) const {
     if (decodeLz(out, usz, stored.data() + 4, stored.size() - 4))
       return out;
     std::cerr << "[PmailPack] LZ decode failed for " << e.name << std::endl;
+    return {};
   }
   // Uncompressed record.
   return stored;
