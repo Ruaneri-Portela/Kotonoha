@@ -51,9 +51,6 @@ if(NOT ANDROID)
     find_package(PkgConfig REQUIRED)
     pkg_check_modules(AMAGAMI_JSON REQUIRED IMPORTED_TARGET json-c>=0.15)
     target_link_libraries(AmagamiInspect PRIVATE AmagamiFormats PkgConfig::AMAGAMI_JSON)
-    add_custom_command(TARGET AmagamiInspect POST_BUILD 
-        COMMAND ${CMAKE_COMMAND} -E echo "HELLO WORLD"
-    )
 endif()
 
 if(BUILD_TESTING)

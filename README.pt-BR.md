@@ -756,7 +756,7 @@ leitura de um pixel e uma espera de GPU, portanto tem custo de sincronizacao.
 ### Splash, viewport e bibliotecas
 
 Nos builds desktop normais, `libkotonoha` (`Kotonoha::Engine`) e
-`kotonoha_imgui` sao bibliotecas compartilhadas. No projeto iOS nativo,
+`imgui` sao bibliotecas compartilhadas. No projeto iOS nativo,
 `KotonohaEngine` e estatico e ImGui e um framework dinamico.
 `kotonoha_copy_assets(alvo)` copia `assets/` (inclusive o `SPLASH.PNG`)
 para o diretorio de recursos do executavel ou bundle.

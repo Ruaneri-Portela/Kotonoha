@@ -110,7 +110,7 @@ public final class GameActivity extends SDLActivity {
     @Override
     protected String[] getLibraries() {
         return new String[]{"c++_shared", "SDL3",
-                            "SDL3_ttf", "kotonoha_imgui", "kotonoha_engine", BuildConfig.NATIVE_TARGET};
+                            "SDL3_ttf", "imgui", "kotonoha_engine", BuildConfig.NATIVE_TARGET};
     }
 
     public String getKotonohaResourceDirectory() {
