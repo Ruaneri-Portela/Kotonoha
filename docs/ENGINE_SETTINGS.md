@@ -1,4 +1,4 @@
-# Configurações compartilhadas
+# Engine Settings & Configuration
 
 O menu interno da engine tem abas **Display**, **Audio** e **VN text**.
 Use toque ou mouse; Tab troca a aba e End seleciona Aplicar.

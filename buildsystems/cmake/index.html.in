@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en-US">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>@APP_TITLE@ - Kotonoha Engine</title>
+
+    <style>
+        body {
+            margin: 0;
+            background: black;
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        canvas {
+            max-width: 100%;
+            max-height: 100%;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        #loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #111;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            z-index: 10;
+            transition: opacity 0.5s ease;
+        }
+
+        #loading-title {
+            color: #fff;
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        #loading-status {
+            color: #aaa;
+            font-size: 13px;
+            margin-bottom: 16px;
+            max-width: 80%;
+            text-align: center;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        #loading-progress-container {
+            width: 320px;
+            height: 6px;
+            background: #222;
+            border-radius: 3px;
+            overflow: hidden;
+            border: 1px solid #333;
+        }
+
+        #loading-bar {
+            width: 0%;
+            height: 100%;
+            background: #4CAF50;
+            transition: width 0.1s ease;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="loading-overlay">
+        <div id="loading-title">@APP_TITLE@ - Kotonoha Engine</div>
+        <div id="loading-status">Carregando manifesto de assets...</div>
+        <div id="loading-progress-container">
+            <div id="loading-bar"></div>
+        </div>
+    </div>
+
+    <canvas id="canvas" oncontextmenu="event.preventDefault()"></canvas>
+
+    <script>
+        var Module = {
+            canvas: document.getElementById("canvas"),
+
+            preRun: [
+                function() {
+                    const FS = Module.FS;
+                    FS.mkdirTree("/game-assets");
+
+                    const depId = "load_manifest_async";
+                    Module.addRunDependency(depId);
+
+                    const statusEl = document.getElementById("loading-status");
+                    const barEl = document.getElementById("loading-bar");
+
+                    fetch("game-assets/manifest.json")
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error("Manifest not found (status " + response.status + ")");
+                            }
+                            return response.json();
+                        })
+                        .then(async manifest => {
+                            const files = manifest.files;
+                            const total = files.length;
+                            console.log("[Kotonoha] Manifest carregado com", total, "arquivos.");
+
+                            if (total === 0) {
+                                if (statusEl) statusEl.textContent = "Nenhum asset encontrado no manifesto.";
+                                if (barEl) barEl.style.width = "100%";
+                                return;
+                            }
+
+                            let loaded = 0;
+                            for (const filePath of files) {
+                                const lastSlash = filePath.lastIndexOf('/');
+                                let parentDir = "/game-assets";
+                                let fileName = filePath;
+                                if (lastSlash !== -1) {
+                                    parentDir = "/game-assets/" + filePath.substring(0, lastSlash);
+                                    fileName = filePath.substring(lastSlash + 1);
+                                    FS.mkdirTree(parentDir);
+                                }
+
+                                try {
+                                    const res = await fetch("game-assets/" + filePath);
+                                    if (res.ok) {
+                                        const buf = await res.arrayBuffer();
+                                        FS.writeFile(parentDir + "/" + fileName, new Uint8Array(buf));
+                                    }
+                                } catch (e) {
+                                    console.warn("[Kotonoha] Falha ao carregar asset:", filePath, e);
+                                }
+
+                                loaded++;
+                                const percent = Math.round((loaded / total) * 100);
+                                if (statusEl) statusEl.textContent = `Carregando (${loaded}/${total}): ${filePath}`;
+                                if (barEl) barEl.style.width = percent + "%";
+                            }
+
+                            if (statusEl) statusEl.textContent = "Iniciando engine...";
+                        })
+                        .catch(err => {
+                            console.warn("[Kotonoha] Aviso: manifest.json não encontrado ou vazio.", err);
+                            if (statusEl) statusEl.textContent = "Iniciando sem manifesto...";
+                            if (barEl) barEl.style.width = "100%";
+                        })
+                        .finally(() => {
+                            Module.removeRunDependency(depId);
+                        });
+                }
+            ],
+
+            print: function(text) {
+                console.log("[Kotonoha]", text);
+            },
+
+            printErr: function(text) {
+                console.error("[Kotonoha]", text);
+            },
+
+            onRuntimeInitialized: function() {
+                console.log("[Kotonoha] Runtime inicializado");
+                const overlay = document.getElementById("loading-overlay");
+                if (overlay) {
+                    overlay.style.opacity = '0';
+                    setTimeout(() => overlay.remove(), 500);
+                }
+            },
+
+            onAbort: function(reason) {
+                console.error("[Kotonoha] Runtime abortado:", reason);
+                const statusEl = document.getElementById("loading-status");
+                if (statusEl) {
+                    statusEl.style.color = "#ff5252";
+                    statusEl.textContent = "Erro fatal: " + reason;
+                }
+            }
+        };
+    </script>
+
+    <script src="@TARGET_NAME@.js"></script>
+</body>
+</html>

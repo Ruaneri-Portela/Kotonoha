@@ -1,4 +1,4 @@
-# Diretorios e referencias de recursos
+# Directory and Resource Resolution Policy
 
 O motor separa tres responsabilidades: **assets da engine**, **assets do jogo**
 e **saves/configuracoes**. A politica fica em `core/FileSystem`, por meio de
@@ -25,7 +25,7 @@ O bootstrap extrai os recursos do APK antes de iniciar SDL, mantendo esses
 enderecos estaveis. O fingerprint determina quando atualizar os arquivos empacotados.
 
 Os nomes `game_assets` e `game-assets` sao aceitos na busca. O APK e os bundles
-existentes continuam contendo `game-assets`. No Android, OBB tem prioridade e
+existentes continuam contendo `game-assets`. No Android, OBB tiene prioridade e
 pode conter os dados diretamente ou nessas subpastas. No iOS, o bundle tem
 prioridade, com fallback por arquivo para Documents, acessivel pelo app Files.
 

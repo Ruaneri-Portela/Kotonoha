@@ -47,7 +47,7 @@ set_target_properties(ZeroNoTsukaima PROPERTIES CXX_EXTENSIONS OFF)
 kotonoha_configure_app(ZeroNoTsukaima
     BUNDLE_ID me.hirameki.kotonoha.zeronotsukaima GAME zero-no-tsukaima)
 
-if(NOT ANDROID)
+if(NOT ANDROID AND NOT EMSCRIPTEN)
     add_executable(ZeroExtract tools/ZeroExtract.cpp)
     target_link_libraries(ZeroExtract PRIVATE ZeroNoTsukaimaFormats)
 

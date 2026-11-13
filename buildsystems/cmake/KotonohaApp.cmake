@@ -94,7 +94,7 @@ function(kotonoha_add_app target)
     else()
         add_executable(${target} ${ARGN})
     endif()
-    
+
     # Habilita implantação local do vcpkg globalmente para o target
     set_target_properties(${target} PROPERTIES VCPKG_APPLOCAL_DEPS ON)
 endfunction()
@@ -152,7 +152,7 @@ function(kotonoha_configure_app target)
 
         set(icon "${KOTONOHA_ENGINE_ASSETS}/icon.icns")
         set_source_files_properties("${icon}" PROPERTIES
-            MACOSX_PACKAGE_LOCATION Resources 
+            MACOSX_PACKAGE_LOCATION Resources
             HEADER_FILE_ONLY TRUE
         )
         target_sources(${target} PRIVATE "${icon}")
@@ -195,9 +195,38 @@ function(kotonoha_configure_app target)
             kotonoha_copy_runtime_libraries(${target} "${_kotonoha_dependency_dirs}")
         endif()
 
-        if(NOT EMSCRIPTEN)
-            kotonoha_copy_assets(${target} GAME "${APP_GAME}")
+        if(EMSCRIPTEN)
+            target_compile_options(${target} PRIVATE
+                -fexceptions
+            )
+            target_link_options(${target} PRIVATE
+                -fexceptions
+                "SHELL:-sDISABLE_EXCEPTION_CATCHING=0"
+                "SHELL:-sEXPORTED_RUNTIME_METHODS=['FS']"
+                "SHELL:-sFORCE_FILESYSTEM=1"
+                "SHELL:-sALLOW_MEMORY_GROWTH=1"
+                "SHELL:-sINITIAL_MEMORY=268435456"
+                "SHELL:--preload-file ${KOTONOHA_ENGINE_ASSETS}@/assets"
+            )
+
+            set(APP_TITLE "${target}")
+            set(TARGET_NAME "${target}")
+
+            configure_file(
+                "${KOTONOHA_PROJECT_ROOT}/buildsystems/cmake/index.html.in"
+                "${KOTONOHA_OUTPUT_CONFIG_DIR}/${target}/index.html"
+                @ONLY
+            )
+
+            add_custom_command(TARGET ${target} POST_BUILD
+                COMMAND python3 "${KOTONOHA_PROJECT_ROOT}/tools/generate_manifest.py"
+                        "${KOTONOHA_PROJECT_ROOT}/games/${APP_GAME}/game-assets"
+                        "${KOTONOHA_OUTPUT_CONFIG_DIR}/${target}/game-assets/manifest.json"
+                COMMENT "Generating manifest.json for lazy loading"
+            )
         endif()
+
+        kotonoha_copy_assets(${target} GAME "${APP_GAME}")
     endif()
 endfunction()
 
