@@ -108,15 +108,17 @@ include(buildsystems/cmake/MSVC.cmake)
 # Build Options
 # ------------------------------------------------------------
 
+option(KOTONOHA_BUILD_WASM "Build for WebAssembly" OFF)
 option(KOTONOHA_VERBOSE_BUILD "Print full compiler and linker commands" OFF)
 option(KOTONOHA_BUILD_MACOS_BUNDLES "Build macOS application bundles" OFF)
 option(KOTONOHA_BUILD_ALL "Build every game port" OFF)
 
+
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_VERBOSE_MAKEFILE "${KOTONOHA_VERBOSE_BUILD}")
 
-if (ANDROID)
-    set(BUILD_TESTING OFF CACHE BOOL "Disable tests on Android" FORCE)
+if (ANDROID OR EMSCRIPTEN)
+    set(BUILD_TESTING OFF CACHE BOOL "Disable native tests on cross targets" FORCE)
 endif ()
 include(CTest)
 

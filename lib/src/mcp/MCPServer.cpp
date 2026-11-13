@@ -47,6 +47,15 @@
 #endif
 
 namespace Kotonoha {
+
+#ifdef __EMSCRIPTEN__
+  struct MCPServer::State {};
+  MCPServer::MCPServer(Engine &, const std::string &) {}
+  MCPServer::MCPServer(Engine &, const std::string &, int) {}
+  MCPServer::~MCPServer() = default;
+  bool MCPServer::pump() { return true; }
+#endif
+
 namespace {
 struct JSONDeleter {
   void operator()(json_object *value) const { json_object_put(value); }
@@ -228,6 +237,7 @@ void validateArguments(json_object *arguments, const Tool &tool) {
 }
 } // namespace
 
+#ifndef __EMSCRIPTEN__
 struct MCPServer::State {
   Engine &engine;
   std::filesystem::path root;
@@ -875,5 +885,7 @@ bool MCPServer::pump() {
   }
   return true;
 }
+
+#endif
 
 } // namespace Kotonoha
