@@ -94,14 +94,45 @@
 
             preRun: [
                 function() {
-                    const FS = Module.FS;
-                    FS.mkdirTree("/game-assets");
-
                     const depId = "load_manifest_async";
                     Module.addRunDependency(depId);
 
                     const statusEl = document.getElementById("loading-status");
                     const barEl = document.getElementById("loading-bar");
+
+                    function ensureDir(dirPath) {
+                        const parts = dirPath.split('/').filter(Boolean);
+                        let current = '';
+                        for (const part of parts) {
+                            const parent = current || '/';
+                            current += '/' + part;
+                            try {
+                                if (typeof FS !== 'undefined' && FS.mkdir) {
+                                    FS.mkdir(current);
+                                } else if (Module.FS && Module.FS.mkdir) {
+                                    Module.FS.mkdir(current);
+                                } else if (Module.FS_createPath) {
+                                    Module.FS_createPath(parent, part, true, true);
+                                }
+                            } catch (e) {
+                                // Ignora se a pasta já existir
+                            }
+                        }
+                    }
+
+                    function writeAssetFile(parentDir, fileName, uint8Array) {
+                        if (typeof FS !== 'undefined' && FS.writeFile) {
+                            FS.writeFile(parentDir + "/" + fileName, uint8Array);
+                        } else if (Module.FS && Module.FS.writeFile) {
+                            Module.FS.writeFile(parentDir + "/" + fileName, uint8Array);
+                        } else if (Module.FS_createDataFile) {
+                            Module.FS_createDataFile(parentDir, fileName, uint8Array, true, true, true);
+                        } else {
+                            throw new Error("Nenhuma API de sistema de arquivos (FS) está exportada no Emscripten!");
+                        }
+                    }
+
+                    ensureDir("/game-assets");
 
                     fetch("game-assets/manifest.json")
                         .then(response => {
@@ -111,7 +142,7 @@
                             return response.json();
                         })
                         .then(async manifest => {
-                            const files = manifest.files;
+                            const files = manifest.files || [];
                             const total = files.length;
                             console.log("[Kotonoha] Manifest carregado com", total, "arquivos.");
 
@@ -122,21 +153,25 @@
                             }
 
                             let loaded = 0;
-                            for (const filePath of files) {
+
+                            const downloadPromises = files.map(async (filePath) => {
                                 const lastSlash = filePath.lastIndexOf('/');
                                 let parentDir = "/game-assets";
                                 let fileName = filePath;
+
                                 if (lastSlash !== -1) {
                                     parentDir = "/game-assets/" + filePath.substring(0, lastSlash);
                                     fileName = filePath.substring(lastSlash + 1);
-                                    FS.mkdirTree(parentDir);
+                                    ensureDir(parentDir);
                                 }
 
                                 try {
                                     const res = await fetch("game-assets/" + filePath);
                                     if (res.ok) {
                                         const buf = await res.arrayBuffer();
-                                        FS.writeFile(parentDir + "/" + fileName, new Uint8Array(buf));
+                                        writeAssetFile(parentDir, fileName, new Uint8Array(buf));
+                                    } else {
+                                        console.warn("[Kotonoha] HTTP", res.status, "ao carregar:", filePath);
                                     }
                                 } catch (e) {
                                     console.warn("[Kotonoha] Falha ao carregar asset:", filePath, e);
@@ -146,7 +181,9 @@
                                 const percent = Math.round((loaded / total) * 100);
                                 if (statusEl) statusEl.textContent = `Carregando (${loaded}/${total}): ${filePath}`;
                                 if (barEl) barEl.style.width = percent + "%";
-                            }
+                            });
+
+                            await Promise.all(downloadPromises);
 
                             if (statusEl) statusEl.textContent = "Iniciando engine...";
                         })

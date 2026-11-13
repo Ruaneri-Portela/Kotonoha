@@ -51,6 +51,8 @@ void read(json_object *root, const char *name, std::string &target) {
 
 void EngineSettings::validate() const {
   upscaling.validate();
+  if (!std::isfinite(vnTextSpeed) || vnTextSpeed < 0 || vnTextSpeed > 300)
+    throw std::invalid_argument("Invalid VN text speed");
   if (vnFontPath.find('\0') != std::string::npos)
     throw std::invalid_argument("Invalid VN font path");
   for (const auto &[name, volume] : channelVolumes) {
@@ -157,6 +159,8 @@ EngineSettings EngineSettings::load(const std::string &path,
   result.assetOverlayPath = result.resolvedOverlayPath();
   read(root.get(), "fontPath", result.fontPath);
   read(root.get(), "vnFontPath", result.vnFontPath);
+  read(root.get(), "vnTextSpeed", result.vnTextSpeed);
+  read(root.get(), "vnTextInstant", result.vnTextInstant);
   read(root.get(), "vnTextColorOverride", result.vnTextColorOverride);
   auto color = [&](const char *key, SDL_Color &value) {
     if (auto *array = member(root.get(), key, json_type_array)) {
@@ -274,6 +278,9 @@ void EngineSettings::save(const std::string &path) const {
   json_object_object_add(
       root.get(), "vnFontPath",
       json_object_new_string(FileResolver::referenceName(vnFontPath).c_str()));
+  json_object_object_add(root.get(), "vnTextSpeed",
+                         json_object_new_double(vnTextSpeed));
+  boolean("vnTextInstant", vnTextInstant);
   json_object_object_add(root.get(), "vnTextColorOverride",
                          json_object_new_boolean(vnTextColorOverride));
   auto color = [&](const char *key, SDL_Color value) {

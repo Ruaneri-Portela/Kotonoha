@@ -1,5 +1,6 @@
 #include "PmailSession.hpp"
 #include "PmailComponents.hpp"
+#include "PmailTextBox.hpp"
 #include "PmailTitleMenu.hpp"
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/FileSystem.hpp>
@@ -54,8 +55,9 @@ void PmailSession::restoreBacklog(
 }
 
 bool PmailSession::paused() const {
-  return components_ && (components_->pauseMenu()->IsOpen() ||
-                         components_->backlog()->isVisible());
+  return engine_.isStoryPaused() ||
+         (components_ && (components_->pauseMenu()->IsOpen() ||
+                          components_->backlog()->isVisible()));
 }
 
 void PmailSession::closeMenus(bool clearBacklog) {
@@ -64,6 +66,11 @@ void PmailSession::closeMenus(bool clearBacklog) {
   components_->backlog()->close();
   if (clearBacklog)
     components_->backlog()->clear();
+  if (clearBacklog) {
+    auto *box = static_cast<PmailTextBox *>(components_->textBox());
+    box->setAutoMode(false);
+    box->setUserHidden(false);
+  }
 }
 
 void PmailSession::update() {
@@ -157,8 +164,7 @@ void PmailSession::updateGameplay() {
       lastUpdateMs_ ? uint32_t(std::min<uint64_t>(now - lastUpdateMs_, 1000))
                     : 0;
   lastUpdateMs_ = now;
-  if (components_ && !components_->pauseMenu()->IsOpen() &&
-      !components_->backlog()->isVisible()) {
+  if (components_ && !paused()) {
     game_->advanceAnimation(elapsed);
     game_->pump(10000);
   }

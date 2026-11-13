@@ -136,6 +136,7 @@
 		35A293D94E6B456D1181878C /* KotonohaEngine.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 03728BEA8C79EFB39BEF2440 /* KotonohaEngine.framework */; };
 		35B6C77D0C68A57C2A90B7C3 /* KtrfAssetResolver.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 089014A90823BE002DB60B26 /* KtrfAssetResolver.cpp */; };
 		35BA26AA9F07A0AF8015EDEB /* Encoding.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 1BA5E519F92A1C06B1309CF9 /* Encoding.cpp */; };
+		AA11BB22CC33DD44EE55FF03 /* Encoding.mm in Sources */ = {isa = PBXBuildFile; fileRef = AA11BB22CC33DD44EE55FF02 /* Encoding.mm */; };
 		35F58631BE6A4BF855D803EA /* KotonohaImGui.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = BE4CD7359ED5E7D6A1EBB231 /* KotonohaImGui.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		367F23F2EADBAC65A8B9D09A /* SchoolDaysAssetMount.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 45EDF70AF5BAB139AD8D47EA /* SchoolDaysAssetMount.cpp */; };
 		368E09DBD4E0F6A70B7E473B /* KotonohaEngine.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4A9582677B40D6ECCD2770E2 /* KotonohaEngine.framework */; };
@@ -211,6 +212,7 @@
 		5432BBF30E6DF5C39593364B /* SnowAssets.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 44878821F495891FD2362550 /* SnowAssets.cpp */; };
 		545930E621DA841013AF8075 /* TimelineParser.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7844705E0B00AF60488FA150 /* TimelineParser.cpp */; };
 		54E6E44DD4F9AF411B3FB56C /* Encoding.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 1BA5E519F92A1C06B1309CF9 /* Encoding.cpp */; };
+		AA11BB22CC33DD44EE55FF01 /* Encoding.mm in Sources */ = {isa = PBXBuildFile; fileRef = AA11BB22CC33DD44EE55FF02 /* Encoding.mm */; };
 		5547F0075D182E65BA1058A8 /* DiscAssetProvider.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3AA271E48E3E6DCF85B61089 /* DiscAssetProvider.cpp */; };
 		5572EE12D9F0B3388E08F433 /* SchoolDaysChoiceTextPlan.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DA27F01E9EC7708C4CA0F013 /* SchoolDaysChoiceTextPlan.cpp */; };
 		55A42CD4311E584702525246 /* Vm.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A22002F273400D20C622C670 /* Vm.cpp */; };
@@ -1246,6 +1248,7 @@
 		1A071AD9D4D49D8DA6B2D9D2 /* Vm.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = Vm.cpp; path = ../../modules/vms/amagami/src/Vm.cpp; sourceTree = SOURCE_ROOT; };
 		1B15FA4158C3214E44CCC1B6 /* ZeroNoTsukaima.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ZeroNoTsukaima.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		1BA5E519F92A1C06B1309CF9 /* Encoding.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = Encoding.cpp; path = ../../lib/src/localization/Encoding.cpp; sourceTree = SOURCE_ROOT; };
+		AA11BB22CC33DD44EE55FF02 /* Encoding.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = Encoding.mm; path = ../../lib/src/localization/Encoding.mm; sourceTree = SOURCE_ROOT; };
 		1BF5D46EE318C6AC8468E1D4 /* Kirikiri.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Kirikiri.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		1D0C1E5C0F9A1B2C3D4E5001 /* DokiDoki.macOS.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = DokiDoki.macOS.xcconfig; path = Config/DokiDoki.macOS.xcconfig; sourceTree = SOURCE_ROOT; };
 		1D0C1E5C0F9A1B2C3D4E5002 /* DokiDoki.iOS.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = DokiDoki.iOS.xcconfig; path = Config/DokiDoki.iOS.xcconfig; sourceTree = SOURCE_ROOT; };
@@ -2291,6 +2294,7 @@
 			isa = PBXGroup;
 			children = (
 				1BA5E519F92A1C06B1309CF9 /* Encoding.cpp */,
+				AA11BB22CC33DD44EE55FF02 /* Encoding.mm */,
 				83224C27CFFBCDAFB2C5740F /* Translation.cpp */,
 			);
 			name = localization;
@@ -4381,6 +4385,7 @@
 				FC7303CDB009F9A5056E532C /* BackAction.cpp in Sources */,
 				EFF14E5D152FC9678630AE84 /* BacklogEvents.cpp in Sources */,
 				54E6E44DD4F9AF411B3FB56C /* Encoding.cpp in Sources */,
+				AA11BB22CC33DD44EE55FF01 /* Encoding.mm in Sources */,
 				1206EB5FD7BE6BC40ABEE2E3 /* Translation.cpp in Sources */,
 				DA1789F135063FE3BBFE6D13 /* DebugOverlay.cpp in Sources */,
 				F81214221B9DA4285472C5DC /* VoiceDubbingApplet.cpp in Sources */,
@@ -4522,6 +4527,7 @@
 				02F8C076D9105246E21524C2 /* BackAction.cpp in Sources */,
 				9AD0C92041D392181813B5F7 /* BacklogEvents.cpp in Sources */,
 				35BA26AA9F07A0AF8015EDEB /* Encoding.cpp in Sources */,
+				AA11BB22CC33DD44EE55FF03 /* Encoding.mm in Sources */,
 				B6CB69E8F9AAB3E582DD6312 /* Translation.cpp in Sources */,
 				4A1EAB729926CE963AE0E9D0 /* DebugOverlay.cpp in Sources */,
 				F4940ABC8D6C05BFE6024D7D /* VoiceDubbingApplet.cpp in Sources */,

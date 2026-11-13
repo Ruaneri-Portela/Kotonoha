@@ -49,11 +49,11 @@
 namespace Kotonoha {
 
 #ifdef __EMSCRIPTEN__
-  struct MCPServer::State {};
-  MCPServer::MCPServer(Engine &, const std::string &) {}
-  MCPServer::MCPServer(Engine &, const std::string &, int) {}
-  MCPServer::~MCPServer() = default;
-  bool MCPServer::pump() { return true; }
+struct MCPServer::State {};
+MCPServer::MCPServer(Engine &, const std::string &) {}
+MCPServer::MCPServer(Engine &, const std::string &, int) {}
+MCPServer::~MCPServer() = default;
+bool MCPServer::pump() { return true; }
 #endif
 
 namespace {

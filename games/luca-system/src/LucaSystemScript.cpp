@@ -4,7 +4,6 @@
 #include <Kotonoha/localization/Encoding.hpp>
 
 #include <algorithm>
-#include <codecvt>
 #include <cstring>
 #include <locale>
 #include <stdexcept>
@@ -51,8 +50,7 @@ std::string readUtf16String(const std::vector<std::uint8_t> &bytes,
   if (cursor + 2 <= bytes.size() && bytes[cursor] == 0 &&
       bytes[cursor + 1] == 0)
     cursor += 2;
-  return std::wstring_convert<std::codecvt_utf8_utf16<char16_t>, char16_t>{}
-      .to_bytes(text);
+  return Kotonoha::Utf16ToUtf8(text);
 }
 
 std::string readUtf8String(const std::vector<std::uint8_t> &bytes,

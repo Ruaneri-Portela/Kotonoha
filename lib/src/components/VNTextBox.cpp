@@ -75,12 +75,51 @@ void VNTextBox::recordDialogue(const std::string &speaker,
 void VNTextBox::openMenu() { GetInGameMenuRuntime(engine).open(); }
 void VNTextBox::openBacklog() { GetVNBacklogRuntime(engine).open(); }
 
+void VNTextBox::setUserHidden(bool hidden) {
+  userHidden = hidden;
+  clock.reset();
+}
+
+bool VNTextBox::onVisibilityEvent(EventRef rawEvent) {
+  if (!visible)
+    return false;
+  const auto event = MapControllerEvent(rawEvent);
+  const bool keyDown = event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat;
+  const bool mouseDown = event.type == SDL_EVENT_MOUSE_BUTTON_DOWN;
+  const bool pointerActivation =
+      mouseDown || (event.type == SDL_EVENT_MOUSE_BUTTON_UP &&
+                    event.button.which == SDL_TOUCH_MOUSEID);
+  if ((keyDown && event.key.key == SDLK_H) ||
+      (mouseDown && event.button.button == SDL_BUTTON_MIDDLE)) {
+    toggleUserHidden();
+    return true;
+  }
+  if (userHidden &&
+      ((keyDown &&
+        (event.key.key == SDLK_RETURN || event.key.key == SDLK_SPACE ||
+         event.key.key == SDLK_ESCAPE)) ||
+       (pointerActivation && (event.button.button == SDL_BUTTON_LEFT ||
+                              event.button.button == SDL_BUTTON_RIGHT)))) {
+    setUserHidden(false);
+    return true;
+  }
+  return false;
+}
+
 bool VNTextBox::onEvent(EventRef rawEvent) {
   if (!visible)
     return false;
   const auto event = MapControllerEvent(rawEvent);
   if (!touchActivation.accept(event))
     return true;
+  if (onVisibilityEvent(event))
+    return true;
+  if (userHidden)
+    return false;
+  if (UI::clicked(event, {730, 506, 160, 44})) {
+    setUserHidden(true);
+    return true;
+  }
   if (BackAction(engine, event) || UI::clicked(event, {900, 506, 160, 44})) {
     openMenu();
     return true;
@@ -99,11 +138,18 @@ bool VNTextBox::handleEvent(EventRef event) { return onEvent(event); }
 void VNTextBox::update() {
   const double delta = clock.seconds();
   clock.reset();
-  if (!visible || isComplete || engine.isStoryPaused())
+  if (!isVisible() || isComplete || engine.isStoryPaused())
     return;
+  if (engine.GetSettings().vnTextInstant) {
+    completeDialogue();
+    return;
+  }
+  const double rate = engine.GetSettings().vnTextSpeed > 0
+                          ? engine.GetSettings().vnTextSpeed
+                          : charactersPerSecond();
   const std::size_t totalChars = VNTextBoxUtility::CountUtf8Chars(fullDialogue);
-  visibleChars = std::min(visibleChars + charactersPerSecond() * delta,
-                          static_cast<double>(totalChars));
+  visibleChars =
+      std::min(visibleChars + rate * delta, static_cast<double>(totalChars));
   const auto bytes =
       utf8Prefix(fullDialogue, static_cast<std::size_t>(visibleChars));
   visibleDialogue = fullDialogue.substr(0, bytes);
@@ -111,7 +157,7 @@ void VNTextBox::update() {
 }
 
 void VNTextBox::render(RendererRef renderer, float) {
-  if (!visible)
+  if (!isVisible())
     return;
   renderFrame(renderer);
   renderSpeaker(renderer);
@@ -123,6 +169,7 @@ void VNTextBox::render(RendererRef renderer, float) {
 void VNTextBox::renderFrame(RendererRef renderer) {
   auto &ui = engine.GetUI();
   ui.panel(renderer, {40, 496, 1200, 204});
+  ui.button(renderer, {730, 506, 160, 44}, "Hide [H]");
   ui.button(renderer, {900, 506, 160, 44}, "Menu [ESC]");
   ui.button(renderer, {1070, 506, 160, 44}, "Log [B]");
 }

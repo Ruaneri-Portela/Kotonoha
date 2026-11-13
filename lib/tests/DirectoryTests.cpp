@@ -80,8 +80,7 @@ void layouts(const fs::path &root) {
               contains(android.gameAssets, locations.obb) &&
               contains(android.gameAssets, locations.obb / "game_assets"),
           "Android accepts private game_assets and OBB data");
-  require(android.saves ==
-              locations.userData / "save",
+  require(android.saves == locations.userData / "save",
           "Android saves use external app data, not internal APK resources");
   for (const auto &base :
        {locations.resources, locations.privateGameAssets.parent_path(),

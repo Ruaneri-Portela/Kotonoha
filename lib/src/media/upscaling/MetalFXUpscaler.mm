@@ -1,10 +1,7 @@
 #include <Kotonoha/core/Log.hpp>
 #include <Kotonoha/media/upscaling/MetalFXUpscaler.hpp>
 
-#include <stdexcept>
-
-// Objective-C++ on Apple with MetalFX; compiled as C++ elsewhere as a stub.
-#if defined(KOTONOHA_HAS_METALFX)
+#if defined(KOTONOHA_HAS_METALFX) && defined(__APPLE__)
 
 #import <Foundation/Foundation.h>
 #import <Metal/Metal.h>
@@ -497,8 +494,8 @@ bool KotonohaMetalFXUpscaleSDLTextureInto(SDL_Renderer *renderer,
         inputMetalTexture, outputMetalTexture, commandBuffer);
 
     if (result == nil) {
-      SDL_SetError("KotonohaMetalFXUpscaleSDLTextureInto: "
-                   "MetalFX failed or texture is not supported");
+      SDL_SetError("KotonohaMetalFXUpscaleSDLTextureInto: MetalFX failed or "
+                   "texture is not supported");
       return false;
     }
 
@@ -526,38 +523,28 @@ void KotonohaMetalFXClearScalerCache(void) {
 } // namespace
 } // namespace Kotonoha
 
-#endif // KOTONOHA_HAS_METALFX
+#endif // defined(KOTONOHA_HAS_METALFX) && defined(__APPLE__)
 
+#if defined(KOTONOHA_HAS_METALFX) && defined(__APPLE__)
 namespace Kotonoha {
-MetalFXUpscaler::MetalFXUpscaler(RendererRef value) : Upscaler(value) {
-#if defined(KOTONOHA_HAS_METALFX)
+
+MetalFXUpscaler::MetalFXUpscaler(RendererRef renderer) : Upscaler(renderer) {
   if (!isAvaliable())
     throw std::invalid_argument(
         "MetalFXUpscaler requires an SDL Metal renderer");
   if (!KotonohaMetalFXInit(&renderer))
     throw std::runtime_error(SDL_GetError());
-#else
-  throw std::runtime_error("MetalFX is unavailable in this build");
-#endif
 }
 
-MetalFXUpscaler::~MetalFXUpscaler() {
-#if defined(KOTONOHA_HAS_METALFX)
-  KotonohaMetalFXShutdown();
-#endif
-}
+MetalFXUpscaler::~MetalFXUpscaler() { KotonohaMetalFXShutdown(); }
 
 UpscaleBackend MetalFXUpscaler::backend() const {
   return UpscaleBackend::MetalFX;
 }
+
 bool MetalFXUpscaler::isAvaliable() const { return isAvaliable(renderer); }
 bool MetalFXUpscaler::isAvaliable(RendererRef renderer) {
-#if defined(KOTONOHA_HAS_METALFX)
   return KotonohaMetalFXIsAvailable(&renderer);
-#else
-  (void)renderer;
-  return false;
-#endif
 }
 
 SDL_PixelFormat MetalFXUpscaler::workingFormat() const {
@@ -567,18 +554,10 @@ SDL_PixelFormat MetalFXUpscaler::workingFormat() const {
 void MetalFXUpscaler::configureBackend(const UpscaleSettings &) {}
 
 bool MetalFXUpscaler::renderInto(TextureRef input, TextureRef output) {
-#if defined(KOTONOHA_HAS_METALFX)
   return KotonohaMetalFXUpscaleSDLTextureInto(&renderer, &input, &output);
-#else
-  (void)input;
-  (void)output;
-  return SDL_SetError("MetalFX is unavailable in this build");
-#endif
 }
 
-void MetalFXUpscaler::clearBackendCache() {
-#if defined(KOTONOHA_HAS_METALFX)
-  KotonohaMetalFXClearScalerCache();
-#endif
-}
+void MetalFXUpscaler::clearBackendCache() { KotonohaMetalFXClearScalerCache(); }
+
 } // namespace Kotonoha
+#endif // defined(KOTONOHA_HAS_METALFX) && defined(__APPLE__)

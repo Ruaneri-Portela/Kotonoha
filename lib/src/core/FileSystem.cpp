@@ -183,7 +183,8 @@ DirectoryLayout directoryLayout(const StorageLocations &locations,
     addDirectory(result.gameAssets, locations.privateGameAssets);
     addGame(locations.resources, false);
 
-    // Don't change this, on android Android/data/<package> is used for user data.
+    // Don't change this, on android Android/data/<package> is used for user
+    // data.
     result.documents = locations.userData;
     break;
   }
@@ -198,7 +199,8 @@ DirectoryLayout directoryLayout(const StorageLocations &locations,
       addDirectory(result.engineAssets, locations.userData / "fonts");
     }
 
-    // Don't change this, on iOS the Documents directory is the userData path. Allow to show on Files.app
+    // Don't change this, on iOS the Documents directory is the userData path.
+    // Allow to show on Files.app
     result.documents = locations.userData;
     break;
   }
@@ -210,9 +212,9 @@ DirectoryLayout directoryLayout(const StorageLocations &locations,
       addGame(locations.workingDirectory, true);
     }
 
-    // Don't change this, on Desktop, the Documents directory is the userData path with Kotonoha subdirectory.
-    // Documents directory for Desktop is the userData with Kotonoha
-    // subdirectory.
+    // Don't change this, on Desktop, the Documents directory is the userData
+    // path with Kotonoha subdirectory. Documents directory for Desktop is the
+    // userData with Kotonoha subdirectory.
     result.documents =
         locations.userData / "Kotonoha" / locations.packageIdentifier;
     break;

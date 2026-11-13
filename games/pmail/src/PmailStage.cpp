@@ -12,6 +12,8 @@ PmailStage::PmailStage(Kotonoha::Engine &engine, PmailGame &game,
     : Kotonoha::Scene(engine), game_(game), assets_(assets) {}
 
 PmailStage::~PmailStage() {
+  if (sceneTexture_)
+    SDL_DestroyTexture(sceneTexture_);
   if (backgroundTexture_)
     SDL_DestroyTexture(backgroundTexture_);
   for (auto &[name, sprite] : spriteCache_)
@@ -27,6 +29,26 @@ void PmailStage::update() {
 }
 
 void PmailStage::render(Kotonoha::RendererRef renderer, float scale) {
+  // The original composes into an 800x600 framebuffer. Compose animation
+  // layers at that resolution, then scale once; scaling every accumulated
+  // OSBOOT frame separately makes software renderers progressively slower.
+  if (!sceneTexture_) {
+    sceneTexture_ = SDL_CreateTexture(&renderer, SDL_PIXELFORMAT_RGBA8888,
+                                      SDL_TEXTUREACCESS_TARGET, 800, 600);
+    if (!sceneTexture_)
+      throw std::runtime_error(SDL_GetError());
+    SDL_SetTextureBlendMode(sceneTexture_, SDL_BLENDMODE_NONE);
+  }
+  auto *previousTarget = SDL_GetRenderTarget(&renderer);
+  if (!SDL_SetRenderTarget(&renderer, sceneTexture_))
+    throw std::runtime_error(SDL_GetError());
+  struct RestoreTarget {
+    SDL_Renderer *renderer;
+    SDL_Texture *target;
+    ~RestoreTarget() { SDL_SetRenderTarget(renderer, target); }
+  } restore{&renderer, previousTarget};
+  SDL_SetRenderDrawColor(&renderer, 0, 0, 0, 255);
+  SDL_RenderClear(&renderer);
   usedAnimationTextures_.clear();
   // 1. Draw Background
   if (game_.filled()) {
@@ -46,6 +68,10 @@ void PmailStage::render(Kotonoha::RendererRef renderer, float scale) {
   // 2. Draw Sprites
   renderSprites(renderer);
   renderAnimations(renderer);
+  if (!SDL_SetRenderTarget(&renderer, previousTarget))
+    throw std::runtime_error(SDL_GetError());
+  const SDL_FRect stage{0, 0, 800, 600};
+  SDL_RenderTexture(&renderer, sceneTexture_, nullptr, &stage);
 }
 
 void PmailStage::updateBackground(Kotonoha::RendererRef renderer) {

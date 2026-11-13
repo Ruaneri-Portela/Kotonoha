@@ -25,7 +25,9 @@ struct Application {
   ~Application() { game.shutdown(); }
 
   Application(std::string directory, Kotonoha::EngineOptions options)
-      : game(directory, std::dynamic_pointer_cast<Kotonoha::Providers::SnowAssets>(options.assets)),
+      : game(directory,
+             std::dynamic_pointer_cast<Kotonoha::Providers::SnowAssets>(
+                 options.assets)),
         engine(game, std::move(options)) {}
 };
 
@@ -72,7 +74,8 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
     if (directory.empty())
       directory = DefaultDirectory();
 
-    options.assets = std::make_shared<Kotonoha::Providers::SnowAssets>(directory);
+    options.assets =
+        std::make_shared<Kotonoha::Providers::SnowAssets>(directory);
     auto *app = new Application(directory, std::move(options));
     app->framesRemaining = arguments.frames;
     *appstate = app;
@@ -99,8 +102,10 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
   auto *app = static_cast<Application *>(appstate);
   try {
     const auto result = app->engine.Iterate();
-    if (result != SDL_APP_CONTINUE) return result;
-    if (app->framesRemaining > 0 && --app->framesRemaining == 0) return SDL_APP_SUCCESS;
+    if (result != SDL_APP_CONTINUE)
+      return result;
+    if (app->framesRemaining > 0 && --app->framesRemaining == 0)
+      return SDL_APP_SUCCESS;
     return SDL_APP_CONTINUE;
   } catch (const std::exception &error) {
     SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Frame failed: %s",

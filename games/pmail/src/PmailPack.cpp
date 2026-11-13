@@ -28,7 +28,8 @@ bool PmailPack::decodeLz(std::vector<uint8_t> &dst, size_t dstSize,
   uint8_t ring[0x1000] = {};
   std::memset(ring, 0, sizeof(ring));
   size_t si = 0, di = 0, ri = 0xFEE;
-  uint8_t ctl = 0; uint8_t bit = 0;
+  uint8_t ctl = 0;
+  uint8_t bit = 0;
   while (di < dstSize) {
     if (bit == 0) {
       if (si >= srcSize) {
@@ -90,7 +91,8 @@ bool PmailPack::open(const std::string &path) {
   // x(8) unknown for now
   if (compIndexSize == 0 || compIndexSize + 12u > uint64_t(sz))
     return false;
-  const std::streamoff indexOff = sz - std::streamoff(12) - std::streamoff(compIndexSize);
+  const std::streamoff indexOff =
+      sz - std::streamoff(12) - std::streamoff(compIndexSize);
   if (indexOff < 0)
     return false;
   in.seekg(indexOff, std::ios::beg);
@@ -104,7 +106,8 @@ bool PmailPack::open(const std::string &path) {
     decoded = decodeLz(index, uncompIndexSize, comp.data(), comp.size());
     if (!decoded) {
       // try with slack
-      decoded = decodeLz(index, uncompIndexSize + 0x400, comp.data(), comp.size());
+      decoded =
+          decodeLz(index, uncompIndexSize + 0x400, comp.data(), comp.size());
     }
   }
   if (!decoded) {
@@ -118,10 +121,11 @@ bool PmailPack::open(const std::string &path) {
 
   ok_ = parseIndex(index);
   if (!ok_ || entries_.empty()) {
-    std::cerr << "[PmailPack] Warning: no entries parsed from " << path << std::endl;
-  } else {
-    std::cout << "[PmailPack] Parsed " << entries_.size() << " entries from " << path
+    std::cerr << "[PmailPack] Warning: no entries parsed from " << path
               << std::endl;
+  } else {
+    std::cout << "[PmailPack] Parsed " << entries_.size() << " entries from "
+              << path << std::endl;
   }
   return ok_;
 }
@@ -137,7 +141,8 @@ bool PmailPack::parseIndex(const std::vector<uint8_t> &idx) {
   // [4..] name, [0x44] offset, [0x48] size, [0x4c] unpacked.
   const size_t rec = 0x50;
   auto tryAdd = [&](size_t base) {
-    if (base + rec > idx.size()) return;
+    if (base + rec > idx.size())
+      return;
     const uint8_t *e = idx.data() + base;
     // name at +4
     size_t n0 = base + 4;
@@ -145,9 +150,11 @@ bool PmailPack::parseIndex(const std::vector<uint8_t> &idx) {
     while (n1 < base + 0x44 && n1 < idx.size() && idx[n1] != 0 &&
            idx[n1] >= 0x20 && idx[n1] < 0x7f)
       ++n1;
-    if (n1 <= n0 || n1 >= base + 0x44) return;
+    if (n1 <= n0 || n1 >= base + 0x44)
+      return;
     std::string name(reinterpret_cast<const char *>(idx.data() + n0), n1 - n0);
-    if (name.find('.') == std::string::npos) return; // expect extension
+    if (name.find('.') == std::string::npos)
+      return; // expect extension
     PackEntry pe;
     pe.name = name;
     pe.id = uint16_t(e[0] | (uint16_t(e[1]) << 8));
@@ -157,9 +164,11 @@ bool PmailPack::parseIndex(const std::vector<uint8_t> &idx) {
     pe.size = rd32(e + 0x48);
     pe.unpacked = rd32(e + 0x4c);
     // basic sanity
-    if (pe.offset == 0 && pe.size == 0) return;
+    if (pe.offset == 0 && pe.size == 0)
+      return;
     // avoid obvious garbage
-    if (pe.size > (512u << 20)) return;
+    if (pe.size > (512u << 20))
+      return;
     entries_.push_back(std::move(pe));
   };
 
@@ -171,16 +180,25 @@ bool PmailPack::parseIndex(const std::vector<uint8_t> &idx) {
     // Fallback: scan any position where a plausible filename appears at +4
     for (size_t b = 0; b + rec <= idx.size(); ++b) {
       const uint8_t *e = idx.data() + b;
-      if (e[4] < '0' && e[4] < 'A') continue;
+      if (e[4] < '0' && e[4] < 'A')
+        continue;
       // quick check for "."
       bool hasDot = false;
       for (size_t i = 4; i < 0x30; ++i) {
         uint8_t c = e[i];
-        if (c == 0) break;
-        if (c == '.') { hasDot = true; break; }
-        if (c < 0x20 || c >= 0x7f) { hasDot = false; break; }
+        if (c == 0)
+          break;
+        if (c == '.') {
+          hasDot = true;
+          break;
+        }
+        if (c < 0x20 || c >= 0x7f) {
+          hasDot = false;
+          break;
+        }
       }
-      if (!hasDot) continue;
+      if (!hasDot)
+        continue;
       tryAdd(b);
     }
   }
@@ -189,8 +207,13 @@ bool PmailPack::parseIndex(const std::vector<uint8_t> &idx) {
   std::vector<PackEntry> uniq;
   for (auto &e : entries_) {
     bool dup = false;
-    for (auto &u : uniq) if (lower(u.name) == lower(e.name)) { dup = true; break; }
-    if (!dup) uniq.push_back(std::move(e));
+    for (auto &u : uniq)
+      if (lower(u.name) == lower(e.name)) {
+        dup = true;
+        break;
+      }
+    if (!dup)
+      uniq.push_back(std::move(e));
   }
   entries_.swap(uniq);
   return !entries_.empty();
@@ -205,7 +228,9 @@ std::vector<uint8_t> PmailPack::read(const std::string &name) const {
   // try adding .obj
   if (want.find('.') == std::string::npos) {
     want += ".obj";
-    for (const auto &e : entries_) if (lower(e.name) == want) return read(e);
+    for (const auto &e : entries_)
+      if (lower(e.name) == want)
+        return read(e);
   }
   return {};
 }

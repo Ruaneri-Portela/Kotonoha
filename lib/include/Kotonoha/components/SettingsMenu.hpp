@@ -34,6 +34,7 @@ class SettingsMenu {
   void activate(int index, int direction = 1);
   // Applies only the audio fields to the running engine (no disk write).
   void applyAudioDraft();
+  void applyTextSpeedDraft();
   // Persists the live engine settings (used when audio changes are committed).
   void persistAudio();
 
