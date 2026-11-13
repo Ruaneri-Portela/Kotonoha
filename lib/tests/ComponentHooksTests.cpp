@@ -168,6 +168,55 @@ void testTextBox(Kotonoha::Engine &engine) {
   base.handleEvent(click(1100, 520));
   require(box.calls["menu"] == 1 && box.calls["backlog"] == 1,
           "Menu and log buttons call the hooks");
+  base.onEvent(key(SDLK_H));
+  require(base.isUserHidden() && !base.isVisible(),
+          "H hides the shared text box");
+  base.show();
+  base.setDialogue("Ana", "A new page stays hidden");
+  require(!base.isVisible(),
+          "Per-frame show and dialogue updates preserve user hiding");
+  const int rendered = box.calls["frame"];
+  base.render(engine.GetRenderer(), 1);
+  SDL_Delay(2);
+  base.update();
+  require(box.calls["frame"] == rendered && base.getVisibleText().empty(),
+          "A user-hidden box neither renders nor reveals more characters");
+  require(base.onEvent(key(SDLK_RETURN)) && base.isVisible() &&
+              !base.isDialogueComplete(),
+          "Confirm restores hidden text without completing or advancing it");
+  auto middle = click(0, 0);
+  middle.button.button = SDL_BUTTON_MIDDLE;
+  base.onEvent(middle);
+  require(base.isUserHidden(), "Middle click hides dialogue");
+  require(base.onEvent(key(SDLK_ESCAPE)) && base.isVisible() &&
+              box.calls["menu"] == 1,
+          "Back restores hidden dialogue before opening any menu");
+  base.onEvent(click(750, 520));
+  require(base.isUserHidden(), "The shared frame exposes a hide button");
+  auto tap = click(400, 550);
+  tap.type = SDL_EVENT_MOUSE_BUTTON_UP;
+  tap.button.which = SDL_TOUCH_MOUSEID;
+  require(base.onVisibilityEvent(tap) && !base.isUserHidden(),
+          "Touch release can restore a hidden dialogue box");
+
+  const auto original = engine.GetSettings();
+  auto settings = original;
+  settings.vnTextSpeed = 1;
+  settings.vnTextInstant = false;
+  engine.applySettings(settings, false);
+  base.setDialogue("Ana", "日本語の文章です");
+  SDL_Delay(2);
+  base.update();
+  require(!base.isDialogueComplete(),
+          "The global text speed overrides the game's very fast pacing hook");
+  settings.vnTextInstant = true;
+  engine.applySettings(settings, false);
+  base.update();
+  require(base.isDialogueComplete() &&
+              base.getVisibleText() == "日本語の文章です",
+          "Instant mode applies to the active UTF-8 page without losing "
+          "characters");
+  engine.applySettings(original, false);
 }
 
 void testChoice(Kotonoha::Engine &engine) {

@@ -1,10 +1,10 @@
-#include <Kotonoha/debug/ImGuiTheme.hpp>
 #include <Kotonoha/components/DisplayModeCatalog.hpp>
 #include <Kotonoha/components/SettingsMenu.hpp>
 #include <Kotonoha/core/Appearance.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/Log.hpp>
 #include <Kotonoha/core/UI.hpp>
+#include <Kotonoha/debug/ImGuiTheme.hpp>
 #include <Kotonoha/events/BackAction.hpp>
 #include <Kotonoha/events/ControllerEvent.hpp>
 
@@ -37,7 +37,7 @@ std::vector<int> SettingsMenu::rows() const {
     for (int i = 0; i < int(channels.size()); ++i)
       result.push_back(100 + i);
   } else if (page == 2)
-    result.insert(result.end(), {13, 14, 15, 16});
+    result.insert(result.end(), {18, 13, 14, 15, 16});
   else
     result.push_back(17);
   result.insert(result.end(), {8, 9});
@@ -77,6 +77,18 @@ void SettingsMenu::applyAudioDraft() {
   } catch (const std::exception &failure) {
     error = failure.what();
     SDL_LogError(LogConfig, "Settings audio: %s", error.c_str());
+  }
+}
+
+void SettingsMenu::applyTextSpeedDraft() {
+  auto next = engine.GetSettings();
+  next.vnTextSpeed = draft.vnTextSpeed;
+  next.vnTextInstant = draft.vnTextInstant;
+  try {
+    engine.applySettings(next, false);
+  } catch (const std::exception &failure) {
+    error = failure.what();
+    SDL_LogError(LogConfig, "Settings text speed: %s", error.c_str());
   }
 }
 
@@ -231,7 +243,26 @@ void SettingsMenu::activate(int index, int direction) {
                    });
   } else if (index == 17)
     draft.swapControllerAB = !draft.swapControllerAB;
-  else if (index >= 100) {
+  else if (index == 18) {
+    const std::vector<float> rates{0, 10, 20, 30, 45, 60, 90, 120};
+    std::vector<std::string> labels{"Original game speed"};
+    int current = 0;
+    for (size_t i = 1; i < rates.size(); ++i) {
+      labels.push_back(std::to_string(int(rates[i])) + " characters / second");
+      if (draft.vnTextSpeed == rates[i])
+        current = int(i);
+    }
+    labels.push_back("Instant");
+    if (draft.vnTextInstant)
+      current = int(rates.size());
+    selectBox.open("Typewriter speed", labels, current,
+                   [this, rates](int choice) {
+                     draft.vnTextInstant = choice == int(rates.size());
+                     draft.vnTextSpeed =
+                         draft.vnTextInstant ? 0 : rates.at(size_t(choice));
+                     applyTextSpeedDraft();
+                   });
+  } else if (index >= 100) {
     auto &volume = draft.channelVolumes[channels.at(index - 100)];
     volume = std::clamp(volume + direction * .05f, 0.f, 1.f);
     applyAudioDraft();
@@ -436,12 +467,20 @@ void SettingsMenu::render(RendererRef renderer) {
       "Speaker color...",
       std::string("Controller A/B: ") + (draft.swapControllerAB
                                              ? "Swapped (South confirms)"
-                                             : "Standard (East confirms)")};
+                                             : "Standard (East confirms)"),
+      std::string("Typewriter speed: ") +
+          (draft.vnTextInstant      ? "Instant"
+           : draft.vnTextSpeed == 0 ? "Original game speed"
+                                    : std::to_string(int(draft.vnTextSpeed)) +
+                                          " characters / second")};
   ui.backdrop(renderer, {0, 0, 0, 220});
   ui.panel(renderer, {170, 25, 920, 670});
   ui.text(renderer, "Settings", 200, 36, 860, {255, 215, 100, 255});
   if (page == 1)
     ui.text(renderer, "Audio applies immediately", 780, 44, 280,
+            {150, 165, 190, 255});
+  if (page == 2)
+    ui.text(renderer, "Speed applies immediately", 760, 44, 300,
             {150, 165, 190, 255});
   const int tabs = pageCount();
   const float tabWidth = tabs == 4 ? 205.f : 280.f;

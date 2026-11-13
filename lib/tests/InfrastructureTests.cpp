@@ -132,6 +132,8 @@ void testSettings(const std::filesystem::path &directory) {
   settings.translationPath = "trans.json";
   settings.fontPath = "font.ttf";
   settings.vnFontPath = "vn.ttf";
+  settings.vnTextSpeed = 45;
+  settings.vnTextInstant = true;
   settings.vnTextColorOverride = true;
   settings.vnTextColor = {21, 43, 65, 187};
   settings.channelVolumes = {{"BGM", .3f}, {"Voice", .7f}};
@@ -153,6 +155,7 @@ void testSettings(const std::filesystem::path &directory) {
               read.debugUIScale == 1.75f &&
               read.translationPath == "trans.json" &&
               read.fontPath == "font.ttf" && read.vnFontPath == "vn.ttf" &&
+              read.vnTextSpeed == 45 && read.vnTextInstant &&
               read.vnTextColorOverride && read.vnTextColor.r == 21 &&
               read.vnTextColor.a == 187 &&
               read.channelVolumes == settings.channelVolumes,
@@ -191,14 +194,20 @@ void testSettings(const std::filesystem::path &directory) {
                               "{\"masterVolume\":1e300}",
                               "{\"masterMuted\":1}",
                               "{\"debugUIScale\":0.9}",
-                              "{\"debugUIScale\":3.1}"}) {
+                              "{\"debugUIScale\":3.1}",
+                              "{\"vnTextSpeed\":-1}",
+                              "{\"vnTextSpeed\":301}",
+                              "{\"vnTextSpeed\":1e300}",
+                              "{\"vnTextInstant\":1}"}) {
     writeTextFileAtomically(file, invalid);
     rejects([&] { EngineSettings::load(file); },
             "Reject invalid settings JSON/value");
   }
   writeTextFileAtomically(file, "{}");
   require(EngineSettings::load(file).width == 1280 &&
-              EngineSettings::load(file).vsync,
+              EngineSettings::load(file).vsync &&
+              EngineSettings::load(file).vnTextSpeed == 0 &&
+              !EngineSettings::load(file).vnTextInstant,
           "Partial settings use defaults including enabled VSync");
   writeTextFileAtomically(file, "{\"vsync\":false}");
   auto vsyncDisabled = EngineSettings::load(file);
@@ -500,8 +509,14 @@ void testTouchSettings(Engine &engine, EventRuntime &runtime) {
   touch(SDL_EVENT_FINGER_UP, 945, 172);
   tap(755, 268); // First audio channel gain.
   tap(800, 105); // VN text tab (valid with and without the Input tab).
-  tap(500, 218); // Override colors.
-  tap(500, 266); // Dialogue color selector.
+  tap(500, 172); // Typewriter speed.
+  tap(500, 216); // 10 characters / second (second option).
+  require(
+      engine.GetSettings().vnTextSpeed == 10 &&
+          !engine.GetSettings().vnTextInstant,
+      "VN typewriter speed applies immediately from the shared selection box");
+  tap(500, 266); // Override colors.
+  tap(500, 314); // Dialogue color selector.
   tap(500, 216); // Black, second option.
   const int before = runtime.novelEvents;
   tap(400, 646); // Apply.

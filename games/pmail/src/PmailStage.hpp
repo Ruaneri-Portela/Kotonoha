@@ -34,6 +34,7 @@ private:
   // Background caching
   std::string renderedBackground_;
   SDL_Texture *backgroundTexture_ = nullptr;
+  SDL_Texture *sceneTexture_ = nullptr;
 
   // Sprite caching
   struct SpriteTex {

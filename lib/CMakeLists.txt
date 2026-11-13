@@ -16,8 +16,8 @@ include("${CMAKE_CURRENT_SOURCE_DIR}/../buildsystems/cmake/KotonohaOutputs.cmake
 # Propagate the output layout to the parent directory so game, tool and test
 # targets added after add_subdirectory(lib) use the same outputs tree.
 # KotonohaOutputs.cmake sets CMAKE_*_OUTPUT_DIRECTORY defaults for non-Android.
-if(NOT ANDROID)
-    foreach(_kotonoha_output_variable IN ITEMS
+if (NOT ANDROID)
+    foreach (_kotonoha_output_variable IN ITEMS
             KOTONOHA_OUTPUT_DIR
             KOTONOHA_OUTPUT_CONFIG_DIR
             KOTONOHA_OUTPUT_LIB_DIR
@@ -27,8 +27,8 @@ if(NOT ANDROID)
             CMAKE_ARCHIVE_OUTPUT_DIRECTORY)
         set(${_kotonoha_output_variable}
                 "${${_kotonoha_output_variable}}" PARENT_SCOPE)
-    endforeach()
-endif()
+    endforeach ()
+endif ()
 
 # ==============================================================================
 # Configuracoes Globais e Opcoes de Cache
@@ -178,7 +178,7 @@ endif ()
 set(KOTONOHA_LIB_TYPE SHARED)
 if (EMSCRIPTEN)
     set(KOTONOHA_LIB_TYPE STATIC)
-endif()
+endif ()
 
 add_library(imgui ${KOTONOHA_LIB_TYPE}
         submodules/imgui/imgui.cpp
@@ -206,24 +206,16 @@ file(GLOB_RECURSE KOTONOHA_ENGINE_SOURCES
         "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
 )
 
-if (NOT APPLE)
-    list(APPEND KOTONOHA_ENGINE_SOURCES
-            "${CMAKE_CURRENT_SOURCE_DIR}/src/media/upscaling/MetalFXUpscaler.mm")
-endif ()
-
 if (APPLE)
     file(GLOB_RECURSE KOTONOHA_ENGINE_SOURCES_OBJC
-        CONFIGURE_DEPENDS
-        "${CMAKE_CURRENT_SOURCE_DIR}/src/*.mm"
+            CONFIGURE_DEPENDS
+            "${CMAKE_CURRENT_SOURCE_DIR}/src/*.mm"
     )
     list(APPEND KOTONOHA_ENGINE_SOURCES ${KOTONOHA_ENGINE_SOURCES_OBJC})
-endif()
+endif ()
 
 add_library(KotonohaEngine ${KOTONOHA_LIB_TYPE} ${KOTONOHA_ENGINE_SOURCES})
-
-# Aliases para compatibilidade de inclusao
 add_library(Kotonoha::Engine ALIAS KotonohaEngine)
-add_library(kotonoha ALIAS KotonohaEngine)
 
 # Propriedades do target
 target_compile_features(KotonohaEngine PUBLIC cxx_std_17)
@@ -291,12 +283,6 @@ if (APPLE)
                 "-framework Foundation"
         )
     endif ()
-else ()
-    set_source_files_properties(src/media/upscaling/MetalFXUpscaler.mm
-            PROPERTIES
-            LANGUAGE CXX
-            COMPILE_OPTIONS "$<IF:$<CXX_COMPILER_ID:MSVC>,/TP,-xc++>"
-    )
 endif ()
 
 # ==============================================================================

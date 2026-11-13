@@ -17,4 +17,7 @@ std::string ShiftJisToUtf8(std::string_view text);
 // UTF-8 to UTF-16 (used by native backlog/stores that keep u16string text).
 std::u16string Utf8ToUtf16(std::string_view text);
 
+// UTF-16 to UTF-8.
+std::string Utf16ToUtf8(std::u16string_view text);
+
 } // namespace Kotonoha

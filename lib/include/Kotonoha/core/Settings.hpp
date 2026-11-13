@@ -22,6 +22,10 @@ struct EngineSettings {
   bool masterMuted = false;
   std::map<std::string, float> channelVolumes;
   std::string vnFontPath;
+  // Zero preserves the game's own pacing. Positive values override it in
+  // characters/second.
+  float vnTextSpeed = 0;
+  bool vnTextInstant = false;
   bool vnTextColorOverride = false;
   SDL_Color vnTextColor{255, 255, 255, 255};
   SDL_Color vnSpeakerColor{255, 215, 100, 255};

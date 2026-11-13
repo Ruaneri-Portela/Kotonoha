@@ -856,8 +856,9 @@ um pipeline. O controlador usa essas consultas para selecionar backends.
 MetalFX verifica renderer, textura Metal nativa e suporte do dispositivo,
 nao apenas o nome do renderer. Cada backend fica em um unico arquivo, sem
 header interno compartilhado: `MetalFXUpscaler.mm` contem a classe e o pipeline
-MetalFX (Objective-C++ na Apple; fora dela o mesmo arquivo compila como C++ e
-informa indisponibilidade), e `MPVCompatibleUpscaler.cpp` contem
+MetalFX (Objective-C++ na Apple); fora dela, `MetalFXUpscaler.cpp` contem um
+stub que informa indisponibilidade, e apenas os `.cpp` entram nas builds que
+nao alvo Apple. `MPVCompatibleUpscaler.cpp` contem
 `OpenGLUpscaler` e o executor de shaders MPV. Os headers publicos contem
 declaracoes, sem implementacoes inline; o carregamento de funcoes OpenGL fica
 em `core/OpenGL.hpp` e `core/OpenGL.cpp`.
@@ -991,6 +992,9 @@ entre threads. `DiscImageAssetProvider` expoe o disco como `AssetProvider`
 `ShiftJisToUtf8(texto)` (`localization/Encoding.hpp`) usam `SDL_iconv`; o
 Shift-JIS e lido como CP932 (simbolos NEC e IBM), e sequencias invalidas viram
 `?`. A lib forca `SDL_SYSTEM_ICONV` para ter iconv tambem no macOS/Windows.
+Nas versoes Apple, as conversoes UTF-8 <-> UTF-16 (usadas por backlog nativo)
+ficam em `localization/Encoding.mm`, via `NSString`; as demais conversões de
+encoding continuam usando `SDL_iconv`.
 
 ## Servidor MCP interno
 
