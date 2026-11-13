@@ -7,23 +7,41 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
 endif()
 
 find_package(ZLIB REQUIRED)
-if(ANDROID)
-    find_package(Python3 REQUIRED COMPONENTS Development)
+if(ANDROID OR EMSCRIPTEN)
+    find_package(Python3 REQUIRED COMPONENTS Interpreter)
 else()
     find_package(Python3 REQUIRED COMPONENTS Interpreter Development)
 endif()
 
-add_library(DdlcFormats STATIC
-    src/Archive.cpp
-    src/Display.cpp
-    src/Python.cpp
-    src/Replay.cpp
-    src/Script.cpp
-    src/Value.cpp
-)
+if(EMSCRIPTEN)
+    set(DDLC_SOURCES
+        src/Archive.cpp
+        src/Display.cpp
+        src/Replay.cpp
+        src/Script.cpp
+        src/Value.cpp
+        src/PythonDummy.cpp
+    )
+else()
+    set(DDLC_SOURCES
+        src/Archive.cpp
+        src/Display.cpp
+        src/Python.cpp
+        src/Replay.cpp
+        src/Script.cpp
+        src/Value.cpp
+    )
+endif()
+
+add_library(DdlcFormats STATIC ${DDLC_SOURCES})
 target_include_directories(DdlcFormats PUBLIC include)
 target_compile_features(DdlcFormats PUBLIC cxx_std_20)
-target_link_libraries(DdlcFormats PUBLIC SDL3::SDL3 ZLIB::ZLIB PRIVATE Python3::Python)
+
+if(EMSCRIPTEN)
+    target_link_libraries(DdlcFormats PUBLIC SDL3::SDL3 ZLIB::ZLIB)
+else()
+    target_link_libraries(DdlcFormats PUBLIC SDL3::SDL3 ZLIB::ZLIB PRIVATE Python3::Python)
+endif()
 
 include("${CMAKE_CURRENT_SOURCE_DIR}/../../modules/vms/renpy/CMakeLists.txt")
 target_link_libraries(DdlcFormats PUBLIC Kotonoha::Modules::VMs::Renpy)

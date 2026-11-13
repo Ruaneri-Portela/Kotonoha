@@ -1,5 +1,6 @@
 #include "SnowRadish/Game.hpp"
 #include <cstdio>
+#include <cstdlib>
 
 #include <Kotonoha/localization/Encoding.hpp>
 

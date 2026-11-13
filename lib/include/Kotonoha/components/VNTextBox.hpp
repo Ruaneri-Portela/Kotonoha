@@ -6,6 +6,9 @@
 #include <Kotonoha/core/Scene.hpp>
 
 #include <string>
+#include <functional>
+#include <vector>
+#include <algorithm>
 
 namespace Kotonoha {
 
@@ -27,7 +30,7 @@ protected:
 
   virtual double charactersPerSecond() const { return cps; }
   virtual void recordDialogue(const std::string &speaker,
-                              const std::string &dialogue);
+                               const std::string &dialogue);
   virtual void openMenu();
   virtual void openBacklog();
   virtual void renderFrame(RendererRef renderer);
@@ -43,8 +46,8 @@ public:
   virtual void setDialogue(const std::string &speaker,
                            const std::string &dialogue);
   void translationChanged(const std::string &original,
-                          const std::string &previous,
-                          const std::string &translated) override {
+                           const std::string &previous,
+                           const std::string &translated) override {
     replaceTranslation(original, previous, translated);
   }
   void replaceTranslation(const std::string &original,
@@ -71,7 +74,7 @@ public:
 };
 
 VNTextBox &GetVNTextBoxRuntime(Engine &engineRef, const std::string &speaker,
-                               const std::string &dialogue, double cps);
+                                const std::string &dialogue, double cps);
 
 class VNTextBoxUtility {
 public:
@@ -98,7 +101,7 @@ public:
   }
 
   static std::string GetSubStringUtf8(const std::string &str,
-                                      size_t charCount) {
+                                       size_t charCount) {
     size_t index = 0;
     for (size_t i = 0; i < charCount && index < str.size(); ++i) {
       index = NextUtf8Char(str, index);
