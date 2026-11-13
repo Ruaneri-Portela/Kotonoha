@@ -1,4 +1,4 @@
-#include "../debug/ImGuiTheme.hpp"
+#include <Kotonoha/debug/ImGuiTheme.hpp>
 #include <Kotonoha/components/DisplayModeCatalog.hpp>
 #include <Kotonoha/components/SettingsMenu.hpp>
 #include <Kotonoha/core/Appearance.hpp>

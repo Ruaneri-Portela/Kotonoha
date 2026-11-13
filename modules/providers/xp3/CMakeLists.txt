@@ -2,11 +2,6 @@ if(TARGET Kotonoha::Modules::Providers::XP3)
     return()
 endif()
 
-if(NOT TARGET Kotonoha::Engine)
-    add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../../lib"
-        "${CMAKE_CURRENT_BINARY_DIR}/kotonoha")
-endif()
-
 find_package(ZLIB REQUIRED)
 
 add_library(kotonoha_provider_xp3 STATIC

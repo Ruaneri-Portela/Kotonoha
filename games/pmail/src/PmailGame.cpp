@@ -188,7 +188,7 @@ bool PmailGame::init() {
     std::cout << "[PmailPort] Registered library: pmail.obj" << std::endl;
   }
   const char *candidates[] = {"start.obj", "main.obj", "01m1.obj", "a.obj",
-                               nullptr};
+                              nullptr};
   ::Pmail::ObjectPtr start;
   for (int i = 0; candidates[i]; ++i) {
     start = loadByName(candidates[i]);
@@ -219,121 +219,248 @@ bool PmailGame::init() {
 
 std::string PmailGame::serialize() const {
   std::lock_guard lock(mutex_);
-  if (returningToTitle_) throw std::runtime_error("Cannot save while returning to title");
+  if (returningToTitle_)
+    throw std::runtime_error("Cannot save while returning to title");
   ::Pmail::StateIO::Writer out;
-  out.string("PMAIL-GAME-1");
+  out.string("PMAIL-GAME-2");
   out.u64(::Pmail::StateIO::fingerprint(pack_.data(), pack_.size()));
   out.string(vm_.serialize());
-  auto object = [&](const ::Pmail::ObjectPtr &obj) { out.string(obj ? obj->name : std::string()); };
-  object(sub_); object(lib_); object(main_);
-  out.string(scriptName_); out.string(message_); out.string(speakerName_); out.string(background_);
-  out.u32(uint32_t(messageQueue_.size())); for (const auto &line : messageQueue_) out.string(line);
+  auto object = [&](const ::Pmail::ObjectPtr &obj) {
+    out.string(obj ? obj->name : std::string());
+  };
+  object(sub_);
+  object(lib_);
+  object(main_);
+  out.string(scriptName_);
+  out.string(message_);
+  out.string(speakerName_);
+  out.string(background_);
+  out.u32(uint32_t(messageQueue_.size()));
+  for (const auto &line : messageQueue_)
+    out.string(line);
   out.u32(uint32_t(callStack_.size()));
-  for (const auto &frame : callStack_) { out.string(frame.name); out.u32(frame.pc); }
+  for (const auto &frame : callStack_) {
+    out.string(frame.name);
+    out.u32(frame.pc);
+  }
   out.u32(uint32_t(sprites_.size()));
   for (const auto &sprite : sprites_) {
-    out.string(sprite.name); out.u32(uint32_t(sprite.x)); out.u32(uint32_t(sprite.y));
-    out.u32(uint32_t(sprite.id)); for (int tint : sprite.tint) out.u32(uint32_t(tint));
+    out.string(sprite.name);
+    out.u32(uint32_t(sprite.x));
+    out.u32(uint32_t(sprite.y));
+    out.u32(uint32_t(sprite.id));
+    for (int tint : sprite.tint)
+      out.u32(uint32_t(tint));
   }
-  out.boolean(filled_); out.u32(fillColor_);
-  out.boolean(waiting_); out.boolean(title_); out.boolean(choosing_);
+  out.boolean(filled_);
+  out.u32(fillColor_);
+  out.boolean(waiting_);
+  out.boolean(title_);
+  out.boolean(choosing_);
   out.u32(uint32_t(audioWait_));
   const auto now = SDL_GetTicks();
-  out.u32(audioWait_ == AudioWait::Time && waitUntil_ > now ? uint32_t(waitUntil_ - now) : 0);
-  out.u32(titleChoiceVar_); out.u32(uint32_t(titleVariant_)); out.u32(uint32_t(titleCount_));
-  out.u32(uint32_t(titleIndex_)); out.u32(uint32_t(titleHover_)); out.u32(choiceVar_);
-  out.u32(uint32_t(choiceText_.size())); for (const auto &text : choiceText_) out.string(text);
-  out.u32(uint32_t(choiceValue_.size())); for (auto value : choiceValue_) out.u32(uint32_t(value));
+  out.u32(audioWait_ == AudioWait::Time && waitUntil_ > now
+              ? uint32_t(waitUntil_ - now)
+              : 0);
+  out.u32(titleChoiceVar_);
+  out.u32(uint32_t(titleVariant_));
+  out.u32(uint32_t(titleCount_));
+  out.u32(uint32_t(titleIndex_));
+  out.u32(uint32_t(titleHover_));
+  out.u32(choiceVar_);
+  out.u32(uint32_t(choiceText_.size()));
+  for (const auto &text : choiceText_)
+    out.string(text);
+  out.u32(uint32_t(choiceValue_.size()));
+  for (auto value : choiceValue_)
+    out.u32(uint32_t(value));
   out.u32(uint32_t(spriteSlots_.size()));
-  for (const auto &[slot, name] : spriteSlots_) { out.u32(uint32_t(slot)); out.string(name); }
+  for (const auto &[slot, name] : spriteSlots_) {
+    out.u32(uint32_t(slot));
+    out.string(name);
+  }
+  out.u32(uint32_t(animations_.size()));
+  for (const auto &animation : animations_) {
+    out.u32(animation.preset);
+    out.u32(uint32_t(animation.x));
+    out.u32(uint32_t(animation.y));
+    out.u32(animation.frame);
+    out.u32(animation.count);
+    out.u32(animation.elapsedMs);
+    out.boolean(animation.playing);
+  }
+  out.u32(uint32_t(voiceActor_));
   return out.finish();
 }
 
 void PmailGame::deserialize(const std::string &data) {
   std::lock_guard lock(mutex_);
   ::Pmail::StateIO::Reader in(data);
-  if (in.string(32) != "PMAIL-GAME-1") throw std::runtime_error("Unsupported PMAIL save version");
+  const auto version = in.string(32);
+  if (version != "PMAIL-GAME-1" && version != "PMAIL-GAME-2")
+    throw std::runtime_error("Unsupported PMAIL save version");
   if (in.u64() != ::Pmail::StateIO::fingerprint(pack_.data(), pack_.size()))
     throw std::runtime_error("PMAIL save belongs to a different script pack");
   const auto vmData = in.string(16u << 20);
   auto object = [&]() -> ::Pmail::ObjectPtr {
     const auto name = in.string(256);
-    if (name.empty()) return {};
+    if (name.empty())
+      return {};
     const auto obj = loadByName(name);
-    if (!obj) throw std::runtime_error("Missing saved PMAIL object: " + name);
+    if (!obj)
+      throw std::runtime_error("Missing saved PMAIL object: " + name);
     return obj;
   };
   auto sub = object(), lib = object(), main = object();
-  auto scriptName = in.string(256), message = in.string(), speaker = in.string(), background = in.string(256);
-  if (!main || !lib) throw std::runtime_error("Missing PMAIL main/library object");
+  auto scriptName = in.string(256), message = in.string(),
+       speaker = in.string(), background = in.string(256);
+  if (!main || !lib)
+    throw std::runtime_error("Missing PMAIL main/library object");
   std::deque<std::string> queue;
-  for (auto n = in.count(4096); n; --n) queue.push_back(in.string());
+  for (auto n = in.count(4096); n; --n)
+    queue.push_back(in.string());
   std::vector<CallFrame> calls;
   for (auto n = in.count(4096); n; --n) {
     CallFrame frame{in.string(256), in.u32()};
     auto obj = loadByName(frame.name);
-    if (!obj || frame.pc > obj->codeWords) throw std::runtime_error("Invalid PMAIL script return frame");
+    if (!obj || frame.pc > obj->codeWords)
+      throw std::runtime_error("Invalid PMAIL script return frame");
     calls.push_back(std::move(frame));
   }
   std::vector<Sprite> sprites;
   for (auto n = in.count(4096); n; --n) {
     Sprite sprite;
-    sprite.name = in.string(256); sprite.x = int32_t(in.u32()); sprite.y = int32_t(in.u32());
-    sprite.id = int32_t(in.u32()); for (auto &tint : sprite.tint) tint = int32_t(in.u32());
+    sprite.name = in.string(256);
+    sprite.x = int32_t(in.u32());
+    sprite.y = int32_t(in.u32());
+    sprite.id = int32_t(in.u32());
+    for (auto &tint : sprite.tint)
+      tint = int32_t(in.u32());
     sprites.push_back(std::move(sprite));
   }
-  const bool filled = in.boolean(); const auto fillColor = in.u32();
-  const bool waiting = in.boolean(), title = in.boolean(), choosing = in.boolean();
+  const bool filled = in.boolean();
+  const auto fillColor = in.u32();
+  const bool waiting = in.boolean(), title = in.boolean(),
+             choosing = in.boolean();
   const auto audioWait = AudioWait(in.count(uint32_t(AudioWait::Time)));
   const auto waitRemaining = in.count(60000);
-  const auto titleVar = in.count(65535), variant = in.count(6), titleCount = in.count(3);
-  const auto titleIndex = in.count(2); const int titleHover = int32_t(in.u32());
+  const auto titleVar = in.count(65535), variant = in.count(6),
+             titleCount = in.count(3);
+  const auto titleIndex = in.count(2);
+  const int titleHover = int32_t(in.u32());
   const auto choiceVar = in.count(65535);
-  if (!titleCount || titleIndex >= titleCount || titleHover < -1 || titleHover >= int(titleCount))
+  if (!titleCount || titleIndex >= titleCount || titleHover < -1 ||
+      titleHover >= int(titleCount))
     throw std::runtime_error("Invalid PMAIL title state");
   std::vector<std::string> choices;
-  for (auto n = in.count(256); n; --n) choices.push_back(in.string());
+  for (auto n = in.count(256); n; --n)
+    choices.push_back(in.string());
   std::vector<int> values;
-  for (auto n = in.count(256); n; --n) values.push_back(int32_t(in.u32()));
+  for (auto n = in.count(256); n; --n)
+    values.push_back(int32_t(in.u32()));
   if (choosing && (choices.empty() || values.size() < choices.size()))
     throw std::runtime_error("Invalid PMAIL choice state");
   std::map<int, std::string> slots;
   for (auto n = in.count(4096); n; --n) {
-    const auto slot = int32_t(in.u32()); auto name = in.string(256);
-    if (!slots.emplace(slot, std::move(name)).second) throw std::runtime_error("Duplicate PMAIL sprite slot");
+    const auto slot = int32_t(in.u32());
+    auto name = in.string(256);
+    if (!slots.emplace(slot, std::move(name)).second)
+      throw std::runtime_error("Duplicate PMAIL sprite slot");
+  }
+  int voiceActor = -1;
+  std::vector<AnimationState> animations;
+  if (version == "PMAIL-GAME-2") {
+    const auto count = in.count(4096);
+    for (uint32_t i = 0; i < count; ++i) {
+      AnimationState animation;
+      animation.preset = in.count(uint32_t(AnimationPresets.size() - 1));
+      animation.x = int32_t(in.u32());
+      animation.y = int32_t(in.u32());
+      animation.frame = in.count(1023);
+      animation.count = in.count(1024);
+      animation.elapsedMs =
+          in.count(AnimationPresets[animation.preset].frameMs - 1);
+      animation.playing = in.boolean();
+      if (!animation.count || animation.frame >= animation.count ||
+          (animation.playing && i + 1 != count))
+        throw std::runtime_error("Invalid PMAIL animation state");
+      if (animationFrameCount &&
+          animationFrameCount(AnimationPresets[animation.preset].name) !=
+              animation.count)
+        throw std::runtime_error(
+            "Saved PMAIL animation differs from installed assets");
+      animations.push_back(animation);
+    }
+    voiceActor = int32_t(in.u32());
   }
   in.end();
   ::Pmail::Vm staged(*this);
   staged.deserialize(vmData);
-  // All validation completed. Swaps/moves below leave no partially loaded state.
+  // All validation completed. Swaps/moves below leave no partially loaded
+  // state.
   vm_.swapState(staged);
-  sub_ = std::move(sub); lib_ = std::move(lib); main_ = std::move(main);
-  scriptName_ = std::move(scriptName); message_ = std::move(message); speakerName_ = std::move(speaker);
-  background_ = std::move(background); messageQueue_ = std::move(queue); callStack_ = std::move(calls);
-  sprites_ = std::move(sprites); filled_ = filled; fillColor_ = fillColor;
-  waiting_ = waiting; title_ = title; choosing_ = choosing; audioWait_ = audioWait;
+  sub_ = std::move(sub);
+  lib_ = std::move(lib);
+  main_ = std::move(main);
+  scriptName_ = std::move(scriptName);
+  message_ = std::move(message);
+  speakerName_ = std::move(speaker);
+  background_ = std::move(background);
+  messageQueue_ = std::move(queue);
+  callStack_ = std::move(calls);
+  animations_ = std::move(animations);
+  voiceActor_ = voiceActor;
+  sprites_ = std::move(sprites);
+  filled_ = filled;
+  fillColor_ = fillColor;
+  waiting_ = waiting;
+  title_ = title;
+  choosing_ = choosing;
+  audioWait_ = audioWait;
   waitUntil_ = SDL_GetTicks() + waitRemaining;
-  titleChoiceVar_ = titleVar; titleVariant_ = int(variant); titleCount_ = int(titleCount);
-  titleIndex_ = int(titleIndex); titleHover_ = titleHover; choiceVar_ = choiceVar;
-  choiceText_ = std::move(choices); choiceValue_ = std::move(values); spriteSlots_ = std::move(slots);
-  returningToTitle_ = false; ++sceneVersion_;
+  titleChoiceVar_ = titleVar;
+  titleVariant_ = int(variant);
+  titleCount_ = int(titleCount);
+  titleIndex_ = int(titleIndex);
+  titleHover_ = titleHover;
+  choiceVar_ = choiceVar;
+  choiceText_ = std::move(choices);
+  choiceValue_ = std::move(values);
+  spriteSlots_ = std::move(slots);
+  returningToTitle_ = false;
+  ++sceneVersion_;
 }
 
 void PmailGame::returnToTitle() {
   std::lock_guard lock(mutex_);
   // Preserve persistent game flags, but discard suspended story call frames.
   vm_.reset(false);
-  callStack_.clear(); sprites_.clear(); spriteSlots_.clear();
-  background_.clear(); message_.clear(); speakerName_.clear(); messageQueue_.clear();
-  choiceText_.clear(); choiceValue_.clear(); choosing_ = false;
-  audioWait_ = AudioWait::None; waitUntil_ = 0; filled_ = false;
+  callStack_.clear();
+  sprites_.clear();
+  spriteSlots_.clear();
+  animations_.clear();
+  background_.clear();
+  message_.clear();
+  speakerName_.clear();
+  messageQueue_.clear();
+  choiceText_.clear();
+  choiceValue_.clear();
+  choosing_ = false;
+  audioWait_ = AudioWait::None;
+  waitUntil_ = 0;
+  filled_ = false;
+  voiceActor_ = -1;
   returningToTitle_ = true;
-  if (!init()) { returningToTitle_ = false; throw std::runtime_error("Cannot load PMAIL title script"); }
+  if (!init()) {
+    returningToTitle_ = false;
+    throw std::runtime_error("Cannot load PMAIL title script");
+  }
   // Only execute the title script's setup, stopping at its native menu call.
   // Its startup presentation and audio are suppressed by native() below.
   vm_.run(1000000);
   returningToTitle_ = false;
-  if (!title_) throw std::runtime_error("PMAIL title script did not reach its menu");
+  if (!title_)
+    throw std::runtime_error("PMAIL title script did not reach its menu");
   ++sceneVersion_;
 }
 
@@ -388,9 +515,30 @@ bool PmailGame::popCall() {
   return true;
 }
 
+void PmailGame::advanceAnimation(uint32_t elapsedMs) {
+  std::lock_guard lock(mutex_);
+  if (!animating())
+    return;
+  auto &animation = animations_.back();
+  const auto duration = AnimationPresets[animation.preset].frameMs;
+  // The original loop draws every frame, even when rendering is slow. Advance
+  // at most one frame per update, so a stall never jumps over animation
+  // content.
+  animation.elapsedMs += std::min(elapsedMs, duration);
+  if (animation.elapsedMs < duration)
+    return;
+  animation.elapsedMs -= duration;
+  if (animation.frame + 1 < animation.count) {
+    ++animation.frame;
+  } else {
+    animation.playing = false;
+    vm_.unblock();
+  }
+}
+
 void PmailGame::pump(size_t maxSteps) {
   std::lock_guard lock(mutex_);
-  if (waiting_ || choosing_)
+  if (waiting_ || choosing_ || animating())
     return;
   if (audioWait_ != AudioWait::None) {
     bool playing = false;
@@ -415,7 +563,7 @@ void PmailGame::pump(size_t maxSteps) {
 
 bool PmailGame::click() {
   std::lock_guard lock(mutex_);
-  if (choosing_)
+  if (choosing_ || animating())
     return false;
   if (!waiting_)
     return false;
@@ -448,7 +596,8 @@ bool PmailGame::choose(size_t i) {
 void PmailGame::titleHover(int index) {
   std::lock_guard lock(mutex_);
   titleHover_ = (index >= 0 && index < titleCount_) ? index : -1;
-  if (titleHover_ >= 0) titleIndex_ = titleHover_;
+  if (titleHover_ >= 0)
+    titleIndex_ = titleHover_;
 }
 
 void PmailGame::titleMove(int delta) {
@@ -478,7 +627,7 @@ bool PmailGame::titleChoose(int index) {
 }
 
 void PmailGame::native(::Pmail::Vm &vm, int id,
-                     const std::vector<::Pmail::Arg> &args) {
+                       const std::vector<::Pmail::Arg> &args) {
   std::lock_guard lock(mutex_);
   if (trace) {
     std::string t = "sys " + std::to_string(id) + "(";
@@ -495,7 +644,8 @@ void PmailGame::native(::Pmail::Vm &vm, int id,
     t += ")";
     trace(t);
   }
-  if (returningToTitle_ && id != 213 && id != 214) return;
+  if (returningToTitle_ && id != 213 && id != 214)
+    return;
   if (onNative && !returningToTitle_)
     onNative(id, args);
 
@@ -517,7 +667,8 @@ void PmailGame::native(::Pmail::Vm &vm, int id,
   case 4:
   case 7: {
     flushLines();
-    // sys 4 carries text as string args in PMAIL; avoid duplicating if already queued.
+    // sys 4 carries text as string args in PMAIL; avoid duplicating if already
+    // queued.
     bool haveQueued = !message_.empty() || !messageQueue_.empty();
     if (!haveQueued) {
       std::string text;
@@ -626,6 +777,7 @@ void PmailGame::native(::Pmail::Vm &vm, int id,
       if (arg.tag() == 2) {
         background_ = vm.text(arg);
         sprites_.clear();
+        animations_.clear();
         filled_ = false;
         ++sceneVersion_;
         break;
@@ -649,20 +801,40 @@ void PmailGame::native(::Pmail::Vm &vm, int id,
         offset = 1;
       }
 
-      if (ints.size() >= offset + 1) s.x = ints[offset];
-      if (ints.size() >= offset + 2) s.y = ints[offset + 1];
-      if (ints.size() >= offset + 3) s.id = ints[offset + 2];
+      if (ints.size() >= offset + 1)
+        s.x = ints[offset];
+      if (ints.size() >= offset + 2)
+        s.y = ints[offset + 1];
+      if (ints.size() >= offset + 3)
+        s.id = ints[offset + 2];
       for (size_t i = offset + 3; i < ints.size() && i - (offset + 3) < 3; ++i)
         s.tint[i - (offset + 3)] = ints[i];
     }
 
     if (!s.name.empty()) {
-      sprites_.erase(std::remove_if(sprites_.begin(), sprites_.end(),
-                                    [&](const Sprite &o) { return o.id == s.id; }),
-                     sprites_.end());
+      sprites_.erase(
+          std::remove_if(sprites_.begin(), sprites_.end(),
+                         [&](const Sprite &o) { return o.id == s.id; }),
+          sprites_.end());
       sprites_.push_back(std::move(s));
       ++sceneVersion_;
     }
+    break;
+  }
+  case 51: {
+    const int preset = argInt(0);
+    if (preset < 0 || size_t(preset) >= AnimationPresets.size())
+      break;
+    const auto &definition = AnimationPresets[size_t(preset)];
+    const auto count =
+        animationFrameCount ? animationFrameCount(definition.name) : 0;
+    if (!count || count > 1024)
+      throw std::runtime_error(std::string("Cannot play PMAIL animation: ") +
+                               definition.name);
+    animations_.push_back({uint32_t(preset), int(int16_t(argInt(1))),
+                           int(int16_t(argInt(2))), 0, uint32_t(count), 0,
+                           true});
+    vm.block();
     break;
   }
   case 64:
@@ -674,6 +846,7 @@ void PmailGame::native(::Pmail::Vm &vm, int id,
           c[n++] = std::clamp(int(a.value()), 0, 255);
       background_.clear();
       sprites_.clear();
+      animations_.clear();
       filled_ = true;
       fillColor_ = uint32_t(c[0] << 16 | c[1] << 8 | c[2]);
       ++sceneVersion_;
@@ -685,6 +858,9 @@ void PmailGame::native(::Pmail::Vm &vm, int id,
       audioWait_ = AudioWait::SeSkippable;
       vm.block();
     }
+    break;
+  case 128:
+    voiceActor_ = argInt(0);
     break;
   case 131:
   case 133:

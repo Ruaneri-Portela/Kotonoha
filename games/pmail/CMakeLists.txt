@@ -6,11 +6,6 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
     include(CTest)
 endif()
 
-if(NOT TARGET Kotonoha::Engine)
-    add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../lib"
-        "${CMAKE_CURRENT_BINARY_DIR}/kotonoha")
-endif()
-
 # PMAIL VM and asset provider modules
 if(NOT TARGET Kotonoha::Modules::VMs::Pmail)
     add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../modules/vms/pmail"
@@ -28,6 +23,7 @@ endif()
 add_library(PmailPort STATIC
     src/PmailGame.cpp
     src/PmailRuntime.cpp
+    src/PmailAudio.cpp
     src/PmailPack.cpp
     src/PmailSession.cpp
     src/PmailComponents.cpp
@@ -57,15 +53,32 @@ kotonoha_configure_app(Pmail
     BUNDLE_ID me.hirameki.kotonoha.pmail GAME pmail)
 
 if(BUILD_TESTING)
+    add_executable(PmailAnimationFormatCheck tests/AnimationFormat.cpp)
+    target_link_libraries(PmailAnimationFormatCheck PRIVATE Kotonoha::ProviderADV)
+    add_test(NAME Pmail.AnimationFormat COMMAND PmailAnimationFormatCheck)
     add_executable(PmailAudioCheck tests/AudioAssets.cpp)
     target_link_libraries(PmailAudioCheck PRIVATE Kotonoha::ProviderADV)
     target_compile_features(PmailAudioCheck PRIVATE cxx_std_17)
-endif()
-if(BUILD_TESTING)
-    add_executable(PmailRuntimeAudioCheck tests/RuntimeAudio.cpp)
-    target_link_libraries(PmailRuntimeAudioCheck PRIVATE PmailPort)
-endif()
-if(BUILD_TESTING)
-    add_executable(PmailStoryFlowCheck tests/StoryFlow.cpp)
-    target_link_libraries(PmailStoryFlowCheck PRIVATE PmailPort)
+    add_executable(PmailGraphicsCheck tests/GraphicsAssets.cpp)
+    target_link_libraries(PmailGraphicsCheck PRIVATE Kotonoha::ProviderADV)
+    target_compile_features(PmailGraphicsCheck PRIVATE cxx_std_17)
+    foreach(check IN ITEMS RuntimeAudio StoryFlow SaveState AnimationPlayback AnimationRender AudioCommands)
+        set(check_target Pmail${check}Check)
+        add_executable(${check_target} tests/${check}.cpp)
+        target_link_libraries(${check_target} PRIVATE PmailPort)
+    endforeach()
+    set(PMAIL_TEST_ASSET_DIR "" CACHE PATH "Pure Mail DVD directory for retail integration tests")
+    if(PMAIL_TEST_ASSET_DIR AND EXISTS "${PMAIL_TEST_ASSET_DIR}/data/pack/script.dat")
+        foreach(check IN ITEMS Audio Graphics RuntimeAudio StoryFlow AnimationPlayback AnimationRender AudioCommands)
+            add_test(NAME Pmail.${check}
+                COMMAND Pmail${check}Check "${PMAIL_TEST_ASSET_DIR}")
+            set_tests_properties(Pmail.${check} PROPERTIES
+                WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+                ENVIRONMENT "SDL_VIDEODRIVER=dummy;SDL_AUDIODRIVER=dummy"
+                TIMEOUT 180)
+        endforeach()
+        add_test(NAME Pmail.SaveState COMMAND PmailSaveStateCheck
+            "${PMAIL_TEST_ASSET_DIR}/data/pack/script.dat")
+        set_tests_properties(Pmail.SaveState PROPERTIES TIMEOUT 60)
+    endif()
 endif()

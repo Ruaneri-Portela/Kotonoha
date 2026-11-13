@@ -1,16 +1,17 @@
 #pragma once
 
-#include <Pmail/Port.hpp>
+#include "PmailAudio.hpp"
 #include "PmailSession.hpp"
 #include <Kotonoha/components/VNSaveMenu.hpp>
+#include <Kotonoha/components/VNTextBox.hpp>
+#include <Kotonoha/core/Runtime.hpp>
 #include <Kotonoha/media/MediaPlayer.hpp>
 #include <Kotonoha/media/PcmPlayer.hpp>
-#include <Kotonoha/core/Runtime.hpp>
-#include <Kotonoha/components/VNTextBox.hpp>
-#include <SnowRadish/Pack.hpp>
-#include <SnowRadish/SnowAssets.hpp>
+#include <Pmail/Port.hpp>
 #include <SDL3/SDL.h>
 #include <SDL3_ttf/SDL_ttf.h>
+#include <SnowRadish/Pack.hpp>
+#include <SnowRadish/SnowAssets.hpp>
 
 #include <map>
 #include <memory>
@@ -38,6 +39,7 @@ public:
   SDL_Point viewport() const override { return {800, 600}; }
   bool continuousTouch() const override { return true; }
   void render(Kotonoha::RendererRef renderer, float scale) override;
+  void renderOverlay(Kotonoha::RendererRef renderer, float scale) override;
   void update() override;
   bool onEvent(Kotonoha::EventRef event) override;
 
@@ -48,13 +50,12 @@ public:
   int translationRoute() const override;
   std::vector<std::string> activeTranslationKeys() const override;
   std::vector<Kotonoha::DebugAudioAsset> debugSceneAudio() override;
-  std::optional<Kotonoha::AudioClip> debugOriginalAudio(const std::string &id) override;
+  std::optional<Kotonoha::AudioClip>
+  debugOriginalAudio(const std::string &id) override;
 
 private:
   bool loadScriptPack();
   void handleNative(int id, const std::vector<::Pmail::Arg> &args);
-  bool playTrack(Kotonoha::PcmPlayer &player, const char *channel,
-                 SnowRadish::AdpsTrack track, bool loop);
 
   std::string gameDirectory_;
   Kotonoha::Engine *engine_ = nullptr;
@@ -64,7 +65,7 @@ private:
   std::shared_ptr<Kotonoha::Providers::SnowAssets> assets_;
   std::string status_;
   bool running_ = false;
-  Kotonoha::PcmPlayer bgm_, se_, voice_;
+  std::unique_ptr<PmailAudio> audio_;
   std::string currentBgm_, currentSe_, currentVoice_;
   uint64_t titleShownAt_ = 0;
   bool sawTitle_ = false;

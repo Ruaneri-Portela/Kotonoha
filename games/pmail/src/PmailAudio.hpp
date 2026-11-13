@@ -22,7 +22,8 @@ public:
     float fadeTarget = 1;
     double fadeSeconds = 0;
   };
-  using State = std::array<TrackState, 3>; // BGM, SE, voice
+  using State =
+      std::array<TrackState, 4>; // BGM, SE, voice, outgoing SE crossfade
 
   PmailAudio(Kotonoha::AudioMixer &mixer,
              std::shared_ptr<Kotonoha::Providers::SnowAssets> assets);
@@ -34,6 +35,7 @@ public:
   void SetPaused(bool paused);
   bool SePlaying() const;
   bool VoicePlaying() const;
+  int VoiceMouthFrame() const;
   State Snapshot() const;
   void Restore(const State &state);
   static unsigned FadeInterval(int mode);
@@ -52,6 +54,7 @@ private:
   std::unique_ptr<Slot> outgoingSe_;
   bool paused_ = false;
   uint64_t pausedAt_ = 0;
+  std::vector<uint8_t> voiceMouthFrames_;
 
   Kotonoha::PcmPlayer::Clip Load(const std::string &id, bool loop) const;
   void Play(size_t bus, const std::string &id, bool loop, float gain = 1,

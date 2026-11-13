@@ -1,5 +1,6 @@
 #pragma once
 
+#include <Pmail/Animation.hpp>
 #include <Pmail/Vm.hpp>
 
 #include <cstdint>
@@ -33,41 +34,104 @@ public:
   void deserialize(const std::string &data);
   void returnToTitle();
   void pump(size_t maxSteps = 100000);
+  void advanceAnimation(uint32_t elapsedMs);
+  std::vector<AnimationState> animations() const {
+    std::lock_guard lock(mutex_);
+    return animations_;
+  }
+  bool animating() const {
+    std::lock_guard lock(mutex_);
+    return !animations_.empty() && animations_.back().playing;
+  }
   bool click();
   bool choose(size_t i);
 
-  bool waitingForClick() const { std::lock_guard lock(mutex_); return waiting_; }
-  bool choosing() const { std::lock_guard lock(mutex_); return choosing_; }
-  bool atTitle() const { std::lock_guard lock(mutex_); return title_; }
+  bool waitingForClick() const {
+    std::lock_guard lock(mutex_);
+    return waiting_;
+  }
+  bool choosing() const {
+    std::lock_guard lock(mutex_);
+    return choosing_;
+  }
+  bool atTitle() const {
+    std::lock_guard lock(mutex_);
+    return title_;
+  }
 
   // Hardcoded title menu (pmail.exe:0x42c950, entered from sys 213). The exe
   // draws TITL00<variant>.CRGB plus three 423x55 buttons at x=189 and
   // y=326/388/450, highlights the hovered one with TITL0n<variant>.IMG, and
   // writes the chosen button index (1..3) into the variable passed to sys 213.
-  int titleVariant() const { std::lock_guard lock(mutex_); return titleVariant_; }
-  int titleCount() const { std::lock_guard lock(mutex_); return titleCount_; }
-  int titleSelection() const { std::lock_guard lock(mutex_); return titleIndex_; }
+  int titleVariant() const {
+    std::lock_guard lock(mutex_);
+    return titleVariant_;
+  }
+  int titleCount() const {
+    std::lock_guard lock(mutex_);
+    return titleCount_;
+  }
+  int titleSelection() const {
+    std::lock_guard lock(mutex_);
+    return titleIndex_;
+  }
   void titleHover(int index);
   void titleMove(int delta);
   bool titleChoose(int index);
-  bool ended() const { std::lock_guard lock(mutex_); return vm_.ended(); }
+  bool ended() const {
+    std::lock_guard lock(mutex_);
+    return vm_.ended();
+  }
   ::Pmail::Vm &vm() { return vm_; }
 
-  std::string currentScript() const { std::lock_guard lock(mutex_); return scriptName_; }
-  std::string message() const { std::lock_guard lock(mutex_); return message_; }
-  std::string speaker() const { std::lock_guard lock(mutex_); return speakerName_; }
-  std::string background() const { std::lock_guard lock(mutex_); return background_; }
-  std::vector<Sprite> sprites() const { std::lock_guard lock(mutex_); return sprites_; }
-  uint32_t sceneVersion() const { std::lock_guard lock(mutex_); return sceneVersion_; }
-  bool filled() const { std::lock_guard lock(mutex_); return filled_; }
-  uint32_t fillColor() const { std::lock_guard lock(mutex_); return fillColor_; }
-  std::vector<std::string> choices() const { std::lock_guard lock(mutex_); return choiceText_; }
+  std::string currentScript() const {
+    std::lock_guard lock(mutex_);
+    return scriptName_;
+  }
+  std::string message() const {
+    std::lock_guard lock(mutex_);
+    return message_;
+  }
+  std::string speaker() const {
+    std::lock_guard lock(mutex_);
+    return speakerName_;
+  }
+  std::string background() const {
+    std::lock_guard lock(mutex_);
+    return background_;
+  }
+  std::vector<Sprite> sprites() const {
+    std::lock_guard lock(mutex_);
+    return sprites_;
+  }
+  uint32_t sceneVersion() const {
+    std::lock_guard lock(mutex_);
+    return sceneVersion_;
+  }
+  bool filled() const {
+    std::lock_guard lock(mutex_);
+    return filled_;
+  }
+  uint32_t fillColor() const {
+    std::lock_guard lock(mutex_);
+    return fillColor_;
+  }
+  std::vector<std::string> choices() const {
+    std::lock_guard lock(mutex_);
+    return choiceText_;
+  }
 
   // Optional hooks for runtime integration.
   std::function<void(const std::string &)> trace;
   std::function<void(int id, const std::vector<::Pmail::Arg> &)> onNative;
   std::function<bool()> sePlaying;
   std::function<bool()> voicePlaying;
+  std::function<int()> voiceMouthFrame;
+  int voiceActor() const {
+    std::lock_guard lock(mutex_);
+    return voiceActor_;
+  }
+  std::function<size_t(const std::string &)> animationFrameCount;
 
   // Host
   void native(::Pmail::Vm &vm, int id,
@@ -110,6 +174,8 @@ private:
   std::deque<std::string> messageQueue_;
   std::string background_;
   std::vector<Sprite> sprites_;
+  std::vector<AnimationState> animations_;
+  int voiceActor_ = -1;
   uint32_t sceneVersion_ = 0;
   bool filled_ = false;
   uint32_t fillColor_ = 0;

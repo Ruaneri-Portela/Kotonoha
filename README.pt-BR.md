@@ -17,7 +17,7 @@ de `lib/include/Kotonoha` espelham os modulos de `lib/src`:
 CMakeLists.txt               Agrega motor e jogos; pode desativar o exemplo
 vcpkg.json                   Dependencias externas, incluindo PlutoSVG
 assets/                      Splash, shaders e fonte compartilhados
-buildsystems/xcode/Kotonoha.xcodeproj     Projeto iOS nativo e schemes compartilhados
+buildsystems/xcode/Kotonoha.xcworkspace       Workspace multiprojeto macOS e iOS (gerado via `ruby tools/UpdateGameTargets.rb`)
 buildsystems/android/                    Projeto Gradle; SDL remoto do Git
 lib/
   CMakeLists.txt             Biblioteca independente Kotonoha::Engine
@@ -69,6 +69,9 @@ games/snow-radish-vacation/
   tools/                     SnowExtract e SnowRun (linha de comando)
   tests/                     Formatos e fluxo completo com os DAT
 games/doki-doki-literature-club/
+games/kirikiri/
+games/luca-system/
+games/pmail/
   include/Ddlc/, src/        Leitores RPA/RPYC, CPython, runtime e apresentacao
   assets/                    Dados locais do usuario, ignorados pelo Git
   tests/                     Ponte Python e scripts com dados opcionais

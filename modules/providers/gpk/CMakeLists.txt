@@ -4,11 +4,6 @@ endif()
 
 find_package(ZLIB REQUIRED)
 
-if(NOT TARGET Kotonoha::Engine)
-    add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../../lib"
-        "${CMAKE_CURRENT_BINARY_DIR}/kotonoha")
-endif()
-
 add_library(kotonoha_provider_gpk STATIC
     src/SchoolDaysGpkArchive.cpp
     src/SchoolDaysGpkIndex.cpp

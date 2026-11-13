@@ -4,11 +4,6 @@ if(TARGET Kotonoha::Modules::VMs::KAG)
     return()
 endif()
 
-if(NOT TARGET Kotonoha::Engine)
-    add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../../lib"
-        "${CMAKE_CURRENT_BINARY_DIR}/kotonoha")
-endif()
-
 add_library(kotonoha_vm_kag STATIC "${CMAKE_CURRENT_LIST_DIR}/src/KagScript.cpp")
 add_library(Kotonoha::Modules::VMs::KAG ALIAS kotonoha_vm_kag)
 add_library(Kotonoha::Vmkag ALIAS kotonoha_vm_kag)

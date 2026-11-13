@@ -13,7 +13,7 @@
 #include <Kotonoha/core/UI.hpp>
 #include <Kotonoha/script/TimelinePlayer.hpp>
 
-#include "ImGuiTheme.hpp"
+#include <Kotonoha/debug/ImGuiTheme.hpp>
 
 #include <imgui.h>
 #include <imgui_impl_sdl3.h>

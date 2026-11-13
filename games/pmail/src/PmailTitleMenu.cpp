@@ -10,6 +10,11 @@ PmailTitleMenu::PmailTitleMenu(Kotonoha::Engine &engine,
                                Kotonoha::Providers::SnowAssets &assets)
     : Kotonoha::GameMenu(engine), game_(game), assets_(assets) {}
 
+PmailTitleMenu::~PmailTitleMenu() {
+    for (auto &[name, entry] : titleCache_)
+        if (entry.tex) SDL_DestroyTexture(entry.tex);
+}
+
 int PmailTitleMenu::itemCount() const {
     return game_.titleCount();
 }
@@ -65,7 +70,7 @@ SDL_Texture *PmailTitleMenu::LoadTitleGraphic(Kotonoha::RendererRef renderer, co
         }
     } catch (...) {}
 
-    if (entry.tex) titleCache_[file] = entry;
+    titleCache_[file] = entry;
     return entry.tex;
 }
 

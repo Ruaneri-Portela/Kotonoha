@@ -17,6 +17,10 @@ void PmailComponents::init() {
     textBox_ = createTextBox();
     pauseMenu_ = createPauseMenu();
     backlog_ = createBacklog();
+    for (Kotonoha::Scene *scene : {stage_.get(), static_cast<Kotonoha::Scene *>(textBox_.get()),
+                                  static_cast<Kotonoha::Scene *>(pauseMenu_.get()),
+                                  static_cast<Kotonoha::Scene *>(backlog_.get())})
+        engine_.GetRuntime().AddScene(scene, Kotonoha::GameState::Gameplay);
     auto *box = static_cast<PmailTextBox *>(textBox_.get());
     box->setMenuAction([this] { pauseMenu_->open(); });
     box->setBacklogAction([this] { backlog_->open(); });

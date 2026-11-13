@@ -5,10 +5,6 @@ project(SchoolDays VERSION 0.1.0 LANGUAGES C CXX)
 if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
     include(CTest)
 endif()
-if(NOT TARGET Kotonoha::Engine)
-    add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../lib"
-        "${CMAKE_CURRENT_BINARY_DIR}/kotonoha")
-endif()
 
 find_package(ZLIB REQUIRED)
 if(NOT TARGET Kotonoha::Modules::Providers::GPK)

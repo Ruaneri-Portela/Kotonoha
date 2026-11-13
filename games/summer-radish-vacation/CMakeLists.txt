@@ -6,11 +6,6 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
     include(CTest)
 endif()
 
-if(NOT TARGET Kotonoha::Engine)
-    add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../lib"
-        "${CMAKE_CURRENT_BINARY_DIR}/kotonoha")
-endif()
-
 if(NOT TARGET Kotonoha::ProviderCMP)
     add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../modules/providers/cmp"
         "${CMAKE_CURRENT_BINARY_DIR}/providers/cmp")

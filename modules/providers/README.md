@@ -36,6 +36,7 @@ All providers live under `Kotonoha::Providers::`.
 | `reallive` | `Kotonoha::ProviderRealLive` | `Kotonoha::Providers::RealLiveAssets`; `RealLiveFormats` |
 | `rpa` | `Kotonoha::ProviderRPA` | `Kotonoha::Providers::DdlcAssets`; `DdlcFormats` |
 | `amagami` | `Kotonoha::ProviderAmagami` | `Kotonoha::Providers::AmagamiAssets`; `AmagamiFormats` |
+| pmail | `Kotonoha::ProviderPmail` | `Kotonoha::Providers::PmailAssets` (Pmail archives) |
 | `zero` | `Kotonoha::ProviderZero` | `Kotonoha::Providers::ZeroDiscAssets`; `ZeroNoTsukaimaFormats` |
 
 The CMP, ADV, GPK, XP3 and PAK modules can be added directly:
