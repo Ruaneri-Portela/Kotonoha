@@ -684,10 +684,6 @@ FodyWeavers.xsd
 /CMakePresets.json
 
 # Xcode Projects & Workspaces (Auto-generated)
-*.xcodeproj/
-*.xcworkspace/
-buildsystems/xcode/*.xcodeproj/
-buildsystems/xcode/*.xcworkspace/
 buildsystems/xcode/build/
 buildsystems/xcode/vcpkg/
 buildsystems/xcode/python/

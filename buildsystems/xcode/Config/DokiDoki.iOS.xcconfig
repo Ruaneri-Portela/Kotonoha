@@ -1,0 +1,10 @@
+// DokiDoki only: select matching iOS/iOS Simulator CPython header slice.
+// Do not share Python headers with other Kotonoha game targets.
+#include "Game.iOS.xcconfig"
+
+KOTONOHA_PYTHON_IOS_SLICE = ios-arm64
+KOTONOHA_PYTHON_IOS_SLICE[sdk=iphonesimulator*] = ios-arm64_x86_64-simulator
+KOTONOHA_PYTHON_IOS_ROOT = $(KOTONOHA_ROOT)/buildsystems/xcode/python/iOS/Python.xcframework/$(KOTONOHA_PYTHON_IOS_SLICE)
+HEADER_SEARCH_PATHS = $(inherited) \
+    "$(KOTONOHA_PYTHON_IOS_ROOT)/Python.framework/Headers" \
+    "$(KOTONOHA_PYTHON_IOS_ROOT)/include/python3.15"

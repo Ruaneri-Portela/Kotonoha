@@ -1,0 +1,8 @@
+// DokiDoki only: CPython 3.15 (BeeWare) headers for macOS.
+// Keep the shared engine/game header search paths from Game.macOS.xcconfig.
+#include "Game.macOS.xcconfig"
+
+KOTONOHA_PYTHON_MACOS_SLICE = $(KOTONOHA_ROOT)/buildsystems/xcode/python/macOS/Python.xcframework/macos-arm64_x86_64/Python.framework
+HEADER_SEARCH_PATHS = $(inherited) \
+    "$(KOTONOHA_PYTHON_MACOS_SLICE)/Versions/3.15/include/python3.15" \
+    "$(KOTONOHA_PYTHON_MACOS_SLICE)/Headers"

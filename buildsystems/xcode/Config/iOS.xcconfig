@@ -1,0 +1,4 @@
+#include "Common.xcconfig"
+KOTONOHA_APPLE_LIBS = -framework UIKit -framework Foundation -framework Metal -framework AudioToolbox -framework CoreMedia -framework CoreVideo -framework VideoToolbox -framework OpenGLES -framework CoreText
+OTHER_LDFLAGS = $(inherited) $(KOTONOHA_SHARED_LIBS) $(KOTONOHA_FFMPEG_LIBS) $(KOTONOHA_APPLE_LIBS) -framework SDL3 -framework SDL3_ttf
+LD_RUNPATH_SEARCH_PATHS = $(inherited) @executable_path/Frameworks @loader_path/Frameworks

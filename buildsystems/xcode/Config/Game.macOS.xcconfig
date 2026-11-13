@@ -1,0 +1,2 @@
+#include "macOS.xcconfig"
+// The app embeds the two frameworks through its Xcode Embed Frameworks phase.

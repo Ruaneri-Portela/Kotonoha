@@ -1,0 +1,50 @@
+// Shared by macOS, iOS, simulator, games and frameworks.
+// Project directory: <repository>/buildsystems/xcode/
+KOTONOHA_ROOT = $(SRCROOT)/../..
+
+// Set the correct triplet and root for every destination. Override these values
+// locally if your vcpkg output uses a different directory layout.
+KOTONOHA_VCPKG_PARENT = $(KOTONOHA_ROOT)/buildsystems/xcode/vcpkg/macos
+KOTONOHA_VCPKG_PARENT[sdk=iphoneos*] = $(KOTONOHA_ROOT)/buildsystems/xcode/vcpkg/ios
+KOTONOHA_VCPKG_PARENT[sdk=iphonesimulator*] = $(KOTONOHA_ROOT)/buildsystems/xcode/vcpkg/simulator
+KOTONOHA_VCPKG_TRIPLET = arm64-osx
+KOTONOHA_VCPKG_TRIPLET[sdk=iphoneos*] = arm64-ios
+KOTONOHA_VCPKG_TRIPLET[sdk=iphonesimulator*] = arm64-ios-simulator
+KOTONOHA_VCPKG_INCLUDE = $(KOTONOHA_VCPKG_PARENT)/$(KOTONOHA_VCPKG_TRIPLET)/include
+KOTONOHA_VCPKG_LIB = $(KOTONOHA_VCPKG_PARENT)/$(KOTONOHA_VCPKG_TRIPLET)/lib
+
+HEADER_SEARCH_PATHS = $(inherited) "$(KOTONOHA_ROOT)/lib/include" \
+    "$(KOTONOHA_ROOT)/lib/submodules/SDL/include" \
+    "$(KOTONOHA_ROOT)/lib/submodules/SDL_ttf/include" \
+    "$(KOTONOHA_ROOT)/lib/submodules/imgui" \
+    "$(KOTONOHA_ROOT)/lib/submodules/imgui/backends" \
+    "$(KOTONOHA_ROOT)/lib/submodules/imgui/misc/cpp" \
+    "$(KOTONOHA_VCPKG_INCLUDE)" \
+    "$(KOTONOHA_ROOT)/modules/providers/cmp/include" \
+    "$(KOTONOHA_ROOT)/modules/providers/amagami/include" \
+    "$(KOTONOHA_ROOT)/modules/providers/rpa/include" \
+    "$(KOTONOHA_ROOT)/modules/providers/pak/include" \
+    "$(KOTONOHA_ROOT)/modules/providers/adv/include" \
+    "$(KOTONOHA_ROOT)/modules/providers/zero/include" \
+    "$(KOTONOHA_ROOT)/modules/providers/reallive/include" \
+    "$(KOTONOHA_ROOT)/modules/providers/gpk/include" \
+    "$(KOTONOHA_ROOT)/modules/providers/xp3/include" \
+    "$(KOTONOHA_ROOT)/modules/providers/pmail/include" \
+    "$(KOTONOHA_ROOT)/modules/vms/snow-radish/include" \
+    "$(KOTONOHA_ROOT)/modules/vms/amagami/include" \
+    "$(KOTONOHA_ROOT)/modules/vms/meo/include" \
+    "$(KOTONOHA_ROOT)/modules/vms/renpy/include" \
+    "$(KOTONOHA_ROOT)/modules/vms/kag/include" \
+    "$(KOTONOHA_ROOT)/modules/vms/reallive/include" \
+    "$(KOTONOHA_ROOT)/modules/vms/summer-radish/include" \
+    "$(KOTONOHA_ROOT)/modules/vms/pmail/include" \
+    "$(KOTONOHA_ROOT)/games/$(KOTONOHA_GAME_DIR)/include" \
+    "$(KOTONOHA_ROOT)/games/$(KOTONOHA_GAME_DIR)/src"
+LIBRARY_SEARCH_PATHS = $(inherited) "$(KOTONOHA_VCPKG_LIB)"
+FRAMEWORK_SEARCH_PATHS = $(inherited) "$(BUILT_PRODUCTS_DIR)" "$(KOTONOHA_ROOT)/lib/submodules/SDL/Xcode/SDL/build/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)" "$(KOTONOHA_ROOT)/lib/submodules/SDL/Xcode/SDL/build/$(CONFIGURATION)" "$(KOTONOHA_ROOT)/lib/submodules/SDL_ttf/Xcode/build/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)" "$(KOTONOHA_ROOT)/lib/submodules/SDL_ttf/Xcode/build/$(CONFIGURATION)"
+CLANG_CXX_LANGUAGE_STANDARD = c++17
+CLANG_CXX_LIBRARY = libc++
+
+// The original projects link dynamic SDL3 / SDL3_ttf and vcpkg libraries.
+KOTONOHA_SHARED_LIBS = -ljson-c -lass -lz -lharfbuzz -lfribidi -lfreetype -lfontconfig -liconv -lbz2 -lbrotlidec -lbrotlicommon -lexpat -lpng -lunibreak
+KOTONOHA_FFMPEG_LIBS = -lavcodec -lavformat -lavutil -lswresample -lswscale

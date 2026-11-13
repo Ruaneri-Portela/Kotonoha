@@ -1,0 +1,8 @@
+// RealLive-only configuration for iOS. Do not affect other game targets.
+#include "Game.iOS.xcconfig"
+
+// Vendor headers use both <libreallive/...> and local quoted include forms.
+HEADER_SEARCH_PATHS = $(inherited) \
+    "$(KOTONOHA_ROOT)/games/reallive/vendor" \
+    "$(KOTONOHA_ROOT)/games/reallive/vendor/machine" \
+    "$(KOTONOHA_ROOT)/games/reallive/vendor/libreallive"
