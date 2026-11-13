@@ -1,0 +1,2 @@
+#include "macOS.xcconfig"
+// The engine depends on KotonohaImGui in the same SDK/architecture.

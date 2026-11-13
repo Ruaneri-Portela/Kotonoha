@@ -1,0 +1,225 @@
+{
+  "project": "buildsystems/xcode/Kotonoha.xcodeproj",
+  "targets": {
+    "macOS/KotonohaImGui": {
+      "target": "5CFED35C25BAAA9080C5BFCF",
+      "sources": 7
+    },
+    "macOS/KotonohaEngine": {
+      "target": "E17D1F83ED8A3B29572860F9",
+      "sources": 63
+    },
+    "macOS/KotonohaExample": {
+      "target": "042046F061537917D55247C8",
+      "sources": 4
+    },
+    "macOS/Amagami": {
+      "target": "6414192B57D2D03B22974B39",
+      "sources": 10
+    },
+    "macOS/ZeroNoTsukaima": {
+      "target": "3C021557A8120B3C455FBBB5",
+      "sources": 18
+    },
+    "macOS/SnowRadish": {
+      "target": "F072A30437FEF3BFFBFC8133",
+      "sources": 9
+    },
+    "macOS/SummerRadish": {
+      "target": "A614406BCCE223D924378DEE",
+      "sources": 8
+    },
+    "macOS/DokiDoki": {
+      "target": "796C0DD621F679511C5D8BA9",
+      "sources": 12
+    },
+    "macOS/SchoolDays": {
+      "target": "A5BC13A0BF404C22CFA1CCAA",
+      "sources": 63
+    },
+    "macOS/RealLive": {
+      "target": "340308E942D2105935823F89",
+      "sources": 15
+    },
+    "macOS/Kirikiri": {
+      "target": "83E7ADA7774F01DECDC57E13",
+      "sources": 5
+    },
+    "macOS/LucaSystem": {
+      "target": "9AFA08279ADEA7CF4AE299F4",
+      "sources": 6
+    },
+    "macOS/Pmail": {
+      "target": "D9B6CD3809CE357BEA918F33",
+      "sources": 16
+    },
+    "iOS/KotonohaImGui": {
+      "target": "602CC6310602184A1C7CAFDB",
+      "sources": 7
+    },
+    "iOS/KotonohaEngine": {
+      "target": "F20A323ED8754B150319722C",
+      "sources": 63
+    },
+    "iOS/KotonohaExample": {
+      "target": "5A342ED04FE0E9E62B03B67B",
+      "sources": 4
+    },
+    "iOS/Amagami": {
+      "target": "F9F69A7C90C1366A40BBEB2A",
+      "sources": 10
+    },
+    "iOS/ZeroNoTsukaima": {
+      "target": "D972BF9A2114E05049521F09",
+      "sources": 18
+    },
+    "iOS/SnowRadish": {
+      "target": "E6D69C802BC6D507D84092DC",
+      "sources": 9
+    },
+    "iOS/SummerRadish": {
+      "target": "2333693EC228C89F0CAA700E",
+      "sources": 8
+    },
+    "iOS/DokiDoki": {
+      "target": "1FD3E953244539867918A99A",
+      "sources": 12
+    },
+    "iOS/SchoolDays": {
+      "target": "D5F2C0089D323AE73B17CFF7",
+      "sources": 63
+    },
+    "iOS/RealLive": {
+      "target": "DBD7FDAAD48B4AC8B150422C",
+      "sources": 15
+    },
+    "iOS/Kirikiri": {
+      "target": "D9FDDC700436E4DCEC8BAABC",
+      "sources": 5
+    },
+    "iOS/LucaSystem": {
+      "target": "B90814E69C6CB48AEBF372F6",
+      "sources": 6
+    },
+    "iOS/Pmail": {
+      "target": "B1583208E1B067219E50E5CD",
+      "sources": 16
+    }
+  },
+  "games": {
+    "KotonohaExample": "example",
+    "Amagami": "amagami",
+    "ZeroNoTsukaima": "zero-no-tsukaima",
+    "SnowRadish": "snow-radish-vacation",
+    "SummerRadish": "summer-radish-vacation",
+    "DokiDoki": "doki-doki-literature-club",
+    "SchoolDays": "school-days",
+    "RealLive": "reallive",
+    "Kirikiri": "kirikiri",
+    "LucaSystem": "luca-system",
+    "Pmail": "pmail"
+  },
+  "modules": {
+    "VM": [
+      "amagami",
+      "kag",
+      "meo",
+      "pmail",
+      "reallive",
+      "renpy",
+      "snow-radish",
+      "summer-radish"
+    ],
+    "Providers": [
+      "adv",
+      "amagami",
+      "cmp",
+      "gpk",
+      "pak",
+      "pmail",
+      "reallive",
+      "rpa",
+      "xp3",
+      "zero"
+    ]
+  },
+  "source_files": 228,
+  "schemes": 22,
+  "note": "The C++ sources and binary dependencies are external to this generated project.",
+  "bundling": {
+    "schema_version": 2,
+    "assets_global": "assets/",
+    "assets_per_game": "games/<game-slug>/game-assets/",
+    "app_resource_directory_macOS": "<app>.app/Contents/Resources/",
+    "app_resource_directory_iOS": "<app>.app/",
+    "sdl_frameworks": [
+      "SDL3.framework",
+      "SDL3_ttf.framework"
+    ],
+    "sdl_build_dirs": {
+      "SDL3": "lib/submodules/SDL/Xcode/SDL/build/<Configuration><EffectivePlatformName>/",
+      "SDL3_ttf": "lib/submodules/SDL_ttf/Xcode/build/<Configuration><EffectivePlatformName>/"
+    },
+    "script": "buildsystems/xcode/Scripts/EmbedSDLFrameworks.sh",
+    "asset_copy_phase": "Copy Bundle Resources (native folder references)",
+    "sdl_embed_phase": "Embed SDL3 + SDL3_ttf and Verify Assets",
+    "targets_configured": 22,
+    "shared_info_plist": "buildsystems/xcode/Info.plist (referenced, not duplicated)",
+    "all_app_configs_using_shared_plist": 44,
+    "framework_embeds_require_prebuilt_binaries": true,
+    "framework_embed_script_present": true,
+    "macos_icon": "assets/icon.icns copied to Contents/Resources/icon.icns and processed Info.plist CFBundleIconFile=icon.icns",
+    "macos_icon_script": "buildsystems/xcode/Scripts/ConfigureMacOSIcon.sh",
+    "document_revisions_debug_enabled": false,
+    "disabled_in_shared_schemes": 22,
+    "ddlc_python": "CPython 3.15 prepared by tools/PrepareApple.py and packaged only by DokiDoki targets",
+    "ddlc_python_script": "buildsystems/xcode/Scripts/EmbedDokiDokiPython.sh"
+  },
+  "preparation": {
+    "script": "tools/PrepareApple.py",
+    "vcpkg_manifest": "vcpkg.json",
+    "vcpkg": {
+      "macos": "buildsystems/xcode/vcpkg/macos/arm64-osx",
+      "ios": "buildsystems/xcode/vcpkg/ios/arm64-ios",
+      "ios_simulator": "buildsystems/xcode/vcpkg/simulator/arm64-ios-simulator"
+    },
+    "schemes_with_vcpkg_preaction": 22,
+    "schemes_with_python_preaction": 2
+  },
+  "vendors": {
+    "RealLive": {
+      "directory": "games/reallive/vendor",
+      "machine_headers": [
+        "reference.h",
+        "rlmachine.h"
+      ],
+      "libreallive_sources": [
+        "archive.cc",
+        "bytecode.cc",
+        "compression.cc",
+        "expression.cc",
+        "filemap.cc",
+        "scenario.cc"
+      ],
+      "libreallive_headers": [
+        "alldefs.h",
+        "archive.h",
+        "bytecode.h",
+        "bytecode_fwd.h",
+        "compression.h",
+        "defs.h",
+        "expression.h",
+        "filemap.h",
+        "intmemref.h",
+        "reallive.h",
+        "scenario.h",
+        "scenario_internals.h"
+      ],
+      "targets": [
+        "RealLive-macOS",
+        "RealLive-iOS"
+      ],
+      "note": "Vendor files are referenced in the source repository; the Xcode project includes no vendor source copies."
+    }
+  }
+}

@@ -1898,7 +1898,7 @@ struct Game {
       return scriptHash;
     uint64_t hash = 1469598103934665603ull;
     for (const auto &file : assets->source().names()) {
-      if (!file.ends_with(".rpyc"))
+      if (file.size() < 5 || file.compare(file.size() - 5, 5, ".rpyc") != 0)
         continue;
       for (auto c : file)
         hash = (hash ^ static_cast<unsigned char>(c)) * 1099511628211ull;
