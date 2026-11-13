@@ -35,7 +35,7 @@ set_target_properties(SummerRadish PROPERTIES CXX_EXTENSIONS OFF)
 kotonoha_configure_app(SummerRadish
     BUNDLE_ID me.hirameki.kotonoha.summerradishvacation GAME summer-radish-vacation)
 
-if(NOT ANDROID)
+if(NOT ANDROID AND NOT EMSCRIPTEN)
     add_executable(SummerInspect tools/SummerInspect.cpp)
     target_link_libraries(SummerInspect PRIVATE SummerRadishFormats)
 endif()

@@ -6,7 +6,7 @@ cmake_minimum_required(VERSION 3.16)
 project(KotonohaEngine VERSION 0.1.0 LANGUAGES CXX)
 enable_language(C)
 
-if (APPLE)
+if (APPLE AND NOT EMSCRIPTEN)
     enable_language(OBJC OBJCXX)
 endif ()
 

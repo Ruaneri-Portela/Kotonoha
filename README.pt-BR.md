@@ -443,6 +443,10 @@ cmake -S . -B build/macos -G Ninja \
   -DCMAKE_BUILD_TYPE=Debug -DKOTONOHA_BUILD_MACOS_BUNDLES=ON
 ```
 
+### Build para WebAssembly (Wasm)
+
+Para compilar os ports de jogos para WebAssembly com carregamento assíncrono sob demanda, barra de progresso em tempo real e geração automática de manifesto (`manifest.json` via `tools/generate_manifest.py`), consulte o [guia de build para WebAssembly](docs/WASM_BUILD.md).
+
 Cada configuracao compila seu alvo e depura o executavel dentro do `.app`.
 Os caminhos dos dados em `.vscode/launch.json` sao locais e devem ser ajustados
 conforme a instalacao. School Days usa `--school-days` para a pasta Packs e

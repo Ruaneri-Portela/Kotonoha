@@ -127,6 +127,10 @@ cmake -S . -B build/macos -G Ninja \
   -DCMAKE_BUILD_TYPE=Debug -DKOTONOHA_BUILD_MACOS_BUNDLES=ON
 ```
 
+### WebAssembly (Wasm) build
+
+For compiling game ports to WebAssembly with asynchronous lazy asset loading and automated `manifest.json` generation (via `tools/generate_manifest.py`), see the [WebAssembly build guide](docs/WASM_BUILD.md).
+
 Each configuration builds its own target and debugs the executable inside its
 `.app`. The game-data paths in `.vscode/launch.json` are local examples; adjust
 them for your installation. School Days uses `--school-days` for the retail

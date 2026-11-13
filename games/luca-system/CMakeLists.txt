@@ -18,8 +18,10 @@ target_include_directories(luca_system_formats PUBLIC src include)
 target_link_libraries(luca_system_formats PUBLIC Kotonoha::Engine Kotonoha::ProviderPAK)
 target_compile_features(luca_system_formats PUBLIC cxx_std_17)
 
-add_executable(LucaInspect tools/LucaInspect.cpp)
-target_link_libraries(LucaInspect PRIVATE luca_system_formats)
+if(NOT ANDROID AND NOT EMSCRIPTEN)
+    add_executable(LucaInspect tools/LucaInspect.cpp)
+    target_link_libraries(LucaInspect PRIVATE luca_system_formats)
+endif()
 
 kotonoha_add_app(LucaSystem src/main.cpp)
 target_link_libraries(LucaSystem PRIVATE luca_system_formats)
