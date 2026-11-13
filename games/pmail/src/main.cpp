@@ -19,9 +19,12 @@ namespace {
 struct Application {
   Kotonoha::PmailPort::PmailRuntime game;
   Kotonoha::Engine engine;
+  long framesRemaining = -1;
+  ~Application() { game.shutdown(); }
 
   Application(std::string directory, Kotonoha::EngineOptions options)
-      : game(std::move(directory)), engine(game, std::move(options)) {}
+      : game(directory, std::dynamic_pointer_cast<Kotonoha::Providers::SnowAssets>(options.assets)),
+        engine(game, std::move(options)) {}
 };
 
 std::string DefaultDirectory() {
@@ -67,7 +70,9 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
     if (directory.empty())
       directory = DefaultDirectory();
 
-    auto *app = new Application(directory, options);
+    options.assets = std::make_shared<Kotonoha::Providers::SnowAssets>(directory);
+    auto *app = new Application(directory, std::move(options));
+    app->framesRemaining = arguments.frames;
     *appstate = app;
     return SDL_APP_CONTINUE;
   } catch (const std::exception &error) {
@@ -91,7 +96,10 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event) {
 SDL_AppResult SDL_AppIterate(void *appstate) {
   auto *app = static_cast<Application *>(appstate);
   try {
-    return app->engine.Iterate();
+    const auto result = app->engine.Iterate();
+    if (result != SDL_APP_CONTINUE) return result;
+    if (app->framesRemaining > 0 && --app->framesRemaining == 0) return SDL_APP_SUCCESS;
+    return SDL_APP_CONTINUE;
   } catch (const std::exception &error) {
     SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Frame failed: %s",
                  error.what());

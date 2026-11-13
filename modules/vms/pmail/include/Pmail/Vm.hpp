@@ -54,6 +54,10 @@ public:
   void unregisterObject(const ObjectPtr &obj);
 
   void start(const ObjectPtr &obj, uint32_t pc = 0);
+  void reset(bool clearVariables = true);
+  std::string serialize() const;
+  void deserialize(const std::string &data);
+  void swapState(Vm &other) noexcept;
 
   bool step();
   size_t run(size_t maxSteps);

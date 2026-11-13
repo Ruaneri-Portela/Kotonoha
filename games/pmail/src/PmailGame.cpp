@@ -1,5 +1,6 @@
 #include "Pmail/Port.hpp"
 #include "PmailPack.hpp"
+#include <Pmail/StateIO.hpp>
 
 #include <Kotonoha/localization/Encoding.hpp>
 #include <SDL3/SDL.h>
@@ -26,6 +27,7 @@ bool isMagicAt(const std::vector<uint8_t> &d, size_t i, const char *m,
 
 PmailGame::PmailGame(std::vector<uint8_t> scriptPack, std::string packPath)
     : pack_(std::move(scriptPack)), packPath_(std::move(packPath)), vm_(*this) {
+  std::lock_guard lock(mutex_);
   if (!packPath_.empty()) {
     packReader_ = std::make_unique<PmailPack>();
     if (!packReader_->open(packPath_)) {
@@ -40,6 +42,7 @@ PmailGame::PmailGame(std::vector<uint8_t> scriptPack, std::string packPath)
 PmailGame::~PmailGame() = default;
 
 void PmailGame::indexPack() {
+  std::lock_guard lock(mutex_);
   entries_.clear();
   struct Hit {
     size_t off;
@@ -89,6 +92,7 @@ void PmailGame::indexPack() {
 }
 
 ::Pmail::ObjectPtr PmailGame::loadByName(const std::string &rawName) {
+  std::lock_guard lock(mutex_);
   std::string name = lower(rawName);
   if (name.find('.') == std::string::npos)
     name += ".obj";
@@ -138,6 +142,7 @@ void PmailGame::indexPack() {
 }
 
 ::Pmail::ObjectPtr PmailGame::loadById(uint32_t id12) {
+  std::lock_guard lock(mutex_);
   auto it = byId_.find(id12 & 0xfff);
   if (it != byId_.end())
     return it->second;
@@ -157,11 +162,14 @@ void PmailGame::indexPack() {
 }
 
 bool PmailGame::loadScript(const std::string &name, bool asMain) {
+  std::lock_guard lock(mutex_);
   ::Pmail::ObjectPtr obj = loadByName(name);
   if (!obj)
     return false;
   if (asMain) {
-    if (main_)
+    // pmail.obj is the engine library that owns the user-function table; it
+    // must stay registered while story scripts come and go.
+    if (main_ && main_ != lib_)
       vm_.unregisterObject(main_);
     main_ = obj;
   }
@@ -171,9 +179,16 @@ bool PmailGame::loadScript(const std::string &name, bool asMain) {
 }
 
 bool PmailGame::init() {
-  // Common PMAIL entry scripts vary; try likely names.
-  const char *candidates[] = {"start.obj", "pmail.obj", "main.obj",
-                              "01m1.obj",  "a.obj",     nullptr};
+  std::lock_guard lock(mutex_);
+  // pmail.exe:0x422357-0x4223df loads pmail.obj (the user-function library
+  // with slots 3, 112, 113, ...) and start.obj, then runs start.obj at pc 0.
+  lib_ = loadByName("pmail.obj");
+  if (lib_) {
+    vm_.registerObject(lib_);
+    std::cout << "[PmailPort] Registered library: pmail.obj" << std::endl;
+  }
+  const char *candidates[] = {"start.obj", "main.obj", "01m1.obj", "a.obj",
+                               nullptr};
   ::Pmail::ObjectPtr start;
   for (int i = 0; candidates[i]; ++i) {
     start = loadByName(candidates[i]);
@@ -202,73 +217,269 @@ bool PmailGame::init() {
   return true;
 }
 
+std::string PmailGame::serialize() const {
+  std::lock_guard lock(mutex_);
+  if (returningToTitle_) throw std::runtime_error("Cannot save while returning to title");
+  ::Pmail::StateIO::Writer out;
+  out.string("PMAIL-GAME-1");
+  out.u64(::Pmail::StateIO::fingerprint(pack_.data(), pack_.size()));
+  out.string(vm_.serialize());
+  auto object = [&](const ::Pmail::ObjectPtr &obj) { out.string(obj ? obj->name : std::string()); };
+  object(sub_); object(lib_); object(main_);
+  out.string(scriptName_); out.string(message_); out.string(speakerName_); out.string(background_);
+  out.u32(uint32_t(messageQueue_.size())); for (const auto &line : messageQueue_) out.string(line);
+  out.u32(uint32_t(callStack_.size()));
+  for (const auto &frame : callStack_) { out.string(frame.name); out.u32(frame.pc); }
+  out.u32(uint32_t(sprites_.size()));
+  for (const auto &sprite : sprites_) {
+    out.string(sprite.name); out.u32(uint32_t(sprite.x)); out.u32(uint32_t(sprite.y));
+    out.u32(uint32_t(sprite.id)); for (int tint : sprite.tint) out.u32(uint32_t(tint));
+  }
+  out.boolean(filled_); out.u32(fillColor_);
+  out.boolean(waiting_); out.boolean(title_); out.boolean(choosing_);
+  out.u32(uint32_t(audioWait_));
+  const auto now = SDL_GetTicks();
+  out.u32(audioWait_ == AudioWait::Time && waitUntil_ > now ? uint32_t(waitUntil_ - now) : 0);
+  out.u32(titleChoiceVar_); out.u32(uint32_t(titleVariant_)); out.u32(uint32_t(titleCount_));
+  out.u32(uint32_t(titleIndex_)); out.u32(uint32_t(titleHover_)); out.u32(choiceVar_);
+  out.u32(uint32_t(choiceText_.size())); for (const auto &text : choiceText_) out.string(text);
+  out.u32(uint32_t(choiceValue_.size())); for (auto value : choiceValue_) out.u32(uint32_t(value));
+  out.u32(uint32_t(spriteSlots_.size()));
+  for (const auto &[slot, name] : spriteSlots_) { out.u32(uint32_t(slot)); out.string(name); }
+  return out.finish();
+}
+
+void PmailGame::deserialize(const std::string &data) {
+  std::lock_guard lock(mutex_);
+  ::Pmail::StateIO::Reader in(data);
+  if (in.string(32) != "PMAIL-GAME-1") throw std::runtime_error("Unsupported PMAIL save version");
+  if (in.u64() != ::Pmail::StateIO::fingerprint(pack_.data(), pack_.size()))
+    throw std::runtime_error("PMAIL save belongs to a different script pack");
+  const auto vmData = in.string(16u << 20);
+  auto object = [&]() -> ::Pmail::ObjectPtr {
+    const auto name = in.string(256);
+    if (name.empty()) return {};
+    const auto obj = loadByName(name);
+    if (!obj) throw std::runtime_error("Missing saved PMAIL object: " + name);
+    return obj;
+  };
+  auto sub = object(), lib = object(), main = object();
+  auto scriptName = in.string(256), message = in.string(), speaker = in.string(), background = in.string(256);
+  if (!main || !lib) throw std::runtime_error("Missing PMAIL main/library object");
+  std::deque<std::string> queue;
+  for (auto n = in.count(4096); n; --n) queue.push_back(in.string());
+  std::vector<CallFrame> calls;
+  for (auto n = in.count(4096); n; --n) {
+    CallFrame frame{in.string(256), in.u32()};
+    auto obj = loadByName(frame.name);
+    if (!obj || frame.pc > obj->codeWords) throw std::runtime_error("Invalid PMAIL script return frame");
+    calls.push_back(std::move(frame));
+  }
+  std::vector<Sprite> sprites;
+  for (auto n = in.count(4096); n; --n) {
+    Sprite sprite;
+    sprite.name = in.string(256); sprite.x = int32_t(in.u32()); sprite.y = int32_t(in.u32());
+    sprite.id = int32_t(in.u32()); for (auto &tint : sprite.tint) tint = int32_t(in.u32());
+    sprites.push_back(std::move(sprite));
+  }
+  const bool filled = in.boolean(); const auto fillColor = in.u32();
+  const bool waiting = in.boolean(), title = in.boolean(), choosing = in.boolean();
+  const auto audioWait = AudioWait(in.count(uint32_t(AudioWait::Time)));
+  const auto waitRemaining = in.count(60000);
+  const auto titleVar = in.count(65535), variant = in.count(6), titleCount = in.count(3);
+  const auto titleIndex = in.count(2); const int titleHover = int32_t(in.u32());
+  const auto choiceVar = in.count(65535);
+  if (!titleCount || titleIndex >= titleCount || titleHover < -1 || titleHover >= int(titleCount))
+    throw std::runtime_error("Invalid PMAIL title state");
+  std::vector<std::string> choices;
+  for (auto n = in.count(256); n; --n) choices.push_back(in.string());
+  std::vector<int> values;
+  for (auto n = in.count(256); n; --n) values.push_back(int32_t(in.u32()));
+  if (choosing && (choices.empty() || values.size() < choices.size()))
+    throw std::runtime_error("Invalid PMAIL choice state");
+  std::map<int, std::string> slots;
+  for (auto n = in.count(4096); n; --n) {
+    const auto slot = int32_t(in.u32()); auto name = in.string(256);
+    if (!slots.emplace(slot, std::move(name)).second) throw std::runtime_error("Duplicate PMAIL sprite slot");
+  }
+  in.end();
+  ::Pmail::Vm staged(*this);
+  staged.deserialize(vmData);
+  // All validation completed. Swaps/moves below leave no partially loaded state.
+  vm_.swapState(staged);
+  sub_ = std::move(sub); lib_ = std::move(lib); main_ = std::move(main);
+  scriptName_ = std::move(scriptName); message_ = std::move(message); speakerName_ = std::move(speaker);
+  background_ = std::move(background); messageQueue_ = std::move(queue); callStack_ = std::move(calls);
+  sprites_ = std::move(sprites); filled_ = filled; fillColor_ = fillColor;
+  waiting_ = waiting; title_ = title; choosing_ = choosing; audioWait_ = audioWait;
+  waitUntil_ = SDL_GetTicks() + waitRemaining;
+  titleChoiceVar_ = titleVar; titleVariant_ = int(variant); titleCount_ = int(titleCount);
+  titleIndex_ = int(titleIndex); titleHover_ = titleHover; choiceVar_ = choiceVar;
+  choiceText_ = std::move(choices); choiceValue_ = std::move(values); spriteSlots_ = std::move(slots);
+  returningToTitle_ = false; ++sceneVersion_;
+}
+
+void PmailGame::returnToTitle() {
+  std::lock_guard lock(mutex_);
+  // Preserve persistent game flags, but discard suspended story call frames.
+  vm_.reset(false);
+  callStack_.clear(); sprites_.clear(); spriteSlots_.clear();
+  background_.clear(); message_.clear(); speakerName_.clear(); messageQueue_.clear();
+  choiceText_.clear(); choiceValue_.clear(); choosing_ = false;
+  audioWait_ = AudioWait::None; waitUntil_ = 0; filled_ = false;
+  returningToTitle_ = true;
+  if (!init()) { returningToTitle_ = false; throw std::runtime_error("Cannot load PMAIL title script"); }
+  // Only execute the title script's setup, stopping at its native menu call.
+  // Its startup presentation and audio are suppressed by native() below.
+  vm_.run(1000000);
+  returningToTitle_ = false;
+  if (!title_) throw std::runtime_error("PMAIL title script did not reach its menu");
+  ++sceneVersion_;
+}
+
 void PmailGame::flushLines() {
+  std::lock_guard lock(mutex_);
   auto &lines = vm_.lines();
   if (lines.empty())
     return;
   for (const auto &l : lines) {
     std::string s = vm_.textAt(l.object, l.index);
-    if (!s.empty()) {
-      // Best-effort Shift-JIS -> UTF-8 for display/logging.
-      std::string utf = s;
-      try {
-        utf = ::Kotonoha::ShiftJisToUtf8(s);
-      } catch (...) {
-      }
-      messageQueue_.push_back(utf);
-      std::cout << "[PmailPort] TEXT: " << utf << std::endl;
+    if (s.empty())
+      continue;
+    std::string utf = s;
+    try {
+      utf = ::Kotonoha::ShiftJisToUtf8(s);
+    } catch (...) {
     }
+    std::cout << "[PmailPort] TEXT: " << utf << std::endl;
+    messageQueue_.push_back(std::move(utf));
   }
   lines.clear();
-  if (!messageQueue_.empty()) {
-    message_ = std::move(messageQueue_.front());
-    messageQueue_.pop_front();
+  if (!messageQueue_.empty() && message_.empty())
+    showNext();
+}
+
+void PmailGame::showNext() {
+  std::lock_guard lock(mutex_);
+  if (messageQueue_.empty()) {
+    waiting_ = false;
+    return;
   }
+  message_ = std::move(messageQueue_.front());
+  messageQueue_.pop_front();
+  waiting_ = true;
+}
+
+bool PmailGame::popCall() {
+  std::lock_guard lock(mutex_);
+  if (callStack_.empty())
+    return false;
+  CallFrame f = callStack_.back();
+  callStack_.pop_back();
+  ::Pmail::ObjectPtr obj = loadByName(f.name);
+  if (!obj)
+    return false;
+  if (main_ && main_ != lib_)
+    vm_.unregisterObject(main_);
+  main_ = obj;
+  vm_.registerObject(main_);
+  scriptName_ = obj->name;
+  vm_.jumpTo(obj, f.pc);
+  return true;
 }
 
 void PmailGame::pump(size_t maxSteps) {
-  if (waiting_)
+  std::lock_guard lock(mutex_);
+  if (waiting_ || choosing_)
     return;
-  if (waitingForSe_) {
-    if (sePlaying && sePlaying())
+  if (audioWait_ != AudioWait::None) {
+    bool playing = false;
+    if (audioWait_ == AudioWait::SeSkippable)
+      playing = sePlaying && sePlaying();
+    else if (audioWait_ == AudioWait::Voice ||
+             audioWait_ == AudioWait::VoiceSkippable)
+      playing = voicePlaying && voicePlaying();
+    else if (audioWait_ == AudioWait::Time)
+      playing = SDL_GetTicks() < waitUntil_;
+    if (playing)
       return;
-    waitingForSe_ = false;
-    vm_.unblock();
-  }
-  if (waitingForTime_) {
-    if (SDL_GetTicks() < waitUntil_)
-      return;
-    waitingForTime_ = false;
+    audioWait_ = AudioWait::None;
     vm_.unblock();
   }
   vm_.run(maxSteps);
-  if (vm_.ended()) {
-    // End of script: stop waiting.
+  while (vm_.ended() && !waiting_ && !choosing_ && popCall())
+    vm_.run(maxSteps);
+  if (vm_.ended())
     waiting_ = false;
-  }
 }
 
 bool PmailGame::click() {
+  std::lock_guard lock(mutex_);
+  if (choosing_)
+    return false;
   if (!waiting_)
     return false;
-  if (title_) {
-    vm_.setVar(titleChoiceVar_, 1); // original title: Start
-    title_ = false;
-  } else {
-    if (!messageQueue_.empty()) {
-      message_ = std::move(messageQueue_.front());
-      messageQueue_.pop_front();
-      return true;
-    }
-    message_.clear();
+  if (title_)
+    return titleChoose(titleIndex_);
+  if (!messageQueue_.empty()) {
+    showNext();
+    return true;
   }
+  message_.clear();
+  speakerName_.clear();
+  waiting_ = false;
+  vm_.unblock();
+  return true;
+}
+
+bool PmailGame::choose(size_t i) {
+  std::lock_guard lock(mutex_);
+  if (!choosing_ || i >= choiceText_.size())
+    return false;
+  if (i < choiceValue_.size())
+    vm_.setVar(choiceVar_, uint32_t(choiceValue_[i]));
+  choosing_ = false;
+  choiceText_.clear();
+  choiceValue_.clear();
+  vm_.unblock();
+  return true;
+}
+
+void PmailGame::titleHover(int index) {
+  std::lock_guard lock(mutex_);
+  titleHover_ = (index >= 0 && index < titleCount_) ? index : -1;
+  if (titleHover_ >= 0) titleIndex_ = titleHover_;
+}
+
+void PmailGame::titleMove(int delta) {
+  std::lock_guard lock(mutex_);
+  if (!title_ || titleCount_ <= 0)
+    return;
+  titleIndex_ += delta;
+  if (titleIndex_ < 0)
+    titleIndex_ = titleCount_ - 1;
+  if (titleIndex_ >= titleCount_)
+    titleIndex_ = 0;
+  titleHover_ = titleIndex_;
+}
+
+bool PmailGame::titleChoose(int index) {
+  std::lock_guard lock(mutex_);
+  if (!title_)
+    return false;
+  if (index < 0 || index >= titleCount_)
+    return false;
+  // 0x42ccd9: the value written back is the image slot id (1..3).
+  vm_.setVar(titleChoiceVar_, uint32_t(index + 1));
+  title_ = false;
   waiting_ = false;
   vm_.unblock();
   return true;
 }
 
 void PmailGame::native(::Pmail::Vm &vm, int id,
-                       const std::vector<::Pmail::Arg> &args) {
+                     const std::vector<::Pmail::Arg> &args) {
+  std::lock_guard lock(mutex_);
   if (trace) {
     std::string t = "sys " + std::to_string(id) + "(";
     for (size_t i = 0; i < args.size(); ++i) {
@@ -284,7 +495,8 @@ void PmailGame::native(::Pmail::Vm &vm, int id,
     t += ")";
     trace(t);
   }
-  if (onNative)
+  if (returningToTitle_ && id != 213 && id != 214) return;
+  if (onNative && !returningToTitle_)
     onNative(id, args);
 
   auto argStr = [&](size_t i) -> std::string {
@@ -293,32 +505,42 @@ void PmailGame::native(::Pmail::Vm &vm, int id,
   auto argInt = [&](size_t i) -> int {
     return i < args.size() ? int(vm.value(args[i])) : 0;
   };
+  auto firstString = [&]() -> std::string {
+    for (const auto &a : args)
+      if (a.tag() == 2)
+        return vm.text(a);
+    return {};
+  };
 
-  // Conservative defaults: do not block forever on unknown natives.
-  // Specific PMAIL syscalls must be implemented from RE for full playability.
   switch (id) {
   case 1:
   case 4:
   case 7: {
     flushLines();
-    std::string text;
-    // sys 4 seen as (type, text, ?, ?) - collect string args as message.
-    for (size_t i = 0; i < args.size(); ++i) {
-      if (args[i].tag() == 2) {
-        std::string s = vm.text(args[i]);
-        if (!s.empty()) {
-          if (!text.empty()) text += "\n";
-          text += s;
+    // sys 4 carries text as string args in PMAIL; avoid duplicating if already queued.
+    bool haveQueued = !message_.empty() || !messageQueue_.empty();
+    if (!haveQueued) {
+      std::string text;
+      for (size_t i = 0; i < args.size(); ++i) {
+        if (args[i].tag() == 2) {
+          std::string s = vm.text(args[i]);
+          if (!s.empty()) {
+            if (!text.empty())
+              text += "\n";
+            text += s;
+          }
         }
       }
-    }
-    if (!text.empty()) {
-      std::string utf = text;
-      try { utf = ::Kotonoha::ShiftJisToUtf8(text); } catch (...) {}
-      messageQueue_.push_back(utf);
-      if (message_.empty()) {
-        message_ = std::move(messageQueue_.front());
-        messageQueue_.pop_front();
+      if (!text.empty()) {
+        std::string utf = text;
+        try {
+          utf = ::Kotonoha::ShiftJisToUtf8(text);
+        } catch (...) {
+        }
+        std::cout << "[PmailPort] TEXT: " << utf << std::endl;
+        messageQueue_.push_back(std::move(utf));
+        if (message_.empty())
+          showNext();
       }
     }
     if (!message_.empty()) {
@@ -330,26 +552,71 @@ void PmailGame::native(::Pmail::Vm &vm, int id,
   case 2:
   case 3:
   case 23:
-  case 131:
-  case 133:
-    // text/window control (best-effort no-op for now)
     message_.clear();
+    speakerName_.clear();
     break;
-  case 16:
+  case 5:
+    for (const auto &a : args)
+      if (a.tag() == 2)
+        speakerName_ = ::Kotonoha::ShiftJisToUtf8(vm.text(a));
+    break;
+  case 9: {
+    // Choice: args include option strings and a target var ref.
+    choiceText_.clear();
+    choiceValue_.clear();
+    choiceVar_ = 0;
+    for (const auto &a : args) {
+      if (a.tag() == 2)
+        choiceText_.push_back(::Kotonoha::ShiftJisToUtf8(vm.text(a)));
+      else if (a.tag() == 1)
+        choiceVar_ = a.value();
+      else if (a.tag() == 0)
+        choiceValue_.push_back(int(a.value()));
+    }
+    if (choiceValue_.size() < choiceText_.size()) {
+      choiceValue_.resize(choiceText_.size());
+      for (size_t i = 0; i < choiceValue_.size(); ++i)
+        if (choiceValue_[i] == 0)
+          choiceValue_[i] = int(i + 1);
+    }
+    if (!choiceText_.empty()) {
+      choosing_ = true;
+      vm.block();
+    }
+    break;
+  }
+  case 16: {
+    // Scene change (pmail.exe SYS 16). Story scripts are chained, so keep the
+    // caller on the stack to come back to the title loop in start.obj.
+    std::string name;
     for (const auto &arg : args)
-      if (arg.tag() == 2 && loadScript(vm.text(arg), true))
-        break;
+      if (arg.tag() == 2) {
+        name = vm.text(arg);
+        if (!name.empty())
+          break;
+      }
+    if (!name.empty()) {
+      callStack_.push_back({scriptName_, vm.returnPc()});
+      loadScript(name, true);
+    }
     break;
-  case 17:
-  case 18:
-  case 19:
-    // title/menu related markers
+  }
+  case 28: {
+    std::string name = firstString();
+    if (!name.empty()) {
+      callStack_.push_back({scriptName_, vm.returnPc()});
+      loadScript(name, true);
+    }
+    break;
+  }
+  case 29:
+    popCall();
     break;
   case 33: {
     int duration = argInt(0);
     if (duration > 0) {
       waitUntil_ = SDL_GetTicks() + uint64_t(std::min(duration, 60000));
-      waitingForTime_ = true;
+      audioWait_ = AudioWait::Time;
       vm.block();
     }
     break;
@@ -358,39 +625,114 @@ void PmailGame::native(::Pmail::Vm &vm, int id,
     for (const auto &arg : args)
       if (arg.tag() == 2) {
         background_ = vm.text(arg);
+        sprites_.clear();
+        filled_ = false;
+        ++sceneVersion_;
         break;
       }
     break;
+  case 49: {
+    Sprite s;
+    s.name = firstString();
+    std::vector<int> ints;
+    for (const auto &a : args)
+      if (a.tag() == 0)
+        ints.push_back(int(int16_t(a.value())));
+
+    if (!ints.empty()) {
+      int offset = 0;
+      if (s.name.empty()) {
+        auto it = spriteSlots_.find(ints[0]);
+        if (it != spriteSlots_.end()) {
+          s.name = it->second;
+        }
+        offset = 1;
+      }
+
+      if (ints.size() >= offset + 1) s.x = ints[offset];
+      if (ints.size() >= offset + 2) s.y = ints[offset + 1];
+      if (ints.size() >= offset + 3) s.id = ints[offset + 2];
+      for (size_t i = offset + 3; i < ints.size() && i - (offset + 3) < 3; ++i)
+        s.tint[i - (offset + 3)] = ints[i];
+    }
+
+    if (!s.name.empty()) {
+      sprites_.erase(std::remove_if(sprites_.begin(), sprites_.end(),
+                                    [&](const Sprite &o) { return o.id == s.id; }),
+                     sprites_.end());
+      sprites_.push_back(std::move(s));
+      ++sceneVersion_;
+    }
+    break;
+  }
   case 64:
   case 69:
-    // transition/effect (visual sync not fully implemented)
+    if (id == 69) {
+      int c[3] = {0, 0, 0}, n = 0;
+      for (const auto &a : args)
+        if (a.tag() == 0 && n < 3)
+          c[n++] = std::clamp(int(a.value()), 0, 255);
+      background_.clear();
+      sprites_.clear();
+      filled_ = true;
+      fillColor_ = uint32_t(c[0] << 16 | c[1] << 8 | c[2]);
+      ++sceneVersion_;
+    }
+    // Transitions not fully timed yet; do not block.
     break;
+  case 101:
+    if (sePlaying && sePlaying()) {
+      audioWait_ = AudioWait::SeSkippable;
+      vm.block();
+    }
+    break;
+  case 131:
+  case 133:
+    if (voicePlaying && voicePlaying()) {
+      audioWait_ = (id == 131) ? AudioWait::Voice : AudioWait::VoiceSkippable;
+      vm.block();
+    }
+    break;
+  case 132:
   case 99:
   case 100:
   case 115:
   case 116:
-  case 132:
-    // stop audio channels (handled via onNative/runtime hooks too)
     break;
-  case 101:
-    if (sePlaying && sePlaying()) {
-      waitingForSe_ = true;
-      vm.block();
-    }
-    break;
-  case 213:
+  case 213: {
+    // Title menu: SYS 213(mode, &var). mode 0 shows and blocks, mode 1 hides.
+    // pmail.exe:0x4230e0 -> 0x42c950 fills `var` with 1..3 (or 0 on a miss).
+    const int mode = args.empty() ? 0 : argInt(0);
+    uint32_t var = 0;
+    bool haveVar = false;
     for (const auto &arg : args)
-      if (arg.tag() == 1)
-        titleChoiceVar_ = arg.value();
-    // Default to "Start" (1) so the script can progress; real UI can override.
-    vm_.setVar(titleChoiceVar_, 1);
+      if (arg.tag() == 1) {
+        var = arg.value();
+        haveVar = true;
+      }
+    if (haveVar)
+      titleChoiceVar_ = var;
+    if (mode != 0 && haveVar) {
+      title_ = false;
+      break;
+    }
+    titleCount_ = 3;
+    titleIndex_ = 0;
+    titleHover_ = 0;
+    vm_.setVar(titleChoiceVar_, 0);
     title_ = true;
     waiting_ = true;
     vm.block();
     break;
-  case 214:
-    // sprite/image registration (resource preload) - not yet implemented
+  }
+  case 214: {
+    // sprite/resource registration/preload: (slot, name, ?, ?)
+    int slot = argInt(0);
+    std::string name = args.size() > 1 ? vm.text(args[1]) : firstString();
+    if (slot >= 0 && !name.empty())
+      spriteSlots_[slot] = name;
     break;
+  }
   default:
     break;
   }

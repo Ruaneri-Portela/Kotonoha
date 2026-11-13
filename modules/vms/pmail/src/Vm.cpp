@@ -1,4 +1,6 @@
 #include "Pmail/Vm.hpp"
+#include "Pmail/StateIO.hpp"
+#include <array>
 #include <algorithm>
 #include <cctype>
 #include <cstring>
@@ -92,6 +94,106 @@ const std::string &ScriptObject::str(size_t idx) const {
 }
 
 Vm::Vm(Host &host) : host_(host), vars_(0x10000, 0) {}
+
+void Vm::reset(bool clearVariables) {
+  if (clearVariables) vars_.assign(0x10000, 0);
+  stack_.clear(); lines_.clear(); known_.clear(); cur_.reset();
+  for (auto &slot : usr_) slot = {};
+  pc_ = acc_ = curFramePc_ = 0;
+  rng_ = 12345;
+  blocked_ = false; ended_ = true;
+}
+
+std::string Vm::serialize() const {
+  StateIO::Writer out;
+  out.string("PMAIL-VM-1");
+  auto object = [&](const ObjectPtr &obj) {
+    out.boolean(bool(obj));
+    if (!obj) return;
+    out.string(obj->name); out.u32(obj->id);
+    out.u64(StateIO::fingerprint(obj->data.data(), obj->data.size()));
+  };
+  out.u32(uint32_t(vars_.size())); for (auto v : vars_) out.u32(v);
+  out.u32(uint32_t(known_.size()));
+  for (const auto &[id, obj] : known_) { out.u32(id); object(obj); }
+  object(cur_); out.u32(pc_); out.u32(acc_); out.u32(curFramePc_); out.u32(rng_);
+  out.boolean(blocked_); out.boolean(ended_);
+  out.u32(uint32_t(stack_.size()));
+  for (const auto &entry : stack_) { out.u32(entry.word); object(entry.obj); }
+  out.u32(uint32_t(lines_.size()));
+  for (const auto &line : lines_) { out.u32(line.object); out.u32(line.index); }
+  for (const auto &slot : usr_) {
+    out.boolean(slot.valid); object(slot.obj);
+    out.u32(uint16_t(slot.argc)); out.u32(uint16_t(slot.pc));
+  }
+  return out.finish();
+}
+
+void Vm::deserialize(const std::string &data) {
+  StateIO::Reader in(data);
+  if (in.string(32) != "PMAIL-VM-1") throw std::runtime_error("Unsupported PMAIL VM save version");
+  auto object = [&]() -> ObjectPtr {
+    if (!in.boolean()) return {};
+    const auto name = in.string(256);
+    const auto id = in.u32(); const auto hash = in.u64();
+    auto obj = host_.loadByName(name);
+    if (!obj || obj->id != id || StateIO::fingerprint(obj->data.data(), obj->data.size()) != hash)
+      throw std::runtime_error("PMAIL saved script differs from installed game: " + name);
+    return obj;
+  };
+  std::vector<uint32_t> vars(in.count(0x10000));
+  if (vars.size() != 0x10000) throw std::runtime_error("Invalid PMAIL variable banks");
+  for (auto &v : vars) v = in.u32();
+  std::map<uint32_t, ObjectPtr> known;
+  const auto knownCount = in.count(4096);
+  for (uint32_t i = 0; i < knownCount; ++i) {
+    const auto id = in.count(4095); const auto obj = object();
+    if (!obj || (obj->id & 0xfff) != id || !known.emplace(id, obj).second)
+      throw std::runtime_error("Invalid PMAIL object registry");
+  }
+  auto current = object();
+  const auto pc = in.u32(), acc = in.u32(), framePc = in.u32(), rng = in.u32();
+  const bool blocked = in.boolean(), ended = in.boolean();
+  if ((!current && !ended) || (current && pc > current->codeWords))
+    throw std::runtime_error("Invalid PMAIL program counter");
+  std::vector<Entry> stack(in.count(65536));
+  for (auto &entry : stack) {
+    entry.word = in.u32(); entry.obj = object();
+    if (entry.obj && ((entry.word >> 16) & 15) == 4 &&
+        (entry.word & 0xffff) > entry.obj->codeWords)
+      throw std::runtime_error("Invalid PMAIL return frame");
+  }
+  std::vector<Line> lines(in.count(128));
+  for (auto &line : lines) {
+    line.object = in.count(4095); line.index = in.count(65535);
+    const auto it = known.find(line.object);
+    if (it == known.end() || line.index >= it->second->strings.size())
+      throw std::runtime_error("Invalid PMAIL queued text");
+  }
+  std::array<UsrSlot, 256> slots;
+  for (auto &slot : slots) {
+    slot.valid = in.boolean(); slot.obj = object();
+    slot.argc = int16_t(in.count(65535)); slot.pc = int16_t(in.count(65535));
+    if (slot.valid && (!slot.obj || slot.pc < 0 || size_t(slot.pc) >= slot.obj->codeWords))
+      throw std::runtime_error("Invalid PMAIL user function");
+  }
+  in.end();
+  // No interpreter fields change until all bytes and object identities validate.
+  vars_ = std::move(vars); known_ = std::move(known); cur_ = std::move(current);
+  stack_ = std::move(stack); lines_ = std::move(lines);
+  std::copy(slots.begin(), slots.end(), std::begin(usr_));
+  pc_ = pc; acc_ = acc; curFramePc_ = framePc; rng_ = rng;
+  blocked_ = blocked; ended_ = ended;
+}
+
+void Vm::swapState(Vm &other) noexcept {
+  using std::swap;
+  swap(vars_, other.vars_); swap(stack_, other.stack_); swap(lines_, other.lines_);
+  swap(known_, other.known_); swap(cur_, other.cur_);
+  for (size_t i = 0; i < 256; ++i) swap(usr_[i], other.usr_[i]);
+  swap(pc_, other.pc_); swap(acc_, other.acc_); swap(curFramePc_, other.curFramePc_);
+  swap(rng_, other.rng_); swap(blocked_, other.blocked_); swap(ended_, other.ended_);
+}
 
 void Vm::registerObject(const ObjectPtr &obj) {
   if (!obj)
