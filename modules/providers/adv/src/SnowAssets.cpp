@@ -10,8 +10,6 @@ namespace Kotonoha::Providers {
 using namespace SnowRadish;
 namespace {
 
-constexpr int kSampleRate = 22050; // WAVEFORMATEX of every ADPS / ADP4 stream
-
 std::filesystem::path FindIgnoreCase(const std::filesystem::path &dir,
                                      const std::string &file) {
   std::error_code ec;
@@ -105,11 +103,12 @@ Kotonoha::SurfacePtr RgbaSurface(int w, int h, const uint8_t *pixels,
   return surface;
 }
 
-Kotonoha::AudioClip Clip(const std::vector<int16_t> &samples, int channels) {
+Kotonoha::AudioClip Clip(const std::vector<int16_t> &samples, int channels, int rate) {
   Kotonoha::AudioClip clip;
-  clip.spec = {SDL_AUDIO_S16, channels, kSampleRate};
+  clip.spec = {SDL_AUDIO_S16, channels, rate};
   clip.data.resize(samples.size() * sizeof(int16_t));
-  std::memcpy(clip.data.data(), samples.data(), clip.data.size());
+  if (!clip.data.empty())
+    std::memcpy(clip.data.data(), samples.data(), clip.data.size());
   return clip;
 }
 
@@ -138,6 +137,7 @@ SnowAssets::SnowAssets(std::filesystem::path directory)
   if (graphic_.index.empty())
     throw std::runtime_error("GRAPHIC.DAT has no entries: " +
                              graphic_.path.string());
+  if (graphic_.index.count("titl00a.crgb")) sampleRate_ = 44100;
   if (!sound_.path.empty())
     sound_.index = ReadDirectory(sound_.path, true);
   if (!voice_.path.empty())
@@ -145,7 +145,7 @@ SnowAssets::SnowAssets(std::filesystem::path directory)
 }
 
 std::string SnowAssets::name() const {
-  return "Snow Radish Vacation packs (" + directory_.string() + ")";
+  return std::string(sampleRate_ == 44100 ? "Pure Mail packs (" : "Snow Radish Vacation packs (") + directory_.string() + ")";
 }
 
 const SnowAssets::Pack *SnowAssets::PackOf(const std::string &id,
@@ -173,7 +173,7 @@ bool SnowAssets::containsAsset(const std::string &id) const {
     return false;
   if (const auto hash = key.find('#');
       hash != std::string::npos && pack == &graphic_) {
-    const auto &info = AnimationOf(key.substr(0, key.rfind(".anm")));
+    const auto &info = AnimationOf(key.substr(0, key.rfind('.', hash)));
     const int frame = std::atoi(key.c_str() + hash + 1);
     return frame >= 0 && size_t(frame) < info.frames.size();
   }
@@ -317,16 +317,133 @@ Kotonoha::SurfacePtr SnowAssets::loadSurfaceAsset(const std::string &id) const {
                        SDL_PIXELFORMAT_RGBA32, 4);
   }
   const std::string ext = key.substr(key.rfind('.') + 1);
-  if (ext == "evd" || ext == "img") {
+  if (ext == "evd" || ext == "img" || ext == "crgb" || ext == "CRGB") {
     Image image;
-    if (!decodeEvd(Graphic(key), image))
-      throw std::runtime_error("Cannot decode picture " + id);
-    return RgbaSurface(int(image.width), int(image.height), image.rgb.data(),
-                       SDL_PIXELFORMAT_RGB24, 3);
+    if (decodeEvd(Graphic(key), image) ||
+        decodeEvd(Graphic(key), image, false)) {
+      return RgbaSurface(int(image.width), int(image.height), image.rgb.data(),
+                         SDL_PIXELFORMAT_RGB24, 3);
+    }
+    if (ext == "img") {
+      const auto data = Graphic(key);
+      auto decodeMask = [&](int hdr, int W, int H, bool crop) -> SurfacePtr {
+        if (data.size() != size_t(hdr + W * H))
+          return {};
+        const uint8_t *pix = data.data() + hdr;
+        int minx = 0, miny = 0, maxx = W - 1, maxy = H - 1;
+        if (crop) {
+          minx = W; miny = H; maxx = -1; maxy = -1;
+          for (int y = 0; y < H; ++y)
+            for (int x = 0; x < W; ++x)
+              if (pix[y * W + x] != 0xFF) {
+                if (x < minx) minx = x;
+                if (x > maxx) maxx = x;
+                if (y < miny) miny = y;
+                if (y > maxy) maxy = y;
+              }
+          if (maxx < minx) { minx = 0; miny = 0; maxx = 0; maxy = 0; }
+        }
+        const int cw = maxx - minx + 1, ch = maxy - miny + 1;
+        std::vector<uint8_t> rgba(size_t(cw) * ch * 4, 0);
+        for (int y = 0; y < ch; ++y) {
+          for (int x = 0; x < cw; ++x) {
+            const uint8_t v = pix[(miny + y) * W + (minx + x)];
+            uint8_t *o = &rgba[(size_t(y) * cw + x) * 4];
+            if (v == 0xFF) {
+              o[0] = o[1] = o[2] = o[3] = 0;
+            } else {
+              o[0] = o[1] = o[2] = 255;
+              o[3] = v;
+            }
+          }
+        }
+        return RgbaSurface(cw, ch, rgba.data(), SDL_PIXELFORMAT_RGBA32, 4);
+      };
+      auto decodeGray = [&](int W, int H, int hdr = 0) -> SurfacePtr {
+        if (data.size() != size_t(hdr + W * H))
+          return {};
+        const uint8_t *pix = data.data() + hdr;
+        std::vector<uint8_t> rgba(size_t(W) * H * 4, 255);
+        for (int i = 0; i < W * H; ++i) {
+          uint8_t v = pix[i];
+          rgba[i * 4 + 0] = v;
+          rgba[i * 4 + 1] = v;
+          rgba[i * 4 + 2] = v;
+          rgba[i * 4 + 3] = 255;
+        }
+        return RgbaSurface(W, H, rgba.data(), SDL_PIXELFORMAT_RGBA32, 4);
+      };
+      auto decodeMaskWH = [&](int W, int H, int hdr = 0) -> SurfacePtr {
+        if (data.size() != size_t(hdr + W * H))
+          return {};
+        const uint8_t *pix = data.data() + hdr;
+        std::vector<uint8_t> rgba(size_t(W) * H * 4, 0);
+        for (int i = 0; i < W * H; ++i) {
+          const uint8_t v = pix[i];
+          uint8_t *o = &rgba[size_t(i) * 4];
+          if (v == 0xFF) { o[0]=o[1]=o[2]=o[3]=0; }
+          else { o[0]=o[1]=o[2]=255; o[3]=v; }
+        }
+        return RgbaSurface(W, H, rgba.data(), SDL_PIXELFORMAT_RGBA32, 4);
+      };
+      auto decodeRgb = [&](int W, int H, int hdr = 0) -> SurfacePtr {
+        if (data.size() != size_t(hdr + W * H * 3))
+          return {};
+        const uint8_t *pix = data.data() + hdr;
+        return RgbaSurface(W, H, pix, SDL_PIXELFORMAT_RGB24, 3);
+      };
+      // Pure Mail title-menu buttons (TITL01..03[ a-g].IMG): raw 24-bit BGR,
+      // 423x55, pure white is the colour key (pmail.exe blits them 423x55 at
+      // x=189, y=326/388/450).
+      auto decodeBgrKey = [&](int W, int H) -> SurfacePtr {
+        if (data.size() != size_t(W) * H * 3)
+          return {};
+        std::vector<uint8_t> rgba(size_t(W) * H * 4, 0);
+        for (int i = 0; i < W * H; ++i) {
+          const uint8_t b = data[i * 3 + 0], g = data[i * 3 + 1],
+                        r = data[i * 3 + 2];
+          const size_t target = size_t(H - 1 - i / W) * W + i % W;
+          uint8_t *o = &rgba[target * 4];
+          if (b == 0xFF && g == 0xFF && r == 0xFF)
+            continue;
+          o[0] = r;
+          o[1] = g;
+          o[2] = b;
+          o[3] = 255;
+        }
+        return RgbaSurface(W, H, rgba.data(), SDL_PIXELFORMAT_RGBA32, 4);
+      };
+      if (auto s = decodeBgrKey(423, 55)) return s; // TITL01..03.IMG
+
+      if (data.size() == 57600) { // cgd00.IMG (raw grayscale, best-effort 240x240)
+        if (auto s = decodeGray(240, 240)) return s;
+      }
+      // Best-effort heuristics for other observed PMAIL IMG sizes (format RE incomplete)
+      if (data.size() == 588) { // n***.img glyphs/digits
+        if (auto s = decodeMaskWH(21, 28)) return s;
+      }
+      if (data.size() == 330) { // mnum*.img
+        if (auto s = decodeMaskWH(22, 15)) return s;
+      }
+      if (data.size() == 7857) { // pass_c.IMG
+        if (auto s = decodeGray(97, 81)) return s;
+      }
+      if (data.size() == 9828) { // mailmes_c.IMG
+        if (auto s = decodeRgb(126, 26)) return s;
+      }
+      if (data.size() == 14742) { // mailmes_d.IMG
+        if (auto s = decodeRgb(126, 39)) return s;
+      }
+      if (data.size() == 40950) { // mailmes_u.IMG
+        if (auto s = decodeRgb(150, 91)) return s;
+      }
+    }
+    throw std::runtime_error("Cannot decode picture " + id);
   }
-  if (ext == "chd") {
+  if (ext == "chd" || ext == "char") {
     SnowRadish::Sprite sprite;
-    if (!decodeChd(Graphic(key), sprite))
+    const auto bytes = Graphic(key);
+    if (!(ext == "char" ? decodeChar(bytes, sprite) : decodeChd(bytes, sprite)))
       throw std::runtime_error("Cannot decode sprite " + id);
     return RgbaSurface(int(sprite.width), int(sprite.height),
                        sprite.rgba.data(), SDL_PIXELFORMAT_RGBA32, 4);
@@ -338,18 +455,28 @@ Kotonoha::AudioClip SnowAssets::loadAudioAsset(const std::string &id) const {
   std::string key;
   const Pack *pack = PackOf(id, key);
   if (pack == &sound_) {
+    const auto entry = pack->index.find(key);
+    if (entry != pack->index.end() &&
+        Lower(std::filesystem::path(entry->second.name).extension().string()) == ".adp4") {
+      const auto pcm = decodeAdp4(read(id));
+      if (pcm.samples.empty()) throw std::runtime_error("Cannot decode ADP4 " + id);
+      return Clip(pcm.samples, 1, sampleRate_);
+    }
     AdpsTrack track;
     if (!Adps(key, track))
       throw std::runtime_error("Cannot decode ADPS " + id);
     std::vector<int16_t> all = std::move(track.intro.samples);
     all.insert(all.end(), track.loop.samples.begin(), track.loop.samples.end());
-    return Clip(all, 2);
+    return Clip(all, 2, sampleRate_);
   }
   if (pack == &voice_) {
     const Pcm pcm = Voice(key);
-    if (pcm.samples.empty())
-      throw std::runtime_error("Cannot decode ADP4 " + id);
-    return Clip(pcm.samples, 1);
+    if (pcm.samples.empty()) {
+      const auto bytes = read(id);
+      if (bytes.size() != 4 || bytes[0] || bytes[1] || bytes[2] || bytes[3])
+        throw std::runtime_error("Cannot decode ADP4 " + id);
+    }
+    return Clip(pcm.samples, 1, sampleRate_);
   }
   return AssetProvider::loadAudioAsset(id);
 }
@@ -360,7 +487,8 @@ SnowAssets::Placement SnowAssets::Sprite(const std::string &name) const {
     return it->second;
   Placement out;
   SnowRadish::Sprite sprite;
-  if (decodeChd(Graphic(key + ".chd"), sprite))
+  if ((HasGraphic(key + ".char") && decodeChar(Graphic(key + ".char"), sprite)) ||
+      (HasGraphic(key + ".chd") && decodeChd(Graphic(key + ".chd"), sprite)))
     out = {float(sprite.x), float(sprite.y), float(sprite.width),
            float(sprite.height), true};
   return sprites_[key] = out;
@@ -373,7 +501,8 @@ SnowAssets::AnimationOf(const std::string &name) const {
     return it->second;
   AnimationInfo info;
   Animation anm;
-  if (decodeAnm(Graphic(key + ".anm"), anm)) {
+  const auto file = HasGraphic(key + ".anim") ? key + ".anim" : key + ".anm";
+  if (HasGraphic(file) && decodeAnm(Graphic(file), anm)) {
     info.regions = std::move(anm.regions);
     info.cursor = anm.cursor;
     for (const auto &f : anm.frames)

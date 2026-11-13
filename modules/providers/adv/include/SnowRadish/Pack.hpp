@@ -85,6 +85,8 @@ bool decodeAnm(const std::vector<uint8_t> &data, Animation &out);
 // >=0x9F skip n-0x9E, 0x7F..0x9E opaque run of n-0x7E, <0x7F one pixel with
 // alpha n/0x67. The result is cropped to its visible pixels.
 bool decodeChd(const std::vector<uint8_t> &data, Sprite &out);
+// Headerless, bottom-up 800x600 sprite stream used by Pure Mail.
+bool decodeChar(const std::vector<uint8_t> &data, Sprite &out);
 
 } // namespace SnowRadish
 

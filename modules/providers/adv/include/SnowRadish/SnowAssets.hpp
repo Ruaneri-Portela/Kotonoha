@@ -44,6 +44,7 @@ public:
   const std::filesystem::path &Directory() const { return directory_; }
 
   std::string name() const override;
+  int sampleRate() const { return sampleRate_; }
   bool containsAsset(const std::string &id) const override;
   std::vector<Uint8> readAsset(const std::string &id) const override;
   std::vector<std::string>
@@ -75,6 +76,7 @@ private:
   std::vector<uint8_t> readGraphicWithAltExt(const Pack *pack,
                                              const std::string &key) const;
 
+  int sampleRate_ = 22050;
   std::filesystem::path directory_;
   std::filesystem::path scriptPath_;
   Pack graphic_, sound_, voice_;

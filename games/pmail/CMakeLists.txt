@@ -29,6 +29,13 @@ add_library(PmailPort STATIC
     src/PmailGame.cpp
     src/PmailRuntime.cpp
     src/PmailPack.cpp
+    src/PmailSession.cpp
+    src/PmailComponents.cpp
+    src/PmailTitleMenu.cpp
+    src/PmailStage.cpp
+    src/PmailTextBox.cpp
+    src/PmailPauseMenu.cpp
+    src/PmailBacklog.cpp
 )
 target_include_directories(PmailPort PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/include"
@@ -48,3 +55,17 @@ target_link_libraries(Pmail PRIVATE PmailPort)
 set_target_properties(Pmail PROPERTIES CXX_EXTENSIONS OFF)
 kotonoha_configure_app(Pmail
     BUNDLE_ID me.hirameki.kotonoha.pmail GAME pmail)
+
+if(BUILD_TESTING)
+    add_executable(PmailAudioCheck tests/AudioAssets.cpp)
+    target_link_libraries(PmailAudioCheck PRIVATE Kotonoha::ProviderADV)
+    target_compile_features(PmailAudioCheck PRIVATE cxx_std_17)
+endif()
+if(BUILD_TESTING)
+    add_executable(PmailRuntimeAudioCheck tests/RuntimeAudio.cpp)
+    target_link_libraries(PmailRuntimeAudioCheck PRIVATE PmailPort)
+endif()
+if(BUILD_TESTING)
+    add_executable(PmailStoryFlowCheck tests/StoryFlow.cpp)
+    target_link_libraries(PmailStoryFlowCheck PRIVATE PmailPort)
+endif()
