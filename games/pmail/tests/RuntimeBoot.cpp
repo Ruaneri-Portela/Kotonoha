@@ -5,6 +5,7 @@
 #include <iostream>
 #include <set>
 #include <stdexcept>
+#include <cstring>
 
 using namespace Kotonoha::PmailPort;
 namespace {
