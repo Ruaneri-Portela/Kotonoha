@@ -212,7 +212,7 @@ bool decodeAnm(const std::vector<uint8_t> &d, Animation &out) {
   if (d.size() < 12)
     return false;
   const uint32_t count = rd32(d.data());
-  if (!count || count > 16)
+  if (!count)
     return false;
   auto fail = [&]() {
     out = {};
@@ -220,7 +220,7 @@ bool decodeAnm(const std::vector<uint8_t> &d, Animation &out) {
   };
   // Cursor files use the general animation format, not the lip-sync header.
   if (rd32(&d[4]) >= 0x2084) {
-    if (d.size() < 0x2084 || count > 16)
+    if (d.size() < 0x2084 || count > 1024)
       return false;
     out.cursor = true;
     for (uint32_t i = 0; i < count; ++i) {
@@ -235,7 +235,7 @@ bool decodeAnm(const std::vector<uint8_t> &d, Animation &out) {
     }
     return true;
   }
-  if (d.size() < 0x684)
+  if (d.size() < 0x684 || count > 16)
     return false;
   // FUN_0040b16c: first word is the number of independently voiced regions.
   for (uint32_t region = 0; region < count; ++region) {
@@ -254,7 +254,9 @@ bool decodeAnm(const std::vector<uint8_t> &d, Animation &out) {
       std::vector<uint8_t> bytes(d.begin() + off, d.begin() + off + size);
       Sprite frame;
       if (!(bytes.size() >= 24 && rd32(bytes.data()) == 1 &&
-            decodeChd(bytes, frame))) {
+            decodeChd(bytes, frame)) &&
+          !(bytes.size() != size_t(width) * height * 3 &&
+            decodeChar(bytes, frame))) {
         if (bytes.size() != size_t(width) * height * 3)
           return fail();
         frame.width = width;
@@ -283,7 +285,8 @@ bool decodeAnm(const std::vector<uint8_t> &d, Animation &out) {
 }
 
 bool decodeChar(const std::vector<uint8_t> &d, Sprite &s) {
-  if (d.empty()) return false;
+  if (d.empty())
+    return false;
   std::vector<uint8_t> headed(20, 0);
   headed[0] = 1;
   headed.insert(headed.end(), d.begin(), d.end());

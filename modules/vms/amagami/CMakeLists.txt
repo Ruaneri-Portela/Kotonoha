@@ -5,11 +5,6 @@ if(TARGET Kotonoha::Modules::VMs::Amagami)
     return()
 endif()
 
-if(NOT TARGET Kotonoha::Engine)
-    add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../../lib"
-        "${CMAKE_CURRENT_BINARY_DIR}/kotonoha")
-endif()
-
 add_library(kotonoha_vm_amagami STATIC "${CMAKE_CURRENT_LIST_DIR}/src/Vm.cpp")
 add_library(Kotonoha::Modules::VMs::Amagami ALIAS kotonoha_vm_amagami)
 add_library(Kotonoha::Vmamagami ALIAS kotonoha_vm_amagami)

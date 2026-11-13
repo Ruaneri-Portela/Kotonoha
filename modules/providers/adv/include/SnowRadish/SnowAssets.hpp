@@ -82,6 +82,11 @@ private:
   Pack graphic_, sound_, voice_;
   mutable std::map<std::string, Placement> sprites_;
   mutable std::map<std::string, AnimationInfo> animations_;
+  // Keep only the most recently decoded animation: frame requests must not
+  // decompress/decode every frame in the file on each presentation tick.
+  const Animation &DecodedAnimation(const std::string &file) const;
+  mutable std::string decodedAnimationFile_;
+  mutable Animation decodedAnimation_;
 };
 
 } // namespace Kotonoha::Providers

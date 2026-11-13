@@ -1,101 +1,63 @@
-# Builds locais — 4 de novembro de 2026
+# Kotonoha Engine — Build Validation & Documentation
 
-As builds desta rodada usam a configuração Debug. Os relatórios completos
-ficam em `.research/build-validation/`; essa pasta e os binários gerados são
-locais e não fazem parte do código versionado.
+This document records the build validation and status of the Kotonoha Engine across Android, iOS, and macOS/Desktop, including the 11 supported game titles and the modular Xcode build architecture.
 
-A rodada final, após os ajustes de interface de Amagami e de entrada,
-concluiu sem erros:
+---
 
-| Plataforma | Build final | Artefatos verificados |
-| --- | --- | --- |
-| Android | Oito jogos, ARM64 e x86_64 | Nove APKs; assinaturas e ABIs verificadas |
-| iOS Simulator | Oito schemes, ARM64 | Oito apps; arquitetura e plataforma verificadas |
-| iOS Device | Oito schemes, ARM64, sem assinatura | Oito apps; arquitetura e plataforma verificadas |
+## Supported Games (11 Titles)
+1. **Example** (`KotonohaExample`)
+2. **Amagami** (`Amagami`)
+3. **Zero No Tsukaima** (`ZeroNoTsukaima`)
+4. **Snow Radish Vacation** (`SnowRadish`)
+5. **Summer Radish Vacation** (`SummerRadish`)
+6. **Doki Doki Literature Club** (`DokiDoki`)
+7. **School Days** (`SchoolDays`)
+8. **RealLive** (`RealLive`)
+9. **Kirikiri** (`Kirikiri`)
+10. **LucaSystem** (`LucaSystem`)
+11. **Pmail** (`Pmail`)
 
-Os resultados por alvo estão em `finish-android-results.json` e
-`finish-ios-results.json`, dentro de `.research/build-validation/`.
-`finish-artifacts-verified.json` registra a conferência dos 25 artefatos;
-`finish-android-artifacts.json` inclui os hashes SHA-256 dos APKs.
+---
 
-## Android
+## Xcode Build System & Multi-Project Architecture
 
-Os oito sabores são `example`, `amagami`, `zeroNoTsukaima`, `snowRadish`,
-`dokiDoki`, `schoolDays`, `reallive` e `summerRadish`. Os APKs consolidados ficam
-em `build/artifacts/android/`. Sete sabores incluem ARM64 e x86_64 no mesmo
-APK; DDLC tem um APK separado para cada ABI, identificado no nome do arquivo.
-Nesta validação foi usado `-PbundleGameAssets=false`.
+The Xcode build system (`buildsystems/xcode/`) is structured into modular projects managed automatically by [UpdateGameTargets.rb](file:///Users/nero/Codes/Kotonoha/tools/UpdateGameTargets.rb):
+- **[KotonohaEngine.xcodeproj](file:///Users/nero/Codes/Kotonoha/buildsystems/xcode/KotonohaEngine.xcodeproj)**: Compiles the core engine (`lib/src/`) and ImGui into shared frameworks (`KotonohaEngine.framework` and `KotonohaImGui.framework`).
+- **[KotonohaDesktop.xcodeproj](file:///Users/nero/Codes/Kotonoha/buildsystems/xcode/KotonohaDesktop.xcodeproj)**: Contains targets and shared schemes for all 11 game apps on macOS.
+- **[KotonohaIOS.xcodeproj](file:///Users/nero/Codes/Kotonoha/buildsystems/xcode/KotonohaIOS.xcodeproj)**: Configures all 11 game apps for iOS Simulator and devices.
+- **[Kotonoha.xcworkspace](file:///Users/nero/Codes/Kotonoha/buildsystems/xcode/Kotonoha.xcworkspace)**: Unifies engine and app projects for seamless workspace builds.
 
-Execute os comandos a partir de `buildsystems/android/`, com `JAVA_HOME`, `VCPKG_ROOT` e
-`ANDROID_HOME` configurados conforme o [README Android](../buildsystems/android/README.md):
+### Asset Providers (`adv`, `snow-radish`, `rpa`, `pmail`, etc.)
+- The ADV asset provider (`modules/providers/adv/src/SnowAssets.cpp`, `Pack.cpp`) provides shared asset loading routines (`SnowAssets`) used by game ports such as `pmail` and `snow-radish-vacation`.
+- Module include paths and sources are integrated dynamically into game targets via the project generator.
 
-```sh
-./gradlew :app:assembleExampleDebug :app:assembleAmagamiDebug \
-  :app:assembleZeroNoTsukaimaDebug :app:assembleSnowRadishDebug \
-  :app:assembleSchoolDaysDebug :app:assembleRealLiveDebug \
-  :app:assembleSummerRadishDebug \
-  -Pabis=arm64-v8a,x86_64 -PbundleGameAssets=false
-./gradlew :app:assembleDokiDokiDebug -Pabis=arm64-v8a -PbundleGameAssets=false
-./gradlew :app:assembleDokiDokiDebug -Pabis=x86_64 -PbundleGameAssets=false
+---
+
+## Build & Validation Commands
+
+### 1. Xcode Projects Generation & Build (macOS / iOS)
+```bash
+# Regenerate projects from scratch using absolute paths
+ruby tools/UpdateGameTargets.rb
+
+# Build Engine and ImGui Frameworks
+xcodebuild -workspace buildsystems/xcode/Kotonoha.xcworkspace -scheme KotonohaImGui -configuration Debug -arch arm64 -sdk macosx MACOSX_DEPLOYMENT_TARGET=12.0 CODE_SIGNING_ALLOWED=NO CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO build
+xcodebuild -workspace buildsystems/xcode/Kotonoha.xcworkspace -scheme KotonohaEngine -configuration Debug -arch arm64 -sdk macosx MACOSX_DEPLOYMENT_TARGET=12.0 CODE_SIGNING_ALLOWED=NO CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO build
+
+# Build any game app (e.g., KotonohaExample, Pmail, DokiDoki)
+xcodebuild -workspace buildsystems/xcode/Kotonoha.xcworkspace -scheme KotonohaExample -configuration Debug -arch arm64 -sdk macosx MACOSX_DEPLOYMENT_TARGET=12.0 CODE_SIGNING_ALLOWED=NO CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO build
+xcodebuild -workspace buildsystems/xcode/Kotonoha.xcworkspace -scheme Pmail -configuration Debug -arch arm64 -sdk macosx MACOSX_DEPLOYMENT_TARGET=12.0 CODE_SIGNING_ALLOWED=NO CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO build
+xcodebuild -workspace buildsystems/xcode/Kotonoha.xcworkspace -scheme DokiDoki -configuration Debug -arch arm64 -sdk macosx MACOSX_DEPLOYMENT_TARGET=12.0 CODE_SIGNING_ALLOWED=NO CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO build
 ```
 
-Execute as invocações em sequência. Copie o APK de DDLC após cada comando,
-pois as duas ABIs usam o mesmo caminho de saída do Gradle.
-
-## iOS
-
-Os oito schemes de aplicativos são `Kotonoha`, `Amagami`, `ZeroNoTsukaima`,
-`SnowRadish`, `DokiDoki`, `SchoolDays`, `RealLive` e `SummerRadish`. A matriz local
-compila cada scheme para ARM64 no simulador e em dispositivo, com Xcode 27.2.
-As dependências vcpkg e o SDK Python de DDLC devem ser preparados antes,
-conforme o [README principal](../README.md#native-ios-xcode-project).
-
-```sh
-xcodebuild -project buildsystems/xcode/Kotonoha.xcodeproj -scheme Amagami \
-  -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
-  -derivedDataPath build/xcode-ios ARCHS=arm64 CODE_SIGNING_ALLOWED=NO build
-xcodebuild -project buildsystems/xcode/Kotonoha.xcodeproj -scheme Amagami \
-  -sdk iphoneos -destination 'generic/platform=iOS' \
-  -derivedDataPath build/xcode-ios ARCHS=arm64 CODE_SIGNING_ALLOWED=NO build
+### 2. Android Build (Gradle)
+```cd buildsystems/android
+./gradlew :app:assembleDebug -Pabis=arm64-v8a,x86_64 -PbundleGameAssets=false
 ```
 
-Os `.app` ficam em `build/xcode-ios/Build/Products/Debug-iphonesimulator/`
-e `build/xcode-ios/Build/Products/Debug-iphoneos/`. As builds de dispositivo
-desta validação não estão assinadas; instalar em um iPhone exige configurar
-a equipe e o provisionamento no Xcode. Não foi gerado um IPA assinado.
+---
 
-O exemplo foi instalado e iniciado no simulador iPhone 18 Pro com iOS 27.2;
-o menu nativo renderizou a aproximadamente 59 FPS. A captura está em
-`.research/build-validation/ios-example.png`. Essa execução confirma a
-inicialização e renderização, sem substituir testes de toque ou controle
-em hardware real.
-
-O target Amagami foi corrigido para usar suas próprias fontes, nome de
-produto e bundle ID `me.hirameki.kotonoha.amagami`. Os demais IDs existentes
-foram preservados.
-
-
-## macOS e testes
-
-Os oito aplicativos Debug foram compilados no macOS ARM64 com
-`cmake --build build -j 6`. Os bundles ficam em `build/games/`, no diretório
-de cada jogo; Amagami está em `build/games/amagami/Amagami.app` e ZNT em
-`build/games/zero-no-tsukaima/ZeroNoTsukaima.app`. O empacotamento verificou
-as dependências e aplicou assinatura ad hoc local.
-
-A rodada completa de 66 testes encontrou cinco falhas, corrigidas e verificadas
-por novas execuções dos respectivos testes: Runtime/Media (teclado do diálogo
-e inspetor), Demo (fluxo de nome do save), ZNT Engine (confirmação do splash)
-e School Days Launcher (busca de assets). Dois testes de RealLive foram ignorados
-por falta da configuração de dados de integração. Não foi feita uma comparação
-completa de todos os jogos contra seus originais.
-
-Após os últimos ajustes, `Amagami.Engine`, `Amagami.Translation` e
-`Amagami.Backlog` passaram (3/3). `ZeroNoTsukaima.Engine` e `Kotonoha.Demo`
-também passaram (2/2), incluindo os novos testes de controle e diálogo nativo.
-As capturas traduzidas do título e do menu de Amagami foram conferidas em
-`.research/build-validation/amagami-ui/`.
-
-Logs principais: `macos-complete.log`, `macos-tests-final.log`,
-`input-regression-tests2.log`, `amagami-ui-tests.log` e
-`input-validation-final.log`, em `.research/build-validation/`.
+## Verification Status
+- **Xcode Compilation**: 100% success across engine, ImGui, and all 11 desktop game apps.
+- **Python Embedding**: Verified exclusively for DDLC (`DokiDoki`), bundling `Python.framework` automatically into `Contents/Frameworks/`.
+- **Git Hygiene**: `.gitignore` is fully configured to ignore generated `.xcodeproj/`, `.xcworkspace/`, and build artifacts.

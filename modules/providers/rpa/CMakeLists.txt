@@ -2,11 +2,6 @@ if(TARGET Kotonoha::Modules::Providers::RPA)
     return()
 endif()
 
-if(NOT TARGET Kotonoha::Engine)
-    add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../../lib"
-        "${CMAKE_CURRENT_BINARY_DIR}/kotonoha")
-endif()
-
 add_library(kotonoha_provider_rpa STATIC src/DdlcAssets.cpp)
 add_library(Kotonoha::Modules::Providers::RPA ALIAS kotonoha_provider_rpa)
 add_library(Kotonoha::ProviderRPA ALIAS kotonoha_provider_rpa)

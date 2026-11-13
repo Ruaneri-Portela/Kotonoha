@@ -2,11 +2,6 @@ if(TARGET Kotonoha::Modules::Providers::PAK)
     return()
 endif()
 
-if(NOT TARGET Kotonoha::Engine)
-    add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../../lib"
-        "${CMAKE_CURRENT_BINARY_DIR}/kotonoha")
-endif()
-
 add_library(kotonoha_provider_pak STATIC src/LucaSystemAssets.cpp src/CzImage.cpp)
 add_library(Kotonoha::Modules::Providers::PAK ALIAS kotonoha_provider_pak)
 add_library(Kotonoha::ProviderPAK ALIAS kotonoha_provider_pak)

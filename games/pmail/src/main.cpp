@@ -14,6 +14,8 @@
 #include <memory>
 #include <string>
 
+#include <SnowRadish/SnowAssets.hpp>
+
 namespace {
 
 struct Application {

@@ -12,8 +12,8 @@ provided by vcpkg.
 
 - [lib/](lib/): public headers, engine implementations, tests and submodules.
 - [assets/](assets/): engine splash, fonts, licenses and bundled GLSL shaders.
-- [games/](games/): example, Zero no Tsukaima, Amagami, RealLive, Radish Vacation, DDLC and School Days.
-- [buildsystems/xcode/Kotonoha.xcodeproj](buildsystems/xcode/Kotonoha.xcodeproj): native iOS targets.
+- [games/](games/): example, Zero no Tsukaima, Amagami, RealLive, Radish Vacation, DDLC, School Days, Kirikiri, LucaSystem and Pure Mail.
+- [buildsystems/xcode/Kotonoha.xcworkspace](buildsystems/xcode/Kotonoha.xcworkspace): native macOS and iOS multi-project workspace (generated via `ruby tools/UpdateGameTargets.rb`).
 - [buildsystems/android/](buildsystems/android/): Android Studio/Gradle project with separate game APKs.
 - [buildsystems/cmake/](buildsystems/cmake/): desktop configuration and `.app` packaging.
 
@@ -29,13 +29,15 @@ remain out of Git. Supply your own legally obtained data:
 | [RealLive Standard Edition (initial port)](games/reallive/README.md) | `Seen.txt`, `Gameexe.ini` and original resource folders; `--reallive DIRECTORY_OR_ISO` |
 | [Amagami PS2 (playable prologue)](games/amagami/PORT_STATUS.md) | Original Japan ISO (`SLPS_259.18`); `--amagami DISC.iso`. Calendar and later routes are in development. |
 | [LucaSystem (new port)](games/luca-system/README.md) | `PARAM.PAK`, `SCRIPT.PAK` and `SYSSE.PAK`; `--luca-system DIRECTORY_OR_ISO`. Reference test: AIR (`/Volumes/Nero 2TB/SteamLibrary/steamapps/common/AIR/files`). |
+| [Pure Mail](games/pmail/docs/AUDIO_PARITY.md) | PMAILDVD root or data folder; `--pmail DIRECTORY`. |
+| [LucaSystem (new port)](games/luca-system/README.md) | `PARAM.PAK`, `SCRIPT.PAK` and `SYSSE.PAK`; `--luca-system DIRECTORY_OR_ISO`. Reference test: AIR (`/Volumes/Nero 2TB/SteamLibrary/steamapps/common/AIR/files`). |
 
 The port does not download or supply commercial game data.
 
 ### Opening ISO images
 
 Every folder-based game also accepts an `.iso` in the same game-data field or
-command-line option: `--reallive`, `--summer`, `--snow`, `--school-days` and `--ddlc`.
+command-line option: `--reallive`, `--summer`, `--snow`, `--school-days`, `--ddlc`, `--zero`, `--kirikiri`, `--luca-system` and `--pmail`.
 Use **Folder...** for a folder or **ISO...** for an image in the launcher.
 RealLive reads ISO9660/Joliet assets directly, without extraction or temporary
 files, including scripts, voices and overlay replacements. Amagami and Zero

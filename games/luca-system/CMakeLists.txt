@@ -6,11 +6,6 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
   include(CTest)
 endif()
 
-if(NOT TARGET Kotonoha::Engine)
-  add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../lib"
-      "${CMAKE_CURRENT_BINARY_DIR}/kotonoha")
-endif()
-
 # LucaSystem (Visual Art's / Key) archive + script format support.
 # Implemented from the format decoded by wetor/LuckSystem (pak.go / script.go).
 add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../modules/providers/pak"

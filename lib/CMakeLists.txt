@@ -11,7 +11,6 @@ if (APPLE)
 endif ()
 
 # Inclusao de rotinas especificas de plataforma
-include("${CMAKE_CURRENT_SOURCE_DIR}/../buildsystems/cmake/MSVC.cmake")
 include("${CMAKE_CURRENT_SOURCE_DIR}/../buildsystems/cmake/KotonohaOutputs.cmake")
 
 # Propagate the output layout to the parent directory so game, tool and test
@@ -76,10 +75,6 @@ endif ()
 
 # --- Submodulos SDL e SDL_ttf ---
 add_subdirectory("${KOTONOHA_SDL_SOURCE_DIR}" "${CMAKE_CURRENT_BINARY_DIR}/SDL" EXCLUDE_FROM_ALL)
-
-if (ANDROID)
-    find_package(harfbuzz CONFIG REQUIRED)
-endif ()
 
 add_subdirectory(submodules/SDL_ttf EXCLUDE_FROM_ALL)
 

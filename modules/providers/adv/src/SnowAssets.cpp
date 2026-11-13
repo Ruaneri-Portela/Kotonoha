@@ -49,8 +49,8 @@ ReadDirectory(const std::filesystem::path &path, bool byStem) {
   if (!in.read(reinterpret_cast<char *>(footer), sizeof(footer)))
     return index;
   auto word = [](const uint8_t *p) {
-    return uint32_t(p[0]) | (uint32_t(p[1]) << 8) |
-           (uint32_t(p[2]) << 16) | (uint32_t(p[3]) << 24);
+    return uint32_t(p[0]) | (uint32_t(p[1]) << 8) | (uint32_t(p[2]) << 16) |
+           (uint32_t(p[3]) << 24);
   };
   const uint32_t packedSize = word(footer) ^ 0xf0f0f0f0u;
   const uint32_t rawSize = word(footer + 4) ^ 0xf0f0f0f0u;
@@ -103,7 +103,8 @@ Kotonoha::SurfacePtr RgbaSurface(int w, int h, const uint8_t *pixels,
   return surface;
 }
 
-Kotonoha::AudioClip Clip(const std::vector<int16_t> &samples, int channels, int rate) {
+Kotonoha::AudioClip Clip(const std::vector<int16_t> &samples, int channels,
+                         int rate) {
   Kotonoha::AudioClip clip;
   clip.spec = {SDL_AUDIO_S16, channels, rate};
   clip.data.resize(samples.size() * sizeof(int16_t));
@@ -137,7 +138,8 @@ SnowAssets::SnowAssets(std::filesystem::path directory)
   if (graphic_.index.empty())
     throw std::runtime_error("GRAPHIC.DAT has no entries: " +
                              graphic_.path.string());
-  if (graphic_.index.count("titl00a.crgb")) sampleRate_ = 44100;
+  if (graphic_.index.count("titl00a.crgb"))
+    sampleRate_ = 44100;
   if (!sound_.path.empty())
     sound_.index = ReadDirectory(sound_.path, true);
   if (!voice_.path.empty())
@@ -145,7 +147,9 @@ SnowAssets::SnowAssets(std::filesystem::path directory)
 }
 
 std::string SnowAssets::name() const {
-  return std::string(sampleRate_ == 44100 ? "Pure Mail packs (" : "Snow Radish Vacation packs (") + directory_.string() + ")";
+  return std::string(sampleRate_ == 44100 ? "Pure Mail packs ("
+                                          : "Snow Radish Vacation packs (") +
+         directory_.string() + ")";
 }
 
 const SnowAssets::Pack *SnowAssets::PackOf(const std::string &id,
@@ -307,10 +311,9 @@ Kotonoha::SurfacePtr SnowAssets::loadSurfaceAsset(const std::string &id) const {
   if (pack != &graphic_)
     return AssetProvider::loadSurfaceAsset(id);
   if (const auto hash = key.find('#'); hash != std::string::npos) {
-    Animation anm;
+    const auto &anm = DecodedAnimation(key.substr(0, hash));
     const int frame = std::atoi(key.c_str() + hash + 1);
-    if (!decodeAnm(Graphic(key.substr(0, hash)), anm) || frame < 0 ||
-        size_t(frame) >= anm.frames.size())
+    if (frame < 0 || size_t(frame) >= anm.frames.size())
       throw std::runtime_error("Cannot decode animation frame " + id);
     const auto &f = anm.frames[size_t(frame)];
     return RgbaSurface(int(f.width), int(f.height), f.rgba.data(),
@@ -332,16 +335,28 @@ Kotonoha::SurfacePtr SnowAssets::loadSurfaceAsset(const std::string &id) const {
         const uint8_t *pix = data.data() + hdr;
         int minx = 0, miny = 0, maxx = W - 1, maxy = H - 1;
         if (crop) {
-          minx = W; miny = H; maxx = -1; maxy = -1;
+          minx = W;
+          miny = H;
+          maxx = -1;
+          maxy = -1;
           for (int y = 0; y < H; ++y)
             for (int x = 0; x < W; ++x)
               if (pix[y * W + x] != 0xFF) {
-                if (x < minx) minx = x;
-                if (x > maxx) maxx = x;
-                if (y < miny) miny = y;
-                if (y > maxy) maxy = y;
+                if (x < minx)
+                  minx = x;
+                if (x > maxx)
+                  maxx = x;
+                if (y < miny)
+                  miny = y;
+                if (y > maxy)
+                  maxy = y;
               }
-          if (maxx < minx) { minx = 0; miny = 0; maxx = 0; maxy = 0; }
+          if (maxx < minx) {
+            minx = 0;
+            miny = 0;
+            maxx = 0;
+            maxy = 0;
+          }
         }
         const int cw = maxx - minx + 1, ch = maxy - miny + 1;
         std::vector<uint8_t> rgba(size_t(cw) * ch * 4, 0);
@@ -381,8 +396,12 @@ Kotonoha::SurfacePtr SnowAssets::loadSurfaceAsset(const std::string &id) const {
         for (int i = 0; i < W * H; ++i) {
           const uint8_t v = pix[i];
           uint8_t *o = &rgba[size_t(i) * 4];
-          if (v == 0xFF) { o[0]=o[1]=o[2]=o[3]=0; }
-          else { o[0]=o[1]=o[2]=255; o[3]=v; }
+          if (v == 0xFF) {
+            o[0] = o[1] = o[2] = o[3] = 0;
+          } else {
+            o[0] = o[1] = o[2] = 255;
+            o[3] = v;
+          }
         }
         return RgbaSurface(W, H, rgba.data(), SDL_PIXELFORMAT_RGBA32, 4);
       };
@@ -413,29 +432,39 @@ Kotonoha::SurfacePtr SnowAssets::loadSurfaceAsset(const std::string &id) const {
         }
         return RgbaSurface(W, H, rgba.data(), SDL_PIXELFORMAT_RGBA32, 4);
       };
-      if (auto s = decodeBgrKey(423, 55)) return s; // TITL01..03.IMG
+      if (auto s = decodeBgrKey(423, 55))
+        return s; // TITL01..03.IMG
 
-      if (data.size() == 57600) { // cgd00.IMG (raw grayscale, best-effort 240x240)
-        if (auto s = decodeGray(240, 240)) return s;
+      if (data.size() ==
+          57600) { // cgd00.IMG (raw grayscale, best-effort 240x240)
+        if (auto s = decodeGray(240, 240))
+          return s;
       }
-      // Best-effort heuristics for other observed PMAIL IMG sizes (format RE incomplete)
+      // Best-effort heuristics for other observed PMAIL IMG sizes (format RE
+      // incomplete)
       if (data.size() == 588) { // n***.img glyphs/digits
-        if (auto s = decodeMaskWH(21, 28)) return s;
+        if (auto s = decodeMaskWH(21, 28))
+          return s;
       }
       if (data.size() == 330) { // mnum*.img
-        if (auto s = decodeMaskWH(22, 15)) return s;
+        if (auto s = decodeMaskWH(22, 15))
+          return s;
       }
       if (data.size() == 7857) { // pass_c.IMG
-        if (auto s = decodeGray(97, 81)) return s;
+        if (auto s = decodeGray(97, 81))
+          return s;
       }
       if (data.size() == 9828) { // mailmes_c.IMG
-        if (auto s = decodeRgb(126, 26)) return s;
+        if (auto s = decodeRgb(126, 26))
+          return s;
       }
       if (data.size() == 14742) { // mailmes_d.IMG
-        if (auto s = decodeRgb(126, 39)) return s;
+        if (auto s = decodeRgb(126, 39))
+          return s;
       }
       if (data.size() == 40950) { // mailmes_u.IMG
-        if (auto s = decodeRgb(150, 91)) return s;
+        if (auto s = decodeRgb(150, 91))
+          return s;
       }
     }
     throw std::runtime_error("Cannot decode picture " + id);
@@ -457,9 +486,11 @@ Kotonoha::AudioClip SnowAssets::loadAudioAsset(const std::string &id) const {
   if (pack == &sound_) {
     const auto entry = pack->index.find(key);
     if (entry != pack->index.end() &&
-        Lower(std::filesystem::path(entry->second.name).extension().string()) == ".adp4") {
+        Lower(std::filesystem::path(entry->second.name).extension().string()) ==
+            ".adp4") {
       const auto pcm = decodeAdp4(read(id));
-      if (pcm.samples.empty()) throw std::runtime_error("Cannot decode ADP4 " + id);
+      if (pcm.samples.empty())
+        throw std::runtime_error("Cannot decode ADP4 " + id);
       return Clip(pcm.samples, 1, sampleRate_);
     }
     AdpsTrack track;
@@ -487,11 +518,23 @@ SnowAssets::Placement SnowAssets::Sprite(const std::string &name) const {
     return it->second;
   Placement out;
   SnowRadish::Sprite sprite;
-  if ((HasGraphic(key + ".char") && decodeChar(Graphic(key + ".char"), sprite)) ||
+  if ((HasGraphic(key + ".char") &&
+       decodeChar(Graphic(key + ".char"), sprite)) ||
       (HasGraphic(key + ".chd") && decodeChd(Graphic(key + ".chd"), sprite)))
     out = {float(sprite.x), float(sprite.y), float(sprite.width),
            float(sprite.height), true};
   return sprites_[key] = out;
+}
+
+const Animation &SnowAssets::DecodedAnimation(const std::string &file) const {
+  if (decodedAnimationFile_ != file) {
+    Animation decoded;
+    if (HasGraphic(file))
+      decodeAnm(Graphic(file), decoded);
+    decodedAnimation_ = std::move(decoded);
+    decodedAnimationFile_ = file;
+  }
+  return decodedAnimation_;
 }
 
 const SnowAssets::AnimationInfo &
@@ -500,10 +543,10 @@ SnowAssets::AnimationOf(const std::string &name) const {
   if (const auto it = animations_.find(key); it != animations_.end())
     return it->second;
   AnimationInfo info;
-  Animation anm;
   const auto file = HasGraphic(key + ".anim") ? key + ".anim" : key + ".anm";
-  if (HasGraphic(file) && decodeAnm(Graphic(file), anm)) {
-    info.regions = std::move(anm.regions);
+  const auto &anm = DecodedAnimation(file);
+  if (!anm.frames.empty()) {
+    info.regions = anm.regions;
     info.cursor = anm.cursor;
     for (const auto &f : anm.frames)
       info.frames.push_back(

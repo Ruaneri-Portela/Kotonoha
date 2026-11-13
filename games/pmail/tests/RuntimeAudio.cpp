@@ -1,6 +1,8 @@
 #include "PmailRuntime.hpp"
 #include <Kotonoha/core/Engine.hpp>
 #include <iostream>
+#include <filesystem>
+#include <stdexcept>
 int main(int argc, char **argv) {
   if (argc != 2) return 2;
   SDL_SetEnvironmentVariable(SDL_GetEnvironment(), "PMAIL_SKIP_INTRO", "1", true);
@@ -28,8 +30,28 @@ int main(int argc, char **argv) {
       SDL_Delay(16);
     }
     std::cout << runtime.debugNode() << "\nVoice and dialogue reached: " << voice << '\n';
+    if (!voice) throw std::runtime_error("Did not reach voiced dialogue");
+    const auto savedNode = runtime.debugNode();
+    const auto savedText = runtime.dialogueText();
+    const auto path = std::filesystem::temp_directory_path() /
+        ("pmail-runtime-" + std::to_string(SDL_GetTicksNS()) + ".vn");
+    runtime.saveGame(path.string());
+    runtime.returnToTitle();
+    if (runtime.GetState() != Kotonoha::GameState::Menu)
+      throw std::runtime_error("Return to title did not change engine state");
+    runtime.loadGame(path.string());
+    std::filesystem::remove(path);
+    if (runtime.debugNode() != savedNode || runtime.dialogueText() != savedText ||
+        runtime.GetState() != Kotonoha::GameState::Gameplay)
+      throw std::runtime_error("Runtime save/load changed dialogue or node");
+    if (engine.Iterate() != SDL_APP_CONTINUE)
+      throw std::runtime_error("Could not render restored scene");
+    runtime.openSaves(false);
+    if (engine.Iterate() != SDL_APP_CONTINUE)
+      throw std::runtime_error("Could not render save menu");
+    std::cout << "Runtime save/load, return-to-title, restored scene and save menu passed.\n";
     runtime.shutdown();
-    return voice ? 0 : 1;
+    return 0;
   } catch (const std::exception &error) {
     std::cerr << error.what() << '\n'; runtime.shutdown(); return 1;
   }

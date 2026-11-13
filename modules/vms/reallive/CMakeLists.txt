@@ -4,11 +4,6 @@ if(TARGET Kotonoha::Modules::VMs::RealLive)
     return()
 endif()
 
-if(NOT TARGET Kotonoha::Engine)
-    add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../../lib"
-        "${CMAKE_CURRENT_BINARY_DIR}/kotonoha")
-endif()
-
 add_library(kotonoha_vm_reallive STATIC "${CMAKE_CURRENT_LIST_DIR}/src/Session.cpp")
 add_library(Kotonoha::Modules::VMs::RealLive ALIAS kotonoha_vm_reallive)
 add_library(Kotonoha::Vmreallive ALIAS kotonoha_vm_reallive)

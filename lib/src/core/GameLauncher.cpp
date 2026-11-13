@@ -5,7 +5,7 @@
 #include <imgui.h>
 #include <imgui_stdlib.h>
 
-#include "../debug/ImGuiTheme.hpp"
+#include <Kotonoha/debug/ImGuiTheme.hpp>
 
 #include <filesystem>
 #include <fstream>

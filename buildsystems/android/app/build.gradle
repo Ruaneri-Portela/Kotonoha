@@ -49,7 +49,8 @@ def games = [
   reallive      : ['reallive', 'RealLive', 'me.hirameki.kotonoha.reallive', 'RealLive'],
   summerRadish  : ['summer-radish-vacation', 'SummerRadish', 'me.hirameki.kotonoha.summerradishvacation', 'Summer Radish Vacation!!'],
   kirikiri      : ['kirikiri', 'Kirikiri', 'me.hirameki.kotonoha.kirikiri', 'KiriKiri'],
-  lucaSystem    : ['luca-system', 'LucaSystem', 'me.hirameki.kotonoha.lucasystem', 'Luca System']
+  lucaSystem    : ['luca-system', 'LucaSystem', 'me.hirameki.kotonoha.lucasystem', 'Luca System'],
+  pmail         : ['pmail', 'Pmail', 'me.hirameki.kotonoha.pmail', 'Pure Mail']
 ]
 
 android {

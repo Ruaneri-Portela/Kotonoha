@@ -2,11 +2,6 @@ if(TARGET Kotonoha::Modules::Providers::CMP)
     return()
 endif()
 
-if(NOT TARGET Kotonoha::Engine)
-    add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../../lib"
-        "${CMAKE_CURRENT_BINARY_DIR}/kotonoha")
-endif()
-
 add_library(kotonoha_provider_cmp STATIC src/Pack.cpp src/SummerAssets.cpp)
 add_library(Kotonoha::Modules::Providers::CMP ALIAS kotonoha_provider_cmp)
 add_library(Kotonoha::ProviderCMP ALIAS kotonoha_provider_cmp)

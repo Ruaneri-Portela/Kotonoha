@@ -11,7 +11,7 @@
 #include <imgui_impl_sdlrenderer3.h>
 #include <imgui_stdlib.h>
 
-#include "../debug/ImGuiTheme.hpp"
+#include <Kotonoha/debug/ImGuiTheme.hpp>
 
 #include <algorithm>
 #include <cmath>

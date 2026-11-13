@@ -668,14 +668,49 @@ FodyWeavers.xsd
 # Additional files built by Visual Studio
 
 # End of https://www.toptal.com/developers/gitignore/api/visualstudio,visualstudiocode,androidstudio,c++,java,macos,vcpkg,cmake
-build/
-build-*/
-dist/
-vcpkg_installed/
-zips/
-# Runtime/game assets stay local. Anime4K shaders are redistributable third-party
-# runtime dependencies and are kept with their upstream license/provenance.
 
+# ============================================================
+# Kotonoha Engine - Project Specific Ignores
+# ============================================================
+/build/
+/build-*/
+/dist/
+/vcpkg_installed/
+/zips/
+/.cache/
+/.opencode/
+/forced_subtitles/
+/CMakeSettings.json
+/CMakePresets.json
+
+# Xcode Projects & Workspaces (Auto-generated)
+*.xcodeproj/
+*.xcworkspace/
+buildsystems/xcode/*.xcodeproj/
+buildsystems/xcode/*.xcworkspace/
+buildsystems/xcode/build/
+buildsystems/xcode/vcpkg/
+buildsystems/xcode/python/
+
+# Android & Gradle
+.gradle/
+.cxx/
+local.properties
+app/build/
+app/.cxx/
+/Android/
+
+# macOS & IDEs
+**/.DS_Store
+**/xcuserdata/
+**/*.xcuserstate
+**/imgui.ini
+*.vn
+*.vn.tmp
+.idea/
+.vscode/
+
+# Assets & Translations
 assets/*
 games-assets/*
 !assets/Anime4K/
@@ -685,34 +720,11 @@ games-assets/*
 !assets/SPLASH.PNG
 .research/
 *.ini
-.vscode
-.cxx
-/build/
-/vcpkg_installed/
-/.cache/
-**/.DS_Store
-**/xcuserdata/
-**/*.xcuserstate
-**/imgui.ini
-*.vn
-*.vn.tmp
 /translation.json
-# Dumps/translations contain the games' script text
 /translations/
-/Android/.gradle/
-/Android/.deps/
-/Android/.cxx/
-/Android/build/
-/Android/app/build/
-/Android/app/.cxx/
-/Android/local.properties
-Xcode/Python.xcframework
+
+# Debug Includes
 !lib/src/debug/
 !lib/src/debug/**
 !lib/include/Kotonoha/debug
 !lib/include/Kotonoha/debug/**
-/CMakeSettings.json
-.opencode
-forced_subtitles/
-CMakePresets.json
-buildsystems/xcode/vcpkg

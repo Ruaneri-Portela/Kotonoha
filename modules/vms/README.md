@@ -10,7 +10,7 @@ providers. Each module exports its existing namespace and headers:
 | summer-radish | `SummerRadish::Machine` | `Kotonoha::Vmsummer-radish` |
 | renpy | `Ddlc::Vm` | `Kotonoha::Vmrenpy` |
 | reallive | `RealLive::Session` | `Kotonoha::Vmreallive` |
-| kag | `Kirikiri::KagScript::Runner` | `Kotonoha::Vmkag` |
+| pmail | `Pmail::Vm` | `Kotonoha::Vmpmail` |
 
 Each module is a static library built by its own `CMakeLists.txt` (e.g.
 `modules/vms/amagami/CMakeLists.txt`) and exports the alias target

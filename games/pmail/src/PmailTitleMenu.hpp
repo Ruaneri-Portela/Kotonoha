@@ -20,6 +20,7 @@ public:
                    PmailGame &game, 
                    Kotonoha::Providers::SnowAssets &assets);
 
+    ~PmailTitleMenu() override;
     int itemCount() const override;
     std::string itemLabel(int index) const override { return ""; }
     SDL_FRect itemRect(int index) const override;
