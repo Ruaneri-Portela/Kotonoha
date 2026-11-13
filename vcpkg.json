@@ -14,6 +14,12 @@
     "harfbuzz",
     "json-c",
     "libass",
+    {
+      "name": "ffmpeg",
+      "features": [
+        "zlib"
+      ]
+    },
     "libiconv",
     {
       "name": "python3",
@@ -38,12 +44,6 @@
       ]
     },
     "zlib",
-    {
-      "name": "ffmpeg",
-      "features": [
-        "zlib"
-      ]
-    },
     {
       "name": "pkgconf",
       "host": true

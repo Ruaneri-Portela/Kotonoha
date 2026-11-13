@@ -52,9 +52,9 @@ void layouts(const fs::path &root) {
         root / ".local/share"}) {
     locations.userData = base;
     auto layout = directoryLayout(locations, "amagami");
-    require(layout.documents == base / "Kotonoha/com.example.game",
+    require(layout.documents == base,
             "Desktop Documents root excludes the save directory");
-    require(layout.saves == base / "Kotonoha/com.example.game/save",
+    require(layout.saves == base / "save",
             "Every desktop uses the package's singular save directory");
     require(layout.engineAssets.front() == locations.resources / "assets",
             "Bundle engine assets take precedence over the working directory");
@@ -81,7 +81,7 @@ void layouts(const fs::path &root) {
               contains(android.gameAssets, locations.obb / "game_assets"),
           "Android accepts private game_assets and OBB data");
   require(android.saves ==
-              locations.userData / "Kotonoha/com.example.game/save",
+              locations.userData / "save",
           "Android saves use external app data, not internal APK resources");
   for (const auto &base :
        {locations.resources, locations.privateGameAssets.parent_path(),
@@ -99,9 +99,9 @@ void layouts(const fs::path &root) {
   locations.obb.clear();
   locations.privateGameAssets.clear();
   auto ios = directoryLayout(locations);
-  require(ios.documents == locations.userData / "Kotonoha/com.example.game",
+  require(ios.documents == locations.userData,
           "iOS Documents root excludes the save directory");
-  require(ios.saves == locations.userData / "Kotonoha/com.example.game/save",
+  require(ios.saves == locations.userData / "save",
           "iOS saves are namespaced inside Files-accessible Documents");
   require(contains(ios.engineAssets, locations.resources / "assets") &&
               contains(ios.engineAssets, locations.userData / "assets") &&

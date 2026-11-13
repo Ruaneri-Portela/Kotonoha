@@ -33,8 +33,13 @@ endif()
 # ==============================================================================
 # Configuracoes Globais e Opcoes de Cache
 # ==============================================================================
-set(SDL_SHARED ON CACHE BOOL "Build shared SDL3")
-set(SDL_STATIC OFF CACHE BOOL "Build static SDL3")
+if (EMSCRIPTEN)
+    set(SDL_SHARED OFF CACHE BOOL "Build shared SDL3" FORCE)
+    set(SDL_STATIC ON CACHE BOOL "Build static SDL3" FORCE)
+else ()
+    set(SDL_SHARED ON CACHE BOOL "Build shared SDL3")
+    set(SDL_STATIC OFF CACHE BOOL "Build static SDL3")
+endif ()
 set(SDL_TEST_LIBRARY OFF CACHE BOOL "Disable SDL test library")
 set(SDL_TESTS OFF CACHE BOOL "Disable SDL tests")
 set(SDL_EXAMPLES OFF CACHE BOOL "Disable SDL examples")
@@ -74,6 +79,19 @@ if (ANDROID AND NOT PKG_CONFIG_EXECUTABLE AND VCPKG_INSTALLED_DIR)
 endif ()
 
 # --- Submodulos SDL e SDL_ttf ---
+if (EMSCRIPTEN AND VCPKG_INSTALLED_DIR)
+    set(_kotonoha_wasm_pc_dir "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/lib/pkgconfig")
+    set(ENV{PKG_CONFIG_LIBDIR} "${_kotonoha_wasm_pc_dir}")
+    set(ENV{PKG_CONFIG_PATH} "${_kotonoha_wasm_pc_dir}")
+    # These SDL_ttf find modules cache pkg-config paths. A build tree changed
+    # from Debug to Release must not retain the previous configuration's libs.
+    get_cmake_property(_kotonoha_cache_vars CACHE_VARIABLES)
+    foreach (_kotonoha_cache_var IN LISTS _kotonoha_cache_vars)
+        if (_kotonoha_cache_var MATCHES "^(harfbuzz_|plutosvg_|plutovg_|PC_HARFBUZZ_|PC_PLUTOSVG_|PC_PLUTOVG_|pkgcfg_lib_PC_HARFBUZZ_|pkgcfg_lib_PC_PLUTOSVG_|pkgcfg_lib_PC_PLUTOVG_)")
+            unset(${_kotonoha_cache_var} CACHE)
+        endif ()
+    endforeach ()
+endif ()
 add_subdirectory("${KOTONOHA_SDL_SOURCE_DIR}" "${CMAKE_CURRENT_BINARY_DIR}/SDL" EXCLUDE_FROM_ALL)
 
 add_subdirectory(submodules/SDL_ttf EXCLUDE_FROM_ALL)
@@ -131,6 +149,17 @@ if (ANDROID)
 
     set(kotonoha_ffmpeg_target kotonoha_ffmpeg)
     set(kotonoha_json_target json-c::json-c)
+elseif (EMSCRIPTEN)
+    pkg_check_modules(LIBASS REQUIRED IMPORTED_TARGET libass>=0.17)
+    pkg_check_modules(FFMPEG REQUIRED IMPORTED_TARGET
+            libavformat libavcodec libavutil libswscale libswresample)
+    pkg_check_modules(JSON_C REQUIRED IMPORTED_TARGET json-c>=0.15)
+    set(kotonoha_ass_target PkgConfig::LIBASS)
+    set(kotonoha_ffmpeg_target PkgConfig::FFMPEG)
+    set(kotonoha_json_target PkgConfig::JSON_C)
+    # vcpkg's FFmpeg .pc advertises -pthread even though its WASM archives
+    # are built without atomics. Emscripten's single-thread stubs suffice.
+    set_property(TARGET PkgConfig::FFMPEG PROPERTY INTERFACE_LINK_OPTIONS "")
 else ()
     pkg_check_modules(LIBASS REQUIRED IMPORTED_TARGET libass>=0.17)
     set(kotonoha_ass_target PkgConfig::LIBASS)
@@ -146,7 +175,12 @@ endif ()
 # ==============================================================================
 # Target: imgui
 # ==============================================================================
-add_library(imgui SHARED
+set(KOTONOHA_LIB_TYPE SHARED)
+if (EMSCRIPTEN)
+    set(KOTONOHA_LIB_TYPE STATIC)
+endif()
+
+add_library(imgui ${KOTONOHA_LIB_TYPE}
         submodules/imgui/imgui.cpp
         submodules/imgui/imgui_draw.cpp
         submodules/imgui/imgui_tables.cpp
@@ -170,10 +204,22 @@ target_link_libraries(imgui PUBLIC SDL3::SDL3)
 file(GLOB_RECURSE KOTONOHA_ENGINE_SOURCES
         CONFIGURE_DEPENDS
         "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/src/*.mm"
 )
 
-add_library(KotonohaEngine SHARED ${KOTONOHA_ENGINE_SOURCES})
+if (NOT APPLE)
+    list(APPEND KOTONOHA_ENGINE_SOURCES
+            "${CMAKE_CURRENT_SOURCE_DIR}/src/media/upscaling/MetalFXUpscaler.mm")
+endif ()
+
+if (APPLE)
+    file(GLOB_RECURSE KOTONOHA_ENGINE_SOURCES_OBJC
+        CONFIGURE_DEPENDS
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/*.mm"
+    )
+    list(APPEND KOTONOHA_ENGINE_SOURCES ${KOTONOHA_ENGINE_SOURCES_OBJC})
+endif()
+
+add_library(KotonohaEngine ${KOTONOHA_LIB_TYPE} ${KOTONOHA_ENGINE_SOURCES})
 
 # Aliases para compatibilidade de inclusao
 add_library(Kotonoha::Engine ALIAS KotonohaEngine)
@@ -209,6 +255,13 @@ target_link_libraries(KotonohaEngine
         ${kotonoha_json_target}
         ${kotonoha_ass_target}
 )
+
+if (EMSCRIPTEN AND VCPKG_INSTALLED_DIR)
+    # SDL_ttf's pkg-config find modules emit -l flags for static dependencies.
+    # Emscripten needs the vcpkg library directory on the final link command.
+    target_link_directories(KotonohaEngine PUBLIC
+            "$<IF:$<CONFIG:Debug>,${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/debug/lib,${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/lib>")
+endif ()
 
 # --- Dependencias de Plataforma / Graficas do KotonohaEngine ---
 if (WIN32 AND NOT ANDROID)

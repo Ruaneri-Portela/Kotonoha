@@ -183,12 +183,8 @@ DirectoryLayout directoryLayout(const StorageLocations &locations,
     addDirectory(result.gameAssets, locations.privateGameAssets);
     addGame(locations.resources, false);
 
-    // Documents directory for Android is the userData path, namespaced by the
-    // package so multiple Kotonoha games can share external app storage.
-    result.documents =
-        locations.packageIdentifier.empty()
-            ? locations.userData
-            : locations.userData / "Kotonoha" / locations.packageIdentifier;
+    // Don't change this, on android Android/data/<package> is used for user data.
+    result.documents = locations.userData;
     break;
   }
   case StoragePlatform::IOS: {
@@ -202,12 +198,8 @@ DirectoryLayout directoryLayout(const StorageLocations &locations,
       addDirectory(result.engineAssets, locations.userData / "fonts");
     }
 
-    // Documents directory for iOS is the userData path, namespaced by the
-    // package so the save folder never collides with user documents.
-    result.documents =
-        locations.packageIdentifier.empty()
-            ? locations.userData
-            : locations.userData / "Kotonoha" / locations.packageIdentifier;
+    // Don't change this, on iOS the Documents directory is the userData path. Allow to show on Files.app
+    result.documents = locations.userData;
     break;
   }
   case StoragePlatform::Desktop:
@@ -218,6 +210,7 @@ DirectoryLayout directoryLayout(const StorageLocations &locations,
       addGame(locations.workingDirectory, true);
     }
 
+    // Don't change this, on Desktop, the Documents directory is the userData path with Kotonoha subdirectory.
     // Documents directory for Desktop is the userData with Kotonoha
     // subdirectory.
     result.documents =
