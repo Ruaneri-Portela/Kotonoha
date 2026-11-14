@@ -3,6 +3,10 @@
 #include <algorithm>
 #include <cctype>
 #include <filesystem>
+#ifdef __EMSCRIPTEN__
+#include <Kotonoha/Filesystem/Filesystem.hpp>
+#include <Kotonoha/Filesystem/RemoteAssets.hpp>
+#endif
 
 namespace SnowRadish {
 
@@ -51,6 +55,28 @@ bool SnowLauncher::checkPath(const std::string &path, std::string &info) {
 }
 
 bool SnowLauncher::validatePath(const std::string &path, std::string &info) {
+#ifdef __EMSCRIPTEN__
+  // In a manifest-free browser session only the named DAT files are known.
+  // std::filesystem::directory_iterator cannot enumerate HTTP directories.
+  if (Kotonoha::Filesystem::remoteGameAssets()) {
+    try {
+      auto vfs = Kotonoha::Filesystem::mountGameAssets(path);
+      for (const char *root : {"", "pack/", "data/pack/"}) {
+        const std::string script = std::string(root) + "SCRIPT.DAT";
+        const std::string graphic = std::string(root) + "GRAPHIC.DAT";
+        if (vfs->exists(script) && vfs->exists(graphic)) {
+          info = "Snow Radish DAT packs available in virtual " +
+                 std::string(root) + " folder";
+          return true;
+        }
+      }
+    } catch (const Kotonoha::Filesystem::FilesystemError &error) {
+      info = error.what();
+    }
+    info = "Snow Radish VFS cannot locate SCRIPT.DAT and GRAPHIC.DAT";
+    return false;
+  }
+#endif
   std::error_code ec;
   if (!std::filesystem::is_directory(path, ec)) {
     info = "Folder not found: " + path;
