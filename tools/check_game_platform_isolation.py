@@ -12,10 +12,10 @@ ROOT = Path(__file__).resolve().parents[1]
 GAMES = ROOT / "games"
 SOURCE_SUFFIXES = {".cpp", ".cc", ".c", ".hpp", ".h", ".mm"}
 PATTERNS = [
-    re.compile(r"\\b(?:__EMSCRIPTEN__|EMSCRIPTEN|emscripten_[A-Za-z_0-9]+)\\b", re.I),
-    re.compile(r"#\\s*include\\s*[<\"]emscripten/", re.I),
-    re.compile(r"\\bEM_ASM(?:_[A-Z]+)?\\b"),
-    re.compile(r"--preload-file|\\-s(?:ASYNCIFY|MAIN_MODULE|SIDE_MODULE|FETCH)\\b"),
+    re.compile(r"\b(?:__EMSCRIPTEN__|EMSCRIPTEN|emscripten_[A-Za-z_0-9]+)\b", re.I),
+    re.compile(r"#\s*include\s*[<\"]emscripten/", re.I),
+    re.compile(r"\bEM_ASM(?:_[A-Z]+)?\b"),
+    re.compile(r"--preload-file|\-s(?:ASYNCIFY|MAIN_MODULE|SIDE_MODULE|FETCH)\b"),
 ]
 
 
@@ -30,7 +30,7 @@ def check():
         if any(part in {"build", "vendor", "third_party", "submodules"}
                for part in path.relative_to(GAMES).parts):
             continue
-        for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+        for number, line in enumerate(path.read_text(encoding="utf-8", errors="replace").splitlines(), 1):
             if any(pattern.search(line) for pattern in PATTERNS):
                 failures.append(f"{path.relative_to(ROOT)}:{number}: {line.strip()}")
     return failures
