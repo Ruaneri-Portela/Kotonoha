@@ -22,7 +22,7 @@ BrowserBlobAdapter::BrowserBlobAdapter(std::unique_ptr<FileHandle> source,
   // Do not silently buffer videos of unlimited size in WASM and JavaScript.
   if (maxBytes > static_cast<std::size_t>(INT_MAX))
     maxBytes = static_cast<std::size_t>(INT_MAX);
-  auto bytes = readAll(*source, maxBytes);
+  bytes_ = readAll(*source, maxBytes);
   resourceId_ = EM_ASM_INT({
     try {
       const registry = globalThis.__kotonohaBlobRegistry ||
@@ -36,7 +36,7 @@ BrowserBlobAdapter::BrowserBlobAdapter(std::unique_ptr<FileHandle> source,
     } catch (e) {
       return 0;
     }
-  }, bytes.data(), static_cast<int>(bytes.size()), mime.c_str());
+  }, bytes_.data(), static_cast<int>(bytes_.size()), mime.c_str());
 
   if (resourceId_ <= 0)
     throw FilesystemError(ErrorCode::IOError,
@@ -69,7 +69,7 @@ BrowserBlobAdapter::~BrowserBlobAdapter() { reset(); }
 
 BrowserBlobAdapter::BrowserBlobAdapter(BrowserBlobAdapter &&other) noexcept
     : resourceId_(std::exchange(other.resourceId_, 0)),
-      url_(std::move(other.url_)) {}
+      url_(std::move(other.url_)), bytes_(std::move(other.bytes_)) {}
 
 BrowserBlobAdapter &
 BrowserBlobAdapter::operator=(BrowserBlobAdapter &&other) noexcept {
@@ -78,6 +78,7 @@ BrowserBlobAdapter::operator=(BrowserBlobAdapter &&other) noexcept {
   reset();
   resourceId_ = std::exchange(other.resourceId_, 0);
   url_ = std::move(other.url_);
+  bytes_ = std::move(other.bytes_);
   return *this;
 }
 
@@ -96,6 +97,7 @@ void BrowserBlobAdapter::reset() noexcept {
 #endif
   resourceId_ = 0;
   url_.clear();
+  bytes_.clear();
 }
 
 } // namespace Kotonoha::Filesystem
