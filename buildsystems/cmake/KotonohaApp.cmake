@@ -214,6 +214,11 @@ function(kotonoha_configure_app target)
                 # completes an asynchronous Fetch (not a blocking network call).
                 # Keep all engine/SDL stacks instrumented by linking the final
                 # application with Asyncify, not just the static engine archive.
+                # Release defaults to -O3. Some Emscripten/Binaryen versions
+                # have emitted broken Asyncify exports under aggressive -O3
+                # optimisation. Keep the final WASM link at -O2 until verified.
+                # Position matters: this target option follows CMake's -O3.
+                "SHELL:-O2"
                 "SHELL:-sASYNCIFY=1"
                 "SHELL:-sASYNCIFY_STACK_SIZE=262144"
                 "SHELL:-sFETCH=1"
@@ -229,6 +234,15 @@ function(kotonoha_configure_app target)
                 "${KOTONOHA_PROJECT_ROOT}/buildsystems/cmake/index.html.in"
                 "${KOTONOHA_OUTPUT_CONFIG_DIR}/${target}/index.html"
                 @ONLY
+            )
+
+            # Detect a mismatched/broken JS + WASM Asyncify pair at build
+            # time, before browsers can abort with _asyncify_start_unwind.
+            add_custom_command(TARGET ${target} POST_BUILD
+                COMMAND python3 "${KOTONOHA_PROJECT_ROOT}/tools/check_wasm_asyncify.py"
+                        "$<TARGET_FILE:${target}>"
+                COMMENT "Checking required Asyncify exports in WASM binary"
+                VERBATIM
             )
 
             add_custom_command(TARGET ${target} POST_BUILD
