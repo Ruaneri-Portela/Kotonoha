@@ -194,3 +194,31 @@ reconfigure, rebuild and deploy matching JS/WASM artifacts. If the browser
 still fails, inspect `[Kotonoha] HTTP asset unavailable` logs to identify
 the failing path and HTTP status. This still requires actual browser
 validation and is not proof of retail gameplay parity.
+
+### Controller, touch and mobile browser validation
+
+The web shell uses `viewport-fit=cover`, dynamic viewport units, 44 px
+minimum startup controls, safe-area padding and `touch-action: none` on the
+SDL canvas. The source picker and optional folder picker are **pre-game only**.
+When a source is chosen, the canvas receives focus. The SDL runtime initializes
+`SDL_INIT_GAMEPAD` and handles hotplugged devices; the shared input layer
+normalizes D-pad/left-stick navigation and A/B swapping and translates touch
+into safe pointer/gesture input. The Pure Mail port also translates controller
+buttons for its title and selection screens.
+
+`Kotonoha.InputActions`, `Kotonoha.NativeInput` and the web Playwright
+self-test cover input mapping, touch gesture safety, keyboard events, mobile
+portrait/landscape layout and the browser SDL gamepad subsystem. A physical
+gamepad is **not emulated** by these browser tests; gamepad buttons, axes,
+iOS Safari folder selection and complete retail gameplay still require
+real-device/manual validation.
+
+**Pre-merge checklist:** run the Linux C++ tests, build every enabled WASM
+game, verify Asyncify exports for each generated JS/WASM pair, pass the
+Chromium Playwright suite and check startup/assets/audio/video/gameplay for
+each retail port with legitimately provided game data. For mobile parity,
+also test a physical Android touch device and iPhone/iPad Safari (portrait
+and landscape), Bluetooth/USB gamepads and browser background/resume.
+Unsupported directory pickers may allow only individual files at the root
+of `game-assets`; use HTTP(S) Fetch if nested local directories cannot be
+selected. The CI proves the automated subset, **not** 100% device parity.
