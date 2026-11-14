@@ -1,4 +1,7 @@
 #include <Kotonoha/Filesystem/Filesystem.hpp>
+#include <Kotonoha/Filesystem/Mounts/FallbackMount.hpp>
+#include <Kotonoha/Filesystem/Mounts/DirectoryMount.hpp>
+#include <Kotonoha/Filesystem/RemoteAssets.hpp>
 #include <Kotonoha/Filesystem/Sources/FetchAssetProvider.hpp>
 #include <Kotonoha/Filesystem/Adapters/SDLIOAdapter.hpp>
 #include <Kotonoha/Filesystem/Adapters/BrowserBlobAdapter.hpp>
@@ -338,6 +341,46 @@ void testSDLAdapters() {
 #endif
 }
 
+
+void testLocalHttpFallback() {
+  Temp temp;
+  const auto assets = temp.root / "game-assets";
+  writeFile(assets / "valid.txt", "local");
+  writeFile(assets / "wrong.txt", "x");
+  writeFile(assets / "extra.txt", "original");
+  const auto remote = VFS::FetchAssetProvider::fromManifest(
+      "https://example.invalid/game-assets/",
+      R"({"entries":[{"path":"valid.txt","size":5},{"path":"wrong.txt","size":7},{"path":"missing.txt","size":4}]})");
+  auto merged = VFS::Filesystem::mount(
+      std::make_shared<VFS::FallbackMount>(
+          std::make_shared<VFS::DirectoryMount>(assets), remote));
+  require(readText(merged->open("VALID.TXT")) == "local",
+          "Valid local file was not preferred");
+  require(readText(merged->open("extra.txt")) == "original",
+          "Local-only file went missing");
+  require(merged->stat("wrong.txt").size == 7,
+          "Corrupt local file was not replaced by manifest entry");
+  require(merged->exists("missing.txt") &&
+          merged->list("").size() == 4,
+          "Remote-only file was not included in merged directory");
+  char byte{};
+  expectCode(VFS::ErrorCode::WouldBlock, [&] {
+    merged->open("wrong.txt")->read(&byte, 1);
+  });
+  VFS::setRemoteGameAssets(remote);
+  auto selected = VFS::mountGameAssets(assets);
+  require(readText(selected->open("valid.txt")) == "local" &&
+          selected->stat("missing.txt").size == 4,
+          "Browser-style local/HTTP selection failed");
+  auto remoteOnly = VFS::mountGameAssets(temp.root / "missing");
+  require(remoteOnly->exists("missing.txt"),
+          "Missing directory did not fall back to remote manifest");
+  VFS::setRemoteGameAssets({});
+  expectCode(VFS::ErrorCode::NotFound, [&] {
+    VFS::mountGameAssets(temp.root / "missing");
+  });
+}
+
 void testDirectorySafety() {
   Temp temp;
   auto base = temp.root / "base";
@@ -368,6 +411,7 @@ int main() {
     testISO();
     testTAR();
     testRemoteManifest();
+    testLocalHttpFallback();
     testSDLAdapters();
     testDirectorySafety();
     std::cout << "Filesystem V2 tests passed\n";
