@@ -169,3 +169,25 @@ python3 tools/check_wasm_asyncify.py build-web/outputs/SummerRadish/SummerRadish
 
 O verificador detecta exports ausentes, mas não substitui testes reais em
 Chromium. Ajuste o nome do target conforme o jogo.
+
+### `Uncaught CppException` durante Fetch e Asyncify
+
+Se o console mostrar `Uncaught CppException {excPtr: ...}` a partir do
+callback XHR, a exceção C++ escapou da retomada assíncrona ou do callback.
+Isso **não** prova que o erro original seja o Asyncify: recursos ausentes,
+headers HTTP inválidos e validações de arquivo também podem provocar falhas.
+
+O CMake agora habilita `-fexceptions` para todos os objetos C++ próprios do
+projeto WebAssembly, e não só para o executável; o callback Fetch registra
+falhas HTTP e captura exceções antes de devolver o controle ao JavaScript.
+O teste `KotonohaWebSelfTestCatchAfterAsyncify` verifica se um `try/catch`
+ainda funciona depois de `emscripten_sleep`. O Summer Radish também consulta
+pelo nome os arquivos `INI.CMP`, `SCRIPT.CMP`, `GRAPHIC.CMP`,
+`SOUND.CMP` e `VOICE.CMP` sem depender de enumeração HTTP.
+
+Depois de alterar as flags de compilação, é necessário limpar o build
+Emscripten, reconfigurar, recompilar e publicar os arquivos JS/WASM juntos.
+Se o teste em Chromium ou o início real do jogo ainda falhar, examine as
+mensagens `[Kotonoha] HTTP asset unavailable` para descobrir qual URL/status
+causou a falha. Esses ajustes ainda precisam de validação de runtime no
+navegador; não são uma confirmação de gameplay completo.
