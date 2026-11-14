@@ -186,8 +186,30 @@ async function main() {
         null, { timeout: 60000 });
     };
 
+    const sourceRequests = [];
+    page.on('request', request => {
+      if (/\/game-assets\/manifest\\.json(?:[?#]|$)/.test(request.url()))
+        sourceRequests.push(request.url());
+    });
     await page.goto(baseUrl + '/index.html', { waitUntil: 'domcontentloaded' });
     await page.locator('#select-local-assets').waitFor({ state: 'visible' });
+    await page.waitForFunction(() =>
+      !document.getElementById('select-local-assets').disabled &&
+      !document.getElementById('use-server-assets').disabled);
+    // The user may take as long as they want. No 500ms HTTP auto-start.
+    await page.waitForTimeout(1150);
+    const pendingChoice = await page.evaluate(() => ({
+      overlayVisible: !!document.getElementById('loading-overlay'),
+      actionsVisible: getComputedStyle(
+        document.getElementById('asset-source-actions')).display !== 'none',
+      started: !!window.KotonohaRuntimeStarted,
+      toolbar: document.getElementById('browser-folder-tools')
+        .matches(':popover-open')
+    }));
+    assert(pendingChoice.overlayVisible && pendingChoice.actionsVisible &&
+      !pendingChoice.started && pendingChoice.toolbar &&
+      sourceRequests.length === 0,
+      'boot must wait for an explicit source choice without fetching HTTP');
     await page.locator('#local-assets-folder').setInputFiles(
       path.join(output, 'game-assets'));
     await ready();
@@ -221,6 +243,19 @@ async function main() {
       local.hasFrame === 1, 'local movie decodes from browser File URL');
     assert(local.audioOpened === 1 && local.audioDuration > 1.8,
       'local audio decodes from selected folder');
+    assert(sourceRequests.length === 0,
+      'choosing local game-assets must not silently fetch HTTP assets');
+    const persistent = await page.evaluate(() => ({
+      running: !!window.KotonohaRuntimeStarted,
+      present: !!document.getElementById('browser-folder-tools'),
+      topLayer: document.getElementById('browser-folder-tools')
+        .matches(':popover-open'),
+      hasButton: !!document.getElementById('add-browser-folder')
+    }));
+    assert(persistent.running && persistent.present &&
+      persistent.topLayer && persistent.hasButton,
+      'folder toolbar must remain in top layer after SDL startup');
+
 
     const ehAcrossAwait = await page.evaluate(async () =>
       Module.ccall('KotonohaWebSelfTestCatchAfterAsyncify', 'number',
@@ -232,8 +267,10 @@ async function main() {
     // The corner control mounts any requested root without assuming the
     // selected directory is named game-assets.
     page.once('dialog', dialog => dialog.accept('forced_subtitles'));
-    await page.locator('#add-browser-folder-input').setInputFiles(
-      path.join(output, 'forced_subtitles'));
+    const chooserPromise = page.waitForEvent('filechooser');
+    await page.locator('#add-browser-folder').click();
+    const chooser = await chooserPromise;
+    await chooser.setFiles(path.join(output, 'forced_subtitles'));
     await page.waitForFunction(() =>
       document.getElementById('browser-folder-status').textContent
         .includes('arquivo(s) montado(s)'));
@@ -252,8 +289,9 @@ async function main() {
       ['string'], ['selftest.webm']));
     assert(beforeImport > 0, 'live local mount was created');
     page.once('dialog', dialog => dialog.accept('game-assets'));
-    await page.locator('#add-browser-folder-input').setInputFiles(
-      path.join(output, 'live_import'));
+    const nextChooser = page.waitForEvent('filechooser');
+    await page.locator('#add-browser-folder').click();
+    await (await nextChooser).setFiles(path.join(output, 'live_import'));
     await page.waitForFunction(() =>
       document.getElementById('browser-folder-status').textContent
         .includes('/game-assets'));
@@ -262,6 +300,31 @@ async function main() {
       ['string'], ['live-extra.txt']));
     assert(afterImport === Buffer.byteLength('Kotonoha hot import'),
       'already-mounted game-assets root detects new browser files');
+
+    // A canvas may be promoted to the fullscreen top layer. The folder
+    // toolbar must be raised above it, not disappear behind the game.
+    await page.locator('#canvas').evaluate(canvas =>
+      canvas.addEventListener('click', () =>
+        canvas.requestFullscreen().catch(() => {}), { once: true }));
+    await page.locator('#canvas').click({position: { x: 140, y: 140 }});
+    const fullscreenState = await page.evaluate(() => ({
+      active: !!document.fullscreenElement,
+      toolbar: document.getElementById('browser-folder-tools')
+        .matches(':popover-open'),
+      onTop: (function() {
+        const btn = document.getElementById('add-browser-folder');
+        const r = btn.getBoundingClientRect();
+        const topmost = document.elementFromPoint(r.x + r.width / 2,
+          r.y + r.height / 2);
+        return topmost === btn || btn.contains(topmost);
+      })()
+    }));
+    if (fullscreenState.active) {
+      assert(fullscreenState.toolbar && fullscreenState.onTop,
+        'custom folder toolbar must remain clickable in canvas fullscreen');
+      await page.evaluate(() => document.exitFullscreen());
+    }
+
 
     // Force a real manifest-free server boot, then read the asset directly
     // from the C++ mount. Python http.server ignores Range: the provider
