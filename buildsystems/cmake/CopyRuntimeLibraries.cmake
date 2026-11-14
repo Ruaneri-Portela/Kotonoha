@@ -22,6 +22,33 @@ endif()
 
 file(MAKE_DIRECTORY "${LIBRARY_DIR}")
 
+# On Linux/Windows, do not scoop up unrelated host system installations:
+# only libraries from this CMake build tree or the configured vcpkg root are
+# deployable. macOS is allowed to use Homebrew as well.
+function(kotonoha_library_is_deployable candidate out)
+    if(APPLE)
+        set(${out} TRUE PARENT_SCOPE)
+        return()
+    endif()
+    file(TO_CMAKE_PATH "${candidate}" _candidate)
+    string(TOLOWER "${_candidate}" _candidate)
+    set(_accepted FALSE)
+    foreach(_root IN ITEMS "${KOTONOHA_BUILD_LIBRARY_ROOT}"
+                           "${KOTONOHA_VCPKG_ROOT}")
+        if(NOT _root)
+            continue()
+        endif()
+        file(TO_CMAKE_PATH "${_root}" _root_path)
+        string(TOLOWER "${_root_path}" _root_path)
+        string(FIND "${_candidate}/" "${_root_path}/" _position)
+        if(_position EQUAL 0)
+            set(_accepted TRUE)
+            break()
+        endif()
+    endforeach()
+    set(${out} ${_accepted} PARENT_SCOPE)
+endfunction()
+
 # Packaged shared targets must not depend on a special vcpkg configuration:
 # SDL3, SDL_ttf, ImGui and KotonohaEngine are built from CMake source too.
 # Copy direct built-target binaries independently of dependency discovery;
@@ -62,7 +89,9 @@ if(WIN32)
             "[Kotonoha] Unresolved Windows runtime DLLs: ${_windows_missing}")
     endif()
     foreach(_dll IN LISTS _windows_dlls)
-        if(EXISTS "${_dll}" AND _dll MATCHES "\\.[Dd][Ll][Ll]$")
+        kotonoha_library_is_deployable("${_dll}" _deployable)
+        if(_deployable AND EXISTS "${_dll}" AND
+           _dll MATCHES "\\.[Dd][Ll][Ll]$")
             file(COPY "${_dll}" DESTINATION "${LIBRARY_DIR}")
         endif()
     endforeach()
@@ -131,6 +160,11 @@ list(APPEND resolved ${CMAKE_SHARED_LIBRARIES})
 list(REMOVE_DUPLICATES resolved)
 
 foreach(library IN LISTS resolved)
+    kotonoha_library_is_deployable("${library}" _deployable)
+    if(NOT _deployable)
+        message(VERBOSE "[Kotonoha] Host library left external: ${library}")
+        continue()
+    endif()
     if(EXISTS "${library}")
         message(VERBOSE "[Kotonoha] Copying ${library} to ${LIBRARY_DIR}")
         file(COPY "${library}" DESTINATION "${LIBRARY_DIR}" FOLLOW_SYMLINK_CHAIN)
