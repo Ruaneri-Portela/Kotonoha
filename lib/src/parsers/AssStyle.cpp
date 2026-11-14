@@ -1,7 +1,7 @@
 #include <Kotonoha/parsers/AssStyle.hpp>
 #include <algorithm>
 #include <ass/ass.h>
-#include <fstream>
+#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <memory>
 #include <sstream>
 #include <stdexcept>
@@ -62,7 +62,7 @@ AssStyle AssStyle::parse(const std::string &ass) {
 }
 
 AssStyle AssStyle::load(const std::string &path) {
-  std::ifstream input(path, std::ios::binary);
+  Kotonoha::Filesystem::InputFile input(path, std::ios::binary);
   if (!input)
     throw std::runtime_error("Cannot open ASS style file: " + path);
   std::string text(16 * 1024 * 1024 + 1, '\0');

@@ -13,7 +13,7 @@
 #include <cctype>
 #include <cmath>
 #include <cstring>
-#include <fstream>
+#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <limits>
 #include <mutex>
 #include <stdexcept>
@@ -276,7 +276,7 @@ void VoiceDubbingApplet::importFile(const std::filesystem::path &path) {
   const auto size = std::filesystem::file_size(path);
   if (size > 1024ull * 1024 * 1024)
     throw std::runtime_error("Imported audio exceeds 1 GiB");
-  std::ifstream input(path, std::ios::binary);
+  Kotonoha::Filesystem::InputFile input(path, std::ios::binary);
   if (!input)
     throw std::runtime_error("Cannot open imported audio");
   std::vector<Uint8> bytes(size);
@@ -431,7 +431,7 @@ void VoiceDubbingApplet::save() {
   auto temporary = output;
   temporary += ".tmp";
   {
-    std::ofstream file(temporary, std::ios::binary | std::ios::trunc);
+    Kotonoha::Filesystem::OutputFile file(temporary, std::ios::binary | std::ios::trunc);
     if (!file.write(reinterpret_cast<const char *>(bytes.data()), bytes.size()))
       throw std::runtime_error("Cannot write overlay audio");
   }
