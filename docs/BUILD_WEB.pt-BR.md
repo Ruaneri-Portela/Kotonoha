@@ -145,3 +145,27 @@ O teste Playwright cobre Fetch sem manifesto, pastas locais personalizadas,
 atualização de mounts existentes, saves, mídia e eventos de toque, quando
 compilado com `-DKOTONOHA_WEB_SELFTEST=ON`. Ele não substitui testes
 de gameplay de cada jogo e ainda não foi executado neste ambiente.
+
+### Falha `_asyncify_start_unwind is not a function`
+
+O erro indica que o JavaScript gerado tenta suspender a execução usando
+Asyncify, mas o WebAssembly correspondente não exporta as funções exigidas.
+Isso pode resultar de otimização/link incompatível, arquivos JS/WASM de
+compilações diferentes ou cache antigo no navegador/CDN.
+
+O build Web agora usa Asyncify e força **-O2 no link final** para mitigar
+uma combinação de otimização associada a esse erro. O script
+`tools/check_wasm_asyncify.py` valida os quatro exports reais no
+arquivo `.wasm` e falha o build antes da publicação se estiverem ausentes.
+Recompile e publique **juntos** os arquivos `.js` e `.wasm`, limpando a
+configuração antiga e invalidando o cache do navegador/CDN:
+
+```sh
+rm -rf build-web
+# Configure novamente com os parâmetros Emscripten/vcpkg acima.
+cmake --build build-web --target SummerRadish
+python3 tools/check_wasm_asyncify.py build-web/outputs/SummerRadish/SummerRadish.js
+```
+
+O verificador detecta exports ausentes, mas não substitui testes reais em
+Chromium. Ajuste o nome do target conforme o jogo.
