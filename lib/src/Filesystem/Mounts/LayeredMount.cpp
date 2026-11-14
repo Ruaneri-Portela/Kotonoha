@@ -36,8 +36,9 @@ bool LayeredMount::blocked(std::size_t index,
       // Only shadow a child with a *known* higher regular file.
       if (layers_[higher].mount->isKnownRegularFile(ancestor))
         return true;
-      // Unknown ancestors are treated as directories until their actual
-      // metadata is requested by a game. Never probe them as resources.
+      if (layers_[higher].mount->isKnownDirectory(ancestor))
+        break; // A higher visible directory permits child layers.
+      // Unknown remote ancestors cannot trigger a synchronous HEAD request.
     }
   }
   return false;
