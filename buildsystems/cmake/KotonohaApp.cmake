@@ -210,6 +210,12 @@ function(kotonoha_configure_app target)
                 "SHELL:-sFORCE_FILESYSTEM=1"
                 "SHELL:-sALLOW_MEMORY_GROWTH=1"
                 "SHELL:-sINITIAL_MEMORY=268435456"
+                # Asyncify lets synchronous VFS callers yield while the browser
+                # completes an asynchronous Fetch (not a blocking network call).
+                # Keep all engine/SDL stacks instrumented by linking the final
+                # application with Asyncify, not just the static engine archive.
+                "SHELL:-sASYNCIFY=1"
+                "SHELL:-sASYNCIFY_STACK_SIZE=262144"
                 "SHELL:-sFETCH=1"
                 "SHELL:-sFETCH_STREAMING=1"
                 "SHELL:-lidbfs.js"
