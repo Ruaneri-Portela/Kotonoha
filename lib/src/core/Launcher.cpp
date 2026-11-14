@@ -12,6 +12,8 @@
 #include <imgui_stdlib.h>
 
 #include <Kotonoha/debug/ImGuiTheme.hpp>
+#include <Kotonoha/debug/SystemInfo.hpp>
+#include <Kotonoha/core/BuildVersion.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -413,6 +415,10 @@ void Launcher::draw() {
     ImGui::TextDisabled("%s", settingsPath.empty()
                                   ? "Settings will not be saved"
                                   : settingsPath.c_str());
+    ImGui::TextDisabled("Engine %s  |  %s  |  %s",
+                        BuildVersion::Base,
+                        BuildVersion::Branch,
+                        BuildVersion::ShortCommit);
     ImGui::SetCursorScreenPos(
         {ImGui::GetCursorScreenPos().x,
          std::max(ImGui::GetCursorScreenPos().y, origin.y + band) +
@@ -464,6 +470,10 @@ void Launcher::draw() {
       drawTranslation();
       ImGui::EndTabItem();
     }
+    if (ImGui::BeginTabItem("System info")) {
+      drawSystemInfoPanel(window.get(), renderer.get());
+      ImGui::EndTabItem();
+    }
     if (ImGui::BeginTabItem("Advanced")) {
       drawAdvanced();
       ImGui::EndTabItem();
@@ -486,6 +496,11 @@ void Launcher::draw() {
   ImGui::SameLine();
   if (ImGui::Button("Quit"))
     quit();
+  if (io.DisplaySize.x >= 680 * contentScale) {
+    ImGui::SameLine();
+    ImGui::TextDisabled("v%s  %s", BuildVersion::Base,
+                        BuildVersion::ShortCommit);
+  }
   ImGui::End();
   ImGui::Render();
   SDL_SetRenderScale(renderer.get(), io.DisplayFramebufferScale.x,
