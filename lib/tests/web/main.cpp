@@ -2,6 +2,9 @@
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
 #include <emscripten/emscripten.h>
+#include <Kotonoha/core/DiscImage.hpp>
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
+#include <string>
 
 namespace {
 SDL_Window *window = nullptr;
@@ -14,6 +17,24 @@ int padUp = 0;
 }
 
 extern "C" {
+EMSCRIPTEN_KEEPALIVE int KotonohaWebSelfTestVirtualDisc() {
+  try {
+    const auto file = Kotonoha::FileResolver::findGameAsset(
+        "web-selftest", "web-disc.iso");
+    if (!file)
+      return 0; // Remote disc not discovered.
+    Kotonoha::DiscImage disc;
+    std::string error;
+    if (!disc.tryOpen(*file, &error))
+      return -1; // DiscImage cannot open remote VFS stream.
+    const auto bytes = disc.read("HELLO.TXT");
+    return bytes.size() == 5 &&
+                   std::string(bytes.begin(), bytes.end()) == "hello"
+               ? 1 : -2;
+  } catch (...) {
+    return -3;
+  }
+}
 EMSCRIPTEN_KEEPALIVE int KotonohaWebSelfTestTouchDownCount() {
   return touchDown;
 }
