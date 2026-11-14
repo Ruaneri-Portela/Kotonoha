@@ -137,25 +137,52 @@ void PmailRuntime::startMovie() {
     movieFinished_ = true;
     return;
   }
-  const std::string root =
-      std::filesystem::is_directory(gameDirectory_ + "/data")
-          ? gameDirectory_ + "/data"
-          : gameDirectory_;
-  std::string moviePath;
-  for (const char *name : {"PM01L_I5.avi", "PM01S_I5.avi", "PM01S_I3.avi"}) {
-    const std::string path = root + "/movie/" + name;
-    if (std::filesystem::is_regular_file(path)) {
-      moviePath = path;
-      break;
-    }
-  }
-  if (moviePath.empty()) {
+  const auto vfs = assets_ ? assets_->source() : nullptr;
+  if (!vfs) {
+    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
+                 "[PmailPort] Movie source VFS is unavailable");
     movieFinished_ = true;
     return;
   }
-  moviePlayer_ = std::make_unique<Kotonoha::MediaPlayer>(engine_->GetAudio());
-  moviePlayer_->open(moviePath, false, "bgm");
-  if (!moviePlayer_->isOpen()) {
+  // Root and data/movie are common distributions. The browser cannot
+  // enumerate an HTTP folder; test the explicitly documented retail names.
+  // Prefer an optional browser-playable sidecar before the original AVI, but
+  // retain the AVI/FFmpeg decoder fallback for unconverted retail files.
+  std::string moviePath;
+  for (const char *prefix : {"data/movie/", "movie/"}) {
+    for (const char *name : {"PM01L_I5", "PM01S_I5", "PM01S_I3"}) {
+      for (const char *extension : {".webm", ".mp4", ".avi"}) {
+        const std::string candidate = std::string(prefix) + name + extension;
+        if (vfs->exists(candidate)) {
+          moviePath = candidate;
+          break;
+        }
+      }
+      if (!moviePath.empty()) break;
+    }
+    if (!moviePath.empty()) break;
+  }
+  if (moviePath.empty()) {
+    SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                "[PmailPort] Opening movie not found in VFS "
+                "(data/movie or movie, original PM01*.avi)");
+    movieFinished_ = true;
+    return;
+  }
+  try {
+    moviePlayer_ = std::make_unique<Kotonoha::MediaPlayer>(engine_->GetAudio());
+    moviePlayer_->open(vfs->open(moviePath), moviePath, false, "bgm");
+    if (!moviePlayer_->isOpen()) {
+      SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                  "[PmailPort] Movie decoder could not open: %s",
+                  moviePath.c_str());
+      moviePlayer_.reset();
+      movieFinished_ = true;
+    }
+  } catch (const std::exception &error) {
+    SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                "[PmailPort] Movie failed: %s (%s)",
+                moviePath.c_str(), error.what());
     moviePlayer_.reset();
     movieFinished_ = true;
   }
