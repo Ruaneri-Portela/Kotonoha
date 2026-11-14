@@ -107,6 +107,11 @@ function ensureLegacySidecar() {
 }
 
 function ensureCustomFolderFixture() {
+  // Synthetic retail-like layout for manifest-free VFS discovery. Do not
+  // request HEAD for "data" or "data/pack" as though they were files.
+  const packs = path.join(output, 'game-assets', 'data', 'pack');
+  fs.mkdirSync(packs, {recursive: true});
+  fs.writeFileSync(path.join(packs, 'script.dat'), 'browser-pack-fixture');
   const root = path.join(output, 'forced_subtitles');
   fs.mkdirSync(root, { recursive: true });
   fs.writeFileSync(path.join(root, 'web-test.ass'),
@@ -322,6 +327,13 @@ async function main() {
     const manifestPath = path.join(output, 'game-assets', 'manifest.json');
     const backupPath = manifestPath + '.testing';
     fs.renameSync(manifestPath, backupPath);
+    const directoryProbes = [];
+    const trackProbe = request => {
+      const pathname = new URL(request.url()).pathname;
+      if (/\/game-assets\/(?:data|data\/pack)$/.test(pathname))
+        directoryProbes.push(pathname);
+    };
+    page.on('request', trackProbe);
     try {
       await page.goto(baseUrl + '/index.html',
         { waitUntil: 'domcontentloaded' });
@@ -332,6 +344,8 @@ async function main() {
           'number', ['string'], ['selftest.webm'], { async: true });
         const upperCaseSize = await Module.ccall('KotonohaWebSelfTestRemoteSize',
           'number', ['string'], ['SELFTEST.WEBM'], { async: true });
+        const nestedSize = await Module.ccall('KotonohaWebSelfTestRemoteSize',
+          'number', ['string'], ['DATA/PACK/SCRIPT.DAT'], { async: true });
         const missing = await Module.ccall('KotonohaWebSelfTestRemoteSize',
           'number', ['string'], ['missing-selftest.bin'], { async: true });
         let staged = false;
@@ -340,16 +354,19 @@ async function main() {
           staged = true;
         } catch (_) { /* Remote Fetch must not be copied to MEMFS. */ }
         return {
-          size, upperCaseSize, missing, staged,
+          size, upperCaseSize, nestedSize, missing, staged,
           configured: typeof window.KotonohaFetchAsset === 'function'
         };
       });
       console.log('MANIFEST_FREE', JSON.stringify(direct));
       assert(direct.configured && direct.size > 0 &&
         direct.upperCaseSize === direct.size &&
+        direct.nestedSize === Buffer.byteLength('browser-pack-fixture') &&
+        directoryProbes.length === 0 &&
         direct.missing === -1 && !direct.staged,
         'manifest-free HEAD/Range Fetch works without MEMFS staging');
     } finally {
+      page.off('request', trackProbe);
       fs.renameSync(backupPath, manifestPath);
     }
 
