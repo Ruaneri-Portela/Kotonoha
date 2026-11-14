@@ -1,163 +1,21 @@
-# Shared assets, input and translation
+# Asset overlays and translation
 
-All engine providers use one overlay contract. Public `AssetProvider` reads,
-existence checks, listings, local streaming paths and decoders check the selected
-folder first. Native providers implement the `*Asset` methods for fallback;
-the public entry points cannot accidentally bypass the override.
+**English (US)** | [Português (Brasil)](ASSET_OVERLAYS.pt-BR.md)
 
-Run any game with:
+The shared `AssetProvider` API checks an optional override directory **before** original game data for reads, decoding, listings, existence checks, and streaming paths. An overlay never rewrites the installation.
 
 ```sh
 Game --asset-overlay /path/to/overrides
+Game --no-asset-overlay
 ```
 
-Or select **Game → Asset overlay** in its launcher. The folder is remembered
-with that game's engine settings. With no folder selected, the original assets
-are used. Mounting a different folder invalidates the provider's texture cache.
-Original installation files are never modified by an overlay.
-`--no-asset-overlay` explicitly disables a previously remembered folder.
+The launcher also provides **Game → Asset overlay**. Override paths must match logical asset IDs, such as `bgm/1.ogg` (DDLC), `script/START.KS` (Zero), or `g00/name.g00` (RealLive). Filenames are normalized for ASCII case and path separators; ambiguous case-only duplicates, path traversal, and escaping symlinks are rejected. Remount after adding new paths. Already decoded resources may remain cached until invalidated.
 
-Files mirror the provider's logical IDs. Both slash styles and ASCII filename
-case are normalized. Duplicate names differing only by case are rejected.
-Relative traversal and links outside the selected folder are rejected. Existing
-files can be replaced in place; new names require remounting the indexed folder.
-Game caches may retain resources already decoded during the session.
+## Translation and input
 
-Examples:
+- The translation editor updates active text, choices, and subtitle scenes without re-entering a scene. Export with `--dump-translation FILE`, which initializes the selected game and exits without progressing through the story.
+- DDLC's optional VNX translation packages may be supplied as an overlay; keep the original installation separate. Loose scripts and patch archives take precedence over base data.
+- Common inputs include Escape/Android Back/right click for back and B/Page Up/wheel up for backlog. Ports can override actions for native menus.
+- Rendering caches avoid reprocessing the same source texture, and UI/subtitle glyphs remain at native text resolution.
 
-- DDLC: `bgm/1.ogg`, `gui/logo.png`, `script-ch0.rpyc`.
-- ZNT: `script/START.KS`, `scenedat/12`, `sound/BGMA01`.
-- Snow: `script` (SCRIPT.DAT data), `graphic/name.evd`.
-- RealLive: `Seen.txt`, `g00/name.g00`, `bgm/name.nwa`.
-- School Days: `Script/English/00/00-00-A00.ENG.ORS`, `System/...`,
-  `BGM/SD_BGM/...`. `--scripts` remains an alias for `--asset-overlay`.
-  Legacy flat translated `.txt` names are adapted through the shared index;
-  the dedicated script-only filesystem scanner has been removed.
-
-Standard image/audio overrides are probed by the engine decoder, even when the
-logical ID has a native extension. Native encoded replacements fall back to the
-port's decoder. Listings merge overlay-only names with original names.
-
-## DDLC with and without VNX PT-BR
-
-The patch is optional. Select the original installation independently:
-
-```sh
-DokiDoki --ddlc /path/to/original/game --no-asset-overlay
-DokiDoki --ddlc /path/to/original/game --asset-overlay '/path/to/[VNX+] Doki Doki [PTBR 1.1] [Binaries]'
-```
-
-The VNX adapter recognizes `game/` loose scripts and `vnx/game/` packages.
-`.rpa` and VNX `.rpx` resources override the base; loose files take priority.
-Scripts and the VM see the overlay before initialization. The patch installer's
-archive check uses the mounted translated view, so no copying into the original
-installation or relaunch is necessary. Both modes have separate regression tests.
-
-## Common interaction
-
-`InputActions` belongs to an Engine, rather than static variables in UI helpers.
-Escape, Android Back, right-click, a two-finger tap and a left-edge swipe share
-the back action. B, wheel-up and an upward swipe share the backlog action.
-`ScrollGesture` supplies wheel direction, keyboard navigation and touch dragging
-for lists and histories. Single taps generate a mouse click only after release;
-a completed swipe is not also delivered as a tap.
-
-Native ports can override `Runtime::handleBackAction()` and
-`handleBacklogAction()` to retain their own menus. Shared components use the
-same input vocabulary; School Days bridges it to its retail panels.
-
-## Live translation and ownership
-
-The editor writes through `Engine::setTranslation`, which notifies active scenes.
-VN text subclasses, choices and timed subtitles update without advancing the
-story, duplicating history or resetting subtitle time. Numeric translation route
-IDs are distinct from display/debug labels. ZNT exposes route IDs and reads only
-the selected scene; opening the editor does not decode the whole disc.
-
-Engine implementation files are C++/Objective-C++. Legacy KTRF/ORS C-compatible
-headers remain for file-format and port compatibility. New C++ callers can own
-these values with `Resource` and the aliases in `parsers/Documents.hpp`.
-Parser scratch buffers, files and callback buffers use scoped ownership.
-Formatting is defined by `.clang-format` and `.editorconfig`; vendored code and
-original game assets are excluded from formatting changes.
-
-These shared changes and passing regressions do not establish complete 1:1
-parity for every route, effect or ending of every port. Game-specific outstanding
-work remains documented in each port's status file.
-
-## Validation
-
-The checked local data set covers original and VNX DDLC initialization and poem
-selection, full act progression, the user-directory note and character-file
-lifecycle. Both installations are read in place. ZNT's editor/inspector opening
-regression uses a two-second maximum; this Mac's software-renderer run measured
-about 48 ms for F7 and 32 ms for F10. These timings describe the measured test,
-not a guarantee for other hardware.
-
-The suite also checks core overlay priority/fallback/listing/decoding, live
-translation without duplicate backlog entries, timed subtitle updates, gestures,
-launchers, native ZNT menus, School Days route persistence, and the RealLive/Summer
-integration paths. Proprietary data remains optional and outside source control.
-
-Common startup options are registered by `Kotonoha::CommandLine`:
-`--launcher`, `--no-launcher`, and
-`--dump-translation FILE`. Export starts the selected game runtime, writes its
-source dictionary and exits before advancing a story frame. Export bypasses the
-launcher regardless of argument order. RealLive and Summer use the engine's common
-folder launcher, including its overlay and renderer settings.
-
-Video rendering automatically uses the renderer's configured `Upscaling`
-pipeline when no explicit pipeline is supplied. Ports render game pictures with
-`RenderUpscaledTexture`; source crops stay in original texture coordinates and
-already processed textures are not processed twice. Each original texture owns
-its cached upscale. Asset-provider uploads prepare that cache at creation;
-repeated draws and atlas crops reuse it. Changing the profile/factor invalidates
-cached results; disabling upscaling frees them and renders the originals.
-Destroying an original also releases its upscale. Dynamic canvases supply a
-content serial only when pixels change; videos use the decoded frame serial.
-RealLive retains its canvas texture and only uploads/processes changed pixels.
-DDLC processes source images once rather than running its whole canvas through
-the CNN again on every render. Text rendered directly by the engine retains its native glyph
-rasterization.
-
-Android includes `reallive` and `summerRadish` flavors. DDLC stages the CPython
-standard library and extension modules from the same Debug/Release installation
-as its linked Python library. Build with Android Studio's bundled JDK when the
-system Java version is newer than supported by Gradle.
-
-The native Xcode project includes RealLive and SummerRadish schemes. For DDLC,
-`tools/PrepareApplePython.py` verifies and prepares the pinned BeeWare archive;
-`ruby buildsystems/xcode/UpdateGameTargets.rb` updates the project after preparation (requires
-the `xcodeproj` Ruby gem). The project links `Python.xcframework`, selecting the
-SDK slice, and bundles standard-library resources and extension frameworks.
-
-Touch input in ImGui launchers and the debug/translation editor uses the shared
-`TouchPointer` adapter. It tracks one finger, converts normalized positions into
-window coordinates, supports dragging, and releases the pointer after focus
-loss. Game taps and navigation gestures continue to use `InputActions`.
-
-RealLive implements the name-entry commands used by scenario 9037: create/remove,
-focus, set and retrieve text (`1700`, `1701`, `1703`, `1710`, `1711`). The retail
-engine regression covers `9037:118` and closing its pause menu with two fingers.
-Native Windows edit-control typography and full presentation parity still need
-reference comparisons. Engine and port code owns SDL streams through
-`IOStreamPtr`; calls that transfer ownership explicitly use `release()`.
-
-## Shared file ownership
-
-`FileResolver` locates packaged resources and writable game directories.
-`AssetProvider` owns overlay precedence, decoding entry points and texture
-caches. `FileSystemAssetProvider` reads ordinary rooted files;
-`IndexedFileSystemAssetProvider` adds one-time case-insensitive indexing for
-legacy data such as RealLive. It reuses the overlay index without searching for an
-`overlay` subfolder, rejects ambiguous names and escaping symlinks, and preserves
-the actual physical filename for streaming. Explicit missing overlay directories
-fail before replacing the active mount.
-
-Archive providers retain format-specific identifiers: Amagami's `Source`
-resolves graphical archive locations and event filenames, while its `Assets`
-class decodes TIM2/audio and exposes cached body/facial tiles. Consumers use
-`AssetProvider` public methods rather than reimplementing file reads.
-
-Test resource copies use `buildsystems/cmake/CopyAssetDirectory.cmake`, locking each
-shared destination during parallel post-build copies.
+**Developer contract:** Call the public `AssetProvider` methods (`read`, `loadSurface`, `texture`, `loadAudio`, etc.) instead of bypassing overlays with format-specific methods. `FileResolver` handles platform-specific storage paths. See [asset providers](../modules/providers/README.md), [directory policy](DIRECTORY_POLICY.md), and [engine settings](ENGINE_SETTINGS.md).
