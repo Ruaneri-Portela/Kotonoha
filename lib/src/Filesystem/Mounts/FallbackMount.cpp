@@ -1,5 +1,6 @@
 #include <Kotonoha/Filesystem/Mounts/FallbackMount.hpp>
 #include <Kotonoha/Filesystem/Path.hpp>
+#include <Kotonoha/Filesystem/Sources/FetchAssetProvider.hpp>
 #include <algorithm>
 #include <map>
 #include <stdexcept>
@@ -11,8 +12,17 @@ FallbackMount::FallbackMount(std::shared_ptr<IMount> local,
     throw std::invalid_argument("FallbackMount needs a source");
 }
 const IMount *FallbackMount::select(const std::string &path) const {
+  // Without a manifest there is no authoritative remote file size to compare.
+  // Prefer a valid local file immediately instead of probing every local asset
+  // over HTTP merely to determine whether the remote copy differs.
+  const bool localExists = local_ && local_->exists(path);
+  if (localExists) {
+    const auto direct = std::dynamic_pointer_cast<FetchAssetProvider>(remote_);
+    if (direct && direct->manifestFree())
+      return local_.get();
+  }
   const bool haveRemote = remote_ && remote_->exists(path);
-  if (local_ && local_->exists(path)) {
+  if (localExists) {
     const auto candidate = local_->stat(path);
     if (!haveRemote)
       return local_.get();
