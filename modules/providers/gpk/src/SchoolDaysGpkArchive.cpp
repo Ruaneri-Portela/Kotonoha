@@ -7,6 +7,10 @@
 #include <array>
 #include <cstring>
 #include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
+#ifdef __EMSCRIPTEN__
+#include <Kotonoha/Filesystem/Filesystem.hpp>
+#include <Kotonoha/Filesystem/RemoteAssets.hpp>
+#endif
 #include <limits>
 #include <utility>
 
@@ -512,7 +516,17 @@ bool SchoolDaysGpkAssetStore::OpenRetailDirectory(
     error->clear();
   Close();
   std::error_code ec;
-  if (!std::filesystem::is_directory(packDirectory, ec) || ec)
+  bool folder = std::filesystem::is_directory(packDirectory, ec) && !ec;
+#ifdef __EMSCRIPTEN__
+  // HTTP assets have no physical Packs directory. Treat the known 29 GPK
+  // archive filenames as the directory index; each archive uses InputFile
+  // -> VFS FileHandle and fetches its PIDX/footer via HTTP Range.
+  if (!folder && Kotonoha::Filesystem::remoteGameAssets()) {
+    const auto path = packDirectory.generic_string();
+    folder = path.find("game-assets") != std::string::npos;
+  }
+#endif
+  if (!folder)
     return Fail(error, "School Days GPK Packs directory is unavailable");
 
   std::vector<SchoolDaysGpkArchive> archives;
