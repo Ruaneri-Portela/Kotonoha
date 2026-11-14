@@ -843,7 +843,8 @@
                                     throw new Error("Provider HTTP direto não foi configurado");
                                 window.KotonohaFetchAsset = function(path) {
                                     return Module.ccall("KotonohaRequestRemoteAsset",
-                                        "number", ["string"], [path]);
+                                        "number", ["string"], [path],
+                                        { async: true });
                                 };
                                 setStatus("Fetch direto configurado, sem manifesto. Iniciando engine...");
                                 finish();
