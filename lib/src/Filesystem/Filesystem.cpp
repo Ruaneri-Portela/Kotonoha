@@ -1,0 +1,85 @@
+#include <Kotonoha/Filesystem/Filesystem.hpp>
+#include <Kotonoha/Filesystem/Mounts/DirectoryMount.hpp>
+#include <Kotonoha/Filesystem/Mounts/ISO9660Mount.hpp>
+
+#include <algorithm>
+#include <filesystem>
+#include <limits>
+
+namespace Kotonoha::Filesystem {
+
+Filesystem::Filesystem(std::shared_ptr<IMount> base)
+    : layers_(std::make_shared<LayeredMount>(std::move(base))) {}
+
+std::shared_ptr<Filesystem> Filesystem::mount(std::string source) {
+  if (source.empty())
+    throw FilesystemError(ErrorCode::InvalidPath, "Mount source is empty");
+  if (source.find("://") != std::string::npos)
+    throw FilesystemError(ErrorCode::UnsupportedMount,
+                          "HTTP mounts require a Fetch backend (not yet implemented)");
+  std::error_code ec;
+  const auto root = std::filesystem::canonical(source, ec);
+  if (ec)
+    throw FilesystemError(ErrorCode::NotFound,
+                          "Mount source not found: " + source);
+  std::shared_ptr<IMount> base;
+  if (std::filesystem::is_directory(root)) {
+    base = std::make_shared<DirectoryMount>(root);
+  } else if (std::filesystem::is_regular_file(root)) {
+    base = std::make_shared<ISO9660Mount>(root);
+  } else {
+    throw FilesystemError(ErrorCode::UnsupportedMount,
+                          "Not a mountable source: " + source);
+  }
+  return std::shared_ptr<Filesystem>(new Filesystem(std::move(base)));
+}
+
+void Filesystem::addOverlay(std::string source, int priority) {
+  if (source.find("://") != std::string::npos)
+    throw FilesystemError(ErrorCode::UnsupportedMount,
+                          "Remote overlay backend is not implemented");
+  layers_->addOverlay(std::make_shared<DirectoryMount>(source), priority);
+}
+
+std::uint64_t Filesystem::generation() const noexcept {
+  return layers_->generation();
+}
+bool Filesystem::exists(std::string_view path) const {
+  return layers_->exists(path);
+}
+FileInfo Filesystem::stat(std::string_view path) const {
+  return layers_->stat(path);
+}
+std::vector<FileInfo> Filesystem::list(std::string_view directory) const {
+  return layers_->list(directory);
+}
+std::unique_ptr<FileHandle> Filesystem::open(std::string_view path) const {
+  return layers_->open(path);
+}
+std::unique_ptr<FileHandle>
+Filesystem::tryOpenLogicalOverride(std::string_view id) const {
+  return layers_->tryOpenLogicalOverride(id);
+}
+
+std::vector<std::uint8_t> readAll(FileHandle &file, std::size_t maxBytes) {
+  const auto size = file.size();
+  if (size < 0 || static_cast<std::uint64_t>(size) > maxBytes)
+    throw FilesystemError(ErrorCode::IOError,
+                          "Unknown or excessive resource size");
+  if (file.seek(0, SeekOrigin::Begin) < 0)
+    throw FilesystemError(ErrorCode::IOError, "Cannot rewind resource");
+  std::vector<std::uint8_t> bytes(static_cast<std::size_t>(size));
+  std::size_t cursor = 0;
+  while (cursor < bytes.size()) {
+    const auto chunk = std::min<std::size_t>(bytes.size() - cursor, 1024u * 1024u);
+    const auto count = file.read(bytes.data() + cursor, chunk);
+    if (count <= 0)
+      throw FilesystemError(ErrorCode::IOError,
+                            count == 0 ? "Unexpected end of resource"
+                                       : "Resource read failed");
+    cursor += static_cast<std::size_t>(count);
+  }
+  return bytes;
+}
+
+} // namespace Kotonoha::Filesystem
