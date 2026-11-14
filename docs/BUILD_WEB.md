@@ -76,6 +76,10 @@ The top-right **+ Adicionar pasta** button is **only available on the
 initial asset-selection screen**. It disappears when the local or HTTP(S)
 source is confirmed, stays hidden during gameplay, and is never re-opened
 by canvas fullscreen. Import optional folders before starting SDL.
+The toolbar is ordinary `position: fixed` HTML (not a Popover), anchored
+to the upper-right safe area consistently in Safari/WebKit and Chrome.
+Check `node tools/web_toolbar_layout.js build-web/outputs/KotonohaWebSelfTest`
+to compare Chromium/WebKit at desktop, portrait and landscape sizes.
 Select any local directory and enter its virtual mount name, e.g.
 `game-assets`, `forced_subtitles`, or `ovrlay`. Its contents become
 available under `/<name>/` inside Emscripten's virtual filesystem.
