@@ -8,6 +8,8 @@
 #include <cstdio>
 #include <cstring>
 #include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
+#include <Kotonoha/Filesystem/Sources/SDLFileSource.hpp>
+#include <memory>
 #include <stdexcept>
 
 namespace Kotonoha::Providers {
@@ -331,26 +333,29 @@ std::string KirikiriAssets::startupScenario() const {
 
 bool KirikiriAssets::readXp3(const std::filesystem::path &path) {
   // Read just enough to validate magic and find the table offset.
-  std::FILE *f = std::fopen(path.string().c_str(), "rb");
-  if (!f)
+  std::unique_ptr<Kotonoha::Filesystem::FileHandle> f;
+  try {
+    f = std::make_unique<Kotonoha::Filesystem::SDLFileSource>(path);
+  } catch (const std::exception &) {
     return false;
-  auto closer = [&]() { std::fclose(f); };
+  }
+  auto closer = [&]() { f.reset(); };
 
   std::uint8_t magic[11];
-  if (std::fread(magic, 1, 11, f) != 11 ||
+  if (f->read(magic, 11) != 11 ||
       std::memcmp(magic, kXp3Magic, 11) != 0) {
     closer();
     return false;
   }
 
   std::uint64_t infoOffset = 0;
-  if (std::fread(&infoOffset, 1, 8, f) != 8) {
+  if (f->read(&infoOffset, 8) != 8) {
     closer();
     return false;
   }
 
   std::uint32_t version = 0;
-  if (std::fread(&version, 1, 4, f) != 4) {
+  if (f->read(&version, 4) != 4) {
     closer();
     return false;
   }
@@ -358,11 +363,11 @@ bool KirikiriAssets::readXp3(const std::filesystem::path &path) {
   std::uint64_t tableOffset = 0;
   if (version == 1) {
     // Skip table_size(8) + flags(1), read table_offset(8).
-    if (std::fseek(f, 9, SEEK_CUR) != 0) {
+    if (f->seek(9, Kotonoha::Filesystem::SeekOrigin::Current) < 0) {
       closer();
       return false;
     }
-    if (std::fread(&tableOffset, 1, 8, f) != 8) {
+    if (f->read(&tableOffset, 8) != 8) {
       closer();
       return false;
     }
@@ -373,22 +378,22 @@ bool KirikiriAssets::readXp3(const std::filesystem::path &path) {
   // Follow info_offset chain: KirikiriZ marks with 0x80 sentinel.
   std::size_t metaPos = static_cast<std::size_t>(tableOffset);
   std::uint8_t first = 0;
-  if (std::fseek(f, static_cast<long>(metaPos), SEEK_SET) != 0) {
+  if (f->seek(static_cast<long>(metaPos), Kotonoha::Filesystem::SeekOrigin::Begin) < 0) {
     closer();
     return false;
   }
-  if (std::fread(&first, 1, 1, f) != 1) {
+  if (f->read(&first, 1) != 1) {
     closer();
     return false;
   }
   if (first == 0x80) {
     // Skip 8 bytes, read true info offset.
-    if (std::fseek(f, 8, SEEK_CUR) != 0) {
+    if (f->seek(8, Kotonoha::Filesystem::SeekOrigin::Current) < 0) {
       closer();
       return false;
     }
     std::uint64_t trueOffset = 0;
-    if (std::fread(&trueOffset, 1, 8, f) != 8) {
+    if (f->read(&trueOffset, 8) != 8) {
       closer();
       return false;
     }
@@ -398,18 +403,18 @@ bool KirikiriAssets::readXp3(const std::filesystem::path &path) {
   // File table metadata: compressed flag (1), compressed_size (8),
   // original_size (8).
   std::uint8_t compressedFlag = 0;
-  if (std::fseek(f, static_cast<long>(metaPos), SEEK_SET) != 0) {
+  if (f->seek(static_cast<long>(metaPos), Kotonoha::Filesystem::SeekOrigin::Begin) < 0) {
     closer();
     return false;
   }
-  if (std::fread(&compressedFlag, 1, 1, f) != 1) {
+  if (f->read(&compressedFlag, 1) != 1) {
     closer();
     return false;
   }
   bool compressed = compressedFlag != 0;
   std::uint64_t compSize = 0, origSize = 0;
-  if (std::fread(&compSize, 1, 8, f) != 8 ||
-      std::fread(&origSize, 1, 8, f) != 8) {
+  if (f->read(&compSize, 8) != 8 ||
+      f->read(&origSize, 8) != 8) {
     closer();
     return false;
   }
@@ -418,22 +423,22 @@ bool KirikiriAssets::readXp3(const std::filesystem::path &path) {
   std::vector<std::uint8_t> tableData;
   if (compressed) {
     std::vector<std::uint8_t> compressedData(compSize);
-    if (std::fseek(f, static_cast<long>(tableDataStart), SEEK_SET) != 0) {
+    if (f->seek(static_cast<long>(tableDataStart), Kotonoha::Filesystem::SeekOrigin::Begin) < 0) {
       closer();
       return false;
     }
-    if (std::fread(compressedData.data(), 1, compSize, f) != compSize) {
+    if (f->read(compressedData.data(), compSize) != compSize) {
       closer();
       return false;
     }
     tableData = zlibInflate(compressedData.data(), compSize, origSize);
   } else {
     tableData.resize(origSize);
-    if (std::fseek(f, static_cast<long>(tableDataStart), SEEK_SET) != 0) {
+    if (f->seek(static_cast<long>(tableDataStart), Kotonoha::Filesystem::SeekOrigin::Begin) < 0) {
       closer();
       return false;
     }
-    if (std::fread(tableData.data(), 1, origSize, f) != origSize) {
+    if (f->read(tableData.data(), origSize) != origSize) {
       closer();
       return false;
     }
@@ -515,20 +520,18 @@ bool KirikiriAssets::readXp3(const std::filesystem::path &path) {
 
 std::vector<std::uint8_t>
 KirikiriAssets::extractXp3Entry(const Xp3Entry &entry) const {
-  std::FILE *f = std::fopen(entry.archivePath.string().c_str(), "rb");
-  if (!f)
-    throw std::runtime_error("Cannot open XP3 archive: " +
-                             entry.archivePath.string());
-  auto closer = [&]() { std::fclose(f); };
+  auto f = std::make_unique<Kotonoha::Filesystem::SDLFileSource>(
+      entry.archivePath);
+  auto closer = [&]() { f.reset(); };
 
-  if (std::fseek(f, static_cast<long>(entry.offset), SEEK_SET) != 0) {
+  if (f->seek(static_cast<long>(entry.offset), Kotonoha::Filesystem::SeekOrigin::Begin) < 0) {
     closer();
     throw std::runtime_error("Cannot seek in XP3 archive: " +
                              entry.archivePath.string());
   }
 
   std::vector<std::uint8_t> raw(entry.compressedSize);
-  if (std::fread(raw.data(), 1, entry.compressedSize, f) !=
+  if (f->read(raw.data(), entry.compressedSize) !=
       entry.compressedSize) {
     closer();
     throw std::runtime_error("Cannot read entry data: " + entry.name);
