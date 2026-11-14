@@ -16,6 +16,7 @@
 #include <emscripten/emscripten.h>
 
 #include <filesystem>
+#include <cstring>
 #include <memory>
 #include <sstream>
 #include <string>
@@ -64,6 +65,36 @@ EMSCRIPTEN_KEEPALIVE int KotonohaWebSelfTestRemoteSize(const char *name) {
   } catch (const std::exception &error) {
     logFailure("remote FileHandle", error);
     return -1;
+  }
+}
+
+// Regression: a multi-hundred-megabyte archive must allow a tiny remote
+// trailer read via HTTP 206 without allocating a complete GPK into MEMFS.
+EMSCRIPTEN_KEEPALIVE int KotonohaWebSelfTestLargeRemoteTail() {
+  try {
+    if (!Kotonoha::Filesystem::remoteGameAssets())
+      return -1;
+    constexpr std::int64_t kFileSize = 320ll * 1024 * 1024;
+    auto source = Kotonoha::Filesystem::mountGameAssets("/game-assets");
+    auto file = source->open("event01.gpk");
+    if (file->size() != kFileSize ||
+        file->seek(-8, Kotonoha::Filesystem::SeekOrigin::End) !=
+            kFileSize - 8)
+      return -2;
+    char trailer[8] = {};
+    if (file->read(trailer, sizeof(trailer)) != 8 ||
+        std::memcmp(trailer, "GPKTAIL!", sizeof(trailer)) != 0)
+      return -3;
+    if (file->seek(0, Kotonoha::Filesystem::SeekOrigin::Begin) != 0)
+      return -4;
+    char header[4] = {};
+    if (file->read(header, sizeof(header)) != 4 ||
+        std::memcmp(header, "GPK!", sizeof(header)) != 0)
+      return -5;
+    return 1;
+  } catch (const std::exception &error) {
+    logFailure("large GPK Range", error);
+    return -6;
   }
 }
 
