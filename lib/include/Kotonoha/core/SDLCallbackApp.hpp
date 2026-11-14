@@ -8,6 +8,7 @@
 #define SDL_MAIN_USE_CALLBACKS 1
 #endif
 #include <SDL3/SDL.h>
+#include <Kotonoha/core/BuildVersion.hpp>
 #include <SDL3/SDL_main.h>
 
 // Port requirements:
@@ -31,3 +32,8 @@
   void SDL_AppQuit(void *state, SDL_AppResult result) {                      \
     Port::quit(state, result);                                               \
   }
+
+// SDL metadata's OS-facing version should stay numeric. The full Git-aware
+// identity is available through --version, launcher and debug UI.
+#define KOTONOHA_SET_APP_METADATA(title, identifier) \\
+  SDL_SetAppMetadata(title, Kotonoha::BuildVersion::Base, identifier)
