@@ -9,6 +9,10 @@
 #include <cstdio>
 #include <cstring>
 #include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
+#ifdef __EMSCRIPTEN__
+#include <Kotonoha/Filesystem/Filesystem.hpp>
+#include <Kotonoha/Filesystem/RemoteAssets.hpp>
+#endif
 #include <limits>
 #include <memory>
 #include <mutex>
@@ -252,10 +256,19 @@ bool MountSchoolDaysRetailGpks(const std::filesystem::path &gameOrPacksRoot,
     error->clear();
   std::filesystem::path packs = gameOrPacksRoot;
   std::error_code ec;
-  if (!std::filesystem::is_regular_file(packs / "BGM.GPK", ec)) {
-    ec.clear();
-    packs /= "Packs";
+  bool inRoot = std::filesystem::is_regular_file(packs / "BGM.GPK", ec);
+#ifdef __EMSCRIPTEN__
+  if (!inRoot && Kotonoha::Filesystem::remoteGameAssets()) {
+    try {
+      auto files = Kotonoha::Filesystem::mountGameAssets("/game-assets");
+      inRoot = files->exists("BGM.GPK");
+    } catch (const Kotonoha::Filesystem::FilesystemError &) {
+      // A missing GPK is a normal case when the data lives under Packs/.
+    }
   }
+#endif
+  if (!inRoot)
+    packs /= "Packs";
 
   auto candidate = std::make_shared<SchoolDaysGpkAssetStore>();
   if (!candidate->OpenRetailDirectory(packs, error))
