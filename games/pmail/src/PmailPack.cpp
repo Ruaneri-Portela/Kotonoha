@@ -116,11 +116,11 @@ bool PmailPack::openBytes(const std::vector<uint8_t> &data,
     }
   }
   if (!decoded) {
-    std::cerr << "[PmailPack] Failed to decode index: " << path << std::endl;
+    std::cerr << "[PmailPack] Failed to decode index: " << path_ << std::endl;
     // Fallback: keep raw comp as index bytes for best-effort scan
     index = comp;
   } else {
-    std::cout << "[PmailPack] Decoded index: " << path << " -> " << index.size()
+    std::cout << "[PmailPack] Decoded index: " << path_ << " -> " << index.size()
               << " bytes" << std::endl;
   }
 
@@ -130,7 +130,7 @@ bool PmailPack::openBytes(const std::vector<uint8_t> &data,
               << std::endl;
   } else {
     std::cout << "[PmailPack] Parsed " << entries_.size() << " entries from "
-              << path << std::endl;
+              << path_ << std::endl;
   }
   return ok_;
 }
