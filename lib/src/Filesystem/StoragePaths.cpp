@@ -1,6 +1,9 @@
 #include <Kotonoha/core/Config.hpp>
 #include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/Filesystem/Filesystem.hpp>
+#ifdef __EMSCRIPTEN__
+#include <Kotonoha/Filesystem/RemoteAssets.hpp>
+#endif
 #include <Kotonoha/Filesystem/Sources/SDLFileSource.hpp>
 
 #include <SDL3/SDL.h>
@@ -565,6 +568,17 @@ FileResolver::findGameAsset(const std::string &game,
     if (auto data = preferredDataDirectory(game) / relative;
         std::filesystem::exists(data, error))
       return data;
+  }
+#endif
+#ifdef __EMSCRIPTEN__
+  // Remote-only assets are not visible through std::filesystem. Probe the
+  // requested logical file using Fetch; do not enumerate HTTP directories.
+  if (Filesystem::remoteGameAssets()) {
+    auto mounted = Filesystem::mountGameAssets("/game-assets");
+    const auto name = relative.generic_string();
+    if (mounted->exists(name) &&
+        mounted->stat(name).type == Filesystem::FileType::Regular)
+      return std::filesystem::path("/game-assets") / relative;
   }
 #endif
   return std::nullopt;
