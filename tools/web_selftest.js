@@ -251,8 +251,8 @@ async function main() {
       actionsVisible: getComputedStyle(
         document.getElementById('asset-source-actions')).display !== 'none',
       started: !!window.KotonohaRuntimeStarted,
-      toolbar: document.getElementById('browser-folder-tools')
-        .matches(':popover-open')
+      toolbar: getComputedStyle(document.getElementById(
+        'browser-folder-tools')).position === 'fixed'
     }));
     assert(pendingChoice.overlayVisible && pendingChoice.actionsVisible &&
       !pendingChoice.started && pendingChoice.toolbar &&
@@ -305,12 +305,12 @@ async function main() {
     const toolbarState = await page.evaluate(() => ({
       running: !!window.KotonohaRuntimeStarted,
       hidden: document.getElementById('browser-folder-tools').hidden,
-      topLayer: document.getElementById('browser-folder-tools')
-        .matches(':popover-open'),
+      display: getComputedStyle(
+        document.getElementById('browser-folder-tools')).display,
       disabled: document.getElementById('add-browser-folder').disabled
     }));
     assert(toolbarState.running && toolbarState.hidden &&
-      !toolbarState.topLayer && toolbarState.disabled,
+      toolbarState.display === 'none' && toolbarState.disabled,
       'custom folder button must disappear after SDL starts');
 
 
@@ -354,11 +354,9 @@ async function main() {
     await page.waitForTimeout(150);
     const fullscreenState = await page.evaluate(() => ({
       hidden: document.getElementById('browser-folder-tools').hidden,
-      topLayer: document.getElementById('browser-folder-tools')
-        .matches(':popover-open'),
       display: getComputedStyle(document.getElementById('browser-folder-tools')).display
     }));
-    assert(fullscreenState.hidden && !fullscreenState.topLayer &&
+    assert(fullscreenState.hidden &&
       fullscreenState.display === 'none',
       'fullscreen must not reopen the custom folder button');
     await page.evaluate(() =>
