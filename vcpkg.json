@@ -58,6 +58,32 @@
           "platform": "android"
         }
       ]
+    },
+    "sdl-vcpkg": {
+      "description": "Use SDL3 and SDL3_ttf from vcpkg in lieu of submodules",
+      "dependencies": [
+        {
+          "name": "sdl3",
+          "default_features": false,
+          "features": [
+            "x11"
+          ],
+          "platform": "linux"
+        },
+        {
+          "name": "sdl3",
+          "default_features": false,
+          "platform": "!linux"
+        },
+        {
+          "name": "sdl3-ttf",
+          "default_features": false,
+          "features": [
+            "harfbuzz",
+            "svg"
+          ]
+        }
+      ]
     }
   }
 }
