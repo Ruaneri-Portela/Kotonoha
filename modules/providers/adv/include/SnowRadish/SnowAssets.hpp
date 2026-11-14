@@ -4,6 +4,8 @@
 #include "SnowRadish/Pack.hpp"
 
 #include <Kotonoha/core/AssetProvider.hpp>
+#include <Kotonoha/Filesystem/Filesystem.hpp>
+#include <memory>
 
 #include <filesystem>
 #include <map>
@@ -40,6 +42,7 @@ public:
   };
 
   explicit SnowAssets(std::filesystem::path directory);
+  explicit SnowAssets(std::shared_ptr<Kotonoha::Filesystem::Filesystem> source);
 
   const std::filesystem::path &Directory() const { return directory_; }
 
@@ -70,7 +73,7 @@ private:
     std::map<std::string, PackEntry> index;
   };
   const Pack *PackOf(const std::string &id, std::string &key) const;
-  static std::vector<uint8_t> Extract(const Pack &pack, const PackEntry &entry);
+  std::vector<uint8_t> Extract(const Pack &pack, const PackEntry &entry) const;
   // Pure Mail uses .CRGB where Snow Radish uses .evd/.img.
   bool tryAltGraphicExt(const Pack *pack, const std::string &key) const;
   std::vector<uint8_t> readGraphicWithAltExt(const Pack *pack,
@@ -78,6 +81,7 @@ private:
 
   int sampleRate_ = 22050;
   std::filesystem::path directory_;
+  std::shared_ptr<Kotonoha::Filesystem::Filesystem> source_;
   std::filesystem::path scriptPath_;
   Pack graphic_, sound_, voice_;
   mutable std::map<std::string, Placement> sprites_;
