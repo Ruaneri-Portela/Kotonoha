@@ -2325,6 +2325,8 @@ void Runtime::pollAbcActivity() {
         player->setPlaybackRate(speed);
         player->adoptPreparedInput(std::move(result.mediaInput),
                                    pending->second.channel);
+        if (!player->isOpen())
+          throw std::runtime_error("Prepared media decoder could not start");
         // Bound the render-thread handoff. Demux/codec setup happened on the
         // worker; prime only a short queue/frame here, then restore the
         // commercial two-second steady-state media cache.
