@@ -32,3 +32,5 @@ O adaptador de paths físicos segue disponível para os providers antigos. Próx
 A política StoragePaths foi movida para `lib/src/Filesystem/StoragePaths.cpp`; o antigo `core/FileSystem.hpp` é um shim. Os nomes públicos e os diretórios de saves permanecem iguais.
 
 A seleção de montadores aceita `.tar`, `.iso`, `.bin` e `.img` (as imagens de disco são verificadas pelo `DiscImage` existente); outros arquivos geram `UnsupportedMount`. Arquivos `.tar.gz`, UDF e CUE com múltiplas trilhas ainda não estão cobertos.
+
+O novo overload `MediaPlayer::open(FileHandle, logicalName, ...)` pode preparar mídia compatível com o navegador como URL `blob:` gerenciada por `BrowserBlobAdapter` (limite de 64 MiB). Em plataformas nativas continua com AVIO do FFmpeg. As rotas web legadas por path/AssetProvider ainda precisam de migração e testes reais.

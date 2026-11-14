@@ -53,6 +53,11 @@ public:
   // FFmpeg consumes this handle via custom AVIO, never a physical path.
   void open(std::unique_ptr<Filesystem::FileHandle> source, bool audioOnly,
             const std::string &channelName = {});
+  // Supply a logical filename to enable browser playback using a
+  // short-lived blob: URL created exclusively from FileHandle bytes.
+  void open(std::unique_ptr<Filesystem::FileHandle> source,
+            const std::string &logicalName, bool audioOnly,
+            const std::string &channelName = {});
   void open(const std::string &path, bool audioOnly,
             const std::string &channelName = {});
   // Streams a provider local file or seekable source when available, otherwise

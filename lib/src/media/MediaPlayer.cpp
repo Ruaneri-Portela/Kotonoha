@@ -1,5 +1,6 @@
 #include <Kotonoha/core/AssetProvider.hpp>
 #include <Kotonoha/Filesystem/Filesystem.hpp>
+#include <Kotonoha/Filesystem/Adapters/BrowserBlobAdapter.hpp>
 #include <Kotonoha/Filesystem/Sources/SDLFileSource.hpp>
 #include <Kotonoha/core/UI.hpp>
 #include <Kotonoha/media/FFmpegSupport.hpp>
@@ -111,6 +112,7 @@ struct MediaPlayer::State {
   bool yuvTextureUnavailable = false;
   Uint64 textureSerial = 0;
 #ifdef __EMSCRIPTEN__
+  std::unique_ptr<Filesystem::BrowserBlobAdapter> webVirtualBlob;
   bool webVideo = false;
   bool webAudioOnly = false;
   bool webVideoStarted = false;
@@ -947,9 +949,37 @@ MediaPlayer::~MediaPlayer() = default;
 
 void MediaPlayer::open(std::unique_ptr<Filesystem::FileHandle> source,
                        bool audioOnly, const std::string &channelName) {
+  open(std::move(source), {}, audioOnly, channelName);
+}
+
+void MediaPlayer::open(std::unique_ptr<Filesystem::FileHandle> source,
+                       const std::string &logicalName, bool audioOnly,
+                       const std::string &channelName) {
+  if (!source)
+    throw std::invalid_argument("Media input FileHandle is null");
   auto next = std::make_unique<State>();
   next->channel = mixer.channel(
       channelName.empty() ? (audioOnly ? "audio" : "video") : channelName);
+#ifdef __EMSCRIPTEN__
+  const auto mime = State::mimeForMediaPath(logicalName, audioOnly);
+  const auto length = source->size();
+  if (!logicalName.empty() && State::canPlayWebMedia(mime) &&
+      length >= 0 && length <= (64ll << 20)) {
+    next->webVirtualBlob = std::make_unique<Filesystem::BrowserBlobAdapter>(
+        std::move(source), mime);
+    next->webVideo = true;
+    next->webAudioOnly = mime.compare(0, 6, "audio/") == 0;
+    next->webVideoUrlMode = true;
+    next->webVideoId = logicalName;
+    next->webVideoMime = mime;
+    next->webVideoUrl = next->webVirtualBlob->url();
+    next->webVideoSize = static_cast<std::uint64_t>(length);
+    start(std::move(next), {}, audioOnly, false);
+    return;
+  }
+#else
+  (void)logicalName;
+#endif
   next->attachAssetStream(
       std::make_unique<HandleAssetStream>(std::move(source)));
   start(std::move(next), {}, audioOnly, false);
