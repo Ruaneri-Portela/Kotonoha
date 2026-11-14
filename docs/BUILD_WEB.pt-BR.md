@@ -32,28 +32,15 @@ Para o autoteste opcional, habilite `-DKOTONOHA_WEB_SELFTEST=ON`, compile `Koton
 
 ## Fallback HTTP(S) de game-assets (Filesystem V2 experimental)
 
-**O início aguarda uma escolha explícita:** a página oferece
-**Usar pasta local** ou **Usar HTTP(S)**, sem temporizador nem seleção
-automática. A escolha local importa `game-assets` e inicia **sem consultar
-HTTP**, mesmo que exista um manifesto no servidor. A escolha HTTP(S) ativa
-o provider remoto com manifesto, ou Fetch direto se o manifesto estiver
-indisponível. Os dados HTTP não são copiados para MEMFS.
+**O início aguarda uma escolha explícita:** **Usar pasta local** ou
+**Usar HTTP(S)**, sem seleção automática. O modo local lê arquivos importados
+antes do boot e não consulta o servidor. O modo HTTP(S) inicia **diretamente
+com Fetch sob demanda**, mesmo quando o servidor contém um `manifest.json`
+vazio, antigo ou inexistente. Não há leitura obrigatória de manifesto, nem
+cópia dos arquivos remotos para MEMFS.
 
-Publique `game-assets/manifest.json` com entradas e tamanhos:
-
-```json
-{
-  "entries": [
-    {"path": "DATA/GRAPHIC.CMP", "size": 12345},
-    {"path": "OPENING.WEBM", "size": 67890}
-  ]
-}
-```
-
-Gere o manifesto no deploy com
-`python3 tools/generate_manifest.py ./game-assets ./game-assets/manifest.json`.
-O campo `files` continua disponível por compatibilidade com leitores de
-manifesto existentes.
+O script `tools/generate_manifest.py` continua disponível para índices
+auxiliares, mas o HTML não depende dele para inicializar.
 
 O endereço padrão é `game-assets/` relativo à página. Para usar um CDN
 HTTPS, configure **antes do script de inicialização**:
@@ -64,14 +51,10 @@ HTTPS, configure **antes do script de inicialização**:
 </script>
 ```
 
-A hospedagem em outra origem exige CORS correto. O manifesto agora é
-**opcional**: se não existir, o navegador configura Fetch HTTP direto
-para caminhos de arquivos conhecidos. HTTP não permite enumerar diretórios
-sem índice. O limite de **128 MiB de pré-carregamento** se aplica somente
-ao fluxo legado com manifesto. O modo direto usa HEAD, Range, Asyncify e
-cache de memória limitado; servidores sem Range são indicados apenas
-para arquivos menores. A leitura de rede não bloqueia a thread principal
-do navegador.
+A hospedagem em outra origem exige CORS correto. O modo direto usa HEAD,
+GET Range e Asyncify com cache limitado, sem bloquear a thread principal.
+Não é possível listar nomes arbitrários de arquivos em HTTP comum sem
+um índice: o porte deve conhecer os nomes dos seus arquivos.
 
 A escolha local/remota é sempre manual. A antiga configuração
 `window.KotonohaAutoServerAssets` deixou de ser necessária.
@@ -111,8 +94,8 @@ e a jogabilidade por toque precisam ser verificados em cada jogo.
 
 ### Fetch sem manifesto com Asyncify
 
-Quando o HTML não consegue carregar `game-assets/manifest.json`, registra
-`game-assets/` diretamente como origem Fetch, sem exigir um índice. O provider
+O HTML registra `game-assets/` diretamente como origem Fetch em todas
+as inicializações HTTP(S), sem consultar `manifest.json`. O provider
 solicita HTTP `HEAD` para descobrir o tamanho dos **caminhos conhecidos**.
 Depois, usa `GET Range` para ler partes dos arquivos e manter os bytes em cache.
 Se um servidor ignorar Range e devolver o objeto completo com HTTP 200, o
@@ -221,3 +204,18 @@ suspensão/retomada do navegador. Se o seletor de pastas não tiver suporte,
 arquivos individuais só preservam a raiz de `game-assets`; para caminhos
 aninhados use HTTP(S) Fetch. A CI valida apenas o escopo automatizado,
 **não comprova paridade total de dispositivos**.
+
+### Caminhos esperados para inicialização no navegador
+
+| Porte | Arquivos conhecidos a publicar em `game-assets/` |
+|---|---|
+| Amagami | `Amagami.bin` ou `Amagami.iso` |
+| Zero no Tsukaima | `ZeroNoTsukaima.bin` ou `ZeroNoTsukaima.iso` |
+| Snow Radish | `SCRIPT.DAT` e `GRAPHIC.DAT` na raiz, `pack/` ou `data/pack/` |
+| Pure Mail | `data/pack/script.dat`, outros DAT e `data/movie/PM01L_I5.avi` (ou sidecar `.avi.webm`) |
+| School Days | Rota KTRF embarcada pelo build; os 29 GPKs comerciais na raiz ou `Packs/` |
+
+Os leitores de BIN/ISO usam VFS + HTTP Range, sem copiar um disco inteiro
+ao MEMFS. A abertura de vídeo utiliza o FileHandle; reprodução efetiva de
+AVI depende do codec suportado ou da sidecar WebM. Não há como identificar
+arquivos ausentes do servidor só porque a engine foi inicializada.
