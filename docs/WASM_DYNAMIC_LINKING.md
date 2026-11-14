@@ -10,10 +10,10 @@
 - The game's output directory includes Game.js, Game.wasm and
   libkotonoha.wasm. The side module is deployed automatically after linking.
 
-The PIC vcpkg triplet `wasm32-emscripten-dylink` sets
+The PIC vcpkg triplet `wasm32-emscripten` sets
 `VCPKG_LIBRARY_LINKAGE=static` and `VCPKG_CXX_FLAGS=-fPIC`.
 It does **not** build the vcpkg ports as shared libraries. Use
-`-DVCPKG_TARGET_TRIPLET=wasm32-emscripten-dylink`,
+`-DVCPKG_TARGET_TRIPLET=wasm32-emscripten`,
 `-DVCPKG_OVERLAY_TRIPLETS=<repo>/vcpkg-overlays/triplets`,
 `"-DVCPKG_MANIFEST_FEATURES=sdl-vcpkg;imgui-vcpkg"`,
 `-DKOTONOHA_SDL_FROM_VCPKG=ON`, `-DKOTONOHA_IMGUI_FROM_VCPKG=ON`,
