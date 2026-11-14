@@ -16,6 +16,7 @@
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten/fetch.h>
+#include <emscripten/emscripten.h>
 #endif
 
 namespace Kotonoha::Filesystem {
@@ -314,9 +315,21 @@ bool FetchAssetProvider::exists(std::string_view path) const {
   // A missing file must not be reported as present before GET succeeds.
   // Schedule discovery opportunistically; synchronous consumers may retry
   // after the browser event loop has delivered the Fetch callback.
-  if (discover_ && !key.empty() && !files_.count(key))
-    const_cast<FetchAssetProvider *>(this)->requestAsset(path);
-  return false;
+  if (!discover_ || key.empty())
+    return false;
+  auto *self = const_cast<FetchAssetProvider *>(this);
+  if (!files_.count(key))
+    self->requestAsset(path);
+#ifdef __EMSCRIPTEN__
+  // Asyncify unwinds the stack here: the browser continues processing Fetch
+  // callbacks instead of blocking the JavaScript event loop.
+  const double deadline = emscripten_get_now() + 31000;
+  const auto pending = files_.find(key);
+  while (pending != files_.end() && !pending->second->failed &&
+         !nodes_.count(key) && emscripten_get_now() < deadline)
+    emscripten_sleep(15);
+#endif
+  return nodes_.count(key) != 0;
 }
 FileInfo FetchAssetProvider::stat(std::string_view path) const {
   const auto it = nodes_.find(lookupKey(path, true));
@@ -338,11 +351,38 @@ FetchAssetProvider::list(std::string_view directory) const {
 
 std::unique_ptr<FileHandle>
 FetchAssetProvider::open(std::string_view id) const {
+  // A caller can open a direct-fetch file only after its metadata is known.
+  // This is safe for C++ synchronous APIs because Asyncify yields while
+  // Emscripten Fetch resolves the request.
+  if (discover_ && !exists(id))
+    throw FilesystemError(ErrorCode::NotFound, "HTTP asset not found: " +
+                          std::string(id));
   const auto data = slot(id);
+  auto owner = const_cast<FetchAssetProvider *>(this)->shared_from_this();
+  const auto key = lookupKey(id);
   return std::make_unique<CachedHandle>(
       data->info.size,
-      [data](void *output, std::size_t count,
-             std::uint64_t cursor) -> std::int64_t {
+      [data, owner, key](void *output, std::size_t count,
+                         std::uint64_t cursor) -> std::int64_t {
+        if (owner->discover_ && data->info.size > 0) {
+          auto cachedAt = [&]() {
+            const auto after = data->chunks.upper_bound(cursor);
+            return after != data->chunks.begin() &&
+                cursor - std::prev(after)->first <
+                std::prev(after)->second->size();
+          };
+          if (!cachedAt() && !data->failed) {
+            const auto available = static_cast<std::uint64_t>(data->info.size) - cursor;
+            owner->prefetchRange(key, cursor,
+                                  std::min<std::uint64_t>(available, 4u << 20));
+#ifdef __EMSCRIPTEN__
+            const double deadline = emscripten_get_now() + 31000;
+            while (!data->failed && !cachedAt() &&
+                   emscripten_get_now() < deadline)
+              emscripten_sleep(15);
+#endif
+          }
+        }
         if (data->failed)
           throw FilesystemError(data->failure, data->message);
         const auto after = data->chunks.upper_bound(cursor);
@@ -372,34 +412,62 @@ void FetchAssetProvider::complete(const Job &job, unsigned status,
                                   const std::string &headers) {
   const auto file = files_.at(job.key);
   if (job.discovery) {
-    if (status != 200 || (count && !body)) {
+    if (status != 200) {
       file->failed = true;
       file->failure = status == 404 ? ErrorCode::NotFound : ErrorCode::NetworkError;
-      file->message = "Remote GET failed, status " + std::to_string(status);
+      file->message = "Remote HEAD failed, HTTP " + std::to_string(status);
       return;
     }
-    if (count > budget_ - std::min(cached_, budget_) ||
-        count > static_cast<std::uint64_t>(INT64_MAX)) {
+    // A HEAD response exposes the length without downloading large disc
+    // images. Cross-origin servers must expose Content-Length via CORS.
+    std::string lengthValue;
+    for (std::size_t offset = 0; offset < headers.size();) {
+      const auto end = headers.find('\n', offset);
+      auto line = headers.substr(offset, end == std::string::npos
+                                          ? std::string::npos : end - offset);
+      const auto colon = line.find(':');
+      if (colon != std::string::npos) {
+        auto name = line.substr(0, colon);
+        std::transform(name.begin(), name.end(), name.begin(),
+                       [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+        if (name == "content-length") {
+          lengthValue = line.substr(colon + 1);
+          lengthValue.erase(0, lengthValue.find_first_not_of(" \t"));
+          while (!lengthValue.empty() &&
+                 (lengthValue.back() == '\r' || lengthValue.back() == ' '))
+            lengthValue.pop_back();
+        }
+      }
+      if (end == std::string::npos) break;
+      offset = end + 1;
+    }
+    std::uint64_t size = 0;
+    try {
+      if (lengthValue.empty() ||
+          !std::all_of(lengthValue.begin(), lengthValue.end(),
+                       [](unsigned char c) { return c >= '0' && c <= '9'; }))
+        throw std::invalid_argument("No usable Content-Length");
+      size = std::stoull(lengthValue);
+      if (size > static_cast<std::uint64_t>(INT64_MAX))
+        throw std::out_of_range("HTTP asset too large");
+    } catch (const std::exception &) {
       file->failed = true;
-      file->failure = ErrorCode::IOError;
-      file->message = "Remote object exceeds Fetch memory budget";
+      file->failure = ErrorCode::NetworkError;
+      file->message = "HEAD requires accessible Content-Length";
       return;
     }
-    auto bytes = std::make_shared<std::vector<Uint8>>();
-    if (count) {
-      const auto *first = reinterpret_cast<const Uint8 *>(body);
-      bytes->assign(first, first + static_cast<std::size_t>(count));
-    }
-    cached_ += static_cast<std::size_t>(count);
-    file->info.size = static_cast<std::int64_t>(count);
-    file->chunks.emplace(0, std::move(bytes));
+    file->info.size = static_cast<std::int64_t>(size);
     nodes_.emplace(job.key, file->info);
-    for (auto p = parent(file->info.path); !p.empty(); p = parent(p)) {
+    for (auto p = parent(file->info.path); !p.empty(); p = parent(p))
       nodes_.emplace(lookupKey(p), FileInfo{p, FileType::Directory, 0});
-    }
     return;
   }
-  if (status != (job.full ? 200u : 206u) ||
+  // Simple HTTP servers may ignore Range. Accept their full 200 response
+  // only if its length matches the entire object; store at offset zero.
+  const bool wholeResponse = !job.full && status == 200u &&
+      file->info.size >= 0 &&
+      count == static_cast<std::uint64_t>(file->info.size);
+  if ((!wholeResponse && status != (job.full ? 200u : 206u)) ||
       count != job.length ||
       (count && !body)) {
     file->failed = true;
@@ -408,7 +476,7 @@ void FetchAssetProvider::complete(const Job &job, unsigned status,
     file->message = "Remote Fetch failed, status " + std::to_string(status);
     return;
   }
-  if (!job.full) {
+  if (!job.full && !wholeResponse) {
     // Reject wrong Content-Range, which might otherwise corrupt ISO/TAR bytes.
     const auto marker = std::string("bytes ") +
         std::to_string(job.start) + "-" +
@@ -458,7 +526,7 @@ void FetchAssetProvider::complete(const Job &job, unsigned status,
     bytes->assign(first, first + static_cast<std::size_t>(count));
   }
   cached_ += static_cast<std::size_t>(count);
-  file->chunks.emplace(job.start, std::move(bytes));
+  file->chunks.emplace(wholeResponse ? 0 : job.start, std::move(bytes));
 }
 
 #ifdef __EMSCRIPTEN__
@@ -489,7 +557,8 @@ void FetchAssetProvider::pump() {
     const auto &file = files_.at(job.key);
     emscripten_fetch_attr_t attr;
     emscripten_fetch_attr_init(&attr);
-    std::memcpy(attr.requestMethod, "GET", 4);
+    std::memcpy(attr.requestMethod, job.discovery ? "HEAD" : "GET",
+                job.discovery ? 5 : 4);
     attr.attributes = EMSCRIPTEN_FETCH_LOAD_TO_MEMORY;
     attr.timeoutMSecs = 30000;
     if (!job.full) {
