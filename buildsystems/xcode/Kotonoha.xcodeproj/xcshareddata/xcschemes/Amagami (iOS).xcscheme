@@ -17,7 +17,7 @@
                      BlueprintIdentifier = "F9F69A7C90C1366A40BBEB2A"
                      BuildableName = "Amagami.app"
                      BlueprintName = "Amagami-iOS"
-                     ReferencedContainer = "container:KotonohaUnified.xcodeproj">
+                     ReferencedContainer = "container:Kotonoha.xcodeproj">
                   </BuildableReference>
                </EnvironmentBuildable>
             </ActionContent>
@@ -35,7 +35,7 @@
                BlueprintIdentifier = "F9F69A7C90C1366A40BBEB2A"
                BuildableName = "Amagami.app"
                BlueprintName = "Amagami-iOS"
-               ReferencedContainer = "container:KotonohaUnified.xcodeproj">
+               ReferencedContainer = "container:Kotonoha.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>
@@ -65,7 +65,7 @@
             BlueprintIdentifier = "F9F69A7C90C1366A40BBEB2A"
             BuildableName = "Amagami.app"
             BlueprintName = "Amagami-iOS"
-            ReferencedContainer = "container:KotonohaUnified.xcodeproj">
+            ReferencedContainer = "container:Kotonoha.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </LaunchAction>
