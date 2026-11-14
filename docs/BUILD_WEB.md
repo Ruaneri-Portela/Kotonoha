@@ -62,13 +62,14 @@ configure an HTTPS CDN **before** the app script initializes:
 </script>
 ```
 
-Cross-origin hosting requires a correct CORS policy. A remote manifest **must**
-exist; HTTP directories are not enumerable. HTTP errors, malformed manifests,
-or assets exceeding the current **128 MiB automatic preload limit** leave the
-source selection open rather than booting with incomplete data. The underlying
-Fetch backend also supports bounded HTTP Range requests, but large remote
-installations still need a worker/Asyncify-compatible suspension strategy.
-There is no fully synchronous network read on the browser main thread.
+Cross-origin hosting requires a correct CORS policy. The manifest is
+**optional**: if unavailable, the browser switches to a direct HTTP Fetch
+provider for known filenames. HTTP directories cannot be enumerated without
+an index. The **128 MiB startup preload limit** only applies to the legacy
+manifest flow. Direct Fetch uses HEAD and Range with Asyncify and a bounded
+in-memory cache; it does not make arbitrary directory scanning possible.
+A server without Range is only suitable for smaller files. There is no
+truly blocking browser-main-thread network API.
 
 Use `window.KotonohaAutoServerAssets = false` before initialization to keep
 the manual local/server source choice. The bundled web self-test retains this
