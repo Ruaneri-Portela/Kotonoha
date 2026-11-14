@@ -2,6 +2,7 @@
 #include <Kotonoha/core/DiscImage.hpp>
 #include <Kotonoha/core/FileSystem.hpp>
 #include <Kotonoha/Filesystem/Filesystem.hpp>
+#include <Kotonoha/Filesystem/Sources/SDLFileSource.hpp>
 #include <Kotonoha/core/Log.hpp>
 #include <Kotonoha/localization/Encoding.hpp>
 #include <Kotonoha/media/MediaDecoder.hpp>
@@ -11,7 +12,6 @@
 #include <cmath>
 
 #include <algorithm>
-#include <fstream>
 #include <limits>
 #include <stdexcept>
 #include <system_error>
@@ -426,16 +426,58 @@ void AssetProvider::clearCache() {
   textureRenderer = nullptr;
 }
 
+namespace {
+class MountedAssetStream final : public AssetStream {
+  std::unique_ptr<Filesystem::FileHandle> file_;
+
+public:
+  explicit MountedAssetStream(std::unique_ptr<Filesystem::FileHandle> file)
+      : file_(std::move(file)) {}
+  std::uint64_t size() const override {
+    const auto n = file_->size();
+    if (n < 0)
+      throw std::runtime_error("Unknown asset size");
+    return static_cast<std::uint64_t>(n);
+  }
+  std::uint64_t tell() const override {
+    const auto n = file_->tell();
+    if (n < 0)
+      throw std::runtime_error("Unable to tell asset stream");
+    return static_cast<std::uint64_t>(n);
+  }
+  std::size_t read(Uint8 *out, std::size_t amount) override {
+    const auto n = file_->read(out, amount);
+    if (n < 0)
+      throw std::runtime_error("Asset stream read failure");
+    return static_cast<std::size_t>(n);
+  }
+  bool seek(std::uint64_t position) override {
+    return position <= static_cast<std::uint64_t>(INT64_MAX) &&
+        file_->seek(static_cast<std::int64_t>(position),
+                    Filesystem::SeekOrigin::Begin) ==
+            static_cast<std::int64_t>(position);
+  }
+};
+} // namespace
+
 FileSystemAssetProvider::FileSystemAssetProvider(std::filesystem::path value)
     : root(value.empty()
                ? value
                : std::filesystem::absolute(gameDataDirectory(value))) {}
+
+FileSystemAssetProvider::FileSystemAssetProvider(
+    std::shared_ptr<Filesystem::Filesystem> mounted)
+    : mounted_(std::move(mounted)) {
+  if (!mounted_)
+    throw std::invalid_argument("Virtual asset filesystem is null");
+}
 
 const std::filesystem::path &FileSystemAssetProvider::getRoot() const {
   return root;
 }
 
 std::string FileSystemAssetProvider::name() const {
+  if (mounted_) return "Mounted files (virtual)";
   return root.empty() ? "Files" : "Files (" + root.string() + ")";
 }
 
@@ -459,6 +501,17 @@ FileSystemAssetProvider::resolve(const std::string &id) const {
 }
 
 bool FileSystemAssetProvider::containsAsset(const std::string &id) const {
+  if (mounted_) {
+    try {
+      return mounted_->exists(id) &&
+             mounted_->stat(id).type == Filesystem::FileType::Regular;
+    } catch (const Filesystem::FilesystemError &error) {
+      if (error.code() == Filesystem::ErrorCode::InvalidPath ||
+          error.code() == Filesystem::ErrorCode::NotFound)
+        return false;
+      throw;
+    }
+  }
   try {
     std::error_code error;
     return std::filesystem::is_regular_file(resolve(id), error);
@@ -469,6 +522,8 @@ bool FileSystemAssetProvider::containsAsset(const std::string &id) const {
 
 std::vector<Uint8>
 FileSystemAssetProvider::readAsset(const std::string &id) const {
+  if (mounted_)
+    return Filesystem::readAll(*mounted_->open(id), maximumAssetSize);
   const auto path = resolve(id);
   if (!std::filesystem::is_regular_file(path))
     throw std::runtime_error("Asset not found: " + id);
@@ -477,6 +532,21 @@ FileSystemAssetProvider::readAsset(const std::string &id) const {
 
 std::vector<std::string>
 FileSystemAssetProvider::listAsset(const std::string &prefix) const {
+  if (mounted_) {
+    std::vector<std::string> result;
+    std::vector<std::string> directories{""};
+    while (!directories.empty()) {
+      auto dir = std::move(directories.back());
+      directories.pop_back();
+      for (const auto &entry : mounted_->list(dir)) {
+        if (entry.type == Filesystem::FileType::Directory)
+          directories.push_back(entry.path);
+        else if (entry.path.compare(0, prefix.size(), prefix) == 0)
+          result.push_back(entry.path);
+      }
+    }
+    return result;
+  }
   std::vector<std::string> result;
   const auto collect = [&](const std::filesystem::path &base,
                            const std::string &mount) {
@@ -504,7 +574,15 @@ FileSystemAssetProvider::listAsset(const std::string &prefix) const {
 
 std::string
 FileSystemAssetProvider::localPathAsset(const std::string &id) const {
+  // Virtual sources (TAR/ISO/HTTP) never require a physical path.
+  if (mounted_) return {};
   return resolve(id).string();
+}
+
+std::unique_ptr<AssetStream>
+FileSystemAssetProvider::openStream(const std::string &id) const {
+  if (!mounted_) return {};
+  return std::make_unique<MountedAssetStream>(mounted_->open(id));
 }
 
 IndexedFileSystemAssetProvider::IndexedFileSystemAssetProvider(
@@ -512,12 +590,18 @@ IndexedFileSystemAssetProvider::IndexedFileSystemAssetProvider(
     : FileSystemAssetProvider(
           std::filesystem::canonical(gameDataDirectory(root))),
       index(getRoot(), false) {}
+IndexedFileSystemAssetProvider::IndexedFileSystemAssetProvider(
+    std::shared_ptr<Filesystem::Filesystem> mounted)
+    : FileSystemAssetProvider(std::move(mounted)), index({}, false) {}
+
 bool IndexedFileSystemAssetProvider::containsAsset(
     const std::string &id) const {
+  if (mounted()) return FileSystemAssetProvider::containsAsset(id);
   return !index.resolve(id).empty();
 }
 std::string
 IndexedFileSystemAssetProvider::localPathAsset(const std::string &id) const {
+  if (mounted()) return {};
   const auto path = index.resolve(id);
   if (path.empty())
     throw std::runtime_error("Asset not found in " + getRoot().string() + ": " +
@@ -526,12 +610,14 @@ IndexedFileSystemAssetProvider::localPathAsset(const std::string &id) const {
 }
 std::vector<Uint8>
 IndexedFileSystemAssetProvider::readAsset(const std::string &id) const {
+  if (mounted()) return FileSystemAssetProvider::readAsset(id);
   const auto relative =
       std::filesystem::path(localPathAsset(id)).lexically_relative(getRoot());
   return FileSystemAssetProvider::readAsset(relative.generic_string());
 }
 std::vector<std::string>
 IndexedFileSystemAssetProvider::listAsset(const std::string &prefix) const {
+  if (mounted()) return FileSystemAssetProvider::listAsset(prefix);
   return index.list(prefix);
 }
 
