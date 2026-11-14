@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <cstring>
 #include <limits>
+#include <stdexcept>
 
 namespace Kotonoha::Filesystem {
 
@@ -19,7 +20,8 @@ InputFile::Buffer::int_type InputFile::Buffer::underflow() {
     return traits_type::to_int_type(*gptr());
   if (!file_) return traits_type::eof();
   const auto n = file_->read(buffer_.data(), buffer_.size());
-  if (n <= 0) return traits_type::eof();
+  if (n < 0) throw std::ios_base::failure("Cannot read SDL input");
+  if (n == 0) return traits_type::eof();
   setg(buffer_.data(), buffer_.data(), buffer_.data() + n);
   return traits_type::to_int_type(*gptr());
 }
