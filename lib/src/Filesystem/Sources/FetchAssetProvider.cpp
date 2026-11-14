@@ -5,6 +5,7 @@
 #include <json-c/json.h>
 
 #include <algorithm>
+#include <cctype>
 #include <array>
 #include <climits>
 #include <cstring>
@@ -213,10 +214,16 @@ void FetchAssetProvider::begin(std::size_t preloadLimit) {
   if (started_)
     return;
   started_ = true;
-  const auto limit = std::min<std::size_t>(preloadLimit, budget_);
+  // A per-file threshold alone can enqueue hundreds of megabytes.
+  // Reserve only a bounded total amount for full preloads.
+  std::size_t remaining = std::min(preloadLimit, budget_);
   for (const auto &[key, file] : files_) {
-    if (file->info.size && file->info.size <= static_cast<std::int64_t>(limit))
-      enqueue({key, 0, static_cast<std::uint64_t>(file->info.size), true});
+    if (file->info.size <= 0 ||
+        static_cast<std::uint64_t>(file->info.size) > remaining)
+      continue;
+    const auto size = static_cast<std::uint64_t>(file->info.size);
+    enqueue({key, 0, size, true});
+    remaining -= static_cast<std::size_t>(size);
   }
   pump();
 }
@@ -337,22 +344,49 @@ void FetchAssetProvider::complete(const Job &job, unsigned status,
         std::to_string(job.start) + "-" +
         std::to_string(job.start + job.length - 1) + "/" +
         std::to_string(file->info.size);
-    if (headers.find(marker) == std::string::npos) {
+    bool rangeMatches = false;
+    std::size_t begin = 0;
+    while (begin < headers.size()) {
+      const auto end = headers.find('\n', begin);
+      auto line = headers.substr(begin, end == std::string::npos
+                                            ? std::string::npos : end - begin);
+      if (!line.empty() && line.back() == '\r')
+        line.pop_back();
+      const auto colon = line.find(':');
+      if (colon != std::string::npos) {
+        auto key = line.substr(0, colon);
+        std::transform(key.begin(), key.end(), key.begin(),
+                       [](unsigned char c) {
+                         return static_cast<char>(std::tolower(c));
+                       });
+        auto value = line.substr(colon + 1);
+        value.erase(0, value.find_first_not_of(" \t"));
+        rangeMatches = rangeMatches ||
+            (key == "content-range" && value == marker);
+      }
+      if (end == std::string::npos)
+        break;
+      begin = end + 1;
+    }
+    if (!rangeMatches) {
       file->failed = true;
       file->failure = ErrorCode::RangeUnsupported;
       file->message = "Missing or mismatched HTTP Content-Range";
       return;
     }
   }
-  if (count > budget_ - cached_) {
+  if (cached_ > budget_ ||
+      count > static_cast<std::uint64_t>(budget_ - cached_)) {
     file->failed = true;
     file->failure = ErrorCode::IOError;
     file->message = "Remote cache memory budget exceeded";
     return;
   }
-  auto bytes = std::make_shared<std::vector<Uint8>>(
-      reinterpret_cast<const Uint8 *>(body),
-      reinterpret_cast<const Uint8 *>(body) + count);
+  auto bytes = std::make_shared<std::vector<Uint8>>();
+  if (count) {
+    auto *first = reinterpret_cast<const Uint8 *>(body);
+    bytes->assign(first, first + static_cast<std::size_t>(count));
+  }
   cached_ += static_cast<std::size_t>(count);
   file->chunks.emplace(job.start, std::move(bytes));
 }

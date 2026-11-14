@@ -41,6 +41,7 @@ size_t SDLCALL fileRead(void *data, void *dst, size_t amount,
   auto &input = *static_cast<Context *>(data)->file;
   auto *bytes = static_cast<std::uint8_t *>(dst);
   size_t read = 0;
+  *status = SDL_IO_STATUS_READY;
   try {
     while (read < amount) {
       const auto got = input.read(bytes + read, amount - read);
