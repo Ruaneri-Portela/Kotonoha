@@ -17,8 +17,7 @@ const IMount *FallbackMount::select(const std::string &path) const {
   // over HTTP merely to determine whether the remote copy differs.
   const bool localExists = local_ && local_->exists(path);
   if (localExists) {
-    const auto direct = std::dynamic_pointer_cast<FetchAssetProvider>(remote_);
-    if (direct && direct->manifestFree())
+    if (remote_ && remote_->preferLocalWhenPresent())
       return local_.get();
   }
   const bool haveRemote = remote_ && remote_->exists(path);
