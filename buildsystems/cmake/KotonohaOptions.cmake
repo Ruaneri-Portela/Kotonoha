@@ -6,6 +6,26 @@ option(KOTONOHA_WEB_SELFTEST "Build optional WebAssembly integration self-test h
 option(KOTONOHA_VERBOSE_BUILD "Print full compiler and linker commands" OFF)
 option(KOTONOHA_BUILD_MACOS_BUNDLES "Build macOS application bundles" OFF)
 option(KOTONOHA_BUILD_ALL "Build every game port" OFF)
+# WASM starts at 128 MiB and grows only as needed. The HTTP VFS keeps a
+# bounded page cache, not entire retail .bin/.gpk images in browser memory.
+set(KOTONOHA_WASM_INITIAL_MEMORY 134217728 CACHE STRING
+    "Initial WASM linear memory in bytes (multiple of 64 KiB)")
+set(KOTONOHA_WASM_MAX_MEMORY 1073741824 CACHE STRING
+    "Maximum WASM linear memory in bytes")
+set(KOTONOHA_WASM_FETCH_CACHE_MIB 48 CACHE STRING
+    "Per-provider HTTP Range LRU cache budget (MiB)")
+if(EMSCRIPTEN)
+    math(EXPR _wasm_memory_pages "${KOTONOHA_WASM_INITIAL_MEMORY} % 65536")
+    if(NOT _wasm_memory_pages EQUAL 0 OR
+       KOTONOHA_WASM_INITIAL_MEMORY LESS 67108864 OR
+       KOTONOHA_WASM_MAX_MEMORY LESS KOTONOHA_WASM_INITIAL_MEMORY OR
+       KOTONOHA_WASM_FETCH_CACHE_MIB LESS 4)
+        message(FATAL_ERROR
+            "Invalid WASM memory settings: align initial memory to 64KiB, "
+            "start at >=64MiB, max >= initial, Fetch cache >=4MiB")
+    endif()
+endif()
+
 
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
