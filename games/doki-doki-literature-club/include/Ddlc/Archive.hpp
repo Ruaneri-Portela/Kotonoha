@@ -2,6 +2,7 @@
 // Ren'Py 6.99 containers: RPA-3.0 archives, pickled data and compiled scripts
 // (.rpyc).
 #include "Ddlc/Value.hpp"
+#include <Kotonoha/Filesystem/FileHandle.hpp>
 
 #include <cstdint>
 #include <cstdio>
@@ -31,6 +32,7 @@ public:
   Archive &operator=(const Archive &) = delete;
 
   bool open(const std::string &path);
+  bool open(std::unique_ptr<Kotonoha::Filesystem::FileHandle> source);
   bool has(const std::string &name) const;
   std::vector<uint8_t> read(const std::string &name) const;
   std::vector<std::string> names() const;
@@ -40,8 +42,8 @@ private:
     uint64_t offset = 0, length = 0;
     std::string prefix;
   };
-  using File = std::unique_ptr<std::FILE, decltype(&std::fclose)>;
-  File file_{nullptr, &std::fclose};
+  using File = std::unique_ptr<Kotonoha::Filesystem::FileHandle>;
+  File file_;
   mutable std::mutex readMutex_;
   std::map<std::string, std::vector<Entry>> index_; // lower-case name
 };
