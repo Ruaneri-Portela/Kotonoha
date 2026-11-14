@@ -26,28 +26,38 @@ class SubtreeMount final : public IMount {
 public:
   SubtreeMount(std::shared_ptr<IMount> source, std::string prefix)
       : source_(std::move(source)), prefix_(normalizePath(prefix)) {}
+  bool preferLocalWhenPresent() const noexcept override {
+    return source_->preferLocalWhenPresent();
+  }
   bool isKnownRegularFile(std::string_view path) const override {
-    return source_->isKnownRegularFile(full(path));
+    const auto relative = normalizePath(path, true);
+    return !relative.empty() && source_->isKnownRegularFile(full(relative));
   }
   bool isKnownDirectory(std::string_view path) const override {
-    return source_->isKnownDirectory(full(path));
+    const auto relative = normalizePath(path, true);
+    return relative.empty() || source_->isKnownDirectory(full(relative));
   }
   bool exists(std::string_view path) const override {
-    return source_->exists(full(path));
+    const auto relative = normalizePath(path, true);
+    return relative.empty() || source_->exists(full(relative));
   }
   FileInfo stat(std::string_view path) const override {
-    auto info = source_->stat(full(path));
-    const auto name = normalizePath(path, true);
-    info.path = name;
+    const auto relative = normalizePath(path, true);
+    if (relative.empty()) return FileInfo{"", FileType::Directory, 0};
+    auto info = source_->stat(full(relative));
+    info.path = relative;
     return info;
   }
   std::vector<FileInfo> list(std::string_view directory) const override {
-    const auto path = full(directory);
+    const auto relative = normalizePath(directory, true);
+    const auto path = full(relative);
+    // A direct HTTP source cannot enumerate an undiscovered subtree:
+    // returning no entries is preferable to probing the directory as a file.
+    if (source_->preferLocalWhenPresent() && !source_->isKnownDirectory(path))
+      return {};
     auto entries = source_->list(path);
-    for (auto &item : entries) {
-      const auto child = item.path.substr(prefix_.size() + 1);
-      item.path = child;
-    }
+    for (auto &item : entries)
+      item.path = item.path.substr(prefix_.size() + 1);
     return entries;
   }
   std::unique_ptr<FileHandle> open(std::string_view path) const override {
