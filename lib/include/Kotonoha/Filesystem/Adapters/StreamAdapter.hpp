@@ -5,6 +5,7 @@
 #include <filesystem>
 #include <ios>
 #include <istream>
+#include <iterator>
 #include <memory>
 #include <ostream>
 #include <streambuf>
