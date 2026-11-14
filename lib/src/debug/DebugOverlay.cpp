@@ -14,6 +14,8 @@
 #include <Kotonoha/script/TimelinePlayer.hpp>
 
 #include <Kotonoha/debug/ImGuiTheme.hpp>
+#include <Kotonoha/debug/SystemInfo.hpp>
+#include <Kotonoha/core/BuildVersion.hpp>
 
 #include <imgui.h>
 #include <imgui_impl_sdl3.h>
@@ -103,17 +105,7 @@ DebugOverlay::DebugOverlay(Engine &engine) : engine(engine) {
     ImGui::DestroyContext();
     throw std::runtime_error("Cannot initialize ImGui SDL3 debug backend");
   }
-  // system cursors (SDL_CreateSystemCursor) are not supported by every video
-  // driver (e.g. the dummy driver used in headless tests).  The missing cursor
-  // is not critical for the debug UI, but it pollutes SDL_GetError(); clear it
-  // so later error reporting is not masked by this benign initialization
-  // warning.
-  SDL_ClearError();
-  // system cursors (SDL_CreateSystemCursor) are not supported by every video
-  // driver (e.g. the dummy driver used in headless tests).  The missing cursor
-  // is not critical for the debug UI, but it pollutes SDL_GetError(); clear it
-  // so later error reporting is not masked by this benign initialization
-  // warning.
+  // Missing optional system cursors must not hide later SDL failures.
   SDL_ClearError();
   if (!ImGui_ImplSDLRenderer3_Init(&engine.GetRenderer())) {
     ImGui_ImplSDL3_Shutdown();
@@ -441,6 +433,7 @@ void DebugOverlay::setVisible(bool value) {
     showOptionsWindow = false;
     showTranslationWindow = false;
     showDubbingWindow = false;
+    showInfoWindow = false;
     dubbingApplet->suspend();
     stopPreviewAudio();
   }
@@ -1196,9 +1189,14 @@ void DebugOverlay::drawMenuBar() {
     }
     if (ImGui::MenuItem("Dubbing", nullptr, showDubbingWindow))
       showDubbingWindow = true;
+    if (ImGui::MenuItem("System information", nullptr, showInfoWindow))
+      showInfoWindow = true;
     ImGui::EndMenu();
   }
   if (ImGui::BeginMenu("Help")) {
+    if (ImGui::MenuItem("Build version and SDL diagnostics"))
+      showInfoWindow = true;
+    ImGui::Separator();
     ImGui::MenuItem("F10 toggles this debug UI", nullptr, false, false);
     ImGui::MenuItem("F7 opens the translation editor", nullptr, false, false);
     ImGui::MenuItem("Esc closes the debug UI", nullptr, false, false);
@@ -1218,20 +1216,32 @@ void DebugOverlay::drawAppletHub() {
   if (ImGui::Begin("Kotonoha Debug Applets [F10]", &visible,
                    ImGuiWindowFlags_MenuBar)) {
     drawMenuBar();
-    ImGuiTheme::sectionHeader("Applets");
-    ImGui::TextWrapped("Each tool has its own window and can remain open "
-                       "independently while you inspect the running game.");
-    if (ImGuiTheme::primaryButton("Options", ImVec2(180 * contentScale, 42)))
-      showOptionsWindow = true;
+    ImGui::TextColored(ImGuiTheme::accent(), "KOTONOHA / DEBUG");
     ImGui::SameLine();
-    if (ImGuiTheme::primaryButton("Translation",
-                                  ImVec2(180 * contentScale, 42))) {
+    ImGui::TextDisabled("v%s  |  %s  |  %s",
+                        BuildVersion::Base, BuildVersion::Branch,
+                        BuildVersion::ShortCommit);
+    ImGuiTheme::sectionHeader("Applets");
+    ImGui::TextWrapped("Inspect the current game, change settings, or open "
+                       "individual tools. All applets can be moved and "
+                       "resized independently.");
+    const float available = ImGui::GetContentRegionAvail().x;
+    const bool twoColumns = available >= 320 * contentScale;
+    const float gap = ImGui::GetStyle().ItemSpacing.x;
+    const float width = twoColumns ? (available - gap) * .5f : available;
+    const ImVec2 buttonSize(width, 42 * contentScale);
+    if (ImGuiTheme::primaryButton("Settings", buttonSize))
+      showOptionsWindow = true;
+    if (twoColumns) ImGui::SameLine();
+    if (ImGuiTheme::primaryButton("Translation", buttonSize)) {
       showTranslationWindow = true;
       transSourcesStale = true;
     }
-    ImGui::SameLine();
-    if (ImGuiTheme::primaryButton("Dubbing", ImVec2(180 * contentScale, 42)))
+    if (ImGuiTheme::primaryButton("Voice dubbing", buttonSize))
       showDubbingWindow = true;
+    if (twoColumns) ImGui::SameLine();
+    if (ImGuiTheme::primaryButton("System info", buttonSize))
+      showInfoWindow = true;
     ImGui::SeparatorText("Scene inspector");
     drawInspector();
     if (!status.empty())
@@ -1272,6 +1282,10 @@ void DebugOverlay::drawOptionsWindow() {
         drawLogs();
         ImGui::EndTabItem();
       }
+      if (ImGui::BeginTabItem("System info")) {
+        drawSystemInfoPanel(&engine.GetWindow(), &engine.GetRenderer());
+        ImGui::EndTabItem();
+      }
       ImGui::EndTabBar();
     }
     if (!status.empty())
@@ -1297,6 +1311,22 @@ void DebugOverlay::drawDubbingWindow() {
   ImGui::End();
   if (wasOpen && !showDubbingWindow)
     dubbingApplet->suspend();
+}
+
+void DebugOverlay::drawInfoWindow() {
+  if (!showInfoWindow)
+    return;
+  const auto size = ImGui::GetIO().DisplaySize;
+  ImGui::SetNextWindowSize(
+      ImVec2(std::min(800.0f * contentScale, size.x),
+             std::min(700.0f * contentScale, size.y)),
+      ImGuiCond_FirstUseEver);
+  if (ImGui::Begin("System Information / SDL3", &showInfoWindow,
+                   ImGuiWindowFlags_MenuBar)) {
+    drawMenuBar();
+    drawSystemInfoPanel(&engine.GetWindow(), &engine.GetRenderer());
+  }
+  ImGui::End();
 }
 
 void DebugOverlay::renderMenu(RendererRef renderer) {
@@ -1346,6 +1376,7 @@ void DebugOverlay::renderMenu(RendererRef renderer) {
   drawOptionsWindow();
   drawTranslationWindow();
   drawDubbingWindow();
+  drawInfoWindow();
   if (!isVisible())
     stopPreviewAudio();
   ImGui::Render();
