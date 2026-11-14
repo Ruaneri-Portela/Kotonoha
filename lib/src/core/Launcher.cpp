@@ -3,6 +3,7 @@
 #include <Kotonoha/core/Config.hpp>
 #include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/Launcher.hpp>
+#include <Kotonoha/core/SDL.hpp>
 #include <Kotonoha/core/Log.hpp>
 #include <Kotonoha/media/AudioMixer.hpp>
 
@@ -520,15 +521,15 @@ void Launcher::drawVideo() {
       draft.mode = static_cast<WindowMode>(mode);
 
     int count = 0;
-    SDL_DisplayID *displays = SDL_GetDisplays(&count);
+    SDLArrayPtr<SDL_DisplayID> displays(SDL_GetDisplays(&count));
     if (count > 0) {
       draft.display = std::clamp(draft.display, 0, count - 1);
-      const char *name = SDL_GetDisplayName(displays[draft.display]);
+      const char *name = SDL_GetDisplayName(displays.get()[draft.display]);
       const std::string current =
           std::to_string(draft.display + 1) + ": " + (name ? name : "Monitor");
       if (ImGui::BeginCombo("Monitor", current.c_str())) {
         for (int i = 0; i < count; ++i) {
-          const char *label = SDL_GetDisplayName(displays[i]);
+          const char *label = SDL_GetDisplayName(displays.get()[i]);
           const std::string text =
               std::to_string(i + 1) + ": " + (label ? label : "Monitor");
           if (ImGui::Selectable(text.c_str(), i == draft.display))
@@ -559,8 +560,8 @@ void Launcher::drawVideo() {
 
     if (draft.mode == WindowMode::Exclusive && count > 0) {
       int modes = 0;
-      SDL_DisplayMode **list =
-          SDL_GetFullscreenDisplayModes(displays[draft.display], &modes);
+      SDLArrayPtr<SDL_DisplayMode *> list(
+          SDL_GetFullscreenDisplayModes(displays.get()[draft.display], &modes));
       std::string current = "Desktop resolution";
       if (draft.fullscreenWidth > 0)
         current = std::to_string(draft.fullscreenWidth) + " x " +
@@ -574,7 +575,7 @@ void Launcher::drawVideo() {
           draft.refreshRate = 0;
         }
         for (int i = 0; list && i < modes; ++i) {
-          const SDL_DisplayMode &m = *list[i];
+          const SDL_DisplayMode &m = *list.get()[i];
           const std::string text =
               std::to_string(m.w) + " x " + std::to_string(m.h) + " @ " +
               std::to_string(static_cast<int>(m.refresh_rate + 0.5f)) + " Hz";
@@ -589,10 +590,10 @@ void Launcher::drawVideo() {
         }
         ImGui::EndCombo();
       }
-      SDL_free(list);
+
     }
     if (count > 0) {
-      SDL_free(displays);
+
     }
   } else {
     ImGui::TextDisabled(
