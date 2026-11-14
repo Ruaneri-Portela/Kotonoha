@@ -126,7 +126,7 @@ bool PmailPack::openBytes(const std::vector<uint8_t> &data,
 
   ok_ = parseIndex(index);
   if (!ok_ || entries_.empty()) {
-    std::cerr << "[PmailPack] Warning: no entries parsed from " << path
+    std::cerr << "[PmailPack] Warning: no entries parsed from " << path_
               << std::endl;
   } else {
     std::cout << "[PmailPack] Parsed " << entries_.size() << " entries from "
