@@ -126,7 +126,6 @@ struct MediaPlayer::State {
   std::uint64_t webVideoFed = 0;
   std::string webVideoId, webVideoMime, webVideoUrl;
   std::string webFallbackPath, webFallbackId;
-  std::unique_ptr<Filesystem::FileHandle> webVideoFile;
 
   static std::string mimeForMediaPath(const std::string &path,
                                       bool audioOnly) {
@@ -174,64 +173,6 @@ struct MediaPlayer::State {
   // Only a path rooted in /game-assets is guaranteed to be an HTTP asset.
   // Arbitrary AssetProvider IDs may refer to archive members: never turn
   // those into HTTP URLs without a verified localPath mapping.
-  static std::string webUrlForPath(const std::string &path) {
-    if (path.empty() || path.find('\0') != std::string::npos)
-      return {};
-    const auto input = std::filesystem::path(path).lexically_normal();
-    std::filesystem::path relative;
-    if (input.is_absolute()) {
-      relative = input.lexically_relative("/game-assets");
-    } else {
-      relative = input;
-      if (!relative.empty() && *relative.begin() == "game-assets")
-        relative = relative.lexically_relative("game-assets");
-      else
-        return {}; // Not an unambiguous public URL.
-    }
-    if (relative.empty() || relative == "." || relative.is_absolute())
-      return {};
-    for (const auto &part : relative)
-      if (part == "..")
-        return {};
-    // Encode URL-sensitive bytes while preserving directory separators.
-    // The browser resolves this URL relative to the document/base URL.
-    const std::string raw = relative.generic_string();
-    constexpr char hex[] = "0123456789ABCDEF";
-    std::string encoded;
-    encoded.reserve(raw.size());
-    for (unsigned char c : raw) {
-      if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
-          (c >= '0' && c <= '9') || c == '/' || c == '-' || c == '_' ||
-          c == '.' || c == '~') {
-        encoded.push_back(static_cast<char>(c));
-      } else {
-        encoded.push_back('%');
-        encoded.push_back(hex[c >> 4]);
-        encoded.push_back(hex[c & 15]);
-      }
-    }
-    return "game-assets/" + encoded;
-  }
-
-  bool configureWebVideoUrl(const std::string &path, bool audioOnly) {
-    const std::string mime = mimeForMediaPath(path, audioOnly);
-    if (!canPlayWebMedia(mime))
-      return false;
-    const std::string url = webUrlForPath(path);
-    if (url.empty())
-      return false;
-    webVideo = true;
-    webAudioOnly = mime.compare(0, 6, "audio/") == 0;
-    webVideoUrlMode = true;
-    webVideoId = path;
-    webVideoMime = mime;
-    webVideoUrl = url;
-    SDL_Log("[Kotonoha] Web video: %s -> %s", path.c_str(), url.c_str());
-    return true;
-  }
-
-  // Archive-backed videos use a chunked AssetProvider read and a Blob URL.
-  // The browser cannot play until the entire Blob has been assembled.
   bool configureWebVideo(const AssetProvider &assets, const std::string &id,
                          bool audioOnly) {
     // A browser-compatible sidecar can replace a legacy cutscene without
@@ -263,35 +204,6 @@ struct MediaPlayer::State {
     webVideoId = id;
     webVideoMime = mime;
     webVideoSize = size;
-    return true;
-  }
-
-  bool configureWebVideo(const std::string &path, bool audioOnly) {
-    if (!audioOnly && !canPlayWebMedia(mimeForMediaPath(path, false)) &&
-        canPlayWebMedia("video/webm") &&
-        std::filesystem::is_regular_file(path + ".webm"))
-      return configureWebVideo(path + ".webm", false);
-    if (configureWebVideoUrl(path, audioOnly))
-      return true;
-    const std::string mime = mimeForMediaPath(path, audioOnly);
-    if (!canPlayWebMedia(mime))
-      return false;
-    std::unique_ptr<Filesystem::FileHandle> file;
-    try {
-      file = std::make_unique<Filesystem::SDLFileSource>(
-          std::filesystem::path(path));
-    } catch (const std::exception &) {
-      return false;
-    }
-    const auto end = file->size();
-    if (end <= 0)
-      return false;
-    webVideo = true;
-    webAudioOnly = mime.compare(0, 6, "audio/") == 0;
-    webVideoId = path;
-    webVideoMime = mime;
-    webVideoSize = static_cast<std::uint64_t>(end);
-    webVideoFile = std::move(file);
     return true;
   }
 
@@ -341,12 +253,6 @@ struct MediaPlayer::State {
   }
 
   std::size_t readWebVideo(Uint8 *buffer, std::size_t size) {
-    if (webVideoFile) {
-      const auto amount = webVideoFile->read(buffer, size);
-      if (amount < 0)
-        throw std::runtime_error("Cannot read browser media");
-      return static_cast<std::size_t>(amount);
-    }
     if (assetStream)
       return assetStream->read(buffer, size);
     if (offset >= bytes.size())
@@ -422,7 +328,6 @@ struct MediaPlayer::State {
         return;
       }
       webVideoReady = true;
-      webVideoFile.reset();
     }
   }
 
@@ -1393,20 +1298,22 @@ void MediaPlayer::update(RendererRef renderer, double position) {
       auto next = std::make_unique<State>();
       const std::string channelName =
           s.channel ? s.channel->getName() : "video";
-      std::string localPath = s.webFallbackPath;
-      if (localPath.empty() || !std::filesystem::is_regular_file(localPath) ||
-          std::filesystem::file_size(localPath) == 0) {
-        localPath.clear();
-        if (s.assetStream && s.assetStream->seek(0))
-          next->attachAssetStream(std::move(s.assetStream));
-        else if (!s.bytes.empty())
-          next->attachMemory(std::move(s.bytes));
-        else
-          throw std::runtime_error(
-              "HTML5 video failed and local media bytes are unavailable: " +
-              (s.webFallbackId.empty() ? s.webVideoId : s.webFallbackId));
-      }
-      openDecoder(*next, localPath, s.webAudioOnly);
+      if (s.assetStream && s.assetStream->seek(0))
+        next->attachAssetStream(std::move(s.assetStream));
+      else if (!s.bytes.empty())
+        next->attachMemory(std::move(s.bytes));
+      else if (s.webVirtualBlob && !s.webVirtualBlob->bytes().empty())
+        next->attachMemory(s.webVirtualBlob->bytes());
+      else if (!s.webFallbackPath.empty() &&
+               std::filesystem::is_regular_file(s.webFallbackPath))
+        next->attachAssetStream(std::make_unique<HandleAssetStream>(
+            std::make_unique<Filesystem::SDLFileSource>(
+                std::filesystem::path(s.webFallbackPath))));
+      else
+        throw std::runtime_error(
+            "HTML5 video failed and virtual media bytes are unavailable: " +
+            (s.webFallbackId.empty() ? s.webVideoId : s.webFallbackId));
+      openDecoder(*next, {}, s.webAudioOnly);
       const bool wasPaused = pausedAt != 0;
       adoptPreparedInput(
           std::unique_ptr<PreparedInput>(new PreparedInput(std::move(next))),
