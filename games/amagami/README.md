@@ -20,6 +20,6 @@ Use the launcher or pass `--amagami /path/to/game-data` to the executable. Never
 
 ## Detailed research
 
-[Original port status and evidence](PORT_STATUS.md). Historical results are specific to the reference assets/revision and may contain superseded implementation notes.
+[Concise support status](STATUS.md) · [Detailed port research](PORT_STATUS.md). Historical results are specific to the reference assets/revision and may contain superseded implementation notes.
 
 [Build guides](../../docs/BUILD_GUIDES.md) · [Port index](../README.md)
