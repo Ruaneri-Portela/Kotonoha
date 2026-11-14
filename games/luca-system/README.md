@@ -1,75 +1,25 @@
-# LucaSystem port
+# LucaSystem
 
-Suporte a jogos da engine [LucaSystem](https://github.com/wetor/LuckSystem)
-(Visual Art's / Key — AIR, Kanon, CLANNAD e outros) no Kotonoha.
+**English (US)** | [Português (Brasil)](README.pt-BR.md)
 
-Esta é uma nova porta desenvolvida com referência na
-[wetor/LuckSystem](https://github.com/wetor/LuckSystem), conjunto de
-ferramentas para decompilar e compilar scripts do LucaSystem, e validada com o
-jogo **AIR** (`/Volumes/Nero 2TB/SteamLibrary/steamapps/common/AIR`) como
-dados de teste de referência.
+Native PAK/bytecode interpretation and image/audio/text rendering tested against AIR.
 
-## O que é suportado
+**Status:** AIR-specific functionality is documented; do not assume all LucaSystem titles have equivalent coverage.
 
-- **Arquivos .PAK** (PARAM.PAK, SCRIPT.PAK, SYSSE.PAK e arquivos de imagem):
-  leitura de entradas, tabela de deslocamentos e nomes de arquivos, seguindo o
-  formato decodificado pelo LuckSystem (pak.go).
-- **Scripts de bytecode** (SCRIPT.PAK): parsing estrutural das instruções
-  (opcode, fixedFlag, len, parâmetros) e extração das strings codificadas em
-  Shift-JIS, seguindo o LuckSystem (script.go).
-- **Launcher**: seleção de pasta/ISO via `--luca-system` ou pelo launcher de
-  pastas do Kotonoha.
-- **Apresentação de diálogo**: as strings extraídas dos scripts são exibidas
-  na caixa de texto (VNTextBox), com avanço por entrada do jogador.
-- **Save/load**: quicksave (F5/F6) e menu do jogo.
-- **Integração Kotonoha**: engine, renderer, áudio, overlays, settings e MCP
-  compartilhados.
-
-## O que ainda não é suportado
-
-- **VM completa com semântica de opcode**: os opcodes e o significado dos
-  parâmetros são específicos de cada jogo (definidos por um OPCODE.txt
-  externo, como no LuckSystem). A interpretação completa (escolhas, saltos,
-  variáveis, áudio sincronizado) requer a tabela de opcodes do título alvo.
-- **Decodificação de imagens nativas**: imagens dentro dos arquivos .PAK de
-  imagem dependem do formato gráfico original do LucaSystem.
-
-## Como construir
-
-O alvo é construído automaticamente com o projeto. Para desativar:
+## Build
 
 ```sh
-cmake -S . -B build -DKOTONOHA_BUILD_LUCA_SYSTEM=OFF
+cmake -S . -B build -DKOTONOHA_BUILD_LUCA_SYSTEM=ON
+cmake --build build --target LucaSystem
 ```
 
-## Como executar
+## Game data
 
-```sh
-build/games/luca-system/LucaSystem.app/Contents/MacOS/LucaSystem \
-  --luca-system /caminho/para/dados/do/jogo --no-launcher
-```
+Use original PAK files (including PARAM.PAK and SCRIPT.PAK); AIR is the reference title.
+Use the launcher or pass `--luca-system /path/to/game-data` to the executable. Never commit commercial game files.
 
-Com o AIR de referência:
+## Detailed research
 
-```sh
-build/games/luca-system/LucaSystem.app/Contents/MacOS/LucaSystem \
-  --luca-system '/Volumes/Nero 2TB/SteamLibrary/steamapps/common/AIR/files' \
-  --no-launcher
-```
+[Original port status and evidence](PORT_STATUS.md). Historical results are specific to the reference assets/revision and may contain superseded implementation notes.
 
-Ou use o launcher de pastas (`--launcher`, padrão) para selecionar o diretório
-de dados.
-
-O jogo é válido se a pasta contiver PARAM.PAK e SCRIPT.PAK.
-
-## Testes
-
-```sh
-ctest --test-dir build -R LucaSystem
-```
-
-## Licença
-
-Esta porta é uma implementação independente e não distribui nenhum código
-binário da engine LucaSystem nem dados comerciais de jogos. Forneça seus
-próprios dados legalmente obtidos.
+[Build guides](../../docs/BUILD_GUIDES.md) · [Port index](../README.md)
