@@ -324,7 +324,7 @@ if(KOTONOHA_WASM_DYNAMIC_LIBS)
     # Apply the canonical-path filter only to this WASM SIDE_MODULE link.
     # vcpkg still supplies static .a packages and native builds are unaffected.
     set_property(TARGET KotonohaEngine PROPERTY CXX_LINKER_LAUNCHER
-        "python3;${KOTONOHA_PROJECT_ROOT}/tools/wasm_link_dedupe.py")
+        "python3;${CMAKE_CURRENT_SOURCE_DIR}/../tools/wasm_link_dedupe.py")
     target_link_options(KotonohaEngine PRIVATE
         "SHELL:-sSIDE_MODULE=1" "SHELL:-sASYNCIFY=1" "-fexceptions")
     set_target_properties(KotonohaEngine PROPERTIES
