@@ -30,9 +30,22 @@
             position: fixed;
             top: max(8px, env(safe-area-inset-top));
             right: max(8px, env(safe-area-inset-right));
-            z-index: 30;
+            z-index: 2147483647;
+            inset: auto;
+            top: max(8px, env(safe-area-inset-top));
+            right: max(8px, env(safe-area-inset-right));
+            left: auto;
+            bottom: auto;
+            margin: 0;
+            padding: 0;
+            border: 0;
+            background: transparent;
+            overflow: visible;
             font: 13px system-ui, sans-serif;
         }
+        /* Popover stays on top of a fullscreen SDL canvas. */
+        #browser-folder-tools:not(:popover-open) { display: block; }
+        #browser-folder-tools:popover-open { display: block; }
         #browser-folder-tools button {
             color: #fff;
             background: #242424;
@@ -104,6 +117,8 @@
             display: flex;
             gap: 10px;
             margin-top: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
         }
 
         #asset-source-actions button {
@@ -138,18 +153,18 @@
 <body>
     <div id="loading-overlay">
         <div id="loading-title">@APP_TITLE@ - Kotonoha Engine</div>
-        <div id="loading-status">Carregando manifesto de assets...</div>
+        <div id="loading-status">Escolha a origem dos arquivos para iniciar.</div>
         <div id="loading-progress-container">
             <div id="loading-bar"></div>
         </div>
         <div id="asset-source-actions">
-            <button id="select-local-assets" type="button" disabled>Selecionar pasta do jogo</button>
-            <button id="use-server-assets" type="button" disabled>Usar assets do servidor</button>
+            <button id="select-local-assets" type="button" disabled>Usar pasta local</button>
+            <button id="use-server-assets" type="button" disabled>Usar HTTP(S)</button>
         </div>
         <input id="local-assets-folder" type="file" webkitdirectory multiple hidden>
     </div>
 
-    <div id="browser-folder-tools">
+    <div id="browser-folder-tools" popover="manual" aria-label="Pastas do jogo">
         <button id="add-browser-folder" type="button" title="Montar uma pasta local no filesystem">+ Adicionar pasta</button>
         <input id="add-browser-folder-input" type="file" webkitdirectory multiple hidden>
         <div id="browser-folder-status" role="status" aria-live="polite"></div>
@@ -724,7 +739,7 @@
                     };
                     const unlock = function(message) {
                         console.warn("[Kotonoha] " + message);
-                        setStatus(message + " — selecione uma pasta válida.");
+                        setStatus(message + " — tente novamente ou escolha HTTP(S).");
                         busy = false;
                         folderButton.disabled = false;
                         serverButton.disabled = false;
@@ -906,28 +921,24 @@
                                 throw new Error("Pasta local vazia");
                             Module.KotonohaVfsGeneration =
                                 (Module.KotonohaVfsGeneration | 0) + 1;
-                            await loadServerAssets(true);
+                            // A local choice must not implicitly contact HTTP.
+                            setStatus("Pasta local montada. Iniciando engine...");
+                            finish();
                         } catch (error) {
                             console.error("[Kotonoha] Pasta local inválida:", error);
-                            setStatus("Pasta local inválida: " + error.message +
-                                      ". Tentando HTTP(S)...");
-                            await loadServerAssets(false);
+                            unlock("Pasta local inválida: " +
+                                   String(error.message || error));
+                        } finally {
+                            folderInput.value = "";
                         }
                     });
                     serverButton.addEventListener("click", function() {
                         if (!busy) loadServerAssets(false);
                     });
-                    // Local Emscripten VFS is initially empty on a fresh visit.
-                    // Autoselect HTTP(S) if it is absent/empty/invalid. A user
-                    // can choose a local folder before the automatic probe.
-                    // The self-test intentionally retains its manual controls.
-                    if ("@TARGET_NAME@" !== "KotonohaWebSelfTest" &&
-                        window.KotonohaAutoServerAssets !== false) {
-                        setTimeout(function() {
-                            if (!busy && !finished)
-                                loadServerAssets(false);
-                        }, 500);
-                    }
+                    // Explicit choice is mandatory for every web port.
+                    // Never probe HTTP or release the startup run dependency
+                    // until the user chooses a source.
+                    setStatus("Escolha pasta local ou HTTP(S) para iniciar.");
                 }
             ],
 
@@ -971,6 +982,22 @@
             const input = document.getElementById("add-browser-folder-input");
             const status = document.getElementById("browser-folder-status");
             const roots = new Set();
+            // A fixed sibling is hidden when SDL takes the canvas fullscreen.
+            // Reopen the manual popover so the folder control enters the top
+            // layer *after* the fullscreen canvas (fallback is fixed position).
+            const showPersistentTools = function() {
+                const toolbar = button.parentElement;
+                if (typeof toolbar.showPopover !== "function") return;
+                try {
+                    if (toolbar.matches(":popover-open")) toolbar.hidePopover();
+                    toolbar.showPopover();
+                } catch (error) {
+                    console.warn("[Kotonoha] Folder toolbar:", error);
+                }
+            };
+            showPersistentTools();
+            document.addEventListener("fullscreenchange", showPersistentTools);
+            document.addEventListener("webkitfullscreenchange", showPersistentTools);
             let nextImportId = 0;
             const validComponent = name => typeof name === "string" &&
                 /^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$/.test(name) &&
