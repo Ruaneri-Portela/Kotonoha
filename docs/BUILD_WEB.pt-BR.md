@@ -104,13 +104,7 @@ Após a inicialização do filesystem, também é possível chamar
 faz automaticamente cada porte procurar recursos nela. Os caminhos de busca
 e a jogabilidade por toque precisam ser verificados em cada jogo.
 
-### Fetch HTTP sem manifesto — limitação atual
 
-Esta alteração **ainda não implementa** um provider HTTP sem manifesto. O
-fallback automático de `game-assets/` ainda requer
-`game-assets/manifest.json` com nomes e tamanhos de arquivos. Um servidor
-HTTP comum não oferece listagem de diretórios; Fetch funciona de modo
-assíncrono. Para remover o manifesto, o provider precisa receber os caminhos
-solicitados pelo próprio jogo e suportar leitura sob demanda, com suspensão
-assíncrona ou Worker onde necessário. Compilar sem erros não comprova
-paridade de gameplay nos navegadores.
+### Inicialização Fetch sem manifesto
+
+Se `game-assets/manifest.json` não estiver disponível, for inválido ou não puder ser carregado, o HTML agora configura `KotonohaConfigureRemoteAssetUrl` apontando para `game-assets/` via HTTP(S), sem índice de arquivos. `FetchAssetProvider::fromUrl` descobre arquivos sob demanda por GET assíncrono e armazena seus bytes em cache. `exists()` inicia a descoberta de caminhos desconhecidos e retorna falso até a confirmação HTTP, sem inventar arquivos existentes. `window.KotonohaFetchAsset(caminhoRelativo)` permite requisitar diretamente um arquivo (1 = pronto, 0 = pendente, -1 = inválido). Esse modo **não** enumera diretórios remotos desconhecidos nem faz leituras síncronas aguardarem o evento assíncrono do navegador. Jogos que precisam dos arquivos imediatamente no `SDL_AppInit` ainda precisam de pré-carregamento e espera assíncrona apropriada; portanto esta etapa não garante gameplay. O caminho com manifesto continua disponível.
