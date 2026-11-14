@@ -161,9 +161,8 @@ void SettingsMenu::activate(int index, int direction) {
     SDLArrayPtr<SDL_DisplayID> displays(SDL_GetDisplays(&count));
     if (!displays)
       throw std::runtime_error(SDL_GetError());
-    if (count < 1) {
-        throw std::runtime_error("No displays available");
-    }
+    if (count < 1)
+      throw std::runtime_error("No displays available");
     draft.display = (draft.display + 1) % count;
     if (const SDL_DisplayMode *desktop =
             SDL_GetDesktopDisplayMode(displays.get()[draft.display])) {
@@ -434,8 +433,7 @@ void SettingsMenu::render(RendererRef renderer) {
               SDL_GetDesktopDisplayMode(displays.get()[draft.display]))
         shown = {desktop->w, desktop->h, desktop->refresh_rate};
     }
-    if (displays)
-    }
+  }
   const std::string resolutionLabel =
       shown.refreshRate > 0.0f
           ? DisplayModeCatalog::Label(shown)
