@@ -35,6 +35,7 @@ class FetchAssetProvider final
   std::deque<Job> queued_;
   std::set<std::string> requested_;
   std::size_t active_ = 0, cached_ = 0;
+  std::size_t completed_ = 0, failures_ = 0, requestedCount_ = 0;
   std::size_t budget_ = 64u << 20;
   bool started_ = false;
 
@@ -67,6 +68,13 @@ public:
   bool started() const noexcept { return started_; }
   std::size_t pending() const noexcept { return queued_.size() + active_; }
   std::size_t cachedBytes() const noexcept { return cached_; }
+  std::size_t fileCount() const noexcept { return files_.size(); }
+  std::size_t totalRequests() const noexcept { return requestedCount_; }
+  std::size_t completedRequests() const noexcept { return completed_; }
+  std::size_t failures() const noexcept { return failures_; }
+  bool complete() const noexcept { return started_ && pending() == 0; }
+  bool allFilesReady() const;
+  const std::string &baseUrl() const noexcept { return base_; }
 
   bool exists(std::string_view path) const override;
   FileInfo stat(std::string_view path) const override;
