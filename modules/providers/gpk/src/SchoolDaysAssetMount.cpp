@@ -8,7 +8,7 @@
 #include <cerrno>
 #include <cstdio>
 #include <cstring>
-#include <fstream>
+#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <limits>
 #include <memory>
 #include <mutex>
@@ -29,7 +29,7 @@ std::shared_ptr<const SchoolDaysGpkAssetStore> CurrentMount() {
 
 class MountedRawAssetStream final : public AssetStream {
   std::shared_ptr<const SchoolDaysGpkAssetStore> mount_;
-  std::ifstream file_;
+  Kotonoha::Filesystem::InputFile file_;
   std::vector<uint8_t> prefix_;
   uint64_t bodyOffset_ = 0u;
   uint64_t logicalSize_ = 0u;
@@ -218,7 +218,7 @@ bool ReadFilesystem(std::string_view reference, std::vector<uint8_t> *out,
   if (out == nullptr)
     return Fail(error, "School Days asset output is null");
   out->clear();
-  std::ifstream file(std::filesystem::path(std::string(reference)),
+  Kotonoha::Filesystem::InputFile file(std::filesystem::path(std::string(reference)),
                      std::ios::binary | std::ios::ate);
   if (!file)
     return Fail(error, "School Days asset file could not be opened");

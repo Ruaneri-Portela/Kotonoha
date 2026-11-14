@@ -7,7 +7,7 @@
 #include <algorithm>
 #include <cstdio>
 #include <cstring>
-#include <fstream>
+#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <stdexcept>
 
 namespace Kotonoha::Providers {
@@ -55,7 +55,7 @@ std::string readUtf16Le(const std::uint8_t *buf, std::size_t &pos,
 }
 
 std::vector<std::uint8_t> readFileBytes(const std::filesystem::path &path) {
-  std::ifstream in(path, std::ios::binary);
+  Kotonoha::Filesystem::InputFile in(path, std::ios::binary);
   if (!in)
     throw std::runtime_error("Cannot open " + path.string());
   return std::vector<std::uint8_t>((std::istreambuf_iterator<char>(in)),

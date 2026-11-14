@@ -5,7 +5,7 @@
 #include <SDL3/SDL.h>
 
 #include <algorithm>
-#include <fstream>
+#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <stdexcept>
 
 namespace Kotonoha::Providers {
@@ -77,7 +77,7 @@ bool seedCharacters(const std::filesystem::path &user,
     }
     if (archives && archives->has(name)) {
       const auto bytes = archives->read(name);
-      std::ofstream out(staging / name, std::ios::binary);
+      Kotonoha::Filesystem::OutputFile out(staging / name, std::ios::binary);
       if (!out || !out.write(reinterpret_cast<const char *>(bytes.data()),
                              std::streamsize(bytes.size())))
         throw std::runtime_error("Cannot write " + (staging / name).string());
