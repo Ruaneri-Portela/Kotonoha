@@ -235,6 +235,7 @@ endif ()
 
 target_include_directories(KotonohaEngine PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<BUILD_INTERFACE:${KOTONOHA_BUILD_VERSION_INCLUDE_DIR}>
 )
 
 target_link_libraries(KotonohaEngine
