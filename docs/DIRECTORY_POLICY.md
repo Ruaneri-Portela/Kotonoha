@@ -1,111 +1,25 @@
-# Directory and Resource Resolution Policy
+# Directory and resource policy
 
-O motor separa tres responsabilidades: **assets da engine**, **assets do jogo**
-e **saves/configuracoes**. A politica fica em `core/FileSystem`, por meio de
-`StorageLocations`, `DirectoryLayout` e `FileResolver`. Os jogos nao devem chamar
-`SDL_GetPrefPath` diretamente nem montar caminhos de armazenamento por conta propria.
+**English (US)** | [Português (Brasil)](DIRECTORY_POLICY.pt-BR.md)
 
-## Layout por plataforma
+`FileResolver` separates **engine assets**, **game assets**, and **writable saves/settings**. Games should not build storage paths themselves. `<app-id>` is the package/bundle identifier, not a game folder slug.
 
-`<pacote>` e o identificador da aplicacao, por exemplo
-`me.hirameki.kotonoha.amagami`, nunca o titulo ou o slug `amagami`.
-No Android, o identificador vem de `getPackageName()`.
-
-| Plataforma | Assets da engine | Assets do jogo | Saves e configuracoes |
+| Platform | Engine assets | Game assets | Saves/settings |
 | --- | --- | --- | --- |
-| Android | `<dataDir>/files/assets` | `<dataDir>/game_assets`, ou `Android/obb/<pacote>` | `Android/data/<pacote>/files/Kotonoha/<pacote>` |
-| iOS | `<bundle>/assets`; alternativa `Documents/assets` | `<bundle>/game-assets`; alternativa `Documents/game_assets`, `Documents/game-assets` ou dados diretamente em Documents | `Documents/Kotonoha/<pacote>` |
-| macOS | `<app>.app/Contents/Resources/assets` | `<app>.app/Contents/Resources/game-assets` | `~/Library/Application Support/Kotonoha/<pacote>` |
-| Windows | `<executavel>/assets` | `<executavel>/game-assets` | `%APPDATA%/Kotonoha/<pacote>` |
-| Linux | `<executavel>/assets` | `<executavel>/game-assets` | `$XDG_DATA_HOME/Kotonoha/<pacote>`, normalmente `~/.local/share/Kotonoha/<pacote>` |
+| Android | `<dataDir>/files/assets` | `<dataDir>/game_assets`; external OBB supported | `Android/data/<app-id>/files/Kotonoha/<app-id>` |
+| iOS | `<bundle>/assets` | `<bundle>/game-assets`; Documents fallback | `Documents/Kotonoha/<app-id>` |
+| macOS | `<app>.app/Contents/Resources/assets` | `.../Resources/game-assets` | `~/Library/Application Support/Kotonoha/<app-id>` |
+| Windows | `<exe>/assets` | `<exe>/game-assets` | `%APPDATA%/Kotonoha/<app-id>` |
+| Linux | `<exe>/assets` | `<exe>/game-assets` | `$XDG_DATA_HOME/Kotonoha/<app-id>` |
 
-`dataDir` e fornecido pelo Android: `/data/user/0/<pacote>` (equivalente a
-`/data/data/<pacote>`). Nao ha caminhos Android fixos no codigo nativo.
-O bootstrap extrai os recursos do APK antes de iniciar SDL, mantendo esses
-enderecos estaveis. O fingerprint determina quando atualizar os arquivos empacotados.
+On desktop outside an app bundle, the working directory is also searched. Both `game-assets` and `game_assets` are accepted for resource lookup. Android OBB resources may take priority over packaged assets; iOS can fall back to its Documents directory.
 
-Os nomes `game_assets` e `game-assets` sao aceitos na busca. O APK e os bundles
-existentes continuam contendo `game-assets`. No Android, OBB tiene prioridade e
-pode conter os dados diretamente ou nessas subpastas. No iOS, o bundle tem
-prioridade, com fallback por arquivo para Documents, acessivel pelo app Files.
+## Game sources, ISO images, and patches
 
-Em execucoes desktop fora de um bundle macOS, o diretorio de trabalho tambem
-pode fornecer `assets`, `game-assets`/`game_assets` e
-`games/<slug>/game-assets`. O slug serve apenas para localizar fontes/dados no
-repositorio; ele nao determina o destino de saves.
+The launcher searches known platform-specific locations instead of scanning the entire disk. An explicit invalid ISO reports an error. RealLive can stream directly from ISO; other directory-oriented ports may extract an ISO into temporary private storage. Ordinary folders are read in place.
 
-## Launcher e overlay
+`--asset-overlay PATH` replaces resources by **logical ID**, independent of their original folder/archive/ISO source. Explicit paths take priority; `--no-asset-overlay` disables overlays. Resource choices are generally saved by portable names and resolved again on launch; legacy absolute paths can still be tried.
 
-O mesmo resolvedor procura selecoes de jogo, discos, scripts e overlays nos
-locais aplicaveis da plataforma: recursos, diretorios de assets, dados privados,
-Files/Documents, dados externos Android e OBB. Nao faz varredura de todo o disco.
-Os candidatos sao testados em ordem; o launcher continua procurando quando um
-candidato nao passa na validacao especifica do jogo.
-Uma ISO informada explicitamente na linha de comando e excecao: se estiver
-ausente, corrompida ou nao contiver os dados do jogo, a inicializacao falha
-com o motivo em vez de abrir silenciosamente outra fonte de dados.
+## Runtime details
 
-Todo campo de pasta de jogo tambem aceita ISO. RealLive usa `DiscImageAssetProvider`
-para ler diretamente a imagem: scripts, vozes, imagens e midia chegam pela
-memoria, sem extracao nem arquivos temporarios. Seu launcher valida a ISO
-original, sem passar por `gameDataDirectory`.
-Nos demais ports baseados em pasta, `gameDataDirectory` resolve
-essas imagens por ISO9660/Joliet em uma pasta temporaria privada, compartilhada
-pelos consumidores durante o processo e removida na saida normal. Pastas
-comuns continuam sendo lidas no lugar, e ports com leitor de disco nativo
-continuam usando diretamente a imagem. A ISO precisa conter os dados ja
-utilizaveis pelo port; nao ha instalacao automatica nem montagem do sistema.
-
-* Campo overlay vazio: descobre a pasta `overlay` automaticamente.
-* Campo preenchido com `overlay2`: procura essa pasta nos locais conhecidos.
-* Uma selecao explicita tem prioridade sobre `KOTONOHA_OVERLAY` e sobre o nome padrao.
-* `--no-asset-overlay` desabilita o overlay para a execucao atual.
-
-A pasta `overlay/` e um patch de **identificadores logicos**, independente de
-o jogo estar aberto por pasta, ISO materializada, disco lido diretamente ou
-recursos avulsos. Por exemplo, `overlay/G00/OP_D00.G00` substitui
-`G00/OP_D00.G00` no RealLive em qualquer origem; os demais recursos continuam vindo
-da origem original. A prioridade tambem vale para caminhos locais usados por
-streaming e arquivos mapeados. Os caminhos sao relativos a raiz do patch e
-ignoram maiusculas/minusculas; nao inclua o nome da ISO nem o da pasta temporaria.
-Use **Folder...** ou **ISO...** no launcher para escolher a origem do jogo.
-
-Por exemplo, `overlay2` pode mudar de `Android/obb/<pacote>/overlay2` para
-`Android/data/<pacote>/files/overlay2`, ou para `<dataDir>/files/overlay2`, sem
-reescrever o arquivo de preferencias. No iOS, `Documents/overlay` e descoberto
-automaticamente; no macOS, `Resources/overlay` tambem.
-
-## Persistencia portavel
-
-Para pastas e recursos comuns, o launcher guarda **somente a referencia (nome)**, como `Packs`,
-`route.ktnroute` ou `overlay2`. Traducoes, fontes e listas ordenadas de shaders
-tambem sao serializadas por nome. Caminhos absolutos selecionados no navegador
-sao aceitos durante a execucao; ao salvar, a parte especifica do dispositivo e removida.
-Para reencontrar esses recursos em outra execucao/dispositivo, coloque-os em um
-dos locais de busca acima. Prefira nomes distintos quando houver varios recursos.
-
-Selecoes de ISO preservam o caminho da imagem original, nunca o da pasta
-temporaria. Isso permite reabrir imagens externas, por exemplo em Downloads,
-sem exigir que sejam copiadas para os diretorios de recursos. Se a imagem
-mudar de dispositivo, a busca por nome nos locais conhecidos continua disponivel.
-
-Arquivos antigos contendo caminhos absolutos continuam sendo tentados; se o
-caminho nao existir, o resolvedor procura pelo nome nos locais atuais.
-Os arquivos de save propriamente ditos continuam no diretorio de saves, com
-as subpastas exigidas pelo formato de cada jogo. Overrides explicitos de save
-usados por ferramentas/testes continuam sendo respeitados.
-
-## Fontes e bibliotecas de runtime
-
-O catalogo de fontes aceita `.ttf`, `.otf` e `.ttc` com assinatura de fonte.
-O launcher e a libass usam esse mesmo catalogo; licencas como `OFL.txt` nao
-sao enviadas ao carregador de fontes.
-
-No Windows, o CMake copia as DLLs identificadas nas dependencias do executavel,
-incluindo dependencias transitivas. Assim, Python acompanha apenas o DDLC,
-que liga `Python3::Python`, e nao todos os jogos por estar instalado no vcpkg.
-
-Saves gravados anteriormente fora desse layout podem ser copiados para o novo
-diretorio de seu pacote. Em particular, o quick-save antigo do Amagami fica em
-`%APPDATA%/Kotonoha/amagami/quick-save.txt`; o novo destino e
-`%APPDATA%/Kotonoha/me.hirameki.kotonoha.amagami/quick-save.txt`.
+Font selection accepts `.ttf`, `.otf`, and `.ttc`. Saves are per application ID; existing saves in older slug-based locations may need manual migration. See [overlays](ASSET_OVERLAYS.md) and [settings](ENGINE_SETTINGS.md).

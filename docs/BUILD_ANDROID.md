@@ -1,31 +1,18 @@
-# Building for Android
+# Android build
 
-This guide provides instructions for building and running Kotonoha on Android devices and emulators.
+**English (US)** | [Português (Brasil)](BUILD_ANDROID.pt-BR.md)
 
-## Prerequisites
+Android uses `buildsystems/android/`, with one Gradle product flavor per game. Requirements: Android Studio (or SDK command-line tools), **JDK 17**, **SDK 36**, **NDK 28.2.13676358**, **CMake 3.22.1**, Git, and vcpkg.
 
-- **Android Studio** (Koala or newer recommended).
-- **Android SDK / NDK** (configured via Android Studio or Gradle).
-- **Gradle** (included wrapper in `buildsystems/android`).
-
-## Build Steps
-
-### 1. Project Structure
-The Android sub-project is located in [`buildsystems/android`](file:///Users/nero/Codes/Kotonoha/buildsystems/android).
-
-### 2. Gradle Build
-Open `buildsystems/android` in Android Studio, or build via command line:
-
-```bash
+```sh
+export VCPKG_ROOT=/path/to/vcpkg
 cd buildsystems/android
-./gradlew app:assembleDebug
+./gradlew :app:assembleExampleDebug
+./gradlew :app:assembleRealLiveDebug -Pabis=arm64-v8a
 ```
 
-### 3. Deployment
-Deploy the APK to a connected Android device or emulator:
+On Windows, use `gradlew.bat` and set `VCPKG_ROOT` in the environment. Gradle reads the SDK location from Android Studio/`local.properties`. The default ABIs are `arm64-v8a,x86_64`; select a subset with `-Pabis=arm64-v8a`.
 
-```bash
-./gradlew app:installDebug
-```
+Flavor examples: `Example`, `Amagami`, `ZeroNoTsukaima`, `SnowRadish`, `SummerRadish`, `DokiDoki`, `SchoolDays`, `RealLive`, `Kirikiri`, `LucaSystem`, and `Pmail`. Install a variant using `:app:install<Flavor>Debug`.
 
-For detailed setup instructions in Portuguese, refer to [`buildsystems/android/README.pt-BR.md`](file:///Users/nero/Codes/Kotonoha/buildsystems/android/README.pt-BR.md).
+By default Gradle packages that flavor's `game-assets`. Set `-PbundleGameAssets=false` when using external data (the example remains bundled). Avoid committing licensed assets. See [Android project details](../buildsystems/android/README.md).

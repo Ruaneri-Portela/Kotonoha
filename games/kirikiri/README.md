@@ -1,66 +1,21 @@
-# Kirikiri2 / KirikiriZ port
+# Kirikiri2 / KirikiriZ
 
-Suporte a jogos da engine [Kirikiri2](https://github.com/krkrz/krkr2) / [KirikiriZ](https://github.com/krkrz/krkrz) (吉里吉里2/Z) no Kotonoha.
+**English (US)** | [Português (Brasil)](README.pt-BR.md)
 
-## O que é suportado
+XP3 assets and basic KAG dialogue, character, choice, and audio tags.
 
-- **XP3 archives** (`.xp3`): leitura de entradas compactadas e não compactadas, sem carregar todo o arquivo na memória (leitura sob demanda).
-- **Arquivos soltos**: leitura direta do sistema de arquivos do jogo.
-- **KAG Script (`.ks`)**: parsing de tags KAG para texto, plano de fundo, personagens, escolhas, saltos, rótulos, espera e áudio básico.
-- **Launcher**: seleção de pasta/ISO via `--kirikiri` ou pelo launcher de pastas do Kotonoha.
-- **Save/load**: quicksave (F5/F6) e menu do jogo.
-- **Menu inicial universal**: o runtime não entra mais no primeiro script por
-  ordem alfabética; apresenta Iniciar/Continuar e seleciona o bootstrap mais
-  provável (`startup.ks`, `first.ks`, `main.ks`, `title.ks` ou o primeiro
-  capítulo compilado disponível).
-- **Compatibilidade de assets**: scripts KAG UTF-8/UTF-16, imagens dentro de
-  XP3 e precedência determinística de `patch.xp3` sobre os arquivos base.
-- **Integração Kotonoha**: engine, renderer, áudio, overlays, settings e MCP compartilhados.
+**Status:** General TJS2 bytecode, external plugins, and some native graphics remain unsupported.
 
-## O que ainda não é suportado
-
-- **TJS2 bytecode geral**: scripts TJS2 arbitrários ainda não são
-  interpretados. Pacotes NEKOPARA com cenários VNX+ em PSB/MDF já podem abrir
-  o menu e percorrer o texto extraído, mas ainda não reproduzem toda a lógica
-  e apresentação da engine original.
-- **Plugins Kirikiri**: plugins externos (`.dll`) não são carregados.
-- **TLG6 imagens**: apenas formatos nativos do SDL/FFmpeg.
-
-## Como construir
-
-O alvo é construído automaticamente com o projeto (habilitado por padrão). Para desativar:
+## Build
 
 ```sh
-cmake -S . -B build -DKOTONOHA_BUILD_KIRIKIRI=OFF
+cmake -S . -B build -DKOTONOHA_BUILD_KIRIKIRI=ON
+cmake --build build --target Kirikiri
 ```
 
-## Como executar
+## Game data
 
-```sh
-build/games/kirikiri/Kirikiri.app/Contents/MacOS/Kirikiri \
-  --kirikiri /caminho/para/dados/do/jogo \
-  --no-launcher
-```
+Use a lawful game folder with .ks scripts or an .xp3 archive.
+Use the launcher or pass `--kirikiri /path/to/game-data` to the executable. Never commit commercial game files.
 
-Ou use o launcher de pastas (`--launcher`, padrão) para selecionar o diretório de dados.
-
-O jogo é válido se a pasta contiver arquivos `.ks` ou um arquivo `.xp3`.
-
-## Exemplo de script KAG suportado
-
-```ks
-[cm text="Olá, mundo!" speaker="Narrador"]
-[wait time="1000"]
-[chara_show layer="0" file="hero.png" x="100" y="200"]
-[select question="Escolha:" option1="Sim" option2="Não"]
-```
-
-## Testes
-
-```sh
-ctest --test-dir build -R Kirikiri
-```
-
-## Licença
-
-Este port é uma implementação independente e não distribui nenhum código binário da engine Kirikiri/KirikiriZ nem dados comerciais de jogos. Forneça seus próprios dados legalmente obtidos.
+[Build guides](../../docs/BUILD_GUIDES.md) · [Port index](../README.md)
