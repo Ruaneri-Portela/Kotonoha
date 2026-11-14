@@ -99,6 +99,14 @@
             margin-bottom: 8px;
         }
 
+        #loading-build {
+            color: #b9a2d1;
+            font: 12px system-ui, sans-serif;
+            max-width: min(80vw, 520px);
+            overflow-wrap: anywhere;
+            text-align: center;
+            margin: -2px 0 14px;
+        }
         #loading-status {
             color: #aaa;
             font-size: 13px;
@@ -121,7 +129,7 @@
         #loading-bar {
             width: 0%;
             height: 100%;
-            background: #4CAF50;
+            background: linear-gradient(90deg, #8855ad, #c485e9);
             transition: width 0.1s ease;
         }
 
@@ -142,6 +150,17 @@
             padding: 10px 14px;
             min-height: 44px;
             max-width: min(90vw, 320px);
+        }
+
+        #asset-source-actions button:hover:not(:disabled),
+        #browser-folder-tools button:hover:not(:disabled) {
+            background: #3c2950;
+            border-color: #c18bdc;
+        }
+        #asset-source-actions button:focus-visible,
+        #browser-folder-tools button:focus-visible {
+            outline: 2px solid #e1baff;
+            outline-offset: 3px;
         }
 
         #asset-source-actions button:disabled {
@@ -167,6 +186,7 @@
 <body>
     <div id="loading-overlay">
         <div id="loading-title">@APP_TITLE@ - Kotonoha Engine</div>
+        <div id="loading-build" aria-label="Versão do motor">v@KOTONOHA_VERSION_FULL@</div>
         <div id="loading-status">Escolha a origem dos arquivos para iniciar.</div>
         <div id="loading-progress-container">
             <div id="loading-bar"></div>
