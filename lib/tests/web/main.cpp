@@ -8,6 +8,7 @@ SDL_Window *window = nullptr;
 SDL_Renderer *renderer = nullptr;
 int touchDown = 0;
 int touchUp = 0;
+int keyDown = 0;
 int padDown = 0;
 int padUp = 0;
 }
@@ -18,6 +19,9 @@ EMSCRIPTEN_KEEPALIVE int KotonohaWebSelfTestTouchDownCount() {
 }
 EMSCRIPTEN_KEEPALIVE int KotonohaWebSelfTestTouchUpCount() {
   return touchUp;
+}
+EMSCRIPTEN_KEEPALIVE int KotonohaWebSelfTestKeyDownCount() {
+  return keyDown;
 }
 EMSCRIPTEN_KEEPALIVE int KotonohaWebSelfTestGamepadDownCount() {
   return padDown;
@@ -51,6 +55,8 @@ SDL_AppResult SDL_AppEvent(void *, SDL_Event *event) {
     ++touchDown;
   else if (event->type == SDL_EVENT_FINGER_UP)
     ++touchUp;
+  else if (event->type == SDL_EVENT_KEY_DOWN)
+    ++keyDown;
   else if (event->type == SDL_EVENT_GAMEPAD_BUTTON_DOWN)
     ++padDown;
   else if (event->type == SDL_EVENT_GAMEPAD_BUTTON_UP)
