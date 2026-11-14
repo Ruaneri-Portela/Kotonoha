@@ -38,3 +38,5 @@ The default command reports remaining direct standard/stdio runtime calls and ch
 - Remove the temporary physical-path adapters only after all eleven ports have equivalent tested virtual-source behavior.
 
 The [original specification](SPECIFICATION.pt-BR.md) defines the final acceptance criteria. The draft PR remains unmerged.
+
+- **Web fallback:** local-first `FallbackMount`, asynchronous HTTP manifest bootstrap and Fetch registration are now implemented, with a bounded 128 MiB startup preload. Web browser tests and complete legacy-provider migrations remain pending.

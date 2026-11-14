@@ -34,3 +34,7 @@ A política StoragePaths foi movida para `lib/src/Filesystem/StoragePaths.cpp`; 
 A seleção de montadores aceita `.tar`, `.iso`, `.bin` e `.img` (as imagens de disco são verificadas pelo `DiscImage` existente); outros arquivos geram `UnsupportedMount`. Arquivos `.tar.gz`, UDF e CUE com múltiplas trilhas ainda não estão cobertos.
 
 O novo overload `MediaPlayer::open(FileHandle, logicalName, ...)` pode preparar mídia compatível com o navegador como URL `blob:` gerenciada por `BrowserBlobAdapter` (limite de 64 MiB). Em plataformas nativas continua com AVIO do FFmpeg. As rotas web legadas por path/AssetProvider ainda precisam de migração e testes reais.
+
+## Fallback automático no navegador
+
+No Emscripten, arquivos ausentes ou de tamanho divergente em `game-assets` podem ser atendidos por `FallbackMount(local, FetchAssetProvider)` após o manifesto ser lido assincronamente no preRun. O provider padrão e `Filesystem::mount("/game-assets")` aceitam esse roteamento. A inicialização não prossegue se o pré-carregamento necessário exceder 128 MiB ou o manifesto falhar. Bytes HTTP não são copiados para MEMFS. Veja [build web](../BUILD_WEB.pt-BR.md) e [matriz de migração](MIGRATION.pt-BR.md). O manifesto remoto não migra automaticamente indexadores específicos de jogos.
