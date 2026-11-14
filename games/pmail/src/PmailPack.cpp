@@ -72,33 +72,38 @@ bool PmailPack::decodeLz(std::vector<uint8_t> &dst, size_t dstSize,
 }
 
 bool PmailPack::open(const std::string &path) {
-  path_ = path;
+  // Compatibility entrypoint for native tools. Game runtimes use openBytes()
+  // with a VFS FileHandle and never need this physical path.
+  Kotonoha::Filesystem::InputFile in(path, std::ios::binary | std::ios::ate);
+  if (!in) return false;
+  const auto size = in.tellg();
+  if (size < 12 || size > std::streamoff(256u * 1024u * 1024u))
+    return false;
+  ownedBacking_.resize(static_cast<std::size_t>(size));
+  in.seekg(0, std::ios::beg);
+  if (!in.read(reinterpret_cast<char *>(ownedBacking_.data()),
+               static_cast<std::streamsize>(ownedBacking_.size())))
+    return false;
+  return openBytes(ownedBacking_, path);
+}
+
+bool PmailPack::openBytes(const std::vector<uint8_t> &data,
+                          const std::string &logicalPath) {
+  path_ = logicalPath;
+  backing_ = &data;
   entries_.clear();
   ok_ = false;
-  Kotonoha::Filesystem::InputFile in(path, std::ios::binary | std::ios::ate);
-  if (!in)
-    return false;
-  const auto sz = in.tellg();
-  if (sz < 12)
-    return false;
-  in.seekg(-12, std::ios::end);
-  uint8_t foot[12];
-  if (!in.read(reinterpret_cast<char *>(foot), 12))
-    return false;
+  const auto sz = data.size();
+  if (sz < 12) return false;
+  const uint8_t *foot = data.data() + sz - 12;
   auto x = [&](int i) { return rd32(foot + i) ^ 0xF0F0F0F0u; };
   const uint32_t compIndexSize = x(0);
   const uint32_t uncompIndexSize = x(4);
-  // x(8) unknown for now
-  if (compIndexSize == 0 || compIndexSize + 12u > uint64_t(sz))
-    return false;
-  const std::streamoff indexOff =
-      sz - std::streamoff(12) - std::streamoff(compIndexSize);
-  if (indexOff < 0)
-    return false;
-  in.seekg(indexOff, std::ios::beg);
-  std::vector<uint8_t> comp(compIndexSize);
-  if (!in.read(reinterpret_cast<char *>(comp.data()), comp.size()))
-    return false;
+  if (!compIndexSize || compIndexSize > sz - 12) return false;
+  const std::size_t indexOff = sz - 12 - compIndexSize;
+  std::vector<uint8_t> comp(
+      data.begin() + static_cast<std::ptrdiff_t>(indexOff),
+      data.begin() + static_cast<std::ptrdiff_t>(indexOff + compIndexSize));
 
   std::vector<uint8_t> index;
   bool decoded = false;
@@ -236,17 +241,12 @@ std::vector<uint8_t> PmailPack::read(const std::string &name) const {
 }
 
 std::vector<uint8_t> PmailPack::read(const PackEntry &e) const {
-  Kotonoha::Filesystem::InputFile in(path_, std::ios::binary);
-  if (!in)
+  if (!backing_ || e.size == 0 || e.offset > backing_->size() ||
+      e.size > backing_->size() - e.offset)
     return {};
-  in.seekg(e.offset, std::ios::beg);
-  if (!in)
-    return {};
-  std::vector<uint8_t> stored(e.size);
-  if (e.size == 0)
-    return {};
-  if (!in.read(reinterpret_cast<char *>(stored.data()), stored.size()))
-    return {};
+  std::vector<uint8_t> stored(
+      backing_->begin() + static_cast<std::ptrdiff_t>(e.offset),
+      backing_->begin() + static_cast<std::ptrdiff_t>(e.offset + e.size));
 
   // Script records with flag 1 store an LZ stream without a size prefix. The
   // index's final word gives its decoded length (start.obj: 2728 -> 6184).
