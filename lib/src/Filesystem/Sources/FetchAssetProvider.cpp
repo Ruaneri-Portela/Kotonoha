@@ -265,7 +265,7 @@ void FetchAssetProvider::prefetchRange(std::string_view id,
                                        std::uint64_t offset,
                                        std::uint64_t length) {
   const auto entry = slot(id);
-  if (!length || length > (4u << 20) ||
+  if (!length || length > (1u << 20) ||
       offset > static_cast<std::uint64_t>(entry->info.size) ||
       length > static_cast<std::uint64_t>(entry->info.size) - offset)
     throw FilesystemError(ErrorCode::InvalidPath,
@@ -395,7 +395,7 @@ FetchAssetProvider::open(std::string_view id) const {
           if (!cachedAt() && !data->failed) {
             const auto available = static_cast<std::uint64_t>(data->info.size) - cursor;
             owner->prefetchRange(key, cursor,
-                                  std::min<std::uint64_t>(available, 4u << 20));
+                                  std::min<std::uint64_t>(available, 1u << 20));
 #ifdef __EMSCRIPTEN__
             const double deadline = emscripten_get_now() + 31000;
             while (!data->failed && !cachedAt() &&
