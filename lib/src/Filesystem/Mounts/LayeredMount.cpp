@@ -58,6 +58,26 @@ LayeredMount::visible(const std::string &path, bool overlayOnly) const {
   return nullptr;
 }
 
+bool LayeredMount::isKnownRegularFile(std::string_view path) const {
+  const auto key = normalizePath(path, true);
+  for (std::size_t i = 0; i < layers_.size(); ++i) {
+    const auto &mount = layers_[i].mount;
+    if (blocked(i, key)) continue;
+    if (mount->isKnownRegularFile(key)) return true;
+    if (mount->isKnownDirectory(key)) return false;
+  }
+  return false;
+}
+bool LayeredMount::isKnownDirectory(std::string_view path) const {
+  const auto key = normalizePath(path, true);
+  for (std::size_t i = 0; i < layers_.size(); ++i) {
+    const auto &mount = layers_[i].mount;
+    if (blocked(i, key)) continue;
+    if (mount->isKnownRegularFile(key)) return false;
+    if (mount->isKnownDirectory(key)) return true;
+  }
+  return false;
+}
 bool LayeredMount::exists(std::string_view path) const {
   return visible(normalizePath(path, true), false) != nullptr;
 }
