@@ -88,6 +88,7 @@ public:
 
   // Neither of these metadata queries starts a request or suspends Asyncify.
   bool isKnownRegularFile(std::string_view path) const override;
+  bool isKnownDirectory(std::string_view path) const override;
   bool hasIndexedDirectory(std::string_view path) const;
   bool exists(std::string_view path) const override;
   FileInfo stat(std::string_view path) const override;
