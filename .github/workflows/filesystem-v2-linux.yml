@@ -19,8 +19,8 @@ jobs:
     timeout-minutes: 180
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: recursive
+      - name: Initialize ImGui only
+        run: git submodule update --init --depth 1 lib/submodules/imgui
       - name: Install build prerequisites
         run: |
           sudo apt-get update
