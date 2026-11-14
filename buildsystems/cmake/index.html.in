@@ -23,6 +23,31 @@
             width: 100%;
             height: 100%;
             object-fit: contain;
+            touch-action: none;
+        }
+
+        #browser-folder-tools {
+            position: fixed;
+            top: max(8px, env(safe-area-inset-top));
+            right: max(8px, env(safe-area-inset-right));
+            z-index: 30;
+            font: 13px system-ui, sans-serif;
+        }
+        #browser-folder-tools button {
+            color: #fff;
+            background: #242424;
+            border: 1px solid #777;
+            border-radius: 6px;
+            padding: 9px 12px;
+            cursor: pointer;
+        }
+        #browser-folder-tools button:disabled { opacity: 0.6; }
+        #browser-folder-status {
+            color: #fff;
+            max-width: min(360px, 80vw);
+            margin-top: 5px;
+            text-align: right;
+            text-shadow: 0 1px 3px #000;
         }
 
         #loading-overlay {
@@ -124,6 +149,11 @@
         <input id="local-assets-folder" type="file" webkitdirectory multiple hidden>
     </div>
 
+    <div id="browser-folder-tools">
+        <button id="add-browser-folder" type="button" title="Montar uma pasta local no filesystem">+ Adicionar pasta</button>
+        <input id="add-browser-folder-input" type="file" webkitdirectory multiple hidden>
+        <div id="browser-folder-status" role="status" aria-live="polite"></div>
+    </div>
     <canvas id="canvas" oncontextmenu="event.preventDefault()"></canvas>
     <video id="kotonoha-video-player" playsinline preload="auto"></video>
 
@@ -905,6 +935,99 @@
         };
     </script>
 
+    <script>
+        // Optional local overlays use the same Emscripten VFS as the engine.
+        // The folder's selected name is only a default: the user may choose
+        // game-assets, forced_subtitles, ovrlay, or another safe top-level name.
+        (function() {
+            const button = document.getElementById("add-browser-folder");
+            const input = document.getElementById("add-browser-folder-input");
+            const status = document.getElementById("browser-folder-status");
+            const roots = new Set();
+            const validComponent = name => typeof name === "string" &&
+                /^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$/.test(name) &&
+                name !== "." && name !== ".." && name !== "save";
+            const validPath = path => path.length > 0 &&
+                path.split("/").every(validComponent);
+
+            window.KotonohaMountBrowserFolder = async function(files, name) {
+                const root = String(name || "").trim();
+                if (!validComponent(root))
+                    throw new Error("Nome de pasta inválido (use letras, números, _ ou -)");
+                if (!Module || !Module.FS_createPath || !Module.FS_createDataFile)
+                    throw new Error("Filesystem WASM ainda não está disponível");
+                const selected = Array.from(files || []);
+                if (!selected.length) throw new Error("Pasta vazia");
+                const records = selected.map(file => {
+                    const source = file.webkitRelativePath || file.name;
+                    const parts = source.split("/");
+                    // webkitdirectory includes the selected folder as first segment.
+                    const relative = parts.length > 1 ? parts.slice(1).join("/") : parts[0];
+                    if (!validPath(relative))
+                        throw new Error("Caminho inseguro: " + source);
+                    return {file, relative, key: relative.toLowerCase()};
+                });
+                const unique = new Set();
+                for (const record of records) {
+                    if (unique.has(record.key))
+                        throw new Error("Arquivo duplicado: " + record.relative);
+                    unique.add(record.key);
+                }
+                if (roots.has(root))
+                    throw new Error("Pasta já montada: " + root);
+                // Do not overwrite an existing root, including engine-managed /save.
+                if (Module.FS && Module.FS.analyzePath("/" + root).exists &&
+                    root !== "game-assets")
+                    throw new Error("O diretório /" + root + " já existe");
+                Module.FS_createPath("/", root, true, true);
+                let imported = 0;
+                for (const {file, relative} of records) {
+                    const slash = relative.lastIndexOf("/");
+                    const directory = slash < 0 ? "" : relative.slice(0, slash);
+                    const filename = slash < 0 ? relative : relative.slice(slash + 1);
+                    if (directory)
+                        Module.FS_createPath("/" + root, directory, true, true);
+                    const target = "/" + root + "/" + relative;
+                    if (Module.FS && Module.FS.analyzePath(target).exists)
+                        throw new Error("Arquivo já existe: " + target);
+                    Module.FS_createDataFile("/" + root +
+                        (directory ? "/" + directory : ""),
+                        filename, new Uint8Array(await file.arrayBuffer()),
+                        true, true, true);
+                    if (root === "game-assets") {
+                        kotonohaLocalAssets.set(relative, file);
+                    }
+                    imported++;
+                    status.textContent = "Montando /" + root + ": " +
+                        imported + "/" + records.length;
+                }
+                roots.add(root);
+                return imported;
+            };
+
+            button.addEventListener("click", function() { input.click(); });
+            input.addEventListener("change", async function() {
+                if (!input.files.length) return;
+                const suggested = input.files[0].webkitRelativePath.split("/")[0] ||
+                    "game-assets";
+                const chosen = window.prompt(
+                    "Nome da pasta virtual (ex.: game-assets, forced_subtitles, ovrlay):",
+                    suggested);
+                if (chosen === null) { input.value = ""; return; }
+                button.disabled = true;
+                try {
+                    const count = await window.KotonohaMountBrowserFolder(input.files, chosen);
+                    status.textContent = count + " arquivo(s) montado(s) em /" + chosen;
+                } catch (error) {
+                    console.error("[Kotonoha] Importação da pasta:", error);
+                    status.textContent = String(error.message || error);
+                } finally {
+                    button.disabled = false;
+                    input.value = "";
+                }
+            });
+        })();
+    </script>
     <script src="@TARGET_NAME@.js"></script>
 </body>
 </html>
