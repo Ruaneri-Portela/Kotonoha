@@ -1,9 +1,6 @@
 name: Windows x64 vcpkg artifacts
 
 on:
-  push:
-    branches: [main, dev]
-  pull_request:
   workflow_dispatch:
 
 permissions:
