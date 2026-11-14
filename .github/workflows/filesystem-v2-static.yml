@@ -14,6 +14,7 @@ on:
       - "tools/check_web_shell.js"
       - "tools/check_wasm_asyncify.py"
       - "tools/web_selftest.js"
+      - "tools/web_toolbar_layout.js"
       - "tools/serve_web.py"
       - "tools/test_serve_web.py"
       - "tools/web_example_smoke.js"
@@ -49,6 +50,7 @@ jobs:
         run: |
           node tools/check_web_shell.js
           node --check tools/web_selftest.js
+          node --check tools/web_toolbar_layout.js
           node --check tools/web_example_smoke.js
       - name: Check CMake/Xcode metadata
         run: python3 tools/ValidateBuildMetadata.py
