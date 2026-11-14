@@ -151,7 +151,8 @@ void PmailRuntime::startMovie() {
   std::string moviePath;
   for (const char *prefix : {"data/movie/", "movie/"}) {
     for (const char *name : {"PM01L_I5", "PM01S_I5", "PM01S_I3"}) {
-      for (const char *extension : {".webm", ".mp4", ".avi"}) {
+      for (const char *extension :
+           {".avi.webm", ".webm", ".mp4", ".avi"}) {
         const std::string candidate = std::string(prefix) + name + extension;
         if (vfs->exists(candidate)) {
           moviePath = candidate;
