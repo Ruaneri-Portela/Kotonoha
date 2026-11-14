@@ -36,14 +36,16 @@
             user-select: none;
         }
 
+        /* The folder button is pre-game only: no popover/top layer needed.
+           Safari's popover default inset/margins used to center this element.
+           A normal fixed element anchors consistently in WebKit and Blink. */
         #browser-folder-tools {
             position: fixed;
-            top: max(8px, env(safe-area-inset-top));
-            right: max(8px, env(safe-area-inset-right));
-            z-index: 2147483647;
-            inset: auto;
-            left: auto;
+            top: max(8px, env(safe-area-inset-top, 0px));
+            right: max(8px, env(safe-area-inset-right, 0px));
             bottom: auto;
+            left: auto;
+            z-index: 30; /* Above loading overlay, below browser dialogs. */
             margin: 0;
             padding: 0;
             border: 0;
@@ -51,10 +53,7 @@
             overflow: visible;
             font: 13px system-ui, sans-serif;
         }
-        /* Toolbar is exclusively a pre-game configuration control. */
         #browser-folder-tools[hidden] { display: none !important; }
-        #browser-folder-tools:not([hidden]):not(:popover-open) { display: block; }
-        #browser-folder-tools:not([hidden]):popover-open { display: block; }
         #browser-folder-tools button {
             color: #fff;
             background: #242424;
@@ -179,7 +178,7 @@
         <input id="local-assets-folder" type="file" webkitdirectory multiple hidden>
     </div>
 
-    <div id="browser-folder-tools" popover="manual" aria-label="Pastas do jogo">
+    <div id="browser-folder-tools" aria-label="Pastas do jogo">
         <button id="add-browser-folder" type="button" title="Montar uma pasta local no filesystem">+ Adicionar pasta</button>
         <input id="add-browser-folder-input" type="file" webkitdirectory multiple hidden>
         <div id="browser-folder-status" role="status" aria-live="polite"></div>
@@ -934,28 +933,13 @@
             const status = document.getElementById("browser-folder-status");
             const roots = new Set();
             const toolbar = button.parentElement;
-            // Expose the button only before a source is selected. Once
-            // gameplay starts the toolbar cannot return even in fullscreen.
+            // Once the game starts the toolbar stays hidden; there is no
+            // browser popover to center it or re-open it during fullscreen.
             window.KotonohaCloseStartupFolderTools = function() {
                 toolbar.hidden = true;
                 button.disabled = true;
                 input.disabled = true;
-                if (typeof toolbar.hidePopover === "function") {
-                    try {
-                        if (toolbar.matches(":popover-open"))
-                            toolbar.hidePopover();
-                    } catch (error) {
-                        console.warn("[Kotonoha] Closing folder selector:", error);
-                    }
-                }
             };
-            if (!window.KotonohaRuntimeStarted &&
-                typeof toolbar.showPopover === "function") {
-                try { toolbar.showPopover(); }
-                catch (error) {
-                    console.warn("[Kotonoha] Opening folder selector:", error);
-                }
-            }
             let nextImportId = 0;
             const validComponent = name => typeof name === "string" &&
                 /^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$/.test(name) &&
