@@ -194,10 +194,6 @@ set(KOTONOHA_LIB_TYPE SHARED)
 if(EMSCRIPTEN AND NOT KOTONOHA_WASM_DYNAMIC_LIBS)
     set(KOTONOHA_LIB_TYPE STATIC)
 endif()
-if(KOTONOHA_WASM_DYNAMIC_LIBS AND NOT KOTONOHA_IMGUI_FROM_VCPKG)
-    message(FATAL_ERROR "Dynamic WASM requires ImGui from vcpkg")
-endif()
-
 option(KOTONOHA_IMGUI_FROM_VCPKG
         "Import ImGui with SDL3/SDL3 Renderer backends from vcpkg" OFF)
 
@@ -212,25 +208,10 @@ if(KOTONOHA_IMGUI_FROM_VCPKG)
     endif()
     # Keep the project's existing 'imgui' link name without rebuilding any
     # of the ImGui sources or SDL renderer backends.
+    # vcpkg packages remain static. They are linked into the engine's
+    # first-party SIDE_MODULE; no shared ImGui module is generated.
     add_library(imgui INTERFACE)
-    if(KOTONOHA_WASM_DYNAMIC_LIBS)
-        # Import the full vcpkg ImGui archive, including SDL3 backends,
-        # into a distinct PIC WASM side module.
-        add_library(KotonohaImGuiWasm SHARED
-            "${CMAKE_CURRENT_SOURCE_DIR}/../buildsystems/cmake/WasmSideModule.cpp")
-        target_link_libraries(KotonohaImGuiWasm PRIVATE
-            "$<LINK_LIBRARY:WHOLE_ARCHIVE,imgui::imgui>")
-        target_link_options(KotonohaImGuiWasm PRIVATE
-            "SHELL:-sSIDE_MODULE=1" "SHELL:-sASYNCIFY=1" "-fexceptions")
-        set_target_properties(KotonohaImGuiWasm PROPERTIES
-            POSITION_INDEPENDENT_CODE ON PREFIX "lib"
-            OUTPUT_NAME "kotonoha_imgui" SUFFIX ".wasm")
-        target_include_directories(imgui INTERFACE
-            "$<TARGET_PROPERTY:imgui::imgui,INTERFACE_INCLUDE_DIRECTORIES>")
-        target_link_libraries(imgui INTERFACE KotonohaImGuiWasm)
-    else()
-        target_link_libraries(imgui INTERFACE imgui::imgui)
-    endif()
+    target_link_libraries(imgui INTERFACE imgui::imgui)
 else()
     add_library(imgui ${KOTONOHA_LIB_TYPE}
             submodules/imgui/imgui.cpp
