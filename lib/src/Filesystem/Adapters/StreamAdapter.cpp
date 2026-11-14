@@ -1,5 +1,9 @@
 #include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <Kotonoha/Filesystem/Sources/SDLFileSource.hpp>
+#ifdef __EMSCRIPTEN__
+#include <Kotonoha/Filesystem/Filesystem.hpp>
+#include <Kotonoha/Filesystem/RemoteAssets.hpp>
+#endif
 
 #include <SDL3/SDL.h>
 
@@ -85,7 +89,17 @@ void InputFile::open(const std::filesystem::path &path,
     return;
   }
   try {
-    auto file = std::make_unique<SDLFileSource>(path);
+    std::unique_ptr<FileHandle> file;
+#ifdef __EMSCRIPTEN__
+    const auto name = path.generic_string();
+    if (name.rfind("/game-assets/", 0) == 0 ||
+        name.rfind("game-assets/", 0) == 0) {
+      const auto offset = name.front() == '/' ? 13u : 12u;
+      auto vfs = mountGameAssets("/game-assets");
+      file = vfs->open(name.substr(offset));
+    } else
+#endif
+    file = std::make_unique<SDLFileSource>(path);
     if (mode & std::ios::ate)
       if (file->seek(0, SeekOrigin::End) < 0) {
         setstate(std::ios::failbit);
