@@ -45,7 +45,10 @@ jobs:
         env:
           SDL_VIDEO_DRIVER: dummy
           SDL_AUDIO_DRIVER: dummy
-        run: ctest --test-dir build --output-on-failure -R '^(Kotonoha\.FilesystemV2|LucaSystemFormatTests)
+        run: ctest --test-dir build --output-on-failure -R '^(Kotonoha\.FilesystemV2|LucaSystemFormatTests|KirikiriXp3)
+
+# Native smoke, not Emscripten, Android, macOS or all game runtime tests.
+
 
 # Native smoke, not Emscripten, Android, macOS or all game runtime tests.
 
