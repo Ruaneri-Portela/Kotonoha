@@ -466,6 +466,8 @@ FileSystemAssetProvider::FileSystemAssetProvider(std::filesystem::path value)
                ? value
                : std::filesystem::absolute(gameDataDirectory(value))) {
 #ifdef __EMSCRIPTEN__
+  if (root.empty() && Filesystem::remoteGameAssets())
+    fallback_ = Filesystem::mountGameAssets("/game-assets");
   if (!root.empty() && Filesystem::remoteGameAssets()) {
     for (const auto &part : root) {
       if (part == "game-assets") {
@@ -524,6 +526,19 @@ bool FileSystemAssetProvider::containsAsset(const std::string &id) const {
       throw;
     }
   }
+  if (fallback_) {
+    const auto name = id.compare(0, 12, "game-assets/") == 0
+                          ? id.substr(12) : id;
+    try {
+      if (fallback_->exists(name) &&
+          fallback_->stat(name).type == Filesystem::FileType::Regular)
+        return true;
+    } catch (const Filesystem::FilesystemError &error) {
+      if (error.code() != Filesystem::ErrorCode::InvalidPath &&
+          error.code() != Filesystem::ErrorCode::NotFound)
+        throw;
+    }
+  }
   try {
     std::error_code error;
     return std::filesystem::is_regular_file(resolve(id), error);
@@ -537,6 +552,11 @@ FileSystemAssetProvider::readAsset(const std::string &id) const {
   if (mounted_)
     return Filesystem::readAll(*mounted_->open(id), maximumAssetSize);
   const auto path = resolve(id);
+  if (fallback_ && !std::filesystem::is_regular_file(path)) {
+    const auto name = id.compare(0, 12, "game-assets/") == 0
+                          ? id.substr(12) : id;
+    return Filesystem::readAll(*fallback_->open(name), maximumAssetSize);
+  }
   if (!std::filesystem::is_regular_file(path))
     throw std::runtime_error("Asset not found: " + id);
   return Filesystem::readLocalFile(path, maximumAssetSize);
@@ -581,6 +601,24 @@ FileSystemAssetProvider::listAsset(const std::string &prefix) const {
     for (const auto &base : directories.gameAssets)
       collect(base, "game-assets/");
   }
+  if (fallback_) {
+    std::vector<std::string> dirs{""};
+    while (!dirs.empty()) {
+      auto dir = std::move(dirs.back());
+      dirs.pop_back();
+      for (const auto &entry : fallback_->list(dir)) {
+        if (entry.type == Filesystem::FileType::Directory)
+          dirs.push_back(entry.path);
+        else {
+          const auto id = std::string("game-assets/") + entry.path;
+          if (id.compare(0, prefix.size(), prefix) == 0)
+            result.push_back(id);
+        }
+      }
+    }
+    std::sort(result.begin(), result.end());
+    result.erase(std::unique(result.begin(), result.end()), result.end());
+  }
   return result;
 }
 
@@ -588,13 +626,23 @@ std::string
 FileSystemAssetProvider::localPathAsset(const std::string &id) const {
   // Virtual sources (TAR/ISO/HTTP) never require a physical path.
   if (mounted_) return {};
-  return resolve(id).string();
+  const auto path = resolve(id);
+  if (fallback_ && !std::filesystem::is_regular_file(path))
+    return {};
+  return path.string();
 }
 
 std::unique_ptr<AssetStream>
 FileSystemAssetProvider::openStream(const std::string &id) const {
-  if (!mounted_) return {};
-  return std::make_unique<MountedAssetStream>(mounted_->open(id));
+  if (mounted_)
+    return std::make_unique<MountedAssetStream>(mounted_->open(id));
+  if (fallback_ && !std::filesystem::is_regular_file(resolve(id))) {
+    const auto name = id.compare(0, 12, "game-assets/") == 0
+                          ? id.substr(12) : id;
+    if (fallback_->exists(name))
+      return std::make_unique<MountedAssetStream>(fallback_->open(name));
+  }
+  return {};
 }
 
 IndexedFileSystemAssetProvider::IndexedFileSystemAssetProvider(
