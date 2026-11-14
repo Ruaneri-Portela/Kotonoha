@@ -40,3 +40,4 @@ foreach(game IN LISTS KOTONOHA_GAMES)
 endforeach()
 
 include("${CMAKE_CURRENT_SOURCE_DIR}/buildsystems/cmake/KotonohaReport.cmake")
+include("${CMAKE_CURRENT_SOURCE_DIR}/buildsystems/cmake/KotonohaCPack.cmake")
