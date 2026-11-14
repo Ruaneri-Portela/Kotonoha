@@ -30,8 +30,8 @@ PmailGame::PmailGame(std::vector<uint8_t> scriptPack, std::string packPath)
   std::lock_guard lock(mutex_);
   if (!packPath_.empty()) {
     packReader_ = std::make_unique<PmailPack>();
-    if (!packReader_->open(packPath_)) {
-      std::cerr << "[PmailPort] PmailPack open failed, falling back to scan: "
+    if (!packReader_->openBytes(pack_, packPath_)) {
+      std::cerr << "[PmailPort] PmailPack index unavailable, falling back to scan: "
                 << packPath_ << std::endl;
       packReader_.reset();
     }
