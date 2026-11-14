@@ -329,6 +329,39 @@ void testManifestFreeMountConfiguration() {
           "Manifest-free fallback unexpectedly probed local file over HTTP");
 }
 
+void testUnifiedAssetSources() {
+  Temp temp;
+  const auto local = temp.root / "game-assets";
+  const auto overlay = temp.root / "forced_subtitles";
+  writeFile(local / "data/pack/script.dat", "local-script");
+  writeFile(local / "data/pack/graphic.dat", "local-graphic");
+  writeFile(overlay / "data/pack/script.dat", "override-script");
+  auto remote = VFS::FetchAssetProvider::fromUrl(
+      "https://example.invalid/game-assets/");
+  // A user-supplied directory must remain readable without dispatching
+  // unknown HEAD probes for "data" or "data/pack".
+  auto combined = VFS::Filesystem::mount(
+      std::make_shared<VFS::FallbackMount>(
+          std::make_shared<VFS::DirectoryMount>(local), remote));
+  require(readText(combined->open("DATA/PACK/SCRIPT.DAT")) == "local-script" &&
+              remote->totalRequests() == 0,
+          "Local source unexpectedly required Fetch");
+  combined->addOverlay(overlay.string(), 10);
+  require(readText(combined->open("data/pack/script.dat")) == "override-script" &&
+              readText(combined->open("data/pack/graphic.dat")) == "local-graphic" &&
+              remote->totalRequests() == 0,
+          "Layered local overlay triggered HTTP or shadowed wrong resource");
+  require(combined->stat("data/pack").type == VFS::FileType::Directory,
+          "Local VFS directory was not retained");
+  // Explicit HTTP remains a supported source on WASM. Native builds must
+  // reject it rather than pretending that an HTTP URL is a local path.
+#ifndef __EMSCRIPTEN__
+  expectCode(VFS::ErrorCode::UnsupportedMount, [&] {
+    VFS::Filesystem::mount("https://example.invalid/game-assets/");
+  });
+#endif
+}
+
 void testSDLAdapters() {
   Temp tmp;
   auto path = tmp.root / "adapter.bin";
@@ -437,6 +470,7 @@ int main() {
     testTAR();
     testRemoteManifest();
     testManifestFreeMountConfiguration();
+    testUnifiedAssetSources();
     testLocalHttpFallback();
     testSDLAdapters();
     testDirectorySafety();
