@@ -74,29 +74,41 @@ struct MediaPlayer::State {
   Uint64 textureSerial = 0;
 #ifdef __EMSCRIPTEN__
   bool webVideo = false;
+  bool webAudioOnly = false;
   bool webVideoStarted = false;
   bool webVideoUrlMode = false;
   bool webVideoBlobMode = false;
   bool webVideoReady = false;
   bool webVideoFailed = false;
-  bool webVideoFailureReported = false;
   int webVideoSession = 0;
   std::uint64_t webVideoSize = 0;
   std::uint64_t webVideoFed = 0;
   std::string webVideoId, webVideoMime, webVideoUrl;
+  std::string webFallbackPath, webFallbackId;
   std::unique_ptr<std::ifstream> webVideoFile;
 
-  static std::string mimeForVideoPath(const std::string &path) {
+  static std::string mimeForMediaPath(const std::string &path,
+                                      bool audioOnly) {
     std::string ext = std::filesystem::path(path).extension().string();
     std::transform(ext.begin(), ext.end(), ext.begin(), [](unsigned char c) {
       return static_cast<char>(std::tolower(c));
     });
     if (ext == ".mp4" || ext == ".m4v")
-      return "video/mp4";
+      return audioOnly ? "audio/mp4" : "video/mp4";
     if (ext == ".webm")
-      return "video/webm";
-    if (ext == ".ogv" || ext == ".ogg")
+      return audioOnly ? "audio/webm" : "video/webm";
+    if (ext == ".ogv")
       return "video/ogg";
+    if (ext == ".ogg" || ext == ".oga" || ext == ".opus")
+      return "audio/ogg";
+    if (ext == ".mp3")
+      return "audio/mpeg";
+    if (ext == ".wav")
+      return "audio/wav";
+    if (ext == ".m4a" || ext == ".aac")
+      return "audio/mp4";
+    if (ext == ".flac")
+      return "audio/flac";
     if (ext == ".mov")
       return "video/quicktime";
     if (ext == ".mpg" || ext == ".mpeg")
@@ -106,12 +118,12 @@ struct MediaPlayer::State {
     return {};
   }
 
-  static bool canPlayWebVideo(const std::string &mime) {
+  static bool canPlayWebMedia(const std::string &mime) {
     return !mime.empty() &&
            EM_ASM_INT(
                {
-                 return typeof KotonohaVideoCanPlay == "function" &&
-                                KotonohaVideoCanPlay(UTF8ToString($0))
+                 return typeof KotonohaMediaCanPlay == "function" &&
+                                KotonohaMediaCanPlay(UTF8ToString($0))
                             ? 1
                             : 0;
                },
@@ -160,14 +172,15 @@ struct MediaPlayer::State {
     return "game-assets/" + encoded;
   }
 
-  bool configureWebVideoUrl(const std::string &path) {
-    const std::string mime = mimeForVideoPath(path);
-    if (!canPlayWebVideo(mime))
+  bool configureWebVideoUrl(const std::string &path, bool audioOnly) {
+    const std::string mime = mimeForMediaPath(path, audioOnly);
+    if (!canPlayWebMedia(mime))
       return false;
     const std::string url = webUrlForPath(path);
     if (url.empty())
       return false;
     webVideo = true;
+    webAudioOnly = mime.compare(0, 6, "audio/") == 0;
     webVideoUrlMode = true;
     webVideoId = path;
     webVideoMime = mime;
@@ -178,12 +191,19 @@ struct MediaPlayer::State {
 
   // Archive-backed videos use a chunked AssetProvider read and a Blob URL.
   // The browser cannot play until the entire Blob has been assembled.
-  bool configureWebVideo(const AssetProvider &assets, const std::string &id) {
+  bool configureWebVideo(const AssetProvider &assets, const std::string &id,
+                         bool audioOnly) {
+    // A browser-compatible sidecar can replace a legacy cutscene without
+    // changing the game's asset IDs or its native playback path.
+    const std::string sidecar = id + ".webm";
+    if (!audioOnly && !canPlayWebMedia(mimeForMediaPath(id, false)) &&
+        canPlayWebMedia("video/webm") && assets.contains(sidecar))
+      return configureWebVideo(assets, sidecar, false);
     const std::string local = assets.localPath(id);
-    if (!local.empty() && configureWebVideoUrl(local))
+    if (!local.empty() && configureWebVideoUrl(local, audioOnly))
       return true;
-    const std::string mime = mimeForVideoPath(id);
-    if (!canPlayWebVideo(mime))
+    const std::string mime = mimeForMediaPath(id, audioOnly);
+    if (!canPlayWebMedia(mime))
       return false;
     auto source = assets.openStream(id);
     std::uint64_t size = source ? source->size() : 0;
@@ -208,22 +228,27 @@ struct MediaPlayer::State {
       if (safe) {
         const auto candidate = std::filesystem::path("/game-assets") / relative;
         if (std::filesystem::is_regular_file(candidate))
-          return configureWebVideoUrl(candidate.generic_string());
+          return configureWebVideoUrl(candidate.generic_string(), audioOnly);
       }
       return false;
     }
     webVideo = true;
+    webAudioOnly = mime.compare(0, 6, "audio/") == 0;
     webVideoId = id;
     webVideoMime = mime;
     webVideoSize = size;
     return true;
   }
 
-  bool configureWebVideo(const std::string &path) {
-    if (configureWebVideoUrl(path))
+  bool configureWebVideo(const std::string &path, bool audioOnly) {
+    if (!audioOnly && !canPlayWebMedia(mimeForMediaPath(path, false)) &&
+        canPlayWebMedia("video/webm") &&
+        std::filesystem::is_regular_file(path + ".webm"))
+      return configureWebVideo(path + ".webm", false);
+    if (configureWebVideoUrl(path, audioOnly))
       return true;
-    const std::string mime = mimeForVideoPath(path);
-    if (!canPlayWebVideo(mime))
+    const std::string mime = mimeForMediaPath(path, audioOnly);
+    if (!canPlayWebMedia(mime))
       return false;
     auto file = std::make_unique<std::ifstream>(path, std::ios::binary);
     if (!*file)
@@ -234,6 +259,7 @@ struct MediaPlayer::State {
       return false;
     file->seekg(0, std::ios::beg);
     webVideo = true;
+    webAudioOnly = mime.compare(0, 6, "audio/") == 0;
     webVideoId = path;
     webVideoMime = mime;
     webVideoSize = static_cast<std::uint64_t>(end);
@@ -250,31 +276,32 @@ struct MediaPlayer::State {
         webVideoUrlMode
             ? EM_ASM_INT(
                   {
-                    return typeof KotonohaPlayVideo == "function"
-                               ? KotonohaPlayVideo(UTF8ToString($0), 0)
+                    return typeof KotonohaMediaBeginUrl == "function"
+                               ? KotonohaMediaBeginUrl(UTF8ToString($0), $1)
                                : 0;
                   },
-                  webVideoUrl.c_str())
+                  webVideoUrl.c_str(), webAudioOnly ? 1 : 0)
             : webVideoBlobMode
                 ? EM_ASM_INT(
                       {
-                        return typeof KotonohaVideoBeginBlob == "function"
-                                   ? KotonohaVideoBeginBlob(HEAPU8.subarray($0, $0 + $1),
-                                                            UTF8ToString($2))
+                        return typeof KotonohaMediaBeginBlob == "function"
+                                   ? KotonohaMediaBeginBlob(HEAPU8.subarray($0, $0 + $1),
+                                                            UTF8ToString($2), $3)
                                    : 0;
                       },
                       bytes.data(), static_cast<int>(bytes.size()),
-                      webVideoMime.c_str())
+                      webVideoMime.c_str(), webAudioOnly ? 1 : 0)
                 : EM_ASM_INT(
                       {
-                        return typeof KotonohaVideoBegin == "function"
-                                   ? KotonohaVideoBegin(UTF8ToString($0),
-                                                        UTF8ToString($1), $2)
+                        return typeof KotonohaMediaBegin == "function"
+                                   ? KotonohaMediaBegin(UTF8ToString($0),
+                                                        UTF8ToString($1), $2, $3)
                                    : 0;
                       },
                       webVideoId.c_str(), webVideoMime.c_str(),
                       static_cast<int>(
-                          std::min<std::uint64_t>(webVideoSize, INT_MAX)));
+                          std::min<std::uint64_t>(webVideoSize, INT_MAX)),
+                      webAudioOnly ? 1 : 0);
     if (session <= 0) {
       webVideoFailed = true;
       return false;
@@ -308,8 +335,8 @@ struct MediaPlayer::State {
       return;
     if (webVideoBlobMode) {
       if (EM_ASM_INT({
-            return typeof KotonohaVideoHasFrame == "function" &&
-                   KotonohaVideoHasFrame($0) ? 1 : 0;
+            return typeof KotonohaMediaReady == "function" &&
+                   KotonohaMediaReady($0) ? 1 : 0;
           }, webVideoSession)) {
         webVideoReady = true;
       }
@@ -331,8 +358,8 @@ struct MediaPlayer::State {
       const bool accepted =
           EM_ASM_INT(
               {
-                return typeof KotonohaVideoAppend == "function" &&
-                               KotonohaVideoAppend($0,
+                return typeof KotonohaMediaAppend == "function" &&
+                               KotonohaMediaAppend($0,
                                                    HEAPU8.subarray($1, $1 + $2))
                            ? 1
                            : 0;
@@ -349,8 +376,8 @@ struct MediaPlayer::State {
       const bool finished =
           EM_ASM_INT(
               {
-                return typeof KotonohaVideoFinish == "function" &&
-                               KotonohaVideoFinish($0)
+                return typeof KotonohaMediaFinish == "function" &&
+                               KotonohaMediaFinish($0)
                            ? 1
                            : 0;
               },
@@ -361,8 +388,6 @@ struct MediaPlayer::State {
       }
       webVideoReady = true;
       webVideoFile.reset();
-      assetStream.reset();
-      bytes.clear();
     }
   }
 
@@ -370,9 +395,9 @@ struct MediaPlayer::State {
     return webVideoFailed ||
            (webVideoStarted && EM_ASM_INT(
                                    {
-                                     return typeof KotonohaVideoFailed ==
+                                     return typeof KotonohaMediaFailed ==
                                                         "function" &&
-                                                    KotonohaVideoFailed($0)
+                                                    KotonohaMediaFailed($0)
                                                 ? 1
                                                 : 0;
                                    },
@@ -384,8 +409,8 @@ struct MediaPlayer::State {
       return;
     EM_ASM(
         {
-          if (typeof KotonohaVideoStop == "function")
-            KotonohaVideoStop($0);
+          if (typeof KotonohaMediaStop == "function")
+            KotonohaMediaStop($0);
         },
         webVideoSession);
     webVideoStarted = false;
@@ -848,7 +873,8 @@ void MediaPlayer::open(const std::string &path, bool audioOnly,
   if (effectivePath.find("/") != 0 && effectivePath.find("game-assets/") != 0) {
     effectivePath = "/game-assets/" + effectivePath;
   }
-  if (!audioOnly && next->configureWebVideo(effectivePath)) {
+  if (next->configureWebVideo(effectivePath, audioOnly)) {
+    next->webFallbackPath = effectivePath;
     start(std::move(next), {}, audioOnly, false);
     return;
   }
@@ -864,7 +890,9 @@ void MediaPlayer::open(const AssetProvider &assets, const std::string &id,
   next->channel = mixer.channel(
       channelName.empty() ? (audioOnly ? "audio" : "video") : channelName);
 #ifdef __EMSCRIPTEN__
-  if (!audioOnly && next->configureWebVideo(assets, id)) {
+  if (next->configureWebVideo(assets, id, audioOnly)) {
+    next->webFallbackPath = assets.localPath(id);
+    next->webFallbackId = id;
     start(std::move(next), {}, audioOnly, false);
     return;
   }
@@ -887,7 +915,9 @@ void MediaPlayer::prepare(const AssetProvider &assets, const std::string &id,
   next->channel = mixer.channel(
       channelName.empty() ? (audioOnly ? "audio" : "video") : channelName);
 #ifdef __EMSCRIPTEN__
-  if (!audioOnly && next->configureWebVideo(assets, id)) {
+  if (next->configureWebVideo(assets, id, audioOnly)) {
+    next->webFallbackPath = assets.localPath(id);
+    next->webFallbackId = id;
     start(std::move(next), {}, audioOnly, true);
     return;
   }
@@ -950,8 +980,11 @@ MediaPlayer::prepareInput(const AssetProvider &assets, const std::string &id,
   auto next = std::make_unique<State>();
   next->cancelled = std::move(cancelled);
 #ifdef __EMSCRIPTEN__
-  if (!audioOnly && next->configureWebVideo(assets, id))
+  if (next->configureWebVideo(assets, id, audioOnly)) {
+    next->webFallbackPath = assets.localPath(id);
+    next->webFallbackId = id;
     return std::unique_ptr<PreparedInput>(new PreparedInput(std::move(next)));
+  }
 #endif
   const std::string path = assets.localPath(id);
   if (!path.empty() && std::filesystem::is_regular_file(path)) {
@@ -976,23 +1009,23 @@ void MediaPlayer::adoptPreparedInput(std::unique_ptr<PreparedInput> input,
   next->cancelled = std::make_shared<std::atomic_bool>(false);
   bool isVideo = next->video != nullptr;
 #ifdef __EMSCRIPTEN__
-  isVideo = isVideo || next->webVideo;
+  isVideo = isVideo || (next->webVideo && !next->webAudioOnly);
 #endif
   next->channel = mixer.channel(
       channelName.empty() ? (isVideo ? "video" : "audio") : channelName);
 #ifdef __EMSCRIPTEN__
   if (next->webVideo) {
     if (!next->beginWebVideo())
-      throw std::runtime_error("Cannot initialize HTML5 video playback");
+      next->webVideoFailed = true;
 
     // Configure the newly created browser session before exposing it as active.
     // A prepared input must remain paused until setPaused(false) is called.
     EM_ASM(
         {
-          if (typeof KotonohaVideoSetRate == "function")
-            KotonohaVideoSetRate($0, $1);
-          if (typeof KotonohaVideoSetPaused == "function")
-            KotonohaVideoSetPaused($0, 1);
+          if (typeof KotonohaMediaSetRate == "function")
+            KotonohaMediaSetRate($0, $1);
+          if (typeof KotonohaMediaSetPaused == "function")
+            KotonohaMediaSetPaused($0, 1);
         },
         next->webVideoSession, playbackRate_);
 
@@ -1018,10 +1051,12 @@ void MediaPlayer::adoptPreparedInput(std::unique_ptr<PreparedInput> input,
     next->channel->attach(next->stream.get());
     next->decodeRate = playbackRate_;
     next->targetBuffer = bufferSeconds_ > 0.0 ? bufferSeconds_ : 0.5;
+#ifndef __EMSCRIPTEN__
     next->startDecoder();
     if (!SDL_SetAudioStreamGetCallback(next->stream.get(), State::feed,
                                        next.get()))
       throw std::runtime_error(SDL_GetError());
+#endif
   }
   soundtrack.reset();
   state = std::move(next);
@@ -1076,7 +1111,7 @@ double MediaPlayer::elapsed() const {
   if (state->webVideo && state->webVideoStarted) {
     const double time = EM_ASM_DOUBLE(
         {
-          const callback = globalThis["KotonohaVideoTime"];
+          const callback = globalThis["KotonohaMediaTime"];
 
           if (typeof callback != "function")
             return -1.0;
@@ -1119,7 +1154,10 @@ std::shared_ptr<AudioChannel> MediaPlayer::getChannel() const {
 float MediaPlayer::audioGain() const {
 #ifdef __EMSCRIPTEN__
   if (state && state->webVideo)
-    return 1.0f; // HTML5 audio bypasses SDL mixer.
+    return mixer.isMasterMuted() || state->channel->isMuted()
+               ? 0.0f
+               : mixer.getMasterVolume() * state->channel->getUserVolume() *
+                     state->channel->getVolume();
 #endif
   if (!state || !state->stream)
     throw std::logic_error("Media has no audio stream");
@@ -1144,8 +1182,8 @@ void MediaPlayer::setPaused(bool paused) {
   if (state && state->webVideo && state->webVideoStarted)
     EM_ASM(
         {
-          if (typeof KotonohaVideoSetPaused == "function")
-            KotonohaVideoSetPaused($0, $1);
+          if (typeof KotonohaMediaSetPaused == "function")
+            KotonohaMediaSetPaused($0, $1);
         },
         state->webVideoSession, paused ? 1 : 0);
 #endif
@@ -1186,8 +1224,8 @@ void MediaPlayer::setPlaybackRate(double rate) {
     if (state->webVideo && state->webVideoStarted)
       EM_ASM(
           {
-            if (typeof KotonohaVideoSetRate == "function")
-              KotonohaVideoSetRate($0, $1);
+            if (typeof KotonohaMediaSetRate == "function")
+              KotonohaMediaSetRate($0, $1);
           },
           state->webVideoSession, rate);
 #endif
@@ -1232,18 +1270,82 @@ void MediaPlayer::update(RendererRef renderer, double position) {
 #ifdef __EMSCRIPTEN__
   if (s.webVideo) {
     s.serviceWebVideo();
-    if (!s.webVideoFailureReported && s.webVideoError()) {
-      s.webVideoFailureReported = true;
-      throw std::runtime_error("HTML5 video playback failed; check network, "
-                               "codec and autoplay policy");
+    if (s.webVideoError()) {
+      auto next = std::make_unique<State>();
+      const std::string channelName =
+          s.channel ? s.channel->getName() : "video";
+      std::string localPath = s.webFallbackPath;
+      if (localPath.empty() || !std::filesystem::is_regular_file(localPath) ||
+          std::filesystem::file_size(localPath) == 0) {
+        localPath.clear();
+        if (s.assetStream && s.assetStream->seek(0))
+          next->attachAssetStream(std::move(s.assetStream));
+        else if (!s.bytes.empty())
+          next->attachMemory(std::move(s.bytes));
+        else
+          throw std::runtime_error(
+              "HTML5 video failed and local media bytes are unavailable: " +
+              (s.webFallbackId.empty() ? s.webVideoId : s.webFallbackId));
+      }
+      openDecoder(*next, localPath, s.webAudioOnly);
+      const bool wasPaused = pausedAt != 0;
+      adoptPreparedInput(
+          std::unique_ptr<PreparedInput>(new PreparedInput(std::move(next))),
+          channelName);
+      clockOffset = position;
+      if (!wasPaused)
+        setPaused(false);
+      SDL_Log("[Kotonoha] HTML5 video failed; decoding locally with FFmpeg");
+      update(renderer, position);
+      return;
     }
     if (s.webVideoStarted)
       EM_ASM(
           {
-            if (typeof KotonohaVideoSync == "function")
-              KotonohaVideoSync($0, $1);
+            if (typeof KotonohaMediaSetGain == "function")
+              KotonohaMediaSetGain($0, $2);
+            if (typeof KotonohaMediaSync == "function")
+              KotonohaMediaSync($0, $1);
           },
-          s.webVideoSession, position);
+          s.webVideoSession, position, audioGain());
+    if (s.webVideoStarted && !s.webAudioOnly) {
+      const int width = EM_ASM_INT({
+        return typeof KotonohaMediaVideoWidth == "function"
+                   ? KotonohaMediaVideoWidth($0) : 0;
+      }, s.webVideoSession);
+      const int height = EM_ASM_INT({
+        return typeof KotonohaMediaVideoHeight == "function"
+                   ? KotonohaMediaVideoHeight($0) : 0;
+      }, s.webVideoSession);
+      if (width > 0 && height > 0) {
+        if (width > 4096 || height > 4096) {
+          s.webVideoFailed = true;
+          return;
+        }
+        if (!s.texture || s.width != width || s.height != height) {
+          s.texture.reset(SDL_CreateTexture(&renderer, SDL_PIXELFORMAT_RGBA32,
+                                            SDL_TEXTUREACCESS_STREAMING, width,
+                                            height));
+          if (!s.texture)
+            throw std::runtime_error(SDL_GetError());
+          s.width = width;
+          s.height = height;
+          s.aspect = static_cast<double>(width) / height;
+        }
+        std::vector<Uint8> pixels(static_cast<std::size_t>(width) * height * 4);
+        const bool copied = EM_ASM_INT({
+          return typeof KotonohaMediaCopyVideoFrame == "function" &&
+                 KotonohaMediaCopyVideoFrame($0,
+                     HEAPU8.subarray($1, $1 + $2)) ? 1 : 0;
+        }, s.webVideoSession, pixels.data(), static_cast<int>(pixels.size())) != 0;
+        if (copied) {
+          if (!SDL_UpdateTexture(s.texture.get(), nullptr, pixels.data(),
+                                 width * 4))
+            throw std::runtime_error(SDL_GetError());
+          s.textureSerial = ++nextTextureSerial;
+        }
+      }
+    }
     return;
   }
 #endif
@@ -1322,16 +1424,10 @@ bool MediaPlayer::hasVideoFrame() const {
   if (!state)
     return false;
 #ifdef __EMSCRIPTEN__
+  if (state->webVideo && state->webAudioOnly)
+    return false;
   if (state->webVideo)
-    return state->webVideoStarted && state->webVideoReady &&
-           EM_ASM_INT(
-               {
-                 return typeof KotonohaVideoHasFrame == "function" &&
-                                KotonohaVideoHasFrame($0)
-                            ? 1
-                            : 0;
-               },
-               state->webVideoSession) != 0;
+    return state->texture != nullptr;
 #endif
   return state->texture != nullptr;
 }
@@ -1366,14 +1462,14 @@ bool MediaPlayer::finished() const {
 #ifdef __EMSCRIPTEN__
   if (state->webVideo) {
     if (state->webVideoError())
-      return true;
+      return false; // update() still needs to try the local decoder.
     if (!state->webVideoReady)
       return false;
     const bool ended =
         EM_ASM_INT(
             {
-              return typeof KotonohaVideoFinished == "function" &&
-                             KotonohaVideoFinished($0)
+              return typeof KotonohaMediaFinished == "function" &&
+                             KotonohaMediaFinished($0)
                          ? 1
                          : 0;
             },
@@ -1394,8 +1490,8 @@ double MediaPlayer::duration() const {
   if (state && state->webVideo) {
     const double value = EM_ASM_DOUBLE(
         {
-          return typeof KotonohaVideoDuration == "function"
-                     ? KotonohaVideoDuration($0)
+          return typeof KotonohaMediaDuration == "function"
+                     ? KotonohaMediaDuration($0)
                      : -1.0;
         },
         state->webVideoSession);
@@ -1415,11 +1511,6 @@ void MediaPlayer::render(RendererRef renderer, const SDL_FRect &area,
                          Upscaling *upscaler, bool stretch) {
   if (!hasVideoFrame())
     return;
-#ifdef __EMSCRIPTEN__
-  // The browser composites the HTML5 video above the SDL canvas.
-  if (state->webVideo)
-    return;
-#endif
   if (!upscaler)
     upscaler = Upscaling::forRenderer(renderer);
   float w = area.w, h = area.w / static_cast<float>(state->aspect);

@@ -14,8 +14,8 @@
 // The test exercises the real C++ paths, not the JS bridge directly:
 //   - VNSave::write -> IDBFS sync -> page reload -> VNSave::read
 //   - MediaPlayer::open(assets, id) -> provider localPath -> KotonohaPlayVideo
-// The MEMFS video is a zero-byte placeholder (as produced by deferred manifest
-// loading); the actual cutscene bytes come from the HTTP game-assets URL.
+// The first MEMFS video is a zero-byte placeholder to test URL playback;
+// additional tests provide local bytes for the FFmpeg fallback.
 
 const { spawn, spawnSync } = require('node:child_process');
 const fs = require('node:fs');
@@ -42,10 +42,11 @@ function loadChromium() {
 
 const chromium = loadChromium();
 
-const output = path.resolve(process.argv[2] || 'build-web/outputs/RealLive');
+const output = path.resolve(process.argv[2] || 'build-web/outputs/KotonohaWebSelfTest');
 const port = Number(process.argv[3] || process.env.KOTONOHA_WEB_PORT || 8765);
 const baseUrl = `http://127.0.0.1:${port}`;
 const videoPath = path.join(output, 'game-assets', 'selftest.webm');
+const audioPath = path.join(output, 'game-assets', 'selftest.mp3');
 
 function assert(condition, message) {
   if (!condition)
@@ -65,6 +66,46 @@ function ensureVideo() {
     throw new Error('ffmpeg is required to generate ' + videoPath);
 }
 
+function ensureAudio() {
+  const result = spawnSync('ffmpeg', [
+    '-hide_banner', '-loglevel', 'error',
+    '-f', 'lavfi', '-i', 'sine=frequency=440:sample_rate=48000',
+    '-t', '2', '-c:a', 'libmp3lame', '-y', audioPath,
+  ], { stdio: 'inherit' });
+  if (result.error || result.status !== 0)
+    throw new Error('Cannot generate browser audio fixture');
+  fs.copyFileSync(audioPath,
+    path.join(output, 'game-assets', 'selftest2.mp3'));
+  const mp2 = spawnSync('ffmpeg', [
+    '-hide_banner', '-loglevel', 'error',
+    '-f', 'lavfi', '-i', 'sine=frequency=330:sample_rate=48000',
+    '-t', '2', '-c:a', 'mp2', '-f', 'mp2', '-y',
+    path.join(output, 'game-assets', 'selftest.mp2'),
+  ], { stdio: 'inherit' });
+  if (mp2.error || mp2.status !== 0)
+    throw new Error('Cannot generate unsupported browser audio fixture');
+}
+
+function ensureLegacySidecar() {
+  const source = process.env.KOTONOHA_WEB_TEST_MPEG;
+  if (!source) return false;
+  const target = path.join(output, 'game-assets', 'legacy.mpg.webm');
+  const direct = path.join(output, 'game-assets', 'legacy-direct.mpg');
+  const copy = spawnSync('ffmpeg', [
+    '-hide_banner', '-loglevel', 'error', '-i', source, '-t', '2',
+    '-c', 'copy', '-y', direct,
+  ], { stdio: 'inherit' });
+  if (copy.error || copy.status !== 0)
+    throw new Error('Cannot create legacy MPEG fixture');
+  const result = spawnSync('ffmpeg', [
+    '-hide_banner', '-loglevel', 'error', '-i', source, '-t', '2',
+    '-c:v', 'libvpx-vp9', '-b:v', '500k', '-c:a', 'libopus', '-y', target,
+  ], { stdio: 'inherit' });
+  if (result.error || result.status !== 0)
+    throw new Error('Cannot transcode legacy video fixture');
+  return true;
+}
+
 async function waitForServer() {
   for (let i = 0; i < 80; ++i) {
     try {
@@ -81,6 +122,8 @@ async function waitForServer() {
 
 async function main() {
   ensureVideo();
+  ensureAudio();
+  const testLegacySidecar = ensureLegacySidecar();
   const server = spawn('python3', [
     '-m', 'http.server', String(port), '--directory', output,
   ], { stdio: ['ignore', 'ignore', 'pipe'] });
@@ -88,11 +131,11 @@ async function main() {
   server.stderr.on('data', chunk => { serverError += chunk; });
 
   let browser;
+  const logs = [];
   try {
     await waitForServer();
     browser = await chromium.launch({ headless: true });
     const page = await browser.newPage();
-    const logs = [];
     page.on('console', message =>
       logs.push(`${message.type()}: ${message.text()}`));
     page.on('pageerror', error =>
@@ -108,6 +151,43 @@ async function main() {
     };
 
     await page.goto(baseUrl + '/index.html', { waitUntil: 'domcontentloaded' });
+    await page.locator('#select-local-assets').waitFor({ state: 'visible' });
+    await page.locator('#local-assets-folder').setInputFiles(
+      path.join(output, 'game-assets'));
+    await ready();
+    const local = await page.evaluate(async () => {
+      const bytes = Module.FS_readFile('/game-assets/selftest.webm');
+      const opened = Module.ccall('KotonohaWebSelfTestOpenVideo', 'number', [], []);
+      const element = document.getElementById('kotonoha-video-player');
+      let hasFrame = 0;
+      for (let i = 0; i < 50 && !hasFrame; ++i) {
+        hasFrame = Module.ccall('KotonohaWebSelfTestPumpVideo', 'number', [], []) &&
+          Module.ccall('KotonohaWebSelfTestVideoHasFrame', 'number', [], []);
+        if (!hasFrame) await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      const videoSrc = element.src;
+      const audioOpened = Module.ccall('KotonohaWebSelfTestOpenAudioId',
+        'number', ['string'], ['selftest.mp3']);
+      let audioDuration = -1;
+      for (let i = 0; i < 50 && audioDuration < 1.8; ++i) {
+        Module.ccall('KotonohaWebSelfTestPumpVideo', 'number', [], []);
+        audioDuration = Module.ccall('KotonohaWebSelfTestVideoDuration',
+          'number', [], []);
+        if (audioDuration < 1.8)
+          await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      return { bytes: bytes.length, opened, src: videoSrc, hasFrame,
+        audioOpened, audioDuration };
+    });
+    console.log('LOCAL_FOLDER', JSON.stringify(local));
+    assert(local.bytes > 0, 'local folder copied the movie into MEMFS');
+    assert(local.opened === 1 && local.src.startsWith('blob:') &&
+      local.hasFrame === 1, 'local movie decodes from browser File URL');
+    assert(local.audioOpened === 1 && local.audioDuration > 1.8,
+      'local audio decodes from selected folder');
+
+    await page.goto(baseUrl + '/index.html', { waitUntil: 'domcontentloaded' });
+    await page.locator('#use-server-assets').click();
     await ready();
 
     const prepared = await page.evaluate(() => {
@@ -165,6 +245,7 @@ async function main() {
       'VNSave::read returned the written state');
 
     await page.reload({ waitUntil: 'domcontentloaded' });
+    await page.locator('#use-server-assets').click();
     await ready();
 
     const afterReload = await page.evaluate(() => {
@@ -198,6 +279,7 @@ async function main() {
       const call = (name, type) => Module.ccall(name, type, [], []);
       let duration = -1, hasFrame = 0;
       for (let i = 0; i < 100; ++i) {
+        call('KotonohaWebSelfTestPumpVideo', 'number');
         duration = call('KotonohaWebSelfTestVideoDuration', 'number');
         hasFrame = call('KotonohaWebSelfTestVideoHasFrame', 'number');
         if (duration > 0.9 && hasFrame === 1)
@@ -208,6 +290,14 @@ async function main() {
       await new Promise(resolve => setTimeout(resolve, 300));
       const elapsedAfter = call('KotonohaWebSelfTestVideoElapsed', 'number');
       const element = document.getElementById('kotonoha-video-player');
+      const probe = document.createElement('canvas');
+      probe.width = element.videoWidth;
+      probe.height = element.videoHeight;
+      const probeContext = probe.getContext('2d');
+      probeContext.drawImage(element, 0, 0);
+      const sourcePixel = Array.from(probeContext.getImageData(
+        Math.floor(probe.width * 0.2), Math.floor(probe.height * 0.5),
+        1, 1).data);
       return {
         duration,
         hasFrame,
@@ -219,14 +309,17 @@ async function main() {
         muted: element.muted,
         readyState: element.readyState,
         currentSrc: element.currentSrc,
+        rendered: call('KotonohaWebSelfTestRenderVideo', 'number'),
         videoSize: [element.videoWidth, element.videoHeight],
+        sourcePixel,
       };
     });
     console.log('VIDEO', JSON.stringify(video));
     assert(video.duration > 0.9 && video.duration < 1.2,
       'MediaPlayer duration came from HTML5');
     assert(video.hasFrame === 1, 'HTML5 video produced a frame');
-    assert(video.display === 'block', 'HTML5 overlay is visible');
+    assert(video.display === 'none', 'HTML5 decoder stays behind SDL');
+    assert(video.rendered === 1, 'browser frame renders through SDL');
     assert(video.currentSrc.endsWith('/game-assets/selftest.webm'),
       'MediaPlayer passed the game-assets URL to KotonohaPlayVideo');
     assert(video.paused === false, 'HTML5 video is playing');
@@ -234,6 +327,28 @@ async function main() {
       'HTML5 video decoded the 4:3 source');
     assert(video.elapsedAfter >= video.elapsedBefore,
       'MediaPlayer clock follows HTML5 time');
+
+    const screenshot = await page.locator('#canvas').screenshot();
+    const composite = await page.evaluate(async base64 => {
+      const image = new Image();
+      image.src = 'data:image/png;base64,' + base64;
+      await image.decode();
+      const surface = document.createElement('canvas');
+      surface.width = image.width;
+      surface.height = image.height;
+      const context = surface.getContext('2d');
+      context.drawImage(image, 0, 0);
+      const sample = (x, y) => Array.from(context.getImageData(
+        Math.floor(x * image.width), Math.floor(y * image.height), 1, 1).data);
+      return { size: [image.width, image.height], center: sample(0.3125, 0.4167),
+        movie: sample(0.25, 0.4167) };
+    }, screenshot.toString('base64'));
+    console.log('SDL_COMPOSITE', JSON.stringify(composite));
+    assert(composite.center[0] > 200 && composite.center[1] < 60 &&
+      composite.center[2] < 60,
+      'SDL overlay is drawn above the browser-decoded movie');
+    assert(composite.movie[0] + composite.movie[1] + composite.movie[2] > 60,
+      'browser-decoded movie is visible in the SDL canvas');
 
     const closed = await page.evaluate(() => {
       Module.ccall('KotonohaWebSelfTestCloseVideo', null, [], []);
@@ -244,12 +359,212 @@ async function main() {
     assert(closed.display === 'none',
       'closing MediaPlayer stops the HTML5 overlay');
 
+    const fallback = await page.evaluate(async () => {
+      const response = await fetch('game-assets/selftest.webm');
+      const bytes = new Uint8Array(await response.arrayBuffer());
+      try { Module.FS_createPath('/', 'game-assets', true, true); }
+      catch (error) { /* already present */ }
+      Module.FS_createDataFile('/game-assets', 'fallback.webm',
+        bytes, true, true, true);
+      const opened = Module.ccall('KotonohaWebSelfTestOpenVideoId',
+        'number', ['string'], ['fallback.webm']);
+      const originalFailed = window.KotonohaVideoFailed;
+      window.KotonohaVideoFailed = () => true;
+      const pumped = Module.ccall('KotonohaWebSelfTestPumpVideo',
+        'number', [], []);
+      window.KotonohaVideoFailed = originalFailed;
+      const hasFrame = Module.ccall('KotonohaWebSelfTestVideoHasFrame',
+        'number', [], []);
+      const element = document.getElementById('kotonoha-video-player');
+      const hidden = element.style.display === 'none';
+      Module.ccall('KotonohaWebSelfTestCloseVideo', null, [], []);
+      return { opened, pumped, hasFrame, hidden };
+    });
+    console.log('BROWSER_FALLBACK', JSON.stringify(fallback));
+    assert(fallback.opened === 1 && fallback.pumped === 1 &&
+      fallback.hasFrame === 1 && fallback.hidden,
+      'HTML5 failure switches to local FFmpeg decoding');
+
+    const initialFailure = await page.evaluate(() => {
+      const originalPlay = window.KotonohaPlayVideo;
+      window.KotonohaPlayVideo = undefined;
+      const opened = Module.ccall('KotonohaWebSelfTestOpenVideoId',
+        'number', ['string'], ['fallback.webm']);
+      window.KotonohaPlayVideo = originalPlay;
+      const finishedBeforePump = Module.ccall(
+        'KotonohaWebSelfTestVideoFinished', 'number', [], []);
+      const pumped = Module.ccall('KotonohaWebSelfTestPumpVideo',
+        'number', [], []);
+      const hasFrame = Module.ccall('KotonohaWebSelfTestVideoHasFrame',
+        'number', [], []);
+      Module.ccall('KotonohaWebSelfTestCloseVideo', null, [], []);
+      return { opened, finishedBeforePump, pumped, hasFrame };
+    });
+    console.log('BROWSER_INIT_FALLBACK', JSON.stringify(initialFailure));
+    assert(initialFailure.opened === 1 &&
+      initialFailure.finishedBeforePump === 0 &&
+      initialFailure.pumped === 1 && initialFailure.hasFrame === 1,
+      'HTML5 initialization failure also switches to local FFmpeg');
+
+    const audio = await page.evaluate(async () => {
+      const response = await fetch('game-assets/selftest.mp3');
+      const bytes = new Uint8Array(await response.arrayBuffer());
+      for (const name of ['selftest.mp3', 'selftest2.mp3'])
+        Module.FS_createDataFile('/game-assets', name, bytes,
+          true, true, true);
+      const first = Module.ccall('KotonohaWebSelfTestOpenAudioId',
+        'number', ['string'], ['selftest.mp3']);
+      const second = Module.ccall('KotonohaWebSelfTestOpenSecondAudioId',
+        'number', ['string'], ['selftest2.mp3']);
+      Module.ccall('KotonohaWebSelfTestSetAudioGain', null,
+        ['number'], [0.25]);
+      let firstDuration = -1, secondDuration = -1;
+      for (let i = 0; i < 100; ++i) {
+        Module.ccall('KotonohaWebSelfTestPumpVideo', 'number', [], []);
+        Module.ccall('KotonohaWebSelfTestPumpSecondAudio', 'number', [], []);
+        firstDuration = Module.ccall('KotonohaWebSelfTestVideoDuration',
+          'number', [], []);
+        secondDuration = Module.ccall(
+          'KotonohaWebSelfTestSecondAudioDuration', 'number', [], []);
+        if (firstDuration > 1.8 && secondDuration > 1.8) break;
+        await new Promise(resolve => setTimeout(resolve, 50));
+      }
+      const firstBefore = Module.ccall('KotonohaWebSelfTestVideoElapsed',
+        'number', [], []);
+      const secondBefore = Module.ccall(
+        'KotonohaWebSelfTestSecondAudioElapsed', 'number', [], []);
+      await new Promise(resolve => setTimeout(resolve, 250));
+      const firstAfter = Module.ccall('KotonohaWebSelfTestVideoElapsed',
+        'number', [], []);
+      const secondAfter = Module.ccall(
+        'KotonohaWebSelfTestSecondAudioElapsed', 'number', [], []);
+      return { first, second, firstDuration, secondDuration,
+        firstBefore, firstAfter, secondBefore, secondAfter,
+        gain: Module.ccall('KotonohaWebSelfTestAudioGain', 'number', [], []),
+        hasVideoFrame: Module.ccall('KotonohaWebSelfTestVideoHasFrame',
+          'number', [], []) };
+    });
+    console.log('BROWSER_AUDIO', JSON.stringify(audio));
+    assert(audio.first === 1 && audio.second === 1 &&
+      audio.firstDuration > 1.8 && audio.secondDuration > 1.8 &&
+      audio.firstAfter > audio.firstBefore &&
+      audio.secondAfter > audio.secondBefore &&
+      Math.abs(audio.gain - 0.25) < 0.001 && audio.hasVideoFrame === 0,
+      'two browser audio sessions play independently with channel gain');
+    await page.evaluate(() => Module.ccall('KotonohaWebSelfTestCloseVideo',
+      null, [], []));
+
+    const audioFallback = await page.evaluate(() => {
+      const opened = Module.ccall('KotonohaWebSelfTestOpenAudioId',
+        'number', ['string'], ['selftest.mp3']);
+      const originalFailed = window.KotonohaMediaFailed;
+      window.KotonohaMediaFailed = id => id >= 1000000 ? 1 : originalFailed(id);
+      const pumped = Module.ccall('KotonohaWebSelfTestPumpVideo',
+        'number', [], []);
+      window.KotonohaMediaFailed = originalFailed;
+      const duration = Module.ccall('KotonohaWebSelfTestVideoDuration',
+        'number', [], []);
+      const hasVideoFrame = Module.ccall('KotonohaWebSelfTestVideoHasFrame',
+        'number', [], []);
+      Module.ccall('KotonohaWebSelfTestCloseVideo', null, [], []);
+      return { opened, pumped, duration, hasVideoFrame };
+    });
+    console.log('AUDIO_FALLBACK', JSON.stringify(audioFallback));
+    assert(audioFallback.opened === 1 && audioFallback.pumped === 1 &&
+      audioFallback.duration > 1.8 && audioFallback.hasVideoFrame === 0,
+      'browser audio failure switches to local FFmpeg decoding');
+
+    const unsupportedAudio = await page.evaluate(async () => {
+      const response = await fetch('game-assets/selftest.mp2');
+      const bytes = new Uint8Array(await response.arrayBuffer());
+      Module.FS_createDataFile('/game-assets', 'selftest.mp2',
+        bytes, true, true, true);
+      const opened = Module.ccall('KotonohaWebSelfTestOpenAudioId',
+        'number', ['string'], ['selftest.mp2']);
+      const pumped = Module.ccall('KotonohaWebSelfTestPumpVideo',
+        'number', [], []);
+      const duration = Module.ccall('KotonohaWebSelfTestVideoDuration',
+        'number', [], []);
+      Module.ccall('KotonohaWebSelfTestCloseVideo', null, [], []);
+      return { opened, pumped, duration };
+    });
+    console.log('UNSUPPORTED_AUDIO', JSON.stringify(unsupportedAudio));
+    assert(unsupportedAudio.opened === 1 &&
+      unsupportedAudio.pumped === 1 && unsupportedAudio.duration > 1.8,
+      'unsupported browser audio MIME opens through local FFmpeg');
+
+    if (testLegacySidecar) {
+      const direct = await page.evaluate(async () => {
+        const response = await fetch('game-assets/legacy-direct.mpg');
+        if (!response.ok) throw new Error('Cannot fetch MPEG fixture');
+        const bytes = new Uint8Array(await response.arrayBuffer());
+        try { Module.FS_createPath('/', 'game-assets', true, true); }
+        catch (error) { /* already present */ }
+        Module.FS_createDataFile('/game-assets', 'legacy-direct.mpg',
+          bytes, true, true, true);
+        const opened = Module.ccall('KotonohaWebSelfTestOpenVideoPath',
+          'number', ['string'], ['/game-assets/legacy-direct.mpg']);
+        let pumped = 0, hasFrame = 0;
+        for (let i = 0; i < 100 && opened; ++i) {
+          pumped = Module.ccall('KotonohaWebSelfTestPumpVideo',
+            'number', [], []);
+          hasFrame = Module.ccall('KotonohaWebSelfTestVideoHasFrame',
+            'number', [], []);
+          if (hasFrame || !pumped) break;
+          await new Promise(resolve => setTimeout(resolve, 50));
+        }
+        Module.ccall('KotonohaWebSelfTestCloseVideo', null, [], []);
+        return { opened, pumped, hasFrame };
+      });
+      console.log('DIRECT_MPEG', JSON.stringify(direct));
+      assert(direct.opened === 1 && direct.pumped === 1 && direct.hasFrame === 1,
+        'MPEG with audio decodes on WebAssembly without creating a thread');
+
+      const legacy = await page.evaluate(async () => {
+        try { Module.FS_createPath('/', 'game-assets', true, true); }
+        catch (error) { /* already present */ }
+        for (const name of ['legacy.mpg', 'legacy.mpg.webm']) {
+          try {
+            Module.FS_createDataFile('/game-assets', name,
+              new Uint8Array(name === 'legacy.mpg' ? [0] : []),
+              true, true, true);
+          } catch (error) {
+            if (!Module.FS_readFile('/game-assets/' + name)) throw error;
+          }
+        }
+        const opened = Module.ccall('KotonohaWebSelfTestOpenVideoId',
+          'number', ['string'], ['legacy.mpg']);
+        let hasFrame = 0;
+        for (let i = 0; i < 100; ++i) {
+          Module.ccall('KotonohaWebSelfTestPumpVideo', 'number', [], []);
+          hasFrame = Module.ccall('KotonohaWebSelfTestVideoHasFrame',
+            'number', [], []);
+          if (hasFrame) break;
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        const element = document.getElementById('kotonoha-video-player');
+        return { opened, hasFrame, src: element.currentSrc,
+          duration: Module.ccall('KotonohaWebSelfTestVideoDuration',
+            'number', [], []) };
+      });
+      console.log('LEGACY_VIDEO', JSON.stringify(legacy));
+      assert(legacy.opened === 1 && legacy.hasFrame === 1,
+        'MPEG asset opens and produces a WebM frame');
+      assert(legacy.src.endsWith('/game-assets/legacy.mpg.webm'),
+        'MPEG asset selects its WebM sidecar');
+      assert(legacy.duration > 1.5,
+        'sidecar duration is reported by MediaPlayer');
+      await page.evaluate(() => Module.ccall('KotonohaWebSelfTestCloseVideo',
+        null, [], []));
+    }
+
     console.log('RESULT PASS');
     const knownTeardownError = logs.some(line =>
       line.startsWith('pageerror: null function'));
     if (knownTeardownError)
       console.log('NOTE: ignored a pre-existing SDL teardown error on reload');
   } catch (error) {
+    console.error('BROWSER_LOGS', logs.join('\n'));
     if (serverError)
       console.error(serverError);
     throw error;

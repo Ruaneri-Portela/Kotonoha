@@ -114,6 +114,10 @@ analysis leaves the original files unchanged. Raw local Evidence lives under
   still require comparison. Some recovered native configuration settings use
   their original defaults rather than a complete port of the configuration UI.
 - Opening playback is connected and the current DISC1 supplies `summer_op.mpg`.
+  The script may request `DISC1/opening.mpg`; `SummerAssets::moviePath` resolves
+  that edition alias to `DISC1/summer_op.mpg`. The WASM build decodes its MPEG
+  locally with FFmpeg; an optional `DISC1/summer_op.mpg.webm` sidecar can use
+  the browser decoder instead.
   Exact original movie skip input, scaling modes and audio/clock parity still
   require differential validation.
 - Manual saves restore page/choice start and restart BGM; exact audio sample

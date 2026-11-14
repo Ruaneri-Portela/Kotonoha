@@ -27,10 +27,23 @@ SummerAssets::moviePath(const std::string &filename) const {
   if (requested.empty() || requested.is_absolute())
     throw std::runtime_error("Invalid Summer movie filename: " + filename);
 
+  const auto findMovie = [](const std::filesystem::path &path)
+      -> std::filesystem::path {
+    const auto directory = path.parent_path();
+    if (!std::filesystem::is_directory(directory))
+      return {};
+    const auto wanted = canonical(path.filename().string());
+    for (const auto &entry : std::filesystem::directory_iterator(directory))
+      if (entry.is_regular_file() &&
+          canonical(entry.path().filename().string()) == wanted)
+        return entry.path();
+    return {};
+  };
+
   // 1. Direct attempt
   auto target = (discDirectory / requested).lexically_normal();
-  if (std::filesystem::is_regular_file(target))
-    return target;
+  if (auto found = findMovie(target); !found.empty())
+    return found;
 
   // 2. If the candidate starts with the name of the discDirectory, strip it.
   // e.g. discDirectory is ".../DISC1", filename is "DISC1/movie.mpg"
@@ -43,8 +56,16 @@ SummerAssets::moviePath(const std::string &filename) const {
       subPath /= *next_it;
     }
     target = (discDirectory / subPath).lexically_normal();
-    if (std::filesystem::is_regular_file(target))
-      return target;
+    if (auto found = findMovie(target); !found.empty())
+      return found;
+  }
+
+  // The first disc calls its opening summer_op.mpg while some scripts ask
+  // for opening.mpg. Resolve this known edition alias in the same directory.
+  if (canonical(target.filename().string()) == "OPENING.MPG") {
+    target.replace_filename("summer_op.mpg");
+    if (auto found = findMovie(target); !found.empty())
+      return found;
   }
 
   throw std::runtime_error("Missing Summer movie: " + filename);

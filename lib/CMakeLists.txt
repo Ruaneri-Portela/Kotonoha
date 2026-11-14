@@ -298,6 +298,15 @@ set(KOTONOHA_ENGINE_ASSETS "${KOTONOHA_PROJECT_ROOT}/assets"
 
 include("${KOTONOHA_PROJECT_ROOT}/buildsystems/cmake/KotonohaApp.cmake")
 
+if(EMSCRIPTEN AND KOTONOHA_WEB_SELFTEST)
+    kotonoha_add_app(KotonohaWebSelfTest
+        tests/web/main.cpp tests/web/WebSelfTest.cpp)
+    target_link_libraries(KotonohaWebSelfTest PRIVATE Kotonoha::Engine)
+    target_compile_definitions(KotonohaWebSelfTest PRIVATE KOTONOHA_WEB_SELFTEST)
+    kotonoha_configure_app(KotonohaWebSelfTest
+        GAME_ASSET_SOURCE "${CMAKE_CURRENT_SOURCE_DIR}/tests/web/game-assets")
+endif()
+
 if (BUILD_TESTING)
     add_subdirectory(tests)
 endif ()

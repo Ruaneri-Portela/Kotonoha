@@ -270,6 +270,9 @@ int main(int argc, char **argv) {
     // script instead of immediately entering PRORO2.
     check(std::filesystem::is_regular_file(assets->moviePath("SUMMER_OP.MPG")),
           "Loose opening movie resolves case-insensitively");
+    check(assets->moviePath("DISC1/opening.mpg") ==
+              assets->moviePath("SUMMER_OP.MPG"),
+          "DISC1 opening alias resolves the installed summer_op.mpg");
     SummerRadish::Machine scriptIndex;
     auto prologue = assets->read("SCRIPT/PRORO.XML");
     scriptIndex.add("PRORO", std::string(prologue.begin(), prologue.end()));
