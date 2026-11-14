@@ -127,6 +127,30 @@ FetchAssetProvider::FetchAssetProvider(std::string base, std::size_t budget)
 }
 
 std::shared_ptr<FetchAssetProvider>
+FetchAssetProvider::fromUrl(std::string baseUrl, std::size_t cacheBudget) {
+  auto provider = std::shared_ptr<FetchAssetProvider>(
+      new FetchAssetProvider(std::move(baseUrl), cacheBudget));
+  provider->discover_ = true;
+  return provider;
+}
+
+bool FetchAssetProvider::requestAsset(std::string_view id) {
+  if (!discover_) return false;
+  // normalizePath rejects empty, traversal and absolute paths.
+  const auto name = normalizePath(id);
+  const auto key = lookupKey(name);
+  if (nodes_.count(key)) return true;
+  if (files_.count(key)) return false; // already in flight or failed
+  auto file = std::make_shared<Slot>();
+  file->info = FileInfo{name, FileType::Regular, -1};
+  files_.emplace(key, std::move(file));
+  enqueue({key, 0, 0, true, true});
+  if (!started_) started_ = true;
+  pump();
+  return false;
+}
+
+std::shared_ptr<FetchAssetProvider>
 FetchAssetProvider::fromManifest(std::string baseUrl,
                                  const std::string &manifest,
                                  std::size_t cacheBudget) {
@@ -340,6 +364,34 @@ void FetchAssetProvider::complete(const Job &job, unsigned status,
                                   const char *body, std::uint64_t count,
                                   const std::string &headers) {
   const auto file = files_.at(job.key);
+  if (job.discovery) {
+    if (status != 200 || (count && !body)) {
+      file->failed = true;
+      file->failure = status == 404 ? ErrorCode::NotFound : ErrorCode::NetworkError;
+      file->message = "Remote GET failed, status " + std::to_string(status);
+      return;
+    }
+    if (count > budget_ - std::min(cached_, budget_) ||
+        count > static_cast<std::uint64_t>(INT64_MAX)) {
+      file->failed = true;
+      file->failure = ErrorCode::IOError;
+      file->message = "Remote object exceeds Fetch memory budget";
+      return;
+    }
+    auto bytes = std::make_shared<std::vector<Uint8>>();
+    if (count) {
+      const auto *first = reinterpret_cast<const Uint8 *>(body);
+      bytes->assign(first, first + static_cast<std::size_t>(count));
+    }
+    cached_ += static_cast<std::size_t>(count);
+    file->info.size = static_cast<std::int64_t>(count);
+    file->chunks.emplace(0, std::move(bytes));
+    nodes_.emplace(job.key, file->info);
+    for (auto p = parent(file->info.path); !p.empty(); p = parent(p)) {
+      nodes_.emplace(lookupKey(p), FileInfo{p, FileType::Directory, 0});
+    }
+    return;
+  }
   if (status != (job.full ? 200u : 206u) ||
       count != job.length ||
       (count && !body)) {
@@ -410,6 +462,7 @@ struct FetchContext {
   std::string path;
   std::uint64_t start, length;
   bool full;
+  bool discovery;
   std::string range;
   std::array<const char *, 3> headers{};
 };
@@ -425,7 +478,7 @@ void FetchAssetProvider::pump() {
     auto job = std::move(queued_.front());
     queued_.pop_front();
     auto *ctx = new FetchContext{shared_from_this(), job.key, job.start,
-                                 job.length, job.full, {}, {}};
+                                 job.length, job.full, job.discovery, {}, {}};
     const auto &file = files_.at(job.key);
     emscripten_fetch_attr_t attr;
     emscripten_fetch_attr_init(&attr);
@@ -451,7 +504,7 @@ void FetchAssetProvider::pump() {
                                               headers.data(), headers.size());
       }
       provider->complete(
-          Job{ctx->path, ctx->start, ctx->length, ctx->full},
+          Job{ctx->path, ctx->start, ctx->length, ctx->full, ctx->discovery},
           fetch->status, fetch->data, fetch->numBytes, headers);
       ++provider->completed_;
       if (provider->files_.at(ctx->path)->failed)
