@@ -62,7 +62,7 @@ jobs:
           emcmake cmake -S . -B build-web -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \
-            -DVCPKG_CHAINLOAD_TOOLCHAIN_FILE="$EMSDK/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake" \
+            # Chainload is selected by the PIC triplet so vcpkg propagates -fPIC.
             -DVCPKG_TARGET_TRIPLET=wasm32-emscripten-dylink \
             -DVCPKG_OVERLAY_TRIPLETS="$GITHUB_WORKSPACE/vcpkg-overlays/triplets" \
             "-DVCPKG_MANIFEST_FEATURES=sdl-vcpkg;imgui-vcpkg" \
