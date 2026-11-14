@@ -32,3 +32,5 @@ The physical-path compatibility adapter remains for older providers. Next phases
 The legacy StoragePaths implementation was moved to `lib/src/Filesystem/StoragePaths.cpp`; the old `core/FileSystem.hpp` remains a forwarding shim. The save directory policy and public symbols are unchanged.
 
 Mount detection accepts `.tar`, `.iso`, `.bin` and `.img` (disk types verified by the existing `DiscImage` parser); unknown ordinary files raise `UnsupportedMount`. Compressed `.tar.gz`, UDF and CUE multi-track mounting are not supported by this phase.
+
+The virtual `MediaPlayer::open(FileHandle, logicalName, ...)` overload can now prepare a browser-supported format as an owned `blob:` URL through `BrowserBlobAdapter` (64 MiB limit). Native playback keeps custom FFmpeg AVIO. The older path/AssetProvider web playback routes still require migration; browser behavior has not been tested.
