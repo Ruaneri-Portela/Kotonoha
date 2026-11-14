@@ -24,6 +24,9 @@ namespace Kotonoha::Filesystem {
 
 struct FetchAssetProvider::Slot {
   FileInfo info;
+  // Physical spelling on the case-sensitive HTTP server. The VFS key stays
+  // normalized/case-insensitive, while the URL may need a lowercase retry.
+  std::string remotePath;
   // Immutable byte slices indexed by their absolute origin in the file.
   std::map<std::uint64_t, std::shared_ptr<const std::vector<Uint8>>> chunks;
   bool failed = false;
@@ -145,6 +148,7 @@ bool FetchAssetProvider::requestAsset(std::string_view id) {
   if (files_.count(key)) return false; // already in flight or failed
   auto file = std::make_shared<Slot>();
   file->info = FileInfo{name, FileType::Regular, -1};
+  file->remotePath = name;
   files_.emplace(key, std::move(file));
   enqueue({key, 0, 0, true, true});
   if (!started_) started_ = true;
@@ -231,7 +235,7 @@ FetchAssetProvider::slot(std::string_view id) const {
 
 void FetchAssetProvider::enqueue(Job job) {
   const auto dedup = job.key + ":" + std::to_string(job.start) + ":" +
-                     std::to_string(job.length);
+                     std::to_string(job.length) + (job.lowercaseAttempt ? ":lower" : ":exact");
   if (requested_.insert(dedup).second) {
     ++requestedCount_;
     queued_.push_back(std::move(job));
@@ -417,6 +421,15 @@ void FetchAssetProvider::complete(const Job &job, unsigned status,
                                   const std::string &headers) {
   const auto file = files_.at(job.key);
   if (job.discovery) {
+    if (status == 404 && !job.lowercaseAttempt &&
+        file->remotePath != lookupKey(file->remotePath)) {
+      // The VFS compares filenames case-insensitively, but a browser HTTP
+      // server does not. For known archive paths (e.g. SCRIPT.DAT versus
+      // data/pack/script.dat) retry once using the normalized spelling.
+      // Do not report NotFound while the retry is queued.
+      enqueue({job.key, 0, 0, true, true, true});
+      return;
+    }
     if (status != 200) {
       file->failed = true;
       file->failure = status == 404 ? ErrorCode::NotFound : ErrorCode::NetworkError;
@@ -461,6 +474,8 @@ void FetchAssetProvider::complete(const Job &job, unsigned status,
       file->message = "HEAD requires accessible Content-Length";
       return;
     }
+    if (job.lowercaseAttempt)
+      file->remotePath = lookupKey(file->remotePath);
     file->info.size = static_cast<std::int64_t>(size);
     nodes_.emplace(job.key, file->info);
     for (auto p = parent(file->info.path); !p.empty(); p = parent(p))
@@ -543,6 +558,7 @@ struct FetchContext {
   std::uint64_t start, length;
   bool full;
   bool discovery;
+  bool lowercaseAttempt;
   std::string range;
   std::array<const char *, 3> headers{};
 };
@@ -558,7 +574,8 @@ void FetchAssetProvider::pump() {
     auto job = std::move(queued_.front());
     queued_.pop_front();
     auto *ctx = new FetchContext{shared_from_this(), job.key, job.start,
-                                 job.length, job.full, job.discovery, {}, {}};
+                                 job.length, job.full, job.discovery,
+                                 job.lowercaseAttempt, {}, {}};
     const auto &file = files_.at(job.key);
     emscripten_fetch_attr_t attr;
     emscripten_fetch_attr_init(&attr);
@@ -601,7 +618,8 @@ void FetchAssetProvider::pump() {
                                                 headers.data(), headers.size());
         }
         provider->complete(
-            Job{ctx->path, ctx->start, ctx->length, ctx->full, ctx->discovery},
+            Job{ctx->path, ctx->start, ctx->length, ctx->full,
+                ctx->discovery, ctx->lowercaseAttempt},
             fetch->status, fetch->data, fetch->numBytes, headers);
       } catch (const std::exception &error) {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
@@ -639,7 +657,10 @@ void FetchAssetProvider::pump() {
     };
     attr.onsuccess = finish;
     attr.onerror = finish;
-    const auto url = base_ + encodePath(file->info.path);
+    const auto url = base_ + encodePath(
+        job.discovery && job.lowercaseAttempt
+            ? lookupKey(file->remotePath) : file->remotePath.empty()
+                ? file->info.path : file->remotePath);
     ++active_;
     if (!emscripten_fetch(&attr, url.c_str())) {
       --active_;
