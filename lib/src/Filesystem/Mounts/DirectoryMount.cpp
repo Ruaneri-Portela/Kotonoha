@@ -3,6 +3,9 @@
 #include <Kotonoha/Filesystem/Sources/SDLFileSource.hpp>
 
 #include <limits>
+#ifdef __EMSCRIPTEN__
+#include <emscripten/emscripten.h>
+#endif
 
 namespace Kotonoha::Filesystem {
 namespace {
@@ -66,11 +69,32 @@ DirectoryMount::DirectoryMount(const std::filesystem::path &source) {
     throw FilesystemError(ErrorCode::IOError, "Cannot enumerate mount");
 }
 
+#ifdef __EMSCRIPTEN__
+void DirectoryMount::refreshFromBrowser() const {
+  // A virtual folder can be mounted after game startup. The browser changes
+  // this generation only after a successful filesystem import.
+  const int current = EM_ASM_INT({
+    return Module["KotonohaVfsGeneration"] | 0;
+  });
+  if (current == observedBrowserGeneration_)
+    return;
+  DirectoryMount updated(root_);
+  nodes_ = std::move(updated.nodes_);
+  observedBrowserGeneration_ = current;
+}
+#endif
+
 bool DirectoryMount::exists(std::string_view path) const {
+#ifdef __EMSCRIPTEN__
+  refreshFromBrowser();
+#endif
   return nodes_.count(lookupKey(path, true)) != 0;
 }
 
 FileInfo DirectoryMount::stat(std::string_view path) const {
+#ifdef __EMSCRIPTEN__
+  refreshFromBrowser();
+#endif
   const auto found = nodes_.find(lookupKey(path, true));
   if (found == nodes_.end())
     throw FilesystemError(ErrorCode::NotFound, "File not found in mount");
@@ -78,6 +102,9 @@ FileInfo DirectoryMount::stat(std::string_view path) const {
 }
 
 std::vector<FileInfo> DirectoryMount::list(std::string_view directory) const {
+#ifdef __EMSCRIPTEN__
+  refreshFromBrowser();
+#endif
   const auto base = lookupKey(directory, true);
   const auto node = nodes_.find(base);
   if (node == nodes_.end())
@@ -99,6 +126,9 @@ std::vector<FileInfo> DirectoryMount::list(std::string_view directory) const {
 
 std::unique_ptr<FileHandle>
 DirectoryMount::open(std::string_view path) const {
+#ifdef __EMSCRIPTEN__
+  refreshFromBrowser();
+#endif
   const auto found = nodes_.find(lookupKey(path));
   if (found == nodes_.end())
     throw FilesystemError(ErrorCode::NotFound, "File not found");
