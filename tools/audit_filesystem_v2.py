@@ -24,6 +24,7 @@ BAD_IO = re.compile(
     r"|\b(?:std::)?FILE\s*\*"
 )
 GAME = re.compile(r'"([A-Z_]+)\|([^|"\n]+)\|(games/[^"\n]+)"')
+OLD_HEADER = re.compile(r'#\s*include\s*[<"]Kotonoha/core/FileSystem\.hpp[>"]')
 
 
 def runtime_files():
@@ -49,7 +50,9 @@ def file_issues(path: Path) -> list[tuple[int, str]]:
     return [
         (line_number, line.strip())
         for line_number, line in enumerate(content.splitlines(), 1)
-        if BAD_IO.search(line)
+        if (BAD_IO.search(line) or OLD_HEADER.search(line))
+        # Writing diagnostics to stdout is console I/O, not file access.
+        and not ("std::fwrite(" in line and "stdout" in line)
     ]
 
 
