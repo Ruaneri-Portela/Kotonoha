@@ -318,6 +318,9 @@ bool FetchAssetProvider::isKnownRegularFile(std::string_view path) const {
   const auto it = nodes_.find(lookupKey(path, true));
   return it != nodes_.end() && it->second.type == FileType::Regular;
 }
+bool FetchAssetProvider::isKnownDirectory(std::string_view path) const {
+  return hasIndexedDirectory(path);
+}
 bool FetchAssetProvider::hasIndexedDirectory(std::string_view path) const {
   const auto it = nodes_.find(lookupKey(path, true));
   return it != nodes_.end() && it->second.type == FileType::Directory;
