@@ -34,7 +34,8 @@ struct App {
   std::unique_ptr<Game> game;
   void start(const std::string &directory) {
     auto assets = std::make_shared<Kotonoha::Providers::SummerAssets>(
-        Kotonoha::gameDataDirectory(directory));
+        Kotonoha::gameDataDirectory(directory),
+        options.assetOverlayDirectory());
     assets->setOverlay(options.assetOverlayDirectory());
     game = std::make_unique<Game>(assets, options);
   }

@@ -1,24 +1,66 @@
 #include <SummerRadish/SummerAssets.hpp>
+#include <Kotonoha/Filesystem/Filesystem.hpp>
+#include <Kotonoha/Filesystem/Path.hpp>
 #include <cstring>
+#include <algorithm>
+#include <utility>
 #include <optional>
 #include <stdexcept>
 namespace Kotonoha::Providers {
 using namespace SummerRadish;
-SummerAssets::SummerAssets(std::filesystem::path root) {
-  if (std::filesystem::is_directory(root / "DISC1/PACK"))
-    root /= "DISC1/PACK";
-  else if (std::filesystem::is_directory(root / "PACK"))
-    root /= "PACK";
-  discDirectory = std::filesystem::absolute(root).parent_path();
-  for (auto type : {"INI", "SCRIPT", "GRAPHIC", "SOUND", "VOICE"}) {
-    std::filesystem::path found;
-    for (auto &f : std::filesystem::directory_iterator(root))
-      if (canonical(f.path().filename().string()) == std::string(type) + ".CMP")
-        found = f.path();
-    if (found.empty())
-      throw std::runtime_error("Missing " + std::string(type) + ".cmp in " +
-                               root.string());
-    packs.emplace(type, std::make_unique<Pack>(found));
+namespace {
+std::shared_ptr<Kotonoha::Filesystem::Filesystem>
+mountSummer(std::filesystem::path root, std::filesystem::path overlay) {
+  auto source = Kotonoha::Filesystem::Filesystem::mount(root.string());
+  if (!overlay.empty())
+    source->addOverlay(overlay.string());
+  return source;
+}
+} // namespace
+SummerAssets::SummerAssets(std::filesystem::path root,
+                           std::filesystem::path overlay)
+    : SummerAssets(mountSummer(root, overlay)) {
+  // The game still uses a physical media path in legacy MediaPlayer calls.
+  // Package sources themselves are already opened through the V2 filesystem.
+  if (source_->exists("DISC1/PACK") &&
+      source_->stat("DISC1/PACK").type ==
+          Kotonoha::Filesystem::FileType::Directory) {
+    discDirectory = std::filesystem::absolute(root) / "DISC1";
+  } else if (source_->exists("PACK") &&
+             source_->stat("PACK").type ==
+                 Kotonoha::Filesystem::FileType::Directory) {
+    discDirectory = std::filesystem::absolute(root);
+  } else {
+    discDirectory = std::filesystem::absolute(root).parent_path();
+  }
+}
+
+SummerAssets::SummerAssets(
+    std::shared_ptr<Kotonoha::Filesystem::Filesystem> mounted)
+    : source_(std::move(mounted)) {
+  if (!source_)
+    throw std::invalid_argument("Summer CMP mount is missing");
+  std::string packRoot;
+  if (source_->exists("DISC1/PACK") &&
+      source_->stat("DISC1/PACK").type ==
+          Kotonoha::Filesystem::FileType::Directory)
+    packRoot = "DISC1/PACK";
+  else if (source_->exists("PACK") &&
+           source_->stat("PACK").type ==
+               Kotonoha::Filesystem::FileType::Directory)
+    packRoot = "PACK";
+
+  const auto files = source_->list(packRoot);
+  for (const auto *type : {"INI", "SCRIPT", "GRAPHIC", "SOUND", "VOICE"}) {
+    const auto desired = std::string(type) + ".CMP";
+    auto entry = std::find_if(files.begin(), files.end(), [&](const auto &file) {
+      return file.type == Kotonoha::Filesystem::FileType::Regular &&
+             canonical(std::filesystem::path(file.path).filename().string()) ==
+                 desired;
+    });
+    if (entry == files.end())
+      throw std::runtime_error("Missing " + desired + " in virtual source");
+    packs.emplace(type, std::make_unique<Pack>(source_, entry->path));
   }
 }
 std::filesystem::path
