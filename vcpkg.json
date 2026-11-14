@@ -84,6 +84,19 @@
           ]
         }
       ]
+    },
+    "imgui-vcpkg": {
+      "description": "Import ImGui core, SDL3 backend and SDL3 renderer backend from vcpkg",
+      "dependencies": [
+        {
+          "name": "imgui",
+          "default_features": false,
+          "features": [
+            "sdl3-binding",
+            "sdl3-renderer-binding"
+          ]
+        }
+      ]
     }
   }
 }
