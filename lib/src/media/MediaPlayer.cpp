@@ -1470,6 +1470,7 @@ void MediaPlayer::update(RendererRef renderer, double position) {
     s.nextVideoTime = s.nextAudioTime = position;
     s.queuedEnd = -1;
     s.eof = false;
+    s.consecutiveInvalidPackets = 0;
   }
   s.lastPosition = position;
   const double lookAhead =
