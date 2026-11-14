@@ -2,6 +2,17 @@
 include_guard(GLOBAL)
 
 option(KOTONOHA_BUILD_WASM "Build for WebAssembly" OFF)
+option(KOTONOHA_WASM_DYNAMIC_LIBS
+    "Build KotonohaEngine and ImGui as Emscripten side modules (experimental)" OFF)
+if(KOTONOHA_WASM_DYNAMIC_LIBS)
+    if(NOT EMSCRIPTEN)
+        message(FATAL_ERROR "Dynamic WASM requires Emscripten")
+    endif()
+    if(CMAKE_VERSION VERSION_LESS 3.24)
+        message(FATAL_ERROR "Dynamic WASM requires CMake 3.24+")
+    endif()
+    add_compile_options(-fPIC)
+endif()
 option(KOTONOHA_WEB_SELFTEST "Build optional WebAssembly integration self-test hooks" OFF)
 option(KOTONOHA_VERBOSE_BUILD "Print full compiler and linker commands" OFF)
 option(KOTONOHA_BUILD_MACOS_BUNDLES "Build macOS application bundles" OFF)
