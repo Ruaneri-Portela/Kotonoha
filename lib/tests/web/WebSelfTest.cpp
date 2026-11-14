@@ -7,6 +7,8 @@
 
 #include <Kotonoha/components/VNSave.hpp>
 #include <Kotonoha/core/AssetProvider.hpp>
+#include <Kotonoha/Filesystem/RemoteAssets.hpp>
+#include <Kotonoha/Filesystem/Filesystem.hpp>
 #include <Kotonoha/core/FileSystem.hpp>
 #include <Kotonoha/media/MediaPlayer.hpp>
 
@@ -49,6 +51,21 @@ void KotonohaWebSelfTestDrawMedia(SDL_Renderer *renderer) {
 }
 
 extern "C" {
+// The HTTP-only test must not require a MEMFS placeholder or a real file path.
+EMSCRIPTEN_KEEPALIVE int KotonohaWebSelfTestRemoteSize(const char *name) {
+  try {
+    if (!name || !*name || !Kotonoha::Filesystem::remoteGameAssets())
+      return -1;
+    auto source = Kotonoha::Filesystem::mountGameAssets("/game-assets");
+    auto bytes = Kotonoha::Filesystem::readAll(
+        *source->open(name), 32u << 20);
+    return static_cast<int>(bytes.size());
+  } catch (const std::exception &error) {
+    logFailure("remote FileHandle", error);
+    return -1;
+  }
+}
+
 EMSCRIPTEN_KEEPALIVE const char *KotonohaWebSelfTestSavePath() {
   webSelfTestResult = webSelfTestSavePath().string();
   return webSelfTestResult.c_str();
