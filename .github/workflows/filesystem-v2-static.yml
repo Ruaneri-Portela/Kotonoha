@@ -14,6 +14,8 @@ on:
       - "tools/check_web_shell.js"
       - "tools/check_wasm_asyncify.py"
       - "tools/web_selftest.js"
+      - "tools/serve_web.py"
+      - "tools/test_serve_web.py"
       - "tools/web_example_smoke.js"
   push:
     branches:
@@ -38,9 +40,11 @@ jobs:
         with:
           python-version: "3.12"
       - name: Check script syntax
-        run: python3 -m py_compile tools/audit_filesystem_v2.py tools/ValidateBuildMetadata.py tools/generate_manifest.py tools/check_wasm_asyncify.py
+        run: python3 -m py_compile tools/audit_filesystem_v2.py tools/ValidateBuildMetadata.py tools/generate_manifest.py tools/check_wasm_asyncify.py tools/serve_web.py tools/test_serve_web.py
       - name: Verify Asyncify binary export parser
         run: python3 tools/check_wasm_asyncify.py --self-test
+      - name: Test HTTP Range server with a sparse 320 MiB GPK
+        run: python3 -m unittest discover -s tools -p test_serve_web.py -v
       - name: Check browser shell and test script syntax
         run: |
           node tools/check_web_shell.js
