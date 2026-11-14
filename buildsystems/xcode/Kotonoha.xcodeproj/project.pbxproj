@@ -619,8 +619,18 @@
 		FF1F79C3B01DDBB18C52E509 /* KotonohaImGui.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = BE4CD7359ED5E7D6A1EBB231 /* KotonohaImGui.framework */; };
 		FF89A9E9B1E594E4E5F12062 /* Ps2SoundBank.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BDB627B41F00994945F9190D /* Ps2SoundBank.cpp */; };
 		FFBA4A0F4CBB3C0FF9662E59 /* SummerRuntime.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FE4550E52D8FF52E9957E326 /* SummerRuntime.cpp */; };
-		AEF10C0DE000000000000002 /* UnifiedFileSystem.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AEF10C0DE000000000000001 /* UnifiedFileSystem.cpp */; };
-		AEF10C0DE000000000000003 /* UnifiedFileSystem.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AEF10C0DE000000000000001 /* UnifiedFileSystem.cpp */; };
+		F1F1F10000000000000000C8 /* Path.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F1F1F1000000000000000064 /* Path.cpp */; };
+		F1F1F10000000000000000C9 /* Path.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F1F1F1000000000000000064 /* Path.cpp */; };
+		F1F1F10000000000000000CA /* SDLFileSource.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F1F1F1000000000000000065 /* SDLFileSource.cpp */; };
+		F1F1F10000000000000000CB /* SDLFileSource.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F1F1F1000000000000000065 /* SDLFileSource.cpp */; };
+		F1F1F10000000000000000CC /* DirectoryMount.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F1F1F1000000000000000066 /* DirectoryMount.cpp */; };
+		F1F1F10000000000000000CD /* DirectoryMount.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F1F1F1000000000000000066 /* DirectoryMount.cpp */; };
+		F1F1F10000000000000000CE /* LayeredMount.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F1F1F1000000000000000067 /* LayeredMount.cpp */; };
+		F1F1F10000000000000000CF /* LayeredMount.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F1F1F1000000000000000067 /* LayeredMount.cpp */; };
+		F1F1F10000000000000000D0 /* ISO9660Mount.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F1F1F1000000000000000068 /* ISO9660Mount.cpp */; };
+		F1F1F10000000000000000D1 /* ISO9660Mount.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F1F1F1000000000000000068 /* ISO9660Mount.cpp */; };
+		F1F1F10000000000000000D2 /* Filesystem.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F1F1F1000000000000000069 /* Filesystem.cpp */; };
+		F1F1F10000000000000000D3 /* Filesystem.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F1F1F1000000000000000069 /* Filesystem.cpp */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -1519,7 +1529,20 @@
 		FE63135BA17021209CA24FFB /* MPVCompatibleUpscaler.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = MPVCompatibleUpscaler.cpp; path = ../../lib/src/media/upscaling/MPVCompatibleUpscaler.cpp; sourceTree = SOURCE_ROOT; };
 		FF242C49F26C09A041D6631C /* Config.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = Config.cpp; path = ../../games/reallive/src/Config.cpp; sourceTree = SOURCE_ROOT; };
 		FF43CE57F88486C6645207F5 /* SchoolDaysMenuBarPresenter.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = SchoolDaysMenuBarPresenter.cpp; path = "../../games/school-days/src/SchoolDaysMenuBarPresenter.cpp"; sourceTree = SOURCE_ROOT; };
-		AEF10C0DE000000000000001 /* UnifiedFileSystem.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = UnifiedFileSystem.cpp; path = ../../lib/src/core/UnifiedFileSystem.cpp; sourceTree = SOURCE_ROOT; };
+		F1F1F1000000000000000064 /* Path.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = Path.cpp; path = ../../lib/src/Filesystem/Path.cpp; sourceTree = SOURCE_ROOT; };
+		F1F1F1000000000000000065 /* SDLFileSource.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = SDLFileSource.cpp; path = ../../lib/src/Filesystem/Sources/SDLFileSource.cpp; sourceTree = SOURCE_ROOT; };
+		F1F1F1000000000000000066 /* DirectoryMount.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = DirectoryMount.cpp; path = ../../lib/src/Filesystem/Mounts/DirectoryMount.cpp; sourceTree = SOURCE_ROOT; };
+		F1F1F1000000000000000067 /* LayeredMount.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = LayeredMount.cpp; path = ../../lib/src/Filesystem/Mounts/LayeredMount.cpp; sourceTree = SOURCE_ROOT; };
+		F1F1F1000000000000000068 /* ISO9660Mount.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = ISO9660Mount.cpp; path = ../../lib/src/Filesystem/Mounts/ISO9660Mount.cpp; sourceTree = SOURCE_ROOT; };
+		F1F1F1000000000000000069 /* Filesystem.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = Filesystem.cpp; path = ../../lib/src/Filesystem/Filesystem.cpp; sourceTree = SOURCE_ROOT; };
+		F1F1F100000000000000012C /* FileHandle.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = FileHandle.hpp; path = ../../lib/include/Kotonoha/Filesystem/FileHandle.hpp; sourceTree = SOURCE_ROOT; };
+		F1F1F100000000000000012D /* IMount.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = IMount.hpp; path = ../../lib/include/Kotonoha/Filesystem/IMount.hpp; sourceTree = SOURCE_ROOT; };
+		F1F1F100000000000000012E /* Path.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = Path.hpp; path = ../../lib/include/Kotonoha/Filesystem/Path.hpp; sourceTree = SOURCE_ROOT; };
+		F1F1F100000000000000012F /* Filesystem.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = Filesystem.hpp; path = ../../lib/include/Kotonoha/Filesystem/Filesystem.hpp; sourceTree = SOURCE_ROOT; };
+		F1F1F1000000000000000130 /* SDLFileSource.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = SDLFileSource.hpp; path = ../../lib/include/Kotonoha/Filesystem/Sources/SDLFileSource.hpp; sourceTree = SOURCE_ROOT; };
+		F1F1F1000000000000000131 /* DirectoryMount.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = DirectoryMount.hpp; path = ../../lib/include/Kotonoha/Filesystem/Mounts/DirectoryMount.hpp; sourceTree = SOURCE_ROOT; };
+		F1F1F1000000000000000132 /* LayeredMount.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = LayeredMount.hpp; path = ../../lib/include/Kotonoha/Filesystem/Mounts/LayeredMount.hpp; sourceTree = SOURCE_ROOT; };
+		F1F1F1000000000000000133 /* ISO9660Mount.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = ISO9660Mount.hpp; path = ../../lib/include/Kotonoha/Filesystem/Mounts/ISO9660Mount.hpp; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -1786,7 +1809,7 @@
 				9BE4FE61A2DEA0B5468C0CA1 /* DiscImage.cpp */,
 				95EB7E452BD54DD736B39583 /* Engine.cpp */,
 				209B80EF693F2C94CF5A8A43 /* FileSystem.cpp */,
-				AEF10C0DE000000000000001 /* UnifiedFileSystem.cpp */,
+				F1F1F1000000000000000010 /* Filesystem V2 */,
 				0952B39C0D559C76E51E70F3 /* GameLauncher.cpp */,
 				54BFA310BFD63BECBAEE3EBA /* Launcher.cpp */,
 				93E3F79FB02F2D2821A706AA /* Log.cpp */,
@@ -2679,6 +2702,27 @@
 				55DDE3D25C2E19533CB2474A /* main.cpp */,
 			);
 			name = RealLive;
+			sourceTree = "<group>";
+		};
+		F1F1F1000000000000000010 /* Filesystem V2 */ = {
+			isa = PBXGroup;
+			children = (
+				F1F1F1000000000000000064 /* Path.cpp */,
+				F1F1F1000000000000000065 /* SDLFileSource.cpp */,
+				F1F1F1000000000000000066 /* DirectoryMount.cpp */,
+				F1F1F1000000000000000067 /* LayeredMount.cpp */,
+				F1F1F1000000000000000068 /* ISO9660Mount.cpp */,
+				F1F1F1000000000000000069 /* Filesystem.cpp */,
+				F1F1F100000000000000012C /* FileHandle.hpp */,
+				F1F1F100000000000000012D /* IMount.hpp */,
+				F1F1F100000000000000012E /* Path.hpp */,
+				F1F1F100000000000000012F /* Filesystem.hpp */,
+				F1F1F1000000000000000130 /* SDLFileSource.hpp */,
+				F1F1F1000000000000000131 /* DirectoryMount.hpp */,
+				F1F1F1000000000000000132 /* LayeredMount.hpp */,
+				F1F1F1000000000000000133 /* ISO9660Mount.hpp */,
+			);
+			name = Filesystem;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -4351,7 +4395,12 @@
 				F937A1EA9AEEFEE04024F1DB /* VisualTransition.cpp in Sources */,
 				4B962571DF6AFDE6BB60414B /* PresentedFrame.cpp in Sources */,
 				F656B16CDC91D1A9F6C7A704 /* FileSystem.cpp in Sources */,
-				AEF10C0DE000000000000002 /* UnifiedFileSystem.cpp in Sources */,
+				F1F1F10000000000000000C8 /* Path.cpp in Sources */,
+				F1F1F10000000000000000CA /* SDLFileSource.cpp in Sources */,
+				F1F1F10000000000000000CC /* DirectoryMount.cpp in Sources */,
+				F1F1F10000000000000000CE /* LayeredMount.cpp in Sources */,
+				F1F1F10000000000000000D0 /* ISO9660Mount.cpp in Sources */,
+				F1F1F10000000000000000D2 /* Filesystem.cpp in Sources */,
 				DBD91DDE5B7C73A5ADAE7C3D /* OpenGL.cpp in Sources */,
 				04B29798E36E74AF3C927451 /* GameLauncher.cpp in Sources */,
 				4CA42924CF008B95DC4C0057 /* DiscImage.cpp in Sources */,
@@ -4494,7 +4543,12 @@
 				E808B45825E13CBDA11282FC /* VisualTransition.cpp in Sources */,
 				D5B9B0BE3818058DD7ECF494 /* PresentedFrame.cpp in Sources */,
 				72FEAC152779E087D10197D2 /* FileSystem.cpp in Sources */,
-				AEF10C0DE000000000000003 /* UnifiedFileSystem.cpp in Sources */,
+				F1F1F10000000000000000C9 /* Path.cpp in Sources */,
+				F1F1F10000000000000000CB /* SDLFileSource.cpp in Sources */,
+				F1F1F10000000000000000CD /* DirectoryMount.cpp in Sources */,
+				F1F1F10000000000000000CF /* LayeredMount.cpp in Sources */,
+				F1F1F10000000000000000D1 /* ISO9660Mount.cpp in Sources */,
+				F1F1F10000000000000000D3 /* Filesystem.cpp in Sources */,
 				A389C6740D6920047E774AC0 /* OpenGL.cpp in Sources */,
 				582F37DF76D89278EFC74846 /* GameLauncher.cpp in Sources */,
 				0BEAF5A2140DCC13CB18334F /* DiscImage.cpp in Sources */,

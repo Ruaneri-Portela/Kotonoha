@@ -22,9 +22,9 @@ target_link_libraries(KotonohaDirectoryTests PRIVATE Kotonoha::Engine)
 add_test(NAME Kotonoha.Directories COMMAND KotonohaDirectoryTests)
 
 # General filesystem access: cross-platform layout, providers, overlays, saves.
-add_executable(KotonohaUnifiedFileSystemTests UnifiedFileSystemTests.cpp)
-target_link_libraries(KotonohaUnifiedFileSystemTests PRIVATE Kotonoha::Engine)
-add_test(NAME Kotonoha.UnifiedFileSystem COMMAND KotonohaUnifiedFileSystemTests)
+add_executable(KotonohaFilesystemV2Tests FilesystemV2Tests.cpp)
+target_link_libraries(KotonohaFilesystemV2Tests PRIVATE Kotonoha::Engine)
+add_test(NAME Kotonoha.FilesystemV2 COMMAND KotonohaFilesystemV2Tests)
 
 add_executable(KotonohaKtrfScriptTests KtrfScriptTests.cpp)
 target_link_libraries(KotonohaKtrfScriptTests PRIVATE Kotonoha::Engine)
