@@ -195,23 +195,39 @@ if (EMSCRIPTEN)
     set(KOTONOHA_LIB_TYPE STATIC)
 endif ()
 
-add_library(imgui ${KOTONOHA_LIB_TYPE}
-        submodules/imgui/imgui.cpp
-        submodules/imgui/imgui_draw.cpp
-        submodules/imgui/imgui_tables.cpp
-        submodules/imgui/imgui_widgets.cpp
-        submodules/imgui/backends/imgui_impl_sdl3.cpp
-        submodules/imgui/backends/imgui_impl_sdlrenderer3.cpp
-        submodules/imgui/misc/cpp/imgui_stdlib.cpp
-)
+option(KOTONOHA_IMGUI_FROM_VCPKG
+        "Import ImGui with SDL3/SDL3 Renderer backends from vcpkg" OFF)
 
-target_include_directories(imgui PUBLIC
-        submodules/imgui
-        submodules/imgui/backends
-        submodules/imgui/misc/cpp
-)
-
-target_link_libraries(imgui PUBLIC SDL3::SDL3)
+if(KOTONOHA_IMGUI_FROM_VCPKG)
+    if(NOT VCPKG_INSTALLED_DIR)
+        message(FATAL_ERROR
+            "KOTONOHA_IMGUI_FROM_VCPKG requires the vcpkg toolchain and manifest feature imgui-vcpkg")
+    endif()
+    find_package(imgui CONFIG REQUIRED)
+    if(NOT TARGET imgui::imgui)
+        message(FATAL_ERROR "The vcpkg ImGui target imgui::imgui is missing")
+    endif()
+    # Keep the project's existing 'imgui' link name without rebuilding any
+    # of the ImGui sources or SDL renderer backends.
+    add_library(imgui INTERFACE)
+    target_link_libraries(imgui INTERFACE imgui::imgui)
+else()
+    add_library(imgui ${KOTONOHA_LIB_TYPE}
+            submodules/imgui/imgui.cpp
+            submodules/imgui/imgui_draw.cpp
+            submodules/imgui/imgui_tables.cpp
+            submodules/imgui/imgui_widgets.cpp
+            submodules/imgui/backends/imgui_impl_sdl3.cpp
+            submodules/imgui/backends/imgui_impl_sdlrenderer3.cpp
+            submodules/imgui/misc/cpp/imgui_stdlib.cpp
+    )
+    target_include_directories(imgui PUBLIC
+            submodules/imgui
+            submodules/imgui/backends
+            submodules/imgui/misc/cpp
+    )
+    target_link_libraries(imgui PUBLIC SDL3::SDL3)
+endif()
 
 # ==============================================================================
 # Target principal: KotonohaEngine
@@ -239,12 +255,19 @@ endif()
 # Propriedades do target
 target_compile_features(KotonohaEngine PUBLIC cxx_std_17)
 
-set_target_properties(KotonohaEngine imgui PROPERTIES
+set_target_properties(KotonohaEngine PROPERTIES
         CXX_EXTENSIONS OFF
         VERSION ${PROJECT_VERSION}
         SOVERSION ${PROJECT_VERSION_MAJOR}
         WINDOWS_EXPORT_ALL_SYMBOLS ON
 )
+if(NOT KOTONOHA_IMGUI_FROM_VCPKG)
+    set_target_properties(imgui PROPERTIES
+            CXX_EXTENSIONS OFF
+            VERSION ${PROJECT_VERSION}
+            SOVERSION ${PROJECT_VERSION_MAJOR}
+            WINDOWS_EXPORT_ALL_SYMBOLS ON)
+endif()
 
 if (ANDROID)
     set_target_properties(KotonohaEngine PROPERTIES OUTPUT_NAME kotonoha_engine)
