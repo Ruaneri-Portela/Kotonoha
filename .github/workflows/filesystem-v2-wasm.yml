@@ -70,15 +70,17 @@ jobs:
             -DVCPKG_OVERLAY_PORTS="$GITHUB_WORKSPACE/vcpkg-overlays/ports" \
             -DKOTONOHA_WEB_SELFTEST=ON \
             -DKOTONOHA_BUILD_EXAMPLE=ON \
+            -DKOTONOHA_BUILD_SUMMER=ON \
             -DSDLTTF_PLUTOSVG=OFF
 
       - name: Build web self-test and bundled example
-        run: cmake --build build-web --target KotonohaWebSelfTest Kotonoha --parallel 2
+        run: cmake --build build-web --target KotonohaWebSelfTest Kotonoha SummerRadish --parallel 2
 
       - name: Ensure generated WASM has matching Asyncify exports
         run: |
           python3 tools/check_wasm_asyncify.py build-web/outputs/KotonohaWebSelfTest/KotonohaWebSelfTest.js
           python3 tools/check_wasm_asyncify.py build-web/outputs/Kotonoha/Kotonoha.js
+          python3 tools/check_wasm_asyncify.py build-web/outputs/SummerRadish/SummerRadish.js
 
       - name: Install Playwright Chromium
         run: |
