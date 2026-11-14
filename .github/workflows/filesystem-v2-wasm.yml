@@ -6,6 +6,9 @@ on:
     paths:
       - ".github/workflows/filesystem-v2-wasm.yml"
       - "lib/**"
+      - "modules/**"
+      - "games/**"
+      - "CMakeLists.txt"
       - "buildsystems/**"
       - "tools/web_selftest.js"
       - "tools/web_example_smoke.js"
