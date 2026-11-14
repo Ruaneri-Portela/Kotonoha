@@ -109,7 +109,6 @@ function(kotonoha_get_default_dependency_dirs _out_dirs)
     set(_dirs)
     list(APPEND _dirs
         "$<TARGET_FILE_DIR:KotonohaEngine>"
-        "$<TARGET_FILE_DIR:imgui>"
         "$<TARGET_FILE_DIR:SDL3::SDL3>"
         "$<TARGET_FILE_DIR:SDL3_ttf::SDL3_ttf>"
         ${LIBASS_LIBRARY_DIRS}
