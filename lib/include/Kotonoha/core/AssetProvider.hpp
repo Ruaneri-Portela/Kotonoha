@@ -151,6 +151,7 @@ public:
 class FileSystemAssetProvider : public AssetProvider {
   std::filesystem::path root;
   std::shared_ptr<Filesystem::Filesystem> mounted_;
+  std::shared_ptr<Filesystem::Filesystem> fallback_;
   std::filesystem::path resolve(const std::string &id) const;
 
 public:
