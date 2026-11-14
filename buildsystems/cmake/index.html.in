@@ -939,6 +939,7 @@
             },
 
             onRuntimeInitialized: function() {
+                window.KotonohaRuntimeStarted = true;
                 console.log("[Kotonoha] Runtime inicializado");
                 // The preRun hook already restored /save with syncfs(true);
                 // saves flush explicitly and on pagehide, so no startup flush.
@@ -969,6 +970,7 @@
             const input = document.getElementById("add-browser-folder-input");
             const status = document.getElementById("browser-folder-status");
             const roots = new Set();
+            let nextImportId = 0;
             const validComponent = name => typeof name === "string" &&
                 /^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$/.test(name) &&
                 name !== "." && name !== ".." && name !== "save";
@@ -1000,13 +1002,34 @@
                 }
                 if (roots.has(root))
                     throw new Error("Pasta já montada: " + root);
+                for (const record of records) {
+                    const pieces = record.key.split("/");
+                    for (let i = 1; i < pieces.length; ++i) {
+                        if (unique.has(pieces.slice(0, i).join("/")))
+                            throw new Error("Arquivo usado como pasta: " +
+                                record.relative);
+                    }
+                }
                 // Do not overwrite an existing root, including engine-managed /save.
                 if (Module.FS && Module.FS.analyzePath("/" + root).exists &&
                     root !== "game-assets")
                     throw new Error("O diretório /" + root + " já existe");
-                Module.FS_createPath("/", root, true, true);
+                // Validate all destination collisions before writing anything.
+                if (Module.FS) {
+                    for (const {relative} of records) {
+                        const target = "/" + root + "/" + relative;
+                        if (Module.FS.analyzePath(target).exists)
+                            throw new Error("Arquivo já existe: " + target);
+                    }
+                }
+                const dependency = "kotonoha_browser_folder_" + (++nextImportId);
+                const holdBoot = !window.KotonohaRuntimeStarted &&
+                    typeof Module.addRunDependency === "function";
+                if (holdBoot) Module.addRunDependency(dependency);
                 let imported = 0;
-                for (const {file, relative} of records) {
+                try {
+                    Module.FS_createPath("/", root, true, true);
+                    for (const {file, relative} of records) {
                     const slash = relative.lastIndexOf("/");
                     const directory = slash < 0 ? "" : relative.slice(0, slash);
                     const filename = slash < 0 ? relative : relative.slice(slash + 1);
@@ -1026,12 +1049,14 @@
                     status.textContent = "Montando /" + root + ": " +
                         imported + "/" + records.length;
                 }
-                roots.add(root);
-                // Invalidate DirectoryMount indexes already in use by a game
-                // so imported files become visible without restarting WASM.
-                Module.KotonohaVfsGeneration =
-                    (Module.KotonohaVfsGeneration | 0) + 1;
-                return imported;
+                    roots.add(root);
+                    // Invalidate DirectoryMount indexes already in use by a game.
+                    Module.KotonohaVfsGeneration =
+                        (Module.KotonohaVfsGeneration | 0) + 1;
+                    return imported;
+                } finally {
+                    if (holdBoot) Module.removeRunDependency(dependency);
+                }
             };
 
             button.addEventListener("click", function() { input.click(); });
