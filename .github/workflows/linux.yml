@@ -1,9 +1,6 @@
 name: Linux x64 dynamic vcpkg artifacts
 
 on:
-  push:
-    branches: [main, dev]
-  pull_request:
   workflow_dispatch:
 
 permissions:
