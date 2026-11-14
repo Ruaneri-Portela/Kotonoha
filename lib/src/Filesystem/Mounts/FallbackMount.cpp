@@ -36,17 +36,25 @@ const IMount *FallbackMount::select(const std::string &path) const {
 bool FallbackMount::isKnownRegularFile(std::string_view path) const {
   const auto key = normalizePath(path, true);
   const bool localExists = local_ && local_->exists(key);
-  if (localExists) {
-    const auto localInfo = local_->stat(key);
-    const auto direct = std::dynamic_pointer_cast<FetchAssetProvider>(remote_);
-    // In manifest-free mode any local entry takes precedence, including a
-    // local directory. No HTTP discovery can occur in this metadata query.
-    if (direct && direct->manifestFree())
-      return localInfo.type == FileType::Regular;
-    if (localInfo.type == FileType::Regular)
-      return true;
+  if (localExists && (!remote_ || remote_->preferLocalWhenPresent()))
+    return local_->stat(key).type == FileType::Regular;
+  if (remote_) {
+    if (remote_->isKnownRegularFile(key)) return true;
+    if (remote_->isKnownDirectory(key)) return false;
   }
-  return remote_ && remote_->isKnownRegularFile(key);
+  return localExists && local_->stat(key).type == FileType::Regular;
+}
+
+bool FallbackMount::isKnownDirectory(std::string_view path) const {
+  const auto key = normalizePath(path, true);
+  const bool localExists = local_ && local_->exists(key);
+  if (localExists && (!remote_ || remote_->preferLocalWhenPresent()))
+    return local_->stat(key).type == FileType::Directory;
+  if (remote_) {
+    if (remote_->isKnownDirectory(key)) return true;
+    if (remote_->isKnownRegularFile(key)) return false;
+  }
+  return localExists && local_->stat(key).type == FileType::Directory;
 }
 bool FallbackMount::exists(std::string_view path) const {
   return select(normalizePath(path, true)) != nullptr;
