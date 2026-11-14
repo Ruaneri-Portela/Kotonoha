@@ -512,6 +512,8 @@ std::vector<uint8_t> readLoose(const std::filesystem::path &path) {
 }
 } // namespace
 bool Assets::open(const std::string &gameDir) {
+  mounted_.reset();
+  virtualLoose_.clear();
   dir_ = gameDir;
   archives_.clear();
   loose_.clear();
@@ -548,6 +550,58 @@ bool Assets::open(const std::string &gameDir) {
   }
   return !archives_.empty() || !loose_.empty();
 }
+bool Assets::open(
+    std::shared_ptr<Kotonoha::Filesystem::Filesystem> source) {
+  if (!source)
+    return false;
+  mounted_ = std::move(source);
+  dir_ = "<virtual>";
+  archives_.clear();
+  loose_.clear();
+  virtualLoose_.clear();
+  overlayArchives_.clear();
+  overlayRead_ = {};
+  rootRead_ = {};
+  overlayNames_ = {};
+
+  // A retail DDLC tree is commonly rooted at game/, but some clients pass
+  // that folder as the root. Index relative IDs the same way in both cases.
+  const std::string prefix = mounted_->exists("game/scripts.rpa")
+                                 ? "game/" : "";
+  std::vector<std::string> packages;
+  std::vector<std::string> folders{prefix.empty() ? "" : "game"};
+  while (!folders.empty()) {
+    auto folder = std::move(folders.back());
+    folders.pop_back();
+    for (const auto &entry : mounted_->list(folder)) {
+      if (entry.type == Kotonoha::Filesystem::FileType::Directory) {
+        folders.push_back(entry.path);
+        continue;
+      }
+      if (entry.path.compare(0, prefix.size(), prefix) != 0)
+        continue;
+      const auto relative = entry.path.substr(prefix.size());
+      const auto id = lower(relative);
+      if (id == "saves" || id.compare(0, 6, "saves/") == 0)
+        continue;
+      if (!virtualLoose_.emplace(id, entry.path).second)
+        return false;
+      const auto suffix = lower(
+          std::filesystem::path(relative).extension().string());
+      if (relative.find('/') == std::string::npos &&
+          (suffix == ".rpa" || suffix == ".rpx"))
+        packages.push_back(entry.path);
+    }
+  }
+  std::sort(packages.rbegin(), packages.rend());
+  for (const auto &id : packages) {
+    auto archive = std::make_unique<Archive>();
+    if (!archive->open(mounted_->open(id)))
+      return false;
+    archives_.push_back(std::move(archive));
+  }
+  return !archives_.empty() || !virtualLoose_.empty();
+}
 void Assets::mountOverlay(const std::vector<std::string> &packages,
                           OverlayRead read, OverlayNames names,
                           OverlayRead rootRead) {
@@ -573,7 +627,7 @@ bool Assets::has(const std::string &name) const {
   for (const auto &a : overlayArchives_)
     if (a->has(name))
       return true;
-  if (loose_.count(lower(name)))
+  if (loose_.count(lower(name)) || virtualLoose_.count(lower(name)))
     return true;
   for (const auto &a : archives_)
     if (a->has(name))
@@ -589,6 +643,9 @@ std::vector<uint8_t> Assets::read(const std::string &name) const {
       return a->read(name);
   if (auto file = loose_.find(lower(name)); file != loose_.end())
     return readLoose(file->second);
+  if (auto file = virtualLoose_.find(lower(name));
+      file != virtualLoose_.end())
+    return Kotonoha::Filesystem::readAll(*mounted_->open(file->second));
   for (const auto &a : archives_)
     if (a->has(name))
       return a->read(name);
@@ -608,6 +665,8 @@ std::vector<std::string> Assets::names() const {
     result.insert(result.end(), names.begin(), names.end());
   }
   for (const auto &[id, path] : loose_)
+    result.push_back(id);
+  for (const auto &[id, path] : virtualLoose_)
     result.push_back(id);
   for (const auto &a : overlayArchives_) {
     auto names = a->names();
