@@ -97,3 +97,28 @@ if (ANDROID)
         message(FATAL_ERROR "[Kotonoha] Unknown Android game: ${KOTONOHA_BUILD_GAME}")
     endif ()
 endif ()
+
+# Platform capabilities exported to game CMakeLists, so games never need to
+# branch on Emscripten or know its linker flags.
+set(KOTONOHA_BUILD_NATIVE_TOOLS TRUE)
+set(KOTONOHA_PYTHON_EMBED_AVAILABLE TRUE)
+set(KOTONOHA_USE_PYTHON_STUB FALSE)
+if(ANDROID OR EMSCRIPTEN)
+    set(KOTONOHA_BUILD_NATIVE_TOOLS FALSE)
+    set(KOTONOHA_PYTHON_EMBED_AVAILABLE FALSE)
+endif()
+if(EMSCRIPTEN)
+    set(KOTONOHA_USE_PYTHON_STUB TRUE)
+endif()
+
+# The engine owns all Emscripten preload/linker behavior. Port files provide
+# only the logical asset path and its intended virtual mount point.
+function(kotonoha_preload_asset target source_file virtual_path)
+    if(NOT TARGET ${target})
+        message(FATAL_ERROR "kotonoha_preload_asset: unknown target ${target}")
+    endif()
+    if(EMSCRIPTEN)
+        target_link_options(${target} PRIVATE
+            "SHELL:--preload-file ${source_file}@${virtual_path}")
+    endif()
+endfunction()
