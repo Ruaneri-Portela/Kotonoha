@@ -106,6 +106,21 @@ function ensureLegacySidecar() {
   return true;
 }
 
+function ensureLargeRangeFixture() {
+  // A sparse fixture checks that a 320 MiB GPK is NOT downloaded into WASM
+  // merely to read its last 8 bytes. It occupies negligible disk space.
+  const filename = path.join(output, 'game-assets', 'event01.gpk');
+  const length = 320 * 1024 * 1024;
+  const fd = fs.openSync(filename, 'w');
+  try {
+    fs.ftruncateSync(fd, length);
+    fs.writeSync(fd, Buffer.from('GPK!'), 0, 4, 0);
+    fs.writeSync(fd, Buffer.from('GPKTAIL!'), 0, 8, length - 8);
+  } finally {
+    fs.closeSync(fd);
+  }
+}
+
 function ensureVirtualIsoFixture() {
   // Same tiny 2048-byte-sector ISO9660 fixture as the native VFS test.
   // It exercises a BIN/ISO reader on remote HTTP bytes with no MEMFS image.
@@ -189,10 +204,12 @@ async function main() {
   ensureAudio();
   ensureCustomFolderFixture();
   ensureVirtualIsoFixture();
+  ensureLargeRangeFixture();
   const testLegacySidecar = ensureLegacySidecar();
   updateManifest();
   const server = spawn('python3', [
-    '-m', 'http.server', String(port), '--directory', output,
+    path.join(__dirname, 'serve_web.py'),
+    '--port', String(port), '--root', output,
   ], { stdio: ['ignore', 'ignore', 'pipe'] });
   let serverError = '';
   server.stderr.on('data', chunk => { serverError += chunk; });
@@ -347,13 +364,22 @@ async function main() {
     await page.evaluate(() =>
       document.fullscreenElement ? document.exitFullscreen() : null);
 
-    // Force a real manifest-free server boot, then read the asset directly
-    // from the C++ mount. Python http.server ignores Range: the provider
-    // should accept its complete HTTP 200 response for small files.
+    // Check direct Fetch without a manifest: a Range-aware server must
+    // deliver a few bytes from a 320 MiB synthetic GPK with HTTP 206,
+    // not download the entire archive or fill the WASM memory cache.
     const manifestPath = path.join(output, 'game-assets', 'manifest.json');
     const backupPath = manifestPath + '.testing';
     fs.renameSync(manifestPath, backupPath);
     const directoryProbes = [];
+    const gpkResponses = [];
+    const trackResponse = response => {
+      if (new URL(response.url()).pathname.endsWith('/game-assets/event01.gpk'))
+        gpkResponses.push({
+          status: response.status(),
+          contentRange: response.headers()['content-range']
+        });
+    };
+    page.on('response', trackResponse);
     const trackProbe = request => {
       const pathname = new URL(request.url()).pathname;
       if (/\/game-assets\/(?:data|data\/pack)$/.test(pathname))
@@ -374,6 +400,8 @@ async function main() {
           'number', ['string'], ['DATA/PACK/SCRIPT.DAT'], { async: true });
         const disc = await Module.ccall('KotonohaWebSelfTestVirtualDisc',
           'number', [], [], { async: true });
+        const largeTail = await Module.ccall('KotonohaWebSelfTestLargeRemoteTail',
+          'number', [], [], { async: true });
         const missing = await Module.ccall('KotonohaWebSelfTestRemoteSize',
           'number', ['string'], ['missing-selftest.bin'], { async: true });
         let staged = false;
@@ -382,7 +410,7 @@ async function main() {
           staged = true;
         } catch (_) { /* Remote Fetch must not be copied to MEMFS. */ }
         return {
-          size, upperCaseSize, nestedSize, disc, missing, staged,
+          size, upperCaseSize, nestedSize, disc, largeTail, missing, staged,
           configured: typeof window.KotonohaFetchAsset === 'function'
         };
       });
@@ -390,12 +418,15 @@ async function main() {
       assert(direct.configured && direct.size > 0 &&
         direct.upperCaseSize === direct.size &&
         direct.nestedSize === Buffer.byteLength('browser-pack-fixture') &&
-        direct.disc === 1 &&
+        direct.disc === 1 && direct.largeTail === 1 &&
+        gpkResponses.some(reply => reply.status === 206 &&
+          /^bytes \d+-\d+\/335544320$/.test(reply.contentRange || '')) &&
         directoryProbes.length === 0 &&
         direct.missing === -1 && !direct.staged,
         'manifest-free HEAD/Range Fetch works without MEMFS staging');
     } finally {
       page.off('request', trackProbe);
+      page.off('response', trackResponse);
       fs.renameSync(backupPath, manifestPath);
     }
 
