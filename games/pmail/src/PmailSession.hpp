@@ -72,6 +72,7 @@ private:
 
   // Status
   uint64_t lastUpdateMs_ = 0;
+  std::size_t choiceSelection_ = 0; // Keyboard/gamepad choice focus.
   bool initialized_ = false;
   std::function<void()> loadAction_;
   void chooseTitle(int index);
