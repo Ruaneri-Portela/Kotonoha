@@ -76,7 +76,7 @@ jobs:
       - name: Compile all enabled WASM game ports and self-test
         run: cmake --build build-web --target all --parallel 2
 
-      - name: Check deployed Kotonoha and ImGui WASM modules
+      - name: Check dynamic Kotonoha and static vcpkg module layout
         run: python3 tools/check_wasm_dylink.py build-web/outputs
 
       - name: Verify Asyncify exports for every generated WASM game
