@@ -40,3 +40,5 @@ The default command reports remaining direct standard/stdio runtime calls and ch
 The [original specification](SPECIFICATION.pt-BR.md) defines the final acceptance criteria. The draft PR remains unmerged.
 
 - **Web fallback:** local-first `FallbackMount`, asynchronous HTTP manifest bootstrap and Fetch registration are now implemented, with a bounded 128 MiB startup preload. Web browser tests and complete legacy-provider migrations remain pending.
+
+The obsolete `core/FileSystem.hpp` forwarding header was removed after migrating first-party code and test includes to `Kotonoha/Filesystem/StoragePaths.hpp`. Storage path policies and symbol names remain unchanged.

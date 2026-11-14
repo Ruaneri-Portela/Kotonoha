@@ -29,7 +29,7 @@ Os testes sintéticos cobrem leitura de diretórios/ISO, seek/EOF, overlays, nom
 
 O adaptador de paths físicos segue disponível para providers legados. Pacotes CMP de Summer e RPA de DDLC aceitam fontes virtuais; os outros indexadores ainda precisam dessa migração. Mídia nativa usa AVIO customizado do FFmpeg. O provider Fetch executa pré-carregamento assíncrono e Range limitado, mas ainda não foi testado em navegador. Blocos ausentes geram `WouldBlock` sem bloquear a main thread. O `BrowserBlobAdapter` está disponível para vídeo virtual; a ponte Worker/Asyncify e as rotas HTML legadas ainda estão pendentes.
 
-A política StoragePaths foi movida para `lib/src/Filesystem/StoragePaths.cpp`; o antigo `core/FileSystem.hpp` é um shim. Os nomes públicos e os diretórios de saves permanecem iguais.
+A política StoragePaths foi movida para `lib/src/Filesystem/StoragePaths.cpp`; todos os includes internos usam `Kotonoha/Filesystem/StoragePaths.hpp` e o shim `core/FileSystem.hpp` foi eliminado. Os símbolos públicos e os diretórios de saves permanecem iguais.
 
 A seleção de montadores aceita `.tar`, `.iso`, `.bin` e `.img` (as imagens de disco são verificadas pelo `DiscImage` existente); outros arquivos geram `UnsupportedMount`. Arquivos `.tar.gz`, UDF e CUE com múltiplas trilhas ainda não estão cobertos.
 

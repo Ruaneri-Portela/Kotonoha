@@ -1,6 +1,6 @@
 #include <Ddlc/DdlcAssets.hpp>
 
-#include <Kotonoha/core/FileSystem.hpp>
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
 
 #include <SDL3/SDL.h>
 

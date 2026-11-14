@@ -3,7 +3,7 @@
 #include "PmailTextBox.hpp"
 #include "PmailTitleMenu.hpp"
 #include <Kotonoha/core/Engine.hpp>
-#include <Kotonoha/core/FileSystem.hpp>
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/UI.hpp>
 #include <Pmail/Port.hpp>
 #include <SDL3/SDL.h>

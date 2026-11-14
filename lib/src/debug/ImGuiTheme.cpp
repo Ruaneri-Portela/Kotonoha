@@ -1,7 +1,7 @@
 ﻿#include <Kotonoha/debug/ImGuiTheme.hpp>
 
 #include <Kotonoha/core/Config.hpp>
-#include <Kotonoha/core/FileSystem.hpp>
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
 
 #include <algorithm>
 #include <filesystem>

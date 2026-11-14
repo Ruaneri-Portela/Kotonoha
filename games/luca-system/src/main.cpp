@@ -2,7 +2,7 @@
 #include <Kotonoha/core/CommandLine.hpp>
 #include <Kotonoha/core/DiscImage.hpp>
 #include <Kotonoha/core/Engine.hpp>
-#include <Kotonoha/core/FileSystem.hpp>
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/GameLauncher.hpp>
 #include <LucaSystem/LucaSystemAssets.hpp>
 #include <LucaSystem/LucaSystemRuntime.hpp>

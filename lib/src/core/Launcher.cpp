@@ -1,7 +1,7 @@
 #include <Kotonoha/core/Appearance.hpp>
 #include <Kotonoha/core/AssetOverlay.hpp>
 #include <Kotonoha/core/Config.hpp>
-#include <Kotonoha/core/FileSystem.hpp>
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/Launcher.hpp>
 #include <Kotonoha/core/Log.hpp>
 #include <Kotonoha/media/AudioMixer.hpp>

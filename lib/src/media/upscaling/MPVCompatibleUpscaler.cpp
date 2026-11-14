@@ -1,4 +1,4 @@
-#include <Kotonoha/core/FileSystem.hpp>
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/Log.hpp>
 #include <Kotonoha/core/OpenGL.hpp>
 #include <Kotonoha/media/upscaling/OpenGLUpscaler.hpp>

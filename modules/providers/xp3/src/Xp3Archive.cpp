@@ -1,6 +1,6 @@
 // Reusable XP3 provider; independent of the KAG runtime.
 #include <Kirikiri/KirikiriAssets.hpp>
-#include <Kotonoha/core/FileSystem.hpp>
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
 
 #include <zlib.h>
 
