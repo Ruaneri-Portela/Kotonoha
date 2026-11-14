@@ -1,3 +1,4 @@
+#include <Kotonoha/core/SDL.hpp>
 #include "PmailAudio.hpp"
 #include <Pmail/Animation.hpp>
 #include <algorithm>
@@ -68,10 +69,11 @@ Kotonoha::PcmPlayer::Clip PmailAudio::Load(const std::string &id,
                                int(audio.data.size()), &target, &converted,
                                &bytes))
     throw std::runtime_error(SDL_GetError());
+  Kotonoha::SDLMemoryPtr<Uint8> convertedOwner(converted);
   result.samples.resize(size_t(bytes) / sizeof(int16_t));
   if (bytes)
     std::memcpy(result.samples.data(), converted, size_t(bytes));
-  SDL_free(converted);
+
   return result;
 }
 
