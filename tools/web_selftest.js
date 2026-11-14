@@ -106,6 +106,31 @@ function ensureLegacySidecar() {
   return true;
 }
 
+function ensureVirtualIsoFixture() {
+  // Same tiny 2048-byte-sector ISO9660 fixture as the native VFS test.
+  // It exercises a BIN/ISO reader on remote HTTP bytes with no MEMFS image.
+  const block = 2048;
+  const disk = Buffer.alloc(block * 22, 0);
+  const put32 = (at, value) => disk.writeUInt32LE(value, at);
+  const pvd = block * 16;
+  disk[pvd] = 1;
+  disk.write('CD001', pvd + 1, 'ascii');
+  put32(pvd + 156 + 2, 20);
+  put32(pvd + 156 + 10, block);
+  const terminator = block * 17;
+  disk[terminator] = 255;
+  disk.write('CD001', terminator + 1, 'ascii');
+  const dir = block * 20;
+  const name = 'HELLO.TXT;1';
+  disk[dir] = 33 + name.length;
+  put32(dir + 2, 21);
+  put32(dir + 10, 5);
+  disk[dir + 32] = name.length;
+  disk.write(name, dir + 33, 'ascii');
+  disk.write('hello', block * 21, 'ascii');
+  fs.writeFileSync(path.join(output, 'game-assets', 'web-disc.iso'), disk);
+}
+
 function ensureCustomFolderFixture() {
   // Synthetic retail-like layout for manifest-free VFS discovery. Do not
   // request HEAD for "data" or "data/pack" as though they were files.
@@ -163,6 +188,7 @@ async function main() {
   ensureVideo();
   ensureAudio();
   ensureCustomFolderFixture();
+  ensureVirtualIsoFixture();
   const testLegacySidecar = ensureLegacySidecar();
   updateManifest();
   const server = spawn('python3', [
