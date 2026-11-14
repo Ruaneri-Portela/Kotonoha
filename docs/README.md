@@ -14,6 +14,7 @@ Start with the [project README](../README.md), then choose a topic:
 | Assets and patches | [Overlays and translation](ASSET_OVERLAYS.md) |
 | File locations | [Directory policy](DIRECTORY_POLICY.md) |
 | UI, subtitles, and saved options | [Engine settings](ENGINE_SETTINGS.md) |
+| Debug UI, applets and Git build info | [Debug tools and SDL diagnostics](DEBUG_TOOLS.md) |
 | Game ports | [Port index](../games/README.md) |
 | Internals | [Virtual machines](../modules/vms/README.md) · [Asset providers](../modules/providers/README.md) |
 
