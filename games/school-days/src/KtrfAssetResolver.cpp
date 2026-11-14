@@ -1,5 +1,8 @@
 #include "Kotonoha/routing/SchoolDaysKtrfAssetResolver.hpp"
 #include "Kotonoha/routing/SchoolDaysKtrfProfile.hpp"
+#include <Kotonoha/Filesystem/Sources/SDLFileSource.hpp>
+#include <filesystem>
+#include <exception>
 
 #include <stdarg.h>
 #include <stdio.h>
@@ -165,31 +168,22 @@ int SchoolDaysKtrfAdvanceToAsset(Kotonoha_KtrfAdapter *adapter,
 
 int SchoolDaysKtrfProbeAsset(const SchoolDaysKtrfResolvedAsset *asset,
                              size_t *file_size, Kotonoha_KtrfError *error) {
-  FILE *stream;
-  long size;
-
   asset_clear_error(error);
   if (asset == NULL || asset->path[0] == '\0')
     return asset_fail(error, KOTONOHA_KTRF_ERROR_ARGUMENT,
                       "KTRF asset path is empty");
-
-  stream = fopen(asset->path, "rb");
-  if (stream == NULL)
+  try {
+    Kotonoha::Filesystem::SDLFileSource source(
+        std::filesystem::path(asset->path));
+    const auto size = source.size();
+    if (size <= 0)
+      return asset_fail(error, KOTONOHA_KTRF_ERROR_FORMAT,
+                        "KTRF asset is empty: %s", asset->path);
+    if (file_size)
+      *file_size = static_cast<size_t>(size);
+    return 1;
+  } catch (const std::exception &) {
     return asset_fail(error, KOTONOHA_KTRF_ERROR_IO,
                       "cannot open KTRF asset: %s", asset->path);
-
-  if (fseek(stream, 0L, SEEK_END) != 0) {
-    fclose(stream);
-    return asset_fail(error, KOTONOHA_KTRF_ERROR_IO,
-                      "cannot seek KTRF asset: %s", asset->path);
   }
-  size = ftell(stream);
-  fclose(stream);
-
-  if (size <= 0L)
-    return asset_fail(error, KOTONOHA_KTRF_ERROR_FORMAT,
-                      "KTRF asset is empty: %s", asset->path);
-  if (file_size != NULL)
-    *file_size = (size_t)size;
-  return 1;
 }
