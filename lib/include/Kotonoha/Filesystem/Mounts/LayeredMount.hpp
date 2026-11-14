@@ -20,6 +20,8 @@ public:
   explicit LayeredMount(std::shared_ptr<IMount> base);
   void addOverlay(std::shared_ptr<IMount> overlay, int priority = 100);
   std::uint64_t generation() const noexcept { return generation_; }
+  bool isKnownRegularFile(std::string_view path) const override;
+  bool isKnownDirectory(std::string_view path) const override;
   bool exists(std::string_view path) const override;
   FileInfo stat(std::string_view path) const override;
   std::vector<FileInfo> list(std::string_view directory) const override;
