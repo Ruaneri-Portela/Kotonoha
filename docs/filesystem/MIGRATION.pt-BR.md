@@ -9,14 +9,14 @@ Este relatório diferencia **conversão de I/O para SDL3** de **suporte real a o
 | Example | Usa a camada SDL3 compartilhada | Ainda depende do provider padrão do motor |
 | Amagami | Leitura de Session por adaptador SDL3 | Parsers de disco e bootstrap virtual pendentes |
 | Zero no Tsukaima | Session e Frontend migrados para SDL3 | RAW disc/CUE e integração VFS pendentes |
-| Snow Radish | Streams de Pack e Session convertidos | Pacotes ainda indexam caminhos físicos |
+| Snow Radish | DAT ADV3 indexado/lido por VFS | Construtor por path ou mount; inicialização não extrai mais ISO; pendem testes de jogo |
 | Summer Radish | Pacotes CMP e vídeos usam `FileHandle` | Piloto pasta/ISO/overlay de fonte; falta build de regressão |
 | DDLC | RPA, arquivos soltos e inicialização usam handles virtuais | Piloto pasta/ISO/TAR; falta regressão de VNX/overlays |
 | School Days | KTRF, GPK e saves usam adaptadores SDL3 | Indexação/streaming GPK ainda exigem migração de VFS |
 | RealLive | Voz usa SDL3, leitor ISO existente mantido | Integração geral do provider ISO ainda exige testes |
-| Kirikiri | Leitura de XP3 não usa mais stdio C | Indexação do XP3 continua baseada em paths físicos |
-| LucaSystem | PAK usa adaptadores SDL3 | Indexação PAK ainda baseada em caminhos físicos |
-| Pure Mail | PAK e runtime usam adaptadores SDL3 | Indexação PAK ainda baseada em caminhos físicos |
+| Kirikiri | Arquivos soltos e pacotes XP3 usam indexação/leitura VFS | Busca de XP3 e validador migrados; faltam regressões do jogo |
+| LucaSystem | PAK indexado e lido sob demanda via VFS | Overlay de fonte montado antes do índice; testes sintéticos no CI |
+| Pure Mail | Provider Pmail e DAT ADV3 compartilhado usam VFS | Runtime usa adaptador SDL3 e precisa de testes de gameplay |
 
 Os providers compartilhados `FileSystemAssetProvider` e `IndexedFileSystemAssetProvider` aceitam montagem VFS. Isso **não** migra automaticamente todos os formatos dos jogos.
 

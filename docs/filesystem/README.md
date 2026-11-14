@@ -38,3 +38,5 @@ The virtual `MediaPlayer::open(FileHandle, logicalName, ...)` overload can now p
 ## Browser automatic fallback
 
 On Emscripten, missing or size-invalid `game-assets` entries can be resolved by `FallbackMount(local, FetchAssetProvider)` after the HTML preRun fetches the manifest. The default asset provider and `Filesystem::mount("/game-assets")` support this routing. The HTML bootstrap fails closed if the required preload exceeds 128 MiB or the remote manifest fails. No HTTP bytes are staged into MEMFS. See [web build instructions](../BUILD_WEB.md) and [migration matrix](MIGRATION.md). A remote manifest cannot by itself migrate an unconverted game-specific package indexer.
+
+The direct mount migration has been extended to Snow ADV3, Luca PAK, Kirikiri XP3 and the loose Pmail provider, in addition to CMP Summer and RPA DDLC. Physical-path adapters remain only where an actual runtime still requires them; see the [migration matrix](MIGRATION.md). Module compilation and retail game runtime checks are not a substitute for platform/browser validation.
