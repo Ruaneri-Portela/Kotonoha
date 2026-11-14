@@ -21,10 +21,69 @@ Os caminhos das toolchains variam conforme a instalação. `KOTONOHA_BUILD_ALL=O
 ## Armazenamento e assets no navegador
 
 - **Saves:** volume IDBFS em `/save`, sincronizado com IndexedDB pelo adaptador web.
-- **Assets do servidor:** `tools/generate_manifest.py` gera `game-assets/manifest.json`; `WebAssetFetch.cpp` baixa os dados via `emscripten_fetch` e os coloca no MEMFS. Uma URL **não** é automaticamente um arquivo local.
+- **Assets do servidor:** `tools/generate_manifest.py` gera um manifesto com tamanhos; o navegador monta Fetch como `IMount` somente para leitura, prioriza arquivos locais e não duplica bytes HTTP em MEMFS.
 - **Pasta local:** o seletor da página importa os arquivos escolhidos para o sistema virtual. Áudio/vídeo também podem usar URLs de objetos `File`.
 - **Mídia:** o player tenta decodificação do navegador e usa FFmpeg em WebAssembly como fallback. Arquivos `.webm` opcionais ajudam com codecs antigos; crie-os apenas com material permitido.
 
 Para o autoteste opcional, habilite `-DKOTONOHA_WEB_SELFTEST=ON`, compile `KotonohaWebSelfTest` e execute `node tools/web_selftest.js build-web/outputs/KotonohaWebSelfTest`. Para depurar C++, use `-g3` e suporte DWARF nas DevTools do Chrome.
 
 **Limites:** permissões do navegador, downloads assíncronos, suporte a codecs e execução sem threads diferem do desktop. Não trate o disco do usuário como um filesystem POSIX acessível diretamente.
+
+
+## Fallback HTTP(S) de game-assets (Filesystem V2 experimental)
+
+Quando não existe pasta local `game-assets` selecionada, a página tenta
+automaticamente carregar o manifesto do servidor. Arquivos locais são
+comparados com o manifesto por **ID lógico sem distinção de caixa ASCII e
+tamanho**; arquivos ausentes ou com tamanho divergente são fornecidos pelo
+montador virtual Fetch. Assets HTTP e placeholders remotos **não** são
+copiados para MEMFS.
+
+Publique `game-assets/manifest.json` com entradas e tamanhos:
+
+```json
+{
+  "entries": [
+    {"path": "DATA/GRAPHIC.CMP", "size": 12345},
+    {"path": "OPENING.WEBM", "size": 67890}
+  ]
+}
+```
+
+Gere o manifesto no deploy com
+`python3 tools/generate_manifest.py ./game-assets ./game-assets/manifest.json`.
+O campo `files` continua disponível por compatibilidade com leitores de
+manifesto existentes.
+
+O endereço padrão é `game-assets/` relativo à página. Para usar um CDN
+HTTPS, configure **antes do script de inicialização**:
+
+```html
+<script>
+  window.KotonohaAssetBaseURL = "https://cdn.example.org/meu-jogo/game-assets/";
+</script>
+```
+
+Hospedagem em outra origem exige CORS correto. HTTP não fornece listagem
+genérica de diretórios: o manifesto é obrigatório. Erros HTTP, manifesto
+inválido ou arquivos remotos acima do limite atual de **128 MiB para
+pré-carregamento automático** mantêm a seleção de origem aberta, sem iniciar
+o motor com dados incompletos. O backend Fetch também tem suporte a requisições
+Range limitadas, mas instalações remotas grandes ainda exigem estratégia
+de suspensão por Worker/Asyncify compatível com o loop do navegador.
+
+Use `window.KotonohaAutoServerAssets = false` antes da inicialização para
+manter a escolha manual entre pasta e servidor. O self-test web já usa a
+escolha manual.
+
+```sh
+python3 tools/audit_filesystem_v2.py
+python3 tools/ValidateBuildMetadata.py
+node --check tools/web_selftest.js
+# Exige build Emscripten e Playwright configurados:
+node tools/web_selftest.js build-web/outputs/KotonohaWebSelfTest
+```
+
+Esta integração **ainda não foi validada** num build WebAssembly/navegador.
+Alguns indexadores de formatos proprietários ainda exigem caminhos físicos;
+logo, não é correto considerar todos os jogos totalmente migrados.

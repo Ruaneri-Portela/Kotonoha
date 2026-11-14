@@ -34,3 +34,7 @@ The legacy StoragePaths implementation was moved to `lib/src/Filesystem/StorageP
 Mount detection accepts `.tar`, `.iso`, `.bin` and `.img` (disk types verified by the existing `DiscImage` parser); unknown ordinary files raise `UnsupportedMount`. Compressed `.tar.gz`, UDF and CUE multi-track mounting are not supported by this phase.
 
 The virtual `MediaPlayer::open(FileHandle, logicalName, ...)` overload can now prepare a browser-supported format as an owned `blob:` URL through `BrowserBlobAdapter` (64 MiB limit). Native playback keeps custom FFmpeg AVIO. The older path/AssetProvider web playback routes still require migration; browser behavior has not been tested.
+
+## Browser automatic fallback
+
+On Emscripten, missing or size-invalid `game-assets` entries can be resolved by `FallbackMount(local, FetchAssetProvider)` after the HTML preRun fetches the manifest. The default asset provider and `Filesystem::mount("/game-assets")` support this routing. The HTML bootstrap fails closed if the required preload exceeds 128 MiB or the remote manifest fails. No HTTP bytes are staged into MEMFS. See [web build instructions](../BUILD_WEB.md) and [migration matrix](MIGRATION.md). A remote manifest cannot by itself migrate an unconverted game-specific package indexer.
