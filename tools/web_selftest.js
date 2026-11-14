@@ -372,6 +372,8 @@ async function main() {
           'number', ['string'], ['SELFTEST.WEBM'], { async: true });
         const nestedSize = await Module.ccall('KotonohaWebSelfTestRemoteSize',
           'number', ['string'], ['DATA/PACK/SCRIPT.DAT'], { async: true });
+        const disc = await Module.ccall('KotonohaWebSelfTestVirtualDisc',
+          'number', [], [], { async: true });
         const missing = await Module.ccall('KotonohaWebSelfTestRemoteSize',
           'number', ['string'], ['missing-selftest.bin'], { async: true });
         let staged = false;
@@ -380,7 +382,7 @@ async function main() {
           staged = true;
         } catch (_) { /* Remote Fetch must not be copied to MEMFS. */ }
         return {
-          size, upperCaseSize, nestedSize, missing, staged,
+          size, upperCaseSize, nestedSize, disc, missing, staged,
           configured: typeof window.KotonohaFetchAsset === 'function'
         };
       });
@@ -388,6 +390,7 @@ async function main() {
       assert(direct.configured && direct.size > 0 &&
         direct.upperCaseSize === direct.size &&
         direct.nestedSize === Buffer.byteLength('browser-pack-fixture') &&
+        direct.disc === 1 &&
         directoryProbes.length === 0 &&
         direct.missing === -1 && !direct.staged,
         'manifest-free HEAD/Range Fetch works without MEMFS staging');
