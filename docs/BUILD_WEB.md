@@ -85,3 +85,30 @@ node tools/web_selftest.js build-web/outputs/KotonohaWebSelfTest
 This is an **unverified integration draft** until the Emscripten/WebAssembly
 build and browser tests pass. Some format-specific game providers still use
 physical archive paths and are not yet equivalent to the shared virtual mount.
+
+## Custom local mounts in the browser
+
+The top-right **+ Adicionar pasta** control remains available after startup.
+Select any local directory and enter its virtual mount name, e.g.
+`game-assets`, `forced_subtitles`, or `ovrlay`. Its contents become
+available under `/<name>/` inside Emscripten's virtual filesystem.
+The user-provided name is limited to safe filename characters; `/save` is
+reserved for persistent saves. The page prevents accidental file overwrite.
+The control can also be scripted through
+`window.KotonohaMountBrowserFolder(fileList, "forced_subtitles")` once the
+Emscripten filesystem is initialized.
+
+**Important:** mounting an extra folder exposes its files to the VFS but does
+not automatically instruct every game port to search that folder. Port-specific
+path resolution and touchscreen gameplay must be tested separately.
+
+### Manifest-free HTTP assets — current limitation
+
+This revision does **not** implement a manifest-free HTTP provider. The
+existing automatic `game-assets/` fallback still requires
+`game-assets/manifest.json` with file paths and sizes. HTTP(S) servers
+normally do not expose directory listings, and Emscripten Fetch is asynchronous:
+a real manifest-free implementation needs on-demand filename discovery from
+the game, asynchronous reads (or a suitable suspension/worker strategy), and
+provider integration without assuming that all assets have been prefetched.
+Do not interpret successful compilation as browser-gameplay parity.
