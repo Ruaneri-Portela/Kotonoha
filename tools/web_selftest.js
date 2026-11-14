@@ -11,11 +11,11 @@
 // Usage:
 //   node tools/web_selftest.js [output-dir] [port]
 //
-// The test exercises the real C++ paths, not the JS bridge directly:
+// The test exercises the real C++ provider, not a MEMFS HTTP staging path:
 //   - VNSave::write -> IDBFS sync -> page reload -> VNSave::read
-//   - MediaPlayer::open(assets, id) -> provider localPath -> KotonohaPlayVideo
-// The first MEMFS video is a zero-byte placeholder to test URL playback;
-// additional tests provide local bytes for the FFmpeg fallback.
+//   - HTTP manifest -> FetchAssetProvider -> FileHandle -> HTML5 Blob
+//   - Local game folder -> FileHandle -> HTML5 Blob or FFmpeg.
+
 
 const { spawn, spawnSync } = require('node:child_process');
 const fs = require('node:fs');
@@ -106,6 +106,30 @@ function ensureLegacySidecar() {
   return true;
 }
 
+function updateManifest() {
+  // Fixture files are generated AFTER the CMake manifest custom command.
+  // Recreate the HTTP index so the actual FetchAssetProvider sees these bytes.
+  const root = path.join(output, 'game-assets');
+  const entries = [];
+  const traverse = (folder, prefix = '') => {
+    for (const item of fs.readdirSync(folder, { withFileTypes: true })) {
+      const relative = prefix ? prefix + '/' + item.name : item.name;
+      const absolute = path.join(folder, item.name);
+      if (item.isDirectory()) {
+        traverse(absolute, relative);
+      } else if (item.isFile() &&
+                 item.name !== 'manifest.json' &&
+                 item.name !== 'README.txt') {
+        entries.push({path: relative, size: fs.statSync(absolute).size});
+      }
+    }
+  };
+  traverse(root);
+  entries.sort((a, b) => a.path.localeCompare(b.path));
+  fs.writeFileSync(path.join(root, 'manifest.json'),
+                   JSON.stringify({entries, files: entries.map(e => e.path)}));
+}
+
 async function waitForServer() {
   for (let i = 0; i < 80; ++i) {
     try {
@@ -124,6 +148,7 @@ async function main() {
   ensureVideo();
   ensureAudio();
   const testLegacySidecar = ensureLegacySidecar();
+  updateManifest();
   const server = spawn('python3', [
     '-m', 'http.server', String(port), '--directory', output,
   ], { stdio: ['ignore', 'ignore', 'pipe'] });
@@ -191,34 +216,25 @@ async function main() {
     await ready();
 
     const prepared = await page.evaluate(() => {
+      let staged = false;
       try {
-        Module.FS_createPath('/', 'game-assets', true, true);
-      } catch (error) {
-        // The manifest loader may have created the directory already.
-      }
-      let placeholderError = null;
-      try {
-        Module.FS_createDataFile('/game-assets', 'selftest.webm',
-          new Uint8Array(0), true, true, true);
-      } catch (error) {
-        placeholderError = String(error);
-      }
-      let placeholderSize = -1;
-      try {
-        placeholderSize = Module.FS_readFile('/game-assets/selftest.webm').length;
-      } catch (error) {
-        placeholderError = String(error);
-      }
+        Module.FS_readFile('/game-assets/selftest.webm');
+        staged = true;
+      } catch (error) { /* Fetch data does not live in MEMFS. */ }
       return {
         write: Module.ccall('KotonohaWebSelfTestWriteSave', 'number', [], []),
-        placeholderSize,
-        placeholderError,
+        remoteSize: Module.ccall('KotonohaWebSelfTestRemoteSize',
+                                 'number', ['string'], ['selftest.webm']),
+        staged
       };
     });
     console.log('PREPARE', JSON.stringify(prepared));
     assert(prepared.write === 1, 'VNSave::write succeeded');
-    assert(prepared.placeholderSize === 0,
-      'deferred video placeholder is zero bytes');
+    assert(prepared.remoteSize > 0,
+      'HTTP fallback bytes are readable via the virtual FileHandle');
+    assert(prepared.staged === false,
+      'HTTP resource must not be silently duplicated into MEMFS');
+
 
     const beforeReload = await page.evaluate(async () => {
       const savePath =
@@ -320,8 +336,8 @@ async function main() {
     assert(video.hasFrame === 1, 'HTML5 video produced a frame');
     assert(video.display === 'none', 'HTML5 decoder stays behind SDL');
     assert(video.rendered === 1, 'browser frame renders through SDL');
-    assert(video.currentSrc.endsWith('/game-assets/selftest.webm'),
-      'MediaPlayer passed the game-assets URL to KotonohaPlayVideo');
+    assert(video.currentSrc.startsWith('blob:'),
+      'MediaPlayer provided a Blob URL, not the original HTTP URL');
     assert(video.paused === false, 'HTML5 video is playing');
     assert(video.videoSize[0] === 320 && video.videoSize[1] === 240,
       'HTML5 video decoded the 4:3 source');
@@ -552,8 +568,8 @@ async function main() {
       console.log('LEGACY_VIDEO', JSON.stringify(legacy));
       assert(legacy.opened === 1 && legacy.hasFrame === 1,
         'MPEG asset opens and produces a WebM frame');
-      assert(legacy.src.endsWith('/game-assets/legacy.mpg.webm'),
-        'MPEG asset selects its WebM sidecar');
+      assert(legacy.src.startsWith('blob:'),
+        'MPEG sidecar is played from virtual bytes via Blob');
       assert(legacy.duration > 1.5,
         'sidecar duration is reported by MediaPlayer');
       await page.evaluate(() => Module.ccall('KotonohaWebSelfTestCloseVideo',
