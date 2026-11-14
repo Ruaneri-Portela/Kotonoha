@@ -106,6 +106,13 @@ function ensureLegacySidecar() {
   return true;
 }
 
+function ensureCustomFolderFixture() {
+  const root = path.join(output, 'forced_subtitles');
+  fs.mkdirSync(root, { recursive: true });
+  fs.writeFileSync(path.join(root, 'web-test.ass'),
+    '[Script Info]\\nTitle: Kotonoha web fixture\\n');
+}
+
 function updateManifest() {
   // Fixture files are generated AFTER the CMake manifest custom command.
   // Recreate the HTTP index so the actual FetchAssetProvider sees these bytes.
@@ -147,6 +154,7 @@ async function waitForServer() {
 async function main() {
   ensureVideo();
   ensureAudio();
+  ensureCustomFolderFixture();
   const testLegacySidecar = ensureLegacySidecar();
   updateManifest();
   const server = spawn('python3', [
@@ -210,6 +218,56 @@ async function main() {
       local.hasFrame === 1, 'local movie decodes from browser File URL');
     assert(local.audioOpened === 1 && local.audioDuration > 1.8,
       'local audio decodes from selected folder');
+
+    // The corner control mounts any requested root without assuming the
+    // selected directory is named game-assets.
+    page.once('dialog', dialog => dialog.accept('forced_subtitles'));
+    await page.locator('#add-browser-folder-input').setInputFiles(
+      path.join(output, 'forced_subtitles'));
+    await page.waitForFunction(() =>
+      document.getElementById('browser-folder-status').textContent
+        .includes('arquivo(s) montado(s)'));
+    const custom = await page.evaluate(() => ({
+      contents: Module.FS_readFile('/forced_subtitles/web-test.ass',
+        { encoding: 'utf8' }),
+      status: document.getElementById('browser-folder-status').textContent
+    }));
+    assert(custom.contents.includes('Kotonoha web fixture'),
+      'custom named directory is mounted in the Emscripten VFS');
+
+    // Force a real manifest-free server boot, then read the asset directly
+    // from the C++ mount. Python http.server ignores Range: the provider
+    // should accept its complete HTTP 200 response for small files.
+    const manifestPath = path.join(output, 'game-assets', 'manifest.json');
+    const backupPath = manifestPath + '.testing';
+    fs.renameSync(manifestPath, backupPath);
+    try {
+      await page.goto(baseUrl + '/index.html',
+        { waitUntil: 'domcontentloaded' });
+      await page.locator('#use-server-assets').click();
+      await ready();
+      const direct = await page.evaluate(async () => {
+        const size = await Module.ccall('KotonohaWebSelfTestRemoteSize',
+          'number', ['string'], ['selftest.webm']);
+        const missing = await Module.ccall('KotonohaWebSelfTestRemoteSize',
+          'number', ['string'], ['missing-selftest.bin']);
+        let staged = false;
+        try {
+          Module.FS_readFile('/game-assets/selftest.webm');
+          staged = true;
+        } catch (_) { /* Remote Fetch must not be copied to MEMFS. */ }
+        return {
+          size, missing, staged,
+          configured: typeof window.KotonohaFetchAsset === 'function'
+        };
+      });
+      console.log('MANIFEST_FREE', JSON.stringify(direct));
+      assert(direct.configured && direct.size > 0 &&
+        direct.missing === -1 && !direct.staged,
+        'manifest-free HEAD/Range Fetch works without MEMFS staging');
+    } finally {
+      fs.renameSync(backupPath, manifestPath);
+    }
 
     await page.goto(baseUrl + '/index.html', { waitUntil: 'domcontentloaded' });
     await page.locator('#use-server-assets').click();
