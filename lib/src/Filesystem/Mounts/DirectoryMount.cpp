@@ -3,6 +3,7 @@
 #include <Kotonoha/Filesystem/Sources/SDLFileSource.hpp>
 
 #include <limits>
+#include <utility>
 #ifdef __EMSCRIPTEN__
 #include <emscripten/emscripten.h>
 #endif
