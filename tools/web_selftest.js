@@ -210,6 +210,15 @@ async function main() {
       !pendingChoice.started && pendingChoice.toolbar &&
       sourceRequests.length === 0,
       'boot must wait for an explicit source choice without fetching HTTP');
+    // Extra folders may be imported while the startup source is still
+    // undecided; the button must disappear before SDL_AppInit.
+    page.once('dialog', dialog => dialog.accept('forced_subtitles'));
+    const chooserPromise = page.waitForEvent('filechooser');
+    await page.locator('#add-browser-folder').click();
+    await (await chooserPromise).setFiles(path.join(output, 'forced_subtitles'));
+    await page.waitForFunction(() =>
+      document.getElementById('browser-folder-status').textContent
+        .includes('arquivo(s) montado(s)'));
     await page.locator('#local-assets-folder').setInputFiles(
       path.join(output, 'game-assets'));
     await ready();
@@ -245,16 +254,16 @@ async function main() {
       'local audio decodes from selected folder');
     assert(sourceRequests.length === 0,
       'choosing local game-assets must not silently fetch HTTP assets');
-    const persistent = await page.evaluate(() => ({
+    const toolbarState = await page.evaluate(() => ({
       running: !!window.KotonohaRuntimeStarted,
-      present: !!document.getElementById('browser-folder-tools'),
+      hidden: document.getElementById('browser-folder-tools').hidden,
       topLayer: document.getElementById('browser-folder-tools')
         .matches(':popover-open'),
-      hasButton: !!document.getElementById('add-browser-folder')
+      disabled: document.getElementById('add-browser-folder').disabled
     }));
-    assert(persistent.running && persistent.present &&
-      persistent.topLayer && persistent.hasButton,
-      'folder toolbar must remain in top layer after SDL startup');
+    assert(toolbarState.running && toolbarState.hidden &&
+      !toolbarState.topLayer && toolbarState.disabled,
+      'custom folder button must disappear after SDL starts');
 
 
     const ehAcrossAwait = await page.evaluate(async () =>
@@ -264,16 +273,7 @@ async function main() {
       'C++ catch must survive Asyncify sleep and resume without CppException');
 
 
-    // The corner control mounts any requested root without assuming the
-    // selected directory is named game-assets.
-    page.once('dialog', dialog => dialog.accept('forced_subtitles'));
-    const chooserPromise = page.waitForEvent('filechooser');
-    await page.locator('#add-browser-folder').click();
-    const chooser = await chooserPromise;
-    await chooser.setFiles(path.join(output, 'forced_subtitles'));
-    await page.waitForFunction(() =>
-      document.getElementById('browser-folder-status').textContent
-        .includes('arquivo(s) montado(s)'));
+    // A custom root chosen before startup remains available to the game.
     const custom = await page.evaluate(() => ({
       contents: Module.FS_readFile('/forced_subtitles/web-test.ass',
         { encoding: 'utf8' }),
@@ -288,43 +288,33 @@ async function main() {
       'KotonohaWebSelfTestLiveLocalSize', 'number',
       ['string'], ['selftest.webm']));
     assert(beforeImport > 0, 'live local mount was created');
-    page.once('dialog', dialog => dialog.accept('game-assets'));
-    const nextChooser = page.waitForEvent('filechooser');
-    await page.locator('#add-browser-folder').click();
-    await (await nextChooser).setFiles(path.join(output, 'live_import'));
-    await page.waitForFunction(() =>
-      document.getElementById('browser-folder-status').textContent
-        .includes('/game-assets'));
+    // Internal hot-mount API is still callable for engine integration,
+    // but it is no longer exposed as a visible in-game button.
+    await page.evaluate(() => window.KotonohaMountBrowserFolder(
+      [new File(['Kotonoha hot import'], 'live-extra.txt')], 'game-assets'));
     const afterImport = await page.evaluate(() => Module.ccall(
       'KotonohaWebSelfTestLiveLocalSize', 'number',
       ['string'], ['live-extra.txt']));
     assert(afterImport === Buffer.byteLength('Kotonoha hot import'),
       'already-mounted game-assets root detects new browser files');
 
-    // A canvas may be promoted to the fullscreen top layer. The folder
-    // toolbar must be raised above it, not disappear behind the game.
+    // Fullscreen must NOT reopen the pre-game configuration control.
     await page.locator('#canvas').evaluate(canvas =>
       canvas.addEventListener('click', () =>
         canvas.requestFullscreen().catch(() => {}), { once: true }));
-    await page.locator('#canvas').click({position: { x: 140, y: 140 }});
+    await page.locator('#canvas').click({ position: { x: 140, y: 140 } });
+    await page.waitForTimeout(150);
     const fullscreenState = await page.evaluate(() => ({
-      active: !!document.fullscreenElement,
-      toolbar: document.getElementById('browser-folder-tools')
+      hidden: document.getElementById('browser-folder-tools').hidden,
+      topLayer: document.getElementById('browser-folder-tools')
         .matches(':popover-open'),
-      onTop: (function() {
-        const btn = document.getElementById('add-browser-folder');
-        const r = btn.getBoundingClientRect();
-        const topmost = document.elementFromPoint(r.x + r.width / 2,
-          r.y + r.height / 2);
-        return topmost === btn || btn.contains(topmost);
-      })()
+      display: getComputedStyle(document.getElementById('browser-folder-tools')).display
     }));
-    if (fullscreenState.active) {
-      assert(fullscreenState.toolbar && fullscreenState.onTop,
-        'custom folder toolbar must remain clickable in canvas fullscreen');
-      await page.evaluate(() => document.exitFullscreen());
-    }
-
+    assert(fullscreenState.hidden && !fullscreenState.topLayer &&
+      fullscreenState.display === 'none',
+      'fullscreen must not reopen the custom folder button');
+    await page.evaluate(() =>
+      document.fullscreenElement ? document.exitFullscreen() : null);
 
     // Force a real manifest-free server boot, then read the asset directly
     // from the C++ mount. Python http.server ignores Range: the provider
