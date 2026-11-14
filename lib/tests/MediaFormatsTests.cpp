@@ -634,6 +634,11 @@ void player() {
   media.open(assets, "corrupt.mkv", false, "movie");
   require(!media.isOpen() && media.finished(),
           "Corrupt video stops without aborting the game");
+  require(!MediaPlayer::prepareInput(assets, "corrupt.mkv", false),
+          "Corrupt video background preparation reports a recoverable failure");
+  media.adoptPreparedInput(nullptr, "movie");
+  require(!media.isOpen() && media.finished(),
+          "Missing speculative decoder does not abort the game");
   media.open(assets, "still", false, "movie");
   media.openSoundtrack(assets, "track.wav");
   require(media.isOpen() && !media.finished(), "Media with soundtrack");
