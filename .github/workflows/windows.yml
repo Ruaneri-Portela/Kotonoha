@@ -34,6 +34,7 @@ jobs:
           python tools/ValidateBuildMetadata.py
           python tools/check_sdl_cpack.py
           python tools/audit_filesystem_v2.py --strict
+          python tools/check_game_platform_isolation.py
       - name: Configure with vcpkg
         shell: pwsh
         run: |
