@@ -2,6 +2,7 @@
 #include <Kotonoha/core/DiscImage.hpp>
 #include <Kotonoha/core/FileSystem.hpp>
 #include <Kotonoha/Filesystem/Filesystem.hpp>
+#include <Kotonoha/Filesystem/RemoteAssets.hpp>
 #include <Kotonoha/Filesystem/Sources/SDLFileSource.hpp>
 #include <Kotonoha/core/Log.hpp>
 #include <Kotonoha/localization/Encoding.hpp>
@@ -463,7 +464,18 @@ public:
 FileSystemAssetProvider::FileSystemAssetProvider(std::filesystem::path value)
     : root(value.empty()
                ? value
-               : std::filesystem::absolute(gameDataDirectory(value))) {}
+               : std::filesystem::absolute(gameDataDirectory(value))) {
+#ifdef __EMSCRIPTEN__
+  if (!root.empty() && Filesystem::remoteGameAssets()) {
+    for (const auto &part : root) {
+      if (part == "game-assets") {
+        mounted_ = Filesystem::mountGameAssets(root);
+        break;
+      }
+    }
+  }
+#endif
+}
 
 FileSystemAssetProvider::FileSystemAssetProvider(
     std::shared_ptr<Filesystem::Filesystem> mounted)

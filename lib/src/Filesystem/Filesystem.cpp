@@ -1,4 +1,6 @@
 #include <Kotonoha/Filesystem/Filesystem.hpp>
+#include <Kotonoha/Filesystem/RemoteAssets.hpp>
+#include <Kotonoha/Filesystem/Sources/FetchAssetProvider.hpp>
 #include <Kotonoha/Filesystem/Mounts/DirectoryMount.hpp>
 #include <Kotonoha/Filesystem/Mounts/ISO9660Mount.hpp>
 #include <Kotonoha/Filesystem/Mounts/TarMount.hpp>
@@ -17,6 +19,21 @@ Filesystem::Filesystem(std::shared_ptr<IMount> base)
 std::shared_ptr<Filesystem> Filesystem::mount(std::string source) {
   if (source.empty())
     throw FilesystemError(ErrorCode::InvalidPath, "Mount source is empty");
+#ifdef __EMSCRIPTEN__
+  if (auto remote = remoteGameAssets()) {
+    const std::filesystem::path path(source);
+    bool isGameAssets = false;
+    for (const auto &part : path)
+      if (part == "game-assets") isGameAssets = true;
+    if (isGameAssets)
+      return mountGameAssets(path);
+    // An explicitly selected HTTP source is valid only after the async
+    // manifest bootstrap has installed its exact mount.
+    if (source == remote->baseUrl() ||
+        source + "/" == remote->baseUrl())
+      return mount(std::static_pointer_cast<IMount>(remote));
+  }
+#endif
   if (source.find("://") != std::string::npos)
     throw FilesystemError(ErrorCode::UnsupportedMount,
                           "HTTP mounts require a Fetch backend (not yet implemented)");

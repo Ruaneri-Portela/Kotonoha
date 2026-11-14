@@ -1,5 +1,6 @@
 #include <Kotonoha/Filesystem/RemoteAssets.hpp>
 #include <Kotonoha/Filesystem/Filesystem.hpp>
+#include <Kotonoha/Filesystem/Path.hpp>
 #include <Kotonoha/Filesystem/Mounts/DirectoryMount.hpp>
 #include <Kotonoha/Filesystem/Mounts/FallbackMount.hpp>
 #include <Kotonoha/Filesystem/Sources/FetchAssetProvider.hpp>
@@ -12,6 +13,55 @@ namespace Kotonoha::Filesystem {
 namespace {
 std::mutex registryMutex;
 std::shared_ptr<FetchAssetProvider> registered;
+
+// For game-assets/<game>/ resources, reinterpret the remote manifest with
+// paths relative to that subfolder. Consumers never need URL string slicing.
+class SubtreeMount final : public IMount {
+  std::shared_ptr<IMount> source_;
+  std::string prefix_;
+  std::string full(std::string_view relative) const {
+    const auto key = normalizePath(relative, true);
+    return key.empty() ? prefix_ : prefix_ + "/" + key;
+  }
+public:
+  SubtreeMount(std::shared_ptr<IMount> source, std::string prefix)
+      : source_(std::move(source)), prefix_(normalizePath(prefix)) {}
+  bool exists(std::string_view path) const override {
+    return source_->exists(full(path));
+  }
+  FileInfo stat(std::string_view path) const override {
+    auto info = source_->stat(full(path));
+    const auto name = normalizePath(path, true);
+    info.path = name;
+    return info;
+  }
+  std::vector<FileInfo> list(std::string_view directory) const override {
+    const auto path = full(directory);
+    auto entries = source_->list(path);
+    for (auto &item : entries) {
+      const auto child = item.path.substr(prefix_.size() + 1);
+      item.path = child;
+    }
+    return entries;
+  }
+  std::unique_ptr<FileHandle> open(std::string_view path) const override {
+    return source_->open(full(path));
+  }
+};
+std::string assetSubfolder(const std::filesystem::path &root) {
+  std::string sub;
+  bool found = false;
+  for (const auto &part : root.lexically_normal()) {
+    const auto name = part.generic_string();
+    if (found) {
+      if (!sub.empty()) sub += "/";
+      sub += name;
+    } else if (name == "game-assets") {
+      found = true;
+    }
+  }
+  return found ? sub : std::string{};
+}
 } // namespace
 
 void setRemoteGameAssets(std::shared_ptr<FetchAssetProvider> provider) {
@@ -35,7 +85,10 @@ std::shared_ptr<Filesystem> mountGameAssets(
         throw;
     }
   }
-  auto remote = remoteGameAssets();
+  std::shared_ptr<IMount> remote = remoteGameAssets();
+  const auto subfolder = assetSubfolder(root);
+  if (remote && !subfolder.empty())
+    remote = std::make_shared<SubtreeMount>(std::move(remote), subfolder);
   if (remote)
     return Filesystem::mount(
         std::make_shared<FallbackMount>(std::move(local),
