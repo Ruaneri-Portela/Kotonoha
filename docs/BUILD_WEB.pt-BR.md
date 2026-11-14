@@ -64,13 +64,14 @@ HTTPS, configure **antes do script de inicialização**:
 </script>
 ```
 
-Hospedagem em outra origem exige CORS correto. HTTP não fornece listagem
-genérica de diretórios: o manifesto é obrigatório. Erros HTTP, manifesto
-inválido ou arquivos remotos acima do limite atual de **128 MiB para
-pré-carregamento automático** mantêm a seleção de origem aberta, sem iniciar
-o motor com dados incompletos. O backend Fetch também tem suporte a requisições
-Range limitadas, mas instalações remotas grandes ainda exigem estratégia
-de suspensão por Worker/Asyncify compatível com o loop do navegador.
+A hospedagem em outra origem exige CORS correto. O manifesto agora é
+**opcional**: se não existir, o navegador configura Fetch HTTP direto
+para caminhos de arquivos conhecidos. HTTP não permite enumerar diretórios
+sem índice. O limite de **128 MiB de pré-carregamento** se aplica somente
+ao fluxo legado com manifesto. O modo direto usa HEAD, Range, Asyncify e
+cache de memória limitado; servidores sem Range são indicados apenas
+para arquivos menores. A leitura de rede não bloqueia a thread principal
+do navegador.
 
 Use `window.KotonohaAutoServerAssets = false` antes da inicialização para
 manter a escolha manual entre pasta e servidor. O self-test web já usa a
