@@ -31,16 +31,16 @@ jobs:
             libavformat-dev libavutil-dev libswresample-dev \
             libswscale-dev libjson-c-dev libgl1-mesa-dev \
             libfreetype-dev libharfbuzz-dev libfribidi-dev \
-            libfontconfig-dev libexpat1-dev libx11-dev \
+            libfontconfig-dev libexpat1-dev zlib1g-dev libx11-dev \
             libxext-dev libxrandr-dev libxi-dev libxcursor-dev \
             libxinerama-dev libxss-dev libxtst-dev libxkbcommon-dev
       - name: Configure tests
         run: |
           cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug \
             -DBUILD_TESTING=ON -DSDLTTF_PLUTOSVG=OFF \
-            -DKOTONOHA_BUILD_EXAMPLE=ON -DKOTONOHA_BUILD_LUCA_SYSTEM=ON -DKOTONOHA_BUILD_SNOW=ON
+            -DKOTONOHA_BUILD_EXAMPLE=ON -DKOTONOHA_BUILD_LUCA_SYSTEM=ON -DKOTONOHA_BUILD_SNOW=ON -DKOTONOHA_BUILD_KIRIKIRI=ON
       - name: Compile Filesystem V2
-        run: cmake --build build --target KotonohaFilesystemV2Tests LucaSystemFormatTests kotonoha_provider_adv kotonoha_provider_pmail --parallel 3
+        run: cmake --build build --target KotonohaFilesystemV2Tests LucaSystemFormatTests KirikiriXp3Tests kotonoha_provider_adv kotonoha_provider_pmail --parallel 3
       - name: Run Filesystem V2 regression tests
         env:
           SDL_VIDEO_DRIVER: dummy
