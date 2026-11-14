@@ -90,16 +90,18 @@ physical archive paths and are not yet equivalent to the shared virtual mount.
 
 ## Custom local mounts in the browser
 
-The top-right **+ Adicionar pasta** control stays available after startup and is
-promoted to the browser top layer when the SDL canvas enters fullscreen.
+The top-right **+ Adicionar pasta** button is **only available on the
+initial asset-selection screen**. It disappears when the local or HTTP(S)
+source is confirmed, stays hidden during gameplay, and is never re-opened
+by canvas fullscreen. Import optional folders before starting SDL.
 Select any local directory and enter its virtual mount name, e.g.
 `game-assets`, `forced_subtitles`, or `ovrlay`. Its contents become
 available under `/<name>/` inside Emscripten's virtual filesystem.
 The user-provided name is limited to safe filename characters; `/save` is
 reserved for persistent saves. The page prevents accidental file overwrite.
-The control can also be scripted through
-`window.KotonohaMountBrowserFolder(fileList, "forced_subtitles")` once the
-Emscripten filesystem is initialized.
+The internal `window.KotonohaMountBrowserFolder(fileList, "forced_subtitles")`
+API remains available for programmatic integrations. This does not expose
+the folder button in-game.
 
 **Important:** mounting an extra folder exposes its files to the VFS but does
 not automatically instruct every game port to search that folder. Port-specific
