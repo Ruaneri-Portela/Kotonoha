@@ -4,6 +4,11 @@ cmake_minimum_required(VERSION 3.16)
 # Definicao do Projeto e Linguagens
 # ==============================================================================
 project(KotonohaEngine VERSION 0.1.0 LANGUAGES CXX)
+# Standalone lib/ CMake configurations also receive a generated version;
+# when built from the root, reuse its single shared Git version header.
+if(NOT KOTONOHA_BUILD_VERSION_INCLUDE_DIR)
+    include("${CMAKE_CURRENT_SOURCE_DIR}/../buildsystems/cmake/BuildVersion.cmake")
+endif()
 enable_language(C)
 
 if (APPLE AND NOT EMSCRIPTEN)
