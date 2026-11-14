@@ -11,6 +11,12 @@ using namespace SummerRadish;
 namespace {
 std::shared_ptr<Kotonoha::Filesystem::Filesystem>
 mountSummer(std::filesystem::path root, std::filesystem::path overlay) {
+  // A PACK subfolder is a legacy CLI input: mount its parent so
+  // movies and sibling sources remain visible as virtual files.
+  std::error_code ec;
+  if (std::filesystem::is_directory(root, ec) &&
+      canonical(root.filename().string()) == "PACK")
+    root = root.parent_path();
   auto source = Kotonoha::Filesystem::Filesystem::mount(root.string());
   if (!overlay.empty())
     source->addOverlay(overlay.string());
@@ -112,6 +118,36 @@ SummerAssets::moviePath(const std::string &filename) const {
 
   throw std::runtime_error("Missing Summer movie: " + filename);
 }
+std::unique_ptr<Kotonoha::Filesystem::FileHandle>
+SummerAssets::movieHandle(const std::string &filename) const {
+  const auto name = Kotonoha::Filesystem::normalizePath(filename);
+  std::vector<std::string> candidates;
+  const bool discLayout = source_->exists("DISC1/PACK");
+  const auto prefix = discLayout ? std::string("DISC1/") : std::string();
+  candidates.push_back(name);
+  if (name.size() >= 6 && canonical(name.substr(0, 6)) == "DISC1/")
+    candidates.push_back(name.substr(6));
+  else if (!prefix.empty())
+    candidates.push_back(prefix + name);
+
+  // Keep the known release alias used by the original moviePath().
+  for (const auto &candidate : std::vector<std::string>(candidates)) {
+    if (canonical(std::filesystem::path(candidate).filename().string()) ==
+        "OPENING.MPG") {
+      auto path = std::filesystem::path(candidate);
+      path.replace_filename("SUMMER_OP.MPG");
+      candidates.push_back(path.generic_string());
+    }
+  }
+  for (const auto &candidate : candidates) {
+    if (source_->exists(candidate) &&
+        source_->stat(candidate).type ==
+            Kotonoha::Filesystem::FileType::Regular)
+      return source_->open(candidate);
+  }
+  throw std::runtime_error("Missing Summer virtual movie: " + filename);
+}
+
 bool SummerAssets::containsAsset(const std::string &id) const {
   auto s = canonical(id);
   auto slash = s.find('/');
