@@ -269,9 +269,9 @@ async function main() {
       await ready();
       const direct = await page.evaluate(async () => {
         const size = await Module.ccall('KotonohaWebSelfTestRemoteSize',
-          'number', ['string'], ['selftest.webm']);
+          'number', ['string'], ['selftest.webm'], { async: true });
         const missing = await Module.ccall('KotonohaWebSelfTestRemoteSize',
-          'number', ['string'], ['missing-selftest.bin']);
+          'number', ['string'], ['missing-selftest.bin'], { async: true });
         let staged = false;
         try {
           Module.FS_readFile('/game-assets/selftest.webm');
