@@ -10,7 +10,7 @@
 #include <algorithm>
 #include <cctype>
 #include <filesystem>
-#include <fstream>
+#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <sstream>
 
 namespace Ddlc {
@@ -446,7 +446,7 @@ void Vm::setVirtualFile(const std::string &name, const Value &value) {
     if (error)
       throw PyError("IOError: cannot create " + path.parent_path().string() +
                     ": " + error.message());
-    std::ofstream out(path, std::ios::binary | std::ios::trunc);
+    Kotonoha::Filesystem::OutputFile out(path, std::ios::binary | std::ios::trunc);
     const std::string data = value.text();
     if (!out || !out.write(data.data(), std::streamsize(data.size())))
       throw PyError("IOError: cannot write " + path.string());
@@ -549,7 +549,7 @@ std::string Vm::readFile(const std::string &name, bool &ok) {
   if (isRootKey(key) && !userDirectory.empty()) {
     const auto path = userFile(*this, key);
     std::error_code error;
-    std::ifstream in;
+    Kotonoha::Filesystem::InputFile in;
     if (std::filesystem::is_regular_file(path, error))
       in.open(path, std::ios::binary);
     ok = in.is_open() && in.good();
@@ -586,7 +586,7 @@ std::string Vm::readFile(const std::string &name, bool &ok) {
       isRootKey(key)
           ? game.parent_path() / key.substr(std::string(kRootPrefix).size())
           : game / key;
-  std::ifstream in(p, std::ios::binary);
+  Kotonoha::Filesystem::InputFile in(p, std::ios::binary);
   if (in) {
     ok = true;
     return std::string(std::istreambuf_iterator<char>(in), {});
