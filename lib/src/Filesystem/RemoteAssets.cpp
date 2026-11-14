@@ -87,7 +87,10 @@ std::shared_ptr<Filesystem> mountGameAssets(
   }
   std::shared_ptr<IMount> remote = remoteGameAssets();
   const auto subfolder = assetSubfolder(root);
-  if (remote && !subfolder.empty())
+  // Some packaged manifests already use the selected game's asset folder
+  // as their logical root; do not strip a prefix that is not in the index.
+  if (remote && !subfolder.empty() && remote->exists(subfolder) &&
+      remote->stat(subfolder).type == FileType::Directory)
     remote = std::make_shared<SubtreeMount>(std::move(remote), subfolder);
   if (remote)
     return Filesystem::mount(
