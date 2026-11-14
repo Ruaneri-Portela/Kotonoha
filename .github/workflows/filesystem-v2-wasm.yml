@@ -11,6 +11,8 @@ on:
       - "CMakeLists.txt"
       - "buildsystems/**"
       - "tools/web_selftest.js"
+      - "tools/serve_web.py"
+      - "tools/test_serve_web.py"
       - "tools/web_example_smoke.js"
       - "tools/check_wasm_asyncify.py"
       - "tools/generate_manifest.py"
@@ -63,6 +65,9 @@ jobs:
           key: wasm-vcpkg-3.1.73-${{ hashFiles('vcpkg.json', 'vcpkg-overlays/ports/**') }}
           restore-keys: |
             wasm-vcpkg-3.1.73-
+
+      - name: Verify HTTP Range server before WASM tests
+        run: python3 -m unittest discover -s tools -p test_serve_web.py -v
 
       - name: Configure Emscripten self-test
         run: |
