@@ -29,6 +29,7 @@ class FetchAssetProvider final
     std::uint64_t length = 0;
     bool full = false;
     bool discovery = false;
+    bool lowercaseAttempt = false;
   };
   std::string base_;
   std::map<std::string, FileInfo> nodes_;
