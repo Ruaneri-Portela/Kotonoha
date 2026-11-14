@@ -1,6 +1,6 @@
 #include <Kotonoha/routing/SchoolDaysSaveStorage.hpp>
 
-#include <fstream>
+#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <limits>
 
 namespace Kotonoha {
@@ -70,7 +70,7 @@ bool SchoolDaysSaveStorage::ReadFile(const std::filesystem::path &path,
   if (bytes == nullptr)
     return Fail(error, "School Days read output is null");
   bytes->clear();
-  std::ifstream file(path, std::ios::binary | std::ios::ate);
+  Kotonoha::Filesystem::InputFile file(path, std::ios::binary | std::ios::ate);
   if (!file)
     return Fail(error, "School Days save file could not be opened for read");
   const auto end = file.tellg();
@@ -95,7 +95,7 @@ bool SchoolDaysSaveStorage::WriteFileTruncate(const std::filesystem::path &path,
                                               std::string *error) {
   if (bytes.empty())
     return Fail(error, "School Days save write payload is empty");
-  std::ofstream file(path, std::ios::binary | std::ios::trunc);
+  Kotonoha::Filesystem::OutputFile file(path, std::ios::binary | std::ios::trunc);
   if (!file)
     return Fail(error, "School Days save file could not be opened for write");
   file.write(reinterpret_cast<const char *>(bytes.data()),
@@ -158,7 +158,7 @@ bool SchoolDaysSaveStorage::ProbeSaveFile(int slot, bool *openable,
 
   // Native +0x9C treats an unsuccessful file open as an unoccupied slot and
   // returns 0; it does not escalate the miss through the SysMenu interface.
-  std::ifstream file(path, std::ios::binary);
+  Kotonoha::Filesystem::InputFile file(path, std::ios::binary);
   if (!file)
     return true;
   *openable = true;

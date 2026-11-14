@@ -24,7 +24,7 @@
 #include <algorithm>
 #include <charconv>
 #include <cstring>
-#include <fstream>
+#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <iomanip>
 #include <set>
 #include <sstream>
@@ -593,7 +593,7 @@ struct SummerRuntime::Impl {
     return Kotonoha::saveDirectory();
   }
   void loadSystem() {
-    std::ifstream input(saveDirectory() / "system.dat", std::ios::binary);
+    Kotonoha::Filesystem::InputFile input(saveDirectory() / "system.dat", std::ios::binary);
     if (!input)
       return;
     std::string version;
@@ -645,12 +645,12 @@ struct SummerRuntime::Impl {
              << std::quoted(string(value)) << '\n';
     const auto path = saveDirectory() / "system.dat";
     std::filesystem::create_directories(path.parent_path());
-    std::ifstream existing(path, std::ios::binary);
+    Kotonoha::Filesystem::InputFile existing(path, std::ios::binary);
     std::string previous((std::istreambuf_iterator<char>(existing)), {});
     if (previous == data.str())
       return;
     const auto temporary = path.string() + ".tmp";
-    std::ofstream output(temporary, std::ios::binary | std::ios::trunc);
+    Kotonoha::Filesystem::OutputFile output(temporary, std::ios::binary | std::ios::trunc);
     output << data.str();
     output.close();
     if (!output)
