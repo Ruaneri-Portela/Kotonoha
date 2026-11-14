@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate the game WASM and both Emscripten SIDE_MODULE binaries."""
+"""Validate the game WASM and the first-party Kotonoha SIDE_MODULE."""
 from pathlib import Path
 import sys
 
@@ -46,15 +46,16 @@ def main():
     if not games:
         raise SystemExit("No browser application outputs found")
     for game in games:
-        for name in ("libkotonoha.wasm", "libkotonoha_imgui.wasm"):
-            file = game / name
-            if not file.is_file() or not is_dynamic_module(file):
-                raise SystemExit(f"{game.name}: missing/invalid Emscripten SIDE_MODULE: {name}")
+        module = game / "libkotonoha.wasm"
+        if not module.is_file() or not is_dynamic_module(module):
+            raise SystemExit(f"{game.name}: missing/invalid Kotonoha SIDE_MODULE")
+        if (game / "libkotonoha_imgui.wasm").exists():
+            raise SystemExit(f"{game.name}: vcpkg ImGui must not be a SIDE_MODULE")
         mains = [x for x in game.glob("*.wasm")
-                 if x.name not in ("libkotonoha.wasm", "libkotonoha_imgui.wasm")]
+                 if x.name != "libkotonoha.wasm"]
         if not mains:
             raise SystemExit(f"{game.name}: missing game main WASM")
-        print(f"[Kotonoha] {game.name}: game and both dynamic side modules present")
+        print(f"[Kotonoha] {game.name}: dynamic engine, static vcpkg dependencies")
     print(f"[Kotonoha] validated {len(games)} browser game outputs")
 
 
