@@ -59,10 +59,10 @@ bool DiscImage::tryOpen(const std::filesystem::path &file, std::string *error) {
   // exist as an SDL disk file. Preserve the random-access DiscImage reader by
   // adapting the virtual FileHandle to SDL_IOStream instead of downloading
   // an entire multi-gigabyte PS2 BIN into memory.
-  const auto path = file.generic_string();
-  if (path.rfind("/game-assets/", 0) == 0 ||
-      path.rfind("game-assets/", 0) == 0) {
-    const auto relative = path.substr(path[0] == '/' ? 13 : 12);
+  const auto fileName = file.generic_string();
+  if (fileName.rfind("/game-assets/", 0) == 0 ||
+      fileName.rfind("game-assets/", 0) == 0) {
+    const auto relative = fileName.substr(fileName[0] == '/' ? 13 : 12);
     try {
       auto vfs = Filesystem::mountGameAssets("/game-assets");
       next->io.reset(Filesystem::openSDLIO(vfs->open(relative)));
