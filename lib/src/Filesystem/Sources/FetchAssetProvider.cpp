@@ -312,9 +312,8 @@ FetchAssetProvider::listAsset(const std::string &prefix) const {
 bool FetchAssetProvider::exists(std::string_view path) const {
   const auto key = lookupKey(path, true);
   if (nodes_.count(key)) return true;
-  // A missing file must not be reported as present before GET succeeds.
-  // Schedule discovery opportunistically; synchronous consumers may retry
-  // after the browser event loop has delivered the Fetch callback.
+  // Unknown objects are discovered with HEAD, not invented as present.
+  // Asyncify lets the caller yield until the response confirms the path.
   if (!discover_ || key.empty())
     return false;
   auto *self = const_cast<FetchAssetProvider *>(this);
@@ -334,7 +333,7 @@ bool FetchAssetProvider::exists(std::string_view path) const {
 FileInfo FetchAssetProvider::stat(std::string_view path) const {
   const auto it = nodes_.find(lookupKey(path, true));
   if (it == nodes_.end())
-    throw FilesystemError(ErrorCode::NotFound, "Remote file not in manifest");
+    throw FilesystemError(ErrorCode::NotFound, "Remote file metadata unavailable");
   return it->second;
 }
 std::vector<FileInfo>
@@ -468,7 +467,7 @@ void FetchAssetProvider::complete(const Job &job, unsigned status,
       file->info.size >= 0 &&
       count == static_cast<std::uint64_t>(file->info.size);
   if ((!wholeResponse && status != (job.full ? 200u : 206u)) ||
-      count != job.length ||
+      (!wholeResponse && count != job.length) ||
       (count && !body)) {
     file->failed = true;
     file->failure = status == 200 && !job.full
