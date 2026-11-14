@@ -1,29 +1,38 @@
-# Dynamic WASM linking (experimental) / WASM dinâmico (experimental)
+# Dynamic Kotonoha WASM + static vcpkg / Kotonoha dinâmico + vcpkg estático
 
-Enable `KOTONOHA_WASM_DYNAMIC_LIBS=ON` to link every game as an
-Emscripten MAIN_MODULE with two load-time SIDE_MODULE libraries:
-`libkotonoha.wasm` and `libkotonoha_imgui.wasm`.
-The standard static mode remains the default.
+## Linking contract
 
-Build with the custom `wasm32-emscripten-dylink` PIC triplet in
-`vcpkg-overlays/triplets`, enable manifest features `sdl-vcpkg;imgui-vcpkg`
-and set `KOTONOHA_SDL_FROM_VCPKG=ON`,
-`KOTONOHA_IMGUI_FROM_VCPKG=ON`, and
-`KOTONOHA_WASM_DYNAMIC_LIBS=ON`. CMake 3.24+ is required.
+- **Game.js / Game.wasm**: Emscripten MAIN_MODULE=1, the game executable.
+- **libkotonoha.wasm**: first-party KotonohaEngine SIDE_MODULE=1.
+- **vcpkg dependencies (ImGui, SDL3, FFmpeg, libass, etc.)**: static archives
+  compiled with position-independent code (`-fPIC`) for linking into
+  first-party modules or the main executable. **No libkotonoha_imgui.wasm.**
+- The game's output directory includes Game.js, Game.wasm and
+  libkotonoha.wasm. The side module is deployed automatically after linking.
 
-The generated `Game.js`, `Game.wasm`, `libkotonoha.wasm` and
-`libkotonoha_imgui.wasm` must be served from each game's output directory.
-Browser compatibility (Asyncify, Fetch, media, SDL) is unverified until
-the CI workflow succeeds. Repeating module files at different URLs does not
-by itself result in shared HTTP cache entries.
+The PIC vcpkg triplet `wasm32-emscripten-dylink` sets
+`VCPKG_LIBRARY_LINKAGE=static` and `VCPKG_CXX_FLAGS=-fPIC`.
+It does **not** build the vcpkg ports as shared libraries. Use
+`-DVCPKG_TARGET_TRIPLET=wasm32-emscripten-dylink`,
+`-DVCPKG_OVERLAY_TRIPLETS=<repo>/vcpkg-overlays/triplets`,
+`"-DVCPKG_MANIFEST_FEATURES=sdl-vcpkg;imgui-vcpkg"`,
+`-DKOTONOHA_SDL_FROM_VCPKG=ON`, `-DKOTONOHA_IMGUI_FROM_VCPKG=ON`,
+`-DKOTONOHA_WASM_DYNAMIC_LIBS=ON`.
 
-## Game-port isolation / Isolamento dos jogos
+The feature is experimental; successful Emscripten compile/link and
+Chromium/WebKit execution have **not** been demonstrated. Asyncify through
+side-module imports, SDL linkage, media and Fetch require integration tests.
 
-Game source and CMake files must not directly refer to Emscripten,
-FFmpeg or libass. The engine provides `Kotonoha::BackgroundWorker` and
-`kotonoha_preload_asset` as platform-neutral interfaces. CI runs
-`tools/audit_game_dependencies.py` to guard these boundaries.
+## Game-port isolation
 
-PT-BR: O modo experimental separa o executável do jogo das bibliotecas
-Kotonoha e ImGui. A opção não interfere nos builds estáticos existentes.
-As bibliotecas nativas e as decisões específicas do Emscripten ficam na engine.
+Port C++ and CMake must not directly reference Emscripten, FFmpeg or libass
+APIs. `Kotonoha::BackgroundWorker`, `kotonoha_preload_asset` and
+`tools/audit_game_dependencies.py` support this rule.
+
+## PT-BR
+
+O vcpkg continua **100% estático**; o triplet apenas adiciona `-fPIC`
+para permitir incorporar os arquivos `.a` nos módulos. Somente as
+bibliotecas próprias do Kotonoha podem usar SIDE_MODULE. Inicialmente,
+`KotonohaEngine` é o módulo dinâmico gerado. O ImGui do vcpkg é vinculado
+estaticamente à engine, nunca distribuído como módulo WASM separado.
