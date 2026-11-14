@@ -7,13 +7,13 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
 endif()
 
 find_package(ZLIB REQUIRED)
-if(ANDROID OR EMSCRIPTEN)
+if(NOT KOTONOHA_EMBED_PYTHON)
     find_package(Python3 REQUIRED COMPONENTS Interpreter)
 else()
     find_package(Python3 REQUIRED COMPONENTS Interpreter Development)
 endif()
 
-if(EMSCRIPTEN)
+if(NOT KOTONOHA_EMBED_PYTHON)
     set(DDLC_SOURCES
         src/Archive.cpp
         src/Display.cpp
@@ -37,7 +37,7 @@ add_library(DdlcFormats STATIC ${DDLC_SOURCES})
 target_include_directories(DdlcFormats PUBLIC include)
 target_compile_features(DdlcFormats PUBLIC cxx_std_20)
 
-if(EMSCRIPTEN)
+if(NOT KOTONOHA_EMBED_PYTHON)
     target_link_libraries(DdlcFormats PUBLIC SDL3::SDL3 ZLIB::ZLIB)
 else()
     target_link_libraries(DdlcFormats PUBLIC SDL3::SDL3 ZLIB::ZLIB PRIVATE Python3::Python)
