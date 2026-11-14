@@ -222,6 +222,13 @@ async function main() {
     assert(local.audioOpened === 1 && local.audioDuration > 1.8,
       'local audio decodes from selected folder');
 
+    const ehAcrossAwait = await page.evaluate(async () =>
+      Module.ccall('KotonohaWebSelfTestCatchAfterAsyncify', 'number',
+        [], [], { async: true }));
+    assert(ehAcrossAwait === 1,
+      'C++ catch must survive Asyncify sleep and resume without CppException');
+
+
     // The corner control mounts any requested root without assuming the
     // selected directory is named game-assets.
     page.once('dialog', dialog => dialog.accept('forced_subtitles'));
