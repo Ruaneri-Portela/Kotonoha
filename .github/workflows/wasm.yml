@@ -54,6 +54,9 @@ jobs:
       - name: Guard game-port API boundaries
         run: python3 tools/audit_game_dependencies.py
 
+      - name: Verify duplicate static archive normalizer
+        run: python3 -m unittest discover -s tools -p test_wasm_link_dedupe.py -v
+
       - name: Configure Emscripten self-test
         run: |
           mkdir -p vcpkg-binary-cache
