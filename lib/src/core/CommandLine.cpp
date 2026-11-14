@@ -136,6 +136,14 @@ void CommandLine::parse(int argc, char **argv) {
 }
 std::string CommandLine::help() const {
   std::ostringstream result;
+  if (versionRequested) {
+    result << program << " " << BuildVersion::Full << "\n"
+           << "Branch: " << BuildVersion::Branch << "\n"
+           << "Commit: " << BuildVersion::Commit << "\n"
+           << "Source tree: " << (BuildVersion::Dirty ? "modified" : "clean")
+           << "\n";
+    return result.str();
+  }
   result << "Usage: " << program << " [options]\n\n";
   for (const auto &entry : options) {
     const auto label =
