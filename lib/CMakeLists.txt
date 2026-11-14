@@ -107,6 +107,33 @@ if(KOTONOHA_SDL_FROM_VCPKG)
     if(NOT TARGET SDL3::SDL3 OR NOT TARGET SDL3_ttf::SDL3_ttf)
         message(FATAL_ERROR "SDL3/SDL3_ttf vcpkg imported targets not found")
     endif()
+    if(EMSCRIPTEN)
+        # vcpkg's SDL3_ttf/PlutoSVG dependency graph sometimes exposes both
+        # a bare -lplutovg and the resolved libplutovg.a archive. Emscripten
+        # SIDE_MODULE links may extract the archive twice and fail on duplicate
+        # global symbols. Preserve the resolved imported archive and drop only
+        # the redundant unqualified spelling from imported link interfaces.
+        foreach(_kotonoha_wasm_svg_target IN ITEMS
+                SDL3_ttf::SDL3_ttf plutosvg::plutosvg plutovg::plutovg)
+            if(TARGET ${_kotonoha_wasm_svg_target})
+                get_target_property(_kotonoha_wasm_svg_links
+                    ${_kotonoha_wasm_svg_target} INTERFACE_LINK_LIBRARIES)
+                if(_kotonoha_wasm_svg_links)
+                    set(_kotonoha_wasm_svg_clean_links
+                        "${_kotonoha_wasm_svg_links}")
+                    list(FILTER _kotonoha_wasm_svg_clean_links
+                        EXCLUDE REGEX "^(-l)?plutovg$")
+                    if(NOT "${_kotonoha_wasm_svg_links}" STREQUAL
+                            "${_kotonoha_wasm_svg_clean_links}")
+                        set_property(TARGET ${_kotonoha_wasm_svg_target}
+                            PROPERTY INTERFACE_LINK_LIBRARIES
+                            "${_kotonoha_wasm_svg_clean_links}")
+                        message(STATUS "[Kotonoha] Removed duplicate bare plutovg linkage from ${_kotonoha_wasm_svg_target}")
+                    endif()
+                endif()
+            endif()
+        endforeach()
+    endif()
 else()
     add_subdirectory("${KOTONOHA_SDL_SOURCE_DIR}" "${CMAKE_CURRENT_BINARY_DIR}/SDL" EXCLUDE_FROM_ALL)
     add_subdirectory(submodules/SDL_ttf EXCLUDE_FROM_ALL)
