@@ -33,7 +33,7 @@ jobs:
             libfreetype-dev libharfbuzz-dev libfribidi-dev \
             libfontconfig-dev libexpat1-dev libx11-dev \
             libxext-dev libxrandr-dev libxi-dev libxcursor-dev \
-            libxinerama-dev libxss-dev libxkbcommon-dev
+            libxinerama-dev libxss-dev libxtst-dev libxkbcommon-dev
       - name: Configure tests
         run: |
           cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug \
