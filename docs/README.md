@@ -22,3 +22,7 @@ Start with the [project README](../README.md), then choose a topic:
 Active guides are concise and maintained in **en-US** (`*.md`) and **pt-BR** (`*.pt-BR.md`). Keep command names, symbols, paths, and filenames unchanged across translations. When changing a guide, update its counterpart and verify its links.
 
 Files named `PORT_STATUS.md`, dated investigation notes in `games/*/docs/`, third-party license/source notices, and asset-folder instructions can contain historical evidence or legal requirements. They are **reference records**, not guaranteed current feature descriptions. Do not delete or silently rewrite forensic evidence when updating an overview; use the [port index](../games/README.md) for current high-level guidance.
+
+## Experimental virtual filesystem
+
+The read-only [Filesystem V2](filesystem/README.md) work is isolated in a draft PR. The [original Portuguese architecture specification](filesystem/SPECIFICATION.pt-BR.md) remains the source of truth; no game port is assumed migrated until verified.

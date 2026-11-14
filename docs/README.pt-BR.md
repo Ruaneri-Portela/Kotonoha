@@ -22,3 +22,7 @@ Comece pelo [README do projeto](../README.pt-BR.md) e escolha um assunto:
 Guias ativos são concisos e mantidos em **en-US** (`*.md`) e **pt-BR** (`*.pt-BR.md`). Preserve nomes de comandos, símbolos e caminhos ao traduzir. Atualize os dois arquivos e confira os links.
 
 Arquivos `PORT_STATUS.md`, notas datadas em `games/*/docs/`, licenças/avisos de terceiros e instruções das pastas de assets podem conter evidências técnicas ou obrigações legais. São **registros de referência**, não garantias do estado atual. Ao atualizar um resumo, preserve investigações e utilize o [índice de ports](../games/README.pt-BR.md) como ponto de entrada.
+
+## Filesystem virtual experimental
+
+A implementação inicial de [Filesystem V2](filesystem/README.pt-BR.md) está isolada em um PR de rascunho. A [especificação original](filesystem/SPECIFICATION.pt-BR.md) é a referência; nenhum port será considerado migrado sem testes.
