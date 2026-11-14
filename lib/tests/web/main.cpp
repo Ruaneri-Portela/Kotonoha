@@ -8,6 +8,8 @@ SDL_Window *window = nullptr;
 SDL_Renderer *renderer = nullptr;
 int touchDown = 0;
 int touchUp = 0;
+int padDown = 0;
+int padUp = 0;
 }
 
 extern "C" {
@@ -17,13 +19,25 @@ EMSCRIPTEN_KEEPALIVE int KotonohaWebSelfTestTouchDownCount() {
 EMSCRIPTEN_KEEPALIVE int KotonohaWebSelfTestTouchUpCount() {
   return touchUp;
 }
+EMSCRIPTEN_KEEPALIVE int KotonohaWebSelfTestGamepadDownCount() {
+  return padDown;
+}
+EMSCRIPTEN_KEEPALIVE int KotonohaWebSelfTestGamepadUpCount() {
+  return padUp;
+}
+EMSCRIPTEN_KEEPALIVE int KotonohaWebSelfTestConnectedGamepads() {
+  int count = 0;
+  SDL_JoystickID *ids = SDL_GetGamepads(&count);
+  SDL_free(ids);
+  return count;
+}
 }
 
 SDL_Renderer *KotonohaWebSelfTestRenderer() { return renderer; }
 void KotonohaWebSelfTestDrawMedia(SDL_Renderer *renderer);
 
 SDL_AppResult SDL_AppInit(void **, int, char **) {
-  if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO))
+  if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_GAMEPAD))
     return SDL_APP_FAILURE;
   window = SDL_CreateWindow("Kotonoha Web Selftest", 800, 600, 0);
   if (!window)
@@ -37,6 +51,10 @@ SDL_AppResult SDL_AppEvent(void *, SDL_Event *event) {
     ++touchDown;
   else if (event->type == SDL_EVENT_FINGER_UP)
     ++touchUp;
+  else if (event->type == SDL_EVENT_GAMEPAD_BUTTON_DOWN)
+    ++padDown;
+  else if (event->type == SDL_EVENT_GAMEPAD_BUTTON_UP)
+    ++padUp;
   return event->type == SDL_EVENT_QUIT ? SDL_APP_SUCCESS : SDL_APP_CONTINUE;
 }
 
