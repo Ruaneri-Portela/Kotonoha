@@ -1,7 +1,7 @@
 #include <Kotonoha/media/MediaDecoder.hpp>
 #include <Pmail/Assets.hpp>
 #include <filesystem>
-#include <fstream>
+#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <iostream>
 
 namespace Kotonoha::Providers {
@@ -22,7 +22,7 @@ std::vector<Uint8> PmailAssets::readAsset(const std::string &id) const {
   std::filesystem::path full_path = root_ / id;
   std::cerr << "[PmailAssets Debug] reading asset: " << full_path.string()
             << std::endl;
-  std::ifstream file(full_path, std::ios::binary | std::ios::ate);
+  Kotonoha::Filesystem::InputFile file(full_path, std::ios::binary | std::ios::ate);
   if (!file) {
     std::cerr << "[PmailAssets Debug] FAILED to open file: "
               << full_path.string() << std::endl;

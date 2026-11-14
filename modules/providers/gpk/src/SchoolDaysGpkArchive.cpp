@@ -6,7 +6,7 @@
 #include <algorithm>
 #include <array>
 #include <cstring>
-#include <fstream>
+#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <limits>
 #include <utility>
 
@@ -173,7 +173,7 @@ bool FoldLogicalPath(std::string_view input, std::string *folded) {
   return NormalizeLogicalPath(input, nullptr, folded);
 }
 
-bool ReadRange(std::ifstream *file, uint64_t offset, size_t size,
+bool ReadRange(Kotonoha::Filesystem::InputFile *file, uint64_t offset, size_t size,
                std::vector<uint8_t> *out) {
   if (file == nullptr || out == nullptr ||
       size > static_cast<size_t>(std::numeric_limits<std::streamsize>::max()) ||
@@ -252,7 +252,7 @@ bool SchoolDaysGpkArchive::Open(const std::filesystem::path &path,
     error->clear();
   Close();
 
-  std::ifstream file(path, std::ios::binary);
+  Kotonoha::Filesystem::InputFile file(path, std::ios::binary);
   if (!file)
     return Fail(error, "School Days GPK could not be opened");
   file.seekg(0, std::ios::end);
@@ -472,7 +472,7 @@ bool SchoolDaysGpkArchive::ReadEntry(size_t entryIndex,
   if (physicalEnd < entry.offset || physicalEnd > pidxOffset_)
     return Fail(error, "School Days GPK entry body is outside the data region");
 
-  std::ifstream file(path_, std::ios::binary);
+  Kotonoha::Filesystem::InputFile file(path_, std::ios::binary);
   if (!file)
     return Fail(error, "School Days GPK could not be reopened for reading");
   std::vector<uint8_t> body;

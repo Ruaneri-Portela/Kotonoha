@@ -9,7 +9,7 @@
 #include <algorithm>
 #include <cstring>
 #include <filesystem>
-#include <fstream>
+#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <stdexcept>
 
 namespace Kotonoha::Providers {
@@ -77,7 +77,7 @@ PakArchive::PakArchive(std::filesystem::path path) : path_(std::move(path)) {
 }
 
 void PakArchive::load() {
-  std::ifstream file(path_, std::ios::binary);
+  Kotonoha::Filesystem::InputFile file(path_, std::ios::binary);
   if (!file)
     throw std::runtime_error("Cannot open PAK archive: " + path_.string());
   std::uintmax_t fileSize = std::filesystem::file_size(path_);
@@ -191,7 +191,7 @@ std::vector<std::uint8_t> PakArchive::read(const PakEntry &entry) const {
   const auto fileSize = std::filesystem::file_size(path_);
   if (entry.offset + entry.length > fileSize)
     throw std::runtime_error("PAK entry data exceeds file: " + entry.name);
-  std::ifstream file(path_, std::ios::binary);
+  Kotonoha::Filesystem::InputFile file(path_, std::ios::binary);
   file.seekg(static_cast<std::streamoff>(entry.offset));
   std::vector<std::uint8_t> result(entry.length);
   file.read(reinterpret_cast<char *>(result.data()),

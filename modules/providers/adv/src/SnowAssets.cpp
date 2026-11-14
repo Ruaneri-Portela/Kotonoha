@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <cctype>
 #include <cstring>
-#include <fstream>
+#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <stdexcept>
 
 namespace Kotonoha::Providers {
@@ -22,7 +22,7 @@ std::filesystem::path FindIgnoreCase(const std::filesystem::path &dir,
 }
 
 std::vector<uint8_t> ReadFile(const std::filesystem::path &path) {
-  std::ifstream in(path, std::ios::binary);
+  Kotonoha::Filesystem::InputFile in(path, std::ios::binary);
   return std::vector<uint8_t>((std::istreambuf_iterator<char>(in)), {});
 }
 
@@ -38,7 +38,7 @@ std::filesystem::path FindPackDirectory(const std::filesystem::path &root) {
 std::map<std::string, PackEntry>
 ReadDirectory(const std::filesystem::path &path, bool byStem) {
   std::map<std::string, PackEntry> index;
-  std::ifstream in(path, std::ios::binary | std::ios::ate);
+  Kotonoha::Filesystem::InputFile in(path, std::ios::binary | std::ios::ate);
   if (!in)
     return index;
   const size_t size = size_t(in.tellg());
@@ -205,7 +205,7 @@ bool SnowAssets::tryAltGraphicExt(const Pack *pack,
 
 std::vector<uint8_t> SnowAssets::Extract(const Pack &pack,
                                          const PackEntry &entry) {
-  std::ifstream in(pack.path, std::ios::binary | std::ios::ate);
+  Kotonoha::Filesystem::InputFile in(pack.path, std::ios::binary | std::ios::ate);
   if (!in)
     return {};
   const size_t size = size_t(in.tellg());
