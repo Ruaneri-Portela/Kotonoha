@@ -34,7 +34,7 @@ jobs:
       - name: Check CMake/Xcode metadata
         run: python3 tools/ValidateBuildMetadata.py
       - name: Audit filesystem migration
-        run: python3 tools/audit_filesystem_v2.py
+        run: python3 tools/audit_filesystem_v2.py --strict
 
 # This workflow does not compile C++, launch apps or test a browser.
 # Full CMake/CTest, Xcode, Android, and Emscripten validation is separate.
