@@ -304,6 +304,31 @@ void testRemoteManifest() {
   });
 }
 
+void testManifestFreeMountConfiguration() {
+  auto remote = VFS::FetchAssetProvider::fromUrl(
+      "https://example.invalid/game-assets/");
+  require(remote->manifestFree() && remote->fileCount() == 0 &&
+          remote->exists(""),
+          "Manifest-free remote root was not configured");
+  expectCode(VFS::ErrorCode::InvalidPath, [&] {
+    VFS::FetchAssetProvider::fromUrl("file:///tmp/game-assets");
+  });
+  expectCode(VFS::ErrorCode::InvalidPath, [&] {
+    VFS::FetchAssetProvider::fromUrl("https://user@host.example/assets");
+  });
+  // Local files must be served without a remote HEAD probe. On native
+  // targets attempting Fetch would throw UnsupportedMount.
+  Temp temp;
+  const auto assets = temp.root / "game-assets";
+  writeFile(assets / "local.bin", "offline");
+  auto combined = VFS::Filesystem::mount(
+      std::make_shared<VFS::FallbackMount>(
+          std::make_shared<VFS::DirectoryMount>(assets), remote));
+  require(readText(combined->open("local.bin")) == "offline" &&
+          remote->totalRequests() == 0,
+          "Manifest-free fallback unexpectedly probed local file over HTTP");
+}
+
 void testSDLAdapters() {
   Temp tmp;
   auto path = tmp.root / "adapter.bin";
@@ -411,6 +436,7 @@ int main() {
     testISO();
     testTAR();
     testRemoteManifest();
+    testManifestFreeMountConfiguration();
     testLocalHttpFallback();
     testSDLAdapters();
     testDirectorySafety();
