@@ -11,6 +11,7 @@ Start with the [project README](../README.md), then choose a topic:
 | Apple | [macOS](BUILD_MACOS.md) · [iOS](BUILD_IOS.md) · [Xcode](../buildsystems/xcode/README.md) |
 | Browser | [WebAssembly](BUILD_WEB.md) |
 | Tests and build scope | [Validation](BUILD_VALIDATION.md) |
+| Portable outputs, shared SDL entrypoints, ZIP | [Deployment and CPack](BUILD_PACKAGES.md) |
 | Assets and patches | [Overlays and translation](ASSET_OVERLAYS.md) |
 | File locations | [Directory policy](DIRECTORY_POLICY.md) |
 | UI, subtitles, and saved options | [Engine settings](ENGINE_SETTINGS.md) |
