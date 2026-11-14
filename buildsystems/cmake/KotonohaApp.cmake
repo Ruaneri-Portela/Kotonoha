@@ -1,15 +1,16 @@
 # Platform-specific build choices live in the engine's CMake layer,
 # never in individual game ports.
 if(ANDROID OR EMSCRIPTEN)
-    set(KOTONOHA_BUILD_HOST_TOOLS OFF)
+    set(_kotonoha_host_tools OFF)
 else()
-    set(KOTONOHA_BUILD_HOST_TOOLS ON)
+    set(_kotonoha_host_tools ON)
 endif()
-if(ANDROID OR EMSCRIPTEN)
-    set(KOTONOHA_EMBED_PYTHON OFF)
-else()
-    set(KOTONOHA_EMBED_PYTHON ON)
-endif()
+# Cache INTERNAL makes these platform capabilities available to all sibling
+# game directories even though this module is included from lib/CMakeLists.
+set(KOTONOHA_BUILD_HOST_TOOLS ${_kotonoha_host_tools} CACHE INTERNAL
+    "Build host-only inspectors from game ports" FORCE)
+set(KOTONOHA_EMBED_PYTHON ${_kotonoha_host_tools} CACHE INTERNAL
+    "Enable embedded CPython in game ports" FORCE)
 
 # A game declares *what* asset to ship; the engine decides how.
 function(kotonoha_preload_asset target source destination)
