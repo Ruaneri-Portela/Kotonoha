@@ -30,11 +30,14 @@ bool LayeredMount::blocked(std::size_t index,
        pos = path.find('/', pos + 1)) {
     const auto ancestor = path.substr(0, pos);
     for (std::size_t higher = 0; higher <= index; ++higher) {
-      if (!layers_[higher].mount->exists(ancestor))
-        continue;
-      if (layers_[higher].mount->stat(ancestor).type == FileType::Regular)
+      // Asking exists() for every parent used to dispatch HTTP HEAD
+      // requests for "data", "data/pack", etc. With Asyncify each missing
+      // directory could delay the game boot for up to 30 seconds.
+      // Only shadow a child with a *known* higher regular file.
+      if (layers_[higher].mount->isKnownRegularFile(ancestor))
         return true;
-      break; // The highest visible directory permits lower child layers.
+      // Unknown ancestors are treated as directories until their actual
+      // metadata is requested by a game. Never probe them as resources.
     }
   }
   return false;
