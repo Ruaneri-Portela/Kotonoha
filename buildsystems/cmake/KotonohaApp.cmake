@@ -38,50 +38,49 @@ function(kotonoha_copy_assets target)
     endif()
 endfunction()
 
-# Copia DLLs (.dll) via vcpkg / CMake para o diretório do executável.
-function(kotonoha_copy_game_dependencies target)
-    # Não copiar DLLs/libs quando fora do bundle (macOS) e fora do vcpkg.
-    if(NOT DEFINED VCPKG_TARGET_TRIPLET AND NOT CMAKE_TOOLCHAIN_FILE MATCHES "vcpkg")
-        return()
-    endif()
-
-    if(WIN32 AND NOT ANDROID)
-        # Habilita a cópia automática do vcpkg para o executável deste target
-        set_target_properties(${target} PROPERTIES VS_GLOBAL_VcpkgEnabled "true")
-        set_target_properties(${target} PROPERTIES VS_GLOBAL_VcpkgApplocalDeps "true")
-
-        # Cópia garantida via CMake runtime DLLs (para MinGW, Ninja ou bibliotecas fora do vcpkg)
-        add_custom_command(TARGET ${target} POST_BUILD
-            COMMAND "${CMAKE_COMMAND}" -E copy_if_different
-                $<TARGET_RUNTIME_DLLS:${target}>
-                "$<TARGET_FILE_DIR:${target}>"
-            COMMAND_EXPAND_LISTS
-            VERBATIM)
-    endif()
-endfunction()
-
-# Copia as bibliotecas compartilhadas para <target>/libs no Linux e no macOS
-# sem bundle. No macOS os install names também são reescritos para @loader_path.
+# Deploy CMake-produced shared libraries AND resolved runtime dependencies
+# into each game's output. Windows loads DLLs adjacent to the .exe; Linux
+# and macOS non-bundle use <game>/libs with a relative runpath/install name.
+# System libraries stay system-provided outside of Homebrew / vcpkg on macOS.
 function(kotonoha_copy_runtime_libraries target dependency_dirs)
-    if(ANDROID OR WIN32)
+    if(ANDROID OR EMSCRIPTEN)
         return()
     endif()
-    if(APPLE AND NOT CMAKE_SYSTEM_NAME STREQUAL "Darwin")
-        return()
-    endif()
-    if(APPLE AND KOTONOHA_BUILD_MACOS_BUNDLES)
-        return()
-    endif()
-    # Não copiar DLLs/libs quando fora do bundle (macOS) e fora do vcpkg.
-    if(NOT DEFINED VCPKG_TARGET_TRIPLET AND NOT CMAKE_TOOLCHAIN_FILE MATCHES "vcpkg")
-        return()
+    get_target_property(is_bundle ${target} MACOSX_BUNDLE)
+    if(APPLE AND is_bundle)
+        return() # BundleApp.cmake handles .app/Contents/Frameworks.
     endif()
 
+    # These shared CMake targets must be shipped even if they are hidden
+    # behind an indirect dependency or imported from a toolchain.
+    set(_cmake_shared)
+    foreach(_lib IN ITEMS KotonohaEngine imgui SDL3::SDL3 SDL3_ttf::SDL3_ttf)
+        if(TARGET ${_lib})
+            get_target_property(_alias ${_lib} ALIASED_TARGET)
+            if(_alias)
+                set(_real "${_alias}")
+            else()
+                set(_real "${_lib}")
+            endif()
+            get_target_property(_type ${_real} TYPE)
+            if(_type STREQUAL "SHARED_LIBRARY" OR
+               _type STREQUAL "MODULE_LIBRARY" OR
+               _type STREQUAL "UNKNOWN_LIBRARY")
+                list(APPEND _cmake_shared "$<TARGET_FILE:${_lib}>")
+            endif()
+        endif()
+    endforeach()
+    if(WIN32)
+        set(_library_dir "$<TARGET_FILE_DIR:${target}>")
+    else()
+        set(_library_dir "$<TARGET_FILE_DIR:${target}>/libs")
+    endif()
     add_custom_command(TARGET ${target} POST_BUILD
         COMMAND "${CMAKE_COMMAND}"
             "-DEXECUTABLE=$<TARGET_FILE:${target}>"
-            "-DLIBRARY_DIR=$<TARGET_FILE_DIR:${target}>/libs"
+            "-DLIBRARY_DIR=${_library_dir}"
             "-DSEARCH_DIRS=${dependency_dirs}"
+            "-DCMAKE_SHARED_LIBRARIES=${_cmake_shared}"
             -P "${KOTONOHA_PROJECT_ROOT}/buildsystems/cmake/CopyRuntimeLibraries.cmake"
         VERBATIM)
 endfunction()
@@ -122,6 +121,32 @@ function(kotonoha_get_default_dependency_dirs _out_dirs)
         list(APPEND _dirs "${freetype_directory}")
     endif()
 
+    # Package only resolved runtime dependencies. macOS can resolve
+    # Homebrew dylibs from Cellar/opt, with or without application bundles.
+    # On Windows/Linux, use CMake-produced and toolchain/vcpkg libraries.
+    if(VCPKG_INSTALLED_DIR AND VCPKG_TARGET_TRIPLET)
+        list(APPEND _dirs
+            "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/bin"
+            "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/debug/bin"
+            "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/lib"
+            "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/debug/lib")
+    endif()
+    if(APPLE)
+        list(APPEND _dirs "/opt/homebrew/lib" "/usr/local/lib")
+        find_program(_kotonoha_brew brew)
+        if(_kotonoha_brew)
+            execute_process(COMMAND "${_kotonoha_brew}" --prefix
+                OUTPUT_VARIABLE _brew_prefix
+                OUTPUT_STRIP_TRAILING_WHITESPACE
+                ERROR_QUIET)
+            if(_brew_prefix)
+                list(APPEND _dirs "${_brew_prefix}/lib")
+                file(GLOB _brew_opt_libs LIST_DIRECTORIES TRUE
+                    "${_brew_prefix}/opt/*/lib")
+                list(APPEND _dirs ${_brew_opt_libs})
+            endif()
+        endif()
+    endif()
     list(REMOVE_DUPLICATES _dirs)
     set(${_out_dirs} "${_dirs}" PARENT_SCOPE)
 endfunction()
@@ -195,7 +220,6 @@ function(kotonoha_configure_app target)
         # 2. Configuração para plataformas fora do macOS Bundle (Windows/Linux/Executáveis padrão)
         kotonoha_configure_app_output(${target})
         if(NOT EMSCRIPTEN)
-            kotonoha_copy_game_dependencies(${target})
             kotonoha_copy_runtime_libraries(${target} "${_kotonoha_dependency_dirs}")
         endif()
 
@@ -209,7 +233,8 @@ function(kotonoha_configure_app target)
                 "SHELL:-sEXPORTED_RUNTIME_METHODS=['FS','ccall','FS_readFile']"
                 "SHELL:-sFORCE_FILESYSTEM=1"
                 "SHELL:-sALLOW_MEMORY_GROWTH=1"
-                "SHELL:-sINITIAL_MEMORY=268435456"
+                "SHELL:-sINITIAL_MEMORY=${KOTONOHA_WASM_INITIAL_MEMORY}"
+                "SHELL:-sMAXIMUM_MEMORY=${KOTONOHA_WASM_MAX_MEMORY}"
                 # Asyncify lets synchronous VFS callers yield while the browser
                 # completes an asynchronous Fetch (not a blocking network call).
                 # Keep all engine/SDL stacks instrumented by linking the final
