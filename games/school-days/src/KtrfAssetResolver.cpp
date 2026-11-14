@@ -173,8 +173,8 @@ int SchoolDaysKtrfProbeAsset(const SchoolDaysKtrfResolvedAsset *asset,
     return asset_fail(error, KOTONOHA_KTRF_ERROR_ARGUMENT,
                       "KTRF asset path is empty");
   try {
-    Kotonoha::Filesystem::SDLFileSource source(
-        std::filesystem::path(asset->path));
+    Kotonoha::Filesystem::SDLFileSource source{
+        std::filesystem::path(asset->path)};
     const auto size = source.size();
     if (size <= 0)
       return asset_fail(error, KOTONOHA_KTRF_ERROR_FORMAT,

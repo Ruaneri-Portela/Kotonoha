@@ -36,8 +36,11 @@ std::shared_ptr<Filesystem> Filesystem::mount(std::string source) {
                    });
     if (ext == ".tar")
       base = std::make_shared<TarMount>(root);
-    else
+    else if (ext == ".iso" || ext == ".bin" || ext == ".img")
       base = std::make_shared<ISO9660Mount>(root);
+    else
+      throw FilesystemError(ErrorCode::UnsupportedMount,
+                            "Unsupported mount format: " + root.string());
   } else {
     throw FilesystemError(ErrorCode::UnsupportedMount,
                           "Not a mountable source: " + source);
