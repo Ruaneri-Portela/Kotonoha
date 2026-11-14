@@ -64,24 +64,24 @@
       "dependencies": [
         {
           "name": "sdl3",
-          "default_features": false,
           "features": [
             "x11"
           ],
-          "platform": "linux"
+          "platform": "linux",
+          "default-features": false
         },
         {
           "name": "sdl3",
-          "default_features": false,
-          "platform": "!linux"
+          "platform": "!linux",
+          "default-features": false
         },
         {
           "name": "sdl3-ttf",
-          "default_features": false,
           "features": [
             "harfbuzz",
             "svg"
-          ]
+          ],
+          "default-features": false
         }
       ]
     },
@@ -90,11 +90,11 @@
       "dependencies": [
         {
           "name": "imgui",
-          "default_features": false,
           "features": [
             "sdl3-binding",
             "sdl3-renderer-binding"
-          ]
+          ],
+          "default-features": false
         }
       ]
     }
