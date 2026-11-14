@@ -40,7 +40,7 @@ set_target_properties(Amagami PROPERTIES CXX_EXTENSIONS OFF)
 kotonoha_configure_app(Amagami
     BUNDLE_ID me.hirameki.kotonoha.amagami GAME amagami)
 
-if(NOT ANDROID AND NOT EMSCRIPTEN)
+if(KOTONOHA_BUILD_HOST_TOOLS)
     add_executable(AmagamiInspect tools/Inspect.cpp)
     find_package(PkgConfig REQUIRED)
     pkg_check_modules(AMAGAMI_JSON REQUIRED IMPORTED_TARGET json-c>=0.15)
