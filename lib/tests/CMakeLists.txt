@@ -1,3 +1,13 @@
+# Tests instantiate the real SDL/TTF engine, whose default UI font is an
+# asset resolved relative to the test binary. Use the existing small font
+# fixture only inside the build tree; no commercial font is bundled.
+file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/assets/fonts")
+configure_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/fixtures/SvgTestFont.ttf"
+    "${CMAKE_CURRENT_BINARY_DIR}/assets/fonts/NotoSansJP-Regular.ttf"
+    COPYONLY
+)
+
 add_executable(KotonohaInfrastructureTests InfrastructureTests.cpp)
 target_link_libraries(KotonohaInfrastructureTests PRIVATE Kotonoha::Engine)
 add_test(NAME Kotonoha.Infrastructure COMMAND KotonohaInfrastructureTests)
