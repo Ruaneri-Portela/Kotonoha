@@ -31,7 +31,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            ninja-build pkg-config libass-dev libavcodec-dev \
+            ninja-build pkg-config patchelf zip unzip libass-dev libavcodec-dev \
             libavformat-dev libavutil-dev libswresample-dev \
             libswscale-dev libjson-c-dev libgl1-mesa-dev \
             libfreetype-dev libharfbuzz-dev libfribidi-dev \
@@ -44,12 +44,26 @@ jobs:
             -DBUILD_TESTING=ON -DSDLTTF_PLUTOSVG=OFF \
             -DKOTONOHA_BUILD_EXAMPLE=ON -DKOTONOHA_BUILD_LUCA_SYSTEM=ON -DKOTONOHA_BUILD_SNOW=ON -DKOTONOHA_BUILD_PMAIL=ON -DKOTONOHA_BUILD_KIRIKIRI=ON
       - name: Compile Filesystem V2
-        run: cmake --build build --target KotonohaFilesystemV2Tests KotonohaBuildVersionTests KotonohaLauncherTests KotonohaDebugTranslationTests KotonohaInputActionsTests KotonohaNativeInputTests LucaSystemFormatTests KirikiriXp3Tests kotonoha_provider_adv kotonoha_provider_pmail PmailPort Pmail PmailPackBytesCheck --parallel 3
+        run: cmake --build build --target KotonohaFilesystemV2Tests KotonohaBuildVersionTests KotonohaLauncherTests KotonohaDebugTranslationTests KotonohaInputActionsTests KotonohaNativeInputTests LucaSystemFormatTests KirikiriXp3Tests kotonoha_provider_adv kotonoha_provider_pmail PmailPort Pmail PmailPackBytesCheck Kotonoha LucaSystem Kirikiri SnowRadish --parallel 3
       - name: Run Filesystem V2 regression tests
         env:
           SDL_VIDEO_DRIVER: dummy
           SDL_AUDIO_DRIVER: dummy
         run: ctest --test-dir build --output-on-failure -R "Kotonoha[.](FilesystemV2|BuildVersion|Launcher|DebugTranslation|InputActions|NativeInput)|LucaSystemFormatTests|KirikiriXp3|Pmail[.]PackBytes"
+
+      - name: Verify portable game output and CLI version
+        run: |
+          test -x build/outputs/Kotonoha/Kotonoha
+          test -d build/outputs/Kotonoha/libs
+          test -d build/outputs/Pmail/libs
+          find build/outputs/Kotonoha/libs -name 'libkotonoha.so*' | grep -q libkotonoha
+          find build/outputs/Pmail/libs -name 'libkotonoha.so*' | grep -q libkotonoha
+          build/outputs/Kotonoha/Kotonoha --version | grep -E 'Commit: [0-9a-f]+'
+          build/outputs/Pmail/Pmail --version | grep -E 'Branch: '
+      - name: Package the example into a standalone ZIP
+        run: |
+          cpack --config build/CPackConfig.cmake -G ZIP -D CPACK_COMPONENTS_ALL=Kotonoha
+          python3 tools/check_game_zip.py build/packages Kotonoha
 
 # Native smoke, not Emscripten, Android, macOS or all game runtime tests.
 
