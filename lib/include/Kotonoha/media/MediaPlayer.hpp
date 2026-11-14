@@ -9,6 +9,7 @@
 namespace Kotonoha {
 class AssetProvider;
 class Upscaling;
+namespace Filesystem { class FileHandle; }
 
 class MediaPlayer {
   std::unique_ptr<AudioMixer> ownedMixer;
@@ -48,6 +49,10 @@ public:
   MediaPlayer(const MediaPlayer &) = delete;
   MediaPlayer &operator=(const MediaPlayer &) = delete;
   // Video includes its embedded audio; audioOnly ignores video streams.
+  // Game resources from local folders, ISO entries or other virtual mounts.
+  // FFmpeg consumes this handle via custom AVIO, never a physical path.
+  void open(std::unique_ptr<Filesystem::FileHandle> source, bool audioOnly,
+            const std::string &channelName = {});
   void open(const std::string &path, bool audioOnly,
             const std::string &channelName = {});
   // Streams a provider local file or seekable source when available, otherwise
