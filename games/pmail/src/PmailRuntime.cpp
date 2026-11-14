@@ -6,6 +6,7 @@
 #include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/Filesystem/Filesystem.hpp>
 #include <Kotonoha/core/UI.hpp>
+#include <Kotonoha/events/ControllerEvent.hpp>
 #include <SDL3/SDL.h>
 #include <cstdio>
 #include <cstring>
@@ -230,7 +231,12 @@ void PmailRuntime::renderOverlay(Kotonoha::RendererRef renderer, float scale) {
     renderScene(*saves_, renderer, scale);
 }
 
-bool PmailRuntime::onEvent(Kotonoha::EventRef event) {
+bool PmailRuntime::onEvent(Kotonoha::EventRef rawEvent) {
+  // Keep the same physical gamepad mapping as the other ports. Engine owns
+  // gamepad hotplug, A/B swap and analog-stick -> D-pad normalization;
+  // Pure Mail consumes keyboard equivalents for title, choices and dialogue.
+  const SDL_Event mapped = Kotonoha::MapControllerEvent(rawEvent);
+  Kotonoha::EventRef event = mapped;
   if (saves_ && saves_->isOpen()) {
     dispatchEvent(*saves_, event);
     return true;
