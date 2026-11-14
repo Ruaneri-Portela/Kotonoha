@@ -105,6 +105,13 @@ if(WIN32)
             "PATH=path_list_prepend:$<TARGET_FILE_DIR:KotonohaEngine>")
 endif()
 
+# Git-driven version is shared by the CLI, launcher and debug applets.
+add_executable(KotonohaBuildVersionTests BuildVersionTests.cpp)
+target_link_libraries(KotonohaBuildVersionTests PRIVATE Kotonoha::Engine)
+add_test(NAME Kotonoha.BuildVersion COMMAND KotonohaBuildVersionTests)
+set_tests_properties(Kotonoha.BuildVersion PROPERTIES
+    ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_AUDIO_DRIVER=dummy")
+
 add_executable(KotonohaLauncherTests LauncherTests.cpp)
 target_link_libraries(KotonohaLauncherTests PRIVATE Kotonoha::Engine)
 target_compile_definitions(KotonohaLauncherTests PRIVATE
