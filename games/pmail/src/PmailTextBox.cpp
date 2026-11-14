@@ -10,11 +10,7 @@ PmailTextBox::PmailTextBox(Kotonoha::Engine &engine, PmailGame &game,
                            Kotonoha::Providers::SnowAssets &assets)
     : Kotonoha::VNTextBox(engine, "", ""), game_(game), assets_(assets) {}
 
-PmailTextBox::~PmailTextBox() {
-  for (auto &[name, texture] : textBoxCache_)
-    if (texture.tex)
-      SDL_DestroyTexture(texture.tex);
-}
+PmailTextBox::~PmailTextBox() = default;
 
 void PmailTextBox::setDialogue(const std::string &speaker,
                                const std::string &dialogue) {
@@ -187,7 +183,7 @@ SDL_Texture *PmailTextBox::LoadTextBoxGraphic(Kotonoha::RendererRef renderer,
                                               const std::string &file) {
   auto it = textBoxCache_.find(file);
   if (it != textBoxCache_.end())
-    return it->second.tex;
+    return it->second.tex.get();
 
   TextBoxTex entry;
   try {
@@ -209,16 +205,17 @@ SDL_Texture *PmailTextBox::LoadTextBoxGraphic(Kotonoha::RendererRef renderer,
             pixel[2] += ((255 - pixel[2]) * 150) >> 8;
         }
       }
-      entry.tex = SDL_CreateTextureFromSurface(&renderer, surface.get());
+      entry.tex.reset(SDL_CreateTextureFromSurface(&renderer, surface.get()));
       if (entry.tex) {
-        SDL_GetTextureSize(entry.tex, &entry.w, &entry.h);
+        SDL_GetTextureSize(entry.tex.get(), &entry.w, &entry.h);
       }
     }
   } catch (...) {
   }
 
-  textBoxCache_[file] = entry;
-  return entry.tex;
+  auto &cached = textBoxCache_[file];
+  cached = std::move(entry);
+  return cached.tex.get();
 }
 
 } // namespace Kotonoha::PmailPort
