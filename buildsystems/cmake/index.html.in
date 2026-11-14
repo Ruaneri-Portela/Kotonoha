@@ -695,6 +695,10 @@
                 function() {
                     const depId = "choose_kotonoha_asset_source";
                     Module.addRunDependency(depId);
+                    // Keep a stable local mount available even when startup
+                    // relies exclusively on remote Fetch. A later folder
+                    // import can then refresh an existing DirectoryMount.
+                    Module.FS_createPath("/", "game-assets", true, true);
                     const statusEl = document.getElementById("loading-status");
                     const barEl = document.getElementById("loading-bar");
                     const actions = document.getElementById("asset-source-actions");
@@ -899,6 +903,8 @@
                             }
                             if (!loaded)
                                 throw new Error("Pasta local vazia");
+                            Module.KotonohaVfsGeneration =
+                                (Module.KotonohaVfsGeneration | 0) + 1;
                             await loadServerAssets(true);
                         } catch (error) {
                             console.error("[Kotonoha] Pasta local inválida:", error);
@@ -1021,6 +1027,10 @@
                         imported + "/" + records.length;
                 }
                 roots.add(root);
+                // Invalidate DirectoryMount indexes already in use by a game
+                // so imported files become visible without restarting WASM.
+                Module.KotonohaVfsGeneration =
+                    (Module.KotonohaVfsGeneration | 0) + 1;
                 return imported;
             };
 
