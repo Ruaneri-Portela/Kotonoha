@@ -105,6 +105,42 @@ faz automaticamente cada porte procurar recursos nela. Os caminhos de busca
 e a jogabilidade por toque precisam ser verificados em cada jogo.
 
 
-### Inicialização Fetch sem manifesto
+### Fetch sem manifesto com Asyncify
 
-Se `game-assets/manifest.json` não estiver disponível, for inválido ou não puder ser carregado, o HTML agora configura `KotonohaConfigureRemoteAssetUrl` apontando para `game-assets/` via HTTP(S), sem índice de arquivos. `FetchAssetProvider::fromUrl` descobre arquivos sob demanda por GET assíncrono e armazena seus bytes em cache. `exists()` inicia a descoberta de caminhos desconhecidos e retorna falso até a confirmação HTTP, sem inventar arquivos existentes. `window.KotonohaFetchAsset(caminhoRelativo)` permite requisitar diretamente um arquivo (1 = pronto, 0 = pendente, -1 = inválido). Esse modo **não** enumera diretórios remotos desconhecidos nem faz leituras síncronas aguardarem o evento assíncrono do navegador. Jogos que precisam dos arquivos imediatamente no `SDL_AppInit` ainda precisam de pré-carregamento e espera assíncrona apropriada; portanto esta etapa não garante gameplay. O caminho com manifesto continua disponível.
+Quando o HTML não consegue carregar `game-assets/manifest.json`, registra
+`game-assets/` diretamente como origem Fetch, sem exigir um índice. O provider
+solicita HTTP `HEAD` para descobrir o tamanho dos **caminhos conhecidos**.
+Depois, usa `GET Range` para ler partes dos arquivos e manter os bytes em cache.
+Se um servidor ignorar Range e devolver o objeto completo com HTTP 200, o
+provider aceita a resposta quando o tamanho confere. Recursos remotos não
+são copiados ao MEMFS.
+
+O link WebAssembly habilita `-sASYNCIFY=1` para que `exists()`, `open()`
+e `FileHandle::read()` possam suspender temporariamente a execução C++ até
+o navegador concluir a requisição; não é acesso à rede síncrono. O HTTP 404
+fica registrado como inexistente. Arquivos grandes exigem suporte real a
+HTTP Range (206 e Content-Range). Um servidor mal configurado pode devolver
+a imagem completa, então a hospedagem precisa de limites. Para outro domínio,
+configure CORS permitindo HEAD/GET e expondo Content-Length/Content-Range.
+
+Para requisitar um caminho conhecido explicitamente, use
+`await window.KotonohaFetchAsset("arquivo.bin")` (1 = pronto,
+0 = pendente, -1 = requisição inválida). Também é possível definir
+`window.KotonohaAssetBaseURL` antes da inicialização.
+
+HTTP comum não fornece enumeração de diretórios sem índice. Provedores
+que precisam descobrir nomes desconhecidos ou abrir arquivos físicos ainda
+dependem de migração. As operações Asyncify/SDL precisam de validação contra
+reentrância e memória; esta etapa **não comprova gameplay completo**.
+
+### Validação do navegador
+
+```sh
+node tools/check_web_shell.js
+node --check tools/web_selftest.js
+```
+
+O teste Playwright cobre Fetch sem manifesto, pastas locais personalizadas,
+atualização de mounts existentes, saves, mídia e eventos de toque, quando
+compilado com `-DKOTONOHA_WEB_SELFTEST=ON`. Ele não substitui testes
+de gameplay de cada jogo e ainda não foi executado neste ambiente.
