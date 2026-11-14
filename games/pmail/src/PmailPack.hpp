@@ -19,6 +19,10 @@ struct PackEntry {
 class PmailPack {
 public:
   bool open(const std::string &path);
+  // Parse the same archive bytes already loaded by the virtual filesystem.
+  // The caller owns data for the lifetime of PmailPack.
+  bool openBytes(const std::vector<uint8_t> &data,
+                 const std::string &logicalPath);
   const std::vector<PackEntry> &entries() const { return entries_; }
   std::vector<uint8_t> read(const std::string &name) const;
   std::vector<uint8_t> read(const PackEntry &e) const;
@@ -31,6 +35,8 @@ private:
   bool parseIndex(const std::vector<uint8_t> &indexData);
 
   std::string path_;
+  const std::vector<uint8_t> *backing_ = nullptr;
+  std::vector<uint8_t> ownedBacking_;
   std::vector<PackEntry> entries_;
   bool ok_ = false;
 };
