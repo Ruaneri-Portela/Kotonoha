@@ -11,9 +11,12 @@ import subprocess
 import sys
 
 
-def archive_identity(token, search_directories):
+def archive_identity(token, search_directories, cwd=None):
+    base = Path(cwd) if cwd is not None else Path.cwd()
     if token.endswith(".a") and not token.startswith("-"):
         candidate = Path(token)
+        if not candidate.is_absolute():
+            candidate = base / candidate
         if candidate.is_file():
             return str(candidate.resolve())
     if token.startswith("-l") and len(token) > 2:
@@ -21,12 +24,14 @@ def archive_identity(token, search_directories):
         archive_name = name[1:] if name.startswith(":") else f"lib{name}.a"
         for directory in search_directories:
             candidate = Path(directory) / archive_name
+            if not candidate.is_absolute():
+                candidate = base / candidate
             if candidate.is_file():
                 return str(candidate.resolve())
     return None
 
 
-def normalize(arguments):
+def normalize(arguments, cwd=None):
     search_directories = []
     # Linker -L arguments are search paths for the whole link, not only
     # for libraries appearing after them.
@@ -36,7 +41,7 @@ def normalize(arguments):
         elif token.startswith("-L") and len(token) > 2:
             search_directories.append(token[2:])
 
-    identities = [archive_identity(arg, search_directories) for arg in arguments]
+    identities = [archive_identity(arg, search_directories, cwd) for arg in arguments]
     last_index = {
         identity: index
         for index, identity in enumerate(identities)
