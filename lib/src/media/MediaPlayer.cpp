@@ -362,6 +362,11 @@ struct MediaPlayer::State {
   int width = 0, height = 0;
   double aspect = 1; // display width / height
   bool eof = false;
+  // Invalid packets are recoverable until too many arrive consecutively.
+  // Once the limit is reached, end only this media playback.
+  bool corruptEnded = false;
+  unsigned consecutiveInvalidPackets = 0;
+  static constexpr unsigned kMaxConsecutiveInvalidPackets = 12;
   double origin = 0;
   double nextVideoTime = 0, nextAudioTime = 0;
   double lastPosition = -1;
@@ -605,11 +610,17 @@ struct MediaPlayer::State {
       throw std::runtime_error(SDL_GetError());
   }
 
-  void receive(AVCodecContext *decoder, bool isVideo, double position) {
+  bool receive(AVCodecContext *decoder, bool isVideo, double position) {
     for (;;) {
       const int result = avcodec_receive_frame(decoder, frame.get());
       if (result == AVERROR(EAGAIN) || result == AVERROR_EOF)
-        return;
+        return true;
+      // Damaged frames can occur in otherwise playable streams. Skip only
+      // this packet rather than killing the entire game.
+      if (result == AVERROR_INVALIDDATA) {
+        av_frame_unref(frame.get());
+        return false;
+      }
       check(result, "Decode media");
       if (isVideo) {
         const double at = timestamp(videoIndex, nextVideoTime);
@@ -678,15 +689,34 @@ struct MediaPlayer::State {
     }
   }
 
-  void decode(AVCodecContext *decoder, bool isVideo, const AVPacket *data,
+  bool decode(AVCodecContext *decoder, bool isVideo, const AVPacket *data,
               double position) {
     int result = avcodec_send_packet(decoder, data);
     if (result == AVERROR(EAGAIN)) {
-      receive(decoder, isVideo, position);
+      if (!receive(decoder, isVideo, position))
+        return false;
       result = avcodec_send_packet(decoder, data);
     }
+    if (result == AVERROR_INVALIDDATA)
+      return false;
     check(result, "Submit media packet");
-    receive(decoder, isVideo, position);
+    return receive(decoder, isVideo, position);
+  }
+
+  void noteInvalidPacket() {
+    ++consecutiveInvalidPackets;
+    if (consecutiveInvalidPackets < kMaxConsecutiveInvalidPackets) {
+      SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                  "[Kotonoha] Skipping invalid media packet (%u/%u)",
+                  consecutiveInvalidPackets, kMaxConsecutiveInvalidPackets);
+      return;
+    }
+    SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                "[Kotonoha] Media ended after %u consecutive invalid packets",
+                consecutiveInvalidPackets);
+    corruptEnded = true;
+    eof = true;
+    frames.clear();
   }
 
   double playhead() const { return queuedEnd - queuedAudio(); }
@@ -729,12 +759,28 @@ struct MediaPlayer::State {
         }
         break;
       }
+      if (result == AVERROR_INVALIDDATA) {
+        noteInvalidPacket();
+        av_packet_unref(packet);
+        continue;
+      }
       check(result, "Read media packet");
-      if (packet->stream_index == videoIndex)
-        decode(video, true, packet, position);
-      else if (packet->stream_index == audioIndex)
-        decode(audio, false, packet, position);
+      bool used = false;
+      bool valid = true;
+      if (packet->stream_index == videoIndex) {
+        used = true;
+        valid = decode(video, true, packet, position);
+      } else if (packet->stream_index == audioIndex) {
+        used = true;
+        valid = decode(audio, false, packet, position);
+      }
       av_packet_unref(packet);
+      if (used) {
+        if (valid)
+          consecutiveInvalidPackets = 0;
+        else
+          noteInvalidPacket();
+      }
     }
     if (packets == 512 && !eof)
       throw std::runtime_error(
@@ -1382,6 +1428,8 @@ void MediaPlayer::update(RendererRef renderer, double position) {
     s.eof = true;
     throw std::runtime_error(failure);
   }
+  if (s.corruptEnded)
+    return;
   bool jump;
   bool forwardCatchup = false;
   if (s.threaded && s.queuedEnd >= 0) {
@@ -1504,6 +1552,8 @@ bool MediaPlayer::finished() const {
   }
 #endif
   std::unique_lock<std::mutex> lock(state->mutex);
+  if (state->corruptEnded)
+    return true;
   if (!(state->eof && state->frames.empty() &&
         (!state->stream || state->queuedAudio() <= 0)))
     return false;
