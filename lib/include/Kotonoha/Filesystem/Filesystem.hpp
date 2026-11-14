@@ -1,6 +1,7 @@
 #pragma once
 #include <Kotonoha/Filesystem/Mounts/LayeredMount.hpp>
 #include <cstdint>
+#include <filesystem>
 #include <memory>
 #include <string>
 #include <string_view>
@@ -21,4 +22,9 @@ public:
 };
 std::vector<std::uint8_t> readAll(FileHandle &file,
                                   std::size_t maxBytes = 1024u * 1024u * 1024u);
+// Transitional adapter for legacy callers that still hold a physical path.
+// I/O is SDL3-backed; virtual sources should use mount().open().
+std::vector<std::uint8_t> readLocalFile(
+    const std::filesystem::path &path,
+    std::size_t maxBytes = 1024u * 1024u * 1024u);
 } // namespace Kotonoha::Filesystem

@@ -1,6 +1,7 @@
 #include <Kotonoha/core/AssetProvider.hpp>
 #include <Kotonoha/core/DiscImage.hpp>
 #include <Kotonoha/core/FileSystem.hpp>
+#include <Kotonoha/Filesystem/Filesystem.hpp>
 #include <Kotonoha/core/Log.hpp>
 #include <Kotonoha/localization/Encoding.hpp>
 #include <Kotonoha/media/MediaDecoder.hpp>
@@ -87,17 +88,7 @@ std::vector<Uint8> AssetProvider::read(const std::string &id) const {
   const auto file = overlayPath(id);
   if (file.empty())
     return readAsset(id);
-  const auto size = std::filesystem::file_size(file);
-  if (size > maximumAssetSize)
-    throw std::runtime_error("Overlay asset is too large: " + id);
-  std::ifstream input(file, std::ios::binary);
-  if (!input)
-    throw std::runtime_error("Cannot open overlay asset: " + id);
-  std::vector<Uint8> bytes(size);
-  if (size && !input.read(reinterpret_cast<char *>(bytes.data()),
-                          std::streamsize(size)))
-    throw std::runtime_error("Cannot read overlay asset: " + id);
-  return bytes;
+  return Filesystem::readLocalFile(file, maximumAssetSize);
 }
 std::vector<Uint8> AssetProvider::read(const std::string &id,
                                        AssetSource source) const {
@@ -479,18 +470,9 @@ bool FileSystemAssetProvider::containsAsset(const std::string &id) const {
 std::vector<Uint8>
 FileSystemAssetProvider::readAsset(const std::string &id) const {
   const auto path = resolve(id);
-  std::error_code error;
-  const auto size = std::filesystem::file_size(path, error);
-  if (error || !std::filesystem::is_regular_file(path))
+  if (!std::filesystem::is_regular_file(path))
     throw std::runtime_error("Asset not found: " + id);
-  if (size > maximumAssetSize)
-    throw std::runtime_error("Asset exceeds 1 GiB: " + id);
-  std::ifstream input(path, std::ios::binary);
-  std::vector<Uint8> bytes(static_cast<std::size_t>(size));
-  if (!input.read(reinterpret_cast<char *>(bytes.data()),
-                  static_cast<std::streamsize>(bytes.size())))
-    throw std::runtime_error("Cannot read asset: " + id);
-  return bytes;
+  return Filesystem::readLocalFile(path, maximumAssetSize);
 }
 
 std::vector<std::string>
