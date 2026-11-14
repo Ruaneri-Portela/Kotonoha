@@ -1,3 +1,4 @@
+#include <Kotonoha/core/SDL.hpp>
 #include <Kotonoha/components/DisplayModeCatalog.hpp>
 #include <Kotonoha/components/SettingsMenu.hpp>
 #include <Kotonoha/core/Appearance.hpp>
@@ -115,15 +116,12 @@ void SettingsMenu::activate(int index, int direction) {
         static_cast<WindowMode>((static_cast<int>(draft.mode) + 1) % 3);
   else if (index == 1) {
     int count = 0;
-    SDL_DisplayID *displays = SDL_GetDisplays(&count);
+    SDLArrayPtr<SDL_DisplayID> displays(SDL_GetDisplays(&count));
     if (!displays || count < 1) {
-      if (displays)
-        SDL_free(displays);
       throw std::runtime_error("No displays available");
     }
     const SDL_DisplayID display =
-        displays[std::clamp(draft.display, 0, count - 1)];
-    SDL_free(displays);
+        displays.get()[std::clamp(draft.display, 0, count - 1)];
     const auto available = DisplayModeCatalog::Enumerate(display);
     if (available.empty())
       throw std::runtime_error("No supported resolutions for this monitor");
@@ -160,23 +158,21 @@ void SettingsMenu::activate(int index, int direction) {
         });
   } else if (index == 2) {
     int count = 0;
-    auto *displays = SDL_GetDisplays(&count);
+    SDLArrayPtr<SDL_DisplayID> displays(SDL_GetDisplays(&count));
     if (!displays)
       throw std::runtime_error(SDL_GetError());
     if (count < 1) {
-      SDL_free(displays);
-      throw std::runtime_error("No displays available");
+        throw std::runtime_error("No displays available");
     }
     draft.display = (draft.display + 1) % count;
     if (const SDL_DisplayMode *desktop =
-            SDL_GetDesktopDisplayMode(displays[draft.display])) {
+            SDL_GetDesktopDisplayMode(displays.get()[draft.display])) {
       // Fullscreen modes are monitor-specific; don't carry an unsupported
       // exclusive tuple to the next monitor when the player switches it.
       draft.fullscreenWidth = desktop->w;
       draft.fullscreenHeight = desktop->h;
       draft.refreshRate = desktop->refresh_rate;
     }
-    SDL_free(displays);
   } else if (index == 3)
     draft.resizable = !draft.resizable;
   else if (index == 4)
@@ -432,15 +428,14 @@ void SettingsMenu::render(RendererRef renderer) {
   }
   if (draft.mode == WindowMode::Borderless) {
     int count = 0;
-    SDL_DisplayID *displays = SDL_GetDisplays(&count);
+    SDLArrayPtr<SDL_DisplayID> displays(SDL_GetDisplays(&count));
     if (displays && draft.display >= 0 && draft.display < count) {
       if (const auto *desktop =
-              SDL_GetDesktopDisplayMode(displays[draft.display]))
+              SDL_GetDesktopDisplayMode(displays.get()[draft.display]))
         shown = {desktop->w, desktop->h, desktop->refresh_rate};
     }
     if (displays)
-      SDL_free(displays);
-  }
+    }
   const std::string resolutionLabel =
       shown.refreshRate > 0.0f
           ? DisplayModeCatalog::Label(shown)
