@@ -2,25 +2,6 @@ name: WASM vcpkg artifacts
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main, dev]
-  pull_request:
-    paths:
-      - ".github/workflows/filesystem-v2-wasm.yml"
-      - "lib/**"
-      - "modules/**"
-      - "games/**"
-      - "CMakeLists.txt"
-      - "buildsystems/**"
-      - "tools/web_selftest.js"
-      - "tools/web_toolbar_layout.js"
-      - "tools/serve_web.py"
-      - "tools/test_serve_web.py"
-      - "tools/web_example_smoke.js"
-      - "tools/check_wasm_asyncify.py"
-      - "tools/generate_manifest.py"
-      - "vcpkg.json"
-      - "vcpkg-overlays/**"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
