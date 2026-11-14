@@ -827,13 +827,32 @@
                                 await pause(80);
                             }
                         } catch (error) {
-                            console.error("[Kotonoha] Seleção automática de assets:", error);
-                            if (loadedLocalFiles && allowLocalWithoutManifest) {
-                                setStatus("HTTP(S) indisponível. Usando apenas pasta local.");
+                            console.warn("[Kotonoha] Manifesto indisponível; tentando Fetch direto:", error);
+                            try {
+                                const origin = httpRoot();
+                                // No manifest: register an HTTP source without listing
+                                // directories or staging remote files in MEMFS.
+                                const started = Module.ccall(
+                                    "KotonohaConfigureRemoteAssetUrl", "number",
+                                    ["string"], [origin.href]);
+                                if (started !== 1)
+                                    throw new Error("Provider HTTP direto não foi configurado");
+                                window.KotonohaFetchAsset = function(path) {
+                                    return Module.ccall("KotonohaRequestRemoteAsset",
+                                        "number", ["string"], [path]);
+                                };
+                                setStatus("Fetch direto configurado, sem manifesto. Iniciando engine...");
                                 finish();
-                            } else {
-                                unlock("Assets locais indisponíveis e fallback HTTP(S) falhou: " +
-                                       String(error.message || error));
+                                return;
+                            } catch (directError) {
+                                console.error("[Kotonoha] Falha no Fetch direto:", directError);
+                                if (loadedLocalFiles && allowLocalWithoutManifest) {
+                                    setStatus("HTTP(S) indisponível. Usando pasta local.");
+                                    finish();
+                                } else {
+                                    unlock("Não foi possível iniciar o provider Fetch: " +
+                                        String(directError.message || directError));
+                                }
                             }
                         }
                     };
