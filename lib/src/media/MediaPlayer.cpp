@@ -1,5 +1,6 @@
 #include <Kotonoha/core/AssetProvider.hpp>
 #include <Kotonoha/Filesystem/Filesystem.hpp>
+#include <Kotonoha/Filesystem/RemoteAssets.hpp>
 #include <Kotonoha/Filesystem/Adapters/BrowserBlobAdapter.hpp>
 #include <Kotonoha/Filesystem/Sources/SDLFileSource.hpp>
 #include <Kotonoha/core/UI.hpp>
@@ -239,9 +240,8 @@ struct MediaPlayer::State {
     if (!audioOnly && !canPlayWebMedia(mimeForMediaPath(id, false)) &&
         canPlayWebMedia("video/webm") && assets.contains(sidecar))
       return configureWebVideo(assets, sidecar, false);
-    const std::string local = assets.localPath(id);
-    if (!local.empty() && configureWebVideoUrl(local, audioOnly))
-      return true;
+    // Never expose a game-assets URL/path to the HTMLVideoElement.
+    // Browser media receives bytes read from AssetStream/FileHandle only.
     const std::string mime = mimeForMediaPath(id, audioOnly);
     if (!canPlayWebMedia(mime))
       return false;
@@ -256,22 +256,8 @@ struct MediaPlayer::State {
       if (size > 0)
         webVideoBlobMode = true;
     }
-    if (!size) {
-      // A deferred manifest entry is represented by a zero-byte MEMFS file.
-      // Its logical ID may be relative even when localPath() is empty.
-      const auto relative = std::filesystem::path(id).lexically_normal();
-      bool safe = !relative.empty() && !relative.is_absolute() &&
-                  relative != "." && id.find('\0') == std::string::npos;
-      for (const auto &part : relative)
-        if (part == "..")
-          safe = false;
-      if (safe) {
-        const auto candidate = std::filesystem::path("/game-assets") / relative;
-        if (std::filesystem::is_regular_file(candidate))
-          return configureWebVideoUrl(candidate.generic_string(), audioOnly);
-      }
+    if (!size)
       return false;
-    }
     webVideo = true;
     webAudioOnly = mime.compare(0, 6, "audio/") == 0;
     webVideoId = id;
@@ -987,25 +973,24 @@ void MediaPlayer::open(std::unique_ptr<Filesystem::FileHandle> source,
 
 void MediaPlayer::open(const std::string &path, bool audioOnly,
                        const std::string &channelName) {
-  auto next = std::make_unique<State>();
-  next->channel = mixer.channel(
-      channelName.empty() ? (audioOnly ? "audio" : "video") : channelName);
+  // The path overload is only a migration API. Game media flows through
+  // FileHandle/AVIO, including browser game-assets. No URL is played directly.
 #ifdef __EMSCRIPTEN__
-  std::string effectivePath = path;
-  if (effectivePath.find("/") != 0 && effectivePath.find("game-assets/") != 0) {
-    effectivePath = "/game-assets/" + effectivePath;
-  }
-  if (next->configureWebVideo(effectivePath, audioOnly)) {
-    next->webFallbackPath = effectivePath;
-    start(std::move(next), {}, audioOnly, false);
-    return;
+  std::string relative = path;
+  if (relative.compare(0, 13, "/game-assets/") == 0)
+    relative.erase(0, 13);
+  else if (relative.compare(0, 12, "game-assets/") == 0)
+    relative.erase(0, 12);
+  else
+    relative.clear();
+  if (!relative.empty()) {
+    auto vfs = Filesystem::mountGameAssets("/game-assets");
+    return open(vfs->open(relative), relative, audioOnly, channelName);
   }
 #endif
-  if (!std::filesystem::is_regular_file(path))
-    throw std::runtime_error("Media must be a local file: " + path);
-  next->attachAssetStream(std::make_unique<HandleAssetStream>(
-      std::make_unique<Filesystem::SDLFileSource>(std::filesystem::path(path))));
-  start(std::move(next), {}, audioOnly, false);
+  return open(std::make_unique<Filesystem::SDLFileSource>(
+                  std::filesystem::path(path)),
+              path, audioOnly, channelName);
 }
 
 void MediaPlayer::open(const AssetProvider &assets, const std::string &id,

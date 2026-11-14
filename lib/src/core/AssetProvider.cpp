@@ -468,10 +468,13 @@ FileSystemAssetProvider::FileSystemAssetProvider(std::filesystem::path value)
 #ifdef __EMSCRIPTEN__
   if (root.empty() && Filesystem::remoteGameAssets())
     fallback_ = Filesystem::mountGameAssets("/game-assets");
-  if (!root.empty() && Filesystem::remoteGameAssets()) {
+  if (!root.empty()) {
     for (const auto &part : root) {
       if (part == "game-assets") {
-        mounted_ = Filesystem::mountGameAssets(root);
+        std::error_code ec;
+        if (Filesystem::remoteGameAssets() ||
+            std::filesystem::is_directory(root, ec))
+          mounted_ = Filesystem::mountGameAssets(root);
         break;
       }
     }
@@ -642,6 +645,10 @@ FileSystemAssetProvider::openStream(const std::string &id) const {
     if (fallback_->exists(name))
       return std::make_unique<MountedAssetStream>(fallback_->open(name));
   }
+  const auto local = resolve(id);
+  if (std::filesystem::is_regular_file(local))
+    return std::make_unique<MountedAssetStream>(
+        std::make_unique<Filesystem::SDLFileSource>(local));
   return {};
 }
 
