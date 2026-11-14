@@ -14,6 +14,7 @@
 #include <Kotonoha/components/VNBacklog.hpp>
 #include <Kotonoha/components/VNSaveMenu.hpp>
 #include <Kotonoha/core/Engine.hpp>
+#include <Kotonoha/core/SDL.hpp>
 #include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/UI.hpp>
 #include <Kotonoha/debug/DebugOverlay.hpp>
@@ -313,13 +314,12 @@ DisplayPopupLayout DisplayPresetPopup(const DisplayPanelGeometry &geometry) {
 
 SDL_DisplayID DisplayIdForIndex(int index) {
   int count = 0;
-  SDL_DisplayID *displays = SDL_GetDisplays(&count);
+  Kotonoha::SDLArrayPtr<SDL_DisplayID> displays(SDL_GetDisplays(&count));
   if (!displays || count <= 0)
     return 0;
   if (index < 0 || index >= count)
     index = 0;
-  const SDL_DisplayID result = displays[index];
-  SDL_free(displays);
+  const SDL_DisplayID result = displays.get()[index];
   return result;
 }
 
@@ -361,12 +361,12 @@ std::vector<DisplayResolution> DisplayResolutions(int displayIndex) {
       result.push_back({width, height, refreshRate});
   };
   int count = 0;
-  SDL_DisplayMode **modes = SDL_GetFullscreenDisplayModes(display, &count);
+  Kotonoha::SDLArrayPtr<SDL_DisplayMode *> modes(
+      SDL_GetFullscreenDisplayModes(display, &count));
   if (modes) {
     for (int i = 0; i < count; ++i)
-      if (modes[i])
-        add(modes[i]->w, modes[i]->h, modes[i]->refresh_rate);
-    SDL_free(modes);
+      if (modes.get()[i])
+        add(modes.get()[i]->w, modes.get()[i]->h, modes.get()[i]->refresh_rate);
   }
   if (desktop)
     add(desktop->w, desktop->h, desktop->refresh_rate);
@@ -495,14 +495,14 @@ int SelectedAndroidMode(const std::vector<Kotonoha::AndroidDisplayMode> &modes,
   if (settings.fullscreenWidth > 0 && settings.fullscreenHeight > 0 &&
       settings.refreshRate > 0.0f) {
     for (size_t i = 0; i < modes.size(); ++i)
-      if (modes[i].width == settings.fullscreenWidth &&
-          modes[i].height == settings.fullscreenHeight &&
-          std::abs(modes[i].refreshRate - settings.refreshRate) < 0.05f)
+      if (modes.get()[i].width == settings.fullscreenWidth &&
+          modes.get()[i].height == settings.fullscreenHeight &&
+          std::abs(modes.get()[i].refreshRate - settings.refreshRate) < 0.05f)
         return static_cast<int>(i);
   }
   const int current = Kotonoha::AndroidCurrentDisplayModeId();
   for (size_t i = 0; i < modes.size(); ++i)
-    if (modes[i].modeId == current)
+    if (modes.get()[i].modeId == current)
       return static_cast<int>(i);
   return 0;
 }
@@ -5194,14 +5194,14 @@ bool Runtime::handleDisplayPanel(Kotonoha::EventRef event) {
     displayPanelResolutionOpen = false;
     displayPanelPresetOpen = false;
     int count = 0;
-    SDL_DisplayID *displays = SDL_GetDisplays(&count);
+    Kotonoha::SDLArrayPtr<SDL_DisplayID> displays(SDL_GetDisplays(&count));
     if (count > 0) {
       settings.display = (settings.display + 1) % count;
       displayPanelSelectedResolution = -1;
       displayPanelResolutionScroll = 0;
       if (settings.mode == Kotonoha::WindowMode::Exclusive && displays) {
         if (const SDL_DisplayMode *desktop =
-                SDL_GetDesktopDisplayMode(displays[settings.display])) {
+                SDL_GetDesktopDisplayMode(displays.get()[settings.display])) {
           settings.fullscreenWidth = desktop->w;
           settings.fullscreenHeight = desktop->h;
           settings.refreshRate = desktop->refresh_rate;
@@ -5210,8 +5210,7 @@ bool Runtime::handleDisplayPanel(Kotonoha::EventRef event) {
       engine->applySettings(settings);
     }
     if (displays)
-      SDL_free(displays);
-  } else if (hoveredRow == 4) {
+      } else if (hoveredRow == 4) {
     displayPanelPresetOpen = false;
     displayPanelHoverPreset = -1;
     if (!resolutions.empty()) {
