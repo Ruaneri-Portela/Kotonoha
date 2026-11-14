@@ -415,10 +415,11 @@ void Launcher::draw() {
     ImGui::TextDisabled("%s", settingsPath.empty()
                                   ? "Settings will not be saved"
                                   : settingsPath.c_str());
-    ImGui::TextDisabled("Engine %s  |  %s  |  %s",
-                        BuildVersion::Base,
-                        BuildVersion::Branch,
-                        BuildVersion::ShortCommit);
+    ImGui::TextDisabled("Engine %s  |  Commit %s",
+                        BuildVersion::Base, BuildVersion::ShortCommit);
+    if (ImGui::IsItemHovered())
+      ImGui::SetTooltip("%s\nBranch: %s", BuildVersion::Full,
+                        BuildVersion::Branch);
     ImGui::SetCursorScreenPos(
         {ImGui::GetCursorScreenPos().x,
          std::max(ImGui::GetCursorScreenPos().y, origin.y + band) +
