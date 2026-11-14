@@ -320,6 +320,13 @@ set_target_properties(KotonohaEngine PROPERTIES
         SOVERSION ${PROJECT_VERSION_MAJOR}
         WINDOWS_EXPORT_ALL_SYMBOLS ON
 )
+if(KOTONOHA_WASM_DYNAMIC_LIBS)
+    # Emscripten side modules are loaded by their exact .wasm filename.
+    # ELF-style VERSION/SOVERSION would otherwise produce
+    # libkotonoha.wasm.0.1.0 and a SONAME that the browser cannot resolve.
+    set_target_properties(KotonohaEngine PROPERTIES
+        VERSION "" SOVERSION "" NO_SONAME TRUE)
+endif()
 if(NOT KOTONOHA_IMGUI_FROM_VCPKG)
     set_target_properties(imgui PROPERTIES
             CXX_EXTENSIONS OFF
