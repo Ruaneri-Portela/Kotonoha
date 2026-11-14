@@ -32,8 +32,15 @@ for (const symbol of [
   assert(html.includes(symbol), 'Missing web bootstrap interface: ' + symbol);
 }
 assert(html.includes('touch-action: none'), 'Touch gesture handling must stay active');
-assert(html.includes('id="browser-folder-tools" popover="manual"'),
-  'Persistent folder controls must live in the browser top layer');
+assert(html.includes('id="browser-folder-tools" aria-label="Pastas do jogo"'),
+  'Pre-game toolbar must be an ordinary fixed element, not a Safari popover');
+assert(!html.includes('popover="manual"') && !html.includes('showPopover('),
+  'Pre-game controls must not enter the browser popover top layer');
+assert(!html.includes('inset: auto;'),
+  'CSS inset shorthand must not reset the explicit top/right positions');
+assert(html.includes('top: max(8px, env(safe-area-inset-top, 0px));') &&
+  html.includes('right: max(8px, env(safe-area-inset-right, 0px));'),
+  'Pre-game toolbar must stay anchored to the safe-area top-right corner');
 assert(!html.includes('showPersistentTools'),
   'Fullscreen must not reopen the folder toolbar after gameplay starts');
 assert(html.includes('window.KotonohaCloseStartupFolderTools'),
