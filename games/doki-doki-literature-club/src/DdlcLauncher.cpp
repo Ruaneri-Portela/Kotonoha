@@ -1,5 +1,6 @@
 #include "DdlcLauncher.hpp"
 #include <Ddlc/DdlcAssets.hpp>
+#include <Kotonoha/Filesystem/Filesystem.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -28,6 +29,23 @@ bool GameLauncher::checkPath(const std::string &path, std::string &info) {
 
 bool GameLauncher::validatePath(const std::string &path, std::string &info) {
   std::error_code error;
+  if (std::filesystem::is_regular_file(path, error)) {
+    try {
+      const auto mounted = Kotonoha::Filesystem::Filesystem::mount(path);
+      const auto prefix = mounted->exists("game/scripts.rpa") ?
+                          std::string("game/") : std::string();
+      if (!mounted->exists(prefix + "scripts.rpa") ||
+          !mounted->exists(prefix + "images.rpa")) {
+        info = "Archive missing DDLC scripts.rpa or images.rpa";
+        return false;
+      }
+      info = "Virtual DDLC archive: scripts and images found";
+      return true;
+    } catch (const std::exception &failure) {
+      info = failure.what();
+      return false;
+    }
+  }
   const auto game = std::filesystem::path(path) / "game";
   if (std::filesystem::is_regular_file(game / "scripts.rpa", error))
     return validatePath(game.string(), info);
