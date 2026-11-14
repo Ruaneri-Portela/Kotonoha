@@ -44,9 +44,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: vcpkg-binary-cache
-          key: wasm-vcpkg-3.1.73-${{ hashFiles('vcpkg.json', 'vcpkg-overlays/ports/**') }}
+          key: wasm-dylink-vcpkg-3.1.73-${{ hashFiles('vcpkg.json', 'vcpkg-overlays/ports/**', 'vcpkg-overlays/triplets/**') }}
           restore-keys: |
-            wasm-vcpkg-3.1.73-
+            wasm-dylink-vcpkg-3.1.73-
 
       - name: Verify HTTP Range server before WASM tests
         run: python3 -m unittest discover -s tools -p test_serve_web.py -v
