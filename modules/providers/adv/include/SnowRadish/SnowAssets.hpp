@@ -45,6 +45,11 @@ public:
   explicit SnowAssets(std::shared_ptr<Kotonoha::Filesystem::Filesystem> source);
 
   const std::filesystem::path &Directory() const { return directory_; }
+  // Expose the same mounted VFS to ports that read archive bytes directly.
+  // In WASM this may be backed by HTTP Fetch, not a physical directory.
+  std::shared_ptr<Kotonoha::Filesystem::Filesystem> source() const noexcept {
+    return source_;
+  }
 
   std::string name() const override;
   int sampleRate() const { return sampleRate_; }
