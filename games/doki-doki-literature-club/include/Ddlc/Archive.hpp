@@ -3,6 +3,7 @@
 // (.rpyc).
 #include "Ddlc/Value.hpp"
 #include <Kotonoha/Filesystem/FileHandle.hpp>
+#include <Kotonoha/Filesystem/Filesystem.hpp>
 
 #include <cstdint>
 #include <cstdio>
@@ -53,6 +54,7 @@ private:
 class Assets {
 public:
   bool open(const std::string &gameDir);
+  bool open(std::shared_ptr<Kotonoha::Filesystem::Filesystem> source);
   using OverlayRead =
       std::function<bool(const std::string &, std::vector<uint8_t> *)>;
   using OverlayNames = std::function<std::vector<std::string>()>;
@@ -71,6 +73,8 @@ private:
   std::string dir_;
   std::vector<std::unique_ptr<Archive>> archives_, overlayArchives_;
   std::map<std::string, std::filesystem::path> loose_;
+  std::map<std::string, std::string> virtualLoose_;
+  std::shared_ptr<Kotonoha::Filesystem::Filesystem> mounted_;
   OverlayRead overlayRead_, rootRead_;
   OverlayNames overlayNames_;
 };

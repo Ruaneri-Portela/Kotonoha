@@ -109,6 +109,19 @@ DdlcAssets::DdlcAssets(const std::filesystem::path &directory,
           std::filesystem::absolute(gameDirectory).lexically_normal().string()))
     throw std::runtime_error("Cannot open Ren'Py archives in " +
                              directory.string());
+  configureOverlaysAndScripts(overlayDirectory, true);
+}
+
+DdlcAssets::DdlcAssets(
+    std::shared_ptr<Kotonoha::Filesystem::Filesystem> source,
+    const std::filesystem::path &overlayDirectory) {
+  if (!assets_.open(std::move(source)))
+    throw std::runtime_error("Cannot open virtual Ren'Py archives");
+  configureOverlaysAndScripts(overlayDirectory, false);
+}
+
+void DdlcAssets::configureOverlaysAndScripts(
+    const std::filesystem::path &overlayDirectory, bool inspectCharacterPaths) {
   if (!overlayDirectory.empty()) {
     std::vector<std::filesystem::path> roots;
     if (std::filesystem::is_directory(overlayDirectory / "game"))
@@ -178,7 +191,8 @@ DdlcAssets::DdlcAssets(const std::filesystem::path &directory,
     throw std::runtime_error(
         "The game directory does not contain DDLC's start and splash scripts");
   std::error_code pathError;
-  if (!hasOriginalCharacters(assets_.dir(), pathError)) {
+  if (inspectCharacterPaths &&
+      !hasOriginalCharacters(assets_.dir(), pathError)) {
     if (pathError)
       throw std::runtime_error("Cannot inspect DDLC character files: " +
                                pathError.message());
