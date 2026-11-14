@@ -1,6 +1,7 @@
 #include <Kotonoha/Filesystem/Filesystem.hpp>
 #include <Kotonoha/Filesystem/Mounts/DirectoryMount.hpp>
 #include <Kotonoha/Filesystem/Mounts/ISO9660Mount.hpp>
+#include <Kotonoha/Filesystem/Sources/SDLFileSource.hpp>
 
 #include <algorithm>
 #include <filesystem>
@@ -80,6 +81,12 @@ std::vector<std::uint8_t> readAll(FileHandle &file, std::size_t maxBytes) {
     cursor += static_cast<std::size_t>(count);
   }
   return bytes;
+}
+
+std::vector<std::uint8_t> readLocalFile(
+    const std::filesystem::path &path, std::size_t maxBytes) {
+  SDLFileSource input(path);
+  return readAll(input, maxBytes);
 }
 
 } // namespace Kotonoha::Filesystem
