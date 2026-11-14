@@ -634,6 +634,35 @@ async function main() {
         null, [], []));
     }
 
+    // Real browser touch events, not an artificial SDL_PushEvent. A fresh
+    // touch-enabled page reaches the SDL3 callback through the canvas.
+    const touchContext = await browser.newContext({
+      hasTouch: true, isMobile: true, viewport: { width: 800, height: 600 }
+    });
+    try {
+      const touchPage = await touchContext.newPage();
+      touchPage.on('pageerror', error =>
+        logs.push('touch-pageerror: ' + error.message));
+      await touchPage.goto(baseUrl + '/index.html',
+        { waitUntil: 'domcontentloaded' });
+      await touchPage.locator('#use-server-assets').click();
+      await touchPage.waitForFunction(() =>
+        typeof Module === 'object' && Module.KotonohaSaveReady === true &&
+        document.getElementById('canvas').width > 320, null,
+        { timeout: 60000 });
+      await touchPage.locator('#loading-overlay')
+        .waitFor({ state: 'detached', timeout: 60000 });
+      await touchPage.touchscreen.tap(400, 300);
+      await touchPage.waitForFunction(() =>
+        Module.ccall('KotonohaWebSelfTestTouchDownCount',
+          'number', [], []) > 0 &&
+        Module.ccall('KotonohaWebSelfTestTouchUpCount',
+          'number', [], []) > 0, null, { timeout: 5000 });
+      console.log('TOUCH SDL events delivered');
+    } finally {
+      await touchContext.close();
+    }
+
     console.log('RESULT PASS');
     const knownTeardownError = logs.some(line =>
       line.startsWith('pageerror: null function'));
