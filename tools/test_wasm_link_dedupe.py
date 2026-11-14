@@ -15,20 +15,17 @@ SPEC.loader.exec_module(module)
 
 class LinkDedupeTests(unittest.TestCase):
     def test_absolute_relative_and_l_flag(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
+        with tempfile.TemporaryDirectory(dir=".") as tmp:
+            root = Path(tmp).resolve()
             archive = root / "libz.a"
             archive.touch()
+            relative = str(archive.relative_to(Path.cwd()))
             tokens = [
-                "em++", "-L" + tmp, str(archive), "-lz",
-                str(archive.relative_to(root.parent)), "-lGL",
+                "em++", "-L" + str(root), relative, str(archive),
+                "-lz", "-lGL",
             ]
-            # The third archive spelling is relative to root.parent; it
-            # should remain unless called from that working directory.
             result = module.normalize(tokens)
-            self.assertEqual(result.count("-lz"), 1)
-            self.assertNotIn(str(archive), result)
-            self.assertIn("-lGL", result)
+            self.assertEqual(result, ["em++", "-L" + str(root), "-lz", "-lGL"])
 
     def test_repeated_full_path(self):
         with tempfile.TemporaryDirectory() as tmp:
