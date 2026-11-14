@@ -16,6 +16,7 @@ class CommandLine {
   std::string program;
   std::vector<Option> options;
   bool helpRequested = false;
+  bool versionRequested = false;
 
 public:
   explicit CommandLine(std::string program, EngineOptions &engine);
