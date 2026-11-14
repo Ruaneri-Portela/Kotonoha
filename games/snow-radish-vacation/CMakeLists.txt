@@ -42,7 +42,7 @@ set_target_properties(SnowRadish PROPERTIES CXX_EXTENSIONS OFF)
 kotonoha_configure_app(SnowRadish
     BUNDLE_ID me.hirameki.kotonoha.snowradishvacation GAME snow-radish-vacation)
 
-if(KOTONOHA_BUILD_NATIVE_TOOLS)
+if(NOT ANDROID AND NOT EMSCRIPTEN)
     add_executable(SnowRun tools/SnowRun.cpp)
     target_link_libraries(SnowRun PRIVATE SnowRadishFormats)
 

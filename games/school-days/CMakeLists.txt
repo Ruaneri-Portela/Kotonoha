@@ -77,11 +77,13 @@ kotonoha_configure_app(SchoolDays
     BUNDLE_ID me.hirameki.kotonoha.schooldays GAME school-days)
 set_target_properties(SchoolDays PROPERTIES CXX_EXTENSIONS OFF)
 
-# Declare the game's bundled route data; the engine build layer handles
-# any platform-specific packaging or preload flags.
-kotonoha_preload_asset(SchoolDays
-    "${CMAKE_CURRENT_SOURCE_DIR}/game-assets/school-days-hq.ktnroute"
-    "/game-assets/school-days-hq.ktnroute")
+if(EMSCRIPTEN)
+    # This KTRF route is tracked source data, not a commercial pack.
+    # Ship it inside the Emscripten VFS so the engine can start when HTTP
+    # manifest.json is absent and user-selected packs are fetched lazily.
+    target_link_options(SchoolDays PRIVATE
+        "SHELL:--preload-file ${CMAKE_CURRENT_SOURCE_DIR}/game-assets/school-days-hq.ktnroute@/game-assets/school-days-hq.ktnroute")
+endif()
 
 # Ship the user's replacement General, Sound and Display Options artwork outside
 # the commercial System.GPK. The School Days-only overlay is mounted by default
