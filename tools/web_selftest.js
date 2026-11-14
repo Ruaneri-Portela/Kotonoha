@@ -188,7 +188,7 @@ async function main() {
 
     const sourceRequests = [];
     page.on('request', request => {
-      if (/\/game-assets\/manifest\\.json(?:[?#]|$)/.test(request.url()))
+      if (/\/game-assets\/manifest\.json(?:[?#]|$)/.test(request.url()))
         sourceRequests.push(request.url());
     });
     await page.goto(baseUrl + '/index.html', { waitUntil: 'domcontentloaded' });
