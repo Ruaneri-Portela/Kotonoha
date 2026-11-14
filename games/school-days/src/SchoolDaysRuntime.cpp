@@ -5209,8 +5209,7 @@ bool Runtime::handleDisplayPanel(Kotonoha::EventRef event) {
       }
       engine->applySettings(settings);
     }
-    if (displays)
-      } else if (hoveredRow == 4) {
+  } else if (hoveredRow == 4) {
     displayPanelPresetOpen = false;
     displayPanelHoverPreset = -1;
     if (!resolutions.empty()) {
