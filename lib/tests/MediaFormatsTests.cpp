@@ -640,6 +640,8 @@ void player() {
   require(!media.isOpen() && media.finished(),
           "Missing speculative decoder does not abort the game");
   media.open(assets, "still", false, "movie");
+  media.openSoundtrack(assets, "corrupt.mkv");
+  require(media.isOpen(), "Bad optional soundtrack does not close the video");
   media.openSoundtrack(assets, "track.wav");
   require(media.isOpen() && !media.finished(), "Media with soundtrack");
   media.setPaused(true);
