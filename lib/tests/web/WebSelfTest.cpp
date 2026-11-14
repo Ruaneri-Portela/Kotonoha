@@ -9,7 +9,7 @@
 #include <Kotonoha/core/AssetProvider.hpp>
 #include <Kotonoha/Filesystem/RemoteAssets.hpp>
 #include <Kotonoha/Filesystem/Filesystem.hpp>
-#include <Kotonoha/core/FileSystem.hpp>
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/media/MediaPlayer.hpp>
 
 #include <SDL3/SDL.h>

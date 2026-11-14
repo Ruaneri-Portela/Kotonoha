@@ -1,6 +1,6 @@
 #include <Kotonoha/core/AssetProvider.hpp>
 #include <Kotonoha/core/DiscImage.hpp>
-#include <Kotonoha/core/FileSystem.hpp>
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/Filesystem/Filesystem.hpp>
 #include <Kotonoha/Filesystem/RemoteAssets.hpp>
 #include <Kotonoha/Filesystem/Sources/SDLFileSource.hpp>

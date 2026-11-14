@@ -3,7 +3,7 @@
 #include <LucaSystem/LucaSystemAssets.hpp>
 // PAK asset provider module.
 
-#include <Kotonoha/core/FileSystem.hpp>
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/Log.hpp>
 
 #include <algorithm>

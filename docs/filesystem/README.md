@@ -29,7 +29,7 @@ Synthetic tests cover directory/ISO reads, seek/EOF, overlays, collisions, symli
 
 The physical-path compatibility adapter remains for older providers. Summer CMP and DDLC RPA indexing accept virtual inputs; other package providers still need source-level migration. Native media uses custom FFmpeg AVIO. An Emscripten Fetch provider now supports asynchronous preloads and bounded Range requests but requires browser validation. Missing cached regions raise `WouldBlock` without blocking the browser main thread. `BrowserBlobAdapter` is available for managed virtual video, but the worker/Asyncify suspension bridge and remaining legacy HTML media paths are not yet migrated.
 
-The legacy StoragePaths implementation was moved to `lib/src/Filesystem/StoragePaths.cpp`; the old `core/FileSystem.hpp` remains a forwarding shim. The save directory policy and public symbols are unchanged.
+The legacy StoragePaths implementation was moved to `lib/src/Filesystem/StoragePaths.cpp`; all first-party includes now use `Kotonoha/Filesystem/StoragePaths.hpp` and the deprecated `core/FileSystem.hpp` shim has been deleted. The save directory policy and public symbols are unchanged.
 
 Mount detection accepts `.tar`, `.iso`, `.bin` and `.img` (disk types verified by the existing `DiscImage` parser); unknown ordinary files raise `UnsupportedMount`. Compressed `.tar.gz`, UDF and CUE multi-track mounting are not supported by this phase.
 

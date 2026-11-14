@@ -4,7 +4,7 @@
 #include <ZeroNoTsukaima/Vag.hpp>
 
 #include <Kotonoha/core/Engine.hpp>
-#include <Kotonoha/core/FileSystem.hpp>
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
 
 #include <algorithm>
 #include <cctype>

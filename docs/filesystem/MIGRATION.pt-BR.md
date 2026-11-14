@@ -40,3 +40,5 @@ O comando padrão encontra acessos diretos legados e confere CMake/Xcode; `--str
 Os critérios finais estão na [especificação original](SPECIFICATION.pt-BR.md). O PR permanece rascunho.
 
 - **Fallback web:** `FallbackMount` local-primeiro, bootstrap de manifesto HTTP e registro do Fetch foram implementados, com pré-carregamento máximo de 128 MiB. Faltam testes reais de navegador e migração integral dos providers legados.
+
+O header de compatibilidade `core/FileSystem.hpp` foi excluído após migrar os includes dos códigos e testes para `Kotonoha/Filesystem/StoragePaths.hpp`. As políticas e os símbolos públicos dos diretórios permanecem iguais.

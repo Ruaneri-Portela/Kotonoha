@@ -1,6 +1,6 @@
 #include <Kotonoha/components/ForcedSubtitleRenderer.hpp>
 #include <Kotonoha/core/Engine.hpp>
-#include <Kotonoha/core/FileSystem.hpp>
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/Log.hpp>
 
 #include <algorithm>

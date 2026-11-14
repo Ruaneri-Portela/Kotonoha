@@ -3,7 +3,7 @@
 #include <Kotonoha/core/CommandLine.hpp>
 #include <Kotonoha/core/DiscImage.hpp>
 #include <Kotonoha/core/Engine.hpp>
-#include <Kotonoha/core/FileSystem.hpp>
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/GameLauncher.hpp>
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>

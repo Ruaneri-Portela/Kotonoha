@@ -1,4 +1,4 @@
-#include <Kotonoha/core/FileSystem.hpp>
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/localization/Translation.hpp>
 
 #include <json-c/json.h>

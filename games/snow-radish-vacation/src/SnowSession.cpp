@@ -4,7 +4,7 @@
 #include <Kotonoha/components/VNSave.hpp>
 #include <Kotonoha/components/VNTextBox.hpp>
 #include <Kotonoha/core/Engine.hpp>
-#include <Kotonoha/core/FileSystem.hpp>
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/media/upscaling/Upscaler.hpp>
 
 #include <algorithm>

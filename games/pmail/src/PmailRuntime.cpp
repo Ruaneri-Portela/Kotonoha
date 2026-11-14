@@ -3,7 +3,7 @@
 #include "PmailSession.hpp"
 #include <Kotonoha/components/VNSave.hpp>
 #include <Kotonoha/core/Engine.hpp>
-#include <Kotonoha/core/FileSystem.hpp>
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/UI.hpp>
 #include <SDL3/SDL.h>
 #include <cstdio>
