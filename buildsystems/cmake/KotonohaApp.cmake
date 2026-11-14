@@ -202,10 +202,13 @@ function(kotonoha_configure_app target)
             target_link_options(${target} PRIVATE
                 -fexceptions
                 "SHELL:-sDISABLE_EXCEPTION_CATCHING=0"
-                "SHELL:-sEXPORTED_RUNTIME_METHODS=['FS']"
+                "SHELL:-sEXPORTED_RUNTIME_METHODS=['FS','ccall','FS_readFile']"
                 "SHELL:-sFORCE_FILESYSTEM=1"
                 "SHELL:-sALLOW_MEMORY_GROWTH=1"
                 "SHELL:-sINITIAL_MEMORY=268435456"
+                "SHELL:-sFETCH=1"
+                "SHELL:-sFETCH_STREAMING=1"
+                "SHELL:-lidbfs.js"
                 "SHELL:--preload-file ${KOTONOHA_ENGINE_ASSETS}@/assets"
             )
 

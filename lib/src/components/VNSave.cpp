@@ -13,8 +13,30 @@
 #include <sstream>
 #include <stdexcept>
 
+#ifdef __EMSCRIPTEN__
+#include <emscripten/emscripten.h>
+#endif
+
 namespace Kotonoha {
 namespace {
+// IDBFS keeps the save directory in browser IndexedDB. Writes only reach the
+// backing store after syncfs(), so flush explicitly instead of waiting for the
+// next automatic persistence tick (which may never happen if the tab closes).
+void persistSaveStorage() {
+#ifdef __EMSCRIPTEN__
+  EM_ASM({
+    if (typeof FS != 'undefined' && FS.syncfs) {
+      FS.syncfs(
+          false, function(error) {
+            if (error) {
+              console.error('[Kotonoha] Cannot persist save storage:', error);
+            }
+          });
+    }
+  });
+#endif
+}
+
 std::string saveFileName(std::string name) {
   if (name.empty() || name.find_first_not_of(' ') == std::string::npos ||
       name.find_first_of("/\\:*?\"<>|") != std::string::npos ||
@@ -101,6 +123,7 @@ std::string VNSaveSlots::rename(const std::string &name,
   if (!SDL_RenamePath(source.string().c_str(), target.string().c_str()))
     throw std::runtime_error("Cannot rename save: " +
                              std::string(SDL_GetError()));
+  persistSaveStorage();
   return target.string();
 }
 
@@ -108,6 +131,7 @@ void VNSaveSlots::remove(const std::string &name) const {
   const auto path = existingSlot(directory, name);
   if (!std::filesystem::remove(path))
     throw std::runtime_error("Cannot delete missing save: " + path.string());
+  persistSaveStorage();
 }
 
 namespace {
@@ -141,6 +165,7 @@ void VNSave::write(const std::string &path) const {
          << (pendingBranch ? 1 : 0) << ' ' << pendingBranch.value_or(-1) << '\n'
          << std::quoted(gameData) << '\n';
   writeTextFileAtomically(path, output.str());
+  persistSaveStorage();
 }
 
 VNSave VNSave::read(const std::string &path) {
@@ -177,6 +202,9 @@ VNSave VNSave::read(const std::string &path) {
   if (!input.eof() || input.bad())
     fail();
   validate(save);
+  // Startup already populated the IDBFS tree. Keep any concurrent tab's
+  // changes durable as well; a failed sync must not invalidate a good load.
+  persistSaveStorage();
   return save;
 }
 

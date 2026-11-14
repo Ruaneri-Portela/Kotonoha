@@ -24,13 +24,29 @@ SummerAssets::SummerAssets(std::filesystem::path root) {
 std::filesystem::path
 SummerAssets::moviePath(const std::string &filename) const {
   const std::filesystem::path requested(filename);
-  if (requested.empty() || requested.has_parent_path() ||
-      requested.is_absolute())
+  if (requested.empty() || requested.is_absolute())
     throw std::runtime_error("Invalid Summer movie filename: " + filename);
-  for (const auto &file : std::filesystem::directory_iterator(discDirectory))
-    if (file.is_regular_file() &&
-        canonical(file.path().filename().string()) == canonical(filename))
-      return file.path();
+
+  // 1. Direct attempt
+  auto target = (discDirectory / requested).lexically_normal();
+  if (std::filesystem::is_regular_file(target))
+    return target;
+
+  // 2. If the candidate starts with the name of the discDirectory, strip it.
+  // e.g. discDirectory is ".../DISC1", filename is "DISC1/movie.mpg"
+  auto discName = discDirectory.filename();
+  auto it = requested.begin();
+  if (it != requested.end() && it->string() == discName.string()) {
+    std::filesystem::path subPath;
+    auto next_it = std::next(it);
+    for (; next_it != requested.end(); ++next_it) {
+      subPath /= *next_it;
+    }
+    target = (discDirectory / subPath).lexically_normal();
+    if (std::filesystem::is_regular_file(target))
+      return target;
+  }
+
   throw std::runtime_error("Missing Summer movie: " + filename);
 }
 bool SummerAssets::containsAsset(const std::string &id) const {

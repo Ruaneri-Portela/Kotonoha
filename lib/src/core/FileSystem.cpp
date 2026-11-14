@@ -42,6 +42,20 @@ void addDirectory(std::vector<std::filesystem::path> &paths,
     paths.push_back(std::move(normalized));
 }
 
+#ifdef __EMSCRIPTEN__
+extern "C" void KotonohaMountSaveStorage();
+
+// index.html mounts IDBFS here before SDL_AppInit runs. Calling the web runtime
+// export here also keeps its translation unit in the static link: the HTML
+// preRun hook reaches it through ccall, which the native linker cannot see.
+std::filesystem::path webSaveDirectory() {
+  KotonohaMountSaveStorage();
+  const std::filesystem::path directory = "/save";
+  std::filesystem::create_directories(directory);
+  return directory;
+}
+#endif
+
 std::optional<std::filesystem::path>
 findInDirectories(const std::vector<std::filesystem::path> &directories,
                   const std::filesystem::path &relative) {
@@ -416,6 +430,9 @@ std::filesystem::path documentsDirectory() {
 std::filesystem::path documentsDirectory(const std::string &game) {
   if (!game.empty())
     validateGame(game);
+#ifdef __EMSCRIPTEN__
+  return webSaveDirectory();
+#endif
   auto locations = storageLocations();
 #ifndef __ANDROID__
   if (game.find('.') != std::string::npos)
@@ -432,6 +449,9 @@ std::filesystem::path documentsDirectory(const std::string &game) {
 std::filesystem::path preferredDocumentsDirectory(const std::string &game) {
   if (!game.empty())
     validateGame(game);
+#ifdef __EMSCRIPTEN__
+  return webSaveDirectory();
+#endif
   auto locations = storageLocations();
   // Old callers may pass a source-tree slug. Only metadata or an explicit
   // reverse-domain identifier is allowed to choose the writable directory.
