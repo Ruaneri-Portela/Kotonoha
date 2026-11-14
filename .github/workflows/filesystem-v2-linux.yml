@@ -38,9 +38,9 @@ jobs:
         run: |
           cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug \
             -DBUILD_TESTING=ON -DSDLTTF_PLUTOSVG=OFF \
-            -DKOTONOHA_BUILD_EXAMPLE=ON -DKOTONOHA_BUILD_LUCA_SYSTEM=ON -DKOTONOHA_BUILD_SNOW=ON -DKOTONOHA_BUILD_KIRIKIRI=ON
+            -DKOTONOHA_BUILD_EXAMPLE=ON -DKOTONOHA_BUILD_LUCA_SYSTEM=ON -DKOTONOHA_BUILD_SNOW=ON -DKOTONOHA_BUILD_PMAIL=ON -DKOTONOHA_BUILD_KIRIKIRI=ON
       - name: Compile Filesystem V2
-        run: cmake --build build --target KotonohaFilesystemV2Tests LucaSystemFormatTests KirikiriXp3Tests kotonoha_provider_adv kotonoha_provider_pmail --parallel 3
+        run: cmake --build build --target KotonohaFilesystemV2Tests LucaSystemFormatTests KirikiriXp3Tests kotonoha_provider_adv kotonoha_provider_pmail PmailPort Pmail --parallel 3
       - name: Run Filesystem V2 regression tests
         env:
           SDL_VIDEO_DRIVER: dummy
