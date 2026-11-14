@@ -1,6 +1,8 @@
 #include <SummerRadish/SummerAssets.hpp>
 #include <Kotonoha/Filesystem/Filesystem.hpp>
 #include <Kotonoha/Filesystem/Path.hpp>
+#include <Kotonoha/Filesystem/RemoteAssets.hpp>
+#include <Kotonoha/Filesystem/Sources/FetchAssetProvider.hpp>
 #include <cstring>
 #include <algorithm>
 #include <utility>
@@ -47,14 +49,40 @@ SummerAssets::SummerAssets(
   if (!source_)
     throw std::invalid_argument("Summer CMP mount is missing");
   std::string packRoot;
-  if (source_->exists("DISC1/PACK") &&
-      source_->stat("DISC1/PACK").type ==
-          Kotonoha::Filesystem::FileType::Directory)
-    packRoot = "DISC1/PACK";
-  else if (source_->exists("PACK") &&
-           source_->stat("PACK").type ==
-               Kotonoha::Filesystem::FileType::Directory)
-    packRoot = "PACK";
+  const auto remote = Kotonoha::Filesystem::remoteGameAssets();
+  if (remote && remote->manifestFree()) {
+    // An ordinary HTTP server cannot enumerate PACK directories. Probe the
+    // known CMP archive names explicitly, including the supported disc
+    // layouts, so the provider can register their virtual parent directories.
+    // This also avoids treating an HTTP 404 for /DISC1/PACK as proof that its
+    // children do not exist (many servers disable directory listings).
+    bool found = false;
+    for (const char *candidate : {"DISC1/PACK", "PACK", ""}) {
+      const std::string prefix = *candidate ? std::string(candidate) + "/" : "";
+      if (source_->exists(prefix + "INI.CMP")) {
+        packRoot = candidate;
+        found = true;
+        break;
+      }
+    }
+    if (found) {
+      const auto prefix = packRoot.empty() ? "" : packRoot + "/";
+      for (const char *type : {"SCRIPT", "GRAPHIC", "SOUND", "VOICE"}) {
+        const std::string archive = prefix + type + ".CMP";
+        // A named request (rather than list()) resolves metadata on demand.
+        (void)source_->exists(archive);
+      }
+    }
+  } else {
+    if (source_->exists("DISC1/PACK") &&
+        source_->stat("DISC1/PACK").type ==
+            Kotonoha::Filesystem::FileType::Directory)
+      packRoot = "DISC1/PACK";
+    else if (source_->exists("PACK") &&
+             source_->stat("PACK").type ==
+                 Kotonoha::Filesystem::FileType::Directory)
+      packRoot = "PACK";
+  }
 
   const auto files = source_->list(packRoot);
   for (const auto *type : {"INI", "SCRIPT", "GRAPHIC", "SOUND", "VOICE"}) {
