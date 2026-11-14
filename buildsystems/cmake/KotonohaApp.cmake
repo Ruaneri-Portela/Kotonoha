@@ -1,5 +1,3 @@
-option(KOTONOHA_BUILD_MACOS_BUNDLES "Build macOS application bundles" OFF)
-
 # Copia os assets do jogo e do engine para o diretório do executável/bundle
 function(kotonoha_copy_assets target)
     cmake_parse_arguments(ASSETS "" "GAME;GAME_ASSET_SOURCE" "" ${ARGN})
@@ -65,7 +63,6 @@ endfunction()
 # Copia as bibliotecas compartilhadas para <target>/libs no Linux e no macOS
 # sem bundle. No macOS os install names também são reescritos para @loader_path.
 function(kotonoha_copy_runtime_libraries target dependency_dirs)
-    message(STATUS "KOTONOHA_DEBUG: kotonoha_copy_runtime_libraries called for ${target}")
     if(ANDROID OR WIN32)
         return()
     endif()
@@ -87,15 +84,12 @@ function(kotonoha_copy_runtime_libraries target dependency_dirs)
             "-DSEARCH_DIRS=${dependency_dirs}"
             -P "${KOTONOHA_PROJECT_ROOT}/buildsystems/cmake/CopyRuntimeLibraries.cmake"
         VERBATIM)
-    message(STATUS "KOTONOHA_DEBUG: add_custom_command called for ${target}")
 endfunction()
 
 # Cria o executável ou biblioteca compartilhada (Android)
 function(kotonoha_add_app target)
     if(ANDROID)
         add_library(${target} SHARED ${ARGN})
-    elseif(EMSCRIPTEN)
-        add_executable(${target} ${ARGN})
     else()
         add_executable(${target} ${ARGN})
     endif()
