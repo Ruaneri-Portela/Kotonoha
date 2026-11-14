@@ -3,6 +3,7 @@
 #include <Kotonoha/Filesystem/Path.hpp>
 
 #include <json-c/json.h>
+#include <SDL3/SDL.h>
 
 #include <algorithm>
 #include <cctype>
@@ -573,25 +574,68 @@ void FetchAssetProvider::pump() {
     }
     attr.userData = ctx;
     auto finish = +[](emscripten_fetch_t *fetch) {
+      // Emscripten calls these from JavaScript's XHR/IndexedDB callbacks.
+      // An exception crossing that boundary becomes an uncaught CppException
+      // and can abort the whole SDL application during Asyncify rewind.
       std::unique_ptr<FetchContext> ctx(
           static_cast<FetchContext *>(fetch->userData));
       auto provider = ctx->provider;
-      std::string headers;
-      const auto count = emscripten_fetch_get_response_headers_length(fetch);
-      if (count && count < 16384) {
-        headers.resize(count + 1, '\0');
-        emscripten_fetch_get_response_headers(fetch,
-                                              headers.data(), headers.size());
+      const auto failed = [&]() {
+        const auto it = provider->files_.find(ctx->path);
+        if (it != provider->files_.end()) {
+          it->second->failed = true;
+          it->second->failure = ErrorCode::NetworkError;
+          try {
+            it->second->message = "Unhandled Fetch completion error";
+          } catch (...) {
+            // Do not throw again through the browser callback.
+          }
+        }
+      };
+      try {
+        std::string headers;
+        const auto count = emscripten_fetch_get_response_headers_length(fetch);
+        if (count && count < 16384) {
+          headers.resize(count + 1, '\0');
+          emscripten_fetch_get_response_headers(fetch,
+                                                headers.data(), headers.size());
+        }
+        provider->complete(
+            Job{ctx->path, ctx->start, ctx->length, ctx->full, ctx->discovery},
+            fetch->status, fetch->data, fetch->numBytes, headers);
+      } catch (const std::exception &error) {
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
+                     "[Kotonoha] HTTP Fetch callback for %s failed: %s",
+                     ctx->path.c_str(), error.what());
+        failed();
+      } catch (...) {
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
+                     "[Kotonoha] Unknown HTTP Fetch callback error: %s",
+                     ctx->path.c_str());
+        failed();
       }
-      provider->complete(
-          Job{ctx->path, ctx->start, ctx->length, ctx->full, ctx->discovery},
-          fetch->status, fetch->data, fetch->numBytes, headers);
+      const auto it = provider->files_.find(ctx->path);
       ++provider->completed_;
-      if (provider->files_.at(ctx->path)->failed)
+      if (it != provider->files_.end() && it->second->failed) {
         ++provider->failures_;
+        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                    "[Kotonoha] HTTP asset unavailable: %s (HTTP %u): %s",
+                    ctx->path.c_str(), fetch->status,
+                    it->second->message.c_str());
+      }
       emscripten_fetch_close(fetch);
-      --provider->active_;
-      provider->pump();
+      if (provider->active_ > 0)
+        --provider->active_;
+      try {
+        provider->pump();
+      } catch (const std::exception &error) {
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
+                     "[Kotonoha] Cannot dispatch next HTTP Fetch: %s",
+                     error.what());
+      } catch (...) {
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
+                     "[Kotonoha] Unknown error dispatching HTTP Fetch");
+      }
     };
     attr.onsuccess = finish;
     attr.onerror = finish;
