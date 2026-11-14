@@ -19,8 +19,9 @@ jobs:
     timeout-minutes: 180
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: recursive
+      - name: Initialize ImGui only
+        shell: pwsh
+        run: git submodule update --init --depth 1 lib/submodules/imgui
       - name: Set up pinned vcpkg
         shell: pwsh
         run: |
