@@ -33,6 +33,9 @@ struct DirectoryLayout {
 // Ordered read roots and a single write root. Does not create directories.
 DirectoryLayout directoryLayout(const StorageLocations &locations,
                                 const std::string &game = {});
+// Platform-detected locations for callers that want the shared directory policy.
+// Does not create directories.
+StorageLocations applicationStorageLocations();
 DirectoryLayout applicationDirectories(const std::string &game = {});
 std::vector<std::filesystem::path>
 referenceCandidates(const DirectoryLayout &layout,

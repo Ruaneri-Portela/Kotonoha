@@ -37,6 +37,18 @@ UnifiedFileSystem::UnifiedFileSystem(
     : layout_(directoryLayout(locations, game)),
       gameProvider_(std::move(gameProvider)) {}
 
+UnifiedFileSystem UnifiedFileSystem::forApplication(
+    const std::string &game, std::shared_ptr<AssetProvider> gameProvider) {
+  auto service = UnifiedFileSystem(applicationStorageLocations(), game,
+                                   std::move(gameProvider));
+#ifdef __EMSCRIPTEN__
+  // Existing browser saves are mounted under /save (IDBFS), not the desktop
+  // SDL_GetPrefPath directory. Keep that established persistence contract.
+  service.layout_.saves = preferredDocumentsDirectory();
+#endif
+  return service;
+}
+
 void UnifiedFileSystem::setGameProvider(
     std::shared_ptr<AssetProvider> gameProvider) {
   gameProvider_ = std::move(gameProvider);

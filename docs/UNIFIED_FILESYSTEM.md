@@ -19,8 +19,7 @@ This is an **incremental prototype**, isolated in a feature branch. It does not 
 ```cpp
 #include <Kotonoha/core/UnifiedFileSystem.hpp>
 
-Kotonoha::StorageLocations locations{/* configured by platform bootstrap */};
-Kotonoha::UnifiedFileSystem files(locations, "example", gameProvider);
+auto files = Kotonoha::UnifiedFileSystem::forApplication("example", gameProvider);
 auto data = files.read(Kotonoha::FileDomain::Game, "story.ks");
 if (data) {
     files.writeSave("chapter/slot.dat", *data);
@@ -40,3 +39,5 @@ ctest --test-dir build -R '^Kotonoha\.UnifiedFileSystem$' --output-on-failure
 Test fixtures use temporary synthetic data. They check desktop, Android and iOS path ordering, overlay precedence, binary saves, missing/empty files, and traversal/symlink rejection.
 
 **Not yet migrated:** existing ports continue using their current storage/asset APIs. Adopting this service should be incremental and first verify platform builds, save migration, browser IDBFS, and native streaming behavior.
+
+The factory uses the existing platform discovery and preserves WebAssembly's `/save` IDBFS mount. For deterministic unit tests, construct the service directly with synthetic `StorageLocations`.

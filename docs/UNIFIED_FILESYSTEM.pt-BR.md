@@ -25,3 +25,5 @@ ctest --test-dir build -R '^Kotonoha\.UnifiedFileSystem$' --output-on-failure
 Os testes usam dados sintéticos temporários: prioridade de caminhos no desktop, Android e iOS, overlays, saves binários, arquivos vazios/ausentes e bloqueio de travessia/symlinks.
 
 **Migração pendente:** ports atuais continuam usando as APIs anteriores. A adoção deve ocorrer por etapas, após validar builds, migração de saves, IDBFS web e streaming nativo.
+
+A fábrica `UnifiedFileSystem::forApplication(game, provider)` usa os caminhos reais da plataforma, mantendo o volume IDBFS `/save` no WebAssembly. Testes unitários usam `StorageLocations` sintéticos.
