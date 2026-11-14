@@ -165,11 +165,36 @@ if (ANDROID)
     set(kotonoha_ffmpeg_target kotonoha_ffmpeg)
     set(kotonoha_json_target json-c::json-c)
 elseif (EMSCRIPTEN)
-    pkg_check_modules(LIBASS REQUIRED IMPORTED_TARGET libass>=0.17)
+    # vcpkg's libass 0.17.5 on WebAssembly does not require fontconfig
+    # or libunibreak, but its generated .pc may still list them as public
+    # Requires dependencies. Avoid resolving unavailable ports via pkgconf.
+    # The static libass archive is linked directly against its actual deps.
+    if(NOT VCPKG_INSTALLED_DIR OR NOT VCPKG_TARGET_TRIPLET)
+        message(FATAL_ERROR "Emscripten media libraries require the vcpkg toolchain")
+    endif()
+    set(_kotonoha_wasm_vcpkg_lib
+        "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/lib")
+    set(_kotonoha_wasm_vcpkg_inc
+        "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/include")
+    find_path(KOTONOHA_WASM_ASS_INCLUDE_DIR NAMES ass/ass.h
+        PATHS "${_kotonoha_wasm_vcpkg_inc}" NO_DEFAULT_PATH REQUIRED)
+    find_library(KOTONOHA_WASM_ASS_LIBRARY NAMES ass
+        PATHS "${_kotonoha_wasm_vcpkg_lib}" NO_DEFAULT_PATH REQUIRED)
+    find_library(KOTONOHA_WASM_FRIBIDI_LIBRARY NAMES fribidi
+        PATHS "${_kotonoha_wasm_vcpkg_lib}" NO_DEFAULT_PATH REQUIRED)
+    find_package(Freetype REQUIRED)
+    find_package(harfbuzz CONFIG REQUIRED)
+    add_library(kotonoha_ass INTERFACE)
+    target_include_directories(kotonoha_ass INTERFACE
+        "${KOTONOHA_WASM_ASS_INCLUDE_DIR}")
+    target_link_libraries(kotonoha_ass INTERFACE
+        "${KOTONOHA_WASM_ASS_LIBRARY}"
+        "${KOTONOHA_WASM_FRIBIDI_LIBRARY}"
+        harfbuzz::harfbuzz Freetype::Freetype m)
     pkg_check_modules(FFMPEG REQUIRED IMPORTED_TARGET
             libavformat libavcodec libavutil libswscale libswresample)
     pkg_check_modules(JSON_C REQUIRED IMPORTED_TARGET json-c>=0.15)
-    set(kotonoha_ass_target PkgConfig::LIBASS)
+    set(kotonoha_ass_target kotonoha_ass)
     set(kotonoha_ffmpeg_target PkgConfig::FFMPEG)
     set(kotonoha_json_target PkgConfig::JSON_C)
     # vcpkg's FFmpeg .pc advertises -pthread even though its WASM archives
