@@ -7,7 +7,7 @@
 
 #include <algorithm>
 #include <cctype>
-#include <fstream>
+#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <iterator>
 #include <stdexcept>
 
@@ -105,7 +105,7 @@ void SplashScreen::load(RendererRef renderer) {
       }
     }
 
-    std::ifstream file(media[current], std::ios::binary);
+    Kotonoha::Filesystem::InputFile file(media[current], std::ios::binary);
     std::vector<Uint8> bytes((std::istreambuf_iterator<char>(file)),
                              std::istreambuf_iterator<char>());
     SurfacePtr surface;

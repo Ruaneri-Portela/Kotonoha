@@ -1,7 +1,7 @@
 #include <Kotonoha/core/Log.hpp>
 #include <algorithm>
 #include <filesystem>
-#include <fstream>
+#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <memory>
 #include <stdexcept>
 #include <string>
@@ -56,7 +56,7 @@ void writeAsset(const std::string &path, const char *data, std::size_t size) {
   const auto target =
       std::filesystem::path(assetRoot) / validateRelativePath(path);
   std::filesystem::create_directories(target.parent_path());
-  std::ofstream output(target, std::ios::binary | std::ios::trunc);
+  Kotonoha::Filesystem::OutputFile output(target, std::ios::binary | std::ios::trunc);
   if (!output)
     throw std::runtime_error("Cannot create web asset: " + target.string());
   if (size)

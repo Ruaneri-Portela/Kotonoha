@@ -6,7 +6,7 @@
 #include <cmath>
 #include <cstdint>
 #include <filesystem>
-#include <fstream>
+#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <iomanip>
 #include <limits>
 #include <set>
@@ -169,7 +169,7 @@ void VNSave::write(const std::string &path) const {
 }
 
 VNSave VNSave::read(const std::string &path) {
-  std::ifstream input(std::filesystem::path(path), std::ios::binary);
+  Kotonoha::Filesystem::InputFile input(std::filesystem::path(path), std::ios::binary);
   if (!input)
     throw std::runtime_error("Cannot open save: " + path);
   VNSave save;

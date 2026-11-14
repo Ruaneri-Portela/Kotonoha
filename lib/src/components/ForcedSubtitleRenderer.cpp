@@ -5,7 +5,7 @@
 
 #include <algorithm>
 #include <cmath>
-#include <fstream>
+#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <optional>
 #include <sstream>
 #include <stdexcept>
@@ -113,7 +113,7 @@ void ForcedSubtitleRenderer::loadForNode(const std::string &nodeId) {
       return;
     clear();
     activeFile.clear();
-    std::ifstream input(path, std::ios::binary);
+    Kotonoha::Filesystem::InputFile input(path, std::ios::binary);
     if (!input)
       throw std::runtime_error("Cannot open " + path.string());
     std::string content(16 * 1024 * 1024 + 1, '\0');

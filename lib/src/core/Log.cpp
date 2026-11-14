@@ -1,7 +1,7 @@
 #include <Kotonoha/core/Log.hpp>
 
 #include <deque>
-#include <fstream>
+#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <mutex>
 #include <stdexcept>
 
@@ -9,7 +9,7 @@ namespace Kotonoha {
 namespace {
 std::mutex mutex;
 std::deque<LogEntry> history;
-std::ofstream output;
+Kotonoha::Filesystem::OutputFile output;
 SDL_LogOutputFunction previous = nullptr;
 void *previousData = nullptr;
 bool active = false;
