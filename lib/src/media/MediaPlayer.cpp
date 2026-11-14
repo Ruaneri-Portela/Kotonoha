@@ -1044,6 +1044,20 @@ std::unique_ptr<MediaPlayer::PreparedInput>
 MediaPlayer::prepareInput(const AssetProvider &assets, const std::string &id,
                           bool audioOnly,
                           std::shared_ptr<std::atomic_bool> cancelled) {
+  try {
+    return prepareInputUnchecked(assets, id, audioOnly, std::move(cancelled));
+  } catch (const std::exception &error) {
+    SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                "[Kotonoha] Failed to prepare media %s: %s",
+                id.c_str(), error.what());
+    return nullptr;
+  }
+}
+
+std::unique_ptr<MediaPlayer::PreparedInput>
+MediaPlayer::prepareInputUnchecked(const AssetProvider &assets,
+                                   const std::string &id, bool audioOnly,
+                                   std::shared_ptr<std::atomic_bool> cancelled) {
   auto next = std::make_unique<State>();
   next->cancelled = std::move(cancelled);
 #ifdef __EMSCRIPTEN__
@@ -1072,7 +1086,18 @@ MediaPlayer::prepareInput(const AssetProvider &assets, const std::string &id,
 void MediaPlayer::adoptPreparedInput(std::unique_ptr<PreparedInput> input,
                                      const std::string &channelName) {
   if (!input || !input->state)
-    throw std::invalid_argument("Prepared media is empty");
+    return;
+  try {
+    adoptPreparedInputUnchecked(std::move(input), channelName);
+  } catch (const std::exception &error) {
+    SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                "[Kotonoha] Media adoption failed: %s", error.what());
+    stop();
+  }
+}
+
+void MediaPlayer::adoptPreparedInputUnchecked(
+    std::unique_ptr<PreparedInput> input, const std::string &channelName) {
   auto next = std::move(input->state);
   // The speculative cancellation token belongs to the scene worker.  Once
   // adopted, the player owns a fresh token that interrupts FFmpeg on stop.
