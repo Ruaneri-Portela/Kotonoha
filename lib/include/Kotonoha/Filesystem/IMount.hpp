@@ -11,7 +11,8 @@ namespace Kotonoha::Filesystem {
 enum class FileType { Regular, Directory };
 enum class ErrorCode {
   NotFound, NotDirectory, IsDirectory, InvalidPath,
-  PermissionDenied, UnsupportedMount, CorruptImage, IOError
+  PermissionDenied, UnsupportedMount, CorruptImage, IOError,
+  WouldBlock, NetworkError, RangeUnsupported
 };
 class FilesystemError : public std::runtime_error {
   ErrorCode code_;

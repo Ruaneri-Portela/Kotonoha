@@ -45,6 +45,15 @@ std::shared_ptr<Filesystem> Filesystem::mount(std::string source) {
   return std::shared_ptr<Filesystem>(new Filesystem(std::move(base)));
 }
 
+std::shared_ptr<Filesystem>
+Filesystem::mount(std::shared_ptr<IMount> source) {
+  return std::shared_ptr<Filesystem>(new Filesystem(std::move(source)));
+}
+
+void Filesystem::addOverlay(std::shared_ptr<IMount> source, int priority) {
+  layers_->addOverlay(std::move(source), priority);
+}
+
 void Filesystem::addOverlay(std::string source, int priority) {
   if (source.find("://") != std::string::npos)
     throw FilesystemError(ErrorCode::UnsupportedMount,
