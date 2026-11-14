@@ -2557,10 +2557,12 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
                              (*bytes)[3] == 'S'
                          ? std::move(*bytes)
                          : nwaToWav(*bytes);
-      auto clip = Kotonoha::MediaDecoder::decodeAudio(encoded);
-      assets->noteAudio(overlayVoice, clip);
-      playClip(voice, std::move(clip), "voice:" + std::to_string(voiceId),
-               "Voice");
+      Kotonoha::AudioClip clip;
+      if (Kotonoha::MediaDecoder::tryDecodeAudio(encoded, clip)) {
+        assets->noteAudio(overlayVoice, clip);
+        playClip(voice, std::move(clip), "voice:" + std::to_string(voiceId),
+                 "Voice");
+      }
     } else if (voiceId > 0) {
       SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
                   "Warning: REALLIVE voice missing for index %d", voiceId);
@@ -4127,7 +4129,9 @@ RealLiveRuntime::debugOriginalAudio(const std::string &id) {
                          (*bytes)[3] == 'S'
                      ? std::move(*bytes)
                      : nwaToWav(*bytes);
-  auto clip = Kotonoha::MediaDecoder::decodeAudio(encoded);
+  Kotonoha::AudioClip clip;
+  if (!Kotonoha::MediaDecoder::tryDecodeAudio(encoded, clip))
+    return std::nullopt;
   impl->assets->noteAudio(id, clip);
   return clip;
 }
