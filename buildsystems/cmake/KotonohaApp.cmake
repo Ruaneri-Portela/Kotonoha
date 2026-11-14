@@ -81,6 +81,8 @@ function(kotonoha_copy_runtime_libraries target dependency_dirs)
             "-DLIBRARY_DIR=${_library_dir}"
             "-DSEARCH_DIRS=${dependency_dirs}"
             "-DCMAKE_SHARED_LIBRARIES=${_cmake_shared}"
+            "-DKOTONOHA_BUILD_LIBRARY_ROOT=${CMAKE_BINARY_DIR}"
+            "-DKOTONOHA_VCPKG_ROOT=${VCPKG_INSTALLED_DIR}"
             -P "${KOTONOHA_PROJECT_ROOT}/buildsystems/cmake/CopyRuntimeLibraries.cmake"
         VERBATIM)
 endfunction()
