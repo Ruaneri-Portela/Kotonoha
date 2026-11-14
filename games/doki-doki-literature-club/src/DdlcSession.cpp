@@ -21,7 +21,7 @@
 #include <cmath>
 #include <cstring>
 #include <filesystem>
-#include <fstream>
+#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <functional>
 #include <iomanip>
 #include <map>
@@ -557,7 +557,7 @@ public:
                                  error.message());
       return {};
     }
-    std::ifstream input(persistentPath_, std::ios::binary);
+    Kotonoha::Filesystem::InputFile input(persistentPath_, std::ios::binary);
     if (!input)
       throw std::runtime_error("Cannot read DDLC persistent data: " +
                                persistentPath_.string());
@@ -898,7 +898,7 @@ RootFiles readRootFiles(const std::filesystem::path &root) {
     if (size > 32 * 1024 * 1024 || total + size > 64 * 1024 * 1024)
       throw std::runtime_error("DDLC user files exceed replay save limit");
     total += size;
-    std::ifstream in(it->path(), std::ios::binary);
+    Kotonoha::Filesystem::InputFile in(it->path(), std::ios::binary);
     if (!in)
       throw std::runtime_error("Cannot read DDLC user file");
     files.emplace(relative.generic_string(),

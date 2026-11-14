@@ -6,7 +6,7 @@
 #include <charconv>
 #include <cmath>
 #include <cstdio>
-#include <fstream>
+#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <limits>
 #include <unordered_map>
 
@@ -65,7 +65,7 @@ bool ReadWholeFile(const std::filesystem::path &path,
   if (bytes == nullptr)
     return Fail(error, "Config.DAT read output is null");
   bytes->clear();
-  std::ifstream file(path, std::ios::binary | std::ios::ate);
+  Kotonoha::Filesystem::InputFile file(path, std::ios::binary | std::ios::ate);
   if (!file)
     return Fail(error, "Config.DAT could not be opened for read");
   const auto end = file.tellg();
@@ -435,7 +435,7 @@ bool SchoolDaysConfigStorage::Flush(std::string *error) {
   if (!SerializeLogical(&logical, error) ||
       !EncodeDocument(logical, &encoded, error))
     return false;
-  std::ofstream file(path_, std::ios::binary | std::ios::trunc);
+  Kotonoha::Filesystem::OutputFile file(path_, std::ios::binary | std::ios::trunc);
   if (!file)
     return Fail(error, "Config.DAT could not be opened for write");
   file.write(reinterpret_cast<const char *>(encoded.data()),

@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <cctype>
 #include <cstring>
-#include <fstream>
+#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <iostream>
 
 namespace Kotonoha::PmailPort {
@@ -75,7 +75,7 @@ bool PmailPack::open(const std::string &path) {
   path_ = path;
   entries_.clear();
   ok_ = false;
-  std::ifstream in(path, std::ios::binary | std::ios::ate);
+  Kotonoha::Filesystem::InputFile in(path, std::ios::binary | std::ios::ate);
   if (!in)
     return false;
   const auto sz = in.tellg();
@@ -236,7 +236,7 @@ std::vector<uint8_t> PmailPack::read(const std::string &name) const {
 }
 
 std::vector<uint8_t> PmailPack::read(const PackEntry &e) const {
-  std::ifstream in(path_, std::ios::binary);
+  Kotonoha::Filesystem::InputFile in(path_, std::ios::binary);
   if (!in)
     return {};
   in.seekg(e.offset, std::ios::beg);
