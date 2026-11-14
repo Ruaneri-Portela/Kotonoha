@@ -58,7 +58,7 @@ struct KotonohaPortCallbacks final {
 
 SDL_AppResult KotonohaPortCallbacks::init(void **appstate, int argc, char **argv) {
   *appstate = nullptr;
-  SDL_SetAppMetadata("Pure Mail", "0.1.0", "me.hirameki.kotonoha.pmail");
+  KOTONOHA_SET_APP_METADATA("Pure Mail", "me.hirameki.kotonoha.pmail");
   try {
     Kotonoha::EngineOptions options;
     options.persistSettings = true;
