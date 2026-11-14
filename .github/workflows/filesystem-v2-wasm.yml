@@ -9,6 +9,7 @@ on:
       - "buildsystems/**"
       - "tools/web_selftest.js"
       - "tools/web_example_smoke.js"
+      - "tools/check_wasm_asyncify.py"
       - "tools/generate_manifest.py"
       - "vcpkg.json"
       - "vcpkg-overlays/**"
@@ -73,6 +74,11 @@ jobs:
 
       - name: Build web self-test and bundled example
         run: cmake --build build-web --target KotonohaWebSelfTest Kotonoha --parallel 2
+
+      - name: Ensure generated WASM has matching Asyncify exports
+        run: |
+          python3 tools/check_wasm_asyncify.py build-web/outputs/KotonohaWebSelfTest/KotonohaWebSelfTest.js
+          python3 tools/check_wasm_asyncify.py build-web/outputs/Kotonoha/Kotonoha.js
 
       - name: Install Playwright Chromium
         run: |
