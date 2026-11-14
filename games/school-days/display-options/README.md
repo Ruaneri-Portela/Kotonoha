@@ -1,20 +1,12 @@
-# Optional external artwork for School Days HQ
+# School Days custom Display Options artwork
 
-No PNGs from the commercial game or customized derivative artwork are
-distributed in this repository. The new Windows Display Options page needs
-user-supplied resources in `System/Option/` beneath this directory. The
-complete list, dimensions and behavior are documented in
-[`../docs/PR_PARITY_CONSOLIDATION_2026-11-05.md`](../docs/PR_PARITY_CONSOLIDATION_2026-11-05.md).
+**English (US)** | [Português (Brasil)](README.pt-BR.md)
 
-The standard General/Sound CMAPs continue to come from the original game.
-The Display CMAPs belong to the customized third page and must accompany
-`Option_Display.png` and `Option_Display_Chip.png`. The 22 regions' bounds
-are described in `display_options_controls.json` for reproducibility.
+The Windows-only custom Display Options page requires **user-authored, external PNG/CMAP files** in this directory's `System/Option/` path. Commercial art is not distributed.
 
-After adding the locally authored files to `System/Option/`, run the SchoolDays
-Windows build again; the CMake `SchoolDaysOptionAssets` target copies this
-directory next to `SchoolDays.exe` as `display-options/`. The game's mount
-uses that overlay unless an explicit `--asset-overlay` is specified. In that
-case, include these files in the explicit overlay instead.
+- `Option_Display.png` and `Option_Display_Chip.png` are the custom panel/atlas.
+- Matching custom Display CMAP files are required; `display_options_controls.json` documents the 22 control regions.
+- General/Sound continue using their original game's CMAPs. Do not change `Packs/System.GPK`.
+- Build the SchoolDays Windows target again to stage `display-options/` beside the executable (`SchoolDaysOptionAssets` CMake target). If you explicitly select `--asset-overlay`, supply these files in that overlay instead.
 
-Never patch, repack or replace the commercial `Packs/System.GPK` for this UI.
+See the [original investigation](../docs/DISPLAY_OPTIONS_USER_ART_2026-11-05.md) and [integration evidence](../docs/PR_PARITY_CONSOLIDATION_2026-11-05.md).
