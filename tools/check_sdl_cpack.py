@@ -14,6 +14,10 @@ for entry in games:
         assert f"KotonohaPortCallbacks::{method}(" in code, (entry, method)
     assert not re.search(r"^(?:SDL_AppResult|void) SDL_App(?:Init|Event|Iterate|Quit)\(",
                          code, re.MULTILINE), entry
+    assert "SDL_SetAppMetadata(" not in code, (
+        entry, "Use KOTONOHA_SET_APP_METADATA instead of literal versions")
+    if "KOTONOHA_SET_APP_METADATA(" in code:
+        assert '"0.1.0"' not in code, (entry, "Hardcoded SDL metadata version")
 
 for name in ("PmailStage", "PmailTitleMenu", "PmailTextBox"):
     directory = root / "games/pmail/src"
