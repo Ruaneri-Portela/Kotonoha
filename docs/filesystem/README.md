@@ -27,6 +27,6 @@ Synthetic tests cover directory/ISO reads, seek/EOF, overlays, collisions, symli
 
 ## Pending migration
 
-The physical-path compatibility adapter remains for older providers. Next phases: migrate Summer CMP/indexing to mounted input; adapt other providers; connect FFmpeg via custom AVIO; implement safe Fetch/Blob for browsers and BIN/CUE modes as required. No HTTP backend, web sync bridge or FFmpeg adapter is claimed yet.
+The physical-path compatibility adapter remains for older providers. Next phases: migrate Summer CMP/indexing to mounted input; adapt other providers; connect FFmpeg via custom AVIO; implement safe Fetch/Blob for browsers and BIN/CUE modes as required. An Emscripten Fetch provider now exists with asynchronous preloading and bounded Range requests, but requires browser validation. The HTTP provider does not block the browser main thread and raises WouldBlock for missing cached regions. HTML Blob and a worker/Asyncify suspension bridge are not yet implemented.
 
 The legacy StoragePaths implementation was moved to `lib/src/Filesystem/StoragePaths.cpp`; the old `core/FileSystem.hpp` remains a forwarding shim. The save directory policy and public symbols are unchanged.

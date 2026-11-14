@@ -1,4 +1,5 @@
 #include <Kotonoha/Filesystem/Filesystem.hpp>
+#include <Kotonoha/Filesystem/Sources/FetchAssetProvider.hpp>
 #include <Kotonoha/Filesystem/IMount.hpp>
 #include <SDL3/SDL.h>
 
@@ -265,6 +266,37 @@ void testTAR() {
   });
 }
 
+
+void testRemoteManifest() {
+  auto remote = VFS::FetchAssetProvider::fromManifest(
+      "https://example.invalid/virtual",
+      R"({"entries":[{"path":"DATA/REMOTE.BIN","size":4},{"path":"EMPTY","size":0}]})");
+  require(remote->exists("data/remote.bin") &&
+              remote->stat("DATA/remote.bin").size == 4,
+          "Remote manifest lookup failed");
+  require(remote->list("DATA").size() == 1,
+          "Remote manifest directory list failed");
+  auto files = VFS::Filesystem::mount(
+      std::static_pointer_cast<VFS::IMount>(remote));
+  auto handle = files->open("DATA/REMOTE.BIN");
+  char chunk[4];
+  expectCode(VFS::ErrorCode::WouldBlock, [&] {
+    handle->read(chunk, 4);
+  });
+  require(files->open("EMPTY")->read(chunk, 4) == 0,
+          "Manifest empty remote file is not EOF");
+  expectCode(VFS::ErrorCode::InvalidPath, [&] {
+    VFS::FetchAssetProvider::fromManifest(
+        "https://example.invalid/",
+        R"({"entries":[{"path":"../escape","size":2}]})");
+  });
+  expectCode(VFS::ErrorCode::InvalidPath, [&] {
+    VFS::FetchAssetProvider::fromManifest(
+        "https://example.invalid/",
+        R"({"entries":[{"path":"A.TXT","size":2},{"path":"a.txt","size":3}]})");
+  });
+}
+
 void testDirectorySafety() {
   Temp temp;
   auto base = temp.root / "base";
@@ -294,6 +326,7 @@ int main() {
     testLocalAndOverlays();
     testISO();
     testTAR();
+    testRemoteManifest();
     testDirectorySafety();
     std::cout << "Filesystem V2 tests passed\n";
   } catch (const std::exception &error) {

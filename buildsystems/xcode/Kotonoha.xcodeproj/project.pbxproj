@@ -631,6 +631,10 @@
 		F1F1F10000000000000000D3 /* Filesystem.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F1F1F1000000000000000069 /* Filesystem.cpp */; };
 		F1F1F10000000000000000D4 /* StoragePaths.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F1F1F100000000000000006A /* StoragePaths.cpp */; };
 		F1F1F10000000000000000D5 /* StoragePaths.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F1F1F100000000000000006A /* StoragePaths.cpp */; };
+		F1F1F10000000000000000DC /* TarMount.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F1F1F1000000000000000078 /* TarMount.cpp */; };
+		F1F1F10000000000000000DD /* TarMount.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F1F1F1000000000000000078 /* TarMount.cpp */; };
+		F1F1F10000000000000000DE /* FetchAssetProvider.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F1F1F1000000000000000079 /* FetchAssetProvider.cpp */; };
+		F1F1F10000000000000000DF /* FetchAssetProvider.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F1F1F1000000000000000079 /* FetchAssetProvider.cpp */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -1544,6 +1548,10 @@
 		F1F1F1000000000000000133 /* ISO9660Mount.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = ISO9660Mount.hpp; path = ../../lib/include/Kotonoha/Filesystem/Mounts/ISO9660Mount.hpp; sourceTree = SOURCE_ROOT; };
 		F1F1F100000000000000006A /* StoragePaths.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = StoragePaths.cpp; path = ../../lib/src/Filesystem/StoragePaths.cpp; sourceTree = SOURCE_ROOT; };
 		F1F1F1000000000000000134 /* StoragePaths.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = StoragePaths.hpp; path = ../../lib/include/Kotonoha/Filesystem/StoragePaths.hpp; sourceTree = SOURCE_ROOT; };
+		F1F1F1000000000000000078 /* TarMount.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = TarMount.cpp; path = ../../lib/src/Filesystem/Mounts/TarMount.cpp; sourceTree = SOURCE_ROOT; };
+		F1F1F1000000000000000079 /* FetchAssetProvider.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = FetchAssetProvider.cpp; path = ../../lib/src/Filesystem/Sources/FetchAssetProvider.cpp; sourceTree = SOURCE_ROOT; };
+		F1F1F1000000000000000140 /* TarMount.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = TarMount.hpp; path = ../../lib/include/Kotonoha/Filesystem/Mounts/TarMount.hpp; sourceTree = SOURCE_ROOT; };
+		F1F1F1000000000000000141 /* FetchAssetProvider.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = FetchAssetProvider.hpp; path = ../../lib/include/Kotonoha/Filesystem/Sources/FetchAssetProvider.hpp; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -1826,6 +1834,10 @@
 		0C04E59682E5D462F08B41CC /* KotonohaEngine */ = {
 			isa = PBXGroup;
 			children = (
+				F1F1F1000000000000000078 /* TarMount.cpp */,
+				F1F1F1000000000000000079 /* FetchAssetProvider.cpp */,
+				F1F1F1000000000000000140 /* TarMount.hpp */,
+				F1F1F1000000000000000141 /* FetchAssetProvider.hpp */,
 				AFE7C9E655C165BA23EE0855 /* components */,
 				06EEE27E8212D35A205BAC4F /* core */,
 				4BCC0B299FA63798E45D79AC /* debug */,
@@ -4397,6 +4409,8 @@
 				F937A1EA9AEEFEE04024F1DB /* VisualTransition.cpp in Sources */,
 				4B962571DF6AFDE6BB60414B /* PresentedFrame.cpp in Sources */,
 				F1F1F10000000000000000D4 /* StoragePaths.cpp in Sources */,
+				F1F1F10000000000000000DC /* TarMount.cpp in Sources */,
+				F1F1F10000000000000000DE /* FetchAssetProvider.cpp in Sources */,
 				F1F1F10000000000000000C8 /* Path.cpp in Sources */,
 				F1F1F10000000000000000CA /* SDLFileSource.cpp in Sources */,
 				F1F1F10000000000000000CC /* DirectoryMount.cpp in Sources */,
@@ -4545,6 +4559,8 @@
 				E808B45825E13CBDA11282FC /* VisualTransition.cpp in Sources */,
 				D5B9B0BE3818058DD7ECF494 /* PresentedFrame.cpp in Sources */,
 				F1F1F10000000000000000D5 /* StoragePaths.cpp in Sources */,
+				F1F1F10000000000000000DD /* TarMount.cpp in Sources */,
+				F1F1F10000000000000000DF /* FetchAssetProvider.cpp in Sources */,
 				F1F1F10000000000000000C9 /* Path.cpp in Sources */,
 				F1F1F10000000000000000CB /* SDLFileSource.cpp in Sources */,
 				F1F1F10000000000000000CD /* DirectoryMount.cpp in Sources */,
