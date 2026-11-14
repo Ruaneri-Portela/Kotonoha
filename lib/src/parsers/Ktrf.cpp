@@ -769,8 +769,8 @@ int Kotonoha_KtrfLoadFile(const char *path, Kotonoha_KtrfDocument *out,
     return ktrf_fail(error, KOTONOHA_KTRF_ERROR_ARGUMENT,
                      "KTRF path/out argument is null");
   try {
-    Kotonoha::Filesystem::SDLFileSource input(
-        std::filesystem::path(path));
+    Kotonoha::Filesystem::SDLFileSource input{
+        std::filesystem::path(path)};
     const auto length = input.size();
     if (length < 0 || static_cast<std::uint64_t>(length) >
                           static_cast<std::uint64_t>(SIZE_MAX))

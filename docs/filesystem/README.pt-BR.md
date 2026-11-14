@@ -30,3 +30,5 @@ Os testes sintéticos cobrem leitura de diretórios/ISO, seek/EOF, overlays, nom
 O adaptador de paths físicos segue disponível para os providers antigos. Próximos marcos: migrar pacotes CMP e indexadores de Summer; migrar demais providers; adaptar FFmpeg via AVIO; implementar Fetch/Blob com modelo seguro de navegador e modos BIN/CUE necessários. Há agora um provider Fetch com pré-carregamento assíncrono e requisições Range limitadas, ainda sem validação em navegador. Leituras de blocos ausentes geram WouldBlock, sem bloquear a main thread. O adaptador Blob e a ponte Worker/Asyncify ainda não foram concluídos.
 
 A política StoragePaths foi movida para `lib/src/Filesystem/StoragePaths.cpp`; o antigo `core/FileSystem.hpp` é um shim. Os nomes públicos e os diretórios de saves permanecem iguais.
+
+A seleção de montadores aceita `.tar`, `.iso`, `.bin` e `.img` (as imagens de disco são verificadas pelo `DiscImage` existente); outros arquivos geram `UnsupportedMount`. Arquivos `.tar.gz`, UDF e CUE com múltiplas trilhas ainda não estão cobertos.
