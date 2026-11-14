@@ -32,10 +32,12 @@ To test the optional web integration route, enable `-DKOTONOHA_WEB_SELFTEST=ON`,
 
 ## HTTP(S) game-assets fallback (Filesystem V2 draft)
 
-The web page now attempts to use the server manifest automatically when no local
-game-assets folder has been selected. Local assets are compared against the
-manifest by **case-insensitive logical path and file size**; missing or
-size-mismatched files are supplied through the Fetch-backed virtual mount.
+**Startup now waits for an explicit choice:** the HTML screen offers
+**Use local folder** or **Use HTTP(S)**. There is no timeout or automatic
+server selection. Choosing local imports `game-assets` and starts
+**without probing HTTP**, even if the server contains a manifest. Choosing
+HTTP(S) enables the manifest-aware provider (or direct Fetch when the
+manifest is unavailable). The selected origin is fixed for that startup.
 Neither HTTP data nor remote placeholders are copied to MEMFS.
 
 Publish `game-assets/manifest.json` with a size-aware `entries` array:
@@ -71,9 +73,8 @@ in-memory cache; it does not make arbitrary directory scanning possible.
 A server without Range is only suitable for smaller files. There is no
 truly blocking browser-main-thread network API.
 
-Use `window.KotonohaAutoServerAssets = false` before initialization to keep
-the manual local/server source choice. The bundled web self-test retains this
-manual choice automatically.
+Local/remote startup is always manual. The legacy
+`window.KotonohaAutoServerAssets` switch is no longer needed.
 
 ```sh
 python3 tools/audit_filesystem_v2.py
@@ -89,7 +90,8 @@ physical archive paths and are not yet equivalent to the shared virtual mount.
 
 ## Custom local mounts in the browser
 
-The top-right **+ Adicionar pasta** control remains available after startup.
+The top-right **+ Adicionar pasta** control stays available after startup and is
+promoted to the browser top layer when the SDL canvas enters fullscreen.
 Select any local directory and enter its virtual mount name, e.g.
 `game-assets`, `forced_subtitles`, or `ovrlay`. Its contents become
 available under `/<name>/` inside Emscripten's virtual filesystem.
