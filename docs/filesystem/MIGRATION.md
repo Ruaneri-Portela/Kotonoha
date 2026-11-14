@@ -34,7 +34,7 @@ The default command reports remaining direct standard/stdio runtime calls and ch
 - Add portable compile/CTest and per-game regression runs; Xcode/Android/web builds are not verified.
 - Migrate each format-specific provider to `Filesystem::open(id)` for its **source packages**, including indexing before overlays are applied.
 - Full `FetchAssetProvider` web bootstrap, worker/Asyncify handoff and persistent caching as required, with browser/CORS/Range tests; the current implementation is a non-blocking prefetch backend.
-- Browser `blob:` media adapter, FFmpeg-specific test coverage, multi-BIN/CUE modes and any missing ISO behaviors.
+- Migrate all legacy browser media paths to the implemented `BrowserBlobAdapter`, verify FFmpeg lifecycle/seek, and add multi-BIN/CUE modes and remaining ISO behaviors.
 - Remove the temporary physical-path adapters only after all eleven ports have equivalent tested virtual-source behavior.
 
 The [original specification](SPECIFICATION.pt-BR.md) defines the final acceptance criteria. The draft PR remains unmerged.
