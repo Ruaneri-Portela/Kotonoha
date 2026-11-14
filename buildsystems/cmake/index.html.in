@@ -671,10 +671,141 @@
                     const folderButton = document.getElementById("select-local-assets");
                     const serverButton = document.getElementById("use-server-assets");
                     const folderInput = document.getElementById("local-assets-folder");
+                    // The source is resolved before SDL_AppInit. This never
+                    // waits synchronously for a Promise on the browser thread.
+                    // Saves (/save) are independent of the read-only asset tree.
                     let busy = false;
+                    let finished = false;
+                    let loadedLocalFiles = 0;
+                    const localFiles = new Map();
+                    const maxDownload = 128 * 1024 * 1024;
                     const finish = function() {
+                        if (finished) return;
+                        finished = true;
                         actions.style.display = "none";
                         Module.removeRunDependency(depId);
+                    };
+                    const setStatus = function(message) {
+                        if (statusEl) statusEl.textContent = message;
+                    };
+                    const unlock = function(message) {
+                        console.warn("[Kotonoha] " + message);
+                        setStatus(message + " — selecione uma pasta válida.");
+                        busy = false;
+                        folderButton.disabled = false;
+                        serverButton.disabled = false;
+                    };
+                    const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
+                    const validId = function(value) {
+                        if (typeof value !== "string" || !value.length ||
+                            value.startsWith("/") || value.includes("\\") ||
+                            value.includes("\0") || value.includes(":"))
+                            return false;
+                        return value.split("/").every(part =>
+                            part && part !== "." && part !== "..");
+                    };
+                    const httpRoot = function() {
+                        const supplied = window.KotonohaAssetBaseURL || "game-assets/";
+                        const origin = new URL(supplied, document.baseURI);
+                        if (origin.protocol !== "http:" && origin.protocol !== "https:")
+                            throw new Error("Os assets remotos exigem HTTP(S)");
+                        if (origin.username || origin.password ||
+                            origin.search || origin.hash)
+                            throw new Error("A origem remota não pode conter credenciais ou parâmetros");
+                        if (!origin.pathname.endsWith("/")) origin.pathname += "/";
+                        return origin;
+                    };
+                    const fileSize = function(file) {
+                        return Number(file.size);
+                    };
+                    const loadServerAssets = async function(allowLocalWithoutManifest) {
+                        if (finished) return;
+                        busy = true;
+                        folderButton.disabled = true;
+                        serverButton.disabled = true;
+                        setStatus("Verificando game-assets local e manifesto HTTP(S)...");
+                        try {
+                            const origin = httpRoot();
+                            const response = await fetch(new URL("manifest.json", origin), {
+                                credentials: origin.origin === location.origin ? "same-origin" : "omit",
+                                cache: "no-store"
+                            });
+                            if (!response.ok)
+                                throw new Error("HTTP " + response.status + " ao carregar manifesto");
+                            const manifest = await response.json();
+                            if (!manifest || !Array.isArray(manifest.entries))
+                                throw new Error("Manifesto HTTP não contém entries com tamanho");
+                            const seen = new Set();
+                            const pending = [];
+                            for (const entry of manifest.entries) {
+                                if (!entry || !validId(entry.path) ||
+                                    !Number.isSafeInteger(entry.size) ||
+                                    entry.size < 0)
+                                    throw new Error("Entrada inválida no manifesto remoto");
+                                const key = entry.path.toLowerCase();
+                                if (seen.has(key))
+                                    throw new Error("Nome duplicado no manifesto: " + entry.path);
+                                seen.add(key);
+                                const local = localFiles.get(key);
+                                if (!local || fileSize(local) !== entry.size)
+                                    pending.push({path: entry.path, size: entry.size});
+                            }
+                            if (manifest.entries.length === 0) {
+                                if (loadedLocalFiles > 0 && allowLocalWithoutManifest) {
+                                    setStatus("Pasta local selecionada. Iniciando engine...");
+                                    finish();
+                                    return;
+                                }
+                                throw new Error("game-assets não tem arquivos no manifesto HTTP");
+                            }
+                            if (pending.length === 0) {
+                                setStatus("Todos os assets locais conferem com o manifesto.");
+                                if (barEl) barEl.style.width = "100%";
+                                finish();
+                                return;
+                            }
+                            const needed = pending.reduce((sum, entry) =>
+                                sum + entry.size, 0);
+                            if (!Number.isSafeInteger(needed) || needed > maxDownload)
+                                throw new Error("Assets pendentes excedem 128 MiB; selecione " +
+                                                "a pasta do jogo (streaming HTTP grande exige Worker)");
+                            const started = Module.ccall(
+                                "KotonohaConfigureRemoteAssetManifest", "number",
+                                ["string", "string", "number"],
+                                [origin.href, JSON.stringify({entries: pending}), maxDownload]);
+                            if (started !== 1)
+                                throw new Error("Não foi possível montar o provider Fetch");
+                            while (!finished) {
+                                const total = Module.ccall("KotonohaAssetFetchTotal", "number", [], []);
+                                const loaded = Module.ccall("KotonohaAssetFetchLoaded", "number", [], []);
+                                const done = Module.ccall("KotonohaAssetFetchDone", "number", [], []);
+                                const failed = Module.ccall("KotonohaAssetFetchFailed", "number", [], []);
+                                const ready = Module.ccall("KotonohaAssetFetchAllReady", "number", [], []);
+                                if (total > 0 && barEl)
+                                    barEl.style.width = Math.round(loaded / total * 100) + "%";
+                                setStatus("Fetch HTTP(S): " + loaded + "/" + total +
+                                          " recursos baixados");
+                                if (failed)
+                                    throw new Error("Falha HTTP/CORS/Range durante o download");
+                                if (done) {
+                                    if (!ready)
+                                        throw new Error("Assets remotos não estão prontos");
+                                    setStatus("Assets locais/remotos montados. Iniciando engine...");
+                                    finish();
+                                    return;
+                                }
+                                await pause(80);
+                            }
+                        } catch (error) {
+                            console.error("[Kotonoha] Seleção automática de assets:", error);
+                            if (loadedLocalFiles && allowLocalWithoutManifest) {
+                                setStatus("HTTP(S) indisponível. Usando apenas pasta local.");
+                                finish();
+                            } else {
+                                unlock("Assets locais indisponíveis e fallback HTTP(S) falhou: " +
+                                       String(error.message || error));
+                            }
+                        }
                     };
                     folderButton.disabled = false;
                     serverButton.disabled = false;
@@ -693,10 +824,12 @@
                             for (const file of files) {
                                 const parts = file.webkitRelativePath.split("/").slice(1);
                                 if (parts[0] === "game-assets") parts.shift();
-                                if (!parts.length || parts.some(part => !part ||
-                                        part === "." || part === ".."))
-                                    throw new Error("Caminho de asset inválido: " + file.name);
                                 const relative = parts.join("/");
+                                if (!validId(relative))
+                                    throw new Error("Caminho inválido: " + file.name);
+                                const key = relative.toLowerCase();
+                                if (localFiles.has(key))
+                                    throw new Error("Nome local duplicado: " + relative);
                                 const directory = parts.slice(0, -1).join("/");
                                 if (directory)
                                     Module.FS_createPath("/game-assets", directory, true, true);
@@ -705,92 +838,39 @@
                                     parts[parts.length - 1],
                                     new Uint8Array(await file.arrayBuffer()),
                                     true, true, true);
+                                localFiles.set(key, file);
                                 kotonohaLocalAssets.set(relative, file);
                                 loaded++;
+                                loadedLocalFiles++;
                                 if (barEl) barEl.style.width =
                                     Math.round(loaded / files.length * 100) + "%";
-                                if (statusEl) statusEl.textContent =
-                                    `Carregando pasta (${loaded}/${files.length})`;
+                                setStatus("Carregando pasta (" + loaded + "/" + files.length + ")");
                                 if (loaded % 8 === 0)
-                                    await new Promise(resolve => setTimeout(resolve, 0));
+                                    await pause(0);
                             }
-                            if (statusEl) statusEl.textContent =
-                                `${loaded} assets locais carregados. Iniciando engine...`;
-                            finish();
+                            if (!loaded)
+                                throw new Error("Pasta local vazia");
+                            await loadServerAssets(true);
                         } catch (error) {
-                            console.error("[Kotonoha] Falha ao carregar pasta:", error);
-                            if (statusEl) statusEl.textContent =
-                                "Falha ao carregar pasta: " + error.message;
-                            busy = false;
-                            folderButton.disabled = false;
-                            serverButton.disabled = false;
+                            console.error("[Kotonoha] Pasta local inválida:", error);
+                            setStatus("Pasta local inválida: " + error.message +
+                                      ". Tentando HTTP(S)...");
+                            await loadServerAssets(false);
                         }
                     });
-
                     serverButton.addEventListener("click", function() {
-                        if (busy) return;
-                        busy = true;
-                        folderButton.disabled = true;
-                        serverButton.disabled = true;
-                        if (statusEl) statusEl.textContent =
-                            "Carregando manifesto de assets...";
-                        // The C++ fetch queue writes HTTP assets into MEMFS.
-                        loadServerAssets();
+                        if (!busy) loadServerAssets(false);
                     });
-                    const call = function(name, returnType, args) {
-                        return Module.ccall(name, returnType || null,
-                                            (args || []).map(() => "number"), args || []);
-                    };
-                    function loadServerAssets() {
-                      try {
-                          Module.ccall("KotonohaStartAssetFetch", null, ["string"],
-                                       ["game-assets/manifest.json"]);
-                      } catch (error) {
-                          console.warn("[Kotonoha] Cannot start Emscripten fetch loader:", error);
-                          if (statusEl) statusEl.textContent = "Iniciando sem manifesto...";
-                          if (barEl) barEl.style.width = "100%";
-                          finish();
-                          return;
-                      }
-                      const poll = setInterval(function() {
-                        let total = 0, loaded = 0, deferred = 0, done = 0, failed = 0;
-                        try {
-                            total = call("KotonohaAssetFetchTotal", "number");
-                            loaded = call("KotonohaAssetFetchLoaded", "number");
-                            deferred = call("KotonohaAssetFetchDeferred", "number");
-                            done = call("KotonohaAssetFetchDone", "number");
-                            failed = call("KotonohaAssetFetchFailed", "number");
-                        } catch (error) {
-                            console.warn("[Kotonoha] Fetch progress unavailable:", error);
-                            done = 1;
-                            failed = 1;
-                        }
-
-                        if (total > 0) {
-                            const percent = Math.round((loaded / total) * 100);
-                            if (barEl) barEl.style.width = percent + "%";
-                            if (statusEl)
-                                statusEl.textContent = `Carregando (${loaded}/${total})` +
-                                    (deferred ? `, ${deferred} por streaming` : "");
-                        } else if (done && !failed) {
-                            if (barEl) barEl.style.width = "100%";
-                        }
-
-                        if (done) {
-                            clearInterval(poll);
-                            if (failed) {
-                                console.warn("[Kotonoha] Manifest ausente ou inválido; iniciando sem assets pré-carregados.");
-                                if (statusEl) statusEl.textContent = "Iniciando sem manifesto...";
-                                if (barEl) barEl.style.width = "100%";
-                            } else if (total === 0) {
-                                if (statusEl) statusEl.textContent = "Nenhum asset encontrado no manifesto.";
-                                if (barEl) barEl.style.width = "100%";
-                            } else {
-                                if (statusEl) statusEl.textContent = "Iniciando engine...";
-                            }
-                            finish();
-                        }
-                    }, 100);
+                    // Local Emscripten VFS is initially empty on a fresh visit.
+                    // Autoselect HTTP(S) if it is absent/empty/invalid. A user
+                    // can choose a local folder before the automatic probe.
+                    // The self-test intentionally retains its manual controls.
+                    if ("@TARGET_NAME@" !== "KotonohaWebSelfTest" &&
+                        window.KotonohaAutoServerAssets !== false) {
+                        setTimeout(function() {
+                            if (!busy && !finished)
+                                loadServerAssets(false);
+                        }, 500);
                     }
                 }
             ],
