@@ -1,0 +1,94 @@
+name: Filesystem V2 WASM browser integration
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/filesystem-v2-wasm.yml"
+      - "lib/**"
+      - "buildsystems/**"
+      - "tools/web_selftest.js"
+      - "tools/generate_manifest.py"
+      - "vcpkg.json"
+      - "vcpkg-overlays/**"
+
+permissions:
+  contents: read
+
+jobs:
+  wasm-browser:
+    name: Compile Emscripten and run Chromium integration
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - name: Checkout submodules
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install browser and compiler prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential ninja-build cmake pkg-config python3 ffmpeg \
+            autoconf automake libtool nasm yasm bison flex zip unzip \
+            libssl-dev
+
+      - name: Setup Emscripten
+        uses: emscripten-core/setup-emsdk@v16
+        with:
+          version: "3.1.73"
+          actions-cache-folder: emsdk-cache
+
+      - name: Setup pinned vcpkg baseline
+        run: |
+          git clone --quiet https://github.com/microsoft/vcpkg.git "$RUNNER_TEMP/vcpkg"
+          git -C "$RUNNER_TEMP/vcpkg" checkout --quiet 9a5dfef5d1a0438a7d24856a85bd60f309d355e9
+          "$RUNNER_TEMP/vcpkg/bootstrap-vcpkg.sh" -disableMetrics
+          echo "VCPKG_ROOT=$RUNNER_TEMP/vcpkg" >> "$GITHUB_ENV"
+
+      - name: Cache compiled vcpkg packages
+        uses: actions/cache@v4
+        with:
+          path: vcpkg-binary-cache
+          key: wasm-vcpkg-3.1.73-${{ hashFiles('vcpkg.json', 'vcpkg-overlays/ports/**') }}
+          restore-keys: |
+            wasm-vcpkg-3.1.73-
+
+      - name: Configure Emscripten self-test
+        run: |
+          mkdir -p vcpkg-binary-cache
+          export VCPKG_BINARY_SOURCES="clear;files,$GITHUB_WORKSPACE/vcpkg-binary-cache,readwrite"
+          emcc -v
+          emcmake cmake -S . -B build-web -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \
+            -DVCPKG_TARGET_TRIPLET=wasm32-emscripten \
+            -DVCPKG_OVERLAY_PORTS="$GITHUB_WORKSPACE/vcpkg-overlays/ports" \
+            -DKOTONOHA_WEB_SELFTEST=ON \
+            -DSDLTTF_PLUTOSVG=OFF
+
+      - name: Build web self-test
+        run: cmake --build build-web --target KotonohaWebSelfTest --parallel 2
+
+      - name: Install Playwright Chromium
+        run: |
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
+
+      - name: Run actual WASM/Chromium regression tests
+        run: node tools/web_selftest.js build-web/outputs/KotonohaWebSelfTest
+
+      - name: Upload diagnostics on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wasm-diagnostics
+          path: |
+            build-web/CMakeFiles/CMakeConfigureLog.yaml
+            build-web/CMakeFiles/CMakeError.log
+            build-web/outputs/KotonohaWebSelfTest/index.html
+          if-no-files-found: ignore
+
+# This workflow validates the generic WASM media/filesystem harness, not
+# complete playthroughs of the eleven game ports.
