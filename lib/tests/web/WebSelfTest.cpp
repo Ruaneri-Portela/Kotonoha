@@ -82,6 +82,18 @@ EMSCRIPTEN_KEEPALIVE int KotonohaWebSelfTestLiveLocalSize(const char *id) {
   }
 }
 
+// Regression: the C++ exception must be caught after the Asyncify
+// continuation resumes. Previous browser builds escaped to the XHR
+// JavaScript callback as an uncaught EmscriptenEH CppException.
+EMSCRIPTEN_KEEPALIVE int KotonohaWebSelfTestCatchAfterAsyncify() {
+  try {
+    emscripten_sleep(10);
+    throw std::runtime_error("Intentional Asyncify/EH test exception");
+  } catch (const std::runtime_error &) {
+    return 1;
+  }
+}
+
 EMSCRIPTEN_KEEPALIVE const char *KotonohaWebSelfTestSavePath() {
   webSelfTestResult = webSelfTestSavePath().string();
   return webSelfTestResult.c_str();
