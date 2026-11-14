@@ -909,7 +909,14 @@
                         try {
                             Module.FS_createPath("/", "game-assets", true, true);
                             for (const file of files) {
-                                const parts = file.webkitRelativePath.split("/").slice(1);
+                                // Mobile browsers may permit picking individual
+                                // files but omit webkitRelativePath. Those files
+                                // are mounted at /game-assets/<filename>; a
+                                // directory picker retains any nested paths.
+                                const supplied = String(file.webkitRelativePath || file.name);
+                                const selectedParts = supplied.split("/");
+                                const parts = selectedParts.length > 1
+                                    ? selectedParts.slice(1) : selectedParts;
                                 if (parts[0] === "game-assets") parts.shift();
                                 const relative = parts.join("/");
                                 if (!validId(relative))
