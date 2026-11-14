@@ -86,6 +86,9 @@ public:
   bool allFilesReady() const;
   const std::string &baseUrl() const noexcept { return base_; }
 
+  // Neither of these metadata queries starts a request or suspends Asyncify.
+  bool isKnownRegularFile(std::string_view path) const override;
+  bool hasIndexedDirectory(std::string_view path) const;
   bool exists(std::string_view path) const override;
   FileInfo stat(std::string_view path) const override;
   std::vector<FileInfo> list(std::string_view directory) const override;
