@@ -26,8 +26,6 @@ class MediaPlayer {
   // Decoder failures must stay inside the engine: this helper is wrapped by
   // update() so a corrupt video only ends playback, not the game loop.
   void updateDecoder(RendererRef renderer, double position);
-  void adoptPreparedInputUnchecked(std::unique_ptr<PreparedInput> input,
-                                   const std::string &channelName);
 
 public:
   struct PreparedInput {
