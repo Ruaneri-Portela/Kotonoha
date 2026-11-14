@@ -1137,17 +1137,24 @@ void MediaPlayer::adoptPreparedInput(std::unique_ptr<PreparedInput> input,
 
 void MediaPlayer::start(std::unique_ptr<State> next, const std::string &url,
                         bool audioOnly, bool prepared) {
+  try {
 #ifdef __EMSCRIPTEN__
-  if (!next->webVideo)
+    if (!next->webVideo)
 #endif
-    openDecoder(*next, url, audioOnly);
-  auto input =
-      std::unique_ptr<PreparedInput>(new PreparedInput(std::move(next)));
-  const std::string channelName =
-      input->state->channel ? input->state->channel->getName() : std::string();
-  adoptPreparedInput(std::move(input), channelName);
-  if (!prepared)
-    setPaused(false);
+      openDecoder(*next, url, audioOnly);
+    auto input =
+        std::unique_ptr<PreparedInput>(new PreparedInput(std::move(next)));
+    const std::string channelName =
+        input->state->channel ? input->state->channel->getName() : std::string();
+    adoptPreparedInput(std::move(input), channelName);
+    if (!prepared)
+      setPaused(false);
+  } catch (const std::exception &error) {
+    SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                "[Kotonoha] Media decoder initialization failed: %s",
+                error.what());
+    stop();
+  }
 }
 
 void MediaPlayer::openSoundtrack(const AssetProvider &assets,
@@ -1332,6 +1339,21 @@ void MediaPlayer::update(RendererRef renderer, double position) {
   if (!std::isfinite(position) || position < 0)
     throw std::invalid_argument(
         "Media position must be finite and non-negative");
+  if (!state)
+    return;
+  try {
+    updateDecoder(renderer, position);
+  } catch (const std::exception &error) {
+    // A broken asset, decoder, seek or audio stream must never propagate
+    // into a game's render/event loop. Tear down only this media session.
+    SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                "[Kotonoha] Stopping failed media playback: %s",
+                error.what());
+    stop();
+  }
+}
+
+void MediaPlayer::updateDecoder(RendererRef renderer, double position) {
   if (!state)
     return;
   if (soundtrack)
