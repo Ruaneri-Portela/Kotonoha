@@ -11,6 +11,7 @@ on:
       - "CMakeLists.txt"
       - "buildsystems/**"
       - "tools/web_selftest.js"
+      - "tools/web_toolbar_layout.js"
       - "tools/serve_web.py"
       - "tools/test_serve_web.py"
       - "tools/web_example_smoke.js"
@@ -97,10 +98,13 @@ jobs:
           test "$count" -ge 10
           echo "[Kotonoha] verified $count browser entrypoints"
 
-      - name: Install Playwright Chromium
+      - name: Install Playwright Chromium and WebKit
         run: |
           npm install --no-save playwright
-          npx playwright install --with-deps chromium
+          npx playwright install --with-deps chromium webkit
+
+      - name: Verify Safari/WebKit and Chromium folder button placement
+        run: node tools/web_toolbar_layout.js build-web/outputs/KotonohaWebSelfTest
 
       - name: Run actual WASM/Chromium regression tests
         run: node tools/web_selftest.js build-web/outputs/KotonohaWebSelfTest
