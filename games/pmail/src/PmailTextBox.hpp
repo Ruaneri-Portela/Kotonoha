@@ -2,7 +2,7 @@
 
 #include <Kotonoha/components/VNTextBox.hpp>
 #include <Pmail/Port.hpp>
-#include <SDL3/SDL.h>
+#include <Kotonoha/core/SDL.hpp>
 #include <SnowRadish/SnowAssets.hpp>
 #include <functional>
 #include <map>
@@ -58,7 +58,7 @@ private:
 
   // Text box texture cache
   struct TextBoxTex {
-    SDL_Texture *tex = nullptr;
+    Kotonoha::TexturePtr tex;
     float w = 0, h = 0;
   };
   std::map<std::string, TextBoxTex> textBoxCache_;
