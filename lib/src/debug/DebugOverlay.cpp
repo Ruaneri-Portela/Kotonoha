@@ -1217,10 +1217,9 @@ void DebugOverlay::drawAppletHub() {
                    ImGuiWindowFlags_MenuBar)) {
     drawMenuBar();
     ImGui::TextColored(ImGuiTheme::accent(), "KOTONOHA / DEBUG");
-    ImGui::SameLine();
-    ImGui::TextDisabled("v%s  |  %s  |  %s",
-                        BuildVersion::Base, BuildVersion::Branch,
-                        BuildVersion::ShortCommit);
+    ImGui::TextDisabled("Engine %s  |  Commit %s",
+                        BuildVersion::Base, BuildVersion::ShortCommit);
+    ImGui::TextWrapped("Branch: %s", BuildVersion::Branch);
     ImGuiTheme::sectionHeader("Applets");
     ImGui::TextWrapped("Inspect the current game, change settings, or open "
                        "individual tools. All applets can be moved and "
