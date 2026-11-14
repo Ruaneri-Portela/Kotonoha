@@ -35,5 +35,5 @@
 
 // SDL metadata's OS-facing version should stay numeric. The full Git-aware
 // identity is available through --version, launcher and debug UI.
-#define KOTONOHA_SET_APP_METADATA(title, identifier) \\
+#define KOTONOHA_SET_APP_METADATA(title, identifier) \
   SDL_SetAppMetadata(title, Kotonoha::BuildVersion::Base, identifier)
