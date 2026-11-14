@@ -1,4 +1,4 @@
-#define SDL_MAIN_USE_CALLBACKS 1
+#include <Kotonoha/core/SDLCallbackApp.hpp>
 #include "SummerRuntime.hpp"
 #include <Kotonoha/core/CommandLine.hpp>
 #include <Kotonoha/core/DiscImage.hpp>
@@ -6,7 +6,6 @@
 #include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/GameLauncher.hpp>
 #include <SDL3/SDL.h>
-#include <SDL3/SDL_main.h>
 #include <SummerRadish/SummerAssets.hpp>
 #include <cstdio>
 #include <filesystem>
@@ -51,7 +50,14 @@ bool validate(const std::string &path, std::string &info) {
   }
 }
 } // namespace
-SDL_AppResult SDL_AppInit(void **state, int argc, char **argv) {
+struct KotonohaPortCallbacks final {
+  static SDL_AppResult init(void **state, int argc, char **argv);
+  static SDL_AppResult event(void *state, SDL_Event *event);
+  static SDL_AppResult iterate(void *state);
+  static void quit(void *state, SDL_AppResult result);
+};
+
+SDL_AppResult KotonohaPortCallbacks::init(void **state, int argc, char **argv) {
   *state = nullptr;
   SDL_SetAppMetadata("Summer Radish Vacation!!", "0.1.0",
                      "me.hirameki.kotonoha.summerradishvacation");
@@ -108,7 +114,7 @@ SDL_AppResult SDL_AppInit(void **state, int argc, char **argv) {
     return SDL_APP_FAILURE;
   }
 }
-SDL_AppResult SDL_AppEvent(void *state, SDL_Event *event) {
+SDL_AppResult KotonohaPortCallbacks::event(void *state, SDL_Event *event) {
   try {
     auto &app = *static_cast<App *>(state);
     return app.launcher ? app.launcher->event(*event)
@@ -118,7 +124,7 @@ SDL_AppResult SDL_AppEvent(void *state, SDL_Event *event) {
     return SDL_APP_FAILURE;
   }
 }
-SDL_AppResult SDL_AppIterate(void *state) {
+SDL_AppResult KotonohaPortCallbacks::iterate(void *state) {
   try {
     auto &app = *static_cast<App *>(state);
     if (app.launcher) {
@@ -139,6 +145,8 @@ SDL_AppResult SDL_AppIterate(void *state) {
     return SDL_APP_FAILURE;
   }
 }
-void SDL_AppQuit(void *state, SDL_AppResult) {
+void KotonohaPortCallbacks::quit(void *state, SDL_AppResult) {
   delete static_cast<App *>(state);
 }
+
+KOTONOHA_SDL_CALLBACK_APP(KotonohaPortCallbacks)
