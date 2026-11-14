@@ -1,4 +1,5 @@
 #include <Kotonoha/components/DisplayModeCatalog.hpp>
+#include <Kotonoha/core/SDL.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -72,11 +73,11 @@ int DisplayModeCatalog::FindSelected(
     float refreshRate) {
   int sameSize = -1;
   for (size_t i = 0; i < modes.size(); ++i) {
-    if (modes[i].width != width || modes[i].height != height)
+    if (modes.get()[i].width != width || modes.get()[i].height != height)
       continue;
     if (sameSize < 0)
       sameSize = static_cast<int>(i);
-    if (std::abs(modes[i].refreshRate - refreshRate) < kRefreshEquality)
+    if (std::abs(modes.get()[i].refreshRate - refreshRate) < kRefreshEquality)
       return static_cast<int>(i);
   }
   return sameSize >= 0 ? sameSize : (modes.empty() ? -1 : 0);
@@ -156,12 +157,12 @@ DisplayModeCatalog::Enumerate(SDL_DisplayID display) {
 
   // SDL fallback (also the only catalog on macOS, Linux and mobile).
   int count = 0;
-  SDL_DisplayMode **modes = SDL_GetFullscreenDisplayModes(display, &count);
+  SDLArrayPtr<SDL_DisplayMode *> modes(SDL_GetFullscreenDisplayModes(display, &count));
   if (modes) {
     for (int i = 0; i < count; ++i)
-      if (modes[i])
-        AddUnique(result, {modes[i]->w, modes[i]->h, modes[i]->refresh_rate});
-    SDL_free(modes);
+      if (modes.get()[i])
+        AddUnique(result, {modes.get()[i]->w, modes.get()[i]->h, modes.get()[i]->refresh_rate});
+
   }
   if (const auto *desktop = SDL_GetDesktopDisplayMode(display))
     AddUnique(result, {desktop->w, desktop->h, desktop->refresh_rate});
