@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <cctype>
 #include <cstring>
-#include <fstream>
+#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <map>
 #include <stdexcept>
 #include <tuple>
@@ -350,7 +350,7 @@ std::filesystem::path gameDataDirectory(const std::filesystem::path &source) {
     std::filesystem::create_directories(destination.parent_path());
     if (std::filesystem::exists(destination))
       throw std::runtime_error("Conflicting ISO path: " + entry.path);
-    std::ofstream output(destination, std::ios::binary);
+    Kotonoha::Filesystem::OutputFile output(destination, std::ios::binary);
     if (!output)
       throw std::runtime_error("Cannot create ISO file: " + entry.path);
     for (Uint64 offset = 0; offset < entry.size;) {
