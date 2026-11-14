@@ -60,6 +60,11 @@ set_target_properties(RealLive PROPERTIES CXX_EXTENSIONS OFF)
 kotonoha_configure_app(RealLive
     BUNDLE_ID me.hirameki.kotonoha.reallive GAME reallive)
 
+if(EMSCRIPTEN AND KOTONOHA_WEB_SELFTEST)
+    target_sources(RealLive PRIVATE src/WebSelfTest.cpp)
+    target_compile_definitions(RealLive PRIVATE KOTONOHA_WEB_SELFTEST)
+endif()
+
 if(BUILD_TESTING)
     foreach(format Images Voice Script Session System)
         add_executable(RealLive${format}Tests tests/${format}Test.cpp)

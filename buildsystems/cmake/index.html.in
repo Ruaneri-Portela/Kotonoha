@@ -74,6 +74,19 @@
             background: #4CAF50;
             transition: width 0.1s ease;
         }
+
+        #kotonoha-video-player {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            background: transparent;
+            display: none;
+            pointer-events: none;
+            z-index: 5;
+        }
     </style>
 </head>
 
@@ -87,114 +100,390 @@
     </div>
 
     <canvas id="canvas" oncontextmenu="event.preventDefault()"></canvas>
+    <video id="kotonoha-video-player" playsinline preload="auto"></video>
 
     <script>
+        // HTML5 video bridge. Loose assets can play directly from their URL;
+        // packed/archive assets are fed as chunks into a Blob, never as a URL.
+        (function() {
+            const canvas = document.getElementById("canvas");
+            const video = document.getElementById("kotonoha-video-player");
+            let session = 0;
+            let mode = "none";          // "url" or "pipe"
+            let chunks = null;
+            let mime = "";
+            let blobUrl = null;
+            let ready = false;
+            let failed = false;
+            let desiredPaused = true;
+            let desiredRate = 1;
+            let layoutKey = "";
+            let lastLayoutCheck = 0;
+            let lastBufferWidth = 0;
+            let lastBufferHeight = 0;
+
+            // Match the SDL drawable area, not the browser viewport. The video
+            // then letterboxes inside that rect exactly like a texture drawn by
+            // the engine (e.g. 4:3 content on a 16:9 canvas stays 4:3). The
+            // buffer size changes when SDL creates/resizes its renderer; the
+            // observer below keeps the overlay in sync with that change.
+            function layoutVideo(force) {
+                if (mode === "none")
+                    return;
+                const now = performance.now();
+                const bounds = canvas.getBoundingClientRect();
+                const bufferWidth = canvas.width || bounds.width;
+                const bufferHeight = canvas.height || bounds.height;
+                const bufferChanged = bufferWidth !== lastBufferWidth ||
+                                      bufferHeight !== lastBufferHeight;
+                if (!force && !bufferChanged && now - lastLayoutCheck < 250)
+                    return;
+                lastLayoutCheck = now;
+                lastBufferWidth = bufferWidth;
+                lastBufferHeight = bufferHeight;
+                if (!bounds.width || !bounds.height || !bufferWidth || !bufferHeight)
+                    return;
+                const aspect = bufferWidth / bufferHeight;
+                let width = bounds.width;
+                let height = bounds.height;
+                if (width / height > aspect)
+                    width = height * aspect;
+                else
+                    height = width / aspect;
+                const left = bounds.left + (bounds.width - width) / 2;
+                const top = bounds.top + (bounds.height - height) / 2;
+                const key = `${left},${top},${width},${height}`;
+                if (key === layoutKey)
+                    return;
+                layoutKey = key;
+                video.style.left = left + "px";
+                video.style.top = top + "px";
+                video.style.width = width + "px";
+                video.style.height = height + "px";
+            }
+
+            window.addEventListener("resize", function() { layoutVideo(true); });
+            document.addEventListener("fullscreenchange", function() {
+                layoutVideo(true);
+            });
+            if (window.ResizeObserver)
+                new ResizeObserver(function() { layoutVideo(true); }).observe(canvas);
+            if (window.MutationObserver)
+                new MutationObserver(function() { layoutVideo(true); })
+                    .observe(canvas, { attributes: true,
+                                        attributeFilter: ["width", "height"] });
+
+            function mimeForPath(path) {
+                const clean = String(path || "").split(/[?#]/)[0].toLowerCase();
+                if (clean.endsWith(".mp4") || clean.endsWith(".m4v")) return "video/mp4";
+                if (clean.endsWith(".webm")) return "video/webm";
+                if (clean.endsWith(".ogv") || clean.endsWith(".ogg")) return "video/ogg";
+                if (clean.endsWith(".mov")) return "video/quicktime";
+                if (clean.endsWith(".mpg") || clean.endsWith(".mpeg")) return "video/mpeg";
+                if (clean.endsWith(".avi")) return "video/x-msvideo";
+                return "";
+            }
+
+            function canPlay(type) {
+                if (!type) return false;
+                try {
+                    const probe = document.createElement("video");
+                    return probe.canPlayType(type) !== "";
+                } catch (error) {
+                    return false;
+                }
+            }
+
+            function resetElement() {
+                try { video.pause(); } catch (error) {}
+                video.removeAttribute("src");
+                try { video.load(); } catch (error) {}
+                if (blobUrl) {
+                    URL.revokeObjectURL(blobUrl);
+                    blobUrl = null;
+                }
+                video.style.display = "none";
+                video.loop = false;
+                chunks = null;
+                ready = false;
+                failed = false;
+                mode = "none";
+            }
+
+            function stopSession(id) {
+                if (id !== undefined && id !== session) return;
+                session++;
+                resetElement();
+                desiredPaused = true;
+                desiredRate = 1;
+            }
+
+            function tryPlay() {
+                if (desiredPaused || !ready || failed) return;
+                layoutVideo(true);
+                video.style.display = "block";
+                const promise = video.play();
+                if (!promise || !promise.catch) return;
+                promise.catch(function(error) {
+                    console.warn("[Kotonoha] HTML5 video play blocked:", error);
+                    if (!video.muted) {
+                        video.muted = true;
+                        video.play().catch(function() {});
+                    }
+                    const unlock = function() {
+                        video.muted = false;
+                        if (!desiredPaused) video.play().catch(function() {});
+                        document.removeEventListener("pointerdown", unlock);
+                        document.removeEventListener("keydown", unlock);
+                    };
+                    document.addEventListener("pointerdown", unlock);
+                    document.addEventListener("keydown", unlock);
+                });
+            }
+
+            video.addEventListener("loadeddata", function() {
+                ready = true;
+                tryPlay();
+            });
+            video.addEventListener("error", function() {
+                failed = true;
+                console.error("[Kotonoha] HTML5 video error:",
+                              video.error ? video.error.message : "unknown");
+            });
+
+            // C++ asks this before downloading a manifest entry. A browser-
+            // playable video is served by this bridge instead of being copied
+            // into MEMFS, avoiding a duplicate preload.
+            window.KotonohaShouldDeferAsset = function(path) {
+                const type = mimeForPath(path);
+                return type && canPlay(type) ? 1 : 0;
+            };
+            window.KotonohaVideoMime = mimeForPath;
+            window.KotonohaVideoCanPlay = canPlay;
+
+            // Native URL playback for loose, HTTP-served assets.
+            window.KotonohaPlayVideo = function(path, loop) {
+                if (!path) return 0;
+                stopSession();
+                mode = "url";
+                mime = mimeForPath(path);
+                video.muted = false;
+                video.loop = !!loop;
+                video.src = path;
+                video.load();
+                ready = false;
+                layoutVideo(true);
+                return session;
+            };
+
+            // Byte pipe for packed/archive assets. The C++ side reads the
+            // AssetProvider and appends chunks here; <video> only ever sees a
+            // Blob URL created in this function.
+            window.KotonohaVideoBegin = function(id, type, size) {
+                if (!canPlay(type)) return 0;
+                stopSession();
+                mode = "pipe";
+                mime = type || "";
+                chunks = [];
+                video.muted = false;
+                layoutVideo(true);
+                return session;
+            };
+ 
+            window.KotonohaVideoBeginBlob = function(bytes, mime) {
+                if (!bytes || bytes.length === 0) return 0;
+                if (!canPlay(mime)) return 0;
+                stopSession();
+                mode = "blob";
+                mime = mime || "";
+                const blob = new Blob([bytes], { type: mime });
+                if (blobUrl) URL.revokeObjectURL(blobUrl);
+                blobUrl = URL.createObjectURL(blob);
+                video.src = blobUrl;
+                video.load();
+                ready = false;
+                layoutVideo(true);
+                return session;
+            };
+ 
+            window.KotonohaVideoAppend = function(id, bytes) {
+                if (id !== session || mode !== "pipe" || !chunks || !bytes)
+                    return false;
+                chunks.push(bytes.slice());
+                return true;
+            };
+
+            window.KotonohaVideoFinish = function(id) {
+                if (id !== session || mode !== "pipe" || !chunks)
+                    return false;
+                if (!chunks.length) {
+                    failed = true;
+                    return false;
+                }
+                const blob = new Blob(chunks, { type: mime || "video/mp4" });
+                chunks = null;
+                if (blobUrl) URL.revokeObjectURL(blobUrl);
+                blobUrl = URL.createObjectURL(blob);
+                video.src = blobUrl;
+                video.load();
+                ready = false;
+                return true;
+            };
+
+            window.KotonohaVideoStop = function(id) { stopSession(id); };
+
+            window.KotonohaVideoSetPaused = function(id, paused) {
+                if (id !== session) return;
+                desiredPaused = !!paused;
+                if (desiredPaused) {
+                    try { video.pause(); } catch (error) {}
+                } else {
+                    tryPlay();
+                }
+            };
+
+            window.KotonohaVideoSetRate = function(id, rate) {
+                if (id !== session) return;
+                desiredRate = Math.max(0.0625, Math.min(16, Number(rate) || 1));
+                try { video.playbackRate = desiredRate; } catch (error) {}
+            };
+
+            window.KotonohaVideoSync = function(id, position) {
+                if (id !== session) return;
+                layoutVideo(false);
+                if (!ready || failed) return;
+                const duration = video.duration;
+                if (!Number.isFinite(duration) || duration <= 0) return;
+                const target = Math.max(0, Math.min(position, duration));
+                if (Math.abs(video.currentTime - target) > 0.3) {
+                    try { video.currentTime = target; } catch (error) {}
+                }
+            };
+
+            window.KotonohaVideoTime = function(id) {
+                if (id !== session || !ready) return -1;
+                return Number.isFinite(video.currentTime) ? video.currentTime : -1;
+            };
+
+            window.KotonohaVideoDuration = function(id) {
+                if (id !== session || !ready) return -1;
+                return Number.isFinite(video.duration) && video.duration > 0
+                    ? video.duration : -1;
+            };
+
+            window.KotonohaVideoFinished = function(id) {
+                if (id !== session) return 0;
+                return ready && (failed || video.ended) ? 1 : 0;
+            };
+
+            window.KotonohaVideoHasFrame = function(id) {
+                if (id !== session || !ready || failed) return 0;
+                return video.readyState >= 2 && !video.ended ? 1 : 0;
+            };
+
+            window.KotonohaVideoFailed = function(id) {
+                return id === session && failed ? 1 : 0;
+            };
+        })();
+
         var Module = {
             canvas: document.getElementById("canvas"),
 
             preRun: [
                 function() {
-                    const depId = "load_manifest_async";
+                    // Persistent save tree. IDBFS is mounted from C++ before
+                    // main(), and the run dependency it registers keeps the
+                    // engine waiting until IndexedDB restores the files.
+                    try {
+                        Module.ccall("KotonohaMountSaveStorage", null, [], []);
+                    } catch (error) {
+                        console.error("[Kotonoha] IDBFS save mount failed:", error);
+                    }
+                    window.KotonohaSyncSave = function(callback) {
+                        try {
+                            Module.ccall("KotonohaSyncSaveStorage", null, [], []);
+                        } catch (error) {
+                            if (callback) callback(error);
+                            return Promise.resolve(error);
+                        }
+                        const promise = Module.KotonohaSaveSyncPromise ||
+                                        Promise.resolve(null);
+                        if (callback) promise.then(callback);
+                        return promise;
+                    };
+                    // Flush pending writes when the page is hidden or closed.
+                    document.addEventListener("visibilitychange", function() {
+                        if (document.visibilityState === "hidden")
+                            window.KotonohaSyncSave();
+                    });
+                    window.addEventListener("pagehide", function() {
+                        window.KotonohaSyncSave();
+                    });
+                },
+                function() {
+                    // Asset bytes are downloaded by emscripten_fetch() in C++,
+                    // not by a JavaScript preload loop. The C++ queue writes
+                    // them straight into MEMFS and reports progress back here.
+                    const depId = "load_assets_with_emscripten_fetch";
                     Module.addRunDependency(depId);
 
                     const statusEl = document.getElementById("loading-status");
                     const barEl = document.getElementById("loading-bar");
+                    const call = function(name, returnType, args) {
+                        return Module.ccall(name, returnType || null,
+                                            (args || []).map(() => "number"), args || []);
+                    };
 
-                    function ensureDir(dirPath) {
-                        const parts = dirPath.split('/').filter(Boolean);
-                        let current = '';
-                        for (const part of parts) {
-                            const parent = current || '/';
-                            current += '/' + part;
-                            try {
-                                if (typeof FS !== 'undefined' && FS.mkdir) {
-                                    FS.mkdir(current);
-                                } else if (Module.FS && Module.FS.mkdir) {
-                                    Module.FS.mkdir(current);
-                                } else if (Module.FS_createPath) {
-                                    Module.FS_createPath(parent, part, true, true);
-                                }
-                            } catch (e) {
-                                // Ignora se a pasta já existir
-                            }
-                        }
+                    try {
+                        Module.ccall("KotonohaStartAssetFetch", null, ["string"],
+                                     ["game-assets/manifest.json"]);
+                    } catch (error) {
+                        console.warn("[Kotonoha] Cannot start Emscripten fetch loader:", error);
+                        if (statusEl) statusEl.textContent = "Iniciando sem manifesto...";
+                        if (barEl) barEl.style.width = "100%";
+                        Module.removeRunDependency(depId);
+                        return;
                     }
 
-                    function writeAssetFile(parentDir, fileName, uint8Array) {
-                        if (typeof FS !== 'undefined' && FS.writeFile) {
-                            FS.writeFile(parentDir + "/" + fileName, uint8Array);
-                        } else if (Module.FS && Module.FS.writeFile) {
-                            Module.FS.writeFile(parentDir + "/" + fileName, uint8Array);
-                        } else if (Module.FS_createDataFile) {
-                            Module.FS_createDataFile(parentDir, fileName, uint8Array, true, true, true);
-                        } else {
-                            throw new Error("Nenhuma API de sistema de arquivos (FS) está exportada no Emscripten!");
+                    const poll = setInterval(function() {
+                        let total = 0, loaded = 0, deferred = 0, done = 0, failed = 0;
+                        try {
+                            total = call("KotonohaAssetFetchTotal", "number");
+                            loaded = call("KotonohaAssetFetchLoaded", "number");
+                            deferred = call("KotonohaAssetFetchDeferred", "number");
+                            done = call("KotonohaAssetFetchDone", "number");
+                            failed = call("KotonohaAssetFetchFailed", "number");
+                        } catch (error) {
+                            console.warn("[Kotonoha] Fetch progress unavailable:", error);
+                            done = 1;
+                            failed = 1;
                         }
-                    }
 
-                    ensureDir("/game-assets");
+                        if (total > 0) {
+                            const percent = Math.round((loaded / total) * 100);
+                            if (barEl) barEl.style.width = percent + "%";
+                            if (statusEl)
+                                statusEl.textContent = `Carregando (${loaded}/${total})` +
+                                    (deferred ? `, ${deferred} por streaming` : "");
+                        } else if (done && !failed) {
+                            if (barEl) barEl.style.width = "100%";
+                        }
 
-                    fetch("game-assets/manifest.json")
-                        .then(response => {
-                            if (!response.ok) {
-                                throw new Error("Manifest not found (status " + response.status + ")");
-                            }
-                            return response.json();
-                        })
-                        .then(async manifest => {
-                            const files = manifest.files || [];
-                            const total = files.length;
-                            console.log("[Kotonoha] Manifest carregado com", total, "arquivos.");
-
-                            if (total === 0) {
+                        if (done) {
+                            clearInterval(poll);
+                            if (failed) {
+                                console.warn("[Kotonoha] Manifest ausente ou inválido; iniciando sem assets pré-carregados.");
+                                if (statusEl) statusEl.textContent = "Iniciando sem manifesto...";
+                                if (barEl) barEl.style.width = "100%";
+                            } else if (total === 0) {
                                 if (statusEl) statusEl.textContent = "Nenhum asset encontrado no manifesto.";
                                 if (barEl) barEl.style.width = "100%";
-                                return;
+                            } else {
+                                if (statusEl) statusEl.textContent = "Iniciando engine...";
                             }
-
-                            let loaded = 0;
-
-                            const downloadPromises = files.map(async (filePath) => {
-                                const lastSlash = filePath.lastIndexOf('/');
-                                let parentDir = "/game-assets";
-                                let fileName = filePath;
-
-                                if (lastSlash !== -1) {
-                                    parentDir = "/game-assets/" + filePath.substring(0, lastSlash);
-                                    fileName = filePath.substring(lastSlash + 1);
-                                    ensureDir(parentDir);
-                                }
-
-                                try {
-                                    const res = await fetch("game-assets/" + filePath);
-                                    if (res.ok) {
-                                        const buf = await res.arrayBuffer();
-                                        writeAssetFile(parentDir, fileName, new Uint8Array(buf));
-                                    } else {
-                                        console.warn("[Kotonoha] HTTP", res.status, "ao carregar:", filePath);
-                                    }
-                                } catch (e) {
-                                    console.warn("[Kotonoha] Falha ao carregar asset:", filePath, e);
-                                }
-
-                                loaded++;
-                                const percent = Math.round((loaded / total) * 100);
-                                if (statusEl) statusEl.textContent = `Carregando (${loaded}/${total}): ${filePath}`;
-                                if (barEl) barEl.style.width = percent + "%";
-                            });
-
-                            await Promise.all(downloadPromises);
-
-                            if (statusEl) statusEl.textContent = "Iniciando engine...";
-                        })
-                        .catch(err => {
-                            console.warn("[Kotonoha] Aviso: manifest.json não encontrado ou vazio.", err);
-                            if (statusEl) statusEl.textContent = "Iniciando sem manifesto...";
-                            if (barEl) barEl.style.width = "100%";
-                        })
-                        .finally(() => {
                             Module.removeRunDependency(depId);
-                        });
+                        }
+                    }, 100);
                 }
             ],
 
@@ -208,6 +497,8 @@
 
             onRuntimeInitialized: function() {
                 console.log("[Kotonoha] Runtime inicializado");
+                // The preRun hook already restored /save with syncfs(true);
+                // saves flush explicitly and on pagehide, so no startup flush.
                 const overlay = document.getElementById("loading-overlay");
                 if (overlay) {
                     overlay.style.opacity = '0';

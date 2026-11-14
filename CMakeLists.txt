@@ -109,6 +109,7 @@ include(buildsystems/cmake/MSVC.cmake)
 # ------------------------------------------------------------
 
 option(KOTONOHA_BUILD_WASM "Build for WebAssembly" OFF)
+option(KOTONOHA_WEB_SELFTEST "Build optional WebAssembly integration self-test hooks" OFF)
 option(KOTONOHA_VERBOSE_BUILD "Print full compiler and linker commands" OFF)
 option(KOTONOHA_BUILD_MACOS_BUNDLES "Build macOS application bundles" OFF)
 option(KOTONOHA_BUILD_ALL "Build every game port" OFF)

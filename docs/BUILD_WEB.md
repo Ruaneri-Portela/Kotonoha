@@ -57,15 +57,41 @@ cmake --build build-web --target RealLive
 
 ---
 
-## Asset Loading Architecture (Manifest & Lazy Loading)
+## Runtime Architecture (Saves, Assets & Video)
 
-To prevent browser crashes from synchronous XHR restrictions (`Cannot do synchronous binary XHRs outside webworkers`) and memory exhaustion (`OOM`), Kotonoha uses an asynchronous **Manifest-based Lazy Loading** architecture for WebAssembly:
+### Persistent saves (IDBFS)
 
-1. **Manifest Generation**: During build time, CMake automatically invokes [`tools/generate_manifest.py`](file:///Users/nero/Codes/Kotonoha/tools/generate_manifest.py) to scan the game's `game-assets/` directory and produce a `manifest.json` file inside `outputs/<Game>/game-assets/manifest.json`.
-2. **Required Manifest**: **A valid `manifest.json` file is required in the game's `game-assets/` folder** for the web application to properly map and load game assets.
-3. **Progress UI**: When opening `index.html`, the browser displays an overlay with a real-time progress bar (`Carregando (X/Y): ...`) while fetching and mounting assets.
-4. **Asynchronous Fetch & VFS Population**: The `index.html` loader fetches `manifest.json`, loops through the files, creates virtual directory trees (`FS.mkdirTree`), and asynchronously downloads each file via `fetch()` and writes it into Emscripten's MEMFS (`FS.writeFile`).
-5. **Runtime Initialization**: Once all assets are mapped, the loading overlay smoothly fades out, and the C++ engine starts up with full access to files via standard file APIs (`std::filesystem`, `fopen`).
+`index.html` mounts an Emscripten IDBFS volume at `/save` before `main()` runs and
+populates it from IndexedDB with `FS.syncfs(true, ...)`. The mount and flush are
+wrapped by `KotonohaMountSaveStorage`/`KotonohaSyncSaveStorage` in
+`WebAssetFetch.cpp`: `--closure 1` minifies the FS object exposed to page
+JavaScript, so the page must reach these operations through the C++ `EM_ASM`
+wrappers instead of calling `Module.FS.mkdirTree/FS.mount/FS.syncfs` directly.
+On WebAssembly, `documentsDirectory()` and `preferredDocumentsDirectory()` map to
+that volume. `VNSave` calls `FS.syncfs(false, ...)` after writes, renames and
+removals, and the page also flushes the volume on
+`visibilitychange`/`pagehide`, so saves survive a browser reload.
+
+### Asset loading (Emscripten Fetch)
+
+To avoid synchronous XHR restrictions and memory exhaustion, Kotonoha uses a
+manifest-driven loader implemented in `lib/src/core/WebAssetFetch.cpp`:
+
+1. **Manifest generation**: CMake invokes [`tools/generate_manifest.py`](file:///Users/nero/Codes/Kotonoha/tools/generate_manifest.py) to write `outputs/<Game>/game-assets/manifest.json`.
+2. **Required manifest**: a valid `manifest.json` must exist for assets to be mapped into the virtual filesystem.
+3. **Emscripten Fetch**: the preRun hook calls `KotonohaStartAssetFetch`; C++ downloads up to four files concurrently with `emscripten_fetch` and writes them into MEMFS at `/game-assets`.
+4. **Progress UI**: the page polls `KotonohaAssetFetch*` through `ccall` and updates the loading overlay.
+5. **Video deferral**: browser-playable video extensions are not downloaded by the bulk loader (`KotonohaShouldDeferAsset`); they receive a zero-byte placeholder in MEMFS so asset indexes still resolve their logical ids, while the HTML5 bridge streams the real file from its `game-assets/...` URL.
+
+### HTML5 video
+
+`MediaPlayer` delegates browser-playable video to a `<video>` overlay
+(`#kotonoha-video-player`). Loose assets are played from their `game-assets/...`
+URL through `KotonohaPlayVideo(path, loop)`; packed/archive assets are read from
+their `AssetProvider` in chunks and appended to a Blob, so no archive-internal
+video needs a public URL. The overlay is sized to the SDL canvas drawable area,
+so 4:3 content stays 4:3 even on a wider browser window. Audio mixer delegation
+is intentionally out of scope.
 
 ---
 
