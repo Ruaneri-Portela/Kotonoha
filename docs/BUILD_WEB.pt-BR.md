@@ -87,3 +87,30 @@ node tools/web_selftest.js build-web/outputs/KotonohaWebSelfTest
 Esta integração **ainda não foi validada** num build WebAssembly/navegador.
 Alguns indexadores de formatos proprietários ainda exigem caminhos físicos;
 logo, não é correto considerar todos os jogos totalmente migrados.
+
+## Montagem de pastas locais personalizadas no navegador
+
+O botão **+ Adicionar pasta**, no canto superior direito, continua disponível
+depois da inicialização. Selecione uma pasta local e informe seu nome no
+filesystem virtual, por exemplo `game-assets`, `forced_subtitles` ou
+`ovrlay`. Seus arquivos ficam disponíveis em `/<nome>/` no Emscripten.
+Os nomes são validados e `/save` permanece reservado para os saves.
+O HTML evita sobrescrever arquivos existentes.
+
+Após a inicialização do filesystem, também é possível chamar
+`window.KotonohaMountBrowserFolder(fileList, "forced_subtitles")`.
+
+**Atenção:** montar uma pasta torna seus arquivos visíveis no VFS, mas não
+faz automaticamente cada porte procurar recursos nela. Os caminhos de busca
+e a jogabilidade por toque precisam ser verificados em cada jogo.
+
+### Fetch HTTP sem manifesto — limitação atual
+
+Esta alteração **ainda não implementa** um provider HTTP sem manifesto. O
+fallback automático de `game-assets/` ainda requer
+`game-assets/manifest.json` com nomes e tamanhos de arquivos. Um servidor
+HTTP comum não oferece listagem de diretórios; Fetch funciona de modo
+assíncrono. Para remover o manifesto, o provider precisa receber os caminhos
+solicitados pelo próprio jogo e suportar leitura sob demanda, com suspensão
+assíncrona ou Worker onde necessário. Compilar sem erros não comprova
+paridade de gameplay nos navegadores.
