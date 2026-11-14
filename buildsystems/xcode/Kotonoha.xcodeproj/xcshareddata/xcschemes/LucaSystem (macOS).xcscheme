@@ -3,14 +3,14 @@
    <BuildAction parallelizeBuildables="YES" buildImplicitDependencies="YES">
       <BuildActionEntries>
          <BuildActionEntry buildForTesting="YES" buildForRunning="YES" buildForProfiling="YES" buildForArchiving="YES" buildForAnalyzing="YES">
-            <BuildableReference BuildableIdentifier="primary" BlueprintIdentifier="9AFA08279ADEA7CF4AE299F4" BuildableName="LucaSystem.app" BlueprintName="LucaSystem-macOS" ReferencedContainer="container:KotonohaUnified.xcodeproj" />
+            <BuildableReference BuildableIdentifier="primary" BlueprintIdentifier="9AFA08279ADEA7CF4AE299F4" BuildableName="LucaSystem.app" BlueprintName="LucaSystem-macOS" ReferencedContainer="container:Kotonoha.xcodeproj" />
          </BuildActionEntry>
       </BuildActionEntries>
       <PreActions>
          <ExecutionAction ActionType="Xcode.IDEStandardExecutionActionsCore.ExecutionActionType.ShellScriptAction">
             <ActionContent title="Prepare vcpkg dependencies" scriptText="set -eu&#10;if [ -n &quot;${PLATFORM_NAME:-}&quot; ]; then&#10;  /usr/bin/env python3 &quot;${SRCROOT}/../../tools/PrepareApple.py&quot; --platform macos --only-vcpkg --sdk &quot;${PLATFORM_NAME}&quot;&#10;else&#10;  /usr/bin/env python3 &quot;${SRCROOT}/../../tools/PrepareApple.py&quot; --platform macos --only-vcpkg&#10;fi">
                <EnvironmentBuildable>
-                  <BuildableReference BuildableIdentifier="primary" BlueprintIdentifier="9AFA08279ADEA7CF4AE299F4" BuildableName="LucaSystem.app" BlueprintName="LucaSystem-macOS" ReferencedContainer="container:KotonohaUnified.xcodeproj" />
+                  <BuildableReference BuildableIdentifier="primary" BlueprintIdentifier="9AFA08279ADEA7CF4AE299F4" BuildableName="LucaSystem.app" BlueprintName="LucaSystem-macOS" ReferencedContainer="container:Kotonoha.xcodeproj" />
                </EnvironmentBuildable>
             </ActionContent>
          </ExecutionAction>
@@ -19,7 +19,7 @@
    <TestAction buildConfiguration="Debug" selectedDebuggerIdentifier="Xcode.DebuggerFoundation.Debugger.LLDB" selectedLauncherIdentifier="Xcode.IDEFoundation.Launcher.LLDB" shouldUseLaunchSchemeArgsEnv="YES" />
    <LaunchAction buildConfiguration="Debug" selectedDebuggerIdentifier="Xcode.DebuggerFoundation.Debugger.LLDB" selectedLauncherIdentifier="Xcode.IDEFoundation.Launcher.LLDB" launchStyle="0" useCustomWorkingDirectory="NO" ignoresPersistentStateOnLaunch="NO" debugDocumentVersioning="NO" debugServiceExtension="internal" allowLocationSimulation="YES">
       <BuildableProductRunnable runnableDebuggingMode="0">
-         <BuildableReference BuildableIdentifier="primary" BlueprintIdentifier="9AFA08279ADEA7CF4AE299F4" BuildableName="LucaSystem.app" BlueprintName="LucaSystem-macOS" ReferencedContainer="container:KotonohaUnified.xcodeproj" />
+         <BuildableReference BuildableIdentifier="primary" BlueprintIdentifier="9AFA08279ADEA7CF4AE299F4" BuildableName="LucaSystem.app" BlueprintName="LucaSystem-macOS" ReferencedContainer="container:Kotonoha.xcodeproj" />
       </BuildableProductRunnable>
    </LaunchAction>
    <ProfileAction buildConfiguration="Release" shouldUseLaunchSchemeArgsEnv="YES" savedToolIdentifier="" useCustomWorkingDirectory="NO" debugDocumentVersioning="NO" />
