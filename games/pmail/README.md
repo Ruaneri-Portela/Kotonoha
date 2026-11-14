@@ -20,7 +20,7 @@ Use the launcher or pass `--pmail /path/to/game-data` to the executable. Never c
 
 ## Detailed research
 
-[Original port status and evidence](PORT_STATUS.md). Historical results are specific to the reference assets/revision and may contain superseded implementation notes.
+[Concise support status](STATUS.md) · [Detailed port research](PORT_STATUS.md). Historical results are specific to the reference assets/revision and may contain superseded implementation notes.
 
 [Animation research](docs/ANIMATIONS.md), [audio parity](docs/AUDIO_PARITY.md), [textbox](docs/TEXTBOX.md).
 

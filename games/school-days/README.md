@@ -20,7 +20,7 @@ Use the launcher or pass `--school-days /path/to/game-data` to the executable. N
 
 ## Detailed research
 
-[Original port status and evidence](PORT_STATUS.md). Historical results are specific to the reference assets/revision and may contain superseded implementation notes.
+[Concise support status](STATUS.md) · [Detailed port research](PORT_STATUS.md). Historical results are specific to the reference assets/revision and may contain superseded implementation notes.
 
 [Research index](docs/README.md) and [custom Display Options assets](display-options/README.md).
 
