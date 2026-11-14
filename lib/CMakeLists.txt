@@ -370,18 +370,50 @@ target_include_directories(KotonohaEngine PUBLIC
         $<BUILD_INTERFACE:${KOTONOHA_BUILD_VERSION_INCLUDE_DIR}>
 )
 
-target_link_libraries(KotonohaEngine
-        PUBLIC
+# Third-party archives are ALWAYS static. For Emscripten load-time
+# dynamic linking they must be owned by MAIN_MODULE, never embedded in the
+# engine SIDE_MODULE: that would duplicate SDL state, codecs and allocators
+# across WASM modules. Expose their usage requirements while building the
+# engine, then link the archives into each game's main executable only.
+if(KOTONOHA_WASM_DYNAMIC_LIBS)
+    set(_kotonoha_wasm_static_dependencies
         SDL3::SDL3
         SDL3_ttf::SDL3_ttf
         imgui
-        PRIVATE
-        # Public engine headers expose no FFmpeg or libass types.
-        # For static builds, CMake still links required dependencies.
         ${kotonoha_ffmpeg_target}
         ${kotonoha_json_target}
         ${kotonoha_ass_target}
-)
+    )
+    # The engine sources still need the include paths, compile options and
+    # definitions supplied by each static dependency.
+    foreach(_kotonoha_dep IN LISTS _kotonoha_wasm_static_dependencies)
+        if(TARGET ${_kotonoha_dep})
+            target_include_directories(KotonohaEngine PRIVATE
+                "$<TARGET_PROPERTY:${_kotonoha_dep},INTERFACE_INCLUDE_DIRECTORIES>")
+            target_compile_definitions(KotonohaEngine PRIVATE
+                "$<TARGET_PROPERTY:${_kotonoha_dep},INTERFACE_COMPILE_DEFINITIONS>")
+            target_compile_options(KotonohaEngine PRIVATE
+                "$<TARGET_PROPERTY:${_kotonoha_dep},INTERFACE_COMPILE_OPTIONS>")
+        endif()
+    endforeach()
+    if(KOTONOHA_IMGUI_FROM_VCPKG)
+        target_include_directories(KotonohaEngine PRIVATE
+            "$<TARGET_PROPERTY:imgui::imgui,INTERFACE_INCLUDE_DIRECTORIES>")
+        target_compile_definitions(KotonohaEngine PRIVATE
+            "$<TARGET_PROPERTY:imgui::imgui,INTERFACE_COMPILE_DEFINITIONS>")
+    endif()
+    # Linking an INTERFACE dependency does not put it on the SIDE_MODULE
+    # command line. MAIN_MODULE picks it up transitively from KotonohaEngine.
+    target_link_libraries(KotonohaEngine INTERFACE
+        ${_kotonoha_wasm_static_dependencies})
+else()
+    target_link_libraries(KotonohaEngine
+        PUBLIC SDL3::SDL3 SDL3_ttf::SDL3_ttf imgui
+        PRIVATE
+        ${kotonoha_ffmpeg_target}
+        ${kotonoha_json_target}
+        ${kotonoha_ass_target})
+endif()
 
 if (EMSCRIPTEN AND VCPKG_INSTALLED_DIR)
     # SDL_ttf's pkg-config find modules emit -l flags for static dependencies.
@@ -402,7 +434,12 @@ elseif (APPLE AND CMAKE_SYSTEM_NAME MATCHES "iOS|tvOS")
     target_link_libraries(KotonohaEngine PRIVATE "${OPENGLES_FRAMEWORK}")
 else ()
     find_package(OpenGL REQUIRED)
-    target_link_libraries(KotonohaEngine PRIVATE OpenGL::GL)
+    if(KOTONOHA_WASM_DYNAMIC_LIBS)
+        # The browser/main module supplies the graphics runtime.
+        target_link_libraries(KotonohaEngine INTERFACE OpenGL::GL)
+    else()
+        target_link_libraries(KotonohaEngine PRIVATE OpenGL::GL)
+    endif()
 endif ()
 
 # Configuracoes especificas do Metal (Apple)
