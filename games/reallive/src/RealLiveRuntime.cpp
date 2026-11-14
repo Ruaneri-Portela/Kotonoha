@@ -1,3 +1,4 @@
+#include <Kotonoha/core/SDL.hpp>
 #include "RealLiveRuntime.hpp"
 #include "RealLiveMouseCursor.hpp"
 #include "RealLiveSelection.hpp"
@@ -1674,10 +1675,11 @@ struct RealLiveRuntime::Impl {
     if (!SDL_ConvertAudioSamples(&a.spec, a.data.data(), int(a.data.size()),
                                  &target, &converted, &size))
       throw std::runtime_error(SDL_GetError());
+    Kotonoha::SDLMemoryPtr<Uint8> convertedOwner(converted);
     PcmPlayer::Clip clip;
     clip.samples.resize(size / 2);
     std::memcpy(clip.samples.data(), converted, size);
-    SDL_free(converted);
+
     clip.channels = target.channels;
     clip.rate = target.freq;
     auto count = clip.samples.size() / clip.channels;
