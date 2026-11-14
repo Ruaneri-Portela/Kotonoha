@@ -26,7 +26,7 @@ for (const id of [
   assert(html.includes('id="' + id + '"'), 'Missing web control: ' + id);
 }
 for (const symbol of [
-  'KotonohaConfigureRemoteAssetUrl', 'KotonohaConfigureRemoteAssetManifest',
+  'KotonohaConfigureRemoteAssetUrl',
   'KotonohaMountBrowserFolder', 'KotonohaRequestRemoteAsset',
 ]) {
   assert(html.includes(symbol), 'Missing web bootstrap interface: ' + symbol);
@@ -44,6 +44,10 @@ assert(html.includes('toolbar.hidden = true'),
   'Folder toolbar must be hidden when the source is chosen');
 assert(!html.includes('KotonohaAutoServerAssets'),
   'Browser startup must not automatically select remote assets');
+assert(!html.includes('fetch(new URL("manifest.json"'),
+  'HTTP startup must not query a stale or empty manifest');
+assert(!html.includes('KotonohaConfigureRemoteAssetManifest'),
+  'HTTP bootstrap must always select direct on-demand Fetch');
 assert(html.includes('setStatus("Escolha pasta local ou HTTP(S) para iniciar.")'),
   'Boot must wait for an explicit source choice');
 assert(html.includes('setStatus("Pasta local montada. Iniciando engine...");'),
