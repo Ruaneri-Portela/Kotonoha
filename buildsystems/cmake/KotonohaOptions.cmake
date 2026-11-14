@@ -122,3 +122,5 @@ function(kotonoha_preload_asset target source_file virtual_path)
             "SHELL:--preload-file ${source_file}@${virtual_path}")
     endif()
 endfunction()
+
+include("${CMAKE_CURRENT_LIST_DIR}/KotonohaMediaTests.cmake")
