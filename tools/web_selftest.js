@@ -721,7 +721,7 @@ async function main() {
     // Real browser touch events, not an artificial SDL_PushEvent. A fresh
     // touch-enabled page reaches the SDL3 callback through the canvas.
     const touchContext = await browser.newContext({
-      hasTouch: true, isMobile: true, viewport: { width: 800, height: 600 }
+      hasTouch: true, isMobile: true, viewport: { width: 390, height: 844 }
     });
     try {
       const touchPage = await touchContext.newPage();
@@ -729,6 +729,11 @@ async function main() {
         logs.push('touch-pageerror: ' + error.message));
       await touchPage.goto(baseUrl + '/index.html',
         { waitUntil: 'domcontentloaded' });
+      const mobileChooser = await touchPage.locator('#use-server-assets').boundingBox();
+      assert(mobileChooser && mobileChooser.width >= 44 &&
+        mobileChooser.height >= 44 && mobileChooser.y >= 0 &&
+        mobileChooser.y + mobileChooser.height <= 844,
+        'small mobile viewport must show an accessible source button');
       await touchPage.locator('#use-server-assets').click();
       await touchPage.waitForFunction(() =>
         typeof Module === 'object' && Module.KotonohaSaveReady === true &&
@@ -736,13 +741,33 @@ async function main() {
         { timeout: 60000 });
       await touchPage.locator('#loading-overlay')
         .waitFor({ state: 'detached', timeout: 60000 });
-      await touchPage.touchscreen.tap(400, 300);
+      const touchBox = await touchPage.locator('#canvas').boundingBox();
+      assert(touchBox && touchBox.width >= 300 && touchBox.height >= 200,
+        'SDL canvas must remain visible on a portrait mobile viewport');
+      await touchPage.touchscreen.tap(touchBox.x + touchBox.width / 2,
+        touchBox.y + touchBox.height / 2);
       await touchPage.waitForFunction(() =>
         Module.ccall('KotonohaWebSelfTestTouchDownCount',
           'number', [], []) > 0 &&
         Module.ccall('KotonohaWebSelfTestTouchUpCount',
           'number', [], []) > 0, null, { timeout: 5000 });
-      console.log('TOUCH SDL events delivered');
+      await touchPage.locator('#canvas').focus();
+      await touchPage.keyboard.press('Enter');
+      await touchPage.waitForFunction(() =>
+        Module.ccall('KotonohaWebSelfTestKeyDownCount', 'number', [], []) > 0,
+        null, { timeout: 5000 });
+      const apiStatus = await touchPage.evaluate(() => ({
+        gamepads: typeof navigator.getGamepads === 'function',
+        initialized: Module.ccall('KotonohaWebSelfTestConnectedGamepads',
+          'number', [], []) >= 0
+      }));
+      assert(apiStatus.initialized, 'SDL Gamepad subsystem was not initialized');
+      console.log('MOBILE INPUT', JSON.stringify(apiStatus));
+      await touchPage.setViewportSize({ width: 844, height: 390 });
+      const rotated = await touchPage.locator('#canvas').boundingBox();
+      assert(rotated && rotated.width >= 600 && rotated.height >= 250,
+        'SDL canvas must survive mobile landscape rotation');
+      console.log('TOUCH, KEYBOARD AND MOBILE RESIZE delivered to SDL3');
     } finally {
       await touchContext.close();
     }
