@@ -4,6 +4,7 @@
 #include <Kotonoha/components/VNSave.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/Filesystem/StoragePaths.hpp>
+#include <Kotonoha/Filesystem/Filesystem.hpp>
 #include <Kotonoha/core/UI.hpp>
 #include <SDL3/SDL.h>
 #include <cstdio>
@@ -37,30 +38,44 @@ void PmailRuntime::shutdown() {
 }
 
 bool PmailRuntime::loadScriptPack() {
-  const std::vector<std::string> candidates = {
-      gameDirectory_ + "/data/pack/script.dat",
-      gameDirectory_ + "/pack/script.dat",
-      gameDirectory_ + "/script.dat",
-      gameDirectory_ + "/SCRIPT.DAT",
-      gameDirectory_ + "/data/pack/SCRIPT.DAT",
-  };
-  for (const auto &path : candidates) {
-    Kotonoha::Filesystem::InputFile in(path, std::ios::binary | std::ios::ate);
-    if (!in)
-      continue;
-    const auto sz = in.tellg();
-    if (sz <= 0)
-      continue;
-    in.seekg(0, std::ios::beg);
-    std::vector<uint8_t> data(static_cast<size_t>(sz));
-    if (!in.read(reinterpret_cast<char *>(data.data()), sz))
-      continue;
-    std::cout << "[PmailPort] Loaded script pack: " << path << " ("
-              << data.size() << " bytes)" << std::endl;
-    game_ = std::make_shared<PmailGame>(std::move(data), path);
-    return true;
+  // All ports must read through the mounted Filesystem. Constructing a
+  // physical InputFile("/game-assets/...") cannot see assets provided by
+  // HTTP Fetch (it only sees the MEMFS local directory).
+  const auto source = assets_ ? assets_->source() : nullptr;
+  if (!source) {
+    status_ = "Pure Mail virtual filesystem unavailable";
+    std::cerr << "[PmailPort] " << status_ << std::endl;
+    return false;
   }
-  status_ = "script.dat not found under: " + gameDirectory_;
+  // The case-insensitive VFS resolves these logical IDs for local archives,
+  // and the HTTP provider retries the lowercase URL on case-sensitive hosts.
+  for (const char *relative : {"data/pack/script.dat", "pack/script.dat",
+                               "script.dat", "data/pack/SCRIPT.DAT",
+                               "SCRIPT.DAT"}) {
+    try {
+      if (!source->exists(relative) ||
+          source->stat(relative).type != Kotonoha::Filesystem::FileType::Regular)
+        continue;
+      auto data = Kotonoha::Filesystem::readAll(
+          *source->open(relative), 256u * 1024u * 1024u);
+      if (data.empty())
+        continue;
+      const std::string logical = relative;
+      std::cout << "[PmailPort] Loaded script pack from VFS: " << logical
+                << " (" << data.size() << " bytes)" << std::endl;
+      game_ = std::make_shared<PmailGame>(std::move(data), logical);
+      return true;
+    } catch (const Kotonoha::Filesystem::FilesystemError &error) {
+      if (error.code() == Kotonoha::Filesystem::ErrorCode::NotFound)
+        continue;
+      SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
+                   "[PmailPort] Cannot read virtual %s: %s",
+                   relative, error.what());
+      throw;
+    }
+  }
+  status_ = "script.dat not found in virtual game-assets "
+            "(expected data/pack/script.dat)";
   std::cerr << "[PmailPort] " << status_ << std::endl;
   return false;
 }
