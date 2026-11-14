@@ -38,13 +38,16 @@ jobs:
         run: |
           cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug \
             -DBUILD_TESTING=ON -DSDLTTF_PLUTOSVG=OFF \
-            -DKOTONOHA_BUILD_EXAMPLE=ON
+            -DKOTONOHA_BUILD_EXAMPLE=ON -DKOTONOHA_BUILD_LUCA_SYSTEM=ON
       - name: Compile Filesystem V2
-        run: cmake --build build --target KotonohaFilesystemV2Tests --parallel 3
+        run: cmake --build build --target KotonohaFilesystemV2Tests LucaSystemFormatTests kotonoha_provider_pmail --parallel 3
       - name: Run Filesystem V2 regression tests
         env:
           SDL_VIDEO_DRIVER: dummy
           SDL_AUDIO_DRIVER: dummy
-        run: ctest --test-dir build --output-on-failure -R '^Kotonoha\.FilesystemV2$'
+        run: ctest --test-dir build --output-on-failure -R '^(Kotonoha\.FilesystemV2|LucaSystemFormatTests)
+
+# Native smoke, not Emscripten, Android, macOS or all game runtime tests.
+
 
 # Native smoke, not Emscripten, Android, macOS or all game runtime tests.
