@@ -29,6 +29,7 @@ struct FetchAssetProvider::Slot {
   std::string remotePath;
   // Immutable byte slices indexed by their absolute origin in the file.
   std::map<std::uint64_t, std::shared_ptr<const std::vector<Uint8>>> chunks;
+  std::map<std::uint64_t, std::uint64_t> lastUse;
   bool failed = false;
   ErrorCode failure = ErrorCode::NetworkError;
   std::string message;
@@ -415,6 +416,7 @@ FetchAssetProvider::open(std::string_view id) const {
         if (cursor - start >= bytes.size())
           throw FilesystemError(ErrorCode::WouldBlock,
                                 "Remote range is not prefetched");
+        data->lastUse[start] = ++owner->accessClock_;
         const auto inChunk = static_cast<std::size_t>(cursor - start);
         const auto amount = std::min(count, bytes.size() - inChunk);
         std::memcpy(output, bytes.data() + inChunk, amount);
@@ -544,20 +546,72 @@ void FetchAssetProvider::complete(const Job &job, unsigned status,
       return;
     }
   }
-  if (cached_ > budget_ ||
-      count > static_cast<std::uint64_t>(budget_ - cached_)) {
+  // HTTP 200 on a requested Range means this server returned the entire
+  // object. Large GPKs cannot be buffered to emulate random-access reads.
+  constexpr std::uint64_t kMaxFullObjectFallback = 8u << 20;
+  if (!job.full && wholeResponse && count > kMaxFullObjectFallback) {
     file->failed = true;
-    file->failure = ErrorCode::IOError;
-    file->message = "Remote cache memory budget exceeded";
+    file->failure = ErrorCode::RangeUnsupported;
+    file->message =
+        "HTTP 200 returned an entire large archive instead of HTTP 206 "
+        "Partial Content. Serve game-assets with HTTP Range support "
+        "(e.g. python3 tools/serve_web.py)";
     return;
+  }
+  if (count > static_cast<std::uint64_t>(budget_)) {
+    file->failed = true;
+    file->failure = ErrorCode::RangeUnsupported;
+    file->message = "HTTP response is too large; server must return "
+                    "206 Partial Content for Range reads";
+    return;
+  }
+
+  // Bounded LRU across all files. Files often need only index/footer
+  // pages from many GPKs, followed by different payload pages during play.
+  // Evict older cached ranges rather than permanently failing a GPK when
+  // the cumulative page volume exceeds the memory budget.
+  while (count > static_cast<std::uint64_t>(budget_ - cached_)) {
+    std::shared_ptr<Slot> oldestFile;
+    std::uint64_t oldestOffset = 0;
+    std::uint64_t oldestStamp = UINT64_MAX;
+    for (auto &[name, entry] : files_) {
+      for (const auto &[offset, stamp] : entry->lastUse) {
+        if (stamp < oldestStamp) {
+          oldestStamp = stamp;
+          oldestFile = entry;
+          oldestOffset = offset;
+        }
+      }
+    }
+    if (!oldestFile) {
+      file->failed = true;
+      file->failure = ErrorCode::IOError;
+      file->message = "Fetch cache accounting mismatch";
+      return;
+    }
+    const auto it = oldestFile->chunks.find(oldestOffset);
+    if (it == oldestFile->chunks.end()) {
+      oldestFile->lastUse.erase(oldestOffset);
+      continue;
+    }
+    cached_ -= it->second->size();
+    oldestFile->chunks.erase(it);
+    oldestFile->lastUse.erase(oldestOffset);
   }
   auto bytes = std::make_shared<std::vector<Uint8>>();
   if (count) {
     auto *first = reinterpret_cast<const Uint8 *>(body);
     bytes->assign(first, first + static_cast<std::size_t>(count));
   }
+  const auto offset = wholeResponse ? 0 : job.start;
+  if (auto previous = file->chunks.find(offset);
+      previous != file->chunks.end()) {
+    cached_ -= previous->second->size();
+    file->chunks.erase(previous);
+  }
   cached_ += static_cast<std::size_t>(count);
-  file->chunks.emplace(wholeResponse ? 0 : job.start, std::move(bytes));
+  file->chunks.emplace(offset, std::move(bytes));
+  file->lastUse[offset] = ++accessClock_;
 }
 
 #ifdef __EMSCRIPTEN__
@@ -643,6 +697,11 @@ void FetchAssetProvider::pump() {
                      ctx->path.c_str());
         failed();
       }
+      // Only deduplicate queued/in-flight jobs. An evicted page must be
+      // eligible for a new request on the next read of that offset.
+      provider->requested_.erase(ctx->path + ":" +
+          std::to_string(ctx->start) + ":" + std::to_string(ctx->length) +
+          (ctx->lowercaseAttempt ? ":lower" : ":exact"));
       const auto it = provider->files_.find(ctx->path);
       ++provider->completed_;
       if (it != provider->files_.end() && it->second->failed) {
