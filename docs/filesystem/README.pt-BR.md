@@ -38,3 +38,5 @@ O novo overload `MediaPlayer::open(FileHandle, logicalName, ...)` pode preparar 
 ## Fallback automático no navegador
 
 No Emscripten, arquivos ausentes ou de tamanho divergente em `game-assets` podem ser atendidos por `FallbackMount(local, FetchAssetProvider)` após o manifesto ser lido assincronamente no preRun. O provider padrão e `Filesystem::mount("/game-assets")` aceitam esse roteamento. A inicialização não prossegue se o pré-carregamento necessário exceder 128 MiB ou o manifesto falhar. Bytes HTTP não são copiados para MEMFS. Veja [build web](../BUILD_WEB.pt-BR.md) e [matriz de migração](MIGRATION.pt-BR.md). O manifesto remoto não migra automaticamente indexadores específicos de jogos.
+
+A migração direta de montagens agora abrange DAT ADV3 de Snow, PAK de Luca, XP3 de Kirikiri e o provider solto Pmail, além de CMP Summer e RPA DDLC. Os adaptadores de paths físicos continuam onde o runtime ainda precisa; veja a [matriz de migração](MIGRATION.pt-BR.md). Compilação de módulos não substitui testes reais dos jogos, Android, Xcode e navegador.
