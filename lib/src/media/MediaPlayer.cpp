@@ -1,4 +1,6 @@
 #include <Kotonoha/core/AssetProvider.hpp>
+#include <Kotonoha/Filesystem/Filesystem.hpp>
+#include <Kotonoha/Filesystem/Sources/SDLFileSource.hpp>
 #include <Kotonoha/core/UI.hpp>
 #include <Kotonoha/media/FFmpegSupport.hpp>
 #include <Kotonoha/media/MediaPlayer.hpp>
@@ -22,7 +24,6 @@ extern "C" {
 #include <cstdint>
 #include <deque>
 #include <filesystem>
-#include <fstream>
 #include <mutex>
 #include <stdexcept>
 #include <string>
@@ -50,6 +51,41 @@ struct FrameDeleter {
 };
 using Frame = std::unique_ptr<AVFrame, FrameDeleter>;
 
+class HandleAssetStream final : public AssetStream {
+  std::unique_ptr<Filesystem::FileHandle> file_;
+
+public:
+  explicit HandleAssetStream(std::unique_ptr<Filesystem::FileHandle> file)
+      : file_(std::move(file)) {
+    if (!file_)
+      throw std::invalid_argument("Media file handle is null");
+  }
+  std::uint64_t size() const override {
+    const auto n = file_->size();
+    if (n < 0)
+      throw std::runtime_error("Media file size is unknown");
+    return static_cast<std::uint64_t>(n);
+  }
+  std::uint64_t tell() const override {
+    const auto n = file_->tell();
+    if (n < 0)
+      throw std::runtime_error("Cannot tell media file position");
+    return static_cast<std::uint64_t>(n);
+  }
+  std::size_t read(Uint8 *destination, std::size_t count) override {
+    const auto n = file_->read(destination, count);
+    if (n < 0)
+      throw std::runtime_error("Media I/O read failed");
+    return static_cast<std::size_t>(n);
+  }
+  bool seek(std::uint64_t offset) override {
+    if (offset > static_cast<std::uint64_t>(INT64_MAX))
+      return false;
+    return file_->seek(static_cast<std::int64_t>(offset),
+                       Filesystem::SeekOrigin::Begin) ==
+           static_cast<std::int64_t>(offset);
+  }
+};
 } // namespace
 
 struct MediaPlayer::State {
@@ -87,7 +123,7 @@ struct MediaPlayer::State {
   std::uint64_t webVideoFed = 0;
   std::string webVideoId, webVideoMime, webVideoUrl;
   std::string webFallbackPath, webFallbackId;
-  std::unique_ptr<std::ifstream> webVideoFile;
+  std::unique_ptr<Filesystem::FileHandle> webVideoFile;
 
   static std::string mimeForMediaPath(const std::string &path,
                                       bool audioOnly) {
@@ -252,14 +288,16 @@ struct MediaPlayer::State {
     const std::string mime = mimeForMediaPath(path, audioOnly);
     if (!canPlayWebMedia(mime))
       return false;
-    auto file = std::make_unique<std::ifstream>(path, std::ios::binary);
-    if (!*file)
+    std::unique_ptr<Filesystem::FileHandle> file;
+    try {
+      file = std::make_unique<Filesystem::SDLFileSource>(
+          std::filesystem::path(path));
+    } catch (const std::exception &) {
       return false;
-    file->seekg(0, std::ios::end);
-    const auto end = file->tellg();
+    }
+    const auto end = file->size();
     if (end <= 0)
       return false;
-    file->seekg(0, std::ios::beg);
     webVideo = true;
     webAudioOnly = mime.compare(0, 6, "audio/") == 0;
     webVideoId = path;
@@ -316,9 +354,10 @@ struct MediaPlayer::State {
 
   std::size_t readWebVideo(Uint8 *buffer, std::size_t size) {
     if (webVideoFile) {
-      webVideoFile->read(reinterpret_cast<char *>(buffer),
-                         static_cast<std::streamsize>(size));
-      return static_cast<std::size_t>(webVideoFile->gcount());
+      const auto amount = webVideoFile->read(buffer, size);
+      if (amount < 0)
+        throw std::runtime_error("Cannot read browser media");
+      return static_cast<std::size_t>(amount);
     }
     if (assetStream)
       return assetStream->read(buffer, size);
@@ -352,7 +391,13 @@ struct MediaPlayer::State {
       const auto want = static_cast<std::size_t>(std::min<std::uint64_t>(
           std::min(budget, chunkMax), webVideoSize - webVideoFed));
       chunk.resize(want);
-      const auto count = readWebVideo(chunk.data(), chunk.size());
+      std::size_t count = 0;
+      try {
+        count = readWebVideo(chunk.data(), chunk.size());
+      } catch (const std::exception &) {
+        webVideoFailed = true;
+        return;
+      }
       if (!count) {
         webVideoFailed = true;
         return;
@@ -900,6 +945,16 @@ MediaPlayer::MediaPlayer()
 MediaPlayer::MediaPlayer(AudioMixer &value) : mixer(value) {}
 MediaPlayer::~MediaPlayer() = default;
 
+void MediaPlayer::open(std::unique_ptr<Filesystem::FileHandle> source,
+                       bool audioOnly, const std::string &channelName) {
+  auto next = std::make_unique<State>();
+  next->channel = mixer.channel(
+      channelName.empty() ? (audioOnly ? "audio" : "video") : channelName);
+  next->attachAssetStream(
+      std::make_unique<HandleAssetStream>(std::move(source)));
+  start(std::move(next), {}, audioOnly, false);
+}
+
 void MediaPlayer::open(const std::string &path, bool audioOnly,
                        const std::string &channelName) {
   auto next = std::make_unique<State>();
@@ -918,7 +973,9 @@ void MediaPlayer::open(const std::string &path, bool audioOnly,
 #endif
   if (!std::filesystem::is_regular_file(path))
     throw std::runtime_error("Media must be a local file: " + path);
-  start(std::move(next), path, audioOnly, false);
+  next->attachAssetStream(std::make_unique<HandleAssetStream>(
+      std::make_unique<Filesystem::SDLFileSource>(std::filesystem::path(path))));
+  start(std::move(next), {}, audioOnly, false);
 }
 
 void MediaPlayer::open(const AssetProvider &assets, const std::string &id,
@@ -936,7 +993,10 @@ void MediaPlayer::open(const AssetProvider &assets, const std::string &id,
 #endif
   const std::string path = assets.localPath(id);
   if (!path.empty() && std::filesystem::is_regular_file(path)) {
-    start(std::move(next), path, audioOnly, false);
+    next->attachAssetStream(std::make_unique<HandleAssetStream>(
+        std::make_unique<Filesystem::SDLFileSource>(
+            std::filesystem::path(path))));
+    start(std::move(next), {}, audioOnly, false);
     return;
   }
   if (auto source = assets.openStream(id))
@@ -961,7 +1021,10 @@ void MediaPlayer::prepare(const AssetProvider &assets, const std::string &id,
 #endif
   const std::string path = assets.localPath(id);
   if (!path.empty() && std::filesystem::is_regular_file(path)) {
-    start(std::move(next), path, audioOnly, true);
+    next->attachAssetStream(std::make_unique<HandleAssetStream>(
+        std::make_unique<Filesystem::SDLFileSource>(
+            std::filesystem::path(path))));
+    start(std::move(next), {}, audioOnly, true);
     return;
   }
   if (auto source = assets.openStream(id))
@@ -983,8 +1046,9 @@ void MediaPlayer::openDecoder(State &next, const std::string &url,
     throw std::bad_alloc();
   next.format->interrupt_callback = {State::interrupt, &next};
   AVDictionary *options = nullptr;
-  check(av_dict_set(&options, "protocol_whitelist", "file", 0),
-        "Configure local media access");
+  if (!next.io)
+    check(av_dict_set(&options, "protocol_whitelist", "file", 0),
+          "Configure local media access");
   const int opened = avformat_open_input(
       &next.format, next.io ? nullptr : url.c_str(), nullptr, &options);
   av_dict_free(&options);
@@ -1025,7 +1089,10 @@ MediaPlayer::prepareInput(const AssetProvider &assets, const std::string &id,
 #endif
   const std::string path = assets.localPath(id);
   if (!path.empty() && std::filesystem::is_regular_file(path)) {
-    openDecoder(*next, path, audioOnly);
+    next->attachAssetStream(std::make_unique<HandleAssetStream>(
+        std::make_unique<Filesystem::SDLFileSource>(
+            std::filesystem::path(path))));
+    openDecoder(*next, {}, audioOnly);
   } else {
     if (auto stream = assets.openStream(id))
       next->attachAssetStream(std::move(stream));
