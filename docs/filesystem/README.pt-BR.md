@@ -27,4 +27,6 @@ Os testes sintéticos cobrem leitura de diretórios/ISO, seek/EOF, overlays, nom
 
 ## Migração pendente
 
-O adaptador de paths físicos segue disponível para os providers antigos. Próximos marcos: separar a política de `StoragePaths` com shim; migrar pacotes CMP e indexadores de Summer; migrar demais providers; adaptar FFmpeg via AVIO; implementar Fetch/Blob com modelo seguro de navegador e modos BIN/CUE necessários. Backend HTTP, ponte síncrona Web e adaptador FFmpeg ainda não estão implementados.
+O adaptador de paths físicos segue disponível para os providers antigos. Próximos marcos: migrar pacotes CMP e indexadores de Summer; migrar demais providers; adaptar FFmpeg via AVIO; implementar Fetch/Blob com modelo seguro de navegador e modos BIN/CUE necessários. Backend HTTP, ponte síncrona Web e adaptador FFmpeg ainda não estão implementados.
+
+A política StoragePaths foi movida para `lib/src/Filesystem/StoragePaths.cpp`; o antigo `core/FileSystem.hpp` é um shim. Os nomes públicos e os diretórios de saves permanecem iguais.

@@ -27,4 +27,6 @@ Synthetic tests cover directory/ISO reads, seek/EOF, overlays, collisions, symli
 
 ## Pending migration
 
-The physical-path compatibility adapter remains for older providers. Next phases: move the existing storage policy into `StoragePaths` with a shim; migrate Summer CMP/indexing to mounted input; adapt other providers; connect FFmpeg via custom AVIO; implement safe Fetch/Blob for browsers and BIN/CUE modes as required. No HTTP backend, web sync bridge or FFmpeg adapter is claimed yet.
+The physical-path compatibility adapter remains for older providers. Next phases: migrate Summer CMP/indexing to mounted input; adapt other providers; connect FFmpeg via custom AVIO; implement safe Fetch/Blob for browsers and BIN/CUE modes as required. No HTTP backend, web sync bridge or FFmpeg adapter is claimed yet.
+
+The legacy StoragePaths implementation was moved to `lib/src/Filesystem/StoragePaths.cpp`; the old `core/FileSystem.hpp` remains a forwarding shim. The save directory policy and public symbols are unchanged.

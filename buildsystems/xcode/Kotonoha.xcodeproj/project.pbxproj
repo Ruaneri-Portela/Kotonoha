@@ -285,7 +285,6 @@
 		728818139C51490431470FB8 /* SchoolDaysSaveLoadRenderPlan.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FDCD2319A08A9AD7AF38D4A0 /* SchoolDaysSaveLoadRenderPlan.cpp */; };
 		72B2B4AD3F5C364F7FF071C9 /* SchoolDaysDisplayPolicy.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 04C29A9EA7CE0AE5ECC40C87 /* SchoolDaysDisplayPolicy.cpp */; };
 		72E290C84FCDEF3E84D55CC3 /* DdlcSession.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA64C0CEE2E21C91DEF07E99 /* DdlcSession.cpp */; };
-		72FEAC152779E087D10197D2 /* FileSystem.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 209B80EF693F2C94CF5A8A43 /* FileSystem.cpp */; };
 		73250ED7C7AF624F42C8B9DD /* SchoolDaysEndBackgroundResolver.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 8C9468B2F50950EA58F77F77 /* SchoolDaysEndBackgroundResolver.cpp */; };
 		739AE4E288D5FDD396CA5EE2 /* Replay.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 59EDD75E548BEEB417C71E02 /* Replay.cpp */; };
 		74C9A2B46EFA437A7FBB9B91 /* SchoolDaysTitleRenderPlan.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D487B040E6AE1CCCAC8C59AB /* SchoolDaysTitleRenderPlan.cpp */; };
@@ -594,7 +593,6 @@
 		F5C982CACD476DF0338B4A3E /* SchoolDaysSaveService.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 133FEB14CFB5BEAF36775A44 /* SchoolDaysSaveService.cpp */; };
 		F5DBD059419A24044C75A155 /* Archive.cpp in Sources */ = {isa = PBXBuildFile; fileRef = B6D2DF48314E047478BF0880 /* Archive.cpp */; };
 		F640B00EF2C1E943AC2B4A22 /* Engine.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 95EB7E452BD54DD736B39583 /* Engine.cpp */; };
-		F656B16CDC91D1A9F6C7A704 /* FileSystem.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 209B80EF693F2C94CF5A8A43 /* FileSystem.cpp */; };
 		F6EA47C8273CDF71EB903F93 /* KotonohaImGui.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = BE4CD7359ED5E7D6A1EBB231 /* KotonohaImGui.framework */; };
 		F81214221B9DA4285472C5DC /* VoiceDubbingApplet.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C98208D243C8534A4A1D8CE9 /* VoiceDubbingApplet.cpp */; };
 		F86F8960659B7E4BCE180FB3 /* Source.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 369BEFED27D0BB808D48CC69 /* Source.cpp */; };
@@ -631,6 +629,8 @@
 		F1F1F10000000000000000D1 /* ISO9660Mount.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F1F1F1000000000000000068 /* ISO9660Mount.cpp */; };
 		F1F1F10000000000000000D2 /* Filesystem.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F1F1F1000000000000000069 /* Filesystem.cpp */; };
 		F1F1F10000000000000000D3 /* Filesystem.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F1F1F1000000000000000069 /* Filesystem.cpp */; };
+		F1F1F10000000000000000D4 /* StoragePaths.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F1F1F100000000000000006A /* StoragePaths.cpp */; };
+		F1F1F10000000000000000D5 /* StoragePaths.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F1F1F100000000000000006A /* StoragePaths.cpp */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -1265,7 +1265,6 @@
 		1D0C1E5C0F9A1B2C3D4E5001 /* DokiDoki.macOS.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = DokiDoki.macOS.xcconfig; path = Config/DokiDoki.macOS.xcconfig; sourceTree = SOURCE_ROOT; };
 		1D0C1E5C0F9A1B2C3D4E5002 /* DokiDoki.iOS.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = DokiDoki.iOS.xcconfig; path = Config/DokiDoki.iOS.xcconfig; sourceTree = SOURCE_ROOT; };
 		1D9FA831D25A1165C076BA36 /* reallive.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = reallive.h; path = ../../games/reallive/vendor/libreallive/reallive.h; sourceTree = SOURCE_ROOT; };
-		209B80EF693F2C94CF5A8A43 /* FileSystem.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = FileSystem.cpp; path = ../../lib/src/core/FileSystem.cpp; sourceTree = SOURCE_ROOT; };
 		211037564817A2932CBA705A /* game-assets */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "game-assets"; path = "../../games/zero-no-tsukaima/game-assets"; sourceTree = SOURCE_ROOT; };
 		21399AF4EDC475966F00B67C /* KirikiriRuntime.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = KirikiriRuntime.cpp; path = ../../games/kirikiri/src/KirikiriRuntime.cpp; sourceTree = SOURCE_ROOT; };
 		226C941B21C1F85269ADD270 /* RealLiveAssets.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = RealLiveAssets.cpp; path = ../../modules/providers/reallive/src/RealLiveAssets.cpp; sourceTree = SOURCE_ROOT; };
@@ -1543,6 +1542,8 @@
 		F1F1F1000000000000000131 /* DirectoryMount.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = DirectoryMount.hpp; path = ../../lib/include/Kotonoha/Filesystem/Mounts/DirectoryMount.hpp; sourceTree = SOURCE_ROOT; };
 		F1F1F1000000000000000132 /* LayeredMount.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = LayeredMount.hpp; path = ../../lib/include/Kotonoha/Filesystem/Mounts/LayeredMount.hpp; sourceTree = SOURCE_ROOT; };
 		F1F1F1000000000000000133 /* ISO9660Mount.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = ISO9660Mount.hpp; path = ../../lib/include/Kotonoha/Filesystem/Mounts/ISO9660Mount.hpp; sourceTree = SOURCE_ROOT; };
+		F1F1F100000000000000006A /* StoragePaths.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = StoragePaths.cpp; path = ../../lib/src/Filesystem/StoragePaths.cpp; sourceTree = SOURCE_ROOT; };
+		F1F1F1000000000000000134 /* StoragePaths.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = StoragePaths.hpp; path = ../../lib/include/Kotonoha/Filesystem/StoragePaths.hpp; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -1808,7 +1809,6 @@
 				79AED9CD2E8FDC21D4FBBA23 /* CommandLine.cpp */,
 				9BE4FE61A2DEA0B5468C0CA1 /* DiscImage.cpp */,
 				95EB7E452BD54DD736B39583 /* Engine.cpp */,
-				209B80EF693F2C94CF5A8A43 /* FileSystem.cpp */,
 				F1F1F1000000000000000010 /* Filesystem V2 */,
 				0952B39C0D559C76E51E70F3 /* GameLauncher.cpp */,
 				54BFA310BFD63BECBAEE3EBA /* Launcher.cpp */,
@@ -2707,7 +2707,9 @@
 		F1F1F1000000000000000010 /* Filesystem V2 */ = {
 			isa = PBXGroup;
 			children = (
-				F1F1F1000000000000000064 /* Path.cpp */,
+							F1F1F100000000000000006A /* StoragePaths.cpp */,
+				F1F1F1000000000000000134 /* StoragePaths.hpp */,
+	F1F1F1000000000000000064 /* Path.cpp */,
 				F1F1F1000000000000000065 /* SDLFileSource.cpp */,
 				F1F1F1000000000000000066 /* DirectoryMount.cpp */,
 				F1F1F1000000000000000067 /* LayeredMount.cpp */,
@@ -4394,7 +4396,7 @@
 				9310F51AFBCBFA8DF66A91D6 /* Clock.cpp in Sources */,
 				F937A1EA9AEEFEE04024F1DB /* VisualTransition.cpp in Sources */,
 				4B962571DF6AFDE6BB60414B /* PresentedFrame.cpp in Sources */,
-				F656B16CDC91D1A9F6C7A704 /* FileSystem.cpp in Sources */,
+				F1F1F10000000000000000D4 /* StoragePaths.cpp in Sources */,
 				F1F1F10000000000000000C8 /* Path.cpp in Sources */,
 				F1F1F10000000000000000CA /* SDLFileSource.cpp in Sources */,
 				F1F1F10000000000000000CC /* DirectoryMount.cpp in Sources */,
@@ -4542,7 +4544,7 @@
 				37B7039E1E7C8549774ED9FF /* Clock.cpp in Sources */,
 				E808B45825E13CBDA11282FC /* VisualTransition.cpp in Sources */,
 				D5B9B0BE3818058DD7ECF494 /* PresentedFrame.cpp in Sources */,
-				72FEAC152779E087D10197D2 /* FileSystem.cpp in Sources */,
+				F1F1F10000000000000000D5 /* StoragePaths.cpp in Sources */,
 				F1F1F10000000000000000C9 /* Path.cpp in Sources */,
 				F1F1F10000000000000000CB /* SDLFileSource.cpp in Sources */,
 				F1F1F10000000000000000CD /* DirectoryMount.cpp in Sources */,
