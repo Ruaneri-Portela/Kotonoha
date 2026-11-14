@@ -13,6 +13,7 @@ class FallbackMount final : public IMount {
 public:
   FallbackMount(std::shared_ptr<IMount> local,
                 std::shared_ptr<IMount> remote);
+  bool isKnownRegularFile(std::string_view path) const override;
   bool exists(std::string_view path) const override;
   FileInfo stat(std::string_view path) const override;
   std::vector<FileInfo> list(std::string_view dir) const override;
