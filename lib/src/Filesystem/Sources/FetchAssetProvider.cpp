@@ -331,7 +331,12 @@ bool FetchAssetProvider::exists(std::string_view path) const {
   return nodes_.count(key) != 0;
 }
 FileInfo FetchAssetProvider::stat(std::string_view path) const {
-  const auto it = nodes_.find(lookupKey(path, true));
+  const auto key = lookupKey(path, true);
+  // Direct stat callers must get the same asynchronous discovery guarantee
+  // as exists()/open(), rather than silently requiring an initial exists().
+  if (discover_ && !nodes_.count(key))
+    (void)exists(path);
+  const auto it = nodes_.find(key);
   if (it == nodes_.end())
     throw FilesystemError(ErrorCode::NotFound, "Remote file metadata unavailable");
   return it->second;
