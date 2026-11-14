@@ -14,6 +14,7 @@ Comece pelo [README do projeto](../README.pt-BR.md) e escolha um assunto:
 | Assets e patches | [Overlays e traduções](ASSET_OVERLAYS.pt-BR.md) |
 | Caminhos de arquivos | [Política de diretórios](DIRECTORY_POLICY.pt-BR.md) |
 | Interface, legendas e preferências | [Configurações do motor](ENGINE_SETTINGS.pt-BR.md) |
+| Debug UI, applets e versão Git | [Depuração e diagnósticos SDL](DEBUG_TOOLS.pt-BR.md) |
 | Ports de jogos | [Índice de ports](../games/README.pt-BR.md) |
 | Estrutura interna | [Máquinas virtuais](../modules/vms/README.pt-BR.md) · [Provedores](../modules/providers/README.pt-BR.md) |
 
