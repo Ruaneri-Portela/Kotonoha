@@ -28,6 +28,7 @@ class FetchAssetProvider final
     std::uint64_t start = 0;
     std::uint64_t length = 0;
     bool full = false;
+    bool discovery = false;
   };
   std::string base_;
   std::map<std::string, FileInfo> nodes_;
@@ -38,6 +39,7 @@ class FetchAssetProvider final
   std::size_t completed_ = 0, failures_ = 0, requestedCount_ = 0;
   std::size_t budget_ = 64u << 20;
   bool started_ = false;
+  bool discover_ = false;
 
   FetchAssetProvider(std::string base, std::size_t budget);
   void enqueue(Job job);
@@ -55,6 +57,13 @@ protected:
 public:
   // Manifest entries: {"entries":[{"path":"DATA/a.pak","size":123}, ...]}.
   // generator also retains the old "files" array for legacy WebAssetFetch.
+  // Manifest-free mode discovers named objects with asynchronous GETs.
+  // Call requestAsset() and wait for completion before synchronous reads.
+  static std::shared_ptr<FetchAssetProvider>
+  fromUrl(std::string baseUrl, std::size_t cacheBudget = 64u << 20);
+  bool requestAsset(std::string_view id);
+  bool manifestFree() const noexcept { return discover_; }
+
   static std::shared_ptr<FetchAssetProvider>
   fromManifest(std::string baseUrl, const std::string &json,
                std::size_t cacheBudget = 64u << 20);
