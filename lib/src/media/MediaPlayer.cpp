@@ -71,6 +71,8 @@ struct MediaPlayer::State {
   SDLHandle<SDL_AudioStream, SDL_DestroyAudioStream> stream;
   std::shared_ptr<AudioChannel> channel;
   TexturePtr texture;
+  SDL_PixelFormat textureFormat = SDL_PIXELFORMAT_UNKNOWN;
+  bool yuvTextureUnavailable = false;
   Uint64 textureSerial = 0;
 #ifdef __EMSCRIPTEN__
   bool webVideo = false;
@@ -827,7 +829,24 @@ struct MediaPlayer::State {
   }
 
   void upload(RendererRef renderer, AVFrame *image) {
-    if (!texture || width != image->width || height != image->height) {
+    // GLES2 can sample planar 4:2:0 directly. Keep DVD MPEG frames in their
+    // decoder format so the GPU performs YUV conversion during rendering.
+    // Other matrices/ranges retain the established swscale path.
+    const bool directYuv =
+        image->format == AV_PIX_FMT_YUV420P && !(image->width & 1) &&
+        !(image->height & 1) &&
+        (image->color_range == AVCOL_RANGE_UNSPECIFIED ||
+         image->color_range == AVCOL_RANGE_MPEG) &&
+        (image->colorspace == AVCOL_SPC_UNSPECIFIED ||
+         image->colorspace == AVCOL_SPC_BT470BG ||
+         image->colorspace == AVCOL_SPC_SMPTE170M) &&
+        image->linesize[0] > 0 && image->linesize[1] > 0 &&
+        image->linesize[2] > 0;
+    const SDL_PixelFormat wanted =
+        directYuv && !yuvTextureUnavailable ? SDL_PIXELFORMAT_IYUV
+                                            : SDL_PIXELFORMAT_RGBA32;
+    if (!texture || width != image->width || height != image->height ||
+        textureFormat != wanted) {
       width = image->width;
       height = image->height;
       const double sar = image->sample_aspect_ratio.num > 0 &&
@@ -835,11 +854,29 @@ struct MediaPlayer::State {
                              ? av_q2d(image->sample_aspect_ratio)
                              : 1.0;
       aspect = width * sar / height;
-      texture.reset(SDL_CreateTexture(&renderer, SDL_PIXELFORMAT_RGBA32,
-                                      SDL_TEXTUREACCESS_STREAMING, width,
-                                      height));
+      texture.reset(SDL_CreateTexture(&renderer, wanted,
+                                      SDL_TEXTUREACCESS_STREAMING, width, height));
+      textureFormat = wanted;
+      if (!texture && directYuv) {
+        yuvTextureUnavailable = true;
+        texture.reset(SDL_CreateTexture(&renderer, SDL_PIXELFORMAT_RGBA32,
+                                        SDL_TEXTUREACCESS_STREAMING, width,
+                                        height));
+        textureFormat = SDL_PIXELFORMAT_RGBA32;
+      }
       if (!texture)
         throw std::runtime_error(SDL_GetError());
+      if (textureFormat == SDL_PIXELFORMAT_IYUV)
+        SDL_Log("[Kotonoha] Direct YUV420P video texture");
+    }
+    if (directYuv && textureFormat == SDL_PIXELFORMAT_IYUV) {
+      if (!SDL_UpdateYUVTexture(texture.get(), nullptr, image->data[0],
+                                image->linesize[0], image->data[1],
+                                image->linesize[1], image->data[2],
+                                image->linesize[2]))
+        throw std::runtime_error(SDL_GetError());
+      textureSerial = ++nextTextureSerial;
+      return;
     }
     scaler = sws_getCachedContext(
         scaler, width, height, static_cast<AVPixelFormat>(image->format), width,
