@@ -7,9 +7,16 @@ namespace Kotonoha::Providers {
 class SummerAssets final : public Kotonoha::AssetProvider {
   std::map<std::string, std::unique_ptr<SummerRadish::Pack>> packs;
   std::filesystem::path discDirectory;
+  std::shared_ptr<Kotonoha::Filesystem::Filesystem> source_;
 
 public:
-  explicit SummerAssets(std::filesystem::path root);
+  explicit SummerAssets(std::filesystem::path root,
+                        std::filesystem::path overlay = {});
+  explicit SummerAssets(
+      std::shared_ptr<Kotonoha::Filesystem::Filesystem> mounted);
+  std::shared_ptr<Kotonoha::Filesystem::Filesystem> source() const {
+    return source_;
+  }
   std::string name() const override { return "Summer Radish CMP"; }
   bool containsAsset(const std::string &) const override;
   SummerRadish::Bytes readAsset(const std::string &) const override;
