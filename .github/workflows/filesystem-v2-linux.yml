@@ -40,12 +40,12 @@ jobs:
             -DBUILD_TESTING=ON -DSDLTTF_PLUTOSVG=OFF \
             -DKOTONOHA_BUILD_EXAMPLE=ON -DKOTONOHA_BUILD_LUCA_SYSTEM=ON -DKOTONOHA_BUILD_SNOW=ON -DKOTONOHA_BUILD_PMAIL=ON -DKOTONOHA_BUILD_KIRIKIRI=ON
       - name: Compile Filesystem V2
-        run: cmake --build build --target KotonohaFilesystemV2Tests LucaSystemFormatTests KirikiriXp3Tests kotonoha_provider_adv kotonoha_provider_pmail PmailPort Pmail --parallel 3
+        run: cmake --build build --target KotonohaFilesystemV2Tests LucaSystemFormatTests KirikiriXp3Tests kotonoha_provider_adv kotonoha_provider_pmail PmailPort Pmail PmailPackBytesCheck --parallel 3
       - name: Run Filesystem V2 regression tests
         env:
           SDL_VIDEO_DRIVER: dummy
           SDL_AUDIO_DRIVER: dummy
-        run: ctest --test-dir build --output-on-failure -R "Kotonoha[.]FilesystemV2|LucaSystemFormatTests|KirikiriXp3"
+        run: ctest --test-dir build --output-on-failure -R "Kotonoha[.]FilesystemV2|LucaSystemFormatTests|KirikiriXp3|Pmail[.]PackBytes"
 
 # Native smoke, not Emscripten, Android, macOS or all game runtime tests.
 
