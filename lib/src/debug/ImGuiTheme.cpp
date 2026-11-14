@@ -227,14 +227,21 @@ void cardEnd() {
 }
 
 void badge(const char *label, ImVec4 color) {
-  ImGui::PushStyleColor(ImGuiCol_Text, {1.f, 1.f, 1.f, 1.f});
-  ImGui::PushStyleColor(ImGuiCol_FrameBg, color);
-  ImGui::PushStyleColor(ImGuiCol_Border, {0.f, 0.f, 0.f, 0.f});
-  ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 6.0f);
-  ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, {6.0f, 2.0f});
-  ImGui::TextUnformatted(label);
-  ImGui::PopStyleVar(2);
-  ImGui::PopStyleColor(3);
+  // Draw the actual pill rather than pushing ImGuiCol_FrameBg around plain
+  // text (TextUnformatted never uses FrameBg). Keep it sized to its label.
+  const char *value = label ? label : "";
+  const auto text = ImGui::CalcTextSize(value);
+  const float scale = ImGui::GetStyle().FontSizeBase / 16.0f;
+  const ImVec2 pad{8.f * scale, 4.f * scale};
+  const ImVec2 pos = ImGui::GetCursorScreenPos();
+  ImGui::Dummy({text.x + 2 * pad.x, text.y + 2 * pad.y});
+  auto *draw = ImGui::GetWindowDrawList();
+  draw->AddRectFilled(pos,
+                      {pos.x + text.x + 2 * pad.x,
+                       pos.y + text.y + 2 * pad.y},
+                      ImGui::GetColorU32(color), 6.0f * scale);
+  draw->AddText({pos.x + pad.x, pos.y + pad.y},
+                IM_COL32(255, 255, 255, 255), value);
 }
 
 void valueRow(const char *label, const char *value, ImVec4 valueColor) {
@@ -255,12 +262,13 @@ bool toggleSwitch(const char *label, bool *v) {
   const float width = 40.f;
   const float thumbSize = 16.f;
   const ImVec2 labelSize = ImGui::CalcTextSize(label);
-  const bool hovered = ImGui::IsItemHovered();
   ImVec2 cursor = ImGui::GetCursorScreenPos();
   ImDrawList *draw = ImGui::GetWindowDrawList();
 
-  ImGui::InvisibleButton(label, ImVec2(width + 10.f + labelSize.x, height));
-  const bool clicked = ImGui::IsItemHovered() && ImGui::IsMouseClicked(0);
+  // InvisibleButton returns true for mouse, keyboard and gamepad nav
+  // activation, unlike the previous mouse-only hover/click check.
+  const bool clicked =
+      ImGui::InvisibleButton(label, ImVec2(width + 10.f + labelSize.x, height));
   if (clicked)
     *v = !*v;
 
