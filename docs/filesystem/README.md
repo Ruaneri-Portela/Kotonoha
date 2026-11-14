@@ -11,7 +11,7 @@ The authoritative design is the [original architecture specification](SPECIFICAT
 - `DirectoryMount`: indexed case-insensitive directory, safe relative lookup and symlink containment.
 - `LayeredMount`: source-file overlays with explicit priority, merged listings and separate logical-override lookup. A replaced package is never merged by entries with the original.
 - `ISO9660Mount`: reuses the existing `DiscImage` parser and range reads, without temporary full-disc extraction.
-- `Filesystem::mount(source)`: local directories and recognized ISO/BIN layouts only. Unsupported sources fail explicitly.
+- `Filesystem::mount(source)`: local directories, recognized ISO/BIN layouts and USTAR/PAX/GNU-longname TAR files. Unsupported sources fail explicitly.
 
 Saves, preferences and Documents **remain outside** this read-only API. The old experimental `UnifiedFileSystem` write API was removed, not promoted.
 

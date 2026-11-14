@@ -3,6 +3,7 @@
 #include <SDL3/SDL.h>
 
 #include <algorithm>
+#include <array>
 #include <chrono>
 #include <cstdint>
 #include <cstring>
@@ -195,6 +196,75 @@ void testISO() {
           "ISO seek or EOF failed");
 }
 
+
+void putOctal(std::array<char, 512> &header, std::size_t at,
+              std::size_t width, std::uint64_t value) {
+  auto current = value;
+  for (std::size_t i = 0; i < width - 1; ++i) {
+    header[at + width - 2 - i] =
+        static_cast<char>('0' + (current & 7));
+    current >>= 3;
+  }
+  require(current == 0, "TAR fixture overflow");
+  header[at + width - 1] = '\0';
+}
+
+void addTar(std::vector<std::uint8_t> &out,
+            const std::string &name,
+            const std::string &data,
+            char type = '0') {
+  std::array<char, 512> header{};
+  require(name.size() < 100, "TAR test path too long");
+  std::memcpy(header.data(), name.data(), name.size());
+  putOctal(header, 100, 8, 0644);
+  putOctal(header, 108, 8, 0);
+  putOctal(header, 116, 8, 0);
+  putOctal(header, 124, 12, data.size());
+  putOctal(header, 136, 12, 0);
+  std::memset(header.data() + 148, ' ', 8);
+  header[156] = type;
+  std::memcpy(header.data() + 257, "ustar", 5);
+  std::uint64_t checksum = 0;
+  for (auto value : header)
+    checksum += static_cast<std::uint8_t>(value);
+  putOctal(header, 148, 8, checksum);
+  out.insert(out.end(), header.begin(), header.end());
+  out.insert(out.end(), data.begin(), data.end());
+  out.resize((out.size() + 511) / 512 * 512, 0);
+}
+
+void testTAR() {
+  Temp temp;
+  const auto file = temp.root / "sample.tar";
+  std::vector<std::uint8_t> bytes;
+  addTar(bytes, "DATA/", "", '5');
+  addTar(bytes, "DATA/example.txt", "tar-content");
+  addTar(bytes, "empty.txt", "");
+  bytes.resize(bytes.size() + 1024, 0);
+  writeFile(file, bytes);
+  auto tar = VFS::Filesystem::mount(file.string());
+  require(tar->stat("DATA").type == VFS::FileType::Directory,
+          "Missing TAR directory");
+  require(tar->list("DATA").size() == 1, "Bad TAR listing");
+  require(readText(tar->open("data/EXAMPLE.TXT")) == "tar-content",
+          "TAR random-access file failed");
+  require(readText(tar->open("empty.txt")).empty(),
+          "Empty TAR entry failed");
+  auto first = tar->open("DATA/example.txt");
+  require(first->seek(-7, VFS::SeekOrigin::End) == 4,
+          "TAR seek from end failed");
+  char suffix[8]{};
+  require(first->read(suffix, 7) == 7 &&
+              std::string(suffix, 7) == "content",
+          "TAR slice cursor failed");
+
+  bytes[148] ^= 1; // corrupt checksum
+  writeFile(file, bytes);
+  expectCode(VFS::ErrorCode::CorruptImage, [&] {
+    VFS::Filesystem::mount(file.string());
+  });
+}
+
 void testDirectorySafety() {
   Temp temp;
   auto base = temp.root / "base";
@@ -223,6 +293,7 @@ int main() {
   try {
     testLocalAndOverlays();
     testISO();
+    testTAR();
     testDirectorySafety();
     std::cout << "Filesystem V2 tests passed\n";
   } catch (const std::exception &error) {
