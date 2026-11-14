@@ -12,6 +12,7 @@ on:
       - "tools/ValidateBuildMetadata.py"
       - "tools/generate_manifest.py"
       - "tools/check_web_shell.js"
+      - "tools/check_wasm_asyncify.py"
       - "tools/web_selftest.js"
       - "tools/web_example_smoke.js"
   push:
@@ -33,7 +34,9 @@ jobs:
         with:
           python-version: "3.12"
       - name: Check script syntax
-        run: python3 -m py_compile tools/audit_filesystem_v2.py tools/ValidateBuildMetadata.py tools/generate_manifest.py
+        run: python3 -m py_compile tools/audit_filesystem_v2.py tools/ValidateBuildMetadata.py tools/generate_manifest.py tools/check_wasm_asyncify.py
+      - name: Verify Asyncify binary export parser
+        run: python3 tools/check_wasm_asyncify.py --self-test
       - name: Check browser shell and test script syntax
         run: |
           node tools/check_web_shell.js
