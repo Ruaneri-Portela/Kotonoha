@@ -32,28 +32,14 @@ To test the optional web integration route, enable `-DKOTONOHA_WEB_SELFTEST=ON`,
 
 ## HTTP(S) game-assets fallback (Filesystem V2 draft)
 
-**Startup now waits for an explicit choice:** the HTML screen offers
-**Use local folder** or **Use HTTP(S)**. There is no timeout or automatic
-server selection. Choosing local imports `game-assets` and starts
-**without probing HTTP**, even if the server contains a manifest. Choosing
-HTTP(S) enables the manifest-aware provider (or direct Fetch when the
-manifest is unavailable). The selected origin is fixed for that startup.
-Neither HTTP data nor remote placeholders are copied to MEMFS.
+**Startup waits for an explicit choice:** **Use local folder** or
+**Use HTTP(S)**, without automatic selection. Local mode reads imported files
+without contacting the server. HTTP(S) **always boots directly using on-demand
+Fetch**, even with an empty, stale or missing `manifest.json`. The HTML does
+not require a manifest and never copies remote files into MEMFS.
 
-Publish `game-assets/manifest.json` with a size-aware `entries` array:
-
-```json
-{
-  "entries": [
-    {"path": "DATA/GRAPHIC.CMP", "size": 12345},
-    {"path": "OPENING.WEBM", "size": 67890}
-  ]
-}
-```
-
-Use `python3 tools/generate_manifest.py ./game-assets ./game-assets/manifest.json`
-to generate the manifest at deployment time. It also retains the `files` array
-for older downstream consumers of the manifest format.
+`tools/generate_manifest.py` remains available for optional external
+indexing, but the HTML startup does not consult it.
 
 By default, the browser resolves `game-assets/` relative to the page. You can
 configure an HTTPS CDN **before** the app script initializes:
@@ -64,14 +50,10 @@ configure an HTTPS CDN **before** the app script initializes:
 </script>
 ```
 
-Cross-origin hosting requires a correct CORS policy. The manifest is
-**optional**: if unavailable, the browser switches to a direct HTTP Fetch
-provider for known filenames. HTTP directories cannot be enumerated without
-an index. The **128 MiB startup preload limit** only applies to the legacy
-manifest flow. Direct Fetch uses HEAD and Range with Asyncify and a bounded
-in-memory cache; it does not make arbitrary directory scanning possible.
-A server without Range is only suitable for smaller files. There is no
-truly blocking browser-main-thread network API.
+Cross-origin hosts need correct CORS. Direct Fetch uses HEAD, GET Range,
+Asyncify and a bounded cache without blocking the browser main thread.
+Ordinary HTTP does not enumerate arbitrary filenames without an index;
+the port needs to know the filenames it wants.
 
 Local/remote startup is always manual. The legacy
 `window.KotonohaAutoServerAssets` switch is no longer needed.
@@ -110,8 +92,8 @@ path resolution and touchscreen gameplay must be tested separately.
 
 ### Manifest-free Fetch with Asyncify
 
-When `game-assets/manifest.json` cannot be loaded, the HTML bootstrap
-registers `game-assets/` as a direct Fetch mount without an index. Games can
+The HTML always registers `game-assets/` directly as a Fetch mount
+for HTTP(S) startup, without querying `manifest.json`. Games can
 access **known** relative paths without providing a manifest. The provider
 first requests HTTP `HEAD` to determine the file size; reads then use bounded
 `GET Range` requests and a byte cache. A small object from a server that
@@ -222,3 +204,17 @@ and landscape), Bluetooth/USB gamepads and browser background/resume.
 Unsupported directory pickers may allow only individual files at the root
 of `game-assets`; use HTTP(S) Fetch if nested local directories cannot be
 selected. The CI proves the automated subset, **not** 100% device parity.
+
+### Expected browser asset paths
+
+| Port | Known files to publish in `game-assets/` |
+|---|---|
+| Amagami | `Amagami.bin` or `Amagami.iso` |
+| Zero no Tsukaima | `ZeroNoTsukaima.bin` or `ZeroNoTsukaima.iso` |
+| Snow Radish | `SCRIPT.DAT` and `GRAPHIC.DAT` at root, `pack/` or `data/pack/` |
+| Pure Mail | `data/pack/script.dat`, other DATs and `data/movie/PM01L_I5.avi` (or an `.avi.webm` sidecar) |
+| School Days | KTRF route embedded by the build; 29 retail GPKs at root or `Packs/` |
+
+BIN/ISO readers now use VFS and HTTP Range without staging a whole disc in
+MEMFS. Video opens from a FileHandle; AVI playback still depends on decoder
+support or a WebM sidecar. Startup success cannot prove absent files exist.
