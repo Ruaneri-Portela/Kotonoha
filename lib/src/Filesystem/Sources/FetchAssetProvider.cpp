@@ -452,6 +452,7 @@ void FetchAssetProvider::complete(const Job &job, unsigned status,
     // A HEAD response exposes the length without downloading large disc
     // images. Cross-origin servers must expose Content-Length via CORS.
     std::string lengthValue;
+    std::string rangesValue;
     for (std::size_t offset = 0; offset < headers.size();) {
       const auto end = headers.find('\n', offset);
       auto line = headers.substr(offset, end == std::string::npos
@@ -467,6 +468,18 @@ void FetchAssetProvider::complete(const Job &job, unsigned status,
           while (!lengthValue.empty() &&
                  (lengthValue.back() == '\r' || lengthValue.back() == ' '))
             lengthValue.pop_back();
+        }
+        if (name == "accept-ranges") {
+          rangesValue = line.substr(colon + 1);
+          rangesValue.erase(0, rangesValue.find_first_not_of(" \t"));
+          while (!rangesValue.empty() &&
+                 (rangesValue.back() == '\r' || rangesValue.back() == ' '))
+            rangesValue.pop_back();
+          std::transform(rangesValue.begin(), rangesValue.end(),
+                         rangesValue.begin(),
+                         [](unsigned char c) {
+                           return static_cast<char>(std::tolower(c));
+                         });
         }
       }
       if (end == std::string::npos) break;
@@ -485,6 +498,19 @@ void FetchAssetProvider::complete(const Job &job, unsigned status,
       file->failed = true;
       file->failure = ErrorCode::NetworkError;
       file->message = "HEAD requires accessible Content-Length";
+      return;
+    }
+    // If the host does not advertise byte ranges, do not risk materializing
+    // a huge GPK as an ignored HTTP 200 response in the browser's heap.
+    // Small files can still fall back to a complete response.
+    constexpr std::uint64_t kSmallWholeObject = 8u << 20;
+    if (size > kSmallWholeObject && rangesValue != "bytes") {
+      file->failed = true;
+      file->failure = ErrorCode::RangeUnsupported;
+      file->message = "Large HTTP archive requires Accept-Ranges: bytes "
+                      "and 206 Partial Content. The server has not "
+                      "advertised Range support; use tools/serve_web.py "
+                      "or configure your existing static file host.";
       return;
     }
     if (job.lowercaseAttempt)
