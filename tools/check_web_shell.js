@@ -32,4 +32,15 @@ for (const symbol of [
   assert(html.includes(symbol), 'Missing web bootstrap interface: ' + symbol);
 }
 assert(html.includes('touch-action: none'), 'Touch gesture handling must stay active');
+assert(html.includes('id="browser-folder-tools" popover="manual"'),
+  'Persistent folder controls must live in the browser top layer');
+assert(html.includes('document.addEventListener("fullscreenchange", showPersistentTools)'),
+  'Fullscreen must re-promote the browser folder toolbar');
+assert(!html.includes('KotonohaAutoServerAssets'),
+  'Browser startup must not automatically select remote assets');
+assert(html.includes('setStatus("Escolha pasta local ou HTTP(S) para iniciar.")'),
+  'Boot must wait for an explicit source choice');
+assert(html.includes('setStatus("Pasta local montada. Iniciando engine...");'),
+  'Local startup must finish without a server manifest probe');
+
 console.log('Kotonoha HTML shell static checks passed (' + scripts.length + ' scripts).');
