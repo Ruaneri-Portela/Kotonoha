@@ -239,6 +239,20 @@ else ()
     set(kotonoha_json_target PkgConfig::JSON_C)
 endif ()
 
+# Emscripten SIDE_MODULE links use wasm-ld, which extracts objects from
+# archives eagerly. CMake's legacy link order may repeat transitive static
+# archives (SDL3, PlutoVG, etc.), yielding duplicate symbol errors.
+# Apply modern link-line de-duplication for first-party WASM side modules.
+if(EMSCRIPTEN AND KOTONOHA_WASM_DYNAMIC_LIBS)
+    if(CMAKE_VERSION VERSION_LESS 3.31)
+        message(FATAL_ERROR
+            "Dynamic WASM side modules require CMake 3.31+ for correct "
+            "static archive deduplication (CMP0156/CMP0179)")
+    endif()
+    cmake_policy(SET CMP0156 NEW)
+    cmake_policy(SET CMP0179 NEW)
+endif()
+
 # ==============================================================================
 # Target: imgui
 # ==============================================================================
@@ -301,6 +315,10 @@ endif ()
 add_library(KotonohaEngine ${KOTONOHA_LIB_TYPE} ${KOTONOHA_ENGINE_SOURCES})
 add_library(Kotonoha::Engine ALIAS KotonohaEngine)
 if(KOTONOHA_WASM_DYNAMIC_LIBS)
+    # The free-reorder strategy keeps each transitive vcpkg static archive
+    # once on the command line. This is critical for wasm-ld with SIDE_MODULE.
+    set_property(TARGET KotonohaEngine PROPERTY
+        LINK_LIBRARIES_STRATEGY REORDER_FREELY)
     target_link_options(KotonohaEngine PRIVATE
         "SHELL:-sSIDE_MODULE=1" "SHELL:-sASYNCIFY=1" "-fexceptions")
     set_target_properties(KotonohaEngine PROPERTIES
