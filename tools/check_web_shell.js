@@ -34,8 +34,14 @@ for (const symbol of [
 assert(html.includes('touch-action: none'), 'Touch gesture handling must stay active');
 assert(html.includes('id="browser-folder-tools" popover="manual"'),
   'Persistent folder controls must live in the browser top layer');
-assert(html.includes('document.addEventListener("fullscreenchange", showPersistentTools)'),
-  'Fullscreen must re-promote the browser folder toolbar');
+assert(!html.includes('showPersistentTools'),
+  'Fullscreen must not reopen the folder toolbar after gameplay starts');
+assert(html.includes('window.KotonohaCloseStartupFolderTools'),
+  'The startup selector must have an explicit close operation');
+assert(html.includes('#browser-folder-tools[hidden] { display: none !important; }'),
+  'The hidden folder toolbar must not be displayed over gameplay');
+assert(html.includes('toolbar.hidden = true'),
+  'Folder toolbar must be hidden when the source is chosen');
 assert(!html.includes('KotonohaAutoServerAssets'),
   'Browser startup must not automatically select remote assets');
 assert(html.includes('setStatus("Escolha pasta local ou HTTP(S) para iniciar.")'),
