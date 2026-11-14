@@ -19,24 +19,33 @@ Filesystem::Filesystem(std::shared_ptr<IMount> base)
 std::shared_ptr<Filesystem> Filesystem::mount(std::string source) {
   if (source.empty())
     throw FilesystemError(ErrorCode::InvalidPath, "Mount source is empty");
+  // Explicit HTTP(S) source: use the configured provider when it matches
+  // (sharing its cache), otherwise create a direct on-demand Fetch mount.
+  // Do not treat URL components named game-assets as physical directories.
+  if (source.find("://") != std::string::npos) {
 #ifdef __EMSCRIPTEN__
-  if (auto remote = remoteGameAssets()) {
+    if (source.rfind("https://", 0) != 0 &&
+        source.rfind("http://", 0) != 0)
+      throw FilesystemError(ErrorCode::InvalidPath,
+                            "Only HTTP(S) direct mounts are supported");
+    if (auto remote = remoteGameAssets())
+      if (source == remote->baseUrl() ||
+          source + "/" == remote->baseUrl())
+        return mount(std::static_pointer_cast<IMount>(remote));
+    return mount(std::static_pointer_cast<IMount>(
+        FetchAssetProvider::fromUrl(std::move(source))));
+#else
+    throw FilesystemError(ErrorCode::UnsupportedMount,
+                          "HTTP mounts are available only on Emscripten");
+#endif
+  }
+#ifdef __EMSCRIPTEN__
+  if (remoteGameAssets()) {
     const std::filesystem::path path(source);
-    bool isGameAssets = false;
     for (const auto &part : path)
-      if (part == "game-assets") isGameAssets = true;
-    if (isGameAssets)
-      return mountGameAssets(path);
-    // An explicitly selected HTTP source is valid only after the async
-    // manifest bootstrap has installed its exact mount.
-    if (source == remote->baseUrl() ||
-        source + "/" == remote->baseUrl())
-      return mount(std::static_pointer_cast<IMount>(remote));
+      if (part == "game-assets") return mountGameAssets(path);
   }
 #endif
-  if (source.find("://") != std::string::npos)
-    throw FilesystemError(ErrorCode::UnsupportedMount,
-                          "HTTP mounts require a Fetch backend (not yet implemented)");
   std::error_code ec;
   const auto root = std::filesystem::canonical(source, ec);
   if (ec)
@@ -75,10 +84,11 @@ void Filesystem::addOverlay(std::shared_ptr<IMount> source, int priority) {
 }
 
 void Filesystem::addOverlay(std::string source, int priority) {
-  if (source.find("://") != std::string::npos)
-    throw FilesystemError(ErrorCode::UnsupportedMount,
-                          "Remote overlay backend is not implemented");
-  layers_->addOverlay(std::make_shared<DirectoryMount>(source), priority);
+  // Reuse the same source selection as a top-level mount: browser-supplied
+  // directory, archive (TAR/ISO), or HTTP Fetch. Keeping the nested
+  // Filesystem alive through shared ownership preserves its file handles.
+  auto overlay = mount(std::move(source));
+  layers_->addOverlay(overlay->layers_, priority);
 }
 
 std::uint64_t Filesystem::generation() const noexcept {
