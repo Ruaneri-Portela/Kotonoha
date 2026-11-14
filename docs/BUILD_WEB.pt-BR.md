@@ -32,12 +32,12 @@ Para o autoteste opcional, habilite `-DKOTONOHA_WEB_SELFTEST=ON`, compile `Koton
 
 ## Fallback HTTP(S) de game-assets (Filesystem V2 experimental)
 
-Quando não existe pasta local `game-assets` selecionada, a página tenta
-automaticamente carregar o manifesto do servidor. Arquivos locais são
-comparados com o manifesto por **ID lógico sem distinção de caixa ASCII e
-tamanho**; arquivos ausentes ou com tamanho divergente são fornecidos pelo
-montador virtual Fetch. Assets HTTP e placeholders remotos **não** são
-copiados para MEMFS.
+**O início aguarda uma escolha explícita:** a página oferece
+**Usar pasta local** ou **Usar HTTP(S)**, sem temporizador nem seleção
+automática. A escolha local importa `game-assets` e inicia **sem consultar
+HTTP**, mesmo que exista um manifesto no servidor. A escolha HTTP(S) ativa
+o provider remoto com manifesto, ou Fetch direto se o manifesto estiver
+indisponível. Os dados HTTP não são copiados para MEMFS.
 
 Publique `game-assets/manifest.json` com entradas e tamanhos:
 
@@ -73,9 +73,8 @@ cache de memória limitado; servidores sem Range são indicados apenas
 para arquivos menores. A leitura de rede não bloqueia a thread principal
 do navegador.
 
-Use `window.KotonohaAutoServerAssets = false` antes da inicialização para
-manter a escolha manual entre pasta e servidor. O self-test web já usa a
-escolha manual.
+A escolha local/remota é sempre manual. A antiga configuração
+`window.KotonohaAutoServerAssets` deixou de ser necessária.
 
 ```sh
 python3 tools/audit_filesystem_v2.py
@@ -92,7 +91,8 @@ logo, não é correto considerar todos os jogos totalmente migrados.
 ## Montagem de pastas locais personalizadas no navegador
 
 O botão **+ Adicionar pasta**, no canto superior direito, continua disponível
-depois da inicialização. Selecione uma pasta local e informe seu nome no
+após a inicialização. Ele é exibido sobre o canvas em tela cheia por meio
+de um popover do navegador, quando compatível. Selecione uma pasta local e informe seu nome no
 filesystem virtual, por exemplo `game-assets`, `forced_subtitles` ou
 `ovrlay`. Seus arquivos ficam disponíveis em `/<nome>/` no Emscripten.
 Os nomes são validados e `/save` permanece reservado para os saves.
