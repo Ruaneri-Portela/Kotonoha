@@ -9,8 +9,15 @@ endif()
 # game directories even though this module is included from lib/CMakeLists.
 set(KOTONOHA_BUILD_HOST_TOOLS ${_kotonoha_host_tools} CACHE INTERNAL
     "Build host-only inspectors from game ports" FORCE)
-set(KOTONOHA_EMBED_PYTHON ${_kotonoha_host_tools} CACHE INTERNAL
-    "Enable embedded CPython in game ports" FORCE)
+set(KOTONOHA_HAS_PYTHON_DEVELOPMENT ${_kotonoha_host_tools} CACHE INTERNAL
+    "CPython Development components are available for host builds" FORCE)
+if(EMSCRIPTEN)
+    set(_kotonoha_web_python_stubs ON)
+else()
+    set(_kotonoha_web_python_stubs OFF)
+endif()
+set(KOTONOHA_USE_PYTHON_STUBS ${_kotonoha_web_python_stubs} CACHE INTERNAL
+    "Use the browser-compatible Python stubs in port code" FORCE)
 
 # A game declares *what* asset to ship; the engine decides how.
 function(kotonoha_preload_asset target source destination)
