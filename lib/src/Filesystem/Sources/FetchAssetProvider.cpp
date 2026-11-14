@@ -314,6 +314,14 @@ FetchAssetProvider::listAsset(const std::string &prefix) const {
       result.push_back(file->info.path);
   return result;
 }
+bool FetchAssetProvider::isKnownRegularFile(std::string_view path) const {
+  const auto it = nodes_.find(lookupKey(path, true));
+  return it != nodes_.end() && it->second.type == FileType::Regular;
+}
+bool FetchAssetProvider::hasIndexedDirectory(std::string_view path) const {
+  const auto it = nodes_.find(lookupKey(path, true));
+  return it != nodes_.end() && it->second.type == FileType::Directory;
+}
 bool FetchAssetProvider::exists(std::string_view path) const {
   const auto key = lookupKey(path, true);
   if (nodes_.count(key)) return true;
