@@ -1,30 +1,19 @@
-# Building for iOS
+# iOS build
 
-This guide provides instructions for building Kotonoha for iOS devices and simulators using the native Xcode project.
+**English (US)** | [Português (Brasil)](BUILD_IOS.pt-BR.md)
 
-## Prerequisites
+The checked-in native Xcode project is `buildsystems/xcode/Kotonoha.xcodeproj`. Use macOS with Xcode and the target-specific SDL and vcpkg dependencies.
 
-- **macOS** with **Xcode** installed.
-- iOS SDK and Metal toolchain.
-
-## Build Steps
-
-### 1. Xcode Project
-The native Xcode workspace and project are located in [`buildsystems/xcode/Kotonoha.xcodeproj`](file:///Users/nero/Codes/Kotonoha/buildsystems/xcode).
-
-### 2. Opening and Compiling
-1. Open the project in Xcode:
-   ```bash
-   open buildsystems/xcode/Kotonoha.xcodeproj
-   ```
-2. Select the desired iOS target scheme and destination (Simulator or physical device).
-3. Build and run using `Cmd + R` or via command line with `xcodebuild`:
-   ```bash
-   xcodebuild -project buildsystems/xcode/Kotonoha.xcodeproj -scheme Kotonoha -destination 'platform=iOS Simulator,name=iPhone 16' build
-   ```
-
-### 3. Sychronizing Game Targets
-If you add or modify game targets or sources, run the Ruby synchronization helper:
-```bash
-ruby buildsystems/xcode/UpdateGameTargets.rb
+```sh
+open buildsystems/xcode/Kotonoha.xcodeproj
+xcodebuild -list -project buildsystems/xcode/Kotonoha.xcodeproj
+xcodebuild -project buildsystems/xcode/Kotonoha.xcodeproj \
+  -scheme 'KotonohaExample (iOS)' \
+  -configuration Debug \
+  -sdk iphonesimulator \
+  -destination 'generic/platform=iOS Simulator' build
 ```
+
+For a physical device, select an iOS device destination and configure signing in Xcode. Game-specific schemes use the same project; see [Xcode documentation](../buildsystems/xcode/README.md).
+
+**Important:** Older instructions reference `UpdateGameTargets.rb` and `Kotonoha.xcworkspace`. Neither is present in the current tracked tree. Work with `Kotonoha.xcodeproj`; do not run the missing generator. Build and signing depend on local SDKs and installed frameworks.
