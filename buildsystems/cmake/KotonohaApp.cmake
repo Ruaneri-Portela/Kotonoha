@@ -2,7 +2,12 @@ option(KOTONOHA_BUILD_MACOS_BUNDLES "Build macOS application bundles" OFF)
 
 # Copia os assets do jogo e do engine para o diretório do executável/bundle
 function(kotonoha_copy_assets target)
-    cmake_parse_arguments(ASSETS "" "GAME" "" ${ARGN})
+    cmake_parse_arguments(ASSETS "" "GAME;GAME_ASSET_SOURCE" "" ${ARGN})
+    if(ASSETS_GAME_ASSET_SOURCE)
+        set(_game_asset_source "${ASSETS_GAME_ASSET_SOURCE}")
+    else()
+        set(_game_asset_source "${KOTONOHA_PROJECT_ROOT}/games/${ASSETS_GAME}/game-assets")
+    endif()
 
     get_target_property(is_bundle ${target} MACOSX_BUNDLE)
     if(APPLE AND is_bundle)
@@ -20,7 +25,7 @@ function(kotonoha_copy_assets target)
         add_custom_command(TARGET ${target} POST_BUILD
             COMMAND "${CMAKE_COMMAND}"
                 "-DRESOURCE_SOURCE=${KOTONOHA_ENGINE_ASSETS}"
-                "-DGAME_SOURCE=${KOTONOHA_PROJECT_ROOT}/games/${ASSETS_GAME}/game-assets"
+                "-DGAME_SOURCE=${_game_asset_source}"
                 "-DRESOURCE_DESTINATION=${destination}"
                 "-DINCLUDE_GAME_ASSETS=${include_game}"
                 -P "${KOTONOHA_PROJECT_ROOT}/buildsystems/cmake/PackageAssets.cmake"
@@ -129,7 +134,12 @@ endfunction()
 
 # Configurações gerais do app por plataforma
 function(kotonoha_configure_app target)
-    cmake_parse_arguments(APP "" "BUNDLE_ID;GAME;PYTHON_STDLIB;PYTHON_VERSION" "" ${ARGN})
+    cmake_parse_arguments(APP "" "BUNDLE_ID;GAME;GAME_ASSET_SOURCE;PYTHON_STDLIB;PYTHON_VERSION" "" ${ARGN})
+    if(APP_GAME_ASSET_SOURCE)
+        set(_game_asset_source "${APP_GAME_ASSET_SOURCE}")
+    else()
+        set(_game_asset_source "${KOTONOHA_PROJECT_ROOT}/games/${APP_GAME}/game-assets")
+    endif()
 
     # Diretórios usados para localizar dependências de runtime.
     kotonoha_get_default_dependency_dirs(_kotonoha_dependency_dirs)
@@ -223,13 +233,14 @@ function(kotonoha_configure_app target)
 
             add_custom_command(TARGET ${target} POST_BUILD
                 COMMAND python3 "${KOTONOHA_PROJECT_ROOT}/tools/generate_manifest.py"
-                        "${KOTONOHA_PROJECT_ROOT}/games/${APP_GAME}/game-assets"
+                        "${_game_asset_source}"
                         "${KOTONOHA_OUTPUT_CONFIG_DIR}/${target}/game-assets/manifest.json"
                 COMMENT "Generating manifest.json for lazy loading"
             )
         endif()
 
-        kotonoha_copy_assets(${target} GAME "${APP_GAME}")
+        kotonoha_copy_assets(${target} GAME "${APP_GAME}"
+            GAME_ASSET_SOURCE "${_game_asset_source}")
     endif()
 endfunction()
 

@@ -72,26 +72,71 @@ that volume. `VNSave` calls `FS.syncfs(false, ...)` after writes, renames and
 removals, and the page also flushes the volume on
 `visibilitychange`/`pagehide`, so saves survive a browser reload.
 
-### Asset loading (Emscripten Fetch)
+### Asset loading
 
-To avoid synchronous XHR restrictions and memory exhaustion, Kotonoha uses a
-manifest-driven loader implemented in `lib/src/core/WebAssetFetch.cpp`:
+On the loading screen, choose **Selecionar pasta do jogo** to load assets from
+a folder on your computer, or **Usar assets do servidor** to use the HTTP
+manifest. For a local folder, select the game's asset root (the folder whose
+contents have the paths expected by that game). The selector accepts nested
+folders and also a folder containing a `game-assets` subfolder. The browser
+copies the selected files into WASM MEMFS before starting the engine. Local
+audio and video use browser `File` object URLs when supported; FFmpeg can read
+the same files from MEMFS when browser decoding fails. The page itself still
+needs to be served over HTTP for the WASM bundle.
+
+For server assets, Kotonoha uses a manifest-driven loader implemented in
+`lib/src/core/WebAssetFetch.cpp`:
 
 1. **Manifest generation**: CMake invokes [`tools/generate_manifest.py`](file:///Users/nero/Codes/Kotonoha/tools/generate_manifest.py) to write `outputs/<Game>/game-assets/manifest.json`.
-2. **Required manifest**: a valid `manifest.json` must exist for assets to be mapped into the virtual filesystem.
+2. **Manifest**: a valid `manifest.json` maps server assets into the virtual filesystem.
 3. **Emscripten Fetch**: the preRun hook calls `KotonohaStartAssetFetch`; C++ downloads up to four files concurrently with `emscripten_fetch` and writes them into MEMFS at `/game-assets`.
 4. **Progress UI**: the page polls `KotonohaAssetFetch*` through `ccall` and updates the loading overlay.
-5. **Video deferral**: browser-playable video extensions are not downloaded by the bulk loader (`KotonohaShouldDeferAsset`); they receive a zero-byte placeholder in MEMFS so asset indexes still resolve their logical ids, while the HTML5 bridge streams the real file from its `game-assets/...` URL.
+5. **Media fallback**: audio and video files are kept in MEMFS even when the
+   browser can play their MIME type. If HTML media playback fails,
+   `MediaPlayer` opens those local bytes with FFmpeg in WASM. Initial loading
+   includes media bytes; large deployments may need an on-demand byte source.
 
-### HTML5 video
+### Browser audio and video
 
-`MediaPlayer` delegates browser-playable video to a `<video>` overlay
-(`#kotonoha-video-player`). Loose assets are played from their `game-assets/...`
-URL through `KotonohaPlayVideo(path, loop)`; packed/archive assets are read from
-their `AssetProvider` in chunks and appended to a Blob, so no archive-internal
-video needs a public URL. The overlay is sized to the SDL canvas drawable area,
-so 4:3 content stays 4:3 even on a wider browser window. Audio mixer delegation
-is intentionally out of scope.
+The shared `MediaPlayer` tries browser decoding first for supported MIME types,
+then uses FFmpeg for unsupported types or browser playback failures. Audio uses
+independent `<audio>` sessions, so music, voice and effects can overlap; each
+session follows pause, playback rate and channel gain. This behavior applies
+to every port that uses `MediaPlayer`. Providers that decode proprietary game
+formats to raw PCM for `PcmPlayer` continue using their format-specific decoder.
+School Days processes one media prefetch job per update on the single-threaded
+web build; its native build keeps the background worker.
+
+Browser-playable video uses a hidden `<video>` element for decoding. Each frame
+is copied to an SDL texture and rendered in the game's normal draw order, so
+SDL UI remains above the movie. Loose assets are opened from their
+`game-assets/...` URL; packed/archive assets are read through the provider and
+assembled into a Blob. Browser audio uses hidden `<audio>` elements.
+
+Legacy MPEG/AVI video is generally unavailable to the browser's `<video>`
+decoder, so Kotonoha decodes it locally with FFmpeg in WASM. A WebM sidecar
+can optionally use the browser decoder instead. Place it beside the asset,
+keeping its full original name and adding `.webm` (for example,
+`opening.mpg.webm`). Include the sidecar in the generated manifest. The web
+`MediaPlayer` selects it when the browser cannot play the original MIME type;
+native builds continue to use the original file. Generate sidecars from media
+you are licensed to distribute, for example with
+`ffmpeg -i opening.mpg -c:v libvpx-vp9 -c:a libopus opening.mpg.webm`.
+The sidecar must be visible through the same `AssetProvider` ID or as a loose
+file beside a direct path. Browser support is checked at runtime, so a WebM
+sidecar does not force a particular codec on browsers that cannot decode it.
+
+With `-DKOTONOHA_WEB_SELFTEST=ON`, build `KotonohaWebSelfTest` and exercise this route
+using a short, temporary transcode of an existing MPEG file:
+
+```bash
+cmake --build build-web --target KotonohaWebSelfTest
+KOTONOHA_WEB_TEST_MPEG=/path/to/opening.mpg node tools/web_selftest.js build-web/outputs/KotonohaWebSelfTest
+```
+
+The optional MPEG fixture also checks FFmpeg decoding with audio in the
+single-threaded WASM build. `MediaPlayer` fills its SDL audio buffer during
+`update()` there; the web build does not start a decoder `std::thread`.
 
 ---
 

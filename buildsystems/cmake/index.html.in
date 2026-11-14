@@ -75,6 +75,26 @@
             transition: width 0.1s ease;
         }
 
+        #asset-source-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        #asset-source-actions button {
+            background: #292929;
+            border: 1px solid #555;
+            border-radius: 5px;
+            color: white;
+            cursor: pointer;
+            padding: 10px 14px;
+        }
+
+        #asset-source-actions button:disabled {
+            cursor: wait;
+            opacity: 0.5;
+        }
+
         #kotonoha-video-player {
             position: fixed;
             left: 0;
@@ -97,17 +117,42 @@
         <div id="loading-progress-container">
             <div id="loading-bar"></div>
         </div>
+        <div id="asset-source-actions">
+            <button id="select-local-assets" type="button" disabled>Selecionar pasta do jogo</button>
+            <button id="use-server-assets" type="button" disabled>Usar assets do servidor</button>
+        </div>
+        <input id="local-assets-folder" type="file" webkitdirectory multiple hidden>
     </div>
 
     <canvas id="canvas" oncontextmenu="event.preventDefault()"></canvas>
     <video id="kotonoha-video-player" playsinline preload="auto"></video>
 
     <script>
+        const kotonohaLocalAssets = new Map();
+        const kotonohaLocalUrls = new Map();
+        function kotonohaAssetUrl(path) {
+            let relative = String(path || "").split(/[?#]/)[0].replace(/^\/+/, "");
+            try { relative = decodeURIComponent(relative); } catch (error) {}
+            if (!relative.startsWith("game-assets/")) return path;
+            const file = kotonohaLocalAssets.get(relative.slice("game-assets/".length));
+            if (!file) return path;
+            const key = relative.slice("game-assets/".length);
+            if (!kotonohaLocalUrls.has(key))
+                kotonohaLocalUrls.set(key, URL.createObjectURL(file));
+            return kotonohaLocalUrls.get(key);
+        }
+        window.addEventListener("pagehide", function() {
+            for (const url of kotonohaLocalUrls.values()) URL.revokeObjectURL(url);
+            kotonohaLocalUrls.clear();
+        });
+
         // HTML5 video bridge. Loose assets can play directly from their URL;
         // packed/archive assets are fed as chunks into a Blob, never as a URL.
         (function() {
             const canvas = document.getElementById("canvas");
             const video = document.getElementById("kotonoha-video-player");
+            const frameCanvas = document.createElement("canvas");
+            const frameContext = frameCanvas.getContext("2d", { willReadFrequently: true });
             let session = 0;
             let mode = "none";          // "url" or "pipe"
             let chunks = null;
@@ -177,7 +222,14 @@
                 const clean = String(path || "").split(/[?#]/)[0].toLowerCase();
                 if (clean.endsWith(".mp4") || clean.endsWith(".m4v")) return "video/mp4";
                 if (clean.endsWith(".webm")) return "video/webm";
-                if (clean.endsWith(".ogv") || clean.endsWith(".ogg")) return "video/ogg";
+                if (clean.endsWith(".ogv")) return "video/ogg";
+                if (clean.endsWith(".ogg") || clean.endsWith(".oga") ||
+                    clean.endsWith(".opus")) return "audio/ogg";
+                if (clean.endsWith(".mp3")) return "audio/mpeg";
+                if (clean.endsWith(".wav")) return "audio/wav";
+                if (clean.endsWith(".m4a") || clean.endsWith(".aac"))
+                    return "audio/mp4";
+                if (clean.endsWith(".flac")) return "audio/flac";
                 if (clean.endsWith(".mov")) return "video/quicktime";
                 if (clean.endsWith(".mpg") || clean.endsWith(".mpeg")) return "video/mpeg";
                 if (clean.endsWith(".avi")) return "video/x-msvideo";
@@ -220,8 +272,6 @@
 
             function tryPlay() {
                 if (desiredPaused || !ready || failed) return;
-                layoutVideo(true);
-                video.style.display = "block";
                 const promise = video.play();
                 if (!promise || !promise.catch) return;
                 promise.catch(function(error) {
@@ -251,12 +301,11 @@
                               video.error ? video.error.message : "unknown");
             });
 
-            // C++ asks this before downloading a manifest entry. A browser-
-            // playable video is served by this bridge instead of being copied
-            // into MEMFS, avoiding a duplicate preload.
+            // Keep media bytes in MEMFS. The browser may report a supported
+            // MIME type and still fail to decode the actual stream; FFmpeg
+            // needs the original bytes for a local fallback in that case.
             window.KotonohaShouldDeferAsset = function(path) {
-                const type = mimeForPath(path);
-                return type && canPlay(type) ? 1 : 0;
+                return 0;
             };
             window.KotonohaVideoMime = mimeForPath;
             window.KotonohaVideoCanPlay = canPlay;
@@ -269,7 +318,7 @@
                 mime = mimeForPath(path);
                 video.muted = false;
                 video.loop = !!loop;
-                video.src = path;
+                video.src = kotonohaAssetUrl(path);
                 video.load();
                 ready = false;
                 layoutVideo(true);
@@ -384,6 +433,199 @@
             window.KotonohaVideoFailed = function(id) {
                 return id === session && failed ? 1 : 0;
             };
+
+            // Audio sessions are independent: a game may play music, voice
+            // and effects at the same time. Video keeps its canvas overlay.
+            const audioSessions = new Map();
+            let nextAudioSession = 1000000;
+            function audioSession(mimeType) {
+                const id = ++nextAudioSession;
+                const element = new Audio();
+                element.preload = "auto";
+                const state = { element, mimeType, ready: false, failed: false,
+                                paused: true, rate: 1, gain: 1, chunks: null,
+                                blobUrl: null, unlock: null };
+                const tryPlay = function() {
+                    if (state.paused || !state.ready || state.failed) return;
+                    const promise = element.play();
+                    if (promise && promise.catch) promise.catch(function(error) {
+                        if (error && error.name === "NotSupportedError") {
+                            state.failed = true;
+                            return;
+                        }
+                        if (state.unlock) return;
+                        state.unlock = function() {
+                            document.removeEventListener("pointerdown", state.unlock);
+                            document.removeEventListener("keydown", state.unlock);
+                            state.unlock = null;
+                            tryPlay();
+                        };
+                        document.addEventListener("pointerdown", state.unlock);
+                        document.addEventListener("keydown", state.unlock);
+                    });
+                };
+                state.tryPlay = tryPlay;
+                element.addEventListener("loadeddata", function() {
+                    state.ready = true;
+                    tryPlay();
+                });
+                element.addEventListener("error", function() {
+                    state.failed = true;
+                    console.error("[Kotonoha] HTML5 audio error:",
+                                  element.error ? element.error.message : "unknown");
+                });
+                audioSessions.set(id, state);
+                return id;
+            }
+            function stopAudio(id) {
+                const state = audioSessions.get(id);
+                if (!state) return;
+                audioSessions.delete(id);
+                if (state.unlock) {
+                    document.removeEventListener("pointerdown", state.unlock);
+                    document.removeEventListener("keydown", state.unlock);
+                }
+                state.element.pause();
+                state.element.removeAttribute("src");
+                state.element.load();
+                if (state.blobUrl) URL.revokeObjectURL(state.blobUrl);
+            }
+            function setAudioBlob(state, parts) {
+                state.blobUrl = URL.createObjectURL(
+                    new Blob(parts, { type: state.mimeType }));
+                state.element.src = state.blobUrl;
+                state.element.load();
+            }
+            window.KotonohaMediaCanPlay = function(type) {
+                if (!type) return false;
+                if (!type.startsWith("audio/")) return canPlay(type);
+                try { return document.createElement("audio").canPlayType(type) !== ""; }
+                catch (error) { return false; }
+            };
+            window.KotonohaMediaBeginUrl = function(path, audioOnly) {
+                if (!audioOnly) return typeof window.KotonohaPlayVideo === "function"
+                    ? window.KotonohaPlayVideo(path, 0) : 0;
+                if (!path) return 0;
+                const id = audioSession(mimeForPath(path));
+                const state = audioSessions.get(id);
+                state.element.src = kotonohaAssetUrl(path);
+                state.element.load();
+                return id;
+            };
+            window.KotonohaMediaBeginBlob = function(bytes, type, audioOnly) {
+                if (!audioOnly) return window.KotonohaVideoBeginBlob(bytes, type);
+                if (!bytes || !bytes.length || !window.KotonohaMediaCanPlay(type))
+                    return 0;
+                const id = audioSession(type);
+                setAudioBlob(audioSessions.get(id), [bytes]);
+                return id;
+            };
+            window.KotonohaMediaBegin = function(id, type, size, audioOnly) {
+                if (!audioOnly) return window.KotonohaVideoBegin(id, type, size);
+                if (!window.KotonohaMediaCanPlay(type)) return 0;
+                const result = audioSession(type);
+                audioSessions.get(result).chunks = [];
+                return result;
+            };
+            window.KotonohaMediaAppend = function(id, bytes) {
+                const state = audioSessions.get(id);
+                if (!state) return window.KotonohaVideoAppend(id, bytes);
+                if (!state.chunks || !bytes) return false;
+                state.chunks.push(bytes.slice());
+                return true;
+            };
+            window.KotonohaMediaFinish = function(id) {
+                const state = audioSessions.get(id);
+                if (!state) return window.KotonohaVideoFinish(id);
+                if (!state.chunks || !state.chunks.length) return false;
+                setAudioBlob(state, state.chunks);
+                state.chunks = null;
+                return true;
+            };
+            window.KotonohaMediaStop = function(id) {
+                if (audioSessions.has(id)) stopAudio(id);
+                else window.KotonohaVideoStop(id);
+            };
+            window.KotonohaMediaSetPaused = function(id, paused) {
+                const state = audioSessions.get(id);
+                if (!state) return window.KotonohaVideoSetPaused(id, paused);
+                state.paused = !!paused;
+                if (state.paused) state.element.pause();
+                else state.tryPlay();
+            };
+            window.KotonohaMediaSetRate = function(id, rate) {
+                const state = audioSessions.get(id);
+                if (!state) return window.KotonohaVideoSetRate(id, rate);
+                state.rate = Math.max(0.0625, Math.min(16, Number(rate) || 1));
+                state.element.playbackRate = state.rate;
+            };
+            window.KotonohaMediaSetGain = function(id, gain) {
+                const state = audioSessions.get(id);
+                const element = state ? state.element : id === session ? video : null;
+                if (element) element.volume = Math.max(0, Math.min(1, Number(gain) || 0));
+            };
+            window.KotonohaMediaSync = function(id, position) {
+                const state = audioSessions.get(id);
+                if (!state) return window.KotonohaVideoSync(id, position);
+                if (!state.ready || state.failed) return;
+                const duration = state.element.duration;
+                if (!Number.isFinite(duration) || duration <= 0) return;
+                const target = Math.max(0, Math.min(position, duration));
+                if (Math.abs(state.element.currentTime - target) > 0.3)
+                    state.element.currentTime = target;
+            };
+            window.KotonohaMediaTime = function(id) {
+                const state = audioSessions.get(id);
+                if (!state) return window.KotonohaVideoTime(id);
+                return state.ready && Number.isFinite(state.element.currentTime)
+                    ? state.element.currentTime : -1;
+            };
+            window.KotonohaMediaDuration = function(id) {
+                const state = audioSessions.get(id);
+                if (!state) return window.KotonohaVideoDuration(id);
+                return state.ready && Number.isFinite(state.element.duration)
+                    ? state.element.duration : -1;
+            };
+            window.KotonohaMediaFinished = function(id) {
+                const state = audioSessions.get(id);
+                if (!state) return window.KotonohaVideoFinished(id);
+                return state.ready && state.element.ended ? 1 : 0;
+            };
+            window.KotonohaMediaReady = function(id) {
+                const state = audioSessions.get(id);
+                if (!state) return window.KotonohaVideoHasFrame(id);
+                return state.ready && !state.failed &&
+                       state.element.readyState >= 2 ? 1 : 0;
+            };
+            window.KotonohaMediaFailed = function(id) {
+                const state = audioSessions.get(id);
+                return state ? (state.failed ? 1 : 0) : window.KotonohaVideoFailed(id);
+            };
+            window.KotonohaMediaVideoWidth = function(id) {
+                return id === session && ready && !failed ? video.videoWidth : 0;
+            };
+            window.KotonohaMediaVideoHeight = function(id) {
+                return id === session && ready && !failed ? video.videoHeight : 0;
+            };
+            window.KotonohaMediaCopyVideoFrame = function(id, output) {
+                if (id !== session || !ready || failed || !frameContext)
+                    return 0;
+                const width = video.videoWidth, height = video.videoHeight;
+                if (!width || !height || !output ||
+                    output.length !== width * height * 4)
+                    return 0;
+                try {
+                    if (frameCanvas.width !== width) frameCanvas.width = width;
+                    if (frameCanvas.height !== height) frameCanvas.height = height;
+                    frameContext.drawImage(video, 0, 0, width, height);
+                    output.set(frameContext.getImageData(0, 0, width, height).data);
+                    return 1;
+                } catch (error) {
+                    failed = true;
+                    console.error("[Kotonoha] Cannot copy video frame:", error);
+                    return 0;
+                }
+            };
         })();
 
         var Module = {
@@ -421,31 +663,96 @@
                     });
                 },
                 function() {
-                    // Asset bytes are downloaded by emscripten_fetch() in C++,
-                    // not by a JavaScript preload loop. The C++ queue writes
-                    // them straight into MEMFS and reports progress back here.
-                    const depId = "load_assets_with_emscripten_fetch";
+                    const depId = "choose_kotonoha_asset_source";
                     Module.addRunDependency(depId);
-
                     const statusEl = document.getElementById("loading-status");
                     const barEl = document.getElementById("loading-bar");
+                    const actions = document.getElementById("asset-source-actions");
+                    const folderButton = document.getElementById("select-local-assets");
+                    const serverButton = document.getElementById("use-server-assets");
+                    const folderInput = document.getElementById("local-assets-folder");
+                    let busy = false;
+                    const finish = function() {
+                        actions.style.display = "none";
+                        Module.removeRunDependency(depId);
+                    };
+                    folderButton.disabled = false;
+                    serverButton.disabled = false;
+                    folderButton.addEventListener("click", function() {
+                        if (!busy) folderInput.click();
+                    });
+                    folderInput.addEventListener("change", async function() {
+                        if (busy || !folderInput.files.length) return;
+                        busy = true;
+                        folderButton.disabled = true;
+                        serverButton.disabled = true;
+                        const files = Array.from(folderInput.files);
+                        let loaded = 0;
+                        try {
+                            Module.FS_createPath("/", "game-assets", true, true);
+                            for (const file of files) {
+                                const parts = file.webkitRelativePath.split("/").slice(1);
+                                if (parts[0] === "game-assets") parts.shift();
+                                if (!parts.length || parts.some(part => !part ||
+                                        part === "." || part === ".."))
+                                    throw new Error("Caminho de asset inválido: " + file.name);
+                                const relative = parts.join("/");
+                                const directory = parts.slice(0, -1).join("/");
+                                if (directory)
+                                    Module.FS_createPath("/game-assets", directory, true, true);
+                                Module.FS_createDataFile(
+                                    "/game-assets" + (directory ? "/" + directory : ""),
+                                    parts[parts.length - 1],
+                                    new Uint8Array(await file.arrayBuffer()),
+                                    true, true, true);
+                                kotonohaLocalAssets.set(relative, file);
+                                loaded++;
+                                if (barEl) barEl.style.width =
+                                    Math.round(loaded / files.length * 100) + "%";
+                                if (statusEl) statusEl.textContent =
+                                    `Carregando pasta (${loaded}/${files.length})`;
+                                if (loaded % 8 === 0)
+                                    await new Promise(resolve => setTimeout(resolve, 0));
+                            }
+                            if (statusEl) statusEl.textContent =
+                                `${loaded} assets locais carregados. Iniciando engine...`;
+                            finish();
+                        } catch (error) {
+                            console.error("[Kotonoha] Falha ao carregar pasta:", error);
+                            if (statusEl) statusEl.textContent =
+                                "Falha ao carregar pasta: " + error.message;
+                            busy = false;
+                            folderButton.disabled = false;
+                            serverButton.disabled = false;
+                        }
+                    });
+
+                    serverButton.addEventListener("click", function() {
+                        if (busy) return;
+                        busy = true;
+                        folderButton.disabled = true;
+                        serverButton.disabled = true;
+                        if (statusEl) statusEl.textContent =
+                            "Carregando manifesto de assets...";
+                        // The C++ fetch queue writes HTTP assets into MEMFS.
+                        loadServerAssets();
+                    });
                     const call = function(name, returnType, args) {
                         return Module.ccall(name, returnType || null,
                                             (args || []).map(() => "number"), args || []);
                     };
-
-                    try {
-                        Module.ccall("KotonohaStartAssetFetch", null, ["string"],
-                                     ["game-assets/manifest.json"]);
-                    } catch (error) {
-                        console.warn("[Kotonoha] Cannot start Emscripten fetch loader:", error);
-                        if (statusEl) statusEl.textContent = "Iniciando sem manifesto...";
-                        if (barEl) barEl.style.width = "100%";
-                        Module.removeRunDependency(depId);
-                        return;
-                    }
-
-                    const poll = setInterval(function() {
+                    function loadServerAssets() {
+                      try {
+                          Module.ccall("KotonohaStartAssetFetch", null, ["string"],
+                                       ["game-assets/manifest.json"]);
+                      } catch (error) {
+                          console.warn("[Kotonoha] Cannot start Emscripten fetch loader:", error);
+                          if (statusEl) statusEl.textContent = "Iniciando sem manifesto...";
+                          if (barEl) barEl.style.width = "100%";
+                          finish();
+                          return;
+                      }
+                      const poll = setInterval(function() {
                         let total = 0, loaded = 0, deferred = 0, done = 0, failed = 0;
                         try {
                             total = call("KotonohaAssetFetchTotal", "number");
@@ -481,9 +788,10 @@
                             } else {
                                 if (statusEl) statusEl.textContent = "Iniciando engine...";
                             }
-                            Module.removeRunDependency(depId);
+                            finish();
                         }
                     }, 100);
+                    }
                 }
             ],
 

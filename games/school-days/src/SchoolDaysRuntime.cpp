@@ -729,8 +729,12 @@ public:
   };
   explicit AbcAnalysisWorker(Kotonoha::Providers::SchoolDaysAssets &source,
                              uint64_t generation)
+#ifdef __EMSCRIPTEN__
+      : assets(source), currentGeneration(generation) {}
+#else
       : assets(source), currentGeneration(generation),
         worker([this] { run(); }) {}
+#endif
   ~AbcAnalysisWorker() {
     {
       std::lock_guard<std::mutex> lock(mutex);
@@ -739,7 +743,9 @@ public:
       pending.clear();
     }
     wake.notify_one();
+#ifndef __EMSCRIPTEN__
     worker.join();
+#endif
   }
   void reset(uint64_t generation) {
     std::lock_guard<std::mutex> lock(mutex);
@@ -806,8 +812,19 @@ public:
     return true;
   }
   std::vector<Result> drain() {
-    std::lock_guard<std::mutex> lock(mutex);
+    std::unique_lock<std::mutex> lock(mutex);
     std::vector<Result> result;
+#ifdef __EMSCRIPTEN__
+    if (!pending.empty()) {
+      Job job = std::move(pending.front());
+      pending.pop_front();
+      lock.unlock();
+      auto prepared = process(std::move(job));
+      lock.lock();
+      if (!stopping && prepared.generation == currentGeneration)
+        completed.push_back(std::move(prepared));
+    }
+#endif
     result.reserve(completed.size());
     while (!completed.empty()) {
       result.push_back(std::move(completed.front()));
@@ -830,6 +847,83 @@ private:
     bool audioOnly;
     std::shared_ptr<std::atomic_bool> cancelled;
   };
+  Result process(Job job) {
+    Result result;
+    result.generation = job.generation;
+    result.ordinal = job.ordinal;
+    result.media = job.media;
+    result.background = job.background;
+    try {
+      if (!job.cancelled->load()) {
+        const auto resolved = assets.resolve(job.logical, job.background);
+        if (job.background) {
+          result.backgroundResource = resolved;
+          result.backgroundSurface = assets.loadSurface(resolved);
+          const size_t slash = resolved.find_last_of("/\\");
+          const auto directory = slash == std::string::npos
+                                     ? std::string()
+                                     : resolved.substr(0, slash + 1u);
+          result.backgroundGroups = Kotonoha::SchoolDaysGroupAbcSiblings(
+              resolved, assets.list(directory));
+          result.backgroundGroups.erase(
+              std::remove_if(result.backgroundGroups.begin(),
+                             result.backgroundGroups.end(),
+                             [](const auto &group) { return group.collision; }),
+              result.backgroundGroups.end());
+          for (const auto &group : result.backgroundGroups) {
+            if (std::find(job.abcKeys.begin(), job.abcKeys.end(), group.key) ==
+                job.abcKeys.end())
+              continue;
+            for (const auto &path : group.paths) {
+              if (job.cancelled->load())
+                break;
+              if (path.empty())
+                continue;
+              try {
+                auto decoded = assets.loadSurface(path);
+                Kotonoha::SurfacePtr rgba(
+                    SDL_ConvertSurface(decoded.get(), SDL_PIXELFORMAT_RGBA32));
+                if (!rgba)
+                  throw std::runtime_error(SDL_GetError());
+                (void)Kotonoha::prepareStraightAlphaForLinearFiltering(
+                    static_cast<std::uint8_t *>(rgba->pixels), rgba->w, rgba->h,
+                    rgba->pitch);
+                result.backgroundAbcSurfaces.emplace_back(path,
+                                                          std::move(rgba));
+              } catch (const std::exception &error) {
+                SDL_LogWarn(Kotonoha::LogUI, "School Days ABC surface %s: %s",
+                            path.c_str(), error.what());
+              }
+            }
+          }
+        } else if (job.media) {
+          auto input = Kotonoha::MediaPlayer::prepareInput(
+              assets, resolved, job.audioOnly, job.cancelled);
+          if (!job.loop.empty() && !job.cancelled->load())
+            result.loopInput = Kotonoha::MediaPlayer::prepareInput(
+                assets, assets.resolve(job.loop), true, job.cancelled);
+          if (!job.cancelled->load())
+            result.mediaInput = std::move(input);
+        } else {
+          const auto bytes = assets.read(resolved);
+          if (!job.cancelled->load()) {
+            std::vector<std::int16_t> pcm;
+            if (Kotonoha::MediaDecoder::decodeMonoS16At44100(
+                    bytes, pcm, job.cancelled.get(), job.durationMs))
+              result.activity = Kotonoha::SchoolDaysAnalyzeAbcPcmActivity(pcm);
+          }
+        }
+      }
+    } catch (const std::exception &error) {
+      const char *operation = job.background ? "background prefetch"
+                              : job.media    ? "media prefetch"
+                                             : "ABC analysis";
+      SDL_LogWarn(Kotonoha::LogUI, "School Days %s %s: %s", operation,
+                  job.logical.c_str(), error.what());
+    }
+    return result;
+  }
+#ifndef __EMSCRIPTEN__
   void run() {
     for (;;) {
       Job job;
@@ -841,81 +935,7 @@ private:
         job = std::move(pending.front());
         pending.pop_front();
       }
-      Result result;
-      result.generation = job.generation;
-      result.ordinal = job.ordinal;
-      result.media = job.media;
-      result.background = job.background;
-      try {
-        if (!job.cancelled->load()) {
-          const auto resolved = assets.resolve(job.logical, job.background);
-          if (job.background) {
-            result.backgroundResource = resolved;
-            result.backgroundSurface = assets.loadSurface(resolved);
-            const size_t slash = resolved.find_last_of("/\\");
-            const auto directory = slash == std::string::npos
-                                       ? std::string()
-                                       : resolved.substr(0, slash + 1u);
-            result.backgroundGroups = Kotonoha::SchoolDaysGroupAbcSiblings(
-                resolved, assets.list(directory));
-            result.backgroundGroups.erase(
-                std::remove_if(
-                    result.backgroundGroups.begin(),
-                    result.backgroundGroups.end(),
-                    [](const auto &group) { return group.collision; }),
-                result.backgroundGroups.end());
-            for (const auto &group : result.backgroundGroups) {
-              if (std::find(job.abcKeys.begin(), job.abcKeys.end(),
-                            group.key) == job.abcKeys.end())
-                continue;
-              for (const auto &path : group.paths) {
-                if (job.cancelled->load())
-                  break;
-                if (path.empty())
-                  continue;
-                try {
-                  auto decoded = assets.loadSurface(path);
-                  Kotonoha::SurfacePtr rgba(SDL_ConvertSurface(
-                      decoded.get(), SDL_PIXELFORMAT_RGBA32));
-                  if (!rgba)
-                    throw std::runtime_error(SDL_GetError());
-                  (void)Kotonoha::prepareStraightAlphaForLinearFiltering(
-                      static_cast<std::uint8_t *>(rgba->pixels), rgba->w,
-                      rgba->h, rgba->pitch);
-                  result.backgroundAbcSurfaces.emplace_back(path,
-                                                            std::move(rgba));
-                } catch (const std::exception &error) {
-                  SDL_LogWarn(Kotonoha::LogUI, "School Days ABC surface %s: %s",
-                              path.c_str(), error.what());
-                }
-              }
-            }
-          } else if (job.media) {
-            auto input = Kotonoha::MediaPlayer::prepareInput(
-                assets, resolved, job.audioOnly, job.cancelled);
-            if (!job.loop.empty() && !job.cancelled->load())
-              result.loopInput = Kotonoha::MediaPlayer::prepareInput(
-                  assets, assets.resolve(job.loop), true, job.cancelled);
-            if (!job.cancelled->load())
-              result.mediaInput = std::move(input);
-          } else {
-            const auto bytes = assets.read(resolved);
-            if (!job.cancelled->load()) {
-              std::vector<std::int16_t> pcm;
-              if (Kotonoha::MediaDecoder::decodeMonoS16At44100(
-                      bytes, pcm, job.cancelled.get(), job.durationMs))
-                result.activity =
-                    Kotonoha::SchoolDaysAnalyzeAbcPcmActivity(pcm);
-            }
-          }
-        }
-      } catch (const std::exception &error) {
-        const char *operation = job.background ? "background prefetch"
-                                : job.media    ? "media prefetch"
-                                               : "ABC analysis";
-        SDL_LogWarn(Kotonoha::LogUI, "School Days %s %s: %s", operation,
-                    job.logical.c_str(), error.what());
-      }
+      Result result = process(job);
       std::unique_lock<std::mutex> lock(mutex);
       wake.wait(lock, [&] {
         return stopping || job.cancelled->load() ||
@@ -926,6 +946,7 @@ private:
         completed.push_back(std::move(result));
     }
   }
+#endif
   Kotonoha::Providers::SchoolDaysAssets &assets;
   std::mutex mutex;
   std::condition_variable wake;
@@ -935,7 +956,9 @@ private:
       std::make_shared<std::atomic_bool>(false);
   uint64_t currentGeneration = 0;
   bool stopping = false;
+#ifndef __EMSCRIPTEN__
   std::thread worker;
+#endif
 };
 
 Runtime::Runtime(std::shared_ptr<Kotonoha::Providers::SchoolDaysAssets> source,
