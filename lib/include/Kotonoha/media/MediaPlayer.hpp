@@ -23,6 +23,9 @@ class MediaPlayer {
   double bufferSeconds_ = -1.0;
   void start(std::unique_ptr<State> next, const std::string &url,
              bool audioOnly, bool prepared = false);
+  // Decoder failures must stay inside the engine: this helper is wrapped by
+  // update() so a corrupt video only ends playback, not the game loop.
+  void updateDecoder(RendererRef renderer, double position);
 
 public:
   struct PreparedInput {
