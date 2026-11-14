@@ -5,7 +5,6 @@ The main game owns static vcpkg archives; the engine SIDE_MODULE must import
 their symbols instead of embedding duplicate independent runtimes.
 """
 from pathlib import Path
-import re
 import shlex
 import subprocess
 import sys
@@ -39,10 +38,19 @@ def check(build):
 
     main = link_command(build, "Kotonoha", "-sMAIN_MODULE=1")
     normalized = normalize(main)
-    required = ("libSDL3.a", "libSDL3_ttf.a", "libimgui.a")
+    required = (
+        "libSDL3.a", "libSDL3_ttf.a", "libimgui.a",
+        "libavformat.a", "libavcodec.a", "libass.a", "libjson-c.a",
+    )
     for name in required:
         if not any(arg.endswith(name) for arg in normalized):
             raise RuntimeError(f"MAIN_MODULE missing required static runtime {name}")
+    # The generated command can list the same archive with distinct
+    # spellings, but the linker launcher must collapse physical duplicates.
+    archives = [arg for arg in normalized if arg.endswith(".a")]
+    if len(archives) != len({archive_identity(arg, []) or arg for arg in archives}):
+        raise RuntimeError("MAIN_MODULE link still repeats a static archive")
+
     if not any(arg.endswith("libkotonoha.wasm") for arg in main):
         raise RuntimeError("MAIN_MODULE does not link Kotonoha SIDE_MODULE")
     print("[Kotonoha] side module imports runtime; main owns static vcpkg archives")
