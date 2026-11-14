@@ -232,19 +232,16 @@ function(kotonoha_configure_app target)
 
         if(EMSCRIPTEN)
             if(KOTONOHA_WASM_DYNAMIC_LIBS)
-                # One MAIN_MODULE per game, load-time side modules
-                # for Kotonoha Engine and vcpkg ImGui.
+                # The game is the MAIN_MODULE and KotonohaEngine is its
+                # SIDE_MODULE. All vcpkg dependencies (including ImGui)
+                # remain static archives linked into first-party targets.
                 target_link_options(${target} PRIVATE "SHELL:-sMAIN_MODULE=1")
-                target_link_libraries(${target} PRIVATE
-                    KotonohaEngine KotonohaImGuiWasm)
+                target_link_libraries(${target} PRIVATE KotonohaEngine)
                 add_custom_command(TARGET ${target} POST_BUILD
                     COMMAND "${CMAKE_COMMAND}" -E copy_if_different
                         "$<TARGET_FILE:KotonohaEngine>"
                         "$<TARGET_FILE_DIR:${target}>/$<TARGET_FILE_NAME:KotonohaEngine>"
-                    COMMAND "${CMAKE_COMMAND}" -E copy_if_different
-                        "$<TARGET_FILE:KotonohaImGuiWasm>"
-                        "$<TARGET_FILE_DIR:${target}>/$<TARGET_FILE_NAME:KotonohaImGuiWasm>"
-                    COMMENT "Deploying Kotonoha Engine and ImGui WASM side modules"
+                    COMMENT "Deploying the dynamic Kotonoha WASM module"
                     VERBATIM)
             endif()
             target_compile_options(${target} PRIVATE
