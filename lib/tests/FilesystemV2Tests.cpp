@@ -1,5 +1,8 @@
 #include <Kotonoha/Filesystem/Filesystem.hpp>
 #include <Kotonoha/Filesystem/Sources/FetchAssetProvider.hpp>
+#include <Kotonoha/Filesystem/Adapters/SDLIOAdapter.hpp>
+#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
+#include <Kotonoha/Filesystem/Sources/SDLFileSource.hpp>
 #include <Kotonoha/Filesystem/IMount.hpp>
 #include <SDL3/SDL.h>
 
@@ -274,7 +277,7 @@ void testRemoteManifest() {
   require(remote->exists("data/remote.bin") &&
               remote->stat("DATA/remote.bin").size == 4,
           "Remote manifest lookup failed");
-  require(remote->list("DATA").size() == 1,
+  require(remote->list(std::string_view{"DATA"}).size() == 1,
           "Remote manifest directory list failed");
   auto files = VFS::Filesystem::mount(
       std::static_pointer_cast<VFS::IMount>(remote));
@@ -295,6 +298,37 @@ void testRemoteManifest() {
         "https://example.invalid/",
         R"({"entries":[{"path":"A.TXT","size":2},{"path":"a.txt","size":3}]})");
   });
+}
+
+void testSDLAdapters() {
+  Temp tmp;
+  auto path = tmp.root / "adapter.bin";
+  {
+    VFS::OutputFile out(path, std::ios::binary | std::ios::trunc);
+    require(static_cast<bool>(out), "SDL output adapter did not open");
+    out.write("virtual-data", 12);
+    out.close();
+    require(static_cast<bool>(out), "SDL output adapter failed to close");
+  }
+  {
+    VFS::InputFile input(path, std::ios::binary | std::ios::ate);
+    require(input.tellg() == 12, "SDL input adapter ate/size failed");
+    input.seekg(-4, std::ios::end);
+    char suffix[4]{};
+    input.read(suffix, 4);
+    require(std::string(suffix, 4) == "data",
+            "SDL adapter seek and read failed");
+  }
+  auto file = std::make_unique<VFS::SDLFileSource>(path);
+  SDL_IOStream *io = VFS::openSDLIO(std::move(file));
+  require(io && SDL_GetIOSize(io) == 12, "Custom SDL_IOStream size failed");
+  require(SDL_SeekIO(io, 8, SDL_IO_SEEK_SET) == 8,
+          "Custom SDL_IOStream seek failed");
+  char tail[5]{};
+  require(SDL_ReadIO(io, tail, 4) == 4 &&
+              std::string(tail, 4) == "data",
+          "Custom SDL_IOStream read failed");
+  require(SDL_CloseIO(io), "Custom SDL_IOStream failed to close");
 }
 
 void testDirectorySafety() {
@@ -327,6 +361,7 @@ int main() {
     testISO();
     testTAR();
     testRemoteManifest();
+    testSDLAdapters();
     testDirectorySafety();
     std::cout << "Filesystem V2 tests passed\n";
   } catch (const std::exception &error) {
