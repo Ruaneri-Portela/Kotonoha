@@ -3,7 +3,7 @@ name: WASM vcpkg artifacts
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: [main, dev]
   pull_request:
     paths:
       - ".github/workflows/filesystem-v2-wasm.yml"
