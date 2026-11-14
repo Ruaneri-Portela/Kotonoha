@@ -24,6 +24,7 @@ namespace {
 std::unique_ptr<Kotonoha::MediaPlayer> webSelfTestPlayer;
 std::unique_ptr<Kotonoha::MediaPlayer> webSelfTestSecondAudio;
 std::string webSelfTestResult;
+std::shared_ptr<Kotonoha::Filesystem::Filesystem> liveFolderMount;
 
 std::filesystem::path webSelfTestSavePath() {
   const auto directory = Kotonoha::documentsDirectory("web-selftest");
@@ -62,6 +63,21 @@ EMSCRIPTEN_KEEPALIVE int KotonohaWebSelfTestRemoteSize(const char *name) {
     return static_cast<int>(bytes.size());
   } catch (const std::exception &error) {
     logFailure("remote FileHandle", error);
+    return -1;
+  }
+}
+
+// Keep the same directory mount across browser imports: this catches a
+// stale VFS index that would otherwise require restarting every game.
+EMSCRIPTEN_KEEPALIVE int KotonohaWebSelfTestLiveLocalSize(const char *id) {
+  try {
+    if (!id || !*id) return -1;
+    if (!liveFolderMount)
+      liveFolderMount = Kotonoha::Filesystem::mountGameAssets("/game-assets");
+    auto file = liveFolderMount->open(id);
+    return static_cast<int>(Kotonoha::Filesystem::readAll(*file, 32u << 20).size());
+  } catch (const std::exception &error) {
+    logFailure("live browser folder", error);
     return -1;
   }
 }
