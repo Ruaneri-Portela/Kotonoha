@@ -2,6 +2,7 @@
 // Public API of the reusable Kotonoha::ProviderXP3 module.
 
 #include <Kotonoha/core/AssetProvider.hpp>
+#include <Kotonoha/Filesystem/Filesystem.hpp>
 #include <filesystem>
 #include <map>
 #include <memory>
@@ -22,6 +23,9 @@ class KirikiriAssets : public Kotonoha::AssetProvider {
 public:
   explicit KirikiriAssets(const std::filesystem::path &directory,
                           const std::filesystem::path &overlay = {});
+  explicit KirikiriAssets(
+      std::shared_ptr<Kotonoha::Filesystem::Filesystem> source,
+      const std::filesystem::path &overlay = {});
 
   bool containsAsset(const std::string &id) const override;
   std::vector<std::uint8_t> readAsset(const std::string &id) const override;
@@ -41,6 +45,7 @@ public:
   // Mounts an XP3 archive by path (relative to the game root or absolute).
   // Only the file table is parsed; entry data is read on demand.
   void mountXp3(const std::filesystem::path &path);
+  void mountAllXp3();
 
 private:
   std::string decodeTextAsset(const std::string &id,
@@ -48,7 +53,7 @@ private:
                               const char *encoding) const override;
   struct Xp3Entry {
     std::string name;
-    std::filesystem::path archivePath; // path to the XP3 file on disk
+    std::string archiveId; // virtual identifier for the XP3 source
     std::uint64_t offset = 0;
     std::uint64_t compressedSize = 0;
     std::uint64_t originalSize = 0;
@@ -56,6 +61,7 @@ private:
   };
 
   std::filesystem::path root;
+  std::shared_ptr<Kotonoha::Filesystem::Filesystem> source_;
   std::filesystem::path overlayDir;
   std::shared_ptr<Kotonoha::AssetProvider> base;
   // XP3 archives mounted by the game, keyed by archive file name.
@@ -64,7 +70,7 @@ private:
   std::vector<std::pair<std::string, std::vector<Xp3Entry>>> archives;
 
   std::string resolveId(const std::string &id) const;
-  bool readXp3(const std::filesystem::path &path);
+  bool readXp3(const std::string &id);
   std::vector<std::uint8_t> extractXp3Entry(const Xp3Entry &entry) const;
 };
 
