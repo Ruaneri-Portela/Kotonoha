@@ -72,7 +72,10 @@ AudioClip PmailAssets::loadAudioAsset(const std::string &id) const {
   const auto bytes = readAsset(id);
   if (bytes.empty())
     return {};
-  return Kotonoha::MediaDecoder::decodeAudio(bytes);
+  AudioClip clip;
+  if (!Kotonoha::MediaDecoder::tryDecodeAudio(bytes, clip))
+    return {};
+  return clip;
 }
 
 } // namespace Kotonoha::Providers
