@@ -34,7 +34,7 @@ O comando padrão encontra acessos diretos legados e confere CMake/Xcode; `--str
 - Compilar e executar testes por plataforma (Xcode/Android/WebAssembly não verificados).
 - Migrar a indexação dos arquivos-fonte de cada provider por `Filesystem::open(id)`, com overlays montados antes de indexar.
 - Finalizar o bootstrap web do `FetchAssetProvider`, ponte Worker/Asyncify e testes de rede/CORS/Range. O backend atual faz pré-carregamento assíncrono sem bloquear.
-- Completar adaptador `blob:` para vídeo no navegador, cobertura FFmpeg, CUE multi-BIN e modos de disco que ainda faltem.
+- Conectar o `BrowserBlobAdapter` a todas as rotas web legadas, validar ciclo de vida/seek do FFmpeg, CUE multi-BIN e modos de disco restantes.
 - Remover adaptadores de paths físicos somente após testes equivalentes nos onze jogos.
 
 Os critérios finais estão na [especificação original](SPECIFICATION.pt-BR.md). O PR permanece rascunho.

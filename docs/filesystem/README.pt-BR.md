@@ -27,7 +27,7 @@ Os testes sintéticos cobrem leitura de diretórios/ISO, seek/EOF, overlays, nom
 
 ## Migração pendente
 
-O adaptador de paths físicos segue disponível para os providers antigos. Próximos marcos: migrar pacotes CMP e indexadores de Summer; migrar demais providers; adaptar FFmpeg via AVIO; implementar Fetch/Blob com modelo seguro de navegador e modos BIN/CUE necessários. Há agora um provider Fetch com pré-carregamento assíncrono e requisições Range limitadas, ainda sem validação em navegador. Leituras de blocos ausentes geram WouldBlock, sem bloquear a main thread. O adaptador Blob e a ponte Worker/Asyncify ainda não foram concluídos.
+O adaptador de paths físicos segue disponível para providers legados. Pacotes CMP de Summer e RPA de DDLC aceitam fontes virtuais; os outros indexadores ainda precisam dessa migração. Mídia nativa usa AVIO customizado do FFmpeg. O provider Fetch executa pré-carregamento assíncrono e Range limitado, mas ainda não foi testado em navegador. Blocos ausentes geram `WouldBlock` sem bloquear a main thread. O `BrowserBlobAdapter` está disponível para vídeo virtual; a ponte Worker/Asyncify e as rotas HTML legadas ainda estão pendentes.
 
 A política StoragePaths foi movida para `lib/src/Filesystem/StoragePaths.cpp`; o antigo `core/FileSystem.hpp` é um shim. Os nomes públicos e os diretórios de saves permanecem iguais.
 
