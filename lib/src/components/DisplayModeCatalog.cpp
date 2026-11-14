@@ -73,11 +73,11 @@ int DisplayModeCatalog::FindSelected(
     float refreshRate) {
   int sameSize = -1;
   for (size_t i = 0; i < modes.size(); ++i) {
-    if (modes.get()[i].width != width || modes.get()[i].height != height)
+    if (modes[i].width != width || modes[i].height != height)
       continue;
     if (sameSize < 0)
       sameSize = static_cast<int>(i);
-    if (std::abs(modes.get()[i].refreshRate - refreshRate) < kRefreshEquality)
+    if (std::abs(modes[i].refreshRate - refreshRate) < kRefreshEquality)
       return static_cast<int>(i);
   }
   return sameSize >= 0 ? sameSize : (modes.empty() ? -1 : 0);
