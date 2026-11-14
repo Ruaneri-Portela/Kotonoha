@@ -277,19 +277,57 @@ std::string KirikiriAssets::resolveId(const std::string &id) const {
 }
 
 void KirikiriAssets::mountXp3(const std::filesystem::path &path) {
-  std::filesystem::path archivePath = path;
-  if (!archivePath.is_absolute())
-    archivePath = root / archivePath;
-  auto name = archivePath.filename().string();
-  if (std::any_of(archives.begin(), archives.end(),
-                  [&](const auto &archive) { return archive.first == name; }))
-    return; // already mounted
-  if (!readXp3(archivePath)) {
-    SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
-                "Kirikiri: failed to parse XP3 archive %s",
-                archivePath.string().c_str());
-    return;
+  if (path.empty())
+    throw std::invalid_argument("Empty XP3 source id");
+  auto id = path;
+  if (id.is_absolute()) {
+    if (root.empty())
+      throw std::invalid_argument("XP3 sources must have virtual IDs");
+    id = id.lexically_relative(root);
+    if (id.empty() || *id.begin() == "..")
+      throw std::invalid_argument("XP3 source escaped its mounted root");
   }
+  const auto logical = id.generic_string();
+  const auto name = id.filename().string();
+  if (std::any_of(archives.begin(), archives.end(),
+                  [&](const auto &archive) {
+                    return archive.first == name;
+                  }))
+    return;
+  if (!readXp3(logical))
+    SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                "Kirikiri: cannot index XP3 source %s", logical.c_str());
+}
+
+void KirikiriAssets::mountAllXp3() {
+  std::vector<std::string> names;
+  for (const auto &entry : source_->list("")) {
+    if (entry.type != Kotonoha::Filesystem::FileType::Regular)
+      continue;
+    const auto extension = std::filesystem::path(entry.path).extension().string();
+    std::string lower = extension;
+    std::transform(lower.begin(), lower.end(), lower.begin(),
+                   [](unsigned char ch) {
+                     return static_cast<char>(std::tolower(ch));
+                   });
+    if (lower == ".xp3")
+      names.push_back(entry.path);
+  }
+  const auto rank = [](std::string name) {
+    std::transform(name.begin(), name.end(), name.begin(),
+                   [](unsigned char ch) {
+                     return static_cast<char>(std::tolower(ch));
+                   });
+    if (name.find("patch") != std::string::npos) return 2;
+    return name == "data.xp3" ? 0 : 1;
+  };
+  std::sort(names.begin(), names.end(), [&](const auto &a, const auto &b) {
+    const auto an = std::filesystem::path(a).filename().string();
+    const auto bn = std::filesystem::path(b).filename().string();
+    return std::pair(rank(an), an) < std::pair(rank(bn), bn);
+  });
+  for (const auto &id : names)
+    mountXp3(std::filesystem::path(id));
 }
 
 std::vector<std::string> KirikiriAssets::scenarioFiles() const {
@@ -331,11 +369,11 @@ std::string KirikiriAssets::startupScenario() const {
   return files.front();
 }
 
-bool KirikiriAssets::readXp3(const std::filesystem::path &path) {
+bool KirikiriAssets::readXp3(const std::string &id) {
   // Read just enough to validate magic and find the table offset.
   std::unique_ptr<Kotonoha::Filesystem::FileHandle> f;
   try {
-    f = std::make_unique<Kotonoha::Filesystem::SDLFileSource>(path);
+    f = source_->open(id);
   } catch (const std::exception &) {
     return false;
   }
@@ -462,7 +500,7 @@ bool KirikiriAssets::readXp3(const std::filesystem::path &path) {
       // Parse sub-chunks inside the File entry.
       std::size_t sp = 0;
       Xp3Entry entry;
-      entry.archivePath = path;
+      entry.archiveId = id;
       bool hasInfo = false, hasSegm = false;
       std::uint64_t segOffset = 0, segCompSize = 0, segOrigSize = 0;
       bool segCompressed = false;
@@ -514,20 +552,20 @@ bool KirikiriAssets::readXp3(const std::filesystem::path &path) {
     }
   }
 
-  archives.emplace_back(path.filename().string(), std::move(entries));
+  archives.emplace_back(std::filesystem::path(id).filename().string(),
+                        std::move(entries));
   return true;
 }
 
 std::vector<std::uint8_t>
 KirikiriAssets::extractXp3Entry(const Xp3Entry &entry) const {
-  auto f = std::make_unique<Kotonoha::Filesystem::SDLFileSource>(
-      entry.archivePath);
+  auto f = source_->open(entry.archiveId);
   auto closer = [&]() { f.reset(); };
 
   if (f->seek(static_cast<long>(entry.offset), Kotonoha::Filesystem::SeekOrigin::Begin) < 0) {
     closer();
     throw std::runtime_error("Cannot seek in XP3 archive: " +
-                             entry.archivePath.string());
+                             entry.archiveId);
   }
 
   std::vector<std::uint8_t> raw(entry.compressedSize);
