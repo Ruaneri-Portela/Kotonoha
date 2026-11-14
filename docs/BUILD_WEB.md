@@ -21,7 +21,7 @@ Toolchain locations vary by installation. `KOTONOHA_BUILD_ALL=ON` enables suppor
 ## Browser storage and assets
 
 - **Saves:** an IDBFS mount at `/save` synchronizes with IndexedDB; writes are flushed through the web storage adapter.
-- **Server assets:** `tools/generate_manifest.py` emits a size-aware manifest; the browser mounts Emscripten Fetch as a read-only `IMount` and uses local game files first. Remote data is never staged into MEMFS.
+- **Server assets:** optional `tools/generate_manifest.py` emits a size-aware manifest; the browser mounts Emscripten Fetch as a read-only `IMount` and uses local game files first. Remote data is never staged into MEMFS.
 - **Local folder:** the page's folder picker imports chosen game files into the virtual filesystem. Browser audio/video may use `File` object URLs where supported.
 - **Media:** the shared player prefers browser decoding for supported formats, then uses the WebAssembly FFmpeg fallback. Optional `.webm` sidecars can help with legacy codecs; make them only from material you may legally use.
 
@@ -103,6 +103,46 @@ not automatically instruct every game port to search that folder. Port-specific
 path resolution and touchscreen gameplay must be tested separately.
 
 
-### Manifest-free Fetch URL bootstrap
+### Manifest-free Fetch with Asyncify
 
-If `game-assets/manifest.json` is missing, invalid, or cannot be fetched, the HTML shell now configures `KotonohaConfigureRemoteAssetUrl` with the HTTP(S) `game-assets/` base URL and releases the startup dependency without an index. C++ `FetchAssetProvider::fromUrl` can asynchronously discover an explicitly requested relative path via GET and cache its contents. `exists()` starts discovery on previously unseen paths; it returns false until the GET succeeds, rather than reporting unverified assets. `window.KotonohaFetchAsset(relativePath)` explicitly requests a path (return values: 1 ready, 0 queued/pending, -1 invalid). This mode does **not** enumerate unknown server directories and does **not** make synchronous first-use reads wait for the browser event loop. Games that require an asset synchronously in SDL_AppInit still need asynchronous startup gating/prefetch integration; therefore manifest-free boot registration alone does not establish playable parity. The legacy manifest fast path remains supported.
+When `game-assets/manifest.json` cannot be loaded, the HTML bootstrap
+registers `game-assets/` as a direct Fetch mount without an index. Games can
+access **known** relative paths without providing a manifest. The provider
+first requests HTTP `HEAD` to determine the file size; reads then use bounded
+`GET Range` requests and a byte cache. A small object from a server that
+ignores Range can be accepted as a complete HTTP 200 response. No remote file
+is staged in MEMFS.
+
+The web linker enables `-sASYNCIFY=1` so the synchronous VFS `exists()`,
+`open()`, and `FileHandle::read()` calls can yield to Fetch callbacks on
+the main browser thread. This is **not** a synchronous browser network API.
+An HTTP 404 is cached as missing; a network/CORS failure remains a load error.
+Large files require correct HTTP Range (206 and Content-Range). The entire
+HTTP object may still be returned by a misconfigured server, so enforce
+hosting limits. Cross-origin servers must allow HEAD and GET and expose
+Content-Length/Content-Range to the browser.
+
+`await window.KotonohaFetchAsset("known-file.bin")` can request one known
+relative path explicitly. The result is 1 on success, 0 if pending, or -1
+on an invalid request. `window.KotonohaAssetBaseURL` can override the
+default game-assets URL **before** initialization.
+
+A directory cannot be enumerated over ordinary HTTP without an index. File
+providers that discover unknown paths through directory enumeration or
+depend on physical archive file paths still need migration. These changes
+do not prove that every port can start or finish gameplay. Re-entrant
+Asyncify/SDL operations and memory usage must be tested in real browsers.
+
+### Browser validation
+
+The source-only checks are:
+
+```sh
+node tools/check_web_shell.js
+node --check tools/web_selftest.js
+```
+
+The Playwright suite also exercises manifest-free HTTP, local folder import,
+VFS hot-import refresh, saves, media, and browser touch delivery, when built
+with `-DKOTONOHA_WEB_SELFTEST=ON`. It does not certify each game's retail
+playthrough, and it has not been executed in this environment.
