@@ -77,6 +77,9 @@ jobs:
             -DKOTONOHA_BUILD_ALL=ON \
             -DSDLTTF_PLUTOSVG=OFF
 
+      - name: Verify main/side module static dependency ownership
+        run: python3 tools/check_wasm_link_architecture.py build-web
+
       - name: Compile all enabled WASM game ports and self-test
         run: cmake --build build-web --target all --parallel 2
 
