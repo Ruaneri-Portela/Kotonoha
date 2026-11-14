@@ -20,6 +20,6 @@ Use o launcher ou passe `--summer /caminho/para/dados` ao executável. Nunca ver
 
 ## Investigação detalhada
 
-[Estado original do port e evidências](PORT_STATUS.md). Resultados históricos se aplicam aos assets/revisão analisados e podem conter informações substituídas depois.
+[Resumo do estado do port](STATUS.pt-BR.md) · [Investigação detalhada](PORT_STATUS.md). Resultados históricos se aplicam aos assets/revisão analisados e podem conter informações substituídas depois.
 
 [Guias de compilação](../../docs/BUILD_GUIDES.pt-BR.md) · [Índice de ports](../README.pt-BR.md)
