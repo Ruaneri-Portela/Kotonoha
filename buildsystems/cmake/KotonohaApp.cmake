@@ -1,3 +1,27 @@
+# Platform-specific build choices live in the engine's CMake layer,
+# never in individual game ports.
+if(ANDROID OR EMSCRIPTEN)
+    set(KOTONOHA_BUILD_HOST_TOOLS OFF)
+else()
+    set(KOTONOHA_BUILD_HOST_TOOLS ON)
+endif()
+if(ANDROID OR EMSCRIPTEN)
+    set(KOTONOHA_EMBED_PYTHON OFF)
+else()
+    set(KOTONOHA_EMBED_PYTHON ON)
+endif()
+
+# A game declares *what* asset to ship; the engine decides how.
+function(kotonoha_preload_asset target source destination)
+    if(EMSCRIPTEN)
+        if(NOT EXISTS "${source}")
+            message(FATAL_ERROR "Missing preloaded asset: ${source}")
+        endif()
+        target_link_options(${target} PRIVATE
+            "SHELL:--preload-file ${source}@${destination}")
+    endif()
+endfunction()
+
 # Copia os assets do jogo e do engine para o diretório do executável/bundle
 function(kotonoha_copy_assets target)
     cmake_parse_arguments(ASSETS "" "GAME;GAME_ASSET_SOURCE" "" ${ARGN})
