@@ -4,7 +4,6 @@
 
 #include <algorithm>
 #include <fstream>
-#include <limits>
 #include <stdexcept>
 #include <utility>
 
@@ -44,7 +43,8 @@ UnifiedFileSystem UnifiedFileSystem::forApplication(
 #ifdef __EMSCRIPTEN__
   // Existing browser saves are mounted under /save (IDBFS), not the desktop
   // SDL_GetPrefPath directory. Keep that established persistence contract.
-  service.layout_.saves = preferredDocumentsDirectory();
+  service.layout_.documents = preferredDocumentsDirectory();
+  service.layout_.saves = service.layout_.documents;
 #endif
   return service;
 }
