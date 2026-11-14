@@ -206,8 +206,10 @@ FetchAssetProvider::slot(std::string_view id) const {
 void FetchAssetProvider::enqueue(Job job) {
   const auto dedup = job.key + ":" + std::to_string(job.start) + ":" +
                      std::to_string(job.length);
-  if (requested_.insert(dedup).second)
+  if (requested_.insert(dedup).second) {
+    ++requestedCount_;
     queued_.push_back(std::move(job));
+  }
 }
 
 void FetchAssetProvider::begin(std::size_t preloadLimit) {
@@ -254,6 +256,15 @@ bool FetchAssetProvider::ready(std::string_view id) const {
       return true;
   }
   return false;
+}
+
+bool FetchAssetProvider::allFilesReady() const {
+  if (!complete() || failures_)
+    return false;
+  for (const auto &[key, entry] : files_)
+    if (!ready(key))
+      return false;
+  return true;
 }
 
 bool FetchAssetProvider::containsAsset(const std::string &id) const {
@@ -419,8 +430,7 @@ void FetchAssetProvider::pump() {
     emscripten_fetch_attr_t attr;
     emscripten_fetch_attr_init(&attr);
     std::memcpy(attr.requestMethod, "GET", 4);
-    attr.attributes = EMSCRIPTEN_FETCH_LOAD_TO_MEMORY |
-                      EMSCRIPTEN_FETCH_REPLACE;
+    attr.attributes = EMSCRIPTEN_FETCH_LOAD_TO_MEMORY;
     attr.timeoutMSecs = 30000;
     if (!job.full) {
       ctx->range = "bytes=" + std::to_string(job.start) + "-" +
@@ -443,6 +453,9 @@ void FetchAssetProvider::pump() {
       provider->complete(
           Job{ctx->path, ctx->start, ctx->length, ctx->full},
           fetch->status, fetch->data, fetch->numBytes, headers);
+      ++provider->completed_;
+      if (provider->files_.at(ctx->path)->failed)
+        ++provider->failures_;
       emscripten_fetch_close(fetch);
       --provider->active_;
       provider->pump();
@@ -455,6 +468,8 @@ void FetchAssetProvider::pump() {
       --active_;
       files_.at(job.key)->failed = true;
       files_.at(job.key)->message = "Cannot dispatch HTTP Fetch";
+      ++completed_;
+      ++failures_;
       delete ctx;
     }
   }
