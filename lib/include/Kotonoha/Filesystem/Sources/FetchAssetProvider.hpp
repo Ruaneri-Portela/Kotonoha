@@ -64,6 +64,7 @@ public:
   fromUrl(std::string baseUrl, std::size_t cacheBudget = 64u << 20);
   bool requestAsset(std::string_view id);
   bool manifestFree() const noexcept { return discover_; }
+  bool preferLocalWhenPresent() const noexcept override { return discover_; }
 
   static std::shared_ptr<FetchAssetProvider>
   fromManifest(std::string baseUrl, const std::string &json,
