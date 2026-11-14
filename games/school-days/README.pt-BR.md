@@ -20,7 +20,7 @@ Use o launcher ou passe `--school-days /caminho/para/dados` ao executável. Nunc
 
 ## Investigação detalhada
 
-[Estado original do port e evidências](PORT_STATUS.md). Resultados históricos se aplicam aos assets/revisão analisados e podem conter informações substituídas depois.
+[Resumo do estado do port](STATUS.pt-BR.md) · [Investigação detalhada](PORT_STATUS.md). Resultados históricos se aplicam aos assets/revisão analisados e podem conter informações substituídas depois.
 
 [Índice de investigações](docs/README.pt-BR.md) e [assets da interface Display Options](display-options/README.pt-BR.md).
 
