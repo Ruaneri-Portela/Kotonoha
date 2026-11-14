@@ -13,6 +13,8 @@ CommandLine::CommandLine(std::string program, EngineOptions &engine)
   flag("--help", "Show engine and game options without opening the game",
        helpRequested);
   alias("--help", "-h");
+  flag("--version", "Print Git/CMake build version and exit", versionRequested);
+  alias("--version", "-V");
   option("--config", "FILE", "Load and save engine settings",
          engine.settingsPath);
   flag("--no-config", "Do not persist engine settings",
