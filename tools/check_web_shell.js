@@ -31,6 +31,9 @@ for (const symbol of [
 ]) {
   assert(html.includes(symbol), 'Missing web bootstrap interface: ' + symbol);
 }
+assert(html.includes('id="loading-build"') &&
+       html.includes('@KOTONOHA_VERSION_FULL@'),
+  'Every browser game must display its CMake/Git version on the asset picker');
 assert(html.includes('touch-action: none'), 'Touch gesture handling must stay active');
 assert(html.includes('id="browser-folder-tools" aria-label="Pastas do jogo"'),
   'Pre-game toolbar must be an ordinary fixed element, not a Safari popover');
