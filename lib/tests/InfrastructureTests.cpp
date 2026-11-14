@@ -4,7 +4,7 @@
 #include <Kotonoha/components/VNManager.hpp>
 #include <Kotonoha/components/VNTextBox.hpp>
 #include <Kotonoha/core/Engine.hpp>
-#include <Kotonoha/core/FileSystem.hpp>
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/Log.hpp>
 #include <Kotonoha/events/BackAction.hpp>
 #include <Kotonoha/media/MediaPlayer.hpp>

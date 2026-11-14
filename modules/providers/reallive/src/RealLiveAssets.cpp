@@ -9,23 +9,29 @@ namespace Kotonoha::Providers {
 using namespace RealLive;
 RealLiveAssets::RealLiveAssets(const std::filesystem::path &directory,
                                const std::filesystem::path &overlay)
-    : root(std::filesystem::canonical(directory)), config("") {
-  if (Kotonoha::isISOImage(root)) {
-    auto disc = std::make_unique<Kotonoha::DiscImageAssetProvider>(root);
-    SDL_Log("Reading REALLIVE ISO directly: %s (%zu files; no extraction)",
-            root.string().c_str(), disc->getDisc().files().size());
-    source = std::move(disc);
-  } else {
-    source = std::make_unique<Kotonoha::IndexedFileSystemAssetProvider>(root);
-  }
-  source->setOverlay({});
+    : RealLiveAssets(Kotonoha::Filesystem::Filesystem::mount(
+                         directory.string()), overlay) {
+  root = directory;
+}
+
+RealLiveAssets::RealLiveAssets(
+    std::shared_ptr<Kotonoha::Filesystem::Filesystem> mounted,
+    const std::filesystem::path &overlay)
+    : config("") {
+  if (!mounted)
+    throw std::invalid_argument("RealLive requires a virtual game source");
+  if (!overlay.empty())
+    mounted->addOverlay(overlay.string());
+  source = std::make_unique<Kotonoha::IndexedFileSystemAssetProvider>(
+      mounted);
   setOverlay(overlay);
   const auto ini = read("Gameexe.ini");
   configSource.assign(ini.begin(), ini.end());
   config = Config(configSource);
   if (!contains("Seen.txt"))
-    throw std::runtime_error("REALLIVE Seen.txt not found");
+    throw std::runtime_error("REALLIVE Seen.txt missing from VFS");
 }
+
 bool RealLiveAssets::containsAsset(const std::string &id) const {
   return source->contains(id);
 }

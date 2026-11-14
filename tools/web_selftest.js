@@ -11,11 +11,11 @@
 // Usage:
 //   node tools/web_selftest.js [output-dir] [port]
 //
-// The test exercises the real C++ paths, not the JS bridge directly:
+// The test exercises the real C++ provider, not a MEMFS HTTP staging path:
 //   - VNSave::write -> IDBFS sync -> page reload -> VNSave::read
-//   - MediaPlayer::open(assets, id) -> provider localPath -> KotonohaPlayVideo
-// The first MEMFS video is a zero-byte placeholder to test URL playback;
-// additional tests provide local bytes for the FFmpeg fallback.
+//   - HTTP manifest -> FetchAssetProvider -> FileHandle -> HTML5 Blob
+//   - Local game folder -> FileHandle -> HTML5 Blob or FFmpeg.
+
 
 const { spawn, spawnSync } = require('node:child_process');
 const fs = require('node:fs');
@@ -106,6 +106,85 @@ function ensureLegacySidecar() {
   return true;
 }
 
+function ensureLargeRangeFixture() {
+  // A sparse fixture checks that a 320 MiB GPK is NOT downloaded into WASM
+  // merely to read its last 8 bytes. It occupies negligible disk space.
+  const filename = path.join(output, 'game-assets', 'event01.gpk');
+  const length = 320 * 1024 * 1024;
+  const fd = fs.openSync(filename, 'w');
+  try {
+    fs.ftruncateSync(fd, length);
+    fs.writeSync(fd, Buffer.from('GPK!'), 0, 4, 0);
+    fs.writeSync(fd, Buffer.from('GPKTAIL!'), 0, 8, length - 8);
+  } finally {
+    fs.closeSync(fd);
+  }
+}
+
+function ensureVirtualIsoFixture() {
+  // Same tiny 2048-byte-sector ISO9660 fixture as the native VFS test.
+  // It exercises a BIN/ISO reader on remote HTTP bytes with no MEMFS image.
+  const block = 2048;
+  const disk = Buffer.alloc(block * 22, 0);
+  const put32 = (at, value) => disk.writeUInt32LE(value, at);
+  const pvd = block * 16;
+  disk[pvd] = 1;
+  disk.write('CD001', pvd + 1, 'ascii');
+  put32(pvd + 156 + 2, 20);
+  put32(pvd + 156 + 10, block);
+  const terminator = block * 17;
+  disk[terminator] = 255;
+  disk.write('CD001', terminator + 1, 'ascii');
+  const dir = block * 20;
+  const name = 'HELLO.TXT;1';
+  disk[dir] = 33 + name.length;
+  put32(dir + 2, 21);
+  put32(dir + 10, 5);
+  disk[dir + 32] = name.length;
+  disk.write(name, dir + 33, 'ascii');
+  disk.write('hello', block * 21, 'ascii');
+  fs.writeFileSync(path.join(output, 'game-assets', 'web-disc.iso'), disk);
+}
+
+function ensureCustomFolderFixture() {
+  // Synthetic retail-like layout for manifest-free VFS discovery. Do not
+  // request HEAD for "data" or "data/pack" as though they were files.
+  const packs = path.join(output, 'game-assets', 'data', 'pack');
+  fs.mkdirSync(packs, {recursive: true});
+  fs.writeFileSync(path.join(packs, 'script.dat'), 'browser-pack-fixture');
+  const root = path.join(output, 'forced_subtitles');
+  fs.mkdirSync(root, { recursive: true });
+  fs.writeFileSync(path.join(root, 'web-test.ass'),
+    '[Script Info]\\nTitle: Kotonoha web fixture\\n');
+  const live = path.join(output, 'live_import');
+  fs.mkdirSync(live, { recursive: true });
+  fs.writeFileSync(path.join(live, 'live-extra.txt'), 'Kotonoha hot import');
+}
+
+function updateManifest() {
+  // Fixture files are generated AFTER the CMake manifest custom command.
+  // Recreate the HTTP index so the actual FetchAssetProvider sees these bytes.
+  const root = path.join(output, 'game-assets');
+  const entries = [];
+  const traverse = (folder, prefix = '') => {
+    for (const item of fs.readdirSync(folder, { withFileTypes: true })) {
+      const relative = prefix ? prefix + '/' + item.name : item.name;
+      const absolute = path.join(folder, item.name);
+      if (item.isDirectory()) {
+        traverse(absolute, relative);
+      } else if (item.isFile() &&
+                 item.name !== 'manifest.json' &&
+                 item.name !== 'README.txt') {
+        entries.push({path: relative, size: fs.statSync(absolute).size});
+      }
+    }
+  };
+  traverse(root);
+  entries.sort((a, b) => a.path.localeCompare(b.path));
+  fs.writeFileSync(path.join(root, 'manifest.json'),
+                   JSON.stringify({entries, files: entries.map(e => e.path)}));
+}
+
 async function waitForServer() {
   for (let i = 0; i < 80; ++i) {
     try {
@@ -123,9 +202,14 @@ async function waitForServer() {
 async function main() {
   ensureVideo();
   ensureAudio();
+  ensureCustomFolderFixture();
+  ensureVirtualIsoFixture();
+  ensureLargeRangeFixture();
   const testLegacySidecar = ensureLegacySidecar();
+  updateManifest();
   const server = spawn('python3', [
-    '-m', 'http.server', String(port), '--directory', output,
+    path.join(__dirname, 'serve_web.py'),
+    '--port', String(port), '--root', output,
   ], { stdio: ['ignore', 'ignore', 'pipe'] });
   let serverError = '';
   server.stderr.on('data', chunk => { serverError += chunk; });
@@ -150,8 +234,39 @@ async function main() {
         null, { timeout: 60000 });
     };
 
+    const sourceRequests = [];
+    page.on('request', request => {
+      if (/\/game-assets\/manifest\.json(?:[?#]|$)/.test(request.url()))
+        sourceRequests.push(request.url());
+    });
     await page.goto(baseUrl + '/index.html', { waitUntil: 'domcontentloaded' });
     await page.locator('#select-local-assets').waitFor({ state: 'visible' });
+    await page.waitForFunction(() =>
+      !document.getElementById('select-local-assets').disabled &&
+      !document.getElementById('use-server-assets').disabled);
+    // The user may take as long as they want. No 500ms HTTP auto-start.
+    await page.waitForTimeout(1150);
+    const pendingChoice = await page.evaluate(() => ({
+      overlayVisible: !!document.getElementById('loading-overlay'),
+      actionsVisible: getComputedStyle(
+        document.getElementById('asset-source-actions')).display !== 'none',
+      started: !!window.KotonohaRuntimeStarted,
+      toolbar: getComputedStyle(document.getElementById(
+        'browser-folder-tools')).position === 'fixed'
+    }));
+    assert(pendingChoice.overlayVisible && pendingChoice.actionsVisible &&
+      !pendingChoice.started && pendingChoice.toolbar &&
+      sourceRequests.length === 0,
+      'boot must wait for an explicit source choice without fetching HTTP');
+    // Extra folders may be imported while the startup source is still
+    // undecided; the button must disappear before SDL_AppInit.
+    page.once('dialog', dialog => dialog.accept('forced_subtitles'));
+    const chooserPromise = page.waitForEvent('filechooser');
+    await page.locator('#add-browser-folder').click();
+    await (await chooserPromise).setFiles(path.join(output, 'forced_subtitles'));
+    await page.waitForFunction(() =>
+      document.getElementById('browser-folder-status').textContent
+        .includes('arquivo(s) montado(s)'));
     await page.locator('#local-assets-folder').setInputFiles(
       path.join(output, 'game-assets'));
     await ready();
@@ -185,40 +300,158 @@ async function main() {
       local.hasFrame === 1, 'local movie decodes from browser File URL');
     assert(local.audioOpened === 1 && local.audioDuration > 1.8,
       'local audio decodes from selected folder');
+    assert(sourceRequests.length === 0,
+      'choosing local game-assets must not silently fetch HTTP assets');
+    const toolbarState = await page.evaluate(() => ({
+      running: !!window.KotonohaRuntimeStarted,
+      hidden: document.getElementById('browser-folder-tools').hidden,
+      display: getComputedStyle(
+        document.getElementById('browser-folder-tools')).display,
+      disabled: document.getElementById('add-browser-folder').disabled
+    }));
+    assert(toolbarState.running && toolbarState.hidden &&
+      toolbarState.display === 'none' && toolbarState.disabled,
+      'custom folder button must disappear after SDL starts');
+
+
+    const ehAcrossAwait = await page.evaluate(async () =>
+      Module.ccall('KotonohaWebSelfTestCatchAfterAsyncify', 'number',
+        [], [], { async: true }));
+    assert(ehAcrossAwait === 1,
+      'C++ catch must survive Asyncify sleep and resume without CppException');
+
+
+    // A custom root chosen before startup remains available to the game.
+    const custom = await page.evaluate(() => ({
+      contents: Module.FS_readFile('/forced_subtitles/web-test.ass',
+        { encoding: 'utf8' }),
+      status: document.getElementById('browser-folder-status').textContent
+    }));
+    assert(custom.contents.includes('Kotonoha web fixture'),
+      'custom named directory is mounted in the Emscripten VFS');
+
+    // Hold an existing DirectoryMount, add new files to the game-assets
+    // root after SDL_AppInit, and verify refresh without re-creating mount.
+    const beforeImport = await page.evaluate(() => Module.ccall(
+      'KotonohaWebSelfTestLiveLocalSize', 'number',
+      ['string'], ['selftest.webm']));
+    assert(beforeImport > 0, 'live local mount was created');
+    // Internal hot-mount API is still callable for engine integration,
+    // but it is no longer exposed as a visible in-game button.
+    await page.evaluate(() => window.KotonohaMountBrowserFolder(
+      [new File(['Kotonoha hot import'], 'live-extra.txt')], 'game-assets'));
+    const afterImport = await page.evaluate(() => Module.ccall(
+      'KotonohaWebSelfTestLiveLocalSize', 'number',
+      ['string'], ['live-extra.txt']));
+    assert(afterImport === Buffer.byteLength('Kotonoha hot import'),
+      'already-mounted game-assets root detects new browser files');
+
+    // Fullscreen must NOT reopen the pre-game configuration control.
+    await page.locator('#canvas').evaluate(canvas =>
+      canvas.addEventListener('click', () =>
+        canvas.requestFullscreen().catch(() => {}), { once: true }));
+    await page.locator('#canvas').click({ position: { x: 140, y: 140 } });
+    await page.waitForTimeout(150);
+    const fullscreenState = await page.evaluate(() => ({
+      hidden: document.getElementById('browser-folder-tools').hidden,
+      display: getComputedStyle(document.getElementById('browser-folder-tools')).display
+    }));
+    assert(fullscreenState.hidden &&
+      fullscreenState.display === 'none',
+      'fullscreen must not reopen the custom folder button');
+    await page.evaluate(() =>
+      document.fullscreenElement ? document.exitFullscreen() : null);
+
+    // Check direct Fetch without a manifest: a Range-aware server must
+    // deliver a few bytes from a 320 MiB synthetic GPK with HTTP 206,
+    // not download the entire archive or fill the WASM memory cache.
+    const manifestPath = path.join(output, 'game-assets', 'manifest.json');
+    const backupPath = manifestPath + '.testing';
+    fs.renameSync(manifestPath, backupPath);
+    const directoryProbes = [];
+    const gpkResponses = [];
+    const trackResponse = response => {
+      if (new URL(response.url()).pathname.endsWith('/game-assets/event01.gpk'))
+        gpkResponses.push({
+          status: response.status(),
+          contentRange: response.headers()['content-range']
+        });
+    };
+    page.on('response', trackResponse);
+    const trackProbe = request => {
+      const pathname = new URL(request.url()).pathname;
+      if (/\/game-assets\/(?:data|data\/pack)$/.test(pathname))
+        directoryProbes.push(pathname);
+    };
+    page.on('request', trackProbe);
+    try {
+      await page.goto(baseUrl + '/index.html',
+        { waitUntil: 'domcontentloaded' });
+      await page.locator('#use-server-assets').click();
+      await ready();
+      const direct = await page.evaluate(async () => {
+        const size = await Module.ccall('KotonohaWebSelfTestRemoteSize',
+          'number', ['string'], ['selftest.webm'], { async: true });
+        const upperCaseSize = await Module.ccall('KotonohaWebSelfTestRemoteSize',
+          'number', ['string'], ['SELFTEST.WEBM'], { async: true });
+        const nestedSize = await Module.ccall('KotonohaWebSelfTestRemoteSize',
+          'number', ['string'], ['DATA/PACK/SCRIPT.DAT'], { async: true });
+        const disc = await Module.ccall('KotonohaWebSelfTestVirtualDisc',
+          'number', [], [], { async: true });
+        const largeTail = await Module.ccall('KotonohaWebSelfTestLargeRemoteTail',
+          'number', [], [], { async: true });
+        const missing = await Module.ccall('KotonohaWebSelfTestRemoteSize',
+          'number', ['string'], ['missing-selftest.bin'], { async: true });
+        let staged = false;
+        try {
+          Module.FS_readFile('/game-assets/selftest.webm');
+          staged = true;
+        } catch (_) { /* Remote Fetch must not be copied to MEMFS. */ }
+        return {
+          size, upperCaseSize, nestedSize, disc, largeTail, missing, staged,
+          configured: typeof window.KotonohaFetchAsset === 'function'
+        };
+      });
+      console.log('MANIFEST_FREE', JSON.stringify(direct));
+      assert(direct.configured && direct.size > 0 &&
+        direct.upperCaseSize === direct.size &&
+        direct.nestedSize === Buffer.byteLength('browser-pack-fixture') &&
+        direct.disc === 1 && direct.largeTail === 1 &&
+        gpkResponses.some(reply => reply.status === 206 &&
+          /^bytes \d+-\d+\/335544320$/.test(reply.contentRange || '')) &&
+        directoryProbes.length === 0 &&
+        direct.missing === -1 && !direct.staged,
+        'manifest-free HEAD/Range Fetch works without MEMFS staging');
+    } finally {
+      page.off('request', trackProbe);
+      page.off('response', trackResponse);
+      fs.renameSync(backupPath, manifestPath);
+    }
 
     await page.goto(baseUrl + '/index.html', { waitUntil: 'domcontentloaded' });
     await page.locator('#use-server-assets').click();
     await ready();
 
     const prepared = await page.evaluate(() => {
+      let staged = false;
       try {
-        Module.FS_createPath('/', 'game-assets', true, true);
-      } catch (error) {
-        // The manifest loader may have created the directory already.
-      }
-      let placeholderError = null;
-      try {
-        Module.FS_createDataFile('/game-assets', 'selftest.webm',
-          new Uint8Array(0), true, true, true);
-      } catch (error) {
-        placeholderError = String(error);
-      }
-      let placeholderSize = -1;
-      try {
-        placeholderSize = Module.FS_readFile('/game-assets/selftest.webm').length;
-      } catch (error) {
-        placeholderError = String(error);
-      }
+        Module.FS_readFile('/game-assets/selftest.webm');
+        staged = true;
+      } catch (error) { /* Fetch data does not live in MEMFS. */ }
       return {
         write: Module.ccall('KotonohaWebSelfTestWriteSave', 'number', [], []),
-        placeholderSize,
-        placeholderError,
+        remoteSize: Module.ccall('KotonohaWebSelfTestRemoteSize',
+                                 'number', ['string'], ['selftest.webm']),
+        staged
       };
     });
     console.log('PREPARE', JSON.stringify(prepared));
     assert(prepared.write === 1, 'VNSave::write succeeded');
-    assert(prepared.placeholderSize === 0,
-      'deferred video placeholder is zero bytes');
+    assert(prepared.remoteSize > 0,
+      'HTTP fallback bytes are readable via the virtual FileHandle');
+    assert(prepared.staged === false,
+      'HTTP resource must not be silently duplicated into MEMFS');
+
 
     const beforeReload = await page.evaluate(async () => {
       const savePath =
@@ -320,8 +553,8 @@ async function main() {
     assert(video.hasFrame === 1, 'HTML5 video produced a frame');
     assert(video.display === 'none', 'HTML5 decoder stays behind SDL');
     assert(video.rendered === 1, 'browser frame renders through SDL');
-    assert(video.currentSrc.endsWith('/game-assets/selftest.webm'),
-      'MediaPlayer passed the game-assets URL to KotonohaPlayVideo');
+    assert(video.currentSrc.startsWith('blob:'),
+      'MediaPlayer provided a Blob URL, not the original HTTP URL');
     assert(video.paused === false, 'HTML5 video is playing');
     assert(video.videoSize[0] === 320 && video.videoSize[1] === 240,
       'HTML5 video decoded the 4:3 source');
@@ -552,12 +785,66 @@ async function main() {
       console.log('LEGACY_VIDEO', JSON.stringify(legacy));
       assert(legacy.opened === 1 && legacy.hasFrame === 1,
         'MPEG asset opens and produces a WebM frame');
-      assert(legacy.src.endsWith('/game-assets/legacy.mpg.webm'),
-        'MPEG asset selects its WebM sidecar');
+      assert(legacy.src.startsWith('blob:'),
+        'MPEG sidecar is played from virtual bytes via Blob');
       assert(legacy.duration > 1.5,
         'sidecar duration is reported by MediaPlayer');
       await page.evaluate(() => Module.ccall('KotonohaWebSelfTestCloseVideo',
         null, [], []));
+    }
+
+    // Real browser touch events, not an artificial SDL_PushEvent. A fresh
+    // touch-enabled page reaches the SDL3 callback through the canvas.
+    const touchContext = await browser.newContext({
+      hasTouch: true, isMobile: true, viewport: { width: 390, height: 844 }
+    });
+    try {
+      const touchPage = await touchContext.newPage();
+      touchPage.on('pageerror', error =>
+        logs.push('touch-pageerror: ' + error.message));
+      await touchPage.goto(baseUrl + '/index.html',
+        { waitUntil: 'domcontentloaded' });
+      const mobileChooser = await touchPage.locator('#use-server-assets').boundingBox();
+      assert(mobileChooser && mobileChooser.width >= 44 &&
+        mobileChooser.height >= 44 && mobileChooser.y >= 0 &&
+        mobileChooser.y + mobileChooser.height <= 844,
+        'small mobile viewport must show an accessible source button');
+      await touchPage.locator('#use-server-assets').click();
+      await touchPage.waitForFunction(() =>
+        typeof Module === 'object' && Module.KotonohaSaveReady === true &&
+        document.getElementById('canvas').width > 320, null,
+        { timeout: 60000 });
+      await touchPage.locator('#loading-overlay')
+        .waitFor({ state: 'detached', timeout: 60000 });
+      const touchBox = await touchPage.locator('#canvas').boundingBox();
+      assert(touchBox && touchBox.width >= 300 && touchBox.height >= 200,
+        'SDL canvas must remain visible on a portrait mobile viewport');
+      await touchPage.touchscreen.tap(touchBox.x + touchBox.width / 2,
+        touchBox.y + touchBox.height / 2);
+      await touchPage.waitForFunction(() =>
+        Module.ccall('KotonohaWebSelfTestTouchDownCount',
+          'number', [], []) > 0 &&
+        Module.ccall('KotonohaWebSelfTestTouchUpCount',
+          'number', [], []) > 0, null, { timeout: 5000 });
+      await touchPage.locator('#canvas').focus();
+      await touchPage.keyboard.press('Enter');
+      await touchPage.waitForFunction(() =>
+        Module.ccall('KotonohaWebSelfTestKeyDownCount', 'number', [], []) > 0,
+        null, { timeout: 5000 });
+      const apiStatus = await touchPage.evaluate(() => ({
+        gamepads: typeof navigator.getGamepads === 'function',
+        initialized: Module.ccall('KotonohaWebSelfTestConnectedGamepads',
+          'number', [], []) >= 0
+      }));
+      assert(apiStatus.initialized, 'SDL Gamepad subsystem was not initialized');
+      console.log('MOBILE INPUT', JSON.stringify(apiStatus));
+      await touchPage.setViewportSize({ width: 844, height: 390 });
+      const rotated = await touchPage.locator('#canvas').boundingBox();
+      assert(rotated && rotated.width >= 600 && rotated.height >= 250,
+        'SDL canvas must survive mobile landscape rotation');
+      console.log('TOUCH, KEYBOARD AND MOBILE RESIZE delivered to SDL3');
+    } finally {
+      await touchContext.close();
     }
 
     console.log('RESULT PASS');

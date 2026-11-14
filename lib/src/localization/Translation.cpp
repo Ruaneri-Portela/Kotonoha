@@ -1,10 +1,10 @@
-#include <Kotonoha/core/FileSystem.hpp>
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/localization/Translation.hpp>
 
 #include <json-c/json.h>
 
 #include <charconv>
-#include <fstream>
+#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <limits>
 #include <memory>
 #include <stdexcept>
@@ -28,7 +28,7 @@ bool validSection(const std::string &name) {
 } // namespace
 
 void Translation::load(const std::string &path) {
-  std::ifstream input(FileResolver::findAsset(path).value_or(path),
+  Kotonoha::Filesystem::InputFile input(FileResolver::findAsset(path).value_or(path),
                       std::ios::binary);
   if (!input)
     throw std::runtime_error("Cannot open translation: " + path);

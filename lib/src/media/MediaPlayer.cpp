@@ -1,4 +1,8 @@
 #include <Kotonoha/core/AssetProvider.hpp>
+#include <Kotonoha/Filesystem/Filesystem.hpp>
+#include <Kotonoha/Filesystem/RemoteAssets.hpp>
+#include <Kotonoha/Filesystem/Adapters/BrowserBlobAdapter.hpp>
+#include <Kotonoha/Filesystem/Sources/SDLFileSource.hpp>
 #include <Kotonoha/core/UI.hpp>
 #include <Kotonoha/media/FFmpegSupport.hpp>
 #include <Kotonoha/media/MediaPlayer.hpp>
@@ -22,7 +26,6 @@ extern "C" {
 #include <cstdint>
 #include <deque>
 #include <filesystem>
-#include <fstream>
 #include <mutex>
 #include <stdexcept>
 #include <string>
@@ -50,6 +53,41 @@ struct FrameDeleter {
 };
 using Frame = std::unique_ptr<AVFrame, FrameDeleter>;
 
+class HandleAssetStream final : public AssetStream {
+  std::unique_ptr<Filesystem::FileHandle> file_;
+
+public:
+  explicit HandleAssetStream(std::unique_ptr<Filesystem::FileHandle> file)
+      : file_(std::move(file)) {
+    if (!file_)
+      throw std::invalid_argument("Media file handle is null");
+  }
+  std::uint64_t size() const override {
+    const auto n = file_->size();
+    if (n < 0)
+      throw std::runtime_error("Media file size is unknown");
+    return static_cast<std::uint64_t>(n);
+  }
+  std::uint64_t tell() const override {
+    const auto n = file_->tell();
+    if (n < 0)
+      throw std::runtime_error("Cannot tell media file position");
+    return static_cast<std::uint64_t>(n);
+  }
+  std::size_t read(Uint8 *destination, std::size_t count) override {
+    const auto n = file_->read(destination, count);
+    if (n < 0)
+      throw std::runtime_error("Media I/O read failed");
+    return static_cast<std::size_t>(n);
+  }
+  bool seek(std::uint64_t offset) override {
+    if (offset > static_cast<std::uint64_t>(INT64_MAX))
+      return false;
+    return file_->seek(static_cast<std::int64_t>(offset),
+                       Filesystem::SeekOrigin::Begin) ==
+           static_cast<std::int64_t>(offset);
+  }
+};
 } // namespace
 
 struct MediaPlayer::State {
@@ -75,6 +113,7 @@ struct MediaPlayer::State {
   bool yuvTextureUnavailable = false;
   Uint64 textureSerial = 0;
 #ifdef __EMSCRIPTEN__
+  std::unique_ptr<Filesystem::BrowserBlobAdapter> webVirtualBlob;
   bool webVideo = false;
   bool webAudioOnly = false;
   bool webVideoStarted = false;
@@ -87,7 +126,6 @@ struct MediaPlayer::State {
   std::uint64_t webVideoFed = 0;
   std::string webVideoId, webVideoMime, webVideoUrl;
   std::string webFallbackPath, webFallbackId;
-  std::unique_ptr<std::ifstream> webVideoFile;
 
   static std::string mimeForMediaPath(const std::string &path,
                                       bool audioOnly) {
@@ -135,64 +173,6 @@ struct MediaPlayer::State {
   // Only a path rooted in /game-assets is guaranteed to be an HTTP asset.
   // Arbitrary AssetProvider IDs may refer to archive members: never turn
   // those into HTTP URLs without a verified localPath mapping.
-  static std::string webUrlForPath(const std::string &path) {
-    if (path.empty() || path.find('\0') != std::string::npos)
-      return {};
-    const auto input = std::filesystem::path(path).lexically_normal();
-    std::filesystem::path relative;
-    if (input.is_absolute()) {
-      relative = input.lexically_relative("/game-assets");
-    } else {
-      relative = input;
-      if (!relative.empty() && *relative.begin() == "game-assets")
-        relative = relative.lexically_relative("game-assets");
-      else
-        return {}; // Not an unambiguous public URL.
-    }
-    if (relative.empty() || relative == "." || relative.is_absolute())
-      return {};
-    for (const auto &part : relative)
-      if (part == "..")
-        return {};
-    // Encode URL-sensitive bytes while preserving directory separators.
-    // The browser resolves this URL relative to the document/base URL.
-    const std::string raw = relative.generic_string();
-    constexpr char hex[] = "0123456789ABCDEF";
-    std::string encoded;
-    encoded.reserve(raw.size());
-    for (unsigned char c : raw) {
-      if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
-          (c >= '0' && c <= '9') || c == '/' || c == '-' || c == '_' ||
-          c == '.' || c == '~') {
-        encoded.push_back(static_cast<char>(c));
-      } else {
-        encoded.push_back('%');
-        encoded.push_back(hex[c >> 4]);
-        encoded.push_back(hex[c & 15]);
-      }
-    }
-    return "game-assets/" + encoded;
-  }
-
-  bool configureWebVideoUrl(const std::string &path, bool audioOnly) {
-    const std::string mime = mimeForMediaPath(path, audioOnly);
-    if (!canPlayWebMedia(mime))
-      return false;
-    const std::string url = webUrlForPath(path);
-    if (url.empty())
-      return false;
-    webVideo = true;
-    webAudioOnly = mime.compare(0, 6, "audio/") == 0;
-    webVideoUrlMode = true;
-    webVideoId = path;
-    webVideoMime = mime;
-    webVideoUrl = url;
-    SDL_Log("[Kotonoha] Web video: %s -> %s", path.c_str(), url.c_str());
-    return true;
-  }
-
-  // Archive-backed videos use a chunked AssetProvider read and a Blob URL.
-  // The browser cannot play until the entire Blob has been assembled.
   bool configureWebVideo(const AssetProvider &assets, const std::string &id,
                          bool audioOnly) {
     // A browser-compatible sidecar can replace a legacy cutscene without
@@ -201,9 +181,8 @@ struct MediaPlayer::State {
     if (!audioOnly && !canPlayWebMedia(mimeForMediaPath(id, false)) &&
         canPlayWebMedia("video/webm") && assets.contains(sidecar))
       return configureWebVideo(assets, sidecar, false);
-    const std::string local = assets.localPath(id);
-    if (!local.empty() && configureWebVideoUrl(local, audioOnly))
-      return true;
+    // Never expose a game-assets URL/path to the HTMLVideoElement.
+    // Browser media receives bytes read from AssetStream/FileHandle only.
     const std::string mime = mimeForMediaPath(id, audioOnly);
     if (!canPlayWebMedia(mime))
       return false;
@@ -218,54 +197,13 @@ struct MediaPlayer::State {
       if (size > 0)
         webVideoBlobMode = true;
     }
-    if (!size) {
-      // A deferred manifest entry is represented by a zero-byte MEMFS file.
-      // Its logical ID may be relative even when localPath() is empty.
-      const auto relative = std::filesystem::path(id).lexically_normal();
-      bool safe = !relative.empty() && !relative.is_absolute() &&
-                  relative != "." && id.find('\0') == std::string::npos;
-      for (const auto &part : relative)
-        if (part == "..")
-          safe = false;
-      if (safe) {
-        const auto candidate = std::filesystem::path("/game-assets") / relative;
-        if (std::filesystem::is_regular_file(candidate))
-          return configureWebVideoUrl(candidate.generic_string(), audioOnly);
-      }
+    if (!size)
       return false;
-    }
     webVideo = true;
     webAudioOnly = mime.compare(0, 6, "audio/") == 0;
     webVideoId = id;
     webVideoMime = mime;
     webVideoSize = size;
-    return true;
-  }
-
-  bool configureWebVideo(const std::string &path, bool audioOnly) {
-    if (!audioOnly && !canPlayWebMedia(mimeForMediaPath(path, false)) &&
-        canPlayWebMedia("video/webm") &&
-        std::filesystem::is_regular_file(path + ".webm"))
-      return configureWebVideo(path + ".webm", false);
-    if (configureWebVideoUrl(path, audioOnly))
-      return true;
-    const std::string mime = mimeForMediaPath(path, audioOnly);
-    if (!canPlayWebMedia(mime))
-      return false;
-    auto file = std::make_unique<std::ifstream>(path, std::ios::binary);
-    if (!*file)
-      return false;
-    file->seekg(0, std::ios::end);
-    const auto end = file->tellg();
-    if (end <= 0)
-      return false;
-    file->seekg(0, std::ios::beg);
-    webVideo = true;
-    webAudioOnly = mime.compare(0, 6, "audio/") == 0;
-    webVideoId = path;
-    webVideoMime = mime;
-    webVideoSize = static_cast<std::uint64_t>(end);
-    webVideoFile = std::move(file);
     return true;
   }
 
@@ -315,11 +253,6 @@ struct MediaPlayer::State {
   }
 
   std::size_t readWebVideo(Uint8 *buffer, std::size_t size) {
-    if (webVideoFile) {
-      webVideoFile->read(reinterpret_cast<char *>(buffer),
-                         static_cast<std::streamsize>(size));
-      return static_cast<std::size_t>(webVideoFile->gcount());
-    }
     if (assetStream)
       return assetStream->read(buffer, size);
     if (offset >= bytes.size())
@@ -352,7 +285,13 @@ struct MediaPlayer::State {
       const auto want = static_cast<std::size_t>(std::min<std::uint64_t>(
           std::min(budget, chunkMax), webVideoSize - webVideoFed));
       chunk.resize(want);
-      const auto count = readWebVideo(chunk.data(), chunk.size());
+      std::size_t count = 0;
+      try {
+        count = readWebVideo(chunk.data(), chunk.size());
+      } catch (const std::exception &) {
+        webVideoFailed = true;
+        return;
+      }
       if (!count) {
         webVideoFailed = true;
         return;
@@ -389,7 +328,6 @@ struct MediaPlayer::State {
         return;
       }
       webVideoReady = true;
-      webVideoFile.reset();
     }
   }
 
@@ -900,25 +838,64 @@ MediaPlayer::MediaPlayer()
 MediaPlayer::MediaPlayer(AudioMixer &value) : mixer(value) {}
 MediaPlayer::~MediaPlayer() = default;
 
-void MediaPlayer::open(const std::string &path, bool audioOnly,
+void MediaPlayer::open(std::unique_ptr<Filesystem::FileHandle> source,
+                       bool audioOnly, const std::string &channelName) {
+  open(std::move(source), {}, audioOnly, channelName);
+}
+
+void MediaPlayer::open(std::unique_ptr<Filesystem::FileHandle> source,
+                       const std::string &logicalName, bool audioOnly,
                        const std::string &channelName) {
+  if (!source)
+    throw std::invalid_argument("Media input FileHandle is null");
   auto next = std::make_unique<State>();
   next->channel = mixer.channel(
       channelName.empty() ? (audioOnly ? "audio" : "video") : channelName);
 #ifdef __EMSCRIPTEN__
-  std::string effectivePath = path;
-  if (effectivePath.find("/") != 0 && effectivePath.find("game-assets/") != 0) {
-    effectivePath = "/game-assets/" + effectivePath;
-  }
-  if (next->configureWebVideo(effectivePath, audioOnly)) {
-    next->webFallbackPath = effectivePath;
+  const auto mime = State::mimeForMediaPath(logicalName, audioOnly);
+  const auto length = source->size();
+  if (!logicalName.empty() && State::canPlayWebMedia(mime) &&
+      length >= 0 && length <= (64ll << 20)) {
+    next->webVirtualBlob = std::make_unique<Filesystem::BrowserBlobAdapter>(
+        std::move(source), mime);
+    next->webVideo = true;
+    next->webAudioOnly = mime.compare(0, 6, "audio/") == 0;
+    next->webVideoUrlMode = true;
+    next->webVideoId = logicalName;
+    next->webVideoMime = mime;
+    next->webVideoUrl = next->webVirtualBlob->url();
+    next->webVideoSize = static_cast<std::uint64_t>(length);
     start(std::move(next), {}, audioOnly, false);
     return;
   }
+#else
+  (void)logicalName;
 #endif
-  if (!std::filesystem::is_regular_file(path))
-    throw std::runtime_error("Media must be a local file: " + path);
-  start(std::move(next), path, audioOnly, false);
+  next->attachAssetStream(
+      std::make_unique<HandleAssetStream>(std::move(source)));
+  start(std::move(next), {}, audioOnly, false);
+}
+
+void MediaPlayer::open(const std::string &path, bool audioOnly,
+                       const std::string &channelName) {
+  // The path overload is only a migration API. Game media flows through
+  // FileHandle/AVIO, including browser game-assets. No URL is played directly.
+#ifdef __EMSCRIPTEN__
+  std::string relative = path;
+  if (relative.compare(0, 13, "/game-assets/") == 0)
+    relative.erase(0, 13);
+  else if (relative.compare(0, 12, "game-assets/") == 0)
+    relative.erase(0, 12);
+  else
+    relative.clear();
+  if (!relative.empty()) {
+    auto vfs = Filesystem::mountGameAssets("/game-assets");
+    return open(vfs->open(relative), relative, audioOnly, channelName);
+  }
+#endif
+  return open(std::make_unique<Filesystem::SDLFileSource>(
+                  std::filesystem::path(path)),
+              path, audioOnly, channelName);
 }
 
 void MediaPlayer::open(const AssetProvider &assets, const std::string &id,
@@ -936,7 +913,10 @@ void MediaPlayer::open(const AssetProvider &assets, const std::string &id,
 #endif
   const std::string path = assets.localPath(id);
   if (!path.empty() && std::filesystem::is_regular_file(path)) {
-    start(std::move(next), path, audioOnly, false);
+    next->attachAssetStream(std::make_unique<HandleAssetStream>(
+        std::make_unique<Filesystem::SDLFileSource>(
+            std::filesystem::path(path))));
+    start(std::move(next), {}, audioOnly, false);
     return;
   }
   if (auto source = assets.openStream(id))
@@ -961,7 +941,10 @@ void MediaPlayer::prepare(const AssetProvider &assets, const std::string &id,
 #endif
   const std::string path = assets.localPath(id);
   if (!path.empty() && std::filesystem::is_regular_file(path)) {
-    start(std::move(next), path, audioOnly, true);
+    next->attachAssetStream(std::make_unique<HandleAssetStream>(
+        std::make_unique<Filesystem::SDLFileSource>(
+            std::filesystem::path(path))));
+    start(std::move(next), {}, audioOnly, true);
     return;
   }
   if (auto source = assets.openStream(id))
@@ -983,8 +966,9 @@ void MediaPlayer::openDecoder(State &next, const std::string &url,
     throw std::bad_alloc();
   next.format->interrupt_callback = {State::interrupt, &next};
   AVDictionary *options = nullptr;
-  check(av_dict_set(&options, "protocol_whitelist", "file", 0),
-        "Configure local media access");
+  if (!next.io)
+    check(av_dict_set(&options, "protocol_whitelist", "file", 0),
+          "Configure local media access");
   const int opened = avformat_open_input(
       &next.format, next.io ? nullptr : url.c_str(), nullptr, &options);
   av_dict_free(&options);
@@ -1025,7 +1009,10 @@ MediaPlayer::prepareInput(const AssetProvider &assets, const std::string &id,
 #endif
   const std::string path = assets.localPath(id);
   if (!path.empty() && std::filesystem::is_regular_file(path)) {
-    openDecoder(*next, path, audioOnly);
+    next->attachAssetStream(std::make_unique<HandleAssetStream>(
+        std::make_unique<Filesystem::SDLFileSource>(
+            std::filesystem::path(path))));
+    openDecoder(*next, {}, audioOnly);
   } else {
     if (auto stream = assets.openStream(id))
       next->attachAssetStream(std::move(stream));
@@ -1311,20 +1298,22 @@ void MediaPlayer::update(RendererRef renderer, double position) {
       auto next = std::make_unique<State>();
       const std::string channelName =
           s.channel ? s.channel->getName() : "video";
-      std::string localPath = s.webFallbackPath;
-      if (localPath.empty() || !std::filesystem::is_regular_file(localPath) ||
-          std::filesystem::file_size(localPath) == 0) {
-        localPath.clear();
-        if (s.assetStream && s.assetStream->seek(0))
-          next->attachAssetStream(std::move(s.assetStream));
-        else if (!s.bytes.empty())
-          next->attachMemory(std::move(s.bytes));
-        else
-          throw std::runtime_error(
-              "HTML5 video failed and local media bytes are unavailable: " +
-              (s.webFallbackId.empty() ? s.webVideoId : s.webFallbackId));
-      }
-      openDecoder(*next, localPath, s.webAudioOnly);
+      if (s.assetStream && s.assetStream->seek(0))
+        next->attachAssetStream(std::move(s.assetStream));
+      else if (!s.bytes.empty())
+        next->attachMemory(std::move(s.bytes));
+      else if (s.webVirtualBlob && !s.webVirtualBlob->bytes().empty())
+        next->attachMemory(s.webVirtualBlob->bytes());
+      else if (!s.webFallbackPath.empty() &&
+               std::filesystem::is_regular_file(s.webFallbackPath))
+        next->attachAssetStream(std::make_unique<HandleAssetStream>(
+            std::make_unique<Filesystem::SDLFileSource>(
+                std::filesystem::path(s.webFallbackPath))));
+      else
+        throw std::runtime_error(
+            "HTML5 video failed and virtual media bytes are unavailable: " +
+            (s.webFallbackId.empty() ? s.webVideoId : s.webFallbackId));
+      openDecoder(*next, {}, s.webAudioOnly);
       const bool wasPaused = pausedAt != 0;
       adoptPreparedInput(
           std::unique_ptr<PreparedInput>(new PreparedInput(std::move(next))),

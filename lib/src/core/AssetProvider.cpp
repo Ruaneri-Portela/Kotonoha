@@ -1,6 +1,9 @@
 #include <Kotonoha/core/AssetProvider.hpp>
 #include <Kotonoha/core/DiscImage.hpp>
-#include <Kotonoha/core/FileSystem.hpp>
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
+#include <Kotonoha/Filesystem/Filesystem.hpp>
+#include <Kotonoha/Filesystem/RemoteAssets.hpp>
+#include <Kotonoha/Filesystem/Sources/SDLFileSource.hpp>
 #include <Kotonoha/core/Log.hpp>
 #include <Kotonoha/localization/Encoding.hpp>
 #include <Kotonoha/media/MediaDecoder.hpp>
@@ -10,7 +13,6 @@
 #include <cmath>
 
 #include <algorithm>
-#include <fstream>
 #include <limits>
 #include <stdexcept>
 #include <system_error>
@@ -87,17 +89,7 @@ std::vector<Uint8> AssetProvider::read(const std::string &id) const {
   const auto file = overlayPath(id);
   if (file.empty())
     return readAsset(id);
-  const auto size = std::filesystem::file_size(file);
-  if (size > maximumAssetSize)
-    throw std::runtime_error("Overlay asset is too large: " + id);
-  std::ifstream input(file, std::ios::binary);
-  if (!input)
-    throw std::runtime_error("Cannot open overlay asset: " + id);
-  std::vector<Uint8> bytes(size);
-  if (size && !input.read(reinterpret_cast<char *>(bytes.data()),
-                          std::streamsize(size)))
-    throw std::runtime_error("Cannot read overlay asset: " + id);
-  return bytes;
+  return Filesystem::readLocalFile(file, maximumAssetSize);
 }
 std::vector<Uint8> AssetProvider::read(const std::string &id,
                                        AssetSource source) const {
@@ -435,16 +427,74 @@ void AssetProvider::clearCache() {
   textureRenderer = nullptr;
 }
 
+namespace {
+class MountedAssetStream final : public AssetStream {
+  std::unique_ptr<Filesystem::FileHandle> file_;
+
+public:
+  explicit MountedAssetStream(std::unique_ptr<Filesystem::FileHandle> file)
+      : file_(std::move(file)) {}
+  std::uint64_t size() const override {
+    const auto n = file_->size();
+    if (n < 0)
+      throw std::runtime_error("Unknown asset size");
+    return static_cast<std::uint64_t>(n);
+  }
+  std::uint64_t tell() const override {
+    const auto n = file_->tell();
+    if (n < 0)
+      throw std::runtime_error("Unable to tell asset stream");
+    return static_cast<std::uint64_t>(n);
+  }
+  std::size_t read(Uint8 *out, std::size_t amount) override {
+    const auto n = file_->read(out, amount);
+    if (n < 0)
+      throw std::runtime_error("Asset stream read failure");
+    return static_cast<std::size_t>(n);
+  }
+  bool seek(std::uint64_t position) override {
+    return position <= static_cast<std::uint64_t>(INT64_MAX) &&
+        file_->seek(static_cast<std::int64_t>(position),
+                    Filesystem::SeekOrigin::Begin) ==
+            static_cast<std::int64_t>(position);
+  }
+};
+} // namespace
+
 FileSystemAssetProvider::FileSystemAssetProvider(std::filesystem::path value)
     : root(value.empty()
                ? value
-               : std::filesystem::absolute(gameDataDirectory(value))) {}
+               : std::filesystem::absolute(gameDataDirectory(value))) {
+#ifdef __EMSCRIPTEN__
+  if (root.empty() && Filesystem::remoteGameAssets())
+    fallback_ = Filesystem::mountGameAssets("/game-assets");
+  if (!root.empty()) {
+    for (const auto &part : root) {
+      if (part == "game-assets") {
+        std::error_code ec;
+        if (Filesystem::remoteGameAssets() ||
+            std::filesystem::is_directory(root, ec))
+          mounted_ = Filesystem::mountGameAssets(root);
+        break;
+      }
+    }
+  }
+#endif
+}
+
+FileSystemAssetProvider::FileSystemAssetProvider(
+    std::shared_ptr<Filesystem::Filesystem> mounted)
+    : mounted_(std::move(mounted)) {
+  if (!mounted_)
+    throw std::invalid_argument("Virtual asset filesystem is null");
+}
 
 const std::filesystem::path &FileSystemAssetProvider::getRoot() const {
   return root;
 }
 
 std::string FileSystemAssetProvider::name() const {
+  if (mounted_) return "Mounted files (virtual)";
   return root.empty() ? "Files" : "Files (" + root.string() + ")";
 }
 
@@ -468,6 +518,30 @@ FileSystemAssetProvider::resolve(const std::string &id) const {
 }
 
 bool FileSystemAssetProvider::containsAsset(const std::string &id) const {
+  if (mounted_) {
+    try {
+      return mounted_->exists(id) &&
+             mounted_->stat(id).type == Filesystem::FileType::Regular;
+    } catch (const Filesystem::FilesystemError &error) {
+      if (error.code() == Filesystem::ErrorCode::InvalidPath ||
+          error.code() == Filesystem::ErrorCode::NotFound)
+        return false;
+      throw;
+    }
+  }
+  if (fallback_) {
+    const auto name = id.compare(0, 12, "game-assets/") == 0
+                          ? id.substr(12) : id;
+    try {
+      if (fallback_->exists(name) &&
+          fallback_->stat(name).type == Filesystem::FileType::Regular)
+        return true;
+    } catch (const Filesystem::FilesystemError &error) {
+      if (error.code() != Filesystem::ErrorCode::InvalidPath &&
+          error.code() != Filesystem::ErrorCode::NotFound)
+        throw;
+    }
+  }
   try {
     std::error_code error;
     return std::filesystem::is_regular_file(resolve(id), error);
@@ -478,23 +552,35 @@ bool FileSystemAssetProvider::containsAsset(const std::string &id) const {
 
 std::vector<Uint8>
 FileSystemAssetProvider::readAsset(const std::string &id) const {
+  if (mounted_)
+    return Filesystem::readAll(*mounted_->open(id), maximumAssetSize);
   const auto path = resolve(id);
-  std::error_code error;
-  const auto size = std::filesystem::file_size(path, error);
-  if (error || !std::filesystem::is_regular_file(path))
+  if (fallback_ && id.compare(0, 12, "game-assets/") == 0 &&
+      fallback_->exists(id.substr(12)))
+    return Filesystem::readAll(*fallback_->open(id.substr(12)),
+                               maximumAssetSize);
+  if (!std::filesystem::is_regular_file(path))
     throw std::runtime_error("Asset not found: " + id);
-  if (size > maximumAssetSize)
-    throw std::runtime_error("Asset exceeds 1 GiB: " + id);
-  std::ifstream input(path, std::ios::binary);
-  std::vector<Uint8> bytes(static_cast<std::size_t>(size));
-  if (!input.read(reinterpret_cast<char *>(bytes.data()),
-                  static_cast<std::streamsize>(bytes.size())))
-    throw std::runtime_error("Cannot read asset: " + id);
-  return bytes;
+  return Filesystem::readLocalFile(path, maximumAssetSize);
 }
 
 std::vector<std::string>
 FileSystemAssetProvider::listAsset(const std::string &prefix) const {
+  if (mounted_) {
+    std::vector<std::string> result;
+    std::vector<std::string> directories{""};
+    while (!directories.empty()) {
+      auto dir = std::move(directories.back());
+      directories.pop_back();
+      for (const auto &entry : mounted_->list(dir)) {
+        if (entry.type == Filesystem::FileType::Directory)
+          directories.push_back(entry.path);
+        else if (entry.path.compare(0, prefix.size(), prefix) == 0)
+          result.push_back(entry.path);
+      }
+    }
+    return result;
+  }
   std::vector<std::string> result;
   const auto collect = [&](const std::filesystem::path &base,
                            const std::string &mount) {
@@ -517,12 +603,57 @@ FileSystemAssetProvider::listAsset(const std::string &prefix) const {
     for (const auto &base : directories.gameAssets)
       collect(base, "game-assets/");
   }
+  if (fallback_) {
+    std::vector<std::string> dirs{""};
+    while (!dirs.empty()) {
+      auto dir = std::move(dirs.back());
+      dirs.pop_back();
+      for (const auto &entry : fallback_->list(dir)) {
+        if (entry.type == Filesystem::FileType::Directory)
+          dirs.push_back(entry.path);
+        else {
+          const auto id = std::string("game-assets/") + entry.path;
+          if (id.compare(0, prefix.size(), prefix) == 0)
+            result.push_back(id);
+        }
+      }
+    }
+    std::sort(result.begin(), result.end());
+    result.erase(std::unique(result.begin(), result.end()), result.end());
+  }
   return result;
 }
 
 std::string
 FileSystemAssetProvider::localPathAsset(const std::string &id) const {
-  return resolve(id).string();
+  // Virtual sources (TAR/ISO/HTTP) never require a physical path.
+  if (mounted_) return {};
+  const auto path = resolve(id);
+  if (fallback_ && id.compare(0, 12, "game-assets/") == 0 &&
+      fallback_->exists(id.substr(12))) {
+    const auto info = fallback_->stat(id.substr(12));
+    std::error_code ec;
+    if (!std::filesystem::is_regular_file(path, ec) ||
+        std::filesystem::file_size(path, ec) !=
+            static_cast<std::uintmax_t>(info.size))
+      return {};
+  }
+  return path.string();
+}
+
+std::unique_ptr<AssetStream>
+FileSystemAssetProvider::openStream(const std::string &id) const {
+  if (mounted_)
+    return std::make_unique<MountedAssetStream>(mounted_->open(id));
+  if (fallback_ && id.compare(0, 12, "game-assets/") == 0 &&
+      fallback_->exists(id.substr(12)))
+    return std::make_unique<MountedAssetStream>(
+        fallback_->open(id.substr(12)));
+  const auto local = resolve(id);
+  if (std::filesystem::is_regular_file(local))
+    return std::make_unique<MountedAssetStream>(
+        std::make_unique<Filesystem::SDLFileSource>(local));
+  return {};
 }
 
 IndexedFileSystemAssetProvider::IndexedFileSystemAssetProvider(
@@ -530,12 +661,18 @@ IndexedFileSystemAssetProvider::IndexedFileSystemAssetProvider(
     : FileSystemAssetProvider(
           std::filesystem::canonical(gameDataDirectory(root))),
       index(getRoot(), false) {}
+IndexedFileSystemAssetProvider::IndexedFileSystemAssetProvider(
+    std::shared_ptr<Filesystem::Filesystem> mounted)
+    : FileSystemAssetProvider(std::move(mounted)), index({}, false) {}
+
 bool IndexedFileSystemAssetProvider::containsAsset(
     const std::string &id) const {
+  if (mounted()) return FileSystemAssetProvider::containsAsset(id);
   return !index.resolve(id).empty();
 }
 std::string
 IndexedFileSystemAssetProvider::localPathAsset(const std::string &id) const {
+  if (mounted()) return {};
   const auto path = index.resolve(id);
   if (path.empty())
     throw std::runtime_error("Asset not found in " + getRoot().string() + ": " +
@@ -544,12 +681,14 @@ IndexedFileSystemAssetProvider::localPathAsset(const std::string &id) const {
 }
 std::vector<Uint8>
 IndexedFileSystemAssetProvider::readAsset(const std::string &id) const {
+  if (mounted()) return FileSystemAssetProvider::readAsset(id);
   const auto relative =
       std::filesystem::path(localPathAsset(id)).lexically_relative(getRoot());
   return FileSystemAssetProvider::readAsset(relative.generic_string());
 }
 std::vector<std::string>
 IndexedFileSystemAssetProvider::listAsset(const std::string &prefix) const {
+  if (mounted()) return FileSystemAssetProvider::listAsset(prefix);
   return index.list(prefix);
 }
 

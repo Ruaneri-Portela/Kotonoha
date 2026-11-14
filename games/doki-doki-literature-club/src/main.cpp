@@ -8,11 +8,13 @@
 
 #include <Kotonoha/core/CommandLine.hpp>
 #include <Kotonoha/core/DiscImage.hpp>
+#include <Kotonoha/Filesystem/Filesystem.hpp>
 #include <Kotonoha/core/Engine.hpp>
-#include <Kotonoha/core/FileSystem.hpp>
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <cstdio>
 
 #include <cstdlib>
+#include <filesystem>
 #include <memory>
 #include <stdexcept>
 #include <string>
@@ -44,9 +46,17 @@ struct App {
   long frames = -1;
 
   void start(const std::string &directory) {
-    auto assets = std::make_shared<Kotonoha::Providers::DdlcAssets>(
-        Kotonoha::gameDataDirectory(directory),
-        options.assetOverlayDirectory());
+    std::shared_ptr<Kotonoha::Providers::DdlcAssets> assets;
+    if (std::filesystem::is_regular_file(directory)) {
+      auto mounted = Kotonoha::Filesystem::Filesystem::mount(directory);
+      if (!options.assetOverlayDirectory().empty())
+        mounted->addOverlay(options.assetOverlayDirectory());
+      assets = std::make_shared<Kotonoha::Providers::DdlcAssets>(
+          mounted, options.assetOverlayDirectory());
+    } else {
+      assets = std::make_shared<Kotonoha::Providers::DdlcAssets>(
+          std::filesystem::path(directory), options.assetOverlayDirectory());
+    }
     assets->setOverlay(options.assetOverlayDirectory());
     game = std::make_unique<Application>(assets, options);
     game->framesLeft = frames;

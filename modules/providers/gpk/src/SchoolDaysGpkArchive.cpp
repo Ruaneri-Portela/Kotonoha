@@ -6,7 +6,11 @@
 #include <algorithm>
 #include <array>
 #include <cstring>
-#include <fstream>
+#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
+#ifdef __EMSCRIPTEN__
+#include <Kotonoha/Filesystem/Filesystem.hpp>
+#include <Kotonoha/Filesystem/RemoteAssets.hpp>
+#endif
 #include <limits>
 #include <utility>
 
@@ -173,7 +177,7 @@ bool FoldLogicalPath(std::string_view input, std::string *folded) {
   return NormalizeLogicalPath(input, nullptr, folded);
 }
 
-bool ReadRange(std::ifstream *file, uint64_t offset, size_t size,
+bool ReadRange(Kotonoha::Filesystem::InputFile *file, uint64_t offset, size_t size,
                std::vector<uint8_t> *out) {
   if (file == nullptr || out == nullptr ||
       size > static_cast<size_t>(std::numeric_limits<std::streamsize>::max()) ||
@@ -252,7 +256,7 @@ bool SchoolDaysGpkArchive::Open(const std::filesystem::path &path,
     error->clear();
   Close();
 
-  std::ifstream file(path, std::ios::binary);
+  Kotonoha::Filesystem::InputFile file(path, std::ios::binary);
   if (!file)
     return Fail(error, "School Days GPK could not be opened");
   file.seekg(0, std::ios::end);
@@ -472,7 +476,7 @@ bool SchoolDaysGpkArchive::ReadEntry(size_t entryIndex,
   if (physicalEnd < entry.offset || physicalEnd > pidxOffset_)
     return Fail(error, "School Days GPK entry body is outside the data region");
 
-  std::ifstream file(path_, std::ios::binary);
+  Kotonoha::Filesystem::InputFile file(path_, std::ios::binary);
   if (!file)
     return Fail(error, "School Days GPK could not be reopened for reading");
   std::vector<uint8_t> body;
@@ -512,7 +516,17 @@ bool SchoolDaysGpkAssetStore::OpenRetailDirectory(
     error->clear();
   Close();
   std::error_code ec;
-  if (!std::filesystem::is_directory(packDirectory, ec) || ec)
+  bool folder = std::filesystem::is_directory(packDirectory, ec) && !ec;
+#ifdef __EMSCRIPTEN__
+  // HTTP assets have no physical Packs directory. Treat the known 29 GPK
+  // archive filenames as the directory index; each archive uses InputFile
+  // -> VFS FileHandle and fetches its PIDX/footer via HTTP Range.
+  if (!folder && Kotonoha::Filesystem::remoteGameAssets()) {
+    const auto path = packDirectory.generic_string();
+    folder = path.find("game-assets") != std::string::npos;
+  }
+#endif
+  if (!folder)
     return Fail(error, "School Days GPK Packs directory is unavailable");
 
   std::vector<SchoolDaysGpkArchive> archives;

@@ -21,10 +21,247 @@ Toolchain locations vary by installation. `KOTONOHA_BUILD_ALL=ON` enables suppor
 ## Browser storage and assets
 
 - **Saves:** an IDBFS mount at `/save` synchronizes with IndexedDB; writes are flushed through the web storage adapter.
-- **Server assets:** `tools/generate_manifest.py` creates `game-assets/manifest.json`; `WebAssetFetch.cpp` fetches data with `emscripten_fetch` and stages it in MEMFS. A URL is **not** a local MEMFS path.
+- **Server assets:** optional `tools/generate_manifest.py` emits a size-aware manifest; the browser mounts Emscripten Fetch as a read-only `IMount` and uses local game files first. Remote data is never staged into MEMFS.
 - **Local folder:** the page's folder picker imports chosen game files into the virtual filesystem. Browser audio/video may use `File` object URLs where supported.
 - **Media:** the shared player prefers browser decoding for supported formats, then uses the WebAssembly FFmpeg fallback. Optional `.webm` sidecars can help with legacy codecs; make them only from material you may legally use.
 
 To test the optional web integration route, enable `-DKOTONOHA_WEB_SELFTEST=ON`, build `KotonohaWebSelfTest` and run `node tools/web_selftest.js build-web/outputs/KotonohaWebSelfTest`. For source debugging, compile with `-g3` and use Chrome's C/C++ DevTools DWARF support.
 
 **Known constraints:** browser permissions, asynchronous downloads, browser codec support, and single-threaded execution differ from native desktop behavior. Never rely on direct POSIX access to a browser user's disk.
+
+
+## HTTP(S) game-assets fallback (Filesystem V2 draft)
+
+**Startup waits for an explicit choice:** **Use local folder** or
+**Use HTTP(S)**, without automatic selection. Local mode reads imported files
+without contacting the server. HTTP(S) **always boots directly using on-demand
+Fetch**, even with an empty, stale or missing `manifest.json`. The HTML does
+not require a manifest and never copies remote files into MEMFS.
+
+`tools/generate_manifest.py` remains available for optional external
+indexing, but the HTML startup does not consult it.
+
+By default, the browser resolves `game-assets/` relative to the page. You can
+configure an HTTPS CDN **before** the app script initializes:
+
+```html
+<script>
+  window.KotonohaAssetBaseURL = "https://cdn.example.org/my-game/game-assets/";
+</script>
+```
+
+Cross-origin hosts need correct CORS. Direct Fetch uses HEAD, GET Range,
+Asyncify and a bounded cache without blocking the browser main thread.
+Ordinary HTTP does not enumerate arbitrary filenames without an index;
+the port needs to know the filenames it wants.
+
+Local/remote startup is always manual. The legacy
+`window.KotonohaAutoServerAssets` switch is no longer needed.
+
+```sh
+python3 tools/audit_filesystem_v2.py
+python3 tools/ValidateBuildMetadata.py
+node --check tools/web_selftest.js
+# An actual Emscripten build and Playwright-enabled browser run are required:
+node tools/web_selftest.js build-web/outputs/KotonohaWebSelfTest
+```
+
+This is an **unverified integration draft** until the Emscripten/WebAssembly
+build and browser tests pass. Some format-specific game providers still use
+physical archive paths and are not yet equivalent to the shared virtual mount.
+
+## Custom local mounts in the browser
+
+The top-right **+ Adicionar pasta** button is **only available on the
+initial asset-selection screen**. It disappears when the local or HTTP(S)
+source is confirmed, stays hidden during gameplay, and is never re-opened
+by canvas fullscreen. Import optional folders before starting SDL.
+The toolbar is ordinary `position: fixed` HTML (not a Popover), anchored
+to the upper-right safe area consistently in Safari/WebKit and Chrome.
+Check `node tools/web_toolbar_layout.js build-web/outputs/KotonohaWebSelfTest`
+to compare Chromium/WebKit at desktop, portrait and landscape sizes.
+Select any local directory and enter its virtual mount name, e.g.
+`game-assets`, `forced_subtitles`, or `ovrlay`. Its contents become
+available under `/<name>/` inside Emscripten's virtual filesystem.
+The user-provided name is limited to safe filename characters; `/save` is
+reserved for persistent saves. The page prevents accidental file overwrite.
+The internal `window.KotonohaMountBrowserFolder(fileList, "forced_subtitles")`
+API remains available for programmatic integrations. This does not expose
+the folder button in-game.
+
+**Important:** mounting an extra folder exposes its files to the VFS but does
+not automatically instruct every game port to search that folder. Port-specific
+path resolution and touchscreen gameplay must be tested separately.
+
+
+### Manifest-free Fetch with Asyncify
+
+The HTML always registers `game-assets/` directly as a Fetch mount
+for HTTP(S) startup, without querying `manifest.json`. Games can
+access **known** relative paths without providing a manifest. The provider
+first requests HTTP `HEAD` to determine the file size; reads then use bounded
+`GET Range` requests and a byte cache. A small object from a server that
+ignores Range can be accepted as a complete HTTP 200 response. No remote file
+is staged in MEMFS.
+
+The web linker enables `-sASYNCIFY=1` so the synchronous VFS `exists()`,
+`open()`, and `FileHandle::read()` calls can yield to Fetch callbacks on
+the main browser thread. This is **not** a synchronous browser network API.
+An HTTP 404 is cached as missing; a network/CORS failure remains a load error.
+Large files require correct HTTP Range (206 and Content-Range). The entire
+HTTP object may still be returned by a misconfigured server, so enforce
+hosting limits. Cross-origin servers must allow HEAD and GET and expose
+Content-Length/Content-Range to the browser.
+
+`await window.KotonohaFetchAsset("known-file.bin")` can request one known
+relative path explicitly. The result is 1 on success, 0 if pending, or -1
+on an invalid request. `window.KotonohaAssetBaseURL` can override the
+default game-assets URL **before** initialization.
+
+A directory cannot be enumerated over ordinary HTTP without an index. File
+providers that discover unknown paths through directory enumeration or
+depend on physical archive file paths still need migration. These changes
+do not prove that every port can start or finish gameplay. Re-entrant
+Asyncify/SDL operations and memory usage must be tested in real browsers.
+
+### Browser validation
+
+The source-only checks are:
+
+```sh
+node tools/check_web_shell.js
+node --check tools/web_selftest.js
+```
+
+The Playwright suite also exercises manifest-free HTTP, local folder import,
+VFS hot-import refresh, saves, media, and browser touch delivery, when built
+with `-DKOTONOHA_WEB_SELFTEST=ON`. It does not certify each game's retail
+playthrough, and it has not been executed in this environment.
+
+### Failure: `_asyncify_start_unwind is not a function`
+
+This means the generated JavaScript tries to unwind through Asyncify but
+the matching WebAssembly module does not export the required functions.
+A broken release optimization/link, mixed JS/WASM build artifacts, or stale
+browser/CDN cache can cause this mismatch.
+
+The final WebAssembly link now uses **-O2** with Asyncify and the build
+executes `tools/check_wasm_asyncify.py` to check all four exports in the
+generated `.wasm` before deployment. Clear the old build directory,
+reconfigure, rebuild, deploy the `.js` and `.wasm` as a **matching pair**,
+and invalidate browser/CDN caches:
+
+```sh
+rm -rf build-web
+# Reconfigure using the Emscripten/vcpkg arguments above.
+cmake --build build-web --target SummerRadish
+python3 tools/check_wasm_asyncify.py build-web/outputs/SummerRadish/SummerRadish.js
+```
+
+This build-time export check does not replace actual Chromium tests. Replace
+the target name if building another game.
+
+### `Uncaught CppException` during Fetch and Asyncify
+
+An `Uncaught CppException {excPtr: ...}` from an XHR callback means a C++
+exception escaped the callback or resumed Asyncify continuation. It does
+**not** identify Asyncify itself as the original cause: missing assets,
+incorrect HTTP headers and archive validation may also lead to exceptions.
+
+CMake now enables `-fexceptions` for the WebAssembly project's own C++
+objects, not only the final executable. Fetch completion callbacks catch
+C++ exceptions at the JS boundary and log failing asset paths/status codes.
+`KotonohaWebSelfTestCatchAfterAsyncify` exercises C++ exception catching
+after `emscripten_sleep`. The Summer Radish port probes the known CMP
+archive filenames directly instead of depending on HTTP directory listings.
+
+Because compile options changed, delete the previous Emscripten build,
+reconfigure, rebuild and deploy matching JS/WASM artifacts. If the browser
+still fails, inspect `[Kotonoha] HTTP asset unavailable` logs to identify
+the failing path and HTTP status. This still requires actual browser
+validation and is not proof of retail gameplay parity.
+
+### Controller, touch and mobile browser validation
+
+The web shell uses `viewport-fit=cover`, dynamic viewport units, 44 px
+minimum startup controls, safe-area padding and `touch-action: none` on the
+SDL canvas. The source picker and optional folder picker are **pre-game only**.
+When a source is chosen, the canvas receives focus. The SDL runtime initializes
+`SDL_INIT_GAMEPAD` and handles hotplugged devices; the shared input layer
+normalizes D-pad/left-stick navigation and A/B swapping and translates touch
+into safe pointer/gesture input. The Pure Mail port also translates controller
+buttons for its title and selection screens.
+
+`Kotonoha.InputActions`, `Kotonoha.NativeInput` and the web Playwright
+self-test cover input mapping, touch gesture safety, keyboard events, mobile
+portrait/landscape layout and the browser SDL gamepad subsystem. A physical
+gamepad is **not emulated** by these browser tests; gamepad buttons, axes,
+iOS Safari folder selection and complete retail gameplay still require
+real-device/manual validation.
+
+**Pre-merge checklist:** run the Linux C++ tests, build every enabled WASM
+game, verify Asyncify exports for each generated JS/WASM pair, pass the
+Chromium Playwright suite and check startup/assets/audio/video/gameplay for
+each retail port with legitimately provided game data. For mobile parity,
+also test a physical Android touch device and iPhone/iPad Safari (portrait
+and landscape), Bluetooth/USB gamepads and browser background/resume.
+Unsupported directory pickers may allow only individual files at the root
+of `game-assets`; use HTTP(S) Fetch if nested local directories cannot be
+selected. The CI proves the automated subset, **not** 100% device parity.
+
+### Expected browser asset paths
+
+| Port | Known files to publish in `game-assets/` |
+|---|---|
+| Amagami | `Amagami.bin` or `Amagami.iso` |
+| Zero no Tsukaima | `ZeroNoTsukaima.bin` or `ZeroNoTsukaima.iso` |
+| Snow Radish | `SCRIPT.DAT` and `GRAPHIC.DAT` at root, `pack/` or `data/pack/` |
+| Pure Mail | `data/pack/script.dat`, other DATs and `data/movie/PM01L_I5.avi` (or an `.avi.webm` sidecar) |
+| School Days | KTRF route embedded by the build; 29 retail GPKs at root or `Packs/` |
+
+BIN/ISO readers now use VFS and HTTP Range without staging a whole disc in
+MEMFS. Video opens from a FileHandle; AVI playback still depends on decoder
+support or a WebM sidecar. Startup success cannot prove absent files exist.
+
+### School Days: large GPK, HTTP 200, missing trailer
+
+If `HTTP asset unavailable: event01.gpk (HTTP 200)` is followed by
+`GPK trailer could not be read`, the web server likely ignored `Range`
+and returned the entire GPK instead of the requested trailer bytes.
+**Increasing the cache budget is not a fix.** The server must respond to
+ranged GET with `206 Partial Content` and `Content-Range`.
+
+For local development, stop the previous server listening on port 3000,
+then serve the WASM output using the included HTTP Range server:
+
+```sh
+python3 tools/serve_web.py --root build-web/outputs --port 3000
+curl -I http://localhost:3000/SchoolDays/game-assets/Event01.GPK
+curl -H 'Range: bytes=0-15' -o /dev/null -D - \
+  http://localhost:3000/SchoolDays/game-assets/Event01.GPK
+```
+
+The HEAD response must advertise `Accept-Ranges: bytes` and
+`Content-Length`. Ranged GET must return `206`,
+`Content-Range: bytes 0-15/TOTAL` and `Content-Length: 16`.
+Adjust path capitalization to match the actual files hosted.
+Production hosts need the same behavior; cross-origin hosts must expose
+`Accept-Ranges`, `Content-Length`, and `Content-Range` through CORS.
+
+Fetch now uses a bounded, evictable LRU byte-range cache rather than
+permanently failing an archive after cumulative reads exceed the cache
+budget. For objects larger than 8 MiB, it rejects an HTTP HEAD that does
+not advertise byte-range support, avoiding an avoidable full-body download.
+A misconfigured host can still incorrectly advertise Range support and
+send a full HTTP 200 response; configure the actual file server.
+
+Test the Range server independently:
+
+```sh
+python3 -m unittest discover -s tools -p test_serve_web.py -v
+```
+
+The test creates a sparse 320 MiB synthetic GPK and fetches only its tail.
+The Chromium/Playwright suite also checks a real VFS trailer read and
+observes HTTP 206 (when the WASM test target is compiled).
+

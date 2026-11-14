@@ -7,13 +7,16 @@
 
 #include <Kotonoha/components/VNSave.hpp>
 #include <Kotonoha/core/AssetProvider.hpp>
-#include <Kotonoha/core/FileSystem.hpp>
+#include <Kotonoha/Filesystem/RemoteAssets.hpp>
+#include <Kotonoha/Filesystem/Filesystem.hpp>
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/media/MediaPlayer.hpp>
 
 #include <SDL3/SDL.h>
 #include <emscripten/emscripten.h>
 
 #include <filesystem>
+#include <cstring>
 #include <memory>
 #include <sstream>
 #include <string>
@@ -22,6 +25,7 @@ namespace {
 std::unique_ptr<Kotonoha::MediaPlayer> webSelfTestPlayer;
 std::unique_ptr<Kotonoha::MediaPlayer> webSelfTestSecondAudio;
 std::string webSelfTestResult;
+std::shared_ptr<Kotonoha::Filesystem::Filesystem> liveFolderMount;
 
 std::filesystem::path webSelfTestSavePath() {
   const auto directory = Kotonoha::documentsDirectory("web-selftest");
@@ -49,6 +53,78 @@ void KotonohaWebSelfTestDrawMedia(SDL_Renderer *renderer) {
 }
 
 extern "C" {
+// The HTTP-only test must not require a MEMFS placeholder or a real file path.
+EMSCRIPTEN_KEEPALIVE int KotonohaWebSelfTestRemoteSize(const char *name) {
+  try {
+    if (!name || !*name || !Kotonoha::Filesystem::remoteGameAssets())
+      return -1;
+    auto source = Kotonoha::Filesystem::mountGameAssets("/game-assets");
+    auto bytes = Kotonoha::Filesystem::readAll(
+        *source->open(name), 32u << 20);
+    return static_cast<int>(bytes.size());
+  } catch (const std::exception &error) {
+    logFailure("remote FileHandle", error);
+    return -1;
+  }
+}
+
+// Regression: a multi-hundred-megabyte archive must allow a tiny remote
+// trailer read via HTTP 206 without allocating a complete GPK into MEMFS.
+EMSCRIPTEN_KEEPALIVE int KotonohaWebSelfTestLargeRemoteTail() {
+  try {
+    if (!Kotonoha::Filesystem::remoteGameAssets())
+      return -1;
+    constexpr std::int64_t kFileSize = 320ll * 1024 * 1024;
+    auto source = Kotonoha::Filesystem::mountGameAssets("/game-assets");
+    auto file = source->open("event01.gpk");
+    if (file->size() != kFileSize ||
+        file->seek(-8, Kotonoha::Filesystem::SeekOrigin::End) !=
+            kFileSize - 8)
+      return -2;
+    char trailer[8] = {};
+    if (file->read(trailer, sizeof(trailer)) != 8 ||
+        std::memcmp(trailer, "GPKTAIL!", sizeof(trailer)) != 0)
+      return -3;
+    if (file->seek(0, Kotonoha::Filesystem::SeekOrigin::Begin) != 0)
+      return -4;
+    char header[4] = {};
+    if (file->read(header, sizeof(header)) != 4 ||
+        std::memcmp(header, "GPK!", sizeof(header)) != 0)
+      return -5;
+    return 1;
+  } catch (const std::exception &error) {
+    logFailure("large GPK Range", error);
+    return -6;
+  }
+}
+
+// Keep the same directory mount across browser imports: this catches a
+// stale VFS index that would otherwise require restarting every game.
+EMSCRIPTEN_KEEPALIVE int KotonohaWebSelfTestLiveLocalSize(const char *id) {
+  try {
+    if (!id || !*id) return -1;
+    if (!liveFolderMount)
+      liveFolderMount = Kotonoha::Filesystem::mountGameAssets("/game-assets");
+    auto file = liveFolderMount->open(id);
+    return static_cast<int>(Kotonoha::Filesystem::readAll(*file, 32u << 20).size());
+  } catch (const std::exception &error) {
+    logFailure("live browser folder", error);
+    return -1;
+  }
+}
+
+// Regression: the C++ exception must be caught after the Asyncify
+// continuation resumes. Previous browser builds escaped to the XHR
+// JavaScript callback as an uncaught EmscriptenEH CppException.
+EMSCRIPTEN_KEEPALIVE int KotonohaWebSelfTestCatchAfterAsyncify() {
+  try {
+    emscripten_sleep(10);
+    throw std::runtime_error("Intentional Asyncify/EH test exception");
+  } catch (const std::runtime_error &) {
+    return 1;
+  }
+}
+
 EMSCRIPTEN_KEEPALIVE const char *KotonohaWebSelfTestSavePath() {
   webSelfTestResult = webSelfTestSavePath().string();
   return webSelfTestResult.c_str();

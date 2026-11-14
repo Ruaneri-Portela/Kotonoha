@@ -5,7 +5,7 @@
 #include <Python.h>
 #include <SDL3/SDL_filesystem.h>
 #ifdef __ANDROID__
-#include <Kotonoha/core/FileSystem.hpp>
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #endif
 
 #if defined(__APPLE__)

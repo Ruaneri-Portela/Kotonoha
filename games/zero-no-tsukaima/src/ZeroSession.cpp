@@ -4,14 +4,14 @@
 #include <ZeroNoTsukaima/Vag.hpp>
 
 #include <Kotonoha/core/Engine.hpp>
-#include <Kotonoha/core/FileSystem.hpp>
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
 
 #include <algorithm>
 #include <cctype>
 #include <cmath>
 #include <cstdlib>
 #include <filesystem>
-#include <fstream>
+#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <sstream>
 #include <utility>
 
@@ -112,7 +112,7 @@ ZeroSession::ZeroSession(
     systemPath_ = (documents / "system.txt").string();
     readPath_ = (documents / "read.txt").string();
     system_.Load(systemPath_);
-    std::ifstream in(readPath_);
+    Kotonoha::Filesystem::InputFile in(readPath_);
     for (std::string line; std::getline(in, line);)
       if (!line.empty())
         read_.insert(line);
@@ -469,7 +469,7 @@ std::string ZeroSession::SlotPath(int slot) {
 bool ZeroSession::Slot(int slot, SlotInfo *info) {
   if (slot < 0 || slot >= kSaveSlots)
     return false;
-  std::ifstream in(SlotPath(slot));
+  Kotonoha::Filesystem::InputFile in(SlotPath(slot));
   std::string label;
   if (!in || !std::getline(in, label))
     return false;
@@ -848,7 +848,7 @@ void ZeroSession::LoadRequest(int slot) {
 void ZeroSession::MarkRead(const std::string &id) {
   if (id.empty() || !read_.insert(id).second || readPath_.empty())
     return;
-  std::ofstream(readPath_, std::ios::app) << id << '\n';
+  Kotonoha::Filesystem::OutputFile(readPath_, std::ios::app) << id << '\n';
 }
 
 // HistoryState back log: one entry per page, speaker names through
@@ -958,7 +958,7 @@ bool ZeroSession::SaveTo(const std::string &path) const {
   }
   if (!game_ || path.empty())
     return false;
-  std::ofstream out(path, std::ios::trunc);
+  Kotonoha::Filesystem::OutputFile out(path, std::ios::trunc);
   if (!out)
     return false;
   const std::string label = SaveLabel();
@@ -970,7 +970,7 @@ bool ZeroSession::SaveTo(const std::string &path) const {
 }
 
 bool ZeroSession::LoadFrom(const std::string &path) {
-  std::ifstream in(path);
+  Kotonoha::Filesystem::InputFile in(path);
   std::string label, numbers;
   if (!in || !std::getline(in, label))
     return false;

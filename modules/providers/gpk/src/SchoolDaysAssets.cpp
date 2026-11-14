@@ -2,7 +2,11 @@
 
 #include <Kotonoha/SchoolDaysAssetMount.hpp>
 #include <Kotonoha/SchoolDaysImageAssetResolver.hpp>
-#include <Kotonoha/core/FileSystem.hpp>
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
+#ifdef __EMSCRIPTEN__
+#include <Kotonoha/Filesystem/Filesystem.hpp>
+#include <Kotonoha/Filesystem/RemoteAssets.hpp>
+#endif
 #include <Kotonoha/core/SDL.hpp>
 #include <algorithm>
 #include <cctype>
@@ -392,6 +396,19 @@ bool SchoolDaysAssets::checkDirectory(const std::filesystem::path &root,
     info = "Extracted School Days Script/English directory found";
     return true;
   }
+#ifdef __EMSCRIPTEN__
+  if (Kotonoha::Filesystem::remoteGameAssets()) {
+    auto vfs = Kotonoha::Filesystem::mountGameAssets("/game-assets");
+    for (const char *prefix : {"", "Packs/"}) {
+      const std::string name = std::string(prefix) + "BGM.GPK";
+      if (vfs->exists(name)) {
+        info = "School Days retail GPK data found via HTTP VFS (" +
+               name + "); remaining packs validated on mount";
+        return true;
+      }
+    }
+  }
+#endif
   for (const auto &candidate : {root, root / "Packs"}) {
     if (Kotonoha::ResolveSchoolDaysAssetPath(candidate.string().c_str(),
                                              "BGM.GPK")

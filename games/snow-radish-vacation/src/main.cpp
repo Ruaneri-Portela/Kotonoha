@@ -9,7 +9,7 @@
 #include <Kotonoha/core/CommandLine.hpp>
 #include <Kotonoha/core/DiscImage.hpp>
 #include <Kotonoha/core/Engine.hpp>
-#include <Kotonoha/core/FileSystem.hpp>
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <cstdio>
 
 #include <cstdlib>
@@ -52,7 +52,7 @@ struct App {
 
   void Start(const std::string &directory) {
     auto assets = std::make_shared<Kotonoha::Providers::SnowAssets>(
-        Kotonoha::gameDataDirectory(directory));
+        std::filesystem::path(directory));
     assets->setOverlay(options.assetOverlayDirectory());
     game = std::make_unique<Application>(std::move(assets), options);
     game->framesLeft = frames;

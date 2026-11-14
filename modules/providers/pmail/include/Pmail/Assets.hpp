@@ -1,5 +1,6 @@
 #pragma once
 #include <Kotonoha/core/AssetProvider.hpp>
+#include <Kotonoha/Filesystem/Filesystem.hpp>
 #include <filesystem>
 #include <memory>
 #include <string>
@@ -10,6 +11,7 @@ namespace Kotonoha::Providers {
 class PmailAssets : public AssetProvider {
 public:
   explicit PmailAssets(const std::filesystem::path &directory);
+  explicit PmailAssets(std::shared_ptr<Kotonoha::Filesystem::Filesystem> source);
 
   std::string name() const override;
   bool containsAsset(const std::string &id) const override;
@@ -21,7 +23,7 @@ public:
   AudioClip loadAudioAsset(const std::string &id) const override;
 
 private:
-  std::filesystem::path root_;
+  std::shared_ptr<Kotonoha::Filesystem::Filesystem> source_;
 };
 
 } // namespace Kotonoha::Providers

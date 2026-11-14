@@ -23,6 +23,8 @@
 //   File data lives at offset * blockSize.
 
 #include <Kotonoha/core/AssetProvider.hpp>
+#include <Kotonoha/Filesystem/Filesystem.hpp>
+#include <memory>
 
 #include <cstdint>
 #include <filesystem>
@@ -45,6 +47,8 @@ struct PakEntry {
 class PakArchive {
 public:
   explicit PakArchive(std::filesystem::path path);
+  PakArchive(std::shared_ptr<Kotonoha::Filesystem::Filesystem> source,
+             std::string sourceId);
 
   const std::filesystem::path &path() const { return path_; }
   uint32_t fileCount() const { return header_.fileCount; }
@@ -74,6 +78,8 @@ private:
   };
 
   std::filesystem::path path_;
+  std::shared_ptr<Kotonoha::Filesystem::Filesystem> source_;
+  std::string sourceId_;
   // Only the header is retained. Multi-gigabyte voice/image PAKs are read
   // lazily when an entry is requested.
   std::vector<std::uint8_t> headerData_;
@@ -99,6 +105,8 @@ class LucaSystemAssets : public Kotonoha::AssetProvider {
 public:
   LucaSystemAssets(std::filesystem::path directory,
                    std::filesystem::path overlayDirectory);
+  LucaSystemAssets(std::shared_ptr<Kotonoha::Filesystem::Filesystem> source,
+                   std::filesystem::path overlayDirectory = {});
 
   std::string name() const override { return "LucaSystem"; }
   bool containsAsset(const std::string &id) const override;
@@ -116,6 +124,7 @@ public:
 
 private:
   std::filesystem::path directory_;
+  std::shared_ptr<Kotonoha::Filesystem::Filesystem> source_;
   std::unique_ptr<PakArchive> paramPak_;
   std::unique_ptr<PakArchive> scriptPak_;
   std::unique_ptr<PakArchive> syssePak_;
@@ -130,7 +139,7 @@ private:
   // reuses low ids in SCRIPT, fonts, BGCG and VOICE, so drawing must never use
   // the generic first-mounted numeric map.
   std::map<uint32_t, const PakArchive *> imageIdToPak_;
-  void mountPak(const std::filesystem::path &file);
+  void mountPak(const std::string &file);
 };
 
 } // namespace Kotonoha::Providers

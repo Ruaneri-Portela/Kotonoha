@@ -10,6 +10,15 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+# Web builds use JS-based Emscripten C++ EH with Asyncify. Enabling
+# exception catching only for the final executable leaves engine and
+# provider object files compiled without catch/unwind support, which
+# can surface as an uncaught CppException after emscripten_sleep().
+# Keep this before add_subdirectory(lib) and all game port targets.
+if(EMSCRIPTEN)
+    add_compile_options("$<$<COMPILE_LANGUAGE:CXX>:-fexceptions>")
+endif()
+
 include("${CMAKE_CURRENT_SOURCE_DIR}/buildsystems/cmake/MSVC.cmake")
 include("${CMAKE_CURRENT_SOURCE_DIR}/buildsystems/cmake/KotonohaOptions.cmake")
 

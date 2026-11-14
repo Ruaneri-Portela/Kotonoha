@@ -1,10 +1,10 @@
-#include <Kotonoha/core/FileSystem.hpp>
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/Settings.hpp>
 #include <Kotonoha/media/AudioMixer.hpp>
 
 #include <cmath>
 #include <filesystem>
-#include <fstream>
+#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <json-c/json.h>
 #include <limits>
 #include <memory>
@@ -85,7 +85,7 @@ EngineSettings EngineSettings::load(const std::string &path) {
 
 EngineSettings EngineSettings::load(const std::string &path,
                                     const EngineSettings &defaults) {
-  std::ifstream input(path, std::ios::binary);
+  Kotonoha::Filesystem::InputFile input(path, std::ios::binary);
   if (!input)
     throw std::runtime_error("Cannot open settings: " + path);
   std::string text(1024 * 1024 + 1, '\0');

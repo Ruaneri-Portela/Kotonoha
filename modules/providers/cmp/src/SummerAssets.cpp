@@ -1,24 +1,100 @@
 #include <SummerRadish/SummerAssets.hpp>
+#include <Kotonoha/Filesystem/Filesystem.hpp>
+#include <Kotonoha/Filesystem/Path.hpp>
+#include <Kotonoha/Filesystem/RemoteAssets.hpp>
+#include <Kotonoha/Filesystem/Sources/FetchAssetProvider.hpp>
 #include <cstring>
+#include <algorithm>
+#include <utility>
 #include <optional>
 #include <stdexcept>
 namespace Kotonoha::Providers {
 using namespace SummerRadish;
-SummerAssets::SummerAssets(std::filesystem::path root) {
-  if (std::filesystem::is_directory(root / "DISC1/PACK"))
-    root /= "DISC1/PACK";
-  else if (std::filesystem::is_directory(root / "PACK"))
-    root /= "PACK";
-  discDirectory = std::filesystem::absolute(root).parent_path();
-  for (auto type : {"INI", "SCRIPT", "GRAPHIC", "SOUND", "VOICE"}) {
-    std::filesystem::path found;
-    for (auto &f : std::filesystem::directory_iterator(root))
-      if (canonical(f.path().filename().string()) == std::string(type) + ".CMP")
-        found = f.path();
-    if (found.empty())
-      throw std::runtime_error("Missing " + std::string(type) + ".cmp in " +
-                               root.string());
-    packs.emplace(type, std::make_unique<Pack>(found));
+namespace {
+std::shared_ptr<Kotonoha::Filesystem::Filesystem>
+mountSummer(std::filesystem::path root, std::filesystem::path overlay) {
+  // A PACK subfolder is a legacy CLI input: mount its parent so
+  // movies and sibling sources remain visible as virtual files.
+  std::error_code ec;
+  if (std::filesystem::is_directory(root, ec) &&
+      canonical(root.filename().string()) == "PACK")
+    root = root.parent_path();
+  auto source = Kotonoha::Filesystem::Filesystem::mount(root.string());
+  if (!overlay.empty())
+    source->addOverlay(overlay.string());
+  return source;
+}
+} // namespace
+SummerAssets::SummerAssets(std::filesystem::path root,
+                           std::filesystem::path overlay)
+    : SummerAssets(mountSummer(root, overlay)) {
+  // The game still uses a physical media path in legacy MediaPlayer calls.
+  // Package sources themselves are already opened through the V2 filesystem.
+  if (source_->exists("DISC1/PACK") &&
+      source_->stat("DISC1/PACK").type ==
+          Kotonoha::Filesystem::FileType::Directory) {
+    discDirectory = std::filesystem::absolute(root) / "DISC1";
+  } else if (source_->exists("PACK") &&
+             source_->stat("PACK").type ==
+                 Kotonoha::Filesystem::FileType::Directory) {
+    discDirectory = std::filesystem::absolute(root);
+  } else {
+    discDirectory = std::filesystem::absolute(root).parent_path();
+  }
+}
+
+SummerAssets::SummerAssets(
+    std::shared_ptr<Kotonoha::Filesystem::Filesystem> mounted)
+    : source_(std::move(mounted)) {
+  if (!source_)
+    throw std::invalid_argument("Summer CMP mount is missing");
+  std::string packRoot;
+  const auto remote = Kotonoha::Filesystem::remoteGameAssets();
+  if (remote && remote->manifestFree()) {
+    // An ordinary HTTP server cannot enumerate PACK directories. Probe the
+    // known CMP archive names explicitly, including the supported disc
+    // layouts, so the provider can register their virtual parent directories.
+    // This also avoids treating an HTTP 404 for /DISC1/PACK as proof that its
+    // children do not exist (many servers disable directory listings).
+    bool found = false;
+    for (const char *candidate : {"DISC1/PACK", "PACK", ""}) {
+      const std::string prefix = *candidate ? std::string(candidate) + "/" : "";
+      if (source_->exists(prefix + "INI.CMP")) {
+        packRoot = candidate;
+        found = true;
+        break;
+      }
+    }
+    if (found) {
+      const auto prefix = packRoot.empty() ? "" : packRoot + "/";
+      for (const char *type : {"SCRIPT", "GRAPHIC", "SOUND", "VOICE"}) {
+        const std::string archive = prefix + type + ".CMP";
+        // A named request (rather than list()) resolves metadata on demand.
+        (void)source_->exists(archive);
+      }
+    }
+  } else {
+    if (source_->exists("DISC1/PACK") &&
+        source_->stat("DISC1/PACK").type ==
+            Kotonoha::Filesystem::FileType::Directory)
+      packRoot = "DISC1/PACK";
+    else if (source_->exists("PACK") &&
+             source_->stat("PACK").type ==
+                 Kotonoha::Filesystem::FileType::Directory)
+      packRoot = "PACK";
+  }
+
+  const auto files = source_->list(packRoot);
+  for (const auto *type : {"INI", "SCRIPT", "GRAPHIC", "SOUND", "VOICE"}) {
+    const auto desired = std::string(type) + ".CMP";
+    auto entry = std::find_if(files.begin(), files.end(), [&](const auto &file) {
+      return file.type == Kotonoha::Filesystem::FileType::Regular &&
+             canonical(std::filesystem::path(file.path).filename().string()) ==
+                 desired;
+    });
+    if (entry == files.end())
+      throw std::runtime_error("Missing " + desired + " in virtual source");
+    packs.emplace(type, std::make_unique<Pack>(source_, entry->path));
   }
 }
 std::filesystem::path
@@ -70,6 +146,36 @@ SummerAssets::moviePath(const std::string &filename) const {
 
   throw std::runtime_error("Missing Summer movie: " + filename);
 }
+std::unique_ptr<Kotonoha::Filesystem::FileHandle>
+SummerAssets::movieHandle(const std::string &filename) const {
+  const auto name = Kotonoha::Filesystem::normalizePath(filename);
+  std::vector<std::string> candidates;
+  const bool discLayout = source_->exists("DISC1/PACK");
+  const auto prefix = discLayout ? std::string("DISC1/") : std::string();
+  candidates.push_back(name);
+  if (name.size() >= 6 && canonical(name.substr(0, 6)) == "DISC1/")
+    candidates.push_back(name.substr(6));
+  else if (!prefix.empty())
+    candidates.push_back(prefix + name);
+
+  // Keep the known release alias used by the original moviePath().
+  for (const auto &candidate : std::vector<std::string>(candidates)) {
+    if (canonical(std::filesystem::path(candidate).filename().string()) ==
+        "OPENING.MPG") {
+      auto path = std::filesystem::path(candidate);
+      path.replace_filename("SUMMER_OP.MPG");
+      candidates.push_back(path.generic_string());
+    }
+  }
+  for (const auto &candidate : candidates) {
+    if (source_->exists(candidate) &&
+        source_->stat(candidate).type ==
+            Kotonoha::Filesystem::FileType::Regular)
+      return source_->open(candidate);
+  }
+  throw std::runtime_error("Missing Summer virtual movie: " + filename);
+}
+
 bool SummerAssets::containsAsset(const std::string &id) const {
   auto s = canonical(id);
   auto slash = s.find('/');

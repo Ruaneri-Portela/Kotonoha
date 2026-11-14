@@ -1,68 +1,70 @@
-#include <Kotonoha/media/MediaDecoder.hpp>
 #include <Pmail/Assets.hpp>
-#include <filesystem>
-#include <fstream>
-#include <iostream>
+#include <Kotonoha/media/MediaDecoder.hpp>
+#include <Kotonoha/Filesystem/Path.hpp>
+
+#include <algorithm>
+#include <stdexcept>
+#include <utility>
 
 namespace Kotonoha::Providers {
 
 PmailAssets::PmailAssets(const std::filesystem::path &directory)
-    : root_(directory) {}
+    : PmailAssets(Kotonoha::Filesystem::Filesystem::mount(directory.string())) {}
+
+PmailAssets::PmailAssets(
+    std::shared_ptr<Kotonoha::Filesystem::Filesystem> source)
+    : source_(std::move(source)) {
+  if (!source_)
+    throw std::invalid_argument("PmailAssets requires a mounted source");
+}
 
 std::string PmailAssets::name() const { return "Pmail"; }
 
 bool PmailAssets::containsAsset(const std::string &id) const {
-  std::filesystem::path full_path = root_ / id;
-  std::cerr << "[PmailAssets Debug] checking for: " << full_path.string()
-            << std::endl;
-  return std::filesystem::exists(full_path);
+  try {
+    return source_->exists(id) &&
+           source_->stat(id).type == Kotonoha::Filesystem::FileType::Regular;
+  } catch (const Kotonoha::Filesystem::FilesystemError &e) {
+    if (e.code() == Kotonoha::Filesystem::ErrorCode::InvalidPath ||
+        e.code() == Kotonoha::Filesystem::ErrorCode::NotFound)
+      return false;
+    throw;
+  }
 }
 
 std::vector<Uint8> PmailAssets::readAsset(const std::string &id) const {
-  std::filesystem::path full_path = root_ / id;
-  std::cerr << "[PmailAssets Debug] reading asset: " << full_path.string()
-            << std::endl;
-  std::ifstream file(full_path, std::ios::binary | std::ios::ate);
-  if (!file) {
-    std::cerr << "[PmailAssets Debug] FAILED to open file: "
-              << full_path.string() << std::endl;
-    return {};
-  }
-  std::streamsize size = file.tellg();
-  file.seekg(0, std::ios::beg);
-  std::vector<Uint8> buffer(size);
-  if (file.read(reinterpret_cast<char *>(buffer.data()), size)) {
-    return buffer;
-  }
-  return {};
+  // Do not silently convert I/O, HTTP or malformed archive errors to EOF.
+  return Kotonoha::Filesystem::readAll(*source_->open(id));
 }
 
 std::vector<std::string>
 PmailAssets::listAsset(const std::string &prefix) const {
-  std::vector<std::string> assets;
-  if (!std::filesystem::exists(root_))
-    return assets;
-
-  for (const auto &entry :
-       std::filesystem::recursive_directory_iterator(root_)) {
-    if (entry.is_regular_file()) {
-      std::string rel_path =
-          std::filesystem::relative(entry.path(), root_).generic_string();
-      if (prefix.empty() || rel_path.compare(0, prefix.size(), prefix) == 0) {
-        assets.push_back(rel_path);
+  std::vector<std::string> entries;
+  std::vector<std::string> pending{""};
+  const auto normalized = Kotonoha::Filesystem::lookupKey(prefix, true);
+  while (!pending.empty()) {
+    auto dir = std::move(pending.back());
+    pending.pop_back();
+    for (const auto &info : source_->list(dir)) {
+      if (info.type == Kotonoha::Filesystem::FileType::Directory) {
+        pending.push_back(info.path);
+      } else if (Kotonoha::Filesystem::lookupKey(info.path).compare(
+                     0, normalized.size(), normalized) == 0) {
+        entries.push_back(info.path);
       }
     }
   }
-  return assets;
+  std::sort(entries.begin(), entries.end());
+  return entries;
 }
 
-std::string PmailAssets::localPathAsset(const std::string &id) const {
-  return (root_ / id).generic_string();
+std::string PmailAssets::localPathAsset(const std::string &) const {
+  // No provider consumer may depend on a physical path for virtual mounts.
+  return {};
 }
 
-SurfacePtr PmailAssets::loadSurfaceAsset(const std::string &id) const {
-  // For PMAIL, we might need to implement .CRGB decoding if it's not handled by
-  // MediaDecoder For now, fall back to default.
+SurfacePtr PmailAssets::loadSurfaceAsset(const std::string &) const {
+  // The original provider did not handle the CRGB format here.
   return nullptr;
 }
 

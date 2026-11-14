@@ -3,13 +3,13 @@
 #include <LucaSystem/LucaSystemAssets.hpp>
 // PAK asset provider module.
 
-#include <Kotonoha/core/FileSystem.hpp>
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/Log.hpp>
 
 #include <algorithm>
 #include <cstring>
 #include <filesystem>
-#include <fstream>
+#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <stdexcept>
 
 namespace Kotonoha::Providers {
@@ -72,15 +72,32 @@ std::string readCString(const std::vector<std::uint8_t> &data, size_t &cursor) {
 
 namespace LucaSystem {
 
-PakArchive::PakArchive(std::filesystem::path path) : path_(std::move(path)) {
+PakArchive::PakArchive(std::filesystem::path path)
+    : PakArchive(
+          Kotonoha::Filesystem::Filesystem::mount(
+              (path.has_parent_path() ? path.parent_path()
+                                      : std::filesystem::path(".")).string()),
+          path.filename().string()) {
+  path_ = std::move(path);
+}
+
+PakArchive::PakArchive(
+    std::shared_ptr<Kotonoha::Filesystem::Filesystem> source,
+    std::string sourceId)
+    : path_(sourceId), source_(std::move(source)),
+      sourceId_(std::move(sourceId)) {
+  if (!source_)
+    throw std::invalid_argument("PAK archive must have a mounted source");
   load();
 }
 
 void PakArchive::load() {
-  std::ifstream file(path_, std::ios::binary);
-  if (!file)
-    throw std::runtime_error("Cannot open PAK archive: " + path_.string());
-  std::uintmax_t fileSize = std::filesystem::file_size(path_);
+  auto handle = source_->open(sourceId_);
+  const auto length = handle->size();
+  if (length < 0)
+    throw std::runtime_error("PAK archive size unavailable: " + sourceId_);
+  const auto fileSize = static_cast<std::uint64_t>(length);
+  Kotonoha::Filesystem::InputFile file(std::move(handle));
   if (fileSize < 36)
     throw std::runtime_error("PAK too small for header: " + path_.string());
 
@@ -188,10 +205,12 @@ const PakEntry *PakArchive::findByIndex(uint32_t index) const {
 }
 
 std::vector<std::uint8_t> PakArchive::read(const PakEntry &entry) const {
-  const auto fileSize = std::filesystem::file_size(path_);
-  if (entry.offset + entry.length > fileSize)
+  auto handle = source_->open(sourceId_);
+  const auto size = handle->size();
+  if (size < 0 || entry.offset > static_cast<std::uint64_t>(size) ||
+      entry.length > static_cast<std::uint64_t>(size) - entry.offset)
     throw std::runtime_error("PAK entry data exceeds file: " + entry.name);
-  std::ifstream file(path_, std::ios::binary);
+  Kotonoha::Filesystem::InputFile file(std::move(handle));
   file.seekg(static_cast<std::streamoff>(entry.offset));
   std::vector<std::uint8_t> result(entry.length);
   file.read(reinterpret_cast<char *>(result.data()),
@@ -219,49 +238,71 @@ using namespace LucaSystem;
 
 LucaSystemAssets::LucaSystemAssets(std::filesystem::path directory,
                                    std::filesystem::path overlayDirectory)
-    : AssetProvider(), directory_(std::move(directory)) {
-  if (!std::filesystem::is_regular_file(directory_ / "SCRIPT.PAK") &&
-      std::filesystem::is_regular_file(directory_ / "files" / "SCRIPT.PAK"))
-    directory_ /= "files";
-  setOverlay(directory_);
-
-  const std::vector<std::string> pakOrder = {"PARAM.PAK", "SCRIPT.PAK",
-                                             "SYSSE.PAK"};
-  for (const auto &name : pakOrder) {
-    auto file = directory_ / name;
-    if (std::filesystem::is_regular_file(file))
-      mountPak(file);
-  }
-  // Any remaining PAK archives mount after the core ones. LucaSystem titles
-  // conventionally split these into image/music/se/voice/font subfolders.
-  std::vector<std::filesystem::path> others;
-  for (const auto &entry :
-       std::filesystem::recursive_directory_iterator(directory_)) {
-    if (!entry.is_regular_file())
-      continue;
-    auto ext = entry.path().extension().string();
-    std::transform(ext.begin(), ext.end(), ext.begin(),
-                   [](unsigned char c) { return std::tolower(c); });
-    if (ext == ".pak") {
-      auto name = entry.path().filename().string();
-      if (entry.path().parent_path() != directory_ ||
-          (name != "PARAM.PAK" && name != "SCRIPT.PAK" && name != "SYSSE.PAK"))
-        others.push_back(entry.path());
-    }
-  }
-  std::sort(others.begin(), others.end());
-  for (const auto &file : others)
-    mountPak(file);
-
-  SDL_Log("LucaSystem: mounted %zu archives in %s",
-          archives_.size() + (paramPak_ ? 1 : 0) + (scriptPak_ ? 1 : 0) +
-              (syssePak_ ? 1 : 0),
-          directory_.string().c_str());
+    : LucaSystemAssets(
+          Kotonoha::Filesystem::Filesystem::mount(directory.string()),
+          overlayDirectory) {
+  directory_ = std::move(directory);
+  if (overlayDirectory.empty())
+    setOverlay(directory_);
 }
 
-void LucaSystemAssets::mountPak(const std::filesystem::path &file) {
-  auto archive = std::make_unique<PakArchive>(file);
+LucaSystemAssets::LucaSystemAssets(
+    std::shared_ptr<Kotonoha::Filesystem::Filesystem> source,
+    std::filesystem::path overlayDirectory)
+    : source_(std::move(source)) {
+  if (!source_)
+    throw std::invalid_argument("LucaSystem requires a mounted source");
+  if (!overlayDirectory.empty()) {
+    source_->addOverlay(overlayDirectory.string());
+    setOverlay(overlayDirectory);
+  }
+  std::string prefix;
+  if (!source_->exists("SCRIPT.PAK") && source_->exists("files/SCRIPT.PAK"))
+    prefix = "files/";
+  const std::vector<std::string> core = {"PARAM.PAK", "SCRIPT.PAK", "SYSSE.PAK"};
+  for (const auto &name : core) {
+    const auto key = prefix + name;
+    if (source_->exists(key) &&
+        source_->stat(key).type == Kotonoha::Filesystem::FileType::Regular)
+      mountPak(key);
+  }
+
+  std::vector<std::string> other;
+  std::vector<std::string> dirs{prefix.empty() ? "" : "files"};
+  while (!dirs.empty()) {
+    auto directory = std::move(dirs.back());
+    dirs.pop_back();
+    for (const auto &file : source_->list(directory)) {
+      if (file.type == Kotonoha::Filesystem::FileType::Directory) {
+        dirs.push_back(file.path);
+        continue;
+      }
+      auto name = std::filesystem::path(file.path);
+      auto ext = name.extension().string();
+      std::transform(ext.begin(), ext.end(), ext.begin(),
+                     [](unsigned char ch) { return std::tolower(ch); });
+      if (ext != ".pak")
+        continue;
+      const bool corePak = std::find(core.begin(), core.end(),
+                                     name.filename().string()) != core.end();
+      if (file.path.compare(0, prefix.size(), prefix) == 0 &&
+          (file.path.substr(prefix.size()).find('/') != std::string::npos ||
+           !corePak))
+        other.push_back(file.path);
+    }
+  }
+  std::sort(other.begin(), other.end());
+  for (const auto &id : other)
+    mountPak(id);
+  SDL_Log("LucaSystem: mounted %zu PAK archives",
+          archives_.size() + (paramPak_ ? 1 : 0) + (scriptPak_ ? 1 : 0) +
+              (syssePak_ ? 1 : 0));
+}
+
+void LucaSystemAssets::mountPak(const std::string &path) {
+  auto archive = std::make_unique<PakArchive>(source_, path);
   const PakArchive *raw = archive.get();
+  const auto file = std::filesystem::path(path);
 
   // Register every entry under its logical name, first mount wins.
   for (const auto &entry : raw->entries()) {

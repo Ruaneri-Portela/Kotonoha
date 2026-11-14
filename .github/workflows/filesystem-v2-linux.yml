@@ -1,0 +1,60 @@
+name: Filesystem V2 Linux C++ smoke
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/filesystem-v2-linux.yml"
+      - "lib/**"
+      - "modules/**"
+      - "games/**"
+      - "buildsystems/**"
+      - "CMakeLists.txt"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  native:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout including SDL3, SDL_ttf and ImGui
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Install native build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            ninja-build pkg-config libass-dev libavcodec-dev \
+            libavformat-dev libavutil-dev libswresample-dev \
+            libswscale-dev libjson-c-dev libgl1-mesa-dev \
+            libfreetype-dev libharfbuzz-dev libfribidi-dev \
+            libfontconfig-dev libexpat1-dev zlib1g-dev libx11-dev \
+            libxext-dev libxrandr-dev libxi-dev libxcursor-dev \
+            libxinerama-dev libxss-dev libxtst-dev libxkbcommon-dev
+      - name: Configure tests
+        run: |
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug \
+            -DBUILD_TESTING=ON -DSDLTTF_PLUTOSVG=OFF \
+            -DKOTONOHA_BUILD_EXAMPLE=ON -DKOTONOHA_BUILD_LUCA_SYSTEM=ON -DKOTONOHA_BUILD_SNOW=ON -DKOTONOHA_BUILD_PMAIL=ON -DKOTONOHA_BUILD_KIRIKIRI=ON
+      - name: Compile Filesystem V2
+        run: cmake --build build --target KotonohaFilesystemV2Tests KotonohaInputActionsTests KotonohaNativeInputTests LucaSystemFormatTests KirikiriXp3Tests kotonoha_provider_adv kotonoha_provider_pmail PmailPort Pmail PmailPackBytesCheck --parallel 3
+      - name: Run Filesystem V2 regression tests
+        env:
+          SDL_VIDEO_DRIVER: dummy
+          SDL_AUDIO_DRIVER: dummy
+        run: ctest --test-dir build --output-on-failure -R "Kotonoha[.](FilesystemV2|InputActions|NativeInput)|LucaSystemFormatTests|KirikiriXp3|Pmail[.]PackBytes"
+
+# Native smoke, not Emscripten, Android, macOS or all game runtime tests.
+
+
+# Native smoke, not Emscripten, Android, macOS or all game runtime tests.
+
+
+# Native smoke, not Emscripten, Android, macOS or all game runtime tests.

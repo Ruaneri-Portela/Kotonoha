@@ -1,0 +1,61 @@
+name: Filesystem V2 static audit
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/filesystem-v2-static.yml"
+      - "lib/**"
+      - "modules/**"
+      - "games/**"
+      - "buildsystems/**"
+      - "tools/audit_filesystem_v2.py"
+      - "tools/ValidateBuildMetadata.py"
+      - "tools/generate_manifest.py"
+      - "tools/check_web_shell.js"
+      - "tools/check_wasm_asyncify.py"
+      - "tools/web_selftest.js"
+      - "tools/web_toolbar_layout.js"
+      - "tools/serve_web.py"
+      - "tools/test_serve_web.py"
+      - "tools/web_example_smoke.js"
+  push:
+    branches:
+      - "feature/unified-filesystem-prototype-20261114"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  source-audit:
+    name: Source and build metadata audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout current branch
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Check script syntax
+        run: python3 -m py_compile tools/audit_filesystem_v2.py tools/ValidateBuildMetadata.py tools/generate_manifest.py tools/check_wasm_asyncify.py tools/serve_web.py tools/test_serve_web.py
+      - name: Verify Asyncify binary export parser
+        run: python3 tools/check_wasm_asyncify.py --self-test
+      - name: Test HTTP Range server with a sparse 320 MiB GPK
+        run: python3 -m unittest discover -s tools -p test_serve_web.py -v
+      - name: Check browser shell and test script syntax
+        run: |
+          node tools/check_web_shell.js
+          node --check tools/web_selftest.js
+          node --check tools/web_toolbar_layout.js
+          node --check tools/web_example_smoke.js
+      - name: Check CMake/Xcode metadata
+        run: python3 tools/ValidateBuildMetadata.py
+      - name: Audit filesystem migration
+        run: python3 tools/audit_filesystem_v2.py --strict
+
+# This workflow does not compile C++, launch apps or test a browser.
+# Full CMake/CTest, Xcode, Android, and Emscripten validation is separate.

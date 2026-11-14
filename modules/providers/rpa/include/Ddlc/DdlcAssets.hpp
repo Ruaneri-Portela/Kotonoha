@@ -46,6 +46,9 @@ class DdlcAssets final : public Kotonoha::AssetProvider {
 public:
   explicit DdlcAssets(const std::filesystem::path &directory,
                       const std::filesystem::path &overlayDirectory = {});
+  explicit DdlcAssets(
+      std::shared_ptr<Kotonoha::Filesystem::Filesystem> source,
+      const std::filesystem::path &overlayDirectory = {});
 
   std::string name() const override;
   bool containsAsset(const std::string &id) const override;
@@ -57,6 +60,9 @@ public:
   const Ddlc::Script &script() const { return script_; }
 
 private:
+  void configureOverlaysAndScripts(
+      const std::filesystem::path &overlayDirectory,
+      bool inspectCharacterPaths);
   Ddlc::Assets assets_;
   Ddlc::Script script_;
 };

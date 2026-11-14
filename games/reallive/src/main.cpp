@@ -3,8 +3,9 @@
 #include <Kotonoha/core/CommandLine.hpp>
 #include <Kotonoha/core/DiscImage.hpp>
 #include <Kotonoha/core/Engine.hpp>
-#include <Kotonoha/core/FileSystem.hpp>
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/GameLauncher.hpp>
+#include <Kotonoha/Filesystem/Filesystem.hpp>
 #include <RealLive/RealLiveAssets.hpp>
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
@@ -41,29 +42,19 @@ struct App {
 };
 bool validate(const std::string &path, std::string &info) {
   try {
-    if (Kotonoha::isISOImage(path)) {
-      Kotonoha::DiscImage disc(path);
-      if (!disc.find("Seen.txt") || !disc.find("Gameexe.ini"))
-        throw std::runtime_error(
-            "REALLIVE ISO is missing Seen.txt or Gameexe.ini");
-      info = "Game data found (direct ISO access)";
-      return true;
-    }
-    std::set<std::string> files;
-    for (const auto &entry : std::filesystem::directory_iterator(path))
-      if (entry.is_regular_file())
-        files.insert(RealLive::canonical(entry.path().filename().string()));
-    if (!files.count("SEEN.TXT") || !files.count("GAMEEXE.INI")) {
-      info = "Seen.txt or Gameexe.ini is missing";
+    auto source = Kotonoha::Filesystem::Filesystem::mount(path);
+    if (!source->exists("Seen.txt") || !source->exists("Gameexe.ini")) {
+      info = "REALLIVE source is missing Seen.txt or Gameexe.ini";
       return false;
     }
-    info = "Game data found";
+    info = "REALLIVE virtual source validated";
     return true;
   } catch (const std::exception &error) {
     info = error.what();
     return false;
   }
 }
+
 } // namespace
 SDL_AppResult SDL_AppInit(void **state, int argc, char **argv) {
   *state = nullptr;

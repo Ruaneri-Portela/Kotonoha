@@ -4,7 +4,7 @@
 #include <algorithm>
 #include <cmath>
 #include <filesystem>
-#include <fstream>
+#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <iomanip>
 #include <limits>
 #include <sstream>
@@ -70,7 +70,7 @@ void TimelineScript::validate() const {
 }
 
 TimelineScript TimelineScript::load(const std::string &path) {
-  std::ifstream file(path);
+  Kotonoha::Filesystem::InputFile file(path);
   if (!file)
     throw std::runtime_error("Cannot open timeline: " + path);
   TimelineScript script;

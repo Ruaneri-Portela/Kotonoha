@@ -1,5 +1,5 @@
 #include <Kotonoha/core/DiscImage.hpp>
-#include <Kotonoha/core/FileSystem.hpp>
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/GameLauncher.hpp>
 
 #include <imgui.h>
@@ -8,7 +8,7 @@
 #include <Kotonoha/debug/ImGuiTheme.hpp>
 
 #include <filesystem>
-#include <fstream>
+#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <stdexcept>
 
 namespace Kotonoha {
@@ -25,7 +25,7 @@ std::string rememberFilePath(const std::string &settingsPath,
 std::string readFirstLine(const std::string &file) {
   std::string line;
   if (!file.empty()) {
-    std::ifstream input(file);
+    Kotonoha::Filesystem::InputFile input(file);
     std::getline(input, line);
   }
   return line;

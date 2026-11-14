@@ -1,3 +1,13 @@
+# Tests instantiate the real SDL/TTF engine, whose default UI font is an
+# asset resolved relative to the test binary. Use the existing small font
+# fixture only inside the build tree; no commercial font is bundled.
+file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/assets/fonts")
+configure_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/fixtures/SvgTestFont.ttf"
+    "${CMAKE_CURRENT_BINARY_DIR}/assets/fonts/NotoSansJP-Regular.ttf"
+    COPYONLY
+)
+
 add_executable(KotonohaInfrastructureTests InfrastructureTests.cpp)
 target_link_libraries(KotonohaInfrastructureTests PRIVATE Kotonoha::Engine)
 add_test(NAME Kotonoha.Infrastructure COMMAND KotonohaInfrastructureTests)
@@ -20,6 +30,11 @@ add_test(NAME Kotonoha.DisplayModeCatalog COMMAND KotonohaDisplayModeCatalogTest
 add_executable(KotonohaDirectoryTests DirectoryTests.cpp)
 target_link_libraries(KotonohaDirectoryTests PRIVATE Kotonoha::Engine)
 add_test(NAME Kotonoha.Directories COMMAND KotonohaDirectoryTests)
+
+# General filesystem access: cross-platform layout, providers, overlays, saves.
+add_executable(KotonohaFilesystemV2Tests FilesystemV2Tests.cpp)
+target_link_libraries(KotonohaFilesystemV2Tests PRIVATE Kotonoha::Engine)
+add_test(NAME Kotonoha.FilesystemV2 COMMAND KotonohaFilesystemV2Tests)
 
 add_executable(KotonohaKtrfScriptTests KtrfScriptTests.cpp)
 target_link_libraries(KotonohaKtrfScriptTests PRIVATE Kotonoha::Engine)
