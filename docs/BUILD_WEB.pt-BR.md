@@ -76,7 +76,12 @@ logo, não é correto considerar todos os jogos totalmente migrados.
 O botão **+ Adicionar pasta** fica disponível **somente na tela de
 configuração, antes de iniciar o jogo**. Ele desaparece assim que a origem
 local ou HTTP(S) é confirmada, não reaparece durante o gameplay e não é
-reaberto pelo modo de tela cheia. Pastas adicionais devem ser importadas
+reaberto pelo modo de tela cheia. O toolbar utiliza `position: fixed`
+em vez de `popover`, evitando a centralização automática do Safari/WebKit;
+o botão fica no canto superior direito, respeitando a área segura da tela.
+O teste `node tools/web_toolbar_layout.js build-web/outputs/KotonohaWebSelfTest`
+verifica Chrome e WebKit em orientação vertical, horizontal e desktop.
+Pastas adicionais devem ser importadas
 antes de iniciar o SDL. Selecione uma pasta local e informe seu nome no
 filesystem virtual, por exemplo `game-assets`, `forced_subtitles` ou
 `ovrlay`. Seus arquivos ficam disponíveis em `/<nome>/` no Emscripten.
