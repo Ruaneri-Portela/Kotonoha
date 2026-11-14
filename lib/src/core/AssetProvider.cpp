@@ -555,11 +555,10 @@ FileSystemAssetProvider::readAsset(const std::string &id) const {
   if (mounted_)
     return Filesystem::readAll(*mounted_->open(id), maximumAssetSize);
   const auto path = resolve(id);
-  if (fallback_ && !std::filesystem::is_regular_file(path)) {
-    const auto name = id.compare(0, 12, "game-assets/") == 0
-                          ? id.substr(12) : id;
-    return Filesystem::readAll(*fallback_->open(name), maximumAssetSize);
-  }
+  if (fallback_ && id.compare(0, 12, "game-assets/") == 0 &&
+      fallback_->exists(id.substr(12)))
+    return Filesystem::readAll(*fallback_->open(id.substr(12)),
+                               maximumAssetSize);
   if (!std::filesystem::is_regular_file(path))
     throw std::runtime_error("Asset not found: " + id);
   return Filesystem::readLocalFile(path, maximumAssetSize);
@@ -630,8 +629,15 @@ FileSystemAssetProvider::localPathAsset(const std::string &id) const {
   // Virtual sources (TAR/ISO/HTTP) never require a physical path.
   if (mounted_) return {};
   const auto path = resolve(id);
-  if (fallback_ && !std::filesystem::is_regular_file(path))
-    return {};
+  if (fallback_ && id.compare(0, 12, "game-assets/") == 0 &&
+      fallback_->exists(id.substr(12))) {
+    const auto info = fallback_->stat(id.substr(12));
+    std::error_code ec;
+    if (!std::filesystem::is_regular_file(path, ec) ||
+        std::filesystem::file_size(path, ec) !=
+            static_cast<std::uintmax_t>(info.size))
+      return {};
+  }
   return path.string();
 }
 
@@ -639,12 +645,10 @@ std::unique_ptr<AssetStream>
 FileSystemAssetProvider::openStream(const std::string &id) const {
   if (mounted_)
     return std::make_unique<MountedAssetStream>(mounted_->open(id));
-  if (fallback_ && !std::filesystem::is_regular_file(resolve(id))) {
-    const auto name = id.compare(0, 12, "game-assets/") == 0
-                          ? id.substr(12) : id;
-    if (fallback_->exists(name))
-      return std::make_unique<MountedAssetStream>(fallback_->open(name));
-  }
+  if (fallback_ && id.compare(0, 12, "game-assets/") == 0 &&
+      fallback_->exists(id.substr(12)))
+    return std::make_unique<MountedAssetStream>(
+        fallback_->open(id.substr(12)));
   const auto local = resolve(id);
   if (std::filesystem::is_regular_file(local))
     return std::make_unique<MountedAssetStream>(
