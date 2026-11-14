@@ -63,6 +63,7 @@ jobs:
           emcmake cmake -S . -B build-web -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \
+            -DVCPKG_CHAINLOAD_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/toolchains/emscripten.cmake" \
             -DVCPKG_TARGET_TRIPLET=wasm32-emscripten \
             -DVCPKG_OVERLAY_TRIPLETS="$GITHUB_WORKSPACE/vcpkg-overlays/triplets" \
             "-DVCPKG_MANIFEST_FEATURES=sdl-vcpkg;imgui-vcpkg" \
