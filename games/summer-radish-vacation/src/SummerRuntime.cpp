@@ -887,7 +887,7 @@ struct SummerRuntime::Impl {
           "summer_op.mpg"};
       for (const auto &candidate : openingCandidates) {
         try {
-          movie->open(assets->moviePath(candidate).string(), false, "BGM");
+          movie->open(assets->movieHandle(candidate), false, "BGM");
           text->hide();
           vm.waiting = true;
           pending = "OPENING";
@@ -1240,7 +1240,7 @@ struct SummerRuntime::Impl {
       return;
     }
     if (name == "PLAYMOVIE") {
-      movie->open(assets->moviePath(string(arg(0))).string(), false, "BGM");
+      movie->open(assets->movieHandle(string(arg(0))), false, "BGM");
       text->hide();
       vm.waiting = true;
       pending = "MOVIE";

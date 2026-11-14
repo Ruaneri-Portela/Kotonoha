@@ -1,6 +1,7 @@
 #pragma once
 // CMP asset provider for the Summer Radish Vacation!! discs.
 #include <Kotonoha/core/AssetProvider.hpp>
+#include <Kotonoha/Filesystem/FileHandle.hpp>
 #include <SummerRadish/Pack.hpp>
 #include <memory>
 namespace Kotonoha::Providers {
@@ -29,5 +30,7 @@ public:
   SummerRadish::Image picture(const std::string &) const;
   // Native movie files are loose on DISC1 rather than inside a CMP archive.
   std::filesystem::path moviePath(const std::string &filename) const;
+  std::unique_ptr<Kotonoha::Filesystem::FileHandle>
+  movieHandle(const std::string &filename) const;
 };
 } // namespace Kotonoha::Providers
