@@ -37,6 +37,7 @@ class FetchAssetProvider final
   std::deque<Job> queued_;
   std::set<std::string> requested_;
   std::size_t active_ = 0, cached_ = 0;
+  std::uint64_t accessClock_ = 0; // LRU access age for cached byte ranges
   std::size_t completed_ = 0, failures_ = 0, requestedCount_ = 0;
   std::size_t budget_ = 64u << 20;
   bool started_ = false;
