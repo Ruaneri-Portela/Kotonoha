@@ -932,22 +932,29 @@ void MediaPlayer::open(const std::string &path, bool audioOnly,
                        const std::string &channelName) {
   // The path overload is only a migration API. Game media flows through
   // FileHandle/AVIO, including browser game-assets. No URL is played directly.
+  try {
 #ifdef __EMSCRIPTEN__
-  std::string relative = path;
-  if (relative.compare(0, 13, "/game-assets/") == 0)
-    relative.erase(0, 13);
-  else if (relative.compare(0, 12, "game-assets/") == 0)
-    relative.erase(0, 12);
-  else
-    relative.clear();
-  if (!relative.empty()) {
-    auto vfs = Filesystem::mountGameAssets("/game-assets");
-    return open(vfs->open(relative), relative, audioOnly, channelName);
-  }
+    std::string relative = path;
+    if (relative.compare(0, 13, "/game-assets/") == 0)
+      relative.erase(0, 13);
+    else if (relative.compare(0, 12, "game-assets/") == 0)
+      relative.erase(0, 12);
+    else
+      relative.clear();
+    if (!relative.empty()) {
+      auto vfs = Filesystem::mountGameAssets("/game-assets");
+      return open(vfs->open(relative), relative, audioOnly, channelName);
+    }
 #endif
-  return open(std::make_unique<Filesystem::SDLFileSource>(
-                  std::filesystem::path(path)),
-              path, audioOnly, channelName);
+    return open(std::make_unique<Filesystem::SDLFileSource>(
+                    std::filesystem::path(path)),
+                path, audioOnly, channelName);
+  } catch (const std::exception &error) {
+    SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                "[Kotonoha] Media file open failed (%s): %s",
+                path.c_str(), error.what());
+    stop();
+  }
 }
 
 void MediaPlayer::open(const AssetProvider &assets, const std::string &id,
