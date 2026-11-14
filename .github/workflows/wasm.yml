@@ -48,6 +48,9 @@ jobs:
           restore-keys: |
             wasm-vcpkg-3.1.73-
 
+      - name: Enforce game/engine Emscripten isolation
+        run: python3 tools/check_game_platform_isolation.py
+
       - name: Verify HTTP Range server before WASM tests
         run: python3 -m unittest discover -s tools -p test_serve_web.py -v
 
