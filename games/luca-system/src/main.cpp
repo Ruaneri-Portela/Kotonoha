@@ -91,7 +91,7 @@ struct KotonohaPortCallbacks final {
 
 SDL_AppResult KotonohaPortCallbacks::init(void **state, int argc, char **argv) {
   *state = nullptr;
-  SDL_SetAppMetadata("LucaSystem", "0.1.0", "me.hirameki.kotonoha.luca_system");
+  KOTONOHA_SET_APP_METADATA("LucaSystem", "me.hirameki.kotonoha.luca_system");
   try {
     auto app = std::make_unique<App>();
     auto &options = app->options;
