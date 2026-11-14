@@ -1,6 +1,7 @@
 #pragma once
 // Provider API; scene execution belongs to the RealLive runtime.
 #include <Kotonoha/core/AssetProvider.hpp>
+#include <Kotonoha/Filesystem/Filesystem.hpp>
 #include <RealLive/Config.hpp>
 #include <RealLive/Script.hpp>
 #include <filesystem>
@@ -19,6 +20,8 @@ class RealLiveAssets final : public Kotonoha::AssetProvider {
 public:
   explicit RealLiveAssets(const std::filesystem::path &directory,
                           const std::filesystem::path &overlay = {});
+  RealLiveAssets(std::shared_ptr<Kotonoha::Filesystem::Filesystem> source,
+                 const std::filesystem::path &overlay = {});
   std::string name() const override { return "REALLIVE RealLive data"; }
   Kotonoha::SurfacePtr loadSurfaceAsset(const std::string &) const override;
   Kotonoha::AudioClip loadAudioAsset(const std::string &) const override;
