@@ -26,6 +26,11 @@ public:
       const StorageLocations &locations, std::string game = {},
       std::shared_ptr<AssetProvider> gameProvider = {});
 
+  // Convenience factory using the engine's existing platform bootstrap.
+  static UnifiedFileSystem forApplication(
+      const std::string &game = {},
+      std::shared_ptr<AssetProvider> gameProvider = {});
+
   const DirectoryLayout &layout() const noexcept { return layout_; }
   void setGameProvider(std::shared_ptr<AssetProvider> gameProvider);
 

@@ -383,8 +383,10 @@ static StorageLocations storageLocations() {
   return locations;
 }
 
+StorageLocations applicationStorageLocations() { return storageLocations(); }
+
 DirectoryLayout applicationDirectories(const std::string &game) {
-  return directoryLayout(storageLocations(), game);
+  return directoryLayout(applicationStorageLocations(), game);
 }
 
 std::filesystem::path preferredDataDirectory() {
