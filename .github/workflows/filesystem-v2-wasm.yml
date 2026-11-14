@@ -35,10 +35,10 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     steps:
-      - name: Checkout submodules
+      - name: Checkout source
         uses: actions/checkout@v4
-        with:
-          submodules: recursive
+      - name: Initialize ImGui only
+        run: git submodule update --init --depth 1 lib/submodules/imgui
 
       - name: Install browser and compiler prerequisites
         run: |
