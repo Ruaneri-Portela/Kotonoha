@@ -38,6 +38,16 @@ public:
     explicit PreparedInput(std::unique_ptr<State> value);
     std::unique_ptr<State> state;
   };
+
+private:
+  static std::unique_ptr<PreparedInput>
+  prepareInputUnchecked(const AssetProvider &assets, const std::string &id,
+                        bool audioOnly,
+                        std::shared_ptr<std::atomic_bool> cancelled);
+  void adoptPreparedInputUnchecked(std::unique_ptr<PreparedInput> input,
+                                   const std::string &channelName);
+
+public:
   // CPU/I/O-only demux and decoder preparation. Safe for a bounded worker;
   // no SDL renderer, audio stream or mixer is touched until adoption.
   static std::unique_ptr<PreparedInput>
