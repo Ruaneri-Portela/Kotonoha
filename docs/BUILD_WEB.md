@@ -102,13 +102,7 @@ Emscripten filesystem is initialized.
 not automatically instruct every game port to search that folder. Port-specific
 path resolution and touchscreen gameplay must be tested separately.
 
-### Manifest-free HTTP assets — current limitation
 
-This revision does **not** implement a manifest-free HTTP provider. The
-existing automatic `game-assets/` fallback still requires
-`game-assets/manifest.json` with file paths and sizes. HTTP(S) servers
-normally do not expose directory listings, and Emscripten Fetch is asynchronous:
-a real manifest-free implementation needs on-demand filename discovery from
-the game, asynchronous reads (or a suitable suspension/worker strategy), and
-provider integration without assuming that all assets have been prefetched.
-Do not interpret successful compilation as browser-gameplay parity.
+### Manifest-free Fetch URL bootstrap
+
+If `game-assets/manifest.json` is missing, invalid, or cannot be fetched, the HTML shell now configures `KotonohaConfigureRemoteAssetUrl` with the HTTP(S) `game-assets/` base URL and releases the startup dependency without an index. C++ `FetchAssetProvider::fromUrl` can asynchronously discover an explicitly requested relative path via GET and cache its contents. `exists()` starts discovery on previously unseen paths; it returns false until the GET succeeds, rather than reporting unverified assets. `window.KotonohaFetchAsset(relativePath)` explicitly requests a path (return values: 1 ready, 0 queued/pending, -1 invalid). This mode does **not** enumerate unknown server directories and does **not** make synchronous first-use reads wait for the browser event loop. Games that require an asset synchronously in SDL_AppInit still need asynchronous startup gating/prefetch integration; therefore manifest-free boot registration alone does not establish playable parity. The legacy manifest fast path remains supported.
