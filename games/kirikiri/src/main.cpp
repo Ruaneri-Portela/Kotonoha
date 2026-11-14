@@ -88,7 +88,7 @@ struct KotonohaPortCallbacks final {
 
 SDL_AppResult KotonohaPortCallbacks::init(void **state, int argc, char **argv) {
   *state = nullptr;
-  SDL_SetAppMetadata("Kirikiri", "0.1.0", "me.hirameki.kotonoha.kirikiri");
+  KOTONOHA_SET_APP_METADATA("Kirikiri", "me.hirameki.kotonoha.kirikiri");
   try {
     auto app = std::make_unique<App>();
     auto &options = app->options;
