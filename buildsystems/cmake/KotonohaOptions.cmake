@@ -6,7 +6,7 @@ option(KOTONOHA_WASM_DYNAMIC_LIBS
     "Build first-party KotonohaEngine as an Emscripten side module; vcpkg stays static (experimental)" OFF)
 if(KOTONOHA_WASM_DYNAMIC_LIBS)
     if(NOT EMSCRIPTEN)
-        message(FATAL_ERROR "Dynamic WASM requires Emscripten")
+        message(FATAL_ERROR "Dynamic WASM requires the Emscripten CMake toolchain (CMAKE_SYSTEM_NAME=Emscripten). When using vcpkg, set -DVCPKG_CHAINLOAD_TOOLCHAIN_FILE=<vcpkg-root>/scripts/toolchains/emscripten.cmake and reconfigure in a clean build directory.")
     endif()
     if(CMAKE_VERSION VERSION_LESS 3.24)
         message(FATAL_ERROR "Dynamic WASM requires CMake 3.24+")
