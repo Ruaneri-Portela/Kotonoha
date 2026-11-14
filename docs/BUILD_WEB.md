@@ -218,3 +218,46 @@ selected. The CI proves the automated subset, **not** 100% device parity.
 BIN/ISO readers now use VFS and HTTP Range without staging a whole disc in
 MEMFS. Video opens from a FileHandle; AVI playback still depends on decoder
 support or a WebM sidecar. Startup success cannot prove absent files exist.
+
+### School Days: large GPK, HTTP 200, missing trailer
+
+If `HTTP asset unavailable: event01.gpk (HTTP 200)` is followed by
+`GPK trailer could not be read`, the web server likely ignored `Range`
+and returned the entire GPK instead of the requested trailer bytes.
+**Increasing the cache budget is not a fix.** The server must respond to
+ranged GET with `206 Partial Content` and `Content-Range`.
+
+For local development, stop the previous server listening on port 3000,
+then serve the WASM output using the included HTTP Range server:
+
+```sh
+python3 tools/serve_web.py --root build-web/outputs --port 3000
+curl -I http://localhost:3000/SchoolDays/game-assets/Event01.GPK
+curl -H 'Range: bytes=0-15' -o /dev/null -D - \
+  http://localhost:3000/SchoolDays/game-assets/Event01.GPK
+```
+
+The HEAD response must advertise `Accept-Ranges: bytes` and
+`Content-Length`. Ranged GET must return `206`,
+`Content-Range: bytes 0-15/TOTAL` and `Content-Length: 16`.
+Adjust path capitalization to match the actual files hosted.
+Production hosts need the same behavior; cross-origin hosts must expose
+`Accept-Ranges`, `Content-Length`, and `Content-Range` through CORS.
+
+Fetch now uses a bounded, evictable LRU byte-range cache rather than
+permanently failing an archive after cumulative reads exceed the cache
+budget. For objects larger than 8 MiB, it rejects an HTTP HEAD that does
+not advertise byte-range support, avoiding an avoidable full-body download.
+A misconfigured host can still incorrectly advertise Range support and
+send a full HTTP 200 response; configure the actual file server.
+
+Test the Range server independently:
+
+```sh
+python3 -m unittest discover -s tools -p test_serve_web.py -v
+```
+
+The test creates a sparse 320 MiB synthetic GPK and fetches only its tail.
+The Chromium/Playwright suite also checks a real VFS trailer read and
+observes HTTP 206 (when the WASM test target is compiled).
+
