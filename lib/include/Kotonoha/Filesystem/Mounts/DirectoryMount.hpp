@@ -9,7 +9,12 @@ class DirectoryMount final : public IMount {
     std::filesystem::path physical;
   };
   std::filesystem::path root_;
-  std::map<std::string, Node> nodes_;
+  mutable std::map<std::string, Node> nodes_;
+#ifdef __EMSCRIPTEN__
+  mutable int observedBrowserGeneration_ = 0;
+  // Browser folder imports invalidate the immutable constructor-time index.
+  void refreshFromBrowser() const;
+#endif
 public:
   explicit DirectoryMount(const std::filesystem::path &root);
   bool exists(std::string_view path) const override;
