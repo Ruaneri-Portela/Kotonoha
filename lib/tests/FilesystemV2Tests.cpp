@@ -1,6 +1,7 @@
 #include <Kotonoha/Filesystem/Filesystem.hpp>
 #include <Kotonoha/Filesystem/Sources/FetchAssetProvider.hpp>
 #include <Kotonoha/Filesystem/Adapters/SDLIOAdapter.hpp>
+#include <Kotonoha/Filesystem/Adapters/BrowserBlobAdapter.hpp>
 #include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <Kotonoha/Filesystem/Sources/SDLFileSource.hpp>
 #include <Kotonoha/Filesystem/IMount.hpp>
@@ -329,6 +330,12 @@ void testSDLAdapters() {
               std::string(tail, 4) == "data",
           "Custom SDL_IOStream read failed");
   require(SDL_CloseIO(io), "Custom SDL_IOStream failed to close");
+#ifndef __EMSCRIPTEN__
+  expectCode(VFS::ErrorCode::UnsupportedMount, [&] {
+    VFS::BrowserBlobAdapter blob(
+        std::make_unique<VFS::SDLFileSource>(path), "video/webm");
+  });
+#endif
 }
 
 void testDirectorySafety() {

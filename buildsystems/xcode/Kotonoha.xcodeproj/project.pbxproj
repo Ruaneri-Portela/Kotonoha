@@ -639,6 +639,8 @@
 		F1F1F10000000000000000F1 /* StreamAdapter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F1F1F1000000000000000082 /* StreamAdapter.cpp */; };
 		F1F1F10000000000000000F4 /* SDLIOAdapter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F1F1F1000000000000000084 /* SDLIOAdapter.cpp */; };
 		F1F1F10000000000000000F5 /* SDLIOAdapter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F1F1F1000000000000000084 /* SDLIOAdapter.cpp */; };
+		F1F1F10000000000000000F6 /* BrowserBlobAdapter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F1F1F1000000000000000086 /* BrowserBlobAdapter.cpp */; };
+		F1F1F10000000000000000F7 /* BrowserBlobAdapter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F1F1F1000000000000000086 /* BrowserBlobAdapter.cpp */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -1560,6 +1562,8 @@
 		F1F1F100000000000000014A /* StreamAdapter.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = StreamAdapter.hpp; path = ../../lib/include/Kotonoha/Filesystem/Adapters/StreamAdapter.hpp; sourceTree = SOURCE_ROOT; };
 		F1F1F1000000000000000084 /* SDLIOAdapter.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = SDLIOAdapter.cpp; path = ../../lib/src/Filesystem/Adapters/SDLIOAdapter.cpp; sourceTree = SOURCE_ROOT; };
 		F1F1F100000000000000014C /* SDLIOAdapter.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = SDLIOAdapter.hpp; path = ../../lib/include/Kotonoha/Filesystem/Adapters/SDLIOAdapter.hpp; sourceTree = SOURCE_ROOT; };
+		F1F1F1000000000000000086 /* BrowserBlobAdapter.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = BrowserBlobAdapter.cpp; path = ../../lib/src/Filesystem/Adapters/BrowserBlobAdapter.cpp; sourceTree = SOURCE_ROOT; };
+		F1F1F100000000000000014E /* BrowserBlobAdapter.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = BrowserBlobAdapter.hpp; path = ../../lib/include/Kotonoha/Filesystem/Adapters/BrowserBlobAdapter.hpp; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -2727,6 +2731,8 @@
 		F1F1F1000000000000000010 /* Filesystem V2 */ = {
 			isa = PBXGroup;
 			children = (
+				F1F1F1000000000000000086 /* BrowserBlobAdapter.cpp */,
+				F1F1F100000000000000014E /* BrowserBlobAdapter.hpp */,
 				F1F1F1000000000000000084 /* SDLIOAdapter.cpp */,
 				F1F1F100000000000000014C /* SDLIOAdapter.hpp */,
 				F1F1F1000000000000000082 /* StreamAdapter.cpp */,
@@ -4425,6 +4431,7 @@
 				F1F1F10000000000000000DE /* FetchAssetProvider.cpp in Sources */,
 				F1F1F10000000000000000F0 /* StreamAdapter.cpp in Sources */,
 				F1F1F10000000000000000F4 /* SDLIOAdapter.cpp in Sources */,
+				F1F1F10000000000000000F6 /* BrowserBlobAdapter.cpp in Sources */,
 				F1F1F10000000000000000C8 /* Path.cpp in Sources */,
 				F1F1F10000000000000000CA /* SDLFileSource.cpp in Sources */,
 				F1F1F10000000000000000CC /* DirectoryMount.cpp in Sources */,
@@ -4577,6 +4584,7 @@
 				F1F1F10000000000000000DF /* FetchAssetProvider.cpp in Sources */,
 				F1F1F10000000000000000F1 /* StreamAdapter.cpp in Sources */,
 				F1F1F10000000000000000F5 /* SDLIOAdapter.cpp in Sources */,
+				F1F1F10000000000000000F7 /* BrowserBlobAdapter.cpp in Sources */,
 				F1F1F10000000000000000C9 /* Path.cpp in Sources */,
 				F1F1F10000000000000000CB /* SDLFileSource.cpp in Sources */,
 				F1F1F10000000000000000CD /* DirectoryMount.cpp in Sources */,

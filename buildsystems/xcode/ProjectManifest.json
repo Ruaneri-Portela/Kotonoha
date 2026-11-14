@@ -7,7 +7,7 @@
     },
     "macOS/KotonohaEngine": {
       "target": "E17D1F83ED8A3B29572860F9",
-      "sources": 73
+      "sources": 74
     },
     "macOS/KotonohaExample": {
       "target": "042046F061537917D55247C8",
@@ -59,7 +59,7 @@
     },
     "iOS/KotonohaEngine": {
       "target": "F20A323ED8754B150319722C",
-      "sources": 73
+      "sources": 74
     },
     "iOS/KotonohaExample": {
       "target": "5A342ED04FE0E9E62B03B67B",
@@ -143,7 +143,7 @@
       "zero"
     ]
   },
-  "source_files": 238,
+  "source_files": 239,
   "schemes": 22,
   "note": "The C++ sources and binary dependencies are external to this generated project.",
   "bundling": {
