@@ -7,6 +7,8 @@
 #include <cstring>
 #include <filesystem>
 #include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
+#include <Kotonoha/Filesystem/Sources/SDLFileSource.hpp>
+#include <climits>
 #include <stdexcept>
 #include <unordered_map>
 
@@ -387,11 +389,29 @@ bool inflate(const uint8_t *data, size_t size, std::vector<uint8_t> &out) {
 Archive::~Archive() = default;
 
 bool Archive::open(const std::string &path) {
-  File candidate(std::fopen(path.c_str(), "rb"), &std::fclose);
+  try {
+    return open(std::make_unique<Kotonoha::Filesystem::SDLFileSource>(
+        std::filesystem::path(path)));
+  } catch (const std::exception &) {
+    return false;
+  }
+}
+bool Archive::open(File candidate) {
   if (!candidate)
     return false;
   char header[64] = {};
-  if (!std::fgets(header, sizeof header, candidate.get()))
+  bool complete = false;
+  for (std::size_t i = 0; i < sizeof(header) - 1; ++i) {
+    char ch = 0;
+    if (candidate->read(&ch, 1) != 1)
+      return false;
+    header[i] = ch;
+    if (ch == '\n') {
+      complete = true;
+      break;
+    }
+  }
+  if (!complete)
     return false;
   unsigned long long offset = 0;
   unsigned int key = 0;
@@ -399,17 +419,24 @@ bool Archive::open(const std::string &path) {
     key ^= 0xffffffffu;
   else if (std::sscanf(header, "RPA-3.0 %llx %x", &offset, &key) != 2)
     return false;
-  if (std::fseek(candidate.get(), 0, SEEK_END) != 0)
-    return false;
-  const long end = std::ftell(candidate.get());
+  const auto end = candidate->size();
   if (end < 0 || offset >= uint64_t(end) ||
       uint64_t(end) - offset > 128 * 1024 * 1024)
     return false;
   std::vector<uint8_t> packed(size_t(uint64_t(end) - offset)), raw;
-  if (std::fseek(candidate.get(), long(offset), SEEK_SET) != 0 ||
-      std::fread(packed.data(), 1, packed.size(), candidate.get()) !=
-          packed.size())
+  if (offset > static_cast<uint64_t>(INT64_MAX) ||
+      candidate->seek(static_cast<std::int64_t>(offset),
+                      Kotonoha::Filesystem::SeekOrigin::Begin) !=
+          static_cast<std::int64_t>(offset))
     return false;
+  std::size_t done = 0;
+  while (done < packed.size()) {
+    const auto got = candidate->read(packed.data() + done,
+                                     packed.size() - done);
+    if (got <= 0)
+      return false;
+    done += static_cast<std::size_t>(got);
+  }
   if (!inflate(packed.data(), packed.size(), raw))
     return false;
   const Value index = unpickle(raw);
@@ -454,9 +481,18 @@ std::vector<uint8_t> Archive::read(const std::string &name) const {
     out.insert(out.end(), e.prefix.begin(), e.prefix.end());
     const auto body = size_t(e.length) - e.prefix.size(), at = out.size();
     out.resize(at + body);
-    if (std::fseek(file_.get(), long(e.offset), SEEK_SET) != 0 ||
-        std::fread(out.data() + at, 1, body, file_.get()) != body)
+    if (e.offset > static_cast<uint64_t>(INT64_MAX) ||
+        file_->seek(static_cast<std::int64_t>(e.offset),
+                    Kotonoha::Filesystem::SeekOrigin::Begin) !=
+            static_cast<std::int64_t>(e.offset))
       return {};
+    std::size_t read = 0;
+    while (read < body) {
+      const auto count = file_->read(out.data() + at + read, body - read);
+      if (count <= 0)
+        return {};
+      read += static_cast<std::size_t>(count);
+    }
   }
   return out;
 }
