@@ -35,6 +35,9 @@ public:
   virtual bool isKnownRegularFile(std::string_view path) const {
     return exists(path) && stat(path).type == FileType::Regular;
   }
+  virtual bool isKnownDirectory(std::string_view path) const {
+    return exists(path) && stat(path).type == FileType::Directory;
+  }
   virtual bool exists(std::string_view path) const = 0;
   virtual FileInfo stat(std::string_view path) const = 0;
   virtual std::vector<FileInfo> list(std::string_view directory) const = 0;
