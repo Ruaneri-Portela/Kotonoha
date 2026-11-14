@@ -4,6 +4,11 @@
 #include <cctype>
 #include <cstring>
 #include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
+#ifdef __EMSCRIPTEN__
+#include <Kotonoha/Filesystem/RemoteAssets.hpp>
+#include <Kotonoha/Filesystem/Filesystem.hpp>
+#include <Kotonoha/Filesystem/Adapters/SDLIOAdapter.hpp>
+#endif
 #include <map>
 #include <stdexcept>
 #include <tuple>
@@ -49,7 +54,25 @@ void DiscImage::open(const std::filesystem::path &file) {
 bool DiscImage::tryOpen(const std::filesystem::path &file, std::string *error) {
   close();
   auto next = std::make_unique<Stream>();
-  next->io.reset(SDL_IOFromFile(file.string().c_str(), "rb"));
+#ifdef __EMSCRIPTEN__
+  // Browser assets can come from MEMFS or HTTP Range, neither of which must
+  // exist as an SDL disk file. Preserve the random-access DiscImage reader by
+  // adapting the virtual FileHandle to SDL_IOStream instead of downloading
+  // an entire multi-gigabyte PS2 BIN into memory.
+  const auto path = file.generic_string();
+  if (path.rfind("/game-assets/", 0) == 0 ||
+      path.rfind("game-assets/", 0) == 0) {
+    const auto relative = path.substr(path[0] == '/' ? 13 : 12);
+    try {
+      auto vfs = Filesystem::mountGameAssets("/game-assets");
+      next->io.reset(Filesystem::openSDLIO(vfs->open(relative)));
+    } catch (const std::exception &failure) {
+      if (error) *error = failure.what();
+      return false;
+    }
+  } else
+#endif
+    next->io.reset(SDL_IOFromFile(file.string().c_str(), "rb"));
   if (!next->io) {
     if (error)
       *error = SDL_GetError();
