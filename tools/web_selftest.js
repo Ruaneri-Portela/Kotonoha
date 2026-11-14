@@ -519,6 +519,8 @@ async function main() {
       console.log('DIRECT_MPEG', JSON.stringify(direct));
       assert(direct.opened === 1 && direct.pumped === 1 && direct.hasFrame === 1,
         'MPEG with audio decodes on WebAssembly without creating a thread');
+      assert(logs.some(line => line.includes('Direct YUV420P video texture')),
+        'FFmpeg YUV420P frame uploads directly to an SDL YUV texture');
 
       const legacy = await page.evaluate(async () => {
         try { Module.FS_createPath('/', 'game-assets', true, true); }

@@ -22,6 +22,7 @@
 #include <SummerRadish/Script.hpp>
 #include <SummerRadish/Transition.hpp>
 #include <algorithm>
+#include <charconv>
 #include <cstring>
 #include <fstream>
 #include <iomanip>
@@ -607,7 +608,21 @@ struct SummerRuntime::Impl {
       if (!(input >> std::quoted(key) >> type >> std::quoted(value)) ||
           key.empty() || key[0] != '$' || (type != 0 && type != 1))
         throw std::runtime_error("Invalid Summer persistent variable");
-      variables[key] = type ? Value(value) : Value(int64_t(std::stoll(value)));
+      if (type) {
+        variables[key] = value;
+      } else {
+        int64_t number = 0;
+        const auto result = std::from_chars(value.data(),
+                                            value.data() + value.size(), number);
+        if (result.ec != std::errc{} ||
+            result.ptr != value.data() + value.size()) {
+          SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                      "[SummerRadish] Ignoring invalid saved number for %s",
+                      key.c_str());
+          continue;
+        }
+        variables[key] = number;
+      }
     }
     input >> std::ws;
     if (!input.eof())
