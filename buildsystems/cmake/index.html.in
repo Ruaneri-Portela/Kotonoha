@@ -2,19 +2,25 @@
 <html lang="en-US">
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>@APP_TITLE@ - Kotonoha Engine</title>
 
     <style>
-        body {
+        html, body {
             margin: 0;
+            width: 100%;
+            height: 100%;
             background: black;
             color: white;
+            overflow: hidden;
+            overscroll-behavior: none;
+        }
+        body {
             display: flex;
             justify-content: center;
             align-items: center;
-            height: 100vh;
-            overflow: hidden;
+            height: 100vh; /* Fallback for older mobile browsers. */
+            height: 100dvh; /* Tracks dynamic browser chrome and rotation. */
         }
 
         canvas {
@@ -24,6 +30,10 @@
             height: 100%;
             object-fit: contain;
             touch-action: none;
+            display: block;
+            outline: none;
+            -webkit-user-select: none;
+            user-select: none;
         }
 
         #browser-folder-tools {
@@ -32,8 +42,6 @@
             right: max(8px, env(safe-area-inset-right));
             z-index: 2147483647;
             inset: auto;
-            top: max(8px, env(safe-area-inset-top));
-            right: max(8px, env(safe-area-inset-right));
             left: auto;
             bottom: auto;
             margin: 0;
@@ -52,7 +60,8 @@
             background: #242424;
             border: 1px solid #777;
             border-radius: 6px;
-            padding: 9px 12px;
+            padding: 10px 12px;
+            min-height: 44px;
             cursor: pointer;
         }
         #browser-folder-tools button:disabled { opacity: 0.6; }
@@ -66,8 +75,7 @@
 
         #loading-overlay {
             position: absolute;
-            top: 0;
-            left: 0;
+            inset: 0;
             width: 100%;
             height: 100%;
             background: #111;
@@ -77,6 +85,11 @@
             align-items: center;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             z-index: 10;
+            box-sizing: border-box;
+            padding: max(20px, env(safe-area-inset-top))
+                     max(16px, env(safe-area-inset-right))
+                     max(20px, env(safe-area-inset-bottom))
+                     max(16px, env(safe-area-inset-left));
             transition: opacity 0.5s ease;
         }
 
@@ -93,13 +106,12 @@
             margin-bottom: 16px;
             max-width: 80%;
             text-align: center;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
+            white-space: normal;
+            overflow-wrap: anywhere;
         }
 
         #loading-progress-container {
-            width: 320px;
+            width: min(320px, calc(100vw - 40px));
             height: 6px;
             background: #222;
             border-radius: 3px;
@@ -129,6 +141,8 @@
             color: white;
             cursor: pointer;
             padding: 10px 14px;
+            min-height: 44px;
+            max-width: min(90vw, 320px);
         }
 
         #asset-source-actions button:disabled {
@@ -170,7 +184,7 @@
         <input id="add-browser-folder-input" type="file" webkitdirectory multiple hidden>
         <div id="browser-folder-status" role="status" aria-live="polite"></div>
     </div>
-    <canvas id="canvas" oncontextmenu="event.preventDefault()"></canvas>
+    <canvas id="canvas" tabindex="0" aria-label="@APP_TITLE@ - área de jogo" oncontextmenu="event.preventDefault()"></canvas>
     <video id="kotonoha-video-player" playsinline preload="auto"></video>
 
     <script>
@@ -958,6 +972,13 @@
                 window.KotonohaRuntimeStarted = true;
                 if (window.KotonohaCloseStartupFolderTools)
                     window.KotonohaCloseStartupFolderTools();
+                // Keep keyboard input on the game surface, not a vanished
+                // startup button. Does not request fullscreen or audio play.
+                try {
+                    document.getElementById("canvas").focus({ preventScroll: true });
+                } catch (error) {
+                    document.getElementById("canvas").focus();
+                }
                 console.log("[Kotonoha] Runtime inicializado");
                 // The preRun hook already restored /save with syncfs(true);
                 // saves flush explicitly and on pagehide, so no startup flush.
