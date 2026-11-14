@@ -194,3 +194,30 @@ Se o teste em Chromium ou o início real do jogo ainda falhar, examine as
 mensagens `[Kotonoha] HTTP asset unavailable` para descobrir qual URL/status
 causou a falha. Esses ajustes ainda precisam de validação de runtime no
 navegador; não são uma confirmação de gameplay completo.
+
+### Controles, toque e validação em navegadores móveis
+
+O HTML utiliza `viewport-fit=cover`, altura dinâmica do navegador,
+controles iniciais de pelo menos 44 px, margens seguras e
+`touch-action: none` no canvas SDL. Os controles de origem e de pastas
+ficam **somente na configuração pré-jogo**. Após a escolha, o canvas recebe
+foco. O SDL inicia `SDL_INIT_GAMEPAD`, recebe conexão/desconexão de
+controles e utiliza a camada central de entrada para direcionais/analógico,
+troca A/B, toque e gestos. O porte Pure Mail também converte os botões
+de controle para navegação no título e nas escolhas da história.
+
+Os testes `Kotonoha.InputActions`, `Kotonoha.NativeInput` e Playwright
+cobrem mapeamento, gestos, teclado, visualização vertical/horizontal e
+inicialização do subsistema SDL de gamepads. Eles **não simulam um controle
+físico** no navegador. É necessário verificar manualmente botões, analógicos,
+seleção de pastas no Safari iOS e gameplay completo dos jogos comerciais.
+
+**Checklist antes de integrar à main:** testes C++ Linux, compilação de todos
+os jogos WASM habilitados, exports Asyncify em todos os pares JS/WASM,
+Playwright Chromium, além de áudio/vídeo/gameplay por porte com dados originais
+fornecidos legitimamente. Em dispositivos móveis, testar Android real,
+iPhone/iPad Safari em ambas as orientações, gamepads Bluetooth/USB e
+suspensão/retomada do navegador. Se o seletor de pastas não tiver suporte,
+arquivos individuais só preservam a raiz de `game-assets`; para caminhos
+aninhados use HTTP(S) Fetch. A CI valida apenas o escopo automatizado,
+**não comprova paridade total de dispositivos**.
