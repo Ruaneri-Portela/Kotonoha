@@ -1,3 +1,4 @@
+#include <Kotonoha/core/SDL.hpp>
 #include "SummerRuntime.hpp"
 #include "SummerBacklog.hpp"
 #include <Kotonoha/components/ChoiceQuestionScene.hpp>
@@ -688,13 +689,14 @@ struct SummerRuntime::Impl {
                                  int(decoded.data.size()), &target, &converted,
                                  &size))
       throw std::runtime_error(SDL_GetError());
+    Kotonoha::SDLMemoryPtr<Uint8> convertedOwner(converted);
     PcmPlayer::Clip clip;
     clip.channels = target.channels;
     clip.rate = target.freq;
     clip.loop = loop;
     clip.samples.resize(size / 2);
     std::memcpy(clip.samples.data(), converted, size);
-    SDL_free(converted);
+
     if (loop && channel == "BGM") {
       const auto introId = std::string("SOUND/BGM/INTORO/") +
                            id.substr(id.find_last_of('/') + 1);
@@ -706,9 +708,10 @@ struct SummerRuntime::Impl {
                                      int(intro.data.size()), &target, &pcm,
                                      &bytes))
           throw std::runtime_error(SDL_GetError());
+        Kotonoha::SDLMemoryPtr<Uint8> introOwner(pcm);
         std::vector<int16_t> combined(bytes / 2);
         std::memcpy(combined.data(), pcm, bytes);
-        SDL_free(pcm);
+
         clip.loopStart = combined.size() / clip.channels;
         combined.insert(combined.end(), clip.samples.begin(),
                         clip.samples.end());
