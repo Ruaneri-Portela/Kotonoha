@@ -12,7 +12,10 @@ class Filesystem final {
   explicit Filesystem(std::shared_ptr<IMount> base);
 public:
   static std::shared_ptr<Filesystem> mount(std::string source);
+  // Attach an already indexed virtual source, including FetchAssetProvider.
+  static std::shared_ptr<Filesystem> mount(std::shared_ptr<IMount> source);
   void addOverlay(std::string source, int priority = 100);
+  void addOverlay(std::shared_ptr<IMount> source, int priority = 100);
   std::uint64_t generation() const noexcept;
   bool exists(std::string_view path) const;
   FileInfo stat(std::string_view path) const;

@@ -8,6 +8,7 @@
 #include <array>
 #include <climits>
 #include <cstring>
+#include <functional>
 #include <stdexcept>
 #include <utility>
 #include <vector>
