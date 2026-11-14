@@ -33,7 +33,8 @@ rastreados, sem precisar inicializar a janela ou carregar dados do jogo.
 ## Interfaces
 
 O launcher exibe a versão no cabeçalho e no rodapé e possui a aba
-**System info** com os diagnósticos SDL3.
+**System info** com os diagnósticos SDL3. O seletor de origem dos arquivos
+no HTML do WebAssembly também mostra a versão completa antes do jogo iniciar.
 
 Dentro do jogo, abra a Debug UI (**F10**), escolha **System info** no
 menu Applets, clique na opção **System info** do painel principal ou acesse
