@@ -1,11 +1,12 @@
 #include <Kotonoha/core/Config.hpp>
-#include <Kotonoha/core/FileSystem.hpp>
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
+#include <Kotonoha/Filesystem/Filesystem.hpp>
+#include <Kotonoha/Filesystem/Sources/SDLFileSource.hpp>
 
 #include <SDL3/SDL.h>
 #include <algorithm>
 #include <cstdio>
 #include <filesystem>
-#include <fstream>
 #include <mutex>
 #include <stdexcept>
 #ifdef __APPLE__
@@ -474,9 +475,11 @@ std::filesystem::path preferredDocumentsDirectory(const std::string &game) {
   std::error_code ec;
   auto stubFile = directory / "staged.txt";
   if (!std::filesystem::exists(stubFile, ec)) {
-    std::ofstream stub(stubFile);
-    // Opcional: escrever uma mensagem informativa ou deixar vazio
-    stub << "Kotonoha Documents\n";
+    if (SDL_IOStream *stub = SDL_IOFromFile(stubFile.string().c_str(), "wb")) {
+      constexpr char message[] = "Kotonoha Documents\n";
+      SDL_WriteIO(stub, message, sizeof(message) - 1);
+      SDL_CloseIO(stub);
+    }
   }
 #endif
 
@@ -590,16 +593,21 @@ bool FileResolver::isFontFile(const std::filesystem::path &path) {
       [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
   if (extension != ".ttf" && extension != ".otf" && extension != ".ttc")
     return false;
-  std::error_code error;
-  if (!std::filesystem::is_regular_file(path, error))
+  std::error_code ec;
+  if (!std::filesystem::is_regular_file(path, ec))
     return false;
-  std::ifstream file(path, std::ios::binary);
-  char signature[4];
-  if (!file.read(signature, sizeof(signature)))
+  try {
+    Filesystem::SDLFileSource input(path);
+    char signature[4];
+    if (input.read(signature, sizeof(signature)) !=
+        static_cast<std::int64_t>(sizeof(signature)))
+      return false;
+    const std::string header(signature, sizeof(signature));
+    return header == std::string("\0\1\0\0", 4) || header == "OTTO" ||
+           header == "ttcf" || header == "true";
+  } catch (const std::exception &) {
     return false;
-  const std::string header(signature, sizeof(signature));
-  return header == std::string("\0\1\0\0", 4) || header == "OTTO" ||
-         header == "ttcf" || header == "true";
+  }
 }
 
 std::filesystem::path FileResolver::font(const std::string &file) {
@@ -638,15 +646,12 @@ FileResolver::getFontMap() {
           if (isFontFile(entry.path())) {
             std::string filename = entry.path().filename().string();
             if (cache.find(filename) == cache.end()) {
-              std::ifstream file(entry.path(),
-                                 std::ios::binary | std::ios::ate);
-              if (file) {
-                std::streamsize size = file.tellg();
-                file.seekg(0, std::ios::beg);
-                std::vector<uint8_t> buffer(size);
-                if (file.read(reinterpret_cast<char *>(buffer.data()), size)) {
-                  cache[filename] = std::move(buffer);
-                }
+              try {
+                auto bytes = Filesystem::readLocalFile(entry.path(), 256u << 20);
+                if (!bytes.empty())
+                  cache[filename] = std::move(bytes);
+              } catch (const std::exception &) {
+                // Optional invalid fonts are ignored.
               }
             }
           }
@@ -658,15 +663,8 @@ FileResolver::getFontMap() {
       auto defPath = font(defaultFontName());
       if (!isFontFile(defPath))
         throw std::runtime_error("Invalid default font: " + defPath.string());
-      std::ifstream file(defPath, std::ios::binary | std::ios::ate);
-      if (file) {
-        std::streamsize size = file.tellg();
-        file.seekg(0, std::ios::beg);
-        std::vector<uint8_t> buffer(size);
-        if (file.read(reinterpret_cast<char *>(buffer.data()), size)) {
-          cache[defaultFontName()] = std::move(buffer);
-        }
-      }
+      cache[defaultFontName()] =
+          Filesystem::readLocalFile(defPath, 256u << 20);
     }
   });
   return cache;
@@ -695,14 +693,9 @@ FileResolver::getFontBytes(const std::string &name) {
         const auto key = path.string();
         if (auto cached = selected.find(key); cached != selected.end())
           return &cached->second;
-        std::ifstream input(path, std::ios::binary | std::ios::ate);
-        const auto size = input.tellg();
-        if (size > 0) {
-          std::vector<uint8_t> bytes(static_cast<size_t>(size));
-          input.seekg(0);
-          if (input.read(reinterpret_cast<char *>(bytes.data()), size))
-            return &selected.emplace(key, std::move(bytes)).first->second;
-        }
+        auto bytes = Filesystem::readLocalFile(path, 256u << 20);
+        if (!bytes.empty())
+          return &selected.emplace(key, std::move(bytes)).first->second;
       }
     } catch (const std::exception &) {
     }
@@ -728,12 +721,14 @@ void writeTextFileAtomically(const std::string &path,
   if (path.empty() || std::filesystem::exists(std::filesystem::path(temporary)))
     throw std::runtime_error(
         "Invalid output path or existing temporary file: " + temporary);
-  std::ofstream output(std::filesystem::path(temporary), std::ios::binary);
+  SDL_IOStream *output = SDL_IOFromFile(temporary.c_str(), "wb");
   if (!output)
     throw std::runtime_error("Cannot create file: " + temporary);
-  output.write(contents.data(), static_cast<std::streamsize>(contents.size()));
-  output.close();
-  if (!output) {
+  const bool written =
+      contents.empty() ||
+      SDL_WriteIO(output, contents.data(), contents.size()) == contents.size();
+  const bool closed = SDL_CloseIO(output);
+  if (!written || !closed) {
     std::filesystem::remove(std::filesystem::path(temporary));
     throw std::runtime_error("Cannot write file: " + path);
   }
