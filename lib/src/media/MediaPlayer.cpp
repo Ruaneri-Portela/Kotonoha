@@ -1205,15 +1205,23 @@ void MediaPlayer::openSoundtrack(const AssetProvider &assets,
                                  const std::string &channelName) {
   if (!state)
     throw std::logic_error("Open media before its soundtrack");
-  auto next = std::make_unique<MediaPlayer>(mixer);
-  next->setPlaybackRate(playbackRate_);
-  if (bufferSeconds_ > 0.0)
-    next->setBufferSeconds(bufferSeconds_);
-  next->open(assets, id, true,
-             channelName.empty() ? state->channel->getName() : channelName);
-  if (pausedAt)
-    next->setPaused(true);
-  soundtrack = std::move(next);
+  try {
+    auto next = std::make_unique<MediaPlayer>(mixer);
+    next->setPlaybackRate(playbackRate_);
+    if (bufferSeconds_ > 0.0)
+      next->setBufferSeconds(bufferSeconds_);
+    next->open(assets, id, true,
+               channelName.empty() ? state->channel->getName() : channelName);
+    if (!next->isOpen())
+      return; // Failed soundtrack must not stop a valid video.
+    if (pausedAt)
+      next->setPaused(true);
+    soundtrack = std::move(next);
+  } catch (const std::exception &error) {
+    SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                "[Kotonoha] Ignoring failed optional soundtrack: %s",
+                error.what());
+  }
 }
 
 void MediaPlayer::stop() {
