@@ -76,20 +76,21 @@ jobs:
             -DVCPKG_TARGET_TRIPLET=wasm32-emscripten \
             -DVCPKG_OVERLAY_PORTS="$GITHUB_WORKSPACE/vcpkg-overlays/ports" \
             -DKOTONOHA_WEB_SELFTEST=ON \
-            -DKOTONOHA_BUILD_EXAMPLE=ON \
-            -DKOTONOHA_BUILD_SUMMER=ON \
-            -DKOTONOHA_BUILD_PMAIL=ON \
+            -DKOTONOHA_BUILD_ALL=ON \
             -DSDLTTF_PLUTOSVG=OFF
 
-      - name: Build web self-test and bundled example
-        run: cmake --build build-web --target KotonohaWebSelfTest Kotonoha SummerRadish Pmail --parallel 2
+      - name: Compile all enabled WASM game ports and self-test
+        run: cmake --build build-web --target all --parallel 2
 
-      - name: Ensure generated WASM has matching Asyncify exports
+      - name: Verify Asyncify exports for every generated WASM game
         run: |
-          python3 tools/check_wasm_asyncify.py build-web/outputs/KotonohaWebSelfTest/KotonohaWebSelfTest.js
-          python3 tools/check_wasm_asyncify.py build-web/outputs/Kotonoha/Kotonoha.js
-          python3 tools/check_wasm_asyncify.py build-web/outputs/SummerRadish/SummerRadish.js
-          python3 tools/check_wasm_asyncify.py build-web/outputs/Pmail/Pmail.js
+          count=0
+          while IFS= read -r -d '' js; do
+            python3 tools/check_wasm_asyncify.py "$js"
+            count=$((count + 1))
+          done < <(find build-web/outputs -name '*.js' -type f -print0)
+          test "$count" -ge 10
+          echo "[Kotonoha] verified $count browser entrypoints"
 
       - name: Install Playwright Chromium
         run: |
