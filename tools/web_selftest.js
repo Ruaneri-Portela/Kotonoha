@@ -111,6 +111,9 @@ function ensureCustomFolderFixture() {
   fs.mkdirSync(root, { recursive: true });
   fs.writeFileSync(path.join(root, 'web-test.ass'),
     '[Script Info]\\nTitle: Kotonoha web fixture\\n');
+  const live = path.join(output, 'live_import');
+  fs.mkdirSync(live, { recursive: true });
+  fs.writeFileSync(path.join(live, 'live-extra.txt'), 'Kotonoha hot import');
 }
 
 function updateManifest() {
@@ -234,6 +237,24 @@ async function main() {
     }));
     assert(custom.contents.includes('Kotonoha web fixture'),
       'custom named directory is mounted in the Emscripten VFS');
+
+    // Hold an existing DirectoryMount, add new files to the game-assets
+    // root after SDL_AppInit, and verify refresh without re-creating mount.
+    const beforeImport = await page.evaluate(() => Module.ccall(
+      'KotonohaWebSelfTestLiveLocalSize', 'number',
+      ['string'], ['selftest.webm']));
+    assert(beforeImport > 0, 'live local mount was created');
+    page.once('dialog', dialog => dialog.accept('game-assets'));
+    await page.locator('#add-browser-folder-input').setInputFiles(
+      path.join(output, 'live_import'));
+    await page.waitForFunction(() =>
+      document.getElementById('browser-folder-status').textContent
+        .includes('/game-assets'));
+    const afterImport = await page.evaluate(() => Module.ccall(
+      'KotonohaWebSelfTestLiveLocalSize', 'number',
+      ['string'], ['live-extra.txt']));
+    assert(afterImport === Buffer.byteLength('Kotonoha hot import'),
+      'already-mounted game-assets root detects new browser files');
 
     // Force a real manifest-free server boot, then read the asset directly
     // from the C++ mount. Python http.server ignores Range: the provider
