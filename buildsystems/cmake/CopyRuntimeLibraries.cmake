@@ -22,6 +22,53 @@ endif()
 
 file(MAKE_DIRECTORY "${LIBRARY_DIR}")
 
+# Packaged shared targets must not depend on a special vcpkg configuration:
+# SDL3, SDL_ttf, ImGui and KotonohaEngine are built from CMake source too.
+# Copy direct built-target binaries independently of dependency discovery;
+# a linked library can otherwise be skipped due to host search/RPATH rules.
+foreach(_built IN LISTS CMAKE_SHARED_LIBRARIES)
+    if(NOT EXISTS "${_built}")
+        message(FATAL_ERROR
+            "[Kotonoha] CMake shared target is missing: ${_built}")
+    endif()
+    get_filename_component(_filename "${_built}" NAME)
+    if(WIN32 AND _filename MATCHES "\\.dll$")
+        file(COPY "${_built}" DESTINATION "${LIBRARY_DIR}")
+    elseif(APPLE AND (_filename MATCHES "\\.dylib$" OR
+                       _filename MATCHES "\\.so$"))
+        file(COPY "${_built}" DESTINATION "${LIBRARY_DIR}"
+            FOLLOW_SYMLINK_CHAIN)
+    elseif(UNIX AND (_filename MATCHES "\\.so($|\\.)" OR
+                      _filename MATCHES "\\.dylib$"))
+        file(COPY "${_built}" DESTINATION "${LIBRARY_DIR}"
+            FOLLOW_SYMLINK_CHAIN)
+    endif()
+endforeach()
+
+# On Windows, DLLs belong next to the executable rather than in libs/.
+# This works with ordinary CMake builds and with vcpkg/MinGW/Ninja; it
+# also avoids TARGET_RUNTIME_DLLS (introduced only in CMake 3.21).
+if(WIN32)
+    file(GET_RUNTIME_DEPENDENCIES
+        EXECUTABLES "${EXECUTABLE}"
+        DIRECTORIES ${SEARCH_DIRS}
+        PRE_EXCLUDE_REGEXES "^[Aa][Pp][Ii]-[Mm][Ss]-[Ww][Ii][Nn]-.*"
+                            "^[Ee][Xx][Tt]-[Mm][Ss]-[Ww][Ii][Nn]-.*"
+        POST_EXCLUDE_REGEXES ".*[/\\\\][Ww][Ii][Nn][Dd][Oo][Ww][Ss][/\\\\].*"
+        RESOLVED_DEPENDENCIES_VAR _windows_dlls
+        UNRESOLVED_DEPENDENCIES_VAR _windows_missing)
+    if(_windows_missing)
+        message(WARNING
+            "[Kotonoha] Unresolved Windows runtime DLLs: ${_windows_missing}")
+    endif()
+    foreach(_dll IN LISTS _windows_dlls)
+        if(EXISTS "${_dll}" AND _dll MATCHES "\\.[Dd][Ll][Ll]$")
+            file(COPY "${_dll}" DESTINATION "${LIBRARY_DIR}")
+        endif()
+    endforeach()
+    return()
+endif()
+
 set(pre_exclude
         "^/lib/"
         "^/lib64/"
@@ -78,6 +125,11 @@ list(APPEND resolved ${newly_resolved})
 
 message(VERBOSE "[Kotonoha] Resolved runtime libraries: ${resolved}")
 
+# An explicitly built shared library may not be part of a given game's
+# direct import table. Include it in the relocation pass regardless.
+list(APPEND resolved ${CMAKE_SHARED_LIBRARIES})
+list(REMOVE_DUPLICATES resolved)
+
 foreach(library IN LISTS resolved)
     if(EXISTS "${library}")
         message(VERBOSE "[Kotonoha] Copying ${library} to ${LIBRARY_DIR}")
@@ -88,6 +140,32 @@ foreach(library IN LISTS resolved)
 endforeach()
 
 if(NOT APPLE)
+    # Set local RPATH on copied ELF libraries when patchelf exists. Without
+    # it, only the executable may have $ORIGIN/libs, which does not cover
+    # indirect dependencies when the ELF loader uses RUNPATH semantics.
+    find_program(_kotonoha_patchelf patchelf)
+    if(_kotonoha_patchelf)
+        file(GLOB _elf_libraries LIST_DIRECTORIES FALSE
+            "${LIBRARY_DIR}/*.so" "${LIBRARY_DIR}/*.so.*")
+        foreach(_lib IN LISTS _elf_libraries)
+            if(IS_SYMLINK "${_lib}")
+                continue()
+            endif()
+            execute_process(COMMAND "${_kotonoha_patchelf}"
+                --set-rpath "$ORIGIN" "${_lib}"
+                RESULT_VARIABLE _patchelf_result
+                ERROR_VARIABLE _patchelf_error)
+            if(NOT _patchelf_result EQUAL 0)
+                message(FATAL_ERROR
+                    "Cannot set origin-relative RPATH on ${_lib}: "
+                    "${_patchelf_error}")
+            endif()
+        endforeach()
+    else()
+        message(STATUS
+            "[Kotonoha] patchelf unavailable; copied ELF library RPATHs "
+            "are not rewritten (transitive dependencies may require it)")
+    endif()
     return()
 endif()
 
