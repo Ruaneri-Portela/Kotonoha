@@ -221,6 +221,10 @@ endif ()
 
 add_library(KotonohaEngine ${KOTONOHA_LIB_TYPE} ${KOTONOHA_ENGINE_SOURCES})
 add_library(Kotonoha::Engine ALIAS KotonohaEngine)
+if(EMSCRIPTEN)
+    target_compile_definitions(KotonohaEngine PUBLIC
+        KOTONOHA_WASM_FETCH_CACHE_MIB=${KOTONOHA_WASM_FETCH_CACHE_MIB})
+endif()
 
 # Propriedades do target
 target_compile_features(KotonohaEngine PUBLIC cxx_std_17)
