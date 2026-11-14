@@ -29,6 +29,12 @@ struct FileInfo {
 class IMount {
 public:
   virtual ~IMount() = default;
+  // This is a metadata-only, non-networking check for ancestor shadowing.
+  // Normal local mounts can use their indexed exists/stat implementation;
+  // HTTP mounts override it to inspect known metadata without starting HEAD.
+  virtual bool isKnownRegularFile(std::string_view path) const {
+    return exists(path) && stat(path).type == FileType::Regular;
+  }
   virtual bool exists(std::string_view path) const = 0;
   virtual FileInfo stat(std::string_view path) const = 0;
   virtual std::vector<FileInfo> list(std::string_view directory) const = 0;
