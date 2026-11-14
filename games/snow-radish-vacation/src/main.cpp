@@ -79,7 +79,7 @@ struct KotonohaPortCallbacks final {
 
 SDL_AppResult KotonohaPortCallbacks::init(void **appstate, int argc, char **argv) {
   *appstate = nullptr;
-  SDL_SetAppMetadata("Snow Radish Vacation!!", "0.1.0",
+  KOTONOHA_SET_APP_METADATA("Snow Radish Vacation!!",
                      "me.hirameki.kotonoha.snowradishvacation");
   try {
     auto app = std::make_unique<App>();
