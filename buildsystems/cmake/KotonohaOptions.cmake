@@ -3,7 +3,7 @@ include_guard(GLOBAL)
 
 option(KOTONOHA_BUILD_WASM "Build for WebAssembly" OFF)
 option(KOTONOHA_WASM_DYNAMIC_LIBS
-    "Build KotonohaEngine and ImGui as Emscripten side modules (experimental)" OFF)
+    "Build first-party KotonohaEngine as an Emscripten side module; vcpkg stays static (experimental)" OFF)
 if(KOTONOHA_WASM_DYNAMIC_LIBS)
     if(NOT EMSCRIPTEN)
         message(FATAL_ERROR "Dynamic WASM requires Emscripten")
