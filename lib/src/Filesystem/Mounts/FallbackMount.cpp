@@ -34,6 +34,21 @@ const IMount *FallbackMount::select(const std::string &path) const {
   }
   return haveRemote ? remote_.get() : nullptr;
 }
+bool FallbackMount::isKnownRegularFile(std::string_view path) const {
+  const auto key = normalizePath(path, true);
+  const bool localExists = local_ && local_->exists(key);
+  if (localExists) {
+    const auto localInfo = local_->stat(key);
+    const auto direct = std::dynamic_pointer_cast<FetchAssetProvider>(remote_);
+    // In manifest-free mode any local entry takes precedence, including a
+    // local directory. No HTTP discovery can occur in this metadata query.
+    if (direct && direct->manifestFree())
+      return localInfo.type == FileType::Regular;
+    if (localInfo.type == FileType::Regular)
+      return true;
+  }
+  return remote_ && remote_->isKnownRegularFile(key);
+}
 bool FallbackMount::exists(std::string_view path) const {
   return select(normalizePath(path, true)) != nullptr;
 }
