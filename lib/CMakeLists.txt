@@ -319,6 +319,12 @@ if(KOTONOHA_WASM_DYNAMIC_LIBS)
     # once on the command line. This is critical for wasm-ld with SIDE_MODULE.
     set_property(TARGET KotonohaEngine PROPERTY
         LINK_LIBRARIES_STRATEGY REORDER_FREELY)
+    # CMP0156/CMP0179 do not coalesce the same archive when pkg-config
+    # and imported CMake targets spell it with different paths or -lname.
+    # Apply the canonical-path filter only to this WASM SIDE_MODULE link.
+    # vcpkg still supplies static .a packages and native builds are unaffected.
+    set_property(TARGET KotonohaEngine PROPERTY CXX_LINKER_LAUNCHER
+        "python3;${KOTONOHA_PROJECT_ROOT}/tools/wasm_link_dedupe.py")
     target_link_options(KotonohaEngine PRIVATE
         "SHELL:-sSIDE_MODULE=1" "SHELL:-sASYNCIFY=1" "-fexceptions")
     set_target_properties(KotonohaEngine PROPERTIES
