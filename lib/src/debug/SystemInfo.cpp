@@ -1,5 +1,6 @@
 #include <Kotonoha/debug/SystemInfo.hpp>
 #include <Kotonoha/debug/ImGuiTheme.hpp>
+#include <Kotonoha/core/SDL.hpp>
 #include <Kotonoha/core/BuildVersion.hpp>
 
 #include <imgui.h>
@@ -150,11 +151,11 @@ SystemInfoSnapshot captureSystemInfo(SDL_Window *window,
         std::to_string(SDL_GetWindowPixelDensity(window)));
   }
   int displays = 0;
-  SDL_DisplayID *displayIds = SDL_GetDisplays(&displays);
+  SDLArrayPtr<SDL_DisplayID> displayIds(SDL_GetDisplays(&displays));
   row(video, "Connected displays", std::to_string(displays));
   for (int i = 0; displayIds && i < displays; ++i) {
-    auto *mode = SDL_GetCurrentDisplayMode(displayIds[i]);
-    std::string value = valid(SDL_GetDisplayName(displayIds[i]));
+    auto *mode = SDL_GetCurrentDisplayMode(displayIds.get()[i]);
+    std::string value = valid(SDL_GetDisplayName(displayIds.get()[i]));
     if (mode) {
       value += " - " + sizeString(mode->w, mode->h);
       if (mode->refresh_rate > 0)
@@ -162,7 +163,7 @@ SystemInfoSnapshot captureSystemInfo(SDL_Window *window,
     }
     row(video, ("Display " + std::to_string(i + 1)).c_str(), value);
   }
-  SDL_free(displayIds);
+
 
   auto &power = result.sections.emplace_back();
   power.title = "Power";
@@ -177,26 +178,26 @@ SystemInfoSnapshot captureSystemInfo(SDL_Window *window,
   auto &input = result.sections.emplace_back();
   input.title = "Input";
   int pads = 0;
-  SDL_JoystickID *ids = SDL_GetGamepads(&pads);
+  SDLArrayPtr<SDL_JoystickID> ids(SDL_GetGamepads(&pads));
   row(input, "Connected gamepads", std::to_string(pads));
   for (int i = 0; ids && i < pads; ++i)
     row(input, ("Gamepad " + std::to_string(i + 1)).c_str(),
-        valid(SDL_GetGamepadNameForID(ids[i])));
-  SDL_free(ids);
+        valid(SDL_GetGamepadNameForID(ids.get()[i])));
+
   int touches = 0;
-  SDL_TouchID *touchIds = SDL_GetTouchDevices(&touches);
+  SDLArrayPtr<SDL_TouchID> touchIds(SDL_GetTouchDevices(&touches));
   row(input, "Touch devices", std::to_string(touches));
-  SDL_free(touchIds);
+
 
   auto &audio = result.sections.emplace_back();
   audio.title = "Audio";
   int count = 0;
-  SDL_AudioDeviceID *audioIds = SDL_GetAudioPlaybackDevices(&count);
+  SDLArrayPtr<SDL_AudioDeviceID> audioIds(SDL_GetAudioPlaybackDevices(&count));
   row(audio, "Playback devices", std::to_string(count));
   for (int i = 0; audioIds && i < count; ++i)
     row(audio, ("Output " + std::to_string(i + 1)).c_str(),
-        valid(SDL_GetAudioDeviceName(audioIds[i])));
-  SDL_free(audioIds);
+        valid(SDL_GetAudioDeviceName(audioIds.get()[i])));
+
   return result;
 }
 
