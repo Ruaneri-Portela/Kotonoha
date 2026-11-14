@@ -160,6 +160,12 @@ function(kotonoha_configure_app target)
         set(_game_asset_source "${KOTONOHA_PROJECT_ROOT}/games/${APP_GAME}/game-assets")
     endif()
 
+    # Register configured desktop/browser applications for CPack. Registration
+    # happens when the actual CMake target exists, not from game name guesses.
+    if(NOT ANDROID)
+        set_property(GLOBAL APPEND PROPERTY KOTONOHA_PACKAGE_TARGETS ${target})
+    endif()
+
     # Diretórios usados para localizar dependências de runtime.
     kotonoha_get_default_dependency_dirs(_kotonoha_dependency_dirs)
 
