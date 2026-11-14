@@ -40,10 +40,18 @@ foreach(_target IN LISTS _kotonoha_zip_targets)
     if(APPLE AND KOTONOHA_BUILD_MACOS_BUNDLES)
         # Keep .app/Contents/Frameworks and resources intact.
         set(_app_source "${KOTONOHA_OUTPUT_CONFIG_DIR}/${_target}.app")
-        install(DIRECTORY "${_app_source}"
-            DESTINATION "."
-            COMPONENT "${_target}"
-            OPTIONAL)
+        if(KOTONOHA_CPACK_INCLUDE_GAME_ASSETS OR _target STREQUAL "Kotonoha")
+            install(DIRECTORY "${_app_source}"
+                DESTINATION "."
+                COMPONENT "${_target}"
+                OPTIONAL)
+        else()
+            install(DIRECTORY "${_app_source}"
+                DESTINATION "."
+                COMPONENT "${_target}"
+                PATTERN "game-assets" EXCLUDE
+                OPTIONAL)
+        endif()
     else()
         set(_app_source "${KOTONOHA_OUTPUT_CONFIG_DIR}/${_target}")
         if(KOTONOHA_CPACK_INCLUDE_GAME_ASSETS OR _target STREQUAL "Kotonoha")
