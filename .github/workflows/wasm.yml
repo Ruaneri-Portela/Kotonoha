@@ -59,10 +59,10 @@ jobs:
           mkdir -p vcpkg-binary-cache
           export VCPKG_BINARY_SOURCES="clear;files,$GITHUB_WORKSPACE/vcpkg-binary-cache,readwrite"
           emcc -v
+          # The PIC triplet provides the vcpkg Emscripten wrapper chainload.
           emcmake cmake -S . -B build-web -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \
-            # Chainload is selected by the PIC triplet so vcpkg propagates -fPIC.
             -DVCPKG_TARGET_TRIPLET=wasm32-emscripten-dylink \
             -DVCPKG_OVERLAY_TRIPLETS="$GITHUB_WORKSPACE/vcpkg-overlays/triplets" \
             "-DVCPKG_MANIFEST_FEATURES=sdl-vcpkg;imgui-vcpkg" \
