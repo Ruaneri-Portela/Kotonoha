@@ -46,6 +46,9 @@ async function run() {
       const pageErrors = [];
       page.on('pageerror', error => pageErrors.push(error.message));
       await page.goto(base + '/index.html', { waitUntil: 'domcontentloaded' });
+      // All ports require an explicit user choice; do not wait for the
+      // removed 500ms auto-server timer.
+      await page.locator('#use-server-assets').click();
       await page.waitForFunction(() => typeof Module !== 'undefined' &&
         !!document.getElementById('canvas') &&
         document.getElementById('canvas').width > 0,
