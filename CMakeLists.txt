@@ -5,23 +5,6 @@ cmake_minimum_required(VERSION 3.16)
 include("${CMAKE_CURRENT_SOURCE_DIR}/buildsystems/cmake/KotonohaGames.cmake")
 include("${CMAKE_CURRENT_SOURCE_DIR}/buildsystems/cmake/KotonohaAndroid.cmake")
 
-# vcpkg's target triplet controls *ports*, not the consuming CMake project.
-# When using the vcpkg toolchain with an Emscripten triplet, chainload its
-# Emscripten wrapper BEFORE project() enables C++ and detects the platform.
-# This works with Homebrew emcmake as well as with the EMSDK setup in CI.
-if(VCPKG_TARGET_TRIPLET MATCHES "^wasm32-emscripten"
-        AND CMAKE_TOOLCHAIN_FILE MATCHES "[/\\\\]scripts[/\\\\]buildsystems[/\\\\]vcpkg\\.cmake$"
-        AND NOT VCPKG_CHAINLOAD_TOOLCHAIN_FILE)
-    get_filename_component(_kotonoha_vcpkg_toolchain_dir
-        "${CMAKE_TOOLCHAIN_FILE}" DIRECTORY)
-    get_filename_component(_kotonoha_vcpkg_root
-        "${_kotonoha_vcpkg_toolchain_dir}/../.." ABSOLUTE)
-    set(VCPKG_CHAINLOAD_TOOLCHAIN_FILE
-        "${_kotonoha_vcpkg_root}/scripts/toolchains/emscripten.cmake"
-        CACHE FILEPATH "Emscripten wrapper used with the vcpkg toolchain")
-    message(STATUS "[Kotonoha] Chainloading Emscripten from vcpkg: ${VCPKG_CHAINLOAD_TOOLCHAIN_FILE}")
-endif()
-
 project(Kotonoha VERSION 0.1.0 LANGUAGES CXX)
 include("${CMAKE_CURRENT_SOURCE_DIR}/buildsystems/cmake/BuildVersion.cmake")
 set(CMAKE_CXX_STANDARD 17)

@@ -2,17 +2,6 @@
 include_guard(GLOBAL)
 
 option(KOTONOHA_BUILD_WASM "Build for WebAssembly" OFF)
-option(KOTONOHA_WASM_DYNAMIC_LIBS
-    "Build first-party KotonohaEngine as an Emscripten side module; vcpkg stays static (experimental)" OFF)
-if(KOTONOHA_WASM_DYNAMIC_LIBS)
-    if(NOT EMSCRIPTEN)
-        message(FATAL_ERROR "Dynamic WASM requires the Emscripten CMake toolchain (CMAKE_SYSTEM_NAME=Emscripten). When using vcpkg, set -DVCPKG_CHAINLOAD_TOOLCHAIN_FILE=<vcpkg-root>/scripts/toolchains/emscripten.cmake and reconfigure in a clean build directory.")
-    endif()
-    if(CMAKE_VERSION VERSION_LESS 3.31)
-        message(FATAL_ERROR "Dynamic WASM requires CMake 3.31+ for deduplicating vcpkg static archives")
-    endif()
-    add_compile_options(-fPIC)
-endif()
 option(KOTONOHA_WEB_SELFTEST "Build optional WebAssembly integration self-test hooks" OFF)
 option(KOTONOHA_VERBOSE_BUILD "Print full compiler and linker commands" OFF)
 option(KOTONOHA_BUILD_MACOS_BUNDLES "Build macOS application bundles" OFF)
@@ -97,30 +86,3 @@ if (ANDROID)
         message(FATAL_ERROR "[Kotonoha] Unknown Android game: ${KOTONOHA_BUILD_GAME}")
     endif ()
 endif ()
-
-# Platform capabilities exported to game CMakeLists, so games never need to
-# branch on Emscripten or know its linker flags.
-set(KOTONOHA_BUILD_NATIVE_TOOLS TRUE)
-set(KOTONOHA_PYTHON_EMBED_AVAILABLE TRUE)
-set(KOTONOHA_USE_PYTHON_STUB FALSE)
-if(ANDROID OR EMSCRIPTEN)
-    set(KOTONOHA_BUILD_NATIVE_TOOLS FALSE)
-    set(KOTONOHA_PYTHON_EMBED_AVAILABLE FALSE)
-endif()
-if(EMSCRIPTEN)
-    set(KOTONOHA_USE_PYTHON_STUB TRUE)
-endif()
-
-# The engine owns all Emscripten preload/linker behavior. Port files provide
-# only the logical asset path and its intended virtual mount point.
-function(kotonoha_preload_asset target source_file virtual_path)
-    if(NOT TARGET ${target})
-        message(FATAL_ERROR "kotonoha_preload_asset: unknown target ${target}")
-    endif()
-    if(EMSCRIPTEN)
-        target_link_options(${target} PRIVATE
-            "SHELL:--preload-file ${source_file}@${virtual_path}")
-    endif()
-endfunction()
-
-include("${CMAKE_CURRENT_LIST_DIR}/KotonohaMediaTests.cmake")

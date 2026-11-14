@@ -107,33 +107,6 @@ if(KOTONOHA_SDL_FROM_VCPKG)
     if(NOT TARGET SDL3::SDL3 OR NOT TARGET SDL3_ttf::SDL3_ttf)
         message(FATAL_ERROR "SDL3/SDL3_ttf vcpkg imported targets not found")
     endif()
-    if(EMSCRIPTEN)
-        # vcpkg's SDL3_ttf/PlutoSVG dependency graph sometimes exposes both
-        # a bare -lplutovg and the resolved libplutovg.a archive. Emscripten
-        # SIDE_MODULE links may extract the archive twice and fail on duplicate
-        # global symbols. Preserve the resolved imported archive and drop only
-        # the redundant unqualified spelling from imported link interfaces.
-        foreach(_kotonoha_wasm_svg_target IN ITEMS
-                SDL3_ttf::SDL3_ttf plutosvg::plutosvg plutovg::plutovg)
-            if(TARGET ${_kotonoha_wasm_svg_target})
-                get_target_property(_kotonoha_wasm_svg_links
-                    ${_kotonoha_wasm_svg_target} INTERFACE_LINK_LIBRARIES)
-                if(_kotonoha_wasm_svg_links)
-                    set(_kotonoha_wasm_svg_clean_links
-                        "${_kotonoha_wasm_svg_links}")
-                    list(FILTER _kotonoha_wasm_svg_clean_links
-                        EXCLUDE REGEX "^(-l)?plutovg$")
-                    if(NOT "${_kotonoha_wasm_svg_links}" STREQUAL
-                            "${_kotonoha_wasm_svg_clean_links}")
-                        set_property(TARGET ${_kotonoha_wasm_svg_target}
-                            PROPERTY INTERFACE_LINK_LIBRARIES
-                            "${_kotonoha_wasm_svg_clean_links}")
-                        message(STATUS "[Kotonoha] Removed duplicate bare plutovg linkage from ${_kotonoha_wasm_svg_target}")
-                    endif()
-                endif()
-            endif()
-        endforeach()
-    endif()
 else()
     add_subdirectory("${KOTONOHA_SDL_SOURCE_DIR}" "${CMAKE_CURRENT_BINARY_DIR}/SDL" EXCLUDE_FROM_ALL)
     add_subdirectory(submodules/SDL_ttf EXCLUDE_FROM_ALL)
@@ -192,36 +165,11 @@ if (ANDROID)
     set(kotonoha_ffmpeg_target kotonoha_ffmpeg)
     set(kotonoha_json_target json-c::json-c)
 elseif (EMSCRIPTEN)
-    # vcpkg's libass 0.17.5 on WebAssembly does not require fontconfig
-    # or libunibreak, but its generated .pc may still list them as public
-    # Requires dependencies. Avoid resolving unavailable ports via pkgconf.
-    # The static libass archive is linked directly against its actual deps.
-    if(NOT VCPKG_INSTALLED_DIR OR NOT VCPKG_TARGET_TRIPLET)
-        message(FATAL_ERROR "Emscripten media libraries require the vcpkg toolchain")
-    endif()
-    set(_kotonoha_wasm_vcpkg_lib
-        "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/lib")
-    set(_kotonoha_wasm_vcpkg_inc
-        "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/include")
-    find_path(KOTONOHA_WASM_ASS_INCLUDE_DIR NAMES ass/ass.h
-        PATHS "${_kotonoha_wasm_vcpkg_inc}" NO_DEFAULT_PATH REQUIRED)
-    find_library(KOTONOHA_WASM_ASS_LIBRARY NAMES ass
-        PATHS "${_kotonoha_wasm_vcpkg_lib}" NO_DEFAULT_PATH REQUIRED)
-    find_library(KOTONOHA_WASM_FRIBIDI_LIBRARY NAMES fribidi
-        PATHS "${_kotonoha_wasm_vcpkg_lib}" NO_DEFAULT_PATH REQUIRED)
-    find_package(Freetype REQUIRED)
-    find_package(harfbuzz CONFIG REQUIRED)
-    add_library(kotonoha_ass INTERFACE)
-    target_include_directories(kotonoha_ass INTERFACE
-        "${KOTONOHA_WASM_ASS_INCLUDE_DIR}")
-    target_link_libraries(kotonoha_ass INTERFACE
-        "${KOTONOHA_WASM_ASS_LIBRARY}"
-        "${KOTONOHA_WASM_FRIBIDI_LIBRARY}"
-        harfbuzz::harfbuzz Freetype::Freetype m)
+    pkg_check_modules(LIBASS REQUIRED IMPORTED_TARGET libass>=0.17)
     pkg_check_modules(FFMPEG REQUIRED IMPORTED_TARGET
             libavformat libavcodec libavutil libswscale libswresample)
     pkg_check_modules(JSON_C REQUIRED IMPORTED_TARGET json-c>=0.15)
-    set(kotonoha_ass_target kotonoha_ass)
+    set(kotonoha_ass_target PkgConfig::LIBASS)
     set(kotonoha_ffmpeg_target PkgConfig::FFMPEG)
     set(kotonoha_json_target PkgConfig::JSON_C)
     # vcpkg's FFmpeg .pc advertises -pthread even though its WASM archives
@@ -239,27 +187,14 @@ else ()
     set(kotonoha_json_target PkgConfig::JSON_C)
 endif ()
 
-# Emscripten SIDE_MODULE links use wasm-ld, which extracts objects from
-# archives eagerly. CMake's legacy link order may repeat transitive static
-# archives (SDL3, PlutoVG, etc.), yielding duplicate symbol errors.
-# Apply modern link-line de-duplication for first-party WASM side modules.
-if(EMSCRIPTEN AND KOTONOHA_WASM_DYNAMIC_LIBS)
-    if(CMAKE_VERSION VERSION_LESS 3.31)
-        message(FATAL_ERROR
-            "Dynamic WASM side modules require CMake 3.31+ for correct "
-            "static archive deduplication (CMP0156/CMP0179)")
-    endif()
-    cmake_policy(SET CMP0156 NEW)
-    cmake_policy(SET CMP0179 NEW)
-endif()
-
 # ==============================================================================
 # Target: imgui
 # ==============================================================================
 set(KOTONOHA_LIB_TYPE SHARED)
-if(EMSCRIPTEN AND NOT KOTONOHA_WASM_DYNAMIC_LIBS)
+if (EMSCRIPTEN)
     set(KOTONOHA_LIB_TYPE STATIC)
-endif()
+endif ()
+
 option(KOTONOHA_IMGUI_FROM_VCPKG
         "Import ImGui with SDL3/SDL3 Renderer backends from vcpkg" OFF)
 
@@ -274,8 +209,6 @@ if(KOTONOHA_IMGUI_FROM_VCPKG)
     endif()
     # Keep the project's existing 'imgui' link name without rebuilding any
     # of the ImGui sources or SDL renderer backends.
-    # vcpkg packages remain static. They are linked into the engine's
-    # first-party SIDE_MODULE; no shared ImGui module is generated.
     add_library(imgui INTERFACE)
     target_link_libraries(imgui INTERFACE imgui::imgui)
 else()
@@ -314,17 +247,6 @@ endif ()
 
 add_library(KotonohaEngine ${KOTONOHA_LIB_TYPE} ${KOTONOHA_ENGINE_SOURCES})
 add_library(Kotonoha::Engine ALIAS KotonohaEngine)
-if(KOTONOHA_WASM_DYNAMIC_LIBS)
-    # The free-reorder strategy keeps each transitive vcpkg static archive
-    # once on the command line. This is critical for wasm-ld with SIDE_MODULE.
-    set_property(TARGET KotonohaEngine PROPERTY
-        LINK_LIBRARIES_STRATEGY REORDER_FREELY)
-    # No vcpkg .a is linked here. Their symbols are imported from MAIN_MODULE.
-    target_link_options(KotonohaEngine PRIVATE
-        "SHELL:-sSIDE_MODULE=1" "SHELL:-sASYNCIFY=1" "-fexceptions")
-    set_target_properties(KotonohaEngine PROPERTIES
-        POSITION_INDEPENDENT_CODE ON PREFIX "lib" SUFFIX ".wasm")
-endif()
 if(EMSCRIPTEN)
     target_compile_definitions(KotonohaEngine PUBLIC
         KOTONOHA_WASM_FETCH_CACHE_MIB=${KOTONOHA_WASM_FETCH_CACHE_MIB})
@@ -339,13 +261,6 @@ set_target_properties(KotonohaEngine PROPERTIES
         SOVERSION ${PROJECT_VERSION_MAJOR}
         WINDOWS_EXPORT_ALL_SYMBOLS ON
 )
-if(KOTONOHA_WASM_DYNAMIC_LIBS)
-    # Emscripten side modules are loaded by their exact .wasm filename.
-    # ELF-style VERSION/SOVERSION would otherwise produce
-    # libkotonoha.wasm.0.1.0 and a SONAME that the browser cannot resolve.
-    set_target_properties(KotonohaEngine PROPERTIES
-        VERSION "" SOVERSION "" NO_SONAME TRUE)
-endif()
 if(NOT KOTONOHA_IMGUI_FROM_VCPKG)
     set_target_properties(imgui PROPERTIES
             CXX_EXTENSIONS OFF
@@ -365,50 +280,16 @@ target_include_directories(KotonohaEngine PUBLIC
         $<BUILD_INTERFACE:${KOTONOHA_BUILD_VERSION_INCLUDE_DIR}>
 )
 
-# Third-party archives are ALWAYS static. For Emscripten load-time
-# dynamic linking they must be owned by MAIN_MODULE, never embedded in the
-# engine SIDE_MODULE: that would duplicate SDL state, codecs and allocators
-# across WASM modules. Expose their usage requirements while building the
-# engine, then link the archives into each game's main executable only.
-if(KOTONOHA_WASM_DYNAMIC_LIBS)
-    set(_kotonoha_wasm_static_dependencies
+target_link_libraries(KotonohaEngine
+        PUBLIC
         SDL3::SDL3
         SDL3_ttf::SDL3_ttf
-        imgui
         ${kotonoha_ffmpeg_target}
+        imgui
+        PRIVATE
         ${kotonoha_json_target}
         ${kotonoha_ass_target}
-    )
-    # The engine sources still need the include paths, compile options and
-    # definitions supplied by each static dependency.
-    foreach(_kotonoha_dep IN LISTS _kotonoha_wasm_static_dependencies)
-        if(TARGET ${_kotonoha_dep})
-            target_include_directories(KotonohaEngine PRIVATE
-                "$<TARGET_PROPERTY:${_kotonoha_dep},INTERFACE_INCLUDE_DIRECTORIES>")
-            target_compile_definitions(KotonohaEngine PRIVATE
-                "$<TARGET_PROPERTY:${_kotonoha_dep},INTERFACE_COMPILE_DEFINITIONS>")
-            target_compile_options(KotonohaEngine PRIVATE
-                "$<TARGET_PROPERTY:${_kotonoha_dep},INTERFACE_COMPILE_OPTIONS>")
-        endif()
-    endforeach()
-    if(KOTONOHA_IMGUI_FROM_VCPKG)
-        target_include_directories(KotonohaEngine PRIVATE
-            "$<TARGET_PROPERTY:imgui::imgui,INTERFACE_INCLUDE_DIRECTORIES>")
-        target_compile_definitions(KotonohaEngine PRIVATE
-            "$<TARGET_PROPERTY:imgui::imgui,INTERFACE_COMPILE_DEFINITIONS>")
-    endif()
-    # Linking an INTERFACE dependency does not put it on the SIDE_MODULE
-    # command line. MAIN_MODULE picks it up transitively from KotonohaEngine.
-    target_link_libraries(KotonohaEngine INTERFACE
-        ${_kotonoha_wasm_static_dependencies})
-else()
-    target_link_libraries(KotonohaEngine
-        PUBLIC SDL3::SDL3 SDL3_ttf::SDL3_ttf imgui
-        PRIVATE
-        ${kotonoha_ffmpeg_target}
-        ${kotonoha_json_target}
-        ${kotonoha_ass_target})
-endif()
+)
 
 if (EMSCRIPTEN AND VCPKG_INSTALLED_DIR)
     # SDL_ttf's pkg-config find modules emit -l flags for static dependencies.
@@ -429,12 +310,7 @@ elseif (APPLE AND CMAKE_SYSTEM_NAME MATCHES "iOS|tvOS")
     target_link_libraries(KotonohaEngine PRIVATE "${OPENGLES_FRAMEWORK}")
 else ()
     find_package(OpenGL REQUIRED)
-    if(KOTONOHA_WASM_DYNAMIC_LIBS)
-        # The browser/main module supplies the graphics runtime.
-        target_link_libraries(KotonohaEngine INTERFACE OpenGL::GL)
-    else()
-        target_link_libraries(KotonohaEngine PRIVATE OpenGL::GL)
-    endif()
+    target_link_libraries(KotonohaEngine PRIVATE OpenGL::GL)
 endif ()
 
 # Configuracoes especificas do Metal (Apple)

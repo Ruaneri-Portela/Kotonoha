@@ -231,25 +231,6 @@ function(kotonoha_configure_app target)
         endif()
 
         if(EMSCRIPTEN)
-            if(KOTONOHA_WASM_DYNAMIC_LIBS)
-                # Every game MAIN_MODULE owns the static vcpkg runtime once.
-                # KotonohaEngine remains a SIDE_MODULE and imports that
-                # runtime; do not link a second copy into the SIDE_MODULE.
-                # Normalize all archive spellings here, too: game-specific
-                # CMake archives can also repeat transitively.
-                set_property(TARGET ${target} PROPERTY
-                    LINK_LIBRARIES_STRATEGY REORDER_FREELY)
-                set_property(TARGET ${target} PROPERTY CXX_LINKER_LAUNCHER
-                    "python3;${KOTONOHA_PROJECT_ROOT}/tools/wasm_link_dedupe.py")
-                target_link_options(${target} PRIVATE "SHELL:-sMAIN_MODULE=1")
-                target_link_libraries(${target} PRIVATE KotonohaEngine)
-                add_custom_command(TARGET ${target} POST_BUILD
-                    COMMAND "${CMAKE_COMMAND}" -E copy_if_different
-                        "$<TARGET_FILE:KotonohaEngine>"
-                        "$<TARGET_FILE_DIR:${target}>/$<TARGET_FILE_NAME:KotonohaEngine>"
-                    COMMENT "Deploying the dynamic Kotonoha WASM module"
-                    VERBATIM)
-            endif()
             target_compile_options(${target} PRIVATE
                 -fexceptions
             )
