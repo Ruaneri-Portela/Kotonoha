@@ -33,7 +33,9 @@ and exit before loading game assets or creating a rendering window.
 ## Interface locations
 
 The common launcher displays the build identity in its header and footer.
-Its **System info** tab provides detailed SDL diagnostics.
+Its **System info** tab provides detailed SDL diagnostics. The WebAssembly
+HTML asset-source chooser also displays the generated full build version
+before the game starts.
 
 In a running game, open the Debug UI (**F10**), then choose
 **System info** in the Applets menu, click the **System info** tile, or
