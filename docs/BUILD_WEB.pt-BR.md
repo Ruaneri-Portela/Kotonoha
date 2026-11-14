@@ -90,16 +90,19 @@ logo, não é correto considerar todos os jogos totalmente migrados.
 
 ## Montagem de pastas locais personalizadas no navegador
 
-O botão **+ Adicionar pasta**, no canto superior direito, continua disponível
-após a inicialização. Ele é exibido sobre o canvas em tela cheia por meio
-de um popover do navegador, quando compatível. Selecione uma pasta local e informe seu nome no
+O botão **+ Adicionar pasta** fica disponível **somente na tela de
+configuração, antes de iniciar o jogo**. Ele desaparece assim que a origem
+local ou HTTP(S) é confirmada, não reaparece durante o gameplay e não é
+reaberto pelo modo de tela cheia. Pastas adicionais devem ser importadas
+antes de iniciar o SDL. Selecione uma pasta local e informe seu nome no
 filesystem virtual, por exemplo `game-assets`, `forced_subtitles` ou
 `ovrlay`. Seus arquivos ficam disponíveis em `/<nome>/` no Emscripten.
 Os nomes são validados e `/save` permanece reservado para os saves.
 O HTML evita sobrescrever arquivos existentes.
 
-Após a inicialização do filesystem, também é possível chamar
-`window.KotonohaMountBrowserFolder(fileList, "forced_subtitles")`.
+A API interna `window.KotonohaMountBrowserFolder(fileList, "forced_subtitles")`
+continua disponível para integrações que precisem montar arquivos
+programaticamente; isso não exibe o botão dentro do jogo.
 
 **Atenção:** montar uma pasta torna seus arquivos visíveis no VFS, mas não
 faz automaticamente cada porte procurar recursos nela. Os caminhos de busca
