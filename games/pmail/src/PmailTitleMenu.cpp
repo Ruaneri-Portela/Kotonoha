@@ -9,11 +9,7 @@ PmailTitleMenu::PmailTitleMenu(Kotonoha::Engine &engine, PmailGame &game,
                                Kotonoha::Providers::SnowAssets &assets)
     : Kotonoha::GameMenu(engine), game_(game), assets_(assets) {}
 
-PmailTitleMenu::~PmailTitleMenu() {
-  for (auto &[name, entry] : titleCache_)
-    if (entry.tex)
-      SDL_DestroyTexture(entry.tex);
-}
+PmailTitleMenu::~PmailTitleMenu() = default;
 
 int PmailTitleMenu::itemCount() const { return game_.titleCount(); }
 
@@ -56,22 +52,23 @@ SDL_Texture *PmailTitleMenu::LoadTitleGraphic(Kotonoha::RendererRef renderer,
                                               const std::string &file) {
   auto it = titleCache_.find(file);
   if (it != titleCache_.end())
-    return it->second.tex;
+    return it->second.tex.get();
 
   TitleTex entry;
   try {
     auto surface = assets_.loadSurfaceAsset("graphic/" + file);
     if (surface) {
-      entry.tex = SDL_CreateTextureFromSurface(&renderer, surface.get());
+      entry.tex.reset(SDL_CreateTextureFromSurface(&renderer, surface.get()));
       if (entry.tex) {
-        SDL_GetTextureSize(entry.tex, &entry.w, &entry.h);
+        SDL_GetTextureSize(entry.tex.get(), &entry.w, &entry.h);
       }
     }
   } catch (...) {
   }
 
-  titleCache_[file] = entry;
-  return entry.tex;
+  auto &cached = titleCache_[file];
+  cached = std::move(entry);
+  return cached.tex.get();
 }
 
 } // namespace Kotonoha::PmailPort
