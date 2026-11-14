@@ -12,6 +12,11 @@
 #include <string>
 #include <string_view>
 
+#ifndef KOTONOHA_WASM_FETCH_CACHE_MIB
+#define KOTONOHA_WASM_FETCH_CACHE_MIB 64
+#endif
+
+
 namespace Kotonoha::Filesystem {
 
 // Remote directory with an explicit size-aware JSON manifest.
@@ -39,7 +44,7 @@ class FetchAssetProvider final
   std::size_t active_ = 0, cached_ = 0;
   std::uint64_t accessClock_ = 0; // LRU access age for cached byte ranges
   std::size_t completed_ = 0, failures_ = 0, requestedCount_ = 0;
-  std::size_t budget_ = 64u << 20;
+  std::size_t budget_ = static_cast<std::size_t>(KOTONOHA_WASM_FETCH_CACHE_MIB) << 20;
   bool started_ = false;
   bool discover_ = false;
 
@@ -62,18 +67,18 @@ public:
   // Manifest-free mode discovers named objects with asynchronous GETs.
   // Call requestAsset() and wait for completion before synchronous reads.
   static std::shared_ptr<FetchAssetProvider>
-  fromUrl(std::string baseUrl, std::size_t cacheBudget = 64u << 20);
+  fromUrl(std::string baseUrl, std::size_t cacheBudget = static_cast<std::size_t>(KOTONOHA_WASM_FETCH_CACHE_MIB) << 20);
   bool requestAsset(std::string_view id);
   bool manifestFree() const noexcept { return discover_; }
   bool preferLocalWhenPresent() const noexcept override { return discover_; }
 
   static std::shared_ptr<FetchAssetProvider>
   fromManifest(std::string baseUrl, const std::string &json,
-               std::size_t cacheBudget = 64u << 20);
+               std::size_t cacheBudget = static_cast<std::size_t>(KOTONOHA_WASM_FETCH_CACHE_MIB) << 20);
 
   std::string name() const override { return "Emscripten Fetch"; }
   void begin(std::size_t preloadLimit = 4u << 20);
-  // Explicit asynchronous Range prefetch; up to 4 MiB per request.
+  // Explicit asynchronous Range prefetch; up to 1 MiB per request.
   void prefetchRange(std::string_view id, std::uint64_t offset,
                      std::uint64_t length);
   bool ready(std::string_view id) const;
