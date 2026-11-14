@@ -1,59 +1,30 @@
 # Asset providers
 
-Providers implement `Kotonoha::AssetProvider`. The game uses the public API;
-methods ending in `Asset` are format implementation points.
+**English (US)** | [Português (Brasil)](README.pt-BR.md)
 
-| Operation | Public API |
+Providers implement `Kotonoha::AssetProvider` and expose the same access methods regardless of the archive/game format.
+
+| Purpose | Public method |
 | --- | --- |
-| Texture (renderer cache) | `texture(renderer, id)` |
-| RGBA Surface | `loadSurface(id)` |
-| PCM audio + format | `loadAudio(id)` |
-| UTF-8 text | `loadTextUtf8(id, encoding)` |
-| Raw decompressed asset bytes, no text conversion | `read(id)` |
+| Cached texture | `texture(renderer, id)` |
+| Decoded image surface | `loadSurface(id)` |
+| PCM audio and format | `loadAudio(id)` |
+| Text with encoding conversion | `loadTextUtf8(id, encoding)` |
+| Raw decompressed bytes | `read(id)` |
 
-`contains`, `list`, `openStream` and `localPath` complement the interface.
-Use the public API to preserve overlays, original selection, and cache.
-The renderer is required for textures; surfaces and raw do not need it.
-Available image/audio formats depend on the provider and codecs.
+Use `contains`, `list`, `openStream`, and `localPath` where appropriate. Always call **public** methods so overlays, caches, and original selection work. Text decoders understand UTF-8/UTF-16/UTF-32 BOMs; without a BOM, supply a charset such as `CP932` or `CP1252`. Binary scripts must use `read`.
 
-Text recognizes UTF-8, UTF-16LE/BE and UTF-32LE/BE BOMs. Without a BOM, the
-encoding is explicit (default `UTF-8`; examples: `CP932`, `CP1252`, `UTF-16LE`).
-Do not treat bytecode, binary tables, or mixed-encoding scripts as text:
-in those cases the parser keeps receiving `read(id)`.
-Conversions use the `ConvertEncoding` policy: invalid sequences become `?`.
-
-## CMake modules
-
-All providers live under `Kotonoha::Providers::`.
-
-| Folder | Target | Provider / format dependency |
+| Module | Target | Format |
 | --- | --- | --- |
-| `cmp` | `Kotonoha::ProviderCMP` | `Kotonoha::Providers::SummerAssets` (Summer `.cmp`) |
-| `adv` | `Kotonoha::ProviderADV` | `Kotonoha::Providers::SnowAssets` (Overflow `.dat`) |
-| `gpk` | `Kotonoha::ProviderGPK` | `Kotonoha::Providers::SchoolDaysAssets`, GPK reader and retail mount |
-| `xp3` | `Kotonoha::ProviderXP3` | `Kotonoha::Providers::KirikiriAssets` |
-| `pak` | `Kotonoha::ProviderPAK` | `Kotonoha::Providers::LucaSystemAssets`, CZ codec |
-| `reallive` | `Kotonoha::ProviderRealLive` | `Kotonoha::Providers::RealLiveAssets`; `RealLiveFormats` |
-| `rpa` | `Kotonoha::ProviderRPA` | `Kotonoha::Providers::DdlcAssets`; `DdlcFormats` |
-| `amagami` | `Kotonoha::ProviderAmagami` | `Kotonoha::Providers::AmagamiAssets`; `AmagamiFormats` |
-| pmail | `Kotonoha::ProviderPmail` | `Kotonoha::Providers::PmailAssets` (Pmail archives) |
-| `zero` | `Kotonoha::ProviderZero` | `Kotonoha::Providers::ZeroDiscAssets`; `ZeroNoTsukaimaFormats` |
+| `cmp` | `Kotonoha::ProviderCMP` | Summer CMP |
+| `adv` | `Kotonoha::ProviderADV` | Overflow DAT |
+| `gpk` | `Kotonoha::ProviderGPK` | School Days GPK |
+| `xp3` | `Kotonoha::ProviderXP3` | Kirikiri XP3 |
+| `pak` | `Kotonoha::ProviderPAK` | LucaSystem PAK |
+| `reallive` | `Kotonoha::ProviderRealLive` | Seen/RealLive |
+| `rpa` | `Kotonoha::ProviderRPA` | DDLC RPA |
+| `amagami` | `Kotonoha::ProviderAmagami` | Amagami |
+| `pmail` | `Kotonoha::ProviderPmail` | Pure Mail |
+| `zero` | `Kotonoha::ProviderZero` | Zero No Tsukaima |
 
-The CMP, ADV, GPK, XP3 and PAK modules can be added directly:
-
-```cmake
-add_subdirectory(path/to/Kotonoha/modules/providers/cmp providers/cmp)
-target_link_libraries(MyGame PRIVATE Kotonoha::ProviderCMP)
-```
-
-```cpp
-#include <SummerRadish/SummerAssets.hpp>
-Kotonoha::Providers::SummerAssets assets(dataDirectory);
-auto raw = assets.read("INI/CONFIG.INI");
-auto text = assets.loadTextUtf8("INI/CONFIG.INI", "UTF-16LE");
-```
-
-The RealLive, RPA, Amagami and Zero adapters still depend on the respective
-format targets defined by the game projects. They do not include the graphics
-runtime, but they are not self-contained packages to copy in isolation.
-Filesystem and generic disk providers remain in the engine core.
+Format-specific adapters may depend on their game library and cannot always be built in isolation. Generic filesystem and disc providers live in the shared engine. See [overlays](../../docs/ASSET_OVERLAYS.md).
