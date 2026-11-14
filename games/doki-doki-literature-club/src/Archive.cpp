@@ -6,7 +6,7 @@
 #include <cctype>
 #include <cstring>
 #include <filesystem>
-#include <fstream>
+#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <stdexcept>
 #include <unordered_map>
 
@@ -469,7 +469,7 @@ std::vector<std::string> Archive::names() const {
 
 namespace {
 std::vector<uint8_t> readLoose(const std::filesystem::path &path) {
-  std::ifstream file(path, std::ios::binary);
+  Kotonoha::Filesystem::InputFile file(path, std::ios::binary);
   if (!file)
     return {};
   return std::vector<uint8_t>((std::istreambuf_iterator<char>(file)), {});

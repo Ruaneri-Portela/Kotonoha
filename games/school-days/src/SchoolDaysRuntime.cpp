@@ -44,7 +44,7 @@
 #include <condition_variable>
 #include <cstdlib>
 #include <deque>
-#include <fstream>
+#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <iterator>
 #include <limits>
 #include <mutex>
@@ -617,7 +617,7 @@ RemasterDisplaySettingsPath(const std::filesystem::path &documents) {
 }
 
 int LoadRemasterAspectPreference(const std::filesystem::path &documents) {
-  std::ifstream input(RemasterDisplaySettingsPath(documents));
+  Kotonoha::Filesystem::InputFile input(RemasterDisplaySettingsPath(documents));
   if (!input)
     input.open(documents / "RemasterDisplay.ini");
   std::string line;
@@ -638,7 +638,7 @@ void SaveRemasterAspectPreference(const std::filesystem::path &documents,
                                   int preference) {
   std::string contents;
   {
-    std::ifstream input(RemasterDisplaySettingsPath(documents));
+    Kotonoha::Filesystem::InputFile input(RemasterDisplaySettingsPath(documents));
     contents.assign(std::istreambuf_iterator<char>(input),
                     std::istreambuf_iterator<char>());
   }

@@ -9,7 +9,7 @@
 #include <cstdio>
 #include <cstring>
 #include <filesystem>
-#include <fstream>
+#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <iomanip>
 #include <iostream>
 #include <sstream>
@@ -45,7 +45,7 @@ bool PmailRuntime::loadScriptPack() {
       gameDirectory_ + "/data/pack/SCRIPT.DAT",
   };
   for (const auto &path : candidates) {
-    std::ifstream in(path, std::ios::binary | std::ios::ate);
+    Kotonoha::Filesystem::InputFile in(path, std::ios::binary | std::ios::ate);
     if (!in)
       continue;
     const auto sz = in.tellg();
