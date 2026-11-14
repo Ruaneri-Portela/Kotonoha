@@ -1,0 +1,233 @@
+#include <Kotonoha/Filesystem/Filesystem.hpp>
+#include <Kotonoha/Filesystem/IMount.hpp>
+#include <SDL3/SDL.h>
+
+#include <algorithm>
+#include <chrono>
+#include <cstdint>
+#include <cstring>
+#include <filesystem>
+#include <iostream>
+#include <stdexcept>
+#include <string>
+#include <vector>
+
+namespace {
+namespace fs = std::filesystem;
+namespace VFS = Kotonoha::Filesystem;
+
+void require(bool ok, const char *reason) {
+  if (!ok)
+    throw std::runtime_error(reason);
+}
+
+struct Temp {
+  fs::path root;
+  Temp() {
+    const auto tick = std::chrono::steady_clock::now().time_since_epoch().count();
+    root = fs::temp_directory_path() /
+           ("kotonoha-v2-" + std::to_string(tick));
+    fs::create_directories(root);
+  }
+  ~Temp() {
+    std::error_code ec;
+    fs::remove_all(root, ec);
+  }
+};
+
+void writeFile(const fs::path &file, const std::vector<std::uint8_t> &bytes) {
+  fs::create_directories(file.parent_path());
+  auto *output = SDL_IOFromFile(file.string().c_str(), "wb");
+  require(output != nullptr, "Cannot create test fixture");
+  const bool ok = bytes.empty() ||
+                  SDL_WriteIO(output, bytes.data(), bytes.size()) == bytes.size();
+  const bool closed = SDL_CloseIO(output);
+  require(ok && closed, "Cannot write test fixture");
+}
+
+void writeFile(const fs::path &file, const std::string &text) {
+  writeFile(file, std::vector<std::uint8_t>(text.begin(), text.end()));
+}
+
+std::string readText(std::unique_ptr<VFS::FileHandle> file) {
+  require(file != nullptr, "FileHandle is null");
+  auto data = VFS::readAll(*file);
+  return {data.begin(), data.end()};
+}
+
+template <class Action>
+void expectCode(VFS::ErrorCode code, Action run) {
+  bool caught = false;
+  try {
+    run();
+  } catch (const VFS::FilesystemError &error) {
+    caught = error.code() == code;
+  }
+  require(caught, "Incorrect filesystem error");
+}
+
+void putLE32(std::vector<std::uint8_t> &bytes, std::size_t at,
+             std::uint32_t value) {
+  for (int index = 0; index != 4; ++index)
+    bytes[at + index] = static_cast<std::uint8_t>(value >> (index * 8));
+}
+
+void makeISO(const fs::path &file) {
+  constexpr std::size_t block = 2048;
+  std::vector<std::uint8_t> image(block * 22, 0);
+  auto *pvd = image.data() + block * 16;
+  pvd[0] = 1;
+  std::memcpy(pvd + 1, "CD001", 5);
+  putLE32(image, block * 16 + 156 + 2, 20);
+  putLE32(image, block * 16 + 156 + 10, block);
+
+  auto *terminator = image.data() + block * 17;
+  terminator[0] = 255;
+  std::memcpy(terminator + 1, "CD001", 5);
+
+  auto *directory = image.data() + block * 20;
+  const char name[] = "HELLO.TXT;1";
+  directory[0] = 33 + sizeof(name) - 1;
+  putLE32(image, block * 20 + 2, 21);
+  putLE32(image, block * 20 + 10, 5);
+  directory[25] = 0;
+  directory[32] = sizeof(name) - 1;
+  std::memcpy(directory + 33, name, sizeof(name) - 1);
+  std::memcpy(image.data() + block * 21, "hello", 5);
+  writeFile(file, image);
+}
+
+void testLocalAndOverlays() {
+  Temp temp;
+  const auto base = temp.root / "base";
+  const auto patch = temp.root / "patch";
+  const auto other = temp.root / "other";
+  writeFile(base / "DATA/data.pak", "original-package");
+  writeFile(base / "DATA/PHOTO.crgb", "original-logical");
+  writeFile(base / "DATA/BaseOnly.crgb", "original-only");
+  writeFile(base / "MASK/child.bin", "lower-child");
+  writeFile(base / "empty.dat", "");
+  writeFile(patch / "DATA/data.pak", "replacement-package");
+  writeFile(patch / "DATA/PHOTO.crgb", "replacement-logical");
+  writeFile(patch / "MASK", "higher-file");
+  writeFile(other / "DATA/data.pak", "highest-package");
+
+  auto files = VFS::Filesystem::mount(base.string());
+  require(!files->tryOpenLogicalOverride("DATA/PHOTO.crgb"),
+          "Base loose file must not masquerade as an overlay");
+  require(readText(files->open("data/DATA.PAK")) == "original-package",
+          "Case-insensitive base read failed");
+  require(files->stat("DATA").type == VFS::FileType::Directory,
+          "Base directory not indexed");
+  require(files->list("").size() == 3, "Unexpected base root listing");
+
+  auto independent = files->open("DATA/data.pak");
+  auto same = files->open("DATA/data.pak");
+  char a = 0, b = 0;
+  require(independent->read(&a, 1) == 1 &&
+              independent->read(&a, 1) == 1 &&
+              same->read(&b, 1) == 1 && b == 'o',
+          "Open handles shared a cursor");
+  require(independent->seek(0, VFS::SeekOrigin::Begin) == 0 &&
+              independent->tell() == 0,
+          "Seek/tell failure");
+  require(independent->seek(-1, VFS::SeekOrigin::End) == 15,
+          "Seek relative to end failed");
+  require(independent->seek(-100, VFS::SeekOrigin::Begin) < 0,
+          "Invalid seek accepted");
+  require(readText(files->open("empty.dat")).empty(),
+          "Empty asset read failed");
+
+  files->addOverlay(patch.string());
+  require(files->generation() == 1, "Overlay generation not updated");
+  require(readText(files->open("DATA/data.pak")) == "replacement-package",
+          "Source-package override lost");
+  require(readText(files->tryOpenLogicalOverride("DATA/PHOTO.crgb")) ==
+              "replacement-logical", "Logical override lost");
+  require(!files->tryOpenLogicalOverride("DATA/BaseOnly.crgb"),
+          "Base data must never be an override");
+  require(readText(files->open("DATA/BaseOnly.crgb")) == "original-only",
+          "Layer fallback failed");
+  require(files->list("DATA").size() == 3, "Layer merge is not unique");
+  require(!files->exists("MASK/child.bin"),
+          "Higher file must hide lower directory contents");
+  expectCode(VFS::ErrorCode::NotDirectory,
+             [&] { files->list("MASK"); });
+
+  files->addOverlay(other.string(), 200);
+  require(files->generation() == 2 &&
+              readText(files->open("DATA/data.pak")) == "highest-package",
+          "Priority override lost");
+
+  expectCode(VFS::ErrorCode::InvalidPath,
+             [&] { files->exists("../outside"); });
+  expectCode(VFS::ErrorCode::InvalidPath,
+             [&] { files->open("/absolute.txt"); });
+  expectCode(VFS::ErrorCode::InvalidPath,
+             [&] { files->open("a\\..\\outside"); });
+
+  auto retained = files->open("DATA/data.pak");
+  files.reset();
+  require(readText(std::move(retained)) == "highest-package",
+          "Open handle did not survive mount lifetime");
+}
+
+void testISO() {
+  Temp temp;
+  const auto image = temp.root / "sample.iso";
+  makeISO(image);
+  auto iso = VFS::Filesystem::mount(image.string());
+  require(iso->exists("hello.txt"), "ISO entry lookup failed");
+  require(iso->stat("HELLO.TXT").size == 5, "Incorrect ISO size");
+  require(iso->list("").size() == 1, "Incorrect ISO root listing");
+  auto first = iso->open("HELLO.TXT");
+  auto second = iso->open("hello.txt");
+  char bytes[8]{};
+  require(first->read(bytes, 2) == 2 && std::string(bytes, 2) == "he",
+          "ISO stream read failed");
+  require(second->read(bytes, 5) == 5 &&
+              std::string(bytes, 5) == "hello",
+          "ISO handles share a cursor");
+  require(first->seek(1, VFS::SeekOrigin::Current) == 3 &&
+              first->read(bytes, 2) == 2 &&
+              std::string(bytes, 2) == "lo" &&
+              first->read(bytes, 2) == 0,
+          "ISO seek or EOF failed");
+}
+
+void testDirectorySafety() {
+  Temp temp;
+  auto base = temp.root / "base";
+  writeFile(base / "abc.bin", "one");
+  writeFile(base / "ABC.bin", "two");
+  if (!fs::equivalent(base / "abc.bin", base / "ABC.bin")) {
+    expectCode(VFS::ErrorCode::InvalidPath, [&] {
+      VFS::Filesystem::mount(base.string());
+    });
+  }
+
+  auto outside = temp.root / "outside.bin";
+  writeFile(outside, "secret");
+  std::error_code error;
+  fs::create_symlink(outside, base / "escape.bin", error);
+  if (!error) {
+    expectCode(VFS::ErrorCode::InvalidPath, [&] {
+      VFS::Filesystem::mount(base.string());
+    });
+  }
+}
+
+} // namespace
+
+int main() {
+  try {
+    testLocalAndOverlays();
+    testISO();
+    testDirectorySafety();
+    std::cout << "Filesystem V2 tests passed\n";
+  } catch (const std::exception &error) {
+    std::cerr << "Filesystem V2 tests failed: " << error.what() << '\n';
+    return 1;
+  }
+  return 0;
+}
