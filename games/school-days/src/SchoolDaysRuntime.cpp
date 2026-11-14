@@ -14,6 +14,7 @@
 #include <Kotonoha/components/VNBacklog.hpp>
 #include <Kotonoha/components/VNSaveMenu.hpp>
 #include <Kotonoha/core/Engine.hpp>
+#include <Kotonoha/core/BackgroundWorker.hpp>
 #include <Kotonoha/core/SDL.hpp>
 #include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/UI.hpp>
@@ -50,7 +51,6 @@
 #include <limits>
 #include <mutex>
 #include <stdexcept>
-#include <thread>
 #if defined(_WIN32) && !defined(__ANDROID__)
 #define WIN32_LEAN_AND_MEAN
 #ifndef NOMINMAX
@@ -729,12 +729,8 @@ public:
   };
   explicit AbcAnalysisWorker(Kotonoha::Providers::SchoolDaysAssets &source,
                              uint64_t generation)
-#ifdef __EMSCRIPTEN__
-      : assets(source), currentGeneration(generation) {}
-#else
       : assets(source), currentGeneration(generation),
         worker([this] { run(); }) {}
-#endif
   ~AbcAnalysisWorker() {
     {
       std::lock_guard<std::mutex> lock(mutex);
@@ -743,9 +739,7 @@ public:
       pending.clear();
     }
     wake.notify_one();
-#ifndef __EMSCRIPTEN__
     worker.join();
-#endif
   }
   void reset(uint64_t generation) {
     std::lock_guard<std::mutex> lock(mutex);
@@ -814,8 +808,7 @@ public:
   std::vector<Result> drain() {
     std::unique_lock<std::mutex> lock(mutex);
     std::vector<Result> result;
-#ifdef __EMSCRIPTEN__
-    if (!pending.empty()) {
+    if (worker.cooperative() && !pending.empty()) {
       Job job = std::move(pending.front());
       pending.pop_front();
       lock.unlock();
@@ -824,7 +817,6 @@ public:
       if (!stopping && prepared.generation == currentGeneration)
         completed.push_back(std::move(prepared));
     }
-#endif
     result.reserve(completed.size());
     while (!completed.empty()) {
       result.push_back(std::move(completed.front()));
@@ -923,7 +915,6 @@ private:
     }
     return result;
   }
-#ifndef __EMSCRIPTEN__
   void run() {
     for (;;) {
       Job job;
@@ -946,7 +937,6 @@ private:
         completed.push_back(std::move(result));
     }
   }
-#endif
   Kotonoha::Providers::SchoolDaysAssets &assets;
   std::mutex mutex;
   std::condition_variable wake;
@@ -956,9 +946,7 @@ private:
       std::make_shared<std::atomic_bool>(false);
   uint64_t currentGeneration = 0;
   bool stopping = false;
-#ifndef __EMSCRIPTEN__
-  std::thread worker;
-#endif
+  Kotonoha::BackgroundWorker worker;
 };
 
 Runtime::Runtime(std::shared_ptr<Kotonoha::Providers::SchoolDaysAssets> source,
