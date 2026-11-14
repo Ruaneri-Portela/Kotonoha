@@ -309,7 +309,14 @@ FetchAssetProvider::listAsset(const std::string &prefix) const {
   return result;
 }
 bool FetchAssetProvider::exists(std::string_view path) const {
-  return nodes_.count(lookupKey(path, true)) != 0;
+  const auto key = lookupKey(path, true);
+  if (nodes_.count(key)) return true;
+  // A missing file must not be reported as present before GET succeeds.
+  // Schedule discovery opportunistically; synchronous consumers may retry
+  // after the browser event loop has delivered the Fetch callback.
+  if (discover_ && !key.empty() && !files_.count(key))
+    const_cast<FetchAssetProvider *>(this)->requestAsset(path);
+  return false;
 }
 FileInfo FetchAssetProvider::stat(std::string_view path) const {
   const auto it = nodes_.find(lookupKey(path, true));
