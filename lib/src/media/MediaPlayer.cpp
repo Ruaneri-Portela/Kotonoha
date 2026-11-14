@@ -894,6 +894,7 @@ void MediaPlayer::open(std::unique_ptr<Filesystem::FileHandle> source,
                        const std::string &channelName) {
   if (!source)
     throw std::invalid_argument("Media input FileHandle is null");
+  try {
   auto next = std::make_unique<State>();
   next->channel = mixer.channel(
       channelName.empty() ? (audioOnly ? "audio" : "video") : channelName);
@@ -920,6 +921,11 @@ void MediaPlayer::open(std::unique_ptr<Filesystem::FileHandle> source,
   next->attachAssetStream(
       std::make_unique<HandleAssetStream>(std::move(source)));
   start(std::move(next), {}, audioOnly, false);
+  } catch (const std::exception &error) {
+    SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                "[Kotonoha] Media source/decoder failed: %s", error.what());
+    stop();
+  }
 }
 
 void MediaPlayer::open(const std::string &path, bool audioOnly,
@@ -946,6 +952,7 @@ void MediaPlayer::open(const std::string &path, bool audioOnly,
 
 void MediaPlayer::open(const AssetProvider &assets, const std::string &id,
                        bool audioOnly, const std::string &channelName) {
+  try {
   auto next = std::make_unique<State>();
   next->channel = mixer.channel(
       channelName.empty() ? (audioOnly ? "audio" : "video") : channelName);
@@ -970,10 +977,16 @@ void MediaPlayer::open(const AssetProvider &assets, const std::string &id,
   else
     next->attachMemory(assets.read(id));
   start(std::move(next), {}, audioOnly, false);
+  } catch (const std::exception &error) {
+    SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                "[Kotonoha] Media asset/decoder failed: %s", error.what());
+    stop();
+  }
 }
 
 void MediaPlayer::prepare(const AssetProvider &assets, const std::string &id,
                           bool audioOnly, const std::string &channelName) {
+  try {
   auto next = std::make_unique<State>();
   next->channel = mixer.channel(
       channelName.empty() ? (audioOnly ? "audio" : "video") : channelName);
@@ -998,6 +1011,11 @@ void MediaPlayer::prepare(const AssetProvider &assets, const std::string &id,
   else
     next->attachMemory(assets.read(id));
   start(std::move(next), {}, audioOnly, true);
+  } catch (const std::exception &error) {
+    SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                "[Kotonoha] Media preparation failed: %s", error.what());
+    stop();
+  }
 }
 
 MediaPlayer::PreparedInput::PreparedInput(std::unique_ptr<State> value)
