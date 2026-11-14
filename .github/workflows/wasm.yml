@@ -44,9 +44,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: vcpkg-binary-cache
-          key: wasm-dylink-vcpkg-3.1.73-${{ hashFiles('vcpkg.json', 'vcpkg-overlays/ports/**', 'vcpkg-overlays/triplets/**') }}
+          key: wasm-static-pic-vcpkg-3.1.73-${{ hashFiles('vcpkg.json', 'vcpkg-overlays/ports/**', 'vcpkg-overlays/triplets/**') }}
           restore-keys: |
-            wasm-dylink-vcpkg-3.1.73-
+            wasm-static-pic-vcpkg-3.1.73-
 
       - name: Verify HTTP Range server before WASM tests
         run: python3 -m unittest discover -s tools -p test_serve_web.py -v
@@ -63,7 +63,7 @@ jobs:
           emcmake cmake -S . -B build-web -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \
-            -DVCPKG_TARGET_TRIPLET=wasm32-emscripten-dylink \
+            -DVCPKG_TARGET_TRIPLET=wasm32-emscripten \
             -DVCPKG_OVERLAY_TRIPLETS="$GITHUB_WORKSPACE/vcpkg-overlays/triplets" \
             "-DVCPKG_MANIFEST_FEATURES=sdl-vcpkg;imgui-vcpkg" \
             -DKOTONOHA_SDL_FROM_VCPKG=ON -DKOTONOHA_IMGUI_FROM_VCPKG=ON \
