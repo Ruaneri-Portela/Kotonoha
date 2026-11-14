@@ -1,4 +1,5 @@
 #include "PmailSession.hpp"
+#include <algorithm>
 #include "PmailComponents.hpp"
 #include "PmailTextBox.hpp"
 #include "PmailTitleMenu.hpp"
@@ -124,24 +125,52 @@ void PmailSession::onEvent(Kotonoha::EventRef event) {
     }
     if (game_->choosing()) {
       const auto choices = game_->choices();
-      if (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat) {
-        if (event.key.key >= SDLK_1 && event.key.key <= SDLK_9) {
-          game_->choose(size_t(event.key.key - SDLK_1));
-          return;
-        }
-        if (event.key.key == SDLK_RETURN && !choices.empty()) {
-          game_->choose(0);
-          return;
-        }
-      }
-      if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
-          event.button.button == SDL_BUTTON_LEFT) {
-        for (size_t i = 0; i < choices.size(); ++i) {
-          const float y = 170.0f + float(i) * 52.0f;
-          if (event.button.x >= 100 && event.button.x < 700 &&
-              event.button.y >= y && event.button.y < y + 44) {
-            game_->choose(i);
+      if (!choices.empty()) {
+        choiceSelection_ = std::min(choiceSelection_, choices.size() - 1);
+        if (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat) {
+          if (event.key.key >= SDLK_1 && event.key.key <= SDLK_9) {
+            const auto index = static_cast<std::size_t>(event.key.key - SDLK_1);
+            if (index < choices.size()) {
+              choiceSelection_ = 0;
+              game_->choose(index);
+            }
             return;
+          }
+          if (event.key.key == SDLK_UP || event.key.key == SDLK_LEFT) {
+            choiceSelection_ = (choiceSelection_ + choices.size() - 1) %
+                               choices.size();
+            return;
+          }
+          if (event.key.key == SDLK_DOWN || event.key.key == SDLK_RIGHT) {
+            choiceSelection_ = (choiceSelection_ + 1) % choices.size();
+            return;
+          }
+          if (event.key.key == SDLK_RETURN ||
+              event.key.key == SDLK_SPACE) {
+            const auto index = choiceSelection_;
+            choiceSelection_ = 0;
+            game_->choose(index);
+            return;
+          }
+        }
+        if (event.type == SDL_EVENT_MOUSE_MOTION ||
+            (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
+             event.button.button == SDL_BUTTON_LEFT)) {
+          const float x = event.type == SDL_EVENT_MOUSE_MOTION
+                              ? event.motion.x : event.button.x;
+          const float y = event.type == SDL_EVENT_MOUSE_MOTION
+                              ? event.motion.y : event.button.y;
+          for (std::size_t i = 0; i < choices.size(); ++i) {
+            const float top = 170.0f + static_cast<float>(i) * 52.0f;
+            if (x >= 100.0f && x < 700.0f &&
+                y >= top && y < top + 44.0f) {
+              choiceSelection_ = i;
+              if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN) {
+                choiceSelection_ = 0;
+                game_->choose(i);
+              }
+              return;
+            }
           }
         }
       }
@@ -187,7 +216,9 @@ void PmailSession::renderGameplay(Kotonoha::RendererRef renderer) {
     const auto choices = game_->choices();
     for (size_t i = 0; i < choices.size(); ++i) {
       const SDL_FRect area{100.0f, 170.0f + float(i) * 52.0f, 600.0f, 44.0f};
-      engine_.GetUI().button(renderer, area, choices[i]);
+      engine_.GetUI().button(renderer, area, choices[i],
+                             i == std::min(choiceSelection_,
+                                           choices.size() - 1));
     }
   }
 }
