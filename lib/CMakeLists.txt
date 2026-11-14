@@ -310,9 +310,11 @@ target_link_libraries(KotonohaEngine
         PUBLIC
         SDL3::SDL3
         SDL3_ttf::SDL3_ttf
-        ${kotonoha_ffmpeg_target}
         imgui
         PRIVATE
+        # Public engine headers expose no FFmpeg or libass types.
+        # For static builds, CMake still links required dependencies.
+        ${kotonoha_ffmpeg_target}
         ${kotonoha_json_target}
         ${kotonoha_ass_target}
 )
