@@ -330,6 +330,8 @@ async function main() {
       const direct = await page.evaluate(async () => {
         const size = await Module.ccall('KotonohaWebSelfTestRemoteSize',
           'number', ['string'], ['selftest.webm'], { async: true });
+        const upperCaseSize = await Module.ccall('KotonohaWebSelfTestRemoteSize',
+          'number', ['string'], ['SELFTEST.WEBM'], { async: true });
         const missing = await Module.ccall('KotonohaWebSelfTestRemoteSize',
           'number', ['string'], ['missing-selftest.bin'], { async: true });
         let staged = false;
@@ -338,12 +340,13 @@ async function main() {
           staged = true;
         } catch (_) { /* Remote Fetch must not be copied to MEMFS. */ }
         return {
-          size, missing, staged,
+          size, upperCaseSize, missing, staged,
           configured: typeof window.KotonohaFetchAsset === 'function'
         };
       });
       console.log('MANIFEST_FREE', JSON.stringify(direct));
       assert(direct.configured && direct.size > 0 &&
+        direct.upperCaseSize === direct.size &&
         direct.missing === -1 && !direct.staged,
         'manifest-free HEAD/Range Fetch works without MEMFS staging');
     } finally {
