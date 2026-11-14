@@ -63,6 +63,7 @@ class DebugOverlay {
   bool showTranslationWindow = false;
   bool showOptionsWindow = false;
   bool showDubbingWindow = false;
+  bool showInfoWindow = false;
   std::string selectedTransNodeStr;
   bool followActiveTranslation = false;
   bool scrollActiveTranslation = false, scrollActiveTranslationNode = false;
@@ -88,6 +89,7 @@ class DebugOverlay {
   void drawAppletHub();
   void drawOptionsWindow();
   void drawDubbingWindow();
+  void drawInfoWindow();
   void drawMenuBar();
   void drawInterfaceTools();
   void drawAudioTools();
@@ -112,7 +114,7 @@ public:
   void openOptions() { showOptionsWindow = true; }
   bool isVisible() const {
     return visible || showOptionsWindow || showTranslationWindow ||
-           showDubbingWindow;
+           showDubbingWindow || showInfoWindow;
   }
   bool pausesStory() const { return isVisible() && !settings.ignorePause; }
   void setVisible(bool value);
