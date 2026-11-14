@@ -11,7 +11,7 @@ A referência principal é a [especificação de arquitetura original](SPECIFICA
 - `DirectoryMount`: diretórios indexados sem distinguir caixa ASCII, com caminhos relativos e validação de symlinks.
 - `LayeredMount`: overlays de arquivos-fonte com prioridade, listagem mesclada e consulta separada a overrides lógicos. Um pacote substituído não mescla entradas automaticamente com o pacote original.
 - `ISO9660Mount`: reutiliza `DiscImage` para ler ranges, sem extrair integralmente ISOs.
-- `Filesystem::mount(source)`: diretórios locais e layouts ISO/BIN reconhecidos; outras fontes geram erro explícito.
+- `Filesystem::mount(source)`: diretórios locais, layouts ISO/BIN reconhecidos e arquivos TAR (USTAR/PAX/GNU-longname); outras fontes geram erro explícito.
 
 Saves, configurações e documentos **permanecem fora** do VFS de leitura. A escrita experimental do antigo `UnifiedFileSystem` foi retirada.
 

@@ -1,9 +1,11 @@
 #include <Kotonoha/Filesystem/Filesystem.hpp>
 #include <Kotonoha/Filesystem/Mounts/DirectoryMount.hpp>
 #include <Kotonoha/Filesystem/Mounts/ISO9660Mount.hpp>
+#include <Kotonoha/Filesystem/Mounts/TarMount.hpp>
 #include <Kotonoha/Filesystem/Sources/SDLFileSource.hpp>
 
 #include <algorithm>
+#include <cctype>
 #include <filesystem>
 #include <limits>
 
@@ -27,7 +29,15 @@ std::shared_ptr<Filesystem> Filesystem::mount(std::string source) {
   if (std::filesystem::is_directory(root)) {
     base = std::make_shared<DirectoryMount>(root);
   } else if (std::filesystem::is_regular_file(root)) {
-    base = std::make_shared<ISO9660Mount>(root);
+    auto ext = root.extension().string();
+    std::transform(ext.begin(), ext.end(), ext.begin(),
+                   [](unsigned char ch) {
+                     return static_cast<char>(std::tolower(ch));
+                   });
+    if (ext == ".tar")
+      base = std::make_shared<TarMount>(root);
+    else
+      base = std::make_shared<ISO9660Mount>(root);
   } else {
     throw FilesystemError(ErrorCode::UnsupportedMount,
                           "Not a mountable source: " + source);
