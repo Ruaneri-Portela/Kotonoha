@@ -19,6 +19,9 @@ It does **not** build the vcpkg ports as shared libraries. Use
 `-DKOTONOHA_SDL_FROM_VCPKG=ON`, `-DKOTONOHA_IMGUI_FROM_VCPKG=ON`,
 `-DKOTONOHA_WASM_DYNAMIC_LIBS=ON`.
 
+CMake 3.31+ is required so the linker may de-duplicate transitive static archives
+(SDL3, PlutoVG, etc.) using CMP0156, CMP0179 and REORDER_FREELY.
+
 The feature is experimental; successful Emscripten compile/link and
 Chromium/WebKit execution have **not** been demonstrated. Asyncify through
 side-module imports, SDL linkage, media and Fetch require integration tests.
