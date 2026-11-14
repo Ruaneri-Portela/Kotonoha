@@ -6,7 +6,7 @@
 
 #include <algorithm>
 #include <cmath>
-#include <fstream>
+#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <limits>
 #include <map>
 #include <memory>
@@ -237,7 +237,7 @@ void KtrfScript::dump(const std::string &path) const {
 
 KtrfScript KtrfScript::load(const std::string &path,
                             const std::vector<ScriptNode> &nativeBindings) {
-  std::ifstream input(path, std::ios::binary);
+  Kotonoha::Filesystem::InputFile input(path, std::ios::binary);
   if (!input)
     throw std::runtime_error("Cannot open KTRF: " + path);
   std::string source((std::istreambuf_iterator<char>(input)), {});
