@@ -40,7 +40,7 @@ def u32(data: bytes, pos: int) -> tuple[int, int]:
 
 
 def export_names(data: bytes) -> set[str]:
-    if data[:8] != b"\\0asm\\x01\\0\\0\\0":
+    if data[:8] != b"\0asm\x01\0\0\0":
         raise WasmValidationError("Not a WebAssembly version 1 module")
     at = 8
     while at < len(data):
@@ -108,12 +108,12 @@ def self_test() -> None:
         payload = bytearray(leb(len(names)))
         for name in sorted(names):
             raw = name.encode()
-            payload += leb(len(raw)) + raw + b"\\x00" + leb(0)
-        return b"\\0asm\\x01\\0\\0\\0" + b"\\x07" + leb(len(payload)) + payload
+            payload += leb(len(raw)) + raw + b"\x00" + leb(0)
+        return b"\0asm\x01\0\0\0" + b"\x07" + leb(len(payload)) + payload
 
     assert export_names(make_wasm(set(REQUIRED))) == set(REQUIRED)
     assert REQUIRED - export_names(make_wasm({"asyncify_start_unwind"}))
-    for invalid in (b"", b"not-wasm", b"\\0asm\\x01\\0\\0\\0\\x07\\x20"):
+    for invalid in (b"", b"not-wasm", b"\0asm\x01\0\0\0\x07\x20"):
         try:
             export_names(invalid)
         except WasmValidationError:
