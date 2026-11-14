@@ -1,0 +1,40 @@
+name: Filesystem V2 static audit
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/filesystem-v2-static.yml"
+      - "lib/**"
+      - "modules/**"
+      - "games/**"
+      - "buildsystems/**"
+      - "tools/audit_filesystem_v2.py"
+      - "tools/ValidateBuildMetadata.py"
+      - "tools/generate_manifest.py"
+  push:
+    branches:
+      - "feature/unified-filesystem-prototype-20261114"
+
+permissions:
+  contents: read
+
+jobs:
+  source-audit:
+    name: Source and build metadata audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout current branch
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Check script syntax
+        run: python3 -m py_compile tools/audit_filesystem_v2.py tools/ValidateBuildMetadata.py tools/generate_manifest.py
+      - name: Check CMake/Xcode metadata
+        run: python3 tools/ValidateBuildMetadata.py
+      - name: Audit filesystem migration
+        run: python3 tools/audit_filesystem_v2.py
+
+# This workflow does not compile C++, launch apps or test a browser.
+# Full CMake/CTest, Xcode, Android, and Emscripten validation is separate.
