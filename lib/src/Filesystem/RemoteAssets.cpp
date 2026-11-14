@@ -26,6 +26,12 @@ class SubtreeMount final : public IMount {
 public:
   SubtreeMount(std::shared_ptr<IMount> source, std::string prefix)
       : source_(std::move(source)), prefix_(normalizePath(prefix)) {}
+  bool isKnownRegularFile(std::string_view path) const override {
+    return source_->isKnownRegularFile(full(path));
+  }
+  bool isKnownDirectory(std::string_view path) const override {
+    return source_->isKnownDirectory(full(path));
+  }
   bool exists(std::string_view path) const override {
     return source_->exists(full(path));
   }
