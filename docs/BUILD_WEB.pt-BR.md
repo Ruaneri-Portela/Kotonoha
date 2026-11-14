@@ -219,3 +219,48 @@ Os leitores de BIN/ISO usam VFS + HTTP Range, sem copiar um disco inteiro
 ao MEMFS. A abertura de vídeo utiliza o FileHandle; reprodução efetiva de
 AVI depende do codec suportado ou da sidecar WebM. Não há como identificar
 arquivos ausentes do servidor só porque a engine foi inicializada.
+
+### School Days: GPK grande, HTTP 200 e erro de trailer
+
+Se aparecer `HTTP asset unavailable: event01.gpk (HTTP 200)` seguido
+de `GPK trailer could not be read`, o servidor provavelmente ignorou o
+header `Range`: devolveu o GPK inteiro em vez dos poucos bytes pedidos
+para validar seu trailer. **Não aumente o limite de cache** para tentar
+resolver isso: o host deve devolver `206 Partial Content` e
+`Content-Range` para `GET` com `Range`.
+
+Para desenvolvimento local, encerre o servidor anterior na porta 3000
+e use o servidor do repositório, que já implementa esses headers:
+
+```sh
+python3 tools/serve_web.py --root build-web/outputs --port 3000
+curl -I http://localhost:3000/SchoolDays/game-assets/Event01.GPK
+curl -i -H 'Range: bytes=0-15' \
+  http://localhost:3000/SchoolDays/game-assets/Event01.GPK \
+  -o /dev/null -D -
+```
+
+A resposta `HEAD` deve incluir `Accept-Ranges: bytes` e
+`Content-Length`. A resposta `GET Range` deve ter status `206`,
+`Content-Range: bytes 0-15/TAMANHO` e `Content-Length: 16`. Ajuste
+maiúsculas/minúsculas ao nome **real** do arquivo publicado.
+Servidores externos precisam oferecer o mesmo suporte; para outra origem,
+exponha `Content-Length`, `Content-Range` e `Accept-Ranges` via CORS.
+
+O provider Fetch agora usa um cache LRU limitado; trechos antigos podem
+ser removidos e recuperados novamente. Para arquivos grandes, o provider
+rejeita um `HEAD` que não anuncie `Accept-Ranges: bytes` em vez de
+tentar armazenar o pacote inteiro no navegador. Arquivos pequenos ainda
+admitem fallback de corpo completo. Um servidor que **afirme** suportar
+Range mas devolva HTTP 200 poderá, contudo, transferir o arquivo inteiro
+antes do callback Fetch: configure o servidor corretamente.
+
+Teste independente do servidor:
+
+```sh
+python3 -m unittest discover -s tools -p test_serve_web.py -v
+```
+
+Ele utiliza um GPK esparso de 320 MiB, requisitando somente os bytes finais;
+o teste Playwright também verifica `206` e leitura do trailer via C++.
+
