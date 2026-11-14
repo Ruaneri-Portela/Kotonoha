@@ -147,3 +147,26 @@ The Playwright suite also exercises manifest-free HTTP, local folder import,
 VFS hot-import refresh, saves, media, and browser touch delivery, when built
 with `-DKOTONOHA_WEB_SELFTEST=ON`. It does not certify each game's retail
 playthrough, and it has not been executed in this environment.
+
+### Failure: `_asyncify_start_unwind is not a function`
+
+This means the generated JavaScript tries to unwind through Asyncify but
+the matching WebAssembly module does not export the required functions.
+A broken release optimization/link, mixed JS/WASM build artifacts, or stale
+browser/CDN cache can cause this mismatch.
+
+The final WebAssembly link now uses **-O2** with Asyncify and the build
+executes `tools/check_wasm_asyncify.py` to check all four exports in the
+generated `.wasm` before deployment. Clear the old build directory,
+reconfigure, rebuild, deploy the `.js` and `.wasm` as a **matching pair**,
+and invalidate browser/CDN caches:
+
+```sh
+rm -rf build-web
+# Reconfigure using the Emscripten/vcpkg arguments above.
+cmake --build build-web --target SummerRadish
+python3 tools/check_wasm_asyncify.py build-web/outputs/SummerRadish/SummerRadish.js
+```
+
+This build-time export check does not replace actual Chromium tests. Replace
+the target name if building another game.
