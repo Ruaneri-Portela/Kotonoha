@@ -740,9 +740,7 @@
                     // Saves (/save) are independent of the read-only asset tree.
                     let busy = false;
                     let finished = false;
-                    let loadedLocalFiles = 0;
                     const localFiles = new Map();
-                    const maxDownload = 128 * 1024 * 1024;
                     const finish = function() {
                         if (finished) return;
                         finished = true;
@@ -782,118 +780,38 @@
                         if (!origin.pathname.endsWith("/")) origin.pathname += "/";
                         return origin;
                     };
-                    const fileSize = function(file) {
-                        return Number(file.size);
-                    };
-                    const loadServerAssets = async function(allowLocalWithoutManifest) {
-                        if (finished) return;
+                    // Direct Fetch is the primary HTTP source. Do not trust a
+                    // generated manifest to enumerate a user's retail files:
+                    // the manifest can be empty or stale even when files are
+                    // served at the requested URLs. Games must discover their
+                    // known filenames through VFS HEAD + Range.
+                    const loadServerAssets = function() {
+                        if (finished || busy) return;
                         busy = true;
                         folderButton.disabled = true;
                         serverButton.disabled = true;
-                        setStatus("Verificando game-assets local e manifesto HTTP(S)...");
+                        setStatus("Configurando Fetch HTTP(S) sob demanda...");
                         try {
                             const origin = httpRoot();
-                            const response = await fetch(new URL("manifest.json", origin), {
-                                credentials: origin.origin === location.origin ? "same-origin" : "omit",
-                                cache: "no-store"
-                            });
-                            if (!response.ok)
-                                throw new Error("HTTP " + response.status + " ao carregar manifesto");
-                            const manifest = await response.json();
-                            if (!manifest || !Array.isArray(manifest.entries))
-                                throw new Error("Manifesto HTTP não contém entries com tamanho");
-                            const seen = new Set();
-                            const pending = [];
-                            for (const entry of manifest.entries) {
-                                if (!entry || !validId(entry.path) ||
-                                    !Number.isSafeInteger(entry.size) ||
-                                    entry.size < 0)
-                                    throw new Error("Entrada inválida no manifesto remoto");
-                                const key = entry.path.toLowerCase();
-                                if (seen.has(key))
-                                    throw new Error("Nome duplicado no manifesto: " + entry.path);
-                                seen.add(key);
-                                const local = localFiles.get(key);
-                                if (!local || fileSize(local) !== entry.size)
-                                    pending.push({path: entry.path, size: entry.size});
-                            }
-                            if (manifest.entries.length === 0) {
-                                if (loadedLocalFiles > 0 && allowLocalWithoutManifest) {
-                                    setStatus("Pasta local selecionada. Iniciando engine...");
-                                    finish();
-                                    return;
-                                }
-                                throw new Error("game-assets não tem arquivos no manifesto HTTP");
-                            }
-                            if (pending.length === 0) {
-                                setStatus("Todos os assets locais conferem com o manifesto.");
-                                if (barEl) barEl.style.width = "100%";
-                                finish();
-                                return;
-                            }
-                            const needed = pending.reduce((sum, entry) =>
-                                sum + entry.size, 0);
-                            if (!Number.isSafeInteger(needed) || needed > maxDownload)
-                                throw new Error("Assets pendentes excedem 128 MiB; selecione " +
-                                                "a pasta do jogo (streaming HTTP grande exige Worker)");
                             const started = Module.ccall(
-                                "KotonohaConfigureRemoteAssetManifest", "number",
-                                ["string", "string", "number"],
-                                [origin.href, JSON.stringify({entries: pending}), maxDownload]);
+                                "KotonohaConfigureRemoteAssetUrl", "number",
+                                ["string"], [origin.href]);
                             if (started !== 1)
-                                throw new Error("Não foi possível montar o provider Fetch");
-                            while (!finished) {
-                                const total = Module.ccall("KotonohaAssetFetchTotal", "number", [], []);
-                                const loaded = Module.ccall("KotonohaAssetFetchLoaded", "number", [], []);
-                                const done = Module.ccall("KotonohaAssetFetchDone", "number", [], []);
-                                const failed = Module.ccall("KotonohaAssetFetchFailed", "number", [], []);
-                                const ready = Module.ccall("KotonohaAssetFetchAllReady", "number", [], []);
-                                if (total > 0 && barEl)
-                                    barEl.style.width = Math.round(loaded / total * 100) + "%";
-                                setStatus("Fetch HTTP(S): " + loaded + "/" + total +
-                                          " recursos baixados");
-                                if (failed)
-                                    throw new Error("Falha HTTP/CORS/Range durante o download");
-                                if (done) {
-                                    if (!ready)
-                                        throw new Error("Assets remotos não estão prontos");
-                                    setStatus("Assets locais/remotos montados. Iniciando engine...");
-                                    finish();
-                                    return;
-                                }
-                                await pause(80);
-                            }
+                                throw new Error("Provider Fetch não pôde ser configurado");
+                            window.KotonohaFetchAsset = function(path) {
+                                return Module.ccall("KotonohaRequestRemoteAsset",
+                                    "number", ["string"], [path],
+                                    { async: true });
+                            };
+                            setStatus("Fetch HTTP(S) pronto; os jogos consultam arquivos sob demanda.");
+                            finish();
                         } catch (error) {
-                            console.warn("[Kotonoha] Manifesto indisponível; tentando Fetch direto:", error);
-                            try {
-                                const origin = httpRoot();
-                                // No manifest: register an HTTP source without listing
-                                // directories or staging remote files in MEMFS.
-                                const started = Module.ccall(
-                                    "KotonohaConfigureRemoteAssetUrl", "number",
-                                    ["string"], [origin.href]);
-                                if (started !== 1)
-                                    throw new Error("Provider HTTP direto não foi configurado");
-                                window.KotonohaFetchAsset = function(path) {
-                                    return Module.ccall("KotonohaRequestRemoteAsset",
-                                        "number", ["string"], [path],
-                                        { async: true });
-                                };
-                                setStatus("Fetch direto configurado, sem manifesto. Iniciando engine...");
-                                finish();
-                                return;
-                            } catch (directError) {
-                                console.error("[Kotonoha] Falha no Fetch direto:", directError);
-                                if (loadedLocalFiles && allowLocalWithoutManifest) {
-                                    setStatus("HTTP(S) indisponível. Usando pasta local.");
-                                    finish();
-                                } else {
-                                    unlock("Não foi possível iniciar o provider Fetch: " +
-                                        String(directError.message || directError));
-                                }
-                            }
+                            console.error("[Kotonoha] Fetch HTTP(S):", error);
+                            unlock("Falha ao configurar Fetch: " +
+                                String(error.message || error));
                         }
                     };
+
                     folderButton.disabled = false;
                     serverButton.disabled = false;
                     folderButton.addEventListener("click", function() {
@@ -935,7 +853,6 @@
                                 localFiles.set(key, file);
                                 kotonohaLocalAssets.set(relative, file);
                                 loaded++;
-                                loadedLocalFiles++;
                                 if (barEl) barEl.style.width =
                                     Math.round(loaded / files.length * 100) + "%";
                                 setStatus("Carregando pasta (" + loaded + "/" + files.length + ")");
@@ -958,7 +875,7 @@
                         }
                     });
                     serverButton.addEventListener("click", function() {
-                        if (!busy) loadServerAssets(false);
+                        if (!busy) loadServerAssets();
                     });
                     // Explicit choice is mandatory for every web port.
                     // Never probe HTTP or release the startup run dependency
