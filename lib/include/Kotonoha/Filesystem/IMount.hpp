@@ -38,6 +38,9 @@ public:
   virtual bool isKnownDirectory(std::string_view path) const {
     return exists(path) && stat(path).type == FileType::Directory;
   }
+  // An unindexed HTTP backend cannot validate size/type against local
+  // files; prefer a user-supplied entry rather than probing the server.
+  virtual bool preferLocalWhenPresent() const noexcept { return false; }
   virtual bool exists(std::string_view path) const = 0;
   virtual FileInfo stat(std::string_view path) const = 0;
   virtual std::vector<FileInfo> list(std::string_view directory) const = 0;
