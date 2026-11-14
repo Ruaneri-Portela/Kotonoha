@@ -628,6 +628,12 @@ void player() {
           "Idle player");
   rejects([&] { media.openSoundtrack(assets, "track.wav"); },
           "Soundtrack needs media");
+  // Invalid FFmpeg media is a stopped player, not an exception that can
+  // terminate a game's event/render loop.
+  assets.files["corrupt.mkv"] = {0x13, 0x37, 0x01, 0x02, 0x03};
+  media.open(assets, "corrupt.mkv", false, "movie");
+  require(!media.isOpen() && media.finished(),
+          "Corrupt video stops without aborting the game");
   media.open(assets, "still", false, "movie");
   media.openSoundtrack(assets, "track.wav");
   require(media.isOpen() && !media.finished(), "Media with soundtrack");
