@@ -28,8 +28,15 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             build-essential ninja-build cmake pkg-config python3 ffmpeg \
-            autoconf automake libtool nasm yasm bison flex zip unzip \
+            autoconf autoconf-archive automake libtool nasm yasm bison flex zip unzip \
             libssl-dev
+
+      - name: Verify autotools required by vcpkg gperf
+        run: |
+          for program in autoconf automake aclocal libtoolize; do
+            command -v "$program" >/dev/null || { echo "::error::Missing $program"; exit 1; }
+          done
+          dpkg-query -W autoconf-archive
 
       - name: Setup Emscripten
         uses: emscripten-core/setup-emsdk@v16
