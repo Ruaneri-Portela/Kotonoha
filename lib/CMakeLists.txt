@@ -309,7 +309,10 @@ if (WIN32 AND NOT ANDROID)
     target_link_libraries(KotonohaEngine PRIVATE user32 ws2_32)
 endif ()
 
-if (ANDROID)
+if (EMSCRIPTEN)
+    # Emscripten provides WebGL through its GLES interface, not OpenGL::GL.
+    target_link_libraries(KotonohaEngine PRIVATE GLESv2)
+elseif (ANDROID)
     target_link_libraries(KotonohaEngine PRIVATE GLESv2)
 elseif (APPLE AND CMAKE_SYSTEM_NAME MATCHES "iOS|tvOS")
     find_library(OPENGLES_FRAMEWORK OpenGLES REQUIRED)
