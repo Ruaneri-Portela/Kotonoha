@@ -43,3 +43,15 @@ user-data root. Keep the local test checking the implementation's actual
 namespace unless the upstream test and code are reconciled together. The
 Windows School Days `settings.json` exception belongs in
 `games/school-days/src/main.cpp`, not in the shared storage API.
+
+### Additional compatibility finding from compiling other ports
+
+Compiling the ten other Windows ports also revealed a separate removed
+contract in `lib/include/Kotonoha/core/Runtime.hpp`: Kirikiri,
+Luca System and PMAIL still override `dialogueText() const` and
+`dialogueSpeaker() const`, while the synchronized base class no longer
+declared them (MSVC C3668). This is outside the six files above. Commit
+`dcc90ac` restores both virtual methods with the upstream's empty-string
+defaults, retaining the School Days-specific additions. It is an
+**ADDITIVE** fix for existing runtimes, with no changed default behavior.
+The Windows multi-port compile log contains the first failure and retest.

@@ -42,3 +42,16 @@ Desktop usa namespace por aplicativo, mas o teste upstream
 Manter o teste local coerente com o namespace da implementação enquanto
 o upstream não conciliar ambos. A exceção Windows L4 de `settings.json`
 pertence a `games/school-days/src/main.cpp`, não à API de storage global.
+
+### Compatibilidade adicional encontrada ao compilar outros ports
+
+A compilação dos dez outros ports Windows mostrou mais um contrato
+removido em `lib/include/Kotonoha/core/Runtime.hpp`: Kirikiri,
+Luca System e PMAIL ainda sobrescrevem `dialogueText() const` e
+`dialogueSpeaker() const`, mas a classe-base sincronizada já não os
+declarava (MSVC C3668). Esse item está fora dos seis arquivos acima.
+O commit `dcc90ac` restaura ambos os virtuais com os retornos vazios
+do upstream, preservando as extensões específicas do School Days.
+É correção **ADITIVA**, sem alterar o comportamento padrão.
+Os logs da compilação Windows dos outros ports registram a falha inicial
+e o reteste.
