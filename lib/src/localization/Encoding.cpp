@@ -280,6 +280,41 @@ std::string ConvertEncoding(std::string_view text, const char *from,
 #if defined(__ANDROID__)
   return ConvertViaJNI(text, from, to);
 #else
+  if (!from || !to || !*from || !*to)
+    throw std::invalid_argument("Text encoding must not be empty");
+#if defined(_WIN32)
+  // SDL's built-in iconv does not recognize all Windows codepage aliases.
+  // This is the same Win32 CP932 converter already used by this module's
+  // historical School Days script path.
+  if (std::string_view(to) == "UTF-8" &&
+      (std::string_view(from) == "CP932" ||
+       std::string_view(from) == "WINDOWS-31J" ||
+       std::string_view(from) == "SJIS"))
+    return WindowsCp932ToUtf8(text);
+  if (std::string_view(to) == "UTF-8" &&
+      (std::string_view(from) == "CP1252" ||
+       std::string_view(from) == "WINDOWS-1252")) {
+    if (text.empty()) return {};
+    const int count = MultiByteToWideChar(
+        1252, 0, text.data(), static_cast<int>(text.size()), nullptr, 0);
+    if (count <= 0)
+      throw std::runtime_error("Cannot decode CP1252 text");
+    std::wstring wide(static_cast<size_t>(count), L'\0');
+    if (MultiByteToWideChar(1252, 0, text.data(),
+                            static_cast<int>(text.size()), wide.data(),
+                            count) != count)
+      throw std::runtime_error("Cannot decode CP1252 text");
+    const int length = WideCharToMultiByte(CP_UTF8, 0, wide.data(), count,
+                                           nullptr, 0, nullptr, nullptr);
+    if (length <= 0)
+      throw std::runtime_error("Cannot convert CP1252 to UTF-8");
+    std::string utf8(static_cast<size_t>(length), '\0');
+    if (WideCharToMultiByte(CP_UTF8, 0, wide.data(), count, utf8.data(),
+                            length, nullptr, nullptr) != length)
+      throw std::runtime_error("Cannot convert CP1252 to UTF-8");
+    return utf8;
+  }
+#endif
   if (std::string_view(from) == "LATIN1")
     from = "ISO-8859-1";
   if (std::string_view(to) == "LATIN1")
