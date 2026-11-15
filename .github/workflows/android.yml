@@ -66,6 +66,25 @@ jobs:
           key: android-arm64-vcpkg-${{ hashFiles('vcpkg.json', 'vcpkg-overlays/ports/**') }}
           restore-keys: android-arm64-vcpkg-
 
+      - name: Verify Android SDL, SDL_ttf and ImGui submodules
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          root = Path("lib/submodules")
+          sources = [
+              root / "SDL/CMakeLists.txt",
+              root / "SDL_ttf/CMakeLists.txt",
+              root / "imgui/imgui.cpp",
+              root / "imgui/backends/imgui_impl_sdl3.cpp",
+              root / "imgui/backends/imgui_impl_sdlrenderer3.cpp",
+              root / "SDL/android-project/app/src/main/java/org/libsdl/app/SDLActivity.java",
+              root / "SDL/android-project/app/src/main/java/org/libsdl/app/SDLSurface.java",
+          ]
+          for source in sources:
+              assert source.is_file(), f"Missing Android SDL/submodule source: {source}"
+          print("Verified native submodules and SDL Android Java integration")
+          PY
+
       - name: Validate shared build metadata
         run: |
           python3 tools/ValidateBuildMetadata.py
@@ -83,6 +102,13 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
           from zipfile import ZipFile
+          import re
+          caches = list(Path("buildsystems/android/app/.cxx").rglob("CMakeCache.txt"))
+          assert caches, "No Android CMake cache generated"
+          for cache in caches:
+              settings = cache.read_text(encoding="utf-8")
+              for option in ("KOTONOHA_SDL_FROM_VCPKG", "KOTONOHA_IMGUI_FROM_VCPKG"):
+                  assert re.search(rf"^{option}:[^=]+=(OFF|FALSE|0)$", settings, re.M), (cache, option)
           for flavor in ("example", "schoolDays"):
               matches = list(Path("buildsystems/android/app/build/outputs/apk").rglob(f"*{flavor.lower()}*debug*.apk"))
               if not matches:
@@ -92,7 +118,10 @@ jobs:
                   if flavor.lower() not in archive.name.lower():
                       continue
                   with ZipFile(archive) as apk:
-                      assert any(n.startswith("lib/arm64-v8a/") for n in apk.namelist()), f"No arm64 library: {archive}"
+                      libraries = set(apk.namelist())
+                      for name in ("libSDL3.so", "libSDL3_ttf.so", "libimgui.so"):
+                          expected = f"lib/arm64-v8a/{name}"
+                          assert expected in libraries, f"Missing submodule-built {expected} in {archive}"
           print("Validated Android ARM64 APKs")
           PY
 

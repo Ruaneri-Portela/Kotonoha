@@ -56,6 +56,9 @@ set(SDLTTF_STRICT ON CACHE BOOL "Require enabled SDL_ttf dependencies")
 set(SDLTTF_PLUTOSVG ON CACHE BOOL "Optional SVG emoji support")
 
 option(KOTONOHA_SDL_FROM_VCPKG "Import SDL3/SDL3_ttf from vcpkg instead of building submodules" OFF)
+if(ANDROID AND KOTONOHA_SDL_FROM_VCPKG)
+    message(FATAL_ERROR "Android must build SDL3 and SDL3_ttf from the SDL submodules (including SDL Java integration); set KOTONOHA_SDL_FROM_VCPKG=OFF")
+endif()
 set(KOTONOHA_SDL_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/submodules/SDL"
         CACHE PATH "SDL3 sources (Android uses a pinned remote Git checkout)")
 
@@ -197,6 +200,9 @@ endif ()
 
 option(KOTONOHA_IMGUI_FROM_VCPKG
         "Import ImGui with SDL3/SDL3 Renderer backends from vcpkg" OFF)
+if(ANDROID AND KOTONOHA_IMGUI_FROM_VCPKG)
+    message(FATAL_ERROR "Android must build ImGui and its SDL3 backends from the imgui submodule; set KOTONOHA_IMGUI_FROM_VCPKG=OFF")
+endif()
 
 if(KOTONOHA_IMGUI_FROM_VCPKG)
     if(NOT VCPKG_INSTALLED_DIR)
