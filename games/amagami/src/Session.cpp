@@ -1,10 +1,10 @@
 #include <Amagami/Session.hpp>
-#include <Kotonoha/core/FileSystem.hpp>
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <ctime>
-#include <fstream>
+#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <iomanip>
 #include <set>
 #include <sstream>
@@ -1695,7 +1695,7 @@ void Session::save(const std::string &path) const {
   Kotonoha::writeTextFileAtomically(path, out.str());
 }
 void Session::load(const std::string &path) {
-  std::ifstream in(path, std::ios::binary);
+  Kotonoha::Filesystem::InputFile in(path, std::ios::binary);
   std::string magic, name;
   unsigned version = 0;
   size_t count = 0;

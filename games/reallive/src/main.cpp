@@ -1,13 +1,13 @@
-#define SDL_MAIN_USE_CALLBACKS 1
+#include <Kotonoha/core/SDLCallbackApp.hpp>
 #include "RealLiveRuntime.hpp"
 #include <Kotonoha/core/CommandLine.hpp>
 #include <Kotonoha/core/DiscImage.hpp>
 #include <Kotonoha/core/Engine.hpp>
-#include <Kotonoha/core/FileSystem.hpp>
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/GameLauncher.hpp>
+#include <Kotonoha/Filesystem/Filesystem.hpp>
 #include <RealLive/RealLiveAssets.hpp>
 #include <SDL3/SDL.h>
-#include <SDL3/SDL_main.h>
 #include <cstdio>
 #include <filesystem>
 #include <memory>
@@ -41,33 +41,32 @@ struct App {
 };
 bool validate(const std::string &path, std::string &info) {
   try {
-    if (Kotonoha::isISOImage(path)) {
-      Kotonoha::DiscImage disc(path);
-      if (!disc.find("Seen.txt") || !disc.find("Gameexe.ini"))
-        throw std::runtime_error(
-            "REALLIVE ISO is missing Seen.txt or Gameexe.ini");
-      info = "Game data found (direct ISO access)";
-      return true;
-    }
-    std::set<std::string> files;
-    for (const auto &entry : std::filesystem::directory_iterator(path))
-      if (entry.is_regular_file())
-        files.insert(RealLive::canonical(entry.path().filename().string()));
-    if (!files.count("SEEN.TXT") || !files.count("GAMEEXE.INI")) {
-      info = "Seen.txt or Gameexe.ini is missing";
+    auto source = Kotonoha::Filesystem::Filesystem::mount(path);
+    if (!source->exists("Seen.txt") || !source->exists("Gameexe.ini")) {
+      info = "REALLIVE source is missing Seen.txt or Gameexe.ini";
       return false;
     }
-    info = "Game data found";
+    info = "REALLIVE virtual source validated";
     return true;
   } catch (const std::exception &error) {
     info = error.what();
     return false;
   }
 }
+
 } // namespace
-SDL_AppResult SDL_AppInit(void **state, int argc, char **argv) {
+// The port owns game-specific initialization and transitions. The shared
+// SDLCallbackApp.hpp defines the four SDL callback entrypoints below.
+struct KotonohaPortCallbacks final {
+  static SDL_AppResult init(void **state, int argc, char **argv);
+  static SDL_AppResult event(void *state, SDL_Event *event);
+  static SDL_AppResult iterate(void *state);
+  static void quit(void *state, SDL_AppResult result);
+};
+
+SDL_AppResult KotonohaPortCallbacks::init(void **state, int argc, char **argv) {
   *state = nullptr;
-  SDL_SetAppMetadata("REALLIVE", "0.1.0", "me.hirameki.kotonoha.reallive");
+  KOTONOHA_SET_APP_METADATA("REALLIVE", "me.hirameki.kotonoha.reallive");
   try {
     auto app = std::make_unique<App>();
     auto &options = app->options;
@@ -118,7 +117,7 @@ SDL_AppResult SDL_AppInit(void **state, int argc, char **argv) {
     return SDL_APP_FAILURE;
   }
 }
-SDL_AppResult SDL_AppEvent(void *state, SDL_Event *event) {
+SDL_AppResult KotonohaPortCallbacks::event(void *state, SDL_Event *event) {
   try {
     auto &app = *static_cast<App *>(state);
     return app.launcher ? app.launcher->event(*event)
@@ -128,7 +127,7 @@ SDL_AppResult SDL_AppEvent(void *state, SDL_Event *event) {
     return SDL_APP_FAILURE;
   }
 }
-SDL_AppResult SDL_AppIterate(void *state) {
+SDL_AppResult KotonohaPortCallbacks::iterate(void *state) {
   try {
     auto &app = *static_cast<App *>(state);
     if (app.launcher) {
@@ -149,6 +148,8 @@ SDL_AppResult SDL_AppIterate(void *state) {
     return SDL_APP_FAILURE;
   }
 }
-void SDL_AppQuit(void *state, SDL_AppResult) {
+void KotonohaPortCallbacks::quit(void *state, SDL_AppResult) {
   delete static_cast<App *>(state);
 }
+
+KOTONOHA_SDL_CALLBACK_APP(KotonohaPortCallbacks)

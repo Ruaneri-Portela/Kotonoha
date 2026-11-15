@@ -1,15 +1,23 @@
 #pragma once
 // CMP asset provider for the Summer Radish Vacation!! discs.
 #include <Kotonoha/core/AssetProvider.hpp>
+#include <Kotonoha/Filesystem/FileHandle.hpp>
 #include <SummerRadish/Pack.hpp>
 #include <memory>
 namespace Kotonoha::Providers {
 class SummerAssets final : public Kotonoha::AssetProvider {
   std::map<std::string, std::unique_ptr<SummerRadish::Pack>> packs;
   std::filesystem::path discDirectory;
+  std::shared_ptr<Kotonoha::Filesystem::Filesystem> source_;
 
 public:
-  explicit SummerAssets(std::filesystem::path root);
+  explicit SummerAssets(std::filesystem::path root,
+                        std::filesystem::path overlay = {});
+  explicit SummerAssets(
+      std::shared_ptr<Kotonoha::Filesystem::Filesystem> mounted);
+  std::shared_ptr<Kotonoha::Filesystem::Filesystem> source() const {
+    return source_;
+  }
   std::string name() const override { return "Summer Radish CMP"; }
   bool containsAsset(const std::string &) const override;
   SummerRadish::Bytes readAsset(const std::string &) const override;
@@ -22,5 +30,7 @@ public:
   SummerRadish::Image picture(const std::string &) const;
   // Native movie files are loose on DISC1 rather than inside a CMP archive.
   std::filesystem::path moviePath(const std::string &filename) const;
+  std::unique_ptr<Kotonoha::Filesystem::FileHandle>
+  movieHandle(const std::string &filename) const;
 };
 } // namespace Kotonoha::Providers

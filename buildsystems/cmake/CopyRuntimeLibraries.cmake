@@ -12,15 +12,91 @@ if(NOT DEFINED SEARCH_DIRS)
     set(SEARCH_DIRS "")
 endif()
 
-message(STATUS "[Kotonoha] Debug: EXECUTABLE=${EXECUTABLE}")
-message(STATUS "[Kotonoha] Debug: LIBRARY_DIR=${LIBRARY_DIR}")
-message(STATUS "[Kotonoha] Debug: SEARCH_DIRS=${SEARCH_DIRS}")
+message(VERBOSE "[Kotonoha] Runtime executable: ${EXECUTABLE}")
+message(VERBOSE "[Kotonoha] Runtime library directory: ${LIBRARY_DIR}")
+message(VERBOSE "[Kotonoha] Runtime library search paths: ${SEARCH_DIRS}")
 
 if(NOT EXISTS "${EXECUTABLE}")
     message(FATAL_ERROR "Executable is missing: ${EXECUTABLE}")
 endif()
 
 file(MAKE_DIRECTORY "${LIBRARY_DIR}")
+
+# On Linux/Windows, do not scoop up unrelated host system installations:
+# only libraries from this CMake build tree or the configured vcpkg root are
+# deployable. macOS is allowed to use Homebrew as well.
+function(kotonoha_library_is_deployable candidate out)
+    if(APPLE)
+        set(${out} TRUE PARENT_SCOPE)
+        return()
+    endif()
+    file(TO_CMAKE_PATH "${candidate}" _candidate)
+    string(TOLOWER "${_candidate}" _candidate)
+    set(_accepted FALSE)
+    foreach(_root IN ITEMS "${KOTONOHA_BUILD_LIBRARY_ROOT}"
+                           "${KOTONOHA_VCPKG_ROOT}")
+        if(NOT _root)
+            continue()
+        endif()
+        file(TO_CMAKE_PATH "${_root}" _root_path)
+        string(TOLOWER "${_root_path}" _root_path)
+        string(FIND "${_candidate}/" "${_root_path}/" _position)
+        if(_position EQUAL 0)
+            set(_accepted TRUE)
+            break()
+        endif()
+    endforeach()
+    set(${out} ${_accepted} PARENT_SCOPE)
+endfunction()
+
+# Packaged shared targets must not depend on a special vcpkg configuration:
+# SDL3, SDL_ttf, ImGui and KotonohaEngine are built from CMake source too.
+# Copy direct built-target binaries independently of dependency discovery;
+# a linked library can otherwise be skipped due to host search/RPATH rules.
+foreach(_built IN LISTS CMAKE_SHARED_LIBRARIES)
+    if(NOT EXISTS "${_built}")
+        message(FATAL_ERROR
+            "[Kotonoha] CMake shared target is missing: ${_built}")
+    endif()
+    get_filename_component(_filename "${_built}" NAME)
+    if(WIN32 AND _filename MATCHES "\\.dll$")
+        file(COPY "${_built}" DESTINATION "${LIBRARY_DIR}")
+    elseif(APPLE AND (_filename MATCHES "\\.dylib$" OR
+                       _filename MATCHES "\\.so$"))
+        file(COPY "${_built}" DESTINATION "${LIBRARY_DIR}"
+            FOLLOW_SYMLINK_CHAIN)
+    elseif(UNIX AND (_filename MATCHES "\\.so($|\\.)" OR
+                      _filename MATCHES "\\.dylib$"))
+        file(COPY "${_built}" DESTINATION "${LIBRARY_DIR}"
+            FOLLOW_SYMLINK_CHAIN)
+    endif()
+endforeach()
+
+# On Windows, DLLs belong next to the executable rather than in libs/.
+# This works with ordinary CMake builds and with vcpkg/MinGW/Ninja; it
+# also avoids TARGET_RUNTIME_DLLS (introduced only in CMake 3.21).
+if(WIN32)
+    file(GET_RUNTIME_DEPENDENCIES
+        EXECUTABLES "${EXECUTABLE}"
+        DIRECTORIES ${SEARCH_DIRS}
+        PRE_EXCLUDE_REGEXES "^[Aa][Pp][Ii]-[Mm][Ss]-[Ww][Ii][Nn]-.*"
+                            "^[Ee][Xx][Tt]-[Mm][Ss]-[Ww][Ii][Nn]-.*"
+        POST_EXCLUDE_REGEXES ".*[/\\\\][Ww][Ii][Nn][Dd][Oo][Ww][Ss][/\\\\].*"
+        RESOLVED_DEPENDENCIES_VAR _windows_dlls
+        UNRESOLVED_DEPENDENCIES_VAR _windows_missing)
+    if(_windows_missing)
+        message(WARNING
+            "[Kotonoha] Unresolved Windows runtime DLLs: ${_windows_missing}")
+    endif()
+    foreach(_dll IN LISTS _windows_dlls)
+        kotonoha_library_is_deployable("${_dll}" _deployable)
+        if(_deployable AND EXISTS "${_dll}" AND
+           _dll MATCHES "\\.[Dd][Ll][Ll]$")
+            file(COPY "${_dll}" DESTINATION "${LIBRARY_DIR}")
+        endif()
+    endforeach()
+    return()
+endif()
 
 set(pre_exclude
         "^/lib/"
@@ -76,18 +152,54 @@ foreach(unresolved_lib IN LISTS unresolved)
 endforeach()
 list(APPEND resolved ${newly_resolved})
 
-message(STATUS "[Kotonoha] Debug: Resolved dependencies: ${resolved}")
+message(VERBOSE "[Kotonoha] Resolved runtime libraries: ${resolved}")
+
+# An explicitly built shared library may not be part of a given game's
+# direct import table. Include it in the relocation pass regardless.
+list(APPEND resolved ${CMAKE_SHARED_LIBRARIES})
+list(REMOVE_DUPLICATES resolved)
 
 foreach(library IN LISTS resolved)
+    kotonoha_library_is_deployable("${library}" _deployable)
+    if(NOT _deployable)
+        message(VERBOSE "[Kotonoha] Host library left external: ${library}")
+        continue()
+    endif()
     if(EXISTS "${library}")
-        message(STATUS "[Kotonoha] Debug: Copying ${library} to ${LIBRARY_DIR}")
+        message(VERBOSE "[Kotonoha] Copying ${library} to ${LIBRARY_DIR}")
         file(COPY "${library}" DESTINATION "${LIBRARY_DIR}" FOLLOW_SYMLINK_CHAIN)
     else()
-        message(WARNING "[Kotonoha] Debug: Resolved library ${library} does not exist on disk")
+        message(WARNING "[Kotonoha] Resolved library ${library} does not exist on disk")
     endif()
 endforeach()
 
 if(NOT APPLE)
+    # Set local RPATH on copied ELF libraries when patchelf exists. Without
+    # it, only the executable may have $ORIGIN/libs, which does not cover
+    # indirect dependencies when the ELF loader uses RUNPATH semantics.
+    find_program(_kotonoha_patchelf patchelf)
+    if(_kotonoha_patchelf)
+        file(GLOB _elf_libraries LIST_DIRECTORIES FALSE
+            "${LIBRARY_DIR}/*.so" "${LIBRARY_DIR}/*.so.*")
+        foreach(_lib IN LISTS _elf_libraries)
+            if(IS_SYMLINK "${_lib}")
+                continue()
+            endif()
+            execute_process(COMMAND "${_kotonoha_patchelf}"
+                --set-rpath "$ORIGIN" "${_lib}"
+                RESULT_VARIABLE _patchelf_result
+                ERROR_VARIABLE _patchelf_error)
+            if(NOT _patchelf_result EQUAL 0)
+                message(FATAL_ERROR
+                    "Cannot set origin-relative RPATH on ${_lib}: "
+                    "${_patchelf_error}")
+            endif()
+        endforeach()
+    else()
+        message(STATUS
+            "[Kotonoha] patchelf unavailable; copied ELF library RPATHs "
+            "are not rewritten (transitive dependencies may require it)")
+    endif()
     return()
 endif()
 

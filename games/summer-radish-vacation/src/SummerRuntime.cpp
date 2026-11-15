@@ -1,3 +1,4 @@
+#include <Kotonoha/core/SDL.hpp>
 #include "SummerRuntime.hpp"
 #include "SummerBacklog.hpp"
 #include <Kotonoha/components/ChoiceQuestionScene.hpp>
@@ -9,7 +10,7 @@
 #include <Kotonoha/components/VNSaveMenu.hpp>
 #include <Kotonoha/components/VNTextBox.hpp>
 #include <Kotonoha/core/Engine.hpp>
-#include <Kotonoha/core/FileSystem.hpp>
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/UI.hpp>
 #include <Kotonoha/events/BackAction.hpp>
 #include <Kotonoha/events/BacklogEvents.hpp>
@@ -22,8 +23,9 @@
 #include <SummerRadish/Script.hpp>
 #include <SummerRadish/Transition.hpp>
 #include <algorithm>
+#include <charconv>
 #include <cstring>
-#include <fstream>
+#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <iomanip>
 #include <set>
 #include <sstream>
@@ -592,7 +594,7 @@ struct SummerRuntime::Impl {
     return Kotonoha::saveDirectory();
   }
   void loadSystem() {
-    std::ifstream input(saveDirectory() / "system.dat", std::ios::binary);
+    Kotonoha::Filesystem::InputFile input(saveDirectory() / "system.dat", std::ios::binary);
     if (!input)
       return;
     std::string version;
@@ -607,7 +609,21 @@ struct SummerRuntime::Impl {
       if (!(input >> std::quoted(key) >> type >> std::quoted(value)) ||
           key.empty() || key[0] != '$' || (type != 0 && type != 1))
         throw std::runtime_error("Invalid Summer persistent variable");
-      variables[key] = type ? Value(value) : Value(int64_t(std::stoll(value)));
+      if (type) {
+        variables[key] = value;
+      } else {
+        int64_t number = 0;
+        const auto result = std::from_chars(value.data(),
+                                            value.data() + value.size(), number);
+        if (result.ec != std::errc{} ||
+            result.ptr != value.data() + value.size()) {
+          SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                      "[SummerRadish] Ignoring invalid saved number for %s",
+                      key.c_str());
+          continue;
+        }
+        variables[key] = number;
+      }
     }
     input >> std::ws;
     if (!input.eof())
@@ -630,12 +646,12 @@ struct SummerRuntime::Impl {
              << std::quoted(string(value)) << '\n';
     const auto path = saveDirectory() / "system.dat";
     std::filesystem::create_directories(path.parent_path());
-    std::ifstream existing(path, std::ios::binary);
+    Kotonoha::Filesystem::InputFile existing(path, std::ios::binary);
     std::string previous((std::istreambuf_iterator<char>(existing)), {});
     if (previous == data.str())
       return;
     const auto temporary = path.string() + ".tmp";
-    std::ofstream output(temporary, std::ios::binary | std::ios::trunc);
+    Kotonoha::Filesystem::OutputFile output(temporary, std::ios::binary | std::ios::trunc);
     output << data.str();
     output.close();
     if (!output)
@@ -673,13 +689,14 @@ struct SummerRuntime::Impl {
                                  int(decoded.data.size()), &target, &converted,
                                  &size))
       throw std::runtime_error(SDL_GetError());
+    Kotonoha::SDLMemoryPtr<Uint8> convertedOwner(converted);
     PcmPlayer::Clip clip;
     clip.channels = target.channels;
     clip.rate = target.freq;
     clip.loop = loop;
     clip.samples.resize(size / 2);
     std::memcpy(clip.samples.data(), converted, size);
-    SDL_free(converted);
+
     if (loop && channel == "BGM") {
       const auto introId = std::string("SOUND/BGM/INTORO/") +
                            id.substr(id.find_last_of('/') + 1);
@@ -691,9 +708,10 @@ struct SummerRuntime::Impl {
                                      int(intro.data.size()), &target, &pcm,
                                      &bytes))
           throw std::runtime_error(SDL_GetError());
+        Kotonoha::SDLMemoryPtr<Uint8> introOwner(pcm);
         std::vector<int16_t> combined(bytes / 2);
         std::memcpy(combined.data(), pcm, bytes);
-        SDL_free(pcm);
+
         clip.loopStart = combined.size() / clip.channels;
         combined.insert(combined.end(), clip.samples.begin(),
                         clip.samples.end());
@@ -872,7 +890,7 @@ struct SummerRuntime::Impl {
           "summer_op.mpg"};
       for (const auto &candidate : openingCandidates) {
         try {
-          movie->open(assets->moviePath(candidate).string(), false, "BGM");
+          movie->open(assets->movieHandle(candidate), candidate, false, "BGM");
           text->hide();
           vm.waiting = true;
           pending = "OPENING";
@@ -1225,7 +1243,8 @@ struct SummerRuntime::Impl {
       return;
     }
     if (name == "PLAYMOVIE") {
-      movie->open(assets->moviePath(string(arg(0))).string(), false, "BGM");
+      movie->open(assets->movieHandle(string(arg(0))),
+                       string(arg(0)), false, "BGM");
       text->hide();
       vm.waiting = true;
       pending = "MOVIE";

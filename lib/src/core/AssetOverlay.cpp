@@ -1,5 +1,5 @@
 #include <Kotonoha/core/AssetOverlay.hpp>
-#include <Kotonoha/core/FileSystem.hpp>
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <stdexcept>
 
 namespace Kotonoha {

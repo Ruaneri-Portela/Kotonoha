@@ -1,12 +1,11 @@
-#define SDL_MAIN_USE_CALLBACKS 1
+#include <Kotonoha/core/SDLCallbackApp.hpp>
 #include <SDL3/SDL.h>
-#include <SDL3/SDL_main.h>
 
 #include "PmailRuntime.hpp"
 
 #include <Kotonoha/core/CommandLine.hpp>
 #include <Kotonoha/core/Engine.hpp>
-#include <Kotonoha/core/FileSystem.hpp>
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
 
 #include <cstdio>
 #include <exception>
@@ -25,7 +24,9 @@ struct Application {
   ~Application() { game.shutdown(); }
 
   Application(std::string directory, Kotonoha::EngineOptions options)
-      : game(directory, std::dynamic_pointer_cast<Kotonoha::Providers::SnowAssets>(options.assets)),
+      : game(directory,
+             std::dynamic_pointer_cast<Kotonoha::Providers::SnowAssets>(
+                 options.assets)),
         engine(game, std::move(options)) {}
 };
 
@@ -46,9 +47,18 @@ std::string DefaultDirectory() {
 
 } // namespace
 
-SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
+// The port owns game-specific initialization and transitions. The shared
+// SDLCallbackApp.hpp defines the four SDL callback entrypoints below.
+struct KotonohaPortCallbacks final {
+  static SDL_AppResult init(void **state, int argc, char **argv);
+  static SDL_AppResult event(void *state, SDL_Event *event);
+  static SDL_AppResult iterate(void *state);
+  static void quit(void *state, SDL_AppResult result);
+};
+
+SDL_AppResult KotonohaPortCallbacks::init(void **appstate, int argc, char **argv) {
   *appstate = nullptr;
-  SDL_SetAppMetadata("Pure Mail", "0.1.0", "me.hirameki.kotonoha.pmail");
+  KOTONOHA_SET_APP_METADATA("Pure Mail", "me.hirameki.kotonoha.pmail");
   try {
     Kotonoha::EngineOptions options;
     options.persistSettings = true;
@@ -72,7 +82,8 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
     if (directory.empty())
       directory = DefaultDirectory();
 
-    options.assets = std::make_shared<Kotonoha::Providers::SnowAssets>(directory);
+    options.assets =
+        std::make_shared<Kotonoha::Providers::SnowAssets>(directory);
     auto *app = new Application(directory, std::move(options));
     app->framesRemaining = arguments.frames;
     *appstate = app;
@@ -84,7 +95,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
   }
 }
 
-SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event) {
+SDL_AppResult KotonohaPortCallbacks::event(void *appstate, SDL_Event *event) {
   auto *app = static_cast<Application *>(appstate);
   try {
     return app->engine.Event(event);
@@ -95,12 +106,14 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event) {
   }
 }
 
-SDL_AppResult SDL_AppIterate(void *appstate) {
+SDL_AppResult KotonohaPortCallbacks::iterate(void *appstate) {
   auto *app = static_cast<Application *>(appstate);
   try {
     const auto result = app->engine.Iterate();
-    if (result != SDL_APP_CONTINUE) return result;
-    if (app->framesRemaining > 0 && --app->framesRemaining == 0) return SDL_APP_SUCCESS;
+    if (result != SDL_APP_CONTINUE)
+      return result;
+    if (app->framesRemaining > 0 && --app->framesRemaining == 0)
+      return SDL_APP_SUCCESS;
     return SDL_APP_CONTINUE;
   } catch (const std::exception &error) {
     SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Frame failed: %s",
@@ -109,6 +122,8 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
   }
 }
 
-void SDL_AppQuit(void *appstate, SDL_AppResult) {
+void KotonohaPortCallbacks::quit(void *appstate, SDL_AppResult) {
   delete static_cast<Application *>(appstate);
 }
+
+KOTONOHA_SDL_CALLBACK_APP(KotonohaPortCallbacks)

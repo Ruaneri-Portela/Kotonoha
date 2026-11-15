@@ -1,7 +1,7 @@
 #pragma once
-#include <Kotonoha/componentes/TouchActivation.hpp>
+#include <Kotonoha/components/TouchActivation.hpp>
 
-#include <Kotonoha/componentes/SelectBox.hpp>
+#include <Kotonoha/components/SelectBox.hpp>
 #include <Kotonoha/core/Settings.hpp>
 #include <memory>
 #include <vector>
@@ -32,16 +32,17 @@ class SettingsMenu {
   int pageCount() const;
   std::vector<int> rows() const;
   void activate(int index, int direction = 1);
+  // Applies only the audio fields to the running engine (no disk write).
+  void applyAudioDraft();
+  void applyTextSpeedDraft();
+  // Persists the live engine settings (used when audio changes are committed).
+  void persistAudio();
 
 public:
   explicit SettingsMenu(Engine &engine);
   ~SettingsMenu();
   void open();
-  void close() {
-    visible = false;
-    selectBox.close();
-    slider = -1;
-  }
+  void close();
   bool isOpen() const { return visible; }
   bool onEvent(EventRef event);
   void render(RendererRef renderer);

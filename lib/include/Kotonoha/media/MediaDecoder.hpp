@@ -19,6 +19,9 @@ SurfacePtr decodePicture(const std::vector<Uint8> &bytes, double seconds = 0);
 // The first audio stream as interleaved F32 PCM at its own rate (layouts with
 // more than 8 channels are downmixed to stereo).
 AudioClip decodeAudio(const std::vector<Uint8> &bytes);
+// Non-throwing entry point for game/asset playback. On error clears the
+// destination and returns false, so one bad media file cannot unwind a game.
+bool tryDecodeAudio(const std::vector<Uint8> &bytes, AudioClip &output) noexcept;
 // Analysis decode used by timing/animation systems. Produces signed mono s16
 // at 44.1 kHz with bounded sample/packet work. Cancellation or decode failure
 // returns false and clears `output`; reaching an authored safety cap succeeds

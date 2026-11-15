@@ -3,7 +3,7 @@
 #include <Kotonoha/components/GameMenu.hpp>
 #include <Pmail/Port.hpp>
 #include <SnowRadish/SnowAssets.hpp>
-#include <SDL3/SDL.h>
+#include <Kotonoha/core/SDL.hpp>
 #include <map>
 
 namespace Kotonoha::PmailPort {
@@ -34,7 +34,7 @@ private:
 
     // Cache for title textures
     struct TitleTex {
-        SDL_Texture *tex = nullptr;
+        Kotonoha::TexturePtr tex;
         float w = 0, h = 0;
     };
     std::map<std::string, TitleTex> titleCache_;

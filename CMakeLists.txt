@@ -1,63 +1,57 @@
 cmake_minimum_required(VERSION 3.16)
 
+# Kotonoha: select target platforms and game ports in the project root.
+# Platform/toolchain setup must run before project() for Android/vcpkg.
+include("${CMAKE_CURRENT_SOURCE_DIR}/buildsystems/cmake/KotonohaGames.cmake")
+include("${CMAKE_CURRENT_SOURCE_DIR}/buildsystems/cmake/KotonohaAndroid.cmake")
+
 project(Kotonoha VERSION 0.1.0 LANGUAGES CXX)
-include(cmake/MSVC.cmake)
+include("${CMAKE_CURRENT_SOURCE_DIR}/buildsystems/cmake/BuildVersion.cmake")
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-include(CTest)
-
-# Android 15+ devices may use 16 KiB memory pages.  Keep every Kotonoha shared
-# object aligned for that loader contract instead of relying on the toolchain's
-# older 4 KiB default.
-if(ANDROID)
-    add_link_options("-Wl,-z,max-page-size=16384")
+# Web builds use JS-based Emscripten C++ EH with Asyncify. Enabling
+# exception catching only for the final executable leaves engine and
+# provider object files compiled without catch/unwind support, which
+# can surface as an uncaught CppException after emscripten_sleep().
+# Keep this before add_subdirectory(lib) and all game port targets.
+if(EMSCRIPTEN)
+    add_compile_options("$<$<COMPILE_LANGUAGE:CXX>:-fexceptions>")
 endif()
 
-option(KOTONOHA_BUILD_EXAMPLE "Build the Kotonoha example game" ON)
-option(KOTONOHA_BUILD_AMAGAMI "Build the Amagami (PS2) port in development" ON)
-option(KOTONOHA_BUILD_ZERO "Build the Zero no Tsukaima (PS2) port" ON)
-option(KOTONOHA_BUILD_SNOW "Build the Snow Radish Vacation!! port" ON)
-option(KOTONOHA_BUILD_SUMMER "Build the Summer Radish Vacation!! port" ON)
-option(KOTONOHA_BUILD_DDLC "Build the Doki Doki Literature Club! port" ON)
-option(KOTONOHA_BUILD_SCHOOL_DAYS "Build the School Days port" ON)
+include("${CMAKE_CURRENT_SOURCE_DIR}/buildsystems/cmake/MSVC.cmake")
+include("${CMAKE_CURRENT_SOURCE_DIR}/buildsystems/cmake/KotonohaOptions.cmake")
+
+# School Days Windows L4 compatibility: retain the fork's opt-in diagnostics,
+# shipped-player build gates and retail-only testing profile. These must be
+# declared before add_subdirectory(lib) so engine and game targets agree.
 option(KOTONOHA_DEV_CONTROL "Enable local School Days automation bridge" OFF)
 option(KOTONOHA_DISTRIBUTION_BUILD
-    "Produce a player-facing build without the developer overlay, MCP or QA controls" OFF)
+       "Produce a player-facing build without developer overlay, MCP or QA controls" OFF)
 option(KOTONOHA_ENABLE_PLAYER_DUBBING
-    "Include the standalone dubbing window in a distribution build" OFF)
+       "Include the standalone dubbing window in a distribution build" OFF)
 option(KOTONOHA_SCHOOL_DAYS_RETAIL_ONLY
-    "Build School Days HQ against the 29 original GPKs without LxH content or translations" OFF)
+       "Build School Days HQ against the 29 original GPKs without LxH or translations" OFF)
 if(KOTONOHA_DISTRIBUTION_BUILD AND KOTONOHA_DEV_CONTROL)
     message(FATAL_ERROR "Distribution builds must disable KOTONOHA_DEV_CONTROL")
 endif()
 
-option(KOTONOHA_BUILD_AIR "Build the AIR Standard Edition port" ON)
-
 add_subdirectory(lib)
 
-if(KOTONOHA_BUILD_EXAMPLE)
-    add_subdirectory(games/example)
-endif()
-if(KOTONOHA_BUILD_ZERO)
-    add_subdirectory(games/zero-no-tsukaima)
-endif()
-if(KOTONOHA_BUILD_SNOW)
-    add_subdirectory(games/snow-radish-vacation)
-endif()
-if(KOTONOHA_BUILD_DDLC)
-    add_subdirectory(games/doki-doki-literature-club)
-endif()
-if(KOTONOHA_BUILD_SCHOOL_DAYS)
-    add_subdirectory(games/school-days)
-endif()
-if(KOTONOHA_BUILD_SUMMER)
-    add_subdirectory(games/summer-radish-vacation)
-endif()
+# Each port is configured only when explicitly selected (or BUILD_ALL).
+set(_KOTONOHA_ENABLED_GAME_DETAILS "")
+foreach(game IN LISTS KOTONOHA_GAMES)
+    string(REPLACE "|" ";" fields "${game}")
+    list(GET fields 0 game_option)
+    list(GET fields 1 game_id)
+    list(GET fields 2 game_directory)
 
-if(KOTONOHA_BUILD_AIR)
-    add_subdirectory(games/air)
-endif()
+    if(KOTONOHA_BUILD_${game_option})
+        list(APPEND _KOTONOHA_ENABLED_GAME_DETAILS "${game_id}|${game_directory}")
+        add_subdirectory("${game_directory}")
+    endif()
+endforeach()
 
-if(KOTONOHA_BUILD_AMAGAMI)
-    add_subdirectory(games/amagami)
-endif()
+include("${CMAKE_CURRENT_SOURCE_DIR}/buildsystems/cmake/KotonohaReport.cmake")
+include("${CMAKE_CURRENT_SOURCE_DIR}/buildsystems/cmake/KotonohaCPack.cmake")

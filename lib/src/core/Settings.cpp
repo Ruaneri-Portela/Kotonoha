@@ -1,9 +1,10 @@
-#include <Kotonoha/core/FileSystem.hpp>
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/Settings.hpp>
 #include <Kotonoha/media/AudioMixer.hpp>
 
 #include <cmath>
-#include <fstream>
+#include <filesystem>
+#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <json-c/json.h>
 #include <limits>
 #include <memory>
@@ -50,6 +51,8 @@ void read(json_object *root, const char *name, std::string &target) {
 
 void EngineSettings::validate() const {
   upscaling.validate();
+  if (!std::isfinite(vnTextSpeed) || vnTextSpeed < 0 || vnTextSpeed > 300)
+    throw std::invalid_argument("Invalid VN text speed");
   if (vnFontPath.find('\0') != std::string::npos)
     throw std::invalid_argument("Invalid VN font path");
   for (const auto &[name, volume] : channelVolumes) {
@@ -82,7 +85,7 @@ EngineSettings EngineSettings::load(const std::string &path) {
 
 EngineSettings EngineSettings::load(const std::string &path,
                                     const EngineSettings &defaults) {
-  std::ifstream input(path, std::ios::binary);
+  Kotonoha::Filesystem::InputFile input(path, std::ios::binary);
   if (!input)
     throw std::runtime_error("Cannot open settings: " + path);
   std::string text(1024 * 1024 + 1, '\0');
@@ -137,9 +140,27 @@ EngineSettings EngineSettings::load(const std::string &path,
   read(root.get(), "factor", result.upscaling.factor);
   read(root.get(), "shaderFiles", result.upscaling.shaderFiles);
   read(root.get(), "translationPath", result.translationPath);
-  read(root.get(), "assetOverlayPath", result.assetOverlayPath);
+  if (auto *overlays = member(root.get(), "assetOverlays", json_type_object)) {
+    json_object_object_foreach(overlays, name, value) {
+      if (json_object_is_type(value, json_type_string))
+        result.assetOverlays.emplace(name, json_object_get_string(value));
+    }
+  }
+  read(root.get(), "assetOverlayName", result.assetOverlayName);
+  // Legacy single-path settings: promote to a named overlay.
+  if (result.assetOverlays.empty() && result.assetOverlayName.empty()) {
+    std::string legacy;
+    read(root.get(), "assetOverlayPath", legacy);
+    if (!legacy.empty()) {
+      result.assetOverlayName = "legacy";
+      result.assetOverlays.emplace("legacy", legacy);
+    }
+  }
+  result.assetOverlayPath = result.resolvedOverlayPath();
   read(root.get(), "fontPath", result.fontPath);
   read(root.get(), "vnFontPath", result.vnFontPath);
+  read(root.get(), "vnTextSpeed", result.vnTextSpeed);
+  read(root.get(), "vnTextInstant", result.vnTextInstant);
   read(root.get(), "vnTextColorOverride", result.vnTextColorOverride);
   auto color = [&](const char *key, SDL_Color &value) {
     if (auto *array = member(root.get(), key, json_type_array)) {
@@ -177,7 +198,23 @@ EngineSettings EngineSettings::load(const std::string &path,
 }
 
 std::string EngineSettings::defaultPath(const std::string &identify) {
-  return (preferredDocumentsDirectory(identify) / "settings.json").string();
+  return (documentsDirectory(identify) / "settings.json").string();
+}
+
+std::string EngineSettings::resolvedOverlayPath() const {
+  if (!assetOverlayName.empty()) {
+    auto i = assetOverlays.find(assetOverlayName);
+    if (i != assetOverlays.end() && !i->second.empty() &&
+        std::filesystem::is_directory(i->second))
+      return i->second;
+    // The persisted absolute path no longer exists: resolve by name through
+    // the standard overlay folder search (e.g. KOTONOHA_OVERLAY / "overlay").
+    auto found = findAssetOverlayDirectory(assetOverlayName);
+    if (!found.empty())
+      return found.string();
+    return {};
+  }
+  return {};
 }
 
 void EngineSettings::save(const std::string &path) const {
@@ -224,10 +261,13 @@ void EngineSettings::save(const std::string &path) const {
   json_object_object_add(
       root.get(), "shaderFiles",
       json_object_new_string(UpscaleShaderFileList(shaderReferences).c_str()));
-  json_object_object_add(
-      root.get(), "assetOverlayPath",
-      json_object_new_string(
-          FileResolver::referenceName(assetOverlayPath).c_str()));
+  auto *overlays = json_object_new_object();
+  for (const auto &[name, absolute] : assetOverlays)
+    json_object_object_add(overlays, name.c_str(),
+                           json_object_new_string(absolute.c_str()));
+  json_object_object_add(root.get(), "assetOverlays", overlays);
+  json_object_object_add(root.get(), "assetOverlayName",
+                         json_object_new_string(assetOverlayName.c_str()));
   json_object_object_add(
       root.get(), "translationPath",
       json_object_new_string(
@@ -238,6 +278,9 @@ void EngineSettings::save(const std::string &path) const {
   json_object_object_add(
       root.get(), "vnFontPath",
       json_object_new_string(FileResolver::referenceName(vnFontPath).c_str()));
+  json_object_object_add(root.get(), "vnTextSpeed",
+                         json_object_new_double(vnTextSpeed));
+  boolean("vnTextInstant", vnTextInstant);
   json_object_object_add(root.get(), "vnTextColorOverride",
                          json_object_new_boolean(vnTextColorOverride));
   auto color = [&](const char *key, SDL_Color value) {

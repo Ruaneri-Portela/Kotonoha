@@ -32,7 +32,7 @@ endif()
 include("${CMAKE_CURRENT_SOURCE_DIR}/../../modules/vms/reallive/CMakeLists.txt")
 target_link_libraries(RealLiveFormats PUBLIC Kotonoha::Vmreallive)
 
-if(NOT ANDROID AND NOT EMSCRIPTEN)
+if(KOTONOHA_BUILD_HOST_TOOLS)
     add_executable(RealLiveInspect tools/RealLiveInspect.cpp)
     target_link_libraries(RealLiveInspect PRIVATE RealLiveFormats)
 endif()

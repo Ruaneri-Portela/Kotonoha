@@ -1,5 +1,6 @@
 #include <Kotonoha/core/CommandLine.hpp>
 #include <Kotonoha/core/Engine.hpp>
+#include <Kotonoha/core/BuildVersion.hpp>
 #include <algorithm>
 #include <charconv>
 #include <iomanip>
@@ -12,32 +13,23 @@ CommandLine::CommandLine(std::string program, EngineOptions &engine)
   flag("--help", "Show engine and game options without opening the game",
        helpRequested);
   alias("--help", "-h");
-#if !defined(KOTONOHA_DISTRIBUTION_BUILD)
+  flag("--version", "Print Git/CMake build version and exit", versionRequested);
+  alias("--version", "-V");
   option("--config", "FILE", "Load and save engine settings",
          engine.settingsPath);
   flag("--no-config", "Do not persist engine settings",
        [&engine] { engine.persistSettings = false; });
-#endif
   option("--renderer", "NAME", "SDL renderer override (requires restart)",
          engine.rendererOverride);
-#if !defined(KOTONOHA_DISTRIBUTION_BUILD)
   option("--log", "FILE", "Write engine logs to this file", engine.logPath);
   flag("--mcp", "Enable the stdio MCP interface", engine.enableMCP);
-  option("--mcp-port", "PORT", "Serve MCP over TCP on 127.0.0.1:PORT",
-         [&engine](const std::string &value) {
-           unsigned int port = 0;
-           const auto parsed = std::from_chars(
-               value.data(), value.data() + value.size(), port);
-           if (parsed.ec != std::errc{} ||
-               parsed.ptr != value.data() + value.size() || port == 0 ||
-               port > 65535)
-             throw std::invalid_argument(
-                 "--mcp-port must be an integer from 1 to 65535");
-           engine.mcpPort = static_cast<unsigned short>(port);
-           engine.enableMCP = true;
-         });
   option("--mcp-root", "DIRECTORY", "Restrict MCP files to this root",
          engine.mcpFileRoot);
+  option("--mcp-port", "PORT",
+         "TCP loopback port for the MCP socket interface (0 = stdio)",
+         [&engine](const std::string &value) {
+           engine.mcpPort = std::stoi(value);
+         });
   option("--asset-overlay", "DIRECTORY", "Override game assets from a folder",
          [&engine](const std::string &path) {
            engine.assetOverlayPath = path;
@@ -69,17 +61,6 @@ CommandLine::CommandLine(std::string program, EngineOptions &engine)
              throw std::invalid_argument("--frames must be a positive integer");
            frames = count;
          });
-#endif
-  // These path overrides also let a packaged build run with isolated data.
-#if defined(KOTONOHA_DISTRIBUTION_BUILD)
-  option("--config", "FILE", "Load and save engine settings",
-         engine.settingsPath);
-  flag("--no-config", "Do not persist engine settings",
-       [&engine] { engine.persistSettings = false; });
-  flag("--launcher", "Open the game selection launcher", engine.launcher);
-  flag("--no-launcher", "Start the game directly",
-       [&engine] { engine.launcher = false; });
-#endif
 }
 
 void CommandLine::option(std::string name, std::string value,
@@ -155,6 +136,14 @@ void CommandLine::parse(int argc, char **argv) {
 }
 std::string CommandLine::help() const {
   std::ostringstream result;
+  if (versionRequested) {
+    result << program << " " << BuildVersion::Full << "\n"
+           << "Branch: " << BuildVersion::Branch << "\n"
+           << "Commit: " << BuildVersion::Commit << "\n"
+           << "Source tree: " << (BuildVersion::Dirty ? "modified" : "clean")
+           << "\n";
+    return result.str();
+  }
   result << "Usage: " << program << " [options]\n\n";
   for (const auto &entry : options) {
     const auto label =

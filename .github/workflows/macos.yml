@@ -1,0 +1,79 @@
+name: macOS x64 vcpkg build and media regression tests
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: macos-vcpkg-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  macos:
+    runs-on: macos-15
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build prerequisites
+        run: |
+          brew install cmake ninja pkg-config nasm yasm autoconf automake libtool
+
+      - name: Set up pinned vcpkg
+        run: |
+          git clone --quiet https://github.com/microsoft/vcpkg.git "$RUNNER_TEMP/vcpkg"
+          git -C "$RUNNER_TEMP/vcpkg" checkout --quiet 9a5dfef5d1a0438a7d24856a85bd60f309d355e9
+          "$RUNNER_TEMP/vcpkg/bootstrap-vcpkg.sh" -disableMetrics
+          echo "VCPKG_ROOT=$RUNNER_TEMP/vcpkg" >> "$GITHUB_ENV"
+
+      - uses: actions/cache@v4
+        with:
+          path: vcpkg-binary-cache
+          key: macos-x64-vcpkg-${{ hashFiles('vcpkg.json', 'vcpkg-overlays/ports/**') }}
+          restore-keys: macos-x64-vcpkg-
+
+      - name: Audit engine/game platform isolation
+        run: |
+          python3 tools/check_game_platform_isolation.py
+          python3 tools/ValidateBuildMetadata.py
+          python3 tools/audit_filesystem_v2.py --strict
+
+      - name: Configure all native game ports
+        run: |
+          mkdir -p vcpkg-binary-cache
+          export VCPKG_BINARY_SOURCES="clear;files,$GITHUB_WORKSPACE/vcpkg-binary-cache,readwrite"
+          cmake -S . -B build-macos -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \
+            -DVCPKG_TARGET_TRIPLET=x64-osx \
+            "-DVCPKG_MANIFEST_FEATURES=sdl-vcpkg;imgui-vcpkg" \
+            -DKOTONOHA_SDL_FROM_VCPKG=ON \
+            -DKOTONOHA_IMGUI_FROM_VCPKG=ON \
+            -DVCPKG_OVERLAY_PORTS="$GITHUB_WORKSPACE/vcpkg-overlays/ports" \
+            -DKOTONOHA_BUILD_ALL=ON -DBUILD_TESTING=ON \
+            -DKOTONOHA_BUILD_MACOS_BUNDLES=OFF
+
+      - name: Build all native game ports and tests
+        run: cmake --build build-macos --parallel 3
+
+      - name: Run native regression suite
+        env:
+          SDL_VIDEO_DRIVER: dummy
+          SDL_AUDIO_DRIVER: dummy
+        run: ctest --test-dir build-macos --output-on-failure
+
+      - name: Package native games
+        run: cpack --config build-macos/CPackConfig.cmake -G ZIP
+
+      - name: Upload macOS artifacts
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kotonoha-macos-x64-vcpkg
+          path: |
+            build-macos/outputs/
+            build-macos/packages/*.zip
+          if-no-files-found: error
+          retention-days: 14

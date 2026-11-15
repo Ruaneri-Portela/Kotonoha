@@ -13,7 +13,7 @@ KOTONOHA_VCPKG_TRIPLET[sdk=iphonesimulator*] = arm64-ios-simulator
 KOTONOHA_VCPKG_INCLUDE = $(KOTONOHA_VCPKG_PARENT)/$(KOTONOHA_VCPKG_TRIPLET)/include
 KOTONOHA_VCPKG_LIB = $(KOTONOHA_VCPKG_PARENT)/$(KOTONOHA_VCPKG_TRIPLET)/lib
 
-HEADER_SEARCH_PATHS = $(inherited) "$(KOTONOHA_ROOT)/lib/include" \
+HEADER_SEARCH_PATHS = $(inherited) "$(DERIVED_FILE_DIR)" "$(KOTONOHA_ROOT)/lib/include" \
     "$(KOTONOHA_ROOT)/lib/submodules/SDL/include" \
     "$(KOTONOHA_ROOT)/lib/submodules/SDL_ttf/include" \
     "$(KOTONOHA_ROOT)/lib/submodules/imgui" \
@@ -44,6 +44,7 @@ LIBRARY_SEARCH_PATHS = $(inherited) "$(KOTONOHA_VCPKG_LIB)"
 FRAMEWORK_SEARCH_PATHS = $(inherited) "$(BUILT_PRODUCTS_DIR)" "$(KOTONOHA_ROOT)/lib/submodules/SDL/Xcode/SDL/build/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)" "$(KOTONOHA_ROOT)/lib/submodules/SDL/Xcode/SDL/build/$(CONFIGURATION)" "$(KOTONOHA_ROOT)/lib/submodules/SDL_ttf/Xcode/build/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)" "$(KOTONOHA_ROOT)/lib/submodules/SDL_ttf/Xcode/build/$(CONFIGURATION)"
 CLANG_CXX_LANGUAGE_STANDARD = c++17
 CLANG_CXX_LIBRARY = libc++
+GCC_PREPROCESSOR_DEFINITIONS = $(inherited) KOTONOHA_HAS_METALFX=1
 
 // The original projects link dynamic SDL3 / SDL3_ttf and vcpkg libraries.
 KOTONOHA_SHARED_LIBS = -ljson-c -lass -lz -lharfbuzz -lfribidi -lfreetype -lfontconfig -liconv -lbz2 -lbrotlidec -lbrotlicommon -lexpat -lpng -lunibreak

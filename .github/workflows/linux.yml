@@ -1,0 +1,69 @@
+name: Linux x64 dynamic vcpkg artifacts
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: linux-vcpkg-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  linux:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install build prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends build-essential ninja-build cmake pkg-config patchelf zip unzip curl autoconf automake libtool nasm yasm bison flex libssl-dev libgl1-mesa-dev libx11-dev libxext-dev libxrandr-dev libxi-dev libxcursor-dev libxinerama-dev libxss-dev libxtst-dev libxkbcommon-dev libxft-dev libwayland-dev libegl1-mesa-dev libfreetype-dev
+      - name: Set up pinned vcpkg
+        run: |
+          git clone --quiet https://github.com/microsoft/vcpkg.git "$RUNNER_TEMP/vcpkg"
+          git -C "$RUNNER_TEMP/vcpkg" checkout --quiet 9a5dfef5d1a0438a7d24856a85bd60f309d355e9
+          "$RUNNER_TEMP/vcpkg/bootstrap-vcpkg.sh" -disableMetrics
+          echo "VCPKG_ROOT=$RUNNER_TEMP/vcpkg" >> "$GITHUB_ENV"
+      - uses: actions/cache@v4
+        with:
+          path: vcpkg-binary-cache
+          key: linux-x64-dynamic-${{ hashFiles('vcpkg.json', 'vcpkg-overlays/ports/**') }}
+          restore-keys: linux-x64-dynamic-
+      - name: Run source audits
+        run: |
+          python3 tools/ValidateBuildMetadata.py
+          python3 tools/check_sdl_cpack.py
+          python3 tools/audit_filesystem_v2.py --strict
+          python3 tools/check_game_platform_isolation.py
+          python3 -m unittest discover -s tools -p test_serve_web.py -v
+      - name: Configure with vcpkg
+        run: |
+          mkdir -p vcpkg-binary-cache
+          export VCPKG_BINARY_SOURCES="clear;files,$GITHUB_WORKSPACE/vcpkg-binary-cache,readwrite"
+          cmake -S . -B build-linux -G Ninja -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \
+            -DVCPKG_TARGET_TRIPLET=x64-linux-dynamic \
+            "-DVCPKG_MANIFEST_FEATURES=sdl-vcpkg;imgui-vcpkg" \
+            -DKOTONOHA_SDL_FROM_VCPKG=ON -DKOTONOHA_IMGUI_FROM_VCPKG=ON \
+            -DVCPKG_OVERLAY_PORTS="$GITHUB_WORKSPACE/vcpkg-overlays/ports" \
+            -DKOTONOHA_BUILD_ALL=ON -DBUILD_TESTING=ON
+      - name: Compile all game ports
+        run: cmake --build build-linux --parallel 3
+      - name: Run regression tests
+        env:
+          SDL_VIDEO_DRIVER: dummy
+          SDL_AUDIO_DRIVER: dummy
+        run: ctest --test-dir build-linux --output-on-failure
+      - name: Create ZIP packages
+        run: cpack --config build-linux/CPackConfig.cmake -G ZIP
+      - name: Upload Linux artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: kotonoha-linux-x64-dynamic-vcpkg
+          path: |
+            build-linux/outputs/
+            build-linux/packages/*.zip
+          if-no-files-found: error
+          retention-days: 14

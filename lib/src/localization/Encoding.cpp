@@ -1,18 +1,17 @@
-﻿#include <Kotonoha/localization/Encoding.hpp>
+#include <Kotonoha/localization/Encoding.hpp>
 
 #include <algorithm>
 #include <cstdint>
+#include <cstring>
 #include <stdexcept>
 
 #if defined(_WIN32)
-#ifndef NOMINMAX
-#define NOMINMAX
-#endif
+#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #endif
 
 // -----------------------------------------------------------------------------
-// SEÇÃO DE SELEÇÃO DA PLATAFORMA DE CONVERSÃO
+// SELECAO DA PLATAFORMA DE CONVERSAO
 // -----------------------------------------------------------------------------
 
 #if defined(__ANDROID__)
@@ -23,7 +22,7 @@
 namespace Kotonoha {
 namespace {
 
-// Conversão resiliente via JNI (java.lang.String) no Android
+// Conversao resiliente via JNI (java.lang.String) no Android
 std::string ConvertViaJNI(std::string_view text, const char *fromEncoding,
                           const char *toEncoding = "UTF-8") {
   if (text.empty())
@@ -32,10 +31,9 @@ std::string ConvertViaJNI(std::string_view text, const char *fromEncoding,
   JNIEnv *env = static_cast<JNIEnv *>(SDL_GetAndroidJNIEnv());
   if (!env) {
     throw std::runtime_error(
-        "JNIEnv indisponível para conversão de texto no Android");
+        "JNIEnv indisponivel para conversao de texto no Android");
   }
 
-  // Garante o mapeamento do alias de encoding para o formato aceito pelo Java
   std::string encodingName = fromEncoding;
   if (encodingName == "CP932" || encodingName == "WINDOWS-31J" ||
       encodingName == "SJIS") {
@@ -58,14 +56,13 @@ std::string ConvertViaJNI(std::string_view text, const char *fromEncoding,
   jstring javaString = static_cast<jstring>(
       env->NewObject(stringClass, ctor, byteArray, encodingStr));
 
-  // Trata falha na decodificação pelo Java (ex: encoding inválido)
   if (env->ExceptionCheck() || !javaString) {
     env->ExceptionClear();
     env->DeleteLocalRef(encodingStr);
     env->DeleteLocalRef(byteArray);
     env->DeleteLocalRef(stringClass);
     throw std::runtime_error(
-        "Falha na conversão de caracteres via java.nio.charset: " +
+        "Falha na conversao de caracteres via java.nio.charset: " +
         encodingName);
   }
 
@@ -101,7 +98,7 @@ std::string ConvertViaJNI(std::string_view text, const char *fromEncoding,
 
 #else
 
-// Configuração para iOS e Desktop (SDL3)
+// Configuracao para iOS e Desktop (SDL3)
 #include <SDL3/SDL_stdinc.h>
 
 #if defined(__APPLE__)
@@ -134,14 +131,14 @@ std::string WindowsCp932ToUtf8(std::string_view text) {
 
   const auto append = [&](const char *bytes, int count) -> bool {
     wchar_t wide[2]{};
-    const int wideCount = MultiByteToWideChar(932, MB_ERR_INVALID_CHARS, bytes,
-                                               count, wide, 2);
+    const int wideCount =
+        MultiByteToWideChar(932, MB_ERR_INVALID_CHARS, bytes, count, wide, 2);
     if (wideCount <= 0)
       return false;
     char utf8[8]{};
-    const int utf8Count = WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS,
-                                               wide, wideCount, utf8,
-                                               int(sizeof utf8), nullptr, nullptr);
+    const int utf8Count =
+        WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, wide, wideCount,
+                            utf8, int(sizeof utf8), nullptr, nullptr);
     if (utf8Count <= 0)
       return false;
     out.append(utf8, size_t(utf8Count));
@@ -155,8 +152,8 @@ std::string WindowsCp932ToUtf8(std::string_view text) {
       ++i;
       continue;
     }
-    const bool lead = (first >= 0x81 && first <= 0x9f) ||
-                      (first >= 0xe0 && first <= 0xfc);
+    const bool lead =
+        (first >= 0x81 && first <= 0x9f) || (first >= 0xe0 && first <= 0xfc);
     const size_t count = lead && i + 1 < text.size() ? 2 : 1;
     if (!append(text.data() + i, int(count)))
       out.push_back('?');
@@ -273,7 +270,7 @@ public:
 #endif // __ANDROID__
 
 // -----------------------------------------------------------------------------
-// API PÚBLICA DA ENGINE
+// API PUBLICA DA ENGINE
 // -----------------------------------------------------------------------------
 
 namespace Kotonoha {
@@ -283,10 +280,10 @@ std::string ConvertEncoding(std::string_view text, const char *from,
 #if defined(__ANDROID__)
   return ConvertViaJNI(text, from, to);
 #else
-  // SDL's built-in iconv accepts the IANA spelling but not iconv's LATIN1
-  // alias, which is used by game metadata and public callers.
-  if (std::string_view(from) == "LATIN1") from = "ISO-8859-1";
-  if (std::string_view(to) == "LATIN1") to = "ISO-8859-1";
+  if (std::string_view(from) == "LATIN1")
+    from = "ISO-8859-1";
+  if (std::string_view(to) == "LATIN1")
+    to = "ISO-8859-1";
   Converter converter(from, to);
   if (!converter.valid())
     throw std::runtime_error(std::string("Unsupported text encoding ") + from +
@@ -294,10 +291,10 @@ std::string ConvertEncoding(std::string_view text, const char *from,
   return converter.run(text, [](const unsigned char *, size_t) { return 1; });
 #endif
 }
-
+#if !defined(__APPLE__)
 std::string ShiftJisToUtf8(std::string_view text) {
+
 #if defined(_WIN32)
-  // Use Microsoft's CP932 mapping (not GNU iconv's Shift-JIS wave dash).
   std::string result;
   result.reserve(text.size());
   for (size_t offset = 0; offset < text.size();) {
@@ -321,11 +318,8 @@ std::string ShiftJisToUtf8(std::string_view text) {
   }
   return result;
 #elif defined(__ANDROID__)
-  // No Android, chama a conversão via JNI diretamente com o alias
-  // CP932/Shift_JIS
   return ConvertViaJNI(text, "Shift_JIS");
 #else
-  // CP932 first: plain SHIFT_JIS lacks the NEC row 13 extension symbols.
   for (const char *name : {"CP932", "WINDOWS-31J", "SHIFT_JIS", "SJIS"}) {
     Converter converter(name, "UTF-8");
     if (!converter.valid())
@@ -340,5 +334,68 @@ std::string ShiftJisToUtf8(std::string_view text) {
       "Shift-JIS conversion is unavailable (no compatible iconv converter)");
 #endif
 }
+
+std::u16string Utf8ToUtf16(std::string_view text) {
+#if defined(_WIN32)
+  int wide = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, text.data(),
+                                 int(text.size()), nullptr, 0);
+  if (wide <= 0)
+    return {};
+  std::u16string result(size_t(wide), char16_t{});
+  if (MultiByteToWideChar(
+          CP_UTF8, MB_ERR_INVALID_CHARS, text.data(), int(text.size()),
+          reinterpret_cast<wchar_t *>(result.data()), wide) != wide)
+    return {};
+  return result;
+#elif defined(__ANDROID__)
+  std::string converted = ConvertViaJNI(text, "UTF-8", "UTF-16LE");
+  if (converted.size() % 2 != 0)
+    return {};
+  std::u16string result(converted.size() / 2, char16_t{});
+  std::memcpy(result.data(), converted.data(), converted.size());
+  return result;
+#else
+  Converter converter("UTF-8", "UTF-16LE");
+  if (!converter.valid())
+    return {};
+  std::string converted =
+      converter.run(text, [](const unsigned char *, size_t) { return 1; });
+  if (converted.size() % 2 != 0)
+    return {};
+  std::u16string result(converted.size() / 2, char16_t{});
+  std::memcpy(result.data(), converted.data(), converted.size());
+  return result;
+#endif
+}
+
+std::string Utf16ToUtf8(std::u16string_view text) {
+#if defined(_WIN32)
+  int utf8len =
+      WideCharToMultiByte(CP_UTF8, MB_ERR_INVALID_CHARS,
+                          reinterpret_cast<const wchar_t *>(text.data()),
+                          int(text.size()), nullptr, 0, nullptr, nullptr);
+  if (utf8len <= 0)
+    return {};
+  std::string result(size_t(utf8len), '\0');
+  if (WideCharToMultiByte(CP_UTF8, MB_ERR_INVALID_CHARS,
+                          reinterpret_cast<const wchar_t *>(text.data()),
+                          int(text.size()), result.data(), int(utf8len),
+                          nullptr, nullptr) != utf8len)
+    return {};
+  return result;
+#elif defined(__ANDROID__)
+  std::string_view sv(reinterpret_cast<const char *>(text.data()),
+                      text.size() * sizeof(char16_t));
+  return ConvertViaJNI(sv, "UTF-16LE", "UTF-8");
+#else
+  std::string_view sv(reinterpret_cast<const char *>(text.data()),
+                      text.size() * sizeof(char16_t));
+  Converter converter("UTF-16LE", "UTF-8");
+  if (!converter.valid())
+    return {};
+  return converter.run(sv, [](const unsigned char *, size_t) { return 1; });
+#endif
+}
+#endif // __APPLE__
 
 } // namespace Kotonoha

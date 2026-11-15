@@ -1,7 +1,7 @@
 #include <Kotonoha/componentes/SplashChainloader.hpp>
 #include <Kotonoha/componentes/SplashScreen.hpp>
 #include <Kotonoha/core/Engine.hpp>
-#include <Kotonoha/core/FileSystem.hpp>
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/Runtime.hpp>
 #include <Kotonoha/core/UI.hpp>
 #include <Kotonoha/script/TimelinePlayer.hpp>

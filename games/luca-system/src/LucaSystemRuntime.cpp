@@ -13,7 +13,7 @@
 #include <Kotonoha/components/VNSaveMenu.hpp>
 #include <Kotonoha/components/VNTextBox.hpp>
 #include <Kotonoha/core/Engine.hpp>
-#include <Kotonoha/core/FileSystem.hpp>
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/SDL.hpp>
 #include <Kotonoha/core/UI.hpp>
 #include <Kotonoha/events/ControllerEvent.hpp>
@@ -270,13 +270,14 @@ struct LucaSystemRuntime::Impl {
                                    int(decoded.data.size()), &target,
                                    &converted, &size))
         throw std::runtime_error(SDL_GetError());
+      Kotonoha::SDLMemoryPtr<Uint8> convertedOwner(converted);
       Kotonoha::PcmPlayer::Clip clip;
       clip.channels = target.channels;
       clip.rate = target.freq;
       clip.loop = false;
       clip.samples.resize(size / 2);
       std::memcpy(clip.samples.data(), converted, size);
-      SDL_free(converted);
+
       voice.Play(engine->GetAudio().channel("Voice"), std::move(clip));
     } catch (const std::exception &e) {
       SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "LucaSystem: voice %u: %s", id,
@@ -294,13 +295,14 @@ struct LucaSystemRuntime::Impl {
                                    int(decoded.data.size()), &target,
                                    &converted, &size))
         throw std::runtime_error(SDL_GetError());
+      Kotonoha::SDLMemoryPtr<Uint8> convertedOwner(converted);
       Kotonoha::PcmPlayer::Clip clip;
       clip.channels = target.channels;
       clip.rate = target.freq;
       clip.loop = loop;
       clip.samples.resize(size / 2);
       std::memcpy(clip.samples.data(), converted, size);
-      SDL_free(converted);
+
       bgm.Play(engine->GetAudio().channel("BGM"), std::move(clip));
     } catch (const std::exception &e) {
       SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "LucaSystem: bgm %u: %s", id,
@@ -318,13 +320,14 @@ struct LucaSystemRuntime::Impl {
                                    int(decoded.data.size()), &target,
                                    &converted, &size))
         throw std::runtime_error(SDL_GetError());
+      Kotonoha::SDLMemoryPtr<Uint8> convertedOwner(converted);
       Kotonoha::PcmPlayer::Clip clip;
       clip.channels = target.channels;
       clip.rate = target.freq;
       clip.loop = false;
       clip.samples.resize(size / 2);
       std::memcpy(clip.samples.data(), converted, size);
-      SDL_free(converted);
+
       se.Play(engine->GetAudio().channel("Se"), std::move(clip));
     } catch (const std::exception &e) {
       SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "LucaSystem: se %u: %s", id,

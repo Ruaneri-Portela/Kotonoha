@@ -2,7 +2,8 @@
 #include <SummerRadish/Pack.hpp>
 #include <algorithm>
 #include <array>
-#include <fstream>
+#include <Kotonoha/Filesystem/Filesystem.hpp>
+#include <utility>
 #include <stdexcept>
 namespace SummerRadish {
 namespace {
@@ -10,15 +11,27 @@ void require(bool ok, const char *message) {
   if (!ok)
     throw std::runtime_error(message);
 }
-Bytes readRange(const std::filesystem::path &path, size_t offset, size_t size) {
+Bytes readRange(Kotonoha::Filesystem::Filesystem &filesystem,
+                const std::string &id, size_t offset, size_t size) {
   require(size <= (256u << 20), "CMP entry exceeds allocation limit");
-  std::ifstream f(path, std::ios::binary);
-  require(bool(f), "Cannot open CMP pack");
-  f.seekg(offset);
-  Bytes data(size);
-  f.read(reinterpret_cast<char *>(data.data()), size);
-  require(size_t(f.gcount()) == size, "Truncated CMP pack");
-  return data;
+  auto handle = filesystem.open(id);
+  const auto length = handle->size();
+  require(length >= 0 && uint64_t(offset) <= uint64_t(length) &&
+              uint64_t(size) <= uint64_t(length) - offset,
+          "Truncated CMP pack");
+  require(handle->seek(static_cast<int64_t>(offset),
+                       Kotonoha::Filesystem::SeekOrigin::Begin) ==
+              static_cast<int64_t>(offset),
+          "Cannot seek CMP pack");
+  Bytes bytes(size);
+  size_t position = 0;
+  while (position != bytes.size()) {
+    const auto read = handle->read(bytes.data() + position,
+                                   bytes.size() - position);
+    require(read > 0, "Cannot read/truncated CMP pack");
+    position += static_cast<size_t>(read);
+  }
+  return bytes;
 }
 void appendUtf8(std::string &out, uint32_t c) {
   if (c < 0x80)
@@ -93,10 +106,23 @@ std::string canonical(std::string s) {
   }
   return s;
 }
-Pack::Pack(const std::filesystem::path &file) : path(file) {
-  const auto length = std::filesystem::file_size(path);
-  require(length >= 12 && length <= UINT32_MAX, "Invalid CMP size");
-  auto footer = readRange(path, length - 8, 8);
+Pack::Pack(const std::filesystem::path &file)
+    : Pack(Kotonoha::Filesystem::Filesystem::mount(
+               (file.has_parent_path() ? file.parent_path()
+                                       : std::filesystem::path(".")).string()),
+           file.filename().string()) {}
+
+Pack::Pack(std::shared_ptr<Kotonoha::Filesystem::Filesystem> mounted,
+           std::string id)
+    : filesystem(std::move(mounted)), sourceId(std::move(id)) {
+  require(filesystem != nullptr, "CMP filesystem is null");
+  const auto info = filesystem->stat(sourceId);
+  const auto length = info.size;
+  require(info.type == Kotonoha::Filesystem::FileType::Regular &&
+              length >= 12 && length <= UINT32_MAX,
+          "Invalid CMP size");
+  auto footer = readRange(*filesystem, sourceId,
+                          static_cast<size_t>(length - 8), 8);
 
   // O Summer Radish Vacation usa duas chaves de cifragem CMP distintas:
   // a chave original e uma chave alternativa usada por uma segunda
@@ -127,7 +153,8 @@ Pack::Pack(const std::filesystem::path &file) : path(file) {
     size_t candidateStart = word(footer, 4);
     if (candidateStart > length - 12)
       continue;
-    auto encoded = readRange(path, candidateStart, length - 8 - candidateStart);
+    auto encoded = readRange(*filesystem, sourceId, candidateStart,
+                             static_cast<size_t>(length - 8 - candidateStart));
     size_t raw = word(encoded, 0);
     if (raw > (16u << 20))
       continue;
@@ -179,7 +206,8 @@ Bytes Pack::read(const std::string &name) const {
   auto it = directory.find(canonical(name));
   if (it == directory.end())
     throw std::runtime_error("CMP asset missing: " + name);
-  auto d = readRange(path, it->second.offset, it->second.size);
+  auto d = readRange(*filesystem, sourceId, it->second.offset,
+                     it->second.size);
   return it->second.compressed ? decompress(d, word(d, 0), 4) : d;
 }
 Image decodeImage(const Bytes &d, const std::string &extension) {

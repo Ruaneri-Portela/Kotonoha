@@ -1,7 +1,7 @@
 #include "SchoolDaysLauncher.hpp"
 #include "SchoolDaysAssets.hpp"
 
-#include <Kotonoha/core/FileSystem.hpp>
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/DiscImage.hpp>
 #include <Kotonoha/localization/Translation.hpp>
 #include <Kotonoha/media/MediaPlayer.hpp>

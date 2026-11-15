@@ -1,8 +1,43 @@
-option(KOTONOHA_BUILD_MACOS_BUNDLES "Build macOS application bundles" OFF)
+# Platform-specific build choices live in the engine's CMake layer,
+# never in individual game ports.
+if(ANDROID OR EMSCRIPTEN)
+    set(_kotonoha_host_tools OFF)
+else()
+    set(_kotonoha_host_tools ON)
+endif()
+# Cache INTERNAL makes these platform capabilities available to all sibling
+# game directories even though this module is included from lib/CMakeLists.
+set(KOTONOHA_BUILD_HOST_TOOLS ${_kotonoha_host_tools} CACHE INTERNAL
+    "Build host-only inspectors from game ports" FORCE)
+set(KOTONOHA_HAS_PYTHON_DEVELOPMENT ${_kotonoha_host_tools} CACHE INTERNAL
+    "CPython Development components are available for host builds" FORCE)
+if(EMSCRIPTEN)
+    set(_kotonoha_web_python_stubs ON)
+else()
+    set(_kotonoha_web_python_stubs OFF)
+endif()
+set(KOTONOHA_USE_PYTHON_STUBS ${_kotonoha_web_python_stubs} CACHE INTERNAL
+    "Use the browser-compatible Python stubs in port code" FORCE)
+
+# A game declares *what* asset to ship; the engine decides how.
+function(kotonoha_preload_asset target source destination)
+    if(EMSCRIPTEN)
+        if(NOT EXISTS "${source}")
+            message(FATAL_ERROR "Missing preloaded asset: ${source}")
+        endif()
+        target_link_options(${target} PRIVATE
+            "SHELL:--preload-file ${source}@${destination}")
+    endif()
+endfunction()
 
 # Copia os assets do jogo e do engine para o diretório do executável/bundle
 function(kotonoha_copy_assets target)
-    cmake_parse_arguments(ASSETS "" "GAME" "" ${ARGN})
+    cmake_parse_arguments(ASSETS "" "GAME;GAME_ASSET_SOURCE" "" ${ARGN})
+    if(ASSETS_GAME_ASSET_SOURCE)
+        set(_game_asset_source "${ASSETS_GAME_ASSET_SOURCE}")
+    else()
+        set(_game_asset_source "${KOTONOHA_PROJECT_ROOT}/games/${ASSETS_GAME}/game-assets")
+    endif()
 
     get_target_property(is_bundle ${target} MACOSX_BUNDLE)
     if(APPLE AND is_bundle)
@@ -20,7 +55,7 @@ function(kotonoha_copy_assets target)
         add_custom_command(TARGET ${target} POST_BUILD
             COMMAND "${CMAKE_COMMAND}"
                 "-DRESOURCE_SOURCE=${KOTONOHA_ENGINE_ASSETS}"
-                "-DGAME_SOURCE=${KOTONOHA_PROJECT_ROOT}/games/${ASSETS_GAME}/game-assets"
+                "-DGAME_SOURCE=${_game_asset_source}"
                 "-DRESOURCE_DESTINATION=${destination}"
                 "-DINCLUDE_GAME_ASSETS=${include_game}"
                 -P "${KOTONOHA_PROJECT_ROOT}/buildsystems/cmake/PackageAssets.cmake"
@@ -35,62 +70,59 @@ function(kotonoha_copy_assets target)
     endif()
 endfunction()
 
-# Copia DLLs (.dll) via vcpkg / CMake para o diretório do executável.
-function(kotonoha_copy_game_dependencies target)
-    # Não copiar DLLs/libs quando fora do bundle (macOS) e fora do vcpkg.
-    if(NOT DEFINED VCPKG_TARGET_TRIPLET AND NOT CMAKE_TOOLCHAIN_FILE MATCHES "vcpkg")
-        return()
-    endif()
-
-    if(WIN32 AND NOT ANDROID)
-        # Habilita a cópia automática do vcpkg para o executável deste target
-        set_target_properties(${target} PROPERTIES VS_GLOBAL_VcpkgEnabled "true")
-        set_target_properties(${target} PROPERTIES VS_GLOBAL_VcpkgApplocalDeps "true")
-
-        # Cópia garantida via CMake runtime DLLs (para MinGW, Ninja ou bibliotecas fora do vcpkg)
-        add_custom_command(TARGET ${target} POST_BUILD
-            COMMAND "${CMAKE_COMMAND}" -E copy_if_different
-                $<TARGET_RUNTIME_DLLS:${target}>
-                "$<TARGET_FILE_DIR:${target}>"
-            COMMAND_EXPAND_LISTS
-            VERBATIM)
-    endif()
-endfunction()
-
-# Copia as bibliotecas compartilhadas para <target>/libs no Linux e no macOS
-# sem bundle. No macOS os install names também são reescritos para @loader_path.
+# Deploy CMake-produced shared libraries AND resolved runtime dependencies
+# into each game's output. Windows loads DLLs adjacent to the .exe; Linux
+# and macOS non-bundle use <game>/libs with a relative runpath/install name.
+# System libraries stay system-provided outside of Homebrew / vcpkg on macOS.
 function(kotonoha_copy_runtime_libraries target dependency_dirs)
-    message(STATUS "KOTONOHA_DEBUG: kotonoha_copy_runtime_libraries called for ${target}")
-    if(ANDROID OR WIN32)
+    if(ANDROID OR EMSCRIPTEN)
         return()
     endif()
-    if(APPLE AND NOT CMAKE_SYSTEM_NAME STREQUAL "Darwin")
-        return()
-    endif()
-    if(APPLE AND KOTONOHA_BUILD_MACOS_BUNDLES)
-        return()
-    endif()
-    # Não copiar DLLs/libs quando fora do bundle (macOS) e fora do vcpkg.
-    if(NOT DEFINED VCPKG_TARGET_TRIPLET AND NOT CMAKE_TOOLCHAIN_FILE MATCHES "vcpkg")
-        return()
+    get_target_property(is_bundle ${target} MACOSX_BUNDLE)
+    if(APPLE AND is_bundle)
+        return() # BundleApp.cmake handles .app/Contents/Frameworks.
     endif()
 
+    # These shared CMake targets must be shipped even if they are hidden
+    # behind an indirect dependency or imported from a toolchain.
+    set(_cmake_shared)
+    foreach(_lib IN ITEMS KotonohaEngine imgui SDL3::SDL3 SDL3_ttf::SDL3_ttf)
+        if(TARGET ${_lib})
+            get_target_property(_alias ${_lib} ALIASED_TARGET)
+            if(_alias)
+                set(_real "${_alias}")
+            else()
+                set(_real "${_lib}")
+            endif()
+            get_target_property(_type ${_real} TYPE)
+            if(_type STREQUAL "SHARED_LIBRARY" OR
+               _type STREQUAL "MODULE_LIBRARY" OR
+               _type STREQUAL "UNKNOWN_LIBRARY")
+                list(APPEND _cmake_shared "$<TARGET_FILE:${_lib}>")
+            endif()
+        endif()
+    endforeach()
+    if(WIN32)
+        set(_library_dir "$<TARGET_FILE_DIR:${target}>")
+    else()
+        set(_library_dir "$<TARGET_FILE_DIR:${target}>/libs")
+    endif()
     add_custom_command(TARGET ${target} POST_BUILD
         COMMAND "${CMAKE_COMMAND}"
             "-DEXECUTABLE=$<TARGET_FILE:${target}>"
-            "-DLIBRARY_DIR=$<TARGET_FILE_DIR:${target}>/libs"
+            "-DLIBRARY_DIR=${_library_dir}"
             "-DSEARCH_DIRS=${dependency_dirs}"
+            "-DCMAKE_SHARED_LIBRARIES=${_cmake_shared}"
+            "-DKOTONOHA_BUILD_LIBRARY_ROOT=${CMAKE_BINARY_DIR}"
+            "-DKOTONOHA_VCPKG_ROOT=${VCPKG_INSTALLED_DIR}"
             -P "${KOTONOHA_PROJECT_ROOT}/buildsystems/cmake/CopyRuntimeLibraries.cmake"
         VERBATIM)
-    message(STATUS "KOTONOHA_DEBUG: add_custom_command called for ${target}")
 endfunction()
 
 # Cria o executável ou biblioteca compartilhada (Android)
 function(kotonoha_add_app target)
     if(ANDROID)
         add_library(${target} SHARED ${ARGN})
-    elseif(EMSCRIPTEN)
-        add_executable(${target} ${ARGN})
     else()
         add_executable(${target} ${ARGN})
     endif()
@@ -109,7 +141,6 @@ function(kotonoha_get_default_dependency_dirs _out_dirs)
     set(_dirs)
     list(APPEND _dirs
         "$<TARGET_FILE_DIR:KotonohaEngine>"
-        "$<TARGET_FILE_DIR:imgui>"
         "$<TARGET_FILE_DIR:SDL3::SDL3>"
         "$<TARGET_FILE_DIR:SDL3_ttf::SDL3_ttf>"
         ${LIBASS_LIBRARY_DIRS}
@@ -123,13 +154,50 @@ function(kotonoha_get_default_dependency_dirs _out_dirs)
         list(APPEND _dirs "${freetype_directory}")
     endif()
 
+    # Package only resolved runtime dependencies. macOS can resolve
+    # Homebrew dylibs from Cellar/opt, with or without application bundles.
+    # On Windows/Linux, use CMake-produced and toolchain/vcpkg libraries.
+    if(VCPKG_INSTALLED_DIR AND VCPKG_TARGET_TRIPLET)
+        list(APPEND _dirs
+            "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/bin"
+            "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/debug/bin"
+            "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/lib"
+            "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/debug/lib")
+    endif()
+    if(APPLE)
+        list(APPEND _dirs "/opt/homebrew/lib" "/usr/local/lib")
+        find_program(_kotonoha_brew brew)
+        if(_kotonoha_brew)
+            execute_process(COMMAND "${_kotonoha_brew}" --prefix
+                OUTPUT_VARIABLE _brew_prefix
+                OUTPUT_STRIP_TRAILING_WHITESPACE
+                ERROR_QUIET)
+            if(_brew_prefix)
+                list(APPEND _dirs "${_brew_prefix}/lib")
+                file(GLOB _brew_opt_libs LIST_DIRECTORIES TRUE
+                    "${_brew_prefix}/opt/*/lib")
+                list(APPEND _dirs ${_brew_opt_libs})
+            endif()
+        endif()
+    endif()
     list(REMOVE_DUPLICATES _dirs)
     set(${_out_dirs} "${_dirs}" PARENT_SCOPE)
 endfunction()
 
 # Configurações gerais do app por plataforma
 function(kotonoha_configure_app target)
-    cmake_parse_arguments(APP "" "BUNDLE_ID;GAME;PYTHON_STDLIB;PYTHON_VERSION" "" ${ARGN})
+    cmake_parse_arguments(APP "" "BUNDLE_ID;GAME;GAME_ASSET_SOURCE;PYTHON_STDLIB;PYTHON_VERSION" "" ${ARGN})
+    if(APP_GAME_ASSET_SOURCE)
+        set(_game_asset_source "${APP_GAME_ASSET_SOURCE}")
+    else()
+        set(_game_asset_source "${KOTONOHA_PROJECT_ROOT}/games/${APP_GAME}/game-assets")
+    endif()
+
+    # Register configured desktop/browser applications for CPack. Registration
+    # happens when the actual CMake target exists, not from game name guesses.
+    if(NOT ANDROID)
+        set_property(GLOBAL APPEND PROPERTY KOTONOHA_PACKAGE_TARGETS ${target})
+    endif()
 
     # Diretórios usados para localizar dependências de runtime.
     kotonoha_get_default_dependency_dirs(_kotonoha_dependency_dirs)
@@ -191,7 +259,6 @@ function(kotonoha_configure_app target)
         # 2. Configuração para plataformas fora do macOS Bundle (Windows/Linux/Executáveis padrão)
         kotonoha_configure_app_output(${target})
         if(NOT EMSCRIPTEN)
-            kotonoha_copy_game_dependencies(${target})
             kotonoha_copy_runtime_libraries(${target} "${_kotonoha_dependency_dirs}")
         endif()
 
@@ -202,10 +269,25 @@ function(kotonoha_configure_app target)
             target_link_options(${target} PRIVATE
                 -fexceptions
                 "SHELL:-sDISABLE_EXCEPTION_CATCHING=0"
-                "SHELL:-sEXPORTED_RUNTIME_METHODS=['FS']"
+                "SHELL:-sEXPORTED_RUNTIME_METHODS=['FS','ccall','FS_readFile']"
                 "SHELL:-sFORCE_FILESYSTEM=1"
                 "SHELL:-sALLOW_MEMORY_GROWTH=1"
-                "SHELL:-sINITIAL_MEMORY=268435456"
+                "SHELL:-sINITIAL_MEMORY=${KOTONOHA_WASM_INITIAL_MEMORY}"
+                "SHELL:-sMAXIMUM_MEMORY=${KOTONOHA_WASM_MAX_MEMORY}"
+                # Asyncify lets synchronous VFS callers yield while the browser
+                # completes an asynchronous Fetch (not a blocking network call).
+                # Keep all engine/SDL stacks instrumented by linking the final
+                # application with Asyncify, not just the static engine archive.
+                # Release defaults to -O3. Some Emscripten/Binaryen versions
+                # have emitted broken Asyncify exports under aggressive -O3
+                # optimisation. Keep the final WASM link at -O2 until verified.
+                # Position matters: this target option follows CMake's -O3.
+                "SHELL:-O2"
+                "SHELL:-sASYNCIFY=1"
+                "SHELL:-sASYNCIFY_STACK_SIZE=262144"
+                "SHELL:-sFETCH=1"
+                "SHELL:-sFETCH_STREAMING=1"
+                "SHELL:-lidbfs.js"
                 "SHELL:--preload-file ${KOTONOHA_ENGINE_ASSETS}@/assets"
             )
 
@@ -218,15 +300,25 @@ function(kotonoha_configure_app target)
                 @ONLY
             )
 
+            # Detect a mismatched/broken JS + WASM Asyncify pair at build
+            # time, before browsers can abort with _asyncify_start_unwind.
+            add_custom_command(TARGET ${target} POST_BUILD
+                COMMAND python3 "${KOTONOHA_PROJECT_ROOT}/tools/check_wasm_asyncify.py"
+                        "$<TARGET_FILE:${target}>"
+                COMMENT "Checking required Asyncify exports in WASM binary"
+                VERBATIM
+            )
+
             add_custom_command(TARGET ${target} POST_BUILD
                 COMMAND python3 "${KOTONOHA_PROJECT_ROOT}/tools/generate_manifest.py"
-                        "${KOTONOHA_PROJECT_ROOT}/games/${APP_GAME}/game-assets"
+                        "${_game_asset_source}"
                         "${KOTONOHA_OUTPUT_CONFIG_DIR}/${target}/game-assets/manifest.json"
                 COMMENT "Generating manifest.json for lazy loading"
             )
         endif()
 
-        kotonoha_copy_assets(${target} GAME "${APP_GAME}")
+        kotonoha_copy_assets(${target} GAME "${APP_GAME}"
+            GAME_ASSET_SOURCE "${_game_asset_source}")
     endif()
 endfunction()
 

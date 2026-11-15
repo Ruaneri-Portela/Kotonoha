@@ -6,7 +6,7 @@
 #include <Kotonoha/componentes/VNTextBox.hpp>
 #include <Kotonoha/core/Config.hpp>
 #include <Kotonoha/core/Engine.hpp>
-#include <Kotonoha/core/FileSystem.hpp>
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/UI.hpp>
 #if !defined(KOTONOHA_DISTRIBUTION_BUILD)
 #include <Kotonoha/debug/DebugOverlay.hpp>

@@ -3,8 +3,10 @@
 #include <cstdint>
 #include <filesystem>
 #include <map>
+#include <memory>
 #include <string>
 #include <vector>
+namespace Kotonoha::Filesystem { class Filesystem; }
 namespace SummerRadish {
 using Bytes = std::vector<uint8_t>;
 uint32_t word(const Bytes &, size_t);
@@ -17,11 +19,14 @@ struct Entry {
   bool compressed = false;
 };
 class Pack {
-  std::filesystem::path path;
+  std::shared_ptr<Kotonoha::Filesystem::Filesystem> filesystem;
+  std::string sourceId;
   std::map<std::string, Entry> directory;
 
 public:
-  explicit Pack(const std::filesystem::path &);
+  explicit Pack(const std::filesystem::path &); // legacy physical-path adapter
+  Pack(std::shared_ptr<Kotonoha::Filesystem::Filesystem> filesystem,
+       std::string sourceId);
   const std::map<std::string, Entry> &entries() const { return directory; }
   bool contains(const std::string &name) const;
   Bytes read(const std::string &name) const;

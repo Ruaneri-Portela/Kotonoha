@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <cctype>
 #include <cstdlib>
-#include <fstream>
+#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <sstream>
 #include <utility>
 
@@ -215,7 +215,7 @@ bool SystemData::AllClear() const {
 }
 
 bool SystemData::Load(const std::string &path) {
-  std::ifstream in(path);
+  Kotonoha::Filesystem::InputFile in(path);
   if (!in)
     return false;
   std::string line;
@@ -252,7 +252,7 @@ bool SystemData::Load(const std::string &path) {
 }
 
 bool SystemData::Save(const std::string &path) const {
-  std::ofstream out(path, std::ios::trunc);
+  Kotonoha::Filesystem::OutputFile out(path, std::ios::trunc);
   if (!out)
     return false;
   out << "charSpeed=" << charSpeed << "\nautoWait=" << autoWait

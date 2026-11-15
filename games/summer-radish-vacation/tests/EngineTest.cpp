@@ -10,6 +10,7 @@
 #include <Kotonoha/media/PcmPlayer.hpp>
 #include <SummerRadish/Script.hpp>
 #include <algorithm>
+#include <fstream>
 #include <iostream>
 #include <stdexcept>
 using namespace Kotonoha;
@@ -70,6 +71,13 @@ int main(int argc, char **argv) {
     auto prefs = std::filesystem::temp_directory_path() /
                  ("summer-system-" + std::to_string(SDL_GetTicksNS()));
     SDL_setenv_unsafe("SUMMER_SAVE_DIR", prefs.string().c_str(), 1);
+    std::filesystem::create_directories(prefs);
+    {
+      std::ofstream saved(prefs / "system.dat", std::ios::binary);
+      saved << "SUMMER-SYSTEM-1 2\n"
+               "\"$Valid\" 0 \"42\"\n"
+               "\"$Invalid\" 0 \"not a number\"\n";
+    }
     auto assets = std::make_shared<Kotonoha::Providers::SummerAssets>(argv[1]);
     SummerRadish::SummerRuntime game(assets);
     EngineOptions options;
@@ -270,6 +278,9 @@ int main(int argc, char **argv) {
     // script instead of immediately entering PRORO2.
     check(std::filesystem::is_regular_file(assets->moviePath("SUMMER_OP.MPG")),
           "Loose opening movie resolves case-insensitively");
+    check(assets->moviePath("DISC1/opening.mpg") ==
+              assets->moviePath("SUMMER_OP.MPG"),
+          "DISC1 opening alias resolves the installed summer_op.mpg");
     SummerRadish::Machine scriptIndex;
     auto prologue = assets->read("SCRIPT/PRORO.XML");
     scriptIndex.add("PRORO", std::string(prologue.begin(), prologue.end()));

@@ -2,7 +2,7 @@
 
 #include <Kotonoha/components/VNTextBox.hpp>
 #include <Pmail/Port.hpp>
-#include <SDL3/SDL.h>
+#include <Kotonoha/core/SDL.hpp>
 #include <SnowRadish/SnowAssets.hpp>
 #include <functional>
 #include <map>
@@ -21,6 +21,9 @@ public:
   bool designSpace() const override { return false; }
   bool onEvent(Kotonoha::EventRef event) override;
   void update() override;
+  void setAutoMode(bool enabled);
+  bool autoMode() const { return autoMode_; }
+  void setPresentationPaused(bool paused);
   void recordDialogue(const std::string &, const std::string &) override {}
   PmailTextBox(Kotonoha::Engine &engine, PmailGame &game,
                Kotonoha::Providers::SnowAssets &assets);
@@ -55,11 +58,14 @@ private:
 
   // Text box texture cache
   struct TextBoxTex {
-    SDL_Texture *tex = nullptr;
+    Kotonoha::TexturePtr tex;
     float w = 0, h = 0;
   };
   std::map<std::string, TextBoxTex> textBoxCache_;
   uint64_t indicatorTick_ = 0, indicatorMs_ = 0;
+  uint64_t autoElapsedMs_ = 0;
+  bool autoMode_ = false, autoCountdown_ = false;
+  bool presentationPaused_ = false;
 
   SDL_Texture *LoadTextBoxGraphic(Kotonoha::RendererRef renderer,
                                   const std::string &file);

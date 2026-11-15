@@ -1,7 +1,7 @@
 #include <Kotonoha/core/Resource.hpp>
 #include <Kotonoha/parsers/Ors.h>
 #include <exception>
-#include <fstream>
+#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <iterator>
 #include <memory>
 #include <new>
@@ -753,7 +753,7 @@ struct Kotonoha_orsData Kotonoha_OrsParser(const char *path) {
   if (!path)
     return {};
   try {
-    std::ifstream input(path, std::ios::binary);
+    Kotonoha::Filesystem::InputFile input(path, std::ios::binary);
     if (!input)
       return {};
     std::vector<char> bytes((std::istreambuf_iterator<char>(input)), {});

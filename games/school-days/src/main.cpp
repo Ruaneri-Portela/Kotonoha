@@ -1,6 +1,5 @@
-#define SDL_MAIN_USE_CALLBACKS 1
+#include <Kotonoha/core/SDLCallbackApp.hpp>
 #include <SDL3/SDL.h>
-#include <SDL3/SDL_main.h>
 
 #include "SchoolDaysAssets.hpp"
 #include "SchoolDaysLauncher.hpp"
@@ -11,7 +10,7 @@
 #include <Kotonoha/routing/SchoolDaysTranslationCoverage.hpp>
 #include <Kotonoha/routing/SchoolDaysGpkLanguageProfile.hpp>
 #include <Kotonoha/SchoolDaysAssetMount.hpp>
-#include <Kotonoha/core/FileSystem.hpp>
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <cstdlib>
 #include <cstdio>
 #include <cstring>
@@ -306,13 +305,20 @@ struct App {
 
 }
 
-SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
+struct KotonohaPortCallbacks final {
+  static SDL_AppResult init(void **appstate, int argc, char **argv);
+  static SDL_AppResult event(void *appstate, SDL_Event *event);
+  static SDL_AppResult iterate(void *appstate);
+  static void quit(void *appstate, SDL_AppResult result);
+};
+
+SDL_AppResult KotonohaPortCallbacks::init(void **appstate, int argc, char **argv) {
   *appstate = nullptr;
 #if defined(KOTONOHA_DISTRIBUTION_BUILD)
   SDL_SetLogPriorities(SDL_LOG_PRIORITY_ERROR);
 #endif
   DevStartupLog("app-init-entered");
-  SDL_SetAppMetadata("School Days HQ", "0.1.0", "me.hirameki.kotonoha.schooldays");
+  KOTONOHA_SET_APP_METADATA("School Days HQ", "me.hirameki.kotonoha.schooldays");
   try {
     auto app = std::make_unique<App>();
     std::string directory;
@@ -540,7 +546,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
   }
 }
 
-SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event) {
+SDL_AppResult KotonohaPortCallbacks::event(void *appstate, SDL_Event *event) {
   auto *app = static_cast<App *>(appstate);
   if (!app) return SDL_APP_FAILURE;
   try {
@@ -557,7 +563,7 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event) {
   }
 }
 
-SDL_AppResult SDL_AppIterate(void *appstate) {
+SDL_AppResult KotonohaPortCallbacks::iterate(void *appstate) {
   auto *app = static_cast<App *>(appstate);
   if (!app) return SDL_APP_FAILURE;
   try {
@@ -616,7 +622,9 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
   }
 }
 
-void SDL_AppQuit(void *appstate, SDL_AppResult result) {
+void KotonohaPortCallbacks::quit(void *appstate, SDL_AppResult result) {
   DevStartupLog("app-quit", std::to_string(result));
   delete static_cast<App *>(appstate);
 }
+
+KOTONOHA_SDL_CALLBACK_APP(KotonohaPortCallbacks)

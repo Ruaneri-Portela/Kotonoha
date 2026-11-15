@@ -1,7 +1,7 @@
 #include <Kotonoha/routing/SchoolDaysTranslationCoverage.hpp>
 
 #include "SchoolDaysAssets.hpp"
-#include <Kotonoha/core/FileSystem.hpp>
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/parsers/Documents.hpp>
 #include <Kotonoha/routing/SchoolDaysGpkLanguageProfile.hpp>
 #include <Kotonoha/routing/SchoolDaysLxhContent.hpp>

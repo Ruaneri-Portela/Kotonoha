@@ -53,6 +53,9 @@ kotonoha_configure_app(Pmail
     BUNDLE_ID me.hirameki.kotonoha.pmail GAME pmail)
 
 if(BUILD_TESTING)
+    add_executable(PmailPackBytesCheck tests/PackBytes.cpp)
+    target_link_libraries(PmailPackBytesCheck PRIVATE PmailPort)
+    add_test(NAME Pmail.PackBytes COMMAND PmailPackBytesCheck)
     add_executable(PmailAnimationFormatCheck tests/AnimationFormat.cpp)
     target_link_libraries(PmailAnimationFormatCheck PRIVATE Kotonoha::ProviderADV)
     add_test(NAME Pmail.AnimationFormat COMMAND PmailAnimationFormatCheck)

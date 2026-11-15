@@ -1,7 +1,7 @@
 #include <RealLive/Voice.hpp>
 #include <algorithm>
 #include <cctype>
-#include <fstream>
+#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <limits>
 #include <regex>
 #include <sstream>
@@ -74,7 +74,7 @@ VoiceIndex::VoiceIndex(const std::vector<std::string> &assets, Reader reader,
     const auto local = std::filesystem::u8path(localPath(asset));
     std::vector<std::uint8_t> table;
     if (!local.empty()) {
-      std::ifstream input(local, std::ios::binary);
+      Kotonoha::Filesystem::InputFile input(local, std::ios::binary);
       std::uint8_t countBytes[4]{};
       if (!input.read(reinterpret_cast<char *>(countBytes), 4))
         continue;
@@ -113,7 +113,7 @@ std::optional<std::vector<std::uint8_t>> VoiceIndex::read(int id) const {
     return std::nullopt;
   const auto &entry = it->second;
   if (!entry.local.empty()) {
-    std::ifstream input(entry.local, std::ios::binary);
+    Kotonoha::Filesystem::InputFile input(entry.local, std::ios::binary);
     if (!input.seekg(std::streamoff(entry.offset)))
       return std::nullopt;
     const auto size =

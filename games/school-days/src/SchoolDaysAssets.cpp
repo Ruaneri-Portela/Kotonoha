@@ -3,7 +3,7 @@
 #include <Kotonoha/SchoolDaysAssetMount.hpp>
 #include <Kotonoha/SchoolDaysImageAssetResolver.hpp>
 #include <Kotonoha/routing/SchoolDaysLxhContent.hpp>
-#include <Kotonoha/core/FileSystem.hpp>
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/SDL.hpp>
 #include <Kotonoha/media/MediaDecoder.hpp>
 #include <algorithm>
