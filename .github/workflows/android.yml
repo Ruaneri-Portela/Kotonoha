@@ -43,6 +43,16 @@ jobs:
           sdkmanager "platforms;android-36" "build-tools;36.0.0" \
             "ndk;28.2.13676358" "cmake;3.22.1"
 
+      - name: Install host autotools for vcpkg
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            autoconf autoconf-archive automake libtool
+          for program in autoconf automake aclocal libtoolize; do
+            command -v "$program" >/dev/null || { echo "::error::Missing $program"; exit 1; }
+          done
+          dpkg-query -W autoconf-archive
+
       - name: Install pinned vcpkg
         run: |
           git clone --quiet https://github.com/microsoft/vcpkg.git "$RUNNER_TEMP/vcpkg"

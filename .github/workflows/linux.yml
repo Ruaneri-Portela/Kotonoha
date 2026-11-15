@@ -23,7 +23,14 @@ jobs:
       - name: Install build prerequisites
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends build-essential ninja-build cmake pkg-config patchelf zip unzip curl autoconf automake libtool nasm yasm bison flex libssl-dev libgl1-mesa-dev libx11-dev libxext-dev libxrandr-dev libxi-dev libxcursor-dev libxinerama-dev libxss-dev libxtst-dev libxkbcommon-dev libxft-dev libwayland-dev libegl1-mesa-dev libfreetype-dev
+          sudo apt-get install -y --no-install-recommends build-essential ninja-build cmake pkg-config patchelf zip unzip curl autoconf autoconf-archive automake libtool nasm yasm bison flex libssl-dev libgl1-mesa-dev libx11-dev libxext-dev libxrandr-dev libxi-dev libxcursor-dev libxinerama-dev libxss-dev libxtst-dev libxkbcommon-dev libxft-dev libwayland-dev libegl1-mesa-dev libfreetype-dev
+      - name: Verify autotools required by vcpkg gperf
+        run: |
+          for program in autoconf automake aclocal libtoolize; do
+            command -v "$program" >/dev/null || { echo "::error::Missing $program"; exit 1; }
+          done
+          dpkg-query -W autoconf-archive
+
       - name: Set up pinned vcpkg
         run: |
           git clone --quiet https://github.com/microsoft/vcpkg.git "$RUNNER_TEMP/vcpkg"
