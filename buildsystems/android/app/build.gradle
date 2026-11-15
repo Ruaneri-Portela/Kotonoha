@@ -10,7 +10,26 @@ plugins {
 
 def engineRoot = rootProject.projectDir.parentFile.parentFile
 def sdlRoot = new File(engineRoot, 'lib/submodules/SDL')
+def sdlTtfRoot = new File(engineRoot, 'lib/submodules/SDL_ttf')
+def imguiRoot = new File(engineRoot, 'lib/submodules/imgui')
+def sdlJavaRoot = new File(sdlRoot, 'android-project/app/src/main/java')
 def vcpkgRoot = providers.environmentVariable('VCPKG_ROOT').orNull
+
+// The SDL Android glue is part of the SDL source checkout, not vcpkg.
+// Fail fast before CMake or Java compilation if a submodule is incomplete.
+[
+  new File(sdlRoot, 'CMakeLists.txt'),
+  new File(sdlTtfRoot, 'CMakeLists.txt'),
+  new File(imguiRoot, 'imgui.cpp'),
+  new File(imguiRoot, 'backends/imgui_impl_sdl3.cpp'),
+  new File(imguiRoot, 'backends/imgui_impl_sdlrenderer3.cpp'),
+  new File(sdlJavaRoot, 'org/libsdl/app/SDLActivity.java'),
+  new File(sdlJavaRoot, 'org/libsdl/app/SDLSurface.java')
+].each { source ->
+  if (!source.isFile()) {
+    throw new GradleException("Missing SDL/SDL_ttf/ImGui submodule source: ${source}. Run git submodule update --init --recursive.")
+  }
+}
 
 if (!vcpkgRoot) {
   throw new GradleException('Set VCPKG_ROOT to your vcpkg checkout before opening Android.')
@@ -74,6 +93,10 @@ android {
           "-DVCPKG_MANIFEST_DIR=${engineRoot}",
           "-DVCPKG_CHAINLOAD_TOOLCHAIN_FILE=${android.ndkDirectory}/build/cmake/android.toolchain.cmake",
           "-DKOTONOHA_SDL_SOURCE_DIR=${sdlRoot}",
+          // Android requires SDL's Java bindings and matching native sources.
+          // Keep SDL3, SDL3_ttf and ImGui from their checked-out submodules.
+          '-DKOTONOHA_SDL_FROM_VCPKG=OFF',
+          '-DKOTONOHA_IMGUI_FROM_VCPKG=OFF',
           '-DANDROID_PLATFORM=android-28',
           '-DANDROID_STL=c++_shared'
       }
@@ -130,7 +153,7 @@ android {
 
   sourceSets {
     main {
-      java.srcDirs += new File(sdlRoot, 'android-project/app/src/main/java')
+      java.srcDirs += sdlJavaRoot
     }
   }
 
