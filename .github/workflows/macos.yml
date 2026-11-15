@@ -1,7 +1,11 @@
-name: macOS x64 vcpkg build and media regression tests
+name: macOS x64 and arm64 vcpkg builds and regression tests
 
 on:
   workflow_dispatch:
+  push:
+    branches: [dev, main]
+  pull_request:
+    branches: [dev, main]
 
 permissions:
   contents: read
@@ -12,10 +16,26 @@ concurrency:
 
 jobs:
   macos:
-    runs-on: macos-15
+    name: macOS ${{ matrix.arch }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            runner: macos-15-intel
+            triplet: x64-osx
+            bundles: "OFF"
+          - arch: arm64
+            runner: macos-15
+            triplet: arm64-osx
+            bundles: "ON"
     timeout-minutes: 180
     steps:
       - uses: actions/checkout@v4
+
+      - name: Verify native runner architecture
+        run: test "$(uname -m)" = "${{ matrix.arch }}"
 
       - name: Install build prerequisites
         run: |
@@ -31,8 +51,8 @@ jobs:
       - uses: actions/cache@v4
         with:
           path: vcpkg-binary-cache
-          key: macos-x64-vcpkg-${{ hashFiles('vcpkg.json', 'vcpkg-overlays/ports/**') }}
-          restore-keys: macos-x64-vcpkg-
+          key: macos-${{ matrix.arch }}-vcpkg-${{ hashFiles('vcpkg.json', 'vcpkg-overlays/ports/**') }}
+          restore-keys: macos-${{ matrix.arch }}-vcpkg-
 
       - name: Audit engine/game platform isolation
         run: |
@@ -47,16 +67,30 @@ jobs:
           cmake -S . -B build-macos -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \
-            -DVCPKG_TARGET_TRIPLET=x64-osx \
+            -DVCPKG_TARGET_TRIPLET=${{ matrix.triplet }} \
+            -DCMAKE_OSX_ARCHITECTURES=${{ matrix.arch }} \
             "-DVCPKG_MANIFEST_FEATURES=sdl-vcpkg;imgui-vcpkg" \
             -DKOTONOHA_SDL_FROM_VCPKG=ON \
             -DKOTONOHA_IMGUI_FROM_VCPKG=ON \
             -DVCPKG_OVERLAY_PORTS="$GITHUB_WORKSPACE/vcpkg-overlays/ports" \
             -DKOTONOHA_BUILD_ALL=ON -DBUILD_TESTING=ON \
-            -DKOTONOHA_BUILD_MACOS_BUNDLES=OFF
+            -DKOTONOHA_BUILD_MACOS_BUNDLES=${{ matrix.bundles }}
 
       - name: Build all native game ports and tests
         run: cmake --build build-macos --parallel 3
+
+      - name: Verify SchoolDays executable architecture and macOS bundle
+        run: |
+          if [ "${{ matrix.bundles }}" = "ON" ]; then
+            executable="build-macos/outputs/SchoolDays.app/Contents/MacOS/SchoolDays"
+            test -d "build-macos/outputs/SchoolDays.app/Contents/Frameworks"
+            codesign --verify --deep --strict --verbose=2 "build-macos/outputs/SchoolDays.app"
+          else
+            executable="build-macos/outputs/SchoolDays/SchoolDays"
+          fi
+          test -f "$executable"
+          lipo -verify_arch "${{ matrix.arch }}" "$executable"
+          test "$(lipo -archs "$executable")" = "${{ matrix.arch }}"
 
       - name: Run native regression suite
         env:
@@ -71,7 +105,7 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: kotonoha-macos-x64-vcpkg
+          name: kotonoha-macos-${{ matrix.arch }}-vcpkg
           path: |
             build-macos/outputs/
             build-macos/packages/*.zip
