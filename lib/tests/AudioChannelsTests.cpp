@@ -9,6 +9,7 @@
 #include <imgui_internal.h>
 
 #include <cmath>
+#include <cstring>
 #include <filesystem>
 #include <iomanip>
 #include <iostream>
@@ -102,16 +103,37 @@ void testDebug(Engine &engine) {
   channel->setVolume(0.5f);
   auto &debug = engine.GetDebug();
   debug.setVisible(true);
+  debug.openOptions();
   auto frame = [&] { debug.renderMenu(engine.GetRenderer()); };
   frame();
-  auto *window = ImGui::FindWindowByName("Kotonoha Debug [F10]");
-  require(window != nullptr, "Find debug inspector");
-  window->StateStorage.SetInt(window->GetID("Audio channels"), 1);
+  // The synchronized debug UI moved channel controls out of the old F10
+  // inspector and into the independent Options Applet / Audio tab.
+  auto *window = ImGui::FindWindowByName("Options Applet");
+  require(window != nullptr, "Find separate Options Applet");
+  const auto tabBarId = window->GetID("##options-tabs");
+  auto *tabs = ImGui::GetCurrentContext()->TabBars.GetByKey(tabBarId);
+  require(tabs != nullptr, "Find options tabs");
+  const auto audioTabId = ImHashStr("Audio", 0, tabBarId);
+  tabs->NextSelectedTabId = audioTabId;
   frame();
   frame();
-  const auto channelID = ImHashStr("audio", 0, window->ID);
-  const auto muteID = ImHashStr("Mute", 0, channelID);
-  const auto volumeID = ImHashStr("Volume", 0, channelID);
+  require(tabs->SelectedTabId == audioTabId,
+          "Options Audio page can be selected");
+  // ImGui's non-scrolling table pushes its table ID; each audio row then
+  // pushes the channel name. Keep exercising real checkbox and slider IDs.
+  ImGuiWindow *audioChild = nullptr;
+  for (auto *candidate : ImGui::GetCurrentContext()->Windows)
+    if (std::strstr(candidate->Name, "card_audio")) {
+      audioChild = candidate;
+      break;
+    }
+  require(audioChild != nullptr, "Audio controls card is rendered");
+  const auto tableID = audioChild->GetID("audio channels");
+  require(ImGui::GetCurrentContext()->Tables.GetByKey(tableID) != nullptr,
+          "Audio controls table is rendered");
+  const auto channelID = ImHashStr("audio", 0, tableID);
+  const auto muteID = ImHashStr("##mute", 0, channelID);
+  const auto volumeID = ImHashStr("##volume", 0, channelID);
   ImGui::ActivateItemByID(muteID);
   frame();
   require(channel->isMuted(), "Debug UI mute checkbox controls named channel");
@@ -157,6 +179,14 @@ void testStreamGain(AudioMixer &mixer) {
        "Script volume changes preserve the user's mixer limit");
   near(mixer.channel("future-channel")->getUserVolume(), .25f,
        "Future channels inherit the user's saved gain");
+  SDL_AudioStream *third = SDL_CreateAudioStream(&spec, &spec);
+  require(third != nullptr, "Create future user-volume test stream");
+  auto savedVolumeChannel = mixer.channel("future-channel");
+  savedVolumeChannel->attach(third, .8f);
+  near(SDL_GetAudioStreamGain(third), .2f,
+       "Newly attached stream must apply previously saved user volume");
+  savedVolumeChannel->detach(third);
+  SDL_DestroyAudioStream(third);
   rejects([&] { mixer.setUserVolumes({{"fade-test", 2.f}}); },
           "Reject invalid user mixer gain");
   near(channel->getUserVolume(), .5f,
