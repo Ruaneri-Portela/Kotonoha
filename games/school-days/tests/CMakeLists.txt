@@ -203,6 +203,9 @@ add_executable(SchoolDaysConfigStorageTest SchoolDaysConfigStorageTest.cpp)
 target_link_libraries(SchoolDaysConfigStorageTest PRIVATE school_days)
 add_test(NAME SchoolDaysConfigStorageTest COMMAND SchoolDaysConfigStorageTest)
 
+# This test inspects Engine::GetDebug(), removed from public DIST builds.
+# It remains fully compiled and registered in DEV/non-DIST builds.
+if(NOT KOTONOHA_DISTRIBUTION_BUILD)
 add_executable(SchoolDaysRuntimeConfigStorageTest SchoolDaysRuntimeConfigStorageTest.cpp)
 target_link_libraries(SchoolDaysRuntimeConfigStorageTest PRIVATE school_days)
 add_test(NAME SchoolDaysRuntimeConfigStorageTest COMMAND SchoolDaysRuntimeConfigStorageTest
@@ -211,6 +214,7 @@ add_test(NAME SchoolDaysRuntimeConfigStorageTest COMMAND SchoolDaysRuntimeConfig
 set_tests_properties(SchoolDaysRuntimeConfigStorageTest PROPERTIES
     FIXTURES_REQUIRED school_days_assets
     ENVIRONMENT "SDL_VIDEODRIVER=dummy;SDL_AUDIODRIVER=dummy")
+endif()
 
 add_executable(SchoolDaysHandoffRuntimeTest SchoolDaysHandoffRuntimeTest.cpp)
 target_link_libraries(SchoolDaysHandoffRuntimeTest PRIVATE school_days)
@@ -272,6 +276,8 @@ set_tests_properties(SchoolDaysLauncherTest PROPERTIES
     FIXTURES_REQUIRED school_days_assets
     ENVIRONMENT "SDL_VIDEODRIVER=dummy;SDL_AUDIODRIVER=dummy")
 
+# The media QA test uses Engine::GetDebug() and debugJumpToNode().
+if(NOT KOTONOHA_DISTRIBUTION_BUILD)
 add_executable(SchoolDaysMediaTest SchoolDaysMediaTest.cpp)
 target_link_libraries(SchoolDaysMediaTest PRIVATE school_days)
 kotonoha_copy_assets(SchoolDaysMediaTest)
@@ -281,6 +287,7 @@ add_test(NAME SchoolDaysMediaTest COMMAND SchoolDaysMediaTest
     "${CMAKE_CURRENT_BINARY_DIR}/media-documents")
 set_tests_properties(SchoolDaysMediaTest PROPERTIES
     ENVIRONMENT "SDL_VIDEODRIVER=dummy;SDL_AUDIODRIVER=dummy")
+endif()
 
 add_executable(SchoolDaysUiModelTest SchoolDaysUiModelTest.cpp)
 target_link_libraries(SchoolDaysUiModelTest PRIVATE school_days)
@@ -299,6 +306,11 @@ set_tests_properties(SchoolDaysSystemUiCommentEditorTest PROPERTIES
 if(WIN32)
     set(_school_days_test_runtime_env
         "PATH=path_list_prepend:$<TARGET_FILE_DIR:KotonohaEngine>")
+    set(_school_days_dev_only_ctests)
+    if(NOT KOTONOHA_DISTRIBUTION_BUILD)
+        list(APPEND _school_days_dev_only_ctests
+            SchoolDaysRuntimeConfigStorageTest SchoolDaysMediaTest)
+    endif()
     set_tests_properties(
         SchoolDaysPortTest
         SchoolDaysSessionTest
@@ -325,7 +337,6 @@ if(WIN32)
         SchoolDaysNextChoiceRuntimeTest
         SchoolDaysBackRuntimeTest
         SchoolDaysConfigStorageTest
-        SchoolDaysRuntimeConfigStorageTest
         SchoolDaysHandoffRuntimeTest
         SchoolDaysReplayScriptOracleTest
         SchoolDaysReplayPlaybackSessionTest
@@ -334,16 +345,19 @@ if(WIN32)
         SchoolDaysReplayRuntimeUiTest
         SchoolDaysRuntimeSmoke
         SchoolDaysLauncherTest
-        SchoolDaysMediaTest
+        ${_school_days_dev_only_ctests}
         SchoolDaysUiModelTest
         SchoolDaysSystemUiCommentEditorTest
         PROPERTIES ENVIRONMENT_MODIFICATION "${_school_days_test_runtime_env}")
 endif()
 
 # Manual visual check with retail data (see SchoolDaysPanelCapture.cpp).
+# Its debugJumpToNode entry point cannot exist in DIST; never ship this tool.
+if(NOT KOTONOHA_DISTRIBUTION_BUILD)
 add_executable(SchoolDaysPanelCapture SchoolDaysPanelCapture.cpp)
 target_link_libraries(SchoolDaysPanelCapture PRIVATE school_days)
 kotonoha_copy_assets(SchoolDaysPanelCapture)
+endif()
 
 set(SCHOOL_DAYS_DATA_DIR "" CACHE PATH "User-supplied School Days HQ installation")
 if(SCHOOL_DAYS_DATA_DIR)
@@ -390,8 +404,10 @@ if(WIN32)
       "PATH=path_list_prepend:$<TARGET_FILE_DIR:KotonohaEngine>")
 endif()
 
-set_property(TEST SchoolDaysMediaTest APPEND PROPERTY FAIL_REGULAR_EXPRESSION
-    "Could not update timestamps for discarded samples" "Extra data: 8 bits left, value: 0")
+if(NOT KOTONOHA_DISTRIBUTION_BUILD)
+    set_property(TEST SchoolDaysMediaTest APPEND PROPERTY FAIL_REGULAR_EXPRESSION
+        "Could not update timestamps for discarded samples" "Extra data: 8 bits left, value: 0")
+endif()
 if(SCHOOL_DAYS_DATA_DIR)
     set_property(TEST SchoolDays.Save APPEND PROPERTY FAIL_REGULAR_EXPRESSION
         "Could not update timestamps for discarded samples" "Extra data: 8 bits left, value: 0")
