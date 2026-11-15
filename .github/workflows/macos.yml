@@ -24,11 +24,11 @@ jobs:
         include:
           - arch: x86_64
             runner: macos-15-intel
-            triplet: x64-osx
+            triplet: x64-osx-dynamic
             bundles: "ON"
           - arch: arm64
             runner: macos-15
-            triplet: arm64-osx
+            triplet: arm64-osx-dynamic
             bundles: "ON"
     timeout-minutes: 180
     steps:
@@ -66,12 +66,16 @@ jobs:
           git -C "$RUNNER_TEMP/vcpkg" checkout --quiet 9a5dfef5d1a0438a7d24856a85bd60f309d355e9
           "$RUNNER_TEMP/vcpkg/bootstrap-vcpkg.sh" -disableMetrics
           echo "VCPKG_ROOT=$RUNNER_TEMP/vcpkg" >> "$GITHUB_ENV"
+          # Dynamic macOS triplets are community triplets in this pinned vcpkg.
+          triplet_file="$RUNNER_TEMP/vcpkg/triplets/community/${{ matrix.triplet }}.cmake"
+          test -f "$triplet_file"
+          grep -Eq '^[[:space:]]*set\(VCPKG_LIBRARY_LINKAGE[[:space:]]+dynamic\)' "$triplet_file"
 
       - uses: actions/cache@v4
         with:
           path: vcpkg-binary-cache
-          key: macos-${{ matrix.arch }}-vcpkg-${{ hashFiles('vcpkg.json', 'vcpkg-overlays/ports/**') }}
-          restore-keys: macos-${{ matrix.arch }}-vcpkg-
+          key: macos-${{ matrix.triplet }}-vcpkg-${{ hashFiles('vcpkg.json', 'vcpkg-overlays/ports/**') }}
+          restore-keys: macos-${{ matrix.triplet }}-vcpkg-
 
       - name: Audit engine/game platform isolation
         run: |
@@ -140,7 +144,7 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: kotonoha-macos-${{ matrix.arch }}-vcpkg
+          name: kotonoha-macos-${{ matrix.triplet }}-vcpkg
           path: |
             build-macos/outputs/
             build-macos/packages/*.zip
