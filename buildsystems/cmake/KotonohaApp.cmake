@@ -286,7 +286,6 @@ function(kotonoha_configure_app target)
                 "SHELL:-sASYNCIFY=1"
                 "SHELL:-sASYNCIFY_STACK_SIZE=262144"
                 "SHELL:-sFETCH=1"
-                "SHELL:-sFETCH_STREAMING=1"
                 "SHELL:-lidbfs.js"
                 "SHELL:--preload-file ${KOTONOHA_ENGINE_ASSETS}@/assets"
             )
