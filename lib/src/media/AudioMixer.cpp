@@ -139,7 +139,11 @@ void AudioChannel::attach(SDL_AudioStream *stream, float sourceGain) {
                                return entry.stream == stream;
                              }))
     throw std::invalid_argument("Invalid or duplicate audio channel stream");
-  if (!SDL_SetAudioStreamGain(stream, muted ? 0 : masterGain * volume * sourceGain))
+  // A channel created after setUserVolumes() already carries its saved
+  // per-channel limit. Apply it to newly attached streams just as apply()
+  // does to streams that were attached before the preference changed.
+  if (!SDL_SetAudioStreamGain(
+          stream, muted ? 0 : masterGain * userVolume * volume * sourceGain))
     throw std::runtime_error(SDL_GetError());
 #ifdef KOTONOHA_DEV_CONTROL
   const SDL_AudioDeviceID device = SDL_GetAudioStreamDevice(stream);
