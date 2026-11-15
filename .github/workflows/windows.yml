@@ -15,7 +15,43 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  vcpkg-deps:
+    runs-on: windows-2022
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - name: Restore prebuilt dependency archives
+        id: deps-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: vcpkg-binary-cache
+          key: kotonoha-deps-v2-windows-x64-windows-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json', 'vcpkg-overlays/ports/**') }}
+          restore-keys: |
+            kotonoha-deps-v2-windows-x64-windows-
+      - name: Set up pinned vcpkg
+        if: steps.deps-cache.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          git clone --quiet https://github.com/microsoft/vcpkg.git "$env:RUNNER_TEMP/vcpkg"
+          git -C "$env:RUNNER_TEMP/vcpkg" checkout --quiet 9a5dfef5d1a0438a7d24856a85bd60f309d355e9
+          & "$env:RUNNER_TEMP/vcpkg/bootstrap-vcpkg.bat" -disableMetrics
+          "VCPKG_ROOT=$env:RUNNER_TEMP/vcpkg" >> $env:GITHUB_ENV
+      - name: Precompile Windows vcpkg packages
+        if: steps.deps-cache.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force vcpkg-binary-cache | Out-Null
+          $env:VCPKG_BINARY_SOURCES="clear;files,$env:GITHUB_WORKSPACE/vcpkg-binary-cache,readwrite"
+          & "$env:VCPKG_ROOT/vcpkg.exe" install --triplet=x64-windows --x-feature=sdl-vcpkg --x-feature=imgui-vcpkg "--overlay-ports=$env:GITHUB_WORKSPACE/vcpkg-overlays/ports"
+      - name: Save finished vcpkg dependency archives
+        if: steps.deps-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: vcpkg-binary-cache
+          key: kotonoha-deps-v2-windows-x64-windows-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json', 'vcpkg-overlays/ports/**') }}
+
   windows:
+    needs: vcpkg-deps
     runs-on: windows-2022
     timeout-minutes: 180
     steps:
@@ -27,11 +63,13 @@ jobs:
           git -C "$env:RUNNER_TEMP/vcpkg" checkout --quiet 9a5dfef5d1a0438a7d24856a85bd60f309d355e9
           & "$env:RUNNER_TEMP/vcpkg/bootstrap-vcpkg.bat" -disableMetrics
           "VCPKG_ROOT=$env:RUNNER_TEMP/vcpkg" >> $env:GITHUB_ENV
-      - uses: actions/cache@v4
+      - name: Restore vcpkg archives built in the dependency job
+        uses: actions/cache/restore@v4
         with:
           path: vcpkg-binary-cache
-          key: windows-x64-${{ hashFiles('vcpkg.json', 'vcpkg-overlays/ports/**') }}
-          restore-keys: windows-x64-
+          key: kotonoha-deps-v2-windows-x64-windows-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json', 'vcpkg-overlays/ports/**') }}
+          fail-on-cache-miss: true
+
       - name: Audit build scripts
         shell: pwsh
         run: |

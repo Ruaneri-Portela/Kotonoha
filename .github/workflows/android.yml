@@ -15,7 +15,64 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  vcpkg-deps:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - name: Restore prebuilt dependency archives
+        id: deps-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: vcpkg-binary-cache
+          key: kotonoha-deps-v2-android-arm64-ndk28-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json', 'vcpkg-overlays/ports/**') }}
+          restore-keys: |
+            kotonoha-deps-v2-android-arm64-ndk28-
+      - uses: android-actions/setup-android@v4
+        if: steps.deps-cache.outputs.cache-hit != 'true'
+
+      - name: Install Android build tools
+        if: steps.deps-cache.outputs.cache-hit != 'true'
+        run: |
+          sdkmanager "platforms;android-36" "build-tools;36.0.0" \
+            "ndk;28.2.13676358" "cmake;3.22.1"
+
+      - name: Install host autotools for vcpkg
+        if: steps.deps-cache.outputs.cache-hit != 'true'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            autoconf autoconf-archive automake libtool
+          for program in autoconf automake aclocal libtoolize; do
+            command -v "$program" >/dev/null || { echo "::error::Missing $program"; exit 1; }
+          done
+          dpkg-query -W autoconf-archive
+
+      - name: Install pinned vcpkg
+        if: steps.deps-cache.outputs.cache-hit != 'true'
+        run: |
+          git clone --quiet https://github.com/microsoft/vcpkg.git "$RUNNER_TEMP/vcpkg"
+          git -C "$RUNNER_TEMP/vcpkg" checkout --quiet 9a5dfef5d1a0438a7d24856a85bd60f309d355e9
+          "$RUNNER_TEMP/vcpkg/bootstrap-vcpkg.sh" -disableMetrics
+          echo "VCPKG_ROOT=$RUNNER_TEMP/vcpkg" >> "$GITHUB_ENV"
+      - name: Precompile Android ARM64 vcpkg packages
+        if: steps.deps-cache.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          mkdir -p vcpkg-binary-cache
+          export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/28.2.13676358"
+          export VCPKG_BINARY_SOURCES="clear;files,$GITHUB_WORKSPACE/vcpkg-binary-cache,readwrite"
+          "$VCPKG_ROOT/vcpkg" install --triplet=arm64-android  \
+            "--overlay-ports=$GITHUB_WORKSPACE/vcpkg-overlays/ports"
+      - name: Save finished vcpkg dependency archives
+        if: steps.deps-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: vcpkg-binary-cache
+          key: kotonoha-deps-v2-android-arm64-ndk28-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json', 'vcpkg-overlays/ports/**') }}
+
   android:
+    needs: vcpkg-deps
     runs-on: ubuntu-24.04
     timeout-minutes: 180
     steps:
@@ -60,11 +117,13 @@ jobs:
           "$RUNNER_TEMP/vcpkg/bootstrap-vcpkg.sh" -disableMetrics
           echo "VCPKG_ROOT=$RUNNER_TEMP/vcpkg" >> "$GITHUB_ENV"
 
-      - uses: actions/cache@v4
+      - name: Restore vcpkg archives built in the dependency job
+        uses: actions/cache/restore@v4
         with:
-          path: buildsystems/android/build/vcpkg
-          key: android-arm64-vcpkg-${{ hashFiles('vcpkg.json', 'vcpkg-overlays/ports/**') }}
-          restore-keys: android-arm64-vcpkg-
+          path: vcpkg-binary-cache
+          key: kotonoha-deps-v2-android-arm64-ndk28-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json', 'vcpkg-overlays/ports/**') }}
+          fail-on-cache-miss: true
+
 
       - name: Verify Android SDL, SDL_ttf and ImGui submodules
         run: |
@@ -94,6 +153,7 @@ jobs:
         working-directory: buildsystems/android
         run: |
           export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/28.2.13676358"
+          export VCPKG_BINARY_SOURCES="clear;files,$GITHUB_WORKSPACE/vcpkg-binary-cache,read"
           gradle :app:assembleExampleDebug :app:assembleSchoolDaysDebug \
             -Pabis=arm64-v8a -PbundleGameAssets=false --no-daemon --stacktrace
 
