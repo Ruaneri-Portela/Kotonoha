@@ -150,7 +150,14 @@ def main():
             2 <= args.timeout <= 180):
         parser.error("cycles 0..20, smokes 0..1000, timeout 2..180")
     build = args.build_dir.resolve()
-    exe = build / "games" / "school-days" / "Release" / "SchoolDays.exe"
+    # Upstream's shared output layout stages the executable in outputs/,
+    # whereas the local Windows L4 matrix used the game sub-build directory.
+    # Only accept either build-local executable; never fall back to retail.
+    candidates = (
+        build / "outputs" / "Release" / "SchoolDays" / "SchoolDays.exe",
+        build / "games" / "school-days" / "Release" / "SchoolDays.exe",
+    )
+    exe = next((path for path in candidates if path.is_file()), candidates[0])
     fixture = build / "games" / "school-days" / "tests" / "fixtures"
     if not (exe.is_file() and ROUTE.is_file() and
             (fixture / "Script").is_dir()):
