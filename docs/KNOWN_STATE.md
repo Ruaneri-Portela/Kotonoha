@@ -21,10 +21,11 @@ the publication gate decision.
 | Linux | **Not built or tested** in this sync | Separate platform release gate |
 | Web | **Not built or tested** in this sync | Separate platform release gate |
 | `Kotonoha.Infrastructure` / MetalFX | Fails on a software SDL renderer **also on pure upstream** | Known upstream/headless limitation; do not weaken or skip the test |
-| `SchoolDaysLauncherTest` | With SDL dummy, exceeded 15 seconds after sync; classification documented in local final log | Compare pre-sync test and diagnostic 120-second run; no permanent timeout increase |
-| DIST `ALL_BUILD` | Debug-only test/utility targets referenced APIs intentionally absent in the public engine | Keep those targets in non-DIST/DEV builds while preserving all DEV tests; rebuild DIST cleanly |
-| Windows L4 `settings.json` | Source path intentionally resolves beside the executable; separate `Config.DAT` | Headless copy smoke, if possible without GUI, GPU or commercial assets |
-| Optional Windows icon | The approved ICO is **private and untracked** | A clean worktree must build without it; see the School Days README |
+| `SchoolDaysLauncherTest` | SDL dummy launcher passes with a command-line-only 120-second diagnostic (~26 seconds), but exceeds the unchanged 15-second CTest limit. In pre-sync DEV, its prerequisite `SchoolDaysPortTest` times out at 15 seconds before the launcher can run | Headless/fixture slowness; no proof that the sync introduced a launcher defect; do not increase committed timeout |
+| DIST `ALL_BUILD` | **PASS** in a clean Windows Release worktree after `96c3c03` isolates debug-dependent test/utility targets to non-DIST. The same unresolved debug symbols occurred on pre-sync `18620ef9` | Compile and test the entire debug suite in DEV; no debug API in player executable. Real DIST gameplay still unverified |
+| Windows L4 `settings.json` | **Headless smoke passed** in a copied Release directory using synthetic game data, SDL dummy, isolated `--documents` and no `--config`. The file appeared beside the copied EXE, not in isolated `%APPDATA%`; `Config.DAT` is separate | Actual player's personal profile was never accessed |
+| Optional Windows icon | The approved ICO is **private and untracked**; a clean worktree without it **configured and compiled successfully** | Keep out of Git; see the School Days README |
+| Shared `lib/` parity | Six cross-platform upstream deviations (subtitle APIs/rendering, backlog culling, translation API, absolute overlay fallback) lack sufficient equivalence evidence | **Blocks publication criterion 7(d)** until a safe restoration or independent verification is available |
 
 This ledger is intentionally conservative: a passing Release compilation and
 synthetic CTest suite do not certify commercial-game behavior, real saves, or

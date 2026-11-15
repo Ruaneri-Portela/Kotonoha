@@ -21,10 +21,11 @@ de distribuição. Consulte o registro local, não versionado,
 | Linux | **Não compilado nem testado** neste sync | Validação de plataforma independente |
 | Web | **Não compilado nem testado** neste sync | Validação de plataforma independente |
 | `Kotonoha.Infrastructure` / MetalFX | Falha com SDL software renderer **também no upstream puro** | Limitação conhecida de upstream/ambiente; não enfraquecer nem pular o teste |
-| `SchoolDaysLauncherTest` | Excedeu 15 segundos com SDL dummy após o sync; classificação no log local | Comparar pré-sync e diagnóstico de 120 s; sem aumento permanente de timeout |
-| `ALL_BUILD` DIST | Alvos de teste/utilitários apenas DEV referenciavam APIs deliberadamente ausentes no motor público | Manter esses alvos em DEV/não-DIST, preservando todos os testes DEV; recompilar DIST limpo |
-| `settings.json` Windows L4 | Código mantém o arquivo ao lado do executável; `Config.DAT` separado | Smoke em cópia headless, se viável sem GUI, GPU ou assets comerciais |
-| Ícone Windows opcional | ICO aprovado é **privado e não versionado** | Worktree limpa deve compilar sem ele; consultar o README School Days |
+| `SchoolDaysLauncherTest` | Launcher com SDL dummy passa no diagnóstico de linha de comando com 120 segundos (~26 segundos), mas excede o limite original de 15 segundos. Na dev pré-sync, a dependência `SchoolDaysPortTest` excede 15 segundos antes de executar o launcher | Lentidão headless/fixture; não há prova de defeito introduzido pela mescla; não aumentar timeout versionado |
+| `ALL_BUILD` DIST | **PASS** em worktree limpa Windows Release após `96c3c03` restringir testes/utilitários dependentes de debug a builds não-DIST. Os mesmos símbolos de debug já falhavam na pré-sync `18620ef9` | Compilar e executar todos os testes de debug em DEV; não incluir API de debug no público. Gameplay real DIST não verificado |
+| `settings.json` Windows L4 | **Smoke headless aprovado** em cópia Release, com dados sintéticos, SDL dummy, `--documents` isolado e sem `--config`. Arquivo criado ao lado do EXE copiado e não no `%APPDATA%` isolado; `Config.DAT` separado | Perfil real do jogador não foi acessado |
+| Ícone Windows opcional | ICO aprovado é **privado e não versionado**; worktree limpa sem ele **configurou e compilou com sucesso** | Continuar fora do Git; consultar o README School Days |
+| Paridade compartilhada em `lib/` | Seis divergências cross-platform do upstream (APIs/renderização de legendas, culling do backlog, API de tradução, fallback absoluto de overlay) não têm equivalência comprovada | **Bloqueia critério de publicação 7(d)** até restauração segura ou verificação independente |
 
 Este registro é conservador: build Release e CTest sintético aprovados não
 certificam o comportamento do jogo comercial, saves reais nem plataformas
