@@ -39,7 +39,26 @@ jobs:
 
       - name: Install build prerequisites
         run: |
-          brew install cmake ninja pkg-config nasm yasm autoconf automake libtool
+          brew install cmake ninja pkg-config nasm yasm \
+            autoconf autoconf-archive automake libtool
+
+          # Homebrew installs GNU libtoolize as glibtoolize on macOS.
+          # Expose only libtoolize: exposing GNU libtool itself would shadow
+          # Apple's /usr/bin/libtool, which is required for Mach-O archives.
+          tools_dir="$RUNNER_TEMP/kotonoha-gnu-tools"
+          mkdir -p "$tools_dir"
+          ln -s "$(brew --prefix libtool)/bin/glibtoolize" "$tools_dir/libtoolize"
+          echo "$tools_dir" >> "$GITHUB_PATH"
+          export PATH="$tools_dir:$PATH"
+
+          for tool in autoconf automake aclocal libtoolize; do
+            command -v "$tool" >/dev/null || {
+              echo "::error::Missing macOS build tool: $tool"
+              exit 1
+            }
+          done
+          test -d "$(brew --prefix autoconf-archive)/share/aclocal"
+          test -x "$(brew --prefix libtool)/bin/glibtoolize"
 
       - name: Set up pinned vcpkg
         run: |
