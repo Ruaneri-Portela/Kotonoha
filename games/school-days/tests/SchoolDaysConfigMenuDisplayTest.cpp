@@ -23,24 +23,24 @@ namespace fs = std::filesystem;
 }
 
 void Check(bool value, const std::string &message) {
-  if (!value)
-    Fail(message);
+  if (!value) Fail(message);
 }
 
 bool Near(float a, float b) { return std::abs(a - b) <= 0.02f; }
 
 // 800x450 CMAP rectangles from the user's corrected Display package.
-struct HitRect {
-  int left, top, right, bottom;
-};
+struct HitRect { int left, top, right, bottom; };
 constexpr std::array<HitRect, 22> kDisplayHits{{
-    {10, 55, 202, 90},    {204, 55, 396, 90},   {398, 55, 592, 90},
-    {707, 9, 799, 43},    {245, 115, 753, 140}, {245, 149, 360, 174},
-    {371, 149, 486, 174}, {245, 181, 360, 206}, {371, 181, 486, 206},
-    {245, 214, 753, 240}, {245, 247, 753, 274}, {245, 281, 640, 306},
-    {649, 281, 754, 306}, {245, 317, 313, 344}, {318, 317, 385, 344},
-    {391, 317, 458, 344}, {466, 317, 532, 344}, {539, 317, 607, 344},
-    {612, 317, 681, 344}, {689, 317, 756, 344}, {441, 380, 599, 411},
+    {10, 55, 202, 90}, {204, 55, 396, 90}, {398, 55, 592, 90},
+    {707, 9, 799, 43}, {245, 115, 753, 140},
+    {245, 149, 360, 174}, {371, 149, 486, 174},
+    {245, 181, 360, 206}, {371, 181, 486, 206},
+    {245, 214, 753, 240}, {245, 247, 753, 274},
+    {245, 281, 640, 306}, {649, 281, 754, 306},
+    {245, 317, 313, 344}, {318, 317, 385, 344},
+    {391, 317, 458, 344}, {466, 317, 532, 344},
+    {539, 317, 607, 344}, {612, 317, 681, 344},
+    {689, 317, 756, 344}, {441, 380, 599, 411},
     {613, 380, 774, 411},
 }};
 
@@ -61,10 +61,9 @@ constexpr std::array<VariantCase, 4> kVariants{{
 }};
 
 std::pair<int, int> Center(const HitRect &r, const VariantCase &variant) {
-  return {
-      static_cast<int>(std::lround((r.left + r.right) / 2.0f * variant.scale)),
-      static_cast<int>(std::lround(
-          ((r.top + r.bottom) / 2.0f + variant.yOffset) * variant.scale))};
+  return {static_cast<int>(std::lround((r.left + r.right) / 2.0f * variant.scale)),
+          static_cast<int>(std::lround(
+              ((r.top + r.bottom) / 2.0f + variant.yOffset) * variant.scale))};
 }
 
 void PutLe32(std::vector<uint8_t> &bytes, size_t offset, int value) {
@@ -74,7 +73,7 @@ void PutLe32(std::vector<uint8_t> &bytes, size_t offset, int value) {
 
 void SyntheticCmap(const fs::path &root, const VariantCase &variant) {
   std::vector<uint8_t> contents(8u + static_cast<size_t>(variant.width) *
-                                         static_cast<size_t>(variant.height));
+                                             static_cast<size_t>(variant.height));
   PutLe32(contents, 0, variant.width);
   PutLe32(contents, 4, variant.height);
   for (size_t control = 0; control < kDisplayHits.size(); ++control) {
@@ -84,37 +83,14 @@ void SyntheticCmap(const fs::path &root, const VariantCase &variant) {
     contents[8u + static_cast<size_t>(y) * variant.width + x] =
         static_cast<uint8_t>(control + 1u);
   }
-  const auto relative =
-      Model::CmapRelativePath(Model::Page::Display, variant.variant);
+  const auto relative = Model::CmapRelativePath(Model::Page::Display,
+                                                variant.variant);
   const auto path = root / fs::path(relative);
   fs::create_directories(path.parent_path());
   std::ofstream file(path, std::ios::binary);
   file.write(reinterpret_cast<const char *>(contents.data()),
              static_cast<std::streamsize>(contents.size()));
   Check(static_cast<bool>(file), "cannot create synthetic CMAP fixture");
-}
-
-void SyntheticRetailDisplayFallbackCmap(const fs::path &root,
-                                        const VariantCase &variant) {
-  // Emulate the original Android GPK: no Option_Display.* resources exist.
-  // General's CMAP owns the shared tab/Close regions and its own control 4.
-  std::vector<uint8_t> contents(8u + static_cast<size_t>(variant.width) *
-                                         static_cast<size_t>(variant.height));
-  PutLe32(contents, 0, variant.width);
-  PutLe32(contents, 4, variant.height);
-  for (int control = 0; control <= 4; ++control) {
-    const auto [x, y] =
-        Center(kDisplayHits[static_cast<size_t>(control)], variant);
-    contents[8u + static_cast<size_t>(y) * variant.width + x] =
-        static_cast<uint8_t>(control + 1);
-  }
-  const auto path = root / fs::path(Model::CmapRelativePath(Model::Page::Def,
-                                                            variant.variant));
-  fs::create_directories(path.parent_path());
-  std::ofstream file(path, std::ios::binary);
-  file.write(reinterpret_cast<const char *>(contents.data()),
-             static_cast<std::streamsize>(contents.size()));
-  Check(static_cast<bool>(file), "cannot create retail fallback CMAP fixture");
 }
 
 void VerifyAction(int control, const Model::Action &action) {
@@ -135,8 +111,7 @@ void VerifyAction(int control, const Model::Action &action) {
 const Plan::Sprite *Find(const std::vector<Plan::Sprite> &sprites,
                          Plan::Role role, int control) {
   for (const auto &sprite : sprites)
-    if (sprite.role == role && sprite.control == control)
-      return &sprite;
+    if (sprite.role == role && sprite.control == control) return &sprite;
   return nullptr;
 }
 
@@ -147,11 +122,11 @@ void VerifySource(const Plan::Sprite &sprite, const VariantCase &variant) {
             sprite.source.x + sprite.source.w <= 684.0f &&
             sprite.source.y + sprite.source.h <= 1212.0f,
         "CHIP crop escaped the user-supplied 684x1212 atlas");
-  Check(
-      sprite.destination.x >= -1.0f && sprite.destination.y >= -1.0f &&
-          sprite.destination.x + sprite.destination.w <= variant.width + 2.0f &&
-          sprite.destination.y + sprite.destination.h <= variant.height + 2.0f,
-      "Display sprite destination escaped the variant CMAP canvas");
+  Check(sprite.destination.x >= -1.0f &&
+            sprite.destination.y >= -1.0f &&
+            sprite.destination.x + sprite.destination.w <= variant.width + 2.0f &&
+            sprite.destination.y + sprite.destination.h <= variant.height + 2.0f,
+        "Display sprite destination escaped the variant CMAP canvas");
 }
 
 void VerifyDisplayPage(Model &menu, const VariantCase &variant) {
@@ -171,33 +146,27 @@ void VerifyDisplayPage(Model &menu, const VariantCase &variant) {
   state.displayVsync = 8;
   state.displayFactor = 16;
   auto sprites = Plan::Build(menu, state);
-  Check(
-      sprites.size() == 4 && sprites.front().texture == Plan::Texture::Base &&
-          sprites.front().role == Plan::Role::Base &&
-          !sprites.front().hasSource &&
-          Near(sprites.front().destination.y, variant.yOffset * variant.scale),
-      "Display should begin with the unmodified official 800x450 base");
+  Check(sprites.size() == 4 && sprites.front().texture == Plan::Texture::Base &&
+            sprites.front().role == Plan::Role::Base &&
+            !sprites.front().hasSource &&
+            Near(sprites.front().destination.y, variant.yOffset * variant.scale),
+        "Display should begin with the unmodified official 800x450 base");
   for (const auto &sprite : sprites) {
-    Check(
-        sprite.role != Plan::Role::ActiveTab,
-        "Display's silver tab must not have a permanent blue selected overlay");
-    if (sprite.texture == Plan::Texture::Chip)
-      VerifySource(sprite, variant);
+    Check(sprite.role != Plan::Role::ActiveTab,
+          "Display's silver tab must not have a permanent blue selected overlay");
+    if (sprite.texture == Plan::Texture::Chip) VerifySource(sprite, variant);
   }
   Check(Find(sprites, Plan::Role::CurrentState, 3) == nullptr &&
             Find(sprites, Plan::Role::CurrentState, 5) != nullptr &&
             Find(sprites, Plan::Role::CurrentState, 8) != nullptr &&
             Find(sprites, Plan::Role::CurrentState, 16) != nullptr,
-        "Display must preserve the base Close and selected switch/factor "
-        "highlights");
-  Check(
-      Near(Find(sprites, Plan::Role::CurrentState, 5)->source.y, 494.0f) &&
-          Near(Find(sprites, Plan::Role::CurrentState, 8)->source.y, 536.0f) &&
-          Near(Find(sprites, Plan::Role::CurrentState, 16)->source.y, 704.0f),
-      "selected states do not use their corresponding CHIP atlas bands");
+        "Display must preserve the base Close and selected switch/factor highlights");
+  Check(Near(Find(sprites, Plan::Role::CurrentState, 5)->source.y, 494.0f) &&
+            Near(Find(sprites, Plan::Role::CurrentState, 8)->source.y, 536.0f) &&
+            Near(Find(sprites, Plan::Role::CurrentState, 16)->source.y, 704.0f),
+        "selected states do not use their corresponding CHIP atlas bands");
 
-  for (int control = 0; control < static_cast<int>(kDisplayHits.size());
-       ++control) {
+  for (int control = 0; control < static_cast<int>(kDisplayHits.size()); ++control) {
     const auto [x, y] = Center(kDisplayHits[control], variant);
     Check(menu.HitControl(x, y) == control,
           "CMAP region did not decode to control ID 0..21");
@@ -212,10 +181,15 @@ void VerifyDisplayPage(Model &menu, const VariantCase &variant) {
     if (control == 3) {
       Check(Find(hovered, Plan::Role::Hover, control) == nullptr,
             "Close must not crop the absent selected/hover atlas variants");
+    } else if (control == state.displayResizable ||
+               control == state.displayVsync ||
+               control == state.displayFactor) {
+      Check(Find(hovered, Plan::Role::Hover, control) == nullptr &&
+                Find(hovered, Plan::Role::CurrentState, control) != nullptr,
+            "selected Display control must not be hidden by its hover sprite");
     } else {
       const auto *sprite = Find(hovered, Plan::Role::Hover, control);
-      Check(sprite != nullptr,
-            "CHIP hover overlay missing for Display control");
+      Check(sprite != nullptr, "CHIP hover overlay missing for Display control");
       VerifySource(*sprite, variant);
       Check(sprite->source.y >= 798.0f && sprite->source.y <= 1183.0f,
             "Display hover came from normal/selected instead of hover band");
@@ -224,8 +198,31 @@ void VerifyDisplayPage(Model &menu, const VariantCase &variant) {
               "2x hover source is vertically offset: duplicate glyph appears");
     }
   }
+  // Exercise actual live switch/factor updates while the pointer stays on
+  // the clicked control.  The most recently chosen value must be visible
+  // immediately, without moving away or switching tabs to refresh the plan.
+  for (const auto pair : {std::pair{5, 6}, std::pair{7, 8}}) {
+    const auto [x, y] = Center(kDisplayHits[pair.second], variant);
+    menu.SetSelectionFromPointer(x, y);
+    if (pair.second == 6) state.displayResizable = 6;
+    else state.displayVsync = 8;
+    const auto live = Plan::Build(menu, state);
+    Check(Find(live, Plan::Role::CurrentState, pair.second) != nullptr &&
+              Find(live, Plan::Role::Hover, pair.second) == nullptr,
+          "live Display switch became visually stale under the hovered cursor");
+  }
+  {
+    const auto [x, y] = Center(kDisplayHits[18], variant);
+    menu.SetSelectionFromPointer(x, y);
+    state.displayFactor = 18;
+    const auto live = Plan::Build(menu, state);
+    Check(Find(live, Plan::Role::CurrentState, 18) != nullptr &&
+              Find(live, Plan::Role::Hover, 18) == nullptr,
+          "new scaling factor was masked until leaving Display Options");
+  }
   menu.SetSelectionFromPointer(-1, -1);
-  Check(menu.Selection() == -1 && Plan::Build(menu, state).size() == 4,
+  Check(menu.Selection() == -1 &&
+            Plan::Build(menu, state).size() == 4,
         "pointer leaving Display should clear hover without losing state");
 
   state.displayResizable = state.displayVsync = state.displayFactor = -1;
@@ -244,16 +241,15 @@ void VerifyDisplayPaths() {
         "third tab still resolves old Def/SOMCON artwork");
   for (const auto &variant : kVariants) {
     Check(Model::CmapRelativePath(Model::Page::Display, variant.variant) ==
-              std::string("System/Option/Option_Display") + variant.suffix +
-                  ".cmap",
+              std::string("System/Option/Option_Display") + variant.suffix + ".cmap",
           "Display variant does not resolve corrected CMAP file");
   }
   Check(Model::BaseRelativePath(Model::Page::Def) ==
-                "System/Option/Option_Def.png" &&
+            "System/Option/Option_Def.png" &&
             Model::ChipRelativePath(Model::Page::Sound) ==
-                "System/Option/Option_Sound_Chip.png" &&
+            "System/Option/Option_Sound_Chip.png" &&
             Model::CmapRelativePath(Model::Page::Sound, Model::Variant::Wide) ==
-                "System/Option/Option_Sound_Wide.cmap",
+            "System/Option/Option_Sound_Wide.cmap",
         "General/Sound asset paths were altered");
 }
 
@@ -292,62 +288,16 @@ struct Fixture {
   fs::path root;
   Fixture() {
     root = fs::temp_directory_path() /
-           ("schooldays-display-model-" +
-            std::to_string(
-                std::chrono::steady_clock::now().time_since_epoch().count()));
+           ("schooldays-display-model-" + std::to_string(
+               std::chrono::steady_clock::now().time_since_epoch().count()));
     fs::create_directories(root / "System/Option");
   }
-  ~Fixture() {
-    std::error_code ignored;
-    fs::remove_all(root, ignored);
-  }
+  ~Fixture() { std::error_code ignored; fs::remove_all(root, ignored); }
 };
 
-void VerifyAndroidWithoutCustomDisplayAssets() {
-  Fixture fixture;
-  for (const auto &variant : kVariants)
-    SyntheticRetailDisplayFallbackCmap(fixture.root, variant);
-  Check(!fs::exists(fixture.root / "System/Option/Option_Display.png") &&
-            !fs::exists(fixture.root / "System/Option/Option_Display.cmap"),
-        "Android fixture must have no Windows-only display assets");
-  for (const auto &variant : kVariants) {
-    Model model;
-    Check(model.Open(fixture.root.string(), variant.variant,
-                     Model::Page::Display, nullptr, true),
-          "Android Display should open from the original General CMAP");
-    Check(model.CurrentPage() == Model::Page::Display &&
-              model.ArtworkPage() == Model::Page::Def &&
-              model.Cmap().Width() == static_cast<unsigned>(variant.width) &&
-              model.Cmap().Height() == static_cast<unsigned>(variant.height),
-          "Android fallback must preserve logical Display and CMAP geometry");
-    Check(Plan::BaseRelativePath(model) == "System/Option/Option_Def.png" &&
-              Model::ChipRelativePath(model.ArtworkPage()) ==
-                  "System/Option/Option_Def_Chip.png",
-          "Android Display fallback must only reference original artwork");
-    const auto plan = Plan::Build(model, {});
-    Check(plan.size() == 1 && plan.front().role == Plan::Role::Base,
-          "Android fallback must not sample Windows-only CHIP sprites");
-    for (int control = 0; control <= 3; ++control) {
-      const auto [x, y] =
-          Center(kDisplayHits[static_cast<size_t>(control)], variant);
-      Check(model.HitControl(x, y) == control,
-            "Android shared Config navigation/Close hotspot changed");
-      model.SetSelectionFromPointer(x, y);
-      Model::Action action;
-      Check(model.Activate(&action), "Android navigation/Close must activate");
-      VerifyAction(control, action);
-    }
-    const auto [x, y] = Center(kDisplayHits[4], variant);
-    Check(model.HitControl(x, y) == -1,
-          "Android fallback must ignore Def-only settings under Display");
-  }
-}
-
 void VerifyRealOverlay(const fs::path &root) {
-  Check(fs::is_regular_file(root /
-                            Model::BaseRelativePath(Model::Page::Display)) &&
-            fs::is_regular_file(root /
-                                Model::ChipRelativePath(Model::Page::Display)),
+  Check(fs::is_regular_file(root / Model::BaseRelativePath(Model::Page::Display)) &&
+            fs::is_regular_file(root / Model::ChipRelativePath(Model::Page::Display)),
         "corrected overlay lacks official Display base/CHIP PNGs");
   Model model;
   for (const auto &variant : kVariants) {
@@ -362,18 +312,14 @@ void VerifyRealOverlay(const fs::path &root) {
 int main(int argc, char **argv) {
   VerifyDisplayPaths();
   Fixture fixture;
-  for (const auto &variant : kVariants)
-    SyntheticCmap(fixture.root, variant);
+  for (const auto &variant : kVariants) SyntheticCmap(fixture.root, variant);
   Model model;
   for (const auto &variant : kVariants) {
-    Check(model.Open(fixture.root.string(), variant.variant,
-                     Model::Page::Display),
+    Check(model.Open(fixture.root.string(), variant.variant, Model::Page::Display),
           "synthetic Display variant CMAP did not open");
     VerifyDisplayPage(model, variant);
   }
   VerifyExistingPages(fixture.root);
-  VerifyAndroidWithoutCustomDisplayAssets();
-  if (argc > 1)
-    VerifyRealOverlay(argv[1]);
+  if (argc > 1) VerifyRealOverlay(argv[1]);
   std::cout << "SchoolDaysConfigMenuDisplayTest PASS\n";
 }

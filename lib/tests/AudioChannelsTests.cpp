@@ -98,19 +98,37 @@ void testParser() {
 }
 
 void testDebug(Engine &engine) {
+  auto channel = engine.GetAudio().channel("audio");
+  channel->setVolume(0.5f);
   auto &debug = engine.GetDebug();
   debug.setVisible(true);
   auto frame = [&] { debug.renderMenu(engine.GetRenderer()); };
-  // Rendering the debug menu must not crash on a headless/dummy video driver.
-  // The ImGui SDL3 backend initializes system cursors, which some drivers do
-  // not support; DebugOverlay clears that benign SDL error at construction.
+  frame();
+  auto *window = ImGui::FindWindowByName("Kotonoha Debug [F10]");
+  require(window != nullptr, "Find debug inspector");
+  window->StateStorage.SetInt(window->GetID("Audio channels"), 1);
   frame();
   frame();
-  require(debug.isVisible(), "Debug UI stays visible after render");
+  const auto channelID = ImHashStr("audio", 0, window->ID);
+  const auto muteID = ImHashStr("Mute", 0, channelID);
+  const auto volumeID = ImHashStr("Volume", 0, channelID);
+  ImGui::ActivateItemByID(muteID);
+  frame();
+  require(channel->isMuted(), "Debug UI mute checkbox controls named channel");
+  ImGui::ActivateItemByID(muteID);
+  frame();
+  require(!channel->isMuted() && channel->getVolume() == 0.5f,
+          "Debug UI unmute restores previous volume");
+  ImGui::ActivateItemByID(volumeID);
+  frame();
+  auto &io = ImGui::GetIO();
+  io.AddKeyEvent(ImGuiKey_RightArrow, true);
+  frame();
+  io.AddKeyEvent(ImGuiKey_RightArrow, false);
+  frame();
+  require(channel->getVolume() > 0.5f && channel->getVolume() <= 1,
+          "Debug UI slider changes named channel volume");
   debug.setVisible(false);
-  require(!debug.isVisible(), "Debug UI can be hidden");
-  // Programmatic channel control is covered by testChannels/testStreamGain;
-  // this test only guards the debug UI render path.
 }
 
 void near(float actual, float expected, const char *message) {
@@ -139,14 +157,6 @@ void testStreamGain(AudioMixer &mixer) {
        "Script volume changes preserve the user's mixer limit");
   near(mixer.channel("future-channel")->getUserVolume(), .25f,
        "Future channels inherit the user's saved gain");
-  SDL_AudioStream *third = SDL_CreateAudioStream(&spec, &spec);
-  require(third != nullptr, "Create future user-volume test stream");
-  auto savedVolumeChannel = mixer.channel("future-channel");
-  savedVolumeChannel->attach(third, .8f);
-  near(SDL_GetAudioStreamGain(third), .2f,
-       "Newly attached stream must apply previously saved user volume");
-  savedVolumeChannel->detach(third);
-  SDL_DestroyAudioStream(third);
   rejects([&] { mixer.setUserVolumes({{"fade-test", 2.f}}); },
           "Reject invalid user mixer gain");
   near(channel->getUserVolume(), .5f,

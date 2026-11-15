@@ -1,12 +1,12 @@
-#include <Kotonoha/components/FadeScene.hpp>
-#include <Kotonoha/components/ForcedSubtitleRenderer.hpp>
-#include <Kotonoha/components/InGameMenu.hpp>
-#include <Kotonoha/components/SettingsMenu.hpp>
-#include <Kotonoha/components/SplashScreen.hpp>
-#include <Kotonoha/components/SubtitleScene.hpp>
-#include <Kotonoha/components/VNBacklog.hpp>
-#include <Kotonoha/components/VNManager.hpp>
-#include <Kotonoha/components/VNTextBox.hpp>
+#include <Kotonoha/componentes/FadeScene.hpp>
+#include <Kotonoha/componentes/ForcedSubtitleRenderer.hpp>
+#include <Kotonoha/componentes/InGameMenu.hpp>
+#include <Kotonoha/componentes/SettingsMenu.hpp>
+#include <Kotonoha/componentes/SplashScreen.hpp>
+#include <Kotonoha/componentes/SubtitleScene.hpp>
+#include <Kotonoha/componentes/VNBacklog.hpp>
+#include <Kotonoha/componentes/VNManager.hpp>
+#include <Kotonoha/componentes/VNTextBox.hpp>
 #include <Kotonoha/core/CommandLine.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/FileSystem.hpp>
@@ -822,8 +822,8 @@ void controls(Engine &engine, TestRuntime &runtime) {
   menu.open();
   press(SDLK_TAB); // Audio.
   press(SDLK_LEFT);
-  require(engine.GetAudio().getMasterVolume() == 0.30f,
-          "Volume changes apply immediately");
+  require(engine.GetAudio().getMasterVolume() == 0.35f,
+          "Volume draft does not apply early");
   press(SDLK_ESCAPE);
   menu.open();
   press(SDLK_TAB);
@@ -832,9 +832,9 @@ void controls(Engine &engine, TestRuntime &runtime) {
   press(SDLK_RETURN);
   press(SDLK_END);
   press(SDLK_RETURN);
-  require(!menu.isOpen() && engine.GetAudio().getMasterVolume() == 0.25f &&
+  require(!menu.isOpen() && engine.GetAudio().getMasterVolume() == 0.30f &&
               engine.GetAudio().isMasterMuted(),
-          "Audio menu applies volume and mute live and closes");
+          "Generic menu applies volume and master mute");
   engine.applySettings(settings, false);
   menu.open();
   for (int i = 0; i < 6; ++i)
@@ -1008,8 +1008,8 @@ void splashUpscaling(Engine &engine) {
   auto restored = capture(splash);
   require(equal(*filtered, *restored),
           "Enabling boot upscaling again restores the filtered logo");
-  require(!equal(*native, *filtered),
-          "Enabled boot logo must use the scaled source, not native drawing");
+  require(equal(*native, *filtered),
+          "Boot logo must retain native UI sampling when gameplay upscaling is enabled");
   settings.factor = 1;
   pipeline.configure(settings);
   splash.restart();

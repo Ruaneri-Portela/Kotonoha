@@ -7,8 +7,7 @@ namespace {
 using Transition = Kotonoha::SchoolDaysExitTransition;
 
 void require(bool ok, const char *message) {
-  if (!ok)
-    throw std::runtime_error(message);
+  if (!ok) throw std::runtime_error(message);
 }
 } // namespace
 

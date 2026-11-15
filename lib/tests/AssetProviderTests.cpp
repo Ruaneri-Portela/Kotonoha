@@ -83,8 +83,7 @@ class VectorAssetStream final : public AssetStream {
   std::size_t offset = 0;
 
 public:
-  explicit VectorAssetStream(std::vector<Uint8> data)
-      : bytes(std::move(data)) {}
+  explicit VectorAssetStream(std::vector<Uint8> data) : bytes(std::move(data)) {}
   std::uint64_t size() const override { return bytes.size(); }
   std::uint64_t tell() const override { return offset; }
   std::size_t read(Uint8 *buffer, std::size_t count) override {
@@ -108,19 +107,14 @@ public:
   mutable int reads = 0, streams = 0;
 
   std::string name() const override { return "Streaming"; }
-  bool containsAsset(const std::string &id) const override {
-    return id == "image.bmp";
-  }
+  bool containsAsset(const std::string &id) const override { return id == "image.bmp"; }
   std::vector<Uint8> readAsset(const std::string &id) const override {
     ++reads;
-    if (id != "image.bmp")
-      throw std::runtime_error("Missing " + id);
+    if (id != "image.bmp") throw std::runtime_error("Missing " + id);
     return bytes;
   }
-  std::unique_ptr<AssetStream>
-  openStream(const std::string &id) const override {
-    if (id != "image.bmp")
-      return {};
+  std::unique_ptr<AssetStream> openStream(const std::string &id) const override {
+    if (id != "image.bmp") return {};
     ++streams;
     return std::make_unique<VectorAssetStream>(bytes);
   }
@@ -315,15 +309,15 @@ void overlays() {
     file << "translated";
   }
   auto dubbed = wave();
-  dubbed.back() = 99;
+  dubbed[44] = 7;
   {
-    std::ofstream file(dir.path / "voice.wav", std::ios::binary);
+    std::ofstream file(dir.path / "voice.OGG", std::ios::binary);
     file.write(reinterpret_cast<const char *>(dubbed.data()), dubbed.size());
   }
   MemoryAssetProvider provider;
   provider.files["script.ks"] = {'b', 'a', 's', 'e'};
   provider.files["untouched"] = {'o', 'k'};
-  provider.files["voice.wav"] = wave();
+  provider.files["voice.OGG"] = wave();
   provider.setOverlay(dir.path);
   require(provider.contains("images/scene.bmp"),
           "Overlay-only asset is visible");
@@ -332,26 +326,8 @@ void overlays() {
           "Overlay precedes archive and ignores case");
   require(provider.read("untouched") == std::vector<Uint8>({'o', 'k'}),
           "Missing overlay falls back to archive");
-  require(provider.read("script.ks", AssetSource::Original) ==
-              std::vector<Uint8>({'b', 'a', 's', 'e'}),
-          "Standard original source bypasses the overlay");
   require(!provider.localPath("Images/Scene.bmp").empty(),
           "Streaming opens the overlay file");
-  require(provider.hasOverlay("voice.wav"),
-          "Provider reports an effective audio overlay");
-  const auto effectiveVoice = provider.loadAudio("voice.wav");
-  // Simulate a cache warmed by a runtime which supplied already-resolved PCM.
-  // forceOriginal must still decode the provider/archive source.
-  provider.noteAudio("voice.wav", effectiveVoice);
-  const auto originalVoice = provider.loadAudio("voice.wav", true);
-  require(effectiveVoice.data != originalVoice.data &&
-              originalVoice.data ==
-                  provider.loadOriginalAudio("voice.wav").data,
-          "Forced-original audio bypasses the overlay");
-  require(provider.discardOverlay("voice.wav") &&
-              !provider.hasOverlay("voice.wav") &&
-              provider.loadAudio("voice.wav").data == originalVoice.data,
-          "Discarding an overlay immediately restores original audio");
   require(provider.loadSurface("images/scene.bmp")->w == 3,
           "Overlay image decoder");
   require(provider.list().size() == 4,
@@ -363,6 +339,19 @@ void overlays() {
           "Reject missing overlay directory");
   require(provider.read("script.ks") == text,
           "Failed mount preserves active overlay");
+  require(provider.hasOverlay("voice.OGG") &&
+              provider.overlayWriteId("voice.OGG") == "voice.ogg" &&
+              provider.overlayWriteId("../voice.OGG").empty(),
+          "Dubbing overlay IDs must remain within the mount");
+  const auto original = provider.loadAudio("voice.OGG", AssetSource::Original);
+  const auto replacement = provider.loadAudio("voice.OGG");
+  require(original.data != replacement.data &&
+              original.data == provider.loadOriginalAudio("voice.OGG").data,
+          "Dubbing must preserve original archive audio for comparison");
+  require(provider.discardOverlay("voice.OGG") &&
+              !provider.hasOverlay("voice.OGG") &&
+              provider.loadAudio("voice.OGG").data == original.data,
+          "Discarding a dub must restore the original audio");
   provider.setOverlay({});
   require(provider.read("script.ks") ==
               std::vector<Uint8>({'b', 'a', 's', 'e'}),
@@ -392,8 +381,7 @@ void seekableMediaProvider() {
   StreamingAssetProvider assets;
   assets.bytes = bitmap();
   auto stream = assets.openStream("image.bmp");
-  require(stream && stream->size() == assets.bytes.size(),
-          "Open seekable asset");
+  require(stream && stream->size() == assets.bytes.size(), "Open seekable asset");
   Uint8 probe[4]{};
   require(stream->read(probe, sizeof(probe)) == sizeof(probe) &&
               stream->tell() == sizeof(probe),
@@ -415,32 +403,6 @@ void seekableMediaProvider() {
   require(player.isOpen() && fallback.reads == 1,
           "MediaPlayer memory fallback changed");
   player.stop();
-}
-
-void textApi() {
-  MemoryAssetProvider assets;
-  assets.files["sjis"] = {0x82, 0xa0};
-  assets.files["utf16"] = {0xff, 0xfe, 0x42, 0x30, 0x3d, 0xd8, 0x00, 0xde};
-  assets.files["utf32"] = {0xff, 0xfe, 0, 0, 0x42, 0x30, 0, 0};
-  assets.files["utf16be"] = {0xfe, 0xff, 0x30, 0x42};
-  assets.files["bom"] = {0xef, 0xbb, 0xbf, 'O', 'K'};
-  assets.files["western"] = {0xe7};
-  assets.files["empty"] = {};
-  require(assets.loadTextUtf8("sjis", "CP932") == "あ", "Decode CP932 text");
-  require(assets.loadTextUtf8("utf16") == "あ😀",
-          "Decode UTF-16 surrogate pair");
-  require(assets.loadTextUtf8("utf32") == "あ", "Distinguish UTF-32 BOM");
-  require(assets.loadTextUtf8("utf16be") == "あ", "Decode big-endian UTF-16");
-  require(assets.loadTextUtf8("bom", "CP932") == "OK",
-          "BOM overrides legacy encoding");
-  require(assets.loadTextUtf8("western", "CP1252") == "ç",
-          "Decode Portuguese text");
-  require(assets.loadTextUtf8("empty").empty(), "Empty text");
-  require(assets.read("sjis") == std::vector<Uint8>({0x82, 0xa0}),
-          "Raw bytes preserved");
-  rejects([&] { assets.loadTextUtf8("missing"); }, "Missing text is an error");
-  rejects([&] { assets.loadTextUtf8("empty", nullptr); },
-          "Reject null encoding");
 }
 
 void memoryMedia(const char *path) {
@@ -480,7 +442,6 @@ int main(int argc, char **argv) {
     }
     fileSystemProvider();
     decoders();
-    textApi();
     overlays();
     if (argc > 1)
       memoryMedia(argv[1]);

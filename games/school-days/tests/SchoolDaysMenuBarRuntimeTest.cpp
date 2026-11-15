@@ -1,5 +1,5 @@
+#include "SchoolDaysAssets.hpp"
 #include "SchoolDaysRuntime.hpp"
-#include <SchoolDays/SchoolDaysAssets.hpp>
 
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/routing/SchoolDaysConfigStorage.hpp>
@@ -17,16 +17,15 @@ namespace fs = std::filesystem;
 namespace {
 
 void Check(bool value, const std::string &message) {
-  if (!value)
-    throw std::runtime_error(message);
+  if (!value) throw std::runtime_error(message);
 }
 
 bool Near(double a, double b) { return std::abs(a - b) < 0.000001; }
 
 struct TemporaryDirectory {
-  fs::path path =
-      fs::temp_directory_path() / ("school-days-menubar-runtime-" +
-                                   std::to_string(SDL_GetPerformanceCounter()));
+  fs::path path = fs::temp_directory_path() /
+                  ("school-days-menubar-runtime-" +
+                   std::to_string(SDL_GetPerformanceCounter()));
   TemporaryDirectory() {
     Check(fs::create_directory(path), "cannot create temporary directory");
   }
@@ -36,8 +35,8 @@ struct TemporaryDirectory {
   }
 };
 
-Kotonoha::EngineOptions
-Options(const std::shared_ptr<Kotonoha::Providers::SchoolDaysAssets> &assets) {
+Kotonoha::EngineOptions Options(
+    const std::shared_ptr<SchoolDays::Assets> &assets) {
   Kotonoha::EngineOptions options;
   options.assets = assets;
   options.persistSettings = false;
@@ -49,9 +48,8 @@ struct Application {
   SchoolDays::Runtime runtime;
   Kotonoha::Engine engine;
 
-  Application(
-      const std::shared_ptr<Kotonoha::Providers::SchoolDaysAssets> &assets,
-      const char *route, const fs::path &documents)
+  Application(const std::shared_ptr<SchoolDays::Assets> &assets,
+              const char *route, const fs::path &documents)
       : runtime(assets, route, documents), engine(runtime, Options(assets)) {
     runtime.SetState(Kotonoha::GameState::Gameplay);
   }
@@ -63,13 +61,13 @@ void CheckMeterSfxHostCodes(Application &app, const fs::path &scratchRoot) {
   // tiny, valid RGBA PNGs suffice to test the actual update/consume boundary
   // without retail packs, GUI clicks or write access to user profiles.
   constexpr unsigned char kTwoPixelPng[] = {
-      0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d,
-      0x49, 0x48, 0x44, 0x52, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x02,
-      0x08, 0x06, 0x00, 0x00, 0x00, 0x72, 0xb6, 0x0d, 0x24, 0x00, 0x00, 0x00,
-      0x15, 0x49, 0x44, 0x41, 0x54, 0x78, 0x9c, 0x63, 0xfc, 0xff, 0xff, 0xff,
-      0x7f, 0x06, 0x06, 0x06, 0x06, 0x26, 0x06, 0x28, 0x00, 0x00, 0x3d, 0xf8,
-      0x04, 0x00, 0xda, 0x3b, 0x2a, 0x9c, 0x00, 0x00, 0x00, 0x00, 0x49, 0x45,
-      0x4e, 0x44, 0xae, 0x42, 0x60, 0x82};
+      0x89,0x50,0x4e,0x47,0x0d,0x0a,0x1a,0x0a,0x00,0x00,0x00,0x0d,
+      0x49,0x48,0x44,0x52,0x00,0x00,0x00,0x02,0x00,0x00,0x00,0x02,
+      0x08,0x06,0x00,0x00,0x00,0x72,0xb6,0x0d,0x24,0x00,0x00,0x00,
+      0x15,0x49,0x44,0x41,0x54,0x78,0x9c,0x63,0xfc,0xff,0xff,0xff,
+      0x7f,0x06,0x06,0x06,0x06,0x26,0x06,0x28,0x00,0x00,0x3d,0xf8,
+      0x04,0x00,0xda,0x3b,0x2a,0x9c,0x00,0x00,0x00,0x00,0x49,0x45,
+      0x4e,0x44,0xae,0x42,0x60,0x82};
   const fs::path pictureRoot = scratchRoot / "meter-sfx";
   const fs::path pictureDir = pictureRoot / "System" / "MenuBar";
   fs::create_directories(pictureDir);
@@ -78,21 +76,18 @@ void CheckMeterSfxHostCodes(Application &app, const fs::path &scratchRoot) {
   fs::create_directories(pictureRoot / "Script" / "English");
   for (const char *name : {"MenuBar.png", "MenuBar_Chip.png"}) {
     std::ofstream out(pictureDir / name, std::ios::binary);
-    out.write(reinterpret_cast<const char *>(kTwoPixelPng),
-              sizeof(kTwoPixelPng));
-    Check(static_cast<bool>(out),
-          "could not create isolated meter PNG fixture");
+    out.write(reinterpret_cast<const char *>(kTwoPixelPng), sizeof(kTwoPixelPng));
+    Check(static_cast<bool>(out), "could not create isolated meter PNG fixture");
   }
-  auto sprites =
-      std::make_shared<Kotonoha::Providers::SchoolDaysAssets>(pictureRoot);
+  auto sprites = std::make_shared<SchoolDays::Assets>(pictureRoot);
   Kotonoha::SchoolDaysMenuBarPresenter meter;
   std::string error;
   using Variant = Kotonoha::SchoolDaysMenuBarPresenter::Variant;
   const auto open = [&](int one, int two) {
     error.clear();
     Check(meter.Open(&app.engine.GetRenderer(), sprites.get(),
-                     pictureRoot.string(), Variant::WideFull, one, two, &error),
-          "meter fixture failed to open: " + error);
+                     pictureRoot.string(), Variant::WideFull, one, two,
+                     &error), "meter fixture failed to open: " + error);
     Check(meter.ConsumeFeelingDirectionCode() == 0,
           "opening meter synthesized a post-choice musical cue");
   };
@@ -131,6 +126,40 @@ void CheckMeterSfxHostCodes(Application &app, const fs::path &scratchRoot) {
   meter.Update(401, 20, 20);
   Check(meter.ConsumeFeelingDirectionCode() == 0,
         "unchanged feelings incorrectly triggered the musical cue");
+
+  // A late-game save may validly saturate the green bar. Loading another
+  // (neutral) save without exiting must replace its visual presentation even
+  // though no normal KTRF writer notification is raised by SaveFile restore.
+  open(-200, 200);
+  Check(meter.Meter().CurrentVisual().primary == -1000.0f &&
+            meter.Meter().CurrentVisual().opposite == 1000.0f,
+        "saturated ending save fixture did not initialize the original meter");
+  meter.RequestFeelingRefresh();
+  meter.Update(500, -199, 200);
+  meter.Update(501, -199, 200);
+  Check(meter.ConsumeFeelingDirectionCode() == 3,
+        "meter fixture could not enter changed feeling state");
+  meter.RequestFeelingRefresh();
+  meter.Update(502, -198, 200);
+  meter.RestoreFeelingState(20, 20);
+  Check(meter.IsOpen() && meter.Meter().CurrentVisual().primary == 0.0f &&
+            meter.Meter().CurrentVisual().opposite == 0.0f &&
+            meter.Meter().CurrentPhase() ==
+                Kotonoha::SchoolDaysTopMeterModel::Phase::Capture &&
+            !meter.FeelingLatch() && meter.ConsumeFeelingDirectionCode() == 0,
+        "LOAD inherited the previous ending's saturated bar or pending cue");
+  meter.Update(503, 20, 20);
+  Check(meter.Meter().CurrentVisual().primary == 0.0f &&
+            meter.ConsumeFeelingDirectionCode() == 0,
+        "LOAD's next frame re-applied stale ending feelings");
+  meter.RestoreFeelingState(120, 0);
+  Check(meter.Meter().CurrentVisual().primary == 300.0f &&
+            meter.Meter().CurrentVisual().opposite == -300.0f,
+        "loading another valid high-feeling save improperly normalized values");
+  meter.RestoreFeelingState(0, 0);
+  Check(meter.Meter().CurrentVisual().primary == 0.0f &&
+            meter.ConsumeFeelingDirectionCode() == 0,
+        "starting normal gameplay after a final inherited stale meter state");
   meter.Close();
 }
 
@@ -153,19 +182,15 @@ public:
   static double Speed(const Runtime &runtime) { return runtime.speed; }
   static int SpeedIndex(const Runtime &runtime) { return runtime.speedIndex; }
   static bool StoryAudioSuppressed(Runtime &runtime) {
-    if (!runtime.engine)
-      return false;
+    if (!runtime.engine) return false;
     for (const char *channel : {"BGM", "Voice", "SE", "Movie"})
-      if (!runtime.engine->GetAudio().channel(channel)->isMuted())
-        return false;
+      if (!runtime.engine->GetAudio().channel(channel)->isMuted()) return false;
     return true;
   }
   static bool StoryAudioEnabled(Runtime &runtime) {
-    if (!runtime.engine)
-      return false;
+    if (!runtime.engine) return false;
     for (const char *channel : {"BGM", "Voice", "SE", "Movie"})
-      if (runtime.engine->GetAudio().channel(channel)->isMuted())
-        return false;
+      if (runtime.engine->GetAudio().channel(channel)->isMuted()) return false;
     return true;
   }
   static bool Paused(const Runtime &runtime) { return runtime.paused; }
@@ -207,8 +232,7 @@ int main(int argc, char **argv) {
     TemporaryDirectory temporary;
     const auto documents = temporary.path / "documents";
     fs::create_directories(documents);
-    auto assets =
-        std::make_shared<Kotonoha::Providers::SchoolDaysAssets>(argv[2]);
+    auto assets = std::make_shared<SchoolDays::Assets>(argv[2]);
 
     using Access = SchoolDays::RuntimeMenuBarTestAccess;
     using Kind = Kotonoha::SchoolDaysMenuBarPresenter::ActionKind;
@@ -224,8 +248,7 @@ int main(int argc, char **argv) {
       Access::TickPanel(app.runtime, openedAt + 800u);
       Check(app.runtime.anyPanelOpen(),
             "gameplay LOAD did not open at the white boundary");
-      Check(Access::ClosePanel(app.runtime),
-            "gameplay LOAD close did not arm fade");
+      Check(Access::ClosePanel(app.runtime), "gameplay LOAD close did not arm fade");
       const uint64_t closedAt = SDL_GetTicks();
       Access::TickPanel(app.runtime, closedAt + 400u);
       Check(app.runtime.anyPanelOpen(),
@@ -251,8 +274,7 @@ int main(int argc, char **argv) {
       Access::Apply(app.runtime, Kind::TogglePause);
       Check(Access::Paused(app.runtime), "MenuBar Pause did not pause runtime");
       Access::Apply(app.runtime, Kind::TogglePause);
-      Check(!Access::Paused(app.runtime),
-            "second MenuBar Pause did not resume runtime");
+      Check(!Access::Paused(app.runtime), "second MenuBar Pause did not resume runtime");
 
       constexpr double expected[] = {1.0, 2.0, 4.0, 12.0, 24.0};
       for (int index = 0; index < 5; ++index) {
@@ -262,8 +284,7 @@ int main(int argc, char **argv) {
               "MenuBar playback-speed mapping drifted");
         Check(index <= 2 ? Access::StoryAudioEnabled(app.runtime)
                          : Access::StoryAudioSuppressed(app.runtime),
-              "Narrative audio must mute above internal rate 4 while "
-              "maintaining media clock");
+              "Narrative audio must mute above internal rate 4 while maintaining media clock");
       }
 
       const double before = Access::Speed(app.runtime);

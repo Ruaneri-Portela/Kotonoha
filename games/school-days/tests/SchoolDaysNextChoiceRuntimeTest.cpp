@@ -1,9 +1,9 @@
+#include "SchoolDaysAssets.hpp"
 #include "SchoolDaysRuntime.hpp"
 #include <Kotonoha/core/Engine.hpp>
-#include <Kotonoha/routing/SchoolDaysConfigStorage.hpp>
-#include <Kotonoha/routing/SchoolDaysMenuBarPresenter.hpp>
 #include <Kotonoha/routing/SchoolDaysPlaybackPolicy.hpp>
-#include <SchoolDays/SchoolDaysAssets.hpp>
+#include <Kotonoha/routing/SchoolDaysMenuBarPresenter.hpp>
+#include <Kotonoha/routing/SchoolDaysConfigStorage.hpp>
 
 #include <filesystem>
 #include <fstream>
@@ -15,8 +15,7 @@ namespace fs = std::filesystem;
 namespace {
 
 void Require(bool ok, const std::string &message) {
-  if (!ok)
-    throw std::runtime_error(message);
+  if (!ok) throw std::runtime_error(message);
 }
 
 void Put(const fs::path &path, const std::string &data) {
@@ -29,8 +28,7 @@ void Put(const fs::path &path, const std::string &data) {
 void PutConfig(const fs::path &path, const std::string &logical) {
   std::vector<uint8_t> encoded;
   std::string error;
-  Require(Kotonoha::SchoolDaysConfigStorage::EncodeDocument(logical, &encoded,
-                                                            &error),
+  Require(Kotonoha::SchoolDaysConfigStorage::EncodeDocument(logical, &encoded, &error),
           error);
   fs::create_directories(path.parent_path());
   std::ofstream out(path, std::ios::binary);
@@ -40,9 +38,9 @@ void PutConfig(const fs::path &path, const std::string &logical) {
 }
 
 struct TemporaryDirectory {
-  fs::path path =
-      fs::temp_directory_path() / ("school-days-next-choice-" +
-                                   std::to_string(SDL_GetPerformanceCounter()));
+  fs::path path = fs::temp_directory_path() /
+                  ("school-days-next-choice-" +
+                   std::to_string(SDL_GetPerformanceCounter()));
   TemporaryDirectory() {
     Require(fs::create_directory(path), "Cannot create temporary directory");
   }
@@ -52,8 +50,8 @@ struct TemporaryDirectory {
   }
 };
 
-Kotonoha::EngineOptions
-Options(const std::shared_ptr<Kotonoha::Providers::SchoolDaysAssets> &assets) {
+Kotonoha::EngineOptions Options(
+    const std::shared_ptr<SchoolDays::Assets> &assets) {
   Kotonoha::EngineOptions options;
   options.assets = assets;
   options.persistSettings = false;
@@ -65,9 +63,8 @@ struct Application {
   SchoolDays::Runtime runtime;
   Kotonoha::Engine engine;
 
-  Application(
-      const std::shared_ptr<Kotonoha::Providers::SchoolDaysAssets> &assets,
-      const char *route, const fs::path &documents)
+  Application(const std::shared_ptr<SchoolDays::Assets> &assets,
+              const char *route, const fs::path &documents)
       : runtime(assets, route, documents), engine(runtime, Options(assets)) {
     runtime.SetState(Kotonoha::GameState::Gameplay);
   }
@@ -85,15 +82,14 @@ void WriteScripts(const fs::path &root) {
   Put(script / "00-00-A03.ENG.ORS",
       "[PrintText]=00:00:00\tFixture\tChoice.\t00:02:00;\n"
       "[SkipFRAME]=00:02:00;\n"
-      "[SetSELECT]=00:02:00\tFirst synthetic choice\tSecond synthetic "
-      "choice\t00:03:00;\n"
+      "[SetSELECT]=00:02:00\tFirst synthetic choice\tSecond synthetic choice\t00:03:00;\n"
       "[Next]=00:04:00;\n");
 }
 
 void TestCurrentScriptChoiceSeek(const char *route, const fs::path &root) {
   const auto documents = root / "documents-current";
   fs::create_directories(documents);
-  auto assets = std::make_shared<Kotonoha::Providers::SchoolDaysAssets>(root);
+  auto assets = std::make_shared<SchoolDays::Assets>(root);
   Application app(assets, route, documents);
   app.runtime.debugJumpToNode("00/00-00-A03");
   Require(app.runtime.debugNode() == "00/00-00-A03",
@@ -105,16 +101,15 @@ void TestCurrentScriptChoiceSeek(const char *route, const fs::path &root) {
   app.runtime.update();
   Require(app.runtime.debugNode() == "00/00-00-A03",
           "current-script next-choice changed scenes");
-  Require(
-      *app.runtime.debugNodeSeconds() == 1.0,
-      "current-script next-choice did not seek one second before SkipFRAME");
+  Require(*app.runtime.debugNodeSeconds() == 1.0,
+          "current-script next-choice did not seek one second before SkipFRAME");
 }
 
 void TestCrossScriptSkipOn(const char *route, const fs::path &root) {
   const auto documents = root / "documents-skip-on";
   fs::create_directories(documents);
   PutConfig(documents / "Config.DAT", "< Config.dat >\n[Skip]=\"1\"\n");
-  auto assets = std::make_shared<Kotonoha::Providers::SchoolDaysAssets>(root);
+  auto assets = std::make_shared<SchoolDays::Assets>(root);
   Application app(assets, route, documents);
   Require(app.runtime.retailConfig().skip, "Skip=1 was not loaded");
   Require(app.runtime.debugNode() == "00/00-00-A00",
@@ -131,7 +126,7 @@ void TestCrossScriptSkipOn(const char *route, const fs::path &root) {
 void TestUnreadStopSkipOff(const char *route, const fs::path &root) {
   const auto documents = root / "documents-skip-off";
   fs::create_directories(documents);
-  auto assets = std::make_shared<Kotonoha::Providers::SchoolDaysAssets>(root);
+  auto assets = std::make_shared<SchoolDays::Assets>(root);
   Application app(assets, route, documents);
   Require(!app.runtime.retailConfig().skip, "default Skip state is not off");
   Require(app.runtime.debugNode() == "00/00-00-A00",
@@ -152,8 +147,7 @@ class RuntimeChoiceTestAccess {
 public:
   static void Seek(Runtime &runtime, Kotonoha_SceneTick tick) {
     runtime.seek(tick);
-    Require(runtime.completePendingSeek(),
-            "synthetic choice seek did not settle");
+    Require(runtime.completePendingSeek(), "synthetic choice seek did not settle");
   }
   static void SetTick(Runtime &runtime, Kotonoha_SceneTick tick) {
     runtime.tick = tick;
@@ -206,9 +200,7 @@ public:
     return runtime.tick;
   }
   static double EffectiveSpeed(const Runtime &runtime) { return runtime.speed; }
-  static int SelectedSpeed(const Runtime &runtime) {
-    return runtime.speedIndex;
-  }
+  static int SelectedSpeed(const Runtime &runtime) { return runtime.speedIndex; }
   static bool ChoiceSpeedOverride(const Runtime &runtime) {
     return runtime.choiceSpeedOverrideActive;
   }
@@ -220,22 +212,18 @@ public:
   }
   static void ClickTransport(Runtime &runtime, bool rewind) {
     Kotonoha::SchoolDaysMenuBarPresenter::Action action{};
-    action.kind =
-        rewind ? Kotonoha::SchoolDaysMenuBarPresenter::ActionKind::
-                     BackOrRestartScene
-               : Kotonoha::SchoolDaysMenuBarPresenter::ActionKind::SkipToEnd;
+    action.kind = rewind
+                      ? Kotonoha::SchoolDaysMenuBarPresenter::ActionKind::BackOrRestartScene
+                      : Kotonoha::SchoolDaysMenuBarPresenter::ActionKind::SkipToEnd;
     runtime.activateMenuAction(action);
   }
   static void PumpTransport(Runtime &runtime, uint64_t nowMs) {
     runtime.updateTransportFade(nowMs);
   }
-  static Kotonoha::SchoolDaysTransportFade::Phase
-  TransportPhase(const Runtime &runtime) {
+  static Kotonoha::SchoolDaysTransportFade::Phase TransportPhase(const Runtime &runtime) {
     return runtime.transportFade.CurrentPhase();
   }
-  static bool SeekPending(const Runtime &runtime) {
-    return runtime.pendingSeek.has_value();
-  }
+  static bool SeekPending(const Runtime &runtime) { return runtime.pendingSeek.has_value(); }
 };
 
 } // namespace SchoolDays
@@ -277,7 +265,7 @@ SDL_Event GamepadDown() {
 void TestRetailChoiceSelectedTail(const char *route, const fs::path &root) {
   const auto documents = root / "documents-choice-selected";
   fs::create_directories(documents);
-  auto assets = std::make_shared<Kotonoha::Providers::SchoolDaysAssets>(root);
+  auto assets = std::make_shared<SchoolDays::Assets>(root);
   Application app(assets, route, documents);
   using Access = SchoolDays::RuntimeChoiceTestAccess;
 
@@ -302,8 +290,7 @@ void TestRetailChoiceSelectedTail(const char *route, const fs::path &root) {
               Access::StoredSelection(app.runtime) == 1,
           "stale button-down incorrectly replaced the stored selection");
   Require(Access::Handle(app.runtime, LeftDown(640.0f, 540.0f)) &&
-              Access::Committed(app.runtime) &&
-              Access::Result(app.runtime) == 1,
+              Access::Committed(app.runtime) && Access::Result(app.runtime) == 1,
           "matching stored-selection click did not commit choice one");
 
   const auto start = Access::ExitStart(app.runtime);
@@ -332,14 +319,15 @@ void TestRetailChoiceSelectedTail(const char *route, const fs::path &root) {
 void TestRetailChoiceTimeoutTail(const char *route, const fs::path &root) {
   const auto documents = root / "documents-choice-timeout";
   fs::create_directories(documents);
-  auto assets = std::make_shared<Kotonoha::Providers::SchoolDaysAssets>(root);
+  auto assets = std::make_shared<SchoolDays::Assets>(root);
   Application app(assets, route, documents);
   using Access = SchoolDays::RuntimeChoiceTestAccess;
 
   app.runtime.debugJumpToNode("00/00-00-A03");
   Access::Seek(app.runtime, 48);
   Access::SetTick(app.runtime, 70);
-  Require(Access::Pending(app.runtime), "choice timed out before endTick-1");
+  Require(Access::Pending(app.runtime),
+          "choice timed out before endTick-1");
   Access::SetTick(app.runtime, 71);
   Require(Access::Committed(app.runtime) && Access::Result(app.runtime) == -1 &&
               Access::ExitStart(app.runtime) == 71,
@@ -352,18 +340,16 @@ void TestRetailChoiceTimeoutTail(const char *route, const fs::path &root) {
   Require(!Access::TailActive(app.runtime) &&
               Access::NeedsFinalFrame(app.runtime) &&
               !Access::FinalFrameRendered(app.runtime),
-          "timeout/nonselected tail did not request its alpha-zero frame at 24 "
-          "ticks");
+          "timeout/nonselected tail did not request its alpha-zero frame at 24 ticks");
   Access::Render(app.runtime, app.engine);
   Require(Access::FinalFrameRendered(app.runtime),
           "timeout alpha-zero final frame was not recorded as rendered");
 }
 
-void TestTurboStopsAtChoiceAndRestores(const char *route,
-                                       const fs::path &root) {
+void TestTurboStopsAtChoiceAndRestores(const char *route, const fs::path &root) {
   const auto documents = root / "documents-turbo-choice";
   fs::create_directories(documents);
-  auto assets = std::make_shared<Kotonoha::Providers::SchoolDaysAssets>(root);
+  auto assets = std::make_shared<SchoolDays::Assets>(root);
   Application app(assets, route, documents);
   using Access = SchoolDays::RuntimeChoiceTestAccess;
 
@@ -379,14 +365,11 @@ void TestTurboStopsAtChoiceAndRestores(const char *route,
               Access::ChoiceSpeedOverride(app.runtime) &&
               Access::EffectiveSpeed(app.runtime) == 1.0 &&
               !Access::NarrativeMuted(app.runtime),
-          "choice did not restore effective 1x/audio while retaining selected "
-          "turbo chip");
+          "choice did not restore effective 1x/audio while retaining selected turbo chip");
   Require(Access::Handle(app.runtime, MouseMotion(640.0f, 540.0f)) &&
               Access::Handle(app.runtime, LeftDown(640.0f, 540.0f)) &&
-              Access::Committed(app.runtime) &&
-              Access::EffectiveSpeed(app.runtime) == 1.0,
-          "choice selection did not keep 1x through the original 48-tick exit "
-          "tail");
+              Access::Committed(app.runtime) && Access::EffectiveSpeed(app.runtime) == 1.0,
+          "choice selection did not keep 1x through the original 48-tick exit tail");
   // Simulate the original scene-swap boundary without resetting the user's
   // selected multiplier: a rewind to a new scene still restores that state.
   Access::Seek(app.runtime, 0);
@@ -394,15 +377,13 @@ void TestTurboStopsAtChoiceAndRestores(const char *route,
               Access::SelectedSpeed(app.runtime) == 4 &&
               Access::EffectiveSpeed(app.runtime) == 24.0 &&
               Access::NarrativeMuted(app.runtime),
-          "choice exit did not restore the originally selected fast-forward "
-          "speed/audio");
+          "choice exit did not restore the originally selected fast-forward speed/audio");
 }
 
-void TestTurboCannotCrossChoiceWithLongFrame(const char *route,
-                                             const fs::path &root) {
+void TestTurboCannotCrossChoiceWithLongFrame(const char *route, const fs::path &root) {
   const auto documents = root / "documents-turbo-longframe";
   fs::create_directories(documents);
-  auto assets = std::make_shared<Kotonoha::Providers::SchoolDaysAssets>(root);
+  auto assets = std::make_shared<SchoolDays::Assets>(root);
   Application app(assets, route, documents);
   using Access = SchoolDays::RuntimeChoiceTestAccess;
   app.runtime.debugJumpToNode("00/00-00-A03");
@@ -420,7 +401,7 @@ void TestTurboCannotCrossChoiceWithLongFrame(const char *route,
 void TestTransportFadeBeforeSeek(const char *route, const fs::path &root) {
   const auto documents = root / "documents-transport-fades";
   fs::create_directories(documents);
-  auto assets = std::make_shared<Kotonoha::Providers::SchoolDaysAssets>(root);
+  auto assets = std::make_shared<SchoolDays::Assets>(root);
   Application app(assets, route, documents);
   using Access = SchoolDays::RuntimeChoiceTestAccess;
   using Fade = Kotonoha::SchoolDaysTransportFade;
@@ -428,10 +409,9 @@ void TestTransportFadeBeforeSeek(const char *route, const fs::path &root) {
 
   const uint64_t skipAt = SDL_GetTicks();
   Access::ClickTransport(app.runtime, false);
-  Require(
-      Access::TransportPhase(app.runtime) == Fade::Phase::FadeOut &&
-          !Access::SeekPending(app.runtime),
-      "SkipToEnd jumped abruptly instead of starting the retail black fade");
+  Require(Access::TransportPhase(app.runtime) == Fade::Phase::FadeOut &&
+              !Access::SeekPending(app.runtime),
+          "SkipToEnd jumped abruptly instead of starting the retail black fade");
   Access::PumpTransport(app.runtime, skipAt + 250u);
   Require(Access::TransportPhase(app.runtime) == Fade::Phase::FadeOut &&
               Access::CurrentTick(app.runtime) == 0 &&

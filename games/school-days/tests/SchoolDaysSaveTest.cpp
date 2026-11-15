@@ -1,8 +1,8 @@
+#include "SchoolDaysAssets.hpp"
 #include "SchoolDaysRuntime.hpp"
-#include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/routing/SchoolDaysConfigMenuRenderPlan.hpp>
 #include <Kotonoha/routing/SchoolDaysSaveLoadRenderPlan.hpp>
-#include <SchoolDays/SchoolDaysAssets.hpp>
+#include <Kotonoha/core/Engine.hpp>
 #include <algorithm>
 #include <iostream>
 #include <stdexcept>
@@ -15,25 +15,23 @@ void check(bool value, const std::string &message) {
 struct Application {
   SchoolDays::Runtime runtime;
   Kotonoha::Engine engine;
-  static Kotonoha::EngineOptions options(
-      const std::shared_ptr<Kotonoha::Providers::SchoolDaysAssets> &assets) {
+  static Kotonoha::EngineOptions
+  options(const std::shared_ptr<SchoolDays::Assets> &assets) {
     Kotonoha::EngineOptions result;
     result.assets = assets;
     result.persistSettings = false;
     result.rendererOverride = "software";
     return result;
   }
-  Application(
-      const std::shared_ptr<Kotonoha::Providers::SchoolDaysAssets> &assets,
-      const char *route, const std::filesystem::path &documents)
+  Application(const std::shared_ptr<SchoolDays::Assets> &assets,
+              const char *route, const std::filesystem::path &documents)
       : runtime(assets, route, documents), engine(runtime, options(assets)) {}
   ~Application() { runtime.shutdown(); }
 };
 } // namespace
 int main(int argc, char **argv) {
   try {
-    check(argc == 4,
-          "Expected retail data, route and remaster display overlay");
+    check(argc == 4, "Expected retail data, route and remaster display overlay");
     struct Directory {
       std::filesystem::path path =
           std::filesystem::temp_directory_path() /
@@ -46,8 +44,7 @@ int main(int argc, char **argv) {
     // The original System.GPK has SOMCON, not Display Options. Mount the
     // user's separate authored overlay just as the bundled Windows game does,
     // never mutate or replace the commercial GPK.
-    auto assets = std::make_shared<Kotonoha::Providers::SchoolDaysAssets>(
-        argv[1], argv[3]);
+    auto assets = std::make_shared<SchoolDays::Assets>(argv[1], argv[3]);
     Application app(assets, argv[2], documents.path);
     app.runtime.SetState(Kotonoha::GameState::Gameplay);
     app.runtime.debugJumpToNode("0");
@@ -99,12 +96,9 @@ int main(int argc, char **argv) {
     openPanel(10);
     const auto saveSprites = Kotonoha::SchoolDaysSaveLoadRenderPlan::Build(
         app.runtime.panels().SaveLoad());
-    check(std::none_of(
-              saveSprites.begin(), saveSprites.end(),
-              [](const auto &sprite) {
-                return sprite.role ==
-                       Kotonoha::SchoolDaysSaveLoadRenderPlan::Role::RouteMap;
-              }),
+    check(std::none_of(saveSprites.begin(), saveSprites.end(), [](const auto& sprite) {
+            return sprite.role == Kotonoha::SchoolDaysSaveLoadRenderPlan::Role::RouteMap;
+          }),
           "Retail SAVE must not render Open Route Map");
     row();
     check(app.runtime.panels().IsSaveLoadCommentEditorOpen(),
@@ -144,12 +138,9 @@ int main(int argc, char **argv) {
     openPanel(11);
     const auto loadSprites = Kotonoha::SchoolDaysSaveLoadRenderPlan::Build(
         app.runtime.panels().SaveLoad());
-    check(std::any_of(
-              loadSprites.begin(), loadSprites.end(),
-              [](const auto &sprite) {
-                return sprite.role ==
-                       Kotonoha::SchoolDaysSaveLoadRenderPlan::Role::RouteMap;
-              }),
+    check(std::any_of(loadSprites.begin(), loadSprites.end(), [](const auto& sprite) {
+            return sprite.role == Kotonoha::SchoolDaysSaveLoadRenderPlan::Role::RouteMap;
+          }),
           "Retail LOAD must retain Open Route Map");
     row();
     // Retail LOAD now dims SaveLoad, presents POPUP_LOAD, fades the card to
