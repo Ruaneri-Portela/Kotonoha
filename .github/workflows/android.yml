@@ -27,8 +27,10 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-          cache: gradle
-          cache-dependency-path: buildsystems/android/**/*.gradle*
+
+      - uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: '8.14.6'
 
       - uses: android-actions/setup-android@v4
 
@@ -59,8 +61,7 @@ jobs:
         working-directory: buildsystems/android
         run: |
           export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/28.2.13676358"
-          chmod +x gradlew
-          ./gradlew :app:assembleExampleDebug :app:assembleSchoolDaysDebug \
+          gradle :app:assembleExampleDebug :app:assembleSchoolDaysDebug \
             -Pabis=arm64-v8a -PbundleGameAssets=false --no-daemon --stacktrace
 
       - name: Verify APK outputs
