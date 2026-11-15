@@ -47,7 +47,9 @@ struct Temp {
 void writeFile(const fs::path &file, const std::vector<std::uint8_t> &bytes) {
   fs::create_directories(file.parent_path());
   auto *output = SDL_IOFromFile(file.string().c_str(), "wb");
-  require(output != nullptr, "Cannot create test fixture");
+  if (!output)
+    throw std::runtime_error("Cannot create test fixture: " + file.string() +
+                             ": " + SDL_GetError());
   const bool ok = bytes.empty() ||
                   SDL_WriteIO(output, bytes.data(), bytes.size()) == bytes.size();
   const bool closed = SDL_CloseIO(output);
@@ -270,6 +272,11 @@ void testTAR() {
               std::string(suffix, 7) == "content",
           "TAR slice cursor failed");
 
+  // Windows keeps a TAR opened by first->base_ locked against rewriting.
+  // Close the cursor and its mount before replacing the fixture with corrupt
+  // bytes. This still checks that a fresh mount rejects its checksum.
+  first.reset();
+  tar.reset();
   bytes[148] ^= 1; // corrupt checksum
   writeFile(file, bytes);
   expectCode(VFS::ErrorCode::CorruptImage, [&] {
