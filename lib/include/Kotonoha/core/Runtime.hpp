@@ -136,6 +136,11 @@ public:
   // means the engine VNManager node is used. The engine's event clock resets
   // whenever this position changes.
   virtual std::string debugNode() const { return {}; }
+  // Preserve upstream dialogue accessors for native script runtimes.
+  // Kirikiri, Luca System and PMAIL override these to expose their current
+  // dialogue to the engine without requiring a VNTextBox update.
+  virtual std::string dialogueText() const { return {}; }
+  virtual std::string dialogueSpeaker() const { return {}; }
   // Optional stable identity for the shared node clock. Native interpreters
   // can keep one clock across multiple instruction positions in a node; an
   // empty key uses debugNode() as the clock identity.
