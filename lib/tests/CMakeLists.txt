@@ -1,3 +1,7 @@
+# Debug-only engine entry points are intentionally absent from DIST. Keep the
+# full upstream test set for every non-DIST build (including DEV), but never
+# compile test binaries against APIs removed from a player distribution.
+if(NOT KOTONOHA_DISTRIBUTION_BUILD)
 add_executable(KotonohaInfrastructureTests InfrastructureTests.cpp)
 target_link_libraries(KotonohaInfrastructureTests PRIVATE Kotonoha::Engine)
 add_test(NAME Kotonoha.Infrastructure COMMAND KotonohaInfrastructureTests)
@@ -8,6 +12,7 @@ if(WIN32)
         ENVIRONMENT_MODIFICATION
             "PATH=path_list_prepend:$<TARGET_FILE_DIR:KotonohaEngine>")
 endif()
+endif()
 
 # Preserve both Windows L4 MCP regression tests from the local dev branch.
 # The upstream test matrix adds Vm/FilesystemV2/BuildVersion, but does not
@@ -16,6 +21,7 @@ add_executable(KotonohaMCPCommandLineTests MCPCommandLineTests.cpp)
 target_link_libraries(KotonohaMCPCommandLineTests PRIVATE Kotonoha::Engine)
 add_test(NAME Kotonoha.MCPCommandLine COMMAND KotonohaMCPCommandLineTests)
 
+if(NOT KOTONOHA_DISTRIBUTION_BUILD)
 add_executable(KotonohaMCPTransportTests MCPTransportTests.cpp)
 target_link_libraries(KotonohaMCPTransportTests PRIVATE Kotonoha::Engine)
 if(WIN32)
@@ -24,6 +30,7 @@ endif()
 add_test(NAME Kotonoha.MCPTransport COMMAND KotonohaMCPTransportTests)
 set_tests_properties(Kotonoha.MCPTransport PROPERTIES
     ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_AUDIO_DRIVER=dummy")
+endif()
 
 add_executable(KotonohaVmTests VmTests.cpp)
 target_link_libraries(KotonohaVmTests PRIVATE Kotonoha::Engine)
@@ -64,11 +71,13 @@ if(SDLTTF_PLUTOSVG)
     add_test(NAME Kotonoha.PlatformSmoke COMMAND KotonohaPlatformSmokeTests)
 endif()
 
+if(NOT KOTONOHA_DISTRIBUTION_BUILD)
 add_executable(KotonohaAudioChannelsTests AudioChannelsTests.cpp)
 target_link_libraries(KotonohaAudioChannelsTests PRIVATE Kotonoha::Engine imgui)
 add_test(NAME Kotonoha.AudioChannels COMMAND KotonohaAudioChannelsTests)
 set_tests_properties(Kotonoha.AudioChannels PROPERTIES
     ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_AUDIO_DRIVER=dummy")
+endif()
 
 add_executable(KotonohaAssetProviderTests AssetProviderTests.cpp)
 target_link_libraries(KotonohaAssetProviderTests PRIVATE Kotonoha::Engine)
@@ -137,11 +146,13 @@ add_test(NAME Kotonoha.Launcher COMMAND KotonohaLauncherTests)
 set_tests_properties(Kotonoha.Launcher PROPERTIES
     ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_AUDIO_DRIVER=dummy")
 
+if(NOT KOTONOHA_DISTRIBUTION_BUILD)
 add_executable(KotonohaPresentationTests PresentationTests.cpp)
 target_link_libraries(KotonohaPresentationTests PRIVATE Kotonoha::Engine)
 add_test(NAME Kotonoha.Presentation COMMAND KotonohaPresentationTests)
 set_tests_properties(Kotonoha.Presentation PROPERTIES
     ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_AUDIO_DRIVER=dummy")
+endif()
 
 find_program(KOTONOHA_TEST_FFMPEG ffmpeg)
 if(KOTONOHA_TEST_FFMPEG)
@@ -165,10 +176,12 @@ add_executable(KotonohaInputActionsTests InputActionsTests.cpp)
 target_link_libraries(KotonohaInputActionsTests PRIVATE Kotonoha::Engine)
 add_test(NAME Kotonoha.InputActions COMMAND KotonohaInputActionsTests)
 
+if(NOT KOTONOHA_DISTRIBUTION_BUILD)
 add_executable(KotonohaDebugTranslationTests DebugTranslationTests.cpp)
 target_link_libraries(KotonohaDebugTranslationTests PRIVATE Kotonoha::Engine)
 add_test(NAME Kotonoha.DebugTranslation COMMAND KotonohaDebugTranslationTests)
 set_tests_properties(Kotonoha.DebugTranslation PROPERTIES ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_AUDIO_DRIVER=dummy")
+endif()
 
 add_executable(KotonohaPs2SoundBankTests Ps2SoundBankTests.cpp)
 target_link_libraries(KotonohaPs2SoundBankTests PRIVATE Kotonoha::Engine)
