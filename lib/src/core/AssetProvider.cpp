@@ -2,7 +2,6 @@
 #include <Kotonoha/core/DiscImage.hpp>
 #include <Kotonoha/core/FileSystem.hpp>
 #include <Kotonoha/core/Log.hpp>
-#include <Kotonoha/localization/Encoding.hpp>
 #include <Kotonoha/media/MediaDecoder.hpp>
 #include <Kotonoha/media/TextureAlpha.hpp>
 #include <Kotonoha/media/upscaling/Upscaler.hpp>
@@ -33,9 +32,8 @@ void prepareLinearSurface(SDL_Surface *surface) {
   const bool lock = SDL_MUSTLOCK(surface);
   if (lock && !SDL_LockSurface(surface))
     return;
-  prepareStraightAlphaForLinearFiltering(static_cast<Uint8 *>(surface->pixels),
-                                         surface->w, surface->h,
-                                         surface->pitch);
+  prepareStraightAlphaForLinearFiltering(
+      static_cast<Uint8 *>(surface->pixels), surface->w, surface->h, surface->pitch);
   if (lock)
     SDL_UnlockSurface(surface);
 }
@@ -106,44 +104,6 @@ std::vector<Uint8> AssetProvider::read(const std::string &id,
 std::string AssetProvider::localPath(const std::string &id) const {
   auto file = overlayPath(id);
   return file.empty() ? localPathAsset(id) : file;
-}
-std::string AssetProvider::loadTextUtf8(const std::string &id,
-                                        const char *encoding,
-                                        AssetSource source) const {
-  if (!encoding || !*encoding)
-    throw std::invalid_argument("Text encoding must not be empty");
-  return decodeTextAsset(id, read(id, source), encoding);
-}
-std::string AssetProvider::decodeTextAsset(const std::string &,
-                                           const std::vector<Uint8> &bytes,
-                                           const char *encoding) const {
-  if (bytes.empty())
-    return {};
-  size_t offset = 0;
-  // UTF-32 must precede UTF-16: their LE BOMs share a prefix.
-  if (bytes.size() >= 4 && bytes[0] == 0xff && bytes[1] == 0xfe &&
-      bytes[2] == 0 && bytes[3] == 0) {
-    offset = 4;
-    encoding = "UTF-32LE";
-  } else if (bytes.size() >= 4 && bytes[0] == 0 && bytes[1] == 0 &&
-             bytes[2] == 0xfe && bytes[3] == 0xff) {
-    offset = 4;
-    encoding = "UTF-32BE";
-  } else if (bytes.size() >= 3 && bytes[0] == 0xef && bytes[1] == 0xbb &&
-             bytes[2] == 0xbf) {
-    offset = 3;
-    encoding = "UTF-8";
-  } else if (bytes.size() >= 2 && bytes[0] == 0xff && bytes[1] == 0xfe) {
-    offset = 2;
-    encoding = "UTF-16LE";
-  } else if (bytes.size() >= 2 && bytes[0] == 0xfe && bytes[1] == 0xff) {
-    offset = 2;
-    encoding = "UTF-16BE";
-  }
-  return ConvertEncoding(
-      std::string_view(reinterpret_cast<const char *>(bytes.data() + offset),
-                       bytes.size() - offset),
-      encoding);
 }
 std::string AssetProvider::localPath(const std::string &id,
                                      AssetSource source) const {
@@ -271,14 +231,15 @@ std::string AssetProvider::localPathAsset(const std::string &) const {
   return {};
 }
 
-std::unique_ptr<AssetStream>
-AssetProvider::openStream(const std::string &) const {
+std::unique_ptr<AssetStream> AssetProvider::openStream(const std::string &) const {
   return {};
 }
+
 std::unique_ptr<AssetStream>
 AssetProvider::openOriginalStream(const std::string &id) const {
   return openStream(id);
 }
+
 std::unique_ptr<AssetStream>
 AssetProvider::openStream(const std::string &id, AssetSource source) const {
   return source == AssetSource::Original ? openOriginalStream(id)
@@ -287,15 +248,6 @@ AssetProvider::openStream(const std::string &id, AssetSource source) const {
 
 SurfacePtr AssetProvider::loadSurfaceAsset(const std::string &id) const {
   const auto bytes = readAsset(id);
-  // Retain upstream's empty-asset fallback for runtimes that intentionally
-  // request an empty picture (e.g. AIR state transitions).
-  if (bytes.empty()) {
-    SurfacePtr fallback(SDL_CreateSurface(1, 1, SDL_PIXELFORMAT_RGBA32));
-    if (fallback)
-      SDL_FillSurfaceRect(fallback.get(), nullptr,
-                          SDL_MapSurfaceRGB(fallback.get(), 0, 0, 0));
-    return fallback;
-  }
   if (SurfacePtr surface{
           SDL_LoadSurface_IO(memoryStream(bytes).release(), true)})
     return surface;
@@ -360,8 +312,7 @@ SDL_Texture &AssetProvider::stageTexture(RendererRef renderer,
   }
   if (auto found = textures.find(id); found != textures.end())
     return *found->second;
-  if (!surface)
-    throw std::invalid_argument("Staged asset surface is empty");
+  if (!surface) throw std::invalid_argument("Staged asset surface is empty");
   prepareLinearSurface(surface.get());
   TexturePtr created(SDL_CreateTextureFromSurface(&renderer, surface.get()));
   if (!created)

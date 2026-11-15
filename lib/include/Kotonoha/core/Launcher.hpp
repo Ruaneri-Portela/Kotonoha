@@ -53,9 +53,19 @@ public:
   // Validates and saves, then finishes with State::Launch. On failure keeps
   // running and returns false with the reason in getStatus().
   bool launch();
+  // Persist the launcher's draft without starting the game. This supports
+  // installer-style Options windows with independent OK/Cancel controls.
+  bool apply();
   void quit();
 
 protected:
+  // Optional game-specific presentation. The generic launcher keeps its
+  // existing interface unless a derived game explicitly overrides this hook.
+  virtual bool drawCustomContents() { return false; }
+  virtual std::pair<int, int> preferredWindowSize() const { return {760, 560}; }
+  SDL_Window *launcherWindow() const { return window.get(); }
+  SDL_Renderer *launcherRenderer() const { return renderer.get(); }
+  void resetEngineDefaults() { draft = defaults; }
   virtual void drawGameOptions();
   virtual bool validate(std::string &error);
   // Persists game options; called by launch() after the engine settings.
@@ -67,6 +77,12 @@ protected:
   // Native folder picker, same contract as browseFile().
   void browseFolder(const std::string &initial,
                     std::function<void(const std::string &)> done);
+  // Reuse the generic engine's existing advanced controls in a game-specific
+  // tabbed presentation, without duplicating or weakening their behavior.
+  void drawVideo();
+  void drawUpscaling();
+  void drawTranslation();
+  void drawAdvanced();
 
 private:
   struct Dialog;
@@ -88,20 +104,11 @@ private:
   std::unique_ptr<ImGuiTheme::ShaderFilePicker> shaderPicker;
 
   void draw();
-  void drawVideo();
-  void drawUpscaling();
-  void drawTranslation();
-  void drawAdvanced();
-  // Draws the shared UI/ImGui font selector bound to settings.fontPath.
-  void drawFontSelector(std::string &fontPath);
 
   std::string overlayChecked, overlayInfo;
   bool overlayValid = true;
   bool overlayCheckedOnce = false;
   void checkOverlay(bool force = false);
-  // Stores an absolute overlay choice as a (name -> absolute path) pair and
-  // re-validates it. The name is derived from the folder's own name.
-  void selectOverlayFolder(const std::string &path);
 };
 
 } // namespace Kotonoha

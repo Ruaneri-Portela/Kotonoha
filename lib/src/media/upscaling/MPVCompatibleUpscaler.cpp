@@ -160,6 +160,19 @@ std::string LoadAsset(const std::string &filename) {
   if (!resolved)
     resolved = FileResolver::findEngineAsset(
         std::filesystem::path(assetFolder) / supplied);
+  // FileResolver may also find directories. A custom value such as "FSRCNNX"
+  // is a folder, not a shader pass file: report it explicitly instead of
+  // silently falling back to normal scaling after SDL_LoadFile fails.
+  if (resolved) {
+    std::error_code ec;
+    if (!std::filesystem::is_regular_file(*resolved, ec)) {
+      SDL_LogError(LogUpscaler,
+                   "MPVCompatibleUpscaler: shader '%s' is not a regular file; "
+                   "select the full .glsl file path, not a folder",
+                   filename.c_str());
+      return "";
+    }
+  }
   size_t size = 0;
   void *buffer =
       resolved ? SDL_LoadFile(resolved->string().c_str(), &size) : nullptr;
@@ -610,9 +623,16 @@ bool InitGLPipeline(SDL_Renderer *renderer) {
     ForgetPipelineState();
     return false;
   }
-  SDL_LogInfo(LogUpscaler,
-              "MPVCompatibleUpscaler preset '%s' initialized (%d passes)",
-              PresetLogName(g_preset), (int)g_passes.size());
+  if (!g_filesSpec.empty()) {
+    SDL_LogInfo(LogUpscaler,
+                "MPVCompatibleUpscaler custom GLSL initialized (%d passes, %d files)",
+                (int)g_passes.size(),
+                (int)Kotonoha::UpscaleShaderFiles(g_filesSpec).size());
+  } else {
+    SDL_LogInfo(LogUpscaler,
+                "MPVCompatibleUpscaler preset '%s' initialized (%d passes)",
+                PresetLogName(g_preset), (int)g_passes.size());
+  }
   return true;
 }
 

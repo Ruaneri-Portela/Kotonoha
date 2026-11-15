@@ -11,7 +11,7 @@
 #include <imgui_impl_sdlrenderer3.h>
 #include <imgui_stdlib.h>
 
-#include <Kotonoha/debug/ImGuiTheme.hpp>
+#include "../debug/ImGuiTheme.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -102,8 +102,7 @@ void Launcher::open() {
     }
 
     // 3. Obtém o tamanho da tela do monitor principal se for mobile/fullscreen
-    int width = 760;
-    int height = 560;
+    auto [width, height] = preferredWindowSize();
 
     if (isMobilePlatform()) {
       SDL_DisplayID displayID = SDL_GetPrimaryDisplay();
@@ -205,19 +204,6 @@ void Launcher::checkOverlay(bool force) {
   }
 }
 
-void Launcher::selectOverlayFolder(const std::string &path) {
-  draft.assetOverlayPath = path;
-  std::error_code ec;
-  if (std::filesystem::is_directory(path, ec)) {
-    std::filesystem::path p(path);
-    auto name =
-        p.filename().empty() ? std::string("overlay") : p.filename().string();
-    draft.assetOverlays[name] = path;
-    draft.assetOverlayName = name;
-  }
-  checkOverlay(true);
-}
-
 bool Launcher::validate(std::string &error) {
   checkOverlay(true);
   if (!overlayValid) {
@@ -235,7 +221,7 @@ void Launcher::setStatus(std::string message, bool error) {
     SDL_LogWarn(LogConfig, "Launcher: %s", status.c_str());
 }
 
-bool Launcher::launch() {
+bool Launcher::apply() {
   try {
     draft.validate();
     std::string error;
@@ -250,6 +236,12 @@ bool Launcher::launch() {
     setStatus(error.what(), true);
     return false;
   }
+  setStatus("Settings saved", false);
+  return true;
+}
+
+bool Launcher::launch() {
+  if (!apply()) return false;
   setStatus("", false);
   current = State::Launch;
   SDL_LogInfo(LogConfig, "Launcher: starting with upscaling %s x%.2f",
@@ -395,6 +387,7 @@ void Launcher::draw() {
                    ImGuiWindowFlags_NoSavedSettings |
                    ImGuiWindowFlags_NoBringToFrontOnFocus);
   ImGui::PopStyleVar(3);
+  if (!drawCustomContents()) {
   {
     // Header band: accent strip + large title + settings location.
     const ImVec2 origin = ImGui::GetWindowPos();
@@ -423,23 +416,19 @@ void Launcher::draw() {
   if (ImGui::BeginTabBar("##tabs")) {
     if (ImGui::BeginTabItem("Game")) {
       drawGameOptions();
-      ImGuiTheme::sectionHeader("Asset overlay");
-      // The text input holds the absolute path. When confirmed it is stored as
-      // a (name -> absolute path) pair; the display always shows the absolute
-      // path. The persisted absolute is tried first, otherwise the name is
-      // resolved through the standard overlay folder search.
+      ImGui::SeparatorText("Asset overlay (all games)");
       if (ImGui::InputText("Overlay folder", &draft.assetOverlayPath,
                            ImGuiInputTextFlags_EnterReturnsTrue) ||
           !ImGui::IsItemActive())
-        selectOverlayFolder(draft.assetOverlayPath);
+        checkOverlay();
       if (ImGui::Button("Browse overlay..."))
         browseFolder(draft.assetOverlayPath, [this](const std::string &path) {
-          selectOverlayFolder(path);
+          draft.assetOverlayPath = path;
+          checkOverlay(true);
         });
       ImGui::SameLine();
       if (ImGui::Button("Automatic overlay")) {
         draft.assetOverlayPath.clear();
-        draft.assetOverlayName.clear();
         checkOverlay(true);
       }
 
@@ -486,6 +475,7 @@ void Launcher::draw() {
   ImGui::SameLine();
   if (ImGui::Button("Quit"))
     quit();
+  }
   ImGui::End();
   ImGui::Render();
   SDL_SetRenderScale(renderer.get(), io.DisplayFramebufferScale.x,
@@ -498,7 +488,6 @@ void Launcher::draw() {
 
 void Launcher::drawVideo() {
   if (canChangeDisplaySize()) {
-    ImGuiTheme::sectionHeader("Display");
     int mode = static_cast<int>(draft.mode);
     if (ImGui::Combo("Mode", &mode, Modes, 3))
       draft.mode = static_cast<WindowMode>(mode);
@@ -589,7 +578,6 @@ void Launcher::drawVideo() {
     ImGui::Checkbox("Resizable window", &draft.resizable);
   }
 
-  ImGuiTheme::sectionHeader("Renderer");
   const std::string renderer =
       draft.renderer.empty() ? "Automatic" : draft.renderer;
   if (ImGui::BeginCombo("Renderer", renderer.c_str())) {
@@ -606,7 +594,6 @@ void Launcher::drawVideo() {
 
 void Launcher::drawUpscaling() {
   auto &upscaling = draft.upscaling;
-  ImGuiTheme::sectionHeader("Scale");
   // Same rule as Kotonoha: 1.0 is off, anything above turns it on.
   ImGui::SliderFloat("Scale", &upscaling.factor, 1.0f, 4.0f,
                      upscaling.factor <= 1 ? "Off (1.00x)" : "%.2fx");
@@ -622,7 +609,6 @@ void Launcher::drawUpscaling() {
       upscaling.factor = preset;
   }
 
-  ImGuiTheme::sectionHeader("Backend");
   if (ImGui::BeginCombo("Backend", backendLabel(upscaling.backend))) {
     for (auto backend : {UpscaleBackend::Auto, UpscaleBackend::Linear,
                          UpscaleBackend::MPV, UpscaleBackend::MetalFX}) {
@@ -677,7 +663,7 @@ void Launcher::drawAdvanced() {
     ImGui::SliderFloat((name + "##mixer").c_str(), &entry->second, 0, 1,
                        "%.2f");
   }
-  ImGuiTheme::sectionHeader("VN text");
+  ImGui::SeparatorText("VN text");
   const auto vnFonts = VNFontOptions();
   if (ImGui::BeginCombo("VN font", draft.vnFontPath.empty()
                                        ? "Original game font"
@@ -709,18 +695,20 @@ void Launcher::drawAdvanced() {
   };
   chooseColor("Dialogue color", draft.vnTextColor);
   chooseColor("Speaker color", draft.vnSpeakerColor);
+#if !defined(KOTONOHA_DISTRIBUTION_BUILD)
   ImGui::SliderFloat("Debug UI scale", &draft.debugUIScale, 1, 3, "%.2fx");
-  ImGuiTheme::sectionHeader("UI font");
-  drawFontSelector(draft.fontPath);
-  ImGuiTheme::sectionHeader("Subtitles");
+#endif
+  ImGui::SeparatorText("Subtitles");
   ImGui::Checkbox("Enable forced subtitles", &draft.enableForcedSubtitles);
   ImGui::TextWrapped(
       "Load .ass files from \"forced_subtitles\" folder for each node");
   ImGui::Separator();
+#if !defined(KOTONOHA_DISTRIBUTION_BUILD)
   int priority = static_cast<int>(draft.logPriority) - SDL_LOG_PRIORITY_TRACE;
   if (ImGui::Combo("Log level", &priority, Priorities, 7))
     draft.logPriority =
         static_cast<SDL_LogPriority>(priority + SDL_LOG_PRIORITY_TRACE);
+#endif
 }
 
 namespace {
@@ -803,41 +791,28 @@ void Launcher::drawTranslation() {
   ImGui::Separator();
   ImGui::Spacing();
 
-  ImGui::TextDisabled("The default UI font is chosen in Advanced → UI font "
-                      "(applies to UI, ImGui and Debug UI).");
-}
-
-void Launcher::drawFontSelector(std::string &fontPath) {
-  const ImGuiStyle &style = ImGui::GetStyle();
-  constexpr const char *Browse = "Browse...";
-  constexpr const char *Clear = "Clear";
-
-  const float buttonWidth = ImGui::CalcTextSize(Browse).x +
-                            ImGui::CalcTextSize(Clear).x +
-                            style.ItemSpacing.x * 2 + style.FramePadding.x * 4;
-  ImGui::SetNextItemWidth(-buttonWidth - style.ItemSpacing.x);
-  ImGui::InputText("##fontPath", &fontPath);
+  ImGui::TextUnformatted("Default Font (SDL_ttf, ImGui, libass)");
 
   auto fonts = getAvailableFonts();
+  if (draft.fontPath.empty() && !fonts.empty()) {
+    draft.fontPath = fonts.front().filename;
+  }
 
   std::string currentLabel =
-      fontPath.empty() ? std::string(defaultFontName()) : fontPath;
+      draft.fontPath.empty() ? "Default (Noto Sans JP)" : draft.fontPath;
   for (const auto &f : fonts) {
-    if (f.filename == fontPath) {
+    if (f.filename == draft.fontPath) {
       currentLabel = f.label;
       break;
     }
   }
 
-  const bool fontChanged = fontPath != defaults.fontPath;
   ImGui::SetNextItemWidth(-buttonWidth - style.ItemSpacing.x);
   if (ImGui::BeginCombo("##fontCombo", currentLabel.c_str())) {
     for (const auto &f : fonts) {
-      bool selected = (f.filename == fontPath);
+      bool selected = (f.filename == draft.fontPath);
       if (ImGui::Selectable(f.label.c_str(), selected)) {
-        fontPath = f.filename;
-        ImGuiTheme::loadFonts(fontPath);
-        ImGuiTheme::apply(contentScale);
+        draft.fontPath = f.filename;
       }
       if (selected) {
         ImGui::SetItemDefaultFocus();
@@ -847,24 +822,24 @@ void Launcher::drawFontSelector(std::string &fontPath) {
   }
   ImGui::SameLine();
   if (ImGui::Button("Clear##font")) {
-    fontPath = defaults.fontPath;
-    ImGuiTheme::loadFonts(fontPath);
-    ImGuiTheme::apply(contentScale);
+    draft.fontPath.clear();
   }
 
-  if (!fontPath.empty()) {
+  if (!draft.fontPath.empty()) {
     std::filesystem::path resolvedFont;
     try {
-      resolvedFont = FileResolver::font(fontPath);
+      resolvedFont = FileResolver::font(draft.fontPath);
     } catch (const std::exception &) {
+      // Uma fonte configurada que não é encontrada não deve quebrar a UI;
+      // reportamos apenas que não foi localizada.
     }
-    if (!resolvedFont.empty() && std::filesystem::exists(resolvedFont)) {
+    if (!resolvedFont.empty() && std::filesystem::exists(resolvedFont, ec)) {
       ImGui::PushStyleColor(ImGuiCol_Text, ImGuiTheme::success());
-      ImGui::TextUnformatted("UI font file found");
+      ImGui::TextUnformatted("Font file found in available fonts");
       ImGui::PopStyleColor();
     } else {
       ImGui::PushStyleColor(ImGuiCol_Text, ImGuiTheme::warning());
-      ImGui::TextUnformatted("UI font file not found");
+      ImGui::TextUnformatted("Font file not found");
       ImGui::PopStyleColor();
     }
   } else {
