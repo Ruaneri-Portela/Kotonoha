@@ -1,5 +1,7 @@
 #include <Kotonoha/routing/SchoolDaysBackLogPresenter.hpp>
 
+#include "SchoolDaysChineseFont.hpp"
+
 #include <algorithm>
 #include <map>
 #include <string>
@@ -100,6 +102,7 @@ bool SchoolDaysBackLogPresenter::Open(
       return Fail(error, "School Days BackLog fallback chain setup failed");
     }
   }
+  chineseFallbackFont_ = AttachSchoolDaysChineseFallback(font_).release();
   text_ = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA32,
                             SDL_TEXTUREACCESS_STREAMING, 2048, 1024);
   if (text_ == nullptr ||
@@ -131,8 +134,11 @@ void SchoolDaysBackLogPresenter::Close() {
   }
   if (fallbackFont_ != nullptr)
     TTF_CloseFont(fallbackFont_);
+  if (chineseFallbackFont_ != nullptr)
+    TTF_CloseFont(chineseFallbackFont_);
   font_ = nullptr;
   fallbackFont_ = nullptr;
+  chineseFallbackFont_ = nullptr;
   useEnglish_ = false;
   opened_ = false;
 }
@@ -235,7 +241,7 @@ bool SchoolDaysBackLogPresenter::Render(SDL_Renderer *renderer,
         continue;
 
       SDL_Surface *rendered = SchoolDaysSubtitleTypography::Render(
-          font_, utf8.c_str(), utf8.size());
+          font_, utf8.c_str(), utf8.size(), chineseFallbackFont_);
       if (rendered == nullptr) {
         SDL_DestroySurface(scratch);
         return Fail(error, "School Days BackLog TTF rasterization failed");

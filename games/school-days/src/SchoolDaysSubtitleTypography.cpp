@@ -6,20 +6,33 @@ namespace Kotonoha {
 
 SDL_Surface *SchoolDaysSubtitleTypography::Render(TTF_Font *font,
                                                   const char *utf8,
-                                                  std::size_t bytes) {
+                                                  std::size_t bytes,
+                                                  TTF_Font *fallback) {
   if (font == nullptr || utf8 == nullptr || bytes == 0u)
     return nullptr;
 
   const float oldSize = TTF_GetFontSize(font);
   const int oldOutline = TTF_GetFontOutline(font);
+  const float oldFallbackSize = fallback ? TTF_GetFontSize(fallback) : 0.0f;
+  const int oldFallbackOutline = fallback ? TTF_GetFontOutline(fallback) : 0;
   auto restore = [&]() {
     (void)TTF_SetFontOutline(font, oldOutline);
     if (oldSize > 0.0f)
       (void)TTF_SetFontSize(font, oldSize);
+    if (fallback) {
+      (void)TTF_SetFontOutline(fallback, oldFallbackOutline);
+      if (oldFallbackSize > 0.0f)
+        (void)TTF_SetFontSize(fallback, oldFallbackSize);
+    }
+  };
+  const auto setOutline = [&](int pixels) {
+    return TTF_SetFontOutline(font, pixels) &&
+           (!fallback || TTF_SetFontOutline(fallback, pixels));
   };
 
   if (!TTF_SetFontSize(font, PointSize) ||
-      !TTF_SetFontOutline(font, OutlinePixels)) {
+      (fallback && !TTF_SetFontSize(fallback, PointSize)) ||
+      !setOutline(OutlinePixels)) {
     restore();
     return nullptr;
   }
@@ -29,7 +42,7 @@ SDL_Surface *SchoolDaysSubtitleTypography::Render(TTF_Font *font,
     return nullptr;
   }
 
-  if (!TTF_SetFontOutline(font, 0)) {
+  if (!setOutline(0)) {
     SDL_DestroySurface(outline);
     restore();
     return nullptr;

@@ -278,6 +278,17 @@ bool SchoolDaysBackLogModel::ActivatePointer(int x, int y, Action *out) {
   out->rawIndex = currentRawIndex_;
   return true;
 }
+#if defined(__ANDROID__) || defined(ANDROID)
+bool SchoolDaysBackLogModel::MobileScroll(int delta) {
+  if (!open_ || rawCountSnapshot_ == 0 || delta == 0) return false;
+  const int last = static_cast<int>(rawCountSnapshot_ - 1u);
+  const int next = std::clamp(currentRawIndex_ + delta, 0, last);
+  if (next == currentRawIndex_) return false;
+  currentRawIndex_ = next;
+  selection_ = -1;
+  return true;
+}
+#endif
 
 std::vector<SchoolDaysBackLogRenderPlan::TextEntry>
 SchoolDaysBackLogRenderPlan::BuildTextEntries(
