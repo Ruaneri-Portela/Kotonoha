@@ -1,7 +1,7 @@
 #pragma once
-#include <Kotonoha/componentes/TouchActivation.hpp>
+#include <Kotonoha/components/TouchActivation.hpp>
 
-#include <Kotonoha/componentes/VNSave.hpp>
+#include <Kotonoha/components/VNSave.hpp>
 #include <Kotonoha/core/Scene.hpp>
 #include <Kotonoha/events/InputActions.hpp>
 #include <memory>

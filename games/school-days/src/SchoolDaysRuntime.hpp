@@ -7,7 +7,7 @@
 #include <Kotonoha/SchoolDaysSceneTimeline.hpp>
 #include <Kotonoha/core/Runtime.hpp>
 #include <Kotonoha/core/Settings.hpp>
-#include <Kotonoha/componentes/DisplayModeCatalog.hpp>
+#include <Kotonoha/components/DisplayModeCatalog.hpp>
 #include <Kotonoha/media/MediaPlayer.hpp>
 #include <Kotonoha/routing/SchoolDaysAbcAnimation.hpp>
 #include <Kotonoha/routing/SchoolDaysKtrfGameplayBridge.hpp>

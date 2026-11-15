@@ -1,13 +1,13 @@
 // The engine components are extended by overriding their protected hooks: the
 // base classes keep input routing and state, and call back into the subclass.
-#include <Kotonoha/componentes/ChoiceQuestionScene.hpp>
-#include <Kotonoha/componentes/GameMenu.hpp>
-#include <Kotonoha/componentes/ImageButtonBar.hpp>
-#include <Kotonoha/componentes/InGameMenu.hpp>
-#include <Kotonoha/componentes/TextInputDialog.hpp>
-#include <Kotonoha/componentes/VNBacklog.hpp>
-#include <Kotonoha/componentes/VNSave.hpp>
-#include <Kotonoha/componentes/VNTextBox.hpp>
+#include <Kotonoha/components/ChoiceQuestionScene.hpp>
+#include <Kotonoha/components/GameMenu.hpp>
+#include <Kotonoha/components/ImageButtonBar.hpp>
+#include <Kotonoha/components/InGameMenu.hpp>
+#include <Kotonoha/components/TextInputDialog.hpp>
+#include <Kotonoha/components/VNBacklog.hpp>
+#include <Kotonoha/components/VNSave.hpp>
+#include <Kotonoha/components/VNTextBox.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/Runtime.hpp>
 #include <Kotonoha/core/UI.hpp>
