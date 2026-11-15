@@ -2,6 +2,10 @@ name: Windows x64 vcpkg artifacts
 
 on:
   workflow_dispatch:
+  push:
+    branches: [dev, main]
+  pull_request:
+    branches: [dev, main]
 
 permissions:
   contents: read
@@ -49,10 +53,24 @@ jobs:
         env:
           SDL_VIDEO_DRIVER: dummy
           SDL_AUDIO_DRIVER: dummy
-        run: ctest --test-dir build-windows -C Release --output-on-failure
+        run: ctest --test-dir build-windows -C Release --output-on-failure --no-tests=error
       - name: Create ZIP packages
         shell: pwsh
         run: cpack --config build-windows/CPackConfig.cmake -C Release -G ZIP
+      - name: Verify ZIP packages
+        shell: pwsh
+        run: |
+          @'
+          from pathlib import Path
+          from zipfile import ZipFile
+          packages = sorted(Path("build-windows/packages").glob("*.zip"))
+          assert len(packages) >= 11, f"Expected 11 game packages, got {len(packages)}"
+          for archive in packages:
+              with ZipFile(archive) as package:
+                  assert package.namelist(), f"Empty archive: {archive}"
+          print(f"Validated {len(packages)} Windows game ZIPs")
+          '@ | python -
+
       - name: Upload Windows artifacts
         uses: actions/upload-artifact@v4
         with:

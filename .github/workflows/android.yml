@@ -1,0 +1,91 @@
+name: Android arm64 Gradle and NDK smoke builds
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [dev, main]
+  pull_request:
+    branches: [dev, main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-vcpkg-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  android:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+          cache-dependency-path: buildsystems/android/**/*.gradle*
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Install Android build tools
+        run: |
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager "platforms;android-36" "build-tools;36.0.0" \
+            "ndk;28.2.13676358" "cmake;3.22.1"
+
+      - name: Install pinned vcpkg
+        run: |
+          git clone --quiet https://github.com/microsoft/vcpkg.git "$RUNNER_TEMP/vcpkg"
+          git -C "$RUNNER_TEMP/vcpkg" checkout --quiet 9a5dfef5d1a0438a7d24856a85bd60f309d355e9
+          "$RUNNER_TEMP/vcpkg/bootstrap-vcpkg.sh" -disableMetrics
+          echo "VCPKG_ROOT=$RUNNER_TEMP/vcpkg" >> "$GITHUB_ENV"
+
+      - uses: actions/cache@v4
+        with:
+          path: buildsystems/android/build/vcpkg
+          key: android-arm64-vcpkg-${{ hashFiles('vcpkg.json', 'vcpkg-overlays/ports/**') }}
+          restore-keys: android-arm64-vcpkg-
+
+      - name: Validate shared build metadata
+        run: |
+          python3 tools/ValidateBuildMetadata.py
+          python3 tools/check_game_platform_isolation.py
+
+      - name: Build Example and SchoolDays APKs (arm64-v8a)
+        working-directory: buildsystems/android
+        env:
+          ANDROID_NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/28.2.13676358
+        run: |
+          chmod +x gradlew
+          ./gradlew :app:assembleExampleDebug :app:assembleSchoolDaysDebug \
+            -Pabis=arm64-v8a -PbundleGameAssets=false --no-daemon --stacktrace
+
+      - name: Verify APK outputs
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile
+          for flavor in ("example", "schoolDays"):
+              matches = list(Path("buildsystems/android/app/build/outputs/apk").rglob(f"*{flavor.lower()}*debug*.apk"))
+              if not matches:
+                  matches = list(Path("buildsystems/android/app/build/outputs/apk").rglob("*.apk"))
+              assert any(flavor.lower() in p.name.lower() for p in matches), f"Missing {flavor} APK"
+              for archive in matches:
+                  if flavor.lower() not in archive.name.lower():
+                      continue
+                  with ZipFile(archive) as apk:
+                      assert any(n.startswith("lib/arm64-v8a/") for n in apk.namelist()), f"No arm64 library: {archive}"
+          print("Validated Android ARM64 APKs")
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: kotonoha-android-arm64-debug
+          path: buildsystems/android/app/build/outputs/apk/**/*.apk
+          if-no-files-found: error
+          retention-days: 14
