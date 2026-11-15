@@ -36,12 +36,29 @@ base em espanhol com HQ nas sete cenas e formato ORS compatível, passando
 encontrado na Release examinada; gerar apenas o sufixo espanhol com HQ
 em inglês seria incorreto.
 
-ZH-CN: o GPK chinês observado usa GB18030, nomes sem subpasta English e
-ORS entre aspas com campos separados por vírgula, diferentes do parser L4
-de campos TAB. O gerador bloqueia zh-CN deliberadamente, mesmo com as
-273 entradas JSON presentes. Antes de habilitá-lo, é necessária uma
-conversão própria comprovada de todas as 1859 cenas, com chaves, timing,
-charset, semântica e runtime testados.
+ZH-CN: o Script - chinese.GPK original tem GB18030, eventos em ordem
+diferente e ORS incompatível; NUNCA o monte diretamente. A ferramenta
+build_chinese_compatible_gpk.py reconstrói um Script.GPK compatível usando
+somente comandos, mídia e ticks do retail autenticado (Packs/Script.GPK),
+diálogos completos de zh-CN.json e a linha adicional conferida no patch
+chinês original. Falha se faltar qualquer texto, opção ou validação estrutural.
+O resultado Script - chinese-compatible.GPK fica apenas em
+tools/qa-lab/state/chinese-compatible/run-ID/, sem instalação automática:
+
+    python -B games/school-days/tools/build_chinese_compatible_gpk.py --retail-gpk "Packs/Script.GPK" --chinese-gpk "Script - chinese.GPK" --zh-json "zh-CN.json" --ktrf "school-days-hq.ktnroute" --build
+
+O comando acima é ilustrativo e exige caminhos privados existentes; não é
+executado nos testes automatizados. Para os sete ORS LxH chineses, use
+build_lxh_locale_gpks.py --locales zh-CN --base-gpk
+zh-CN="Script - chinese-compatible.GPK" com sidecars completos. A montagem
+nativa requer AMBOS os GPKs certificados e bloqueia qualquer mistura com
+a tradução bruta ou fallback inglês.
+
+RUSSO: o par Script - Russian.GPK + ru-lxh.GPK é obrigatório para
+a montagem LxH. A única exceção estrutural é uma legenda Taisuke extra
+sobre PlayVoice em 03-KB-D10 com ticks 403-577; todo comando e tempo retail
+restante continua validado. Sem LxH, apenas o perfil explicitamente
+RETAIL_ONLY aceita o Script.GPK russo isolado.
 
 Testes com ORS e GPKs sintéticos, sem modificar assets licenciados:
 
