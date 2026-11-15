@@ -499,6 +499,8 @@ void testTouchSettings(Engine &engine, EventRuntime &runtime) {
   require(!engine.GetSettingsMenu().isOpen(),
           "Edge swipe closes settings without leaving a held pointer");
   engine.openSettings();
+  require(!engine.GetAudio().getChannels().empty(),
+          "Settings exposes at least one real audio channel");
   tap(600, 105); // Audio tab.
   touch(SDL_EVENT_FINGER_DOWN, 700, 172);
   touch(SDL_EVENT_FINGER_MOTION, 945, 172);
@@ -898,8 +900,10 @@ int main(int argc, char **argv) {
     require(
         std::filesystem::is_directory(preferredDocumentsDirectory("example")) &&
             std::filesystem::path(EngineSettings::defaultPath("example"))
-                    .parent_path() == preferredDocumentsDirectory("example"),
-        "Settings use the writable preferred documents directory");
+                    .parent_path() == preferredDocumentsDirectory("example") &&
+            preferredDocumentsDirectory("example").parent_path() ==
+                documentsDirectory("example"),
+        "Settings use writable saves and the parent is the Documents root");
     rejects([] { gameAssetDirectory("../game"); },
             "Reject invalid game identifiers");
     SDL_HideWindow(&engine.GetWindow());
