@@ -144,6 +144,10 @@ void testLocalAndOverlays() {
           "Seek relative to end failed");
   require(independent->seek(-100, VFS::SeekOrigin::Begin) < 0,
           "Invalid seek accepted");
+  require(independent->seek(-100, VFS::SeekOrigin::Current) < 0 &&
+              independent->seek(-100, VFS::SeekOrigin::End) < 0 &&
+              independent->tell() == 15,
+          "Invalid relative seek changed the file cursor");
   require(readText(files->open("empty.dat")).empty(),
           "Empty asset read failed");
 

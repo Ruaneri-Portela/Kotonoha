@@ -31,6 +31,17 @@ std::int64_t SDLFileSource::read(void *destination, std::size_t count) {
 }
 
 std::int64_t SDLFileSource::seek(std::int64_t offset, SeekOrigin origin) {
+  // SDL's Windows file backend may accept a negative absolute seek by
+  // clamping it to zero. A FileHandle must instead reject out-of-range
+  // offsets, without changing its current cursor.
+  std::int64_t base = 0;
+  if (origin == SeekOrigin::Current)
+    base = SDL_TellIO(io_);
+  else if (origin == SeekOrigin::End)
+    base = SDL_GetIOSize(io_);
+  if (base < 0 || offset < -base ||
+      offset > std::numeric_limits<std::int64_t>::max() - base)
+    return -1;
   SDL_IOWhence whence = SDL_IO_SEEK_SET;
   if (origin == SeekOrigin::Current)
     whence = SDL_IO_SEEK_CUR;
