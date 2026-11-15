@@ -16,6 +16,7 @@ class CommandLine {
   std::string program;
   std::vector<Option> options;
   bool helpRequested = false;
+  bool versionRequested = false;
 
 public:
   explicit CommandLine(std::string program, EngineOptions &engine);
@@ -30,7 +31,10 @@ public:
   void flag(std::string name, std::string description, bool &target);
   void alias(const std::string &name, const std::string &alias);
   void parse(int argc, char **argv);
-  bool wantsHelp() const { return helpRequested; }
+  // Existing SDL_AppInit entrypoints already return early on wantsHelp().
+  // Include --version in that early-exit path to avoid SDL/video/asset init.
+  bool wantsHelp() const { return helpRequested || versionRequested; }
+  bool wantsVersion() const { return versionRequested; }
   std::string help() const;
   long frames = -1;
 };

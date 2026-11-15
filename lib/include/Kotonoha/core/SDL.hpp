@@ -27,6 +27,45 @@ using FontPtr = SDLHandle<TTF_Font, TTF_CloseFont>;
 using AudioStreamPtr = SDLHandle<SDL_AudioStream, SDL_DestroyAudioStream>;
 using GamepadPtr = SDLHandle<SDL_Gamepad, SDL_CloseGamepad>;
 
+using JoystickPtr = SDLHandle<SDL_Joystick, SDL_CloseJoystick>;
+using SensorPtr = SDLHandle<SDL_Sensor, SDL_CloseSensor>;
+
+// For arrays and strings allocated by SDL_GetDisplays, SDL_GetGamepads,
+// SDL_GetAudioPlaybackDevices, SDL_GetPrefPath, etc. The memory is released
+// with SDL_free automatically, including when exceptions are raised.
+template <class T> using SDLArrayPtr = SDLMemoryPtr<T>;
+
+// Some SDL resources are non-pointer IDs and cannot use std::unique_ptr.
+template <typename ID, auto Close> class SDLValueHandle {
+  ID id_{};
+
+public:
+  SDLValueHandle() = default;
+  explicit SDLValueHandle(ID id) noexcept : id_(id) {}
+  ~SDLValueHandle() { reset(); }
+  SDLValueHandle(const SDLValueHandle &) = delete;
+  SDLValueHandle &operator=(const SDLValueHandle &) = delete;
+  SDLValueHandle(SDLValueHandle &&other) noexcept : id_(other.release()) {}
+  SDLValueHandle &operator=(SDLValueHandle &&other) noexcept {
+    if (this != &other) reset(other.release());
+    return *this;
+  }
+  ID get() const noexcept { return id_; }
+  explicit operator bool() const noexcept { return id_ != ID{}; }
+  ID release() noexcept {
+    ID prior = id_;
+    id_ = ID{};
+    return prior;
+  }
+  void reset(ID next = ID{}) noexcept {
+    if (id_ != ID{}) Close(id_);
+    id_ = next;
+  }
+};
+
+using AudioDeviceHandle = SDLValueHandle<SDL_AudioDeviceID, SDL_CloseAudioDevice>;
+
+
 using EventPtr = const SDL_Event *;
 using EventRef = const SDL_Event &;
 

@@ -1,10 +1,10 @@
 #include "Pmail/Vm.hpp"
 #include "Pmail/StateIO.hpp"
-#include <array>
 #include <algorithm>
+#include <array>
 #include <cctype>
-#include <cstring>
 #include <cstdlib>
+#include <cstring>
 #include <iomanip>
 #include <iostream>
 #include <sstream>
@@ -13,7 +13,9 @@
 #ifdef PMAIL_VM_TRACE
 #define PMAIL_VM_DEBUG std::cout
 #else
-#define PMAIL_VM_DEBUG if (false) std::cout
+#define PMAIL_VM_DEBUG                                                         \
+  if (false)                                                                   \
+  std::cout
 #endif
 
 namespace Pmail {
@@ -76,10 +78,9 @@ size_t ScriptObject::parse(const std::string &objName,
   }
 
   PMAIL_VM_DEBUG << "[PmailVm Debug] ScriptObject::parse: name=" << name
-            << ", id=0x" << std::hex << id << std::dec
-            << ", base=" << base << ", codeOffset=" << codeOffset
-            << ", codeWords=" << codeWords << ", data_size=" << data.size()
-            << std::endl;
+                 << ", id=0x" << std::hex << id << std::dec << ", base=" << base
+                 << ", codeOffset=" << codeOffset << ", codeWords=" << codeWords
+                 << ", data_size=" << data.size() << std::endl;
 
   return data.size();
 }
@@ -96,12 +97,18 @@ const std::string &ScriptObject::str(size_t idx) const {
 Vm::Vm(Host &host) : host_(host), vars_(0x10000, 0) {}
 
 void Vm::reset(bool clearVariables) {
-  if (clearVariables) vars_.assign(0x10000, 0);
-  stack_.clear(); lines_.clear(); known_.clear(); cur_.reset();
-  for (auto &slot : usr_) slot = {};
+  if (clearVariables)
+    vars_.assign(0x10000, 0);
+  stack_.clear();
+  lines_.clear();
+  known_.clear();
+  cur_.reset();
+  for (auto &slot : usr_)
+    slot = {};
   pc_ = acc_ = curFramePc_ = 0;
   rng_ = 12345;
-  blocked_ = false; ended_ = true;
+  blocked_ = false;
+  ended_ = true;
 }
 
 std::string Vm::serialize() const {
@@ -109,45 +116,73 @@ std::string Vm::serialize() const {
   out.string("PMAIL-VM-1");
   auto object = [&](const ObjectPtr &obj) {
     out.boolean(bool(obj));
-    if (!obj) return;
-    out.string(obj->name); out.u32(obj->id);
+    if (!obj)
+      return;
+    out.string(obj->name);
+    out.u32(obj->id);
     out.u64(StateIO::fingerprint(obj->data.data(), obj->data.size()));
   };
-  out.u32(uint32_t(vars_.size())); for (auto v : vars_) out.u32(v);
+  out.u32(uint32_t(vars_.size()));
+  for (auto v : vars_)
+    out.u32(v);
   out.u32(uint32_t(known_.size()));
-  for (const auto &[id, obj] : known_) { out.u32(id); object(obj); }
-  object(cur_); out.u32(pc_); out.u32(acc_); out.u32(curFramePc_); out.u32(rng_);
-  out.boolean(blocked_); out.boolean(ended_);
+  for (const auto &[id, obj] : known_) {
+    out.u32(id);
+    object(obj);
+  }
+  object(cur_);
+  out.u32(pc_);
+  out.u32(acc_);
+  out.u32(curFramePc_);
+  out.u32(rng_);
+  out.boolean(blocked_);
+  out.boolean(ended_);
   out.u32(uint32_t(stack_.size()));
-  for (const auto &entry : stack_) { out.u32(entry.word); object(entry.obj); }
+  for (const auto &entry : stack_) {
+    out.u32(entry.word);
+    object(entry.obj);
+  }
   out.u32(uint32_t(lines_.size()));
-  for (const auto &line : lines_) { out.u32(line.object); out.u32(line.index); }
+  for (const auto &line : lines_) {
+    out.u32(line.object);
+    out.u32(line.index);
+  }
   for (const auto &slot : usr_) {
-    out.boolean(slot.valid); object(slot.obj);
-    out.u32(uint16_t(slot.argc)); out.u32(uint16_t(slot.pc));
+    out.boolean(slot.valid);
+    object(slot.obj);
+    out.u32(uint16_t(slot.argc));
+    out.u32(uint16_t(slot.pc));
   }
   return out.finish();
 }
 
 void Vm::deserialize(const std::string &data) {
   StateIO::Reader in(data);
-  if (in.string(32) != "PMAIL-VM-1") throw std::runtime_error("Unsupported PMAIL VM save version");
+  if (in.string(32) != "PMAIL-VM-1")
+    throw std::runtime_error("Unsupported PMAIL VM save version");
   auto object = [&]() -> ObjectPtr {
-    if (!in.boolean()) return {};
+    if (!in.boolean())
+      return {};
     const auto name = in.string(256);
-    const auto id = in.u32(); const auto hash = in.u64();
+    const auto id = in.u32();
+    const auto hash = in.u64();
     auto obj = host_.loadByName(name);
-    if (!obj || obj->id != id || StateIO::fingerprint(obj->data.data(), obj->data.size()) != hash)
-      throw std::runtime_error("PMAIL saved script differs from installed game: " + name);
+    if (!obj || obj->id != id ||
+        StateIO::fingerprint(obj->data.data(), obj->data.size()) != hash)
+      throw std::runtime_error(
+          "PMAIL saved script differs from installed game: " + name);
     return obj;
   };
   std::vector<uint32_t> vars(in.count(0x10000));
-  if (vars.size() != 0x10000) throw std::runtime_error("Invalid PMAIL variable banks");
-  for (auto &v : vars) v = in.u32();
+  if (vars.size() != 0x10000)
+    throw std::runtime_error("Invalid PMAIL variable banks");
+  for (auto &v : vars)
+    v = in.u32();
   std::map<uint32_t, ObjectPtr> known;
   const auto knownCount = in.count(4096);
   for (uint32_t i = 0; i < knownCount; ++i) {
-    const auto id = in.count(4095); const auto obj = object();
+    const auto id = in.count(4095);
+    const auto obj = object();
     if (!obj || (obj->id & 0xfff) != id || !known.emplace(id, obj).second)
       throw std::runtime_error("Invalid PMAIL object registry");
   }
@@ -158,41 +193,62 @@ void Vm::deserialize(const std::string &data) {
     throw std::runtime_error("Invalid PMAIL program counter");
   std::vector<Entry> stack(in.count(65536));
   for (auto &entry : stack) {
-    entry.word = in.u32(); entry.obj = object();
+    entry.word = in.u32();
+    entry.obj = object();
     if (entry.obj && ((entry.word >> 16) & 15) == 4 &&
         (entry.word & 0xffff) > entry.obj->codeWords)
       throw std::runtime_error("Invalid PMAIL return frame");
   }
   std::vector<Line> lines(in.count(128));
   for (auto &line : lines) {
-    line.object = in.count(4095); line.index = in.count(65535);
+    line.object = in.count(4095);
+    line.index = in.count(65535);
     const auto it = known.find(line.object);
     if (it == known.end() || line.index >= it->second->strings.size())
       throw std::runtime_error("Invalid PMAIL queued text");
   }
   std::array<UsrSlot, 256> slots;
   for (auto &slot : slots) {
-    slot.valid = in.boolean(); slot.obj = object();
-    slot.argc = int16_t(in.count(65535)); slot.pc = int16_t(in.count(65535));
-    if (slot.valid && (!slot.obj || slot.pc < 0 || size_t(slot.pc) >= slot.obj->codeWords))
+    slot.valid = in.boolean();
+    slot.obj = object();
+    slot.argc = int16_t(in.count(65535));
+    slot.pc = int16_t(in.count(65535));
+    if (slot.valid &&
+        (!slot.obj || slot.pc < 0 || size_t(slot.pc) >= slot.obj->codeWords))
       throw std::runtime_error("Invalid PMAIL user function");
   }
   in.end();
-  // No interpreter fields change until all bytes and object identities validate.
-  vars_ = std::move(vars); known_ = std::move(known); cur_ = std::move(current);
-  stack_ = std::move(stack); lines_ = std::move(lines);
+  // No interpreter fields change until all bytes and object identities
+  // validate.
+  vars_ = std::move(vars);
+  known_ = std::move(known);
+  cur_ = std::move(current);
+  stack_ = std::move(stack);
+  lines_ = std::move(lines);
   std::copy(slots.begin(), slots.end(), std::begin(usr_));
-  pc_ = pc; acc_ = acc; curFramePc_ = framePc; rng_ = rng;
-  blocked_ = blocked; ended_ = ended;
+  pc_ = pc;
+  acc_ = acc;
+  curFramePc_ = framePc;
+  rng_ = rng;
+  blocked_ = blocked;
+  ended_ = ended;
 }
 
 void Vm::swapState(Vm &other) noexcept {
   using std::swap;
-  swap(vars_, other.vars_); swap(stack_, other.stack_); swap(lines_, other.lines_);
-  swap(known_, other.known_); swap(cur_, other.cur_);
-  for (size_t i = 0; i < 256; ++i) swap(usr_[i], other.usr_[i]);
-  swap(pc_, other.pc_); swap(acc_, other.acc_); swap(curFramePc_, other.curFramePc_);
-  swap(rng_, other.rng_); swap(blocked_, other.blocked_); swap(ended_, other.ended_);
+  swap(vars_, other.vars_);
+  swap(stack_, other.stack_);
+  swap(lines_, other.lines_);
+  swap(known_, other.known_);
+  swap(cur_, other.cur_);
+  for (size_t i = 0; i < 256; ++i)
+    swap(usr_[i], other.usr_[i]);
+  swap(pc_, other.pc_);
+  swap(acc_, other.acc_);
+  swap(curFramePc_, other.curFramePc_);
+  swap(rng_, other.rng_);
+  swap(blocked_, other.blocked_);
+  swap(ended_, other.ended_);
 }
 
 void Vm::registerObject(const ObjectPtr &obj) {
@@ -235,8 +291,8 @@ void Vm::unregisterObject(const ObjectPtr &obj) {
 
 void Vm::start(const ObjectPtr &obj, uint32_t pc) {
   PMAIL_VM_DEBUG << "[PmailVm Debug] start called: obj="
-            << (obj ? obj->name : "null") << ", pc=" << pc
-            << ", size=" << (obj ? obj->data.size() : 0) << std::endl;
+                 << (obj ? obj->name : "null") << ", pc=" << pc
+                 << ", size=" << (obj ? obj->data.size() : 0) << std::endl;
   cur_ = obj;
   pc_ = pc;
   stack_.clear();
@@ -397,15 +453,15 @@ bool Vm::step() {
     pc_ += 4;
   } else {
     PMAIL_VM_DEBUG << "[PmailVm Debug] step: PC out of bounds! pc=" << pc_
-              << ", codeWords=" << cur_->codeWords
-              << ", dataSize=" << cur_->data.size() << std::endl;
+                   << ", codeWords=" << cur_->codeWords
+                   << ", dataSize=" << cur_->data.size() << std::endl;
     ended_ = true;
     return false;
   }
 
-  PMAIL_VM_DEBUG << "[PmailVm Debug] instruction pc(word)=" << (pc_ - 1) << ": 0x"
-            << std::hex << std::setw(8) << std::setfill('0') << w << std::dec
-            << std::endl;
+  PMAIL_VM_DEBUG << "[PmailVm Debug] instruction pc(word)=" << (pc_ - 1)
+                 << ": 0x" << std::hex << std::setw(8) << std::setfill('0') << w
+                 << std::dec << std::endl;
 
   const uint32_t mode = (w >> 16) & 0xff, imm = w & 0xffff, op = w >> 24;
   uint32_t val = 0;
@@ -507,7 +563,7 @@ bool Vm::step() {
   }
   case 0x05: { // native/sys call
     PMAIL_VM_DEBUG << "[PmailVm Debug] CALL_NATIVE(sys) id=" << val
-              << " argc=" << argc << std::endl;
+                   << " argc=" << argc << std::endl;
     stack_.push_back({pc_ | 0x40000, cur_});
     curFramePc_ = pc_;
     std::vector<Arg> args;
@@ -527,7 +583,8 @@ bool Vm::step() {
     break;
   }
   case 0x06: { // usr call
-    PMAIL_VM_DEBUG << "[PmailVm Debug] CALL_USR id=" << (val & 0xff) << std::endl;
+    PMAIL_VM_DEBUG << "[PmailVm Debug] CALL_USR id=" << (val & 0xff)
+                   << std::endl;
     UsrSlot &s = usr_[val & 0xff];
     if (!s.valid) {
       host_.log("usr " + std::to_string(val) + " missing");
@@ -549,14 +606,14 @@ bool Vm::step() {
     lines_.clear();
     break;
   case 0x10: // store to var (when kind==1)
-    PMAIL_VM_DEBUG << "[PmailVm Debug] STORE op=0x10 kind=" << kind << " val=" << v16
-              << " acc=" << acc16 << std::endl;
+    PMAIL_VM_DEBUG << "[PmailVm Debug] STORE op=0x10 kind=" << kind
+                   << " val=" << v16 << " acc=" << acc16 << std::endl;
     if (kind == 1)
       setVar(v16, acc16);
     break;
   case 0x11: // load/set accumulator based on kind
     PMAIL_VM_DEBUG << "[PmailVm Debug] LOAD_ACC op=0x11 kind=" << kind
-              << " val=" << v16 << std::endl;
+                   << " val=" << v16 << std::endl;
     switch (kind) {
     case 0:
       acc_ = v16 | objBits;
@@ -575,21 +632,23 @@ bool Vm::step() {
     }
     break;
   case 0x20:
-    PMAIL_VM_DEBUG << "[PmailVm Debug] PUSH_STACK op=0x20 acc=0x" << std::hex << acc_
-              << std::dec << std::endl;
+    PMAIL_VM_DEBUG << "[PmailVm Debug] PUSH_STACK op=0x20 acc=0x" << std::hex
+                   << acc_ << std::dec << std::endl;
     stack_.push_back({acc_, nullptr});
     break;
   case 0x21:
-    PMAIL_VM_DEBUG << "[PmailVm Debug] POP_STACK op=0x21 count=" << v16 << std::endl;
+    PMAIL_VM_DEBUG << "[PmailVm Debug] POP_STACK op=0x21 count=" << v16
+                   << std::endl;
     for (uint32_t i = 0; i < v16 && !stack_.empty(); ++i) {
       acc_ = stack_.back().word;
       stack_.pop_back();
     }
     break;
   default:
-    PMAIL_VM_DEBUG << "[PmailVm Debug] NOP (Unknown Opcode Bypass) op=0x" << std::hex
-              << int(op) << " mode=0x" << int(mode) << " imm=0x" << imm
-              << std::dec << " kind=" << kind << " val=" << val << std::endl;
+    PMAIL_VM_DEBUG << "[PmailVm Debug] NOP (Unknown Opcode Bypass) op=0x"
+                   << std::hex << int(op) << " mode=0x" << int(mode)
+                   << " imm=0x" << imm << std::dec << " kind=" << kind
+                   << " val=" << val << std::endl;
     break;
   }
 

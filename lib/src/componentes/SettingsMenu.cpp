@@ -1,10 +1,11 @@
-#include "../debug/ImGuiTheme.hpp"
-#include <Kotonoha/componentes/DisplayModeCatalog.hpp>
-#include <Kotonoha/componentes/SettingsMenu.hpp>
+#include <Kotonoha/core/SDL.hpp>
+#include <Kotonoha/components/DisplayModeCatalog.hpp>
+#include <Kotonoha/components/SettingsMenu.hpp>
 #include <Kotonoha/core/Appearance.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/Log.hpp>
 #include <Kotonoha/core/UI.hpp>
+#include <Kotonoha/debug/ImGuiTheme.hpp>
 #include <Kotonoha/events/BackAction.hpp>
 #include <Kotonoha/events/ControllerEvent.hpp>
 
@@ -37,7 +38,7 @@ std::vector<int> SettingsMenu::rows() const {
     for (int i = 0; i < int(channels.size()); ++i)
       result.push_back(100 + i);
   } else if (page == 2)
-    result.insert(result.end(), {13, 14, 15, 16});
+    result.insert(result.end(), {18, 13, 14, 15, 16});
   else
     result.push_back(17);
   result.insert(result.end(), {8, 9});
@@ -51,8 +52,8 @@ void SettingsMenu::open() {
   slider = -1;
   scrolling.reset();
   channels.clear();
-  for (const char *name : {"audio", "video", "BGM", "Voice", "SE", "PCM"})
-    engine.GetAudio().channel(name);
+  // Lista apenas os canais de áudio reais; não cria canais novos apenas para
+  // exibição no mixer.
   for (const auto &channel : engine.GetAudio().getChannels()) {
     channels.push_back(channel->getName());
     draft.channelVolumes.try_emplace(channel->getName(),
@@ -66,6 +67,48 @@ void SettingsMenu::open() {
   visible = true;
 }
 
+void SettingsMenu::applyAudioDraft() {
+  auto next = engine.GetSettings();
+  next.masterVolume = draft.masterVolume;
+  next.masterMuted = draft.masterMuted;
+  next.channelVolumes = draft.channelVolumes;
+  try {
+    // Audio is applied live: no apply/save step is required for the mixer.
+    engine.applySettings(next, false);
+  } catch (const std::exception &failure) {
+    error = failure.what();
+    SDL_LogError(LogConfig, "Settings audio: %s", error.c_str());
+  }
+}
+
+void SettingsMenu::applyTextSpeedDraft() {
+  auto next = engine.GetSettings();
+  next.vnTextSpeed = draft.vnTextSpeed;
+  next.vnTextInstant = draft.vnTextInstant;
+  try {
+    engine.applySettings(next, false);
+  } catch (const std::exception &failure) {
+    error = failure.what();
+    SDL_LogError(LogConfig, "Settings text speed: %s", error.c_str());
+  }
+}
+
+void SettingsMenu::persistAudio() {
+  try {
+    engine.saveSettings();
+  } catch (const std::exception &failure) {
+    error = failure.what();
+    SDL_LogError(LogConfig, "Settings save: %s", error.c_str());
+  }
+}
+
+void SettingsMenu::close() {
+  persistAudio();
+  visible = false;
+  selectBox.close();
+  slider = -1;
+}
+
 void SettingsMenu::activate(int index, int direction) {
   error.clear();
   if (index == 0)
@@ -73,57 +116,62 @@ void SettingsMenu::activate(int index, int direction) {
         static_cast<WindowMode>((static_cast<int>(draft.mode) + 1) % 3);
   else if (index == 1) {
     int count = 0;
-    SDL_DisplayID *displays = SDL_GetDisplays(&count);
+    SDLArrayPtr<SDL_DisplayID> displays(SDL_GetDisplays(&count));
     if (!displays || count < 1) {
-      if (displays) SDL_free(displays);
       throw std::runtime_error("No displays available");
     }
-    const SDL_DisplayID display = displays[std::clamp(draft.display, 0, count - 1)];
-    SDL_free(displays);
+    const SDL_DisplayID display =
+        displays.get()[std::clamp(draft.display, 0, count - 1)];
     const auto available = DisplayModeCatalog::Enumerate(display);
     if (available.empty())
       throw std::runtime_error("No supported resolutions for this monitor");
     const SDL_DisplayMode *desktop = SDL_GetDesktopDisplayMode(display);
-    const bool nativeBorderless = draft.mode == WindowMode::Borderless && desktop;
-    const int width = nativeBorderless ? desktop->w :
-                      (draft.mode == WindowMode::Windowed || draft.fullscreenWidth <= 0
-                           ? draft.width : draft.fullscreenWidth);
-    const int height = nativeBorderless ? desktop->h :
-                       (draft.mode == WindowMode::Windowed || draft.fullscreenHeight <= 0
-                            ? draft.height : draft.fullscreenHeight);
-    const float refreshRate = nativeBorderless ? desktop->refresh_rate : draft.refreshRate;
-    const int current = DisplayModeCatalog::FindSelected(
-        available, width, height, refreshRate);
+    const bool nativeBorderless =
+        draft.mode == WindowMode::Borderless && desktop;
+    const int width = nativeBorderless ? desktop->w
+                                       : (draft.mode == WindowMode::Windowed ||
+                                                  draft.fullscreenWidth <= 0
+                                              ? draft.width
+                                              : draft.fullscreenWidth);
+    const int height = nativeBorderless ? desktop->h
+                                        : (draft.mode == WindowMode::Windowed ||
+                                                   draft.fullscreenHeight <= 0
+                                               ? draft.height
+                                               : draft.fullscreenHeight);
+    const float refreshRate =
+        nativeBorderless ? desktop->refresh_rate : draft.refreshRate;
+    const int current =
+        DisplayModeCatalog::FindSelected(available, width, height, refreshRate);
     std::vector<std::string> labels;
     labels.reserve(available.size());
     for (const auto &mode : available)
       labels.push_back(DisplayModeCatalog::Label(mode));
     // The shared selector supports wheel, touch, controller/keyboard and a
     // scroll thumb; do not truncate the driver's list to a fixed preset array.
-    selectBox.open("Monitor resolutions / refresh rates", std::move(labels),
-                   current, [this, available, desktopMode = desktop ?
-                   std::optional<SDL_DisplayMode>(*desktop) : std::nullopt](int choice) {
-      DisplayModeCatalog::Select(draft, available.at(choice),
-                                 desktopMode ? &*desktopMode : nullptr);
-    });
+    selectBox.open(
+        "Monitor resolutions / refresh rates", std::move(labels), current,
+        [this, available,
+         desktopMode = desktop ? std::optional<SDL_DisplayMode>(*desktop)
+                               : std::nullopt](int choice) {
+          DisplayModeCatalog::Select(draft, available.at(choice),
+                                     desktopMode ? &*desktopMode : nullptr);
+        });
   } else if (index == 2) {
     int count = 0;
-    auto *displays = SDL_GetDisplays(&count);
+    SDLArrayPtr<SDL_DisplayID> displays(SDL_GetDisplays(&count));
     if (!displays)
       throw std::runtime_error(SDL_GetError());
-    if (count < 1) {
-      SDL_free(displays);
+    if (count < 1)
       throw std::runtime_error("No displays available");
-    }
     draft.display = (draft.display + 1) % count;
-    if (const SDL_DisplayMode *desktop = SDL_GetDesktopDisplayMode(displays[draft.display])) {
+    if (const SDL_DisplayMode *desktop =
+            SDL_GetDesktopDisplayMode(displays.get()[draft.display])) {
       // Fullscreen modes are monitor-specific; don't carry an unsupported
       // exclusive tuple to the next monitor when the player switches it.
       draft.fullscreenWidth = desktop->w;
       draft.fullscreenHeight = desktop->h;
       draft.refreshRate = desktop->refresh_rate;
     }
-    SDL_free(displays);
   } else if (index == 3)
     draft.resizable = !draft.resizable;
   else if (index == 4)
@@ -155,15 +203,19 @@ void SettingsMenu::activate(int index, int direction) {
     draft.upscaling.factor =
         draft.upscaling.factor >= 4 ? 1 : draft.upscaling.factor + 0.5f;
   else if (index == 8) {
-    engine.applySettings(draft);
+    // On the Audio page everything is already live; just close the menu.
+    if (page != 1)
+      engine.applySettings(draft);
     close();
-  } else if (index == 11)
+  } else if (index == 11) {
     draft.masterVolume = std::clamp(
         std::round((draft.masterVolume + direction * 0.05f) * 100) / 100, 0.0f,
         1.0f);
-  else if (index == 12)
+    applyAudioDraft();
+  } else if (index == 12) {
     draft.masterMuted = !draft.masterMuted;
-  else if (index == 10)
+    applyAudioDraft();
+  } else if (index == 10)
     shaderPicker->browse(&engine.GetWindow());
   else if (index == 13) {
     auto labels = fonts;
@@ -186,9 +238,29 @@ void SettingsMenu::activate(int index, int direction) {
                    });
   } else if (index == 17)
     draft.swapControllerAB = !draft.swapControllerAB;
-  else if (index >= 100) {
+  else if (index == 18) {
+    const std::vector<float> rates{0, 10, 20, 30, 45, 60, 90, 120};
+    std::vector<std::string> labels{"Original game speed"};
+    int current = 0;
+    for (size_t i = 1; i < rates.size(); ++i) {
+      labels.push_back(std::to_string(int(rates[i])) + " characters / second");
+      if (draft.vnTextSpeed == rates[i])
+        current = int(i);
+    }
+    labels.push_back("Instant");
+    if (draft.vnTextInstant)
+      current = int(rates.size());
+    selectBox.open("Typewriter speed", labels, current,
+                   [this, rates](int choice) {
+                     draft.vnTextInstant = choice == int(rates.size());
+                     draft.vnTextSpeed =
+                         draft.vnTextInstant ? 0 : rates.at(size_t(choice));
+                     applyTextSpeedDraft();
+                   });
+  } else if (index >= 100) {
     auto &volume = draft.channelVolumes[channels.at(index - 100)];
     volume = std::clamp(volume + direction * .05f, 0.f, 1.f);
+    applyAudioDraft();
   } else
     close();
 }
@@ -232,6 +304,7 @@ bool SettingsMenu::onEvent(EventRef rawEvent) {
       draft.masterVolume = value;
     else
       draft.channelVolumes[channels.at(id - 100)] = value;
+    applyAudioDraft();
   };
   if (slider >= 0) {
     if (event.type == SDL_EVENT_MOUSE_MOTION) {
@@ -241,11 +314,7 @@ bool SettingsMenu::onEvent(EventRef rawEvent) {
     if (event.type == SDL_EVENT_MOUSE_BUTTON_UP ||
         event.type == SDL_EVENT_WINDOW_FOCUS_LOST) {
       slider = -1;
-#if defined(__ANDROID__) || defined(ANDROID)
-      // A native Android slider release is the end of one drag, not a second
-      // row tap that should activate the underlying Settings command.
-      return true;
-#endif
+      persistAudio();
       return false;
     }
   }
@@ -358,16 +427,17 @@ void SettingsMenu::render(RendererRef renderer) {
   }
   if (draft.mode == WindowMode::Borderless) {
     int count = 0;
-    SDL_DisplayID *displays = SDL_GetDisplays(&count);
+    SDLArrayPtr<SDL_DisplayID> displays(SDL_GetDisplays(&count));
     if (displays && draft.display >= 0 && draft.display < count) {
-      if (const auto *desktop = SDL_GetDesktopDisplayMode(displays[draft.display]))
+      if (const auto *desktop =
+              SDL_GetDesktopDisplayMode(displays.get()[draft.display]))
         shown = {desktop->w, desktop->h, desktop->refresh_rate};
     }
-    if (displays) SDL_free(displays);
   }
-  const std::string resolutionLabel = shown.refreshRate > 0.0f
-      ? DisplayModeCatalog::Label(shown)
-      : std::to_string(shown.width) + " x " + std::to_string(shown.height);
+  const std::string resolutionLabel =
+      shown.refreshRate > 0.0f
+          ? DisplayModeCatalog::Label(shown)
+          : std::to_string(shown.width) + " x " + std::to_string(shown.height);
   const std::vector<std::string> labels{
       std::string("Mode: ") + modes[int(draft.mode)],
       "Resolution: " + resolutionLabel + "  (select...) ",
@@ -390,10 +460,21 @@ void SettingsMenu::render(RendererRef renderer) {
       "Speaker color...",
       std::string("Controller A/B: ") + (draft.swapControllerAB
                                              ? "Swapped (South confirms)"
-                                             : "Standard (East confirms)")};
+                                             : "Standard (East confirms)"),
+      std::string("Typewriter speed: ") +
+          (draft.vnTextInstant      ? "Instant"
+           : draft.vnTextSpeed == 0 ? "Original game speed"
+                                    : std::to_string(int(draft.vnTextSpeed)) +
+                                          " characters / second")};
   ui.backdrop(renderer, {0, 0, 0, 220});
   ui.panel(renderer, {170, 25, 920, 670});
   ui.text(renderer, "Settings", 200, 36, 860, {255, 215, 100, 255});
+  if (page == 1)
+    ui.text(renderer, "Audio applies immediately", 780, 44, 280,
+            {150, 165, 190, 255});
+  if (page == 2)
+    ui.text(renderer, "Speed applies immediately", 760, 44, 300,
+            {150, 165, 190, 255});
   const int tabs = pageCount();
   const float tabWidth = tabs == 4 ? 205.f : 280.f;
   const float tabStep = tabs == 4 ? 220.f : 290.f;
@@ -415,15 +496,16 @@ void SettingsMenu::render(RendererRef renderer) {
                               : draft.channelVolumes[channels.at(id - 100)];
       ui.text(renderer,
               label + " " + std::to_string(int(std::lround(value * 100))) + "%",
-              210, y + 8, 430);
-      ui.panel(renderer, {660, y + 17, 380, 10}, {70, 80, 100, 255});
-      ui.panel(renderer, {660, y + 17, 380 * value, 10}, {100, 190, 255, 255});
-      ui.panel(renderer, {654 + 380 * value, y + 6, 12, 32},
+              210, y + 12, 430);
+      ui.panel(renderer, {660, y + 14, 380, 16}, {70, 80, 100, 255});
+      ui.panel(renderer, {660, y + 14, 380 * value, 16}, {100, 190, 255, 255});
+      ui.panel(renderer, {654 + 380 * value, y + 4, 14, 36},
                {240, 240, 255, 255});
     } else
       ui.button(renderer, {200, y, 860, 44}, label, selected == i);
   }
-  ui.button(renderer, {200, 624, 420, 44}, "Apply and save",
+  ui.button(renderer, {200, 624, 420, 44},
+            page == 1 ? "Close" : "Apply and save",
             selected == int(items.size()) - 2);
   ui.button(renderer, {640, 624, 420, 44}, "Cancel",
             selected == int(items.size()) - 1);

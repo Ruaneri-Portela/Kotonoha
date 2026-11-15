@@ -1,0 +1,11 @@
+#pragma once
+// Generated from Git during CMake configuration. Do not edit by hand.
+// Available to every game port via the public KotonohaEngine include path.
+namespace Kotonoha::BuildVersion {
+inline constexpr char Base[] = "@CMAKE_PROJECT_VERSION@";
+inline constexpr char Full[] = "@KOTONOHA_VERSION_FULL@";
+inline constexpr char Branch[] = "@KOTONOHA_GIT_BRANCH@";
+inline constexpr char Commit[] = "@KOTONOHA_GIT_COMMIT@";
+inline constexpr char ShortCommit[] = "@KOTONOHA_GIT_SHORT@";
+inline constexpr bool Dirty = @KOTONOHA_GIT_DIRTY@ != 0;
+} // namespace Kotonoha::BuildVersion

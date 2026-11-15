@@ -13,7 +13,7 @@
 #include <cctype>
 #include <cmath>
 #include <cstring>
-#include <fstream>
+#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <limits>
 #include <mutex>
 #include <stdexcept>
@@ -278,7 +278,7 @@ void VoiceDubbingApplet::importFile(const std::filesystem::path &path) {
   const auto size = std::filesystem::file_size(path);
   if (size > 1024ull * 1024 * 1024)
     throw std::runtime_error("Imported audio exceeds 1 GiB");
-  std::ifstream input(path, std::ios::binary);
+  Kotonoha::Filesystem::InputFile input(path, std::ios::binary);
   if (!input)
     throw std::runtime_error("Cannot open imported audio");
   std::vector<Uint8> bytes(size);
@@ -439,7 +439,7 @@ void VoiceDubbingApplet::save() {
   auto temporary = output;
   temporary += ".tmp-" + std::to_string(SDL_GetTicksNS());
   {
-    std::ofstream file(temporary, std::ios::binary | std::ios::trunc);
+    Kotonoha::Filesystem::OutputFile file(temporary, std::ios::binary | std::ios::trunc);
     if (!file.write(reinterpret_cast<const char *>(bytes.data()), bytes.size()))
       throw std::runtime_error("Cannot write overlay audio");
   }
@@ -709,6 +709,9 @@ void VoiceDubbingApplet::draw() {
     pollDialog();
     pollRecording();
     refreshSceneAudio();
+    ImGui::TextColored(ImGuiTheme::accent(), "VOICE DUBBING / APPLET");
+    ImGui::TextDisabled("Preview originals and edit non-destructive audio overlays");
+    ImGui::Spacing();
     ImGuiTheme::sectionHeader("Scene audio pairs");
     ImGui::TextWrapped("The left side always reads the untouched game/archive "
                        "audio, ignoring overlays. The right side is the live "
@@ -738,7 +741,8 @@ void VoiceDubbingApplet::draw() {
         characters.push_back(row.character);
     const char *filterLabel =
         characterFilter_.empty() ? "All characters" : characterFilter_.c_str();
-    ImGui::SetNextItemWidth(240);
+    ImGui::SetNextItemWidth(std::min(240.0f,
+        ImGui::GetContentRegionAvail().x));
     ImGuiComboScope characterCombo{ImGui::BeginCombo("Character", filterLabel)};
     if (characterCombo.open) {
       if (ImGui::Selectable("All characters", characterFilter_.empty()))
@@ -762,18 +766,16 @@ void VoiceDubbingApplet::draw() {
     ImGuiTableScope audioTable{ImGui::BeginTable(
         "##dubbing-pairs", 5,
         ImGuiTableFlags_RowBg | ImGuiTableFlags_Borders |
-            ImGuiTableFlags_Resizable | ImGuiTableFlags_SizingStretchProp)};
+            ImGuiTableFlags_Resizable | ImGuiTableFlags_ScrollX |
+            ImGuiTableFlags_SizingFixedFit)};
     if (audioTable.open) {
-      ImGui::TableSetupColumn("Character", ImGuiTableColumnFlags_WidthStretch,
-                              1.0f);
-      ImGui::TableSetupColumn("Line / scene audio",
-                              ImGuiTableColumnFlags_WidthStretch, 2.2f);
-      ImGui::TableSetupColumn("Original", ImGuiTableColumnFlags_WidthStretch,
-                              1.0f);
-      ImGui::TableSetupColumn("Overlay", ImGuiTableColumnFlags_WidthStretch,
-                              1.2f);
-      ImGui::TableSetupColumn("Create / edit", ImGuiTableColumnFlags_WidthFixed,
-                              110);
+      // Five columns can scroll on mobile instead of shrinking buttons and
+      // voice IDs until the controls become impossible to interact with.
+      ImGui::TableSetupColumn("Character", ImGuiTableColumnFlags_WidthFixed, 120);
+      ImGui::TableSetupColumn("Line / scene audio", ImGuiTableColumnFlags_WidthFixed, 260);
+      ImGui::TableSetupColumn("Original", ImGuiTableColumnFlags_WidthFixed, 115);
+      ImGui::TableSetupColumn("Overlay", ImGuiTableColumnFlags_WidthFixed, 160);
+      ImGui::TableSetupColumn("Create / edit", ImGuiTableColumnFlags_WidthFixed, 115);
       ImGui::TableHeadersRow();
       for (const auto &row : rows) {
         if (!characterFilter_.empty() && row.character != characterFilter_)
@@ -834,8 +836,11 @@ void VoiceDubbingApplet::draw() {
       else if (rowAction == RowAction::DiscardOverlay)
         discardOverlay();
     }
+    ImGui::SetNextItemWidth(std::max(110.0f,
+        ImGui::GetContentRegionAvail().x - 180.0f));
     ImGui::InputText("Logical asset ID", manualId_, sizeof(manualId_));
-    ImGui::SameLine();
+    if (ImGui::GetContentRegionAvail().x >= 150.0f)
+      ImGui::SameLine();
     if (ImGui::Button("Load original"))
       select(manualId_);
 

@@ -13,6 +13,7 @@
 #include <vector>
 
 namespace Kotonoha {
+namespace Filesystem { class Filesystem; }
 class Upscaling;
 enum class AssetSource { Effective, Original };
 
@@ -141,10 +142,17 @@ public:
 // escape it.
 class FileSystemAssetProvider : public AssetProvider {
   std::filesystem::path root;
+  std::shared_ptr<Filesystem::Filesystem> mounted_;
+  std::shared_ptr<Filesystem::Filesystem> fallback_;
   std::filesystem::path resolve(const std::string &id) const;
 
 public:
   explicit FileSystemAssetProvider(std::filesystem::path root = {});
+  explicit FileSystemAssetProvider(
+      std::shared_ptr<Filesystem::Filesystem> mounted);
+  const std::shared_ptr<Filesystem::Filesystem> &mounted() const {
+    return mounted_;
+  }
   const std::filesystem::path &getRoot() const;
   std::string name() const override;
   bool containsAsset(const std::string &id) const override;
@@ -152,6 +160,7 @@ public:
   std::vector<std::string>
   listAsset(const std::string &prefix = {}) const override;
   std::string localPathAsset(const std::string &id) const override;
+  std::unique_ptr<AssetStream> openStream(const std::string &id) const override;
 };
 
 // Loose legacy data with case-insensitive, indexed names. Uses the same
@@ -162,6 +171,8 @@ class IndexedFileSystemAssetProvider : public FileSystemAssetProvider {
 
 public:
   explicit IndexedFileSystemAssetProvider(const std::filesystem::path &root);
+  explicit IndexedFileSystemAssetProvider(
+      std::shared_ptr<Filesystem::Filesystem> mounted);
   bool containsAsset(const std::string &id) const override;
   std::vector<Uint8> readAsset(const std::string &id) const override;
   std::vector<std::string>

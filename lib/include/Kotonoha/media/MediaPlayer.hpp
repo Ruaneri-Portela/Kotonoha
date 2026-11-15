@@ -9,6 +9,7 @@
 namespace Kotonoha {
 class AssetProvider;
 class Upscaling;
+namespace Filesystem { class FileHandle; }
 
 class MediaPlayer {
   std::unique_ptr<AudioMixer> ownedMixer;
@@ -23,6 +24,9 @@ class MediaPlayer {
   double bufferSeconds_ = -1.0;
   void start(std::unique_ptr<State> next, const std::string &url,
              bool audioOnly, bool prepared = false);
+  // Decoder failures must stay inside the engine: this helper is wrapped by
+  // update() so a corrupt video only ends playback, not the game loop.
+  void updateDecoder(RendererRef renderer, double position);
 
 public:
   struct PreparedInput {
@@ -34,6 +38,16 @@ public:
     explicit PreparedInput(std::unique_ptr<State> value);
     std::unique_ptr<State> state;
   };
+
+private:
+  static std::unique_ptr<PreparedInput>
+  prepareInputUnchecked(const AssetProvider &assets, const std::string &id,
+                        bool audioOnly,
+                        std::shared_ptr<std::atomic_bool> cancelled);
+  void adoptPreparedInputUnchecked(std::unique_ptr<PreparedInput> input,
+                                   const std::string &channelName);
+
+public:
   // CPU/I/O-only demux and decoder preparation. Safe for a bounded worker;
   // no SDL renderer, audio stream or mixer is touched until adoption.
   static std::unique_ptr<PreparedInput> prepareInput(
@@ -47,6 +61,15 @@ public:
   MediaPlayer(const MediaPlayer &) = delete;
   MediaPlayer &operator=(const MediaPlayer &) = delete;
   // Video includes its embedded audio; audioOnly ignores video streams.
+  // Game resources from local folders, ISO entries or other virtual mounts.
+  // FFmpeg consumes this handle via custom AVIO, never a physical path.
+  void open(std::unique_ptr<Filesystem::FileHandle> source, bool audioOnly,
+            const std::string &channelName = {});
+  // Supply a logical filename to enable browser playback using a
+  // short-lived blob: URL created exclusively from FileHandle bytes.
+  void open(std::unique_ptr<Filesystem::FileHandle> source,
+            const std::string &logicalName, bool audioOnly,
+            const std::string &channelName = {});
   void open(const std::string &path, bool audioOnly,
             const std::string &channelName = {});
   // Streams a provider local file or seekable source when available, otherwise

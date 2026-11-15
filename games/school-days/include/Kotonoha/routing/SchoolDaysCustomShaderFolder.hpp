@@ -1,7 +1,7 @@
 #pragma once
 
 #include <Kotonoha/routing/SchoolDaysShaderPresetCatalog.hpp>
-#include <Kotonoha/core/FileSystem.hpp>
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
 
 #include <algorithm>
 #include <array>

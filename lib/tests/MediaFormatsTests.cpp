@@ -627,7 +627,28 @@ void player() {
           "Idle player");
   rejects([&] { media.openSoundtrack(assets, "track.wav"); },
           "Soundtrack needs media");
+  // Invalid FFmpeg media is a stopped player, not an exception that can
+  // terminate a game's event/render loop.
+  assets.files["corrupt.mkv"] = {0x13, 0x37, 0x01, 0x02, 0x03};
+  media.open(assets, "corrupt.mkv", false, "movie");
+  require(!media.isOpen() && media.finished(),
+          "Corrupt video stops without aborting the game");
+  AudioClip decodedAudio;
+  require(!MediaDecoder::tryDecodeAudio(assets.files["corrupt.mkv"],
+                                         decodedAudio) &&
+              decodedAudio.data.empty(),
+          "Corrupt audio decode reports failure instead of throwing");
+  require(MediaDecoder::tryDecodeAudio(assets.files["track.wav"], decodedAudio) &&
+              !decodedAudio.data.empty(),
+          "Valid audio decode still works after an invalid input");
+  require(!MediaPlayer::prepareInput(assets, "corrupt.mkv", false),
+          "Corrupt video background preparation reports a recoverable failure");
+  media.adoptPreparedInput(nullptr, "movie");
+  require(!media.isOpen() && media.finished(),
+          "Missing speculative decoder does not abort the game");
   media.open(assets, "still", false, "movie");
+  media.openSoundtrack(assets, "corrupt.mkv");
+  require(media.isOpen(), "Bad optional soundtrack does not close the video");
   media.openSoundtrack(assets, "track.wav");
   require(media.isOpen() && !media.finished(), "Media with soundtrack");
   media.setPaused(true);

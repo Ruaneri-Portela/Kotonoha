@@ -54,6 +54,45 @@
           "platform": "android"
         }
       ]
+    },
+    "sdl-vcpkg": {
+      "description": "Use SDL3 and SDL3_ttf from vcpkg in lieu of submodules",
+      "dependencies": [
+        {
+          "name": "sdl3",
+          "features": [
+            "x11"
+          ],
+          "platform": "linux",
+          "default-features": false
+        },
+        {
+          "name": "sdl3",
+          "platform": "!linux",
+          "default-features": false
+        },
+        {
+          "name": "sdl3-ttf",
+          "features": [
+            "harfbuzz",
+            "svg"
+          ],
+          "default-features": false
+        }
+      ]
+    },
+    "imgui-vcpkg": {
+      "description": "Import ImGui core, SDL3 backend and SDL3 renderer backend from vcpkg",
+      "dependencies": [
+        {
+          "name": "imgui",
+          "features": [
+            "sdl3-binding",
+            "sdl3-renderer-binding"
+          ],
+          "default-features": false
+        }
+      ]
     }
   }
 }

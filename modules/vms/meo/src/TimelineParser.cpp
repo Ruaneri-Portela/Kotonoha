@@ -1,6 +1,6 @@
 #include <Meo/TimelineParser.hpp>
 #include <filesystem>
-#include <fstream>
+#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <regex>
 #include <sstream>
 #include <stdexcept>
@@ -10,7 +10,7 @@ namespace Meo {
 // A very simple, minimal XML parser for MEO timelines.
 // Not for general purpose use, just for the specific expected MEO format.
 Kotonoha::TimelineScript TimelineParser::parse(const std::string &path) {
-  std::ifstream file(path);
+  Kotonoha::Filesystem::InputFile file(path);
   if (!file) {
     throw std::runtime_error("Cannot open MEO timeline: " + path);
   }

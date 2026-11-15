@@ -256,7 +256,7 @@
 		6769C28DD973C72730E735D6 /* KagScript.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 514EC6ADE8BF32609E55E456 /* KagScript.cpp */; };
 		67756F7FA9E676C3D54A2273 /* PmailPack.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 398635A8C71257F8CFD5A4DA /* PmailPack.cpp */; };
 		67A5812A4EBC62F8AD47FFB7 /* main.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 55DDE3D25C2E19533CB2474A /* main.cpp */; };
-		67BBFC01F189A0AE7FB05677 /* MetalFXUpscaler.mm in Sources */ = {isa = PBXBuildFile; fileRef = 85AA5C9FA85B655CBFE5AE68 /* MetalFXUpscaler.mm */; };
+		67BBFC01F189A0AE7FB05677 /* MetalFXUpscaler.mm in Sources */ = {isa = PBXBuildFile; fileRef = 85AA5C9FA85B655CBFE5AE68 /* MetalFXUpscaler.mm */; settings = {COMPILER_FLAGS = "-fobjc-arc"; }; };
 		67C3D386F6E21A2E99F90ED4 /* AssStyle.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0FCF528A7FD46BBD15885287 /* AssStyle.cpp */; };
 		67C8F1B8660FCB535D0550F1 /* SchoolDaysExitViewModel.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 750FFD6471EB984A3CE519CB /* SchoolDaysExitViewModel.cpp */; };
 		68087E0C72F7051AB26D0518 /* PmailTitleMenu.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3D1D2B56AF4EAA3118FF3A1D /* PmailTitleMenu.cpp */; };
@@ -283,7 +283,6 @@
 		728818139C51490431470FB8 /* SchoolDaysSaveLoadRenderPlan.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FDCD2319A08A9AD7AF38D4A0 /* SchoolDaysSaveLoadRenderPlan.cpp */; };
 		72B2B4AD3F5C364F7FF071C9 /* SchoolDaysDisplayPolicy.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 04C29A9EA7CE0AE5ECC40C87 /* SchoolDaysDisplayPolicy.cpp */; };
 		72E290C84FCDEF3E84D55CC3 /* DdlcSession.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA64C0CEE2E21C91DEF07E99 /* DdlcSession.cpp */; };
-		72FEAC152779E087D10197D2 /* FileSystem.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 209B80EF693F2C94CF5A8A43 /* FileSystem.cpp */; };
 		73250ED7C7AF624F42C8B9DD /* SchoolDaysEndBackgroundResolver.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 8C9468B2F50950EA58F77F77 /* SchoolDaysEndBackgroundResolver.cpp */; };
 		739AE4E288D5FDD396CA5EE2 /* Replay.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 59EDD75E548BEEB417C71E02 /* Replay.cpp */; };
 		74C9A2B46EFA437A7FBB9B91 /* SchoolDaysTitleRenderPlan.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D487B040E6AE1CCCAC8C59AB /* SchoolDaysTitleRenderPlan.cpp */; };
@@ -410,6 +409,8 @@
 		A96184491749EADFD46C43A1 /* KotonohaEngine.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 03728BEA8C79EFB39BEF2440 /* KotonohaEngine.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		A96E8B610AE61A3AA66EA615 /* SnowAssets.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 44878821F495891FD2362550 /* SnowAssets.cpp */; };
 		A994F153645A1AB4F642463A /* ConcertoScene.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 654032D8B559BFB3DFFA5A6D /* ConcertoScene.cpp */; };
+		AA11BB22CC33DD44EE55FF01 /* Encoding.mm in Sources */ = {isa = PBXBuildFile; fileRef = AA11BB22CC33DD44EE55FF02 /* Encoding.mm */; };
+		AA11BB22CC33DD44EE55FF03 /* Encoding.mm in Sources */ = {isa = PBXBuildFile; fileRef = AA11BB22CC33DD44EE55FF02 /* Encoding.mm */; };
 		AA46D75F7F2CAE6AE9665C2D /* RealLiveRuntime.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6CCEEC7CC335B1CBE767AEBA /* RealLiveRuntime.cpp */; };
 		AB1A5284A042F4F8EDE5A1ED /* LucaSystemAssets.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 36AB3541375B3CA51CECE3A9 /* LucaSystemAssets.cpp */; };
 		AB243D6EBEC1BA27450D81A7 /* game-assets in Resources */ = {isa = PBXBuildFile; fileRef = A7C14AC64EDF57AAA9F2134E /* game-assets */; };
@@ -569,7 +570,7 @@
 		EF8D119E5E02D2C6FF52B073 /* game-assets in Resources */ = {isa = PBXBuildFile; fileRef = 6360E6F008913111F5D43A1F /* game-assets */; };
 		EFA416FF3E5879136E9CFABF /* imgui_stdlib.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5306B792EBD5809B1825F58D /* imgui_stdlib.cpp */; };
 		EFD7CC15879CC6AE462DF068 /* SubtitleScene.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5EC83EF0F15835940875BAB4 /* SubtitleScene.cpp */; };
-		EFD8FB164AAC8AAAE0885941 /* MetalFXUpscaler.mm in Sources */ = {isa = PBXBuildFile; fileRef = 85AA5C9FA85B655CBFE5AE68 /* MetalFXUpscaler.mm */; };
+		EFD8FB164AAC8AAAE0885941 /* MetalFXUpscaler.mm in Sources */ = {isa = PBXBuildFile; fileRef = 85AA5C9FA85B655CBFE5AE68 /* MetalFXUpscaler.mm */; settings = {COMPILER_FLAGS = "-fobjc-arc"; }; };
 		EFF14E5D152FC9678630AE84 /* BacklogEvents.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FA70A1D23033480A2BD47AFD /* BacklogEvents.cpp */; };
 		F00BC280D56007718A0D6EC7 /* imgui_tables.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E7A0A915B2FD3102490280F0 /* imgui_tables.cpp */; };
 		F034DF0C167574FACE5C03C6 /* SchoolDaysKtrfSession.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FCEB3EB28E661CF01E787621 /* SchoolDaysKtrfSession.cpp */; };
@@ -580,6 +581,34 @@
 		F0F1CDE8F744B3FECE4703C9 /* SchoolDaysPersistenceCodec.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F3E089F29CF0373043C48D52 /* SchoolDaysPersistenceCodec.cpp */; };
 		F14ADEE91823F5DF0EE20BE2 /* KotonohaEngine.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 03728BEA8C79EFB39BEF2440 /* KotonohaEngine.framework */; };
 		F1BFA7242096FDDDC88E92E1 /* SchoolDaysPlayDataSession.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7915062DFFA73630E029942F /* SchoolDaysPlayDataSession.cpp */; };
+		F1F1F10000000000000000C8 /* Path.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F1F1F1000000000000000064 /* Path.cpp */; };
+		F1F1F10000000000000000C9 /* Path.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F1F1F1000000000000000064 /* Path.cpp */; };
+		F1F1F10000000000000000CA /* SDLFileSource.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F1F1F1000000000000000065 /* SDLFileSource.cpp */; };
+		F1F1F10000000000000000CB /* SDLFileSource.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F1F1F1000000000000000065 /* SDLFileSource.cpp */; };
+		F1F1F10000000000000000CC /* DirectoryMount.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F1F1F1000000000000000066 /* DirectoryMount.cpp */; };
+		F1F1F10000000000000000CD /* DirectoryMount.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F1F1F1000000000000000066 /* DirectoryMount.cpp */; };
+		F1F1F10000000000000000CE /* LayeredMount.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F1F1F1000000000000000067 /* LayeredMount.cpp */; };
+		F1F1F10000000000000000CF /* LayeredMount.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F1F1F1000000000000000067 /* LayeredMount.cpp */; };
+		F1F1F10000000000000000D0 /* ISO9660Mount.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F1F1F1000000000000000068 /* ISO9660Mount.cpp */; };
+		F1F1F10000000000000000D1 /* ISO9660Mount.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F1F1F1000000000000000068 /* ISO9660Mount.cpp */; };
+		F1F1F10000000000000000D2 /* Filesystem.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F1F1F1000000000000000069 /* Filesystem.cpp */; };
+		F1F1F10000000000000000D3 /* Filesystem.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F1F1F1000000000000000069 /* Filesystem.cpp */; };
+		F1F1F10000000000000000D4 /* StoragePaths.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F1F1F100000000000000006A /* StoragePaths.cpp */; };
+		F1F1F10000000000000000D5 /* StoragePaths.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F1F1F100000000000000006A /* StoragePaths.cpp */; };
+		F1F1F10000000000000000DC /* TarMount.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F1F1F1000000000000000078 /* TarMount.cpp */; };
+		F1F1F10000000000000000DD /* TarMount.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F1F1F1000000000000000078 /* TarMount.cpp */; };
+		F1F1F10000000000000000DE /* FetchAssetProvider.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F1F1F1000000000000000079 /* FetchAssetProvider.cpp */; };
+		F1F1F10000000000000000DF /* FetchAssetProvider.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F1F1F1000000000000000079 /* FetchAssetProvider.cpp */; };
+		F1F1F10000000000000000F0 /* StreamAdapter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F1F1F1000000000000000082 /* StreamAdapter.cpp */; };
+		F1F1F10000000000000000F1 /* StreamAdapter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F1F1F1000000000000000082 /* StreamAdapter.cpp */; };
+		F1F1F10000000000000000F4 /* SDLIOAdapter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F1F1F1000000000000000084 /* SDLIOAdapter.cpp */; };
+		F1F1F10000000000000000F5 /* SDLIOAdapter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F1F1F1000000000000000084 /* SDLIOAdapter.cpp */; };
+		F1F1F10000000000000000F6 /* BrowserBlobAdapter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F1F1F1000000000000000086 /* BrowserBlobAdapter.cpp */; };
+		F1F1F10000000000000000F7 /* BrowserBlobAdapter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F1F1F1000000000000000086 /* BrowserBlobAdapter.cpp */; };
+		F1F1F10000000000000000FA /* FallbackMount.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F1F1F100000000000000008C /* FallbackMount.cpp */; };
+		F1F1F10000000000000000FB /* FallbackMount.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F1F1F100000000000000008C /* FallbackMount.cpp */; };
+		F1F1F10000000000000000FC /* RemoteAssets.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F1F1F100000000000000008D /* RemoteAssets.cpp */; };
+		F1F1F10000000000000000FD /* RemoteAssets.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F1F1F100000000000000008D /* RemoteAssets.cpp */; };
 		F23FAC086736C0773A8E5CE5 /* PmailRuntime.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 35E9BCF53B0390115C61637A /* PmailRuntime.cpp */; };
 		F2A608F647E54E2ABD6A8ED1 /* KotonohaEngine.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 4A9582677B40D6ECCD2770E2 /* KotonohaEngine.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		F3366BA7A55D4C1F3A5C23B2 /* KotonohaImGui.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 893D77D1754B0E042E17C299 /* KotonohaImGui.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
@@ -592,7 +621,6 @@
 		F5C982CACD476DF0338B4A3E /* SchoolDaysSaveService.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 133FEB14CFB5BEAF36775A44 /* SchoolDaysSaveService.cpp */; };
 		F5DBD059419A24044C75A155 /* Archive.cpp in Sources */ = {isa = PBXBuildFile; fileRef = B6D2DF48314E047478BF0880 /* Archive.cpp */; };
 		F640B00EF2C1E943AC2B4A22 /* Engine.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 95EB7E452BD54DD736B39583 /* Engine.cpp */; };
-		F656B16CDC91D1A9F6C7A704 /* FileSystem.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 209B80EF693F2C94CF5A8A43 /* FileSystem.cpp */; };
 		F6EA47C8273CDF71EB903F93 /* KotonohaImGui.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = BE4CD7359ED5E7D6A1EBB231 /* KotonohaImGui.framework */; };
 		F81214221B9DA4285472C5DC /* VoiceDubbingApplet.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C98208D243C8534A4A1D8CE9 /* VoiceDubbingApplet.cpp */; };
 		F86F8960659B7E4BCE180FB3 /* Source.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 369BEFED27D0BB808D48CC69 /* Source.cpp */; };
@@ -617,6 +645,8 @@
 		FF1F79C3B01DDBB18C52E509 /* KotonohaImGui.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = BE4CD7359ED5E7D6A1EBB231 /* KotonohaImGui.framework */; };
 		FF89A9E9B1E594E4E5F12062 /* Ps2SoundBank.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BDB627B41F00994945F9190D /* Ps2SoundBank.cpp */; };
 		FFBA4A0F4CBB3C0FF9662E59 /* SummerRuntime.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FE4550E52D8FF52E9957E326 /* SummerRuntime.cpp */; };
+		F1F1F10000000000000000FE /* SystemInfo.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F1F1F100000000000000008E /* SystemInfo.cpp */; };
+		F1F1F10000000000000000FF /* SystemInfo.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F1F1F100000000000000008E /* SystemInfo.cpp */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -1250,7 +1280,6 @@
 		1D0C1E5C0F9A1B2C3D4E5001 /* DokiDoki.macOS.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = DokiDoki.macOS.xcconfig; path = Config/DokiDoki.macOS.xcconfig; sourceTree = SOURCE_ROOT; };
 		1D0C1E5C0F9A1B2C3D4E5002 /* DokiDoki.iOS.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = DokiDoki.iOS.xcconfig; path = Config/DokiDoki.iOS.xcconfig; sourceTree = SOURCE_ROOT; };
 		1D9FA831D25A1165C076BA36 /* reallive.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = reallive.h; path = ../../games/reallive/vendor/libreallive/reallive.h; sourceTree = SOURCE_ROOT; };
-		209B80EF693F2C94CF5A8A43 /* FileSystem.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = FileSystem.cpp; path = ../../lib/src/core/FileSystem.cpp; sourceTree = SOURCE_ROOT; };
 		211037564817A2932CBA705A /* game-assets */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "game-assets"; path = "../../games/zero-no-tsukaima/game-assets"; sourceTree = SOURCE_ROOT; };
 		21399AF4EDC475966F00B67C /* KirikiriRuntime.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = KirikiriRuntime.cpp; path = ../../games/kirikiri/src/KirikiriRuntime.cpp; sourceTree = SOURCE_ROOT; };
 		226C941B21C1F85269ADD270 /* RealLiveAssets.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = RealLiveAssets.cpp; path = ../../modules/providers/reallive/src/RealLiveAssets.cpp; sourceTree = SOURCE_ROOT; };
@@ -1405,6 +1434,7 @@
 		A387D57559A39733FBA21A24 /* LucaSystemRuntime.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = LucaSystemRuntime.cpp; path = "../../games/luca-system/src/LucaSystemRuntime.cpp"; sourceTree = SOURCE_ROOT; };
 		A761AF29AD7872AD741EE3A0 /* MediaDecoder.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = MediaDecoder.cpp; path = ../../lib/src/media/MediaDecoder.cpp; sourceTree = SOURCE_ROOT; };
 		A7C14AC64EDF57AAA9F2134E /* game-assets */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "game-assets"; path = "../../games/kirikiri/game-assets"; sourceTree = SOURCE_ROOT; };
+		AA11BB22CC33DD44EE55FF02 /* Encoding.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = Encoding.mm; path = ../../lib/src/localization/Encoding.mm; sourceTree = SOURCE_ROOT; };
 		AA64C0CEE2E21C91DEF07E99 /* DdlcSession.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = DdlcSession.cpp; path = "../../games/doki-doki-literature-club/src/DdlcSession.cpp"; sourceTree = SOURCE_ROOT; };
 		ABEC67FE33BE7B58E862CCDE /* main.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = main.cpp; path = "../../games/school-days/src/main.cpp"; sourceTree = SOURCE_ROOT; };
 		AC129D4B42F89C3B0A47EDEC /* SchoolDays.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SchoolDays.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -1498,6 +1528,36 @@
 		F0B2149FF23014807BCA7B58 /* SchoolDaysHistory.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = SchoolDaysHistory.cpp; path = "../../games/school-days/src/SchoolDaysHistory.cpp"; sourceTree = SOURCE_ROOT; };
 		F0EFB68E5BDAC507F296178A /* VNSaveMenu.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = VNSaveMenu.cpp; path = ../../lib/src/components/VNSaveMenu.cpp; sourceTree = SOURCE_ROOT; };
 		F0F4CCEBB9B31A0A778B9994 /* SchoolDaysReplayScriptOracle.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = SchoolDaysReplayScriptOracle.cpp; path = "../../games/school-days/src/SchoolDaysReplayScriptOracle.cpp"; sourceTree = SOURCE_ROOT; };
+		F1F1F1000000000000000064 /* Path.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = Path.cpp; path = ../../lib/src/Filesystem/Path.cpp; sourceTree = SOURCE_ROOT; };
+		F1F1F1000000000000000065 /* SDLFileSource.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = SDLFileSource.cpp; path = ../../lib/src/Filesystem/Sources/SDLFileSource.cpp; sourceTree = SOURCE_ROOT; };
+		F1F1F1000000000000000066 /* DirectoryMount.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = DirectoryMount.cpp; path = ../../lib/src/Filesystem/Mounts/DirectoryMount.cpp; sourceTree = SOURCE_ROOT; };
+		F1F1F1000000000000000067 /* LayeredMount.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = LayeredMount.cpp; path = ../../lib/src/Filesystem/Mounts/LayeredMount.cpp; sourceTree = SOURCE_ROOT; };
+		F1F1F1000000000000000068 /* ISO9660Mount.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = ISO9660Mount.cpp; path = ../../lib/src/Filesystem/Mounts/ISO9660Mount.cpp; sourceTree = SOURCE_ROOT; };
+		F1F1F1000000000000000069 /* Filesystem.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = Filesystem.cpp; path = ../../lib/src/Filesystem/Filesystem.cpp; sourceTree = SOURCE_ROOT; };
+		F1F1F100000000000000006A /* StoragePaths.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = StoragePaths.cpp; path = ../../lib/src/Filesystem/StoragePaths.cpp; sourceTree = SOURCE_ROOT; };
+		F1F1F1000000000000000078 /* TarMount.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = TarMount.cpp; path = ../../lib/src/Filesystem/Mounts/TarMount.cpp; sourceTree = SOURCE_ROOT; };
+		F1F1F1000000000000000079 /* FetchAssetProvider.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = FetchAssetProvider.cpp; path = ../../lib/src/Filesystem/Sources/FetchAssetProvider.cpp; sourceTree = SOURCE_ROOT; };
+		F1F1F1000000000000000082 /* StreamAdapter.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = StreamAdapter.cpp; path = ../../lib/src/Filesystem/Adapters/StreamAdapter.cpp; sourceTree = SOURCE_ROOT; };
+		F1F1F1000000000000000084 /* SDLIOAdapter.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = SDLIOAdapter.cpp; path = ../../lib/src/Filesystem/Adapters/SDLIOAdapter.cpp; sourceTree = SOURCE_ROOT; };
+		F1F1F1000000000000000086 /* BrowserBlobAdapter.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = BrowserBlobAdapter.cpp; path = ../../lib/src/Filesystem/Adapters/BrowserBlobAdapter.cpp; sourceTree = SOURCE_ROOT; };
+		F1F1F100000000000000008C /* FallbackMount.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = FallbackMount.cpp; path = ../../lib/src/Filesystem/Mounts/FallbackMount.cpp; sourceTree = SOURCE_ROOT; };
+		F1F1F100000000000000008D /* RemoteAssets.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = RemoteAssets.cpp; path = ../../lib/src/Filesystem/RemoteAssets.cpp; sourceTree = SOURCE_ROOT; };
+		F1F1F100000000000000012C /* FileHandle.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = FileHandle.hpp; path = ../../lib/include/Kotonoha/Filesystem/FileHandle.hpp; sourceTree = SOURCE_ROOT; };
+		F1F1F100000000000000012D /* IMount.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = IMount.hpp; path = ../../lib/include/Kotonoha/Filesystem/IMount.hpp; sourceTree = SOURCE_ROOT; };
+		F1F1F100000000000000012E /* Path.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = Path.hpp; path = ../../lib/include/Kotonoha/Filesystem/Path.hpp; sourceTree = SOURCE_ROOT; };
+		F1F1F100000000000000012F /* Filesystem.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = Filesystem.hpp; path = ../../lib/include/Kotonoha/Filesystem/Filesystem.hpp; sourceTree = SOURCE_ROOT; };
+		F1F1F1000000000000000130 /* SDLFileSource.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = SDLFileSource.hpp; path = ../../lib/include/Kotonoha/Filesystem/Sources/SDLFileSource.hpp; sourceTree = SOURCE_ROOT; };
+		F1F1F1000000000000000131 /* DirectoryMount.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = DirectoryMount.hpp; path = ../../lib/include/Kotonoha/Filesystem/Mounts/DirectoryMount.hpp; sourceTree = SOURCE_ROOT; };
+		F1F1F1000000000000000132 /* LayeredMount.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = LayeredMount.hpp; path = ../../lib/include/Kotonoha/Filesystem/Mounts/LayeredMount.hpp; sourceTree = SOURCE_ROOT; };
+		F1F1F1000000000000000133 /* ISO9660Mount.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = ISO9660Mount.hpp; path = ../../lib/include/Kotonoha/Filesystem/Mounts/ISO9660Mount.hpp; sourceTree = SOURCE_ROOT; };
+		F1F1F1000000000000000134 /* StoragePaths.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = StoragePaths.hpp; path = ../../lib/include/Kotonoha/Filesystem/StoragePaths.hpp; sourceTree = SOURCE_ROOT; };
+		F1F1F1000000000000000140 /* TarMount.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = TarMount.hpp; path = ../../lib/include/Kotonoha/Filesystem/Mounts/TarMount.hpp; sourceTree = SOURCE_ROOT; };
+		F1F1F1000000000000000141 /* FetchAssetProvider.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = FetchAssetProvider.hpp; path = ../../lib/include/Kotonoha/Filesystem/Sources/FetchAssetProvider.hpp; sourceTree = SOURCE_ROOT; };
+		F1F1F100000000000000014A /* StreamAdapter.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = StreamAdapter.hpp; path = ../../lib/include/Kotonoha/Filesystem/Adapters/StreamAdapter.hpp; sourceTree = SOURCE_ROOT; };
+		F1F1F100000000000000014C /* SDLIOAdapter.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = SDLIOAdapter.hpp; path = ../../lib/include/Kotonoha/Filesystem/Adapters/SDLIOAdapter.hpp; sourceTree = SOURCE_ROOT; };
+		F1F1F100000000000000014E /* BrowserBlobAdapter.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = BrowserBlobAdapter.hpp; path = ../../lib/include/Kotonoha/Filesystem/Adapters/BrowserBlobAdapter.hpp; sourceTree = SOURCE_ROOT; };
+		F1F1F1000000000000000154 /* FallbackMount.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = FallbackMount.hpp; path = ../../lib/include/Kotonoha/Filesystem/Mounts/FallbackMount.hpp; sourceTree = SOURCE_ROOT; };
+		F1F1F1000000000000000155 /* RemoteAssets.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = RemoteAssets.hpp; path = ../../lib/include/Kotonoha/Filesystem/RemoteAssets.hpp; sourceTree = SOURCE_ROOT; };
 		F2323B73AF87856D39A096CB /* SnowComponents.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = SnowComponents.cpp; path = "../../games/snow-radish-vacation/src/SnowComponents.cpp"; sourceTree = SOURCE_ROOT; };
 		F2D426AE20CF319F1A184611 /* SchoolDaysGpkIndex.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = SchoolDaysGpkIndex.cpp; path = ../../modules/providers/gpk/src/SchoolDaysGpkIndex.cpp; sourceTree = SOURCE_ROOT; };
 		F3D97835A95238791202E8E9 /* PcmPlayer.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = PcmPlayer.cpp; path = ../../lib/src/media/PcmPlayer.cpp; sourceTree = SOURCE_ROOT; };
@@ -1514,6 +1574,8 @@
 		FE63135BA17021209CA24FFB /* MPVCompatibleUpscaler.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = MPVCompatibleUpscaler.cpp; path = ../../lib/src/media/upscaling/MPVCompatibleUpscaler.cpp; sourceTree = SOURCE_ROOT; };
 		FF242C49F26C09A041D6631C /* Config.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = Config.cpp; path = ../../games/reallive/src/Config.cpp; sourceTree = SOURCE_ROOT; };
 		FF43CE57F88486C6645207F5 /* SchoolDaysMenuBarPresenter.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = SchoolDaysMenuBarPresenter.cpp; path = "../../games/school-days/src/SchoolDaysMenuBarPresenter.cpp"; sourceTree = SOURCE_ROOT; };
+		F1F1F100000000000000008E /* SystemInfo.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = SystemInfo.cpp; path = ../../lib/src/debug/SystemInfo.cpp; sourceTree = SOURCE_ROOT; };
+		F1F1F1000000000000000156 /* SystemInfo.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = SystemInfo.hpp; path = ../../lib/include/Kotonoha/debug/SystemInfo.hpp; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -1779,7 +1841,7 @@
 				79AED9CD2E8FDC21D4FBBA23 /* CommandLine.cpp */,
 				9BE4FE61A2DEA0B5468C0CA1 /* DiscImage.cpp */,
 				95EB7E452BD54DD736B39583 /* Engine.cpp */,
-				209B80EF693F2C94CF5A8A43 /* FileSystem.cpp */,
+				F1F1F1000000000000000010 /* Filesystem */,
 				0952B39C0D559C76E51E70F3 /* GameLauncher.cpp */,
 				54BFA310BFD63BECBAEE3EBA /* Launcher.cpp */,
 				93E3F79FB02F2D2821A706AA /* Log.cpp */,
@@ -1796,6 +1858,10 @@
 		0C04E59682E5D462F08B41CC /* KotonohaEngine */ = {
 			isa = PBXGroup;
 			children = (
+				F1F1F1000000000000000078 /* TarMount.cpp */,
+				F1F1F1000000000000000079 /* FetchAssetProvider.cpp */,
+				F1F1F1000000000000000140 /* TarMount.hpp */,
+				F1F1F1000000000000000141 /* FetchAssetProvider.hpp */,
 				AFE7C9E655C165BA23EE0855 /* components */,
 				06EEE27E8212D35A205BAC4F /* core */,
 				4BCC0B299FA63798E45D79AC /* debug */,
@@ -1966,6 +2032,8 @@
 			isa = PBXGroup;
 			children = (
 				D31A702A792A5505E0A79948 /* DebugOverlay.cpp */,
+				F1F1F100000000000000008E /* SystemInfo.cpp */,
+				F1F1F1000000000000000156 /* SystemInfo.hpp */,
 				5333ECFD929586DA073BF639 /* ImGuiTheme.cpp */,
 				C98208D243C8534A4A1D8CE9 /* VoiceDubbingApplet.cpp */,
 			);
@@ -2291,6 +2359,7 @@
 			isa = PBXGroup;
 			children = (
 				1BA5E519F92A1C06B1309CF9 /* Encoding.cpp */,
+				AA11BB22CC33DD44EE55FF02 /* Encoding.mm */,
 				83224C27CFFBCDAFB2C5740F /* Translation.cpp */,
 			);
 			name = localization;
@@ -2639,6 +2708,39 @@
 			name = Amagami;
 			sourceTree = "<group>";
 		};
+		F1F1F1000000000000000010 /* Filesystem */ = {
+			isa = PBXGroup;
+			children = (
+				F1F1F100000000000000008C /* FallbackMount.cpp */,
+				F1F1F100000000000000008D /* RemoteAssets.cpp */,
+				F1F1F1000000000000000154 /* FallbackMount.hpp */,
+				F1F1F1000000000000000155 /* RemoteAssets.hpp */,
+				F1F1F1000000000000000086 /* BrowserBlobAdapter.cpp */,
+				F1F1F100000000000000014E /* BrowserBlobAdapter.hpp */,
+				F1F1F1000000000000000084 /* SDLIOAdapter.cpp */,
+				F1F1F100000000000000014C /* SDLIOAdapter.hpp */,
+				F1F1F1000000000000000082 /* StreamAdapter.cpp */,
+				F1F1F100000000000000014A /* StreamAdapter.hpp */,
+				F1F1F100000000000000006A /* StoragePaths.cpp */,
+				F1F1F1000000000000000134 /* StoragePaths.hpp */,
+				F1F1F1000000000000000064 /* Path.cpp */,
+				F1F1F1000000000000000065 /* SDLFileSource.cpp */,
+				F1F1F1000000000000000066 /* DirectoryMount.cpp */,
+				F1F1F1000000000000000067 /* LayeredMount.cpp */,
+				F1F1F1000000000000000068 /* ISO9660Mount.cpp */,
+				F1F1F1000000000000000069 /* Filesystem.cpp */,
+				F1F1F100000000000000012C /* FileHandle.hpp */,
+				F1F1F100000000000000012D /* IMount.hpp */,
+				F1F1F100000000000000012E /* Path.hpp */,
+				F1F1F100000000000000012F /* Filesystem.hpp */,
+				F1F1F1000000000000000130 /* SDLFileSource.hpp */,
+				F1F1F1000000000000000131 /* DirectoryMount.hpp */,
+				F1F1F1000000000000000132 /* LayeredMount.hpp */,
+				F1F1F1000000000000000133 /* ISO9660Mount.hpp */,
+			);
+			name = Filesystem;
+			sourceTree = "<group>";
+		};
 		F6FF3729C4502D04661B73B6 /* cmp */ = {
 			isa = PBXGroup;
 			children = (
@@ -2680,6 +2782,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = A520A788BCA93F1EA86BD832 /* Build configuration list for PBXNativeTarget "KotonohaExample-macOS" */;
 			buildPhases = (
+				C9213CF47841F0B70FFC1DEE /* Generate Build Version */,
 				C04E0AF202D3A3A2475CBF43 /* Sources */,
 				4558617720D77AA752DDBA98 /* Frameworks */,
 				1FEC6E7776362CC289357313 /* Resources */,
@@ -2702,6 +2805,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 514BFFDB939E1BF4C79157C1 /* Build configuration list for PBXNativeTarget "DokiDoki-iOS" */;
 			buildPhases = (
+				4E6EC904A7538BC9B113CD16 /* Generate Build Version */,
 				A9BA1E77A9BA1E77A9BA1E77 /* Prepare CPython SDK before linking (direct target builds) */,
 				9BA8BE7F5A3A6769CD4FD633 /* Sources */,
 				DF06953D6409FB79B13BE4C3 /* Frameworks */,
@@ -2725,6 +2829,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 99E6D813939CDC6BEE1CB486 /* Build configuration list for PBXNativeTarget "SummerRadish-iOS" */;
 			buildPhases = (
+				50A1EE6DCDCECCBF48543E43 /* Generate Build Version */,
 				C52182B1C0BA1543EA7F1807 /* Sources */,
 				4EA5F28B0D7F0ADA35352A35 /* Frameworks */,
 				780B82094E78ABDA2D5F7FEF /* Resources */,
@@ -2746,6 +2851,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = E655F119E9DAC6C9794BEC54 /* Build configuration list for PBXNativeTarget "RealLive-macOS" */;
 			buildPhases = (
+				6E3384D96861777D09CD2365 /* Generate Build Version */,
 				69199A5422EAF9FE654C02C5 /* Sources */,
 				870CD044579A69D162FE6955 /* Frameworks */,
 				8B56C903A9E3ECF5AA7C4197 /* Resources */,
@@ -2768,6 +2874,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 7501249AA2278850C7C120A6 /* Build configuration list for PBXNativeTarget "ZeroNoTsukaima-macOS" */;
 			buildPhases = (
+				2B4D65B3776A4952B4F35331 /* Generate Build Version */,
 				07659FAEC0110290F60C9064 /* Sources */,
 				D5DBE1440329EF56A2B3D8A9 /* Frameworks */,
 				A26F4BF3D2D14FD5C0B11650 /* Resources */,
@@ -2790,6 +2897,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = D151B4F391CA4E8753C43BC0 /* Build configuration list for PBXNativeTarget "KotonohaExample-iOS" */;
 			buildPhases = (
+				4CC8DC46580604B6C1500C4F /* Generate Build Version */,
 				78FC25F49D8241B63AB5BC2E /* Sources */,
 				4AA896559AE3E703DCCBF9BA /* Frameworks */,
 				D97C0E3A0DB447F518D438AE /* Resources */,
@@ -2845,6 +2953,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 1B48BF581EC750C4730D4DA2 /* Build configuration list for PBXNativeTarget "Amagami-macOS" */;
 			buildPhases = (
+				58DDEE514456749C688285E2 /* Generate Build Version */,
 				751C06B4A9C1768126232AC7 /* Sources */,
 				43F26CCA7B75962D3354C22E /* Frameworks */,
 				864B39EC713FB3DEFDC115DB /* Resources */,
@@ -2867,6 +2976,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = E0297978F659D5E2766E44DE /* Build configuration list for PBXNativeTarget "DokiDoki-macOS" */;
 			buildPhases = (
+				6BC7135711E4E724F5CE781C /* Generate Build Version */,
 				A9BA1E88A9BA1E88A9BA1E88 /* Prepare CPython SDK before linking (direct target builds) */,
 				C38C6A88171DCBDBC30C099E /* Sources */,
 				10641DEC9EF6FD38500C22B2 /* Frameworks */,
@@ -2891,6 +3001,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 1F33F9DF242D57660253CC3E /* Build configuration list for PBXNativeTarget "Kirikiri-macOS" */;
 			buildPhases = (
+				0D3004B18D9C705A7599E478 /* Generate Build Version */,
 				4DA2A54108730DEBAD2EEB17 /* Sources */,
 				051DB58E550814C0F5F39929 /* Frameworks */,
 				A7B8B664A5397B9CA3D8B5BB /* Resources */,
@@ -2913,6 +3024,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = E27AC5CA141FEA1A6B21250A /* Build configuration list for PBXNativeTarget "LucaSystem-macOS" */;
 			buildPhases = (
+				35A6C484749D5A526735BD92 /* Generate Build Version */,
 				123846318CA876F0C198900F /* Sources */,
 				4D017C79794955A4579EF78F /* Frameworks */,
 				1B50482F1E4DC0AA0A5EFCFF /* Resources */,
@@ -2935,6 +3047,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = A6468F106C3BF83F1EA2B001 /* Build configuration list for PBXNativeTarget "SchoolDays-macOS" */;
 			buildPhases = (
+				AE65174BF34408D02AE04DAE /* Generate Build Version */,
 				F51F2673DAB9C27D451D5C5E /* Sources */,
 				4629936222FDE8BD7544596B /* Frameworks */,
 				8CF70C15B2A4D9AE0BFBC325 /* Resources */,
@@ -2957,6 +3070,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 9A63358847902AE21744F681 /* Build configuration list for PBXNativeTarget "SummerRadish-macOS" */;
 			buildPhases = (
+				9D580B81EA8CD848EDC95245 /* Generate Build Version */,
 				B424DA32759FC591C3888E47 /* Sources */,
 				3DC3AB2D9C7CFF0745183191 /* Frameworks */,
 				72B247F5EF30FA1F22645F54 /* Resources */,
@@ -2979,6 +3093,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = FF6EE7B45623FB19E9CEC1B3 /* Build configuration list for PBXNativeTarget "Pmail-iOS" */;
 			buildPhases = (
+				849E2702E21F80A7ED18ABB8 /* Generate Build Version */,
 				193F3537DE063A7C22EE51C1 /* Sources */,
 				02EA163B8E7161F4ADE753CE /* Frameworks */,
 				6EE1658C3C1C94A00D5DD0A4 /* Resources */,
@@ -3000,6 +3115,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 58491BB028B6BCCD438DEB61 /* Build configuration list for PBXNativeTarget "LucaSystem-iOS" */;
 			buildPhases = (
+				E5E9A861AA0F47BF48ECF8EE /* Generate Build Version */,
 				DDF349953F7A846E46E52588 /* Sources */,
 				F732EA4F882090E5F91407CA /* Frameworks */,
 				09F976C4600283AE12963051 /* Resources */,
@@ -3021,6 +3137,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = DD38C14F8190FFE915AF183B /* Build configuration list for PBXNativeTarget "SchoolDays-iOS" */;
 			buildPhases = (
+				690D50352E80CE63AF97B9B9 /* Generate Build Version */,
 				48D77AABA2D7AFB9814C63A4 /* Sources */,
 				A071F5AAEB415B4034F7AAD1 /* Frameworks */,
 				E175026E70E265DF773F3A23 /* Resources */,
@@ -3042,6 +3159,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = BA413D9D9BDFAA3B0F138B2D /* Build configuration list for PBXNativeTarget "ZeroNoTsukaima-iOS" */;
 			buildPhases = (
+				DD387D6BA61B4A41C1B654A1 /* Generate Build Version */,
 				62320972E19B023FE61A91CA /* Sources */,
 				913669E829D6FF934C77D09F /* Frameworks */,
 				DBD365C4F257A40416FCF985 /* Resources */,
@@ -3063,6 +3181,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 688B7D2890F16F64B1ADFE78 /* Build configuration list for PBXNativeTarget "Pmail-macOS" */;
 			buildPhases = (
+				41CB756EDC2F7505F9DCBA6D /* Generate Build Version */,
 				F130588C2E729DE9BAE3A316 /* Sources */,
 				6C74E186FE2FD7C190E7FDF7 /* Frameworks */,
 				7207E9CBE54EDF8BD571D505 /* Resources */,
@@ -3085,6 +3204,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = E132D671EB87AD134F72AD4E /* Build configuration list for PBXNativeTarget "Kirikiri-iOS" */;
 			buildPhases = (
+				DF27BC087F8F0AACFDC344AF /* Generate Build Version */,
 				77D33488FED000A87F35EEDA /* Sources */,
 				7C86B7242D0E4D37B958C43D /* Frameworks */,
 				C9DEB47D2AB5627973686F04 /* Resources */,
@@ -3106,6 +3226,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 0799E125EAA5A9DE684EDB8C /* Build configuration list for PBXNativeTarget "RealLive-iOS" */;
 			buildPhases = (
+				540F4761ED60AB6985BB198F /* Generate Build Version */,
 				E780956AD52C138C057D9209 /* Sources */,
 				BAE609F4CE4E243F3DEADF68 /* Frameworks */,
 				C2F7E2DED5F444E68133664E /* Resources */,
@@ -3127,6 +3248,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 992E92B51D8C75B075FE569F /* Build configuration list for PBXNativeTarget "KotonohaEngine-macOS" */;
 			buildPhases = (
+				19E404A7E2C633B3F833D740 /* Generate Build Version */,
 				6B87D08B182197E1C1C5F5EB /* Sources */,
 				99DC8DEDF6F3D5A0F8C678D2 /* Frameworks */,
 				5E34050DA6ABB44B27A2E77A /* Resources */,
@@ -3145,6 +3267,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = AA4FD379D1B9F9374C44A1B7 /* Build configuration list for PBXNativeTarget "SnowRadish-iOS" */;
 			buildPhases = (
+				640A32C4FFE092A3C883E9E2 /* Generate Build Version */,
 				39376C790E77E56845E3E026 /* Sources */,
 				1CDA775754CD638C43E0F733 /* Frameworks */,
 				EBD255EE6EC9F41EE936A5D4 /* Resources */,
@@ -3166,6 +3289,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = C8EE12D7A5E8DF39EF2F6F6A /* Build configuration list for PBXNativeTarget "SnowRadish-macOS" */;
 			buildPhases = (
+				A035495E0E646FDC68E859CA /* Generate Build Version */,
 				99316D475C1108142F8D7D9E /* Sources */,
 				F5078EA197737D992F177C25 /* Frameworks */,
 				672C2CC4D8D392EE73E4CA59 /* Resources */,
@@ -3188,6 +3312,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = DF158F06BD9F23641356EC6E /* Build configuration list for PBXNativeTarget "KotonohaEngine-iOS" */;
 			buildPhases = (
+				00B967342AF901577318F3E4 /* Generate Build Version */,
 				8D11C1DE9A9FA2B571C0487A /* Sources */,
 				3F269D2B4C7B519A8E9AE9C6 /* Frameworks */,
 				88E3FC2B0BC8DB4C92ABF347 /* Resources */,
@@ -3206,6 +3331,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 6CE7AFBB230EE2A5011A49FF /* Build configuration list for PBXNativeTarget "Amagami-iOS" */;
 			buildPhases = (
+				154CF8E9BE07C972C57AC99E /* Generate Build Version */,
 				7149C6A2E090094FD347E9CF /* Sources */,
 				70F98B06800B214EB7FC3158 /* Frameworks */,
 				A4F29F027D9541156723D4C0 /* Resources */,
@@ -3551,6 +3677,22 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
+		00B967342AF901577318F3E4 /* Generate Build Version */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = "Generate Build Version";
+			outputPaths = (
+				"$(DERIVED_FILE_DIR)/Kotonoha/core/BuildVersion.hpp",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "/usr/bin/env python3 \"${SRCROOT}/Scripts/GenerateBuildVersion.py\"";
+		};
 		043B2E69EFCA49608AE0B2B2 /* Embed SDL3 + SDL3_ttf and Verify Assets */ = {
 			isa = PBXShellScriptBuildPhase;
 			alwaysOutOfDate = 1;
@@ -3566,6 +3708,22 @@
 			shellPath = /bin/sh;
 			shellScript = "bash \"${SRCROOT}/Scripts/EmbedSDLFrameworks.sh\"";
 		};
+		0D3004B18D9C705A7599E478 /* Generate Build Version */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = "Generate Build Version";
+			outputPaths = (
+				"$(DERIVED_FILE_DIR)/Kotonoha/core/BuildVersion.hpp",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "/usr/bin/env python3 \"${SRCROOT}/Scripts/GenerateBuildVersion.py\"";
+		};
 		0E3D0BDC77176F3C83512D60 /* Embed SDL3 + SDL3_ttf and Verify Assets */ = {
 			isa = PBXShellScriptBuildPhase;
 			alwaysOutOfDate = 1;
@@ -3580,6 +3738,38 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "bash \"${SRCROOT}/Scripts/EmbedSDLFrameworks.sh\"";
+		};
+		154CF8E9BE07C972C57AC99E /* Generate Build Version */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = "Generate Build Version";
+			outputPaths = (
+				"$(DERIVED_FILE_DIR)/Kotonoha/core/BuildVersion.hpp",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "/usr/bin/env python3 \"${SRCROOT}/Scripts/GenerateBuildVersion.py\"";
+		};
+		19E404A7E2C633B3F833D740 /* Generate Build Version */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = "Generate Build Version";
+			outputPaths = (
+				"$(DERIVED_FILE_DIR)/Kotonoha/core/BuildVersion.hpp",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "/usr/bin/env python3 \"${SRCROOT}/Scripts/GenerateBuildVersion.py\"";
 		};
 		1CDBBC0E2D2DF085C0F37C4D /* Embed SDL3 + SDL3_ttf and Verify Assets */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -3641,6 +3831,22 @@
 			shellPath = /bin/sh;
 			shellScript = "bash \"${SRCROOT}/Scripts/EmbedSDLFrameworks.sh\"";
 		};
+		2B4D65B3776A4952B4F35331 /* Generate Build Version */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = "Generate Build Version";
+			outputPaths = (
+				"$(DERIVED_FILE_DIR)/Kotonoha/core/BuildVersion.hpp",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "/usr/bin/env python3 \"${SRCROOT}/Scripts/GenerateBuildVersion.py\"";
+		};
 		33EC46C0050E12BFB099D29B /* Embed CPython for DokiDoki */ = {
 			isa = PBXShellScriptBuildPhase;
 			alwaysOutOfDate = 1;
@@ -3656,6 +3862,22 @@
 			shellPath = /bin/sh;
 			shellScript = "\"${SRCROOT}/Scripts/EmbedDokiDokiPython.sh\"";
 		};
+		35A6C484749D5A526735BD92 /* Generate Build Version */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = "Generate Build Version";
+			outputPaths = (
+				"$(DERIVED_FILE_DIR)/Kotonoha/core/BuildVersion.hpp",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "/usr/bin/env python3 \"${SRCROOT}/Scripts/GenerateBuildVersion.py\"";
+		};
 		3893FF2BD16FFF61924CAE81 /* Embed SDL3 + SDL3_ttf and Verify Assets */ = {
 			isa = PBXShellScriptBuildPhase;
 			alwaysOutOfDate = 1;
@@ -3670,6 +3892,22 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "bash \"${SRCROOT}/Scripts/EmbedSDLFrameworks.sh\"";
+		};
+		41CB756EDC2F7505F9DCBA6D /* Generate Build Version */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = "Generate Build Version";
+			outputPaths = (
+				"$(DERIVED_FILE_DIR)/Kotonoha/core/BuildVersion.hpp",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "/usr/bin/env python3 \"${SRCROOT}/Scripts/GenerateBuildVersion.py\"";
 		};
 		46562E8C221C482B7284183A /* Install shared macOS app icon */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -3701,6 +3939,70 @@
 			shellPath = /bin/sh;
 			shellScript = "bash \"${SRCROOT}/Scripts/EmbedSDLFrameworks.sh\"";
 		};
+		4CC8DC46580604B6C1500C4F /* Generate Build Version */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = "Generate Build Version";
+			outputPaths = (
+				"$(DERIVED_FILE_DIR)/Kotonoha/core/BuildVersion.hpp",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "/usr/bin/env python3 \"${SRCROOT}/Scripts/GenerateBuildVersion.py\"";
+		};
+		4E6EC904A7538BC9B113CD16 /* Generate Build Version */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = "Generate Build Version";
+			outputPaths = (
+				"$(DERIVED_FILE_DIR)/Kotonoha/core/BuildVersion.hpp",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "/usr/bin/env python3 \"${SRCROOT}/Scripts/GenerateBuildVersion.py\"";
+		};
+		50A1EE6DCDCECCBF48543E43 /* Generate Build Version */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = "Generate Build Version";
+			outputPaths = (
+				"$(DERIVED_FILE_DIR)/Kotonoha/core/BuildVersion.hpp",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "/usr/bin/env python3 \"${SRCROOT}/Scripts/GenerateBuildVersion.py\"";
+		};
+		540F4761ED60AB6985BB198F /* Generate Build Version */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = "Generate Build Version";
+			outputPaths = (
+				"$(DERIVED_FILE_DIR)/Kotonoha/core/BuildVersion.hpp",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "/usr/bin/env python3 \"${SRCROOT}/Scripts/GenerateBuildVersion.py\"";
+		};
 		550A13323D849C40FF5847CC /* Embed SDL3 + SDL3_ttf and Verify Assets */ = {
 			isa = PBXShellScriptBuildPhase;
 			alwaysOutOfDate = 1;
@@ -3715,6 +4017,22 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "bash \"${SRCROOT}/Scripts/EmbedSDLFrameworks.sh\"";
+		};
+		58DDEE514456749C688285E2 /* Generate Build Version */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = "Generate Build Version";
+			outputPaths = (
+				"$(DERIVED_FILE_DIR)/Kotonoha/core/BuildVersion.hpp",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "/usr/bin/env python3 \"${SRCROOT}/Scripts/GenerateBuildVersion.py\"";
 		};
 		5F2F1AA8A4339228193F87C7 /* Embed SDL3 + SDL3_ttf and Verify Assets */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -3746,6 +4064,70 @@
 			shellPath = /bin/sh;
 			shellScript = "\"${SRCROOT}/Scripts/ConfigureMacOSIcon.sh\"";
 		};
+		640A32C4FFE092A3C883E9E2 /* Generate Build Version */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = "Generate Build Version";
+			outputPaths = (
+				"$(DERIVED_FILE_DIR)/Kotonoha/core/BuildVersion.hpp",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "/usr/bin/env python3 \"${SRCROOT}/Scripts/GenerateBuildVersion.py\"";
+		};
+		690D50352E80CE63AF97B9B9 /* Generate Build Version */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = "Generate Build Version";
+			outputPaths = (
+				"$(DERIVED_FILE_DIR)/Kotonoha/core/BuildVersion.hpp",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "/usr/bin/env python3 \"${SRCROOT}/Scripts/GenerateBuildVersion.py\"";
+		};
+		6BC7135711E4E724F5CE781C /* Generate Build Version */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = "Generate Build Version";
+			outputPaths = (
+				"$(DERIVED_FILE_DIR)/Kotonoha/core/BuildVersion.hpp",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "/usr/bin/env python3 \"${SRCROOT}/Scripts/GenerateBuildVersion.py\"";
+		};
+		6E3384D96861777D09CD2365 /* Generate Build Version */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = "Generate Build Version";
+			outputPaths = (
+				"$(DERIVED_FILE_DIR)/Kotonoha/core/BuildVersion.hpp",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "/usr/bin/env python3 \"${SRCROOT}/Scripts/GenerateBuildVersion.py\"";
+		};
 		71EF3051C575ABB0EFCF9875 /* Embed SDL3 + SDL3_ttf and Verify Assets */ = {
 			isa = PBXShellScriptBuildPhase;
 			alwaysOutOfDate = 1;
@@ -3775,6 +4157,22 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "bash \"${SRCROOT}/Scripts/EmbedSDLFrameworks.sh\"";
+		};
+		849E2702E21F80A7ED18ABB8 /* Generate Build Version */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = "Generate Build Version";
+			outputPaths = (
+				"$(DERIVED_FILE_DIR)/Kotonoha/core/BuildVersion.hpp",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "/usr/bin/env python3 \"${SRCROOT}/Scripts/GenerateBuildVersion.py\"";
 		};
 		8A1CC219CCB5670919F315A3 /* Install shared macOS app icon */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -3820,6 +4218,38 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "bash \"${SRCROOT}/Scripts/EmbedSDLFrameworks.sh\"";
+		};
+		9D580B81EA8CD848EDC95245 /* Generate Build Version */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = "Generate Build Version";
+			outputPaths = (
+				"$(DERIVED_FILE_DIR)/Kotonoha/core/BuildVersion.hpp",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "/usr/bin/env python3 \"${SRCROOT}/Scripts/GenerateBuildVersion.py\"";
+		};
+		A035495E0E646FDC68E859CA /* Generate Build Version */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = "Generate Build Version";
+			outputPaths = (
+				"$(DERIVED_FILE_DIR)/Kotonoha/core/BuildVersion.hpp",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "/usr/bin/env python3 \"${SRCROOT}/Scripts/GenerateBuildVersion.py\"";
 		};
 		A1B77469FDE898E954F41027 /* Embed SDL3 + SDL3_ttf and Verify Assets */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -3911,6 +4341,22 @@
 			shellPath = /bin/sh;
 			shellScript = "bash \"${SRCROOT}/Scripts/EmbedSDLFrameworks.sh\"";
 		};
+		AE65174BF34408D02AE04DAE /* Generate Build Version */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = "Generate Build Version";
+			outputPaths = (
+				"$(DERIVED_FILE_DIR)/Kotonoha/core/BuildVersion.hpp",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "/usr/bin/env python3 \"${SRCROOT}/Scripts/GenerateBuildVersion.py\"";
+		};
 		B522BE325DECF3E966EDA09E /* Embed SDL3 + SDL3_ttf and Verify Assets */ = {
 			isa = PBXShellScriptBuildPhase;
 			alwaysOutOfDate = 1;
@@ -3970,6 +4416,22 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "bash \"${SRCROOT}/Scripts/EmbedSDLFrameworks.sh\"";
+		};
+		C9213CF47841F0B70FFC1DEE /* Generate Build Version */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = "Generate Build Version";
+			outputPaths = (
+				"$(DERIVED_FILE_DIR)/Kotonoha/core/BuildVersion.hpp",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "/usr/bin/env python3 \"${SRCROOT}/Scripts/GenerateBuildVersion.py\"";
 		};
 		C94C9898853480A5AB5EAEFD /* Embed SDL3 + SDL3_ttf and Verify Assets */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -4046,6 +4508,38 @@
 			shellPath = /bin/sh;
 			shellScript = "\"${SRCROOT}/Scripts/ConfigureMacOSIcon.sh\"";
 		};
+		DD387D6BA61B4A41C1B654A1 /* Generate Build Version */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = "Generate Build Version";
+			outputPaths = (
+				"$(DERIVED_FILE_DIR)/Kotonoha/core/BuildVersion.hpp",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "/usr/bin/env python3 \"${SRCROOT}/Scripts/GenerateBuildVersion.py\"";
+		};
+		DF27BC087F8F0AACFDC344AF /* Generate Build Version */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = "Generate Build Version";
+			outputPaths = (
+				"$(DERIVED_FILE_DIR)/Kotonoha/core/BuildVersion.hpp",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "/usr/bin/env python3 \"${SRCROOT}/Scripts/GenerateBuildVersion.py\"";
+		};
 		E56FB244D0217A2B8BD09156 /* Embed SDL3 + SDL3_ttf and Verify Assets */ = {
 			isa = PBXShellScriptBuildPhase;
 			alwaysOutOfDate = 1;
@@ -4060,6 +4554,22 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "bash \"${SRCROOT}/Scripts/EmbedSDLFrameworks.sh\"";
+		};
+		E5E9A861AA0F47BF48ECF8EE /* Generate Build Version */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = "Generate Build Version";
+			outputPaths = (
+				"$(DERIVED_FILE_DIR)/Kotonoha/core/BuildVersion.hpp",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "/usr/bin/env python3 \"${SRCROOT}/Scripts/GenerateBuildVersion.py\"";
 		};
 		E783DE9CC9BCD58494F0D52D /* Embed SDL3 + SDL3_ttf and Verify Assets */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -4342,7 +4852,20 @@
 				9310F51AFBCBFA8DF66A91D6 /* Clock.cpp in Sources */,
 				F937A1EA9AEEFEE04024F1DB /* VisualTransition.cpp in Sources */,
 				4B962571DF6AFDE6BB60414B /* PresentedFrame.cpp in Sources */,
-				F656B16CDC91D1A9F6C7A704 /* FileSystem.cpp in Sources */,
+				F1F1F10000000000000000D4 /* StoragePaths.cpp in Sources */,
+				F1F1F10000000000000000DC /* TarMount.cpp in Sources */,
+				F1F1F10000000000000000DE /* FetchAssetProvider.cpp in Sources */,
+				F1F1F10000000000000000F0 /* StreamAdapter.cpp in Sources */,
+				F1F1F10000000000000000F4 /* SDLIOAdapter.cpp in Sources */,
+				F1F1F10000000000000000F6 /* BrowserBlobAdapter.cpp in Sources */,
+				F1F1F10000000000000000FA /* FallbackMount.cpp in Sources */,
+				F1F1F10000000000000000FC /* RemoteAssets.cpp in Sources */,
+				F1F1F10000000000000000C8 /* Path.cpp in Sources */,
+				F1F1F10000000000000000CA /* SDLFileSource.cpp in Sources */,
+				F1F1F10000000000000000CC /* DirectoryMount.cpp in Sources */,
+				F1F1F10000000000000000CE /* LayeredMount.cpp in Sources */,
+				F1F1F10000000000000000D0 /* ISO9660Mount.cpp in Sources */,
+				F1F1F10000000000000000D2 /* Filesystem.cpp in Sources */,
 				DBD91DDE5B7C73A5ADAE7C3D /* OpenGL.cpp in Sources */,
 				04B29798E36E74AF3C927451 /* GameLauncher.cpp in Sources */,
 				4CA42924CF008B95DC4C0057 /* DiscImage.cpp in Sources */,
@@ -4381,8 +4904,10 @@
 				FC7303CDB009F9A5056E532C /* BackAction.cpp in Sources */,
 				EFF14E5D152FC9678630AE84 /* BacklogEvents.cpp in Sources */,
 				54E6E44DD4F9AF411B3FB56C /* Encoding.cpp in Sources */,
+				AA11BB22CC33DD44EE55FF01 /* Encoding.mm in Sources */,
 				1206EB5FD7BE6BC40ABEE2E3 /* Translation.cpp in Sources */,
 				DA1789F135063FE3BBFE6D13 /* DebugOverlay.cpp in Sources */,
+				F1F1F10000000000000000FE /* SystemInfo.cpp in Sources */,
 				F81214221B9DA4285472C5DC /* VoiceDubbingApplet.cpp in Sources */,
 				C81158725C29BA78D9B77164 /* ImGuiTheme.cpp in Sources */,
 				2A8797E040D8856019EB43F1 /* PcmPlayer.cpp in Sources */,
@@ -4483,7 +5008,20 @@
 				37B7039E1E7C8549774ED9FF /* Clock.cpp in Sources */,
 				E808B45825E13CBDA11282FC /* VisualTransition.cpp in Sources */,
 				D5B9B0BE3818058DD7ECF494 /* PresentedFrame.cpp in Sources */,
-				72FEAC152779E087D10197D2 /* FileSystem.cpp in Sources */,
+				F1F1F10000000000000000D5 /* StoragePaths.cpp in Sources */,
+				F1F1F10000000000000000DD /* TarMount.cpp in Sources */,
+				F1F1F10000000000000000DF /* FetchAssetProvider.cpp in Sources */,
+				F1F1F10000000000000000F1 /* StreamAdapter.cpp in Sources */,
+				F1F1F10000000000000000F5 /* SDLIOAdapter.cpp in Sources */,
+				F1F1F10000000000000000F7 /* BrowserBlobAdapter.cpp in Sources */,
+				F1F1F10000000000000000FB /* FallbackMount.cpp in Sources */,
+				F1F1F10000000000000000FD /* RemoteAssets.cpp in Sources */,
+				F1F1F10000000000000000C9 /* Path.cpp in Sources */,
+				F1F1F10000000000000000CB /* SDLFileSource.cpp in Sources */,
+				F1F1F10000000000000000CD /* DirectoryMount.cpp in Sources */,
+				F1F1F10000000000000000CF /* LayeredMount.cpp in Sources */,
+				F1F1F10000000000000000D1 /* ISO9660Mount.cpp in Sources */,
+				F1F1F10000000000000000D3 /* Filesystem.cpp in Sources */,
 				A389C6740D6920047E774AC0 /* OpenGL.cpp in Sources */,
 				582F37DF76D89278EFC74846 /* GameLauncher.cpp in Sources */,
 				0BEAF5A2140DCC13CB18334F /* DiscImage.cpp in Sources */,
@@ -4522,8 +5060,10 @@
 				02F8C076D9105246E21524C2 /* BackAction.cpp in Sources */,
 				9AD0C92041D392181813B5F7 /* BacklogEvents.cpp in Sources */,
 				35BA26AA9F07A0AF8015EDEB /* Encoding.cpp in Sources */,
+				AA11BB22CC33DD44EE55FF03 /* Encoding.mm in Sources */,
 				B6CB69E8F9AAB3E582DD6312 /* Translation.cpp in Sources */,
 				4A1EAB729926CE963AE0E9D0 /* DebugOverlay.cpp in Sources */,
+				F1F1F10000000000000000FF /* SystemInfo.cpp in Sources */,
 				F4940ABC8D6C05BFE6024D7D /* VoiceDubbingApplet.cpp in Sources */,
 				4CFAA5FC80FF27486709E3EA /* ImGuiTheme.cpp in Sources */,
 				BADFE096FD9BA106B17B7C31 /* PcmPlayer.cpp in Sources */,
@@ -5789,6 +6329,7 @@
 			buildSettings = {
 				CLANG_CXX_LANGUAGE_STANDARD = "c++17";
 				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 64T9B5HFFD;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "$(SRCROOT)/Info.plist";
@@ -6101,6 +6642,7 @@
 			buildSettings = {
 				CLANG_CXX_LANGUAGE_STANDARD = "c++17";
 				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 64T9B5HFFD;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "$(SRCROOT)/Info.plist";

@@ -149,6 +149,11 @@ if(WIN32 AND NOT ANDROID)
     add_dependencies(SchoolDays SchoolDaysLauncherArtwork)
 endif()
 
+# Ship the tracked route through the engine's platform-specific asset hook.
+kotonoha_preload_asset(SchoolDays
+    "${CMAKE_CURRENT_SOURCE_DIR}/game-assets/school-days-hq.ktnroute"
+    "/game-assets/school-days-hq.ktnroute")
+
 # Ship the user's replacement General, Sound and Display Options artwork outside
 # the commercial System.GPK. The School Days-only overlay is mounted by default
 # when no explicit --asset-overlay is selected. Other games are unaffected.

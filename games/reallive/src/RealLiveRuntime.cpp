@@ -1,3 +1,4 @@
+#include <Kotonoha/core/SDL.hpp>
 #include "RealLiveRuntime.hpp"
 #include "RealLiveMouseCursor.hpp"
 #include "RealLiveSelection.hpp"
@@ -11,7 +12,7 @@
 #include <Kotonoha/components/VNSaveMenu.hpp>
 #include <Kotonoha/components/VNTextBox.hpp>
 #include <Kotonoha/core/Engine.hpp>
-#include <Kotonoha/core/FileSystem.hpp>
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/TransformTween.hpp>
 #include <Kotonoha/core/UI.hpp>
 #include <Kotonoha/events/BackAction.hpp>
@@ -1674,10 +1675,11 @@ struct RealLiveRuntime::Impl {
     if (!SDL_ConvertAudioSamples(&a.spec, a.data.data(), int(a.data.size()),
                                  &target, &converted, &size))
       throw std::runtime_error(SDL_GetError());
+    Kotonoha::SDLMemoryPtr<Uint8> convertedOwner(converted);
     PcmPlayer::Clip clip;
     clip.samples.resize(size / 2);
     std::memcpy(clip.samples.data(), converted, size);
-    SDL_free(converted);
+
     clip.channels = target.channels;
     clip.rate = target.freq;
     auto count = clip.samples.size() / clip.channels;
@@ -2555,10 +2557,12 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
                              (*bytes)[3] == 'S'
                          ? std::move(*bytes)
                          : nwaToWav(*bytes);
-      auto clip = Kotonoha::MediaDecoder::decodeAudio(encoded);
-      assets->noteAudio(overlayVoice, clip);
-      playClip(voice, std::move(clip), "voice:" + std::to_string(voiceId),
-               "Voice");
+      Kotonoha::AudioClip clip;
+      if (Kotonoha::MediaDecoder::tryDecodeAudio(encoded, clip)) {
+        assets->noteAudio(overlayVoice, clip);
+        playClip(voice, std::move(clip), "voice:" + std::to_string(voiceId),
+                 "Voice");
+      }
     } else if (voiceId > 0) {
       SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
                   "Warning: REALLIVE voice missing for index %d", voiceId);
@@ -4125,7 +4129,9 @@ RealLiveRuntime::debugOriginalAudio(const std::string &id) {
                          (*bytes)[3] == 'S'
                      ? std::move(*bytes)
                      : nwaToWav(*bytes);
-  auto clip = Kotonoha::MediaDecoder::decodeAudio(encoded);
+  Kotonoha::AudioClip clip;
+  if (!Kotonoha::MediaDecoder::tryDecodeAudio(encoded, clip))
+    return std::nullopt;
   impl->assets->noteAudio(id, clip);
   return clip;
 }

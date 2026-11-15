@@ -1,5 +1,5 @@
 #pragma once
-#include <Kotonoha/core/FileSystem.hpp>
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/SDL.hpp>
 #include <algorithm>
 #include <array>

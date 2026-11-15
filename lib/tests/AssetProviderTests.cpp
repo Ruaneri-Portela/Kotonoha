@@ -1,7 +1,7 @@
 #include <Kotonoha/core/AssetProvider.hpp>
 #include <Kotonoha/core/CommandLine.hpp>
 #include <Kotonoha/core/Engine.hpp>
-#include <Kotonoha/core/FileSystem.hpp>
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/media/MediaPlayer.hpp>
 
 #include <filesystem>

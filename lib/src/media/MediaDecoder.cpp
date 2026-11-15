@@ -333,6 +333,22 @@ AudioClip decodeAudio(const std::vector<Uint8> &bytes) {
   return clip;
 }
 
+bool tryDecodeAudio(const std::vector<Uint8> &bytes,
+                    AudioClip &output) noexcept {
+  try {
+    output = decodeAudio(bytes);
+    return true;
+  } catch (const std::exception &error) {
+    SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                "[Kotonoha] Cannot decode audio asset: %s", error.what());
+  } catch (...) {
+    SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                "[Kotonoha] Unknown audio decoder failure");
+  }
+  output = {};
+  return false;
+}
+
 bool decodeMonoS16At44100(const std::vector<Uint8> &bytes,
                          std::vector<std::int16_t> &output,
                          const std::atomic_bool *cancelled,

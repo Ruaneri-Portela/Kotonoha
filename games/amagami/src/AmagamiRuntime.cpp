@@ -1,8 +1,9 @@
+#include <Kotonoha/core/SDL.hpp>
 #include "AmagamiRuntime.hpp"
 #include <Kotonoha/components/SettingsMenu.hpp>
 #include <Kotonoha/components/SubtitleScene.hpp>
 #include <Kotonoha/core/Engine.hpp>
-#include <Kotonoha/core/FileSystem.hpp>
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/UI.hpp>
 #include <Kotonoha/debug/DebugOverlay.hpp>
 #include <Kotonoha/events/ControllerEvent.hpp>
@@ -760,6 +761,7 @@ void AmagamiRuntime::audio(const std::string &id, const std::string &channel,
                                  int(clip.data.size()), &dst, &converted,
                                  &bytes))
       throw std::runtime_error(SDL_GetError());
+    Kotonoha::SDLMemoryPtr<Uint8> convertedOwner(converted);
     Kotonoha::PcmPlayer::Clip pcm;
     pcm.channels = dst.channels;
     pcm.rate = dst.freq;
@@ -767,7 +769,7 @@ void AmagamiRuntime::audio(const std::string &id, const std::string &channel,
     pcm.gain = channel == "bgm" ? 0.48f : channel == "ambient" ? 1.0f : 0.8f;
     pcm.samples.resize(bytes / 2);
     std::memcpy(pcm.samples.data(), converted, bytes);
-    SDL_free(converted);
+
     // ADX v4 stores loop samples after its per-channel predictor histories.
     // Trim at loop end so PcmPlayer repeats only the original loop region.
     if (loop) {

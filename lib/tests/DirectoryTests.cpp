@@ -1,6 +1,6 @@
 #include <Kotonoha/core/AssetOverlay.hpp>
 #include <Kotonoha/core/AssetProvider.hpp>
-#include <Kotonoha/core/FileSystem.hpp>
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/Settings.hpp>
 #include <SDL3/SDL.h>
 
@@ -52,8 +52,10 @@ void layouts(const fs::path &root) {
         root / ".local/share"}) {
     locations.userData = base;
     auto layout = directoryLayout(locations, "amagami");
-    require(layout.saves == base / "Kotonoha/com.example.game",
-            "Every desktop uses Kotonoha/package, never the game slug");
+    require(layout.documents == base,
+            "Desktop Documents root excludes the save directory");
+    require(layout.saves == base / "save",
+            "Every desktop uses the package's singular save directory");
     require(layout.engineAssets.front() == locations.resources / "assets",
             "Bundle engine assets take precedence over the working directory");
     require(layout.gameAssets.front() == locations.resources / "game-assets",
@@ -78,7 +80,7 @@ void layouts(const fs::path &root) {
               contains(android.gameAssets, locations.obb) &&
               contains(android.gameAssets, locations.obb / "game_assets"),
           "Android accepts private game_assets and OBB data");
-  require(android.saves == locations.userData / "Kotonoha/com.example.game",
+  require(android.saves == locations.userData / "save",
           "Android saves use external app data, not internal APK resources");
   for (const auto &base :
        {locations.resources, locations.privateGameAssets.parent_path(),
@@ -96,7 +98,9 @@ void layouts(const fs::path &root) {
   locations.obb.clear();
   locations.privateGameAssets.clear();
   auto ios = directoryLayout(locations);
-  require(ios.saves == locations.userData / "Kotonoha/com.example.game",
+  require(ios.documents == locations.userData,
+          "iOS Documents root excludes the save directory");
+  require(ios.saves == locations.userData / "save",
           "iOS saves are namespaced inside Files-accessible Documents");
   require(contains(ios.engineAssets, locations.resources / "assets") &&
               contains(ios.engineAssets, locations.userData / "assets") &&
@@ -112,7 +116,9 @@ void relocation(Fixture &fixture) {
   fs::create_directories("overlay2");
   std::ofstream("overlay2/scene.txt") << "translated";
   EngineSettings settings;
-  settings.assetOverlayPath = (fixture.root / "overlay2").string();
+  settings.assetOverlays.emplace("overlay2",
+                                 (fixture.root / "overlay2").string());
+  settings.assetOverlayName = "overlay2";
   settings.translationPath = (fixture.root / "translation.json").string();
   settings.fontPath = (fixture.root / "custom.ttf").string();
   settings.vnFontPath = (fixture.root / "dialogue.ttf").string();
@@ -122,8 +128,13 @@ void relocation(Fixture &fixture) {
   const auto config = fixture.root / "settings.json";
   settings.save(config.string());
   auto restored = EngineSettings::load(config.string());
-  require(restored.assetOverlayPath == "overlay2",
-          "Settings store only the overlay reference");
+  const auto overlay2Absolute = (fixture.root / "overlay2").string();
+  require(restored.assetOverlays.at("overlay2") == overlay2Absolute,
+          "Settings store the overlay as name -> absolute path");
+  require(restored.assetOverlayName == "overlay2",
+          "Settings store the selected overlay name");
+  require(restored.assetOverlayPath == overlay2Absolute,
+          "Resolved overlay path is the persisted absolute");
   require(
       restored.translationPath == "translation.json" &&
           restored.fontPath == "custom.ttf" &&
@@ -131,16 +142,26 @@ void relocation(Fixture &fixture) {
           UpscaleShaderFiles(restored.upscaling.shaderFiles) ==
               std::vector<std::string>{"first.glsl", "second.glsl"},
       "Translations, fonts and ordered shaders also persist portable names");
-  fs::create_directory("game_assets");
-  fs::rename("overlay2", "game_assets/overlay2");
-  AssetOverlay moved(restored.assetOverlayPath);
-  require(std::filesystem::equivalent(moved.root(),
-                                      fixture.root / "game_assets/overlay2") &&
-              !moved.resolve("scene.txt").empty(),
-          "A saved overlay reference resolves again after relocation");
+  fs::create_directory("relocated");
+  fs::rename("overlay2", "relocated/overlay2");
+  // The persisted absolute no longer exists; without a matching name-based
+  // candidate the overlay resolves to nothing.
+  auto relocated = EngineSettings::load(config.string());
+  require(relocated.assetOverlayPath.empty(),
+          "A missing absolute overlay with no name candidate resolves empty");
+  // Restore the overlay under a name-based candidate location and it resolves
+  // by name.
+  fs::create_directories("overlay2");
+  std::ofstream("overlay2/scene.txt") << "translated";
+  auto foundByName = EngineSettings::load(config.string());
+  require(foundByName.assetOverlayPath == (fixture.root / "overlay2").string(),
+          "The overlay name resolves through the standard folder search");
+  AssetOverlay moved(foundByName.assetOverlayPath);
+  require(!moved.resolve("scene.txt").empty(),
+          "The name-resolved overlay still reads its assets");
   require(FileResolver::referenceName("C:\\old-machine\\overlay2\\") ==
               "overlay2",
-          "Windows saved references are portable to other platforms");
+          "Windows reference names are still portable to other platforms");
 
   fs::create_directory("overlay");
   std::ofstream("overlay/default.txt") << "auto";
@@ -169,9 +190,12 @@ void relocation(Fixture &fixture) {
           "same name");
   require(!gameAssetDirectory().empty(),
           "Empty game argument is valid before a launcher opens");
-  require(saveDirectory().filename() == "org.kotonoha.directories" &&
-              saveDirectory().parent_path().filename() == "Kotonoha",
-          "Runtime save directory uses application package metadata");
+  require(saveDirectory().filename() == "save" &&
+              saveDirectory().parent_path().filename() ==
+                  "org.kotonoha.directories" &&
+              saveDirectory().parent_path().parent_path().filename() ==
+                  "Kotonoha",
+          "Runtime save directory uses metadata and the singular save folder");
   fs::create_directories("assets/fonts");
   std::ofstream("assets/fonts/OFL.txt") << "font license";
   std::ofstream("assets/fonts/invalid.ttf") << "not a font";

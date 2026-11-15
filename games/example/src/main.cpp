@@ -1,6 +1,5 @@
-#define SDL_MAIN_USE_CALLBACKS 1
+#include <Kotonoha/core/SDLCallbackApp.hpp>
 #include <SDL3/SDL.h>
-#include <SDL3/SDL_main.h>
 
 #include "DemoGame.hpp"
 #include <Kotonoha/core/CommandLine.hpp>
@@ -20,7 +19,16 @@ struct Application {
 };
 } // namespace
 
-SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
+// The port owns game-specific initialization and transitions. The shared
+// SDLCallbackApp.hpp defines the four SDL callback entrypoints below.
+struct KotonohaPortCallbacks final {
+  static SDL_AppResult init(void **state, int argc, char **argv);
+  static SDL_AppResult event(void *state, SDL_Event *event);
+  static SDL_AppResult iterate(void *state);
+  static void quit(void *state, SDL_AppResult result);
+};
+
+SDL_AppResult KotonohaPortCallbacks::init(void **appstate, int argc, char **argv) {
   *appstate = nullptr;
   try {
     Kotonoha::EngineOptions options;
@@ -44,7 +52,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
   }
 }
 
-SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event) {
+SDL_AppResult KotonohaPortCallbacks::event(void *appstate, SDL_Event *event) {
   try {
     return static_cast<Application *>(appstate)->engine.Event(event);
   } catch (const std::exception &error) {
@@ -54,7 +62,7 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event) {
   }
 }
 
-SDL_AppResult SDL_AppIterate(void *appstate) {
+SDL_AppResult KotonohaPortCallbacks::iterate(void *appstate) {
   try {
     auto &app = *static_cast<Application *>(appstate);
     const auto result = app.engine.Iterate();
@@ -66,6 +74,8 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
   }
 }
 
-void SDL_AppQuit(void *appstate, SDL_AppResult) {
+void KotonohaPortCallbacks::quit(void *appstate, SDL_AppResult) {
   delete static_cast<Application *>(appstate);
 }
+
+KOTONOHA_SDL_CALLBACK_APP(KotonohaPortCallbacks)

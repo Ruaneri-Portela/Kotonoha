@@ -5,7 +5,6 @@
 namespace Kotonoha::PmailPort {
 
 PmailBacklog::PmailBacklog(Kotonoha::Engine &engine, PmailGame &game)
-    : Kotonoha::VNBacklog(engine) {
-}
+    : Kotonoha::VNBacklog(engine) {}
 
 } // namespace Kotonoha::PmailPort

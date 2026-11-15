@@ -2,7 +2,7 @@
 
 #include <Kotonoha/core/Scene.hpp>
 #include <Pmail/Port.hpp>
-#include <SDL3/SDL.h>
+#include <Kotonoha/core/SDL.hpp>
 #include <SnowRadish/SnowAssets.hpp>
 #include <map>
 #include <memory>
@@ -33,11 +33,12 @@ private:
 
   // Background caching
   std::string renderedBackground_;
-  SDL_Texture *backgroundTexture_ = nullptr;
+  Kotonoha::TexturePtr backgroundTexture_;
+  Kotonoha::TexturePtr sceneTexture_;
 
   // Sprite caching
   struct SpriteTex {
-    SDL_Texture *tex = nullptr;
+    Kotonoha::TexturePtr tex;
     float w = 0, h = 0;
   };
   std::map<std::string, SpriteTex> spriteCache_;

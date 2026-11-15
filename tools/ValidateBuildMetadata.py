@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
-"""Read-only Windows L4 CMake metadata check for this Kotonoha fork.
+"""Read-only Windows L4 CMake and source-safety audit for this Kotonoha fork.
 
-Adapted from Ruaneri's ValidateBuildMetadata.py. Unlike upstream, this fork's
-root CMake still selects game targets directly and has separate legacy CMake
-modules. This intentionally does NOT validate or run Android, Xcode, Linux,
-macOS, iOS or Web configurations; those need separate authorized reviews.
+The upstream root registers games through KotonohaGames/KotonohaOptions; this
+Windows-only audit retains the fork's School Days asset and Git boundaries.
+It intentionally does NOT test Android, Xcode/iOS, macOS, Linux or Web.
 """
 
 from __future__ import annotations
@@ -67,20 +66,33 @@ def validate_git_safety() -> int:
 def validate() -> None:
     root = source(ROOT / "CMakeLists.txt")
     game = source(SCHOOL_DAYS / "CMakeLists.txt")
-    options = re.findall(r"option\(KOTONOHA_BUILD_([A-Z_]+)\b", root)
-    registrations = re.findall(
-        r"if\(KOTONOHA_BUILD_([A-Z_]+)\)\s*"
-        r"add_subdirectory\((games/[^)]+)\)", root,
+    matrix = source(ROOT / "buildsystems" / "cmake" / "KotonohaGames.cmake")
+    options_file = source(ROOT / "buildsystems" / "cmake" / "KotonohaOptions.cmake")
+    rows = re.findall(
+        r'"([A-Z_]+)\|([^|"\n]+)\|(games/[^"\n]+)"', matrix
     )
-    require(options and len(options) == len(set(options)),
-            "Missing or duplicate KOTONOHA_BUILD_* options")
-    require({option for option, _ in registrations} == set(options),
-            "CMake game options and guarded game directories differ")
-    require(len(registrations) == len({path for _, path in registrations}),
-            "Duplicate CMake game directory registration")
-    for _, relative in registrations:
+    require(rows and len(rows) == len({x[0] for x in rows}),
+            "Invalid or duplicate upstream CMake game matrix")
+    require(len(rows) == len({x[1] for x in rows}) ==
+            len({x[2] for x in rows}),
+            "Duplicate game IDs or directories in upstream game matrix")
+    require("option(KOTONOHA_BUILD_${game_option}" in options_file,
+            "Upstream game options are no longer defined by the matrix")
+    require("if(KOTONOHA_BUILD_${game_option})" in root and
+            'add_subdirectory("${game_directory}")' in root,
+            "Root must use upstream game matrix to register games")
+    require(root.index("KotonohaAndroid.cmake") < root.index("project(Kotonoha"),
+            "Android toolchain entry must precede project()")
+    for name in ("KotonohaGames", "KotonohaAndroid", "KotonohaOptions",
+                 "KotonohaReport", "KotonohaCPack"):
+        require(name + ".cmake" in root, f"Missing upstream CMake module {name}")
+    for _, _, relative in rows:
         require((ROOT / relative / "CMakeLists.txt").is_file(),
                 f"Missing registered CMake game: {relative}")
+    require("option(KOTONOHA_DISTRIBUTION_BUILD" in root and
+            "option(KOTONOHA_DEV_CONTROL" in root and
+            "option(KOTONOHA_SCHOOL_DAYS_RETAIL_ONLY" in root,
+            "Missing inherited Windows L4 DEV/DIST/retail-only build gates")
 
     require("target_compile_features(school_days PUBLIC cxx_std_17)" in game,
             "School Days target must remain C++17")
@@ -127,7 +139,7 @@ def validate() -> None:
                 f"Missing cross-language README link: {english.relative_to(ROOT)}")
 
     tracked_count = validate_git_safety()
-    print(f"[Kotonoha] OK: Windows L4 metadata; {len(options)} game options; "
+    print(f"[Kotonoha] OK: Windows L4 metadata; {len(rows)} game options; "
           f"{len(sources)} School Days sources; {tracked_count} tracked paths checked")
     print("[Kotonoha] Skipped: Android, iOS, macOS, Linux, Web metadata")
 

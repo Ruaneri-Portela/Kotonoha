@@ -1,18 +1,21 @@
 #include <Kotonoha/debug/DebugOverlay.hpp>
 #include <Kotonoha/debug/VoiceDubbingApplet.hpp>
 
-#include <Kotonoha/componentes/ChoiceQuestionScene.hpp>
-#include <Kotonoha/componentes/ForcedSubtitleRenderer.hpp>
-#include <Kotonoha/componentes/VNManager.hpp>
-#include <Kotonoha/componentes/VNTextBox.hpp>
+#include <Kotonoha/components/ChoiceQuestionScene.hpp>
+#include <Kotonoha/components/ForcedSubtitleRenderer.hpp>
+#include <Kotonoha/components/VNManager.hpp>
+#include <Kotonoha/components/VNTextBox.hpp>
 #include <Kotonoha/core/Appearance.hpp>
+#include <Kotonoha/core/Config.hpp>
 #include <Kotonoha/core/Engine.hpp>
-#include <Kotonoha/core/FileSystem.hpp>
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/Log.hpp>
 #include <Kotonoha/core/UI.hpp>
 #include <Kotonoha/script/TimelinePlayer.hpp>
 
-#include "ImGuiTheme.hpp"
+#include <Kotonoha/debug/ImGuiTheme.hpp>
+#include <Kotonoha/debug/SystemInfo.hpp>
+#include <Kotonoha/core/BuildVersion.hpp>
 
 #include <imgui.h>
 #include <imgui_impl_sdl3.h>
@@ -21,6 +24,7 @@
 #include <unordered_set>
 
 #include <algorithm>
+#include <cfloat>
 #include <charconv>
 #include <cmath>
 #include <filesystem>
@@ -52,6 +56,38 @@ const char *nodeTypeName(NodeType type) {
 }
 } // namespace
 
+namespace {
+bool isCJKFont(const std::string &name) {
+  return name.find("JP") != std::string::npos ||
+         name.find("Japanese") != std::string::npos ||
+         name.find("CJK") != std::string::npos ||
+         name.find("Gothic") != std::string::npos ||
+         name.find("Mincho") != std::string::npos ||
+         name.find("NotoSans") != std::string::npos;
+}
+
+std::vector<std::string> uiFontNames() {
+  std::vector<std::string> names;
+  try {
+    for (const auto &[name, bytes] : FileResolver::getFontMap()) {
+      (void)bytes;
+      names.push_back(name);
+    }
+  } catch (...) {
+  }
+  std::sort(names.begin(), names.end(),
+            [](const std::string &left, const std::string &right) {
+              const bool leftCJK = isCJKFont(left), rightCJK = isCJKFont(right);
+              if (leftCJK != rightCJK)
+                return leftCJK > rightCJK;
+              return left < right;
+            });
+  if (std::find(names.begin(), names.end(), defaultFontName()) == names.end())
+    names.insert(names.begin(), defaultFontName());
+  return names;
+}
+} // namespace
+
 DebugOverlay::DebugOverlay(Engine &engine) : engine(engine) {
   const auto ktrf =
       documentsDirectory(engine.GetRuntime().identify) / "story.ktnroute";
@@ -69,6 +105,8 @@ DebugOverlay::DebugOverlay(Engine &engine) : engine(engine) {
     ImGui::DestroyContext();
     throw std::runtime_error("Cannot initialize ImGui SDL3 debug backend");
   }
+  // Missing optional system cursors must not hide later SDL failures.
+  SDL_ClearError();
   if (!ImGui_ImplSDLRenderer3_Init(&engine.GetRenderer())) {
     ImGui_ImplSDL3_Shutdown();
     ImGui::DestroyContext();
@@ -81,6 +119,11 @@ DebugOverlay::~DebugOverlay() {
   ImGui_ImplSDLRenderer3_Shutdown();
   ImGui_ImplSDL3_Shutdown();
   ImGui::DestroyContext();
+}
+
+void DebugOverlay::reloadFonts(const std::string &fontPath) {
+  ImGui::SetCurrentContext(ImGui::GetCurrentContext());
+  ImGuiTheme::loadFonts(fontPath);
 }
 
 bool DebugOverlay::handleEvent(EventRef event) {
@@ -155,13 +198,16 @@ void DebugOverlay::update() {
 std::string DebugOverlay::nodeClockText(bool eventClock, bool nodeClock) const {
   const auto node = engine.activeNode();
   if (node.empty())
-    return "Node: --";
+    return settings.nodeLabel + ": --";
   std::ostringstream text;
-  text << "Node: " << node << std::fixed << std::setprecision(2);
+  text << settings.nodeLabel << ": " << node << std::fixed
+       << std::setprecision(2);
   if (eventClock)
-    text << " | Event clock: " << engine.activeEventSeconds() << "s";
+    text << " | " << settings.clockLabel << ": " << engine.activeEventSeconds()
+         << "s";
   if (nodeClock)
-    text << " | Node clock: " << engine.activeNodeSeconds() << "s";
+    text << " | " << settings.nodeLabel
+         << " clock: " << engine.activeNodeSeconds() << "s";
   if (engine.isStoryPaused() ||
       (engine.GetRuntime().debugNode().empty() && engine.usesTimedNodeClock() &&
        engine.GetTimeline().isPaused()))
@@ -171,7 +217,7 @@ std::string DebugOverlay::nodeClockText(bool eventClock, bool nodeClock) const {
 
 std::string DebugOverlay::performanceText(bool milliseconds) const {
   std::ostringstream text;
-  text << "FPS: " << static_cast<int>(fps);
+  text << settings.fpsLabel << ": " << static_cast<int>(fps);
   if (milliseconds)
     text << " | " << std::fixed << std::setprecision(2)
          << (fps > 0 ? 1000 / fps : 0) << " ms";
@@ -225,28 +271,56 @@ void DebugOverlay::renderHUD(RendererRef renderer) {
 }
 
 void DebugOverlay::drawInspector() {
-  ImGui::Checkbox("FPS (window corner)", &settings.showFPS);
-  ImGui::SameLine();
-  ImGui::Checkbox("Node / clock", &settings.showNodeClock);
-  ImGui::Checkbox("Ignore pause (keep the story running)",
-                  &settings.ignorePause);
-  auto draft = engine.GetSettings();
-  if (ImGui::SliderFloat("Debug UI scale", &draft.debugUIScale, 1, 3,
-                         "%.2fx")) {
-    try {
-      engine.applySettings(draft);
-    } catch (const std::exception &error) {
-      status = error.what();
-      statusError = true;
-      SDL_LogError(LogConfig, "Debug UI scale: %s", error.what());
-    }
-  }
+  ImGuiTheme::sectionHeader("KTRF / custom nodes");
   drawKtrfTools();
   drawForcedSubtitlesGenerator();
   if (nodesStale)
     refreshNodes();
   if (ImGui::SmallButton("Refresh node list"))
     refreshNodes();
+  ImGui::SameLine();
+  if (ImGui::Button("Restart current scene")) {
+    try {
+      engine.debugRestartScene();
+      status = "Restarted current scene";
+      statusError = false;
+      nodesStale = true;
+    } catch (const std::exception &error) {
+      status = error.what();
+      statusError = true;
+      SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
+                   "Debug scene restart failed: %s", error.what());
+    }
+  }
+
+  ImGui::SameLine();
+  if (ImGui::Button("Next dialogue / event")) {
+    try {
+      engine.debugAdvanceEvent();
+      status = "Advanced to the next dialogue/event";
+      statusError = false;
+    } catch (const std::exception &error) {
+      status = error.what();
+      statusError = true;
+    }
+  }
+  for (const auto &[label, seconds] :
+       {std::pair{"+0.1s", 0.1}, std::pair{"+1s", 1.0},
+        std::pair{"+5s", 5.0}}) {
+    ImGui::SameLine();
+    if (ImGui::Button(label)) {
+      try {
+        engine.debugAdvanceScene(seconds);
+        status = "Advanced scene by " + std::to_string(seconds) + "s";
+        statusError = false;
+      } catch (const std::exception &error) {
+        status = error.what();
+        statusError = true;
+      }
+    }
+  }
+
+  ImGuiTheme::sectionHeader("Script nodes");
   const auto &custom = cachedRuntimeNodes;
   if (!custom.empty()) {
     drawRuntimeNodes(custom);
@@ -317,7 +391,6 @@ void DebugOverlay::drawInspector() {
       }
     }
   }
-  ImGui::BeginDisabled(engine.GetRuntime().GetState() != GameState::Gameplay);
   if (ImGuiTheme::primaryButton("Jump to selected node")) {
     try {
       manager.debugJumpToNode(selectedNode);
@@ -330,7 +403,6 @@ void DebugOverlay::drawInspector() {
                    error.what());
     }
   }
-  ImGui::EndDisabled();
   const auto &nodes = cachedEngineNodes;
   const auto item =
       std::find_if(nodes.begin(), nodes.end(), [&](const auto &entry) {
@@ -361,6 +433,7 @@ void DebugOverlay::setVisible(bool value) {
     showOptionsWindow = false;
     showTranslationWindow = false;
     showDubbingWindow = false;
+    showInfoWindow = false;
     dubbingApplet->suspend();
     stopPreviewAudio();
   }
@@ -635,19 +708,18 @@ void DebugOverlay::drawAssets(const std::vector<std::string> &nodeAssets) {
 
 void DebugOverlay::refreshTranslationSources() {
   transSourcesStale = false;
+  // Garante que os nodos de runtime (ex: School Days KTRF) estejam carregados
+  // antes de listar as chaves de tradução.
+  if (nodesStale)
+    refreshNodes();
   try {
     cachedManagerSources = GetVNManagerRuntime(engine).translationSources();
-    cachedRuntimeSources.clear();
+    cachedRuntimeSources = engine.GetRuntime().translationSources();
 
     cachedAllNodeKeys.clear();
     std::unordered_set<std::string> uniqueKeys;
     const auto addKey = [&](const std::string &key) {
-      int number = -1;
-      auto parsed =
-          std::from_chars(key.data(), key.data() + key.size(), number);
-      if (key != "nodo" &&
-          (parsed.ec != std::errc{} || parsed.ptr != key.data() + key.size() ||
-           number < 0))
+      if (key.empty())
         return;
       if (uniqueKeys.insert(key).second)
         cachedAllNodeKeys.push_back(key);
@@ -722,6 +794,8 @@ void DebugOverlay::drawTranslationWindow() {
     ImGui::End();
     return;
   }
+  drawMenuBar();
+
   auto &translation = engine.GetTranslation();
   auto &sections = translation.mutableSections();
   auto &manager = GetVNManagerRuntime(engine);
@@ -809,7 +883,7 @@ void DebugOverlay::drawTranslationWindow() {
         !activeNodeKey.empty() ? activeNodeKey : cachedAllNodeKeys.front();
   }
 
-  ImGui::SeparatorText("Script Nodes");
+  ImGuiTheme::sectionHeader("Script Nodes");
   ImGui::InputText("Buscar Nodo/Chave", transSearchFilter,
                    sizeof(transSearchFilter));
 
@@ -854,7 +928,7 @@ void DebugOverlay::drawTranslationWindow() {
   ImGui::EndChild();
 
   if (!selectedTransNodeStr.empty()) {
-    ImGui::SeparatorText(
+    ImGuiTheme::sectionHeader(
         ("Node " + selectedTransNodeStr + " Scene Strings").c_str());
 
     std::vector<std::string> stringsToTranslate;
@@ -913,7 +987,33 @@ void DebugOverlay::drawTranslationWindow() {
         for (const auto &s : rIt->second)
           addString(s);
       }
+    } else {
+      // Chave não numérica (ex: School Days scene key
+      // "sdhq:node:00/00-00-A05"). Mostra as legendas da cena atual quando a
+      // chave corresponde ao nodo ativo.
+      if (selectedTransNodeStr == engine.GetRuntime().debugNode()) {
+        auto texts = engine.GetRuntime().translationTexts(0);
+        for (const auto &s : texts)
+          addString(s);
+      }
+      // Também expõe rótulos dos nodos de runtime que correspondam à chave.
+      for (const auto &rtNode : cachedRuntimeNodes) {
+        if (rtNode.id == selectedTransNodeStr ||
+            rtNode.label == selectedTransNodeStr)
+          addString(rtNode.label);
+      }
+      for (const auto &engNode : cachedEngineNodes) {
+        if (engNode.id == selectedTransNodeStr ||
+            engNode.label == selectedTransNodeStr)
+          addString(engNode.label);
+      }
     }
+
+    // Always include the currently displayed subtitle/scene strings so live
+    // translation can find and update them even for runtimes without a VN
+    // manager (e.g. School Days).
+    for (const auto &key : activeKeys)
+      addString(key);
 
     if (stringsToTranslate.empty() &&
         nodeInt == engine.GetRuntime().translationRoute()) {
@@ -1049,8 +1149,183 @@ void DebugOverlay::drawTranslationExport() {
                    "Translation export failed: %s", error.what());
     }
   }
-  if (!status.empty())
-    ImGuiTheme::statusText(status.c_str(), statusError);
+}
+
+void DebugOverlay::drawMenuBar() {
+  if (!ImGui::BeginMenuBar())
+    return;
+  if (ImGui::BeginMenu("System")) {
+    if (ImGui::MenuItem("Open system menu")) {
+      setVisible(false);
+      engine.openSettings();
+    }
+    if (ImGui::MenuItem("Restart current scene")) {
+      try {
+        engine.debugRestartScene();
+        status = "Restarted current scene";
+        statusError = false;
+        nodesStale = transSourcesStale = true;
+      } catch (const std::exception &error) {
+        status = error.what();
+        statusError = true;
+      }
+    }
+    if (ImGui::MenuItem("Close debug UI", "F10"))
+      setVisible(false);
+    ImGui::EndMenu();
+  }
+  if (ImGui::BeginMenu("View")) {
+    ImGui::MenuItem("FPS", "F9", &settings.showFPS);
+    ImGui::MenuItem("Node / clock", "F8", &settings.showNodeClock);
+    ImGui::MenuItem("Ignore pause", nullptr, &settings.ignorePause);
+    ImGui::EndMenu();
+  }
+  if (ImGui::BeginMenu("Applets")) {
+    if (ImGui::MenuItem("Options", nullptr, showOptionsWindow))
+      showOptionsWindow = true;
+    if (ImGui::MenuItem("Translation", "F7", showTranslationWindow)) {
+      showTranslationWindow = true;
+      transSourcesStale = true;
+    }
+    if (ImGui::MenuItem("Dubbing", nullptr, showDubbingWindow))
+      showDubbingWindow = true;
+    if (ImGui::MenuItem("System information", nullptr, showInfoWindow))
+      showInfoWindow = true;
+    ImGui::EndMenu();
+  }
+  if (ImGui::BeginMenu("Help")) {
+    if (ImGui::MenuItem("Build version and SDL diagnostics"))
+      showInfoWindow = true;
+    ImGui::Separator();
+    ImGui::MenuItem("F10 toggles this debug UI", nullptr, false, false);
+    ImGui::MenuItem("F7 opens the translation editor", nullptr, false, false);
+    ImGui::MenuItem("Esc closes the debug UI", nullptr, false, false);
+    ImGui::EndMenu();
+  }
+  ImGui::EndMenuBar();
+}
+
+void DebugOverlay::drawAppletHub() {
+  if (!visible)
+    return;
+  auto &io = ImGui::GetIO();
+  ImGui::SetNextWindowSize(
+      ImVec2(std::min(760 * contentScale, io.DisplaySize.x),
+             std::min(720 * contentScale, io.DisplaySize.y)),
+      ImGuiCond_FirstUseEver);
+  if (ImGui::Begin("Kotonoha Debug Applets [F10]", &visible,
+                   ImGuiWindowFlags_MenuBar)) {
+    drawMenuBar();
+    ImGui::TextColored(ImGuiTheme::accent(), "KOTONOHA / DEBUG");
+    ImGui::TextDisabled("Engine %s  |  Commit %s",
+                        BuildVersion::Base, BuildVersion::ShortCommit);
+    ImGui::TextWrapped("Branch: %s", BuildVersion::Branch);
+    ImGuiTheme::sectionHeader("Applets");
+    ImGui::TextWrapped("Inspect the current game, change settings, or open "
+                       "individual tools. All applets can be moved and "
+                       "resized independently.");
+    const float available = ImGui::GetContentRegionAvail().x;
+    const bool twoColumns = available >= 320 * contentScale;
+    const float gap = ImGui::GetStyle().ItemSpacing.x;
+    const float width = twoColumns ? (available - gap) * .5f : available;
+    const ImVec2 buttonSize(width, 42 * contentScale);
+    if (ImGuiTheme::primaryButton("Settings", buttonSize))
+      showOptionsWindow = true;
+    if (twoColumns) ImGui::SameLine();
+    if (ImGuiTheme::primaryButton("Translation", buttonSize)) {
+      showTranslationWindow = true;
+      transSourcesStale = true;
+    }
+    if (ImGuiTheme::primaryButton("Voice dubbing", buttonSize))
+      showDubbingWindow = true;
+    if (twoColumns) ImGui::SameLine();
+    if (ImGuiTheme::primaryButton("System info", buttonSize))
+      showInfoWindow = true;
+    ImGui::SeparatorText("Scene inspector");
+    drawInspector();
+    if (!status.empty())
+      ImGuiTheme::statusText(status.c_str(), statusError);
+  }
+  ImGui::End();
+}
+
+void DebugOverlay::drawOptionsWindow() {
+  if (!showOptionsWindow)
+    return;
+  auto &io = ImGui::GetIO();
+  ImGui::SetNextWindowSize(
+      ImVec2(std::min(720 * contentScale, io.DisplaySize.x),
+             std::min(640 * contentScale, io.DisplaySize.y)),
+      ImGuiCond_FirstUseEver);
+  if (ImGui::Begin("Options Applet", &showOptionsWindow,
+                   ImGuiWindowFlags_MenuBar)) {
+    drawMenuBar();
+    if (ImGui::BeginTabBar("##options-tabs", ImGuiTabBarFlags_Reorderable)) {
+      if (ImGui::BeginTabItem("Interface")) {
+        drawInterfaceTools();
+        ImGui::EndTabItem();
+      }
+      if (ImGui::BeginTabItem("Audio")) {
+        drawAudioTools();
+        ImGui::EndTabItem();
+      }
+      if (ImGui::BeginTabItem("Display")) {
+        drawDisplayTools();
+        ImGui::EndTabItem();
+      }
+      if (ImGui::BeginTabItem("Dialogue")) {
+        drawDialogueTools();
+        ImGui::EndTabItem();
+      }
+      if (ImGui::BeginTabItem("Logs")) {
+        drawLogs();
+        ImGui::EndTabItem();
+      }
+      if (ImGui::BeginTabItem("System info")) {
+        drawSystemInfoPanel(&engine.GetWindow(), &engine.GetRenderer());
+        ImGui::EndTabItem();
+      }
+      ImGui::EndTabBar();
+    }
+    if (!status.empty())
+      ImGuiTheme::statusText(status.c_str(), statusError);
+  }
+  ImGui::End();
+}
+
+void DebugOverlay::drawDubbingWindow() {
+  if (!showDubbingWindow)
+    return;
+  auto &io = ImGui::GetIO();
+  ImGui::SetNextWindowSize(
+      ImVec2(std::min(760 * contentScale, io.DisplaySize.x),
+             std::min(700 * contentScale, io.DisplaySize.y)),
+      ImGuiCond_FirstUseEver);
+  const bool wasOpen = showDubbingWindow;
+  if (ImGui::Begin("Dubbing Applet", &showDubbingWindow,
+                   ImGuiWindowFlags_MenuBar)) {
+    drawMenuBar();
+    drawDubbingTools();
+  }
+  ImGui::End();
+  if (wasOpen && !showDubbingWindow)
+    dubbingApplet->suspend();
+}
+
+void DebugOverlay::drawInfoWindow() {
+  if (!showInfoWindow)
+    return;
+  const auto size = ImGui::GetIO().DisplaySize;
+  ImGui::SetNextWindowSize(
+      ImVec2(std::min(800.0f * contentScale, size.x),
+             std::min(700.0f * contentScale, size.y)),
+      ImGuiCond_FirstUseEver);
+  if (ImGui::Begin("System Information / SDL3", &showInfoWindow,
+                   ImGuiWindowFlags_MenuBar)) {
+    drawMenuBar();
+    drawSystemInfoPanel(&engine.GetWindow(), &engine.GetRenderer());
+  }
+  ImGui::End();
 }
 
 void DebugOverlay::renderMenu(RendererRef renderer) {
@@ -1063,16 +1338,31 @@ void DebugOverlay::renderMenu(RendererRef renderer) {
   int pixelWidth = 0, pixelHeight = 0;
   if (!SDL_GetCurrentRenderOutputSize(&renderer, &pixelWidth, &pixelHeight))
     throw std::runtime_error(SDL_GetError());
-  if (io.DisplaySize.x <= 0 || io.DisplaySize.y <= 0 || pixelWidth <= 0 ||
-      pixelHeight <= 0)
-    return;
+  // Headless/dummy video drivers report a 0x0 output size.  Fall back to the
+  // ImGui display size (or a sane default) so the debug UI can still process
+  // frames in headless test environments instead of bailing out early.
+  if (pixelWidth <= 0 || pixelHeight <= 0) {
+    if (io.DisplaySize.x > 0 && io.DisplaySize.y > 0) {
+      pixelWidth = static_cast<int>(io.DisplaySize.x);
+      pixelHeight = static_cast<int>(io.DisplaySize.y);
+    } else {
+      pixelWidth = 1280;
+      pixelHeight = 720;
+    }
+  }
+  if (io.DisplaySize.x <= 0 || io.DisplaySize.y <= 0) {
+    io.DisplaySize = {(float)pixelWidth, (float)pixelHeight};
+  }
   io.DisplayFramebufferScale = {pixelWidth / io.DisplaySize.x,
                                 pixelHeight / io.DisplaySize.y};
   // Retina already uses points. Scale layout only for content scaling not
   // represented by the framebuffer density (e.g. Windows display scaling).
   const float displayScale = SDL_GetWindowDisplayScale(&engine.GetWindow());
   const float pixelDensity = SDL_GetWindowPixelDensity(&engine.GetWindow());
-  if (displayScale <= 0 || pixelDensity <= 0)
+  // Headless drivers may report 0 for display scale / pixel density.
+  if (displayScale <= 0)
+    throw std::runtime_error(SDL_GetError());
+  if (pixelDensity <= 0)
     throw std::runtime_error(SDL_GetError());
   const float scale =
       displayScale / pixelDensity * engine.GetSettings().debugUIScale;
@@ -1081,22 +1371,11 @@ void DebugOverlay::renderMenu(RendererRef renderer) {
     contentScale = scale;
   }
   ImGui::NewFrame();
-  if (visible) {
-    ImGui::SetNextWindowSize(ImVec2(std::min(650 * scale, io.DisplaySize.x),
-                                    std::min(650 * scale, io.DisplaySize.y)),
-                             ImGuiCond_FirstUseEver);
-    if (ImGui::Begin("Kotonoha Debug [F10]", &visible)) {
-      if (ImGuiTheme::primaryButton("Dubbing"))
-        showDubbingWindow = true;
-      ImGui::SameLine();
-      ImGui::TextDisabled("Record and replace voice lines");
-      drawInspector();
-      drawEngineTools();
-    }
-    ImGui::End();
-  }
+  drawAppletHub();
+  drawOptionsWindow();
   drawTranslationWindow();
   drawDubbingWindow();
+  drawInfoWindow();
   if (!isVisible())
     stopPreviewAudio();
   ImGui::Render();
@@ -1110,25 +1389,83 @@ void DebugOverlay::renderMenu(RendererRef renderer) {
   ImGui_ImplSDLRenderer3_RenderDrawData(ImGui::GetDrawData(), &renderer);
 }
 
-void DebugOverlay::drawDubbingWindow() {
-  if (!showDubbingWindow)
-    return;
-  auto &io = ImGui::GetIO();
-  ImGui::SetNextWindowSize(
-      ImVec2(std::min(760 * contentScale, io.DisplaySize.x),
-             std::min(700 * contentScale, io.DisplaySize.y)),
-      ImGuiCond_FirstUseEver);
-  const bool wasOpen = showDubbingWindow;
-  if (ImGui::Begin("Dubbing Applet", &showDubbingWindow))
-    dubbingApplet->draw();
-  ImGui::End();
-  if (wasOpen && !showDubbingWindow)
-    dubbingApplet->suspend();
+void DebugOverlay::applyUIFont(const std::string &fontPath) {
+  auto draft = engine.GetSettings();
+  draft.fontPath = fontPath.empty() ? defaultFontName() : fontPath;
+  try {
+    engine.applySettings(draft);
+    status = "UI font applied: " + draft.fontPath;
+    statusError = false;
+  } catch (const std::exception &error) {
+    status = error.what();
+    statusError = true;
+    SDL_LogError(LogConfig, "UI font: %s", error.what());
+  }
 }
 
-void DebugOverlay::drawEngineTools() {
-  ImGui::SeparatorText("Engine");
-  if (ImGui::CollapsingHeader("Audio channels")) {
+void DebugOverlay::drawInterfaceTools() {
+  ImGuiTheme::cardBegin("card_interface", false, nullptr);
+  {
+    ImGuiTheme::sectionHeader("UI font");
+    if (availableUIFonts.empty())
+      availableUIFonts = uiFontNames();
+    auto draft = engine.GetSettings();
+    const std::string current = draft.fontPath.empty()
+                                    ? std::string(defaultFontName())
+                                    : draft.fontPath;
+    ImGui::SetNextItemWidth(-FLT_MIN);
+    if (ImGui::BeginCombo("##uiFontCombo", current.c_str())) {
+      for (const auto &font : availableUIFonts) {
+        const auto label =
+            isCJKFont(font) ? font + " [CJK / JP]" : font + " [Latin]";
+        const bool selected =
+            font == draft.fontPath ||
+            (draft.fontPath.empty() && font == defaultFontName());
+        if (ImGui::Selectable(label.c_str(), selected)) {
+          applyUIFont(font);
+          uiFontDraft = font;
+        }
+      }
+      ImGui::EndCombo();
+    }
+    ImGui::SetNextItemWidth(-FLT_MIN);
+    if (!uiFontDraftReady) {
+      uiFontDraft = current;
+      uiFontDraftReady = true;
+    }
+    ImGui::InputText("##uiFontPath", &uiFontDraft);
+    if (ImGui::Button("Apply font"))
+      applyUIFont(uiFontDraft);
+    ImGui::SameLine();
+    if (ImGui::Button("Reset to NotoSansJP")) {
+      uiFontDraft = defaultFontName();
+      applyUIFont(defaultFontName());
+    }
+    ImGui::SameLine();
+    if (ImGui::SmallButton("Refresh list"))
+      availableUIFonts.clear();
+    ImGui::TextWrapped(
+        "Applies immediately to the SDL UI, ImGui, Debug UI and the "
+        "FPS / node / clock HUD. Empty uses the engine default (%s).",
+        defaultFontName());
+    ImGui::SeparatorText("Debug UI scale");
+    if (ImGui::SliderFloat("Scale", &draft.debugUIScale, 1, 3, "%.2fx")) {
+      try {
+        engine.applySettings(draft);
+      } catch (const std::exception &error) {
+        status = error.what();
+        statusError = true;
+        SDL_LogError(LogConfig, "Debug UI scale: %s", error.what());
+      }
+    }
+  }
+  ImGuiTheme::cardEnd();
+}
+
+void DebugOverlay::drawAudioTools() {
+  ImGuiTheme::cardBegin("card_audio", false, nullptr);
+  {
+    ImGuiTheme::sectionHeader("Audio channels");
     auto draft = engine.GetSettings();
     bool changed =
         ImGui::SliderFloat("Master volume", &draft.masterVolume, 0, 1, "%.2f");
@@ -1142,30 +1479,60 @@ void DebugOverlay::drawEngineTools() {
         SDL_LogError(LogMedia, "Master volume: %s", error.what());
       }
     }
-    for (const auto &channel : engine.GetAudio().getChannels()) {
-      ImGui::PushID(channel->getName().c_str());
-      ImGui::TextColored(ImGuiTheme::accent(), "%s",
-                         channel->getName().c_str());
-      ImGui::SameLine();
-      ImGui::TextDisabled("%zu streams", channel->activeStreams());
-      float volume = channel->getVolume();
-      bool muted = channel->isMuted();
-      try {
-        if (ImGui::SliderFloat("Volume", &volume, 0, 1, "%.2f"))
+    if (ImGui::BeginTable("audio channels", 4,
+                          ImGuiTableFlags_RowBg | ImGuiTableFlags_Borders |
+                              ImGuiTableFlags_NoSavedSettings |
+                              ImGuiTableFlags_SizingFixedFit)) {
+      ImGui::TableSetupColumn("Channel", ImGuiTableColumnFlags_WidthStretch,
+                              1.0f);
+      ImGui::TableSetupColumn("Streams", ImGuiTableColumnFlags_WidthFixed,
+                              90.0f);
+      ImGui::TableSetupColumn("Volume", ImGuiTableColumnFlags_WidthStretch,
+                              2.0f);
+      ImGui::TableSetupColumn("Mute", ImGuiTableColumnFlags_WidthFixed, 60.0f);
+      ImGui::TableHeadersRow();
+      for (const auto &channel : engine.GetAudio().getChannels()) {
+        ImGui::TableNextRow();
+        ImGui::TableSetColumnIndex(0);
+        ImGui::PushID(channel->getName().c_str());
+        ImGui::PushStyleColor(ImGuiCol_Text, ImGuiTheme::accent());
+        ImGui::TextUnformatted(channel->getName().c_str());
+        ImGui::PopStyleColor();
+        ImGui::TableSetColumnIndex(1);
+        ImGui::TextDisabled("%zu streams", channel->activeStreams());
+        ImGui::TableSetColumnIndex(2);
+        float volume = channel->getVolume();
+        ImGui::SetNextItemWidth(-FLT_MIN);
+        if (ImGui::SliderFloat("##volume", &volume, 0, 1, "%.2f"))
           channel->setVolume(volume);
-        ImGui::SameLine();
-        if (ImGui::Checkbox("Mute", &muted))
+        ImGui::TableSetColumnIndex(3);
+        bool muted = channel->isMuted();
+        if (ImGui::Checkbox("##mute", &muted))
           channel->setMuted(muted);
-      } catch (const std::exception &error) {
-        status = error.what();
-        statusError = true;
-        SDL_LogError(LogMedia, "Audio channel '%s': %s",
-                     channel->getName().c_str(), error.what());
+        try {
+          // Re-read in case the channel mutated state externally.
+          volume = channel->getVolume();
+          muted = channel->isMuted();
+        } catch (const std::exception &error) {
+          status = error.what();
+          statusError = true;
+          SDL_LogError(LogMedia, "Audio channel '%s': %s",
+                       channel->getName().c_str(), error.what());
+        }
+        ImGui::PopID();
       }
-      ImGui::PopID();
+      ImGui::EndTable();
     }
   }
-  if (ImGui::CollapsingHeader("Window / renderer / upscaler")) {
+  ImGuiTheme::cardEnd();
+}
+
+void DebugOverlay::drawDubbingTools() { dubbingApplet->draw(); }
+
+void DebugOverlay::drawDisplayTools() {
+  ImGuiTheme::cardBegin("card_display", false, nullptr);
+  {
+    ImGuiTheme::sectionHeader("Window / renderer / upscaler");
     const auto &settings = engine.GetSettings();
     ImGui::Text("Window: %dx%d | display: %d | VSync: %s", settings.width,
                 settings.height, settings.display + 1,
@@ -1284,7 +1651,13 @@ void DebugOverlay::drawEngineTools() {
     ImGui::TextWrapped("Renderer selection requires restart (--renderer). "
                        "F11 / Alt+Enter toggles borderless fullscreen.");
   }
-  if (ImGui::CollapsingHeader("Dialogue appearance")) {
+  ImGuiTheme::cardEnd();
+}
+
+void DebugOverlay::drawDialogueTools() {
+  ImGuiTheme::cardBegin("card_dialogue", false, nullptr);
+  {
+    ImGuiTheme::sectionHeader("Dialogue appearance");
     auto draft = engine.GetSettings();
     bool changed = false;
     if (availableVNFonts.empty())
@@ -1335,7 +1708,12 @@ void DebugOverlay::drawEngineTools() {
     ImGui::TextWrapped("These engine settings are available even when a port "
                        "has no in-game Settings screen.");
   }
-  if (ImGui::CollapsingHeader("Logs")) {
+  ImGuiTheme::cardEnd();
+}
+
+void DebugOverlay::drawLogs() {
+  ImGuiTheme::cardBegin("card_logs", false, nullptr);
+  {
     ImGui::InputText("Filter", logFilter, sizeof(logFilter));
     const char *priorities[]{"Trace",   "Verbose", "Debug",   "Info",
                              "Warning", "Error",   "Critical"};
@@ -1346,37 +1724,64 @@ void DebugOverlay::drawEngineTools() {
     ImGui::SameLine();
     if (ImGui::Button("Clear logs"))
       Log::clear();
-    ImGui::BeginChild("Engine logs", ImVec2(0, 230), ImGuiChildFlags_Borders);
-    const auto entries = Log::entries();
-    std::vector<const LogEntry *> shown;
-    shown.reserve(entries.size());
-    for (const auto &entry : entries)
-      if (entry.priority >= minimumLogPriority &&
-          (!*logFilter || entry.message.find(logFilter) != std::string::npos))
-        shown.push_back(&entry);
-    ImGuiListClipper logClipper;
-    logClipper.Begin(static_cast<int>(shown.size()));
-    while (logClipper.Step())
-      for (int i = logClipper.DisplayStart; i < logClipper.DisplayEnd; ++i) {
-        const auto &entry = *shown[static_cast<std::size_t>(i)];
-        const bool tinted = entry.priority != SDL_LOG_PRIORITY_INFO;
-        if (tinted)
-          ImGui::PushStyleColor(
-              ImGuiCol_Text,
-              entry.priority >= SDL_LOG_PRIORITY_ERROR  ? ImGuiTheme::error()
-              : entry.priority == SDL_LOG_PRIORITY_WARN ? ImGuiTheme::warning()
-                                                        : ImGuiTheme::muted());
-        ImGui::Text("%llu [%d:%d] %s",
-                    static_cast<unsigned long long>(entry.milliseconds),
-                    entry.category, static_cast<int>(entry.priority),
-                    entry.message.c_str());
-        if (tinted)
-          ImGui::PopStyleColor();
-      }
-    if (followLogs)
-      ImGui::SetScrollHereY(1);
-    ImGui::EndChild();
+    if (ImGui::BeginTable("engine logs", 4,
+                          ImGuiTableFlags_RowBg | ImGuiTableFlags_Borders |
+                              ImGuiTableFlags_NoSavedSettings |
+                              ImGuiTableFlags_ScrollY,
+                          ImVec2(0, 300))) {
+      ImGui::TableSetupScrollFreeze(0, 1);
+      ImGui::TableSetupColumn("Time", ImGuiTableColumnFlags_WidthFixed, 60.0f);
+      ImGui::TableSetupColumn("Priority", ImGuiTableColumnFlags_WidthFixed,
+                              80.0f);
+      ImGui::TableSetupColumn("Category", ImGuiTableColumnFlags_WidthFixed,
+                              70.0f);
+      ImGui::TableSetupColumn("Message", ImGuiTableColumnFlags_WidthStretch);
+      ImGui::TableHeadersRow();
+      const auto entries = Log::entries();
+      std::vector<const LogEntry *> shown;
+      shown.reserve(entries.size());
+      for (const auto &entry : entries)
+        if (entry.priority >= minimumLogPriority &&
+            (!*logFilter || entry.message.find(logFilter) != std::string::npos))
+          shown.push_back(&entry);
+      ImGuiListClipper logClipper;
+      logClipper.Begin(static_cast<int>(shown.size()));
+      while (logClipper.Step())
+        for (int i = logClipper.DisplayStart; i < logClipper.DisplayEnd; ++i) {
+          const auto &entry = *shown[static_cast<std::size_t>(i)];
+          ImGui::TableNextRow();
+          ImGui::TableSetColumnIndex(0);
+          ImGui::TextDisabled("%llu ms", entry.milliseconds);
+          ImGui::TableSetColumnIndex(1);
+          const bool tinted = entry.priority != SDL_LOG_PRIORITY_INFO;
+          if (tinted)
+            ImGui::PushStyleColor(ImGuiCol_Text,
+                                  entry.priority >= SDL_LOG_PRIORITY_ERROR
+                                      ? ImGuiTheme::error()
+                                  : entry.priority == SDL_LOG_PRIORITY_WARN
+                                      ? ImGuiTheme::warning()
+                                      : ImGuiTheme::muted());
+          const char *priorityName =
+              entry.priority <= SDL_LOG_PRIORITY_TRACE   ? "Trace"
+              : entry.priority == SDL_LOG_PRIORITY_DEBUG ? "Debug"
+              : entry.priority == SDL_LOG_PRIORITY_INFO  ? "Info"
+              : entry.priority == SDL_LOG_PRIORITY_WARN  ? "Warning"
+              : entry.priority == SDL_LOG_PRIORITY_ERROR ? "Error"
+                                                         : "Critical";
+          ImGui::TextUnformatted(priorityName);
+          if (tinted)
+            ImGui::PopStyleColor();
+          ImGui::TableSetColumnIndex(2);
+          ImGui::TextDisabled("%d", entry.category);
+          ImGui::TableSetColumnIndex(3);
+          ImGui::TextWrapped("%s", entry.message.c_str());
+        }
+      if (followLogs)
+        ImGui::SetScrollHereY(1);
+      ImGui::EndTable();
+    }
   }
+  ImGuiTheme::cardEnd();
 }
 
 } // namespace Kotonoha

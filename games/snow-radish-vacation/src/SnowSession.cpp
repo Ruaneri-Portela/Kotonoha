@@ -4,14 +4,14 @@
 #include <Kotonoha/components/VNSave.hpp>
 #include <Kotonoha/components/VNTextBox.hpp>
 #include <Kotonoha/core/Engine.hpp>
-#include <Kotonoha/core/FileSystem.hpp>
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/media/upscaling/Upscaler.hpp>
 
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
-#include <fstream>
+#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <sstream>
 
 namespace SnowRadish {
@@ -53,7 +53,7 @@ std::string FindFont() {
 }
 
 std::vector<uint8_t> ReadFile(const std::filesystem::path &path) {
-  std::ifstream in(path, std::ios::binary);
+  Kotonoha::Filesystem::InputFile in(path, std::ios::binary);
   return std::vector<uint8_t>((std::istreambuf_iterator<char>(in)), {});
 }
 
@@ -239,7 +239,7 @@ void SnowSession::PersistCleared(bool flag) {
   if (muted_ || cleared_ == flag || systemPath_.empty())
     return;
   const char system[] = {83, 82, 86, 1, char(flag)};
-  std::ofstream out(systemPath_, std::ios::binary | std::ios::trunc);
+  Kotonoha::Filesystem::OutputFile out(systemPath_, std::ios::binary | std::ios::trunc);
   out.write(system, sizeof system);
   out.flush();
   if (out)

@@ -3,49 +3,51 @@
 #include <algorithm>
 #include <cctype>
 #include <cstring>
-#include <fstream>
+#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
+#include <Kotonoha/Filesystem/Path.hpp>
+#include <utility>
 #include <stdexcept>
 
 namespace Kotonoha::Providers {
 using namespace SnowRadish;
 namespace {
 
-std::filesystem::path FindIgnoreCase(const std::filesystem::path &dir,
-                                     const std::string &file) {
-  std::error_code ec;
-  const std::string want = SnowAssets::Lower(file);
-  for (const auto &entry : std::filesystem::directory_iterator(dir, ec))
-    if (entry.is_regular_file(ec) &&
-        SnowAssets::Lower(entry.path().filename().string()) == want)
-      return entry.path();
+std::vector<uint8_t> ReadFile(
+    const Kotonoha::Filesystem::Filesystem &source,
+    const std::filesystem::path &path) {
+  return Kotonoha::Filesystem::readAll(
+      *source.open(path.generic_string()));
+}
+
+std::filesystem::path FindPackDirectory(
+    const Kotonoha::Filesystem::Filesystem &source) {
+  for (const char *candidate : {"", "pack", "data/pack"}) {
+    const auto prefix = std::string(candidate);
+    const auto name = prefix.empty() ? "SCRIPT.DAT" : prefix + "/SCRIPT.DAT";
+    const auto graphic = prefix.empty() ? "GRAPHIC.DAT" : prefix + "/GRAPHIC.DAT";
+    if (source.exists(name) && source.exists(graphic) &&
+        source.stat(name).type == Kotonoha::Filesystem::FileType::Regular &&
+        source.stat(graphic).type == Kotonoha::Filesystem::FileType::Regular)
+      return prefix;
+  }
   return {};
 }
 
-std::vector<uint8_t> ReadFile(const std::filesystem::path &path) {
-  std::ifstream in(path, std::ios::binary);
-  return std::vector<uint8_t>((std::istreambuf_iterator<char>(in)), {});
-}
-
-std::filesystem::path FindPackDirectory(const std::filesystem::path &root) {
-  for (const auto &candidate : {root, root / "pack", root / "PACK",
-                                root / "data" / "pack", root / "DATA" / "PACK"})
-    if (!FindIgnoreCase(candidate, "SCRIPT.DAT").empty() &&
-        !FindIgnoreCase(candidate, "GRAPHIC.DAT").empty())
-      return candidate;
-  return root;
-}
-
 std::map<std::string, PackEntry>
-ReadDirectory(const std::filesystem::path &path, bool byStem) {
+ReadDirectory(const Kotonoha::Filesystem::Filesystem &source,
+              const std::filesystem::path &path, bool byStem) {
   std::map<std::string, PackEntry> index;
-  std::ifstream in(path, std::ios::binary | std::ios::ate);
+  auto handle = source.open(path.generic_string());
+  Kotonoha::Filesystem::InputFile in(std::move(handle));
+  in.seekg(0, std::ios::end);
   if (!in)
     return index;
-  const size_t size = size_t(in.tellg());
-  if (size < 12)
+  const auto length = in.tellg();
+  if (length < 12)
     return index;
+  const auto size = static_cast<std::size_t>(length);
   uint8_t footer[12];
-  in.seekg(std::streamoff(size - 12));
+  in.seekg(static_cast<std::streamoff>(size - 12));
   if (!in.read(reinterpret_cast<char *>(footer), sizeof(footer)))
     return index;
   auto word = [](const uint8_t *p) {
@@ -59,7 +61,7 @@ ReadDirectory(const std::filesystem::path &path, bool byStem) {
     return index;
   const size_t directoryOffset = size - 12 - packedSize;
   std::vector<uint8_t> packed(packedSize), raw(rawSize);
-  in.seekg(std::streamoff(directoryOffset));
+  in.seekg(static_cast<std::streamoff>(directoryOffset));
   if (!in.read(reinterpret_cast<char *>(packed.data()), packed.size()))
     return index;
   lzssDecode(packed.data(), packed.size(), raw.data(), raw.size());
@@ -122,28 +124,42 @@ std::string SnowAssets::Lower(std::string s) {
 }
 
 SnowAssets::SnowAssets(std::filesystem::path directory)
-    : directory_(FindPackDirectory(directory)) {
-  std::error_code ec;
-  if (!std::filesystem::is_directory(directory_, ec))
-    throw std::runtime_error("Snow Radish data directory not found: " +
-                             directory_.string());
-  scriptPath_ = FindIgnoreCase(directory_, "SCRIPT.DAT");
-  graphic_.path = FindIgnoreCase(directory_, "GRAPHIC.DAT");
-  sound_.path = FindIgnoreCase(directory_, "SOUND.DAT");
-  voice_.path = FindIgnoreCase(directory_, "VOICE.DAT");
+    : SnowAssets(Kotonoha::Filesystem::Filesystem::mount(
+          directory.string())) {
+  directory_ = std::move(directory);
+}
+
+SnowAssets::SnowAssets(
+    std::shared_ptr<Kotonoha::Filesystem::Filesystem> source)
+    : source_(std::move(source)) {
+  if (!source_)
+    throw std::invalid_argument("SnowAssets requires a virtual source");
+  const auto packDirectory = FindPackDirectory(*source_);
+  const auto base = packDirectory.empty()
+      ? std::string{} : packDirectory.generic_string() + "/";
+  const auto choose = [&](const char *name) -> std::filesystem::path {
+    const auto path = base + name;
+    if (source_->exists(path) &&
+        source_->stat(path).type == Kotonoha::Filesystem::FileType::Regular)
+      return path;
+    return {};
+  };
+  scriptPath_ = choose("SCRIPT.DAT");
+  graphic_.path = choose("GRAPHIC.DAT");
+  sound_.path = choose("SOUND.DAT");
+  voice_.path = choose("VOICE.DAT");
   if (scriptPath_.empty() || graphic_.path.empty())
-    throw std::runtime_error("SCRIPT.DAT / GRAPHIC.DAT not found in " +
-                             directory_.string());
-  graphic_.index = ReadDirectory(graphic_.path, false);
+    throw std::runtime_error("SCRIPT.DAT / GRAPHIC.DAT missing from Snow VFS");
+
+  graphic_.index = ReadDirectory(*source_, graphic_.path, false);
   if (graphic_.index.empty())
-    throw std::runtime_error("GRAPHIC.DAT has no entries: " +
-                             graphic_.path.string());
+    throw std::runtime_error("GRAPHIC.DAT has no indexed entries");
   if (graphic_.index.count("titl00a.crgb"))
     sampleRate_ = 44100;
   if (!sound_.path.empty())
-    sound_.index = ReadDirectory(sound_.path, true);
+    sound_.index = ReadDirectory(*source_, sound_.path, true);
   if (!voice_.path.empty())
-    voice_.index = ReadDirectory(voice_.path, true);
+    voice_.index = ReadDirectory(*source_, voice_.path, true);
 }
 
 std::string SnowAssets::name() const {
@@ -204,11 +220,16 @@ bool SnowAssets::tryAltGraphicExt(const Pack *pack,
 }
 
 std::vector<uint8_t> SnowAssets::Extract(const Pack &pack,
-                                         const PackEntry &entry) {
-  std::ifstream in(pack.path, std::ios::binary | std::ios::ate);
+                                         const PackEntry &entry) const {
+  auto handle = source_->open(pack.path.generic_string());
+  Kotonoha::Filesystem::InputFile in(std::move(handle));
+  in.seekg(0, std::ios::end);
   if (!in)
     return {};
-  const size_t size = size_t(in.tellg());
+  const auto length = in.tellg();
+  if (length < 0)
+    throw std::runtime_error("Snow pack size is unknown");
+  const size_t size = static_cast<std::size_t>(length);
   if (entry.offset >= size)
     return {};
   const size_t avail =
@@ -261,7 +282,7 @@ SnowAssets::readGraphicWithAltExt(const Pack *pack,
 
 std::vector<Uint8> SnowAssets::readAsset(const std::string &id) const {
   if (id == "script") {
-    auto bytes = ReadFile(scriptPath_);
+    auto bytes = ReadFile(*source_, scriptPath_);
     if (bytes.empty())
       throw std::runtime_error("Cannot read " + scriptPath_.string());
     return bytes;
