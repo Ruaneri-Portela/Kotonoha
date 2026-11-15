@@ -238,7 +238,7 @@ void Launcher::setStatus(std::string message, bool error) {
     SDL_LogWarn(LogConfig, "Launcher: %s", status.c_str());
 }
 
-bool Launcher::launch() {
+bool Launcher::apply() {
   try {
     draft.validate();
     std::string error;
@@ -253,6 +253,13 @@ bool Launcher::launch() {
     setStatus(error.what(), true);
     return false;
   }
+  setStatus("Settings saved", false);
+  return true;
+}
+
+bool Launcher::launch() {
+  if (!apply())
+    return false;
   setStatus("", false);
   current = State::Launch;
   SDL_LogInfo(LogConfig, "Launcher: starting with upscaling %s x%.2f",
