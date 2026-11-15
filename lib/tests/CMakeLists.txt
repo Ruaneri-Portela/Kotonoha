@@ -9,6 +9,22 @@ if(WIN32)
             "PATH=path_list_prepend:$<TARGET_FILE_DIR:KotonohaEngine>")
 endif()
 
+# Preserve both Windows L4 MCP regression tests from the local dev branch.
+# The upstream test matrix adds Vm/FilesystemV2/BuildVersion, but does not
+# register these existing source tests. Never reduce coverage during sync.
+add_executable(KotonohaMCPCommandLineTests MCPCommandLineTests.cpp)
+target_link_libraries(KotonohaMCPCommandLineTests PRIVATE Kotonoha::Engine)
+add_test(NAME Kotonoha.MCPCommandLine COMMAND KotonohaMCPCommandLineTests)
+
+add_executable(KotonohaMCPTransportTests MCPTransportTests.cpp)
+target_link_libraries(KotonohaMCPTransportTests PRIVATE Kotonoha::Engine)
+if(WIN32)
+    target_link_libraries(KotonohaMCPTransportTests PRIVATE ws2_32)
+endif()
+add_test(NAME Kotonoha.MCPTransport COMMAND KotonohaMCPTransportTests)
+set_tests_properties(Kotonoha.MCPTransport PROPERTIES
+    ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_AUDIO_DRIVER=dummy")
+
 add_executable(KotonohaVmTests VmTests.cpp)
 target_link_libraries(KotonohaVmTests PRIVATE Kotonoha::Engine)
 add_test(NAME Kotonoha.Vm COMMAND KotonohaVmTests)
