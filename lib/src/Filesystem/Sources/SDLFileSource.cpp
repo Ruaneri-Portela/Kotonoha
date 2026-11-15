@@ -7,10 +7,11 @@
 namespace Kotonoha::Filesystem {
 
 SDLFileSource::SDLFileSource(const std::filesystem::path &file) {
-  io_ = SDL_IOFromFile(file.string().c_str(), "rb");
+  const auto filename = file.u8string();
+  io_ = SDL_IOFromFile(filename.c_str(), "rb");
   if (!io_)
     throw FilesystemError(ErrorCode::IOError,
-                          "Cannot open local file: " + file.string() +
+                          "Cannot open local file: " + filename +
                               ": " + SDL_GetError());
 }
 

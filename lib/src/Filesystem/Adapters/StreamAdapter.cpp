@@ -119,7 +119,10 @@ void InputFile::close() {
 bool OutputFile::Buffer::open(const std::filesystem::path &path,
                               std::ios_base::openmode mode) {
   close();
-  const auto name = path.string();
+  // SDL3 paths are UTF-8 on Windows. std::filesystem::path::string()
+  // transcodes via the active ANSI codepage and throws for Joliet filenames
+  // that cannot be represented there (e.g. Japanese or Chinese ideographs).
+  const auto name = path.u8string();
   stream_ = SDL_IOFromFile(name.c_str(),
                            (mode & std::ios::app) ? "ab" : "wb");
   failure_ = !stream_;
