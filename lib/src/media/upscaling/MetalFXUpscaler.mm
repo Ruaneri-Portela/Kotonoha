@@ -98,8 +98,16 @@ id<MTLTexture> GetMetalTextureFromSDLTexture(SDL_Texture *texture) {
     return nil;
   }
 
-  void *opaqueTexture = SDL_GetPointerProperty(
-      properties, SDL_PROP_TEXTURE_METAL_TEXTURE_POINTER, nullptr);
+  // SDL3 versions that predate the named Metal texture property macro
+  // still expose the renderer property by its stable string key.
+#ifdef SDL_PROP_TEXTURE_METAL_TEXTURE_POINTER
+  constexpr const char *metalTextureProperty =
+      SDL_PROP_TEXTURE_METAL_TEXTURE_POINTER;
+#else
+  constexpr const char *metalTextureProperty = "SDL.texture.metal";
+#endif
+  void *opaqueTexture =
+      SDL_GetPointerProperty(properties, metalTextureProperty, nullptr);
 
   if (opaqueTexture == nullptr) {
     return nil;
