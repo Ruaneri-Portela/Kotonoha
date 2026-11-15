@@ -67,13 +67,18 @@ void TestMissingFilesFailClosed() {
   Require(Profile::ScriptPath(settings, "zh-CN") ==
               temp.scripts / "Script - chinese-compatible.GPK",
           "Unconverted Chinese pack must never be silently selected");
+  Require(Profile::ScriptPath(settings, "ru") ==
+              temp.scripts / "Script - Russian.GPK",
+          "Missing Russian must retain canonical missing path");
   Require(Profile::LxhPath(settings, "en") == temp.scripts / "en-lxh.GPK" &&
               Profile::LxhPath(settings, "es") ==
                   temp.scripts / "es-lxh.GPK" &&
               Profile::LxhPath(settings, "pt-BR") ==
                   temp.scripts / "pt-BR-lxh.GPK" &&
               Profile::LxhPath(settings, "zh-CN") ==
-                  temp.scripts / "zh-CN-lxh.GPK",
+                  temp.scripts / "zh-CN-lxh.GPK" &&
+              Profile::LxhPath(settings, "ru") ==
+                  temp.scripts / "ru-lxh.GPK",
           "Missing LxH GPK must retain exact locale and name");
   Require(Profile::JsonPath(settings, "zh-CN.json") ==
               temp.jsons / "zh-CN.json",
@@ -109,6 +114,8 @@ void TestOrganizedAndLegacyFallback() {
   // flat fallback for a different file during a partial directory migration.
   temp.Write(temp.scripts / "Script - Brazilian.GPK");
   temp.Write(temp.scripts / "pt-BR-lxh.GPK");
+  temp.Write(temp.scripts / "Script - Russian.GPK");
+  temp.Write(temp.scripts / "ru-lxh.GPK");
   temp.Write(temp.jsons / "es.json", "{}");
   temp.Write(temp.jsons / "es-lxh.json", "{}");
   temp.Write(temp.jsons / "zh-CN.json", "{}");
@@ -130,6 +137,10 @@ void TestOrganizedAndLegacyFallback() {
   Require(Profile::ScriptPath(settings, "zh-CN") ==
               temp.scripts / "Script - chinese-compatible.GPK",
           "Incompatible raw Chinese script substituted for compatible variant");
+  Require(Profile::ScriptPath(settings, "ru") ==
+              temp.scripts / "Script - Russian.GPK" &&
+              Profile::LxhPath(settings, "ru") == temp.scripts / "ru-lxh.GPK",
+          "Russian GPK pair did not retain canonical locale paths");
 
   temp.Write(temp.jsons / "en-lxh.json", "{}");
   temp.Write(temp.jsons / "es-reviewed-identities.json", "{}");
@@ -143,11 +154,13 @@ void TestOrganizedAndLegacyFallback() {
   const auto full = Profile::DiscoverJsonFiles(settings, true);
   Require(full.size() == 7, "Auxiliary discovery must include JSON sidecars");
   const auto gpks = Profile::DiscoverScriptFiles(settings);
-  Require(gpks.size() == 4, "Script discovery did not merge old and new layouts");
+  Require(gpks.size() == 6, "Script discovery did not merge old and new layouts");
   Require(gpks[0].filename() == "Script - Brazilian.GPK" &&
-              gpks[1].filename() == "Script - chinese.GPK" &&
-              gpks[2].filename() == "es-lxh.GPK" &&
-              gpks[3].filename() == "pt-BR-lxh.GPK",
+              gpks[1].filename() == "Script - Russian.GPK" &&
+              gpks[2].filename() == "Script - chinese.GPK" &&
+              gpks[3].filename() == "es-lxh.GPK" &&
+              gpks[4].filename() == "pt-BR-lxh.GPK" &&
+              gpks[5].filename() == "ru-lxh.GPK",
           "Script discovery did not keep actual names and stable order");
 }
 
