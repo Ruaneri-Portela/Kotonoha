@@ -1,4 +1,4 @@
-#include <Kotonoha/componentes/VNBacklog.hpp>
+#include <Kotonoha/components/VNBacklog.hpp>
 #include <Kotonoha/core/UI.hpp>
 #include <Kotonoha/events/BackAction.hpp>
 #include <Kotonoha/events/BacklogEvents.hpp>

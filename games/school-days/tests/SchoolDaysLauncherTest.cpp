@@ -1,6 +1,6 @@
 #include "SchoolDaysLauncher.hpp"
 #include "SchoolDaysAssets.hpp"
-#include <Kotonoha/componentes/DisplayModeCatalog.hpp>
+#include <Kotonoha/components/DisplayModeCatalog.hpp>
 #include <Kotonoha/routing/SchoolDaysConfigStorage.hpp>
 #include <Kotonoha/routing/SchoolDaysDesktopStartupProfile.hpp>
 #include <Kotonoha/routing/SchoolDaysRetailConfigPolicy.hpp>

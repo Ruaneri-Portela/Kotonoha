@@ -83,6 +83,8 @@ protected:
   void drawUpscaling();
   void drawTranslation();
   void drawAdvanced();
+  // General engine font picker restored for upstream Launcher.cpp.
+  void drawFontSelector(std::string &fontPath);
 
 private:
   struct Dialog;
@@ -109,6 +111,7 @@ private:
   bool overlayValid = true;
   bool overlayCheckedOnce = false;
   void checkOverlay(bool force = false);
+  void selectOverlayFolder(const std::string &path);
 };
 
 } // namespace Kotonoha

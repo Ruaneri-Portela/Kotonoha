@@ -7,8 +7,8 @@
 #include <Kotonoha/routing/SchoolDaysUpscalingPolicy.hpp>
 #include <Kotonoha/routing/SchoolDaysShaderPresetCatalog.hpp>
 #include <Kotonoha/routing/SchoolDaysCustomShaderFolder.hpp>
-#include <Kotonoha/componentes/TextInputDialog.hpp>
-#include <Kotonoha/componentes/DisplayModeCatalog.hpp>
+#include <Kotonoha/components/TextInputDialog.hpp>
+#include <Kotonoha/components/DisplayModeCatalog.hpp>
 #include <Kotonoha/events/BackAction.hpp>
 #include <Kotonoha/events/ControllerEvent.hpp>
 #include <Kotonoha/localization/Encoding.hpp>
@@ -20,10 +20,10 @@
 #include <Kotonoha/routing/SchoolDaysOrsFadeFrame.hpp>
 #include <Kotonoha/routing/SchoolDaysDesktopStartupProfile.hpp>
 #include <Kotonoha/routing/SchoolDaysOrsFadeBoundary.hpp>
-#include <Kotonoha/componentes/SettingsMenu.hpp>
-#include <Kotonoha/componentes/SplashScreen.hpp>
-#include <Kotonoha/componentes/VNBacklog.hpp>
-#include <Kotonoha/componentes/VNSaveMenu.hpp>
+#include <Kotonoha/components/SettingsMenu.hpp>
+#include <Kotonoha/components/SplashScreen.hpp>
+#include <Kotonoha/components/VNBacklog.hpp>
+#include <Kotonoha/components/VNSaveMenu.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/UI.hpp>

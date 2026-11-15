@@ -1,6 +1,6 @@
 #pragma once
 
-#include <Kotonoha/componentes/DisplayModeCatalog.hpp>
+#include <Kotonoha/components/DisplayModeCatalog.hpp>
 #include <Kotonoha/core/GameLauncher.hpp>
 #include <Kotonoha/routing/SchoolDaysConfigStorage.hpp>
 
