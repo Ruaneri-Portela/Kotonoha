@@ -25,6 +25,13 @@ include("${CMAKE_CURRENT_SOURCE_DIR}/buildsystems/cmake/KotonohaOptions.cmake")
 
 add_subdirectory(lib)
 
+# Imported vcpkg targets found inside lib/ are directory-scoped. Game ports
+# are siblings of lib/, so resolve their SDL targets in the root scope too.
+if(KOTONOHA_SDL_FROM_VCPKG)
+    find_package(SDL3 CONFIG REQUIRED)
+    find_package(SDL3_ttf CONFIG REQUIRED)
+endif()
+
 # Each port is configured only when explicitly selected (or BUILD_ALL).
 set(_KOTONOHA_ENABLED_GAME_DETAILS "")
 foreach(game IN LISTS KOTONOHA_GAMES)
