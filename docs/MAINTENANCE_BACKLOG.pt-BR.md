@@ -2,26 +2,27 @@
 
 [English (US)](MAINTENANCE_BACKLOG.md) | **Português (Brasil)**
 
-A correção dos caminhos de arte do Windows L4 **não** autoriza consolidar
-árvores CMake, migrar callbacks/RAII do SDL nem alterar caminhos de saves.
-Cada item abaixo exige plano próprio, revisável, com marco de build/testes.
-Nunca alterar os 29 GPKs originais ou `LxH.GPK`, executar o EXE retail ou
-usar saves reais.
+A correção anterior dos caminhos de arte do Windows L4 **não** autorizava
+consolidar árvores CMake, migrar callbacks/RAII do SDL nem alterar saves.
+A sincronização local com upstream, autorizada separadamente, incorporou
+parte dos recursos genéricos (estado abaixo). As mudanças restantes ainda
+exigem revisão e build/testes próprios. Nunca alterar os 29 GPKs originais
+ou `LxH.GPK`, executar o EXE retail ou usar saves reais.
 
 ## Auditoria da sincronização upstream/dev — 2026-11-15
 
-A branch local `sync/upstream-dev-20261115-021254` incorpora a nova
-arquitetura upstream, mas **não** autoriza migrações alheias à mescla.
-Este quadro atualiza as etapas 9–14 sem substituir os planos originais.
+A branch local `sync/upstream-dev-20261115-021254` incorpora a arquitetura
+upstream. Integração do núcleo não equivale à validação de todos os jogos,
+variantes e plataformas. O inventário anterior é preservado abaixo.
 
-| Etapa | Commits e mudanças upstream | Avaliação Windows L4 e pendências |
+| Etapa | Estado no código sincronizado | Evidência e verificação pendente |
 | --- | --- | --- |
-| 9 — CMake duplicado | `cb05a02`, `43657a0`, `4c83f57` centralizam preload, ferramentas host e recursos de plataformas | CMake raiz usa matriz upstream. Reinventariar consumidores antigos em `cmake/` antes de excluir qualquer arquivo. |
-| 10 — CMake divergente | `cb05a02`, `43657a0` modificam outputs, pacotes e seleção de plataformas | Preservar manifesto vcpkg duas DLLs, DEV/DIST e staging de arte Windows. Outros sistemas não foram testados. |
-| 11 — FileResolver / AssetProvider (nova) | `4214a85`, `c27e32b` migram paths e removem shim; `bc1d473`, `7e7d65f`, `2d3a371`, `0efdc35` adicionam VFS/Fetch remoto e caches limitados | Manter prioridade dos GPK retail, overlays locais e validação estrita de idioma. Auditar mounts antes de liberar Fetch remoto. |
-| 12 — bridge de callbacks | `151766b`, `e2b0e64`, `1185f77`, `428016b`, `50098c5` introduzem macros SDL e versão | Os quatro callbacks de School Days usam `KOTONOHA_SDL_CALLBACK_APP`, preservando launcher, DEV/DIST e transição Android. Exigir regressão Windows antes de publicar. |
-| 13 — RAII do SDL | `8642f19` centraliza ownership de devices/arrays SDL | Apresentadores de School Days ainda precisam auditoria individual de texturas/fontes e testes de fechamento. |
-| 14 — StoragePaths | `4214a85`, `c27e32b` migram caminhos de storage | Manter `resourceDirectory()/settings.json` junto ao executável e contrato distinto de Config.DAT; usar apenas `--documents`/`--config` isolados. |
+| 9 — CMake duplicado | **PARCIAL** — auxiliares de preload/host/plataformas incorporados (`cb05a02`, `43657a0`, `4c83f57`) | Matriz de jogos upstream na raiz; consumidores legados em `cmake/` ainda existem. Não apagar arquivos nem declarar equivalência sem prova. |
+| 10 — CMake divergente | **PARCIAL** — outputs, empacotamento e seleção upstream integrados (`cb05a02`, `43657a0`) | Manifesto duas DLLs, DEV/DIST e arte Windows preservados. Paridade de plataformas e consolidação de módulos continuam sem validação. |
+| 11 — FileResolver / AssetProvider | **NÚCLEO INTEGRADO; JOGO PENDENTE** — `4214a85`, `c27e32b`, `bc1d473`, `7e7d65f`, `2d3a371`, `0efdc35` | Filesystem V2, Fetch e overlays estão no núcleo. Ainda não houve teste com os 29 GPKs reais, os sete finais LxH e prioridade de idiomas estrita; não ativar Fetch remoto implicitamente. |
+| 12 — SDLCallbackApp | **INTEGRADO** — `151766b`, `e2b0e64`, `1185f77`, `428016b`, `50098c5` | School Days implementa `init/event/iterate/quit` e um único `KOTONOHA_SDL_CALLBACK_APP`. Launcher único e exceção de settings L4 permanecem; investigar o timeout de `SchoolDaysLauncherTest`. |
+| 13 — RAII do SDL | **NÚCLEO INTEGRADO; POSSE NO JOGO PENDENTE** — `8642f19` | Handles de `SDL.hpp` disponíveis; não presumir que texturas/fontes manuais dos apresentadores de School Days já foram migradas. Auditar cada dono e fechamento/reabertura. |
+| 14 — StoragePaths | **NÚCLEO INTEGRADO; EXCEÇÃO L4 RETIDA** — `4214a85`, `c27e32b` | Storage compartilhado isolado por aplicativo; `games/school-days/src/main.cpp` usa `resourceDirectory()/settings.json` no Windows L4. Preservar `Config.DAT` separado e testar apenas cópias descartáveis. |
 
 Decisões e resultados de build ficam nos relatórios ignorados
 `build/_sync-decisoes.md` e `build/_sync-levantamento.md`.
@@ -63,27 +64,35 @@ plataformas; projetar camada compatível opt-in; atualizar um consumidor por
 commit; manter a implementação anterior até passar nos testes de paridade.
 Sem substituição automática.
 
-## Etapa futura 12 — callbacks SDL compartilhados (plano independente)
+## Etapa 11 — FileResolver / AssetProvider: núcleo pronto, paridade pendente
 
-Inventariar as quatro funções `SDL_App*` de
-`games/school-days/src/main.cpp` e seu ciclo de vida; adaptar para
-`KOTONOHA_SDL_CALLBACK_APP`, preservando launcher, defines DEV/DIST e
-passagem para a Activity Android. Compilar Windows L4 e testar regressões
-do launcher/runtime antes de abordar outras plataformas.
+As APIs compartilhadas substituem o shim antigo de storage e introduzem
+VFS/Fetch com limites de cache. School Days ainda define a montagem própria
+dos GPKs retail e do LxH. Testar cache, seek e decoder com streams sintéticos;
+testes licenciados reais dependem de QA isolado expressamente autorizado.
+Compilação não prova isolamento de idiomas nem ausência de fallback.
 
-## Etapa futura 13 — RAII do SDL (plano independente)
+## Etapa 12 — callbacks SDL compartilhados: integração concluída
+
+`games/school-days/src/main.cpp` expõe os quatro métodos estáticos por
+`KOTONOHA_SDL_CALLBACK_APP`, sem outro `main()` ou GUI. Manter launcher e
+ciclo de vida atuais. Não é preciso repetir a migração da bridge; investigar
+o timeout restante de `SchoolDaysLauncherTest` em ambiente headless.
+
+## Etapa 13 — RAII do SDL: núcleo pronto, migração do jogo pendente
 
 Inventariar posse de objetos SDL por classe, começando pelas texturas e
 fontes manuais em `SchoolDaysBackLogPresenter.cpp`. Trocar um proprietário
 por vez pelos handles existentes em `Kotonoha/core/SDL.hpp`, sem destruição
 duplicada; verificar fechamento/reabertura e build Windows L4 em cada etapa.
 
-## Etapa futura 14 — StoragePaths (plano independente)
+## Etapa 14 — StoragePaths: núcleo pronto, exceção Windows L4 preservada
 
-Documentar antes o contrato de Windows L4 de `settings.json` ao lado de
-`SchoolDays.exe`, `Config.DAT`, e QA isolado com `--documents`/`--config`.
-Introduzir compatibilidade com `StoragePaths` só com migração explícita e
-testes que impeçam mover ou sobrescrever perfis dos jogadores inesperadamente.
+O `StoragePaths` genérico fornece diretórios por aplicativo, enquanto
+School Days Windows L4 mantém deliberadamente `settings.json` ao lado de
+`SchoolDays.exe` e o contrato separado de `Config.DAT`. A migração do
+núcleo já existe; **não** mover perfis reais L4. Criar smoke com
+`--documents` isolado somente se dispensar assets comerciais e GUI.
 
 ## Pendências de plataforma e documentação
 
