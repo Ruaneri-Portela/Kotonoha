@@ -17,6 +17,8 @@ public:
   using SourceTexts = std::map<int, std::vector<std::string>>;
   void load(const std::string &path);
   std::string text(int nodeId, const std::string &original) const;
+  std::string text(const std::string &section,
+                   const std::string &original) const;
   void dump(const std::string &path, const SourceTexts &texts) const;
 
   std::unordered_map<std::string, Dictionary> &mutableSections() {
