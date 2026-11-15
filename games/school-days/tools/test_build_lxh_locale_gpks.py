@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import os
 import shutil
 import tempfile
 import unittest
@@ -77,10 +78,15 @@ class LocaleGpkTests(unittest.TestCase):
         shutil.rmtree(self.directory)
 
     def test_all_273_actual_ordinal_shapes_from_synthetic_ors(self):
-        translations = mod.load_sidecars(
-            mod.REPO_ROOT / "build" / "school-days-dev-control4" /
-            "games" / "school-days" / "Release" / "translations",
-            ("en", "pt-BR", "zh-CN", "es"))
+        # Public checkouts do not contain private translation sidecars.
+        # The optional 273-ordinal integration test uses an explicit path.
+        default_root = (mod.REPO_ROOT / "build" / "school-days-dev-control4" /
+                        "games" / "school-days" / "Release" / "translations" /
+                        "jsons")
+        sidecars = Path(os.environ.get("KOTONOHA_LXH_SIDECARS", str(default_root)))
+        if not sidecars.is_dir():
+            self.skipTest("Private LxH sidecars unavailable; set KOTONOHA_LXH_SIDECARS")
+        translations = mod.load_sidecars(sidecars, ("en", "pt-BR", "zh-CN", "es"))
         self.assertEqual(sum(len(translations["en"][scene])
                              for scene, _, _ in mod.EXPECTED), 273)
         self.assertEqual(sum(len(translations["es"][scene])
@@ -164,7 +170,8 @@ class LocaleGpkTests(unittest.TestCase):
             {p.name for p in out.glob("*.GPK")},
             {"en-lxh.GPK", "pt-BR-lxh.GPK", "es-lxh.GPK"})
         self.assertTrue((out / "manifest.json").is_file())
-        with self.assertRaises(mod.LocaleGpkError):
+        with self.assertRaisesRegex(mod.LocaleGpkError,
+                                    "Script - chinese-compatible.GPK"):
             mod.build_locale("zh-CN", lxh, base, {"zh-CN": translated})
 
     def test_error_cases_block_without_publishing(self):

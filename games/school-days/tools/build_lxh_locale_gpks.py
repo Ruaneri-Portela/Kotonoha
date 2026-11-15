@@ -24,9 +24,8 @@ Brazilian HQ requires Script - Brazilian.GPK in STKFile0 format.
 No retail GPK is extracted by this tool, and the seven resulting ORS packs
 contain no commercial WMV/OGG/PNG. Keep all generated files private.
 
-zh-CN is deliberately blocked: the observed Chinese translation pack uses
-GB18030/comma-separated ORS and different paths. Correct conversion needs a
-separately proven parser/repacker, not silent pseudo-compatibility.
+zh-CN requires a separately rebuilt and validated native-compatible Chinese
+HQ GPK; the original GB18030 Chinese patch is never accepted as its base.
 """
 
 from __future__ import annotations
@@ -416,7 +415,13 @@ def require_base_provenance(locale: str, source: Source) -> None:
             raise LocaleGpkError(
                 "Spanish LxH requires certified Script - Spanish.GPK; "
                 "the raw Spanish installer script is not compatible")
-    if source.gpk and locale in ("en", "pt-BR", "es") and len(source.gpk.entries) != 1859:
+    elif locale == "zh-CN":
+        if (source.gpk is None or source.original_path is None or
+                source.original_path.name != "Script - chinese-compatible.GPK"):
+            raise LocaleGpkError(
+                "Chinese LxH requires Script - chinese-compatible.GPK; "
+                "raw GB18030 Script - chinese.GPK cannot be used")
+    if source.gpk and locale in ("en", "pt-BR", "es", "zh-CN") and len(source.gpk.entries) != 1859:
         raise LocaleGpkError(f"{locale}: expected 1859 HQ Script.GPK members")
 
 
@@ -545,10 +550,6 @@ def compose_scene(ending: str, scene: str, count: int, lxh: bytes,
 
 def build_locale(locale: str, lxh_source: Source, base_source: Source,
                  sidecars: dict[str, dict]) -> tuple[dict[str, bytes], list[dict]]:
-    if locale == "zh-CN":
-        raise LocaleGpkError(
-            "zh-CN pack currently uses GB18030, different logical paths and "
-            "comma-separated ORS. Native L4 compatibility is unproven; blocked.")
     require_base_provenance(locale, base_source)
     files = {}
     summaries = []
@@ -646,17 +647,13 @@ def main(argv: list[str] | None = None) -> int:
                         metavar="LOCALE=FILE")
     parser.add_argument("--base-overlay", action="append", default=[],
                         metavar="LOCALE=DIR")
-    parser.add_argument("--locales", required=True, help="e.g. en,pt-BR,es; zh-CN blocked")
+    parser.add_argument("--locales", required=True, help="e.g. en,pt-BR,es,zh-CN")
     args = parser.parse_args(argv)
     try:
         locales = tuple(args.locales.split(","))
         if not locales or len(set(locales)) != len(locales) or any(
                 loc not in VALID_LOCALES for loc in locales):
             raise LocaleGpkError("Unknown/duplicate locale")
-        if "zh-CN" in locales:
-            raise LocaleGpkError(
-                "zh-CN GPK incompatible/unverified (GB18030/comma-separated ORS); "
-                "no misleading Chinese output will be created")
         base_gpks = parse_label_paths(args.base_gpk, "--base-gpk")
         base_overlays = parse_label_paths(args.base_overlay, "--base-overlay")
         if set(base_gpks) & set(base_overlays):
