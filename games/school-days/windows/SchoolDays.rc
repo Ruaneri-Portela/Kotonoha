@@ -1,0 +1,3 @@
+// The icon uses artwork supplied by the user for School Days HQ.
+// Resource ID 1 is used as the executable's primary shell icon.
+1 ICON "SchoolDays.ico"

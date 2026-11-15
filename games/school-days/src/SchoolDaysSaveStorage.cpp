@@ -188,6 +188,22 @@ bool SchoolDaysSaveStorage::ReadSaveFile(int slot, std::vector<uint8_t> *bytes,
   return ReadFile(path, bytes, error);
 }
 
+bool SchoolDaysSaveStorage::SaveFilePath(
+    int slot, std::filesystem::path *path, std::string *error) const {
+  if (error != nullptr)
+    error->clear();
+  if (!initialized_ || path == nullptr || slot < 0 || slot >= 100)
+    return Fail(error, "School Days save-slot path arguments are invalid");
+  std::string configured;
+  std::string profileError;
+  if (!SchoolDaysSaveProfile::FormatIndexed(profile_.saveFileName, slot,
+                                           &configured, &profileError))
+    return Fail(error, profileError.empty()
+                           ? "School Days save-slot path format is invalid"
+                           : profileError.c_str());
+  return ResolveRelative(configured, path, error);
+}
+
 bool SchoolDaysSaveStorage::WriteSaveFile(
     const SchoolDaysSaveService::Plan &plan, std::string *error) const {
   if (error != nullptr)

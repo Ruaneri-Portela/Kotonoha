@@ -63,15 +63,12 @@ std::string SchoolDaysConfigMenuModel::ChipRelativePath(Page page) {
 
 bool SchoolDaysConfigMenuModel::Open(const std::string &assetsRoot,
                                      Variant variant, Page page,
-                                     std::string *error,
-                                     bool retailDisplayArtworkFallback) {
+                                     std::string *error) {
   Close();
-  const Page artworkPage =
-      retailDisplayArtworkFallback && page == Page::Display ? Page::Def : page;
   std::string physical;
   if (!ResolveSchoolDaysRequiredAssetPath(
-          assetsRoot.c_str(), CmapRelativePath(artworkPage, variant), &physical,
-          error, "ConfigMenu CMAP")) {
+          assetsRoot.c_str(), CmapRelativePath(page, variant), &physical, error,
+          "ConfigMenu CMAP")) {
     return false;
   }
   if (!cmap_.LoadFile(physical, error))
@@ -79,7 +76,6 @@ bool SchoolDaysConfigMenuModel::Open(const std::string &assetsRoot,
 
   variant_ = variant;
   page_ = page;
-  artworkPage_ = artworkPage;
   selection_ = -1;
   open_ = true;
   return true;
@@ -89,7 +85,6 @@ void SchoolDaysConfigMenuModel::Close() {
   cmap_.Clear();
   variant_ = Variant::Standard;
   page_ = Page::Def;
-  artworkPage_ = Page::Def;
   selection_ = -1;
   open_ = false;
 }
@@ -98,12 +93,7 @@ int SchoolDaysConfigMenuModel::HitControl(int x, int y) const {
   if (!open_)
     return -1;
   const int region = cmap_.RegionAt(x, y);
-  const int control = region > 0 ? region - 1 : -1;
-  // Def's configuration controls are not Display actions. Only its original
-  // shared navigation and CLOSE hotspots apply under Android's native panel.
-  return page_ == Page::Display && artworkPage_ != page_ && control > 3
-             ? -1
-             : control;
+  return region > 0 ? region - 1 : -1;
 }
 
 bool SchoolDaysConfigMenuModel::SetSelectionFromPointer(int x, int y) {
