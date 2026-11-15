@@ -478,6 +478,13 @@ como padrao. `--ktrf` sobrescreve explicitamente a rota lembrada.
 - F5/F6: salvar/carregar o quicksave (separado dos saves manuais).
 - Menus Salvar/Carregar: lista de saves, sem limite fixo de slots.
 
+Na distribuicao Windows do School Days compilada com
+`KOTONOHA_ENABLE_PLAYER_DUBBING=ON`, F10 abre a janela de dublagem do jogador
+em vez do inspetor de desenvolvimento. Selecione uma fala da cena ou informe o
+ID logico do audio, importe ou grave um take, ouca/edite e salve como overlay
+WAV. O audio original nos GPKs continua disponivel para comparacao e
+restauracao. `--documents` tambem isola o overlay nos testes.
+
 ## Jogo demonstrativo
 
 O exemplo executa uma historia completa, sem arquivos externos obrigatorios:
