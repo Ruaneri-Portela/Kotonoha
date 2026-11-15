@@ -52,10 +52,17 @@ void layouts(const fs::path &root) {
         root / ".local/share"}) {
     locations.userData = base;
     auto layout = directoryLayout(locations, "amagami");
-    require(layout.documents == base,
-            "Desktop Documents root excludes the save directory");
-    require(layout.saves == base / "save",
-            "Every desktop uses the package's singular save directory");
+    // The upstream source uses a per-application Kotonoha namespace rather
+    // than the userData root. Preserve this isolation on desktop and keep
+    // a single save subdirectory within that namespace.
+    const auto appDocuments =
+        base / "Kotonoha" / locations.packageIdentifier;
+    require(layout.documents == appDocuments,
+            "Desktop Documents are namespaced by engine and package");
+    require(layout.saves == appDocuments / "save",
+            "Every desktop saves inside the namespaced save directory");
+    require(layout.saves != base / "save",
+            "Desktop must not write saves into the shared userData root");
     require(layout.engineAssets.front() == locations.resources / "assets",
             "Bundle engine assets take precedence over the working directory");
     require(layout.gameAssets.front() == locations.resources / "game-assets",
