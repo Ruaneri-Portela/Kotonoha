@@ -7,6 +7,24 @@ consolidation, SDL callback/RAII migration or save-path change. Each item below
 needs a separate reviewable plan and build/test checkpoint. Never modify the
 29 original GPKs or `LxH.GPK`, run the retail executable, or use real saves.
 
+## Upstream/dev synchronization audit — 2026-11-15
+
+The local-only branch `sync/upstream-dev-20261115-021254` imports new
+upstream architecture; this **does not** authorize unrelated migrations.
+The entries below update steps 9–14 without replacing the original plans.
+
+| Step | Upstream commits / changes | Windows L4 assessment and follow-up |
+| --- | --- | --- |
+| 9 — CMake duplicates | `cb05a02`, `43657a0`, `4c83f57` centralize asset preloading, host tools and platform capabilities | Root now uses upstream's game matrix. Re-inventory old `cmake/` consumers before any deletion. |
+| 10 — divergent CMake | `cb05a02`, `43657a0` change output, packaging and platform selection | Preserve two-DLL vcpkg manifest, DEV/DIST gates and Windows artwork staging. Other platform layouts remain untested. |
+| 11 — FileResolver / AssetProvider (new) | `4214a85`, `c27e32b` migrate paths and remove the old shim; `bc1d473`, `7e7d65f`, `2d3a371`, `0efdc35` add remote/virtual Fetch and bounded caches | Retain retail GPK priority, local overlay order and strict locale failures. Audit mounts before enabling remote Fetch for School Days. |
+| 12 — callback bridge | `151766b`, `e2b0e64`, `1185f77`, `428016b`, `50098c5` add shared SDL callback and build version macros | School Days now wraps its four callbacks with `KOTONOHA_SDL_CALLBACK_APP`, preserving launcher, DEV/DIST and mobile handoff. Windows regression results are required before publication. |
+| 13 — SDL RAII | `8642f19` centralizes SDL device/array ownership | School Days presenter textures/fonts remain deferred; separately test lifetime and shutdown/reopen. |
+| 14 — StoragePaths | `4214a85`, `c27e32b` migrate storage paths | Windows `resourceDirectory()/settings.json` and separate Config.DAT contract must remain; verify isolated `--documents`/`--config`, never real saves. |
+
+Integration decisions and build results are recorded in the ignored
+`build/_sync-decisoes.md` and `build/_sync-levantamento.md`.
+
 ## Future step 9 — consolidate byte-identical CMake modules
 
 The filenames below occur in both `cmake/` and `buildsystems/cmake/` and have

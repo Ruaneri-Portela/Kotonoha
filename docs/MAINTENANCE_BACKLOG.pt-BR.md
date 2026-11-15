@@ -8,6 +8,24 @@ Cada item abaixo exige plano próprio, revisável, com marco de build/testes.
 Nunca alterar os 29 GPKs originais ou `LxH.GPK`, executar o EXE retail ou
 usar saves reais.
 
+## Auditoria da sincronização upstream/dev — 2026-11-15
+
+A branch local `sync/upstream-dev-20261115-021254` incorpora a nova
+arquitetura upstream, mas **não** autoriza migrações alheias à mescla.
+Este quadro atualiza as etapas 9–14 sem substituir os planos originais.
+
+| Etapa | Commits e mudanças upstream | Avaliação Windows L4 e pendências |
+| --- | --- | --- |
+| 9 — CMake duplicado | `cb05a02`, `43657a0`, `4c83f57` centralizam preload, ferramentas host e recursos de plataformas | CMake raiz usa matriz upstream. Reinventariar consumidores antigos em `cmake/` antes de excluir qualquer arquivo. |
+| 10 — CMake divergente | `cb05a02`, `43657a0` modificam outputs, pacotes e seleção de plataformas | Preservar manifesto vcpkg duas DLLs, DEV/DIST e staging de arte Windows. Outros sistemas não foram testados. |
+| 11 — FileResolver / AssetProvider (nova) | `4214a85`, `c27e32b` migram paths e removem shim; `bc1d473`, `7e7d65f`, `2d3a371`, `0efdc35` adicionam VFS/Fetch remoto e caches limitados | Manter prioridade dos GPK retail, overlays locais e validação estrita de idioma. Auditar mounts antes de liberar Fetch remoto. |
+| 12 — bridge de callbacks | `151766b`, `e2b0e64`, `1185f77`, `428016b`, `50098c5` introduzem macros SDL e versão | Os quatro callbacks de School Days usam `KOTONOHA_SDL_CALLBACK_APP`, preservando launcher, DEV/DIST e transição Android. Exigir regressão Windows antes de publicar. |
+| 13 — RAII do SDL | `8642f19` centraliza ownership de devices/arrays SDL | Apresentadores de School Days ainda precisam auditoria individual de texturas/fontes e testes de fechamento. |
+| 14 — StoragePaths | `4214a85`, `c27e32b` migram caminhos de storage | Manter `resourceDirectory()/settings.json` junto ao executável e contrato distinto de Config.DAT; usar apenas `--documents`/`--config` isolados. |
+
+Decisões e resultados de build ficam nos relatórios ignorados
+`build/_sync-decisoes.md` e `build/_sync-levantamento.md`.
+
 ## Etapa futura 9 — consolidar módulos CMake idênticos
 
 Os arquivos abaixo existem em `cmake/` e `buildsystems/cmake/` com SHA-256
