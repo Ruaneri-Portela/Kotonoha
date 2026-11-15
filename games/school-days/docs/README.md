@@ -72,3 +72,15 @@ Commercial packs, local L×H media, real saves and private translation JSONs
 must remain outside the Git history. The `build/` tree contains active L4
 builds, backups and junctions to the retail install; never run a blanket
 recursive cleanup there.
+
+## Optional private Windows executable icon
+
+The monochrome School Days HQ icon is **user-supplied, locally approved
+artwork**, not a repository asset. Convert the owner's authorized artwork to
+Windows ICO format and place it at
+`games/school-days/windows/SchoolDays.ico` in your local checkout. Do not
+commit the file or include it in public source archives. The tracked
+`games/school-days/windows/SchoolDays.rc` refers to this filename, but
+CMake registers that resource **only when the ICO exists**. A clean Git
+worktree without the icon still configures and builds a functional Windows
+executable, using the platform's ordinary fallback application icon.

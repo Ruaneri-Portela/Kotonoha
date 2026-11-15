@@ -70,3 +70,15 @@ Mover essas pastas exige atualizar consumidores, compilar e rodar CTest.
 GPKs comerciais, mídia L×H local, saves reais e JSONs privados devem ficar
 fora do Git. A pasta `build/` contém builds L4 ativas, backups e junctions
 para a instalação retail; nunca a limpe recursivamente de forma geral.
+
+## Ícone privado e opcional do executável Windows
+
+O ícone monocromático de School Days HQ é **arte fornecida e aprovada
+localmente pelo proprietário**, não é um ativo do repositório. Converta a
+imagem autorizada para o formato ICO do Windows e coloque-a em
+`games/school-days/windows/SchoolDays.ico` no checkout local. Não versionar
+nem incluir o arquivo em pacotes públicos de código-fonte. O arquivo
+`games/school-days/windows/SchoolDays.rc` é versionado e referencia esse
+nome, mas o CMake registra o recurso **somente quando o ICO existe**. Uma
+worktree Git limpa, sem ícone, continua configurando e compilando o
+executável Windows, com o ícone padrão da plataforma.
