@@ -43,6 +43,10 @@ public:
   double getPosition() const { return position; }
   SDL_Point logicalSize() const { return {width, height}; }
   void render(RendererRef renderer, float scale) override;
+  // The original (pre-translation) texts of the currently loaded cues, for
+  // live translation lookup and active-key reporting.
+  std::vector<std::string> currentCueTexts() const;
+  std::vector<std::string> sourceCueTexts() const;
 };
 
 } // namespace Kotonoha
