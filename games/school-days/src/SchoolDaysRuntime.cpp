@@ -366,8 +366,8 @@ std::vector<DisplayResolution> DisplayResolutions(int displayIndex) {
       SDL_GetFullscreenDisplayModes(display, &count));
   if (modes) {
     for (int i = 0; i < count; ++i)
-      if (modes.get()[i])
-        add(modes.get()[i]->w, modes.get()[i]->h, modes.get()[i]->refresh_rate);
+      if (modes[i])
+        add(modes[i]->w, modes[i]->h, modes[i]->refresh_rate);
   }
   if (desktop)
     add(desktop->w, desktop->h, desktop->refresh_rate);
@@ -496,14 +496,14 @@ int SelectedAndroidMode(const std::vector<Kotonoha::AndroidDisplayMode> &modes,
   if (settings.fullscreenWidth > 0 && settings.fullscreenHeight > 0 &&
       settings.refreshRate > 0.0f) {
     for (size_t i = 0; i < modes.size(); ++i)
-      if (modes.get()[i].width == settings.fullscreenWidth &&
-          modes.get()[i].height == settings.fullscreenHeight &&
-          std::abs(modes.get()[i].refreshRate - settings.refreshRate) < 0.05f)
+      if (modes[i].width == settings.fullscreenWidth &&
+          modes[i].height == settings.fullscreenHeight &&
+          std::abs(modes[i].refreshRate - settings.refreshRate) < 0.05f)
         return static_cast<int>(i);
   }
   const int current = Kotonoha::AndroidCurrentDisplayModeId();
   for (size_t i = 0; i < modes.size(); ++i)
-    if (modes.get()[i].modeId == current)
+    if (modes[i].modeId == current)
       return static_cast<int>(i);
   return 0;
 }
