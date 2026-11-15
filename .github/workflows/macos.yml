@@ -25,7 +25,7 @@ jobs:
           - arch: x86_64
             runner: macos-15-intel
             triplet: x64-osx
-            bundles: "OFF"
+            bundles: "ON"
           - arch: arm64
             runner: macos-15
             triplet: arm64-osx
@@ -74,7 +74,8 @@ jobs:
             -DKOTONOHA_IMGUI_FROM_VCPKG=ON \
             -DVCPKG_OVERLAY_PORTS="$GITHUB_WORKSPACE/vcpkg-overlays/ports" \
             -DKOTONOHA_BUILD_ALL=ON -DBUILD_TESTING=ON \
-            -DKOTONOHA_BUILD_MACOS_BUNDLES=${{ matrix.bundles }}
+            -DKOTONOHA_BUILD_MACOS_BUNDLES=${{ matrix.bundles }} \
+            -DKOTONOHA_BUNDLE_LOCAL_GAME_ASSETS=OFF
 
       - name: Build all native game ports and tests
         run: cmake --build build-macos --parallel 3
@@ -100,6 +101,21 @@ jobs:
 
       - name: Package native games
         run: cpack --config build-macos/CPackConfig.cmake -G ZIP
+
+      - name: Verify ZIP packages
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile
+          packages = sorted(Path("build-macos/packages").glob("*.zip"))
+          assert len(packages) >= 11, f"Expected 11 game packages, got {len(packages)}"
+          for archive in packages:
+              with ZipFile(archive) as package:
+                  names = package.namelist()
+                  assert names, f"Empty package: {archive}"
+                  assert any(".app/Contents/MacOS/" in n for n in names), f"Missing .app executable: {archive}"
+          print(f"Validated {len(packages)} macOS game ZIPs")
+          PY
 
       - name: Upload macOS artifacts
         if: success()
