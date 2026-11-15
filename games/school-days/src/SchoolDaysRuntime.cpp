@@ -1380,7 +1380,8 @@ void Runtime::updateLoadTransition(uint64_t nowMs) {
     loadTransition.Restored(SDL_GetTicks());
   } catch (const std::exception &error) {
     loadTransition.Reset();
-    setStatus(error.what());
+    // LOAD failures must remain visible in distribution builds.
+    setStatus(error.what(), true);
     SDL_LogError(Kotonoha::LogUI,
                  "School Days LOAD restore failed: %s", error.what());
   }
@@ -2800,6 +2801,13 @@ void Runtime::dispatch(Kotonoha_orsEvent &event) {
     const bool endRoll = event.command == END_ROLL;
     const char *logical = endRoll ? Text(event.data.path_end->path)
                                   : Text(event.data.play_movie->path);
+    if (!endRoll && lxhFirstTranslationEvent && !temporaryPlaybackActive() &&
+        logical && Kotonoha::SchoolDaysLxhContent::IsPackResource(
+                       std::string(logical) + ".wmv")) {
+      // LxH movies are authored for 1x playback, even when the previous route
+      // was fast-forwarding. Prevent skipping the epilogue on its first frame.
+      setPlaybackSpeedIndex(0);
+    }
     auto state = Kotonoha::SchoolDaysMovieEventState::Create(
         endRoll ? Kotonoha::SchoolDaysMovieKind::EndRoll
                 : Kotonoha::SchoolDaysMovieKind::PlayMovie,
@@ -2824,6 +2832,15 @@ void Runtime::dispatch(Kotonoha_orsEvent &event) {
     state.Prepare(ready);
     (void)state.Activate(tick);
     movieStates[&event] = std::move(state);
+    if (!endRoll && !ready && lxhFirstTranslationEvent &&
+        Kotonoha::SchoolDaysLxhContent::IsPackResource(
+            movieStates[&event].resource)) {
+      // Never silently advance to Title if an LxH decoder could not open.
+      paused = true;
+      setStatus("LxH epilogue video failed to open; ending remains paused", true);
+      SDL_LogError(Kotonoha::LogUI, "LxH ending media unavailable: %s",
+                   movieStates[&event].resource.c_str());
+    }
     break;
   }
   case PLAY_VOICE: {
@@ -3472,6 +3489,22 @@ void Runtime::update() {
       }
     }
   }
+  // A fast frame must not dispatch the extra movie and terminal Next
+  // together. Stop at the exact movie START to switch to 1x first.
+  if (lxhFirstTranslationEvent && !temporaryPlaybackActive()) {
+    for (auto *event = script.data; event != nullptr; event = event->next) {
+      if (event->command != PLAY_MOVIE || event->eventTouched ||
+          !event->data.play_movie || !event->data.play_movie->path ||
+          event->startTick < tick || event->startTick > candidateTick)
+        continue;
+      if (Kotonoha::SchoolDaysLxhContent::IsPackResource(
+              std::string(event->data.play_movie->path) + ".wmv")) {
+        candidateTick = event->startTick;
+        clampedToChoice = true;
+        break;
+      }
+    }
+  }
   if (lxhFade.BeginAtCreditBoundary(candidateTick, now)) {
     SDL_LogInfo(Kotonoha::LogUI,
                 "LxH entrance fade OUT after original EndRoll: %s tick=%u",
@@ -3505,8 +3538,15 @@ void Runtime::update() {
     if (tick >= state.endTick) (void)state.AdvanceTo(tick);
   }
   updateChoiceInteraction();
-  if (timeline.ReadyToEnd(tick) && choicePresentationComplete())
+  if (timeline.ReadyToEnd(tick) && choicePresentationComplete()) {
+    if (lxhFirstTranslationEvent && !temporaryPlaybackActive())
+      SDL_LogInfo(Kotonoha::LogUI,
+                  "LxH terminal Next reached; starting countdown handoff: %s tick=%u",
+                  scene.sceneKey.c_str(), tick);
+    // The completed movie can already have retired from movieStates here.
+    // Never recheck its decoder at Next: that would freeze the last PNG.
     pendingSceneAdvance = true;
+  }
 }
 
 void Runtime::renderMenu(Kotonoha::RendererRef renderer, float) {
@@ -5232,6 +5272,9 @@ bool Runtime::onScreenEvent(Kotonoha::EventRef event) {
   }
   if (!engine) return false;
   if (lxhFade.InputLocked() && FrontendInputEvent(event.type)) return true;
+  // Both desktop pointer and mobile events pass through onScreenEvent.
+  // LOAD owns input until its restore transition is complete.
+  if (loadTransition.InputLocked() && FrontendInputEvent(event.type)) return true;
 #if !defined(__ANDROID__) && !defined(ANDROID)
   if (displayPanelOpen() && desktopDisplayPopup != DesktopDisplayPopup::None &&
       handleDesktopDisplayPanel(event))
@@ -5241,9 +5284,6 @@ bool Runtime::onScreenEvent(Kotonoha::EventRef event) {
   if (exitTransition.InputLocked()) return true;
   if (systemPanelTransition.InputLocked()) return true;
 #if defined(__ANDROID__) || defined(ANDROID)
-  // Mobile swipes must not turn Save/Replay pages while the load transition
-  // owns input. Keep desktop load-transition behavior untouched.
-  if (loadTransition.InputLocked() && FrontendInputEvent(event.type)) return true;
   if (currentState == Kotonoha::GameState::Gameplay && !modal() &&
       !frontendTransition.Active(SDL_GetTicks()) &&
       !transportFade.InputLocked() && !exitTransition.Active() &&
