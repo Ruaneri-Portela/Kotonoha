@@ -30,11 +30,10 @@ jobs:
           cache: gradle
           cache-dependency-path: buildsystems/android/**/*.gradle*
 
-      - uses: android-actions/setup-android@v3
+      - uses: android-actions/setup-android@v4
 
       - name: Install Android build tools
         run: |
-          yes | sdkmanager --licenses >/dev/null || true
           sdkmanager "platforms;android-36" "build-tools;36.0.0" \
             "ndk;28.2.13676358" "cmake;3.22.1"
 
@@ -58,9 +57,8 @@ jobs:
 
       - name: Build Example and SchoolDays APKs (arm64-v8a)
         working-directory: buildsystems/android
-        env:
-          ANDROID_NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/28.2.13676358
         run: |
+          export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/28.2.13676358"
           chmod +x gradlew
           ./gradlew :app:assembleExampleDebug :app:assembleSchoolDaysDebug \
             -Pabis=arm64-v8a -PbundleGameAssets=false --no-daemon --stacktrace
