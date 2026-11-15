@@ -363,6 +363,13 @@ still work. Scale `1.0` turns processing off without losing the selected profile
 - `--translation`, `--dump-translation`: engine translation routes.
 - `--config`, `--no-config`, `--renderer`, `--log`: runtime configuration.
 
+In the School Days Windows distribution built with
+`KOTONOHA_ENABLE_PLAYER_DUBBING=ON`, F10 opens the player dubbing window
+instead of the developer inspector. Choose scene audio or enter its logical
+ID, import or record a take, preview/edit it, then save it as a WAV overlay.
+The original GPK audio remains available for comparison and restoration.
+`--documents` also redirects the dubbing overlay for isolated testing.
+
 The generic settings menu, launcher and debug inspector expose master volume
 and mute. Master gain composes with channel volume/mute and per-stream gain;
 new channels inherit it. In the generic menu, left/right adjusts volume by 5%.
