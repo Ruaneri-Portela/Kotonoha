@@ -15,7 +15,83 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  vcpkg-deps:
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            runner: macos-15-intel
+            triplet: x64-osx-dynamic
+          - arch: arm64
+            runner: macos-15
+            triplet: arm64-osx-dynamic
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify runner architecture
+        run: test "$(uname -m)" = "${{ matrix.arch }}"
+      - name: Restore prebuilt dependency archives
+        id: deps-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: vcpkg-binary-cache
+          key: kotonoha-deps-v2-macos-${{ matrix.triplet }}-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json', 'vcpkg-overlays/ports/**') }}
+          restore-keys: |
+            kotonoha-deps-v2-macos-${{ matrix.triplet }}-
+      - name: Install build prerequisites
+        if: steps.deps-cache.outputs.cache-hit != 'true'
+        run: |
+          brew install cmake ninja pkg-config nasm yasm \
+            autoconf autoconf-archive automake libtool
+
+          # Homebrew installs GNU libtoolize as glibtoolize on macOS.
+          # Expose only libtoolize: exposing GNU libtool itself would shadow
+          # Apple's /usr/bin/libtool, which is required for Mach-O archives.
+          tools_dir="$RUNNER_TEMP/kotonoha-gnu-tools"
+          mkdir -p "$tools_dir"
+          ln -s "$(brew --prefix libtool)/bin/glibtoolize" "$tools_dir/libtoolize"
+          echo "$tools_dir" >> "$GITHUB_PATH"
+          export PATH="$tools_dir:$PATH"
+
+          for tool in autoconf automake aclocal libtoolize; do
+            command -v "$tool" >/dev/null || {
+              echo "::error::Missing macOS build tool: $tool"
+              exit 1
+            }
+          done
+          test -d "$(brew --prefix autoconf-archive)/share/aclocal"
+          test -x "$(brew --prefix libtool)/bin/glibtoolize"
+
+      - name: Set up pinned vcpkg
+        if: steps.deps-cache.outputs.cache-hit != 'true'
+        run: |
+          git clone --quiet https://github.com/microsoft/vcpkg.git "$RUNNER_TEMP/vcpkg"
+          git -C "$RUNNER_TEMP/vcpkg" checkout --quiet 9a5dfef5d1a0438a7d24856a85bd60f309d355e9
+          "$RUNNER_TEMP/vcpkg/bootstrap-vcpkg.sh" -disableMetrics
+          echo "VCPKG_ROOT=$RUNNER_TEMP/vcpkg" >> "$GITHUB_ENV"
+          # Dynamic macOS triplets are community triplets in this pinned vcpkg.
+          triplet_file="$RUNNER_TEMP/vcpkg/triplets/community/${{ matrix.triplet }}.cmake"
+          test -f "$triplet_file"
+          grep -Eq '^[[:space:]]*set\(VCPKG_LIBRARY_LINKAGE[[:space:]]+dynamic\)' "$triplet_file"
+      - name: Precompile macOS vcpkg packages
+        if: steps.deps-cache.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          mkdir -p vcpkg-binary-cache
+          export VCPKG_BINARY_SOURCES="clear;files,$GITHUB_WORKSPACE/vcpkg-binary-cache,readwrite"
+          "$VCPKG_ROOT/vcpkg" install --triplet="${{ matrix.triplet }}" --x-feature=sdl-vcpkg --x-feature=imgui-vcpkg \
+            "--overlay-ports=$GITHUB_WORKSPACE/vcpkg-overlays/ports"
+      - name: Save finished vcpkg dependency archives
+        if: steps.deps-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: vcpkg-binary-cache
+          key: kotonoha-deps-v2-macos-${{ matrix.triplet }}-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json', 'vcpkg-overlays/ports/**') }}
+
   macos:
+    needs: vcpkg-deps
     name: macOS ${{ matrix.arch }}
     runs-on: ${{ matrix.runner }}
     strategy:
@@ -71,11 +147,13 @@ jobs:
           test -f "$triplet_file"
           grep -Eq '^[[:space:]]*set\(VCPKG_LIBRARY_LINKAGE[[:space:]]+dynamic\)' "$triplet_file"
 
-      - uses: actions/cache@v4
+      - name: Restore vcpkg archives built in the dependency job
+        uses: actions/cache/restore@v4
         with:
           path: vcpkg-binary-cache
-          key: macos-${{ matrix.triplet }}-vcpkg-${{ hashFiles('vcpkg.json', 'vcpkg-overlays/ports/**') }}
-          restore-keys: macos-${{ matrix.triplet }}-vcpkg-
+          key: kotonoha-deps-v2-macos-${{ matrix.triplet }}-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json', 'vcpkg-overlays/ports/**') }}
+          fail-on-cache-miss: true
+
 
       - name: Audit engine/game platform isolation
         run: |
