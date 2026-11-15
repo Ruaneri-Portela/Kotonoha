@@ -204,7 +204,7 @@ jobs:
             executable="build-macos/outputs/SchoolDays/SchoolDays"
           fi
           test -f "$executable"
-          lipo -verify_arch "${{ matrix.arch }}" "$executable"
+          lipo "$executable" -verify_arch "${{ matrix.arch }}"
           test "$(lipo -archs "$executable")" = "${{ matrix.arch }}"
 
       - name: Run native regression suite
