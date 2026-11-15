@@ -9,6 +9,30 @@ prosseguiu após `c0941303`. São **hashes de referência**, não garantias
 de distribuição. Consulte o registro local, não versionado,
 `build/_sync-final-log.md` para comandos e decisão da publicação.
 
+### Fonte Noto Sans JP local exigida pelos testes headless
+
+Obtenha a fonte TrueType autêntica **Noto Sans JP Regular** no projeto oficial
+[Google Fonts / Noto Sans JP](https://fonts.google.com/noto/specimen/Noto+Sans+JP)
+(SIL Open Font License 1.1). Use o arquivo verdadeiro
+`NotoSansJP-Regular.ttf`, não o placeholder pequeno que uma árvore Git limpa
+pode preparar. Coloque-o em `assets/fonts/NotoSansJP-Regular.ttf` na fonte
+local, **sem comitar o arquivo**. Para o CTest Windows Release, prepare também
+os seguintes destinos ignorados pelo Git:
+
+- `build/<build-dir>/bin/Release/assets/fonts/NotoSansJP-Regular.ttf` para
+  `Kotonoha.Presentation` (`KotonohaPresentationTests.exe`) e
+  `SchoolDaysPortTest.exe`, que também prepara os fixtures sintéticos
+  `school_days_assets` usados por testes posteriores.
+- `build/<build-dir>/outputs/Release/SchoolDays/assets/fonts/NotoSansJP-Regular.ttf`
+  para `SchoolDaysRuntimeSmoke` (`SchoolDays.exe`).
+
+Recompile ou faça o staging dos assets depois de instalar a fonte; se o
+empacotamento já tiver ocorrido, copie a fonte licenciada para essas pastas
+ignoradas do build. A fonte ausente ou sintética causou **73/77** em vez de
+**75/77** na DEV limpa; com a fonte correta, restaram somente as duas falhas
+conhecidas de Infrastructure/MetalFX e timeout do launcher. Não versionar
+bytes dessa fonte, nem usar arquivos retail ou saves reais.
+
 | Área | Estado da verificação | Risco / próxima verificação autorizada |
 | --- | --- | --- |
 | Sete epílogos L×H após os créditos com WMV/OGG/PNG reais, fades e SaveFeel | **Não verificados** após a mescla; testes sintéticos não provam paridade da mídia real | QA ponta a ponta isolado com mídia licenciada; nunca incluir retail no Git |
@@ -27,6 +51,19 @@ de distribuição. Consulte o registro local, não versionado,
 | Ícone Windows opcional | ICO aprovado é **privado e não versionado**; worktree limpa sem ele **configurou e compilou com sucesso** | Continuar fora do Git; consultar o README School Days |
 | Paridade compartilhada em `lib/` | Seis divergências de comportamento (API/renderização de legendas, culling do backlog, fallback de overlay absoluto e API de tradução por seção) foram restauradas byte a byte de `upstream/dev`, uma por commit | Ver `docs/LIB_DIVERGENCES.pt-BR.md`. Paridade de execução/visual em outras plataformas não testada; build Windows e análise de usos são as evidências autorizadas |
 | Divergência upstream de `Kotonoha.Directories` / `StoragePaths` | **Reproduzida no upstream puro `fdd0b041`:** `Kotonoha.Directories` falha com `Desktop Documents root excludes the save directory` usando SDL dummy. `lib/src/Filesystem/StoragePaths.cpp` é idêntico ao upstream. O teste upstream espera `layout.documents == base` e `layout.saves == base / "save"`, mas o código upstream usa `base / "Kotonoha" / locations.packageIdentifier` e a subpasta `save` desse diretório | O teste local mantém expectativas mais rigorosas e corretas para o namespace, e passa. O upstream deveria ser avisado em fluxo autorizado separadamente; **nenhum push ou PR upstream** foi realizado |
+
+**Problema exato a relatar ao upstream (não enviado):** em
+`lib/tests/DirectoryTests.cpp`, o laço desktop que chama
+`directoryLayout(locations, "amagami")` exige `layout.documents == base`
+(`Desktop Documents root excludes the save directory`) e
+`layout.saves == base / "save"`. Porém, no *mesmo* commit upstream,
+`directoryLayout` em `lib/src/Filesystem/StoragePaths.cpp` define
+`result.documents = locations.userData / "Kotonoha" /
+locations.packageIdentifier` e depois
+`result.saves = result.documents / "save"`. Essas expectativas são
+incompatíveis quando o identificador do pacote não está vazio. Falha
+reproduzida no `upstream/dev` puro `fdd0b041`, sem mudar
+`StoragePaths.cpp` nem enfraquecer o teste local com namespace.
 
 Este registro é conservador: build Release e CTest sintético aprovados não
 certificam o comportamento do jogo comercial, saves reais nem plataformas

@@ -9,6 +9,30 @@ The integration branch began at `3faacd0f`; the closure review followed
 See the local, untracked `build/_sync-final-log.md` for test commands and
 the publication gate decision.
 
+### Local Noto Sans JP font required by headless tests
+
+Obtain the authentic **Noto Sans JP Regular** TrueType font from the official
+[Google Fonts / Noto Sans JP project](https://fonts.google.com/noto/specimen/Noto+Sans+JP)
+(SIL Open Font License 1.1). Use the actual `NotoSansJP-Regular.ttf` font, not
+the tiny placeholder that a clean checkout may stage. Put it at
+`assets/fonts/NotoSansJP-Regular.ttf` in the local source tree **without
+committing the font**. For Windows Release CTest, stage this file into the
+ignored build outputs as follows:
+
+- `build/<build-dir>/bin/Release/assets/fonts/NotoSansJP-Regular.ttf` for
+  `Kotonoha.Presentation` (`KotonohaPresentationTests.exe`) and
+  `SchoolDaysPortTest.exe`, which also prepares the synthetic `school_days_assets`
+  fixture used by subsequent tests.
+- `build/<build-dir>/outputs/Release/SchoolDays/assets/fonts/NotoSansJP-Regular.ttf`
+  for `SchoolDaysRuntimeSmoke` (`SchoolDays.exe`).
+
+Rebuild/stage assets after installing the font; if the package step has already
+run, copy the licensed font into those ignored build directories manually.
+The missing/placeholder font caused **73/77** instead of the expected **75/77**
+in a clean DEV run; with the correct local font, the two remaining failures
+were the already documented Infrastructure/MetalFX and launcher timeout. No
+font bytes belong in Git, and no retail files or real saves are needed.
+
 | Area | Verification state | Risk / next authorized verification |
 | --- | --- | --- |
 | Seven L×H post-credits epilogues with real WMV/OGG/PNG, fade and SaveFeel | **Not verified** after this merge; synthetic tests are not proof of real media parity | Isolated licensed-media end-to-end QA; never put retail files in Git |
@@ -27,6 +51,19 @@ the publication gate decision.
 | Optional Windows icon | The approved ICO is **private and untracked**; a clean worktree without it **configured and compiled successfully** | Keep out of Git; see the School Days README |
 | Shared `lib/` parity | Six behavioral deviations (subtitle API/renderer, backlog viewport culling, absolute overlay path fallback and named-section translation API) were restored byte-for-byte from `upstream/dev`, one commit per file | See `docs/LIB_DIVERGENCES.md`. Other-platform runtime/visual parity is still untested; Windows build and static use analysis are the authorized evidence |
 | `Kotonoha.Directories` / `StoragePaths` upstream discrepancy | **Reproduced on pure upstream `fdd0b041`:** `Kotonoha.Directories` fails with `Desktop Documents root excludes the save directory` under SDL dummy. Shared `lib/src/Filesystem/StoragePaths.cpp` is identical to upstream. The upstream test expects `layout.documents == base` and `layout.saves == base / "save"`, while the actual upstream implementation uses `base / "Kotonoha" / locations.packageIdentifier` and that directory's `save` subfolder | The local test retains the stricter, accurate namespaced expectations and passes. The upstream test should be reported upstream by a separately authorized workflow; **no upstream push or PR** was performed |
+
+**Exact upstream issue to relay (not sent):** in
+`lib/tests/DirectoryTests.cpp`, the desktop loop calling
+`directoryLayout(locations, "amagami")` asserts `layout.documents == base`
+(`Desktop Documents root excludes the save directory`) and
+`layout.saves == base / "save"`. In the *same* upstream commit, the desktop
+branch of `directoryLayout` in `lib/src/Filesystem/StoragePaths.cpp` sets
+`result.documents = locations.userData / "Kotonoha" /
+locations.packageIdentifier` and then
+`result.saves = result.documents / "save"`. These expectations are mutually
+incompatible for a nonempty package identifier. Reproduced on pure
+`upstream/dev` `fdd0b041`, without changing `StoragePaths.cpp` or weakening
+the local namespaced test.
 
 This ledger is intentionally conservative: a passing Release compilation and
 synthetic CTest suite do not certify commercial-game behavior, real saves, or
