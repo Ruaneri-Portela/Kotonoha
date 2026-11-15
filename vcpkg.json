@@ -14,12 +14,6 @@
     "harfbuzz",
     "json-c",
     "libass",
-    {
-      "name": "ffmpeg",
-      "features": [
-        "zlib"
-      ]
-    },
     "libiconv",
     {
       "name": "python3",
@@ -27,15 +21,11 @@
     },
     {
       "name": "fontconfig",
-      "platform": "android | ios | osx"
+      "platform": "ios"
     },
     {
       "name": "libunibreak",
-      "platform": "android | ios | osx"
-    },
-    {
-      "name": "libiconv",
-      "platform": "android"
+      "platform": "ios"
     },
     {
       "name": "plutosvg",
@@ -44,6 +34,12 @@
       ]
     },
     "zlib",
+    {
+      "name": "ffmpeg",
+      "features": [
+        "zlib"
+      ]
+    },
     {
       "name": "pkgconf",
       "host": true

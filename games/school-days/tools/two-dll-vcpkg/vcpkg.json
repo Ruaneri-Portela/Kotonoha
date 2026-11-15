@@ -1,0 +1,24 @@
+{
+  "name": "kotonoha-l4-local-static",
+  "version-string": "0.1.0",
+  "dependencies": [
+    "freetype",
+    "harfbuzz",
+    "json-c",
+    "libass",
+    "libiconv",
+    {
+      "name": "plutosvg",
+      "features": ["freetype"]
+    },
+    "zlib",
+    {
+      "name": "ffmpeg",
+      "features": ["zlib"]
+    },
+    {
+      "name": "pkgconf",
+      "host": true
+    }
+  ]
+}
