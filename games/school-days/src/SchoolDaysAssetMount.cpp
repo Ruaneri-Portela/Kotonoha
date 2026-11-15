@@ -139,20 +139,38 @@ bool IsOrsName(const std::u16string &name) {
 
 bool SameOrsStructure(const std::vector<uint8_t> &reference,
                       const std::vector<uint8_t> &translation,
-                      std::string *error) {
+                      std::string *error,
+                      bool allowKnownRussianVoiceSubtitle = false) {
   OrsDocument original(Kotonoha_OrsParserBytes(reference.data(), reference.size()));
   OrsDocument localized(Kotonoha_OrsParserBytes(translation.data(), translation.size()));
   if (!original.get().data || !original.get().size ||
       !localized.get().data || !localized.get().size)
     return Fail(error, "Translated ORS or its reference could not be parsed");
-  if (original.get().size != localized.get().size)
+  // The known Russian fan patch includes one extra subtitle over Taisuke's
+  // unchanged voice in the single retail scene 03-KB-D10. Permit that exact
+  // text-only insertion; every original command/tick/media remains mandatory.
+  const bool russianExtra = allowKnownRussianVoiceSubtitle &&
+      localized.get().size == original.get().size + 1;
+  if (!russianExtra && original.get().size != localized.get().size)
     return Fail(error, "Translated ORS event count differs from original");
   const auto samePath = [](const char *left, const char *right) {
     return left && right ? std::strcmp(left, right) == 0 : left == right;
   };
   const Kotonoha_orsEvent *a = original.get().data;
   const Kotonoha_orsEvent *b = localized.get().data;
+  bool skippedRussianSubtitle = false;
   for (; a && b; a = a->next, b = b->next) {
+    if (russianExtra && !skippedRussianSubtitle &&
+        a->command == PLAY_VOICE && a->startTick == 403 &&
+        a->endTick == 577 && b->command == PRINT_TEXT &&
+        b->startTick == 403 && b->endTick == 577 &&
+        b->data.print_text && b->data.print_text->text &&
+        *b->data.print_text->text &&
+        samePath(b->data.print_text->character, "Taisuke")) {
+      skippedRussianSubtitle = true;
+      b = b->next;
+      if (!b) return Fail(error, "Russian extra subtitle displaced voice event");
+    }
     if (a->command != b->command || a->startTick != b->startTick ||
         a->endTick != b->endTick)
       return Fail(error, "Translated ORS command sequence/timing differs from original");
@@ -207,7 +225,7 @@ bool SameOrsStructure(const std::vector<uint8_t> &reference,
     default: break;
     }
   }
-  return (!a && !b) ? true :
+  return (!a && !b && (!russianExtra || skippedRussianSubtitle)) ? true :
       Fail(error, "Translated ORS linked event sequence differs from original");
 }
 
@@ -236,6 +254,7 @@ std::vector<std::u16string> SortedEntryNames(const SchoolDaysGpkArchive &archive
 
 bool ValidateTranslatedScript(const SchoolDaysGpkArchive &selected,
                               const SchoolDaysGpkArchive &retail,
+                              const std::string &locale,
                               std::string *error) {
   // Compare the complete PIDX path set, including each original subdirectory
   // and filename. Matching only an arbitrary ORS subset would silently mix
@@ -264,7 +283,9 @@ bool ValidateTranslatedScript(const SchoolDaysGpkArchive &selected,
     if (!retail.ReadEntry(it->second, &base, &failure) ||
         !selected.ReadEntry(i, &translated, &failure))
       return Fail(error, "Cannot inspect corresponding ORS files: " + failure);
-    if (!SameOrsStructure(base, translated, &failure))
+    const bool knownRussianSubtitle = locale == "ru" &&
+        entry.filename == u"ENGLISH/03/03-KB-D10.ENG.ORS";
+    if (!SameOrsStructure(base, translated, &failure, knownRussianSubtitle))
       return Fail(error, "Translated Script.GPK ORS structure mismatch: " + failure);
   }
   return foundOrs ? true : Fail(error, "Translated Script.GPK contains no ORS");
@@ -592,19 +613,11 @@ bool ConfigureSchoolDaysTranslatedGpks(
       selection.locale.find('\0') != std::string::npos)
     return RejectTranslatedConfiguration(
         error, "School Days GPK translation locale is invalid");
-#if !defined(KOTONOHA_SCHOOL_DAYS_RETAIL_ONLY)
-  if (selection.locale == "zh-CN" || selection.locale == "zh-cn" ||
-      selection.locale == "zh_CN")
-    return RejectTranslatedConfiguration(
-        error, "zh-CN raw Script.GPK is incompatible (different scene "
-               "names, GB18030 and event structure); certified conversion required");
-#endif
+  // Only certified, complete native ORS archives may be mounted.
+  // The raw Chinese GB18030 patch is rejected by its canonical filename.
   if (selection.locale != "en" && selection.locale != "pt-BR" &&
-      selection.locale != "es" && selection.locale != "zh-CN"
-#if defined(KOTONOHA_SCHOOL_DAYS_RETAIL_ONLY)
-      && selection.locale != "ru"
-#endif
-      )
+      selection.locale != "es" && selection.locale != "zh-CN" &&
+      selection.locale != "ru")
     return RejectTranslatedConfiguration(
         error, "Unknown or unverified translated GPK locale");
   const bool english = selection.locale == "en";
@@ -649,16 +662,31 @@ bool ConfigureSchoolDaysTranslatedGpks(
 #else
         "es requires certified Script - Spanish.GPK and es-lxh.GPK");
 #endif
-#if defined(KOTONOHA_SCHOOL_DAYS_RETAIL_ONLY)
   if (selection.locale == "zh-CN" &&
-      selection.scriptGpk.filename().u8string() !=
-          "Script - chinese-compatible.GPK")
-    return RejectTranslatedConfiguration(
-        error, "zh-CN requires Script - chinese-compatible.GPK; raw Chinese archive is unsupported");
-  if (selection.locale == "ru" &&
-      selection.scriptGpk.filename().u8string() != "Script - Russian.GPK")
-    return RejectTranslatedConfiguration(error, "ru requires Script - Russian.GPK");
+      (selection.scriptGpk.filename().u8string() !=
+           "Script - chinese-compatible.GPK"
+#if !defined(KOTONOHA_SCHOOL_DAYS_RETAIL_ONLY)
+       || selection.lxhGpk.filename().u8string() != "zh-CN-lxh.GPK"
 #endif
+       ))
+    return RejectTranslatedConfiguration(
+        error, "zh-CN requires certified Script - chinese-compatible.GPK"
+#if !defined(KOTONOHA_SCHOOL_DAYS_RETAIL_ONLY)
+               " and zh-CN-lxh.GPK"
+#endif
+               "; raw Chinese archive is unsupported");
+  if (selection.locale == "ru" &&
+      (selection.scriptGpk.filename().u8string() != "Script - Russian.GPK"
+#if !defined(KOTONOHA_SCHOOL_DAYS_RETAIL_ONLY)
+       || selection.lxhGpk.filename().u8string() != "ru-lxh.GPK"
+#endif
+       ))
+    return RejectTranslatedConfiguration(
+        error, "ru requires Script - Russian.GPK"
+#if !defined(KOTONOHA_SCHOOL_DAYS_RETAIL_ONLY)
+               " and ru-lxh.GPK"
+#endif
+               );
   const auto validatePath = [&](const std::filesystem::path &path,
                                 const char *kind) {
     if (path.empty()) return true;
@@ -769,7 +797,7 @@ bool MountSchoolDaysRetailGpks(const std::filesystem::path &gameOrPacksRoot,
       std::string reason;
       if (!translatedScript->Open(requested->scriptGpk, &reason))
         return Fail(error, "Selected translated Script.GPK is invalid: " + reason);
-      if (!ValidateTranslatedScript(*translatedScript, *retail, &reason))
+      if (!ValidateTranslatedScript(*translatedScript, *retail, requested->locale, &reason))
         return Fail(error, "Selected translated Script.GPK rejected: " + reason);
     }
     if (!requested->lxhGpk.empty()) {

@@ -117,6 +117,16 @@ std::string HqOrs(std::string_view line, bool alterTiming = false) {
          "[Next]=00:00:12;\n";
 }
 
+std::string RussianVoiceSubtitleOrs(bool extraText) {
+  std::string result = "[SkipFRAME]=00:00:00;\n";
+  if (extraText)
+    result += "[PrintText]=00:16:19\tTaisuke\tExtra Russian voice subtitle.\t00:24:01;\n";
+  result += "[PlayVoice]=00:16:19\tVoice03/synthetic\t0\ttai\t00:24:01;\n"
+            "[PrintText]=00:24:01\tTaisuke\tOriginal next subtitle.\t00:25:00;\n"
+            "[Next]=00:25:01;\n";
+  return result;
+}
+
 std::string LxhOrs(std::string_view line) {
   return "[SkipFRAME]=00:00:00;\n"
          "[PrintText]=00:00:01\tSekai\t" + std::string(line) +
@@ -126,10 +136,13 @@ std::string LxhOrs(std::string_view line) {
          "[Next]=00:04:00;\n";
 }
 
-std::vector<Entry> ScriptEntries(std::string_view text, bool alterTiming = false) {
+std::vector<Entry> ScriptEntries(std::string_view text, bool alterTiming = false,
+                                 bool extraRussianSubtitle = false) {
   return {
       {"English/01/01-AA-A00.ENG.ORS", HqOrs(text, alterTiming)},
       {"English/05/05-A2-F00.ENG.ORS", HqOrs(text)},
+      {"ENGLISH/03/03-KB-D10.ENG.ORS",
+       RussianVoiceSubtitleOrs(extraRussianSubtitle)},
       {"English/README.BIN", "SYNTHETIC_NON_SCRIPT"},
   };
 }
@@ -259,17 +272,31 @@ int main(int argc, char **argv) {
     const auto ptLxh = translations / "pt-BR-lxh.GPK";
     const auto esScript = translations / "Script - Spanish.GPK";
     const auto esLxh = translations / "es-lxh.GPK";
+    const auto ruScript = translations / "Script - Russian.GPK";
+    const auto ruLxh = translations / "ru-lxh.GPK";
+    const auto zhScript = translations / "Script - chinese-compatible.GPK";
+    const auto zhRaw = translations / "Script - chinese.GPK";
+    const auto zhLxh = translations / "zh-CN-lxh.GPK";
     const auto enLxh = translations / "en-lxh.GPK";
     const auto enScript = translations / "Script - english.GPK";
     Write(ptScript, MakeGpk(ScriptEntries("Texto PT-BR.")));
     Write(ptLxh, MakeGpk(LxhEntries("Epilogo PT-BR.", false)));
     Write(esScript, MakeGpk(ScriptEntries("Texto español sintético.")));
     Write(esLxh, MakeGpk(LxhEntries("Epílogo español sintético.", false)));
+    Write(ruScript, MakeGpk(ScriptEntries("Synthetic Russian HQ.", false, true)));
+    Write(ruLxh, MakeGpk(LxhEntries("Synthetic Russian LxH.", false)));
+    Write(zhScript, MakeGpk(ScriptEntries("Synthetic Chinese HQ.")));
+    Write(zhRaw, MakeGpk(ScriptEntries("Uncertified Chinese source.")));
+    Write(zhLxh, MakeGpk(LxhEntries("Synthetic Chinese LxH.", false)));
     Write(enLxh, MakeGpk(LxhEntries("English epilogue.", false)));
     Write(enScript, MakeGpk(ScriptEntries("Unauthorized English override.")));
 
     CheckRejected({"en", enScript, enLxh}, root, "English cannot choose Script.GPK");
     CheckRejected({"zh-CN", ptScript, ptLxh}, root, "Chinese requires conversion");
+    CheckRejected({"zh-CN", zhRaw, zhLxh}, root, "Raw Chinese is not accepted");
+    CheckRejected({"zh-CN", zhScript, ruLxh}, root, "Chinese must use its LxH locale");
+    CheckRejected({"ru", ruScript, ptLxh}, root, "Russian cannot borrow Brazilian epilogues");
+    CheckRejected({"ru", ptScript, ruLxh}, root, "Russian cannot borrow Brazilian HQ");
     CheckRejected({"pt-BR", ptScript, {}}, root, "PT-BR missing LxH");
     CheckRejected({"pt-BR", enScript, ptLxh}, root, "PT-BR wrong base filename");
     CheckRejected({"pt-BR", root / "missing.GPK", ptLxh}, root, "PT-BR missing GPK");
@@ -289,6 +316,19 @@ int main(int argc, char **argv) {
     Check(ConfigureSchoolDaysTranslatedGpks({"es", esScript, esLxh}, &error),
           "Valid synthetic Spanish GPK selection rejected: " + error);
     VerifyMountedLocale(root, "Texto español sintético.", "Epílogo español sintético.");
+
+    Check(ConfigureSchoolDaysTranslatedGpks({"ru", ruScript, ruLxh}, &error),
+          "Valid synthetic Russian GPK selection rejected: " + error);
+    VerifyMountedLocale(root, "Synthetic Russian HQ.", "Synthetic Russian LxH.");
+    // Strictly validate the one known fan-translation voice subtitle insertion.
+    Write(ruScript, MakeGpk(ScriptEntries("Synthetic Russian HQ.", false, false)));
+    Check(ConfigureSchoolDaysTranslatedGpks({"ru", ruScript, ruLxh}, &error),
+          "Russian source without optional subtitle rejected: " + error);
+    VerifyMountedLocale(root, "Synthetic Russian HQ.", "Synthetic Russian LxH.");
+
+    Check(ConfigureSchoolDaysTranslatedGpks({"zh-CN", zhScript, zhLxh}, &error),
+          "Compatible synthetic Chinese GPK selection rejected: " + error);
+    VerifyMountedLocale(root, "Synthetic Chinese HQ.", "Synthetic Chinese LxH.");
 
     Write(ptScript, MakeGpk(ScriptEntries("Texto PT-BR.", true)));
     Check(ConfigureSchoolDaysTranslatedGpks({"pt-BR", ptScript, ptLxh}, &error),
