@@ -63,22 +63,17 @@ std::filesystem::path androidDirectory(const char *method) {
     throw std::runtime_error("Android storage requires an SDL activity");
 
   jclass type = env->GetObjectClass(activity);
-  jmethodID id =
-      type ? env->GetMethodID(type, method, "()Ljava/lang/String;") : nullptr;
-  auto value =
-      id ? static_cast<jstring>(env->CallObjectMethod(activity, id)) : nullptr;
+  jmethodID id = type ? env->GetMethodID(type, method, "()Ljava/lang/String;") : nullptr;
+  auto value = id ? static_cast<jstring>(env->CallObjectMethod(activity, id)) : nullptr;
   if (env->ExceptionCheck() || !value) {
     if (env->ExceptionCheck()) {
       env->ExceptionDescribe();
       env->ExceptionClear();
     }
-    if (value)
-      env->DeleteLocalRef(value);
-    if (type)
-      env->DeleteLocalRef(type);
+    if (value) env->DeleteLocalRef(value);
+    if (type) env->DeleteLocalRef(type);
     env->DeleteLocalRef(activity);
-    throw std::runtime_error(std::string("Cannot locate Android directory: ") +
-                             method);
+    throw std::runtime_error(std::string("Cannot locate Android directory: ") + method);
   }
 
   const char *text = env->GetStringUTFChars(value, nullptr);
@@ -171,6 +166,17 @@ DirectoryLayout directoryLayout(const StorageLocations &locations,
     }
   };
 
+  // Every port writes into one explicitly named, singular save directory.
+  // Keeping this policy here prevents individual games from leaking writable
+  // state into their installation/data directory.
+  if (!locations.packageIdentifier.empty() && !locations.userData.empty()) {
+    validateGame(locations.packageIdentifier);
+    result.documents =
+        locations.userData / "Kotonoha" / locations.packageIdentifier;
+    // Preserve the fork's existing save location for every game port.
+    result.saves = result.documents;
+  }
+
   // --- Platform Configuration ---
   switch (locations.platform) {
   case StoragePlatform::Android: {
@@ -183,8 +189,6 @@ DirectoryLayout directoryLayout(const StorageLocations &locations,
     addDirectory(result.gameAssets, locations.privateGameAssets);
     addGame(locations.resources, false);
 
-    // Don't change this, on android Android/data/<package> is used for user data.
-    result.documents = locations.userData;
     break;
   }
   case StoragePlatform::IOS: {
@@ -198,8 +202,6 @@ DirectoryLayout directoryLayout(const StorageLocations &locations,
       addDirectory(result.engineAssets, locations.userData / "fonts");
     }
 
-    // Don't change this, on iOS the Documents directory is the userData path. Allow to show on Files.app
-    result.documents = locations.userData;
     break;
   }
   case StoragePlatform::Desktop:
@@ -209,22 +211,8 @@ DirectoryLayout directoryLayout(const StorageLocations &locations,
       addDirectory(result.engineAssets, locations.workingDirectory / "assets");
       addGame(locations.workingDirectory, true);
     }
-
-    // Don't change this, on Desktop, the Documents directory is the userData path with Kotonoha subdirectory.
-    // Documents directory for Desktop is the userData with Kotonoha
-    // subdirectory.
-    result.documents =
-        locations.userData / "Kotonoha" / locations.packageIdentifier;
     break;
   }
-  }
-
-  // Every port writes into one explicitly named, singular save directory.
-  // Keeping this policy here prevents individual games from leaking writable
-  // state into their installation/data directory.
-  if (!locations.packageIdentifier.empty() && !locations.userData.empty()) {
-    validateGame(locations.packageIdentifier);
-    result.saves = result.documents / "save";
   }
 
   // --- Reference Search Paths ---
@@ -527,9 +515,9 @@ FileResolver::findGameAsset(const std::string &game,
     return found;
   std::error_code error;
   for (const auto &root : roots(game))
-    for (const auto &candidate :
-         {root / "game-assets" / relative,
-          root / "games" / game / "game-assets" / relative, root / relative})
+    for (const auto &candidate : {root / "game-assets" / relative,
+                                  root / "games" / game / "game-assets" / relative,
+                                  root / relative})
       if (std::filesystem::exists(candidate, error))
         return candidate;
 #ifdef __ANDROID__

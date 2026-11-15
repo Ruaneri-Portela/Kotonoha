@@ -1,12 +1,25 @@
 #include <Kotonoha/parsers/AssStyle.hpp>
 #include <algorithm>
 #include <ass/ass.h>
+#if defined(KOTONOHA_DISTRIBUTION_BUILD)
+#include <SDL3/SDL_log.h>
+#endif
 #include <fstream>
 #include <memory>
 #include <sstream>
 #include <stdexcept>
 
 namespace Kotonoha {
+#if defined(KOTONOHA_DISTRIBUTION_BUILD)
+namespace {
+void reportAssError(int level, const char *format, va_list args, void *) {
+  if (level <= 1)
+    SDL_LogMessageV(SDL_LOG_CATEGORY_APPLICATION, SDL_LOG_PRIORITY_ERROR,
+                    format, args);
+}
+} // namespace
+#endif
+
 AssStyle AssStyle::parse(const std::string &ass) {
   if (ass.empty() || ass.size() > 16 * 1024 * 1024 ||
       ass.find('\0') != std::string::npos)
@@ -42,6 +55,9 @@ AssStyle AssStyle::parse(const std::string &ass) {
       ass_library_init(), ass_library_done);
   if (!library)
     throw std::runtime_error("Cannot initialize ASS style parser");
+#if defined(KOTONOHA_DISTRIBUTION_BUILD)
+  ass_set_message_cb(library.get(), reportAssError, nullptr);
+#endif
   std::string bytes = result.header;
   std::unique_ptr<ASS_Track, decltype(&ass_free_track)> track(
       ass_read_memory(library.get(), bytes.data(), bytes.size(), nullptr),

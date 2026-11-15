@@ -1,14 +1,15 @@
 #pragma once
 
-#include <Kotonoha/core/SDL.hpp>
 #include <algorithm>
+#include <Kotonoha/core/SDL.hpp>
 #include <map>
 #include <vector>
 
 namespace Kotonoha {
 
 // C++17 compatible clamp function
-template <typename T> constexpr T Clamp(T value, T min, T max) {
+template <typename T>
+constexpr T Clamp(T value, T min, T max) {
   return value < min ? min : (value > max ? max : value);
 }
 

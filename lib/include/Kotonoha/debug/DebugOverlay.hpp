@@ -23,9 +23,6 @@ struct DebugSettings {
   bool showFPS = true;
   bool showNodeClock = true;
   bool ignorePause = false;
-  std::string fpsLabel = "FPS";
-  std::string nodeLabel = "Node";
-  std::string clockLabel = "Event clock";
 };
 
 class DebugOverlay {
@@ -68,9 +65,6 @@ class DebugOverlay {
   bool scrollActiveTranslation = false, scrollActiveTranslationNode = false;
   std::string trackedTranslationNode, trackedTranslationKey;
   std::vector<std::string> availableVNFonts;
-  std::vector<std::string> availableUIFonts;
-  std::string uiFontDraft;
-  bool uiFontDraftReady = false;
   char transSearchFilter[128]{};
   Translation::SourceTexts cachedManagerSources;
   Translation::SourceTexts cachedRuntimeSources;
@@ -85,17 +79,8 @@ class DebugOverlay {
   void drawTranslationExport();
   void drawTranslationEditor();
   void drawTranslationWindow();
-  void drawAppletHub();
-  void drawOptionsWindow();
   void drawDubbingWindow();
-  void drawMenuBar();
-  void drawInterfaceTools();
-  void drawAudioTools();
-  void drawDubbingTools();
-  void drawDisplayTools();
-  void drawDialogueTools();
-  void drawLogs();
-  void applyUIFont(const std::string &fontPath);
+  void drawEngineTools();
   void drawForcedSubtitlesGenerator();
   std::string forcedSubsStatus;
 
@@ -109,7 +94,6 @@ public:
   void update();
   void renderHUD(RendererRef renderer);
   void renderMenu(RendererRef renderer);
-  void openOptions() { showOptionsWindow = true; }
   bool isVisible() const {
     return visible || showOptionsWindow || showTranslationWindow ||
            showDubbingWindow;
@@ -119,11 +103,9 @@ public:
   DebugSettings &getSettings() { return settings; }
   const DebugSettings &getSettings() const { return settings; }
   void trackActiveTranslation();
-  std::string nodeClockText(bool eventClock = true,
-                            bool nodeClock = true) const;
+  std::string nodeClockText(bool eventClock = true, bool nodeClock = true) const;
   std::string performanceText(bool milliseconds = true) const;
   std::pair<std::string, std::string> hudText(float width) const;
-  void reloadFonts(const std::string &fontPath);
 };
 
 } // namespace Kotonoha

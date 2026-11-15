@@ -1,6 +1,6 @@
+#include "FFmpegSupport.hpp"
 #include <Kotonoha/core/AssetProvider.hpp>
 #include <Kotonoha/core/UI.hpp>
-#include <Kotonoha/media/FFmpegSupport.hpp>
 #include <Kotonoha/media/MediaPlayer.hpp>
 #include <Kotonoha/media/upscaling/Upscaler.hpp>
 
@@ -89,8 +89,7 @@ struct MediaPlayer::State {
   std::deque<VideoFrame> frames;
 
   ~State() {
-    if (cancelled)
-      cancelled->store(true);
+    if (cancelled) cancelled->store(true);
     if (stream)
       SDL_SetAudioStreamGetCallback(stream.get(), nullptr, nullptr);
     {
@@ -98,8 +97,7 @@ struct MediaPlayer::State {
       closing = true;
     }
     wake.notify_one();
-    if (decoderThread.joinable())
-      decoderThread.join();
+    if (decoderThread.joinable()) decoderThread.join();
     if (channel && stream)
       channel->detach(stream.get());
     stream.reset();
@@ -119,8 +117,8 @@ struct MediaPlayer::State {
     auto &self = *static_cast<State *>(opaque);
     if (!buffer || size <= 0 || self.offset > self.bytes.size())
       return AVERROR(EINVAL);
-    const auto count = std::min<std::size_t>(static_cast<std::size_t>(size),
-                                             self.bytes.size() - self.offset);
+    const auto count = std::min<std::size_t>(
+        static_cast<std::size_t>(size), self.bytes.size() - self.offset);
     if (count == 0)
       return AVERROR_EOF;
     std::copy_n(self.bytes.data() + self.offset, count, buffer);
@@ -163,12 +161,10 @@ struct MediaPlayer::State {
     if (!self.assetStream || !buffer || size <= 0)
       return AVERROR(EINVAL);
     try {
-      const auto count =
-          self.assetStream->read(buffer, static_cast<std::size_t>(size));
+      const auto count = self.assetStream->read(buffer, static_cast<std::size_t>(size));
       if (count == 0)
         return AVERROR_EOF;
-      if (count > static_cast<std::size_t>(size) ||
-          count > static_cast<std::size_t>(INT_MAX))
+      if (count > static_cast<std::size_t>(size) || count > static_cast<std::size_t>(INT_MAX))
         return AVERROR(EIO);
       return static_cast<int>(count);
     } catch (...) {
@@ -189,16 +185,10 @@ struct MediaPlayer::State {
       }
       std::uint64_t base = 0;
       switch (whence & ~AVSEEK_FORCE) {
-      case SEEK_SET:
-        break;
-      case SEEK_CUR:
-        base = self.assetStream->tell();
-        break;
-      case SEEK_END:
-        base = size;
-        break;
-      default:
-        return AVERROR(EINVAL);
+      case SEEK_SET: break;
+      case SEEK_CUR: base = self.assetStream->tell(); break;
+      case SEEK_END: base = size; break;
+      default: return AVERROR(EINVAL);
       }
       if (base > static_cast<std::uint64_t>(INT64_MAX))
         return AVERROR(EINVAL);
@@ -243,8 +233,8 @@ struct MediaPlayer::State {
     auto *buffer = static_cast<uint8_t *>(av_malloc(bufferSize));
     if (!buffer)
       throw std::bad_alloc();
-    io = avio_alloc_context(buffer, bufferSize, 0, this, readAssetStream,
-                            nullptr, seekAssetStream);
+    io = avio_alloc_context(buffer, bufferSize, 0, this, readAssetStream, nullptr,
+                            seekAssetStream);
     if (!io) {
       av_free(buffer);
       throw std::bad_alloc();
@@ -369,11 +359,10 @@ struct MediaPlayer::State {
           putAudio(std::vector<float>(silence * 2));
           queuedEnd += silence / 48000.0;
         }
-        const auto skipped =
-            gap < -timestampDiscontinuitySeconds
-                ? static_cast<std::size_t>(std::max(
-                      0.0, std::min(-gap * 48000, static_cast<double>(count))))
-                : 0u;
+        const auto skipped = gap < -timestampDiscontinuitySeconds
+            ? static_cast<std::size_t>(std::max(
+                  0.0, std::min(-gap * 48000, static_cast<double>(count))))
+            : 0u;
         putAudio(samples, skipped * 2);
         queuedEnd += (static_cast<std::size_t>(count) - skipped) / 48000.0;
       }
@@ -555,10 +544,8 @@ MediaPlayer::PreparedInput::~PreparedInput() = default;
 
 void MediaPlayer::openDecoder(State &next, const std::string &url,
                               bool audioOnly) {
-  if (!next.format)
-    next.format = avformat_alloc_context();
-  if (!next.format)
-    throw std::bad_alloc();
+  if (!next.format) next.format = avformat_alloc_context();
+  if (!next.format) throw std::bad_alloc();
   next.format->interrupt_callback = {State::interrupt, &next};
   AVDictionary *options = nullptr;
   check(av_dict_set(&options, "protocol_whitelist", "file", 0),
@@ -588,10 +575,9 @@ void MediaPlayer::openDecoder(State &next, const std::string &url,
   }
 }
 
-std::unique_ptr<MediaPlayer::PreparedInput>
-MediaPlayer::prepareInput(const AssetProvider &assets, const std::string &id,
-                          bool audioOnly,
-                          std::shared_ptr<std::atomic_bool> cancelled) {
+std::unique_ptr<MediaPlayer::PreparedInput> MediaPlayer::prepareInput(
+    const AssetProvider &assets, const std::string &id, bool audioOnly,
+    std::shared_ptr<std::atomic_bool> cancelled) {
   auto next = std::make_unique<State>();
   next->cancelled = std::move(cancelled);
   const std::string path = assets.localPath(id);
@@ -609,14 +595,13 @@ MediaPlayer::prepareInput(const AssetProvider &assets, const std::string &id,
 
 void MediaPlayer::adoptPreparedInput(std::unique_ptr<PreparedInput> input,
                                      const std::string &channelName) {
-  if (!input || !input->state)
-    throw std::invalid_argument("Prepared media is empty");
+  if (!input || !input->state) throw std::invalid_argument("Prepared media is empty");
   auto next = std::move(input->state);
   // The speculative cancellation token belongs to the scene worker.  Once
   // adopted, the player owns a fresh token that interrupts FFmpeg on stop.
   next->cancelled = std::make_shared<std::atomic_bool>(false);
-  next->channel = mixer.channel(
-      channelName.empty() ? (next->video ? "video" : "audio") : channelName);
+  next->channel = mixer.channel(channelName.empty() ?
+                                (next->video ? "video" : "audio") : channelName);
   if (next->audio) {
     const SDL_AudioSpec spec{SDL_AUDIO_F32, 2, 48000};
     next->stream.reset(SDL_OpenAudioDeviceStream(
@@ -644,13 +629,11 @@ void MediaPlayer::adoptPreparedInput(std::unique_ptr<PreparedInput> input,
 void MediaPlayer::start(std::unique_ptr<State> next, const std::string &url,
                         bool audioOnly, bool prepared) {
   openDecoder(*next, url, audioOnly);
-  auto input =
-      std::unique_ptr<PreparedInput>(new PreparedInput(std::move(next)));
-  const std::string channelName =
-      input->state->channel ? input->state->channel->getName() : std::string();
+  auto input = std::unique_ptr<PreparedInput>(new PreparedInput(std::move(next)));
+  const std::string channelName = input->state->channel ?
+      input->state->channel->getName() : std::string();
   adoptPreparedInput(std::move(input), channelName);
-  if (!prepared)
-    setPaused(false);
+  if (!prepared) setPaused(false);
 }
 
 void MediaPlayer::openSoundtrack(const AssetProvider &assets,
@@ -660,8 +643,7 @@ void MediaPlayer::openSoundtrack(const AssetProvider &assets,
     throw std::logic_error("Open media before its soundtrack");
   auto next = std::make_unique<MediaPlayer>(mixer);
   next->setPlaybackRate(playbackRate_);
-  if (bufferSeconds_ > 0.0)
-    next->setBufferSeconds(bufferSeconds_);
+  if (bufferSeconds_ > 0.0) next->setBufferSeconds(bufferSeconds_);
   next->open(assets, id, true,
              channelName.empty() ? state->channel->getName() : channelName);
   if (pausedAt)
@@ -692,8 +674,20 @@ void MediaPlayer::setChannel(const std::string &name) {
   if (state->channel == channel)
     return;
   if (state->stream) {
+#ifdef KOTONOHA_DEV_CONTROL
+    // A logical SDL audio device has one postmix callback. Detaching the old
+    // channel after attaching the new one would unregister the new observer.
+    state->channel->detach(state->stream.get());
+    try {
+      channel->attach(state->stream.get());
+    } catch (...) {
+      state->channel->attach(state->stream.get());
+      throw;
+    }
+#else
     channel->attach(state->stream.get());
     state->channel->detach(state->stream.get());
+#endif
   }
   state->channel = std::move(channel);
   if (soundtrack)
@@ -741,8 +735,7 @@ void MediaPlayer::setPaused(bool paused) {
 
 void MediaPlayer::setPlaybackRate(double rate) {
   if (!std::isfinite(rate) || rate < 0.01 || rate > 100.0)
-    throw std::invalid_argument(
-        "Media playback rate must be between 0.01 and 100");
+    throw std::invalid_argument("Media playback rate must be between 0.01 and 100");
   if (rate == playbackRate_)
     return;
 
@@ -754,8 +747,9 @@ void MediaPlayer::setPlaybackRate(double rate) {
     clockStart = now;
     if (pausedAt)
       pausedAt = now;
-    if (state->stream && !SDL_SetAudioStreamFrequencyRatio(
-                             state->stream.get(), static_cast<float>(rate)))
+    if (state->stream &&
+        !SDL_SetAudioStreamFrequencyRatio(state->stream.get(),
+                                          static_cast<float>(rate)))
       throw std::runtime_error(SDL_GetError());
     if (state->threaded) {
       {
@@ -772,8 +766,7 @@ void MediaPlayer::setPlaybackRate(double rate) {
 
 void MediaPlayer::setBufferSeconds(double seconds) {
   if (!std::isfinite(seconds) || seconds < 0.05 || seconds > 60.0)
-    throw std::invalid_argument(
-        "Media buffer target must be between 0.05 and 60 seconds");
+    throw std::invalid_argument("Media buffer target must be between 0.05 and 60 seconds");
   bufferSeconds_ = seconds;
   if (state && state->threaded) {
     {
@@ -782,8 +775,7 @@ void MediaPlayer::setBufferSeconds(double seconds) {
     }
     state->wake.notify_one();
   }
-  if (soundtrack)
-    soundtrack->setBufferSeconds(seconds);
+  if (soundtrack) soundtrack->setBufferSeconds(seconds);
 }
 
 void MediaPlayer::update(RendererRef renderer, double position) {
@@ -846,17 +838,10 @@ void MediaPlayer::update(RendererRef renderer, double position) {
   s.lastPosition = position;
   const double lookAhead =
       bufferSeconds_ > 0.0 ? bufferSeconds_ : (s.threaded ? 0.5 : 0.35);
-  if (s.threaded) {
-    // An audio/video decoder thread may not have run before the first render
-    // update. Preserve the original first-frame contract: bootstrap a bounded
-    // buffer synchronously once, under the same mutex as the producer, rather
-    // than briefly showing an empty frame or relying on scheduler timing.
-    if (s.video && s.queuedEnd < 0 && !s.eof)
-      s.fill(position, std::min(4.0, 0.75 * playbackRate_));
+  if (s.threaded)
     s.wake.notify_one();
-  } else {
+  else
     s.fill(position, lookAhead);
-  }
   Frame latest;
   while (!s.frames.empty() && s.frames.front().at <= position) {
     latest = std::move(s.frames.front().frame);

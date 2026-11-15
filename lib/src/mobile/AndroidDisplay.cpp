@@ -13,15 +13,12 @@ namespace Kotonoha {
 namespace {
 
 bool JniReady(JNIEnv **outEnv, jobject *outActivity, jclass *outClass) {
-  if (!outEnv || !outActivity || !outClass)
-    return false;
+  if (!outEnv || !outActivity || !outClass) return false;
   auto *env = static_cast<JNIEnv *>(SDL_GetAndroidJNIEnv());
   auto activity = static_cast<jobject>(SDL_GetAndroidActivity());
-  if (!env || !activity)
-    return false;
+  if (!env || !activity) return false;
   jclass cls = env->GetObjectClass(activity);
-  if (!cls)
-    return false;
+  if (!cls) return false;
   *outEnv = env;
   *outActivity = activity;
   *outClass = cls;
@@ -29,8 +26,7 @@ bool JniReady(JNIEnv **outEnv, jobject *outActivity, jclass *outClass) {
 }
 
 void ClearException(JNIEnv *env) {
-  if (env && env->ExceptionCheck())
-    env->ExceptionClear();
+  if (env && env->ExceptionCheck()) env->ExceptionClear();
 }
 
 } // namespace
@@ -40,11 +36,9 @@ std::vector<AndroidDisplayMode> AndroidEnumerateDisplayModes() {
   JNIEnv *env = nullptr;
   jobject activity = nullptr;
   jclass cls = nullptr;
-  if (!JniReady(&env, &activity, &cls))
-    return result;
+  if (!JniReady(&env, &activity, &cls)) return result;
 
-  const jmethodID method =
-      env->GetMethodID(cls, "getKotonohaDisplayModes", "()[I");
+  const jmethodID method = env->GetMethodID(cls, "getKotonohaDisplayModes", "()[I");
   if (!method) {
     ClearException(env);
     env->DeleteLocalRef(cls);
@@ -66,13 +60,12 @@ std::vector<AndroidDisplayMode> AndroidEnumerateDisplayModes() {
       for (jsize i = 0; i < count; i += 4) {
         int width = values[static_cast<size_t>(i + 1)];
         int height = values[static_cast<size_t>(i + 2)];
-        if (height > width)
-          std::swap(width, height);
+        if (height > width) std::swap(width, height);
         if (values[static_cast<size_t>(i)] <= 0 || width <= 0 || height <= 0)
           continue;
-        result.push_back(
-            {values[static_cast<size_t>(i)], width, height,
-             static_cast<float>(values[static_cast<size_t>(i + 3)]) / 1000.0f});
+        result.push_back({values[static_cast<size_t>(i)], width, height,
+                          static_cast<float>(values[static_cast<size_t>(i + 3)]) /
+                              1000.0f});
       }
     } else {
       ClearException(env);
@@ -83,12 +76,9 @@ std::vector<AndroidDisplayMode> AndroidEnumerateDisplayModes() {
   std::sort(result.begin(), result.end(), [](const auto &a, const auto &b) {
     const long long areaA = static_cast<long long>(a.width) * a.height;
     const long long areaB = static_cast<long long>(b.width) * b.height;
-    if (areaA != areaB)
-      return areaA < areaB;
-    if (a.width != b.width)
-      return a.width < b.width;
-    if (a.height != b.height)
-      return a.height < b.height;
+    if (areaA != areaB) return areaA < areaB;
+    if (a.width != b.width) return a.width < b.width;
+    if (a.height != b.height) return a.height < b.height;
     return a.refreshRate < b.refreshRate;
   });
   return result;
@@ -98,8 +88,7 @@ int AndroidCurrentDisplayModeId() {
   JNIEnv *env = nullptr;
   jobject activity = nullptr;
   jclass cls = nullptr;
-  if (!JniReady(&env, &activity, &cls))
-    return 0;
+  if (!JniReady(&env, &activity, &cls)) return 0;
   const jmethodID method =
       env->GetMethodID(cls, "getKotonohaCurrentDisplayModeId", "()I");
   if (!method) {
@@ -118,13 +107,11 @@ int AndroidCurrentDisplayModeId() {
 }
 
 bool AndroidRequestDisplayMode(int modeId) {
-  if (modeId <= 0)
-    return false;
+  if (modeId <= 0) return false;
   JNIEnv *env = nullptr;
   jobject activity = nullptr;
   jclass cls = nullptr;
-  if (!JniReady(&env, &activity, &cls))
-    return false;
+  if (!JniReady(&env, &activity, &cls)) return false;
   const jmethodID method =
       env->GetMethodID(cls, "setKotonohaPreferredDisplayMode", "(I)Z");
   if (!method) {

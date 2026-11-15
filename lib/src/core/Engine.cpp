@@ -1,16 +1,23 @@
-#include <Kotonoha/components/ForcedSubtitleRenderer.hpp>
-#include <Kotonoha/components/InGameMenu.hpp>
-#include <Kotonoha/components/SettingsMenu.hpp>
-#include <Kotonoha/components/VNBacklog.hpp>
-#include <Kotonoha/components/VNManager.hpp>
-#include <Kotonoha/components/VNTextBox.hpp>
+#include <Kotonoha/componentes/ForcedSubtitleRenderer.hpp>
+#include <Kotonoha/componentes/InGameMenu.hpp>
+#include <Kotonoha/componentes/SettingsMenu.hpp>
+#include <Kotonoha/componentes/VNBacklog.hpp>
+#include <Kotonoha/componentes/VNManager.hpp>
+#include <Kotonoha/componentes/VNTextBox.hpp>
 #include <Kotonoha/core/Config.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/FileSystem.hpp>
 #include <Kotonoha/core/UI.hpp>
+#if !defined(KOTONOHA_DISTRIBUTION_BUILD)
 #include <Kotonoha/debug/DebugOverlay.hpp>
+#endif
+#if defined(KOTONOHA_PLAYER_DUBBING)
+#include <Kotonoha/debug/DubbingOverlay.hpp>
+#endif
 #include <Kotonoha/events/BackAction.hpp>
+#if !defined(KOTONOHA_DISTRIBUTION_BUILD)
 #include <Kotonoha/mcp/MCPServer.hpp>
+#endif
 #include <Kotonoha/mobile/AndroidDisplay.hpp>
 #include <Kotonoha/script/TimelinePlayer.hpp>
 
@@ -22,6 +29,7 @@
 
 namespace Kotonoha {
 
+#if !defined(KOTONOHA_DISTRIBUTION_BUILD)
 std::vector<DebugNode> Engine::debugNodes() {
   auto custom = runtime.debugNodes();
   if (!custom.empty())
@@ -44,6 +52,8 @@ std::vector<DebugNode> Engine::debugNodes() {
 }
 
 void Engine::debugJumpToNode(const std::string &id) {
+  if (runtime.GetState() != GameState::Gameplay)
+    throw std::logic_error("Start gameplay before jumping to a node");
   if (settingsMenu->isOpen())
     throw std::logic_error("Close engine settings before jumping to a node");
   if (!runtime.debugNodes().empty()) {
@@ -128,28 +138,26 @@ void Engine::dumpKtrf(const std::string &path) {
   }
   SDL_LogInfo(LogCore, "Dumped KTRF: %s", path.c_str());
 }
+#endif
 
 std::string EngineOptions::assetOverlayDirectory() const {
   if (assetOverlaySpecified)
     return assetOverlayPath;
-  if (!settings.assetOverlayName.empty()) {
-    const auto &overlays = settings.assetOverlays;
-    auto i = overlays.find(settings.assetOverlayName);
-    if (i != overlays.end() && !i->second.empty() &&
-        std::filesystem::is_directory(i->second))
-      return i->second;
-    // Persisted absolute path no longer exists: resolve by name through the
-    // standard overlay folder search.
-    auto found = findAssetOverlayDirectory(settings.assetOverlayName);
-    if (!found.empty())
-      return found.string();
-    return {};
-  }
+  if (!assetOverlayPath.empty())
+    return assetOverlayPath;
   if (!settings.assetOverlayPath.empty())
     return settings.assetOverlayPath;
+  if (!settingsPath.empty() && std::filesystem::exists(settingsPath)) {
+    auto loaded = EngineSettings::load(settingsPath).assetOverlayPath;
+    if (!loaded.empty())
+      return loaded;
+  }
   return findAssetOverlayDirectory().string();
 }
 SDLSession::SDLSession(const Runtime &runtime) {
+#if defined(KOTONOHA_DISTRIBUTION_BUILD)
+  SDL_SetLogPriorities(SDL_LOG_PRIORITY_ERROR);
+#endif
   SDL_SetHint(SDL_HINT_TOUCH_MOUSE_EVENTS, "0");
   if (!SDL_SetAppMetadata(runtime.name.c_str(), runtime.version.c_str(),
                           runtime.identify.c_str()) ||
@@ -255,7 +263,11 @@ Engine::Engine(Runtime &run, EngineOptions options)
   audio.setMasterVolume(settings.masterVolume);
   audio.setMasterMuted(settings.masterMuted);
   for (int category : {LogCore, LogConfig, LogMedia, LogUpscaler, LogUI})
+#if defined(KOTONOHA_DISTRIBUTION_BUILD)
+    SDL_SetLogPriority(category, SDL_LOG_PRIORITY_ERROR);
+#else
     SDL_SetLogPriority(category, settings.logPriority);
+#endif
   settingsMenu = std::make_unique<SettingsMenu>(*this);
   ui = std::make_unique<UI>(settings.fontPath);
   ui->setTranslation(&translation);
@@ -264,20 +276,23 @@ Engine::Engine(Runtime &run, EngineOptions options)
   audio.setUserVolumes(settings.channelVolumes);
   timeline = std::make_unique<TimelinePlayer>(*this);
   forcedSubtitles = std::make_unique<ForcedSubtitleRenderer>(*this);
+#if !defined(KOTONOHA_DISTRIBUTION_BUILD)
   debug = std::make_unique<DebugOverlay>(*this);
+#endif
+#if defined(KOTONOHA_PLAYER_DUBBING)
+  dubbing = std::make_unique<DubbingOverlay>(*this);
+#endif
   configureRenderSpace(RenderSpace::Novel);
   runtime.init(*this);
+#if !defined(KOTONOHA_DISTRIBUTION_BUILD)
   if (!options.dumpTranslationPath.empty()) {
     dumpTranslation(options.dumpTranslationPath);
     translationDumpComplete = true;
   }
-  if (options.enableMCP) {
-    if (options.mcpPort > 0)
-      mcp = std::make_unique<MCPServer>(*this, options.mcpFileRoot,
-                                        options.mcpPort);
-    else
-      mcp = std::make_unique<MCPServer>(*this, options.mcpFileRoot);
-  }
+  if (options.enableMCP || options.mcpPort)
+    mcp = std::make_unique<MCPServer>(*this, options.mcpFileRoot,
+                                      options.mcpPort);
+#endif
   frameClock.reset();
   SDL_LogInfo(LogCore, "Engine started (%s renderer)",
               SDL_GetRendererName(renderer.get()));
@@ -373,12 +388,11 @@ void Engine::applyWindowSettings(const EngineSettings &value, bool geometry) {
   if (value.fullscreenWidth > 0 && value.fullscreenHeight > 0 &&
       value.refreshRate > 0.0f) {
     const auto modes = AndroidEnumerateDisplayModes();
-    const auto match =
-        std::find_if(modes.begin(), modes.end(), [&](const auto &mode) {
-          return mode.width == value.fullscreenWidth &&
-                 mode.height == value.fullscreenHeight &&
-                 std::abs(mode.refreshRate - value.refreshRate) < 0.05f;
-        });
+    const auto match = std::find_if(modes.begin(), modes.end(), [&](const auto &mode) {
+      return mode.width == value.fullscreenWidth &&
+             mode.height == value.fullscreenHeight &&
+             std::abs(mode.refreshRate - value.refreshRate) < 0.05f;
+    });
     if (match != modes.end() && !AndroidRequestDisplayMode(match->modeId))
       throw std::runtime_error("Request Android display mode failed");
   }
@@ -393,15 +407,11 @@ void Engine::applySettings(const EngineSettings &value, bool persist) {
   if (!upscaler->supports(value.upscaling.backend))
     throw std::invalid_argument(
         "Upscaler is unavailable for the current renderer");
-  std::unique_ptr<UI> nextUI, nextVNUI;
-  if (value.fontPath != settings.fontPath) {
-    nextUI = std::make_unique<UI>(value.fontPath);
+  std::unique_ptr<UI> nextVNUI;
+  if (value.vnFontPath != settings.vnFontPath ||
+      value.fontPath != settings.fontPath)
     nextVNUI = std::make_unique<UI>(
         value.vnFontPath.empty() ? value.fontPath : value.vnFontPath);
-  } else if (value.vnFontPath != settings.vnFontPath) {
-    nextVNUI = std::make_unique<UI>(
-        value.vnFontPath.empty() ? value.fontPath : value.vnFontPath);
-  }
   const auto previous = settings;
   const bool geometryChanged =
       value.width != previous.width || value.height != previous.height ||
@@ -420,7 +430,6 @@ void Engine::applySettings(const EngineSettings &value, bool persist) {
     settings = value;
     if (persist)
       saveSettings();
-    updateCursor(settings.customCursorPath);
   } catch (const std::exception &error) {
     const std::string failure = error.what();
     settings = previous;
@@ -431,7 +440,6 @@ void Engine::applySettings(const EngineSettings &value, bool persist) {
       audio.setMasterVolume(previous.masterVolume);
       audio.setMasterMuted(previous.masterMuted);
       audio.setUserVolumes(previous.channelVolumes);
-      updateCursor(previous.customCursorPath);
     } catch (const std::exception &rollback) {
       throw std::runtime_error(
           failure + "; settings rollback failed: " + rollback.what());
@@ -440,43 +448,14 @@ void Engine::applySettings(const EngineSettings &value, bool persist) {
   }
   if (nextVNUI)
     vnUI = std::move(nextVNUI);
-  if (nextUI) {
-    ui = std::move(nextUI);
-    debug->reloadFonts(settings.fontPath);
-  }
   for (int category : {LogCore, LogConfig, LogMedia, LogUpscaler, LogUI})
+#if defined(KOTONOHA_DISTRIBUTION_BUILD)
+    SDL_SetLogPriority(category, SDL_LOG_PRIORITY_ERROR);
+#else
     SDL_SetLogPriority(category, settings.logPriority);
+#endif
   frameClock.reset();
   SDL_LogInfo(LogConfig, "Applied window/render settings");
-}
-
-void Engine::updateCursor(const std::string &id) {
-  if (id.empty()) {
-    customCursor.reset();
-    SDL_SetCursor(nullptr);
-    return;
-  }
-
-  SurfacePtr surface = assets->loadSurface(id);
-  if (!surface) {
-    SDL_LogWarn(LogConfig, "Failed to load custom cursor: %s", id.c_str());
-    customCursor.reset();
-    SDL_SetCursor(nullptr);
-    return;
-  }
-
-  SDL_Cursor *cursor = SDL_CreateColorCursor(surface.get(), 0, 0);
-  if (!cursor) {
-    SDL_LogWarn(LogConfig, "Failed to create custom cursor: %s",
-                SDL_GetError());
-    customCursor.reset();
-    SDL_SetCursor(nullptr);
-    return;
-  }
-
-  customCursor.reset(cursor);
-  SDL_SetCursor(customCursor.get());
-  SDL_LogInfo(LogConfig, "Custom cursor applied: %s", id.c_str());
 }
 
 void Engine::saveSettings() const {
@@ -492,8 +471,14 @@ void Engine::openSettings() {
 
 bool Engine::isStoryPaused() const {
   return agentPaused || runtime.hasPausingScene() ||
-         (settingsMenu && settingsMenu->isOpen()) ||
-         (debug && debug->pausesStory());
+         (settingsMenu && settingsMenu->isOpen())
+#if !defined(KOTONOHA_DISTRIBUTION_BUILD)
+         || (debug && debug->pausesStory())
+#endif
+#if defined(KOTONOHA_PLAYER_DUBBING)
+         || (dubbing && dubbing->visible())
+#endif
+      ;
 }
 
 void Engine::setAgentPaused(bool value) {
@@ -591,6 +576,7 @@ void Engine::synchronizeNodeClock(double delta) {
   }
 }
 
+#if !defined(KOTONOHA_DISTRIBUTION_BUILD)
 void Engine::advanceTimeline(double seconds) {
   if (!std::isfinite(seconds) || seconds < 0 || seconds > 60)
     throw std::invalid_argument(
@@ -633,6 +619,7 @@ void Engine::advanceTimeline(double seconds) {
   }
   frameClock.reset();
 }
+#endif
 
 void Engine::setTranslation(const std::string &section,
                             const std::string &original,
@@ -663,14 +650,15 @@ void Engine::SetAssetProvider(std::shared_ptr<AssetProvider> provider) {
 
 std::filesystem::path Engine::ensureAssetOverlay() {
   auto root = assets->overlayDirectory();
-  if (!root.empty())
+  // A game may mount bundled artwork as a read-only input overlay. Dubbing
+  // must not write into that bundle when no user overlay was selected.
+  if (!root.empty() && !settings.assetOverlayPath.empty())
     return root;
-  root = documentsDirectory(runtime.identify) / "overlay";
+  root = runtime.debugAssetOverlayDirectory();
+  if (root.empty())
+    root = documentsDirectory(runtime.identify) / "overlay";
   std::filesystem::create_directories(root);
   assets->setOverlay(root);
-  constexpr const char *name = "Dubbing";
-  settings.assetOverlays[name] = root.string();
-  settings.assetOverlayName = name;
   settings.assetOverlayPath = root.string();
   saveSettings();
   SDL_LogInfo(LogCore, "Created engine asset overlay: %s",
@@ -722,6 +710,28 @@ SDL_AppResult Engine::Event(EventPtr event) {
       NormalizeControllerEvent(*event, settings.swapControllerAB);
   event = &normalized;
   session.deviceEvent(*event);
+#if defined(__ANDROID__) || defined(ANDROID)
+  // SDL_TOUCH_MOUSE_EVENTS is explicitly disabled by SDLSession. Ignore any
+  // driver-provided touch-as-mouse events as well: this is the sole ingress for
+  // physical fingers, and every native screen receives a consistent pointer.
+  if (((event->type == SDL_EVENT_MOUSE_BUTTON_DOWN ||
+        event->type == SDL_EVENT_MOUSE_BUTTON_UP) &&
+       event->button.which == SDL_TOUCH_MOUSEID) ||
+      (event->type == SDL_EVENT_MOUSE_MOTION &&
+       event->motion.which == SDL_TOUCH_MOUSEID))
+    return SDL_APP_CONTINUE;
+  if (event->type == SDL_EVENT_WINDOW_FOCUS_LOST)
+    (void)mobileTouch.translate(*event, *window, settingsMenu->isOpen());
+  if (event->type >= SDL_EVENT_FINGER_DOWN &&
+      event->type <= SDL_EVENT_FINGER_CANCELED) {
+    for (auto &action : mobileTouch.translate(*event, *window,
+                                              settingsMenu->isOpen())) {
+      const auto result = dispatchEvent(&action);
+      if (result != SDL_APP_CONTINUE) return result;
+    }
+    return SDL_APP_CONTINUE;
+  }
+#endif
   const auto navigation = controllerNavigation.process(*event);
   if (event->type == SDL_EVENT_GAMEPAD_AXIS_MOTION &&
       (event->gaxis.axis == SDL_GAMEPAD_AXIS_LEFTX ||
@@ -754,24 +764,34 @@ SDL_AppResult Engine::dispatchEvent(EventPtr event) {
     return SDL_APP_SUCCESS;
   const bool synthesizeTouch =
       !runtime.continuousTouch() && !settingsMenu->isOpen();
+#if !defined(KOTONOHA_DISTRIBUTION_BUILD)
   runtime.devInputProcessed(*event);
+#endif
   synchronizeTimeline();
+#if !defined(KOTONOHA_DISTRIBUTION_BUILD)
   const bool debugConsumed = debug->handleEvent(*event);
   if (debugConsumed) {
     timeline->setPaused(isStoryPaused());
     return SDL_APP_CONTINUE;
   }
+#endif
+#if defined(KOTONOHA_PLAYER_DUBBING)
+  if (dubbing->handleEvent(*event)) {
+    timeline->setPaused(isStoryPaused());
+    return SDL_APP_CONTINUE;
+  }
+#endif
   configureRenderSpace(RenderSpace::Screen);
   SDL_Event screenEvent = *event;
   if (!SDL_ConvertEventToRenderCoordinates(renderer.get(), &screenEvent))
     throw std::runtime_error(SDL_GetError());
-  bool consumed = !settingsMenu->isOpen() && runtime.onScreenEvent(screenEvent);
+  bool consumed =
+      !settingsMenu->isOpen() && runtime.onScreenEvent(screenEvent);
   if (event->type == SDL_EVENT_MOUSE_BUTTON_DOWN ||
       event->type == SDL_EVENT_MOUSE_BUTTON_UP) {
     const Uint32 buttonMask = SDL_BUTTON_MASK(event->button.button);
     if (event->type == SDL_EVENT_MOUSE_BUTTON_DOWN) {
-      if (consumed)
-        screenCapturedMouseButtons |= buttonMask;
+      if (consumed) screenCapturedMouseButtons |= buttonMask;
     } else {
       consumed = consumed || (screenCapturedMouseButtons & buttonMask) != 0;
       screenCapturedMouseButtons &= ~buttonMask;
@@ -819,7 +839,8 @@ SDL_AppResult Engine::dispatchEvent(EventPtr event) {
 
   // Manual mobile menu button click detection
   const SDL_FRect mobileMenuButton{16, 16, 76, 36};
-  if (isMobilePlatform() && runtime.GetState() == GameState::Gameplay &&
+  if (isMobilePlatform() && !runtime.ownsMobileMenuButton() &&
+      runtime.GetState() == GameState::Gameplay &&
       !settingsMenu->isOpen() && !GetInGameMenuRuntime(*this).IsOpen()) {
     if (logical.type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
         logical.button.button == SDL_BUTTON_LEFT) {
@@ -828,7 +849,9 @@ SDL_AppResult Engine::dispatchEvent(EventPtr event) {
         GetInGameMenuRuntime(*this).open();
         return SDL_APP_CONTINUE;
       }
-    } else if (logical.type == SDL_EVENT_FINGER_DOWN) {
+    }
+#if !defined(__ANDROID__) && !defined(ANDROID)
+    else if (logical.type == SDL_EVENT_FINGER_DOWN) {
       const SDL_FPoint pt{logical.tfinger.x * view.x,
                           logical.tfinger.y * view.y};
       const SDL_FPoint designPt{(pt.x - frame.x) / frame.scale,
@@ -838,6 +861,7 @@ SDL_AppResult Engine::dispatchEvent(EventPtr event) {
         return SDL_APP_CONTINUE;
       }
     }
+#endif
   }
 
   if (!consumed && !settingsMenu->isOpen() && HandleNavigation(*this, logical))
@@ -852,7 +876,8 @@ SDL_AppResult Engine::dispatchEvent(EventPtr event) {
     // tab underneath the same screen coordinate (e.g. SOMCON -> VN text).
     if (!consumed)
       settingsMenu->onEvent(UI::toFrame(logical, UI::designFrame(view)));
-  } else if (!consumed && !outsideNovel)
+  }
+  else if (!consumed && !outsideNovel)
     runtime.onEvent(logical);
   const bool wasPaused = timeline->isPaused();
   timeline->setPaused(isStoryPaused());
@@ -883,15 +908,19 @@ SDL_AppResult Engine::Iterate() {
     return SDL_APP_SUCCESS;
   configureRenderSpace(RenderSpace::Novel);
   synchronizeTimeline();
+#if !defined(KOTONOHA_DISTRIBUTION_BUILD)
   if (mcp && !mcp->pump())
     return SDL_APP_SUCCESS;
-  if (!runtime.devPauseRequested() || runtime.devConsumeStep())
-    runtime.update();
-  else
-    runtime.devIdle();
+  if (!runtime.devPauseRequested() || runtime.devConsumeStep()) runtime.update();
+  else runtime.devIdle();
+#else
+  runtime.update();
+#endif
   synchronizeNodeClock(0);
   forcedSubtitles->updateForActiveNode();
+#if !defined(KOTONOHA_DISTRIBUTION_BUILD)
   debug->update();
+#endif
 
   // Clear the native output first so the letterbox outside the fitted Novel
   // presentation remains deterministic even when the Novel itself is rendered
@@ -907,11 +936,9 @@ SDL_AppResult Engine::Iterate() {
     if (!SDL_GetRenderLogicalPresentationRect(renderer.get(), &presentation))
       throw std::runtime_error(SDL_GetError());
     const int targetWidth = std::max(
-        1,
-        static_cast<int>(std::lround(presentation.w * settings.renderScale)));
+        1, static_cast<int>(std::lround(presentation.w * settings.renderScale)));
     const int targetHeight = std::max(
-        1,
-        static_cast<int>(std::lround(presentation.h * settings.renderScale)));
+        1, static_cast<int>(std::lround(presentation.h * settings.renderScale)));
     if (!novelTarget || novelTargetWidth != targetWidth ||
         novelTargetHeight != targetHeight) {
       TexturePtr next(SDL_CreateTexture(renderer.get(), SDL_PIXELFORMAT_RGBA32,
@@ -928,13 +955,12 @@ SDL_AppResult Engine::Iterate() {
         !SDL_SetRenderViewport(renderer.get(), nullptr) ||
         !SDL_SetRenderClipRect(renderer.get(), nullptr) ||
         !SDL_SetRenderScale(renderer.get(), 1, 1) ||
-        !SDL_SetRenderLogicalPresentation(renderer.get(), novelView.x,
-                                          novelView.y,
+        !SDL_SetRenderLogicalPresentation(renderer.get(), novelView.x, novelView.y,
                                           SDL_LOGICAL_PRESENTATION_STRETCH))
       throw std::runtime_error(SDL_GetError());
-    ui->setPixelDensity(
-        std::min(static_cast<float>(targetWidth) / novelView.x,
-                 static_cast<float>(targetHeight) / novelView.y));
+    ui->setPixelDensity(std::min(
+        static_cast<float>(targetWidth) / novelView.x,
+        static_cast<float>(targetHeight) / novelView.y));
     SDL_SetRenderDrawColor(renderer.get(), 0, 0, 0, 0);
     if (!SDL_RenderClear(renderer.get()))
       throw std::runtime_error(SDL_GetError());
@@ -952,9 +978,10 @@ SDL_AppResult Engine::Iterate() {
   runtime.renderOverlay(*renderer, ui->pixelDensity());
   if (ownedNovel) {
     if (runtime.useOwnedNarrativeTarget() &&
-        !visualTransition.compose(
-            *renderer, *novelTarget, runtime.narrativeFrameDrawable(),
-            runtime.narrativeBoundaryFrame(), runtime.narrativeVisualOwner()))
+        !visualTransition.compose(*renderer, *novelTarget,
+                                  runtime.narrativeFrameDrawable(),
+                                  runtime.narrativeBoundaryFrame(),
+                                  runtime.narrativeVisualOwner()))
       throw std::runtime_error(SDL_GetError());
     runtime.renderNarrativeOverlay(*renderer, ui->pixelDensity());
     if (!SDL_SetRenderTarget(renderer.get(), nullptr))
@@ -964,12 +991,12 @@ SDL_AppResult Engine::Iterate() {
     // This copy only maps the reduced Novel raster back to the fitted physical
     // presentation, avoiding a second upscaler pass over the whole frame.
     const float heightScale = runtime.narrativePresentationHeightScale();
-    if (!std::isfinite(heightScale) || heightScale <= 0.0f ||
-        heightScale > 1.0f)
+    if (!std::isfinite(heightScale) || heightScale <= 0.0f || heightScale > 1.0f)
       throw std::invalid_argument("Invalid Novel presentation height scale");
-    const SDL_FRect presentedNovel{
-        0.0f, novelView.y * (1.0f - heightScale) * 0.5f,
-        static_cast<float>(novelView.x), novelView.y * heightScale};
+    const SDL_FRect presentedNovel{0.0f,
+                                   novelView.y * (1.0f - heightScale) * 0.5f,
+                                   static_cast<float>(novelView.x),
+                                   novelView.y * heightScale};
     if (!SDL_RenderTexture(renderer.get(), novelTarget.get(), nullptr,
                            &presentedNovel))
       throw std::runtime_error(SDL_GetError());
@@ -984,9 +1011,14 @@ SDL_AppResult Engine::Iterate() {
     }
     configureRenderSpace(RenderSpace::Screen);
   }
+#if !defined(KOTONOHA_DISTRIBUTION_BUILD)
   debug->renderHUD(*renderer);
   debug->renderMenu(*renderer);
   runtime.devControlPump(*renderer);
+#endif
+#if defined(KOTONOHA_PLAYER_DUBBING)
+  dubbing->render(*renderer);
+#endif
   SDL_RenderPresent(renderer.get());
   configureRenderSpace(RenderSpace::Novel);
   return SDL_APP_CONTINUE;

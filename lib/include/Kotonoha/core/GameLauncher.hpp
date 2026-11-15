@@ -65,6 +65,9 @@ protected:
   const std::string &optionPathInfo(std::size_t index) const;
 
   void drawGameOptions() override;
+  // Commercial players need to select their legitimate retail Packs folder,
+  // not developer-only alternate KTRF/route override paths.
+  void drawPrimaryGamePath();
   bool validate(std::string &error) override;
   void save() override;
 
