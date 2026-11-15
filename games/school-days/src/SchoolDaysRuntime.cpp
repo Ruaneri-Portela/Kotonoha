@@ -366,8 +366,8 @@ std::vector<DisplayResolution> DisplayResolutions(int displayIndex) {
       SDL_GetFullscreenDisplayModes(display, &count));
   if (modes) {
     for (int i = 0; i < count; ++i)
-      if (modes[i])
-        add(modes[i]->w, modes[i]->h, modes[i]->refresh_rate);
+      if (modes.get()[i])
+        add(modes.get()[i]->w, modes.get()[i]->h, modes.get()[i]->refresh_rate);
   }
   if (desktop)
     add(desktop->w, desktop->h, desktop->refresh_rate);
