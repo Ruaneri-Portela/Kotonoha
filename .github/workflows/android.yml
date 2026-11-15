@@ -31,6 +31,10 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6
         with:
           gradle-version: '8.14.6'
+          # Gradle is run from the verified distribution set up above, not
+          # SDL's vendored Android wrapper. That upstream wrapper uses a
+          # legacy JAR unknown to the Gradle validation list.
+          validate-wrappers: false
 
       - uses: android-actions/setup-android@v4
 
