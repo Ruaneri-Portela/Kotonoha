@@ -50,7 +50,7 @@ public:
 protected:
   bool checkPath(const std::string &path, std::string &info) override {
     const bool valid = std::filesystem::is_directory(path);
-    info = valid ? "Directory found" : "Directory not found";
+    info = valid ? "Directory found" : "Directory not found: " + path;
     return valid;
   }
 };
@@ -86,6 +86,20 @@ void gameLauncher(const std::filesystem::path &directory) {
   const auto root = directory / "game-launcher";
   std::filesystem::create_directory(root);
   const auto settings = (root / "settings.json").string();
+  // Absolute selections must be validated *as entered*, never against
+  // additional AppData/working-directory candidates that hide the actual
+  // missing folder. Rechecking after a successful choice updates the message.
+  {
+    const auto selected = root / "missing-actual-packs";
+    TestGameLauncher precise(settings, selected.string());
+    precise.setPath(selected.string());
+    require(!precise.pathValid() &&
+                precise.pathInfo() == "Directory not found: " + selected.string(),
+            "Explicit missing Packs path must be reported verbatim");
+    precise.setPath(root.string());
+    require(precise.pathValid() && precise.pathInfo() == "Directory found",
+            "Selecting a valid path must clear the prior missing-directory message");
+  }
   {
     TestGameLauncher launcher(settings, (root / "missing").string());
     require(!launcher.pathValid() && !launcher.launch(),

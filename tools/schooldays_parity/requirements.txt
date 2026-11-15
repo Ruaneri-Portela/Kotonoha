@@ -1,0 +1,2 @@
+Pillow>=10,<13
+windows-cap==0.1.2; sys_platform == "win32" and python_version < "3.13"
