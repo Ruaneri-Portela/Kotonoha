@@ -221,9 +221,11 @@ Engine::Engine(Runtime &run, EngineOptions options)
   if (!options.translationPath.empty())
     translation.load(options.translationPath);
   SDL_WindowFlags graphicsFlags = 0;
+#if KOTONOHA_ENABLE_UPSCALER
   if (isMobilePlatform() && settings.upscaling.backend == UpscaleBackend::MPV &&
       options.rendererOverride.empty())
     settings.renderer = "opengles2";
+#endif
   if (settings.renderer == "opengles2") {
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
@@ -271,6 +273,7 @@ Engine::Engine(Runtime &run, EngineOptions options)
     dumpTranslation(options.dumpTranslationPath);
     translationDumpComplete = true;
   }
+#if KOTONOHA_ENABLE_MCP
   if (options.enableMCP) {
     if (options.mcpPort > 0)
       mcp = std::make_unique<MCPServer>(*this, options.mcpFileRoot,
@@ -278,6 +281,7 @@ Engine::Engine(Runtime &run, EngineOptions options)
     else
       mcp = std::make_unique<MCPServer>(*this, options.mcpFileRoot);
   }
+#endif
   frameClock.reset();
   SDL_LogInfo(LogCore, "Engine started (%s renderer)",
               SDL_GetRendererName(renderer.get()));
@@ -883,8 +887,10 @@ SDL_AppResult Engine::Iterate() {
     return SDL_APP_SUCCESS;
   configureRenderSpace(RenderSpace::Novel);
   synchronizeTimeline();
+#if KOTONOHA_ENABLE_MCP
   if (mcp && !mcp->pump())
     return SDL_APP_SUCCESS;
+#endif
   if (!runtime.devPauseRequested() || runtime.devConsumeStep())
     runtime.update();
   else
