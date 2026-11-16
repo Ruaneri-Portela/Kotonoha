@@ -149,8 +149,7 @@ void PmailRuntime::startMovie() {
   }
   // The original binary enumerates four AVI variants. Preserve original AVI
   // quality on native hosts, but prefer playable WebM/MP4 sidecars on browsers.
-  // Platform identification belongs to SDL, not compiler-specific game code.
-  const bool browser = SDL_strcmp(SDL_GetPlatform(), "Emscripten") == 0;
+  const bool browser = Kotonoha::isBrowserPlatform();
   // Port-only debugging aid to compare a particular original video.
   const char *preferred = SDL_getenv("PMAIL_MOVIE_VARIANT");
   const std::string moviePath = selectOpeningMovie(
