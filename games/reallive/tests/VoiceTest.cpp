@@ -47,6 +47,36 @@ int main(int argc, char **argv) {
   assert(assets.size() == 2 &&
          assets.find(123)->generic_string() == "KOE/000/Z000000123.OGG" &&
          !assets.find(789));
+  // Mounted sources (ISO images and the Web game-assets mount) have no local
+  // path. Voice reads must fall back to the provider reader instead of
+  // returning an empty buffer that later reaches the NWA decoder.
+  {
+    std::string requested;
+    const std::vector<std::uint8_t> ogg{'O', 'g', 'g', 'S', 1, 2, 3};
+    const RealLive::VoiceIndex mounted(
+        std::vector<std::string>{"KOE/0000/Z000000009.ogg"},
+        [&](const std::string &id) {
+          requested = id;
+          return ogg;
+        },
+        [](const std::string &) { return std::string(); });
+    const auto bytes = mounted.read(9);
+    assert(requested == "KOE/0000/Z000000009.ogg");
+    assert(bytes && *bytes == ogg);
+  }
+  {
+    // An NWK slice keeps its offset/size when the archive is virtual.
+    const std::vector<std::uint8_t> archive{1, 0, 0, 0, 4, 0, 0, 0,
+                                            16, 0, 0, 0, 9, 0, 0, 0,
+                                            'O', 'g', 'g', 'S'};
+    const RealLive::VoiceIndex mounted(
+        std::vector<std::string>{"KOE/z0001.nwk"},
+        [&](const std::string &) { return archive; },
+        [](const std::string &) { return std::string(); });
+    const auto bytes = mounted.read(100009);
+    assert(bytes && std::string(bytes->begin(), bytes->end()) == "OggS");
+    assert(!mounted.read(9));
+  }
   if (argc < 2)
     return 0;
   const std::filesystem::path root(argv[1]);
