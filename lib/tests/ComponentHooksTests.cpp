@@ -12,6 +12,7 @@
 #include <Kotonoha/core/Runtime.hpp>
 #include <Kotonoha/core/UI.hpp>
 #include <Kotonoha/media/SurfaceBlend.hpp>
+#include <cmath>
 #include <filesystem>
 #include <fstream>
 
@@ -579,6 +580,23 @@ public:
       : VNBacklog(engine), marker(value) {}
 };
 
+void testTextMetrics(Kotonoha::Engine &engine) {
+  auto &ui = engine.GetUI();
+  auto &renderer = engine.GetRenderer();
+  const std::size_t before = ui.cachedTextCount();
+  const std::string text = "Kotonoha measurement without texture allocation";
+  const float measured = ui.textHeight(renderer, text, 580.0f);
+  require(measured > 0.0f && ui.cachedTextCount() == before,
+          "Measuring text height must not allocate a cached GPU texture");
+  const float rendered = ui.text(renderer, text, -10000.0f, -10000.0f, 580.0f);
+  require(std::abs(measured - rendered) < 0.01f,
+          "CPU text measurements agree with rendered SDL_ttf dimensions");
+  require(ui.cachedTextCount() == before + 1,
+          "Only visible text rendering allocates a cached texture");
+  const float unwrapped = ui.textWidth(text);
+  require(unwrapped > 0.0f, "Unwrapped text width can be measured separately");
+}
+
 void testNativeHistoryInjection(Kotonoha::Engine &engine) {
   auto &native =
       engine.configureSharedScene<Kotonoha::VNBacklog, NativeHistory>(42);
@@ -624,6 +642,7 @@ int main() {
       testNativeButtons();
       testSurfaceOpacity();
       testStableReveal();
+      testTextMetrics(engine);
       testTextBox(engine);
       testLiveTranslation(engine);
       testChoice(engine);
