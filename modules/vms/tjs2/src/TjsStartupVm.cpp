@@ -1098,4 +1098,68 @@ bool dispatchTjsUiClick(TjsStartupResult &result, float x, float y) {
   return false;
 }
 
+bool dispatchTjsUiHover(TjsStartupResult &result, float x, float y) {
+  auto session = result.uiSession;
+  if (!session || !result.subsetCompleted ||
+      !std::isfinite(x) || !std::isfinite(y))
+    return false;
+
+  std::size_t next = 0;
+  std::string nextHandler, previousHandler;
+  for (auto it = result.layers.rbegin(); it != result.layers.rend(); ++it) {
+    const auto &layer = *it;
+    if (!layer.visible || !layer.enabled || layer.opacity == 0 ||
+        layer.width <= 0 || layer.height <= 0 ||
+        (layer.onClick.empty() && layer.onMouseEnter.empty() &&
+         layer.onMouseLeave.empty()))
+      continue;
+    if (x < layer.left || y < layer.top ||
+        x >= double(layer.left) + layer.width ||
+        y >= double(layer.top) + layer.height)
+      continue;
+    next = layer.id;
+    nextHandler = layer.onMouseEnter;
+    break;
+  }
+  if (session->hoveredLayer == next) return false;
+  for (const auto &layer : result.layers) {
+    if (layer.id == session->hoveredLayer) {
+      previousHandler = layer.onMouseLeave;
+      break;
+    }
+  }
+  session->hoveredLayer = next;
+  auto &vm = session->vm;
+  bool called = false;
+  try {
+    const auto invoke = [&](const std::string &name) {
+      if (name.empty()) return;
+      const auto found = vm.functions.find(name);
+      if (found == vm.functions.end())
+        throw std::runtime_error("TJS2 UI: hover handler not found");
+      const auto arity = found->second.parameters.size();
+      if (arity > 4)
+        throw std::runtime_error("TJS2 UI: excessive hover parameters");
+      std::vector<Value> args;
+      if (arity >= 1) args.emplace_back(double(x));
+      if (arity >= 2) args.emplace_back(double(y));
+      if (arity >= 3) args.emplace_back(0.0);
+      if (arity >= 4) args.emplace_back(0.0);
+      vm.call(name, args, {}, true);
+      called = true;
+    };
+    invoke(previousHandler);
+    invoke(nextHandler);
+    if (called) vm.snapshotLayers();
+  } catch (const std::exception &error) {
+    vm.result.error = std::string("TJS2 UI hover: ") + error.what();
+    called = true;
+  }
+  if (called) {
+    result = vm.result;
+    result.uiSession = std::move(session);
+  }
+  return called;
+}
+
 } // namespace Kotonoha::Providers
