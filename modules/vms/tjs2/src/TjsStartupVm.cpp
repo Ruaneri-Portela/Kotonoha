@@ -707,6 +707,125 @@ public:
   }
 };
 
+Value Interpreter::construct(const std::string &type,
+                             const std::vector<Value> &args) {
+  const auto integer = [](int value) { return Value(double(value)); };
+  const auto createLayer = [&](const ObjectPtr &parent, bool primary) {
+    if (layers.size() >= 256)
+      throw std::runtime_error("TJS2 UI: Layer count limit exceeded");
+    auto layer = std::make_shared<Object>();
+    layer->kind = Object::Kind::Layer;
+    layer->parent = parent;
+    layer->layerId = nextLayerId++;
+    layer->members["left"] = integer(0);
+    layer->members["top"] = integer(0);
+    layer->members["width"] = integer(primary ? 1280 : 0);
+    layer->members["height"] = integer(primary ? 720 : 0);
+    layer->members["opacity"] = integer(255);
+    layer->members["order"] = integer(int(layer->layerId));
+    layer->members["visible"] = Value(true);
+    layer->members["enabled"] = Value(true);
+    layers.push_back(layer);
+    return layer;
+  };
+  if (type == "Dictionary") {
+    if (!args.empty())
+      throw std::runtime_error("TJS2 UI: Dictionary takes no arguments");
+    return Value(std::make_shared<Object>());
+  }
+  if (type == "Window") {
+    if (!args.empty())
+      throw std::runtime_error("TJS2 UI: Window constructor arguments unsupported");
+    if (windows.size() >= 4)
+      throw std::runtime_error("TJS2 UI: Window count limit exceeded");
+    auto window = std::make_shared<Object>();
+    window->kind = Object::Kind::Window;
+    window->members["left"] = integer(0);
+    window->members["top"] = integer(0);
+    window->members["width"] = integer(1280);
+    window->members["height"] = integer(720);
+    window->members["visible"] = Value(true);
+    windows.push_back(window);
+    window->members["primaryLayer"] = Value(createLayer(window, true));
+    return Value(window);
+  }
+  if (type == "Layer") {
+    if (args.empty() || args.size() > 2)
+      throw std::runtime_error("TJS2 UI: Layer requires Window/parent Layer");
+    const auto *root = std::get_if<ObjectPtr>(&args.front().data);
+    if (!root || !*root)
+      throw std::runtime_error("TJS2 UI: Layer owner is not an object");
+    ObjectPtr parent = *root;
+    if (args.size() == 2) {
+      const auto *second = std::get_if<ObjectPtr>(&args[1].data);
+      if (!second || !*second || (*second)->kind != Object::Kind::Layer)
+        throw std::runtime_error("TJS2 UI: invalid parent Layer");
+      parent = *second;
+    } else if (parent->kind == Object::Kind::Window) {
+      parent = std::get<ObjectPtr>(parent->members.at("primaryLayer").data);
+    }
+    if (parent->kind != Object::Kind::Layer)
+      throw std::runtime_error("TJS2 UI: Layer parent is not a Layer");
+    if (args.size() == 2) {
+      ObjectPtr ancestor = parent;
+      while (ancestor && ancestor->kind == Object::Kind::Layer)
+        ancestor = ancestor->parent.lock();
+      if (!ancestor || ancestor != *root)
+        throw std::runtime_error("TJS2 UI: Layer parent belongs to another Window");
+    }
+    return Value(createLayer(parent, false));
+  }
+  throw std::runtime_error("TJS2 subset: native class not implemented: " + type);
+}
+
+void Interpreter::snapshotLayers() {
+  result.layers.clear();
+  const auto member = [](const ObjectPtr &object, const char *name) -> Value {
+    const auto found = object->members.find(name);
+    return found == object->members.end() ? Value() : found->second;
+  };
+  const auto bounded = [&](const ObjectPtr &object, const char *name,
+                           int fallback, int low, int high) -> int {
+    const auto value = member(object, name);
+    if (std::holds_alternative<std::monostate>(value.data)) return fallback;
+    const auto number = value.number();
+    if (!std::isfinite(number) || number < low || number > high)
+      throw std::runtime_error(std::string("TJS2 UI: invalid ") + name);
+    return static_cast<int>(number);
+  };
+  for (const auto &layer : layers) {
+    TjsUiLayer frame;
+    frame.id = layer->layerId;
+    frame.width = bounded(layer, "width", 0, 0, 16384);
+    frame.height = bounded(layer, "height", 0, 0, 16384);
+    frame.order = bounded(layer, "order", int(frame.id), -10000, 10000);
+    frame.opacity = bounded(layer, "opacity", 255, 0, 255);
+    frame.visible = member(layer, "visible").truthy();
+    frame.enabled = member(layer, "enabled").truthy();
+    frame.storage = member(layer, "storage").string();
+    frame.onClick = member(layer, "onClick").string();
+    int x = 0, y = 0;
+    int alpha = frame.opacity;
+    auto owner = layer;
+    for (std::size_t depth = 0; owner && depth < 16;
+         ++depth, owner = owner->parent.lock()) {
+      x += bounded(owner, "left", 0, -8192, 8192);
+      y += bounded(owner, "top", 0, -8192, 8192);
+      if (!member(owner, "visible").truthy()) frame.visible = false;
+      if (owner != layer)
+        alpha = alpha * bounded(owner, "opacity", 255, 0, 255) / 255;
+    }
+    frame.left = x;
+    frame.top = y;
+    frame.opacity = alpha;
+    result.layers.push_back(std::move(frame));
+  }
+  std::stable_sort(result.layers.begin(), result.layers.end(),
+                   [](const TjsUiLayer &a, const TjsUiLayer &b) {
+                     return a.order < b.order;
+                   });
+}
+
 Value Interpreter::call(const std::string &name,
                         const std::vector<Value> &params,
                         const std::string &current, bool activeFlag) {
