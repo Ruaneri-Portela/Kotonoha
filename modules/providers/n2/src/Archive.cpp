@@ -2,6 +2,7 @@
 // Original C++17 reader based on publicly documented AFS/NPA structures.
 #include <N2System/Archive.hpp>
 #include <algorithm>
+#include <cstring>
 #include <stdexcept>
 #include <utility>
 namespace N2System {
@@ -141,6 +142,20 @@ std::vector<std::uint8_t> Archive::read(const ArchiveEntry& entry) const {
   check(entry.offset,entry.size);
   const auto begin=bytes_.begin()+static_cast<std::size_t>(entry.offset);
   return {begin,begin+static_cast<std::size_t>(entry.size)};
+}
+std::size_t Archive::readAt(
+    const ArchiveEntry& entry, std::uint64_t offset,
+    std::uint8_t* buffer, std::size_t capacity) const {
+  check(entry.offset, entry.size);
+  if (offset > entry.size)
+    return 0;
+  const auto length = static_cast<std::size_t>(
+      std::min<std::uint64_t>(entry.size - offset, capacity));
+  if (length && !buffer)
+    throw std::invalid_argument("N2System: null archive stream buffer");
+  if (length)
+    std::memcpy(buffer, bytes_.data() + entry.offset + offset, length);
+  return length;
 }
 std::vector<std::uint8_t> Archive::read(std::string_view path) const {
   const auto* entry=find(path);
