@@ -177,6 +177,25 @@ float UI::textHeight(RendererRef renderer, const std::string &original,
 SDL_FPoint UI::textSize(const std::string &value, float width) const {
   return measureSized(value, width, 24);
 }
+float UI::textWidth(const std::string &original, float fontSize) const {
+  const auto value = translation ? translation->text(-1, original) : original;
+  if (value.empty())
+    return 0.0f;
+  const float oldSize = TTF_GetFontSize(font.get());
+  struct RestoreSize {
+    TTF_Font *font;
+    float size;
+    ~RestoreSize() { TTF_SetFontSize(font, size); }
+  } restore{font.get(), oldSize};
+  if (!TTF_SetFontSize(font.get(), fontSize * density))
+    throw std::runtime_error(SDL_GetError());
+  int width = 0, height = 0;
+  if (!TTF_GetStringSize(font.get(), value.c_str(), value.size(),
+                         &width, &height))
+    throw std::runtime_error(SDL_GetError());
+  return static_cast<float>(width) / density;
+}
+
 SDL_FPoint UI::measureSized(const std::string &original, float width,
                             float fontSize) const {
   const auto value = translation ? translation->text(-1, original) : original;
