@@ -8,6 +8,13 @@
 #include <cerrno>
 #include <exception>
 #include <fstream>
+#include <algorithm>
+#include <atomic>
+#include <chrono>
+#include <climits>
+#include <cerrno>
+#include <exception>
+#include <fstream>
 #include <limits>
 
 #ifdef _WIN32
