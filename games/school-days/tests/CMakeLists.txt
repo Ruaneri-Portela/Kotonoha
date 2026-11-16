@@ -275,3 +275,25 @@ if(SCHOOL_DAYS_DATA_DIR)
     set_property(TEST SchoolDays.Save APPEND PROPERTY FAIL_REGULAR_EXPRESSION
         "Could not update timestamps for discarded samples" "Extra data: 8 bits left, value: 0")
 endif()
+
+# Retail game-assets route and fixture-dependent cases are not run in CI.
+kotonoha_label_directory_tests(REAL
+    SchoolDaysPortTest
+    SchoolDaysSessionTest
+    SchoolDaysBridgeTest
+    SchoolDaysMenuBarRuntimeTest
+    SchoolDaysNextChoiceRuntimeTest
+    SchoolDaysBackRuntimeTest
+    SchoolDaysRuntimeConfigStorageTest
+    SchoolDaysHandoffRuntimeTest
+    SchoolDaysPlayDataSessionTest
+    SchoolDaysReplayRuntimeIsolationTest
+    SchoolDaysReplayRuntimeUiTest
+    SchoolDaysRuntimeSmoke
+    SchoolDaysLauncherTest
+    SchoolDaysMediaTest
+    SchoolDays.Logo
+    SchoolDays.ExitRuntime
+    SchoolDays.Save
+    SchoolDays.Retail
+)

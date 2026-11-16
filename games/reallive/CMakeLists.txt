@@ -80,3 +80,7 @@ if(BUILD_TESTING)
     target_link_libraries(RealLiveConfigTests PRIVATE reallive_port)
     add_test(NAME RealLiveConfig COMMAND RealLiveConfigTests)
 endif()
+
+kotonoha_label_directory_tests(REAL
+    RealLiveSession
+)

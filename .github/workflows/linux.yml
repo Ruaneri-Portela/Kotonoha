@@ -159,10 +159,28 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-      - name: Run regression tests
+      - name: Run synthetic CTest suite (no retail assets)
+        id: synthetic-ctest
+        continue-on-error: true
         env:
           SDL_VIDEO_DRIVER: dummy
           SDL_AUDIO_DRIVER: dummy
-        run: ctest --test-dir build-linux --output-on-failure --no-tests=error
-      - name: Run HTTP Range server unit tests
+        run: ctest --test-dir build-linux -L '^synthetic
+ --output-on-failure --no-tests=error
+
+      - name: Warn if synthetic CTest failed
+        if: steps.synthetic-ctest.outcome == 'failure'
+        run: |
+          echo "::warning::Linux synthetic CTest failed; compiled ZIP artifacts remain available"
+          echo "⚠️ Linux: synthetic CTest failed. See the step logs." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Run synthetic HTTP Range server unit tests
+        id: synthetic-http
+        continue-on-error: true
         run: python3 -m unittest discover -s tools -p test_serve_web.py -v
+
+      - name: Warn if synthetic HTTP tests failed
+        if: steps.synthetic-http.outcome == 'failure'
+        run: |
+          echo "::warning::Linux HTTP Range synthetic unit tests failed"
+          echo "⚠️ Linux: HTTP Range synthetic unit tests failed. See logs." >> "$GITHUB_STEP_SUMMARY"

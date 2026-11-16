@@ -48,3 +48,5 @@ find_package(Python3 COMPONENTS Interpreter REQUIRED)
 add_test(NAME Kotonoha.MCP COMMAND "${Python3_EXECUTABLE}"
     "${CMAKE_CURRENT_SOURCE_DIR}/MCPTests.py" "$<TARGET_FILE:Kotonoha>")
 set_tests_properties(Kotonoha.MCP PROPERTIES TIMEOUT 30)
+
+kotonoha_label_directory_tests()

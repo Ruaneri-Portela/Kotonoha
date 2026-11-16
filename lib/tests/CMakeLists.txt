@@ -176,3 +176,6 @@ if(WIN32)
         endif()
     endforeach()
 endif()
+
+# Engine tests use generated media and bundled test fixtures only.
+kotonoha_label_directory_tests()
