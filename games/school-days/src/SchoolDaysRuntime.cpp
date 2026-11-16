@@ -1665,7 +1665,10 @@ void Runtime::openTitle(bool startBgm) {
   Kotonoha_KtrfError error{};
   int64_t endClear = 0;
   Check(bridge.Session().State().ReadGlobalInt("EndClear", &endClear, &error), error);
-  host.endClearReplay = endClear != 0;
+  bool hSceneUnlocked = false;
+  Check(Kotonoha::SchoolDaysReplayModel::AnyHSceneUnlocked(
+            bridge.Session().State(), &hSceneUnlocked, &error), error);
+  host.endClearReplay = endClear != 0 || hSceneUnlocked;
   std::string ignored;
   if (Kotonoha::SchoolDaysTitleProfile::Load(assets->root().string(), &titleProfile, &ignored)) {
     host.endClearVisual = titleProfile.endBgView && endClear != 0;

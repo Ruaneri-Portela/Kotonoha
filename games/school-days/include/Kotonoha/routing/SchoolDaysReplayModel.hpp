@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <string>
 
+#include <Kotonoha/routing/KtrfStateStore.hpp>
 #include <Kotonoha/routing/SchoolDaysCmap.hpp>
 #include <Kotonoha/routing/SchoolDaysSaveFeelModel.hpp>
 
@@ -101,6 +102,8 @@ public:
     static std::string SceneCheckChipRelativePath(int choiceCount);
     static int HSceneUnlockCount() { return 41; }
     static const char* HSceneUnlockKey(int index);
+    static bool AnyHSceneUnlocked(const KtrfStateStore& state, bool* unlocked,
+                                  Kotonoha_KtrfError* error);
     static const char* SceneCheckAvailabilityKey(int sceneCheckKey, int choice);
 
 private:
