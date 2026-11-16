@@ -166,19 +166,20 @@ int main() {
                          132})
       check(Kotonoha::PmailPort::PmailAudio::HandlesSyscall(id),
             "Audio subsystem must handle the documented audio native IDs");
-    for (const int id : {17, 18, 20, 24, 212, 216, 250})
+    for (const int id : {17, 18, 19, 20, 24, 65, 137, 212, 216, 250})
       check(!Kotonoha::PmailPort::PmailAudio::HandlesSyscall(id),
             "Non-audio calls must never be sent to the audio decoder");
 
-    // Regression cases reported by the native retail startup and extra.OBJ
-    // trace. Until the original dispatch semantics are identified these calls
+    // Regression cases reported by native retail startup, PRO1 and extra.OBJ
+    // traces. Until the original dispatch semantics are identified these calls
     // must be diagnosed, not silently declared implemented or discarded.
-    for (const int id : {17, 18, 20, 24, 212, 216}) {
+    for (const int id : {17, 18, 19, 20, 24, 65, 137, 212, 216}) {
       call(id, {integer(id), string(5)});
       call(id, {integer(id), string(5)});
     }
     const auto sites = game.unhandledNativeSites();
-    const auto expected = std::vector<int>({17, 18, 20, 24, 212, 216, 250});
+    const auto expected =
+        std::vector<int>({17, 18, 19, 20, 24, 65, 137, 212, 216, 250});
     check(game.unhandledNativeIds() == expected,
           "Missing native commands were accidentally marked as supported");
     check(sites.size() == expected.size(),
