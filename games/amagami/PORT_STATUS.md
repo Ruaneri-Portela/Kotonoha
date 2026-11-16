@@ -468,3 +468,29 @@ ctest --test-dir build -R 'Amagami.(VitaCpk|VitaGraphics|VitaSystemGraphics)' --
 It checks the system image and CPK scenario scripts using the existing
 Kotonoha SCF reader. It is not a Vita game launcher, and does not replace
 the PS2-only `Amagami` target.
+
+### Vita VM bootstrap diagnostic (development only)
+
+`VitaScripts` now loads the decrypted Vita `AMAGAMI.IMG` SCF classes and
+`SCENARIO.CPK` scenarios **directly into the same Kotonoha Amagami VM**
+used for the PS2 port. `VitaVmBridge` implements the Vita-only
+`K2X_Script` primitives 5–8: clock array, screen scale, screen Y-origin
+and trophy notification (platform-neutral no-op). It tracks view state for
+later renderer integration. Unhandled native operations still fail explicitly
+instead of being replaced with a fake menu or route.
+
+```sh
+cmake -S . -B build -DKOTONOHA_BUILD_AMAGAMI=ON -DKOTONOHA_BUILD_HOST_TOOLS=ON
+cmake --build build --target AmagamiVitaProbe AmagamiVitaBootstrapTest
+build/games/amagami/AmagamiVitaProbe /path/to/decrypted/PCSG00291
+build/games/amagami/AmagamiVitaProbe /path/to/decrypted/PCSG00291 --boot
+build/games/amagami/AmagamiVitaProbe /path/to/decrypted/PCSG00291 --probe Application run
+ctest --test-dir build -R 'Amagami.VitaBootstrap' --output-on-failure
+```
+
+The probe loads and validates all scenario SCFs and can run a bounded VM
+entry point. A native-call error or instruction-budget stop is expected until
+the Vita native methods, texture objects, input, sound and presentation
+are connected. It **does not start playable Vita gameplay** and does not
+modify the PS2 runtime. The synthetic test covers CPK/IMG construction,
+class loading, a real SCF bytecode call and Vita display primitives.
