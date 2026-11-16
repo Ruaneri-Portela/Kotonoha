@@ -155,6 +155,18 @@ jobs:
           fail-on-cache-miss: true
 
 
+      - name: Restore incremental macOS build directories
+        id: build-tree-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            build-macos/**
+            !build-macos/vcpkg_installed/**
+            !build-macos/packages/**
+          key: kotonoha-build-v1-macos-${{ matrix.triplet }}-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json', 'vcpkg-overlays/ports/**', 'CMakeLists.txt', 'buildsystems/cmake/**') }}-${{ github.sha }}
+          restore-keys: |
+            kotonoha-build-v1-macos-${{ matrix.triplet }}-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json', 'vcpkg-overlays/ports/**', 'CMakeLists.txt', 'buildsystems/cmake/**') }}-
+
       - name: Audit engine/game platform isolation
         run: |
           python3 tools/check_game_platform_isolation.py
@@ -193,25 +205,16 @@ jobs:
 
       - name: Build all native game ports and tests
         run: cmake --build build-macos --parallel 3
+      - name: Save compiled macOS build directories
+        if: steps.build-tree-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            build-macos/**
+            !build-macos/vcpkg_installed/**
+            !build-macos/packages/**
+          key: kotonoha-build-v1-macos-${{ matrix.triplet }}-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json', 'vcpkg-overlays/ports/**', 'CMakeLists.txt', 'buildsystems/cmake/**') }}-${{ github.sha }}
 
-      - name: Verify SchoolDays executable architecture and macOS bundle
-        run: |
-          if [ "${{ matrix.bundles }}" = "ON" ]; then
-            executable="build-macos/outputs/SchoolDays.app/Contents/MacOS/SchoolDays"
-            test -d "build-macos/outputs/SchoolDays.app/Contents/Frameworks"
-            codesign --verify --deep --strict --verbose=2 "build-macos/outputs/SchoolDays.app"
-          else
-            executable="build-macos/outputs/SchoolDays/SchoolDays"
-          fi
-          test -f "$executable"
-          lipo "$executable" -verify_arch "${{ matrix.arch }}"
-          test "$(lipo -archs "$executable")" = "${{ matrix.arch }}"
-
-      - name: Run native regression suite
-        env:
-          SDL_VIDEO_DRIVER: dummy
-          SDL_AUDIO_DRIVER: dummy
-        run: ctest --test-dir build-macos --output-on-failure
 
       - name: Package native games
         run: cpack --config build-macos/CPackConfig.cmake -G ZIP
@@ -232,7 +235,6 @@ jobs:
           PY
 
       - name: Upload macOS artifacts
-        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: kotonoha-macos-${{ matrix.triplet }}-vcpkg
@@ -241,3 +243,23 @@ jobs:
             build-macos/packages/*.zip
           if-no-files-found: error
           retention-days: 14
+
+      - name: Verify SchoolDays executable architecture and macOS bundle
+        run: |
+          if [ "${{ matrix.bundles }}" = "ON" ]; then
+            executable="build-macos/outputs/SchoolDays.app/Contents/MacOS/SchoolDays"
+            test -d "build-macos/outputs/SchoolDays.app/Contents/Frameworks"
+            codesign --verify --deep --strict --verbose=2 "build-macos/outputs/SchoolDays.app"
+          else
+            executable="build-macos/outputs/SchoolDays/SchoolDays"
+          fi
+          test -f "$executable"
+          lipo "$executable" -verify_arch "${{ matrix.arch }}"
+          test "$(lipo -archs "$executable")" = "${{ matrix.arch }}"
+
+      - name: Run native regression suite
+        env:
+          SDL_VIDEO_DRIVER: dummy
+          SDL_AUDIO_DRIVER: dummy
+        run: ctest --test-dir build-macos --output-on-failure
+

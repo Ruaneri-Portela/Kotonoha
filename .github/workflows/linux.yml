@@ -93,13 +93,24 @@ jobs:
           key: kotonoha-deps-v2-linux-x64-linux-dynamic-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json', 'vcpkg-overlays/ports/**') }}
           fail-on-cache-miss: true
 
+      - name: Restore incremental Linux x64 build directories
+        id: build-tree-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            build-linux/**
+            !build-linux/vcpkg_installed/**
+            !build-linux/packages/**
+          key: kotonoha-build-v1-linux-x64-dynamic-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json', 'vcpkg-overlays/ports/**', 'CMakeLists.txt', 'buildsystems/cmake/**') }}-${{ github.sha }}
+          restore-keys: |
+            kotonoha-build-v1-linux-x64-dynamic-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json', 'vcpkg-overlays/ports/**', 'CMakeLists.txt', 'buildsystems/cmake/**') }}-
+
       - name: Run source audits
         run: |
           python3 tools/ValidateBuildMetadata.py
           python3 tools/check_sdl_cpack.py
           python3 tools/audit_filesystem_v2.py --strict
           python3 tools/check_game_platform_isolation.py
-          python3 -m unittest discover -s tools -p test_serve_web.py -v
       - name: Configure with vcpkg
         run: |
           mkdir -p vcpkg-binary-cache
@@ -113,11 +124,16 @@ jobs:
             -DKOTONOHA_BUILD_ALL=ON -DBUILD_TESTING=ON
       - name: Compile all game ports
         run: cmake --build build-linux --parallel 3
-      - name: Run regression tests
-        env:
-          SDL_VIDEO_DRIVER: dummy
-          SDL_AUDIO_DRIVER: dummy
-        run: ctest --test-dir build-linux --output-on-failure --no-tests=error
+      - name: Save compiled Linux x64 build directories
+        if: steps.build-tree-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            build-linux/**
+            !build-linux/vcpkg_installed/**
+            !build-linux/packages/**
+          key: kotonoha-build-v1-linux-x64-dynamic-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json', 'vcpkg-overlays/ports/**', 'CMakeLists.txt', 'buildsystems/cmake/**') }}-${{ github.sha }}
+
       - name: Create ZIP packages
         run: cpack --config build-linux/CPackConfig.cmake -G ZIP
       - name: Verify ZIP packages
@@ -142,3 +158,11 @@ jobs:
             build-linux/packages/*.zip
           if-no-files-found: error
           retention-days: 14
+
+      - name: Run regression tests
+        env:
+          SDL_VIDEO_DRIVER: dummy
+          SDL_AUDIO_DRIVER: dummy
+        run: ctest --test-dir build-linux --output-on-failure --no-tests=error
+      - name: Run HTTP Range server unit tests
+        run: python3 -m unittest discover -s tools -p test_serve_web.py -v
