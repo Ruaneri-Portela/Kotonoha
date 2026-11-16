@@ -154,6 +154,24 @@ int main() {
     std::printf("FAIL: containsAsset(scenario/first.ks) should be true\n");
     ++failures;
   }
+  // XP3 resource names are often mixed case while scripts use Windows
+  // separators. ASCII case folding must work without changing stored names.
+  if (!assets.containsAsset("SCENARIO\\FIRST.KS") ||
+      !assets.containsAsset("Scenario/First.Ks")) {
+    std::printf("FAIL: XP3 paths were not matched case-insensitively\n");
+    ++failures;
+  }
+  try {
+    const auto alternate = assets.readAsset("SCENARIO\\FIRST.KS");
+    if (std::string(alternate.begin(), alternate.end()) != fileContent) {
+      std::printf("FAIL: folded XP3 lookup returned wrong contents\n");
+      ++failures;
+    }
+  } catch (const std::exception &e) {
+    std::printf("FAIL: folded XP3 read threw: %s\n", e.what());
+    ++failures;
+  }
+
   if (assets.containsAsset("nonexistent.ks")) {
     std::printf("FAIL: containsAsset(nonexistent.ks) should be false\n");
     ++failures;
@@ -173,7 +191,7 @@ int main() {
     ++failures;
   }
 
-  auto files = assets.listAsset("scenario/");
+  auto files = assets.listAsset("SCENARIO/");
   bool found = false;
   for (const auto &f : files) {
     if (f == "scenario/first.ks")
@@ -219,6 +237,27 @@ int main() {
     }
     if (text != "[cm text=\"OK\"]") {
       std::printf("FAIL: UTF-16 KAG script was not decoded\n");
+      ++failures;
+    }
+  }
+
+  // A malformed MDF/PSB payload must report a decode failure, not stall
+  // indefinitely in zlib. No proprietary game files are used.
+  {
+    const auto path = tempDir / "corrupt.ks.scn";
+    const std::uint8_t truncatedMdf[] = {'m', 'd', 'f', 0, 0, 0, 0, 0};
+    std::ofstream out(path, std::ios::binary);
+    out.write(reinterpret_cast<const char *>(truncatedMdf),
+              sizeof(truncatedMdf));
+    out.close();
+    bool rejected = false;
+    try {
+      (void)assets.loadTextUtf8("corrupt.ks.scn");
+    } catch (const std::exception &) {
+      rejected = true;
+    }
+    if (!rejected) {
+      std::printf("FAIL: truncated MDF stream was accepted\n");
       ++failures;
     }
   }

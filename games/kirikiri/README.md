@@ -13,6 +13,18 @@ cmake -S . -B build -DKOTONOHA_BUILD_KIRIKIRI=ON
 cmake --build build --target Kirikiri
 ```
 
+## Archive compatibility
+
+The XP3 provider now resolves paths with Windows or Unix separators and
+unique ASCII case-insensitive matches while rejecting ambiguous folded paths.
+Malformed MDF/zlib streams report an error instead of endlessly retrying
+decompression. Synthetic tests cover these behaviors.
+
+This improves the reusable Kirikiri2/Z asset layer. It does **not** implement
+the general TJS2 runtime or all compiled PSB/SCN behaviors, so support for
+complex commercial Kirikiri titles must not be inferred from successful archive
+mounting or text extraction.
+
 ## Game data
 
 Use a lawful game folder with .ks scripts or an .xp3 archive.
