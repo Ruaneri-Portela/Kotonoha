@@ -267,13 +267,21 @@ Kotonoha::SurfacePtr decodeTlg6Image(const std::uint8_t *data,
       const std::uint32_t info = reader.u32();
       const unsigned method = info >> 30;
       const std::size_t bitLength = info & 0x3fffffffu;
-      if (method != 0)
-        throw std::runtime_error(
-            "KiriKiri: unsupported TLG6 entropy method (non-Golomb)");
       if (maxBits && bitLength > maxBits)
         throw std::runtime_error("KiriKiri: excessive TLG6 bit pool");
       const auto *pool = reader.take((bitLength + 7) / 8);
-      decodeGolomb(pool, bitLength, pixelCount, channel, pixels);
+      if (method == 0) {
+        decodeGolomb(pool, bitLength, pixelCount, channel, pixels);
+      } else if (method == 3 && bitLength == pixelCount * 8) {
+        // Experimental reserved/raw mode: one signed residual byte per
+        // sample. The upstream KiriKiri Z loader does not support this
+        // method; require the exact expected byte count, never guess.
+        for (std::size_t i = 0; i < pixelCount; ++i)
+          pixels[i][channel] = pool[i];
+      } else {
+        throw std::runtime_error(
+            "KiriKiri: unsupported TLG6 entropy (Gamma/LZSS or invalid raw)");
+      }
     }
     for (std::size_t localY = 0; localY < rows; ++localY) {
       const std::size_t y = baseY + localY;
