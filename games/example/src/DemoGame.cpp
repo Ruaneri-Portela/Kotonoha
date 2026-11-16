@@ -21,7 +21,7 @@
 
 namespace KotonohaExample {
 
-DemoGame::DemoGame() : Runtime("Kotonoha", "0.1.0", "me.hirameki.kotonoha") {}
+DemoGame::DemoGame() : Runtime("Kotonoha", "0.1.0", "org.kotonoha.example") {}
 DemoGame::~DemoGame() = default;
 
 void DemoGame::init(Kotonoha::Engine &engineRef) {
