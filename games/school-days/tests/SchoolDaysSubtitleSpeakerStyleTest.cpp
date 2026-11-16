@@ -5,6 +5,7 @@
 #include <Kotonoha/parsers/AssStyle.hpp>
 
 #include <array>
+#include <cmath>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -33,6 +34,19 @@ constexpr const char *kStyles =
     "Style: Makoto,Noto Sans JP,46,&H0000FF00,&H0000FF00,&H00000000,"
     "&H00000000,0,0,0,0,100,100,0,0,1,1,0,2,20,20,40,1\n"
     "Style: Setsuna,Noto Sans JP,46,&H00FF0000,&H00FF0000,&H00000000,"
+    "&H00000000,0,0,0,0,100,100,0,0,1,1,0,2,20,20,40,1\n"
+    "Style: Sekai's Mother,Noto Sans JP,46,&H00FFFF00,&H00FFFF00,&H00000000,"
+    "&H00000000,0,0,0,0,100,100,0,0,1,1,0,2,20,20,40,1\n"
+    "Style: Sekai&Makoto,Noto Sans JP,46,&H00FF00FF,&H00FF00FF,&H00000000,"
+    "&H00000000,0,0,0,0,100,100,0,0,1,1,0,2,20,20,40,1\n"
+    "Style: Makoto Makoto\xE3\x83\xBB"
+    "Sekai Sekai,Noto Sans JP,46,&H0000FFFF,&H0000FFFF,&H00000000,"
+    "&H00000000,0,0,0,0,100,100,0,0,1,1,0,2,20,20,40,1\n"
+    "Style: M\xC3\xA3"
+    "e da Sekai,Noto Sans JP,46,&H000080FF,&H000080FF,&H00000000,"
+    "&H00000000,0,0,0,0,100,100,0,0,1,1,0,2,20,20,40,1\n"
+    "Style: Ni\xC3\xB1"
+    "o,Noto Sans JP,46,&H00FF0080,&H00FF0080,&H00000000,"
     "&H00000000,0,0,0,0,100,100,0,0,1,1,0,2,20,20,40,1\n";
 
 struct Fixture {
@@ -55,21 +69,31 @@ struct Fixture {
   }
 };
 
-std::array<int, 3> Colors(Kotonoha::RendererRef renderer) {
+constexpr std::array<std::array<int, 3>, 8> kColors{{
+    {255, 0, 0},     // Default
+    {0, 255, 0},     // Makoto
+    {0, 0, 255},     // Setsuna
+    {0, 255, 255},   // Sekai's Mother
+    {255, 0, 255},   // Sekai&Makoto
+    {255, 255, 0},   // Makoto Makoto (interpunct) Sekai Sekai
+    {255, 128, 0},   // Mae da Sekai (accented)
+    {128, 0, 255},   // Nino (Spanish enye)
+}};
+
+std::array<int, kColors.size()> Colors(Kotonoha::RendererRef renderer) {
   Kotonoha::SurfacePtr pixels(SDL_RenderReadPixels(&renderer, nullptr));
   Require(bool(pixels), "Cannot read SDL software-rendered subtitle pixels");
-  std::array<int, 3> counts{}; // Default red, Makoto green, Setsuna blue.
+  std::array<int, kColors.size()> counts{};
   for (int y = 0; y < pixels->h; ++y)
     for (int x = 0; x < pixels->w; ++x) {
       Uint8 r = 0, g = 0, b = 0, a = 0;
       Require(SDL_ReadSurfacePixel(pixels.get(), x, y, &r, &g, &b, &a),
               "Cannot inspect synthetic subtitle pixel");
-      if (r > 140 && g < 80 && b < 80)
-        ++counts[0];
-      if (g > 140 && r < 80 && b < 80)
-        ++counts[1];
-      if (b > 140 && r < 80 && g < 80)
-        ++counts[2];
+      for (std::size_t i = 0; i < kColors.size(); ++i)
+        if (std::abs(int(r) - kColors[i][0]) <= 15 &&
+            std::abs(int(g) - kColors[i][1]) <= 15 &&
+            std::abs(int(b) - kColors[i][2]) <= 15)
+          ++counts[i];
     }
   return counts;
 }
@@ -104,21 +128,29 @@ int main(int argc, char **argv) {
     Require(engine.GetSubtitleStyle().has_value(),
             "Engine did not load synthetic styles.ass");
     const auto &names = engine.GetSubtitleStyle()->names;
-    Require(names.size() == 3 && names[0] == "Default" &&
-                names[1] == "Makoto" && names[2] == "Setsuna",
+    const std::vector<std::string> expectedNames{
+        "Default", "Makoto", "Setsuna", "Sekai's Mother",
+        "Sekai&Makoto", "Makoto Makoto\xE3\x83\xBB" "Sekai Sekai",
+        "M\xC3\xA3" "e da Sekai", "Ni\xC3\xB1" "o"};
+    Require(names == expectedNames,
             "ASS fixture style names were not recognized");
 
     const std::vector<Kotonoha::SubtitleCue> original{
         {0, 1, "COLOR", "Makoto", true},
         {1, 2, "COLOR", "SpeakerNotInStyles", true},
-        {2, 3, "COLOR", "Setsuna", true}};
+        {2, 3, "COLOR", "Setsuna", true},
+        {3, 4, "COLOR", "Sekai's Mother", true},
+        {4, 5, "COLOR", "Sekai&Makoto", true},
+        {5, 6, "COLOR", "Makoto Makoto\xE3\x83\xBB" "Sekai Sekai", true},
+        {6, 7, "COLOR", "M\xC3\xA3" "e da Sekai", true},
+        {7, 8, "COLOR", "Ni\xC3\xB1" "o", true}};
     Kotonoha::Translation translation;
     auto localized = SchoolDays::Subtitles::TranslateCues(
-        original, {0, 1, 2}, 1, translation);
-    Require(localized.size() == 3 && localized[0].speaker == "Makoto" &&
-                localized[1].speaker == "SpeakerNotInStyles" &&
-                localized[2].speaker == "Setsuna",
-            "School Days translation changed a canonical ASS speaker ID");
+        original, {0, 1, 2, 3, 4, 5, 6, 7}, 1, translation);
+    Require(localized.size() == original.size(), "Cue count changed");
+    for (std::size_t i = 0; i < original.size(); ++i)
+      Require(localized[i].speaker == original[i].speaker,
+              "School Days translation changed a canonical ASS speaker ID");
 
     SchoolDays::Subtitles scene(engine);
     scene.setCues(localized, 46);
@@ -126,6 +158,11 @@ int main(int argc, char **argv) {
     ExpectColor(scene, renderer, 0.5, 1); // Matching Makoto.
     ExpectColor(scene, renderer, 1.5, 0); // Unknown -> Default.
     ExpectColor(scene, renderer, 2.5, 2); // Matching Setsuna.
+    ExpectColor(scene, renderer, 3.5, 3); // Apostrophe and space.
+    ExpectColor(scene, renderer, 4.5, 4); // Ampersand.
+    ExpectColor(scene, renderer, 5.5, 5); // Interpunct and spaces.
+    ExpectColor(scene, renderer, 6.5, 6); // Accented a.
+    ExpectColor(scene, renderer, 7.5, 7); // Spanish enye.
     std::cout << "School Days synthetic ASS speaker styles PASS\n";
     return 0;
   } catch (const std::exception &error) {
