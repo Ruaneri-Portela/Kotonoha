@@ -1130,7 +1130,7 @@ int main() {
       }
     }
     // Script-level Dictionary objects are not native Window/Layer classes.
-    write(tempDir / "startup.tjs", "var native = new Window();\n");
+    write(tempDir / "startup.tjs", "var native = new UnsupportedNative();\n");
     {
       Kotonoha::Providers::KirikiriAssets input(tempDir);
       const auto run = Kotonoha::Providers::runTjsStartupSubset(input);
@@ -1222,12 +1222,12 @@ int main() {
         ++failures;
       }
     }
-    write(tempDir / "startup.tjs", "class GameWindow { }");
+    write(tempDir / "startup.tjs", "class GameWindow { property title; }");
     {
       Kotonoha::Providers::KirikiriAssets input(tempDir);
       const auto run = Kotonoha::Providers::runTjsStartupSubset(input);
       if (run.subsetCompleted || run.error.empty()) {
-        std::printf("FAIL: unsupported TJS2 class accepted silently\n");
+        std::printf("FAIL: unsupported TJS2 class property accepted silently\n");
         ++failures;
       }
     }
