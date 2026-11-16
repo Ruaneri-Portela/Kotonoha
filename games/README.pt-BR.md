@@ -22,4 +22,4 @@ Compile um port habilitando sua opção: `cmake -S . -B build -DKOTONOHA_BUILD_R
 
 Arquivos `PORT_STATUS.md` e notas datadas nas pastas `docs/` dos jogos preservam evidências de desenvolvimento e engenharia reversa. Algumas observações antigas podem ter sido superadas. Para resumos claros em ambos os idiomas, comece pelo README de cada jogo.
 
-[Índice geral](../docs/README.pt-BR.md) · [Compilação](../docs/BUILD_GUIDES.pt-BR.md)
+[Índice geral](../docs/README.pt-BR.md) · [Compilação](../docs/BUILD_GUIDES.pt-BR.md) · [Revisão de compatibilidade dos portes](../docs/PORT_COMPATIBILITY.pt-BR.md)

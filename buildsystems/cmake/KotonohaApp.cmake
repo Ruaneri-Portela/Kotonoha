@@ -320,5 +320,16 @@ function(kotonoha_configure_app target)
         kotonoha_copy_assets(${target} GAME "${APP_GAME}"
             GAME_ASSET_SOURCE "${_game_asset_source}")
     endif()
+    # Every native game must parse --help without retail assets or a running
+    # renderer. This catches broken SDL callback entrypoints and missing
+    # runtime dependencies across *all* enabled ports.
+    if(BUILD_TESTING AND NOT ANDROID AND NOT EMSCRIPTEN AND
+       NOT CMAKE_SYSTEM_NAME STREQUAL "iOS")
+        add_test(NAME "Kotonoha.PortHelp.${target}"
+            COMMAND $<TARGET_FILE:${target}> --help)
+        set_tests_properties("Kotonoha.PortHelp.${target}" PROPERTIES
+            TIMEOUT 20
+            ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_AUDIO_DRIVER=dummy")
+    endif()
 endfunction()
 

@@ -42,7 +42,7 @@ kotonoha_configure_app(Amagami
 
 # Read-only Vita class loader and VM diagnostics use the existing SCF VM.
 # Keep them separate from the PS2 runtime; no Vita gameplay is claimed.
-if(NOT ANDROID AND NOT EMSCRIPTEN)
+if(KOTONOHA_BUILD_HOST_TOOLS)
     add_library(AmagamiVitaData STATIC
         src/VitaScripts.cpp
         src/VitaVmBridge.cpp

@@ -17,7 +17,7 @@ Start with the [project README](../README.md), then choose a topic:
 | UI, subtitles, and saved options | [Engine settings](ENGINE_SETTINGS.md) |
 | Touchscreen, keyboard and controllers | [Unified input](INPUT_CONTROLS.md) |
 | Debug UI, applets and Git build info | [Debug tools and SDL diagnostics](DEBUG_TOOLS.md) |
-| Game ports | [Port index](../games/README.md) |
+| Game ports | [Port index](../games/README.md) · [Compatibility audit](PORT_COMPATIBILITY.md) |
 | Internals | [Virtual machines](../modules/vms/README.md) · [Asset providers](../modules/providers/README.md) |
 
 ## Documentation policy

@@ -22,4 +22,4 @@ Build one port by enabling its option: `cmake -S . -B build -DKOTONOHA_BUILD_REA
 
 Files named `PORT_STATUS.md` and dated notes in game `docs/` directories retain development and reverse-engineering evidence. They may include older observations that later revisions superseded. For an accessible summary in both languages, start at each game's README.
 
-[Documentation index](../docs/README.md) · [Build guides](../docs/BUILD_GUIDES.md)
+[Documentation index](../docs/README.md) · [Build guides](../docs/BUILD_GUIDES.md) · [Compatibility audit of all ports](../docs/PORT_COMPATIBILITY.md)

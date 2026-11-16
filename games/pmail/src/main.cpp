@@ -3,9 +3,12 @@
 
 #include "PmailRuntime.hpp"
 
+#include <Kotonoha/Filesystem/GameSourceProbe.hpp>
+#include <Kotonoha/Filesystem/Filesystem.hpp>
 #include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/CommandLine.hpp>
 #include <Kotonoha/core/Engine.hpp>
+#include <Kotonoha/core/GameLauncher.hpp>
 
 #include <cstdio>
 #include <exception>
@@ -30,20 +33,55 @@ struct Application {
         engine(game, std::move(options)) {}
 };
 
+// Resolve packaged or user-provided game data independently of developer
+// machine volumes. SnowAssets expects SCRIPT.DAT and GRAPHIC.DAT together.
 std::string DefaultDirectory() {
-  // Prefer the original disc layout if present in workspace/dev env.
-  const char *candidates[] = {
-      "/Volumes/Nero 256GB/KotonohaAssets/PMAILDVD",
-      "/Volumes/Nero 256GB/KotonohaAssets/PMAILDVD/data",
-      nullptr,
-  };
-  for (int i = 0; candidates[i]; ++i) {
-    std::error_code ec;
-    if (std::filesystem::exists(candidates[i], ec))
-      return candidates[i];
+  for (const char *relative : {"data/pack/SCRIPT.DAT",
+                               "data/pack/script.dat", "pack/SCRIPT.DAT",
+                               "pack/script.dat", "SCRIPT.DAT", "script.dat"}) {
+    const auto found = Kotonoha::FileResolver::findGameAsset("pmail", relative);
+    if (!found)
+      continue;
+    auto root = found->parent_path();
+    for (const char *part = relative; *part; ++part)
+      if (*part == '/')
+        root = root.parent_path();
+    return root.string();
   }
-  return Kotonoha::gameAssetDirectory("pmail").string();
+  return {};
 }
+
+bool validate(const std::string &path, std::string &info) {
+  try {
+    auto source = Kotonoha::Filesystem::Filesystem::mount(path);
+    if (Kotonoha::Filesystem::findRequiredFilesPrefix(
+            *source, {"SCRIPT.DAT", "GRAPHIC.DAT"},
+            {"", "pack/", "data/pack/"})) {
+      info = "Pure Mail script and graphics archives found";
+      return true;
+    }
+    info = "Select a Pure Mail source with SCRIPT.DAT and GRAPHIC.DAT";
+    return false;
+  } catch (const std::exception &error) {
+    info = error.what();
+    return false;
+  }
+}
+
+struct App {
+  Kotonoha::EngineOptions options;
+  long frames = -1;
+  std::unique_ptr<Kotonoha::FolderGameLauncher> launcher;
+  std::unique_ptr<Application> game;
+
+  void start(const std::string &directory) {
+    auto assets = std::make_shared<Kotonoha::Providers::SnowAssets>(directory);
+    assets->setOverlay(options.assetOverlayDirectory());
+    options.assets = std::move(assets);
+    game = std::make_unique<Application>(directory, options);
+    game->framesRemaining = frames;
+  }
+};
 
 } // namespace
 
@@ -61,33 +99,44 @@ SDL_AppResult KotonohaPortCallbacks::init(void **appstate, int argc,
   *appstate = nullptr;
   KOTONOHA_SET_APP_METADATA("Pure Mail", "me.hirameki.kotonoha.pmail");
   try {
-    Kotonoha::EngineOptions options;
+    auto app = std::make_unique<App>();
+    auto &options = app->options;
     options.persistSettings = true;
     std::string directory;
     Kotonoha::CommandLine arguments("Pmail", options);
-    arguments.option("--pmail", "DIRECTORY",
-                     "Pure Mail game directory (PMAILDVD root or data folder)",
-                     directory);
+    arguments.option("--pmail", "DIRECTORY|ISO",
+                     "Pure Mail game directory or ISO image", directory);
     arguments.parse(argc, argv);
     if (arguments.wantsHelp()) {
       std::fputs(arguments.help().c_str(), stdout);
       return SDL_APP_SUCCESS;
     }
+    app->frames = arguments.frames;
+    if (options.enableMCP && options.settingsPath.empty())
+      options.persistSettings = false;
     if (options.settingsPath.empty() && options.persistSettings)
       options.settingsPath = Kotonoha::EngineSettings::defaultPath();
-    if (directory.empty()) {
-      const auto env = SDL_getenv("PMAIL_DIR");
-      if (env)
-        directory = env;
-    }
+    const auto settingsPath =
+        options.persistSettings ? options.settingsPath : std::string();
+    const char *env = SDL_getenv("PMAIL_DIR");
+    directory = Kotonoha::GameLauncher::findGamePath(
+        "pmail",
+        {directory, env ? env : "",
+         Kotonoha::GameLauncher::rememberedPath(settingsPath, "dir.txt"),
+         DefaultDirectory()},
+        validate, {"", "pack", "data/pack"}, true);
     if (directory.empty())
-      directory = DefaultDirectory();
-
-    options.assets =
-        std::make_shared<Kotonoha::Providers::SnowAssets>(directory);
-    auto *app = new Application(directory, std::move(options));
-    app->framesRemaining = arguments.frames;
-    *appstate = app;
+      options.launcher = true;
+    if (options.launcher) {
+      app->launcher = std::make_unique<Kotonoha::FolderGameLauncher>(
+          "Pure Mail", settingsPath, directory, validate, options.settings,
+          true);
+      app->launcher->setAudioChannels({"BGM", "Voice", "Se"});
+      app->launcher->open();
+    } else {
+      app->start(directory);
+    }
+    *appstate = app.release();
     return SDL_APP_CONTINUE;
   } catch (const std::exception &error) {
     SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Initialization failed: %s",
@@ -97,9 +146,10 @@ SDL_AppResult KotonohaPortCallbacks::init(void **appstate, int argc,
 }
 
 SDL_AppResult KotonohaPortCallbacks::event(void *appstate, SDL_Event *event) {
-  auto *app = static_cast<Application *>(appstate);
   try {
-    return app->engine.Event(event);
+    auto &app = *static_cast<App *>(appstate);
+    return app.launcher ? app.launcher->event(*event)
+                        : app.game->engine.Event(event);
   } catch (const std::exception &error) {
     SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Event failed: %s",
                  error.what());
@@ -108,14 +158,24 @@ SDL_AppResult KotonohaPortCallbacks::event(void *appstate, SDL_Event *event) {
 }
 
 SDL_AppResult KotonohaPortCallbacks::iterate(void *appstate) {
-  auto *app = static_cast<Application *>(appstate);
   try {
-    const auto result = app->engine.Iterate();
+    auto &app = *static_cast<App *>(appstate);
+    if (app.launcher) {
+      app.launcher->iterate();
+      if (app.launcher->state() == Kotonoha::Launcher::State::Quit)
+        return SDL_APP_SUCCESS;
+      if (app.launcher->state() != Kotonoha::Launcher::State::Launch)
+        return SDL_APP_CONTINUE;
+      const auto directory = app.launcher->path();
+      app.options.settings = app.launcher->settings();
+      app.launcher.reset();
+      app.start(directory);
+    }
+    const auto result = app.game->engine.Iterate();
     if (result != SDL_APP_CONTINUE)
       return result;
-    if (app->framesRemaining > 0 && --app->framesRemaining == 0)
-      return SDL_APP_SUCCESS;
-    return SDL_APP_CONTINUE;
+    return app.frames > 0 && --app.frames == 0 ? SDL_APP_SUCCESS
+                                             : SDL_APP_CONTINUE;
   } catch (const std::exception &error) {
     SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Frame failed: %s",
                  error.what());
@@ -124,7 +184,7 @@ SDL_AppResult KotonohaPortCallbacks::iterate(void *appstate) {
 }
 
 void KotonohaPortCallbacks::quit(void *appstate, SDL_AppResult) {
-  delete static_cast<Application *>(appstate);
+  delete static_cast<App *>(appstate);
 }
 
 KOTONOHA_SDL_CALLBACK_APP(KotonohaPortCallbacks)

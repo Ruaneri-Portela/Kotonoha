@@ -1,4 +1,5 @@
 #include "RealLiveRuntime.hpp"
+#include <Kotonoha/Filesystem/GameSourceProbe.hpp>
 #include <Kotonoha/Filesystem/Filesystem.hpp>
 #include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/CommandLine.hpp>
@@ -42,7 +43,8 @@ struct App {
 bool validate(const std::string &path, std::string &info) {
   try {
     auto source = Kotonoha::Filesystem::Filesystem::mount(path);
-    if (!source->exists("Seen.txt") || !source->exists("Gameexe.ini")) {
+    if (!Kotonoha::Filesystem::findRequiredFilesPrefix(
+            *source, {"Seen.txt", "Gameexe.ini"})) {
       info = "REALLIVE source is missing Seen.txt or Gameexe.ini";
       return false;
     }

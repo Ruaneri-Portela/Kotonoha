@@ -1,3 +1,5 @@
+#include <Kotonoha/Filesystem/GameSourceProbe.hpp>
+#include <Kotonoha/Filesystem/Filesystem.hpp>
 #include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/CommandLine.hpp>
 #include <Kotonoha/core/DiscImage.hpp>
@@ -35,7 +37,7 @@ struct App {
     Kotonoha::Engine engine;
     Game(std::shared_ptr<Kotonoha::Providers::LucaSystemAssets> a,
          Kotonoha::EngineOptions o)
-        : runtime(std::move(a)), engine(runtime, std::move(o)) {}
+        : runtime(a), engine(runtime, withAssets(std::move(o), std::move(a))) {}
   };
   std::unique_ptr<Game> game;
 
@@ -43,34 +45,23 @@ struct App {
     auto assets = std::shared_ptr<Kotonoha::Providers::LucaSystemAssets>(
         new Kotonoha::Providers::LucaSystemAssets(
             directory, options.assetOverlayDirectory()));
-    game = std::make_unique<Game>(std::move(assets), std::move(options));
+    game = std::make_unique<Game>(std::move(assets), options);
   }
 };
 
 bool validate(const std::string &path, std::string &info) {
   try {
-    if (Kotonoha::isISOImage(path)) {
-      Kotonoha::DiscImage disc(path);
-      info = "Game data found (direct ISO access)";
-      return true;
-    }
-    auto dataPath = std::filesystem::path(path);
-    if (!std::filesystem::is_regular_file(dataPath / "SCRIPT.PAK") &&
-        std::filesystem::is_regular_file(dataPath / "files" / "SCRIPT.PAK"))
-      dataPath /= "files";
-    std::set<std::string> corePaks;
-    for (const auto &entry : std::filesystem::directory_iterator(dataPath)) {
-      if (!entry.is_regular_file())
-        continue;
-      auto name = entry.path().filename().string();
-      if (name == "PARAM.PAK" || name == "SCRIPT.PAK" || name == "SYSSE.PAK")
-        corePaks.insert(name);
-    }
-    if (corePaks.size() != 3) {
-      info = "No LucaSystem archive (PARAM.PAK/SCRIPT.PAK/SYSSE.PAK) found";
+    // The runtime reads PAKs through the virtual filesystem. Validate the
+    // same view, including ISO images and case-insensitive archive filenames,
+    // instead of accepting any well-formed but unrelated ISO.
+    auto source = Kotonoha::Filesystem::Filesystem::mount(path);
+    if (!Kotonoha::Filesystem::findRequiredFilesPrefix(
+            *source, {"PARAM.PAK", "SCRIPT.PAK", "SYSSE.PAK"},
+            {"", "files/"})) {
+      info = "LucaSystem requires PARAM.PAK, SCRIPT.PAK and SYSSE.PAK";
       return false;
     }
-    info = "LucaSystem game data found";
+    info = "LucaSystem archives present in virtual game source";
     return true;
   } catch (const std::exception &error) {
     info = error.what();
@@ -91,8 +82,10 @@ struct KotonohaPortCallbacks final {
 
 SDL_AppResult KotonohaPortCallbacks::init(void **state, int argc, char **argv) {
   *state = nullptr;
-  KOTONOHA_SET_APP_METADATA("LucaSystem", "me.hirameki.kotonoha.luca_system");
+  KOTONOHA_SET_APP_METADATA("LucaSystem", "me.hirameki.kotonoha.lucasystem");
   try {
+    Kotonoha::migrateLegacyDocuments(
+        "me.hirameki.kotonoha.luca_system");
     auto app = std::make_unique<App>();
     auto &options = app->options;
     options.persistSettings = true;
@@ -115,10 +108,10 @@ SDL_AppResult KotonohaPortCallbacks::init(void **state, int argc, char **argv) {
     const auto env = SDL_getenv("LUCA_SYSTEM_DIR");
     const auto downloads = SDL_GetUserFolder(SDL_FOLDER_DOWNLOADS);
     directory = Kotonoha::GameLauncher::findGamePath(
-        "luca_system",
+        "luca-system",
         {directory, env ? env : "",
          Kotonoha::GameLauncher::rememberedPath(settingsPath, "dir.txt"),
-         Kotonoha::gameAssetDirectory("luca_system").string(),
+         Kotonoha::gameAssetDirectory("luca-system").string(),
          downloads ? (std::filesystem::path(downloads) / "LucaSystem").string()
                    : ""},
         validate, {""}, true);
