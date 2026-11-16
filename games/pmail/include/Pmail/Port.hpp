@@ -95,10 +95,13 @@ public:
 
   bool hasComputerOverlay() const {
     std::lock_guard lock(mutex_);
+    bool hasIcons = false;
+    for (const auto &icon : computerIcons_)
+      hasIcons = hasIcons || icon.active;
     return computerOverlayVisible_ &&
            (!computerText_.empty() || !chatHistory_.empty() ||
             !computerClock_.empty() || chatPanel_.active ||
-            mailPanel_.active);
+            mailPanel_.active || hasIcons);
   }
 
   explicit PmailGame(std::vector<uint8_t> scriptPack,
