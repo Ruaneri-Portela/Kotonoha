@@ -85,6 +85,14 @@ if(BUILD_TESTING)
 
     # Data-independent verification of switch/case selection semantics.
     # Pure C++17 tests for Str.digits / Str.digit opcode parameters.
+    # Strict, data-free tests for atomic Str.strclear range validation.
+    add_executable(RealLiveBoundedRangeTests tests/BoundedRangeTest.cpp)
+    target_include_directories(RealLiveBoundedRangeTests PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/../../modules/vms/reallive/include")
+    target_compile_features(RealLiveBoundedRangeTests PRIVATE cxx_std_17)
+    add_test(NAME RealLive.BoundedRange COMMAND RealLiveBoundedRangeTests)
+    set_tests_properties(RealLive.BoundedRange PROPERTIES LABELS synthetic)
+
     add_executable(RealLiveDecimalDigitsTests tests/DecimalDigitsTest.cpp)
     target_include_directories(RealLiveDecimalDigitsTests PRIVATE
         "${CMAKE_CURRENT_SOURCE_DIR}/../../modules/vms/reallive/include")

@@ -26,6 +26,12 @@ class ScriptExecutor {
 public:
   ScriptExecutor(std::string source, std::string_view initialChapter,
                  VmCallback callback);
+  // ScriptCursor borrows our ScriptIndex. Implicit copying/moving would
+  // leave it referencing the previous object's index (possibly destroyed).
+  ScriptExecutor(const ScriptExecutor &) = delete;
+  ScriptExecutor &operator=(const ScriptExecutor &) = delete;
+  ScriptExecutor(ScriptExecutor &&) = delete;
+  ScriptExecutor &operator=(ScriptExecutor &&) = delete;
   // Each callback dispatch counts toward budget. An invalid target leaves
   // the current instruction unchanged. Pause requires explicit resume().
   std::size_t run(std::size_t budget = 8192);

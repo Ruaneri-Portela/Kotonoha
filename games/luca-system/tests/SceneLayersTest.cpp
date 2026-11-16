@@ -33,6 +33,27 @@ int main() {
               close(halfway.incoming, 0.5f) &&
               close(done.outgoing, 0) && close(done.incoming, 1),
           "crossfade interpolates alpha with a stable clock");
+    check(close(LucaSystem::wipeVisibleWidth(100, 200, 0), 0) &&
+          close(LucaSystem::wipeVisibleWidth(100, 200, 200), 100) &&
+          close(LucaSystem::wipeVisibleWidth(100, 200, 500), 200) &&
+          close(LucaSystem::wipeVisibleWidth(-50, 150, 50), 100) &&
+          close(LucaSystem::wipeVisibleWidth(100, -10, 200), 0),
+          "directional wipe crops without resizing or revealing beyond edge");
+    // Wipe transitions now carry a dedicated mode instead of silently
+    // reusing alpha blending. A renderer can clip incoming objects to the
+    // reveal edge without distorting their original image coordinates.
+    scene.stage({4, 55, 66});
+    scene.commit(1500, 200, LucaSystem::SceneTransition::WipeLeftToRight);
+    const auto wipeStart = scene.blend(1500);
+    const auto wipeHalf = scene.blend(1600);
+    const auto wipeEnd = scene.blend(1700);
+    check(wipeStart.wipeLeftToRight && wipeHalf.wipeLeftToRight &&
+          wipeEnd.wipeLeftToRight &&
+          close(wipeStart.incoming, 0) &&
+          close(wipeHalf.incoming, 0.5f) &&
+          close(wipeEnd.incoming, 1),
+          "WIPE exposes a timed, directional reveal extent");
+    scene.commit(1800, 0);
     scene.beginBlackout(1500, 200, true);
     check(close(scene.blend(1500).blackout, 0) &&
           close(scene.blend(1600).blackout, 0.5f) &&
