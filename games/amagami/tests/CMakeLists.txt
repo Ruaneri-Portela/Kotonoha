@@ -1,6 +1,8 @@
-add_executable(AmagamiVitaCpkTest VitaCpkTest.cpp)
-target_link_libraries(AmagamiVitaCpkTest PRIVATE Kotonoha::ProviderAmagami)
-add_test(NAME Amagami.VitaCpk COMMAND AmagamiVitaCpkTest)
+if(NOT ANDROID AND NOT EMSCRIPTEN)
+    add_executable(AmagamiVitaCpkTest VitaCpkTest.cpp)
+    target_link_libraries(AmagamiVitaCpkTest PRIVATE Kotonoha::ProviderAmagami)
+    add_test(NAME Amagami.VitaCpk COMMAND AmagamiVitaCpkTest)
+endif()
 
 add_executable(AmagamiFormatsTest FormatsTest.cpp)
 target_link_libraries(AmagamiFormatsTest PRIVATE AmagamiFormats)
