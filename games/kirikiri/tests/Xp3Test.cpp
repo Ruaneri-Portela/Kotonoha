@@ -1090,6 +1090,42 @@ int main() {
         ++failures;
       }
     }
+    // A TJS Dictionary has shared identity and nested properties; function
+    // arguments may modify configuration used by the title/KAG launcher.
+    write(tempDir / "startup.tjs",
+          "var config = new Dictionary();\n"
+          "config.menu = new Dictionary;\n"
+          "config.menu.caption = \"Initial\";\n"
+          "function prepare(menu) { menu.caption = \"Configured\"; "
+          "return menu.caption; }\n"
+          "var caption = prepare(config.menu);\n"
+          "if (caption == \"Configured\" && config.menu.caption == caption) "
+          "  Scripts.execStorage(\"scenario/first.ks\");\n"
+          "System.title = config.menu.caption;\n");
+    {
+      Kotonoha::Providers::KirikiriAssets input(tempDir);
+      input.mountXp3("data.xp3");
+      const auto run = Kotonoha::Providers::runTjsStartupSubset(input);
+      if (!run.subsetCompleted || !run.error.empty() ||
+          run.kagEntry != "scenario/first.ks" ||
+          run.title != "Configured") {
+        std::printf("FAIL: TJS2 Dictionary objects/member updates\n");
+        ++failures;
+      }
+    }
+    // Script-level Dictionary objects are not native Window/Layer classes.
+    write(tempDir / "startup.tjs", "var native = new Window();\n");
+    {
+      Kotonoha::Providers::KirikiriAssets input(tempDir);
+      const auto run = Kotonoha::Providers::runTjsStartupSubset(input);
+      if (run.subsetCompleted ||
+          run.error.find("native class not implemented") ==
+              std::string::npos) {
+        std::printf("FAIL: unsupported native TJS2 object was accepted\n");
+        ++failures;
+      }
+    }
+
     // Mutual/nested recursion must terminate even with a high instruction
     // budget, independent of the script-call depth limiter.
     write(tempDir / "startup.tjs",
