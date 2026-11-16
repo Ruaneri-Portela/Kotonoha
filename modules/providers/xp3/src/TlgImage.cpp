@@ -149,7 +149,7 @@ Kotonoha::SurfacePtr decodeTlg5(const std::uint8_t *data, std::size_t size) {
       if (method == 0) {
         planes[c] = decodeSlide(packed, storedSize, planeSize,
                                 dictionary, dictionaryPos);
-      } else if (method == 1 && storedSize == planeSize) {
+      } else if (method != 0 && storedSize == planeSize) {
         planes[c].assign(packed, packed + storedSize);
       } else {
         throw std::runtime_error("KiriKiri: invalid TLG5 plane encoding");
