@@ -2,6 +2,7 @@
 // Vita's font and UI atlas formats, based on MIT-licensed open-amagami research.
 // The graphics are game data only: no retail asset or executable is distributed.
 #include <Amagami/VitaGraphics.hpp>
+#include <cstddef>
 #include <cstdint>
 #include <optional>
 #include <string>
