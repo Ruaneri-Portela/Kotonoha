@@ -61,7 +61,7 @@ void saveSnapshot(const std::string &path,
   }
   if (!SDL_SaveBMP(canvas.get(), path.c_str()))
     throw std::runtime_error(SDL_GetError());
-  std::cout << "Vita Sprite preview saved: " << path
+  std::cout << "Vita scene preview saved: " << path
             << " (960x544 BMP, snapshot only)\n";
 }
 } // namespace
