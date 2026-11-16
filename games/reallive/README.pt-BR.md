@@ -82,3 +82,15 @@ comandos de manipulação de valores, não novas instruções de interface.
 cmake --build build --target RealLiveDecimalDigitsTests
 ctest --test-dir build -R RealLive.DecimalDigits --output-on-failure
 ```
+
+## Limpeza atômica de strings
+
+O overload de intervalo do opcode `Str.strclear` valida todas as posições
+antes de apagar qualquer variável. Um índice fora dos limites ou uma faixa
+invertida não pode deixar parte das strings persistentes apagadas. Adicionado
+o teste C++17 independente `RealLive.BoundedRange`, sem arquivos de jogo:
+
+```sh
+cmake --build build --target RealLiveBoundedRangeTests
+ctest --test-dir build -R RealLive.BoundedRange --output-on-failure
+```

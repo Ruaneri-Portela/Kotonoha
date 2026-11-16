@@ -84,3 +84,14 @@ binary/asset validation. Standalone C++17 regression test:
 cmake --build build --target LucaSystemSceneLayersTests
 ctest --test-dir build -R LucaSystem.SceneLayers --output-on-failure
 ```
+
+## Horizontal WIPE reveal
+
+`WIPE` now uses a dedicated left-to-right reveal rather than the former
+cross-fade placeholder. Both source and destination texture rectangles are
+clipped at the transition boundary to avoid stretching sprites. The previous
+composition is kept while newly staged objects are revealed; the
+`LucaSystem.SceneLayers` regression checks transition progress and clipping.
+
+This is **not** the exact original AIR transition mask or semantics; per-title
+wipe directions, timing and object composition still need verification.

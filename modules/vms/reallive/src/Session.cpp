@@ -1,5 +1,6 @@
 // Copyright 2026 Kotonoha contributors. SPDX-License-Identifier: MIT
 #include "RealLive/Session.hpp"
+#include "RealLive/BoundedRange.hpp"
 #include "RealLive/DecimalDigits.hpp"
 #include "RealLive/StringOps.hpp"
 #include "RealLive/CaseSelection.hpp"
@@ -240,9 +241,11 @@ bool Session::strings(const CommandElement &c) {
     else {
       auto a = p(0).GetStringReferenceIterator(machine_),
            b = p(1).GetStringReferenceIterator(machine_);
-      for (std::size_t n = 0; a != b && n < 100000; ++n, ++a)
-        *a = "";
-      *b = "";
+      // Reject unbounded/reversed intervals without partially clearing
+      // thousands of persistent game string variables on the way.
+      auto positions = collectInclusiveRange(a, b);
+      for (auto &location : positions)
+        *location = "";
     }
     break;
   }

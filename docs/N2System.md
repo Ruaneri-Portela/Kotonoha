@@ -104,3 +104,12 @@ NsScript completa** nem frontend de jogo integrado. Teste independente:
 cmake --build build --target KotonohaN2SystemExecutorTests
 ctest --test-dir build -R Kotonoha.N2System.Executor --output-on-failure
 ```
+
+## Segurança de vida útil do executor
+
+O `ScriptExecutor` guarda um `ScriptCursor` que referencia o índice NsScript
+pertencente ao próprio executor. Agora são proibidas cópias e movimentações
+desse objeto para evitar ponteiros suspensos ao mover/destruir a instância
+original. As garantias são verificadas por asserções de compilação no teste
+de execução sintético. O frontend deve conservar o executor enquanto houver
+callbacks ou estado NsScript ativo.

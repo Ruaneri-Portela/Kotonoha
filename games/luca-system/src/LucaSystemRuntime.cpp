@@ -352,7 +352,8 @@ struct LucaSystemRuntime::Impl {
   }
 
   void renderObject(Kotonoha::RendererRef renderer, uint32_t id, int x,
-                    int y, float opacity = 1.0f) {
+                    int y, float opacity = 1.0f,
+                    float rightClip = -1.0f) {
     if (opacity <= 0.0f)
       return;
     auto it = objectImages.find(id);
@@ -373,7 +374,21 @@ struct LucaSystemRuntime::Impl {
         std::lround(std::clamp(opacity, 0.0f, 1.0f) * 255.0f)));
     SDL_FRect dst{float(x), float(y), float(it->second.width),
                   float(it->second.height)};
-    SDL_RenderTexture(&renderer, tex.get(), nullptr, &dst);
+    SDL_FRect source{};
+    const SDL_FRect *sourcePtr = nullptr;
+    if (rightClip >= 0.0f) {
+      // A directional wipe reveals only the region to the left of the
+      // advancing screen-space edge. Clip both source and destination to
+      // avoid stretching the pixels across the full object width.
+      const float visibleWidth = wipeVisibleWidth(
+          float(x), float(it->second.width), rightClip);
+      if (visibleWidth <= 0.0f)
+        return;
+      source = SDL_FRect{0, 0, visibleWidth, float(it->second.height)};
+      sourcePtr = &source;
+      dst.w = visibleWidth;
+    }
+    SDL_RenderTexture(&renderer, tex.get(), sourcePtr, &dst);
   }
 
   void runUntilPause() {
@@ -578,7 +593,8 @@ struct LucaSystemRuntime::Impl {
         // directions: commit staged images with a bounded cross-fade.
         const auto ms = ins.paramBytes.size() >= 2
             ? static_cast<std::uint64_t>(paramU16(ins, 0)) : 300u;
-        sceneLayers.commit(SDL_GetTicks(), ms);
+        sceneLayers.commit(SDL_GetTicks(), ms,
+                           SceneTransition::WipeLeftToRight);
         if (ms) {
           waiting = true;
           waitDeadline = SDL_GetTicks() + ms;
@@ -824,10 +840,27 @@ void LucaSystemRuntime::renderGameplay(Kotonoha::RendererRef renderer,
                       &screen);
   }
   const auto blend = impl.sceneLayers.blend(SDL_GetTicks());
-  for (const auto &place : impl.sceneLayers.outgoing())
-    impl.renderObject(renderer, place.id, place.x, place.y, blend.outgoing);
-  for (const auto &place : impl.sceneLayers.visible())
-    impl.renderObject(renderer, place.id, place.x, place.y, blend.incoming);
+  if (blend.wipeLeftToRight) {
+    // Preserve the old composition while a horizontal reveal sweeps across
+    // the canvas. Native AIR masks/directions still require investigation.
+    for (const auto &place : impl.sceneLayers.outgoing())
+      impl.renderObject(renderer, place.id, place.x, place.y);
+    const float revealRight = 1280.0f * blend.incoming;
+    const auto &visible = impl.sceneLayers.visible();
+    // Newly staged objects are appended after the outgoing composition.
+    // Re-rendering its old objects would double-blend transparent pixels.
+    for (std::size_t i = impl.sceneLayers.outgoing().size();
+         i < visible.size(); ++i) {
+      const auto &place = visible[i];
+      impl.renderObject(renderer, place.id, place.x, place.y,
+                        1.0f, revealRight);
+    }
+  } else {
+    for (const auto &place : impl.sceneLayers.outgoing())
+      impl.renderObject(renderer, place.id, place.x, place.y, blend.outgoing);
+    for (const auto &place : impl.sceneLayers.visible())
+      impl.renderObject(renderer, place.id, place.x, place.y, blend.incoming);
+  }
   if (blend.blackout > 0.0f) {
     SDL_SetRenderDrawBlendMode(&renderer, SDL_BLENDMODE_BLEND);
     SDL_SetRenderDrawColor(&renderer, 0, 0, 0, static_cast<Uint8>(

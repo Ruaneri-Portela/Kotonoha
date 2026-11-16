@@ -3,6 +3,7 @@
 #include <iostream>
 #include <stdexcept>
 #include <string>
+#include <type_traits>
 #include <vector>
 
 static void check(bool value, const char *name) {
@@ -13,6 +14,10 @@ template <typename F> static void rejected(F fn) {
   try { fn(); } catch (const std::exception &) { caught = true; }
   check(caught, "unsafe NsScript accepted");
 }
+static_assert(!std::is_copy_constructible<N2System::ScriptExecutor>::value,
+              "ScriptExecutor owns an index borrowed by its cursor");
+static_assert(!std::is_move_constructible<N2System::ScriptExecutor>::value,
+              "Moving ScriptExecutor would invalidate cursor references");
 int main() {
   try {
     const std::string src =

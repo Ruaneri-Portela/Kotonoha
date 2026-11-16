@@ -14,8 +14,18 @@ struct SceneObject {
   std::uint32_t id = 0;
   int x = 0, y = 0;
 };
+// Width of an object's source rectangle revealed to the left of the
+// screen-space wipe boundary. Crop source and destination by this SAME width.
+inline float wipeVisibleWidth(float objectLeft, float imageWidth,
+                              float revealRight) {
+  if (imageWidth <= 0.0f)
+    return 0.0f;
+  return std::clamp(revealRight - objectLeft, 0.0f, imageWidth);
+}
+enum class SceneTransition { Crossfade, WipeLeftToRight };
 struct SceneBlend {
   float outgoing = 0, incoming = 1, blackout = 0;
+  bool wipeLeftToRight = false;
 };
 class SceneLayers {
 public:
@@ -28,7 +38,8 @@ public:
       throw std::runtime_error("LucaSystem object layer limit exceeded");
     pending_.push_back(object);
   }
-  void commit(std::uint64_t now, std::uint64_t durationMs) {
+  void commit(std::uint64_t now, std::uint64_t durationMs,
+              SceneTransition transition = SceneTransition::Crossfade) {
     if (pending_.empty()) return;
     const auto duration = std::min<std::uint64_t>(durationMs, 60000);
     if (duration)
@@ -39,6 +50,7 @@ public:
     pending_.clear();
     began_ = now;
     duration_ = duration;
+    transition_ = transition;
   }
   void beginBlackout(std::uint64_t now, std::uint64_t durationMs,
                      bool toBlack) {
@@ -53,6 +65,8 @@ public:
           ? std::min(now - began_, duration_) : std::uint64_t(0);
       result.incoming = float(elapsed) / float(duration_);
       result.outgoing = 1.0f - result.incoming;
+      result.wipeLeftToRight =
+          transition_ == SceneTransition::WipeLeftToRight;
     }
     if (blackoutDuration_) {
       const auto elapsed = now > blackoutStart_
@@ -70,10 +84,12 @@ public:
     pending_.clear();
     outgoing_.clear();
     duration_ = blackoutDuration_ = 0;
+    transition_ = SceneTransition::Crossfade;
   }
 private:
   std::vector<SceneObject> visible_, outgoing_, pending_;
   std::uint64_t began_ = 0, duration_ = 0;
+  SceneTransition transition_ = SceneTransition::Crossfade;
   std::uint64_t blackoutStart_ = 0, blackoutDuration_ = 0;
   bool blackoutToBlack_ = false;
 };

@@ -80,3 +80,14 @@ variable. These are additional value operations, not new UI rendering.
 cmake --build build --target RealLiveDecimalDigitsTests
 ctest --test-dir build -R RealLive.DecimalDigits --output-on-failure
 ```
+
+## Atomic string clear ranges
+
+The interval overload of `Str.strclear` now validates the entire reference
+range before erasing any string variable. Invalid or reversed ranges do not
+partially mutate persistent VM string storage. Standalone C++17 regression:
+
+```sh
+cmake --build build --target RealLiveBoundedRangeTests
+ctest --test-dir build -R RealLive.BoundedRange --output-on-failure
+```

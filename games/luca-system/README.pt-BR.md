@@ -89,3 +89,15 @@ assets originais. Teste C++17 sem SDL:
 cmake --build build --target LucaSystemSceneLayersTests
 ctest --test-dir build -R LucaSystem.SceneLayers --output-on-failure
 ```
+
+## Recorte horizontal em WIPE
+
+O opcode `WIPE` passa a usar um modo específico de revelação da esquerda
+para a direita no lugar do cross-fade provisório. O renderizador recorta tanto
+a textura de origem quanto o destino no limite de avanço da transição, sem
+esticar sprites. Imagens da composição anterior são preservadas durante o
+wipe; somente imagens recém-adicionadas são reveladas. O teste
+`LucaSystem.SceneLayers` verifica progresso e limites de recorte.
+
+Isso ainda **não é uma transição AIR 1:1**: direções e máscaras específicas,
+operação de objetos e temporizações originais exigem validação com o jogo.
