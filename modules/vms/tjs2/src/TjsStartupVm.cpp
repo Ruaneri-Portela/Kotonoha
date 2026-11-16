@@ -646,6 +646,67 @@ class Parser {
       }
       return;
     }
+    if (match("class")) {
+      SourceClass definition;
+      definition.name = identifier();
+      if (match("extends"))
+        definition.base = identifier();
+      expect("{");
+      while (!match("}")) {
+        if (look().kind == Token::End)
+          throw std::runtime_error("TJS2 subset: unterminated class declaration");
+        // This bounded subset deliberately rejects script class properties,
+        // native dispatch/override syntax and dynamic member declarations.
+        expect("function");
+        const auto methodName = identifier();
+        expect("(");
+        std::vector<std::string> parameters;
+        if (!match(")")) {
+          do {
+            if (parameters.size() >= 16)
+              throw std::runtime_error("TJS2 subset: too many method parameters");
+            const auto name = identifier();
+            if (std::find(parameters.begin(), parameters.end(), name) !=
+                parameters.end())
+              throw std::runtime_error("TJS2 subset: duplicate method parameter");
+            parameters.push_back(name);
+          } while (match(","));
+          expect(")");
+        }
+        if (look().text != "{")
+          throw std::runtime_error("TJS2 subset: class method body expected");
+        const auto start = look().offset;
+        std::size_t braces = 0;
+        do {
+          if (look().kind == Token::End)
+            throw std::runtime_error("TJS2 subset: unterminated class method");
+          if (look().text == "{") ++braces;
+          else if (look().text == "}") --braces;
+          ++pc;
+        } while (braces);
+        if (active) {
+          if (definition.methods.size() >= 64)
+            throw std::runtime_error("TJS2 subset: class method limit exceeded");
+          const auto finish = tokens[pc - 1].offset + 1;
+          if (!definition.methods
+                   .emplace(methodName,
+                            SourceFunction{methodName, sourceName,
+                                           sourceCode.substr(start, finish-start),
+                                           std::move(parameters)})
+                   .second)
+            throw std::runtime_error("TJS2 subset: duplicate class method");
+        }
+        (void)match(";");
+      }
+      (void)match(";");
+      if (active) {
+        if (machine.classes.size() >= 128)
+          throw std::runtime_error("TJS2 subset: class count limit exceeded");
+        if (!machine.classes.emplace(definition.name, std::move(definition)).second)
+          throw std::runtime_error("TJS2 subset: duplicate class name");
+      }
+      return;
+    }
     if (match("function")) {
       const auto functionName = identifier();
       expect("(");
