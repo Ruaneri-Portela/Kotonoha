@@ -159,6 +159,13 @@ target_link_libraries(SchoolDaysSaveProvenanceTest PRIVATE school_days)
 add_test(NAME SchoolDays.SaveProvenance
     COMMAND SchoolDaysSaveProvenanceTest "${SCHOOL_DAYS_ROUTE}")
 
+# Synthetic GlobalFlag durability, recovery and fail-injection tests; never
+# reads commercial packs or personal saves.
+add_executable(SchoolDaysGlobalFlagAtomicTest
+    SchoolDaysGlobalFlagAtomicTest.cpp)
+target_link_libraries(SchoolDaysGlobalFlagAtomicTest PRIVATE school_days)
+add_test(NAME SchoolDays.GlobalFlagAtomic COMMAND SchoolDaysGlobalFlagAtomicTest)
+
 # Pure, private CMAP regression: clicking the currently selected Save/Load tab
 # must not clear the occupancy latch and disable an otherwise valid LOAD row.
 add_executable(SchoolDaysSaveLoadSamePageTest SchoolDaysSaveLoadSamePageTest.cpp)
@@ -361,6 +368,7 @@ if(WIN32)
         SchoolDaysPlayDataSessionTest
         SchoolDaysReplayRuntimeIsolationTest
         SchoolDaysReplayRuntimeUiTest
+        SchoolDays.GlobalFlagAtomic
         SchoolDaysRuntimeSmoke
         SchoolDaysLauncherTest
         ${_school_days_dev_only_ctests}
