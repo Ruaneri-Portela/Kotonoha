@@ -1194,9 +1194,16 @@ void Runtime::init(Kotonoha::Engine &owner) {
 
     std::vector<uint8_t> bytes;
     bool present = false;
+    const auto globalPath =
+        (documents / std::filesystem::u8path(profile.flagFileName))
+            .lexically_normal();
     if (storage.IsInitialized() &&
-        !storage.LoadGlobalFlag(&bytes, &present, &failure))
-      present = false;
+        !storage.LoadGlobalFlag(&bytes, &present, &failure)) {
+      throw std::runtime_error(
+          "School Days cannot read GlobalFlag.DAT at " +
+          globalPath.u8string() +
+          "; the existing file was not modified. Reason: " + failure);
+    }
     const auto legacy = documents / "GlobalFlag";
     if (!present && std::filesystem::is_regular_file(legacy)) {
       bytes = assets->read(legacy.string());
@@ -1212,7 +1219,13 @@ void Runtime::init(Kotonoha::Engine &owner) {
     }
     if (present) {
       Kotonoha_KtrfError error{};
-      Check(bridge.Session().LoadGlobalFlag(bytes, &error), error);
+      if (!bridge.Session().LoadGlobalFlag(bytes, &error)) {
+        throw std::runtime_error(
+            "School Days cannot load GlobalFlag.DAT at " +
+            globalPath.u8string() +
+            "; the existing file was not modified. Reason: " +
+            error.message);
+      }
     }
     loadConfig();
     applyConfig();
