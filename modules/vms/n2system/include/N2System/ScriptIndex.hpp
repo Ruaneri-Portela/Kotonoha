@@ -12,11 +12,19 @@ struct Label {
   std::size_t offset = 0;
   unsigned line = 0;
 };
+struct Invocation {
+  std::string function;
+  std::size_t offset = 0;
+  unsigned line = 0;
+};
 struct Chapter {
   std::string name;
   std::size_t start = 0; // just after opening brace
   std::size_t end = 0;   // matching closing brace
   std::vector<Label> labels;
+  // Function invocations in script order, without executing script actions.
+  // Includes expression operands such as ScrollbarValue("Scroll").
+  std::vector<Invocation> invocations;
   const Label *findLabel(std::string_view name) const;
 };
 class ScriptIndex {
