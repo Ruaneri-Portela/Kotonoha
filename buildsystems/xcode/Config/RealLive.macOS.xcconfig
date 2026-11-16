@@ -6,3 +6,6 @@ HEADER_SEARCH_PATHS = $(inherited) \
     "$(KOTONOHA_ROOT)/games/reallive/vendor" \
     "$(KOTONOHA_ROOT)/games/reallive/vendor/machine" \
     "$(KOTONOHA_ROOT)/games/reallive/vendor/libreallive"
+
+// Match the legacy RealLiveFormats CMake options (not other game targets).
+OTHER_CPLUSPLUSFLAGS = $(inherited) -funsigned-char
