@@ -557,3 +557,30 @@ This renderer and diagnostic do not yet run an interactive Vita window.
 ControlPad, font objects, additional visual classes, full menu transitions and
 audio still require integration. No game assets or protected executable are
 shipped, and the original PS2 runtime remains separate.
+
+
+### Vita ControlPad SCF primitives (preparing interactive input)
+
+\`VitaVmBridge::inputFrame(heldButtons, analog)\` now accepts one physical
+input frame, including up to four signed analog axes. Button positions are
+the port's PS2-style physical layout (e.g. circle=32, up=4096) and the
+\`ControlPad\` SCF system class exposes the Vita SceCtrl-byte-swapped values:
+\`held\` (primitive 0), \`trig\` (1), \`rapid\` (2), \`resetRapid\` (3),
+pressure=0 (4) and signed analog/stick magnitudes (5). The repeat cycle
+follows the original interval of 20 held frames followed by 5-frame repeats.
+Vibration primitive 6 returns its receiver without a haptics backend.
+
+This is a native input **adapter**, not an interactive Vita launcher yet:
+the caller must feed \`inputFrame\` from a real SDL input loop. The Vita
+system and Vita scenario scripts sometimes use different PS2/Vita button
+layouts; detection from the calling SCF class still needs an execution
+context hook. No gamepad hardware is polled inside the VM.
+
+\`\`\`sh
+cmake --build build --target AmagamiVitaControlPadTest
+ctest --test-dir build -R 'Amagami.Vita(ControlPad|SpriteRender|SpriteBridge)' --output-on-failure
+\`\`\`
+
+The test uses synthetic SCF methods to validate held/trig/rapid, byte order,
+shoulder buttons, analog magnitudes, repeat reset and release/re-press. There
+are no included proprietary resources.
