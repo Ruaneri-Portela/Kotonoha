@@ -16,14 +16,23 @@ This document tracks **incremental** work based on four independent interpreters
 - **RealLive:** Validate jump destinations before pushing a return frame. Malformed jump targets can no longer corrupt the VM call stack.
 - **LucaSystem:** Keep all payload bytes in odd-length instructions, parse the alignment byte *after* the unpadded instruction, reject truncated instructions and fixed parameters, and decode AIR English dialogue when the Japanese field is empty. Add lossless instruction serialization, preserving unknown opcodes and verifying synthetic/retail byte-for-byte round trips.
 - **Kirikiri:** Parse `@command arg=value` lines using the normal tag grammar; ignore leading-semicolon comment lines; decode `[[` as a literal opening bracket in text. Implement local `[call target=*label]` / `[return]` with a return stack, starred label targets, and host-owned save/restore of nested call state.
-- **N2System:** Add a standalone C++17 NsScript chapter/label/function-call source index with UTF-8 BOM handling, comments, nested blocks, quoted literals, source locations, malformed-input errors and automated tests. **This is not yet an executable N2System VM**, NPA archive reader or Nitroplus game port.
+- **N2System:** Add a standalone C++17 NsScript chapter/label/function-call source index with UTF-8 BOM handling, comments, nested blocks, quoted literals, source locations, malformed-input errors and automated tests. **This is not yet an executable N2System VM** or Nitroplus game port; the separate archive reader now covers AFS and limited NPA.
+
+## Follow-up integration on dev
+
+- **N2System AFS/NPA:** added an independent C++17 archive reader under `modules/providers/n2`, plus an `AssetProvider` adapter supporting archive mounting, case-normalized names, filename decoding for the supported NPA variant, read/list and input bounds checks. NPA compression and content encryption are **not** implemented. The module has synthetic archive tests (`KotonohaN2ArchivesTests`). This is an archive provider, **not** a playable N2System port.
+- **Kirikiri:** the VM now owns its callbacks (fixes a dangling reference after scenario initialization), tracks local KAG variables, executes a bounded subset of `[if]` / `[elsif]` / `[else]` / `[endif]`, and writes V3 saves with variables and local return frames while retaining V1/V2 loading. Timed waits resume on the runtime's update thread instead of on SDL timer threads. Full TJS2 expression semantics and cross-file calls are still missing.
+- **RealLive:** reports unsupported commands with scenario, PC, module type, module number, opcode and overload; the frontend logs this information so compatibility gaps are observable.
+- **LucaSystem:** WAIT/DRAW/FADE instructions now advance only once, wait clocks use 64-bit ticks, and the VM yields after a per-frame instruction budget to avoid accidental endless loops. The parser can replace same-length raw instruction payloads without relocating any branch offsets; variable-length script editing remains unsupported.
+
+Tests were **added but not executed** in this session. CI workflows remain dispatch-only.
 
 ## Next compatibility milestones
 
 1. **RealLive:** Test conditional branches, local/global memory, save compatibility, KOE/OVK/NWK audio and rlBabel against legally obtained original games.
-2. **N2System:** Add NPA/AFS asset providers, typed NsScript lexer/AST and expressions, opcode execution, transitions, save states and media callbacks. Keep it C++17 and independent of the .NET runtime.
+2. **N2System:** Add compressed/encrypted archive variants, integrate archive discovery with a playable launcher, typed NsScript lexer/AST and expressions, opcode execution, transitions, save states and media callbacks. Keep it C++17 and independent of the .NET runtime.
 3. **LucaSystem:** Introduce per-title opcode metadata, branch relocation and editable script import/export (the current serializer is lossless but does not rewrite operands or offsets); extend CZ decoder and voice archives using documented samples.
-4. **Kirikiri:** Add cross-script KAG call stacks, conditional execution, TJS2 expression/runtime support, additional XP3 variants and filter/plugin APIs.
+4. **Kirikiri:** Add cross-script KAG call stacks, full TJS2 expression/runtime support, animations, additional XP3 variants and filter/plugin APIs.
 
 ## Validation
 
@@ -31,7 +40,7 @@ Configure the repository with the relevant ports enabled and CTest:
 
 ```sh
 cmake -S . -B build -DKOTONOHA_BUILD_REALLIVE=ON -DKOTONOHA_BUILD_LUCA_SYSTEM=ON -DKOTONOHA_BUILD_KIRIKIRI=ON -DBUILD_TESTING=ON
-cmake --build build --target KotonohaN2SystemScriptTests LucaSystemFormatTests KirikiriXp3Tests RealLiveScriptTests
+cmake --build build --target KotonohaN2SystemScriptTests KotonohaN2ArchivesTests LucaSystemFormatTests KirikiriXp3Tests RealLiveScriptTests
 ctest --test-dir build --output-on-failure -R 'N2System|LucaSystem|KirikiriXp3|RealLiveScript'
 ```
 

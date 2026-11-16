@@ -16,14 +16,23 @@ Este documento registra avanços **incrementais** no Kotonoha com base em outros
 - **RealLive:** destinos de salto verificados antes de modificar a pilha de chamadas; proteção contra destino nulo.
 - **LucaSystem:** tamanho real das instruções `CodeLine`, preservação dos bytes de padding, rejeição de scripts incompletos e suporte a campos japoneses vazios nas mensagens AIR. O serializador recompõe exatamente os bytes de instruções desconhecidas, permitindo validar um round-trip sem reescrever opcodes.
 - **Kirikiri/KAG:** comandos `@nome`, comentários iniciados por `;` no início da linha, escape `[[`, destinos `*label`, chamadas `[call target=*label]`, retornos `[return]` e estado de execução para que o host salve/restaure a pilha local.
-- **N2System:** indexação C++17 de capítulos, rótulos e chamadas NsScript com offsets, linhas, BOM UTF-8, comentários, strings, blocos aninhados e detecção de erros. **Ainda não executa jogos N2System**, nem lê NPA/AFS.
+- **N2System:** indexação C++17 de capítulos, rótulos e chamadas NsScript com offsets, linhas, BOM UTF-8, comentários, strings, blocos aninhados e detecção de erros. **Ainda não executa jogos N2System**. O novo módulo de arquivos lê AFS e algumas variantes NPA.
+
+## Integração adicional na `dev`
+
+- **N2System AFS/NPA:** novos leitores C++17 em `modules/providers/n2`, com adaptador `AssetProvider`, montagem, normalização de nomes, leitura, listagem, verificações de limites e testes sintéticos `KotonohaN2ArchivesTests`. NPA compactado ou com dados criptografados ainda **não é suportado**. Este módulo não transforma o N2System em um jogo executável.
+- **Kirikiri:** callbacks agora pertencem à VM, corrigindo uma referência inválida após o carregamento do cenário. Variáveis KAG e subconjunto de condicionais `[if]` / `[elsif]` / `[else]` / `[endif]`; save V3 com pilha local/variáveis e leitura retrocompatível de V1/V2. Os temporizadores retomam a VM na thread de atualização. TJS2 completo e chamadas entre scripts ainda não estão prontos.
+- **RealLive:** indicação detalhada de comandos ainda não suportados, incluindo cenário, índice da instrução, tipo, módulo, opcode e overload.
+- **LucaSystem:** `WAIT`, `DRAW` e `FADE` passam a consumir a instrução uma única vez; relógios de 64 bits e orçamento de instruções por quadro. Suporte a patches de tamanho fixo sem movimentar offsets. Edição com mudança de tamanho e recálculo de saltos ainda não está disponível.
+
+Os testes de regressão foram adicionados, mas **não foram executados nesta sessão**. Todas as Actions continuam de execução manual.
 
 ## Próximas etapas técnicas
 
 1. **RealLive:** ampliar compatibilidade de opcodes, snapshots, arquivos de áudio KOE/OVK/NWK e rlBabel, com validação sobre dados legalmente obtidos.
-2. **N2System:** criar providers NPA/AFS, lexer/AST tipado, execução de scripts e integração de áudio/vídeo/efeitos.
+2. **N2System:** ampliar variantes NPA/AFS, criar um launcher, lexer/AST tipado, execução de scripts e integração de áudio/vídeo/efeitos.
 3. **LucaSystem:** tabelas de opcodes por título, escrita de parâmetros, recálculo de saltos e round-trip de edição/reimportação; ampliar decodificação CZ e vozes.
-4. **Kirikiri:** chamadas entre arquivos, expressões e condicionais TJS2/KAG, plugins e variantes adicionais de XP3.
+4. **Kirikiri:** chamadas entre arquivos, TJS2 completo, animações, plugins e variantes adicionais de XP3.
 
 ## Validação
 
@@ -31,7 +40,7 @@ Depois de configurar as dependências e selecionar os três ports existentes:
 
 ```sh
 cmake -S . -B build -DKOTONOHA_BUILD_REALLIVE=ON -DKOTONOHA_BUILD_LUCA_SYSTEM=ON -DKOTONOHA_BUILD_KIRIKIRI=ON -DBUILD_TESTING=ON
-cmake --build build --target KotonohaN2SystemScriptTests LucaSystemFormatTests KirikiriXp3Tests RealLiveScriptTests
+cmake --build build --target KotonohaN2SystemScriptTests KotonohaN2ArchivesTests LucaSystemFormatTests KirikiriXp3Tests RealLiveScriptTests
 ctest --test-dir build --output-on-failure -R 'N2System|LucaSystem|KirikiriXp3|RealLiveScript'
 ```
 
