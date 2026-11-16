@@ -224,13 +224,23 @@ void KagScript::Runner::restorePosition(std::size_t position) {
   blocked_ = false;
   finished_ = pc_ == script_.tags.size();
   pendingResume_ = nullptr;
+  // A plain PC restore cannot recover an active KAG subroutine stack.
+  returnStack_.clear();
 }
 
 bool KagScript::Runner::jumpToLabel(const std::string &label) {
-  auto position = findLabel(label);
+  // Real KAG scripts commonly refer to labels as target=*label.
+  const auto normalized = !label.empty() && label.front() == '*'
+                              ? label.substr(1)
+                              : label;
+  auto position = findLabel(normalized);
   if (position == script_.tags.size())
     return false;
-  restorePosition(position);
+  // A jump inside a subroutine must keep its return frames. Only an explicit
+  // restorePosition() resets the call stack.
+  pc_ = position;
+  blocked_ = finished_ = false;
+  pendingResume_ = nullptr;
   return true;
 }
 
@@ -295,15 +305,32 @@ bool KagScript::Runner::executeTag(const Tag &tag) {
   }
   if (name == "call") {
     SDL_Log("KagScript: tag call");
-    if (cb_.jump) {
-      auto target = getAttr(tag, "storage", std::string());
-      if (!target.empty())
-        cb_.jump(target);
+    const auto storage = getAttr(tag, "storage", std::string());
+    const auto label = getAttr(tag, "target", std::string());
+    if (storage.empty() && !label.empty()) {
+      // The run loop advances the PC after executing this tag, so store the
+      // next instruction and jump to the label (which is a no-op tag).
+      const auto resumeAt = pc_ + 1;
+      if (jumpToLabel(label))
+        returnStack_.push_back(resumeAt);
+      else
+        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                    "Kirikiri: unknown local call target '%s'",
+                    label.c_str());
+    } else if (cb_.jump && !storage.empty()) {
+      cb_.jump(label.empty() ? storage : storage + "#" + label);
     }
     return false;
   }
   if (name == "return") {
     SDL_Log("KagScript: tag return");
+    if (!returnStack_.empty()) {
+      // run() unconditionally increments pc_ after executeTag().
+      const auto resumeAt = returnStack_.back();
+      returnStack_.pop_back();
+      pc_ = resumeAt - 1;
+      return false;
+    }
     finished_ = true;
     return true;
   }
