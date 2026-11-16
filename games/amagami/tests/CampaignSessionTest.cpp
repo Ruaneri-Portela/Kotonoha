@@ -1,6 +1,8 @@
 #include <Amagami/Session.hpp>
 #include <chrono>
 #include <filesystem>
+#include <fstream>
+#include <iterator>
 #include <iostream>
 #include <set>
 #include <stdexcept>
@@ -157,6 +159,43 @@ int main(int argc, char **argv) {
     };
     require(eventNames(calendarResume) == eventNames(session),
             "Calendar save restores exactly the original unlockable nodes");
+    // Corrupted action journals must be rejected before touching the live
+    // Session, including a syntactically valid but mismatched choice.
+    const auto corruptedPath =
+        std::filesystem::path(savePath.string() + ".corrupted");
+    RemoveSave removeCorrupted{corruptedPath};
+    std::ifstream originalSave(savePath, std::ios::binary);
+    require(bool(originalSave), "Open original PS2 calendar checkpoint");
+    const std::string originalBytes(
+        (std::istreambuf_iterator<char>(originalSave)),
+        std::istreambuf_iterator<char>());
+    const auto rejectsCorruption = [&](const std::string &oldAction,
+                                      const std::string &replacementAction) {
+      std::string damaged = originalBytes;
+      const auto at = damaged.find(oldAction);
+      require(at != std::string::npos, "Expected replay action exists");
+      damaged.replace(at, oldAction.size(), replacementAction);
+      {
+        std::ofstream output(corruptedPath, std::ios::binary);
+        require(bool(output), "Write intentionally corrupt replay");
+        output << damaged;
+        require(bool(output), "Flush corrupt replay");
+      }
+      const auto oldDate = calendarResume.campaignDate();
+      const auto oldPeriod = calendarResume.campaignPeriod();
+      const auto oldEvents = eventNames(calendarResume);
+      bool rejected = false;
+      try {
+        calendarResume.load(corruptedPath.string());
+      } catch (const std::exception &) { rejected = true; }
+      require(rejected, "Reject structurally invalid PS2 campaign replay");
+      require(calendarResume.campaignDate() == oldDate &&
+                  calendarResume.campaignPeriod() == oldPeriod &&
+                  eventNames(calendarResume) == oldEvents,
+              "Invalid journal leaves the active campaign unchanged");
+    };
+    rejectsCorruption("\"period\" \"\"", "\"period\" \"tampered\"");
+    rejectsCorruption("\"advance\" \"\"", "\"choose\" \"0\"");
     // Continue native period transitions after the temporary load session
     // has been destroyed; catch stale pointers and replay journal drift.
     for (unsigned i = 0; i < 8; ++i) {
