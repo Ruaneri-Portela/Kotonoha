@@ -273,6 +273,7 @@ public:
 class Parser {
   Interpreter &machine;
   std::string sourceName;
+  std::string sourceCode;
   std::vector<Token> tokens;
   std::size_t pc = 0;
 
@@ -335,11 +336,7 @@ class Parser {
       }
       return machine.call(name, args, sourceName, active);
     }
-    if (!active) return {};
-    const auto it = machine.variables.find(name);
-    if (it == machine.variables.end())
-      throw std::runtime_error("TJS2 subset: unresolved variable: " + name);
-    return it->second;
+    return active ? machine.get(name) : Value();
   }
   Value unary(bool active) {
     if (match("!")) {
@@ -431,6 +428,53 @@ class Parser {
   void statement(bool active) {
     machine.tick();
     if (match(";")) return;
+    if (match("return")) {
+      const auto value = look().text == ";" ? Value() : expression(active);
+      expect(";");
+      if (active) {
+        if (machine.functionDepth == 0)
+          throw std::runtime_error("TJS2 subset: return outside function");
+        throw FunctionReturn{value};
+      }
+      return;
+    }
+    if (match("function")) {
+      const auto functionName = identifier();
+      expect("(");
+      std::vector<std::string> parameters;
+      if (!match(")")) {
+        do {
+          if (parameters.size() >= 16)
+            throw std::runtime_error("TJS2 subset: too many parameters");
+          const auto name = identifier();
+          if (std::find(parameters.begin(), parameters.end(), name) !=
+              parameters.end())
+            throw std::runtime_error("TJS2 subset: duplicate parameter name");
+          parameters.push_back(name);
+        } while (match(","));
+        expect(")");
+      }
+      if (look().text != "{")
+        throw std::runtime_error("TJS2 subset: function body expected");
+      const auto start = look().offset;
+      std::size_t braces = 0;
+      do {
+        if (look().kind == Token::End)
+          throw std::runtime_error("TJS2 subset: unterminated function body");
+        if (look().text == "{") ++braces;
+        else if (look().text == "}") --braces;
+        ++pc;
+      } while (braces);
+      if (active) {
+        if (machine.functions.size() >= 256)
+          throw std::runtime_error("TJS2 subset: function count limit exceeded");
+        const auto finish = tokens[pc - 1].offset + 1;
+        machine.functions[functionName] = SourceFunction{
+            functionName, sourceName, sourceCode.substr(start, finish - start),
+            std::move(parameters)};
+      }
+      return;
+    }
     if (match("{")) {
       while (!match("}")) {
         if (look().kind == Token::End)
@@ -478,7 +522,7 @@ class Parser {
       do {
         const auto name = identifier();
         const auto value = match("=") ? expression(active) : Value();
-        if (active) machine.variables[name] = value;
+        if (active) machine.set(name, value, true);
       } while (match(","));
       expect(";");
       return;
@@ -494,11 +538,8 @@ class Parser {
         const auto op = tokens[pc-1].text;
         expect(";");
         if (active) {
-          auto found = machine.variables.find(name);
-          if (found == machine.variables.end())
-            throw std::runtime_error("TJS2 subset: unknown increment target");
-          found->second = Value(found->second.number() +
-                                (op == "++" ? 1.0 : -1.0));
+          machine.set(name, Value(machine.get(name).number() +
+                                  (op == "++" ? 1.0 : -1.0)), false);
         }
         return;
       }
@@ -508,12 +549,14 @@ class Parser {
         expect(";");
         if (active) {
           if (op == "+=") {
-            const auto it = machine.variables.find(name);
-            if (it == machine.variables.end())
-              throw std::runtime_error("TJS2 subset: unknown compound target");
-            value = Value(it->second.string() + value.string());
+            const auto before = machine.get(name);
+            if (std::holds_alternative<std::string>(before.data) ||
+                std::holds_alternative<std::string>(value.data))
+              value = Value(before.string() + value.string());
+            else
+              value = Value(before.number() + value.number());
           }
-          machine.variables[name] = value;
+          machine.set(name, value, false);
           if (name == "System.title") machine.result.title = value.string();
         }
         return;
@@ -526,7 +569,8 @@ class Parser {
 
 public:
   Parser(Interpreter &vm, std::string file, std::string text)
-      : machine(vm), sourceName(std::move(file)), tokens(lex(text)) {}
+      : machine(vm), sourceName(std::move(file)),
+        sourceCode(std::move(text)), tokens(lex(sourceCode)) {}
   void run() {
     while (look().kind != Token::End) statement(true);
   }
