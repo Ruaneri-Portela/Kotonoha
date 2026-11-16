@@ -23,6 +23,10 @@ public:
   bool contains(std::string_view name) const;
   std::vector<std::uint8_t> read(std::string_view name) const;
   std::vector<std::uint8_t> read(const ArchiveEntry& entry) const;
+  // Import standard AFS "name,index" aliases; parsed transactionally.
+  // Call while configuring mounts, before concurrent runtime reads.
+  void addAfsNames(std::string_view ini);
+  std::vector<std::string> names() const;
   // Read a range directly from the archive without copying the whole asset.
   std::size_t readAt(const ArchiveEntry& entry, std::uint64_t offset,
                      std::uint8_t* buffer, std::size_t capacity) const;

@@ -2,6 +2,7 @@
 // Original C++17 reader based on publicly documented AFS/NPA structures.
 #include <N2System/Archive.hpp>
 #include <algorithm>
+#include <limits>
 #include <cstring>
 #include <stdexcept>
 #include <utility>
@@ -132,6 +133,60 @@ void Archive::parseNpa() {
   }
   if (pos>start || actualFiles!=files)
     throw std::runtime_error("N2System: inconsistent NPA table");
+}
+void Archive::addAfsNames(std::string_view ini) {
+  if (format_ != ArchiveFormat::AFS)
+    throw std::invalid_argument("N2System: AFS filename table on non-AFS archive");
+  std::size_t position = 0;
+  auto nextLine = [&]() -> std::string_view {
+    if (position >= ini.size())
+      throw std::runtime_error("N2System: truncated AFS filename table");
+    const auto end = ini.find('\n', position);
+    const auto finish = end == std::string_view::npos ? ini.size() : end;
+    auto line = ini.substr(position, finish - position);
+    position = end == std::string_view::npos ? ini.size() : end + 1;
+    if (!line.empty() && line.back() == '\r') line.remove_suffix(1);
+    return line;
+  };
+  auto decimal = [](std::string_view value) -> std::size_t {
+    if (value.empty())
+      throw std::runtime_error("N2System: missing AFS name index");
+    std::size_t result = 0;
+    for (char ch : value) {
+      if (ch < '0' || ch > '9' ||
+          result > (std::numeric_limits<std::size_t>::max() -
+                    static_cast<unsigned>(ch - '0')) / 10)
+        throw std::runtime_error("N2System: malformed AFS name index");
+      result = result * 10 + static_cast<unsigned>(ch - '0');
+    }
+    return result;
+  };
+  const auto count = decimal(nextLine());
+  if (count > entries_.size())
+    throw std::runtime_error("N2System: AFS alias count exceeds entry count");
+  auto newIndex = index_; // no mutation if the table is malformed
+  for (std::size_t n = 0; n < count; ++n) {
+    const auto line = nextLine();
+    const auto comma = line.find(',');
+    if (comma == std::string_view::npos)
+      throw std::runtime_error("N2System: malformed AFS name record");
+    const auto name = normalize(line.substr(0, comma));
+    const auto ordinal = decimal(line.substr(comma + 1));
+    if (ordinal >= entries_.size() || name.empty() ||
+        name.front() == '/' || name.find("../") != std::string::npos ||
+        name == ".." || name.find(':') != std::string::npos)
+      throw std::runtime_error("N2System: unsafe AFS alias or invalid index");
+    const auto [it, inserted] = newIndex.emplace(name, ordinal);
+    if (!inserted && it->second != ordinal)
+      throw std::runtime_error("N2System: conflicting AFS filename alias");
+  }
+  index_.swap(newIndex);
+}
+std::vector<std::string> Archive::names() const {
+  std::vector<std::string> names;
+  names.reserve(index_.size());
+  for (const auto &entry : index_) names.push_back(entry.first);
+  return names;
 }
 const ArchiveEntry* Archive::find(std::string_view path) const {
   const auto found=index_.find(normalize(path));
