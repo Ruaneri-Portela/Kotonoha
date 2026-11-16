@@ -198,6 +198,25 @@ int main() {
       check(script.serialize() == originalScriptData,
             "script CodeLine roundtrip preserves original bytes");
     check(script.instructionCount() == 1, "script one instruction");
+    if (script.valid()) {
+      const auto &original = script.instructions().front();
+      auto replacement = original.rawBytes;
+      if (replacement.size() >= 7)
+        replacement[2] = 'H'; // keep length, fixed field and other bytes
+      auto patchedData = script.replaceRaw(0, replacement);
+      LucaSystem::Script patched("patched.scr", patchedData);
+      check(patched.valid() && patched.instructions()[0].rawBytes == replacement,
+            "same-size instruction rewrite preserves opcode structure");
+      check(script.serialize() == originalScriptData,
+            "script patch does not mutate original bytes");
+      bool rejectsSize = false;
+      try {
+        (void)script.replaceRaw(0, {});
+      } catch (const std::invalid_argument &) {
+        rejectsSize = true;
+      }
+      check(rejectsSize, "instruction replacement rejects length changes");
+    }
     const auto &ins = script.instructions()[0];
     check(ins.opcode == 1, "instruction opcode == 1");
     check(ins.fixedFlag == 1, "instruction fixedFlag == 1");

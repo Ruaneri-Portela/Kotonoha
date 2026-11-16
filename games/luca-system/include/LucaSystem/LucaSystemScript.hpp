@@ -57,6 +57,11 @@ public:
   // Useful for preservation tests and future opcode-aware script patching.
   // Throws if parsing failed or the decoded instruction layout is inconsistent.
   std::vector<std::uint8_t> serialize() const;
+  // Same-size instruction payload replacement for translation/patch tools.
+  // Offsets and unknown opcodes are preserved; changing instruction size
+  // requires a separate branch-relocation implementation.
+  std::vector<std::uint8_t> replaceRaw(std::size_t instructionIndex,
+                                       const std::vector<std::uint8_t> &bytes) const;
 
 private:
   std::string name_;

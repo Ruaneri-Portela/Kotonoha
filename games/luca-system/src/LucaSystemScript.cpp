@@ -189,6 +189,20 @@ std::vector<std::uint8_t> Script::serialize() const {
   return output;
 }
 
+std::vector<std::uint8_t> Script::replaceRaw(
+    std::size_t instructionIndex, const std::vector<std::uint8_t> &bytes) const {
+  if (instructionIndex >= instructions_.size())
+    throw std::out_of_range("LucaSystem instruction index");
+  const auto &ins = instructions_[instructionIndex];
+  if (bytes.size() != ins.rawBytes.size())
+    throw std::invalid_argument(
+        "LucaSystem payload replacements must preserve byte length");
+  auto result = serialize();
+  std::copy(bytes.begin(), bytes.end(),
+            result.begin() + static_cast<std::size_t>(ins.pos) + 4);
+  return result;
+}
+
 std::string Disassemble(const ScriptInstruction &ins) {
   std::string out;
   out += std::to_string(ins.opcode);
