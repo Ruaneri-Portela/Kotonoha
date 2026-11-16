@@ -47,6 +47,7 @@ if(NOT ANDROID AND NOT EMSCRIPTEN)
         src/VitaScripts.cpp
         src/VitaVmBridge.cpp
         src/VitaSpriteRenderer.cpp
+        src/VitaInput.cpp
     )
     target_include_directories(AmagamiVitaData PUBLIC include)
     target_link_libraries(AmagamiVitaData PUBLIC
