@@ -121,6 +121,10 @@ int main(int argc, char **argv) {
         renderer.get(), [graphics](uint32_t id, uint32_t variant) {
           return graphics->uiSurface(id, variant);
         });
+    presenter.setNamedSource([graphics](const std::string &name) {
+      return graphics->contains(name) ? graphics->loadSurface(name)
+                                      : Kotonoha::SurfacePtr{};
+    });
     Amagami::Vita::VitaInput input;
     Kotonoha::GamepadPtr gamepad;
     int count = 0;
