@@ -200,6 +200,44 @@ int main() {
           "non-MESSAGE instruction does not expose arbitrary byte strings");
   }
 
+  // ---- Odd-length CodeLine payloads and malformed stream handling ----
+  {
+    LucaSystem::Script odd("odd.scr",
+                            {0x05, 0x00, 0x01, 0x00, 0x7f, 0x00});
+    check(odd.valid() && odd.instructionCount() == 1,
+          "odd-length CodeLine with alignment parses");
+    if (odd.valid() && !odd.instructions().empty()) {
+      const auto &entry = odd.instructions().front();
+      check(entry.rawBytes == std::vector<std::uint8_t>{0x7f} &&
+                entry.align == std::vector<std::uint8_t>{0x00},
+            "odd-length CodeLine retains final payload byte");
+    }
+    LucaSystem::Script noPad("missing-pad.scr",
+                              {0x05, 0x00, 0x01, 0x00, 0x7f});
+    check(!noPad.valid(), "missing odd alignment is rejected");
+    LucaSystem::Script tail("tail.scr",
+                            {0x04, 0x00, 0x01, 0x00, 0xff});
+    check(!tail.valid(), "truncated trailing instruction is rejected");
+    LucaSystem::Script fixed("fixed.scr",
+                             {0x04, 0x00, 0x01, 0x02});
+    check(!fixed.valid(), "truncated fixed parameters are rejected");
+  }
+
+  // An empty Japanese AIR MESSAGE must not suppress the English field.
+  {
+    // fixed uint16; Japanese UTF-16 length=0; English encoded length=-2;
+    // UTF-8 'OK' + NUL, followed by optional Chinese field.
+    const std::vector<std::uint8_t> payload = {
+        0, 0, 0, 0, 0xfe, 0xff, 'O', 'K', 0};
+    std::vector<std::uint8_t> bytes = {0x0f, 0x00, 36, 0};
+    bytes.insert(bytes.end(), payload.begin(), payload.end());
+    bytes.push_back(0); // alignment: length 15 is odd
+    LucaSystem::Script message("message.scr", std::move(bytes));
+    check(message.valid() && message.strings().size() == 1 &&
+              message.strings().front() == "OK",
+          "AIR MESSAGE uses English even when Japanese is empty");
+  }
+
   // ---- Real data (AIR) when available ----
   std::string air;
   if (const char *env = std::getenv("LUCA_SYSTEM_TEST_DATA"))
