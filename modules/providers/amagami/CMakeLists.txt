@@ -7,6 +7,7 @@ add_library(kotonoha_provider_amagami STATIC
     src/VitaCpk.cpp
     src/VitaGraphics.cpp
     src/VitaGraphicsAssets.cpp
+    src/VitaSystemGraphics.cpp
 )
 add_library(Kotonoha::Modules::Providers::Amagami ALIAS kotonoha_provider_amagami)
 add_library(Kotonoha::ProviderAmagami ALIAS kotonoha_provider_amagami)
