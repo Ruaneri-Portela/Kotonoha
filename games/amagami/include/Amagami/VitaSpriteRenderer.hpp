@@ -9,8 +9,9 @@
 
 namespace Amagami::Vita {
 
-// Renderer for the current subset of Vita Sprite objects only. Script-space
-// origin is the middle of the 480x272 view; on-screen size is 960x544.
+// Renderer for the implemented Sprite, BG_Picture and FontChar Vita scene
+// subset. Script-space origin is the middle of the 480x272 UI view;
+// on-screen size is 960x544.
 // Sprites use the UI view: K2X_Script world scale/origin are deliberately not
 // applied to them (the original engine keeps Sprite in the fixed UI view).
 // Does not call SDL_RenderPresent: embed in a Kotonoha draw pass or use the
