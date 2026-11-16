@@ -51,13 +51,19 @@ private:
   std::string decodeTextAsset(const std::string &id,
                               const std::vector<Uint8> &bytes,
                               const char *encoding) const override;
+  struct Xp3Segment {
+    std::uint64_t offset = 0;
+    std::uint64_t storedSize = 0;
+    std::uint64_t originalSize = 0;
+    bool compressed = false;
+  };
   struct Xp3Entry {
     std::string name;
     std::string archiveId; // virtual identifier for the XP3 source
-    std::uint64_t offset = 0;
-    std::uint64_t compressedSize = 0;
     std::uint64_t originalSize = 0;
-    bool compressed = false;
+    // A Kirikiri storage may span many raw or zlib-compressed segments.
+    // Keep the physical spans rather than incorrectly returning only one.
+    std::vector<Xp3Segment> segments;
   };
 
   std::filesystem::path root;
