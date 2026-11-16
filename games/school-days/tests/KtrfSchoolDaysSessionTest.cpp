@@ -1,5 +1,7 @@
 #include <Kotonoha/routing/SchoolDaysBackRules.hpp>
+#include <Kotonoha/routing/SchoolDaysEndBackgroundResolver.hpp>
 #include <Kotonoha/routing/SchoolDaysKtrfSession.hpp>
+#include <Kotonoha/routing/SchoolDaysReplayModel.hpp>
 
 #include <algorithm>
 #include <cstdlib>
@@ -53,6 +55,190 @@ int main(int argc, char **argv) {
     return 2;
   }
   Kotonoha_KtrfError error{};
+  {
+    Kotonoha::SchoolDaysKtrfSession unlockSource;
+    Check(unlockSource.Open(argv[1], argv[2], &error), error.message);
+    bool unlocked = true;
+    Check(Kotonoha::SchoolDaysReplayModel::AnyHSceneUnlocked(
+              unlockSource.State(), &unlocked, &error) && !unlocked,
+          "fresh routing globals exposed Replay");
+    const char *first = Kotonoha::SchoolDaysReplayModel::HSceneUnlockKey(0);
+    const char *second = Kotonoha::SchoolDaysReplayModel::HSceneUnlockKey(40);
+    Check(unlockSource.Persistence().WriteGlobalInteger(
+              first, 11, -1, &unlockSource.State(), &error), error.message);
+    Check(Kotonoha::SchoolDaysReplayModel::AnyHSceneUnlocked(
+              unlockSource.State(), &unlocked, &error) && unlocked,
+          "first persisted REP flag did not enable Replay");
+    Check(unlockSource.Persistence().WriteGlobalInteger(
+              second, 11, -1, &unlockSource.State(), &error), error.message);
+    std::vector<uint8_t> globalBytes;
+    Check(unlockSource.SerializeGlobalFlag(&globalBytes, &error), error.message);
+    unlockSource.Close();
+
+    Kotonoha::SchoolDaysKtrfSession restarted;
+    Check(restarted.Open(argv[1], argv[2], &error), error.message);
+    Check(restarted.LoadGlobalFlag(globalBytes, &error), error.message);
+    Check(Kotonoha::SchoolDaysReplayModel::AnyHSceneUnlocked(
+              restarted.State(), &unlocked, &error) && unlocked,
+          "REP flags did not survive GlobalFlag reload");
+    int64_t value = 0;
+    Check(restarted.State().ReadGlobalInt(first, &value, &error) && value != 0 &&
+              restarted.State().ReadGlobalInt(second, &value, &error) &&
+              value != 0 &&
+              restarted.State().ReadGlobalInt(
+                  Kotonoha::SchoolDaysReplayModel::HSceneUnlockKey(1),
+                  &value, &error) && value == 0 &&
+              restarted.State().ReadGlobalInt("EndClear", &value, &error) &&
+              value == 0,
+          "GlobalFlag reload changed unrelated Replay or EndClear flags");
+  }
+  {
+    using Resolver = Kotonoha::SchoolDaysEndBackgroundResolver;
+    Kotonoha::SchoolDaysKtrfSession audit;
+    Check(audit.Open(argv[1], argv[2], &error), error.message);
+    Kotonoha::SchoolDaysKtrfScene firstScene;
+    Check(audit.ResetNewGame(&firstScene, &error), error.message);
+    auto &state = audit.State();
+    auto &persistence = audit.Persistence();
+    int64_t value = 1;
+    Check(state.ReadGlobalInt("EndClear", &value, &error) && value == 0 &&
+              state.ReadGlobalInt("AllClear", &value, &error) && value == 0 &&
+              state.ReadGlobalInt("[End00]=\"", &value, &error) && value == 0,
+          "fresh profile contained ending or AllClear progress");
+    Check(persistence.WriteGlobalInteger("AUDIT_UNRELATED", 3, 17, &state,
+                                         &error), error.message);
+    Check(persistence.RegisterEnding(0, firstScene.sceneKey, &state, &error) &&
+              persistence.RegisterEnding(1, firstScene.sceneKey, &state,
+                                         &error) &&
+              persistence.RegisterEnding(0, firstScene.sceneKey, &state,
+                                         &error), error.message);
+    Resolver::Profile profile;
+    profile.endBgView = true;
+    profile.endingMax = 22;
+    profile.baseAsset = "base.png";
+    profile.allClearAsset = "all.png";
+    for (int i = 0; i < 22; ++i)
+      profile.endingAssets.push_back("end" + std::to_string(i) + ".png");
+    Resolver::Result result;
+    Check(Resolver::Resolve(profile, &state, &result, &error) &&
+              result.kind == Resolver::Kind::Ending &&
+              result.endingIndex == 0 && !result.promotedAllClear,
+          "two endings plus duplicate selected wrong background");
+    Check(state.ReadGlobalInt("AllClear", &value, &error) && value == 0,
+          "duplicate ending promoted AllClear");
+    for (int i = 2; i < 21; ++i)
+      Check(persistence.RegisterEnding(i, firstScene.sceneKey, &state, &error),
+            error.message);
+    Check(Resolver::Resolve(profile, &state, &result, &error) &&
+              result.kind == Resolver::Kind::Ending &&
+              result.endingIndex == 20 && !result.promotedAllClear,
+          "one missing ending promoted AllClear");
+    Check(persistence.RegisterEnding(21, firstScene.sceneKey, &state, &error),
+          error.message);
+    profile.endBgView = false;
+    Check(Resolver::Resolve(profile, &state, &result, &error) &&
+              result.kind == Resolver::Kind::Base &&
+              !result.promotedAllClear &&
+              state.ReadGlobalInt("AllClear", &value, &error) && value == 0,
+          "EndBGView=0 promoted AllClear");
+    profile.endBgView = true;
+    profile.allClearAsset.clear();
+    Check(!Resolver::Resolve(profile, &state, &result, &error) &&
+              state.ReadGlobalInt("AllClear", &value, &error) && value == 0,
+          "missing AllClear asset changed state");
+    profile.allClearAsset = "all.png";
+    Check(Resolver::Resolve(profile, &state, &result, &error) &&
+              result.kind == Resolver::Kind::AllClear &&
+              result.promotedAllClear && result.asset == "all.png",
+          "all 22 endings did not promote AllClear at title resolution");
+    Check(persistence.WriteGlobalInteger("AllClear", 11, -1, &state, &error),
+          error.message);
+    Check(state.ReadGlobalInt("EndClear", &value, &error) && value != 0 &&
+              state.ReadGlobalInt("EndNo", &value, &error) && value == 21,
+          "AllClear promotion changed EndClear or EndNo");
+    std::vector<uint8_t> bytes;
+    Check(audit.SerializeGlobalFlag(&bytes, &error), error.message);
+    audit.Close();
+    Kotonoha::SchoolDaysKtrfSession restarted;
+    Check(restarted.Open(argv[1], argv[2], &error) &&
+              restarted.LoadGlobalFlag(bytes, &error), error.message);
+    Check(restarted.State().ReadGlobalInt("AllClear", &value, &error) &&
+              value != 0 &&
+              restarted.State().ReadGlobalInt("EndNo", &value, &error) &&
+              value == 21 &&
+              restarted.State().ReadGlobalInt("AUDIT_UNRELATED", &value,
+                                               &error) && value == 17,
+          "AllClear, EndNo or unrelated flag did not survive restart");
+    Check(restarted.ResetNewGame(&firstScene, &error) &&
+              restarted.State().ReadGlobalInt("AllClear", &value, &error) &&
+              value != 0,
+          "new game erased global AllClear");
+  }
+  {
+    Kotonoha::SchoolDaysKtrfSession routeAudit;
+    Check(routeAudit.Open(argv[1], argv[2], &error), error.message);
+    Kotonoha::SchoolDaysKtrfScene firstScene;
+    Check(routeAudit.ResetNewGame(&firstScene, &error), error.message);
+    auto &state = routeAudit.State();
+    auto &persistence = routeAudit.Persistence();
+    Check(persistence.RecordCheckpoint(0, 0, firstScene.sceneKey, &state,
+                                       &error), error.message);
+    Kotonoha::SchoolDaysKtrfSession::RouteMapCheckpointPlan plan;
+    if (!routeAudit.PlanRouteMapCheckpoint(100, &plan, &error))
+      Fail(std::string("saved checkpoint could not be selected: ") +
+           error.message);
+    Check(persistence.GlobalIntegerIsSet("SP100"),
+          "checkpoint did not set global SP100");
+    Check(persistence.ReplaceCurrentScriptSnapshot(
+              firstScene.sceneKey, 0x3f800000u, state, &error), error.message);
+    std::vector<uint8_t> savedLog;
+    Check(persistence.SerializeSaveLog(&savedLog, &error), error.message);
+    persistence.ResetScriptManagerForFrontendReturn();
+    Check(!routeAudit.PlanRouteMapCheckpoint(100, &plan, &error) &&
+              persistence.GlobalIntegerIsSet("SP100"),
+          "global SP flag incorrectly supplied a missing tag3 snapshot");
+    Kotonoha::SchoolDaysKtrfSession::LoadPlan loadPlan;
+    if (!routeAudit.PlanLoadSave(savedLog, &loadPlan, &error))
+      Fail(std::string("saved SLog load plan failed: ") + error.message);
+    Check(std::any_of(loadPlan.image.document.records.begin(),
+                      loadPlan.image.document.records.end(),
+                      [](const auto &record) {
+                        return record.tag == 3 && record.secondary == u"SP100";
+                      }),
+          "serialized SaveFile lost SP100 tag3 checkpoint");
+    if (!routeAudit.CommitLoadSave(loadPlan, &error))
+      Fail(std::string("saved SLog load commit failed: ") + error.message);
+    Check(std::any_of(persistence.SaveLogDocument().records.begin(),
+                      persistence.SaveLogDocument().records.end(),
+                      [](const auto &record) {
+                        return record.tag == 3 && record.secondary == u"SP100";
+                      }),
+          "SaveFile load discarded SP100 tag3 checkpoint");
+    if (!routeAudit.PlanRouteMapCheckpoint(100, &plan, &error))
+      Fail(std::string("loaded checkpoint could not be selected: ") +
+           error.message);
+  }
+  {
+    Kotonoha::SchoolDaysKtrfSession smallerProfile;
+    Check(smallerProfile.Open(argv[1], argv[2], &error), error.message);
+    Kotonoha::SchoolDaysKtrfScene firstScene;
+    Check(smallerProfile.ResetNewGame(&firstScene, &error), error.message);
+    auto &state = smallerProfile.State();
+    auto &persistence = smallerProfile.Persistence();
+    Check(persistence.RegisterEnding(0, firstScene.sceneKey, &state, &error) &&
+              persistence.RegisterEnding(1, firstScene.sceneKey, &state,
+                                         &error), error.message);
+    Kotonoha::SchoolDaysEndBackgroundResolver::Profile profile;
+    profile.endBgView = true;
+    profile.endingMax = 2;
+    profile.baseAsset = "base.png";
+    profile.allClearAsset = "all.png";
+    profile.endingAssets = {"end0.png", "end1.png"};
+    Kotonoha::SchoolDaysEndBackgroundResolver::Result result;
+    Check(Kotonoha::SchoolDaysEndBackgroundResolver::Resolve(
+              profile, &state, &result, &error) && result.promotedAllClear,
+          "configured EndingMax=2 did not promote after two endings");
+  }
   Kotonoha::SchoolDaysKtrfSession session;
   if (!session.Open(argv[1], argv[2], &error))
     Fail(std::string("open failed: ") + error.message);
