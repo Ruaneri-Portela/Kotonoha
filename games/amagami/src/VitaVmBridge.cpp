@@ -110,6 +110,41 @@ void SpriteState::refresh() {
     zoom[i] = value(3, i);
   }
 }
+// Console scripts read SceCtrl positions rather than the host's PS2 layout.
+// L/R are also exposed in the Vita trigger bits, matching the original port.
+namespace {
+uint32_t sceButtons(uint32_t physical) {
+  const uint32_t bytes = ((physical & 0xffu) << 8) |
+                         ((physical >> 8) & 0xffu);
+  return bytes | ((physical & 4u) ? 0x100u : 0u) |
+         ((physical & 8u) ? 0x200u : 0u);
+}
+} // namespace
+
+void VitaVmBridge::inputFrame(uint32_t heldButtons,
+                              std::array<int, 4> analog) {
+  const uint32_t previous = padHeld_;
+  padHeld_ = heldButtons & 0xffffu;
+  padPressed_ = padHeld_ & ~previous;
+  if (!padHeld_ || padHeld_ != previous)
+    rapidCount_ = 0;
+  else
+    rapidCount_ = rapidCount_ < 20 ? rapidCount_ + 1 :
+                  (rapidCount_ + 1 >= 25 ? 20 : rapidCount_ + 1);
+  padRapid_ = padPressed_ | (rapidCount_ == 20 ? padHeld_ : 0u);
+  for (std::size_t i = 0; i < 4; ++i)
+    padAnalog_[i] = std::clamp(analog[i], -128, 128);
+}
+uint32_t VitaVmBridge::vitaButtonsHeld() const {
+  return sceButtons(padHeld_);
+}
+uint32_t VitaVmBridge::vitaButtonsPressed() const {
+  return sceButtons(padPressed_);
+}
+uint32_t VitaVmBridge::vitaButtonsRapid() const {
+  return sceButtons(padRapid_);
+}
+
 void VitaVmBridge::tick(double frames) {
   if (!std::isfinite(frames) || frames < 0 || frames > 360000)
     throw std::runtime_error("Amagami Vita: invalid scene time delta");
@@ -184,6 +219,44 @@ std::optional<VmValue>
 VitaVmBridge::primitive(const std::string &owner, const std::string &method,
                         bool classMethod, const VmValue &receiver,
                         unsigned number, const std::vector<VmValue> &args) {
+  // ControlPad primitives (Vita system image). The caller supplies one input
+  // frame through inputFrame(); these getters must not poll or mutate SDL.
+  // Scenario-only PS2-layout remapping depends on the invoking SCF class and
+  // remains separate future work.
+  if (owner == "ControlPad") {
+    if (number == 0 || number == 1 || number == 2 || number == 4) {
+      expectCount(args, 0);
+      const uint32_t mask = number == 0 ? vitaButtonsHeld() :
+                            number == 1 ? vitaButtonsPressed() :
+                            number == 2 ? vitaButtonsRapid() : 0;
+      return VmValue::num(mask);
+    }
+    if (number == 3) { // resetRapid()
+      expectCount(args, 0);
+      rapidCount_ = 0;
+      padRapid_ = padPressed_;
+      return receiver;
+    }
+    if (number == 5) { // analog(axis), 0..3 signed, 4/5 stick magnitude
+      expectCount(args, 1);
+      const int64_t axis = argument(args, 0);
+      if (axis >= 0 && axis < 4)
+        return VmValue::num(padAnalog_[std::size_t(axis)]);
+      if (axis == 4 || axis == 5) {
+        const std::size_t p = std::size_t(axis - 4) * 2;
+        const double x = padAnalog_[p], y = padAnalog_[p + 1];
+        return VmValue::num(std::trunc(std::sqrt(x * x + y * y)));
+      }
+      return VmValue::num(0);
+    }
+    if (number == 6) { // actPausePrim: vibration (no desktop haptics yet)
+      expectCount(args, 2);
+      (void)argument(args, 0); (void)argument(args, 1);
+      return receiver;
+    }
+    return std::nullopt;
+  }
+
   // Sprite methods are resolved by the SCF class that owns the native
   // wrapper, including calls made through a subclass.
   if (owner == "Sprite" && !classMethod) {

@@ -72,6 +72,14 @@ public:
   }
   const ViewState &view() const { return view_; }
   const std::map<uint64_t, SpriteState> &sprites() const { return sprites_; }
+  // Ingest one hardware/input frame. Buttons use the PS2-style physical
+  // positions in the port (e.g. circle=32, up=4096); system Vita SCFs read
+  // SceCtrl's byte-swapped mask. Call this once per presented frame.
+  void inputFrame(uint32_t heldButtons,
+                  std::array<int, 4> analog = {{0, 0, 0, 0}});
+  uint32_t vitaButtonsHeld() const;
+  uint32_t vitaButtonsPressed() const;
+  uint32_t vitaButtonsRapid() const;
   // Advance at the same frame cadence as SCF animation commands.
   // Scene snapshots stay valid between ticks; pause freezes individual sprites.
   void tick(double frames);
@@ -88,6 +96,9 @@ private:
   std::map<uint64_t, SpriteState> sprites_;
   uint64_t nextUid_ = 1, nextOrder_ = 0;
   TextureSize textureSize_;
+  uint32_t padHeld_ = 0, padPressed_ = 0, padRapid_ = 0;
+  unsigned rapidCount_ = 0;
+  std::array<int, 4> padAnalog_{{0, 0, 0, 0}};
 };
 
 } // namespace Amagami::Vita
