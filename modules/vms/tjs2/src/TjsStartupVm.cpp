@@ -1149,17 +1149,22 @@ Value Interpreter::call(const std::string &name,
   // Dotted method calls are resolved through the object member table, so
   // aliases like this.start() and controller.start() retain their receiver.
   if (name.find('.') != std::string::npos) {
+    Value candidate;
+    bool resolved = false;
     try {
-      const Value candidate = get(name);
-      if (auto id = std::get_if<std::string>(&candidate.data)) {
+      candidate = get(name);
+      resolved = true;
+    } catch (const std::runtime_error &) {
+      // A native Layer method has no script member. Only lookup is
+      // recoverable; method body errors must propagate to the title UI.
+    }
+    if (resolved) {
+      if (const auto id = std::get_if<std::string>(&candidate.data)) {
         if (auto bound = boundMethods.find(*id); bound != boundMethods.end()) {
           const BoundMethod method = bound->second;
           return invokeSource(method.function, params, method.receiver);
         }
       }
-    } catch (const std::runtime_error &) {
-      // A native Layer method has no matching script member; it is checked
-      // by the restricted built-in method table below.
     }
   }
 
