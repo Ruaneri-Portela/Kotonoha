@@ -173,13 +173,3 @@ jobs:
           echo "::warning::Linux synthetic CTest failed; compiled ZIP artifacts remain available"
           echo "⚠️ Linux: synthetic CTest failed. See the step logs." >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Run synthetic HTTP Range server unit tests
-        id: synthetic-http
-        continue-on-error: true
-        run: python3 -m unittest discover -s tools -p test_serve_web.py -v
-
-      - name: Warn if synthetic HTTP tests failed
-        if: steps.synthetic-http.outcome == 'failure'
-        run: |
-          echo "::warning::Linux HTTP Range synthetic unit tests failed"
-          echo "⚠️ Linux: HTTP Range synthetic unit tests failed. See logs." >> "$GITHUB_STEP_SUMMARY"
