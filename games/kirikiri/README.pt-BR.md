@@ -57,7 +57,7 @@ O subconjunto TJS2 inclui agora **objetos gráficos virtuais** `new Window()`,
 `show()`/`hide()`. As imagens vêm do provedor XP3 e são compostas na cena
 do Kotonoha, com origem relativa aos pais e ordem de camadas.
 
-Uma função TJS2 **nomeada** pode ser atribuída a `layer.onClick`. O runtime
+Uma função TJS2 **nomeada ou anônima** (sem captura de escopo léxico) pode ser atribuída a `layer.onClick` ou `layer.onMouseDown`. O runtime
 realiza hit-testing em coordenadas lógicas, dispara o handler na VM preservada
 e reconhece `Scripts.execStorage("roteiro.ks")` para entrar no KAG. Se o
 bootstrap produzir camadas com imagens e regiões clicáveis e terminar
@@ -75,6 +75,6 @@ button.onClick = startGame;
 ```
 
 **Limitações:** viewport compatível de 1280×720, sem janelas do SO nem DLLs.
-Handlers anônimos, eventos de teclado/hover, timers, animações, classes
+Closures completas, eventos de teclado/hover, timers, animações, classes
 nativas reais e bytecode TJS2 seguem pendentes. Isto **não comprova o
 menu original de NEKOPARA**; os testes usam arquivos sintéticos.
