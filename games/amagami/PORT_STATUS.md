@@ -676,22 +676,22 @@ ctest --test-dir build -R 'Amagami.(Campaign|CampaignSession)
 
 ### Vita BG_Picture in scene renderer (development)
 
-The \`BG_Picture\` native bridge now understands the original Vita system
+The `BG_Picture` native bridge now understands the original Vita system
 class primitives 0 (preload by filename), 1 (create from place/scene/mob),
 2 (clone), 3 (destroy), 4 (update), 6 (layer), 7–10
 (light/alpha/position/zoom), 15 (finish tweens) and 16 (pause).
-The constructor builds \`bg/%03d_%d%d.gxt\` names from original SCF parameters
-and asks \`VitaGraphicsAssets\` to resolve them through \`graph/GRAPH.CPK\`.
+The constructor builds `bg/%03d_%d%d.gxt` names from original SCF parameters
+and asks `VitaGraphicsAssets` to resolve them through `graph/GRAPH.CPK`.
 Named backgrounds share the existing SDL3 layer renderer and texture cache;
-the world view applies \`K2X_Script.setScrScl\` and \`setScrOrgY\`.
-UI \`Sprite\` keeps its separate, fixed screen-space view.
+the world view applies `K2X_Script.setScrScl` and `setScrOrgY`.
+UI `Sprite` keeps its separate, fixed screen-space view.
 
-\`\`\`sh
+```sh
 cmake --build build --target AmagamiVitaBackgroundTest AmagamiVitaLive
 ctest --test-dir build -R 'Amagami.Vita(Background|SpriteRender|Input)' --output-on-failure
-\`\`\`
+```
 
-The synthetic \`Amagami.VitaBackground\` test checks the named-resource
+The synthetic `Amagami.VitaBackground` test checks the named-resource
 decoder hook, source dimensions, layered SDL pixels, camera scaling,
 tween update, cloning and destruction without retail assets. Missing
 resources do not render as black bars. Rotation, nontrivial waveform
@@ -708,22 +708,22 @@ PS2 test results have been confirmed in this environment.
 
 ### Vita BG_Picture in scene renderer (development)
 
-The \`BG_Picture\` native bridge now understands the original Vita system
+The `BG_Picture` native bridge now understands the original Vita system
 class primitives 0 (preload by filename), 1 (create from place/scene/mob),
 2 (clone), 3 (destroy), 4 (update), 6 (layer), 7–10
 (light/alpha/position/zoom), 15 (finish tweens) and 16 (pause).
-The constructor builds \`bg/%03d_%d%d.gxt\` names from original SCF parameters
-and asks \`VitaGraphicsAssets\` to resolve them through \`graph/GRAPH.CPK\`.
+The constructor builds `bg/%03d_%d%d.gxt` names from original SCF parameters
+and asks `VitaGraphicsAssets` to resolve them through `graph/GRAPH.CPK`.
 Named backgrounds share the existing SDL3 layer renderer and texture cache;
-the world view applies \`K2X_Script.setScrScl\` and \`setScrOrgY\`.
-UI \`Sprite\` keeps its separate, fixed screen-space view.
+the world view applies `K2X_Script.setScrScl` and `setScrOrgY`.
+UI `Sprite` keeps its separate, fixed screen-space view.
 
-\`\`\`sh
+```sh
 cmake --build build --target AmagamiVitaBackgroundTest AmagamiVitaLive
 ctest --test-dir build -R 'Amagami.Vita(Background|SpriteRender|Input)' --output-on-failure
-\`\`\`
+```
 
-The synthetic \`Amagami.VitaBackground\` test checks the named-resource
+The synthetic `Amagami.VitaBackground` test checks the named-resource
 decoder hook, source dimensions, layered SDL pixels, camera scaling,
 tween update, cloning and destruction without retail assets. Missing
 resources do not render as black bars. Rotation, nontrivial waveform
