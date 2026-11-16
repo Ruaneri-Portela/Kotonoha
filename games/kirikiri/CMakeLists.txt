@@ -38,3 +38,7 @@ if(BUILD_TESTING)
     target_link_libraries(KirikiriXp3Tests PRIVATE kirikiri_formats)
     add_test(NAME KirikiriXp3 COMMAND KirikiriXp3Tests)
 endif()
+
+if(BUILD_TESTING)
+    kotonoha_label_directory_tests()
+endif()

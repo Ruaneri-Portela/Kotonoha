@@ -85,3 +85,15 @@ if(BUILD_TESTING)
         set_tests_properties(Pmail.SaveState PROPERTIES TIMEOUT 60)
     endif()
 endif()
+
+kotonoha_label_directory_tests(REAL
+    Pmail.Audio
+    Pmail.Graphics
+    Pmail.RuntimeAudio
+    Pmail.RuntimeBoot
+    Pmail.StoryFlow
+    Pmail.AnimationPlayback
+    Pmail.AnimationRender
+    Pmail.AudioCommands
+    Pmail.SaveState
+)

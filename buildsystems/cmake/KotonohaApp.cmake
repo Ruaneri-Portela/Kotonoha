@@ -254,6 +254,7 @@ function(kotonoha_configure_app target)
                     "-DPYTHON_VERSION=${APP_PYTHON_VERSION}"
                     -P "${KOTONOHA_PROJECT_ROOT}/buildsystems/cmake/CheckBundleContents.cmake"
             )
+            set_tests_properties("Kotonoha.BundleLayout.${target}" PROPERTIES LABELS "synthetic")
         endif()
     else()
         # 2. Configuração para plataformas fora do macOS Bundle (Windows/Linux/Executáveis padrão)

@@ -74,3 +74,14 @@ if(DDLC_DATA_DIR)
       WORKING_DIRECTORY "${KOTONOHA_PROJECT_ROOT}" ENVIRONMENT "SDL_AUDIODRIVER=dummy" TIMEOUT 60)
   endif()
 endif()
+
+kotonoha_label_directory_tests(REAL
+    DokiDoki.Script
+    DokiDoki.Playthrough
+    DokiDoki.VanillaAssets
+    DokiDoki.PatchedAssets
+    DokiDoki.PatchedScript
+    DokiDoki.PatchedPlaythrough
+    DokiDoki.Presentation
+    DokiDoki.PatchedPresentation
+)

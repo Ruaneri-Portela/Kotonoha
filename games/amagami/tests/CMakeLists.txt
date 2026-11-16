@@ -46,3 +46,12 @@ if(AMAGAMI_DISC_IMAGE AND EXISTS "${AMAGAMI_DISC_IMAGE}")
     target_link_libraries(AmagamiCampaignTest PRIVATE AmagamiFormats Kotonoha::Vmamagami)
     add_test(NAME Amagami.Campaign COMMAND AmagamiCampaignTest "${AMAGAMI_DISC_IMAGE}")
 endif()
+
+kotonoha_label_directory_tests(REAL
+    Amagami.Disc
+    Amagami.Session
+    Amagami.Engine
+    Amagami.Boot
+    Amagami.Translation
+    Amagami.Campaign
+)

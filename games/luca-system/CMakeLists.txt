@@ -36,3 +36,7 @@ if(BUILD_TESTING)
   target_link_libraries(LucaSystemFormatTests PRIVATE luca_system_formats)
   add_test(NAME LucaSystemFormatTests COMMAND LucaSystemFormatTests)
 endif()
+
+if(BUILD_TESTING)
+    kotonoha_label_directory_tests()
+endif()
